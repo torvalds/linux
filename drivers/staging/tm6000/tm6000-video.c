@@ -1083,35 +1083,37 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *norm)
 	return 0;
 }
 
+static const char *iname [] = {
+	[TM6000_INPUT_TV] = "Television",
+	[TM6000_INPUT_COMPOSITE1] = "Composite 1",
+	[TM6000_INPUT_COMPOSITE2] = "Composite 2",
+	[TM6000_INPUT_SVIDEO] = "S-Video",
+};
+
 static int vidioc_enum_input(struct file *file, void *priv,
-				struct v4l2_input *inp)
+				struct v4l2_input *i)
 {
 	struct tm6000_fh   *fh = priv;
 	struct tm6000_core *dev = fh->dev;
+	unsigned int n;
 
-	switch (inp->index) {
-	case TM6000_INPUT_TV:
-		inp->type = V4L2_INPUT_TYPE_TUNER;
-		strcpy(inp->name, "Television");
-		break;
-	case TM6000_INPUT_COMPOSITE:
-		if (dev->caps.has_input_comp) {
-			inp->type = V4L2_INPUT_TYPE_CAMERA;
-			strcpy(inp->name, "Composite");
-		} else
-			return -EINVAL;
-		break;
-	case TM6000_INPUT_SVIDEO:
-		if (dev->caps.has_input_svid) {
-			inp->type = V4L2_INPUT_TYPE_CAMERA;
-			strcpy(inp->name, "S-Video");
-		} else
-			return -EINVAL;
-		break;
-	default:
+	n = i->index;
+	if (n >= 3)
 		return -EINVAL;
-	}
-	inp->std = TM6000_STD;
+
+	if (!dev->vinput[n].type)
+		return -EINVAL;
+
+	i->index = n;
+
+	if (dev->vinput[n].type == TM6000_INPUT_TV)
+		i->type = V4L2_INPUT_TYPE_TUNER;
+	else
+		i->type = V4L2_INPUT_TYPE_CAMERA;
+
+	strcpy(i->name, iname[dev->vinput[n].type]);
+
+	i->std = TM6000_STD;
 
 	return 0;
 }
@@ -1125,33 +1127,21 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 
 	return 0;
 }
+
 static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct tm6000_fh   *fh = priv;
 	struct tm6000_core *dev = fh->dev;
 	int rc = 0;
-	char buf[1];
 
-	switch (i) {
-	case TM6000_INPUT_TV:
-		dev->input = i;
-		*buf = 0;
-		break;
-	case TM6000_INPUT_COMPOSITE:
-	case TM6000_INPUT_SVIDEO:
-		dev->input = i;
-		*buf = 1;
-		break;
-	default:
+	if (i >= 3)
 		return -EINVAL;
-	}
-	rc = tm6000_read_write_usb(dev, USB_DIR_OUT | USB_TYPE_VENDOR,
-			       REQ_03_SET_GET_MCU_PIN, 0x03, 1, buf, 1);
+	if (!dev->vinput[i].type)
+		return -EINVAL;
 
-	if (!rc) {
-		dev->input = i;
-		rc = vidioc_s_std(file, priv, &dev->vfd->current_norm);
-	}
+	dev->input = i;
+
+	rc = vidioc_s_std(file, priv, &dev->vfd->current_norm);
 
 	return rc;
 }
@@ -1379,7 +1369,13 @@ static int radio_s_tuner(struct file *file, void *priv,
 static int radio_enum_input(struct file *file, void *priv,
 					struct v4l2_input *i)
 {
+	struct tm6000_fh *fh = priv;
+	struct tm6000_core *dev = fh->dev;
+
 	if (i->index != 0)
+		return -EINVAL;
+
+	if (!dev->rinput.type)
 		return -EINVAL;
 
 	strcpy(i->name, "Radio");
@@ -1390,7 +1386,14 @@ static int radio_enum_input(struct file *file, void *priv,
 
 static int radio_g_input(struct file *filp, void *priv, unsigned int *i)
 {
-	*i = 0;
+	struct tm6000_fh *fh = priv;
+	struct tm6000_core *dev = fh->dev;
+
+	if (dev->input !=5)
+		return -EINVAL;
+
+	*i = dev->input -5;
+
 	return 0;
 }
 
@@ -1410,6 +1413,17 @@ static int radio_s_audio(struct file *file, void *priv,
 
 static int radio_s_input(struct file *filp, void *priv, unsigned int i)
 {
+	struct tm6000_fh *fh = priv;
+	struct tm6000_core *dev = fh->dev;
+
+	if (i)
+		return -EINVAL;
+
+	if (!dev->rinput.type)
+		return -EINVAL;
+
+	dev->input = i + 5;
+
 	return 0;
 }
 
