@@ -48,31 +48,27 @@ int  MarkFail_D_PhyOneBlock      (struct us_data *);
 DWORD ErrXDCode;
 DWORD ErrCode;
 //BYTE  SectBuf[SECTSIZE];
-BYTE  WorkBuf[SECTSIZE];
-BYTE  Redundant[REDTSIZE];
-BYTE  WorkRedund[REDTSIZE];
+static BYTE  WorkBuf[SECTSIZE];
+static BYTE  Redundant[REDTSIZE];
+static BYTE  WorkRedund[REDTSIZE];
 //WORD  Log2Phy[MAX_ZONENUM][MAX_LOGBLOCK];
-WORD  *Log2Phy[MAX_ZONENUM];                 // 128 x 1000,   Log2Phy[MAX_ZONENUM][MAX_LOGBLOCK];
-BYTE  Assign[MAX_ZONENUM][MAX_BLOCKNUM/8];
-WORD  AssignStart[MAX_ZONENUM];
+static WORD  *Log2Phy[MAX_ZONENUM];                 // 128 x 1000,   Log2Phy[MAX_ZONENUM][MAX_LOGBLOCK];
+static BYTE  Assign[MAX_ZONENUM][MAX_BLOCKNUM/8];
+static WORD  AssignStart[MAX_ZONENUM];
 WORD  ReadBlock;
 WORD  WriteBlock;
 DWORD MediaChange;
-DWORD SectCopyMode;
-
-extern struct SSFDCTYPE  Ssfdc;
-extern struct ADDRESS    Media;
-extern struct CIS_AREA   CisArea;
+static DWORD SectCopyMode;
 
 //BIT Control Macro
-BYTE BitData[] = { 0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80 } ;
+static BYTE BitData[] = { 0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80 } ;
 #define Set_D_Bit(a,b)    (a[(BYTE)((b)/8)]|= BitData[(b)%8])
 #define Clr_D_Bit(a,b)    (a[(BYTE)((b)/8)]&=~BitData[(b)%8])
 #define Chk_D_Bit(a,b)    (a[(BYTE)((b)/8)] & BitData[(b)%8])
 
 //extern PBYTE    SMHostAddr;
-extern BYTE     IsSSFDCCompliance;
-extern BYTE     IsXDCompliance;
+BYTE     IsSSFDCCompliance;
+BYTE     IsXDCompliance;
 
 
 //

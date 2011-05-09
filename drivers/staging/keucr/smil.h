@@ -206,6 +206,19 @@ struct CIS_AREA
 };
 
 
+extern BYTE IsSSFDCCompliance;
+extern BYTE IsXDCompliance;
+
+extern DWORD	ErrXDCode;
+extern DWORD	ErrCode;
+extern WORD	ReadBlock;
+extern WORD	WriteBlock;
+extern DWORD	MediaChange;
+
+extern struct SSFDCTYPE  Ssfdc;
+extern struct ADDRESS    Media;
+extern struct CIS_AREA   CisArea;
+
 //----- SMILMain.c ---------------------------------------------------
 /******************************************/
 int         Init_D_SmartMedia           (void);
@@ -223,6 +236,7 @@ int         Media_D_OneSectWriteNext    (struct us_data *,BYTE *);
 int         Media_D_OneSectWriteFlush   (struct us_data *);
 
 /******************************************/
+extern int	SM_FreeMem(void);	/* ENE SM function */
 void        SM_EnableLED                (struct us_data *,BOOLEAN);
 void        Led_D_TernOn                (void);
 void        Led_D_TernOff               (void);

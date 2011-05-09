@@ -48,11 +48,13 @@ static void   trans_result  (BYTE,   BYTE,   BYTE *, BYTE *);
 #define MASK_CPS    0x3f
 #define CORRECTABLE 0x00555554L
 
-static void trans_result(reg2,reg3,ecc1,ecc2)
-BYTE reg2; // LP14,LP12,LP10,...
-BYTE reg3; // LP15,LP13,LP11,...
-BYTE *ecc1; // LP15,LP14,LP13,...
-BYTE *ecc2; // LP07,LP06,LP05,...
+/*
+ * reg2; // LP14,LP12,LP10,...
+ * reg3; // LP15,LP13,LP11,...
+ * *ecc1; // LP15,LP14,LP13,...
+ * *ecc2; // LP07,LP06,LP05,...
+ */
+static void trans_result(BYTE reg2, BYTE reg3, BYTE *ecc1, BYTE *ecc2)
 {
     BYTE a; // Working for reg2,reg3
     BYTE b; // Working for ecc1,ecc2
@@ -83,12 +85,14 @@ BYTE *ecc2; // LP07,LP06,LP05,...
 }
 
 //static void calculate_ecc(table,data,ecc1,ecc2,ecc3)
-void calculate_ecc(table,data,ecc1,ecc2,ecc3)
-BYTE *table; // CP0-CP5 code table
-BYTE *data; // DATA
-BYTE *ecc1; // LP15,LP14,LP13,...
-BYTE *ecc2; // LP07,LP06,LP05,...
-BYTE *ecc3; // CP5,CP4,CP3,...,"1","1"
+/*
+ * *table; // CP0-CP5 code table
+ * *data; // DATA
+ * *ecc1; // LP15,LP14,LP13,...
+ * *ecc2; // LP07,LP06,LP05,...
+ * *ecc3; // CP5,CP4,CP3,...,"1","1"
+ */
+void calculate_ecc(BYTE *table, BYTE *data, BYTE *ecc1, BYTE *ecc2, BYTE *ecc3)
 {
     DWORD  i;    // For counting
     BYTE a;    // Working for table
@@ -113,12 +117,14 @@ BYTE *ecc3; // CP5,CP4,CP3,...,"1","1"
     *ecc3=((~reg1)<<2)|BIT1BIT0; // Make TEL format
 }
 
-BYTE correct_data(data,eccdata,ecc1,ecc2,ecc3)
-BYTE *data; // DATA
-BYTE *eccdata; // ECC DATA
-BYTE ecc1; // LP15,LP14,LP13,...
-BYTE ecc2; // LP07,LP06,LP05,...
-BYTE ecc3; // CP5,CP4,CP3,...,"1","1"
+/*
+ * *data; // DATA
+ * *eccdata; // ECC DATA
+ * ecc1; // LP15,LP14,LP13,...
+ * ecc2; // LP07,LP06,LP05,...
+ * ecc3; // CP5,CP4,CP3,...,"1","1"
+ */
+BYTE correct_data(BYTE *data, BYTE *eccdata, BYTE ecc1, BYTE ecc2, BYTE ecc3)
 {
     DWORD l; // Working to check d
     DWORD d; // Result of comparison
@@ -177,10 +183,7 @@ BYTE ecc3; // CP5,CP4,CP3,...,"1","1"
     return(3); // Uncorrectable error
 }
 
-int _Correct_D_SwECC(buf,redundant_ecc,calculate_ecc)
-BYTE *buf;
-BYTE *redundant_ecc;
-BYTE *calculate_ecc;
+int _Correct_D_SwECC(BYTE *buf, BYTE *redundant_ecc, BYTE *calculate_ecc)
 {
 	DWORD err;
 
@@ -195,9 +198,7 @@ BYTE *calculate_ecc;
 	return -1;
 }
 
-void _Calculate_D_SwECC(buf,ecc)
-BYTE *buf;
-BYTE *ecc;
+void _Calculate_D_SwECC(BYTE *buf, BYTE *ecc)
 {
     calculate_ecc(ecctable,buf,ecc+1,ecc+0,ecc+2);
 }

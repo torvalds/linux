@@ -135,7 +135,4 @@ extern int	MS_CountFreeBlock(struct us_data *us, WORD PhyBlock);
 extern int	MS_LibSearchBlockFromLogical(struct us_data *us, WORD logblk);
 extern int	MS_LibSearchBlockFromPhysical(struct us_data *us, WORD phyblk);
 
-// ENE SM function
-extern int	SM_FreeMem(void);
-
 #endif

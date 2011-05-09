@@ -14,6 +14,7 @@
 
 #include "usb.h"
 #include "scsiglue.h"
+#include "smil.h"
 #include "transport.h"
 
 /* Some informational data */
@@ -34,7 +35,7 @@ MODULE_DEVICE_TABLE (usb, eucr_usb_ids);
 
 #ifdef CONFIG_PM
 
-int eucr_suspend(struct usb_interface *iface, pm_message_t message)
+static int eucr_suspend(struct usb_interface *iface, pm_message_t message)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 	pr_info("--- eucr_suspend ---\n");
@@ -55,7 +56,7 @@ int eucr_suspend(struct usb_interface *iface, pm_message_t message)
 }
 //EXPORT_SYMBOL_GPL(eucr_suspend);
 
-int eucr_resume(struct usb_interface *iface)
+static int eucr_resume(struct usb_interface *iface)
 {
 	BYTE    tmp = 0;
 
@@ -80,7 +81,7 @@ int eucr_resume(struct usb_interface *iface)
 	return 0;
 }
 //EXPORT_SYMBOL_GPL(eucr_resume);
-int eucr_reset_resume(struct usb_interface *iface)
+static int eucr_reset_resume(struct usb_interface *iface)
 {
 	BYTE    tmp = 0;
 	struct us_data *us = usb_get_intfdata(iface);

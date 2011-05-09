@@ -42,10 +42,8 @@ struct SSFDCTYPE                Ssfdc;
 struct ADDRESS                  Media;
 struct CIS_AREA                 CisArea;
 
-BYTE                            EccBuf[6];
+static BYTE                            EccBuf[6];
 extern PBYTE                    SMHostAddr;
-extern BYTE                     IsSSFDCCompliance;
-extern BYTE                     IsXDCompliance;
 extern DWORD                    ErrXDCode;
 
 extern WORD  ReadBlock;
