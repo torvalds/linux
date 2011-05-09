@@ -254,9 +254,6 @@ static bool pdc_is_idle(struct pch_dma_chan *pd_chan)
 
 static void pdc_dostart(struct pch_dma_chan *pd_chan, struct pch_dma_desc* desc)
 {
-	struct pch_dma *pd = to_pd(pd_chan->chan.device);
-	u32 val;
-
 	if (!pdc_is_idle(pd_chan)) {
 		dev_err(chan2dev(&pd_chan->chan),
 			"BUG: Attempt to start non-idle channel\n");
@@ -282,10 +279,6 @@ static void pdc_dostart(struct pch_dma_chan *pd_chan, struct pch_dma_desc* desc)
 		channel_writel(pd_chan, NEXT, desc->txd.phys);
 		pdc_set_mode(&pd_chan->chan, DMA_CTL0_SG);
 	}
-
-	val = dma_readl(pd, CTL2);
-	val |= 1 << (DMA_CTL2_START_SHIFT_BITS + pd_chan->chan.chan_id);
-	dma_writel(pd, CTL2, val);
 }
 
 static void pdc_chain_complete(struct pch_dma_chan *pd_chan,
