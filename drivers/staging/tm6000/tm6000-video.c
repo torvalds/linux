@@ -355,9 +355,13 @@ static int copy_streams(u8 *data, unsigned long len,
 			case TM6000_URB_MSG_VBI:
 				/* Need some code to copy vbi buffer */
 				break;
-			case TM6000_URB_MSG_PTS:
+			case TM6000_URB_MSG_PTS: {
 				/* Need some code to copy pts */
+				u32 pts;
+				pts = *(u32 *)ptr;
+				printk(KERN_INFO "%s: field %d, PTS %x", dev->name, field, pts);
 				break;
+			}
 			}
 		}
 		if (ptr + pktsize > endp) {
