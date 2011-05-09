@@ -2900,7 +2900,7 @@ SYSCALL_DEFINE3(sigprocmask, int, how, old_sigset_t __user *, nset,
 		old_sigset_t __user *, oset)
 {
 	old_sigset_t old_set, new_set;
-	int error;
+	sigset_t new_blocked;
 
 	old_set = current->blocked.sig[0];
 
@@ -2909,27 +2909,23 @@ SYSCALL_DEFINE3(sigprocmask, int, how, old_sigset_t __user *, nset,
 			return -EFAULT;
 		new_set &= ~(sigmask(SIGKILL) | sigmask(SIGSTOP));
 
-		error = 0;
-		spin_lock_irq(&current->sighand->siglock);
+		new_blocked = current->blocked;
+
 		switch (how) {
-		default:
-			error = -EINVAL;
-			break;
 		case SIG_BLOCK:
-			sigaddsetmask(&current->blocked, new_set);
+			sigaddsetmask(&new_blocked, new_set);
 			break;
 		case SIG_UNBLOCK:
-			sigdelsetmask(&current->blocked, new_set);
+			sigdelsetmask(&new_blocked, new_set);
 			break;
 		case SIG_SETMASK:
-			current->blocked.sig[0] = new_set;
+			new_blocked.sig[0] = new_set;
 			break;
+		default:
+			return -EINVAL;
 		}
 
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-		if (error)
-			return error;
+		set_current_blocked(&new_blocked);
 	}
 
 	if (oset) {
