@@ -221,6 +221,7 @@ struct tm6000_core {
 
 	int				ctl_mute;             /* audio */
 	int				ctl_volume;
+	int				amode;
 
 	/* DVB-T support */
 	struct tm6000_dvb		*dvb;

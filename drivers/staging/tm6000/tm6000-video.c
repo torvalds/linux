@@ -34,6 +34,7 @@
 #include <linux/usb.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-ioctl.h>
+#include <media/tuner.h>
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
 #include <linux/highmem.h>
@@ -883,14 +884,19 @@ static void res_free(struct tm6000_core *dev, struct tm6000_fh *fh)
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
 {
+	struct tm6000_core *dev = ((struct tm6000_fh *)priv)->dev;
 
 	strlcpy(cap->driver, "tm6000", sizeof(cap->driver));
 	strlcpy(cap->card, "Trident TVMaster TM5600/6000/6010", sizeof(cap->card));
 	cap->version = TM6000_VERSION;
 	cap->capabilities =	V4L2_CAP_VIDEO_CAPTURE |
 				V4L2_CAP_STREAMING     |
-				V4L2_CAP_TUNER	       |
+				V4L2_CAP_AUDIO         |
 				V4L2_CAP_READWRITE;
+
+	if (dev->tuner_type != TUNER_ABSENT)
+		cap->capabilities |= V4L2_CAP_TUNER;
+
 	return 0;
 }
 
@@ -1150,7 +1156,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return rc;
 }
 
-	/* --- controls ---------------------------------------------- */
+/* --- controls ---------------------------------------------- */
 static int vidioc_queryctrl(struct file *file, void *priv,
 				struct v4l2_queryctrl *qc)
 {
@@ -1251,7 +1257,11 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	t->type       = V4L2_TUNER_ANALOG_TV;
 	t->capability = V4L2_TUNER_CAP_NORM;
 	t->rangehigh  = 0xffffffffUL;
-	t->rxsubchans = V4L2_TUNER_SUB_MONO;
+	t->rxsubchans = V4L2_TUNER_SUB_STEREO;
+
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_tuner, t);
+
+	t->audmode = dev->amode;
 
 	return 0;
 }
@@ -1267,6 +1277,10 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
+	dev->amode = t->audmode;
+	dprintk(dev, 3, "audio mode: %x\n", t->audmode);
+
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_tuner, t);
 	return 0;
 }
 
@@ -1320,7 +1334,11 @@ static int radio_querycap(struct file *file, void *priv,
 		le16_to_cpu(dev->udev->descriptor.idVendor),
 		le16_to_cpu(dev->udev->descriptor.idProduct));
 	cap->version = dev->dev_type;
-	cap->capabilities = V4L2_CAP_TUNER;
+	cap->capabilities = V4L2_CAP_TUNER |
+			V4L2_CAP_AUDIO     |
+			V4L2_CAP_RADIO     |
+			V4L2_CAP_READWRITE |
+			V4L2_CAP_STREAMING;
 
 	return 0;
 }
@@ -1337,16 +1355,9 @@ static int radio_g_tuner(struct file *file, void *priv,
 	memset(t, 0, sizeof(*t));
 	strcpy(t->name, "Radio");
 	t->type = V4L2_TUNER_RADIO;
+	t->rxsubchans = V4L2_TUNER_SUB_STEREO;
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_tuner, t);
-
-	if ((dev->aradio == TM6000_AIP_LINE1) ||
-				(dev->aradio == TM6000_AIP_LINE2)) {
-		t->rxsubchans = V4L2_TUNER_SUB_MONO;
-	}
-	else {
-		t->rxsubchans = V4L2_TUNER_SUB_STEREO;
-	}
 
 	return 0;
 }

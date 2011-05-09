@@ -22,6 +22,9 @@
 #include "tm6000.h"
 #include "tm6000-regs.h"
 
+static unsigned int tm6010_a_mode = 0;
+module_param(tm6010_a_mode, int, 0644);
+MODULE_PARM_DESC(tm6010_a_mode, "set tm6010 sif audio mode");
 struct tm6000_reg_settings {
 	unsigned char req;
 	unsigned char reg;
@@ -947,9 +950,8 @@ static int tm6000_set_audio_std(struct tm6000_core *dev,
 				enum tm6000_audio_std std)
 {
 	uint8_t areg_02 = 0x04; /* GC1 Fixed gain 0dB */
-	uint8_t areg_05 = 0x09; /* Auto 4.5 = M Japan, Auto 6.5 = DK */
+	uint8_t areg_05 = 0x01; /* Auto 4.5 = M Japan, Auto 6.5 = DK */
 	uint8_t areg_06 = 0x02; /* Auto de-emphasis, mannual channel mode */
-	uint8_t mono_flag = 0;  /* No mono */
 	uint8_t nicam_flag = 0; /* No NICAM */
 
 	if (dev->radio) {
@@ -958,81 +960,99 @@ static int tm6000_set_audio_std(struct tm6000_core *dev,
 		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
 		tm6000_set_reg(dev, TM6010_REQ08_R04_A_SIF_AMP_CTRL, 0x80);
 		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x0c);
-		tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x00);
+		/* set mono or stereo */
+		if (dev->amode == V4L2_TUNER_MODE_MONO)
+			tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x00);
+		else if (dev->amode == V4L2_TUNER_MODE_STEREO)
+			tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x02);
 		tm6000_set_reg(dev, TM6010_REQ08_R09_A_MAIN_VOL, 0x18);
 		tm6000_set_reg(dev, TM6010_REQ08_R0C_A_ASD_THRES2, 0x0a);
 		tm6000_set_reg(dev, TM6010_REQ08_R0D_A_AMD_THRES, 0x40);
-		tm6000_set_reg(dev, TM6010_REQ08_RF1_AADC_POWER_DOWN, 0xfc);
+		tm6000_set_reg(dev, TM6010_REQ08_RF1_AADC_POWER_DOWN, 0xfe);
 		tm6000_set_reg(dev, TM6010_REQ08_R1E_A_GAIN_DEEMPH_OUT, 0x13);
 		tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
 		return 0;
 	}
 
-	switch (std) {
-#if 0
-	case DK_MONO:
-		mono_flag = 1;
+	switch (tm6010_a_mode) {
+	/* auto */
+	case 0:
+		switch (dev->norm) {
+		case V4L2_STD_NTSC_M_KR:
+			areg_05 |= 0x00;
+			break;
+		case V4L2_STD_NTSC_M_JP:
+			areg_05 |= 0x40;
+			break;
+		case V4L2_STD_NTSC_M:
+		case V4L2_STD_PAL_M:
+		case V4L2_STD_PAL_N:
+			areg_05 |= 0x20;
+			break;
+		case V4L2_STD_PAL_Nc:
+			areg_05 |= 0x60;
+			break;
+		case V4L2_STD_SECAM_L:
+			areg_05 |= 0x00;
+			break;
+		case V4L2_STD_DK:
+			areg_05 |= 0x10;
+			break;
+		}
 		break;
-	case DK_A2_1:
+	/* A2 */
+	case 1:
+		switch (dev->norm) {
+		case V4L2_STD_B:
+		case V4L2_STD_GH:
+			areg_05 = 0x05;
+			break;
+		case V4L2_STD_DK:
+			areg_05 = 0x09;
+			break;
+		}
 		break;
-	case DK_A2_3:
-		areg_05 = 0x0b;
-		break;
-	case BG_MONO:
-		mono_flag = 1;
-		areg_05 = 0x05;
-		break;
-#endif
-	case BG_NICAM:
-		areg_05 = 0x07;
+	/* NICAM */
+	case 2:
+		switch (dev->norm) {
+		case V4L2_STD_B:
+		case V4L2_STD_GH:
+			areg_05 = 0x07;
+			break;
+		case V4L2_STD_DK:
+			areg_05 = 0x06;
+			break;
+		case V4L2_STD_PAL_I:
+			areg_05 = 0x08;
+			break;
+		case V4L2_STD_SECAM_L:
+			areg_05 = 0x0a;
+			areg_02 = 0x02;
+			break;
+		}
 		nicam_flag = 1;
 		break;
-	case BTSC:
-		areg_05 = 0x02;
-		break;
-	case BG_A2:
-		areg_05 = 0x05;
-		break;
-	case DK_NICAM:
-		areg_05 = 0x06;
-		nicam_flag = 1;
-		break;
-	case EIAJ:
-		areg_05 = 0x02;
-		break;
-	case I_NICAM:
-		areg_05 = 0x08;
-		nicam_flag = 1;
-		break;
-	case KOREA_A2:
-		areg_05 = 0x04;
-		break;
-	case L_NICAM:
-		areg_02 = 0x02; /* GC1 Fixed gain +12dB */
-		areg_05 = 0x0a;
-		nicam_flag = 1;
-		break;
-	default:
-		/* do nothink */
+	/* other */
+	case 3:
+		switch (dev->norm) {
+		/* DK3_A2 */
+		case V4L2_STD_DK:
+			areg_05 = 0x0b;
+			break;
+		/* Korea */
+		case V4L2_STD_NTSC_M_KR:
+			areg_05 = 0x04;
+			break;
+		/* EIAJ */
+		case V4L2_STD_NTSC_M_JP:
+			areg_05 = 0x03;
+			break;
+		default:
+			areg_05 = 0x02;
+			break;
+		}
 		break;
 	}
-
-#if 0
-	switch (tv_audio_mode) {
-	case TV_MONO:
-		areg_06 = (nicam_flag) ? 0x03 : 0x00;
-		break;
-	case TV_LANG_A:
-		areg_06 = 0x00;
-		break;
-	case TV_LANG_B:
-		areg_06 = 0x01;
-		break;
-	}
-#endif
-
-	if (mono_flag)
-		areg_06 = 0x00;
 
 	tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x00);
 	tm6000_set_reg(dev, TM6010_REQ08_R02_A_FIX_GAIN_CTRL, areg_02);
@@ -1066,9 +1086,6 @@ static int tm6000_set_audio_std(struct tm6000_core *dev,
 	tm6000_set_reg(dev, TM6010_REQ08_R1E_A_GAIN_DEEMPH_OUT, 0x13);
 	tm6000_set_reg(dev, TM6010_REQ08_R1F_A_TEST_INTF_SEL, 0x00);
 	tm6000_set_reg(dev, TM6010_REQ08_R20_A_TEST_PIN_SEL, 0x00);
-	tm6000_set_reg(dev, TM6010_REQ08_RE4_ADC_IN2_SEL, 0xf3);
-	tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x00);
-	tm6000_set_reg(dev, TM6010_REQ08_RF1_AADC_POWER_DOWN, 0xfc);
 	tm6000_set_reg(dev, TM6010_REQ08_R01_A_INIT, 0x80);
 
 	return 0;
