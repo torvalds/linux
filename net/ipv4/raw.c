@@ -595,7 +595,7 @@ back_from_confirm:
 		if (!ipc.addr)
 			ipc.addr = fl4.daddr;
 		lock_sock(sk);
-		err = ip_append_data(sk, ip_generic_getfrag,
+		err = ip_append_data(sk, &fl4, ip_generic_getfrag,
 				     msg->msg_iov, len, 0,
 				     &ipc, &rt, msg->msg_flags);
 		if (err)

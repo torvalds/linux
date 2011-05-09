@@ -822,6 +822,7 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	getfrag = is_udplite ? udplite_getfrag : ip_generic_getfrag;
 
+	fl4 = &inet->cork.fl.u.ip4;
 	if (up->pending) {
 		/*
 		 * There are pending frames.
@@ -920,7 +921,6 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	if (connected)
 		rt = (struct rtable *)sk_dst_check(sk, 0);
 
-	fl4 = &inet->cork.fl.u.ip4;
 	if (rt == NULL) {
 		struct net *net = sock_net(sk);
 
@@ -989,9 +989,9 @@ back_from_confirm:
 
 do_append_data:
 	up->len += ulen;
-	err = ip_append_data(sk, getfrag, msg->msg_iov, ulen,
-			sizeof(struct udphdr), &ipc, &rt,
-			corkreq ? msg->msg_flags|MSG_MORE : msg->msg_flags);
+	err = ip_append_data(sk, fl4, getfrag, msg->msg_iov, ulen,
+			     sizeof(struct udphdr), &ipc, &rt,
+			     corkreq ? msg->msg_flags|MSG_MORE : msg->msg_flags);
 	if (err)
 		udp_flush_pending_frames(sk);
 	else if (!corkreq)
@@ -1031,6 +1031,7 @@ EXPORT_SYMBOL(udp_sendmsg);
 int udp_sendpage(struct sock *sk, struct page *page, int offset,
 		 size_t size, int flags)
 {
+	struct inet_sock *inet = inet_sk(sk);
 	struct udp_sock *up = udp_sk(sk);
 	int ret;
 
@@ -1055,7 +1056,8 @@ int udp_sendpage(struct sock *sk, struct page *page, int offset,
 		return -EINVAL;
 	}
 
-	ret = ip_append_page(sk, page, offset, size, flags);
+	ret = ip_append_page(sk, &inet->cork.fl.u.ip4,
+			     page, offset, size, flags);
 	if (ret == -EOPNOTSUPP) {
 		release_sock(sk);
 		return sock_no_sendpage(sk->sk_socket, page, offset,

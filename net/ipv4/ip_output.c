@@ -776,7 +776,9 @@ static inline int ip_ufo_append_data(struct sock *sk,
 				       (length - transhdrlen));
 }
 
-static int __ip_append_data(struct sock *sk, struct sk_buff_head *queue,
+static int __ip_append_data(struct sock *sk,
+			    struct flowi4 *fl4,
+			    struct sk_buff_head *queue,
 			    struct inet_cork *cork,
 			    int getfrag(void *from, char *to, int offset,
 					int len, int odd, struct sk_buff *skb),
@@ -808,7 +810,7 @@ static int __ip_append_data(struct sock *sk, struct sk_buff_head *queue,
 	maxfraglen = ((mtu - fragheaderlen) & ~7) + fragheaderlen;
 
 	if (cork->length + length > 0xFFFF - fragheaderlen) {
-		ip_local_error(sk, EMSGSIZE, rt->rt_dst, inet->inet_dport,
+		ip_local_error(sk, EMSGSIZE, fl4->daddr, inet->inet_dport,
 			       mtu-exthdrlen);
 		return -EMSGSIZE;
 	}
@@ -1083,7 +1085,7 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
  *
  *	LATER: length must be adjusted by pad at tail, when it is required.
  */
-int ip_append_data(struct sock *sk,
+int ip_append_data(struct sock *sk, struct flowi4 *fl4,
 		   int getfrag(void *from, char *to, int offset, int len,
 			       int odd, struct sk_buff *skb),
 		   void *from, int length, int transhdrlen,
@@ -1104,11 +1106,11 @@ int ip_append_data(struct sock *sk,
 		transhdrlen = 0;
 	}
 
-	return __ip_append_data(sk, &sk->sk_write_queue, &inet->cork.base, getfrag,
+	return __ip_append_data(sk, fl4, &sk->sk_write_queue, &inet->cork.base, getfrag,
 				from, length, transhdrlen, flags);
 }
 
-ssize_t	ip_append_page(struct sock *sk, struct page *page,
+ssize_t	ip_append_page(struct sock *sk, struct flowi4 *fl4, struct page *page,
 		       int offset, size_t size, int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
@@ -1146,7 +1148,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 	maxfraglen = ((mtu - fragheaderlen) & ~7) + fragheaderlen;
 
 	if (cork->length + size > 0xFFFF - fragheaderlen) {
-		ip_local_error(sk, EMSGSIZE, rt->rt_dst, inet->inet_dport, mtu);
+		ip_local_error(sk, EMSGSIZE, fl4->daddr, inet->inet_dport, mtu);
 		return -EMSGSIZE;
 	}
 
@@ -1427,7 +1429,7 @@ struct sk_buff *ip_make_skb(struct sock *sk,
 	if (err)
 		return ERR_PTR(err);
 
-	err = __ip_append_data(sk, &queue, &cork, getfrag,
+	err = __ip_append_data(sk, fl4, &queue, &cork, getfrag,
 			       from, length, transhdrlen, flags);
 	if (err) {
 		__ip_flush_pending_frames(sk, &queue, &cork);
@@ -1503,7 +1505,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 	sk->sk_priority = skb->priority;
 	sk->sk_protocol = ip_hdr(skb)->protocol;
 	sk->sk_bound_dev_if = arg->bound_dev_if;
-	ip_append_data(sk, ip_reply_glue_bits, arg->iov->iov_base, len, 0,
+	ip_append_data(sk, &fl4, ip_reply_glue_bits, arg->iov->iov_base, len, 0,
 		       &ipc, &rt, MSG_DONTWAIT);
 	if ((skb = skb_peek(&sk->sk_write_queue)) != NULL) {
 		if (arg->csumoffset >= 0)
