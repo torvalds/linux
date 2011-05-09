@@ -77,11 +77,65 @@ static struct v4l2_queryctrl radio_qctrl[] = {
  * lowlevel part
  */
 
+static void snd_tea575x_write(struct snd_tea575x *tea, unsigned int val)
+{
+	u16 l;
+	u8 data;
+
+	tea->ops->set_direction(tea, 1);
+	udelay(16);
+
+	for (l = 25; l > 0; l--) {
+		data = (val >> 24) & TEA575X_DATA;
+		val <<= 1;			/* shift data */
+		tea->ops->set_pins(tea, data | TEA575X_WREN);
+		udelay(2);
+		tea->ops->set_pins(tea, data | TEA575X_WREN | TEA575X_CLK);
+		udelay(2);
+		tea->ops->set_pins(tea, data | TEA575X_WREN);
+		udelay(2);
+	}
+
+	if (!tea->mute)
+		tea->ops->set_pins(tea, 0);
+}
+
+static unsigned int snd_tea575x_read(struct snd_tea575x *tea)
+{
+	u16 l, rdata;
+	u32 data = 0;
+
+	tea->ops->set_direction(tea, 0);
+	tea->ops->set_pins(tea, 0);
+	udelay(16);
+
+	for (l = 24; l--;) {
+		tea->ops->set_pins(tea, TEA575X_CLK);
+		udelay(2);
+		if (!l)
+			tea->tuned = tea->ops->get_pins(tea) & TEA575X_MOST ? 0 : 1;
+		tea->ops->set_pins(tea, 0);
+		udelay(2);
+		data <<= 1;			/* shift data */
+		rdata = tea->ops->get_pins(tea);
+		if (!l)
+			tea->stereo = (rdata & TEA575X_MOST) ?  0 : 1;
+		if (rdata & TEA575X_DATA)
+			data++;
+		udelay(2);
+	}
+
+	if (tea->mute)
+		tea->ops->set_pins(tea, TEA575X_WREN);
+
+	return data;
+}
+
 static void snd_tea575x_get_freq(struct snd_tea575x *tea)
 {
 	unsigned long freq;
 
-	freq = tea->ops->read(tea) & TEA575X_BIT_FREQ_MASK;
+	freq = snd_tea575x_read(tea) & TEA575X_BIT_FREQ_MASK;
 	/* freq *= 12.5 */
 	freq *= 125;
 	freq /= 10;
@@ -111,7 +165,7 @@ static void snd_tea575x_set_freq(struct snd_tea575x *tea)
 
 	tea->val &= ~TEA575X_BIT_FREQ_MASK;
 	tea->val |= freq & TEA575X_BIT_FREQ_MASK;
-	tea->ops->write(tea, tea->val);
+	snd_tea575x_write(tea, tea->val);
 }
 
 /*
@@ -139,7 +193,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (v->index > 0)
 		return -EINVAL;
 
-	tea->ops->read(tea);
+	snd_tea575x_read(tea);
 
 	strcpy(v->name, "FM");
 	v->type = V4L2_TUNER_RADIO;
@@ -233,10 +287,8 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		if (tea->ops->mute) {
-			ctrl->value = tea->mute;
-			return 0;
-		}
+		ctrl->value = tea->mute;
+		return 0;
 	}
 	return -EINVAL;
 }
@@ -248,11 +300,11 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		if (tea->ops->mute) {
-			tea->ops->mute(tea, ctrl->value);
+		if (tea->mute != ctrl->value) {
 			tea->mute = ctrl->value;
-			return 0;
+			snd_tea575x_set_freq(tea);
 		}
+		return 0;
 	}
 	return -EINVAL;
 }
@@ -317,18 +369,16 @@ static struct video_device tea575x_radio = {
 /*
  * initialize all the tea575x chips
  */
-void snd_tea575x_init(struct snd_tea575x *tea)
+int snd_tea575x_init(struct snd_tea575x *tea)
 {
 	int retval;
-	unsigned int val;
 	struct video_device *tea575x_radio_inst;
 
-	val = tea->ops->read(tea);
-	if (val == 0x1ffffff || val == 0) {
-		snd_printk(KERN_ERR
-			   "tea575x-tuner: Cannot find TEA575x chip\n");
-		return;
-	}
+	tea->mute = 1;
+
+	snd_tea575x_write(tea, 0x55AA);
+	if (snd_tea575x_read(tea) != 0x55AA)
+		return -ENODEV;
 
 	tea->in_use = 0;
 	tea->val = TEA575X_BIT_BAND_FM | TEA575X_BIT_SEARCH_10_40;
@@ -337,7 +387,7 @@ void snd_tea575x_init(struct snd_tea575x *tea)
 	tea575x_radio_inst = video_device_alloc();
 	if (tea575x_radio_inst == NULL) {
 		printk(KERN_ERR "tea575x-tuner: not enough memory\n");
-		return;
+		return -ENOMEM;
 	}
 
 	memcpy(tea575x_radio_inst, &tea575x_radio, sizeof(tea575x_radio));
@@ -352,17 +402,13 @@ void snd_tea575x_init(struct snd_tea575x *tea)
 	if (retval) {
 		printk(KERN_ERR "tea575x-tuner: can't register video device!\n");
 		kfree(tea575x_radio_inst);
-		return;
+		return retval;
 	}
 
 	snd_tea575x_set_freq(tea);
-
-	/* mute on init */
-	if (tea->ops->mute) {
-		tea->ops->mute(tea, 1);
-		tea->mute = 1;
-	}
 	tea->vd = tea575x_radio_inst;
+
+	return 0;
 }
 
 void snd_tea575x_exit(struct snd_tea575x *tea)
