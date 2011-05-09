@@ -36,7 +36,7 @@
 
 static void dump_completed_IO(struct inode * inode)
 {
-#ifdef	EXT4_DEBUG
+#ifdef	EXT4FS_DEBUG
 	struct list_head *cur, *before, *after;
 	ext4_io_end_t *io, *io0, *io1;
 	unsigned long flags;
