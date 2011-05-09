@@ -120,9 +120,10 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 	grp->nr_vlans--;
 
 	vlan_group_set_device(grp, vlan_id, NULL);
-	if (!grp->killall)
-		synchronize_net();
-
+	/* Because unregister_netdevice_queue() makes sure at least one rcu
+	 * grace period is respected before device freeing,
+	 * we dont need to call synchronize_net() here.
+	 */
 	unregister_netdevice_queue(dev, head);
 
 	/* If the group is now empty, kill off the group. */
@@ -477,9 +478,6 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		/* twiddle thumbs on netns device moves */
 		if (dev->reg_state != NETREG_UNREGISTERING)
 			break;
-
-		/* Delete all VLANs for this dev. */
-		grp->killall = 1;
 
 		for (i = 0; i < VLAN_N_VID; i++) {
 			vlandev = vlan_group_get_device(grp, i);
