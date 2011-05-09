@@ -686,7 +686,6 @@ int tm6000_set_audio_rinput(struct tm6000_core *dev)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tm6000_set_audio_input);
 
 void tm6010_set_mute_sif(struct tm6000_core *dev, u8 mute)
 {
@@ -749,7 +748,6 @@ int tm6000_tvaudio_set_mute(struct tm6000_core *dev, u8 mute)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tm6000_tvaudio_set_mute);
 
 void tm6010_set_volume_sif(struct tm6000_core *dev, int vol)
 {
@@ -807,7 +805,6 @@ void tm6000_set_volume(struct tm6000_core *dev, int vol)
 		break;
 	}
 }
-EXPORT_SYMBOL_GPL(tm6000_set_volume);
 
 static LIST_HEAD(tm6000_devlist);
 static DEFINE_MUTEX(tm6000_devlist_mutex);
