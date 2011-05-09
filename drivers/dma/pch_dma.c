@@ -478,7 +478,6 @@ static int pd_alloc_chan_resources(struct dma_chan *chan)
 	spin_unlock_bh(&pd_chan->lock);
 
 	pdc_enable_irq(chan, 1);
-	pdc_set_dir(chan);
 
 	return pd_chan->descs_allocated;
 }
@@ -560,6 +559,9 @@ static struct dma_async_tx_descriptor *pd_prep_slave_sg(struct dma_chan *chan,
 		reg = pd_slave->tx_reg;
 	else
 		return NULL;
+
+	pd_chan->dir = direction;
+	pdc_set_dir(chan);
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		desc = pdc_desc_get(pd_chan);
@@ -849,8 +851,6 @@ static int __devinit pch_dma_probe(struct pci_dev *pdev,
 		pd_chan->chan.chan_id = i;
 
 		pd_chan->membase = &regs->desc[i];
-
-		pd_chan->dir = (i % 2) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
 		spin_lock_init(&pd_chan->lock);
 
