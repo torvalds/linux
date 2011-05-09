@@ -3,7 +3,7 @@
  *
  * Maintained by Kumar Gala (see MAINTAINERS for contact information)
  *
- * Copyright 2009 Freescale Semiconductor Inc.
+ * Copyright 2009-2011 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -61,10 +61,6 @@ void __init corenet_ds_pic_init(void)
 	mpic_init(mpic);
 }
 
-#ifdef CONFIG_PCI
-static int primary_phb_addr;
-#endif
-
 /*
  * Setup the architecture
  */
@@ -85,17 +81,14 @@ void __init corenet_ds_setup_arch(void)
 #endif
 
 #ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,p4080-pcie") {
-		struct resource rsrc;
-		of_address_to_resource(np, 0, &rsrc);
-		if ((rsrc.start & 0xfffff) == primary_phb_addr)
-			fsl_add_bridge(np, 1);
-		else
+	for_each_node_by_type(np, "pci") {
+		if (of_device_is_compatible(np, "fsl,p4080-pcie") ||
+		    of_device_is_compatible(np, "fsl,qoriq-pcie-v2.2")) {
 			fsl_add_bridge(np, 0);
-
-		hose = pci_find_hose_for_OF_device(np);
-		max = min(max, hose->dma_window_base_cur +
-				hose->dma_window_size);
+			hose = pci_find_hose_for_OF_device(np);
+			max = min(max, hose->dma_window_base_cur +
+					hose->dma_window_size);
+		}
 	}
 #endif
 
@@ -115,6 +108,12 @@ static const struct of_device_id of_device_ids[] __devinitconst = {
 	},
 	{
 		.compatible	= "fsl,rapidio-delta",
+	},
+	{
+		.compatible	= "fsl,p4080-pcie",
+	},
+	{
+		.compatible	= "fsl,qoriq-pcie-v2.2",
 	},
 	{}
 };
