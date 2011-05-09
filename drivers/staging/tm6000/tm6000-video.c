@@ -1666,10 +1666,10 @@ static struct video_device tm6000_template = {
 };
 
 static const struct v4l2_file_operations radio_fops = {
-	.owner	  = THIS_MODULE,
-	.open	  = tm6000_open,
-	.release  = tm6000_release,
-	.ioctl	  = video_ioctl2,
+	.owner		= THIS_MODULE,
+	.open		= tm6000_open,
+	.release	= tm6000_release,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops radio_ioctl_ops = {
