@@ -498,9 +498,7 @@ wl_iw_get_range(struct net_device *dev,
 	list = (wl_u32_list_t *) channels;
 
 	dwrq->length = sizeof(struct iw_range);
-	memset(range, 0, sizeof(range));
-
-	range->min_nwid = range->max_nwid = 0;
+	memset(range, 0, sizeof(*range));
 
 	list->count = cpu_to_le32(MAXCHANNEL);
 	error = dev_wlc_ioctl(dev, WLC_GET_VALID_CHANNELS, channels,
