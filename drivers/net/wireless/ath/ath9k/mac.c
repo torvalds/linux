@@ -430,8 +430,13 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 		  SM(qi->tqi_shretry, AR_D_RETRY_LIMIT_FR_SH));
 
 	REG_WRITE(ah, AR_QMISC(q), AR_Q_MISC_DCU_EARLY_TERM_REQ);
-	REG_WRITE(ah, AR_DMISC(q),
-		  AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x2);
+
+	if (AR_SREV_9340(ah))
+		REG_WRITE(ah, AR_DMISC(q),
+			  AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x1);
+	else
+		REG_WRITE(ah, AR_DMISC(q),
+			  AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x2);
 
 	if (qi->tqi_cbrPeriod) {
 		REG_WRITE(ah, AR_QCBRCFG(q),
