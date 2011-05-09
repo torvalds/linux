@@ -137,7 +137,8 @@ static void wlc_bsscfg_mfree(struct wlc_bsscfg *cfg)
 	kfree(cfg);
 }
 
-static void wlc_bsscfg_ID_assign(struct wlc_info *wlc, struct wlc_bsscfg *bsscfg)
+static void wlc_bsscfg_ID_assign(struct wlc_info *wlc,
+				 struct wlc_bsscfg *bsscfg)
 {
 	bsscfg->ID = wlc->next_bsscfg_ID;
 	wlc->next_bsscfg_ID++;
