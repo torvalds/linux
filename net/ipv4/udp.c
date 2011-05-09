@@ -706,12 +706,11 @@ static void udp4_hwcsum(struct sk_buff *skb, __be32 src, __be32 dst)
 	}
 }
 
-static int udp_send_skb(struct sk_buff *skb, __be32 daddr, __be32 dport)
+static int udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4)
 {
 	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);
 	struct udphdr *uh;
-	struct rtable *rt = (struct rtable *)skb_dst(skb);
 	int err = 0;
 	int is_udplite = IS_UDPLITE(sk);
 	int offset = skb_transport_offset(skb);
@@ -723,7 +722,7 @@ static int udp_send_skb(struct sk_buff *skb, __be32 daddr, __be32 dport)
 	 */
 	uh = udp_hdr(skb);
 	uh->source = inet->inet_sport;
-	uh->dest = dport;
+	uh->dest = fl4->fl4_dport;
 	uh->len = htons(len);
 	uh->check = 0;
 
@@ -737,14 +736,14 @@ static int udp_send_skb(struct sk_buff *skb, __be32 daddr, __be32 dport)
 
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) { /* UDP hardware csum */
 
-		udp4_hwcsum(skb, rt->rt_src, daddr);
+		udp4_hwcsum(skb, fl4->saddr, fl4->daddr);
 		goto send;
 
 	} else
 		csum = udp_csum(skb);
 
 	/* add protocol-dependent pseudo-header */
-	uh->check = csum_tcpudp_magic(rt->rt_src, daddr, len,
+	uh->check = csum_tcpudp_magic(fl4->saddr, fl4->daddr, len,
 				      sk->sk_protocol, csum);
 	if (uh->check == 0)
 		uh->check = CSUM_MANGLED_0;
@@ -778,7 +777,7 @@ static int udp_push_pending_frames(struct sock *sk)
 	if (!skb)
 		goto out;
 
-	err = udp_send_skb(skb, fl4->daddr, fl4->fl4_dport);
+	err = udp_send_skb(skb, fl4);
 
 out:
 	up->len = 0;
@@ -963,7 +962,7 @@ back_from_confirm:
 				  msg->msg_flags);
 		err = PTR_ERR(skb);
 		if (skb && !IS_ERR(skb))
-			err = udp_send_skb(skb, daddr, dport);
+			err = udp_send_skb(skb, fl4);
 		goto out;
 	}
 
