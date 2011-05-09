@@ -1829,6 +1829,7 @@ int mmc_resume_host(struct mmc_host *host)
 			err = 0;
 		}
 	}
+	host->pm_flags &= ~MMC_PM_KEEP_POWER;
 	mmc_bus_put(host);
 
 	return err;
