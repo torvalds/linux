@@ -396,8 +396,6 @@ struct tm6000_board tm6000_boards[] = {
 			.has_eeprom     = 1,
 			.has_remote     = 1,
 			.has_radio	= 1.
-			.has_input_comp = 1,
-			.has_input_svid = 1,
 		},
 		.gpio = {
 			.tuner_reset	= TM6010_GPIO_0,
@@ -435,8 +433,6 @@ struct tm6000_board tm6000_boards[] = {
 			.has_eeprom     = 1,
 			.has_remote     = 1,
 			.has_radio	= 1,
-			.has_input_comp = 1,
-			.has_input_svid = 1,
 		},
 		.gpio = {
 			.tuner_reset	= TM6010_GPIO_0,
@@ -568,8 +564,6 @@ struct tm6000_board tm6000_boards[] = {
 			.has_eeprom     = 1,
 			.has_remote     = 0,
 			.has_radio	= 1,
-			.has_input_comp = 0,
-			.has_input_svid = 0,
 		},
 		.gpio = {
 			.tuner_reset	= TM6010_GPIO_0,
@@ -599,8 +593,6 @@ struct tm6000_board tm6000_boards[] = {
 			.has_eeprom     = 1,
 			.has_remote     = 0,
 			.has_radio	= 1,
-			.has_input_comp = 0,
-			.has_input_svid = 0,
 		},
 		.gpio = {
 			.tuner_reset	= TM6010_GPIO_0,
