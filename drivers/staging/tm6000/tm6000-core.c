@@ -299,14 +299,6 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 
 		/* Disables soft reset */
 		tm6000_set_reg(dev, TM6010_REQ07_R3F_RESET, 0x00);
-
-		/* E3: Select input 0 - TV tuner */
-		tm6000_set_reg(dev, TM6000_REQ07_RE3_VADC_INP_LPF_SEL1, 0x00);
-		tm6000_set_reg(dev, TM6000_REQ07_REB_VADC_AADC_MODE, 0x60);
-
-		/* This controls input */
-		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_2, 0x0);
-		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_3, 0x01);
 	}
 	msleep(20);
 
