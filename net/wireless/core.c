@@ -787,6 +787,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		default:
 			break;
 		}
+		wdev->beacon_interval = 0;
 		break;
 	case NETDEV_DOWN:
 		dev_hold(dev);

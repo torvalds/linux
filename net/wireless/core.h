@@ -433,6 +433,9 @@ int cfg80211_set_freq(struct cfg80211_registered_device *rdev,
 
 u16 cfg80211_calculate_bitrate(struct rate_info *rate);
 
+int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
+				 u32 beacon_int);
+
 #ifdef CONFIG_CFG80211_DEVELOPER_WARNINGS
 #define CFG80211_DEV_WARN_ON(cond)	WARN_ON(cond)
 #else
