@@ -755,7 +755,7 @@ config SAMSUNG_LAPTOP
 
 config MXM_WMI
        tristate "WMI support for MXM Laptop Graphics"
-       depends on WMI
+       depends on ACPI_WMI
        ---help---
           MXM is a standard for laptop graphics cards, the WMI interface
 	  is required for switchable nvidia graphics machines
