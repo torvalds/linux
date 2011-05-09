@@ -12,6 +12,7 @@
 	Please submit bugs to http://bugzilla.kernel.org/ .
 */
 
+#define pr_fmt(fmt) "tulip: " fmt
 
 #define DRV_NAME	"tulip"
 #ifdef CONFIG_TULIP_NAPI
@@ -118,8 +119,6 @@ module_param(rx_copybreak, int, 0);
 module_param(csr0, int, 0);
 module_param_array(options, int, NULL, 0);
 module_param_array(full_duplex, int, NULL, 0);
-
-#define PFX DRV_NAME ": "
 
 #ifdef TULIP_DEBUG
 int tulip_debug = TULIP_DEBUG;
@@ -1340,13 +1339,13 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	 */
 
         if (pdev->subsystem_vendor == PCI_VENDOR_ID_LMC) {
-		pr_err(PFX "skipping LMC card\n");
+		pr_err("skipping LMC card\n");
 		return -ENODEV;
 	} else if (pdev->subsystem_vendor == PCI_VENDOR_ID_SBE &&
 		   (pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_T3E3 ||
 		    pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_2T3E3_P0 ||
 		    pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_2T3E3_P1)) {
-		pr_err(PFX "skipping SBE T3E3 port\n");
+		pr_err("skipping SBE T3E3 port\n");
 		return -ENODEV;
 	}
 
@@ -1362,13 +1361,13 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 
 		if (pdev->vendor == 0x1282 && pdev->device == 0x9100 &&
 		    pdev->revision < 0x30) {
-			pr_info(PFX "skipping early DM9100 with Crc bug (use dmfe)\n");
+			pr_info("skipping early DM9100 with Crc bug (use dmfe)\n");
 			return -ENODEV;
 		}
 
 		dp = pci_device_to_OF_node(pdev);
 		if (!(dp && of_get_property(dp, "local-mac-address", NULL))) {
-			pr_info(PFX "skipping DM910x expansion card (use dmfe)\n");
+			pr_info("skipping DM910x expansion card (use dmfe)\n");
 			return -ENODEV;
 		}
 	}
@@ -1415,16 +1414,14 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 
 	i = pci_enable_device(pdev);
 	if (i) {
-		pr_err(PFX "Cannot enable tulip board #%d, aborting\n",
-		       board_idx);
+		pr_err("Cannot enable tulip board #%d, aborting\n", board_idx);
 		return i;
 	}
 
 	/* The chip will fail to enter a low-power state later unless
 	 * first explicitly commanded into D0 */
 	if (pci_set_power_state(pdev, PCI_D0)) {
-		printk (KERN_NOTICE PFX
-			"Failed to set power state to D0\n");
+		pr_notice("Failed to set power state to D0\n");
 	}
 
 	irq = pdev->irq;
@@ -1432,13 +1429,13 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	/* alloc_etherdev ensures aligned and zeroed private structures */
 	dev = alloc_etherdev (sizeof (*tp));
 	if (!dev) {
-		pr_err(PFX "ether device alloc failed, aborting\n");
+		pr_err("ether device alloc failed, aborting\n");
 		return -ENOMEM;
 	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	if (pci_resource_len (pdev, 0) < tulip_tbl[chip_idx].io_size) {
-		pr_err(PFX "%s: I/O region (0x%llx@0x%llx) too small, aborting\n",
+		pr_err("%s: I/O region (0x%llx@0x%llx) too small, aborting\n",
 		       pci_name(pdev),
 		       (unsigned long long)pci_resource_len (pdev, 0),
 		       (unsigned long long)pci_resource_start (pdev, 0));
@@ -1905,12 +1902,12 @@ static int tulip_resume(struct pci_dev *pdev)
 		return 0;
 
 	if ((retval = pci_enable_device(pdev))) {
-		pr_err(PFX "pci_enable_device failed in resume\n");
+		pr_err("pci_enable_device failed in resume\n");
 		return retval;
 	}
 
 	if ((retval = request_irq(dev->irq, tulip_interrupt, IRQF_SHARED, dev->name, dev))) {
-		pr_err(PFX "request_irq failed in resume\n");
+		pr_err("request_irq failed in resume\n");
 		return retval;
 	}
 

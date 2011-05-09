@@ -262,8 +262,8 @@ static int __devinit xircom_probe(struct pci_dev *pdev, const struct pci_device_
 		goto reg_fail;
 	}
 
-	dev_info(&dev->dev, "Xircom cardbus revision %i at irq %i\n",
-		 pdev->revision, pdev->irq);
+	netdev_info(dev, "Xircom cardbus revision %i at irq %i\n",
+		    pdev->revision, pdev->irq);
 	/* start the transmitter to get a heartbeat */
 	/* TODO: send 2 dummy packets here */
 	transceiver_voodoo(private);
@@ -335,7 +335,7 @@ static irqreturn_t xircom_interrupt(int irq, void *dev_instance)
 		int newlink;
 		printk(KERN_DEBUG "xircom_cb: Link status has changed\n");
 		newlink = link_status(card);
-		dev_info(&dev->dev, "Link is %i mbit\n", newlink);
+		netdev_info(dev, "Link is %d mbit\n", newlink);
 		if (newlink)
 			netif_carrier_on(dev);
 		else
@@ -426,8 +426,8 @@ static int xircom_open(struct net_device *dev)
 	struct xircom_private *xp = netdev_priv(dev);
 	int retval;
 
-	pr_info("xircom cardbus adaptor found, registering as %s, using irq %i\n",
-		dev->name, dev->irq);
+	netdev_info(dev, "xircom cardbus adaptor found, using irq %i\n",
+		    dev->irq);
 	retval = request_irq(dev->irq, xircom_interrupt, IRQF_SHARED, dev->name, dev);
 	if (retval)
 		return retval;
@@ -703,7 +703,7 @@ static void activate_receiver(struct xircom_private *card)
 		udelay(50);
 		counter--;
 		if (counter <= 0)
-			pr_err("Receiver failed to deactivate\n");
+			netdev_err(card->dev, "Receiver failed to deactivate\n");
 	}
 
 	/* enable the receiver */
@@ -720,7 +720,8 @@ static void activate_receiver(struct xircom_private *card)
 		udelay(50);
 		counter--;
 		if (counter <= 0)
-			pr_err("Receiver failed to re-activate\n");
+			netdev_err(card->dev,
+				   "Receiver failed to re-activate\n");
 	}
 }
 
@@ -748,7 +749,7 @@ static void deactivate_receiver(struct xircom_private *card)
 		udelay(50);
 		counter--;
 		if (counter <= 0)
-			pr_err("Receiver failed to deactivate\n");
+			netdev_err(card->dev, "Receiver failed to deactivate\n");
 	}
 }
 
@@ -786,7 +787,8 @@ static void activate_transmitter(struct xircom_private *card)
 		udelay(50);
 		counter--;
 		if (counter <= 0)
-			pr_err("Transmitter failed to deactivate\n");
+			netdev_err(card->dev,
+				   "Transmitter failed to deactivate\n");
 	}
 
 	/* enable the transmitter */
@@ -803,7 +805,8 @@ static void activate_transmitter(struct xircom_private *card)
 		udelay(50);
 		counter--;
 		if (counter <= 0)
-			pr_err("Transmitter failed to re-activate\n");
+			netdev_err(card->dev,
+				   "Transmitter failed to re-activate\n");
 	}
 }
 
@@ -831,7 +834,8 @@ static void deactivate_transmitter(struct xircom_private *card)
 		udelay(50);
 		counter--;
 		if (counter <= 0)
-			pr_err("Transmitter failed to deactivate\n");
+			netdev_err(card->dev,
+				   "Transmitter failed to deactivate\n");
 	}
 }
 
@@ -1060,74 +1064,80 @@ static void xircom_up(struct xircom_private *card)
 }
 
 /* Bufferoffset is in BYTES */
-static void investigate_read_descriptor(struct net_device *dev,struct xircom_private *card, int descnr, unsigned int bufferoffset)
+static void
+investigate_read_descriptor(struct net_device *dev, struct xircom_private *card,
+			    int descnr, unsigned int bufferoffset)
 {
-		int status;
+	int status;
 
-		status = le32_to_cpu(card->rx_buffer[4*descnr]);
+	status = le32_to_cpu(card->rx_buffer[4*descnr]);
 
-		if ((status > 0)) {	/* packet received */
+	if (status > 0) {		/* packet received */
 
-			/* TODO: discard error packets */
+		/* TODO: discard error packets */
 
-			short pkt_len = ((status >> 16) & 0x7ff) - 4;	/* minus 4, we don't want the CRC */
-			struct sk_buff *skb;
+		short pkt_len = ((status >> 16) & 0x7ff) - 4;
+					/* minus 4, we don't want the CRC */
+		struct sk_buff *skb;
 
-			if (pkt_len > 1518) {
-				pr_err("Packet length %i is bogus\n", pkt_len);
-				pkt_len = 1518;
-			}
-
-			skb = dev_alloc_skb(pkt_len + 2);
-			if (skb == NULL) {
-				dev->stats.rx_dropped++;
-				goto out;
-			}
-			skb_reserve(skb, 2);
-			skb_copy_to_linear_data(skb, (unsigned char*)&card->rx_buffer[bufferoffset / 4], pkt_len);
-			skb_put(skb, pkt_len);
-			skb->protocol = eth_type_trans(skb, dev);
-			netif_rx(skb);
-			dev->stats.rx_packets++;
-			dev->stats.rx_bytes += pkt_len;
-
-		      out:
-			/* give the buffer back to the card */
-			card->rx_buffer[4*descnr] =  cpu_to_le32(0x80000000);
-			trigger_receive(card);
+		if (pkt_len > 1518) {
+			netdev_err(dev, "Packet length %i is bogus\n", pkt_len);
+			pkt_len = 1518;
 		}
+
+		skb = dev_alloc_skb(pkt_len + 2);
+		if (skb == NULL) {
+			dev->stats.rx_dropped++;
+			goto out;
+		}
+		skb_reserve(skb, 2);
+		skb_copy_to_linear_data(skb,
+					&card->rx_buffer[bufferoffset / 4],
+					pkt_len);
+		skb_put(skb, pkt_len);
+		skb->protocol = eth_type_trans(skb, dev);
+		netif_rx(skb);
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += pkt_len;
+
+out:
+		/* give the buffer back to the card */
+		card->rx_buffer[4*descnr] = cpu_to_le32(0x80000000);
+		trigger_receive(card);
+	}
 }
 
 
 /* Bufferoffset is in BYTES */
-static void investigate_write_descriptor(struct net_device *dev, struct xircom_private *card, int descnr, unsigned int bufferoffset)
+static void
+investigate_write_descriptor(struct net_device *dev,
+			     struct xircom_private *card,
+			     int descnr, unsigned int bufferoffset)
 {
-		int status;
+	int status;
 
-		status = le32_to_cpu(card->tx_buffer[4*descnr]);
+	status = le32_to_cpu(card->tx_buffer[4*descnr]);
 #if 0
-		if (status & 0x8000) {	/* Major error */
-			pr_err("Major transmit error status %x\n", status);
-			card->tx_buffer[4*descnr] = 0;
-			netif_wake_queue (dev);
-		}
+	if (status & 0x8000) {	/* Major error */
+		pr_err("Major transmit error status %x\n", status);
+		card->tx_buffer[4*descnr] = 0;
+		netif_wake_queue (dev);
+	}
 #endif
-		if (status > 0) {	/* bit 31 is 0 when done */
-			if (card->tx_skb[descnr]!=NULL) {
-				dev->stats.tx_bytes += card->tx_skb[descnr]->len;
-				dev_kfree_skb_irq(card->tx_skb[descnr]);
-			}
-			card->tx_skb[descnr] = NULL;
-			/* Bit 8 in the status field is 1 if there was a collision */
-			if (status&(1<<8))
-				dev->stats.collisions++;
-			card->tx_buffer[4*descnr] = 0; /* descriptor is free again */
-			netif_wake_queue (dev);
-			dev->stats.tx_packets++;
+	if (status > 0) {	/* bit 31 is 0 when done */
+		if (card->tx_skb[descnr]!=NULL) {
+			dev->stats.tx_bytes += card->tx_skb[descnr]->len;
+			dev_kfree_skb_irq(card->tx_skb[descnr]);
 		}
-
+		card->tx_skb[descnr] = NULL;
+		/* Bit 8 in the status field is 1 if there was a collision */
+		if (status & (1 << 8))
+			dev->stats.collisions++;
+		card->tx_buffer[4*descnr] = 0; /* descriptor is free again */
+		netif_wake_queue (dev);
+		dev->stats.tx_packets++;
+	}
 }
-
 
 static int __init xircom_init(void)
 {
