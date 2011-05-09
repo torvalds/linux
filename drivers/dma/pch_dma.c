@@ -77,10 +77,10 @@ struct pch_dma_regs {
 	u32	dma_ctl0;
 	u32	dma_ctl1;
 	u32	dma_ctl2;
-	u32	reserved1;
+	u32	dma_ctl3;
 	u32	dma_sts0;
 	u32	dma_sts1;
-	u32	reserved2;
+	u32	dma_sts2;
 	u32	reserved3;
 	struct pch_dma_desc_regs desc[MAX_CHAN_NR];
 };
@@ -130,6 +130,7 @@ struct pch_dma {
 #define PCH_DMA_CTL0	0x00
 #define PCH_DMA_CTL1	0x04
 #define PCH_DMA_CTL2	0x08
+#define PCH_DMA_CTL3	0x0C
 #define PCH_DMA_STS0	0x10
 #define PCH_DMA_STS1	0x14
 
@@ -202,16 +203,30 @@ static void pdc_set_dir(struct dma_chan *chan)
 	struct pch_dma *pd = to_pd(chan->device);
 	u32 val;
 
-	val = dma_readl(pd, CTL0);
+	if (chan->chan_id < 8) {
+		val = dma_readl(pd, CTL0);
 
-	if (pd_chan->dir == DMA_TO_DEVICE)
-		val |= 0x1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +
-			       DMA_CTL0_DIR_SHIFT_BITS);
-	else
-		val &= ~(0x1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +
-				 DMA_CTL0_DIR_SHIFT_BITS));
+		if (pd_chan->dir == DMA_TO_DEVICE)
+			val |= 0x1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +
+				       DMA_CTL0_DIR_SHIFT_BITS);
+		else
+			val &= ~(0x1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +
+					 DMA_CTL0_DIR_SHIFT_BITS));
 
-	dma_writel(pd, CTL0, val);
+		dma_writel(pd, CTL0, val);
+	} else {
+		int ch = chan->chan_id - 8; /* ch8-->0 ch9-->1 ... ch11->3 */
+		val = dma_readl(pd, CTL3);
+
+		if (pd_chan->dir == DMA_TO_DEVICE)
+			val |= 0x1 << (DMA_CTL0_BITS_PER_CH * ch +
+				       DMA_CTL0_DIR_SHIFT_BITS);
+		else
+			val &= ~(0x1 << (DMA_CTL0_BITS_PER_CH * ch +
+					 DMA_CTL0_DIR_SHIFT_BITS));
+
+		dma_writel(pd, CTL3, val);
+	}
 
 	dev_dbg(chan2dev(chan), "pdc_set_dir: chan %d -> %x\n",
 		chan->chan_id, val);
@@ -222,13 +237,26 @@ static void pdc_set_mode(struct dma_chan *chan, u32 mode)
 	struct pch_dma *pd = to_pd(chan->device);
 	u32 val;
 
-	val = dma_readl(pd, CTL0);
+	if (chan->chan_id < 8) {
+		val = dma_readl(pd, CTL0);
 
-	val &= ~(DMA_CTL0_MODE_MASK_BITS <<
-		(DMA_CTL0_BITS_PER_CH * chan->chan_id));
-	val |= mode << (DMA_CTL0_BITS_PER_CH * chan->chan_id);
+		val &= ~(DMA_CTL0_MODE_MASK_BITS <<
+			(DMA_CTL0_BITS_PER_CH * chan->chan_id));
+		val |= mode << (DMA_CTL0_BITS_PER_CH * chan->chan_id);
 
-	dma_writel(pd, CTL0, val);
+		dma_writel(pd, CTL0, val);
+	} else {
+		int ch = chan->chan_id - 8; /* ch8-->0 ch9-->1 ... ch11->3 */
+
+		val = dma_readl(pd, CTL3);
+
+		val &= ~(DMA_CTL0_MODE_MASK_BITS <<
+			(DMA_CTL0_BITS_PER_CH * ch));
+		val |= mode << (DMA_CTL0_BITS_PER_CH * ch);
+
+		dma_writel(pd, CTL3, val);
+
+	}
 
 	dev_dbg(chan2dev(chan), "pdc_set_mode: chan %d -> %x\n",
 		chan->chan_id, val);
@@ -701,6 +729,7 @@ static void pch_dma_save_regs(struct pch_dma *pd)
 	pd->regs.dma_ctl0 = dma_readl(pd, CTL0);
 	pd->regs.dma_ctl1 = dma_readl(pd, CTL1);
 	pd->regs.dma_ctl2 = dma_readl(pd, CTL2);
+	pd->regs.dma_ctl3 = dma_readl(pd, CTL3);
 
 	list_for_each_entry_safe(chan, _c, &pd->dma.channels, device_node) {
 		pd_chan = to_pd_chan(chan);
@@ -723,6 +752,7 @@ static void pch_dma_restore_regs(struct pch_dma *pd)
 	dma_writel(pd, CTL0, pd->regs.dma_ctl0);
 	dma_writel(pd, CTL1, pd->regs.dma_ctl1);
 	dma_writel(pd, CTL2, pd->regs.dma_ctl2);
+	dma_writel(pd, CTL3, pd->regs.dma_ctl3);
 
 	list_for_each_entry_safe(chan, _c, &pd->dma.channels, device_node) {
 		pd_chan = to_pd_chan(chan);
@@ -925,6 +955,7 @@ static void __devexit pch_dma_remove(struct pci_dev *pdev)
 #define PCI_DEVICE_ID_ML7213_DMA1_8CH	0x8026
 #define PCI_DEVICE_ID_ML7213_DMA2_8CH	0x802B
 #define PCI_DEVICE_ID_ML7213_DMA3_4CH	0x8034
+#define PCI_DEVICE_ID_ML7213_DMA4_12CH	0x8032
 
 static const struct pci_device_id pch_dma_id_table[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_EG20T_PCH_DMA_8CH), 8 },
@@ -932,6 +963,7 @@ static const struct pci_device_id pch_dma_id_table[] = {
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA1_8CH), 8}, /* UART Video */
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA2_8CH), 8}, /* PCMIF SPI */
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA3_4CH), 4}, /* FPGA */
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA4_12CH), 12}, /* I2S */
 	{ 0, },
 };
 
