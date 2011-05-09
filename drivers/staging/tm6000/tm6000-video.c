@@ -1730,24 +1730,26 @@ int tm6000_v4l2_register(struct tm6000_core *dev)
 	printk(KERN_INFO "%s: registered device %s\n",
 	       dev->name, video_device_node_name(dev->vfd));
 
-	dev->radio_dev = vdev_init(dev, &tm6000_radio_template,
-						   "radio");
-	if (!dev->radio_dev) {
-		printk(KERN_INFO "%s: can't register radio device\n",
-		       dev->name);
-		return ret; /* FIXME release resource */
-	}
+	if (dev->caps.has_radio) {
+		dev->radio_dev = vdev_init(dev, &tm6000_radio_template,
+							   "radio");
+		if (!dev->radio_dev) {
+			printk(KERN_INFO "%s: can't register radio device\n",
+			       dev->name);
+			return ret; /* FIXME release resource */
+		}
 
-	ret = video_register_device(dev->radio_dev, VFL_TYPE_RADIO,
-				    radio_nr);
-	if (ret < 0) {
-		printk(KERN_INFO "%s: can't register radio device\n",
-		       dev->name);
-		return ret; /* FIXME release resource */
-	}
+		ret = video_register_device(dev->radio_dev, VFL_TYPE_RADIO,
+					    radio_nr);
+		if (ret < 0) {
+			printk(KERN_INFO "%s: can't register radio device\n",
+			       dev->name);
+			return ret; /* FIXME release resource */
+		}
 
-	printk(KERN_INFO "%s: registered device %s\n",
-	       dev->name, video_device_node_name(dev->radio_dev));
+		printk(KERN_INFO "%s: registered device %s\n",
+		       dev->name, video_device_node_name(dev->radio_dev));
+	}
 
 	printk(KERN_INFO "Trident TVMaster TM5600/TM6000/TM6010 USB2 board (Load status: %d)\n", ret);
 	return ret;
