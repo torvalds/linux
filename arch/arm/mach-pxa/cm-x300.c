@@ -12,6 +12,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -487,8 +488,7 @@ static int cm_x300_ulpi_phy_reset(void)
 	err = gpio_request_one(GPIO_ULPI_PHY_RST, GPIOF_OUT_INIT_LOW,
 			       "ulpi reset");
 	if (err) {
-		pr_err("%s: failed to request ULPI reset GPIO: %d\n",
-		       __func__, err);
+		pr_err("failed to request ULPI reset GPIO: %d\n", err);
 		return err;
 	}
 
@@ -510,8 +510,7 @@ static inline int cm_x300_u2d_init(struct device *dev)
 		pout_clk = clk_get(NULL, "CLK_POUT");
 		if (IS_ERR(pout_clk)) {
 			err = PTR_ERR(pout_clk);
-			pr_err("%s: failed to get CLK_POUT: %d\n",
-			       __func__, err);
+			pr_err("failed to get CLK_POUT: %d\n", err);
 			return err;
 		}
 		clk_enable(pout_clk);
@@ -787,7 +786,7 @@ static void __init cm_x300_init_wi2wi(void)
 	/* Libertas and CSR reset */
 	err = gpio_request_array(ARRAY_AND_SIZE(cm_x300_wi2wi_gpios));
 	if (err) {
-		pr_err("CM-X300: failed to request wifi/bt gpios: %d\n", err);
+		pr_err("failed to request wifi/bt gpios: %d\n", err);
 		return;
 	}
 
