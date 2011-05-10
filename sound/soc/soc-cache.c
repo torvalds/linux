@@ -101,12 +101,11 @@ static unsigned int snd_soc_4_12_read(struct snd_soc_codec *codec,
 static int snd_soc_4_12_write(struct snd_soc_codec *codec, unsigned int reg,
 			      unsigned int value)
 {
-	u8 data[2];
+	u16 data;
 
-	data[0] = (reg << 4) | ((value >> 8) & 0x000f);
-	data[1] = value & 0x00ff;
+	data = cpu_to_be16((reg << 12) | (value & 0xffffff));
 
-	return do_hw_write(codec, reg, value, data, 2);
+	return do_hw_write(codec, reg, value, &data, 2);
 }
 
 #if defined(CONFIG_SPI_MASTER)
@@ -115,8 +114,8 @@ static int snd_soc_4_12_spi_write(void *control_data, const char *data,
 {
 	u8 msg[2];
 
-	msg[0] = data[1];
-	msg[1] = data[0];
+	msg[0] = data[0];
+	msg[1] = data[1];
 
 	return do_spi_write(control_data, msg, len);
 }
