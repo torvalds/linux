@@ -35,9 +35,9 @@
  * platform data and other tables.
  */
 
-static inline int gpio_is_valid(int number)
+static inline bool gpio_is_valid(int number)
 {
-	return ((unsigned)number) < ARCH_NR_GPIOS;
+	return number >= 0 && number < ARCH_NR_GPIOS;
 }
 
 struct device;
@@ -212,7 +212,7 @@ extern void gpio_unexport(unsigned gpio);
 
 #else	/* !CONFIG_GPIOLIB */
 
-static inline int gpio_is_valid(int number)
+static inline bool gpio_is_valid(int number)
 {
 	/* only non-negative numbers are valid */
 	return number >= 0;
