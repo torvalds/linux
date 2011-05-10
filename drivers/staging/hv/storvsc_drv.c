@@ -52,9 +52,6 @@ static const struct hv_guid gStorVscDeviceType = {
 };
 
 struct hv_host_device {
-	/* must be 1st field
-	 * FIXME this is a bug */
-	/* point back to our device context */
 	struct hv_device *dev;
 	struct kmem_cache *request_pool;
 	unsigned int port;
