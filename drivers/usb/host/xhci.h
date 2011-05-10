@@ -881,7 +881,9 @@ struct xhci_transfer_event {
 #define COMP_STOP_INVAL	27
 /* Control Abort Error - Debug Capability - control pipe aborted */
 #define COMP_DBG_ABORT	28
-/* TRB type 29 and 30 reserved */
+/* Max Exit Latency Too Large Error */
+#define COMP_MEL_ERR	29
+/* TRB type 30 reserved */
 /* Isoc Buffer Overrun - an isoc IN ep sent more data than could fit in TD */
 #define COMP_BUFF_OVER	31
 /* Event Lost Error - xHC has an "internal event overrun condition" */
@@ -964,9 +966,14 @@ struct xhci_event_cmd {
 /* The buffer pointer contains immediate data */
 #define TRB_IDT			(1<<6)
 
+/* Block Event Interrupt */
+#define	TRB_BEI			(1<<9)
 
 /* Control transfer TRB specific fields */
 #define TRB_DIR_IN		(1<<16)
+#define	TRB_TX_TYPE(p)		((p) << 16)
+#define	TRB_DATA_OUT		2
+#define	TRB_DATA_IN		3
 
 /* Isochronous TRB specific fields */
 #define TRB_SIA			(1<<31)

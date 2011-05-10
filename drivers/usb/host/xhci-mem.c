@@ -1190,12 +1190,12 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	/* FIXME dig Mult and streams info out of ep companion desc */
 
 	/* Allow 3 retries for everything but isoc;
-	 * error count = 0 means infinite retries.
+	 * CErr shall be set to 0 for Isoch endpoints.
 	 */
 	if (!usb_endpoint_xfer_isoc(&ep->desc))
 		ep_ctx->ep_info2 = cpu_to_le32(ERROR_COUNT(3));
 	else
-		ep_ctx->ep_info2 = cpu_to_le32(ERROR_COUNT(1));
+		ep_ctx->ep_info2 = cpu_to_le32(ERROR_COUNT(0));
 
 	ep_ctx->ep_info2 |= cpu_to_le32(xhci_get_endpoint_type(udev, ep));
 
@@ -1246,8 +1246,15 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	 * including link TRBs, No-op TRBs, and Event data TRBs.  Since we don't
 	 * use Event Data TRBs, and we don't chain in a link TRB on short
 	 * transfers, we're basically dividing by 1.
+	 *
+	 * xHCI 1.0 specification indicates that the Average TRB Length should
+	 * be set to 8 for control endpoints.
 	 */
-	ep_ctx->tx_info |= cpu_to_le32(AVG_TRB_LENGTH_FOR_EP(max_esit_payload));
+	if (usb_endpoint_xfer_control(&ep->desc) && xhci->hci_version == 0x100)
+		ep_ctx->tx_info |= cpu_to_le32(AVG_TRB_LENGTH_FOR_EP(8));
+	else
+		ep_ctx->tx_info |=
+			 cpu_to_le32(AVG_TRB_LENGTH_FOR_EP(max_esit_payload));
 
 	/* FIXME Debug endpoint context */
 	return 0;
