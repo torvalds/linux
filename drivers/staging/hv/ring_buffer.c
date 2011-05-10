@@ -328,13 +328,13 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 /*++
 
 Name:
-	ringbuffer_cleanup()
+	hv_ringbuffer_cleanup()
 
 Description:
 	Cleanup the ring buffer
 
 --*/
-void ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
+void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
 {
 }
 

@@ -292,8 +292,8 @@ Cleanup:
 	return err;
 
 errorout:
-	ringbuffer_cleanup(&newchannel->outbound);
-	ringbuffer_cleanup(&newchannel->inbound);
+	hv_ringbuffer_cleanup(&newchannel->outbound);
+	hv_ringbuffer_cleanup(&newchannel->inbound);
 	free_pages((unsigned long)out,
 		get_order(send_ringbuffer_size + recv_ringbuffer_size));
 	kfree(openInfo);
@@ -651,8 +651,8 @@ void vmbus_close(struct vmbus_channel *channel)
 	/* TODO: Send a msg to release the childRelId */
 
 	/* Cleanup the ring buffers for this channel */
-	ringbuffer_cleanup(&channel->outbound);
-	ringbuffer_cleanup(&channel->inbound);
+	hv_ringbuffer_cleanup(&channel->outbound);
+	hv_ringbuffer_cleanup(&channel->inbound);
 
 	free_pages((unsigned long)channel->ringbuffer_pages,
 		get_order(channel->ringbuffer_pagecount * PAGE_SIZE));
