@@ -161,7 +161,7 @@ int hv_init(void)
 	       sizeof(void *) * MAX_NUM_CPUS);
 
 	if (!query_hypervisor_presence())
-		goto Cleanup;
+		goto cleanup;
 
 	max_leaf = query_hypervisor_info();
 	/* HvQueryHypervisorFeatures(maxLeaf); */
@@ -172,7 +172,7 @@ int hv_init(void)
 	rdmsrl(HV_X64_MSR_GUEST_OS_ID, hv_context.guestid);
 
 	if (hv_context.guestid != 0)
-		goto Cleanup;
+		goto cleanup;
 
 	/* Write our OS info */
 	wrmsrl(HV_X64_MSR_GUEST_OS_ID, HV_LINUX_GUEST_ID);
@@ -188,7 +188,7 @@ int hv_init(void)
 	virtaddr = __vmalloc(PAGE_SIZE, GFP_KERNEL, PAGE_KERNEL_EXEC);
 
 	if (!virtaddr)
-		goto Cleanup;
+		goto cleanup;
 
 	hypercall_msr.enable = 1;
 
@@ -200,7 +200,7 @@ int hv_init(void)
 	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
 
 	if (!hypercall_msr.enable)
-		goto Cleanup;
+		goto cleanup;
 
 	hv_context.hypercall_page = virtaddr;
 
@@ -209,7 +209,7 @@ int hv_init(void)
 			kmalloc(sizeof(struct hv_input_signal_event_buffer),
 				GFP_KERNEL);
 	if (!hv_context.signal_event_buffer)
-		goto Cleanup;
+		goto cleanup;
 
 	hv_context.signal_event_param =
 		(struct hv_input_signal_event *)
@@ -224,7 +224,7 @@ int hv_init(void)
 
 	return ret;
 
-Cleanup:
+cleanup:
 	if (virtaddr) {
 		if (hypercall_msr.enable) {
 			hypercall_msr.as_uint64 = 0;
@@ -345,7 +345,7 @@ void hv_synic_init(void *irqarg)
 
 	if (hv_context.synic_message_page[cpu] == NULL) {
 		pr_err("Unable to allocate SYNIC message page\n");
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	hv_context.synic_event_page[cpu] =
@@ -353,7 +353,7 @@ void hv_synic_init(void *irqarg)
 
 	if (hv_context.synic_event_page[cpu] == NULL) {
 		pr_err("Unable to allocate SYNIC event page\n");
-		goto Cleanup;
+		goto cleanup;
 	}
 
 	/* Setup the Synic's message page */
@@ -391,7 +391,7 @@ void hv_synic_init(void *irqarg)
 	hv_context.synic_initialized = true;
 	return;
 
-Cleanup:
+cleanup:
 	if (hv_context.synic_event_page[cpu])
 		free_page((unsigned long)hv_context.synic_event_page[cpu]);
 
