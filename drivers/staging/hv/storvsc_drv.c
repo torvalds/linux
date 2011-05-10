@@ -83,12 +83,6 @@ static int storvsc_initialize(struct hv_driver *driver)
 
 	stor_driver = hvdr_to_stordr(driver);
 
-
-	/* Make sure we are at least 2 pages since 1 page is used for control */
-
-	memcpy(&driver->dev_type, &gStorVscDeviceType,
-	       sizeof(struct hv_guid));
-
 	return 0;
 }
 
@@ -800,6 +794,9 @@ static int storvsc_drv_init(void)
 
 	/* Callback to client driver to complete the initialization */
 	storvsc_initialize(&storvsc_drv_obj->base);
+
+	memcpy(&drv->dev_type, &gStorVscDeviceType,
+	       sizeof(struct hv_guid));
 
 	if (max_outstanding_req_per_channel <
 	    STORVSC_MAX_IO_REQUESTS)
