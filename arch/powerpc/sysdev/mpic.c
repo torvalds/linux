@@ -1613,30 +1613,28 @@ void mpic_request_ipis(void)
 	}
 }
 
-static void mpic_send_ipi(unsigned int ipi_no, const struct cpumask *cpu_mask)
+void smp_mpic_message_pass(int cpu, int msg)
 {
 	struct mpic *mpic = mpic_primary;
+	u32 physmask;
 
 	BUG_ON(mpic == NULL);
 
-#ifdef DEBUG_IPI
-	DBG("%s: send_ipi(ipi_no: %d)\n", mpic->name, ipi_no);
-#endif
-
-	mpic_cpu_write(MPIC_INFO(CPU_IPI_DISPATCH_0) +
-		       ipi_no * MPIC_INFO(CPU_IPI_DISPATCH_STRIDE),
-		       mpic_physmask(cpumask_bits(cpu_mask)[0]));
-}
-
-void smp_mpic_message_pass(int cpu, int msg)
-{
 	/* make sure we're sending something that translates to an IPI */
 	if ((unsigned int)msg > 3) {
 		printk("SMP %d: smp_message_pass: unknown msg %d\n",
 		       smp_processor_id(), msg);
 		return;
 	}
-	mpic_send_ipi(msg, cpumask_of(cpu));
+
+#ifdef DEBUG_IPI
+	DBG("%s: send_ipi(ipi_no: %d)\n", mpic->name, msg);
+#endif
+
+	physmask = 1 << get_hard_smp_processor_id(cpu);
+
+	mpic_cpu_write(MPIC_INFO(CPU_IPI_DISPATCH_0) +
+		       msg * MPIC_INFO(CPU_IPI_DISPATCH_STRIDE), physmask);
 }
 
 int __init smp_mpic_probe(void)
