@@ -257,22 +257,6 @@ void __init beatic_init_IRQ(void)
 	irq_set_default_host(beatic_host);
 }
 
-#ifdef CONFIG_SMP
-
-/* Nullified to compile with SMP mode */
-void beatic_setup_cpu(int cpu)
-{
-}
-
-void beatic_cause_IPI(int cpu, int mesg)
-{
-}
-
-void beatic_request_IPIs(void)
-{
-}
-#endif /* CONFIG_SMP */
-
 void beatic_deinit_IRQ(void)
 {
 	int	i;
