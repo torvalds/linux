@@ -588,14 +588,12 @@ static void blkvsc_shutdown(struct hv_device *dev)
 
 	spin_unlock_irqrestore(&blkdev->lock, flags);
 
-	while (blkdev->num_outstanding_reqs) {
-		DPRINT_INFO(STORVSC, "waiting for %d requests to complete...",
-			    blkdev->num_outstanding_reqs);
-		udelay(100);
-	}
-
-
 	blkvsc_do_operation(blkdev, DO_FLUSH);
+
+	/*
+	 * Now wait for all outgoing I/O to be drained.
+	 */
+	storvsc_wait_to_drain((struct storvsc_device *)dev->ext);
 
 }
 
