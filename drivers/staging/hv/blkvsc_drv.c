@@ -958,7 +958,7 @@ static int blkvsc_probe(struct hv_device *dev)
 
 	dev_set_drvdata(&dev->device, blkdev);
 
-	ret = stor_vsc_get_major_info(&device_info, &major_info);
+	ret = storvsc_get_major_info(&device_info, &major_info);
 
 	if (ret)
 		goto cleanup;

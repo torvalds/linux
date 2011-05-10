@@ -170,7 +170,7 @@ int storvsc_dev_remove(struct hv_device *device);
 int storvsc_do_io(struct hv_device *device,
 				struct hv_storvsc_request *request);
 
-int stor_vsc_get_major_info(struct storvsc_device_info *device_info,
+int storvsc_get_major_info(struct storvsc_device_info *device_info,
 				struct storvsc_major_info *major_info);
 
 #endif /* _STORVSC_API_H_ */
