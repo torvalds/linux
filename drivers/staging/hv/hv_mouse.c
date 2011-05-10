@@ -979,8 +979,6 @@ static void mousevsc_drv_exit(void)
 
 static int mouse_vsc_initialize(struct hv_driver *driver)
 {
-	memcpy(&driver->dev_type, &mouse_guid,
-	       sizeof(struct hv_guid));
 
 	return 0;
 }
@@ -995,6 +993,8 @@ static int __init mousevsc_init(void)
 
 	/* Callback to client driver to complete the initialization */
 	mouse_vsc_initialize(&input_drv_obj->base);
+	memcpy(&drv->dev_type, &mouse_guid,
+	       sizeof(struct hv_guid));
 
 	drv->driver.name = driver_name;
 	drv->name = driver_name;
