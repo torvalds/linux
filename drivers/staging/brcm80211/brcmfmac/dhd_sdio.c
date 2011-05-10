@@ -15,9 +15,11 @@
  */
 
 #include <linux/types.h>
+#include <linux/kernel.h>
+#include <linux/printk.h>
 #include <linux/pci_ids.h>
-#include <bcmdefs.h>
 #include <linux/netdevice.h>
+#include <bcmdefs.h>
 #include <bcmsdh.h>
 
 #ifdef BCMEMBEDIMAGE
@@ -1003,9 +1005,12 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 	if (DHD_BYTES_ON() &&
 	    (((DHD_CTL_ON() && (chan == SDPCM_CONTROL_CHANNEL)) ||
 	      (DHD_DATA_ON() && (chan != SDPCM_CONTROL_CHANNEL))))) {
-		bcm_prhex("Tx Frame", frame, len);
+		printk(KERN_DEBUG "Tx Frame:\n");
+		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, frame, len);
 	} else if (DHD_HDRS_ON()) {
-		bcm_prhex("TxHdr", frame, min_t(u16, len, 16));
+		printk(KERN_DEBUG "TxHdr:\n");
+		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
+				     frame, min_t(u16, len, 16));
 	}
 #endif
 
@@ -1333,10 +1338,15 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 
 	if (ret == -1) {
 #ifdef DHD_DEBUG
-		if (DHD_BYTES_ON() && DHD_CTL_ON())
-			bcm_prhex("Tx Frame", frame, len);
-		else if (DHD_HDRS_ON())
-			bcm_prhex("TxHdr", frame, min_t(u16, len, 16));
+		if (DHD_BYTES_ON() && DHD_CTL_ON()) {
+			printk(KERN_DEBUG "Tx Frame:\n");
+			print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
+					     frame, len);
+		} else if (DHD_HDRS_ON()) {
+			printk(KERN_DEBUG "TxHdr:\n");
+			print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
+					     frame, min_t(u16, len, 16));
+		}
 #endif
 
 		do {
@@ -3117,8 +3127,10 @@ dhdsdio_read_control(dhd_bus_t *bus, u8 *hdr, uint len, uint doff)
 gotpkt:
 
 #ifdef DHD_DEBUG
-	if (DHD_BYTES_ON() && DHD_CTL_ON())
-		bcm_prhex("RxCtrl", bus->rxctl, len);
+	if (DHD_BYTES_ON() && DHD_CTL_ON()) {
+		printk(KERN_DEBUG "RxCtrl:\n");
+		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, bus->rxctl, len);
+	}
 #endif
 
 	/* Point to valid data and indicate its length */
@@ -3309,8 +3321,9 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		}
 #ifdef DHD_DEBUG
 		if (DHD_GLOM_ON()) {
-			bcm_prhex("SUPERFRAME", pfirst->data,
-			      min_t(int, pfirst->len, 48));
+			printk(KERN_DEBUG "SUPERFRAME:\n");
+			print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
+				pfirst->data, min_t(int, pfirst->len, 48));
 		}
 #endif
 
@@ -3391,8 +3404,11 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 			chan = SDPCM_PACKET_CHANNEL(&dptr[SDPCM_FRAMETAG_LEN]);
 			doff = SDPCM_DOFFSET_VALUE(&dptr[SDPCM_FRAMETAG_LEN]);
 #ifdef DHD_DEBUG
-			if (DHD_GLOM_ON())
-				bcm_prhex("subframe", dptr, 32);
+			if (DHD_GLOM_ON()) {
+				printk(KERN_DEBUG "subframe:\n");
+				print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
+						     dptr, 32);
+			}
 #endif
 
 			if ((u16)~(sublen ^ check)) {
@@ -3469,8 +3485,11 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				rxseq = seq;
 			}
 #ifdef DHD_DEBUG
-			if (DHD_BYTES_ON() && DHD_DATA_ON())
-				bcm_prhex("Rx Subframe Data", dptr, dlen);
+			if (DHD_BYTES_ON() && DHD_DATA_ON()) {
+				printk(KERN_DEBUG "Rx Subframe Data:\n");
+				print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
+						     dptr, dlen);
+			}
 #endif
 
 			__skb_trim(pfirst, sublen);
@@ -3513,8 +3532,9 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				__func__, num, pfirst, pfirst->data,
 				pfirst->len, pfirst->next,
 				pfirst->prev));
-				bcm_prhex("", (u8 *) pfirst->data,
-				      min_t(int, pfirst->len, 32));
+				print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
+						pfirst->data,
+						min_t(int, pfirst->len, 32));
 			}
 #endif				/* DHD_DEBUG */
 		}
@@ -3816,10 +3836,15 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			bus->tx_max = txmax;
 
 #ifdef DHD_DEBUG
-			if (DHD_BYTES_ON() && DHD_DATA_ON())
-				bcm_prhex("Rx Data", rxbuf, len);
-			else if (DHD_HDRS_ON())
-				bcm_prhex("RxHdr", bus->rxhdr, SDPCM_HDRLEN);
+			if (DHD_BYTES_ON() && DHD_DATA_ON()) {
+				printk(KERN_DEBUG "Rx Data:\n");
+				print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
+						     rxbuf, len);
+			} else if (DHD_HDRS_ON()) {
+				printk(KERN_DEBUG "RxHdr:\n");
+				print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
+						     bus->rxhdr, SDPCM_HDRLEN);
+			}
 #endif
 
 			if (chan == SDPCM_CONTROL_CHANNEL) {
@@ -3874,8 +3899,11 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			continue;
 		}
 #ifdef DHD_DEBUG
-		if (DHD_BYTES_ON() || DHD_HDRS_ON())
-			bcm_prhex("RxHdr", bus->rxhdr, SDPCM_HDRLEN);
+		if (DHD_BYTES_ON() || DHD_HDRS_ON()) {
+			printk(KERN_DEBUG "RxHdr:\n");
+			print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
+					     bus->rxhdr, SDPCM_HDRLEN);
+		}
 #endif
 
 		/* Extract hardware header fields */
@@ -4048,8 +4076,11 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		memcpy(pkt->data, bus->rxhdr, firstread);
 
 #ifdef DHD_DEBUG
-		if (DHD_BYTES_ON() && DHD_DATA_ON())
-			bcm_prhex("Rx Data", pkt->data, len);
+		if (DHD_BYTES_ON() && DHD_DATA_ON()) {
+			printk(KERN_DEBUG "Rx Data:\n");
+			print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
+					     pkt->data, len);
+		}
 #endif
 
 deliver:
@@ -4060,7 +4091,10 @@ deliver:
 					__func__, len));
 #ifdef DHD_DEBUG
 				if (DHD_GLOM_ON()) {
-					bcm_prhex("Glom Data", pkt->data, len);
+					printk(KERN_DEBUG "Glom Data:\n");
+					print_hex_dump_bytes("",
+							     DUMP_PREFIX_OFFSET,
+							     pkt->data, len);
 				}
 #endif
 				__skb_trim(pkt, len);
@@ -4621,8 +4655,9 @@ static void dhdsdio_pktgen(dhd_bus_t *bus)
 #ifdef DHD_DEBUG
 		if (DHD_BYTES_ON() && DHD_DATA_ON()) {
 			data = (u8 *) (pkt->data) + SDPCM_HDRLEN;
-			bcm_prhex("dhdsdio_pktgen: Tx Data", data,
-			      pkt->len - SDPCM_HDRLEN);
+			printk(KERN_DEBUG "dhdsdio_pktgen: Tx Data:\n");
+			print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, data,
+					     pkt->len - SDPCM_HDRLEN);
 		}
 #endif
 

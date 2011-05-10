@@ -21,6 +21,7 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h>
+#include <linux/printk.h>
 #include <bcmdefs.h>
 #include <stdarg.h>
 #include <bcmutils.h>
@@ -386,7 +387,7 @@ void bcm_prpkt(const char *msg, struct sk_buff *p0)
 		printk(KERN_DEBUG "%s:\n", msg);
 
 	for (p = p0; p; p = p->next)
-		bcm_prhex(NULL, p->data, p->len);
+		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, p->data, p->len);
 }
 EXPORT_SYMBOL(bcm_prpkt);
 #endif				/* defined(BCMDBG) */
@@ -628,43 +629,6 @@ int bcm_format_hex(char *str, const void *bytes, int len)
 }
 EXPORT_SYMBOL(bcm_format_hex);
 #endif				/* defined(BCMDBG) */
-
-/* pretty hex print a contiguous buffer */
-void bcm_prhex(const char *msg, unsigned char *buf, uint nbytes)
-{
-	char line[128], *p;
-	int len = sizeof(line);
-	int nchar;
-	uint i;
-
-	if (msg && (msg[0] != '\0'))
-		printk(KERN_DEBUG "%s:\n", msg);
-
-	p = line;
-	for (i = 0; i < nbytes; i++) {
-		if (i % 16 == 0) {
-			nchar = snprintf(p, len, "  %04d: ", i);	/* line prefix */
-			p += nchar;
-			len -= nchar;
-		}
-		if (len > 0) {
-			nchar = snprintf(p, len, "%02x ", buf[i]);
-			p += nchar;
-			len -= nchar;
-		}
-
-		if (i % 16 == 15) {
-			printk(KERN_DEBUG "%s\n", line);	/* flush line */
-			p = line;
-			len = sizeof(line);
-		}
-	}
-
-	/* flush last partial line */
-	if (p != line)
-		printk(KERN_DEBUG "%s\n", line);
-}
-EXPORT_SYMBOL(bcm_prhex);
 
 char *bcm_chipname(uint chipid, char *buf, uint len)
 {

@@ -476,7 +476,6 @@ extern u8 bcm_crc8(u8 *p, uint nbytes, u8 crc);
 	extern int bcm_format_hex(char *str, const void *bytes, int len);
 #endif
 	extern char *bcm_chipname(uint chipid, char *buf, uint len);
-	extern void bcm_prhex(const char *msg, unsigned char *buf, uint len);
 
 	extern bcm_tlv_t *bcm_parse_tlvs(void *buf, int buflen,
 						    uint key);

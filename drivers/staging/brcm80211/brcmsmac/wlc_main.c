@@ -4681,8 +4681,9 @@ void wlc_print_txdesc(d11txh_t *txh)
 	char hexbuf[256];
 
 	/* add plcp header along with txh descriptor */
-	bcm_prhex("Raw TxDesc + plcp header", (unsigned char *) txh,
-		sizeof(d11txh_t) + 48);
+	printk(KERN_DEBUG "Raw TxDesc + plcp header:\n");
+	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
+			     txh, sizeof(d11txh_t) + 48);
 
 	printk(KERN_DEBUG "TxCtlLow: %04x ", mtcl);
 	printk(KERN_DEBUG "TxCtlHigh: %04x ", mtch);
@@ -4753,7 +4754,8 @@ void wlc_print_rxh(d11rxhdr_t *rxh)
 		{0, NULL}
 	};
 
-	bcm_prhex("Raw RxDesc", (unsigned char *) rxh, sizeof(d11rxhdr_t));
+	printk(KERN_DEBUG "Raw RxDesc:\n");
+	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, rxh, sizeof(d11rxhdr_t));
 
 	bcm_format_flags(macstat_flags, macstatus1, flagstr, 64);
 
