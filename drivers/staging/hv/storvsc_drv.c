@@ -461,6 +461,56 @@ static int storvsc_get_chs(struct scsi_device *sdev, struct block_device * bdev,
 
 	return 0;
 }
+
+static int storvsc_host_reset(struct hv_device *device)
+{
+	struct storvsc_device *stor_device;
+	struct hv_storvsc_request *request;
+	struct vstor_packet *vstor_packet;
+	int ret, t;
+
+	DPRINT_INFO(STORVSC, "resetting host adapter...");
+
+	stor_device = get_stor_device(device);
+	if (!stor_device)
+		return -1;
+
+	request = &stor_device->reset_request;
+	vstor_packet = &request->vstor_packet;
+
+	init_completion(&request->wait_event);
+
+	vstor_packet->operation = VSTOR_OPERATION_RESET_BUS;
+	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
+	vstor_packet->vm_srb.path_id = stor_device->path_id;
+
+	ret = vmbus_sendpacket(device->channel, vstor_packet,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)&stor_device->reset_request,
+			       VM_PKT_DATA_INBAND,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	if (ret != 0)
+		goto cleanup;
+
+	t = wait_for_completion_timeout(&request->wait_event, HZ);
+	if (t == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
+
+	DPRINT_INFO(STORVSC, "host adapter reset completed");
+
+	/*
+	 * At this point, all outstanding requests in the adapter
+	 * should have been flushed out and return to us
+	 */
+
+cleanup:
+	put_stor_device(device);
+	return ret;
+}
+
+
 /* Static decl */
 static int storvsc_probe(struct hv_device *dev);
 static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
@@ -532,55 +582,6 @@ static int storvsc_drv_init(void)
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(&drv->driver);
 
-	return ret;
-}
-
-
-static int storvsc_host_reset(struct hv_device *device)
-{
-	struct storvsc_device *stor_device;
-	struct hv_storvsc_request *request;
-	struct vstor_packet *vstor_packet;
-	int ret, t;
-
-	DPRINT_INFO(STORVSC, "resetting host adapter...");
-
-	stor_device = get_stor_device(device);
-	if (!stor_device)
-		return -1;
-
-	request = &stor_device->reset_request;
-	vstor_packet = &request->vstor_packet;
-
-	init_completion(&request->wait_event);
-
-	vstor_packet->operation = VSTOR_OPERATION_RESET_BUS;
-	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
-	vstor_packet->vm_srb.path_id = stor_device->path_id;
-
-	ret = vmbus_sendpacket(device->channel, vstor_packet,
-			       sizeof(struct vstor_packet),
-			       (unsigned long)&stor_device->reset_request,
-			       VM_PKT_DATA_INBAND,
-			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
-	if (ret != 0)
-		goto cleanup;
-
-	t = wait_for_completion_timeout(&request->wait_event, HZ);
-	if (t == 0) {
-		ret = -ETIMEDOUT;
-		goto cleanup;
-	}
-
-	DPRINT_INFO(STORVSC, "host adapter reset completed");
-
-	/*
-	 * At this point, all outstanding requests in the adapter
-	 * should have been flushed out and return to us
-	 */
-
-cleanup:
-	put_stor_device(device);
 	return ret;
 }
 
