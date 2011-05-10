@@ -148,6 +148,21 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 	return 0;
 }
 
+static void destroy_bounce_buffer(struct scatterlist *sgl,
+				  unsigned int sg_count)
+{
+	int i;
+	struct page *page_buf;
+
+	for (i = 0; i < sg_count; i++) {
+		page_buf = sg_page((&sgl[i]));
+		if (page_buf != NULL)
+			__free_page(page_buf);
+	}
+
+	kfree(sgl);
+}
+
 /* Static decl */
 static int storvsc_probe(struct hv_device *dev);
 static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
@@ -157,8 +172,6 @@ static int storvsc_remove(struct hv_device *dev);
 static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl,
 						unsigned int sg_count,
 						unsigned int len);
-static void destroy_bounce_buffer(struct scatterlist *sgl,
-				  unsigned int sg_count);
 static int do_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count);
 static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl,
 					    struct scatterlist *bounce_sgl,
@@ -540,21 +553,6 @@ static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl,
 cleanup:
 	destroy_bounce_buffer(bounce_sgl, num_pages);
 	return NULL;
-}
-
-static void destroy_bounce_buffer(struct scatterlist *sgl,
-				  unsigned int sg_count)
-{
-	int i;
-	struct page *page_buf;
-
-	for (i = 0; i < sg_count; i++) {
-		page_buf = sg_page((&sgl[i]));
-		if (page_buf != NULL)
-			__free_page(page_buf);
-	}
-
-	kfree(sgl);
 }
 
 /* Assume the bounce_sgl has enough room ie using the create_bounce_buffer() */
