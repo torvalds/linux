@@ -302,13 +302,7 @@ static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 		printk(KERN_WARNING
 		       "ASoC: Failed to create codec register debugfs file\n");
 
-	codec->dapm.debugfs_dapm = debugfs_create_dir("dapm",
-						 codec->debugfs_codec_root);
-	if (!codec->dapm.debugfs_dapm)
-		printk(KERN_WARNING
-		       "Failed to create DAPM debugfs directory\n");
-
-	snd_soc_dapm_debugfs_init(&codec->dapm);
+	snd_soc_dapm_debugfs_init(&codec->dapm, codec->debugfs_codec_root);
 }
 
 static void soc_cleanup_codec_debugfs(struct snd_soc_codec *codec)
@@ -1499,6 +1493,12 @@ static int soc_probe_codec(struct snd_soc_card *card,
 	if (!try_module_get(codec->dev->driver->owner))
 		return -ENODEV;
 
+	soc_init_codec_debugfs(codec);
+
+	if (driver->dapm_widgets)
+		snd_soc_dapm_new_controls(&codec->dapm, driver->dapm_widgets,
+					  driver->num_dapm_widgets);
+
 	if (driver->probe) {
 		ret = driver->probe(codec);
 		if (ret < 0) {
@@ -1512,14 +1512,9 @@ static int soc_probe_codec(struct snd_soc_card *card,
 	if (driver->controls)
 		snd_soc_add_controls(codec, driver->controls,
 				     driver->num_controls);
-	if (driver->dapm_widgets)
-		snd_soc_dapm_new_controls(&codec->dapm, driver->dapm_widgets,
-					  driver->num_dapm_widgets);
 	if (driver->dapm_routes)
 		snd_soc_dapm_add_routes(&codec->dapm, driver->dapm_routes,
 					driver->num_dapm_routes);
-
-	soc_init_codec_debugfs(codec);
 
 	/* mark codec as probed and add to card codec list */
 	codec->probed = 1;
@@ -1529,6 +1524,7 @@ static int soc_probe_codec(struct snd_soc_card *card,
 	return 0;
 
 err_probe:
+	soc_cleanup_codec_debugfs(codec);
 	module_put(codec->dev->driver->owner);
 
 	return ret;
@@ -1879,6 +1875,10 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	card->dapm.card = card;
 	list_add(&card->dapm.list, &card->dapm_list);
 
+#ifdef CONFIG_DEBUG_FS
+	snd_soc_dapm_debugfs_init(&card->dapm, card->debugfs_card_root);
+#endif
+
 #ifdef CONFIG_PM_SLEEP
 	/* deferred resume work */
 	INIT_WORK(&card->deferred_resume_work, soc_resume_deferred);
@@ -1924,16 +1924,6 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	if (card->dapm_routes)
 		snd_soc_dapm_add_routes(&card->dapm, card->dapm_routes,
 					card->num_dapm_routes);
-
-#ifdef CONFIG_DEBUG_FS
-	card->dapm.debugfs_dapm = debugfs_create_dir("dapm",
-						     card->debugfs_card_root);
-	if (!card->dapm.debugfs_dapm)
-		printk(KERN_WARNING
-		       "Failed to create card DAPM debugfs directory\n");
-
-	snd_soc_dapm_debugfs_init(&card->dapm);
-#endif
 
 	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),
 		 "%s",  card->name);
@@ -2046,6 +2036,8 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	/* remove the card */
 	if (card->remove)
 		card->remove(card);
+
+	snd_soc_dapm_free(&card->dapm);
 
 	kfree(card->rtd);
 	snd_card_free(card->snd_card);
@@ -3364,6 +3356,8 @@ int snd_soc_register_card(struct snd_soc_card *card)
 
 	if (!card->name || !card->dev)
 		return -EINVAL;
+
+	dev_set_drvdata(card->dev, card);
 
 	snd_soc_initialize_card_lists(card);
 
