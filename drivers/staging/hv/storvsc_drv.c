@@ -511,10 +511,33 @@ cleanup:
 }
 
 
+/*
+ * storvsc_host_reset_handler - Reset the scsi HBA
+ */
+static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
+{
+	int ret;
+	struct hv_host_device *host_dev =
+		(struct hv_host_device *)scmnd->device->host->hostdata;
+	struct hv_device *dev = host_dev->dev;
+
+	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host resetting...",
+		    scmnd->device, dev);
+
+	/* Invokes the vsc to reset the host/bus */
+	ret = storvsc_host_reset(dev);
+	if (ret != 0)
+		return ret;
+
+	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host reseted",
+		    scmnd->device, dev);
+
+	return ret;
+}
+
 /* Static decl */
 static int storvsc_probe(struct hv_device *dev);
 static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
-static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd);
 
 static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
 module_param(storvsc_ringbuffer_size, int, S_IRUGO);
@@ -919,30 +942,6 @@ retry_request:
 }
 
 static DEF_SCSI_QCMD(storvsc_queuecommand)
-
-/*
- * storvsc_host_reset_handler - Reset the scsi HBA
- */
-static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
-{
-	int ret;
-	struct hv_host_device *host_dev =
-		(struct hv_host_device *)scmnd->device->host->hostdata;
-	struct hv_device *dev = host_dev->dev;
-
-	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host resetting...",
-		    scmnd->device, dev);
-
-	/* Invokes the vsc to reset the host/bus */
-	ret = storvsc_host_reset(dev);
-	if (ret != 0)
-		return ret;
-
-	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host reseted",
-		    scmnd->device, dev);
-
-	return ret;
-}
 
 static int __init storvsc_init(void)
 {
