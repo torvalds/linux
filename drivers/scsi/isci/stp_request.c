@@ -64,12 +64,6 @@
 #include "scu_task_context.h"
 #include "request.h"
 
-void scic_sds_stp_request_assign_buffers(struct scic_sds_request *sci_req)
-{
-	if (sci_req->was_tag_assigned_by_user == false)
-		sci_req->task_context_buffer = &sci_req->tc;
-}
-
 /**
  * This method is will fill in the SCU Task Context for any type of SATA
  *    request.  This is called from the various SATA constructors.

@@ -88,7 +88,7 @@ enum sci_request_protocol {
 	SCIC_SMP_PROTOCOL,
 	SCIC_SSP_PROTOCOL,
 	SCIC_STP_PROTOCOL
-}; /* XXX remove me, use sas_task.dev instead */;
+}; /* XXX remove me, use sas_task.{dev|task_proto} instead */;
 
 struct scic_sds_request {
 	/**
@@ -310,6 +310,19 @@ enum sci_base_request_states {
 	SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE,
 
 	/**
+	 * This sub-state indicates that the started task management request
+	 * is waiting for the reception of an unsolicited frame
+	 * (i.e. response IU).
+	 */
+	SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE,
+
+	/**
+	 * The AWAIT_TC_COMPLETION sub-state indicates that the started SMP request is
+	 * waiting for the transmission of the initial frame (i.e. command, task, etc.).
+	 */
+	SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION,
+
+	/**
 	 * This state indicates that the request has completed.
 	 * This state is entered from the STARTED state. This state is entered from
 	 * the ABORTING state.
@@ -461,8 +474,6 @@ scic_sds_io_request_tc_completion(struct scic_sds_request *request, u32 completi
 	}
 
 void scic_sds_request_build_sgl(struct scic_sds_request *sci_req);
-void scic_sds_stp_request_assign_buffers(struct scic_sds_request *sci_req);
-void scic_sds_smp_request_assign_buffers(struct scic_sds_request *sci_req);
 enum sci_status scic_sds_request_start(struct scic_sds_request *sci_req);
 enum sci_status scic_sds_io_request_terminate(struct scic_sds_request *sci_req);
 enum sci_status scic_sds_io_request_event_handler(struct scic_sds_request *sci_req,
@@ -471,30 +482,6 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 						  u32 frame_index);
 enum sci_status scic_sds_task_request_terminate(struct scic_sds_request *sci_req);
 enum sci_status scic_sds_request_started_state_abort_handler(struct scic_sds_request *sci_req);
-
-
-/**
- * enum _scic_sds_smp_request_started_substates - This enumeration depicts all
- *    of the substates for a SMP request to be performed in the STARTED
- *    super-state.
- *
- *
- */
-enum scic_sds_smp_request_started_substates {
-	/**
-	 * This sub-state indicates that the started task management request
-	 * is waiting for the reception of an unsolicited frame
-	 * (i.e. response IU).
-	 */
-	SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE,
-
-	/**
-	 * The AWAIT_TC_COMPLETION sub-state indicates that the started SMP request is
-	 * waiting for the transmission of the initial frame (i.e. command, task, etc.).
-	 */
-	SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION,
-};
-
 
 
 /* XXX open code in caller */
@@ -791,7 +778,6 @@ enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
 					    struct scic_sds_request *sci_req);
 enum sci_status scic_task_request_construct_ssp(struct scic_sds_request *sci_req);
 enum sci_status scic_task_request_construct_sata(struct scic_sds_request *sci_req);
-enum sci_status scic_io_request_construct_smp(struct scic_sds_request *sci_req);
 void scic_stp_io_request_set_ncq_tag(struct scic_sds_request *sci_req, u16 ncq_tag);
 void scic_sds_smp_request_copy_response(struct scic_sds_request *sci_req);
 #endif /* !defined(_ISCI_REQUEST_H_) */
