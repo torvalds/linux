@@ -2368,21 +2368,26 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	base_vha = pci_get_drvdata(pdev);
 	ha = base_vha->hw;
 
-	spin_lock_irqsave(&ha->vport_slock, flags);
-	list_for_each_entry(vha, &ha->vp_list, list) {
-		atomic_inc(&vha->vref_count);
+	mutex_lock(&ha->vport_lock);
+	while (ha->cur_vport_count) {
+		struct Scsi_Host *scsi_host;
 
-		if (vha->fc_vport) {
-			spin_unlock_irqrestore(&ha->vport_slock, flags);
+		spin_lock_irqsave(&ha->vport_slock, flags);
 
-			fc_vport_terminate(vha->fc_vport);
+		BUG_ON(base_vha->list.next == &ha->vp_list);
+		/* This assumes first entry in ha->vp_list is always base vha */
+		vha = list_first_entry(&base_vha->list, scsi_qla_host_t, list);
+		scsi_host = scsi_host_get(vha->host);
 
-			spin_lock_irqsave(&ha->vport_slock, flags);
-		}
+		spin_unlock_irqrestore(&ha->vport_slock, flags);
+		mutex_unlock(&ha->vport_lock);
 
-		atomic_dec(&vha->vref_count);
+		fc_vport_terminate(vha->fc_vport);
+		scsi_host_put(vha->host);
+
+		mutex_lock(&ha->vport_lock);
 	}
-	spin_unlock_irqrestore(&ha->vport_slock, flags);
+	mutex_unlock(&ha->vport_lock);
 
 	set_bit(UNLOADING, &base_vha->dpc_flags);
 
