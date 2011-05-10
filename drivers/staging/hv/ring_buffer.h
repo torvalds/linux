@@ -30,12 +30,12 @@
 
 struct hv_ring_buffer {
 	/* Offset in bytes from the start of ring data below */
-	volatile u32 write_index;
+	u32 write_index;
 
 	/* Offset in bytes from the start of ring data below */
-	volatile u32 read_index;
+	u32 read_index;
 
-	volatile u32 interrupt_mask;
+	u32 interrupt_mask;
 
 	/* Pad it to PAGE_SIZE so that data starts on page boundary */
 	u8	reserved[4084];
@@ -45,7 +45,6 @@ struct hv_ring_buffer {
 	 * vmbus connection also uses this data structure and its data starts
 	 * here, we commented out this field.
 	 */
-	/* volatile u32 InterruptMask; */
 
 	/*
 	 * Ring data starts here + RingDataStartOffset
