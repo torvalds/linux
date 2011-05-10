@@ -108,7 +108,7 @@ static void update_route(struct bat_priv *bat_priv, struct orig_node *orig_node,
 				    tt_buff, tt_buff_len);
 
 	/* route changed */
-	} else {
+	} else if (neigh_node && curr_router) {
 		bat_dbg(DBG_ROUTES, bat_priv,
 			"Changing route towards: %pM "
 			"(now via %pM - was via %pM)\n",
