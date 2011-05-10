@@ -88,7 +88,7 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *ring_info,
 int hv_ringbuffer_peek(struct hv_ring_buffer_info *ring_info, void *buffer,
 		   u32 buflen);
 
-int ringbuffer_read(struct hv_ring_buffer_info *ring_info,
+int hv_ringbuffer_read(struct hv_ring_buffer_info *ring_info,
 		   void *buffer,
 		   u32 buflen,
 		   u32 offset);

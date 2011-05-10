@@ -468,13 +468,13 @@ int hv_ringbuffer_peek(struct hv_ring_buffer_info *Inring_info,
 /*++
 
 Name:
-	ringbuffer_read()
+	hv_ringbuffer_read()
 
 Description:
 	Read and advance the read index
 
 --*/
-int ringbuffer_read(struct hv_ring_buffer_info *inring_info, void *buffer,
+int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info, void *buffer,
 		   u32 buflen, u32 offset)
 {
 	u32 bytes_avail_towrite;

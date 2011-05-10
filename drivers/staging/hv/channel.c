@@ -911,7 +911,7 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 	*requestid = desc.trans_id;
 
 	/* Copy over the packet to the user buffer */
-	ret = ringbuffer_read(&channel->inbound, buffer, userlen,
+	ret = hv_ringbuffer_read(&channel->inbound, buffer, userlen,
 			     (desc.offset8 << 3));
 
 	spin_unlock_irqrestore(&channel->inbound_lock, flags);
@@ -964,7 +964,7 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 	*requestid = desc.trans_id;
 
 	/* Copy over the entire packet to the user buffer */
-	ret = ringbuffer_read(&channel->inbound, buffer, packetlen, 0);
+	ret = hv_ringbuffer_read(&channel->inbound, buffer, packetlen, 0);
 
 	spin_unlock_irqrestore(&channel->inbound_lock, flags);
 	return 0;
