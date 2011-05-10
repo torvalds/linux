@@ -510,7 +510,7 @@ void __init smp_setup_cpu_maps(void)
 	cpu_init_thread_core_maps(nthreads);
 
 	/* Now that possible cpus are set, set nr_cpu_ids for later use */
-	nr_cpu_ids = find_last_bit(cpumask_bits(cpu_possible_mask),NR_CPUS) + 1;
+	setup_nr_cpu_ids();
 
 	free_unused_pacas();
 }
