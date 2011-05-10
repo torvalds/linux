@@ -732,8 +732,6 @@ unsigned int irq_create_mapping(struct irq_host *host,
 	 */
 	virq = irq_find_mapping(host, hwirq);
 	if (virq != NO_IRQ) {
-		if (host->ops->remap)
-			host->ops->remap(host, virq, hwirq);
 		pr_debug("irq: -> existing mapping on virq %d\n", virq);
 		return virq;
 	}

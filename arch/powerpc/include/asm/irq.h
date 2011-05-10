@@ -88,9 +88,6 @@ struct irq_host_ops {
 	/* Dispose of such a mapping */
 	void (*unmap)(struct irq_host *h, unsigned int virq);
 
-	/* Update of such a mapping  */
-	void (*remap)(struct irq_host *h, unsigned int virq, irq_hw_number_t hw);
-
 	/* Translate device-tree interrupt specifier from raw format coming
 	 * from the firmware to a irq_hw_number_t (interrupt line number) and
 	 * type (sense) that can be passed to set_irq_type(). In the absence
