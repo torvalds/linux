@@ -656,7 +656,7 @@ enum sci_status scic_sds_io_request_frame_handler(
  * @sci_req: This parameter specifies the request object for which to copy
  *    the response data.
  */
-void scic_sds_io_request_copy_response(struct scic_sds_request *sci_req)
+static void scic_sds_io_request_copy_response(struct scic_sds_request *sci_req)
 {
 	void *resp_buf;
 	u32 len;
@@ -978,7 +978,6 @@ scic_sds_io_request_tc_completion(struct scic_sds_request *request, u32 completi
 		sci_base_state_machine_get_state(&request->state_machine));
 
 	return SCI_FAILURE_INVALID_STATE;
-
 }
 
 /*
@@ -1151,9 +1150,119 @@ static enum sci_status scic_sds_request_aborting_state_frame_handler(
 	return SCI_SUCCESS;
 }
 
+/**
+ * This method processes the completions transport layer (TL) status to
+ *    determine if the RAW task management frame was sent successfully. If the
+ *    raw frame was sent successfully, then the state for the task request
+ *    transitions to waiting for a response frame.
+ * @sci_req: This parameter specifies the request for which the TC
+ *    completion was received.
+ * @completion_code: This parameter indicates the completion status information
+ *    for the TC.
+ *
+ * Indicate if the tc completion handler was successful. SCI_SUCCESS currently
+ * this method always returns success.
+ */
+static enum sci_status scic_sds_ssp_task_request_await_tc_completion_tc_completion_handler(
+	struct scic_sds_request *sci_req,
+	u32 completion_code)
+{
+	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
+	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
+		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD,
+					    SCI_SUCCESS);
+
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+			SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE);
+		break;
+
+	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_ACK_NAK_TO):
+		/*
+		 * Currently, the decision is to simply allow the task request to
+		 * timeout if the task IU wasn't received successfully.
+		 * There is a potential for receiving multiple task responses if we
+		 * decide to send the task IU again. */
+		dev_warn(scic_to_dev(sci_req->owning_controller),
+			 "%s: TaskRequest:0x%p CompletionCode:%x - "
+			 "ACK/NAK timeout\n",
+			 __func__,
+			 sci_req,
+			 completion_code);
+
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+			SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE);
+		break;
+
+	default:
+		/*
+		 * All other completion status cause the IO to be complete.  If a NAK
+		 * was received, then it is up to the user to retry the request. */
+		scic_sds_request_set_status(
+			sci_req,
+			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
+			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
+			);
+
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+			SCI_BASE_REQUEST_STATE_COMPLETED);
+		break;
+	}
+
+	return SCI_SUCCESS;
+}
+
+/**
+ * This method is responsible for processing a terminate/abort request for this
+ *    TC while the request is waiting for the task management response
+ *    unsolicited frame.
+ * @sci_req: This parameter specifies the request for which the
+ *    termination was requested.
+ *
+ * This method returns an indication as to whether the abort request was
+ * successfully handled. need to update to ensure the received UF doesn't cause
+ * damage to subsequent requests (i.e. put the extended tag in a holding
+ * pattern for this particular device).
+ */
+static enum sci_status scic_sds_ssp_task_request_await_tc_response_abort_handler(
+	struct scic_sds_request *request)
+{
+	sci_base_state_machine_change_state(&request->state_machine,
+			SCI_BASE_REQUEST_STATE_ABORTING);
+	sci_base_state_machine_change_state(&request->state_machine,
+			SCI_BASE_REQUEST_STATE_COMPLETED);
+	return SCI_SUCCESS;
+}
+
+/**
+ * This method processes an unsolicited frame while the task mgmt request is
+ *    waiting for a response frame.  It will copy the response data, release
+ *    the unsolicited frame, and transition the request to the
+ *    SCI_BASE_REQUEST_STATE_COMPLETED state.
+ * @sci_req: This parameter specifies the request for which the
+ *    unsolicited frame was received.
+ * @frame_index: This parameter indicates the unsolicited frame index that
+ *    should contain the response.
+ *
+ * This method returns an indication of whether the TC response frame was
+ * handled successfully or not. SCI_SUCCESS Currently this value is always
+ * returned and indicates successful processing of the TC response. Should
+ * probably update to check frame type and make sure it is a response frame.
+ */
+static enum sci_status scic_sds_ssp_task_request_await_tc_response_frame_handler(
+	struct scic_sds_request *request,
+	u32 frame_index)
+{
+	scic_sds_io_request_copy_response(request);
+
+	sci_base_state_machine_change_state(&request->state_machine,
+		SCI_BASE_REQUEST_STATE_COMPLETED);
+	scic_sds_controller_release_frame(request->owning_controller,
+			frame_index);
+	return SCI_SUCCESS;
+}
+
 static const struct scic_sds_io_request_state_handler scic_sds_request_state_handler_table[] = {
-	[SCI_BASE_REQUEST_STATE_INITIAL] = {
-	},
+	[SCI_BASE_REQUEST_STATE_INITIAL] = { },
 	[SCI_BASE_REQUEST_STATE_CONSTRUCTED] = {
 		.start_handler		= scic_sds_request_constructed_state_start_handler,
 		.abort_handler		= scic_sds_request_constructed_state_abort_handler,
@@ -1163,6 +1272,14 @@ static const struct scic_sds_io_request_state_handler scic_sds_request_state_han
 		.tc_completion_handler	= scic_sds_request_started_state_tc_completion_handler,
 		.frame_handler		= scic_sds_request_started_state_frame_handler,
 	},
+	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION] = {
+		.abort_handler		= scic_sds_request_started_state_abort_handler,
+		.tc_completion_handler	= scic_sds_ssp_task_request_await_tc_completion_tc_completion_handler,
+	},
+	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE] = {
+		.abort_handler		= scic_sds_ssp_task_request_await_tc_response_abort_handler,
+		.frame_handler		= scic_sds_ssp_task_request_await_tc_response_frame_handler,
+	},
 	[SCI_BASE_REQUEST_STATE_COMPLETED] = {
 		.complete_handler	= scic_sds_request_completed_state_complete_handler,
 	},
@@ -1171,8 +1288,7 @@ static const struct scic_sds_io_request_state_handler scic_sds_request_state_han
 		.tc_completion_handler	= scic_sds_request_aborting_state_tc_completion_handler,
 		.frame_handler		= scic_sds_request_aborting_state_frame_handler,
 	},
-	[SCI_BASE_REQUEST_STATE_FINAL] = {
-	},
+	[SCI_BASE_REQUEST_STATE_FINAL] = { },
 };
 
 
@@ -1919,6 +2035,9 @@ static void scic_sds_request_constructed_state_enter(void *object)
 static void scic_sds_request_started_state_enter(void *object)
 {
 	struct scic_sds_request *sci_req = object;
+	struct sci_base_state_machine *sm = &sci_req->state_machine;
+	struct isci_request *ireq = sci_req_to_ireq(sci_req);
+	struct domain_device *dev = sci_dev_to_domain(sci_req->target_device);
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -1926,9 +2045,13 @@ static void scic_sds_request_started_state_enter(void *object)
 		SCI_BASE_REQUEST_STATE_STARTED
 		);
 
-	/*
-	 * Most of the request state machines have a started substate machine so
-	 * start its execution on the entry to the started state. */
+	if (ireq->ttype == tmf_task && dev->dev_type == SAS_END_DEV)
+		sci_base_state_machine_change_state(sm,
+			SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION);
+
+	/* Most of the request state machines have a started substate machine so
+	 * start its execution on the entry to the started state.
+	 */
 	if (sci_req->has_started_substate_machine == true)
 		sci_base_state_machine_start(&sci_req->started_substate_machine);
 }
@@ -2026,6 +2149,30 @@ static void scic_sds_request_final_state_enter(void *object)
 		);
 }
 
+static void scic_sds_io_request_started_task_mgmt_await_tc_completion_substate_enter(
+	void *object)
+{
+	struct scic_sds_request *sci_req = object;
+
+	SET_STATE_HANDLER(
+		sci_req,
+		scic_sds_request_state_handler_table,
+		SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION
+		);
+}
+
+static void scic_sds_io_request_started_task_mgmt_await_task_response_substate_enter(
+	void *object)
+{
+	struct scic_sds_request *sci_req = object;
+
+	SET_STATE_HANDLER(
+		sci_req,
+		scic_sds_request_state_handler_table,
+		SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE
+		);
+}
+
 static const struct sci_base_state scic_sds_request_state_table[] = {
 	[SCI_BASE_REQUEST_STATE_INITIAL] = {
 		.enter_state = scic_sds_request_initial_state_enter,
@@ -2036,6 +2183,12 @@ static const struct sci_base_state scic_sds_request_state_table[] = {
 	[SCI_BASE_REQUEST_STATE_STARTED] = {
 		.enter_state = scic_sds_request_started_state_enter,
 		.exit_state  = scic_sds_request_started_state_exit
+	},
+	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION] = {
+		.enter_state = scic_sds_io_request_started_task_mgmt_await_tc_completion_substate_enter,
+	},
+	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE] = {
+		.enter_state = scic_sds_io_request_started_task_mgmt_await_task_response_substate_enter,
 	},
 	[SCI_BASE_REQUEST_STATE_COMPLETED] = {
 		.enter_state = scic_sds_request_completed_state_enter,
@@ -2126,19 +2279,9 @@ enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
 	/* Build the common part of the request */
 	scic_sds_general_request_construct(scic, sci_dev, io_tag, sci_req);
 
-	if (dev->dev_type == SAS_END_DEV) {
+	if (dev->dev_type == SAS_END_DEV)
 		scic_sds_ssp_task_request_assign_buffers(sci_req);
-
-		sci_req->has_started_substate_machine = true;
-
-		/* Construct the started sub-state machine. */
-		sci_base_state_machine_construct(
-			&sci_req->started_substate_machine,
-			sci_req,
-			scic_sds_io_request_started_task_mgmt_substate_table,
-			SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION
-			);
-	} else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP))
+	else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP))
 		scic_sds_stp_request_assign_buffers(sci_req);
 	else
 		status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
