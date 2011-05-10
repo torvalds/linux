@@ -4706,9 +4706,7 @@ error_return:
  * @block:			start physcial block to add to the block group
  * @count:			number of blocks to free
  *
- * This marks the blocks as free in the bitmap. We ask the
- * mballoc to reload the buddy after this by setting group
- * EXT4_GROUP_INFO_NEED_INIT_BIT flag
+ * This marks the blocks as free in the bitmap and buddy.
  */
 void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 			 ext4_fsblk_t block, unsigned long count)
@@ -4720,6 +4718,7 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 	unsigned int i;
 	struct ext4_group_desc *desc;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_buddy e4b;
 	int err = 0, ret, blk_free_count;
 	ext4_grpblk_t blocks_freed;
 	struct ext4_group_info *grp;
@@ -4767,15 +4766,10 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 	err = ext4_journal_get_write_access(handle, gd_bh);
 	if (err)
 		goto error_return;
-	/*
-	 * make sure we don't allow a parallel init on other groups in the
-	 * same buddy cache
-	 */
-	down_write(&grp->alloc_sem);
+
 	for (i = 0, blocks_freed = 0; i < count; i++) {
 		BUFFER_TRACE(bitmap_bh, "clear bit");
-		if (!ext4_clear_bit_atomic(ext4_group_lock_ptr(sb, block_group),
-						bit + i, bitmap_bh->b_data)) {
+		if (!mb_test_bit(bit + i, bitmap_bh->b_data)) {
 			ext4_error(sb, "bit already cleared for block %llu",
 				   (ext4_fsblk_t)(block + i));
 			BUFFER_TRACE(bitmap_bh, "bit already cleared");
@@ -4783,7 +4777,19 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 			blocks_freed++;
 		}
 	}
+
+	err = ext4_mb_load_buddy(sb, block_group, &e4b);
+	if (err)
+		goto error_return;
+
+	/*
+	 * need to update group_info->bb_free and bitmap
+	 * with group lock held. generate_buddy look at
+	 * them with group lock_held
+	 */
 	ext4_lock_group(sb, block_group);
+	mb_clear_bits(bitmap_bh->b_data, bit, count);
+	mb_free_blocks(NULL, &e4b, bit, count);
 	blk_free_count = blocks_freed + ext4_free_blks_count(sb, desc);
 	ext4_free_blks_set(sb, desc, blk_free_count);
 	desc->bg_checksum = ext4_group_desc_csum(sbi, block_group, desc);
@@ -4795,13 +4801,8 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 		atomic_add(blocks_freed,
 			   &sbi->s_flex_groups[flex_group].free_blocks);
 	}
-	/*
-	 * request to reload the buddy with the
-	 * new bitmap information
-	 */
-	set_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &(grp->bb_state));
-	grp->bb_free += blocks_freed;
-	up_write(&grp->alloc_sem);
+
+	ext4_mb_unload_buddy(&e4b);
 
 	/* We dirtied the bitmap block */
 	BUFFER_TRACE(bitmap_bh, "dirtied bitmap block");
