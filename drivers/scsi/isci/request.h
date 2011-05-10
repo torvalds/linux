@@ -59,7 +59,6 @@
 #include "isci.h"
 #include "host.h"
 #include "scu_task_context.h"
-#include "stp_request.h"
 
 /**
  * struct isci_request_status - This enum defines the possible states of an I/O
@@ -89,6 +88,63 @@ enum sci_request_protocol {
 	SCIC_SSP_PROTOCOL,
 	SCIC_STP_PROTOCOL
 }; /* XXX remove me, use sas_task.{dev|task_proto} instead */;
+
+struct scic_sds_stp_request {
+	union {
+		u32 ncq;
+
+		u32 udma;
+
+		struct scic_sds_stp_pio_request {
+			/**
+			 * Total transfer for the entire PIO request recorded at request constuction
+			 * time.
+			 *
+			 * @todo Should we just decrement this value for each byte of data transitted
+			 *       or received to elemenate the current_transfer_bytes field?
+			 */
+			u32 total_transfer_bytes;
+
+			/**
+			 * Total number of bytes received/transmitted in data frames since the start
+			 * of the IO request.  At the end of the IO request this should equal the
+			 * total_transfer_bytes.
+			 */
+			u32 current_transfer_bytes;
+
+			/**
+			 * The number of bytes requested in the in the PIO setup.
+			 */
+			u32 pio_transfer_bytes;
+
+			/**
+			 * PIO Setup ending status value to tell us if we need to wait for another FIS
+			 * or if the transfer is complete. On the receipt of a D2H FIS this will be
+			 * the status field of that FIS.
+			 */
+			u8 ending_status;
+
+			/**
+			 * On receipt of a D2H FIS this will be the ending error field if the
+			 * ending_status has the SATA_STATUS_ERR bit set.
+			 */
+			u8 ending_error;
+
+			struct scic_sds_request_pio_sgl {
+				struct scu_sgl_element_pair *sgl_pair;
+				u8 sgl_set;
+				u32 sgl_offset;
+			} request_current;
+		} pio;
+
+		struct {
+			/**
+			 * The number of bytes requested in the PIO setup before CDB data frame.
+			 */
+			u32 device_preferred_cdb_length;
+		} packet;
+	} type;
+};
 
 struct scic_sds_request {
 	/**
@@ -159,12 +215,6 @@ struct scic_sds_request {
 	bool is_task_management_request;
 
 	/**
-	 * This field indicates that this request contains an initialized started
-	 * substate machine.
-	 */
-	bool has_started_substate_machine;
-
-	/**
 	 * This field is a pointer to the stored rx frame data.  It is used in STP
 	 * internal requests and SMP response frames.  If this field is non-NULL the
 	 * saved frame must be released on IO request completion.
@@ -172,12 +222,6 @@ struct scic_sds_request {
 	 * @todo In the future do we want to keep a list of RX frame buffers?
 	 */
 	u32 saved_rx_frame_index;
-
-	/**
-	 * This field specifies the data necessary to manage the sub-state
-	 * machine executed while in the SCI_BASE_REQUEST_STATE_STARTED state.
-	 */
-	struct sci_base_state_machine started_substate_machine;
 
 	/**
 	 * This field specifies the current state handlers in place for this
@@ -295,6 +339,41 @@ enum sci_base_request_states {
 	 */
 	SCI_BASE_REQUEST_STATE_STARTED,
 
+	SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE,
+	SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE,
+
+	SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE,
+	SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_D2H_SUBSTATE,
+
+	SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE,
+	SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_DIAGNOSTIC_COMPLETION_SUBSTATE,
+	SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_D2H_RESPONSE_FRAME_SUBSTATE,
+
+	/**
+	 * While in this state the IO request object is waiting for the TC completion
+	 * notification for the H2D Register FIS
+	 */
+	SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE,
+
+	/**
+	 * While in this state the IO request object is waiting for either a PIO Setup
+	 * FIS or a D2H register FIS.  The type of frame received is based on the
+	 * result of the prior frame and line conditions.
+	 */
+	SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE,
+
+	/**
+	 * While in this state the IO request object is waiting for a DATA frame from
+	 * the device.
+	 */
+	SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE,
+
+	/**
+	 * While in this state the IO request object is waiting to transmit the next data
+	 * frame to the device.
+	 */
+	SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE,
+
 	/**
 	 * The AWAIT_TC_COMPLETION sub-state indicates that the started raw
 	 * task management request is waiting for the transmission of the
@@ -382,8 +461,6 @@ struct scic_sds_io_request_state_handler {
 	scic_sds_io_request_frame_handler_t frame_handler;
 
 };
-
-extern const struct sci_base_state scic_sds_io_request_started_task_mgmt_substate_table[];
 
 /**
  * scic_sds_request_get_controller() -
@@ -473,7 +550,6 @@ scic_sds_io_request_tc_completion(struct scic_sds_request *request, u32 completi
 		(scu_sge).address_modifier = 0;	\
 	}
 
-void scic_sds_request_build_sgl(struct scic_sds_request *sci_req);
 enum sci_status scic_sds_request_start(struct scic_sds_request *sci_req);
 enum sci_status scic_sds_io_request_terminate(struct scic_sds_request *sci_req);
 enum sci_status scic_sds_io_request_event_handler(struct scic_sds_request *sci_req,
@@ -481,8 +557,6 @@ enum sci_status scic_sds_io_request_event_handler(struct scic_sds_request *sci_r
 enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
 						  u32 frame_index);
 enum sci_status scic_sds_task_request_terminate(struct scic_sds_request *sci_req);
-enum sci_status scic_sds_request_started_state_abort_handler(struct scic_sds_request *sci_req);
-
 
 /* XXX open code in caller */
 static inline void *scic_request_get_virt_addr(struct scic_sds_request *sci_req,
@@ -778,6 +852,9 @@ enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
 					    struct scic_sds_request *sci_req);
 enum sci_status scic_task_request_construct_ssp(struct scic_sds_request *sci_req);
 enum sci_status scic_task_request_construct_sata(struct scic_sds_request *sci_req);
+enum sci_status scic_sds_stp_udma_request_construct(struct scic_sds_request *sci_req,
+						    u32 transfer_length,
+						    enum dma_data_direction dir);
 void scic_stp_io_request_set_ncq_tag(struct scic_sds_request *sci_req, u16 ncq_tag);
 void scic_sds_smp_request_copy_response(struct scic_sds_request *sci_req);
 #endif /* !defined(_ISCI_REQUEST_H_) */

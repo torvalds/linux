@@ -6,5 +6,4 @@ isci-objs := init.o phy.o request.o sata.o \
 	     remote_node_context.o \
 	     remote_node_table.o \
 	     unsolicited_frame_control.o \
-	     stp_request.o \
 	     port_config.o \
