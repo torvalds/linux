@@ -538,11 +538,6 @@ static int blkvsc_remove(struct hv_device *dev)
 	struct block_device_context *blkdev = dev_get_drvdata(&dev->device);
 	unsigned long flags;
 
-	/*
-	 * Call to the vsc driver to let it know that the device is being
-	 * removed
-	 */
-	storvsc_dev_remove(dev);
 
 	/* Get to a known state */
 	spin_lock_irqsave(&blkdev->lock, flags);
@@ -555,16 +550,15 @@ static int blkvsc_remove(struct hv_device *dev)
 
 	spin_unlock_irqrestore(&blkdev->lock, flags);
 
-	while (blkdev->num_outstanding_reqs) {
-		DPRINT_INFO(STORVSC, "waiting for %d requests to complete...",
-			    blkdev->num_outstanding_reqs);
-		udelay(100);
-	}
-
-
 	blkvsc_do_operation(blkdev, DO_FLUSH);
 
 	blk_cleanup_queue(blkdev->gd->queue);
+
+	/*
+	 * Call to the vsc driver to let it know that the device is being
+	 * removed
+	 */
+	storvsc_dev_remove(dev);
 
 	del_gendisk(blkdev->gd);
 
