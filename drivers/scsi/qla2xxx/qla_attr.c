@@ -496,8 +496,8 @@ do_read:
 			offset = 0;
 		}
 
-		rval = qla2x00_read_sfp(vha, ha->sfp_data_dma, addr, offset,
-		    SFP_BLOCK_SIZE);
+		rval = qla2x00_read_sfp(vha, ha->sfp_data_dma, ha->sfp_data,
+		    addr, offset, SFP_BLOCK_SIZE, 0);
 		if (rval != QLA_SUCCESS) {
 			qla_printk(KERN_WARNING, ha,
 			    "Unable to read SFP data (%x/%x/%x).\n", rval,
@@ -628,8 +628,8 @@ qla2x00_sysfs_write_edc(struct file *filp, struct kobject *kobj,
 
 	memcpy(ha->edc_data, &buf[8], len);
 
-	rval = qla2x00_write_edc(vha, dev, adr, ha->edc_data_dma,
-	    ha->edc_data, len, opt);
+	rval = qla2x00_write_sfp(vha, ha->edc_data_dma, ha->edc_data,
+	    dev, adr, len, opt);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "Unable to write EDC (%x) %02x:%02x:%04x:%02x:%02x.\n",
@@ -685,8 +685,8 @@ qla2x00_sysfs_write_edc_status(struct file *filp, struct kobject *kobj,
 			return -EINVAL;
 
 	memset(ha->edc_data, 0, len);
-	rval = qla2x00_read_edc(vha, dev, adr, ha->edc_data_dma,
-	    ha->edc_data, len, opt);
+	rval = qla2x00_read_sfp(vha, ha->edc_data_dma, ha->edc_data,
+			dev, adr, len, opt);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "Unable to write EDC status (%x) %02x:%02x:%04x:%02x.\n",
