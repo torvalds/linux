@@ -1130,24 +1130,8 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
 	e4b->bd_group = group;
 	e4b->bd_buddy_page = NULL;
 	e4b->bd_bitmap_page = NULL;
-	e4b->alloc_semp = &grp->alloc_sem;
-
-	/* Take the read lock on the group alloc
-	 * sem. This would make sure a parallel
-	 * ext4_mb_init_group happening on other
-	 * groups mapped by the page is blocked
-	 * till we are done with allocation
-	 */
-repeat_load_buddy:
-	down_read(e4b->alloc_semp);
 
 	if (unlikely(EXT4_MB_GRP_NEED_INIT(grp))) {
-		/* we need to check for group need init flag
-		 * with alloc_semp held so that we can be sure
-		 * that new blocks didn't get added to the group
-		 * when we are loading the buddy cache
-		 */
-		up_read(e4b->alloc_semp);
 		/*
 		 * we need full data about the group
 		 * to make a good selection
@@ -1155,7 +1139,6 @@ repeat_load_buddy:
 		ret = ext4_mb_init_group(sb, group);
 		if (ret)
 			return ret;
-		goto repeat_load_buddy;
 	}
 
 	/*
@@ -1247,9 +1230,6 @@ err:
 		page_cache_release(e4b->bd_buddy_page);
 	e4b->bd_buddy = NULL;
 	e4b->bd_bitmap = NULL;
-
-	/* Done with the buddy cache */
-	up_read(e4b->alloc_semp);
 	return ret;
 }
 
@@ -1259,9 +1239,6 @@ static void ext4_mb_unload_buddy(struct ext4_buddy *e4b)
 		page_cache_release(e4b->bd_bitmap_page);
 	if (e4b->bd_buddy_page)
 		page_cache_release(e4b->bd_buddy_page);
-	/* Done with the buddy cache */
-	if (e4b->alloc_semp)
-		up_read(e4b->alloc_semp);
 }
 
 
@@ -1574,9 +1551,6 @@ static void ext4_mb_use_best_found(struct ext4_allocation_context *ac,
 	get_page(ac->ac_bitmap_page);
 	ac->ac_buddy_page = e4b->bd_buddy_page;
 	get_page(ac->ac_buddy_page);
-	/* on allocation we use ac to track the held semaphore */
-	ac->alloc_semp =  e4b->alloc_semp;
-	e4b->alloc_semp = NULL;
 	/* store last allocated for subsequent stream allocation */
 	if (ac->ac_flags & EXT4_MB_STREAM_ALLOC) {
 		spin_lock(&sbi->s_md_lock);
@@ -4188,15 +4162,12 @@ static int ext4_mb_release_context(struct ext4_allocation_context *ac)
 			spin_unlock(&pa->pa_lock);
 		}
 	}
-	if (ac->alloc_semp)
-		up_read(ac->alloc_semp);
 	if (pa) {
 		/*
 		 * We want to add the pa to the right bucket.
 		 * Remove it from the list and while adding
 		 * make sure the list to which we are adding
-		 * doesn't grow big.  We need to release
-		 * alloc_semp before calling ext4_mb_add_n_trim()
+		 * doesn't grow big.
 		 */
 		if ((pa->pa_type == MB_GROUP_PA) && likely(pa->pa_free)) {
 			spin_lock(pa->pa_obj_lock);
