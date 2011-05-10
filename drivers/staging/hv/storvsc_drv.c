@@ -112,10 +112,19 @@ static int stor_vsc_initialize(struct hv_driver *driver)
 	return 0;
 }
 
+static int storvsc_device_alloc(struct scsi_device *sdevice)
+{
+	/*
+	 * This enables luns to be located sparsely. Otherwise, we may not
+	 * discovered them.
+	 */
+	sdevice->sdev_bflags |= BLIST_SPARSELUN | BLIST_LARGELUN;
+	return 0;
+}
+
 /* Static decl */
 static int storvsc_probe(struct hv_device *dev);
 static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
-static int storvsc_device_alloc(struct scsi_device *);
 static int storvsc_device_configure(struct scsi_device *);
 static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd);
 static int storvsc_remove(struct hv_device *dev);
@@ -819,19 +828,6 @@ static int storvsc_merge_bvec(struct request_queue *q,
 {
 	/* checking done by caller. */
 	return bvec->bv_len;
-}
-
-/*
- * storvsc_device_configure - Configure the specified scsi device
- */
-static int storvsc_device_alloc(struct scsi_device *sdevice)
-{
-	/*
-	 * This enables luns to be located sparsely. Otherwise, we may not
-	 * discovered them.
-	 */
-	sdevice->sdev_bflags |= BLIST_SPARSELUN | BLIST_LARGELUN;
-	return 0;
 }
 
 static int storvsc_device_configure(struct scsi_device *sdevice)
