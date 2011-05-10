@@ -113,7 +113,7 @@ static int stor_vsc_initialize(struct hv_driver *driver)
 		    STORVSC_MAX_IO_REQUESTS);
 
 	/* Setup the dispatch table */
-	stor_driver->base.dev_add	= stor_vsc_on_device_add;
+	stor_driver->base.dev_add	= storvsc_dev_add;
 	stor_driver->base.dev_rm	= stor_vsc_on_device_remove;
 	stor_driver->base.cleanup	= stor_vsc_on_cleanup;
 

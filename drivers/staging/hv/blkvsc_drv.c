@@ -147,7 +147,7 @@ static int blkvsc_device_add(struct hv_device *device,
 
 	device_info = (struct storvsc_device_info *)additional_info;
 
-	ret = stor_vsc_on_device_add(device, additional_info);
+	ret = storvsc_dev_add(device, additional_info);
 	if (ret != 0)
 		return ret;
 
