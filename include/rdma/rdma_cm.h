@@ -329,4 +329,14 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr);
  */
 void rdma_set_service_type(struct rdma_cm_id *id, int tos);
 
+/**
+ * rdma_set_reuseaddr - Allow the reuse of local addresses when binding
+ *    the rdma_cm_id.
+ * @id: Communication identifier to configure.
+ * @reuse: Value indicating if the bound address is reusable.
+ *
+ * Reuse must be set before an address is bound to the id.
+ */
+int rdma_set_reuseaddr(struct rdma_cm_id *id, int reuse);
+
 #endif /* RDMA_CM_H */
