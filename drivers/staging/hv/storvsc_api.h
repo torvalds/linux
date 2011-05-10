@@ -165,7 +165,7 @@ struct storvsc_driver *drv_to_stordrv(struct device_driver *d)
 
 int storvsc_dev_add(struct hv_device *device,
 				void *additional_info);
-int stor_vsc_on_device_remove(struct hv_device *device);
+int storvsc_dev_remove(struct hv_device *device);
 
 int stor_vsc_on_io_request(struct hv_device *device,
 				struct hv_storvsc_request *request);

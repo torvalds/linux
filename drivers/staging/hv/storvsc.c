@@ -483,7 +483,7 @@ cleanup:
 /*
  * stor_vsc_on_device_remove - Callback when the our device is being removed
  */
-int stor_vsc_on_device_remove(struct hv_device *device)
+int storvsc_dev_remove(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
 
