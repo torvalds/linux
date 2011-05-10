@@ -444,7 +444,6 @@ static int netvsc_drv_exit_cb(struct device *dev, void *data)
 
 static void netvsc_drv_exit(void)
 {
-	struct netvsc_driver *netvsc_drv_obj = &g_netvsc_drv;
 	struct hv_driver *drv = &g_netvsc_drv.base;
 	struct device *current_dev;
 	int ret;
@@ -465,9 +464,6 @@ static void netvsc_drv_exit(void)
 
 		device_unregister(current_dev);
 	}
-
-	if (netvsc_drv_obj->base.cleanup)
-		netvsc_drv_obj->base.cleanup(&netvsc_drv_obj->base);
 
 	vmbus_child_driver_unregister(&drv->driver);
 
