@@ -115,7 +115,7 @@ static int stor_vsc_initialize(struct hv_driver *driver)
 	/* Setup the dispatch table */
 	stor_driver->base.dev_add	= storvsc_dev_add;
 	stor_driver->base.dev_rm	= storvsc_dev_remove;
-	stor_driver->base.cleanup	= stor_vsc_on_cleanup;
+	stor_driver->base.cleanup	= storvsc_cleanup;
 
 	stor_driver->on_io_request	= stor_vsc_on_io_request;
 

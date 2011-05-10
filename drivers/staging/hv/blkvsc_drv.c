@@ -17,8 +17,7 @@
  * Authors:
  *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
- *
- * 4/3/2011: K. Y. Srinivasan - Significant restructuring and cleanup.
+ *   K. Y. Srinivasan <kys@microsoft.com>
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -197,7 +196,7 @@ static int blk_vsc_initialize(struct hv_driver *driver)
 		    stor_driver->max_outstanding_req_per_channel);
 
 	/* Setup the dispatch table */
-	stor_driver->base.cleanup = stor_vsc_on_cleanup;
+	stor_driver->base.cleanup = storvsc_cleanup;
 	stor_driver->on_io_request = stor_vsc_on_io_request;
 
 	return ret;

@@ -169,7 +169,7 @@ int storvsc_dev_remove(struct hv_device *device);
 
 int stor_vsc_on_io_request(struct hv_device *device,
 				struct hv_storvsc_request *request);
-void stor_vsc_on_cleanup(struct hv_driver *driver);
+void storvsc_cleanup(struct hv_driver *driver);
 
 int stor_vsc_get_major_info(struct storvsc_device_info *device_info,
 				struct storvsc_major_info *major_info);
