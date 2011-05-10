@@ -1275,7 +1275,7 @@ static struct be_eth_tx_compl *be_tx_compl_get(struct be_queue_info *tx_cq)
 	return txcp;
 }
 
-static void be_tx_compl_process(struct be_adapter *adapter, u16 last_index)
+static u16 be_tx_compl_process(struct be_adapter *adapter, u16 last_index)
 {
 	struct be_queue_info *txq = &adapter->tx_obj.q;
 	struct be_eth_wrb *wrb;
@@ -1302,9 +1302,8 @@ static void be_tx_compl_process(struct be_adapter *adapter, u16 last_index)
 		queue_tail_inc(txq);
 	} while (cur_index != last_index);
 
-	atomic_sub(num_wrbs, &txq->used);
-
 	kfree_skb(sent_skb);
+	return num_wrbs;
 }
 
 static inline struct be_eq_entry *event_get(struct be_eq_obj *eq_obj)
@@ -1387,7 +1386,7 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 	struct be_queue_info *tx_cq = &adapter->tx_obj.cq;
 	struct be_queue_info *txq = &adapter->tx_obj.q;
 	struct be_eth_tx_compl *txcp;
-	u16 end_idx, cmpl = 0, timeo = 0;
+	u16 end_idx, cmpl = 0, timeo = 0, num_wrbs = 0;
 	struct sk_buff **sent_skbs = adapter->tx_obj.sent_skb_list;
 	struct sk_buff *sent_skb;
 	bool dummy_wrb;
@@ -1397,12 +1396,14 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 		while ((txcp = be_tx_compl_get(tx_cq))) {
 			end_idx = AMAP_GET_BITS(struct amap_eth_tx_compl,
 					wrb_index, txcp);
-			be_tx_compl_process(adapter, end_idx);
+			num_wrbs += be_tx_compl_process(adapter, end_idx);
 			cmpl++;
 		}
 		if (cmpl) {
 			be_cq_notify(adapter, tx_cq->id, false, cmpl);
+			atomic_sub(num_wrbs, &txq->used);
 			cmpl = 0;
+			num_wrbs = 0;
 		}
 
 		if (atomic_read(&txq->used) == 0 || ++timeo > 200)
@@ -1422,7 +1423,8 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 		index_adv(&end_idx,
 			wrb_cnt_for_skb(adapter, sent_skb, &dummy_wrb) - 1,
 			txq->len);
-		be_tx_compl_process(adapter, end_idx);
+		num_wrbs = be_tx_compl_process(adapter, end_idx);
+		atomic_sub(num_wrbs, &txq->used);
 	}
 }
 
@@ -1796,12 +1798,12 @@ static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
 	struct be_queue_info *tx_cq = &adapter->tx_obj.cq;
 	struct be_eth_tx_compl *txcp;
 	int tx_compl = 0, mcc_compl, status = 0;
-	u16 end_idx;
+	u16 end_idx, num_wrbs = 0;
 
 	while ((txcp = be_tx_compl_get(tx_cq))) {
 		end_idx = AMAP_GET_BITS(struct amap_eth_tx_compl,
 				wrb_index, txcp);
-		be_tx_compl_process(adapter, end_idx);
+		num_wrbs += be_tx_compl_process(adapter, end_idx);
 		tx_compl++;
 	}
 
@@ -1816,6 +1818,8 @@ static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
 
 	if (tx_compl) {
 		be_cq_notify(adapter, adapter->tx_obj.cq.id, true, tx_compl);
+
+		atomic_sub(num_wrbs, &txq->used);
 
 		/* As Tx wrbs have been freed up, wake up netdev queue if
 		 * it was stopped due to lack of tx wrbs.
