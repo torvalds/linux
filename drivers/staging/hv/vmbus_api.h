@@ -96,7 +96,6 @@ struct hv_driver {
 
 	struct device_driver driver;
 
-	int (*dev_rm)(struct hv_device *device);
 	void (*cleanup)(struct hv_driver *driver);
 
 	int (*probe)(struct hv_device *);
