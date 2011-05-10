@@ -539,6 +539,64 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 	return ret;
 }
 
+
+/*
+ * storvsc_commmand_completion - Command completion processing
+ */
+static void storvsc_commmand_completion(struct hv_storvsc_request *request)
+{
+	struct storvsc_cmd_request *cmd_request =
+		(struct storvsc_cmd_request *)request->context;
+	struct scsi_cmnd *scmnd = cmd_request->cmd;
+	struct hv_host_device *host_dev =
+		(struct hv_host_device *)scmnd->device->host->hostdata;
+	void (*scsi_done_fn)(struct scsi_cmnd *);
+	struct scsi_sense_hdr sense_hdr;
+	struct vmscsi_request *vm_srb;
+
+	/* ASSERT(request == &cmd_request->request); */
+	/* ASSERT(scmnd); */
+	/* ASSERT((unsigned long)scmnd->host_scribble == */
+	/*        (unsigned long)cmd_request); */
+	/* ASSERT(scmnd->scsi_done); */
+
+	if (cmd_request->bounce_sgl_count) {
+		/* using bounce buffer */
+		/* printk("copy_from_bounce_buffer\n"); */
+
+		/* FIXME: We can optimize on writes by just skipping this */
+		copy_from_bounce_buffer(scsi_sglist(scmnd),
+					cmd_request->bounce_sgl,
+					scsi_sg_count(scmnd));
+		destroy_bounce_buffer(cmd_request->bounce_sgl,
+				      cmd_request->bounce_sgl_count);
+	}
+
+	vm_srb = &request->vstor_packet.vm_srb;
+	scmnd->result = vm_srb->scsi_status;
+
+	if (scmnd->result) {
+		if (scsi_normalize_sense(scmnd->sense_buffer,
+				SCSI_SENSE_BUFFERSIZE, &sense_hdr))
+			scsi_print_sense_hdr("storvsc", &sense_hdr);
+	}
+
+	/* ASSERT(request->BytesXfer <= request->data_buffer.Length); */
+	scsi_set_resid(scmnd,
+		request->data_buffer.len -
+		vm_srb->data_transfer_length);
+
+	scsi_done_fn = scmnd->scsi_done;
+
+	scmnd->host_scribble = NULL;
+	scmnd->scsi_done = NULL;
+
+	/* !!DO NOT MODIFY the scmnd after this call */
+	scsi_done_fn(scmnd);
+
+	kmem_cache_free(host_dev->request_pool, cmd_request);
+}
+
 /* Static decl */
 static int storvsc_probe(struct hv_device *dev);
 static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
@@ -716,63 +774,6 @@ static int storvsc_probe(struct hv_device *device)
 
 	scsi_scan_host(host);
 	return ret;
-}
-
-/*
- * storvsc_commmand_completion - Command completion processing
- */
-static void storvsc_commmand_completion(struct hv_storvsc_request *request)
-{
-	struct storvsc_cmd_request *cmd_request =
-		(struct storvsc_cmd_request *)request->context;
-	struct scsi_cmnd *scmnd = cmd_request->cmd;
-	struct hv_host_device *host_dev =
-		(struct hv_host_device *)scmnd->device->host->hostdata;
-	void (*scsi_done_fn)(struct scsi_cmnd *);
-	struct scsi_sense_hdr sense_hdr;
-	struct vmscsi_request *vm_srb;
-
-	/* ASSERT(request == &cmd_request->request); */
-	/* ASSERT(scmnd); */
-	/* ASSERT((unsigned long)scmnd->host_scribble == */
-	/*        (unsigned long)cmd_request); */
-	/* ASSERT(scmnd->scsi_done); */
-
-	if (cmd_request->bounce_sgl_count) {
-		/* using bounce buffer */
-		/* printk("copy_from_bounce_buffer\n"); */
-
-		/* FIXME: We can optimize on writes by just skipping this */
-		copy_from_bounce_buffer(scsi_sglist(scmnd),
-					cmd_request->bounce_sgl,
-					scsi_sg_count(scmnd));
-		destroy_bounce_buffer(cmd_request->bounce_sgl,
-				      cmd_request->bounce_sgl_count);
-	}
-
-	vm_srb = &request->vstor_packet.vm_srb;
-	scmnd->result = vm_srb->scsi_status;
-
-	if (scmnd->result) {
-		if (scsi_normalize_sense(scmnd->sense_buffer,
-				SCSI_SENSE_BUFFERSIZE, &sense_hdr))
-			scsi_print_sense_hdr("storvsc", &sense_hdr);
-	}
-
-	/* ASSERT(request->BytesXfer <= request->data_buffer.Length); */
-	scsi_set_resid(scmnd,
-		request->data_buffer.len -
-		vm_srb->data_transfer_length);
-
-	scsi_done_fn = scmnd->scsi_done;
-
-	scmnd->host_scribble = NULL;
-	scmnd->scsi_done = NULL;
-
-	/* !!DO NOT MODIFY the scmnd after this call */
-	scsi_done_fn(scmnd);
-
-	kmem_cache_free(host_dev->request_pool, cmd_request);
 }
 
 /*
