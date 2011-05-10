@@ -195,8 +195,6 @@ static int blk_vsc_initialize(struct hv_driver *driver)
 	DPRINT_INFO(BLKVSC, "max io outstd %u",
 		    stor_driver->max_outstanding_req_per_channel);
 
-	/* Setup the dispatch table */
-	stor_driver->on_io_request = storvsc_do_io;
 
 	return ret;
 }
@@ -206,9 +204,6 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 			void (*request_completion)(struct hv_storvsc_request *))
 {
 	struct block_device_context *blkdev = blkvsc_req->dev;
-	struct hv_device *device_ctx = blkdev->device_ctx;
-	struct storvsc_driver *storvsc_drv =
-			drv_to_stordrv(device_ctx->device.driver);
 	struct hv_storvsc_request *storvsc_req;
 	struct vmscsi_request *vm_srb;
 	int ret;
@@ -233,7 +228,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 
 	storvsc_req->sense_buffer = blkvsc_req->sense_buffer;
 
-	ret = storvsc_drv->on_io_request(blkdev->device_ctx,
+	ret =  storvsc_do_io(blkdev->device_ctx,
 					   &blkvsc_req->request);
 	if (ret == 0)
 		blkdev->num_outstanding_reqs++;
