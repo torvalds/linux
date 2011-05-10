@@ -35,9 +35,24 @@ extern void cpu_die(void);
 
 #ifdef CONFIG_SMP
 
+struct smp_ops_t {
+	void  (*message_pass)(int cpu, int msg);
+	int   (*probe)(void);
+	int   (*kick_cpu)(int nr);
+	void  (*setup_cpu)(int nr);
+	void  (*bringup_done)(void);
+	void  (*take_timebase)(void);
+	void  (*give_timebase)(void);
+	int   (*cpu_disable)(void);
+	void  (*cpu_die)(unsigned int nr);
+	int   (*cpu_bootable)(unsigned int nr);
+};
+
 extern void smp_send_debugger_break(void);
 extern void smp_message_recv(int);
 extern void start_secondary_resume(void);
+extern void __devinit smp_generic_give_timebase(void);
+extern void __devinit smp_generic_take_timebase(void);
 
 DECLARE_PER_CPU(unsigned int, cpu_pvr);
 

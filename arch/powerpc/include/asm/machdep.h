@@ -29,21 +29,6 @@ struct file;
 struct pci_controller;
 struct kimage;
 
-#ifdef CONFIG_SMP
-struct smp_ops_t {
-	void  (*message_pass)(int cpu, int msg);
-	int   (*probe)(void);
-	int   (*kick_cpu)(int nr);
-	void  (*setup_cpu)(int nr);
-	void  (*bringup_done)(void);
-	void  (*take_timebase)(void);
-	void  (*give_timebase)(void);
-	int   (*cpu_disable)(void);
-	void  (*cpu_die)(unsigned int nr);
-	int   (*cpu_bootable)(unsigned int nr);
-};
-#endif
-
 struct machdep_calls {
 	char		*name;
 #ifdef CONFIG_PPC64
@@ -311,12 +296,6 @@ typedef enum sys_ctrler_kind {
 extern sys_ctrler_t sys_ctrler;
 
 #endif /* CONFIG_PPC_PMAC */
-
-#ifdef CONFIG_SMP
-/* Poor default implementations */
-extern void __devinit smp_generic_give_timebase(void);
-extern void __devinit smp_generic_take_timebase(void);
-#endif /* CONFIG_SMP */
 
 
 /* Functions to produce codes on the leds.
