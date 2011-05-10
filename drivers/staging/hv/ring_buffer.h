@@ -97,7 +97,7 @@ u32 hv_get_ringbuffer_interrupt_mask(struct hv_ring_buffer_info *ring_info);
 
 void hv_dump_ring_info(struct hv_ring_buffer_info *ring_info, char *prefix);
 
-void ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
+void hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 			    struct hv_ring_buffer_debug_info *debug_info);
 
 #endif /* _RING_BUFFER_H_ */

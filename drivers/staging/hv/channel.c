@@ -162,8 +162,8 @@ void vmbus_get_debug_info(struct vmbus_channel *channel,
 			monitorpage->parameter[monitor_group]
 					[monitor_offset].connectionid.u.id;
 
-	ringbuffer_get_debuginfo(&channel->inbound, &debuginfo->inbound);
-	ringbuffer_get_debuginfo(&channel->outbound, &debuginfo->outbound);
+	hv_ringbuffer_get_debuginfo(&channel->inbound, &debuginfo->inbound);
+	hv_ringbuffer_get_debuginfo(&channel->outbound, &debuginfo->outbound);
 }
 
 /*

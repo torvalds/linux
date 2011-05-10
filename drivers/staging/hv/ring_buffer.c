@@ -253,13 +253,13 @@ copyfrom_ringbuffer(
 /*++
 
 Name:
-	ringbuffer_get_debuginfo()
+	hv_ringbuffer_get_debuginfo()
 
 Description:
 	Get various debug metrics for the specified ring buffer
 
 --*/
-void ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
+void hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 			    struct hv_ring_buffer_debug_info *debug_info)
 {
 	u32 bytes_avail_towrite;
