@@ -82,6 +82,7 @@ struct storvsc_driver {
 };
 
 struct storvsc_device_info {
+	u32 ring_buffer_size;
 	unsigned int port_number;
 	unsigned char path_id;
 	unsigned char target_id;
