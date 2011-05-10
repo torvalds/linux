@@ -129,10 +129,28 @@ static int storvsc_merge_bvec(struct request_queue *q,
 	return bvec->bv_len;
 }
 
+static int storvsc_device_configure(struct scsi_device *sdevice)
+{
+	scsi_adjust_queue_depth(sdevice, MSG_SIMPLE_TAG,
+				STORVSC_MAX_IO_REQUESTS);
+
+	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - setting max segment size to %ld",
+		    sdevice, PAGE_SIZE);
+	blk_queue_max_segment_size(sdevice->request_queue, PAGE_SIZE);
+
+	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - adding merge bio vec routine",
+		    sdevice);
+	blk_queue_merge_bvec(sdevice->request_queue, storvsc_merge_bvec);
+
+	blk_queue_bounce_limit(sdevice->request_queue, BLK_BOUNCE_ANY);
+	/* sdevice->timeout = (2000 * HZ);//(75 * HZ); */
+
+	return 0;
+}
+
 /* Static decl */
 static int storvsc_probe(struct hv_device *dev);
 static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
-static int storvsc_device_configure(struct scsi_device *);
 static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd);
 static int storvsc_remove(struct hv_device *dev);
 
@@ -829,25 +847,6 @@ retry_request:
 }
 
 static DEF_SCSI_QCMD(storvsc_queuecommand)
-
-static int storvsc_device_configure(struct scsi_device *sdevice)
-{
-	scsi_adjust_queue_depth(sdevice, MSG_SIMPLE_TAG,
-				STORVSC_MAX_IO_REQUESTS);
-
-	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - setting max segment size to %ld",
-		    sdevice, PAGE_SIZE);
-	blk_queue_max_segment_size(sdevice->request_queue, PAGE_SIZE);
-
-	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - adding merge bio vec routine",
-		    sdevice);
-	blk_queue_merge_bvec(sdevice->request_queue, storvsc_merge_bvec);
-
-	blk_queue_bounce_limit(sdevice->request_queue, BLK_BOUNCE_ANY);
-	/* sdevice->timeout = (2000 * HZ);//(75 * HZ); */
-
-	return 0;
-}
 
 /*
  * storvsc_host_reset_handler - Reset the scsi HBA
