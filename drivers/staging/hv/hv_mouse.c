@@ -794,8 +794,6 @@ struct input_device_context {
 };
 
 
-static struct  mousevsc_drv_obj mousevsc_drv;
-
 static void deviceinfo_callback(struct hv_device *dev, struct hv_input_dev_info *info)
 {
 	struct input_device_context *input_device_ctx =
@@ -944,6 +942,8 @@ static int mousevsc_drv_exit_cb(struct device *dev, void *data)
 
 	return 1;
 }
+
+static struct  mousevsc_drv_obj mousevsc_drv;
 
 static void mousevsc_drv_exit(void)
 {
