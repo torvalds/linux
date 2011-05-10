@@ -40,6 +40,7 @@
 #include "vstorage.h"
 #include "channel.h"
 
+static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
 
 static const char *driver_name = "storvsc";
 
@@ -539,7 +540,6 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 static int storvsc_probe(struct hv_device *dev);
 static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
 
-static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
 module_param(storvsc_ringbuffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 
