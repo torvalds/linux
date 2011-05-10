@@ -814,8 +814,7 @@ void irq_dispose_mapping(unsigned int virq)
 		return;
 
 	host = irq_map[virq].host;
-	WARN_ON (host == NULL);
-	if (host == NULL)
+	if (WARN_ON(host == NULL))
 		return;
 
 	/* Never unmap legacy interrupts */
@@ -898,7 +897,8 @@ unsigned int irq_radix_revmap_lookup(struct irq_host *host,
 	struct irq_map_entry *ptr;
 	unsigned int virq;
 
-	WARN_ON(host->revmap_type != IRQ_HOST_MAP_TREE);
+	if (WARN_ON_ONCE(host->revmap_type != IRQ_HOST_MAP_TREE))
+		return irq_find_mapping(host, hwirq);
 
 	/*
 	 * No rcu_read_lock(ing) needed, the ptr returned can't go under us
@@ -922,7 +922,8 @@ unsigned int irq_radix_revmap_lookup(struct irq_host *host,
 void irq_radix_revmap_insert(struct irq_host *host, unsigned int virq,
 			     irq_hw_number_t hwirq)
 {
-	WARN_ON(host->revmap_type != IRQ_HOST_MAP_TREE);
+	if (WARN_ON(host->revmap_type != IRQ_HOST_MAP_TREE))
+		return;
 
 	if (virq != NO_IRQ) {
 		mutex_lock(&revmap_trees_mutex);
@@ -937,7 +938,8 @@ unsigned int irq_linear_revmap(struct irq_host *host,
 {
 	unsigned int *revmap;
 
-	WARN_ON(host->revmap_type != IRQ_HOST_MAP_LINEAR);
+	if (WARN_ON_ONCE(host->revmap_type != IRQ_HOST_MAP_LINEAR))
+		return irq_find_mapping(host, hwirq);
 
 	/* Check revmap bounds */
 	if (unlikely(hwirq >= host->revmap_data.linear.size))
