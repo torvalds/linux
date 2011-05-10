@@ -213,6 +213,7 @@ static int netvsc_destroy_recv_buf(struct netvsc_device *net_device)
 static int netvsc_init_recv_buf(struct hv_device *device)
 {
 	int ret = 0;
+	int t;
 	struct netvsc_device *net_device;
 	struct nvsp_message *init_packet;
 
@@ -260,7 +261,6 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 		send_recv_buf.id = NETVSC_RECEIVE_BUFFER_ID;
 
 	/* Send the gpadl notification request */
-	net_device->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
@@ -272,10 +272,8 @@ static int netvsc_init_recv_buf(struct hv_device *device)
 		goto cleanup;
 	}
 
-	wait_event_timeout(net_device->channel_init_wait,
-			net_device->wait_condition,
-			msecs_to_jiffies(1000));
-	BUG_ON(net_device->wait_condition == 0);
+	t = wait_for_completion_timeout(&net_device->channel_init_wait, HZ);
+	BUG_ON(t == 0);
 
 
 	/* Check the response */
@@ -394,6 +392,7 @@ static int netvsc_destroy_send_buf(struct netvsc_device *net_device)
 static int netvsc_init_send_buf(struct hv_device *device)
 {
 	int ret = 0;
+	int t;
 	struct netvsc_device *net_device;
 	struct nvsp_message *init_packet;
 
@@ -443,7 +442,6 @@ static int netvsc_init_send_buf(struct hv_device *device)
 		NETVSC_SEND_BUFFER_ID;
 
 	/* Send the gpadl notification request */
-	net_device->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
@@ -455,10 +453,9 @@ static int netvsc_init_send_buf(struct hv_device *device)
 		goto cleanup;
 	}
 
-	wait_event_timeout(net_device->channel_init_wait,
-			net_device->wait_condition,
-			msecs_to_jiffies(1000));
-	BUG_ON(net_device->wait_condition == 0);
+	t = wait_for_completion_timeout(&net_device->channel_init_wait, HZ);
+
+	BUG_ON(t == 0);
 
 	/* Check the response */
 	if (init_packet->msg.v1_msg.
@@ -487,7 +484,7 @@ exit:
 
 static int netvsc_connect_vsp(struct hv_device *device)
 {
-	int ret;
+	int ret, t;
 	struct netvsc_device *net_device;
 	struct nvsp_message *init_packet;
 	int ndis_version;
@@ -509,7 +506,6 @@ static int netvsc_connect_vsp(struct hv_device *device)
 		NVSP_MAX_PROTOCOL_VERSION;
 
 	/* Send the init request */
-	net_device->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
@@ -519,10 +515,9 @@ static int netvsc_connect_vsp(struct hv_device *device)
 	if (ret != 0)
 		goto cleanup;
 
-	wait_event_timeout(net_device->channel_init_wait,
-			net_device->wait_condition,
-			msecs_to_jiffies(1000));
-	if (net_device->wait_condition == 0) {
+	t = wait_for_completion_timeout(&net_device->channel_init_wait, HZ);
+
+	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto cleanup;
 	}
@@ -647,8 +642,7 @@ static void netvsc_send_completion(struct hv_device *device,
 		/* Copy the response back */
 		memcpy(&net_device->channel_init_pkt, nvsp_packet,
 		       sizeof(struct nvsp_message));
-		net_device->wait_condition = 1;
-		wake_up(&net_device->channel_init_wait);
+		complete(&net_device->channel_init_wait);
 	} else if (nvsp_packet->hdr.msg_type ==
 		   NVSP_MSG1_TYPE_SEND_RNDIS_PKT_COMPLETE) {
 		/* Get the send context */
@@ -1123,7 +1117,7 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 		list_add_tail(&packet->list_ent,
 			      &net_device->recv_pkt_list);
 	}
-	init_waitqueue_head(&net_device->channel_init_wait);
+	init_completion(&net_device->channel_init_wait);
 
 	/* Open the channel */
 	ret = vmbus_open(device->channel, net_driver->ring_buf_size,
