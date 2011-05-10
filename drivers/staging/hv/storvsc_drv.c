@@ -806,7 +806,7 @@ static int storvsc_drv_init(void)
 	    STORVSC_MAX_IO_REQUESTS)
 		return -1;
 
-	drv->driver.name = storvsc_drv_obj->base.name;
+	drv->driver.name = driver_name;
 
 
 	/* The driver belongs to vmbus */
