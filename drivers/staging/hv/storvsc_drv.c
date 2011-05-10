@@ -359,8 +359,6 @@ static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl,
  */
 static int storvsc_remove(struct hv_device *dev)
 {
-	struct storvsc_driver *storvsc_drv_obj =
-			 drv_to_stordrv(dev->device.driver);
 	struct Scsi_Host *host = dev_get_drvdata(&dev->device);
 	struct hv_host_device *host_dev =
 			(struct hv_host_device *)host->hostdata;
@@ -369,7 +367,7 @@ static int storvsc_remove(struct hv_device *dev)
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed
 	 */
-	storvsc_drv_obj->base.dev_rm(dev);
+	storvsc_dev_remove(dev);
 
 	if (host_dev->request_pool) {
 		kmem_cache_destroy(host_dev->request_pool);
@@ -842,7 +840,7 @@ static int storvsc_probe(struct hv_device *device)
 	ret = scsi_add_host(host, &device->device);
 	if (ret != 0) {
 
-		storvsc_drv_obj->base.dev_rm(device);
+		storvsc_dev_remove(device);
 
 		kmem_cache_destroy(host_dev->request_pool);
 		scsi_host_put(host);
