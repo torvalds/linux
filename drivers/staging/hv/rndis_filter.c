@@ -84,8 +84,6 @@ struct rndis_filter_packet {
 };
 
 
-static int rndis_filter_device_remove(struct hv_device *dev);
-
 static void rndis_filter_cleanup(struct hv_driver *drv);
 
 static int rndis_filter_send(struct hv_device *dev,
@@ -803,7 +801,7 @@ int rndis_filte_device_add(struct hv_device *dev,
 	return ret;
 }
 
-static int rndis_filter_device_remove(struct hv_device *dev)
+int rndis_filter_device_remove(struct hv_device *dev)
 {
 	struct netvsc_device *net_dev = dev->ext;
 	struct rndis_device *rndis_dev = net_dev->extension;
