@@ -801,10 +801,10 @@ static void blkvsc_request(struct request_queue *queue)
 
 
 /* The one and only one */
-static  struct storvsc_driver blkvsc_drv = {
-	.base.probe =  blkvsc_probe,
-	.base.remove =  blkvsc_remove,
-	.base.shutdown = blkvsc_shutdown,
+static  struct hv_driver blkvsc_drv = {
+	.probe =  blkvsc_probe,
+	.remove =  blkvsc_remove,
+	.shutdown = blkvsc_shutdown,
 };
 
 static const struct block_device_operations block_ops = {
@@ -820,7 +820,7 @@ static const struct block_device_operations block_ops = {
  */
 static int blkvsc_drv_init(void)
 {
-	struct hv_driver *drv = &blkvsc_drv.base;
+	struct hv_driver *drv = &blkvsc_drv;
 	int ret;
 
 	BUILD_BUG_ON(sizeof(sector_t) != 8);
@@ -844,7 +844,7 @@ static int blkvsc_drv_exit_cb(struct device *dev, void *data)
 
 static void blkvsc_drv_exit(void)
 {
-	struct hv_driver *drv = &blkvsc_drv.base;
+	struct hv_driver *drv = &blkvsc_drv;
 	struct device *current_dev;
 	int ret;
 
