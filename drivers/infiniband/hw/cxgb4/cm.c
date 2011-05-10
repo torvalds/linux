@@ -1466,7 +1466,7 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct c4iw_qp_attributes attrs;
 	int disconnect = 1;
 	int release = 0;
-	int closing = 0;
+	int abort = 0;
 	struct tid_info *t = dev->rdev.lldi.tids;
 	unsigned int tid = GET_TID(hdr);
 
@@ -1507,8 +1507,11 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 	case FPDU_MODE:
 		start_ep_timer(ep);
 		__state_set(&ep->com, CLOSING);
-		closing = 1;
+		attrs.next_state = C4IW_QP_STATE_CLOSING;
+		abort = c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
+				       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
 		peer_close_upcall(ep);
+		disconnect = 1;
 		break;
 	case ABORTING:
 		disconnect = 0;
@@ -1536,11 +1539,6 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 		BUG_ON(1);
 	}
 	mutex_unlock(&ep->com.mutex);
-	if (closing) {
-		attrs.next_state = C4IW_QP_STATE_CLOSING;
-		c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
-			       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
-	}
 	if (disconnect)
 		c4iw_ep_disconnect(ep, 0, GFP_KERNEL);
 	if (release)
@@ -1710,14 +1708,14 @@ static int terminate(struct c4iw_dev *dev, struct sk_buff *skb)
 	ep = lookup_tid(t, tid);
 	BUG_ON(!ep);
 
-	if (ep->com.qp) {
+	if (ep && ep->com.qp) {
 		printk(KERN_WARNING MOD "TERM received tid %u qpid %u\n", tid,
 		       ep->com.qp->wq.sq.qid);
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
 		c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
 			       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
 	} else
-		printk(KERN_WARNING MOD "TERM received tid %u no qp\n", tid);
+		printk(KERN_WARNING MOD "TERM received tid %u no ep/qp\n", tid);
 
 	return 0;
 }

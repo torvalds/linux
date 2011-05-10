@@ -1210,7 +1210,6 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			if (ret) {
 				if (internal)
 					c4iw_get_ep(&qhp->ep->com);
-				disconnect = abort = 1;
 				goto err;
 			}
 			break;

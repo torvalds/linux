@@ -161,8 +161,8 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 		}
 	} while (!wr_waitp->done);
 	if (wr_waitp->ret)
-		printk(KERN_WARNING MOD "%s: FW reply %d tid %u qpid %u\n",
-		       pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
+		PDBG("%s: FW reply %d tid %u qpid %u\n",
+		     pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
 	return wr_waitp->ret;
 }
 
