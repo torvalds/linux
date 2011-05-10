@@ -107,11 +107,6 @@ static int storvsc_initialize(struct hv_driver *driver)
 		    stor_driver->max_outstanding_req_per_channel,
 		    STORVSC_MAX_IO_REQUESTS);
 
-	/* Setup the dispatch table */
-	stor_driver->base.dev_add	= storvsc_dev_add;
-	stor_driver->base.dev_rm	= storvsc_dev_remove;
-
-	stor_driver->on_io_request	= storvsc_do_io;
 
 	return 0;
 }
