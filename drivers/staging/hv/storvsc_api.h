@@ -83,9 +83,6 @@ struct storvsc_driver {
 	/* Maximum # of requests in flight per channel/device */
 	u32 max_outstanding_req_per_channel;
 
-	/* Specific to this driver */
-	int (*on_io_request)(struct hv_device *device,
-			   struct hv_storvsc_request *request);
 };
 
 struct storvsc_device_info {
