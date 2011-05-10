@@ -139,7 +139,7 @@ MODULE_PARM_DESC(ring_size, "Ring buffer size (in bytes)");
  */
 static int blkvsc_probe(struct hv_device *dev);
 
-static int blk_vsc_on_device_add(struct hv_device *device,
+static int blkvsc_device_add(struct hv_device *device,
 				void *additional_info)
 {
 	struct storvsc_device_info *device_info;
@@ -197,7 +197,7 @@ static int blk_vsc_initialize(struct hv_driver *driver)
 		    stor_driver->max_outstanding_req_per_channel);
 
 	/* Setup the dispatch table */
-	stor_driver->base.dev_add = blk_vsc_on_device_add;
+	stor_driver->base.dev_add = blkvsc_device_add;
 	stor_driver->base.dev_rm = stor_vsc_on_device_remove;
 	stor_driver->base.cleanup = stor_vsc_on_cleanup;
 	stor_driver->on_io_request = stor_vsc_on_io_request;
