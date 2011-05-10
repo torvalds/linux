@@ -977,22 +977,12 @@ static void mousevsc_drv_exit(void)
 	return;
 }
 
-static int mouse_vsc_initialize(struct hv_driver *driver)
-{
-
-	return 0;
-}
-
-
 static int __init mousevsc_init(void)
 {
-	struct mousevsc_drv_obj *input_drv_obj = &mousevsc_drv;
 	struct hv_driver *drv = &mousevsc_drv.base;
 
 	DPRINT_INFO(INPUTVSC_DRV, "Hyper-V Mouse driver initializing.");
 
-	/* Callback to client driver to complete the initialization */
-	mouse_vsc_initialize(&input_drv_obj->base);
 	memcpy(&drv->dev_type, &mouse_guid,
 	       sizeof(struct hv_guid));
 
