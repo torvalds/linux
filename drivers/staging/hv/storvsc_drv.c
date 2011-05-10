@@ -163,6 +163,33 @@ static void destroy_bounce_buffer(struct scatterlist *sgl,
 	kfree(sgl);
 }
 
+static int do_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count)
+{
+	int i;
+
+	/* No need to check */
+	if (sg_count < 2)
+		return -1;
+
+	/* We have at least 2 sg entries */
+	for (i = 0; i < sg_count; i++) {
+		if (i == 0) {
+			/* make sure 1st one does not have hole */
+			if (sgl[i].offset + sgl[i].length != PAGE_SIZE)
+				return i;
+		} else if (i == sg_count - 1) {
+			/* make sure last one does not have hole */
+			if (sgl[i].offset != 0)
+				return i;
+		} else {
+			/* make sure no hole in the middle */
+			if (sgl[i].length != PAGE_SIZE || sgl[i].offset != 0)
+				return i;
+		}
+	}
+	return -1;
+}
+
 /* Static decl */
 static int storvsc_probe(struct hv_device *dev);
 static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
@@ -172,7 +199,6 @@ static int storvsc_remove(struct hv_device *dev);
 static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl,
 						unsigned int sg_count,
 						unsigned int len);
-static int do_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count);
 static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl,
 					    struct scatterlist *bounce_sgl,
 					    unsigned int orig_sgl_count);
@@ -497,33 +523,6 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 	scsi_done_fn(scmnd);
 
 	kmem_cache_free(host_dev->request_pool, cmd_request);
-}
-
-static int do_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count)
-{
-	int i;
-
-	/* No need to check */
-	if (sg_count < 2)
-		return -1;
-
-	/* We have at least 2 sg entries */
-	for (i = 0; i < sg_count; i++) {
-		if (i == 0) {
-			/* make sure 1st one does not have hole */
-			if (sgl[i].offset + sgl[i].length != PAGE_SIZE)
-				return i;
-		} else if (i == sg_count - 1) {
-			/* make sure last one does not have hole */
-			if (sgl[i].offset != 0)
-				return i;
-		} else {
-			/* make sure no hole in the middle */
-			if (sgl[i].length != PAGE_SIZE || sgl[i].offset != 0)
-				return i;
-		}
-	}
-	return -1;
 }
 
 static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl,
