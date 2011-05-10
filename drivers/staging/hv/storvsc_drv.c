@@ -596,8 +596,6 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 	struct hv_host_device *host_dev =
 		(struct hv_host_device *)scmnd->device->host->hostdata;
 	struct hv_device *dev = host_dev->dev;
-	struct storvsc_driver *storvsc_drv_obj =
-		drv_to_stordrv(dev->device.driver);
 	struct hv_storvsc_request *request;
 	struct storvsc_cmd_request *cmd_request;
 	unsigned int request_size = 0;
@@ -717,8 +715,8 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 
 retry_request:
 	/* Invokes the vsc to start an IO */
-	ret = storvsc_drv_obj->on_io_request(dev,
-					   &cmd_request->request);
+	ret = storvsc_do_io(dev, &cmd_request->request);
+
 	if (ret == -1) {
 		/* no more space */
 
