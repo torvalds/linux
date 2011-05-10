@@ -74,18 +74,6 @@ struct storvsc_cmd_request {
 };
 
 
-/*
- * storvsc_initialize - Main entry point
- */
-static int storvsc_initialize(struct hv_driver *driver)
-{
-	struct storvsc_driver *stor_driver;
-
-	stor_driver = hvdr_to_stordr(driver);
-
-	return 0;
-}
-
 static int storvsc_device_alloc(struct scsi_device *sdevice)
 {
 	/*
@@ -775,7 +763,6 @@ static struct storvsc_driver storvsc_drv = {
 static int storvsc_drv_init(void)
 {
 	int ret;
-	struct storvsc_driver *storvsc_drv_obj = &storvsc_drv;
 	struct hv_driver *drv = &storvsc_drv.base;
 	u32 max_outstanding_req_per_channel;
 
@@ -791,9 +778,6 @@ static int storvsc_drv_init(void)
 	ALIGN(MAX_MULTIPAGE_BUFFER_PACKET +
 	sizeof(struct vstor_packet) + sizeof(u64),
 	sizeof(u64)));
-
-	/* Callback to client driver to complete the initialization */
-	storvsc_initialize(&storvsc_drv_obj->base);
 
 	memcpy(&drv->dev_type, &gStorVscDeviceType,
 	       sizeof(struct hv_guid));
