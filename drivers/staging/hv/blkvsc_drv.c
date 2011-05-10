@@ -197,7 +197,6 @@ static int blk_vsc_initialize(struct hv_driver *driver)
 		    stor_driver->max_outstanding_req_per_channel);
 
 	/* Setup the dispatch table */
-	stor_driver->base.dev_add = blkvsc_device_add;
 	stor_driver->base.dev_rm = stor_vsc_on_device_remove;
 	stor_driver->base.cleanup = stor_vsc_on_cleanup;
 	stor_driver->on_io_request = stor_vsc_on_io_request;
@@ -964,8 +963,7 @@ static int blkvsc_probe(struct hv_device *dev)
 	}
 
 
-	/* Call to the vsc driver to add the device */
-	ret = storvsc_drv->base.dev_add(dev, &device_info);
+	ret = blkvsc_device_add(dev, &device_info);
 	if (ret != 0)
 		goto cleanup;
 
