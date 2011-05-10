@@ -821,16 +821,12 @@ int mpic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 
 		mpic_irq_write(src, MPIC_INFO(IRQ_DESTINATION), 1 << cpuid);
 	} else {
-		cpumask_var_t tmp;
+		u32 mask = cpumask_bits(cpumask)[0];
 
-		alloc_cpumask_var(&tmp, GFP_KERNEL);
-
-		cpumask_and(tmp, cpumask, cpu_online_mask);
+		mask &= cpumask_bits(cpu_online_mask)[0];
 
 		mpic_irq_write(src, MPIC_INFO(IRQ_DESTINATION),
-			       mpic_physmask(cpumask_bits(tmp)[0]));
-
-		free_cpumask_var(tmp);
+			       mpic_physmask(mask));
 	}
 
 	return 0;
