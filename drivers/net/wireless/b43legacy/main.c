@@ -2234,7 +2234,7 @@ static int b43legacy_chip_init(struct b43legacy_wldev *dev)
 	b43legacy_write32(dev, B43legacy_MMIO_DMA5_IRQ_MASK, 0x0000DC00);
 
 	value32 = ssb_read32(dev->dev, SSB_TMSLOW);
-	value32 |= 0x00100000;
+	value32 |= B43legacy_TMSLOW_MACPHYCLKEN;
 	ssb_write32(dev->dev, SSB_TMSLOW, value32);
 
 	b43legacy_write16(dev, B43legacy_MMIO_POWERUP_DELAY,
