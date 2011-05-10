@@ -947,7 +947,6 @@ static int mousevsc_drv_exit_cb(struct device *dev, void *data)
 
 static void mousevsc_drv_exit(void)
 {
-	struct mousevsc_drv_obj *mousevsc_drv_obj = &g_mousevsc_drv;
 	struct hv_driver *drv = &g_mousevsc_drv.base;
 	int ret;
 
@@ -969,9 +968,6 @@ static void mousevsc_drv_exit(void)
 		/* Initiate removal from the top-down */
 		device_unregister(current_dev);
 	}
-
-	if (mousevsc_drv_obj->base.cleanup)
-		mousevsc_drv_obj->base.cleanup(&mousevsc_drv_obj->base);
 
 	vmbus_child_driver_unregister(&drv->driver);
 
