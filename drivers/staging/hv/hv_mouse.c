@@ -782,9 +782,6 @@ static int mousevsc_on_device_remove(struct hv_device *device)
 	return ret;
 }
 
-static void mousevsc_on_cleanup(struct hv_driver *drv)
-{
-}
 
 /*
  * Data types
@@ -994,7 +991,6 @@ static int mouse_vsc_initialize(struct hv_driver *driver)
 	/* Setup the dispatch table */
 	input_drv->base.dev_add = mousevsc_on_device_add;
 	input_drv->base.dev_rm = mousevsc_on_device_remove;
-	input_drv->base.cleanup = mousevsc_on_cleanup;
 
 	return ret;
 }
