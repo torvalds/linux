@@ -510,6 +510,12 @@ irq_hw_number_t virq_to_hw(unsigned int virq)
 }
 EXPORT_SYMBOL_GPL(virq_to_hw);
 
+bool virq_is_host(unsigned int virq, struct irq_host *host)
+{
+	return irq_map[virq].host == host;
+}
+EXPORT_SYMBOL_GPL(virq_is_host);
+
 struct irq_host *virq_to_host(unsigned int virq)
 {
 	return irq_map[virq].host;

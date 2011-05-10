@@ -128,6 +128,7 @@ struct irq_host {
 struct irq_data;
 extern irq_hw_number_t irqd_to_hwirq(struct irq_data *d);
 extern irq_hw_number_t virq_to_hw(unsigned int virq);
+extern bool virq_is_host(unsigned int virq, struct irq_host *host);
 extern struct irq_host *virq_to_host(unsigned int virq);
 
 /**

@@ -213,7 +213,7 @@ void xics_migrate_irqs_away(void)
 		/* We can't set affinity on ISA interrupts */
 		if (virq < NUM_ISA_INTERRUPTS)
 			continue;
-		if (virq_to_host(virq) != xics_host)
+		if (!virq_is_host(virq, xics_host))
 			continue;
 		irq = (unsigned int)virq_to_hw(virq);
 		/* We need to get IPIs still. */
