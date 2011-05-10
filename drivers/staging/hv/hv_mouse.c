@@ -428,14 +428,14 @@ Cleanup:
 static void mousevsc_on_receive_input_report(struct mousevsc_dev *input_device,
 				struct synthhid_input_report *input_report)
 {
-	struct mousevsc_drv_obj *input_drv;
+	struct hv_driver *input_drv;
 
 	if (!input_device->init_complete) {
 		pr_info("Initialization incomplete...ignoring input_report msg");
 		return;
 	}
 
-	input_drv = drv_to_mousedrv(input_device->device->device.driver);
+	input_drv = drv_to_hv_drv(input_device->device->device.driver);
 
 	inputreport_callback(input_device->device,
 			     input_report->buffer,
@@ -680,7 +680,7 @@ static int mousevsc_on_device_add(struct hv_device *device,
 {
 	int ret = 0;
 	struct mousevsc_dev *input_dev;
-	struct mousevsc_drv_obj *input_drv;
+	struct hv_driver *input_drv;
 	struct hv_input_dev_info dev_info;
 
 	input_dev = alloc_input_device(device);
@@ -720,7 +720,7 @@ static int mousevsc_on_device_add(struct hv_device *device,
 		return ret;
 	}
 
-	input_drv = drv_to_mousedrv(input_dev->device->device.driver);
+	input_drv = drv_to_hv_drv(input_dev->device->device.driver);
 
 	dev_info.vendor = input_dev->hid_dev_info.vendor;
 	dev_info.product = input_dev->hid_dev_info.product;
@@ -943,14 +943,14 @@ static int mousevsc_drv_exit_cb(struct device *dev, void *data)
 	return 1;
 }
 
-static struct  mousevsc_drv_obj mousevsc_drv = {
-	.base.probe = mousevsc_probe,
-	.base.remove = mousevsc_remove,
+static struct  hv_driver mousevsc_drv = {
+	.probe = mousevsc_probe,
+	.remove = mousevsc_remove,
 };
 
 static void mousevsc_drv_exit(void)
 {
-	struct hv_driver *drv = &mousevsc_drv.base;
+	struct hv_driver *drv = &mousevsc_drv;
 	int ret;
 
 	struct device *current_dev = NULL;
@@ -979,7 +979,7 @@ static void mousevsc_drv_exit(void)
 
 static int __init mousevsc_init(void)
 {
-	struct hv_driver *drv = &mousevsc_drv.base;
+	struct hv_driver *drv = &mousevsc_drv;
 
 	DPRINT_INFO(INPUTVSC_DRV, "Hyper-V Mouse driver initializing.");
 
