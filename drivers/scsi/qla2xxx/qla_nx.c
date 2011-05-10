@@ -2410,9 +2410,13 @@ qla82xx_load_fw(scsi_qla_host_t *vha)
 
 	if (qla82xx_fw_load_from_flash(ha) == QLA_SUCCESS) {
 		qla_printk(KERN_ERR, ha,
-			"Firmware loaded successfully from flash\n");
+		    "Firmware loaded successfully from flash\n");
 		return QLA_SUCCESS;
+	} else {
+		qla_printk(KERN_ERR, ha,
+		    "Firmware load from flash failed\n");
 	}
+
 try_blob_fw:
 	qla_printk(KERN_INFO, ha,
 	    "Attempting to load firmware from blob\n");
