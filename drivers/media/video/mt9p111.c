@@ -70,7 +70,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Exposure      0
 #define CONFIG_SENSOR_Flash         1
 #define CONFIG_SENSOR_Mirror        0
-#define CONFIG_SENSOR_Flip          0
+#define CONFIG_SENSOR_Flip          1
 #define CONFIG_SENSOR_Focus         0
 
 
@@ -137,8 +137,17 @@ static struct reginfo sensor_init_data[] =
 { 0xC84A, 0x0103, WORD_LEN, 0}, 	// CAM_CORE_A_SKIP_Y_PIPE
 { 0xC84C, 0x00F6, WORD_LEN, 0}, 	// CAM_CORE_A_POWER_MODE
 { 0xC84E, 0x0001, WORD_LEN, 0}, 	// CAM_CORE_A_BIN_MODE
-{ 0xC850, 0x00, BYTE_LEN, 0}, 	// CAM_CORE_A_ORIENTATION
-{ 0xC851, 0x00, BYTE_LEN, 0}, 	// CAM_CORE_A_PIXEL_ORDER
+/*lzg@rock-chips.com, FIH:preview image to be mirrored and flipped */
+#if CONFIG_SENSOR_NONE_FLIP_MIRROR
+{ 0xC850, 0x00, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#elif CONFIG_SENSOR_MIRROR
+{ 0xC850, 0x01, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#elif CONFIG_SENSOR_FLIPE
+{ 0xC850, 0x02, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#elif CONFIG_SENSOR_MIRROR_AND_FLIPE
+{ 0xC850, 0x03, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#endif
+{ 0xC851, 0x00, BYTE_LEN, 0}, 	    // CAM_CORE_A_PIXEL_ORDER
 { 0xC852, 0x019C, WORD_LEN, 0}, 	// CAM_CORE_A_FINE_CORRECTION
 { 0xC854, 0x0732, WORD_LEN, 0}, 	// CAM_CORE_A_FINE_ITMIN
 { 0xC858, 0x0000, WORD_LEN, 0}, 	// CAM_CORE_A_COARSE_ITMIN
@@ -170,28 +179,29 @@ static struct reginfo sensor_init_data[] =
 { 0xC882, 0x0101, WORD_LEN, 0}, 	// CAM_CORE_B_SKIP_Y_PIPE
 { 0xC884, 0x00F2, WORD_LEN, 0}, 	// CAM_CORE_B_POWER_MODE
 { 0xC886, 0x0000, WORD_LEN, 0}, 	// CAM_CORE_B_BIN_MODE
-{ 0xC888, 0x00, BYTE_LEN, 0}, 	// CAM_CORE_B_ORIENTATION
+
+/*lzg@rock-chips.com, FIH:capture image to be mirrored and flipped */
+#if CONFIG_SENSOR_NONE_FLIP_MIRROR
+{ 0xC888, 0x00, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#elif CONFIG_SENSOR_MIRROR
+{ 0xC888, 0x01, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#elif CONFIG_SENSOR_FLIPE
+{ 0xC888, 0x02, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#elif CONFIG_SENSOR_MIRROR_AND_FLIPE
+{ 0xC888, 0x03, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#endif
 { 0xC889, 0x00, BYTE_LEN, 0}, 	// CAM_CORE_B_PIXEL_ORDER
 { 0xC88A, 0x009C, WORD_LEN, 0}, 	// CAM_CORE_B_FINE_CORRECTION
 { 0xC88C, 0x034A, WORD_LEN, 0}, 	// CAM_CORE_B_FINE_ITMIN
 { 0xC890, 0x0000, WORD_LEN, 0}, 	// CAM_CORE_B_COARSE_ITMIN
-{ 0xC892, 0x0001, WORD_LEN, 0}, 	// CAM_CORE_B_COARSE_ITMAX_MARGIN
-#if 1                       
+{ 0xC892, 0x0001, WORD_LEN, 0}, 	// CAM_CORE_B_COARSE_ITMAX_MARGIN                  
 { 0xC894, 0x07EF, WORD_LEN, 0}, 	// CAM_CORE_B_MIN_FRAME_LENGTH_LINES
-#else
-{ 0xC894, 0x1300, WORD_LEN, 0}, 	// CAM_CORE_B_MIN_FRAME_LENGTH_LINES
-#endif
-
 { 0xC896, 0xFFFF, WORD_LEN, 0}, 	// CAM_CORE_B_MAX_FRAME_LENGTH_LINES
 { 0xC898, 0x082F, WORD_LEN, 0}, 	// CAM_CORE_B_BASE_FRAME_LENGTH_LINES
 { 0xC89A, 0x1964, WORD_LEN, 0}, 	// CAM_CORE_B_MIN_LINE_LENGTH_PCLK
 { 0xC89C, 0xFFFE, WORD_LEN, 0}, 	// CAM_CORE_B_MAX_LINE_LENGTH_PCLK
 { 0xC89E, 0x7F7F, WORD_LEN, 0}, 	// CAM_CORE_B_P4_5_6_DIVIDER
-#if 1
 { 0xC8A0, 0x07EF, WORD_LEN, 0}, 	// CAM_CORE_B_FRAME_LENGTH_LINES
-#else
-{ 0xC8A0, 0x1300, WORD_LEN, 0}, 	// CAM_CORE_B_FRAME_LENGTH_LINES
-#endif
 { 0xC8A2, 0x1964, WORD_LEN, 0}, 	// CAM_CORE_B_LINE_LENGTH_PCK
 { 0xC8A4, 0x0A28, WORD_LEN, 0}, 	// CAM_CORE_B_OUTPUT_SIZE_WIDTH
 { 0xC8A6, 0x07A0, WORD_LEN, 0}, 	// CAM_CORE_B_OUTPUT_SIZE_HEIGHT
@@ -2830,6 +2840,8 @@ static int sensor_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
     struct v4l2_pix_format *pix = &f->fmt.pix;
+    
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
 
     pix->width		= icd->user_width;
     pix->height		= icd->user_height;
@@ -3120,7 +3132,8 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     struct reginfo *winseqe_set_addr=NULL;
     int ret = 0, set_w,set_h,cnt;
     u16 seq_state=0;
-        
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
+
 	if (sensor->info_priv.pixfmt != pix->pixelformat) {
 		switch (pix->pixelformat)
 		{
@@ -3184,6 +3197,8 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
             cnt++;
             SENSOR_DG("mt9p111 Preview 2 Capture seq_state = 0x%x\n",seq_state);
          } while((seq_state != 0x07) && (cnt < 20));
+        
+         SENSOR_TR("%s Preview 2 Capture failed\n", SENSOR_NAME_STRING());
 
         #if CONFIG_SENSOR_Flash
         if ((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2)) {
@@ -3198,7 +3213,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 		if (winseqe_set_addr || ((sensor->info_priv.preview_w == pix->width) && (sensor->info_priv.preview_h == pix->height))) {
 			ret |= sensor_write_array(client, sensor_Capture2Preview);
 			if (ret != 0) {
-	        	SENSOR_TR("%s Capture 2 Preview failed\n", SENSOR_NAME_STRING());
+	        	SENSOR_TR("%s Capture 2 Preview success\n", SENSOR_NAME_STRING());
 	        	goto sensor_s_fmt_end;
 	    	}
             
@@ -3212,6 +3227,8 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
                 SENSOR_DG("mt9p111 Capture 2 Preview seq_state = 0x%x\n",seq_state);
               } while((seq_state != 0x03) && (cnt < 20));
             
+            SENSOR_TR("%s Capture 2 Preview success\n", SENSOR_NAME_STRING());
+
             #if CONFIG_SENSOR_Flash
             if ((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2)) {
                 sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
@@ -3663,6 +3680,7 @@ static int sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
     struct i2c_client *client = sd->priv;
     struct sensor *sensor = to_sensor(client);
     const struct v4l2_queryctrl *qctrl;
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
 
     qctrl = soc_camera_find_qctrl(&sensor_ops, ctrl->id);
 
@@ -3723,6 +3741,7 @@ static int sensor_s_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
     struct sensor *sensor = to_sensor(client);
     struct soc_camera_device *icd = client->dev.platform_data;
     const struct v4l2_queryctrl *qctrl;
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
 
 
     qctrl = soc_camera_find_qctrl(&sensor_ops, ctrl->id);
@@ -3840,6 +3859,7 @@ static int sensor_g_ext_control(struct soc_camera_device *icd , struct v4l2_ext_
     const struct v4l2_queryctrl *qctrl;
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
     struct sensor *sensor = to_sensor(client);
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
 
     qctrl = soc_camera_find_qctrl(&sensor_ops, ext_ctrl->id);
 
@@ -4038,6 +4058,8 @@ static int sensor_g_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
     struct i2c_client *client = sd->priv;
     struct soc_camera_device *icd = client->dev.platform_data;
     int i, error_cnt=0, error_idx=-1;
+    
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
 
 
     for (i=0; i<ext_ctrl->count; i++) {
@@ -4063,6 +4085,8 @@ static int sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
     struct i2c_client *client = sd->priv;
     struct soc_camera_device *icd = client->dev.platform_data;
     int i, error_cnt=0, error_idx=-1;
+    
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
 
     for (i=0; i<ext_ctrl->count; i++) {
         if (sensor_s_ext_control(icd, &ext_ctrl->controls[i]) != 0) {

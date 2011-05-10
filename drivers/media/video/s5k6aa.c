@@ -69,7 +69,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Focus         0
 #define CONFIG_SENSOR_Exposure      0
 #define CONFIG_SENSOR_Flash         0
-#define CONFIG_SENSOR_Mirror        0
+#define CONFIG_SENSOR_Mirror        1
 #define CONFIG_SENSOR_Flip          0
 #define CONFIG_SENSOR_Focus         0
 
@@ -2150,8 +2150,29 @@ static struct reginfo sensor_init_data[] =
 	{0x0F12, 0x0320},  //  // #REG_0TC_PCFG_usMinFrTimeMsecMult10 : 10fps
 	//WRITE 70000262 0003 // #REG_0TC_PCFG_uPrevMirror
 	//WRITE 70000264 0003 // #REG_0TC_PCFG_uCaptureMirror
-
-	 //=================================================================================================
+   /*lzg@rock-chips.com, FIH:image to be mirrored*/
+#if  CONFIG_SENSOR_NONE_FLIP_MIRROR
+	{0x002A, 0x0262},
+	{0x0F12, 0x0000},  
+	{0x002A, 0x0264},
+	{0x0F12, 0x0000}, 
+#elif CONFIG_SENSOR_MIRROR
+	{0x002A, 0x0262},
+	{0x0F12, 0x0001},  
+	{0x002A, 0x0264},
+	{0x0F12, 0x0001}, 
+#elif CONFIG_SENSOR_FLIPE
+	{0x002A, 0x0262},
+	{0x0F12, 0x0002},  
+	{0x002A, 0x0264},
+	{0x0F12, 0x0002}, 
+#elif CONFIG_SENSOR_NONE_FLIP_MIRROR
+	{0x002A, 0x0262},
+	{0x0F12, 0x0003},  
+	{0x002A, 0x0264},
+	{0x0F12, 0x0003}, 
+#endif
+   //=================================================================================================
 	// Set Preview Config 2 --- For Video record(normal)     // 12fps
 	//=================================================================================================
 	{0x002A,  REG_2TC_PCFG_usWidth},
@@ -2248,6 +2269,10 @@ static struct reginfo sensor_init_data[] =
 	 {0x0F12,0x0000}, //03e8  // #REG_0TC_CCFG_usMinFrTimeMsecMult10 :
 	{SEQUENCE_END, 0x00}
 };
+
+
+
+
 static struct reginfo sensor_720p[]=
 {
 	{SEQUENCE_END, 0x00}

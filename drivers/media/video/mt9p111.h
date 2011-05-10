@@ -30,4 +30,11 @@ struct reginfo
 #define SEQUENCE_WAIT_MS     0xFFFD
 #define SEQUENCE_WAIT_US     0xFFFE
 #define SEQUENCE_END	     0xFFFF
+
+/*configure register for flipe and mirror during initial*/
+#define CONFIG_SENSOR_FLIPE     0
+#define CONFIG_SENSOR_MIRROR    0
+#define CONFIG_SENSOR_MIRROR_AND_FLIPE  1
+#define CONFIG_SENSOR_NONE_FLIP_MIRROR  0
+
 #endif
