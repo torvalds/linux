@@ -767,9 +767,6 @@ retry_request:
 static DEF_SCSI_QCMD(storvsc_queuecommand)
 
 
-/* The one and only one */
-static struct storvsc_driver storvsc_drv;
-
 /* Scsi driver */
 static struct scsi_host_template scsi_driver = {
 	.module	=		THIS_MODULE,
@@ -872,6 +869,11 @@ static int storvsc_probe(struct hv_device *device)
 	scsi_scan_host(host);
 	return ret;
 }
+
+/* The one and only one */
+
+static struct storvsc_driver storvsc_drv;
+
 
 /*
  * storvsc_drv_init - StorVsc driver initialization.
