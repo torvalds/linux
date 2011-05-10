@@ -501,11 +501,8 @@ int storvsc_dev_remove(struct hv_device *device)
 	 * only allow inbound traffic (responses) to proceed so that
 	 * outstanding requests can be completed.
 	 */
-	while (atomic_read(&stor_device->num_outstanding_req)) {
-		DPRINT_INFO(STORVSC, "waiting for %d requests to complete...",
-			    atomic_read(&stor_device->num_outstanding_req));
-		udelay(100);
-	}
+
+	storvsc_wait_to_drain(stor_device);
 
 	DPRINT_INFO(STORVSC, "removing storage device (%p)...",
 		    device->ext);
