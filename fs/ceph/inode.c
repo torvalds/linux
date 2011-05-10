@@ -1567,6 +1567,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	int release = 0, dirtied = 0;
 	int mask = 0;
 	int err = 0;
+	int inode_dirty_flags = 0;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
@@ -1725,12 +1726,15 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 		dout("setattr %p ATTR_FILE ... hrm!\n", inode);
 
 	if (dirtied) {
-		__ceph_mark_dirty_caps(ci, dirtied);
+		inode_dirty_flags = __ceph_mark_dirty_caps(ci, dirtied);
 		inode->i_ctime = CURRENT_TIME;
 	}
 
 	release &= issued;
 	spin_unlock(&inode->i_lock);
+
+	if (inode_dirty_flags)
+		__mark_inode_dirty(inode, inode_dirty_flags);
 
 	if (mask) {
 		req->r_inode = igrab(inode);

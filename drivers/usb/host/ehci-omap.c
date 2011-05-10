@@ -40,6 +40,7 @@
 #include <linux/slab.h>
 #include <linux/usb/ulpi.h>
 #include <plat/usb.h>
+#include <linux/regulator/consumer.h>
 
 /* EHCI Register Set */
 #define EHCI_INSNREG04					(0xA0)
@@ -118,6 +119,8 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	struct ehci_hcd				*omap_ehci;
 	int					ret = -ENODEV;
 	int					irq;
+	int					i;
+	char					supply[7];
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -157,6 +160,23 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
 	hcd->regs = regs;
+
+	/* get ehci regulator and enable */
+	for (i = 0 ; i < OMAP3_HS_USB_PORTS ; i++) {
+		if (pdata->port_mode[i] != OMAP_EHCI_PORT_MODE_PHY) {
+			pdata->regulator[i] = NULL;
+			continue;
+		}
+		snprintf(supply, sizeof(supply), "hsusb%d", i);
+		pdata->regulator[i] = regulator_get(dev, supply);
+		if (IS_ERR(pdata->regulator[i])) {
+			pdata->regulator[i] = NULL;
+			dev_dbg(dev,
+			"failed to get ehci port%d regulator\n", i);
+		} else {
+			regulator_enable(pdata->regulator[i]);
+		}
+	}
 
 	ret = omap_usbhs_enable(dev);
 	if (ret) {

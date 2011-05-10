@@ -954,6 +954,7 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 			 1, 0, NULL, GFP_NOFS);
 	while (start < end) {
 		async_cow = kmalloc(sizeof(*async_cow), GFP_NOFS);
+		BUG_ON(!async_cow);
 		async_cow->inode = inode;
 		async_cow->root = root;
 		async_cow->locked_page = locked_page;
@@ -4731,9 +4732,10 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
 				dentry->d_name.len, dir->i_ino, objectid,
 				BTRFS_I(dir)->block_group, mode, &index);
-	err = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
 		goto out_unlock;
+	}
 
 	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
 	if (err) {
@@ -4792,9 +4794,10 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
 				dentry->d_name.len, dir->i_ino, objectid,
 				BTRFS_I(dir)->block_group, mode, &index);
-	err = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
 		goto out_unlock;
+	}
 
 	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
 	if (err) {
@@ -4999,6 +5002,8 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 	inline_size = btrfs_file_extent_inline_item_len(leaf,
 					btrfs_item_nr(leaf, path->slots[0]));
 	tmp = kmalloc(inline_size, GFP_NOFS);
+	if (!tmp)
+		return -ENOMEM;
 	ptr = btrfs_file_extent_inline_start(item);
 
 	read_extent_buffer(leaf, tmp, ptr, inline_size);
@@ -6036,7 +6041,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 	ret = btrfs_map_block(map_tree, READ, start_sector << 9,
 			      &map_length, NULL, 0);
 	if (ret) {
-		bio_put(bio);
+		bio_put(orig_bio);
 		return -EIO;
 	}
 
@@ -7273,9 +7278,10 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 				dentry->d_name.len, dir->i_ino, objectid,
 				BTRFS_I(dir)->block_group, S_IFLNK|S_IRWXUGO,
 				&index);
-	err = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
 		goto out_unlock;
+	}
 
 	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
 	if (err) {

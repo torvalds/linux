@@ -2582,28 +2582,20 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 }
 
 /*
- * Must always be called with the rcu_read_lock() held
- */
-static void
-__call_for_each_cic(struct io_context *ioc,
-		    void (*func)(struct io_context *, struct cfq_io_context *))
-{
-	struct cfq_io_context *cic;
-	struct hlist_node *n;
-
-	hlist_for_each_entry_rcu(cic, n, &ioc->cic_list, cic_list)
-		func(ioc, cic);
-}
-
-/*
  * Call func for each cic attached to this ioc.
  */
 static void
 call_for_each_cic(struct io_context *ioc,
 		  void (*func)(struct io_context *, struct cfq_io_context *))
 {
+	struct cfq_io_context *cic;
+	struct hlist_node *n;
+
 	rcu_read_lock();
-	__call_for_each_cic(ioc, func);
+
+	hlist_for_each_entry_rcu(cic, n, &ioc->cic_list, cic_list)
+		func(ioc, cic);
+
 	rcu_read_unlock();
 }
 
@@ -2664,7 +2656,7 @@ static void cfq_free_io_context(struct io_context *ioc)
 	 * should be ok to iterate over the known list, we will see all cic's
 	 * since no new ones are added.
 	 */
-	__call_for_each_cic(ioc, cic_free_func);
+	call_for_each_cic(ioc, cic_free_func);
 }
 
 static void cfq_put_cooperator(struct cfq_queue *cfqq)

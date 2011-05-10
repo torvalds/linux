@@ -167,16 +167,17 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
 				    PERF_FORMAT_TOTAL_TIME_RUNNING;
 
-	if (system_wide)
-		return perf_evsel__open_per_cpu(evsel, evsel_list->cpus, false, false);
-
 	attr->inherit = !no_inherit;
+
+	if (system_wide)
+		return perf_evsel__open_per_cpu(evsel, evsel_list->cpus, false);
+
 	if (target_pid == -1 && target_tid == -1) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
 
-	return perf_evsel__open_per_thread(evsel, evsel_list->threads, false, false);
+	return perf_evsel__open_per_thread(evsel, evsel_list->threads, false);
 }
 
 /*

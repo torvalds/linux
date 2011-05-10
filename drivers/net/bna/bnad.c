@@ -1837,7 +1837,6 @@ bnad_setup_rx(struct bnad *bnad, uint rx_id)
 	/* Initialize the Rx event handlers */
 	rx_cbfn.rcb_setup_cbfn = bnad_cb_rcb_setup;
 	rx_cbfn.rcb_destroy_cbfn = bnad_cb_rcb_destroy;
-	rx_cbfn.rcb_destroy_cbfn = NULL;
 	rx_cbfn.ccb_setup_cbfn = bnad_cb_ccb_setup;
 	rx_cbfn.ccb_destroy_cbfn = bnad_cb_ccb_destroy;
 	rx_cbfn.rx_cleanup_cbfn = bnad_cb_rx_cleanup;

@@ -379,6 +379,10 @@
 		CALL(sys_fanotify_init)
 		CALL(sys_fanotify_mark)
 		CALL(sys_prlimit64)
+/* 370 */	CALL(sys_name_to_handle_at)
+		CALL(sys_open_by_handle_at)
+		CALL(sys_clock_adjtime)
+		CALL(sys_syncfs)
 #ifndef syscalls_counted
 .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
 #define syscalls_counted

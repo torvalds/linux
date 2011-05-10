@@ -44,10 +44,10 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_adb = {
 	.channels_min = 1,
 	.channels_max = 2,
 	.buffer_bytes_max = 0x10000,
-	.period_bytes_min = 0x1,
+	.period_bytes_min = 0x20,
 	.period_bytes_max = 0x1000,
 	.periods_min = 2,
-	.periods_max = 32,
+	.periods_max = 1024,
 };
 
 #ifndef CHIP_AU8820
@@ -139,6 +139,9 @@ static int snd_vortex_pcm_open(struct snd_pcm_substream *substream)
 	     snd_pcm_hw_constraint_pow2(runtime, 0,
 					SNDRV_PCM_HW_PARAM_PERIOD_BYTES)) < 0)
 		return err;
+
+	snd_pcm_hw_constraint_step(runtime, 0,
+					SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 64);
 
 	if (VORTEX_PCM_TYPE(substream->pcm) != VORTEX_PCM_WT) {
 #ifndef CHIP_AU8820

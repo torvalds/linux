@@ -330,7 +330,6 @@ enum efx_rx_alloc_method {
  * @eventq_mask: Event queue pointer mask
  * @eventq_read_ptr: Event queue read pointer
  * @last_eventq_read_ptr: Last event queue read pointer value.
- * @magic_count: Event queue test event count
  * @irq_count: Number of IRQs since last adaptive moderation decision
  * @irq_mod_score: IRQ moderation score
  * @rx_alloc_level: Watermark based heuristic counter for pushing descriptors
@@ -360,7 +359,6 @@ struct efx_channel {
 	unsigned int eventq_mask;
 	unsigned int eventq_read_ptr;
 	unsigned int last_eventq_read_ptr;
-	unsigned int magic_count;
 
 	unsigned int irq_count;
 	unsigned int irq_mod_score;

@@ -342,9 +342,22 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_debug_leave);
 
+bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
+{
+	bool error = false;
+	int i, ret;
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
+		ret = drm_crtc_helper_set_config(mode_set);
+		if (ret)
+			error = true;
+	}
+	return error;
+}
+EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode);
+
 bool drm_fb_helper_force_kernel_mode(void)
 {
-	int i = 0;
 	bool ret, error = false;
 	struct drm_fb_helper *helper;
 
@@ -352,12 +365,12 @@ bool drm_fb_helper_force_kernel_mode(void)
 		return false;
 
 	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
-		for (i = 0; i < helper->crtc_count; i++) {
-			struct drm_mode_set *mode_set = &helper->crtc_info[i].mode_set;
-			ret = drm_crtc_helper_set_config(mode_set);
-			if (ret)
-				error = true;
-		}
+		if (helper->dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+			continue;
+
+		ret = drm_fb_helper_restore_fbdev_mode(helper);
+		if (ret)
+			error = true;
 	}
 	return error;
 }

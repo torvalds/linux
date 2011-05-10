@@ -260,7 +260,7 @@ static int __devinit mpc5xxx_can_probe(struct platform_device *ofdev)
 
 	if (!ofdev->dev.of_match)
 		return -EINVAL;
-	data = (struct mpc5xxx_can_data *)of_dev->dev.of_match->data;
+	data = (struct mpc5xxx_can_data *)ofdev->dev.of_match->data;
 
 	base = of_iomap(np, 0);
 	if (!base) {

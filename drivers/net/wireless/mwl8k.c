@@ -137,6 +137,7 @@ struct mwl8k_tx_queue {
 struct mwl8k_priv {
 	struct ieee80211_hw *hw;
 	struct pci_dev *pdev;
+	int irq;
 
 	struct mwl8k_device_info *device_info;
 
@@ -3761,9 +3762,11 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
 			 IRQF_SHARED, MWL8K_NAME, hw);
 	if (rc) {
+		priv->irq = -1;
 		wiphy_err(hw->wiphy, "failed to register IRQ handler\n");
 		return -EIO;
 	}
+	priv->irq = priv->pdev->irq;
 
 	/* Enable TX reclaim and RX tasklets.  */
 	tasklet_enable(&priv->poll_tx_task);
@@ -3800,6 +3803,7 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	if (rc) {
 		iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
 		free_irq(priv->pdev->irq, hw);
+		priv->irq = -1;
 		tasklet_disable(&priv->poll_tx_task);
 		tasklet_disable(&priv->poll_rx_task);
 	}
@@ -3818,7 +3822,10 @@ static void mwl8k_stop(struct ieee80211_hw *hw)
 
 	/* Disable interrupts */
 	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
-	free_irq(priv->pdev->irq, hw);
+	if (priv->irq != -1) {
+		free_irq(priv->pdev->irq, hw);
+		priv->irq = -1;
+	}
 
 	/* Stop finalize join worker */
 	cancel_work_sync(&priv->finalize_join_worker);
