@@ -41,3 +41,4 @@ obj-$(CONFIG_X86_CPUFREQ_NFORCE2)	+= cpufreq-nforce2.o
 
 # ARM SoC drivers
 obj-$(CONFIG_UX500_SOC_DB8500)		+= db8500-cpufreq.o
+obj-$(CONFIG_CPU_FREQ_S3C64XX)		+= s3c64xx.o

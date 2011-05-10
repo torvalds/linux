@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-s3c64xx/cpufreq.c
- *
+/*
  * Copyright 2009 Wolfson Microelectronics plc
  *
  * S3C64xx CPUfreq Support
