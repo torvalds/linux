@@ -418,13 +418,13 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 /*++
 
 Name:
-	ringbuffer_peek()
+	hv_ringbuffer_peek()
 
 Description:
 	Read without advancing the read index
 
 --*/
-int ringbuffer_peek(struct hv_ring_buffer_info *Inring_info,
+int hv_ringbuffer_peek(struct hv_ring_buffer_info *Inring_info,
 		   void *Buffer, u32 buflen)
 {
 	u32 bytes_avail_towrite;
