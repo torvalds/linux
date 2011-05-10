@@ -104,7 +104,6 @@ static struct platform_device omapdss_device = {
  * ---------------------------------------------------------------------------
  */
 extern struct lcd_ctrl hwa742_ctrl;
-extern struct lcd_ctrl blizzard_ctrl;
 
 static const struct lcd_ctrl *ctrls[] = {
 #ifdef CONFIG_ARCH_OMAP1
@@ -115,9 +114,6 @@ static const struct lcd_ctrl *ctrls[] = {
 
 #ifdef CONFIG_FB_OMAP_LCDC_HWA742
 	&hwa742_ctrl,
-#endif
-#ifdef CONFIG_FB_OMAP_LCDC_BLIZZARD
-	&blizzard_ctrl,
 #endif
 };
 

@@ -23,13 +23,6 @@ config FB_OMAP_LCDC_HWA742
 	  Say Y here if you want to have support for the external
 	  Epson HWA742 LCD controller.
 
-config FB_OMAP_LCDC_BLIZZARD
-	bool "Epson Blizzard LCD controller support"
-	depends on FB_OMAP && FB_OMAP_LCDC_EXTERNAL
-	help
-	  Say Y here if you want to have support for the external
-	  Epson Blizzard LCD controller.
-
 config FB_OMAP_MANUAL_UPDATE
 	bool "Default to manual update mode"
 	depends on FB_OMAP && FB_OMAP_LCDC_EXTERNAL
