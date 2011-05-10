@@ -73,11 +73,6 @@ struct hv_storvsc_request {
 };
 
 
-/* Represents the block vsc driver */
-struct storvsc_driver {
-	struct hv_driver base;
-};
-
 struct storvsc_device_info {
 	u32 ring_buffer_size;
 	unsigned int port_number;
