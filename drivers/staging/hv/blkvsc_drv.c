@@ -822,6 +822,8 @@ static int blkvsc_drv_init(void)
 	struct hv_driver *drv = &blkvsc_drv.base;
 	int ret;
 
+	BUILD_BUG_ON(sizeof(sector_t) != 8);
+
 	storvsc_drv->ring_buffer_size = blkvsc_ringbuffer_size;
 
 	memcpy(&drv->dev_type, &dev_type, sizeof(struct hv_guid));
@@ -1045,8 +1047,6 @@ static void blkvsc_request_completion(struct hv_storvsc_request *request)
 static int __init blkvsc_init(void)
 {
 	int ret;
-
-	BUILD_BUG_ON(sizeof(sector_t) != 8);
 
 	ret = blkvsc_drv_init();
 
