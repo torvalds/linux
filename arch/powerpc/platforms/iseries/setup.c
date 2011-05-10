@@ -685,6 +685,11 @@ void * __init iSeries_early_setup(void)
 	powerpc_firmware_features |= FW_FEATURE_ISERIES;
 	powerpc_firmware_features |= FW_FEATURE_LPAR;
 
+#ifdef CONFIG_SMP
+	/* On iSeries we know we can never have more than 64 cpus */
+	nr_cpu_ids = max(nr_cpu_ids, 64);
+#endif
+
 	iSeries_fixup_klimit();
 
 	/*

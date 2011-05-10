@@ -7,7 +7,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#include <linux/threads.h>
+#include <linux/smp.h>
 #include <linux/module.h>
 #include <linux/memblock.h>
 
@@ -178,7 +178,7 @@ static int __initdata paca_size;
 
 void __init allocate_pacas(void)
 {
-	int nr_cpus, cpu, limit;
+	int cpu, limit;
 
 	/*
 	 * We can't take SLB misses on the paca, and we want to access them
@@ -190,23 +190,18 @@ void __init allocate_pacas(void)
 	if (firmware_has_feature(FW_FEATURE_ISERIES))
 		limit = min(limit, HvPagesToMap * HVPAGESIZE);
 
-	nr_cpus = NR_CPUS;
-	/* On iSeries we know we can never have more than 64 cpus */
-	if (firmware_has_feature(FW_FEATURE_ISERIES))
-		nr_cpus = min(64, nr_cpus);
-
-	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpus);
+	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpu_ids);
 
 	paca = __va(memblock_alloc_base(paca_size, PAGE_SIZE, limit));
 	memset(paca, 0, paca_size);
 
 	printk(KERN_DEBUG "Allocated %u bytes for %d pacas at %p\n",
-		paca_size, nr_cpus, paca);
+		paca_size, nr_cpu_ids, paca);
 
-	allocate_lppacas(nr_cpus, limit);
+	allocate_lppacas(nr_cpu_ids, limit);
 
 	/* Can't use for_each_*_cpu, as they aren't functional yet */
-	for (cpu = 0; cpu < nr_cpus; cpu++)
+	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
 		initialise_paca(&paca[cpu], cpu);
 }
 
