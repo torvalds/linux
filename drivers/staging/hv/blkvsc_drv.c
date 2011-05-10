@@ -112,7 +112,7 @@ struct block_device_context {
 	int users;
 };
 
-static const char *g_blk_driver_name = "blkvsc";
+static const char *drv_name = "blkvsc";
 
 /* {32412632-86cb-44a2-9b5c-50d1417354f5} */
 static const struct hv_guid g_blk_device_type = {
@@ -177,7 +177,7 @@ static int blk_vsc_initialize(struct hv_driver *driver)
 
 	/* Make sure we are at least 2 pages since 1 page is used for control */
 
-	driver->name = g_blk_driver_name;
+	driver->name = drv_name;
 	memcpy(&driver->dev_type, &g_blk_device_type, sizeof(struct hv_guid));
 
 
