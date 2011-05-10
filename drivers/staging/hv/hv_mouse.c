@@ -943,7 +943,10 @@ static int mousevsc_drv_exit_cb(struct device *dev, void *data)
 	return 1;
 }
 
-static struct  mousevsc_drv_obj mousevsc_drv;
+static struct  mousevsc_drv_obj mousevsc_drv = {
+	.base.probe = mousevsc_probe,
+	.base.remove = mousevsc_remove,
+};
 
 static void mousevsc_drv_exit(void)
 {
@@ -995,9 +998,6 @@ static int __init mousevsc_init(void)
 	mouse_vsc_initialize(&input_drv_obj->base);
 
 	drv->driver.name = input_drv_obj->base.name;
-
-	drv->probe = mousevsc_probe;
-	drv->remove = mousevsc_remove;
 
 	/* The driver belongs to vmbus */
 	vmbus_child_driver_register(&drv->driver);
