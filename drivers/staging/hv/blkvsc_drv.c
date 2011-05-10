@@ -852,7 +852,7 @@ static void blkvsc_request(struct request_queue *queue)
 
 
 /* The one and only one */
-static  struct storvsc_driver g_blkvsc_drv;
+static  struct storvsc_driver blkvsc_drv;
 
 static const struct block_device_operations block_ops = {
 	.owner = THIS_MODULE,
@@ -867,8 +867,8 @@ static const struct block_device_operations block_ops = {
  */
 static int blkvsc_drv_init(void)
 {
-	struct storvsc_driver *storvsc_drv_obj = &g_blkvsc_drv;
-	struct hv_driver *drv = &g_blkvsc_drv.base;
+	struct storvsc_driver *storvsc_drv_obj = &blkvsc_drv;
+	struct hv_driver *drv = &blkvsc_drv.base;
 	int ret;
 
 	storvsc_drv_obj->ring_buffer_size = blkvsc_ringbuffer_size;
@@ -897,8 +897,8 @@ static int blkvsc_drv_exit_cb(struct device *dev, void *data)
 
 static void blkvsc_drv_exit(void)
 {
-	struct storvsc_driver *storvsc_drv_obj = &g_blkvsc_drv;
-	struct hv_driver *drv = &g_blkvsc_drv.base;
+	struct storvsc_driver *storvsc_drv_obj = &blkvsc_drv;
+	struct hv_driver *drv = &blkvsc_drv.base;
 	struct device *current_dev;
 	int ret;
 
