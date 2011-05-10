@@ -794,7 +794,7 @@ struct input_device_context {
 };
 
 
-static struct  mousevsc_drv_obj g_mousevsc_drv;
+static struct  mousevsc_drv_obj mousevsc_drv;
 
 static void deviceinfo_callback(struct hv_device *dev, struct hv_input_dev_info *info)
 {
@@ -947,7 +947,7 @@ static int mousevsc_drv_exit_cb(struct device *dev, void *data)
 
 static void mousevsc_drv_exit(void)
 {
-	struct hv_driver *drv = &g_mousevsc_drv.base;
+	struct hv_driver *drv = &mousevsc_drv.base;
 	int ret;
 
 	struct device *current_dev = NULL;
@@ -986,8 +986,8 @@ static int mouse_vsc_initialize(struct hv_driver *driver)
 
 static int __init mousevsc_init(void)
 {
-	struct mousevsc_drv_obj *input_drv_obj = &g_mousevsc_drv;
-	struct hv_driver *drv = &g_mousevsc_drv.base;
+	struct mousevsc_drv_obj *input_drv_obj = &mousevsc_drv;
+	struct hv_driver *drv = &mousevsc_drv.base;
 
 	DPRINT_INFO(INPUTVSC_DRV, "Hyper-V Mouse driver initializing.");
 
