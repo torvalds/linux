@@ -178,6 +178,7 @@ int smp_request_message_ipi(int virq, int msg)
 	return err;
 }
 
+#ifdef CONFIG_PPC_SMP_MUXED_IPI
 struct cpu_messages {
 	unsigned long messages;		/* current messages bits */
 	unsigned long data;		/* data for cause ipi */
@@ -230,6 +231,7 @@ irqreturn_t smp_ipi_demux(void)
 	}
 	return IRQ_HANDLED;
 }
+#endif /* CONFIG_PPC_SMP_MUXED_IPI */
 
 void smp_send_reschedule(int cpu)
 {

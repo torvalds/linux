@@ -1,5 +1,6 @@
 config PPC_XICS
        def_bool n
+       select PPC_SMP_MUXED_IPI
 
 config PPC_ICP_NATIVE
        def_bool n

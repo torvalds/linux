@@ -73,6 +73,7 @@ config PPC_BOOK3S_64
 config PPC_BOOK3E_64
 	bool "Embedded processors"
 	select PPC_FPU # Make it a choice ?
+	select PPC_SMP_MUXED_IPI
 
 endchoice
 
@@ -178,6 +179,7 @@ config FSL_BOOKE
 config PPC_FSL_BOOK3E
 	bool
 	select FSL_EMB_PERFMON
+	select PPC_SMP_MUXED_IPI
 	default y if FSL_BOOKE
 
 config PTE_64BIT

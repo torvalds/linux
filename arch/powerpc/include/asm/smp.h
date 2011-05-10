@@ -38,7 +38,9 @@ extern void cpu_die(void);
 
 struct smp_ops_t {
 	void  (*message_pass)(int cpu, int msg);
+#ifdef CONFIG_PPC_SMP_MUXED_IPI
 	void  (*cause_ipi)(int cpu, unsigned long data);
+#endif
 	int   (*probe)(void);
 	int   (*kick_cpu)(int nr);
 	void  (*setup_cpu)(int nr);

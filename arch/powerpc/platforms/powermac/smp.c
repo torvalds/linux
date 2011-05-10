@@ -70,7 +70,7 @@ static void (*pmac_tb_freeze)(int freeze);
 static u64 timebase;
 static int tb_req;
 
-#ifdef CONFIG_PPC32
+#ifdef CONFIG_PPC_PMAC32_PSURGE
 
 /*
  * Powersurge (old powermac SMP) support.
@@ -420,7 +420,7 @@ struct smp_ops_t psurge_smp_ops = {
 	.give_timebase	= smp_psurge_give_timebase,
 	.take_timebase	= smp_psurge_take_timebase,
 };
-#endif /* CONFIG_PPC32 - actually powersurge support */
+#endif /* CONFIG_PPC_PMAC32_PSURGE */
 
 /*
  * Core 99 and later support
@@ -980,7 +980,7 @@ void __init pmac_setup_smp(void)
 		of_node_put(np);
 		smp_ops = &core99_smp_ops;
 	}
-#ifdef CONFIG_PPC32
+#ifdef CONFIG_PPC_PMAC32_PSURGE
 	else {
 		/* We have to set bits in cpu_possible_mask here since the
 		 * secondary CPU(s) aren't in the device tree. Various
@@ -993,7 +993,7 @@ void __init pmac_setup_smp(void)
 			set_cpu_possible(cpu, true);
 		smp_ops = &psurge_smp_ops;
 	}
-#endif /* CONFIG_PPC32 */
+#endif /* CONFIG_PPC_PMAC32_PSURGE */
 
 #ifdef CONFIG_HOTPLUG_CPU
 	ppc_md.cpu_die = pmac_cpu_die;

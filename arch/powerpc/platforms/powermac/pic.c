@@ -239,7 +239,7 @@ static unsigned int pmac_pic_get_irq(void)
 	unsigned long bits = 0;
 	unsigned long flags;
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_PPC_PMAC32_PSURGE
 	void psurge_smp_message_recv(void);
 
        	/* IPI's are a hack on the powersurge -- Cort */
@@ -247,7 +247,7 @@ static unsigned int pmac_pic_get_irq(void)
 		psurge_smp_message_recv();
 		return NO_IRQ_IGNORE;	/* ignore, already handled */
         }
-#endif /* CONFIG_SMP */
+#endif /* CONFIG_PPC_PMAC32_PSURGE */
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
 	for (irq = max_real_irqs; (irq -= 32) >= 0; ) {
 		int i = irq >> 5;
