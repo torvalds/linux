@@ -107,12 +107,6 @@ static int flipper_pic_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static void flipper_pic_unmap(struct irq_host *h, unsigned int irq)
-{
-	irq_set_chip_data(irq, NULL);
-	irq_set_chip(irq, NULL);
-}
-
 static int flipper_pic_match(struct irq_host *h, struct device_node *np)
 {
 	return 1;
@@ -121,7 +115,6 @@ static int flipper_pic_match(struct irq_host *h, struct device_node *np)
 
 static struct irq_host_ops flipper_irq_host_ops = {
 	.map = flipper_pic_map,
-	.unmap = flipper_pic_unmap,
 	.match = flipper_pic_match,
 };
 

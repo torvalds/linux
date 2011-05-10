@@ -100,15 +100,8 @@ static int hlwd_pic_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static void hlwd_pic_unmap(struct irq_host *h, unsigned int irq)
-{
-	irq_set_chip_data(irq, NULL);
-	irq_set_chip(irq, NULL);
-}
-
 static struct irq_host_ops hlwd_irq_host_ops = {
 	.map = hlwd_pic_map,
-	.unmap = hlwd_pic_unmap,
 };
 
 static unsigned int __hlwd_pic_get_irq(struct irq_host *h)
