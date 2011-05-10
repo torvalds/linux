@@ -665,9 +665,7 @@ struct ip_vs_dest {
 	struct dst_entry	*dst_cache;	/* destination cache entry */
 	u32			dst_rtos;	/* RT_TOS(tos) for dst */
 	u32			dst_cookie;
-#ifdef CONFIG_IP_VS_IPV6
-	struct in6_addr		dst_saddr;
-#endif
+	union nf_inet_addr	dst_saddr;
 
 	/* for virtual service */
 	struct ip_vs_service	*svc;		/* service it belongs to */
@@ -1253,7 +1251,8 @@ extern int ip_vs_tunnel_xmit
 extern int ip_vs_dr_xmit
 (struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
 extern int ip_vs_icmp_xmit
-(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp, int offset);
+(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp,
+ int offset, unsigned int hooknum);
 extern void ip_vs_dst_reset(struct ip_vs_dest *dest);
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1267,7 +1266,7 @@ extern int ip_vs_dr_xmit_v6
 (struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
 extern int ip_vs_icmp_xmit_v6
 (struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp,
- int offset);
+ int offset, unsigned int hooknum);
 #endif
 
 #ifdef CONFIG_SYSCTL
