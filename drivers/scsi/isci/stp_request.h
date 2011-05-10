@@ -53,24 +53,106 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SCIC_SDS_SATA_PIO_REQUEST_H_
-#define _SCIC_SDS_SATA_PIO_REQUEST_H_
+#ifndef _SCIC_SDS_STP_REQUEST_T_
+#define _SCIC_SDS_STP_REQUEST_T_
 
-#include "scic_sds_request.h"
-#include "scu_task_context.h"
+#include <linux/dma-mapping.h>
+#include <scsi/sas.h>
+
+struct scic_sds_stp_request {
+	union {
+		u32 ncq;
+
+		u32 udma;
+
+		struct scic_sds_stp_pio_request {
+			/**
+			 * Total transfer for the entire PIO request recorded at request constuction
+			 * time.
+			 *
+			 * @todo Should we just decrement this value for each byte of data transitted
+			 *       or received to elemenate the current_transfer_bytes field?
+			 */
+			u32 total_transfer_bytes;
+
+			/**
+			 * Total number of bytes received/transmitted in data frames since the start
+			 * of the IO request.  At the end of the IO request this should equal the
+			 * total_transfer_bytes.
+			 */
+			u32 current_transfer_bytes;
+
+			/**
+			 * The number of bytes requested in the in the PIO setup.
+			 */
+			u32 pio_transfer_bytes;
+
+			/**
+			 * PIO Setup ending status value to tell us if we need to wait for another FIS
+			 * or if the transfer is complete. On the receipt of a D2H FIS this will be
+			 * the status field of that FIS.
+			 */
+			u8 ending_status;
+
+			/**
+			 * On receipt of a D2H FIS this will be the ending error field if the
+			 * ending_status has the SATA_STATUS_ERR bit set.
+			 */
+			u8 ending_error;
+
+			struct scic_sds_request_pio_sgl {
+				struct scu_sgl_element_pair *sgl_pair;
+				u8 sgl_set;
+				u32 sgl_offset;
+			} request_current;
+		} pio;
+
+		struct {
+			/**
+			 * The number of bytes requested in the PIO setup before CDB data frame.
+			 */
+			u32 device_preferred_cdb_length;
+		} packet;
+	} type;
+};
 
 /**
- * This file contains the structures and constants for SATA PIO requests.
+ * enum scic_sds_stp_request_started_udma_substates - This enumeration depicts
+ *    the various sub-states associated with a SATA/STP UDMA protocol operation.
  *
  *
  */
-
+enum scic_sds_stp_request_started_udma_substates {
+	SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE,
+	SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE,
+};
 
 /**
+ * enum scic_sds_stp_request_started_non_data_substates - This enumeration
+ *    depicts the various sub-states associated with a SATA/STP non-data
+ *    protocol operation.
  *
  *
- * This is the enumeration of the SATA PIO DATA IN started substate machine.
  */
+enum scic_sds_stp_request_started_non_data_substates {
+	SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE,
+	SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_D2H_SUBSTATE,
+};
+
+/**
+ * enum scic_sds_stp_request_started_soft_reset_substates - THis enumeration
+ *    depicts the various sub-states associated with a SATA/STP soft reset
+ *    operation.
+ *
+ *
+ */
+enum scic_sds_stp_request_started_soft_reset_substates {
+	SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE,
+	SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_DIAGNOSTIC_COMPLETION_SUBSTATE,
+	SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_D2H_RESPONSE_FRAME_SUBSTATE,
+};
+
+/* This is the enumeration of the SATA PIO DATA IN started substate machine. */
 enum _scic_sds_stp_request_started_pio_substates {
 	/**
 	 * While in this state the IO request object is waiting for the TC completion
@@ -98,7 +180,16 @@ enum _scic_sds_stp_request_started_pio_substates {
 	SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE,
 };
 
-struct scic_sds_stp_request;
+struct scic_sds_request;
 
-
-#endif   /* _SCIC_SDS_SATA_PIO_REQUEST_H_ */
+enum sci_status scic_sds_stp_pio_request_construct(struct scic_sds_request *sci_req,
+						   bool copy_rx_frame);
+enum sci_status scic_sds_stp_udma_request_construct(struct scic_sds_request *sci_req,
+						    u32 transfer_length,
+						    enum dma_data_direction dir);
+enum sci_status scic_sds_stp_non_data_request_construct(struct scic_sds_request *sci_req);
+enum sci_status scic_sds_stp_soft_reset_request_construct(struct scic_sds_request *sci_req);
+enum sci_status scic_sds_stp_ncq_request_construct(struct scic_sds_request *sci_req,
+						   u32 transfer_length,
+						   enum dma_data_direction dir);
+#endif /* _SCIC_SDS_STP_REQUEST_T_ */

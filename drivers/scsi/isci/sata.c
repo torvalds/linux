@@ -56,8 +56,6 @@
 #include <scsi/sas.h>
 #include "isci.h"
 #include "remote_device.h"
-#include "scic_io_request.h"
-#include "scic_task_request.h"
 #include "task.h"
 #include "request.h"
 #include "sata.h"

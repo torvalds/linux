@@ -56,15 +56,12 @@
 #include <linux/completion.h>
 #include <linux/irqflags.h>
 #include "sas.h"
-#include "scic_task_request.h"
-#include "scic_io_request.h"
 #include "remote_device.h"
 #include "remote_node_context.h"
 #include "isci.h"
 #include "request.h"
 #include "sata.h"
 #include "task.h"
-#include "scic_sds_request.h"
 #include "timers.h"
 
 /**

@@ -61,7 +61,6 @@
 #include "scic_sds_phy.h"
 #include "scic_sds_port.h"
 #include "remote_node_context.h"
-#include "sci_util.h"
 #include "scu_event_codes.h"
 #include "timers.h"
 

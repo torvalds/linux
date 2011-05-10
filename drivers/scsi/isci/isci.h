@@ -521,6 +521,25 @@ enum sci_task_status {
 
 };
 
+/**
+ * sci_swab32_cpy - convert between scsi and scu-hardware byte format
+ * @dest: receive the 4-byte endian swapped version of src
+ * @src: word aligned source buffer
+ *
+ * scu hardware handles SSP/SMP control, response, and unidentified
+ * frames in "big endian dword" order.  Regardless of host endian this
+ * is always a swab32()-per-dword conversion of the standard definition,
+ * i.e. single byte fields swapped and multi-byte fields in little-
+ * endian
+ */
+static inline void sci_swab32_cpy(void *_dest, void *_src, ssize_t word_cnt)
+{
+	u32 *dest = _dest, *src = _src;
+
+	while (--word_cnt >= 0)
+		dest[word_cnt] = swab32(src[word_cnt]);
+}
+
 extern unsigned char no_outbound_task_to;
 extern u16 ssp_max_occ_to;
 extern u16 stp_max_occ_to;

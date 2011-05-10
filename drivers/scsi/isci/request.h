@@ -58,7 +58,8 @@
 
 #include "isci.h"
 #include "host.h"
-#include "scic_sds_request.h"
+#include "scu_task_context.h"
+#include "stp_request.h"
 
 /**
  * struct isci_request_status - This enum defines the possible states of an I/O
@@ -81,6 +82,151 @@ enum task_type {
 	io_task  = 0,
 	tmf_task = 1
 };
+
+enum sci_request_protocol {
+	SCIC_NO_PROTOCOL,
+	SCIC_SMP_PROTOCOL,
+	SCIC_SSP_PROTOCOL,
+	SCIC_STP_PROTOCOL
+}; /* XXX remove me, use sas_task.dev instead */;
+
+struct scic_sds_request {
+	/**
+	 * This field contains the information for the base request state machine.
+	 */
+	struct sci_base_state_machine state_machine;
+
+	/**
+	 * This field simply points to the controller to which this IO request
+	 * is associated.
+	 */
+	struct scic_sds_controller *owning_controller;
+
+	/**
+	 * This field simply points to the remote device to which this IO request
+	 * is associated.
+	 */
+	struct scic_sds_remote_device *target_device;
+
+	/**
+	 * This field is utilized to determine if the SCI user is managing
+	 * the IO tag for this request or if the core is managing it.
+	 */
+	bool was_tag_assigned_by_user;
+
+	/**
+	 * This field indicates the IO tag for this request.  The IO tag is
+	 * comprised of the task_index and a sequence count. The sequence count
+	 * is utilized to help identify tasks from one life to another.
+	 */
+	u16 io_tag;
+
+	/**
+	 * This field specifies the protocol being utilized for this
+	 * IO request.
+	 */
+	enum sci_request_protocol protocol;
+
+	/**
+	 * This field indicates the completion status taken from the SCUs
+	 * completion code.  It indicates the completion result for the SCU hardware.
+	 */
+	u32 scu_status;
+
+	/**
+	 * This field indicates the completion status returned to the SCI user.  It
+	 * indicates the users view of the io request completion.
+	 */
+	u32 sci_status;
+
+	/**
+	 * This field contains the value to be utilized when posting (e.g. Post_TC,
+	 * Post_TC_Abort) this request to the silicon.
+	 */
+	u32 post_context;
+
+	struct scu_task_context *task_context_buffer;
+	struct scu_task_context tc ____cacheline_aligned;
+
+	/* could be larger with sg chaining */
+	#define SCU_SGL_SIZE ((SCU_IO_REQUEST_SGE_COUNT + 1) / 2)
+	struct scu_sgl_element_pair sg_table[SCU_SGL_SIZE] __attribute__ ((aligned(32)));
+
+	/**
+	 * This field indicates if this request is a task management request or
+	 * normal IO request.
+	 */
+	bool is_task_management_request;
+
+	/**
+	 * This field indicates that this request contains an initialized started
+	 * substate machine.
+	 */
+	bool has_started_substate_machine;
+
+	/**
+	 * This field is a pointer to the stored rx frame data.  It is used in STP
+	 * internal requests and SMP response frames.  If this field is non-NULL the
+	 * saved frame must be released on IO request completion.
+	 *
+	 * @todo In the future do we want to keep a list of RX frame buffers?
+	 */
+	u32 saved_rx_frame_index;
+
+	/**
+	 * This field specifies the data necessary to manage the sub-state
+	 * machine executed while in the SCI_BASE_REQUEST_STATE_STARTED state.
+	 */
+	struct sci_base_state_machine started_substate_machine;
+
+	/**
+	 * This field specifies the current state handlers in place for this
+	 * IO Request object.  This field is updated each time the request
+	 * changes state.
+	 */
+	const struct scic_sds_io_request_state_handler *state_handlers;
+
+	/**
+	 * This field in the recorded device sequence for the io request.  This is
+	 * recorded during the build operation and is compared in the start
+	 * operation.  If the sequence is different then there was a change of
+	 * devices from the build to start operations.
+	 */
+	u8 device_sequence;
+
+	union {
+		struct {
+			union {
+				struct ssp_cmd_iu cmd;
+				struct ssp_task_iu tmf;
+			};
+			union {
+				struct ssp_response_iu rsp;
+				u8 rsp_buf[SSP_RESP_IU_MAX_SIZE];
+			};
+		} ssp;
+
+		struct {
+			struct smp_req cmd;
+			struct smp_resp rsp;
+		} smp;
+
+		struct {
+			struct scic_sds_stp_request req;
+			struct host_to_dev_fis cmd;
+			struct dev_to_host_fis rsp;
+		} stp;
+	};
+
+};
+
+static inline struct scic_sds_request *to_sci_req(struct scic_sds_stp_request *stp_req)
+{
+	struct scic_sds_request *sci_req;
+
+	sci_req = container_of(stp_req, typeof(*sci_req), stp.req);
+	return sci_req;
+}
 
 struct isci_request {
 	enum isci_request_status status;
@@ -123,6 +269,273 @@ static inline struct isci_request *sci_req_to_ireq(struct scic_sds_request *sci_
 	struct isci_request *ireq = container_of(sci_req, typeof(*ireq), sci);
 
 	return ireq;
+}
+
+/**
+ * enum sci_base_request_states - This enumeration depicts all the states for
+ *    the common request state machine.
+ *
+ *
+ */
+enum sci_base_request_states {
+	/**
+	 * Simply the initial state for the base request state machine.
+	 */
+	SCI_BASE_REQUEST_STATE_INITIAL,
+
+	/**
+	 * This state indicates that the request has been constructed. This state
+	 * is entered from the INITIAL state.
+	 */
+	SCI_BASE_REQUEST_STATE_CONSTRUCTED,
+
+	/**
+	 * This state indicates that the request has been started. This state is
+	 * entered from the CONSTRUCTED state.
+	 */
+	SCI_BASE_REQUEST_STATE_STARTED,
+
+	/**
+	 * This state indicates that the request has completed.
+	 * This state is entered from the STARTED state. This state is entered from
+	 * the ABORTING state.
+	 */
+	SCI_BASE_REQUEST_STATE_COMPLETED,
+
+	/**
+	 * This state indicates that the request is in the process of being
+	 * terminated/aborted.
+	 * This state is entered from the CONSTRUCTED state.
+	 * This state is entered from the STARTED state.
+	 */
+	SCI_BASE_REQUEST_STATE_ABORTING,
+
+	/**
+	 * Simply the final state for the base request state machine.
+	 */
+	SCI_BASE_REQUEST_STATE_FINAL,
+};
+
+typedef enum sci_status (*scic_sds_io_request_handler_t)
+				(struct scic_sds_request *request);
+typedef enum sci_status (*scic_sds_io_request_frame_handler_t)
+				(struct scic_sds_request *req, u32 frame);
+typedef enum sci_status (*scic_sds_io_request_event_handler_t)
+				(struct scic_sds_request *req, u32 event);
+typedef enum sci_status (*scic_sds_io_request_task_completion_handler_t)
+				(struct scic_sds_request *req, u32 completion_code);
+
+/**
+ * struct scic_sds_io_request_state_handler - This is the SDS core definition
+ *    of the state handlers.
+ *
+ *
+ */
+struct scic_sds_io_request_state_handler {
+	/**
+	 * The start_handler specifies the method invoked when a user attempts to
+	 * start a request.
+	 */
+	scic_sds_io_request_handler_t start_handler;
+
+	/**
+	 * The abort_handler specifies the method invoked when a user attempts to
+	 * abort a request.
+	 */
+	scic_sds_io_request_handler_t abort_handler;
+
+	/**
+	 * The complete_handler specifies the method invoked when a user attempts to
+	 * complete a request.
+	 */
+	scic_sds_io_request_handler_t complete_handler;
+
+	scic_sds_io_request_task_completion_handler_t tc_completion_handler;
+	scic_sds_io_request_event_handler_t event_handler;
+	scic_sds_io_request_frame_handler_t frame_handler;
+
+};
+
+extern const struct sci_base_state scic_sds_io_request_started_task_mgmt_substate_table[];
+
+/**
+ * scic_sds_request_get_controller() -
+ *
+ * This macro will return the controller for this io request object
+ */
+#define scic_sds_request_get_controller(sci_req) \
+	((sci_req)->owning_controller)
+
+/**
+ * scic_sds_request_get_device() -
+ *
+ * This macro will return the device for this io request object
+ */
+#define scic_sds_request_get_device(sci_req) \
+	((sci_req)->target_device)
+
+/**
+ * scic_sds_request_get_port() -
+ *
+ * This macro will return the port for this io request object
+ */
+#define scic_sds_request_get_port(sci_req)	\
+	scic_sds_remote_device_get_port(scic_sds_request_get_device(sci_req))
+
+/**
+ * scic_sds_request_get_post_context() -
+ *
+ * This macro returns the constructed post context result for the io request.
+ */
+#define scic_sds_request_get_post_context(sci_req)	\
+	((sci_req)->post_context)
+
+/**
+ * scic_sds_request_get_task_context() -
+ *
+ * This is a helper macro to return the os handle for this request object.
+ */
+#define scic_sds_request_get_task_context(request) \
+	((request)->task_context_buffer)
+
+/**
+ * scic_sds_request_set_status() -
+ *
+ * This macro will set the scu hardware status and sci request completion
+ * status for an io request.
+ */
+#define scic_sds_request_set_status(request, scu_status_code, sci_status_code) \
+	{ \
+		(request)->scu_status = (scu_status_code); \
+		(request)->sci_status = (sci_status_code); \
+	}
+
+#define scic_sds_request_complete(a_request) \
+	((a_request)->state_handlers->complete_handler(a_request))
+
+
+extern enum sci_status
+scic_sds_io_request_tc_completion(struct scic_sds_request *request, u32 completion_code);
+
+/**
+ * SCU_SGL_ZERO() -
+ *
+ * This macro zeros the hardware SGL element data
+ */
+#define SCU_SGL_ZERO(scu_sge) \
+	{ \
+		(scu_sge).length = 0; \
+		(scu_sge).address_lower = 0; \
+		(scu_sge).address_upper = 0; \
+		(scu_sge).address_modifier = 0;	\
+	}
+
+/**
+ * SCU_SGL_COPY() -
+ *
+ * This macro copys the SGL Element data from the host os to the hardware SGL
+ * elment data
+ */
+#define SCU_SGL_COPY(scu_sge, os_sge) \
+	{ \
+		(scu_sge).length = sg_dma_len(sg); \
+		(scu_sge).address_upper = \
+			upper_32_bits(sg_dma_address(sg)); \
+		(scu_sge).address_lower = \
+			lower_32_bits(sg_dma_address(sg)); \
+		(scu_sge).address_modifier = 0;	\
+	}
+
+void scic_sds_request_build_sgl(struct scic_sds_request *sci_req);
+void scic_sds_stp_request_assign_buffers(struct scic_sds_request *sci_req);
+void scic_sds_smp_request_assign_buffers(struct scic_sds_request *sci_req);
+enum sci_status scic_sds_request_start(struct scic_sds_request *sci_req);
+enum sci_status scic_sds_io_request_terminate(struct scic_sds_request *sci_req);
+void scic_sds_io_request_copy_response(struct scic_sds_request *sci_req);
+enum sci_status scic_sds_io_request_event_handler(struct scic_sds_request *sci_req,
+						  u32 event_code);
+enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
+						  u32 frame_index);
+enum sci_status scic_sds_task_request_terminate(struct scic_sds_request *sci_req);
+enum sci_status scic_sds_request_started_state_abort_handler(struct scic_sds_request *sci_req);
+
+/**
+ * enum _scic_sds_io_request_started_task_mgmt_substates - This enumeration
+ *    depicts all of the substates for a task management request to be
+ *    performed in the STARTED super-state.
+ *
+ *
+ */
+enum scic_sds_raw_request_started_task_mgmt_substates {
+	/**
+	 * The AWAIT_TC_COMPLETION sub-state indicates that the started raw
+	 * task management request is waiting for the transmission of the
+	 * initial frame (i.e. command, task, etc.).
+	 */
+	SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION,
+
+	/**
+	 * This sub-state indicates that the started task management request
+	 * is waiting for the reception of an unsolicited frame
+	 * (i.e. response IU).
+	 */
+	SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE,
+};
+
+
+/**
+ * enum _scic_sds_smp_request_started_substates - This enumeration depicts all
+ *    of the substates for a SMP request to be performed in the STARTED
+ *    super-state.
+ *
+ *
+ */
+enum scic_sds_smp_request_started_substates {
+	/**
+	 * This sub-state indicates that the started task management request
+	 * is waiting for the reception of an unsolicited frame
+	 * (i.e. response IU).
+	 */
+	SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE,
+
+	/**
+	 * The AWAIT_TC_COMPLETION sub-state indicates that the started SMP request is
+	 * waiting for the transmission of the initial frame (i.e. command, task, etc.).
+	 */
+	SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION,
+};
+
+
+
+/* XXX open code in caller */
+static inline void *scic_request_get_virt_addr(struct scic_sds_request *sci_req,
+					       dma_addr_t phys_addr)
+{
+	struct isci_request *ireq = sci_req_to_ireq(sci_req);
+	dma_addr_t offset;
+
+	BUG_ON(phys_addr < ireq->request_daddr);
+
+	offset = phys_addr - ireq->request_daddr;
+
+	BUG_ON(offset >= sizeof(*ireq));
+
+	return (char *)ireq + offset;
+}
+
+/* XXX open code in caller */
+static inline dma_addr_t scic_io_request_get_dma_addr(struct scic_sds_request *sci_req,
+						      void *virt_addr)
+{
+	struct isci_request *ireq = sci_req_to_ireq(sci_req);
+
+	char *requested_addr = (char *)virt_addr;
+	char *base_addr = (char *)ireq;
+
+	BUG_ON(requested_addr < base_addr);
+	BUG_ON((requested_addr - base_addr) >= sizeof(*ireq));
+
+	return ireq->request_daddr + (requested_addr - base_addr);
 }
 
 /**
@@ -337,12 +750,6 @@ static inline void isci_request_unmap_sgl(
 	}
 }
 
-
-void isci_request_io_request_complete(
-	struct isci_host *isci_host,
-	struct isci_request *request,
-	enum sci_io_status completion_status);
-
 /**
  * isci_request_io_request_get_next_sge() - This function is called by the sci
  *    core to retrieve the next sge for a given request.
@@ -385,13 +792,16 @@ static inline void *isci_request_io_request_get_next_sge(
 	return ret;
 }
 
-
-void isci_terminate_pending_requests(
-	struct isci_host *isci_host,
-	struct isci_remote_device *isci_device,
-	enum isci_request_status new_request_state);
-
-
-
-
+void isci_terminate_pending_requests(struct isci_host *isci_host,
+				     struct isci_remote_device *isci_device,
+				     enum isci_request_status new_request_state);
+enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
+					    struct scic_sds_remote_device *sci_dev,
+					    u16 io_tag,
+					    struct scic_sds_request *sci_req);
+enum sci_status scic_task_request_construct_ssp(struct scic_sds_request *sci_req);
+enum sci_status scic_task_request_construct_sata(struct scic_sds_request *sci_req);
+enum sci_status scic_io_request_construct_smp(struct scic_sds_request *sci_req);
+void scic_stp_io_request_set_ncq_tag(struct scic_sds_request *sci_req, u16 ncq_tag);
+void scic_sds_smp_request_copy_response(struct scic_sds_request *sci_req);
 #endif /* !defined(_ISCI_REQUEST_H_) */

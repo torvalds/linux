@@ -54,10 +54,10 @@
  */
 
 #include "host.h"
+#include "request.h"
 #include "state_machine.h"
-#include "scic_sds_request.h"
-#include "scu_completion_codes.h"
 #include "scu_task_context.h"
+#include "scu_completion_codes.h"
 
 /**
  * This method processes the completions transport layer (TL) status to

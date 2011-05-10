@@ -59,7 +59,6 @@
  *
  *
  */
-#include "sci_util.h"
 #include "remote_node_table.h"
 #include "remote_node_context.h"
 

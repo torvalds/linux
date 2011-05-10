@@ -7,11 +7,9 @@ isci-objs := init.o phy.o request.o sata.o \
 	     remote_node_context.o \
 	     remote_node_table.o \
 	     unsolicited_frame_control.o \
-	     core/scic_sds_request.o \
-	     core/scic_sds_stp_request.o \
+	     stp_request.o \
+	     ssp_request.o \
+	     smp_request.o \
 	     core/scic_sds_port.o \
 	     core/scic_sds_port_configuration_agent.o \
 	     core/scic_sds_phy.o \
-	     core/scic_sds_ssp_request.o \
-	     core/scic_sds_smp_request.o \
-	     core/sci_util.o

@@ -56,7 +56,6 @@
 #include "host.h"
 #include "unsolicited_frame_control.h"
 #include "registers.h"
-#include "sci_util.h"
 
 /**
  * This method will program the unsolicited frames (UFs) into the UF address
@@ -93,10 +92,8 @@ static void scic_sds_unsolicited_frame_control_construct_frames(
 	for (index = 0; index < unused_uf_header_entries; index++) {
 		uf = &uf_control->buffers.array[index];
 
-		sci_cb_make_physical_address(
-			uf_control->address_table.array[index], 0, 0
-			);
 		uf->buffer = NULL;
+		uf_control->address_table.array[index] = 0;
 		uf->header = &uf_control->headers.array[index];
 		uf->state  = UNSOLICITED_FRAME_EMPTY;
 	}
