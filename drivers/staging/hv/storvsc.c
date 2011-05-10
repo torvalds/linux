@@ -412,7 +412,7 @@ static void storvsc_on_channel_callback(void *context)
 	return;
 }
 
-static int stor_vsc_connect_to_vsp(struct hv_device *device)
+static int storvsc_connect_to_vsp(struct hv_device *device)
 {
 	struct vmstorage_channel_properties props;
 	struct storvsc_driver *stor_driver;
@@ -471,7 +471,7 @@ int storvsc_dev_add(struct hv_device *device,
 
 	stor_device->port_number = device_info->port_number;
 	/* Send it back up */
-	ret = stor_vsc_connect_to_vsp(device);
+	ret = storvsc_connect_to_vsp(device);
 
 	device_info->path_id = stor_device->path_id;
 	device_info->target_id = stor_device->target_id;
