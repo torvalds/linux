@@ -1001,6 +1001,6 @@ void vmbus_ontimer(unsigned long data)
 static void dump_vmbus_channel(struct vmbus_channel *channel)
 {
 	DPRINT_DBG(VMBUS, "Channel (%d)", channel->offermsg.child_relid);
-	dump_ring_info(&channel->outbound, "Outbound ");
-	dump_ring_info(&channel->inbound, "Inbound ");
+	hv_dump_ring_info(&channel->outbound, "Outbound ");
+	hv_dump_ring_info(&channel->inbound, "Inbound ");
 }

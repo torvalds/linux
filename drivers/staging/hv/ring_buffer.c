@@ -203,13 +203,13 @@ get_ring_bufferindices(struct hv_ring_buffer_info *ring_info)
 /*++
 
 Name:
-	dump_ring_info()
+	hv_dump_ring_info()
 
 Description:
 	Dump out to console the ring buffer info
 
 --*/
-void dump_ring_info(struct hv_ring_buffer_info *ring_info, char *prefix)
+void hv_dump_ring_info(struct hv_ring_buffer_info *ring_info, char *prefix)
 {
 	u32 bytes_avail_towrite;
 	u32 bytes_avail_toread;
