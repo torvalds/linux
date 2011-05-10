@@ -57,10 +57,23 @@ static void bcm47xx_machine_halt(void)
 }
 
 #define READ_FROM_NVRAM(_outvar, name, buf) \
-	if (nvram_getenv(name, buf, sizeof(buf)) >= 0)\
+	if (nvram_getprefix(prefix, name, buf, sizeof(buf)) >= 0)\
 		sprom->_outvar = simple_strtoul(buf, NULL, 0);
 
-static void bcm47xx_fill_sprom(struct ssb_sprom *sprom)
+static inline int nvram_getprefix(const char *prefix, char *name,
+				  char *buf, int len)
+{
+	if (prefix) {
+		char key[100];
+
+		snprintf(key, sizeof(key), "%s%s", prefix, name);
+		return nvram_getenv(key, buf, len);
+	}
+
+	return nvram_getenv(name, buf, len);
+}
+
+static void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix)
 {
 	char buf[100];
 	u32 boardflags;
@@ -69,11 +82,11 @@ static void bcm47xx_fill_sprom(struct ssb_sprom *sprom)
 
 	sprom->revision = 1; /* Fallback: Old hardware does not define this. */
 	READ_FROM_NVRAM(revision, "sromrev", buf);
-	if (nvram_getenv("il0macaddr", buf, sizeof(buf)) >= 0)
+	if (nvram_getprefix(prefix, "il0macaddr", buf, sizeof(buf)) >= 0)
 		nvram_parse_macaddr(buf, sprom->il0mac);
-	if (nvram_getenv("et0macaddr", buf, sizeof(buf)) >= 0)
+	if (nvram_getprefix(prefix, "et0macaddr", buf, sizeof(buf)) >= 0)
 		nvram_parse_macaddr(buf, sprom->et0mac);
-	if (nvram_getenv("et1macaddr", buf, sizeof(buf)) >= 0)
+	if (nvram_getprefix(prefix, "et1macaddr", buf, sizeof(buf)) >= 0)
 		nvram_parse_macaddr(buf, sprom->et1mac);
 	READ_FROM_NVRAM(et0phyaddr, "et0phyaddr", buf);
 	READ_FROM_NVRAM(et1phyaddr, "et1phyaddr", buf);
@@ -125,14 +138,14 @@ static void bcm47xx_fill_sprom(struct ssb_sprom *sprom)
 	READ_FROM_NVRAM(ofdm5gpo, "ofdm5gpo", buf);
 	READ_FROM_NVRAM(ofdm5ghpo, "ofdm5ghpo", buf);
 
-	if (nvram_getenv("boardflags", buf, sizeof(buf)) >= 0) {
+	if (nvram_getprefix(prefix, "boardflags", buf, sizeof(buf)) >= 0) {
 		boardflags = simple_strtoul(buf, NULL, 0);
 		if (boardflags) {
 			sprom->boardflags_lo = (boardflags & 0x0000FFFFU);
 			sprom->boardflags_hi = (boardflags & 0xFFFF0000U) >> 16;
 		}
 	}
-	if (nvram_getenv("boardflags2", buf, sizeof(buf)) >= 0) {
+	if (nvram_getprefix(prefix, "boardflags2", buf, sizeof(buf)) >= 0) {
 		boardflags = simple_strtoul(buf, NULL, 0);
 		if (boardflags) {
 			sprom->boardflags2_lo = (boardflags & 0x0000FFFFU);
@@ -158,7 +171,7 @@ static int bcm47xx_get_invariants(struct ssb_bus *bus,
 	if (nvram_getenv("boardrev", buf, sizeof(buf)) >= 0)
 		iv->boardinfo.rev = (u16)simple_strtoul(buf, NULL, 0);
 
-	bcm47xx_fill_sprom(&iv->sprom);
+	bcm47xx_fill_sprom(&iv->sprom, NULL);
 
 	if (nvram_getenv("cardbus", buf, sizeof(buf)) >= 0)
 		iv->has_cardbus_slot = !!simple_strtoul(buf, NULL, 10);
