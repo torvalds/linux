@@ -342,8 +342,6 @@ static void netvsc_send_garp(struct work_struct *w)
 
 static int netvsc_probe(struct hv_device *dev)
 {
-	struct netvsc_driver *net_drv_obj =
-		drv_to_netvscdrv(dev->device.driver);
 	struct net_device *net = NULL;
 	struct net_device_context *net_device_ctx;
 	struct netvsc_device_info device_info;
@@ -398,7 +396,7 @@ static int netvsc_probe(struct hv_device *dev)
 	ret = register_netdev(net);
 	if (ret != 0) {
 		/* Remove the device and release the resource */
-		net_drv_obj->base.dev_rm(dev);
+		rndis_filter_device_remove(dev);
 		free_netdev(net);
 	}
 
@@ -407,8 +405,6 @@ static int netvsc_probe(struct hv_device *dev)
 
 static int netvsc_remove(struct hv_device *dev)
 {
-	struct netvsc_driver *net_drv_obj =
-		drv_to_netvscdrv(dev->device.driver);
 	struct net_device *net = dev_get_drvdata(&dev->device);
 	int ret;
 
@@ -416,9 +412,6 @@ static int netvsc_remove(struct hv_device *dev)
 		dev_err(&dev->device, "No net device to remove\n");
 		return 0;
 	}
-
-	if (!net_drv_obj->base.dev_rm)
-		return -1;
 
 	/* Stop outbound asap */
 	netif_stop_queue(net);
@@ -430,7 +423,7 @@ static int netvsc_remove(struct hv_device *dev)
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed
 	 */
-	ret = net_drv_obj->base.dev_rm(dev);
+	ret = rndis_filter_device_remove(dev);
 	if (ret != 0) {
 		/* TODO: */
 		netdev_err(net, "unable to remove vsc device (ret %d)\n", ret);
