@@ -335,6 +335,7 @@ do_file(char const *const fname)
 		reltype = R_386_32;
 		make_nop = make_nop_x86;
 		ideal_nop = ideal_nop5_x86_32;
+		mcount_adjust_32 = -1;
 		break;
 	case EM_ARM:	 reltype = R_ARM_ABS32;
 			 altmcount = "__gnu_mcount_nc";
@@ -350,6 +351,7 @@ do_file(char const *const fname)
 		make_nop = make_nop_x86;
 		ideal_nop = ideal_nop5_x86_64;
 		reltype = R_X86_64_64;
+		mcount_adjust_64 = -1;
 		break;
 	}  /* end switch */
 
