@@ -341,7 +341,7 @@ static void storvsc_on_io_completion(struct hv_device *device,
 	put_stor_device(device);
 }
 
-static void stor_vsc_on_receive(struct hv_device *device,
+static void storvsc_on_receive(struct hv_device *device,
 			     struct vstor_packet *vstor_packet,
 			     struct hv_storvsc_request *request)
 {
@@ -399,7 +399,7 @@ static void stor_vsc_on_channel_callback(void *context)
 				       sizeof(struct vstor_packet));
 				complete(&request->wait_event);
 			} else {
-				stor_vsc_on_receive(device,
+				storvsc_on_receive(device,
 						(struct vstor_packet *)packet,
 						request);
 			}
