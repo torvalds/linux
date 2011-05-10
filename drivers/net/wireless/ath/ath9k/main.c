@@ -1782,6 +1782,11 @@ static int ath9k_sta_add(struct ieee80211_hw *hw,
 	struct ieee80211_key_conf ps_key = { };
 
 	ath_node_attach(sc, sta);
+
+	if (vif->type != NL80211_IFTYPE_AP &&
+	    vif->type != NL80211_IFTYPE_AP_VLAN)
+		return 0;
+
 	an->ps_key = ath_key_config(common, vif, sta, &ps_key);
 
 	return 0;
