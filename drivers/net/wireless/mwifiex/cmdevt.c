@@ -223,24 +223,23 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 {
 	int ret;
-	u16 cmd_len;
 	struct mwifiex_private *priv;
-	struct mwifiex_opt_sleep_confirm_buffer *sleep_cfm_buf =
-				(struct mwifiex_opt_sleep_confirm_buffer *)
+	struct mwifiex_opt_sleep_confirm *sleep_cfm_buf =
+				(struct mwifiex_opt_sleep_confirm *)
 				adapter->sleep_cfm->data;
-	cmd_len = sizeof(struct mwifiex_opt_sleep_confirm);
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
-	sleep_cfm_buf->ps_cfm_sleep.seq_num =
+	sleep_cfm_buf->seq_num =
 		cpu_to_le16((HostCmd_SET_SEQ_NO_BSS_INFO
 					(adapter->seq_num, priv->bss_num,
 					 priv->bss_type)));
 	adapter->seq_num++;
 
+	skb_push(adapter->sleep_cfm, INTF_HEADER_LEN);
 	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_CMD,
 					     adapter->sleep_cfm->data,
-					     adapter->sleep_cfm->len +
-					     INTF_HEADER_LEN, NULL);
+					     adapter->sleep_cfm->len, NULL);
+	skb_pull(adapter->sleep_cfm, INTF_HEADER_LEN);
 
 	if (ret == -1) {
 		dev_err(adapter->dev, "SLEEP_CFM: failed\n");
@@ -249,14 +248,14 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 	}
 	if (GET_BSS_ROLE(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY))
 			== MWIFIEX_BSS_ROLE_STA) {
-		if (!sleep_cfm_buf->ps_cfm_sleep.resp_ctrl)
+		if (!sleep_cfm_buf->resp_ctrl)
 			/* Response is not needed for sleep
 			   confirm command */
 			adapter->ps_state = PS_STATE_SLEEP;
 		else
 			adapter->ps_state = PS_STATE_SLEEP_CFM;
 
-		if (!sleep_cfm_buf->ps_cfm_sleep.resp_ctrl
+		if (!sleep_cfm_buf->resp_ctrl
 				&& (adapter->is_hs_configured
 					&& !adapter->sleep_period.period)) {
 			adapter->pm_wakeup_card_req = true;

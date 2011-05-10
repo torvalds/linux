@@ -1198,9 +1198,4 @@ struct mwifiex_opt_sleep_confirm {
 	__le16 action;
 	__le16 resp_ctrl;
 } __packed;
-
-struct mwifiex_opt_sleep_confirm_buffer {
-	u8 hdr[4];
-	struct mwifiex_opt_sleep_confirm ps_cfm_sleep;
-} __packed;
 #endif /* !_MWIFIEX_FW_H_ */
