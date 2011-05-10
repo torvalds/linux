@@ -61,7 +61,7 @@ module_param(ring_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
 
 /* The one and only one */
-static struct  netvsc_driver g_netvsc_drv;
+static struct  netvsc_driver netvsc_drv;
 
 /* no-op so the netdev core doesn't return -EINVAL when modifying the the
  * multicast address list in SIOCADDMULTI. hv is setup to get all multicast
@@ -444,7 +444,7 @@ static int netvsc_drv_exit_cb(struct device *dev, void *data)
 
 static void netvsc_drv_exit(void)
 {
-	struct hv_driver *drv = &g_netvsc_drv.base;
+	struct hv_driver *drv = &netvsc_drv.base;
 	struct device *current_dev;
 	int ret;
 
@@ -472,8 +472,8 @@ static void netvsc_drv_exit(void)
 
 static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 {
-	struct netvsc_driver *net_drv_obj = &g_netvsc_drv;
-	struct hv_driver *drv = &g_netvsc_drv.base;
+	struct netvsc_driver *net_drv_obj = &netvsc_drv;
+	struct hv_driver *drv = &netvsc_drv.base;
 	int ret;
 
 	net_drv_obj->ring_buf_size = ring_size * PAGE_SIZE;
