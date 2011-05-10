@@ -82,34 +82,7 @@ static int query_hypervisor_info(void)
 	op = HVCPUID_VENDOR_MAXFUNCTION;
 	cpuid(op, &eax, &ebx, &ecx, &edx);
 
-/*	DPRINT_INFO(VMBUS, "Vendor ID: %c%c%c%c%c%c%c%c%c%c%c%c",
-		    (ebx & 0xFF),
-		    ((ebx >> 8) & 0xFF),
-		    ((ebx >> 16) & 0xFF),
-		    ((ebx >> 24) & 0xFF),
-		    (ecx & 0xFF),
-		    ((ecx >> 8) & 0xFF),
-		    ((ecx >> 16) & 0xFF),
-		    ((ecx >> 24) & 0xFF),
-		    (edx & 0xFF),
-		    ((edx >> 8) & 0xFF),
-		    ((edx >> 16) & 0xFF),
-		    ((edx >> 24) & 0xFF));
-*/
 	max_leaf = eax;
-/*	eax = 0;
-	ebx = 0;
-	ecx = 0;
-	edx = 0;
-	op = HVCPUID_INTERFACE;
-	cpuid(op, &eax, &ebx, &ecx, &edx);
-
-	DPRINT_INFO(VMBUS, "Interface ID: %c%c%c%c",
-		    (eax & 0xFF),
-		    ((eax >> 8) & 0xFF),
-		    ((eax >> 16) & 0xFF),
-		    ((eax >> 24) & 0xFF));
-*/
 
 	if (max_leaf >= HVCPUID_VERSION) {
 		eax = 0;
@@ -398,10 +371,6 @@ void hv_synic_init(void *irqarg)
 		>> PAGE_SHIFT;
 
 	wrmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
-
-	/* Setup the interception SINT. */
-	/* wrmsrl((HV_X64_MSR_SINT0 + HV_SYNIC_INTERCEPTION_SINT_INDEX), */
-	/*	  interceptionSint.as_uint64); */
 
 	/* Setup the shared SINT. */
 	rdmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
