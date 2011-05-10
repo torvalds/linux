@@ -68,11 +68,24 @@
 #define MMIO_CONTROL_OFFSET     0x0018
 #define MMIO_EXCL_BASE_OFFSET   0x0020
 #define MMIO_EXCL_LIMIT_OFFSET  0x0028
+#define MMIO_EXT_FEATURES	0x0030
 #define MMIO_CMD_HEAD_OFFSET	0x2000
 #define MMIO_CMD_TAIL_OFFSET	0x2008
 #define MMIO_EVT_HEAD_OFFSET	0x2010
 #define MMIO_EVT_TAIL_OFFSET	0x2018
 #define MMIO_STATUS_OFFSET	0x2020
+
+
+/* Extended Feature Bits */
+#define FEATURE_PREFETCH	(1ULL<<0)
+#define FEATURE_PPR		(1ULL<<1)
+#define FEATURE_X2APIC		(1ULL<<2)
+#define FEATURE_NX		(1ULL<<3)
+#define FEATURE_GT		(1ULL<<4)
+#define FEATURE_IA		(1ULL<<6)
+#define FEATURE_GA		(1ULL<<7)
+#define FEATURE_HE		(1ULL<<8)
+#define FEATURE_PC		(1ULL<<9)
 
 /* MMIO status bits */
 #define MMIO_STATUS_COM_WAIT_INT_MASK	0x04
@@ -113,7 +126,9 @@
 /* command specific defines */
 #define CMD_COMPL_WAIT          0x01
 #define CMD_INV_DEV_ENTRY       0x02
-#define CMD_INV_IOMMU_PAGES     0x03
+#define CMD_INV_IOMMU_PAGES	0x03
+#define CMD_INV_IOTLB_PAGES	0x04
+#define CMD_INV_ALL		0x08
 
 #define CMD_COMPL_WAIT_STORE_MASK	0x01
 #define CMD_COMPL_WAIT_INT_MASK		0x02
@@ -215,6 +230,8 @@
 #define IOMMU_PTE_IR (1ULL << 61)
 #define IOMMU_PTE_IW (1ULL << 62)
 
+#define DTE_FLAG_IOTLB	0x01
+
 #define IOMMU_PAGE_MASK (((1ULL << 52) - 1) & ~0xfffULL)
 #define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_P)
 #define IOMMU_PTE_PAGE(pte) (phys_to_virt((pte) & IOMMU_PAGE_MASK))
@@ -227,6 +244,7 @@
 /* IOMMU capabilities */
 #define IOMMU_CAP_IOTLB   24
 #define IOMMU_CAP_NPCACHE 26
+#define IOMMU_CAP_EFR     27
 
 #define MAX_DOMAIN_ID 65536
 
@@ -249,6 +267,8 @@ extern bool amd_iommu_dump;
 
 /* global flag if IOMMUs cache non-present entries */
 extern bool amd_iommu_np_cache;
+/* Only true if all IOMMUs support device IOTLBs */
+extern bool amd_iommu_iotlb_sup;
 
 /*
  * Make iterating over all IOMMUs easier
@@ -371,6 +391,9 @@ struct amd_iommu {
 	/* flags read from acpi table */
 	u8 acpi_flags;
 
+	/* Extended features */
+	u64 features;
+
 	/*
 	 * Capability pointer. There could be more than one IOMMU per PCI
 	 * device function if there are more than one AMD IOMMU capability
@@ -408,9 +431,6 @@ struct amd_iommu {
 
 	/* if one, we need to send a completion wait command */
 	bool need_sync;
-
-	/* becomes true if a command buffer reset is running */
-	bool reset_in_progress;
 
 	/* default dma_ops domain for that IOMMU */
 	struct dma_ops_domain *default_dom;

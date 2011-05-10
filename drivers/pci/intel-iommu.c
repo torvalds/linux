@@ -39,6 +39,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/tboot.h>
 #include <linux/dmi.h>
+#include <linux/pci-ats.h>
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
 #include "pci.h"
