@@ -809,8 +809,7 @@ int rndis_filter_device_remove(struct hv_device *dev)
 	kfree(rndis_dev);
 	net_dev->extension = NULL;
 
-	/* Pass control to inner driver to remove the device */
-	rndis_filter.inner_drv.base.dev_rm(dev);
+	netvsc_device_remove(dev);
 
 	return 0;
 }
