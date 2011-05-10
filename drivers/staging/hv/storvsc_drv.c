@@ -350,11 +350,41 @@ static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl,
 	return total_copied;
 }
 
+
+/*
+ * storvsc_remove - Callback when our device is removed
+ */
+static int storvsc_remove(struct hv_device *dev)
+{
+	struct storvsc_driver *storvsc_drv_obj =
+			 drv_to_stordrv(dev->device.driver);
+	struct Scsi_Host *host = dev_get_drvdata(&dev->device);
+	struct hv_host_device *host_dev =
+			(struct hv_host_device *)host->hostdata;
+
+	/*
+	 * Call to the vsc driver to let it know that the device is being
+	 * removed
+	 */
+	storvsc_drv_obj->base.dev_rm(dev);
+
+	if (host_dev->request_pool) {
+		kmem_cache_destroy(host_dev->request_pool);
+		host_dev->request_pool = NULL;
+	}
+
+	DPRINT_INFO(STORVSC, "removing host adapter (%p)...", host);
+	scsi_remove_host(host);
+
+	DPRINT_INFO(STORVSC, "releasing host adapter (%p)...", host);
+	scsi_host_put(host);
+	return 0;
+}
+
 /* Static decl */
 static int storvsc_probe(struct hv_device *dev);
 static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
 static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd);
-static int storvsc_remove(struct hv_device *dev);
 
 static int storvsc_get_chs(struct scsi_device *sdev, struct block_device *bdev,
 			   sector_t capacity, int *info);
@@ -586,36 +616,6 @@ static int storvsc_probe(struct hv_device *device)
 
 	scsi_scan_host(host);
 	return ret;
-}
-
-/*
- * storvsc_remove - Callback when our device is removed
- */
-static int storvsc_remove(struct hv_device *dev)
-{
-	struct storvsc_driver *storvsc_drv_obj =
-			 drv_to_stordrv(dev->device.driver);
-	struct Scsi_Host *host = dev_get_drvdata(&dev->device);
-	struct hv_host_device *host_dev =
-			(struct hv_host_device *)host->hostdata;
-
-	/*
-	 * Call to the vsc driver to let it know that the device is being
-	 * removed
-	 */
-	storvsc_drv_obj->base.dev_rm(dev);
-
-	if (host_dev->request_pool) {
-		kmem_cache_destroy(host_dev->request_pool);
-		host_dev->request_pool = NULL;
-	}
-
-	DPRINT_INFO(STORVSC, "removing host adapter (%p)...", host);
-	scsi_remove_host(host);
-
-	DPRINT_INFO(STORVSC, "releasing host adapter (%p)...", host);
-	scsi_host_put(host);
-	return 0;
 }
 
 /*
