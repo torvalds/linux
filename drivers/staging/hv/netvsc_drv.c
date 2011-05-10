@@ -440,7 +440,10 @@ static int netvsc_drv_exit_cb(struct device *dev, void *data)
 }
 
 /* The one and only one */
-static struct  netvsc_driver netvsc_drv;
+static struct  netvsc_driver netvsc_drv = {
+	.base.probe = netvsc_probe,
+	.base.remove = netvsc_remove,
+};
 
 static void netvsc_drv_exit(void)
 {
@@ -484,9 +487,6 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	drv_init(&net_drv_obj->base);
 
 	drv->driver.name = net_drv_obj->base.name;
-
-	drv->probe = netvsc_probe;
-	drv->remove = netvsc_remove;
 
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(&drv->driver);
