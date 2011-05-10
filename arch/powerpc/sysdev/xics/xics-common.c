@@ -135,9 +135,8 @@ static void xics_request_ipi(void)
 
 	/*
 	 * IPIs are marked IRQF_DISABLED as they must run with irqs
-	 * disabled
+	 * disabled, and PERCPU.  The handler was set in map.
 	 */
-	irq_set_handler(ipi, handle_percpu_irq);
 	BUG_ON(request_irq(ipi, icp_ops->ipi_action,
 			   IRQF_DISABLED|IRQF_PERCPU, "IPI", NULL));
 }
@@ -341,15 +340,16 @@ static int xics_host_map(struct irq_host *h, unsigned int virq,
 	/* Don't call into ICS for IPIs */
 	if (hw == XICS_IPI) {
 		irq_set_chip_and_handler(virq, &xics_ipi_chip,
-					 handle_fasteoi_irq);
+					 handle_percpu_irq);
 		return 0;
 	}
 
 	/* Let the ICS setup the chip data */
 	list_for_each_entry(ics, &ics_list, link)
 		if (ics->map(ics, virq) == 0)
-			break;
-	return 0;
+			return 0;
+
+	return -EINVAL;
 }
 
 static int xics_host_xlate(struct irq_host *h, struct device_node *ct,
