@@ -190,15 +190,41 @@ static int do_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count)
 	return -1;
 }
 
+static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl,
+						unsigned int sg_count,
+						unsigned int len)
+{
+	int i;
+	int num_pages;
+	struct scatterlist *bounce_sgl;
+	struct page *page_buf;
+
+	num_pages = ALIGN(len, PAGE_SIZE) >> PAGE_SHIFT;
+
+	bounce_sgl = kcalloc(num_pages, sizeof(struct scatterlist), GFP_ATOMIC);
+	if (!bounce_sgl)
+		return NULL;
+
+	for (i = 0; i < num_pages; i++) {
+		page_buf = alloc_page(GFP_ATOMIC);
+		if (!page_buf)
+			goto cleanup;
+		sg_set_page(&bounce_sgl[i], page_buf, 0, 0);
+	}
+
+	return bounce_sgl;
+
+cleanup:
+	destroy_bounce_buffer(bounce_sgl, num_pages);
+	return NULL;
+}
+
 /* Static decl */
 static int storvsc_probe(struct hv_device *dev);
 static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
 static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd);
 static int storvsc_remove(struct hv_device *dev);
 
-static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl,
-						unsigned int sg_count,
-						unsigned int len);
 static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl,
 					    struct scatterlist *bounce_sgl,
 					    unsigned int orig_sgl_count);
@@ -523,35 +549,6 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 	scsi_done_fn(scmnd);
 
 	kmem_cache_free(host_dev->request_pool, cmd_request);
-}
-
-static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl,
-						unsigned int sg_count,
-						unsigned int len)
-{
-	int i;
-	int num_pages;
-	struct scatterlist *bounce_sgl;
-	struct page *page_buf;
-
-	num_pages = ALIGN(len, PAGE_SIZE) >> PAGE_SHIFT;
-
-	bounce_sgl = kcalloc(num_pages, sizeof(struct scatterlist), GFP_ATOMIC);
-	if (!bounce_sgl)
-		return NULL;
-
-	for (i = 0; i < num_pages; i++) {
-		page_buf = alloc_page(GFP_ATOMIC);
-		if (!page_buf)
-			goto cleanup;
-		sg_set_page(&bounce_sgl[i], page_buf, 0, 0);
-	}
-
-	return bounce_sgl;
-
-cleanup:
-	destroy_bounce_buffer(bounce_sgl, num_pages);
-	return NULL;
 }
 
 /* Assume the bounce_sgl has enough room ie using the create_bounce_buffer() */
