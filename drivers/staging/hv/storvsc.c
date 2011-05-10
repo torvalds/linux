@@ -362,7 +362,7 @@ static void storvsc_on_receive(struct hv_device *device,
 	}
 }
 
-static void stor_vsc_on_channel_callback(void *context)
+static void storvsc_on_channel_callback(void *context)
 {
 	struct hv_device *device = (struct hv_device *)context;
 	struct storvsc_device *stor_device;
@@ -427,7 +427,7 @@ static int stor_vsc_connect_to_vsp(struct hv_device *device)
 			 stor_driver->ring_buffer_size,
 			 (void *)&props,
 			 sizeof(struct vmstorage_channel_properties),
-			 stor_vsc_on_channel_callback, device);
+			 storvsc_on_channel_callback, device);
 
 	DPRINT_DBG(STORVSC, "storage props: path id %d, tgt id %d, max xfer %d",
 		   props.path_id, props.target_id, props.max_transfer_bytes);
