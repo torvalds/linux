@@ -40,7 +40,7 @@ static void __init __omap2_set_globals(struct omap_globals *omap2_globals)
 
 #endif
 
-#if defined(CONFIG_ARCH_OMAP2420)
+#if defined(CONFIG_SOC_OMAP2420)
 
 static struct omap_globals omap242x_globals = {
 	.class	= OMAP242X_CLASS,
@@ -50,9 +50,6 @@ static struct omap_globals omap242x_globals = {
 	.ctrl	= OMAP242X_CTRL_BASE,
 	.prm	= OMAP2420_PRM_BASE,
 	.cm	= OMAP2420_CM_BASE,
-	.uart1_phys	= OMAP2_UART1_BASE,
-	.uart2_phys	= OMAP2_UART2_BASE,
-	.uart3_phys	= OMAP2_UART3_BASE,
 };
 
 void __init omap2_set_globals_242x(void)
@@ -61,7 +58,7 @@ void __init omap2_set_globals_242x(void)
 }
 #endif
 
-#if defined(CONFIG_ARCH_OMAP2430)
+#if defined(CONFIG_SOC_OMAP2430)
 
 static struct omap_globals omap243x_globals = {
 	.class	= OMAP243X_CLASS,
@@ -71,9 +68,6 @@ static struct omap_globals omap243x_globals = {
 	.ctrl	= OMAP243X_CTRL_BASE,
 	.prm	= OMAP2430_PRM_BASE,
 	.cm	= OMAP2430_CM_BASE,
-	.uart1_phys	= OMAP2_UART1_BASE,
-	.uart2_phys	= OMAP2_UART2_BASE,
-	.uart3_phys	= OMAP2_UART3_BASE,
 };
 
 void __init omap2_set_globals_243x(void)
@@ -92,10 +86,6 @@ static struct omap_globals omap3_globals = {
 	.ctrl	= OMAP343X_CTRL_BASE,
 	.prm	= OMAP3430_PRM_BASE,
 	.cm	= OMAP3430_CM_BASE,
-	.uart1_phys	= OMAP3_UART1_BASE,
-	.uart2_phys	= OMAP3_UART2_BASE,
-	.uart3_phys	= OMAP3_UART3_BASE,
-	.uart4_phys	= OMAP3_UART4_BASE,	/* Only on 3630 */
 };
 
 void __init omap2_set_globals_3xxx(void)
@@ -108,6 +98,27 @@ void __init omap3_map_io(void)
 	omap2_set_globals_3xxx();
 	omap34xx_map_common_io();
 }
+
+/*
+ * Adjust TAP register base such that omap3_check_revision accesses the correct
+ * TI816X register for checking device ID (it adds 0x204 to tap base while
+ * TI816X DEVICE ID register is at offset 0x600 from control base).
+ */
+#define TI816X_TAP_BASE		(TI816X_CTRL_BASE + \
+				TI816X_CONTROL_DEVICE_ID - 0x204)
+
+static struct omap_globals ti816x_globals = {
+	.class  = OMAP343X_CLASS,
+	.tap    = OMAP2_L4_IO_ADDRESS(TI816X_TAP_BASE),
+	.ctrl   = TI816X_CTRL_BASE,
+	.prm    = TI816X_PRCM_BASE,
+	.cm     = TI816X_PRCM_BASE,
+};
+
+void __init omap2_set_globals_ti816x(void)
+{
+	__omap2_set_globals(&ti816x_globals);
+}
 #endif
 
 #if defined(CONFIG_ARCH_OMAP4)
@@ -119,10 +130,6 @@ static struct omap_globals omap4_globals = {
 	.prm	= OMAP4430_PRM_BASE,
 	.cm	= OMAP4430_CM_BASE,
 	.cm2	= OMAP4430_CM2_BASE,
-	.uart1_phys	= OMAP4_UART1_BASE,
-	.uart2_phys	= OMAP4_UART2_BASE,
-	.uart3_phys	= OMAP4_UART3_BASE,
-	.uart4_phys	= OMAP4_UART4_BASE,
 };
 
 void __init omap2_set_globals_443x(void)

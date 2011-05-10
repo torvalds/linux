@@ -23,8 +23,8 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <asm/div64.h>
 
 #include <mach/clock.h>
@@ -530,7 +530,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("imx31-cspi.2", NULL, cspi3_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
 	_REGISTER_CLOCK(NULL, "pwm", pwm_clk)
-	_REGISTER_CLOCK("imx-wdt.0", NULL, wdog_clk)
+	_REGISTER_CLOCK("imx2-wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK(NULL, "rtc", rtc_clk)
 	_REGISTER_CLOCK(NULL, "epit", epit1_clk)
 	_REGISTER_CLOCK(NULL, "epit", epit2_clk)
@@ -615,7 +615,7 @@ int __init mx31_clocks_init(unsigned long fref)
 
 	mx31_read_cpu_rev();
 
-	if (mx31_revision() >= MX31_CHIP_REV_2_0) {
+	if (mx31_revision() >= IMX_CHIP_REVISION_2_0) {
 		reg = __raw_readl(MXC_CCM_PMCR1);
 		/* No PLL restart on DVFS switch; enable auto EMI handshake */
 		reg |= MXC_CCM_PMCR1_PLLRDIS | MXC_CCM_PMCR1_EMIRQ_EN;

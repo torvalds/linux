@@ -5,6 +5,7 @@
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 #include <linux/security.h>
+#include <linux/namei.h>
 #include "internal.h"
 
 static const struct dentry_operations proc_sys_dentry_operations;
@@ -31,7 +32,6 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 	ei->sysctl_entry = table;
 
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
-	inode->i_flags |= S_PRIVATE; /* tell selinux to ignore this inode */
 	inode->i_mode = table->mode;
 	if (!table->child) {
 		inode->i_mode |= S_IFREG;
@@ -120,7 +120,7 @@ static struct dentry *proc_sys_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 
 	err = NULL;
-	dentry->d_op = &proc_sys_dentry_operations;
+	d_set_d_op(dentry, &proc_sys_dentry_operations);
 	d_add(dentry, inode);
 
 out:
@@ -201,7 +201,7 @@ static int proc_sys_fill_cache(struct file *filp, void *dirent,
 				dput(child);
 				return -ENOMEM;
 			} else {
-				child->d_op = &proc_sys_dentry_operations;
+				d_set_d_op(child, &proc_sys_dentry_operations);
 				d_add(child, inode);
 			}
 		} else {
@@ -294,7 +294,7 @@ out:
 	return ret;
 }
 
-static int proc_sys_permission(struct inode *inode, int mask)
+static int proc_sys_permission(struct inode *inode, int mask,unsigned int flags)
 {
 	/*
 	 * sysctl entries that are not writeable,
@@ -303,6 +303,9 @@ static int proc_sys_permission(struct inode *inode, int mask)
 	struct ctl_table_header *head;
 	struct ctl_table *table;
 	int error;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	/* Executable files are not allowed under /proc/sys/ */
 	if ((mask & MAY_EXEC) && S_ISREG(inode->i_mode))
@@ -389,23 +392,33 @@ static const struct inode_operations proc_sys_dir_operations = {
 
 static int proc_sys_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
 	return !PROC_I(dentry->d_inode)->sysctl->unregistering;
 }
 
-static int proc_sys_delete(struct dentry *dentry)
+static int proc_sys_delete(const struct dentry *dentry)
 {
 	return !!PROC_I(dentry->d_inode)->sysctl->unregistering;
 }
 
-static int proc_sys_compare(struct dentry *dir, struct qstr *qstr,
-			    struct qstr *name)
+static int proc_sys_compare(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	struct dentry *dentry = container_of(qstr, struct dentry, d_name);
-	if (qstr->len != name->len)
+	struct ctl_table_header *head;
+	/* Although proc doesn't have negative dentries, rcu-walk means
+	 * that inode here can be NULL */
+	/* AV: can it, indeed? */
+	if (!inode)
 		return 1;
-	if (memcmp(qstr->name, name->name, name->len))
+	if (name->len != len)
 		return 1;
-	return !sysctl_is_seen(PROC_I(dentry->d_inode)->sysctl);
+	if (memcmp(name->name, str, len))
+		return 1;
+	head = rcu_dereference(PROC_I(inode)->sysctl);
+	return !head || !sysctl_is_seen(head);
 }
 
 static const struct dentry_operations proc_sys_dentry_operations = {

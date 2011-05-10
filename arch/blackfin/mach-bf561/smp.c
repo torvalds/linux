@@ -30,18 +30,11 @@ void __init platform_init_cpus(void)
 
 void __init platform_prepare_cpus(unsigned int max_cpus)
 {
-	int len;
-
-	len = &coreb_trampoline_end - &coreb_trampoline_start + 1;
-	BUG_ON(len > L1_CODE_LENGTH);
-
-	dma_memcpy((void *)COREB_L1_CODE_START, &coreb_trampoline_start, len);
+	bfin_relocate_coreb_l1_mem();
 
 	/* Both cores ought to be present on a bf561! */
 	cpu_set(0, cpu_present_map); /* CoreA */
 	cpu_set(1, cpu_present_map); /* CoreB */
-
-	printk(KERN_INFO "CoreB bootstrap code to SRAM %p via DMA.\n", (void *)COREB_L1_CODE_START);
 }
 
 int __init setup_profiling_timer(unsigned int multiplier) /* not supported */
@@ -86,12 +79,12 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 
 	spin_lock(&boot_lock);
 
-	if ((bfin_read_SIC_SYSCR() & COREB_SRAM_INIT) == 0) {
+	if ((bfin_read_SYSCR() & COREB_SRAM_INIT) == 0) {
 		/* CoreB already running, sending ipi to wakeup it */
 		platform_send_ipi_cpu(cpu, IRQ_SUPPLE_0);
 	} else {
 		/* Kick CoreB, which should start execution from CORE_SRAM_BASE. */
-		bfin_write_SIC_SYSCR(bfin_read_SIC_SYSCR() & ~COREB_SRAM_INIT);
+		bfin_write_SYSCR(bfin_read_SYSCR() & ~COREB_SRAM_INIT);
 		SSYNC();
 	}
 
@@ -111,41 +104,46 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 		panic("CPU%u: processor failed to boot\n", cpu);
 }
 
-void __init platform_request_ipi(irq_handler_t handler)
+static const char supple0[] = "IRQ_SUPPLE_0";
+static const char supple1[] = "IRQ_SUPPLE_1";
+void __init platform_request_ipi(int irq, void *handler)
 {
 	int ret;
+	const char *name = (irq == IRQ_SUPPLE_0) ? supple0 : supple1;
 
-	ret = request_irq(IRQ_SUPPLE_0, handler, IRQF_DISABLED,
-			  "Supplemental Interrupt0", handler);
+	ret = request_irq(irq, handler, IRQF_DISABLED | IRQF_PERCPU, name, handler);
 	if (ret)
-		panic("Cannot request supplemental interrupt 0 for IPI service");
+		panic("Cannot request %s for IPI service", name);
 }
 
-void platform_send_ipi(cpumask_t callmap)
+void platform_send_ipi(cpumask_t callmap, int irq)
 {
 	unsigned int cpu;
+	int offset = (irq == IRQ_SUPPLE_0) ? 6 : 8;
 
 	for_each_cpu_mask(cpu, callmap) {
 		BUG_ON(cpu >= 2);
 		SSYNC();
-		bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (6 + cpu)));
+		bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (offset + cpu)));
 		SSYNC();
 	}
 }
 
-void platform_send_ipi_cpu(unsigned int cpu)
+void platform_send_ipi_cpu(unsigned int cpu, int irq)
 {
+	int offset = (irq == IRQ_SUPPLE_0) ? 6 : 8;
 	BUG_ON(cpu >= 2);
 	SSYNC();
-	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (6 + cpu)));
+	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (offset + cpu)));
 	SSYNC();
 }
 
-void platform_clear_ipi(unsigned int cpu)
+void platform_clear_ipi(unsigned int cpu, int irq)
 {
+	int offset = (irq == IRQ_SUPPLE_0) ? 10 : 12;
 	BUG_ON(cpu >= 2);
 	SSYNC();
-	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (10 + cpu)));
+	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (offset + cpu)));
 	SSYNC();
 }
 
@@ -156,9 +154,13 @@ void platform_clear_ipi(unsigned int cpu)
 void __cpuinit bfin_local_timer_setup(void)
 {
 #if defined(CONFIG_TICKSOURCE_CORETMR)
+	struct irq_data *data = irq_get_irq_data(IRQ_CORETMR);
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
+
 	bfin_coretmr_init();
 	bfin_coretmr_clockevent_init();
-	get_irq_chip(IRQ_CORETMR)->unmask(IRQ_CORETMR);
+
+	chip->irq_unmask(data);
 #else
 	/* Power down the core timer, just to play safe. */
 	bfin_write_TCNTL(0);

@@ -283,16 +283,21 @@ static void sh_cmt_clock_event_program_verify(struct sh_cmt_priv *p,
 	} while (delay);
 }
 
+static void __sh_cmt_set_next(struct sh_cmt_priv *p, unsigned long delta)
+{
+	if (delta > p->max_match_value)
+		dev_warn(&p->pdev->dev, "delta out of range\n");
+
+	p->next_match_value = delta;
+	sh_cmt_clock_event_program_verify(p, 0);
+}
+
 static void sh_cmt_set_next(struct sh_cmt_priv *p, unsigned long delta)
 {
 	unsigned long flags;
 
-	if (delta > p->max_match_value)
-		dev_warn(&p->pdev->dev, "delta out of range\n");
-
 	spin_lock_irqsave(&p->lock, flags);
-	p->next_match_value = delta;
-	sh_cmt_clock_event_program_verify(p, 0);
+	__sh_cmt_set_next(p, delta);
 	spin_unlock_irqrestore(&p->lock, flags);
 }
 
@@ -359,7 +364,7 @@ static int sh_cmt_start(struct sh_cmt_priv *p, unsigned long flag)
 
 	/* setup timeout if no clockevent */
 	if ((flag == FLAG_CLOCKSOURCE) && (!(p->flags & FLAG_CLOCKEVENT)))
-		sh_cmt_set_next(p, p->max_match_value);
+		__sh_cmt_set_next(p, p->max_match_value);
  out:
 	spin_unlock_irqrestore(&p->lock, flags);
 
@@ -381,7 +386,7 @@ static void sh_cmt_stop(struct sh_cmt_priv *p, unsigned long flag)
 
 	/* adjust the timeout to maximum if only clocksource left */
 	if ((flag == FLAG_CLOCKEVENT) && (p->flags & FLAG_CLOCKSOURCE))
-		sh_cmt_set_next(p, p->max_match_value);
+		__sh_cmt_set_next(p, p->max_match_value);
 
 	spin_unlock_irqrestore(&p->lock, flags);
 }

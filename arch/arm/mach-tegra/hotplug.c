@@ -11,11 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/smp.h>
-#include <linux/completion.h>
 
 #include <asm/cacheflush.h>
-
-static DECLARE_COMPLETION(cpu_killed);
 
 static inline void cpu_enter_lowpower(void)
 {
@@ -32,10 +29,10 @@ static inline void cpu_enter_lowpower(void)
 	"	bic	%0, %0, #0x20\n"
 	"	mcr	p15, 0, %0, c1, c0, 1\n"
 	"	mrc	p15, 0, %0, c1, c0, 0\n"
-	"	bic	%0, %0, #0x04\n"
+	"	bic	%0, %0, %2\n"
 	"	mcr	p15, 0, %0, c1, c0, 0\n"
 	  : "=&r" (v)
-	  : "r" (0)
+	  : "r" (0), "Ir" (CR_C)
 	  : "cc");
 }
 
@@ -45,17 +42,17 @@ static inline void cpu_leave_lowpower(void)
 
 	asm volatile(
 	"mrc	p15, 0, %0, c1, c0, 0\n"
-	"	orr	%0, %0, #0x04\n"
+	"	orr	%0, %0, %1\n"
 	"	mcr	p15, 0, %0, c1, c0, 0\n"
 	"	mrc	p15, 0, %0, c1, c0, 1\n"
 	"	orr	%0, %0, #0x20\n"
 	"	mcr	p15, 0, %0, c1, c0, 1\n"
 	  : "=&r" (v)
-	  :
+	  : "Ir" (CR_C)
 	  : "cc");
 }
 
-static inline void platform_do_lowpower(unsigned int cpu)
+static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 {
 	/*
 	 * there is no power-control hardware on this platform, so all
@@ -79,22 +76,19 @@ static inline void platform_do_lowpower(unsigned int cpu)
 		/*}*/
 
 		/*
-		 * getting here, means that we have come out of WFI without
+		 * Getting here, means that we have come out of WFI without
 		 * having been woken up - this shouldn't happen
 		 *
-		 * The trouble is, letting people know about this is not really
-		 * possible, since we are currently running incoherently, and
-		 * therefore cannot safely call printk() or anything else
+		 * Just note it happening - when we're woken, we can report
+		 * its occurrence.
 		 */
-#ifdef DEBUG
-		printk(KERN_WARN "CPU%u: spurious wakeup call\n", cpu);
-#endif
+		(*spurious)++;
 	}
 }
 
 int platform_cpu_kill(unsigned int cpu)
 {
-	return wait_for_completion_timeout(&cpu_killed, 5000);
+	return 1;
 }
 
 /*
@@ -104,30 +98,22 @@ int platform_cpu_kill(unsigned int cpu)
  */
 void platform_cpu_die(unsigned int cpu)
 {
-#ifdef DEBUG
-	unsigned int this_cpu = hard_smp_processor_id();
-
-	if (cpu != this_cpu) {
-		printk(KERN_CRIT "Eek! platform_cpu_die running on %u, should be %u\n",
-			   this_cpu, cpu);
-		BUG();
-	}
-#endif
-
-	printk(KERN_NOTICE "CPU%u: shutdown\n", cpu);
-	complete(&cpu_killed);
+	int spurious = 0;
 
 	/*
 	 * we're ready for shutdown now, so do it
 	 */
 	cpu_enter_lowpower();
-	platform_do_lowpower(cpu);
+	platform_do_lowpower(cpu, &spurious);
 
 	/*
 	 * bring this CPU back into the world of cache
 	 * coherency, and then restore interrupts
 	 */
 	cpu_leave_lowpower();
+
+	if (spurious)
+		pr_warn("CPU%u: %u spurious wakeup calls\n", cpu, spurious);
 }
 
 int platform_cpu_disable(unsigned int cpu)

@@ -61,6 +61,10 @@ necessitate a header that is also visible from arch board
 files. (avoided at the moment to keep the driver set
 contained in staging).
 
+ADI Drivers:
+CC the device-drivers-devel@blackfin.uclinux.org mailing list when
+e-mailing the normal IIO list (see below).
+
 Documentation
 1) Lots of cleanup and expansion.
 2) Some device require indvidual docs.

@@ -1,7 +1,7 @@
 /*
  * file.c - NTFS kernel file operations.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2007 Anton Altaparmakov
+ * Copyright (c) 2001-2011 Anton Altaparmakov and Tuxera Inc.
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -1380,15 +1380,14 @@ static inline void ntfs_set_next_iovec(const struct iovec **iovp,
  * pages (out to offset + bytes), to emulate ntfs_copy_from_user()'s
  * single-segment behaviour.
  *
- * We call the same helper (__ntfs_copy_from_user_iovec_inatomic()) both
- * when atomic and when not atomic.  This is ok because
- * __ntfs_copy_from_user_iovec_inatomic() calls __copy_from_user_inatomic()
- * and it is ok to call this when non-atomic.
- * Infact, the only difference between __copy_from_user_inatomic() and
+ * We call the same helper (__ntfs_copy_from_user_iovec_inatomic()) both when
+ * atomic and when not atomic.  This is ok because it calls
+ * __copy_from_user_inatomic() and it is ok to call this when non-atomic.  In
+ * fact, the only difference between __copy_from_user_inatomic() and
  * __copy_from_user() is that the latter calls might_sleep() and the former
- * should not zero the tail of the buffer on error.  And on many
- * architectures __copy_from_user_inatomic() is just defined to
- * __copy_from_user() so it makes no difference at all on those architectures.
+ * should not zero the tail of the buffer on error.  And on many architectures
+ * __copy_from_user_inatomic() is just defined to __copy_from_user() so it
+ * makes no difference at all on those architectures.
  */
 static inline size_t ntfs_copy_from_user_iovec(struct page **pages,
 		unsigned nr_pages, unsigned ofs, const struct iovec **iov,
@@ -1409,28 +1408,28 @@ static inline size_t ntfs_copy_from_user_iovec(struct page **pages,
 		if (unlikely(copied != len)) {
 			/* Do it the slow way. */
 			addr = kmap(*pages);
-			copied = __ntfs_copy_from_user_iovec_inatomic(addr + ofs,
-					*iov, *iov_ofs, len);
-			/*
-			 * Zero the rest of the target like __copy_from_user().
-			 */
-			memset(addr + ofs + copied, 0, len - copied);
-			kunmap(*pages);
+			copied = __ntfs_copy_from_user_iovec_inatomic(addr +
+					ofs, *iov, *iov_ofs, len);
 			if (unlikely(copied != len))
 				goto err_out;
+			kunmap(*pages);
 		}
 		total += len;
+		ntfs_set_next_iovec(iov, iov_ofs, len);
 		bytes -= len;
 		if (!bytes)
 			break;
-		ntfs_set_next_iovec(iov, iov_ofs, len);
 		ofs = 0;
 	} while (++pages < last_page);
 out:
 	return total;
 err_out:
-	total += copied;
+	BUG_ON(copied > len);
 	/* Zero the rest of the target like __copy_from_user(). */
+	memset(addr + ofs + copied, 0, len - copied);
+	kunmap(*pages);
+	total += copied;
+	ntfs_set_next_iovec(iov, iov_ofs, copied);
 	while (++pages < last_page) {
 		bytes -= len;
 		if (!bytes)

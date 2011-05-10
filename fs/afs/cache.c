@@ -98,7 +98,7 @@ static uint16_t afs_cell_cache_get_key(const void *cookie_netfs_data,
 }
 
 /*
- * provide new auxilliary cache data
+ * provide new auxiliary cache data
  */
 static uint16_t afs_cell_cache_get_aux(const void *cookie_netfs_data,
 				       void *buffer, uint16_t bufmax)
@@ -117,7 +117,7 @@ static uint16_t afs_cell_cache_get_aux(const void *cookie_netfs_data,
 }
 
 /*
- * check that the auxilliary data indicates that the entry is still valid
+ * check that the auxiliary data indicates that the entry is still valid
  */
 static enum fscache_checkaux afs_cell_cache_check_aux(void *cookie_netfs_data,
 						      const void *buffer,
@@ -150,7 +150,7 @@ static uint16_t afs_vlocation_cache_get_key(const void *cookie_netfs_data,
 }
 
 /*
- * provide new auxilliary cache data
+ * provide new auxiliary cache data
  */
 static uint16_t afs_vlocation_cache_get_aux(const void *cookie_netfs_data,
 					    void *buffer, uint16_t bufmax)
@@ -172,7 +172,7 @@ static uint16_t afs_vlocation_cache_get_aux(const void *cookie_netfs_data,
 }
 
 /*
- * check that the auxilliary data indicates that the entry is still valid
+ * check that the auxiliary data indicates that the entry is still valid
  */
 static
 enum fscache_checkaux afs_vlocation_cache_check_aux(void *cookie_netfs_data,
@@ -283,7 +283,7 @@ static void afs_vnode_cache_get_attr(const void *cookie_netfs_data,
 }
 
 /*
- * provide new auxilliary cache data
+ * provide new auxiliary cache data
  */
 static uint16_t afs_vnode_cache_get_aux(const void *cookie_netfs_data,
 					void *buffer, uint16_t bufmax)
@@ -309,7 +309,7 @@ static uint16_t afs_vnode_cache_get_aux(const void *cookie_netfs_data,
 }
 
 /*
- * check that the auxilliary data indicates that the entry is still valid
+ * check that the auxiliary data indicates that the entry is still valid
  */
 static enum fscache_checkaux afs_vnode_cache_check_aux(void *cookie_netfs_data,
 						       const void *buffer,

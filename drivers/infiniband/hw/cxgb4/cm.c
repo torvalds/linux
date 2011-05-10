@@ -61,9 +61,9 @@ static char *states[] = {
 	NULL,
 };
 
-static int dack_mode;
+static int dack_mode = 1;
 module_param(dack_mode, int, 0644);
-MODULE_PARM_DESC(dack_mode, "Delayed ack mode (default=0)");
+MODULE_PARM_DESC(dack_mode, "Delayed ack mode (default=1)");
 
 int c4iw_max_read_depth = 8;
 module_param(c4iw_max_read_depth, int, 0644);
@@ -315,23 +315,11 @@ static struct rtable *find_route(struct c4iw_dev *dev, __be32 local_ip,
 				 __be16 peer_port, u8 tos)
 {
 	struct rtable *rt;
-	struct flowi fl = {
-		.oif = 0,
-		.nl_u = {
-			 .ip4_u = {
-				   .daddr = peer_ip,
-				   .saddr = local_ip,
-				   .tos = tos}
-			 },
-		.proto = IPPROTO_TCP,
-		.uli_u = {
-			  .ports = {
-				    .sport = local_port,
-				    .dport = peer_port}
-			  }
-	};
 
-	if (ip_route_output_flow(&init_net, &rt, &fl, NULL, 0))
+	rt = ip_route_output_ports(&init_net, NULL, peer_ip, local_ip,
+				   peer_port, local_port, IPPROTO_TCP,
+				   tos, 0);
+	if (IS_ERR(rt))
 		return NULL;
 	return rt;
 }
@@ -380,7 +368,7 @@ static void send_flowc(struct c4iw_ep *ep, struct sk_buff *skb)
 					  16)) | FW_WR_FLOWID(ep->hwtid));
 
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
-	flowc->mnemval[0].val = cpu_to_be32(0);
+	flowc->mnemval[0].val = cpu_to_be32(PCI_FUNC(ep->com.dev->rdev.lldi.pdev->devfn) << 8);
 	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
 	flowc->mnemval[1].val = cpu_to_be32(ep->tx_chan);
 	flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
@@ -482,6 +470,7 @@ static int send_connect(struct c4iw_ep *ep)
 	       TX_CHAN(ep->tx_chan) |
 	       SMAC_SEL(ep->smac_idx) |
 	       DSCP(ep->tos) |
+	       ULP_MODE(ULP_MODE_TCPDDP) |
 	       RCV_BUFSIZ(rcv_win>>10);
 	opt2 = RX_CHANNEL(0) |
 	       RSS_QUEUE_VALID | RSS_QUEUE(ep->rss_qid);
@@ -1274,6 +1263,7 @@ static void accept_cr(struct c4iw_ep *ep, __be32 peer_ip, struct sk_buff *skb,
 	       TX_CHAN(ep->tx_chan) |
 	       SMAC_SEL(ep->smac_idx) |
 	       DSCP(ep->tos) |
+	       ULP_MODE(ULP_MODE_TCPDDP) |
 	       RCV_BUFSIZ(rcv_win>>10);
 	opt2 = RX_CHANNEL(0) |
 	       RSS_QUEUE_VALID | RSS_QUEUE(ep->rss_qid);

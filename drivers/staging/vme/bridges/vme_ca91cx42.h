@@ -39,7 +39,7 @@
 
 /* Structure used to hold driver specific information */
 struct ca91cx42_driver {
-	void *base;	/* Base Address of device registers */
+	void __iomem *base;	/* Base Address of device registers */
 	wait_queue_head_t dma_queue;
 	wait_queue_head_t iack_queue;
 	wait_queue_head_t mbox_queue;

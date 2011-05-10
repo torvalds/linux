@@ -443,40 +443,40 @@ static expansioncard_ops_t ecard_default_ops = {
  *
  * They are not meant to be called directly, but via enable/disable_irq.
  */
-static void ecard_irq_unmask(unsigned int irqnr)
+static void ecard_irq_unmask(struct irq_data *d)
 {
-	ecard_t *ec = slot_to_ecard(irqnr - 32);
+	ecard_t *ec = slot_to_ecard(d->irq - 32);
 
 	if (ec) {
 		if (!ec->ops)
 			ec->ops = &ecard_default_ops;
 
 		if (ec->claimed && ec->ops->irqenable)
-			ec->ops->irqenable(ec, irqnr);
+			ec->ops->irqenable(ec, d->irq);
 		else
 			printk(KERN_ERR "ecard: rejecting request to "
-				"enable IRQs for %d\n", irqnr);
+				"enable IRQs for %d\n", d->irq);
 	}
 }
 
-static void ecard_irq_mask(unsigned int irqnr)
+static void ecard_irq_mask(struct irq_data *d)
 {
-	ecard_t *ec = slot_to_ecard(irqnr - 32);
+	ecard_t *ec = slot_to_ecard(d->irq - 32);
 
 	if (ec) {
 		if (!ec->ops)
 			ec->ops = &ecard_default_ops;
 
 		if (ec->ops && ec->ops->irqdisable)
-			ec->ops->irqdisable(ec, irqnr);
+			ec->ops->irqdisable(ec, d->irq);
 	}
 }
 
 static struct irq_chip ecard_chip = {
-	.name	= "ECARD",
-	.ack	= ecard_irq_mask,
-	.mask	= ecard_irq_mask,
-	.unmask = ecard_irq_unmask,
+	.name		= "ECARD",
+	.irq_ack	= ecard_irq_mask,
+	.irq_mask	= ecard_irq_mask,
+	.irq_unmask	= ecard_irq_unmask,
 };
 
 void ecard_enablefiq(unsigned int fiqnr)
@@ -551,7 +551,7 @@ static void ecard_check_lockup(struct irq_desc *desc)
 			printk(KERN_ERR "\nInterrupt lockup detected - "
 			       "disabling all expansion card interrupts\n");
 
-			desc->chip->mask(IRQ_EXPANSIONCARD);
+			desc->irq_data.chip->irq_mask(&desc->irq_data);
 			ecard_dump_irq_state();
 		}
 	} else
@@ -574,7 +574,7 @@ ecard_irq_handler(unsigned int irq, struct irq_desc *desc)
 	ecard_t *ec;
 	int called = 0;
 
-	desc->chip->mask(irq);
+	desc->irq_data.chip->irq_mask(&desc->irq_data);
 	for (ec = cards; ec; ec = ec->next) {
 		int pending;
 
@@ -591,7 +591,7 @@ ecard_irq_handler(unsigned int irq, struct irq_desc *desc)
 			called ++;
 		}
 	}
-	desc->chip->unmask(irq);
+	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 
 	if (called == 0)
 		ecard_check_lockup(desc);
@@ -1043,8 +1043,8 @@ ecard_probe(int slot, card_type_t type)
 	 */
 	if (slot < 8) {
 		ec->irq = 32 + slot;
-		set_irq_chip(ec->irq, &ecard_chip);
-		set_irq_handler(ec->irq, handle_level_irq);
+		irq_set_chip_and_handler(ec->irq, &ecard_chip,
+					 handle_level_irq);
 		set_irq_flags(ec->irq, IRQF_VALID);
 	}
 
@@ -1103,7 +1103,7 @@ static int __init ecard_init(void)
 
 	irqhw = ecard_probeirqhw();
 
-	set_irq_chained_handler(IRQ_EXPANSIONCARD,
+	irq_set_chained_handler(IRQ_EXPANSIONCARD,
 				irqhw ? ecard_irqexp_handler : ecard_irq_handler);
 
 	ecard_proc_init();

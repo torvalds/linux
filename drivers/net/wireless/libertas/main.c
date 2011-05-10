@@ -539,6 +539,43 @@ static int lbs_thread(void *data)
 	return 0;
 }
 
+/**
+ * @brief This function gets the HW spec from the firmware and sets
+ *        some basic parameters.
+ *
+ *  @param priv    A pointer to struct lbs_private structure
+ *  @return        0 or -1
+ */
+static int lbs_setup_firmware(struct lbs_private *priv)
+{
+	int ret = -1;
+	s16 curlevel = 0, minlevel = 0, maxlevel = 0;
+
+	lbs_deb_enter(LBS_DEB_FW);
+
+	/* Read MAC address from firmware */
+	memset(priv->current_addr, 0xff, ETH_ALEN);
+	ret = lbs_update_hw_spec(priv);
+	if (ret)
+		goto done;
+
+	/* Read power levels if available */
+	ret = lbs_get_tx_power(priv, &curlevel, &minlevel, &maxlevel);
+	if (ret == 0) {
+		priv->txpower_cur = curlevel;
+		priv->txpower_min = minlevel;
+		priv->txpower_max = maxlevel;
+	}
+
+	/* Send cmd to FW to enable 11D function */
+	ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_11D_ENABLE, 1);
+
+	lbs_set_mac_control(priv);
+done:
+	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
+	return ret;
+}
+
 int lbs_suspend(struct lbs_private *priv)
 {
 	int ret;
@@ -584,47 +621,13 @@ int lbs_resume(struct lbs_private *priv)
 			lbs_pr_err("deep sleep activation failed: %d\n", ret);
 	}
 
+	if (priv->setup_fw_on_resume)
+		ret = lbs_setup_firmware(priv);
+
 	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lbs_resume);
-
-/**
- * @brief This function gets the HW spec from the firmware and sets
- *        some basic parameters.
- *
- *  @param priv    A pointer to struct lbs_private structure
- *  @return 	   0 or -1
- */
-static int lbs_setup_firmware(struct lbs_private *priv)
-{
-	int ret = -1;
-	s16 curlevel = 0, minlevel = 0, maxlevel = 0;
-
-	lbs_deb_enter(LBS_DEB_FW);
-
-	/* Read MAC address from firmware */
-	memset(priv->current_addr, 0xff, ETH_ALEN);
-	ret = lbs_update_hw_spec(priv);
-	if (ret)
-		goto done;
-
-	/* Read power levels if available */
-	ret = lbs_get_tx_power(priv, &curlevel, &minlevel, &maxlevel);
-	if (ret == 0) {
-		priv->txpower_cur = curlevel;
-		priv->txpower_min = minlevel;
-		priv->txpower_max = maxlevel;
-	}
-
-	/* Send cmd to FW to enable 11D function */
-	ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_11D_ENABLE, 1);
-
-	lbs_set_mac_control(priv);
-done:
-	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
-	return ret;
-}
 
 /**
  *  This function handles the timeout of command sending.
@@ -851,9 +854,10 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	priv->work_thread = create_singlethread_workqueue("lbs_worker");
 	INIT_WORK(&priv->mcast_work, lbs_set_mcast_worker);
 
-	priv->wol_criteria = 0xffffffff;
+	priv->wol_criteria = EHS_REMOVE_WAKEUP;
 	priv->wol_gpio = 0xff;
 	priv->wol_gap = 20;
+	priv->ehs_remove_supported = true;
 
 	goto done;
 
@@ -915,8 +919,6 @@ void lbs_remove_card(struct lbs_private *priv)
 
 	lbs_free_adapter(priv);
 	lbs_cfg_free(priv);
-
-	priv->dev = NULL;
 	free_netdev(dev);
 
 	lbs_deb_leave(LBS_DEB_MAIN);

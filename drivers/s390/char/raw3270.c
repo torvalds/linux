@@ -7,6 +7,7 @@
  *     Copyright IBM Corp. 2003, 2009
  */
 
+#include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -329,6 +330,7 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	struct raw3270_request *rq;
 	int rc;
 
+	kstat_cpu(smp_processor_id()).irqs[IOINT_C70]++;
 	rp = dev_get_drvdata(&cdev->dev);
 	if (!rp)
 		return;
@@ -602,7 +604,7 @@ __raw3270_size_device(struct raw3270 *rp)
 	/*
 	 * To determine the size of the 3270 device we need to do:
 	 * 1) send a 'read partition' data stream to the device
-	 * 2) wait for the attn interrupt that preceeds the query reply
+	 * 2) wait for the attn interrupt that precedes the query reply
 	 * 3) do a read modified to get the query reply
 	 * To make things worse we have to cope with intervention
 	 * required (3270 device switched to 'stand-by') and command
@@ -1386,8 +1388,10 @@ static struct ccw_device_id raw3270_id[] = {
 };
 
 static struct ccw_driver raw3270_ccw_driver = {
-	.name		= "3270",
-	.owner		= THIS_MODULE,
+	.driver = {
+		.name	= "3270",
+		.owner	= THIS_MODULE,
+	},
 	.ids		= raw3270_id,
 	.probe		= &raw3270_probe,
 	.remove		= &raw3270_remove,

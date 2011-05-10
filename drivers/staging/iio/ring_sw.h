@@ -96,13 +96,13 @@ int iio_store_to_sw_rb(struct iio_ring_buffer *r, u8 *data, s64 timestamp);
  * iio_rip_sw_rb() - attempt to read data from the ring buffer
  * @r:			ring buffer instance
  * @count:		number of datum's to try and read
- * @data:		where the data will be stored.
+ * @buf:		userspace buffer into which data is copied
  * @dead_offset:	how much of the stored data was possibly invalidated by
  *			the end of the copy.
  **/
 int iio_rip_sw_rb(struct iio_ring_buffer *r,
 		  size_t count,
-		  u8 **data,
+		  char __user *buf,
 		  int *dead_offset);
 
 /**

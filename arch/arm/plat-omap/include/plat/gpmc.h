@@ -41,6 +41,8 @@
 #define GPMC_NAND_ADDRESS	0x0000000b
 #define GPMC_NAND_DATA		0x0000000c
 
+#define GPMC_ENABLE_IRQ		0x0000000d
+
 /* ECC commands */
 #define GPMC_ECC_READ		0 /* Reset Hardware ECC for read */
 #define GPMC_ECC_WRITE		1 /* Reset Hardware ECC for write */
@@ -78,14 +80,27 @@
 #define WR_RD_PIN_MONITORING		0x00600000
 #define GPMC_PREFETCH_STATUS_FIFO_CNT(val)	((val >> 24) & 0x7F)
 #define GPMC_PREFETCH_STATUS_COUNT(val)	(val & 0x00003fff)
+#define GPMC_IRQ_FIFOEVENTENABLE	0x01
+#define GPMC_IRQ_COUNT_EVENT		0x02
+
+#define PREFETCH_FIFOTHRESHOLD_MAX	0x40
+#define PREFETCH_FIFOTHRESHOLD(val)	((val) << 8)
+
+enum omap_ecc {
+		/* 1-bit ecc: stored at end of spare area */
+	OMAP_ECC_HAMMING_CODE_DEFAULT = 0, /* Default, s/w method */
+	OMAP_ECC_HAMMING_CODE_HW, /* gpmc to detect the error */
+		/* 1-bit ecc: stored at beginning of spare area as romcode */
+	OMAP_ECC_HAMMING_CODE_HW_ROMCODE, /* gpmc method & romcode layout */
+};
 
 /*
- * Note that all values in this struct are in nanoseconds, while
- * the register values are in gpmc_fck cycles.
+ * Note that all values in this struct are in nanoseconds except sync_clk
+ * (which is in picoseconds), while the register values are in gpmc_fck cycles.
  */
 struct gpmc_timings {
-	/* Minimum clock period for synchronous mode */
-	u16 sync_clk;
+	/* Minimum clock period for synchronous mode (in picoseconds) */
+	u32 sync_clk;
 
 	/* Chip-select signal timings corresponding to GPMC_CS_CONFIG2 */
 	u16 cs_on;		/* Assertion time */
@@ -117,6 +132,7 @@ struct gpmc_timings {
 };
 
 extern unsigned int gpmc_ns_to_ticks(unsigned int time_ns);
+extern unsigned int gpmc_ps_to_ticks(unsigned int time_ps);
 extern unsigned int gpmc_ticks_to_ns(unsigned int ticks);
 extern unsigned int gpmc_round_ns_to_ticks(unsigned int time_ns);
 extern unsigned long gpmc_get_fclk_period(void);
@@ -129,12 +145,11 @@ extern int gpmc_cs_request(int cs, unsigned long size, unsigned long *base);
 extern void gpmc_cs_free(int cs);
 extern int gpmc_cs_set_reserved(int cs, int reserved);
 extern int gpmc_cs_reserved(int cs);
-extern int gpmc_prefetch_enable(int cs, int dma_mode,
+extern int gpmc_prefetch_enable(int cs, int fifo_th, int dma_mode,
 					unsigned int u32_count, int is_write);
 extern int gpmc_prefetch_reset(int cs);
 extern void omap3_gpmc_save_context(void);
 extern void omap3_gpmc_restore_context(void);
-extern void gpmc_init(void);
 extern int gpmc_read_status(int cmd);
 extern int gpmc_cs_configure(int cs, int cmd, int wval);
 extern int gpmc_nand_read(int cs, int cmd);

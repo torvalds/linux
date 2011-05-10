@@ -35,9 +35,12 @@ static inline acpi_handle acpi_pci_get_bridge_handle(struct pci_bus *pbus)
 	return acpi_get_pci_rootbridge_handle(pci_domain_nr(pbus),
 					      pbus->number);
 }
+#endif
+
+#ifdef CONFIG_ACPI_APEI
+extern bool aer_acpi_firmware_first(void);
 #else
-static inline acpi_handle acpi_find_root_bridge_handle(struct pci_dev *pdev)
-{ return NULL; }
+static inline bool aer_acpi_firmware_first(void) { return false; }
 #endif
 
 #endif	/* _PCI_ACPI_H_ */

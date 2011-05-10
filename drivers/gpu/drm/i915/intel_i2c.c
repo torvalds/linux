@@ -85,8 +85,9 @@ static u32 get_reserved(struct intel_gpio *gpio)
 
 	/* On most chips, these bits must be preserved in software. */
 	if (!IS_I830(dev) && !IS_845G(dev))
-		reserved = I915_READ(gpio->reg) & (GPIO_DATA_PULLUP_DISABLE |
-						   GPIO_CLOCK_PULLUP_DISABLE);
+		reserved = I915_READ_NOTRACE(gpio->reg) &
+					     (GPIO_DATA_PULLUP_DISABLE |
+					      GPIO_CLOCK_PULLUP_DISABLE);
 
 	return reserved;
 }
@@ -96,9 +97,9 @@ static int get_clock(void *data)
 	struct intel_gpio *gpio = data;
 	struct drm_i915_private *dev_priv = gpio->dev_priv;
 	u32 reserved = get_reserved(gpio);
-	I915_WRITE(gpio->reg, reserved | GPIO_CLOCK_DIR_MASK);
-	I915_WRITE(gpio->reg, reserved);
-	return (I915_READ(gpio->reg) & GPIO_CLOCK_VAL_IN) != 0;
+	I915_WRITE_NOTRACE(gpio->reg, reserved | GPIO_CLOCK_DIR_MASK);
+	I915_WRITE_NOTRACE(gpio->reg, reserved);
+	return (I915_READ_NOTRACE(gpio->reg) & GPIO_CLOCK_VAL_IN) != 0;
 }
 
 static int get_data(void *data)
@@ -106,9 +107,9 @@ static int get_data(void *data)
 	struct intel_gpio *gpio = data;
 	struct drm_i915_private *dev_priv = gpio->dev_priv;
 	u32 reserved = get_reserved(gpio);
-	I915_WRITE(gpio->reg, reserved | GPIO_DATA_DIR_MASK);
-	I915_WRITE(gpio->reg, reserved);
-	return (I915_READ(gpio->reg) & GPIO_DATA_VAL_IN) != 0;
+	I915_WRITE_NOTRACE(gpio->reg, reserved | GPIO_DATA_DIR_MASK);
+	I915_WRITE_NOTRACE(gpio->reg, reserved);
+	return (I915_READ_NOTRACE(gpio->reg) & GPIO_DATA_VAL_IN) != 0;
 }
 
 static void set_clock(void *data, int state_high)
@@ -124,7 +125,7 @@ static void set_clock(void *data, int state_high)
 		clock_bits = GPIO_CLOCK_DIR_OUT | GPIO_CLOCK_DIR_MASK |
 			GPIO_CLOCK_VAL_MASK;
 
-	I915_WRITE(gpio->reg, reserved | clock_bits);
+	I915_WRITE_NOTRACE(gpio->reg, reserved | clock_bits);
 	POSTING_READ(gpio->reg);
 }
 
@@ -141,7 +142,7 @@ static void set_data(void *data, int state_high)
 		data_bits = GPIO_DATA_DIR_OUT | GPIO_DATA_DIR_MASK |
 			GPIO_DATA_VAL_MASK;
 
-	I915_WRITE(gpio->reg, reserved | data_bits);
+	I915_WRITE_NOTRACE(gpio->reg, reserved | data_bits);
 	POSTING_READ(gpio->reg);
 }
 
@@ -258,7 +259,7 @@ gmbus_xfer(struct i2c_adapter *adapter,
 				if (wait_for(I915_READ(GMBUS2 + reg_offset) & (GMBUS_SATOER | GMBUS_HW_RDY), 50))
 					goto timeout;
 				if (I915_READ(GMBUS2 + reg_offset) & GMBUS_SATOER)
-					return 0;
+					goto clear_err;
 
 				val = I915_READ(GMBUS3 + reg_offset);
 				do {
@@ -286,7 +287,7 @@ gmbus_xfer(struct i2c_adapter *adapter,
 				if (wait_for(I915_READ(GMBUS2 + reg_offset) & (GMBUS_SATOER | GMBUS_HW_RDY), 50))
 					goto timeout;
 				if (I915_READ(GMBUS2 + reg_offset) & GMBUS_SATOER)
-					return 0;
+					goto clear_err;
 
 				val = loop = 0;
 				do {
@@ -301,14 +302,31 @@ gmbus_xfer(struct i2c_adapter *adapter,
 		if (i + 1 < num && wait_for(I915_READ(GMBUS2 + reg_offset) & (GMBUS_SATOER | GMBUS_HW_WAIT_PHASE), 50))
 			goto timeout;
 		if (I915_READ(GMBUS2 + reg_offset) & GMBUS_SATOER)
-			return 0;
+			goto clear_err;
 	}
 
-	return num;
+	goto done;
+
+clear_err:
+	/* Toggle the Software Clear Interrupt bit. This has the effect
+	 * of resetting the GMBUS controller and so clearing the
+	 * BUS_ERROR raised by the slave's NAK.
+	 */
+	I915_WRITE(GMBUS1 + reg_offset, GMBUS_SW_CLR_INT);
+	I915_WRITE(GMBUS1 + reg_offset, 0);
+
+done:
+	/* Mark the GMBUS interface as disabled. We will re-enable it at the
+	 * start of the next xfer, till then let it sleep.
+	 */
+	I915_WRITE(GMBUS0 + reg_offset, 0);
+	return i;
 
 timeout:
 	DRM_INFO("GMBUS timed out, falling back to bit banging on pin %d [%s]\n",
 		 bus->reg0 & 0xff, bus->adapter.name);
+	I915_WRITE(GMBUS0 + reg_offset, 0);
+
 	/* Hardware may not support GMBUS over these pins? Try GPIO bitbanging instead. */
 	bus->force_bit = intel_gpio_create(dev_priv, bus->reg0 & 0xff);
 	if (!bus->force_bit)
@@ -383,7 +401,8 @@ int intel_setup_gmbus(struct drm_device *dev)
 		bus->reg0 = i | GMBUS_RATE_100KHZ;
 
 		/* XXX force bit banging until GMBUS is fully debugged */
-		bus->force_bit = intel_gpio_create(dev_priv, i);
+		if (IS_GEN2(dev))
+			bus->force_bit = intel_gpio_create(dev_priv, i);
 	}
 
 	intel_i2c_reset(dev_priv->dev);

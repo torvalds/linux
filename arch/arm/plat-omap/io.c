@@ -85,7 +85,10 @@ void __iomem *omap_ioremap(unsigned long p, size_t size, unsigned int type)
 	}
 #endif
 #ifdef CONFIG_ARCH_OMAP3
-	if (cpu_is_omap34xx()) {
+	if (cpu_is_ti816x()) {
+		if (BETWEEN(p, L4_34XX_PHYS, L4_34XX_SIZE))
+			return XLATE(p, L4_34XX_PHYS, L4_34XX_VIRT);
+	} else if (cpu_is_omap34xx()) {
 		if (BETWEEN(p, L3_34XX_PHYS, L3_34XX_SIZE))
 			return XLATE(p, L3_34XX_PHYS, L3_34XX_VIRT);
 		if (BETWEEN(p, L4_34XX_PHYS, L4_34XX_SIZE))
@@ -136,61 +139,3 @@ void omap_iounmap(volatile void __iomem *addr)
 		__iounmap(addr);
 }
 EXPORT_SYMBOL(omap_iounmap);
-
-/*
- * NOTE: Please use ioremap + __raw_read/write where possible instead of these
- */
-
-u8 omap_readb(u32 pa)
-{
-	if (cpu_class_is_omap1())
-		return __raw_readb(OMAP1_IO_ADDRESS(pa));
-	else
-		return __raw_readb(OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_readb);
-
-u16 omap_readw(u32 pa)
-{
-	if (cpu_class_is_omap1())
-		return __raw_readw(OMAP1_IO_ADDRESS(pa));
-	else
-		return __raw_readw(OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_readw);
-
-u32 omap_readl(u32 pa)
-{
-	if (cpu_class_is_omap1())
-		return __raw_readl(OMAP1_IO_ADDRESS(pa));
-	else
-		return __raw_readl(OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_readl);
-
-void omap_writeb(u8 v, u32 pa)
-{
-	if (cpu_class_is_omap1())
-		__raw_writeb(v, OMAP1_IO_ADDRESS(pa));
-	else
-		__raw_writeb(v, OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_writeb);
-
-void omap_writew(u16 v, u32 pa)
-{
-	if (cpu_class_is_omap1())
-		__raw_writew(v, OMAP1_IO_ADDRESS(pa));
-	else
-		__raw_writew(v, OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_writew);
-
-void omap_writel(u32 v, u32 pa)
-{
-	if (cpu_class_is_omap1())
-		__raw_writel(v, OMAP1_IO_ADDRESS(pa));
-	else
-		__raw_writel(v, OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_writel);

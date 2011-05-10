@@ -26,7 +26,7 @@
  *	Theory of Operation:
  *		The Watch-Dog Timer is provided to ensure that standalone
  *		Systems can always recover from catastrophic conditions that
- *		caused the CPU to crash. This condition may have occured by
+ *		caused the CPU to crash. This condition may have occurred by
  *		external EMI or a software bug. When the CPU stops working
  *		correctly, hardware on the board will either perform a hardware
  *		reset (cold boot) or a non-maskable interrupt (NMI) to bring the

@@ -7,46 +7,6 @@
 #include "util.h"
 #include "debug.h"
 
-/* Skip "." and ".." directories */
-static int filter(const struct dirent *dir)
-{
-	if (dir->d_name[0] == '.')
-		return 0;
-	else
-		return 1;
-}
-
-int find_all_tid(int pid, pid_t ** all_tid)
-{
-	char name[256];
-	int items;
-	struct dirent **namelist = NULL;
-	int ret = 0;
-	int i;
-
-	sprintf(name, "/proc/%d/task", pid);
-	items = scandir(name, &namelist, filter, NULL);
-	if (items <= 0)
-                return -ENOENT;
-	*all_tid = malloc(sizeof(pid_t) * items);
-	if (!*all_tid) {
-		ret = -ENOMEM;
-		goto failure;
-	}
-
-	for (i = 0; i < items; i++)
-		(*all_tid)[i] = atoi(namelist[i]->d_name);
-
-	ret = items;
-
-failure:
-	for (i=0; i<items; i++)
-		free(namelist[i]);
-	free(namelist);
-
-	return ret;
-}
-
 static struct thread *thread__new(pid_t pid)
 {
 	struct thread *self = zalloc(sizeof(*self));

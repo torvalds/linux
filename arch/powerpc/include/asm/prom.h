@@ -42,7 +42,7 @@ extern void pci_create_OF_bus_map(void);
 
 /* Translate a DMA address from device space to CPU space */
 extern u64 of_translate_dma_address(struct device_node *dev,
-				    const u32 *in_addr);
+				    const __be32 *in_addr);
 
 #ifdef CONFIG_PCI
 extern unsigned long pci_address_to_pio(phys_addr_t address);
@@ -63,30 +63,12 @@ struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
 /* cache lookup */
 struct device_node *of_find_next_cache_node(struct device_node *np);
 
-/* Get the MAC address */
-extern const void *of_get_mac_address(struct device_node *np);
-
 #ifdef CONFIG_NUMA
 extern int of_node_to_nid(struct device_node *device);
 #else
 static inline int of_node_to_nid(struct device_node *device) { return 0; }
 #endif
 #define of_node_to_nid of_node_to_nid
-
-/**
- * of_irq_map_pci - Resolve the interrupt for a PCI device
- * @pdev:	the device whose interrupt is to be resolved
- * @out_irq:	structure of_irq filled by this function
- *
- * This function resolves the PCI interrupt for a given PCI device. If a
- * device-node exists for a given pci_dev, it will use normal OF tree
- * walking. If not, it will implement standard swizzling and walk up the
- * PCI tree until an device-node is found, at which point it will finish
- * resolving using the OF tree walking.
- */
-struct pci_dev;
-struct of_irq;
-extern int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq);
 
 extern void of_instantiate_rtc(void);
 

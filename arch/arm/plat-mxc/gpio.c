@@ -63,29 +63,29 @@ static void _set_gpio_irqenable(struct mxc_gpio_port *port, u32 index,
 	__raw_writel(l, port->base + GPIO_IMR);
 }
 
-static void gpio_ack_irq(u32 irq)
+static void gpio_ack_irq(struct irq_data *d)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	_clear_gpio_irqstatus(&mxc_gpio_ports[gpio / 32], gpio & 0x1f);
 }
 
-static void gpio_mask_irq(u32 irq)
+static void gpio_mask_irq(struct irq_data *d)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	_set_gpio_irqenable(&mxc_gpio_ports[gpio / 32], gpio & 0x1f, 0);
 }
 
-static void gpio_unmask_irq(u32 irq)
+static void gpio_unmask_irq(struct irq_data *d)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	_set_gpio_irqenable(&mxc_gpio_ports[gpio / 32], gpio & 0x1f, 1);
 }
 
 static int mxc_gpio_get(struct gpio_chip *chip, unsigned offset);
 
-static int gpio_set_irq_type(u32 irq, u32 type)
+static int gpio_set_irq_type(struct irq_data *d, u32 type)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	struct mxc_gpio_port *port = &mxc_gpio_ports[gpio / 32];
 	u32 bit, val;
 	int edge;
@@ -175,7 +175,7 @@ static void mxc_gpio_irq_handler(struct mxc_gpio_port *port, u32 irq_stat)
 static void mx3_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 {
 	u32 irq_stat;
-	struct mxc_gpio_port *port = (struct mxc_gpio_port *)get_irq_data(irq);
+	struct mxc_gpio_port *port = irq_get_handler_data(irq);
 
 	irq_stat = __raw_readl(port->base + GPIO_ISR) &
 			__raw_readl(port->base + GPIO_IMR);
@@ -188,7 +188,7 @@ static void mx2_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 {
 	int i;
 	u32 irq_msk, irq_stat;
-	struct mxc_gpio_port *port = (struct mxc_gpio_port *)get_irq_data(irq);
+	struct mxc_gpio_port *port = irq_get_handler_data(irq);
 
 	/* walk through all interrupt status registers */
 	for (i = 0; i < gpio_table_size; i++) {
@@ -211,9 +211,9 @@ static void mx2_gpio_irq_handler(u32 irq, struct irq_desc *desc)
  * @param  enable       enable as wake-up if equal to non-zero
  * @return       This function returns 0 on success.
  */
-static int gpio_set_wake_irq(u32 irq, u32 enable)
+static int gpio_set_wake_irq(struct irq_data *d, u32 enable)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	u32 gpio_idx = gpio & 0x1F;
 	struct mxc_gpio_port *port = &mxc_gpio_ports[gpio / 32];
 
@@ -233,11 +233,12 @@ static int gpio_set_wake_irq(u32 irq, u32 enable)
 }
 
 static struct irq_chip gpio_irq_chip = {
-	.ack = gpio_ack_irq,
-	.mask = gpio_mask_irq,
-	.unmask = gpio_unmask_irq,
-	.set_type = gpio_set_irq_type,
-	.set_wake = gpio_set_wake_irq,
+	.name = "GPIO",
+	.irq_ack = gpio_ack_irq,
+	.irq_mask = gpio_mask_irq,
+	.irq_unmask = gpio_unmask_irq,
+	.irq_set_type = gpio_set_irq_type,
+	.irq_set_wake = gpio_set_wake_irq,
 };
 
 static void _set_gpio_direction(struct gpio_chip *chip, unsigned offset,
@@ -294,6 +295,12 @@ static int mxc_gpio_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
+/*
+ * This lock class tells lockdep that GPIO irqs are in a different
+ * category than their parents, so it won't report false recursion.
+ */
+static struct lock_class_key gpio_lock_class;
+
 int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 {
 	int i, j;
@@ -310,8 +317,9 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 		__raw_writel(~0, port[i].base + GPIO_ISR);
 		for (j = port[i].virtual_irq_start;
 			j < port[i].virtual_irq_start + 32; j++) {
-			set_irq_chip(j, &gpio_irq_chip);
-			set_irq_handler(j, handle_level_irq);
+			irq_set_lockdep_class(j, &gpio_lock_class);
+			irq_set_chip_and_handler(j, &gpio_irq_chip,
+						 handle_level_irq);
 			set_irq_flags(j, IRQF_VALID);
 		}
 
@@ -330,21 +338,23 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 
 		if (cpu_is_mx1() || cpu_is_mx3() || cpu_is_mx25() || cpu_is_mx51()) {
 			/* setup one handler for each entry */
-			set_irq_chained_handler(port[i].irq, mx3_gpio_irq_handler);
-			set_irq_data(port[i].irq, &port[i]);
+			irq_set_chained_handler(port[i].irq,
+						mx3_gpio_irq_handler);
+			irq_set_handler_data(port[i].irq, &port[i]);
 			if (port[i].irq_high) {
 				/* setup handler for GPIO 16 to 31 */
-				set_irq_chained_handler(port[i].irq_high,
-						mx3_gpio_irq_handler);
-				set_irq_data(port[i].irq_high, &port[i]);
+				irq_set_chained_handler(port[i].irq_high,
+							mx3_gpio_irq_handler);
+				irq_set_handler_data(port[i].irq_high,
+						     &port[i]);
 			}
 		}
 	}
 
 	if (cpu_is_mx2()) {
 		/* setup one handler for all GPIO interrupts */
-		set_irq_chained_handler(port[0].irq, mx2_gpio_irq_handler);
-		set_irq_data(port[0].irq, port);
+		irq_set_chained_handler(port[0].irq, mx2_gpio_irq_handler);
+		irq_set_handler_data(port[0].irq, port);
 	}
 
 	return 0;

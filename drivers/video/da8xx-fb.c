@@ -763,7 +763,7 @@ static int fb_wait_for_vsync(struct fb_info *info)
 
 	/*
 	 * Set flag to 0 and wait for isr to set to 1. It would seem there is a
-	 * race condition here where the ISR could have occured just before or
+	 * race condition here where the ISR could have occurred just before or
 	 * just after this set. But since we are just coarsely waiting for
 	 * a frame to complete then that's OK. i.e. if the frame completed
 	 * just before this code executed then we have to wait another full
@@ -1092,9 +1092,10 @@ static int __init fb_probe(struct platform_device *device)
 
 irq_freq:
 #ifdef CONFIG_CPU_FREQ
+	lcd_da8xx_cpufreq_deregister(par);
+#endif
 err_cpu_freq:
 	unregister_framebuffer(da8xx_fb_info);
-#endif
 
 err_dealloc_cmap:
 	fb_dealloc_cmap(&da8xx_fb_info->cmap);
@@ -1130,14 +1131,14 @@ static int fb_suspend(struct platform_device *dev, pm_message_t state)
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct da8xx_fb_par *par = info->par;
 
-	acquire_console_sem();
+	console_lock();
 	if (par->panel_power_ctrl)
 		par->panel_power_ctrl(0);
 
 	fb_set_suspend(info, 1);
 	lcd_disable_raster();
 	clk_disable(par->lcdc_clk);
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }
@@ -1146,14 +1147,14 @@ static int fb_resume(struct platform_device *dev)
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct da8xx_fb_par *par = info->par;
 
-	acquire_console_sem();
+	console_lock();
 	if (par->panel_power_ctrl)
 		par->panel_power_ctrl(1);
 
 	clk_enable(par->lcdc_clk);
 	lcd_enable_raster();
 	fb_set_suspend(info, 0);
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }

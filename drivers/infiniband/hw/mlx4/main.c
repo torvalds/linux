@@ -623,8 +623,9 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct mlx4_ib_dev *mdev = to_mdev(ibqp->device);
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
 
-	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw, !!(mqp->flags &
-				    MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK));
+	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw,
+				    !!(mqp->flags & MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
+				    MLX4_PROT_IB_IPV6);
 	if (err)
 		return err;
 
@@ -635,7 +636,7 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	return 0;
 
 err_add:
-	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw);
+	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw, MLX4_PROT_IB_IPV6);
 	return err;
 }
 
@@ -665,7 +666,7 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct mlx4_ib_gid_entry *ge;
 
 	err = mlx4_multicast_detach(mdev->dev,
-				    &mqp->mqp, gid->raw);
+				    &mqp->mqp, gid->raw, MLX4_PROT_IB_IPV6);
 	if (err)
 		return err;
 
@@ -720,7 +721,6 @@ static int init_node_data(struct mlx4_ib_dev *dev)
 	if (err)
 		goto out;
 
-	dev->dev->rev_id = be32_to_cpup((__be32 *) (out_mad->data + 32));
 	memcpy(&dev->ib_dev.node_guid, out_mad->data + 12, 8);
 
 out:
@@ -848,8 +848,8 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 		goto out;
 	}
 
-	read_lock(&dev_base_lock);
-	for_each_netdev(&init_net, tmp) {
+	rcu_read_lock();
+	for_each_netdev_rcu(&init_net, tmp) {
 		if (ndev && (tmp == ndev || rdma_vlan_dev_real_dev(tmp) == ndev)) {
 			gid.global.subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
 			vid = rdma_vlan_dev_vlan_id(tmp);
@@ -884,7 +884,7 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 			}
 		}
 	}
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 
 	for (i = 0; i < 128; ++i)
 		if (!hits[i]) {
@@ -953,7 +953,7 @@ static int mlx4_ib_netdev_event(struct notifier_block *this, unsigned long event
 	mlx4_foreach_ib_transport_port(port, ibdev->dev) {
 		oldnd = iboe->netdevs[port - 1];
 		iboe->netdevs[port - 1] =
-			mlx4_get_protocol_dev(ibdev->dev, MLX4_PROTOCOL_EN, port);
+			mlx4_get_protocol_dev(ibdev->dev, MLX4_PROT_ETH, port);
 		if (oldnd != iboe->netdevs[port - 1]) {
 			if (iboe->netdevs[port - 1])
 				netdev_added(ibdev, port);
@@ -1005,7 +1005,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (mlx4_uar_alloc(dev, &ibdev->priv_uar))
 		goto err_pd;
 
-	ibdev->uar_map = ioremap(ibdev->priv_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
+	ibdev->uar_map = ioremap((phys_addr_t) ibdev->priv_uar.pfn << PAGE_SHIFT,
+				 PAGE_SIZE);
 	if (!ibdev->uar_map)
 		goto err_uar;
 	MLX4_INIT_DOORBELL_LOCK(&ibdev->uar_lock);
@@ -1205,7 +1206,7 @@ static struct mlx4_interface mlx4_ib_interface = {
 	.add		= mlx4_ib_add,
 	.remove		= mlx4_ib_remove,
 	.event		= mlx4_ib_event,
-	.protocol	= MLX4_PROTOCOL_IB
+	.protocol	= MLX4_PROT_IB_IPV6
 };
 
 static int __init mlx4_ib_init(void)

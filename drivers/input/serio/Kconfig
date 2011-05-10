@@ -2,7 +2,7 @@
 # Input core configuration
 #
 config SERIO
-	tristate "Serial I/O support" if EMBEDDED || !X86
+	tristate "Serial I/O support" if EXPERT || !X86
 	default y
 	help
 	  Say Yes here if you have any input device that uses serial I/O to
@@ -19,7 +19,7 @@ config SERIO
 if SERIO
 
 config SERIO_I8042
-	tristate "i8042 PC Keyboard controller" if EMBEDDED || !X86
+	tristate "i8042 PC Keyboard controller" if EXPERT || !X86
 	default y
 	depends on !PARISC && (!ARM || ARCH_SHARK || FOOTBRIDGE_HOST) && \
 		   (!SUPERH || SH_CAYMAN) && !M68K && !BLACKFIN
@@ -168,7 +168,7 @@ config SERIO_MACEPS2
 	  module will be called maceps2.
 
 config SERIO_LIBPS2
-	tristate "PS/2 driver library" if EMBEDDED
+	tristate "PS/2 driver library" if EXPERT
 	depends on SERIO_I8042 || SERIO_I8042=n
 	help
 	  Say Y here if you are using a driver for device connected
@@ -214,7 +214,6 @@ config SERIO_AMS_DELTA
 	tristate "Amstrad Delta (E3) mailboard support"
 	depends on MACH_AMS_DELTA
 	default y
-	select AMS_DELTA_FIQ
 	---help---
 	  Say Y here if you have an E3 and want to use its mailboard,
 	  or any standard AT keyboard connected to the mailboard port.
@@ -230,7 +229,7 @@ config SERIO_PS2MULT
 	tristate "TQC PS/2 multiplexer"
 	help
 	  Say Y here if you have the PS/2 line multiplexer like the one
-	  present on TQC boads.
+	  present on TQC boards.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ps2mult.

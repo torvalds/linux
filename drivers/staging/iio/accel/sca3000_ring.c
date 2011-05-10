@@ -43,7 +43,7 @@
  *			leading byte used in bus comms.
  *
  * Currently does not provide timestamps.  As the hardware doesn't add them they
- * can only be inferred aproximately from ring buffer events such as 50% full
+ * can only be inferred approximately from ring buffer events such as 50% full
  * and knowledge of when buffer was last emptied.  This is left to userspace.
  **/
 static int sca3000_rip_hw_rb(struct iio_ring_buffer *r,

@@ -65,11 +65,6 @@ extern kmem_zone_t	*qm_dqtrxzone;
  * block in the dquot/xqm code.
  */
 #define XFS_DQUOT_CLUSTER_SIZE_FSB	(xfs_filblks_t)1
-/*
- * When doing a quotacheck, we log dquot clusters of this many FSBs at most
- * in a single transaction. We don't want to ask for too huge a log reservation.
- */
-#define XFS_QM_MAX_DQCLUSTER_LOGSZ	3
 
 typedef xfs_dqhash_t	xfs_dqlist_t;
 

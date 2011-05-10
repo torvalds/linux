@@ -97,6 +97,20 @@ enum ieee80211_max_queues {
 };
 
 /**
+ * enum ieee80211_ac_numbers - AC numbers as used in mac80211
+ * @IEEE80211_AC_VO: voice
+ * @IEEE80211_AC_VI: video
+ * @IEEE80211_AC_BE: best effort
+ * @IEEE80211_AC_BK: background
+ */
+enum ieee80211_ac_numbers {
+	IEEE80211_AC_VO		= 0,
+	IEEE80211_AC_VI		= 1,
+	IEEE80211_AC_BE		= 2,
+	IEEE80211_AC_BK		= 3,
+};
+
+/**
  * struct ieee80211_tx_queue_params - transmit queue configuration
  *
  * The information provided in this structure is required for QoS
@@ -205,6 +219,7 @@ enum ieee80211_bss_change {
  * @basic_rates: bitmap of basic rates, each bit stands for an
  *	index into the rate table configured by the driver in
  *	the current band.
+ * @mcast_rate: per-band multicast rate index + 1 (0: disabled)
  * @bssid: The BSSID for this BSS
  * @enable_beacon: whether beaconing should be enabled or not
  * @channel_type: Channel type for this BSS -- the hardware might be
@@ -244,6 +259,7 @@ struct ieee80211_bss_conf {
 	u16 assoc_capability;
 	u64 timestamp;
 	u32 basic_rates;
+	int mcast_rate[IEEE80211_NUM_BANDS];
 	u16 ht_operation_mode;
 	s32 cqm_rssi_thold;
 	u32 cqm_rssi_hyst;
@@ -321,6 +337,13 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_LDPC: tells the driver to use LDPC for this frame
  * @IEEE80211_TX_CTL_STBC: Enables Space-Time Block Coding (STBC) for this
  *	frame and selects the maximum number of streams that it can use.
+ * @IEEE80211_TX_CTL_TX_OFFCHAN: Marks this packet to be transmitted on
+ *	the off-channel channel when a remain-on-channel offload is done
+ *	in hardware -- normal packets still flow and are expected to be
+ *	handled properly by the device.
+ * @IEEE80211_TX_INTFL_TKIP_MIC_FAILURE: Marks this packet to be used for TKIP
+ *	testing. It will be sent out with incorrect Michael MIC key to allow
+ *	TKIP countermeasures to be tested.
  *
  * Note: If you have to add new flags to the enumeration, then don't
  *	 forget to update %IEEE80211_TX_TEMPORARY_FLAGS when necessary.
@@ -349,6 +372,8 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_NL80211_FRAME_TX	= BIT(21),
 	IEEE80211_TX_CTL_LDPC			= BIT(22),
 	IEEE80211_TX_CTL_STBC			= BIT(23) | BIT(24),
+	IEEE80211_TX_CTL_TX_OFFCHAN		= BIT(25),
+	IEEE80211_TX_INTFL_TKIP_MIC_FAILURE	= BIT(26),
 };
 
 #define IEEE80211_TX_CTL_STBC_SHIFT		23
@@ -574,9 +599,10 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	the frame.
  * @RX_FLAG_FAILED_PLCP_CRC: Set this flag if the PCLP check failed on
  *	the frame.
- * @RX_FLAG_TSFT: The timestamp passed in the RX status (@mactime field)
- *	is valid. This is useful in monitor mode and necessary for beacon frames
- *	to enable IBSS merging.
+ * @RX_FLAG_MACTIME_MPDU: The timestamp passed in the RX status (@mactime
+ *	field) is valid and contains the time the first symbol of the MPDU
+ *	was received. This is useful in monitor mode and for proper IBSS
+ *	merging.
  * @RX_FLAG_SHORTPRE: Short preamble was used for this frame
  * @RX_FLAG_HT: HT MCS was used and rate_idx is MCS index
  * @RX_FLAG_40MHZ: HT40 (40 MHz) was used
@@ -589,7 +615,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_IV_STRIPPED	= 1<<4,
 	RX_FLAG_FAILED_FCS_CRC	= 1<<5,
 	RX_FLAG_FAILED_PLCP_CRC = 1<<6,
-	RX_FLAG_TSFT		= 1<<7,
+	RX_FLAG_MACTIME_MPDU	= 1<<7,
 	RX_FLAG_SHORTPRE	= 1<<8,
 	RX_FLAG_HT		= 1<<9,
 	RX_FLAG_40MHZ		= 1<<10,
@@ -1048,6 +1074,13 @@ enum ieee80211_tkip_key_type {
  *	to decrypt group addressed frames, then IBSS RSN support is still
  *	possible but software crypto will be used. Advertise the wiphy flag
  *	only in that case.
+ *
+ * @IEEE80211_HW_AP_LINK_PS: When operating in AP mode the device
+ *	autonomously manages the PS status of connected stations. When
+ *	this flag is set mac80211 will not trigger PS mode for connected
+ *	stations based on the PM bit of incoming frames.
+ *	Use ieee80211_start_ps()/ieee8021_end_ps() to manually configure
+ *	the PS mode of connected stations.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -1072,6 +1105,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
 	IEEE80211_HW_SUPPORTS_CQM_RSSI			= 1<<20,
 	IEEE80211_HW_SUPPORTS_PER_STA_GTK		= 1<<21,
+	IEEE80211_HW_AP_LINK_PS				= 1<<22,
 };
 
 /**
@@ -1126,6 +1160,17 @@ enum ieee80211_hw_flags {
  * @napi_weight: weight used for NAPI polling.  You must specify an
  *	appropriate value here if a napi_poll operation is provided
  *	by your driver.
+ *
+ * @max_rx_aggregation_subframes: maximum buffer size (number of
+ *	sub-frames) to be used for A-MPDU block ack receiver
+ *	aggregation.
+ *	This is only relevant if the device has restrictions on the
+ *	number of subframes, if it relies on mac80211 to do reordering
+ *	it shouldn't be set.
+ *
+ * @max_tx_aggregation_subframes: maximum number of subframes in an
+ *	aggregate an HT driver will transmit, used by the peer as a
+ *	hint to size its reorder buffer.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -1144,6 +1189,8 @@ struct ieee80211_hw {
 	u8 max_rates;
 	u8 max_report_rates;
 	u8 max_rate_tries;
+	u8 max_rx_aggregation_subframes;
+	u8 max_tx_aggregation_subframes;
 };
 
 /**
@@ -1247,7 +1294,7 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * acceleration (i.e. iwlwifi). Those drivers should provide update_tkip_key
  * handler.
  * The update_tkip_key() call updates the driver with the new phase 1 key.
- * This happens everytime the iv16 wraps around (every 65536 packets). The
+ * This happens every time the iv16 wraps around (every 65536 packets). The
  * set_key() call will happen only once for each key (unless the AP did
  * rekeying), it will not include a valid phase 1 key. The valid phase 1 key is
  * provided by update_tkip_key only. The trigger that makes mac80211 call this
@@ -1652,6 +1699,11 @@ enum ieee80211_ampdu_mlme_action {
  *	and IV16) for the given key from hardware.
  *	The callback must be atomic.
  *
+ * @set_frag_threshold: Configuration of fragmentation threshold. Assign this
+ *	if the device does fragmentation by itself; if this callback is
+ *	implemented then the stack will not do fragmentation.
+ *	The callback can sleep.
+ *
  * @set_rts_threshold: Configuration of RTS threshold (if device needs it)
  *	The callback can sleep.
  *
@@ -1662,7 +1714,9 @@ enum ieee80211_ampdu_mlme_action {
  *	station, AP, IBSS/WDS/mesh peer etc. This callback can sleep.
  *
  * @sta_notify: Notifies low level driver about power state transition of an
- *	associated station, AP,  IBSS/WDS/mesh peer etc. Must be atomic.
+ *	associated station, AP,  IBSS/WDS/mesh peer etc. For a VIF operating
+ *	in AP mode, this callback will not be called when the flag
+ *	%IEEE80211_HW_AP_LINK_PS is set. Must be atomic.
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue.
@@ -1697,6 +1751,21 @@ enum ieee80211_ampdu_mlme_action {
  * 	ieee80211_ampdu_mlme_action. Starting sequence number (@ssn)
  * 	is the first frame we expect to perform the action on. Notice
  * 	that TX/RX_STOP can pass NULL for this parameter.
+ *	The @buf_size parameter is only valid when the action is set to
+ *	%IEEE80211_AMPDU_TX_OPERATIONAL and indicates the peer's reorder
+ *	buffer size (number of subframes) for this session -- the driver
+ *	may neither send aggregates containing more subframes than this
+ *	nor send aggregates in a way that lost frames would exceed the
+ *	buffer size. If just limiting the aggregate size, this would be
+ *	possible with a buf_size of 8:
+ *	 - TX: 1.....7
+ *	 - RX:  2....7 (lost frame #1)
+ *	 - TX:        8..1...
+ *	which is invalid since #1 was now re-transmitted well past the
+ *	buffer size of 8. Correct ways to retransmit #1 would be:
+ *	 - TX:       1 or 18 or 81
+ *	Even "189" would be wrong since 1 could be lost again.
+ *
  *	Returns a negative error code on failure.
  *	The callback can sleep.
  *
@@ -1724,9 +1793,35 @@ enum ieee80211_ampdu_mlme_action {
  *	completion of the channel switch.
  *
  * @napi_poll: Poll Rx queue for incoming data frames.
+ *
+ * @set_antenna: Set antenna configuration (tx_ant, rx_ant) on the device.
+ *	Parameters are bitmaps of allowed antennas to use for TX/RX. Drivers may
+ *	reject TX/RX mask combinations they cannot support by returning -EINVAL
+ *	(also see nl80211.h @NL80211_ATTR_WIPHY_ANTENNA_TX).
+ *
+ * @get_antenna: Get current antenna configuration from device (tx_ant, rx_ant).
+ *
+ * @remain_on_channel: Starts an off-channel period on the given channel, must
+ *	call back to ieee80211_ready_on_channel() when on that channel. Note
+ *	that normal channel traffic is not stopped as this is intended for hw
+ *	offload. Frames to transmit on the off-channel channel are transmitted
+ *	normally except for the %IEEE80211_TX_CTL_TX_OFFCHAN flag. When the
+ *	duration (which will always be non-zero) expires, the driver must call
+ *	ieee80211_remain_on_channel_expired(). This callback may sleep.
+ * @cancel_remain_on_channel: Requests that an ongoing off-channel period is
+ *	aborted before it expires. This callback may sleep.
+ * @offchannel_tx: Transmit frame on another channel, wait for a response
+ *	and return. Reliable TX status must be reported for the frame. If the
+ *	return value is 1, then the @remain_on_channel will be used with a
+ *	regular transmission (if supported.)
+ * @offchannel_tx_cancel_wait: cancel wait associated with offchannel TX
+ *
+ * @set_ringparam: Set tx and rx ring sizes.
+ *
+ * @get_ringparam: Get tx and rx ring current and maximum sizes.
  */
 struct ieee80211_ops {
-	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
+	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
 	int (*start)(struct ieee80211_hw *hw);
 	void (*stop)(struct ieee80211_hw *hw);
 	int (*add_interface)(struct ieee80211_hw *hw,
@@ -1765,6 +1860,7 @@ struct ieee80211_ops {
 			 struct ieee80211_low_level_stats *stats);
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
 			     u32 *iv32, u16 *iv16);
+	int (*set_frag_threshold)(struct ieee80211_hw *hw, u32 value);
 	int (*set_rts_threshold)(struct ieee80211_hw *hw, u32 value);
 	int (*sta_add)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
@@ -1781,7 +1877,8 @@ struct ieee80211_ops {
 	int (*ampdu_action)(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
 			    enum ieee80211_ampdu_mlme_action action,
-			    struct ieee80211_sta *sta, u16 tid, u16 *ssn);
+			    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+			    u8 buf_size);
 	int (*get_survey)(struct ieee80211_hw *hw, int idx,
 		struct survey_info *survey);
 	void (*rfkill_poll)(struct ieee80211_hw *hw);
@@ -1793,6 +1890,22 @@ struct ieee80211_ops {
 	void (*channel_switch)(struct ieee80211_hw *hw,
 			       struct ieee80211_channel_switch *ch_switch);
 	int (*napi_poll)(struct ieee80211_hw *hw, int budget);
+	int (*set_antenna)(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant);
+	int (*get_antenna)(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant);
+
+	int (*remain_on_channel)(struct ieee80211_hw *hw,
+				 struct ieee80211_channel *chan,
+				 enum nl80211_channel_type channel_type,
+				 int duration);
+	int (*cancel_remain_on_channel)(struct ieee80211_hw *hw);
+	int (*offchannel_tx)(struct ieee80211_hw *hw, struct sk_buff *skb,
+			     struct ieee80211_channel *chan,
+			     enum nl80211_channel_type channel_type,
+			     unsigned int wait);
+	int (*offchannel_tx_cancel_wait)(struct ieee80211_hw *hw);
+	int (*set_ringparam)(struct ieee80211_hw *hw, u32 tx, u32 rx);
+	void (*get_ringparam)(struct ieee80211_hw *hw,
+			      u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max);
 };
 
 /**
@@ -1821,11 +1934,39 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
  */
 int ieee80211_register_hw(struct ieee80211_hw *hw);
 
+/**
+ * struct ieee80211_tpt_blink - throughput blink description
+ * @throughput: throughput in Kbit/sec
+ * @blink_time: blink time in milliseconds
+ *	(full cycle, ie. one off + one on period)
+ */
+struct ieee80211_tpt_blink {
+	int throughput;
+	int blink_time;
+};
+
+/**
+ * enum ieee80211_tpt_led_trigger_flags - throughput trigger flags
+ * @IEEE80211_TPT_LEDTRIG_FL_RADIO: enable blinking with radio
+ * @IEEE80211_TPT_LEDTRIG_FL_WORK: enable blinking when working
+ * @IEEE80211_TPT_LEDTRIG_FL_CONNECTED: enable blinking when at least one
+ *	interface is connected in some way, including being an AP
+ */
+enum ieee80211_tpt_led_trigger_flags {
+	IEEE80211_TPT_LEDTRIG_FL_RADIO		= BIT(0),
+	IEEE80211_TPT_LEDTRIG_FL_WORK		= BIT(1),
+	IEEE80211_TPT_LEDTRIG_FL_CONNECTED	= BIT(2),
+};
+
 #ifdef CONFIG_MAC80211_LEDS
 extern char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw);
 extern char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw);
 extern char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw);
 extern char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw);
+extern char *__ieee80211_create_tpt_led_trigger(
+				struct ieee80211_hw *hw, unsigned int flags,
+				const struct ieee80211_tpt_blink *blink_table,
+				unsigned int blink_table_len);
 #endif
 /**
  * ieee80211_get_tx_led_name - get name of TX LED
@@ -1898,6 +2039,30 @@ static inline char *ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
 {
 #ifdef CONFIG_MAC80211_LEDS
 	return __ieee80211_get_radio_led_name(hw);
+#else
+	return NULL;
+#endif
+}
+
+/**
+ * ieee80211_create_tpt_led_trigger - create throughput LED trigger
+ * @hw: the hardware to create the trigger for
+ * @flags: trigger flags, see &enum ieee80211_tpt_led_trigger_flags
+ * @blink_table: the blink table -- needs to be ordered by throughput
+ * @blink_table_len: size of the blink table
+ *
+ * This function returns %NULL (in case of error, or if no LED
+ * triggers are configured) or the name of the new trigger.
+ * This function must be called before ieee80211_register_hw().
+ */
+static inline char *
+ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw, unsigned int flags,
+				 const struct ieee80211_tpt_blink *blink_table,
+				 unsigned int blink_table_len)
+{
+#ifdef CONFIG_MAC80211_LEDS
+	return __ieee80211_create_tpt_led_trigger(hw, flags, blink_table,
+						  blink_table_len);
 #else
 	return NULL;
 #endif
@@ -2009,6 +2174,48 @@ static inline void ieee80211_rx_ni(struct ieee80211_hw *hw,
 	local_bh_enable();
 }
 
+/**
+ * ieee80211_sta_ps_transition - PS transition for connected sta
+ *
+ * When operating in AP mode with the %IEEE80211_HW_AP_LINK_PS
+ * flag set, use this function to inform mac80211 about a connected station
+ * entering/leaving PS mode.
+ *
+ * This function may not be called in IRQ context or with softirqs enabled.
+ *
+ * Calls to this function for a single hardware must be synchronized against
+ * each other.
+ *
+ * The function returns -EINVAL when the requested PS mode is already set.
+ *
+ * @sta: currently connected sta
+ * @start: start or stop PS
+ */
+int ieee80211_sta_ps_transition(struct ieee80211_sta *sta, bool start);
+
+/**
+ * ieee80211_sta_ps_transition_ni - PS transition for connected sta
+ *                                  (in process context)
+ *
+ * Like ieee80211_sta_ps_transition() but can be called in process context
+ * (internally disables bottom halves). Concurrent call restriction still
+ * applies.
+ *
+ * @sta: currently connected sta
+ * @start: start or stop PS
+ */
+static inline int ieee80211_sta_ps_transition_ni(struct ieee80211_sta *sta,
+						  bool start)
+{
+	int ret;
+
+	local_bh_disable();
+	ret = ieee80211_sta_ps_transition(sta, start);
+	local_bh_enable();
+
+	return ret;
+}
+
 /*
  * The TX headroom reserved by mac80211 for its own tx_status functions.
  * This is enough for the radiotap header.
@@ -2024,8 +2231,8 @@ static inline void ieee80211_rx_ni(struct ieee80211_hw *hw,
  *
  * This function may not be called in IRQ context. Calls to this function
  * for a single hardware must be synchronized against each other. Calls
- * to this function and ieee80211_tx_status_irqsafe() may not be mixed
- * for a single hardware.
+ * to this function, ieee80211_tx_status_ni() and ieee80211_tx_status_irqsafe()
+ * may not be mixed for a single hardware.
  *
  * @hw: the hardware the frame was transmitted by
  * @skb: the frame that was transmitted, owned by mac80211 after this call
@@ -2034,13 +2241,33 @@ void ieee80211_tx_status(struct ieee80211_hw *hw,
 			 struct sk_buff *skb);
 
 /**
+ * ieee80211_tx_status_ni - transmit status callback (in process context)
+ *
+ * Like ieee80211_tx_status() but can be called in process context.
+ *
+ * Calls to this function, ieee80211_tx_status() and
+ * ieee80211_tx_status_irqsafe() may not be mixed
+ * for a single hardware.
+ *
+ * @hw: the hardware the frame was transmitted by
+ * @skb: the frame that was transmitted, owned by mac80211 after this call
+ */
+static inline void ieee80211_tx_status_ni(struct ieee80211_hw *hw,
+					  struct sk_buff *skb)
+{
+	local_bh_disable();
+	ieee80211_tx_status(hw, skb);
+	local_bh_enable();
+}
+
+/**
  * ieee80211_tx_status_irqsafe - IRQ-safe transmit status callback
  *
  * Like ieee80211_tx_status() but can be called in IRQ context
  * (internally defers to a tasklet.)
  *
- * Calls to this function and ieee80211_tx_status() may not be mixed for a
- * single hardware.
+ * Calls to this function, ieee80211_tx_status() and
+ * ieee80211_tx_status_ni() may not be mixed for a single hardware.
  *
  * @hw: the hardware the frame was transmitted by
  * @skb: the frame that was transmitted, owned by mac80211 after this call
@@ -2384,6 +2611,7 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
  * ieee80211_start_tx_ba_session - Start a tx Block Ack session.
  * @sta: the station for which to start a BA session
  * @tid: the TID to BA on.
+ * @timeout: session timeout value (in TUs)
  *
  * Return: success if addBA request was sent, failure otherwise
  *
@@ -2391,7 +2619,8 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
  * the need to start aggregation on a certain RA/TID, the session level
  * will be managed by the mac80211.
  */
-int ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, u16 tid);
+int ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, u16 tid,
+				  u16 timeout);
 
 /**
  * ieee80211_start_tx_ba_cb_irqsafe - low level driver ready to aggregate.
@@ -2499,6 +2728,21 @@ struct ieee80211_sta *ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw,
  */
 void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 			       struct ieee80211_sta *pubsta, bool block);
+
+/**
+ * ieee80211_ap_probereq_get - retrieve a Probe Request template
+ * @hw: pointer obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * Creates a Probe Request template which can, for example, be uploaded to
+ * hardware. The template is filled with bssid, ssid and supported rate
+ * information. This function must only be called from within the
+ * .bss_info_changed callback function and only in managed mode. The function
+ * is only useful when the interface is associated, otherwise it will return
+ * NULL.
+ */
+struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif);
 
 /**
  * ieee80211_beacon_loss - inform hardware does not receive beacons
@@ -2609,6 +2853,18 @@ void ieee80211_request_smps(struct ieee80211_vif *vif,
  */
 void ieee80211_key_removed(struct ieee80211_key_conf *key_conf);
 
+/**
+ * ieee80211_ready_on_channel - notification of remain-on-channel start
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ */
+void ieee80211_ready_on_channel(struct ieee80211_hw *hw);
+
+/**
+ * ieee80211_remain_on_channel_expired - remain_on_channel duration expired
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ */
+void ieee80211_remain_on_channel_expired(struct ieee80211_hw *hw);
+
 /* Rate control API */
 
 /**
@@ -2640,7 +2896,7 @@ enum rate_control_changed {
  * @rate_idx_mask: user-requested rate mask (not MCS for now)
  * @skb: the skb that will be transmitted, the control information in it needs
  *	to be filled in
- * @ap: whether this frame is sent out in AP mode
+ * @bss: whether this frame is sent out in AP or IBSS mode
  */
 struct ieee80211_tx_rate_control {
 	struct ieee80211_hw *hw;
@@ -2651,7 +2907,7 @@ struct ieee80211_tx_rate_control {
 	bool rts, short_preamble;
 	u8 max_rate_idx;
 	u32 rate_idx_mask;
-	bool ap;
+	bool bss;
 };
 
 struct rate_control_ops {

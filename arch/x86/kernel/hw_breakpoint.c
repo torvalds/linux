@@ -122,7 +122,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 		return -EBUSY;
 
 	set_debugreg(info->address, i);
-	__get_cpu_var(cpu_debugreg[i]) = info->address;
+	__this_cpu_write(cpu_debugreg[i], info->address);
 
 	dr7 = &__get_cpu_var(cpu_dr7);
 	*dr7 |= encode_dr7(i, info->len, info->type);
@@ -397,12 +397,12 @@ void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
 
 void hw_breakpoint_restore(void)
 {
-	set_debugreg(__get_cpu_var(cpu_debugreg[0]), 0);
-	set_debugreg(__get_cpu_var(cpu_debugreg[1]), 1);
-	set_debugreg(__get_cpu_var(cpu_debugreg[2]), 2);
-	set_debugreg(__get_cpu_var(cpu_debugreg[3]), 3);
+	set_debugreg(__this_cpu_read(cpu_debugreg[0]), 0);
+	set_debugreg(__this_cpu_read(cpu_debugreg[1]), 1);
+	set_debugreg(__this_cpu_read(cpu_debugreg[2]), 2);
+	set_debugreg(__this_cpu_read(cpu_debugreg[3]), 3);
 	set_debugreg(current->thread.debugreg6, 6);
-	set_debugreg(__get_cpu_var(cpu_dr7), 7);
+	set_debugreg(__this_cpu_read(cpu_dr7), 7);
 }
 EXPORT_SYMBOL_GPL(hw_breakpoint_restore);
 

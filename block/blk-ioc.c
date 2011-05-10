@@ -64,7 +64,7 @@ static void cfq_exit(struct io_context *ioc)
 	rcu_read_unlock();
 }
 
-/* Called by the exitting task */
+/* Called by the exiting task */
 void exit_io_context(struct task_struct *task)
 {
 	struct io_context *ioc;
@@ -74,10 +74,9 @@ void exit_io_context(struct task_struct *task)
 	task->io_context = NULL;
 	task_unlock(task);
 
-	if (atomic_dec_and_test(&ioc->nr_tasks)) {
+	if (atomic_dec_and_test(&ioc->nr_tasks))
 		cfq_exit(ioc);
 
-	}
 	put_io_context(ioc);
 }
 

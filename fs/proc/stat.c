@@ -126,7 +126,7 @@ static int show_stat(struct seq_file *p, void *v)
 
 	for (i = 0; i < NR_SOFTIRQS; i++)
 		seq_printf(p, " %u", per_softirq_sums[i]);
-	seq_printf(p, "\n");
+	seq_putc(p, '\n');
 
 	return 0;
 }

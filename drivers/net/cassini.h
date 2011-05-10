@@ -772,7 +772,7 @@
 #define    RX_DEBUG_INTR_WRITE_PTR_MASK    0xC0000000 /* interrupt write pointer
 							 of the interrupt queue */
 
-/* flow control frames are emmitted using two PAUSE thresholds:
+/* flow control frames are emitted using two PAUSE thresholds:
  * XOFF PAUSE uses pause time value pre-programmed in the Send PAUSE MAC reg
  * XON PAUSE uses a pause time of 0. granularity of threshold is 64bytes.
  * PAUSE thresholds defined in terms of FIFO occupancy and may be translated
@@ -2868,6 +2868,9 @@ struct cas {
 	dma_addr_t block_dvma, tx_tiny_dvma[N_TX_RINGS];
 	struct pci_dev *pdev;
 	struct net_device *dev;
+#if defined(CONFIG_OF)
+	struct device_node	*of_node;
+#endif
 
 	/* Firmware Info */
 	u16			fw_load_addr;

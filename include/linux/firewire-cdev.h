@@ -273,7 +273,7 @@ struct fw_cdev_event_iso_interrupt {
  * @closure:	See &fw_cdev_event_common;
  *		set by %FW_CDEV_CREATE_ISO_CONTEXT ioctl
  * @type:	%FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL
- * @completed:	Offset into the receive buffer; data before this offest is valid
+ * @completed:	Offset into the receive buffer; data before this offset is valid
  *
  * This event is sent in multichannel contexts (context type
  * %FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL) for &fw_cdev_iso_packet buffer
@@ -900,7 +900,7 @@ struct fw_cdev_get_cycle_timer2 {
 
 /**
  * struct fw_cdev_allocate_iso_resource - (De)allocate a channel or bandwidth
- * @closure:	Passed back to userspace in correponding iso resource events
+ * @closure:	Passed back to userspace in corresponding iso resource events
  * @channels:	Isochronous channels of which one is to be (de)allocated
  * @bandwidth:	Isochronous bandwidth units to be (de)allocated
  * @handle:	Handle to the allocation, written by the kernel (only valid in

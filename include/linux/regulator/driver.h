@@ -42,7 +42,11 @@ enum regulator_status {
  *
  * @set_voltage: Set the voltage for the regulator within the range specified.
  *               The driver should select the voltage closest to min_uV.
+ * @set_voltage_sel: Set the voltage for the regulator using the specified
+ *                   selector.
  * @get_voltage: Return the currently configured voltage for the regulator.
+ * @get_voltage_sel: Return the currently configured voltage selector for the
+ *                   regulator.
  * @list_voltage: Return one of the supported voltages, in microvolts; zero
  *	if the selector indicates a voltage that is unusable on this system;
  *	or negative errno.  Selectors range from zero to one less than
@@ -59,7 +63,11 @@ enum regulator_status {
  *                    when running with the specified parameters.
  *
  * @enable_time: Time taken for the regulator voltage output voltage to
- *               stabalise after being enabled, in microseconds.
+ *               stabilise after being enabled, in microseconds.
+ * @set_voltage_time_sel: Time taken for the regulator voltage output voltage
+ *               to stabilise after being set to a new value, in microseconds.
+ *               The function provides the from and to voltage selector, the
+ *               function should return the worst case.
  *
  * @set_suspend_voltage: Set the voltage for the regulator when the system
  *                       is suspended.
@@ -79,8 +87,11 @@ struct regulator_ops {
 	int (*list_voltage) (struct regulator_dev *, unsigned selector);
 
 	/* get/set regulator voltage */
-	int (*set_voltage) (struct regulator_dev *, int min_uV, int max_uV);
+	int (*set_voltage) (struct regulator_dev *, int min_uV, int max_uV,
+			    unsigned *selector);
+	int (*set_voltage_sel) (struct regulator_dev *, unsigned selector);
 	int (*get_voltage) (struct regulator_dev *);
+	int (*get_voltage_sel) (struct regulator_dev *);
 
 	/* get/set regulator current  */
 	int (*set_current_limit) (struct regulator_dev *,
@@ -96,8 +107,11 @@ struct regulator_ops {
 	int (*set_mode) (struct regulator_dev *, unsigned int mode);
 	unsigned int (*get_mode) (struct regulator_dev *);
 
-	/* Time taken to enable the regulator */
+	/* Time taken to enable or set voltage on the regulator */
 	int (*enable_time) (struct regulator_dev *);
+	int (*set_voltage_time_sel) (struct regulator_dev *,
+				     unsigned int old_selector,
+				     unsigned int new_selector);
 
 	/* report regulator status ... most other accessors report
 	 * control inputs, this reports results of combining inputs
@@ -168,9 +182,9 @@ struct regulator_desc {
  */
 struct regulator_dev {
 	struct regulator_desc *desc;
-	int use_count;
-	int open_count;
 	int exclusive;
+	u32 use_count;
+	u32 open_count;
 
 	/* lists we belong to */
 	struct list_head list; /* list of all regulators */
@@ -188,10 +202,14 @@ struct regulator_dev {
 	struct regulator_dev *supply;	/* for tree */
 
 	void *reg_data;		/* regulator_dev data */
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs;
+#endif
 };
 
 struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
-	struct device *dev, struct regulator_init_data *init_data,
+	struct device *dev, const struct regulator_init_data *init_data,
 	void *driver_data);
 void regulator_unregister(struct regulator_dev *rdev);
 

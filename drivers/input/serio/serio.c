@@ -32,10 +32,9 @@
 #include <linux/module.h>
 #include <linux/serio.h>
 #include <linux/errno.h>
-#include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/kthread.h>
+#include <linux/workqueue.h>
 #include <linux/mutex.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
@@ -44,7 +43,7 @@ MODULE_LICENSE("GPL");
 
 /*
  * serio_mutex protects entire serio subsystem and is taken every time
- * serio port or driver registrered or unregistered.
+ * serio port or driver registered or unregistered.
  */
 static DEFINE_MUTEX(serio_mutex);
 
@@ -165,8 +164,96 @@ struct serio_event {
 
 static DEFINE_SPINLOCK(serio_event_lock);	/* protects serio_event_list */
 static LIST_HEAD(serio_event_list);
-static DECLARE_WAIT_QUEUE_HEAD(serio_wait);
-static struct task_struct *serio_task;
+
+static struct serio_event *serio_get_event(void)
+{
+	struct serio_event *event = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&serio_event_lock, flags);
+
+	if (!list_empty(&serio_event_list)) {
+		event = list_first_entry(&serio_event_list,
+					 struct serio_event, node);
+		list_del_init(&event->node);
+	}
+
+	spin_unlock_irqrestore(&serio_event_lock, flags);
+	return event;
+}
+
+static void serio_free_event(struct serio_event *event)
+{
+	module_put(event->owner);
+	kfree(event);
+}
+
+static void serio_remove_duplicate_events(void *object,
+					  enum serio_event_type type)
+{
+	struct serio_event *e, *next;
+	unsigned long flags;
+
+	spin_lock_irqsave(&serio_event_lock, flags);
+
+	list_for_each_entry_safe(e, next, &serio_event_list, node) {
+		if (object == e->object) {
+			/*
+			 * If this event is of different type we should not
+			 * look further - we only suppress duplicate events
+			 * that were sent back-to-back.
+			 */
+			if (type != e->type)
+				break;
+
+			list_del_init(&e->node);
+			serio_free_event(e);
+		}
+	}
+
+	spin_unlock_irqrestore(&serio_event_lock, flags);
+}
+
+static void serio_handle_event(struct work_struct *work)
+{
+	struct serio_event *event;
+
+	mutex_lock(&serio_mutex);
+
+	while ((event = serio_get_event())) {
+
+		switch (event->type) {
+
+		case SERIO_REGISTER_PORT:
+			serio_add_port(event->object);
+			break;
+
+		case SERIO_RECONNECT_PORT:
+			serio_reconnect_port(event->object);
+			break;
+
+		case SERIO_RESCAN_PORT:
+			serio_disconnect_port(event->object);
+			serio_find_driver(event->object);
+			break;
+
+		case SERIO_RECONNECT_SUBTREE:
+			serio_reconnect_subtree(event->object);
+			break;
+
+		case SERIO_ATTACH_DRIVER:
+			serio_attach_driver(event->object);
+			break;
+		}
+
+		serio_remove_duplicate_events(event->object, event->type);
+		serio_free_event(event);
+	}
+
+	mutex_unlock(&serio_mutex);
+}
+
+static DECLARE_WORK(serio_event_work, serio_handle_event);
 
 static int serio_queue_event(void *object, struct module *owner,
 			     enum serio_event_type event_type)
@@ -212,99 +299,11 @@ static int serio_queue_event(void *object, struct module *owner,
 	event->owner = owner;
 
 	list_add_tail(&event->node, &serio_event_list);
-	wake_up(&serio_wait);
+	queue_work(system_long_wq, &serio_event_work);
 
 out:
 	spin_unlock_irqrestore(&serio_event_lock, flags);
 	return retval;
-}
-
-static void serio_free_event(struct serio_event *event)
-{
-	module_put(event->owner);
-	kfree(event);
-}
-
-static void serio_remove_duplicate_events(struct serio_event *event)
-{
-	struct serio_event *e, *next;
-	unsigned long flags;
-
-	spin_lock_irqsave(&serio_event_lock, flags);
-
-	list_for_each_entry_safe(e, next, &serio_event_list, node) {
-		if (event->object == e->object) {
-			/*
-			 * If this event is of different type we should not
-			 * look further - we only suppress duplicate events
-			 * that were sent back-to-back.
-			 */
-			if (event->type != e->type)
-				break;
-
-			list_del_init(&e->node);
-			serio_free_event(e);
-		}
-	}
-
-	spin_unlock_irqrestore(&serio_event_lock, flags);
-}
-
-
-static struct serio_event *serio_get_event(void)
-{
-	struct serio_event *event = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&serio_event_lock, flags);
-
-	if (!list_empty(&serio_event_list)) {
-		event = list_first_entry(&serio_event_list,
-					 struct serio_event, node);
-		list_del_init(&event->node);
-	}
-
-	spin_unlock_irqrestore(&serio_event_lock, flags);
-	return event;
-}
-
-static void serio_handle_event(void)
-{
-	struct serio_event *event;
-
-	mutex_lock(&serio_mutex);
-
-	while ((event = serio_get_event())) {
-
-		switch (event->type) {
-
-		case SERIO_REGISTER_PORT:
-			serio_add_port(event->object);
-			break;
-
-		case SERIO_RECONNECT_PORT:
-			serio_reconnect_port(event->object);
-			break;
-
-		case SERIO_RESCAN_PORT:
-			serio_disconnect_port(event->object);
-			serio_find_driver(event->object);
-			break;
-
-		case SERIO_RECONNECT_SUBTREE:
-			serio_reconnect_subtree(event->object);
-			break;
-
-		case SERIO_ATTACH_DRIVER:
-			serio_attach_driver(event->object);
-			break;
-		}
-
-		serio_remove_duplicate_events(event);
-		serio_free_event(event);
-	}
-
-	mutex_unlock(&serio_mutex);
 }
 
 /*
@@ -355,18 +354,6 @@ static struct serio *serio_get_pending_child(struct serio *parent)
 	spin_unlock_irqrestore(&serio_event_lock, flags);
 	return child;
 }
-
-static int serio_thread(void *nothing)
-{
-	do {
-		serio_handle_event();
-		wait_event_interruptible(serio_wait,
-			kthread_should_stop() || !list_empty(&serio_event_list));
-	} while (!kthread_should_stop());
-
-	return 0;
-}
-
 
 /*
  * Serio port operations
@@ -450,10 +437,12 @@ static ssize_t serio_rebind_driver(struct device *dev, struct device_attribute *
 	} else if (!strncmp(buf, "rescan", count)) {
 		serio_disconnect_port(serio);
 		serio_find_driver(serio);
+		serio_remove_duplicate_events(serio, SERIO_RESCAN_PORT);
 	} else if ((drv = driver_find(buf, &serio_bus)) != NULL) {
 		serio_disconnect_port(serio);
 		error = serio_bind_driver(serio, to_serio_driver(drv));
 		put_driver(drv);
+		serio_remove_duplicate_events(serio, SERIO_RESCAN_PORT);
 	} else {
 		error = -EINVAL;
 	}
@@ -1040,21 +1029,18 @@ static int __init serio_init(void)
 		return error;
 	}
 
-	serio_task = kthread_run(serio_thread, NULL, "kseriod");
-	if (IS_ERR(serio_task)) {
-		bus_unregister(&serio_bus);
-		error = PTR_ERR(serio_task);
-		pr_err("Failed to start kseriod, error: %d\n", error);
-		return error;
-	}
-
 	return 0;
 }
 
 static void __exit serio_exit(void)
 {
 	bus_unregister(&serio_bus);
-	kthread_stop(serio_task);
+
+	/*
+	 * There should not be any outstanding events but work may
+	 * still be scheduled so simply cancel it.
+	 */
+	cancel_work_sync(&serio_event_work);
 }
 
 subsys_initcall(serio_init);

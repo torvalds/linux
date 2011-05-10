@@ -66,7 +66,6 @@ enum spi_imx_devtype {
 	SPI_IMX_VER_0_5,
 	SPI_IMX_VER_0_7,
 	SPI_IMX_VER_2_3,
-	SPI_IMX_VER_AUTODETECT,
 };
 
 struct spi_imx_data;
@@ -175,7 +174,7 @@ static unsigned int spi_imx_clkdiv_2(unsigned int fin,
 #define SPI_IMX2_3_CTRL		0x08
 #define SPI_IMX2_3_CTRL_ENABLE		(1 <<  0)
 #define SPI_IMX2_3_CTRL_XCH		(1 <<  2)
-#define SPI_IMX2_3_CTRL_MODE(cs)	(1 << ((cs) +  4))
+#define SPI_IMX2_3_CTRL_MODE_MASK	(0xf << 4)
 #define SPI_IMX2_3_CTRL_POSTDIV_OFFSET	8
 #define SPI_IMX2_3_CTRL_PREDIV_OFFSET	12
 #define SPI_IMX2_3_CTRL_CS(cs)		((cs) << 18)
@@ -254,8 +253,14 @@ static int __maybe_unused spi_imx2_3_config(struct spi_imx_data *spi_imx,
 {
 	u32 ctrl = SPI_IMX2_3_CTRL_ENABLE, cfg = 0;
 
-	/* set master mode */
-	ctrl |= SPI_IMX2_3_CTRL_MODE(config->cs);
+	/*
+	 * The hardware seems to have a race condition when changing modes. The
+	 * current assumption is that the selection of the channel arrives
+	 * earlier in the hardware than the mode bits when they are written at
+	 * the same time.
+	 * So set master mode for all channels as we do not support slave mode.
+	 */
+	ctrl |= SPI_IMX2_3_CTRL_MODE_MASK;
 
 	/* set clock speed */
 	ctrl |= spi_imx2_3_clkdiv(spi_imx->spi_clk, config->speed_hz);
@@ -720,9 +725,6 @@ static void spi_imx_cleanup(struct spi_device *spi)
 
 static struct platform_device_id spi_imx_devtype[] = {
 	{
-		.name = DRIVER_NAME,
-		.driver_data = SPI_IMX_VER_AUTODETECT,
-	}, {
 		.name = "imx1-cspi",
 		.driver_data = SPI_IMX_VER_IMX1,
 	}, {
@@ -745,6 +747,12 @@ static struct platform_device_id spi_imx_devtype[] = {
 		.driver_data = SPI_IMX_VER_0_7,
 	}, {
 		.name = "imx51-ecspi",
+		.driver_data = SPI_IMX_VER_2_3,
+	}, {
+		.name = "imx53-cspi",
+		.driver_data = SPI_IMX_VER_0_7,
+	}, {
+		.name = "imx53-ecspi",
 		.driver_data = SPI_IMX_VER_2_3,
 	}, {
 		/* sentinel */
@@ -802,30 +810,8 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 
 	init_completion(&spi_imx->xfer_done);
 
-	if (pdev->id_entry->driver_data == SPI_IMX_VER_AUTODETECT) {
-		if (cpu_is_mx25() || cpu_is_mx35())
-			spi_imx->devtype_data =
-				spi_imx_devtype_data[SPI_IMX_VER_0_7];
-		else if (cpu_is_mx25() || cpu_is_mx31() || cpu_is_mx35())
-			spi_imx->devtype_data =
-				spi_imx_devtype_data[SPI_IMX_VER_0_4];
-		else if (cpu_is_mx27() || cpu_is_mx21())
-			spi_imx->devtype_data =
-				spi_imx_devtype_data[SPI_IMX_VER_0_0];
-		else if (cpu_is_mx1())
-			spi_imx->devtype_data =
-				spi_imx_devtype_data[SPI_IMX_VER_IMX1];
-		else
-			BUG();
-	} else
-		spi_imx->devtype_data =
-			spi_imx_devtype_data[pdev->id_entry->driver_data];
-
-	if (!spi_imx->devtype_data.intctrl) {
-		dev_err(&pdev->dev, "no support for this device compiled in\n");
-		ret = -ENODEV;
-		goto out_gpio_free;
-	}
+	spi_imx->devtype_data =
+		spi_imx_devtype_data[pdev->id_entry->driver_data];
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -847,7 +833,7 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 	}
 
 	spi_imx->irq = platform_get_irq(pdev, 0);
-	if (spi_imx->irq <= 0) {
+	if (spi_imx->irq < 0) {
 		ret = -EINVAL;
 		goto out_iounmap;
 	}

@@ -292,7 +292,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 
 	result = speedstep_smi_ownership();
 	if (result) {
-		dprintk("fails in aquiring ownership of a SMI interface.\n");
+		dprintk("fails in acquiring ownership of a SMI interface.\n");
 		return -EINVAL;
 	}
 
@@ -360,7 +360,7 @@ static int speedstep_resume(struct cpufreq_policy *policy)
 	int result = speedstep_smi_ownership();
 
 	if (result)
-		dprintk("fails in re-aquiring ownership of a SMI interface.\n");
+		dprintk("fails in re-acquiring ownership of a SMI interface.\n");
 
 	return result;
 }

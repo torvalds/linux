@@ -1,0 +1,93 @@
+
+What:		/sys/bus/iio/devices/.../ddsX_freqY
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Stores frequency into tuning word Y.
+		There will be more than one ddsX_freqY file, which allows for
+		pin controlled FSK Frequency Shift Keying
+		(ddsX_pincontrol_freq_en is active) or the user can control
+		the desired active tuning word by writing Y to the
+		ddsX_freqsymbol file.
+
+What:		/sys/bus/iio/devices/.../ddsX_freqY_scale
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Scale to be applied to ddsX_freqY in order to obtain the
+		desired value in Hz. If shared across all frequency registers
+		Y is not present. It is also possible X is not present if
+		shared across all channels.
+
+What:		/sys/bus/iio/devices/.../ddsX_freqsymbol
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the active output frequency tuning word. The value
+		corresponds to the Y in ddsX_freqY. To exit this mode the user
+		can write ddsX_pincontrol_freq_en or ddsX_out_enable file.
+
+What:		/sys/bus/iio/devices/.../ddsX_phaseY
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Stores phase into Y.
+		There will be more than one ddsX_phaseY file, which allows for
+		pin controlled PSK Phase Shift Keying
+		(ddsX_pincontrol_phase_en is active) or the user can
+		control the desired phase Y which is added to the phase
+		accumulator output by writing Y to the en_phase file.
+
+What:		/sys/bus/iio/devices/.../ddsX_phaseY_scale
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Scale to be applied to ddsX_phaseY in order to obtain the
+		desired value in rad. If shared across all phase registers
+		Y is not present. It is also possible X is not present if
+		shared across all channels.
+
+What:		/sys/bus/iio/devices/.../ddsX_phasesymbol
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the active phase Y which is added to the phase
+		accumulator output. The value corresponds to the Y in
+		ddsX_phaseY. To exit this mode the user can write
+		ddsX_pincontrol_phase_en or disable file.
+
+What:		/sys/bus/iio/devices/.../ddsX_pincontrol_en
+What:		/sys/bus/iio/devices/.../ddsX_pincontrol_freq_en
+What:		/sys/bus/iio/devices/.../ddsX_pincontrol_phase_en
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		ddsX_pincontrol_en: Both, the active frequency and phase is
+		controlled by the respective phase and frequency control inputs.
+		In case the device in question allows to independent controls,
+		then there are dedicated files (ddsX_pincontrol_freq_en,
+		ddsX_pincontrol_phase_en).
+
+What:		/sys/bus/iio/devices/.../ddsX_out_enable
+What:		/sys/bus/iio/devices/.../ddsX_outY_enable
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		ddsX_outY_enable controls signal generation on output Y of
+		channel X. Y may be suppressed if all channels are
+		controlled together.
+
+What:		/sys/bus/iio/devices/.../ddsX_outY_wavetype
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the output waveform.
+		(sine, triangle, ramp, square, ...)
+		For a list of available output waveform options read
+		available_output_modes.
+
+What:		/sys/bus/iio/devices/.../ddsX_outY_wavetype_available
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Lists all available output waveform options.

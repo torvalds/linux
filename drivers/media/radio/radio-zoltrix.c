@@ -377,7 +377,7 @@ static int vidioc_s_audio(struct file *file, void *priv,
 static const struct v4l2_file_operations zoltrix_fops =
 {
 	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops zoltrix_ioctl_ops = {
@@ -424,20 +424,6 @@ static int __init zoltrix_init(void)
 		return res;
 	}
 
-	strlcpy(zol->vdev.name, v4l2_dev->name, sizeof(zol->vdev.name));
-	zol->vdev.v4l2_dev = v4l2_dev;
-	zol->vdev.fops = &zoltrix_fops;
-	zol->vdev.ioctl_ops = &zoltrix_ioctl_ops;
-	zol->vdev.release = video_device_release_empty;
-	video_set_drvdata(&zol->vdev, zol);
-
-	if (video_register_device(&zol->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
-		v4l2_device_unregister(v4l2_dev);
-		release_region(zol->io, 2);
-		return -EINVAL;
-	}
-	v4l2_info(v4l2_dev, "Zoltrix Radio Plus card driver.\n");
-
 	mutex_init(&zol->lock);
 
 	/* mute card - prevents noisy bootups */
@@ -451,6 +437,20 @@ static int __init zoltrix_init(void)
 
 	zol->curvol = 0;
 	zol->stereo = 1;
+
+	strlcpy(zol->vdev.name, v4l2_dev->name, sizeof(zol->vdev.name));
+	zol->vdev.v4l2_dev = v4l2_dev;
+	zol->vdev.fops = &zoltrix_fops;
+	zol->vdev.ioctl_ops = &zoltrix_ioctl_ops;
+	zol->vdev.release = video_device_release_empty;
+	video_set_drvdata(&zol->vdev, zol);
+
+	if (video_register_device(&zol->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
+		v4l2_device_unregister(v4l2_dev);
+		release_region(zol->io, 2);
+		return -EINVAL;
+	}
+	v4l2_info(v4l2_dev, "Zoltrix Radio Plus card driver.\n");
 
 	return 0;
 }

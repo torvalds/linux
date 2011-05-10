@@ -49,7 +49,9 @@ config NET_DCCPPROBE
 	what was just said, you don't need it: say N.
 
 	Documentation on how to use DCCP connection probing can be found
-	at http://linux-net.osdl.org/index.php/DccpProbe
+	at:
+	
+	  http://www.linuxfoundation.org/collaborate/workgroups/networking/dccpprobe
 
 	To compile this code as a module, choose M here: the
 	module will be called dccp_probe.

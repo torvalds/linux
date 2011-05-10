@@ -40,6 +40,8 @@ static void rt2x00soc_free_reg(struct rt2x00_dev *rt2x00dev)
 
 	kfree(rt2x00dev->eeprom);
 	rt2x00dev->eeprom = NULL;
+
+	iounmap(rt2x00dev->csr.base);
 }
 
 static int rt2x00soc_alloc_reg(struct rt2x00_dev *rt2x00dev)
@@ -51,9 +53,9 @@ static int rt2x00soc_alloc_reg(struct rt2x00_dev *rt2x00dev)
 	if (!res)
 		return -ENODEV;
 
-	rt2x00dev->csr.base = (void __iomem *)KSEG1ADDR(res->start);
+	rt2x00dev->csr.base = ioremap(res->start, resource_size(res));
 	if (!rt2x00dev->csr.base)
-		goto exit;
+		return -ENOMEM;
 
 	rt2x00dev->eeprom = kzalloc(rt2x00dev->ops->eeprom_size, GFP_KERNEL);
 	if (!rt2x00dev->eeprom)

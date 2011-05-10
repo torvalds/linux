@@ -1771,6 +1771,10 @@ sys_call_table:
 	data8 sys_fanotify_init
 	data8 sys_fanotify_mark
 	data8 sys_prlimit64			// 1325
+	data8 sys_name_to_handle_at
+	data8 sys_open_by_handle_at
+	data8 sys_clock_adjtime
+	data8 sys_syncfs
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
 #endif /* __IA64_ASM_PARAVIRTUALIZED_NATIVE */

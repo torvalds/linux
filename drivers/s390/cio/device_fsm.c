@@ -318,7 +318,7 @@ ccw_device_sense_id_done(struct ccw_device *cdev, int err)
 
 /**
   * ccw_device_notify() - inform the device's driver about an event
-  * @cdev: device for which an event occured
+  * @cdev: device for which an event occurred
   * @event: event that occurred
   *
   * Returns:
@@ -688,7 +688,7 @@ ccw_device_online_verify(struct ccw_device *cdev, enum dev_event dev_event)
 	    (scsw_stctl(&cdev->private->irb.scsw) & SCSW_STCTL_STATUS_PEND)) {
 		/*
 		 * No final status yet or final status not yet delivered
-		 * to the device driver. Can't do path verfication now,
+		 * to the device driver. Can't do path verification now,
 		 * delay until final status was delivered.
 		 */
 		cdev->private->flags.doverify = 1;

@@ -267,7 +267,7 @@ void led_blink_set(struct led_classdev *led_cdev,
 		   unsigned long *delay_off)
 {
 	if (led_cdev->blink_set &&
-	    led_cdev->blink_set(led_cdev, delay_on, delay_off))
+	    !led_cdev->blink_set(led_cdev, delay_on, delay_off))
 		return;
 
 	/* blink with 1 Hz as default if nothing specified */

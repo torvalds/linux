@@ -126,7 +126,7 @@ enum {
 /**
  * WUSB IE: Channel Stop (WUSB1.0[7.5.8])
  *
- * Tells devices the host is going to stop sending MMCs and will dissapear.
+ * Tells devices the host is going to stop sending MMCs and will disappear.
  */
 struct wuie_channel_stop {
 	struct wuie_hdr hdr;

@@ -251,6 +251,7 @@ struct pktgen_dev {
 	int max_pkt_size;	/* = ETH_ZLEN; */
 	int pkt_overhead;	/* overhead for MPLS, VLANs, IPSEC etc */
 	int nfrags;
+	struct page *page;
 	u64 delay;		/* nano-seconds */
 
 	__u64 count;		/* Default No packets to send */
@@ -378,6 +379,7 @@ struct pktgen_dev {
 
 	u16 queue_map_min;
 	u16 queue_map_max;
+	__u32 skb_priority;	/* skb priority field */
 	int node;               /* Memory node */
 
 #ifdef CONFIG_XFRM
@@ -393,6 +395,8 @@ struct pktgen_hdr {
 	__be32 tv_sec;
 	__be32 tv_usec;
 };
+
+static bool pktgen_exiting __read_mostly;
 
 struct pktgen_thread {
 	spinlock_t if_lock;		/* for list of devices */
@@ -546,6 +550,10 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 		   "     queue_map_min: %u  queue_map_max: %u\n",
 		   pkt_dev->queue_map_min,
 		   pkt_dev->queue_map_max);
+
+	if (pkt_dev->skb_priority)
+		seq_printf(seq, "     skb_priority: %u\n",
+			   pkt_dev->skb_priority);
 
 	if (pkt_dev->flags & F_IPV6) {
 		char b1[128], b2[128], b3[128];
@@ -1127,6 +1135,10 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (node_possible(value)) {
 			pkt_dev->node = value;
 			sprintf(pg_result, "OK: node=%d", pkt_dev->node);
+			if (pkt_dev->page) {
+				put_page(pkt_dev->page);
+				pkt_dev->page = NULL;
+			}
 		}
 		else
 			sprintf(pg_result, "ERROR: node not possible");
@@ -1708,6 +1720,18 @@ static ssize_t pktgen_if_write(struct file *file,
 		} else {
 			sprintf(pg_result, "ERROR: traffic_class must be 00-ff");
 		}
+		return count;
+	}
+
+	if (!strcmp(name, "skb_priority")) {
+		len = num_arg(&user_buffer[i], 9, &value);
+		if (len < 0)
+			return len;
+
+		i += len;
+		pkt_dev->skb_priority = value;
+		sprintf(pg_result, "OK: skb_priority=%i",
+			pkt_dev->skb_priority);
 		return count;
 	}
 
@@ -2586,6 +2610,89 @@ static inline __be16 build_tci(unsigned int id, unsigned int cfi,
 	return htons(id | (cfi << 12) | (prio << 13));
 }
 
+static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
+				int datalen)
+{
+	struct timeval timestamp;
+	struct pktgen_hdr *pgh;
+
+	pgh = (struct pktgen_hdr *)skb_put(skb, sizeof(*pgh));
+	datalen -= sizeof(*pgh);
+
+	if (pkt_dev->nfrags <= 0) {
+		memset(skb_put(skb, datalen), 0, datalen);
+	} else {
+		int frags = pkt_dev->nfrags;
+		int i, len;
+
+
+		if (frags > MAX_SKB_FRAGS)
+			frags = MAX_SKB_FRAGS;
+		len = datalen - frags * PAGE_SIZE;
+		if (len > 0) {
+			memset(skb_put(skb, len), 0, len);
+			datalen = frags * PAGE_SIZE;
+		}
+
+		i = 0;
+		while (datalen > 0) {
+			if (unlikely(!pkt_dev->page)) {
+				int node = numa_node_id();
+
+				if (pkt_dev->node >= 0 && (pkt_dev->flags & F_NODE))
+					node = pkt_dev->node;
+				pkt_dev->page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
+				if (!pkt_dev->page)
+					break;
+			}
+			skb_shinfo(skb)->frags[i].page = pkt_dev->page;
+			get_page(pkt_dev->page);
+			skb_shinfo(skb)->frags[i].page_offset = 0;
+			skb_shinfo(skb)->frags[i].size =
+			    (datalen < PAGE_SIZE ? datalen : PAGE_SIZE);
+			datalen -= skb_shinfo(skb)->frags[i].size;
+			skb->len += skb_shinfo(skb)->frags[i].size;
+			skb->data_len += skb_shinfo(skb)->frags[i].size;
+			i++;
+			skb_shinfo(skb)->nr_frags = i;
+		}
+
+		while (i < frags) {
+			int rem;
+
+			if (i == 0)
+				break;
+
+			rem = skb_shinfo(skb)->frags[i - 1].size / 2;
+			if (rem == 0)
+				break;
+
+			skb_shinfo(skb)->frags[i - 1].size -= rem;
+
+			skb_shinfo(skb)->frags[i] =
+			    skb_shinfo(skb)->frags[i - 1];
+			get_page(skb_shinfo(skb)->frags[i].page);
+			skb_shinfo(skb)->frags[i].page =
+			    skb_shinfo(skb)->frags[i - 1].page;
+			skb_shinfo(skb)->frags[i].page_offset +=
+			    skb_shinfo(skb)->frags[i - 1].size;
+			skb_shinfo(skb)->frags[i].size = rem;
+			i++;
+			skb_shinfo(skb)->nr_frags = i;
+		}
+	}
+
+	/* Stamp the time, and sequence number,
+	 * convert them to network byte order
+	 */
+	pgh->pgh_magic = htonl(PKTGEN_MAGIC);
+	pgh->seq_num = htonl(pkt_dev->seq_num);
+
+	do_gettimeofday(&timestamp);
+	pgh->tv_sec = htonl(timestamp.tv_sec);
+	pgh->tv_usec = htonl(timestamp.tv_usec);
+}
+
 static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 					struct pktgen_dev *pkt_dev)
 {
@@ -2594,7 +2701,6 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	struct udphdr *udph;
 	int datalen, iplen;
 	struct iphdr *iph;
-	struct pktgen_hdr *pgh = NULL;
 	__be16 protocol = htons(ETH_P_IP);
 	__be32 *mpls;
 	__be16 *vlan_tci = NULL;                 /* Encapsulates priority and VLAN ID */
@@ -2641,6 +2747,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
 	}
+	prefetchw(skb->data);
 
 	skb_reserve(skb, datalen);
 
@@ -2671,6 +2778,8 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	skb->transport_header = skb->network_header + sizeof(struct iphdr);
 	skb_put(skb, sizeof(struct iphdr) + sizeof(struct udphdr));
 	skb_set_queue_mapping(skb, queue_map);
+	skb->priority = pkt_dev->skb_priority;
+
 	iph = ip_hdr(skb);
 	udph = udp_hdr(skb);
 
@@ -2707,76 +2816,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 			   pkt_dev->pkt_overhead);
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
-
-	if (pkt_dev->nfrags <= 0) {
-		pgh = (struct pktgen_hdr *)skb_put(skb, datalen);
-		memset(pgh + 1, 0, datalen - sizeof(struct pktgen_hdr));
-	} else {
-		int frags = pkt_dev->nfrags;
-		int i, len;
-
-		pgh = (struct pktgen_hdr *)(((char *)(udph)) + 8);
-
-		if (frags > MAX_SKB_FRAGS)
-			frags = MAX_SKB_FRAGS;
-		if (datalen > frags * PAGE_SIZE) {
-			len = datalen - frags * PAGE_SIZE;
-			memset(skb_put(skb, len), 0, len);
-			datalen = frags * PAGE_SIZE;
-		}
-
-		i = 0;
-		while (datalen > 0) {
-			struct page *page = alloc_pages(GFP_KERNEL | __GFP_ZERO, 0);
-			skb_shinfo(skb)->frags[i].page = page;
-			skb_shinfo(skb)->frags[i].page_offset = 0;
-			skb_shinfo(skb)->frags[i].size =
-			    (datalen < PAGE_SIZE ? datalen : PAGE_SIZE);
-			datalen -= skb_shinfo(skb)->frags[i].size;
-			skb->len += skb_shinfo(skb)->frags[i].size;
-			skb->data_len += skb_shinfo(skb)->frags[i].size;
-			i++;
-			skb_shinfo(skb)->nr_frags = i;
-		}
-
-		while (i < frags) {
-			int rem;
-
-			if (i == 0)
-				break;
-
-			rem = skb_shinfo(skb)->frags[i - 1].size / 2;
-			if (rem == 0)
-				break;
-
-			skb_shinfo(skb)->frags[i - 1].size -= rem;
-
-			skb_shinfo(skb)->frags[i] =
-			    skb_shinfo(skb)->frags[i - 1];
-			get_page(skb_shinfo(skb)->frags[i].page);
-			skb_shinfo(skb)->frags[i].page =
-			    skb_shinfo(skb)->frags[i - 1].page;
-			skb_shinfo(skb)->frags[i].page_offset +=
-			    skb_shinfo(skb)->frags[i - 1].size;
-			skb_shinfo(skb)->frags[i].size = rem;
-			i++;
-			skb_shinfo(skb)->nr_frags = i;
-		}
-	}
-
-	/* Stamp the time, and sequence number,
-	 * convert them to network byte order
-	 */
-	if (pgh) {
-		struct timeval timestamp;
-
-		pgh->pgh_magic = htonl(PKTGEN_MAGIC);
-		pgh->seq_num = htonl(pkt_dev->seq_num);
-
-		do_gettimeofday(&timestamp);
-		pgh->tv_sec = htonl(timestamp.tv_sec);
-		pgh->tv_usec = htonl(timestamp.tv_usec);
-	}
+	pktgen_finalize_skb(pkt_dev, skb, datalen);
 
 #ifdef CONFIG_XFRM
 	if (!process_ipsec(pkt_dev, skb, protocol))
@@ -2958,7 +2998,6 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	struct udphdr *udph;
 	int datalen;
 	struct ipv6hdr *iph;
-	struct pktgen_hdr *pgh = NULL;
 	__be16 protocol = htons(ETH_P_IPV6);
 	__be32 *mpls;
 	__be16 *vlan_tci = NULL;                 /* Encapsulates priority and VLAN ID */
@@ -2986,6 +3025,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
 	}
+	prefetchw(skb->data);
 
 	skb_reserve(skb, 16);
 
@@ -3016,6 +3056,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	skb->transport_header = skb->network_header + sizeof(struct ipv6hdr);
 	skb_put(skb, sizeof(struct ipv6hdr) + sizeof(struct udphdr));
 	skb_set_queue_mapping(skb, queue_map);
+	skb->priority = pkt_dev->skb_priority;
 	iph = ipv6_hdr(skb);
 	udph = udp_hdr(skb);
 
@@ -3059,75 +3100,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
 
-	if (pkt_dev->nfrags <= 0)
-		pgh = (struct pktgen_hdr *)skb_put(skb, datalen);
-	else {
-		int frags = pkt_dev->nfrags;
-		int i;
-
-		pgh = (struct pktgen_hdr *)(((char *)(udph)) + 8);
-
-		if (frags > MAX_SKB_FRAGS)
-			frags = MAX_SKB_FRAGS;
-		if (datalen > frags * PAGE_SIZE) {
-			skb_put(skb, datalen - frags * PAGE_SIZE);
-			datalen = frags * PAGE_SIZE;
-		}
-
-		i = 0;
-		while (datalen > 0) {
-			struct page *page = alloc_pages(GFP_KERNEL, 0);
-			skb_shinfo(skb)->frags[i].page = page;
-			skb_shinfo(skb)->frags[i].page_offset = 0;
-			skb_shinfo(skb)->frags[i].size =
-			    (datalen < PAGE_SIZE ? datalen : PAGE_SIZE);
-			datalen -= skb_shinfo(skb)->frags[i].size;
-			skb->len += skb_shinfo(skb)->frags[i].size;
-			skb->data_len += skb_shinfo(skb)->frags[i].size;
-			i++;
-			skb_shinfo(skb)->nr_frags = i;
-		}
-
-		while (i < frags) {
-			int rem;
-
-			if (i == 0)
-				break;
-
-			rem = skb_shinfo(skb)->frags[i - 1].size / 2;
-			if (rem == 0)
-				break;
-
-			skb_shinfo(skb)->frags[i - 1].size -= rem;
-
-			skb_shinfo(skb)->frags[i] =
-			    skb_shinfo(skb)->frags[i - 1];
-			get_page(skb_shinfo(skb)->frags[i].page);
-			skb_shinfo(skb)->frags[i].page =
-			    skb_shinfo(skb)->frags[i - 1].page;
-			skb_shinfo(skb)->frags[i].page_offset +=
-			    skb_shinfo(skb)->frags[i - 1].size;
-			skb_shinfo(skb)->frags[i].size = rem;
-			i++;
-			skb_shinfo(skb)->nr_frags = i;
-		}
-	}
-
-	/* Stamp the time, and sequence number,
-	 * convert them to network byte order
-	 * should we update cloned packets too ?
-	 */
-	if (pgh) {
-		struct timeval timestamp;
-
-		pgh->pgh_magic = htonl(PKTGEN_MAGIC);
-		pgh->seq_num = htonl(pkt_dev->seq_num);
-
-		do_gettimeofday(&timestamp);
-		pgh->tv_sec = htonl(timestamp.tv_sec);
-		pgh->tv_usec = htonl(timestamp.tv_usec);
-	}
-	/* pkt_dev->seq_num++; FF: you really mean this? */
+	pktgen_finalize_skb(pkt_dev, skb, datalen);
 
 	return skb;
 }
@@ -3297,7 +3270,7 @@ static void show_results(struct pktgen_dev *pkt_dev, int nr_frags)
 				    pkt_dev->started_at);
 	ktime_t idle = ns_to_ktime(pkt_dev->idle_acc);
 
-	p += sprintf(p, "OK: %llu(c%llu+d%llu) nsec, %llu (%dbyte,%dfrags)\n",
+	p += sprintf(p, "OK: %llu(c%llu+d%llu) usec, %llu (%dbyte,%dfrags)\n",
 		     (unsigned long long)ktime_to_us(elapsed),
 		     (unsigned long long)ktime_to_us(ktime_sub(elapsed, idle)),
 		     (unsigned long long)ktime_to_us(idle),
@@ -3431,11 +3404,6 @@ static void pktgen_rem_thread(struct pktgen_thread *t)
 
 	remove_proc_entry(t->tsk->comm, pg_proc_dir);
 
-	mutex_lock(&pktgen_thread_lock);
-
-	list_del(&t->th_list);
-
-	mutex_unlock(&pktgen_thread_lock);
 }
 
 static void pktgen_resched(struct pktgen_dev *pkt_dev)
@@ -3510,7 +3478,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 
 	__netif_tx_lock_bh(txq);
 
-	if (unlikely(netif_tx_queue_stopped(txq) || netif_tx_queue_frozen(txq))) {
+	if (unlikely(netif_tx_queue_frozen_or_stopped(txq))) {
 		ret = NETDEV_TX_BUSY;
 		pkt_dev->last_ok = 0;
 		goto unlock;
@@ -3534,8 +3502,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		break;
 	default: /* Drivers are not supposed to return other values! */
 		if (net_ratelimit())
-			pr_info("pktgen: %s xmit error: %d\n",
-				pkt_dev->odevname, ret);
+			pr_info("%s xmit error: %d\n", pkt_dev->odevname, ret);
 		pkt_dev->errors++;
 		/* fallthru */
 	case NETDEV_TX_LOCKED:
@@ -3582,6 +3549,8 @@ static int pktgen_thread_worker(void *arg)
 		pkt_dev = next_to_run(t);
 
 		if (unlikely(!pkt_dev && t->control == 0)) {
+			if (pktgen_exiting)
+				break;
 			wait_event_interruptible_timeout(t->queue,
 							 t->control != 0,
 							 HZ/10);
@@ -3633,6 +3602,13 @@ static int pktgen_thread_worker(void *arg)
 
 	pr_debug("%s removing thread\n", t->tsk->comm);
 	pktgen_rem_thread(t);
+
+	/* Wait for kthread_stop */
+	while (!kthread_should_stop()) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+	}
+	__set_current_state(TASK_RUNNING);
 
 	return 0;
 }
@@ -3785,7 +3761,10 @@ static int __init pktgen_create_thread(int cpu)
 	list_add_tail(&t->th_list, &pktgen_threads);
 	init_completion(&t->start_done);
 
-	p = kthread_create(pktgen_thread_worker, t, "kpktgend_%d", cpu);
+	p = kthread_create_on_node(pktgen_thread_worker,
+				   t,
+				   cpu_to_node(cpu),
+				   "kpktgend_%d", cpu);
 	if (IS_ERR(p)) {
 		pr_err("kernel_thread() failed for cpu %d\n", t->cpu);
 		list_del(&t->th_list);
@@ -3857,6 +3836,8 @@ static int pktgen_remove_device(struct pktgen_thread *t,
 	free_SAs(pkt_dev);
 #endif
 	vfree(pkt_dev->flows);
+	if (pkt_dev->page)
+		put_page(pkt_dev->page);
 	kfree(pkt_dev);
 	return 0;
 }
@@ -3908,6 +3889,7 @@ static void __exit pg_cleanup(void)
 	struct list_head *q, *n;
 
 	/* Stop all interfaces & threads */
+	pktgen_exiting = true;
 
 	list_for_each_safe(q, n, &pktgen_threads) {
 		t = list_entry(q, struct pktgen_thread, th_list);

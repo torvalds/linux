@@ -8,6 +8,8 @@
  * the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define EVDEV_MINOR_BASE	64
 #define EVDEV_MINORS		32
 #define EVDEV_MIN_BUFFER_SIZE	64U
@@ -37,13 +39,13 @@ struct evdev {
 };
 
 struct evdev_client {
-	int head;
-	int tail;
+	unsigned int head;
+	unsigned int tail;
 	spinlock_t buffer_lock; /* protects access to buffer, head and tail */
 	struct fasync_struct *fasync;
 	struct evdev *evdev;
 	struct list_head node;
-	int bufsize;
+	unsigned int bufsize;
 	struct input_event buffer[];
 };
 
@@ -53,16 +55,25 @@ static DEFINE_MUTEX(evdev_table_mutex);
 static void evdev_pass_event(struct evdev_client *client,
 			     struct input_event *event)
 {
-	/*
-	 * Interrupts are disabled, just acquire the lock.
-	 * Make sure we don't leave with the client buffer
-	 * "empty" by having client->head == client->tail.
-	 */
+	/* Interrupts are disabled, just acquire the lock. */
 	spin_lock(&client->buffer_lock);
-	do {
-		client->buffer[client->head++] = *event;
-		client->head &= client->bufsize - 1;
-	} while (client->head == client->tail);
+
+	client->buffer[client->head++] = *event;
+	client->head &= client->bufsize - 1;
+
+	if (unlikely(client->head == client->tail)) {
+		/*
+		 * This effectively "drops" all unconsumed events, leaving
+		 * EV_SYN/SYN_DROPPED plus the newest event in the queue.
+		 */
+		client->tail = (client->head - 2) & (client->bufsize - 1);
+
+		client->buffer[client->tail].time = event->time;
+		client->buffer[client->tail].type = EV_SYN;
+		client->buffer[client->tail].code = SYN_DROPPED;
+		client->buffer[client->tail].value = 0;
+	}
+
 	spin_unlock(&client->buffer_lock);
 
 	if (event->type == EV_SYN)
@@ -319,6 +330,9 @@ static ssize_t evdev_write(struct file *file, const char __user *buffer,
 	struct input_event event;
 	int retval;
 
+	if (count < input_event_size())
+		return -EINVAL;
+
 	retval = mutex_lock_interruptible(&evdev->mutex);
 	if (retval)
 		return retval;
@@ -328,17 +342,16 @@ static ssize_t evdev_write(struct file *file, const char __user *buffer,
 		goto out;
 	}
 
-	while (retval < count) {
-
+	do {
 		if (input_event_from_user(buffer + retval, &event)) {
 			retval = -EFAULT;
 			goto out;
 		}
+		retval += input_event_size();
 
 		input_inject_event(&evdev->handle,
 				   event.type, event.code, event.value);
-		retval += input_event_size();
-	}
+	} while (retval + input_event_size() <= count);
 
  out:
 	mutex_unlock(&evdev->mutex);
@@ -522,88 +535,84 @@ static int handle_eviocgbit(struct input_dev *dev,
 	if (type == EV_KEY && size == OLD_KEY_MAX) {
 		len = OLD_KEY_MAX;
 		if (printk_timed_ratelimit(&keymax_warn_time, 10 * 1000))
-			printk(KERN_WARNING
-				"evdev.c(EVIOCGBIT): Suspicious buffer size %u, "
-				"limiting output to %zu bytes. See "
-				"http://userweb.kernel.org/~dtor/eviocgbit-bug.html\n",
-				OLD_KEY_MAX,
-				BITS_TO_LONGS(OLD_KEY_MAX) * sizeof(long));
+			pr_warning("(EVIOCGBIT): Suspicious buffer size %u, "
+				   "limiting output to %zu bytes. See "
+				   "http://userweb.kernel.org/~dtor/eviocgbit-bug.html\n",
+				   OLD_KEY_MAX,
+				   BITS_TO_LONGS(OLD_KEY_MAX) * sizeof(long));
 	}
 
 	return bits_to_user(bits, len, size, p, compat_mode);
 }
 #undef OLD_KEY_MAX
 
-static int evdev_handle_get_keycode(struct input_dev *dev,
-				    void __user *p, size_t size)
+static int evdev_handle_get_keycode(struct input_dev *dev, void __user *p)
+{
+	struct input_keymap_entry ke = {
+		.len	= sizeof(unsigned int),
+		.flags	= 0,
+	};
+	int __user *ip = (int __user *)p;
+	int error;
+
+	/* legacy case */
+	if (copy_from_user(ke.scancode, p, sizeof(unsigned int)))
+		return -EFAULT;
+
+	error = input_get_keycode(dev, &ke);
+	if (error)
+		return error;
+
+	if (put_user(ke.keycode, ip + 1))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int evdev_handle_get_keycode_v2(struct input_dev *dev, void __user *p)
 {
 	struct input_keymap_entry ke;
 	int error;
 
-	memset(&ke, 0, sizeof(ke));
+	if (copy_from_user(&ke, p, sizeof(ke)))
+		return -EFAULT;
 
-	if (size == sizeof(unsigned int[2])) {
-		/* legacy case */
-		int __user *ip = (int __user *)p;
+	error = input_get_keycode(dev, &ke);
+	if (error)
+		return error;
 
-		if (copy_from_user(ke.scancode, p, sizeof(unsigned int)))
-			return -EFAULT;
+	if (copy_to_user(p, &ke, sizeof(ke)))
+		return -EFAULT;
 
-		ke.len = sizeof(unsigned int);
-		ke.flags = 0;
-
-		error = input_get_keycode(dev, &ke);
-		if (error)
-			return error;
-
-		if (put_user(ke.keycode, ip + 1))
-			return -EFAULT;
-
-	} else {
-		size = min(size, sizeof(ke));
-
-		if (copy_from_user(&ke, p, size))
-			return -EFAULT;
-
-		error = input_get_keycode(dev, &ke);
-		if (error)
-			return error;
-
-		if (copy_to_user(p, &ke, size))
-			return -EFAULT;
-	}
 	return 0;
 }
 
-static int evdev_handle_set_keycode(struct input_dev *dev,
-				    void __user *p, size_t size)
+static int evdev_handle_set_keycode(struct input_dev *dev, void __user *p)
+{
+	struct input_keymap_entry ke = {
+		.len	= sizeof(unsigned int),
+		.flags	= 0,
+	};
+	int __user *ip = (int __user *)p;
+
+	if (copy_from_user(ke.scancode, p, sizeof(unsigned int)))
+		return -EFAULT;
+
+	if (get_user(ke.keycode, ip + 1))
+		return -EFAULT;
+
+	return input_set_keycode(dev, &ke);
+}
+
+static int evdev_handle_set_keycode_v2(struct input_dev *dev, void __user *p)
 {
 	struct input_keymap_entry ke;
 
-	memset(&ke, 0, sizeof(ke));
+	if (copy_from_user(&ke, p, sizeof(ke)))
+		return -EFAULT;
 
-	if (size == sizeof(unsigned int[2])) {
-		/* legacy case */
-		int __user *ip = (int __user *)p;
-
-		if (copy_from_user(ke.scancode, p, sizeof(unsigned int)))
-			return -EFAULT;
-
-		if (get_user(ke.keycode, ip + 1))
-			return -EFAULT;
-
-		ke.len = sizeof(unsigned int);
-		ke.flags = 0;
-
-	} else {
-		size = min(size, sizeof(ke));
-
-		if (copy_from_user(&ke, p, size))
-			return -EFAULT;
-
-		if (ke.len > sizeof(ke.scancode))
-			return -EINVAL;
-	}
+	if (ke.len > sizeof(ke.scancode))
+		return -EINVAL;
 
 	return input_set_keycode(dev, &ke);
 }
@@ -669,6 +678,18 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			return evdev_grab(evdev, client);
 		else
 			return evdev_ungrab(evdev, client);
+
+	case EVIOCGKEYCODE:
+		return evdev_handle_get_keycode(dev, p);
+
+	case EVIOCSKEYCODE:
+		return evdev_handle_set_keycode(dev, p);
+
+	case EVIOCGKEYCODE_V2:
+		return evdev_handle_get_keycode_v2(dev, p);
+
+	case EVIOCSKEYCODE_V2:
+		return evdev_handle_set_keycode_v2(dev, p);
 	}
 
 	size = _IOC_SIZE(cmd);
@@ -676,6 +697,10 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 	/* Now check variable-length commands */
 #define EVIOC_MASK_SIZE(nr)	((nr) & ~(_IOC_SIZEMASK << _IOC_SIZESHIFT))
 	switch (EVIOC_MASK_SIZE(cmd)) {
+
+	case EVIOCGPROP(0):
+		return bits_to_user(dev->propbit, INPUT_PROP_MAX,
+				    size, p, compat_mode);
 
 	case EVIOCGKEY(0):
 		return bits_to_user(dev->key, KEY_MAX, size, p, compat_mode);
@@ -708,12 +733,6 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		return error;
-
-	case EVIOC_MASK_SIZE(EVIOCGKEYCODE):
-		return evdev_handle_get_keycode(dev, p, size);
-
-	case EVIOC_MASK_SIZE(EVIOCSKEYCODE):
-		return evdev_handle_set_keycode(dev, p, size);
 	}
 
 	/* Multi-number variable-length handlers */
@@ -894,7 +913,7 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 			break;
 
 	if (minor == EVDEV_MINORS) {
-		printk(KERN_ERR "evdev: no more free evdev devices\n");
+		pr_err("no more free evdev devices\n");
 		return -ENFILE;
 	}
 

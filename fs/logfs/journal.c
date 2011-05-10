@@ -828,7 +828,7 @@ void do_logfs_journal_wl_pass(struct super_block *sb)
 		super->s_journal_seg[i] = segno;
 		super->s_journal_ec[i] = ec;
 		logfs_set_segment_reserved(sb, segno);
-		err = btree_insert32(head, segno, (void *)1, GFP_KERNEL);
+		err = btree_insert32(head, segno, (void *)1, GFP_NOFS);
 		BUG_ON(err); /* mempool should prevent this */
 		err = logfs_erase_segment(sb, segno, 1);
 		BUG_ON(err); /* FIXME: remount-ro would be nicer */

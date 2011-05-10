@@ -15,18 +15,15 @@ int saa7146_res_get(struct saa7146_fh *fh, unsigned int bit)
 	}
 
 	/* is it free? */
-	mutex_lock(&dev->lock);
 	if (vv->resources & bit) {
 		DEB_D(("locked! vv->resources:0x%02x, we want:0x%02x\n",vv->resources,bit));
 		/* no, someone else uses it */
-		mutex_unlock(&dev->lock);
 		return 0;
 	}
 	/* it's free, grab it */
 	fh->resources  |= bit;
 	vv->resources |= bit;
 	DEB_D(("res: get 0x%02x, cur:0x%02x\n",bit,vv->resources));
-	mutex_unlock(&dev->lock);
 	return 1;
 }
 
@@ -37,11 +34,9 @@ void saa7146_res_free(struct saa7146_fh *fh, unsigned int bits)
 
 	BUG_ON((fh->resources & bits) != bits);
 
-	mutex_lock(&dev->lock);
 	fh->resources  &= ~bits;
 	vv->resources &= ~bits;
 	DEB_D(("res: put 0x%02x, cur:0x%02x\n",bits,vv->resources));
-	mutex_unlock(&dev->lock);
 }
 
 
@@ -396,7 +391,7 @@ static const struct v4l2_file_operations video_fops =
 	.write		= fops_write,
 	.poll		= fops_poll,
 	.mmap		= fops_mmap,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static void vv_callback(struct saa7146_dev *dev, unsigned long status)
@@ -505,6 +500,7 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	vfd->fops = &video_fops;
 	vfd->ioctl_ops = &dev->ext_vv_data->ops;
 	vfd->release = video_device_release;
+	vfd->lock = &dev->v4l2_lock;
 	vfd->tvnorms = 0;
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
 		vfd->tvnorms |= dev->ext_vv_data->stds[i].id;

@@ -208,10 +208,23 @@ static int pb0100_probe(struct sd *sd)
 
 static int pb0100_start(struct sd *sd)
 {
-	int err;
+	int err, packet_size, max_packet_size;
+	struct usb_host_interface *alt;
+	struct usb_interface *intf;
 	struct cam *cam = &sd->gspca_dev.cam;
 	s32 *sensor_settings = sd->sensor_priv;
 	u32 mode = cam->cam_mode[sd->gspca_dev.curr_mode].priv;
+
+	intf = usb_ifnum_to_if(sd->gspca_dev.dev, sd->gspca_dev.iface);
+	alt = usb_altnum_to_altsetting(intf, sd->gspca_dev.alt);
+	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
+
+	/* If we don't have enough bandwidth use a lower framerate */
+	max_packet_size = sd->sensor->max_packet_size[sd->gspca_dev.curr_mode];
+	if (packet_size < max_packet_size)
+		stv06xx_write_sensor(sd, PB_ROWSPEED, BIT(4)|BIT(3)|BIT(1));
+	else
+		stv06xx_write_sensor(sd, PB_ROWSPEED, BIT(5)|BIT(3)|BIT(1));
 
 	/* Setup sensor window */
 	if (mode & PB0100_CROP_TO_VGA) {
@@ -327,9 +340,6 @@ static int pb0100_init(struct sd *sd)
 	stv06xx_write_bridge(sd, STV_REG00, 0x11);
 	stv06xx_write_bridge(sd, STV_REG03, 0x45);
 	stv06xx_write_bridge(sd, STV_REG04, 0x07);
-
-	/* ISO-Size (0x27b: 635... why? - HDCS uses 847) */
-	stv06xx_write_bridge(sd, STV_ISO_SIZE_L, 847);
 
 	/* Scan/timing for the sensor */
 	stv06xx_write_sensor(sd, PB_ROWSPEED, BIT(4)|BIT(3)|BIT(1));

@@ -25,9 +25,9 @@
 
 #include "clock.h"
 #include "clock3xxx.h"
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
 #include "prm-regbits-34xx.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
 
 /*
@@ -65,9 +65,6 @@ void __init omap3_clk_lock_dpll5(void)
 	clk_set_rate(dpll5_clk, DPLL5_FREQ_FOR_USBHOST);
 	clk_enable(dpll5_clk);
 
-	/* Enable autoidle to allow it to enter low power bypass */
-	omap3_dpll_allow_idle(dpll5_clk);
-
 	/* Program dpll5_m2_clk divider for no division */
 	dpll5_m2_clk = clk_get(NULL, "dpll5_m2_ck");
 	clk_enable(dpll5_m2_clk);
@@ -94,7 +91,7 @@ static int __init omap3xxx_clk_arch_init(void)
 
 	ret = omap2_clk_switch_mpurate_at_boot("dpll1_ck");
 	if (!ret)
-		omap2_clk_print_new_rates("osc_sys_ck", "arm_fck", "core_ck");
+		omap2_clk_print_new_rates("osc_sys_ck", "core_ck", "arm_fck");
 
 	return ret;
 }

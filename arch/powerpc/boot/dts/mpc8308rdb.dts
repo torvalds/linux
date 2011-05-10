@@ -109,7 +109,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "soc";
-		compatible = "fsl,mpc8315-immr", "simple-bus";
+		compatible = "fsl,mpc8308-immr", "simple-bus";
 		ranges = <0 0xe0000000 0x00100000>;
 		reg = <0xe0000000 0x00000200>;
 		bus-frequency = <0>;
@@ -262,6 +262,14 @@
 					0x57 0x8
 					0x58 0x8
 					0x59 0x8 >;
+			interrupt-parent = < &ipic >;
+		};
+
+		dma@2c000 {
+			compatible = "fsl,mpc8308-dma", "fsl,mpc5121-dma";
+			reg = <0x2c000 0x1800>;
+			interrupts = <3 0x8
+					94 0x8>;
 			interrupt-parent = < &ipic >;
 		};
 

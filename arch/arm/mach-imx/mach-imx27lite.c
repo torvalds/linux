@@ -25,7 +25,6 @@
 #include <mach/iomux-mx27.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 static const int mx27lite_pins[] __initconst = {
 	/* UART1 */
@@ -76,9 +75,10 @@ static struct sys_timer mx27lite_timer = {
 };
 
 MACHINE_START(IMX27LITE, "LogicPD i.MX27LITE")
-	.boot_params    = MX27_PHYS_OFFSET + 0x100,
-	.map_io         = mx27_map_io,
-	.init_irq       = mx27_init_irq,
-	.init_machine   = mx27lite_init,
-	.timer          = &mx27lite_timer,
+	.boot_params = MX27_PHYS_OFFSET + 0x100,
+	.map_io = mx27_map_io,
+	.init_early = imx27_init_early,
+	.init_irq = mx27_init_irq,
+	.timer = &mx27lite_timer,
+	.init_machine = mx27lite_init,
 MACHINE_END

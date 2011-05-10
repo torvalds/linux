@@ -60,10 +60,13 @@ static int mdsc_show(struct seq_file *s, void *p)
 	for (rp = rb_first(&mdsc->request_tree); rp; rp = rb_next(rp)) {
 		req = rb_entry(rp, struct ceph_mds_request, r_node);
 
-		if (req->r_request)
-			seq_printf(s, "%lld\tmds%d\t", req->r_tid, req->r_mds);
-		else
+		if (req->r_request && req->r_session)
+			seq_printf(s, "%lld\tmds%d\t", req->r_tid,
+				   req->r_session->s_mds);
+		else if (!req->r_request)
 			seq_printf(s, "%lld\t(no request)\t", req->r_tid);
+		else
+			seq_printf(s, "%lld\t(no session)\t", req->r_tid);
 
 		seq_printf(s, "%s", ceph_mds_op_name(req->r_op));
 
@@ -207,8 +210,6 @@ int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 	if (!fsc->debugfs_congestion_kb)
 		goto out;
 
-	dout("a\n");
-
 	snprintf(name, sizeof(name), "../../bdi/%s",
 		 dev_name(fsc->backing_dev_info.dev));
 	fsc->debugfs_bdi =
@@ -218,7 +219,6 @@ int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 	if (!fsc->debugfs_bdi)
 		goto out;
 
-	dout("b\n");
 	fsc->debugfs_mdsmap = debugfs_create_file("mdsmap",
 					0600,
 					fsc->client->debugfs_dir,
@@ -227,7 +227,6 @@ int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 	if (!fsc->debugfs_mdsmap)
 		goto out;
 
-	dout("ca\n");
 	fsc->debugfs_mdsc = debugfs_create_file("mdsc",
 						0600,
 						fsc->client->debugfs_dir,
@@ -236,7 +235,6 @@ int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 	if (!fsc->debugfs_mdsc)
 		goto out;
 
-	dout("da\n");
 	fsc->debugfs_caps = debugfs_create_file("caps",
 						   0400,
 						   fsc->client->debugfs_dir,
@@ -245,7 +243,6 @@ int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 	if (!fsc->debugfs_caps)
 		goto out;
 
-	dout("ea\n");
 	fsc->debugfs_dentry_lru = debugfs_create_file("dentry_lru",
 					0600,
 					fsc->client->debugfs_dir,

@@ -2,7 +2,7 @@
  * linux/arch/sh/mm/init.c
  *
  *  Copyright (C) 1999  Niibe Yutaka
- *  Copyright (C) 2002 - 2010  Paul Mundt
+ *  Copyright (C) 2002 - 2011  Paul Mundt
  *
  *  Based on linux/arch/i386/mm/init.c:
  *   Copyright (C) 1995  Linus Torvalds
@@ -325,10 +325,16 @@ void __init paging_init(void)
 	int nid;
 
 	memblock_init();
-
 	sh_mv.mv_mem_init();
 
 	early_reserve_mem();
+
+	/*
+	 * Once the early reservations are out of the way, give the
+	 * platforms a chance to kick out some memory.
+	 */
+	if (sh_mv.mv_mem_reserve)
+		sh_mv.mv_mem_reserve();
 
 	memblock_enforce_memory_limit(memory_limit);
 	memblock_analyze();

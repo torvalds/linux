@@ -2954,9 +2954,6 @@ static int vino_enum_input(struct file *file, void *__fh,
 	if (input == VINO_INPUT_NONE)
 		return -EINVAL;
 
-	memset(i, 0, sizeof(struct v4l2_input));
-
-	i->index = index;
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 	i->std = vino_inputs[input].std;
 	strcpy(i->name, vino_inputs[input].name);

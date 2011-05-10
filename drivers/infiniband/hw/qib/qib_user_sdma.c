@@ -239,7 +239,7 @@ static int qib_user_sdma_num_pages(const struct iovec *iov)
 }
 
 /*
- * Truncate length to page boundry.
+ * Truncate length to page boundary.
  */
 static int qib_user_sdma_page_length(unsigned long addr, unsigned long len)
 {
@@ -382,6 +382,7 @@ static void qib_user_sdma_free_pkt_list(struct device *dev,
 
 		kmem_cache_free(pq->pkt_slab, pkt);
 	}
+	INIT_LIST_HEAD(list);
 }
 
 /*

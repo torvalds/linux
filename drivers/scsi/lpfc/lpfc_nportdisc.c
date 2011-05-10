@@ -350,7 +350,11 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	ndlp->nlp_maxframe =
 		((sp->cmn.bbRcvSizeMsb & 0x0F) << 8) | sp->cmn.bbRcvSizeLsb;
 
-	/* no need to reg_login if we are already in one of these states */
+	/*
+	 * Need to unreg_login if we are already in one of these states and
+	 * change to NPR state. This will block the port until after the ACC
+	 * completes and the reg_login is issued and completed.
+	 */
 	switch (ndlp->nlp_state) {
 	case  NLP_STE_NPR_NODE:
 		if (!(ndlp->nlp_flag & NLP_NPR_ADISC))
@@ -359,8 +363,9 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	case  NLP_STE_PRLI_ISSUE:
 	case  NLP_STE_UNMAPPED_NODE:
 	case  NLP_STE_MAPPED_NODE:
-		lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb, ndlp, NULL);
-		return 1;
+		lpfc_unreg_rpi(vport, ndlp);
+		ndlp->nlp_prev_state = ndlp->nlp_state;
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 	}
 
 	if ((vport->fc_flag & FC_PT2PT) &&
@@ -386,7 +391,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		goto out;
 
 	rc = lpfc_reg_rpi(phba, vport->vpi, icmd->un.rcvels.remoteID,
-			    (uint8_t *) sp, mbox, 0);
+			    (uint8_t *) sp, mbox, ndlp->nlp_rpi);
 	if (rc) {
 		mempool_free(mbox, phba->mbox_mem_pool);
 		goto out;
@@ -632,7 +637,7 @@ lpfc_disc_set_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
-	if (!(ndlp->nlp_flag & NLP_RPI_VALID)) {
+	if (!(ndlp->nlp_flag & NLP_RPI_REGISTERED)) {
 		ndlp->nlp_flag &= ~NLP_NPR_ADISC;
 		return 0;
 	}
@@ -653,7 +658,7 @@ lpfc_disc_set_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	return 0;
 }
 /**
- * lpfc_release_rpi - Release a RPI by issueing unreg_login mailbox cmd.
+ * lpfc_release_rpi - Release a RPI by issuing unreg_login mailbox cmd.
  * @phba : Pointer to lpfc_hba structure.
  * @vport: Pointer to lpfc_vport structure.
  * @rpi  : rpi to be release.
@@ -968,7 +973,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 	lpfc_unreg_rpi(vport, ndlp);
 
 	if (lpfc_reg_rpi(phba, vport->vpi, irsp->un.elsreq64.remoteID,
-			   (uint8_t *) sp, mbox, 0) == 0) {
+			 (uint8_t *) sp, mbox, ndlp->nlp_rpi) == 0) {
 		switch (ndlp->nlp_DID) {
 		case NameServer_DID:
 			mbox->mbox_cmpl = lpfc_mbx_cmpl_ns_reg_login;
@@ -1338,12 +1343,6 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
-			if (phba->sli_rev == LPFC_SLI_REV4) {
-				spin_unlock_irq(&phba->hbalock);
-				lpfc_sli4_free_rpi(phba,
-					mb->u.mb.un.varRegLogin.rpi);
-				spin_lock_irq(&phba->hbalock);
-			}
 			mp = (struct lpfc_dmabuf *) (mb->context1);
 			if (mp) {
 				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
@@ -1426,7 +1425,7 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 	}
 
 	ndlp->nlp_rpi = mb->un.varWords[0];
-	ndlp->nlp_flag |= NLP_RPI_VALID;
+	ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 
 	/* Only if we are not a fabric nport do we issue PRLI */
 	if (!(ndlp->nlp_type & NLP_FABRIC)) {
@@ -2027,7 +2026,7 @@ lpfc_cmpl_reglogin_npr_node(struct lpfc_vport *vport,
 
 	if (!mb->mbxStatus) {
 		ndlp->nlp_rpi = mb->un.varWords[0];
-		ndlp->nlp_flag |= NLP_RPI_VALID;
+		ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 	} else {
 		if (ndlp->nlp_flag & NLP_NODEV_REMOVE) {
 			lpfc_drop_node(vport, ndlp);

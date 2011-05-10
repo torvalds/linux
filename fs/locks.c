@@ -145,7 +145,6 @@ static DEFINE_SPINLOCK(file_lock_lock);
 
 /*
  * Protects the two list heads above, plus the inode->i_flock list
- * FIXME: should use a spinlock, once lockd and ceph are ready.
  */
 void lock_flocks(void)
 {
@@ -415,17 +414,7 @@ static int flock64_to_posix_lock(struct file *filp, struct file_lock *fl,
 	fl->fl_ops = NULL;
 	fl->fl_lmops = NULL;
 
-	switch (l->l_type) {
-	case F_RDLCK:
-	case F_WRLCK:
-	case F_UNLCK:
-		fl->fl_type = l->l_type;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return (0);
+	return assign_type(fl, l->l_type);
 }
 #endif
 
@@ -444,15 +433,9 @@ static void lease_release_private_callback(struct file_lock *fl)
 	fl->fl_file->f_owner.signum = 0;
 }
 
-static int lease_mylease_callback(struct file_lock *fl, struct file_lock *try)
-{
-	return fl->fl_file == try->fl_file;
-}
-
 static const struct lock_manager_operations lease_manager_ops = {
 	.fl_break = lease_break_callback,
 	.fl_release_private = lease_release_private_callback,
-	.fl_mylease = lease_mylease_callback,
 	.fl_change = lease_modify,
 };
 
@@ -1389,7 +1372,7 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 		if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
 			goto out;
 		if ((arg == F_WRLCK)
-		    && ((atomic_read(&dentry->d_count) > 1)
+		    && ((dentry->d_count > 1)
 			|| (atomic_read(&inode->i_count) > 1)))
 			goto out;
 	}
@@ -1405,7 +1388,7 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	for (before = &inode->i_flock;
 			((fl = *before) != NULL) && IS_LEASE(fl);
 			before = &fl->fl_next) {
-		if (lease->fl_lmops->fl_mylease(fl, lease))
+		if (fl->fl_file == filp)
 			my_before = before;
 		else if (fl->fl_type == (F_INPROGRESS | F_UNLCK))
 			/*

@@ -1005,7 +1005,8 @@ void qib_rc_send_complete(struct qib_qp *qp, struct qib_ib_header *hdr)
 	 * there are still requests that haven't been acked.
 	 */
 	if ((psn & IB_BTH_REQ_ACK) && qp->s_acked != qp->s_tail &&
-	    !(qp->s_flags & (QIB_S_TIMER | QIB_S_WAIT_RNR | QIB_S_WAIT_PSN)))
+	    !(qp->s_flags & (QIB_S_TIMER | QIB_S_WAIT_RNR | QIB_S_WAIT_PSN)) &&
+	    (ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK))
 		start_timer(qp);
 
 	while (qp->s_last != qp->s_acked) {
@@ -1407,6 +1408,7 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 			    struct qib_ctxtdata *rcd)
 {
 	struct qib_swqe *wqe;
+	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 	enum ib_wc_status status;
 	unsigned long flags;
 	int diff;
@@ -1414,7 +1416,32 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 	u32 aeth;
 	u64 val;
 
+	if (opcode != OP(RDMA_READ_RESPONSE_MIDDLE)) {
+		/*
+		 * If ACK'd PSN on SDMA busy list try to make progress to
+		 * reclaim SDMA credits.
+		 */
+		if ((qib_cmp24(psn, qp->s_sending_psn) >= 0) &&
+		    (qib_cmp24(qp->s_sending_psn, qp->s_sending_hpsn) <= 0)) {
+
+			/*
+			 * If send tasklet not running attempt to progress
+			 * SDMA queue.
+			 */
+			if (!(qp->s_flags & QIB_S_BUSY)) {
+				/* Acquire SDMA Lock */
+				spin_lock_irqsave(&ppd->sdma_lock, flags);
+				/* Invoke sdma make progress */
+				qib_sdma_make_progress(ppd);
+				/* Release SDMA Lock */
+				spin_unlock_irqrestore(&ppd->sdma_lock, flags);
+			}
+		}
+	}
+
 	spin_lock_irqsave(&qp->s_lock, flags);
+	if (!(ib_qib_state_ops[qp->state] & QIB_PROCESS_RECV_OK))
+		goto ack_done;
 
 	/* Ignore invalid responses. */
 	if (qib_cmp24(psn, qp->s_next_psn) >= 0)

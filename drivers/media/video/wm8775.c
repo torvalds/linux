@@ -227,6 +227,12 @@ static int wm8775_probe(struct i2c_client *client,
 	struct wm8775_state *state;
 	struct v4l2_subdev *sd;
 	int err;
+	bool is_nova_s = false;
+
+	if (client->dev.platform_data) {
+		struct wm8775_platform_data *data = client->dev.platform_data;
+		is_nova_s = data->is_nova_s;
+	}
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -240,7 +246,6 @@ static int wm8775_probe(struct i2c_client *client,
 		return -ENOMEM;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &wm8775_ops);
-	sd->grp_id = WM8775_GID; /* subdev group id */
 	state->input = 2;
 
 	v4l2_ctrl_handler_init(&state->hdl, 4);
@@ -266,25 +271,44 @@ static int wm8775_probe(struct i2c_client *client,
 	wm8775_write(sd, R23, 0x000);
 	/* Disable zero cross detect timeout */
 	wm8775_write(sd, R7, 0x000);
-	/* HPF enable, I2S mode, 24-bit */
-	wm8775_write(sd, R11, 0x022);
+	/* HPF enable, left justified, 24-bit (Philips) mode */
+	wm8775_write(sd, R11, 0x021);
 	/* Master mode, clock ratio 256fs */
 	wm8775_write(sd, R12, 0x102);
 	/* Powered up */
 	wm8775_write(sd, R13, 0x000);
-	/* ALC stereo, ALC target level -5dB FS, ALC max gain +8dB */
-	wm8775_write(sd, R16, 0x1bb);
-	/* Set ALC mode and hold time */
-	wm8775_write(sd, R17, (state->loud->val ? ALC_EN : 0) | ALC_HOLD);
+
+	if (!is_nova_s) {
+		/* ADC gain +2.5dB, enable zero cross */
+		wm8775_write(sd, R14, 0x1d4);
+		/* ADC gain +2.5dB, enable zero cross */
+		wm8775_write(sd, R15, 0x1d4);
+		/* ALC Stereo, ALC target level -1dB FS max gain +8dB */
+		wm8775_write(sd, R16, 0x1bf);
+		/* Enable gain control, use zero cross detection,
+		   ALC hold time 42.6 ms */
+		wm8775_write(sd, R17, 0x185);
+	} else {
+		/* ALC stereo, ALC target level -5dB FS, ALC max gain +8dB */
+		wm8775_write(sd, R16, 0x1bb);
+		/* Set ALC mode and hold time */
+		wm8775_write(sd, R17, (state->loud->val ? ALC_EN : 0) | ALC_HOLD);
+	}
 	/* ALC gain ramp up delay 34 s, ALC gain ramp down delay 33 ms */
 	wm8775_write(sd, R18, 0x0a2);
 	/* Enable noise gate, threshold -72dBfs */
 	wm8775_write(sd, R19, 0x005);
-	/* Transient window 4ms, ALC min gain -5dB  */
-	wm8775_write(sd, R20, 0x0fb);
+	if (!is_nova_s) {
+		/* Transient window 4ms, lower PGA gain limit -1dB */
+		wm8775_write(sd, R20, 0x07a);
+		/* LRBOTH = 1, use input 2. */
+		wm8775_write(sd, R21, 0x102);
+	} else {
+		/* Transient window 4ms, ALC min gain -5dB  */
+		wm8775_write(sd, R20, 0x0fb);
 
-	wm8775_set_audio(sd, 1);      /* set volume/mute/mux */
-
+		wm8775_set_audio(sd, 1);      /* set volume/mute/mux */
+	}
 	return 0;
 }
 

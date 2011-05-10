@@ -22,7 +22,6 @@ struct perf_session;
 
 void thread__delete(struct thread *self);
 
-int find_all_tid(int pid, pid_t ** all_tid);
 int thread__set_comm(struct thread *self, const char *comm);
 int thread__comm_len(struct thread *self);
 struct thread *perf_session__findnew(struct perf_session *self, pid_t pid);

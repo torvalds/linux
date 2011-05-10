@@ -4,6 +4,11 @@
  * Parse symbolic events/counts passed in as options:
  */
 
+#include "../../../include/linux/perf_event.h"
+
+struct list_head;
+struct perf_evsel;
+
 struct option;
 
 struct tracepoint_path {
@@ -13,14 +18,10 @@ struct tracepoint_path {
 };
 
 extern struct tracepoint_path *tracepoint_id_to_path(u64 config);
-extern bool have_tracepoints(struct perf_event_attr *pattrs, int nb_events);
+extern bool have_tracepoints(struct list_head *evlist);
 
-extern int			nr_counters;
-
-extern struct perf_event_attr attrs[MAX_COUNTERS];
-extern char *filters[MAX_COUNTERS];
-
-extern const char *event_name(int ctr);
+const char *event_type(int type);
+const char *event_name(struct perf_evsel *event);
 extern const char *__event_name(int type, u64 config);
 
 extern int parse_events(const struct option *opt, const char *str, int unset);
@@ -28,10 +29,13 @@ extern int parse_filter(const struct option *opt, const char *str, int unset);
 
 #define EVENTS_HELP_MAX (128*1024)
 
-extern void print_events(void);
+void print_events(const char *event_glob);
+void print_events_type(u8 type);
+void print_tracepoint_events(const char *subsys_glob, const char *event_glob);
+int print_hwcache_events(const char *event_glob);
+extern int is_valid_tracepoint(const char *event_string);
 
 extern char debugfs_path[];
 extern int valid_debugfs_mount(const char *debugfs);
-
 
 #endif /* __PERF_PARSE_EVENTS_H */

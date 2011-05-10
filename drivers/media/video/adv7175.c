@@ -303,11 +303,22 @@ static int adv7175_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ide
 	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_ADV7175, 0);
 }
 
+static int adv7175_s_power(struct v4l2_subdev *sd, int on)
+{
+	if (on)
+		adv7175_write(sd, 0x01, 0x00);
+	else
+		adv7175_write(sd, 0x01, 0x78);
+
+	return 0;
+}
+
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops adv7175_core_ops = {
 	.g_chip_ident = adv7175_g_chip_ident,
 	.init = adv7175_init,
+	.s_power = adv7175_s_power,
 };
 
 static const struct v4l2_subdev_video_ops adv7175_video_ops = {

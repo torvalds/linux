@@ -20,47 +20,22 @@
 /* #define AR9300_NUM_CTLS              21 */
 #define AR9300_NUM_CTLS_5G           9
 #define AR9300_NUM_CTLS_2G           12
-#define AR9300_CTL_MODE_M            0xF
 #define AR9300_NUM_BAND_EDGES_5G     8
 #define AR9300_NUM_BAND_EDGES_2G     4
-#define AR9300_NUM_PD_GAINS          4
-#define AR9300_PD_GAINS_IN_MASK      4
-#define AR9300_PD_GAIN_ICEPTS        5
-#define AR9300_EEPROM_MODAL_SPURS    5
-#define AR9300_MAX_RATE_POWER        63
-#define AR9300_NUM_PDADC_VALUES      128
-#define AR9300_NUM_RATES             16
-#define AR9300_BCHAN_UNUSED          0xFF
-#define AR9300_MAX_PWR_RANGE_IN_HALF_DB 64
-#define AR9300_OPFLAGS_11A           0x01
-#define AR9300_OPFLAGS_11G           0x02
-#define AR9300_OPFLAGS_5G_HT40       0x04
-#define AR9300_OPFLAGS_2G_HT40       0x08
-#define AR9300_OPFLAGS_5G_HT20       0x10
-#define AR9300_OPFLAGS_2G_HT20       0x20
 #define AR9300_EEPMISC_BIG_ENDIAN    0x01
 #define AR9300_EEPMISC_WOW           0x02
 #define AR9300_CUSTOMER_DATA_SIZE    20
 
-#define FREQ2FBIN(x, y) ((y) ? ((x) - 2300) : (((x) - 4800) / 5))
 #define FBIN2FREQ(x, y) ((y) ? (2300 + x) : (4800 + 5 * x))
 #define AR9300_MAX_CHAINS            3
 #define AR9300_ANT_16S               25
 #define AR9300_FUTURE_MODAL_SZ       6
 
-#define AR9300_NUM_ANT_CHAIN_FIELDS     7
-#define AR9300_NUM_ANT_COMMON_FIELDS    4
-#define AR9300_SIZE_ANT_CHAIN_FIELD     3
-#define AR9300_SIZE_ANT_COMMON_FIELD    4
-#define AR9300_ANT_CHAIN_MASK           0x7
-#define AR9300_ANT_COMMON_MASK          0xf
-#define AR9300_CHAIN_0_IDX              0
-#define AR9300_CHAIN_1_IDX              1
-#define AR9300_CHAIN_2_IDX              2
-
-#define AR928X_NUM_ANT_CHAIN_FIELDS     6
-#define AR928X_SIZE_ANT_CHAIN_FIELD     2
-#define AR928X_ANT_CHAIN_MASK           0x3
+#define AR9300_PAPRD_RATE_MASK		0x01ffffff
+#define AR9300_PAPRD_SCALE_1		0x0e000000
+#define AR9300_PAPRD_SCALE_1_S		25
+#define AR9300_PAPRD_SCALE_2		0x70000000
+#define AR9300_PAPRD_SCALE_2_S		28
 
 /* Delta from which to start power to pdadc table */
 /* This offset is used in both open loop and closed loop power control
@@ -71,14 +46,20 @@
  */
 #define AR9300_PWR_TABLE_OFFSET  0
 
-/* enable flags for voltage and temp compensation */
-#define ENABLE_TEMP_COMPENSATION 0x01
-#define ENABLE_VOLT_COMPENSATION 0x02
 /* byte addressable */
 #define AR9300_EEPROM_SIZE (16*1024)
-#define FIXED_CCA_THRESHOLD 15
 
+#define AR9300_BASE_ADDR_4K 0xfff
 #define AR9300_BASE_ADDR 0x3ff
+#define AR9300_BASE_ADDR_512 0x1ff
+
+#define AR9300_OTP_BASE			0x14000
+#define AR9300_OTP_STATUS		0x15f18
+#define AR9300_OTP_STATUS_TYPE		0x7
+#define AR9300_OTP_STATUS_VALID		0x4
+#define AR9300_OTP_STATUS_ACCESS_BUSY	0x2
+#define AR9300_OTP_STATUS_SM_BUSY	0x1
+#define AR9300_OTP_READ_DATA		0x15f1c
 
 enum targetPowerHTRates {
 	HT_TARGET_RATE_0_8_16,
@@ -216,7 +197,7 @@ struct ar9300_modal_eep_header {
 	int8_t tempSlope;
 	int8_t voltSlope;
 	/* spur channels in usual fbin coding format */
-	u8 spurChans[AR9300_EEPROM_MODAL_SPURS];
+	u8 spurChans[AR_EEPROM_MODAL_SPURS];
 	/* 3  Check if the register is per chain */
 	int8_t noiseFloorThreshCh[AR9300_MAX_CHAINS];
 	u8 ob[AR9300_MAX_CHAINS];
@@ -236,7 +217,7 @@ struct ar9300_modal_eep_header {
 	u8 thresh62;
 	__le32 papdRateMaskHt20;
 	__le32 papdRateMaskHt40;
-	u8 futureModal[24];
+	u8 futureModal[10];
 } __packed;
 
 struct ar9300_cal_data_per_freq_op_loop {
@@ -261,17 +242,26 @@ struct cal_tgt_pow_ht {
 	u8 tPow2x[14];
 } __packed;
 
-struct cal_ctl_edge_pwr {
-	u8 tPower:6,
-	   flag:2;
-} __packed;
-
 struct cal_ctl_data_2g {
-	struct cal_ctl_edge_pwr ctlEdges[AR9300_NUM_BAND_EDGES_2G];
+	u8 ctlEdges[AR9300_NUM_BAND_EDGES_2G];
 } __packed;
 
 struct cal_ctl_data_5g {
-	struct cal_ctl_edge_pwr ctlEdges[AR9300_NUM_BAND_EDGES_5G];
+	u8 ctlEdges[AR9300_NUM_BAND_EDGES_5G];
+} __packed;
+
+struct ar9300_BaseExtension_1 {
+	u8 ant_div_control;
+	u8 future[13];
+} __packed;
+
+struct ar9300_BaseExtension_2 {
+	int8_t    tempSlopeLow;
+	int8_t    tempSlopeHigh;
+	u8   xatten1DBLow[AR9300_MAX_CHAINS];
+	u8   xatten1MarginLow[AR9300_MAX_CHAINS];
+	u8   xatten1DBHigh[AR9300_MAX_CHAINS];
+	u8   xatten1MarginHigh[AR9300_MAX_CHAINS];
 } __packed;
 
 struct ar9300_eeprom {
@@ -283,6 +273,7 @@ struct ar9300_eeprom {
 	struct ar9300_base_eep_hdr baseEepHeader;
 
 	struct ar9300_modal_eep_header modalHeader2G;
+	struct ar9300_BaseExtension_1 base_ext1;
 	u8 calFreqPier2G[AR9300_NUM_2G_CAL_PIERS];
 	struct ar9300_cal_data_per_freq_op_loop
 	 calPierData2G[AR9300_MAX_CHAINS][AR9300_NUM_2G_CAL_PIERS];
@@ -302,6 +293,7 @@ struct ar9300_eeprom {
 	u8 ctl_freqbin_2G[AR9300_NUM_CTLS_2G][AR9300_NUM_BAND_EDGES_2G];
 	struct cal_ctl_data_2g ctlPowerData_2G[AR9300_NUM_CTLS_2G];
 	struct ar9300_modal_eep_header modalHeader5G;
+	struct ar9300_BaseExtension_2 base_ext2;
 	u8 calFreqPier5G[AR9300_NUM_5G_CAL_PIERS];
 	struct ar9300_cal_data_per_freq_op_loop
 	 calPierData5G[AR9300_MAX_CHAINS][AR9300_NUM_5G_CAL_PIERS];
@@ -322,4 +314,8 @@ struct ar9300_eeprom {
 s32 ar9003_hw_get_tx_gain_idx(struct ath_hw *ah);
 s32 ar9003_hw_get_rx_gain_idx(struct ath_hw *ah);
 
+u8 *ar9003_get_spur_chan_ptr(struct ath_hw *ah, bool is_2ghz);
+
+unsigned int ar9003_get_paprd_scale_factor(struct ath_hw *ah,
+					   struct ath9k_channel *chan);
 #endif

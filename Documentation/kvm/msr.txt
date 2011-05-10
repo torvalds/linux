@@ -3,7 +3,6 @@ Glauber Costa <glommer@redhat.com>, Red Hat Inc, 2010
 =====================================================
 
 KVM makes use of some custom MSRs to service some requests.
-At present, this facility is only used by kvmclock.
 
 Custom MSRs have a range reserved for them, that goes from
 0x4b564d00 to 0x4b564dff. There are MSRs outside this area,
@@ -151,3 +150,38 @@ MSR_KVM_SYSTEM_TIME: 0x12
 			return PRESENT;
 		} else
 			return NON_PRESENT;
+
+MSR_KVM_ASYNC_PF_EN: 0x4b564d02
+	data: Bits 63-6 hold 64-byte aligned physical address of a
+	64 byte memory area which must be in guest RAM and must be
+	zeroed. Bits 5-2 are reserved and should be zero. Bit 0 is 1
+	when asynchronous page faults are enabled on the vcpu 0 when
+	disabled. Bit 2 is 1 if asynchronous page faults can be injected
+	when vcpu is in cpl == 0.
+
+	First 4 byte of 64 byte memory location will be written to by
+	the hypervisor at the time of asynchronous page fault (APF)
+	injection to indicate type of asynchronous page fault. Value
+	of 1 means that the page referred to by the page fault is not
+	present. Value 2 means that the page is now available. Disabling
+	interrupt inhibits APFs. Guest must not enable interrupt
+	before the reason is read, or it may be overwritten by another
+	APF. Since APF uses the same exception vector as regular page
+	fault guest must reset the reason to 0 before it does
+	something that can generate normal page fault.  If during page
+	fault APF reason is 0 it means that this is regular page
+	fault.
+
+	During delivery of type 1 APF cr2 contains a token that will
+	be used to notify a guest when missing page becomes
+	available. When page becomes available type 2 APF is sent with
+	cr2 set to the token associated with the page. There is special
+	kind of token 0xffffffff which tells vcpu that it should wake
+	up all processes waiting for APFs and no individual type 2 APFs
+	will be sent.
+
+	If APF is disabled while there are outstanding APFs, they will
+	not be delivered.
+
+	Currently type 2 APF will be always delivered on the same vcpu as
+	type 1 was, but guest should not rely on that.

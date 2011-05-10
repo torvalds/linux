@@ -17,6 +17,8 @@
 #ifndef HTC_USB_H
 #define HTC_USB_H
 
+#define IS_AR7010_DEVICE(_v) (((_v) == AR9280_USB) || ((_v) == AR9287_USB))
+
 #define AR9271_FIRMWARE       0x501000
 #define AR9271_FIRMWARE_TEXT  0x903000
 #define AR7010_FIRMWARE_TEXT  0x906000
@@ -62,6 +64,7 @@ struct tx_buf {
 };
 
 #define HIF_USB_TX_STOP  BIT(0)
+#define HIF_USB_TX_FLUSH BIT(1)
 
 struct hif_usb_tx {
 	u8 flags;

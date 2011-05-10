@@ -570,8 +570,8 @@ ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t c
 		int elems = count / sizeof(struct v4l2_sliced_vbi_data);
 
 		set_bit(IVTV_F_S_APPL_IO, &s->s_flags);
-		ivtv_write_vbi(itv, (const struct v4l2_sliced_vbi_data *)user_buf, elems);
-		return elems * sizeof(struct v4l2_sliced_vbi_data);
+		return ivtv_write_vbi_from_user(itv,
+		   (const struct v4l2_sliced_vbi_data __user *)user_buf, elems);
 	}
 
 	mode = s->type == IVTV_DEC_STREAM_TYPE_MPG ? OUT_MPG : OUT_YUV;
@@ -856,7 +856,6 @@ int ivtv_v4l2_close(struct file *filp)
 
 	IVTV_DEBUG_FILE("close %s\n", s->name);
 
-	v4l2_prio_close(&itv->prio, id->prio);
 	v4l2_fh_del(fh);
 	v4l2_fh_exit(fh);
 
@@ -973,7 +972,6 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 	}
 	item->itv = itv;
 	item->type = s->type;
-	v4l2_prio_open(&itv->prio, &item->prio);
 
 	item->open_id = itv->open_id++;
 	filp->private_data = &item->fh;
@@ -982,6 +980,7 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 		/* Try to claim this stream */
 		if (ivtv_claim_stream(item, item->type)) {
 			/* No, it's already in use */
+			v4l2_fh_exit(&item->fh);
 			kfree(item);
 			return -EBUSY;
 		}

@@ -20,8 +20,15 @@
 /* TX */
 /******/
 
+static const int subtype_txq_to_hwq[] = {
+	[WME_AC_BE] = ATH_TXQ_AC_BE,
+	[WME_AC_BK] = ATH_TXQ_AC_BK,
+	[WME_AC_VI] = ATH_TXQ_AC_VI,
+	[WME_AC_VO] = ATH_TXQ_AC_VO,
+};
+
 #define ATH9K_HTC_INIT_TXQ(subtype) do {			\
-		qi.tqi_subtype = subtype;			\
+		qi.tqi_subtype = subtype_txq_to_hwq[subtype];	\
 		qi.tqi_aifs = ATH9K_TXQ_USEDEFAULT;		\
 		qi.tqi_cwmin = ATH9K_TXQ_USEDEFAULT;		\
 		qi.tqi_cwmax = ATH9K_TXQ_USEDEFAULT;		\
@@ -62,8 +69,8 @@ int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
 	qi.tqi_readyTime = qinfo->tqi_readyTime;
 
 	if (!ath9k_hw_set_txq_props(ah, qnum, &qi)) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "Unable to update hardware queue %u!\n", qnum);
+		ath_err(ath9k_hw_common(ah),
+			"Unable to update hardware queue %u!\n", qnum);
 		error = -EIO;
 	} else {
 		ath9k_hw_resettxqueue(ah, qnum);
@@ -77,7 +84,9 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = tx_info->control.sta;
+	struct ieee80211_vif *vif = tx_info->control.vif;
 	struct ath9k_htc_sta *ista;
+	struct ath9k_htc_vif *avp;
 	struct ath9k_htc_tx_ctl tx_ctl;
 	enum htc_endpoint_id epid;
 	u16 qnum;
@@ -88,24 +97,38 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 	hdr = (struct ieee80211_hdr *) skb->data;
 	fc = hdr->frame_control;
 
-	if (tx_info->control.vif &&
-			(struct ath9k_htc_vif *) tx_info->control.vif->drv_priv)
-		vif_idx = ((struct ath9k_htc_vif *)
-				tx_info->control.vif->drv_priv)->index;
-	else
-		vif_idx = priv->nvifs;
+	/*
+	 * Find out on which interface this packet has to be
+	 * sent out.
+	 */
+	if (vif) {
+		avp = (struct ath9k_htc_vif *) vif->drv_priv;
+		vif_idx = avp->index;
+	} else {
+		if (!priv->ah->is_monitoring) {
+			ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+				"VIF is null, but no monitor interface !\n");
+			return -EINVAL;
+		}
 
+		vif_idx = priv->mon_vif_idx;
+	}
+
+	/*
+	 * Find out which station this packet is destined for.
+	 */
 	if (sta) {
 		ista = (struct ath9k_htc_sta *) sta->drv_priv;
 		sta_idx = ista->index;
 	} else {
-		sta_idx = 0;
+		sta_idx = priv->vif_sta_pos[vif_idx];
 	}
 
 	memset(&tx_ctl, 0, sizeof(struct ath9k_htc_tx_ctl));
 
 	if (ieee80211_is_data(fc)) {
 		struct tx_frame_hdr tx_hdr;
+		u32 flags = 0;
 		u8 *qc;
 
 		memset(&tx_hdr, 0, sizeof(struct tx_frame_hdr));
@@ -129,13 +152,14 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 		/* Check for RTS protection */
 		if (priv->hw->wiphy->rts_threshold != (u32) -1)
 			if (skb->len > priv->hw->wiphy->rts_threshold)
-				tx_hdr.flags |= ATH9K_HTC_TX_RTSCTS;
+				flags |= ATH9K_HTC_TX_RTSCTS;
 
 		/* CTS-to-self */
-		if (!(tx_hdr.flags & ATH9K_HTC_TX_RTSCTS) &&
-		    (priv->op_flags & OP_PROTECT_ENABLE))
-			tx_hdr.flags |= ATH9K_HTC_TX_CTSONLY;
+		if (!(flags & ATH9K_HTC_TX_RTSCTS) &&
+		    (vif && vif->bss_conf.use_cts_prot))
+			flags |= ATH9K_HTC_TX_CTSONLY;
 
+		tx_hdr.flags = cpu_to_be32(flags);
 		tx_hdr.key_type = ath9k_cmn_get_hw_crypto_keytype(skb);
 		if (tx_hdr.key_type == ATH9K_KEY_TYPE_CLEAR)
 			tx_hdr.keyix = (u8) ATH9K_TXKEYIX_INVALID;
@@ -208,6 +232,7 @@ static bool ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,
 void ath9k_tx_tasklet(unsigned long data)
 {
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
+	struct ieee80211_vif *vif;
 	struct ieee80211_sta *sta;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *tx_info;
@@ -219,12 +244,16 @@ void ath9k_tx_tasklet(unsigned long data)
 		hdr = (struct ieee80211_hdr *) skb->data;
 		fc = hdr->frame_control;
 		tx_info = IEEE80211_SKB_CB(skb);
+		vif = tx_info->control.vif;
 
 		memset(&tx_info->status, 0, sizeof(tx_info->status));
 
+		if (!vif)
+			goto send_mac80211;
+
 		rcu_read_lock();
 
-		sta = ieee80211_find_sta(priv->vif, hdr->addr1);
+		sta = ieee80211_find_sta(vif, hdr->addr1);
 		if (!sta) {
 			rcu_read_unlock();
 			ieee80211_tx_status(priv->hw, skb);
@@ -244,7 +273,7 @@ void ath9k_tx_tasklet(unsigned long data)
 				ista = (struct ath9k_htc_sta *)sta->drv_priv;
 
 				if (ath9k_htc_check_tx_aggr(priv, ista, tid)) {
-					ieee80211_start_tx_ba_session(sta, tid);
+					ieee80211_start_tx_ba_session(sta, tid, 0);
 					spin_lock_bh(&priv->tx_lock);
 					ista->tid_state[tid] = AGGR_PROGRESS;
 					spin_unlock_bh(&priv->tx_lock);
@@ -254,6 +283,7 @@ void ath9k_tx_tasklet(unsigned long data)
 
 		rcu_read_unlock();
 
+	send_mac80211:
 		/* Send status to mac80211 */
 		ieee80211_tx_status(priv->hw, skb);
 	}
@@ -263,8 +293,8 @@ void ath9k_tx_tasklet(unsigned long data)
 	if (priv->tx_queues_stop) {
 		priv->tx_queues_stop = false;
 		spin_unlock_bh(&priv->tx_lock);
-		ath_print(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
-			  "Waking up TX queues\n");
+		ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+			"Waking up TX queues\n");
 		ieee80211_wake_queues(priv->hw);
 		return;
 	}
@@ -289,8 +319,7 @@ void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
 		   (ep_id == priv->data_vo_ep)) {
 		skb_pull(skb, sizeof(struct tx_frame_hdr));
 	} else {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unsupported TX EPID: %d\n", ep_id);
+		ath_err(common, "Unsupported TX EPID: %d\n", ep_id);
 		dev_kfree_skb_any(skb);
 		return;
 	}
@@ -330,9 +359,8 @@ bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv, int subtype)
 		return false;
 
 	if (qnum >= ARRAY_SIZE(priv->hwq_map)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "qnum %u out of range, max %u!\n",
-			  qnum, (unsigned int)ARRAY_SIZE(priv->hwq_map));
+		ath_err(common, "qnum %u out of range, max %zu!\n",
+			qnum, ARRAY_SIZE(priv->hwq_map));
 		ath9k_hw_releasetxqueue(ah, qnum);
 		return false;
 	}
@@ -379,7 +407,7 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 	 */
 	if (((ah->opmode != NL80211_IFTYPE_AP) &&
 	     (priv->rxfilter & FIF_PROMISC_IN_BSS)) ||
-	    (ah->opmode == NL80211_IFTYPE_MONITOR))
+	    ah->is_monitoring)
 		rfilt |= ATH9K_RX_FILTER_PROM;
 
 	if (priv->rxfilter & FIF_CONTROL)
@@ -391,8 +419,13 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 	else
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
-	if (conf_is_ht(&priv->hw->conf))
+	if (conf_is_ht(&priv->hw->conf)) {
 		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
+		rfilt |= ATH9K_RX_FILTER_UNCOMP_BA_BAR;
+	}
+
+	if (priv->rxfilter & FIF_PSPOLL)
+		rfilt |= ATH9K_RX_FILTER_PSPOLL;
 
 	return rfilt;
 
@@ -405,19 +438,11 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 static void ath9k_htc_opmode_init(struct ath9k_htc_priv *priv)
 {
 	struct ath_hw *ah = priv->ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-
 	u32 rfilt, mfilt[2];
 
 	/* configure rx filter */
 	rfilt = ath9k_htc_calcrxfilter(priv);
 	ath9k_hw_setrxfilter(ah, rfilt);
-
-	/* configure bssid mask */
-	ath_hw_setbssidmask(common);
-
-	/* configure operational mode */
-	ath9k_hw_setopmode(ah);
 
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;
@@ -483,8 +508,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	__le16 fc;
 
 	if (skb->len <= HTC_RX_FRAME_HEADER_SIZE) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Corrupted RX frame, dropping\n");
+		ath_err(common, "Corrupted RX frame, dropping\n");
 		goto rx_next;
 	}
 
@@ -492,10 +516,9 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 
 	if (be16_to_cpu(rxstatus->rs_datalen) -
 	    (skb->len - HTC_RX_FRAME_HEADER_SIZE) != 0) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Corrupted RX data len, dropping "
-			  "(dlen: %d, skblen: %d)\n",
-			  rxstatus->rs_datalen, skb->len);
+		ath_err(common,
+			"Corrupted RX data len, dropping (dlen: %d, skblen: %d)\n",
+			rxstatus->rs_datalen, skb->len);
 		goto rx_next;
 	}
 
@@ -571,31 +594,29 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	ath9k_process_rate(hw, rx_status, rxbuf->rxstatus.rs_rate,
 			   rxbuf->rxstatus.rs_flags);
 
-	if (priv->op_flags & OP_ASSOCIATED) {
-		if (rxbuf->rxstatus.rs_rssi != ATH9K_RSSI_BAD &&
-		    !rxbuf->rxstatus.rs_moreaggr)
-			ATH_RSSI_LPF(priv->rx.last_rssi,
-				     rxbuf->rxstatus.rs_rssi);
+	if (rxbuf->rxstatus.rs_rssi != ATH9K_RSSI_BAD &&
+	    !rxbuf->rxstatus.rs_moreaggr)
+		ATH_RSSI_LPF(priv->rx.last_rssi,
+			     rxbuf->rxstatus.rs_rssi);
 
-		last_rssi = priv->rx.last_rssi;
+	last_rssi = priv->rx.last_rssi;
 
-		if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
-			rxbuf->rxstatus.rs_rssi = ATH_EP_RND(last_rssi,
-							     ATH_RSSI_EP_MULTIPLIER);
+	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
+		rxbuf->rxstatus.rs_rssi = ATH_EP_RND(last_rssi,
+						     ATH_RSSI_EP_MULTIPLIER);
 
-		if (rxbuf->rxstatus.rs_rssi < 0)
-			rxbuf->rxstatus.rs_rssi = 0;
+	if (rxbuf->rxstatus.rs_rssi < 0)
+		rxbuf->rxstatus.rs_rssi = 0;
 
-		if (ieee80211_is_beacon(fc))
-			priv->ah->stats.avgbrssi = rxbuf->rxstatus.rs_rssi;
-	}
+	if (ieee80211_is_beacon(fc))
+		priv->ah->stats.avgbrssi = rxbuf->rxstatus.rs_rssi;
 
 	rx_status->mactime = be64_to_cpu(rxbuf->rxstatus.rs_tstamp);
 	rx_status->band = hw->conf.channel->band;
 	rx_status->freq = hw->conf.channel->center_freq;
 	rx_status->signal =  rxbuf->rxstatus.rs_rssi + ATH_DEFAULT_NOISE_FLOOR;
 	rx_status->antenna = rxbuf->rxstatus.rs_antenna;
-	rx_status->flag |= RX_FLAG_TSFT;
+	rx_status->flag |= RX_FLAG_MACTIME_MPDU;
 
 	return true;
 
@@ -678,8 +699,8 @@ void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 	spin_unlock(&priv->rx.rxbuflock);
 
 	if (rxbuf == NULL) {
-		ath_print(common, ATH_DBG_ANY,
-			  "No free RX buffer\n");
+		ath_dbg(common, ATH_DBG_ANY,
+			"No free RX buffer\n");
 		goto err;
 	}
 
@@ -721,8 +742,7 @@ int ath9k_rx_init(struct ath9k_htc_priv *priv)
 	for (i = 0; i < ATH9K_HTC_RXBUF; i++) {
 		rxbuf = kzalloc(sizeof(struct ath9k_htc_rxbuf), GFP_KERNEL);
 		if (rxbuf == NULL) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "Unable to allocate RX buffers\n");
+			ath_err(common, "Unable to allocate RX buffers\n");
 			goto err;
 		}
 		list_add_tail(&rxbuf->list, &priv->rx.rxbuf);

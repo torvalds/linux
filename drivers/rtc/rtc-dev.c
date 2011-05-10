@@ -76,7 +76,7 @@ static void rtc_uie_task(struct work_struct *work)
 	}
 	spin_unlock_irq(&rtc->irq_lock);
 	if (num)
-		rtc_update_irq(rtc, num, RTC_UF | RTC_IRQF);
+		rtc_handle_legacy_irq(rtc, num, RTC_UF);
 }
 static void rtc_uie_timer(unsigned long data)
 {
@@ -253,19 +253,7 @@ static long rtc_dev_ioctl(struct file *file,
 	if (err)
 		goto done;
 
-	/* try the driver's ioctl interface */
-	if (ops->ioctl) {
-		err = ops->ioctl(rtc->dev.parent, cmd, arg);
-		if (err != -ENOIOCTLCMD) {
-			mutex_unlock(&rtc->ops_lock);
-			return err;
-		}
-	}
-
-	/* if the driver does not provide the ioctl interface
-	 * or if that particular ioctl was not implemented
-	 * (-ENOIOCTLCMD), we will try to emulate here.
-	 *
+	/*
 	 * Drivers *SHOULD NOT* provide ioctl implementations
 	 * for these requests.  Instead, provide methods to
 	 * support the following code, so that the RTC's main
@@ -428,7 +416,12 @@ static long rtc_dev_ioctl(struct file *file,
 		return err;
 
 	default:
-		err = -ENOTTY;
+		/* Finally try the driver's ioctl interface */
+		if (ops->ioctl) {
+			err = ops->ioctl(rtc->dev.parent, cmd, arg);
+			if (err == -ENOIOCTLCMD)
+				err = -ENOTTY;
+		}
 		break;
 	}
 

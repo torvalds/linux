@@ -31,7 +31,7 @@
 #define R12 24
 #define RBP 32
 #define RBX 40
-/* arguments: interrupts/non tracing syscalls only save upto here*/
+/* arguments: interrupts/non tracing syscalls only save up to here*/
 #define R11 48
 #define R10 56
 #define R9 64

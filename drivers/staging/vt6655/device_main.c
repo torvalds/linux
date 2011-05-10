@@ -137,7 +137,7 @@ DEVICE_PARAM(TxDescriptors1,"Number of transmit descriptors1");
 /* IP_byte_align[] is used for IP header unsigned long byte aligned
    0: indicate the IP header won't be unsigned long byte aligned.(Default) .
    1: indicate the IP header will be unsigned long byte aligned.
-      In some enviroment, the IP header should be unsigned long byte aligned,
+      In some environment, the IP header should be unsigned long byte aligned,
       or the packet will be droped when we receive it. (eg: IPVS)
 */
 DEVICE_PARAM(IP_byte_align,"Enable IP header dword aligned");
@@ -312,9 +312,9 @@ static int device_notify_reboot(struct notifier_block *, unsigned long event, vo
 static int viawget_suspend(struct pci_dev *pcid, pm_message_t state);
 static int viawget_resume(struct pci_dev *pcid);
 struct notifier_block device_notifier = {
-        notifier_call:  device_notify_reboot,
-        next:           NULL,
-        priority:       0
+	.notifier_call = device_notify_reboot,
+	.next = NULL,
+	.priority = 0,
 };
 #endif
 
@@ -3032,7 +3032,7 @@ int Config_FileOperation(PSDevice pDevice,bool fwrite,unsigned char *Parameter) 
 
 buffer = kmalloc(1024, GFP_KERNEL);
 if(buffer==NULL) {
-  printk("alllocate mem for file fail?\n");
+  printk("allocate mem for file fail?\n");
   result = -1;
   goto error1;
 }
@@ -3064,8 +3064,7 @@ else {
 }
 
 error1:
-  if(buffer)
-  	 kfree(buffer);
+  kfree(buffer);
 
   if(filp_close(filp,NULL))
        printk("Config_FileOperation:close file fail\n");
@@ -3606,13 +3605,13 @@ static int ethtool_ioctl(struct net_device *dev, void *useraddr)
 MODULE_DEVICE_TABLE(pci, vt6655_pci_id_table);
 
 static struct pci_driver device_driver = {
-        name:       DEVICE_NAME,
-        id_table:   vt6655_pci_id_table,
-        probe:      vt6655_probe,
-        remove:     vt6655_remove,
+	.name = DEVICE_NAME,
+	.id_table = vt6655_pci_id_table,
+	.probe = vt6655_probe,
+	.remove = vt6655_remove,
 #ifdef CONFIG_PM
-        suspend:    viawget_suspend,
-        resume:     viawget_resume,
+	.suspend = viawget_suspend,
+	.resume = viawget_resume,
 #endif
 };
 

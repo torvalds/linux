@@ -14,6 +14,8 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/mmc/host.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/sh_flctl.h>
 #include <linux/delay.h>
@@ -154,24 +156,34 @@ static struct platform_device nand_flash_device = {
 #define PORT_DRVCRA	0xA405018A
 #define PORT_DRVCRB	0xA405018C
 
+static int ap320_wvga_set_brightness(void *board_data, int brightness)
+{
+	if (brightness) {
+		gpio_set_value(GPIO_PTS3, 0);
+		__raw_writew(0x100, FPGA_BKLREG);
+	} else {
+		__raw_writew(0, FPGA_BKLREG);
+		gpio_set_value(GPIO_PTS3, 1);
+	}
+	
+	return 0;
+}
+
+static int ap320_wvga_get_brightness(void *board_data)
+{
+	return gpio_get_value(GPIO_PTS3);
+}
+
 static void ap320_wvga_power_on(void *board_data, struct fb_info *info)
 {
 	msleep(100);
 
 	/* ASD AP-320/325 LCD ON */
 	__raw_writew(FPGA_LCDREG_VAL, FPGA_LCDREG);
-
-	/* backlight */
-	gpio_set_value(GPIO_PTS3, 0);
-	__raw_writew(0x100, FPGA_BKLREG);
 }
 
 static void ap320_wvga_power_off(void *board_data)
 {
-	/* backlight */
-	__raw_writew(0, FPGA_BKLREG);
-	gpio_set_value(GPIO_PTS3, 1);
-
 	/* ASD AP-320/325 LCD OFF */
 	__raw_writew(0, FPGA_LCDREG);
 }
@@ -207,6 +219,12 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.board_cfg = {
 			.display_on = ap320_wvga_power_on,
 			.display_off = ap320_wvga_power_off,
+			.set_brightness = ap320_wvga_set_brightness,
+			.get_brightness = ap320_wvga_get_brightness,
+		},
+		.bl_info = {
+			.name = "sh_mobile_lcdc_bl",
+			.max_brightness = 1,
 		},
 	}
 };
@@ -421,7 +439,7 @@ static struct resource sdhi0_cn3_resources[] = {
 	[0] = {
 		.name	= "SDHI0",
 		.start	= 0x04ce0000,
-		.end	= 0x04ce01ff,
+		.end	= 0x04ce00ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -430,11 +448,18 @@ static struct resource sdhi0_cn3_resources[] = {
 	},
 };
 
+static struct sh_mobile_sdhi_info sdhi0_cn3_data = {
+	.tmio_caps      = MMC_CAP_SDIO_IRQ,
+};
+
 static struct platform_device sdhi0_cn3_device = {
 	.name		= "sh_mobile_sdhi",
 	.id             = 0, /* "sdhi0" clock */
 	.num_resources	= ARRAY_SIZE(sdhi0_cn3_resources),
 	.resource	= sdhi0_cn3_resources,
+	.dev = {
+		.platform_data = &sdhi0_cn3_data,
+	},
 	.archdata = {
 		.hwblk_id = HWBLK_SDHI0,
 	},
@@ -444,7 +469,7 @@ static struct resource sdhi1_cn7_resources[] = {
 	[0] = {
 		.name	= "SDHI1",
 		.start	= 0x04cf0000,
-		.end	= 0x04cf01ff,
+		.end	= 0x04cf00ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -453,11 +478,18 @@ static struct resource sdhi1_cn7_resources[] = {
 	},
 };
 
+static struct sh_mobile_sdhi_info sdhi1_cn7_data = {
+	.tmio_caps      = MMC_CAP_SDIO_IRQ,
+};
+
 static struct platform_device sdhi1_cn7_device = {
 	.name		= "sh_mobile_sdhi",
 	.id             = 1, /* "sdhi1" clock */
 	.num_resources	= ARRAY_SIZE(sdhi1_cn7_resources),
 	.resource	= sdhi1_cn7_resources,
+	.dev = {
+		.platform_data = &sdhi1_cn7_data,
+	},
 	.archdata = {
 		.hwblk_id = HWBLK_SDHI1,
 	},

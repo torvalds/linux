@@ -82,6 +82,10 @@
 	TRACE_EVENT(name, PARAMS(proto), PARAMS(args),			\
 		PARAMS(tstruct), PARAMS(assign), PARAMS(print))		\
 
+#undef TRACE_EVENT_FLAGS
+#define TRACE_EVENT_FLAGS(name, value)					\
+	__TRACE_EVENT_FLAGS(name, value)
+
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
 
@@ -128,6 +132,9 @@
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, name, proto, args, print)	\
 	DEFINE_EVENT(template, name, PARAMS(proto), PARAMS(args))
+
+#undef TRACE_EVENT_FLAGS
+#define TRACE_EVENT_FLAGS(event, flag)
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
@@ -289,13 +296,19 @@ static struct trace_event_functions ftrace_event_type_funcs_##call = {	\
 
 #undef __array
 #define __array(type, item, len)					\
-	BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);				\
-	ret = trace_define_field(event_call, #type "[" #len "]", #item,	\
+	do {								\
+		mutex_lock(&event_storage_mutex);			\
+		BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);			\
+		snprintf(event_storage, sizeof(event_storage),		\
+			 "%s[%d]", #type, len);				\
+		ret = trace_define_field(event_call, event_storage, #item, \
 				 offsetof(typeof(field), item),		\
 				 sizeof(field.item),			\
 				 is_signed_type(type), FILTER_OTHER);	\
-	if (ret)							\
-		return ret;
+		mutex_unlock(&event_storage_mutex);			\
+		if (ret)						\
+			return ret;					\
+	} while (0);
 
 #undef __dynamic_array
 #define __dynamic_array(type, item, len)				       \
@@ -433,14 +446,16 @@ static inline notrace int ftrace_get_offsets_##call(			\
  *	.reg			= ftrace_event_reg,
  * };
  *
- * static struct ftrace_event_call __used
- * __attribute__((__aligned__(4)))
- * __attribute__((section("_ftrace_events"))) event_<call> = {
+ * static struct ftrace_event_call event_<call> = {
  *	.name			= "<call>",
  *	.class			= event_class_<template>,
  *	.event			= &ftrace_event_type_<call>,
  *	.print_fmt		= print_fmt_<call>,
  * };
+ * // its only safe to use pointers when doing linker tricks to
+ * // create an array.
+ * static struct ftrace_event_call __used
+ * __attribute__((section("_ftrace_events"))) *__event_<call> = &event_<call>;
  *
  */
 
@@ -566,28 +581,28 @@ static struct ftrace_event_class __used event_class_##call = {		\
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, call, proto, args)			\
 									\
-static struct ftrace_event_call __used					\
-__attribute__((__aligned__(4)))						\
-__attribute__((section("_ftrace_events"))) event_##call = {		\
+static struct ftrace_event_call __used event_##call = {			\
 	.name			= #call,				\
 	.class			= &event_class_##template,		\
 	.event.funcs		= &ftrace_event_type_funcs_##template,	\
 	.print_fmt		= print_fmt_##template,			\
-};
+};									\
+static struct ftrace_event_call __used					\
+__attribute__((section("_ftrace_events"))) *__event_##call = &event_##call
 
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, call, proto, args, print)		\
 									\
 static const char print_fmt_##call[] = print;				\
 									\
-static struct ftrace_event_call __used					\
-__attribute__((__aligned__(4)))						\
-__attribute__((section("_ftrace_events"))) event_##call = {		\
+static struct ftrace_event_call __used event_##call = {			\
 	.name			= #call,				\
 	.class			= &event_class_##template,		\
 	.event.funcs		= &ftrace_event_type_funcs_##call,	\
 	.print_fmt		= print_fmt_##call,			\
-}
+};									\
+static struct ftrace_event_call __used					\
+__attribute__((section("_ftrace_events"))) *__event_##call = &event_##call
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 

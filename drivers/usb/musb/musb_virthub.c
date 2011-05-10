@@ -276,7 +276,7 @@ int musb_hub_control(
 			break;
 		case USB_PORT_FEAT_POWER:
 			if (!(is_otg_enabled(musb) && hcd->self.is_b_host))
-				musb_set_vbus(musb, 0);
+				musb_platform_set_vbus(musb, 0);
 			break;
 		case USB_PORT_FEAT_C_CONNECTION:
 		case USB_PORT_FEAT_C_ENABLE:
@@ -305,8 +305,8 @@ int musb_hub_control(
 		desc->bHubContrCurrent = 0;
 
 		/* workaround bogus struct definition */
-		desc->DeviceRemovable[0] = 0x02;	/* port 1 */
-		desc->DeviceRemovable[1] = 0xff;
+		desc->u.hs.DeviceRemovable[0] = 0x02;	/* port 1 */
+		desc->u.hs.DeviceRemovable[1] = 0xff;
 		}
 		break;
 	case GetHubStatus:

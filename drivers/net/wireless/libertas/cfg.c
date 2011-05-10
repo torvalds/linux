@@ -9,8 +9,6 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
-#include <linux/wait.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
 #include <asm/unaligned.h>
@@ -609,7 +607,8 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 		/* No channel, no luck */
 		if (chan_no != -1) {
 			struct wiphy *wiphy = priv->wdev->wiphy;
-			int freq = ieee80211_channel_to_frequency(chan_no);
+			int freq = ieee80211_channel_to_frequency(chan_no,
+							IEEE80211_BAND_2GHZ);
 			struct ieee80211_channel *channel =
 				ieee80211_get_channel(wiphy, freq);
 
@@ -619,7 +618,7 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 				     print_ssid(ssid_buf, ssid, ssid_len),
 				     LBS_SCAN_RSSI_TO_MBM(rssi)/100);
 
-			if (channel ||
+			if (channel &&
 			    !(channel->flags & IEEE80211_CHAN_DISABLED))
 				cfg80211_inform_bss(wiphy, channel,
 					bssid, le64_to_cpu(*(__le64 *)tsfdesc),
@@ -1351,7 +1350,7 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 		 * we remove all keys like in the WPA/WPA2 setup,
 		 * we just don't set RSN.
 		 *
-		 * Therefore: fall-throught
+		 * Therefore: fall-through
 		 */
 	case WLAN_CIPHER_SUITE_TKIP:
 	case WLAN_CIPHER_SUITE_CCMP:
@@ -1424,7 +1423,8 @@ static int lbs_cfg_disconnect(struct wiphy *wiphy, struct net_device *dev,
 
 static int lbs_cfg_set_default_key(struct wiphy *wiphy,
 				   struct net_device *netdev,
-				   u8 key_index)
+				   u8 key_index, bool unicast,
+				   bool multicast)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
 
@@ -1598,7 +1598,8 @@ static int lbs_get_survey(struct wiphy *wiphy, struct net_device *dev,
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
 	survey->channel = ieee80211_get_channel(wiphy,
-		ieee80211_channel_to_frequency(priv->channel));
+		ieee80211_channel_to_frequency(priv->channel,
+					       IEEE80211_BAND_2GHZ));
 
 	ret = lbs_get_rssi(priv, &signal, &noise);
 	if (ret == 0) {
@@ -2062,7 +2063,7 @@ static void lbs_cfg_set_regulatory_hint(struct lbs_private *priv)
 	};
 
 	/* Section 5.17.2 */
-	static struct region_code_mapping regmap[] = {
+	static const struct region_code_mapping regmap[] = {
 		{"US ", 0x10}, /* US FCC */
 		{"CA ", 0x20}, /* Canada */
 		{"EU ", 0x30}, /* ETSI   */

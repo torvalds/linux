@@ -27,84 +27,80 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-v3.h>
+#include <mach/gpio.h>
+#include <mach/irqs.h>
 
-/*!
- * @file mm.c
- *
- * @brief This file creates static virtual to physical mappings, common to all MX3 boards.
- *
- * @ingroup Memory
- */
-
-/*!
- * This table defines static virtual address mappings for I/O regions.
- * These are the mappings common across all MX3 boards.
- */
-static struct map_desc mxc_io_desc[] __initdata = {
-	{
-		.virtual	= X_MEMC_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(X_MEMC_BASE_ADDR),
-		.length		= X_MEMC_SIZE,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= AVIC_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AVIC_BASE_ADDR),
-		.length		= AVIC_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual	= AIPS1_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS1_BASE_ADDR),
-		.length		= AIPS1_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual	= AIPS2_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS2_BASE_ADDR),
-		.length		= AIPS2_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual = SPBA0_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(SPBA0_BASE_ADDR),
-		.length = SPBA0_SIZE,
-		.type = MT_DEVICE_NONSHARED
-	},
+#ifdef CONFIG_SOC_IMX31
+static struct map_desc mx31_io_desc[] __initdata = {
+	imx_map_entry(MX31, X_MEMC, MT_DEVICE),
+	imx_map_entry(MX31, AVIC, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX31, AIPS1, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX31, AIPS2, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX31, SPBA0, MT_DEVICE_NONSHARED),
 };
 
-/*!
+/*
  * This function initializes the memory map. It is called during the
  * system startup to create static physical to virtual memory mappings
  * for the IO modules.
  */
 void __init mx31_map_io(void)
 {
-	mxc_set_cpu_type(MXC_CPU_MX31);
-	mxc_arch_reset_init(IO_ADDRESS(WDOG_BASE_ADDR));
-
-	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
+	iotable_init(mx31_io_desc, ARRAY_SIZE(mx31_io_desc));
 }
 
-#ifdef CONFIG_ARCH_MX35
-void __init mx35_map_io(void)
+void __init imx31_init_early(void)
 {
-	mxc_set_cpu_type(MXC_CPU_MX35);
-	mxc_iomux_v3_init(IO_ADDRESS(IOMUXC_BASE_ADDR));
-	mxc_arch_reset_init(IO_ADDRESS(WDOG_BASE_ADDR));
-
-	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
+	mxc_set_cpu_type(MXC_CPU_MX31);
+	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
 }
-#endif
 
-int imx3x_register_gpios(void);
+static struct mxc_gpio_port imx31_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX31, 0, 1, MX31_INT_GPIO1),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX31, 1, 2, MX31_INT_GPIO2),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX31, 2, 3, MX31_INT_GPIO3),
+};
 
 void __init mx31_init_irq(void)
 {
-	mxc_init_irq(IO_ADDRESS(AVIC_BASE_ADDR));
-	imx3x_register_gpios();
+	mxc_init_irq(MX31_IO_ADDRESS(MX31_AVIC_BASE_ADDR));
+	mxc_gpio_init(imx31_gpio_ports,	ARRAY_SIZE(imx31_gpio_ports));
 }
+#endif /* ifdef CONFIG_SOC_IMX31 */
+
+#ifdef CONFIG_SOC_IMX35
+static struct map_desc mx35_io_desc[] __initdata = {
+	imx_map_entry(MX35, X_MEMC, MT_DEVICE),
+	imx_map_entry(MX35, AVIC, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX35, AIPS1, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX35, AIPS2, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX35, SPBA0, MT_DEVICE_NONSHARED),
+};
+
+void __init mx35_map_io(void)
+{
+	iotable_init(mx35_io_desc, ARRAY_SIZE(mx35_io_desc));
+}
+
+void __init imx35_init_early(void)
+{
+	mxc_set_cpu_type(MXC_CPU_MX35);
+	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
+	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
+}
+
+static struct mxc_gpio_port imx35_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX35, 0, 1, MX35_INT_GPIO1),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX35, 1, 2, MX35_INT_GPIO2),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX35, 2, 3, MX35_INT_GPIO3),
+};
 
 void __init mx35_init_irq(void)
 {
-	mx31_init_irq();
+	mxc_init_irq(MX35_IO_ADDRESS(MX35_AVIC_BASE_ADDR));
+	mxc_gpio_init(imx35_gpio_ports,	ARRAY_SIZE(imx35_gpio_ports));
 }
+#endif /* ifdef CONFIG_SOC_IMX35 */
 
 #ifdef CONFIG_CACHE_L2X0
 static int mxc_init_l2x0(void)
@@ -129,7 +125,7 @@ static int mxc_init_l2x0(void)
 		pr_err("L2 cache: Cannot fix timing. Trying to continue without\n");
 	}
 
-	l2x0_base = ioremap(L2CC_BASE_ADDR, 4096);
+	l2x0_base = ioremap(MX3x_L2CC_BASE_ADDR, 4096);
 	if (IS_ERR(l2x0_base)) {
 		printk(KERN_ERR "remapping L2 cache area failed with %ld\n",
 				PTR_ERR(l2x0_base));
@@ -143,4 +139,3 @@ static int mxc_init_l2x0(void)
 
 arch_initcall(mxc_init_l2x0);
 #endif
-

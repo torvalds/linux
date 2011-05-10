@@ -82,8 +82,6 @@ static struct s3c_gpio_cfg s3c24xx_gpiocfg_banka = {
 struct s3c_gpio_cfg s3c24xx_gpiocfg_default = {
 	.set_config	= s3c_gpio_setcfg_s3c24xx,
 	.get_config	= s3c_gpio_getcfg_s3c24xx,
-	.set_pull	= s3c_gpio_setpull_1up,
-	.get_pull	= s3c_gpio_getpull_1up,
 };
 
 struct s3c_gpio_chip s3c24xx_gpios[] = {

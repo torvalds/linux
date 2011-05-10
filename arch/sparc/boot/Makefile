@@ -5,26 +5,26 @@
 
 ROOT_IMG	:= /usr/src/root.img
 ELFTOAOUT	:= elftoaout
+MKIMAGE 	:= $(srctree)/scripts/mkuboot.sh
 
-hostprogs-y	:= piggyback_32 piggyback_64 btfixupprep
+hostprogs-y	:= piggyback btfixupprep
 targets		:= tftpboot.img btfix.o btfix.S image zImage vmlinux.aout
 clean-files	:= System.map
 
 quiet_cmd_elftoaout	= ELFTOAOUT $@
       cmd_elftoaout	= $(ELFTOAOUT) $(obj)/image -o $@
+quiet_cmd_piggy		= PIGGY   $@
+      cmd_piggy		= $(obj)/piggyback $(BITS) $@ System.map $(ROOT_IMG)
+quiet_cmd_strip		= STRIP   $@
+      cmd_strip		= $(STRIP) -R .comment -R .note -K sun4u_init -K _end -K _start $< -o $@
 
 ifeq ($(CONFIG_SPARC32),y)
-quiet_cmd_piggy		= PIGGY   $@
-      cmd_piggy		= $(obj)/piggyback_32 $@ System.map $(ROOT_IMG)
 quiet_cmd_btfix		= BTFIX   $@
       cmd_btfix		= $(OBJDUMP) -x vmlinux | $(obj)/btfixupprep > $@
 quiet_cmd_sysmap        = SYSMAP  $(obj)/System.map
       cmd_sysmap        = $(CONFIG_SHELL) $(srctree)/scripts/mksysmap
 quiet_cmd_image = LD      $@
       cmd_image = $(LD) $(LDFLAGS) $(EXTRA_LDFLAGS) $(LDFLAGS_$(@F)) -o $@
-quiet_cmd_strip = STRIP   $@
-      cmd_strip = $(STRIP) -R .comment -R .note -K sun4u_init -K _end -K _start $(obj)/image -o $@
-
 
 define rule_image
 	$(if $($(quiet)cmd_image),               \
@@ -57,10 +57,7 @@ $(obj)/image: $(obj)/btfix.o FORCE
 
 $(obj)/zImage: $(obj)/image
 	$(call if_changed,strip)
-
-$(obj)/tftpboot.img: $(obj)/image $(obj)/piggyback_32 System.map $(ROOT_IMG) FORCE
-	$(call if_changed,elftoaout)
-	$(call if_changed,piggy)
+	@echo '  kernel: $@ is ready'
 
 $(obj)/btfix.S: $(obj)/btfixupprep vmlinux FORCE
 	$(call if_changed,btfix)
@@ -68,11 +65,6 @@ $(obj)/btfix.S: $(obj)/btfixupprep vmlinux FORCE
 endif
 
 ifeq ($(CONFIG_SPARC64),y)
-quiet_cmd_piggy     = PIGGY   $@
-      cmd_piggy     = $(obj)/piggyback_64 $@ System.map $(ROOT_IMG)
-quiet_cmd_strip     = STRIP   $@
-      cmd_strip     = $(STRIP) -R .comment -R .note -K sun4u_init -K _end -K _start vmlinux -o $@
-
 
 # Actual linking
 $(obj)/image: vmlinux FORCE
@@ -81,14 +73,43 @@ $(obj)/image: vmlinux FORCE
 
 $(obj)/zImage: $(obj)/image
 	$(call if_changed,gzip)
-
-$(obj)/tftpboot.img: $(obj)/image $(obj)/piggyback_64 System.map $(ROOT_IMG) FORCE
-	$(call if_changed,elftoaout)
-	$(call if_changed,piggy)
 	@echo '  kernel: $@ is ready'
 
 $(obj)/vmlinux.aout: vmlinux FORCE
 	$(call if_changed,elftoaout)
 	@echo '  kernel: $@ is ready'
+else
+
+# The following lines make a readable image for U-Boot.
+#  uImage   - Binary file read by U-boot
+#  uImage.o - object file of uImage for loading with a
+#             flash programmer understanding ELF.
+
+OBJCOPYFLAGS_image.bin := -S -O binary -R .note -R .comment
+$(obj)/image.bin: $(obj)/image FORCE
+	$(call if_changed,objcopy)
+
+$(obj)/image.gz: $(obj)/image.bin
+	$(call if_changed,gzip)
+
+quiet_cmd_uimage = UIMAGE  $@
+      cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A sparc -O linux -T kernel \
+               -C gzip -a $(CONFIG_UBOOT_LOAD_ADDR) \
+	       -e $(CONFIG_UBOOT_ENTRY_ADDR) -n 'Linux-$(KERNELRELEASE)' \
+               -d $< $@
+
+quiet_cmd_uimage.o = UIMAGE.O $@
+      cmd_uimage.o = $(LD) -Tdata $(CONFIG_UBOOT_FLASH_ADDR) \
+                     -r -b binary $@ -o $@.o
+
+targets += uImage
+$(obj)/uImage: $(obj)/image.gz
+	$(call if_changed,uimage)
+	$(call if_changed,uimage.o)
+	@echo '  Image $@ is ready'
+
 endif
 
+$(obj)/tftpboot.img: $(obj)/image $(obj)/piggyback System.map $(ROOT_IMG) FORCE
+	$(call if_changed,elftoaout)
+	$(call if_changed,piggy)

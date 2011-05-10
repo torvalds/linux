@@ -65,7 +65,7 @@ enum drm_mode_status {
     MODE_H_ILLEGAL,	/* mode has illegal horizontal timings */
     MODE_V_ILLEGAL,	/* mode has illegal horizontal timings */
     MODE_BAD_WIDTH,	/* requires an unsupported linepitch */
-    MODE_NOMODE,	/* no mode with a maching name */
+    MODE_NOMODE,	/* no mode with a matching name */
     MODE_NO_INTERLACE,	/* interlaced mode not supported */
     MODE_NO_DBLESCAN,	/* doublescan mode not supported */
     MODE_NO_VSCAN,	/* multiscan mode not supported */
@@ -275,6 +275,7 @@ struct drm_pending_vblank_event;
 
 /**
  * drm_crtc_funcs - control CRTCs for a given device
+ * @reset: reset CRTC after state has been invalidate (e.g. resume)
  * @dpms: control display power levels
  * @save: save CRTC state
  * @resore: restore CRTC state
@@ -302,6 +303,8 @@ struct drm_crtc_funcs {
 	void (*save)(struct drm_crtc *crtc); /* suspend? */
 	/* Restore CRTC state */
 	void (*restore)(struct drm_crtc *crtc); /* resume? */
+	/* Reset CRTC state */
+	void (*reset)(struct drm_crtc *crtc);
 
 	/* cursor controls */
 	int (*cursor_set)(struct drm_crtc *crtc, struct drm_file *file_priv,
@@ -318,7 +321,7 @@ struct drm_crtc_funcs {
 
 	/*
 	 * Flip to the given framebuffer.  This implements the page
-	 * flip ioctl descibed in drm_mode.h, specifically, the
+	 * flip ioctl described in drm_mode.h, specifically, the
 	 * implementation must return immediately and block all
 	 * rendering to the current fb until the flip has completed.
 	 * If userspace set the event flag in the ioctl, the event
@@ -351,7 +354,13 @@ struct drm_crtc {
 
 	bool enabled;
 
+	/* Requested mode from modesetting. */
 	struct drm_display_mode mode;
+
+	/* Programmed mode in hw, after adjustments for encoders,
+	 * crtc, panel scaling etc. Needed for timestamping etc.
+	 */
+	struct drm_display_mode hwmode;
 
 	int x, y;
 	const struct drm_crtc_funcs *funcs;
@@ -359,6 +368,9 @@ struct drm_crtc {
 	/* CRTC gamma size for reporting to userspace */
 	uint32_t gamma_size;
 	uint16_t *gamma_store;
+
+	/* Constants needed for precise vblank and swap timestamping. */
+	s64 framedur_ns, linedur_ns, pixeldur_ns;
 
 	/* if you are using the helper */
 	void *helper_private;
@@ -370,6 +382,7 @@ struct drm_crtc {
  * @dpms: set power state (see drm_crtc_funcs above)
  * @save: save connector state
  * @restore: restore connector state
+ * @reset: reset connector after state has been invalidate (e.g. resume)
  * @mode_valid: is this mode valid on the given connector?
  * @mode_fixup: try to fixup proposed mode for this connector
  * @mode_set: set this mode
@@ -387,6 +400,7 @@ struct drm_connector_funcs {
 	void (*dpms)(struct drm_connector *connector, int mode);
 	void (*save)(struct drm_connector *connector);
 	void (*restore)(struct drm_connector *connector);
+	void (*reset)(struct drm_connector *connector);
 
 	/* Check to see if anything is attached to the connector.
 	 * @force is set to false whilst polling, true when checking the
@@ -404,6 +418,7 @@ struct drm_connector_funcs {
 };
 
 struct drm_encoder_funcs {
+	void (*reset)(struct drm_encoder *encoder);
 	void (*destroy)(struct drm_encoder *encoder);
 };
 
@@ -644,9 +659,10 @@ extern int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid
 extern void drm_mode_probed_add(struct drm_connector *connector, struct drm_display_mode *mode);
 extern void drm_mode_remove(struct drm_connector *connector, struct drm_display_mode *mode);
 extern struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
-						   struct drm_display_mode *mode);
+						   const struct drm_display_mode *mode);
 extern void drm_mode_debug_printmodeline(struct drm_display_mode *mode);
 extern void drm_mode_config_init(struct drm_device *dev);
+extern void drm_mode_config_reset(struct drm_device *dev);
 extern void drm_mode_config_cleanup(struct drm_device *dev);
 extern void drm_mode_set_name(struct drm_display_mode *mode);
 extern bool drm_mode_equal(struct drm_display_mode *mode1, struct drm_display_mode *mode2);
@@ -669,8 +685,8 @@ extern void drm_mode_validate_size(struct drm_device *dev,
 extern void drm_mode_prune_invalid(struct drm_device *dev,
 				   struct list_head *mode_list, bool verbose);
 extern void drm_mode_sort(struct list_head *mode_list);
-extern int drm_mode_hsync(struct drm_display_mode *mode);
-extern int drm_mode_vrefresh(struct drm_display_mode *mode);
+extern int drm_mode_hsync(const struct drm_display_mode *mode);
+extern int drm_mode_vrefresh(const struct drm_display_mode *mode);
 extern void drm_mode_set_crtcinfo(struct drm_display_mode *p,
 				  int adjust_flags);
 extern void drm_mode_connector_list_update(struct drm_connector *connector);
@@ -762,6 +778,7 @@ extern int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
+extern u8 *drm_find_cea_extension(struct edid *edid);
 extern bool drm_detect_hdmi_monitor(struct edid *edid);
 extern bool drm_detect_monitor_audio(struct edid *edid);
 extern int drm_mode_page_flip_ioctl(struct drm_device *dev,
@@ -782,4 +799,11 @@ extern int drm_add_modes_noedid(struct drm_connector *connector,
 extern bool drm_edid_is_valid(struct edid *edid);
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh);
+
+extern int drm_mode_create_dumb_ioctl(struct drm_device *dev,
+				      void *data, struct drm_file *file_priv);
+extern int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
+				    void *data, struct drm_file *file_priv);
+extern int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
+				      void *data, struct drm_file *file_priv);
 #endif /* __DRM_CRTC_H__ */

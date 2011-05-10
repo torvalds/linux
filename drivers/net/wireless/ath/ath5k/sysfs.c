@@ -95,7 +95,7 @@ static struct attribute_group ath5k_attribute_group_ani = {
 int
 ath5k_sysfs_register(struct ath5k_softc *sc)
 {
-	struct device *dev = &sc->pdev->dev;
+	struct device *dev = sc->dev;
 	int err;
 
 	err = sysfs_create_group(&dev->kobj, &ath5k_attribute_group_ani);
@@ -110,7 +110,7 @@ ath5k_sysfs_register(struct ath5k_softc *sc)
 void
 ath5k_sysfs_unregister(struct ath5k_softc *sc)
 {
-	struct device *dev = &sc->pdev->dev;
+	struct device *dev = sc->dev;
 
 	sysfs_remove_group(&dev->kobj, &ath5k_attribute_group_ani);
 }

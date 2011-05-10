@@ -17,6 +17,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
 #include <linux/etherdevice.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -25,8 +27,9 @@
 #include <mach/da8xx.h>
 #include <mach/nand.h>
 #include <mach/mux.h>
+#include <mach/spi.h>
 
-#define MITYOMAPL138_PHY_ID		"0:03"
+#define MITYOMAPL138_PHY_ID		""
 
 #define FACTORY_CONFIG_MAGIC	0x012C0138
 #define FACTORY_CONFIG_VERSION	0x00010001
@@ -44,38 +47,109 @@ struct factory_config {
 
 static struct factory_config factory_config;
 
+struct part_no_info {
+	const char	*part_no;	/* part number string of interest */
+	int		max_freq;	/* khz */
+};
+
+static struct part_no_info mityomapl138_pn_info[] = {
+	{
+		.part_no	= "L138-C",
+		.max_freq	= 300000,
+	},
+	{
+		.part_no	= "L138-D",
+		.max_freq	= 375000,
+	},
+	{
+		.part_no	= "L138-F",
+		.max_freq	= 456000,
+	},
+	{
+		.part_no	= "1808-C",
+		.max_freq	= 300000,
+	},
+	{
+		.part_no	= "1808-D",
+		.max_freq	= 375000,
+	},
+	{
+		.part_no	= "1808-F",
+		.max_freq	= 456000,
+	},
+	{
+		.part_no	= "1810-D",
+		.max_freq	= 375000,
+	},
+};
+
+#ifdef CONFIG_CPU_FREQ
+static void mityomapl138_cpufreq_init(const char *partnum)
+{
+	int i, ret;
+
+	for (i = 0; partnum && i < ARRAY_SIZE(mityomapl138_pn_info); i++) {
+		/*
+		 * the part number has additional characters beyond what is
+		 * stored in the table.  This information is not needed for
+		 * determining the speed grade, and would require several
+		 * more table entries.  Only check the first N characters
+		 * for a match.
+		 */
+		if (!strncmp(partnum, mityomapl138_pn_info[i].part_no,
+			     strlen(mityomapl138_pn_info[i].part_no))) {
+			da850_max_speed = mityomapl138_pn_info[i].max_freq;
+			break;
+		}
+	}
+
+	ret = da850_register_cpufreq("pll0_sysclk3");
+	if (ret)
+		pr_warning("cpufreq registration failed: %d\n", ret);
+}
+#else
+static void mityomapl138_cpufreq_init(const char *partnum) { }
+#endif
+
 static void read_factory_config(struct memory_accessor *a, void *context)
 {
 	int ret;
+	const char *partnum = NULL;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	ret = a->read(a, (char *)&factory_config, 0, sizeof(factory_config));
 	if (ret != sizeof(struct factory_config)) {
 		pr_warning("MityOMAPL138: Read Factory Config Failed: %d\n",
 				ret);
-		return;
+		goto bad_config;
 	}
 
 	if (factory_config.magic != FACTORY_CONFIG_MAGIC) {
 		pr_warning("MityOMAPL138: Factory Config Magic Wrong (%X)\n",
 				factory_config.magic);
-		return;
+		goto bad_config;
 	}
 
 	if (factory_config.version != FACTORY_CONFIG_VERSION) {
 		pr_warning("MityOMAPL138: Factory Config Version Wrong (%X)\n",
 				factory_config.version);
-		return;
+		goto bad_config;
 	}
 
 	pr_info("MityOMAPL138: Found MAC = %pM\n", factory_config.mac);
-	pr_info("MityOMAPL138: Part Number = %s\n", factory_config.partnum);
 	if (is_valid_ether_addr(factory_config.mac))
 		memcpy(soc_info->emac_pdata->mac_addr,
 			factory_config.mac, ETH_ALEN);
 	else
 		pr_warning("MityOMAPL138: Invalid MAC found "
 				"in factory config block\n");
+
+	partnum = factory_config.partnum;
+	pr_info("MityOMAPL138: Part Number = %s\n", partnum);
+
+bad_config:
+	/* default maximum speed is valid for all platforms */
+	mityomapl138_cpufreq_init(partnum);
 }
 
 static struct at24_platform_data mityomapl138_fd_chip = {
@@ -223,6 +297,82 @@ static int __init pmic_tps65023_init(void)
 }
 
 /*
+ * SPI Devices:
+ *	SPI1_CS0: 8M Flash ST-M25P64-VME6G
+ */
+static struct mtd_partition spi_flash_partitions[] = {
+	[0] = {
+		.name		= "ubl",
+		.offset		= 0,
+		.size		= SZ_64K,
+		.mask_flags	= MTD_WRITEABLE,
+	},
+	[1] = {
+		.name		= "u-boot",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_512K,
+		.mask_flags	= MTD_WRITEABLE,
+	},
+	[2] = {
+		.name		= "u-boot-env",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_64K,
+		.mask_flags	= MTD_WRITEABLE,
+	},
+	[3] = {
+		.name		= "periph-config",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_64K,
+		.mask_flags	= MTD_WRITEABLE,
+	},
+	[4] = {
+		.name		= "reserved",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_256K + SZ_64K,
+	},
+	[5] = {
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_2M + SZ_1M,
+	},
+	[6] = {
+		.name		= "fpga",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_2M,
+	},
+	[7] = {
+		.name		= "spare",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct flash_platform_data mityomapl138_spi_flash_data = {
+	.name		= "m25p80",
+	.parts		= spi_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(spi_flash_partitions),
+	.type		= "m24p64",
+};
+
+static struct davinci_spi_config spi_eprom_config = {
+	.io_type	= SPI_IO_TYPE_DMA,
+	.c2tdelay	= 8,
+	.t2cdelay	= 8,
+};
+
+static struct spi_board_info mityomapl138_spi_flash_info[] = {
+	{
+		.modalias		= "m25p80",
+		.platform_data		= &mityomapl138_spi_flash_data,
+		.controller_data	= &spi_eprom_config,
+		.mode			= SPI_MODE_0,
+		.max_speed_hz		= 30000000,
+		.bus_num		= 1,
+		.chip_select		= 0,
+	},
+};
+
+/*
  * MityDSP-L138 includes a 256 MByte large-page NAND flash
  * (128K blocks).
  */
@@ -264,7 +414,7 @@ static struct resource mityomapl138_nandflash_resource[] = {
 
 static struct platform_device mityomapl138_nandflash_device = {
 	.name		= "davinci_nand",
-	.id		= 0,
+	.id		= 1,
 	.dev		= {
 		.platform_data	= &mityomapl138_nandflash_data,
 	},
@@ -377,15 +527,16 @@ static void __init mityomapl138_init(void)
 
 	mityomapl138_setup_nand();
 
+	ret = da8xx_register_spi(1, mityomapl138_spi_flash_info,
+			       ARRAY_SIZE(mityomapl138_spi_flash_info));
+	if (ret)
+		pr_warning("spi 1 registration failed: %d\n", ret);
+
 	mityomapl138_config_emac();
 
 	ret = da8xx_register_rtc();
 	if (ret)
 		pr_warning("rtc setup failed: %d\n", ret);
-
-	ret = da850_register_cpufreq("pll0_sysclk3");
-	if (ret)
-		pr_warning("cpufreq registration failed: %d\n", ret);
 
 	ret = da8xx_register_cpuidle();
 	if (ret)

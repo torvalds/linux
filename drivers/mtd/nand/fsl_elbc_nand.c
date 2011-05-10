@@ -59,7 +59,7 @@ struct fsl_elbc_mtd {
 	unsigned int fmr;       /* FCM Flash Mode Register value     */
 };
 
-/* Freescale eLBC FCM controller infomation */
+/* Freescale eLBC FCM controller information */
 
 struct fsl_elbc_fcm_ctrl {
 	struct nand_hw_control controller;
@@ -388,6 +388,8 @@ static void fsl_elbc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 		         "page_addr: 0x%x, column: 0x%x.\n",
 		         page_addr, column);
 
+		elbc_fcm_ctrl->column = column;
+		elbc_fcm_ctrl->oob = 0;
 		elbc_fcm_ctrl->use_mdr = 1;
 
 		fcr = (NAND_CMD_STATUS   << FCR_CMD1_SHIFT) |

@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -21,18 +22,40 @@
 #include <video/sh_mipi_dsi.h>
 #include <video/sh_mobile_lcdc.h>
 
-#define CMTSRTCTR	0x80d0
-#define CMTSRTREQ	0x8070
-
+#define SYSCTRL		0x0000
+#define SYSCONF		0x0004
+#define TIMSET		0x0008
+#define RESREQSET0	0x0018
+#define RESREQSET1	0x001c
+#define HSTTOVSET	0x0020
+#define LPRTOVSET	0x0024
+#define TATOVSET	0x0028
+#define PRTOVSET	0x002c
+#define DSICTRL		0x0030
 #define DSIINTE		0x0060
+#define PHYCTRL		0x0070
+
+/* relative to linkbase */
+#define DTCTR		0x0000
+#define VMCTR1		0x0020
+#define VMCTR2		0x0024
+#define VMLEN1		0x0028
+#define CMTSRTREQ	0x0070
+#define CMTSRTCTR	0x00d0
 
 /* E.g., sh7372 has 2 MIPI-DSIs - one for each LCDC */
 #define MAX_SH_MIPI_DSI 2
 
 struct sh_mipi {
 	void __iomem	*base;
+	void __iomem	*linkbase;
 	struct clk	*dsit_clk;
 	struct clk	*dsip_clk;
+	struct device	*dev;
+
+	void	*next_board_data;
+	void	(*next_display_on)(void *board_data, struct fb_info *info);
+	void	(*next_display_off)(void *board_data);
 };
 
 static struct sh_mipi *mipi_dsi[MAX_SH_MIPI_DSI];
@@ -55,10 +78,10 @@ static int sh_mipi_send_short(struct sh_mipi *mipi, u8 dsi_cmd,
 	int cnt = 100;
 
 	/* transmit a short packet to LCD panel */
-	iowrite32(1 | data, mipi->base + 0x80d0); /* CMTSRTCTR */
-	iowrite32(1, mipi->base + 0x8070); /* CMTSRTREQ */
+	iowrite32(1 | data, mipi->linkbase + CMTSRTCTR);
+	iowrite32(1, mipi->linkbase + CMTSRTREQ);
 
-	while ((ioread32(mipi->base + 0x8070) & 1) && --cnt)
+	while ((ioread32(mipi->linkbase + CMTSRTREQ) & 1) && --cnt)
 		udelay(1);
 
 	return cnt ? 0 : -ETIMEDOUT;
@@ -90,7 +113,7 @@ static void sh_mipi_dsi_enable(struct sh_mipi *mipi, bool enable)
 	 * enable LCDC data tx, transition to LPS after completion of each HS
 	 * packet
 	 */
-	iowrite32(0x00000002 | enable, mipi->base + 0x8000); /* DTCTR */
+	iowrite32(0x00000002 | enable, mipi->linkbase + DTCTR);
 }
 
 static void sh_mipi_shutdown(struct platform_device *pdev)
@@ -104,14 +127,22 @@ static void mipi_display_on(void *arg, struct fb_info *info)
 {
 	struct sh_mipi *mipi = arg;
 
+	pm_runtime_get_sync(mipi->dev);
 	sh_mipi_dsi_enable(mipi, true);
+
+	if (mipi->next_display_on)
+		mipi->next_display_on(mipi->next_board_data, info);
 }
 
 static void mipi_display_off(void *arg)
 {
 	struct sh_mipi *mipi = arg;
 
+	if (mipi->next_display_off)
+		mipi->next_display_off(mipi->next_board_data);
+
 	sh_mipi_dsi_enable(mipi, false);
+	pm_runtime_put(mipi->dev);
 }
 
 static int __init sh_mipi_setup(struct sh_mipi *mipi,
@@ -119,8 +150,7 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 {
 	void __iomem *base = mipi->base;
 	struct sh_mobile_lcdc_chan_cfg *ch = pdata->lcd_chan;
-	u32 pctype, datatype, pixfmt;
-	u32 linelength;
+	u32 pctype, datatype, pixfmt, linelength, vmctr2 = 0x00e00000;
 	bool yuv;
 
 	/*
@@ -223,10 +253,10 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 		return -EINVAL;
 
 	/* reset DSI link */
-	iowrite32(0x00000001, base); /* SYSCTRL */
+	iowrite32(0x00000001, base + SYSCTRL);
 	/* Hold reset for 100 cycles of the slowest of bus, HS byte and LP clock */
 	udelay(50);
-	iowrite32(0x00000000, base); /* SYSCTRL */
+	iowrite32(0x00000000, base + SYSCTRL);
 
 	/* setup DSI link */
 
@@ -238,7 +268,7 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	 *	ECC check enable
 	 * additionally enable first two lanes
 	 */
-	iowrite32(0x00003703, base + 0x04); /* SYSCONF */
+	iowrite32(0x00003703, base + SYSCONF);
 	/*
 	 * T_wakeup = 0x7000
 	 * T_hs-trail = 3
@@ -246,28 +276,28 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	 * T_clk-trail = 3
 	 * T_clk-prepare = 2
 	 */
-	iowrite32(0x70003332, base + 0x08); /* TIMSET */
+	iowrite32(0x70003332, base + TIMSET);
 	/* no responses requested */
-	iowrite32(0x00000000, base + 0x18); /* RESREQSET0 */
+	iowrite32(0x00000000, base + RESREQSET0);
 	/* request response to packets of type 0x28 */
-	iowrite32(0x00000100, base + 0x1c); /* RESREQSET1 */
+	iowrite32(0x00000100, base + RESREQSET1);
 	/* High-speed transmission timeout, default 0xffffffff */
-	iowrite32(0x0fffffff, base + 0x20); /* HSTTOVSET */
+	iowrite32(0x0fffffff, base + HSTTOVSET);
 	/* LP reception timeout, default 0xffffffff */
-	iowrite32(0x0fffffff, base + 0x24); /* LPRTOVSET */
+	iowrite32(0x0fffffff, base + LPRTOVSET);
 	/* Turn-around timeout, default 0xffffffff */
-	iowrite32(0x0fffffff, base + 0x28); /* TATOVSET */
+	iowrite32(0x0fffffff, base + TATOVSET);
 	/* Peripheral reset timeout, default 0xffffffff */
-	iowrite32(0x0fffffff, base + 0x2c); /* PRTOVSET */
+	iowrite32(0x0fffffff, base + PRTOVSET);
 	/* Enable timeout counters */
-	iowrite32(0x00000f00, base + 0x30); /* DSICTRL */
+	iowrite32(0x00000f00, base + DSICTRL);
 	/* Interrupts not used, disable all */
 	iowrite32(0, base + DSIINTE);
 	/* DSI-Tx bias on */
-	iowrite32(0x00000001, base + 0x70); /* PHYCTRL */
+	iowrite32(0x00000001, base + PHYCTRL);
 	udelay(200);
 	/* Deassert resets, power on, set multiplier */
-	iowrite32(0x03070b01, base + 0x70); /* PHYCTRL */
+	iowrite32(0x03070b01, base + PHYCTRL);
 
 	/* setup l-bridge */
 
@@ -275,20 +305,28 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	 * Enable transmission of all packets,
 	 * transmit LPS after each HS packet completion
 	 */
-	iowrite32(0x00000006, base + 0x8000); /* DTCTR */
+	iowrite32(0x00000006, mipi->linkbase + DTCTR);
 	/* VSYNC width = 2 (<< 17) */
-	iowrite32(0x00040000 | (pctype << 12) | datatype, base + 0x8020); /* VMCTR1 */
+	iowrite32((ch->lcd_cfg[0].vsync_len << pdata->vsynw_offset) |
+		  (pdata->clksrc << 16) | (pctype << 12) | datatype,
+		  mipi->linkbase + VMCTR1);
+
 	/*
 	 * Non-burst mode with sync pulses: VSE and HSE are output,
 	 * HSA period allowed, no commands in LP
 	 */
-	iowrite32(0x00e00000, base + 0x8024); /* VMCTR2 */
+	if (pdata->flags & SH_MIPI_DSI_HSABM)
+		vmctr2 |= 0x20;
+	if (pdata->flags & SH_MIPI_DSI_HSPBM)
+		vmctr2 |= 0x10;
+	iowrite32(vmctr2, mipi->linkbase + VMCTR2);
+
 	/*
 	 * 0x660 = 1632 bytes per line (RGB24, 544 pixels: see
 	 * sh_mobile_lcdc_info.ch[0].lcd_cfg[0].xres), HSALEN = 1 - default
-	 * (unused, since VMCTR2[HSABM] = 0)
+	 * (unused if VMCTR2[HSABM] = 0)
 	 */
-	iowrite32(1 | (linelength << 16), base + 0x8028); /* VMLEN1 */
+	iowrite32(1 | (linelength << 16), mipi->linkbase + VMLEN1);
 
 	msleep(5);
 
@@ -321,11 +359,12 @@ static int __init sh_mipi_probe(struct platform_device *pdev)
 	struct sh_mipi *mipi;
 	struct sh_mipi_dsi_info *pdata = pdev->dev.platform_data;
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	struct resource *res2 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	unsigned long rate, f_current;
 	int idx = pdev->id, ret;
 	char dsip_clk[] = "dsi.p_clk";
 
-	if (!res || idx >= ARRAY_SIZE(mipi_dsi) || !pdata)
+	if (!res || !res2 || idx >= ARRAY_SIZE(mipi_dsi) || !pdata)
 		return -ENODEV;
 
 	mutex_lock(&array_lock);
@@ -355,6 +394,20 @@ static int __init sh_mipi_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto emap;
 	}
+
+	if (!request_mem_region(res2->start, resource_size(res2), pdev->name)) {
+		dev_err(&pdev->dev, "MIPI register region 2 already claimed\n");
+		ret = -EBUSY;
+		goto ereqreg2;
+	}
+
+	mipi->linkbase = ioremap(res2->start, resource_size(res2));
+	if (!mipi->linkbase) {
+		ret = -ENOMEM;
+		goto emap2;
+	}
+
+	mipi->dev = &pdev->dev;
 
 	mipi->dsit_clk = clk_get(&pdev->dev, "dsit_clk");
 	if (IS_ERR(mipi->dsit_clk)) {
@@ -405,6 +458,9 @@ static int __init sh_mipi_probe(struct platform_device *pdev)
 
 	mipi_dsi[idx] = mipi;
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_resume(&pdev->dev);
+
 	ret = sh_mipi_setup(mipi, pdata);
 	if (ret < 0)
 		goto emipisetup;
@@ -412,15 +468,22 @@ static int __init sh_mipi_probe(struct platform_device *pdev)
 	mutex_unlock(&array_lock);
 	platform_set_drvdata(pdev, mipi);
 
+	/* Save original LCDC callbacks */
+	mipi->next_board_data = pdata->lcd_chan->board_cfg.board_data;
+	mipi->next_display_on = pdata->lcd_chan->board_cfg.display_on;
+	mipi->next_display_off = pdata->lcd_chan->board_cfg.display_off;
+
 	/* Set up LCDC callbacks */
 	pdata->lcd_chan->board_cfg.board_data = mipi;
 	pdata->lcd_chan->board_cfg.display_on = mipi_display_on;
 	pdata->lcd_chan->board_cfg.display_off = mipi_display_off;
+	pdata->lcd_chan->board_cfg.owner = THIS_MODULE;
 
 	return 0;
 
 emipisetup:
 	mipi_dsi[idx] = NULL;
+	pm_runtime_disable(&pdev->dev);
 	clk_disable(mipi->dsip_clk);
 eclkpon:
 	clk_disable(mipi->dsit_clk);
@@ -431,6 +494,10 @@ eclkpget:
 esettrate:
 	clk_put(mipi->dsit_clk);
 eclktget:
+	iounmap(mipi->linkbase);
+emap2:
+	release_mem_region(res2->start, resource_size(res2));
+ereqreg2:
 	iounmap(mipi->base);
 emap:
 	release_mem_region(res->start, resource_size(res));
@@ -447,6 +514,7 @@ static int __exit sh_mipi_remove(struct platform_device *pdev)
 {
 	struct sh_mipi_dsi_info *pdata = pdev->dev.platform_data;
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	struct resource *res2 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	struct sh_mipi *mipi = platform_get_drvdata(pdev);
 	int i, ret;
 
@@ -467,14 +535,19 @@ static int __exit sh_mipi_remove(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	pdata->lcd_chan->board_cfg.owner = NULL;
 	pdata->lcd_chan->board_cfg.display_on = NULL;
 	pdata->lcd_chan->board_cfg.display_off = NULL;
 	pdata->lcd_chan->board_cfg.board_data = NULL;
 
+	pm_runtime_disable(&pdev->dev);
 	clk_disable(mipi->dsip_clk);
 	clk_disable(mipi->dsit_clk);
 	clk_put(mipi->dsit_clk);
 	clk_put(mipi->dsip_clk);
+	iounmap(mipi->linkbase);
+	if (res2)
+		release_mem_region(res2->start, resource_size(res2));
 	iounmap(mipi->base);
 	if (res)
 		release_mem_region(res->start, resource_size(res));

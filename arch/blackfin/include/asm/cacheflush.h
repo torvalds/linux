@@ -11,6 +11,9 @@
 
 #include <asm/blackfin.h>	/* for SSYNC() */
 #include <asm/sections.h>	/* for _ramend */
+#ifdef CONFIG_SMP
+#include <asm/smp.h>
+#endif
 
 extern void blackfin_icache_flush_range(unsigned long start_address, unsigned long end_address);
 extern void blackfin_dcache_flush_range(unsigned long start_address, unsigned long end_address);

@@ -35,7 +35,7 @@
 	at some future time.
 
 	The DMA module must be started before it can be used.  It is
-	started by calling CyAsDmaStart().  This function intializes
+	started by calling CyAsDmaStart().  This function initializes
 	all of the endpoint data structures.
 
 	In order to perform DMA on a particular endpoint, the endpoint
@@ -108,7 +108,7 @@ typedef enum cy_as_dma_direction {
    completes a requested DMA operation.
 
    Returns
-   CY_AS_ERROR_SUCCESS - the module initialized sucessfully
+   CY_AS_ERROR_SUCCESS - the module initialized successfully
    CY_AS_ERROR_OUT_OF_MEMORY - memory allocation failed during
 		initialization
    CY_AS_ERROR_ALREADY_RUNNING - the DMA module was already running
@@ -131,7 +131,7 @@ cy_as_dma_start(
    then freeing the resources associated with each DMA endpoint.
 
    Returns
-   CY_AS_ERROR_SUCCESS - the module shutdown sucessfully
+   CY_AS_ERROR_SUCCESS - the module shutdown successfully
    CY_AS_ERROR_NOT_RUNNING - the DMA module was not running
 
    See Also
@@ -161,7 +161,7 @@ cy_as_dma_stop(
 
    Returns
    CY_AS_ERROR_SUCCESS - the traffic on the endpoint is canceled
-	sucessfully
+	successfully
 
    See Also
 */
@@ -266,7 +266,7 @@ cy_as_dma_queue_request(
    will have to maintain a list of sleep channels to wake.
 
    Returns
-   * CY_AS_ERROR_SUCCESS - the queue has drained sucessfully
+   * CY_AS_ERROR_SUCCESS - the queue has drained successfully
    * CY_AS_ERROR_INVALID_ENDPOINT - the endpoint given is not valid
    * CY_AS_ERROR_NESTED_SLEEP - CyAsDmaQueueRequest() was requested
    *	on an endpoint where CyAsDmaQueueRequest was already called
@@ -295,7 +295,7 @@ cy_as_dma_drain_queue(
    CyAsHalDmaSetupRead() functoins.
 
    Returns
-   * CY_AS_ERROR_SUCCESS - the value was set sucessfully
+   * CY_AS_ERROR_SUCCESS - the value was set successfully
    * CY_AS_ERROR_INVALID_SIZE - the size value was not valid
 */
 extern cy_as_return_status_t

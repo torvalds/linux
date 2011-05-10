@@ -1,0 +1,6 @@
+This is an obsolete driver for some the CS5535 and CS5536 southbridge GPIOs.
+It has been replaced by a driver that makes use of the Linux GPIO subsystem.
+Please switch to that driver, and let dilinger@queued.net know if there's
+anything missing from the new driver.
+
+This driver is scheduled for removal in 2.6.40.

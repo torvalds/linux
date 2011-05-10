@@ -622,7 +622,7 @@ static const char CHAFSR_PERR_msg[] =
 static const char CHAFSR_IERR_msg[] =
 	"Internal processor error";
 static const char CHAFSR_ISAP_msg[] =
-	"System request parity error on incoming addresss";
+	"System request parity error on incoming address";
 static const char CHAFSR_UCU_msg[] =
 	"Uncorrectable E-cache ECC error for ifetch/data";
 static const char CHAFSR_UCC_msg[] =
@@ -2152,7 +2152,7 @@ static void user_instruction_dump(unsigned int __user *pc)
 
 void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 {
-	unsigned long fp, thread_base, ksp;
+	unsigned long fp, ksp;
 	struct thread_info *tp;
 	int count = 0;
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -2173,7 +2173,6 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 		flushw_all();
 
 	fp = ksp + STACK_BIAS;
-	thread_base = (unsigned long) tp;
 
 	printk("Call Trace:\n");
 	do {

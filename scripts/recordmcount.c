@@ -38,6 +38,7 @@ static void *ehdr_curr; /* current ElfXX_Ehdr *  for resource cleanup */
 static char gpfx;	/* prefix for global symbol name (sometimes '_') */
 static struct stat sb;	/* Remember .st_size, etc. */
 static jmp_buf jmpenv;	/* setjmp/longjmp per-file error escape */
+static const char *altmcount;	/* alternate mcount symbol name */
 
 /* setjmp() return values */
 enum {
@@ -205,7 +206,8 @@ static uint32_t (*w2)(uint16_t);
 static int
 is_mcounted_section_name(char const *const txtname)
 {
-	return 0 == strcmp(".text",          txtname) ||
+	return 0 == strcmp(".text",           txtname) ||
+		0 == strcmp(".ref.text",      txtname) ||
 		0 == strcmp(".sched.text",    txtname) ||
 		0 == strcmp(".spinlock.text", txtname) ||
 		0 == strcmp(".irqentry.text", txtname) ||
@@ -299,7 +301,9 @@ do_file(char const *const fname)
 		fail_file();
 	} break;
 	case EM_386:	 reltype = R_386_32;                   break;
-	case EM_ARM:	 reltype = R_ARM_ABS32;                break;
+	case EM_ARM:	 reltype = R_ARM_ABS32;
+			 altmcount = "__gnu_mcount_nc";
+			 break;
 	case EM_IA_64:	 reltype = R_IA64_IMM64;   gpfx = '_'; break;
 	case EM_MIPS:	 /* reltype: e_class    */ gpfx = '_'; break;
 	case EM_PPC:	 reltype = R_PPC_ADDR32;   gpfx = '_'; break;
@@ -357,7 +361,7 @@ do_file(char const *const fname)
 int
 main(int argc, char const *argv[])
 {
-	const char ftrace[] = "kernel/trace/ftrace.o";
+	const char ftrace[] = "/ftrace.o";
 	int ftrace_size = sizeof(ftrace) - 1;
 	int n_error = 0;  /* gcc-4.3.0 false positive complaint */
 

@@ -18,7 +18,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
 #include "tlv320aic26.h"
@@ -31,7 +30,6 @@ MODULE_LICENSE("GPL");
 struct aic26 {
 	struct spi_device *spi;
 	struct snd_soc_codec codec;
-	u16 reg_cache[AIC26_NUM_REGS];	/* shadow registers */
 	int master;
 	int datfm;
 	int mclk;
@@ -355,7 +353,6 @@ static DEVICE_ATTR(keyclick, 0644, aic26_keyclick_show, aic26_keyclick_set);
  */
 static int aic26_probe(struct snd_soc_codec *codec)
 {
-	struct aic26 *aic26 = snd_soc_codec_get_drvdata(codec);
 	int ret, err, i, reg;
 
 	dev_info(codec->dev, "Probing AIC26 SoC CODEC driver\n");
@@ -373,7 +370,7 @@ static int aic26_probe(struct snd_soc_codec *codec)
 	aic26_reg_write(codec, AIC26_REG_AUDIO_CTRL3, reg);
 
 	/* Fill register cache */
-	for (i = 0; i < ARRAY_SIZE(aic26->reg_cache); i++)
+	for (i = 0; i < codec->driver->reg_cache_size; i++)
 		aic26_reg_read(codec, i);
 
 	/* Register the sysfs files for debugging */

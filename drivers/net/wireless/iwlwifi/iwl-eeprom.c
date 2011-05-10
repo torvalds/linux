@@ -147,7 +147,7 @@ static int iwl_eeprom_verify_signature(struct iwl_priv *priv)
 	u32 gp = iwl_read32(priv, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
 	int ret = 0;
 
-	IWL_DEBUG_INFO(priv, "EEPROM signature=0x%08x\n", gp);
+	IWL_DEBUG_EEPROM(priv, "EEPROM signature=0x%08x\n", gp);
 	switch (gp) {
 	case CSR_EEPROM_GP_BAD_SIG_EEP_GOOD_SIG_OTP:
 		if (priv->nvm_device_type != NVM_DEVICE_TYPE_OTP) {
@@ -222,7 +222,6 @@ const u8 *iwlcore_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
 	BUG_ON(offset >= priv->cfg->base_params->eeprom_size);
 	return &priv->eeprom[offset];
 }
-EXPORT_SYMBOL(iwlcore_eeprom_query_addr);
 
 static int iwl_init_otp_access(struct iwl_priv *priv)
 {
@@ -354,7 +353,7 @@ static int iwl_find_otp_image(struct iwl_priv *priv,
 		 */
 		valid_addr = next_link_addr;
 		next_link_addr = le16_to_cpu(link_value) * sizeof(u16);
-		IWL_DEBUG_INFO(priv, "OTP blocks %d addr 0x%x\n",
+		IWL_DEBUG_EEPROM(priv, "OTP blocks %d addr 0x%x\n",
 			       usedblocks, next_link_addr);
 		if (iwl_read_otp_word(priv, next_link_addr, &link_value))
 			return -EINVAL;
@@ -374,7 +373,7 @@ static int iwl_find_otp_image(struct iwl_priv *priv,
 	} while (usedblocks <= priv->cfg->base_params->max_ll_items);
 
 	/* OTP has no valid blocks */
-	IWL_DEBUG_INFO(priv, "OTP has no valid blocks\n");
+	IWL_DEBUG_EEPROM(priv, "OTP has no valid blocks\n");
 	return -EINVAL;
 }
 
@@ -382,7 +381,6 @@ const u8 *iwl_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
 {
 	return priv->cfg->ops->lib->eeprom_ops.query_addr(priv, offset);
 }
-EXPORT_SYMBOL(iwl_eeprom_query_addr);
 
 u16 iwl_eeprom_query16(const struct iwl_priv *priv, size_t offset)
 {
@@ -390,7 +388,6 @@ u16 iwl_eeprom_query16(const struct iwl_priv *priv, size_t offset)
 		return 0;
 	return (u16)priv->eeprom[offset] | ((u16)priv->eeprom[offset + 1] << 8);
 }
-EXPORT_SYMBOL(iwl_eeprom_query16);
 
 /**
  * iwl_eeprom_init - read EEPROM contents
@@ -414,7 +411,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 		return -ENOENT;
 	/* allocate eeprom */
 	sz = priv->cfg->base_params->eeprom_size;
-	IWL_DEBUG_INFO(priv, "NVM size = %d\n", sz);
+	IWL_DEBUG_EEPROM(priv, "NVM size = %d\n", sz);
 	priv->eeprom = kzalloc(sz, GFP_KERNEL);
 	if (!priv->eeprom) {
 		ret = -ENOMEM;
@@ -492,7 +489,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 		}
 	}
 
-	IWL_DEBUG_INFO(priv, "NVM Type: %s, version: 0x%x\n",
+	IWL_DEBUG_EEPROM(priv, "NVM Type: %s, version: 0x%x\n",
 		       (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
 		       ? "OTP" : "EEPROM",
 		       iwl_eeprom_query16(priv, EEPROM_VERSION));
@@ -509,14 +506,12 @@ err:
 alloc_err:
 	return ret;
 }
-EXPORT_SYMBOL(iwl_eeprom_init);
 
 void iwl_eeprom_free(struct iwl_priv *priv)
 {
 	kfree(priv->eeprom);
 	priv->eeprom = NULL;
 }
-EXPORT_SYMBOL(iwl_eeprom_free);
 
 static void iwl_init_band_reference(const struct iwl_priv *priv,
 			int eep_band, int *eeprom_ch_count,
@@ -594,7 +589,7 @@ static int iwl_mod_ht40_chan_info(struct iwl_priv *priv,
 	if (!is_channel_valid(ch_info))
 		return -1;
 
-	IWL_DEBUG_INFO(priv, "HT40 Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm):"
+	IWL_DEBUG_EEPROM(priv, "HT40 Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm):"
 			" Ad-Hoc %ssupported\n",
 			ch_info->channel,
 			is_channel_a_band(ch_info) ?
@@ -634,11 +629,11 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	struct iwl_channel_info *ch_info;
 
 	if (priv->channel_count) {
-		IWL_DEBUG_INFO(priv, "Channel map already initialized.\n");
+		IWL_DEBUG_EEPROM(priv, "Channel map already initialized.\n");
 		return 0;
 	}
 
-	IWL_DEBUG_INFO(priv, "Initializing regulatory info from EEPROM\n");
+	IWL_DEBUG_EEPROM(priv, "Initializing regulatory info from EEPROM\n");
 
 	priv->channel_count =
 	    ARRAY_SIZE(iwl_eeprom_band_1) +
@@ -647,7 +642,8 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	    ARRAY_SIZE(iwl_eeprom_band_4) +
 	    ARRAY_SIZE(iwl_eeprom_band_5);
 
-	IWL_DEBUG_INFO(priv, "Parsing data for %d channels.\n", priv->channel_count);
+	IWL_DEBUG_EEPROM(priv, "Parsing data for %d channels.\n",
+			priv->channel_count);
 
 	priv->channel_info = kzalloc(sizeof(struct iwl_channel_info) *
 				     priv->channel_count, GFP_KERNEL);
@@ -686,7 +682,8 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 					IEEE80211_CHAN_NO_HT40;
 
 			if (!(is_channel_valid(ch_info))) {
-				IWL_DEBUG_INFO(priv, "Ch. %d Flags %x [%sGHz] - "
+				IWL_DEBUG_EEPROM(priv,
+					       "Ch. %d Flags %x [%sGHz] - "
 					       "No traffic\n",
 					       ch_info->channel,
 					       ch_info->flags,
@@ -702,7 +699,8 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			ch_info->scan_power = eeprom_ch_info[ch].max_power_avg;
 			ch_info->min_power = 0;
 
-			IWL_DEBUG_INFO(priv, "Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x %ddBm):"
+			IWL_DEBUG_EEPROM(priv, "Ch. %d [%sGHz] "
+				       "%s%s%s%s%s%s(0x%02x %ddBm):"
 				       " Ad-Hoc %ssupported\n",
 				       ch_info->channel,
 				       is_channel_a_band(ch_info) ?
@@ -776,7 +774,6 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 
 	return 0;
 }
-EXPORT_SYMBOL(iwl_init_channel_map);
 
 /*
  * iwl_free_channel_map - undo allocations in iwl_init_channel_map
@@ -786,7 +783,6 @@ void iwl_free_channel_map(struct iwl_priv *priv)
 	kfree(priv->channel_info);
 	priv->channel_count = 0;
 }
-EXPORT_SYMBOL(iwl_free_channel_map);
 
 /**
  * iwl_get_channel_info - Find driver's private channel info
@@ -815,4 +811,3 @@ const struct iwl_channel_info *iwl_get_channel_info(const struct iwl_priv *priv,
 
 	return NULL;
 }
-EXPORT_SYMBOL(iwl_get_channel_info);

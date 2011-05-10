@@ -348,8 +348,7 @@ static void uctrl_get_external_status(struct uctrl_driver *driver)
 	
 }
 
-static int __devinit uctrl_probe(struct platform_device *op,
-				 const struct of_device_id *match)
+static int __devinit uctrl_probe(struct platform_device *op)
 {
 	struct uctrl_driver *p;
 	int err = -ENOMEM;
@@ -425,7 +424,7 @@ static const struct of_device_id uctrl_match[] = {
 };
 MODULE_DEVICE_TABLE(of, uctrl_match);
 
-static struct of_platform_driver uctrl_driver = {
+static struct platform_driver uctrl_driver = {
 	.driver = {
 		.name = "uctrl",
 		.owner = THIS_MODULE,
@@ -438,12 +437,12 @@ static struct of_platform_driver uctrl_driver = {
 
 static int __init uctrl_init(void)
 {
-	return of_register_platform_driver(&uctrl_driver);
+	return platform_driver_register(&uctrl_driver);
 }
 
 static void __exit uctrl_exit(void)
 {
-	of_unregister_platform_driver(&uctrl_driver);
+	platform_driver_unregister(&uctrl_driver);
 }
 
 module_init(uctrl_init);

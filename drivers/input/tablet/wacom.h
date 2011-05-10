@@ -103,6 +103,7 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE(DRIVER_LICENSE);
 
 #define USB_VENDOR_ID_WACOM	0x056a
+#define USB_VENDOR_ID_LENOVO	0x17ef
 
 struct wacom {
 	dma_addr_t data_dma;

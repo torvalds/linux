@@ -301,7 +301,7 @@ static void at91_pm_end(void)
 }
 
 
-static struct platform_suspend_ops at91_pm_ops ={
+static const struct platform_suspend_ops at91_pm_ops = {
 	.valid	= at91_pm_valid_state,
 	.begin	= at91_pm_begin,
 	.enter	= at91_pm_enter,

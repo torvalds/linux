@@ -128,7 +128,8 @@ enum {
 };
 
 /* ACPI HIDs */
-#define TPACPI_ACPI_HKEY_HID		"IBM0068"
+#define TPACPI_ACPI_IBM_HKEY_HID	"IBM0068"
+#define TPACPI_ACPI_LENOVO_HKEY_HID	"LEN0068"
 #define TPACPI_ACPI_EC_HID		"PNP0C09"
 
 /* Input IDs */
@@ -589,6 +590,7 @@ static int acpi_evalf(acpi_handle handle,
 		default:
 			printk(TPACPI_ERR "acpi_evalf() called "
 			       "with invalid format character '%c'\n", c);
+			va_end(ap);
 			return 0;
 		}
 	}
@@ -2274,16 +2276,12 @@ static void tpacpi_input_send_key(const unsigned int scancode)
 	if (keycode != KEY_RESERVED) {
 		mutex_lock(&tpacpi_inputdev_send_mutex);
 
+		input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN, scancode);
 		input_report_key(tpacpi_inputdev, keycode, 1);
-		if (keycode == KEY_UNKNOWN)
-			input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN,
-				    scancode);
 		input_sync(tpacpi_inputdev);
 
+		input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN, scancode);
 		input_report_key(tpacpi_inputdev, keycode, 0);
-		if (keycode == KEY_UNKNOWN)
-			input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN,
-				    scancode);
 		input_sync(tpacpi_inputdev);
 
 		mutex_unlock(&tpacpi_inputdev_send_mutex);
@@ -2410,7 +2408,7 @@ static void hotkey_compare_and_issue_event(struct tp_nvram_state *oldn,
 	 * This code is supposed to duplicate the IBM firmware behaviour:
 	 * - Pressing MUTE issues mute hotkey message, even when already mute
 	 * - Pressing Volume up/down issues volume up/down hotkey messages,
-	 *   even when already at maximum or minumum volume
+	 *   even when already at maximum or minimum volume
 	 * - The act of unmuting issues volume up/down notification,
 	 *   depending which key was used to unmute
 	 *
@@ -2993,7 +2991,7 @@ static void tpacpi_send_radiosw_update(void)
 	 * rfkill input events, or we will race the rfkill core input
 	 * handler.
 	 *
-	 * tpacpi_inputdev_send_mutex works as a syncronization point
+	 * tpacpi_inputdev_send_mutex works as a synchronization point
 	 * for the above.
 	 *
 	 * We optimize to avoid numerous calls to hotkey_get_wlsw.
@@ -3882,7 +3880,8 @@ errexit:
 }
 
 static const struct acpi_device_id ibm_htk_device_ids[] = {
-	{TPACPI_ACPI_HKEY_HID, 0},
+	{TPACPI_ACPI_IBM_HKEY_HID, 0},
+	{TPACPI_ACPI_LENOVO_HKEY_HID, 0},
 	{"", 0},
 };
 
@@ -6109,7 +6108,7 @@ static void tpacpi_brightness_notify_change(void)
 			       BACKLIGHT_UPDATE_HOTKEY);
 }
 
-static struct backlight_ops ibm_backlight_data = {
+static const struct backlight_ops ibm_backlight_data = {
 	.get_brightness = brightness_get,
 	.update_status  = brightness_update_status,
 };
@@ -6310,6 +6309,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 		return 1;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = bright_maxlvl;
 	props.brightness = b & TP_EC_BACKLIGHT_LVLMSK;
 	ibm_backlight_device = backlight_device_register(TPACPI_BACKLIGHT_DEV_NAME,
@@ -6345,7 +6345,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 			"as change notification\n");
 	tpacpi_hotkey_driver_mask_set(hotkey_driver_mask
 				| TP_ACPI_HKEY_BRGHTUP_MASK
-				| TP_ACPI_HKEY_BRGHTDWN_MASK);;
+				| TP_ACPI_HKEY_BRGHTDWN_MASK);
 	return 0;
 }
 
@@ -7193,7 +7193,7 @@ static struct ibm_struct volume_driver_data = {
  * 		TPACPI_FAN_WR_ACPI_FANS (X31/X40/X41)
  *
  *	FIRMWARE BUG: on some models, EC 0x2f might not be initialized at
- *	boot. Apparently the EC does not intialize it, so unless ACPI DSDT
+ *	boot. Apparently the EC does not initialize it, so unless ACPI DSDT
  *	does so, its initial value is meaningless (0x07).
  *
  *	For firmware bugs, refer to:
@@ -8497,7 +8497,6 @@ static void ibm_exit(struct ibm_struct *ibm)
 					   ibm->acpi->type,
 					   dispatch_acpi_notify);
 		ibm->flags.acpi_notify_installed = 0;
-		ibm->flags.acpi_notify_installed = 0;
 	}
 
 	if (ibm->flags.proc_created) {
@@ -8621,8 +8620,7 @@ static bool __pure __init tpacpi_is_valid_fw_id(const char* const s,
 		tpacpi_is_fw_digit(s[1]) &&
 		s[2] == t && s[3] == 'T' &&
 		tpacpi_is_fw_digit(s[4]) &&
-		tpacpi_is_fw_digit(s[5]) &&
-		s[6] == 'W' && s[7] == 'W';
+		tpacpi_is_fw_digit(s[5]);
 }
 
 /* returns 0 - probe ok, or < 0 - probe error.

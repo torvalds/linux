@@ -26,7 +26,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
@@ -533,10 +532,11 @@ static int eqmode_put(struct snd_kcontrol *kcontrol,
 
 static int wm8985_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, wm8985_dapm_widgets,
-				  ARRAY_SIZE(wm8985_dapm_widgets));
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_add_routes(codec, audio_map,
+	snd_soc_dapm_new_controls(dapm, wm8985_dapm_widgets,
+				  ARRAY_SIZE(wm8985_dapm_widgets));
+	snd_soc_dapm_add_routes(dapm, audio_map,
 				ARRAY_SIZE(audio_map));
 	return 0;
 }
@@ -879,7 +879,7 @@ static int wm8985_set_bias_level(struct snd_soc_codec *codec,
 				    1 << WM8985_VMIDSEL_SHIFT);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(wm8985->supplies),
 						    wm8985->supplies);
 			if (ret) {
@@ -939,7 +939,7 @@ static int wm8985_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 

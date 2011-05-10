@@ -20,7 +20,7 @@
 #define UTIL_REMOTE_SHUTDOWN 0x82
 #define UTIL_FLOW_OFF 0x81
 #define UTIL_FLOW_ON  0x80
-#define UTIL_CTRL_PKT_SIZE 1
+
 static int cfutill_receive(struct cflayer *layr, struct cfpkt *pkt);
 static int cfutill_transmit(struct cflayer *layr, struct cfpkt *pkt);
 

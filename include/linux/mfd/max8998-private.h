@@ -159,10 +159,12 @@ struct max8998_dev {
 	u8 irq_masks_cur[MAX8998_NUM_IRQ_REGS];
 	u8 irq_masks_cache[MAX8998_NUM_IRQ_REGS];
 	int type;
+	bool wakeup;
 };
 
 int max8998_irq_init(struct max8998_dev *max8998);
 void max8998_irq_exit(struct max8998_dev *max8998);
+int max8998_irq_resume(struct max8998_dev *max8998);
 
 extern int max8998_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest);
 extern int max8998_bulk_read(struct i2c_client *i2c, u8 reg, int count,

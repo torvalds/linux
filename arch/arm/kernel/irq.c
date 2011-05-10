@@ -35,8 +35,10 @@
 #include <linux/list.h>
 #include <linux/kallsyms.h>
 #include <linux/proc_fs.h>
+#include <linux/ftrace.h>
 
 #include <asm/system.h>
+#include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
@@ -47,56 +49,20 @@
 #define irq_finish(irq) do { } while (0)
 #endif
 
-unsigned int arch_nr_irqs;
-void (*init_arch_irq)(void) __initdata = NULL;
 unsigned long irq_err_count;
 
-int show_interrupts(struct seq_file *p, void *v)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
-	int i = *(loff_t *) v, cpu;
-	struct irq_desc *desc;
-	struct irqaction * action;
-	unsigned long flags;
-
-	if (i == 0) {
-		char cpuname[12];
-
-		seq_printf(p, "    ");
-		for_each_present_cpu(cpu) {
-			sprintf(cpuname, "CPU%d", cpu);
-			seq_printf(p, " %10s", cpuname);
-		}
-		seq_putc(p, '\n');
-	}
-
-	if (i < nr_irqs) {
-		desc = irq_to_desc(i);
-		raw_spin_lock_irqsave(&desc->lock, flags);
-		action = desc->action;
-		if (!action)
-			goto unlock;
-
-		seq_printf(p, "%3d: ", i);
-		for_each_present_cpu(cpu)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, cpu));
-		seq_printf(p, " %10s", desc->chip->name ? : "-");
-		seq_printf(p, "  %s", action->name);
-		for (action = action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-
-		seq_putc(p, '\n');
-unlock:
-		raw_spin_unlock_irqrestore(&desc->lock, flags);
-	} else if (i == nr_irqs) {
 #ifdef CONFIG_FIQ
-		show_fiq_list(p, v);
+	show_fiq_list(p, prec);
 #endif
 #ifdef CONFIG_SMP
-		show_ipi_list(p);
-		show_local_irqs(p);
+	show_ipi_list(p, prec);
 #endif
-		seq_printf(p, "Err: %10lu\n", irq_err_count);
-	}
+#ifdef CONFIG_LOCAL_TIMERS
+	show_local_irqs(p, prec);
+#endif
+	seq_printf(p, "%*s: %10lu\n", prec, "Err", irq_err_count);
 	return 0;
 }
 
@@ -105,7 +71,8 @@ unlock:
  * come via this function.  Instead, they should provide their
  * own 'handler'
  */
-asmlinkage void __exception asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
+asmlinkage void __exception_irq_entry
+asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -132,48 +99,53 @@ asmlinkage void __exception asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 
 void set_irq_flags(unsigned int irq, unsigned int iflags)
 {
-	struct irq_desc *desc;
-	unsigned long flags;
+	unsigned long clr = 0, set = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 
 	if (irq >= nr_irqs) {
 		printk(KERN_ERR "Trying to set irq flags for IRQ%d\n", irq);
 		return;
 	}
 
-	desc = irq_to_desc(irq);
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc->status |= IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 	if (iflags & IRQF_VALID)
-		desc->status &= ~IRQ_NOREQUEST;
+		clr |= IRQ_NOREQUEST;
 	if (iflags & IRQF_PROBE)
-		desc->status &= ~IRQ_NOPROBE;
+		clr |= IRQ_NOPROBE;
 	if (!(iflags & IRQF_NOAUTOEN))
-		desc->status &= ~IRQ_NOAUTOEN;
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
+		clr |= IRQ_NOAUTOEN;
+	/* Order is clear bits in "clr" then set bits in "set" */
+	irq_modify_status(irq, clr, set & ~clr);
 }
 
 void __init init_IRQ(void)
 {
-	init_arch_irq();
+	machine_desc->init_irq();
 }
 
 #ifdef CONFIG_SPARSE_IRQ
 int __init arch_probe_nr_irqs(void)
 {
-	nr_irqs = arch_nr_irqs ? arch_nr_irqs : NR_IRQS;
+	nr_irqs = machine_desc->nr_irqs ? machine_desc->nr_irqs : NR_IRQS;
 	return nr_irqs;
 }
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-static void route_irq(struct irq_desc *desc, unsigned int irq, unsigned int cpu)
+static bool migrate_one_irq(struct irq_data *d)
 {
-	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", irq, desc->node, cpu);
+	unsigned int cpu = cpumask_any_and(d->affinity, cpu_online_mask);
+	bool ret = false;
 
-	raw_spin_lock_irq(&desc->lock);
-	desc->chip->set_affinity(irq, cpumask_of(cpu));
-	raw_spin_unlock_irq(&desc->lock);
+	if (cpu >= nr_cpu_ids) {
+		cpu = cpumask_any(cpu_online_mask);
+		ret = true;
+	}
+
+	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", d->irq, d->node, cpu);
+
+	d->chip->irq_set_affinity(d, cpumask_of(cpu), true);
+
+	return ret;
 }
 
 /*
@@ -185,23 +157,30 @@ void migrate_irqs(void)
 {
 	unsigned int i, cpu = smp_processor_id();
 	struct irq_desc *desc;
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	for_each_irq_desc(i, desc) {
-		if (desc->node == cpu) {
-			unsigned int newcpu = cpumask_any_and(desc->affinity,
-							      cpu_online_mask);
-			if (newcpu >= nr_cpu_ids) {
-				if (printk_ratelimit())
-					printk(KERN_INFO "IRQ%u no longer affine to CPU%u\n",
-					       i, cpu);
+		struct irq_data *d = &desc->irq_data;
+		bool affinity_broken = false;
 
-				cpumask_setall(desc->affinity);
-				newcpu = cpumask_any_and(desc->affinity,
-							 cpu_online_mask);
-			}
+		raw_spin_lock(&desc->lock);
+		do {
+			if (desc->action == NULL)
+				break;
 
-			route_irq(desc, i, newcpu);
-		}
+			if (d->node != cpu)
+				break;
+
+			affinity_broken = migrate_one_irq(d);
+		} while (0);
+		raw_spin_unlock(&desc->lock);
+
+		if (affinity_broken && printk_ratelimit())
+			pr_warning("IRQ%u no longer affine to CPU%u\n", i, cpu);
 	}
+
+	local_irq_restore(flags);
 }
 #endif /* CONFIG_HOTPLUG_CPU */

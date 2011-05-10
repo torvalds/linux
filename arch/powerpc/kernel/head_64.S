@@ -38,8 +38,9 @@
 #include <asm/page_64.h>
 #include <asm/irqflags.h>
 #include <asm/kvm_book3s_asm.h>
+#include <asm/ptrace.h>
 
-/* The physical memory is layed out such that the secondary processor
+/* The physical memory is laid out such that the secondary processor
  * spin code sits at 0x0000...0x00ff. On server, the vectors follow
  * using the layout described in exceptions-64s.S
  */
@@ -96,7 +97,7 @@ __secondary_hold_acknowledge:
 	.llong hvReleaseData-KERNELBASE
 #endif /* CONFIG_PPC_ISERIES */
 
-#ifdef CONFIG_CRASH_DUMP
+#ifdef CONFIG_RELOCATABLE
 	/* This flag is set to 1 by a loader if the kernel should run
 	 * at the loaded address instead of the linked address.  This
 	 * is used by kexec-tools to keep the the kdump kernel in the
@@ -384,12 +385,10 @@ _STATIC(__after_prom_start)
 	/* process relocations for the final address of the kernel */
 	lis	r25,PAGE_OFFSET@highest	/* compute virtual base of kernel */
 	sldi	r25,r25,32
-#ifdef CONFIG_CRASH_DUMP
 	lwz	r7,__run_at_load-_stext(r26)
-	cmplwi	cr0,r7,1	/* kdump kernel ? - stay where we are */
+	cmplwi	cr0,r7,1	/* flagged to stay where we are ? */
 	bne	1f
 	add	r25,r25,r26
-#endif
 1:	mr	r3,r25
 	bl	.relocate
 #endif
@@ -536,6 +535,13 @@ _GLOBAL(pmac_secondary_start)
 	mulli	r13,r24,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r4		/* for this processor.		*/
 	mtspr	SPRN_SPRG_PACA,r13	/* Save vaddr of paca in an SPRG*/
+
+	/* Mark interrupts soft and hard disabled (they might be enabled
+	 * in the PACA when doing hotplug)
+	 */
+	li	r0,0
+	stb	r0,PACASOFTIRQEN(r13)
+	stb	r0,PACAHARDIRQEN(r13)
 
 	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)

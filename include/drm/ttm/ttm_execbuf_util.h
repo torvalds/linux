@@ -41,7 +41,10 @@
  * @bo:             refcounted buffer object pointer.
  * @new_sync_obj_arg: New sync_obj_arg for @bo, to be used once
  * adding a new sync object.
- * @reservied:      Indicates whether @bo has been reserved for validation.
+ * @reserved:       Indicates whether @bo has been reserved for validation.
+ * @removed:        Indicates whether @bo has been removed from lru lists.
+ * @put_count:      Number of outstanding references on bo::list_kref.
+ * @old_sync_obj:   Pointer to a sync object about to be unreferenced
  */
 
 struct ttm_validate_buffer {
@@ -49,6 +52,9 @@ struct ttm_validate_buffer {
 	struct ttm_buffer_object *bo;
 	void *new_sync_obj_arg;
 	bool reserved;
+	bool removed;
+	int put_count;
+	void *old_sync_obj;
 };
 
 /**
@@ -66,7 +72,6 @@ extern void ttm_eu_backoff_reservation(struct list_head *list);
  * function ttm_eu_reserve_buffers
  *
  * @list:    thread private list of ttm_validate_buffer structs.
- * @val_seq: A unique sequence number.
  *
  * Tries to reserve bos pointed to by the list entries for validation.
  * If the function returns 0, all buffers are marked as "unfenced",
@@ -88,7 +93,7 @@ extern void ttm_eu_backoff_reservation(struct list_head *list);
  * has failed.
  */
 
-extern int ttm_eu_reserve_buffers(struct list_head *list, uint32_t val_seq);
+extern int ttm_eu_reserve_buffers(struct list_head *list);
 
 /**
  * function ttm_eu_fence_buffer_objects.

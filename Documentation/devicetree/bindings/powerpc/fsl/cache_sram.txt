@@ -1,0 +1,20 @@
+* Freescale PQ3 and QorIQ based Cache SRAM
+
+Freescale's mpc85xx and some QorIQ platforms provide an
+option of configuring a part of (or full) cache memory
+as SRAM. This cache SRAM representation in the device
+tree should be done as under:-
+
+Required properties:
+
+- compatible : should be "fsl,p2020-cache-sram"
+- fsl,cache-sram-ctlr-handle : points to the L2 controller
+- reg : offset and length of the cache-sram.
+
+Example:
+
+cache-sram@fff00000 {
+	fsl,cache-sram-ctlr-handle = <&L2>;
+	reg = <0 0xfff00000 0 0x10000>;
+	compatible = "fsl,p2020-cache-sram";
+};

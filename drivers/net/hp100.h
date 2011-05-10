@@ -109,7 +109,7 @@
 #define HP100_REG_MAC_CFG_2	0x0d	/* RW: (8) Misc MAC functions        */
 #define HP100_REG_MAC_CFG_3     0x0e	/* RW: (8) Misc MAC functions */
 #define HP100_REG_MAC_CFG_4     0x0f	/* R:  (8) Misc MAC states */
-#define HP100_REG_DROPPED	0x10	/* R:  (16),11:0 Pkts cant fit in mem */
+#define HP100_REG_DROPPED	0x10	/* R:  (16),11:0 Pkts can't fit in mem */
 #define HP100_REG_CRC		0x12	/* R:  (8) Pkts with CRC             */
 #define HP100_REG_ABORT		0x13	/* R:  (8) Aborted Tx pkts           */
 #define HP100_REG_TRAIN_REQUEST 0x14	/* RW: (16) Endnode MAC register. */

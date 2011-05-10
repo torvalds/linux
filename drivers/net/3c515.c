@@ -98,7 +98,7 @@ static int rx_nocopy, rx_copy, queued_packet;
 #define WAIT_TX_AVAIL 200
 
 /* Operational parameter that usually are not changed. */
-#define TX_TIMEOUT  40		/* Time in jiffies before concluding Tx hung */
+#define TX_TIMEOUT  ((4*HZ)/10)	/* Time in jiffies before concluding Tx hung */
 
 /* The size here is somewhat misleading: the Corkscrew also uses the ISA
    aliased registers at <base>+0x400.

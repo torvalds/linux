@@ -186,27 +186,6 @@ void kzfree(const void *p)
 }
 EXPORT_SYMBOL(kzfree);
 
-int kern_ptr_validate(const void *ptr, unsigned long size)
-{
-	unsigned long addr = (unsigned long)ptr;
-	unsigned long min_addr = PAGE_OFFSET;
-	unsigned long align_mask = sizeof(void *) - 1;
-
-	if (unlikely(addr < min_addr))
-		goto out;
-	if (unlikely(addr > (unsigned long)high_memory - size))
-		goto out;
-	if (unlikely(addr & align_mask))
-		goto out;
-	if (unlikely(!kern_addr_valid(addr)))
-		goto out;
-	if (unlikely(!kern_addr_valid(addr + size - 1)))
-		goto out;
-	return 1;
-out:
-	return 0;
-}
-
 /*
  * strndup_user - duplicate an existing string from user space
  * @s: The string to duplicate
@@ -248,7 +227,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 /*
  * Like get_user_pages_fast() except its IRQ-safe in that it won't fall
  * back to the regular GUP.
- * If the architecture not support this fucntion, simply return with no
+ * If the architecture not support this function, simply return with no
  * page pinned
  */
 int __attribute__((weak)) __get_user_pages_fast(unsigned long start,

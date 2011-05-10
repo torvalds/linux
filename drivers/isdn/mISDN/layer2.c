@@ -95,14 +95,20 @@ static void
 l2m_debug(struct FsmInst *fi, char *fmt, ...)
 {
 	struct layer2 *l2 = fi->userdata;
+	struct va_format vaf;
 	va_list va;
 
 	if (!(*debug & DEBUG_L2_FSM))
 		return;
+
 	va_start(va, fmt);
-	printk(KERN_DEBUG "l2 (sapi %d tei %d): ", l2->sapi, l2->tei);
-	vprintk(fmt, va);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &va;
+
+	printk(KERN_DEBUG "l2 (sapi %d tei %d): %pV\n",
+	       l2->sapi, l2->tei, &vaf);
+
 	va_end(va);
 }
 
@@ -1858,7 +1864,7 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 		psapi >>= 2;
 		ptei >>= 1;
 		if (psapi != l2->sapi) {
-			/* not our bussiness */
+			/* not our business */
 			if (*debug & DEBUG_L2)
 				printk(KERN_DEBUG "%s: sapi %d/%d mismatch\n",
 					__func__, psapi, l2->sapi);
@@ -1866,7 +1872,7 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 			return 0;
 		}
 		if ((ptei != l2->tei) && (ptei != GROUP_TEI)) {
-			/* not our bussiness */
+			/* not our business */
 			if (*debug & DEBUG_L2)
 				printk(KERN_DEBUG "%s: tei %d/%d mismatch\n",
 					__func__, ptei, l2->tei);

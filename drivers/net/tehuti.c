@@ -12,7 +12,7 @@
 /*
  * RX HW/SW interaction overview
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * There are 2 types of RX communication channels betwean driver and NIC.
+ * There are 2 types of RX communication channels between driver and NIC.
  * 1) RX Free Fifo - RXF - holds descriptors of empty buffers to accept incoming
  * traffic. This Fifo is filled by SW and is readen by HW. Each descriptor holds
  * info about buffer's location, size and ID. An ID field is used to identify a
@@ -324,7 +324,7 @@ static int bdx_fw_load(struct bdx_priv *priv)
 	ENTER;
 	master = READ_REG(priv, regINIT_SEMAPHORE);
 	if (!READ_REG(priv, regINIT_STATUS) && master) {
-		rc = request_firmware(&fw, "tehuti/firmware.bin", &priv->pdev->dev);
+		rc = request_firmware(&fw, "tehuti/bdx.bin", &priv->pdev->dev);
 		if (rc)
 			goto out;
 		bdx_tx_push_desc_safe(priv, (char *)fw->data, fw->size);
@@ -645,7 +645,7 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 	if (cmd != SIOCDEVPRIVATE) {
 		error = copy_from_user(data, ifr->ifr_data, sizeof(data));
 		if (error) {
-			pr_err("cant copy from user\n");
+			pr_err("can't copy from user\n");
 			RET(-EFAULT);
 		}
 		DBG("%d 0x%x 0x%x\n", data[0], data[1], data[2]);
@@ -821,7 +821,7 @@ static void bdx_setmulti(struct net_device *ndev)
 		}
 
 		/* use PMF to accept first MAC_MCST_NUM (15) addresses */
-		/* TBD: sort addreses and write them in ascending order
+		/* TBD: sort addresses and write them in ascending order
 		 * into RX_MAC_MCST regs. we skip this phase now and accept ALL
 		 * multicast frames throu IMF */
 		/* accept the rest of addresses throu IMF */
@@ -999,7 +999,7 @@ static inline void bdx_rxdb_free_elem(struct rxdb *db, int n)
  *
  * RxD fifo is smaller than RxF fifo by design. Upon high load, RxD will be
  * filled and packets will be dropped by nic without getting into host or
- * cousing interrupt. Anyway, in that condition, host has no chance to proccess
+ * cousing interrupt. Anyway, in that condition, host has no chance to process
  * all packets, but dropping in nic is cheaper, since it takes 0 cpu cycles
  */
 
@@ -1200,8 +1200,8 @@ static void bdx_recycle_skb(struct bdx_priv *priv, struct rxd_desc *rxdd)
 	RET();
 }
 
-/* bdx_rx_receive - recieves full packets from RXD fifo and pass them to OS
- * NOTE: a special treatment is given to non-continous descriptors
+/* bdx_rx_receive - receives full packets from RXD fifo and pass them to OS
+ * NOTE: a special treatment is given to non-continuous descriptors
  * that start near the end, wraps around and continue at the beginning. a second
  * part is copied right after the first, and then descriptor is interpreted as
  * normal. fifo has an extra space to allow such operations
@@ -1346,7 +1346,7 @@ static void print_rxfd(struct rxf_desc *rxfd)
 /*
  * TX HW/SW interaction overview
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * There are 2 types of TX communication channels betwean driver and NIC.
+ * There are 2 types of TX communication channels between driver and NIC.
  * 1) TX Free Fifo - TXF - holds ack descriptors for sent packets
  * 2) TX Data Fifo - TXD - holds descriptors of full buffers.
  *
@@ -1584,9 +1584,9 @@ err_mem:
 }
 
 /*
- * bdx_tx_space - calculates avalable space in TX fifo
+ * bdx_tx_space - calculates available space in TX fifo
  * @priv - NIC private structure
- * Returns avaliable space in TX fifo in bytes
+ * Returns available space in TX fifo in bytes
  */
 static inline int bdx_tx_space(struct bdx_priv *priv)
 {
@@ -2510,4 +2510,4 @@ module_exit(bdx_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(BDX_DRV_DESC);
-MODULE_FIRMWARE("tehuti/firmware.bin");
+MODULE_FIRMWARE("tehuti/bdx.bin");

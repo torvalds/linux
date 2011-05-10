@@ -10,7 +10,7 @@ config PPC_PSERIES
 	select RTAS_ERROR_LOGGING
 	select PPC_UDBG_16550
 	select PPC_NATIVE
-	select PPC_PCI_CHOICE if EMBEDDED
+	select PPC_PCI_CHOICE if EXPERT
 	default y
 
 config PPC_SPLPAR
@@ -24,14 +24,24 @@ config PPC_SPLPAR
 	  two or more partitions.
 
 config EEH
-	bool "PCI Extended Error Handling (EEH)" if EMBEDDED
+	bool "PCI Extended Error Handling (EEH)" if EXPERT
 	depends on PPC_PSERIES && PCI
-	default y if !EMBEDDED
+	default y if !EXPERT
 
 config PSERIES_MSI
        bool
        depends on PCI_MSI && EEH
        default y
+
+config PSERIES_ENERGY
+	tristate "pSeries energy management capabilities driver"
+	depends on PPC_PSERIES
+	default y
+	help
+	  Provides interface to platform energy management capabilities
+	  on supported PSERIES platforms.
+	  Provides: /sys/devices/system/cpu/pseries_(de)activation_hint_list
+	  and /sys/devices/system/cpu/cpuN/pseries_(de)activation_hint
 
 config SCANLOG
 	tristate "Scanlog dump interface"

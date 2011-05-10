@@ -1069,7 +1069,7 @@ int diFree(struct inode *ip)
 		 */
 		if (iagp->nfreeexts == cpu_to_le32(EXTSPERIAG - 1)) {
 			/* in preparation for removing the iag from the
-			 * ag extent free list, read the iags preceeding
+			 * ag extent free list, read the iags preceding
 			 * and following the iag on the ag extent free
 			 * list.
 			 */
@@ -1095,7 +1095,7 @@ int diFree(struct inode *ip)
 		int inofreefwd = le32_to_cpu(iagp->inofreefwd);
 
 		/* in preparation for removing the iag from the
-		 * ag inode free list, read the iags preceeding
+		 * ag inode free list, read the iags preceding
 		 * and following the iag on the ag inode free
 		 * list.  before reading these iags, we must make
 		 * sure that we already don't have them in hand
@@ -1681,7 +1681,7 @@ diAllocAG(struct inomap * imap, int agno, bool dir, struct inode *ip)
 	 * try to allocate a new extent of free inodes.
 	 */
 	if (addext) {
-		/* if free space is not avaliable for this new extent, try
+		/* if free space is not available for this new extent, try
 		 * below to allocate a free and existing (already backed)
 		 * inode from the ag.
 		 */
@@ -2036,7 +2036,7 @@ static int diAllocBit(struct inomap * imap, struct iag * iagp, int ino)
 
 	/* check if this is the last free inode within the iag.
 	 * if so, it will have to be removed from the ag free
-	 * inode list, so get the iags preceeding and following
+	 * inode list, so get the iags preceding and following
 	 * it on the list.
 	 */
 	if (iagp->nfreeinos == cpu_to_le32(1)) {
@@ -2208,7 +2208,7 @@ static int diNewExt(struct inomap * imap, struct iag * iagp, int extno)
 
 	/* check if this is the last free extent within the
 	 * iag.  if so, the iag must be removed from the ag
-	 * free extent list, so get the iags preceeding and
+	 * free extent list, so get the iags preceding and
 	 * following the iag on this list.
 	 */
 	if (iagp->nfreeexts == cpu_to_le32(1)) {
@@ -2504,7 +2504,7 @@ diNewIAG(struct inomap * imap, int *iagnop, int agno, struct metapage ** mpp)
 		}
 
 
-		/* get the next avaliable iag number */
+		/* get the next available iag number */
 		iagno = imap->im_nextiag;
 
 		/* make sure that we have not exceeded the maximum inode
@@ -2615,7 +2615,7 @@ diNewIAG(struct inomap * imap, int *iagnop, int agno, struct metapage ** mpp)
 
 		duplicateIXtree(sb, blkno, xlen, &xaddr);
 
-		/* update the next avaliable iag number */
+		/* update the next available iag number */
 		imap->im_nextiag += 1;
 
 		/* Add the iag to the iag free list so we don't lose the iag

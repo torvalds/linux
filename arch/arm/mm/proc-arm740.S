@@ -130,6 +130,9 @@ ENTRY(arm740_processor_functions)
 	.word	cpu_arm740_dcache_clean_area
 	.word	cpu_arm740_switch_mm
 	.word	0			@ cpu_*_set_pte
+	.word	0
+	.word	0
+	.word	0
 	.size	arm740_processor_functions, . - arm740_processor_functions
 
 	.section ".rodata"

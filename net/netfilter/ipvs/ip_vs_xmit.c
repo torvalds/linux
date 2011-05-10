@@ -43,6 +43,13 @@
 
 #include <net/ip_vs.h>
 
+enum {
+	IP_VS_RT_MODE_LOCAL	= 1, /* Allow local dest */
+	IP_VS_RT_MODE_NON_LOCAL	= 2, /* Allow non-local dest */
+	IP_VS_RT_MODE_RDR	= 4, /* Allow redirect from remote daddr to
+				      * local
+				      */
+};
 
 /*
  *      Destination cache to speed up outgoing route lookup
@@ -77,11 +84,7 @@ __ip_vs_dst_check(struct ip_vs_dest *dest, u32 rtos)
 	return dst;
 }
 
-/*
- * Get route to destination or remote server
- * rt_mode: flags, &1=Allow local dest, &2=Allow non-local dest,
- *	    &4=Allow redirect from remote daddr to local
- */
+/* Get route to destination or remote server */
 static struct rtable *
 __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 		   __be32 daddr, u32 rtos, int rt_mode)
@@ -95,16 +98,8 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 		spin_lock(&dest->dst_lock);
 		if (!(rt = (struct rtable *)
 		      __ip_vs_dst_check(dest, rtos))) {
-			struct flowi fl = {
-				.oif = 0,
-				.nl_u = {
-					.ip4_u = {
-						.daddr = dest->addr.ip,
-						.saddr = 0,
-						.tos = rtos, } },
-			};
-
-			if (ip_route_output_key(net, &rt, &fl)) {
+			rt = ip_route_output(net, dest->addr.ip, 0, rtos, 0);
+			if (IS_ERR(rt)) {
 				spin_unlock(&dest->dst_lock);
 				IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n",
 					     &dest->addr.ip);
@@ -117,16 +112,8 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 		}
 		spin_unlock(&dest->dst_lock);
 	} else {
-		struct flowi fl = {
-			.oif = 0,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = daddr,
-					.saddr = 0,
-					.tos = rtos, } },
-		};
-
-		if (ip_route_output_key(net, &rt, &fl)) {
+		rt = ip_route_output(net, daddr, 0, rtos, 0);
+		if (IS_ERR(rt)) {
 			IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n",
 				     &daddr);
 			return NULL;
@@ -134,15 +121,16 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 	}
 
 	local = rt->rt_flags & RTCF_LOCAL;
-	if (!((local ? 1 : 2) & rt_mode)) {
+	if (!((local ? IP_VS_RT_MODE_LOCAL : IP_VS_RT_MODE_NON_LOCAL) &
+	      rt_mode)) {
 		IP_VS_DBG_RL("Stopping traffic to %s address, dest: %pI4\n",
 			     (rt->rt_flags & RTCF_LOCAL) ?
 			     "local":"non-local", &rt->rt_dst);
 		ip_rt_put(rt);
 		return NULL;
 	}
-	if (local && !(rt_mode & 4) && !((ort = skb_rtable(skb)) &&
-					 ort->rt_flags & RTCF_LOCAL)) {
+	if (local && !(rt_mode & IP_VS_RT_MODE_RDR) &&
+	    !((ort = skb_rtable(skb)) && ort->rt_flags & RTCF_LOCAL)) {
 		IP_VS_DBG_RL("Redirect from non-local address %pI4 to local "
 			     "requires NAT method, dest: %pI4\n",
 			     &ip_hdr(skb)->daddr, &rt->rt_dst);
@@ -169,7 +157,7 @@ __ip_vs_reroute_locally(struct sk_buff *skb)
 	struct net *net = dev_net(dev);
 	struct iphdr *iph = ip_hdr(skb);
 
-	if (rt->fl.iif) {
+	if (rt_is_input_route(rt)) {
 		unsigned long orefdst = skb->_skb_refdst;
 
 		if (ip_route_input(skb, iph->daddr, iph->saddr,
@@ -177,20 +165,15 @@ __ip_vs_reroute_locally(struct sk_buff *skb)
 			return 0;
 		refdst_drop(orefdst);
 	} else {
-		struct flowi fl = {
-			.oif = 0,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = iph->daddr,
-					.saddr = iph->saddr,
-					.tos = RT_TOS(iph->tos),
-				}
-			},
-			.mark = skb->mark,
+		struct flowi4 fl4 = {
+			.daddr = iph->daddr,
+			.saddr = iph->saddr,
+			.flowi4_tos = RT_TOS(iph->tos),
+			.flowi4_mark = skb->mark,
 		};
-		struct rtable *rt;
 
-		if (ip_route_output_key(net, &rt, &fl))
+		rt = ip_route_output_key(net, &fl4);
+		if (IS_ERR(rt))
 			return 0;
 		if (!(rt->rt_flags & RTCF_LOCAL)) {
 			ip_rt_put(rt);
@@ -215,27 +198,27 @@ __ip_vs_route_output_v6(struct net *net, struct in6_addr *daddr,
 			struct in6_addr *ret_saddr, int do_xfrm)
 {
 	struct dst_entry *dst;
-	struct flowi fl = {
-		.oif = 0,
-		.nl_u = {
-			.ip6_u = {
-				.daddr = *daddr,
-			},
-		},
+	struct flowi6 fl6 = {
+		.daddr = *daddr,
 	};
 
-	dst = ip6_route_output(net, NULL, &fl);
+	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst->error)
 		goto out_err;
 	if (!ret_saddr)
 		return dst;
-	if (ipv6_addr_any(&fl.fl6_src) &&
+	if (ipv6_addr_any(&fl6.saddr) &&
 	    ipv6_dev_get_saddr(net, ip6_dst_idev(dst)->dev,
-			       &fl.fl6_dst, 0, &fl.fl6_src) < 0)
+			       &fl6.daddr, 0, &fl6.saddr) < 0)
 		goto out_err;
-	if (do_xfrm && xfrm_lookup(net, &dst, &fl, NULL, 0) < 0)
-		goto out_err;
-	ipv6_addr_copy(ret_saddr, &fl.fl6_src);
+	if (do_xfrm) {
+		dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
+		if (IS_ERR(dst)) {
+			dst = NULL;
+			goto out_err;
+		}
+	}
+	ipv6_addr_copy(ret_saddr, &fl6.saddr);
 	return dst;
 
 out_err:
@@ -402,13 +385,14 @@ ip_vs_bypass_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	EnterFunction(10);
 
-	if (!(rt = __ip_vs_get_out_rt(skb, NULL, iph->daddr,
-				      RT_TOS(iph->tos), 2)))
+	if (!(rt = __ip_vs_get_out_rt(skb, NULL, iph->daddr, RT_TOS(iph->tos),
+				      IP_VS_RT_MODE_NON_LOCAL)))
 		goto tx_error_icmp;
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
-	if ((skb->len > mtu) && (iph->frag_off & htons(IP_DF))) {
+	if ((skb->len > mtu) && (iph->frag_off & htons(IP_DF)) &&
+	    !skb_is_gso(skb)) {
 		ip_rt_put(rt);
 		icmp_send(skb, ICMP_DEST_UNREACH,ICMP_FRAG_NEEDED, htonl(mtu));
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
@@ -461,7 +445,7 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
-	if (skb->len > mtu) {
+	if (skb->len > mtu && !skb_is_gso(skb)) {
 		if (!skb->dev) {
 			struct net *net = dev_net(skb_dst(skb)->dev);
 
@@ -530,7 +514,10 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	}
 
 	if (!(rt = __ip_vs_get_out_rt(skb, cp->dest, cp->daddr.ip,
-				      RT_TOS(iph->tos), 1|2|4)))
+				      RT_TOS(iph->tos),
+				      IP_VS_RT_MODE_LOCAL |
+					IP_VS_RT_MODE_NON_LOCAL |
+					IP_VS_RT_MODE_RDR)))
 		goto tx_error_icmp;
 	local = rt->rt_flags & RTCF_LOCAL;
 	/*
@@ -552,7 +539,8 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 #endif
 
 	/* From world but DNAT to loopback address? */
-	if (local && ipv4_is_loopback(rt->rt_dst) && skb_rtable(skb)->fl.iif) {
+	if (local && ipv4_is_loopback(rt->rt_dst) &&
+	    rt_is_input_route(skb_rtable(skb))) {
 		IP_VS_DBG_RL_PKT(1, AF_INET, pp, skb, 0, "ip_vs_nat_xmit(): "
 				 "stopping DNAT to loopback address");
 		goto tx_error_put;
@@ -560,7 +548,8 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
-	if ((skb->len > mtu) && (iph->frag_off & htons(IP_DF))) {
+	if ((skb->len > mtu) && (iph->frag_off & htons(IP_DF)) &&
+	    !skb_is_gso(skb)) {
 		icmp_send(skb, ICMP_DEST_UNREACH,ICMP_FRAG_NEEDED, htonl(mtu));
 		IP_VS_DBG_RL_PKT(0, AF_INET, pp, skb, 0,
 				 "ip_vs_nat_xmit(): frag needed for");
@@ -675,7 +664,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
-	if (skb->len > mtu) {
+	if (skb->len > mtu && !skb_is_gso(skb)) {
 		if (!skb->dev) {
 			struct net *net = dev_net(skb_dst(skb)->dev);
 
@@ -771,7 +760,8 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	EnterFunction(10);
 
 	if (!(rt = __ip_vs_get_out_rt(skb, cp->dest, cp->daddr.ip,
-				      RT_TOS(tos), 1|2)))
+				      RT_TOS(tos), IP_VS_RT_MODE_LOCAL |
+						   IP_VS_RT_MODE_NON_LOCAL)))
 		goto tx_error_icmp;
 	if (rt->rt_flags & RTCF_LOCAL) {
 		ip_rt_put(rt);
@@ -790,8 +780,8 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	df |= (old_iph->frag_off & htons(IP_DF));
 
-	if ((old_iph->frag_off & htons(IP_DF))
-	    && mtu < ntohs(old_iph->tot_len)) {
+	if ((old_iph->frag_off & htons(IP_DF) &&
+	    mtu < ntohs(old_iph->tot_len) && !skb_is_gso(skb))) {
 		icmp_send(skb, ICMP_DEST_UNREACH,ICMP_FRAG_NEEDED, htonl(mtu));
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error_put;
@@ -903,7 +893,8 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	if (skb_dst(skb))
 		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
 
-	if (mtu < ntohs(old_iph->payload_len) + sizeof(struct ipv6hdr)) {
+	if (mtu < ntohs(old_iph->payload_len) + sizeof(struct ipv6hdr) &&
+	    !skb_is_gso(skb)) {
 		if (!skb->dev) {
 			struct net *net = dev_net(skb_dst(skb)->dev);
 
@@ -999,7 +990,9 @@ ip_vs_dr_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	EnterFunction(10);
 
 	if (!(rt = __ip_vs_get_out_rt(skb, cp->dest, cp->daddr.ip,
-				      RT_TOS(iph->tos), 1|2)))
+				      RT_TOS(iph->tos),
+				      IP_VS_RT_MODE_LOCAL |
+					IP_VS_RT_MODE_NON_LOCAL)))
 		goto tx_error_icmp;
 	if (rt->rt_flags & RTCF_LOCAL) {
 		ip_rt_put(rt);
@@ -1008,7 +1001,8 @@ ip_vs_dr_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
-	if ((iph->frag_off & htons(IP_DF)) && skb->len > mtu) {
+	if ((iph->frag_off & htons(IP_DF)) && skb->len > mtu &&
+	    !skb_is_gso(skb)) {
 		icmp_send(skb, ICMP_DEST_UNREACH,ICMP_FRAG_NEEDED, htonl(mtu));
 		ip_rt_put(rt);
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
@@ -1142,7 +1136,10 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	 */
 
 	if (!(rt = __ip_vs_get_out_rt(skb, cp->dest, cp->daddr.ip,
-				      RT_TOS(ip_hdr(skb)->tos), 1|2|4)))
+				      RT_TOS(ip_hdr(skb)->tos),
+				      IP_VS_RT_MODE_LOCAL |
+					IP_VS_RT_MODE_NON_LOCAL |
+					IP_VS_RT_MODE_RDR)))
 		goto tx_error_icmp;
 	local = rt->rt_flags & RTCF_LOCAL;
 
@@ -1165,7 +1162,8 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 #endif
 
 	/* From world but DNAT to loopback address? */
-	if (local && ipv4_is_loopback(rt->rt_dst) && skb_rtable(skb)->fl.iif) {
+	if (local && ipv4_is_loopback(rt->rt_dst) &&
+	    rt_is_input_route(skb_rtable(skb))) {
 		IP_VS_DBG(1, "%s(): "
 			  "stopping DNAT to loopback %pI4\n",
 			  __func__, &cp->daddr.ip);
@@ -1174,7 +1172,8 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
-	if ((skb->len > mtu) && (ip_hdr(skb)->frag_off & htons(IP_DF))) {
+	if ((skb->len > mtu) && (ip_hdr(skb)->frag_off & htons(IP_DF)) &&
+	    !skb_is_gso(skb)) {
 		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, htonl(mtu));
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error_put;
@@ -1288,7 +1287,7 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	/* MTU checking */
 	mtu = dst_mtu(&rt->dst);
-	if (skb->len > mtu) {
+	if (skb->len > mtu && !skb_is_gso(skb)) {
 		if (!skb->dev) {
 			struct net *net = dev_net(skb_dst(skb)->dev);
 

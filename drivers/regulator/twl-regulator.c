@@ -329,7 +329,8 @@ static int twl4030ldo_list_voltage(struct regulator_dev *rdev, unsigned index)
 }
 
 static int
-twl4030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
+twl4030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
+		       unsigned *selector)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
 	int			vsel;
@@ -345,9 +346,11 @@ twl4030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
 		/* REVISIT for VAUX2, first match may not be best/lowest */
 
 		/* use the first in-range value */
-		if (min_uV <= uV && uV <= max_uV)
+		if (min_uV <= uV && uV <= max_uV) {
+			*selector = vsel;
 			return twlreg_write(info, TWL_MODULE_PM_RECEIVER,
 							VREG_VOLTAGE, vsel);
+		}
 	}
 
 	return -EDOM;
@@ -389,7 +392,8 @@ static int twl6030ldo_list_voltage(struct regulator_dev *rdev, unsigned index)
 }
 
 static int
-twl6030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
+twl6030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
+		       unsigned *selector)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
 	int			vsel;
@@ -402,6 +406,7 @@ twl6030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
 	 * mV = 1000mv + 100mv * (vsel - 1)
 	 */
 	vsel = (min_uV/1000 - 1000)/100 + 1;
+	*selector = vsel;
 	return twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_VOLTAGE, vsel);
 
 }
@@ -470,6 +475,13 @@ static struct regulator_ops twlfixed_ops = {
 	.get_status	= twlreg_get_status,
 };
 
+static struct regulator_ops twl6030_fixed_resource = {
+	.enable		= twlreg_enable,
+	.disable	= twlreg_disable,
+	.is_enabled	= twlreg_is_enabled,
+	.get_status	= twlreg_get_status,
+};
+
 /*----------------------------------------------------------------------*/
 
 #define TWL4030_FIXED_LDO(label, offset, mVolts, num, turnon_delay, \
@@ -533,6 +545,20 @@ static struct regulator_ops twlfixed_ops = {
 		}, \
 	}
 
+#define TWL6030_FIXED_RESOURCE(label, offset, num, turnon_delay, remap_conf) { \
+	.base = offset, \
+	.id = num, \
+	.delay = turnon_delay, \
+	.remap = remap_conf, \
+	.desc = { \
+		.name = #label, \
+		.id = TWL6030_REG_##label, \
+		.ops = &twl6030_fixed_resource, \
+		.type = REGULATOR_VOLTAGE, \
+		.owner = THIS_MODULE, \
+		}, \
+	}
+
 /*
  * We list regulators here if systems need some level of
  * software control over them after boot.
@@ -572,7 +598,8 @@ static struct twlreg_info twl_regs[] = {
 	TWL6030_FIXED_LDO(VANA, 0x50, 2100, 15, 0, 0x21),
 	TWL6030_FIXED_LDO(VCXIO, 0x60, 1800, 16, 0, 0x21),
 	TWL6030_FIXED_LDO(VDAC, 0x64, 1800, 17, 0, 0x21),
-	TWL6030_FIXED_LDO(VUSB, 0x70, 3300, 18, 0, 0x21)
+	TWL6030_FIXED_LDO(VUSB, 0x70, 3300, 18, 0, 0x21),
+	TWL6030_FIXED_RESOURCE(CLK32KG, 0x8C, 48, 0, 0x21),
 };
 
 static int __devinit twlreg_probe(struct platform_device *pdev)

@@ -63,9 +63,10 @@ nfs4_renew_state(struct work_struct *work)
 
 	ops = clp->cl_mvops->state_renewal_ops;
 	dprintk("%s: start\n", __func__);
-	/* Are there any active superblocks? */
-	if (list_empty(&clp->cl_superblocks))
+
+	if (test_bit(NFS_CS_STOP_RENEW, &clp->cl_res_state))
 		goto out;
+
 	spin_lock(&clp->cl_lock);
 	lease = clp->cl_lease_time;
 	last = clp->cl_last_renewal;
@@ -75,7 +76,7 @@ nfs4_renew_state(struct work_struct *work)
 		cred = ops->get_state_renewal_cred_locked(clp);
 		spin_unlock(&clp->cl_lock);
 		if (cred == NULL) {
-			if (list_empty(&clp->cl_delegations)) {
+			if (!nfs_delegations_present(clp)) {
 				set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
 				goto out;
 			}

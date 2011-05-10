@@ -57,10 +57,6 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #if 1
 #define SET_EMI		/* 302LV/ELV: Set EMI values */
 #endif
@@ -5856,7 +5852,7 @@ SiS_SetGroup1_LVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
      temp = tempax & 0x00FF;
      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x43,temp);
      temp = ((tempax & 0xFF00) >> 8) << 3;
-     SiS_SetRegANDOR(SiS_Pr->SiS_Part1Port,0x44,~0x0F8,temp);
+     SiS_SetRegANDOR(SiS_Pr->SiS_Part1Port, 0x44, 0x07, temp);
 
      tempax = SiS_Pr->SiS_VDE;				 	/* BDxWadrst1 = BDxWadrst0 + BDxWadroff * VDE */
      if(SiS_Pr->SiS_LCDResInfo == Panel_320x240_1 ||
@@ -5870,7 +5866,7 @@ SiS_SetGroup1_LVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
      temp = ((tempeax & 0xFF0000) >> 16) | 0x10;
      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x40,temp);
      temp = ((tempeax & 0x01000000) >> 24) << 7;
-     SiS_SetRegANDOR(SiS_Pr->SiS_Part1Port,0x3C,~0x080,temp);
+     SiS_SetRegANDOR(SiS_Pr->SiS_Part1Port, 0x3C, 0x7F, temp);
 
      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x2F,0x03);
      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x03,0x50);

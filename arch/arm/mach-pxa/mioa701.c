@@ -39,6 +39,7 @@
 #include <linux/usb/gpio_vbus.h>
 #include <linux/regulator/max1586.h>
 #include <linux/slab.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -50,7 +51,6 @@
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/pxa27x-udc.h>
-#include <plat/i2c.h>
 #include <mach/camera.h>
 #include <mach/audio.h>
 #include <media/soc_camera.h>
@@ -458,7 +458,7 @@ static struct platform_device strataflash = {
 /*
  * Suspend/Resume bootstrap management
  *
- * MIO A701 reboot sequence is highly ROM dependant. From the one dissassembled,
+ * MIO A701 reboot sequence is highly ROM dependent. From the one dissassembled,
  * this sequence is as follows :
  *   - disables interrupts
  *   - initialize SDRAM (self refresh RAM into active RAM)
@@ -795,7 +795,7 @@ static void __init mioa701_machine_init(void)
 	pxa_set_stuart_info(NULL);
 	mio_gpio_request(ARRAY_AND_SIZE(global_gpios));
 	bootstrap_init();
-	set_pxa_fb_info(&mioa701_pxafb_info);
+	pxa_set_fb_info(NULL, &mioa701_pxafb_info);
 	pxa_set_mci_info(&mioa701_mci_info);
 	pxa_set_keypad_info(&mioa701_keypad_info);
 	pxa_set_udc_info(&mioa701_udc_info);
@@ -819,7 +819,7 @@ static void mioa701_machine_exit(void)
 
 MACHINE_START(MIOA701, "MIO A701")
 	.boot_params	= 0xa0000100,
-	.map_io		= &pxa_map_io,
+	.map_io		= &pxa27x_map_io,
 	.init_irq	= &pxa27x_init_irq,
 	.init_machine	= mioa701_machine_init,
 	.timer		= &pxa_timer,

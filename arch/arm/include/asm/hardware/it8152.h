@@ -76,6 +76,7 @@ extern unsigned long it8152_base_address;
   IT8152_PD_IRQ(0)  Audio controller (ACR)
  */
 #define IT8152_IRQ(x)   (IRQ_BOARD_START + (x))
+#define IT8152_LAST_IRQ	(IRQ_BOARD_START + 40)
 
 /* IRQ-sources in 3 groups - local devices, LPC (serial), and external PCI */
 #define IT8152_LD_IRQ_COUNT     9

@@ -1,20 +1,18 @@
 #include "headers.h"
 
-#ifndef BCM_SHM_INTERFACE
 
 int InterfaceFileDownload( PVOID arg,
                         struct file *flp,
                         unsigned int on_chip_loc)
 {
-    char            *buff=NULL;
    // unsigned int    reg=0;
     mm_segment_t    oldfs={0};
     int             errno=0, len=0 /*,is_config_file = 0*/;
     loff_t          pos=0;
 	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)arg;
 	//PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter;
+    char            *buff=kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
 
-    buff=(PCHAR)kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
     if(!buff)
     {
         return -ENOMEM;
@@ -49,7 +47,7 @@ int InterfaceFileDownload( PVOID arg,
         on_chip_loc+=MAX_TRANSFER_CTRL_BYTE_USB;
 	}/* End of for(;;)*/
 
-	bcm_kfree(buff);
+	kfree(buff);
     return errno;
 }
 
@@ -57,7 +55,7 @@ int InterfaceFileReadbackFromChip( PVOID arg,
                         struct file *flp,
                         unsigned int on_chip_loc)
 {
-    char            *buff=NULL, *buff_readback=NULL;
+    char            *buff, *buff_readback;
     unsigned int    reg=0;
     mm_segment_t    oldfs={0};
     int             errno=0, len=0, is_config_file = 0;
@@ -66,12 +64,12 @@ int InterfaceFileReadbackFromChip( PVOID arg,
 	INT				Status = STATUS_SUCCESS;
 	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)arg;
 
-    buff=(PCHAR)kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_DMA);
-    buff_readback=(PCHAR)kmalloc(MAX_TRANSFER_CTRL_BYTE_USB , GFP_DMA);
+    buff=kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_DMA);
+    buff_readback=kmalloc(MAX_TRANSFER_CTRL_BYTE_USB , GFP_DMA);
     if(!buff || !buff_readback)
     {
-        bcm_kfree(buff);
-        bcm_kfree(buff_readback);
+        kfree(buff);
+        kfree(buff_readback);
 
         return -ENOMEM;
     }
@@ -138,8 +136,8 @@ int InterfaceFileReadbackFromChip( PVOID arg,
         on_chip_loc+=MAX_TRANSFER_CTRL_BYTE_USB;
     }/* End of while(1)*/
 exit:
-    bcm_kfree(buff);
-    bcm_kfree(buff_readback);
+    kfree(buff);
+    kfree(buff_readback);
 	return Status;
 }
 
@@ -165,7 +163,7 @@ static int bcm_download_config_file(PMINI_ADAPTER Adapter,
 			psFwInfo->pvMappedFirmwareAddress, psFwInfo->u32FirmwareLength);
 	if(retval)
 	{
-		bcm_kfree (Adapter->pstargetparams);
+		kfree(Adapter->pstargetparams);
 		Adapter->pstargetparams = NULL;
 		return -EFAULT;
 	}
@@ -231,41 +229,6 @@ static int bcm_download_config_file(PMINI_ADAPTER Adapter,
 
 	return retval;
 }
-#if 0
-static int bcm_download_buffer(PMINI_ADAPTER Adapter,
-	unsigned char *mappedbuffer, unsigned int u32FirmwareLength,
-	unsigned long u32StartingAddress)
-{
-    char            *buff=NULL;
-    unsigned int    len = 0;
-	int 			retval = STATUS_SUCCESS;
-	buff = kzalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
-
-	len = u32FirmwareLength;
-
-	while(u32FirmwareLength)
-	{
-		len = MIN_VAL (u32FirmwareLength, MAX_TRANSFER_CTRL_BYTE_USB);
-		if(STATUS_SUCCESS != (retval = copy_from_user(buff,
-				(unsigned char *)mappedbuffer, len)))
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "copy_from_user failed\n");
-			break;
-		}
-		retval = wrm (Adapter, u32StartingAddress, buff, len);
-		if(retval)
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "wrm failed\n");
-			break;
-		}
-		u32StartingAddress 	+= len;
-		u32FirmwareLength  	-= len;
-		mappedbuffer	   	+=len;
-	}
-	bcm_kfree(buff);
-	return retval;
-}
-#endif
 static int bcm_compare_buff_contents(unsigned char *readbackbuff,
 	unsigned char *buff,unsigned int len)
 {
@@ -297,58 +260,6 @@ static int bcm_compare_buff_contents(unsigned char *readbackbuff,
 	}
 	return retval;
 }
-#if 0
-static int bcm_buffer_readback(PMINI_ADAPTER Adapter,
-	unsigned char *mappedbuffer, unsigned int u32FirmwareLength,
-	unsigned long u32StartingAddress)
-{
-	unsigned char *buff = NULL;
-	unsigned char *readbackbuff = NULL;
-	unsigned int  len = u32FirmwareLength;
-	int retval = STATUS_SUCCESS;
-
-    buff=(unsigned char *)kzalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
-	if(NULL == buff)
-		return -ENOMEM;
-	readbackbuff =  (unsigned char *)kzalloc(MAX_TRANSFER_CTRL_BYTE_USB,
-					GFP_KERNEL);
-	if(NULL == readbackbuff)
-	{
-		bcm_kfree(buff);
-		return -ENOMEM;
-	}
-	while (u32FirmwareLength && !retval)
-	{
-		len = MIN_VAL (u32FirmwareLength, MAX_TRANSFER_CTRL_BYTE_USB);
-
-		/* read from the appl buff and then read from the target, compare */
-		if(STATUS_SUCCESS != (retval = copy_from_user(buff,
-				(unsigned char *)mappedbuffer, len)))
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "copy_from_user failed\n");
-			break;
-		}
-		retval = rdm (Adapter, u32StartingAddress, readbackbuff, len);
-		if(retval)
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "rdm failed\n");
-			break;
-		}
-
-		if (STATUS_SUCCESS !=
-			(retval = bcm_compare_buff_contents (readbackbuff, buff, len)))
-		{
-			break;
-		}
-		u32StartingAddress 	+= len;
-		u32FirmwareLength  	-= len;
-		mappedbuffer	   	+=len;
-	}/* end of while (u32FirmwareLength && !retval) */
-	bcm_kfree(buff);
-	bcm_kfree(readbackbuff);
-	return retval;
-}
-#endif
 int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
 {
 	int retval = STATUS_SUCCESS;
@@ -375,7 +286,7 @@ int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
 	else
 	{
 
-		buff = (PUCHAR)kzalloc(psFwInfo->u32FirmwareLength,GFP_KERNEL);
+		buff = kzalloc(psFwInfo->u32FirmwareLength,GFP_KERNEL);
 		if(buff==NULL)
 		{
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL,"Failed in allocation memory");
@@ -389,23 +300,6 @@ int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
 			goto error ;
 		}
 
-		#if 0
-		retval = bcm_download_buffer(Adapter,
-				(unsigned char *)psFwInfo->pvMappedFirmwareAddress,
-				psFwInfo->u32FirmwareLength, psFwInfo->u32StartingAddress);
-		if(retval != STATUS_SUCCESS)
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "User space buffer download fails....");
-		}
-		retval = bcm_buffer_readback (Adapter,
-				(unsigned char *)psFwInfo->pvMappedFirmwareAddress,
-				psFwInfo->u32FirmwareLength, psFwInfo->u32StartingAddress);
-
-		if(retval != STATUS_SUCCESS)
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "read back verifier failed ....");
-		}
-		#endif
 		retval = buffDnldVerify(Adapter,
 					buff,
 					psFwInfo->u32FirmwareLength,
@@ -417,7 +311,7 @@ int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
 		}
 	}
 error:
-	bcm_kfree(buff);
+	kfree(buff);
 	return retval;
 }
 
@@ -450,11 +344,10 @@ static INT buffRdbkVerify(PMINI_ADAPTER Adapter,
 			PUCHAR mappedbuffer, UINT u32FirmwareLength,
 			ULONG u32StartingAddress)
 {
-	PUCHAR readbackbuff = NULL;
 	UINT len = u32FirmwareLength;
 	INT retval = STATUS_SUCCESS;
+	PUCHAR readbackbuff = kzalloc(MAX_TRANSFER_CTRL_BYTE_USB,GFP_KERNEL);
 
-	readbackbuff = (PUCHAR)kzalloc(MAX_TRANSFER_CTRL_BYTE_USB,GFP_KERNEL);
 	if(NULL == readbackbuff)
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "MEMORY ALLOCATION FAILED");
@@ -480,7 +373,7 @@ static INT buffRdbkVerify(PMINI_ADAPTER Adapter,
 		u32FirmwareLength  	-= len;
 		mappedbuffer	   	+=len;
 	}/* end of while (u32FirmwareLength && !retval) */
-	bcm_kfree(readbackbuff);
+	kfree(readbackbuff);
 	return retval;
 }
 
@@ -506,5 +399,4 @@ error:
 	return status;
 }
 
-#endif
 

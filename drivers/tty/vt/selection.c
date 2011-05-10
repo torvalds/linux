@@ -26,7 +26,6 @@
 #include <linux/selection.h>
 #include <linux/tiocl.h>
 #include <linux/console.h>
-#include <linux/smp_lock.h>
 
 /* Don't take this from <ctype.h>: 011-015 on the screen aren't spaces */
 #define isspace(c)	((c) == ' ')
@@ -316,9 +315,9 @@ int paste_selection(struct tty_struct *tty)
 	/* always called with BTM from vt_ioctl */
 	WARN_ON(!tty_locked());
 
-	acquire_console_sem();
+	console_lock();
 	poke_blanked_console();
-	release_console_sem();
+	console_unlock();
 
 	ld = tty_ldisc_ref(tty);
 	if (!ld) {

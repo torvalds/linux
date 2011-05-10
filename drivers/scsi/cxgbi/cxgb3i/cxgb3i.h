@@ -24,10 +24,21 @@
 
 extern cxgb3_cpl_handler_func cxgb3i_cpl_handlers[NUM_CPL_CMDS];
 
-#define cxgb3i_get_private_ipv4addr(ndev) \
-	(((struct port_info *)(netdev_priv(ndev)))->iscsi_ipv4addr)
-#define cxgb3i_set_private_ipv4addr(ndev, addr) \
-	(((struct port_info *)(netdev_priv(ndev)))->iscsi_ipv4addr) = addr
+static inline unsigned int cxgb3i_get_private_ipv4addr(struct net_device *ndev)
+{
+	return ((struct port_info *)(netdev_priv(ndev)))->iscsi_ipv4addr;
+}
+
+static inline void cxgb3i_set_private_ipv4addr(struct net_device *ndev,
+						unsigned int addr)
+{
+	struct port_info *pi =  (struct port_info *)netdev_priv(ndev);
+
+	pi->iscsic.flags = addr ? 1 : 0;
+	pi->iscsi_ipv4addr = addr;
+	if (addr)
+		memcpy(pi->iscsic.mac_addr, ndev->dev_addr, ETH_ALEN);
+}
 
 struct cpl_iscsi_hdr_norss {
 	union opcode_tid ot;

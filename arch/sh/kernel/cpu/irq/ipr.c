@@ -74,9 +74,9 @@ void register_ipr_controller(struct ipr_desc *desc)
 		}
 
 		disable_irq_nosync(p->irq);
-		set_irq_chip_and_handler_name(p->irq, &desc->chip,
-				      handle_level_irq, "level");
-		set_irq_chip_data(p->irq, p);
+		irq_set_chip_and_handler_name(p->irq, &desc->chip,
+					      handle_level_irq, "level");
+		irq_set_chip_data(p->irq, p);
 		disable_ipr_irq(irq_get_irq_data(p->irq));
 	}
 }

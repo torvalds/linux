@@ -687,10 +687,19 @@ static void cmos_probe(struct gspca_dev *gspca_dev)
 		if (gspca_dev->usb_buf[0] != 0)
 			break;
 	}
-	if (i >= ARRAY_SIZE(probe_order))
+	if (i >= ARRAY_SIZE(probe_order)) {
 		err("Unknown sensor");
-	else
-		sd->sensor = probe_order[i];
+		gspca_dev->usb_err = -EINVAL;
+		return;
+	}
+	sd->sensor = probe_order[i];
+	switch (sd->sensor) {
+	case SENSOR_OV7660:
+	case SENSOR_OV9630:
+		err("Sensor %s not yet treated", sensor_tb[sd->sensor].name);
+		gspca_dev->usb_err = -EINVAL;
+		break;
+	}
 }
 
 static void mt9v111_init(struct gspca_dev *gspca_dev)
@@ -867,6 +876,9 @@ static int sd_init(struct gspca_dev *gspca_dev)
  */
 
 	reg_r(gspca_dev, SQ930_CTRL_GET_DEV_INFO, 8);
+	if (gspca_dev->usb_err < 0)
+		return gspca_dev->usb_err;
+
 /* it returns:
  * 03 00 12 93 0b f6 c9 00	live! ultra
  * 03 00 07 93 0b f6 ca 00	live! ultra for notebook
@@ -900,15 +912,15 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	if (sd->sensor == SENSOR_MI0360) {
 
 		/* no sensor probe for icam tracer */
-		if (gspca_dev->usb_buf[5] == 0xf6)	/* if CMOS */
+		if (gspca_dev->usb_buf[5] == 0xf6)	/* if ccd */
 			sd->sensor = SENSOR_ICX098BQ;
 		else
 			cmos_probe(gspca_dev);
 	}
-
-	PDEBUG(D_PROBE, "Sensor %s", sensor_tb[sd->sensor].name);
-
-	global_init(sd, 1);
+	if (gspca_dev->usb_err >= 0) {
+		PDEBUG(D_PROBE, "Sensor %s", sensor_tb[sd->sensor].name);
+		global_init(sd, 1);
+	}
 	return gspca_dev->usb_err;
 }
 
@@ -1151,7 +1163,7 @@ static const struct sd_desc sd_desc = {
 #define ST(sensor, type) \
 	.driver_info = (SENSOR_ ## sensor << 8) \
 			| (type)
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4038), ST(MI0360, 0)},
 	{USB_DEVICE(0x041e, 0x403c), ST(LZ24BP, 0)},
 	{USB_DEVICE(0x041e, 0x403d), ST(LZ24BP, 0)},

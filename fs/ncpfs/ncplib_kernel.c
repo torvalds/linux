@@ -11,7 +11,7 @@
 
 
 
-#include "ncplib_kernel.h"
+#include "ncp_fs.h"
 
 static inline void assert_server_locked(struct ncp_server *server)
 {

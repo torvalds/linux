@@ -186,7 +186,7 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 						 msg[i].len,
 						 USB_CTRL_GET_TIMEOUT);
 			if (result < 0) {
-				err("i2c read error (status = %d)\n", result);
+				deb_info("i2c read error (status = %d)\n", result);
 				break;
 			}
 
@@ -215,7 +215,7 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 						 0, 0, buf, msg[i].len + 4,
 						 USB_CTRL_GET_TIMEOUT);
 			if (result < 0) {
-				err("i2c write error (status = %d)\n", result);
+				deb_info("i2c write error (status = %d)\n", result);
 				break;
 			}
 		}
@@ -327,6 +327,31 @@ static int dib0700_set_clock(struct dvb_usb_device *d, u8 en_pll,
 
 	return dib0700_ctrl_wr(d, b, 10);
 }
+
+int dib0700_set_i2c_speed(struct dvb_usb_device *d, u16 scl_kHz)
+{
+	u16 divider;
+	u8 b[8];
+
+	if (scl_kHz == 0)
+		return -EINVAL;
+
+	b[0] = REQUEST_SET_I2C_PARAM;
+	divider = (u16) (30000 / scl_kHz);
+	b[2] = (u8) (divider >> 8);
+	b[3] = (u8) (divider & 0xff);
+	divider = (u16) (72000 / scl_kHz);
+	b[4] = (u8) (divider >> 8);
+	b[5] = (u8) (divider & 0xff);
+	divider = (u16) (72000 / scl_kHz); /* clock: 72MHz */
+	b[6] = (u8) (divider >> 8);
+	b[7] = (u8) (divider & 0xff);
+
+	deb_info("setting I2C speed: %04x %04x %04x (%d kHz).",
+		(b[2] << 8) | (b[3]), (b[4] << 8) | b[5], (b[6] << 8) | b[7], scl_kHz);
+	return dib0700_ctrl_wr(d, b, 8);
+}
+
 
 int dib0700_ctrl_clock(struct dvb_usb_device *d, u32 clk_MHz, u8 clock_out_gp3)
 {
@@ -459,10 +484,20 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	deb_info("modifying (%d) streaming state for %d\n", onoff, adap->id);
 
-	if (onoff)
-		st->channel_state |=   1 << adap->id;
-	else
-		st->channel_state &= ~(1 << adap->id);
+	st->channel_state &= ~0x3;
+	if ((adap->stream.props.endpoint != 2)
+			&& (adap->stream.props.endpoint != 3)) {
+		deb_info("the endpoint number (%i) is not correct, use the adapter id instead", adap->stream.props.endpoint);
+		if (onoff)
+			st->channel_state |=	1 << (adap->id);
+		else
+			st->channel_state |=	1 << ~(adap->id);
+	} else {
+		if (onoff)
+			st->channel_state |=	1 << (adap->stream.props.endpoint-2);
+		else
+			st->channel_state |=	1 << (3-adap->stream.props.endpoint);
+	}
 
 	b[2] |= st->channel_state;
 
@@ -471,19 +506,19 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return dib0700_ctrl_wr(adap->dev, b, 4);
 }
 
-int dib0700_change_protocol(void *priv, u64 ir_type)
+int dib0700_change_protocol(struct rc_dev *rc, u64 rc_type)
 {
-	struct dvb_usb_device *d = priv;
+	struct dvb_usb_device *d = rc->priv;
 	struct dib0700_state *st = d->priv;
 	u8 rc_setup[3] = { REQUEST_SET_RC, 0, 0 };
 	int new_proto, ret;
 
 	/* Set the IR mode */
-	if (ir_type == IR_TYPE_RC5)
+	if (rc_type == RC_TYPE_RC5)
 		new_proto = 1;
-	else if (ir_type == IR_TYPE_NEC)
+	else if (rc_type == RC_TYPE_NEC)
 		new_proto = 0;
-	else if (ir_type == IR_TYPE_RC6) {
+	else if (rc_type == RC_TYPE_RC6) {
 		if (st->fw_version < 0x10200)
 			return -EINVAL;
 
@@ -499,7 +534,7 @@ int dib0700_change_protocol(void *priv, u64 ir_type)
 		return ret;
 	}
 
-	d->props.rc.core.protocol = ir_type;
+	d->props.rc.core.protocol = rc_type;
 
 	return ret;
 }
@@ -514,8 +549,8 @@ struct dib0700_rc_response {
 	union {
 		u16 system16;
 		struct {
-			u8 system;
 			u8 not_system;
+			u8 system;
 		};
 	};
 	u8 data;
@@ -535,7 +570,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 	if (d == NULL)
 		return;
 
-	if (d->rc_input_dev == NULL) {
+	if (d->rc_dev == NULL) {
 		/* This will occur if disable_rc_polling=1 */
 		usb_free_urb(purb);
 		return;
@@ -562,7 +597,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		 purb->actual_length);
 
 	switch (d->props.rc.core.protocol) {
-	case IR_TYPE_NEC:
+	case RC_TYPE_NEC:
 		toggle = 0;
 
 		/* NEC protocol sends repeat code as 0 0 0 FF */
@@ -575,7 +610,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		if ((poll_reply->system ^ poll_reply->not_system) != 0xff) {
 			deb_data("NEC extended protocol\n");
 			/* NEC extended code - 24 bits */
-			keycode = poll_reply->system16 << 8 | poll_reply->data;
+			keycode = be16_to_cpu(poll_reply->system16) << 8 | poll_reply->data;
 		} else {
 			deb_data("NEC normal protocol\n");
 			/* normal NEC code - 16 bits */
@@ -587,7 +622,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		deb_data("RC5 protocol\n");
 		/* RC5 Protocol */
 		toggle = poll_reply->report_id;
-		keycode = poll_reply->system16 << 8 | poll_reply->data;
+		keycode = poll_reply->system << 8 | poll_reply->data;
 
 		break;
 	}
@@ -600,7 +635,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		goto resubmit;
 	}
 
-	ir_keydown(d->rc_input_dev, keycode, toggle);
+	rc_keydown(d->rc_dev, keycode, toggle);
 
 resubmit:
 	/* Clean the buffer before we requeue */

@@ -9,8 +9,8 @@ endef
 ifndef NO_DWARF
 define SOURCE_DWARF
 #include <dwarf.h>
-#include <libdw.h>
-#include <version.h>
+#include <elfutils/libdw.h>
+#include <elfutils/version.h>
 #ifndef _ELFUTILS_PREREQ
 #error
 #endif

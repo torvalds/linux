@@ -1031,7 +1031,7 @@ int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
 	else
 		buf.tsc[4] = 0x10;
 
-	/* Wait upto 100ms for tx queue to empty */
+	/* Wait up to 100ms for tx queue to empty */
 	for (k = 100; k > 0; k--) {
 		udelay(1000);
 		ret = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_TXQUEUEEMPTY,

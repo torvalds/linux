@@ -40,9 +40,6 @@
 #include "../include/linux/westbridge/cyashal.h"
 #include "../include/linux/westbridge/cyasregs.h"
 
-/* API exports include file */
-#include "cyandevice_export.h"
-
 typedef struct cyasdevice {
 		/* Handle to the Antioch device */
 		cy_as_device_handle			dev_handle;
@@ -217,7 +214,7 @@ static int cyasdevice_initialize(void)
 	cy_as_dev = cy_as_hal_alloc(sizeof(cyasdevice));
 	if (cy_as_dev == NULL) {
 		cy_as_hal_print_message("<1>_cy_as_device: "
-			"memmory allocation failed\n");
+			"memory allocation failed\n");
 		return -ENOMEM;
 	}
 	memset(cy_as_dev, 0, sizeof(cyasdevice));
@@ -389,7 +386,7 @@ EXPORT_SYMBOL(cyasdevice_gethaltag);
 static int __init cyasdevice_init(void)
 {
 	if (cyasdevice_initialize() != 0)
-		return ENODEV;
+		return -ENODEV;
 
 	return 0;
 }

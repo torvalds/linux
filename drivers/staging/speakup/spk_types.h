@@ -52,7 +52,7 @@ typedef int (*special_func)(struct vc_data *vc, u_char type, u_char ch,
 
 #define COLOR_BUFFER_SIZE 160
 
-struct spk_highlight_color_track{
+struct spk_highlight_color_track {
 	/* Count of each background color */
 	unsigned int bgcount[8];
 	/* Buffer for characters drawn with each background color */
@@ -79,14 +79,14 @@ struct st_spk_t {
 };
 
 /* now some defines to make these easier to use. */
-#define spk_shut_up speakup_console[vc->vc_num]->shut_up
+#define spk_shut_up (speakup_console[vc->vc_num]->shut_up)
 #define spk_killed (speakup_console[vc->vc_num]->shut_up & 0x40)
-#define spk_x speakup_console[vc->vc_num]->reading_x
-#define spk_cx speakup_console[vc->vc_num]->cursor_x
-#define spk_y speakup_console[vc->vc_num]->reading_y
-#define spk_cy speakup_console[vc->vc_num]->cursor_y
+#define spk_x (speakup_console[vc->vc_num]->reading_x)
+#define spk_cx (speakup_console[vc->vc_num]->cursor_x)
+#define spk_y (speakup_console[vc->vc_num]->reading_y)
+#define spk_cy (speakup_console[vc->vc_num]->cursor_y)
 #define spk_pos (speakup_console[vc->vc_num]->reading_pos)
-#define spk_cp speakup_console[vc->vc_num]->cursor_pos
+#define spk_cp (speakup_console[vc->vc_num]->cursor_pos)
 #define goto_pos (speakup_console[vc->vc_num]->go_pos)
 #define goto_x (speakup_console[vc->vc_num]->go_x)
 #define win_top (speakup_console[vc->vc_num]->w_top)
@@ -95,9 +95,9 @@ struct st_spk_t {
 #define win_right (speakup_console[vc->vc_num]->w_right)
 #define win_start (speakup_console[vc->vc_num]->w_start)
 #define win_enabled (speakup_console[vc->vc_num]->w_enabled)
-#define spk_attr speakup_console[vc->vc_num]->reading_attr
-#define spk_old_attr speakup_console[vc->vc_num]->old_attr
-#define spk_parked speakup_console[vc->vc_num]->parked
+#define spk_attr (speakup_console[vc->vc_num]->reading_attr)
+#define spk_old_attr (speakup_console[vc->vc_num]->old_attr)
+#define spk_parked (speakup_console[vc->vc_num]->parked)
 
 struct st_var_header {
 	char *name;

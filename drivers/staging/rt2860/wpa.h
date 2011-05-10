@@ -32,13 +32,14 @@
 	Revision History:
 	Who			When			What
 	--------	----------		----------------------------------------------
-	Name		Date			Modification logs
+	Name			Date			Modification logs
+	Justin P. Mattock	11/07/2010		Fix a typo
 */
 
 #ifndef	__WPA_H__
 #define	__WPA_H__
 
-/* EAPOL Key descripter frame format related length */
+/* EAPOL Key descriptor frame format related length */
 #define LEN_KEY_DESC_NONCE			32
 #define LEN_KEY_DESC_IV				16
 #define LEN_KEY_DESC_RSC			8
@@ -368,19 +369,15 @@ struct PACKED rt_rsn_capability {
 /*========================================
 	The prototype is defined in cmm_wpa.c
   ========================================*/
-BOOLEAN WpaMsgTypeSubst(u8 EAPType, int * MsgType);
+BOOLEAN WpaMsgTypeSubst(u8 EAPType, int *MsgType);
 
-void PRF(u8 * key,
-	 int key_len,
-	 u8 * prefix,
-	 int prefix_len,
-	 u8 * data, int data_len, u8 * output, int len);
+void PRF(u8 *key, int key_len, u8 *prefix, int prefix_len,
+	 u8 *data, int data_len, u8 *output, int len);
 
 int PasswordHash(char *password,
 		 unsigned char *ssid, int ssidlength, unsigned char *output);
 
-u8 *GetSuiteFromRSNIE(u8 *rsnie,
-			 u32 rsnie_len, u8 type, u8 * count);
+u8 *GetSuiteFromRSNIE(u8 *rsnie, u32 rsnie_len, u8 type, u8 *count);
 
 void WpaShowAllsuite(u8 *rsnie, u32 rsnie_len);
 

@@ -30,8 +30,6 @@
 #include "cifs_debug.h"
 
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-
 static struct cifs_wksid wksidarr[NUM_WK_SIDS] = {
 	{{1, 0, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0} }, "null user"},
 	{{1, 1, {0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0} }, "nobody"},
@@ -43,9 +41,12 @@ static struct cifs_wksid wksidarr[NUM_WK_SIDS] = {
 ;
 
 
-/* security id for everyone */
+/* security id for everyone/world system group */
 static const struct cifs_sid sid_everyone = {
 	1, 1, {0, 0, 0, 0, 0, 1}, {0} };
+/* security id for Authenticated Users system group */
+static const struct cifs_sid sid_authusers = {
+	1, 1, {0, 0, 0, 0, 0, 5}, {11} };
 /* group users */
 static const struct cifs_sid sid_user = {1, 2 , {0, 0, 0, 0, 0, 5}, {} };
 
@@ -367,10 +368,14 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 	if (num_aces  > 0) {
 		umode_t user_mask = S_IRWXU;
 		umode_t group_mask = S_IRWXG;
-		umode_t other_mask = S_IRWXO;
+		umode_t other_mask = S_IRWXU | S_IRWXG | S_IRWXO;
 
 		ppace = kmalloc(num_aces * sizeof(struct cifs_ace *),
 				GFP_KERNEL);
+		if (!ppace) {
+			cERROR(1, "DACL memory allocation error");
+			return;
+		}
 
 		for (i = 0; i < num_aces; ++i) {
 			ppace[i] = (struct cifs_ace *) (acl_base + acl_size);
@@ -392,6 +397,12 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 						     ppace[i]->type,
 						     &fattr->cf_mode,
 						     &other_mask);
+			if (compare_sids(&(ppace[i]->sid), &sid_authusers))
+				access_flags_to_mode(ppace[i]->access_req,
+						     ppace[i]->type,
+						     &fattr->cf_mode,
+						     &other_mask);
+
 
 /*			memcpy((void *)(&(cifscred->aces[i])),
 				(void *)ppace[i],
@@ -774,4 +785,3 @@ int mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode)
 
 	return rc;
 }
-#endif /* CONFIG_CIFS_EXPERIMENTAL */

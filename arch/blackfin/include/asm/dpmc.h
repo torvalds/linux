@@ -9,6 +9,8 @@
 #ifndef _BLACKFIN_DPMC_H_
 #define _BLACKFIN_DPMC_H_
 
+#include <mach/pll.h>
+
 /* PLL_CTL Masks */
 #define DF			0x0001	/* 0: PLL = CLKIN, 1: PLL = CLKIN/2 */
 #define PLL_OFF			0x0002	/* PLL Not Powered */
@@ -123,6 +125,9 @@ void unset_dram_srfs(void);
 
 #define VRPAIR(vlev, freq) (((vlev) << 16) | ((freq) >> 16))
 
+#ifdef CONFIG_CPU_FREQ
+#define CPUFREQ_CPU 0
+#endif
 struct bfin_dpmc_platform_data {
 	const unsigned int *tuple_tab;
 	unsigned short tabsize;

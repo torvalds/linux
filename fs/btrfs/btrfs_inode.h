@@ -136,9 +136,8 @@ struct btrfs_inode {
 	 * items we think we'll end up using, and reserved_extents is the number
 	 * of extent items we've reserved metadata for.
 	 */
-	spinlock_t accounting_lock;
 	atomic_t outstanding_extents;
-	int reserved_extents;
+	atomic_t reserved_extents;
 
 	/*
 	 * ordered_data_close is set by truncate when a file that used
@@ -157,7 +156,7 @@ struct btrfs_inode {
 	/*
 	 * always compress this one file
 	 */
-	unsigned force_compress:1;
+	unsigned force_compress:4;
 
 	struct inode vfs_inode;
 };

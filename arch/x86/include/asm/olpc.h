@@ -20,7 +20,7 @@ extern struct olpc_platform_t olpc_platform_info;
 
 /*
  * OLPC board IDs contain the major build number within the mask 0x0ff0,
- * and the minor build number withing 0x000f.  Pre-builds have a minor
+ * and the minor build number within 0x000f.  Pre-builds have a minor
  * number less than 8, and normal builds start at 8.  For example, 0x0B10
  * is a PreB1, and 0x0C18 is a C1.
  */
@@ -107,10 +107,14 @@ extern int olpc_ec_mask_unset(uint8_t bits);
 /* GPIO assignments */
 
 #define OLPC_GPIO_MIC_AC	1
-#define OLPC_GPIO_DCON_IRQ	geode_gpio(7)
+#define OLPC_GPIO_DCON_STAT0	5
+#define OLPC_GPIO_DCON_STAT1	6
+#define OLPC_GPIO_DCON_IRQ	7
 #define OLPC_GPIO_THRM_ALRM	geode_gpio(10)
-#define OLPC_GPIO_SMB_CLK	geode_gpio(14)
-#define OLPC_GPIO_SMB_DATA	geode_gpio(15)
+#define OLPC_GPIO_DCON_LOAD    11
+#define OLPC_GPIO_DCON_BLANK   12
+#define OLPC_GPIO_SMB_CLK      14
+#define OLPC_GPIO_SMB_DATA     15
 #define OLPC_GPIO_WORKAUX	geode_gpio(24)
 #define OLPC_GPIO_LID		geode_gpio(26)
 #define OLPC_GPIO_ECSCI		geode_gpio(27)

@@ -498,7 +498,7 @@ void __devinit maple_pci_irq_fixup(struct pci_dev *dev)
 		printk(KERN_DEBUG "Fixup U4 PCIe IRQ\n");
 		dev->irq = irq_create_mapping(NULL, 1);
 		if (dev->irq != NO_IRQ)
-			set_irq_type(dev->irq, IRQ_TYPE_LEVEL_LOW);
+			irq_set_irq_type(dev->irq, IRQ_TYPE_LEVEL_LOW);
 	}
 
 	/* Hide AMD8111 IDE interrupt when in legacy mode so

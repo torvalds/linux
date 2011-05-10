@@ -7,6 +7,7 @@
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
+#include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/spinlock.h>
@@ -18,15 +19,13 @@
 #include <linux/suspend.h>
 #include <linux/completion.h>
 #include <linux/platform_device.h>
-#include <asm/types.h>
 #include <asm/s390_ext.h>
+#include <asm/types.h>
+#include <asm/irq.h>
 
 #include "sclp.h"
 
 #define SCLP_HEADER		"sclp: "
-
-/* Structure for register_early_external_interrupt. */
-static ext_int_info_t ext_int_info_hwc;
 
 /* Lock to protect internal data consistency. */
 static DEFINE_SPINLOCK(sclp_lock);
@@ -402,6 +401,7 @@ static void sclp_interrupt_handler(unsigned int ext_int_code,
 	u32 finished_sccb;
 	u32 evbuf_pending;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_SCP]++;
 	spin_lock(&sclp_lock);
 	finished_sccb = param32 & 0xfffffff8;
 	evbuf_pending = param32 & 0x3;
@@ -824,6 +824,7 @@ static void sclp_check_handler(unsigned int ext_int_code,
 {
 	u32 finished_sccb;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_SCP]++;
 	finished_sccb = param32 & 0xfffffff8;
 	/* Is this the interrupt we are waiting for? */
 	if (finished_sccb == 0)
@@ -866,8 +867,7 @@ sclp_check_interface(void)
 
 	spin_lock_irqsave(&sclp_lock, flags);
 	/* Prepare init mask command */
-	rc = register_early_external_interrupt(0x2401, sclp_check_handler,
-					       &ext_int_info_hwc);
+	rc = register_external_interrupt(0x2401, sclp_check_handler);
 	if (rc) {
 		spin_unlock_irqrestore(&sclp_lock, flags);
 		return rc;
@@ -900,8 +900,7 @@ sclp_check_interface(void)
 		} else
 			rc = -EBUSY;
 	}
-	unregister_early_external_interrupt(0x2401, sclp_check_handler,
-					    &ext_int_info_hwc);
+	unregister_external_interrupt(0x2401, sclp_check_handler);
 	spin_unlock_irqrestore(&sclp_lock, flags);
 	return rc;
 }
@@ -1064,8 +1063,7 @@ sclp_init(void)
 	if (rc)
 		goto fail_init_state_uninitialized;
 	/* Register interrupt handler */
-	rc = register_early_external_interrupt(0x2401, sclp_interrupt_handler,
-					       &ext_int_info_hwc);
+	rc = register_external_interrupt(0x2401, sclp_interrupt_handler);
 	if (rc)
 		goto fail_unregister_reboot_notifier;
 	sclp_init_state = sclp_init_state_initialized;

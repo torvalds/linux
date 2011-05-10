@@ -51,11 +51,7 @@ typedef uint64_t blkif_sector_t;
  */
 #define BLKIF_MAX_SEGMENTS_PER_REQUEST 11
 
-struct blkif_request {
-	uint8_t        operation;    /* BLKIF_OP_???                         */
-	uint8_t        nr_segments;  /* number of segments                   */
-	blkif_vdev_t   handle;       /* only for read/write requests         */
-	uint64_t       id;           /* private guest value, echoed in resp  */
+struct blkif_request_rw {
 	blkif_sector_t sector_number;/* start sector idx on disk (r/w only)  */
 	struct blkif_request_segment {
 		grant_ref_t gref;        /* reference to I/O buffer frame        */
@@ -63,6 +59,16 @@ struct blkif_request {
 		/* @last_sect: last sector in frame to transfer (inclusive).     */
 		uint8_t     first_sect, last_sect;
 	} seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+};
+
+struct blkif_request {
+	uint8_t        operation;    /* BLKIF_OP_???                         */
+	uint8_t        nr_segments;  /* number of segments                   */
+	blkif_vdev_t   handle;       /* only for read/write requests         */
+	uint64_t       id;           /* private guest value, echoed in resp  */
+	union {
+		struct blkif_request_rw rw;
+	} u;
 };
 
 struct blkif_response {
@@ -90,5 +96,26 @@ DEFINE_RING_TYPES(blkif, struct blkif_request, struct blkif_response);
 #define VDISK_CDROM        0x1
 #define VDISK_REMOVABLE    0x2
 #define VDISK_READONLY     0x4
+
+/* Xen-defined major numbers for virtual disks, they look strangely
+ * familiar */
+#define XEN_IDE0_MAJOR	3
+#define XEN_IDE1_MAJOR	22
+#define XEN_SCSI_DISK0_MAJOR	8
+#define XEN_SCSI_DISK1_MAJOR	65
+#define XEN_SCSI_DISK2_MAJOR	66
+#define XEN_SCSI_DISK3_MAJOR	67
+#define XEN_SCSI_DISK4_MAJOR	68
+#define XEN_SCSI_DISK5_MAJOR	69
+#define XEN_SCSI_DISK6_MAJOR	70
+#define XEN_SCSI_DISK7_MAJOR	71
+#define XEN_SCSI_DISK8_MAJOR	128
+#define XEN_SCSI_DISK9_MAJOR	129
+#define XEN_SCSI_DISK10_MAJOR	130
+#define XEN_SCSI_DISK11_MAJOR	131
+#define XEN_SCSI_DISK12_MAJOR	132
+#define XEN_SCSI_DISK13_MAJOR	133
+#define XEN_SCSI_DISK14_MAJOR	134
+#define XEN_SCSI_DISK15_MAJOR	135
 
 #endif /* __XEN_PUBLIC_IO_BLKIF_H__ */

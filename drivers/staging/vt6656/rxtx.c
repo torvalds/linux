@@ -68,8 +68,7 @@
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
-//static int          msglevel                =MSG_LEVEL_DEBUG;
-static int          msglevel                =MSG_LEVEL_INFO;
+static int          msglevel                = MSG_LEVEL_INFO;
 
 /*---------------------  Static Functions  --------------------------*/
 
@@ -1939,7 +1938,7 @@ s_vGenerateMACHeader (
  *  Out:
  *      none
  *
- * Return Value: CMD_STATUS_PENDING if MAC Tx resource avaliable; otherwise FALSE
+ * Return Value: CMD_STATUS_PENDING if MAC Tx resource available; otherwise FALSE
  *
 -*/
 

@@ -177,7 +177,7 @@
    IN[0] - Task handle.
    IN[1] - luma type: 0 = disable, 1 = 1D horizontal only, 2 = 1D vertical only,
 		      3 = 2D H/V separable, 4 = 2D symmetric non-separable
-   IN[2] - chroma type: 0 - diable, 1 = 1D horizontal
+   IN[2] - chroma type: 0 - disable, 1 = 1D horizontal
    ReturnCode - One of the ERR_CAPTURE_... */
 #define CX18_CPU_SET_SPATIAL_FILTER_TYPE     	(CPU_CMD_MASK_CAPTURE | 0x000C)
 
@@ -477,7 +477,7 @@
 /* The are no buffers ready. Try again soon! */
 #define CXERR_NODATA_AGAIN      0x00001E
 
-/* The stream is stopping. Function not alllowed now! */
+/* The stream is stopping. Function not allowed now! */
 #define CXERR_STOPPING_STATUS   0x00001F
 
 /* Trying to access hardware when the power is turned OFF */

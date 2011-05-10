@@ -8,6 +8,7 @@
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
  */
 
+#include <linux/kernel_stat.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/hardirq.h>
@@ -255,7 +256,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	nmi_enter();
 	s390_idle_check(regs, S390_lowcore.mcck_clock,
 			S390_lowcore.mcck_enter_timer);
-
+	kstat_cpu(smp_processor_id()).irqs[NMI_NMI]++;
 	mci = (struct mci *) &S390_lowcore.mcck_interruption_code;
 	mcck = &__get_cpu_var(cpu_mcck);
 	umode = user_mode(regs);

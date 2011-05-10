@@ -51,8 +51,10 @@ struct type50_hdr {
 
 #define TYPE50_MEB1_FMT		0x0001
 #define TYPE50_MEB2_FMT		0x0002
+#define TYPE50_MEB3_FMT		0x0003
 #define TYPE50_CRB1_FMT		0x0011
 #define TYPE50_CRB2_FMT		0x0012
+#define TYPE50_CRB3_FMT		0x0013
 
 /* Mod-Exp, with a small modulus */
 struct type50_meb1_msg {
@@ -72,6 +74,16 @@ struct type50_meb2_msg {
 	unsigned char	exponent[256];
 	unsigned char	modulus[256];
 	unsigned char	message[256];
+} __attribute__((packed));
+
+/* Mod-Exp, with a larger modulus */
+struct type50_meb3_msg {
+	struct type50_hdr header;
+	unsigned short	keyblock_type;	/* 0x0003 */
+	unsigned char	reserved[6];
+	unsigned char	exponent[512];
+	unsigned char	modulus[512];
+	unsigned char	message[512];
 } __attribute__((packed));
 
 /* CRT, with a small modulus */
@@ -98,6 +110,19 @@ struct type50_crb2_msg {
 	unsigned char	dq[128];
 	unsigned char	u[128];
 	unsigned char	message[256];
+} __attribute__((packed));
+
+/* CRT, with a larger modulus */
+struct type50_crb3_msg {
+	struct type50_hdr header;
+	unsigned short	keyblock_type;	/* 0x0013 */
+	unsigned char	reserved[6];
+	unsigned char	p[256];
+	unsigned char	q[256];
+	unsigned char	dp[256];
+	unsigned char	dq[256];
+	unsigned char	u[256];
+	unsigned char	message[512];
 } __attribute__((packed));
 
 /**

@@ -98,35 +98,6 @@ nv04_instmem_takedown(struct drm_device *dev)
 }
 
 int
-nv04_instmem_populate(struct drm_device *dev, struct nouveau_gpuobj *gpuobj,
-		      uint32_t *sz)
-{
-	return 0;
-}
-
-void
-nv04_instmem_clear(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
-{
-}
-
-int
-nv04_instmem_bind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
-{
-	return 0;
-}
-
-int
-nv04_instmem_unbind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
-{
-	return 0;
-}
-
-void
-nv04_instmem_flush(struct drm_device *dev)
-{
-}
-
-int
 nv04_instmem_suspend(struct drm_device *dev)
 {
 	return 0;
@@ -137,3 +108,56 @@ nv04_instmem_resume(struct drm_device *dev)
 {
 }
 
+int
+nv04_instmem_get(struct nouveau_gpuobj *gpuobj, u32 size, u32 align)
+{
+	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
+	struct drm_mm_node *ramin = NULL;
+
+	do {
+		if (drm_mm_pre_get(&dev_priv->ramin_heap))
+			return -ENOMEM;
+
+		spin_lock(&dev_priv->ramin_lock);
+		ramin = drm_mm_search_free(&dev_priv->ramin_heap, size, align, 0);
+		if (ramin == NULL) {
+			spin_unlock(&dev_priv->ramin_lock);
+			return -ENOMEM;
+		}
+
+		ramin = drm_mm_get_block_atomic(ramin, size, align);
+		spin_unlock(&dev_priv->ramin_lock);
+	} while (ramin == NULL);
+
+	gpuobj->node  = ramin;
+	gpuobj->vinst = ramin->start;
+	return 0;
+}
+
+void
+nv04_instmem_put(struct nouveau_gpuobj *gpuobj)
+{
+	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
+
+	spin_lock(&dev_priv->ramin_lock);
+	drm_mm_put_block(gpuobj->node);
+	gpuobj->node = NULL;
+	spin_unlock(&dev_priv->ramin_lock);
+}
+
+int
+nv04_instmem_map(struct nouveau_gpuobj *gpuobj)
+{
+	gpuobj->pinst = gpuobj->vinst;
+	return 0;
+}
+
+void
+nv04_instmem_unmap(struct nouveau_gpuobj *gpuobj)
+{
+}
+
+void
+nv04_instmem_flush(struct drm_device *dev)
+{
+}

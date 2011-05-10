@@ -324,7 +324,7 @@ void __cpuinit cpu_probe(void)
 	psr = get_psr();
 	put_psr(psr | PSR_EF);
 #ifdef CONFIG_SPARC_LEON
-	fpu_vers = 7;
+	fpu_vers = get_psr() & PSR_EF ? ((get_fsr() >> 17) & 0x7) : 7;
 #else
 	fpu_vers = ((get_fsr() >> 17) & 0x7);
 #endif
@@ -375,5 +375,5 @@ static int __init cpu_type_probe(void)
 	return 0;
 }
 
-arch_initcall(cpu_type_probe);
+early_initcall(cpu_type_probe);
 #endif

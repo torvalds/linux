@@ -280,8 +280,9 @@ err_free_mem:
 }
 
 #ifdef CONFIG_PM
-static int cy8ctmg110_suspend(struct i2c_client *client, pm_message_t mesg)
+static int cy8ctmg110_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct cy8ctmg110 *ts = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(&client->dev))
@@ -293,8 +294,9 @@ static int cy8ctmg110_suspend(struct i2c_client *client, pm_message_t mesg)
 	return 0;
 }
 
-static int cy8ctmg110_resume(struct i2c_client *client)
+static int cy8ctmg110_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct cy8ctmg110 *ts = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(&client->dev))
@@ -305,6 +307,8 @@ static int cy8ctmg110_resume(struct i2c_client *client)
 	}
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(cy8ctmg110_pm, cy8ctmg110_suspend, cy8ctmg110_resume);
 #endif
 
 static int __devexit cy8ctmg110_remove(struct i2c_client *client)
@@ -335,14 +339,13 @@ static struct i2c_driver cy8ctmg110_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= CY8CTMG110_DRIVER_NAME,
+#ifdef CONFIG_PM
+		.pm	= &cy8ctmg110_pm,
+#endif
 	},
 	.id_table	= cy8ctmg110_idtable,
 	.probe		= cy8ctmg110_probe,
 	.remove		= __devexit_p(cy8ctmg110_remove),
-#ifdef CONFIG_PM
-	.suspend	= cy8ctmg110_suspend,
-	.resume		= cy8ctmg110_resume,
-#endif
 };
 
 static int __init cy8ctmg110_init(void)

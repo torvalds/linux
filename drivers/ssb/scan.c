@@ -405,10 +405,10 @@ int ssb_bus_scan(struct ssb_bus *bus,
 				/* Ignore PCI cores on PCI-E cards.
 				 * Ignore PCI-E cores on PCI cards. */
 				if (dev->id.coreid == SSB_DEV_PCI) {
-					if (bus->host_pci->is_pcie)
+					if (pci_is_pcie(bus->host_pci))
 						continue;
 				} else {
-					if (!bus->host_pci->is_pcie)
+					if (!pci_is_pcie(bus->host_pci))
 						continue;
 				}
 			}
@@ -419,6 +419,16 @@ int ssb_bus_scan(struct ssb_bus *bus,
 			}
 			bus->pcicore.dev = dev;
 #endif /* CONFIG_SSB_DRIVER_PCICORE */
+			break;
+		case SSB_DEV_ETHERNET:
+			if (bus->bustype == SSB_BUSTYPE_PCI) {
+				if (bus->host_pci->vendor == PCI_VENDOR_ID_BROADCOM &&
+				    (bus->host_pci->device & 0xFF00) == 0x4300) {
+					/* This is a dangling ethernet core on a
+					 * wireless device. Ignore it. */
+					continue;
+				}
+			}
 			break;
 		default:
 			break;

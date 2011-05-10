@@ -103,6 +103,16 @@ extern int	xfs_icsb_modify_counters(struct xfs_mount *, xfs_sb_field_t,
 	xfs_mod_incore_sb(mp, field, delta, rsvd)
 #endif
 
+/* dynamic preallocation free space thresholds, 5% down to 1% */
+enum {
+	XFS_LOWSP_1_PCNT = 0,
+	XFS_LOWSP_2_PCNT,
+	XFS_LOWSP_3_PCNT,
+	XFS_LOWSP_4_PCNT,
+	XFS_LOWSP_5_PCNT,
+	XFS_LOWSP_MAX,
+};
+
 typedef struct xfs_mount {
 	struct super_block	*m_super;
 	xfs_tid_t		m_tid;		/* next unused tid for fs */
@@ -193,15 +203,14 @@ typedef struct xfs_mount {
 	struct mutex		m_icsb_mutex;	/* balancer sync lock */
 #endif
 	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
-	struct task_struct	*m_sync_task;	/* generalised sync thread */
-	xfs_sync_work_t		m_sync_work;	/* work item for VFS_SYNC */
-	struct list_head	m_sync_list;	/* sync thread work item list */
-	spinlock_t		m_sync_lock;	/* work item list lock */
-	int			m_sync_seq;	/* sync thread generation no. */
-	wait_queue_head_t	m_wait_single_sync_task;
+	struct delayed_work	m_sync_work;	/* background sync work */
+	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
+	struct work_struct	m_flush_work;	/* background inode flush */
 	__int64_t		m_update_flags;	/* sb flags we need to update
 						   on the next remount,rw */
 	struct shrinker		m_inode_shrink;	/* inode reclaim shrinker */
+	int64_t			m_low_space[XFS_LOWSP_MAX];
+						/* low free space thresholds */
 } xfs_mount_t;
 
 /*
@@ -378,6 +387,8 @@ extern int	xfs_fs_writable(xfs_mount_t *);
 extern int	xfs_sb_validate_fsb_count(struct xfs_sb *, __uint64_t);
 
 extern int	xfs_dev_is_read_only(struct xfs_mount *, char *);
+
+extern void	xfs_set_low_space_thresholds(struct xfs_mount *);
 
 #endif	/* __KERNEL__ */
 

@@ -115,7 +115,8 @@ static struct pcie_port_service_driver __initdata dummy_driver = {
 static int __init select_detection_mode(void)
 {
 	struct dummy_slot *slot, *tmp;
-	pcie_port_service_register(&dummy_driver);
+	if (pcie_port_service_register(&dummy_driver))
+		return PCIEHP_DETECT_ACPI;
 	pcie_port_service_unregister(&dummy_driver);
 	list_for_each_entry_safe(slot, tmp, &dummy_slots, list) {
 		list_del(&slot->list);

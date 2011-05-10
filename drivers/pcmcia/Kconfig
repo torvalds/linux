@@ -69,7 +69,7 @@ comment "PC-card bridges"
 config YENTA
 	tristate "CardBus yenta-compatible bridge support"
 	depends on PCI
-	select CARDBUS if !EMBEDDED
+	select CARDBUS if !EXPERT
 	select PCCARD_NONSTATIC if PCMCIA != n
 	---help---
 	  This option enables support for CardBus host bridges.  Virtually
@@ -84,27 +84,27 @@ config YENTA
 
 config YENTA_O2
 	default y
-	bool "Special initialization for O2Micro bridges" if EMBEDDED
+	bool "Special initialization for O2Micro bridges" if EXPERT
 	depends on YENTA
 
 config YENTA_RICOH
 	default y
-	bool "Special initialization for Ricoh bridges" if EMBEDDED
+	bool "Special initialization for Ricoh bridges" if EXPERT
 	depends on YENTA
 
 config YENTA_TI
 	default y
-	bool "Special initialization for TI and EnE bridges" if EMBEDDED
+	bool "Special initialization for TI and EnE bridges" if EXPERT
 	depends on YENTA
 
 config YENTA_ENE_TUNE
 	default y
-	bool "Auto-tune EnE bridges for CB cards" if EMBEDDED
+	bool "Auto-tune EnE bridges for CB cards" if EXPERT
 	depends on YENTA_TI && CARDBUS
 
 config YENTA_TOSHIBA
 	default y
-	bool "Special initialization for Toshiba ToPIC bridges" if EMBEDDED
+	bool "Special initialization for Toshiba ToPIC bridges" if EXPERT
 	depends on YENTA
 
 config PD6729
@@ -215,7 +215,8 @@ config PCMCIA_PXA2XX
 	depends on (ARCH_LUBBOCK || MACH_MAINSTONE || PXA_SHARPSL \
 		    || MACH_ARMCORE || ARCH_PXA_PALM || TRIZEPS_PCMCIA \
 		    || ARCOM_PCMCIA || ARCH_PXA_ESERIES || MACH_STARGATE2 \
-		    || MACH_VPAC270 || MACH_BALLOON3)
+		    || MACH_VPAC270 || MACH_BALLOON3 || MACH_COLIBRI \
+		    || MACH_COLIBRI320)
 	select PCMCIA_SOC_COMMON
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller

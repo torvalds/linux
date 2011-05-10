@@ -146,7 +146,7 @@ reset_hfcpci(struct IsdnCardState *cs)
 	/* D- and monitor/CI channel are not enabled */
 	/* STIO1 is used as output for data, B1+B2 from ST->IOM+HFC */
 	/* STIO2 is used as data input, B1+B2 from IOM->ST */
-	/* ST B-channel send disabled -> continous 1s */
+	/* ST B-channel send disabled -> continuous 1s */
 	/* The IOM slots are always enabled */
 	cs->hw.hfcpci.conn = 0x36;	/* set data flow directions */
 	Write_hfc(cs, HFCPCI_CONNECT, cs->hw.hfcpci.conn);
@@ -550,7 +550,7 @@ hfcpci_fill_dfifo(struct IsdnCardState *cs)
 		count += D_FIFO_SIZE;	/* count now contains available bytes */
 
 	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "hfcpci_fill_Dfifo count(%ld/%d)",
+		debugl1(cs, "hfcpci_fill_Dfifo count(%u/%d)",
 			cs->tx_skb->len, count);
 	if (count < cs->tx_skb->len) {
 		if (cs->debug & L1_DEB_ISAC)
@@ -681,7 +681,7 @@ hfcpci_fill_fifo(struct BCState *bcs)
 		count += B_FIFO_SIZE;	/* count now contains available bytes */
 
 	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "hfcpci_fill_fifo %d count(%ld/%d),%lx",
+		debugl1(cs, "hfcpci_fill_fifo %d count(%u/%d),%lx",
 			bcs->channel, bcs->tx_skb->len,
 			count, current->state);
 

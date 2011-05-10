@@ -290,7 +290,7 @@ struct mib_mac_mgmt {
 	u8 res;
 	u8 multi_domain_capability_implemented;
 	u8 multi_domain_capability_enabled;
-	u8 country_string[3];
+	u8 country_string[IEEE80211_COUNTRY_STRING_LEN];
 	u8 reserved[3];
 } __packed;
 

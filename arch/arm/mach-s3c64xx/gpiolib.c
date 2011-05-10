@@ -72,7 +72,7 @@ static struct s3c_gpio_cfg gpio_4bit_cfg_eint0011 = {
 	.get_pull	= s3c_gpio_getpull_updown,
 };
 
-int s3c64xx_gpio2int_gpm(struct gpio_chip *chip, unsigned pin)
+static int s3c64xx_gpio2int_gpm(struct gpio_chip *chip, unsigned pin)
 {
 	return pin < 5 ? IRQ_EINT(23) + pin : -ENXIO;
 }
@@ -138,7 +138,7 @@ static struct s3c_gpio_chip gpio_4bit[] = {
 	},
 };
 
-int s3c64xx_gpio2int_gpl(struct gpio_chip *chip, unsigned pin)
+static int s3c64xx_gpio2int_gpl(struct gpio_chip *chip, unsigned pin)
 {
 	return pin >= 8 ? IRQ_EINT(16) + pin - 8 : -ENXIO;
 }

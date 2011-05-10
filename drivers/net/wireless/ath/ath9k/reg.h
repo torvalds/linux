@@ -787,6 +787,9 @@
 #define AR_SREV_REVISION_9271_11	1
 #define AR_SREV_VERSION_9300		0x1c0
 #define AR_SREV_REVISION_9300_20	2 /* 2.0 and 2.1 */
+#define AR_SREV_VERSION_9485		0x240
+#define AR_SREV_REVISION_9485_10	0
+#define AR_SREV_REVISION_9485_11        1
 
 #define AR_SREV_5416(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_5416_PCI) || \
@@ -859,20 +862,28 @@
 	 (((_ah)->hw_version.macVersion == AR_SREV_VERSION_9300) && \
 	  ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9300_20)))
 
+#define AR_SREV_9485(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9485))
+#define AR_SREV_9485_10(_ah) \
+	(AR_SREV_9485(_ah) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9485_10))
+#define AR_SREV_9485_11(_ah) \
+	(AR_SREV_9485(_ah) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9485_11))
+
 #define AR_SREV_9285E_20(_ah) \
     (AR_SREV_9285_12_OR_LATER(_ah) && \
      ((REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
 
-#define AR_DEVID_7010(_ah) \
-	(((_ah)->hw_version.devid == 0x7010) || \
-	 ((_ah)->hw_version.devid == 0x7015) || \
-	 ((_ah)->hw_version.devid == 0x9018) || \
-	 ((_ah)->hw_version.devid == 0xA704) || \
-	 ((_ah)->hw_version.devid == 0x1200))
+enum ath_usb_dev {
+	AR9280_USB = 1, /* AR7010 + AR9280, UB94 */
+	AR9287_USB = 2, /* AR7010 + AR9287, UB95 */
+	STORAGE_DEVICE = 3,
+};
 
-#define AR9287_HTC_DEVID(_ah) \
-	(((_ah)->hw_version.devid == 0x7015) || \
-	 ((_ah)->hw_version.devid == 0x1200))
+#define AR_DEVID_7010(_ah) \
+	(((_ah)->hw_version.usbdev == AR9280_USB) || \
+	 ((_ah)->hw_version.usbdev == AR9287_USB))
 
 #define AR_RADIO_SREV_MAJOR                   0xf0
 #define AR_RAD5133_SREV_MAJOR                 0xc0
@@ -984,10 +995,12 @@ enum {
 #define AR9287_GPIO_IN_VAL_S                     11
 #define AR9271_GPIO_IN_VAL                       0xFFFF0000
 #define AR9271_GPIO_IN_VAL_S                     16
-#define AR9300_GPIO_IN_VAL                       0x0001FFFF
-#define AR9300_GPIO_IN_VAL_S                     0
 #define AR7010_GPIO_IN_VAL                       0x0000FFFF
 #define AR7010_GPIO_IN_VAL_S                     0
+
+#define AR_GPIO_IN				 0x404c
+#define AR9300_GPIO_IN_VAL                       0x0001FFFF
+#define AR9300_GPIO_IN_VAL_S                     0
 
 #define AR_GPIO_OE_OUT                           (AR_SREV_9300_20_OR_LATER(ah) ? 0x4050 : 0x404c)
 #define AR_GPIO_OE_OUT_DRV                       0x3
@@ -1072,6 +1085,20 @@ enum {
 #define AR_INTR_PRIO_ASYNC_MASK   0x40c8
 #define AR_INTR_PRIO_SYNC_MASK    0x40cc
 #define AR_INTR_PRIO_ASYNC_ENABLE 0x40d4
+#define AR_ENT_OTP		  0x40d8
+#define AR_ENT_OTP_CHAIN2_DISABLE               0x00020000
+#define AR_ENT_OTP_MPSD		0x00800000
+#define AR_CH0_BB_DPLL2          0x16184
+#define AR_CH0_BB_DPLL3          0x16188
+#define AR_CH0_DDR_DPLL2         0x16244
+#define AR_CH0_DDR_DPLL3         0x16248
+#define AR_CH0_DPLL2_KD              0x03F80000
+#define AR_CH0_DPLL2_KD_S            19
+#define AR_CH0_DPLL2_KI              0x3C000000
+#define AR_CH0_DPLL2_KI_S            26
+#define AR_CH0_DPLL3_PHASE_SHIFT     0x3F800000
+#define AR_CH0_DPLL3_PHASE_SHIFT_S   23
+#define AR_PHY_CCA_NOM_VAL_2GHZ      -118
 
 #define AR_RTC_9300_PLL_DIV          0x000003ff
 #define AR_RTC_9300_PLL_DIV_S        0
@@ -1109,12 +1136,20 @@ enum {
 #define AR_RTC_PLL_CONTROL \
 	((AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0014) : 0x7014)
 
+#define AR_RTC_PLL_CONTROL2	0x703c
+
 #define AR_RTC_PLL_DIV          0x0000001f
 #define AR_RTC_PLL_DIV_S        0
 #define AR_RTC_PLL_DIV2         0x00000020
 #define AR_RTC_PLL_REFDIV_5     0x000000c0
 #define AR_RTC_PLL_CLKSEL       0x00000300
 #define AR_RTC_PLL_CLKSEL_S     8
+
+#define PLL3 0x16188
+#define PLL3_DO_MEAS_MASK 0x40000000
+#define PLL4 0x1618c
+#define PLL4_MEAS_DONE    0x8
+#define SQSUM_DVC_MASK 0x007ffff8
 
 #define AR_RTC_RESET \
 	((AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0040) : 0x7040)
@@ -1572,6 +1607,7 @@ enum {
 #define AR_PCU_TBTT_PROTECT        0x00200000
 #define AR_PCU_CLEAR_VMF           0x01000000
 #define AR_PCU_CLEAR_BA_VALID      0x04000000
+#define AR_PCU_ALWAYS_PERFORM_KEYSEARCH 0x10000000
 
 #define AR_PCU_BT_ANT_PREVENT_RX   0x00100000
 #define AR_PCU_BT_ANT_PREVENT_RX_S 20

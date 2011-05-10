@@ -504,7 +504,7 @@ static int xs_nospace(struct rpc_task *task)
  *   EAGAIN:	The socket was blocked, please call again later to
  *		complete the request
  * ENOTCONN:	Caller needs to invoke connect logic then call again
- *    other:	Some other error occured, the request was not sent
+ *    other:	Some other error occurred, the request was not sent
  */
 static int xs_udp_send_request(struct rpc_task *task)
 {
@@ -590,7 +590,7 @@ static inline void xs_encode_tcp_record_marker(struct xdr_buf *buf)
  *   EAGAIN:	The socket was blocked, please call again later to
  *		complete the request
  * ENOTCONN:	Caller needs to invoke connect logic then call again
- *    other:	Some other error occured, the request was not sent
+ *    other:	Some other error occurred, the request was not sent
  *
  * XXX: In the case of soft timeouts, should we eventually give up
  *	if sendmsg is not able to make progress?
@@ -710,6 +710,8 @@ static void xs_reset_transport(struct sock_xprt *transport)
 	if (sk == NULL)
 		return;
 
+	transport->srcport = 0;
+
 	write_lock_bh(&sk->sk_callback_lock);
 	transport->inet = NULL;
 	transport->sock = NULL;
@@ -770,7 +772,7 @@ static void xs_destroy(struct rpc_xprt *xprt)
 
 	dprintk("RPC:       xs_destroy xprt %p\n", xprt);
 
-	cancel_rearming_delayed_work(&transport->connect_worker);
+	cancel_delayed_work_sync(&transport->connect_worker);
 
 	xs_close(xprt);
 	xs_free_peer_addresses(xprt);
@@ -1631,7 +1633,8 @@ static struct socket *xs_create_sock(struct rpc_xprt *xprt,
 	}
 	xs_reclassify_socket(family, sock);
 
-	if (xs_bind(transport, sock)) {
+	err = xs_bind(transport, sock);
+	if (err) {
 		sock_release(sock);
 		goto out;
 	}
@@ -2359,6 +2362,15 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 	struct svc_sock *bc_sock;
 	struct rpc_xprt *ret;
 
+	if (args->bc_xprt->xpt_bc_xprt) {
+		/*
+		 * This server connection already has a backchannel
+		 * export; we can't create a new one, as we wouldn't be
+		 * able to match replies based on xid any more.  So,
+		 * reuse the already-existing one:
+		 */
+		 return args->bc_xprt->xpt_bc_xprt;
+	}
 	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries);
 	if (IS_ERR(xprt))
 		return xprt;
@@ -2374,16 +2386,6 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 	xprt->bind_timeout = 0;
 	xprt->reestablish_timeout = 0;
 	xprt->idle_timeout = 0;
-
-	/*
-	 * The backchannel uses the same socket connection as the
-	 * forechannel
-	 */
-	xprt->bc_xprt = args->bc_xprt;
-	bc_sock = container_of(args->bc_xprt, struct svc_sock, sk_xprt);
-	bc_sock->sk_bc_xprt = xprt;
-	transport->sock = bc_sock->sk_sock;
-	transport->inet = bc_sock->sk_sk;
 
 	xprt->ops = &bc_tcp_ops;
 
@@ -2407,6 +2409,20 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 			xprt->address_strings[RPC_DISPLAY_PROTO]);
 
 	/*
+	 * Once we've associated a backchannel xprt with a connection,
+	 * we want to keep it around as long as long as the connection
+	 * lasts, in case we need to start using it for a backchannel
+	 * again; this reference won't be dropped until bc_xprt is
+	 * destroyed.
+	 */
+	xprt_get(xprt);
+	args->bc_xprt->xpt_bc_xprt = xprt;
+	xprt->bc_xprt = args->bc_xprt;
+	bc_sock = container_of(args->bc_xprt, struct svc_sock, sk_xprt);
+	transport->sock = bc_sock->sk_sock;
+	transport->inet = bc_sock->sk_sk;
+
+	/*
 	 * Since we don't want connections for the backchannel, we set
 	 * the xprt status to connected
 	 */
@@ -2415,6 +2431,7 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 
 	if (try_module_get(THIS_MODULE))
 		return xprt;
+	xprt_put(xprt);
 	ret = ERR_PTR(-EINVAL);
 out_err:
 	xprt_free(xprt);

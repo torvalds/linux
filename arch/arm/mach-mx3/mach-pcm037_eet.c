@@ -180,9 +180,7 @@ static int __init eet_init_devices(void)
 
 	/* SPI */
 	spi_register_board_info(pcm037_spi_dev, ARRAY_SIZE(pcm037_spi_dev));
-#if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
 	imx31_add_spi_imx0(&pcm037_spi1_pdata);
-#endif
 
 	platform_device_register(&pcm037_gpio_keys_device);
 

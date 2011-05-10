@@ -414,4 +414,4 @@ static int init_mpc7450_pmu(void)
 	return register_power_pmu(&mpc7450_pmu);
 }
 
-arch_initcall(init_mpc7450_pmu);
+early_initcall(init_mpc7450_pmu);

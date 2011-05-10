@@ -1,3 +1,7 @@
+Version 15 of schedstats dropped counters for some sched_yield:
+yld_exp_empty, yld_act_empty and yld_both_empty. Otherwise, it is
+identical to version 14.
+
 Version 14 of schedstats includes support for sched_domains, which hit the
 mainline kernel in 2.6.20 although it is identical to the stats from version
 12 which was in the kernel from 2.6.13-2.6.19 (version 13 never saw a kernel
@@ -28,32 +32,25 @@ to write their own scripts, the fields are described here.
 
 CPU statistics
 --------------
-cpu<N> 1 2 3 4 5 6 7 8 9 10 11 12
+cpu<N> 1 2 3 4 5 6 7 8 9
 
-NOTE: In the sched_yield() statistics, the active queue is considered empty
-    if it has only one process in it, since obviously the process calling
-    sched_yield() is that process.
-
-First four fields are sched_yield() statistics:
-     1) # of times both the active and the expired queue were empty
-     2) # of times just the active queue was empty
-     3) # of times just the expired queue was empty
-     4) # of times sched_yield() was called
+First field is a sched_yield() statistic:
+     1) # of times sched_yield() was called
 
 Next three are schedule() statistics:
-     5) # of times we switched to the expired queue and reused it
-     6) # of times schedule() was called
-     7) # of times schedule() left the processor idle
+     2) # of times we switched to the expired queue and reused it
+     3) # of times schedule() was called
+     4) # of times schedule() left the processor idle
 
 Next two are try_to_wake_up() statistics:
-     8) # of times try_to_wake_up() was called
-     9) # of times try_to_wake_up() was called to wake up the local cpu
+     5) # of times try_to_wake_up() was called
+     6) # of times try_to_wake_up() was called to wake up the local cpu
 
 Next three are statistics describing scheduling latency:
-    10) sum of all time spent running by tasks on this processor (in jiffies)
-    11) sum of all time spent waiting to run by tasks on this processor (in
+     7) sum of all time spent running by tasks on this processor (in jiffies)
+     8) sum of all time spent waiting to run by tasks on this processor (in
         jiffies)
-    12) # of timeslices run on this cpu
+     9) # of timeslices run on this cpu
 
 
 Domain statistics

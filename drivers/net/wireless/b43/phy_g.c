@@ -1919,7 +1919,7 @@ static void b43_hardware_pctl_init_gphy(struct b43_wldev *dev)
 	b43_hf_write(dev, b43_hf_read(dev) | B43_HF_HWPCTL);
 }
 
-/* Intialize B/G PHY power control */
+/* Initialize B/G PHY power control */
 static void b43_phy_init_pctl(struct b43_wldev *dev)
 {
 	struct ssb_bus *bus = dev->dev->bus;

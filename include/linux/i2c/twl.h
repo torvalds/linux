@@ -593,6 +593,15 @@ enum twl4030_usb_mode {
 
 struct twl4030_usb_data {
 	enum twl4030_usb_mode	usb_mode;
+
+	int		(*phy_init)(struct device *dev);
+	int		(*phy_exit)(struct device *dev);
+	/* Power on/off the PHY */
+	int		(*phy_power)(struct device *dev, int iD, int on);
+	/* enable/disable  phy clocks */
+	int		(*phy_set_clock)(struct device *dev, int on);
+	/* suspend/resume of phy */
+	int		(*phy_suspend)(struct device *dev, int suspend);
 };
 
 struct twl4030_ins {
@@ -630,7 +639,6 @@ extern void twl4030_power_init(struct twl4030_power_data *triton2_scripts);
 extern int twl4030_remove_script(u8 flags);
 
 struct twl4030_codec_audio_data {
-	unsigned int audio_mclk; /* not used, will be removed */
 	unsigned int digimic_delay; /* in ms */
 	unsigned int ramp_delay_value;
 	unsigned int offset_cncl_path;
@@ -641,7 +649,6 @@ struct twl4030_codec_audio_data {
 };
 
 struct twl4030_codec_vibra_data {
-	unsigned int	audio_mclk;
 	unsigned int	coexist;
 };
 
@@ -691,6 +698,7 @@ struct twl4030_platform_data {
 	struct regulator_init_data              *vana;
 	struct regulator_init_data              *vcxio;
 	struct regulator_init_data              *vusb;
+	struct regulator_init_data		*clk32kg;
 };
 
 /*----------------------------------------------------------------------*/
@@ -770,5 +778,6 @@ static inline int twl4030charger_usb_en(int enable) { return 0; }
 
 /* INTERNAL LDOs */
 #define TWL6030_REG_VRTC	47
+#define TWL6030_REG_CLK32KG	48
 
 #endif /* End of __TWL4030_H */

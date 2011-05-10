@@ -378,7 +378,7 @@ static int gemtek_probe(struct gemtek *gt)
 
 static const struct v4l2_file_operations gemtek_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static int vidioc_querycap(struct file *file, void *priv,
@@ -577,18 +577,18 @@ static int __init gemtek_init(void)
 	gt->vdev.release = video_device_release_empty;
 	video_set_drvdata(&gt->vdev, gt);
 
-	if (video_register_device(&gt->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
-		v4l2_device_unregister(v4l2_dev);
-		release_region(gt->io, 1);
-		return -EBUSY;
-	}
-
 	/* Set defaults */
 	gt->lastfreq = GEMTEK_LOWFREQ;
 	gt->bu2614data = 0;
 
 	if (initmute)
 		gemtek_mute(gt);
+
+	if (video_register_device(&gt->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
+		v4l2_device_unregister(v4l2_dev);
+		release_region(gt->io, 1);
+		return -EBUSY;
+	}
 
 	return 0;
 }

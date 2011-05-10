@@ -252,4 +252,21 @@ config CRYPTO_DEV_OMAP_AES
 	  OMAP processors have AES module accelerator. Select this if you
 	  want to use the OMAP module for AES algorithms.
 
+config CRYPTO_DEV_PICOXCELL
+	tristate "Support for picoXcell IPSEC and Layer2 crypto engines"
+	depends on ARCH_PICOXCELL
+	select CRYPTO_AES
+	select CRYPTO_AUTHENC
+	select CRYPTO_ALGAPI
+	select CRYPTO_DES
+	select CRYPTO_CBC
+	select CRYPTO_ECB
+	select CRYPTO_SEQIV
+	help
+	  This option enables support for the hardware offload engines in the
+	  Picochip picoXcell SoC devices. Select this for IPSEC ESP offload
+	  and for 3gpp Layer 2 ciphering support.
+
+	  Saying m here will build a module named pipcoxcell_crypto.
+
 endif # CRYPTO_HW

@@ -97,8 +97,7 @@
 	changed the limit is not effective anymore.
 */
 
-struct tbf_sched_data
-{
+struct tbf_sched_data {
 /* Parameters */
 	u32		limit;		/* Maximal length of backlog: bytes */
 	u32		buffer;		/* Token bucket depth/rate: MUST BE >= MTU/B */
@@ -115,10 +114,10 @@ struct tbf_sched_data
 	struct qdisc_watchdog watchdog;	/* Watchdog timer */
 };
 
-#define L2T(q,L)   qdisc_l2t((q)->R_tab,L)
-#define L2T_P(q,L) qdisc_l2t((q)->P_tab,L)
+#define L2T(q, L)   qdisc_l2t((q)->R_tab, L)
+#define L2T_P(q, L) qdisc_l2t((q)->P_tab, L)
 
-static int tbf_enqueue(struct sk_buff *skb, struct Qdisc* sch)
+static int tbf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	int ret;
@@ -134,12 +133,10 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	}
 
 	sch->q.qlen++;
-	sch->bstats.bytes += qdisc_pkt_len(skb);
-	sch->bstats.packets++;
 	return NET_XMIT_SUCCESS;
 }
 
-static unsigned int tbf_drop(struct Qdisc* sch)
+static unsigned int tbf_drop(struct Qdisc *sch)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	unsigned int len = 0;
@@ -151,7 +148,7 @@ static unsigned int tbf_drop(struct Qdisc* sch)
 	return len;
 }
 
-static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
+static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *skb;
@@ -187,7 +184,8 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 			q->tokens = toks;
 			q->ptokens = ptoks;
 			sch->q.qlen--;
-			sch->flags &= ~TCQ_F_THROTTLED;
+			qdisc_unthrottled(sch);
+			qdisc_bstats_update(sch, skb);
 			return skb;
 		}
 
@@ -210,7 +208,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 	return NULL;
 }
 
-static void tbf_reset(struct Qdisc* sch)
+static void tbf_reset(struct Qdisc *sch)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 
@@ -228,7 +226,7 @@ static const struct nla_policy tbf_policy[TCA_TBF_MAX + 1] = {
 	[TCA_TBF_PTAB]	= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
 };
 
-static int tbf_change(struct Qdisc* sch, struct nlattr *opt)
+static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 {
 	int err;
 	struct tbf_sched_data *q = qdisc_priv(sch);
@@ -237,7 +235,7 @@ static int tbf_change(struct Qdisc* sch, struct nlattr *opt)
 	struct qdisc_rate_table *rtab = NULL;
 	struct qdisc_rate_table *ptab = NULL;
 	struct Qdisc *child = NULL;
-	int max_size,n;
+	int max_size, n;
 
 	err = nla_parse_nested(tb, TCA_TBF_PTAB, opt, tbf_policy);
 	if (err < 0)
@@ -260,15 +258,18 @@ static int tbf_change(struct Qdisc* sch, struct nlattr *opt)
 	}
 
 	for (n = 0; n < 256; n++)
-		if (rtab->data[n] > qopt->buffer) break;
-	max_size = (n << qopt->rate.cell_log)-1;
+		if (rtab->data[n] > qopt->buffer)
+			break;
+	max_size = (n << qopt->rate.cell_log) - 1;
 	if (ptab) {
 		int size;
 
 		for (n = 0; n < 256; n++)
-			if (ptab->data[n] > qopt->mtu) break;
-		size = (n << qopt->peakrate.cell_log)-1;
-		if (size < max_size) max_size = size;
+			if (ptab->data[n] > qopt->mtu)
+				break;
+		size = (n << qopt->peakrate.cell_log) - 1;
+		if (size < max_size)
+			max_size = size;
 	}
 	if (max_size < 0)
 		goto done;
@@ -311,7 +312,7 @@ done:
 	return err;
 }
 
-static int tbf_init(struct Qdisc* sch, struct nlattr *opt)
+static int tbf_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 
@@ -423,8 +424,7 @@ static void tbf_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 	}
 }
 
-static const struct Qdisc_class_ops tbf_class_ops =
-{
+static const struct Qdisc_class_ops tbf_class_ops = {
 	.graft		=	tbf_graft,
 	.leaf		=	tbf_leaf,
 	.get		=	tbf_get,

@@ -190,37 +190,6 @@ out:
 	kfree(output.pointer);
 }
 
-static int intel_dsm_switchto(enum vga_switcheroo_client_id id)
-{
-	return 0;
-}
-
-static int intel_dsm_power_state(enum vga_switcheroo_client_id id,
-				 enum vga_switcheroo_state state)
-{
-	return 0;
-}
-
-static int intel_dsm_init(void)
-{
-	return 0;
-}
-
-static int intel_dsm_get_client_id(struct pci_dev *pdev)
-{
-	if (intel_dsm_priv.dhandle == DEVICE_ACPI_HANDLE(&pdev->dev))
-		return VGA_SWITCHEROO_IGD;
-	else
-		return VGA_SWITCHEROO_DIS;
-}
-
-static struct vga_switcheroo_handler intel_dsm_handler = {
-	.switchto = intel_dsm_switchto,
-	.power_state = intel_dsm_power_state,
-	.init = intel_dsm_init,
-	.get_client_id = intel_dsm_get_client_id,
-};
-
 static bool intel_dsm_pci_probe(struct pci_dev *pdev)
 {
 	acpi_handle dhandle, intel_handle;
@@ -276,11 +245,8 @@ void intel_register_dsm_handler(void)
 {
 	if (!intel_dsm_detect())
 		return;
-
-	vga_switcheroo_register_handler(&intel_dsm_handler);
 }
 
 void intel_unregister_dsm_handler(void)
 {
-	vga_switcheroo_unregister_handler();
 }

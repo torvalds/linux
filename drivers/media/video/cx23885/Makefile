@@ -5,6 +5,7 @@ cx23885-objs	:= cx23885-cards.o cx23885-video.o cx23885-vbi.o \
 		    cx23885-f300.o
 
 obj-$(CONFIG_VIDEO_CX23885) += cx23885.o
+obj-$(CONFIG_MEDIA_ALTERA_CI) += altera-ci.o
 
 EXTRA_CFLAGS += -Idrivers/media/video
 EXTRA_CFLAGS += -Idrivers/media/common/tuners

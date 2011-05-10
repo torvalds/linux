@@ -31,9 +31,7 @@ endif
 # and causing a panic. Since this behavior only affects ppc32, this ifeq
 # will work around it. If any other architecture displays this behavior,
 # add it here.
-ifeq ($(CONFIG_PPC32),y)
-EXTRA_CFLAGS := $(call cc-ifversion, -lt, 0400, -O1)
-endif
+ccflags-$(CONFIG_PPC32) := $(call cc-ifversion, -lt, 0400, -O1)
 
 TAGS:
 	etags *.c

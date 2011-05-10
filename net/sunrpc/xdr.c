@@ -552,6 +552,74 @@ void xdr_write_pages(struct xdr_stream *xdr, struct page **pages, unsigned int b
 }
 EXPORT_SYMBOL_GPL(xdr_write_pages);
 
+static void xdr_set_iov(struct xdr_stream *xdr, struct kvec *iov,
+		__be32 *p, unsigned int len)
+{
+	if (len > iov->iov_len)
+		len = iov->iov_len;
+	if (p == NULL)
+		p = (__be32*)iov->iov_base;
+	xdr->p = p;
+	xdr->end = (__be32*)(iov->iov_base + len);
+	xdr->iov = iov;
+	xdr->page_ptr = NULL;
+}
+
+static int xdr_set_page_base(struct xdr_stream *xdr,
+		unsigned int base, unsigned int len)
+{
+	unsigned int pgnr;
+	unsigned int maxlen;
+	unsigned int pgoff;
+	unsigned int pgend;
+	void *kaddr;
+
+	maxlen = xdr->buf->page_len;
+	if (base >= maxlen)
+		return -EINVAL;
+	maxlen -= base;
+	if (len > maxlen)
+		len = maxlen;
+
+	base += xdr->buf->page_base;
+
+	pgnr = base >> PAGE_SHIFT;
+	xdr->page_ptr = &xdr->buf->pages[pgnr];
+	kaddr = page_address(*xdr->page_ptr);
+
+	pgoff = base & ~PAGE_MASK;
+	xdr->p = (__be32*)(kaddr + pgoff);
+
+	pgend = pgoff + len;
+	if (pgend > PAGE_SIZE)
+		pgend = PAGE_SIZE;
+	xdr->end = (__be32*)(kaddr + pgend);
+	xdr->iov = NULL;
+	return 0;
+}
+
+static void xdr_set_next_page(struct xdr_stream *xdr)
+{
+	unsigned int newbase;
+
+	newbase = (1 + xdr->page_ptr - xdr->buf->pages) << PAGE_SHIFT;
+	newbase -= xdr->buf->page_base;
+
+	if (xdr_set_page_base(xdr, newbase, PAGE_SIZE) < 0)
+		xdr_set_iov(xdr, xdr->buf->tail, NULL, xdr->buf->len);
+}
+
+static bool xdr_set_next_buffer(struct xdr_stream *xdr)
+{
+	if (xdr->page_ptr != NULL)
+		xdr_set_next_page(xdr);
+	else if (xdr->iov == xdr->buf->head) {
+		if (xdr_set_page_base(xdr, 0, PAGE_SIZE) < 0)
+			xdr_set_iov(xdr, xdr->buf->tail, NULL, xdr->buf->len);
+	}
+	return xdr->p != xdr->end;
+}
+
 /**
  * xdr_init_decode - Initialize an xdr_stream for decoding data.
  * @xdr: pointer to xdr_stream struct
@@ -560,41 +628,67 @@ EXPORT_SYMBOL_GPL(xdr_write_pages);
  */
 void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p)
 {
-	struct kvec *iov = buf->head;
-	unsigned int len = iov->iov_len;
-
-	if (len > buf->len)
-		len = buf->len;
 	xdr->buf = buf;
-	xdr->iov = iov;
-	xdr->p = p;
-	xdr->end = (__be32 *)((char *)iov->iov_base + len);
+	xdr->scratch.iov_base = NULL;
+	xdr->scratch.iov_len = 0;
+	if (buf->head[0].iov_len != 0)
+		xdr_set_iov(xdr, buf->head, p, buf->len);
+	else if (buf->page_len != 0)
+		xdr_set_page_base(xdr, 0, buf->len);
 }
 EXPORT_SYMBOL_GPL(xdr_init_decode);
 
-/**
- * xdr_inline_peek - Allow read-ahead in the XDR data stream
- * @xdr: pointer to xdr_stream struct
- * @nbytes: number of bytes of data to decode
- *
- * Check if the input buffer is long enough to enable us to decode
- * 'nbytes' more bytes of data starting at the current position.
- * If so return the current pointer without updating the current
- * pointer position.
- */
-__be32 * xdr_inline_peek(struct xdr_stream *xdr, size_t nbytes)
+static __be32 * __xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes)
 {
 	__be32 *p = xdr->p;
 	__be32 *q = p + XDR_QUADLEN(nbytes);
 
 	if (unlikely(q > xdr->end || q < p))
 		return NULL;
+	xdr->p = q;
 	return p;
 }
-EXPORT_SYMBOL_GPL(xdr_inline_peek);
 
 /**
- * xdr_inline_decode - Retrieve non-page XDR data to decode
+ * xdr_set_scratch_buffer - Attach a scratch buffer for decoding data.
+ * @xdr: pointer to xdr_stream struct
+ * @buf: pointer to an empty buffer
+ * @buflen: size of 'buf'
+ *
+ * The scratch buffer is used when decoding from an array of pages.
+ * If an xdr_inline_decode() call spans across page boundaries, then
+ * we copy the data into the scratch buffer in order to allow linear
+ * access.
+ */
+void xdr_set_scratch_buffer(struct xdr_stream *xdr, void *buf, size_t buflen)
+{
+	xdr->scratch.iov_base = buf;
+	xdr->scratch.iov_len = buflen;
+}
+EXPORT_SYMBOL_GPL(xdr_set_scratch_buffer);
+
+static __be32 *xdr_copy_to_scratch(struct xdr_stream *xdr, size_t nbytes)
+{
+	__be32 *p;
+	void *cpdest = xdr->scratch.iov_base;
+	size_t cplen = (char *)xdr->end - (char *)xdr->p;
+
+	if (nbytes > xdr->scratch.iov_len)
+		return NULL;
+	memcpy(cpdest, xdr->p, cplen);
+	cpdest += cplen;
+	nbytes -= cplen;
+	if (!xdr_set_next_buffer(xdr))
+		return NULL;
+	p = __xdr_inline_decode(xdr, nbytes);
+	if (p == NULL)
+		return NULL;
+	memcpy(cpdest, p, nbytes);
+	return xdr->scratch.iov_base;
+}
+
+/**
+ * xdr_inline_decode - Retrieve XDR data to decode
  * @xdr: pointer to xdr_stream struct
  * @nbytes: number of bytes of data to decode
  *
@@ -605,13 +699,16 @@ EXPORT_SYMBOL_GPL(xdr_inline_peek);
  */
 __be32 * xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes)
 {
-	__be32 *p = xdr->p;
-	__be32 *q = p + XDR_QUADLEN(nbytes);
+	__be32 *p;
 
-	if (unlikely(q > xdr->end || q < p))
+	if (nbytes == 0)
+		return xdr->p;
+	if (xdr->p == xdr->end && !xdr_set_next_buffer(xdr))
 		return NULL;
-	xdr->p = q;
-	return p;
+	p = __xdr_inline_decode(xdr, nbytes);
+	if (p != NULL)
+		return p;
+	return xdr_copy_to_scratch(xdr, nbytes);
 }
 EXPORT_SYMBOL_GPL(xdr_inline_decode);
 
@@ -671,16 +768,12 @@ EXPORT_SYMBOL_GPL(xdr_read_pages);
  */
 void xdr_enter_page(struct xdr_stream *xdr, unsigned int len)
 {
-	char * kaddr = page_address(xdr->buf->pages[0]);
 	xdr_read_pages(xdr, len);
 	/*
 	 * Position current pointer at beginning of tail, and
 	 * set remaining message length.
 	 */
-	if (len > PAGE_CACHE_SIZE - xdr->buf->page_base)
-		len = PAGE_CACHE_SIZE - xdr->buf->page_base;
-	xdr->p = (__be32 *)(kaddr + xdr->buf->page_base);
-	xdr->end = (__be32 *)((char *)xdr->p + len);
+	xdr_set_page_base(xdr, 0, len);
 }
 EXPORT_SYMBOL_GPL(xdr_enter_page);
 

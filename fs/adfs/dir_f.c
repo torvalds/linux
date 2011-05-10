@@ -52,7 +52,6 @@ static inline int adfs_readname(char *buf, char *ptr, int maxlen)
 			*buf++ = *ptr;
 		ptr++;
 	}
-	*buf = '\0';
 
 	return buf - old_buf;
 }
@@ -208,7 +207,8 @@ release_buffers:
  * convert a disk-based directory entry to a Linux ADFS directory entry
  */
 static inline void
-adfs_dir2obj(struct object_info *obj, struct adfs_direntry *de)
+adfs_dir2obj(struct adfs_dir *dir, struct object_info *obj,
+	struct adfs_direntry *de)
 {
 	obj->name_len =	adfs_readname(obj->name, de->dirobname, ADFS_F_NAME_LEN);
 	obj->file_id  = adfs_readval(de->dirinddiscadd, 3);
@@ -216,6 +216,23 @@ adfs_dir2obj(struct object_info *obj, struct adfs_direntry *de)
 	obj->execaddr = adfs_readval(de->direxec, 4);
 	obj->size     = adfs_readval(de->dirlen,  4);
 	obj->attr     = de->newdiratts;
+	obj->filetype = -1;
+
+	/*
+	 * object is a file and is filetyped and timestamped?
+	 * RISC OS 12-bit filetype is stored in load_address[19:8]
+	 */
+	if ((0 == (obj->attr & ADFS_NDA_DIRECTORY)) &&
+		(0xfff00000 == (0xfff00000 & obj->loadaddr))) {
+		obj->filetype = (__u16) ((0x000fff00 & obj->loadaddr) >> 8);
+
+		/* optionally append the ,xyz hex filetype suffix */
+		if (ADFS_SB(dir->sb)->s_ftsuffix)
+			obj->name_len +=
+				append_filetype_suffix(
+					&obj->name[obj->name_len],
+					obj->filetype);
+	}
 }
 
 /*
@@ -260,7 +277,7 @@ __adfs_dir_get(struct adfs_dir *dir, int pos, struct object_info *obj)
 	if (!de.dirobname[0])
 		return -ENOENT;
 
-	adfs_dir2obj(obj, &de);
+	adfs_dir2obj(dir, obj, &de);
 
 	return 0;
 }

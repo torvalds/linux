@@ -101,6 +101,8 @@ struct iscsi_transport {
 	void (*destroy_conn) (struct iscsi_cls_conn *conn);
 	int (*set_param) (struct iscsi_cls_conn *conn, enum iscsi_param param,
 			  char *buf, int buflen);
+	int (*get_ep_param) (struct iscsi_endpoint *ep, enum iscsi_param param,
+			     char *buf);
 	int (*get_conn_param) (struct iscsi_cls_conn *conn,
 			       enum iscsi_param param, char *buf);
 	int (*get_session_param) (struct iscsi_cls_session *session,
@@ -160,8 +162,9 @@ struct iscsi_cls_conn {
 	void *dd_data;			/* LLD private data */
 	struct iscsi_transport *transport;
 	uint32_t cid;			/* connection id */
+	struct mutex ep_mutex;
+	struct iscsi_endpoint *ep;
 
-	int active;			/* must be accessed with the connlock */
 	struct device dev;		/* sysfs transport/container device */
 };
 
@@ -222,6 +225,7 @@ struct iscsi_endpoint {
 	void *dd_data;			/* LLD private data */
 	struct device dev;
 	uint64_t id;
+	struct iscsi_cls_conn *conn;
 };
 
 /*

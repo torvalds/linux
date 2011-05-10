@@ -36,7 +36,8 @@
 #define HFSP_WRAPOFF_EMBEDSIG     0x7C
 #define HFSP_WRAPOFF_EMBEDEXT     0x7E
 
-#define HFSP_HIDDENDIR_NAME	"\xe2\x90\x80\xe2\x90\x80\xe2\x90\x80\xe2\x90\x80HFS+ Private Data"
+#define HFSP_HIDDENDIR_NAME \
+	"\xe2\x90\x80\xe2\x90\x80\xe2\x90\x80\xe2\x90\x80HFS+ Private Data"
 
 #define HFSP_HARDLINK_TYPE	0x686c6e6b	/* 'hlnk' */
 #define HFSP_HFSPLUS_CREATOR	0x6866732b	/* 'hfs+' */

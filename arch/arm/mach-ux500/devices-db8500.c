@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/amba/bus.h>
+#include <linux/amba/pl022.h>
 
 #include <plat/ste_dma40.h>
 
@@ -18,173 +19,6 @@
 #include <mach/setup.h>
 
 #include "ste-dma40-db8500.h"
-
-static struct nmk_gpio_platform_data u8500_gpio_data[] = {
-	GPIO_DATA("GPIO-0-31", 0),
-	GPIO_DATA("GPIO-32-63", 32), /* 37..63 not routed to pin */
-	GPIO_DATA("GPIO-64-95", 64),
-	GPIO_DATA("GPIO-96-127", 96), /* 98..127 not routed to pin */
-	GPIO_DATA("GPIO-128-159", 128),
-	GPIO_DATA("GPIO-160-191", 160), /* 172..191 not routed to pin */
-	GPIO_DATA("GPIO-192-223", 192),
-	GPIO_DATA("GPIO-224-255", 224), /* 231..255 not routed to pin */
-	GPIO_DATA("GPIO-256-288", 256), /* 268..288 not routed to pin */
-};
-
-static struct resource u8500_gpio_resources[] = {
-	GPIO_RESOURCE(0),
-	GPIO_RESOURCE(1),
-	GPIO_RESOURCE(2),
-	GPIO_RESOURCE(3),
-	GPIO_RESOURCE(4),
-	GPIO_RESOURCE(5),
-	GPIO_RESOURCE(6),
-	GPIO_RESOURCE(7),
-	GPIO_RESOURCE(8),
-};
-
-struct platform_device u8500_gpio_devs[] = {
-	GPIO_DEVICE(0),
-	GPIO_DEVICE(1),
-	GPIO_DEVICE(2),
-	GPIO_DEVICE(3),
-	GPIO_DEVICE(4),
-	GPIO_DEVICE(5),
-	GPIO_DEVICE(6),
-	GPIO_DEVICE(7),
-	GPIO_DEVICE(8),
-};
-
-struct amba_device u8500_ssp0_device = {
-	.dev = {
-		.coherent_dma_mask = ~0,
-		.init_name = "ssp0",
-	},
-	.res = {
-		.start = U8500_SSP0_BASE,
-		.end   = U8500_SSP0_BASE + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = {IRQ_DB8500_SSP0, NO_IRQ },
-	/* ST-Ericsson modified id */
-	.periphid = SSP_PER_ID,
-};
-
-static struct resource u8500_i2c0_resources[] = {
-	[0] = {
-		.start	= U8500_I2C0_BASE,
-		.end	= U8500_I2C0_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_DB8500_I2C0,
-		.end	= IRQ_DB8500_I2C0,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device u8500_i2c0_device = {
-	.name		= "nmk-i2c",
-	.id		= 0,
-	.resource	= u8500_i2c0_resources,
-	.num_resources	= ARRAY_SIZE(u8500_i2c0_resources),
-};
-
-static struct resource u8500_i2c4_resources[] = {
-	[0] = {
-		.start	= U8500_I2C4_BASE,
-		.end	= U8500_I2C4_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_DB8500_I2C4,
-		.end	= IRQ_DB8500_I2C4,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device u8500_i2c4_device = {
-	.name		= "nmk-i2c",
-	.id		= 4,
-	.resource	= u8500_i2c4_resources,
-	.num_resources	= ARRAY_SIZE(u8500_i2c4_resources),
-};
-
-/*
- * SD/MMC
- */
-
-struct amba_device u8500_sdi0_device = {
-	.dev		= {
-		.init_name = "sdi0",
-	},
-	.res		= {
-		.start	= U8500_SDI0_BASE,
-		.end	= U8500_SDI0_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= {IRQ_DB8500_SDMMC0, NO_IRQ},
-};
-
-struct amba_device u8500_sdi1_device = {
-	.dev		= {
-		.init_name = "sdi1",
-	},
-	.res		= {
-		.start	= U8500_SDI1_BASE,
-		.end	= U8500_SDI1_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= {IRQ_DB8500_SDMMC1, NO_IRQ},
-};
-
-struct amba_device u8500_sdi2_device = {
-	.dev		= {
-		.init_name = "sdi2",
-	},
-	.res		= {
-		.start	= U8500_SDI2_BASE,
-		.end	= U8500_SDI2_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= {IRQ_DB8500_SDMMC2, NO_IRQ},
-};
-
-struct amba_device u8500_sdi3_device = {
-	.dev		= {
-		.init_name = "sdi3",
-	},
-	.res		= {
-		.start	= U8500_SDI3_BASE,
-		.end	= U8500_SDI3_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= {IRQ_DB8500_SDMMC3, NO_IRQ},
-};
-
-struct amba_device u8500_sdi4_device = {
-	.dev		= {
-		.init_name = "sdi4",
-	},
-	.res		= {
-		.start	= U8500_SDI4_BASE,
-		.end	= U8500_SDI4_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= {IRQ_DB8500_SDMMC4, NO_IRQ},
-};
-
-struct amba_device u8500_sdi5_device = {
-	.dev		= {
-		.init_name = "sdi5",
-	},
-	.res		= {
-		.start	= U8500_SDI5_BASE,
-		.end	= U8500_SDI5_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= {IRQ_DB8500_SDMMC5, NO_IRQ},
-};
 
 static struct resource dma40_resources[] = {
 	[0] = {
@@ -234,12 +68,72 @@ struct stedma40_chan_cfg dma40_memcpy_conf_log = {
 
 /*
  * Mapping between destination event lines and physical device address.
- * The event line is tied to a device and therefor the address is constant.
+ * The event line is tied to a device and therefore the address is constant.
+ * When the address comes from a primecell it will be configured in runtime
+ * and we set the address to -1 as a placeholder.
  */
-static const dma_addr_t dma40_tx_map[DB8500_DMA_NR_DEV];
+static const dma_addr_t dma40_tx_map[DB8500_DMA_NR_DEV] = {
+	/* MUSB - these will be runtime-reconfigured */
+	[DB8500_DMA_DEV39_USB_OTG_OEP_8] = -1,
+	[DB8500_DMA_DEV16_USB_OTG_OEP_7_15] = -1,
+	[DB8500_DMA_DEV17_USB_OTG_OEP_6_14] = -1,
+	[DB8500_DMA_DEV18_USB_OTG_OEP_5_13] = -1,
+	[DB8500_DMA_DEV19_USB_OTG_OEP_4_12] = -1,
+	[DB8500_DMA_DEV36_USB_OTG_OEP_3_11] = -1,
+	[DB8500_DMA_DEV37_USB_OTG_OEP_2_10] = -1,
+	[DB8500_DMA_DEV38_USB_OTG_OEP_1_9] = -1,
+	/* PrimeCells - run-time configured */
+	[DB8500_DMA_DEV0_SPI0_TX] = -1,
+	[DB8500_DMA_DEV1_SD_MMC0_TX] = -1,
+	[DB8500_DMA_DEV2_SD_MMC1_TX] = -1,
+	[DB8500_DMA_DEV3_SD_MMC2_TX] = -1,
+	[DB8500_DMA_DEV8_SSP0_TX] = -1,
+	[DB8500_DMA_DEV9_SSP1_TX] = -1,
+	[DB8500_DMA_DEV11_UART2_TX] = -1,
+	[DB8500_DMA_DEV12_UART1_TX] = -1,
+	[DB8500_DMA_DEV13_UART0_TX] = -1,
+	[DB8500_DMA_DEV28_SD_MM2_TX] = -1,
+	[DB8500_DMA_DEV29_SD_MM0_TX] = -1,
+	[DB8500_DMA_DEV32_SD_MM1_TX] = -1,
+	[DB8500_DMA_DEV33_SPI2_TX] = -1,
+	[DB8500_DMA_DEV35_SPI1_TX] = -1,
+	[DB8500_DMA_DEV40_SPI3_TX] = -1,
+	[DB8500_DMA_DEV41_SD_MM3_TX] = -1,
+	[DB8500_DMA_DEV42_SD_MM4_TX] = -1,
+	[DB8500_DMA_DEV43_SD_MM5_TX] = -1,
+};
 
 /* Mapping between source event lines and physical device address */
-static const dma_addr_t dma40_rx_map[DB8500_DMA_NR_DEV];
+static const dma_addr_t dma40_rx_map[DB8500_DMA_NR_DEV] = {
+	/* MUSB - these will be runtime-reconfigured */
+	[DB8500_DMA_DEV39_USB_OTG_IEP_8] = -1,
+	[DB8500_DMA_DEV16_USB_OTG_IEP_7_15] = -1,
+	[DB8500_DMA_DEV17_USB_OTG_IEP_6_14] = -1,
+	[DB8500_DMA_DEV18_USB_OTG_IEP_5_13] = -1,
+	[DB8500_DMA_DEV19_USB_OTG_IEP_4_12] = -1,
+	[DB8500_DMA_DEV36_USB_OTG_IEP_3_11] = -1,
+	[DB8500_DMA_DEV37_USB_OTG_IEP_2_10] = -1,
+	[DB8500_DMA_DEV38_USB_OTG_IEP_1_9] = -1,
+	/* PrimeCells */
+	[DB8500_DMA_DEV0_SPI0_RX] = -1,
+	[DB8500_DMA_DEV1_SD_MMC0_RX] = -1,
+	[DB8500_DMA_DEV2_SD_MMC1_RX] = -1,
+	[DB8500_DMA_DEV3_SD_MMC2_RX] = -1,
+	[DB8500_DMA_DEV8_SSP0_RX] = -1,
+	[DB8500_DMA_DEV9_SSP1_RX] = -1,
+	[DB8500_DMA_DEV11_UART2_RX] = -1,
+	[DB8500_DMA_DEV12_UART1_RX] = -1,
+	[DB8500_DMA_DEV13_UART0_RX] = -1,
+	[DB8500_DMA_DEV28_SD_MM2_RX] = -1,
+	[DB8500_DMA_DEV29_SD_MM0_RX] = -1,
+	[DB8500_DMA_DEV32_SD_MM1_RX] = -1,
+	[DB8500_DMA_DEV33_SPI2_RX] = -1,
+	[DB8500_DMA_DEV35_SPI1_RX] = -1,
+	[DB8500_DMA_DEV40_SPI3_RX] = -1,
+	[DB8500_DMA_DEV41_SD_MM3_RX] = -1,
+	[DB8500_DMA_DEV42_SD_MM4_RX] = -1,
+	[DB8500_DMA_DEV43_SD_MM5_RX] = -1,
+};
 
 /* Reserved event lines for memcpy only */
 static int dma40_memcpy_event[] = {
@@ -295,7 +189,7 @@ struct resource keypad_resources[] = {
 	},
 };
 
-struct platform_device ux500_ske_keypad_device = {
+struct platform_device u8500_ske_keypad_device = {
 	.name = "nmk-ske-keypad",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(keypad_resources),

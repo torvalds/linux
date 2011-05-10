@@ -790,7 +790,7 @@ static int mthca_setup_hca(struct mthca_dev *dev)
 		goto err_uar_table_free;
 	}
 
-	dev->kar = ioremap(dev->driver_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
+	dev->kar = ioremap((phys_addr_t) dev->driver_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
 	if (!dev->kar) {
 		mthca_err(dev, "Couldn't map kernel access region, "
 			  "aborting.\n");
@@ -1042,6 +1042,9 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 			goto err_free_res;
 		}
 	}
+
+	/* We can handle large RDMA requests, so allow larger segments. */
+	dma_set_max_seg_size(&pdev->dev, 1024 * 1024 * 1024);
 
 	mdev = (struct mthca_dev *) ib_alloc_device(sizeof *mdev);
 	if (!mdev) {

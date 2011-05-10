@@ -57,6 +57,7 @@
 #define SQUASHFS_ALWAYS_FRAG		5
 #define SQUASHFS_DUPLICATE		6
 #define SQUASHFS_EXPORT			7
+#define SQUASHFS_COMP_OPT		10
 
 #define SQUASHFS_BIT(flag, bit)		((flag >> bit) & 1)
 
@@ -80,6 +81,9 @@
 
 #define SQUASHFS_EXPORTABLE(flags)		SQUASHFS_BIT(flags, \
 						SQUASHFS_EXPORT)
+
+#define SQUASHFS_COMP_OPTS(flags)		SQUASHFS_BIT(flags, \
+						SQUASHFS_COMP_OPT)
 
 /* Max number of types and file types */
 #define SQUASHFS_DIR_TYPE		1
@@ -238,6 +242,7 @@ struct meta_index {
 #define ZLIB_COMPRESSION	1
 #define LZMA_COMPRESSION	2
 #define LZO_COMPRESSION		3
+#define XZ_COMPRESSION		4
 
 struct squashfs_super_block {
 	__le32			s_magic;

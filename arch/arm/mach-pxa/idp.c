@@ -167,7 +167,7 @@ static void __init idp_init(void)
 
 	platform_device_register(&smc91x_device);
 	//platform_device_register(&mst_audio_device);
-	set_pxa_fb_info(&sharp_lm8v31);
+	pxa_set_fb_info(NULL, &sharp_lm8v31);
 	pxa_set_mci_info(&idp_mci_platform_data);
 }
 
@@ -187,7 +187,7 @@ static struct map_desc idp_io_desc[] __initdata = {
 
 static void __init idp_map_io(void)
 {
-	pxa_map_io();
+	pxa25x_map_io();
 	iotable_init(idp_io_desc, ARRAY_SIZE(idp_io_desc));
 }
 

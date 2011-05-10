@@ -405,11 +405,11 @@ static struct ip_tunnel *ipgre_tunnel_locate(struct net *net,
 	if (parms->name[0])
 		strlcpy(name, parms->name, IFNAMSIZ);
 	else
-		sprintf(name, "gre%%d");
+		strcpy(name, "gre%d");
 
 	dev = alloc_netdev(sizeof(*t), name, ipgre_tunnel_setup);
 	if (!dev)
-	  return NULL;
+		return NULL;
 
 	dev_net_set(dev, net);
 
@@ -634,7 +634,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 #ifdef CONFIG_NET_IPGRE_BROADCAST
 		if (ipv4_is_multicast(iph->daddr)) {
 			/* Looped back packet, drop it! */
-			if (skb_rtable(skb)->fl.iif == 0)
+			if (rt_is_output_route(skb_rtable(skb)))
 				goto drop;
 			tunnel->dev->stats.multicast++;
 			skb->pkt_type = PACKET_BROADCAST;
@@ -769,23 +769,12 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			tos = ipv6_get_dsfield((struct ipv6hdr *)old_iph);
 	}
 
-	{
-		struct flowi fl = {
-			.oif = tunnel->parms.link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = dst,
-					.saddr = tiph->saddr,
-					.tos = RT_TOS(tos)
-				}
-			},
-			.proto = IPPROTO_GRE
-		}
-;
-		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
-			dev->stats.tx_carrier_errors++;
-			goto tx_error;
-		}
+	rt = ip_route_output_gre(dev_net(dev), dst, tiph->saddr,
+				 tunnel->parms.o_key, RT_TOS(tos),
+				 tunnel->parms.link);
+	if (IS_ERR(rt)) {
+		dev->stats.tx_carrier_errors++;
+		goto tx_error;
 	}
 	tdev = rt->dst.dev;
 
@@ -823,7 +812,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			     !ipv4_is_multicast(tunnel->parms.iph.daddr)) ||
 			    rt6->rt6i_dst.plen == 128) {
 				rt6->rt6i_flags |= RTF_MODIFIED;
-				skb_dst(skb)->metrics[RTAX_MTU-1] = mtu;
+				dst_metric_set(skb_dst(skb), RTAX_MTU, mtu);
 			}
 		}
 
@@ -895,7 +884,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			iph->ttl = ((struct ipv6hdr *)old_iph)->hop_limit;
 #endif
 		else
-			iph->ttl = dst_metric(&rt->dst, RTAX_HOPLIMIT);
+			iph->ttl = ip4_dst_hoplimit(&rt->dst);
 	}
 
 	((__be16 *)(iph + 1))[0] = tunnel->parms.o_flags;
@@ -949,20 +938,13 @@ static int ipgre_tunnel_bind_dev(struct net_device *dev)
 	/* Guess output device to choose reasonable mtu and needed_headroom */
 
 	if (iph->daddr) {
-		struct flowi fl = {
-			.oif = tunnel->parms.link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = iph->daddr,
-					.saddr = iph->saddr,
-					.tos = RT_TOS(iph->tos)
-				}
-			},
-			.proto = IPPROTO_GRE
-		};
-		struct rtable *rt;
+		struct rtable *rt = ip_route_output_gre(dev_net(dev),
+							iph->daddr, iph->saddr,
+							tunnel->parms.o_key,
+							RT_TOS(iph->tos),
+							tunnel->parms.link);
 
-		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
+		if (!IS_ERR(rt)) {
 			tdev = rt->dst.dev;
 			ip_rt_put(rt);
 		}
@@ -1214,20 +1196,14 @@ static int ipgre_open(struct net_device *dev)
 	struct ip_tunnel *t = netdev_priv(dev);
 
 	if (ipv4_is_multicast(t->parms.iph.daddr)) {
-		struct flowi fl = {
-			.oif = t->parms.link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = t->parms.iph.daddr,
-					.saddr = t->parms.iph.saddr,
-					.tos = RT_TOS(t->parms.iph.tos)
-				}
-			},
-			.proto = IPPROTO_GRE
-		};
-		struct rtable *rt;
+		struct rtable *rt = ip_route_output_gre(dev_net(dev),
+							t->parms.iph.daddr,
+							t->parms.iph.saddr,
+							t->parms.o_key,
+							RT_TOS(t->parms.iph.tos),
+							t->parms.link);
 
-		if (ip_route_output_key(dev_net(dev), &rt, &fl))
+		if (IS_ERR(rt))
 			return -EADDRNOTAVAIL;
 		dev = rt->dst.dev;
 		ip_rt_put(rt);
@@ -1775,3 +1751,4 @@ module_exit(ipgre_fini);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_RTNL_LINK("gre");
 MODULE_ALIAS_RTNL_LINK("gretap");
+MODULE_ALIAS_NETDEV("gre0");

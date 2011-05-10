@@ -111,6 +111,11 @@ static void orinoco_add_hostscan_result(struct orinoco_private *priv,
 
 	freq = ieee80211_dsss_chan_to_freq(le16_to_cpu(bss->a.channel));
 	channel = ieee80211_get_channel(wiphy, freq);
+	if (!channel) {
+		printk(KERN_DEBUG "Invalid channel designation %04X(%04X)",
+			bss->a.channel, freq);
+		return;	/* Then ignore it for now */
+	}
 	timestamp = 0;
 	capability = le16_to_cpu(bss->a.capabilities);
 	beacon_interval = le16_to_cpu(bss->a.beacon_interv);
@@ -224,6 +229,14 @@ void orinoco_add_hostscan_results(struct orinoco_private *priv,
 	}
 
  scan_abort:
+	if (priv->scan_request) {
+		cfg80211_scan_done(priv->scan_request, abort);
+		priv->scan_request = NULL;
+	}
+}
+
+void orinoco_scan_done(struct orinoco_private *priv, bool abort)
+{
 	if (priv->scan_request) {
 		cfg80211_scan_done(priv->scan_request, abort);
 		priv->scan_request = NULL;

@@ -46,7 +46,7 @@
  * These indirect registers work with busy bits,
  * and we will try maximal REGISTER_BUSY_COUNT times to access
  * the register while taking a REGISTER_BUSY_DELAY us delay
- * between each attampt. When the busy bit is still set at that time,
+ * between each attempt. When the busy bit is still set at that time,
  * the access attempt is considered to have failed,
  * and we will print an error.
  */
@@ -305,9 +305,7 @@ static void rt2400pci_config_intf(struct rt2x00_dev *rt2x00dev,
 		 * Enable synchronisation.
 		 */
 		rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
-		rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
 		rt2x00_set_field32(&reg, CSR14_TSF_SYNC, conf->sync);
-		rt2x00_set_field32(&reg, CSR14_TBCN, 1);
 		rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 	}
 
@@ -633,6 +631,98 @@ static void rt2400pci_link_tuner(struct rt2x00_dev *rt2x00dev,
 }
 
 /*
+ * Queue handlers.
+ */
+static void rt2400pci_start_queue(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u32 reg;
+
+	switch (queue->qid) {
+	case QID_RX:
+		rt2x00pci_register_read(rt2x00dev, RXCSR0, &reg);
+		rt2x00_set_field32(&reg, RXCSR0_DISABLE_RX, 0);
+		rt2x00pci_register_write(rt2x00dev, RXCSR0, reg);
+		break;
+	case QID_BEACON:
+		/*
+		 * Allow the tbtt tasklet to be scheduled.
+		 */
+		tasklet_enable(&rt2x00dev->tbtt_tasklet);
+
+		rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
+		rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
+		rt2x00_set_field32(&reg, CSR14_TBCN, 1);
+		rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 1);
+		rt2x00pci_register_write(rt2x00dev, CSR14, reg);
+		break;
+	default:
+		break;
+	}
+}
+
+static void rt2400pci_kick_queue(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u32 reg;
+
+	switch (queue->qid) {
+	case QID_AC_VO:
+		rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
+		rt2x00_set_field32(&reg, TXCSR0_KICK_PRIO, 1);
+		rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
+		break;
+	case QID_AC_VI:
+		rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
+		rt2x00_set_field32(&reg, TXCSR0_KICK_TX, 1);
+		rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
+		break;
+	case QID_ATIM:
+		rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
+		rt2x00_set_field32(&reg, TXCSR0_KICK_ATIM, 1);
+		rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
+		break;
+	default:
+		break;
+	}
+}
+
+static void rt2400pci_stop_queue(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u32 reg;
+
+	switch (queue->qid) {
+	case QID_AC_VO:
+	case QID_AC_VI:
+	case QID_ATIM:
+		rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
+		rt2x00_set_field32(&reg, TXCSR0_ABORT, 1);
+		rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
+		break;
+	case QID_RX:
+		rt2x00pci_register_read(rt2x00dev, RXCSR0, &reg);
+		rt2x00_set_field32(&reg, RXCSR0_DISABLE_RX, 1);
+		rt2x00pci_register_write(rt2x00dev, RXCSR0, reg);
+		break;
+	case QID_BEACON:
+		rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
+		rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 0);
+		rt2x00_set_field32(&reg, CSR14_TBCN, 0);
+		rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
+		rt2x00pci_register_write(rt2x00dev, CSR14, reg);
+
+		/*
+		 * Wait for possibly running tbtt tasklets.
+		 */
+		tasklet_disable(&rt2x00dev->tbtt_tasklet);
+		break;
+	default:
+		break;
+	}
+}
+
+/*
  * Initialization functions.
  */
 static bool rt2400pci_get_entry_state(struct queue_entry *entry)
@@ -689,7 +779,7 @@ static int rt2400pci_init_queues(struct rt2x00_dev *rt2x00dev)
 	rt2x00pci_register_read(rt2x00dev, TXCSR2, &reg);
 	rt2x00_set_field32(&reg, TXCSR2_TXD_SIZE, rt2x00dev->tx[0].desc_size);
 	rt2x00_set_field32(&reg, TXCSR2_NUM_TXD, rt2x00dev->tx[1].limit);
-	rt2x00_set_field32(&reg, TXCSR2_NUM_ATIM, rt2x00dev->bcn[1].limit);
+	rt2x00_set_field32(&reg, TXCSR2_NUM_ATIM, rt2x00dev->atim->limit);
 	rt2x00_set_field32(&reg, TXCSR2_NUM_PRIO, rt2x00dev->tx[0].limit);
 	rt2x00pci_register_write(rt2x00dev, TXCSR2, reg);
 
@@ -705,13 +795,13 @@ static int rt2400pci_init_queues(struct rt2x00_dev *rt2x00dev)
 			   entry_priv->desc_dma);
 	rt2x00pci_register_write(rt2x00dev, TXCSR5, reg);
 
-	entry_priv = rt2x00dev->bcn[1].entries[0].priv_data;
+	entry_priv = rt2x00dev->atim->entries[0].priv_data;
 	rt2x00pci_register_read(rt2x00dev, TXCSR4, &reg);
 	rt2x00_set_field32(&reg, TXCSR4_ATIM_RING_REGISTER,
 			   entry_priv->desc_dma);
 	rt2x00pci_register_write(rt2x00dev, TXCSR4, reg);
 
-	entry_priv = rt2x00dev->bcn[0].entries[0].priv_data;
+	entry_priv = rt2x00dev->bcn->entries[0].priv_data;
 	rt2x00pci_register_read(rt2x00dev, TXCSR6, &reg);
 	rt2x00_set_field32(&reg, TXCSR6_BEACON_RING_REGISTER,
 			   entry_priv->desc_dma);
@@ -878,24 +968,12 @@ static int rt2400pci_init_bbp(struct rt2x00_dev *rt2x00dev)
 /*
  * Device state switch handlers.
  */
-static void rt2400pci_toggle_rx(struct rt2x00_dev *rt2x00dev,
-				enum dev_state state)
-{
-	u32 reg;
-
-	rt2x00pci_register_read(rt2x00dev, RXCSR0, &reg);
-	rt2x00_set_field32(&reg, RXCSR0_DISABLE_RX,
-			   (state == STATE_RADIO_RX_OFF) ||
-			   (state == STATE_RADIO_RX_OFF_LINK));
-	rt2x00pci_register_write(rt2x00dev, RXCSR0, reg);
-}
-
 static void rt2400pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 				 enum dev_state state)
 {
-	int mask = (state == STATE_RADIO_IRQ_OFF) ||
-		   (state == STATE_RADIO_IRQ_OFF_ISR);
+	int mask = (state == STATE_RADIO_IRQ_OFF);
 	u32 reg;
+	unsigned long flags;
 
 	/*
 	 * When interrupts are being enabled, the interrupt registers
@@ -904,12 +982,20 @@ static void rt2400pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	if (state == STATE_RADIO_IRQ_ON) {
 		rt2x00pci_register_read(rt2x00dev, CSR7, &reg);
 		rt2x00pci_register_write(rt2x00dev, CSR7, reg);
+
+		/*
+		 * Enable tasklets.
+		 */
+		tasklet_enable(&rt2x00dev->txstatus_tasklet);
+		tasklet_enable(&rt2x00dev->rxdone_tasklet);
 	}
 
 	/*
 	 * Only toggle the interrupts bits we are going to use.
 	 * Non-checked interrupt bits are disabled by default.
 	 */
+	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+
 	rt2x00pci_register_read(rt2x00dev, CSR8, &reg);
 	rt2x00_set_field32(&reg, CSR8_TBCN_EXPIRE, mask);
 	rt2x00_set_field32(&reg, CSR8_TXDONE_TXRING, mask);
@@ -917,6 +1003,17 @@ static void rt2400pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, CSR8_TXDONE_PRIORING, mask);
 	rt2x00_set_field32(&reg, CSR8_RXDONE, mask);
 	rt2x00pci_register_write(rt2x00dev, CSR8, reg);
+
+	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+
+	if (state == STATE_RADIO_IRQ_OFF) {
+		/*
+		 * Ensure that all tasklets are finished before
+		 * disabling the interrupts.
+		 */
+		tasklet_disable(&rt2x00dev->txstatus_tasklet);
+		tasklet_disable(&rt2x00dev->rxdone_tasklet);
+	}
 }
 
 static int rt2400pci_enable_radio(struct rt2x00_dev *rt2x00dev)
@@ -988,16 +1085,8 @@ static int rt2400pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 	case STATE_RADIO_OFF:
 		rt2400pci_disable_radio(rt2x00dev);
 		break;
-	case STATE_RADIO_RX_ON:
-	case STATE_RADIO_RX_ON_LINK:
-	case STATE_RADIO_RX_OFF:
-	case STATE_RADIO_RX_OFF_LINK:
-		rt2400pci_toggle_rx(rt2x00dev, state);
-		break;
 	case STATE_RADIO_IRQ_ON:
-	case STATE_RADIO_IRQ_ON_ISR:
 	case STATE_RADIO_IRQ_OFF:
-	case STATE_RADIO_IRQ_OFF_ISR:
 		rt2400pci_toggle_irq(rt2x00dev, state);
 		break;
 	case STATE_DEEP_SLEEP:
@@ -1042,19 +1131,21 @@ static void rt2400pci_write_tx_desc(struct queue_entry *entry,
 	rt2x00_desc_write(txd, 2, word);
 
 	rt2x00_desc_read(txd, 3, &word);
-	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL, txdesc->signal);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL, txdesc->u.plcp.signal);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL_REGNUM, 5);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL_BUSY, 1);
-	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE, txdesc->service);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE, txdesc->u.plcp.service);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE_REGNUM, 6);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE_BUSY, 1);
 	rt2x00_desc_write(txd, 3, word);
 
 	rt2x00_desc_read(txd, 4, &word);
-	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_LOW, txdesc->length_low);
+	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_LOW,
+			   txdesc->u.plcp.length_low);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_LOW_REGNUM, 8);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_LOW_BUSY, 1);
-	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_HIGH, txdesc->length_high);
+	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_HIGH,
+			   txdesc->u.plcp.length_high);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_HIGH_REGNUM, 7);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_HIGH_BUSY, 1);
 	rt2x00_desc_write(txd, 4, word);
@@ -1075,7 +1166,7 @@ static void rt2400pci_write_tx_desc(struct queue_entry *entry,
 			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_RTS,
 			   test_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
+	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->u.plcp.ifs);
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
 			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
 	rt2x00_desc_write(txd, 0, word);
@@ -1119,36 +1210,8 @@ static void rt2400pci_write_beacon(struct queue_entry *entry,
 	/*
 	 * Enable beaconing again.
 	 */
-	rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
-	rt2x00_set_field32(&reg, CSR14_TBCN, 1);
 	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 1);
 	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
-}
-
-static void rt2400pci_kick_tx_queue(struct data_queue *queue)
-{
-	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
-	u32 reg;
-
-	rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
-	rt2x00_set_field32(&reg, TXCSR0_KICK_PRIO, (queue->qid == QID_AC_BE));
-	rt2x00_set_field32(&reg, TXCSR0_KICK_TX, (queue->qid == QID_AC_BK));
-	rt2x00_set_field32(&reg, TXCSR0_KICK_ATIM, (queue->qid == QID_ATIM));
-	rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
-}
-
-static void rt2400pci_kill_tx_queue(struct data_queue *queue)
-{
-	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
-	u32 reg;
-
-	if (queue->qid == QID_BEACON) {
-		rt2x00pci_register_write(rt2x00dev, CSR14, 0);
-	} else {
-		rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
-		rt2x00_set_field32(&reg, TXCSR0_ABORT, 1);
-		rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
-	}
 }
 
 /*
@@ -1215,7 +1278,7 @@ static void rt2400pci_fill_rxdone(struct queue_entry *entry,
 static void rt2400pci_txdone(struct rt2x00_dev *rt2x00dev,
 			     const enum data_queue_qid queue_idx)
 {
-	struct data_queue *queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
+	struct data_queue *queue = rt2x00queue_get_tx_queue(rt2x00dev, queue_idx);
 	struct queue_entry_priv_pci *entry_priv;
 	struct queue_entry *entry;
 	struct txdone_entry_desc txdesc;
@@ -1251,57 +1314,68 @@ static void rt2400pci_txdone(struct rt2x00_dev *rt2x00dev,
 	}
 }
 
-static irqreturn_t rt2400pci_interrupt_thread(int irq, void *dev_instance)
+static void rt2400pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
+				       struct rt2x00_field32 irq_field)
 {
-	struct rt2x00_dev *rt2x00dev = dev_instance;
-	u32 reg = rt2x00dev->irqvalue[0];
+	u32 reg;
 
 	/*
-	 * Handle interrupts, walk through all bits
-	 * and run the tasks, the bits are checked in order of
-	 * priority.
+	 * Enable a single interrupt. The interrupt mask register
+	 * access needs locking.
 	 */
+	spin_lock_irq(&rt2x00dev->irqmask_lock);
+
+	rt2x00pci_register_read(rt2x00dev, CSR8, &reg);
+	rt2x00_set_field32(&reg, irq_field, 0);
+	rt2x00pci_register_write(rt2x00dev, CSR8, reg);
+
+	spin_unlock_irq(&rt2x00dev->irqmask_lock);
+}
+
+static void rt2400pci_txstatus_tasklet(unsigned long data)
+{
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	u32 reg;
 
 	/*
-	 * 1 - Beacon timer expired interrupt.
+	 * Handle all tx queues.
 	 */
-	if (rt2x00_get_field32(reg, CSR7_TBCN_EXPIRE))
-		rt2x00lib_beacondone(rt2x00dev);
+	rt2400pci_txdone(rt2x00dev, QID_ATIM);
+	rt2400pci_txdone(rt2x00dev, QID_AC_VO);
+	rt2400pci_txdone(rt2x00dev, QID_AC_VI);
 
 	/*
-	 * 2 - Rx ring done interrupt.
+	 * Enable all TXDONE interrupts again.
 	 */
-	if (rt2x00_get_field32(reg, CSR7_RXDONE))
-		rt2x00pci_rxdone(rt2x00dev);
+	spin_lock_irq(&rt2x00dev->irqmask_lock);
 
-	/*
-	 * 3 - Atim ring transmit done interrupt.
-	 */
-	if (rt2x00_get_field32(reg, CSR7_TXDONE_ATIMRING))
-		rt2400pci_txdone(rt2x00dev, QID_ATIM);
+	rt2x00pci_register_read(rt2x00dev, CSR8, &reg);
+	rt2x00_set_field32(&reg, CSR8_TXDONE_TXRING, 0);
+	rt2x00_set_field32(&reg, CSR8_TXDONE_ATIMRING, 0);
+	rt2x00_set_field32(&reg, CSR8_TXDONE_PRIORING, 0);
+	rt2x00pci_register_write(rt2x00dev, CSR8, reg);
 
-	/*
-	 * 4 - Priority ring transmit done interrupt.
-	 */
-	if (rt2x00_get_field32(reg, CSR7_TXDONE_PRIORING))
-		rt2400pci_txdone(rt2x00dev, QID_AC_BE);
+	spin_unlock_irq(&rt2x00dev->irqmask_lock);
+}
 
-	/*
-	 * 5 - Tx ring transmit done interrupt.
-	 */
-	if (rt2x00_get_field32(reg, CSR7_TXDONE_TXRING))
-		rt2400pci_txdone(rt2x00dev, QID_AC_BK);
+static void rt2400pci_tbtt_tasklet(unsigned long data)
+{
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	rt2x00lib_beacondone(rt2x00dev);
+	rt2400pci_enable_interrupt(rt2x00dev, CSR8_TBCN_EXPIRE);
+}
 
-	/* Enable interrupts again. */
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev,
-					      STATE_RADIO_IRQ_ON_ISR);
-	return IRQ_HANDLED;
+static void rt2400pci_rxdone_tasklet(unsigned long data)
+{
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	rt2x00pci_rxdone(rt2x00dev);
+	rt2400pci_enable_interrupt(rt2x00dev, CSR8_RXDONE);
 }
 
 static irqreturn_t rt2400pci_interrupt(int irq, void *dev_instance)
 {
 	struct rt2x00_dev *rt2x00dev = dev_instance;
-	u32 reg;
+	u32 reg, mask;
 
 	/*
 	 * Get the interrupt sources & saved to local variable.
@@ -1316,14 +1390,44 @@ static irqreturn_t rt2400pci_interrupt(int irq, void *dev_instance)
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return IRQ_HANDLED;
 
-	/* Store irqvalues for use in the interrupt thread. */
-	rt2x00dev->irqvalue[0] = reg;
+	mask = reg;
 
-	/* Disable interrupts, will be enabled again in the interrupt thread. */
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev,
-					      STATE_RADIO_IRQ_OFF_ISR);
+	/*
+	 * Schedule tasklets for interrupt handling.
+	 */
+	if (rt2x00_get_field32(reg, CSR7_TBCN_EXPIRE))
+		tasklet_hi_schedule(&rt2x00dev->tbtt_tasklet);
 
-	return IRQ_WAKE_THREAD;
+	if (rt2x00_get_field32(reg, CSR7_RXDONE))
+		tasklet_schedule(&rt2x00dev->rxdone_tasklet);
+
+	if (rt2x00_get_field32(reg, CSR7_TXDONE_ATIMRING) ||
+	    rt2x00_get_field32(reg, CSR7_TXDONE_PRIORING) ||
+	    rt2x00_get_field32(reg, CSR7_TXDONE_TXRING)) {
+		tasklet_schedule(&rt2x00dev->txstatus_tasklet);
+		/*
+		 * Mask out all txdone interrupts.
+		 */
+		rt2x00_set_field32(&mask, CSR8_TXDONE_TXRING, 1);
+		rt2x00_set_field32(&mask, CSR8_TXDONE_ATIMRING, 1);
+		rt2x00_set_field32(&mask, CSR8_TXDONE_PRIORING, 1);
+	}
+
+	/*
+	 * Disable all interrupts for which a tasklet was scheduled right now,
+	 * the tasklet will reenable the appropriate interrupts.
+	 */
+	spin_lock(&rt2x00dev->irqmask_lock);
+
+	rt2x00pci_register_read(rt2x00dev, CSR8, &reg);
+	reg |= mask;
+	rt2x00pci_register_write(rt2x00dev, CSR8, reg);
+
+	spin_unlock(&rt2x00dev->irqmask_lock);
+
+
+
+	return IRQ_HANDLED;
 }
 
 /*
@@ -1536,6 +1640,7 @@ static int rt2400pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	__set_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags);
+	__set_bit(DRIVER_REQUIRE_SW_SEQNO, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.
@@ -1612,11 +1717,14 @@ static const struct ieee80211_ops rt2400pci_mac80211_ops = {
 	.get_tsf		= rt2400pci_get_tsf,
 	.tx_last_beacon		= rt2400pci_tx_last_beacon,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
+	.flush			= rt2x00mac_flush,
 };
 
 static const struct rt2x00lib_ops rt2400pci_rt2x00_ops = {
 	.irq_handler		= rt2400pci_interrupt,
-	.irq_handler_thread	= rt2400pci_interrupt_thread,
+	.txstatus_tasklet	= rt2400pci_txstatus_tasklet,
+	.tbtt_tasklet		= rt2400pci_tbtt_tasklet,
+	.rxdone_tasklet		= rt2400pci_rxdone_tasklet,
 	.probe_hw		= rt2400pci_probe_hw,
 	.initialize		= rt2x00pci_initialize,
 	.uninitialize		= rt2x00pci_uninitialize,
@@ -1627,10 +1735,11 @@ static const struct rt2x00lib_ops rt2400pci_rt2x00_ops = {
 	.link_stats		= rt2400pci_link_stats,
 	.reset_tuner		= rt2400pci_reset_tuner,
 	.link_tuner		= rt2400pci_link_tuner,
+	.start_queue		= rt2400pci_start_queue,
+	.kick_queue		= rt2400pci_kick_queue,
+	.stop_queue		= rt2400pci_stop_queue,
 	.write_tx_desc		= rt2400pci_write_tx_desc,
 	.write_beacon		= rt2400pci_write_beacon,
-	.kick_tx_queue		= rt2400pci_kick_tx_queue,
-	.kill_tx_queue		= rt2400pci_kill_tx_queue,
 	.fill_rxdone		= rt2400pci_fill_rxdone,
 	.config_filter		= rt2400pci_config_filter,
 	.config_intf		= rt2400pci_config_intf,
@@ -1640,28 +1749,28 @@ static const struct rt2x00lib_ops rt2400pci_rt2x00_ops = {
 };
 
 static const struct data_queue_desc rt2400pci_queue_rx = {
-	.entry_num		= RX_ENTRIES,
+	.entry_num		= 24,
 	.data_size		= DATA_FRAME_SIZE,
 	.desc_size		= RXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_pci),
 };
 
 static const struct data_queue_desc rt2400pci_queue_tx = {
-	.entry_num		= TX_ENTRIES,
+	.entry_num		= 24,
 	.data_size		= DATA_FRAME_SIZE,
 	.desc_size		= TXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_pci),
 };
 
 static const struct data_queue_desc rt2400pci_queue_bcn = {
-	.entry_num		= BEACON_ENTRIES,
+	.entry_num		= 1,
 	.data_size		= MGMT_FRAME_SIZE,
 	.desc_size		= TXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_pci),
 };
 
 static const struct data_queue_desc rt2400pci_queue_atim = {
-	.entry_num		= ATIM_ENTRIES,
+	.entry_num		= 8,
 	.data_size		= DATA_FRAME_SIZE,
 	.desc_size		= TXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_pci),

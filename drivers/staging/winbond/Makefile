@@ -1,6 +1,5 @@
 w35und-y :=			\
 	mds.o			\
-	mlmetxrx.o		\
 	mto.o			\
 	phy_calibration.o	\
 	reg.o			\

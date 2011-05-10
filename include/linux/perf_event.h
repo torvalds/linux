@@ -215,8 +215,9 @@ struct perf_event_attr {
 				 */
 				precise_ip     :  2, /* skid constraint       */
 				mmap_data      :  1, /* non-exec mmap data    */
+				sample_id_all  :  1, /* sample_type all events */
 
-				__reserved_1   : 46;
+				__reserved_1   : 45;
 
 	union {
 		__u32		wakeup_events;	  /* wakeup every n events */
@@ -224,8 +225,14 @@ struct perf_event_attr {
 	};
 
 	__u32			bp_type;
-	__u64			bp_addr;
-	__u64			bp_len;
+	union {
+		__u64		bp_addr;
+		__u64		config1; /* extension of config */
+	};
+	union {
+		__u64		bp_len;
+		__u64		config2; /* extension of config1 */
+	};
 };
 
 /*
@@ -327,6 +334,15 @@ struct perf_event_header {
 enum perf_event_type {
 
 	/*
+	 * If perf_event_attr.sample_id_all is set then all event types will
+	 * have the sample_type selected fields related to where/when
+	 * (identity) an event took place (TID, TIME, ID, CPU, STREAM_ID)
+	 * described in PERF_RECORD_SAMPLE below, it will be stashed just after
+	 * the perf_event_header and the fields already present for the existing
+	 * fields, i.e. at the end of the payload. That way a newer perf.data
+	 * file will be supported by older perf tools, with these new optional
+	 * fields being ignored.
+	 *
 	 * The MMAP events record the PROT_EXEC mappings so that we can
 	 * correlate userspace IPs to code. They have the following structure:
 	 *
@@ -454,6 +470,7 @@ enum perf_callchain_context {
 
 #define PERF_FLAG_FD_NO_GROUP	(1U << 0)
 #define PERF_FLAG_FD_OUTPUT	(1U << 1)
+#define PERF_FLAG_PID_CGROUP	(1U << 2) /* pid=cgroup id, per-cpu mode only */
 
 #ifdef __KERNEL__
 /*
@@ -461,6 +478,7 @@ enum perf_callchain_context {
  */
 
 #ifdef CONFIG_PERF_EVENTS
+# include <linux/cgroup.h>
 # include <asm/perf_event.h>
 # include <asm/local64.h>
 #endif
@@ -529,6 +547,9 @@ struct hw_perf_event {
 			unsigned long	event_base;
 			int		idx;
 			int		last_cpu;
+			unsigned int	extra_reg;
+			u64		extra_config;
+			int		extra_alloc;
 		};
 		struct { /* software */
 			struct hrtimer	hrtimer;
@@ -577,6 +598,10 @@ struct perf_event;
  */
 struct pmu {
 	struct list_head		entry;
+
+	struct device			*dev;
+	char				*name;
+	int				type;
 
 	int * __percpu			pmu_disable_count;
 	struct perf_cpu_context * __percpu pmu_cpu_context;
@@ -637,7 +662,7 @@ struct pmu {
 	int  (*commit_txn)	(struct pmu *pmu); /* optional */
 	/*
 	 * Will cancel the transaction, assumes ->del() is called
-	 * for each successfull ->add() during the transaction.
+	 * for each successful ->add() during the transaction.
 	 */
 	void (*cancel_txn)	(struct pmu *pmu); /* optional */
 };
@@ -702,6 +727,22 @@ struct swevent_hlist {
 #define PERF_ATTACH_GROUP	0x02
 #define PERF_ATTACH_TASK	0x04
 
+#ifdef CONFIG_CGROUP_PERF
+/*
+ * perf_cgroup_info keeps track of time_enabled for a cgroup.
+ * This is a per-cpu dynamically allocated data structure.
+ */
+struct perf_cgroup_info {
+	u64 time;
+	u64 timestamp;
+};
+
+struct perf_cgroup {
+	struct cgroup_subsys_state css;
+	struct perf_cgroup_info *info;	/* timing info, one per cpu */
+};
+#endif
+
 /**
  * struct perf_event - performance event kernel representation:
  */
@@ -758,6 +799,9 @@ struct perf_event {
 	u64				shadow_ctx_time;
 
 	struct perf_event_attr		attr;
+	u16				header_size;
+	u16				id_header_size;
+	u16				read_size;
 	struct hw_perf_event		hw;
 
 	struct perf_event_context	*ctx;
@@ -815,6 +859,11 @@ struct perf_event {
 	struct event_filter		*filter;
 #endif
 
+#ifdef CONFIG_CGROUP_PERF
+	struct perf_cgroup		*cgrp; /* cgroup event is attach to */
+	int				cgrp_defer_enabled;
+#endif
+
 #endif /* CONFIG_PERF_EVENTS */
 };
 
@@ -829,8 +878,8 @@ enum perf_event_context_type {
  * Used as a container for task events and CPU events as well:
  */
 struct perf_event_context {
-	enum perf_event_context_type	type;
 	struct pmu			*pmu;
+	enum perf_event_context_type	type;
 	/*
 	 * Protect the states of the events in the list,
 	 * nr_active, and the list:
@@ -869,6 +918,7 @@ struct perf_event_context {
 	u64				generation;
 	int				pin_count;
 	struct rcu_head			rcu_head;
+	int				nr_cgroups; /* cgroup events present */
 };
 
 /*
@@ -887,6 +937,8 @@ struct perf_cpu_context {
 	int				exclusive;
 	struct list_head		rotation_list;
 	int				jiffies_interval;
+	struct pmu			*active_pmu;
+	struct perf_cgroup		*cgrp;
 };
 
 struct perf_output_handle {
@@ -902,7 +954,7 @@ struct perf_output_handle {
 
 #ifdef CONFIG_PERF_EVENTS
 
-extern int perf_pmu_register(struct pmu *pmu);
+extern int perf_pmu_register(struct pmu *pmu, char *name, int type);
 extern void perf_pmu_unregister(struct pmu *pmu);
 
 extern int perf_num_counters(void);
@@ -969,6 +1021,11 @@ extern int perf_event_overflow(struct perf_event *event, int nmi,
 				 struct perf_sample_data *data,
 				 struct pt_regs *regs);
 
+static inline bool is_sampling_event(struct perf_event *event)
+{
+	return event->attr.sample_period != 0;
+}
+
 /*
  * Return 1 for a software event, 0 for a hardware event
  */
@@ -1017,11 +1074,11 @@ have_event:
 	__perf_sw_event(event_id, nr, nmi, regs, addr);
 }
 
-extern atomic_t perf_task_events;
+extern atomic_t perf_sched_events;
 
 static inline void perf_event_task_sched_in(struct task_struct *task)
 {
-	COND_STMT(&perf_task_events, __perf_event_task_sched_in(task));
+	COND_STMT(&perf_sched_events, __perf_event_task_sched_in(task));
 }
 
 static inline
@@ -1029,7 +1086,7 @@ void perf_event_task_sched_out(struct task_struct *task, struct task_struct *nex
 {
 	perf_sw_event(PERF_COUNT_SW_CONTEXT_SWITCHES, 1, 1, NULL, 0);
 
-	COND_STMT(&perf_task_events, __perf_event_task_sched_out(task, next));
+	__perf_event_task_sched_out(task, next);
 }
 
 extern void perf_event_mmap(struct vm_area_struct *vma);
@@ -1059,6 +1116,10 @@ perf_callchain_store(struct perf_callchain_entry *entry, u64 ip)
 extern int sysctl_perf_event_paranoid;
 extern int sysctl_perf_event_mlock;
 extern int sysctl_perf_event_sample_rate;
+
+extern int perf_proc_update_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp,
+		loff_t *ppos);
 
 static inline bool perf_paranoid_tracepoint_raw(void)
 {

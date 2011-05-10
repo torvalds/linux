@@ -42,9 +42,6 @@
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0002
 
-/* largest reported tracking id */
-#define MAX_TRACKING_ID			0xfff
-
 enum {
 	PENPARTNER = 0,
 	GRAPHIRE,
@@ -77,6 +74,8 @@ struct wacom_features {
 	int pressure_max;
 	int distance_max;
 	int type;
+	int x_resolution;
+	int y_resolution;
 	int device_type;
 	int x_phy;
 	int y_phy;
@@ -91,16 +90,15 @@ struct wacom_features {
 
 struct wacom_shared {
 	bool stylus_in_proximity;
+	bool touch_down;
 };
 
 struct wacom_wac {
 	char name[64];
 	unsigned char *data;
-	int tool[3];
-	int id[3];
+	int tool[2];
+	int id[2];
 	__u32 serial[2];
-	int last_finger;
-	int trk_id;
 	struct wacom_features features;
 	struct wacom_shared *shared;
 	struct input_dev *input;

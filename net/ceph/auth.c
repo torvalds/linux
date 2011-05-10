@@ -35,12 +35,12 @@ static int ceph_auth_init_protocol(struct ceph_auth_client *ac, int protocol)
 /*
  * setup, teardown.
  */
-struct ceph_auth_client *ceph_auth_init(const char *name, const char *secret)
+struct ceph_auth_client *ceph_auth_init(const char *name, const struct ceph_crypto_key *key)
 {
 	struct ceph_auth_client *ac;
 	int ret;
 
-	dout("auth_init name '%s' secret '%s'\n", name, secret);
+	dout("auth_init name '%s'\n", name);
 
 	ret = -ENOMEM;
 	ac = kzalloc(sizeof(*ac), GFP_NOFS);
@@ -52,8 +52,8 @@ struct ceph_auth_client *ceph_auth_init(const char *name, const char *secret)
 		ac->name = name;
 	else
 		ac->name = CEPH_AUTH_NAME_DEFAULT;
-	dout("auth_init name %s secret %s\n", ac->name, secret);
-	ac->secret = secret;
+	dout("auth_init name %s\n", ac->name);
+	ac->key = key;
 	return ac;
 
 out:

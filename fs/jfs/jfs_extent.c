@@ -126,7 +126,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
 
 	/* allocate the disk blocks for the extent.  initially, extBalloc()
 	 * will try to allocate disk blocks for the requested size (xlen).
-	 * if this fails (xlen contiguous free blocks not avaliable), it'll
+	 * if this fails (xlen contiguous free blocks not available), it'll
 	 * try to allocate a smaller number of blocks (producing a smaller
 	 * extent), with this smaller number of blocks consisting of the
 	 * requested number of blocks rounded down to the next smaller
@@ -481,7 +481,7 @@ int extFill(struct inode *ip, xad_t * xp)
  *
  *		initially, we will try to allocate disk blocks for the
  *		requested size (nblocks).  if this fails (nblocks
- *		contiguous free blocks not avaliable), we'll try to allocate
+ *		contiguous free blocks not available), we'll try to allocate
  *		a smaller number of blocks (producing a smaller extent), with
  *		this smaller number of blocks consisting of the requested
  *		number of blocks rounded down to the next smaller power of 2
@@ -575,7 +575,7 @@ extBalloc(struct inode *ip, s64 hint, s64 * nblocks, s64 * blkno)
  *		to a new set of blocks.  If moving the extent, we initially
  *		will try to allocate disk blocks for the requested size
  *		(newnblks).  if this fails (new contiguous free blocks not
- *		avaliable), we'll try to allocate a smaller number of
+ *		available), we'll try to allocate a smaller number of
  *		blocks (producing a smaller extent), with this smaller
  *		number of blocks consisting of the requested number of
  *		blocks rounded down to the next smaller power of 2

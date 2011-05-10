@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 2009 Intel Corporation.
+  Copyright(c) 2009 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -97,6 +97,7 @@ struct igbvf_adapter;
 
 enum igbvf_boards {
 	board_vf,
+	board_i350_vf,
 };
 
 struct igbvf_queue_stats {
@@ -126,7 +127,6 @@ struct igbvf_buffer {
 			unsigned int page_offset;
 		};
 	};
-	struct page *page;
 };
 
 union igbvf_desc {
@@ -200,9 +200,6 @@ struct igbvf_adapter {
 
 	unsigned int restart_queue;
 	u32 txd_cmd;
-
-	bool detect_tx_hung;
-	u8 tx_timeout_factor;
 
 	u32 tx_int_delay;
 	u32 tx_abs_int_delay;

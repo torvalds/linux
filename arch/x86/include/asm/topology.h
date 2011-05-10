@@ -47,21 +47,6 @@
 
 #include <asm/mpspec.h>
 
-#ifdef CONFIG_X86_32
-
-/* Mappings between logical cpu number and node number */
-extern int cpu_to_node_map[];
-
-/* Returns the number of the node containing CPU 'cpu' */
-static inline int __cpu_to_node(int cpu)
-{
-	return cpu_to_node_map[cpu];
-}
-#define early_cpu_to_node __cpu_to_node
-#define cpu_to_node __cpu_to_node
-
-#else /* CONFIG_X86_64 */
-
 /* Mappings between logical cpu number and node number */
 DECLARE_EARLY_PER_CPU(int, x86_cpu_to_node_map);
 
@@ -83,8 +68,6 @@ static inline int early_cpu_to_node(int cpu)
 }
 
 #endif /* !CONFIG_DEBUG_PER_CPU_MAPS */
-
-#endif /* CONFIG_X86_64 */
 
 /* Mappings between node number and cpus on that node. */
 extern cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
@@ -155,7 +138,7 @@ extern unsigned long node_remap_size[];
 	.balance_interval	= 1,					\
 }
 
-#ifdef CONFIG_X86_64_ACPI_NUMA
+#ifdef CONFIG_X86_64
 extern int __node_distance(int, int);
 #define node_distance(a, b) __node_distance(a, b)
 #endif

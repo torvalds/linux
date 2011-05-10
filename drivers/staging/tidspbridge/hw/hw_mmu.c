@@ -59,7 +59,7 @@ enum hw_mmu_page_size_t {
  * RETURNS:
  *
  *       Type		: hw_status
- *       Description     : 0		 -- No errors occured
+ *       Description     : 0		 -- No errors occurred
  *			 RET_BAD_NULL_PARAM     -- A Pointer
  *						Paramater was set to NULL
  *
@@ -102,7 +102,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address);
  * RETURNS:
  *
  *       Type	    	: hw_status
- *       Description     : 0		 -- No errors occured
+ *       Description     : 0		 -- No errors occurred
  *			 RET_BAD_NULL_PARAM     -- A Pointer Paramater
  *						   was set to NULL
  *			 RET_PARAM_OUT_OF_RANGE -- Input Parameter out
@@ -147,7 +147,7 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
  * RETURNS:
  *
  *       Type	    	: hw_status
- *       Description     : 0		 -- No errors occured
+ *       Description     : 0		 -- No errors occurred
  *			 RET_BAD_NULL_PARAM     -- A Pointer Paramater
  *							was set to NULL
  *			 RET_PARAM_OUT_OF_RANGE -- Input Parameter

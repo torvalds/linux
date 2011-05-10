@@ -14,10 +14,12 @@
 #define LINUX_RIO_REGS_H
 
 /*
- * In RapidIO, each device has a 2MB configuration space that is
+ * In RapidIO, each device has a 16MB configuration space that is
  * accessed via maintenance transactions.  Portions of configuration
  * space are standardized and/or reserved.
  */
+#define RIO_MAINT_SPACE_SZ	0x1000000 /* 16MB of RapidIO mainenance space */
+
 #define RIO_DEV_ID_CAR		0x00	/* [I] Device Identity CAR */
 #define RIO_DEV_INFO_CAR	0x04	/* [I] Device Information CAR */
 #define RIO_ASM_ID_CAR		0x08	/* [I] Assembly Identity CAR */

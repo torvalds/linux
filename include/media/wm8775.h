@@ -32,7 +32,13 @@
 #define WM8775_AIN3 4
 #define WM8775_AIN4 8
 
-/* subdev group ID */
-#define WM8775_GID (1 << 0)
+
+struct wm8775_platform_data {
+	/*
+	 * FIXME: Instead, we should parametrize the params
+	 * that need different settings between ivtv, pvrusb2, and Nova-S
+	 */
+	bool is_nova_s;
+};
 
 #endif

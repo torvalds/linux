@@ -215,6 +215,9 @@ int arp_mc_map(__be32 addr, u8 *haddr, struct net_device *dev, int dir)
 	case ARPHRD_INFINIBAND:
 		ip_ib_mc_map(addr, dev->broadcast, haddr);
 		return 0;
+	case ARPHRD_IPGRE:
+		ip_ipgre_mc_map(addr, dev->broadcast, haddr);
+		return 0;
 	default:
 		if (dir) {
 			memcpy(haddr, dev->broadcast, dev->addr_len);
@@ -433,14 +436,13 @@ static int arp_ignore(struct in_device *in_dev, __be32 sip, __be32 tip)
 
 static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 {
-	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = sip,
-						 .saddr = tip } } };
 	struct rtable *rt;
 	int flag = 0;
 	/*unsigned long now; */
 	struct net *net = dev_net(dev);
 
-	if (ip_route_output_key(net, &rt, &fl) < 0)
+	rt = ip_route_output(net, sip, tip, 0, 0);
+	if (IS_ERR(rt))
 		return 1;
 	if (rt->dst.dev != dev) {
 		NET_INC_STATS_BH(net, LINUX_MIB_ARPFILTER);
@@ -883,7 +885,7 @@ static int arp_process(struct sk_buff *skb)
 
 			dont_send = arp_ignore(in_dev, sip, tip);
 			if (!dont_send && IN_DEV_ARPFILTER(in_dev))
-				dont_send |= arp_filter(sip, tip, dev);
+				dont_send = arp_filter(sip, tip, dev);
 			if (!dont_send) {
 				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
 				if (n) {
@@ -1033,7 +1035,7 @@ static int arp_req_set_public(struct net *net, struct arpreq *r,
 	if (mask && mask != htonl(0xFFFFFFFF))
 		return -EINVAL;
 	if (!dev && (r->arp_flags & ATF_COM)) {
-		dev = dev_getbyhwaddr(net, r->arp_ha.sa_family,
+		dev = dev_getbyhwaddr_rcu(net, r->arp_ha.sa_family,
 				      r->arp_ha.sa_data);
 		if (!dev)
 			return -ENODEV;
@@ -1061,12 +1063,10 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 	if (r->arp_flags & ATF_PERM)
 		r->arp_flags |= ATF_COM;
 	if (dev == NULL) {
-		struct flowi fl = { .nl_u.ip4_u = { .daddr = ip,
-						    .tos = RTO_ONLINK } };
-		struct rtable *rt;
-		err = ip_route_output_key(net, &rt, &fl);
-		if (err != 0)
-			return err;
+		struct rtable *rt = ip_route_output(net, ip, 0, RTO_ONLINK, 0);
+
+		if (IS_ERR(rt))
+			return PTR_ERR(rt);
 		dev = rt->dst.dev;
 		ip_rt_put(rt);
 		if (!dev)
@@ -1142,6 +1142,23 @@ static int arp_req_get(struct arpreq *r, struct net_device *dev)
 	return err;
 }
 
+int arp_invalidate(struct net_device *dev, __be32 ip)
+{
+	struct neighbour *neigh = neigh_lookup(&arp_tbl, &ip, dev);
+	int err = -ENXIO;
+
+	if (neigh) {
+		if (neigh->nud_state & ~NUD_NOARP)
+			err = neigh_update(neigh, NULL, NUD_FAILED,
+					   NEIGH_UPDATE_F_OVERRIDE|
+					   NEIGH_UPDATE_F_ADMIN);
+		neigh_release(neigh);
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(arp_invalidate);
+
 static int arp_req_delete_public(struct net *net, struct arpreq *r,
 		struct net_device *dev)
 {
@@ -1160,36 +1177,22 @@ static int arp_req_delete_public(struct net *net, struct arpreq *r,
 static int arp_req_delete(struct net *net, struct arpreq *r,
 			  struct net_device *dev)
 {
-	int err;
 	__be32 ip;
-	struct neighbour *neigh;
 
 	if (r->arp_flags & ATF_PUBL)
 		return arp_req_delete_public(net, r, dev);
 
 	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
 	if (dev == NULL) {
-		struct flowi fl = { .nl_u.ip4_u = { .daddr = ip,
-						    .tos = RTO_ONLINK } };
-		struct rtable *rt;
-		err = ip_route_output_key(net, &rt, &fl);
-		if (err != 0)
-			return err;
+		struct rtable *rt = ip_route_output(net, ip, 0, RTO_ONLINK, 0);
+		if (IS_ERR(rt))
+			return PTR_ERR(rt);
 		dev = rt->dst.dev;
 		ip_rt_put(rt);
 		if (!dev)
 			return -EINVAL;
 	}
-	err = -ENXIO;
-	neigh = neigh_lookup(&arp_tbl, &ip, dev);
-	if (neigh) {
-		if (neigh->nud_state & ~NUD_NOARP)
-			err = neigh_update(neigh, NULL, NUD_FAILED,
-					   NEIGH_UPDATE_F_OVERRIDE|
-					   NEIGH_UPDATE_F_ADMIN);
-		neigh_release(neigh);
-	}
-	return err;
+	return arp_invalidate(dev, ip);
 }
 
 /*
@@ -1252,12 +1255,12 @@ int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		break;
 	case SIOCGARP:
 		err = arp_req_get(&r, dev);
-		if (!err && copy_to_user(arg, &r, sizeof(r)))
-			err = -EFAULT;
 		break;
 	}
 out:
 	rtnl_unlock();
+	if (cmd == SIOCGARP && !err && copy_to_user(arg, &r, sizeof(r)))
+		err = -EFAULT;
 	return err;
 }
 

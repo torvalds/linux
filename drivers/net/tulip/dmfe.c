@@ -688,15 +688,15 @@ static netdev_tx_t dmfe_start_xmit(struct sk_buff *skb,
 
 	DMFE_DBUG(0, "dmfe_start_xmit", 0);
 
-	/* Resource flag check */
-	netif_stop_queue(dev);
-
 	/* Too large packet check */
 	if (skb->len > MAX_PACKET_SIZE) {
 		pr_err("big packet = %d\n", (u16)skb->len);
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
+
+	/* Resource flag check */
+	netif_stop_queue(dev);
 
 	spin_lock_irqsave(&db->lock, flags);
 
@@ -1224,7 +1224,7 @@ static void dmfe_timer(unsigned long data)
 
 
 	/* If chip reports that link is failed it could be because external
-		PHY link status pin is not conected correctly to chip
+		PHY link status pin is not connected correctly to chip
 		To be sure ask PHY too.
 	*/
 

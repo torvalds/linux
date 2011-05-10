@@ -16,6 +16,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/smc91x.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -26,11 +27,10 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
-#include <plat/i2c.h>
-
 #include <mach/hardware.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/mfp-pxa25x.h>
+#include <mach/smemc.h>
 
 #include "generic.h"
 
@@ -172,9 +172,9 @@ static void __init xcep_init(void)
 
 	/* See Intel XScale Developer's Guide for details */
 	/* Set RDF and RDN to appropriate values (chip select 3 (smc91x)) */
-	MSC1 = (MSC1 & 0xffff) | 0xD5540000;
+	__raw_writel((__raw_readl(MSC1) & 0xffff) | 0xD5540000, MSC1);
 	/* Set RDF and RDN to appropriate values (chip select 5 (fpga)) */
-	MSC2 = (MSC2 & 0xffff) | 0x72A00000;
+	__raw_writel((__raw_readl(MSC2) & 0xffff) | 0x72A00000, MSC2);
 
 	platform_add_devices(ARRAY_AND_SIZE(devices));
 	pxa_set_i2c_info(&xcep_i2c_platform_data);
@@ -183,7 +183,7 @@ static void __init xcep_init(void)
 MACHINE_START(XCEP, "Iskratel XCEP")
 	.boot_params	= 0xa0000100,
 	.init_machine	= xcep_init,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.init_irq	= pxa25x_init_irq,
 	.timer		= &pxa_timer,
 MACHINE_END

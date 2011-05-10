@@ -1143,8 +1143,8 @@ snd_ml403_ac97cr_create(struct snd_card *card, struct platform_device *pfdev,
 					     (resource->start) + 1);
 	if (ml403_ac97cr->port == NULL) {
 		snd_printk(KERN_ERR SND_ML403_AC97CR_DRIVER ": "
-			   "unable to remap memory region (%x to %x)\n",
-			   resource->start, resource->end);
+			   "unable to remap memory region (%pR)\n",
+			   resource);
 		snd_ml403_ac97cr_free(ml403_ac97cr);
 		return -EBUSY;
 	}

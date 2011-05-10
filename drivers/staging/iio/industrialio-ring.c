@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/fs.h>
-#include <linux/poll.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
 
@@ -98,31 +97,13 @@ static ssize_t iio_ring_rip_outer(struct file *filp, char __user *buf,
 				  size_t count, loff_t *f_ps)
 {
 	struct iio_ring_buffer *rb = filp->private_data;
-	int ret, dead_offset, copied;
-	u8 *data;
+	int ret, dead_offset;
+
 	/* rip lots must exist. */
 	if (!rb->access.rip_lots)
 		return -EINVAL;
-	copied = rb->access.rip_lots(rb, count, &data, &dead_offset);
+	ret = rb->access.rip_lots(rb, count, buf, &dead_offset);
 
-	if (copied <= 0) {
-		ret = copied;
-		goto error_ret;
-	}
-	if (copy_to_user(buf, data + dead_offset, copied))  {
-		ret =  -EFAULT;
-		goto error_free_data_cpy;
-	}
-	/* In clever ring buffer designs this may not need to be freed.
-	 * When such a design exists I'll add this to ring access funcs.
-	 */
-	kfree(data);
-
-	return copied;
-
-error_free_data_cpy:
-	kfree(data);
-error_ret:
 	return ret;
 }
 

@@ -256,6 +256,7 @@ struct wl1251_if_operations {
 	void (*write)(struct wl1251 *wl, int addr, void *buf, size_t len);
 	void (*read_elp)(struct wl1251 *wl, int addr, u32 *val);
 	void (*write_elp)(struct wl1251 *wl, int addr, u32 val);
+	int  (*power)(struct wl1251 *wl, bool enable);
 	void (*reset)(struct wl1251 *wl);
 	void (*enable_irq)(struct wl1251 *wl);
 	void (*disable_irq)(struct wl1251 *wl);
@@ -369,6 +370,8 @@ struct wl1251 {
 	/* in dBm */
 	int power_level;
 
+	int rssi_thold;
+
 	struct wl1251_stats stats;
 	struct wl1251_debugfs debugfs;
 
@@ -409,6 +412,8 @@ void wl1251_disable_interrupts(struct wl1251 *wl);
 
 #define WL1251_DEFAULT_CHANNEL 0
 
+#define WL1251_DEFAULT_BET_CONSECUTIVE 10
+
 #define CHIP_ID_1251_PG10	           (0x7010101)
 #define CHIP_ID_1251_PG11	           (0x7020101)
 #define CHIP_ID_1251_PG12	           (0x7030101)
@@ -418,7 +423,7 @@ void wl1251_disable_interrupts(struct wl1251 *wl);
 #define WL1251_FW_NAME "wl1251-fw.bin"
 #define WL1251_NVS_NAME "wl1251-nvs.bin"
 
-#define WL1251_POWER_ON_SLEEP 10 /* in miliseconds */
+#define WL1251_POWER_ON_SLEEP 10 /* in milliseconds */
 
 #define WL1251_PART_DOWN_MEM_START	0x0
 #define WL1251_PART_DOWN_MEM_SIZE	0x16800
@@ -429,5 +434,8 @@ void wl1251_disable_interrupts(struct wl1251 *wl);
 #define WL1251_PART_WORK_MEM_SIZE	0x14000
 #define WL1251_PART_WORK_REG_START	REGISTERS_BASE
 #define WL1251_PART_WORK_REG_SIZE	REGISTERS_WORK_SIZE
+
+#define WL1251_DEFAULT_LOW_RSSI_WEIGHT          10
+#define WL1251_DEFAULT_LOW_RSSI_DEPTH           10
 
 #endif

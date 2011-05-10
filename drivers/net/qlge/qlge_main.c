@@ -660,7 +660,7 @@ static void ql_disable_interrupts(struct ql_adapter *qdev)
 /* If we're running with multiple MSI-X vectors then we enable on the fly.
  * Otherwise, we may have multiple outstanding workers and don't want to
  * enable until the last one finishes. In this case, the irq_cnt gets
- * incremented everytime we queue a worker and decremented everytime
+ * incremented every time we queue a worker and decremented every time
  * a worker finishes.  Once it hits zero we enable the interrupt.
  */
 u32 ql_enable_completion_interrupt(struct ql_adapter *qdev, u32 intr)
@@ -3299,7 +3299,7 @@ msi:
  * will service it.  An example would be if there are
  * 2 vectors (so 2 RSS rings) and 8 TX completion rings.
  * This would mean that vector 0 would service RSS ring 0
- * and TX competion rings 0,1,2 and 3.  Vector 1 would
+ * and TX completion rings 0,1,2 and 3.  Vector 1 would
  * service RSS ring 1 and TX completion rings 4,5,6 and 7.
  */
 static void ql_set_tx_vect(struct ql_adapter *qdev)
@@ -3548,12 +3548,13 @@ err_irq:
 
 static int ql_start_rss(struct ql_adapter *qdev)
 {
-	u8 init_hash_seed[] = {0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
-				0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f,
-				0xb0, 0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b,
-				0x30, 0xb4, 0x77, 0xcb, 0x2d, 0xa3, 0x80,
-				0x30, 0xf2, 0x0c, 0x6a, 0x42, 0xb7, 0x3b,
-				0xbe, 0xac, 0x01, 0xfa};
+	static const u8 init_hash_seed[] = {
+		0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
+		0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
+		0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
+		0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
+		0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
+	};
 	struct ricb *ricb = &qdev->ricb;
 	int status = 0;
 	int i;
@@ -3844,7 +3845,7 @@ static int ql_adapter_reset(struct ql_adapter *qdev)
 
 static void ql_display_dev_info(struct net_device *ndev)
 {
-	struct ql_adapter *qdev = (struct ql_adapter *)netdev_priv(ndev);
+	struct ql_adapter *qdev = netdev_priv(ndev);
 
 	netif_info(qdev, probe, qdev->ndev,
 		   "Function #%d, Port %d, NIC Roll %d, NIC Rev = %d, "
@@ -4151,7 +4152,7 @@ static int ql_change_rx_buffers(struct ql_adapter *qdev)
 	int i, status;
 	u32 lbq_buf_len;
 
-	/* Wait for an oustanding reset to complete. */
+	/* Wait for an outstanding reset to complete. */
 	if (!test_bit(QL_ADAPTER_UP, &qdev->flags)) {
 		int i = 3;
 		while (i-- && !test_bit(QL_ADAPTER_UP, &qdev->flags)) {
@@ -4264,7 +4265,7 @@ static struct net_device_stats *qlge_get_stats(struct net_device
 
 static void qlge_set_multicast_list(struct net_device *ndev)
 {
-	struct ql_adapter *qdev = (struct ql_adapter *)netdev_priv(ndev);
+	struct ql_adapter *qdev = netdev_priv(ndev);
 	struct netdev_hw_addr *ha;
 	int i, status;
 
@@ -4280,7 +4281,7 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 			if (ql_set_routing_reg
 			    (qdev, RT_IDX_PROMISCUOUS_SLOT, RT_IDX_VALID, 1)) {
 				netif_err(qdev, hw, qdev->ndev,
-					  "Failed to set promiscous mode.\n");
+					  "Failed to set promiscuous mode.\n");
 			} else {
 				set_bit(QL_PROMISCUOUS, &qdev->flags);
 			}
@@ -4290,7 +4291,7 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 			if (ql_set_routing_reg
 			    (qdev, RT_IDX_PROMISCUOUS_SLOT, RT_IDX_VALID, 0)) {
 				netif_err(qdev, hw, qdev->ndev,
-					  "Failed to clear promiscous mode.\n");
+					  "Failed to clear promiscuous mode.\n");
 			} else {
 				clear_bit(QL_PROMISCUOUS, &qdev->flags);
 			}
@@ -4354,7 +4355,7 @@ exit:
 
 static int qlge_set_mac_address(struct net_device *ndev, void *p)
 {
-	struct ql_adapter *qdev = (struct ql_adapter *)netdev_priv(ndev);
+	struct ql_adapter *qdev = netdev_priv(ndev);
 	struct sockaddr *addr = p;
 	int status;
 
@@ -4377,7 +4378,7 @@ static int qlge_set_mac_address(struct net_device *ndev, void *p)
 
 static void qlge_tx_timeout(struct net_device *ndev)
 {
-	struct ql_adapter *qdev = (struct ql_adapter *)netdev_priv(ndev);
+	struct ql_adapter *qdev = netdev_priv(ndev);
 	ql_queue_asic_error(qdev);
 }
 
@@ -4629,6 +4630,7 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	INIT_DELAYED_WORK(&qdev->mpi_idc_work, ql_mpi_idc_work);
 	INIT_DELAYED_WORK(&qdev->mpi_core_to_log, ql_mpi_core_to_log);
 	init_completion(&qdev->ide_completion);
+	mutex_init(&qdev->mpi_mutex);
 
 	if (!cards_found) {
 		dev_info(&pdev->dev, "%s\n", DRV_STRING);

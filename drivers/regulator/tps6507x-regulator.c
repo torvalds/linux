@@ -369,7 +369,8 @@ static int tps6507x_pmic_dcdc_get_voltage(struct regulator_dev *dev)
 }
 
 static int tps6507x_pmic_dcdc_set_voltage(struct regulator_dev *dev,
-				int min_uV, int max_uV)
+					  int min_uV, int max_uV,
+					  unsigned *selector)
 {
 	struct tps6507x_pmic *tps = rdev_get_drvdata(dev);
 	int data, vsel, dcdc = rdev_get_id(dev);
@@ -415,6 +416,8 @@ static int tps6507x_pmic_dcdc_set_voltage(struct regulator_dev *dev,
 	if (vsel == tps->info[dcdc]->table_len)
 		return -EINVAL;
 
+	*selector = vsel;
+
 	data = tps6507x_pmic_reg_read(tps, reg);
 	if (data < 0)
 		return data;
@@ -450,7 +453,8 @@ static int tps6507x_pmic_ldo_get_voltage(struct regulator_dev *dev)
 }
 
 static int tps6507x_pmic_ldo_set_voltage(struct regulator_dev *dev,
-				int min_uV, int max_uV)
+					 int min_uV, int max_uV,
+					 unsigned *selector)
 {
 	struct tps6507x_pmic *tps = rdev_get_drvdata(dev);
 	int data, vsel, ldo = rdev_get_id(dev);
@@ -482,6 +486,8 @@ static int tps6507x_pmic_ldo_set_voltage(struct regulator_dev *dev,
 
 	if (vsel == tps->info[ldo]->table_len)
 		return -EINVAL;
+
+	*selector = vsel;
 
 	data = tps6507x_pmic_reg_read(tps, reg);
 	if (data < 0)

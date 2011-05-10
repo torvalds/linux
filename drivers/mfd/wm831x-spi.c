@@ -14,6 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/pm.h>
 #include <linux/spi/spi.h>
 
 #include <linux/mfd/wm831x/core.h>
@@ -81,6 +82,8 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 		type = WM8321;
 	else if (strcmp(spi->modalias, "wm8325") == 0)
 		type = WM8325;
+	else if (strcmp(spi->modalias, "wm8326") == 0)
+		type = WM8326;
 	else {
 		dev_err(&spi->dev, "Unknown device type\n");
 		return -EINVAL;
@@ -111,22 +114,27 @@ static int __devexit wm831x_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-static int wm831x_spi_suspend(struct spi_device *spi, pm_message_t m)
+static int wm831x_spi_suspend(struct device *dev)
 {
-	struct wm831x *wm831x = dev_get_drvdata(&spi->dev);
+	struct wm831x *wm831x = dev_get_drvdata(dev);
 
 	return wm831x_device_suspend(wm831x);
 }
+
+static const struct dev_pm_ops wm831x_spi_pm = {
+	.freeze = wm831x_spi_suspend,
+	.suspend = wm831x_spi_suspend,
+};
 
 static struct spi_driver wm8310_spi_driver = {
 	.driver = {
 		.name	= "wm8310",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
 	},
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
-	.suspend	= wm831x_spi_suspend,
 };
 
 static struct spi_driver wm8311_spi_driver = {
@@ -134,10 +142,10 @@ static struct spi_driver wm8311_spi_driver = {
 		.name	= "wm8311",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
 	},
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
-	.suspend	= wm831x_spi_suspend,
 };
 
 static struct spi_driver wm8312_spi_driver = {
@@ -145,10 +153,10 @@ static struct spi_driver wm8312_spi_driver = {
 		.name	= "wm8312",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
 	},
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
-	.suspend	= wm831x_spi_suspend,
 };
 
 static struct spi_driver wm8320_spi_driver = {
@@ -156,10 +164,10 @@ static struct spi_driver wm8320_spi_driver = {
 		.name	= "wm8320",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
 	},
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
-	.suspend	= wm831x_spi_suspend,
 };
 
 static struct spi_driver wm8321_spi_driver = {
@@ -167,10 +175,10 @@ static struct spi_driver wm8321_spi_driver = {
 		.name	= "wm8321",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
 	},
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
-	.suspend	= wm831x_spi_suspend,
 };
 
 static struct spi_driver wm8325_spi_driver = {
@@ -178,10 +186,21 @@ static struct spi_driver wm8325_spi_driver = {
 		.name	= "wm8325",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
 	},
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
-	.suspend	= wm831x_spi_suspend,
+};
+
+static struct spi_driver wm8326_spi_driver = {
+	.driver = {
+		.name	= "wm8326",
+		.bus	= &spi_bus_type,
+		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
+	},
+	.probe		= wm831x_spi_probe,
+	.remove		= __devexit_p(wm831x_spi_remove),
 };
 
 static int __init wm831x_spi_init(void)
@@ -212,12 +231,17 @@ static int __init wm831x_spi_init(void)
 	if (ret != 0)
 		pr_err("Failed to register WM8325 SPI driver: %d\n", ret);
 
+	ret = spi_register_driver(&wm8326_spi_driver);
+	if (ret != 0)
+		pr_err("Failed to register WM8326 SPI driver: %d\n", ret);
+
 	return 0;
 }
 subsys_initcall(wm831x_spi_init);
 
 static void __exit wm831x_spi_exit(void)
 {
+	spi_unregister_driver(&wm8326_spi_driver);
 	spi_unregister_driver(&wm8325_spi_driver);
 	spi_unregister_driver(&wm8321_spi_driver);
 	spi_unregister_driver(&wm8320_spi_driver);

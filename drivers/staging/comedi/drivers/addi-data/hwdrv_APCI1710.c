@@ -225,7 +225,7 @@ int i_APCI1710_Reset(struct comedi_device *dev)
 
 	devpriv->s_BoardInfos.b_BoardVersion = 1;
 
-	/*  Enable the interrupt for the controler */
+	/*  Enable the interrupt for the controller */
 	dw_Dummy = inl(devpriv->s_BoardInfos.ui_Address + 0x38);
 	outl(dw_Dummy | 0x2000, devpriv->s_BoardInfos.ui_Address + 0x38);
 

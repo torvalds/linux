@@ -158,48 +158,45 @@ tsi57x_get_domain(struct rio_mport *mport, u16 destid, u8 hopcount,
 static int
 tsi57x_em_init(struct rio_dev *rdev)
 {
-	struct rio_mport *mport = rdev->net->hport;
-	u16 destid = rdev->rswitch->destid;
-	u8 hopcount = rdev->rswitch->hopcount;
 	u32 regval;
 	int portnum;
 
-	pr_debug("TSI578 %s [%d:%d]\n", __func__, destid, hopcount);
+	pr_debug("TSI578 %s [%d:%d]\n", __func__, rdev->destid, rdev->hopcount);
 
 	for (portnum = 0;
 	     portnum < RIO_GET_TOTAL_PORTS(rdev->swpinfo); portnum++) {
 		/* Make sure that Port-Writes are enabled (for all ports) */
-		rio_mport_read_config_32(mport, destid, hopcount,
+		rio_read_config_32(rdev,
 				TSI578_SP_MODE(portnum), &regval);
-		rio_mport_write_config_32(mport, destid, hopcount,
+		rio_write_config_32(rdev,
 				TSI578_SP_MODE(portnum),
 				regval & ~TSI578_SP_MODE_PW_DIS);
 
 		/* Clear all pending interrupts */
-		rio_mport_read_config_32(mport, destid, hopcount,
+		rio_read_config_32(rdev,
 				rdev->phys_efptr +
 					RIO_PORT_N_ERR_STS_CSR(portnum),
 				&regval);
-		rio_mport_write_config_32(mport, destid, hopcount,
+		rio_write_config_32(rdev,
 				rdev->phys_efptr +
 					RIO_PORT_N_ERR_STS_CSR(portnum),
 				regval & 0x07120214);
 
-		rio_mport_read_config_32(mport, destid, hopcount,
+		rio_read_config_32(rdev,
 				TSI578_SP_INT_STATUS(portnum), &regval);
-		rio_mport_write_config_32(mport, destid, hopcount,
+		rio_write_config_32(rdev,
 				TSI578_SP_INT_STATUS(portnum),
 				regval & 0x000700bd);
 
 		/* Enable all interrupts to allow ports to send a port-write */
-		rio_mport_read_config_32(mport, destid, hopcount,
+		rio_read_config_32(rdev,
 				TSI578_SP_CTL_INDEP(portnum), &regval);
-		rio_mport_write_config_32(mport, destid, hopcount,
+		rio_write_config_32(rdev,
 				TSI578_SP_CTL_INDEP(portnum),
 				regval | 0x000b0000);
 
 		/* Skip next (odd) port if the current port is in x4 mode */
-		rio_mport_read_config_32(mport, destid, hopcount,
+		rio_read_config_32(rdev,
 				rdev->phys_efptr + RIO_PORT_N_CTL_CSR(portnum),
 				&regval);
 		if ((regval & RIO_PORT_N_CTL_PWIDTH) == RIO_PORT_N_CTL_PWIDTH_4)
@@ -207,7 +204,7 @@ tsi57x_em_init(struct rio_dev *rdev)
 	}
 
 	/* set TVAL = ~50us */
-	rio_mport_write_config_32(mport, destid, hopcount,
+	rio_write_config_32(rdev,
 		rdev->phys_efptr + RIO_PORT_LINKTO_CTL_CSR, 0x9a << 8);
 
 	return 0;
@@ -217,14 +214,12 @@ static int
 tsi57x_em_handler(struct rio_dev *rdev, u8 portnum)
 {
 	struct rio_mport *mport = rdev->net->hport;
-	u16 destid = rdev->rswitch->destid;
-	u8 hopcount = rdev->rswitch->hopcount;
 	u32 intstat, err_status;
 	int sendcount, checkcount;
 	u8 route_port;
 	u32 regval;
 
-	rio_mport_read_config_32(mport, destid, hopcount,
+	rio_read_config_32(rdev,
 			rdev->phys_efptr + RIO_PORT_N_ERR_STS_CSR(portnum),
 			&err_status);
 
@@ -232,15 +227,15 @@ tsi57x_em_handler(struct rio_dev *rdev, u8 portnum)
 	    (err_status & (RIO_PORT_N_ERR_STS_PW_OUT_ES |
 			  RIO_PORT_N_ERR_STS_PW_INP_ES))) {
 		/* Remove any queued packets by locking/unlocking port */
-		rio_mport_read_config_32(mport, destid, hopcount,
+		rio_read_config_32(rdev,
 			rdev->phys_efptr + RIO_PORT_N_CTL_CSR(portnum),
 			&regval);
 		if (!(regval & RIO_PORT_N_CTL_LOCKOUT)) {
-			rio_mport_write_config_32(mport, destid, hopcount,
+			rio_write_config_32(rdev,
 				rdev->phys_efptr + RIO_PORT_N_CTL_CSR(portnum),
 				regval | RIO_PORT_N_CTL_LOCKOUT);
 			udelay(50);
-			rio_mport_write_config_32(mport, destid, hopcount,
+			rio_write_config_32(rdev,
 				rdev->phys_efptr + RIO_PORT_N_CTL_CSR(portnum),
 				regval);
 		}
@@ -248,7 +243,7 @@ tsi57x_em_handler(struct rio_dev *rdev, u8 portnum)
 		/* Read from link maintenance response register to clear
 		 * valid bit
 		 */
-		rio_mport_read_config_32(mport, destid, hopcount,
+		rio_read_config_32(rdev,
 			rdev->phys_efptr + RIO_PORT_N_MNT_RSP_CSR(portnum),
 			&regval);
 
@@ -257,13 +252,12 @@ tsi57x_em_handler(struct rio_dev *rdev, u8 portnum)
 		 */
 		sendcount = 3;
 		while (sendcount) {
-			rio_mport_write_config_32(mport, destid, hopcount,
+			rio_write_config_32(rdev,
 					  TSI578_SP_CS_TX(portnum), 0x40fc8000);
 			checkcount = 3;
 			while (checkcount--) {
 				udelay(50);
-				rio_mport_read_config_32(
-					mport, destid, hopcount,
+				rio_read_config_32(rdev,
 					rdev->phys_efptr +
 						RIO_PORT_N_MNT_RSP_CSR(portnum),
 					&regval);
@@ -277,25 +271,23 @@ tsi57x_em_handler(struct rio_dev *rdev, u8 portnum)
 
 exit_es:
 	/* Clear implementation specific error status bits */
-	rio_mport_read_config_32(mport, destid, hopcount,
-				 TSI578_SP_INT_STATUS(portnum), &intstat);
+	rio_read_config_32(rdev, TSI578_SP_INT_STATUS(portnum), &intstat);
 	pr_debug("TSI578[%x:%x] SP%d_INT_STATUS=0x%08x\n",
-		 destid, hopcount, portnum, intstat);
+		 rdev->destid, rdev->hopcount, portnum, intstat);
 
 	if (intstat & 0x10000) {
-		rio_mport_read_config_32(mport, destid, hopcount,
+		rio_read_config_32(rdev,
 				TSI578_SP_LUT_PEINF(portnum), &regval);
 		regval = (mport->sys_size) ? (regval >> 16) : (regval >> 24);
 		route_port = rdev->rswitch->route_table[regval];
 		pr_debug("RIO: TSI578[%s] P%d LUT Parity Error (destID=%d)\n",
 			rio_name(rdev), portnum, regval);
-		tsi57x_route_add_entry(mport, destid, hopcount,
+		tsi57x_route_add_entry(mport, rdev->destid, rdev->hopcount,
 				RIO_GLOBAL_TABLE, regval, route_port);
 	}
 
-	rio_mport_write_config_32(mport, destid, hopcount,
-				  TSI578_SP_INT_STATUS(portnum),
-				  intstat & 0x000700bd);
+	rio_write_config_32(rdev, TSI578_SP_INT_STATUS(portnum),
+			    intstat & 0x000700bd);
 
 	return 0;
 }

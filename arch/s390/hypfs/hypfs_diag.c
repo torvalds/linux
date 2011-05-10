@@ -555,80 +555,37 @@ struct dbfs_d204 {
 	char			buf[];	/* d204 buffer */
 } __attribute__ ((packed));
 
-struct dbfs_d204_private {
-	struct dbfs_d204	*d204;	/* Aligned d204 data with header */
-	void			*base;	/* Base pointer (needed for vfree) */
-};
-
-static int dbfs_d204_open(struct inode *inode, struct file *file)
+static int dbfs_d204_create(void **data, void **data_free_ptr, size_t *size)
 {
-	struct dbfs_d204_private *data;
 	struct dbfs_d204 *d204;
 	int rc, buf_size;
+	void *base;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
 	buf_size = PAGE_SIZE * (diag204_buf_pages + 1) + sizeof(d204->hdr);
-	data->base = vmalloc(buf_size);
-	if (!data->base) {
-		rc = -ENOMEM;
-		goto fail_kfree_data;
+	base = vmalloc(buf_size);
+	if (!base)
+		return -ENOMEM;
+	memset(base, 0, buf_size);
+	d204 = page_align_ptr(base + sizeof(d204->hdr)) - sizeof(d204->hdr);
+	rc = diag204_do_store(d204->buf, diag204_buf_pages);
+	if (rc) {
+		vfree(base);
+		return rc;
 	}
-	memset(data->base, 0, buf_size);
-	d204 = page_align_ptr(data->base + sizeof(d204->hdr))
-		- sizeof(d204->hdr);
-	rc = diag204_do_store(&d204->buf, diag204_buf_pages);
-	if (rc)
-		goto fail_vfree_base;
 	d204->hdr.version = DBFS_D204_HDR_VERSION;
 	d204->hdr.len = PAGE_SIZE * diag204_buf_pages;
 	d204->hdr.sc = diag204_store_sc;
-	data->d204 = d204;
-	file->private_data = data;
-	return nonseekable_open(inode, file);
-
-fail_vfree_base:
-	vfree(data->base);
-fail_kfree_data:
-	kfree(data);
-	return rc;
-}
-
-static int dbfs_d204_release(struct inode *inode, struct file *file)
-{
-	struct dbfs_d204_private *data = file->private_data;
-
-	vfree(data->base);
-	kfree(data);
+	*data = d204;
+	*data_free_ptr = base;
+	*size = d204->hdr.len + sizeof(struct dbfs_d204_hdr);
 	return 0;
 }
 
-static ssize_t dbfs_d204_read(struct file *file, char __user *buf,
-			      size_t size, loff_t *ppos)
-{
-	struct dbfs_d204_private *data = file->private_data;
-
-	return simple_read_from_buffer(buf, size, ppos, data->d204,
-				       data->d204->hdr.len +
-				       sizeof(data->d204->hdr));
-}
-
-static const struct file_operations dbfs_d204_ops = {
-	.open		= dbfs_d204_open,
-	.read		= dbfs_d204_read,
-	.release	= dbfs_d204_release,
-	.llseek		= no_llseek,
+static struct hypfs_dbfs_file dbfs_file_d204 = {
+	.name		= "diag_204",
+	.data_create	= dbfs_d204_create,
+	.data_free	= vfree,
 };
-
-static int hypfs_dbfs_init(void)
-{
-	dbfs_d204_file = debugfs_create_file("diag_204", 0400, hypfs_dbfs_dir,
-					     NULL, &dbfs_d204_ops);
-	if (IS_ERR(dbfs_d204_file))
-		return PTR_ERR(dbfs_d204_file);
-	return 0;
-}
 
 __init int hypfs_diag_init(void)
 {
@@ -639,7 +596,7 @@ __init int hypfs_diag_init(void)
 		return -ENODATA;
 	}
 	if (diag204_info_type == INFO_EXT) {
-		rc = hypfs_dbfs_init();
+		rc = hypfs_dbfs_create_file(&dbfs_file_d204);
 		if (rc)
 			return rc;
 	}
@@ -660,6 +617,7 @@ void hypfs_diag_exit(void)
 	debugfs_remove(dbfs_d204_file);
 	diag224_delete_name_table();
 	diag204_free_buffer();
+	hypfs_dbfs_remove_file(&dbfs_file_d204);
 }
 
 /*

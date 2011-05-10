@@ -6,9 +6,7 @@
 #include "r8192U_dm.h"
 #include "r819xU_firmware_img.h"
 
-#ifdef ENABLE_DOT11D
 #include "dot11d.h"
-#endif
 static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 	0,
 	0x085c, //2412 1
@@ -1011,7 +1009,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	
 			break;
 	}
 
-	return ret;;
+	return ret;
 
 }
 /******************************************************************************
@@ -1257,13 +1255,11 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8* stage, u
 
 	RT_TRACE(COMP_CH, "====>%s()====stage:%d, step:%d, channel:%d\n", __FUNCTION__, *stage, *step, channel);
 //	RT_ASSERT(IsLegalChannel(Adapter, channel), ("illegal channel: %d\n", channel));
-#ifdef ENABLE_DOT11D
 	if (!IsLegalChannel(priv->ieee80211, channel))
 	{
 		RT_TRACE(COMP_ERR, "=============>set to illegal channel:%d\n", channel);
 		return true; //return true to tell upper caller function this channel setting is finished! Or it will in while loop.
 	}
-#endif
 //FIXME:need to check whether channel is legal or not here.WB
 
 
@@ -1535,13 +1531,13 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	{
 		case HT_CHANNEL_WIDTH_20:
 			regBwOpMode |= BW_OPMODE_20MHZ;
-		       // 2007/02/07 Mark by Emily becasue we have not verify whether this register works
+		       // 2007/02/07 Mark by Emily because we have not verify whether this register works
 			write_nic_byte(dev, BW_OPMODE, regBwOpMode);
 			break;
 
 		case HT_CHANNEL_WIDTH_20_40:
 			regBwOpMode &= ~BW_OPMODE_20MHZ;
-			// 2007/02/07 Mark by Emily becasue we have not verify whether this register works
+			// 2007/02/07 Mark by Emily because we have not verify whether this register works
 			write_nic_byte(dev, BW_OPMODE, regBwOpMode);
 			break;
 
@@ -1651,7 +1647,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 }
 
 /******************************************************************************
- *function:  This function schedules bandwith switch work.
+ *function:  This function schedules bandwidth switch work.
  *   input:  struct net_device *dev
  *   	     HT_CHANNEL_WIDTH	Bandwidth  //20M or 40M
  *   	     HT_EXTCHNL_OFFSET Offset 	   //Upper, Lower, or Don't care

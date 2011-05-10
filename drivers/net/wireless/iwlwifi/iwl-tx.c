@@ -49,33 +49,58 @@ void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	if (txq->need_update == 0)
 		return;
 
-	/* if we're trying to save power */
-	if (test_bit(STATUS_POWER_PMI, &priv->status)) {
-		/* wake up nic if it's powered down ...
-		 * uCode will wake up, and interrupt us again, so next
-		 * time we'll skip this part. */
-		reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
-
-		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-			IWL_DEBUG_INFO(priv, "Tx queue %d requesting wakeup, GP1 = 0x%x\n",
-				      txq_id, reg);
-			iwl_set_bit(priv, CSR_GP_CNTRL,
-				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-			return;
-		}
-
-		iwl_write_direct32(priv, HBUS_TARG_WRPTR,
-				     txq->q.write_ptr | (txq_id << 8));
-
-	/* else not in power-save mode, uCode will never sleep when we're
-	 * trying to tx (during RFKILL, we're not trying to tx). */
-	} else
+	if (priv->cfg->base_params->shadow_reg_enable) {
+		/* shadow register enabled */
 		iwl_write32(priv, HBUS_TARG_WRPTR,
 			    txq->q.write_ptr | (txq_id << 8));
+	} else {
+		/* if we're trying to save power */
+		if (test_bit(STATUS_POWER_PMI, &priv->status)) {
+			/* wake up nic if it's powered down ...
+			 * uCode will wake up, and interrupt us again, so next
+			 * time we'll skip this part. */
+			reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
 
+			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
+				IWL_DEBUG_INFO(priv,
+					"Tx queue %d requesting wakeup,"
+					" GP1 = 0x%x\n", txq_id, reg);
+				iwl_set_bit(priv, CSR_GP_CNTRL,
+					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+				return;
+			}
+
+			iwl_write_direct32(priv, HBUS_TARG_WRPTR,
+				     txq->q.write_ptr | (txq_id << 8));
+
+		/*
+		 * else not in power-save mode,
+		 * uCode will never sleep when we're
+		 * trying to tx (during RFKILL, we're not trying to tx).
+		 */
+		} else
+			iwl_write32(priv, HBUS_TARG_WRPTR,
+				    txq->q.write_ptr | (txq_id << 8));
+	}
 	txq->need_update = 0;
 }
-EXPORT_SYMBOL(iwl_txq_update_write_ptr);
+
+/**
+ * iwl_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
+ */
+void iwl_tx_queue_unmap(struct iwl_priv *priv, int txq_id)
+{
+	struct iwl_tx_queue *txq = &priv->txq[txq_id];
+	struct iwl_queue *q = &txq->q;
+
+	if (q->n_bd == 0)
+		return;
+
+	 while (q->write_ptr != q->read_ptr) {
+		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
+		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
+	}
+}
 
 /**
  * iwl_tx_queue_free - Deallocate DMA queue.
@@ -88,17 +113,10 @@ EXPORT_SYMBOL(iwl_txq_update_write_ptr);
 void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 {
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct iwl_queue *q = &txq->q;
 	struct device *dev = &priv->pci_dev->dev;
 	int i;
 
-	if (q->n_bd == 0)
-		return;
-
-	/* first, empty all BD's */
-	for (; q->write_ptr != q->read_ptr;
-	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd))
-		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
+	iwl_tx_queue_unmap(priv, txq_id);
 
 	/* De-alloc array of command/tx buffers */
 	for (i = 0; i < TFD_TX_CMD_SLOTS; i++)
@@ -122,7 +140,43 @@ void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 	/* 0-fill queue descriptor structure */
 	memset(txq, 0, sizeof(*txq));
 }
-EXPORT_SYMBOL(iwl_tx_queue_free);
+
+/**
+ * iwl_cmd_queue_unmap - Unmap any remaining DMA mappings from command queue
+ */
+void iwl_cmd_queue_unmap(struct iwl_priv *priv)
+{
+	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
+	struct iwl_queue *q = &txq->q;
+	int i;
+	bool huge = false;
+
+	if (q->n_bd == 0)
+		return;
+
+	while (q->read_ptr != q->write_ptr) {
+		/* we have no way to tell if it is a huge cmd ATM */
+		i = get_cmd_index(q, q->read_ptr, 0);
+
+		if (txq->meta[i].flags & CMD_SIZE_HUGE)
+			huge = true;
+		else
+			pci_unmap_single(priv->pci_dev,
+					 dma_unmap_addr(&txq->meta[i], mapping),
+					 dma_unmap_len(&txq->meta[i], len),
+					 PCI_DMA_BIDIRECTIONAL);
+
+	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
+	}
+
+	if (huge) {
+		i = q->n_window;
+		pci_unmap_single(priv->pci_dev,
+				 dma_unmap_addr(&txq->meta[i], mapping),
+				 dma_unmap_len(&txq->meta[i], len),
+				 PCI_DMA_BIDIRECTIONAL);
+	}
+}
 
 /**
  * iwl_cmd_queue_free - Deallocate DMA queue.
@@ -135,36 +189,10 @@ EXPORT_SYMBOL(iwl_tx_queue_free);
 void iwl_cmd_queue_free(struct iwl_priv *priv)
 {
 	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
-	struct iwl_queue *q = &txq->q;
 	struct device *dev = &priv->pci_dev->dev;
 	int i;
-	bool huge = false;
 
-	if (q->n_bd == 0)
-		return;
-
-	for (; q->read_ptr != q->write_ptr;
-	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
-		/* we have no way to tell if it is a huge cmd ATM */
-		i = get_cmd_index(q, q->read_ptr, 0);
-
-		if (txq->meta[i].flags & CMD_SIZE_HUGE) {
-			huge = true;
-			continue;
-		}
-
-		pci_unmap_single(priv->pci_dev,
-				 dma_unmap_addr(&txq->meta[i], mapping),
-				 dma_unmap_len(&txq->meta[i], len),
-				 PCI_DMA_BIDIRECTIONAL);
-	}
-	if (huge) {
-		i = q->n_window;
-		pci_unmap_single(priv->pci_dev,
-				 dma_unmap_addr(&txq->meta[i], mapping),
-				 dma_unmap_len(&txq->meta[i], len),
-				 PCI_DMA_BIDIRECTIONAL);
-	}
+	iwl_cmd_queue_unmap(priv);
 
 	/* De-alloc array of command/tx buffers */
 	for (i = 0; i <= TFD_CMD_SLOTS; i++)
@@ -184,7 +212,6 @@ void iwl_cmd_queue_free(struct iwl_priv *priv)
 	/* 0-fill queue descriptor structure */
 	memset(txq, 0, sizeof(*txq));
 }
-EXPORT_SYMBOL(iwl_cmd_queue_free);
 
 /*************** DMA-QUEUE-GENERAL-FUNCTIONS  *****
  * DMA services
@@ -224,7 +251,6 @@ int iwl_queue_space(const struct iwl_queue *q)
 		s = 0;
 	return s;
 }
-EXPORT_SYMBOL(iwl_queue_space);
 
 
 /**
@@ -254,8 +280,6 @@ static int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 		q->high_mark = 2;
 
 	q->write_ptr = q->read_ptr = 0;
-	q->last_read_ptr = 0;
-	q->repeat_same_read_ptr = 0;
 
 	return 0;
 }
@@ -350,13 +374,12 @@ int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	txq->need_update = 0;
 
 	/*
-	 * Aggregation TX queues will get their ID when aggregation begins;
-	 * they overwrite the setting done here. The command FIFO doesn't
-	 * need an swq_id so don't set one to catch errors, all others can
-	 * be set up to the identity mapping.
+	 * For the default queues 0-3, set up the swq_id
+	 * already -- all others need to get one later
+	 * (if they need one at all).
 	 */
-	if (txq_id != priv->cmd_queue)
-		txq->swq_id = txq_id;
+	if (txq_id < 4)
+		iwl_set_swq_id(txq, txq_id, txq_id);
 
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
 	 * iwl_queue_inc_wrap and iwl_queue_dec_wrap are broken. */
@@ -378,7 +401,6 @@ out_free_arrays:
 
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(iwl_tx_queue_init);
 
 void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 			int slots_num, u32 txq_id)
@@ -398,7 +420,6 @@ void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	/* Tell device where to find queue */
 	priv->cfg->ops->lib->txq_init(priv, txq);
 }
-EXPORT_SYMBOL(iwl_tx_queue_reset);
 
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
 
@@ -635,4 +656,3 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	}
 	meta->flags = 0;
 }
-EXPORT_SYMBOL(iwl_tx_cmd_complete);

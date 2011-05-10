@@ -753,7 +753,7 @@ void __cpuinit early_init_mmu_secondary(void)
 		mtspr(SPRN_SDR1, _SDR1);
 
 	/* Initialize STAB/SLB. We use a virtual address as it works
-	 * in real mode on pSeries and we want a virutal address on
+	 * in real mode on pSeries and we want a virtual address on
 	 * iSeries anyway
 	 */
 	if (cpu_has_feature(CPU_FTR_SLB))
@@ -1070,7 +1070,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 		  unsigned long access, unsigned long trap)
 {
 	unsigned long vsid;
-	void *pgdir;
+	pgd_t *pgdir;
 	pte_t *ptep;
 	unsigned long flags;
 	int rc, ssize, local = 0;

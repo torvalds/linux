@@ -103,7 +103,7 @@ qla24xx_proc_fcp_prio_cfg_cmd(struct fc_bsg_job *bsg_job)
 
 	bsg_job->reply->reply_payload_rcv_len = 0;
 
-	if (!IS_QLA24XX_TYPE(ha) || !IS_QLA25XX(ha)) {
+	if (!(IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha))) {
 		ret = -EINVAL;
 		goto exit_fcp_prio_cfg;
 	}
@@ -753,7 +753,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 			command_sent = INT_DEF_LB_LOOPBACK_CMD;
 			rval = qla2x00_loopback_test(vha, &elreq, response);
 
-			if (new_config[1]) {
+			if (new_config[0]) {
 				/* Revert back to original port config
 				 * Also clear internal loopback
 				 */
@@ -1512,6 +1512,7 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 				if (((sp_bsg->type == SRB_CT_CMD) ||
 					(sp_bsg->type == SRB_ELS_CMD_HST))
 					&& (sp_bsg->u.bsg_job == bsg_job)) {
+					spin_unlock_irqrestore(&ha->hardware_lock, flags);
 					if (ha->isp_ops->abort_command(sp)) {
 						DEBUG2(qla_printk(KERN_INFO, ha,
 						    "scsi(%ld): mbx "
@@ -1527,6 +1528,7 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 						bsg_job->req->errors =
 						bsg_job->reply->result = 0;
 					}
+					spin_lock_irqsave(&ha->hardware_lock, flags);
 					goto done;
 				}
 			}

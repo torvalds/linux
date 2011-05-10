@@ -89,6 +89,33 @@ Throttling/Upper Limit policy
 
  Limits for writes can be put using blkio.write_bps_device file.
 
+Hierarchical Cgroups
+====================
+- Currently none of the IO control policy supports hierarhical groups. But
+  cgroup interface does allow creation of hierarhical cgroups and internally
+  IO policies treat them as flat hierarchy.
+
+  So this patch will allow creation of cgroup hierarhcy but at the backend
+  everything will be treated as flat. So if somebody created a hierarchy like
+  as follows.
+
+			root
+			/  \
+		     test1 test2
+			|
+		     test3
+
+  CFQ and throttling will practically treat all groups at same level.
+
+				pivot
+			     /  |   \  \
+			root  test1 test2  test3
+
+  Down the line we can implement hierarchical accounting/control support
+  and also introduce a new cgroup file "use_hierarchy" which will control
+  whether cgroup hierarchy is viewed as flat or hierarchical by the policy..
+  This is how memory controller also has implemented the things.
+
 Various user visible config options
 ===================================
 CONFIG_BLK_CGROUP
@@ -113,7 +140,7 @@ Proportional weight policy files
 	- Specifies per cgroup weight. This is default weight of the group
 	  on all the devices until and unless overridden by per device rule.
 	  (See blkio.weight_device).
-	  Currently allowed range of weights is from 100 to 1000.
+	  Currently allowed range of weights is from 10 to 1000.
 
 - blkio.weight_device
 	- One can specify per cgroup per device rules using this interface.
@@ -316,34 +343,6 @@ Common files among various policies
 
 CFQ sysfs tunable
 =================
-/sys/block/<disk>/queue/iosched/group_isolation
------------------------------------------------
-
-If group_isolation=1, it provides stronger isolation between groups at the
-expense of throughput. By default group_isolation is 0. In general that
-means that if group_isolation=0, expect fairness for sequential workload
-only. Set group_isolation=1 to see fairness for random IO workload also.
-
-Generally CFQ will put random seeky workload in sync-noidle category. CFQ
-will disable idling on these queues and it does a collective idling on group
-of such queues. Generally these are slow moving queues and if there is a
-sync-noidle service tree in each group, that group gets exclusive access to
-disk for certain period. That means it will bring the throughput down if
-group does not have enough IO to drive deeper queue depths and utilize disk
-capacity to the fullest in the slice allocated to it. But the flip side is
-that even a random reader should get better latencies and overall throughput
-if there are lots of sequential readers/sync-idle workload running in the
-system.
-
-If group_isolation=0, then CFQ automatically moves all the random seeky queues
-in the root group. That means there will be no service differentiation for
-that kind of workload. This leads to better throughput as we do collective
-idling on root sync-noidle tree.
-
-By default one should run with group_isolation=0. If that is not sufficient
-and one wants stronger isolation between groups, then set group_isolation=1
-but this will come at cost of reduced throughput.
-
 /sys/block/<disk>/queue/iosched/slice_idle
 ------------------------------------------
 On a faster hardware CFQ can be slow, especially with sequential workload.

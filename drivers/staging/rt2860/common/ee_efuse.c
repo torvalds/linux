@@ -264,7 +264,7 @@ int set_eFuseGetFreeBlockCount_Proc(struct rt_rtmp_adapter *pAd, char *arg)
 		if (i == EFUSE_USAGE_MAP_END)
 			efusefreenum = 0;
 	}
-	printk("efuseFreeNumber is %d\n", efusefreenum);
+	printk(KERN_DEBUG "efuseFreeNumber is %d\n", efusefreenum);
 	return TRUE;
 }
 
@@ -274,16 +274,23 @@ int set_eFusedump_Proc(struct rt_rtmp_adapter *pAd, char *arg)
 	int i = 0;
 	if (!pAd->bUseEfuse)
 		return FALSE;
+
+	printk(KERN_DEBUG "Block 0: ");
+
 	for (i = 0; i < EFUSE_USAGE_MAP_END / 2; i++) {
 		InBuf[0] = 2 * i;
 		InBuf[1] = 2;
 		InBuf[2] = 0x0;
 
 		eFuseReadPhysical(pAd, &InBuf[0], 4, &InBuf[2], 2);
-		if (i % 4 == 0)
-			printk("\nBlock %x:", i / 8);
-		printk("%04x ", InBuf[2]);
+		if (i && i % 4 == 0) {
+			printk(KERN_CONT "\n");
+			printk(KERN_DEBUG "Block %x:", i / 8);
+		}
+		printk(KERN_CONT "%04x ", InBuf[2]);
 	}
+	printk(KERN_CONT "\n");
+
 	return TRUE;
 }
 

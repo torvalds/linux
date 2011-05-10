@@ -99,6 +99,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	init_waitqueue_head(&sdp->sd_log_waitq);
 	init_waitqueue_head(&sdp->sd_logd_waitq);
+	spin_lock_init(&sdp->sd_ail_lock);
 	INIT_LIST_HEAD(&sdp->sd_ail1_list);
 	INIT_LIST_HEAD(&sdp->sd_ail2_list);
 
@@ -429,7 +430,7 @@ static int gfs2_lookup_root(struct super_block *sb, struct dentry **dptr,
 	struct dentry *dentry;
 	struct inode *inode;
 
-	inode = gfs2_inode_lookup(sb, DT_DIR, no_addr, 0);
+	inode = gfs2_inode_lookup(sb, DT_DIR, no_addr, 0, 0);
 	if (IS_ERR(inode)) {
 		fs_err(sdp, "can't read in %s inode: %ld\n", name, PTR_ERR(inode));
 		return PTR_ERR(inode);
@@ -440,7 +441,6 @@ static int gfs2_lookup_root(struct super_block *sb, struct dentry **dptr,
 		iput(inode);
 		return -ENOMEM;
 	}
-	dentry->d_op = &gfs2_dops;
 	*dptr = dentry;
 	return 0;
 }
@@ -929,17 +929,9 @@ static const match_table_t nolock_tokens = {
 	{ Opt_err, NULL },
 };
 
-static void nolock_put_lock(struct kmem_cache *cachep, struct gfs2_glock *gl)
-{
-	struct gfs2_sbd *sdp = gl->gl_sbd;
-	kmem_cache_free(cachep, gl);
-	if (atomic_dec_and_test(&sdp->sd_glock_disposal))
-		wake_up(&sdp->sd_glock_wait);
-}
-
 static const struct lm_lockops nolock_ops = {
 	.lm_proto_name = "lock_nolock",
-	.lm_put_lock = nolock_put_lock,
+	.lm_put_lock = gfs2_glock_free,
 	.lm_tokens = &nolock_tokens,
 };
 
@@ -1106,6 +1098,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 
 	sb->s_magic = GFS2_MAGIC;
 	sb->s_op = &gfs2_super_ops;
+	sb->s_d_op = &gfs2_dops;
 	sb->s_export_op = &gfs2_export_ops;
 	sb->s_xattr = gfs2_xattr_handlers;
 	sb->s_qcop = &gfs2_quotactl_ops;
@@ -1268,7 +1261,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 {
 	struct block_device *bdev;
 	struct super_block *s;
-	fmode_t mode = FMODE_READ;
+	fmode_t mode = FMODE_READ | FMODE_EXCL;
 	int error;
 	struct gfs2_args args;
 	struct gfs2_sbd *sdp;
@@ -1276,7 +1269,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 	if (!(flags & MS_RDONLY))
 		mode |= FMODE_WRITE;
 
-	bdev = open_bdev_exclusive(dev_name, mode, fs_type);
+	bdev = blkdev_get_by_path(dev_name, mode, fs_type);
 	if (IS_ERR(bdev))
 		return ERR_CAST(bdev);
 
@@ -1298,7 +1291,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 		goto error_bdev;
 
 	if (s->s_root)
-		close_bdev_exclusive(bdev, mode);
+		blkdev_put(bdev, mode);
 
 	memset(&args, 0, sizeof(args));
 	args.ar_quota = GFS2_QUOTA_DEFAULT;
@@ -1342,7 +1335,7 @@ error_super:
 	deactivate_locked_super(s);
 	return ERR_PTR(error);
 error_bdev:
-	close_bdev_exclusive(bdev, mode);
+	blkdev_put(bdev, mode);
 	return ERR_PTR(error);
 }
 

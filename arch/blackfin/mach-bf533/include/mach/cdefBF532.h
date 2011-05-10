@@ -1,14 +1,11 @@
 /*
- * Copyright 2005-2008 Analog Devices Inc.
+ * Copyright 2005-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later
  */
 
 #ifndef _CDEF_BF532_H
 #define _CDEF_BF532_H
-
-/*include core specific register pointer definitions*/
-#include <asm/cdef_LPBlackfin.h>
 
 /* Clock and System Control (0xFFC0 0400-0xFFC0 07FF) */
 #define bfin_read_PLL_CTL()                  bfin_read16(PLL_CTL)
@@ -66,16 +63,10 @@
 #define bfin_write_RTC_PREN(val)             bfin_write16(RTC_PREN,val)
 
 /* DMA Traffic controls */
-#define bfin_read_DMA_TCPER()                bfin_read16(DMA_TCPER)
-#define bfin_write_DMA_TCPER(val)            bfin_write16(DMA_TCPER,val)
-#define bfin_read_DMA_TCCNT()                bfin_read16(DMA_TCCNT)
-#define bfin_write_DMA_TCCNT(val)            bfin_write16(DMA_TCCNT,val)
-
-/* Alternate deprecated register names (below) provided for backwards code compatibility */
-#define bfin_read_DMA_TC_PER()               bfin_read16(DMA_TC_PER)
-#define bfin_write_DMA_TC_PER(val)           bfin_write16(DMA_TC_PER,val)
-#define bfin_read_DMA_TC_CNT()               bfin_read16(DMA_TC_CNT)
-#define bfin_write_DMA_TC_CNT(val)           bfin_write16(DMA_TC_CNT,val)
+#define bfin_read_DMAC_TC_PER()              bfin_read16(DMAC_TC_PER)
+#define bfin_write_DMAC_TC_PER(val)          bfin_write16(DMAC_TC_PER,val)
+#define bfin_read_DMAC_TC_CNT()              bfin_read16(DMAC_TC_CNT)
+#define bfin_write_DMAC_TC_CNT(val)          bfin_write16(DMAC_TC_CNT,val)
 
 /* General Purpose IO (0xFFC0 2400-0xFFC0 27FF) */
 #define bfin_read_FIO_DIR()                  bfin_read16(FIO_DIR)
@@ -104,6 +95,47 @@
 #define bfin_write_FIO_MASKB_D(val)          bfin_write16(FIO_MASKB_D,val)
 #define bfin_read_FIO_MASKB_T()              bfin_read16(FIO_MASKB_T)
 #define bfin_write_FIO_MASKB_T(val)          bfin_write16(FIO_MASKB_T,val)
+
+#if ANOMALY_05000311
+/* Keep at the CPP expansion to avoid circular header dependency loops */
+#define BFIN_WRITE_FIO_FLAG(name, val) \
+	do { \
+		unsigned long __flags; \
+		__flags = hard_local_irq_save(); \
+		bfin_write16(FIO_FLAG_##name, val); \
+		bfin_read_CHIPID(); \
+		hard_local_irq_restore(__flags); \
+	} while (0)
+#define bfin_write_FIO_FLAG_D(val)           BFIN_WRITE_FIO_FLAG(D, val)
+#define bfin_write_FIO_FLAG_C(val)           BFIN_WRITE_FIO_FLAG(C, val)
+#define bfin_write_FIO_FLAG_S(val)           BFIN_WRITE_FIO_FLAG(S, val)
+#define bfin_write_FIO_FLAG_T(val)           BFIN_WRITE_FIO_FLAG(T, val)
+
+#define BFIN_READ_FIO_FLAG(name) \
+	({ \
+		unsigned long __flags; \
+		u16 __ret; \
+		__flags = hard_local_irq_save(); \
+		__ret = bfin_read16(FIO_FLAG_##name); \
+		bfin_read_CHIPID(); \
+		hard_local_irq_restore(__flags); \
+		__ret; \
+	})
+#define bfin_read_FIO_FLAG_D()               BFIN_READ_FIO_FLAG(D)
+#define bfin_read_FIO_FLAG_C()               BFIN_READ_FIO_FLAG(C)
+#define bfin_read_FIO_FLAG_S()               BFIN_READ_FIO_FLAG(S)
+#define bfin_read_FIO_FLAG_T()               BFIN_READ_FIO_FLAG(T)
+
+#else
+#define bfin_write_FIO_FLAG_D(val)           bfin_write16(FIO_FLAG_D, val)
+#define bfin_write_FIO_FLAG_C(val)           bfin_write16(FIO_FLAG_C, val)
+#define bfin_write_FIO_FLAG_S(val)           bfin_write16(FIO_FLAG_S, val)
+#define bfin_write_FIO_FLAG_T(val)           bfin_write16(FIO_FLAG_T, val)
+#define bfin_read_FIO_FLAG_D()               bfin_read16(FIO_FLAG_D)
+#define bfin_read_FIO_FLAG_C()               bfin_read16(FIO_FLAG_C)
+#define bfin_read_FIO_FLAG_S()               bfin_read16(FIO_FLAG_S)
+#define bfin_read_FIO_FLAG_T()               bfin_read16(FIO_FLAG_T)
+#endif
 
 /* DMA Controller */
 #define bfin_read_DMA0_CONFIG()              bfin_read16(DMA0_CONFIG)
@@ -646,8 +678,5 @@
 #define bfin_write_PPI_COUNT(val)            bfin_write16(PPI_COUNT,val)
 #define bfin_read_PPI_FRAME()                bfin_read16(PPI_FRAME)
 #define bfin_write_PPI_FRAME(val)            bfin_write16(PPI_FRAME,val)
-
-/* These need to be last due to the cdef/linux inter-dependencies */
-#include <asm/irq.h>
 
 #endif				/* _CDEF_BF532_H */

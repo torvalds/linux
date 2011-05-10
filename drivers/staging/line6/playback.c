@@ -246,7 +246,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 
 	change_volume(urb_out, line6pcm->volume_playback, bytes_per_frame);
 
-	if (line6pcm->prev_fbuf != 0) {
+	if (line6pcm->prev_fbuf != NULL) {
 #ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 		if (line6pcm->flags & MASK_PCM_IMPULSE) {
 			create_impulse_test_signal(line6pcm, urb_out,

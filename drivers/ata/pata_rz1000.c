@@ -112,7 +112,7 @@ static int rz1000_reinit_one(struct pci_dev *pdev)
 	if (rc)
 		return rc;
 
-	/* If this fails on resume (which is a "cant happen" case), we
+	/* If this fails on resume (which is a "can't happen" case), we
 	   must stop as any progress risks data loss */
 	if (rz1000_fifo_disable(pdev))
 		panic("rz1000 fifo");

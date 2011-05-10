@@ -61,29 +61,10 @@ typedef enum {
 #define XBF_DONT_BLOCK	(1 << 16)/* do not block in current thread */
 
 /* flags used only internally */
-#define _XBF_PAGE_CACHE	(1 << 17)/* backed by pagecache */
 #define _XBF_PAGES	(1 << 18)/* backed by refcounted pages */
 #define	_XBF_RUN_QUEUES	(1 << 19)/* run block device task queue	*/
+#define	_XBF_KMEM	(1 << 20)/* backed by heap memory */
 #define _XBF_DELWRI_Q	(1 << 21)/* buffer on delwri queue */
-
-/*
- * Special flag for supporting metadata blocks smaller than a FSB.
- *
- * In this case we can have multiple xfs_buf_t on a single page and
- * need to lock out concurrent xfs_buf_t readers as they only
- * serialise access to the buffer.
- *
- * If the FSB size >= PAGE_CACHE_SIZE case, we have no serialisation
- * between reads of the page. Hence we can have one thread read the
- * page and modify it, but then race with another thread that thinks
- * the page is not up-to-date and hence reads it again.
- *
- * The result is that the first modifcation to the page is lost.
- * This sort of AGF/AGI reading race can happen when unlinking inodes
- * that require truncation and results in the AGI unlinked list
- * modifications being lost.
- */
-#define _XBF_PAGE_LOCKED	(1 << 22)
 
 typedef unsigned int xfs_buf_flags_t;
 
@@ -100,12 +81,10 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_LOCK,		"LOCK" },  	/* should never be set */\
 	{ XBF_TRYLOCK,		"TRYLOCK" }, 	/* ditto */\
 	{ XBF_DONT_BLOCK,	"DONT_BLOCK" },	/* ditto */\
-	{ _XBF_PAGE_CACHE,	"PAGE_CACHE" }, \
 	{ _XBF_PAGES,		"PAGES" }, \
 	{ _XBF_RUN_QUEUES,	"RUN_QUEUES" }, \
-	{ _XBF_DELWRI_Q,	"DELWRI_Q" }, \
-	{ _XBF_PAGE_LOCKED,	"PAGE_LOCKED" }
-
+	{ _XBF_KMEM,		"KMEM" }, \
+	{ _XBF_DELWRI_Q,	"DELWRI_Q" }
 
 typedef enum {
 	XBT_FORCE_SLEEP = 0,
@@ -120,7 +99,7 @@ typedef struct xfs_bufhash {
 typedef struct xfs_buftarg {
 	dev_t			bt_dev;
 	struct block_device	*bt_bdev;
-	struct address_space	*bt_mapping;
+	struct backing_dev_info	*bt_bdi;
 	struct xfs_mount	*bt_mount;
 	unsigned int		bt_bsize;
 	unsigned int		bt_sshift;
@@ -128,27 +107,19 @@ typedef struct xfs_buftarg {
 
 	/* per device delwri queue */
 	struct task_struct	*bt_task;
-	struct list_head	bt_list;
 	struct list_head	bt_delwrite_queue;
 	spinlock_t		bt_delwrite_lock;
 	unsigned long		bt_flags;
-} xfs_buftarg_t;
 
-/*
- *	xfs_buf_t:  Buffer structure for pagecache-based buffers
- *
- * This buffer structure is used by the pagecache buffer management routines
- * to refer to an assembly of pages forming a logical buffer.
- *
- * The buffer structure is used on a temporary basis only, and discarded when
- * released.  The real data storage is recorded in the pagecache. Buffers are
- * hashed to the block device on which the file system resides.
- */
+	/* LRU control structures */
+	struct shrinker		bt_shrinker;
+	struct list_head	bt_lru;
+	spinlock_t		bt_lru_lock;
+	unsigned int		bt_lru_nr;
+} xfs_buftarg_t;
 
 struct xfs_buf;
 typedef void (*xfs_buf_iodone_t)(struct xfs_buf *);
-typedef void (*xfs_buf_relse_t)(struct xfs_buf *);
-typedef int (*xfs_buf_bdstrat_t)(struct xfs_buf *);
 
 #define XB_PAGES	2
 
@@ -164,9 +135,11 @@ typedef struct xfs_buf {
 	xfs_off_t		b_file_offset;	/* offset in file */
 	size_t			b_buffer_length;/* size of buffer in bytes */
 	atomic_t		b_hold;		/* reference count */
+	atomic_t		b_lru_ref;	/* lru reclaim ref count */
 	xfs_buf_flags_t		b_flags;	/* status flags */
 	struct semaphore	b_sema;		/* semaphore for lockables */
 
+	struct list_head	b_lru;		/* lru list */
 	wait_queue_head_t	b_waiters;	/* unpin waiters */
 	struct list_head	b_list;
 	struct xfs_perag	*b_pag;		/* contains rbtree root */
@@ -176,7 +149,6 @@ typedef struct xfs_buf {
 	void			*b_addr;	/* virtual address of buffer */
 	struct work_struct	b_iodone_work;
 	xfs_buf_iodone_t	b_iodone;	/* I/O completion function */
-	xfs_buf_relse_t		b_relse;	/* releasing function */
 	struct completion	b_iowait;	/* queue for I/O waiters */
 	void			*b_fspriv;
 	void			*b_fspriv2;
@@ -264,7 +236,8 @@ extern void xfs_buf_terminate(void);
 #define XFS_BUF_ZEROFLAGS(bp)	((bp)->b_flags &= \
 		~(XBF_READ|XBF_WRITE|XBF_ASYNC|XBF_DELWRI|XBF_ORDERED))
 
-#define XFS_BUF_STALE(bp)	((bp)->b_flags |= XBF_STALE)
+void xfs_buf_stale(struct xfs_buf *bp);
+#define XFS_BUF_STALE(bp)	xfs_buf_stale(bp);
 #define XFS_BUF_UNSTALE(bp)	((bp)->b_flags &= ~XBF_STALE)
 #define XFS_BUF_ISSTALE(bp)	((bp)->b_flags & XBF_STALE)
 #define XFS_BUF_SUPER_STALE(bp)	do {				\
@@ -315,7 +288,6 @@ extern void xfs_buf_terminate(void);
 #define XFS_BUF_FSPRIVATE2(bp, type)		((type)(bp)->b_fspriv2)
 #define XFS_BUF_SET_FSPRIVATE2(bp, val)		((bp)->b_fspriv2 = (void*)(val))
 #define XFS_BUF_SET_START(bp)			do { } while (0)
-#define XFS_BUF_SET_BRELSE_FUNC(bp, func)	((bp)->b_relse = (func))
 
 #define XFS_BUF_PTR(bp)			(xfs_caddr_t)((bp)->b_addr)
 #define XFS_BUF_SET_PTR(bp, val, cnt)	xfs_buf_associate_memory(bp, val, cnt)
@@ -328,9 +300,15 @@ extern void xfs_buf_terminate(void);
 #define XFS_BUF_SIZE(bp)		((bp)->b_buffer_length)
 #define XFS_BUF_SET_SIZE(bp, cnt)	((bp)->b_buffer_length = (cnt))
 
-#define XFS_BUF_SET_VTYPE_REF(bp, type, ref)	do { } while (0)
+static inline void
+xfs_buf_set_ref(
+	struct xfs_buf	*bp,
+	int		lru_ref)
+{
+	atomic_set(&bp->b_lru_ref, lru_ref);
+}
+#define XFS_BUF_SET_VTYPE_REF(bp, type, ref)	xfs_buf_set_ref(bp, ref)
 #define XFS_BUF_SET_VTYPE(bp, type)		do { } while (0)
-#define XFS_BUF_SET_REF(bp, ref)		do { } while (0)
 
 #define XFS_BUF_ISPINNED(bp)	atomic_read(&((bp)->b_pin_count))
 
@@ -346,8 +324,7 @@ extern void xfs_buf_terminate(void);
 
 static inline void xfs_buf_relse(xfs_buf_t *bp)
 {
-	if (!bp->b_relse)
-		xfs_buf_unlock(bp);
+	xfs_buf_unlock(bp);
 	xfs_buf_rele(bp);
 }
 

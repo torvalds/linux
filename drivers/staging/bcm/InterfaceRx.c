@@ -1,5 +1,15 @@
 #include "headers.h"
-extern int SearchVcid(PMINI_ADAPTER , unsigned short);
+
+static int SearchVcid(PMINI_ADAPTER Adapter,unsigned short usVcid)
+{
+	int iIndex=0;
+
+	for(iIndex=(NO_OF_QUEUES-1);iIndex>=0;iIndex--)
+		if(Adapter->PackInfo[iIndex].usVCID_Value == usVcid)
+			return iIndex;
+	return NO_OF_QUEUES+1;
+
+}
 
 
 static PUSB_RCB
@@ -24,7 +34,7 @@ GetBulkInRcb(PS_INTERFACE_ADAPTER psIntfAdapter)
 	return pRcb;
 }
 
-/*this is receive call back - when pkt avilable for receive (BULK IN- end point)*/
+/*this is receive call back - when pkt available for receive (BULK IN- end point)*/
 static void read_bulk_callback(struct urb *urb)
 {
 	struct sk_buff *skb = NULL;
@@ -38,13 +48,9 @@ static void read_bulk_callback(struct urb *urb)
 	PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter;
 	PLEADER pLeader = urb->transfer_buffer;
 
-
-	#if 0
-	int *puiBuffer = NULL;
-	struct timeval tv;
-	memset(&tv, 0, sizeof(tv));
-	do_gettimeofday(&tv);
-	#endif
+	if (unlikely(netif_msg_rx_status(Adapter)))
+		pr_info(PFX "%s: rx urb status %d length %d\n",
+			Adapter->dev->name, urb->status, urb->actual_length);
 
 	if((Adapter->device_removed == TRUE)  ||
 		(TRUE == Adapter->bEndPointHalted) ||
@@ -89,10 +95,10 @@ static void read_bulk_callback(struct urb *urb)
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "Leader Status:0x%hX, Length:0x%hX, VCID:0x%hX", pLeader->Status,pLeader->PLength,pLeader->Vcid);
 	if(MAX_CNTL_PKT_SIZE < pLeader->PLength)
 	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Corrupted leader length...%d\n",
-					pLeader->PLength);
-		atomic_inc(&Adapter->RxPacketDroppedCount);
-		atomic_add(pLeader->PLength, &Adapter->BadRxByteCount);
+		if (netif_msg_rx_err(Adapter))
+			pr_info(PFX "%s: corrupted leader length...%d\n",
+				Adapter->dev->name, pLeader->PLength);
+		++Adapter->dev->stats.rx_dropped;
 		atomic_dec(&psIntfAdapter->uNumRcbUsed);
 		return;
 	}
@@ -117,7 +123,7 @@ static void read_bulk_callback(struct urb *urb)
 	if((ntohs(pLeader->Vcid) == VCID_CONTROL_PACKET) ||
 	    (!(pLeader->Status >= 0x20  &&  pLeader->Status <= 0x3F)))
 	{
-	    BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_CTRL, DBG_LVL_ALL, "Recived control pkt...");
+	    BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_CTRL, DBG_LVL_ALL, "Received control pkt...");
 		*(PUSHORT)skb->data = pLeader->Status;
        	memcpy(skb->data+sizeof(USHORT), urb->transfer_buffer +
 			(sizeof(LEADER)), pLeader->PLength);
@@ -136,7 +142,7 @@ static void read_bulk_callback(struct urb *urb)
 		  * Data Packet, Format a proper Ethernet Header
         	  * and give it to the stack
 		  */
-        BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "Recived Data pkt...");
+        BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "Received Data pkt...");
 		skb_reserve(skb, 2 + SKB_RESERVE_PHS_BYTES);
 		memcpy(skb->data+ETH_HLEN, (PUCHAR)urb->transfer_buffer + sizeof(LEADER), pLeader->PLength);
 		skb->dev = Adapter->dev;
@@ -145,10 +151,9 @@ static void read_bulk_callback(struct urb *urb)
 		skb_put (skb, pLeader->PLength + ETH_HLEN);
 		Adapter->PackInfo[QueueIndex].uiTotalRxBytes+=pLeader->PLength;
 		Adapter->PackInfo[QueueIndex].uiThisPeriodRxBytes+= pLeader->PLength;
-		atomic_add(pLeader->PLength, &Adapter->GoodRxByteCount);
-        BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "Recived Data pkt of len :0x%X", pLeader->PLength);
+        BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "Received Data pkt of len :0x%X", pLeader->PLength);
 
-		if(Adapter->if_up)
+		if(netif_running(Adapter->dev))
 		{
 			/* Moving ahead by ETH_HLEN to the data ptr as received from FW */
 			skb_pull(skb, ETH_HLEN);
@@ -173,9 +178,12 @@ static void read_bulk_callback(struct urb *urb)
 		else
 		{
 		    BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "i/f not up hance freeing SKB...");
-			bcm_kfree_skb(skb);
+			dev_kfree_skb(skb);
 		}
-		atomic_inc(&Adapter->GoodRxPktCount);
+
+		++Adapter->dev->stats.rx_packets;
+		Adapter->dev->stats.rx_bytes += pLeader->PLength;
+
 		for(uiIndex = 0 ; uiIndex < MIBS_MAX_HIST_ENTRIES ; uiIndex++)
 		{
 			if((pLeader->PLength <= MIBS_PKTSIZEHIST_RANGE*(uiIndex+1))
@@ -229,7 +237,7 @@ Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
 
 
 Return:				TRUE  - If Rx was successful.
-					Other - If an error occured.
+					Other - If an error occurred.
 */
 
 BOOLEAN InterfaceRx (PS_INTERFACE_ADAPTER psIntfAdapter)

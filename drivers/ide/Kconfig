@@ -134,7 +134,7 @@ config BLK_DEV_IDECD
 	  module will be called ide-cd.
 
 config BLK_DEV_IDECD_VERBOSE_ERRORS
-	bool "Verbose error logging for IDE/ATAPI CDROM driver" if EMBEDDED
+	bool "Verbose error logging for IDE/ATAPI CDROM driver" if EXPERT
 	depends on BLK_DEV_IDECD
 	default y
 	help

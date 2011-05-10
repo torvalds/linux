@@ -321,26 +321,26 @@ static int __devexit adp5520_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int adp5520_suspend(struct i2c_client *client,
-				 pm_message_t state)
+static int adp5520_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct adp5520_chip *chip = dev_get_drvdata(&client->dev);
 
 	adp5520_clr_bits(chip->dev, ADP5520_MODE_STATUS, ADP5520_nSTNBY);
 	return 0;
 }
 
-static int adp5520_resume(struct i2c_client *client)
+static int adp5520_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct adp5520_chip *chip = dev_get_drvdata(&client->dev);
 
 	adp5520_set_bits(chip->dev, ADP5520_MODE_STATUS, ADP5520_nSTNBY);
 	return 0;
 }
-#else
-#define adp5520_suspend	NULL
-#define adp5520_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(adp5520_pm, adp5520_suspend, adp5520_resume);
 
 static const struct i2c_device_id adp5520_id[] = {
 	{ "pmic-adp5520", ID_ADP5520 },
@@ -353,11 +353,10 @@ static struct i2c_driver adp5520_driver = {
 	.driver = {
 		.name	= "adp5520",
 		.owner	= THIS_MODULE,
+		.pm	= &adp5520_pm,
 	},
 	.probe		= adp5520_probe,
 	.remove		= __devexit_p(adp5520_remove),
-	.suspend	= adp5520_suspend,
-	.resume		= adp5520_resume,
 	.id_table 	= adp5520_id,
 };
 

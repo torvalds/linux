@@ -200,6 +200,29 @@ quiet_cmd_gzip = GZIP    $@
 cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -f -9 > $@) || \
 	(rm -f $@ ; false)
 
+# DTC
+# ---------------------------------------------------------------------------
+
+# Generate an assembly file to wrap the output of the device tree compiler
+quiet_cmd_dt_S_dtb= DTB    $@
+cmd_dt_S_dtb=						\
+(							\
+	echo '\#include <asm-generic/vmlinux.lds.h>'; 	\
+	echo '.section .dtb.init.rodata,"a"';		\
+	echo '.balign STRUCT_ALIGNMENT';		\
+	echo '.global __dtb_$(*F)_begin';		\
+	echo '__dtb_$(*F)_begin:';			\
+	echo '.incbin "$<" ';				\
+	echo '__dtb_$(*F)_end:';			\
+	echo '.global __dtb_$(*F)_end';			\
+	echo '.balign STRUCT_ALIGNMENT'; 		\
+) > $@
+
+$(obj)/%.dtb.S: $(obj)/%.dtb
+	$(call cmd,dt_S_dtb)
+
+quiet_cmd_dtc = DTC     $@
+cmd_dtc = $(objtree)/scripts/dtc/dtc -O dtb -o $@ -b 0 $(DTC_FLAGS) $<
 
 # Bzip2
 # ---------------------------------------------------------------------------
@@ -237,6 +260,34 @@ cmd_lzma = (cat $(filter-out FORCE,$^) | \
 quiet_cmd_lzo = LZO     $@
 cmd_lzo = (cat $(filter-out FORCE,$^) | \
 	lzop -9 && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
+	(rm -f $@ ; false)
+
+# XZ
+# ---------------------------------------------------------------------------
+# Use xzkern to compress the kernel image and xzmisc to compress other things.
+#
+# xzkern uses a big LZMA2 dictionary since it doesn't increase memory usage
+# of the kernel decompressor. A BCJ filter is used if it is available for
+# the target architecture. xzkern also appends uncompressed size of the data
+# using size_append. The .xz format has the size information available at
+# the end of the file too, but it's in more complex format and it's good to
+# avoid changing the part of the boot code that reads the uncompressed size.
+# Note that the bytes added by size_append will make the xz tool think that
+# the file is corrupt. This is expected.
+#
+# xzmisc doesn't use size_append, so it can be used to create normal .xz
+# files. xzmisc uses smaller LZMA2 dictionary than xzkern, because a very
+# big dictionary would increase the memory usage too much in the multi-call
+# decompression mode. A BCJ filter isn't used either.
+quiet_cmd_xzkern = XZKERN  $@
+cmd_xzkern = (cat $(filter-out FORCE,$^) | \
+	sh $(srctree)/scripts/xz_wrap.sh && \
+	$(call size_append, $(filter-out FORCE,$^))) > $@ || \
+	(rm -f $@ ; false)
+
+quiet_cmd_xzmisc = XZMISC  $@
+cmd_xzmisc = (cat $(filter-out FORCE,$^) | \
+	xz --check=crc32 --lzma2=dict=1MiB) > $@ || \
 	(rm -f $@ ; false)
 
 # misc stuff

@@ -93,7 +93,6 @@ static struct clocksource clocksource_epit = {
 	.rating		= 200,
 	.read		= epit_read,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 20,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -101,9 +100,7 @@ static int __init epit_clocksource_init(struct clk *timer_clk)
 {
 	unsigned int c = clk_get_rate(timer_clk);
 
-	clocksource_epit.mult = clocksource_hz2mult(c,
-					clocksource_epit.shift);
-	clocksource_register(&clocksource_epit);
+	clocksource_register_hz(&clocksource_epit, c);
 
 	return 0;
 }

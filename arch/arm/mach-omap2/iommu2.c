@@ -145,35 +145,32 @@ static void omap2_iommu_set_twl(struct iommu *obj, bool on)
 
 static u32 omap2_iommu_fault_isr(struct iommu *obj, u32 *ra)
 {
-	int i;
 	u32 stat, da;
-	const char *err_msg[] =	{
-		"tlb miss",
-		"translation fault",
-		"emulation miss",
-		"table walk fault",
-		"multi hit fault",
-	};
+	u32 errs = 0;
 
 	stat = iommu_read_reg(obj, MMU_IRQSTATUS);
 	stat &= MMU_IRQ_MASK;
-	if (!stat)
+	if (!stat) {
+		*ra = 0;
 		return 0;
+	}
 
 	da = iommu_read_reg(obj, MMU_FAULT_AD);
 	*ra = da;
 
-	dev_err(obj->dev, "%s:\tda:%08x ", __func__, da);
-
-	for (i = 0; i < ARRAY_SIZE(err_msg); i++) {
-		if (stat & (1 << i))
-			printk("%s ", err_msg[i]);
-	}
-	printk("\n");
-
+	if (stat & MMU_IRQ_TLBMISS)
+		errs |= OMAP_IOMMU_ERR_TLB_MISS;
+	if (stat & MMU_IRQ_TRANSLATIONFAULT)
+		errs |= OMAP_IOMMU_ERR_TRANS_FAULT;
+	if (stat & MMU_IRQ_EMUMISS)
+		errs |= OMAP_IOMMU_ERR_EMU_MISS;
+	if (stat & MMU_IRQ_TABLEWALKFAULT)
+		errs |= OMAP_IOMMU_ERR_TBLWALK_FAULT;
+	if (stat & MMU_IRQ_MULTIHITFAULT)
+		errs |= OMAP_IOMMU_ERR_MULTIHIT_FAULT;
 	iommu_write_reg(obj, stat, MMU_IRQSTATUS);
 
-	return stat;
+	return errs;
 }
 
 static void omap2_tlb_read_cr(struct iommu *obj, struct cr_regs *cr)

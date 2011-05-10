@@ -257,7 +257,7 @@ static u32 get_card_status(struct mmc_card *card, struct request *req)
 	cmd.flags = MMC_RSP_SPI_R2 | MMC_RSP_R1 | MMC_CMD_AC;
 	err = mmc_wait_for_cmd(card->host, &cmd, 0);
 	if (err)
-		printk(KERN_ERR "%s: error %d sending status comand",
+		printk(KERN_ERR "%s: error %d sending status command",
 		       req->rq_disk->disk_name, err);
 	return cmd.resp[0];
 }
@@ -621,6 +621,7 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	md->disk->private_data = md;
 	md->disk->queue = md->queue.queue;
 	md->disk->driverfs_dev = &card->dev;
+	set_disk_ro(md->disk, md->read_only);
 
 	/*
 	 * As discussed on lkml, GENHD_FL_REMOVABLE should:

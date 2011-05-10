@@ -1162,7 +1162,7 @@ static const struct sd_desc sd_desc = {
 #define BS(bridge, subtype) \
 	.driver_info = (BRIDGE_ ## bridge << 8) \
 			| (subtype)
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x400b), BS(SPCA504C, 0)},
 	{USB_DEVICE(0x041e, 0x4012), BS(SPCA504C, 0)},
 	{USB_DEVICE(0x041e, 0x4013), BS(SPCA504C, 0)},

@@ -425,7 +425,7 @@ static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event
 		port->sm_ah = NULL;
 		spin_unlock_irqrestore(&port->ah_lock, flags);
 
-		schedule_work(&sa_dev->port[event->element.port_num -
+		queue_work(ib_wq, &sa_dev->port[event->element.port_num -
 					    sa_dev->start_port].update_task);
 	}
 }
@@ -1079,7 +1079,7 @@ static void ib_sa_remove_one(struct ib_device *device)
 
 	ib_unregister_event_handler(&sa_dev->event_handler);
 
-	flush_scheduled_work();
+	flush_workqueue(ib_wq);
 
 	for (i = 0; i <= sa_dev->end_port - sa_dev->start_port; ++i) {
 		if (rdma_port_get_link_layer(device, i + 1) == IB_LINK_LAYER_INFINIBAND) {

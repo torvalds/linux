@@ -57,6 +57,7 @@
 #include "stb6100.h"
 #include "stb6100_proc.h"
 #include "mb86a16.h"
+#include "ds3000.h"
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
@@ -66,6 +67,10 @@ MODULE_LICENSE("GPL");
 static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug,"enable debug messages [dvb]");
+
+static unsigned int dvb_buf_tscnt = 32;
+module_param(dvb_buf_tscnt, int, 0644);
+MODULE_PARM_DESC(dvb_buf_tscnt, "DVB Buffer TS count [dvb]");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -80,10 +85,10 @@ static int dvb_buf_setup(struct videobuf_queue *q,
 	struct cx8802_dev *dev = q->priv_data;
 
 	dev->ts_packet_size  = 188 * 4;
-	dev->ts_packet_count = 32;
+	dev->ts_packet_count = dvb_buf_tscnt;
 
 	*size  = dev->ts_packet_size * dev->ts_packet_count;
-	*count = 32;
+	*count = dvb_buf_tscnt;
 	return 0;
 }
 
@@ -642,6 +647,20 @@ static const struct cx24116_config tevii_s460_config = {
 	.demod_address = 0x55,
 	.set_ts_params = cx24116_set_ts_param,
 	.reset_device  = cx24116_reset_device,
+};
+
+static int ds3000_set_ts_param(struct dvb_frontend *fe,
+	int is_punctured)
+{
+	struct cx8802_dev *dev = fe->dvb->priv;
+	dev->ts_gen_cntrl = 4;
+
+	return 0;
+}
+
+static struct ds3000_config tevii_ds3000_config = {
+	.demod_address = 0x68,
+	.set_ts_params = ds3000_set_ts_param,
 };
 
 static const struct stv0900_config prof_7301_stv0900_config = {
@@ -1376,6 +1395,14 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend != NULL)
 			fe0->dvb.frontend->ops.set_voltage = tevii_dvbs_set_voltage;
+		break;
+	case CX88_BOARD_TEVII_S464:
+		fe0->dvb.frontend = dvb_attach(ds3000_attach,
+						&tevii_ds3000_config,
+						&core->i2c_adap);
+		if (fe0->dvb.frontend != NULL)
+			fe0->dvb.frontend->ops.set_voltage =
+							tevii_dvbs_set_voltage;
 		break;
 	case CX88_BOARD_OMICOM_SS4_PCI:
 	case CX88_BOARD_TBS_8920:

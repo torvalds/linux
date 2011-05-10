@@ -32,6 +32,7 @@
 #include <linux/sched.h>
 #include <linux/pwm_backlight.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
 #include <linux/lis3lv02d.h>
@@ -53,7 +54,6 @@
 #include <mach/ohci.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
-#include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
 
 #include "generic.h"
@@ -588,13 +588,16 @@ static struct pxafb_mach_info raumfeld_sharp_lcd_info = {
 	.num_modes	= 1,
 	.video_mem_size = 0x400000,
 	.lcd_conn	= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
+#ifdef CONFIG_PXA3XX_GCU
+	.acceleration_enabled = 1,
+#endif
 };
 
 static void __init raumfeld_lcd_init(void)
 {
 	int ret;
 
-	set_pxa_fb_info(&raumfeld_sharp_lcd_info);
+	pxa_set_fb_info(NULL, &raumfeld_sharp_lcd_info);
 
 	/* Earlier devices had the backlight regulator controlled
 	 * via PWM, later versions use another controller for that */
@@ -616,6 +619,8 @@ static void __init raumfeld_lcd_init(void)
 		pr_warning("Unable to request GPIO_DISPLAY_ENABLE\n");
 	else
 		gpio_direction_output(GPIO_DISPLAY_ENABLE, 1);
+
+	platform_device_register(&pxa3xx_device_gcu);
 }
 
 /**
@@ -1085,7 +1090,7 @@ static void __init raumfeld_speaker_init(void)
 MACHINE_START(RAUMFELD_RC, "Raumfeld Controller")
 	.boot_params	= RAUMFELD_SDRAM_BASE + 0x100,
 	.init_machine	= raumfeld_controller_init,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa3xx_map_io,
 	.init_irq	= pxa3xx_init_irq,
 	.timer		= &pxa_timer,
 MACHINE_END
@@ -1095,7 +1100,7 @@ MACHINE_END
 MACHINE_START(RAUMFELD_CONNECTOR, "Raumfeld Connector")
 	.boot_params	= RAUMFELD_SDRAM_BASE + 0x100,
 	.init_machine	= raumfeld_connector_init,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa3xx_map_io,
 	.init_irq	= pxa3xx_init_irq,
 	.timer		= &pxa_timer,
 MACHINE_END
@@ -1105,7 +1110,7 @@ MACHINE_END
 MACHINE_START(RAUMFELD_SPEAKER, "Raumfeld Speaker")
 	.boot_params	= RAUMFELD_SDRAM_BASE + 0x100,
 	.init_machine	= raumfeld_speaker_init,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa3xx_map_io,
 	.init_irq	= pxa3xx_init_irq,
 	.timer		= &pxa_timer,
 MACHINE_END

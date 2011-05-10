@@ -140,11 +140,11 @@ static struct locomo_dev_info locomo_devices[] = {
 
 static void locomo_handler(unsigned int irq, struct irq_desc *desc)
 {
-	struct locomo *lchip = get_irq_chip_data(irq);
+	struct locomo *lchip = irq_get_chip_data(irq);
 	int req, i;
 
 	/* Acknowledge the parent IRQ */
-	desc->chip->ack(irq);
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 	/* check why this interrupt was generated */
 	req = locomo_readl(lchip->base + LOCOMO_ICR) & 0x0f00;
@@ -161,33 +161,33 @@ static void locomo_handler(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static void locomo_ack_irq(unsigned int irq)
+static void locomo_ack_irq(struct irq_data *d)
 {
 }
 
-static void locomo_mask_irq(unsigned int irq)
+static void locomo_mask_irq(struct irq_data *d)
 {
-	struct locomo *lchip = get_irq_chip_data(irq);
+	struct locomo *lchip = irq_data_get_irq_chip_data(d);
 	unsigned int r;
 	r = locomo_readl(lchip->base + LOCOMO_ICR);
-	r &= ~(0x0010 << (irq - lchip->irq_base));
+	r &= ~(0x0010 << (d->irq - lchip->irq_base));
 	locomo_writel(r, lchip->base + LOCOMO_ICR);
 }
 
-static void locomo_unmask_irq(unsigned int irq)
+static void locomo_unmask_irq(struct irq_data *d)
 {
-	struct locomo *lchip = get_irq_chip_data(irq);
+	struct locomo *lchip = irq_data_get_irq_chip_data(d);
 	unsigned int r;
 	r = locomo_readl(lchip->base + LOCOMO_ICR);
-	r |= (0x0010 << (irq - lchip->irq_base));
+	r |= (0x0010 << (d->irq - lchip->irq_base));
 	locomo_writel(r, lchip->base + LOCOMO_ICR);
 }
 
 static struct irq_chip locomo_chip = {
-	.name	= "LOCOMO",
-	.ack	= locomo_ack_irq,
-	.mask	= locomo_mask_irq,
-	.unmask	= locomo_unmask_irq,
+	.name		= "LOCOMO",
+	.irq_ack	= locomo_ack_irq,
+	.irq_mask	= locomo_mask_irq,
+	.irq_unmask	= locomo_unmask_irq,
 };
 
 static void locomo_setup_irq(struct locomo *lchip)
@@ -197,15 +197,14 @@ static void locomo_setup_irq(struct locomo *lchip)
 	/*
 	 * Install handler for IRQ_LOCOMO_HW.
 	 */
-	set_irq_type(lchip->irq, IRQ_TYPE_EDGE_FALLING);
-	set_irq_chip_data(lchip->irq, lchip);
-	set_irq_chained_handler(lchip->irq, locomo_handler);
+	irq_set_irq_type(lchip->irq, IRQ_TYPE_EDGE_FALLING);
+	irq_set_chip_data(lchip->irq, lchip);
+	irq_set_chained_handler(lchip->irq, locomo_handler);
 
 	/* Install handlers for IRQ_LOCOMO_* */
 	for ( ; irq <= lchip->irq_base + 3; irq++) {
-		set_irq_chip(irq, &locomo_chip);
-		set_irq_chip_data(irq, lchip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &locomo_chip, handle_level_irq);
+		irq_set_chip_data(irq, lchip);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 }
@@ -476,8 +475,8 @@ static void __locomo_remove(struct locomo *lchip)
 	device_for_each_child(lchip->dev, NULL, locomo_remove_child);
 
 	if (lchip->irq != NO_IRQ) {
-		set_irq_chained_handler(lchip->irq, NULL);
-		set_irq_data(lchip->irq, NULL);
+		irq_set_chained_handler(lchip->irq, NULL);
+		irq_set_handler_data(lchip->irq, NULL);
 	}
 
 	iounmap(lchip->base);

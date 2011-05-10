@@ -18,6 +18,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/kthread.h>
 
 #include "usbip_common.h"
 #include "vhci.h"
@@ -215,17 +216,12 @@ static int vhci_send_cmd_unlink(struct vhci_device *vdev)
 
 /*-------------------------------------------------------------------------*/
 
-void vhci_tx_loop(struct usbip_task *ut)
+int vhci_tx_loop(void *data)
 {
-	struct usbip_device *ud = container_of(ut, struct usbip_device, tcp_tx);
+	struct usbip_device *ud = data;
 	struct vhci_device *vdev = container_of(ud, struct vhci_device, ud);
 
-	while (1) {
-		if (signal_pending(current)) {
-			usbip_uinfo("vhci_tx signal catched\n");
-			break;
-		}
-
+	while (!kthread_should_stop()) {
 		if (vhci_send_cmd_submit(vdev) < 0)
 			break;
 
@@ -234,8 +230,11 @@ void vhci_tx_loop(struct usbip_task *ut)
 
 		wait_event_interruptible(vdev->waitq_tx,
 				(!list_empty(&vdev->priv_tx) ||
-				 !list_empty(&vdev->unlink_tx)));
+				 !list_empty(&vdev->unlink_tx) ||
+				 kthread_should_stop()));
 
 		usbip_dbg_vhci_tx("pending urbs ?, now wake up\n");
 	}
+
+	return 0;
 }

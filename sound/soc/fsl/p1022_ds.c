@@ -85,9 +85,8 @@ struct machine_data {
  *
  * Here we program the DMACR and PMUXCR registers.
  */
-static int p1022_ds_machine_probe(struct platform_device *sound_device)
+static int p1022_ds_machine_probe(struct snd_soc_card *card)
 {
-	struct snd_soc_card *card = platform_get_drvdata(sound_device);
 	struct machine_data *mdata =
 		container_of(card, struct machine_data, card);
 	struct ccsr_guts_85xx __iomem *guts;
@@ -160,9 +159,8 @@ static int p1022_ds_startup(struct snd_pcm_substream *substream)
  * This function is called to remove the sound device for one SSI.  We
  * de-program the DMACR and PMUXCR register.
  */
-static int p1022_ds_machine_remove(struct platform_device *sound_device)
+static int p1022_ds_machine_remove(struct snd_soc_card *card)
 {
-	struct snd_soc_card *card = platform_get_drvdata(sound_device);
 	struct machine_data *mdata =
 		container_of(card, struct machine_data, card);
 	struct ccsr_guts_85xx __iomem *guts;

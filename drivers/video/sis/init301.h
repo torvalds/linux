@@ -428,17 +428,6 @@ static void		SiS_OEM661Setting(struct SiS_Private *SiS_Pr,
 static void		SiS_FinalizeLCD(struct SiS_Private *, unsigned short, unsigned short);
 #endif
 
-extern void		SiS_SetReg(SISIOADDRESS, unsigned short, unsigned short);
-extern void		SiS_SetRegByte(SISIOADDRESS, unsigned short);
-extern void		SiS_SetRegShort(SISIOADDRESS, unsigned short);
-extern void		SiS_SetRegLong(SISIOADDRESS, unsigned int);
-extern unsigned char	SiS_GetReg(SISIOADDRESS, unsigned short);
-extern unsigned char	SiS_GetRegByte(SISIOADDRESS);
-extern unsigned short	SiS_GetRegShort(SISIOADDRESS);
-extern unsigned int	SiS_GetRegLong(SISIOADDRESS);
-extern void		SiS_SetRegANDOR(SISIOADDRESS, unsigned short, unsigned short, unsigned short);
-extern void		SiS_SetRegOR(SISIOADDRESS, unsigned short, unsigned short);
-extern void		SiS_SetRegAND(SISIOADDRESS, unsigned short, unsigned short);
 extern void		SiS_DisplayOff(struct SiS_Private *SiS_Pr);
 extern void		SiS_DisplayOn(struct SiS_Private *SiS_Pr);
 extern bool		SiS_SearchModeID(struct SiS_Private *, unsigned short *, unsigned short *);

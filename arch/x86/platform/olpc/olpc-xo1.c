@@ -1,6 +1,7 @@
 /*
  * Support for features of the OLPC XO-1 laptop
  *
+ * Copyright (C) 2010 Andres Salomon <dilinger@queued.net>
  * Copyright (C) 2010 One Laptop per Child
  * Copyright (C) 2006 Red Hat, Inc.
  * Copyright (C) 2006 Advanced Micro Devices, Inc.
@@ -12,18 +13,14 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
-#include <linux/pci_ids.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/mfd/core.h>
 
 #include <asm/io.h>
 #include <asm/olpc.h>
 
 #define DRV_NAME "olpc-xo1"
-
-#define PMS_BAR		4
-#define ACPI_BAR	5
 
 /* PMC registers (PMS block) */
 #define PM_SCLK		0x10
@@ -57,65 +54,63 @@ static void xo1_power_off(void)
 	outl(0x00002000, acpi_base + PM1_CNT);
 }
 
-/* Read the base addresses from the PCI BAR info */
-static int __devinit setup_bases(struct pci_dev *pdev)
-{
-	int r;
-
-	r = pci_enable_device_io(pdev);
-	if (r) {
-		dev_err(&pdev->dev, "can't enable device IO\n");
-		return r;
-	}
-
-	r = pci_request_region(pdev, ACPI_BAR, DRV_NAME);
-	if (r) {
-		dev_err(&pdev->dev, "can't alloc PCI BAR #%d\n", ACPI_BAR);
-		return r;
-	}
-
-	r = pci_request_region(pdev, PMS_BAR, DRV_NAME);
-	if (r) {
-		dev_err(&pdev->dev, "can't alloc PCI BAR #%d\n", PMS_BAR);
-		pci_release_region(pdev, ACPI_BAR);
-		return r;
-	}
-
-	acpi_base = pci_resource_start(pdev, ACPI_BAR);
-	pms_base = pci_resource_start(pdev, PMS_BAR);
-
-	return 0;
-}
-
 static int __devinit olpc_xo1_probe(struct platform_device *pdev)
 {
-	struct pci_dev *pcidev;
-	int r;
+	struct resource *res;
+	int err;
 
-	pcidev = pci_get_device(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_ISA,
-				NULL);
-	if (!pdev)
+	/* don't run on non-XOs */
+	if (!machine_is_olpc())
 		return -ENODEV;
 
-	r = setup_bases(pcidev);
-	if (r)
-		return r;
+	err = mfd_cell_enable(pdev);
+	if (err)
+		return err;
 
-	pm_power_off = xo1_power_off;
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "can't fetch device resource info\n");
+		return -EIO;
+	}
+	if (strcmp(pdev->name, "cs5535-pms") == 0)
+		pms_base = res->start;
+	else if (strcmp(pdev->name, "olpc-xo1-pm-acpi") == 0)
+		acpi_base = res->start;
 
-	printk(KERN_INFO "OLPC XO-1 support registered\n");
+	/* If we have both addresses, we can override the poweroff hook */
+	if (pms_base && acpi_base) {
+		pm_power_off = xo1_power_off;
+		printk(KERN_INFO "OLPC XO-1 support registered\n");
+	}
+
 	return 0;
 }
 
 static int __devexit olpc_xo1_remove(struct platform_device *pdev)
 {
+	mfd_cell_disable(pdev);
+
+	if (strcmp(pdev->name, "cs5535-pms") == 0)
+		pms_base = 0;
+	else if (strcmp(pdev->name, "olpc-xo1-pm-acpi") == 0)
+		acpi_base = 0;
+
 	pm_power_off = NULL;
 	return 0;
 }
 
-static struct platform_driver olpc_xo1_driver = {
+static struct platform_driver cs5535_pms_drv = {
 	.driver = {
-		.name = DRV_NAME,
+		.name = "cs5535-pms",
+		.owner = THIS_MODULE,
+	},
+	.probe = olpc_xo1_probe,
+	.remove = __devexit_p(olpc_xo1_remove),
+};
+
+static struct platform_driver cs5535_acpi_drv = {
+	.driver = {
+		.name = "olpc-xo1-pm-acpi",
 		.owner = THIS_MODULE,
 	},
 	.probe = olpc_xo1_probe,
@@ -124,17 +119,28 @@ static struct platform_driver olpc_xo1_driver = {
 
 static int __init olpc_xo1_init(void)
 {
-	return platform_driver_register(&olpc_xo1_driver);
+	int r;
+
+	r = platform_driver_register(&cs5535_pms_drv);
+	if (r)
+		return r;
+
+	r = platform_driver_register(&cs5535_acpi_drv);
+	if (r)
+		platform_driver_unregister(&cs5535_pms_drv);
+
+	return r;
 }
 
 static void __exit olpc_xo1_exit(void)
 {
-	platform_driver_unregister(&olpc_xo1_driver);
+	platform_driver_unregister(&cs5535_acpi_drv);
+	platform_driver_unregister(&cs5535_pms_drv);
 }
 
 MODULE_AUTHOR("Daniel Drake <dsd@laptop.org>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:olpc-xo1");
+MODULE_ALIAS("platform:cs5535-pms");
 
 module_init(olpc_xo1_init);
 module_exit(olpc_xo1_exit);

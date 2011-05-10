@@ -54,7 +54,7 @@ static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 				   pte_t *ptep, pte_t pte)
 {
-	set_pte_order(ptep, pte, HUGETLB_PAGE_ORDER);
+	set_pte(ptep, pte);
 }
 
 static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,

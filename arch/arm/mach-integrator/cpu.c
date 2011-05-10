@@ -173,7 +173,7 @@ static unsigned int integrator_get(unsigned int cpu)
 
 	if (machine_is_integrator()) {
 		vco.s = (cm_osc >> 8) & 7;
-	} else if (machine_is_cintegrator()) {
+	} else {
 		vco.s = 1;
 	}
 	vco.v = cm_osc & 255;

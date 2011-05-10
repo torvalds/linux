@@ -222,7 +222,7 @@ static int stantum_probe(struct hid_device *hdev,
 
 	sd = kmalloc(sizeof(struct stantum_data), GFP_KERNEL);
 	if (!sd) {
-		dev_err(&hdev->dev, "cannot allocate Stantum data\n");
+		hid_err(hdev, "cannot allocate Stantum data\n");
 		return -ENOMEM;
 	}
 	sd->valid = false;

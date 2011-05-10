@@ -350,7 +350,7 @@ Note the "Should sync?" parameter "nosync" means that the two mirrors are
 already in sync which will be the case on a clean shutdown of Windows.  If the
 mirrors are not clean, you can specify the "sync" option instead of "nosync"
 and the Device-Mapper driver will then copy the entirety of the "Source Device"
-to the "Target Device" or if you specified multipled target devices to all of
+to the "Target Device" or if you specified multiple target devices to all of
 them.
 
 Once you have your table, save it in a file somewhere (e.g. /etc/ntfsvolume1),
@@ -457,6 +457,11 @@ ChangeLog
 
 Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
 
+2.1.30:
+	- Fix writev() (it kept writing the first segment over and over again
+	  instead of moving onto subsequent segments).
+	- Fix crash in ntfs_mft_record_alloc() when mapping the new extent mft
+	  record failed.
 2.1.29:
 	- Fix a deadlock when mounting read-write.
 2.1.28:

@@ -465,6 +465,7 @@ static void memstick_check(struct work_struct *work)
 		if (!host->card) {
 			host->card = card;
 			if (device_register(&card->dev)) {
+				put_device(&card->dev);
 				kfree(host->card);
 				host->card = NULL;
 			}
@@ -510,14 +511,18 @@ int memstick_add_host(struct memstick_host *host)
 {
 	int rc;
 
-	if (!idr_pre_get(&memstick_host_idr, GFP_KERNEL))
-		return -ENOMEM;
+	while (1) {
+		if (!idr_pre_get(&memstick_host_idr, GFP_KERNEL))
+			return -ENOMEM;
 
-	spin_lock(&memstick_host_lock);
-	rc = idr_get_new(&memstick_host_idr, host, &host->id);
-	spin_unlock(&memstick_host_lock);
-	if (rc)
-		return rc;
+		spin_lock(&memstick_host_lock);
+		rc = idr_get_new(&memstick_host_idr, host, &host->id);
+		spin_unlock(&memstick_host_lock);
+		if (!rc)
+			break;
+		else if (rc != -EAGAIN)
+			return rc;
+	}
 
 	dev_set_name(&host->dev, "memstick%u", host->id);
 
@@ -616,7 +621,7 @@ static int __init memstick_init(void)
 {
 	int rc;
 
-	workqueue = create_freezeable_workqueue("kmemstick");
+	workqueue = create_freezable_workqueue("kmemstick");
 	if (!workqueue)
 		return -ENOMEM;
 

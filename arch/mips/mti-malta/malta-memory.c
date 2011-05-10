@@ -43,7 +43,7 @@ static struct prom_pmemblock mdesc[PROM_MAX_PMEMBLOCKS];
 static char *mtypes[3] = {
 	"Dont use memory",
 	"YAMON PROM memory",
-	"Free memmory",
+	"Free memory",
 };
 #endif
 

@@ -24,12 +24,47 @@ OPTIONS
 --input=::
         Input file name. (default: perf.data)
 
+-d::
+--dsos=<dso[,dso...]>::
+        Only consider symbols in these dsos.
+-s::
+--symbol=<symbol>::
+        Symbol to annotate.
+
+-f::
+--force::
+        Don't complain, do it.
+
+-v::
+--verbose::
+        Be more verbose. (Show symbol address, etc)
+
+-D::
+--dump-raw-trace::
+        Dump raw trace in ASCII.
+
+-k::
+--vmlinux=<file>::
+        vmlinux pathname.
+
+-m::
+--modules::
+        Load module symbols. WARNING: use only with -k and LIVE kernel.
+
+-l::
+--print-line::
+        Print matching source lines (may be slow).
+
+-P::
+--full-paths::
+        Don't shorten the displayed pathnames.
+
 --stdio:: Use the stdio interface.
 
 --tui:: Use the TUI interface Use of --tui requires a tty, if one is not
 	present, as when piping to other commands, the stdio interface is
 	used. This interfaces starts by centering on the line with more
-	samples, TAB/UNTAB cycles thru the lines with more samples.
+	samples, TAB/UNTAB cycles through the lines with more samples.
 
 SEE ALSO
 --------

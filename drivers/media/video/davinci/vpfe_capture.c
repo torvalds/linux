@@ -1276,7 +1276,7 @@ static int vpfe_videobuf_prepare(struct videobuf_queue *vq,
 		vb->size = vpfe_dev->fmt.fmt.pix.sizeimage;
 		vb->field = field;
 
-		ret = videobuf_iolock(vq, vb, NULL);;
+		ret = videobuf_iolock(vq, vb, NULL);
 		if (ret < 0)
 			return ret;
 
@@ -1691,7 +1691,7 @@ static int vpfe_s_crop(struct file *file, void *priv,
 		goto unlock_out;
 	}
 
-	/* adjust the width to 16 pixel boundry */
+	/* adjust the width to 16 pixel boundary */
 	crop->c.width = ((crop->c.width + 15) & ~0xf);
 
 	/* make sure parameters are valid */
@@ -1719,7 +1719,7 @@ unlock_out:
 
 
 static long vpfe_param_handler(struct file *file, void *priv,
-		int cmd, void *param)
+		bool valid_prio, int cmd, void *param)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	int ret = 0;

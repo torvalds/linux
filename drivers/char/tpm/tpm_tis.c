@@ -493,9 +493,6 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 		 "1.2 TPM (device-id 0x%X, rev-id %d)\n",
 		 vendor >> 16, ioread8(chip->vendor.iobase + TPM_RID(0)));
 
-	if (is_itpm(to_pnp_dev(dev)))
-		itpm = 1;
-
 	if (itpm)
 		dev_info(dev, "Intel iTPM workaround enabled\n");
 
@@ -636,6 +633,9 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 		irq = pnp_irq(pnp_dev, 0);
 	else
 		interrupts = 0;
+
+	if (is_itpm(pnp_dev))
+		itpm = 1;
 
 	return tpm_tis_init(&pnp_dev->dev, start, len, irq);
 }

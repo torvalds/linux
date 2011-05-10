@@ -363,7 +363,7 @@ static irqreturn_t mpc52xx_psc_spi_isr(int irq, void *dev_id)
 }
 
 /* bus_num is used only for the case dev->platform_data == NULL */
-static int __init mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
+static int __devinit mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 				u32 size, unsigned int irq, s16 bus_num)
 {
 	struct fsl_spi_platform_data *pdata = dev->platform_data;
@@ -450,23 +450,7 @@ free_master:
 	return ret;
 }
 
-static int __exit mpc52xx_psc_spi_do_remove(struct device *dev)
-{
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(master);
-
-	flush_workqueue(mps->workqueue);
-	destroy_workqueue(mps->workqueue);
-	spi_unregister_master(master);
-	free_irq(mps->irq, mps);
-	if (mps->psc)
-		iounmap(mps->psc);
-
-	return 0;
-}
-
-static int __init mpc52xx_psc_spi_of_probe(struct platform_device *op,
-	const struct of_device_id *match)
+static int __devinit mpc52xx_psc_spi_of_probe(struct platform_device *op)
 {
 	const u32 *regaddr_p;
 	u64 regaddr64, size64;
@@ -495,9 +479,19 @@ static int __init mpc52xx_psc_spi_of_probe(struct platform_device *op,
 				irq_of_parse_and_map(op->dev.of_node, 0), id);
 }
 
-static int __exit mpc52xx_psc_spi_of_remove(struct platform_device *op)
+static int __devexit mpc52xx_psc_spi_of_remove(struct platform_device *op)
 {
-	return mpc52xx_psc_spi_do_remove(&op->dev);
+	struct spi_master *master = dev_get_drvdata(&op->dev);
+	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(master);
+
+	flush_workqueue(mps->workqueue);
+	destroy_workqueue(mps->workqueue);
+	spi_unregister_master(master);
+	free_irq(mps->irq, mps);
+	if (mps->psc)
+		iounmap(mps->psc);
+
+	return 0;
 }
 
 static const struct of_device_id mpc52xx_psc_spi_of_match[] = {
@@ -508,9 +502,9 @@ static const struct of_device_id mpc52xx_psc_spi_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, mpc52xx_psc_spi_of_match);
 
-static struct of_platform_driver mpc52xx_psc_spi_of_driver = {
+static struct platform_driver mpc52xx_psc_spi_of_driver = {
 	.probe = mpc52xx_psc_spi_of_probe,
-	.remove = __exit_p(mpc52xx_psc_spi_of_remove),
+	.remove = __devexit_p(mpc52xx_psc_spi_of_remove),
 	.driver = {
 		.name = "mpc52xx-psc-spi",
 		.owner = THIS_MODULE,
@@ -520,13 +514,13 @@ static struct of_platform_driver mpc52xx_psc_spi_of_driver = {
 
 static int __init mpc52xx_psc_spi_init(void)
 {
-	return of_register_platform_driver(&mpc52xx_psc_spi_of_driver);
+	return platform_driver_register(&mpc52xx_psc_spi_of_driver);
 }
 module_init(mpc52xx_psc_spi_init);
 
 static void __exit mpc52xx_psc_spi_exit(void)
 {
-	of_unregister_platform_driver(&mpc52xx_psc_spi_of_driver);
+	platform_driver_unregister(&mpc52xx_psc_spi_of_driver);
 }
 module_exit(mpc52xx_psc_spi_exit);
 

@@ -30,16 +30,13 @@ extern void mn10300_low_ipi_handler(void);
 #endif
 
 /*
- * time.c
+ * smp.c
  */
-extern irqreturn_t local_timer_interrupt(void);
+#ifdef CONFIG_SMP
+extern void smp_jump_to_debugger(void);
+#endif
 
 /*
  * time.c
  */
-#ifdef CONFIG_CEVT_MN10300
-extern void clockevent_set_clock(struct clock_event_device *, unsigned int);
-#endif
-#ifdef CONFIG_CSRC_MN10300
-extern void clocksource_set_clock(struct clocksource *, unsigned int);
-#endif
+extern irqreturn_t local_timer_interrupt(void);

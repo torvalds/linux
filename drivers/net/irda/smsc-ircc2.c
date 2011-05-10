@@ -376,7 +376,7 @@ MODULE_DEVICE_TABLE(pnp, smsc_ircc_pnp_table);
 static int pnp_driver_registered;
 
 #ifdef CONFIG_PNP
-static int __init smsc_ircc_pnp_probe(struct pnp_dev *dev,
+static int __devinit smsc_ircc_pnp_probe(struct pnp_dev *dev,
 				      const struct pnp_device_id *dev_id)
 {
 	unsigned int firbase, sirbase;
@@ -1582,7 +1582,7 @@ static irqreturn_t smsc_ircc_interrupt_sir(struct net_device *dev)
 	int iobase;
 	int iir, lsr;
 
-	/* Already locked comming here in smsc_ircc_interrupt() */
+	/* Already locked coming here in smsc_ircc_interrupt() */
 	/*spin_lock(&self->lock);*/
 
 	iobase = self->io.sir_base;

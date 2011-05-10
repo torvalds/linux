@@ -11,7 +11,6 @@ obj-$(CONFIG_USB_PXA27X)	+= pxa27x_udc.o
 obj-$(CONFIG_USB_IMX)		+= imx_udc.o
 obj-$(CONFIG_USB_GOKU)		+= goku_udc.o
 obj-$(CONFIG_USB_OMAP)		+= omap_udc.o
-obj-$(CONFIG_USB_LH7A40X)	+= lh7a40x_udc.o
 obj-$(CONFIG_USB_S3C2410)	+= s3c2410_udc.o
 obj-$(CONFIG_USB_AT91)		+= at91_udc.o
 obj-$(CONFIG_USB_ATMEL_USBA)	+= atmel_usba_udc.o
@@ -21,9 +20,14 @@ fsl_usb2_udc-$(CONFIG_ARCH_MXC)	+= fsl_mxc_udc.o
 obj-$(CONFIG_USB_M66592)	+= m66592-udc.o
 obj-$(CONFIG_USB_R8A66597)	+= r8a66597-udc.o
 obj-$(CONFIG_USB_FSL_QE)	+= fsl_qe_udc.o
-obj-$(CONFIG_USB_CI13XXX)	+= ci13xxx_udc.o
+obj-$(CONFIG_USB_CI13XXX_PCI)	+= ci13xxx_pci.o
 obj-$(CONFIG_USB_S3C_HSOTG)	+= s3c-hsotg.o
 obj-$(CONFIG_USB_LANGWELL)	+= langwell_udc.o
+obj-$(CONFIG_USB_EG20T)		+= pch_udc.o
+obj-$(CONFIG_USB_PXA_U2O)	+= mv_udc.o
+mv_udc-y			:= mv_udc_core.o mv_udc_phy.o
+obj-$(CONFIG_USB_CI13XXX_MSM)	+= ci13xxx_msm.o
+obj-$(CONFIG_USB_FUSB300)	+= fusb300_udc.o
 
 #
 # USB gadget drivers
@@ -43,6 +47,7 @@ g_hid-y				:= hid.o
 g_dbgp-y			:= dbgp.o
 g_nokia-y			:= nokia.o
 g_webcam-y			:= webcam.o
+g_ncm-y				:= ncm.o
 
 obj-$(CONFIG_USB_ZERO)		+= g_zero.o
 obj-$(CONFIG_USB_AUDIO)		+= g_audio.o
@@ -60,3 +65,4 @@ obj-$(CONFIG_USB_G_DBGP)	+= g_dbgp.o
 obj-$(CONFIG_USB_G_MULTI)	+= g_multi.o
 obj-$(CONFIG_USB_G_NOKIA)	+= g_nokia.o
 obj-$(CONFIG_USB_G_WEBCAM)	+= g_webcam.o
+obj-$(CONFIG_USB_G_NCM)		+= g_ncm.o

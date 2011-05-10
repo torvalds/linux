@@ -146,6 +146,11 @@ const struct stv06xx_sensor stv06xx_sensor_hdcs1x00 = {
 	.i2c_addr = (0x55 << 1),
 	.i2c_len = 1,
 
+	/* FIXME (see if we can lower min_packet_size, needs testing, and also
+	   adjusting framerate when the bandwidth gets lower) */
+	.min_packet_size = { 847 },
+	.max_packet_size = { 847 },
+
 	.init = hdcs_init,
 	.probe = hdcs_probe_1x00,
 	.start = hdcs_start,
@@ -159,6 +164,11 @@ const struct stv06xx_sensor stv06xx_sensor_hdcs1020 = {
 	.i2c_flush = 0,
 	.i2c_addr = (0x55 << 1),
 	.i2c_len = 1,
+
+	/* FIXME (see if we can lower min_packet_size, needs testing, and also
+	   adjusting framerate when the bandwidthm gets lower) */
+	.min_packet_size = { 847 },
+	.max_packet_size = { 847 },
 
 	.init = hdcs_init,
 	.probe = hdcs_probe_1020,
@@ -177,7 +187,6 @@ static const u16 stv_bridge_init[][2] = {
 	{STV_REG04, 0x07},
 
 	{STV_SCAN_RATE, 0x20},
-	{STV_ISO_SIZE_L, 847},
 	{STV_Y_CTRL, 0x01},
 	{STV_X_CTRL, 0x0a}
 };

@@ -25,6 +25,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/buffer_head.h>
+#include <linux/mutex.h>
 
 uint32_t udf_get_pblock(struct super_block *sb, uint32_t block,
 			uint16_t partition, uint32_t offset)
@@ -159,7 +160,9 @@ int udf_relocate_blocks(struct super_block *sb, long old_block, long *new_block)
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	u16 reallocationTableLen;
 	struct buffer_head *bh;
+	int ret = 0;
 
+	mutex_lock(&sbi->s_alloc_mutex);
 	for (i = 0; i < sbi->s_partitions; i++) {
 		struct udf_part_map *map = &sbi->s_partmaps[i];
 		if (old_block > map->s_partition_root &&
@@ -175,8 +178,10 @@ int udf_relocate_blocks(struct super_block *sb, long old_block, long *new_block)
 					break;
 				}
 
-			if (!st)
-				return 1;
+			if (!st) {
+				ret = 1;
+				goto out;
+			}
 
 			reallocationTableLen =
 					le16_to_cpu(st->reallocationTableLen);
@@ -207,14 +212,16 @@ int udf_relocate_blocks(struct super_block *sb, long old_block, long *new_block)
 						     ((old_block -
 							map->s_partition_root) &
 						     (sdata->s_packet_len - 1));
-					return 0;
+					ret = 0;
+					goto out;
 				} else if (origLoc == packet) {
 					*new_block = le32_to_cpu(
 							entry->mappedLocation) +
 						     ((old_block -
 							map->s_partition_root) &
 						     (sdata->s_packet_len - 1));
-					return 0;
+					ret = 0;
+					goto out;
 				} else if (origLoc > packet)
 					break;
 			}
@@ -251,20 +258,24 @@ int udf_relocate_blocks(struct super_block *sb, long old_block, long *new_block)
 					      st->mapEntry[k].mappedLocation) +
 					((old_block - map->s_partition_root) &
 					 (sdata->s_packet_len - 1));
-				return 0;
+				ret = 0;
+				goto out;
 			}
 
-			return 1;
+			ret = 1;
+			goto out;
 		} /* if old_block */
 	}
 
 	if (i == sbi->s_partitions) {
 		/* outside of partitions */
 		/* for now, fail =) */
-		return 1;
+		ret = 1;
 	}
 
-	return 0;
+out:
+	mutex_unlock(&sbi->s_alloc_mutex);
+	return ret;
 }
 
 static uint32_t udf_try_read_meta(struct inode *inode, uint32_t block,

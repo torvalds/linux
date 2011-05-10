@@ -2155,7 +2155,7 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x040a, 0x0002), .driver_info = KodakDVC325},
 	{USB_DEVICE(0x0497, 0xc001), .driver_info = SmileIntlCamera},
 	{USB_DEVICE(0x0506, 0x00df), .driver_info = ThreeComHomeConnectLite},

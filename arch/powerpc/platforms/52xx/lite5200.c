@@ -172,20 +172,18 @@ static void __init lite5200_setup_arch(void)
 	mpc52xx_setup_pci();
 }
 
+static const char *board[] __initdata = {
+	"fsl,lite5200",
+	"fsl,lite5200b",
+	NULL,
+};
+
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
 static int __init lite5200_probe(void)
 {
-	unsigned long node = of_get_flat_dt_root();
-	const char *model = of_get_flat_dt_prop(node, "model", NULL);
-
-	if (!of_flat_dt_is_compatible(node, "fsl,lite5200") &&
-	    !of_flat_dt_is_compatible(node, "fsl,lite5200b"))
-		return 0;
-	pr_debug("%s board found\n", model ? model : "unknown");
-
-	return 1;
+	return of_flat_dt_match(of_get_flat_dt_root(), board);
 }
 
 define_machine(lite5200) {

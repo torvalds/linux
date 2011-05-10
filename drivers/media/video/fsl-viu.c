@@ -194,6 +194,8 @@ struct viu_dev {
 
 	/* decoder */
 	struct v4l2_subdev	*decoder;
+
+	v4l2_std_id		std;
 };
 
 struct viu_fh {
@@ -915,6 +917,8 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (fh->type != i)
 		return -EINVAL;
 
+	viu_start_dma(fh->dev);
+
 	return videobuf_streamon(&fh->vb_vidq);
 }
 
@@ -927,17 +931,36 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (fh->type != i)
 		return -EINVAL;
 
+	viu_stop_dma(fh->dev);
+
 	return videobuf_streamoff(&fh->vb_vidq);
 }
 
 #define decoder_call(viu, o, f, args...) \
 	v4l2_subdev_call(viu->decoder, o, f, ##args)
 
+static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
+{
+	struct viu_fh *fh = priv;
+
+	decoder_call(fh->dev, video, querystd, std_id);
+	return 0;
+}
+
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct viu_fh *fh = priv;
 
+	fh->dev->std = *id;
 	decoder_call(fh->dev, core, s_std, *id);
+	return 0;
+}
+
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *std_id)
+{
+	struct viu_fh *fh = priv;
+
+	*std_id = fh->dev->std;
 	return 0;
 }
 
@@ -1331,6 +1354,7 @@ static int viu_release(struct file *file)
 
 	viu_stop_dma(dev);
 	videobuf_stop(&fh->vb_vidq);
+	videobuf_mmap_free(&fh->vb_vidq);
 
 	kfree(fh);
 
@@ -1397,7 +1421,9 @@ static const struct v4l2_ioctl_ops viu_ioctl_ops = {
 	.vidioc_querybuf      = vidioc_querybuf,
 	.vidioc_qbuf          = vidioc_qbuf,
 	.vidioc_dqbuf         = vidioc_dqbuf,
+	.vidioc_g_std         = vidioc_g_std,
 	.vidioc_s_std         = vidioc_s_std,
+	.vidioc_querystd      = vidioc_querystd,
 	.vidioc_enum_input    = vidioc_enum_input,
 	.vidioc_g_input       = vidioc_g_input,
 	.vidioc_s_input       = vidioc_s_input,
@@ -1419,8 +1445,7 @@ static struct video_device viu_template = {
 	.current_norm   = V4L2_STD_NTSC_M,
 };
 
-static int __devinit viu_of_probe(struct platform_device *op,
-				  const struct of_device_id *match)
+static int __devinit viu_of_probe(struct platform_device *op)
 {
 	struct viu_dev *viu_dev;
 	struct video_device *vdev;
@@ -1601,7 +1626,7 @@ static struct of_device_id mpc512x_viu_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mpc512x_viu_of_match);
 
-static struct of_platform_driver viu_of_platform_driver = {
+static struct platform_driver viu_of_platform_driver = {
 	.probe = viu_of_probe,
 	.remove = __devexit_p(viu_of_remove),
 #ifdef CONFIG_PM
@@ -1617,12 +1642,12 @@ static struct of_platform_driver viu_of_platform_driver = {
 
 static int __init viu_init(void)
 {
-	return of_register_platform_driver(&viu_of_platform_driver);
+	return platform_driver_register(&viu_of_platform_driver);
 }
 
 static void __exit viu_exit(void)
 {
-	of_unregister_platform_driver(&viu_of_platform_driver);
+	platform_driver_unregister(&viu_of_platform_driver);
 }
 
 module_init(viu_init);

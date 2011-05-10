@@ -90,7 +90,7 @@ int davinci_aemif_setup_timing(struct davinci_aemif_timing *t,
 					void __iomem *base, unsigned cs)
 {
 	unsigned set, val;
-	unsigned ta, rhold, rstrobe, rsetup, whold, wstrobe, wsetup;
+	int ta, rhold, rstrobe, rsetup, whold, wstrobe, wsetup;
 	unsigned offset = A1CR_OFFSET + cs * 4;
 	struct clk *aemif_clk;
 	unsigned long clkrate;

@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2007 LSI Corporation.
+ *  Copyright (c) 2000-2010 LSI Corporation.
  *
  *
  *           Name:  mpi2_sas.h
  *          Title:  MPI Serial Attached SCSI structures and definitions
  *  Creation Date:  February 9, 2007
  *
- *  mpi2.h Version:  02.00.03
+ *  mpi2_sas.h Version:  02.00.05
  *
  *  Version History
  *  ---------------
@@ -20,6 +20,8 @@
  *                      Request.
  *  10-28-09  02.00.03  Changed the type of SGL in MPI2_SATA_PASSTHROUGH_REQUEST
  *                      to MPI2_SGE_IO_UNION since it supports chained SGLs.
+ *  05-12-10  02.00.04  Modified some comments.
+ *  08-11-10  02.00.05  Added NCQ operations to SAS IO Unit Control.
  *  --------------------------------------------------------------------------
  */
 
@@ -110,7 +112,7 @@ typedef struct _MPI2_SMP_PASSTHROUGH_REQUEST
 /* values for PassthroughFlags field */
 #define MPI2_SMP_PT_REQ_PT_FLAGS_IMMEDIATE      (0x80)
 
-/* values for SGLFlags field are in the SGL section of mpi2.h */
+/* use MPI2_SGLFLAGS_ defines from mpi2.h for the SGLFlags field */
 
 
 /* SMP Passthrough Reply Message */
@@ -162,7 +164,7 @@ typedef struct _MPI2_SATA_PASSTHROUGH_REQUEST
     U32                     Reserved4;          /* 0x14 */
     U32                     DataLength;         /* 0x18 */
     U8                      CommandFIS[20];     /* 0x1C */
-    MPI2_SGE_IO_UNION       SGL;                /* 0x20 */
+    MPI2_SGE_IO_UNION       SGL;                /* 0x30 */
 } MPI2_SATA_PASSTHROUGH_REQUEST, MPI2_POINTER PTR_MPI2_SATA_PASSTHROUGH_REQUEST,
   Mpi2SataPassthroughRequest_t, MPI2_POINTER pMpi2SataPassthroughRequest_t;
 
@@ -174,7 +176,7 @@ typedef struct _MPI2_SATA_PASSTHROUGH_REQUEST
 #define MPI2_SATA_PT_REQ_PT_FLAGS_WRITE             (0x0002)
 #define MPI2_SATA_PT_REQ_PT_FLAGS_READ              (0x0001)
 
-/* values for SGLFlags field are in the SGL section of mpi2.h */
+/* use MPI2_SGLFLAGS_ defines from mpi2.h for the SGLFlags field */
 
 
 /* SATA Passthrough Reply Message */
@@ -245,6 +247,8 @@ typedef struct _MPI2_SAS_IOUNIT_CONTROL_REQUEST
 #define MPI2_SAS_OP_REMOVE_DEVICE               (0x0D)
 #define MPI2_SAS_OP_LOOKUP_MAPPING              (0x0E)
 #define MPI2_SAS_OP_SET_IOC_PARAMETER           (0x0F)
+#define MPI2_SAS_OP_DEV_ENABLE_NCQ              (0x14)
+#define MPI2_SAS_OP_DEV_DISABLE_NCQ             (0x15)
 #define MPI2_SAS_OP_PRODUCT_SPECIFIC_MIN        (0x80)
 
 /* values for the PrimFlags field */

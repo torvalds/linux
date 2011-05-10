@@ -199,7 +199,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		 * memory barriers as we'll eventually observe the right
 		 * values at the cost of a few extra spins.
 		 */
-		cpu_relax();
+		arch_mutex_cpu_relax();
 	}
 #endif
 	spin_lock_mutex(&lock->wait_lock, flags);
@@ -245,7 +245,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		}
 		__set_task_state(task, state);
 
-		/* didnt get the lock, go to sleep: */
+		/* didn't get the lock, go to sleep: */
 		spin_unlock_mutex(&lock->wait_lock, flags);
 		preempt_enable_no_resched();
 		schedule();

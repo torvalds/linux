@@ -169,7 +169,7 @@ static int das16cs_attach(struct comedi_device *dev,
 	if (!link)
 		return -EIO;
 
-	dev->iobase = link->resource[0]->start;;
+	dev->iobase = link->resource[0]->start;
 	printk("I/O base=0x%04lx ", dev->iobase);
 
 	printk("fingerprint:\n");

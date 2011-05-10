@@ -118,6 +118,7 @@ int drm_fb_helper_setcolreg(unsigned regno,
 			    unsigned transp,
 			    struct fb_info *info);
 
+bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_restore(void);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height);

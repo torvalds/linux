@@ -32,7 +32,7 @@
 #include "clock.h"
 #include "clock2xxx.h"
 #include "opp2xxx.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
 #include "cm-regbits-24xx.h"
 
 /* #define DOWN_VARIABLE_DPLL 1 */		/* Experimental */
@@ -54,7 +54,7 @@ unsigned long omap2xxx_clk_get_core_rate(struct clk *clk)
 
 	core_clk = omap2_get_dpll_rate(clk);
 
-	v = cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
+	v = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
 	v &= OMAP24XX_CORE_CLK_SRC_MASK;
 
 	if (v == CORE_CLK_SRC_32K)
@@ -73,7 +73,7 @@ static long omap2_dpllcore_round_rate(unsigned long target_rate)
 {
 	u32 high, low, core_clk_src;
 
-	core_clk_src = cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
+	core_clk_src = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
 	core_clk_src &= OMAP24XX_CORE_CLK_SRC_MASK;
 
 	if (core_clk_src == CORE_CLK_SRC_DPLL) {	/* DPLL clockout */
@@ -111,7 +111,7 @@ int omap2_reprogram_dpllcore(struct clk *clk, unsigned long rate)
 	const struct dpll_data *dd;
 
 	cur_rate = omap2xxx_clk_get_core_rate(dclk);
-	mult = cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
+	mult = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
 	mult &= OMAP24XX_CORE_CLK_SRC_MASK;
 
 	if ((rate == (cur_rate / 2)) && (mult == 2)) {
@@ -136,7 +136,7 @@ int omap2_reprogram_dpllcore(struct clk *clk, unsigned long rate)
 		tmpset.cm_clksel1_pll &= ~(dd->mult_mask |
 					   dd->div1_mask);
 		div = ((curr_prcm_set->xtal_speed / 1000000) - 1);
-		tmpset.cm_clksel2_pll = cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
+		tmpset.cm_clksel2_pll = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
 		tmpset.cm_clksel2_pll &= ~OMAP24XX_CORE_CLK_SRC_MASK;
 		if (rate > low) {
 			tmpset.cm_clksel2_pll |= CORE_CLK_SRC_DPLL_X2;

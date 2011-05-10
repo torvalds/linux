@@ -389,7 +389,7 @@ int __cpuinit register_sh_pmu(struct sh_pmu *_pmu)
 
 	WARN_ON(_pmu->num_events > MAX_HWEVENTS);
 
-	perf_pmu_register(&pmu);
+	perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
 	perf_cpu_notifier(sh_pmu_notifier);
 	return 0;
 }

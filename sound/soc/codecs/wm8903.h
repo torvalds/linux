@@ -19,10 +19,6 @@ extern int wm8903_mic_detect(struct snd_soc_codec *codec,
 			     struct snd_soc_jack *jack,
 			     int det, int shrt);
 
-#define WM8903_MCLK_DIV_2 1
-#define WM8903_CLK_SYS    2
-#define WM8903_BCLK       3
-#define WM8903_LRCLK      4
 
 /*
  * Register values.
@@ -79,6 +75,14 @@ extern int wm8903_mic_detect(struct snd_soc_codec *codec,
 #define WM8903_ANALOGUE_SPK_OUTPUT_CONTROL_0    0x41
 #define WM8903_DC_SERVO_0                       0x43
 #define WM8903_DC_SERVO_2                       0x45
+#define WM8903_DC_SERVO_4			0x47
+#define WM8903_DC_SERVO_5			0x48
+#define WM8903_DC_SERVO_6			0x49
+#define WM8903_DC_SERVO_7			0x4A
+#define WM8903_DC_SERVO_READBACK_1		0x51
+#define WM8903_DC_SERVO_READBACK_2		0x52
+#define WM8903_DC_SERVO_READBACK_3		0x53
+#define WM8903_DC_SERVO_READBACK_4		0x54
 #define WM8903_ANALOGUE_HP_0                    0x5A
 #define WM8903_ANALOGUE_LINEOUT_0               0x5E
 #define WM8903_CHARGE_PUMP_0                    0x62
@@ -98,8 +102,6 @@ extern int wm8903_mic_detect(struct snd_soc_codec *codec,
 #define WM8903_INTERRUPT_STATUS_1_MASK          0x7A
 #define WM8903_INTERRUPT_POLARITY_1             0x7B
 #define WM8903_INTERRUPT_CONTROL                0x7E
-#define WM8903_CONTROL_INTERFACE_TEST_1         0x81
-#define WM8903_CHARGE_PUMP_TEST_1               0x95
 #define WM8903_CLOCK_RATE_TEST_4                0xA4
 #define WM8903_ANALOGUE_OUTPUT_BIAS_0           0xAC
 
@@ -171,7 +173,7 @@ extern int wm8903_mic_detect(struct snd_soc_codec *codec,
 
 #define WM8903_VMID_RES_50K                          2
 #define WM8903_VMID_RES_250K                         3
-#define WM8903_VMID_RES_5K                           4
+#define WM8903_VMID_RES_5K                           6
 
 /*
  * R8 (0x08) - Analogue DAC 0
@@ -1204,25 +1206,6 @@ extern int wm8903_mic_detect(struct snd_soc_codec *codec,
 #define WM8903_IRQ_POL_MASK                     0x0001  /* IRQ_POL */
 #define WM8903_IRQ_POL_SHIFT                         0  /* IRQ_POL */
 #define WM8903_IRQ_POL_WIDTH                         1  /* IRQ_POL */
-
-/*
- * R129 (0x81) - Control Interface Test 1
- */
-#define WM8903_USER_KEY                         0x0002  /* USER_KEY */
-#define WM8903_USER_KEY_MASK                    0x0002  /* USER_KEY */
-#define WM8903_USER_KEY_SHIFT                        1  /* USER_KEY */
-#define WM8903_USER_KEY_WIDTH                        1  /* USER_KEY */
-#define WM8903_TEST_KEY                         0x0001  /* TEST_KEY */
-#define WM8903_TEST_KEY_MASK                    0x0001  /* TEST_KEY */
-#define WM8903_TEST_KEY_SHIFT                        0  /* TEST_KEY */
-#define WM8903_TEST_KEY_WIDTH                        1  /* TEST_KEY */
-
-/*
- * R149 (0x95) - Charge Pump Test 1
- */
-#define WM8903_CP_SW_KELVIN_MODE_MASK           0x0006  /* CP_SW_KELVIN_MODE - [2:1] */
-#define WM8903_CP_SW_KELVIN_MODE_SHIFT               1  /* CP_SW_KELVIN_MODE - [2:1] */
-#define WM8903_CP_SW_KELVIN_MODE_WIDTH               2  /* CP_SW_KELVIN_MODE - [2:1] */
 
 /*
  * R164 (0xA4) - Clock Rate Test 4

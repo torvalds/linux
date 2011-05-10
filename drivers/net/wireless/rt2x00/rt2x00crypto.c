@@ -237,7 +237,7 @@ void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
 	}
 
 	/*
-	 * NOTE: Always count the payload as transfered,
+	 * NOTE: Always count the payload as transferred,
 	 * even when alignment was set to zero. This is required
 	 * for determining the correct offset for the ICV data.
 	 */

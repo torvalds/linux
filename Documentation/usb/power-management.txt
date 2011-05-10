@@ -2,7 +2,7 @@
 
 		 Alan Stern <stern@rowland.harvard.edu>
 
-			    December 11, 2009
+			    October 28, 2010
 
 
 
@@ -107,9 +107,14 @@ allowed to issue dynamic suspends.
 The user interface for controlling dynamic PM is located in the power/
 subdirectory of each USB device's sysfs directory, that is, in
 /sys/bus/usb/devices/.../power/ where "..." is the device's ID.  The
-relevant attribute files are: wakeup, control, and autosuspend.
-(There may also be a file named "level"; this file was deprecated
-as of the 2.6.35 kernel and replaced by the "control" file.)
+relevant attribute files are: wakeup, control, and
+autosuspend_delay_ms.  (There may also be a file named "level"; this
+file was deprecated as of the 2.6.35 kernel and replaced by the
+"control" file.  In 2.6.38 the "autosuspend" file will be deprecated
+and replaced by the "autosuspend_delay_ms" file.  The only difference
+is that the newer file expresses the delay in milliseconds whereas the
+older file uses seconds.  Confusingly, both files are present in 2.6.37
+but only "autosuspend" works.)
 
 	power/wakeup
 
@@ -140,33 +145,36 @@ as of the 2.6.35 kernel and replaced by the "control" file.)
 		suspended and autoresume was not allowed.  This
 		setting is no longer supported.)
 
-	power/autosuspend
+	power/autosuspend_delay_ms
 
 		This file contains an integer value, which is the
-		number of seconds the device should remain idle before
-		the kernel will autosuspend it (the idle-delay time).
-		The default is 2.  0 means to autosuspend as soon as
-		the device becomes idle, and negative values mean
-		never to autosuspend.  You can write a number to the
-		file to change the autosuspend idle-delay time.
+		number of milliseconds the device should remain idle
+		before the kernel will autosuspend it (the idle-delay
+		time).  The default is 2000.  0 means to autosuspend
+		as soon as the device becomes idle, and negative
+		values mean never to autosuspend.  You can write a
+		number to the file to change the autosuspend
+		idle-delay time.
 
-Writing "-1" to power/autosuspend and writing "on" to power/control do
-essentially the same thing -- they both prevent the device from being
-autosuspended.  Yes, this is a redundancy in the API.
+Writing "-1" to power/autosuspend_delay_ms and writing "on" to
+power/control do essentially the same thing -- they both prevent the
+device from being autosuspended.  Yes, this is a redundancy in the
+API.
 
 (In 2.6.21 writing "0" to power/autosuspend would prevent the device
 from being autosuspended; the behavior was changed in 2.6.22.  The
 power/autosuspend attribute did not exist prior to 2.6.21, and the
 power/level attribute did not exist prior to 2.6.22.  power/control
-was added in 2.6.34.)
+was added in 2.6.34, and power/autosuspend_delay_ms was added in
+2.6.37 but did not become functional until 2.6.38.)
 
 
 	Changing the default idle-delay time
 	------------------------------------
 
-The default autosuspend idle-delay time is controlled by a module
-parameter in usbcore.  You can specify the value when usbcore is
-loaded.  For example, to set it to 5 seconds instead of 2 you would
+The default autosuspend idle-delay time (in seconds) is controlled by
+a module parameter in usbcore.  You can specify the value when usbcore
+is loaded.  For example, to set it to 5 seconds instead of 2 you would
 do:
 
 	modprobe usbcore autosuspend=5
@@ -234,25 +242,23 @@ every device.
 
 If a driver knows that its device has proper suspend/resume support,
 it can enable autosuspend all by itself.  For example, the video
-driver for a laptop's webcam might do this, since these devices are
-rarely used and so should normally be autosuspended.
+driver for a laptop's webcam might do this (in recent kernels they
+do), since these devices are rarely used and so should normally be
+autosuspended.
 
 Sometimes it turns out that even when a device does work okay with
-autosuspend there are still problems.  For example, there are
-experimental patches adding autosuspend support to the usbhid driver,
-which manages keyboards and mice, among other things.  Tests with a
-number of keyboards showed that typing on a suspended keyboard, while
-causing the keyboard to do a remote wakeup all right, would
-nonetheless frequently result in lost keystrokes.  Tests with mice
-showed that some of them would issue a remote-wakeup request in
-response to button presses but not to motion, and some in response to
-neither.
+autosuspend there are still problems.  For example, the usbhid driver,
+which manages keyboards and mice, has autosuspend support.  Tests with
+a number of keyboards show that typing on a suspended keyboard, while
+causing the keyboard to do a remote wakeup all right, will nonetheless
+frequently result in lost keystrokes.  Tests with mice show that some
+of them will issue a remote-wakeup request in response to button
+presses but not to motion, and some in response to neither.
 
 The kernel will not prevent you from enabling autosuspend on devices
 that can't handle it.  It is even possible in theory to damage a
-device by suspending it at the wrong time -- for example, suspending a
-USB hard disk might cause it to spin down without parking the heads.
-(Highly unlikely, but possible.)  Take care.
+device by suspending it at the wrong time.  (Highly unlikely, but
+possible.)  Take care.
 
 
 	The driver interface for Power Management
@@ -336,10 +342,6 @@ autosuspend the interface's device.  When the usage counter is = 0
 then the interface is considered to be idle, and the kernel may
 autosuspend the device.
 
-(There is a similar usage counter field in struct usb_device,
-associated with the device itself rather than any of its interfaces.
-This counter is used only by the USB core.)
-
 Drivers need not be concerned about balancing changes to the usage
 counter; the USB core will undo any remaining "get"s when a driver
 is unbound from its interface.  As a corollary, drivers must not call
@@ -409,11 +411,11 @@ during autosuspend.  For example, there's not much point
 autosuspending a keyboard if the user can't cause the keyboard to do a
 remote wakeup by typing on it.  If the driver sets
 intf->needs_remote_wakeup to 1, the kernel won't autosuspend the
-device if remote wakeup isn't available or has been disabled through
-the power/wakeup attribute.  (If the device is already autosuspended,
-though, setting this flag won't cause the kernel to autoresume it.
-Normally a driver would set this flag in its probe method, at which
-time the device is guaranteed not to be autosuspended.)
+device if remote wakeup isn't available.  (If the device is already
+autosuspended, though, setting this flag won't cause the kernel to
+autoresume it.  Normally a driver would set this flag in its probe
+method, at which time the device is guaranteed not to be
+autosuspended.)
 
 If a driver does its I/O asynchronously in interrupt context, it
 should call usb_autopm_get_interface_async() before starting output and
@@ -422,20 +424,19 @@ it receives an input event, it should call
 
 	usb_mark_last_busy(struct usb_device *udev);
 
-in the event handler.  This sets udev->last_busy to the current time.
-udev->last_busy is the field used for idle-delay calculations;
-updating it will cause any pending autosuspend to be moved back.  Most
-of the usb_autopm_* routines will also set the last_busy field to the
-current time.
+in the event handler.  This tells the PM core that the device was just
+busy and therefore the next autosuspend idle-delay expiration should
+be pushed back.  Many of the usb_autopm_* routines also make this call,
+so drivers need to worry only when interrupt-driven input arrives.
 
 Asynchronous operation is always subject to races.  For example, a
-driver may call one of the usb_autopm_*_interface_async() routines at
-a time when the core has just finished deciding the device has been
-idle for long enough but not yet gotten around to calling the driver's
-suspend method.  The suspend method must be responsible for
-synchronizing with the output request routine and the URB completion
-handler; it should cause autosuspends to fail with -EBUSY if the
-driver needs to use the device.
+driver may call the usb_autopm_get_interface_async() routine at a time
+when the core has just finished deciding the device has been idle for
+long enough but not yet gotten around to calling the driver's suspend
+method.  The suspend method must be responsible for synchronizing with
+the I/O request routine and the URB completion handler; it should
+cause autosuspends to fail with -EBUSY if the driver needs to use the
+device.
 
 External suspend calls should never be allowed to fail in this way,
 only autosuspend calls.  The driver can tell them apart by checking
@@ -472,7 +473,9 @@ Firstly, a device may already be autosuspended when a system suspend
 occurs.  Since system suspends are supposed to be as transparent as
 possible, the device should remain suspended following the system
 resume.  But this theory may not work out well in practice; over time
-the kernel's behavior in this regard has changed.
+the kernel's behavior in this regard has changed.  As of 2.6.37 the
+policy is to resume all devices during a system resume and let them
+handle their own runtime suspends afterward.
 
 Secondly, a dynamic power-management event may occur as a system
 suspend is underway.  The window for this is short, since system

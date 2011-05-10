@@ -1148,6 +1148,12 @@ static int qe_ep_tx(struct qe_ep *ep, struct qe_frame *frame)
 static int txcomplete(struct qe_ep *ep, unsigned char restart)
 {
 	if (ep->tx_req != NULL) {
+		struct qe_req *req = ep->tx_req;
+		unsigned zlp = 0, last_len = 0;
+
+		last_len = min_t(unsigned, req->req.length - ep->sent,
+				ep->ep.maxpacket);
+
 		if (!restart) {
 			int asent = ep->last;
 			ep->sent += asent;
@@ -1156,9 +1162,18 @@ static int txcomplete(struct qe_ep *ep, unsigned char restart)
 			ep->last = 0;
 		}
 
+		/* zlp needed when req->re.zero is set */
+		if (req->req.zero) {
+			if (last_len == 0 ||
+				(req->req.length % ep->ep.maxpacket) != 0)
+				zlp = 0;
+			else
+				zlp = 1;
+		} else
+			zlp = 0;
+
 		/* a request already were transmitted completely */
-		if ((ep->tx_req->req.length - ep->sent) <= 0) {
-			ep->tx_req->req.actual = (unsigned int)ep->sent;
+		if (((ep->tx_req->req.length - ep->sent) <= 0) && !zlp) {
 			done(ep, ep->tx_req, 0);
 			ep->tx_req = NULL;
 			ep->last = 0;
@@ -1191,6 +1206,7 @@ static int qe_usb_senddata(struct qe_ep *ep, struct qe_frame *frame)
 	buf = (u8 *)ep->tx_req->req.buf + ep->sent;
 	if (buf && size) {
 		ep->last = size;
+		ep->tx_req->req.actual += size;
 		frame_set_data(frame, buf);
 		frame_set_length(frame, size);
 		frame_set_status(frame, FRAME_OK);
@@ -2523,14 +2539,16 @@ static void qe_udc_release(struct device *dev)
 }
 
 /* Driver probe functions */
-static int __devinit qe_udc_probe(struct platform_device *ofdev,
-			const struct of_device_id *match)
+static int __devinit qe_udc_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct qe_ep *ep;
 	unsigned int ret = 0;
 	unsigned int i;
 	const void *prop;
+
+	if (!ofdev->dev.of_match)
+		return -EINVAL;
 
 	prop = of_get_property(np, "mode", NULL);
 	if (!prop || strcmp(prop, "peripheral"))
@@ -2543,7 +2561,7 @@ static int __devinit qe_udc_probe(struct platform_device *ofdev,
 		return -ENOMEM;
 	}
 
-	udc_controller->soc_type = (unsigned long)match->data;
+	udc_controller->soc_type = (unsigned long)ofdev->dev.of_match->data;
 	udc_controller->usb_regs = of_iomap(np, 0);
 	if (!udc_controller->usb_regs) {
 		ret = -ENOMEM;
@@ -2768,7 +2786,7 @@ static const struct of_device_id qe_udc_match[] __devinitconst = {
 
 MODULE_DEVICE_TABLE(of, qe_udc_match);
 
-static struct of_platform_driver udc_driver = {
+static struct platform_driver udc_driver = {
 	.driver = {
 		.name = (char *)driver_name,
 		.owner = THIS_MODULE,
@@ -2786,12 +2804,12 @@ static int __init qe_udc_init(void)
 {
 	printk(KERN_INFO "%s: %s, %s\n", driver_name, driver_desc,
 			DRIVER_VERSION);
-	return of_register_platform_driver(&udc_driver);
+	return platform_driver_register(&udc_driver);
 }
 
 static void __exit qe_udc_exit(void)
 {
-	of_unregister_platform_driver(&udc_driver);
+	platform_driver_unregister(&udc_driver);
 }
 
 module_init(qe_udc_init);

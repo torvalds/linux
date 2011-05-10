@@ -77,7 +77,7 @@
 /*
  * OMAP-1610 specific IRQ numbers for interrupt handler 1
  */
-#define INT_1610_IH2_IRQ	0
+#define INT_1610_IH2_IRQ	INT_1510_IH2_IRQ
 #define INT_1610_IH2_FIQ	2
 #define INT_1610_McBSP2_TX	4
 #define INT_1610_McBSP2_RX	5
@@ -315,9 +315,12 @@
 #define INT_34XX_SSM_ABORT_IRQ	6
 #define INT_34XX_SYS_NIRQ	7
 #define INT_34XX_D2D_FW_IRQ	8
+#define INT_34XX_L3_DBG_IRQ     9
+#define INT_34XX_L3_APP_IRQ     10
 #define INT_34XX_PRCM_MPU_IRQ	11
 #define INT_34XX_MCBSP1_IRQ	16
 #define INT_34XX_MCBSP2_IRQ	17
+#define INT_34XX_GPMC_IRQ	20
 #define INT_34XX_MCBSP3_IRQ	22
 #define INT_34XX_MCBSP4_IRQ	23
 #define INT_34XX_CAM_IRQ	24
@@ -411,7 +414,13 @@
 #define TWL_IRQ_END		TWL6030_IRQ_END
 #endif
 
-#define NR_IRQS			TWL_IRQ_END
+/* GPMC related */
+#define OMAP_GPMC_IRQ_BASE	(TWL_IRQ_END)
+#define OMAP_GPMC_NR_IRQS	8
+#define OMAP_GPMC_IRQ_END	(OMAP_GPMC_IRQ_BASE + OMAP_GPMC_NR_IRQS)
+
+
+#define NR_IRQS			OMAP_GPMC_IRQ_END
 
 #define OMAP_IRQ_BIT(irq)	(1 << ((irq) % 32))
 

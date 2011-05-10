@@ -93,7 +93,7 @@ enum sis190_registers {
 	IntrStatus		= 0x20,
 	IntrMask		= 0x24,
 	IntrControl		= 0x28,
-	IntrTimer		= 0x2c,	// unused (Interupt Timer)
+	IntrTimer		= 0x2c,	// unused (Interrupt Timer)
 	PMControl		= 0x30,	// unused (Power Mgmt Control/Status)
 	rsv2			= 0x34,	// reserved
 	ROMControl		= 0x38,
@@ -234,7 +234,7 @@ enum _DescStatusBit {
 	RxSizeMask	= 0x0000ffff
 	/*
 	 * The asic could apparently do vlan, TSO, jumbo (sis191 only) and
-	 * provide two (unused with Linux) Tx queues. No publically
+	 * provide two (unused with Linux) Tx queues. No publicly
 	 * available documentation alas.
 	 */
 };
@@ -1915,9 +1915,10 @@ err_release_board:
 static void __devexit sis190_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
+	struct sis190_private *tp = netdev_priv(dev);
 
 	sis190_mii_remove(dev);
-	flush_scheduled_work();
+	cancel_work_sync(&tp->phy_task);
 	unregister_netdev(dev);
 	sis190_release_board(pdev);
 	pci_set_drvdata(pdev, NULL);

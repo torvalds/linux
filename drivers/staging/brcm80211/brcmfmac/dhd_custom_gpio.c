@@ -14,8 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linuxver.h>
-#include <osl.h>
+#include <linux/netdevice.h>
 #include <bcmutils.h>
 
 #include <dngl_stats.h>
@@ -24,8 +23,8 @@
 #include <wlioctl.h>
 #include <wl_iw.h>
 
-#define WL_ERROR(x) printf x
-#define WL_TRACE(x)
+#define WL_ERROR(fmt, args...) printk(fmt, ##args)
+#define WL_TRACE(fmt, args...) no_printk(fmt, ##args)
 
 #ifdef CUSTOMER_HW
 extern void bcm_wlan_power_off(int);
@@ -47,7 +46,7 @@ extern int sdioh_mmc_irq(int irq);
 #include <mach/gpio.h>
 #endif
 
-/* Customer specific Host GPIO defintion  */
+/* Customer specific Host GPIO definition  */
 static int dhd_oob_gpio_num = -1;	/* GG 19 */
 
 module_param(dhd_oob_gpio_num, int, 0644);
@@ -67,13 +66,13 @@ int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr)
 #endif
 
 	if (dhd_oob_gpio_num < 0) {
-		WL_ERROR(("%s: ERROR customer specific Host GPIO is NOT defined\n",
-			__func__));
+		WL_ERROR("%s: ERROR customer specific Host GPIO is NOT defined\n",
+			 __func__);
 		return dhd_oob_gpio_num;
 	}
 
-	WL_ERROR(("%s: customer specific Host GPIO number is (%d)\n",
-		  __func__, dhd_oob_gpio_num));
+	WL_ERROR("%s: customer specific Host GPIO number is (%d)\n",
+		 __func__, dhd_oob_gpio_num);
 
 #if defined CUSTOMER_HW
 	host_oob_irq = MSM_GPIO_TO_INT(dhd_oob_gpio_num);
@@ -93,40 +92,40 @@ void dhd_customer_gpio_wlan_ctrl(int onoff)
 {
 	switch (onoff) {
 	case WLAN_RESET_OFF:
-		WL_TRACE(("%s: call customer specific GPIO to insert WLAN RESET\n",
-			__func__));
+		WL_TRACE("%s: call customer specific GPIO to insert WLAN RESET\n",
+			 __func__);
 #ifdef CUSTOMER_HW
 		bcm_wlan_power_off(2);
 #endif				/* CUSTOMER_HW */
 #ifdef CUSTOMER_HW2
 		wifi_set_power(0, 0);
 #endif
-		WL_ERROR(("=========== WLAN placed in RESET ========\n"));
+		WL_ERROR("=========== WLAN placed in RESET ========\n");
 		break;
 
 	case WLAN_RESET_ON:
-		WL_TRACE(("%s: callc customer specific GPIO to remove WLAN RESET\n",
-			__func__));
+		WL_TRACE("%s: callc customer specific GPIO to remove WLAN RESET\n",
+			 __func__);
 #ifdef CUSTOMER_HW
 		bcm_wlan_power_on(2);
 #endif				/* CUSTOMER_HW */
 #ifdef CUSTOMER_HW2
 		wifi_set_power(1, 0);
 #endif
-		WL_ERROR(("=========== WLAN going back to live  ========\n"));
+		WL_ERROR("=========== WLAN going back to live  ========\n");
 		break;
 
 	case WLAN_POWER_OFF:
-		WL_TRACE(("%s: call customer specific GPIO to turn off WL_REG_ON\n",
-			__func__));
+		WL_TRACE("%s: call customer specific GPIO to turn off WL_REG_ON\n",
+			 __func__);
 #ifdef CUSTOMER_HW
 		bcm_wlan_power_off(1);
 #endif				/* CUSTOMER_HW */
 		break;
 
 	case WLAN_POWER_ON:
-		WL_TRACE(("%s: call customer specific GPIO to turn on WL_REG_ON\n",
-			__func__));
+		WL_TRACE("%s: call customer specific GPIO to turn on WL_REG_ON\n",
+			 __func__);
 #ifdef CUSTOMER_HW
 		bcm_wlan_power_on(1);
 #endif				/* CUSTOMER_HW */
@@ -140,7 +139,7 @@ void dhd_customer_gpio_wlan_ctrl(int onoff)
 /* Function to get custom MAC address */
 int dhd_custom_get_mac_address(unsigned char *buf)
 {
-	WL_TRACE(("%s Enter\n", __func__));
+	WL_TRACE("%s Enter\n", __func__);
 	if (!buf)
 		return -EINVAL;
 
@@ -149,9 +148,8 @@ int dhd_custom_get_mac_address(unsigned char *buf)
 #ifdef EXAMPLE_GET_MAC
 	/* EXAMPLE code */
 	{
-		struct ether_addr ea_example = {
-			{0x00, 0x11, 0x22, 0x33, 0x44, 0xFF} };
-		bcopy((char *)&ea_example, buf, sizeof(struct ether_addr));
+		u8 ea_example[ETH_ALEN] = {0x00, 0x11, 0x22, 0x33, 0x44, 0xFF};
+		memcpy(buf, ea_example, ETH_ALEN);
 	}
 #endif				/* EXAMPLE_GET_MAC */
 

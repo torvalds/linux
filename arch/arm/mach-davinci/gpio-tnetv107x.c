@@ -58,7 +58,7 @@ static int tnetv107x_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 	spin_lock_irqsave(&ctlr->lock, flags);
 
-	gpio_reg_set_bit(&regs->enable, gpio);
+	gpio_reg_set_bit(regs->enable, gpio);
 
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 
@@ -74,7 +74,7 @@ static void tnetv107x_gpio_free(struct gpio_chip *chip, unsigned offset)
 
 	spin_lock_irqsave(&ctlr->lock, flags);
 
-	gpio_reg_clear_bit(&regs->enable, gpio);
+	gpio_reg_clear_bit(regs->enable, gpio);
 
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 }
@@ -88,7 +88,7 @@ static int tnetv107x_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
 
 	spin_lock_irqsave(&ctlr->lock, flags);
 
-	gpio_reg_set_bit(&regs->direction, gpio);
+	gpio_reg_set_bit(regs->direction, gpio);
 
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 
@@ -106,11 +106,11 @@ static int tnetv107x_gpio_dir_out(struct gpio_chip *chip,
 	spin_lock_irqsave(&ctlr->lock, flags);
 
 	if (value)
-		gpio_reg_set_bit(&regs->data_out, gpio);
+		gpio_reg_set_bit(regs->data_out, gpio);
 	else
-		gpio_reg_clear_bit(&regs->data_out, gpio);
+		gpio_reg_clear_bit(regs->data_out, gpio);
 
-	gpio_reg_clear_bit(&regs->direction, gpio);
+	gpio_reg_clear_bit(regs->direction, gpio);
 
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 
@@ -124,7 +124,7 @@ static int tnetv107x_gpio_get(struct gpio_chip *chip, unsigned offset)
 	unsigned gpio = chip->base + offset;
 	int ret;
 
-	ret = gpio_reg_get_bit(&regs->data_in, gpio);
+	ret = gpio_reg_get_bit(regs->data_in, gpio);
 
 	return ret ? 1 : 0;
 }
@@ -140,9 +140,9 @@ static void tnetv107x_gpio_set(struct gpio_chip *chip,
 	spin_lock_irqsave(&ctlr->lock, flags);
 
 	if (value)
-		gpio_reg_set_bit(&regs->data_out, gpio);
+		gpio_reg_set_bit(regs->data_out, gpio);
 	else
-		gpio_reg_clear_bit(&regs->data_out, gpio);
+		gpio_reg_clear_bit(regs->data_out, gpio);
 
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 }

@@ -31,15 +31,17 @@
  *
  * Simple ASCII art explanation:
  *
- * |HEAD          |
- * |              |
- * |prio_list.prev|<------------------------------------|
- * |prio_list.next|<->|pl|<->|pl|<--------------->|pl|<-|
- * |10            |   |10|   |21|   |21|   |21|   |40|   (prio)
- * |              |   |  |   |  |   |  |   |  |   |  |
- * |              |   |  |   |  |   |  |   |  |   |  |
- * |node_list.next|<->|nl|<->|nl|<->|nl|<->|nl|<->|nl|<-|
- * |node_list.prev|<------------------------------------|
+ * pl:prio_list (only for plist_node)
+ * nl:node_list
+ *   HEAD|             NODE(S)
+ *       |
+ *       ||------------------------------------|
+ *       ||->|pl|<->|pl|<--------------->|pl|<-|
+ *       |   |10|   |21|   |21|   |21|   |40|   (prio)
+ *       |   |  |   |  |   |  |   |  |   |  |
+ *       |   |  |   |  |   |  |   |  |   |  |
+ * |->|nl|<->|nl|<->|nl|<->|nl|<->|nl|<->|nl|<-|
+ * |-------------------------------------------|
  *
  * The nodes on the prio_list list are sorted by priority to simplify
  * the insertion of new nodes. There are no nodes with duplicate
@@ -78,7 +80,6 @@
 #include <linux/spinlock_types.h>
 
 struct plist_head {
-	struct list_head prio_list;
 	struct list_head node_list;
 #ifdef CONFIG_DEBUG_PI_LIST
 	raw_spinlock_t *rawlock;
@@ -88,7 +89,8 @@ struct plist_head {
 
 struct plist_node {
 	int			prio;
-	struct plist_head	plist;
+	struct list_head	prio_list;
+	struct list_head	node_list;
 };
 
 #ifdef CONFIG_DEBUG_PI_LIST
@@ -100,7 +102,6 @@ struct plist_node {
 #endif
 
 #define _PLIST_HEAD_INIT(head)				\
-	.prio_list = LIST_HEAD_INIT((head).prio_list),	\
 	.node_list = LIST_HEAD_INIT((head).node_list)
 
 /**
@@ -133,7 +134,8 @@ struct plist_node {
 #define PLIST_NODE_INIT(node, __prio)			\
 {							\
 	.prio  = (__prio),				\
-	.plist = { _PLIST_HEAD_INIT((node).plist) },	\
+	.prio_list = LIST_HEAD_INIT((node).prio_list),	\
+	.node_list = LIST_HEAD_INIT((node).node_list),	\
 }
 
 /**
@@ -144,7 +146,6 @@ struct plist_node {
 static inline void
 plist_head_init(struct plist_head *head, spinlock_t *lock)
 {
-	INIT_LIST_HEAD(&head->prio_list);
 	INIT_LIST_HEAD(&head->node_list);
 #ifdef CONFIG_DEBUG_PI_LIST
 	head->spinlock = lock;
@@ -160,7 +161,6 @@ plist_head_init(struct plist_head *head, spinlock_t *lock)
 static inline void
 plist_head_init_raw(struct plist_head *head, raw_spinlock_t *lock)
 {
-	INIT_LIST_HEAD(&head->prio_list);
 	INIT_LIST_HEAD(&head->node_list);
 #ifdef CONFIG_DEBUG_PI_LIST
 	head->rawlock = lock;
@@ -176,7 +176,8 @@ plist_head_init_raw(struct plist_head *head, raw_spinlock_t *lock)
 static inline void plist_node_init(struct plist_node *node, int prio)
 {
 	node->prio = prio;
-	plist_head_init(&node->plist, NULL);
+	INIT_LIST_HEAD(&node->prio_list);
+	INIT_LIST_HEAD(&node->node_list);
 }
 
 extern void plist_add(struct plist_node *node, struct plist_head *head);
@@ -188,7 +189,7 @@ extern void plist_del(struct plist_node *node, struct plist_head *head);
  * @head:	the head for your list
  */
 #define plist_for_each(pos, head)	\
-	 list_for_each_entry(pos, &(head)->node_list, plist.node_list)
+	 list_for_each_entry(pos, &(head)->node_list, node_list)
 
 /**
  * plist_for_each_safe - iterate safely over a plist of given type
@@ -199,7 +200,7 @@ extern void plist_del(struct plist_node *node, struct plist_head *head);
  * Iterate over a plist of given type, safe against removal of list entry.
  */
 #define plist_for_each_safe(pos, n, head)	\
-	 list_for_each_entry_safe(pos, n, &(head)->node_list, plist.node_list)
+	 list_for_each_entry_safe(pos, n, &(head)->node_list, node_list)
 
 /**
  * plist_for_each_entry	- iterate over list of given type
@@ -208,7 +209,7 @@ extern void plist_del(struct plist_node *node, struct plist_head *head);
  * @mem:	the name of the list_struct within the struct
  */
 #define plist_for_each_entry(pos, head, mem)	\
-	 list_for_each_entry(pos, &(head)->node_list, mem.plist.node_list)
+	 list_for_each_entry(pos, &(head)->node_list, mem.node_list)
 
 /**
  * plist_for_each_entry_safe - iterate safely over list of given type
@@ -220,7 +221,7 @@ extern void plist_del(struct plist_node *node, struct plist_head *head);
  * Iterate over list of given type, safe against removal of list entry.
  */
 #define plist_for_each_entry_safe(pos, n, head, m)	\
-	list_for_each_entry_safe(pos, n, &(head)->node_list, m.plist.node_list)
+	list_for_each_entry_safe(pos, n, &(head)->node_list, m.node_list)
 
 /**
  * plist_head_empty - return !0 if a plist_head is empty
@@ -237,7 +238,7 @@ static inline int plist_head_empty(const struct plist_head *head)
  */
 static inline int plist_node_empty(const struct plist_node *node)
 {
-	return plist_head_empty(&node->plist);
+	return list_empty(&node->node_list);
 }
 
 /* All functions below assume the plist_head is not empty. */
@@ -285,7 +286,7 @@ static inline int plist_node_empty(const struct plist_node *node)
 static inline struct plist_node *plist_first(const struct plist_head *head)
 {
 	return list_entry(head->node_list.next,
-			  struct plist_node, plist.node_list);
+			  struct plist_node, node_list);
 }
 
 /**
@@ -297,7 +298,7 @@ static inline struct plist_node *plist_first(const struct plist_head *head)
 static inline struct plist_node *plist_last(const struct plist_head *head)
 {
 	return list_entry(head->node_list.prev,
-			  struct plist_node, plist.node_list);
+			  struct plist_node, node_list);
 }
 
 #endif

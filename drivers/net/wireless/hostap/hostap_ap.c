@@ -858,7 +858,10 @@ void hostap_free_data(struct ap_data *ap)
 		return;
 	}
 
+	flush_work_sync(&ap->add_sta_proc_queue);
+
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
+	flush_work_sync(&ap->wds_oper_queue);
 	if (ap->crypt)
 		ap->crypt->deinit(ap->crypt_priv);
 	ap->crypt = ap->crypt_priv = NULL;
@@ -2356,7 +2359,7 @@ int prism2_ap_get_sta_qual(local_info_t *local, struct sockaddr addr[],
 }
 
 
-/* Translate our list of Access Points & Stations to a card independant
+/* Translate our list of Access Points & Stations to a card independent
  * format that the Wireless Tools will understand - Jean II */
 int prism2_ap_translate_scan(struct net_device *dev,
 			     struct iw_request_info *info, char *buffer)

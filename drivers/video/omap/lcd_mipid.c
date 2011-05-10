@@ -396,7 +396,7 @@ static void mipid_esd_start_check(struct mipid_device *md)
 static void mipid_esd_stop_check(struct mipid_device *md)
 {
 	if (md->esd_check != NULL)
-		cancel_rearming_delayed_workqueue(md->esd_wq, &md->esd_work);
+		cancel_delayed_work_sync(&md->esd_work);
 }
 
 static void mipid_esd_work(struct work_struct *work)

@@ -17,7 +17,9 @@ def getsizes(file):
     sym = {}
     for l in os.popen("nm --size-sort " + file).readlines():
         size, type, name = l[:-1].split()
-        if type in "tTdDbB":
+        if type in "tTdDbBrR":
+            # strip generated symbols
+            if name[:6] == "__mod_": continue
             # function names begin with '.' on 64-bit powerpc
             if "." in name[1:]: name = "static." + name.split(".")[0]
             sym[name] = sym.get(name, 0) + int(size, 16)

@@ -74,41 +74,53 @@ extern struct iwl_cfg iwl5100_bgn_cfg;
 extern struct iwl_cfg iwl5100_abg_cfg;
 extern struct iwl_cfg iwl5150_agn_cfg;
 extern struct iwl_cfg iwl5150_abg_cfg;
-extern struct iwl_cfg iwl6000g2a_2agn_cfg;
-extern struct iwl_cfg iwl6000g2a_2abg_cfg;
-extern struct iwl_cfg iwl6000g2a_2bg_cfg;
-extern struct iwl_cfg iwl6000g2b_bgn_cfg;
-extern struct iwl_cfg iwl6000g2b_bg_cfg;
-extern struct iwl_cfg iwl6000g2b_2agn_cfg;
-extern struct iwl_cfg iwl6000g2b_2abg_cfg;
-extern struct iwl_cfg iwl6000g2b_2bgn_cfg;
-extern struct iwl_cfg iwl6000g2b_2bg_cfg;
+extern struct iwl_cfg iwl6005_2agn_cfg;
+extern struct iwl_cfg iwl6005_2abg_cfg;
+extern struct iwl_cfg iwl6005_2bg_cfg;
+extern struct iwl_cfg iwl1030_bgn_cfg;
+extern struct iwl_cfg iwl1030_bg_cfg;
+extern struct iwl_cfg iwl6030_2agn_cfg;
+extern struct iwl_cfg iwl6030_2abg_cfg;
+extern struct iwl_cfg iwl6030_2bgn_cfg;
+extern struct iwl_cfg iwl6030_2bg_cfg;
 extern struct iwl_cfg iwl6000i_2agn_cfg;
 extern struct iwl_cfg iwl6000i_2abg_cfg;
 extern struct iwl_cfg iwl6000i_2bg_cfg;
 extern struct iwl_cfg iwl6000_3agn_cfg;
 extern struct iwl_cfg iwl6050_2agn_cfg;
 extern struct iwl_cfg iwl6050_2abg_cfg;
-extern struct iwl_cfg iwl6050g2_bgn_cfg;
+extern struct iwl_cfg iwl6150_bgn_cfg;
 extern struct iwl_cfg iwl1000_bgn_cfg;
 extern struct iwl_cfg iwl1000_bg_cfg;
 extern struct iwl_cfg iwl100_bgn_cfg;
 extern struct iwl_cfg iwl100_bg_cfg;
 extern struct iwl_cfg iwl130_bgn_cfg;
 extern struct iwl_cfg iwl130_bg_cfg;
+extern struct iwl_cfg iwl2000_2bgn_cfg;
+extern struct iwl_cfg iwl2000_2bg_cfg;
+extern struct iwl_cfg iwl2030_2bgn_cfg;
+extern struct iwl_cfg iwl2030_2bg_cfg;
+extern struct iwl_cfg iwl6035_2agn_cfg;
+extern struct iwl_cfg iwl6035_2abg_cfg;
+extern struct iwl_cfg iwl6035_2bg_cfg;
+extern struct iwl_cfg iwl200_bg_cfg;
+extern struct iwl_cfg iwl200_bgn_cfg;
+extern struct iwl_cfg iwl230_bg_cfg;
+extern struct iwl_cfg iwl230_bgn_cfg;
 
 extern struct iwl_mod_params iwlagn_mod_params;
 extern struct iwl_hcmd_ops iwlagn_hcmd;
 extern struct iwl_hcmd_ops iwlagn_bt_hcmd;
 extern struct iwl_hcmd_utils_ops iwlagn_hcmd_utils;
 
+extern struct ieee80211_ops iwlagn_hw_ops;
+extern struct ieee80211_ops iwl4965_hw_ops;
+
 int iwl_reset_ict(struct iwl_priv *priv);
 void iwl_disable_ict(struct iwl_priv *priv);
 int iwl_alloc_isr_ict(struct iwl_priv *priv);
 void iwl_free_isr_ict(struct iwl_priv *priv);
 irqreturn_t iwl_isr_ict(int irq, void *data);
-bool iwl_good_ack_health(struct iwl_priv *priv,
-			 struct iwl_rx_packet *pkt);
 
 /* tx queue */
 void iwlagn_set_wr_ptrs(struct iwl_priv *priv,
@@ -132,6 +144,11 @@ void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 /* RXON */
 int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed);
+void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_bss_conf *bss_conf,
+			     u32 changes);
 
 /* uCode */
 int iwlagn_load_ucode(struct iwl_priv *priv);
@@ -173,11 +190,7 @@ void iwlagn_rx_replenish_now(struct iwl_priv *priv);
 void iwlagn_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwlagn_rxq_stop(struct iwl_priv *priv);
 int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
-void iwlagn_rx_reply_rx(struct iwl_priv *priv,
-		     struct iwl_rx_mem_buffer *rxb);
-void iwlagn_rx_reply_rx_phy(struct iwl_priv *priv,
-			 struct iwl_rx_mem_buffer *rxb);
-void iwl_rx_handle(struct iwl_priv *priv);
+void iwl_setup_rx_handlers(struct iwl_priv *priv);
 
 /* tx */
 void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
@@ -227,16 +240,6 @@ static inline bool iwl_is_tx_success(u32 status)
 
 u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
 
-/* rx */
-void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
-				struct iwl_rx_mem_buffer *rxb);
-bool iwl_good_plcp_health(struct iwl_priv *priv,
-			  struct iwl_rx_packet *pkt);
-void iwl_rx_statistics(struct iwl_priv *priv,
-		       struct iwl_rx_mem_buffer *rxb);
-void iwl_reply_statistics(struct iwl_priv *priv,
-			  struct iwl_rx_mem_buffer *rxb);
-
 /* scan */
 int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif);
 void iwlagn_post_scan(struct iwl_priv *priv);
@@ -249,6 +252,7 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
 			   struct iwl_rxon_context *ctx);
 int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant);
+int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
 
 /* bt coex */
 void iwlagn_send_advance_bt_config(struct iwl_priv *priv);
@@ -292,9 +296,12 @@ int iwl_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
 			 int tid, u16 ssn);
 int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
 			int tid);
-void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id);
 void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt);
 int iwl_update_bcast_stations(struct iwl_priv *priv);
+void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif,
+			   enum sta_notify_cmd cmd,
+			   struct ieee80211_sta *sta);
 
 /* rate */
 static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
@@ -317,5 +324,48 @@ void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv);
 void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac);
 int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv);
 void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv);
+
+/* notification wait support */
+void __acquires(wait_entry)
+iwlagn_init_notification_wait(struct iwl_priv *priv,
+			      struct iwl_notification_wait *wait_entry,
+			      void (*fn)(struct iwl_priv *priv,
+					 struct iwl_rx_packet *pkt),
+			      u8 cmd);
+signed long __releases(wait_entry)
+iwlagn_wait_notification(struct iwl_priv *priv,
+			 struct iwl_notification_wait *wait_entry,
+			 unsigned long timeout);
+void __releases(wait_entry)
+iwlagn_remove_notification(struct iwl_priv *priv,
+			   struct iwl_notification_wait *wait_entry);
+
+/* mac80211 handlers (for 4965) */
+void iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
+int iwlagn_mac_start(struct ieee80211_hw *hw);
+void iwlagn_mac_stop(struct ieee80211_hw *hw);
+void iwlagn_configure_filter(struct ieee80211_hw *hw,
+			     unsigned int changed_flags,
+			     unsigned int *total_flags,
+			     u64 multicast);
+int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+		       struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		       struct ieee80211_key_conf *key);
+void iwlagn_mac_update_tkip_key(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_key_conf *keyconf,
+				struct ieee80211_sta *sta,
+				u32 iv32, u16 *phase1key);
+int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    enum ieee80211_ampdu_mlme_action action,
+			    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+			    u8 buf_size);
+int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
+		       struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta);
+void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
+			       struct ieee80211_channel_switch *ch_switch);
+void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop);
 
 #endif /* __iwl_agn_h__ */

@@ -36,8 +36,6 @@
 #include <plat/display.h>
 #include "dss.h"
 
-#define RFBI_BASE               0x48050800
-
 struct rfbi_reg { u16 idx; };
 
 #define RFBI_REG(idx)		((const struct rfbi_reg) { idx })
@@ -100,6 +98,7 @@ static int rfbi_convert_timings(struct rfbi_timings *t);
 static void rfbi_get_clk_info(u32 *clk_period, u32 *max_clk_div);
 
 static struct {
+	struct platform_device *pdev;
 	void __iomem	*base;
 
 	unsigned long	l4_khz;
@@ -142,9 +141,9 @@ static inline u32 rfbi_read_reg(const struct rfbi_reg idx)
 static void rfbi_enable_clocks(bool enable)
 {
 	if (enable)
-		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 	else
-		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 }
 
 void omap_rfbi_write_command(const void *buf, u32 len)
@@ -301,8 +300,8 @@ void omap_rfbi_write_pixels(const void __iomem *buf, int scr_width,
 }
 EXPORT_SYMBOL(omap_rfbi_write_pixels);
 
-void rfbi_transfer_area(u16 width, u16 height,
-			     void (callback)(void *data), void *data)
+void rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
+		u16 height, void (*callback)(void *data), void *data)
 {
 	u32 l;
 
@@ -311,9 +310,9 @@ void rfbi_transfer_area(u16 width, u16 height,
 
 	DSSDBG("rfbi_transfer_area %dx%d\n", width, height);
 
-	dispc_set_lcd_size(width, height);
+	dispc_set_lcd_size(dssdev->manager->id, width, height);
 
-	dispc_enable_channel(OMAP_DSS_CHANNEL_LCD, true);
+	dispc_enable_channel(dssdev->manager->id, true);
 
 	rfbi.framedone_callback = callback;
 	rfbi.framedone_callback_data = data;
@@ -497,7 +496,7 @@ unsigned long rfbi_get_max_tx_rate(void)
 	};
 
 	l4_rate = rfbi.l4_khz / 1000;
-	dss1_rate = dss_clk_get_rate(DSS_CLK_FCK1) / 1000000;
+	dss1_rate = dss_clk_get_rate(DSS_CLK_FCK) / 1000000;
 
 	for (i = 0; i < ARRAY_SIZE(ftab); i++) {
 		/* Use a window instead of an exact match, to account
@@ -887,7 +886,7 @@ int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
 
 	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
 		dss_setup_partial_planes(dssdev, x, y, w, h, true);
-		dispc_set_lcd_size(*w, *h);
+		dispc_set_lcd_size(dssdev->manager->id, *w, *h);
 	}
 
 	return 0;
@@ -899,7 +898,7 @@ int omap_rfbi_update(struct omap_dss_device *dssdev,
 		void (*callback)(void *), void *data)
 {
 	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
-		rfbi_transfer_area(w, h, callback, data);
+		rfbi_transfer_area(dssdev, w, h, callback, data);
 	} else {
 		struct omap_overlay *ovl;
 		void __iomem *addr;
@@ -922,7 +921,7 @@ void rfbi_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, rfbi_read_reg(r))
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	DUMPREG(RFBI_REVISION);
 	DUMPREG(RFBI_SYSCONFIG);
@@ -953,52 +952,8 @@ void rfbi_dump_regs(struct seq_file *s)
 	DUMPREG(RFBI_VSYNC_WIDTH);
 	DUMPREG(RFBI_HSYNC_WIDTH);
 
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 #undef DUMPREG
-}
-
-int rfbi_init(void)
-{
-	u32 rev;
-	u32 l;
-
-	spin_lock_init(&rfbi.cmd_lock);
-
-	init_completion(&rfbi.cmd_done);
-	atomic_set(&rfbi.cmd_fifo_full, 0);
-	atomic_set(&rfbi.cmd_pending, 0);
-
-	rfbi.base = ioremap(RFBI_BASE, SZ_256);
-	if (!rfbi.base) {
-		DSSERR("can't ioremap RFBI\n");
-		return -ENOMEM;
-	}
-
-	rfbi_enable_clocks(1);
-
-	msleep(10);
-
-	rfbi.l4_khz = dss_clk_get_rate(DSS_CLK_ICK) / 1000;
-
-	/* Enable autoidle and smart-idle */
-	l = rfbi_read_reg(RFBI_SYSCONFIG);
-	l |= (1 << 0) | (2 << 3);
-	rfbi_write_reg(RFBI_SYSCONFIG, l);
-
-	rev = rfbi_read_reg(RFBI_REVISION);
-	printk(KERN_INFO "OMAP RFBI rev %d.%d\n",
-	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
-
-	rfbi_enable_clocks(0);
-
-	return 0;
-}
-
-void rfbi_exit(void)
-{
-	DSSDBG("rfbi_exit\n");
-
-	iounmap(rfbi.base);
 }
 
 int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
@@ -1018,11 +973,13 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 		goto err1;
 	}
 
-	dispc_set_lcd_display_type(OMAP_DSS_LCD_DISPLAY_TFT);
+	dispc_set_lcd_display_type(dssdev->manager->id,
+			OMAP_DSS_LCD_DISPLAY_TFT);
 
-	dispc_set_parallel_interface_mode(OMAP_DSS_PARALLELMODE_RFBI);
+	dispc_set_parallel_interface_mode(dssdev->manager->id,
+			OMAP_DSS_PARALLELMODE_RFBI);
 
-	dispc_set_tft_data_lines(dssdev->ctrl.pixel_size);
+	dispc_set_tft_data_lines(dssdev->manager->id, dssdev->ctrl.pixel_size);
 
 	rfbi_configure(dssdev->phy.rfbi.channel,
 			       dssdev->ctrl.pixel_size,
@@ -1053,4 +1010,75 @@ int rfbi_init_display(struct omap_dss_device *dssdev)
 	rfbi.dssdev[dssdev->phy.rfbi.channel] = dssdev;
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
 	return 0;
+}
+
+/* RFBI HW IP initialisation */
+static int omap_rfbihw_probe(struct platform_device *pdev)
+{
+	u32 rev;
+	u32 l;
+	struct resource *rfbi_mem;
+
+	rfbi.pdev = pdev;
+
+	spin_lock_init(&rfbi.cmd_lock);
+
+	init_completion(&rfbi.cmd_done);
+	atomic_set(&rfbi.cmd_fifo_full, 0);
+	atomic_set(&rfbi.cmd_pending, 0);
+
+	rfbi_mem = platform_get_resource(rfbi.pdev, IORESOURCE_MEM, 0);
+	if (!rfbi_mem) {
+		DSSERR("can't get IORESOURCE_MEM RFBI\n");
+		return -EINVAL;
+	}
+	rfbi.base = ioremap(rfbi_mem->start, resource_size(rfbi_mem));
+	if (!rfbi.base) {
+		DSSERR("can't ioremap RFBI\n");
+		return -ENOMEM;
+	}
+
+	rfbi_enable_clocks(1);
+
+	msleep(10);
+
+	rfbi.l4_khz = dss_clk_get_rate(DSS_CLK_ICK) / 1000;
+
+	/* Enable autoidle and smart-idle */
+	l = rfbi_read_reg(RFBI_SYSCONFIG);
+	l |= (1 << 0) | (2 << 3);
+	rfbi_write_reg(RFBI_SYSCONFIG, l);
+
+	rev = rfbi_read_reg(RFBI_REVISION);
+	dev_dbg(&pdev->dev, "OMAP RFBI rev %d.%d\n",
+	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
+
+	rfbi_enable_clocks(0);
+
+	return 0;
+}
+
+static int omap_rfbihw_remove(struct platform_device *pdev)
+{
+	iounmap(rfbi.base);
+	return 0;
+}
+
+static struct platform_driver omap_rfbihw_driver = {
+	.probe          = omap_rfbihw_probe,
+	.remove         = omap_rfbihw_remove,
+	.driver         = {
+		.name   = "omapdss_rfbi",
+		.owner  = THIS_MODULE,
+	},
+};
+
+int rfbi_init_platform_driver(void)
+{
+	return platform_driver_register(&omap_rfbihw_driver);
+}
+
+void rfbi_uninit_platform_driver(void)
+{
+	return platform_driver_unregister(&omap_rfbihw_driver);
 }

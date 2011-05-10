@@ -1,4 +1,4 @@
-# SchedGui.py - Python extension for perf trace, basic GUI code for
+# SchedGui.py - Python extension for perf script, basic GUI code for
 #		traces drawing and overview.
 #
 # Copyright (C) 2010 by Frederic Weisbecker <fweisbec@gmail.com>

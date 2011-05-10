@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 2009 Intel Corporation.
+  Copyright(c) 2009 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -220,7 +220,7 @@ static u32 e1000_hash_mc_addr_vf(struct e1000_hw *hw, u8 *mc_addr)
  *  The parameter rar_count will usually be hw->mac.rar_entry_count
  *  unless there are workarounds that change this.
  **/
-void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
+static void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
                                   u8 *mc_addr_list, u32 mc_addr_count,
                                   u32 rar_used_count, u32 rar_count)
 {
@@ -362,8 +362,8 @@ static s32 e1000_check_for_link_vf(struct e1000_hw *hw)
 	 * or a virtual function reset
 	 */
 
-	/* If we were hit with a reset drop the link */
-	if (!mbx->ops.check_for_rst(hw))
+	/* If we were hit with a reset or timeout drop the link */
+	if (!mbx->ops.check_for_rst(hw) || !mbx->timeout)
 		mac->get_link_status = true;
 
 	if (!mac->get_link_status)

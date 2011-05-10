@@ -5,7 +5,7 @@
  *
  * Based on the reference implementation by Antoon Bosselaers, ESAT-COSIC
  *
- * Copyright (c) 2008 Adrian-Ken Rueegsegger <rueegsegger (at) swiss-it.ch>
+ * Copyright (c) 2008 Adrian-Ken Rueegsegger <ken@codelabs.ch>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -393,4 +393,5 @@ module_init(rmd320_mod_init);
 module_exit(rmd320_mod_fini);
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
 MODULE_DESCRIPTION("RIPEMD-320 Message Digest");

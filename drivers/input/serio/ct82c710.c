@@ -111,9 +111,11 @@ static void ct82c710_close(struct serio *serio)
 static int ct82c710_open(struct serio *serio)
 {
 	unsigned char status;
+	int err;
 
-	if (request_irq(CT82C710_IRQ, ct82c710_interrupt, 0, "ct82c710", NULL))
-		return -1;
+	err = request_irq(CT82C710_IRQ, ct82c710_interrupt, 0, "ct82c710", NULL);
+	if (err)
+		return err;
 
 	status = inb_p(CT82C710_STATUS);
 
@@ -131,7 +133,7 @@ static int ct82c710_open(struct serio *serio)
 		status &= ~(CT82C710_ENABLE | CT82C710_INTS_ON);
 		outb_p(status, CT82C710_STATUS);
 		free_irq(CT82C710_IRQ, NULL);
-		return -1;
+		return -EBUSY;
 	}
 
 	return 0;
@@ -191,6 +193,9 @@ static int __devinit ct82c710_probe(struct platform_device *dev)
 
 	serio_register_port(ct82c710_port);
 
+	printk(KERN_INFO "serio: C&T 82c710 mouse port at %#llx irq %d\n",
+		(unsigned long long)CT82C710_DATA, CT82C710_IRQ);
+
 	return 0;
 }
 
@@ -236,11 +241,6 @@ static int __init ct82c710_init(void)
 	error = platform_device_add(ct82c710_device);
 	if (error)
 		goto err_free_device;
-
-	serio_register_port(ct82c710_port);
-
-	printk(KERN_INFO "serio: C&T 82c710 mouse port at %#llx irq %d\n",
-		(unsigned long long)CT82C710_DATA, CT82C710_IRQ);
 
 	return 0;
 

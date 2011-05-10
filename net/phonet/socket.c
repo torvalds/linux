@@ -225,15 +225,18 @@ static int pn_socket_autobind(struct socket *sock)
 	return 0; /* socket was already bound */
 }
 
-#ifdef CONFIG_PHONET_PIPECTRLR
 static int pn_socket_connect(struct socket *sock, struct sockaddr *addr,
 		int len, int flags)
 {
 	struct sock *sk = sock->sk;
+	struct pn_sock *pn = pn_sk(sk);
 	struct sockaddr_pn *spn = (struct sockaddr_pn *)addr;
-	long timeo;
+	struct task_struct *tsk = current;
+	long timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
 	int err;
 
+	if (pn_socket_autobind(sock))
+		return -ENOBUFS;
 	if (len < sizeof(struct sockaddr_pn))
 		return -EINVAL;
 	if (spn->spn_family != AF_PHONET)
@@ -243,82 +246,61 @@ static int pn_socket_connect(struct socket *sock, struct sockaddr *addr,
 
 	switch (sock->state) {
 	case SS_UNCONNECTED:
-		sk->sk_state = TCP_CLOSE;
+		if (sk->sk_state != TCP_CLOSE) {
+			err = -EISCONN;
+			goto out;
+		}
 		break;
 	case SS_CONNECTING:
-		switch (sk->sk_state) {
-		case TCP_SYN_RECV:
-			sock->state = SS_CONNECTED;
-			err = -EISCONN;
-			goto out;
-		case TCP_CLOSE:
-			err = -EALREADY;
-			if (flags & O_NONBLOCK)
-				goto out;
-			goto wait_connect;
-		}
-		break;
-	case SS_CONNECTED:
-		switch (sk->sk_state) {
-		case TCP_SYN_RECV:
-			err = -EISCONN;
-			goto out;
-		case TCP_CLOSE:
-			sock->state = SS_UNCONNECTED;
-			break;
-		}
-		break;
-	case SS_DISCONNECTING:
-	case SS_FREE:
-		break;
+		err = -EALREADY;
+		goto out;
+	default:
+		err = -EISCONN;
+		goto out;
 	}
-	sk->sk_state = TCP_CLOSE;
-	sk_stream_kill_queues(sk);
 
+	pn->dobject = pn_sockaddr_get_object(spn);
+	pn->resource = pn_sockaddr_get_resource(spn);
 	sock->state = SS_CONNECTING;
+
 	err = sk->sk_prot->connect(sk, addr, len);
-	if (err < 0) {
+	if (err) {
 		sock->state = SS_UNCONNECTED;
-		sk->sk_state = TCP_CLOSE;
+		pn->dobject = 0;
 		goto out;
 	}
 
-	err = -EINPROGRESS;
-wait_connect:
-	if (sk->sk_state != TCP_SYN_RECV && (flags & O_NONBLOCK))
-		goto out;
+	while (sk->sk_state == TCP_SYN_SENT) {
+		DEFINE_WAIT(wait);
 
-	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
-	release_sock(sk);
+		if (!timeo) {
+			err = -EINPROGRESS;
+			goto out;
+		}
+		if (signal_pending(tsk)) {
+			err = sock_intr_errno(timeo);
+			goto out;
+		}
 
-	err = -ERESTARTSYS;
-	timeo = wait_event_interruptible_timeout(*sk_sleep(sk),
-			sk->sk_state != TCP_CLOSE,
-			timeo);
-
-	lock_sock(sk);
-	if (timeo < 0)
-		goto out; /* -ERESTARTSYS */
-
-	err = -ETIMEDOUT;
-	if (timeo == 0 && sk->sk_state != TCP_SYN_RECV)
-		goto out;
-
-	if (sk->sk_state != TCP_SYN_RECV) {
-		sock->state = SS_UNCONNECTED;
-		err = sock_error(sk);
-		if (!err)
-			err = -ECONNREFUSED;
-		goto out;
+		prepare_to_wait_exclusive(sk_sleep(sk), &wait,
+						TASK_INTERRUPTIBLE);
+		release_sock(sk);
+		timeo = schedule_timeout(timeo);
+		lock_sock(sk);
+		finish_wait(sk_sleep(sk), &wait);
 	}
-	sock->state = SS_CONNECTED;
-	err = 0;
 
+	if ((1 << sk->sk_state) & (TCPF_SYN_RECV|TCPF_ESTABLISHED))
+		err = 0;
+	else if (sk->sk_state == TCP_CLOSE_WAIT)
+		err = -ECONNRESET;
+	else
+		err = -ECONNREFUSED;
+	sock->state = err ? SS_UNCONNECTED : SS_CONNECTED;
 out:
 	release_sock(sk);
 	return err;
 }
-#endif
 
 static int pn_socket_accept(struct socket *sock, struct socket *newsock,
 				int flags)
@@ -326,6 +308,9 @@ static int pn_socket_accept(struct socket *sock, struct socket *newsock,
 	struct sock *sk = sock->sk;
 	struct sock *newsk;
 	int err;
+
+	if (unlikely(sk->sk_state != TCP_LISTEN))
+		return -EINVAL;
 
 	newsk = sk->sk_prot->accept(sk, flags, &err);
 	if (!newsk)
@@ -363,13 +348,8 @@ static unsigned int pn_socket_poll(struct file *file, struct socket *sock,
 
 	poll_wait(file, sk_sleep(sk), wait);
 
-	switch (sk->sk_state) {
-	case TCP_LISTEN:
-		return hlist_empty(&pn->ackq) ? 0 : POLLIN;
-	case TCP_CLOSE:
+	if (sk->sk_state == TCP_CLOSE)
 		return POLLERR;
-	}
-
 	if (!skb_queue_empty(&sk->sk_receive_queue))
 		mask |= POLLIN | POLLRDNORM;
 	if (!skb_queue_empty(&pn->ctrlreq_queue))
@@ -428,19 +408,19 @@ static int pn_socket_listen(struct socket *sock, int backlog)
 	struct sock *sk = sock->sk;
 	int err = 0;
 
-	if (sock->state != SS_UNCONNECTED)
-		return -EINVAL;
 	if (pn_socket_autobind(sock))
 		return -ENOBUFS;
 
 	lock_sock(sk);
-	if (sk->sk_state != TCP_CLOSE) {
+	if (sock->state != SS_UNCONNECTED) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	sk->sk_state = TCP_LISTEN;
-	sk->sk_ack_backlog = 0;
+	if (sk->sk_state != TCP_LISTEN) {
+		sk->sk_state = TCP_LISTEN;
+		sk->sk_ack_backlog = 0;
+	}
 	sk->sk_max_ack_backlog = backlog;
 out:
 	release_sock(sk);
@@ -488,11 +468,7 @@ const struct proto_ops phonet_stream_ops = {
 	.owner		= THIS_MODULE,
 	.release	= pn_socket_release,
 	.bind		= pn_socket_bind,
-#ifdef CONFIG_PHONET_PIPECTRLR
 	.connect	= pn_socket_connect,
-#else
-	.connect	= sock_no_connect,
-#endif
 	.socketpair	= sock_no_socketpair,
 	.accept		= pn_socket_accept,
 	.getname	= pn_socket_getname,
@@ -633,8 +609,8 @@ static int pn_sock_seq_show(struct seq_file *seq, void *v)
 
 		seq_printf(seq, "%2d %04X:%04X:%02X %02X %08X:%08X %5d %lu "
 			"%d %p %d%n",
-			sk->sk_protocol, pn->sobject, 0, pn->resource,
-			sk->sk_state,
+			sk->sk_protocol, pn->sobject, pn->dobject,
+			pn->resource, sk->sk_state,
 			sk_wmem_alloc_get(sk), sk_rmem_alloc_get(sk),
 			sock_i_uid(sk), sock_i_ino(sk),
 			atomic_read(&sk->sk_refcnt), sk,

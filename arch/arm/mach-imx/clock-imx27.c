@@ -21,8 +21,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <asm/div64.h>
 
 #include <mach/clock.h>
@@ -125,7 +125,7 @@ static int clk_cpu_set_parent(struct clk *clk, struct clk *parent)
 	if (clk->parent == parent)
 		return 0;
 
-	if (mx27_revision() >= CHIP_REV_2_0) {
+	if (mx27_revision() >= IMX_CHIP_REVISION_2_0) {
 		if (parent == &mpll_main1_clk) {
 			cscr |= CCM_CSCR_ARM_SRC;
 		} else {
@@ -174,7 +174,7 @@ static int set_rate_cpu(struct clk *clk, unsigned long rate)
 	div--;
 
 	reg = __raw_readl(CCM_CSCR);
-	if (mx27_revision() >= CHIP_REV_2_0) {
+	if (mx27_revision() >= IMX_CHIP_REVISION_2_0) {
 		reg &= ~(3 << 12);
 		reg |= div << 12;
 		reg &= ~(CCM_CSCR_FPM | CCM_CSCR_SPEN);
@@ -244,7 +244,7 @@ static unsigned long get_rate_ssix(struct clk *clk, unsigned long pdf)
 
 	parent_rate = clk_get_rate(clk->parent);
 
-	if (mx27_revision() >= CHIP_REV_2_0)
+	if (mx27_revision() >= IMX_CHIP_REVISION_2_0)
 		pdf += 4;  /* MX27 TO2+ */
 	else
 		pdf = (pdf < 2) ? 124UL : pdf;  /* MX21 & MX27 TO1 */
@@ -269,7 +269,7 @@ static unsigned long get_rate_nfc(struct clk *clk)
 
 	parent_rate = clk_get_rate(clk->parent);
 
-	if (mx27_revision() >= CHIP_REV_2_0)
+	if (mx27_revision() >= IMX_CHIP_REVISION_2_0)
 		nfc_pdf = (__raw_readl(CCM_PCDR0) >> 6) & 0xf;
 	else
 		nfc_pdf = (__raw_readl(CCM_PCDR0) >> 12) & 0xf;
@@ -284,7 +284,7 @@ static unsigned long get_rate_vpu(struct clk *clk)
 
 	parent_rate = clk_get_rate(clk->parent);
 
-	if (mx27_revision() >= CHIP_REV_2_0) {
+	if (mx27_revision() >= IMX_CHIP_REVISION_2_0) {
 		vpu_pdf = (__raw_readl(CCM_PCDR0) >> 10) & 0x3f;
 		vpu_pdf += 4;
 	} else {
@@ -347,7 +347,7 @@ static unsigned long get_rate_mpll_main(struct clk *clk)
 	 * clk->id == 0: arm clock source path 1 which is from 2 * MPLL / 2
 	 * clk->id == 1: arm clock source path 2 which is from 2 * MPLL / 3
 	 */
-	if (mx27_revision() >= CHIP_REV_2_0 && clk->id == 1)
+	if (mx27_revision() >= IMX_CHIP_REVISION_2_0 && clk->id == 1)
 		return 2UL * parent_rate / 3UL;
 
 	return parent_rate;
@@ -365,7 +365,7 @@ static unsigned long get_rate_spll(struct clk *clk)
 	/* On TO2 we have to write the value back. Otherwise we
 	 * read 0 from this register the next time.
 	 */
-	if (mx27_revision() >= CHIP_REV_2_0)
+	if (mx27_revision() >= IMX_CHIP_REVISION_2_0)
 		__raw_writel(reg, CCM_SPCTL0);
 
 	return mxc_decode_pll(reg, rate);
@@ -376,7 +376,7 @@ static unsigned long get_rate_cpu(struct clk *clk)
 	u32 div;
 	unsigned long rate;
 
-	if (mx27_revision() >= CHIP_REV_2_0)
+	if (mx27_revision() >= IMX_CHIP_REVISION_2_0)
 		div = (__raw_readl(CCM_CSCR) >> 12) & 0x3;
 	else
 		div = (__raw_readl(CCM_CSCR) >> 13) & 0x7;
@@ -389,7 +389,7 @@ static unsigned long get_rate_ahb(struct clk *clk)
 {
 	unsigned long rate, bclk_pdf;
 
-	if (mx27_revision() >= CHIP_REV_2_0)
+	if (mx27_revision() >= IMX_CHIP_REVISION_2_0)
 		bclk_pdf = (__raw_readl(CCM_CSCR) >> 8) & 0x3;
 	else
 		bclk_pdf = (__raw_readl(CCM_CSCR) >> 9) & 0xf;
@@ -402,7 +402,7 @@ static unsigned long get_rate_ipg(struct clk *clk)
 {
 	unsigned long rate, ipg_pdf;
 
-	if (mx27_revision() >= CHIP_REV_2_0)
+	if (mx27_revision() >= IMX_CHIP_REVISION_2_0)
 		return clk_get_rate(clk->parent);
 	else
 		ipg_pdf = (__raw_readl(CCM_CSCR) >> 8) & 1;
@@ -667,7 +667,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "sahara2", sahara2_clk)
 	_REGISTER_CLOCK(NULL, "ata", ata_clk)
 	_REGISTER_CLOCK(NULL, "mstick", mstick_clk)
-	_REGISTER_CLOCK("imx-wdt.0", NULL, wdog_clk)
+	_REGISTER_CLOCK("imx2-wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK(NULL, "gpio", gpio_clk)
 	_REGISTER_CLOCK("imx-i2c.0", NULL, i2c1_clk)
 	_REGISTER_CLOCK("imx-i2c.1", NULL, i2c2_clk)
@@ -683,7 +683,7 @@ static void __init to2_adjust_clocks(void)
 {
 	unsigned long cscr = __raw_readl(CCM_CSCR);
 
-	if (mx27_revision() >= CHIP_REV_2_0) {
+	if (mx27_revision() >= IMX_CHIP_REVISION_2_0) {
 		if (cscr & CCM_CSCR_ARM_SRC)
 			cpu_clk.parent = &mpll_main1_clk;
 

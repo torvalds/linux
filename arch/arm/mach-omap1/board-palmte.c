@@ -63,28 +63,31 @@ static void __init omap_palmte_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
 }
 
-static const int palmte_keymap[] = {
+static const unsigned int palmte_keymap[] = {
 	KEY(0, 0, KEY_F1),		/* Calendar */
-	KEY(0, 1, KEY_F2),		/* Contacts */
-	KEY(0, 2, KEY_F3),		/* Tasks List */
-	KEY(0, 3, KEY_F4),		/* Note Pad */
-	KEY(0, 4, KEY_POWER),
-	KEY(1, 0, KEY_LEFT),
+	KEY(1, 0, KEY_F2),		/* Contacts */
+	KEY(2, 0, KEY_F3),		/* Tasks List */
+	KEY(3, 0, KEY_F4),		/* Note Pad */
+	KEY(4, 0, KEY_POWER),
+	KEY(0, 1, KEY_LEFT),
 	KEY(1, 1, KEY_DOWN),
-	KEY(1, 2, KEY_UP),
-	KEY(1, 3, KEY_RIGHT),
-	KEY(1, 4, KEY_ENTER),
-	0,
+	KEY(2, 1, KEY_UP),
+	KEY(3, 1, KEY_RIGHT),
+	KEY(4, 1, KEY_ENTER),
+};
+
+static const struct matrix_keymap_data palmte_keymap_data = {
+	.keymap		= palmte_keymap,
+	.keymap_size	= ARRAY_SIZE(palmte_keymap),
 };
 
 static struct omap_kp_platform_data palmte_kp_data = {
 	.rows	= 8,
 	.cols	= 8,
-	.keymap = (int *) palmte_keymap,
-	.rep	= 1,
+	.keymap_data = &palmte_keymap_data,
+	.rep	= true,
 	.delay	= 12,
 };
 
@@ -226,19 +229,6 @@ static struct spi_board_info palmte_spi_info[] __initdata = {
 		.max_speed_hz	= 8000000,
 	},
 };
-
-static void palmte_headphones_detect(void *data, int state)
-{
-	if (state) {
-		/* Headphones connected, disable speaker */
-		gpio_set_value(PALMTE_SPEAKER_GPIO, 0);
-		printk(KERN_INFO "PM: speaker off\n");
-	} else {
-		/* Headphones unplugged, re-enable speaker */
-		gpio_set_value(PALMTE_SPEAKER_GPIO, 1);
-		printk(KERN_INFO "PM: speaker on\n");
-	}
-}
 
 static void __init palmte_misc_gpio_setup(void)
 {

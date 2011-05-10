@@ -51,7 +51,7 @@ DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " Richard Procter <rnp@paradise.net.
  *	circular buffer queues.
  *
  *	The mailboxes can be used for controlling how the card traverses
- *	its buffer rings, but are used only for inital setup in this
+ *	its buffer rings, but are used only for initial setup in this
  *	implementation.  The exec mailbox allows a variety of commands to
  *	be executed. Each command must complete before the next is
  *	executed. Primarily we use the exec mailbox for controlling the
@@ -317,13 +317,13 @@ static int __init mc32_probe1(struct net_device *dev, int slot)
 	u8 POS;
 	u32 base;
 	struct mc32_local *lp = netdev_priv(dev);
-	static u16 mca_io_bases[]={
+	static const u16 mca_io_bases[] = {
 		0x7280,0x7290,
 		0x7680,0x7690,
 		0x7A80,0x7A90,
 		0x7E80,0x7E90
 	};
-	static u32 mca_mem_bases[]={
+	static const u32 mca_mem_bases[] = {
 		0x00C0000,
 		0x00C4000,
 		0x00C8000,
@@ -333,7 +333,7 @@ static int __init mc32_probe1(struct net_device *dev, int slot)
 		0x00D8000,
 		0x00DC000
 	};
-	static char *failures[]={
+	static const char * const failures[] = {
 		"Processor instruction",
 		"Processor data bus",
 		"Processor data bus",
@@ -813,7 +813,7 @@ static void mc32_flush_rx_ring(struct net_device *dev)
  *
  *	This sets up the host transmit data-structures.
  *
- *	First, we obtain from the card it's current postion in the tx
+ *	First, we obtain from the card it's current position in the tx
  *	ring, so that we will know where to begin transmitting
  *	packets.
  *

@@ -27,6 +27,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/pwm_backlight.h>
 #include <linux/smc91x.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -46,11 +47,11 @@
 #include <mach/mainstone.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
-#include <plat/i2c.h>
 #include <mach/mmc.h>
 #include <mach/irda.h>
 #include <mach/ohci.h>
 #include <plat/pxa27x_keypad.h>
+#include <mach/smemc.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -122,15 +123,15 @@ static unsigned long mainstone_pin_config[] = {
 
 static unsigned long mainstone_irq_enabled;
 
-static void mainstone_mask_irq(unsigned int irq)
+static void mainstone_mask_irq(struct irq_data *d)
 {
-	int mainstone_irq = (irq - MAINSTONE_IRQ(0));
+	int mainstone_irq = (d->irq - MAINSTONE_IRQ(0));
 	MST_INTMSKENA = (mainstone_irq_enabled &= ~(1 << mainstone_irq));
 }
 
-static void mainstone_unmask_irq(unsigned int irq)
+static void mainstone_unmask_irq(struct irq_data *d)
 {
-	int mainstone_irq = (irq - MAINSTONE_IRQ(0));
+	int mainstone_irq = (d->irq - MAINSTONE_IRQ(0));
 	/* the irq can be acknowledged only if deasserted, so it's done here */
 	MST_INTSETCLR &= ~(1 << mainstone_irq);
 	MST_INTMSKENA = (mainstone_irq_enabled |= (1 << mainstone_irq));
@@ -138,16 +139,17 @@ static void mainstone_unmask_irq(unsigned int irq)
 
 static struct irq_chip mainstone_irq_chip = {
 	.name		= "FPGA",
-	.ack		= mainstone_mask_irq,
-	.mask		= mainstone_mask_irq,
-	.unmask		= mainstone_unmask_irq,
+	.irq_ack	= mainstone_mask_irq,
+	.irq_mask	= mainstone_mask_irq,
+	.irq_unmask	= mainstone_unmask_irq,
 };
 
 static void mainstone_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long pending = MST_INTSETCLR & mainstone_irq_enabled;
 	do {
-		desc->chip->ack(irq);	/* clear useless edge notification */
+		/* clear useless edge notification */
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 		if (likely(pending)) {
 			irq = MAINSTONE_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);
@@ -164,8 +166,8 @@ static void __init mainstone_init_irq(void)
 
 	/* setup extra Mainstone irqs */
 	for(irq = MAINSTONE_IRQ(0); irq <= MAINSTONE_IRQ(15); irq++) {
-		set_irq_chip(irq, &mainstone_irq_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &mainstone_irq_chip,
+					 handle_level_irq);
 		if (irq == MAINSTONE_IRQ(10) || irq == MAINSTONE_IRQ(14))
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE | IRQF_NOAUTOEN);
 		else
@@ -177,8 +179,8 @@ static void __init mainstone_init_irq(void)
 	MST_INTMSKENA = 0;
 	MST_INTSETCLR = 0;
 
-	set_irq_chained_handler(IRQ_GPIO(0), mainstone_irq_handler);
-	set_irq_type(IRQ_GPIO(0), IRQ_TYPE_EDGE_FALLING);
+	irq_set_chained_handler(IRQ_GPIO(0), mainstone_irq_handler);
+	irq_set_irq_type(IRQ_GPIO(0), IRQ_TYPE_EDGE_FALLING);
 }
 
 #ifdef CONFIG_PM
@@ -565,7 +567,7 @@ static void __init mainstone_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	mst_flash_data[0].width = (BOOT_DEF & 1) ? 2 : 4;
+	mst_flash_data[0].width = (__raw_readl(BOOT_DEF) & 1) ? 2 : 4;
 	mst_flash_data[1].width = 4;
 
 	/* Compensate for SW7 which swaps the flash banks */
@@ -590,7 +592,7 @@ static void __init mainstone_init(void)
 	else
 		mainstone_pxafb_info.modes = &toshiba_ltm035a776c_mode;
 
-	set_pxa_fb_info(&mainstone_pxafb_info);
+	pxa_set_fb_info(NULL, &mainstone_pxafb_info);
 	mainstone_backlight_register();
 
 	pxa_set_mci_info(&mainstone_mci_platform_data);
@@ -614,7 +616,7 @@ static struct map_desc mainstone_io_desc[] __initdata = {
 
 static void __init mainstone_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 	iotable_init(mainstone_io_desc, ARRAY_SIZE(mainstone_io_desc));
 
  	/*	for use I SRAM as framebuffer.	*/

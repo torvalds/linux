@@ -12,7 +12,6 @@
 #include <linux/uio.h>
 #include <linux/socket.h>
 #include <linux/in.h>
-#include <linux/kref.h>
 #include <linux/ktime.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/xdr.h>
@@ -146,7 +145,7 @@ enum xprt_transports {
 };
 
 struct rpc_xprt {
-	struct kref		kref;		/* Reference count */
+	atomic_t		count;		/* Reference count */
 	struct rpc_xprt_ops *	ops;		/* transport methods */
 
 	const struct rpc_timeout *timeout;	/* timeout parms */
@@ -321,6 +320,7 @@ void			xprt_conditional_disconnect(struct rpc_xprt *xprt, unsigned int cookie);
 #define XPRT_CLOSING		(6)
 #define XPRT_CONNECTION_ABORT	(7)
 #define XPRT_CONNECTION_CLOSE	(8)
+#define XPRT_INITIALIZED	(9)
 
 static inline void xprt_set_connected(struct rpc_xprt *xprt)
 {

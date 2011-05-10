@@ -168,8 +168,9 @@ static u32 __msix_mask_irq(struct msi_desc *desc, u32 flag)
 	u32 mask_bits = desc->masked;
 	unsigned offset = desc->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE +
 						PCI_MSIX_ENTRY_VECTOR_CTRL;
-	mask_bits &= ~1;
-	mask_bits |= flag;
+	mask_bits &= ~PCI_MSIX_ENTRY_CTRL_MASKBIT;
+	if (flag)
+		mask_bits |= PCI_MSIX_ENTRY_CTRL_MASKBIT;
 	writel(mask_bits, desc->mask_base + offset);
 
 	return mask_bits;
@@ -235,7 +236,7 @@ void __read_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 
 void read_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
-	struct msi_desc *entry = get_irq_msi(irq);
+	struct msi_desc *entry = irq_get_msi_desc(irq);
 
 	__read_msi_msg(entry, msg);
 }
@@ -252,7 +253,7 @@ void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 
 void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
-	struct msi_desc *entry = get_irq_msi(irq);
+	struct msi_desc *entry = irq_get_msi_desc(irq);
 
 	__get_cached_msi_msg(entry, msg);
 }
@@ -296,7 +297,7 @@ void __write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 
 void write_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
-	struct msi_desc *entry = get_irq_msi(irq);
+	struct msi_desc *entry = irq_get_msi_desc(irq);
 
 	__write_msi_msg(entry, msg);
 }
@@ -353,7 +354,7 @@ static void __pci_restore_msi_state(struct pci_dev *dev)
 	if (!dev->msi_enabled)
 		return;
 
-	entry = get_irq_msi(dev->irq);
+	entry = irq_get_msi_desc(dev->irq);
 	pos = entry->msi_attrib.pos;
 
 	pci_intx_for_msi(dev, 0);
@@ -518,7 +519,7 @@ static void msix_program_entries(struct pci_dev *dev,
 						PCI_MSIX_ENTRY_VECTOR_CTRL;
 
 		entries[i].vector = entry->irq;
-		set_irq_msi(entry->irq, entry);
+		irq_set_msi_desc(entry->irq, entry);
 		entry->masked = readl(entry->mask_base + offset);
 		msix_mask_irq(entry, 1);
 		i++;

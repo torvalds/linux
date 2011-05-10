@@ -1572,7 +1572,7 @@ static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 	/* Copy monitor specs from panel data */
 	/* fixme: we're setting up LCD controller windows, so these dont give a
 	damn as to what the monitor specs are (the panel itself does, but that
-	isnt done here...so maybe need a generic catchall monitor setting??? */
+	isn't done here...so maybe need a generic catchall monitor setting??? */
 	memcpy(&fbi->monspecs, &panel->monspecs, sizeof(struct fb_monspecs));
 
 	/* We first try the user mode passed in argument. If that failed,

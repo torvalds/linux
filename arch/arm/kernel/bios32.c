@@ -159,31 +159,6 @@ static void __devinit pci_fixup_dec21285(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21285, pci_fixup_dec21285);
 
 /*
- * Same as above. The PrPMC800 carrier board for the PrPMC1100 
- * card maps the host-bridge @ 00:01:00 for some reason and it
- * ends up getting scanned. Note that we only want to do this
- * fixup when we find the IXP4xx on a PrPMC system, which is why
- * we check the machine type. We could be running on a board
- * with an IXP4xx target device and we don't want to kill the
- * resources in that case.
- */
-static void __devinit pci_fixup_prpmc1100(struct pci_dev *dev)
-{
-	int i;
-
-	if (machine_is_prpmc1100()) {
-		dev->class &= 0xff;
-		dev->class |= PCI_CLASS_BRIDGE_HOST << 8;
-		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-			dev->resource[i].start = 0;
-			dev->resource[i].end   = 0;
-			dev->resource[i].flags = 0;
-		}
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IXP4XX, pci_fixup_prpmc1100);
-
-/*
  * PCI IDE controllers use non-standard I/O port decoding, respect it.
  */
 static void __devinit pci_fixup_ide_bases(struct pci_dev *dev)
@@ -583,6 +558,11 @@ void __init pci_common_init(struct hw_pci *hw)
 			 * Assign resources.
 			 */
 			pci_bus_assign_resources(bus);
+
+			/*
+			 * Enable bridges
+			 */
+			pci_enable_bridges(bus);
 		}
 
 		/*

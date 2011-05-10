@@ -26,6 +26,8 @@ enum balloon3_features {
 #define BALLOON3_FPGA_VIRT	(0xf1000000)	/* as per balloon2 */
 #define BALLOON3_FPGA_LENGTH	0x01000000
 
+#define	BALLOON3_FPGA_SETnCLR		(0x1000)
+
 /* FPGA / CPLD registers for CF socket */
 #define	BALLOON3_CF_STATUS_REG		(BALLOON3_FPGA_VIRT + 0x00e00008)
 #define	BALLOON3_CF_CONTROL_REG		(BALLOON3_FPGA_VIRT + 0x00e00008)
@@ -35,7 +37,7 @@ enum balloon3_features {
 #define	BALLOON3_NAND_BASE		(PXA_CS4_PHYS + 0x00e00000)
 #define	BALLOON3_NAND_IO_REG		(BALLOON3_FPGA_VIRT + 0x00e00000)
 #define	BALLOON3_NAND_CONTROL2_REG	(BALLOON3_FPGA_VIRT + 0x00e00010)
-#define	BALLOON3_NAND_STAT_REG		(BALLOON3_FPGA_VIRT + 0x00e00010)
+#define	BALLOON3_NAND_STAT_REG		(BALLOON3_FPGA_VIRT + 0x00e00014)
 #define	BALLOON3_NAND_CONTROL_REG	(BALLOON3_FPGA_VIRT + 0x00e00014)
 
 /* fpga/cpld interrupt control register */
@@ -174,7 +176,7 @@ enum balloon3_features {
 #define BALLOON3_CODEC_IRQ	IRQ_GPIO(BALLOON3_GPIO_CODEC_IRQ)
 #define BALLOON3_S0_CD_IRQ	IRQ_GPIO(BALLOON3_GPIO_S0_CD)
 
-#define BALLOON3_NR_IRQS	(IRQ_BOARD_START + 4)
+#define BALLOON3_NR_IRQS	(IRQ_BOARD_START + 16)
 
 extern int balloon3_has(enum balloon3_features feature);
 

@@ -44,10 +44,5 @@ void __init prom_init_cmdline(void)
 		strcat(arcs_cmdline, " ");
 	}
 
-	if ((strstr(arcs_cmdline, "console=")) == NULL)
-		strcat(arcs_cmdline, " console=ttyS0,115200");
-	if ((strstr(arcs_cmdline, "root=")) == NULL)
-		strcat(arcs_cmdline, " root=/dev/hda1");
-
 	prom_init_machtype();
 }

@@ -1,9 +1,6 @@
 #ifndef IMG_H
 #define IMG_H
 
-#define BOOT_ARR_LEN 344
-#define MAIN_ARR_LEN 45136
-#define DATA_ARR_LEN 796
 #define MACPHY_Array_PGLength 30
 #define PHY_REG_1T2RArrayLength 296
 #define AGCTAB_ArrayLength 384
@@ -15,10 +12,6 @@
 #define RadioD_ArrayLength 1
 #define PHY_REGArrayLength 1
 
-
-extern u8 rtl8190_fwboot_array[BOOT_ARR_LEN];
-extern u8 rtl8190_fwmain_array[MAIN_ARR_LEN];
-extern u8 rtl8190_fwdata_array[DATA_ARR_LEN];
 
 extern u32 Rtl8192UsbPHY_REGArray[];
 extern u32 Rtl8192UsbPHY_REG_1T2RArray[];

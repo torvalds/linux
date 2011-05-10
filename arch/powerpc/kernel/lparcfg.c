@@ -262,7 +262,7 @@ static void parse_ppp_data(struct seq_file *m)
 	seq_printf(m, "system_active_processors=%d\n",
 	           ppp_data.active_system_procs);
 
-	/* pool related entries are apropriate for shared configs */
+	/* pool related entries are appropriate for shared configs */
 	if (lppaca_of(0).shared_proc) {
 		unsigned long pool_idle_time, pool_procs;
 

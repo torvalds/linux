@@ -107,7 +107,6 @@ enum {
 	NLBL_CIPSOV4_C_LISTALL,
 	__NLBL_CIPSOV4_C_MAX,
 };
-#define NLBL_CIPSOV4_C_MAX (__NLBL_CIPSOV4_C_MAX - 1)
 
 /* NetLabel CIPSOv4 attributes */
 enum {

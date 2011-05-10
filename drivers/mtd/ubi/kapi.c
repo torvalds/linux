@@ -40,7 +40,9 @@ void ubi_do_get_device_info(struct ubi_device *ubi, struct ubi_device_info *di)
 {
 	di->ubi_num = ubi->ubi_num;
 	di->leb_size = ubi->leb_size;
+	di->leb_start = ubi->leb_start;
 	di->min_io_size = ubi->min_io_size;
+	di->max_write_size = ubi->max_write_size;
 	di->ro_mode = ubi->ro_mode;
 	di->cdev = ubi->cdev.dev;
 }

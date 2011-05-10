@@ -331,10 +331,60 @@ struct pt_regs
 	unsigned short ilc;
 	unsigned short svcnr;
 };
+
+/*
+ * Program event recording (PER) register set.
+ */
+struct per_regs {
+	unsigned long control;		/* PER control bits */
+	unsigned long start;		/* PER starting address */
+	unsigned long end;		/* PER ending address */
+};
+
+/*
+ * PER event contains information about the cause of the last PER exception.
+ */
+struct per_event {
+	unsigned short cause;		/* PER code, ATMID and AI */
+	unsigned long address;		/* PER address */
+	unsigned char paid;		/* PER access identification */
+};
+
+/*
+ * Simplified per_info structure used to decode the ptrace user space ABI.
+ */
+struct per_struct_kernel {
+	unsigned long cr9;		/* PER control bits */
+	unsigned long cr10;		/* PER starting address */
+	unsigned long cr11;		/* PER ending address */
+	unsigned long bits;		/* Obsolete software bits */
+	unsigned long starting_addr;	/* User specified start address */
+	unsigned long ending_addr;	/* User specified end address */
+	unsigned short perc_atmid;	/* PER trap ATMID */
+	unsigned long address;		/* PER trap instruction address */
+	unsigned char access_id;	/* PER trap access identification */
+};
+
+#define PER_EVENT_MASK			0xE9000000UL
+
+#define PER_EVENT_BRANCH		0x80000000UL
+#define PER_EVENT_IFETCH		0x40000000UL
+#define PER_EVENT_STORE			0x20000000UL
+#define PER_EVENT_STORE_REAL		0x08000000UL
+#define PER_EVENT_NULLIFICATION		0x01000000UL
+
+#define PER_CONTROL_MASK		0x00a00000UL
+
+#define PER_CONTROL_BRANCH_ADDRESS	0x00800000UL
+#define PER_CONTROL_ALTERATION		0x00200000UL
+
 #endif
 
 /*
- * Now for the program event recording (trace) definitions.
+ * Now for the user space program event recording (trace) definitions.
+ * The following structures are used only for the ptrace interface, don't
+ * touch or even look at it if you don't want to modify the user-space
+ * ptrace interface. In particular stay away from it for in-kernel PER.
  */
 typedef struct
 {

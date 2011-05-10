@@ -88,7 +88,7 @@ int saa7164_downloadimage(struct saa7164_dev *dev, u8 *src, u32 srcsize,
 		"%s(image=%p, size=%d, flags=0x%x, dst=%p, dstsize=0x%x)\n",
 		__func__, src, srcsize, dlflags, dst, dstsize);
 
-	if ((src == 0) || (dst == 0)) {
+	if ((src == NULL) || (dst == NULL)) {
 		ret = -EIO;
 		goto out;
 	}
@@ -178,7 +178,7 @@ int saa7164_downloadimage(struct saa7164_dev *dev, u8 *src, u32 srcsize,
 			goto out;
 		}
 
-		msleep(10);
+		msleep(10); /* Checkpatch throws a < 20ms warning */
 		if (timeout++ > 60)
 			break;
 	}
@@ -235,7 +235,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 		while (err_flags != SAA_DEVICE_IMAGE_BOOTING) {
 			dprintk(DBGLVL_FW, "%s() err_flags = %x\n",
 				__func__, err_flags);
-			msleep(10);
+			msleep(10); /* Checkpatch throws a < 20ms warning */
 
 			if (err_flags & SAA_DEVICE_IMAGE_CORRUPT) {
 				printk(KERN_ERR "%s() firmware corrupt\n",
@@ -294,7 +294,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 			while (err_flags != SAA_DEVICE_IMAGE_BOOTING) {
 				dprintk(DBGLVL_FW, "%s() err_flags2 = %x\n",
 					__func__, err_flags);
-				msleep(10);
+				msleep(10); /* Checkpatch throws a < 20ms warning */
 
 				if (err_flags & SAA_DEVICE_IMAGE_CORRUPT) {
 					printk(KERN_ERR
@@ -365,7 +365,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 
 			first_timeout = SAA_DEVICE_TIMEOUT;
 			while (first_timeout) {
-				msleep(10);
+				msleep(10); /* Checkpatch throws a < 20ms warning */
 
 				version =
 					saa7164_getcurrentfirmwareversion(dev);
@@ -444,7 +444,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 		printk(KERN_INFO " .Reserved = 0x%x\n", hdr->reserved);
 		printk(KERN_INFO " .Version = 0x%x\n", hdr->version);
 
-		/* Retreive bootloader if reqd */
+		/* Retrieve bootloader if reqd */
 		if ((hdr->firmwaresize == 0) && (hdr->bslsize == 0))
 			/* Second bootloader in the firmware file */
 			filesize = hdr->reserved * 16;
@@ -608,8 +608,6 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 	ret = 0;
 
 out:
-	if (fw)
-		release_firmware(fw);
-
+	release_firmware(fw);
 	return ret;
 }

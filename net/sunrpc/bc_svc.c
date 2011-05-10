@@ -59,8 +59,8 @@ int bc_send(struct rpc_rqst *req)
 		ret = task->tk_status;
 		rpc_put_task(task);
 	}
-	return ret;
 	dprintk("RPC:       bc_send ret= %d\n", ret);
+	return ret;
 }
 
 #endif /* CONFIG_NFS_V4_1 */

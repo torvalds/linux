@@ -51,7 +51,7 @@
  *   [rt2x00dump header][hardware descriptor][ieee802.11 frame]
  *
  * rt2x00dump header: The description of the dumped frame, as well as
- *	additional information usefull for debugging. See &rt2x00dump_hdr.
+ *	additional information useful for debugging. See &rt2x00dump_hdr.
  * hardware descriptor: Descriptor that was used to receive or transmit
  *	the frame.
  * ieee802.11 frame: The actual frame that was received or transmitted.

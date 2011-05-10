@@ -180,7 +180,7 @@ struct lmc___ctl {
 
 
 /*
- * Carefull, look at the data sheet, there's more to this
+ * Careful, look at the data sheet, there's more to this
  * structure than meets the eye.  It should probably be:
  *
  * struct tulip_desc_t {
@@ -380,7 +380,7 @@ struct lmc___softc {
 /* CSR6 settings */
 #define OPERATION_MODE  0x00000200 /* Full Duplex      */
 #define PROMISC_MODE    0x00000040 /* Promiscuous Mode */
-#define RECIEVE_ALL     0x40000000 /* Recieve All      */
+#define RECIEVE_ALL     0x40000000 /* Receive All      */
 #define PASS_BAD_FRAMES 0x00000008 /* Pass Bad Frames  */
 
 /* Dec control registers  CSR6 as well */
@@ -398,7 +398,7 @@ struct lmc___softc {
 #define TULIP_CMD_RECEIVEALL    0x40000000L /* (RW)  Receivel all frames? */
 #define TULIP_CMD_MUSTBEONE     0x02000000L /* (RW)  Must Be One (21140) */
 #define TULIP_CMD_TXTHRSHLDCTL  0x00400000L /* (RW)  Transmit Threshold Mode (21140) */
-#define TULIP_CMD_STOREFWD      0x00200000L /* (RW)  Store and Foward (21140) */
+#define TULIP_CMD_STOREFWD      0x00200000L /* (RW)  Store and Forward (21140) */
 #define TULIP_CMD_NOHEARTBEAT   0x00080000L /* (RW)  No Heartbeat (21140) */
 #define TULIP_CMD_PORTSELECT    0x00040000L /* (RW)  Post Select (100Mb) (21140) */
 #define TULIP_CMD_FULLDUPLEX    0x00000200L /* (RW)  Full Duplex Mode */

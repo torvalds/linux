@@ -28,9 +28,9 @@ ENTRY(startup_xen)
 	__FINIT
 
 .pushsection .text
-	.align PAGE_SIZE_asm
+	.align PAGE_SIZE
 ENTRY(hypercall_page)
-	.skip PAGE_SIZE_asm
+	.skip PAGE_SIZE
 .popsection
 
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")

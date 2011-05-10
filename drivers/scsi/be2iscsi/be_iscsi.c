@@ -210,28 +210,20 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 }
 
 /**
- * beiscsi_conn_get_param - get the iscsi parameter
- * @cls_conn: pointer to iscsi cls conn
+ * beiscsi_ep_get_param - get the iscsi parameter
+ * @ep: pointer to iscsi ep
  * @param: parameter type identifier
  * @buf: buffer pointer
  *
  * returns iscsi parameter
  */
-int beiscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
+int beiscsi_ep_get_param(struct iscsi_endpoint *ep,
 			   enum iscsi_param param, char *buf)
 {
-	struct beiscsi_endpoint *beiscsi_ep;
-	struct iscsi_conn *conn = cls_conn->dd_data;
-	struct beiscsi_conn *beiscsi_conn = conn->dd_data;
+	struct beiscsi_endpoint *beiscsi_ep = ep->dd_data;
 	int len = 0;
 
 	SE_DEBUG(DBG_LVL_8, "In beiscsi_conn_get_param, param= %d\n", param);
-	beiscsi_ep = beiscsi_conn->ep;
-	if (!beiscsi_ep) {
-		SE_DEBUG(DBG_LVL_1,
-			 "In beiscsi_conn_get_param , no beiscsi_ep\n");
-		return -ENODEV;
-	}
 
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:
@@ -244,7 +236,7 @@ int beiscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 			len = sprintf(buf, "%pI6\n", &beiscsi_ep->dst6_addr);
 		break;
 	default:
-		return iscsi_conn_get_param(cls_conn, param, buf);
+		return -ENOSYS;
 	}
 	return len;
 }

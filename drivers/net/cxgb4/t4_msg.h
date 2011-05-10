@@ -123,6 +123,7 @@ enum {
 	ULP_MODE_NONE          = 0,
 	ULP_MODE_ISCSI         = 2,
 	ULP_MODE_RDMA          = 4,
+	ULP_MODE_TCPDDP	       = 5,
 	ULP_MODE_FCOE          = 6,
 };
 

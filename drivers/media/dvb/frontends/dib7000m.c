@@ -805,7 +805,7 @@ static void dib7000m_set_channel(struct dib7000m_state *state, struct dvb_fronte
 	value = 0;
 	switch (ch->u.ofdm.transmission_mode) {
 		case TRANSMISSION_MODE_2K: value |= (0 << 7); break;
-		case /* 4K MODE */ 255: value |= (2 << 7); break;
+		case TRANSMISSION_MODE_4K: value |= (2 << 7); break;
 		default:
 		case TRANSMISSION_MODE_8K: value |= (1 << 7); break;
 	}
@@ -866,7 +866,7 @@ static void dib7000m_set_channel(struct dib7000m_state *state, struct dvb_fronte
 	/* P_dvsy_sync_wait */
 	switch (ch->u.ofdm.transmission_mode) {
 		case TRANSMISSION_MODE_8K: value = 256; break;
-		case /* 4K MODE */ 255: value = 128; break;
+		case TRANSMISSION_MODE_4K: value = 128; break;
 		case TRANSMISSION_MODE_2K:
 		default: value = 64; break;
 	}
@@ -1020,7 +1020,7 @@ static int dib7000m_tune(struct dvb_frontend *demod, struct dvb_frontend_paramet
 	value = (6 << 8) | 0x80;
 	switch (ch->u.ofdm.transmission_mode) {
 		case TRANSMISSION_MODE_2K: value |= (7 << 12); break;
-		case /* 4K MODE */ 255: value |= (8 << 12); break;
+		case TRANSMISSION_MODE_4K: value |= (8 << 12); break;
 		default:
 		case TRANSMISSION_MODE_8K: value |= (9 << 12); break;
 	}
@@ -1030,7 +1030,7 @@ static int dib7000m_tune(struct dvb_frontend *demod, struct dvb_frontend_paramet
 	value = (0 << 4);
 	switch (ch->u.ofdm.transmission_mode) {
 		case TRANSMISSION_MODE_2K: value |= 0x6; break;
-		case /* 4K MODE */ 255: value |= 0x7; break;
+		case TRANSMISSION_MODE_4K: value |= 0x7; break;
 		default:
 		case TRANSMISSION_MODE_8K: value |= 0x8; break;
 	}
@@ -1040,7 +1040,7 @@ static int dib7000m_tune(struct dvb_frontend *demod, struct dvb_frontend_paramet
 	value = (0 << 4);
 	switch (ch->u.ofdm.transmission_mode) {
 		case TRANSMISSION_MODE_2K: value |= 0x6; break;
-		case /* 4K MODE */ 255: value |= 0x7; break;
+		case TRANSMISSION_MODE_4K: value |= 0x7; break;
 		default:
 		case TRANSMISSION_MODE_8K: value |= 0x8; break;
 	}
@@ -1284,6 +1284,25 @@ struct i2c_adapter * dib7000m_get_i2c_master(struct dvb_frontend *demod, enum di
 	return dibx000_get_i2c_adapter(&st->i2c_master, intf, gating);
 }
 EXPORT_SYMBOL(dib7000m_get_i2c_master);
+
+int dib7000m_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
+{
+	struct dib7000m_state *state = fe->demodulator_priv;
+	u16 val = dib7000m_read_word(state, 294 + state->reg_offs) & 0xffef;
+	val |= (onoff & 0x1) << 4;
+	dprintk("PID filter enabled %d", onoff);
+	return dib7000m_write_word(state, 294 + state->reg_offs, val);
+}
+EXPORT_SYMBOL(dib7000m_pid_filter_ctrl);
+
+int dib7000m_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
+{
+	struct dib7000m_state *state = fe->demodulator_priv;
+	dprintk("PID filter: index %x, PID %d, OnOff %d", id, pid, onoff);
+	return dib7000m_write_word(state, 300 + state->reg_offs + id,
+			onoff ? (1 << 13) | pid : 0);
+}
+EXPORT_SYMBOL(dib7000m_pid_filter);
 
 #if 0
 /* used with some prototype boards */

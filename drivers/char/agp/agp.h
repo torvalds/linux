@@ -120,7 +120,6 @@ struct agp_bridge_driver {
 	void (*agp_destroy_page)(struct page *, int flags);
 	void (*agp_destroy_pages)(struct agp_memory *);
 	int (*agp_type_to_mask_type) (struct agp_bridge_data *, int);
-	void (*chipset_flush)(struct agp_bridge_data *);
 };
 
 struct agp_bridge_data {
@@ -238,7 +237,7 @@ extern int agp_try_unsupported_boot;
 
 long compat_agp_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 
-/* Chipset independant registers (from AGP Spec) */
+/* Chipset independent registers (from AGP Spec) */
 #define AGP_APBASE	0x10
 
 #define AGPSTAT		0x4

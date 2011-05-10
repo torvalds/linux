@@ -23,9 +23,6 @@
 /* Helper macros */
 #define EP_NO(ep)	((ep->bEndpointAddress) & ~USB_DIR_IN) /* IN:1, OUT:0 */
 #define EP_DIR(ep)	((ep->bEndpointAddress) & USB_DIR_IN ? 1 : 0)
-#define irq_to_ep(irq)	(((irq) >= USBD_INT0) || ((irq) <= USBD_INT6) \
-		? ((irq) - USBD_INT0) : (USBD_INT6)) /*should not happen*/
-#define ep_to_irq(ep)	(EP_NO((ep)) + USBD_INT0)
 #define IMX_USB_NB_EP	6
 
 /* Driver structures */

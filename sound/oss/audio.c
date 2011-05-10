@@ -514,7 +514,7 @@ int audio_ioctl(int dev, struct file *file, unsigned int cmd, void __user *arg)
 				count += dmap->bytes_in_use;	/* Pointer wrap not handled yet */
 			count += dmap->byte_counter;
 		
-			/* Substract current count from the number of bytes written by app */
+			/* Subtract current count from the number of bytes written by app */
 			count = dmap->user_counter - count;
 			if (count < 0)
 				count = 0;
@@ -931,7 +931,7 @@ static int dma_ioctl(int dev, unsigned int cmd, void __user *arg)
 			if (count < dmap_out->fragment_size && dmap_out->qhead != 0)
 				count += dmap_out->bytes_in_use;	/* Pointer wrap not handled yet */
 			count += dmap_out->byte_counter;
-			/* Substract current count from the number of bytes written by app */
+			/* Subtract current count from the number of bytes written by app */
 			count = dmap_out->user_counter - count;
 			if (count < 0)
 				count = 0;

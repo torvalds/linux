@@ -111,7 +111,7 @@ struct ipmi_ipmb_addr {
  * A LAN Address.  This is an address to/from a LAN interface bridged
  * by the BMC, not an address actually out on the LAN.
  *
- * A concious decision was made here to deviate slightly from the IPMI
+ * A conscious decision was made here to deviate slightly from the IPMI
  * spec.  We do not use rqSWID and rsSWID like it shows in the
  * message.  Instead, we use remote_SWID and local_SWID.  This means
  * that any message (a request or response) from another device will
@@ -259,7 +259,7 @@ struct ipmi_recv_msg {
 	void (*done)(struct ipmi_recv_msg *msg);
 
 	/* Place-holder for the data, don't make any assumptions about
-	   the size or existance of this, since it may change. */
+	   the size or existence of this, since it may change. */
 	unsigned char   msg_data[IPMI_MAX_MSG_LENGTH];
 };
 
@@ -453,6 +453,44 @@ unsigned int ipmi_addr_length(int addr_type);
 
 /* Validate that the given IPMI address is valid. */
 int ipmi_validate_addr(struct ipmi_addr *addr, int len);
+
+/*
+ * How did the IPMI driver find out about the device?
+ */
+enum ipmi_addr_src {
+	SI_INVALID = 0, SI_HOTMOD, SI_HARDCODED, SI_SPMI, SI_ACPI, SI_SMBIOS,
+	SI_PCI,	SI_DEVICETREE, SI_DEFAULT
+};
+
+union ipmi_smi_info_union {
+	/*
+	 * the acpi_info element is defined for the SI_ACPI
+	 * address type
+	 */
+	struct {
+		void *acpi_handle;
+	} acpi_info;
+};
+
+struct ipmi_smi_info {
+	enum ipmi_addr_src addr_src;
+
+	/*
+	 * Base device for the interface.  Don't forget to put this when
+	 * you are done.
+	 */
+	struct device *dev;
+
+	/*
+	 * The addr_info provides more detailed info for some IPMI
+	 * devices, depending on the addr_src.  Currently only SI_ACPI
+	 * info is provided.
+	 */
+	union ipmi_smi_info_union addr_info;
+};
+
+/* This is to get the private info of ipmi_smi_t */
+extern int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data);
 
 #endif /* __KERNEL__ */
 

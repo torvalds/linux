@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2009 Solarflare Communications Inc.
+ * Copyright 2006-2011 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -40,26 +40,6 @@
 
 #define RX_DC_ENTRIES 64
 #define RX_DC_ENTRIES_ORDER 3
-
-/* RX FIFO XOFF watermark
- *
- * When the amount of the RX FIFO increases used increases past this
- * watermark send XOFF. Only used if RX flow control is enabled (ethtool -A)
- * This also has an effect on RX/TX arbitration
- */
-int efx_nic_rx_xoff_thresh = -1;
-module_param_named(rx_xoff_thresh_bytes, efx_nic_rx_xoff_thresh, int, 0644);
-MODULE_PARM_DESC(rx_xoff_thresh_bytes, "RX fifo XOFF threshold");
-
-/* RX FIFO XON watermark
- *
- * When the amount of the RX FIFO used decreases below this
- * watermark send XON. Only used if TX flow control is enabled (ethtool -A)
- * This also has an effect on RX/TX arbitration
- */
-int efx_nic_rx_xon_thresh = -1;
-module_param_named(rx_xon_thresh_bytes, efx_nic_rx_xon_thresh, int, 0644);
-MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
 
 /* If EFX_MAX_INT_ERRORS internal errors occur within
  * EFX_INT_ERROR_EXPIRE seconds, we consider the NIC broken and
@@ -104,7 +84,8 @@ static inline void efx_write_buf_tbl(struct efx_nic *efx, efx_qword_t *value,
 static inline efx_qword_t *efx_event(struct efx_channel *channel,
 				     unsigned int index)
 {
-	return ((efx_qword_t *) (channel->eventq.addr)) + index;
+	return ((efx_qword_t *) (channel->eventq.addr)) +
+		(index & channel->eventq_mask);
 }
 
 /* See if an event is present
@@ -362,6 +343,35 @@ static inline void efx_notify_tx_desc(struct efx_tx_queue *tx_queue)
 			FR_AZ_TX_DESC_UPD_DWORD_P0, tx_queue->queue);
 }
 
+/* Write pointer and first descriptor for TX descriptor ring */
+static inline void efx_push_tx_desc(struct efx_tx_queue *tx_queue,
+				    const efx_qword_t *txd)
+{
+	unsigned write_ptr;
+	efx_oword_t reg;
+
+	BUILD_BUG_ON(FRF_AZ_TX_DESC_LBN != 0);
+	BUILD_BUG_ON(FR_AA_TX_DESC_UPD_KER != FR_BZ_TX_DESC_UPD_P0);
+
+	write_ptr = tx_queue->write_count & tx_queue->ptr_mask;
+	EFX_POPULATE_OWORD_2(reg, FRF_AZ_TX_DESC_PUSH_CMD, true,
+			     FRF_AZ_TX_DESC_WPTR, write_ptr);
+	reg.qword[0] = *txd;
+	efx_writeo_page(tx_queue->efx, &reg,
+			FR_BZ_TX_DESC_UPD_P0, tx_queue->queue);
+}
+
+static inline bool
+efx_may_push_tx_desc(struct efx_tx_queue *tx_queue, unsigned int write_count)
+{
+	unsigned empty_read_count = ACCESS_ONCE(tx_queue->empty_read_count);
+
+	if (empty_read_count == 0)
+		return false;
+
+	tx_queue->empty_read_count = 0;
+	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0;
+}
 
 /* For each entry inserted into the software descriptor ring, create a
  * descriptor in the hardware TX descriptor ring (in host memory), and
@@ -373,6 +383,7 @@ void efx_nic_push_buffers(struct efx_tx_queue *tx_queue)
 	struct efx_tx_buffer *buffer;
 	efx_qword_t *txd;
 	unsigned write_ptr;
+	unsigned old_write_count = tx_queue->write_count;
 
 	BUG_ON(tx_queue->write_count == tx_queue->insert_count);
 
@@ -391,7 +402,15 @@ void efx_nic_push_buffers(struct efx_tx_queue *tx_queue)
 	} while (tx_queue->write_count != tx_queue->insert_count);
 
 	wmb(); /* Ensure descriptors are written before they are fetched */
-	efx_notify_tx_desc(tx_queue);
+
+	if (efx_may_push_tx_desc(tx_queue, old_write_count)) {
+		txd = efx_tx_desc(tx_queue,
+				  old_write_count & tx_queue->ptr_mask);
+		efx_push_tx_desc(tx_queue, txd);
+		++tx_queue->pushes;
+	} else {
+		efx_notify_tx_desc(tx_queue);
+	}
 }
 
 /* Allocate hardware resources for a TX queue */
@@ -407,8 +426,8 @@ int efx_nic_probe_tx(struct efx_tx_queue *tx_queue)
 
 void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 {
-	efx_oword_t tx_desc_ptr;
 	struct efx_nic *efx = tx_queue->efx;
+	efx_oword_t reg;
 
 	tx_queue->flushed = FLUSH_NONE;
 
@@ -416,7 +435,7 @@ void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 	efx_init_special_buffer(efx, &tx_queue->txd);
 
 	/* Push TX descriptor ring to card */
-	EFX_POPULATE_OWORD_10(tx_desc_ptr,
+	EFX_POPULATE_OWORD_10(reg,
 			      FRF_AZ_TX_DESCQ_EN, 1,
 			      FRF_AZ_TX_ISCSI_DDIG_EN, 0,
 			      FRF_AZ_TX_ISCSI_HDIG_EN, 0,
@@ -432,17 +451,15 @@ void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
 		int csum = tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD;
-		EFX_SET_OWORD_FIELD(tx_desc_ptr, FRF_BZ_TX_IP_CHKSM_DIS, !csum);
-		EFX_SET_OWORD_FIELD(tx_desc_ptr, FRF_BZ_TX_TCP_CHKSM_DIS,
+		EFX_SET_OWORD_FIELD(reg, FRF_BZ_TX_IP_CHKSM_DIS, !csum);
+		EFX_SET_OWORD_FIELD(reg, FRF_BZ_TX_TCP_CHKSM_DIS,
 				    !csum);
 	}
 
-	efx_writeo_table(efx, &tx_desc_ptr, efx->type->txd_ptr_tbl_base,
+	efx_writeo_table(efx, &reg, efx->type->txd_ptr_tbl_base,
 			 tx_queue->queue);
 
 	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0) {
-		efx_oword_t reg;
-
 		/* Only 128 bits in this register */
 		BUILD_BUG_ON(EFX_MAX_TX_QUEUES > 128);
 
@@ -452,6 +469,16 @@ void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 		else
 			set_bit_le(tx_queue->queue, (void *)&reg);
 		efx_writeo(efx, &reg, FR_AA_TX_CHKSM_CFG);
+	}
+
+	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
+		EFX_POPULATE_OWORD_1(reg,
+				     FRF_BZ_TX_PACE,
+				     (tx_queue->queue & EFX_TXQ_TYPE_HIGHPRI) ?
+				     FFE_BZ_TX_PACE_OFF :
+				     FFE_BZ_TX_PACE_RESERVED);
+		efx_writeo_table(efx, &reg, FR_BZ_TX_PACE_TBL,
+				 tx_queue->queue);
 	}
 }
 
@@ -647,7 +674,8 @@ void efx_nic_eventq_read_ack(struct efx_channel *channel)
 	efx_dword_t reg;
 	struct efx_nic *efx = channel->efx;
 
-	EFX_POPULATE_DWORD_1(reg, FRF_AZ_EVQ_RPTR, channel->eventq_read_ptr);
+	EFX_POPULATE_DWORD_1(reg, FRF_AZ_EVQ_RPTR,
+			     channel->eventq_read_ptr & channel->eventq_mask);
 	efx_writed_table(efx, &reg, efx->type->evq_rptr_tbl_base,
 			 channel->channel);
 }
@@ -882,7 +910,7 @@ efx_handle_generated_event(struct efx_channel *channel, efx_qword_t *event)
 
 	code = EFX_QWORD_FIELD(*event, FSF_AZ_DRV_GEN_EV_MAGIC);
 	if (code == EFX_CHANNEL_MAGIC_TEST(channel))
-		++channel->magic_count;
+		; /* ignore */
 	else if (code == EFX_CHANNEL_MAGIC_FILL(channel))
 		/* The queue must be empty, so we won't receive any rx
 		 * events, so efx_process_channel() won't refill the
@@ -892,46 +920,6 @@ efx_handle_generated_event(struct efx_channel *channel, efx_qword_t *event)
 		netif_dbg(efx, hw, efx->net_dev, "channel %d received "
 			  "generated event "EFX_QWORD_FMT"\n",
 			  channel->channel, EFX_QWORD_VAL(*event));
-}
-
-/* Global events are basically PHY events */
-static void
-efx_handle_global_event(struct efx_channel *channel, efx_qword_t *event)
-{
-	struct efx_nic *efx = channel->efx;
-	bool handled = false;
-
-	if (EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_G_PHY0_INTR) ||
-	    EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_XG_PHY0_INTR) ||
-	    EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_XFP_PHY0_INTR)) {
-		/* Ignored */
-		handled = true;
-	}
-
-	if ((efx_nic_rev(efx) >= EFX_REV_FALCON_B0) &&
-	    EFX_QWORD_FIELD(*event, FSF_BB_GLB_EV_XG_MGT_INTR)) {
-		efx->xmac_poll_required = true;
-		handled = true;
-	}
-
-	if (efx_nic_rev(efx) <= EFX_REV_FALCON_A1 ?
-	    EFX_QWORD_FIELD(*event, FSF_AA_GLB_EV_RX_RECOVERY) :
-	    EFX_QWORD_FIELD(*event, FSF_BB_GLB_EV_RX_RECOVERY)) {
-		netif_err(efx, rx_err, efx->net_dev,
-			  "channel %d seen global RX_RESET event. Resetting.\n",
-			  channel->channel);
-
-		atomic_inc(&efx->rx_reset);
-		efx_schedule_reset(efx, EFX_WORKAROUND_6555(efx) ?
-				   RESET_TYPE_RX_RECOVERY : RESET_TYPE_DISABLE);
-		handled = true;
-	}
-
-	if (!handled)
-		netif_err(efx, hw, efx->net_dev,
-			  "channel %d unknown global event "
-			  EFX_QWORD_FMT "\n", channel->channel,
-			  EFX_QWORD_VAL(*event));
 }
 
 static void
@@ -1029,8 +1017,7 @@ int efx_nic_process_eventq(struct efx_channel *channel, int budget)
 		/* Clear this event by marking it all ones */
 		EFX_SET_QWORD(*p_event);
 
-		/* Increment read pointer */
-		read_ptr = (read_ptr + 1) & channel->eventq_mask;
+		++read_ptr;
 
 		ev_code = EFX_QWORD_FIELD(event, FSF_AZ_EV_CODE);
 
@@ -1050,15 +1037,17 @@ int efx_nic_process_eventq(struct efx_channel *channel, int budget)
 		case FSE_AZ_EV_CODE_DRV_GEN_EV:
 			efx_handle_generated_event(channel, &event);
 			break;
-		case FSE_AZ_EV_CODE_GLOBAL_EV:
-			efx_handle_global_event(channel, &event);
-			break;
 		case FSE_AZ_EV_CODE_DRIVER_EV:
 			efx_handle_driver_event(channel, &event);
 			break;
 		case FSE_CZ_EV_CODE_MCDI_EV:
 			efx_mcdi_process_event(channel, &event);
 			break;
+		case FSE_AZ_EV_CODE_GLOBAL_EV:
+			if (efx->type->handle_global_event &&
+			    efx->type->handle_global_event(channel, &event))
+				break;
+			/* else fall through */
 		default:
 			netif_err(channel->efx, hw, channel->efx->net_dev,
 				  "channel %d unknown event type %d (data "
@@ -1072,6 +1061,13 @@ out:
 	return spent;
 }
 
+/* Check whether an event is present in the eventq at the current
+ * read pointer.  Only useful for self-test.
+ */
+bool efx_nic_event_present(struct efx_channel *channel)
+{
+	return efx_event_present(efx_event(channel, channel->eventq_read_ptr));
+}
 
 /* Allocate buffer table entries for event queue */
 int efx_nic_probe_eventq(struct efx_channel *channel)
@@ -1177,7 +1173,7 @@ static void efx_poll_flush_events(struct efx_nic *efx)
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
 	unsigned int read_ptr = channel->eventq_read_ptr;
-	unsigned int end_ptr = (read_ptr - 1) & channel->eventq_mask;
+	unsigned int end_ptr = read_ptr + channel->eventq_mask - 1;
 
 	do {
 		efx_qword_t *event = efx_event(channel, read_ptr);
@@ -1217,7 +1213,7 @@ static void efx_poll_flush_events(struct efx_nic *efx)
 		 * it's ok to throw away every non-flush event */
 		EFX_SET_QWORD(*event);
 
-		read_ptr = (read_ptr + 1) & channel->eventq_mask;
+		++read_ptr;
 	} while (read_ptr != end_ptr);
 
 	channel->eventq_read_ptr = read_ptr;
@@ -1238,8 +1234,10 @@ int efx_nic_flush_queues(struct efx_nic *efx)
 
 	/* Flush all tx queues in parallel */
 	efx_for_each_channel(channel, efx) {
-		efx_for_each_channel_tx_queue(tx_queue, channel)
-			efx_flush_tx_queue(tx_queue);
+		efx_for_each_possible_channel_tx_queue(tx_queue, channel) {
+			if (tx_queue->initialised)
+				efx_flush_tx_queue(tx_queue);
+		}
 	}
 
 	/* The hardware supports four concurrent rx flushes, each of which may
@@ -1262,8 +1260,9 @@ int efx_nic_flush_queues(struct efx_nic *efx)
 					++rx_pending;
 				}
 			}
-			efx_for_each_channel_tx_queue(tx_queue, channel) {
-				if (tx_queue->flushed != FLUSH_DONE)
+			efx_for_each_possible_channel_tx_queue(tx_queue, channel) {
+				if (tx_queue->initialised &&
+				    tx_queue->flushed != FLUSH_DONE)
 					++tx_pending;
 			}
 		}
@@ -1278,8 +1277,9 @@ int efx_nic_flush_queues(struct efx_nic *efx)
 	/* Mark the queues as all flushed. We're going to return failure
 	 * leading to a reset, or fake up success anyway */
 	efx_for_each_channel(channel, efx) {
-		efx_for_each_channel_tx_queue(tx_queue, channel) {
-			if (tx_queue->flushed != FLUSH_DONE)
+		efx_for_each_possible_channel_tx_queue(tx_queue, channel) {
+			if (tx_queue->initialised &&
+			    tx_queue->flushed != FLUSH_DONE)
 				netif_err(efx, hw, efx->net_dev,
 					  "tx queue %d flush command timed out\n",
 					  tx_queue->queue);
@@ -1417,6 +1417,12 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 	efx_dword_t reg;
 	u32 queues;
 	int syserr;
+
+	/* Could this be ours?  If interrupts are disabled then the
+	 * channel state may not be valid.
+	 */
+	if (!efx->legacy_irq_enabled)
+		return result;
 
 	/* Read the ISR which also ACKs the interrupts */
 	efx_readd(efx, &reg, FR_BZ_INT_ISR0);
@@ -1664,7 +1670,7 @@ void efx_nic_init_common(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_RX_SPACER, 0xfe);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_RX_SPACER_EN, 1);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_ONE_PKT_PER_Q, 1);
-	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_PUSH_EN, 0);
+	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_PUSH_EN, 1);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_DIS_NON_IP_EV, 1);
 	/* Enable SW_EV to inherit in char driver - assume harmless here */
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_SOFT_EVT_EN, 1);
@@ -1676,6 +1682,19 @@ void efx_nic_init_common(struct efx_nic *efx)
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0)
 		EFX_SET_OWORD_FIELD(temp, FRF_BZ_TX_FLUSH_MIN_LEN_EN, 1);
 	efx_writeo(efx, &temp, FR_AZ_TX_RESERVED);
+
+	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
+		EFX_POPULATE_OWORD_4(temp,
+				     /* Default values */
+				     FRF_BZ_TX_PACE_SB_NOT_AF, 0x15,
+				     FRF_BZ_TX_PACE_SB_AF, 0xb,
+				     FRF_BZ_TX_PACE_FB_BASE, 0,
+				     /* Allow large pace values in the
+				      * fast bin. */
+				     FRF_BZ_TX_PACE_BIN_TH,
+				     FFE_BZ_TX_PACE_RESERVED);
+		efx_writeo(efx, &temp, FR_BZ_TX_PACE);
+	}
 }
 
 /* Register dump */

@@ -37,7 +37,8 @@ isofs_cmp(struct dentry *dentry, const char *compare, int dlen)
 
 	qstr.name = compare;
 	qstr.len = dlen;
-	return dentry->d_op->d_compare(dentry, &dentry->d_name, &qstr);
+	return dentry->d_op->d_compare(NULL, NULL, NULL, NULL,
+			dentry->d_name.len, dentry->d_name.name, &qstr);
 }
 
 /*
@@ -170,8 +171,6 @@ struct dentry *isofs_lookup(struct inode *dir, struct dentry *dentry, struct nam
 	struct isofs_sb_info *sbi = ISOFS_SB(dir->i_sb);
 	struct inode *inode;
 	struct page *page;
-
-	dentry->d_op = dir->i_sb->s_root->d_op;
 
 	page = alloc_page(GFP_USER);
 	if (!page)

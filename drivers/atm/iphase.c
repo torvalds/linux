@@ -1025,7 +1025,7 @@ static void desc_dbg(IADEV *iadev) {
 } 
   
   
-/*----------------------------- Recieving side stuff --------------------------*/  
+/*----------------------------- Receiving side stuff --------------------------*/  
  
 static void rx_excp_rcvd(struct atm_dev *dev)  
 {  
@@ -1195,7 +1195,7 @@ static void rx_intr(struct atm_dev *dev)
   if (status & RX_PKT_RCVD)  
   {  
 	/* do something */  
-	/* Basically recvd an interrupt for receving a packet.  
+	/* Basically recvd an interrupt for receiving a packet.  
 	A descriptor would have been written to the packet complete   
 	queue. Get all the descriptors and set up dma to move the   
 	packets till the packet complete queue is empty..  
@@ -1855,7 +1855,7 @@ static int open_tx(struct atm_vcc *vcc)
                     return -EINVAL; 
                 }
                 if (vcc->qos.txtp.max_pcr > iadev->LineRate) {
-                   IF_CBR(printk("PCR is not availble\n");)
+                   IF_CBR(printk("PCR is not available\n");)
                    return -1;
                 }
                 vc->type = CBR;
@@ -2063,7 +2063,7 @@ static int tx_init(struct atm_dev *dev)
 		- UBR Table size is 4K  
 		- UBR wait queue is 4K  
 	   since the table and wait queues are contiguous, all the bytes   
-	   can be initialized by one memeset.  
+	   can be initialized by one memeset.
 	*/  
         
         vcsize_sel = 0;
@@ -2089,7 +2089,7 @@ static int tx_init(struct atm_dev *dev)
 		- ABR Table size is 2K  
 		- ABR wait queue is 2K  
 	   since the table and wait queues are contiguous, all the bytes   
-	   can be intialized by one memeset.  
+	   can be initialized by one memeset.
 	*/  
         i = ABR_SCHED_TABLE * iadev->memSize;
         writew((i >> 11) & 0xffff, iadev->seg_reg+ABR_SBPTR_BASE);
@@ -3172,7 +3172,7 @@ static int __devinit ia_init_one(struct pci_dev *pdev,
 		ret = -ENODEV;
 		goto err_out_free_iadev;
 	}
-	dev = atm_dev_register(DEV_LABEL, &ops, -1, NULL);
+	dev = atm_dev_register(DEV_LABEL, &pdev->dev, &ops, -1, NULL);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err_out_disable_dev;

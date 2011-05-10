@@ -46,12 +46,12 @@
  * 	- setups the iomux according to the configuration
  * 	- if the pin is configured as a GPIO, we claim it through kernel gpiolib
  */
-int mxc_iomux_alloc_pin(const unsigned int pin_mode, const char *label);
+int mxc_iomux_alloc_pin(unsigned int pin_mode, const char *label);
 /*
  * setups mutliple pins
  * convenient way to call the above function with tables
  */
-int mxc_iomux_setup_multiple_pins(unsigned int *pin_list, unsigned count,
+int mxc_iomux_setup_multiple_pins(const unsigned int *pin_list, unsigned count,
 		const char *label);
 
 /*
@@ -60,12 +60,12 @@ int mxc_iomux_setup_multiple_pins(unsigned int *pin_list, unsigned count,
  * 	- frees the GPIO if the pin was configured as GPIO
  * 	- DOES NOT reconfigure the IOMUX in its reset state
  */
-void mxc_iomux_release_pin(const unsigned int pin_mode);
+void mxc_iomux_release_pin(unsigned int pin_mode);
 /*
  * releases multiple pins
  * convenvient way to call the above function with tables
  */
-void mxc_iomux_release_multiple_pins(unsigned int *pin_list, int count);
+void mxc_iomux_release_multiple_pins(const unsigned int *pin_list, int count);
 
 #define MUX_SIDE_AP		(0)
 #define MUX_SIDE_SP		(1)

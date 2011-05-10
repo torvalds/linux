@@ -17,7 +17,7 @@ from perf_trace_context import *
 from Core import *
 from Util import *
 
-usage = "perf trace -s sctop.py [comm] [interval]\n";
+usage = "perf script -s sctop.py [comm] [interval]\n";
 
 for_comm = None
 default_interval = 3

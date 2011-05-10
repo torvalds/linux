@@ -248,7 +248,7 @@ static int is_valid_page(struct snd_emu10k1 *emu, dma_addr_t addr)
 /*
  * map the given memory block on PTB.
  * if the block is already mapped, update the link order.
- * if no empty pages are found, tries to release unsed memory blocks
+ * if no empty pages are found, tries to release unused memory blocks
  * and retry the mapping.
  */
 int snd_emu10k1_memblk_map(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk)

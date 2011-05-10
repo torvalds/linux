@@ -173,7 +173,7 @@ static int vp1033_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 		msleep(250);
 
 		dprintk(MANTIS_ERROR, 1, "Probing for STV0299 (DVB-S)");
-		fe = stv0299_attach(&lgtdqcs001f_config, adapter);
+		fe = dvb_attach(stv0299_attach, &lgtdqcs001f_config, adapter);
 
 		if (fe) {
 			fe->ops.tuner_ops.set_params = lgtdqcs001f_tuner_set;

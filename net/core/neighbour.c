@@ -41,7 +41,6 @@
 
 #define NEIGH_PRINTK(x...) printk(x)
 #define NEIGH_NOPRINTK(x...) do { ; } while(0)
-#define NEIGH_PRINTK0 NEIGH_PRINTK
 #define NEIGH_PRINTK1 NEIGH_NOPRINTK
 #define NEIGH_PRINTK2 NEIGH_NOPRINTK
 
@@ -317,7 +316,7 @@ static struct neigh_hash_table *neigh_hash_alloc(unsigned int entries)
 {
 	size_t size = entries * sizeof(struct neighbour *);
 	struct neigh_hash_table *ret;
-	struct neighbour **buckets;
+	struct neighbour __rcu **buckets;
 
 	ret = kmalloc(sizeof(*ret), GFP_ATOMIC);
 	if (!ret)
@@ -325,14 +324,14 @@ static struct neigh_hash_table *neigh_hash_alloc(unsigned int entries)
 	if (size <= PAGE_SIZE)
 		buckets = kzalloc(size, GFP_ATOMIC);
 	else
-		buckets = (struct neighbour **)
+		buckets = (struct neighbour __rcu **)
 			  __get_free_pages(GFP_ATOMIC | __GFP_ZERO,
 					   get_order(size));
 	if (!buckets) {
 		kfree(ret);
 		return NULL;
 	}
-	rcu_assign_pointer(ret->hash_buckets, buckets);
+	ret->hash_buckets = buckets;
 	ret->hash_mask = entries - 1;
 	get_random_bytes(&ret->hash_rnd, sizeof(ret->hash_rnd));
 	return ret;
@@ -344,7 +343,7 @@ static void neigh_hash_free_rcu(struct rcu_head *head)
 						    struct neigh_hash_table,
 						    rcu);
 	size_t size = (nht->hash_mask + 1) * sizeof(struct neighbour *);
-	struct neighbour **buckets = nht->hash_buckets;
+	struct neighbour __rcu **buckets = nht->hash_buckets;
 
 	if (size <= PAGE_SIZE)
 		kfree(buckets);
@@ -1541,7 +1540,7 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 		panic("cannot create neighbour proc dir entry");
 #endif
 
-	tbl->nht = neigh_hash_alloc(8);
+	RCU_INIT_POINTER(tbl->nht, neigh_hash_alloc(8));
 
 	phsize = (PNEIGH_HASHMASK + 1) * sizeof(struct pneigh_entry *);
 	tbl->phash_buckets = kzalloc(phsize, GFP_KERNEL);
@@ -1603,7 +1602,8 @@ int neigh_table_clear(struct neigh_table *tbl)
 	}
 	write_unlock(&neigh_tbl_lock);
 
-	call_rcu(&tbl->nht->rcu, neigh_hash_free_rcu);
+	call_rcu(&rcu_dereference_protected(tbl->nht, 1)->rcu,
+		 neigh_hash_free_rcu);
 	tbl->nht = NULL;
 
 	kfree(tbl->phash_buckets);

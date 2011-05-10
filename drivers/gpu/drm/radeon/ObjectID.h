@@ -37,6 +37,8 @@
 #define GRAPH_OBJECT_TYPE_CONNECTOR               0x3
 #define GRAPH_OBJECT_TYPE_ROUTER                  0x4
 /* deleted */
+#define GRAPH_OBJECT_TYPE_DISPLAY_PATH            0x6  
+#define GRAPH_OBJECT_TYPE_GENERIC                 0x7
 
 /****************************************************/
 /* Encoder Object ID Definition                     */
@@ -64,6 +66,9 @@
 #define ENCODER_OBJECT_ID_VT1623                  0x10
 #define ENCODER_OBJECT_ID_HDMI_SI1930             0x11
 #define ENCODER_OBJECT_ID_HDMI_INTERNAL           0x12
+#define ENCODER_OBJECT_ID_ALMOND                  0x22
+#define ENCODER_OBJECT_ID_TRAVIS                  0x23
+#define ENCODER_OBJECT_ID_NUTMEG                  0x22
 /* Kaleidoscope (KLDSCP) Class Display Hardware (internal) */
 #define ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1   0x13
 #define ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1    0x14
@@ -108,6 +113,7 @@
 #define CONNECTOR_OBJECT_ID_DISPLAYPORT           0x13
 #define CONNECTOR_OBJECT_ID_eDP                   0x14
 #define CONNECTOR_OBJECT_ID_MXM                   0x15
+#define CONNECTOR_OBJECT_ID_LVDS_eDP              0x16
 
 /* deleted */
 
@@ -124,6 +130,7 @@
 #define GENERIC_OBJECT_ID_GLSYNC                  0x01
 #define GENERIC_OBJECT_ID_PX2_NON_DRIVABLE        0x02
 #define GENERIC_OBJECT_ID_MXM_OPM                 0x03
+#define GENERIC_OBJECT_ID_STEREO_PIN              0x04        //This object could show up from Misc Object table, it follows ATOM_OBJECT format, and contains one ATOM_OBJECT_GPIO_CNTL_RECORD for the stereo pin
 
 /****************************************************/
 /* Graphics Object ENUM ID Definition               */
@@ -360,6 +367,26 @@
                                                   GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                   ENCODER_OBJECT_ID_GENERAL_EXTERNAL_DVO << OBJECT_ID_SHIFT)
 
+#define ENCODER_ALMOND_ENUM_ID1                  ( GRAPH_OBJECT_TYPE_ENCODER << OBJECT_TYPE_SHIFT |\
+                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                  ENCODER_OBJECT_ID_ALMOND << OBJECT_ID_SHIFT)
+
+#define ENCODER_ALMOND_ENUM_ID2                  ( GRAPH_OBJECT_TYPE_ENCODER << OBJECT_TYPE_SHIFT |\
+                                                  GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                  ENCODER_OBJECT_ID_ALMOND << OBJECT_ID_SHIFT)
+
+#define ENCODER_TRAVIS_ENUM_ID1                  ( GRAPH_OBJECT_TYPE_ENCODER << OBJECT_TYPE_SHIFT |\
+                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                  ENCODER_OBJECT_ID_TRAVIS << OBJECT_ID_SHIFT)
+
+#define ENCODER_TRAVIS_ENUM_ID2                  ( GRAPH_OBJECT_TYPE_ENCODER << OBJECT_TYPE_SHIFT |\
+                                                  GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                  ENCODER_OBJECT_ID_TRAVIS << OBJECT_ID_SHIFT)
+
+#define ENCODER_NUTMEG_ENUM_ID1                  ( GRAPH_OBJECT_TYPE_ENCODER << OBJECT_TYPE_SHIFT |\
+                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                  ENCODER_OBJECT_ID_NUTMEG << OBJECT_ID_SHIFT)
+
 /****************************************************/
 /* Connector Object ID definition - Shared with BIOS */
 /****************************************************/
@@ -419,6 +446,14 @@
 
 #define CONNECTOR_SINGLE_LINK_DVI_D_ENUM_ID2   ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_D << OBJECT_ID_SHIFT)
+
+#define CONNECTOR_SINGLE_LINK_DVI_D_ENUM_ID3   ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID3 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_D << OBJECT_ID_SHIFT)
+
+#define CONNECTOR_SINGLE_LINK_DVI_D_ENUM_ID4   ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID4 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_D << OBJECT_ID_SHIFT)
 
 #define CONNECTOR_DUAL_LINK_DVI_D_ENUM_ID1     ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
@@ -512,6 +547,7 @@
 #define CONNECTOR_7PIN_DIN_ENUM_ID1            ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_7PIN_DIN << OBJECT_ID_SHIFT)
+
 #define CONNECTOR_7PIN_DIN_ENUM_ID2            ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_7PIN_DIN << OBJECT_ID_SHIFT)
@@ -593,6 +629,14 @@
                                                  GRAPH_OBJECT_ENUM_ID7 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_MXM << OBJECT_ID_SHIFT)          //Mapping to MXM_DAC
 
+#define CONNECTOR_LVDS_eDP_ENUM_ID1            ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_LVDS_eDP << OBJECT_ID_SHIFT)
+
+#define CONNECTOR_LVDS_eDP_ENUM_ID2            ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_LVDS_eDP << OBJECT_ID_SHIFT)
+
 /****************************************************/
 /* Router Object ID definition - Shared with BIOS   */
 /****************************************************/
@@ -620,6 +664,10 @@
 #define GENERICOBJECT_MXM_OPM_ENUM_ID1           (GRAPH_OBJECT_TYPE_GENERIC << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                  GENERIC_OBJECT_ID_MXM_OPM << OBJECT_ID_SHIFT)
+
+#define GENERICOBJECT_STEREO_PIN_ENUM_ID1        (GRAPH_OBJECT_TYPE_GENERIC << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                 GENERIC_OBJECT_ID_STEREO_PIN << OBJECT_ID_SHIFT)
 
 /****************************************************/
 /* Object Cap definition - Shared with BIOS         */

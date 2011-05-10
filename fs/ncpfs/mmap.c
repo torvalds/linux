@@ -16,11 +16,11 @@
 #include <linux/mman.h>
 #include <linux/string.h>
 #include <linux/fcntl.h>
-#include <linux/ncp_fs.h>
 
-#include "ncplib_kernel.h"
 #include <asm/uaccess.h>
 #include <asm/system.h>
+
+#include "ncp_fs.h"
 
 /*
  * Fill in the supplied page for mmap

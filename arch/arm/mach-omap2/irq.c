@@ -61,8 +61,6 @@ struct omap3_intc_regs {
 	u32 mir[INTCPS_NR_MIR_REGS];
 };
 
-static struct omap3_intc_regs intc_context[ARRAY_SIZE(irq_banks)];
-
 /* INTC bank register get/set */
 
 static void intc_bank_write_reg(u32 val, struct omap_irq_bank *bank, u16 reg)
@@ -100,16 +98,17 @@ static int omap_check_spurious(unsigned int irq)
 }
 
 /* XXX: FIQ and additional INTC support (only MPU at the moment) */
-static void omap_ack_irq(unsigned int irq)
+static void omap_ack_irq(struct irq_data *d)
 {
 	intc_bank_write_reg(0x1, &irq_banks[0], INTC_CONTROL);
 }
 
-static void omap_mask_irq(unsigned int irq)
+static void omap_mask_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	int offset = irq & (~(IRQ_BITS_PER_REG - 1));
 
-	if (cpu_is_omap34xx()) {
+	if (cpu_is_omap34xx() && !cpu_is_ti816x()) {
 		int spurious = 0;
 
 		/*
@@ -128,8 +127,9 @@ static void omap_mask_irq(unsigned int irq)
 	intc_bank_write_reg(1 << irq, &irq_banks[0], INTC_MIR_SET0 + offset);
 }
 
-static void omap_unmask_irq(unsigned int irq)
+static void omap_unmask_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	int offset = irq & (~(IRQ_BITS_PER_REG - 1));
 
 	irq &= (IRQ_BITS_PER_REG - 1);
@@ -137,17 +137,17 @@ static void omap_unmask_irq(unsigned int irq)
 	intc_bank_write_reg(1 << irq, &irq_banks[0], INTC_MIR_CLEAR0 + offset);
 }
 
-static void omap_mask_ack_irq(unsigned int irq)
+static void omap_mask_ack_irq(struct irq_data *d)
 {
-	omap_mask_irq(irq);
-	omap_ack_irq(irq);
+	omap_mask_irq(d);
+	omap_ack_irq(d);
 }
 
 static struct irq_chip omap_irq_chip = {
-	.name	= "INTC",
-	.ack	= omap_mask_ack_irq,
-	.mask	= omap_mask_irq,
-	.unmask	= omap_unmask_irq,
+	.name		= "INTC",
+	.irq_ack	= omap_mask_ack_irq,
+	.irq_mask	= omap_mask_irq,
+	.irq_unmask	= omap_unmask_irq,
 };
 
 static void __init omap_irq_bank_init_one(struct omap_irq_bank *bank)
@@ -203,6 +203,9 @@ void __init omap_init_irq(void)
 
 		BUG_ON(!base);
 
+		if (cpu_is_ti816x())
+			bank->nr_irqs = 128;
+
 		/* Static mapping, never released */
 		bank->base_reg = ioremap(base, SZ_4K);
 		if (!bank->base_reg) {
@@ -220,13 +223,14 @@ void __init omap_init_irq(void)
 	       nr_of_irqs, nr_banks, nr_banks > 1 ? "s" : "");
 
 	for (i = 0; i < nr_of_irqs; i++) {
-		set_irq_chip(i, &omap_irq_chip);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &omap_irq_chip, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 }
 
 #ifdef CONFIG_ARCH_OMAP3
+static struct omap3_intc_regs intc_context[ARRAY_SIZE(irq_banks)];
+
 void omap_intc_save_context(void)
 {
 	int ind = 0, i = 0;
@@ -284,7 +288,10 @@ void omap3_intc_suspend(void)
 
 void omap3_intc_prepare_idle(void)
 {
-	/* Disable autoidle as it can stall interrupt controller */
+	/*
+	 * Disable autoidle as it can stall interrupt controller,
+	 * cf. errata ID i540 for 3430 (all revisions up to 3.1.x)
+	 */
 	intc_bank_write_reg(0, &irq_banks[0], INTC_SYSCONFIG);
 }
 

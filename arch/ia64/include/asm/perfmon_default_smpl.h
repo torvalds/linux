@@ -67,8 +67,8 @@ typedef struct {
         unsigned long   ip;                     /* where did the overflow interrupt happened  */
         unsigned long   tstamp;                 /* ar.itc when entering perfmon intr. handler */
 
-        unsigned short  cpu;                    /* cpu on which the overflow occured */
-        unsigned short  set;                    /* event set active when overflow ocurred   */
+        unsigned short  cpu;                    /* cpu on which the overflow occurred */
+        unsigned short  set;                    /* event set active when overflow occurred   */
         int    		tgid;              	/* thread group id (for NPTL, this is getpid()) */
 } pfm_default_smpl_entry_t;
 

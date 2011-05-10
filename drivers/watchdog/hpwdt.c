@@ -52,7 +52,7 @@ static void __iomem *pci_mem_addr;		/* the PCI-memory address */
 static unsigned long __iomem *hpwdt_timer_reg;
 static unsigned long __iomem *hpwdt_timer_con;
 
-static struct pci_device_id hpwdt_devices[] = {
+static DEFINE_PCI_DEVICE_TABLE(hpwdt_devices) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_COMPAQ, 0xB203) },	/* iLO2 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_HP, 0x3306) },	/* iLO3 */
 	{0},			/* terminate list */
@@ -469,7 +469,7 @@ static int hpwdt_pretimeout(struct notifier_block *nb, unsigned long ulReason,
 	unsigned long rom_pl;
 	static int die_nmi_called;
 
-	if (ulReason != DIE_NMI && ulReason != DIE_NMI_IPI)
+	if (ulReason != DIE_NMIUNKNOWN)
 		goto out;
 
 	if (!hpwdt_nmi_decoding)
@@ -642,19 +642,14 @@ static struct notifier_block die_notifier = {
  */
 
 #ifdef CONFIG_HPWDT_NMI_DECODING
-#ifdef ARCH_HAS_NMI_WATCHDOG
+#ifdef CONFIG_X86_LOCAL_APIC
 static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
 {
 	/*
 	 * If nmi_watchdog is turned off then we can turn on
 	 * our nmi decoding capability.
 	 */
-	if (!nmi_watchdog_active())
-		hpwdt_nmi_decoding = 1;
-	else
-		dev_warn(&dev->dev, "NMI decoding is disabled. To enable this "
-			"functionality you must reboot with nmi_watchdog=0 "
-			"and load the hpwdt driver with priority=1.\n");
+	hpwdt_nmi_decoding = 1;
 }
 #else
 static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
@@ -662,7 +657,7 @@ static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
 	dev_warn(&dev->dev, "NMI decoding is disabled. "
 		"Your kernel does not support a NMI Watchdog.\n");
 }
-#endif /* ARCH_HAS_NMI_WATCHDOG */
+#endif /* CONFIG_X86_LOCAL_APIC */
 
 static int __devinit hpwdt_init_nmi_decoding(struct pci_dev *dev)
 {
@@ -715,7 +710,7 @@ static int __devinit hpwdt_init_nmi_decoding(struct pci_dev *dev)
 	return 0;
 }
 
-static void __devexit hpwdt_exit_nmi_decoding(void)
+static void hpwdt_exit_nmi_decoding(void)
 {
 	unregister_die_notifier(&die_notifier);
 	if (cru_rom_addr)
@@ -731,7 +726,7 @@ static int __devinit hpwdt_init_nmi_decoding(struct pci_dev *dev)
 	return 0;
 }
 
-static void __devexit hpwdt_exit_nmi_decoding(void)
+static void hpwdt_exit_nmi_decoding(void)
 {
 }
 #endif /* CONFIG_HPWDT_NMI_DECODING */

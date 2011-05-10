@@ -3,6 +3,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/hardirq.h>
+#include "ctree.h"
 #include "extent_map.h"
 
 
@@ -50,10 +51,11 @@ struct extent_map *alloc_extent_map(gfp_t mask)
 {
 	struct extent_map *em;
 	em = kmem_cache_alloc(extent_map_cache, mask);
-	if (!em || IS_ERR(em))
-		return em;
+	if (!em)
+		return NULL;
 	em->in_tree = 0;
 	em->flags = 0;
+	em->compress_type = BTRFS_COMPRESS_NONE;
 	atomic_set(&em->refs, 1);
 	return em;
 }
@@ -241,7 +243,7 @@ out:
  * Insert @em into @tree or perform a simple forward/backward merge with
  * existing mappings.  The extent_map struct passed in will be inserted
  * into the tree directly, with an additional reference taken, or a
- * reference dropped if the merge attempt was successfull.
+ * reference dropped if the merge attempt was successful.
  */
 int add_extent_mapping(struct extent_map_tree *tree,
 		       struct extent_map *em)

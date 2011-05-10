@@ -124,6 +124,16 @@
 #define USB_DEVICE_DEBUG_MODE		6	/* (special devices only) */
 
 /*
+ * Test Mode Selectors
+ * See USB 2.0 spec Table 9-7
+ */
+#define	TEST_J		1
+#define	TEST_K		2
+#define	TEST_SE0_NAK	3
+#define	TEST_PACKET	4
+#define	TEST_FORCE_EN	5
+
+/*
  * New Feature Selectors as added by USB 3.0
  * See USB 3.0 spec Table 9-6
  */
@@ -574,7 +584,9 @@ struct usb_ss_ep_comp_descriptor {
 
 #define USB_DT_SS_EP_COMP_SIZE		6
 /* Bits 4:0 of bmAttributes if this is a bulk endpoint */
-#define USB_SS_MAX_STREAMS(p)		(1 << (p & 0x1f))
+#define USB_SS_MAX_STREAMS(p)		(1 << ((p) & 0x1f))
+/* Bits 1:0 of bmAttributes if this is an isoc endpoint */
+#define USB_SS_MULT(p)			(1 + ((p) & 0x3))
 
 /*-------------------------------------------------------------------------*/
 

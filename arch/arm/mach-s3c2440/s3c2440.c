@@ -46,9 +46,6 @@ int __init s3c2440_init(void)
 {
 	printk("S3C2440: Initialising architecture\n");
 
-	s3c24xx_gpiocfg_default.set_pull = s3c_gpio_setpull_1up;
-	s3c24xx_gpiocfg_default.get_pull = s3c_gpio_getpull_1up;
-
 	/* change irq for watchdog */
 
 	s3c_device_wdt.resource[1].start = IRQ_S3C2440_WDT;
@@ -57,4 +54,12 @@ int __init s3c2440_init(void)
 	/* register our system device for everything else */
 
 	return sysdev_register(&s3c2440_sysdev);
+}
+
+void __init s3c2440_map_io(void)
+{
+	s3c244x_map_io();
+
+	s3c24xx_gpiocfg_default.set_pull = s3c_gpio_setpull_1up;
+	s3c24xx_gpiocfg_default.get_pull = s3c_gpio_getpull_1up;
 }

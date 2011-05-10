@@ -121,7 +121,7 @@ int sm_register_device(struct mtd_info *mtd, int smartmedia)
 	if (ret)
 		return ret;
 
-	/* Bad block marker postion */
+	/* Bad block marker position */
 	chip->badblockpos = 0x05;
 	chip->badblockbits = 7;
 	chip->block_markbad = sm_block_markbad;

@@ -35,6 +35,22 @@ struct channel_path_desc {
 	u8 chpp;
 } __attribute__ ((packed));
 
+struct channel_path_desc_fmt1 {
+	u8 flags;
+	u8 lsn;
+	u8 desc;
+	u8 chpid;
+	u32:24;
+	u8 chpp;
+	u32 unused[3];
+	u16 mdc;
+	u16:13;
+	u8 r:1;
+	u8 s:1;
+	u8 f:1;
+	u32 zeros[2];
+} __attribute__ ((packed));
+
 struct channel_path;
 
 struct css_chsc_char {
@@ -92,6 +108,8 @@ int chsc_determine_channel_path_desc(struct chp_id chpid, int fmt, int rfmt,
 				     int c, int m, void *page);
 int chsc_determine_base_channel_path_desc(struct chp_id chpid,
 					  struct channel_path_desc *desc);
+int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
+					  struct channel_path_desc_fmt1 *desc);
 void chsc_chp_online(struct chp_id chpid);
 void chsc_chp_offline(struct chp_id chpid);
 int chsc_get_channel_measurement_chars(struct channel_path *chp);

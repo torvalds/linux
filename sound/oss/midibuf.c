@@ -295,7 +295,7 @@ int MIDIbuf_write(int dev, struct file *file, const char __user *buf, int count)
 
 		for (i = 0; i < n; i++)
 		{
-			/* BROKE BROKE BROKE - CANT DO THIS WITH CLI !! */
+			/* BROKE BROKE BROKE - CAN'T DO THIS WITH CLI !! */
 			/* yes, think the same, so I removed the cli() brackets 
 				QUEUE_BYTE is protected against interrupts */
 			if (copy_from_user((char *) &tmp_data, &(buf)[c], 1)) {

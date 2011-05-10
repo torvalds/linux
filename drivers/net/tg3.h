@@ -4,7 +4,7 @@
  * Copyright (C) 2001, 2002, 2003, 2004 David S. Miller (davem@redhat.com)
  * Copyright (C) 2001 Jeff Garzik (jgarzik@pobox.com)
  * Copyright (C) 2004 Sun Microsystems Inc.
- * Copyright (C) 2007-2010 Broadcom Corporation.
+ * Copyright (C) 2007-2011 Broadcom Corporation.
  */
 
 #ifndef _T3_H
@@ -141,6 +141,7 @@
 #define  CHIPREV_ID_57780_A1		 0x57780001
 #define  CHIPREV_ID_5717_A0		 0x05717000
 #define  CHIPREV_ID_57765_A0		 0x57785000
+#define  CHIPREV_ID_5719_A0		 0x05719000
 #define  GET_ASIC_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 12)
 #define   ASIC_REV_5700			 0x07
 #define   ASIC_REV_5701			 0x00
@@ -1094,13 +1095,19 @@
 /* 0x3664 --> 0x36b0 unused */
 
 #define TG3_CPMU_EEE_MODE		0x000036b0
-#define TG3_CPMU_EEEMD_ERLY_L1_XIT_DET	 0x00000008
-#define TG3_CPMU_EEEMD_LPI_ENABLE	 0x00000080
-#define TG3_CPMU_EEEMD_LPI_IN_TX	 0x00000100
-#define TG3_CPMU_EEEMD_LPI_IN_RX	 0x00000200
-#define TG3_CPMU_EEEMD_EEE_ENABLE	 0x00100000
-/* 0x36b4 --> 0x36b8 unused */
-
+#define  TG3_CPMU_EEEMD_APE_TX_DET_EN	 0x00000004
+#define  TG3_CPMU_EEEMD_ERLY_L1_XIT_DET	 0x00000008
+#define  TG3_CPMU_EEEMD_SND_IDX_DET_EN	 0x00000040
+#define  TG3_CPMU_EEEMD_LPI_ENABLE	 0x00000080
+#define  TG3_CPMU_EEEMD_LPI_IN_TX	 0x00000100
+#define  TG3_CPMU_EEEMD_LPI_IN_RX	 0x00000200
+#define  TG3_CPMU_EEEMD_EEE_ENABLE	 0x00100000
+#define TG3_CPMU_EEE_DBTMR1		0x000036b4
+#define  TG3_CPMU_DBTMR1_PCIEXIT_2047US	 0x07ff0000
+#define  TG3_CPMU_DBTMR1_LNKIDLE_2047US	 0x000070ff
+#define TG3_CPMU_EEE_DBTMR2		0x000036b8
+#define  TG3_CPMU_DBTMR2_APE_TX_2047US	 0x07ff0000
+#define  TG3_CPMU_DBTMR2_TXIDXEQ_2047US	 0x000070ff
 #define TG3_CPMU_EEE_LNKIDL_CTRL	0x000036bc
 #define  TG3_CPMU_EEE_LNKIDL_PCIE_NL0	 0x01000000
 #define  TG3_CPMU_EEE_LNKIDL_UART_IDL	 0x00000004
@@ -1327,6 +1334,12 @@
 
 #define TG3_RDMA_RSRVCTRL_REG		0x00004900
 #define TG3_RDMA_RSRVCTRL_FIFO_OFLW_FIX	 0x00000004
+#define TG3_RDMA_RSRVCTRL_FIFO_LWM_1_5K	 0x00000c00
+#define TG3_RDMA_RSRVCTRL_FIFO_LWM_MASK	 0x00000ff0
+#define TG3_RDMA_RSRVCTRL_FIFO_HWM_1_5K	 0x000c0000
+#define TG3_RDMA_RSRVCTRL_FIFO_HWM_MASK	 0x000ff000
+#define TG3_RDMA_RSRVCTRL_TXMRGN_320B	 0x28000000
+#define TG3_RDMA_RSRVCTRL_TXMRGN_MASK	 0xffe00000
 /* 0x4904 --> 0x4910 unused */
 
 #define TG3_LSO_RD_DMA_CRPTEN_CTRL	0x00004910
@@ -2100,6 +2113,10 @@
 
 #define MII_TG3_DSP_TAP1		0x0001
 #define  MII_TG3_DSP_TAP1_AGCTGT_DFLT	0x0007
+#define MII_TG3_DSP_TAP26		0x001a
+#define  MII_TG3_DSP_TAP26_ALNOKO	0x0001
+#define  MII_TG3_DSP_TAP26_RMRXSTO	0x0002
+#define  MII_TG3_DSP_TAP26_OPCSINPT	0x0004
 #define MII_TG3_DSP_AADJ1CH0		0x001f
 #define MII_TG3_DSP_CH34TP2		0x4022
 #define MII_TG3_DSP_CH34TP2_HIBW01	0x0010
@@ -2113,7 +2130,7 @@
 #define MII_TG3_DSP_EXP96		0x0f96
 #define MII_TG3_DSP_EXP97		0x0f97
 
-#define MII_TG3_AUX_CTRL		0x18 /* auxilliary control register */
+#define MII_TG3_AUX_CTRL		0x18 /* auxiliary control register */
 
 #define MII_TG3_AUXCTL_PCTL_100TX_LPWR	0x0010
 #define MII_TG3_AUXCTL_PCTL_SPR_ISOLATE	0x0020
@@ -2129,7 +2146,7 @@
 #define MII_TG3_AUXCTL_ACTL_TX_6DB	0x0400
 #define MII_TG3_AUXCTL_SHDWSEL_AUXCTL	0x0000
 
-#define MII_TG3_AUX_STAT		0x19 /* auxilliary status register */
+#define MII_TG3_AUX_STAT		0x19 /* auxiliary status register */
 #define MII_TG3_AUX_STAT_LPASS		0x0004
 #define MII_TG3_AUX_STAT_SPDMASK	0x0700
 #define MII_TG3_AUX_STAT_10HALF		0x0100
@@ -2170,9 +2187,6 @@
 #define MII_TG3_TEST1_CRC_EN		0x8000
 
 /* Clause 45 expansion registers */
-#define TG3_CL45_D7_EEEADV_CAP		0x003c
-#define TG3_CL45_D7_EEEADV_CAP_100TX	0x0002
-#define TG3_CL45_D7_EEEADV_CAP_1000T	0x0004
 #define TG3_CL45_D7_EEERES_STAT		0x803e
 #define TG3_CL45_D7_EEERES_STAT_LP_100TX	0x0002
 #define TG3_CL45_D7_EEERES_STAT_LP_1000T	0x0004
@@ -2562,10 +2576,6 @@ struct ring_info {
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
-struct tg3_config_info {
-	u32				flags;
-};
-
 struct tg3_link_config {
 	/* Describes what we're trying to get. */
 	u32				advertising;
@@ -2713,17 +2723,17 @@ struct tg3_napi {
 	u32				last_irq_tag;
 	u32				int_mbox;
 	u32				coal_now;
-	u32				tx_prod;
-	u32				tx_cons;
-	u32				tx_pending;
-	u32				prodmbox;
 
-	u32				consmbox;
+	u32				consmbox ____cacheline_aligned;
 	u32				rx_rcb_ptr;
 	u16				*rx_rcb_prod_idx;
 	struct tg3_rx_prodring_set	prodring;
-
 	struct tg3_rx_buffer_desc	*rx_rcb;
+
+	u32				tx_prod	____cacheline_aligned;
+	u32				tx_cons;
+	u32				tx_pending;
+	u32				prodmbox;
 	struct tg3_tx_buffer_desc	*tx_ring;
 	struct ring_info		*tx_buffers;
 
@@ -2807,9 +2817,6 @@ struct tg3 {
 	u32				rx_std_max_post;
 	u32				rx_offset;
 	u32				rx_pkt_map_sz;
-#if TG3_VLAN_TAG_USED
-	struct vlan_group		*vlgrp;
-#endif
 
 
 	/* begin "everything else" cacheline(s) section */
@@ -2946,6 +2953,7 @@ struct tg3 {
 	int				pcix_cap;
 	int				pcie_cap;
 	};
+	int				pcie_readrq;
 
 	struct mii_bus			*mdio_bus;
 	int				mdio_irq[PHY_MAX_ADDR];

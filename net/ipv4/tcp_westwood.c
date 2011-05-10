@@ -272,7 +272,7 @@ static void tcp_westwood_info(struct sock *sk, u32 ext,
 }
 
 
-static struct tcp_congestion_ops tcp_westwood = {
+static struct tcp_congestion_ops tcp_westwood __read_mostly = {
 	.init		= tcp_westwood_init,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,

@@ -1186,7 +1186,7 @@ CARDbStartMeasure (
             wDuration += 1; // 1 TU for channel switching
 
             if ((LODWORD(qwStartTSF) == 0) && (HIDWORD(qwStartTSF) == 0)) {
-                // start imediately by setting start TSF == current TSF + 2 TU
+                // start immediately by setting start TSF == current TSF + 2 TU
                 LODWORD(qwStartTSF) = LODWORD(qwCurrTSF) + 2048;
                 HIDWORD(qwStartTSF) = HIDWORD(qwCurrTSF);
                 if (LODWORD(qwCurrTSF) > LODWORD(qwStartTSF)) {
@@ -2058,7 +2058,7 @@ bool CARDbSoftwareReset (void *pDeviceHandler)
 QWORD CARDqGetTSFOffset (unsigned char byRxRate, QWORD qwTSF1, QWORD qwTSF2)
 {
     QWORD   qwTSFOffset;
-    unsigned short wRxBcnTSFOffst= 0;;
+    unsigned short wRxBcnTSFOffst= 0;
 
     HIDWORD(qwTSFOffset) = 0;
     LODWORD(qwTSFOffset) = 0;

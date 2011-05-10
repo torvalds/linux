@@ -46,9 +46,9 @@ EXPORT_SYMBOL_GPL(hest_disable);
 
 /* HEST table parsing */
 
-static struct acpi_table_hest *hest_tab;
+static struct acpi_table_hest *__read_mostly hest_tab;
 
-static int hest_esrc_len_tab[ACPI_HEST_TYPE_RESERVED] = {
+static const int hest_esrc_len_tab[ACPI_HEST_TYPE_RESERVED] = {
 	[ACPI_HEST_TYPE_IA32_CHECK] = -1,	/* need further calculation */
 	[ACPI_HEST_TYPE_IA32_CORRECTED_CHECK] = -1,
 	[ACPI_HEST_TYPE_IA32_NMI] = sizeof(struct acpi_hest_ia_nmi),
@@ -126,7 +126,7 @@ struct ghes_arr {
 	unsigned int count;
 };
 
-static int hest_parse_ghes_count(struct acpi_hest_header *hest_hdr, void *data)
+static int __init hest_parse_ghes_count(struct acpi_hest_header *hest_hdr, void *data)
 {
 	int *count = data;
 
@@ -135,7 +135,7 @@ static int hest_parse_ghes_count(struct acpi_hest_header *hest_hdr, void *data)
 	return 0;
 }
 
-static int hest_parse_ghes(struct acpi_hest_header *hest_hdr, void *data)
+static int __init hest_parse_ghes(struct acpi_hest_header *hest_hdr, void *data)
 {
 	struct platform_device *ghes_dev;
 	struct ghes_arr *ghes_arr = data;
@@ -165,7 +165,7 @@ err:
 	return rc;
 }
 
-static int hest_ghes_dev_register(unsigned int ghes_count)
+static int __init hest_ghes_dev_register(unsigned int ghes_count)
 {
 	int rc, i;
 	struct ghes_arr ghes_arr;
@@ -195,24 +195,24 @@ static int __init setup_hest_disable(char *str)
 
 __setup("hest_disable", setup_hest_disable);
 
-static int __init hest_init(void)
+void __init acpi_hest_init(void)
 {
 	acpi_status status;
 	int rc = -ENODEV;
 	unsigned int ghes_count = 0;
 
+	if (hest_disable) {
+		pr_info(HEST_PFX "Table parsing disabled.\n");
+		return;
+	}
+
 	if (acpi_disabled)
 		goto err;
-
-	if (hest_disable) {
-		pr_info(HEST_PFX "HEST tabling parsing is disabled.\n");
-		goto err;
-	}
 
 	status = acpi_get_table(ACPI_SIG_HEST, 0,
 				(struct acpi_table_header **)&hest_tab);
 	if (status == AE_NOT_FOUND) {
-		pr_info(HEST_PFX "Table is not found!\n");
+		pr_info(HEST_PFX "Table not found.\n");
 		goto err;
 	} else if (ACPI_FAILURE(status)) {
 		const char *msg = acpi_format_exception(status);
@@ -226,15 +226,11 @@ static int __init hest_init(void)
 		goto err;
 
 	rc = hest_ghes_dev_register(ghes_count);
-	if (rc)
-		goto err;
+	if (!rc) {
+		pr_info(HEST_PFX "Table parsing has been initialized.\n");
+		return;
+	}
 
-	pr_info(HEST_PFX "HEST table parsing is initialized.\n");
-
-	return 0;
 err:
 	hest_disable = 1;
-	return rc;
 }
-
-subsys_initcall(hest_init);

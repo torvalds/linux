@@ -141,6 +141,9 @@ struct single_step_state {
 /* Single-step the instruction at regs->pc */
 extern void single_step_once(struct pt_regs *regs);
 
+/* Clean up after execve(). */
+extern void single_step_execve(void);
+
 struct task_struct;
 
 extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,

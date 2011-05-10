@@ -14,11 +14,16 @@
 #define INTTESTR	0x040
 #define SYSSR		0x050
 #define NRGPR		0x060
+
 #define NMISR		0x070
+#define  NMISR_MAN_NMI	BIT(0)
+#define  NMISR_AUX_NMI	BIT(1)
+#define  NMISR_MASK	(NMISR_MAN_NMI | NMISR_AUX_NMI)
 
 #define NMIMR		0x080
 #define  NMIMR_MAN_NMIM	BIT(0)	/* Manual NMI mask */
 #define  NMIMR_AUX_NMIM	BIT(1)	/* Auxiliary NMI mask */
+#define  NMIMR_MASK	(NMIMR_MAN_NMIM | NMIMR_AUX_NMIM)
 
 #define INTBSR		0x090
 #define INTBMR		0x0a0
@@ -125,6 +130,9 @@
 /* arch/sh/boards/mach-sdk7786/fpga.c */
 extern void __iomem *sdk7786_fpga_base;
 extern void sdk7786_fpga_init(void);
+
+/* arch/sh/boards/mach-sdk7786/nmi.c */
+extern void sdk7786_nmi_init(void);
 
 #define SDK7786_FPGA_REGADDR(reg)	(sdk7786_fpga_base + (reg))
 

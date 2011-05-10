@@ -36,7 +36,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
@@ -705,6 +704,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 /* Called from the machine driver */
 int wm2000_add_controls(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	if (!wm2000_i2c) {
@@ -712,12 +712,12 @@ int wm2000_add_controls(struct snd_soc_codec *codec)
 		return -ENODEV;
 	}
 
-	ret = snd_soc_dapm_new_controls(codec, wm2000_dapm_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, wm2000_dapm_widgets,
 					ARRAY_SIZE(wm2000_dapm_widgets));
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	ret = snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 	if (ret < 0)
 		return ret;
 
@@ -836,23 +836,24 @@ static void wm2000_i2c_shutdown(struct i2c_client *i2c)
 }
 
 #ifdef CONFIG_PM
-static int wm2000_i2c_suspend(struct i2c_client *i2c, pm_message_t mesg)
+static int wm2000_i2c_suspend(struct device *dev)
 {
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct wm2000_priv *wm2000 = dev_get_drvdata(&i2c->dev);
 
 	return wm2000_anc_transition(wm2000, ANC_OFF);
 }
 
-static int wm2000_i2c_resume(struct i2c_client *i2c)
+static int wm2000_i2c_resume(struct device *dev)
 {
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct wm2000_priv *wm2000 = dev_get_drvdata(&i2c->dev);
 
 	return wm2000_anc_set_mode(wm2000);
 }
-#else
-#define wm2000_i2c_suspend NULL
-#define wm2000_i2c_resume NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(wm2000_pm, wm2000_i2c_suspend, wm2000_i2c_resume);
 
 static const struct i2c_device_id wm2000_i2c_id[] = {
 	{ "wm2000", 0 },
@@ -864,11 +865,10 @@ static struct i2c_driver wm2000_i2c_driver = {
 	.driver = {
 		.name = "wm2000",
 		.owner = THIS_MODULE,
+		.pm = &wm2000_pm,
 	},
 	.probe = wm2000_i2c_probe,
 	.remove = __devexit_p(wm2000_i2c_remove),
-	.suspend = wm2000_i2c_suspend,
-	.resume = wm2000_i2c_resume,
 	.shutdown = wm2000_i2c_shutdown,
 	.id_table = wm2000_i2c_id,
 };

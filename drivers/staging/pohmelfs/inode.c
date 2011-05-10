@@ -826,8 +826,15 @@ const struct address_space_operations pohmelfs_aops = {
 	.set_page_dirty 	= __set_page_dirty_nobuffers,
 };
 
+static void pohmelfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(pohmelfs_inode_cache, POHMELFS_I(inode));
+}
+
 /*
- * ->detroy_inode() callback. Deletes inode from the caches
+ * ->destroy_inode() callback. Deletes inode from the caches
  *  and frees private data.
  */
 static void pohmelfs_destroy_inode(struct inode *inode)
@@ -842,8 +849,8 @@ static void pohmelfs_destroy_inode(struct inode *inode)
 
 	dprintk("%s: pi: %p, inode: %p, ino: %llu.\n",
 		__func__, pi, &pi->vfs_inode, pi->ino);
-	kmem_cache_free(pohmelfs_inode_cache, pi);
 	atomic_long_dec(&psb->total_inodes);
+	call_rcu(&inode->i_rcu, pohmelfs_i_callback);
 }
 
 /*
@@ -1120,18 +1127,18 @@ static ssize_t pohmelfs_getxattr(struct dentry *dentry, const char *name,
 
 		/*
 		 * This loop is a bit ugly, since it waits until reference counter
-		 * hits 1 and then put object here. Main goal is to prevent race with
-		 * network thread, when it can start processing given request, i.e.
+		 * hits 1 and then puts the object here. Main goal is to prevent race with
+		 * the network thread, when it can start processing the given request, i.e.
 		 * increase its reference counter but yet not complete it, while
 		 * we will exit from ->getxattr() with timeout, and although request
 		 * will not be freed (its reference counter was increased by network
 		 * thread), data pointer provided by user may be released, so we will
-		 * overwrite already freed area in network thread.
+		 * overwrite an already freed area in the network thread.
 		 *
 		 * Now after timeout we remove request from the cache, so it can not be
 		 * found by network thread, and wait for its reference counter to hit 1,
 		 * i.e. if network thread already started to process this request, we wait
-		 * it to finish, and then free object locally. If reference counter is
+		 * for it to finish, and then free object locally. If reference counter is
 		 * already 1, i.e. request is not used by anyone else, we can free it without
 		 * problem.
 		 */
@@ -1318,8 +1325,8 @@ static void pohmelfs_put_super(struct super_block *sb)
 	}
 
 	psb->trans_scan_timeout = psb->drop_scan_timeout = 0;
-	cancel_rearming_delayed_work(&psb->dwork);
-	cancel_rearming_delayed_work(&psb->drop_dwork);
+	cancel_delayed_work_sync(&psb->dwork);
+	cancel_delayed_work_sync(&psb->drop_dwork);
 	flush_scheduled_work();
 
 	dprintk("%s: stopped workqueues.\n", __func__);

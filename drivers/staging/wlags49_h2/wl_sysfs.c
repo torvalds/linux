@@ -42,7 +42,7 @@ static ssize_t show_tallies(struct device *d, struct device_attribute *attr,
     CFG_HERMES_TALLIES_STRCT tallies;
     ssize_t ret = -EINVAL;
 
-    read_lock(&dev_base_lock);
+    rcu_read_lock();
     if (dev_isalive(dev)) {
 	wl_lock(lp, &flags);
 
@@ -102,7 +102,7 @@ static ssize_t show_tallies(struct device *d, struct device_attribute *attr,
 	    }
     }
 
-    read_unlock(&dev_base_lock);
+    rcu_read_unlock();
     return ret;
 }
 

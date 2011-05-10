@@ -7,7 +7,7 @@ extern pmd_t *top_pmd;
 
 static inline pmd_t *pmd_off(pgd_t *pgd, unsigned long virt)
 {
-	return pmd_offset(pgd, virt);
+	return pmd_offset(pud_offset(pgd, virt), virt);
 }
 
 static inline pmd_t *pmd_off_k(unsigned long virt)
@@ -16,7 +16,7 @@ static inline pmd_t *pmd_off_k(unsigned long virt)
 }
 
 struct mem_type {
-	unsigned int prot_pte;
+	pteval_t prot_pte;
 	unsigned int prot_l1;
 	unsigned int prot_sect;
 	unsigned int domain;

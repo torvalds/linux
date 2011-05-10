@@ -51,7 +51,6 @@ static struct clocksource pit_clk = {
 	.name		= "pit",
 	.rating		= 175,
 	.read		= read_pit_clk,
-	.shift		= 20,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -163,10 +162,9 @@ static void __init at91sam926x_pit_init(void)
 	 * Register clocksource.  The high order bits of PIV are unused,
 	 * so this isn't a 32-bit counter unless we get clockevent irqs.
 	 */
-	pit_clk.mult = clocksource_hz2mult(pit_rate, pit_clk.shift);
 	bits = 12 /* PICNT */ + ilog2(pit_cycle) /* PIV */;
 	pit_clk.mask = CLOCKSOURCE_MASK(bits);
-	clocksource_register(&pit_clk);
+	clocksource_register_hz(&pit_clk, pit_rate);
 
 	/* Set up irq handler */
 	setup_irq(AT91_ID_SYS, &at91sam926x_pit_irq);

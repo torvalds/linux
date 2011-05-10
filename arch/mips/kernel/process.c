@@ -142,7 +142,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	childregs->regs[7] = 0;	/* Clear error flag */
 
 	childregs->regs[2] = 0;	/* Child gets zero as return value */
-	regs->regs[2] = p->pid;
 
 	if (childregs->cp0_status & ST0_CU0) {
 		childregs->regs[28] = (unsigned long) ti;
@@ -411,7 +410,7 @@ unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
 	if (!kallsyms_lookup_size_offset(pc, &size, &ofs))
 		return 0;
 	/*
-	 * Return ra if an exception occured at the first instruction
+	 * Return ra if an exception occurred at the first instruction
 	 */
 	if (unlikely(ofs == 0)) {
 		pc = *ra;

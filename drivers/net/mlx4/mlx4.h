@@ -105,6 +105,7 @@ struct mlx4_bitmap {
 	u32			max;
 	u32                     reserved_top;
 	u32			mask;
+	u32			avail;
 	spinlock_t		lock;
 	unsigned long	       *table;
 };
@@ -162,6 +163,27 @@ struct mlx4_fw {
 	u8			catas_bar;
 };
 
+#define MGM_QPN_MASK       0x00FFFFFF
+#define MGM_BLCK_LB_BIT    30
+
+struct mlx4_promisc_qp {
+	struct list_head list;
+	u32 qpn;
+};
+
+struct mlx4_steer_index {
+	struct list_head list;
+	unsigned int index;
+	struct list_head duplicates;
+};
+
+struct mlx4_mgm {
+	__be32			next_gid_index;
+	__be32			members_count;
+	u32			reserved[2];
+	u8			gid[16];
+	__be32			qp[MLX4_QP_PER_MGM];
+};
 struct mlx4_cmd {
 	struct pci_pool	       *pool;
 	void __iomem	       *hcr;
@@ -265,6 +287,10 @@ struct mlx4_vlan_table {
 	int			max;
 };
 
+struct mlx4_mac_entry {
+	u64 mac;
+};
+
 struct mlx4_port_info {
 	struct mlx4_dev	       *dev;
 	int			port;
@@ -272,7 +298,9 @@ struct mlx4_port_info {
 	struct device_attribute port_attr;
 	enum mlx4_port_type	tmp_type;
 	struct mlx4_mac_table	mac_table;
+	struct radix_tree_root	mac_tree;
 	struct mlx4_vlan_table	vlan_table;
+	int			base_qpn;
 };
 
 struct mlx4_sense {
@@ -280,6 +308,17 @@ struct mlx4_sense {
 	u8			do_sense_port[MLX4_MAX_PORTS + 1];
 	u8			sense_allowed[MLX4_MAX_PORTS + 1];
 	struct delayed_work	sense_poll;
+};
+
+struct mlx4_msix_ctl {
+	u64		pool_bm;
+	spinlock_t	pool_lock;
+};
+
+struct mlx4_steer {
+	struct list_head promisc_qps[MLX4_NUM_STEERS];
+	struct list_head steer_entries[MLX4_NUM_STEERS];
+	struct list_head high_prios;
 };
 
 struct mlx4_priv {
@@ -313,6 +352,11 @@ struct mlx4_priv {
 	struct mlx4_port_info	port[MLX4_MAX_PORTS + 1];
 	struct mlx4_sense       sense;
 	struct mutex		port_mutex;
+	struct mlx4_msix_ctl	msix_ctl;
+	struct mlx4_steer	*steer;
+	struct list_head	bf_list;
+	struct mutex		bf_mutex;
+	struct io_mapping	*bf_mapping;
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
@@ -328,6 +372,7 @@ u32 mlx4_bitmap_alloc(struct mlx4_bitmap *bitmap);
 void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj);
 u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align);
 void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt);
+u32 mlx4_bitmap_avail(struct mlx4_bitmap *bitmap);
 int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
 		     u32 reserved_bot, u32 resetrved_top);
 void mlx4_bitmap_cleanup(struct mlx4_bitmap *bitmap);
@@ -386,6 +431,8 @@ void mlx4_srq_event(struct mlx4_dev *dev, u32 srqn, int event_type);
 
 void mlx4_handle_catas_err(struct mlx4_dev *dev);
 
+int mlx4_SENSE_PORT(struct mlx4_dev *dev, int port,
+		    enum mlx4_port_type *type);
 void mlx4_do_sense_ports(struct mlx4_dev *dev,
 			 enum mlx4_port_type *stype,
 			 enum mlx4_port_type *defaults);
@@ -403,4 +450,9 @@ void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table);
 int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port);
 int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps);
 
+int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
+			  enum mlx4_protocol prot, enum mlx4_steer_type steer);
+int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
+			  int block_mcast_loopback, enum mlx4_protocol prot,
+			  enum mlx4_steer_type steer);
 #endif /* MLX4_H */

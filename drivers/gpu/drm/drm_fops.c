@@ -236,6 +236,8 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 		return -EBUSY;	/* No exclusive opens */
 	if (!drm_cpu_valid())
 		return -EINVAL;
+	if (dev->switch_power_state != DRM_SWITCH_POWER_ON)
+		return -EINVAL;
 
 	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor_id);
 

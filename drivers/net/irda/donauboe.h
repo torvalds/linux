@@ -30,7 +30,7 @@
  *     or the type-DO IR port.
  *
  * IrDA chip set list from Toshiba Computer Engineering Corp.
- * model			method	maker	controler		Version 
+ * model			method	maker	controller		Version 
  * Portege 320CT	FIR,SIR Toshiba Oboe(Triangle) 
  * Portege 3010CT	FIR,SIR Toshiba Oboe(Sydney) 
  * Portege 3015CT	FIR,SIR Toshiba Oboe(Sydney) 
@@ -51,7 +51,7 @@
 
 /* The documentation for this chip is allegedly released         */
 /* However I have not seen it, not have I managed to contact     */
-/* anyone who has. HOWEVER the chip bears a striking resemblence */
+/* anyone who has. HOWEVER the chip bears a striking resemblance */
 /* to the IrDA controller in the Toshiba RISC TMPR3922 chip      */
 /* the documentation for this is freely available at             */
 /* http://www.madingley.org/james/resources/toshoboe/TMPR3922.pdf */

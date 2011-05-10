@@ -38,7 +38,7 @@ static int profile_timer_exceptions_notify(struct notifier_block *self,
 static struct notifier_block profile_timer_exceptions_nb = {
 	.notifier_call = profile_timer_exceptions_notify,
 	.next = NULL,
-	.priority = 0
+	.priority = NMI_LOW_PRIOR,
 };
 
 static int timer_start(void)
@@ -58,9 +58,6 @@ static void timer_stop(void)
 
 int __init op_nmi_timer_init(struct oprofile_operations *ops)
 {
-	if ((nmi_watchdog != NMI_IO_APIC) || (atomic_read(&nmi_active) <= 0))
-		return -ENODEV;
-
 	ops->start = timer_start;
 	ops->stop = timer_stop;
 	ops->cpu_type = "timer";

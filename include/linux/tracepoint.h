@@ -32,13 +32,8 @@ struct tracepoint {
 	int state;			/* State. */
 	void (*regfunc)(void);
 	void (*unregfunc)(void);
-	struct tracepoint_func *funcs;
-} __attribute__((aligned(32)));		/*
-					 * Aligned on 32 bytes because it is
-					 * globally visible and gcc happily
-					 * align these on the structure size.
-					 * Keep in sync with vmlinux.lds.h.
-					 */
+	struct tracepoint_func __rcu *funcs;
+};
 
 /*
  * Connect a probe to a tracepoint.
@@ -61,15 +56,15 @@ extern void tracepoint_probe_update_all(void);
 
 struct tracepoint_iter {
 	struct module *module;
-	struct tracepoint *tracepoint;
+	struct tracepoint * const *tracepoint;
 };
 
 extern void tracepoint_iter_start(struct tracepoint_iter *iter);
 extern void tracepoint_iter_next(struct tracepoint_iter *iter);
 extern void tracepoint_iter_stop(struct tracepoint_iter *iter);
 extern void tracepoint_iter_reset(struct tracepoint_iter *iter);
-extern int tracepoint_get_iter_range(struct tracepoint **tracepoint,
-	struct tracepoint *begin, struct tracepoint *end);
+extern int tracepoint_get_iter_range(struct tracepoint * const **tracepoint,
+	struct tracepoint * const *begin, struct tracepoint * const *end);
 
 /*
  * tracepoint_synchronize_unregister must be called between the last tracepoint
@@ -84,11 +79,13 @@ static inline void tracepoint_synchronize_unregister(void)
 #define PARAMS(args...) args
 
 #ifdef CONFIG_TRACEPOINTS
-extern void tracepoint_update_probe_range(struct tracepoint *begin,
-	struct tracepoint *end);
+extern
+void tracepoint_update_probe_range(struct tracepoint * const *begin,
+	struct tracepoint * const *end);
 #else
-static inline void tracepoint_update_probe_range(struct tracepoint *begin,
-	struct tracepoint *end)
+static inline
+void tracepoint_update_probe_range(struct tracepoint * const *begin,
+	struct tracepoint * const *end)
 { }
 #endif /* CONFIG_TRACEPOINTS */
 
@@ -106,6 +103,7 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 
 #define TP_PROTO(args...)	args
 #define TP_ARGS(args...)	args
+#define TP_CONDITION(args...)	args
 
 #ifdef CONFIG_TRACEPOINTS
 
@@ -119,12 +117,14 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
  * as "(void *, void)". The DECLARE_TRACE_NOARGS() will pass in just
  * "void *data", where as the DECLARE_TRACE() will pass in "void *data, proto".
  */
-#define __DO_TRACE(tp, proto, args)					\
+#define __DO_TRACE(tp, proto, args, cond)				\
 	do {								\
 		struct tracepoint_func *it_func_ptr;			\
 		void *it_func;						\
 		void *__data;						\
 									\
+		if (!(cond))						\
+			return;						\
 		rcu_read_lock_sched_notrace();				\
 		it_func_ptr = rcu_dereference_sched((tp)->funcs);	\
 		if (it_func_ptr) {					\
@@ -142,7 +142,7 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
  * not add unwanted padding between the beginning of the section and the
  * structure. Force alignment to the same alignment as the section start.
  */
-#define __DECLARE_TRACE(name, proto, args, data_proto, data_args)	\
+#define __DECLARE_TRACE(name, proto, args, cond, data_proto, data_args)	\
 	extern struct tracepoint __tracepoint_##name;			\
 	static inline void trace_##name(proto)				\
 	{								\
@@ -151,7 +151,8 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 do_trace:								\
 			__DO_TRACE(&__tracepoint_##name,		\
 				TP_PROTO(data_proto),			\
-				TP_ARGS(data_args));			\
+				TP_ARGS(data_args),			\
+				TP_CONDITION(cond));			\
 	}								\
 	static inline int						\
 	register_trace_##name(void (*probe)(data_proto), void *data)	\
@@ -170,12 +171,20 @@ do_trace:								\
 	{								\
 	}
 
+/*
+ * We have no guarantee that gcc and the linker won't up-align the tracepoint
+ * structures, so we create an array of pointers that will be used for iteration
+ * on the tracepoints.
+ */
 #define DEFINE_TRACE_FN(name, reg, unreg)				\
 	static const char __tpstrtab_##name[]				\
 	__attribute__((section("__tracepoints_strings"))) = #name;	\
 	struct tracepoint __tracepoint_##name				\
-	__attribute__((section("__tracepoints"), aligned(32))) =	\
-		{ __tpstrtab_##name, 0, reg, unreg, NULL }
+	__attribute__((section("__tracepoints"))) =			\
+		{ __tpstrtab_##name, 0, reg, unreg, NULL };		\
+	static struct tracepoint * const __tracepoint_ptr_##name __used	\
+	__attribute__((section("__tracepoints_ptrs"))) =		\
+		&__tracepoint_##name;
 
 #define DEFINE_TRACE(name)						\
 	DEFINE_TRACE_FN(name, NULL, NULL);
@@ -186,7 +195,7 @@ do_trace:								\
 	EXPORT_SYMBOL(__tracepoint_##name)
 
 #else /* !CONFIG_TRACEPOINTS */
-#define __DECLARE_TRACE(name, proto, args, data_proto, data_args)	\
+#define __DECLARE_TRACE(name, proto, args, cond, data_proto, data_args)	\
 	static inline void trace_##name(proto)				\
 	{ }								\
 	static inline int						\
@@ -227,12 +236,19 @@ do_trace:								\
  * "void *__data, proto" as the callback prototype.
  */
 #define DECLARE_TRACE_NOARGS(name)					\
-		__DECLARE_TRACE(name, void, , void *__data, __data)
+		__DECLARE_TRACE(name, void, , 1, void *__data, __data)
 
 #define DECLARE_TRACE(name, proto, args)				\
-		__DECLARE_TRACE(name, PARAMS(proto), PARAMS(args),	\
+		__DECLARE_TRACE(name, PARAMS(proto), PARAMS(args), 1,	\
 				PARAMS(void *__data, proto),		\
 				PARAMS(__data, args))
+
+#define DECLARE_TRACE_CONDITION(name, proto, args, cond)		\
+	__DECLARE_TRACE(name, PARAMS(proto), PARAMS(args), PARAMS(cond), \
+			PARAMS(void *__data, proto),			\
+			PARAMS(__data, args))
+
+#define TRACE_EVENT_FLAGS(event, flag)
 
 #endif /* DECLARE_TRACE */
 
@@ -315,7 +331,7 @@ do_trace:								\
  *		memcpy(__entry->prev_comm, prev->comm, TASK_COMM_LEN);
  *		__entry->next_pid	= next->pid;
  *		__entry->next_prio	= next->prio;
- *	)
+ *	),
  *
  *	*
  *	* Formatted output of a trace record via TP_printk().
@@ -347,11 +363,21 @@ do_trace:								\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
 #define DEFINE_EVENT_PRINT(template, name, proto, args, print)	\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
+#define DEFINE_EVENT_CONDITION(template, name, proto,		\
+			       args, cond)			\
+	DECLARE_TRACE_CONDITION(name, PARAMS(proto),		\
+				PARAMS(args), PARAMS(cond))
 
 #define TRACE_EVENT(name, proto, args, struct, assign, print)	\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
 #define TRACE_EVENT_FN(name, proto, args, struct,		\
 		assign, print, reg, unreg)			\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
+#define TRACE_EVENT_CONDITION(name, proto, args, cond,		\
+			      struct, assign, print)		\
+	DECLARE_TRACE_CONDITION(name, PARAMS(proto),		\
+				PARAMS(args), PARAMS(cond))
+
+#define TRACE_EVENT_FLAGS(event, flag)
 
 #endif /* ifdef TRACE_EVENT (see note above) */

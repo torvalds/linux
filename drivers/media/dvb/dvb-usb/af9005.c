@@ -1027,8 +1027,8 @@ static struct dvb_usb_device_properties af9005_properties = {
 
 	.rc.legacy = {
 		.rc_interval = 200,
-		.rc_key_map = NULL,
-		.rc_key_map_size = 0,
+		.rc_map_table = NULL,
+		.rc_map_size = 0,
 		.rc_query = af9005_rc_query,
 	},
 
@@ -1070,14 +1070,14 @@ static int __init af9005_usb_module_init(void)
 		return result;
 	}
 	rc_decode = symbol_request(af9005_rc_decode);
-	rc_keys = symbol_request(ir_codes_af9005_table);
-	rc_keys_size = symbol_request(ir_codes_af9005_table_size);
+	rc_keys = symbol_request(rc_map_af9005_table);
+	rc_keys_size = symbol_request(rc_map_af9005_table_size);
 	if (rc_decode == NULL || rc_keys == NULL || rc_keys_size == NULL) {
 		err("af9005_rc_decode function not found, disabling remote");
 		af9005_properties.rc.legacy.rc_query = NULL;
 	} else {
-		af9005_properties.rc.legacy.rc_key_map = rc_keys;
-		af9005_properties.rc.legacy.rc_key_map_size = *rc_keys_size;
+		af9005_properties.rc.legacy.rc_map_table = rc_keys;
+		af9005_properties.rc.legacy.rc_map_size = *rc_keys_size;
 	}
 
 	return 0;
@@ -1089,9 +1089,9 @@ static void __exit af9005_usb_module_exit(void)
 	if (rc_decode != NULL)
 		symbol_put(af9005_rc_decode);
 	if (rc_keys != NULL)
-		symbol_put(ir_codes_af9005_table);
+		symbol_put(rc_map_af9005_table);
 	if (rc_keys_size != NULL)
-		symbol_put(ir_codes_af9005_table_size);
+		symbol_put(rc_map_af9005_table_size);
 	/* deregister this driver from the USB subsystem */
 	usb_deregister(&af9005_usb_driver);
 }

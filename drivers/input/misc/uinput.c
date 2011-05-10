@@ -37,6 +37,7 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/uinput.h>
+#include <linux/input/mt.h>
 #include "../input-compat.h"
 
 static int uinput_dev_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
@@ -301,10 +302,14 @@ static int uinput_validate_absbits(struct input_dev *dev)
 	int retval = 0;
 
 	for (cnt = 0; cnt < ABS_CNT; cnt++) {
+		int min, max;
 		if (!test_bit(cnt, dev->absbit))
 			continue;
 
-		if (input_abs_get_max(dev, cnt) <= input_abs_get_min(dev, cnt)) {
+		min = input_abs_get_min(dev, cnt);
+		max = input_abs_get_max(dev, cnt);
+
+		if ((min != 0 || max != 0) && max <= min) {
 			printk(KERN_DEBUG
 				"%s: invalid abs[%02x] min:%d max:%d\n",
 				UINPUT_NAME, cnt,
@@ -346,8 +351,7 @@ static int uinput_setup_device(struct uinput_device *udev, const char __user *bu
 {
 	struct uinput_user_dev	*user_dev;
 	struct input_dev	*dev;
-	char			*name;
-	int			i, size;
+	int			i;
 	int			retval;
 
 	if (count != sizeof(struct uinput_user_dev))
@@ -361,30 +365,25 @@ static int uinput_setup_device(struct uinput_device *udev, const char __user *bu
 
 	dev = udev->dev;
 
-	user_dev = kmalloc(sizeof(struct uinput_user_dev), GFP_KERNEL);
-	if (!user_dev)
-		return -ENOMEM;
-
-	if (copy_from_user(user_dev, buffer, sizeof(struct uinput_user_dev))) {
-		retval = -EFAULT;
-		goto exit;
-	}
+	user_dev = memdup_user(buffer, sizeof(struct uinput_user_dev));
+	if (IS_ERR(user_dev))
+		return PTR_ERR(user_dev);
 
 	udev->ff_effects_max = user_dev->ff_effects_max;
 
-	size = strnlen(user_dev->name, UINPUT_MAX_NAME_SIZE) + 1;
-	if (!size) {
+	/* Ensure name is filled in */
+	if (!user_dev->name[0]) {
 		retval = -EINVAL;
 		goto exit;
 	}
 
 	kfree(dev->name);
-	dev->name = name = kmalloc(size, GFP_KERNEL);
-	if (!name) {
+	dev->name = kstrndup(user_dev->name, UINPUT_MAX_NAME_SIZE,
+			     GFP_KERNEL);
+	if (!dev->name) {
 		retval = -ENOMEM;
 		goto exit;
 	}
-	strlcpy(name, user_dev->name, size);
 
 	dev->id.bustype	= user_dev->id.bustype;
 	dev->id.vendor	= user_dev->id.vendor;
@@ -406,8 +405,7 @@ static int uinput_setup_device(struct uinput_device *udev, const char __user *bu
 			goto exit;
 		if (test_bit(ABS_MT_SLOT, dev->absbit)) {
 			int nslot = input_abs_get_max(dev, ABS_MT_SLOT) + 1;
-			input_mt_create_slots(dev, nslot);
-			input_set_events_per_packet(dev, 6 * nslot);
+			input_mt_init_slots(dev, nslot);
 		} else if (test_bit(ABS_MT_POSITION_X, dev->absbit)) {
 			input_set_events_per_packet(dev, 60);
 		}
@@ -622,7 +620,6 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 	struct uinput_ff_upload ff_up;
 	struct uinput_ff_erase  ff_erase;
 	struct uinput_request   *req;
-	int                     length;
 	char			*phys;
 
 	retval = mutex_lock_interruptible(&udev->mutex);
@@ -680,29 +677,24 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 			retval = uinput_set_bit(arg, swbit, SW_MAX);
 			break;
 
+		case UI_SET_PROPBIT:
+			retval = uinput_set_bit(arg, propbit, INPUT_PROP_MAX);
+			break;
+
 		case UI_SET_PHYS:
 			if (udev->state == UIST_CREATED) {
 				retval = -EINVAL;
 				goto out;
 			}
-			length = strnlen_user(p, 1024);
-			if (length <= 0) {
-				retval = -EFAULT;
-				break;
+
+			phys = strndup_user(p, 1024);
+			if (IS_ERR(phys)) {
+				retval = PTR_ERR(phys);
+				goto out;
 			}
+
 			kfree(udev->dev->phys);
-			udev->dev->phys = phys = kmalloc(length, GFP_KERNEL);
-			if (!phys) {
-				retval = -ENOMEM;
-				break;
-			}
-			if (copy_from_user(phys, p, length)) {
-				udev->dev->phys = NULL;
-				kfree(phys);
-				retval = -EFAULT;
-				break;
-			}
-			phys[length - 1] = '\0';
+			udev->dev->phys = phys;
 			break;
 
 		case UI_BEGIN_FF_UPLOAD:

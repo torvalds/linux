@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/memory.h>
 #include <linux/gpio.h>
-#include <linux/fsl_devices.h>
+#include <linux/usb/otg.h>
 
 #include <linux/mtd/physmap.h>
 
@@ -40,7 +40,6 @@
 #include <mach/iomux-mx35.h>
 #include <mach/irqs.h>
 #include <mach/3ds_debugboard.h>
-#include <mach/mxc_ehci.h>
 
 #include "devices-imx35.h"
 #include "devices.h"
@@ -81,7 +80,7 @@ static struct platform_device *devices[] __initdata = {
 	&mx35pdk_flash,
 };
 
-static struct pad_desc mx35pdk_pads[] = {
+static iomux_v3_cfg_t mx35pdk_pads[] = {
 	/* UART1 */
 	MX35_PAD_CTS1__UART1_CTS,
 	MX35_PAD_RTS1__UART1_RTS,
@@ -119,43 +118,91 @@ static struct pad_desc mx35pdk_pads[] = {
 	MX35_PAD_SD1_DATA1__ESDHC1_DAT1,
 	MX35_PAD_SD1_DATA2__ESDHC1_DAT2,
 	MX35_PAD_SD1_DATA3__ESDHC1_DAT3,
+	/* I2C1 */
+	MX35_PAD_I2C1_CLK__I2C1_SCL,
+	MX35_PAD_I2C1_DAT__I2C1_SDA,
 };
+
+static int mx35_3ds_otg_init(struct platform_device *pdev)
+{
+	return mx35_initialize_usb_hw(pdev->id, MXC_EHCI_INTERNAL_PHY);
+}
 
 /* OTG config */
-static struct fsl_usb2_platform_data usb_otg_pdata = {
+static const struct fsl_usb2_platform_data usb_otg_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI_WIDE,
+	.workaround	= FLS_USB2_WORKAROUND_ENGCM09152,
+/*
+ * ENGCM09152 also requires a hardware change.
+ * Please check the MX35 Chip Errata document for details.
+ */
 };
 
+static struct mxc_usbh_platform_data otg_pdata __initdata = {
+	.init	= mx35_3ds_otg_init,
+	.portsc	= MXC_EHCI_MODE_UTMI,
+};
+
+static int mx35_3ds_usbh_init(struct platform_device *pdev)
+{
+	return mx35_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_SINGLE_UNI |
+			  MXC_EHCI_INTERNAL_PHY);
+}
+
 /* USB HOST config */
-static struct mxc_usbh_platform_data usb_host_pdata = {
+static const struct mxc_usbh_platform_data usb_host_pdata __initconst = {
+	.init		= mx35_3ds_usbh_init,
 	.portsc		= MXC_EHCI_MODE_SERIAL,
-	.flags		= MXC_EHCI_INTERFACE_SINGLE_UNI |
-			  MXC_EHCI_INTERNAL_PHY,
+};
+
+static int otg_mode_host;
+
+static int __init mx35_3ds_otg_mode(char *options)
+{
+	if (!strcmp(options, "host"))
+		otg_mode_host = 1;
+	else if (!strcmp(options, "device"))
+		otg_mode_host = 0;
+	else
+		pr_info("otg_mode neither \"host\" nor \"device\". "
+			"Defaulting to device\n");
+	return 0;
+}
+__setup("otg_mode=", mx35_3ds_otg_mode);
+
+static const struct imxi2c_platform_data mx35_3ds_i2c0_data __initconst = {
+	.bitrate = 100000,
 };
 
 /*
  * Board specific initialization.
  */
-static void __init mxc_board_init(void)
+static void __init mx35_3ds_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx35pdk_pads, ARRAY_SIZE(mx35pdk_pads));
 
 	imx35_add_fec(NULL);
+	imx35_add_imx2_wdt(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx35_add_imx_uart0(&uart_pdata);
 
-	mxc_register_device(&mxc_otg_udc_device, &usb_otg_pdata);
+	if (otg_mode_host)
+		imx35_add_mxc_ehci_otg(&otg_pdata);
 
-	mxc_register_device(&mxc_usbh1, &usb_host_pdata);
+	imx35_add_mxc_ehci_hs(&usb_host_pdata);
+
+	if (!otg_mode_host)
+		imx35_add_fsl_usb2_udc(&usb_otg_pdata);
 
 	imx35_add_mxc_nand(&mx35pdk_nand_board_info);
-	imx35_add_esdhc(0, NULL);
+	imx35_add_sdhci_esdhc_imx(0, NULL);
 
 	if (mxc_expio_init(MX35_CS5_BASE_ADDR, EXPIO_PARENT_INT))
 		pr_warn("Init of the debugboard failed, all "
 				"devices on the debugboard are unusable.\n");
+	imx35_add_imx_i2c0(&mx35_3ds_i2c0_data);
 }
 
 static void __init mx35pdk_timer_init(void)
@@ -169,9 +216,10 @@ struct sys_timer mx35pdk_timer = {
 
 MACHINE_START(MX35_3DS, "Freescale MX35PDK")
 	/* Maintainer: Freescale Semiconductor, Inc */
-	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
-	.map_io         = mx35_map_io,
-	.init_irq       = mx35_init_irq,
-	.init_machine   = mxc_board_init,
-	.timer          = &mx35pdk_timer,
+	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.map_io = mx35_map_io,
+	.init_early = imx35_init_early,
+	.init_irq = mx35_init_irq,
+	.timer = &mx35pdk_timer,
+	.init_machine = mx35_3ds_init,
 MACHINE_END

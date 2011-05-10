@@ -55,7 +55,6 @@ EXPORT_SYMBOL(inet_get_local_port_range);
 int inet_csk_bind_conflict(const struct sock *sk,
 			   const struct inet_bind_bucket *tb)
 {
-	const __be32 sk_rcv_saddr = inet_rcv_saddr(sk);
 	struct sock *sk2;
 	struct hlist_node *node;
 	int reuse = sk->sk_reuse;
@@ -75,9 +74,9 @@ int inet_csk_bind_conflict(const struct sock *sk,
 		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if)) {
 			if (!reuse || !sk2->sk_reuse ||
 			    sk2->sk_state == TCP_LISTEN) {
-				const __be32 sk2_rcv_saddr = inet_rcv_saddr(sk2);
-				if (!sk2_rcv_saddr || !sk_rcv_saddr ||
-				    sk2_rcv_saddr == sk_rcv_saddr)
+				const __be32 sk2_rcv_saddr = sk_rcv_saddr(sk2);
+				if (!sk2_rcv_saddr || !sk_rcv_saddr(sk) ||
+				    sk2_rcv_saddr == sk_rcv_saddr(sk))
 					break;
 			}
 		}
@@ -356,23 +355,23 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 	struct rtable *rt;
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct ip_options *opt = inet_rsk(req)->opt;
-	struct flowi fl = { .oif = sk->sk_bound_dev_if,
-			    .mark = sk->sk_mark,
-			    .nl_u = { .ip4_u =
-				      { .daddr = ((opt && opt->srr) ?
-						  opt->faddr :
-						  ireq->rmt_addr),
-					.saddr = ireq->loc_addr,
-					.tos = RT_CONN_FLAGS(sk) } },
-			    .proto = sk->sk_protocol,
-			    .flags = inet_sk_flowi_flags(sk),
-			    .uli_u = { .ports =
-				       { .sport = inet_sk(sk)->inet_sport,
-					 .dport = ireq->rmt_port } } };
+	struct flowi4 fl4 = {
+		.flowi4_oif = sk->sk_bound_dev_if,
+		.flowi4_mark = sk->sk_mark,
+		.daddr = ((opt && opt->srr) ?
+			  opt->faddr : ireq->rmt_addr),
+		.saddr = ireq->loc_addr,
+		.flowi4_tos = RT_CONN_FLAGS(sk),
+		.flowi4_proto = sk->sk_protocol,
+		.flowi4_flags = inet_sk_flowi_flags(sk),
+		.fl4_sport = inet_sk(sk)->inet_sport,
+		.fl4_dport = ireq->rmt_port,
+	};
 	struct net *net = sock_net(sk);
 
-	security_req_classify_flow(req, &fl);
-	if (ip_route_output_flow(net, &rt, &fl, sk, 0))
+	security_req_classify_flow(req, flowi4_to_flowi(&fl4));
+	rt = ip_route_output_flow(net, &fl4, sk);
+	if (IS_ERR(rt))
 		goto no_route;
 	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway)
 		goto route_err;

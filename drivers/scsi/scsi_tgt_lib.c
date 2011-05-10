@@ -93,7 +93,7 @@ struct scsi_cmnd *scsi_host_get_command(struct Scsi_Host *shost,
 
 	/*
 	 * The blk helpers are used to the READ/WRITE requests
-	 * transfering data from a initiator point of view. Since
+	 * transferring data from a initiator point of view. Since
 	 * we are in target mode we want the opposite.
 	 */
 	rq = blk_get_request(shost->uspace_req_q, !write, gfp_mask);
@@ -629,7 +629,7 @@ static int __init scsi_tgt_init(void)
 	if (!scsi_tgt_cmd_cache)
 		return -ENOMEM;
 
-	scsi_tgtd = create_workqueue("scsi_tgtd");
+	scsi_tgtd = alloc_workqueue("scsi_tgtd", 0, 1);
 	if (!scsi_tgtd) {
 		err = -ENOMEM;
 		goto free_kmemcache;

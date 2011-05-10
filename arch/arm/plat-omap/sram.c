@@ -33,23 +33,21 @@
 
 #include "sram.h"
 #include "fb.h"
+
+/* XXX These "sideways" includes are a sign that something is wrong */
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-# include "../mach-omap2/prm.h"
-# include "../mach-omap2/cm.h"
+# include "../mach-omap2/prm2xxx_3xxx.h"
 # include "../mach-omap2/sdrc.h"
 #endif
 
 #define OMAP1_SRAM_PA		0x20000000
 #define OMAP1_SRAM_VA		VMALLOC_END
-#define OMAP2_SRAM_PA		0x40200000
-#define OMAP2_SRAM_PUB_PA	0x4020f800
+#define OMAP2_SRAM_PUB_PA	(OMAP2_SRAM_PA + 0xf800)
 #define OMAP2_SRAM_VA		0xfe400000
 #define OMAP2_SRAM_PUB_VA	(OMAP2_SRAM_VA + 0x800)
-#define OMAP3_SRAM_PA           0x40200000
 #define OMAP3_SRAM_VA           0xfe400000
-#define OMAP3_SRAM_PUB_PA       0x40208000
+#define OMAP3_SRAM_PUB_PA       (OMAP3_SRAM_PA + 0x8000)
 #define OMAP3_SRAM_PUB_VA       (OMAP3_SRAM_VA + 0x8000)
-#define OMAP4_SRAM_PA		0x40300000
 #define OMAP4_SRAM_VA		0xfe400000
 #define OMAP4_SRAM_PUB_PA	(OMAP4_SRAM_PA + 0x4000)
 #define OMAP4_SRAM_PUB_VA	(OMAP4_SRAM_VA + 0x4000)
@@ -166,7 +164,7 @@ static void __init omap_detect_sram(void)
 		     cpu_is_omap1710())
 			omap_sram_size = 0x4000;	/* 16K */
 		else if (cpu_is_omap1611())
-			omap_sram_size = 0x3e800;	/* 250K */
+			omap_sram_size = SZ_256K;
 		else {
 			printk(KERN_ERR "Could not detect SRAM size\n");
 			omap_sram_size = 0x4000;
@@ -244,7 +242,14 @@ static void __init omap_map_sram(void)
 	       omap_sram_size - SRAM_BOOTLOADER_SZ);
 }
 
-void * omap_sram_push(void * start, unsigned long size)
+/*
+ * Memory allocator for SRAM: calculates the new ceiling address
+ * for pushing a function using the fncpy API.
+ *
+ * Note that fncpy requires the returned address to be aligned
+ * to an 8-byte boundary.
+ */
+void *omap_sram_push_address(unsigned long size)
 {
 	if (size > (omap_sram_ceil - (omap_sram_base + SRAM_BOOTLOADER_SZ))) {
 		printk(KERN_ERR "Not enough space in SRAM\n");
@@ -252,10 +257,7 @@ void * omap_sram_push(void * start, unsigned long size)
 	}
 
 	omap_sram_ceil -= size;
-	omap_sram_ceil = ROUND_DOWN(omap_sram_ceil, sizeof(void *));
-	memcpy((void *)omap_sram_ceil, start, size);
-	flush_icache_range((unsigned long)omap_sram_ceil,
-		(unsigned long)(omap_sram_ceil + size));
+	omap_sram_ceil = ROUND_DOWN(omap_sram_ceil, FNCPY_ALIGN);
 
 	return (void *)omap_sram_ceil;
 }
@@ -270,7 +272,7 @@ void omap_sram_reprogram_clock(u32 dpllctl, u32 ckctl)
 	_omap_sram_reprogram_clock(dpllctl, ckctl);
 }
 
-int __init omap1_sram_init(void)
+static int __init omap1_sram_init(void)
 {
 	_omap_sram_reprogram_clock =
 			omap_sram_push(omap1_sram_reprogram_clock,
@@ -314,7 +316,7 @@ u32 omap2_set_prcm(u32 dpll_ctrl_val, u32 sdrc_rfr_val, int bypass)
 }
 #endif
 
-#ifdef CONFIG_ARCH_OMAP2420
+#ifdef CONFIG_SOC_OMAP2420
 static int __init omap242x_sram_init(void)
 {
 	_omap2_sram_ddr_init = omap_sram_push(omap242x_sram_ddr_init,
@@ -335,7 +337,7 @@ static inline int omap242x_sram_init(void)
 }
 #endif
 
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 static int __init omap243x_sram_init(void)
 {
 	_omap2_sram_ddr_init = omap_sram_push(omap243x_sram_ddr_init,
@@ -407,20 +409,6 @@ static inline int omap34xx_sram_init(void)
 }
 #endif
 
-#ifdef CONFIG_ARCH_OMAP4
-static int __init omap44xx_sram_init(void)
-{
-	printk(KERN_ERR "FIXME: %s not implemented\n", __func__);
-
-	return -ENODEV;
-}
-#else
-static inline int omap44xx_sram_init(void)
-{
-	return 0;
-}
-#endif
-
 int __init omap_sram_init(void)
 {
 	omap_detect_sram();
@@ -434,8 +422,6 @@ int __init omap_sram_init(void)
 		omap243x_sram_init();
 	else if (cpu_is_omap34xx())
 		omap34xx_sram_init();
-	else if (cpu_is_omap44xx())
-		omap44xx_sram_init();
 
 	return 0;
 }

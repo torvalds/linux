@@ -1,0 +1,206 @@
+menuconfig RC_CORE
+	tristate "Remote Controller adapters"
+	depends on INPUT
+	default INPUT
+	---help---
+	  Enable support for Remote Controllers on Linux. This is
+	  needed in order to support several video capture adapters.
+	  Currently, all supported devices use InfraRed.
+
+	  Enable this option if you have a video capture board even
+	  if you don't need IR, as otherwise, you may not be able to
+	  compile the driver for your adapter.
+
+if RC_CORE
+
+config LIRC
+	tristate
+	default y
+
+	---help---
+	   Enable this option to build the Linux Infrared Remote
+	   Control (LIRC) core device interface driver. The LIRC
+	   interface passes raw IR to and from userspace, where the
+	   LIRC daemon handles protocol decoding for IR reception and
+	   encoding for IR transmitting (aka "blasting").
+
+source "drivers/media/rc/keymaps/Kconfig"
+
+config IR_NEC_DECODER
+	tristate "Enable IR raw decoder for the NEC protocol"
+	depends on RC_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have IR with NEC protocol, and
+	   if the IR is decoded in software
+
+config IR_RC5_DECODER
+	tristate "Enable IR raw decoder for the RC-5 protocol"
+	depends on RC_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have IR with RC-5 protocol, and
+	   if the IR is decoded in software
+
+config IR_RC6_DECODER
+	tristate "Enable IR raw decoder for the RC6 protocol"
+	depends on RC_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the RC6 protocol, and you need software decoding support.
+
+config IR_JVC_DECODER
+	tristate "Enable IR raw decoder for the JVC protocol"
+	depends on RC_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the JVC protocol, and you need software decoding support.
+
+config IR_SONY_DECODER
+	tristate "Enable IR raw decoder for the Sony protocol"
+	depends on RC_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the Sony protocol, and you need software decoding support.
+
+config IR_RC5_SZ_DECODER
+	tristate "Enable IR raw decoder for the RC-5 (streamzap) protocol"
+	depends on RC_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have IR with RC-5 (streamzap) protocol,
+	   and if the IR is decoded in software. (The Streamzap PC Remote
+	   uses an IR protocol that is almost standard RC-5, but not quite,
+	   as it uses an additional bit).
+
+config IR_LIRC_CODEC
+	tristate "Enable IR to LIRC bridge"
+	depends on RC_CORE
+	depends on LIRC
+	default y
+
+	---help---
+	   Enable this option to pass raw IR to and from userspace via
+	   the LIRC interface.
+
+config IR_ENE
+	tristate "ENE eHome Receiver/Transceiver (pnp id: ENE0100/ENE02xxx)"
+	depends on PNP
+	depends on RC_CORE
+	---help---
+	   Say Y here to enable support for integrated infrared receiver
+	   /transceiver made by ENE.
+
+	   You can see if you have it by looking at lspnp output.
+	   Output should include ENE0100 ENE0200 or something similar.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called ene_ir.
+
+config IR_IMON
+	tristate "SoundGraph iMON Receiver and Display"
+	depends on USB_ARCH_HAS_HCD
+	depends on RC_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a SoundGraph iMON (aka Antec Veris)
+	   IR Receiver and/or LCD/VFD/VGA display.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called imon.
+
+config IR_MCEUSB
+	tristate "Windows Media Center Ed. eHome Infrared Transceiver"
+	depends on USB_ARCH_HAS_HCD
+	depends on RC_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a Windows Media Center Edition
+	   eHome Infrared Transceiver.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called mceusb.
+
+config IR_ITE_CIR
+	tristate "ITE Tech Inc. IT8712/IT8512 Consumer Infrared Transceiver"
+	depends on PNP
+	depends on RC_CORE
+	---help---
+	   Say Y here to enable support for integrated infrared receivers
+	   /transceivers made by ITE Tech Inc. These are found in
+	   several ASUS devices, like the ASUS Digimatrix or the ASUS
+	   EEEBox 1501U.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called ite-cir.
+
+config IR_NUVOTON
+	tristate "Nuvoton w836x7hg Consumer Infrared Transceiver"
+	depends on PNP
+	depends on RC_CORE
+	---help---
+	   Say Y here to enable support for integrated infrared receiver
+	   /transciever made by Nuvoton (formerly Winbond). This chip is
+	   found in the ASRock ION 330HT, as well as assorted Intel
+	   DP55-series motherboards (and of course, possibly others).
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called nuvoton-cir.
+
+config IR_STREAMZAP
+	tristate "Streamzap PC Remote IR Receiver"
+	depends on USB_ARCH_HAS_HCD
+	depends on RC_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a Streamzap PC Remote
+	   Infrared Receiver.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called streamzap.
+
+config IR_WINBOND_CIR
+	tristate "Winbond IR remote control"
+	depends on X86 && PNP
+	depends on RC_CORE
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_TRIGGERS
+	select BITREVERSE
+	---help---
+	   Say Y here if you want to use the IR remote functionality found
+	   in some Winbond SuperI/O chips. Currently only the WPCD376I
+	   chip is supported (included in some Intel Media series
+	   motherboards).
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called winbond_cir.
+
+config RC_LOOPBACK
+	tristate "Remote Control Loopback Driver"
+	depends on RC_CORE
+	---help---
+	   Say Y here if you want support for the remote control loopback
+	   driver which allows TX data to be sent back as RX data.
+	   This is mostly useful for debugging purposes.
+
+	   If you're not sure, select N here.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called rc_loopback.
+
+endif #RC_CORE

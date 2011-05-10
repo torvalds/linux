@@ -33,7 +33,9 @@
 #include <linux/regulator/max1586.h>
 #include <linux/spi/ads7846.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/usb/gpio_vbus.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -41,9 +43,7 @@
 
 #include <mach/pxa27x.h>
 #include <mach/hx4700.h>
-#include <plat/i2c.h>
 #include <mach/irda.h>
-#include <mach/pxa2xx_spi.h>
 
 #include <video/platform_lcd.h>
 #include <video/w100fb.h>
@@ -711,7 +711,7 @@ static struct regulator_consumer_supply bq24022_consumers[] = {
 static struct regulator_init_data bq24022_init_data = {
 	.constraints = {
 		.max_uA         = 500000,
-		.valid_ops_mask = REGULATOR_CHANGE_CURRENT,
+		.valid_ops_mask = REGULATOR_CHANGE_CURRENT|REGULATOR_CHANGE_STATUS,
 	},
 	.num_consumer_supplies  = ARRAY_SIZE(bq24022_consumers),
 	.consumer_supplies      = bq24022_consumers,
@@ -871,7 +871,7 @@ static void __init hx4700_init(void)
 
 MACHINE_START(H4700, "HP iPAQ HX4700")
 	.boot_params  = 0xa0000100,
-	.map_io       = pxa_map_io,
+	.map_io       = pxa27x_map_io,
 	.nr_irqs      = HX4700_NR_IRQS,
 	.init_irq     = pxa27x_init_irq,
 	.init_machine = hx4700_init,

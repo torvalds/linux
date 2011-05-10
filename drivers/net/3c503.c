@@ -392,8 +392,8 @@ el2_open(struct net_device *dev)
     int retval;
 
     if (dev->irq < 2) {
-	int irqlist[] = {5, 9, 3, 4, 0};
-	int *irqp = irqlist;
+	static const int irqlist[] = {5, 9, 3, 4, 0};
+	const int *irqp = irqlist;
 
 	outb(EGACFR_NORM, E33G_GACFR);	/* Enable RAM and interrupts. */
 	do {

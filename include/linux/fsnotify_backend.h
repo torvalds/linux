@@ -166,7 +166,7 @@ struct fsnotify_group {
 			struct mutex access_mutex;
 			struct list_head access_list;
 			wait_queue_head_t access_waitq;
-			bool bypass_perm; /* protected by access_mutex */
+			atomic_t bypass_perm;
 #endif /* CONFIG_FANOTIFY_ACCESS_PERMISSIONS */
 			int f_flags;
 			unsigned int max_marks;
@@ -329,9 +329,15 @@ static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
 {
 	struct dentry *parent;
 
-	assert_spin_locked(&dcache_lock);
 	assert_spin_locked(&dentry->d_lock);
 
+	/*
+	 * Serialisation of setting PARENT_WATCHED on the dentries is provided
+	 * by d_lock. If inotify_inode_watched changes after we have taken
+	 * d_lock, the following __fsnotify_update_child_dentry_flags call will
+	 * find our entry, so it will spin until we complete here, and update
+	 * us with the new state.
+	 */
 	parent = dentry->d_parent;
 	if (parent->d_inode && fsnotify_inode_watches_children(parent->d_inode))
 		dentry->d_flags |= DCACHE_FSNOTIFY_PARENT_WATCHED;
@@ -341,14 +347,11 @@ static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
 
 /*
  * fsnotify_d_instantiate - instantiate a dentry for inode
- * Called with dcache_lock held.
  */
 static inline void __fsnotify_d_instantiate(struct dentry *dentry, struct inode *inode)
 {
 	if (!inode)
 		return;
-
-	assert_spin_locked(&dcache_lock);
 
 	spin_lock(&dentry->d_lock);
 	__fsnotify_update_dcache_flags(dentry);

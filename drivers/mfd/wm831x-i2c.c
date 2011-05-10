@@ -51,17 +51,25 @@ static int wm831x_i2c_write_device(struct wm831x *wm831x, unsigned short reg,
 				   int bytes, void *src)
 {
 	struct i2c_client *i2c = wm831x->control_data;
-	unsigned char msg[bytes + 2];
+	struct i2c_msg xfer[2];
 	int ret;
 
 	reg = cpu_to_be16(reg);
-	memcpy(&msg[0], &reg, 2);
-	memcpy(&msg[2], src, bytes);
 
-	ret = i2c_master_send(i2c, msg, bytes + 2);
+	xfer[0].addr = i2c->addr;
+	xfer[0].flags = 0;
+	xfer[0].len = 2;
+	xfer[0].buf = (char *)&reg;
+
+	xfer[1].addr = i2c->addr;
+	xfer[1].flags = I2C_M_NOSTART;
+	xfer[1].len = bytes;
+	xfer[1].buf = (char *)src;
+
+	ret = i2c_transfer(i2c->adapter, xfer, 2);
 	if (ret < 0)
 		return ret;
-	if (ret < bytes + 2)
+	if (ret != 2)
 		return -EIO;
 
 	return 0;
@@ -94,9 +102,9 @@ static int wm831x_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static int wm831x_i2c_suspend(struct i2c_client *i2c, pm_message_t mesg)
+static int wm831x_i2c_suspend(struct device *dev)
 {
-	struct wm831x *wm831x = i2c_get_clientdata(i2c);
+	struct wm831x *wm831x = dev_get_drvdata(dev);
 
 	return wm831x_device_suspend(wm831x);
 }
@@ -108,19 +116,23 @@ static const struct i2c_device_id wm831x_i2c_id[] = {
 	{ "wm8320", WM8320 },
 	{ "wm8321", WM8321 },
 	{ "wm8325", WM8325 },
+	{ "wm8326", WM8326 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm831x_i2c_id);
 
+static const struct dev_pm_ops wm831x_pm_ops = {
+	.suspend = wm831x_i2c_suspend,
+};
 
 static struct i2c_driver wm831x_i2c_driver = {
 	.driver = {
-		   .name = "wm831x",
-		   .owner = THIS_MODULE,
+		.name = "wm831x",
+		.owner = THIS_MODULE,
+		.pm = &wm831x_pm_ops,
 	},
 	.probe = wm831x_i2c_probe,
 	.remove = wm831x_i2c_remove,
-	.suspend = wm831x_i2c_suspend,
 	.id_table = wm831x_i2c_id,
 };
 

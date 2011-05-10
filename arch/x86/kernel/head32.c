@@ -34,15 +34,6 @@ void __init i386_start_kernel(void)
 {
 	memblock_init();
 
-#ifdef CONFIG_X86_TRAMPOLINE
-	/*
-	 * But first pinch a few for the stack/trampoline stuff
-	 * FIXME: Don't need the extra page at 4K, but need to fix
-	 * trampoline before removing it. (see the GDT stuff)
-	 */
-	memblock_x86_reserve_range(PAGE_SIZE, PAGE_SIZE + PAGE_SIZE, "EX TRAMPOLINE");
-#endif
-
 	memblock_x86_reserve_range(__pa_symbol(&_text), __pa_symbol(&__bss_stop), "TEXT DATA BSS");
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -60,6 +51,9 @@ void __init i386_start_kernel(void)
 	switch (boot_params.hdr.hardware_subarch) {
 	case X86_SUBARCH_MRST:
 		x86_mrst_early_setup();
+		break;
+	case X86_SUBARCH_CE4100:
+		x86_ce4100_early_setup();
 		break;
 	default:
 		i386_default_early_setup();

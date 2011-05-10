@@ -12,6 +12,8 @@ the following struct:-
 struct snd_soc_card {
 	char *name;
 
+	...
+
 	int (*probe)(struct platform_device *pdev);
 	int (*remove)(struct platform_device *pdev);
 
@@ -22,12 +24,13 @@ struct snd_soc_card {
 	int (*resume_pre)(struct platform_device *pdev);
 	int (*resume_post)(struct platform_device *pdev);
 
-	/* machine stream operations */
-	struct snd_soc_ops *ops;
+	...
 
 	/* CPU <--> Codec DAI links  */
 	struct snd_soc_dai_link *dai_link;
 	int num_links;
+
+	...
 };
 
 probe()/remove()
@@ -40,11 +43,6 @@ suspend()/resume()
 The machine driver has pre and post versions of suspend and resume to take care
 of any machine audio tasks that have to be done before or after the codec, DAIs
 and DMA is suspended and resumed. Optional.
-
-
-Machine operations
-------------------
-The machine specific audio operations can be set here. Again this is optional.
 
 
 Machine DAI Configuration
@@ -61,8 +59,10 @@ struct snd_soc_dai_link is used to set up each DAI in your machine. e.g.
 static struct snd_soc_dai_link corgi_dai = {
 	.name = "WM8731",
 	.stream_name = "WM8731",
-	.cpu_dai = &pxa_i2s_dai,
-	.codec_dai = &wm8731_dai,
+	.cpu_dai_name = "pxa-is2-dai",
+	.codec_dai_name = "wm8731-hifi",
+	.platform_name = "pxa-pcm-audio",
+	.codec_name = "wm8713-codec.0-001a",
 	.init = corgi_wm8731_init,
 	.ops = &corgi_ops,
 };
@@ -74,26 +74,6 @@ static struct snd_soc_card snd_soc_corgi = {
 	.name = "Corgi",
 	.dai_link = &corgi_dai,
 	.num_links = 1,
-};
-
-
-Machine Audio Subsystem
------------------------
-
-The machine soc device glues the platform, machine and codec driver together.
-Private data can also be set here. e.g.
-
-/* corgi audio private data */
-static struct wm8731_setup_data corgi_wm8731_setup = {
-	.i2c_address = 0x1b,
-};
-
-/* corgi audio subsystem */
-static struct snd_soc_device corgi_snd_devdata = {
-	.machine = &snd_soc_corgi,
-	.platform = &pxa2xx_soc_platform,
-	.codec_dev = &soc_codec_dev_wm8731,
-	.codec_data = &corgi_wm8731_setup,
 };
 
 

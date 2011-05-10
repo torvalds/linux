@@ -10,6 +10,8 @@
 #ifndef _ASMARM_PGALLOC_H
 #define _ASMARM_PGALLOC_H
 
+#include <linux/pagemap.h>
+
 #include <asm/domain.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/processor.h>
@@ -30,13 +32,15 @@
 #define pmd_free(mm, pmd)		do { } while (0)
 #define pgd_populate(mm,pmd,pte)	BUG()
 
-extern pgd_t *get_pgd_slow(struct mm_struct *mm);
-extern void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd);
-
-#define pgd_alloc(mm)			get_pgd_slow(mm)
-#define pgd_free(mm, pgd)		free_pgd_slow(mm, pgd)
+extern pgd_t *pgd_alloc(struct mm_struct *mm);
+extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
 
 #define PGALLOC_GFP	(GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO)
+
+static inline void clean_pte_table(pte_t *pte)
+{
+	clean_dcache_area(pte + PTE_HWTABLE_PTRS, PTE_HWTABLE_SIZE);
+}
 
 /*
  * Allocate one PTE table.
@@ -45,13 +49,13 @@ extern void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd);
  * into one table thus:
  *
  *  +------------+
- *  |  h/w pt 0  |
- *  +------------+
- *  |  h/w pt 1  |
- *  +------------+
  *  | Linux pt 0 |
  *  +------------+
  *  | Linux pt 1 |
+ *  +------------+
+ *  |  h/w pt 0  |
+ *  +------------+
+ *  |  h/w pt 1  |
  *  +------------+
  */
 static inline pte_t *
@@ -60,10 +64,8 @@ pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr)
 	pte_t *pte;
 
 	pte = (pte_t *)__get_free_page(PGALLOC_GFP);
-	if (pte) {
-		clean_dcache_area(pte, sizeof(pte_t) * PTRS_PER_PTE);
-		pte += PTRS_PER_PTE;
-	}
+	if (pte)
+		clean_pte_table(pte);
 
 	return pte;
 }
@@ -79,10 +81,8 @@ pte_alloc_one(struct mm_struct *mm, unsigned long addr)
 	pte = alloc_pages(PGALLOC_GFP, 0);
 #endif
 	if (pte) {
-		if (!PageHighMem(pte)) {
-			void *page = page_address(pte);
-			clean_dcache_area(page, sizeof(pte_t) * PTRS_PER_PTE);
-		}
+		if (!PageHighMem(pte))
+			clean_pte_table(page_address(pte));
 		pgtable_page_ctor(pte);
 	}
 
@@ -94,10 +94,8 @@ pte_alloc_one(struct mm_struct *mm, unsigned long addr)
  */
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
-	if (pte) {
-		pte -= PTRS_PER_PTE;
+	if (pte)
 		free_page((unsigned long)pte);
-	}
 }
 
 static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
@@ -106,8 +104,10 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 	__free_page(pte);
 }
 
-static inline void __pmd_populate(pmd_t *pmdp, unsigned long pmdval)
+static inline void __pmd_populate(pmd_t *pmdp, phys_addr_t pte,
+	unsigned long prot)
 {
+	unsigned long pmdval = (pte + PTE_HWTABLE_OFF) | prot;
 	pmdp[0] = __pmd(pmdval);
 	pmdp[1] = __pmd(pmdval + 256 * sizeof(pte_t));
 	flush_pmd_entry(pmdp);
@@ -122,20 +122,16 @@ static inline void __pmd_populate(pmd_t *pmdp, unsigned long pmdval)
 static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmdp, pte_t *ptep)
 {
-	unsigned long pte_ptr = (unsigned long)ptep;
-
 	/*
-	 * The pmd must be loaded with the physical
-	 * address of the PTE table
+	 * The pmd must be loaded with the physical address of the PTE table
 	 */
-	pte_ptr -= PTRS_PER_PTE * sizeof(void *);
-	__pmd_populate(pmdp, __pa(pte_ptr) | _PAGE_KERNEL_TABLE);
+	__pmd_populate(pmdp, __pa(ptep), _PAGE_KERNEL_TABLE);
 }
 
 static inline void
 pmd_populate(struct mm_struct *mm, pmd_t *pmdp, pgtable_t ptep)
 {
-	__pmd_populate(pmdp, page_to_pfn(ptep) << PAGE_SHIFT | _PAGE_USER_TABLE);
+	__pmd_populate(pmdp, page_to_phys(ptep), _PAGE_USER_TABLE);
 }
 #define pmd_pgtable(pmd) pmd_page(pmd)
 

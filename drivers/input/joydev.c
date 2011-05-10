@@ -10,6 +10,8 @@
  * (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <asm/io.h>
 #include <asm/system.h>
 #include <linux/delay.h>
@@ -756,7 +758,7 @@ static void joydev_remove_chrdev(struct joydev *joydev)
 }
 
 /*
- * Mark device non-existant. This disables writes, ioctls and
+ * Mark device non-existent. This disables writes, ioctls and
  * prevents new users from opening the device. Already posted
  * blocking reads will stay, however new ones will fail.
  */
@@ -775,7 +777,7 @@ static void joydev_cleanup(struct joydev *joydev)
 	joydev_hangup(joydev);
 	joydev_remove_chrdev(joydev);
 
-	/* joydev is marked dead so noone else accesses joydev->open */
+	/* joydev is marked dead so no one else accesses joydev->open */
 	if (joydev->open)
 		input_close_device(handle);
 }
@@ -806,7 +808,7 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 			break;
 
 	if (minor == JOYDEV_MINORS) {
-		printk(KERN_ERR "joydev: no more free joydev devices\n");
+		pr_err("no more free joydev devices\n");
 		return -ENFILE;
 	}
 

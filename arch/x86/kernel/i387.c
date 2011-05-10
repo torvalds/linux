@@ -145,7 +145,7 @@ EXPORT_SYMBOL_GPL(fpu_finit);
  * The _current_ task is using the FPU for the first time
  * so initialize it and set the mxcsr to its default
  * value at reset if we support XMM instructions and then
- * remeber the current task has used the FPU.
+ * remember the current task has used the FPU.
  */
 int init_fpu(struct task_struct *tsk)
 {
@@ -169,6 +169,7 @@ int init_fpu(struct task_struct *tsk)
 	set_stopped_child_used_math(tsk);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(init_fpu);
 
 /*
  * The xstateregs_active() routine is the same as the fpregs_active() routine,

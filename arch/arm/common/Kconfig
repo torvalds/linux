@@ -6,6 +6,8 @@ config ARM_VIC
 
 config ARM_VIC_NR
 	int
+	default 4 if ARCH_S5PV210
+	default 3 if ARCH_S5P6442 || ARCH_S5PC100
 	default 2
 	depends on ARM_VIC
 	help
@@ -37,7 +39,3 @@ config SHARP_PARAM
 
 config SHARP_SCOOP
 	bool
-
-config COMMON_CLKDEV
-	bool
-	select HAVE_CLK

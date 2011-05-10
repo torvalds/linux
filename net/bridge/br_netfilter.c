@@ -124,24 +124,25 @@ void br_netfilter_rtable_init(struct net_bridge *br)
 	atomic_set(&rt->dst.__refcnt, 1);
 	rt->dst.dev = br->dev;
 	rt->dst.path = &rt->dst;
-	rt->dst.metrics[RTAX_MTU - 1] = 1500;
+	dst_metric_set(&rt->dst, RTAX_MTU, 1500);
 	rt->dst.flags	= DST_NOXFRM;
 	rt->dst.ops = &fake_dst_ops;
 }
 
 static inline struct rtable *bridge_parent_rtable(const struct net_device *dev)
 {
-	if (!br_port_exists(dev))
-		return NULL;
-	return &br_port_get_rcu(dev)->br->fake_rtable;
+	struct net_bridge_port *port;
+
+	port = br_port_get_rcu(dev);
+	return port ? &port->br->fake_rtable : NULL;
 }
 
 static inline struct net_device *bridge_parent(const struct net_device *dev)
 {
-	if (!br_port_exists(dev))
-		return NULL;
+	struct net_bridge_port *port;
 
-	return br_port_get_rcu(dev)->br->dev;
+	port = br_port_get_rcu(dev);
+	return port ? port->br->dev : NULL;
 }
 
 static inline struct nf_bridge_info *nf_bridge_alloc(struct sk_buff *skb)
@@ -248,11 +249,9 @@ static int br_parse_ip_options(struct sk_buff *skb)
 		goto drop;
 	}
 
-	/* Zero out the CB buffer if no options present */
-	if (iph->ihl == 5) {
-		memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+	memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+	if (iph->ihl == 5)
 		return 0;
-	}
 
 	opt->optlen = iph->ihl*4 - sizeof(struct iphdr);
 	if (ip_options_compile(dev_net(dev), opt, skb))
@@ -411,15 +410,6 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 	nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
 	if (dnat_took_place(skb)) {
 		if ((err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))) {
-			struct flowi fl = {
-				.nl_u = {
-					.ip4_u = {
-						 .daddr = iph->daddr,
-						 .saddr = 0,
-						 .tos = RT_TOS(iph->tos) },
-				},
-				.proto = 0,
-			};
 			struct in_device *in_dev = __in_dev_get_rcu(dev);
 
 			/* If err equals -EHOSTUNREACH the error is due to a
@@ -432,14 +422,16 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 			if (err != -EHOSTUNREACH || !in_dev || IN_DEV_FORWARD(in_dev))
 				goto free_skb;
 
-			if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
+			rt = ip_route_output(dev_net(dev), iph->daddr, 0,
+					     RT_TOS(iph->tos), 0);
+			if (!IS_ERR(rt)) {
 				/* - Bridged-and-DNAT'ed traffic doesn't
 				 *   require ip_forwarding. */
-				if (((struct dst_entry *)rt)->dev == dev) {
-					skb_dst_set(skb, (struct dst_entry *)rt);
+				if (rt->dst.dev == dev) {
+					skb_dst_set(skb, &rt->dst);
 					goto bridged_dnat;
 				}
-				dst_release((struct dst_entry *)rt);
+				ip_rt_put(rt);
 			}
 free_skb:
 			kfree_skb(skb);
@@ -566,26 +558,26 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 	u32 pkt_len;
 
 	if (skb->len < sizeof(struct ipv6hdr))
-		goto inhdr_error;
+		return NF_DROP;
 
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
-		goto inhdr_error;
+		return NF_DROP;
 
 	hdr = ipv6_hdr(skb);
 
 	if (hdr->version != 6)
-		goto inhdr_error;
+		return NF_DROP;
 
 	pkt_len = ntohs(hdr->payload_len);
 
 	if (pkt_len || hdr->nexthdr != NEXTHDR_HOP) {
 		if (pkt_len + sizeof(struct ipv6hdr) > skb->len)
-			goto inhdr_error;
+			return NF_DROP;
 		if (pskb_trim_rcsum(skb, pkt_len + sizeof(struct ipv6hdr)))
-			goto inhdr_error;
+			return NF_DROP;
 	}
 	if (hdr->nexthdr == NEXTHDR_HOP && check_hbh_len(skb))
-		goto inhdr_error;
+		return NF_DROP;
 
 	nf_bridge_put(skb->nf_bridge);
 	if (!nf_bridge_alloc(skb))
@@ -598,9 +590,6 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 		br_nf_pre_routing_finish_ipv6);
 
 	return NF_STOLEN;
-
-inhdr_error:
-	return NF_DROP;
 }
 
 /* Direct IPv6 traffic to br_nf_pre_routing_ipv6.
@@ -619,11 +608,11 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff *skb,
 	__u32 len = nf_bridge_encap_header_len(skb);
 
 	if (unlikely(!pskb_may_pull(skb, len)))
-		goto out;
+		return NF_DROP;
 
 	p = br_port_get_rcu(in);
 	if (p == NULL)
-		goto out;
+		return NF_DROP;
 	br = p->br;
 
 	if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
@@ -645,8 +634,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff *skb,
 	nf_bridge_pull_encap_header_rcsum(skb);
 
 	if (br_parse_ip_options(skb))
-		/* Drop invalid packet */
-		goto out;
+		return NF_DROP;
 
 	nf_bridge_put(skb->nf_bridge);
 	if (!nf_bridge_alloc(skb))
@@ -660,9 +648,6 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff *skb,
 		br_nf_pre_routing_finish);
 
 	return NF_STOLEN;
-
-out:
-	return NF_DROP;
 }
 
 
@@ -751,6 +736,9 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 		skb->pkt_type = PACKET_HOST;
 		nf_bridge->mask |= BRNF_PKT_TYPE;
 	}
+
+	if (br_parse_ip_options(skb))
+		return NF_DROP;
 
 	/* The physdev module checks on this */
 	nf_bridge->mask |= BRNF_BRIDGED;

@@ -301,31 +301,9 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-#define mass_write(addr, reg, data...)					\
-	{ static const u8 _val[] = data;				\
-	rc = tm6000_read_write_usb(dev, USB_DIR_OUT | USB_TYPE_VENDOR,	\
-	REQ_16_SET_GET_I2C_WR1_RDN, (reg<<8)+addr, 0x00, (u8 *) _val,	\
-	ARRAY_SIZE(_val));						\
-	if (rc < 0) {							\
-		printk(KERN_ERR "Error on line %d: %d\n", __LINE__, rc);	\
-		return rc;						\
-	}								\
-	msleep(10);							\
-	}
-
-static struct i2c_algorithm tm6000_algo = {
+static const struct i2c_algorithm tm6000_algo = {
 	.master_xfer   = tm6000_i2c_xfer,
 	.functionality = functionality,
-};
-
-static struct i2c_adapter tm6000_adap_template = {
-	.owner = THIS_MODULE,
-	.name = "tm6000",
-	.algo = &tm6000_algo,
-};
-
-static struct i2c_client tm6000_client_template = {
-	.name = "tm6000 internal",
 };
 
 /* ----------------------------------------------------------- */
@@ -337,17 +315,20 @@ static struct i2c_client tm6000_client_template = {
 int tm6000_i2c_register(struct tm6000_core *dev)
 {
 	unsigned char eedata[256];
+	int rc;
 
-	dev->i2c_adap = tm6000_adap_template;
+	dev->i2c_adap.owner = THIS_MODULE;
+	dev->i2c_adap.algo = &tm6000_algo;
 	dev->i2c_adap.dev.parent = &dev->udev->dev;
-	strcpy(dev->i2c_adap.name, dev->name);
+	strlcpy(dev->i2c_adap.name, dev->name, sizeof(dev->i2c_adap.name));
 	dev->i2c_adap.algo_data = dev;
-	i2c_add_adapter(&dev->i2c_adap);
-
-	dev->i2c_client = tm6000_client_template;
-	dev->i2c_client.adapter = &dev->i2c_adap;
-
 	i2c_set_adapdata(&dev->i2c_adap, &dev->v4l2_dev);
+	rc = i2c_add_adapter(&dev->i2c_adap);
+	if (rc)
+		return rc;
+
+	dev->i2c_client.adapter = &dev->i2c_adap;
+	strlcpy(dev->i2c_client.name, "tm6000 internal", I2C_NAME_SIZE);
 
 	tm6000_i2c_eeprom(dev, eedata, sizeof(eedata));
 

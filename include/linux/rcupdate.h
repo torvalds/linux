@@ -47,6 +47,8 @@
 extern int rcutorture_runnable; /* for sysctl */
 #endif /* #ifdef CONFIG_RCU_TORTURE_TEST */
 
+#define UINT_CMP_GE(a, b)	(UINT_MAX / 2 >= (a) - (b))
+#define UINT_CMP_LT(a, b)	(UINT_MAX / 2 < (a) - (b))
 #define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))
 #define ULONG_CMP_LT(a, b)	(ULONG_MAX / 2 < (a) - (b))
 
@@ -66,7 +68,6 @@ extern void call_rcu_sched(struct rcu_head *head,
 extern void synchronize_sched(void);
 extern void rcu_barrier_bh(void);
 extern void rcu_barrier_sched(void);
-extern void synchronize_sched_expedited(void);
 extern int sched_expedited_torture_stats(char *page);
 
 static inline void __rcu_read_lock_bh(void)
@@ -118,7 +119,6 @@ static inline int rcu_preempt_depth(void)
 #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
 
 /* Internal to kernel */
-extern void rcu_init(void);
 extern void rcu_sched_qs(int cpu);
 extern void rcu_bh_qs(int cpu);
 extern void rcu_check_callbacks(int cpu, int user);
@@ -339,6 +339,12 @@ extern int rcu_my_thread_group_empty(void);
 		((typeof(*p) __force __kernel *)(p)); \
 	})
 
+#define __rcu_access_index(p, space) \
+	({ \
+		typeof(p) _________p1 = ACCESS_ONCE(p); \
+		rcu_dereference_sparse(p, space); \
+		(_________p1); \
+	})
 #define __rcu_dereference_index_check(p, c) \
 	({ \
 		typeof(p) _________p1 = ACCESS_ONCE(p); \
@@ -427,6 +433,20 @@ extern int rcu_my_thread_group_empty(void);
 				__rcu)
 
 #define rcu_dereference_raw(p) rcu_dereference_check(p, 1) /*@@@ needed? @@@*/
+
+/**
+ * rcu_access_index() - fetch RCU index with no dereferencing
+ * @p: The index to read
+ *
+ * Return the value of the specified RCU-protected index, but omit the
+ * smp_read_barrier_depends() and keep the ACCESS_ONCE().  This is useful
+ * when the value of this index is accessed, but the index is not
+ * dereferenced, for example, when testing an RCU-protected index against
+ * -1.  Although rcu_access_index() may also be used in cases where
+ * update-side locks prevent the value of the index from changing, you
+ * should instead use rcu_dereference_index_protected() for this use case.
+ */
+#define rcu_access_index(p) __rcu_access_index((p), __rcu)
 
 /**
  * rcu_dereference_index_check() - rcu_dereference for indices with debug checking

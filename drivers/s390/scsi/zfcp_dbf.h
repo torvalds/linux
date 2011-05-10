@@ -1,22 +1,8 @@
 /*
- * This file is part of the zfcp device driver for
- * FCP adapters for IBM System z9 and zSeries.
+ * zfcp device driver
+ * debug feature declarations
  *
- * Copyright IBM Corp. 2008, 2009
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Copyright IBM Corp. 2008, 2010
  */
 
 #ifndef ZFCP_DBF_H
@@ -27,322 +13,350 @@
 #include "zfcp_fsf.h"
 #include "zfcp_def.h"
 
-#define ZFCP_DBF_TAG_SIZE      4
-#define ZFCP_DBF_ID_SIZE       7
+#define ZFCP_DBF_TAG_LEN       7
 
 #define ZFCP_DBF_INVALID_LUN	0xFFFFFFFFFFFFFFFFull
 
-struct zfcp_dbf_dump {
-	u8 tag[ZFCP_DBF_TAG_SIZE];
-	u32 total_size;		/* size of total dump data */
-	u32 offset;		/* how much data has being already dumped */
-	u32 size;		/* how much data comes with this record */
-	u8 data[];		/* dump data */
-} __attribute__ ((packed));
-
-struct zfcp_dbf_rec_record_thread {
-	u32 total;
+/**
+ * struct zfcp_dbf_rec_trigger - trace record for triggered recovery action
+ * @ready: number of ready recovery actions
+ * @running: number of running recovery actions
+ * @want: wanted recovery action
+ * @need: needed recovery action
+ */
+struct zfcp_dbf_rec_trigger {
 	u32 ready;
 	u32 running;
-};
-
-struct zfcp_dbf_rec_record_target {
-	u64 ref;
-	u32 status;
-	u32 d_id;
-	u64 wwpn;
-	u64 fcp_lun;
-	u32 erp_count;
-};
-
-struct zfcp_dbf_rec_record_trigger {
 	u8 want;
 	u8 need;
-	u32 as;
-	u32 ps;
-	u32 ls;
-	u64 ref;
-	u64 action;
-	u64 wwpn;
-	u64 fcp_lun;
+} __packed;
+
+/**
+ * struct zfcp_dbf_rec_running - trace record for running recovery
+ * @fsf_req_id: request id for fsf requests
+ * @rec_status: status of the fsf request
+ * @rec_step: current step of the recovery action
+ * rec_count: recovery counter
+ */
+struct zfcp_dbf_rec_running {
+	u64 fsf_req_id;
+	u32 rec_status;
+	u16 rec_step;
+	u8 rec_action;
+	u8 rec_count;
+} __packed;
+
+/**
+ * enum zfcp_dbf_rec_id - recovery trace record id
+ * @ZFCP_DBF_REC_TRIG: triggered recovery identifier
+ * @ZFCP_DBF_REC_RUN: running recovery identifier
+ */
+enum zfcp_dbf_rec_id {
+	ZFCP_DBF_REC_TRIG	= 1,
+	ZFCP_DBF_REC_RUN	= 2,
 };
 
-struct zfcp_dbf_rec_record_action {
-	u32 status;
-	u32 step;
-	u64 action;
-	u64 fsf_req;
-};
-
-struct zfcp_dbf_rec_record {
+/**
+ * struct zfcp_dbf_rec - trace record for error recovery actions
+ * @id: unique number of recovery record type
+ * @tag: identifier string specifying the location of initiation
+ * @lun: logical unit number
+ * @wwpn: word wide port number
+ * @d_id: destination ID
+ * @adapter_status: current status of the adapter
+ * @port_status: current status of the port
+ * @lun_status: current status of the lun
+ * @u.trig: structure zfcp_dbf_rec_trigger
+ * @u.run: structure zfcp_dbf_rec_running
+ */
+struct zfcp_dbf_rec {
 	u8 id;
-	char id2[7];
+	char tag[ZFCP_DBF_TAG_LEN];
+	u64 lun;
+	u64 wwpn;
+	u32 d_id;
+	u32 adapter_status;
+	u32 port_status;
+	u32 lun_status;
 	union {
-		struct zfcp_dbf_rec_record_action action;
-		struct zfcp_dbf_rec_record_thread thread;
-		struct zfcp_dbf_rec_record_target target;
-		struct zfcp_dbf_rec_record_trigger trigger;
+		struct zfcp_dbf_rec_trigger trig;
+		struct zfcp_dbf_rec_running run;
 	} u;
+} __packed;
+
+/**
+ * enum zfcp_dbf_san_id - SAN trace record identifier
+ * @ZFCP_DBF_SAN_REQ: request trace record id
+ * @ZFCP_DBF_SAN_RES: response trace record id
+ * @ZFCP_DBF_SAN_ELS: extended link service record id
+ */
+enum zfcp_dbf_san_id {
+	ZFCP_DBF_SAN_REQ	= 1,
+	ZFCP_DBF_SAN_RES	= 2,
+	ZFCP_DBF_SAN_ELS	= 3,
 };
 
-enum {
-	ZFCP_REC_DBF_ID_ACTION,
-	ZFCP_REC_DBF_ID_THREAD,
-	ZFCP_REC_DBF_ID_TARGET,
-	ZFCP_REC_DBF_ID_TRIGGER,
-};
+/** struct zfcp_dbf_san - trace record for SAN requests and responses
+ * @id: unique number of recovery record type
+ * @tag: identifier string specifying the location of initiation
+ * @fsf_req_id: request id for fsf requests
+ * @payload: unformatted information related to request/response
+ * @d_id: destination id
+ */
+struct zfcp_dbf_san {
+	u8 id;
+	char tag[ZFCP_DBF_TAG_LEN];
+	u64 fsf_req_id;
+	u32 d_id;
+#define ZFCP_DBF_SAN_MAX_PAYLOAD (FC_CT_HDR_LEN + 32)
+	char payload[ZFCP_DBF_SAN_MAX_PAYLOAD];
+} __packed;
 
-struct zfcp_dbf_hba_record_response {
-	u32 fsf_command;
-	u64 fsf_reqid;
-	u32 fsf_seqno;
-	u64 fsf_issued;
-	u32 fsf_prot_status;
+/**
+ * struct zfcp_dbf_hba_res - trace record for hba responses
+ * @req_issued: timestamp when request was issued
+ * @prot_status: protocol status
+ * @prot_status_qual: protocol status qualifier
+ * @fsf_status: fsf status
+ * @fsf_status_qual: fsf status qualifier
+ */
+struct zfcp_dbf_hba_res {
+	u64 req_issued;
+	u32 prot_status;
+	u8  prot_status_qual[FSF_PROT_STATUS_QUAL_SIZE];
 	u32 fsf_status;
-	u8 fsf_prot_status_qual[FSF_PROT_STATUS_QUAL_SIZE];
-	u8 fsf_status_qual[FSF_STATUS_QUALIFIER_SIZE];
-	u32 fsf_req_status;
-	u8 sbal_first;
-	u8 sbal_last;
-	u8 sbal_response;
-	u8 pool;
-	u64 erp_action;
-	union {
-		struct {
-			u64 cmnd;
-			u32 data_dir;
-		} fcp;
-		struct {
-			u64 wwpn;
-			u32 d_id;
-			u32 port_handle;
-		} port;
-		struct {
-			u64 wwpn;
-			u64 fcp_lun;
-			u32 port_handle;
-			u32 lun_handle;
-		} unit;
-		struct {
-			u32 d_id;
-		} els;
-	} u;
-} __attribute__ ((packed));
+	u8  fsf_status_qual[FSF_STATUS_QUALIFIER_SIZE];
+} __packed;
 
-struct zfcp_dbf_hba_record_status {
-	u8 failed;
+/**
+ * struct zfcp_dbf_hba_uss - trace record for unsolicited status
+ * @status_type: type of unsolicited status
+ * @status_subtype: subtype of unsolicited status
+ * @d_id: destination ID
+ * @lun: logical unit number
+ * @queue_designator: queue designator
+ */
+struct zfcp_dbf_hba_uss {
 	u32 status_type;
 	u32 status_subtype;
-	struct fsf_queue_designator
-	 queue_designator;
-	u32 payload_size;
-#define ZFCP_DBF_UNSOL_PAYLOAD				80
-#define ZFCP_DBF_UNSOL_PAYLOAD_SENSE_DATA_AVAIL		32
-#define ZFCP_DBF_UNSOL_PAYLOAD_BIT_ERROR_THRESHOLD	56
-#define ZFCP_DBF_UNSOL_PAYLOAD_FEATURE_UPDATE_ALERT	2 * sizeof(u32)
-	u8 payload[ZFCP_DBF_UNSOL_PAYLOAD];
-} __attribute__ ((packed));
-
-struct zfcp_dbf_hba_record_qdio {
-	u32 qdio_error;
-	u8 sbal_index;
-	u8 sbal_count;
-} __attribute__ ((packed));
-
-struct zfcp_dbf_hba_record {
-	u8 tag[ZFCP_DBF_TAG_SIZE];
-	u8 tag2[ZFCP_DBF_TAG_SIZE];
-	union {
-		struct zfcp_dbf_hba_record_response response;
-		struct zfcp_dbf_hba_record_status status;
-		struct zfcp_dbf_hba_record_qdio qdio;
-		struct fsf_bit_error_payload berr;
-	} u;
-} __attribute__ ((packed));
-
-struct zfcp_dbf_san_record_ct_request {
-	u16 cmd_req_code;
-	u8 revision;
-	u8 gs_type;
-	u8 gs_subtype;
-	u8 options;
-	u16 max_res_size;
-	u32 len;
 	u32 d_id;
-} __attribute__ ((packed));
+	u64 lun;
+	u64 queue_designator;
+} __packed;
 
-struct zfcp_dbf_san_record_ct_response {
-	u16 cmd_rsp_code;
-	u8 revision;
-	u8 reason_code;
-	u8 expl;
-	u8 vendor_unique;
-	u16 max_res_size;
-	u32 len;
-} __attribute__ ((packed));
+/**
+ * enum zfcp_dbf_hba_id - HBA trace record identifier
+ * @ZFCP_DBF_HBA_RES: response trace record
+ * @ZFCP_DBF_HBA_USS: unsolicited status trace record
+ * @ZFCP_DBF_HBA_BIT: bit error trace record
+ */
+enum zfcp_dbf_hba_id {
+	ZFCP_DBF_HBA_RES	= 1,
+	ZFCP_DBF_HBA_USS	= 2,
+	ZFCP_DBF_HBA_BIT	= 3,
+};
 
-struct zfcp_dbf_san_record_els {
-	u32 d_id;
-} __attribute__ ((packed));
-
-struct zfcp_dbf_san_record {
-	u8 tag[ZFCP_DBF_TAG_SIZE];
-	u64 fsf_reqid;
-	u32 fsf_seqno;
+/**
+ * struct zfcp_dbf_hba - common trace record for HBA records
+ * @id: unique number of recovery record type
+ * @tag: identifier string specifying the location of initiation
+ * @fsf_req_id: request id for fsf requests
+ * @fsf_req_status: status of fsf request
+ * @fsf_cmd: fsf command
+ * @fsf_seq_no: fsf sequence number
+ * @pl_len: length of payload stored as zfcp_dbf_pay
+ * @u: record type specific data
+ */
+struct zfcp_dbf_hba {
+	u8 id;
+	char tag[ZFCP_DBF_TAG_LEN];
+	u64 fsf_req_id;
+	u32 fsf_req_status;
+	u32 fsf_cmd;
+	u32 fsf_seq_no;
+	u16 pl_len;
 	union {
-		struct zfcp_dbf_san_record_ct_request ct_req;
-		struct zfcp_dbf_san_record_ct_response ct_resp;
-		struct zfcp_dbf_san_record_els els;
+		struct zfcp_dbf_hba_res res;
+		struct zfcp_dbf_hba_uss uss;
+		struct fsf_bit_error_payload be;
 	} u;
-} __attribute__ ((packed));
+} __packed;
 
-#define ZFCP_DBF_SAN_MAX_PAYLOAD 1024
+/**
+ * enum zfcp_dbf_scsi_id - scsi trace record identifier
+ * @ZFCP_DBF_SCSI_CMND: scsi command trace record
+ */
+enum zfcp_dbf_scsi_id {
+	ZFCP_DBF_SCSI_CMND	= 1,
+};
 
-struct zfcp_dbf_scsi_record {
-	u8 tag[ZFCP_DBF_TAG_SIZE];
-	u8 tag2[ZFCP_DBF_TAG_SIZE];
+/**
+ * struct zfcp_dbf_scsi - common trace record for SCSI records
+ * @id: unique number of recovery record type
+ * @tag: identifier string specifying the location of initiation
+ * @scsi_id: scsi device id
+ * @scsi_lun: scsi device logical unit number
+ * @scsi_result: scsi result
+ * @scsi_retries: current retry number of scsi request
+ * @scsi_allowed: allowed retries
+ * @fcp_rsp_info: FCP response info
+ * @scsi_opcode: scsi opcode
+ * @fsf_req_id: request id of fsf request
+ * @host_scribble: LLD specific data attached to SCSI request
+ * @pl_len: length of paload stored as zfcp_dbf_pay
+ * @fsf_rsp: response for fsf request
+ */
+struct zfcp_dbf_scsi {
+	u8 id;
+	char tag[ZFCP_DBF_TAG_LEN];
 	u32 scsi_id;
 	u32 scsi_lun;
 	u32 scsi_result;
-	u64 scsi_cmnd;
-#define ZFCP_DBF_SCSI_OPCODE	16
-	u8 scsi_opcode[ZFCP_DBF_SCSI_OPCODE];
 	u8 scsi_retries;
 	u8 scsi_allowed;
-	u64 fsf_reqid;
-	u32 fsf_seqno;
-	u64 fsf_issued;
-	u64 old_fsf_reqid;
-	u8 rsp_validity;
-	u8 rsp_scsi_status;
-	u32 rsp_resid;
-	u8 rsp_code;
-#define ZFCP_DBF_SCSI_FCP_SNS_INFO	16
-#define ZFCP_DBF_SCSI_MAX_FCP_SNS_INFO	256
-	u32 sns_info_len;
-	u8 sns_info[ZFCP_DBF_SCSI_FCP_SNS_INFO];
-} __attribute__ ((packed));
+	u8 fcp_rsp_info;
+#define ZFCP_DBF_SCSI_OPCODE	16
+	u8 scsi_opcode[ZFCP_DBF_SCSI_OPCODE];
+	u64 fsf_req_id;
+	u64 host_scribble;
+	u16 pl_len;
+	struct fcp_resp_with_ext fcp_rsp;
+} __packed;
 
+/**
+ * struct zfcp_dbf_pay - trace record for unformatted payload information
+ * @area: area this record is originated from
+ * @counter: ascending record number
+ * @fsf_req_id: request id of fsf request
+ * @data: unformatted data
+ */
+struct zfcp_dbf_pay {
+	u8 counter;
+	char area[ZFCP_DBF_TAG_LEN];
+	u64 fsf_req_id;
+#define ZFCP_DBF_PAY_MAX_REC 0x100
+	char data[ZFCP_DBF_PAY_MAX_REC];
+} __packed;
+
+/**
+ * struct zfcp_dbf - main dbf trace structure
+ * @pay: reference to payload trace area
+ * @rec: reference to recovery trace area
+ * @hba: reference to hba trace area
+ * @san: reference to san trace area
+ * @scsi: reference to scsi trace area
+ * @pay_lock: lock protecting payload trace buffer
+ * @rec_lock: lock protecting recovery trace buffer
+ * @hba_lock: lock protecting hba trace buffer
+ * @san_lock: lock protecting san trace buffer
+ * @scsi_lock: lock protecting scsi trace buffer
+ * @pay_buf: pre-allocated buffer for payload
+ * @rec_buf: pre-allocated buffer for recovery
+ * @hba_buf: pre-allocated buffer for hba
+ * @san_buf: pre-allocated buffer for san
+ * @scsi_buf: pre-allocated buffer for scsi
+ */
 struct zfcp_dbf {
+	debug_info_t			*pay;
 	debug_info_t			*rec;
 	debug_info_t			*hba;
 	debug_info_t			*san;
 	debug_info_t			*scsi;
+	spinlock_t			pay_lock;
 	spinlock_t			rec_lock;
 	spinlock_t			hba_lock;
 	spinlock_t			san_lock;
 	spinlock_t			scsi_lock;
-	struct zfcp_dbf_rec_record	rec_buf;
-	struct zfcp_dbf_hba_record	hba_buf;
-	struct zfcp_dbf_san_record	san_buf;
-	struct zfcp_dbf_scsi_record	scsi_buf;
-	struct zfcp_adapter		*adapter;
+	struct zfcp_dbf_pay		pay_buf;
+	struct zfcp_dbf_rec		rec_buf;
+	struct zfcp_dbf_hba		hba_buf;
+	struct zfcp_dbf_san		san_buf;
+	struct zfcp_dbf_scsi		scsi_buf;
 };
 
 static inline
-void zfcp_dbf_hba_fsf_resp(const char *tag2, int level,
-			   struct zfcp_fsf_req *req, struct zfcp_dbf *dbf)
+void zfcp_dbf_hba_fsf_resp(char *tag, int level, struct zfcp_fsf_req *req)
 {
-	if (level <= dbf->hba->level)
-		_zfcp_dbf_hba_fsf_response(tag2, level, req, dbf);
+	if (level <= req->adapter->dbf->hba->level)
+		zfcp_dbf_hba_fsf_res(tag, req);
 }
 
 /**
  * zfcp_dbf_hba_fsf_response - trace event for request completion
- * @fsf_req: request that has been completed
+ * @req: request that has been completed
  */
-static inline void zfcp_dbf_hba_fsf_response(struct zfcp_fsf_req *req)
+static inline
+void zfcp_dbf_hba_fsf_response(struct zfcp_fsf_req *req)
 {
-	struct zfcp_dbf *dbf = req->adapter->dbf;
 	struct fsf_qtcb *qtcb = req->qtcb;
 
 	if ((qtcb->prefix.prot_status != FSF_PROT_GOOD) &&
 	    (qtcb->prefix.prot_status != FSF_PROT_FSF_STATUS_PRESENTED)) {
-		zfcp_dbf_hba_fsf_resp("perr", 1, req, dbf);
+		zfcp_dbf_hba_fsf_resp("fs_perr", 1, req);
 
 	} else if (qtcb->header.fsf_status != FSF_GOOD) {
-		zfcp_dbf_hba_fsf_resp("ferr", 1, req, dbf);
+		zfcp_dbf_hba_fsf_resp("fs_ferr", 1, req);
 
 	} else if ((req->fsf_command == FSF_QTCB_OPEN_PORT_WITH_DID) ||
 		   (req->fsf_command == FSF_QTCB_OPEN_LUN)) {
-		zfcp_dbf_hba_fsf_resp("open", 4, req, dbf);
+		zfcp_dbf_hba_fsf_resp("fs_open", 4, req);
 
 	} else if (qtcb->header.log_length) {
-		zfcp_dbf_hba_fsf_resp("qtcb", 5, req, dbf);
+		zfcp_dbf_hba_fsf_resp("fs_qtcb", 5, req);
 
 	} else {
-		zfcp_dbf_hba_fsf_resp("norm", 6, req, dbf);
+		zfcp_dbf_hba_fsf_resp("fs_norm", 6, req);
 	}
- }
-
-/**
- * zfcp_dbf_hba_fsf_unsol - trace event for an unsolicited status buffer
- * @tag: tag indicating which kind of unsolicited status has been received
- * @dbf: reference to dbf structure
- * @status_buffer: buffer containing payload of unsolicited status
- */
-static inline
-void zfcp_dbf_hba_fsf_unsol(const char *tag, struct zfcp_dbf *dbf,
-			    struct fsf_status_read_buffer *buf)
-{
-	int level = 2;
-
-	if (level <= dbf->hba->level)
-		_zfcp_dbf_hba_fsf_unsol(tag, level, dbf, buf);
 }
 
 static inline
-void zfcp_dbf_scsi(const char *tag, const char *tag2, int level,
-		   struct zfcp_dbf *dbf, struct scsi_cmnd *scmd,
-		   struct zfcp_fsf_req *req, unsigned long old_id)
+void _zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *scmd,
+		   struct zfcp_fsf_req *req)
 {
-	if (level <= dbf->scsi->level)
-		_zfcp_dbf_scsi(tag, tag2, level, dbf, scmd, req, old_id);
+	struct zfcp_adapter *adapter = (struct zfcp_adapter *)
+					scmd->device->host->hostdata[0];
+
+	if (level <= adapter->dbf->scsi->level)
+		zfcp_dbf_scsi(tag, scmd, req);
 }
 
 /**
  * zfcp_dbf_scsi_result - trace event for SCSI command completion
- * @dbf: adapter dbf trace
  * @scmd: SCSI command pointer
  * @req: FSF request used to issue SCSI command
  */
 static inline
-void zfcp_dbf_scsi_result(struct zfcp_dbf *dbf, struct scsi_cmnd *scmd,
-			  struct zfcp_fsf_req *req)
+void zfcp_dbf_scsi_result(struct scsi_cmnd *scmd, struct zfcp_fsf_req *req)
 {
 	if (scmd->result != 0)
-		zfcp_dbf_scsi("rslt", "erro", 3, dbf, scmd, req, 0);
+		_zfcp_dbf_scsi("rsl_err", 3, scmd, req);
 	else if (scmd->retries > 0)
-		zfcp_dbf_scsi("rslt", "retr", 4, dbf, scmd, req, 0);
+		_zfcp_dbf_scsi("rsl_ret", 4, scmd, req);
 	else
-		zfcp_dbf_scsi("rslt", "norm", 6, dbf, scmd, req, 0);
+		_zfcp_dbf_scsi("rsl_nor", 6, scmd, req);
 }
 
 /**
  * zfcp_dbf_scsi_fail_send - trace event for failure to send SCSI command
- * @dbf: adapter dbf trace
  * @scmd: SCSI command pointer
  */
 static inline
-void zfcp_dbf_scsi_fail_send(struct zfcp_dbf *dbf, struct scsi_cmnd *scmd)
+void zfcp_dbf_scsi_fail_send(struct scsi_cmnd *scmd)
 {
-	zfcp_dbf_scsi("rslt", "fail", 4, dbf, scmd, NULL, 0);
+	_zfcp_dbf_scsi("rsl_fai", 4, scmd, NULL);
 }
 
 /**
  * zfcp_dbf_scsi_abort - trace event for SCSI command abort
  * @tag: tag indicating success or failure of abort operation
- * @adapter: adapter thas has been used to issue SCSI command to be aborted
  * @scmd: SCSI command to be aborted
- * @new_req: request containing abort (might be NULL)
- * @old_id: identifier of request containg SCSI command to be aborted
+ * @fsf_req: request containing abort (might be NULL)
  */
 static inline
-void zfcp_dbf_scsi_abort(const char *tag, struct zfcp_dbf *dbf,
-			 struct scsi_cmnd *scmd, struct zfcp_fsf_req *new_req,
-			 unsigned long old_id)
+void zfcp_dbf_scsi_abort(char *tag, struct scsi_cmnd *scmd,
+			 struct zfcp_fsf_req *fsf_req)
 {
-	zfcp_dbf_scsi("abrt", tag, 1, dbf, scmd, new_req, old_id);
+	_zfcp_dbf_scsi(tag, 1, scmd, fsf_req);
 }
 
 /**
@@ -352,12 +366,17 @@ void zfcp_dbf_scsi_abort(const char *tag, struct zfcp_dbf *dbf,
  * @flag: indicates type of reset (Target Reset, Logical Unit Reset)
  */
 static inline
-void zfcp_dbf_scsi_devreset(const char *tag, struct scsi_cmnd *scmnd, u8 flag)
+void zfcp_dbf_scsi_devreset(char *tag, struct scsi_cmnd *scmnd, u8 flag)
 {
-	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(scmnd->device);
+	char tmp_tag[ZFCP_DBF_TAG_LEN];
 
-	zfcp_dbf_scsi(flag == FCP_TMF_TGT_RESET ? "trst" : "lrst", tag, 1,
-		      zfcp_sdev->port->adapter->dbf, scmnd, NULL, 0);
+	if (flag == FCP_TMF_TGT_RESET)
+		memcpy(tmp_tag, "tr_", 3);
+	else
+		memcpy(tmp_tag, "lr_", 3);
+
+	memcpy(&tmp_tag[3], tag, 4);
+	_zfcp_dbf_scsi(tmp_tag, 1, scmnd, NULL);
 }
 
 #endif /* ZFCP_DBF_H */

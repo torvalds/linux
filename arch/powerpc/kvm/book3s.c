@@ -1141,9 +1141,10 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->sprg1 = vcpu->arch.shared->sprg1;
 	regs->sprg2 = vcpu->arch.shared->sprg2;
 	regs->sprg3 = vcpu->arch.shared->sprg3;
-	regs->sprg5 = vcpu->arch.sprg4;
-	regs->sprg6 = vcpu->arch.sprg5;
-	regs->sprg7 = vcpu->arch.sprg6;
+	regs->sprg4 = vcpu->arch.sprg4;
+	regs->sprg5 = vcpu->arch.sprg5;
+	regs->sprg6 = vcpu->arch.sprg6;
+	regs->sprg7 = vcpu->arch.sprg7;
 
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		regs->gpr[i] = kvmppc_get_gpr(vcpu, i);
@@ -1167,9 +1168,10 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	vcpu->arch.shared->sprg1 = regs->sprg1;
 	vcpu->arch.shared->sprg2 = regs->sprg2;
 	vcpu->arch.shared->sprg3 = regs->sprg3;
-	vcpu->arch.sprg5 = regs->sprg4;
-	vcpu->arch.sprg6 = regs->sprg5;
-	vcpu->arch.sprg7 = regs->sprg6;
+	vcpu->arch.sprg4 = regs->sprg4;
+	vcpu->arch.sprg5 = regs->sprg5;
+	vcpu->arch.sprg6 = regs->sprg6;
+	vcpu->arch.sprg7 = regs->sprg7;
 
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		kvmppc_set_gpr(vcpu, i, regs->gpr[i]);
@@ -1307,11 +1309,9 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	int err = -ENOMEM;
 	unsigned long p;
 
-	vcpu_book3s = vmalloc(sizeof(struct kvmppc_vcpu_book3s));
+	vcpu_book3s = vzalloc(sizeof(struct kvmppc_vcpu_book3s));
 	if (!vcpu_book3s)
 		goto out;
-
-	memset(vcpu_book3s, 0, sizeof(struct kvmppc_vcpu_book3s));
 
 	vcpu_book3s->shadow_vcpu = (struct kvmppc_book3s_shadow_vcpu *)
 		kzalloc(sizeof(*vcpu_book3s->shadow_vcpu), GFP_KERNEL);

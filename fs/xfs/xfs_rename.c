@@ -297,6 +297,7 @@ xfs_rename(
 	 * it and some incremental backup programs won't work without it.
 	 */
 	xfs_trans_ichgtime(tp, src_ip, XFS_ICHGTIME_CHG);
+	xfs_trans_log_inode(tp, src_ip, XFS_ILOG_CORE);
 
 	/*
 	 * Adjust the link count on src_dp.  This is necessary when

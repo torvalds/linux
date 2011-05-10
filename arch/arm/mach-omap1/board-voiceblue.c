@@ -26,10 +26,12 @@
 #include <linux/smc91x.h>
 
 #include <mach/hardware.h>
+#include <mach/system.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include <plat/board-voiceblue.h>
 #include <plat/common.h>
 #include <mach/gpio.h>
 #include <plat/flash.h>
@@ -83,6 +85,9 @@ static struct platform_device serial_device = {
 
 static int __init ext_uart_init(void)
 {
+	if (!machine_is_voiceblue())
+		return -ENODEV;
+
 	return platform_device_register(&serial_device);
 }
 arch_initcall(ext_uart_init);
@@ -158,53 +163,6 @@ static void __init voiceblue_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
-}
-
-static void __init voiceblue_init(void)
-{
-	/* mux pins for uarts */
-	omap_cfg_reg(UART1_TX);
-	omap_cfg_reg(UART1_RTS);
-	omap_cfg_reg(UART2_TX);
-	omap_cfg_reg(UART2_RTS);
-	omap_cfg_reg(UART3_TX);
-	omap_cfg_reg(UART3_RX);
-
-	/* Watchdog */
-	gpio_request(0, "Watchdog");
-	/* smc91x reset */
-	gpio_request(7, "SMC91x reset");
-	gpio_direction_output(7, 1);
-	udelay(2);	/* wait at least 100ns */
-	gpio_set_value(7, 0);
-	mdelay(50);	/* 50ms until PHY ready */
-	/* smc91x interrupt pin */
-	gpio_request(8, "SMC91x irq");
-	/* 16C554 reset*/
-	gpio_request(6, "16C554 reset");
-	gpio_direction_output(6, 0);
-	/* 16C554 interrupt pins */
-	gpio_request(12, "16C554 irq");
-	gpio_request(13, "16C554 irq");
-	gpio_request(14, "16C554 irq");
-	gpio_request(15, "16C554 irq");
-	set_irq_type(gpio_to_irq(12), IRQ_TYPE_EDGE_RISING);
-	set_irq_type(gpio_to_irq(13), IRQ_TYPE_EDGE_RISING);
-	set_irq_type(gpio_to_irq(14), IRQ_TYPE_EDGE_RISING);
-	set_irq_type(gpio_to_irq(15), IRQ_TYPE_EDGE_RISING);
-
-	platform_add_devices(voiceblue_devices, ARRAY_SIZE(voiceblue_devices));
-	omap_board_config = voiceblue_config;
-	omap_board_config_size = ARRAY_SIZE(voiceblue_config);
-	omap_serial_init();
-	omap1_usb_init(&voiceblue_usb_config);
-	omap_register_i2c_bus(1, 100, NULL, 0);
-
-	/* There is a good chance board is going up, so enable power LED
-	 * (it is connected through invertor) */
-	omap_writeb(0x00, OMAP_LPG1_LCR);
-	omap_writeb(0x00, OMAP_LPG1_PMR);	/* Disable clock */
 }
 
 static void __init voiceblue_map_io(void)
@@ -236,6 +194,9 @@ static struct notifier_block panic_block = {
 
 static int __init voiceblue_setup(void)
 {
+	if (!machine_is_voiceblue())
+		return -ENODEV;
+
 	/* Setup panic notifier */
 	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
 
@@ -270,8 +231,17 @@ void voiceblue_wdt_ping(void)
 	gpio_set_value(0, wdt_gpio_state);
 }
 
-void voiceblue_reset(void)
+static void voiceblue_reset(char mode, const char *cmd)
 {
+	/*
+	 * Workaround for 5912/1611b bug mentioned in sprz209d.pdf p. 28
+	 * "Global Software Reset Affects Traffic Controller Frequency".
+	 */
+	if (cpu_is_omap5912()) {
+		omap_writew(omap_readw(DPLL_CTL) & ~(1 << 4), DPLL_CTL);
+		omap_writew(0x8, ARM_RSTCT1);
+	}
+
 	set_bit(MACHINE_REBOOT, &machine_state);
 	voiceblue_wdt_enable();
 	while (1) ;
@@ -280,6 +250,54 @@ void voiceblue_reset(void)
 EXPORT_SYMBOL(voiceblue_wdt_enable);
 EXPORT_SYMBOL(voiceblue_wdt_disable);
 EXPORT_SYMBOL(voiceblue_wdt_ping);
+
+static void __init voiceblue_init(void)
+{
+	/* mux pins for uarts */
+	omap_cfg_reg(UART1_TX);
+	omap_cfg_reg(UART1_RTS);
+	omap_cfg_reg(UART2_TX);
+	omap_cfg_reg(UART2_RTS);
+	omap_cfg_reg(UART3_TX);
+	omap_cfg_reg(UART3_RX);
+
+	/* Watchdog */
+	gpio_request(0, "Watchdog");
+	/* smc91x reset */
+	gpio_request(7, "SMC91x reset");
+	gpio_direction_output(7, 1);
+	udelay(2);	/* wait at least 100ns */
+	gpio_set_value(7, 0);
+	mdelay(50);	/* 50ms until PHY ready */
+	/* smc91x interrupt pin */
+	gpio_request(8, "SMC91x irq");
+	/* 16C554 reset*/
+	gpio_request(6, "16C554 reset");
+	gpio_direction_output(6, 0);
+	/* 16C554 interrupt pins */
+	gpio_request(12, "16C554 irq");
+	gpio_request(13, "16C554 irq");
+	gpio_request(14, "16C554 irq");
+	gpio_request(15, "16C554 irq");
+	irq_set_irq_type(gpio_to_irq(12), IRQ_TYPE_EDGE_RISING);
+	irq_set_irq_type(gpio_to_irq(13), IRQ_TYPE_EDGE_RISING);
+	irq_set_irq_type(gpio_to_irq(14), IRQ_TYPE_EDGE_RISING);
+	irq_set_irq_type(gpio_to_irq(15), IRQ_TYPE_EDGE_RISING);
+
+	platform_add_devices(voiceblue_devices, ARRAY_SIZE(voiceblue_devices));
+	omap_board_config = voiceblue_config;
+	omap_board_config_size = ARRAY_SIZE(voiceblue_config);
+	omap_serial_init();
+	omap1_usb_init(&voiceblue_usb_config);
+	omap_register_i2c_bus(1, 100, NULL, 0);
+
+	/* There is a good chance board is going up, so enable power LED
+	 * (it is connected through invertor) */
+	omap_writeb(0x00, OMAP_LPG1_LCR);
+	omap_writeb(0x00, OMAP_LPG1_PMR);	/* Disable clock */
+
+	arch_reset = voiceblue_reset;
+}
 
 MACHINE_START(VOICEBLUE, "VoiceBlue OMAP5910")
 	/* Maintainer: Ladislav Michl <michl@2n.cz> */

@@ -571,6 +571,8 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 							     alt];
 		break;
 	case INDEX_VANC:
+		if (dev->board.no_alt_vanc)
+			return 0;
 		usb_interface_index =
 		    dev->current_pcb_config.hs_config_info[0].interface_info.
 		    vanc_index + 1;
@@ -600,8 +602,7 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 		usb_interface_index, alt);
 		/*To workaround error number=-71 on EP0 for videograbber,
 		 need add following codes.*/
-		if (dev->model != CX231XX_BOARD_CNXT_VIDEO_GRABBER &&
-		    dev->model != CX231XX_BOARD_HAUPPAUGE_USBLIVE2)
+		if (dev->board.no_alt_vanc)
 			return -1;
 	}
 
@@ -740,6 +741,7 @@ int cx231xx_set_mode(struct cx231xx *dev, enum cx231xx_mode set_mode)
 		case CX231XX_BOARD_CNXT_RDE_253S:
 		case CX231XX_BOARD_CNXT_RDU_253S:
 		case CX231XX_BOARD_HAUPPAUGE_EXETER:
+		case CX231XX_BOARD_PV_PLAYTV_USB_HYBRID:
 		errCode = cx231xx_set_agc_analog_digital_mux_select(dev, 0);
 			break;
 		default:
@@ -1288,7 +1290,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	/* Internal Master 3 Bus */
 	dev->i2c_bus[2].nr = 2;
 	dev->i2c_bus[2].dev = dev;
-	dev->i2c_bus[2].i2c_period = I2C_SPEED_400K;	/* 400kHz */
+	dev->i2c_bus[2].i2c_period = I2C_SPEED_100K;	/* 100kHz */
 	dev->i2c_bus[2].i2c_nostop = 0;
 	dev->i2c_bus[2].i2c_reserve = 0;
 
@@ -1300,8 +1302,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	/* init hardware */
 	/* Note : with out calling set power mode function,
 	afe can not be set up correctly */
-	if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER ||
-	    dev->model == CX231XX_BOARD_HAUPPAUGE_USBLIVE2) {
+	if (dev->board.external_av) {
 		errCode = cx231xx_set_power_mode(dev,
 				 POLARIS_AVMODE_ENXTERNAL_AV);
 		if (errCode < 0) {
@@ -1321,11 +1322,9 @@ int cx231xx_dev_init(struct cx231xx *dev)
 		}
 	}
 
-	/* reset the Tuner */
-	if ((dev->model == CX231XX_BOARD_CNXT_CARRAERA) ||
-		(dev->model == CX231XX_BOARD_CNXT_RDE_250) ||
-		(dev->model == CX231XX_BOARD_CNXT_SHELBY) ||
-		(dev->model == CX231XX_BOARD_CNXT_RDU_250))
+	/* reset the Tuner, if it is a Xceive tuner */
+	if ((dev->board.tuner_type == TUNER_XC5000) ||
+	    (dev->board.tuner_type == TUNER_XC2028))
 			cx231xx_gpio_set(dev, dev->board.tuner_gpio);
 
 	/* initialize Colibri block */
@@ -1381,6 +1380,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	case CX231XX_BOARD_CNXT_RDE_253S:
 	case CX231XX_BOARD_CNXT_RDU_253S:
 	case CX231XX_BOARD_HAUPPAUGE_EXETER:
+	case CX231XX_BOARD_PV_PLAYTV_USB_HYBRID:
 	errCode = cx231xx_set_agc_analog_digital_mux_select(dev, 0);
 		break;
 	default:
@@ -1513,7 +1513,7 @@ int cx231xx_read_i2c_master(struct cx231xx *dev, u8 dev_addr, u16 saddr,
 
 	if (saddr_len == 0)
 		saddr = 0;
-	else if (saddr_len == 0)
+	else if (saddr_len == 1)
 		saddr &= 0xff;
 
 	/* prepare xfer_data struct */
@@ -1564,7 +1564,7 @@ int cx231xx_write_i2c_master(struct cx231xx *dev, u8 dev_addr, u16 saddr,
 
 	if (saddr_len == 0)
 		saddr = 0;
-	else if (saddr_len == 0)
+	else if (saddr_len == 1)
 		saddr &= 0xff;
 
 	/* prepare xfer_data struct */
@@ -1598,7 +1598,7 @@ int cx231xx_read_i2c_data(struct cx231xx *dev, u8 dev_addr, u16 saddr,
 
 	if (saddr_len == 0)
 		saddr = 0;
-	else if (saddr_len == 0)
+	else if (saddr_len == 1)
 		saddr &= 0xff;
 
 	/* prepare xfer_data struct */
@@ -1639,7 +1639,7 @@ int cx231xx_write_i2c_data(struct cx231xx *dev, u8 dev_addr, u16 saddr,
 
 	if (saddr_len == 0)
 		saddr = 0;
-	else if (saddr_len == 0)
+	else if (saddr_len == 1)
 		saddr &= 0xff;
 
 	/* prepare xfer_data struct */

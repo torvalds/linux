@@ -92,7 +92,7 @@ static int beyond_eof(struct inode *inode, loff_t bix)
  * so short names (len <= 9) don't even occupy the complete 32bit name
  * space.  A prime >256 ensures short names quickly spread the 32bit
  * name space.  Add about 26 for the estimated amount of information
- * of each character and pick a prime nearby, preferrably a bit-sparse
+ * of each character and pick a prime nearby, preferably a bit-sparse
  * one.
  */
 static u32 hash_32(const char *s, int len, u32 seed)
@@ -555,9 +555,11 @@ static int logfs_symlink(struct inode *dir, struct dentry *dentry,
 	return __logfs_create(dir, dentry, inode, target, destlen);
 }
 
-static int logfs_permission(struct inode *inode, int mask)
+static int logfs_permission(struct inode *inode, int mask, unsigned int flags)
 {
-	return generic_permission(inode, mask, NULL);
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
+	return generic_permission(inode, mask, flags, NULL);
 }
 
 static int logfs_link(struct dentry *old_dentry, struct inode *dir,

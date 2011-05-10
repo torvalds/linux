@@ -130,10 +130,15 @@ static int nouveau_dsm_init(void)
 
 static int nouveau_dsm_get_client_id(struct pci_dev *pdev)
 {
-	if (nouveau_dsm_priv.dhandle == DEVICE_ACPI_HANDLE(&pdev->dev))
+	/* easy option one - intel vendor ID means Integrated */
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL)
 		return VGA_SWITCHEROO_IGD;
-	else
-		return VGA_SWITCHEROO_DIS;
+
+	/* is this device on Bus 0? - this may need improving */
+	if (pdev->bus->number == 0)
+		return VGA_SWITCHEROO_IGD;
+
+	return VGA_SWITCHEROO_DIS;
 }
 
 static struct vga_switcheroo_handler nouveau_dsm_handler = {

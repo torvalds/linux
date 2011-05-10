@@ -69,84 +69,6 @@ static struct omap_mcbsp_data mcbsp_data[NUM_LINKS];
  */
 static struct omap_pcm_dma_data omap_mcbsp_dai_dma_params[NUM_LINKS][2];
 
-#if defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX)
-static const int omap1_dma_reqs[][2] = {
-	{ OMAP_DMA_MCBSP1_TX, OMAP_DMA_MCBSP1_RX },
-	{ OMAP_DMA_MCBSP2_TX, OMAP_DMA_MCBSP2_RX },
-	{ OMAP_DMA_MCBSP3_TX, OMAP_DMA_MCBSP3_RX },
-};
-static const unsigned long omap1_mcbsp_port[][2] = {
-	{ OMAP1510_MCBSP1_BASE + OMAP_MCBSP_REG_DXR1,
-	  OMAP1510_MCBSP1_BASE + OMAP_MCBSP_REG_DRR1 },
-	{ OMAP1510_MCBSP2_BASE + OMAP_MCBSP_REG_DXR1,
-	  OMAP1510_MCBSP2_BASE + OMAP_MCBSP_REG_DRR1 },
-	{ OMAP1510_MCBSP3_BASE + OMAP_MCBSP_REG_DXR1,
-	  OMAP1510_MCBSP3_BASE + OMAP_MCBSP_REG_DRR1 },
-};
-#else
-static const int omap1_dma_reqs[][2] = {};
-static const unsigned long omap1_mcbsp_port[][2] = {};
-#endif
-
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-static const int omap24xx_dma_reqs[][2] = {
-	{ OMAP24XX_DMA_MCBSP1_TX, OMAP24XX_DMA_MCBSP1_RX },
-	{ OMAP24XX_DMA_MCBSP2_TX, OMAP24XX_DMA_MCBSP2_RX },
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3)
-	{ OMAP24XX_DMA_MCBSP3_TX, OMAP24XX_DMA_MCBSP3_RX },
-	{ OMAP24XX_DMA_MCBSP4_TX, OMAP24XX_DMA_MCBSP4_RX },
-	{ OMAP24XX_DMA_MCBSP5_TX, OMAP24XX_DMA_MCBSP5_RX },
-#endif
-};
-#else
-static const int omap24xx_dma_reqs[][2] = {};
-#endif
-
-#if defined(CONFIG_ARCH_OMAP2420)
-static const unsigned long omap2420_mcbsp_port[][2] = {
-	{ OMAP24XX_MCBSP1_BASE + OMAP_MCBSP_REG_DXR1,
-	  OMAP24XX_MCBSP1_BASE + OMAP_MCBSP_REG_DRR1 },
-	{ OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DXR1,
-	  OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DRR1 },
-};
-#else
-static const unsigned long omap2420_mcbsp_port[][2] = {};
-#endif
-
-#if defined(CONFIG_ARCH_OMAP2430)
-static const unsigned long omap2430_mcbsp_port[][2] = {
-	{ OMAP24XX_MCBSP1_BASE + OMAP_MCBSP_REG_DXR,
-	  OMAP24XX_MCBSP1_BASE + OMAP_MCBSP_REG_DRR },
-	{ OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DXR,
-	  OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DRR },
-	{ OMAP2430_MCBSP3_BASE + OMAP_MCBSP_REG_DXR,
-	  OMAP2430_MCBSP3_BASE + OMAP_MCBSP_REG_DRR },
-	{ OMAP2430_MCBSP4_BASE + OMAP_MCBSP_REG_DXR,
-	  OMAP2430_MCBSP4_BASE + OMAP_MCBSP_REG_DRR },
-	{ OMAP2430_MCBSP5_BASE + OMAP_MCBSP_REG_DXR,
-	  OMAP2430_MCBSP5_BASE + OMAP_MCBSP_REG_DRR },
-};
-#else
-static const unsigned long omap2430_mcbsp_port[][2] = {};
-#endif
-
-#if defined(CONFIG_ARCH_OMAP3)
-static const unsigned long omap34xx_mcbsp_port[][2] = {
-	{ OMAP34XX_MCBSP1_BASE + OMAP_MCBSP_REG_DXR,
-	  OMAP34XX_MCBSP1_BASE + OMAP_MCBSP_REG_DRR },
-	{ OMAP34XX_MCBSP2_BASE + OMAP_MCBSP_REG_DXR,
-	  OMAP34XX_MCBSP2_BASE + OMAP_MCBSP_REG_DRR },
-	{ OMAP34XX_MCBSP3_BASE + OMAP_MCBSP_REG_DXR,
-	  OMAP34XX_MCBSP3_BASE + OMAP_MCBSP_REG_DRR },
-	{ OMAP34XX_MCBSP4_BASE + OMAP_MCBSP_REG_DXR,
-	  OMAP34XX_MCBSP4_BASE + OMAP_MCBSP_REG_DRR },
-	{ OMAP34XX_MCBSP5_BASE + OMAP_MCBSP_REG_DXR,
-	  OMAP34XX_MCBSP5_BASE + OMAP_MCBSP_REG_DRR },
-};
-#else
-static const unsigned long omap34xx_mcbsp_port[][2] = {};
-#endif
-
 static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -224,7 +146,7 @@ static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
 	 * 2 channels (stereo): size is 128 / 2 = 64 frames (2 * 64 words)
 	 * 4 channels: size is 128 / 4 = 32 frames (4 * 32 words)
 	 */
-	if (cpu_is_omap343x()) {
+	if (cpu_is_omap343x() || cpu_is_omap44xx()) {
 		/*
 		* Rule for the buffer size. We should not allow
 		* smaller buffer than the FIFO size to avoid underruns
@@ -320,21 +242,10 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	unsigned int format, div, framesize, master;
 
 	dma_data = &omap_mcbsp_dai_dma_params[cpu_dai->id][substream->stream];
-	if (cpu_class_is_omap1()) {
-		dma = omap1_dma_reqs[bus_id][substream->stream];
-		port = omap1_mcbsp_port[bus_id][substream->stream];
-	} else if (cpu_is_omap2420()) {
-		dma = omap24xx_dma_reqs[bus_id][substream->stream];
-		port = omap2420_mcbsp_port[bus_id][substream->stream];
-	} else if (cpu_is_omap2430()) {
-		dma = omap24xx_dma_reqs[bus_id][substream->stream];
-		port = omap2430_mcbsp_port[bus_id][substream->stream];
-	} else if (cpu_is_omap343x()) {
-		dma = omap24xx_dma_reqs[bus_id][substream->stream];
-		port = omap34xx_mcbsp_port[bus_id][substream->stream];
-	} else {
-		return -ENODEV;
-	}
+
+	dma = omap_mcbsp_dma_ch_params(bus_id, substream->stream);
+	port = omap_mcbsp_dma_reg_params(bus_id, substream->stream);
+
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		dma_data->data_type = OMAP_DMA_DATA_TYPE_S16;
@@ -498,11 +409,11 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	regs->spcr2	|= XINTM(3) | FREE;
 	regs->spcr1	|= RINTM(3);
 	/* RFIG and XFIG are not defined in 34xx */
-	if (!cpu_is_omap34xx()) {
+	if (!cpu_is_omap34xx() && !cpu_is_omap44xx()) {
 		regs->rcr2	|= RFIG;
 		regs->xcr2	|= XFIG;
 	}
-	if (cpu_is_omap2430() || cpu_is_omap34xx()) {
+	if (cpu_is_omap2430() || cpu_is_omap34xx() || cpu_is_omap44xx()) {
 		regs->xccr = DXENDLY(1) | XDMAEN | XDISABLE;
 		regs->rccr = RFULL_CYCLE | RDMAEN | RDISABLE;
 	}

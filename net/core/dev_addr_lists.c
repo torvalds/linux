@@ -144,7 +144,7 @@ void __hw_addr_del_multiple(struct netdev_hw_addr_list *to_list,
 
 	list_for_each_entry(ha, &from_list->list, list) {
 		type = addr_type ? addr_type : ha->type;
-		__hw_addr_del(to_list, ha->addr, addr_len, addr_type);
+		__hw_addr_del(to_list, ha->addr, addr_len, type);
 	}
 }
 EXPORT_SYMBOL(__hw_addr_del_multiple);
@@ -357,8 +357,8 @@ EXPORT_SYMBOL(dev_addr_add_multiple);
 /**
  *	dev_addr_del_multiple - Delete device addresses by another device
  *	@to_dev: device where the addresses will be deleted
- *	@from_dev: device by which addresses the addresses will be deleted
- *	@addr_type: address type - 0 means type will used from from_dev
+ *	@from_dev: device supplying the addresses to be deleted
+ *	@addr_type: address type - 0 means type will be used from from_dev
  *
  *	Deletes addresses in to device by the list of addresses in from device.
  *

@@ -1616,7 +1616,7 @@ int logfs_rewrite_block(struct inode *inode, u64 bix, u64 ofs,
 		err = logfs_write_buf(inode, page, flags);
 		if (!err && shrink_level(gc_level) == 0) {
 			/* Rewrite cannot mark the inode dirty but has to
-			 * write it immediatly.
+			 * write it immediately.
 			 * Q: Can't we just create an alias for the inode
 			 * instead?  And if not, why not?
 			 */
@@ -1994,6 +1994,9 @@ static int do_write_inode(struct inode *inode)
 
 	/* FIXME: transaction is part of logfs_block now.  Is that enough? */
 	err = logfs_write_buf(master_inode, page, 0);
+	if (err)
+		move_page_to_inode(inode, page);
+
 	logfs_put_write_page(page);
 	return err;
 }

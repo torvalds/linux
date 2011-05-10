@@ -209,7 +209,6 @@ int main(void)
 	DEFINE(RTASENTRY, offsetof(struct rtas_t, entry));
 
 	/* Interrupt register frame */
-	DEFINE(STACK_FRAME_OVERHEAD, STACK_FRAME_OVERHEAD);
 	DEFINE(INT_FRAME_SIZE, STACK_INT_FRAME_SIZE);
 	DEFINE(SWITCH_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs));
 #ifdef CONFIG_PPC64

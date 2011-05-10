@@ -136,7 +136,7 @@ static void cx18_mdl_send_to_dvb(struct cx18_stream *s, struct cx18_mdl *mdl)
 {
 	struct cx18_buffer *buf;
 
-	if (!s->dvb.enabled || mdl->bytesused == 0)
+	if (s->dvb == NULL || !s->dvb->enabled || mdl->bytesused == 0)
 		return;
 
 	/* We ignore mdl and buf readpos accounting here - it doesn't matter */
@@ -146,7 +146,7 @@ static void cx18_mdl_send_to_dvb(struct cx18_stream *s, struct cx18_mdl *mdl)
 		buf = list_first_entry(&mdl->buf_list, struct cx18_buffer,
 				       list);
 		if (buf->bytesused)
-			dvb_dmx_swfilter(&s->dvb.demux,
+			dvb_dmx_swfilter(&s->dvb->demux,
 					 buf->buf, buf->bytesused);
 		return;
 	}
@@ -154,7 +154,7 @@ static void cx18_mdl_send_to_dvb(struct cx18_stream *s, struct cx18_mdl *mdl)
 	list_for_each_entry(buf, &mdl->buf_list, list) {
 		if (buf->bytesused == 0)
 			break;
-		dvb_dmx_swfilter(&s->dvb.demux, buf->buf, buf->bytesused);
+		dvb_dmx_swfilter(&s->dvb->demux, buf->buf, buf->bytesused);
 	}
 }
 
@@ -716,9 +716,8 @@ static int cx18_set_filter_param(struct cx18_stream *s)
 int cx18_api_func(void *priv, u32 cmd, int in, int out,
 		u32 data[CX2341X_MBOX_MAX_DATA])
 {
-	struct cx18_api_func_private *api_priv = priv;
-	struct cx18 *cx = api_priv->cx;
-	struct cx18_stream *s = api_priv->s;
+	struct cx18_stream *s = priv;
+	struct cx18 *cx = s->cx;
 
 	switch (cmd) {
 	case CX2341X_ENC_SET_OUTPUT_PORT:

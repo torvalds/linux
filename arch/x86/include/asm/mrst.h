@@ -14,7 +14,9 @@
 #include <linux/sfi.h>
 
 extern int pci_mrst_init(void);
-int __init sfi_parse_mrtc(struct sfi_table_header *table);
+extern int __init sfi_parse_mrtc(struct sfi_table_header *table);
+extern int sfi_mrtc_num;
+extern struct sfi_rtc_table_entry sfi_mrtc_array[];
 
 /*
  * Medfield is the follow-up of Moorestown, it combines two chip solution into
@@ -50,4 +52,14 @@ extern void mrst_early_console_init(void);
 
 extern struct console early_hsu_console;
 extern void hsu_early_console_init(void);
+
+extern void intel_scu_devices_create(void);
+extern void intel_scu_devices_destroy(void);
+
+/* VRTC timer */
+#define MRST_VRTC_MAP_SZ	(1024)
+/*#define MRST_VRTC_PGOFFSET	(0xc00) */
+
+extern void mrst_rtc_init(void);
+
 #endif /* _ASM_X86_MRST_H */

@@ -79,7 +79,7 @@ EXPORT_SYMBOL_GPL(nlmclnt_init);
  */
 void nlmclnt_done(struct nlm_host *host)
 {
-	nlm_release_host(host);
+	nlmclnt_release_host(host);
 	lockd_down();
 }
 EXPORT_SYMBOL_GPL(nlmclnt_done);
@@ -273,7 +273,7 @@ restart:
 	spin_unlock(&nlm_blocked_lock);
 
 	/* Release host handle after use */
-	nlm_release_host(host);
+	nlmclnt_release_host(host);
 	lockd_down();
 	return 0;
 }

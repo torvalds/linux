@@ -1249,14 +1249,22 @@ static void vortex_adbdma_resetup(vortex_t *vortex, int adbdma) {
 	}
 }
 
-static int inline vortex_adbdma_getlinearpos(vortex_t * vortex, int adbdma)
+static inline int vortex_adbdma_getlinearpos(vortex_t * vortex, int adbdma)
 {
 	stream_t *dma = &vortex->dma_adb[adbdma];
-	int temp;
+	int temp, page, delta;
 
 	temp = hwread(vortex->mmio, VORTEX_ADBDMA_STAT + (adbdma << 2));
-	temp = (dma->period_virt * dma->period_bytes) + (temp & (dma->period_bytes - 1));
-	return temp;
+	page = (temp & ADB_SUBBUF_MASK) >> ADB_SUBBUF_SHIFT;
+	if (dma->nr_periods >= 4)
+		delta = (page - dma->period_real) & 3;
+	else {
+		delta = (page - dma->period_real);
+		if (delta < 0)
+			delta += dma->nr_periods;
+	}
+	return (dma->period_virt + delta) * dma->period_bytes
+		+ (temp & (dma->period_bytes - 1));
 }
 
 static void vortex_adbdma_startfifo(vortex_t * vortex, int adbdma)
@@ -1498,7 +1506,7 @@ static int vortex_wtdma_getcursubuffer(vortex_t * vortex, int wtdma)
 		 POS_SHIFT) & POS_MASK);
 }
 #endif
-static int inline vortex_wtdma_getlinearpos(vortex_t * vortex, int wtdma)
+static inline int vortex_wtdma_getlinearpos(vortex_t * vortex, int wtdma)
 {
 	stream_t *dma = &vortex->dma_wt[wtdma];
 	int temp;

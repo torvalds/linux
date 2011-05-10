@@ -893,7 +893,7 @@ int dmacHw_setDataDescriptor(dmacHw_CONFIG_t *pConfig,	/*   [ IN ] Configuration
 */
 /****************************************************************************/
 uint32_t dmacHw_getDmaControllerAttribute(dmacHw_HANDLE_t handle,	/*  [ IN ]  DMA Channel handle */
-					  dmacHw_CONTROLLER_ATTRIB_e attr	/*  [ IN ]  DMA Controler attribute of type  dmacHw_CONTROLLER_ATTRIB_e */
+					  dmacHw_CONTROLLER_ATTRIB_e attr	/*  [ IN ]  DMA Controller attribute of type  dmacHw_CONTROLLER_ATTRIB_e */
     ) {
 	dmacHw_CBLK_t *pCblk = dmacHw_HANDLE_TO_CBLK(handle);
 

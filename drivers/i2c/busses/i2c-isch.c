@@ -141,7 +141,7 @@ static int sch_transaction(void)
  * This is the main access entry for i2c-sch access
  * adap is i2c_adapter pointer, addr is the i2c device bus address, read_write
  * (0 for read and 1 for write), size is i2c transaction type and data is the
- * union of transaction for data to be transfered or data read from bus.
+ * union of transaction for data to be transferred or data read from bus.
  * return 0 for success and others for failure.
  */
 static s32 sch_access(struct i2c_adapter *adap, u16 addr,

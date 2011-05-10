@@ -212,6 +212,7 @@ static int s3c64xx_dma_start(struct s3c2410_dma_chan *chan)
 
 	config = readl(chan->regs + PL080S_CH_CONFIG);
 	config |= PL080_CONFIG_ENABLE;
+	config &= ~PL080_CONFIG_HALT;
 
 	pr_debug("%s: writing config %08x\n", __func__, config);
 	writel(config, chan->regs + PL080S_CH_CONFIG);
@@ -314,7 +315,7 @@ int s3c2410_dma_ctrl(unsigned int channel, enum s3c2410_chan_op op)
 	case S3C2410_DMAOP_FLUSH:
 		return s3c64xx_dma_flush(chan);
 
-	/* belive PAUSE/RESUME are no-ops */
+	/* believe PAUSE/RESUME are no-ops */
 	case S3C2410_DMAOP_PAUSE:
 	case S3C2410_DMAOP_RESUME:
 	case S3C2410_DMAOP_STARTED:
@@ -689,12 +690,12 @@ static int s3c64xx_dma_init1(int chno, enum dma_ch chbase,
 
 	regptr = regs + PL080_Cx_BASE(0);
 
-	for (ch = 0; ch < 8; ch++, chno++, chptr++) {
-		printk(KERN_INFO "%s: registering DMA %d (%p)\n",
-		       __func__, chno, regptr);
+	for (ch = 0; ch < 8; ch++, chptr++) {
+		pr_debug("%s: registering DMA %d (%p)\n",
+			 __func__, chno + ch, regptr);
 
 		chptr->bit = 1 << ch;
-		chptr->number = chno;
+		chptr->number = chno + ch;
 		chptr->dmac = dmac;
 		chptr->regs = regptr;
 		regptr += PL080_Cx_STRIDE;
@@ -703,7 +704,8 @@ static int s3c64xx_dma_init1(int chno, enum dma_ch chbase,
 	/* for the moment, permanently enable the controller */
 	writel(PL080_CONFIG_ENABLE, regs + PL080_CONFIG);
 
-	printk(KERN_INFO "PL080: IRQ %d, at %p\n", irq, regs);
+	printk(KERN_INFO "PL080: IRQ %d, at %p, channels %d..%d\n",
+	       irq, regs, chno, chno+8);
 
 	return 0;
 
@@ -740,7 +742,7 @@ static int __init s3c64xx_dma_init(void)
 	/* Set all DMA configuration to be DMA, not SDMA */
 	writel(0xffffff, S3C_SYSREG(0x110));
 
-	/* Register standard DMA controlers */
+	/* Register standard DMA controllers */
 	s3c64xx_dma_init1(0, DMACH_UART0, IRQ_DMA0, 0x75000000);
 	s3c64xx_dma_init1(8, DMACH_PCM1_TX, IRQ_DMA1, 0x75100000);
 

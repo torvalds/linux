@@ -59,20 +59,23 @@ enum {
 
 	SRP_RQ_SHIFT    	= 6,
 	SRP_RQ_SIZE		= 1 << SRP_RQ_SHIFT,
-	SRP_RQ_MASK		= SRP_RQ_SIZE - 1,
 
 	SRP_SQ_SIZE		= SRP_RQ_SIZE,
-	SRP_SQ_MASK		= SRP_SQ_SIZE - 1,
 	SRP_RSP_SQ_SIZE		= 1,
 	SRP_REQ_SQ_SIZE		= SRP_SQ_SIZE - SRP_RSP_SQ_SIZE,
 	SRP_TSK_MGMT_SQ_SIZE	= 1,
 	SRP_CMD_SQ_SIZE		= SRP_REQ_SQ_SIZE - SRP_TSK_MGMT_SQ_SIZE,
 
-	SRP_TAG_TSK_MGMT	= 1 << (SRP_RQ_SHIFT + 1),
+	SRP_TAG_NO_REQ		= ~0U,
+	SRP_TAG_TSK_MGMT	= 1U << 31,
 
-	SRP_FMR_SIZE		= 256,
+	SRP_FMR_SIZE		= 512,
+	SRP_FMR_MIN_SIZE	= 128,
 	SRP_FMR_POOL_SIZE	= 1024,
-	SRP_FMR_DIRTY_SIZE	= SRP_FMR_POOL_SIZE / 4
+	SRP_FMR_DIRTY_SIZE	= SRP_FMR_POOL_SIZE / 4,
+
+	SRP_MAP_ALLOW_FMR	= 0,
+	SRP_MAP_NO_FMR		= 1,
 };
 
 enum srp_target_state {
@@ -94,9 +97,9 @@ struct srp_device {
 	struct ib_pd	       *pd;
 	struct ib_mr	       *mr;
 	struct ib_fmr_pool     *fmr_pool;
-	int			fmr_page_shift;
-	int			fmr_page_size;
 	u64			fmr_page_mask;
+	int			fmr_page_size;
+	int			fmr_max_size;
 };
 
 struct srp_host {
@@ -113,15 +116,37 @@ struct srp_request {
 	struct list_head	list;
 	struct scsi_cmnd       *scmnd;
 	struct srp_iu	       *cmd;
-	struct srp_iu	       *tsk_mgmt;
-	struct ib_pool_fmr     *fmr;
-	struct completion	done;
+	struct ib_pool_fmr    **fmr_list;
+	u64		       *map_page;
+	struct srp_direct_buf  *indirect_desc;
+	dma_addr_t		indirect_dma_addr;
+	short			nfmr;
 	short			index;
-	u8			cmd_done;
-	u8			tsk_status;
 };
 
 struct srp_target_port {
+	/* These are RW in the hot path, and commonly used together */
+	struct list_head	free_tx;
+	struct list_head	free_reqs;
+	spinlock_t		lock;
+	s32			req_lim;
+
+	/* These are read-only in the hot path */
+	struct ib_cq	       *send_cq ____cacheline_aligned_in_smp;
+	struct ib_cq	       *recv_cq;
+	struct ib_qp	       *qp;
+	u32			lkey;
+	u32			rkey;
+	enum srp_target_state	state;
+	unsigned int		max_iu_len;
+	unsigned int		cmd_sg_cnt;
+	unsigned int		indirect_size;
+	bool			allow_ext_sg;
+
+	/* Everything above this point is used in the hot path of
+	 * command processing. Try to keep them packed into cachelines.
+	 */
+
 	__be64			id_ext;
 	__be64			ioc_guid;
 	__be64			service_id;
@@ -131,6 +156,7 @@ struct srp_target_port {
 	struct Scsi_Host       *scsi_host;
 	char			target_name[32];
 	unsigned int		scsi_id;
+	unsigned int		sg_tablesize;
 
 	struct ib_sa_path_rec	path;
 	__be16			orig_dgid[8];
@@ -138,24 +164,13 @@ struct srp_target_port {
 	int			path_query_id;
 
 	struct ib_cm_id	       *cm_id;
-	struct ib_cq	       *recv_cq;
-	struct ib_cq	       *send_cq;
-	struct ib_qp	       *qp;
 
 	int			max_ti_iu_len;
-	s32			req_lim;
 
 	int			zero_req_lim;
 
-	unsigned		rx_head;
-	struct srp_iu	       *rx_ring[SRP_RQ_SIZE];
-
-	unsigned		tx_head;
-	unsigned		tx_tail;
 	struct srp_iu	       *tx_ring[SRP_SQ_SIZE];
-
-	struct list_head	free_reqs;
-	struct list_head	req_queue;
+	struct srp_iu	       *rx_ring[SRP_RQ_SIZE];
 	struct srp_request	req_ring[SRP_CMD_SQ_SIZE];
 
 	struct work_struct	work;
@@ -163,16 +178,33 @@ struct srp_target_port {
 	struct list_head	list;
 	struct completion	done;
 	int			status;
-	enum srp_target_state	state;
 	int			qp_in_error;
+
+	struct completion	tsk_mgmt_done;
+	u8			tsk_mgmt_status;
 };
 
 struct srp_iu {
+	struct list_head	list;
 	u64			dma;
 	void		       *buf;
 	size_t			size;
 	enum dma_data_direction	direction;
-	enum srp_iu_type	type;
+};
+
+struct srp_map_state {
+	struct ib_pool_fmr    **next_fmr;
+	struct srp_direct_buf  *desc;
+	u64		       *pages;
+	dma_addr_t		base_dma_addr;
+	u32			fmr_len;
+	u32			total_len;
+	unsigned int		npages;
+	unsigned int		nfmr;
+	unsigned int		ndesc;
+	struct scatterlist     *unmapped_sg;
+	int			unmapped_index;
+	dma_addr_t		unmapped_addr;
 };
 
 #endif /* IB_SRP_H */

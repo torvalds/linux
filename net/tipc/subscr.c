@@ -2,7 +2,7 @@
  * net/tipc/subscr.c: TIPC network topology service
  *
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005-2007, Wind River Systems
+ * Copyright (c) 2005-2007, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,10 +35,8 @@
  */
 
 #include "core.h"
-#include "dbg.h"
 #include "name_table.h"
 #include "port.h"
-#include "ref.h"
 #include "subscr.h"
 
 /**
@@ -66,14 +64,13 @@ struct subscriber {
  */
 
 struct top_srv {
-	u32 user_ref;
 	u32 setup_port;
 	atomic_t subscription_count;
 	struct list_head subscriber_list;
 	spinlock_t lock;
 };
 
-static struct top_srv topsrv = { 0 };
+static struct top_srv topsrv;
 
 /**
  * htohl - convert value to endianness used by destination
@@ -163,7 +160,7 @@ void tipc_subscr_report_overlap(struct subscription *sub,
 
 static void subscr_timeout(struct subscription *sub)
 {
-	struct port *server_port;
+	struct tipc_port *server_port;
 
 	/* Validate server port reference (in case subscriber is terminating) */
 
@@ -252,8 +249,6 @@ static void subscr_terminate(struct subscriber *subscriber)
 			k_cancel_timer(&sub->timer);
 			k_term_timer(&sub->timer);
 		}
-		dbg("Term: Removing sub %u,%u,%u from subscriber %x list\n",
-		    sub->seq.type, sub->seq.lower, sub->seq.upper, subscriber);
 		subscr_del(sub);
 	}
 
@@ -310,8 +305,6 @@ static void subscr_cancel(struct tipc_subscr *s,
 		k_term_timer(&sub->timer);
 		spin_lock_bh(subscriber->lock);
 	}
-	dbg("Cancel: removing sub %u,%u,%u from subscriber %x list\n",
-	    sub->seq.type, sub->seq.lower, sub->seq.upper, subscriber);
 	subscr_del(sub);
 }
 
@@ -479,8 +472,6 @@ static void subscr_named_msg_event(void *usr_handle,
 				   struct tipc_portid const *orig,
 				   struct tipc_name_seq const *dest)
 {
-	static struct iovec msg_sect = {NULL, 0};
-
 	struct subscriber *subscriber;
 	u32 server_port_ref;
 
@@ -496,8 +487,7 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	/* Create server port & establish connection to subscriber */
 
-	tipc_createport(topsrv.user_ref,
-			subscriber,
+	tipc_createport(subscriber,
 			importance,
 			NULL,
 			NULL,
@@ -516,7 +506,7 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	/* Lock server port (& save lock address for future use) */
 
-	subscriber->lock = tipc_port_lock(subscriber->port_ref)->publ.lock;
+	subscriber->lock = tipc_port_lock(subscriber->port_ref)->lock;
 
 	/* Add subscriber to topology server's subscriber list */
 
@@ -531,7 +521,7 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	/* Send an ACK- to complete connection handshaking */
 
-	tipc_send(server_port_ref, 1, &msg_sect);
+	tipc_send(server_port_ref, 0, NULL);
 
 	/* Handle optional subscription request */
 
@@ -544,21 +534,13 @@ static void subscr_named_msg_event(void *usr_handle,
 int tipc_subscr_start(void)
 {
 	struct tipc_name_seq seq = {TIPC_TOP_SRV, TIPC_TOP_SRV, TIPC_TOP_SRV};
-	int res = -1;
+	int res;
 
-	memset(&topsrv, 0, sizeof (topsrv));
+	memset(&topsrv, 0, sizeof(topsrv));
 	spin_lock_init(&topsrv.lock);
 	INIT_LIST_HEAD(&topsrv.subscriber_list);
 
-	spin_lock_bh(&topsrv.lock);
-	res = tipc_attach(&topsrv.user_ref, NULL, NULL);
-	if (res) {
-		spin_unlock_bh(&topsrv.lock);
-		return res;
-	}
-
-	res = tipc_createport(topsrv.user_ref,
-			      NULL,
+	res = tipc_createport(NULL,
 			      TIPC_CRITICAL_IMPORTANCE,
 			      NULL,
 			      NULL,
@@ -572,17 +554,16 @@ int tipc_subscr_start(void)
 		goto failed;
 
 	res = tipc_nametbl_publish_rsv(topsrv.setup_port, TIPC_NODE_SCOPE, &seq);
-	if (res)
+	if (res) {
+		tipc_deleteport(topsrv.setup_port);
+		topsrv.setup_port = 0;
 		goto failed;
+	}
 
-	spin_unlock_bh(&topsrv.lock);
 	return 0;
 
 failed:
 	err("Failed to create subscription service\n");
-	tipc_detach(topsrv.user_ref);
-	topsrv.user_ref = 0;
-	spin_unlock_bh(&topsrv.lock);
 	return res;
 }
 
@@ -592,8 +573,10 @@ void tipc_subscr_stop(void)
 	struct subscriber *subscriber_temp;
 	spinlock_t *subscriber_lock;
 
-	if (topsrv.user_ref) {
+	if (topsrv.setup_port) {
 		tipc_deleteport(topsrv.setup_port);
+		topsrv.setup_port = 0;
+
 		list_for_each_entry_safe(subscriber, subscriber_temp,
 					 &topsrv.subscriber_list,
 					 subscriber_list) {
@@ -602,7 +585,5 @@ void tipc_subscr_stop(void)
 			subscr_terminate(subscriber);
 			spin_unlock_bh(subscriber_lock);
 		}
-		tipc_detach(topsrv.user_ref);
-		topsrv.user_ref = 0;
 	}
 }

@@ -61,7 +61,7 @@ struct ceph_options {
 					      pointer type of args */
 	int num_mon;
 	char *name;
-	char *secret;
+	struct ceph_crypto_key *key;
 };
 
 /*
@@ -71,7 +71,6 @@ struct ceph_options {
 #define CEPH_OSD_TIMEOUT_DEFAULT    60  /* seconds */
 #define CEPH_OSD_KEEPALIVE_DEFAULT  5
 #define CEPH_OSD_IDLE_TTL_DEFAULT    60
-#define CEPH_MOUNT_RSIZE_DEFAULT    (512*1024) /* readahead */
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_DATA_LEN	(16*1024*1024)
@@ -227,8 +226,10 @@ extern int ceph_open_session(struct ceph_client *client);
 extern void ceph_release_page_vector(struct page **pages, int num_pages);
 
 extern struct page **ceph_get_direct_page_vector(const char __user *data,
-						 int num_pages);
-extern void ceph_put_page_vector(struct page **pages, int num_pages);
+						 int num_pages,
+						 bool write_page);
+extern void ceph_put_page_vector(struct page **pages, int num_pages,
+				 bool dirty);
 extern void ceph_release_page_vector(struct page **pages, int num_pages);
 extern struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags);
 extern int ceph_copy_user_to_page_vector(struct page **pages,

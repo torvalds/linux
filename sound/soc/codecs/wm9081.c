@@ -15,6 +15,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
@@ -23,7 +24,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
@@ -158,7 +158,6 @@ static struct {
 struct wm9081_priv {
 	enum snd_soc_control_type control_type;
 	void *control_data;
-	u16 reg_cache[WM9081_MAX_REGISTER + 1];
 	int sysclk_source;
 	int mclk_rate;
 	int sysclk_rate;
@@ -168,10 +167,10 @@ struct wm9081_priv {
 	int fll_fref;
 	int fll_fout;
 	int tdm_width;
-	struct wm9081_retune_mobile_config *retune;
+	struct wm9081_pdata pdata;
 };
 
-static int wm9081_volatile_register(unsigned int reg)
+static int wm9081_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM9081_SOFTWARE_RESET:
@@ -306,7 +305,7 @@ static int speaker_mode_get(struct snd_kcontrol *kcontrol,
 /*
  * Stop any attempts to change speaker mode while the speaker is enabled.
  *
- * We also have some special anti-pop controls dependant on speaker
+ * We also have some special anti-pop controls dependent on speaker
  * mode which must be changed along with the mode.
  */
 static int speaker_mode_put(struct snd_kcontrol *kcontrol,
@@ -390,27 +389,6 @@ SOC_DAPM_SINGLE("IN2 Switch", WM9081_ANALOGUE_MIXER, 2, 1, 0),
 SOC_DAPM_SINGLE("Playback Switch", WM9081_ANALOGUE_MIXER, 4, 1, 0),
 };
 
-static int speaker_event(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = w->codec;
-	unsigned int reg = snd_soc_read(codec, WM9081_POWER_MANAGEMENT);
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		reg |= WM9081_SPK_ENA;
-		break;
-
-	case SND_SOC_DAPM_PRE_PMD:
-		reg &= ~WM9081_SPK_ENA;
-		break;
-	}
-
-	snd_soc_write(codec, WM9081_POWER_MANAGEMENT, reg);
-
-	return 0;
-}
-
 struct _fll_div {
 	u16 fll_fratio;
 	u16 fll_outdiv;
@@ -478,7 +456,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 
 	pr_debug("Fvco=%dHz\n", target);
 
-	/* Find an appropraite FLL_FRATIO and factor it out of the target */
+	/* Find an appropriate FLL_FRATIO and factor it out of the target */
 	for (i = 0; i < ARRAY_SIZE(fll_fratios); i++) {
 		if (fll_fratios[i].min <= Fref && Fref <= fll_fratios[i].max) {
 			fll_div->fll_fratio = fll_fratios[i].fll_fratio;
@@ -590,6 +568,10 @@ static int wm9081_set_fll(struct snd_soc_codec *codec, int fll_id,
 	reg5 &= ~WM9081_FLL_CLK_REF_DIV_MASK;
 	reg5 |= fll_div.fll_clk_ref_div << WM9081_FLL_CLK_REF_DIV_SHIFT;
 	snd_soc_write(codec, WM9081_FLL_CONTROL_5, reg5);
+
+	/* Set gain to the recommended value */
+	snd_soc_update_bits(codec, WM9081_FLL_CONTROL_4,
+			    WM9081_FLL_GAIN_MASK, 0);
 
 	/* Enable the FLL */
 	snd_soc_write(codec, WM9081_FLL_CONTROL_1, reg1 | WM9081_FLL_ENA);
@@ -744,9 +726,8 @@ SND_SOC_DAPM_MIXER_NAMED_CTL("Mixer", SND_SOC_NOPM, 0, 0,
 
 SND_SOC_DAPM_PGA("LINEOUT PGA", WM9081_POWER_MANAGEMENT, 4, 0, NULL, 0),
 
-SND_SOC_DAPM_PGA_E("Speaker PGA", WM9081_POWER_MANAGEMENT, 2, 0, NULL, 0,
-		   speaker_event,
-		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_PGA("Speaker PGA", WM9081_POWER_MANAGEMENT, 2, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Speaker", WM9081_POWER_MANAGEMENT, 1, 0, NULL, 0),
 
 SND_SOC_DAPM_OUTPUT("LINEOUT"),
 SND_SOC_DAPM_OUTPUT("SPKN"),
@@ -759,7 +740,7 @@ SND_SOC_DAPM_SUPPLY("TOCLK", WM9081_CLOCK_CONTROL_3, 2, 0, NULL, 0),
 };
 
 
-static const struct snd_soc_dapm_route audio_paths[] = {
+static const struct snd_soc_dapm_route wm9081_audio_paths[] = {
 	{ "DAC", NULL, "CLK_SYS" },
 	{ "DAC", NULL, "CLK_DSP" },
 
@@ -777,8 +758,10 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "Speaker PGA", NULL, "TOCLK" },
 	{ "Speaker PGA", NULL, "CLK_SYS" },
 
-	{ "SPKN", NULL, "Speaker PGA" },
-	{ "SPKP", NULL, "Speaker PGA" },
+	{ "Speaker", NULL, "Speaker PGA" },
+
+	{ "SPKN", NULL, "Speaker" },
+	{ "SPKP", NULL, "Speaker" },
 };
 
 static int wm9081_set_bias_level(struct snd_soc_codec *codec,
@@ -805,7 +788,7 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		/* Initial cold start */
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* Disable LINEOUT discharge */
 			reg = snd_soc_read(codec, WM9081_ANTI_POP_CONTROL);
 			reg &= ~WM9081_LINEOUT_DISCH;
@@ -865,7 +848,7 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -1079,21 +1062,22 @@ static int wm9081_hw_params(struct snd_pcm_substream *substream,
 	aif4 |= wm9081->bclk / wm9081->fs;
 
 	/* Apply a ReTune Mobile configuration if it's in use */
-	if (wm9081->retune) {
-		struct wm9081_retune_mobile_config *retune = wm9081->retune;
+	if (wm9081->pdata.num_retune_configs) {
+		struct wm9081_pdata *pdata = &wm9081->pdata;
 		struct wm9081_retune_mobile_setting *s;
 		int eq1;
 
 		best = 0;
-		best_val = abs(retune->configs[0].rate - wm9081->fs);
-		for (i = 0; i < retune->num_configs; i++) {
-			cur_val = abs(retune->configs[i].rate - wm9081->fs);
+		best_val = abs(pdata->retune_configs[0].rate - wm9081->fs);
+		for (i = 0; i < pdata->num_retune_configs; i++) {
+			cur_val = abs(pdata->retune_configs[i].rate -
+				      wm9081->fs);
 			if (cur_val < best_val) {
 				best_val = cur_val;
 				best = i;
 			}
 		}
-		s = &retune->configs[best];
+		s = &pdata->retune_configs[best];
 
 		dev_dbg(codec->dev, "ReTune Mobile %s tuned for %dHz\n",
 			s->name, s->rate);
@@ -1136,10 +1120,9 @@ static int wm9081_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
-static int wm9081_set_sysclk(struct snd_soc_dai *codec_dai,
+static int wm9081_set_sysclk(struct snd_soc_codec *codec,
 			     int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 
 	switch (clk_id) {
@@ -1204,7 +1187,6 @@ static int wm9081_set_tdm_slot(struct snd_soc_dai *dai,
 
 static struct snd_soc_dai_ops wm9081_dai_ops = {
 	.hw_params = wm9081_hw_params,
-	.set_sysclk = wm9081_set_sysclk,
 	.set_fmt = wm9081_set_dai_fmt,
 	.digital_mute = wm9081_digital_mute,
 	.set_tdm_slot = wm9081_set_tdm_slot,
@@ -1251,6 +1233,14 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
+	reg = 0;
+	if (wm9081->pdata.irq_high)
+		reg |= WM9081_IRQ_POL;
+	if (!wm9081->pdata.irq_cmos)
+		reg |= WM9081_IRQ_OP_CTRL;
+	snd_soc_update_bits(codec, WM9081_INTERRUPT_CONTROL,
+			    WM9081_IRQ_POL | WM9081_IRQ_OP_CTRL, reg);
+
 	wm9081_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Enable zero cross by default */
@@ -1262,16 +1252,12 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 
 	snd_soc_add_controls(codec, wm9081_snd_controls,
 			     ARRAY_SIZE(wm9081_snd_controls));
-	if (!wm9081->retune) {
+	if (!wm9081->pdata.num_retune_configs) {
 		dev_dbg(codec->dev,
 			"No ReTune Mobile data, using normal EQ\n");
 		snd_soc_add_controls(codec, wm9081_eq_controls,
 				     ARRAY_SIZE(wm9081_eq_controls));
 	}
-
-	snd_soc_dapm_new_controls(codec, wm9081_dapm_widgets,
-				  ARRAY_SIZE(wm9081_dapm_widgets));
-	snd_soc_dapm_add_routes(codec, audio_paths, ARRAY_SIZE(audio_paths));
 
 	return ret;
 }
@@ -1316,11 +1302,19 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
 	.remove = 	wm9081_remove,
 	.suspend =	wm9081_suspend,
 	.resume =	wm9081_resume,
+
+	.set_sysclk = wm9081_set_sysclk,
 	.set_bias_level = wm9081_set_bias_level,
+
 	.reg_cache_size = ARRAY_SIZE(wm9081_reg_defaults),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm9081_reg_defaults,
 	.volatile_register = wm9081_volatile_register,
+
+	.dapm_widgets	  = wm9081_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm9081_dapm_widgets),
+	.dapm_routes     = wm9081_audio_paths,
+	.num_dapm_routes = ARRAY_SIZE(wm9081_audio_paths),
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
@@ -1335,7 +1329,12 @@ static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm9081);
+	wm9081->control_type = SND_SOC_I2C;
 	wm9081->control_data = i2c;
+
+	if (dev_get_platdata(&i2c->dev))
+		memcpy(&wm9081->pdata, dev_get_platdata(&i2c->dev),
+		       sizeof(wm9081->pdata));
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm9081, &wm9081_dai, 1);
@@ -1359,7 +1358,7 @@ MODULE_DEVICE_TABLE(i2c, wm9081_i2c_id);
 
 static struct i2c_driver wm9081_i2c_driver = {
 	.driver = {
-		.name = "wm9081-codec",
+		.name = "wm9081",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm9081_i2c_probe,

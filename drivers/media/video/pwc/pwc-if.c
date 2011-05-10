@@ -151,8 +151,6 @@ static int pwc_video_close(struct file *file);
 static ssize_t pwc_video_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos);
 static unsigned int pwc_video_poll(struct file *file, poll_table *wait);
-static long  pwc_video_ioctl(struct file *file,
-			    unsigned int ioctlnr, unsigned long arg);
 static int  pwc_video_mmap(struct file *file, struct vm_area_struct *vma);
 
 static const struct v4l2_file_operations pwc_fops = {
@@ -162,7 +160,7 @@ static const struct v4l2_file_operations pwc_fops = {
 	.read =		pwc_video_read,
 	.poll =		pwc_video_poll,
 	.mmap =		pwc_video_mmap,
-	.unlocked_ioctl = pwc_video_ioctl,
+	.unlocked_ioctl = video_ioctl2,
 };
 static struct video_device pwc_template = {
 	.name =		"Philips Webcam",	/* Filled in later */
@@ -287,14 +285,13 @@ static int pwc_allocate_buffers(struct pwc_device *pdev)
 	/* create frame buffers, and make circular ring */
 	for (i = 0; i < default_fbufs; i++) {
 		if (pdev->fbuf[i].data == NULL) {
-			kbuf = vmalloc(PWC_FRAME_SIZE); /* need vmalloc since frame buffer > 128K */
+			kbuf = vzalloc(PWC_FRAME_SIZE); /* need vmalloc since frame buffer > 128K */
 			if (kbuf == NULL) {
 				PWC_ERROR("Failed to allocate frame buffer %d.\n", i);
 				return -ENOMEM;
 			}
 			PWC_DEBUG_MEMORY("Allocated frame buffer %d at %p.\n", i, kbuf);
 			pdev->fbuf[i].data = kbuf;
-			memset(kbuf, 0, PWC_FRAME_SIZE);
 		}
 	}
 
@@ -899,10 +896,13 @@ int pwc_isoc_init(struct pwc_device *pdev)
 	/* link */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		ret = usb_submit_urb(pdev->sbuf[i].urb, GFP_KERNEL);
-		if (ret)
+		if (ret) {
 			PWC_ERROR("isoc_init() submit_urb %d failed with error %d\n", i, ret);
-		else
-			PWC_DEBUG_MEMORY("URB 0x%p submitted.\n", pdev->sbuf[i].urb);
+			pdev->iso_init = 1;
+			pwc_isoc_cleanup(pdev);
+			return ret;
+		}
+		PWC_DEBUG_MEMORY("URB 0x%p submitted.\n", pdev->sbuf[i].urb);
 	}
 
 	/* All is done... */
@@ -958,43 +958,13 @@ void pwc_isoc_cleanup(struct pwc_device *pdev)
 	/* Stop camera, but only if we are sure the camera is still there (unplug
 	   is signalled by EPIPE)
 	 */
-	if (pdev->error_status && pdev->error_status != EPIPE) {
+	if (pdev->error_status != EPIPE) {
 		PWC_DEBUG_OPEN("Setting alternate interface 0.\n");
 		usb_set_interface(pdev->udev, 0, 0);
 	}
 
 	pdev->iso_init = 0;
 	PWC_DEBUG_OPEN("<< pwc_isoc_cleanup()\n");
-}
-
-int pwc_try_video_mode(struct pwc_device *pdev, int width, int height, int new_fps, int new_compression, int new_snapshot)
-{
-	int ret, start;
-
-	/* Stop isoc stuff */
-	pwc_isoc_cleanup(pdev);
-	/* Reset parameters */
-	pwc_reset_buffers(pdev);
-	/* Try to set video mode... */
-	start = ret = pwc_set_video_mode(pdev, width, height, new_fps, new_compression, new_snapshot);
-	if (ret) {
-		PWC_DEBUG_FLOW("pwc_set_video_mode attempt 1 failed.\n");
-		/* That failed... restore old mode (we know that worked) */
-		start = pwc_set_video_mode(pdev, pdev->view.x, pdev->view.y, pdev->vframes, pdev->vcompression, pdev->vsnapshot);
-		if (start) {
-			PWC_DEBUG_FLOW("pwc_set_video_mode attempt 2 failed.\n");
-		}
-	}
-	if (start == 0)
-	{
-		if (pwc_isoc_init(pdev) < 0)
-		{
-			PWC_WARNING("Failed to restart ISOC transfers in pwc_try_video_mode.\n");
-			ret = -EAGAIN; /* let's try again, who knows if it works a second time */
-		}
-	}
-	pdev->drop_frames++; /* try to avoid garbage during switch */
-	return ret; /* Return original error code */
 }
 
 /*********
@@ -1126,7 +1096,6 @@ static int pwc_video_open(struct file *file)
 		return -EBUSY;
 	}
 
-	mutex_lock(&pdev->modlock);
 	pwc_construct(pdev); /* set min/max sizes correct */
 	if (!pdev->usb_init) {
 		PWC_DEBUG_OPEN("Doing first time initialization.\n");
@@ -1158,7 +1127,6 @@ static int pwc_video_open(struct file *file)
 	if (i < 0) {
 		PWC_DEBUG_OPEN("Failed to allocate buffers memory.\n");
 		pwc_free_buffers(pdev);
-		mutex_unlock(&pdev->modlock);
 		return i;
 	}
 
@@ -1176,7 +1144,7 @@ static int pwc_video_open(struct file *file)
 	/* Set some defaults */
 	pdev->vsnapshot = 0;
 
-	/* Start iso pipe for video; first try the last used video size
+	/* Set video size, first try the last used video size
 	   (or the default one); if that fails try QCIF/10 or QSIF/10;
 	   it that fails too, give up.
 	 */
@@ -1199,16 +1167,6 @@ static int pwc_video_open(struct file *file)
 	if (i) {
 		PWC_DEBUG_OPEN("Second attempt at set_video_mode failed.\n");
 		pwc_free_buffers(pdev);
-		mutex_unlock(&pdev->modlock);
-		return i;
-	}
-
-	i = pwc_isoc_init(pdev);
-	if (i) {
-		PWC_DEBUG_OPEN("Failed to init ISOC stuff = %d.\n", i);
-		pwc_isoc_cleanup(pdev);
-		pwc_free_buffers(pdev);
-		mutex_unlock(&pdev->modlock);
 		return i;
 	}
 
@@ -1218,7 +1176,6 @@ static int pwc_video_open(struct file *file)
 
 	pdev->vopen++;
 	file->private_data = vdev;
-	mutex_unlock(&pdev->modlock);
 	PWC_DEBUG_OPEN("<< video_open() returns 0.\n");
 	return 0;
 }
@@ -1247,7 +1204,6 @@ static int pwc_video_close(struct file *file)
 	PWC_DEBUG_OPEN(">> video_close called(vdev = 0x%p).\n", vdev);
 
 	pdev = video_get_drvdata(vdev);
-	mutex_lock(&pdev->modlock);
 	if (pdev->vopen == 0)
 		PWC_DEBUG_MODULE("video_close() called on closed device?\n");
 
@@ -1285,7 +1241,6 @@ static int pwc_video_close(struct file *file)
 			if (device_hint[hint].pdev == pdev)
 				device_hint[hint].pdev = NULL;
 	}
-	mutex_unlock(&pdev->modlock);
 
 	return 0;
 }
@@ -1320,11 +1275,15 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 	if (pdev == NULL)
 		return -EFAULT;
 
-	mutex_lock(&pdev->modlock);
 	if (pdev->error_status) {
 		rv = -pdev->error_status; /* Something happened, report what. */
 		goto err_out;
 	}
+
+	/* Start the stream (if not already started) */
+	rv = pwc_isoc_init(pdev);
+	if (rv)
+		goto err_out;
 
 	/* In case we're doing partial reads, we don't have to wait for a frame */
 	if (pdev->image_read_pos == 0) {
@@ -1350,8 +1309,10 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 				rv = -ERESTARTSYS;
 				goto err_out;
 			}
+			mutex_unlock(&pdev->modlock);
 			schedule();
 			set_current_state(TASK_INTERRUPTIBLE);
+			mutex_lock(&pdev->modlock);
 		}
 		remove_wait_queue(&pdev->frameq, &wait);
 		set_current_state(TASK_RUNNING);
@@ -1384,10 +1345,8 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 		pdev->image_read_pos = 0;
 		pwc_next_image(pdev);
 	}
-	mutex_unlock(&pdev->modlock);
 	return count;
 err_out:
-	mutex_unlock(&pdev->modlock);
 	return rv;
 }
 
@@ -1395,12 +1354,18 @@ static unsigned int pwc_video_poll(struct file *file, poll_table *wait)
 {
 	struct video_device *vdev = file->private_data;
 	struct pwc_device *pdev;
+	int ret;
 
 	if (vdev == NULL)
 		return -EFAULT;
 	pdev = video_get_drvdata(vdev);
 	if (pdev == NULL)
 		return -EFAULT;
+
+	/* Start the stream (if not already started) */
+	ret = pwc_isoc_init(pdev);
+	if (ret)
+		return ret;
 
 	poll_wait(file, &pdev->frameq, wait);
 	if (pdev->error_status)
@@ -1409,25 +1374,6 @@ static unsigned int pwc_video_poll(struct file *file, poll_table *wait)
 		return (POLLIN | POLLRDNORM);
 
 	return 0;
-}
-
-static long pwc_video_ioctl(struct file *file,
-			   unsigned int cmd, unsigned long arg)
-{
-	struct video_device *vdev = file->private_data;
-	struct pwc_device *pdev;
-	long r = -ENODEV;
-
-	if (!vdev)
-		goto out;
-	pdev = video_get_drvdata(vdev);
-
-	mutex_lock(&pdev->modlock);
-	if (!pdev->unplugged)
-		r = video_usercopy(file, cmd, arg, pwc_video_do_ioctl);
-	mutex_unlock(&pdev->modlock);
-out:
-	return r;
 }
 
 static int pwc_video_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1778,6 +1724,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	}
 	memcpy(pdev->vdev, &pwc_template, sizeof(pwc_template));
 	pdev->vdev->parent = &intf->dev;
+	pdev->vdev->lock = &pdev->modlock;
+	pdev->vdev->ioctl_ops = &pwc_ioctl_ops;
 	strcpy(pdev->vdev->name, name);
 	video_set_drvdata(pdev->vdev, pdev);
 

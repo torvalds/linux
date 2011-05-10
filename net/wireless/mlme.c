@@ -263,6 +263,28 @@ void cfg80211_send_disassoc(struct net_device *dev, const u8 *buf, size_t len)
 }
 EXPORT_SYMBOL(cfg80211_send_disassoc);
 
+void cfg80211_send_unprot_deauth(struct net_device *dev, const u8 *buf,
+				 size_t len)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	nl80211_send_unprot_deauth(rdev, dev, buf, len, GFP_ATOMIC);
+}
+EXPORT_SYMBOL(cfg80211_send_unprot_deauth);
+
+void cfg80211_send_unprot_disassoc(struct net_device *dev, const u8 *buf,
+				   size_t len)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	nl80211_send_unprot_disassoc(rdev, dev, buf, len, GFP_ATOMIC);
+}
+EXPORT_SYMBOL(cfg80211_send_unprot_disassoc);
+
 static void __cfg80211_auth_remove(struct wireless_dev *wdev, const u8 *addr)
 {
 	int i;
@@ -864,9 +886,9 @@ void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev)
 
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			  struct net_device *dev,
-			  struct ieee80211_channel *chan,
+			  struct ieee80211_channel *chan, bool offchan,
 			  enum nl80211_channel_type channel_type,
-			  bool channel_type_valid,
+			  bool channel_type_valid, unsigned int wait,
 			  const u8 *buf, size_t len, u64 *cookie)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -946,8 +968,9 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 
 	/* Transmit the Action frame as requested by user space */
-	return rdev->ops->mgmt_tx(&rdev->wiphy, dev, chan, channel_type,
-				  channel_type_valid, buf, len, cookie);
+	return rdev->ops->mgmt_tx(&rdev->wiphy, dev, chan, offchan,
+				  channel_type, channel_type_valid,
+				  wait, buf, len, cookie);
 }
 
 bool cfg80211_rx_mgmt(struct net_device *dev, int freq, const u8 *buf,
@@ -1028,3 +1051,15 @@ void cfg80211_cqm_rssi_notify(struct net_device *dev,
 	nl80211_send_cqm_rssi_notify(rdev, dev, rssi_event, gfp);
 }
 EXPORT_SYMBOL(cfg80211_cqm_rssi_notify);
+
+void cfg80211_cqm_pktloss_notify(struct net_device *dev,
+				 const u8 *peer, u32 num_packets, gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	/* Indicate roaming trigger event to user space */
+	nl80211_send_cqm_pktloss_notify(rdev, dev, peer, num_packets, gfp);
+}
+EXPORT_SYMBOL(cfg80211_cqm_pktloss_notify);

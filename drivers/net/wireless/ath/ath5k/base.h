@@ -86,6 +86,7 @@ struct ath5k_txq {
 	spinlock_t		lock;	/* lock on q and link */
 	bool			setup;
 	int			txq_len; /* number of queued buffers */
+	int			txq_max; /* max allowed num of queued buffers */
 	bool			txq_poll_mark;
 	unsigned int		txq_stuck;	/* informational counter */
 };
@@ -169,7 +170,10 @@ struct ath5k_vif {
 /* Software Carrier, keeps track of the driver state
  * associated with an instance of a device */
 struct ath5k_softc {
-	struct pci_dev		*pdev;		/* for dma mapping */
+	struct pci_dev		*pdev;
+	struct device		*dev;		/* for dma mapping */
+	int irq;
+	u16 devid;
 	void __iomem		*iobase;	/* address of the device */
 	struct mutex		lock;		/* dev-level lock */
 	struct ieee80211_hw	*hw;		/* IEEE 802.11 common */
@@ -179,8 +183,6 @@ struct ath5k_softc {
 	s8			rate_idx[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
 	enum nl80211_iftype	opmode;
 	struct ath5k_hw		*ah;		/* Atheros HW */
-
-	struct ieee80211_supported_band		*curband;
 
 #ifdef CONFIG_ATH5K_DEBUG
 	struct ath5k_dbg_info	debug;		/* debug info */
@@ -199,7 +201,6 @@ struct ath5k_softc {
 #define ATH_STAT_STARTED	4		/* opened & irqs enabled */
 
 	unsigned int		filter_flags;	/* HW flags, AR5K_RX_FILTER_* */
-	unsigned int		curmode;	/* current phy mode */
 	struct ieee80211_channel *curchan;	/* current h/w channel */
 
 	u16			nvifs;
@@ -255,7 +256,22 @@ struct ath5k_softc {
 	struct tasklet_struct	ani_tasklet;	/* ANI calibration */
 
 	struct delayed_work	tx_complete_work;
+
+	struct survey_info	survey;		/* collected survey info */
 };
+
+struct ath5k_vif_iter_data {
+	const u8	*hw_macaddr;
+	u8		mask[ETH_ALEN];
+	u8		active_mac[ETH_ALEN]; /* first active MAC */
+	bool		need_set_hw_addr;
+	bool		found_active;
+	bool		any_assoc;
+	enum nl80211_iftype opmode;
+	int n_stas;
+};
+void ath5k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif);
+
 
 #define ath5k_hw_hasbssidmask(_ah) \
 	(ath5k_hw_get_capability(_ah, AR5K_CAP_BSSIDMASK, 0, NULL) == 0)

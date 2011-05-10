@@ -207,18 +207,19 @@ static ssize_t iwl_dbgfs_rx_statistics_read(struct file *file,
 	return ret;
 }
 
-#define BYTE1_MASK 0x000000ff;
-#define BYTE2_MASK 0x0000ffff;
-#define BYTE3_MASK 0x00ffffff;
 static ssize_t iwl_dbgfs_sram_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	u32 val;
+	u32 val = 0;
 	char *buf;
 	ssize_t ret;
-	int i;
+	int i = 0;
+	bool device_format = false;
+	int offset = 0;
+	int len = 0;
 	int pos = 0;
+	int sram;
 	struct iwl_priv *priv = file->private_data;
 	size_t bufsz;
 
@@ -230,35 +231,62 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 		else
 			priv->dbgfs_sram_len = priv->ucode_data.len;
 	}
-	bufsz =  30 + priv->dbgfs_sram_len * sizeof(char) * 10;
+	len = priv->dbgfs_sram_len;
+
+	if (len == -4) {
+		device_format = true;
+		len = 4;
+	}
+
+	bufsz =  50 + len * 4;
 	buf = kmalloc(bufsz, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
+
 	pos += scnprintf(buf + pos, bufsz - pos, "sram_len: 0x%x\n",
-			priv->dbgfs_sram_len);
+			 len);
 	pos += scnprintf(buf + pos, bufsz - pos, "sram_offset: 0x%x\n",
 			priv->dbgfs_sram_offset);
-	for (i = priv->dbgfs_sram_len; i > 0; i -= 4) {
-		val = iwl_read_targ_mem(priv, priv->dbgfs_sram_offset + \
-					priv->dbgfs_sram_len - i);
-		if (i < 4) {
-			switch (i) {
-			case 1:
-				val &= BYTE1_MASK;
-				break;
-			case 2:
-				val &= BYTE2_MASK;
-				break;
-			case 3:
-				val &= BYTE3_MASK;
-				break;
-			}
+
+	/* adjust sram address since reads are only on even u32 boundaries */
+	offset = priv->dbgfs_sram_offset & 0x3;
+	sram = priv->dbgfs_sram_offset & ~0x3;
+
+	/* read the first u32 from sram */
+	val = iwl_read_targ_mem(priv, sram);
+
+	for (; len; len--) {
+		/* put the address at the start of every line */
+		if (i == 0)
+			pos += scnprintf(buf + pos, bufsz - pos,
+				"%08X: ", sram + offset);
+
+		if (device_format)
+			pos += scnprintf(buf + pos, bufsz - pos,
+				"%02x", (val >> (8 * (3 - offset))) & 0xff);
+		else
+			pos += scnprintf(buf + pos, bufsz - pos,
+				"%02x ", (val >> (8 * offset)) & 0xff);
+
+		/* if all bytes processed, read the next u32 from sram */
+		if (++offset == 4) {
+			sram += 4;
+			offset = 0;
+			val = iwl_read_targ_mem(priv, sram);
 		}
-		if (!(i % 16))
+
+		/* put in extra spaces and split lines for human readability */
+		if (++i == 16) {
+			i = 0;
 			pos += scnprintf(buf + pos, bufsz - pos, "\n");
-		pos += scnprintf(buf + pos, bufsz - pos, "0x%08x ", val);
+		} else if (!(i & 7)) {
+			pos += scnprintf(buf + pos, bufsz - pos, "   ");
+		} else if (!(i & 3)) {
+			pos += scnprintf(buf + pos, bufsz - pos, " ");
+		}
 	}
-	pos += scnprintf(buf + pos, bufsz - pos, "\n");
+	if (i)
+		pos += scnprintf(buf + pos, bufsz - pos, "\n");
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
@@ -282,6 +310,9 @@ static ssize_t iwl_dbgfs_sram_write(struct file *file,
 	if (sscanf(buf, "%x,%x", &offset, &len) == 2) {
 		priv->dbgfs_sram_offset = offset;
 		priv->dbgfs_sram_len = len;
+	} else if (sscanf(buf, "%x", &offset) == 1) {
+		priv->dbgfs_sram_offset = offset;
+		priv->dbgfs_sram_len = -4;
 	} else {
 		priv->dbgfs_sram_offset = 0;
 		priv->dbgfs_sram_len = 0;
@@ -668,29 +699,6 @@ static ssize_t iwl_dbgfs_qos_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static ssize_t iwl_dbgfs_led_read(struct file *file, char __user *user_buf,
-				  size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	int pos = 0;
-	char buf[256];
-	const size_t bufsz = sizeof(buf);
-
-	pos += scnprintf(buf + pos, bufsz - pos,
-			 "allow blinking: %s\n",
-			 (priv->allow_blinking) ? "True" : "False");
-	if (priv->allow_blinking) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "Led blinking rate: %u\n",
-				 priv->last_blink_rate);
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "Last blink time: %lu\n",
-				 priv->last_blink_time);
-	}
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-}
-
 static ssize_t iwl_dbgfs_thermal_throttling_read(struct file *file,
 				char __user *user_buf,
 				size_t count, loff_t *ppos)
@@ -856,7 +864,6 @@ DEBUGFS_READ_FILE_OPS(channels);
 DEBUGFS_READ_FILE_OPS(status);
 DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
 DEBUGFS_READ_FILE_OPS(qos);
-DEBUGFS_READ_FILE_OPS(led);
 DEBUGFS_READ_FILE_OPS(thermal_throttling);
 DEBUGFS_READ_WRITE_FILE_OPS(disable_ht40);
 DEBUGFS_READ_WRITE_FILE_OPS(sleep_level_override);
@@ -992,11 +999,8 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 				" swq_id=%#.2x (ac %d/hwq %d)\n",
 				cnt, q->read_ptr, q->write_ptr,
 				!!test_bit(cnt, priv->queue_stopped),
-				txq->swq_id,
-				txq->swq_id & 0x80 ? txq->swq_id & 3 :
-				txq->swq_id,
-				txq->swq_id & 0x80 ? (txq->swq_id >> 2) &
-				0x1f : txq->swq_id);
+				txq->swq_id, txq->swq_id & 3,
+				(txq->swq_id >> 2) & 0x1f);
 		if (cnt >= 4)
 			continue;
 		/* for the ACs, display the stop count too */
@@ -1537,32 +1541,26 @@ static ssize_t iwl_dbgfs_ucode_bt_stats_read(struct file *file,
 			user_buf, count, ppos);
 }
 
-static ssize_t iwl_dbgfs_monitor_period_write(struct file *file,
+static ssize_t iwl_dbgfs_wd_timeout_write(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
 	struct iwl_priv *priv = file->private_data;
 	char buf[8];
 	int buf_size;
-	int period;
+	int timeout;
 
 	memset(buf, 0, sizeof(buf));
 	buf_size = min(count, sizeof(buf) -  1);
 	if (copy_from_user(buf, user_buf, buf_size))
 		return -EFAULT;
-	if (sscanf(buf, "%d", &period) != 1)
+	if (sscanf(buf, "%d", &timeout) != 1)
 		return -EINVAL;
-	if (period < 0 || period > IWL_MAX_MONITORING_PERIOD)
-		priv->cfg->base_params->monitor_recover_period =
-			IWL_DEF_MONITORING_PERIOD;
-	else
-		priv->cfg->base_params->monitor_recover_period = period;
+	if (timeout < 0 || timeout > IWL_MAX_WD_TIMEOUT)
+		timeout = IWL_DEF_WD_TIMEOUT;
 
-	if (priv->cfg->base_params->monitor_recover_period)
-		mod_timer(&priv->monitor_recover, jiffies + msecs_to_jiffies(
-			  priv->cfg->base_params->monitor_recover_period));
-	else
-		del_timer_sync(&priv->monitor_recover);
+	priv->cfg->base_params->wd_timeout = timeout;
+	iwl_setup_watchdog(priv);
 	return count;
 }
 
@@ -1576,16 +1574,22 @@ static ssize_t iwl_dbgfs_bt_traffic_read(struct file *file,
 	const size_t bufsz = sizeof(buf);
 	ssize_t ret;
 
+	if (!priv->bt_enable_flag) {
+		pos += scnprintf(buf + pos, bufsz - pos, "BT coex disabled\n");
+		ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+		return ret;
+	}
+	pos += scnprintf(buf + pos, bufsz - pos, "BT enable flag: 0x%x\n",
+		priv->bt_enable_flag);
 	pos += scnprintf(buf + pos, bufsz - pos, "BT in %s mode\n",
 		priv->bt_full_concurrent ? "full concurrency" : "3-wire");
 	pos += scnprintf(buf + pos, bufsz - pos, "BT status: %s, "
 			 "last traffic notif: %d\n",
-		priv->bt_status ? "On" : "Off", priv->notif_bt_traffic_load);
+		priv->bt_status ? "On" : "Off", priv->last_bt_traffic_load);
 	pos += scnprintf(buf + pos, bufsz - pos, "ch_announcement: %d, "
-			 "sco_active: %d, kill_ack_mask: %x, "
-			 "kill_cts_mask: %x\n",
-		priv->bt_ch_announce, priv->bt_sco_active,
-		priv->kill_ack_mask, priv->kill_cts_mask);
+			 "kill_ack_mask: %x, kill_cts_mask: %x\n",
+		priv->bt_ch_announce, priv->kill_ack_mask,
+		priv->kill_cts_mask);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "bluetooth traffic load: ");
 	switch (priv->bt_traffic_load) {
@@ -1689,7 +1693,7 @@ DEBUGFS_READ_FILE_OPS(rxon_flags);
 DEBUGFS_READ_FILE_OPS(rxon_filter_flags);
 DEBUGFS_WRITE_FILE_OPS(txfifo_flush);
 DEBUGFS_READ_FILE_OPS(ucode_bt_stats);
-DEBUGFS_WRITE_FILE_OPS(monitor_period);
+DEBUGFS_WRITE_FILE_OPS(wd_timeout);
 DEBUGFS_READ_FILE_OPS(bt_traffic);
 DEBUGFS_READ_WRITE_FILE_OPS(protection_mode);
 DEBUGFS_READ_FILE_OPS(reply_tx_error);
@@ -1727,7 +1731,6 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(status, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(interrupt, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(qos, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(led, dir_data, S_IRUSR);
 	if (!priv->cfg->base_params->broken_powersave) {
 		DEBUGFS_ADD_FILE(sleep_level_override, dir_data,
 				 S_IWUSR | S_IRUSR);
@@ -1761,13 +1764,13 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 		DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
 	if (priv->cfg->base_params->ucode_tracing)
 		DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, S_IWUSR | S_IRUSR);
-	if (priv->cfg->bt_params && priv->cfg->bt_params->bt_statistics)
+	if (iwl_bt_statistics(priv))
 		DEBUGFS_ADD_FILE(ucode_bt_stats, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(reply_tx_error, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(monitor_period, dir_debug, S_IWUSR);
-	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist)
+	DEBUGFS_ADD_FILE(wd_timeout, dir_debug, S_IWUSR);
+	if (iwl_advanced_bt_coexist(priv))
 		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, S_IRUSR);
 	if (priv->cfg->base_params->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
@@ -1785,7 +1788,6 @@ err:
 	iwl_dbgfs_unregister(priv);
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(iwl_dbgfs_register);
 
 /**
  * Remove the debugfs files and directories
@@ -1799,7 +1801,6 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	debugfs_remove_recursive(priv->debugfs_dir);
 	priv->debugfs_dir = NULL;
 }
-EXPORT_SYMBOL(iwl_dbgfs_unregister);
 
 
 

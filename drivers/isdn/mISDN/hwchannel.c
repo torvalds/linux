@@ -110,7 +110,7 @@ mISDN_freedchannel(struct dchannel *ch)
 	}
 	skb_queue_purge(&ch->squeue);
 	skb_queue_purge(&ch->rqueue);
-	flush_scheduled_work();
+	flush_work_sync(&ch->workq);
 	return 0;
 }
 EXPORT_SYMBOL(mISDN_freedchannel);
@@ -143,7 +143,7 @@ mISDN_freebchannel(struct bchannel *ch)
 	mISDN_clear_bchannel(ch);
 	skb_queue_purge(&ch->rqueue);
 	ch->rcount = 0;
-	flush_scheduled_work();
+	flush_work_sync(&ch->workq);
 	return 0;
 }
 EXPORT_SYMBOL(mISDN_freebchannel);
@@ -206,7 +206,7 @@ recv_Bchannel(struct bchannel *bch, unsigned int id)
 	hh->id = id;
 	if (bch->rcount >= 64) {
 		printk(KERN_WARNING "B-channel %p receive queue overflow, "
-			"fushing!\n", bch);
+			"flushing!\n", bch);
 		skb_queue_purge(&bch->rqueue);
 		bch->rcount = 0;
 		return;
@@ -231,7 +231,7 @@ recv_Bchannel_skb(struct bchannel *bch, struct sk_buff *skb)
 {
 	if (bch->rcount >= 64) {
 		printk(KERN_WARNING "B-channel %p receive queue overflow, "
-			"fushing!\n", bch);
+			"flushing!\n", bch);
 		skb_queue_purge(&bch->rqueue);
 		bch->rcount = 0;
 	}
@@ -279,7 +279,7 @@ confirm_Bsend(struct bchannel *bch)
 
 	if (bch->rcount >= 64) {
 		printk(KERN_WARNING "B-channel %p receive queue overflow, "
-			"fushing!\n", bch);
+			"flushing!\n", bch);
 		skb_queue_purge(&bch->rqueue);
 		bch->rcount = 0;
 	}

@@ -11,8 +11,7 @@ When a control packet is received, analyze the
 Enqueue the control packet for Application.
 @return None
 */
-VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, 	/**<Pointer to the Adapter structure*/
-								struct sk_buff *skb)				/**<Pointer to the socket buffer*/
+static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 {
 	PPER_TARANG_DATA	pTarang = NULL;
 	BOOLEAN HighPriorityMessage = FALSE;
@@ -20,8 +19,10 @@ VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, 	/**<Pointer to the Adapter
 	CHAR cntrl_msg_mask_bit = 0;
 	BOOLEAN drop_pkt_flag = TRUE ;
 	USHORT usStatus = *(PUSHORT)(skb->data);
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "=====>");
-	/* Get the Leader field */
+
+	if (netif_msg_pktdata(Adapter))
+		print_hex_dump(KERN_DEBUG, PFX "rx control: ", DUMP_PREFIX_NONE,
+			       16, 1, skb->data, skb->len, 0);
 
 	switch(usStatus)
 	{
@@ -134,7 +135,7 @@ VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, 	/**<Pointer to the Adapter
     }
 	up(&Adapter->RxAppControlQueuelock);
     wake_up(&Adapter->process_read_wait_queue);
-    bcm_kfree_skb(skb);
+    dev_kfree_skb(skb);
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "After wake_up_interruptible");
 }
 
@@ -185,33 +186,7 @@ int control_packet_handler  (PMINI_ADAPTER Adapter  /**< pointer to adapter obje
 			{
 				DEQUEUEPACKET(Adapter->RxControlHead,Adapter->RxControlTail);
 //				Adapter->RxControlHead=ctrl_packet->next;
-				((PLINUX_DEP_DATA)Adapter->pvOsDepData)->netstats.rx_packets++;
-				((PLINUX_DEP_DATA)Adapter->pvOsDepData)->netstats.rx_bytes+=
-				((PLEADER)ctrl_packet->data)->PLength;
 			}
-			#if 0  //Idle mode debug profiling...
-			if(*(PUSHORT)ctrl_packet->data == IDLE_MODE_STATUS)
-			{
-				puiBuffer = (PUINT)(ctrl_packet->data +sizeof(USHORT));
-				if((ntohl(*puiBuffer) == GO_TO_IDLE_MODE_PAYLOAD))
-				{
-					memset(&tv, 0, sizeof(tv));
-					do_gettimeofday(&tv);
-					if((ntohl(*(puiBuffer+1)) == 0))
-					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "IdleMode Wake-up Msg from f/w at time :%ld ms", tv.tv_sec *1000 + tv.tv_usec /1000);
-					}
-					else
-					{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "IdleMode req Msg from f/w at time :%ld ms", tv.tv_sec *1000 + tv.tv_usec /1000);
-					}
-				}
-				else if((ntohl(*puiBuffer) == IDLE_MODE_SF_UPDATE_MSG))
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "GOT IDLE_MODE_SF_UPDATE MSG at time :%ld ms", tv.tv_sec *1000 + tv.tv_usec /1000);
-				}
-			}
-			#endif
 
 			spin_unlock_irqrestore (&Adapter->control_queue_lock, flags);
 		 	handle_rx_control_packet(Adapter, ctrl_packet);
@@ -234,7 +209,7 @@ INT flushAllAppQ(void)
 		{
 			PacketToDrop=pTarang->RxAppControlHead;
 			DEQUEUEPACKET(pTarang->RxAppControlHead,pTarang->RxAppControlTail);
-			bcm_kfree_skb(PacketToDrop);
+			dev_kfree_skb(PacketToDrop);
 		}
 		pTarang->AppCtrlQueueLen = 0;
 		//dropped contrl packet statistics also should be reset.

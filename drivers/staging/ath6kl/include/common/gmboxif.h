@@ -41,23 +41,23 @@
 
     /* definitions for BT HCI packets */
 typedef PREPACK struct {
-    A_UINT16 Flags_ConnHandle;
-    A_UINT16 Length;
+    u16 Flags_ConnHandle;
+    u16 Length;
 } POSTPACK BT_HCI_ACL_HEADER;
 
 typedef PREPACK struct {
-    A_UINT16 Flags_ConnHandle;
-    A_UINT8  Length;
+    u16 Flags_ConnHandle;
+    u8 Length;
 } POSTPACK BT_HCI_SCO_HEADER;
 
 typedef PREPACK struct {
-    A_UINT16 OpCode;
-    A_UINT8  ParamLength;
+    u16 OpCode;
+    u8 ParamLength;
 } POSTPACK BT_HCI_COMMAND_HEADER;
 
 typedef PREPACK struct {
-    A_UINT8  EventCode;
-    A_UINT8  ParamLength;
+    u8 EventCode;
+    u8 ParamLength;
 } POSTPACK BT_HCI_EVENT_HEADER;
 
 /* MBOX host interrupt signal assignments */

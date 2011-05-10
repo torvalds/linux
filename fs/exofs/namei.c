@@ -272,7 +272,6 @@ static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		new_de = exofs_find_entry(new_dir, new_dentry, &new_page);
 		if (!new_de)
 			goto out_dir;
-		inode_inc_link_count(old_inode);
 		err = exofs_set_link(new_dir, new_de, new_page, old_inode);
 		new_inode->i_ctime = CURRENT_TIME;
 		if (dir_de)
@@ -286,12 +285,9 @@ static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			if (new_dir->i_nlink >= EXOFS_LINK_MAX)
 				goto out_dir;
 		}
-		inode_inc_link_count(old_inode);
 		err = exofs_add_link(new_dentry, old_inode);
-		if (err) {
-			inode_dec_link_count(old_inode);
+		if (err)
 			goto out_dir;
-		}
 		if (dir_de)
 			inode_inc_link_count(new_dir);
 	}
@@ -299,7 +295,7 @@ static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	old_inode->i_ctime = CURRENT_TIME;
 
 	exofs_delete_entry(old_de, old_page);
-	inode_dec_link_count(old_inode);
+	mark_inode_dirty(old_inode);
 
 	if (dir_de) {
 		err = exofs_set_link(old_inode, dir_de, dir_page, new_dir);

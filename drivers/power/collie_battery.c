@@ -295,7 +295,7 @@ static struct {
 static int collie_bat_suspend(struct ucb1x00_dev *dev, pm_message_t state)
 {
 	/* flush all pending status updates */
-	flush_scheduled_work();
+	flush_work_sync(&bat_work);
 	return 0;
 }
 
@@ -362,7 +362,7 @@ err_psy_reg_bu:
 err_psy_reg_main:
 
 	/* see comment in collie_bat_remove */
-	flush_scheduled_work();
+	cancel_work_sync(&bat_work);
 
 	i--;
 err_gpio:
@@ -382,12 +382,11 @@ static void __devexit collie_bat_remove(struct ucb1x00_dev *dev)
 	power_supply_unregister(&collie_bat_main.psy);
 
 	/*
-	 * now flush all pending work.
-	 * we won't get any more schedules, since all
-	 * sources (isr and external_power_changed)
-	 * are unregistered now.
+	 * Now cancel the bat_work.  We won't get any more schedules,
+	 * since all sources (isr and external_power_changed) are
+	 * unregistered now.
 	 */
-	flush_scheduled_work();
+	cancel_work_sync(&bat_work);
 
 	for (i = ARRAY_SIZE(gpios) - 1; i >= 0; i--)
 		gpio_free(gpios[i].gpio);

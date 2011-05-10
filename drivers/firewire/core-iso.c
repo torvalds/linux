@@ -362,3 +362,4 @@ void fw_iso_resource_manage(struct fw_card *card, int generation,
 		*channel = ret;
 	}
 }
+EXPORT_SYMBOL(fw_iso_resource_manage);

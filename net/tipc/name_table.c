@@ -36,15 +36,10 @@
 
 #include "core.h"
 #include "config.h"
-#include "dbg.h"
 #include "name_table.h"
 #include "name_distr.h"
-#include "addr.h"
-#include "node_subscr.h"
 #include "subscr.h"
 #include "port.h"
-#include "cluster.h"
-#include "bcast.h"
 
 static int tipc_nametbl_size = 1024;		/* must be a power of 2 */
 
@@ -109,7 +104,7 @@ struct name_table {
 	u32 local_publ_count;
 };
 
-static struct name_table table = { NULL } ;
+static struct name_table table;
 static atomic_t rsv_publ_ok = ATOMIC_INIT(0);
 DEFINE_RWLOCK(tipc_nametbl_lock);
 
@@ -177,8 +172,6 @@ static struct name_seq *tipc_nameseq_create(u32 type, struct hlist_head *seq_hea
 	spin_lock_init(&nseq->lock);
 	nseq->type = type;
 	nseq->sseqs = sseq;
-	dbg("tipc_nameseq_create(): nseq = %p, type %u, ssseqs %p, ff: %u\n",
-	    nseq, type, nseq->sseqs, nseq->first_free);
 	nseq->alloc = 1;
 	INIT_HLIST_NODE(&nseq->ns_list);
 	INIT_LIST_HEAD(&nseq->subscriptions);
@@ -256,8 +249,6 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 	int created_subseq = 0;
 
 	sseq = nameseq_find_subseq(nseq, lower);
-	dbg("nameseq_ins: for seq %p, {%u,%u}, found sseq %p\n",
-	    nseq, type, lower, sseq);
 	if (sseq) {
 
 		/* Lower end overlaps existing entry => need an exact match */
@@ -294,38 +285,30 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 				     type, lower, upper);
 				return NULL;
 			}
-			dbg("Allocated %u more sseqs\n", nseq->alloc);
 			memcpy(sseqs, nseq->sseqs,
 			       nseq->alloc * sizeof(struct sub_seq));
 			kfree(nseq->sseqs);
 			nseq->sseqs = sseqs;
 			nseq->alloc *= 2;
 		}
-		dbg("Have %u sseqs for type %u\n", nseq->alloc, type);
 
 		/* Insert new sub-sequence */
 
-		dbg("ins in pos %u, ff = %u\n", inspos, nseq->first_free);
 		sseq = &nseq->sseqs[inspos];
 		freesseq = &nseq->sseqs[nseq->first_free];
-		memmove(sseq + 1, sseq, (freesseq - sseq) * sizeof (*sseq));
-		memset(sseq, 0, sizeof (*sseq));
+		memmove(sseq + 1, sseq, (freesseq - sseq) * sizeof(*sseq));
+		memset(sseq, 0, sizeof(*sseq));
 		nseq->first_free++;
 		sseq->lower = lower;
 		sseq->upper = upper;
 		created_subseq = 1;
 	}
-	dbg("inserting {%u,%u,%u} from <0x%x:%u> into sseq %p(%u,%u) of seq %p\n",
-	    type, lower, upper, node, port, sseq,
-	    sseq->lower, sseq->upper, nseq);
 
 	/* Insert a publication: */
 
 	publ = publ_create(type, lower, upper, scope, node, port, key);
 	if (!publ)
 		return NULL;
-	dbg("inserting publ %p, node=0x%x publ->node=0x%x, subscr->node=%p\n",
-	    publ, node, publ->node, publ->subscr.node);
 
 	sseq->zone_list_size++;
 	if (!sseq->zone_list)
@@ -360,7 +343,6 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 	 * Any subscriptions waiting for notification?
 	 */
 	list_for_each_entry_safe(s, st, &nseq->subscriptions, nameseq_list) {
-		dbg("calling report_overlap()\n");
 		tipc_subscr_report_overlap(s,
 					   publ->lower,
 					   publ->upper,
@@ -397,9 +379,6 @@ static struct publication *tipc_nameseq_remove_publ(struct name_seq *nseq, u32 i
 
 	if (!sseq)
 		return NULL;
-
-	dbg("tipc_nameseq_remove_publ: seq: %p, sseq %p, {%u,%u}, key %u\n",
-	    nseq, sseq, nseq->type, inst, key);
 
 	/* Remove publication from zone scope list */
 
@@ -492,7 +471,7 @@ end_node:
 
 	if (!sseq->zone_list) {
 		free = &nseq->sseqs[nseq->first_free--];
-		memmove(sseq, sseq + 1, (free - (sseq + 1)) * sizeof (*sseq));
+		memmove(sseq, sseq + 1, (free - (sseq + 1)) * sizeof(*sseq));
 		removed_subseq = 1;
 	}
 
@@ -528,7 +507,7 @@ static void tipc_nameseq_subscribe(struct name_seq *nseq, struct subscription *s
 
 	while (sseq != &nseq->sseqs[nseq->first_free]) {
 		struct publication *zl = sseq->zone_list;
-		if (zl && tipc_subscr_overlap(s,sseq->lower,sseq->upper)) {
+		if (zl && tipc_subscr_overlap(s, sseq->lower, sseq->upper)) {
 			struct publication *crs = zl;
 			int must_report = 1;
 
@@ -554,15 +533,10 @@ static struct name_seq *nametbl_find_seq(u32 type)
 	struct hlist_node *seq_node;
 	struct name_seq *ns;
 
-	dbg("find_seq %u,(%u,0x%x) table = %p, hash[type] = %u\n",
-	    type, htonl(type), type, table.types, hash(type));
-
 	seq_head = &table.types[hash(type)];
 	hlist_for_each_entry(ns, seq_node, seq_head, ns_list) {
-		if (ns->type == type) {
-			dbg("found %p\n", ns);
+		if (ns->type == type)
 			return ns;
-		}
 	}
 
 	return NULL;
@@ -573,18 +547,14 @@ struct publication *tipc_nametbl_insert_publ(u32 type, u32 lower, u32 upper,
 {
 	struct name_seq *seq = nametbl_find_seq(type);
 
-	dbg("tipc_nametbl_insert_publ: {%u,%u,%u} found %p\n", type, lower, upper, seq);
 	if (lower > upper) {
 		warn("Failed to publish illegal {%u,%u,%u}\n",
 		     type, lower, upper);
 		return NULL;
 	}
 
-	dbg("Publishing {%u,%u,%u} from 0x%x\n", type, lower, upper, node);
-	if (!seq) {
+	if (!seq)
 		seq = tipc_nameseq_create(type, &table.types[hash(type)]);
-		dbg("tipc_nametbl_insert_publ: created %p\n", seq);
-	}
 	if (!seq)
 		return NULL;
 
@@ -601,7 +571,6 @@ struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower,
 	if (!seq)
 		return NULL;
 
-	dbg("Withdrawing {%u,%u} from 0x%x\n", type, lower, node);
 	publ = tipc_nameseq_remove_publ(seq, lower, node, ref, key);
 
 	if (!seq->first_free && list_empty(&seq->subscriptions)) {
@@ -782,9 +751,8 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 	table.local_publ_count++;
 	publ = tipc_nametbl_insert_publ(type, lower, upper, scope,
 				   tipc_own_addr, port_ref, key);
-	if (publ && (scope != TIPC_NODE_SCOPE)) {
+	if (publ && (scope != TIPC_NODE_SCOPE))
 		tipc_named_publish(publ);
-	}
 	write_unlock_bh(&tipc_nametbl_lock);
 	return publ;
 }
@@ -797,7 +765,6 @@ int tipc_nametbl_withdraw(u32 type, u32 lower, u32 ref, u32 key)
 {
 	struct publication *publ;
 
-	dbg("tipc_nametbl_withdraw: {%u,%u}, key=%u\n", type, lower, key);
 	write_lock_bh(&tipc_nametbl_lock);
 	publ = tipc_nametbl_remove_publ(type, lower, tipc_own_addr, ref, key);
 	if (likely(publ)) {
@@ -827,13 +794,10 @@ void tipc_nametbl_subscribe(struct subscription *s)
 
 	write_lock_bh(&tipc_nametbl_lock);
 	seq = nametbl_find_seq(type);
-	if (!seq) {
+	if (!seq)
 		seq = tipc_nameseq_create(type, &table.types[hash(type)]);
-	}
-	if (seq){
+	if (seq) {
 		spin_lock_bh(&seq->lock);
-		dbg("tipc_nametbl_subscribe:found %p for {%u,%u,%u}\n",
-		    seq, type, s->seq.lower, s->seq.upper);
 		tipc_nameseq_subscribe(seq, s);
 		spin_unlock_bh(&seq->lock);
 	} else {
@@ -853,7 +817,7 @@ void tipc_nametbl_unsubscribe(struct subscription *s)
 
 	write_lock_bh(&tipc_nametbl_lock);
 	seq = nametbl_find_seq(s->seq.type);
-	if (seq != NULL){
+	if (seq != NULL) {
 		spin_lock_bh(&seq->lock);
 		list_del_init(&s->nameseq_list);
 		spin_unlock_bh(&seq->lock);
@@ -886,7 +850,7 @@ static void subseq_list(struct sub_seq *sseq, struct print_buf *buf, u32 depth,
 	}
 
 	do {
-		sprintf (portIdStr, "<%u.%u.%u:%u>",
+		sprintf(portIdStr, "<%u.%u.%u:%u>",
 			 tipc_zone(publ->node), tipc_cluster(publ->node),
 			 tipc_node(publ->node), publ->ref);
 		tipc_printf(buf, "%-26s ", portIdStr);

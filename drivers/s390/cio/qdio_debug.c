@@ -151,6 +151,7 @@ static char *qperf_names[] = {
 	"Inbound queue full",
 	"Outbound calls",
 	"Outbound handler",
+	"Outbound queue full",
 	"Outbound fast_requeue",
 	"Outbound target_full",
 	"QEBSM eqbs",

@@ -36,6 +36,7 @@ Default Value: 0
 This parameter adds support for SR-IOV.  It causes the driver to spawn up to
 max_vfs worth of virtual function.
 
+
 Additional Configurations
 =========================
 
@@ -60,15 +61,16 @@ Additional Configurations
   Ethtool
   -------
   The driver utilizes the ethtool interface for driver configuration and
-  diagnostics, as well as displaying statistical information.
+  diagnostics, as well as displaying statistical information. The latest
+  version of ethtool can be found at:
 
-  http://sourceforge.net/projects/gkernel.
+  http://ftp.kernel.org/pub/software/network/ethtool/
 
   Enabling Wake on LAN* (WoL)
   ---------------------------
-  WoL is configured through the Ethtool* utility.
+  WoL is configured through the ethtool* utility.
 
-  For instructions on enabling WoL with Ethtool, refer to the Ethtool man page.
+  For instructions on enabling WoL with ethtool, refer to the ethtool man page.
 
   WoL will be enabled on the system during the next shut down or reboot.
   For this driver version, in order to enable WoL, the igb driver must be
@@ -90,31 +92,6 @@ Additional Configurations
 
   REQUIREMENTS: MSI-X support is required for Multiqueue. If MSI-X is not
   found, the system will fallback to MSI or to Legacy interrupts.
-
-  LRO
-  ---
-  Large Receive Offload (LRO) is a technique for increasing inbound throughput
-  of high-bandwidth network connections by reducing CPU overhead. It works by
-  aggregating multiple incoming packets from a single stream into a larger
-  buffer before they are passed higher up the networking stack, thus reducing
-  the number of packets that have to be processed. LRO combines multiple
-  Ethernet frames into a single receive in the stack, thereby potentially
-  decreasing CPU utilization for receives.
-
-  NOTE: You need to have inet_lro enabled via either the CONFIG_INET_LRO or
-  CONFIG_INET_LRO_MODULE kernel config option. Additionally, if
-  CONFIG_INET_LRO_MODULE is used, the inet_lro module needs to be loaded
-  before the igb driver.
-
-  You can verify that the driver is using LRO by looking at these counters in
-  Ethtool:
-
-  lro_aggregated - count of total packets that were combined
-  lro_flushed - counts the number of packets flushed out of LRO
-  lro_no_desc - counts the number of times an LRO descriptor was not available
-  for the LRO packet
-
-  NOTE: IPv6 and UDP are not supported by LRO.
 
 Support
 =======

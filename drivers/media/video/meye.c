@@ -1547,7 +1547,8 @@ static int vidioc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 	return 0;
 }
 
-static long vidioc_default(struct file *file, void *fh, int cmd, void *arg)
+static long vidioc_default(struct file *file, void *fh, bool valid_prio,
+						int cmd, void *arg)
 {
 	switch (cmd) {
 	case MEYEIOC_G_PARAMS:
@@ -1659,7 +1660,7 @@ static const struct v4l2_file_operations meye_fops = {
 	.open		= meye_open,
 	.release	= meye_release,
 	.mmap		= meye_mmap,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 	.poll		= meye_poll,
 };
 
@@ -1831,12 +1832,6 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 	msleep(1);
 	mchip_set(MCHIP_MM_INTA, MCHIP_MM_INTA_HIC_1_MASK);
 
-	if (video_register_device(meye.vdev, VFL_TYPE_GRABBER,
-				  video_nr) < 0) {
-		v4l2_err(v4l2_dev, "video_register_device failed\n");
-		goto outvideoreg;
-	}
-
 	mutex_init(&meye.lock);
 	init_waitqueue_head(&meye.proc_list);
 	meye.brightness = 32 << 10;
@@ -1857,6 +1852,12 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERASHARPNESS, 32);
 	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERAPICTURE, 0);
 	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERAAGC, 48);
+
+	if (video_register_device(meye.vdev, VFL_TYPE_GRABBER,
+				  video_nr) < 0) {
+		v4l2_err(v4l2_dev, "video_register_device failed\n");
+		goto outvideoreg;
+	}
 
 	v4l2_info(v4l2_dev, "Motion Eye Camera Driver v%s.\n",
 	       MEYE_DRIVER_VERSION);

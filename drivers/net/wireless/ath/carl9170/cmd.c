@@ -41,7 +41,7 @@
 
 int carl9170_write_reg(struct ar9170 *ar, const u32 reg, const u32 val)
 {
-	__le32 buf[2] = {
+	const __le32 buf[2] = {
 		cpu_to_le32(reg),
 		cpu_to_le32(val),
 	};

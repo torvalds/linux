@@ -35,8 +35,8 @@
 
 static struct platform_device **omap_mcbsp_devices;
 
-void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
-					int size)
+void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
+			struct omap_mcbsp_platform_data *config, int size)
 {
 	int i;
 
@@ -54,6 +54,8 @@ void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 		new_mcbsp = platform_device_alloc("omap-mcbsp", i + 1);
 		if (!new_mcbsp)
 			continue;
+		platform_device_add_resources(new_mcbsp, &res[i * res_count],
+					res_count);
 		new_mcbsp->dev.platform_data = &config[i];
 		ret = platform_device_add(new_mcbsp);
 		if (ret) {
@@ -65,8 +67,8 @@ void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 }
 
 #else
-void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
-					int size)
+void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
+			struct omap_mcbsp_platform_data *config, int size)
 {  }
 #endif
 
@@ -232,46 +234,6 @@ static void omap_init_uwire(void)
 static inline void omap_init_uwire(void) {}
 #endif
 
-/*-------------------------------------------------------------------------*/
-
-#if	defined(CONFIG_OMAP_WATCHDOG) || defined(CONFIG_OMAP_WATCHDOG_MODULE)
-
-static struct resource wdt_resources[] = {
-	{
-		.flags		= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device omap_wdt_device = {
-	.name	   = "omap_wdt",
-	.id	     = -1,
-	.num_resources	= ARRAY_SIZE(wdt_resources),
-	.resource	= wdt_resources,
-};
-
-static void omap_init_wdt(void)
-{
-	if (cpu_is_omap16xx())
-		wdt_resources[0].start = 0xfffeb000;
-	else if (cpu_is_omap2420())
-		wdt_resources[0].start = 0x48022000; /* WDT2 */
-	else if (cpu_is_omap2430())
-		wdt_resources[0].start = 0x49016000; /* WDT2 */
-	else if (cpu_is_omap343x())
-		wdt_resources[0].start = 0x48314000; /* WDT2 */
-	else if (cpu_is_omap44xx())
-		wdt_resources[0].start = 0x4a314000;
-	else
-		return;
-
-	wdt_resources[0].end = wdt_resources[0].start + 0x4f;
-
-	(void) platform_device_register(&omap_wdt_device);
-}
-#else
-static inline void omap_init_wdt(void) {}
-#endif
-
 #if defined(CONFIG_TIDSPBRIDGE) || defined(CONFIG_TIDSPBRIDGE_MODULE)
 
 static phys_addr_t omap_dsp_phys_mempool_base;
@@ -318,7 +280,7 @@ EXPORT_SYMBOL(omap_dsp_get_mempool_base);
  * Claiming GPIOs, and setting their direction and initial values, is the
  * responsibility of the device drivers.  So is responding to probe().
  *
- * Board-specific knowlege like creating devices or pin setup is to be
+ * Board-specific knowledge like creating devices or pin setup is to be
  * kept out of drivers as much as possible.  In particular, pin setup
  * may be handled by the boot loader, and drivers should expect it will
  * normally have been done by the time they're probed.

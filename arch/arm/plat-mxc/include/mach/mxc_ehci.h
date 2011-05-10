@@ -31,6 +31,7 @@
 #define MXC_USBCTRL_OFFSET		0
 #define MXC_USB_PHY_CTR_FUNC_OFFSET	0x8
 #define MXC_USB_PHY_CTR_FUNC2_OFFSET	0xc
+#define MXC_USBH2CTRL_OFFSET		0x14
 
 #define MX5_USBOTHER_REGS_OFFSET	0x800
 
@@ -43,11 +44,14 @@ struct mxc_usbh_platform_data {
 	int (*exit)(struct platform_device *pdev);
 
 	unsigned int		 portsc;
-	unsigned int		 flags;
 	struct otg_transceiver	*otg;
 };
 
-int mxc_initialize_usb_hw(int port, unsigned int flags);
+int mx51_initialize_usb_hw(int port, unsigned int flags);
+int mx25_initialize_usb_hw(int port, unsigned int flags);
+int mx31_initialize_usb_hw(int port, unsigned int flags);
+int mx35_initialize_usb_hw(int port, unsigned int flags);
+int mx27_initialize_usb_hw(int port, unsigned int flags);
 
 #endif /* __INCLUDE_ASM_ARCH_MXC_EHCI_H */
 

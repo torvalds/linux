@@ -224,8 +224,8 @@ static inline bool is_buf_mapped(const struct rx_sw_desc *sdesc)
 /**
  *	need_skb_unmap - does the platform need unmapping of sk_buffs?
  *
- *	Returns true if the platfrom needs sk_buff unmapping.  The compiler
- *	optimizes away unecessary code if this returns true.
+ *	Returns true if the platform needs sk_buff unmapping.  The compiler
+ *	optimizes away unnecessary code if this returns true.
  */
 static inline int need_skb_unmap(void)
 {
@@ -267,7 +267,7 @@ static inline unsigned int fl_cap(const struct sge_fl *fl)
  *
  *	Tests specified Free List to see whether the number of buffers
  *	available to the hardware has falled below our "starvation"
- *	threshhold.
+ *	threshold.
  */
 static inline bool fl_starving(const struct sge_fl *fl)
 {
@@ -1149,7 +1149,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
 		/*
 		 * After we're done injecting the Work Request for this
-		 * packet, we'll be below our "stop threshhold" so stop the TX
+		 * packet, we'll be below our "stop threshold" so stop the TX
 		 * Queue now and schedule a request for an SGE Egress Queue
 		 * Update message.  The queue will get started later on when
 		 * the firmware processes this Work Request and sends us an
@@ -1568,6 +1568,9 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	} else
 		skb_checksum_none_assert(skb);
 
+	/*
+	 * Deliver the packet to the stack.
+	 */
 	if (unlikely(pkt->vlan_ex)) {
 		struct vlan_group *grp = pi->vlan_grp;
 
@@ -2143,7 +2146,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 
 		/*
 		 * Calculate the size of the hardware free list ring plus
-		 * status page (which the SGE will place at the end of the
+		 * Status Page (which the SGE will place after the end of the
 		 * free list ring) in Egress Queue Units.
 		 */
 		flsz = (fl->size / FL_PER_EQ_UNIT +
@@ -2240,8 +2243,8 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 	struct port_info *pi = netdev_priv(dev);
 
 	/*
-	 * Calculate the size of the hardware TX Queue (including the
-	 * status age on the end) in units of TX Descriptors.
+	 * Calculate the size of the hardware TX Queue (including the Status
+	 * Page on the end of the TX Queue) in units of TX Descriptors.
 	 */
 	nentries = txq->q.size + STAT_LEN / sizeof(struct tx_desc);
 

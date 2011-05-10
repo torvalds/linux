@@ -741,11 +741,12 @@ static int floppy_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int floppy_check_change(struct gendisk *disk)
+static unsigned int floppy_check_events(struct gendisk *disk,
+					unsigned int clearing)
 {
 	struct floppy_state *fs = disk->private_data;
 
-	return fs->ejected;
+	return fs->ejected ? DISK_EVENT_MEDIA_CHANGE : 0;
 }
 
 static int floppy_revalidate(struct gendisk *disk)
@@ -772,7 +773,7 @@ static const struct block_device_operations floppy_fops = {
 	.release	 = floppy_release,
 	.ioctl		 = floppy_ioctl,
 	.getgeo		 = floppy_getgeo,
-	.media_changed	 = floppy_check_change,
+	.check_events	 = floppy_check_events,
 	.revalidate_disk = floppy_revalidate,
 };
 
@@ -857,6 +858,7 @@ static int __devinit swim_floppy_init(struct swim_priv *swd)
 		swd->unit[drive].disk->first_minor = drive;
 		sprintf(swd->unit[drive].disk->disk_name, "fd%d", drive);
 		swd->unit[drive].disk->fops = &floppy_fops;
+		swd->unit[drive].disk->events = DISK_EVENT_MEDIA_CHANGE;
 		swd->unit[drive].disk->private_data = &swd->unit[drive];
 		swd->unit[drive].disk->queue = swd->queue;
 		set_capacity(swd->unit[drive].disk, 2880);

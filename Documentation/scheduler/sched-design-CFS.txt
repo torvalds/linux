@@ -164,7 +164,7 @@ This is the (partial) list of the hooks:
    It puts the scheduling entity (task) into the red-black tree and
    increments the nr_running variable.
 
- - dequeue_tree(...)
+ - dequeue_task(...)
 
    When a task is no longer runnable, this function is called to keep the
    corresponding scheduling entity out of the red-black tree.  It decrements
@@ -195,11 +195,6 @@ This is the (partial) list of the hooks:
    This function is mostly called from time tick functions; it might lead to
    process switch.  This drives the running preemption.
 
- - task_new(...)
-
-   The core scheduler gives the scheduling module an opportunity to manage new
-   task startup.  The CFS scheduling module uses it for group scheduling, while
-   the scheduling module for a real-time task does not use it.
 
 
 

@@ -30,6 +30,7 @@
 #ifndef __LINUX_RCUTREE_H
 #define __LINUX_RCUTREE_H
 
+extern void rcu_init(void);
 extern void rcu_note_context_switch(int cpu);
 extern int rcu_needs_cpu(int cpu);
 extern void rcu_cpu_stall_reset(void);
@@ -47,6 +48,7 @@ static inline void exit_rcu(void)
 #endif /* #else #ifdef CONFIG_TREE_PREEMPT_RCU */
 
 extern void synchronize_rcu_bh(void);
+extern void synchronize_sched_expedited(void);
 extern void synchronize_rcu_expedited(void);
 
 static inline void synchronize_rcu_bh_expedited(void)

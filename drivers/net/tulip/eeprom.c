@@ -115,7 +115,7 @@ static void __devinit tulip_build_fake_mediatable(struct tulip_private *tp)
 			  0x02,       /* phy reset sequence length */
 			  0x01, 0x00, /* phy reset sequence */
 			  0x00, 0x78, /* media capabilities */
-			  0x00, 0xe0, /* nway advertisment */
+			  0x00, 0xe0, /* nway advertisement */
 			  0x00, 0x05, /* fdx bit map */
 			  0x00, 0x06  /* ttm bit map */
 			};

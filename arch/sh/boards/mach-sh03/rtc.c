@@ -108,7 +108,7 @@ static int set_rtc_mmss(unsigned long nowtime)
 		__raw_writeb(real_minutes % 10, RTC_MIN1);
 		__raw_writeb(real_minutes / 10, RTC_MIN10);
 	} else {
-		printk(KERN_WARNING
+		printk_once(KERN_NOTICE
 		       "set_rtc_mmss: can't update from %d to %d\n",
 		       cmos_minutes, real_minutes);
 		retval = -1;

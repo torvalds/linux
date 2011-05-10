@@ -147,7 +147,7 @@ enum sn9c102_i2c_interface {
 
 struct sn9c102_sensor {
 	char name[32], /* sensor name */
-	     maintainer[64]; /* name of the mantainer <email> */
+	     maintainer[64]; /* name of the maintainer <email> */
 
 	enum sn9c102_bridge supported_bridge; /* supported SN9C1xx bridges */
 
@@ -180,7 +180,7 @@ struct sn9c102_sensor {
 	   It should be used to initialize the sensor only, but may also
 	   configure part of the SN9C1XX chip if necessary. You don't need to
 	   setup picture settings like brightness, contrast, etc.. here, if
-	   the corrisponding controls are implemented (see below), since
+	   the corresponding controls are implemented (see below), since
 	   they are adjusted in the core driver by calling the set_ctrl()
 	   method after init(), where the arguments are the default values
 	   specified in the v4l2_queryctrl list of supported controls;

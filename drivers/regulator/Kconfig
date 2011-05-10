@@ -108,6 +108,15 @@ config REGULATOR_MAX8952
 	  via I2C bus. Maxim 8952 has one voltage output and supports 4 DVS
 	  modes ranging from 0.77V to 1.40V by 0.01V steps.
 
+config REGULATOR_MAX8997
+	tristate "Maxim 8997/8966 regulator"
+	depends on MFD_MAX8997
+	help
+	  This driver controls a Maxim 8997/8966 regulator
+	  via I2C bus. The provided regulator is suitable for S5PC110,
+	  S5PV210, and Exynos-4 chips to control VCC_CORE and
+	  VCC_USIM voltages.
+
 config REGULATOR_MAX8998
 	tristate "Maxim 8998 voltage regulator"
 	depends on MFD_MAX8998
@@ -117,7 +126,7 @@ config REGULATOR_MAX8998
 	  and S5PC1XX chips to control VCC_CORE and VCC_USIM voltages.
 
 config REGULATOR_TWL4030
-	bool "TI TWL4030/TWL5030/TWL6030/TPS695x0 PMIC"
+	bool "TI TWL4030/TWL5030/TWL6030/TPS659x0 PMIC"
 	depends on TWL4030_CORE
 	help
 	  This driver supports the voltage regulators provided by
@@ -186,11 +195,23 @@ config REGULATOR_PCAP
 	 This driver provides support for the voltage regulators of the
 	 PCAP2 PMIC.
 
+config REGULATOR_MC13XXX_CORE
+	tristate
+
 config REGULATOR_MC13783
 	tristate "Support regulators on Freescale MC13783 PMIC"
 	depends on MFD_MC13783
+	select REGULATOR_MC13XXX_CORE
 	help
 	  Say y here to support the regulators found on the Freescale MC13783
+	  PMIC.
+
+config REGULATOR_MC13892
+	tristate "Support regulators on Freescale MC13892 PMIC"
+	depends on MFD_MC13XXX
+	select REGULATOR_MC13XXX_CORE
+	help
+	  Say y here to support the regulators found on the Freescale MC13892
 	  PMIC.
 
 config REGULATOR_AB3100
@@ -201,6 +222,15 @@ config REGULATOR_AB3100
 	 These regulators correspond to functionality in the
 	 AB3100 analog baseband dealing with power regulators
 	 for the system.
+
+config REGULATOR_TPS6105X
+	tristate "TI TPS6105X Power regulators"
+	depends on TPS6105X
+	default y if TPS6105X
+	help
+	  This driver supports TPS61050/TPS61052 voltage regulator chips.
+	  It is a single boost converter primarily for white LEDs and
+	  audio amplifiers.
 
 config REGULATOR_TPS65023
 	tristate "TI TPS65023 Power regulators"
@@ -249,6 +279,16 @@ config REGULATOR_TPS6586X
 	depends on MFD_TPS6586X
 	help
 	  This driver supports TPS6586X voltage regulator chips.
+
+config REGULATOR_TPS6524X
+	tristate "TI TPS6524X Power regulators"
+	depends on SPI
+	help
+	  This driver supports TPS6524X voltage regulator chips. TPS6524X
+	  provides three step-down converters and two general-purpose LDO
+	  voltage regulators.  This device is interfaced using a customized
+	  serial interface currently supported on the sequencer serial
+	  port controller.
 
 endif
 

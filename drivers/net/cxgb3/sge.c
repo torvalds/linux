@@ -199,7 +199,7 @@ static inline void refill_rspq(struct adapter *adapter,
  *	need_skb_unmap - does the platform need unmapping of sk_buffs?
  *
  *	Returns true if the platform needs sk_buff unmapping.  The compiler
- *	optimizes away unecessary code if this returns true.
+ *	optimizes away unnecessary code if this returns true.
  */
 static inline int need_skb_unmap(void)
 {

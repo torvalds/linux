@@ -169,6 +169,14 @@ static int dma_channel_program(struct dma_channel *channel,
 	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
 		channel->status == MUSB_DMA_STATUS_BUSY);
 
+	/* Let targets check/tweak the arguments */
+	if (musb->ops->adjust_channel_params) {
+		int ret = musb->ops->adjust_channel_params(channel,
+			packet_sz, &mode, &dma_addr, &len);
+		if (ret)
+			return ret;
+	}
+
 	/*
 	 * The DMA engine in RTL1.8 and above cannot handle
 	 * DMA addresses that are not aligned to a 4 byte boundary.
@@ -377,7 +385,7 @@ dma_controller_create(struct musb *musb, void __iomem *base)
 	struct musb_dma_controller *controller;
 	struct device *dev = musb->controller;
 	struct platform_device *pdev = to_platform_device(dev);
-	int irq = platform_get_irq(pdev, 1);
+	int irq = platform_get_irq_byname(pdev, "dma");
 
 	if (irq == 0) {
 		dev_err(dev, "No DMA interrupt line!\n");

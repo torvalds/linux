@@ -412,7 +412,7 @@ static  int skfp_driver_init(struct net_device *dev)
 		bp->SharedMemAddr = pci_alloc_consistent(&bp->pdev,
 							 bp->SharedMemSize,
 							 &bp->SharedMemDMA);
-		if (!bp->SharedMemSize) {
+		if (!bp->SharedMemAddr) {
 			printk("could not allocate mem for ");
 			printk("hardware module: %ld byte\n",
 			       bp->SharedMemSize);

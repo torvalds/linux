@@ -32,8 +32,6 @@
 #include <linux/ctype.h>
 #endif /* CONFIG_NCPFS_NLS */
 
-#include <linux/ncp_fs.h>
-
 #define NCP_MIN_SYMLINK_SIZE	8
 #define NCP_MAX_SYMLINK_SIZE	512
 
@@ -135,7 +133,7 @@ int ncp__vol2io(struct ncp_server *, unsigned char *, unsigned int *,
 				const unsigned char *, unsigned int, int);
 
 #define NCP_ESC			':'
-#define NCP_IO_TABLE(dentry)	(NCP_SERVER((dentry)->d_inode)->nls_io)
+#define NCP_IO_TABLE(sb)	(NCP_SBP(sb)->nls_io)
 #define ncp_tolower(t, c)	nls_tolower(t, c)
 #define ncp_toupper(t, c)	nls_toupper(t, c)
 #define ncp_strnicmp(t, s1, s2, len) \
@@ -150,15 +148,15 @@ int ncp__io2vol(unsigned char *, unsigned int *,
 int ncp__vol2io(unsigned char *, unsigned int *,
 				const unsigned char *, unsigned int, int);
 
-#define NCP_IO_TABLE(dentry)	NULL
+#define NCP_IO_TABLE(sb)	NULL
 #define ncp_tolower(t, c)	tolower(c)
 #define ncp_toupper(t, c)	toupper(c)
 #define ncp_io2vol(S,m,i,n,k,U)	ncp__io2vol(m,i,n,k,U)
 #define ncp_vol2io(S,m,i,n,k,U)	ncp__vol2io(m,i,n,k,U)
 
 
-static inline int ncp_strnicmp(struct nls_table *t, const unsigned char *s1,
-		const unsigned char *s2, int len)
+static inline int ncp_strnicmp(const struct nls_table *t,
+		const unsigned char *s1, const unsigned char *s2, int len)
 {
 	while (len--) {
 		if (tolower(*s1++) != tolower(*s2++))
@@ -193,7 +191,7 @@ ncp_renew_dentries(struct dentry *parent)
 	struct list_head *next;
 	struct dentry *dentry;
 
-	spin_lock(&dcache_lock);
+	spin_lock(&parent->d_lock);
 	next = parent->d_subdirs.next;
 	while (next != &parent->d_subdirs) {
 		dentry = list_entry(next, struct dentry, d_u.d_child);
@@ -205,7 +203,7 @@ ncp_renew_dentries(struct dentry *parent)
 
 		next = next->next;
 	}
-	spin_unlock(&dcache_lock);
+	spin_unlock(&parent->d_lock);
 }
 
 static inline void
@@ -215,7 +213,7 @@ ncp_invalidate_dircache_entries(struct dentry *parent)
 	struct list_head *next;
 	struct dentry *dentry;
 
-	spin_lock(&dcache_lock);
+	spin_lock(&parent->d_lock);
 	next = parent->d_subdirs.next;
 	while (next != &parent->d_subdirs) {
 		dentry = list_entry(next, struct dentry, d_u.d_child);
@@ -223,7 +221,7 @@ ncp_invalidate_dircache_entries(struct dentry *parent)
 		ncp_age_dentry(server, dentry);
 		next = next->next;
 	}
-	spin_unlock(&dcache_lock);
+	spin_unlock(&parent->d_lock);
 }
 
 struct ncp_cache_head {

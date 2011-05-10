@@ -21,11 +21,11 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/clkdev.h>
 
 #include <mach/clock.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <asm/clkdev.h>
 #include <asm/div64.h>
 
 #define IO_ADDR_CCM(off)	(MX21_IO_ADDRESS(MX21_CCM_BASE_ADDR + (off)))
@@ -1185,7 +1185,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "brom", brom_clk)
 	_REGISTER_CLOCK(NULL, "emma", emma_clk[0])
 	_REGISTER_CLOCK(NULL, "slcdc", slcdc_clk[0])
-	_REGISTER_CLOCK("imx-wdt.0", NULL, wdog_clk)
+	_REGISTER_CLOCK("imx2-wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK(NULL, "gpio", gpio_clk)
 	_REGISTER_CLOCK("imx-i2c.0", NULL, i2c_clk)
 	_REGISTER_CLOCK("mxc-keypad", NULL, kpp_clk)

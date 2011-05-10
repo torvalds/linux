@@ -4,7 +4,7 @@
 #include <linux/skbuff.h>
 
 /* This is the maximum truncated ICV length that we know of. */
-#define MAX_AH_AUTH_LEN	12
+#define MAX_AH_AUTH_LEN	64
 
 struct crypto_ahash;
 

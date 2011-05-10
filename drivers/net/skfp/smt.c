@@ -219,7 +219,7 @@ void smt_emulate_token_ct(struct s_smc *smc, int mac_index)
 
 	/*
 	 * Only when ring is up we will have a token count. The
-	 * flag is unfortunatly a single instance value. This
+	 * flag is unfortunately a single instance value. This
 	 * doesn't matter now, because we currently have only
 	 * one MAC instance.
 	 */
@@ -1263,7 +1263,7 @@ void smt_set_timestamp(struct s_smc *smc, u_char *p)
 static void smt_fill_policy(struct s_smc *smc, struct smt_p_policy *policy)
 {
 	int	i ;
-	u_char	*map ;
+	const u_char *map ;
 	u_short	in ;
 	u_short	out ;
 
@@ -1271,7 +1271,7 @@ static void smt_fill_policy(struct s_smc *smc, struct smt_p_policy *policy)
 	 * MIB para 101b (fddiSMTConnectionPolicy) coding
 	 * is different from 0005 coding
 	 */
-	static u_char	ansi_weirdness[16] = {
+	static const u_char ansi_weirdness[16] = {
 		0,7,5,3,8,1,6,4,9,10,2,11,12,13,14,15
 	} ;
 	SMTSETPARA(policy,SMT_P_POLICY) ;

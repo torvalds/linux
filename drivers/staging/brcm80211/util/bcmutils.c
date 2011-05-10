@@ -17,39 +17,83 @@
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/netdevice.h>
+#include <linux/sched.h>
 #include <bcmdefs.h>
 #include <stdarg.h>
-#include <osl.h>
-#include <linuxver.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <bcmnvram.h>
-#include <bcmendian.h>
 #include <bcmdevs.h>
-#include <proto/ethernet.h>
-#include <proto/802.1d.h>
 #include <proto/802.11.h>
 
+/* Global ASSERT type flag */
+u32 g_assert_type;
+
+struct sk_buff *BCMFASTPATH pkt_buf_get_skb(uint len)
+{
+	struct sk_buff *skb;
+
+	skb = dev_alloc_skb(len);
+	if (skb) {
+		skb_put(skb, len);
+		skb->priority = 0;
+	}
+
+	return skb;
+}
+
+/* Free the driver packet. Free the tag if present */
+void BCMFASTPATH pkt_buf_free_skb(struct sk_buff *skb)
+{
+	struct sk_buff *nskb;
+	int nest = 0;
+
+	ASSERT(skb);
+
+	/* perversion: we use skb->next to chain multi-skb packets */
+	while (skb) {
+		nskb = skb->next;
+		skb->next = NULL;
+
+		if (skb->destructor)
+			/* cannot kfree_skb() on hard IRQ (net/core/skbuff.c) if
+			 * destructor exists
+			 */
+			dev_kfree_skb_any(skb);
+		else
+			/* can free immediately (even in_irq()) if destructor
+			 * does not exist
+			 */
+			dev_kfree_skb(skb);
+
+		nest++;
+		skb = nskb;
+	}
+}
 
 /* copy a buffer into a pkt buffer chain */
-uint pktfrombuf(osl_t *osh, void *p, uint offset, int len, unsigned char *buf)
+uint pktfrombuf(struct sk_buff *p, uint offset, int len,
+		unsigned char *buf)
 {
 	uint n, ret = 0;
 
 	/* skip 'offset' bytes */
-	for (; p && offset; p = PKTNEXT(p)) {
-		if (offset < (uint) PKTLEN(p))
+	for (; p && offset; p = p->next) {
+		if (offset < (uint) (p->len))
 			break;
-		offset -= PKTLEN(p);
+		offset -= p->len;
 	}
 
 	if (!p)
 		return 0;
 
 	/* copy the data */
-	for (; p && len; p = PKTNEXT(p)) {
-		n = min((uint) PKTLEN(p) - offset, (uint) len);
-		bcopy(buf, PKTDATA(p) + offset, n);
+	for (; p && len; p = p->next) {
+		n = min((uint) (p->len) - offset, (uint) len);
+		memcpy(p->data + offset, buf, n);
 		buf += n;
 		len -= n;
 		ret += n;
@@ -59,13 +103,13 @@ uint pktfrombuf(osl_t *osh, void *p, uint offset, int len, unsigned char *buf)
 	return ret;
 }
 /* return total length of buffer chain */
-uint BCMFASTPATH pkttotlen(osl_t *osh, void *p)
+uint BCMFASTPATH pkttotlen(struct sk_buff *p)
 {
 	uint total;
 
 	total = 0;
-	for (; p; p = PKTNEXT(p))
-		total += PKTLEN(p);
+	for (; p; p = p->next)
+		total += p->len;
 	return total;
 }
 
@@ -73,12 +117,13 @@ uint BCMFASTPATH pkttotlen(osl_t *osh, void *p)
  * osl multiple-precedence packet queue
  * hi_prec is always >= the number of the highest non-empty precedence
  */
-void *BCMFASTPATH pktq_penq(struct pktq *pq, int prec, void *p)
+struct sk_buff *BCMFASTPATH pktq_penq(struct pktq *pq, int prec,
+				      struct sk_buff *p)
 {
 	struct pktq_prec *q;
 
 	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(PKTLINK(p) == NULL);	/* queueing chains not allowed */
+	ASSERT(p->prev == NULL);	/* queueing chains not allowed */
 
 	ASSERT(!pktq_full(pq));
 	ASSERT(!pktq_pfull(pq, prec));
@@ -86,7 +131,7 @@ void *BCMFASTPATH pktq_penq(struct pktq *pq, int prec, void *p)
 	q = &pq->q[prec];
 
 	if (q->head)
-		PKTSETLINK(q->tail, p);
+		q->tail->prev = p;
 	else
 		q->head = p;
 
@@ -101,12 +146,13 @@ void *BCMFASTPATH pktq_penq(struct pktq *pq, int prec, void *p)
 	return p;
 }
 
-void *BCMFASTPATH pktq_penq_head(struct pktq *pq, int prec, void *p)
+struct sk_buff *BCMFASTPATH pktq_penq_head(struct pktq *pq, int prec,
+					   struct sk_buff *p)
 {
 	struct pktq_prec *q;
 
 	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(PKTLINK(p) == NULL);	/* queueing chains not allowed */
+	ASSERT(p->prev == NULL);	/* queueing chains not allowed */
 
 	ASSERT(!pktq_full(pq));
 	ASSERT(!pktq_pfull(pq, prec));
@@ -116,7 +162,7 @@ void *BCMFASTPATH pktq_penq_head(struct pktq *pq, int prec, void *p)
 	if (q->head == NULL)
 		q->tail = p;
 
-	PKTSETLINK(p, q->head);
+	p->prev = q->head;
 	q->head = p;
 	q->len++;
 
@@ -128,10 +174,10 @@ void *BCMFASTPATH pktq_penq_head(struct pktq *pq, int prec, void *p)
 	return p;
 }
 
-void *BCMFASTPATH pktq_pdeq(struct pktq *pq, int prec)
+struct sk_buff *BCMFASTPATH pktq_pdeq(struct pktq *pq, int prec)
 {
 	struct pktq_prec *q;
-	void *p;
+	struct sk_buff *p;
 
 	ASSERT(prec >= 0 && prec < pq->num_prec);
 
@@ -141,7 +187,7 @@ void *BCMFASTPATH pktq_pdeq(struct pktq *pq, int prec)
 	if (p == NULL)
 		return NULL;
 
-	q->head = PKTLINK(p);
+	q->head = p->prev;
 	if (q->head == NULL)
 		q->tail = NULL;
 
@@ -149,15 +195,15 @@ void *BCMFASTPATH pktq_pdeq(struct pktq *pq, int prec)
 
 	pq->len--;
 
-	PKTSETLINK(p, NULL);
+	p->prev = NULL;
 
 	return p;
 }
 
-void *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
+struct sk_buff *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 {
 	struct pktq_prec *q;
-	void *p, *prev;
+	struct sk_buff *p, *prev;
 
 	ASSERT(prec >= 0 && prec < pq->num_prec);
 
@@ -167,11 +213,11 @@ void *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 	if (p == NULL)
 		return NULL;
 
-	for (prev = NULL; p != q->tail; p = PKTLINK(p))
+	for (prev = NULL; p != q->tail; p = p->prev)
 		prev = p;
 
 	if (prev)
-		PKTSETLINK(prev, NULL);
+		prev->prev = NULL;
 	else
 		q->head = NULL;
 
@@ -184,17 +230,17 @@ void *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 }
 
 #ifdef BRCM_FULLMAC
-void pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir)
+void pktq_pflush(struct pktq *pq, int prec, bool dir)
 {
 	struct pktq_prec *q;
-	void *p;
+	struct sk_buff *p;
 
 	q = &pq->q[prec];
 	p = q->head;
 	while (p) {
-		q->head = PKTLINK(p);
-		PKTSETLINK(p, NULL);
-		PKTFREE(osh, p, dir);
+		q->head = p->prev;
+		p->prev = NULL;
+		pkt_buf_free_skb(p);
 		q->len--;
 		pq->len--;
 		p = q->head;
@@ -203,20 +249,20 @@ void pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir)
 	q->tail = NULL;
 }
 
-void pktq_flush(osl_t *osh, struct pktq *pq, bool dir)
+void pktq_flush(struct pktq *pq, bool dir)
 {
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)
-		pktq_pflush(osh, pq, prec, dir);
+		pktq_pflush(pq, prec, dir);
 	ASSERT(pq->len == 0);
 }
 #else /* !BRCM_FULLMAC */
 void
-pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir, ifpkt_cb_t fn,
-	    int arg)
+pktq_pflush(struct pktq *pq, int prec, bool dir,
+	    ifpkt_cb_t fn, int arg)
 {
 	struct pktq_prec *q;
-	void *p, *prev = NULL;
+	struct sk_buff *p, *prev = NULL;
 
 	q = &pq->q[prec];
 	p = q->head;
@@ -224,17 +270,17 @@ pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir, ifpkt_cb_t fn,
 		if (fn == NULL || (*fn) (p, arg)) {
 			bool head = (p == q->head);
 			if (head)
-				q->head = PKTLINK(p);
+				q->head = p->prev;
 			else
-				PKTSETLINK(prev, PKTLINK(p));
-			PKTSETLINK(p, NULL);
-			PKTFREE(osh, p, dir);
+				prev->prev = p->prev;
+			p->prev = NULL;
+			pkt_buf_free_skb(p);
 			q->len--;
 			pq->len--;
-			p = (head ? q->head : PKTLINK(prev));
+			p = (head ? q->head : prev->prev);
 		} else {
 			prev = p;
-			p = PKTLINK(p);
+			p = p->prev;
 		}
 	}
 
@@ -244,11 +290,12 @@ pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir, ifpkt_cb_t fn,
 	}
 }
 
-void pktq_flush(osl_t *osh, struct pktq *pq, bool dir, ifpkt_cb_t fn, int arg)
+void pktq_flush(struct pktq *pq, bool dir,
+		ifpkt_cb_t fn, int arg)
 {
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)
-		pktq_pflush(osh, pq, prec, dir, fn, arg);
+		pktq_pflush(pq, prec, dir, fn, arg);
 	if (fn == NULL)
 		ASSERT(pq->len == 0);
 }
@@ -261,7 +308,7 @@ void pktq_init(struct pktq *pq, int num_prec, int max_len)
 	ASSERT(num_prec > 0 && num_prec <= PKTQ_MAX_PREC);
 
 	/* pq is variable size; only zero out what's requested */
-	bzero(pq,
+	memset(pq, 0,
 	      offsetof(struct pktq, q) + (sizeof(struct pktq_prec) * num_prec));
 
 	pq->num_prec = (u16) num_prec;
@@ -272,7 +319,7 @@ void pktq_init(struct pktq *pq, int num_prec, int max_len)
 		pq->q[prec].max = pq->max;
 }
 
-void *pktq_peek_tail(struct pktq *pq, int *prec_out)
+struct sk_buff *pktq_peek_tail(struct pktq *pq, int *prec_out)
 {
 	int prec;
 
@@ -303,10 +350,11 @@ int pktq_mlen(struct pktq *pq, uint prec_bmp)
 	return len;
 }
 /* Priority dequeue from a specific set of precedences */
-void *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
+struct sk_buff *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp,
+				      int *prec_out)
 {
 	struct pktq_prec *q;
-	void *p;
+	struct sk_buff *p;
 	int prec;
 
 	if (pq->len == 0)
@@ -325,7 +373,7 @@ void *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
 	if (p == NULL)
 		return NULL;
 
-	q->head = PKTLINK(p);
+	q->head = p->prev;
 	if (q->head == NULL)
 		q->tail = NULL;
 
@@ -336,18 +384,18 @@ void *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
 
 	pq->len--;
 
-	PKTSETLINK(p, NULL);
+	p->prev = NULL;
 
 	return p;
 }
 
 /* parse a xx:xx:xx:xx:xx:xx format ethernet address */
-int bcm_ether_atoe(char *p, struct ether_addr *ea)
+int bcm_ether_atoe(char *p, u8 *ea)
 {
 	int i = 0;
 
 	for (;;) {
-		ea->octet[i++] = (char)simple_strtoul(p, &p, 16);
+		ea[i++] = (char)simple_strtoul(p, &p, 16);
 		if (!*p++ || i == 6)
 			break;
 	}
@@ -373,7 +421,7 @@ char *getvar(char *vars, const char *name)
 
 	/* first look in vars[] */
 	for (s = vars; s && *s;) {
-		if ((bcmp(s, name, len) == 0) && (s[len] == '='))
+		if ((memcmp(s, name, len) == 0) && (s[len] == '='))
 			return &s[len + 1];
 
 		while (*s++)
@@ -404,15 +452,15 @@ int getintvar(char *vars, const char *name)
 
 #if defined(BCMDBG)
 /* pretty hex print a pkt buffer chain */
-void prpkt(const char *msg, osl_t *osh, void *p0)
+void prpkt(const char *msg, struct sk_buff *p0)
 {
-	void *p;
+	struct sk_buff *p;
 
 	if (msg && (msg[0] != '\0'))
-		printf("%s:\n", msg);
+		printk(KERN_DEBUG "%s:\n", msg);
 
-	for (p = p0; p; p = PKTNEXT(p))
-		prhex(NULL, PKTDATA(p), PKTLEN(p));
+	for (p = p0; p; p = p->next)
+		prhex(NULL, p->data, p->len);
 }
 #endif				/* defined(BCMDBG) */
 
@@ -860,7 +908,7 @@ void prhex(const char *msg, unsigned char *buf, uint nbytes)
 	uint i;
 
 	if (msg && (msg[0] != '\0'))
-		printf("%s:\n", msg);
+		printk(KERN_DEBUG "%s:\n", msg);
 
 	p = line;
 	for (i = 0; i < nbytes; i++) {
@@ -876,7 +924,7 @@ void prhex(const char *msg, unsigned char *buf, uint nbytes)
 		}
 
 		if (i % 16 == 15) {
-			printf("%s\n", line);	/* flush line */
+			printk(KERN_DEBUG "%s\n", line);	/* flush line */
 			p = line;
 			len = sizeof(line);
 		}
@@ -884,7 +932,7 @@ void prhex(const char *msg, unsigned char *buf, uint nbytes)
 
 	/* flush last partial line */
 	if (p != line)
-		printf("%s\n", line);
+		printk(KERN_DEBUG "%s\n", line);
 }
 
 char *bcm_chipname(uint chipid, char *buf, uint len)
@@ -1042,3 +1090,49 @@ int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...)
 	return r;
 }
 
+#if defined(BCMDBG_ASSERT)
+void osl_assert(char *exp, char *file, int line)
+{
+	char tempbuf[256];
+	char *basename;
+
+	basename = strrchr(file, '/');
+	/* skip the '/' */
+	if (basename)
+		basename++;
+
+	if (!basename)
+		basename = file;
+
+	snprintf(tempbuf, 256,
+		 "assertion \"%s\" failed: file \"%s\", line %d\n", exp,
+		 basename, line);
+
+	/*
+	 * Print assert message and give it time to
+	 * be written to /var/log/messages
+	 */
+	if (!in_interrupt()) {
+		const int delay = 3;
+		printk(KERN_ERR "%s", tempbuf);
+		printk(KERN_ERR "panic in %d seconds\n", delay);
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(delay * HZ);
+	}
+
+	switch (g_assert_type) {
+	case 0:
+		panic(KERN_ERR "%s", tempbuf);
+		break;
+	case 1:
+		printk(KERN_ERR "%s", tempbuf);
+		BUG();
+		break;
+	case 2:
+		printk(KERN_ERR "%s", tempbuf);
+		break;
+	default:
+		break;
+	}
+}
+#endif				/* defined(BCMDBG_ASSERT) */

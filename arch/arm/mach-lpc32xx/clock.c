@@ -90,10 +90,9 @@
 #include <linux/clk.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/clkdev.h>
 
 #include <mach/hardware.h>
-#include <asm/clkdev.h>
-#include <mach/clkdev.h>
 #include <mach/platform.h>
 #include "clock.h"
 #include "common.h"

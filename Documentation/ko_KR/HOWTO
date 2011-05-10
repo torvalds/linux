@@ -391,8 +391,8 @@ bugme-new 메일링 리스트나(새로운 버그 리포트들만이 이곳에�
 bugme-janitor 메일링 리스트(bugzilla에 모든 변화들이 여기서 메일로 전해진다)
 에 등록하면 된다.
 
-      http://lists.osdl.org/mailman/listinfo/bugme-new
-      http://lists.osdl.org/mailman/listinfo/bugme-janitors
+      https://lists.linux-foundation.org/mailman/listinfo/bugme-new
+      https://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
 
 
 

@@ -59,6 +59,16 @@ static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 	native_set_pte(ptep, pte);
 }
 
+static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
+{
+	*pmdp = pmd;
+}
+
+static inline void native_pmd_clear(pmd_t *pmd)
+{
+	native_set_pmd(pmd, native_make_pmd(0));
+}
+
 static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 {
 #ifdef CONFIG_SMP
@@ -72,14 +82,17 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 #endif
 }
 
-static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
+static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
 {
-	*pmdp = pmd;
-}
-
-static inline void native_pmd_clear(pmd_t *pmd)
-{
-	native_set_pmd(pmd, native_make_pmd(0));
+#ifdef CONFIG_SMP
+	return native_make_pmd(xchg(&xp->pmd, 0));
+#else
+	/* native_local_pmdp_get_and_clear,
+	   but duplicated because of cyclic dependency */
+	pmd_t ret = *xp;
+	native_pmd_clear(xp);
+	return ret;
+#endif
 }
 
 static inline void native_set_pud(pud_t *pudp, pud_t pud)
@@ -168,6 +181,7 @@ extern void cleanup_highmap(void);
 #define	kc_offset_to_vaddr(o) ((o) | ~__VIRTUAL_MASK)
 
 #define __HAVE_ARCH_PTE_SAME
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_X86_PGTABLE_64_H */

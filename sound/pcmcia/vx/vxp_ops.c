@@ -23,8 +23,8 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
+#include <linux/io.h>
 #include <sound/core.h>
-#include <asm/io.h>
 #include "vxpocket.h"
 
 

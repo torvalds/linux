@@ -16,6 +16,7 @@
 #ifndef __MTD_FSMC_H
 #define __MTD_FSMC_H
 
+#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/types.h>
@@ -27,7 +28,7 @@
 
 /*
  * The placement of the Command Latch Enable (CLE) and
- * Address Latch Enable (ALE) is twised around in the
+ * Address Latch Enable (ALE) is twisted around in the
  * SPEAR310 implementation.
  */
 #if defined(CONFIG_MACH_SPEAR310)
@@ -62,7 +63,7 @@ struct fsmc_nor_bank_regs {
 
 /* ctrl_tim register definitions */
 
-struct fsms_nand_bank_regs {
+struct fsmc_nand_bank_regs {
 	uint32_t pc;
 	uint32_t sts;
 	uint32_t comm;
@@ -78,7 +79,7 @@ struct fsms_nand_bank_regs {
 struct fsmc_regs {
 	struct fsmc_nor_bank_regs nor_bank_regs[FSMC_MAX_NOR_BANKS];
 	uint8_t reserved_1[0x40 - 0x20];
-	struct fsms_nand_bank_regs bank_regs[FSMC_MAX_NAND_BANKS];
+	struct fsmc_nand_bank_regs bank_regs[FSMC_MAX_NAND_BANKS];
 	uint8_t reserved_2[0xfe0 - 0xc0];
 	uint32_t peripid0;			/* 0xfe0 */
 	uint32_t peripid1;			/* 0xfe4 */
@@ -113,25 +114,6 @@ struct fsmc_regs {
 #define FSMC_TWAIT_6		(6 << 8)
 #define FSMC_THOLD_4		(4 << 16)
 #define FSMC_THIZ_1		(1 << 24)
-
-/* peripid2 register definitions */
-#define FSMC_REVISION_MSK	(0xf)
-#define FSMC_REVISION_SHFT	(0x4)
-
-#define FSMC_VER1		1
-#define FSMC_VER2		2
-#define FSMC_VER3		3
-#define FSMC_VER4		4
-#define FSMC_VER5		5
-#define FSMC_VER6		6
-#define FSMC_VER7		7
-#define FSMC_VER8		8
-
-static inline uint32_t get_fsmc_version(struct fsmc_regs *regs)
-{
-	return (readl(&regs->peripid2) >> FSMC_REVISION_SHFT) &
-				FSMC_REVISION_MSK;
-}
 
 /*
  * There are 13 bytes of ecc for every 512 byte block in FSMC version 8

@@ -406,6 +406,7 @@ struct overlay_cache_data {
 	u16 out_width;	/* if 0, out_width == width */
 	u16 out_height;	/* if 0, out_height == height */
 	u8 global_alpha;
+	u8 pre_mult_alpha;
 
 	enum omap_channel channel;
 	bool replication;
@@ -512,11 +513,16 @@ static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
 	unsigned long timeout = msecs_to_jiffies(500);
 	u32 irq;
 
-	if (mgr->device->type == OMAP_DISPLAY_TYPE_VENC)
+	if (mgr->device->type == OMAP_DISPLAY_TYPE_VENC) {
 		irq = DISPC_IRQ_EVSYNC_ODD;
-	else
-		irq = DISPC_IRQ_VSYNC;
-
+	} else if (mgr->device->type == OMAP_DISPLAY_TYPE_HDMI) {
+		irq = DISPC_IRQ_EVSYNC_EVEN;
+	} else {
+		if (mgr->id == OMAP_DSS_CHANNEL_LCD)
+			irq = DISPC_IRQ_VSYNC;
+		else
+			irq = DISPC_IRQ_VSYNC2;
+	}
 	return omap_dispc_wait_for_irq_interruptible_timeout(irq, timeout);
 }
 
@@ -524,7 +530,6 @@ static int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 {
 	unsigned long timeout = msecs_to_jiffies(500);
 	struct manager_cache_data *mc;
-	enum omap_channel channel;
 	u32 irq;
 	int r;
 	int i;
@@ -533,9 +538,9 @@ static int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 	if (!dssdev || dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return 0;
 
-	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC) {
+	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC
+			|| dssdev->type == OMAP_DISPLAY_TYPE_HDMI) {
 		irq = DISPC_IRQ_EVSYNC_ODD | DISPC_IRQ_EVSYNC_EVEN;
-		channel = OMAP_DSS_CHANNEL_DIGIT;
 	} else {
 		if (dssdev->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) {
 			enum omap_dss_update_mode mode;
@@ -543,11 +548,14 @@ static int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 			if (mode != OMAP_DSS_UPDATE_AUTO)
 				return 0;
 
-			irq = DISPC_IRQ_FRAMEDONE;
+			irq = (dssdev->manager->id == OMAP_DSS_CHANNEL_LCD) ?
+				DISPC_IRQ_FRAMEDONE
+				: DISPC_IRQ_FRAMEDONE2;
 		} else {
-			irq = DISPC_IRQ_VSYNC;
+			irq = (dssdev->manager->id == OMAP_DSS_CHANNEL_LCD) ?
+				DISPC_IRQ_VSYNC
+				: DISPC_IRQ_VSYNC2;
 		}
-		channel = OMAP_DSS_CHANNEL_LCD;
 	}
 
 	mc = &dss_cache.manager_cache[mgr->id];
@@ -594,7 +602,6 @@ static int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 {
 	unsigned long timeout = msecs_to_jiffies(500);
-	enum omap_channel channel;
 	struct overlay_cache_data *oc;
 	struct omap_dss_device *dssdev;
 	u32 irq;
@@ -609,9 +616,9 @@ int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 	if (!dssdev || dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return 0;
 
-	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC) {
+	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC
+			|| dssdev->type == OMAP_DISPLAY_TYPE_HDMI) {
 		irq = DISPC_IRQ_EVSYNC_ODD | DISPC_IRQ_EVSYNC_EVEN;
-		channel = OMAP_DSS_CHANNEL_DIGIT;
 	} else {
 		if (dssdev->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) {
 			enum omap_dss_update_mode mode;
@@ -619,11 +626,14 @@ int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 			if (mode != OMAP_DSS_UPDATE_AUTO)
 				return 0;
 
-			irq = DISPC_IRQ_FRAMEDONE;
+			irq = (dssdev->manager->id == OMAP_DSS_CHANNEL_LCD) ?
+				DISPC_IRQ_FRAMEDONE
+				: DISPC_IRQ_FRAMEDONE2;
 		} else {
-			irq = DISPC_IRQ_VSYNC;
+			irq = (dssdev->manager->id == OMAP_DSS_CHANNEL_LCD) ?
+				DISPC_IRQ_VSYNC
+				: DISPC_IRQ_VSYNC2;
 		}
-		channel = OMAP_DSS_CHANNEL_LCD;
 	}
 
 	oc = &dss_cache.overlay_cache[ovl->id];
@@ -842,7 +852,9 @@ static int configure_overlay(enum omap_plane plane)
 			c->rotation_type,
 			c->rotation,
 			c->mirror,
-			c->global_alpha);
+			c->global_alpha,
+			c->pre_mult_alpha,
+			c->channel);
 
 	if (r) {
 		/* this shouldn't happen */
@@ -894,10 +906,10 @@ static int configure_dispc(void)
 	r = 0;
 	busy = false;
 
-	mgr_busy[0] = dispc_go_busy(0);
-	mgr_busy[1] = dispc_go_busy(1);
-	mgr_go[0] = false;
-	mgr_go[1] = false;
+	for (i = 0; i < num_mgrs; i++) {
+		mgr_busy[i] = dispc_go_busy(i);
+		mgr_go[i] = false;
+	}
 
 	/* Commit overlay settings */
 	for (i = 0; i < num_ovls; ++i) {
@@ -1156,9 +1168,10 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 	const int num_mgrs = dss_feat_get_num_mgrs();
 	int i, r;
 	bool mgr_busy[MAX_DSS_MANAGERS];
+	u32 irq_mask;
 
-	mgr_busy[0] = dispc_go_busy(0);
-	mgr_busy[1] = dispc_go_busy(1);
+	for (i = 0; i < num_mgrs; i++)
+		mgr_busy[i] = dispc_go_busy(i);
 
 	spin_lock(&dss_cache.lock);
 
@@ -1179,8 +1192,8 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 		goto end;
 
 	/* re-read busy flags */
-	mgr_busy[0] = dispc_go_busy(0);
-	mgr_busy[1] = dispc_go_busy(1);
+	for (i = 0; i < num_mgrs; i++)
+		mgr_busy[i] = dispc_go_busy(i);
 
 	/* keep running as long as there are busy managers, so that
 	 * we can collect overlay-applied information */
@@ -1189,9 +1202,12 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 			goto end;
 	}
 
-	omap_dispc_unregister_isr(dss_apply_irq_handler, NULL,
-			DISPC_IRQ_VSYNC	| DISPC_IRQ_EVSYNC_ODD |
-			DISPC_IRQ_EVSYNC_EVEN);
+	irq_mask = DISPC_IRQ_VSYNC | DISPC_IRQ_EVSYNC_ODD |
+			DISPC_IRQ_EVSYNC_EVEN;
+	if (dss_has_feature(FEAT_MGR_LCD2))
+		irq_mask |= DISPC_IRQ_VSYNC2;
+
+	omap_dispc_unregister_isr(dss_apply_irq_handler, NULL, irq_mask);
 	dss_cache.irq_enabled = false;
 
 end:
@@ -1265,6 +1281,7 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 		oc->out_width = ovl->info.out_width;
 		oc->out_height = ovl->info.out_height;
 		oc->global_alpha = ovl->info.global_alpha;
+		oc->pre_mult_alpha = ovl->info.pre_mult_alpha;
 
 		oc->replication =
 			dss_use_replication(dssdev, ovl->info.color_mode);
@@ -1364,6 +1381,7 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 		case OMAP_DISPLAY_TYPE_DBI:
 		case OMAP_DISPLAY_TYPE_SDI:
 		case OMAP_DISPLAY_TYPE_VENC:
+		case OMAP_DISPLAY_TYPE_HDMI:
 			default_get_overlay_fifo_thresholds(ovl->id, size,
 					&oc->burst_size, &oc->fifo_low,
 					&oc->fifo_high);
@@ -1381,15 +1399,20 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	}
 
 	r = 0;
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 	if (!dss_cache.irq_enabled) {
-		r = omap_dispc_register_isr(dss_apply_irq_handler, NULL,
-				DISPC_IRQ_VSYNC	| DISPC_IRQ_EVSYNC_ODD |
-				DISPC_IRQ_EVSYNC_EVEN);
+		u32 mask;
+
+		mask = DISPC_IRQ_VSYNC	| DISPC_IRQ_EVSYNC_ODD |
+			DISPC_IRQ_EVSYNC_EVEN;
+		if (dss_has_feature(FEAT_MGR_LCD2))
+			mask |= DISPC_IRQ_VSYNC2;
+
+		r = omap_dispc_register_isr(dss_apply_irq_handler, NULL, mask);
 		dss_cache.irq_enabled = true;
 	}
 	configure_dispc();
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	spin_unlock_irqrestore(&dss_cache.lock, flags);
 
@@ -1476,6 +1499,10 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 		case 1:
 			mgr->name = "tv";
 			mgr->id = OMAP_DSS_CHANNEL_DIGIT;
+			break;
+		case 2:
+			mgr->name = "lcd2";
+			mgr->id = OMAP_DSS_CHANNEL_LCD2;
 			break;
 		}
 

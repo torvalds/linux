@@ -116,7 +116,7 @@ void __init generate_cplb_tables_all(void)
 	    ((_ramend - uncached_end) >= 1 * 1024 * 1024))
 		dcplb_bounds[i_d].eaddr = uncached_end;
 	else
-		dcplb_bounds[i_d].eaddr = uncached_end & ~(1 * 1024 * 1024);
+		dcplb_bounds[i_d].eaddr = uncached_end & ~(1 * 1024 * 1024 - 1);
 	dcplb_bounds[i_d++].data = SDRAM_DGENERIC;
 	/* DMA uncached region.  */
 	if (DMA_UNCACHED_REGION) {

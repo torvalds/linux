@@ -48,8 +48,10 @@ extern int eth_validate_addr(struct net_device *dev);
 
 
 
-extern struct net_device *alloc_etherdev_mq(int sizeof_priv, unsigned int queue_count);
+extern struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
+					    unsigned int rxqs);
 #define alloc_etherdev(sizeof_priv) alloc_etherdev_mq(sizeof_priv, 1)
+#define alloc_etherdev_mq(sizeof_priv, count) alloc_etherdev_mqs(sizeof_priv, count, count)
 
 /**
  * is_zero_ether_addr - Determine if give Ethernet address is all zeros.
@@ -94,6 +96,17 @@ static inline int is_local_ether_addr(const u8 *addr)
 static inline int is_broadcast_ether_addr(const u8 *addr)
 {
 	return (addr[0] & addr[1] & addr[2] & addr[3] & addr[4] & addr[5]) == 0xff;
+}
+
+/**
+ * is_unicast_ether_addr - Determine if the Ethernet address is unicast
+ * @addr: Pointer to a six-byte array containing the Ethernet address
+ *
+ * Return true if the address is a unicast address.
+ */
+static inline int is_unicast_ether_addr(const u8 *addr)
+{
+	return !is_multicast_ether_addr(addr);
 }
 
 /**

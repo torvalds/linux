@@ -191,9 +191,9 @@ struct ixgb_option {
 		} r;
 		struct {	/* list_option info */
 			int nr;
-			struct ixgb_opt_list {
+			const struct ixgb_opt_list {
 				int i;
-				char *str;
+				const char *str;
 			} *p;
 		} l;
 	} arg;
@@ -226,7 +226,7 @@ ixgb_validate_option(unsigned int *value, const struct ixgb_option *opt)
 		break;
 	case list_option: {
 		int i;
-		struct ixgb_opt_list *ent;
+		const struct ixgb_opt_list *ent;
 
 		for (i = 0; i < opt->arg.l.nr; i++) {
 			ent = &opt->arg.l.p[i];
@@ -322,14 +322,15 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 	}
 	{ /* Flow Control */
 
-		struct ixgb_opt_list fc_list[] =
-			{{ ixgb_fc_none,	"Flow Control Disabled" },
-			 { ixgb_fc_rx_pause,"Flow Control Receive Only" },
-			 { ixgb_fc_tx_pause,"Flow Control Transmit Only" },
-			 { ixgb_fc_full,	"Flow Control Enabled" },
-			 { ixgb_fc_default, "Flow Control Hardware Default" }};
+		static const struct ixgb_opt_list fc_list[] = {
+		       { ixgb_fc_none, "Flow Control Disabled" },
+		       { ixgb_fc_rx_pause, "Flow Control Receive Only" },
+		       { ixgb_fc_tx_pause, "Flow Control Transmit Only" },
+		       { ixgb_fc_full, "Flow Control Enabled" },
+		       { ixgb_fc_default, "Flow Control Hardware Default" }
+		};
 
-		const struct ixgb_option opt = {
+		static const struct ixgb_option opt = {
 			.type = list_option,
 			.name = "Flow Control",
 			.err  = "reading default settings from EEPROM",

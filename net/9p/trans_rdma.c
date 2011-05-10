@@ -59,7 +59,6 @@
 						 * safely advertise a maxsize
 						 * of 64k */
 
-#define P9_RDMA_MAX_SGE (P9_RDMA_MAXSIZE >> PAGE_SHIFT)
 /**
  * struct p9_trans_rdma - RDMA transport instance
  *
@@ -425,7 +424,7 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 	struct p9_rdma_context *rpl_context = NULL;
 
 	/* Allocate an fcall for the reply */
-	rpl_context = kmalloc(sizeof *rpl_context, GFP_KERNEL);
+	rpl_context = kmalloc(sizeof *rpl_context, GFP_NOFS);
 	if (!rpl_context) {
 		err = -ENOMEM;
 		goto err_close;
@@ -438,7 +437,7 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 	 */
 	if (!req->rc) {
 		req->rc = kmalloc(sizeof(struct p9_fcall)+client->msize,
-								GFP_KERNEL);
+				  GFP_NOFS);
 		if (req->rc) {
 			req->rc->sdata = (char *) req->rc +
 						sizeof(struct p9_fcall);
@@ -469,7 +468,7 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 	req->rc = NULL;
 
 	/* Post the request */
-	c = kmalloc(sizeof *c, GFP_KERNEL);
+	c = kmalloc(sizeof *c, GFP_NOFS);
 	if (!c) {
 		err = -ENOMEM;
 		goto err_free1;

@@ -26,6 +26,8 @@
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/sched.h>
@@ -339,7 +341,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
     { 0x85, 0x83, "DesignCapacity" },
     { 0x85, 0x85, "ManufacturerDate" },
     { 0x85, 0x89, "iDeviceChemistry" },
-    { 0x85, 0x8b, "Rechargable" },
+    { 0x85, 0x8b, "Rechargeable" },
     { 0x85, 0x8f, "iOEMInformation" },
     { 0x85, 0x8d, "CapacityGranularity1" },
     { 0x85, 0xd0, "ACPresent" },
@@ -393,7 +395,7 @@ char *hid_resolv_usage(unsigned usage, struct seq_file *f) {
 
 	buf = resolv_usage_page(usage >> 16, f);
 	if (IS_ERR(buf)) {
-		printk(KERN_ERR "error allocating HID debug buffer\n");
+		pr_err("error allocating HID debug buffer\n");
 		return NULL;
 	}
 

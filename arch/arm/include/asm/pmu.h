@@ -12,9 +12,23 @@
 #ifndef __ARM_PMU_H__
 #define __ARM_PMU_H__
 
+#include <linux/interrupt.h>
+
 enum arm_pmu_type {
 	ARM_PMU_DEVICE_CPU	= 0,
 	ARM_NUM_PMU_DEVICES,
+};
+
+/*
+ * struct arm_pmu_platdata - ARM PMU platform data
+ *
+ * @handle_irq: an optional handler which will be called from the interrupt and
+ * passed the address of the low level handler, and can be used to implement
+ * any platform specific handling before or after calling it.
+ */
+struct arm_pmu_platdata {
+	irqreturn_t (*handle_irq)(int irq, void *dev,
+				  irq_handler_t pmu_handler);
 };
 
 #ifdef CONFIG_CPU_HAS_PMU

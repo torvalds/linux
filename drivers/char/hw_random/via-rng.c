@@ -24,6 +24,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <crypto/padlock.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/hw_random.h>
@@ -34,7 +35,6 @@
 #include <asm/i387.h>
 
 
-#define PFX	KBUILD_MODNAME ": "
 
 
 enum {
@@ -81,8 +81,7 @@ static inline u32 xstore(u32 *addr, u32 edx_in)
 	ts_state = irq_ts_save();
 
 	asm(".byte 0x0F,0xA7,0xC0 /* xstore %%edi (addr=%0) */"
-		:"=m"(*addr), "=a"(eax_out)
-		:"D"(addr), "d"(edx_in));
+		: "=m" (*addr), "=a" (eax_out), "+d" (edx_in), "+D" (addr));
 
 	irq_ts_restore(ts_state);
 	return eax_out;
@@ -90,8 +89,10 @@ static inline u32 xstore(u32 *addr, u32 edx_in)
 
 static int via_rng_data_present(struct hwrng *rng, int wait)
 {
+	char buf[16 + PADLOCK_ALIGNMENT - STACK_ALIGN] __attribute__
+		((aligned(STACK_ALIGN)));
+	u32 *via_rng_datum = (u32 *)PTR_ALIGN(&buf[0], PADLOCK_ALIGNMENT);
 	u32 bytes_out;
-	u32 *via_rng_datum = (u32 *)(&rng->priv);
 	int i;
 
 	/* We choose the recommended 1-byte-per-instruction RNG rate,
@@ -115,6 +116,7 @@ static int via_rng_data_present(struct hwrng *rng, int wait)
 			break;
 		udelay(10);
 	}
+	rng->priv = *via_rng_datum;
 	return bytes_out ? 1 : 0;
 }
 

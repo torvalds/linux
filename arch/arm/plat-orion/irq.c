@@ -14,31 +14,31 @@
 #include <linux/io.h>
 #include <plat/irq.h>
 
-static void orion_irq_mask(u32 irq)
+static void orion_irq_mask(struct irq_data *d)
 {
-	void __iomem *maskaddr = get_irq_chip_data(irq);
+	void __iomem *maskaddr = irq_data_get_irq_chip_data(d);
 	u32 mask;
 
 	mask = readl(maskaddr);
-	mask &= ~(1 << (irq & 31));
+	mask &= ~(1 << (d->irq & 31));
 	writel(mask, maskaddr);
 }
 
-static void orion_irq_unmask(u32 irq)
+static void orion_irq_unmask(struct irq_data *d)
 {
-	void __iomem *maskaddr = get_irq_chip_data(irq);
+	void __iomem *maskaddr = irq_data_get_irq_chip_data(d);
 	u32 mask;
 
 	mask = readl(maskaddr);
-	mask |= 1 << (irq & 31);
+	mask |= 1 << (d->irq & 31);
 	writel(mask, maskaddr);
 }
 
 static struct irq_chip orion_irq_chip = {
 	.name		= "orion_irq",
-	.mask		= orion_irq_mask,
-	.mask_ack	= orion_irq_mask,
-	.unmask		= orion_irq_unmask,
+	.irq_mask	= orion_irq_mask,
+	.irq_mask_ack	= orion_irq_mask,
+	.irq_unmask	= orion_irq_unmask,
 };
 
 void __init orion_irq_init(unsigned int irq_start, void __iomem *maskaddr)
@@ -56,10 +56,10 @@ void __init orion_irq_init(unsigned int irq_start, void __iomem *maskaddr)
 	for (i = 0; i < 32; i++) {
 		unsigned int irq = irq_start + i;
 
-		set_irq_chip(irq, &orion_irq_chip);
-		set_irq_chip_data(irq, maskaddr);
-		set_irq_handler(irq, handle_level_irq);
-		irq_desc[irq].status |= IRQ_LEVEL;
+		irq_set_chip_and_handler(irq, &orion_irq_chip,
+					 handle_level_irq);
+		irq_set_chip_data(irq, maskaddr);
+		irq_set_status_flags(irq, IRQ_LEVEL);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 }

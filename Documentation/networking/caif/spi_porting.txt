@@ -32,7 +32,7 @@ the physical hardware, both with regard to SPI and to GPIOs.
 	This function is called by the CAIF SPI interface to give
 	you a chance to set up your hardware to be ready to receive
 	a stream of data from the master. The xfer structure contains
-	both physical and logical adresses, as well as the total length
+	both physical and logical addresses, as well as the total length
 	of the transfer in both directions.The dev parameter can be used
 	to map to different CAIF SPI slave devices.
 
@@ -150,7 +150,7 @@ static int sspi_init_xfer(struct cfspi_xfer *xfer, struct cfspi_dev *dev)
 void sspi_sig_xfer(bool xfer, struct cfspi_dev *dev)
 {
 	/* If xfer is true then you should assert the SPI_INT to indicate to
-	 * the master that you are ready to recieve the data from the master
+	 * the master that you are ready to receive the data from the master
 	 * SPI. If xfer is false then you should de-assert SPI_INT to indicate
 	 * that the transfer is done.
 	 */

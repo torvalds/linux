@@ -26,6 +26,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/acpi_io.h>
 #include <acpi/video.h>
 
 #include "drmP.h"
@@ -38,6 +39,8 @@
 
 #define OPREGION_HEADER_OFFSET 0
 #define OPREGION_ACPI_OFFSET   0x100
+#define   ACPI_CLID 0x01ac /* current lid state indicator */
+#define   ACPI_CDCK 0x01b0 /* current docking state indicator */
 #define OPREGION_SWSCI_OFFSET  0x200
 #define OPREGION_ASLE_OFFSET   0x300
 #define OPREGION_VBT_OFFSET    0x400
@@ -273,14 +276,8 @@ void intel_opregion_enable_asle(struct drm_device *dev)
 	struct opregion_asle *asle = dev_priv->opregion.asle;
 
 	if (asle) {
-		if (IS_MOBILE(dev)) {
-			unsigned long irqflags;
-
-			spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
+		if (IS_MOBILE(dev))
 			intel_enable_asle(dev);
-			spin_unlock_irqrestore(&dev_priv->user_irq_lock,
-					       irqflags);
-		}
 
 		asle->tche = ASLE_ALS_EN | ASLE_BLC_EN | ASLE_PFIT_EN |
 			ASLE_PFMB_EN;
@@ -482,7 +479,7 @@ int intel_opregion_setup(struct drm_device *dev)
 		return -ENOTSUPP;
 	}
 
-	base = ioremap(asls, OPREGION_SIZE);
+	base = acpi_os_ioremap(asls, OPREGION_SIZE);
 	if (!base)
 		return -ENOMEM;
 
@@ -493,6 +490,8 @@ int intel_opregion_setup(struct drm_device *dev)
 	}
 	opregion->header = base;
 	opregion->vbt = base + OPREGION_VBT_OFFSET;
+
+	opregion->lid_state = base + ACPI_CLID;
 
 	mboxes = opregion->header->mboxes;
 	if (mboxes & MBOX_ACPI) {

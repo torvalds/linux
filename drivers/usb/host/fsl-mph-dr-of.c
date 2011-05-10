@@ -262,19 +262,24 @@ static void fsl_usb2_mpc5121_exit(struct platform_device *pdev)
 	}
 }
 
-struct fsl_usb2_platform_data fsl_usb2_mpc5121_pd = {
+static struct fsl_usb2_platform_data fsl_usb2_mpc5121_pd = {
 	.big_endian_desc = 1,
 	.big_endian_mmio = 1,
 	.es = 1,
+	.have_sysif_regs = 0,
 	.le_setup_buf = 1,
 	.init = fsl_usb2_mpc5121_init,
 	.exit = fsl_usb2_mpc5121_exit,
 };
 #endif /* CONFIG_PPC_MPC512x */
 
+static struct fsl_usb2_platform_data fsl_usb2_mpc8xxx_pd = {
+	.have_sysif_regs = 1,
+};
+
 static const struct of_device_id fsl_usb2_mph_dr_of_match[] = {
-	{ .compatible = "fsl-usb2-mph", },
-	{ .compatible = "fsl-usb2-dr", },
+	{ .compatible = "fsl-usb2-mph", .data = &fsl_usb2_mpc8xxx_pd, },
+	{ .compatible = "fsl-usb2-dr", .data = &fsl_usb2_mpc8xxx_pd, },
 #ifdef CONFIG_PPC_MPC512x
 	{ .compatible = "fsl,mpc5121-usb2-dr", .data = &fsl_usb2_mpc5121_pd, },
 #endif

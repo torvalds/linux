@@ -51,7 +51,7 @@ static struct snd_ps3_card_info the_card;
 static int snd_ps3_start_delay = CONFIG_SND_PS3_DEFAULT_START_DELAY;
 
 module_param_named(start_delay, snd_ps3_start_delay, uint, 0644);
-MODULE_PARM_DESC(start_delay, "time to insert silent data in milisec");
+MODULE_PARM_DESC(start_delay, "time to insert silent data in ms");
 
 static int index = SNDRV_DEFAULT_IDX1;
 static char *id = SNDRV_DEFAULT_STR1;
@@ -358,7 +358,7 @@ static irqreturn_t snd_ps3_interrupt(int irq, void *dev_id)
 		 * filling dummy data, serial automatically start to
 		 * consume them and then will generate normal buffer
 		 * empty interrupts.
-		 * If both buffer underflow and buffer empty are occured,
+		 * If both buffer underflow and buffer empty are occurred,
 		 * it is better to do nomal data transfer than empty one
 		 */
 		snd_ps3_program_dma(card,

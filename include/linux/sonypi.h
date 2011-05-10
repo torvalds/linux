@@ -40,6 +40,7 @@
 
 /* events the user application reading /dev/sonypi can use */
 
+#define SONYPI_EVENT_IGNORE			 0
 #define SONYPI_EVENT_JOGDIAL_DOWN		 1
 #define SONYPI_EVENT_JOGDIAL_UP			 2
 #define SONYPI_EVENT_JOGDIAL_DOWN_PRESSED	 3
@@ -112,6 +113,7 @@
 #define SONYPI_EVENT_VOLUME_DEC_PRESSED		70
 #define SONYPI_EVENT_BRIGHTNESS_PRESSED		71
 #define SONYPI_EVENT_MEDIA_PRESSED		72
+#define SONYPI_EVENT_VENDOR_PRESSED		73
 
 /* get/set brightness */
 #define SONYPI_IOCGBRT		_IOR('v', 0, __u8)

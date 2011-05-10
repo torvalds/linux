@@ -28,11 +28,9 @@
 	dev_warn (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
 
 #ifdef VERBOSE_DEBUG
-#	define vdbg dbg
 #	define ehci_vdbg ehci_dbg
 #else
-#	define vdbg(fmt,args...) do { } while (0)
-#	define ehci_vdbg(ehci, fmt, args...) do { } while (0)
+	static inline void ehci_vdbg(struct ehci_hcd *ehci, ...) {}
 #endif
 
 #ifdef	DEBUG
@@ -879,7 +877,7 @@ static int fill_buffer(struct debug_buffer *buf)
 	int ret = 0;
 
 	if (!buf->output_buf)
-		buf->output_buf = (char *)vmalloc(buf->alloc_size);
+		buf->output_buf = vmalloc(buf->alloc_size);
 
 	if (!buf->output_buf) {
 		ret = -ENOMEM;

@@ -607,7 +607,7 @@ static void spca500_reinit(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x00, 0x8880, 2);
 	/* family cam Quicksmart stuff */
 	reg_w(gspca_dev, 0x00, 0x800a, 0x00);
-	/* Set agc transfer: synced inbetween frames */
+	/* Set agc transfer: synced between frames */
 	reg_w(gspca_dev, 0x00, 0x820f, 0x01);
 	/* Init SDRAM - needed for SDRAM access */
 	reg_w(gspca_dev, 0x00, 0x870a, 0x04);
@@ -831,7 +831,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 		/* familycam Quicksmart pocketDV stuff */
 		reg_w(gspca_dev, 0x00, 0x800a, 0x00);
-		/* Set agc transfer: synced inbetween frames */
+		/* Set agc transfer: synced between frames */
 		reg_w(gspca_dev, 0x00, 0x820f, 0x01);
 		/* Init SDRAM - needed for SDRAM access */
 		reg_w(gspca_dev, 0x00, 0x870a, 0x04);
@@ -1051,7 +1051,7 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x040a, 0x0300), .driver_info = KodakEZ200},
 	{USB_DEVICE(0x041e, 0x400a), .driver_info = CreativePCCam300},
 	{USB_DEVICE(0x046d, 0x0890), .driver_info = LogitechTraveler},

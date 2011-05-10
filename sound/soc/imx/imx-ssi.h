@@ -234,7 +234,4 @@ void imx_pcm_free(struct snd_pcm *pcm);
  */
 #define IMX_SSI_DMABUF_SIZE	(64 * 1024)
 
-#define DMA_RXFIFO_BURST      0x4
-#define DMA_TXFIFO_BURST      0x6
-
 #endif /* _IMX_SSI_H */

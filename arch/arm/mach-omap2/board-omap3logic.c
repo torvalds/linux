@@ -195,19 +195,16 @@ static inline void __init board_smsc911x_init(void)
 	gpmc_smsc911x_init(&board_smsc911x_data);
 }
 
-static void __init omap3logic_init_irq(void)
+static void __init omap3logic_init_early(void)
 {
-	omap2_init_common_hw(NULL, NULL);
-	omap_init_irq();
-	omap_gpio_init();
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(NULL, NULL);
 }
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
-#else
-#define board_mux       NULL
 #endif
 
 static void __init omap3logic_init(void)
@@ -227,7 +224,8 @@ static void __init omap3logic_init(void)
 MACHINE_START(OMAP3_TORPEDO, "Logic OMAP3 Torpedo board")
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
-	.init_irq	= omap3logic_init_irq,
+	.init_early	= omap3logic_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= omap3logic_init,
 	.timer		= &omap_timer,
 MACHINE_END
@@ -235,7 +233,8 @@ MACHINE_END
 MACHINE_START(OMAP3530_LV_SOM, "OMAP Logic 3530 LV SOM board")
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
-	.init_irq	= omap3logic_init_irq,
+	.init_early	= omap3logic_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= omap3logic_init,
 	.timer		= &omap_timer,
 MACHINE_END

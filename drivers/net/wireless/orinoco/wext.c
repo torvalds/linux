@@ -893,6 +893,14 @@ static int orinoco_ioctl_set_auth(struct net_device *dev,
 		 */
 		break;
 
+	case IW_AUTH_MFP:
+		/* Management Frame Protection not supported.
+		 * Only fail if set to required.
+		 */
+		if (param->value == IW_AUTH_MFP_REQUIRED)
+			ret = -EINVAL;
+		break;
+
 	case IW_AUTH_KEY_MGMT:
 		/* wl_lkm implies value 2 == PSK for Hermes I
 		 * which ties in with WEXT
@@ -911,10 +919,10 @@ static int orinoco_ioctl_set_auth(struct net_device *dev,
 		 */
 		if (param->value) {
 			priv->tkip_cm_active = 1;
-			ret = hermes_enable_port(hw, 0);
+			ret = hermes_disable_port(hw, 0);
 		} else {
 			priv->tkip_cm_active = 0;
-			ret = hermes_disable_port(hw, 0);
+			ret = hermes_enable_port(hw, 0);
 		}
 		break;
 

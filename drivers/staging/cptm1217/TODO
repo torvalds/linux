@@ -1,0 +1,5 @@
+- Wait for the official upstream general clearpad drivers as promised over
+  the past few months
+- Merge any device support needed from this driver into it
+- Delete this driver
+

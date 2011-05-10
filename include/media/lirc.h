@@ -137,7 +137,7 @@
  */
 #define LIRC_SET_REC_FILTER_SPACE      _IOW('i', 0x0000001b, __u32)
 /*
- * if filter cannot be set independantly for pulse/space, this should
+ * if filter cannot be set independently for pulse/space, this should
  * be used
  */
 #define LIRC_SET_REC_FILTER            _IOW('i', 0x0000001c, __u32)

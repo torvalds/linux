@@ -44,17 +44,16 @@
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
 #define INNOVATOR1610_ETHR_START	0x04000300
 
-static int innovator_keymap[] = {
+static const unsigned int innovator_keymap[] = {
 	KEY(0, 0, KEY_F1),
-	KEY(0, 3, KEY_DOWN),
+	KEY(3, 0, KEY_DOWN),
 	KEY(1, 1, KEY_F2),
-	KEY(1, 2, KEY_RIGHT),
-	KEY(2, 0, KEY_F3),
-	KEY(2, 1, KEY_F4),
+	KEY(2, 1, KEY_RIGHT),
+	KEY(0, 2, KEY_F3),
+	KEY(1, 2, KEY_F4),
 	KEY(2, 2, KEY_UP),
-	KEY(3, 2, KEY_ENTER),
+	KEY(2, 3, KEY_ENTER),
 	KEY(3, 3, KEY_LEFT),
-	0
 };
 
 static struct mtd_partition innovator_partitions[] = {
@@ -126,11 +125,15 @@ static struct resource innovator_kp_resources[] = {
 	},
 };
 
+static const struct matrix_keymap_data innovator_keymap_data = {
+	.keymap		= innovator_keymap,
+	.keymap_size	= ARRAY_SIZE(innovator_keymap),
+};
+
 static struct omap_kp_platform_data innovator_kp_data = {
 	.rows		= 8,
 	.cols		= 8,
-	.keymap		= innovator_keymap,
-	.keymapsize	= ARRAY_SIZE(innovator_keymap),
+	.keymap_data	= &innovator_keymap_data,
 	.delay		= 4,
 };
 
@@ -290,13 +293,6 @@ static void __init innovator_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
-#ifdef CONFIG_ARCH_OMAP15XX
-	if (cpu_is_omap1510()) {
-		omap1510_fpga_init_irq();
-	}
-#endif
-	innovator_init_smc91x();
 }
 
 #ifdef CONFIG_ARCH_OMAP15XX
@@ -369,7 +365,7 @@ static struct omap_mmc_platform_data mmc1_data = {
 
 static struct omap_mmc_platform_data *mmc_data[OMAP16XX_NR_MMC];
 
-void __init innovator_mmc_init(void)
+static void __init innovator_mmc_init(void)
 {
 	mmc_data[0] = &mmc1_data;
 	omap1_init_mmc(mmc_data, OMAP15XX_NR_MMC);
@@ -387,6 +383,10 @@ static struct omap_board_config_kernel innovator_config[] = {
 
 static void __init innovator_init(void)
 {
+	if (cpu_is_omap1510())
+		omap1510_fpga_init_irq();
+	innovator_init_smc91x();
+
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		unsigned char reg;

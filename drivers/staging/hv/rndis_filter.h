@@ -50,6 +50,6 @@
 
 /* Interface */
 
-extern int RndisFilterInit(struct netvsc_driver *driver);
+extern int rndis_filter_init(struct netvsc_driver *driver);
 
 #endif /* _RNDISFILTER_H_ */

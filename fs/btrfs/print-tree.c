@@ -260,6 +260,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 #else
 			BUG();
 #endif
+			break;
 		case BTRFS_BLOCK_GROUP_ITEM_KEY:
 			bi = btrfs_item_ptr(l, i,
 					    struct btrfs_block_group_item);

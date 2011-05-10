@@ -10,12 +10,8 @@
  */
 #include "headers.h"
 
-INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter,
-						  PVOID ioBuffer,
-						  ULONG inputBufferLength)
+INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter, S_MIBS_HOST_STATS_MIBS *pstHostMibs)
 {
-
-	S_MIBS_HOST_STATS_MIBS *pstHostMibs         = NULL;
 	S_SERVICEFLOW_ENTRY    *pstServiceFlowEntry = NULL;
 	S_PHS_RULE             *pstPhsRule          = NULL;
 	S_CLASSIFIER_TABLE     *pstClassifierTable  = NULL;
@@ -29,15 +25,6 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter,
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, HOST_MIBS, DBG_LVL_ALL, "Invalid Device Extension\n");
 		return STATUS_FAILURE;
 	}
-
-	if(ioBuffer == NULL)
-	{
-		return -EINVAL;
-	}
-	memset(ioBuffer,0,sizeof(S_MIBS_HOST_STATS_MIBS));
-
-	pstHostMibs = (S_MIBS_HOST_STATS_MIBS *)ioBuffer;
-
 
 	//Copy the classifier Table
 	for(nClassifierIndex=0; nClassifierIndex < MAX_CLASSIFIERS;
@@ -54,7 +41,7 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter,
 	{
 	if(Adapter->PackInfo[nSfIndex].bValid)
 	{
-			OsalMemMove((PVOID)&pstHostMibs->astSFtable[nSfIndex],(PVOID)&Adapter->PackInfo[nSfIndex],sizeof(S_MIBS_SERVICEFLOW_TABLE));
+			memcpy((PVOID)&pstHostMibs->astSFtable[nSfIndex],(PVOID)&Adapter->PackInfo[nSfIndex],sizeof(S_MIBS_SERVICEFLOW_TABLE));
 	}
 	else
 	{
@@ -83,7 +70,7 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter,
 
 			pstHostMibs->astPhsRulesTable[nPhsTableIndex].ulSFID = Adapter->PackInfo[nSfIndex].ulSFID;
 
-			OsalMemMove(&pstHostMibs->astPhsRulesTable[nPhsTableIndex].u8PHSI,
+			memcpy(&pstHostMibs->astPhsRulesTable[nPhsTableIndex].u8PHSI,
 						&pstPhsRule->u8PHSI,
 						sizeof(S_PHS_RULE));
 				nPhsTableIndex++;
@@ -95,12 +82,9 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter,
 	}
 
 
-
 	//copy other Host Statistics parameters
-	pstHostMibs->stHostInfo.GoodTransmits =
-				atomic_read(&Adapter->TxTotalPacketCount);
-	pstHostMibs->stHostInfo.GoodReceives =
-				atomic_read(&Adapter->GoodRxPktCount);
+	pstHostMibs->stHostInfo.GoodTransmits = Adapter->dev->stats.tx_packets;
+	pstHostMibs->stHostInfo.GoodReceives = Adapter->dev->stats.rx_packets;
 	pstHostMibs->stHostInfo.CurrNumFreeDesc =
 			atomic_read(&Adapter->CurrNumFreeTxDesc);
 	pstHostMibs->stHostInfo.BEBucketSize = Adapter->BEBucketSize;
@@ -115,13 +99,10 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter,
 }
 
 
-INT GetDroppedAppCntrlPktMibs(PVOID ioBuffer, PPER_TARANG_DATA pTarang)
+VOID GetDroppedAppCntrlPktMibs(S_MIBS_HOST_STATS_MIBS *pstHostMibs, const PPER_TARANG_DATA pTarang)
 {
-	S_MIBS_HOST_STATS_MIBS *pstHostMibs = (S_MIBS_HOST_STATS_MIBS *)ioBuffer;
-
-	memcpy((PVOID)&(pstHostMibs->stDroppedAppCntrlMsgs),(PVOID)&(pTarang->stDroppedAppCntrlMsgs),sizeof(S_MIBS_DROPPED_APP_CNTRL_MESSAGES));
-
-	return STATUS_SUCCESS ;
+	memcpy(&(pstHostMibs->stDroppedAppCntrlMsgs),
+	       &(pTarang->stDroppedAppCntrlMsgs),sizeof(S_MIBS_DROPPED_APP_CNTRL_MESSAGES));
 }
 
 

@@ -1,6 +1,10 @@
 #ifndef __ACPI_VIDEO_H
 #define __ACPI_VIDEO_H
 
+#include <linux/errno.h> /* for ENODEV */
+
+struct acpi_device;
+
 #define ACPI_VIDEO_DISPLAY_CRT  1
 #define ACPI_VIDEO_DISPLAY_TV   2
 #define ACPI_VIDEO_DISPLAY_DVI  3
@@ -26,4 +30,3 @@ static inline int acpi_video_get_edid(struct acpi_device *device, int type,
 #endif
 
 #endif
-

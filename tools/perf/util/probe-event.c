@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <limits.h>
+#include <elf.h>
 
 #undef _GNU_SOURCE
 #include "util.h"
@@ -95,7 +96,7 @@ static int init_vmlinux(void)
 		goto out;
 
 	if (machine__create_kernel_maps(&machine) < 0) {
-		pr_debug("machine__create_kernel_maps ");
+		pr_debug("machine__create_kernel_maps() failed.\n");
 		goto out;
 	}
 out:
@@ -111,9 +112,29 @@ static struct symbol *__find_kernel_function_by_name(const char *name,
 						     NULL);
 }
 
-const char *kernel_get_module_path(const char *module)
+static struct map *kernel_get_module_map(const char *module)
+{
+	struct rb_node *nd;
+	struct map_groups *grp = &machine.kmaps;
+
+	if (!module)
+		module = "kernel";
+
+	for (nd = rb_first(&grp->maps[MAP__FUNCTION]); nd; nd = rb_next(nd)) {
+		struct map *pos = rb_entry(nd, struct map, rb_node);
+		if (strncmp(pos->dso->short_name + 1, module,
+			    pos->dso->short_name_len - 2) == 0) {
+			return pos;
+		}
+	}
+	return NULL;
+}
+
+static struct dso *kernel_get_module_dso(const char *module)
 {
 	struct dso *dso;
+	struct map *map;
+	const char *vmlinux_name;
 
 	if (module) {
 		list_for_each_entry(dso, &machine.kernel_dsos, node) {
@@ -123,16 +144,29 @@ const char *kernel_get_module_path(const char *module)
 		}
 		pr_debug("Failed to find module %s.\n", module);
 		return NULL;
+	}
+
+	map = machine.vmlinux_maps[MAP__FUNCTION];
+	dso = map->dso;
+
+	vmlinux_name = symbol_conf.vmlinux_name;
+	if (vmlinux_name) {
+		if (dso__load_vmlinux(dso, map, vmlinux_name, NULL) <= 0)
+			return NULL;
 	} else {
-		dso = machine.vmlinux_maps[MAP__FUNCTION]->dso;
-		if (dso__load_vmlinux_path(dso,
-			 machine.vmlinux_maps[MAP__FUNCTION], NULL) < 0) {
+		if (dso__load_vmlinux_path(dso, map, NULL) <= 0) {
 			pr_debug("Failed to load kernel map.\n");
 			return NULL;
 		}
 	}
 found:
-	return dso->long_name;
+	return dso;
+}
+
+const char *kernel_get_module_path(const char *module)
+{
+	struct dso *dso = kernel_get_module_dso(module);
+	return (dso) ? dso->long_name : NULL;
 }
 
 #ifdef DWARF_SUPPORT
@@ -140,7 +174,8 @@ static int open_vmlinux(const char *module)
 {
 	const char *path = kernel_get_module_path(module);
 	if (!path) {
-		pr_err("Failed to find path of %s module", module ?: "kernel");
+		pr_err("Failed to find path of %s module.\n",
+		       module ?: "kernel");
 		return -ENOENT;
 	}
 	pr_debug("Try to open %s\n", path);
@@ -162,7 +197,7 @@ static int kprobe_convert_to_perf_probe(struct probe_trace_point *tp,
 	sym = __find_kernel_function_by_name(tp->symbol, &map);
 	if (sym) {
 		addr = map->unmap_ip(map, sym->start + tp->offset);
-		pr_debug("try to find %s+%ld@%llx\n", tp->symbol,
+		pr_debug("try to find %s+%ld@%" PRIx64 "\n", tp->symbol,
 			 tp->offset, addr);
 		ret = find_perf_probe_point((unsigned long)addr, pp);
 	}
@@ -199,7 +234,6 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 
 	/* Searching trace events corresponding to probe event */
 	ntevs = find_probe_trace_events(fd, pev, tevs, max_tevs);
-	close(fd);
 
 	if (ntevs > 0) {	/* Succeeded to find trace events */
 		pr_debug("find %d probe_trace_events.\n", ntevs);
@@ -217,7 +251,7 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 		pr_warning("Warning: No dwarf info found in the vmlinux - "
 			"please rebuild kernel with CONFIG_DEBUG_INFO=y.\n");
 		if (!need_dwarf) {
-			pr_debug("Trying to use symbols.\nn");
+			pr_debug("Trying to use symbols.\n");
 			return 0;
 		}
 	}
@@ -286,41 +320,48 @@ static int get_real_path(const char *raw_path, const char *comp_dir,
 #define LINEBUF_SIZE 256
 #define NR_ADDITIONAL_LINES 2
 
-static int show_one_line(FILE *fp, int l, bool skip, bool show_num)
+static int __show_one_line(FILE *fp, int l, bool skip, bool show_num)
 {
 	char buf[LINEBUF_SIZE];
-	const char *color = PERF_COLOR_BLUE;
+	const char *color = show_num ? "" : PERF_COLOR_BLUE;
+	const char *prefix = NULL;
 
-	if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
-		goto error;
-	if (!skip) {
-		if (show_num)
-			fprintf(stdout, "%7d  %s", l, buf);
-		else
-			color_fprintf(stdout, color, "         %s", buf);
-	}
-
-	while (strlen(buf) == LINEBUF_SIZE - 1 &&
-	       buf[LINEBUF_SIZE - 2] != '\n') {
+	do {
 		if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
 			goto error;
-		if (!skip) {
-			if (show_num)
-				fprintf(stdout, "%s", buf);
-			else
-				color_fprintf(stdout, color, "%s", buf);
+		if (skip)
+			continue;
+		if (!prefix) {
+			prefix = show_num ? "%7d  " : "         ";
+			color_fprintf(stdout, color, prefix, l);
 		}
-	}
+		color_fprintf(stdout, color, "%s", buf);
 
-	return 0;
+	} while (strchr(buf, '\n') == NULL);
+
+	return 1;
 error:
-	if (feof(fp))
-		pr_warning("Source file is shorter than expected.\n");
-	else
+	if (ferror(fp)) {
 		pr_warning("File read error: %s\n", strerror(errno));
-
-	return -1;
+		return -1;
+	}
+	return 0;
 }
+
+static int _show_one_line(FILE *fp, int l, bool skip, bool show_num)
+{
+	int rv = __show_one_line(fp, l, skip, show_num);
+	if (rv == 0) {
+		pr_warning("Source file is shorter than expected.\n");
+		rv = -1;
+	}
+	return rv;
+}
+
+#define show_one_line_with_num(f,l)	_show_one_line(f,l,false,true)
+#define show_one_line(f,l)		_show_one_line(f,l,false,false)
+#define skip_one_line(f,l)		_show_one_line(f,l,true,false)
+#define show_one_line_or_eof(f,l)	__show_one_line(f,l,false,false)
 
 /*
  * Show line-range always requires debuginfo to find source file and
@@ -346,7 +387,6 @@ int show_line_range(struct line_range *lr, const char *module)
 	}
 
 	ret = find_line_range(fd, lr);
-	close(fd);
 	if (ret == 0) {
 		pr_warning("Specified source line is not found.\n");
 		return -ENOENT;
@@ -367,10 +407,10 @@ int show_line_range(struct line_range *lr, const char *module)
 	setup_pager();
 
 	if (lr->function)
-		fprintf(stdout, "<%s:%d>\n", lr->function,
+		fprintf(stdout, "<%s@%s:%d>\n", lr->function, lr->path,
 			lr->start - lr->offset);
 	else
-		fprintf(stdout, "<%s:%d>\n", lr->file, lr->start);
+		fprintf(stdout, "<%s:%d>\n", lr->path, lr->start);
 
 	fp = fopen(lr->path, "r");
 	if (fp == NULL) {
@@ -379,38 +419,44 @@ int show_line_range(struct line_range *lr, const char *module)
 		return -errno;
 	}
 	/* Skip to starting line number */
-	while (l < lr->start && ret >= 0)
-		ret = show_one_line(fp, l++, true, false);
-	if (ret < 0)
-		goto end;
+	while (l < lr->start) {
+		ret = skip_one_line(fp, l++);
+		if (ret < 0)
+			goto end;
+	}
 
 	list_for_each_entry(ln, &lr->line_list, list) {
-		while (ln->line > l && ret >= 0)
-			ret = show_one_line(fp, (l++) - lr->offset,
-					    false, false);
-		if (ret >= 0)
-			ret = show_one_line(fp, (l++) - lr->offset,
-					    false, true);
+		for (; ln->line > l; l++) {
+			ret = show_one_line(fp, l - lr->offset);
+			if (ret < 0)
+				goto end;
+		}
+		ret = show_one_line_with_num(fp, l++ - lr->offset);
 		if (ret < 0)
 			goto end;
 	}
 
 	if (lr->end == INT_MAX)
 		lr->end = l + NR_ADDITIONAL_LINES;
-	while (l <= lr->end && !feof(fp) && ret >= 0)
-		ret = show_one_line(fp, (l++) - lr->offset, false, false);
+	while (l <= lr->end) {
+		ret = show_one_line_or_eof(fp, l++ - lr->offset);
+		if (ret <= 0)
+			break;
+	}
 end:
 	fclose(fp);
 	return ret;
 }
 
 static int show_available_vars_at(int fd, struct perf_probe_event *pev,
-				  int max_vls, bool externs)
+				  int max_vls, struct strfilter *_filter,
+				  bool externs)
 {
 	char *buf;
-	int ret, i;
+	int ret, i, nvars;
 	struct str_node *node;
 	struct variable_list *vls = NULL, *vl;
+	const char *var;
 
 	buf = synthesize_perf_probe_point(&pev->point);
 	if (!buf)
@@ -418,36 +464,45 @@ static int show_available_vars_at(int fd, struct perf_probe_event *pev,
 	pr_debug("Searching variables at %s\n", buf);
 
 	ret = find_available_vars_at(fd, pev, &vls, max_vls, externs);
-	if (ret > 0) {
-		/* Some variables were found */
-		fprintf(stdout, "Available variables at %s\n", buf);
-		for (i = 0; i < ret; i++) {
-			vl = &vls[i];
-			/*
-			 * A probe point might be converted to
-			 * several trace points.
-			 */
-			fprintf(stdout, "\t@<%s+%lu>\n", vl->point.symbol,
-				vl->point.offset);
-			free(vl->point.symbol);
-			if (vl->vars) {
-				strlist__for_each(node, vl->vars)
-					fprintf(stdout, "\t\t%s\n", node->s);
-				strlist__delete(vl->vars);
-			} else
-				fprintf(stdout, "(No variables)\n");
-		}
-		free(vls);
-	} else
+	if (ret <= 0) {
 		pr_err("Failed to find variables at %s (%d)\n", buf, ret);
-
+		goto end;
+	}
+	/* Some variables are found */
+	fprintf(stdout, "Available variables at %s\n", buf);
+	for (i = 0; i < ret; i++) {
+		vl = &vls[i];
+		/*
+		 * A probe point might be converted to
+		 * several trace points.
+		 */
+		fprintf(stdout, "\t@<%s+%lu>\n", vl->point.symbol,
+			vl->point.offset);
+		free(vl->point.symbol);
+		nvars = 0;
+		if (vl->vars) {
+			strlist__for_each(node, vl->vars) {
+				var = strchr(node->s, '\t') + 1;
+				if (strfilter__compare(_filter, var)) {
+					fprintf(stdout, "\t\t%s\n", node->s);
+					nvars++;
+				}
+			}
+			strlist__delete(vl->vars);
+		}
+		if (nvars == 0)
+			fprintf(stdout, "\t\t(No matched variables)\n");
+	}
+	free(vls);
+end:
 	free(buf);
 	return ret;
 }
 
 /* Show available variables on given probe point */
 int show_available_vars(struct perf_probe_event *pevs, int npevs,
-			int max_vls, const char *module, bool externs)
+			int max_vls, const char *module,
+			struct strfilter *_filter, bool externs)
 {
 	int i, fd, ret = 0;
 
@@ -455,18 +510,18 @@ int show_available_vars(struct perf_probe_event *pevs, int npevs,
 	if (ret < 0)
 		return ret;
 
-	fd = open_vmlinux(module);
-	if (fd < 0) {
-		pr_warning("Failed to open debuginfo file.\n");
-		return fd;
-	}
-
 	setup_pager();
 
-	for (i = 0; i < npevs && ret >= 0; i++)
-		ret = show_available_vars_at(fd, &pevs[i], max_vls, externs);
-
-	close(fd);
+	for (i = 0; i < npevs && ret >= 0; i++) {
+		fd = open_vmlinux(module);
+		if (fd < 0) {
+			pr_warning("Failed to open debug information file.\n");
+			ret = fd;
+			break;
+		}
+		ret = show_available_vars_at(fd, &pevs[i], max_vls, _filter,
+					     externs);
+	}
 	return ret;
 }
 
@@ -510,63 +565,105 @@ int show_line_range(struct line_range *lr __unused, const char *module __unused)
 
 int show_available_vars(struct perf_probe_event *pevs __unused,
 			int npevs __unused, int max_vls __unused,
-			const char *module __unused, bool externs __unused)
+			const char *module __unused,
+			struct strfilter *filter __unused,
+			bool externs __unused)
 {
 	pr_warning("Debuginfo-analysis is not supported.\n");
 	return -ENOSYS;
 }
 #endif
 
+static int parse_line_num(char **ptr, int *val, const char *what)
+{
+	const char *start = *ptr;
+
+	errno = 0;
+	*val = strtol(*ptr, ptr, 0);
+	if (errno || *ptr == start) {
+		semantic_error("'%s' is not a valid number.\n", what);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/*
+ * Stuff 'lr' according to the line range described by 'arg'.
+ * The line range syntax is described by:
+ *
+ *         SRC[:SLN[+NUM|-ELN]]
+ *         FNC[@SRC][:SLN[+NUM|-ELN]]
+ */
 int parse_line_range_desc(const char *arg, struct line_range *lr)
 {
-	const char *ptr;
-	char *tmp;
-	/*
-	 * <Syntax>
-	 * SRC:SLN[+NUM|-ELN]
-	 * FUNC[:SLN[+NUM|-ELN]]
-	 */
-	ptr = strchr(arg, ':');
-	if (ptr) {
-		lr->start = (int)strtoul(ptr + 1, &tmp, 0);
-		if (*tmp == '+') {
-			lr->end = lr->start + (int)strtoul(tmp + 1, &tmp, 0);
-			lr->end--;	/*
-					 * Adjust the number of lines here.
-					 * If the number of lines == 1, the
-					 * the end of line should be equal to
-					 * the start of line.
-					 */
-		} else if (*tmp == '-')
-			lr->end = (int)strtoul(tmp + 1, &tmp, 0);
-		else
-			lr->end = INT_MAX;
+	char *range, *file, *name = strdup(arg);
+	int err;
+
+	if (!name)
+		return -ENOMEM;
+
+	lr->start = 0;
+	lr->end = INT_MAX;
+
+	range = strchr(name, ':');
+	if (range) {
+		*range++ = '\0';
+
+		err = parse_line_num(&range, &lr->start, "start line");
+		if (err)
+			goto err;
+
+		if (*range == '+' || *range == '-') {
+			const char c = *range++;
+
+			err = parse_line_num(&range, &lr->end, "end line");
+			if (err)
+				goto err;
+
+			if (c == '+') {
+				lr->end += lr->start;
+				/*
+				 * Adjust the number of lines here.
+				 * If the number of lines == 1, the
+				 * the end of line should be equal to
+				 * the start of line.
+				 */
+				lr->end--;
+			}
+		}
+
 		pr_debug("Line range is %d to %d\n", lr->start, lr->end);
+
+		err = -EINVAL;
 		if (lr->start > lr->end) {
 			semantic_error("Start line must be smaller"
 				       " than end line.\n");
-			return -EINVAL;
+			goto err;
 		}
-		if (*tmp != '\0') {
-			semantic_error("Tailing with invalid character '%d'.\n",
-				       *tmp);
-			return -EINVAL;
+		if (*range != '\0') {
+			semantic_error("Tailing with invalid str '%s'.\n", range);
+			goto err;
 		}
-		tmp = strndup(arg, (ptr - arg));
-	} else {
-		tmp = strdup(arg);
-		lr->end = INT_MAX;
 	}
 
-	if (tmp == NULL)
-		return -ENOMEM;
-
-	if (strchr(tmp, '.'))
-		lr->file = tmp;
+	file = strchr(name, '@');
+	if (file) {
+		*file = '\0';
+		lr->file = strdup(++file);
+		if (lr->file == NULL) {
+			err = -ENOMEM;
+			goto err;
+		}
+		lr->function = name;
+	} else if (strchr(name, '.'))
+		lr->file = name;
 	else
-		lr->function = tmp;
+		lr->function = name;
 
 	return 0;
+err:
+	free(name);
+	return err;
 }
 
 /* Check the name is good for event/group */
@@ -690,39 +787,40 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 
 	/* Exclusion check */
 	if (pp->lazy_line && pp->line) {
-		semantic_error("Lazy pattern can't be used with line number.");
+		semantic_error("Lazy pattern can't be used with"
+			       " line number.\n");
 		return -EINVAL;
 	}
 
 	if (pp->lazy_line && pp->offset) {
-		semantic_error("Lazy pattern can't be used with offset.");
+		semantic_error("Lazy pattern can't be used with offset.\n");
 		return -EINVAL;
 	}
 
 	if (pp->line && pp->offset) {
-		semantic_error("Offset can't be used with line number.");
+		semantic_error("Offset can't be used with line number.\n");
 		return -EINVAL;
 	}
 
 	if (!pp->line && !pp->lazy_line && pp->file && !pp->function) {
 		semantic_error("File always requires line number or "
-			       "lazy pattern.");
+			       "lazy pattern.\n");
 		return -EINVAL;
 	}
 
 	if (pp->offset && !pp->function) {
-		semantic_error("Offset requires an entry function.");
+		semantic_error("Offset requires an entry function.\n");
 		return -EINVAL;
 	}
 
 	if (pp->retprobe && !pp->function) {
-		semantic_error("Return probe requires an entry function.");
+		semantic_error("Return probe requires an entry function.\n");
 		return -EINVAL;
 	}
 
 	if ((pp->offset || pp->line || pp->lazy_line) && pp->retprobe) {
 		semantic_error("Offset/Line/Lazy pattern can't be used with "
-			       "return probe.");
+			       "return probe.\n");
 		return -EINVAL;
 	}
 
@@ -996,7 +1094,7 @@ int synthesize_perf_probe_arg(struct perf_probe_arg *pa, char *buf, size_t len)
 
 	return tmp - buf;
 error:
-	pr_debug("Failed to synthesize perf probe argument: %s",
+	pr_debug("Failed to synthesize perf probe argument: %s\n",
 		 strerror(-ret));
 	return ret;
 }
@@ -1024,13 +1122,13 @@ static char *synthesize_perf_probe_point(struct perf_probe_point *pp)
 			goto error;
 	}
 	if (pp->file) {
-		len = strlen(pp->file) - 31;
-		if (len < 0)
-			len = 0;
-		tmp = strchr(pp->file + len, '/');
-		if (!tmp)
-			tmp = pp->file + len;
-		ret = e_snprintf(file, 32, "@%s", tmp + 1);
+		tmp = pp->file;
+		len = strlen(tmp);
+		if (len > 30) {
+			tmp = strchr(pp->file + len - 30, '/');
+			tmp = tmp ? tmp + 1 : pp->file + len - 30;
+		}
+		ret = e_snprintf(file, 32, "@%s", tmp);
 		if (ret <= 0)
 			goto error;
 	}
@@ -1046,7 +1144,7 @@ static char *synthesize_perf_probe_point(struct perf_probe_point *pp)
 
 	return buf;
 error:
-	pr_debug("Failed to synthesize perf probe point: %s",
+	pr_debug("Failed to synthesize perf probe point: %s\n",
 		 strerror(-ret));
 	if (buf)
 		free(buf);
@@ -1731,9 +1829,12 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
 	}
 
 	/* Loop 2: add all events */
-	for (i = 0; i < npevs && ret >= 0; i++)
+	for (i = 0; i < npevs; i++) {
 		ret = __add_probe_trace_events(pkgs[i].pev, pkgs[i].tevs,
 						pkgs[i].ntevs, force_add);
+		if (ret < 0)
+			break;
+	}
 end:
 	/* Loop 3: cleanup and free trace events  */
 	for (i = 0; i < npevs; i++) {
@@ -1787,7 +1888,7 @@ static int del_trace_probe_event(int fd, const char *group,
 
 	ret = e_snprintf(buf, 128, "%s:%s", group, event);
 	if (ret < 0) {
-		pr_err("Failed to copy event.");
+		pr_err("Failed to copy event.\n");
 		return ret;
 	}
 
@@ -1859,4 +1960,46 @@ int del_perf_probe_events(struct strlist *dellist)
 
 	return ret;
 }
+/* TODO: don't use a global variable for filter ... */
+static struct strfilter *available_func_filter;
 
+/*
+ * If a symbol corresponds to a function with global binding and
+ * matches filter return 0. For all others return 1.
+ */
+static int filter_available_functions(struct map *map __unused,
+				      struct symbol *sym)
+{
+	if (sym->binding == STB_GLOBAL &&
+	    strfilter__compare(available_func_filter, sym->name))
+		return 0;
+	return 1;
+}
+
+int show_available_funcs(const char *module, struct strfilter *_filter)
+{
+	struct map *map;
+	int ret;
+
+	setup_pager();
+
+	ret = init_vmlinux();
+	if (ret < 0)
+		return ret;
+
+	map = kernel_get_module_map(module);
+	if (!map) {
+		pr_err("Failed to find %s map.\n", (module) ? : "kernel");
+		return -EINVAL;
+	}
+	available_func_filter = _filter;
+	if (map__load(map, filter_available_functions)) {
+		pr_err("Failed to load map.\n");
+		return -EINVAL;
+	}
+	if (!dso__sorted_by_name(map->dso, map->type))
+		dso__sort_by_name(map->dso, map->type);
+
+	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
+	return 0;
+}

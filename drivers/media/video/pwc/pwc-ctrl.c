@@ -1386,11 +1386,16 @@ long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 	{
 		ARG_DEF(int, qual)
 
+		if (pdev->iso_init) {
+			ret = -EBUSY;
+			break;
+		}
+
 		ARG_IN(qual)
 		if (ARGR(qual) < 0 || ARGR(qual) > 3)
 			ret = -EINVAL;
 		else
-			ret = pwc_try_video_mode(pdev, pdev->view.x, pdev->view.y, pdev->vframes, ARGR(qual), pdev->vsnapshot);
+			ret = pwc_set_video_mode(pdev, pdev->view.x, pdev->view.y, pdev->vframes, ARGR(qual), pdev->vsnapshot);
 		if (ret >= 0)
 			pdev->vcompression = ARGR(qual);
 		break;

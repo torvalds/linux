@@ -92,7 +92,7 @@ This driver implements support for Winbond W83793G/W83793R chips.
 
 * Chassis
   If the case open alarm triggers, it will stay in this state unless cleared
-  by any write to the sysfs file "chassis".
+  by writing 0 to the sysfs file "intrusion0_alarm".
 
 * VID and VRM
   The VRM version is detected automatically, don't modify the it unless you

@@ -740,12 +740,12 @@ static int setsockopt(struct socket *sock,
 		if (cf_sk->sk.sk_protocol != CAIFPROTO_UTIL)
 			return -ENOPROTOOPT;
 		lock_sock(&(cf_sk->sk));
-		cf_sk->conn_req.param.size = ol;
 		if (ol > sizeof(cf_sk->conn_req.param.data) ||
 			copy_from_user(&cf_sk->conn_req.param.data, ov, ol)) {
 			release_sock(&cf_sk->sk);
 			return -EINVAL;
 		}
+		cf_sk->conn_req.param.size = ol;
 		release_sock(&cf_sk->sk);
 		return 0;
 
@@ -852,7 +852,7 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	sock->state = SS_CONNECTING;
 	sk->sk_state = CAIF_CONNECTING;
 
-	/* Check priority value comming from socket */
+	/* Check priority value coming from socket */
 	/* if priority value is out of range it will be ajusted */
 	if (cf_sk->sk.sk_priority > CAIF_PRIO_MAX)
 		cf_sk->conn_req.priority = CAIF_PRIO_MAX;

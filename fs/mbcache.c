@@ -76,18 +76,6 @@ EXPORT_SYMBOL(mb_cache_entry_find_first);
 EXPORT_SYMBOL(mb_cache_entry_find_next);
 #endif
 
-struct mb_cache {
-	struct list_head		c_cache_list;
-	const char			*c_name;
-	atomic_t			c_entry_count;
-	int				c_max_entries;
-	int				c_bucket_bits;
-	struct kmem_cache		*c_entry_cache;
-	struct list_head		*c_block_hash;
-	struct list_head		*c_index_hash;
-};
-
-
 /*
  * Global data: list of all mbcache's, lru list, and a spinlock for
  * accessing cache data structures on SMP machines. The lru list is
@@ -554,7 +542,7 @@ __mb_cache_entry_find(struct list_head *l, struct list_head *head,
  * mb_cache_entry_find_first()
  *
  * Find the first cache entry on a given device with a certain key in
- * an additional index. Additonal matches can be found with
+ * an additional index. Additional matches can be found with
  * mb_cache_entry_find_next(). Returns NULL if no match was found. The
  * returned cache entry is locked for shared access ("multiple readers").
  *

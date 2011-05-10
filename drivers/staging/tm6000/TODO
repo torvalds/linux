@@ -1,4 +1,6 @@
 There a few things to do before putting this driver in production:
+	- IR NEC with tm5600/6000 TV cards
+	- IR RC5 with tm5600/6000/6010 TV cards
 	- CodingStyle;
 	- Fix audio;
 	- Fix some panic/OOPS conditions.

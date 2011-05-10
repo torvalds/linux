@@ -37,14 +37,14 @@
 unsigned long s3c_irqwake_intallow	= 0x00000006L;
 unsigned long s3c_irqwake_eintallow	= 0xffffffffL;
 
-int s3c_irq_wake(unsigned int irqno, unsigned int state)
+int s3c_irq_wake(struct irq_data *data, unsigned int state)
 {
 	unsigned long irqbit;
 
-	switch (irqno) {
+	switch (data->irq) {
 	case IRQ_RTC_TIC:
 	case IRQ_RTC_ALARM:
-		irqbit = 1 << (irqno + 1 - IRQ_RTC_ALARM);
+		irqbit = 1 << (data->irq + 1 - IRQ_RTC_ALARM);
 		if (!state)
 			s3c_irqwake_intmask |= irqbit;
 		else

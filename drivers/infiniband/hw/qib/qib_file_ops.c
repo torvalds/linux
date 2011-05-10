@@ -1379,17 +1379,17 @@ static int get_a_ctxt(struct file *fp, const struct qib_user_info *uinfo,
 		/* find device (with ACTIVE ports) with fewest ctxts in use */
 		for (ndev = 0; ndev < devmax; ndev++) {
 			struct qib_devdata *dd = qib_lookup(ndev);
-			unsigned cused = 0, cfree = 0;
+			unsigned cused = 0, cfree = 0, pusable = 0;
 			if (!dd)
 				continue;
 			if (port && port <= dd->num_pports &&
 			    usable(dd->pport + port - 1))
-				dusable = 1;
+				pusable = 1;
 			else
 				for (i = 0; i < dd->num_pports; i++)
 					if (usable(dd->pport + i))
-						dusable++;
-			if (!dusable)
+						pusable++;
+			if (!pusable)
 				continue;
 			for (ctxt = dd->first_user_ctxt; ctxt < dd->cfgctxts;
 			     ctxt++)
@@ -1397,7 +1397,7 @@ static int get_a_ctxt(struct file *fp, const struct qib_user_info *uinfo,
 					cused++;
 				else
 					cfree++;
-			if (cfree && cused < inuse) {
+			if (pusable && cfree && cused < inuse) {
 				udd = dd;
 				inuse = cused;
 			}
@@ -1539,7 +1539,7 @@ done_chk_sdma:
 
 		/*
 		 * If process has NOT already set it's affinity, select and
-		 * reserve a processor for it, as a rendevous for all
+		 * reserve a processor for it, as a rendezvous for all
 		 * users of the driver.  If they don't actually later
 		 * set affinity to this cpu, or set it to some other cpu,
 		 * it just means that sooner or later we don't recommend
@@ -1657,7 +1657,7 @@ static int qib_do_user_init(struct file *fp,
 	 * 0 to 1.  So for those chips, we turn it off and then back on.
 	 * This will (very briefly) affect any other open ctxts, but the
 	 * duration is very short, and therefore isn't an issue.  We
-	 * explictly set the in-memory tail copy to 0 beforehand, so we
+	 * explicitly set the in-memory tail copy to 0 beforehand, so we
 	 * don't have to wait to be sure the DMA update has happened
 	 * (chip resets head/tail to 0 on transition to enable).
 	 */

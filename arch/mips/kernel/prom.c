@@ -45,11 +45,9 @@ void __init free_mem_mach(unsigned long addr, unsigned long size)
 	return free_bootmem(addr, size);
 }
 
-u64 __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
+void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 {
-	return virt_to_phys(
-		__alloc_bootmem(size, align, __pa(MAX_DMA_ADDRESS))
-		);
+	return __alloc_bootmem(size, align, __pa(MAX_DMA_ADDRESS));
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -100,7 +98,7 @@ void __init device_tree_init(void)
 		return;
 
 	base = virt_to_phys((void *)initial_boot_params);
-	size = initial_boot_params->totalsize;
+	size = be32_to_cpu(initial_boot_params->totalsize);
 
 	/* Before we do anything, lets reserve the dt blob */
 	reserve_mem_mach(base, size);

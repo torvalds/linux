@@ -34,8 +34,8 @@
 struct bfa_iocfc_intr_attr_s {
 	u8		coalesce;	/*  enable/disable coalescing */
 	u8		rsvd[3];
-	u16	latency;	/*  latency in microseconds   */
-	u16	delay;		/*  delay in microseconds     */
+	__be16	latency;	/*  latency in microseconds   */
+	__be16	delay;		/*  delay in microseconds     */
 };
 
 /*
@@ -145,7 +145,7 @@ struct bfa_fw_io_stats_s {
 	u32	ioh_data_oor_event;	/*  Data out of range */
 	u32	ioh_ro_ooo_event;	/*  Relative offset out of range */
 	u32	ioh_cpu_owned_event;	/*  IOH hit -iost owned by f/w */
-	u32	ioh_unexp_frame_event;	/*  unexpected frame recieved
+	u32	ioh_unexp_frame_event;	/*  unexpected frame received
 						 *   count */
 	u32	ioh_err_int;		/*  IOH error int during data-phase
 						 *   for scsi write
@@ -566,8 +566,8 @@ struct bfa_itnim_iostats_s {
 	u32	input_reqs;		/*  Data in-bound requests	*/
 	u32	output_reqs;		/*  Data out-bound requests	*/
 	u32	io_comps;		/*  Total IO Completions	*/
-	u32	wr_throughput;		/*  Write data transfered in bytes */
-	u32	rd_throughput;		/*  Read data transfered in bytes  */
+	u32	wr_throughput;		/*  Write data transferred in bytes */
+	u32	rd_throughput;		/*  Read data transferred in bytes  */
 
 	u32	iocomp_ok;		/*  Slowpath IO completions	*/
 	u32	iocomp_underrun;	/*  IO underrun		*/
@@ -743,7 +743,7 @@ struct bfa_port_cfg_s {
 	u8	 qos_enabled;	/*  qos enabled or not		*/
 	u8	 cfg_hardalpa;	/*  is hard alpa configured	*/
 	u8	 hardalpa;	/*  configured hard alpa	*/
-	u16 maxfrsize;	/*  maximum frame size		*/
+	__be16	 maxfrsize;	/*  maximum frame size		*/
 	u8	 rx_bbcredit;	/*  receive buffer credits	*/
 	u8	 tx_bbcredit;	/*  transmit buffer credits	*/
 	u8	 ratelimit;	/*  ratelimit enabled or not	*/
@@ -843,7 +843,7 @@ struct bfa_fcport_fcf_s {
 	u8	 fka_disabled;   /*  FKA is disabled	  */
 	u8	 maxsz_verified; /*  FCoE max size verified   */
 	u8	 fc_map[3];      /*  FC map		   */
-	u16	vlan;	   /*  FCoE vlan tag/priority   */
+	__be16	 vlan;	   /*  FCoE vlan tag/priority   */
 	u32	fka_adv_per;    /*  FIP  ka advert. period   */
 	mac_t	   mac;	    /*  FCF mac		  */
 };

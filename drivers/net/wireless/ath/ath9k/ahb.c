@@ -35,10 +35,9 @@ static bool ath_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 
 	pdata = (struct ath9k_platform_data *) pdev->dev.platform_data;
 	if (off >= (ARRAY_SIZE(pdata->eeprom_data))) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "%s: flash read failed, offset %08x "
-			  "is out of range\n",
-			  __func__, off);
+		ath_err(common,
+			"%s: flash read failed, offset %08x is out of range\n",
+			__func__, off);
 		return false;
 	}
 
@@ -55,7 +54,6 @@ static struct ath_bus_ops ath_ahb_bus_ops  = {
 static int ath_ahb_probe(struct platform_device *pdev)
 {
 	void __iomem *mem;
-	struct ath_wiphy *aphy;
 	struct ath_softc *sc;
 	struct ieee80211_hw *hw;
 	struct resource *res;
@@ -77,7 +75,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	mem = ioremap_nocache(res->start, res->end - res->start + 1);
+	mem = ioremap_nocache(res->start, resource_size(res));
 	if (mem == NULL) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
@@ -93,8 +91,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
 	irq = res->start;
 
-	hw = ieee80211_alloc_hw(sizeof(struct ath_wiphy) +
-				sizeof(struct ath_softc), &ath9k_ops);
+	hw = ieee80211_alloc_hw(sizeof(struct ath_softc), &ath9k_ops);
 	if (hw == NULL) {
 		dev_err(&pdev->dev, "no memory for ieee80211_hw\n");
 		ret = -ENOMEM;
@@ -104,11 +101,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 	platform_set_drvdata(pdev, hw);
 
-	aphy = hw->priv;
-	sc = (struct ath_softc *) (aphy + 1);
-	aphy->sc = sc;
-	aphy->hw = hw;
-	sc->pri_wiphy = aphy;
+	sc = hw->priv;
 	sc->hw = hw;
 	sc->dev = &pdev->dev;
 	sc->mem = mem;
@@ -152,8 +145,7 @@ static int ath_ahb_remove(struct platform_device *pdev)
 	struct ieee80211_hw *hw = platform_get_drvdata(pdev);
 
 	if (hw) {
-		struct ath_wiphy *aphy = hw->priv;
-		struct ath_softc *sc = aphy->sc;
+		struct ath_softc *sc = hw->priv;
 		void __iomem *mem = sc->mem;
 
 		ath9k_deinit_device(sc);

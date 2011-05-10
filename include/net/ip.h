@@ -116,8 +116,24 @@ extern int		ip_append_data(struct sock *sk,
 extern int		ip_generic_getfrag(void *from, char *to, int offset, int len, int odd, struct sk_buff *skb);
 extern ssize_t		ip_append_page(struct sock *sk, struct page *page,
 				int offset, size_t size, int flags);
+extern struct sk_buff  *__ip_make_skb(struct sock *sk,
+				      struct sk_buff_head *queue,
+				      struct inet_cork *cork);
+extern int		ip_send_skb(struct sk_buff *skb);
 extern int		ip_push_pending_frames(struct sock *sk);
 extern void		ip_flush_pending_frames(struct sock *sk);
+extern struct sk_buff  *ip_make_skb(struct sock *sk,
+				    int getfrag(void *from, char *to, int offset, int len,
+						int odd, struct sk_buff *skb),
+				    void *from, int length, int transhdrlen,
+				    struct ipcm_cookie *ipc,
+				    struct rtable **rtp,
+				    unsigned int flags);
+
+static inline struct sk_buff *ip_finish_skb(struct sock *sk)
+{
+	return __ip_make_skb(sk, &sk->sk_write_queue, &inet_sk(sk)->cork);
+}
 
 /* datagram.c */
 extern int		ip4_datagram_connect(struct sock *sk, 
@@ -201,7 +217,6 @@ static inline int inet_is_reserved_local_port(int port)
 	return test_bit(port, sysctl_local_reserved_ports);
 }
 
-extern int sysctl_ip_default_ttl;
 extern int sysctl_ip_nonlocal_bind;
 
 extern struct ctl_path net_core_path[];
@@ -324,6 +339,14 @@ static inline void ip_ib_mc_map(__be32 naddr, const unsigned char *broadcast, ch
 	buf[16] = addr & 0x0f;
 }
 
+static inline void ip_ipgre_mc_map(__be32 naddr, const unsigned char *broadcast, char *buf)
+{
+	if ((broadcast[0] | broadcast[1] | broadcast[2] | broadcast[3]) != 0)
+		memcpy(buf, broadcast, 4);
+	else
+		memcpy(buf, &naddr, sizeof(naddr));
+}
+
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 #include <linux/ipv6.h>
 #endif
@@ -428,15 +451,6 @@ extern void	ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 extern void	ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 dport,
 			       u32 info);
 
-/* sysctl helpers - any sysctl which holds a value that ends up being
- * fed into the routing cache should use these handlers.
- */
-int ipv4_doint_and_flush(ctl_table *ctl, int write,
-			 void __user *buffer,
-			 size_t *lenp, loff_t *ppos);
-int ipv4_doint_and_flush_strategy(ctl_table *table,
-				  void __user *oldval, size_t __user *oldlenp,
-				  void __user *newval, size_t newlen);
 #ifdef CONFIG_PROC_FS
 extern int ip_misc_proc_init(void);
 #endif

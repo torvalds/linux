@@ -41,15 +41,13 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 	unsigned int *cflagp, unsigned int *baudp);
 static void cp210x_set_termios(struct tty_struct *, struct usb_serial_port *,
 							struct ktermios*);
-static int cp210x_tiocmget(struct tty_struct *, struct file *);
-static int cp210x_tiocmset(struct tty_struct *, struct file *,
-		unsigned int, unsigned int);
-static int cp210x_tiocmset_port(struct usb_serial_port *port, struct file *,
+static int cp210x_tiocmget(struct tty_struct *);
+static int cp210x_tiocmset(struct tty_struct *, unsigned int, unsigned int);
+static int cp210x_tiocmset_port(struct usb_serial_port *port,
 		unsigned int, unsigned int);
 static void cp210x_break_ctl(struct tty_struct *, int);
 static int cp210x_startup(struct usb_serial *);
 static void cp210x_dtr_rts(struct usb_serial_port *p, int on);
-static int cp210x_carrier_raised(struct usb_serial_port *p);
 
 static int debug;
 
@@ -87,7 +85,6 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x8115) }, /* Arygon NFC/Mifare Reader */
 	{ USB_DEVICE(0x10C4, 0x813D) }, /* Burnside Telecom Deskmobile */
 	{ USB_DEVICE(0x10C4, 0x813F) }, /* Tams Master Easy Control */
-	{ USB_DEVICE(0x10C4, 0x8149) }, /* West Mountain Radio Computerized Battery Analyzer */
 	{ USB_DEVICE(0x10C4, 0x814A) }, /* West Mountain Radio RIGblaster P&P */
 	{ USB_DEVICE(0x10C4, 0x814B) }, /* West Mountain Radio RIGtalk */
 	{ USB_DEVICE(0x10C4, 0x8156) }, /* B&G H3000 link cable */
@@ -104,13 +101,15 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x81F2) }, /* C1007 HF band RFID controller */
 	{ USB_DEVICE(0x10C4, 0x8218) }, /* Lipowsky Industrie Elektronik GmbH, HARP-1 */
 	{ USB_DEVICE(0x10C4, 0x822B) }, /* Modem EDGE(GSM) Comander 2 */
-	{ USB_DEVICE(0x10C4, 0x826B) }, /* Cygnal Integrated Products, Inc., Fasttrax GPS demostration module */
+	{ USB_DEVICE(0x10C4, 0x826B) }, /* Cygnal Integrated Products, Inc., Fasttrax GPS demonstration module */
 	{ USB_DEVICE(0x10C4, 0x8293) }, /* Telegesys ETRX2USB */
 	{ USB_DEVICE(0x10C4, 0x82F9) }, /* Procyon AVS */
 	{ USB_DEVICE(0x10C4, 0x8341) }, /* Siemens MC35PU GPRS Modem */
 	{ USB_DEVICE(0x10C4, 0x8382) }, /* Cygnal Integrated Products, Inc. */
 	{ USB_DEVICE(0x10C4, 0x83A8) }, /* Amber Wireless AMB2560 */
+	{ USB_DEVICE(0x10C4, 0x83D8) }, /* DekTec DTA Plus VHF/UHF Booster/Attenuator */
 	{ USB_DEVICE(0x10C4, 0x8411) }, /* Kyocera GPS Module */
+	{ USB_DEVICE(0x10C4, 0x8418) }, /* IRZ Automation Teleport SG-10 GSM/GPRS Modem */
 	{ USB_DEVICE(0x10C4, 0x846E) }, /* BEI USB Sensor Interface (VCP) */
 	{ USB_DEVICE(0x10C4, 0x8477) }, /* Balluff RFID */
 	{ USB_DEVICE(0x10C4, 0xEA60) }, /* Silicon Labs factory default */
@@ -165,8 +164,7 @@ static struct usb_serial_driver cp210x_device = {
 	.tiocmget 		= cp210x_tiocmget,
 	.tiocmset		= cp210x_tiocmset,
 	.attach			= cp210x_startup,
-	.dtr_rts		= cp210x_dtr_rts,
-	.carrier_raised		= cp210x_carrier_raised
+	.dtr_rts		= cp210x_dtr_rts
 };
 
 /* Config request types */
@@ -699,14 +697,14 @@ static void cp210x_set_termios(struct tty_struct *tty,
 
 }
 
-static int cp210x_tiocmset (struct tty_struct *tty, struct file *file,
+static int cp210x_tiocmset (struct tty_struct *tty,
 		unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	return cp210x_tiocmset_port(port, file, set, clear);
+	return cp210x_tiocmset_port(port, set, clear);
 }
 
-static int cp210x_tiocmset_port(struct usb_serial_port *port, struct file *file,
+static int cp210x_tiocmset_port(struct usb_serial_port *port,
 		unsigned int set, unsigned int clear)
 {
 	unsigned int control = 0;
@@ -738,12 +736,12 @@ static int cp210x_tiocmset_port(struct usb_serial_port *port, struct file *file,
 static void cp210x_dtr_rts(struct usb_serial_port *p, int on)
 {
 	if (on)
-		cp210x_tiocmset_port(p, NULL,  TIOCM_DTR|TIOCM_RTS, 0);
+		cp210x_tiocmset_port(p, TIOCM_DTR|TIOCM_RTS, 0);
 	else
-		cp210x_tiocmset_port(p, NULL,  0, TIOCM_DTR|TIOCM_RTS);
+		cp210x_tiocmset_port(p, 0, TIOCM_DTR|TIOCM_RTS);
 }
 
-static int cp210x_tiocmget (struct tty_struct *tty, struct file *file)
+static int cp210x_tiocmget (struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	unsigned int control;
@@ -763,15 +761,6 @@ static int cp210x_tiocmget (struct tty_struct *tty, struct file *file)
 	dbg("%s - control = 0x%.2x", __func__, control);
 
 	return result;
-}
-
-static int cp210x_carrier_raised(struct usb_serial_port *p)
-{
-	unsigned int control;
-	cp210x_get_config(p, CP210X_GET_MDMSTS, &control, 1);
-	if (control & CONTROL_DCD)
-		return 1;
-	return 0;
 }
 
 static void cp210x_break_ctl (struct tty_struct *tty, int break_state)

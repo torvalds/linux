@@ -30,6 +30,7 @@
 #include <asm/processor.h>
 #include <asm/kexec.h>
 #include <asm/bug.h>
+#include <asm/ptrace.h>
 
 	.text
 

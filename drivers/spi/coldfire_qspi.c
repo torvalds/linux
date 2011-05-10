@@ -317,7 +317,7 @@ static void mcfqspi_work(struct work_struct *work)
 		msg = container_of(mcfqspi->msgq.next, struct spi_message,
 				   queue);
 
-		list_del_init(&mcfqspi->msgq);
+		list_del_init(&msg->queue);
 		spin_unlock_irqrestore(&mcfqspi->lock, flags);
 
 		spi = msg->spi;

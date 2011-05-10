@@ -69,13 +69,10 @@ void __init cns3xxx_map_io(void)
 }
 
 /* used by entry-macro.S */
-void __iomem *gic_cpu_base_addr;
-
 void __init cns3xxx_init_irq(void)
 {
-	gic_cpu_base_addr = __io(CNS3XXX_TC11MP_GIC_CPU_BASE_VIRT);
-	gic_dist_init(0, __io(CNS3XXX_TC11MP_GIC_DIST_BASE_VIRT), 29);
-	gic_cpu_init(0, gic_cpu_base_addr);
+	gic_init(0, 29, __io(CNS3XXX_TC11MP_GIC_DIST_BASE_VIRT),
+		 __io(CNS3XXX_TC11MP_GIC_CPU_BASE_VIRT));
 }
 
 void cns3xxx_power_off(void)

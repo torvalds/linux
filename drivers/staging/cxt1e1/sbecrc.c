@@ -95,7 +95,7 @@ sbeCrc (u_int8_t *buffer,          /* data buffer to crc */
 
     /*
      * if table not yet created, do so. Don't care about "extra" time
-     * checking this everytime sbeCrc() is called, since CRC calculations are
+     * checking this every time sbeCrc() is called, since CRC calculations are
      * already time consuming
      */
     if (!crcTableInit)

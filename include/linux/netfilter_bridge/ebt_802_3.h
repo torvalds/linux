@@ -1,6 +1,8 @@
 #ifndef __LINUX_BRIDGE_EBT_802_3_H
 #define __LINUX_BRIDGE_EBT_802_3_H
 
+#include <linux/types.h>
+
 #define EBT_802_3_SAP 0x01
 #define EBT_802_3_TYPE 0x02
 
@@ -24,24 +26,24 @@
 
 /* ui has one byte ctrl, ni has two */
 struct hdr_ui {
-	uint8_t dsap;
-	uint8_t ssap;
-	uint8_t ctrl;
-	uint8_t orig[3];
+	__u8 dsap;
+	__u8 ssap;
+	__u8 ctrl;
+	__u8 orig[3];
 	__be16 type;
 };
 
 struct hdr_ni {
-	uint8_t dsap;
-	uint8_t ssap;
+	__u8 dsap;
+	__u8 ssap;
 	__be16 ctrl;
-	uint8_t  orig[3];
+	__u8  orig[3];
 	__be16 type;
 };
 
 struct ebt_802_3_hdr {
-	uint8_t  daddr[6];
-	uint8_t  saddr[6];
+	__u8  daddr[6];
+	__u8  saddr[6];
 	__be16 len;
 	union {
 		struct hdr_ui ui;
@@ -59,10 +61,10 @@ static inline struct ebt_802_3_hdr *ebt_802_3_hdr(const struct sk_buff *skb)
 #endif
 
 struct ebt_802_3_info {
-	uint8_t  sap;
+	__u8  sap;
 	__be16 type;
-	uint8_t  bitmask;
-	uint8_t  invflags;
+	__u8  bitmask;
+	__u8  invflags;
 };
 
 #endif

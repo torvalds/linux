@@ -26,7 +26,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <sound/soc-dapm.h>
+#include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
@@ -115,6 +115,12 @@
 
 #define BCKO_MASK	(1 << 3)
 #define BCKO_64		BCKO_MASK
+
+#define DIF_MASK	(3 << 0)
+#define DSP		(0 << 0)
+#define RIGHT_J		(1 << 0)
+#define LEFT_J		(2 << 0)
+#define I2S		(3 << 0)
 
 /* MD_CTL2 */
 #define FS0		(1 << 0)
@@ -353,6 +359,24 @@ static int ak4642_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 	snd_soc_update_bits(codec, PW_MGMT2, MS, data);
 	snd_soc_update_bits(codec, MD_CTL1, BCKO_MASK, bcko);
+
+	/* format type */
+	data = 0;
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_LEFT_J:
+		data = LEFT_J;
+		break;
+	case SND_SOC_DAIFMT_I2S:
+		data = I2S;
+		break;
+	/* FIXME
+	 * Please add RIGHT_J / DSP support here
+	 */
+	default:
+		return -EINVAL;
+		break;
+	}
+	snd_soc_update_bits(codec, MD_CTL1, DIF_MASK, data);
 
 	return 0;
 }

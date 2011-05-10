@@ -39,7 +39,7 @@ static struct cx18_card_tuner_i2c cx18_i2c_std = {
 	.tv    = { 0x61, 0x60, I2C_CLIENT_END },
 };
 
-/* Please add new PCI IDs to: http://pci-ids.ucw.cz/ 
+/* Please add new PCI IDs to: http://pci-ids.ucw.cz/
    This keeps the PCI ID database up to date. Note that the entries
    must be added under vendor 0x4444 (Conexant) as subsystem IDs.
    New vendor IDs should still be added to the vendor ID list. */
@@ -50,6 +50,53 @@ static struct cx18_card_tuner_i2c cx18_i2c_std = {
    of PCI IDs */
 static const struct cx18_card cx18_card_hvr1600_esmt = {
 	.type = CX18_CARD_HVR_1600_ESMT,
+	.name = "Hauppauge HVR-1600",
+	.comment = "Simultaneous Digital and Analog TV capture supported\n",
+	.v4l2_capabilities = CX18_CAP_ENCODER,
+	.hw_audio_ctrl = CX18_HW_418_AV,
+	.hw_muxer = CX18_HW_CS5345,
+	.hw_all = CX18_HW_TVEEPROM | CX18_HW_418_AV | CX18_HW_TUNER |
+		  CX18_HW_CS5345 | CX18_HW_DVB | CX18_HW_GPIO_RESET_CTRL |
+		  CX18_HW_Z8F0811_IR_HAUP,
+	.video_inputs = {
+		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE7 },
+		{ CX18_CARD_INPUT_SVIDEO1,    1, CX18_AV_SVIDEO1    },
+		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX18_AV_COMPOSITE3 },
+		{ CX18_CARD_INPUT_SVIDEO2,    2, CX18_AV_SVIDEO2    },
+		{ CX18_CARD_INPUT_COMPOSITE2, 2, CX18_AV_COMPOSITE4 },
+	},
+	.audio_inputs = {
+		{ CX18_CARD_INPUT_AUD_TUNER,
+		  CX18_AV_AUDIO8, CS5345_IN_1 | CS5345_MCLK_1_5 },
+		{ CX18_CARD_INPUT_LINE_IN1,
+		  CX18_AV_AUDIO_SERIAL1, CS5345_IN_2 },
+		{ CX18_CARD_INPUT_LINE_IN2,
+		  CX18_AV_AUDIO_SERIAL1, CS5345_IN_3 },
+	},
+	.radio_input = { CX18_CARD_INPUT_AUD_TUNER,
+			 CX18_AV_AUDIO_SERIAL1, CS5345_IN_4 },
+	.ddr = {
+		/* ESMT M13S128324A-5B memory */
+		.chip_config = 0x003,
+		.refresh = 0x30c,
+		.timing1 = 0x44220e82,
+		.timing2 = 0x08,
+		.tune_lane = 0,
+		.initial_emrs = 0,
+	},
+	.gpio_init.initial_value = 0x3001,
+	.gpio_init.direction = 0x3001,
+	.gpio_i2c_slave_reset = {
+		.active_lo_mask = 0x3001,
+		.msecs_asserted = 10,
+		.msecs_recovery = 40,
+		.ir_reset_mask  = 0x0001,
+	},
+	.i2c = &cx18_i2c_std,
+};
+
+static const struct cx18_card cx18_card_hvr1600_s5h1411 = {
+	.type = CX18_CARD_HVR_1600_S5H1411,
 	.name = "Hauppauge HVR-1600",
 	.comment = "Simultaneous Digital and Analog TV capture supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
@@ -246,6 +293,66 @@ static const struct cx18_card cx18_card_mpc718 = {
 			      .radio  = 0x1 },
 	.xceive_pin = 0,
 	.pci_list = cx18_pci_mpc718,
+	.i2c = &cx18_i2c_std,
+};
+
+/* ------------------------------------------------------------------------- */
+
+/* GoTView PCI */
+
+static const struct cx18_card_pci_info cx18_pci_gotview_dvd3[] = {
+	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_GOTVIEW, 0x3343 },
+	{ 0, 0, 0 }
+};
+
+static const struct cx18_card cx18_card_gotview_dvd3 = {
+	.type = CX18_CARD_GOTVIEW_PCI_DVD3,
+	.name = "GoTView PCI DVD3 Hybrid",
+	.comment = "Experimenters needed for device to work well.\n"
+		  "\tTo help, mail the ivtv-devel list (www.ivtvdriver.org).\n",
+	.v4l2_capabilities = CX18_CAP_ENCODER,
+	.hw_audio_ctrl = CX18_HW_418_AV,
+	.hw_muxer = CX18_HW_GPIO_MUX,
+	.hw_all = CX18_HW_TVEEPROM | CX18_HW_418_AV | CX18_HW_TUNER |
+		  CX18_HW_GPIO_MUX | CX18_HW_DVB | CX18_HW_GPIO_RESET_CTRL,
+	.video_inputs = {
+		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
+		{ CX18_CARD_INPUT_SVIDEO1,    1,
+				CX18_AV_SVIDEO_LUMA3 | CX18_AV_SVIDEO_CHROMA4 },
+		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX18_AV_COMPOSITE1 },
+		{ CX18_CARD_INPUT_SVIDEO2,    2,
+				CX18_AV_SVIDEO_LUMA7 | CX18_AV_SVIDEO_CHROMA8 },
+		{ CX18_CARD_INPUT_COMPOSITE2, 2, CX18_AV_COMPOSITE6 },
+	},
+	.audio_inputs = {
+		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5,        0 },
+		{ CX18_CARD_INPUT_LINE_IN1,  CX18_AV_AUDIO_SERIAL1, 1 },
+		{ CX18_CARD_INPUT_LINE_IN2,  CX18_AV_AUDIO_SERIAL2, 1 },
+	},
+	.tuners = {
+		/* XC3028 tuner */
+		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
+	},
+	/* FIXME - the FM radio is just a guess and driver doesn't use SIF */
+	.radio_input = { CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5, 2 },
+	.ddr = {
+		/* Hynix HY5DU283222B DDR RAM */
+		.chip_config = 0x303,
+		.refresh = 0x3bd,
+		.timing1 = 0x36320966,
+		.timing2 = 0x1f,
+		.tune_lane = 0,
+		.initial_emrs = 2,
+	},
+	.gpio_init.initial_value = 0x1,
+	.gpio_init.direction = 0x3,
+
+	.gpio_audio_input = { .mask   = 0x3,
+			      .tuner  = 0x1,
+			      .linein = 0x2,
+			      .radio  = 0x1 },
+	.xceive_pin = 0,
+	.pci_list = cx18_pci_gotview_dvd3,
 	.i2c = &cx18_i2c_std,
 };
 
@@ -463,6 +570,8 @@ static const struct cx18_card *cx18_card_list[] = {
 	&cx18_card_toshiba_qosmio_dvbt,
 	&cx18_card_leadtek_pvr2100,
 	&cx18_card_leadtek_dvr3100h,
+	&cx18_card_gotview_dvd3,
+	&cx18_card_hvr1600_s5h1411
 };
 
 const struct cx18_card *cx18_get_card(u16 index)
@@ -485,7 +594,6 @@ int cx18_get_input(struct cx18 *cx, u16 index, struct v4l2_input *input)
 		"Component 1"
 	};
 
-	memset(input, 0, sizeof(*input));
 	if (index >= cx->nof_inputs)
 		return -EINVAL;
 	input->index = index;

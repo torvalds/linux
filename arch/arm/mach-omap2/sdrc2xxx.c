@@ -28,7 +28,7 @@
 #include <plat/clock.h>
 #include <plat/sram.h>
 
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
 #include "clock.h"
 #include <plat/sdrc.h>
 #include "sdrc.h"
@@ -99,6 +99,10 @@ u32 omap2xxx_sdrc_reprogram(u32 level, u32 force)
 	m_type = omap2xxx_sdrc_get_type();
 
 	local_irq_save(flags);
+	/*
+	 * XXX These calls should be abstracted out through a
+	 * prm2xxx.c function
+	 */
 	if (cpu_is_omap2420())
 		__raw_writel(0xffff, OMAP2420_PRCM_VOLTSETUP);
 	else

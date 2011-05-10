@@ -2,6 +2,8 @@ config H8300
 	bool
 	default y
 	select HAVE_IDE
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_SHOW
 
 config SYMBOL_PREFIX
 	string
@@ -43,11 +45,11 @@ config GENERIC_FIND_NEXT_BIT
 	bool
 	default y
 
-config GENERIC_HWEIGHT
+config GENERIC_FIND_BIT_LE
 	bool
 	default y
 
-config GENERIC_HARDIRQS
+config GENERIC_HWEIGHT
 	bool
 	default y
 

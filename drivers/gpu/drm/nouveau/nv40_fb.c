@@ -4,28 +4,71 @@
 #include "nouveau_drm.h"
 
 void
-nv40_fb_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
-			  uint32_t size, uint32_t pitch)
+nv40_fb_set_tile_region(struct drm_device *dev, int i)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t limit = max(1u, addr + size) - 1;
-
-	if (pitch)
-		addr |= 1;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
 
 	switch (dev_priv->chipset) {
 	case 0x40:
-		nv_wr32(dev, NV10_PFB_TLIMIT(i), limit);
-		nv_wr32(dev, NV10_PFB_TSIZE(i), pitch);
-		nv_wr32(dev, NV10_PFB_TILE(i), addr);
+		nv_wr32(dev, NV10_PFB_TLIMIT(i), tile->limit);
+		nv_wr32(dev, NV10_PFB_TSIZE(i), tile->pitch);
+		nv_wr32(dev, NV10_PFB_TILE(i), tile->addr);
 		break;
 
 	default:
-		nv_wr32(dev, NV40_PFB_TLIMIT(i), limit);
-		nv_wr32(dev, NV40_PFB_TSIZE(i), pitch);
-		nv_wr32(dev, NV40_PFB_TILE(i), addr);
+		nv_wr32(dev, NV40_PFB_TLIMIT(i), tile->limit);
+		nv_wr32(dev, NV40_PFB_TSIZE(i), tile->pitch);
+		nv_wr32(dev, NV40_PFB_TILE(i), tile->addr);
 		break;
 	}
+}
+
+static void
+nv40_fb_init_gart(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj *gart = dev_priv->gart_info.sg_ctxdma;
+
+	if (dev_priv->gart_info.type != NOUVEAU_GART_HW) {
+		nv_wr32(dev, 0x100800, 0x00000001);
+		return;
+	}
+
+	nv_wr32(dev, 0x100800, gart->pinst | 0x00000002);
+	nv_mask(dev, 0x10008c, 0x00000100, 0x00000100);
+	nv_wr32(dev, 0x100820, 0x00000000);
+}
+
+static void
+nv44_fb_init_gart(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj *gart = dev_priv->gart_info.sg_ctxdma;
+	u32 vinst;
+
+	if (dev_priv->gart_info.type != NOUVEAU_GART_HW) {
+		nv_wr32(dev, 0x100850, 0x80000000);
+		nv_wr32(dev, 0x100800, 0x00000001);
+		return;
+	}
+
+	/* calculate vram address of this PRAMIN block, object
+	 * must be allocated on 512KiB alignment, and not exceed
+	 * a total size of 512KiB for this to work correctly
+	 */
+	vinst  = nv_rd32(dev, 0x10020c);
+	vinst -= ((gart->pinst >> 19) + 1) << 19;
+
+	nv_wr32(dev, 0x100850, 0x80000000);
+	nv_wr32(dev, 0x100818, dev_priv->gart_info.dummy.addr);
+
+	nv_wr32(dev, 0x100804, dev_priv->gart_info.aper_size);
+	nv_wr32(dev, 0x100850, 0x00008000);
+	nv_mask(dev, 0x10008c, 0x00000200, 0x00000200);
+	nv_wr32(dev, 0x100820, 0x00000000);
+	nv_wr32(dev, 0x10082c, 0x00000001);
+	nv_wr32(dev, 0x100800, vinst | 0x00000010);
 }
 
 int
@@ -36,12 +79,12 @@ nv40_fb_init(struct drm_device *dev)
 	uint32_t tmp;
 	int i;
 
-	/* This is strictly a NV4x register (don't know about NV5x). */
-	/* The blob sets these to all kinds of values, and they mess up our setup. */
-	/* I got value 0x52802 instead. For some cards the blob even sets it back to 0x1. */
-	/* Note: the blob doesn't read this value, so i'm pretty sure this is safe for all cards. */
-	/* Any idea what this is? */
-	nv_wr32(dev, NV40_PFB_UNK_800, 0x1);
+	if (dev_priv->chipset != 0x40 && dev_priv->chipset != 0x45) {
+		if (nv44_graph_class(dev))
+			nv44_fb_init_gart(dev);
+		else
+			nv40_fb_init_gart(dev);
+	}
 
 	switch (dev_priv->chipset) {
 	case 0x40:
@@ -64,7 +107,7 @@ nv40_fb_init(struct drm_device *dev)
 
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < pfb->num_tiles; i++)
-		pfb->set_region_tiling(dev, i, 0, 0, 0);
+		pfb->set_tile_region(dev, i);
 
 	return 0;
 }

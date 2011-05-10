@@ -173,7 +173,7 @@ static int pcmcia_access_config(struct pcmcia_device *p_dev,
 	c = p_dev->function_config;
 
 	if (!(c->state & CONFIG_LOCKED)) {
-		dev_dbg(&p_dev->dev, "Configuration isnt't locked\n");
+		dev_dbg(&p_dev->dev, "Configuration isn't locked\n");
 		mutex_unlock(&s->ops_mutex);
 		return -EACCES;
 	}
@@ -518,6 +518,8 @@ int pcmcia_enable_device(struct pcmcia_device *p_dev)
 		flags |= CONF_ENABLE_IOCARD;
 	if (flags & CONF_ENABLE_IOCARD)
 		s->socket.flags |= SS_IOCARD;
+	if (flags & CONF_ENABLE_ZVCARD)
+		s->socket.flags |= SS_ZVCARD | SS_IOCARD;
 	if (flags & CONF_ENABLE_SPKR) {
 		s->socket.flags |= SS_SPKR_ENA;
 		status = CCSR_AUDIO_ENA;

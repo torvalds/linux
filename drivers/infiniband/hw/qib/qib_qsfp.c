@@ -485,7 +485,7 @@ void qib_qsfp_init(struct qib_qsfp_data *qd,
 		goto bail;
 	/* We see a module, but it may be unwise to look yet. Just schedule */
 	qd->t_insert = get_jiffies_64();
-	schedule_work(&qd->work);
+	queue_work(ib_wq, &qd->work);
 bail:
 	return;
 }
@@ -493,10 +493,9 @@ bail:
 void qib_qsfp_deinit(struct qib_qsfp_data *qd)
 {
 	/*
-	 * There is nothing to do here for now.  our
-	 * work is scheduled with schedule_work(), and
-	 * flush_scheduled_work() from remove_one will
-	 * block until all work ssetup with schedule_work()
+	 * There is nothing to do here for now.  our work is scheduled
+	 * with queue_work(), and flush_workqueue() from remove_one
+	 * will block until all work setup with queue_work()
 	 * completes.
 	 */
 }

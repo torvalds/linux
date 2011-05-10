@@ -2,6 +2,7 @@
 #define __LINUX_UDF_SB_H
 
 #include <linux/mutex.h>
+#include <linux/bitops.h>
 
 /* Since UDF 2.01 is ISO 13346 based... */
 #define UDF_SUPER_MAGIC			0x15013346
@@ -128,6 +129,8 @@ struct udf_sb_info {
 	uid_t			s_uid;
 	mode_t			s_fmode;
 	mode_t			s_dmode;
+	/* Lock protecting consistency of above permission settings */
+	rwlock_t		s_cred_lock;
 
 	/* Root Info */
 	struct timespec		s_record_time;
@@ -139,7 +142,7 @@ struct udf_sb_info {
 	__u16			s_udfrev;
 
 	/* Miscellaneous flags */
-	__u32			s_flags;
+	unsigned long		s_flags;
 
 	/* Encoding info */
 	struct nls_table	*s_nls_map;
@@ -161,8 +164,19 @@ struct logicalVolIntegrityDescImpUse *udf_sb_lvidiu(struct udf_sb_info *sbi);
 
 int udf_compute_nr_groups(struct super_block *sb, u32 partition);
 
-#define UDF_QUERY_FLAG(X,Y)			( UDF_SB(X)->s_flags & ( 1 << (Y) ) )
-#define UDF_SET_FLAG(X,Y)			( UDF_SB(X)->s_flags |= ( 1 << (Y) ) )
-#define UDF_CLEAR_FLAG(X,Y)			( UDF_SB(X)->s_flags &= ~( 1 << (Y) ) )
+static inline int UDF_QUERY_FLAG(struct super_block *sb, int flag)
+{
+	return test_bit(flag, &UDF_SB(sb)->s_flags);
+}
+
+static inline void UDF_SET_FLAG(struct super_block *sb, int flag)
+{
+	set_bit(flag, &UDF_SB(sb)->s_flags);
+}
+
+static inline void UDF_CLEAR_FLAG(struct super_block *sb, int flag)
+{
+	clear_bit(flag, &UDF_SB(sb)->s_flags);
+}
 
 #endif /* __LINUX_UDF_SB_H */

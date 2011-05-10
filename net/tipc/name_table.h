@@ -46,7 +46,7 @@ struct port_list;
  * TIPC name types reserved for internal TIPC use (both current and planned)
  */
 
-#define TIPC_ZM_SRV 3  		/* zone master service name type */
+#define TIPC_ZM_SRV 3		/* zone master service name type */
 
 
 /**

@@ -64,7 +64,7 @@
 /*
  * This is the size at which it becomes more efficient to
  * clean the whole cache, rather than using the individual
- * cache line maintainence instructions.
+ * cache line maintenance instructions.
  */
 #define CACHE_DLIMIT	32768
 
@@ -474,6 +474,9 @@ arm1020e_processor_functions:
 	.word	cpu_arm1020e_dcache_clean_area
 	.word	cpu_arm1020e_switch_mm
 	.word	cpu_arm1020e_set_pte_ext
+	.word	0
+	.word	0
+	.word	0
 	.size	arm1020e_processor_functions, . - arm1020e_processor_functions
 
 	.section ".rodata"

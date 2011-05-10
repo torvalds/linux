@@ -48,6 +48,12 @@ static inline struct microcode_ops * __init init_intel_microcode(void)
 
 #ifdef CONFIG_MICROCODE_AMD
 extern struct microcode_ops * __init init_amd_microcode(void);
+
+static inline void get_ucode_data(void *to, const u8 *from, size_t n)
+{
+	memcpy(to, from, n);
+}
+
 #else
 static inline struct microcode_ops * __init init_amd_microcode(void)
 {

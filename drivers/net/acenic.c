@@ -1584,7 +1584,7 @@ static void ace_watchdog(struct net_device *data)
 	/*
 	 * We haven't received a stats update event for more than 2.5
 	 * seconds and there is data in the transmit queue, thus we
-	 * asume the card is stuck.
+	 * assume the card is stuck.
 	 */
 	if (*ap->tx_csm != ap->tx_ret_csm) {
 		printk(KERN_WARNING "%s: Transmitter is stuck, %08x\n",
@@ -2564,7 +2564,7 @@ restart:
 
 		/*
 		 * A TX-descriptor producer (an IRQ) might have gotten
-		 * inbetween, making the ring free again. Since xmit is
+		 * between, making the ring free again. Since xmit is
 		 * serialized, this is the only situation we have to
 		 * re-test.
 		 */

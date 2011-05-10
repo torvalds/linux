@@ -16,13 +16,12 @@
 /* ****************** BCMSDH Interface Functions *************************** */
 
 #include <linux/types.h>
+#include <linux/netdevice.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
-#include <bcmendian.h>
 #include <bcmutils.h>
 #include <hndsoc.h>
 #include <siutils.h>
-#include <osl.h>
 
 #include <bcmsdh.h>		/* BRCM API for SDIO
 			 clients (such as wl, dhd) */
@@ -38,7 +37,6 @@ struct bcmsdh_info {
 	bool init_success;	/* underlying driver successfully attached */
 	void *sdioh;		/* handler for sdioh */
 	u32 vendevid;	/* Target Vendor and Device ID on SD bus */
-	osl_t *osh;
 	bool regfail;		/* Save status of last
 				 reg_read/reg_write call */
 	u32 sbwad;		/* Save backplane window address */
@@ -55,7 +53,7 @@ void bcmsdh_enable_hw_oob_intr(bcmsdh_info_t *sdh, bool enable)
 }
 #endif
 
-bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq)
+bcmsdh_info_t *bcmsdh_attach(void *cfghdl, void **regsva, uint irq)
 {
 	bcmsdh_info_t *bcmsdh;
 
@@ -68,13 +66,12 @@ bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq)
 	/* save the handler locally */
 	l_bcmsdh = bcmsdh;
 
-	bcmsdh->sdioh = sdioh_attach(osh, cfghdl, irq);
+	bcmsdh->sdioh = sdioh_attach(cfghdl, irq);
 	if (!bcmsdh->sdioh) {
-		bcmsdh_detach(osh, bcmsdh);
+		bcmsdh_detach(bcmsdh);
 		return NULL;
 	}
 
-	bcmsdh->osh = osh;
 	bcmsdh->init_success = true;
 
 	*regsva = (u32 *) SI_ENUM_BASE;
@@ -84,13 +81,13 @@ bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq)
 	return bcmsdh;
 }
 
-int bcmsdh_detach(osl_t *osh, void *sdh)
+int bcmsdh_detach(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 
 	if (bcmsdh != NULL) {
 		if (bcmsdh->sdioh) {
-			sdioh_detach(osh, bcmsdh->sdioh);
+			sdioh_detach(bcmsdh->sdioh);
 			bcmsdh->sdioh = NULL;
 		}
 		kfree(bcmsdh);
@@ -322,7 +319,7 @@ int bcmsdh_cis_read(void *sdh, uint func, u8 * cis, uint length)
 			BCMSDH_ERROR(("%s: out of memory\n", __func__));
 			return BCME_NOMEM;
 		}
-		bcopy(cis, tmp_buf, length);
+		memcpy(tmp_buf, cis, length);
 		for (tmp_ptr = tmp_buf, ptr = cis; ptr < (cis + length - 4);
 		     tmp_ptr++) {
 			ptr += sprintf((char *)ptr, "%.2x ", *tmp_ptr & 0xff);
@@ -451,7 +448,7 @@ bool bcmsdh_regfail(void *sdh)
 
 int
 bcmsdh_recv_buf(void *sdh, u32 addr, uint fn, uint flags,
-		u8 *buf, uint nbytes, void *pkt,
+		u8 *buf, uint nbytes, struct sk_buff *pkt,
 		bcmsdh_cmplt_fn_t complete, void *handle)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;

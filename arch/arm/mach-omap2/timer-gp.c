@@ -39,8 +39,12 @@
 #include <asm/mach/time.h>
 #include <plat/dmtimer.h>
 #include <asm/localtimer.h>
+#include <asm/sched_clock.h>
+#include <plat/common.h>
+#include <plat/omap_hwmod.h>
 
 #include "timer-gp.h"
+
 
 /* MAX_GPTIMER_ID: number of GPTIMERs on the chip */
 #define MAX_GPTIMER_ID		12
@@ -130,8 +134,12 @@ static void __init omap2_gp_clockevent_init(void)
 {
 	u32 tick_rate;
 	int src;
+	char clockevent_hwmod_name[8]; /* 8 = sizeof("timerXX0") */
 
 	inited = 1;
+
+	sprintf(clockevent_hwmod_name, "timer%d", gptimer_id);
+	omap_hwmod_setup_one(clockevent_hwmod_name);
 
 	gptimer = omap_dm_timer_request_specific(gptimer_id);
 	BUG_ON(gptimer == NULL);
@@ -176,14 +184,19 @@ static void __init omap2_gp_clockevent_init(void)
 /* 
  * When 32k-timer is enabled, don't use GPTimer for clocksource
  * instead, just leave default clocksource which uses the 32k
- * sync counter.  See clocksource setup in see plat-omap/common.c. 
+ * sync counter.  See clocksource setup in plat-omap/counter_32k.c
  */
 
-static inline void __init omap2_gp_clocksource_init(void) {}
+static void __init omap2_gp_clocksource_init(void)
+{
+	omap_init_clocksource_32k();
+}
+
 #else
 /*
  * clocksource
  */
+static DEFINE_CLOCK_DATA(cd);
 static struct omap_dm_timer *gpt_clocksource;
 static cycle_t clocksource_read_cycles(struct clocksource *cs)
 {
@@ -195,15 +208,23 @@ static struct clocksource clocksource_gpt = {
 	.rating		= 300,
 	.read		= clocksource_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 24,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
+
+static void notrace dmtimer_update_sched_clock(void)
+{
+	u32 cyc;
+
+	cyc = omap_dm_timer_read_counter(gpt_clocksource);
+
+	update_sched_clock(&cd, cyc, (u32)~0);
+}
 
 /* Setup free-running counter for clocksource */
 static void __init omap2_gp_clocksource_init(void)
 {
 	static struct omap_dm_timer *gpt;
-	u32 tick_rate, tick_period;
+	u32 tick_rate;
 	static char err1[] __initdata = KERN_ERR
 		"%s: failed to request dm-timer\n";
 	static char err2[] __initdata = KERN_ERR
@@ -216,13 +237,12 @@ static void __init omap2_gp_clocksource_init(void)
 
 	omap_dm_timer_set_source(gpt, OMAP_TIMER_SRC_SYS_CLK);
 	tick_rate = clk_get_rate(omap_dm_timer_get_fclk(gpt));
-	tick_period = (tick_rate / HZ) - 1;
 
 	omap_dm_timer_set_load_start(gpt, 1, 0);
 
-	clocksource_gpt.mult =
-		clocksource_khz2mult(tick_rate/1000, clocksource_gpt.shift);
-	if (clocksource_register(&clocksource_gpt))
+	init_sched_clock(&cd, dmtimer_update_sched_clock, 32, tick_rate);
+
+	if (clocksource_register_hz(&clocksource_gpt, tick_rate))
 		printk(err2, clocksource_gpt.name);
 }
 #endif

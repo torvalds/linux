@@ -27,7 +27,6 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
-#include <sound/soc-dapm.h>
 #include <linux/spi/spi.h>
 #include "ad1836.h"
 
@@ -220,6 +219,7 @@ static struct snd_soc_dai_driver ad1836_dai = {
 static int ad1836_probe(struct snd_soc_codec *codec)
 {
 	struct ad1836_priv *ad1836 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret = 0;
 
 	codec->control_data = ad1836->control_data;
@@ -227,7 +227,6 @@ static int ad1836_probe(struct snd_soc_codec *codec)
 	if (ret < 0) {
 		dev_err(codec->dev, "failed to set cache I/O: %d\n",
 				ret);
-		kfree(ad1836);
 		return ret;
 	}
 
@@ -252,9 +251,9 @@ static int ad1836_probe(struct snd_soc_codec *codec)
 
 	snd_soc_add_controls(codec, ad1836_snd_controls,
 			     ARRAY_SIZE(ad1836_snd_controls));
-	snd_soc_dapm_new_controls(codec, ad1836_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, ad1836_dapm_widgets,
 				  ARRAY_SIZE(ad1836_dapm_widgets));
-	snd_soc_dapm_add_routes(codec, audio_paths, ARRAY_SIZE(audio_paths));
+	snd_soc_dapm_add_routes(dapm, audio_paths, ARRAY_SIZE(audio_paths));
 
 	return ret;
 }

@@ -137,7 +137,7 @@ u16 RtmpPCI_WriteSingleTxResource(struct rt_rtmp_adapter *pAd,
 
 	pTxD->SDPtr0 = BufBasePaLow;
 	pTxD->SDLen0 = TXINFO_SIZE + TXWI_SIZE + hwHeaderLen;	/* include padding */
-	pTxD->SDPtr1 = PCI_MAP_SINGLE(pAd, pTxBlk, 0, 1, PCI_DMA_TODEVICE);;
+	pTxD->SDPtr1 = PCI_MAP_SINGLE(pAd, pTxBlk, 0, 1, PCI_DMA_TODEVICE);
 	pTxD->SDLen1 = pTxBlk->SrcBufLen;
 	pTxD->LastSec0 = 0;
 	pTxD->LastSec1 = (bIsLast) ? 1 : 0;
@@ -215,7 +215,7 @@ u16 RtmpPCI_WriteMultiTxResource(struct rt_rtmp_adapter *pAd,
 
 	pTxD->SDPtr0 = BufBasePaLow;
 	pTxD->SDLen0 = firstDMALen;	/* include padding */
-	pTxD->SDPtr1 = PCI_MAP_SINGLE(pAd, pTxBlk, 0, 1, PCI_DMA_TODEVICE);;
+	pTxD->SDPtr1 = PCI_MAP_SINGLE(pAd, pTxBlk, 0, 1, PCI_DMA_TODEVICE);
 	pTxD->SDLen1 = pTxBlk->SrcBufLen;
 	pTxD->LastSec0 = 0;
 	pTxD->LastSec1 = (bIsLast) ? 1 : 0;
@@ -438,13 +438,13 @@ int RTMPCheckRxError(struct rt_rtmp_adapter *pAd,
 	/* Add Rx size to channel load counter, we should ignore error counts */
 	pAd->StaCfg.CLBusyBytes += (pRxD->SDL0 + 14);
 
-	/* Drop ToDs promiscous frame, it is opened due to CCX 2 channel load statistics */
+	/* Drop ToDs promiscuous frame, it is opened due to CCX 2 channel load statistics */
 	if (pHeader != NULL) {
 		if (pHeader->FC.ToDs) {
 			return (NDIS_STATUS_FAILURE);
 		}
 	}
-	/* Drop not U2M frames, cant's drop here because we will drop beacon in this case */
+	/* Drop not U2M frames, can't drop here because we will drop beacon in this case */
 	/* I am kind of doubting the U2M bit operation */
 	/* if (pRxD->U2M == 0) */
 	/*      return(NDIS_STATUS_FAILURE); */
@@ -939,7 +939,7 @@ int MlmeHardTransmitTxRing(struct rt_rtmp_adapter *pAd,
 	/* */
 	/* */
 	/* In WMM-UAPSD, mlme frame should be set psm as power saving but probe request frame */
-	/* Data-Null packets alse pass through MMRequest in RT2860, however, we hope control the psm bit to pass APSD */
+	/* Data-Null packets also pass through MMRequest in RT2860, however, we hope control the psm bit to pass APSD */
 	if (pHeader_802_11->FC.Type != BTYPE_DATA) {
 		if ((pHeader_802_11->FC.SubType == SUBTYPE_PROBE_REQ)
 		    || !(pAd->CommonCfg.bAPSDCapable

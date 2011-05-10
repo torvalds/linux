@@ -73,6 +73,12 @@ struct b43_txhdr {
 	} __packed;
 } __packed;
 
+struct b43_tx_legacy_rate_phy_ctl_entry {
+	u8 bitrate;
+	u16 coding_rate;
+	u16 modulation;
+};
+
 /* MAC TX control */
 #define B43_TXH_MAC_USEFBR		0x10000000 /* Use fallback rate for this AMPDU */
 #define B43_TXH_MAC_KEYIDX		0x0FF00000 /* Security key index */

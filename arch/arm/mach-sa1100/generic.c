@@ -16,14 +16,11 @@
 #include <linux/pm.h>
 #include <linux/cpufreq.h>
 #include <linux/ioport.h>
-#include <linux/sched.h>	/* just for sched_clock() - funny that */
 #include <linux/platform_device.h>
-#include <linux/cnt32_to_63.h>
 
 #include <asm/div64.h>
 #include <mach/hardware.h>
 #include <asm/system.h>
-#include <asm/pgtable.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 #include <asm/irq.h>
@@ -110,27 +107,6 @@ unsigned int sa11x0_getspeed(unsigned int cpu)
 }
 
 /*
- * This is the SA11x0 sched_clock implementation.  This has
- * a resolution of 271ns, and a maximum value of 32025597s (370 days).
- *
- * The return value is guaranteed to be monotonic in that range as
- * long as there is always less than 582 seconds between successive
- * calls to this function.
- *
- *  ( * 1E9 / 3686400 => * 78125 / 288)
- */
-unsigned long long sched_clock(void)
-{
-	unsigned long long v = cnt32_to_63(OSCR);
-
-	/* the <<1 gets rid of the cnt_32_to_63 top bit saving on a bic insn */
-	v *= 78125<<1;
-	do_div(v, 288<<1);
-
-	return v;
-}
-
-/*
  * Default power-off for SA1100
  */
 static void sa1100_power_off(void)
@@ -163,9 +139,14 @@ static void sa11x0_register_device(struct platform_device *dev, void *data)
 
 static struct resource sa11x0udc_resources[] = {
 	[0] = {
-		.start	= 0x80000000,
-		.end	= 0x8000ffff,
+		.start	= __PREG(Ser0UDCCR),
+		.end	= __PREG(Ser0UDCCR) + 0xffff,
 		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_Ser0UDC,
+		.end	= IRQ_Ser0UDC,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -184,9 +165,14 @@ static struct platform_device sa11x0udc_device = {
 
 static struct resource sa11x0uart1_resources[] = {
 	[0] = {
-		.start	= 0x80010000,
-		.end	= 0x8001ffff,
+		.start	= __PREG(Ser1UTCR0),
+		.end	= __PREG(Ser1UTCR0) + 0xffff,
 		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_Ser1UART,
+		.end	= IRQ_Ser1UART,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -199,9 +185,14 @@ static struct platform_device sa11x0uart1_device = {
 
 static struct resource sa11x0uart3_resources[] = {
 	[0] = {
-		.start	= 0x80050000,
-		.end	= 0x8005ffff,
+		.start	= __PREG(Ser3UTCR0),
+		.end	= __PREG(Ser3UTCR0) + 0xffff,
 		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_Ser3UART,
+		.end	= IRQ_Ser3UART,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -214,9 +205,14 @@ static struct platform_device sa11x0uart3_device = {
 
 static struct resource sa11x0mcp_resources[] = {
 	[0] = {
-		.start	= 0x80060000,
-		.end	= 0x8006ffff,
+		.start	= __PREG(Ser4MCCR0),
+		.end	= __PREG(Ser4MCCR0) + 0xffff,
 		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_Ser4MCP,
+		.end	= IRQ_Ser4MCP,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -243,6 +239,11 @@ static struct resource sa11x0ssp_resources[] = {
 		.start	= 0x80070000,
 		.end	= 0x8007ffff,
 		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_Ser4SSP,
+		.end	= IRQ_Ser4SSP,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 

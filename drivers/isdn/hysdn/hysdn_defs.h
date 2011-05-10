@@ -227,7 +227,6 @@ extern hysdn_card *card_root;	/* pointer to first card */
 /*************************/
 /* im/exported functions */
 /*************************/
-extern char *hysdn_getrev(const char *);
 
 /* hysdn_procconf.c */
 extern int hysdn_procconf_init(void);	/* init proc config filesys */
@@ -259,7 +258,6 @@ extern int hysdn_tx_cfgline(hysdn_card *, unsigned char *,
 
 /* hysdn_net.c */
 extern unsigned int hynet_enable; 
-extern char *hysdn_net_revision;
 extern int hysdn_net_create(hysdn_card *);	/* create a new net device */
 extern int hysdn_net_release(hysdn_card *);	/* delete the device */
 extern char *hysdn_net_getname(hysdn_card *);	/* get name of net interface */

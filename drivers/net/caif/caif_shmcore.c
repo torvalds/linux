@@ -6,7 +6,7 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ":" __func__ "():" fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ":" fmt
 
 #include <linux/spinlock.h>
 #include <linux/sched.h>
@@ -591,7 +591,7 @@ int caif_shmcore_probe(struct shmdev_layer *pshm_dev)
 			(NR_TX_BUF * TX_BUF_SZ + NR_RX_BUF * RX_BUF_SZ)) {
 
 		pr_warn("ERROR, Amount of available"
-				" Phys. SHM cannot accomodate current SHM "
+				" Phys. SHM cannot accommodate current SHM "
 				"driver configuration, Bailing out ...\n");
 		free_netdev(pshm_dev->pshm_netdev);
 		return -ENOMEM;

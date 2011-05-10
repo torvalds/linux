@@ -23,6 +23,7 @@
 #define L1_CACHE_TAG_DIRTY	0x00000008	/* data cache tag dirty bit */
 #define L1_CACHE_TAG_ENTRY	0x00000ff0	/* cache tag entry address mask */
 #define L1_CACHE_TAG_ADDRESS	0xfffff000	/* cache tag line address mask */
+#define L1_CACHE_TAG_MASK	+(L1_CACHE_TAG_ADDRESS|L1_CACHE_TAG_ENTRY)
 
 /*
  * specification of the interval between interrupt checking intervals whilst

@@ -36,9 +36,9 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static void pmu_irq_mask(unsigned int irq)
+static void pmu_irq_mask(struct irq_data *d)
 {
-	int pin = irq_to_pmu(irq);
+	int pin = irq_to_pmu(d->irq);
 	u32 u;
 
 	u = readl(PMU_INTERRUPT_MASK);
@@ -46,9 +46,9 @@ static void pmu_irq_mask(unsigned int irq)
 	writel(u, PMU_INTERRUPT_MASK);
 }
 
-static void pmu_irq_unmask(unsigned int irq)
+static void pmu_irq_unmask(struct irq_data *d)
 {
-	int pin = irq_to_pmu(irq);
+	int pin = irq_to_pmu(d->irq);
 	u32 u;
 
 	u = readl(PMU_INTERRUPT_MASK);
@@ -56,9 +56,9 @@ static void pmu_irq_unmask(unsigned int irq)
 	writel(u, PMU_INTERRUPT_MASK);
 }
 
-static void pmu_irq_ack(unsigned int irq)
+static void pmu_irq_ack(struct irq_data *d)
 {
-	int pin = irq_to_pmu(irq);
+	int pin = irq_to_pmu(d->irq);
 	u32 u;
 
 	u = ~(1 << (pin & 31));
@@ -67,9 +67,9 @@ static void pmu_irq_ack(unsigned int irq)
 
 static struct irq_chip pmu_irq_chip = {
 	.name		= "pmu_irq",
-	.mask		= pmu_irq_mask,
-	.unmask		= pmu_irq_unmask,
-	.ack		= pmu_irq_ack,
+	.irq_mask	= pmu_irq_mask,
+	.irq_unmask	= pmu_irq_unmask,
+	.irq_ack	= pmu_irq_ack,
 };
 
 static void pmu_irq_handler(unsigned int irq, struct irq_desc *desc)
@@ -86,8 +86,7 @@ static void pmu_irq_handler(unsigned int irq, struct irq_desc *desc)
 		if (!(cause & (1 << irq)))
 			continue;
 		irq = pmu_to_irq(irq);
-		desc = irq_desc + irq;
-		desc_handle_irq(irq, desc);
+		generic_handle_irq(irq);
 	}
 }
 
@@ -99,11 +98,21 @@ void __init dove_init_irq(void)
 	orion_irq_init(32, (void __iomem *)(IRQ_VIRT_BASE + IRQ_MASK_HIGH_OFF));
 
 	/*
-	 * Mask and clear GPIO IRQ interrupts.
+	 * Initialize gpiolib for GPIOs 0-71.
 	 */
-	writel(0, GPIO_LEVEL_MASK(0));
-	writel(0, GPIO_EDGE_MASK(0));
-	writel(0, GPIO_EDGE_CAUSE(0));
+	orion_gpio_init(0, 32, DOVE_GPIO_LO_VIRT_BASE, 0,
+			IRQ_DOVE_GPIO_START);
+	irq_set_chained_handler(IRQ_DOVE_GPIO_0_7, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_DOVE_GPIO_8_15, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_DOVE_GPIO_16_23, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_DOVE_GPIO_24_31, gpio_irq_handler);
+
+	orion_gpio_init(32, 32, DOVE_GPIO_HI_VIRT_BASE, 0,
+			IRQ_DOVE_GPIO_START + 32);
+	irq_set_chained_handler(IRQ_DOVE_HIGH_GPIO, gpio_irq_handler);
+
+	orion_gpio_init(64, 8, DOVE_GPIO2_VIRT_BASE, 0,
+			IRQ_DOVE_GPIO_START + 64);
 
 	/*
 	 * Mask and clear PMU interrupts
@@ -111,23 +120,10 @@ void __init dove_init_irq(void)
 	writel(0, PMU_INTERRUPT_MASK);
 	writel(0, PMU_INTERRUPT_CAUSE);
 
-	for (i = IRQ_DOVE_GPIO_START; i < IRQ_DOVE_PMU_START; i++) {
-		set_irq_chip(i, &orion_gpio_irq_chip);
-		set_irq_handler(i, handle_level_irq);
-		irq_desc[i].status |= IRQ_LEVEL;
-		set_irq_flags(i, IRQF_VALID);
-	}
-	set_irq_chained_handler(IRQ_DOVE_GPIO_0_7, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_DOVE_GPIO_8_15, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_DOVE_GPIO_16_23, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_DOVE_GPIO_24_31, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_DOVE_HIGH_GPIO, gpio_irq_handler);
-
 	for (i = IRQ_DOVE_PMU_START; i < NR_IRQS; i++) {
-		set_irq_chip(i, &pmu_irq_chip);
-		set_irq_handler(i, handle_level_irq);
-		irq_desc[i].status |= IRQ_LEVEL;
+		irq_set_chip_and_handler(i, &pmu_irq_chip, handle_level_irq);
+		irq_set_status_flags(i, IRQ_LEVEL);
 		set_irq_flags(i, IRQF_VALID);
 	}
-	set_irq_chained_handler(IRQ_DOVE_PMU, pmu_irq_handler);
+	irq_set_chained_handler(IRQ_DOVE_PMU, pmu_irq_handler);
 }

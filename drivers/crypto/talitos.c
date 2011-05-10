@@ -2402,8 +2402,7 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 	return t_alg;
 }
 
-static int talitos_probe(struct platform_device *ofdev,
-			 const struct of_device_id *match)
+static int talitos_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct device_node *np = ofdev->dev.of_node;
@@ -2580,7 +2579,7 @@ static const struct of_device_id talitos_match[] = {
 };
 MODULE_DEVICE_TABLE(of, talitos_match);
 
-static struct of_platform_driver talitos_driver = {
+static struct platform_driver talitos_driver = {
 	.driver = {
 		.name = "talitos",
 		.owner = THIS_MODULE,
@@ -2592,13 +2591,13 @@ static struct of_platform_driver talitos_driver = {
 
 static int __init talitos_init(void)
 {
-	return of_register_platform_driver(&talitos_driver);
+	return platform_driver_register(&talitos_driver);
 }
 module_init(talitos_init);
 
 static void __exit talitos_exit(void)
 {
-	of_unregister_platform_driver(&talitos_driver);
+	platform_driver_unregister(&talitos_driver);
 }
 module_exit(talitos_exit);
 

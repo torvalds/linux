@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/smc91x.h>
 #include <linux/mfd/da903x.h>
 #include <linux/mtd/mtd.h>
@@ -31,7 +32,6 @@
 #include <asm/mach/flash.h>
 
 #include <mach/pxa930.h>
-#include <plat/i2c.h>
 #include <mach/pxafb.h>
 
 #include "devices.h"
@@ -473,7 +473,7 @@ static struct pxafb_mach_info saar_lcd_info = {
 
 static void __init saar_init_lcd(void)
 {
-	set_pxa_fb_info(&saar_lcd_info);
+	pxa_set_fb_info(NULL, &saar_lcd_info);
 }
 #else
 static inline void saar_init_lcd(void) {}
@@ -597,7 +597,7 @@ static void __init saar_init(void)
 MACHINE_START(SAAR, "PXA930 Handheld Platform (aka SAAR)")
 	/* Maintainer: Eric Miao <eric.miao@marvell.com> */
 	.boot_params    = 0xa0000100,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa3xx_map_io,
 	.init_irq       = pxa3xx_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = saar_init,

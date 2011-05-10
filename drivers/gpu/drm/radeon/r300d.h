@@ -54,6 +54,7 @@
 #define		PACKET3_3D_DRAW_IMMD_2		0x35
 #define		PACKET3_3D_DRAW_INDX_2		0x36
 #define		PACKET3_3D_CLEAR_HIZ		0x37
+#define		PACKET3_3D_CLEAR_CMASK		0x38
 #define		PACKET3_BITBLT_MULTI		0x9B
 
 #define PACKET0(reg, n)	(CP_PACKET0 |					\

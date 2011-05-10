@@ -36,6 +36,7 @@
 struct pn_sock {
 	struct sock	sk;
 	u16		sobject;
+	u16		dobject;
 	u8		resource;
 };
 
@@ -107,8 +108,8 @@ struct phonet_protocol {
 	int			sock_type;
 };
 
-int phonet_proto_register(int protocol, struct phonet_protocol *pp);
-void phonet_proto_unregister(int protocol, struct phonet_protocol *pp);
+int phonet_proto_register(unsigned int protocol, struct phonet_protocol *pp);
+void phonet_proto_unregister(unsigned int protocol, struct phonet_protocol *pp);
 
 int phonet_sysctl_init(void);
 void phonet_sysctl_exit(void);

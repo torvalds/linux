@@ -637,6 +637,9 @@ The keyctl syscall functions are:
 	long keyctl(KEYCTL_INSTANTIATE, key_serial_t key,
 		    const void *payload, size_t plen,
 		    key_serial_t keyring);
+	long keyctl(KEYCTL_INSTANTIATE_IOV, key_serial_t key,
+		    const struct iovec *payload_iov, unsigned ioc,
+		    key_serial_t keyring);
 
      If the kernel calls back to userspace to complete the instantiation of a
      key, userspace should use this call to supply data for the key before the
@@ -652,11 +655,16 @@ The keyctl syscall functions are:
 
      The payload and plen arguments describe the payload data as for add_key().
 
+     The payload_iov and ioc arguments describe the payload data in an iovec
+     array instead of a single buffer.
+
 
  (*) Negatively instantiate a partially constructed key.
 
 	long keyctl(KEYCTL_NEGATE, key_serial_t key,
 		    unsigned timeout, key_serial_t keyring);
+	long keyctl(KEYCTL_REJECT, key_serial_t key,
+		    unsigned timeout, unsigned error, key_serial_t keyring);
 
      If the kernel calls back to userspace to complete the instantiation of a
      key, userspace should use this call mark the key as negative before the
@@ -668,6 +676,10 @@ The keyctl syscall functions are:
      If a keyring is specified (non-zero), the key will also be linked into
      that keyring, however all the constraints applying in KEYCTL_LINK apply in
      this case too.
+
+     If the key is rejected, future searches for it will return the specified
+     error code until the rejected key expires.  Negating the key is the same
+     as rejecting the key with ENOKEY as the error code.
 
 
  (*) Set the default request-key destination keyring.
@@ -1062,6 +1074,13 @@ The structure has a number of fields, some of which are mandatory:
      viable.
 
 
+ (*) int (*vet_description)(const char *description);
+
+     This optional method is called to vet a key description.  If the key type
+     doesn't approve of the key description, it may return an error, otherwise
+     it should return 0.
+
+
  (*) int (*instantiate)(struct key *key, const void *data, size_t datalen);
 
      This method is called to attach a payload to a key during construction.
@@ -1231,10 +1250,11 @@ hand the request off to (perhaps a path held in placed in another key by, for
 example, the KDE desktop manager).
 
 The program (or whatever it calls) should finish construction of the key by
-calling KEYCTL_INSTANTIATE, which also permits it to cache the key in one of
-the keyrings (probably the session ring) before returning. Alternatively, the
-key can be marked as negative with KEYCTL_NEGATE; this also permits the key to
-be cached in one of the keyrings.
+calling KEYCTL_INSTANTIATE or KEYCTL_INSTANTIATE_IOV, which also permits it to
+cache the key in one of the keyrings (probably the session ring) before
+returning.  Alternatively, the key can be marked as negative with KEYCTL_NEGATE
+or KEYCTL_REJECT; this also permits the key to be cached in one of the
+keyrings.
 
 If it returns with the key remaining in the unconstructed state, the key will
 be marked as being negative, it will be added to the session keyring, and an

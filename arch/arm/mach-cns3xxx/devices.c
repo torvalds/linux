@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <mach/cns3xxx.h>
 #include <mach/irqs.h>
+#include <mach/pm.h>
 #include "core.h"
 #include "devices.h"
 

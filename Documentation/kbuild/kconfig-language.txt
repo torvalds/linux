@@ -112,7 +112,6 @@ applicable everywhere (see syntax).
 	(no prompts anywhere) and for symbols with no dependencies.
 	That will limit the usefulness but on the other hand avoid
 	the illegal configurations all over.
-	kconfig should one day warn about such things.
 
 - numerical ranges: "range" <symbol> <symbol> ["if" <expr>]
   This allows to limit the range of possible input values for int
@@ -268,7 +267,7 @@ separate list of options.
 
 choices:
 
-	"choice"
+	"choice" [symbol]
 	<choice options>
 	<choice block>
 	"endchoice"
@@ -282,6 +281,10 @@ single driver can be compiled/loaded into the kernel, but all drivers
 can be compiled as modules.
 A choice accepts another option "optional", which allows to set the
 choice to 'n' and no entry needs to be selected.
+If no [symbol] is associated with a choice, then you can not have multiple
+definitions of that choice. If a [symbol] is associated to the choice,
+then you may define the same choice (ie. with the same entries) in another
+place.
 
 comment:
 

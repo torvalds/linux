@@ -113,11 +113,16 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 		goto fail_free_mbox_pool;
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
+		phba->rrq_pool =
+			mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
+						sizeof(struct lpfc_node_rrq));
+		if (!phba->rrq_pool)
+			goto fail_free_nlp_mem_pool;
 		phba->lpfc_hrb_pool = pci_pool_create("lpfc_hrb_pool",
 					      phba->pcidev,
 					      LPFC_HDR_BUF_SIZE, align, 0);
 		if (!phba->lpfc_hrb_pool)
-			goto fail_free_nlp_mem_pool;
+			goto fail_free_rrq_mem_pool;
 
 		phba->lpfc_drb_pool = pci_pool_create("lpfc_drb_pool",
 					      phba->pcidev,
@@ -147,6 +152,9 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
  fail_free_hrb_pool:
 	pci_pool_destroy(phba->lpfc_hrb_pool);
 	phba->lpfc_hrb_pool = NULL;
+ fail_free_rrq_mem_pool:
+	mempool_destroy(phba->rrq_pool);
+	phba->rrq_pool = NULL;
  fail_free_nlp_mem_pool:
 	mempool_destroy(phba->nlp_mem_pool);
 	phba->nlp_mem_pool = NULL;

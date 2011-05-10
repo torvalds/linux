@@ -41,7 +41,7 @@
  * DRAM clocking and refresh are slightly different for systems with DDR
  * DRAM or regular SDRAM devices. If SDRAM is used in the system, the
  * SDRAM will still be accessible in direct-run mode. In DDR based systems,
- * a transistion to direct-run mode will stop all DDR accesses (no clocks).
+ * a transition to direct-run mode will stop all DDR accesses (no clocks).
  * Because of this, the code to switch power modes and the code to enter
  * and exit DRAM self-refresh modes must not be executed in DRAM. A small
  * section of IRAM is used instead for this.
@@ -123,7 +123,7 @@ static int lpc32xx_pm_enter(suspend_state_t state)
 	return 0;
 }
 
-static struct platform_suspend_ops lpc32xx_pm_ops = {
+static const struct platform_suspend_ops lpc32xx_pm_ops = {
 	.valid	= suspend_valid_only_mem,
 	.enter	= lpc32xx_pm_enter,
 };

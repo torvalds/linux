@@ -3495,7 +3495,7 @@ init_card(struct atm_dev *dev)
 		return -1;
 	}
 	if (dev->phy->ioctl == NULL) {
-		printk("%s: LT had no IOCTL funtion defined.\n", card->name);
+		printk("%s: LT had no IOCTL function defined.\n", card->name);
 		deinit_card(card);
 		return -1;
 	}
@@ -3698,7 +3698,8 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 		goto err_out_iounmap;
 	}
 
-	dev = atm_dev_register("idt77252", &idt77252_ops, -1, NULL);
+	dev = atm_dev_register("idt77252", &pcidev->dev, &idt77252_ops, -1,
+			       NULL);
 	if (!dev) {
 		printk("%s: can't register atm device\n", card->name);
 		err = -EIO;

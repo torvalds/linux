@@ -33,10 +33,6 @@ void __init amiga_chip_init(void)
     if (!AMIGAHW_PRESENT(CHIP_RAM))
 	return;
 
-    /*
-     *  Remove the first 4 pages where PPC exception handlers will be located
-     */
-    amiga_chip_size -= 0x4000;
     chipram_res.end = amiga_chip_size-1;
     request_resource(&iomem_resource, &chipram_res);
 

@@ -19,7 +19,6 @@
 #include "zlib_inflate/inflate.h"
 
 #include "zlib_inflate/infutil.h"
-#include <linux/slab.h>
 
 #endif /* STATIC */
 
@@ -27,7 +26,7 @@
 
 #define GZIP_IOBUF_SIZE (16*1024)
 
-static int nofill(void *buffer, unsigned int len)
+static int INIT nofill(void *buffer, unsigned int len)
 {
 	return -1;
 }
@@ -38,13 +37,12 @@ STATIC int INIT gunzip(unsigned char *buf, int len,
 		       int(*flush)(void*, unsigned int),
 		       unsigned char *out_buf,
 		       int *pos,
-		       void(*error_fn)(char *x)) {
+		       void(*error)(char *x)) {
 	u8 *zbuf;
 	struct z_stream_s *strm;
 	int rc;
 	size_t out_len;
 
-	set_error_fn(error_fn);
 	rc = -1;
 	if (flush) {
 		out_len = 0x8000; /* 32 K */
@@ -100,13 +98,22 @@ STATIC int INIT gunzip(unsigned char *buf, int len,
 	 * possible asciz filename)
 	 */
 	strm->next_in = zbuf + 10;
+	strm->avail_in = len - 10;
 	/* skip over asciz filename */
 	if (zbuf[3] & 0x8) {
-		while (strm->next_in[0])
-			strm->next_in++;
-		strm->next_in++;
+		do {
+			/*
+			 * If the filename doesn't fit into the buffer,
+			 * the file is very probably corrupt. Don't try
+			 * to read more data.
+			 */
+			if (strm->avail_in == 0) {
+				error("header error");
+				goto gunzip_5;
+			}
+			--strm->avail_in;
+		} while (*strm->next_in++);
 	}
-	strm->avail_in = len - (strm->next_in - zbuf);
 
 	strm->next_out = out_buf;
 	strm->avail_out = out_len;

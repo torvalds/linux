@@ -131,9 +131,8 @@ static void cpc_tty_trace(pc300dev_t *dev, char* buf, int len, char rxtx);
 static void cpc_tty_signal_off(pc300dev_t *pc300dev, unsigned char);
 static void cpc_tty_signal_on(pc300dev_t *pc300dev, unsigned char);
 
-static int pc300_tiocmset(struct tty_struct *, struct file *,
-			  unsigned int, unsigned int);
-static int pc300_tiocmget(struct tty_struct *, struct file *);
+static int pc300_tiocmset(struct tty_struct *, unsigned int, unsigned int);
+static int pc300_tiocmget(struct tty_struct *);
 
 /* functions called by PC300 driver */
 void cpc_tty_init(pc300dev_t *dev);
@@ -543,7 +542,7 @@ static int cpc_tty_chars_in_buffer(struct tty_struct *tty)
 	return 0;
 } 
 
-static int pc300_tiocmset(struct tty_struct *tty, struct file *file,
+static int pc300_tiocmset(struct tty_struct *tty,
 			  unsigned int set, unsigned int clear)
 {
 	st_cpc_tty_area    *cpc_tty; 
@@ -570,7 +569,7 @@ static int pc300_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static int pc300_tiocmget(struct tty_struct *tty, struct file *file)
+static int pc300_tiocmget(struct tty_struct *tty)
 {
 	unsigned int result;
 	unsigned char status;

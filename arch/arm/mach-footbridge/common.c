@@ -75,20 +75,20 @@ static const int fb_irq_mask[] = {
 	IRQ_MASK_PCI_PERR,	/* 19 */
 };
 
-static void fb_mask_irq(unsigned int irq)
+static void fb_mask_irq(struct irq_data *d)
 {
-	*CSR_IRQ_DISABLE = fb_irq_mask[_DC21285_INR(irq)];
+	*CSR_IRQ_DISABLE = fb_irq_mask[_DC21285_INR(d->irq)];
 }
 
-static void fb_unmask_irq(unsigned int irq)
+static void fb_unmask_irq(struct irq_data *d)
 {
-	*CSR_IRQ_ENABLE = fb_irq_mask[_DC21285_INR(irq)];
+	*CSR_IRQ_ENABLE = fb_irq_mask[_DC21285_INR(d->irq)];
 }
 
 static struct irq_chip fb_chip = {
-	.ack	= fb_mask_irq,
-	.mask	= fb_mask_irq,
-	.unmask = fb_unmask_irq,
+	.irq_ack	= fb_mask_irq,
+	.irq_mask	= fb_mask_irq,
+	.irq_unmask	= fb_unmask_irq,
 };
 
 static void __init __fb_init_irq(void)
@@ -102,8 +102,7 @@ static void __init __fb_init_irq(void)
 	*CSR_FIQ_DISABLE = -1;
 
 	for (irq = _DC21285_IRQ(0); irq < _DC21285_IRQ(20); irq++) {
-		set_irq_chip(irq, &fb_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &fb_chip, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 }

@@ -932,6 +932,11 @@ int hil_mlc_register(hil_mlc *mlc)
 		hil_mlc_copy_di_scratch(mlc, i);
 		mlc_serio = kzalloc(sizeof(*mlc_serio), GFP_KERNEL);
 		mlc->serio[i] = mlc_serio;
+		if (!mlc->serio[i]) {
+			for (; i >= 0; i--)
+				kfree(mlc->serio[i]);
+			return -ENOMEM;
+		}
 		snprintf(mlc_serio->name, sizeof(mlc_serio->name)-1, "HIL_SERIO%d", i);
 		snprintf(mlc_serio->phys, sizeof(mlc_serio->phys)-1, "HIL%d", i);
 		mlc_serio->id			= hil_mlc_serio_id;

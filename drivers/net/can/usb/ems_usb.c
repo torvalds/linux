@@ -386,7 +386,7 @@ static void ems_usb_rx_err(struct ems_usb *dev, struct ems_cpc_msg *msg)
 			break;
 		}
 
-		/* Error occured during transmission? */
+		/* Error occurred during transmission? */
 		if ((ecc & SJA1000_ECC_DIR) == 0)
 			cf->data[2] |= CAN_ERR_PROT_TX;
 

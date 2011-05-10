@@ -14,11 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <bcmdefs.h>
-#include <osl.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <bcmdevs.h>
@@ -53,8 +54,8 @@
 #endif
 
 /* local prototypes */
-static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
-			      void *regs, uint bustype, void *sdh, char **vars,
+static si_info_t *si_doattach(si_info_t *sii, uint devid, void *regs,
+			      uint bustype, void *sdh, char **vars,
 			      uint *varsz);
 static bool si_buscore_prep(si_info_t *sii, uint bustype, uint devid,
 			    void *sdh);
@@ -81,8 +82,8 @@ static u32 si_gpioreservation;
  * vars - pointer to a pointer area for "environment" variables
  * varsz - pointer to int to return the size of the vars
  */
-si_t *si_attach(uint devid, osl_t *osh, void *regs, uint bustype, void *sdh,
-		char **vars, uint *varsz)
+si_t *si_attach(uint devid, void *regs, uint bustype,
+		void *sdh, char **vars, uint *varsz)
 {
 	si_info_t *sii;
 
@@ -93,7 +94,7 @@ si_t *si_attach(uint devid, osl_t *osh, void *regs, uint bustype, void *sdh,
 		return NULL;
 	}
 
-	if (si_doattach(sii, devid, osh, regs, bustype, sdh, vars, varsz) ==
+	if (si_doattach(sii, devid, regs, bustype, sdh, vars, varsz) ==
 	    NULL) {
 		kfree(sii);
 		return NULL;
@@ -113,12 +114,12 @@ static bool si_buscore_prep(si_info_t *sii, uint bustype, uint devid,
 
 #ifndef BRCM_FULLMAC
 	/* kludge to enable the clock on the 4306 which lacks a slowclock */
-	if (BUSTYPE(bustype) == PCI_BUS && !si_ispcie(sii))
+	if (bustype == PCI_BUS && !si_ispcie(sii))
 		si_clkctl_xtal(&sii->pub, XTAL | PLL, ON);
 #endif
 
 #if defined(BCMSDIO)
-	if (BUSTYPE(bustype) == SDIO_BUS) {
+	if (bustype == SDIO_BUS) {
 		int err;
 		u8 clkset;
 
@@ -178,19 +179,19 @@ static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 
 	/* get chipcommon chipstatus */
 	if (sii->pub.ccrev >= 11)
-		sii->pub.chipst = R_REG(sii->osh, &cc->chipstatus);
+		sii->pub.chipst = R_REG(&cc->chipstatus);
 
 	/* get chipcommon capabilites */
-	sii->pub.cccaps = R_REG(sii->osh, &cc->capabilities);
+	sii->pub.cccaps = R_REG(&cc->capabilities);
 	/* get chipcommon extended capabilities */
 
 #ifndef BRCM_FULLMAC
 	if (sii->pub.ccrev >= 35)
-		sii->pub.cccaps_ext = R_REG(sii->osh, &cc->capabilities_ext);
+		sii->pub.cccaps_ext = R_REG(&cc->capabilities_ext);
 #endif
 	/* get pmu rev and caps */
 	if (sii->pub.cccaps & CC_CAP_PMU) {
-		sii->pub.pmucaps = R_REG(sii->osh, &cc->pmucapabilities);
+		sii->pub.pmucaps = R_REG(&cc->pmucapabilities);
 		sii->pub.pmurev = sii->pub.pmucaps & PCAP_REV_MASK;
 	}
 
@@ -220,7 +221,7 @@ static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 		SI_VMSG(("CORE[%d]: id 0x%x rev %d base 0x%x regs 0x%p\n",
 			 i, cid, crev, sii->coresba[i], sii->regs[i]));
 
-		if (BUSTYPE(bustype) == PCI_BUS) {
+		if (bustype == PCI_BUS) {
 			if (cid == PCI_CORE_ID) {
 				pciidx = i;
 				pcirev = crev;
@@ -232,8 +233,8 @@ static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 			}
 		}
 #ifdef BCMSDIO
-		else if (((BUSTYPE(bustype) == SDIO_BUS) ||
-			  (BUSTYPE(bustype) == SPI_BUS)) &&
+		else if (((bustype == SDIO_BUS) ||
+			  (bustype == SPI_BUS)) &&
 			 ((cid == PCMCIA_CORE_ID) || (cid == SDIOD_CORE_ID))) {
 			sii->pub.buscorerev = crev;
 			sii->pub.buscoretype = cid;
@@ -255,7 +256,7 @@ static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 	* or downloaded code was
 	* already running.
 	*/
-	if ((BUSTYPE(bustype) == SDIO_BUS) || (BUSTYPE(bustype) == SPI_BUS)) {
+	if ((bustype == SDIO_BUS) || (bustype == SPI_BUS)) {
 		if (si_setcore(&sii->pub, ARM7S_CORE_ID, 0) ||
 			si_setcore(&sii->pub, ARMCM3_CORE_ID, 0))
 			si_core_disable(&sii->pub, 0);
@@ -281,11 +282,11 @@ static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 		 sii->pub.buscoretype, sii->pub.buscorerev));
 
 	/* fixup necessary chip/core configurations */
-	if (BUSTYPE(sii->pub.bustype) == PCI_BUS) {
+	if (sii->pub.bustype == PCI_BUS) {
 		if (SI_FAST(sii)) {
 			if (!sii->pch) {
 				sii->pch = (void *)pcicore_init(
-					&sii->pub, sii->osh,
+					&sii->pub, sii->pbus,
 					(void *)PCIEREGS(sii));
 				if (sii->pch == NULL)
 					return false;
@@ -308,10 +309,10 @@ static __used void si_nvram_process(si_info_t *sii, char *pvars)
 	uint w = 0;
 
 	/* get boardtype and boardrev */
-	switch (BUSTYPE(sii->pub.bustype)) {
+	switch (sii->pub.bustype) {
 	case PCI_BUS:
 		/* do a pci config read to get subsystem id and subvendor id */
-		w = OSL_PCI_READ_CONFIG(sii->osh, PCI_CFG_SVID, sizeof(u32));
+		pci_read_config_dword(sii->pbus, PCI_CFG_SVID, &w);
 		/* Let nvram variables override subsystem Vend/ID */
 		sii->pub.boardvendor = (u16)si_getdevpathintvar(&sii->pub,
 			"boardvendor");
@@ -364,8 +365,8 @@ static __used void si_nvram_process(si_info_t *sii, char *pvars)
 /* this is will make Sonics calls directly, since Sonics is no longer supported in the Si abstraction */
 /* this has been customized for the bcm 4329 ONLY */
 #ifdef BCMSDIO
-static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
-			      void *regs, uint bustype, void *sdh,
+static si_info_t *si_doattach(si_info_t *sii, uint devid,
+			      void *regs, uint bustype, void *pbus,
 			      char **vars, uint *varsz)
 {
 	struct si_pub *sih = &sii->pub;
@@ -376,27 +377,21 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 
 	ASSERT(GOODREGS(regs));
 
-	bzero((unsigned char *) sii, sizeof(si_info_t));
+	memset((unsigned char *) sii, 0, sizeof(si_info_t));
 
 	savewin = 0;
 
 	sih->buscoreidx = BADIDX;
 
 	sii->curmap = regs;
-	sii->sdh = sdh;
-	sii->osh = osh;
+	sii->pbus = pbus;
 
 	/* find Chipcommon address */
 	cc = (chipcregs_t *) sii->curmap;
 	sih->bustype = bustype;
 
-	if (bustype != BUSTYPE(bustype)) {
-		SI_ERROR(("si_doattach: bus type %d does not match configured bus type %d\n", bustype, BUSTYPE(bustype)));
-		return NULL;
-	}
-
 	/* bus/core/clk setup for register access */
-	if (!si_buscore_prep(sii, bustype, devid, sdh)) {
+	if (!si_buscore_prep(sii, bustype, devid, pbus)) {
 		SI_ERROR(("si_doattach: si_core_clk_prep failed %d\n",
 			  bustype));
 		return NULL;
@@ -407,14 +402,14 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 	 *   If we add other chiptypes (or if we need to support old sdio hosts w/o chipcommon),
 	 *   some way of recognizing them needs to be added here.
 	 */
-	w = R_REG(osh, &cc->chipid);
+	w = R_REG(&cc->chipid);
 	sih->socitype = (w & CID_TYPE_MASK) >> CID_TYPE_SHIFT;
 	/* Might as wll fill in chip id rev & pkg */
 	sih->chip = w & CID_ID_MASK;
 	sih->chiprev = (w & CID_REV_MASK) >> CID_REV_SHIFT;
 	sih->chippkg = (w & CID_PKG_MASK) >> CID_PKG_SHIFT;
 
-	if ((CHIPID(sih->chip) == BCM4329_CHIP_ID) &&
+	if ((sih->chip == BCM4329_CHIP_ID) &&
 		(sih->chippkg != BCM4329_289PIN_PKG_ID))
 			sih->chippkg = BCM4329_182PIN_PKG_ID;
 
@@ -444,7 +439,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 
 	/* Init nvram from sprom/otp if they exist */
 	if (srom_var_init
-	    (&sii->pub, BUSTYPE(bustype), regs, sii->osh, vars, varsz)) {
+	    (&sii->pub, bustype, regs, sii->osh, vars, varsz)) {
 		SI_ERROR(("si_doattach: srom_var_init failed: bad srom\n"));
 		goto exit;
 	}
@@ -458,8 +453,8 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 	if (sii->pub.ccrev >= 20) {
 #endif
 	cc = (chipcregs_t *) si_setcore(sih, CC_CORE_ID, 0);
-	W_REG(osh, &cc->gpiopullup, 0);
-	W_REG(osh, &cc->gpiopulldown, 0);
+	W_REG(&cc->gpiopullup, 0);
+	W_REG(&cc->gpiopulldown, 0);
 	sb_setcoreidx(sih, origidx);
 #ifdef BRCM_FULLMAC
 	}
@@ -469,15 +464,15 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 	/* PMU specific initializations */
 	if (PMUCTL_ENAB(sih)) {
 		u32 xtalfreq;
-		si_pmu_init(sih, sii->osh);
-		si_pmu_chip_init(sih, sii->osh);
+		si_pmu_init(sih);
+		si_pmu_chip_init(sih);
 		xtalfreq = getintvar(pvars, "xtalfreq");
 		/* If xtalfreq var not available, try to measure it */
 		if (xtalfreq == 0)
-			xtalfreq = si_pmu_measure_alpclk(sih, sii->osh);
-		si_pmu_pll_init(sih, sii->osh, xtalfreq);
-		si_pmu_res_init(sih, sii->osh);
-		si_pmu_swreg_init(sih, sii->osh);
+			xtalfreq = si_pmu_measure_alpclk(sih);
+		si_pmu_pll_init(sih, xtalfreq);
+		si_pmu_res_init(sih);
+		si_pmu_swreg_init(sih);
 	}
 
 	/* setup the GPIO based LED powersave register */
@@ -499,8 +494,8 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 }
 
 #else				/* BCMSDIO */
-static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
-			      void *regs, uint bustype, void *sdh,
+static si_info_t *si_doattach(si_info_t *sii, uint devid,
+			      void *regs, uint bustype, void *pbus,
 			      char **vars, uint *varsz)
 {
 	struct si_pub *sih = &sii->pub;
@@ -511,44 +506,42 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 
 	ASSERT(GOODREGS(regs));
 
-	bzero((unsigned char *) sii, sizeof(si_info_t));
+	memset((unsigned char *) sii, 0, sizeof(si_info_t));
 
 	savewin = 0;
 
 	sih->buscoreidx = BADIDX;
 
 	sii->curmap = regs;
-	sii->sdh = sdh;
-	sii->osh = osh;
+	sii->pbus = pbus;
 
 	/* check to see if we are a si core mimic'ing a pci core */
-	if ((bustype == PCI_BUS) &&
-	    (OSL_PCI_READ_CONFIG(sii->osh, PCI_SPROM_CONTROL, sizeof(u32)) ==
-	     0xffffffff)) {
-		SI_ERROR(("%s: incoming bus is PCI but it's a lie, switching to SI " "devid:0x%x\n", __func__, devid));
-		bustype = SI_BUS;
+	if (bustype == PCI_BUS) {
+		pci_read_config_dword(sii->pbus, PCI_SPROM_CONTROL,  &w);
+		if (w == 0xffffffff) {
+			SI_ERROR(("%s: incoming bus is PCI but it's a lie, "
+				" switching to SI devid:0x%x\n",
+				__func__, devid));
+			bustype = SI_BUS;
+		}
 	}
 
 	/* find Chipcommon address */
 	if (bustype == PCI_BUS) {
-		savewin =
-		    OSL_PCI_READ_CONFIG(sii->osh, PCI_BAR0_WIN, sizeof(u32));
+		pci_read_config_dword(sii->pbus, PCI_BAR0_WIN, &savewin);
 		if (!GOODCOREADDR(savewin, SI_ENUM_BASE))
 			savewin = SI_ENUM_BASE;
-		OSL_PCI_WRITE_CONFIG(sii->osh, PCI_BAR0_WIN, 4, SI_ENUM_BASE);
+		pci_write_config_dword(sii->pbus, PCI_BAR0_WIN,
+				       SI_ENUM_BASE);
 		cc = (chipcregs_t *) regs;
 	} else {
 		cc = (chipcregs_t *) REG_MAP(SI_ENUM_BASE, SI_CORE_SIZE);
 	}
 
 	sih->bustype = bustype;
-	if (bustype != BUSTYPE(bustype)) {
-		SI_ERROR(("si_doattach: bus type %d does not match configured bus type %d\n", bustype, BUSTYPE(bustype)));
-		return NULL;
-	}
 
 	/* bus/core/clk setup for register access */
-	if (!si_buscore_prep(sii, bustype, devid, sdh)) {
+	if (!si_buscore_prep(sii, bustype, devid, pbus)) {
 		SI_ERROR(("si_doattach: si_core_clk_prep failed %d\n",
 			  bustype));
 		return NULL;
@@ -559,7 +552,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 	 *   If we add other chiptypes (or if we need to support old sdio hosts w/o chipcommon),
 	 *   some way of recognizing them needs to be added here.
 	 */
-	w = R_REG(osh, &cc->chipid);
+	w = R_REG(&cc->chipid);
 	sih->socitype = (w & CID_TYPE_MASK) >> CID_TYPE_SHIFT;
 	/* Might as wll fill in chip id rev & pkg */
 	sih->chip = w & CID_ID_MASK;
@@ -569,7 +562,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 	sih->issim = IS_SIM(sih->chippkg);
 
 	/* scan for cores */
-	if (CHIPTYPE(sii->pub.socitype) == SOCI_AI) {
+	if (sii->pub.socitype == SOCI_AI) {
 		SI_MSG(("Found chip type AI (0x%08x)\n", w));
 		/* pass chipc address instead of original core base */
 		ai_scan(&sii->pub, (void *)cc, devid);
@@ -592,17 +585,17 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 	/* assume current core is CC */
 	if ((sii->pub.ccrev == 0x25)
 	    &&
-	    ((CHIPID(sih->chip) == BCM43236_CHIP_ID
-	      || CHIPID(sih->chip) == BCM43235_CHIP_ID
-	      || CHIPID(sih->chip) == BCM43238_CHIP_ID)
-	     && (CHIPREV(sii->pub.chiprev) <= 2))) {
+	    ((sih->chip == BCM43236_CHIP_ID
+	      || sih->chip == BCM43235_CHIP_ID
+	      || sih->chip == BCM43238_CHIP_ID)
+	     && (sii->pub.chiprev <= 2))) {
 
 		if ((cc->chipstatus & CST43236_BP_CLK) != 0) {
 			uint clkdiv;
-			clkdiv = R_REG(osh, &cc->clkdiv);
+			clkdiv = R_REG(&cc->clkdiv);
 			/* otp_clk_div is even number, 120/14 < 9mhz */
 			clkdiv = (clkdiv & ~CLKD_OTP) | (14 << CLKD_OTP_SHIFT);
-			W_REG(osh, &cc->clkdiv, clkdiv);
+			W_REG(&cc->clkdiv, clkdiv);
 			SI_ERROR(("%s: set clkdiv to %x\n", __func__, clkdiv));
 		}
 		udelay(10);
@@ -613,7 +606,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 
 	/* Init nvram from sprom/otp if they exist */
 	if (srom_var_init
-	    (&sii->pub, BUSTYPE(bustype), regs, sii->osh, vars, varsz)) {
+	    (&sii->pub, bustype, regs, vars, varsz)) {
 		SI_ERROR(("si_doattach: srom_var_init failed: bad srom\n"));
 		goto exit;
 	}
@@ -622,22 +615,22 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 
 	/* === NVRAM, clock is ready === */
 	cc = (chipcregs_t *) si_setcore(sih, CC_CORE_ID, 0);
-	W_REG(osh, &cc->gpiopullup, 0);
-	W_REG(osh, &cc->gpiopulldown, 0);
+	W_REG(&cc->gpiopullup, 0);
+	W_REG(&cc->gpiopulldown, 0);
 	si_setcoreidx(sih, origidx);
 
 	/* PMU specific initializations */
 	if (PMUCTL_ENAB(sih)) {
 		u32 xtalfreq;
-		si_pmu_init(sih, sii->osh);
-		si_pmu_chip_init(sih, sii->osh);
+		si_pmu_init(sih);
+		si_pmu_chip_init(sih);
 		xtalfreq = getintvar(pvars, "xtalfreq");
 		/* If xtalfreq var not available, try to measure it */
 		if (xtalfreq == 0)
-			xtalfreq = si_pmu_measure_alpclk(sih, sii->osh);
-		si_pmu_pll_init(sih, sii->osh, xtalfreq);
-		si_pmu_res_init(sih, sii->osh);
-		si_pmu_swreg_init(sih, sii->osh);
+			xtalfreq = si_pmu_measure_alpclk(sih);
+		si_pmu_pll_init(sih, xtalfreq);
+		si_pmu_res_init(sih);
+		si_pmu_swreg_init(sih);
 	}
 
 	/* setup the GPIO based LED powersave register */
@@ -651,10 +644,10 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 		pcicore_attach(sii->pch, pvars, SI_DOATTACH);
 	}
 
-	if ((CHIPID(sih->chip) == BCM43224_CHIP_ID) ||
-	    (CHIPID(sih->chip) == BCM43421_CHIP_ID)) {
+	if ((sih->chip == BCM43224_CHIP_ID) ||
+	    (sih->chip == BCM43421_CHIP_ID)) {
 		/* enable 12 mA drive strenth for 43224 and set chipControl register bit 15 */
-		if (CHIPREV(sih->chiprev) == 0) {
+		if (sih->chiprev == 0) {
 			SI_MSG(("Applying 43224A0 WARs\n"));
 			si_corereg(sih, SI_CC_IDX,
 				   offsetof(chipcregs_t, chipcontrol),
@@ -663,28 +656,28 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 			si_pmu_chipcontrol(sih, 0, CCTRL_43224A0_12MA_LED_DRIVE,
 					   CCTRL_43224A0_12MA_LED_DRIVE);
 		}
-		if (CHIPREV(sih->chiprev) >= 1) {
+		if (sih->chiprev >= 1) {
 			SI_MSG(("Applying 43224B0+ WARs\n"));
 			si_pmu_chipcontrol(sih, 0, CCTRL_43224B0_12MA_LED_DRIVE,
 					   CCTRL_43224B0_12MA_LED_DRIVE);
 		}
 	}
 
-	if (CHIPID(sih->chip) == BCM4313_CHIP_ID) {
+	if (sih->chip == BCM4313_CHIP_ID) {
 		/* enable 12 mA drive strenth for 4313 and set chipControl register bit 1 */
 		SI_MSG(("Applying 4313 WARs\n"));
 		si_pmu_chipcontrol(sih, 0, CCTRL_4313_12MA_LED_DRIVE,
 				   CCTRL_4313_12MA_LED_DRIVE);
 	}
 
-	if (CHIPID(sih->chip) == BCM4331_CHIP_ID) {
+	if (sih->chip == BCM4331_CHIP_ID) {
 		/* Enable Ext PA lines depending on chip package option */
 		si_chipcontrl_epa4331(sih, true);
 	}
 
 	return sii;
  exit:
-	if (BUSTYPE(sih->bustype) == PCI_BUS) {
+	if (sih->bustype == PCI_BUS) {
 		if (sii->pch)
 			pcicore_deinit(sii->pch);
 		sii->pch = NULL;
@@ -701,24 +694,24 @@ void si_detach(si_t *sih)
 	uint idx;
 
 	struct si_pub *si_local = NULL;
-	bcopy(&sih, &si_local, sizeof(si_t **));
+	memcpy(&si_local, &sih, sizeof(si_t **));
 
 	sii = SI_INFO(sih);
 
 	if (sii == NULL)
 		return;
 
-	if (BUSTYPE(sih->bustype) == SI_BUS)
+	if (sih->bustype == SI_BUS)
 		for (idx = 0; idx < SI_MAXCORES; idx++)
 			if (sii->regs[idx]) {
-				REG_UNMAP(sii->regs[idx]);
+				iounmap(sii->regs[idx]);
 				sii->regs[idx] = NULL;
 			}
 
 #ifndef BRCM_FULLMAC
 	nvram_exit((void *)si_local);	/* free up nvram buffers */
 
-	if (BUSTYPE(sih->bustype) == PCI_BUS) {
+	if (sih->bustype == PCI_BUS) {
 		if (sii->pch)
 			pcicore_deinit(sii->pch);
 		sii->pch = NULL;
@@ -728,14 +721,6 @@ void si_detach(si_t *sih)
 	if (sii != &ksii)
 #endif				/* !BCMBUSTYPE || (BCMBUSTYPE == SI_BUS) */
 		kfree(sii);
-}
-
-void *si_osh(si_t *sih)
-{
-	si_info_t *sii;
-
-	sii = SI_INFO(sih);
-	return sii->osh;
 }
 
 /* register driver interrupt disabling and restoring callback functions */
@@ -766,7 +751,7 @@ void si_deregister_intr_callback(si_t *sih)
 
 uint si_flag(si_t *sih)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_flag(sih);
 	else {
 		ASSERT(0);
@@ -776,7 +761,7 @@ uint si_flag(si_t *sih)
 
 void si_setint(si_t *sih, int siflag)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		ai_setint(sih, siflag);
 	else
 		ASSERT(0);
@@ -808,7 +793,7 @@ bool si_backplane64(si_t *sih)
 #ifndef BCMSDIO
 uint si_corerev(si_t *sih)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_corerev(sih);
 	else {
 		ASSERT(0);
@@ -851,7 +836,7 @@ void *si_setcore(si_t *sih, uint coreid, uint coreunit)
 	if (!GOODIDX(idx))
 		return NULL;
 
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_setcoreidx(sih, idx);
 	else {
 #ifdef BCMSDIO
@@ -866,7 +851,7 @@ void *si_setcore(si_t *sih, uint coreid, uint coreunit)
 #ifndef BCMSDIO
 void *si_setcoreidx(si_t *sih, uint coreidx)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_setcoreidx(sih, coreidx);
 	else {
 		ASSERT(0);
@@ -918,7 +903,7 @@ void si_restore_core(si_t *sih, uint coreid, uint intr_val)
 
 u32 si_core_cflags(si_t *sih, u32 mask, u32 val)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_core_cflags(sih, mask, val);
 	else {
 		ASSERT(0);
@@ -928,7 +913,7 @@ u32 si_core_cflags(si_t *sih, u32 mask, u32 val)
 
 u32 si_core_sflags(si_t *sih, u32 mask, u32 val)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_core_sflags(sih, mask, val);
 	else {
 		ASSERT(0);
@@ -938,7 +923,7 @@ u32 si_core_sflags(si_t *sih, u32 mask, u32 val)
 
 bool si_iscoreup(si_t *sih)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_iscoreup(sih);
 	else {
 #ifdef BCMSDIO
@@ -953,7 +938,7 @@ bool si_iscoreup(si_t *sih)
 void si_write_wrapperreg(si_t *sih, u32 offset, u32 val)
 {
 	/* only for 4319, no requirement for SOCI_SB */
-	if (CHIPTYPE(sih->socitype) == SOCI_AI) {
+	if (sih->socitype == SOCI_AI) {
 		ai_write_wrap_reg(sih, offset, val);
 	}
 }
@@ -961,7 +946,7 @@ void si_write_wrapperreg(si_t *sih, u32 offset, u32 val)
 uint si_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 {
 
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_corereg(sih, coreidx, regoff, mask, val);
 	else {
 #ifdef BCMSDIO
@@ -976,7 +961,7 @@ uint si_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 void si_core_disable(si_t *sih, u32 bits)
 {
 
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		ai_core_disable(sih, bits);
 #ifdef BCMSDIO
 	else
@@ -986,7 +971,7 @@ void si_core_disable(si_t *sih, u32 bits)
 
 void si_core_reset(si_t *sih, u32 bits, u32 resetbits)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		ai_core_reset(sih, bits, resetbits);
 #ifdef BCMSDIO
 	else
@@ -997,7 +982,7 @@ void si_core_reset(si_t *sih, u32 bits, u32 resetbits)
 u32 si_alp_clock(si_t *sih)
 {
 	if (PMUCTL_ENAB(sih))
-		return si_pmu_alp_clock(sih, si_osh(sih));
+		return si_pmu_alp_clock(sih);
 
 	return ALP_CLOCK;
 }
@@ -1005,7 +990,7 @@ u32 si_alp_clock(si_t *sih)
 u32 si_ilp_clock(si_t *sih)
 {
 	if (PMUCTL_ENAB(sih))
-		return si_pmu_ilp_clock(sih, si_osh(sih));
+		return si_pmu_ilp_clock(sih);
 
 	return ILP_CLOCK;
 }
@@ -1043,8 +1028,8 @@ void si_watchdog(si_t *sih, uint ticks)
 
 	if (PMUCTL_ENAB(sih)) {
 
-		if ((CHIPID(sih->chip) == BCM4319_CHIP_ID) &&
-		    (CHIPREV(sih->chiprev) == 0) && (ticks != 0)) {
+		if ((sih->chip == BCM4319_CHIP_ID) &&
+		    (sih->chiprev == 0) && (ticks != 0)) {
 			si_corereg(sih, SI_CC_IDX,
 				   offsetof(chipcregs_t, clk_ctl_st), ~0, 0x2);
 			si_setcore(sih, USB20D_CORE_ID, 0);
@@ -1085,19 +1070,21 @@ void si_watchdog(si_t *sih, uint ticks)
 static uint si_slowclk_src(si_info_t *sii)
 {
 	chipcregs_t *cc;
+	u32 val;
 
 	ASSERT(SI_FAST(sii) || si_coreid(&sii->pub) == CC_CORE_ID);
 
 	if (sii->pub.ccrev < 6) {
-		if ((BUSTYPE(sii->pub.bustype) == PCI_BUS) &&
-		    (OSL_PCI_READ_CONFIG(sii->osh, PCI_GPIO_OUT, sizeof(u32))
-		     & PCI_CFG_GPIO_SCS))
-			return SCC_SS_PCI;
-		else
-			return SCC_SS_XTAL;
+		if (sii->pub.bustype == PCI_BUS) {
+			pci_read_config_dword(sii->pbus, PCI_GPIO_OUT,
+					      &val);
+			if (val & PCI_CFG_GPIO_SCS)
+				return SCC_SS_PCI;
+		}
+		return SCC_SS_XTAL;
 	} else if (sii->pub.ccrev < 10) {
 		cc = (chipcregs_t *) si_setcoreidx(&sii->pub, sii->curidx);
-		return R_REG(sii->osh, &cc->slow_clk_ctl) & SCC_SS_MASK;
+		return R_REG(&cc->slow_clk_ctl) & SCC_SS_MASK;
 	} else			/* Insta-clock */
 		return SCC_SS_XTAL;
 }
@@ -1111,7 +1098,7 @@ static uint si_slowclk_freq(si_info_t *sii, bool max_freq, chipcregs_t *cc)
 	ASSERT(SI_FAST(sii) || si_coreid(&sii->pub) == CC_CORE_ID);
 
 	/* shouldn't be here unless we've established the chip has dynamic clk control */
-	ASSERT(R_REG(sii->osh, &cc->capabilities) & CC_CAP_PWR_CTL);
+	ASSERT(R_REG(&cc->capabilities) & CC_CAP_PWR_CTL);
 
 	slowclk = si_slowclk_src(sii);
 	if (sii->pub.ccrev < 6) {
@@ -1123,7 +1110,7 @@ static uint si_slowclk_freq(si_info_t *sii, bool max_freq, chipcregs_t *cc)
 				: (XTALMINFREQ / 32);
 	} else if (sii->pub.ccrev < 10) {
 		div = 4 *
-		    (((R_REG(sii->osh, &cc->slow_clk_ctl) & SCC_CD_MASK) >>
+		    (((R_REG(&cc->slow_clk_ctl) & SCC_CD_MASK) >>
 		      SCC_CD_SHIFT) + 1);
 		if (slowclk == SCC_SS_LPO)
 			return max_freq ? LPOMAXFREQ : LPOMINFREQ;
@@ -1137,7 +1124,7 @@ static uint si_slowclk_freq(si_info_t *sii, bool max_freq, chipcregs_t *cc)
 			ASSERT(0);
 	} else {
 		/* Chipc rev 10 is InstaClock */
-		div = R_REG(sii->osh, &cc->system_clk_ctl) >> SYCC_CD_SHIFT;
+		div = R_REG(&cc->system_clk_ctl) >> SYCC_CD_SHIFT;
 		div = 4 * (div + 1);
 		return max_freq ? XTALMAXFREQ : (XTALMINFREQ / div);
 	}
@@ -1167,8 +1154,8 @@ static void si_clkctl_setdelay(si_info_t *sii, void *chipcregs)
 	pll_on_delay = ((slowmaxfreq * pll_delay) + 999999) / 1000000;
 	fref_sel_delay = ((slowmaxfreq * FREF_DELAY) + 999999) / 1000000;
 
-	W_REG(sii->osh, &cc->pll_on_delay, pll_on_delay);
-	W_REG(sii->osh, &cc->fref_sel_delay, fref_sel_delay);
+	W_REG(&cc->pll_on_delay, pll_on_delay);
+	W_REG(&cc->fref_sel_delay, fref_sel_delay);
 }
 
 /* initialize power control delay registers */
@@ -1198,7 +1185,7 @@ void si_clkctl_init(si_t *sih)
 
 	/* set all Instaclk chip ILP to 1 MHz */
 	if (sih->ccrev >= 10)
-		SET_REG(sii->osh, &cc->system_clk_ctl, SYCC_CD_MASK,
+		SET_REG(&cc->system_clk_ctl, SYCC_CD_MASK,
 			(ILP_DIV_1MHZ << SYCC_CD_SHIFT));
 
 	si_clkctl_setdelay(sii, (void *)cc);
@@ -1221,7 +1208,7 @@ u16 si_clkctl_fast_pwrup_delay(si_t *sih)
 	sii = SI_INFO(sih);
 	if (PMUCTL_ENAB(sih)) {
 		INTR_OFF(sii, intr_val);
-		fpdelay = si_pmu_fast_pwrup_delay(sih, sii->osh);
+		fpdelay = si_pmu_fast_pwrup_delay(sih);
 		INTR_RESTORE(sii, intr_val);
 		return fpdelay;
 	}
@@ -1245,7 +1232,7 @@ u16 si_clkctl_fast_pwrup_delay(si_t *sih)
 	ASSERT(cc != NULL);
 
 	slowminfreq = si_slowclk_freq(sii, false, cc);
-	fpdelay = (((R_REG(sii->osh, &cc->pll_on_delay) + 2) * 1000000) +
+	fpdelay = (((R_REG(&cc->pll_on_delay) + 2) * 1000000) +
 		   (slowminfreq - 1)) / slowminfreq;
 
  done:
@@ -1264,7 +1251,7 @@ int si_clkctl_xtal(si_t *sih, uint what, bool on)
 
 	sii = SI_INFO(sih);
 
-	switch (BUSTYPE(sih->bustype)) {
+	switch (sih->bustype) {
 
 #ifdef BCMSDIO
 	case SDIO_BUS:
@@ -1276,12 +1263,9 @@ int si_clkctl_xtal(si_t *sih, uint what, bool on)
 		if (PCIE(sii))
 			return -1;
 
-		in = OSL_PCI_READ_CONFIG(sii->osh, PCI_GPIO_IN, sizeof(u32));
-		out =
-		    OSL_PCI_READ_CONFIG(sii->osh, PCI_GPIO_OUT, sizeof(u32));
-		outen =
-		    OSL_PCI_READ_CONFIG(sii->osh, PCI_GPIO_OUTEN,
-					sizeof(u32));
+		pci_read_config_dword(sii->pbus, PCI_GPIO_IN, &in);
+		pci_read_config_dword(sii->pbus, PCI_GPIO_OUT, &out);
+		pci_read_config_dword(sii->pbus, PCI_GPIO_OUTEN, &outen);
 
 		/*
 		 * Avoid glitching the clock if GPRS is already using it.
@@ -1302,18 +1286,18 @@ int si_clkctl_xtal(si_t *sih, uint what, bool on)
 				out |= PCI_CFG_GPIO_XTAL;
 				if (what & PLL)
 					out |= PCI_CFG_GPIO_PLL;
-				OSL_PCI_WRITE_CONFIG(sii->osh, PCI_GPIO_OUT,
-						     sizeof(u32), out);
-				OSL_PCI_WRITE_CONFIG(sii->osh, PCI_GPIO_OUTEN,
-						     sizeof(u32), outen);
+				pci_write_config_dword(sii->pbus,
+						       PCI_GPIO_OUT, out);
+				pci_write_config_dword(sii->pbus,
+						       PCI_GPIO_OUTEN, outen);
 				udelay(XTAL_ON_DELAY);
 			}
 
 			/* turn pll on */
 			if (what & PLL) {
 				out &= ~PCI_CFG_GPIO_PLL;
-				OSL_PCI_WRITE_CONFIG(sii->osh, PCI_GPIO_OUT,
-						     sizeof(u32), out);
+				pci_write_config_dword(sii->pbus,
+						       PCI_GPIO_OUT, out);
 				mdelay(2);
 			}
 		} else {
@@ -1321,10 +1305,10 @@ int si_clkctl_xtal(si_t *sih, uint what, bool on)
 				out &= ~PCI_CFG_GPIO_XTAL;
 			if (what & PLL)
 				out |= PCI_CFG_GPIO_PLL;
-			OSL_PCI_WRITE_CONFIG(sii->osh, PCI_GPIO_OUT,
-					     sizeof(u32), out);
-			OSL_PCI_WRITE_CONFIG(sii->osh, PCI_GPIO_OUTEN,
-					     sizeof(u32), outen);
+			pci_write_config_dword(sii->pbus,
+					       PCI_GPIO_OUT, out);
+			pci_write_config_dword(sii->pbus,
+					       PCI_GPIO_OUTEN, outen);
 		}
 
 	default:
@@ -1335,7 +1319,7 @@ int si_clkctl_xtal(si_t *sih, uint what, bool on)
 }
 
 /*
- *  clock control policy function throught chipcommon
+ *  clock control policy function through chipcommon
  *
  *    set dynamic clk control mode (forceslow, forcefast, dynamic)
  *    returns true if we are forcing fast clock
@@ -1378,7 +1362,7 @@ static bool _si_clkctl_cc(si_info_t *sii, uint mode)
 		INTR_OFF(sii, intr_val);
 		origidx = sii->curidx;
 
-		if ((BUSTYPE(sii->pub.bustype) == SI_BUS) &&
+		if ((sii->pub.bustype == SI_BUS) &&
 		    si_setcore(&sii->pub, MIPS33_CORE_ID, 0) &&
 		    (si_corerev(&sii->pub) <= 7) && (sii->pub.ccrev >= 10))
 			goto done;
@@ -1399,20 +1383,20 @@ static bool _si_clkctl_cc(si_info_t *sii, uint mode)
 		if (sii->pub.ccrev < 10) {
 			/* don't forget to force xtal back on before we clear SCC_DYN_XTAL.. */
 			si_clkctl_xtal(&sii->pub, XTAL, ON);
-			SET_REG(sii->osh, &cc->slow_clk_ctl,
+			SET_REG(&cc->slow_clk_ctl,
 				(SCC_XC | SCC_FS | SCC_IP), SCC_IP);
 		} else if (sii->pub.ccrev < 20) {
-			OR_REG(sii->osh, &cc->system_clk_ctl, SYCC_HR);
+			OR_REG(&cc->system_clk_ctl, SYCC_HR);
 		} else {
-			OR_REG(sii->osh, &cc->clk_ctl_st, CCS_FORCEHT);
+			OR_REG(&cc->clk_ctl_st, CCS_FORCEHT);
 		}
 
 		/* wait for the PLL */
 		if (PMUCTL_ENAB(&sii->pub)) {
 			u32 htavail = CCS_HTAVAIL;
-			SPINWAIT(((R_REG(sii->osh, &cc->clk_ctl_st) & htavail)
+			SPINWAIT(((R_REG(&cc->clk_ctl_st) & htavail)
 				  == 0), PMU_MAX_TRANSITION_DLY);
-			ASSERT(R_REG(sii->osh, &cc->clk_ctl_st) & htavail);
+			ASSERT(R_REG(&cc->clk_ctl_st) & htavail);
 		} else {
 			udelay(PLL_DELAY);
 		}
@@ -1420,20 +1404,20 @@ static bool _si_clkctl_cc(si_info_t *sii, uint mode)
 
 	case CLK_DYNAMIC:	/* enable dynamic clock control */
 		if (sii->pub.ccrev < 10) {
-			scc = R_REG(sii->osh, &cc->slow_clk_ctl);
+			scc = R_REG(&cc->slow_clk_ctl);
 			scc &= ~(SCC_FS | SCC_IP | SCC_XC);
 			if ((scc & SCC_SS_MASK) != SCC_SS_XTAL)
 				scc |= SCC_XC;
-			W_REG(sii->osh, &cc->slow_clk_ctl, scc);
+			W_REG(&cc->slow_clk_ctl, scc);
 
 			/* for dynamic control, we have to release our xtal_pu "force on" */
 			if (scc & SCC_XC)
 				si_clkctl_xtal(&sii->pub, XTAL, OFF);
 		} else if (sii->pub.ccrev < 20) {
 			/* Instaclock */
-			AND_REG(sii->osh, &cc->system_clk_ctl, ~SYCC_HR);
+			AND_REG(&cc->system_clk_ctl, ~SYCC_HR);
 		} else {
-			AND_REG(sii->osh, &cc->clk_ctl_st, ~CCS_FORCEHT);
+			AND_REG(&cc->clk_ctl_st, ~CCS_FORCEHT);
 		}
 		break;
 
@@ -1460,16 +1444,17 @@ int si_devpath(si_t *sih, char *path, int size)
 	if (!path || size <= 0)
 		return -1;
 
-	switch (BUSTYPE(sih->bustype)) {
+	switch (sih->bustype) {
 	case SI_BUS:
 	case JTAG_BUS:
 		slen = snprintf(path, (size_t) size, "sb/%u/", si_coreidx(sih));
 		break;
 	case PCI_BUS:
-		ASSERT((SI_INFO(sih))->osh != NULL);
+		ASSERT((SI_INFO(sih))->pbus != NULL);
 		slen = snprintf(path, (size_t) size, "pci/%u/%u/",
-				OSL_PCI_BUS((SI_INFO(sih))->osh),
-				OSL_PCI_SLOT((SI_INFO(sih))->osh));
+			((struct pci_dev *)((SI_INFO(sih))->pbus))->bus->number,
+			PCI_SLOT(
+			    ((struct pci_dev *)((SI_INFO(sih))->pbus))->devfn));
 		break;
 
 #ifdef BCMSDIO
@@ -1550,11 +1535,11 @@ static __used bool si_ispcie(si_info_t *sii)
 {
 	u8 cap_ptr;
 
-	if (BUSTYPE(sii->pub.bustype) != PCI_BUS)
+	if (sii->pub.bustype != PCI_BUS)
 		return false;
 
 	cap_ptr =
-	    pcicore_find_pci_capability(sii->osh, PCI_CAP_PCIECAP_ID, NULL,
+	    pcicore_find_pci_capability(sii->pbus, PCI_CAP_PCIECAP_ID, NULL,
 					NULL);
 	if (!cap_ptr)
 		return false;
@@ -1587,8 +1572,8 @@ void si_sdio_init(si_t *sih)
 		SI_MSG(("si_sdio_init: For PCMCIA/SDIO Corerev %d, enable ints from core %d " "through SD core %d (%p)\n", sih->buscorerev, idx, sii->curidx, sdpregs));
 
 		/* enable backplane error and core interrupts */
-		W_REG(sii->osh, &sdpregs->hostintmask, I_SBINT);
-		W_REG(sii->osh, &sdpregs->sbintmask,
+		W_REG(&sdpregs->hostintmask, I_SBINT);
+		W_REG(&sdpregs->sbintmask,
 		      (I_SB_SERR | I_SB_RESPERR | (1 << idx)));
 
 		/* switch back to previous core */
@@ -1596,7 +1581,7 @@ void si_sdio_init(si_t *sih)
 	}
 
 	/* enable interrupts */
-	bcmsdh_intr_enable(sii->sdh);
+	bcmsdh_intr_enable(sii->pbus);
 
 }
 #endif				/* BCMSDIO */
@@ -1617,7 +1602,7 @@ void si_pci_up(si_t *sih)
 	sii = SI_INFO(sih);
 
 	/* if not pci bus, we're done */
-	if (BUSTYPE(sih->bustype) != PCI_BUS)
+	if (sih->bustype != PCI_BUS)
 		return;
 
 	if (PCI_FORCEHT(sii))
@@ -1646,7 +1631,7 @@ void si_pci_down(si_t *sih)
 	sii = SI_INFO(sih);
 
 	/* if not pci bus, we're done */
-	if (BUSTYPE(sih->bustype) != PCI_BUS)
+	if (sih->bustype != PCI_BUS)
 		return;
 
 	/* release FORCEHT since chip is going to "down" state */
@@ -1669,7 +1654,7 @@ void si_pci_setup(si_t *sih, uint coremask)
 
 	sii = SI_INFO(sih);
 
-	if (BUSTYPE(sii->pub.bustype) != PCI_BUS)
+	if (sii->pub.bustype != PCI_BUS)
 		return;
 
 	ASSERT(PCI(sii) || PCIE(sii));
@@ -1692,24 +1677,24 @@ void si_pci_setup(si_t *sih, uint coremask)
 	 */
 	if (PCIE(sii) || (PCI(sii) && ((sii->pub.buscorerev) >= 6))) {
 		/* pci config write to set this core bit in PCIIntMask */
-		w = OSL_PCI_READ_CONFIG(sii->osh, PCI_INT_MASK, sizeof(u32));
+		pci_read_config_dword(sii->pbus, PCI_INT_MASK, &w);
 		w |= (coremask << PCI_SBIM_SHIFT);
-		OSL_PCI_WRITE_CONFIG(sii->osh, PCI_INT_MASK, sizeof(u32), w);
+		pci_write_config_dword(sii->pbus, PCI_INT_MASK, w);
 	} else {
 		/* set sbintvec bit for our flag number */
 		si_setint(sih, siflag);
 	}
 
 	if (PCI(sii)) {
-		OR_REG(sii->osh, &pciregs->sbtopci2,
+		OR_REG(&pciregs->sbtopci2,
 		       (SBTOPCI_PREF | SBTOPCI_BURST));
 		if (sii->pub.buscorerev >= 11) {
-			OR_REG(sii->osh, &pciregs->sbtopci2,
+			OR_REG(&pciregs->sbtopci2,
 			       SBTOPCI_RC_READMULTI);
-			w = R_REG(sii->osh, &pciregs->clkrun);
-			W_REG(sii->osh, &pciregs->clkrun,
+			w = R_REG(&pciregs->clkrun);
+			W_REG(&pciregs->clkrun,
 			      (w | PCI_CLKRUN_DSBL));
-			w = R_REG(sii->osh, &pciregs->clkrun);
+			w = R_REG(&pciregs->clkrun);
 		}
 
 		/* switch back to previous core */
@@ -1731,7 +1716,7 @@ int si_pci_fixcfg(si_t *sih)
 
 	si_info_t *sii = SI_INFO(sih);
 
-	ASSERT(BUSTYPE(sii->pub.bustype) == PCI_BUS);
+	ASSERT(sii->pub.bustype == PCI_BUS);
 
 	/* Fixup PI in SROM shadow area to enable the correct PCI core access */
 	/* save the current index */
@@ -1751,12 +1736,12 @@ int si_pci_fixcfg(si_t *sih)
 		reg16 = &pciregs->sprom[SRSH_PI_OFFSET];
 	}
 	pciidx = si_coreidx(&sii->pub);
-	val16 = R_REG(sii->osh, reg16);
+	val16 = R_REG(reg16);
 	if (((val16 & SRSH_PI_MASK) >> SRSH_PI_SHIFT) != (u16) pciidx) {
 		val16 =
 		    (u16) (pciidx << SRSH_PI_SHIFT) | (val16 &
 							  ~SRSH_PI_MASK);
-		W_REG(sii->osh, reg16, val16);
+		W_REG(reg16, val16);
 	}
 
 	/* restore the original index */
@@ -1777,7 +1762,7 @@ u32 si_gpiocontrol(si_t *sih, u32 mask, u32 val, u8 priority)
 	 * ignore reservation if it's high priority (e.g., test apps)
 	 */
 	if ((priority != GPIO_HI_PRIORITY) &&
-	    (BUSTYPE(sih->bustype) == SI_BUS) && (val || mask)) {
+	    (sih->bustype == SI_BUS) && (val || mask)) {
 		mask = priority ? (si_gpioreservation & mask) :
 		    ((si_gpioreservation | mask) & ~(si_gpioreservation));
 		val &= mask;
@@ -1797,8 +1782,8 @@ socram_banksize(si_info_t *sii, sbsocramregs_t *regs, u8 index,
 
 	ASSERT(mem_type <= SOCRAM_MEMTYPE_DEVRAM);
 
-	W_REG(sii->osh, &regs->bankidx, bankidx);
-	bankinfo = R_REG(sii->osh, &regs->bankinfo);
+	W_REG(&regs->bankidx, bankidx);
+	bankinfo = R_REG(&regs->bankinfo);
 	banksize =
 	    SOCRAM_BANKINFO_SZBASE * ((bankinfo & SOCRAM_BANKINFO_SZMASK) + 1);
 	return banksize;
@@ -1833,7 +1818,7 @@ u32 si_socram_size(si_t *sih)
 	if (!wasup)
 		si_core_reset(sih, 0, 0);
 	corerev = si_corerev(sih);
-	coreinfo = R_REG(sii->osh, &regs->coreinfo);
+	coreinfo = R_REG(&regs->coreinfo);
 
 	/* Calculate size from coreinfo based on rev */
 	if (corerev == 0)
@@ -1881,22 +1866,22 @@ void si_chipcontrl_epa4331(si_t *sih, bool on)
 
 	cc = (chipcregs_t *) si_setcore(sih, CC_CORE_ID, 0);
 
-	val = R_REG(sii->osh, &cc->chipcontrol);
+	val = R_REG(&cc->chipcontrol);
 
 	if (on) {
 		if (sih->chippkg == 9 || sih->chippkg == 0xb) {
 			/* Ext PA Controls for 4331 12x9 Package */
-			W_REG(sii->osh, &cc->chipcontrol, val |
+			W_REG(&cc->chipcontrol, val |
 			      (CCTRL4331_EXTPA_EN |
 			       CCTRL4331_EXTPA_ON_GPIO2_5));
 		} else {
 			/* Ext PA Controls for 4331 12x12 Package */
-			W_REG(sii->osh, &cc->chipcontrol,
+			W_REG(&cc->chipcontrol,
 			      val | (CCTRL4331_EXTPA_EN));
 		}
 	} else {
 		val &= ~(CCTRL4331_EXTPA_EN | CCTRL4331_EXTPA_ON_GPIO2_5);
-		W_REG(sii->osh, &cc->chipcontrol, val);
+		W_REG(&cc->chipcontrol, val);
 	}
 
 	si_setcoreidx(sih, origidx);
@@ -1915,8 +1900,8 @@ void si_epa_4313war(si_t *sih)
 	cc = (chipcregs_t *) si_setcore(sih, CC_CORE_ID, 0);
 
 	/* EPA Fix */
-	W_REG(sii->osh, &cc->gpiocontrol,
-	      R_REG(sii->osh, &cc->gpiocontrol) | GPIO_CTRL_EPA_EN_MASK);
+	W_REG(&cc->gpiocontrol,
+	      R_REG(&cc->gpiocontrol) | GPIO_CTRL_EPA_EN_MASK);
 
 	si_setcoreidx(sih, origidx);
 }
@@ -1929,10 +1914,10 @@ bool si_deviceremoved(si_t *sih)
 
 	sii = SI_INFO(sih);
 
-	switch (BUSTYPE(sih->bustype)) {
+	switch (sih->bustype) {
 	case PCI_BUS:
-		ASSERT(sii->osh != NULL);
-		w = OSL_PCI_READ_CONFIG(sii->osh, PCI_CFG_VID, sizeof(u32));
+		ASSERT(sii->pbus != NULL);
+		pci_read_config_dword(sii->pbus, PCI_CFG_VID, &w);
 		if ((w & 0xFFFF) != VENDOR_BROADCOM)
 			return true;
 		break;
@@ -1954,12 +1939,12 @@ bool si_is_sprom_available(si_t *sih)
 		sii = SI_INFO(sih);
 		origidx = sii->curidx;
 		cc = si_setcoreidx(sih, SI_CC_IDX);
-		sromctrl = R_REG(sii->osh, &cc->sromcontrol);
+		sromctrl = R_REG(&cc->sromcontrol);
 		si_setcoreidx(sih, origidx);
 		return sromctrl & SRC_PRESENT;
 	}
 
-	switch (CHIPID(sih->chip)) {
+	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
 		return (sih->chipst & CST4329_SPROM_SEL) != 0;
 	case BCM4319_CHIP_ID:
@@ -1979,7 +1964,7 @@ bool si_is_sprom_available(si_t *sih)
 
 bool si_is_otp_disabled(si_t *sih)
 {
-	switch (CHIPID(sih->chip)) {
+	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
 		return (sih->chipst & CST4329_SPROM_OTP_SEL_MASK) ==
 		    CST4329_OTP_PWRDN;
@@ -2008,14 +1993,14 @@ bool si_is_otp_disabled(si_t *sih)
 bool si_is_otp_powered(si_t *sih)
 {
 	if (PMUCTL_ENAB(sih))
-		return si_pmu_is_otp_powered(sih, si_osh(sih));
+		return si_pmu_is_otp_powered(sih);
 	return true;
 }
 
 void si_otp_power(si_t *sih, bool on)
 {
 	if (PMUCTL_ENAB(sih))
-		si_pmu_otp_power(sih, si_osh(sih), on);
+		si_pmu_otp_power(sih, on);
 	udelay(1000);
 }
 

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2009-2010 Emulex.  All rights reserved.                *
+ * Copyright (C) 2009-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -162,7 +162,6 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 			struct lpfc_iocbq *cmdiocbq,
 			struct lpfc_iocbq *rspiocbq)
 {
-	unsigned long iflags;
 	struct bsg_job_data *dd_data;
 	struct fc_bsg_job *job;
 	IOCB_t *rsp;
@@ -173,9 +172,10 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 	int rc = 0;
 
 	spin_lock_irqsave(&phba->ct_ev_lock, flags);
-	dd_data = cmdiocbq->context1;
+	dd_data = cmdiocbq->context2;
 	if (!dd_data) {
 		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
+		lpfc_sli_release_iocbq(phba, cmdiocbq);
 		return;
 	}
 
@@ -183,17 +183,9 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 	job = iocb->set_job;
 	job->dd_data = NULL; /* so timeout handler does not reply */
 
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	cmdiocbq->iocb_flag |= LPFC_IO_WAKE;
-	if (cmdiocbq->context2 && rspiocbq)
-		memcpy(&((struct lpfc_iocbq *)cmdiocbq->context2)->iocb,
-		       &rspiocbq->iocb, sizeof(IOCB_t));
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
-
 	bmp = iocb->bmp;
-	rspiocbq = iocb->rspiocbq;
 	rsp = &rspiocbq->iocb;
-	ndlp = iocb->ndlp;
+	ndlp = cmdiocbq->context1;
 
 	pci_unmap_sg(phba->pcidev, job->request_payload.sg_list,
 		     job->request_payload.sg_cnt, DMA_TO_DEVICE);
@@ -220,7 +212,6 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 			rsp->un.genreq64.bdl.bdeSize;
 
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
-	lpfc_sli_release_iocbq(phba, rspiocbq);
 	lpfc_sli_release_iocbq(phba, cmdiocbq);
 	lpfc_nlp_put(ndlp);
 	kfree(bmp);
@@ -247,9 +238,7 @@ lpfc_bsg_send_mgmt_cmd(struct fc_bsg_job *job)
 	struct ulp_bde64 *bpl = NULL;
 	uint32_t timeout;
 	struct lpfc_iocbq *cmdiocbq = NULL;
-	struct lpfc_iocbq *rspiocbq = NULL;
 	IOCB_t *cmd;
-	IOCB_t *rsp;
 	struct lpfc_dmabuf *bmp = NULL;
 	int request_nseg;
 	int reply_nseg;
@@ -296,17 +285,10 @@ lpfc_bsg_send_mgmt_cmd(struct fc_bsg_job *job)
 	}
 
 	cmd = &cmdiocbq->iocb;
-	rspiocbq = lpfc_sli_get_iocbq(phba);
-	if (!rspiocbq) {
-		rc = -ENOMEM;
-		goto free_cmdiocbq;
-	}
-
-	rsp = &rspiocbq->iocb;
 	bmp->virt = lpfc_mbuf_alloc(phba, 0, &bmp->phys);
 	if (!bmp->virt) {
 		rc = -ENOMEM;
-		goto free_rspiocbq;
+		goto free_cmdiocbq;
 	}
 
 	INIT_LIST_HEAD(&bmp->list);
@@ -358,17 +340,18 @@ lpfc_bsg_send_mgmt_cmd(struct fc_bsg_job *job)
 	cmd->ulpTimeout = timeout;
 
 	cmdiocbq->iocb_cmpl = lpfc_bsg_send_mgmt_cmd_cmp;
-	cmdiocbq->context1 = dd_data;
-	cmdiocbq->context2 = rspiocbq;
+	cmdiocbq->context1 = ndlp;
+	cmdiocbq->context2 = dd_data;
 	dd_data->type = TYPE_IOCB;
 	dd_data->context_un.iocb.cmdiocbq = cmdiocbq;
-	dd_data->context_un.iocb.rspiocbq = rspiocbq;
 	dd_data->context_un.iocb.set_job = job;
 	dd_data->context_un.iocb.bmp = bmp;
-	dd_data->context_un.iocb.ndlp = ndlp;
 
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
-		creg_val = readl(phba->HCregaddr);
+		if (lpfc_readl(phba->HCregaddr, &creg_val)) {
+			rc = -EIO ;
+			goto free_cmdiocbq;
+		}
 		creg_val |= (HC_R0INT_ENA << LPFC_FCP_RING);
 		writel(creg_val, phba->HCregaddr);
 		readl(phba->HCregaddr); /* flush */
@@ -391,8 +374,6 @@ lpfc_bsg_send_mgmt_cmd(struct fc_bsg_job *job)
 
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 
-free_rspiocbq:
-	lpfc_sli_release_iocbq(phba, rspiocbq);
 free_cmdiocbq:
 	lpfc_sli_release_iocbq(phba, cmdiocbq);
 free_bmp:
@@ -621,7 +602,10 @@ lpfc_bsg_rport_els(struct fc_bsg_job *job)
 	dd_data->context_un.iocb.ndlp = ndlp;
 
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
-		creg_val = readl(phba->HCregaddr);
+		if (lpfc_readl(phba->HCregaddr, &creg_val)) {
+			rc = -EIO;
+			goto linkdown_err;
+		}
 		creg_val |= (HC_R0INT_ENA << LPFC_FCP_RING);
 		writel(creg_val, phba->HCregaddr);
 		readl(phba->HCregaddr); /* flush */
@@ -635,6 +619,7 @@ lpfc_bsg_rport_els(struct fc_bsg_job *job)
 	else
 		rc = -EIO;
 
+linkdown_err:
 	pci_unmap_sg(phba->pcidev, job->request_payload.sg_list,
 		     job->request_payload.sg_cnt, DMA_TO_DEVICE);
 	pci_unmap_sg(phba->pcidev, job->reply_payload.sg_list,
@@ -1220,7 +1205,7 @@ lpfc_issue_ct_rsp_cmp(struct lpfc_hba *phba,
 	int rc = 0;
 
 	spin_lock_irqsave(&phba->ct_ev_lock, flags);
-	dd_data = cmdiocbq->context1;
+	dd_data = cmdiocbq->context2;
 	/* normal completion and timeout crossed paths, already done */
 	if (!dd_data) {
 		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
@@ -1369,8 +1354,8 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct fc_bsg_job *job, uint32_t tag,
 	ctiocb->context3 = bmp;
 
 	ctiocb->iocb_cmpl = lpfc_issue_ct_rsp_cmp;
-	ctiocb->context1 = dd_data;
-	ctiocb->context2 = NULL;
+	ctiocb->context2 = dd_data;
+	ctiocb->context1 = ndlp;
 	dd_data->type = TYPE_IOCB;
 	dd_data->context_un.iocb.cmdiocbq = ctiocb;
 	dd_data->context_un.iocb.rspiocbq = NULL;
@@ -1379,7 +1364,10 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct fc_bsg_job *job, uint32_t tag,
 	dd_data->context_un.iocb.ndlp = ndlp;
 
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
-		creg_val = readl(phba->HCregaddr);
+		if (lpfc_readl(phba->HCregaddr, &creg_val)) {
+			rc = -IOCB_ERROR;
+			goto issue_ct_rsp_exit;
+		}
 		creg_val |= (HC_R0INT_ENA << LPFC_FCP_RING);
 		writel(creg_val, phba->HCregaddr);
 		readl(phba->HCregaddr); /* flush */
@@ -1641,7 +1629,7 @@ job_error:
  * This function obtains a remote port login id so the diag loopback test
  * can send and receive its own unsolicited CT command.
  **/
-static int lpfcdiag_loop_self_reg(struct lpfc_hba *phba, uint16_t * rpi)
+static int lpfcdiag_loop_self_reg(struct lpfc_hba *phba, uint16_t *rpi)
 {
 	LPFC_MBOXQ_t *mbox;
 	struct lpfc_dmabuf *dmabuff;
@@ -1651,10 +1639,14 @@ static int lpfcdiag_loop_self_reg(struct lpfc_hba *phba, uint16_t * rpi)
 	if (!mbox)
 		return -ENOMEM;
 
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		*rpi = lpfc_sli4_alloc_rpi(phba);
 	status = lpfc_reg_rpi(phba, 0, phba->pport->fc_myDID,
-				(uint8_t *)&phba->pport->fc_sparam, mbox, 0);
+			      (uint8_t *)&phba->pport->fc_sparam, mbox, *rpi);
 	if (status) {
 		mempool_free(mbox, phba->mbox_mem_pool);
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			lpfc_sli4_free_rpi(phba, *rpi);
 		return -ENOMEM;
 	}
 
@@ -1668,6 +1660,8 @@ static int lpfcdiag_loop_self_reg(struct lpfc_hba *phba, uint16_t * rpi)
 		kfree(dmabuff);
 		if (status != MBX_TIMEOUT)
 			mempool_free(mbox, phba->mbox_mem_pool);
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			lpfc_sli4_free_rpi(phba, *rpi);
 		return -ENODEV;
 	}
 
@@ -1704,8 +1698,9 @@ static int lpfcdiag_loop_self_unreg(struct lpfc_hba *phba, uint16_t rpi)
 			mempool_free(mbox, phba->mbox_mem_pool);
 		return -EIO;
 	}
-
 	mempool_free(mbox, phba->mbox_mem_pool);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		lpfc_sli4_free_rpi(phba, rpi);
 	return 0;
 }
 
@@ -1944,7 +1939,7 @@ out:
  * @rxxri: Receive exchange id
  * @len: Number of data bytes
  *
- * This function allocates and posts a data buffer of sufficient size to recieve
+ * This function allocates and posts a data buffer of sufficient size to receive
  * an unsolicted CT command.
  **/
 static int lpfcdiag_loop_post_rxbufs(struct lpfc_hba *phba, uint16_t rxxri,
@@ -2102,7 +2097,7 @@ lpfc_bsg_diag_test(struct fc_bsg_job *job)
 	uint32_t size;
 	uint32_t full_size;
 	size_t segment_len = 0, segment_offset = 0, current_offset = 0;
-	uint16_t rpi;
+	uint16_t rpi = 0;
 	struct lpfc_iocbq *cmdiocbq, *rspiocbq;
 	IOCB_t *cmd, *rsp;
 	struct lpfc_sli_ct_request *ctreq;
@@ -2162,7 +2157,7 @@ lpfc_bsg_diag_test(struct fc_bsg_job *job)
 		goto loopback_test_exit;
 	}
 
-	if (size >= BUF_SZ_4K) {
+	if (full_size >= BUF_SZ_4K) {
 		/*
 		 * Allocate memory for ioctl data. If buffer is bigger than 64k,
 		 * then we allocate 64k and re-use that buffer over and over to
@@ -2171,7 +2166,7 @@ lpfc_bsg_diag_test(struct fc_bsg_job *job)
 		 * problem with GET_FCPTARGETMAPPING...
 		 */
 		if (size <= (64 * 1024))
-			total_mem = size;
+			total_mem = full_size;
 		else
 			total_mem = 64 * 1024;
 	} else
@@ -2189,7 +2184,6 @@ lpfc_bsg_diag_test(struct fc_bsg_job *job)
 	sg_copy_to_buffer(job->request_payload.sg_list,
 				job->request_payload.sg_cnt,
 				ptr, size);
-
 	rc = lpfcdiag_loop_self_reg(phba, &rpi);
 	if (rc)
 		goto loopback_test_exit;
@@ -2495,16 +2489,18 @@ lpfc_bsg_wake_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 
 	from = (uint8_t *)dd_data->context_un.mbox.mb;
 	job = dd_data->context_un.mbox.set_job;
-	size = job->reply_payload.payload_len;
-	job->reply->reply_payload_rcv_len =
-		sg_copy_from_buffer(job->reply_payload.sg_list,
-				job->reply_payload.sg_cnt,
-				from, size);
-	job->reply->result = 0;
+	if (job) {
+		size = job->reply_payload.payload_len;
+		job->reply->reply_payload_rcv_len =
+			sg_copy_from_buffer(job->reply_payload.sg_list,
+					job->reply_payload.sg_cnt,
+					from, size);
+		job->reply->result = 0;
 
+		job->dd_data = NULL;
+		job->job_done(job);
+	}
 	dd_data->context_un.mbox.set_job = NULL;
-	job->dd_data = NULL;
-	job->job_done(job);
 	/* need to hold the lock until we call job done to hold off
 	 * the timeout handler returning to the midlayer while
 	 * we are stillprocessing the job
@@ -2601,12 +2597,11 @@ static int lpfc_bsg_check_cmd_access(struct lpfc_hba *phba,
 			phba->wait_4_mlo_maint_flg = 1;
 		} else if (mb->un.varWords[0] == SETVAR_MLORST) {
 			phba->link_flag &= ~LS_LOOPBACK_MODE;
-			phba->fc_topology = TOPOLOGY_PT_PT;
+			phba->fc_topology = LPFC_TOPOLOGY_PT_PT;
 		}
 		break;
 	case MBX_READ_SPARM64:
-	case MBX_READ_LA:
-	case MBX_READ_LA64:
+	case MBX_READ_TOPOLOGY:
 	case MBX_REG_LOGIN:
 	case MBX_REG_LOGIN64:
 	case MBX_CONFIG_PORT:

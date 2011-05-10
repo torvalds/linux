@@ -275,7 +275,6 @@ extern int pwc_trace;
 extern int pwc_mbufs;
 
 /** functions in pwc-if.c */
-int pwc_try_video_mode(struct pwc_device *pdev, int width, int height, int new_fps, int new_compression, int new_snapshot);
 int pwc_handle_frame(struct pwc_device *pdev);
 void pwc_next_image(struct pwc_device *pdev);
 int pwc_isoc_init(struct pwc_device *pdev);
@@ -340,8 +339,7 @@ extern int pwc_camera_power(struct pwc_device *pdev, int power);
 /* Private ioctl()s; see pwc-ioctl.h */
 extern long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg);
 
-/** Functions in pwc-v4l.c */
-extern long pwc_video_do_ioctl(struct file *file, unsigned int cmd, void *arg);
+extern const struct v4l2_ioctl_ops pwc_ioctl_ops;
 
 /** pwc-uncompress.c */
 /* Expand frame to image, possibly including decompression. Uses read_frame and fill_image */

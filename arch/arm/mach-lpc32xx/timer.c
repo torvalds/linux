@@ -38,7 +38,6 @@ static cycle_t lpc32xx_clksrc_read(struct clocksource *cs)
 
 static struct clocksource lpc32xx_clksrc = {
 	.name	= "lpc32xx_clksrc",
-	.shift	= 24,
 	.rating	= 300,
 	.read	= lpc32xx_clksrc_read,
 	.mask	= CLOCKSOURCE_MASK(32),
@@ -171,9 +170,7 @@ static void __init lpc32xx_timer_init(void)
 	__raw_writel(0, LCP32XX_TIMER_MCR(LPC32XX_TIMER1_BASE));
 	__raw_writel(LCP32XX_TIMER_CNTR_TCR_EN,
 		LCP32XX_TIMER_TCR(LPC32XX_TIMER1_BASE));
-	lpc32xx_clksrc.mult = clocksource_hz2mult(clkrate,
-		lpc32xx_clksrc.shift);
-	clocksource_register(&lpc32xx_clksrc);
+	clocksource_register_hz(&lpc32xx_clksrc, clkrate);
 }
 
 struct sys_timer lpc32xx_timer = {

@@ -17,7 +17,6 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
-#include <media/ir-common.h>
 #include <media/i2c-addr.h>
 #include <media/tuner.h>
 
@@ -235,7 +234,6 @@ struct tvcard {
 
 	/* i2c audio flags */
 	unsigned int no_msp34xx:1;
-	unsigned int no_tda9875:1;
 	unsigned int no_tda7432:1;
 	unsigned int needs_tvaudio:1;
 	unsigned int msp34xx_alt:1;

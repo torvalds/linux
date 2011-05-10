@@ -57,7 +57,7 @@ static inline const struct rt2x00_rate *rt2x00_get_rate(const u16 hw_value)
 }
 
 #define RATE_MCS(__mode, __mcs) \
-	( (((__mode) & 0x00ff) << 8) | ((__mcs) & 0x00ff) )
+	((((__mode) & 0x00ff) << 8) | ((__mcs) & 0x00ff))
 
 static inline int rt2x00_get_rate_mcs(const u16 mcs_value)
 {
@@ -69,7 +69,6 @@ static inline int rt2x00_get_rate_mcs(const u16 mcs_value)
  */
 int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev);
-void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state);
 
 /*
  * Initialization handlers.
@@ -158,14 +157,30 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 			       bool local);
 
 /**
- * rt2x00queue_update_beacon - Send new beacon from mac80211 to hardware
+ * rt2x00queue_update_beacon - Send new beacon from mac80211
+ *	to hardware. Handles locking by itself (mutex).
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  * @vif: Interface for which the beacon should be updated.
- * @enable_beacon: Enable beaconing
  */
 int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
-			      struct ieee80211_vif *vif,
-			      const bool enable_beacon);
+			      struct ieee80211_vif *vif);
+
+/**
+ * rt2x00queue_update_beacon_locked - Send new beacon from mac80211
+ *	to hardware. Caller needs to ensure locking.
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @vif: Interface for which the beacon should be updated.
+ */
+int rt2x00queue_update_beacon_locked(struct rt2x00_dev *rt2x00dev,
+				     struct ieee80211_vif *vif);
+
+/**
+ * rt2x00queue_clear_beacon - Clear beacon in hardware
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @vif: Interface for which the beacon should be updated.
+ */
+int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
+			     struct ieee80211_vif *vif);
 
 /**
  * rt2x00queue_index_inc - Index incrementation function
@@ -177,15 +192,6 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
  * resetting the index to the start of the queue.
  */
 void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index);
-
-/**
- * rt2x00queue_stop_queues - Halt all data queues
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- *
- * This function will loop through all available queues to stop
- * any pending outgoing frames.
- */
-void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev);
 
 /**
  * rt2x00queue_init_queues - Initialize all data queues

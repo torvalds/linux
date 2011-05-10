@@ -242,7 +242,7 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
  * This version of ioremap ensures that the memory is marked uncachable
  * on the CPU as well as honouring existing caching rules from things like
  * the PCI bus. Note that there are other caches and buffers on many
- * busses. In paticular driver authors should read up on PCI writes
+ * busses. In particular driver authors should read up on PCI writes
  *
  * It's useful if some control registers are in such an area and
  * write combining or read caching is not desirable:
@@ -329,10 +329,14 @@ static inline void pfx##write##bwlq(type val,				\
 			"dsrl32	%L0, %L0, 0"			"\n\t"	\
 			"dsll32	%M0, %M0, 0"			"\n\t"	\
 			"or	%L0, %L0, %M0"			"\n\t"	\
+			".set	push"				"\n\t"	\
+			".set	noreorder"			"\n\t"	\
+			".set	nomacro"			"\n\t"	\
 			"sd	%L0, %2"			"\n\t"	\
+			".set	pop"				"\n\t"	\
 			".set	mips0"				"\n"	\
 			: "=r" (__tmp)					\
-			: "0" (__val), "m" (*__mem));			\
+			: "0" (__val), "R" (*__mem));			\
 		if (irq)						\
 			local_irq_restore(__flags);			\
 	} else								\
@@ -355,12 +359,16 @@ static inline type pfx##read##bwlq(const volatile void __iomem *mem)	\
 			local_irq_save(__flags);			\
 		__asm__ __volatile__(					\
 			".set	mips3"		"\t\t# __readq"	"\n\t"	\
+			".set	push"				"\n\t"	\
+			".set	noreorder"			"\n\t"	\
+			".set	nomacro"			"\n\t"	\
 			"ld	%L0, %1"			"\n\t"	\
+			".set	pop"				"\n\t"	\
 			"dsra32	%M0, %L0, 0"			"\n\t"	\
 			"sll	%L0, %L0, 0"			"\n\t"	\
 			".set	mips0"				"\n"	\
 			: "=r" (__val)					\
-			: "m" (*__mem));				\
+			: "R" (*__mem));				\
 		if (irq)						\
 			local_irq_restore(__flags);			\
 	} else {							\

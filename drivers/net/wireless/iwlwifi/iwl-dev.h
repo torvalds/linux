@@ -34,6 +34,8 @@
 
 #include <linux/pci.h> /* for struct pci_device_id */
 #include <linux/kernel.h>
+#include <linux/wait.h>
+#include <linux/leds.h>
 #include <net/ieee80211_radiotap.h>
 
 #include "iwl-eeprom.h"
@@ -41,13 +43,13 @@
 #include "iwl-prph.h"
 #include "iwl-fh.h"
 #include "iwl-debug.h"
-#include "iwl-4965-hw.h"
-#include "iwl-3945-hw.h"
 #include "iwl-agn-hw.h"
 #include "iwl-led.h"
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
+
+#define U32_PAD(n)		((4-(n))&0x3)
 
 struct iwl_tx_queue;
 
@@ -129,9 +131,6 @@ struct iwl_queue {
 	int write_ptr;       /* 1-st empty entry (index) host_w*/
 	int read_ptr;         /* last used entry (index) host_r*/
 	/* use for monitoring and recovering the stuck queue */
-	int last_read_ptr;      /* storing the last read_ptr */
-	/* number of time read_ptr and last_read_ptr are the same */
-	u8 repeat_same_read_ptr;
 	dma_addr_t dma_addr;   /* physical addr for BD's */
 	int n_window;	       /* safe queue window */
 	u32 id;
@@ -139,7 +138,7 @@ struct iwl_queue {
 				* space more than this */
 	int high_mark;         /* high watermark, stop queue if free
 				* space less than this */
-} __packed;
+};
 
 /* One for each TFD */
 struct iwl_tx_info {
@@ -155,6 +154,7 @@ struct iwl_tx_info {
  * @meta: array of meta data for each command/tx buffer
  * @dma_addr_cmd: physical address of cmd/tx buffer array
  * @txb: array of per-TFD driver data
+ * @time_stamp: time (in jiffies) of last read_ptr change
  * @need_update: indicates need to update read/write index
  * @sched_retry: indicates queue is high-throughput aggregation (HT AGG) enabled
  *
@@ -170,6 +170,7 @@ struct iwl_tx_queue {
 	struct iwl_device_cmd **cmd;
 	struct iwl_cmd_meta *meta;
 	struct iwl_tx_info *txb;
+	unsigned long time_stamp;
 	u8 need_update;
 	u8 sched_retry;
 	u8 active;
@@ -508,6 +509,7 @@ struct iwl_station_priv {
 	atomic_t pending_frames;
 	bool client;
 	bool asleep;
+	u8 max_agg_bufsize;
 };
 
 /**
@@ -996,7 +998,6 @@ struct reply_agg_tx_error_statistics {
 	u32 unknown;
 };
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
 /* management statistics */
 enum iwl_mgmt_stats {
 	MANAGEMENT_ASSOC_REQ = 0,
@@ -1027,16 +1028,13 @@ enum iwl_ctrl_stats {
 };
 
 struct traffic_stats {
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 	u32 mgmt[MANAGEMENT_MAX];
 	u32 ctrl[CONTROL_MAX];
 	u32 data_cnt;
 	u64 data_bytes;
-};
-#else
-struct traffic_stats {
-	u64 data_bytes;
-};
 #endif
+};
 
 /*
  * iwl_switch_rxon: "channel switch" structure
@@ -1104,14 +1102,18 @@ struct iwl_event_log {
 #define IWL_DELAY_NEXT_FORCE_RF_RESET  (HZ*3)
 #define IWL_DELAY_NEXT_FORCE_FW_RELOAD (HZ*5)
 
-/* timer constants use to monitor and recover stuck tx queues in mSecs */
-#define IWL_DEF_MONITORING_PERIOD	(1000)
-#define IWL_LONG_MONITORING_PERIOD	(5000)
-#define IWL_ONE_HUNDRED_MSECS   (100)
-#define IWL_MAX_MONITORING_PERIOD	(60000)
+/* TX queue watchdog timeouts in mSecs */
+#define IWL_DEF_WD_TIMEOUT	(2000)
+#define IWL_LONG_WD_TIMEOUT	(10000)
+#define IWL_MAX_WD_TIMEOUT	(120000)
 
 /* BT Antenna Coupling Threshold (dB) */
 #define IWL_BT_ANTENNA_COUPLING_THRESHOLD	(35)
+
+/* Firmware reload counter and Timestamp */
+#define IWL_MIN_RELOAD_DURATION		1000 /* 1000 ms */
+#define IWL_MAX_CONTINUE_RELOAD_CNT	4
+
 
 enum iwl_reset {
 	IWL_RF_RESET = 0,
@@ -1141,6 +1143,33 @@ struct iwl_force_reset {
  */
 #define IWLAGN_EXT_BEACON_TIME_POS	22
 
+/**
+ * struct iwl_notification_wait - notification wait entry
+ * @list: list head for global list
+ * @fn: function called with the notification
+ * @cmd: command ID
+ *
+ * This structure is not used directly, to wait for a
+ * notification declare it on the stack, and call
+ * iwlagn_init_notification_wait() with appropriate
+ * parameters. Then do whatever will cause the ucode
+ * to notify the driver, and to wait for that then
+ * call iwlagn_wait_notification().
+ *
+ * Each notification is one-shot. If at some point we
+ * need to support multi-shot notifications (which
+ * can't be allocated on the stack) we need to modify
+ * the code for them.
+ */
+struct iwl_notification_wait {
+	struct list_head list;
+
+	void (*fn)(struct iwl_priv *priv, struct iwl_rx_packet *pkt);
+
+	u8 cmd;
+	bool triggered;
+};
+
 enum iwl_rxon_context_id {
 	IWL_RXON_CTX_BSS,
 	IWL_RXON_CTX_PAN,
@@ -1161,6 +1190,8 @@ struct iwl_rxon_context {
 	 * we already removed the vif for type setting.
 	 */
 	bool always_active, is_active;
+
+	bool ht_need_multiple_chains;
 
 	enum iwl_rxon_context_id ctxid;
 
@@ -1199,6 +1230,12 @@ struct iwl_rxon_context {
 	} ht;
 };
 
+enum iwl_scan_type {
+	IWL_SCAN_NORMAL,
+	IWL_SCAN_RADIO_RESET,
+	IWL_SCAN_OFFCH_TX,
+};
+
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1230,11 +1267,15 @@ struct iwl_priv {
 	/* track IBSS manager (last beacon) status */
 	u32 ibss_manager;
 
-	/* storing the jiffies when the plcp error rate is received */
-	unsigned long plcp_jiffies;
+	/* jiffies when last recovery from statistics was performed */
+	unsigned long rx_statistics_jiffies;
 
 	/* force reset */
 	struct iwl_force_reset force_reset[IWL_MAX_FORCE_RESET];
+
+	/* firmware reload counter and timestamp */
+	unsigned long reload_jiffies;
+	int reload_count;
 
 	/* we allocate array of iwl_channel_info for NIC's valid channels.
 	 *    Access via channel # using indirect index array */
@@ -1255,7 +1296,7 @@ struct iwl_priv {
 	enum ieee80211_band scan_band;
 	struct cfg80211_scan_request *scan_request;
 	struct ieee80211_vif *scan_vif;
-	bool is_internal_short_scan;
+	enum iwl_scan_type scan_type;
 	u8 scan_tx_ant[IEEE80211_NUM_BANDS];
 	u8 mgmt_tx_ant;
 
@@ -1309,11 +1350,6 @@ struct iwl_priv {
 	 * _agn's initialize alive response contains some calibration data. */
 	struct iwl_init_alive_resp card_alive_init;
 	struct iwl_alive_resp card_alive;
-
-	unsigned long last_blink_time;
-	u8 last_blink_rate;
-	u8 allow_blinking;
-	u64 led_tpt;
 
 	u16 active_rate;
 
@@ -1463,15 +1499,30 @@ struct iwl_priv {
 			struct iwl_bt_notif_statistics delta_statistics_bt;
 			struct iwl_bt_notif_statistics max_delta_bt;
 #endif
+
+			/* notification wait support */
+			struct list_head notif_waits;
+			spinlock_t notif_wait_lock;
+			wait_queue_head_t notif_waitq;
+
+			/* remain-on-channel offload support */
+			struct ieee80211_channel *hw_roc_channel;
+			struct delayed_work hw_roc_work;
+			enum nl80211_channel_type hw_roc_chantype;
+			int hw_roc_duration;
+
+			struct sk_buff *offchan_tx_skb;
+			int offchan_tx_timeout;
+			struct ieee80211_channel *offchan_tx_chan;
 		} _agn;
 #endif
 	};
 
 	/* bt coex */
+	u8 bt_enable_flag;
 	u8 bt_status;
-	u8 bt_traffic_load, notif_bt_traffic_load;
+	u8 bt_traffic_load, last_bt_traffic_load;
 	bool bt_ch_announce;
-	bool bt_sco_active;
 	bool bt_full_concurrent;
 	bool bt_ant_couple_ok;
 	__le32 kill_ack_mask;
@@ -1480,7 +1531,6 @@ struct iwl_priv {
 	u16 bt_on_thresh;
 	u16 bt_duration;
 	u16 dynamic_frag_thresh;
-	u16 dynamic_agg_thresh;
 	u8 bt_ci_compliance;
 	struct work_struct bt_traffic_change_work;
 
@@ -1517,6 +1567,7 @@ struct iwl_priv {
 	s8 tx_power_user_lmt;
 	s8 tx_power_device_lmt;
 	s8 tx_power_lmt_in_half_dbm; /* max tx power in half-dBm format */
+	s8 tx_power_next;
 
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -1542,10 +1593,14 @@ struct iwl_priv {
 	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
 	struct timer_list ucode_trace;
-	struct timer_list monitor_recover;
+	struct timer_list watchdog;
 	bool hw_ready;
 
 	struct iwl_event_log event_log;
+
+	struct led_classdev led;
+	unsigned long blink_on, blink_off;
+	bool led_registered;
 }; /*iwl_priv */
 
 static inline void iwl_txq_ctx_activate(struct iwl_priv *priv, int txq_id)

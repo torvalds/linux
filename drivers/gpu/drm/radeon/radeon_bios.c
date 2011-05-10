@@ -131,6 +131,45 @@ static bool radeon_atrm_get_bios(struct radeon_device *rdev)
 	return true;
 }
 
+static bool ni_read_disabled_bios(struct radeon_device *rdev)
+{
+	u32 bus_cntl;
+	u32 d1vga_control;
+	u32 d2vga_control;
+	u32 vga_render_control;
+	u32 rom_cntl;
+	bool r;
+
+	bus_cntl = RREG32(R600_BUS_CNTL);
+	d1vga_control = RREG32(AVIVO_D1VGA_CONTROL);
+	d2vga_control = RREG32(AVIVO_D2VGA_CONTROL);
+	vga_render_control = RREG32(AVIVO_VGA_RENDER_CONTROL);
+	rom_cntl = RREG32(R600_ROM_CNTL);
+
+	/* enable the rom */
+	WREG32(R600_BUS_CNTL, (bus_cntl & ~R600_BIOS_ROM_DIS));
+	/* Disable VGA mode */
+	WREG32(AVIVO_D1VGA_CONTROL,
+	       (d1vga_control & ~(AVIVO_DVGA_CONTROL_MODE_ENABLE |
+		AVIVO_DVGA_CONTROL_TIMING_SELECT)));
+	WREG32(AVIVO_D2VGA_CONTROL,
+	       (d2vga_control & ~(AVIVO_DVGA_CONTROL_MODE_ENABLE |
+		AVIVO_DVGA_CONTROL_TIMING_SELECT)));
+	WREG32(AVIVO_VGA_RENDER_CONTROL,
+	       (vga_render_control & ~AVIVO_VGA_VSTATUS_CNTL_MASK));
+	WREG32(R600_ROM_CNTL, rom_cntl | R600_SCK_OVERWRITE);
+
+	r = radeon_read_bios(rdev);
+
+	/* restore regs */
+	WREG32(R600_BUS_CNTL, bus_cntl);
+	WREG32(AVIVO_D1VGA_CONTROL, d1vga_control);
+	WREG32(AVIVO_D2VGA_CONTROL, d2vga_control);
+	WREG32(AVIVO_VGA_RENDER_CONTROL, vga_render_control);
+	WREG32(R600_ROM_CNTL, rom_cntl);
+	return r;
+}
+
 static bool r700_read_disabled_bios(struct radeon_device *rdev)
 {
 	uint32_t viph_control;
@@ -416,6 +455,8 @@ static bool radeon_read_disabled_bios(struct radeon_device *rdev)
 {
 	if (rdev->flags & RADEON_IS_IGP)
 		return igp_read_bios_from_vram(rdev);
+	else if (rdev->family >= CHIP_BARTS)
+		return ni_read_disabled_bios(rdev);
 	else if (rdev->family >= CHIP_RV770)
 		return r700_read_disabled_bios(rdev);
 	else if (rdev->family >= CHIP_R600)

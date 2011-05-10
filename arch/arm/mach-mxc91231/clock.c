@@ -2,12 +2,12 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/clkdev.h>
 
 #include <mach/clock.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
 
-#include <asm/clkdev.h>
 #include <asm/bug.h>
 #include <asm/div64.h>
 

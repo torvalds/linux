@@ -94,7 +94,7 @@ do_async_xor(struct dma_chan *chan, struct page *dest, struct page **src_list,
 		if (unlikely(!tx))
 			async_tx_quiesce(&submit->depend_tx);
 
-		/* spin wait for the preceeding transactions to complete */
+		/* spin wait for the preceding transactions to complete */
 		while (unlikely(!tx)) {
 			dma_async_issue_pending(chan);
 			tx = dma->device_prep_dma_xor(chan, dma_dest,

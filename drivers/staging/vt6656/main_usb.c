@@ -837,8 +837,7 @@ static void device_free_tx_bufs(PSDevice pDevice)
             usb_kill_urb(pTxContext->pUrb);
             usb_free_urb(pTxContext->pUrb);
         }
-        if (pTxContext)
-            kfree(pTxContext);
+        kfree(pTxContext);
     }
     return;
 }
@@ -861,8 +860,7 @@ static void device_free_rx_bufs(PSDevice pDevice)
         if (pRCB->skb)
             dev_kfree_skb(pRCB->skb);
     }
-    if (pDevice->pRCBMem)
-        kfree(pDevice->pRCBMem);
+    kfree(pDevice->pRCBMem);
 
     return;
 }
@@ -878,8 +876,7 @@ static void usb_device_reset(PSDevice pDevice)
 
 static void device_free_int_bufs(PSDevice pDevice)
 {
-    if (pDevice->intBuf.pDataBuf != NULL)
-        kfree(pDevice->intBuf.pDataBuf);
+    kfree(pDevice->intBuf.pDataBuf);
     return;
 }
 
@@ -1272,6 +1269,9 @@ static void __devexit vt6656_disconnect(struct usb_interface *intf)
 
 	device_release_WPADEV(device);
 
+	if (device->firmware)
+		release_firmware(device->firmware);
+
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));
 
@@ -1454,7 +1454,7 @@ static unsigned char *Config_FileOperation(PSDevice pDevice)
 
     buffer = kmalloc(1024, GFP_KERNEL);
     if(buffer==NULL) {
-      printk("alllocate mem for file fail?\n");
+      printk("allocate mem for file fail?\n");
       result = -1;
       goto error1;
     }
@@ -1477,8 +1477,7 @@ error2:
   */
 
 if(result!=0) {
-    if(buffer)
-  	 kfree(buffer);
+    kfree(buffer);
     buffer=NULL;
 }
   return buffer;

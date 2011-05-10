@@ -15,18 +15,16 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/fsl_devices.h>
 
 #include <linux/usb/otg.h>
 
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
 #include <mach/hardware.h>
-#include <mach/mmc.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"
@@ -103,7 +101,7 @@ static void devboard_sdhc2_exit(struct device *dev, void *data)
 	gpio_free(SDHC2_CD);
 }
 
-static struct imxmmc_platform_data sdhc2_pdata = {
+static const struct imxmmc_platform_data sdhc2_pdata __initconst = {
 	.get_ro	= devboard_sdhc2_get_ro,
 	.init	= devboard_sdhc2_init,
 	.exit	= devboard_sdhc2_exit,
@@ -152,7 +150,10 @@ static int devboard_usbh1_hw_init(struct platform_device *pdev)
 	mxc_iomux_set_pad(MX31_PIN_CSPI1_SPI_RDY, USB_PAD_CFG);
 	mxc_iomux_set_pad(MX31_PIN_SFS6, USB_PAD_CFG);
 
-	return 0;
+	mdelay(10);
+
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED |
+			MXC_EHCI_INTERFACE_SINGLE_UNI);
 }
 
 #define USBH1_VBUSEN_B	IOMUX_TO_GPIO(MX31_PIN_NFRE_B)
@@ -187,15 +188,15 @@ static int devboard_isp1105_set_vbus(struct otg_transceiver *otg, bool on)
 	return 0;
 }
 
-static struct mxc_usbh_platform_data usbh1_pdata = {
+static struct mxc_usbh_platform_data usbh1_pdata __initdata = {
 	.init	= devboard_usbh1_hw_init,
 	.portsc	= MXC_EHCI_MODE_UTMI | MXC_EHCI_SERIAL,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_SINGLE_UNI,
 };
 
 static int __init devboard_usbh1_init(void)
 {
 	struct otg_transceiver *otg;
+	struct platform_device *pdev;
 
 	otg = kzalloc(sizeof(*otg), GFP_KERNEL);
 	if (!otg)
@@ -207,11 +208,15 @@ static int __init devboard_usbh1_init(void)
 
 	usbh1_pdata.otg = otg;
 
-	return mxc_register_device(&mxc_usbh1, &usbh1_pdata);
+	pdev = imx31_add_mxc_ehci_hs(1, &usbh1_pdata);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return 0;
 }
 
 
-static struct fsl_usb2_platform_data usb_pdata = {
+static const struct fsl_usb2_platform_data usb_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
@@ -228,11 +233,11 @@ void __init mx31moboard_devboard_init(void)
 
 	imx31_add_imx_uart1(&uart_pdata);
 
-	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
+	imx31_add_mxc_mmc(1, &sdhc2_pdata);
 
 	devboard_init_sel_gpios();
 
-	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
+	imx31_add_fsl_usb2_udc(&usb_pdata);
 
 	devboard_usbh1_init();
 }

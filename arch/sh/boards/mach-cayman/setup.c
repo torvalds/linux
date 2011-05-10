@@ -165,7 +165,7 @@ static int __init smsc_superio_setup(void)
 
 	return 0;
 }
-__initcall(smsc_superio_setup);
+device_initcall(smsc_superio_setup);
 
 static void __iomem *cayman_ioport_map(unsigned long port, unsigned int len)
 {

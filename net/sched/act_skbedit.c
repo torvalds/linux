@@ -46,8 +46,7 @@ static int tcf_skbedit(struct sk_buff *skb, struct tc_action *a,
 
 	spin_lock(&d->tcf_lock);
 	d->tcf_tm.lastuse = jiffies;
-	d->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	d->tcf_bstats.packets++;
+	bstats_update(&d->tcf_bstats, skb);
 
 	if (d->flags & SKBEDIT_F_PRIORITY)
 		skb->priority = d->priority;
@@ -114,7 +113,7 @@ static int tcf_skbedit_init(struct nlattr *nla, struct nlattr *est,
 		pc = tcf_hash_create(parm->index, est, a, sizeof(*d), bind,
 				     &skbedit_idx_gen, &skbedit_hash_info);
 		if (IS_ERR(pc))
-		    return PTR_ERR(pc);
+			return PTR_ERR(pc);
 
 		d = to_skbedit(pc);
 		ret = ACT_P_CREATED;
@@ -145,7 +144,7 @@ static int tcf_skbedit_init(struct nlattr *nla, struct nlattr *est,
 	return ret;
 }
 
-static inline int tcf_skbedit_cleanup(struct tc_action *a, int bind)
+static int tcf_skbedit_cleanup(struct tc_action *a, int bind)
 {
 	struct tcf_skbedit *d = a->priv;
 
@@ -154,8 +153,8 @@ static inline int tcf_skbedit_cleanup(struct tc_action *a, int bind)
 	return 0;
 }
 
-static inline int tcf_skbedit_dump(struct sk_buff *skb, struct tc_action *a,
-				int bind, int ref)
+static int tcf_skbedit_dump(struct sk_buff *skb, struct tc_action *a,
+			    int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_skbedit *d = a->priv;

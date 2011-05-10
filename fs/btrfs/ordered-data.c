@@ -141,7 +141,7 @@ static inline struct rb_node *tree_search(struct btrfs_ordered_inode_tree *tree,
 					  u64 file_offset)
 {
 	struct rb_root *root = &tree->tree;
-	struct rb_node *prev;
+	struct rb_node *prev = NULL;
 	struct rb_node *ret;
 	struct btrfs_ordered_extent *entry;
 
@@ -172,7 +172,7 @@ static inline struct rb_node *tree_search(struct btrfs_ordered_inode_tree *tree,
  */
 static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 				      u64 start, u64 len, u64 disk_len,
-				      int type, int dio)
+				      int type, int dio, int compress_type)
 {
 	struct btrfs_ordered_inode_tree *tree;
 	struct rb_node *node;
@@ -189,6 +189,7 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	entry->disk_len = disk_len;
 	entry->bytes_left = len;
 	entry->inode = inode;
+	entry->compress_type = compress_type;
 	if (type != BTRFS_ORDERED_IO_DONE && type != BTRFS_ORDERED_COMPLETE)
 		set_bit(type, &entry->flags);
 
@@ -200,6 +201,8 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	init_waitqueue_head(&entry->wait);
 	INIT_LIST_HEAD(&entry->list);
 	INIT_LIST_HEAD(&entry->root_extent_list);
+
+	trace_btrfs_ordered_extent_add(inode, entry);
 
 	spin_lock(&tree->lock);
 	node = tree_insert(&tree->tree, file_offset,
@@ -220,14 +223,25 @@ int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 			     u64 start, u64 len, u64 disk_len, int type)
 {
 	return __btrfs_add_ordered_extent(inode, file_offset, start, len,
-					  disk_len, type, 0);
+					  disk_len, type, 0,
+					  BTRFS_COMPRESS_NONE);
 }
 
 int btrfs_add_ordered_extent_dio(struct inode *inode, u64 file_offset,
 				 u64 start, u64 len, u64 disk_len, int type)
 {
 	return __btrfs_add_ordered_extent(inode, file_offset, start, len,
-					  disk_len, type, 1);
+					  disk_len, type, 1,
+					  BTRFS_COMPRESS_NONE);
+}
+
+int btrfs_add_ordered_extent_compress(struct inode *inode, u64 file_offset,
+				      u64 start, u64 len, u64 disk_len,
+				      int type, int compress_type)
+{
+	return __btrfs_add_ordered_extent(inode, file_offset, start, len,
+					  disk_len, type, 0,
+					  compress_type);
 }
 
 /*
@@ -375,6 +389,8 @@ int btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
 	struct list_head *cur;
 	struct btrfs_ordered_sum *sum;
 
+	trace_btrfs_ordered_extent_put(entry->inode, entry);
+
 	if (atomic_dec_and_test(&entry->refs)) {
 		while (!list_empty(&entry->list)) {
 			cur = entry->list.next;
@@ -407,6 +423,8 @@ static int __btrfs_remove_ordered_extent(struct inode *inode,
 
 	spin_lock(&root->fs_info->ordered_extent_lock);
 	list_del_init(&entry->root_extent_list);
+
+	trace_btrfs_ordered_extent_remove(inode, entry);
 
 	/*
 	 * we have no more ordered extents for this inode and
@@ -572,6 +590,8 @@ void btrfs_start_ordered_extent(struct inode *inode,
 {
 	u64 start = entry->file_offset;
 	u64 end = start + entry->len - 1;
+
+	trace_btrfs_ordered_extent_start(inode, entry);
 
 	/*
 	 * pages in the range can be dirty, clean or writeback.  We

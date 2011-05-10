@@ -50,8 +50,17 @@
 #define SCPCELLID2		0xFF8
 #define SCPCELLID3		0xFFC
 
+#define SCCTRL_TIMEREN0SEL_REFCLK	(0 << 15)
+#define SCCTRL_TIMEREN0SEL_TIMCLK	(1 << 15)
+
+#define SCCTRL_TIMEREN1SEL_REFCLK	(0 << 17)
+#define SCCTRL_TIMEREN1SEL_TIMCLK	(1 << 17)
+
 static inline void sysctl_soft_reset(void __iomem *base)
 {
+	/* switch to slow mode */
+	writel(0x2, base + SCCTRL);
+
 	/* writing any value to SCSYSSTAT reg will reset system */
 	writel(0, base + SCSYSSTAT);
 }

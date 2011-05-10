@@ -35,7 +35,6 @@
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
 #include <mach/board-mx31lite.h>
-#include <mach/mmc.h>
 
 #include "devices-imx31.h"
 #include "devices.h"
@@ -142,7 +141,7 @@ static void mxc_mmc1_exit(struct device *dev, void *data)
 	free_irq(IOMUX_TO_IRQ(MX31_PIN_DCD_DCE1), data);
 }
 
-static struct imxmmc_platform_data mmc_pdata = {
+static const struct imxmmc_platform_data mmc_pdata __initconst = {
 	.get_ro	 = mxc_mmc1_get_ro,
 	.init	   = mxc_mmc1_init,
 	.exit	   = mxc_mmc1_exit,
@@ -197,10 +196,9 @@ void __init mx31lite_db_init(void)
 					ARRAY_SIZE(litekit_db_board_pins),
 					"development board pins");
 	imx31_add_imx_uart0(&uart_pdata);
-	mxc_register_device(&mxcsdhc_device0, &mmc_pdata);
+	imx31_add_mxc_mmc(0, &mmc_pdata);
 	imx31_add_spi_imx0(&spi0_pdata);
 	platform_device_register(&litekit_led_device);
-	mxc_register_device(&imx_wdt_device0, NULL);
+	imx31_add_imx2_wdt(NULL);
 	mxc_register_device(&imx_rtc_device0, NULL);
 }
-

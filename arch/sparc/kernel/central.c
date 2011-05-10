@@ -59,8 +59,7 @@ static int __devinit clock_board_calc_nslots(struct clock_board *p)
 	}
 }
 
-static int __devinit clock_board_probe(struct platform_device *op,
-				       const struct of_device_id *match)
+static int __devinit clock_board_probe(struct platform_device *op)
 {
 	struct clock_board *p = kzalloc(sizeof(*p), GFP_KERNEL);
 	int err = -ENOMEM;
@@ -141,14 +140,14 @@ out_free:
 	goto out;
 }
 
-static struct of_device_id __initdata clock_board_match[] = {
+static const struct of_device_id clock_board_match[] = {
 	{
 		.name = "clock-board",
 	},
 	{},
 };
 
-static struct of_platform_driver clock_board_driver = {
+static struct platform_driver clock_board_driver = {
 	.probe		= clock_board_probe,
 	.driver = {
 		.name = "clock_board",
@@ -157,8 +156,7 @@ static struct of_platform_driver clock_board_driver = {
 	},
 };
 
-static int __devinit fhc_probe(struct platform_device *op,
-			       const struct of_device_id *match)
+static int __devinit fhc_probe(struct platform_device *op)
 {
 	struct fhc *p = kzalloc(sizeof(*p), GFP_KERNEL);
 	int err = -ENOMEM;
@@ -247,14 +245,14 @@ out_free:
 	goto out;
 }
 
-static struct of_device_id __initdata fhc_match[] = {
+static const struct of_device_id fhc_match[] = {
 	{
 		.name = "fhc",
 	},
 	{},
 };
 
-static struct of_platform_driver fhc_driver = {
+static struct platform_driver fhc_driver = {
 	.probe		= fhc_probe,
 	.driver = {
 		.name = "fhc",
@@ -265,8 +263,8 @@ static struct of_platform_driver fhc_driver = {
 
 static int __init sunfire_init(void)
 {
-	(void) of_register_platform_driver(&fhc_driver);
-	(void) of_register_platform_driver(&clock_board_driver);
+	(void) platform_driver_register(&fhc_driver);
+	(void) platform_driver_register(&clock_board_driver);
 	return 0;
 }
 

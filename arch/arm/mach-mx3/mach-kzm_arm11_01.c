@@ -27,6 +27,7 @@
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
+#include <asm/memory.h>
 #include <asm/setup.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
@@ -36,14 +37,13 @@
 #include <mach/clock.h>
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
-#include <mach/memory.h>
 
 #include "devices-imx31.h"
 #include "devices.h"
 
-#define KZM_ARM11_IO_ADDRESS(x) (					\
-	IMX_IO_ADDRESS(x, MX31_CS4) ?:					\
-	IMX_IO_ADDRESS(x, MX31_CS5) ?:					\
+#define KZM_ARM11_IO_ADDRESS(x) (IOMEM(					\
+	IMX_IO_P2V_MODULE(x, MX31_CS4) ?:				\
+	IMX_IO_P2V_MODULE(x, MX31_CS5)) ?:				\
 	MX31_IO_ADDRESS(x))
 
 /*
@@ -266,17 +266,14 @@ static void __init kzm_timer_init(void)
 }
 
 static struct sys_timer kzm_timer = {
-	.init   = kzm_timer_init,
+	.init = kzm_timer_init,
 };
 
-/*
- * The following uses standard kernel macros define in arch.h in order to
- * initialize __mach_desc_KZM_ARM11_01 data structure.
- */
 MACHINE_START(KZM_ARM11_01, "Kyoto Microcomputer Co., Ltd. KZM-ARM11-01")
-	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
-	.map_io         = kzm_map_io,
-	.init_irq       = mx31_init_irq,
-	.init_machine   = kzm_board_init,
-	.timer          = &kzm_timer,
+	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.map_io = kzm_map_io,
+	.init_early = imx31_init_early,
+	.init_irq = mx31_init_irq,
+	.timer = &kzm_timer,
+	.init_machine = kzm_board_init,
 MACHINE_END

@@ -131,8 +131,7 @@ int RT30xxReadRFRegister(struct rt_rtmp_adapter *pAd,
 		}
 	}
 	if (rfcsr.field.RF_CSR_KICK == BUSY) {
-		DBGPRINT_ERR(("RF read R%d=0x%x fail, i[%d], k[%d]\n", regID,
-			      rfcsr.word, i, k));
+		DBGPRINT_ERR("RF read R%d=0x%x fail, i[%d], k[%d]\n", regID, rfcsr.word, i, k);
 		return STATUS_UNSUCCESSFUL;
 	}
 

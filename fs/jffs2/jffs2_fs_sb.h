@@ -144,4 +144,4 @@ struct jffs2_sb_info {
 	void *os_priv;
 };
 
-#endif /* _JFFS2_FB_SB */
+#endif /* _JFFS2_FS_SB */

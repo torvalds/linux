@@ -297,8 +297,8 @@ aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff_head *qu
 	struct sk_buff *skb;
 	struct net_device *ifp;
 
-	read_lock(&dev_base_lock);
-	for_each_netdev(&init_net, ifp) {
+	rcu_read_lock();
+	for_each_netdev_rcu(&init_net, ifp) {
 		dev_hold(ifp);
 		if (!is_aoe_netif(ifp))
 			goto cont;
@@ -325,7 +325,7 @@ aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff_head *qu
 cont:
 		dev_put(ifp);
 	}
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 }
 
 static void

@@ -241,6 +241,9 @@ static struct locomo_platform_data locomo_info = {
 struct platform_device collie_locomo_device = {
 	.name		= "locomo",
 	.id		= 0,
+	.dev		= {
+		.platform_data	= &locomo_info,
+	},
 	.num_resources	= ARRAY_SIZE(locomo_resources),
 	.resource	= locomo_resources,
 };

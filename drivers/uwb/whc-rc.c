@@ -449,7 +449,7 @@ static int whcrc_post_reset(struct umc_dev *umc)
 }
 
 /* PCI device ID's that we handle [so it gets loaded] */
-static struct pci_device_id whcrc_id_table[] = {
+static struct pci_device_id __used whcrc_id_table[] = {
 	{ PCI_DEVICE_CLASS(PCI_CLASS_WIRELESS_WHCI, ~0) },
 	{ /* empty last entry */ }
 };

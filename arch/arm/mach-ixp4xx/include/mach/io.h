@@ -74,8 +74,8 @@ static inline void __indirect_iounmap(void __iomem *addr)
 		__iounmap(addr);
 }
 
-#define __arch_ioremap(a, s, f)		__indirect_ioremap(a, s, f)
-#define __arch_iounmap(a)		__indirect_iounmap(a)
+#define __arch_ioremap			__indirect_ioremap
+#define __arch_iounmap			__indirect_iounmap
 
 #define writeb(v, p)			__indirect_writeb(v, p)
 #define writew(v, p)			__indirect_writew(v, p)

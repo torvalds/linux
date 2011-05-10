@@ -48,20 +48,4 @@ int __init clk_init(void)
 	return ret;
 }
 
-/*
- * Returns a clock. Note that we first try to use device id on the bus
- * and clock name. If this fails, we try to use clock name only.
- */
-struct clk *clk_get(struct device *dev, const char *con_id)
-{
-	const char *dev_id = dev ? dev_name(dev) : NULL;
-
-	return clk_get_sys(dev_id, con_id);
-}
-EXPORT_SYMBOL_GPL(clk_get);
-
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL_GPL(clk_put);
 

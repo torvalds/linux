@@ -907,12 +907,21 @@ enum {
 	MQ_MG_MODE
 };
 
+/*
+ * Per TX queue stats
+ */
+struct tx_q_stats {
+	unsigned long tx_packets;
+	unsigned long tx_bytes;
+};
+
 /**
  *	struct gfar_priv_tx_q - per tx queue structure
  *	@txlock: per queue tx spin lock
  *	@tx_skbuff:skb pointers
  *	@skb_curtx: to be used skb pointer
  *	@skb_dirtytx:the last used skb pointer
+ *	@stats: bytes/packets stats
  *	@qindex: index of this queue
  *	@dev: back pointer to the dev structure
  *	@grp: back pointer to the group to which this queue belongs
@@ -934,6 +943,7 @@ struct gfar_priv_tx_q {
 	struct	txbd8 *tx_bd_base;
 	struct	txbd8 *cur_tx;
 	struct	txbd8 *dirty_tx;
+	struct tx_q_stats stats;
 	struct	net_device *dev;
 	struct gfar_priv_grp *grp;
 	u16	skb_curtx;
@@ -1029,10 +1039,11 @@ enum gfar_errata {
 	GFAR_ERRATA_74		= 0x01,
 	GFAR_ERRATA_76		= 0x02,
 	GFAR_ERRATA_A002	= 0x04,
+	GFAR_ERRATA_12		= 0x08, /* a.k.a errata eTSEC49 */
 };
 
 /* Struct stolen almost completely (and shamelessly) from the FCC enet source
- * (Ok, that's not so true anymore, but there is a family resemblence)
+ * (Ok, that's not so true anymore, but there is a family resemblance)
  * The GFAR buffer descriptors track the ring buffers.  The rx_bd_base
  * and tx_bd_base always point to the currently available buffer.
  * The dirty_tx tracks the current buffer that is being sent by the

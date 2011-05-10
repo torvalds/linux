@@ -164,43 +164,9 @@ struct mesh_rmc {
 };
 
 
-/*
- * MESH_CFG_COMP_LEN Includes:
- * 	- Active path selection protocol ID.
- * 	- Active path selection metric ID.
- * 	- Congestion control mode identifier.
- * 	- Channel precedence.
- * Does not include mesh capabilities, which may vary across nodes in the same
- * mesh
- */
-#define MESH_CFG_CMP_LEN 	(IEEE80211_MESH_CONFIG_LEN - 2)
-
-/* Default values, timeouts in ms */
-#define MESH_TTL 		31
-#define MESH_MAX_RETR	 	3
-#define MESH_RET_T 		100
-#define MESH_CONF_T 		100
-#define MESH_HOLD_T 		100
-
-#define MESH_PATH_TIMEOUT	5000
-/* Minimum interval between two consecutive PREQs originated by the same
- * interface
- */
-#define MESH_PREQ_MIN_INT	10
-#define MESH_DIAM_TRAVERSAL_TIME 50
-/* A path will be refreshed if it is used PATH_REFRESH_TIME milliseconds before
- * timing out.  This way it will remain ACTIVE and no data frames will be
- * unnecesarily held in the pending queue.
- */
-#define MESH_PATH_REFRESH_TIME			1000
-#define MESH_MIN_DISCOVERY_TIMEOUT (2 * MESH_DIAM_TRAVERSAL_TIME)
 #define MESH_DEFAULT_BEACON_INTERVAL		1000 	/* in 1024 us units */
 
-#define MESH_MAX_PREQ_RETRIES 4
 #define MESH_PATH_EXPIRE (600 * HZ)
-
-/* Default maximum number of established plinks per interface */
-#define MESH_MAX_ESTAB_PLINKS	32
 
 /* Default maximum number of plinks per interface */
 #define MESH_MAX_PLINKS		256
@@ -221,8 +187,8 @@ struct mesh_rmc {
 int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
 				  const u8 *da, const u8 *sa);
 int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
-		struct ieee80211_sub_if_data *sdata, char *addr4,
-		char *addr5, char *addr6);
+		struct ieee80211_sub_if_data *sdata, char *addr4or5,
+		char *addr6);
 int mesh_rmc_check(u8 *addr, struct ieee80211s_hdr *mesh_hdr,
 		struct ieee80211_sub_if_data *sdata);
 bool mesh_matches_local(struct ieee802_11_elems *ie,
@@ -318,6 +284,11 @@ static inline void mesh_path_activate(struct mesh_path *mpath)
 	mpath->flags |= MESH_PATH_ACTIVE | MESH_PATH_RESOLVED;
 }
 
+static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)
+{
+	return sdata->u.mesh.mesh_pp_id == IEEE80211_PATH_PROTOCOL_HWMP;
+}
+
 #define for_each_mesh_entry(x, p, node, i) \
 	for (i = 0; i <= x->hash_mask; i++) \
 		hlist_for_each_entry_rcu(node, p, &x->hash_buckets[i], list)
@@ -338,6 +309,8 @@ static inline void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata)
 {}
 static inline void mesh_plink_quiesce(struct sta_info *sta) {}
 static inline void mesh_plink_restart(struct sta_info *sta) {}
+static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)
+{ return false; }
 #endif
 
 #endif /* IEEE80211S_H */

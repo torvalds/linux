@@ -5,12 +5,12 @@ config SQUASHFS
 	help
 	  Saying Y here includes support for SquashFS 4.0 (a Compressed
 	  Read-Only File System).  Squashfs is a highly compressed read-only
-	  filesystem for Linux.  It uses zlib/lzo compression to compress both
-	  files, inodes and directories.  Inodes in the system are very small
-	  and all blocks are packed to minimise data overhead. Block sizes
-	  greater than 4K are supported up to a maximum of 1 Mbytes (default
-	  block size 128K).  SquashFS 4.0 supports 64 bit filesystems and files
-	  (larger than 4GB), full uid/gid information, hard links and
+	  filesystem for Linux.  It uses zlib, lzo or xz compression to
+	  compress both files, inodes and directories.  Inodes in the system
+	  are very small and all blocks are packed to minimise data overhead.
+	  Block sizes greater than 4K are supported up to a maximum of 1 Mbytes
+	  (default block size 128K).  SquashFS 4.0 supports 64 bit filesystems
+	  and files (larger than 4GB), full uid/gid information, hard links and
 	  timestamps.
 
 	  Squashfs is intended for general read-only filesystem use, for
@@ -29,7 +29,6 @@ config SQUASHFS
 config SQUASHFS_XATTR
 	bool "Squashfs XATTR support"
 	depends on SQUASHFS
-	default n
 	help
 	  Saying Y here includes support for extended attributes (xattrs).
 	  Xattrs are name:value pairs associated with inodes by
@@ -40,7 +39,6 @@ config SQUASHFS_XATTR
 config SQUASHFS_LZO
 	bool "Include support for LZO compressed file systems"
 	depends on SQUASHFS
-	default n
 	select LZO_DECOMPRESS
 	help
 	  Saying Y here includes support for reading Squashfs file systems
@@ -53,10 +51,24 @@ config SQUASHFS_LZO
 
 	  If unsure, say N.
 
+config SQUASHFS_XZ
+	bool "Include support for XZ compressed file systems"
+	depends on SQUASHFS
+	select XZ_DEC
+	help
+	  Saying Y here includes support for reading Squashfs file systems
+	  compressed with XZ compresssion.  XZ gives better compression than
+	  the default zlib compression, at the expense of greater CPU and
+	  memory overhead.
+
+	  XZ is not the standard compression used in Squashfs and so most
+	  file systems will be readable without selecting this option.
+
+	  If unsure, say N.
+
 config SQUASHFS_EMBEDDED
 	bool "Additional option for memory-constrained systems"
 	depends on SQUASHFS
-	default n
 	help
 	  Saying Y here allows you to specify cache size.
 

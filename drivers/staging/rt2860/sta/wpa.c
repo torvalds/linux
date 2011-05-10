@@ -33,7 +33,8 @@
 	Who			When			What
 	--------	----------		----------------------------------------------
 	Jan	Lee		03-07-22		Initial
-	Paul Lin	03-11-28		Modify for supplicant
+	Paul Lin		03-11-28		Modify for supplicant
+	Justin P. Mattock	11/07/2010		Fix typos
 */
 #include "../rt_config.h"
 
@@ -86,7 +87,7 @@ void RTMPReportMicError(struct rt_rtmp_adapter *pAd, struct rt_cipher_key *pWpaK
 			/* Violate MIC error counts, MIC countermeasures kicks in */
 			pAd->StaCfg.MicErrCnt++;
 			/* We shall block all reception */
-			/* We shall clean all Tx ring and disassoicate from AP after next EAPOL frame */
+			/* We shall clean all Tx ring and disassociate from AP after next EAPOL frame */
 			/* */
 			/* No necessary to clean all Tx ring, on RTMPHardTransmit will stop sending non-802.1X EAPOL packets */
 			/* if pAd->StaCfg.MicErrCnt greater than 2. */

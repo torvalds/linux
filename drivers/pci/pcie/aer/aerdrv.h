@@ -35,13 +35,6 @@
 					PCI_ERR_UNC_UNX_COMP|		\
 					PCI_ERR_UNC_MALF_TLP)
 
-struct header_log_regs {
-	unsigned int dw0;
-	unsigned int dw1;
-	unsigned int dw2;
-	unsigned int dw3;
-};
-
 #define AER_MAX_MULTI_ERR_DEVICES	5	/* Not likely to have more */
 struct aer_err_info {
 	struct pci_dev *dev[AER_MAX_MULTI_ERR_DEVICES];
@@ -59,7 +52,7 @@ struct aer_err_info {
 
 	unsigned int status;		/* COR/UNCOR Error Status */
 	unsigned int mask;		/* COR/UNCOR Error Mask */
-	struct header_log_regs tlp;	/* TLP Header */
+	struct aer_header_log_regs tlp;	/* TLP Header */
 };
 
 struct aer_err_source {
@@ -132,7 +125,6 @@ static inline int aer_osc_setup(struct pcie_device *pciedev)
 
 #ifdef CONFIG_ACPI_APEI
 extern int pcie_aer_get_firmware_first(struct pci_dev *pci_dev);
-extern bool aer_acpi_firmware_first(void);
 #else
 static inline int pcie_aer_get_firmware_first(struct pci_dev *pci_dev)
 {
@@ -140,8 +132,6 @@ static inline int pcie_aer_get_firmware_first(struct pci_dev *pci_dev)
 		return pci_dev->__aer_firmware_first;
 	return 0;
 }
-
-static inline bool aer_acpi_firmware_first(void) { return false; }
 #endif
 
 static inline void pcie_aer_force_firmware_first(struct pci_dev *pci_dev,

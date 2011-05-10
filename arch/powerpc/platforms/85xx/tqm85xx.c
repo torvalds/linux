@@ -44,12 +44,13 @@
 
 static void cpm2_cascade(unsigned int irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int cascade_irq;
 
 	while ((cascade_irq = cpm2_get_irq()) >= 0)
 		generic_handle_irq(cascade_irq);
 
-	desc->chip->eoi(irq);
+	chip->irq_eoi(&desc->irq_data);
 }
 #endif /* CONFIG_CPM2 */
 
@@ -99,7 +100,7 @@ static void __init tqm85xx_pic_init(void)
 
 	cpm2_pic_init(np);
 	of_node_put(np);
-	set_irq_chained_handler(irq, cpm2_cascade);
+	irq_set_chained_handler(irq, cpm2_cascade);
 #endif
 }
 
@@ -186,21 +187,21 @@ static int __init declare_of_platform_devices(void)
 }
 machine_device_initcall(tqm85xx, declare_of_platform_devices);
 
+static const char *board[] __initdata = {
+	"tqc,tqm8540",
+	"tqc,tqm8541",
+	"tqc,tqm8548",
+	"tqc,tqm8555",
+	"tqc,tqm8560",
+	NULL
+};
+
 /*
  * Called very early, device-tree isn't unflattened
  */
 static int __init tqm85xx_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if ((of_flat_dt_is_compatible(root, "tqc,tqm8540")) ||
-	    (of_flat_dt_is_compatible(root, "tqc,tqm8541")) ||
-	    (of_flat_dt_is_compatible(root, "tqc,tqm8548")) ||
-	    (of_flat_dt_is_compatible(root, "tqc,tqm8555")) ||
-	    (of_flat_dt_is_compatible(root, "tqc,tqm8560")))
-		return 1;
-
-	return 0;
+	return of_flat_dt_match(of_get_flat_dt_root(), board);
 }
 
 define_machine(tqm85xx) {

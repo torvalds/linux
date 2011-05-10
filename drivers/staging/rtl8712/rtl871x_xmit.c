@@ -372,7 +372,7 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 					   0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 					   0x0, 0x0};
 			datalen = pattrib->pktlen - pattrib->hdrlen;
-			pframe = pxmitframe->buf_addr + TXDESC_OFFSET;;
+			pframe = pxmitframe->buf_addr + TXDESC_OFFSET;
 			if (bmcst) {
 				if (!memcmp(psecuritypriv->XGrptxmickey
 				   [psecuritypriv->XGrpKeyid].skey,

@@ -27,8 +27,8 @@
 
 #include <plat/prcm.h>
 #include <plat/irqs.h>
-#include <plat/powerdomain.h>
-#include <plat/clockdomain.h>
+#include "powerdomain.h"
+#include "clockdomain.h"
 #include <plat/serial.h>
 
 #include "pm.h"
@@ -47,6 +47,8 @@
 
 #define OMAP3_STATE_MAX OMAP3_STATE_C7
 
+#define CPUIDLE_FLAG_CHECK_BM	0x10000	/* use omap3_enter_idle_bm() */
+
 struct omap3_processor_cx {
 	u8 valid;
 	u8 type;
@@ -56,6 +58,7 @@ struct omap3_processor_cx {
 	u32 core_state;
 	u32 threshold;
 	u32 flags;
+	const char *desc;
 };
 
 struct omap3_processor_cx omap3_power_states[OMAP3_MAX_STATES];
@@ -97,14 +100,14 @@ static int omap3_idle_bm_check(void)
 static int _cpuidle_allow_idle(struct powerdomain *pwrdm,
 				struct clockdomain *clkdm)
 {
-	omap2_clkdm_allow_idle(clkdm);
+	clkdm_allow_idle(clkdm);
 	return 0;
 }
 
 static int _cpuidle_deny_idle(struct powerdomain *pwrdm,
 				struct clockdomain *clkdm)
 {
-	omap2_clkdm_deny_idle(clkdm);
+	clkdm_deny_idle(clkdm);
 	return 0;
 }
 
@@ -252,7 +255,7 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 	 * FIXME: we currently manage device-specific idle states
 	 *        for PER and CORE in combination with CPU-specific
 	 *        idle states.  This is wrong, and device-specific
-	 *        idle managment needs to be separated out into 
+	 *        idle management needs to be separated out into 
 	 *        its own code.
 	 */
 
@@ -293,25 +296,26 @@ select_state:
 DEFINE_PER_CPU(struct cpuidle_device, omap3_idle_dev);
 
 /**
- * omap3_cpuidle_update_states - Update the cpuidle states.
+ * omap3_cpuidle_update_states() - Update the cpuidle states
+ * @mpu_deepest_state:	Enable states up to and including this for mpu domain
+ * @core_deepest_state:	Enable states up to and including this for core domain
  *
- * Currently, this function toggles the validity of idle states based upon
- * the flag 'enable_off_mode'. When the flag is set all states are valid.
- * Else, states leading to OFF state set to be invalid.
+ * This goes through the list of states available and enables and disables the
+ * validity of C states based on deepest state that can be achieved for the
+ * variable domain
  */
-void omap3_cpuidle_update_states(void)
+void omap3_cpuidle_update_states(u32 mpu_deepest_state, u32 core_deepest_state)
 {
 	int i;
 
 	for (i = OMAP3_STATE_C1; i < OMAP3_MAX_STATES; i++) {
 		struct omap3_processor_cx *cx = &omap3_power_states[i];
 
-		if (enable_off_mode) {
+		if ((cx->mpu_state >= mpu_deepest_state) &&
+		    (cx->core_state >= core_deepest_state)) {
 			cx->valid = 1;
 		} else {
-			if ((cx->mpu_state == PWRDM_POWER_OFF) ||
-				(cx->core_state	== PWRDM_POWER_OFF))
-				cx->valid = 0;
+			cx->valid = 0;
 		}
 	}
 }
@@ -362,6 +366,7 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C1].mpu_state = PWRDM_POWER_ON;
 	omap3_power_states[OMAP3_STATE_C1].core_state = PWRDM_POWER_ON;
 	omap3_power_states[OMAP3_STATE_C1].flags = CPUIDLE_FLAG_TIME_VALID;
+	omap3_power_states[OMAP3_STATE_C1].desc = "MPU ON + CORE ON";
 
 	/* C2 . MPU WFI + Core inactive */
 	omap3_power_states[OMAP3_STATE_C2].valid =
@@ -377,6 +382,7 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C2].core_state = PWRDM_POWER_ON;
 	omap3_power_states[OMAP3_STATE_C2].flags = CPUIDLE_FLAG_TIME_VALID |
 				CPUIDLE_FLAG_CHECK_BM;
+	omap3_power_states[OMAP3_STATE_C2].desc = "MPU ON + CORE ON";
 
 	/* C3 . MPU CSWR + Core inactive */
 	omap3_power_states[OMAP3_STATE_C3].valid =
@@ -392,6 +398,7 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C3].core_state = PWRDM_POWER_ON;
 	omap3_power_states[OMAP3_STATE_C3].flags = CPUIDLE_FLAG_TIME_VALID |
 				CPUIDLE_FLAG_CHECK_BM;
+	omap3_power_states[OMAP3_STATE_C3].desc = "MPU RET + CORE ON";
 
 	/* C4 . MPU OFF + Core inactive */
 	omap3_power_states[OMAP3_STATE_C4].valid =
@@ -407,6 +414,7 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C4].core_state = PWRDM_POWER_ON;
 	omap3_power_states[OMAP3_STATE_C4].flags = CPUIDLE_FLAG_TIME_VALID |
 				CPUIDLE_FLAG_CHECK_BM;
+	omap3_power_states[OMAP3_STATE_C4].desc = "MPU OFF + CORE ON";
 
 	/* C5 . MPU CSWR + Core CSWR*/
 	omap3_power_states[OMAP3_STATE_C5].valid =
@@ -422,6 +430,7 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C5].core_state = PWRDM_POWER_RET;
 	omap3_power_states[OMAP3_STATE_C5].flags = CPUIDLE_FLAG_TIME_VALID |
 				CPUIDLE_FLAG_CHECK_BM;
+	omap3_power_states[OMAP3_STATE_C5].desc = "MPU RET + CORE RET";
 
 	/* C6 . MPU OFF + Core CSWR */
 	omap3_power_states[OMAP3_STATE_C6].valid =
@@ -437,6 +446,7 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C6].core_state = PWRDM_POWER_RET;
 	omap3_power_states[OMAP3_STATE_C6].flags = CPUIDLE_FLAG_TIME_VALID |
 				CPUIDLE_FLAG_CHECK_BM;
+	omap3_power_states[OMAP3_STATE_C6].desc = "MPU OFF + CORE RET";
 
 	/* C7 . MPU OFF + Core OFF */
 	omap3_power_states[OMAP3_STATE_C7].valid =
@@ -452,6 +462,19 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C7].core_state = PWRDM_POWER_OFF;
 	omap3_power_states[OMAP3_STATE_C7].flags = CPUIDLE_FLAG_TIME_VALID |
 				CPUIDLE_FLAG_CHECK_BM;
+	omap3_power_states[OMAP3_STATE_C7].desc = "MPU OFF + CORE OFF";
+
+	/*
+	 * Erratum i583: implementation for ES rev < Es1.2 on 3630. We cannot
+	 * enable OFF mode in a stable form for previous revisions.
+	 * we disable C7 state as a result.
+	 */
+	if (IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583)) {
+		omap3_power_states[OMAP3_STATE_C7].valid = 0;
+		cpuidle_params_table[OMAP3_STATE_C7].valid = 0;
+		pr_warn("%s: core off state C7 disabled due to i583\n",
+				__func__);
+	}
 }
 
 struct cpuidle_driver omap3_idle_driver = {
@@ -497,6 +520,7 @@ int __init omap3_idle_init(void)
 		if (cx->type == OMAP3_STATE_C1)
 			dev->safe_state = state;
 		sprintf(state->name, "C%d", count+1);
+		strncpy(state->desc, cx->desc, CPUIDLE_DESC_LEN);
 		count++;
 	}
 
@@ -504,7 +528,10 @@ int __init omap3_idle_init(void)
 		return -EINVAL;
 	dev->state_count = count;
 
-	omap3_cpuidle_update_states();
+	if (enable_off_mode)
+		omap3_cpuidle_update_states(PWRDM_POWER_OFF, PWRDM_POWER_OFF);
+	else
+		omap3_cpuidle_update_states(PWRDM_POWER_RET, PWRDM_POWER_RET);
 
 	if (cpuidle_register_device(dev)) {
 		printk(KERN_ERR "%s: CPUidle register device failed\n",

@@ -59,31 +59,7 @@
 /*****************************************************************************/
 
 static const struct usb_device_id et61x251_id_table[] = {
-	{ USB_DEVICE(0x102c, 0x6151), },
 	{ USB_DEVICE(0x102c, 0x6251), },
-	{ USB_DEVICE(0x102c, 0x6253), },
-	{ USB_DEVICE(0x102c, 0x6254), },
-	{ USB_DEVICE(0x102c, 0x6255), },
-	{ USB_DEVICE(0x102c, 0x6256), },
-	{ USB_DEVICE(0x102c, 0x6257), },
-	{ USB_DEVICE(0x102c, 0x6258), },
-	{ USB_DEVICE(0x102c, 0x6259), },
-	{ USB_DEVICE(0x102c, 0x625a), },
-	{ USB_DEVICE(0x102c, 0x625b), },
-	{ USB_DEVICE(0x102c, 0x625c), },
-	{ USB_DEVICE(0x102c, 0x625d), },
-	{ USB_DEVICE(0x102c, 0x625e), },
-	{ USB_DEVICE(0x102c, 0x625f), },
-	{ USB_DEVICE(0x102c, 0x6260), },
-	{ USB_DEVICE(0x102c, 0x6261), },
-	{ USB_DEVICE(0x102c, 0x6262), },
-	{ USB_DEVICE(0x102c, 0x6263), },
-	{ USB_DEVICE(0x102c, 0x6264), },
-	{ USB_DEVICE(0x102c, 0x6265), },
-	{ USB_DEVICE(0x102c, 0x6266), },
-	{ USB_DEVICE(0x102c, 0x6267), },
-	{ USB_DEVICE(0x102c, 0x6268), },
-	{ USB_DEVICE(0x102c, 0x6269), },
 	{ }
 };
 

@@ -1,8 +1,6 @@
 #ifndef _ADDRCONF_H
 #define _ADDRCONF_H
 
-#define RETRANS_TIMER	HZ
-
 #define MAX_RTR_SOLICITATIONS		3
 #define RTR_SOLICITATION_INTERVAL	(4*HZ)
 

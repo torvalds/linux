@@ -69,7 +69,7 @@ static int tcf_nat_init(struct nlattr *nla, struct nlattr *est,
 		pc = tcf_hash_create(parm->index, est, a, sizeof(*p), bind,
 				     &nat_idx_gen, &nat_hash_info);
 		if (IS_ERR(pc))
-		    return PTR_ERR(pc);
+			return PTR_ERR(pc);
 		p = to_tcf_nat(pc);
 		ret = ACT_P_CREATED;
 	} else {
@@ -125,8 +125,7 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 	egress = p->flags & TCA_NAT_FLAG_EGRESS;
 	action = p->tcf_action;
 
-	p->tcf_bstats.bytes += qdisc_pkt_len(skb);
-	p->tcf_bstats.packets++;
+	bstats_update(&p->tcf_bstats, skb);
 
 	spin_unlock(&p->tcf_lock);
 

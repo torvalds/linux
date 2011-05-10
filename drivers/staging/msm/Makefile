@@ -41,11 +41,11 @@ obj-$(CONFIG_FB_MSM_EBI2) += ebi2_lcd.o
 obj-$(CONFIG_FB_MSM_LCDC) += lcdc.o
 
 # MDDI
-msm_mddi-objs := mddi.o mddihost.o mddihosti.o
+msm_mddi-y := mddi.o mddihost.o mddihosti.o
 obj-$(CONFIG_FB_MSM_MDDI) += msm_mddi.o
 
 # External MDDI
-msm_mddi_ext-objs := mddihost_e.o mddi_ext.o
+msm_mddi_ext-y := mddihost_e.o mddi_ext.o
 obj-$(CONFIG_FB_MSM_EXTMDDI) += msm_mddi_ext.o
 
 # TVEnc

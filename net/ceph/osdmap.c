@@ -605,8 +605,10 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 			goto bad;
 		}
 		err = __decode_pool(p, end, pi);
-		if (err < 0)
+		if (err < 0) {
+			kfree(pi);
 			goto bad;
+		}
 		__insert_pg_pool(&map->pg_pools, pi);
 	}
 

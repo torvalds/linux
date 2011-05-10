@@ -60,6 +60,9 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
  */
 #define MAX_TCP_WINDOW		32767U
 
+/* Offer an initial receive window of 10 mss. */
+#define TCP_DEFAULT_INIT_RCVWND	10
+
 /* Minimal accepted MSS. It is (60+60+8) - (20+20). */
 #define TCP_MIN_MSS		88U
 
@@ -99,12 +102,6 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 
 #define TCP_SYNACK_RETRIES 5	/* number of times to retry passive opening a
 				 * connection: ~180sec is RFC minimum	*/
-
-
-#define TCP_ORPHAN_RETRIES 7	/* number of times to retry on an orphaned
-				 * socket. 7 is ~50sec-16min.
-				 */
-
 
 #define TCP_TIMEWAIT_LEN (60*HZ) /* how long to wait to destroy TIME-WAIT
 				  * state, about 60 seconds	*/
@@ -198,6 +195,9 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 
 /* TCP thin-stream limits */
 #define TCP_THIN_LINEAR_RETRIES 6       /* After 6 linear retries, do exp. backoff */
+
+/* TCP initial congestion window as per draft-hkchu-tcpm-initcwnd-01 */
+#define TCP_INIT_CWND		10
 
 extern struct inet_timewait_death_row tcp_death_row;
 
@@ -312,7 +312,8 @@ extern void tcp_shutdown (struct sock *sk, int how);
 
 extern int tcp_v4_rcv(struct sk_buff *skb);
 
-extern int tcp_v4_remember_stamp(struct sock *sk);
+extern struct inet_peer *tcp_v4_get_peer(struct sock *sk, bool *release_it);
+extern void *tcp_v4_tw_get_peer(struct sock *sk);
 extern int tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw);
 extern int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		       size_t size);
@@ -801,15 +802,6 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 /* Use define here intentionally to get WARN_ON location shown at the caller */
 #define tcp_verify_left_out(tp)	WARN_ON(tcp_left_out(tp) > tp->packets_out)
 
-/*
- * Convert RFC 3390 larger initial window into an equivalent number of packets.
- * This is based on the numbers specified in RFC 5681, 3.1.
- */
-static inline u32 rfc3390_bytes_to_packets(const u32 smss)
-{
-	return smss <= 1095 ? 4 : (smss > 2190 ? 2 : 3);
-}
-
 extern void tcp_enter_cwr(struct sock *sk, const int set_ssthresh);
 extern __u32 tcp_init_cwnd(struct tcp_sock *tp, struct dst_entry *dst);
 
@@ -1043,7 +1035,13 @@ static inline int tcp_paws_check(const struct tcp_options_received *rx_opt,
 		return 1;
 	if (unlikely(get_seconds() >= rx_opt->ts_recent_stamp + TCP_PAWS_24DAYS))
 		return 1;
-
+	/*
+	 * Some OSes send SYN and SYNACK messages with tsval=0 tsecr=0,
+	 * then following tcp messages have valid values. Ignore 0 value,
+	 * or else 'negative' tsval might forbid us to accept their packets.
+	 */
+	if (!rx_opt->ts_recent)
+		return 1;
 	return 0;
 }
 
@@ -1069,8 +1067,6 @@ static inline int tcp_paws_reject(const struct tcp_options_received *rx_opt,
 		return 0;
 	return 1;
 }
-
-#define TCP_CHECK_TIMER(sk) do { } while (0)
 
 static inline void tcp_mib_init(struct net *net)
 {
@@ -1156,8 +1152,6 @@ struct tcp_md5sig_pool {
 	struct hash_desc	md5_desc;
 	union tcp_md5sum_block	md5_blk;
 };
-
-#define TCP_MD5SIG_MAXKEYS	(~(u32)0)	/* really?! */
 
 /* - functions */
 extern int tcp_v4_md5_hash_skb(char *md5_hash, struct tcp_md5sig_key *key,
@@ -1402,7 +1396,7 @@ extern struct request_sock_ops tcp6_request_sock_ops;
 extern void tcp_v4_destroy_sock(struct sock *sk);
 
 extern int tcp_v4_gso_send_check(struct sk_buff *skb);
-extern struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features);
+extern struct sk_buff *tcp_tso_segment(struct sk_buff *skb, u32 features);
 extern struct sk_buff **tcp_gro_receive(struct sk_buff **head,
 					struct sk_buff *skb);
 extern struct sk_buff **tcp4_gro_receive(struct sk_buff **head,

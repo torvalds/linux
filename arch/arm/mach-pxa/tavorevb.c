@@ -466,7 +466,7 @@ static void __init tavorevb_init_lcd(void)
 {
 	platform_device_register(&tavorevb_backlight_devices[0]);
 	platform_device_register(&tavorevb_backlight_devices[1]);
-	set_pxa_fb_info(&tavorevb_lcd_info);
+	pxa_set_fb_info(NULL, &tavorevb_lcd_info);
 }
 #else
 static inline void tavorevb_init_lcd(void) {}
@@ -490,7 +490,7 @@ static void __init tavorevb_init(void)
 MACHINE_START(TAVOREVB, "PXA930 Evaluation Board (aka TavorEVB)")
 	/* Maintainer: Eric Miao <eric.miao@marvell.com> */
 	.boot_params    = 0xa0000100,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa3xx_map_io,
 	.init_irq       = pxa3xx_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = tavorevb_init,

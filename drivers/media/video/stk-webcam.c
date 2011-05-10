@@ -230,120 +230,6 @@ static int stk_initialise(struct stk_camera *dev)
 		return -1;
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-
-/* sysfs functions */
-/*FIXME cleanup this */
-
-static ssize_t show_brightness(struct device *class,
-			struct device_attribute *attr, char *buf)
-{
-	struct video_device *vdev = to_video_device(class);
-	struct stk_camera *dev = vdev_to_camera(vdev);
-
-	return sprintf(buf, "%X\n", dev->vsettings.brightness);
-}
-
-static ssize_t store_brightness(struct device *class,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	char *endp;
-	unsigned long value;
-	int ret;
-
-	struct video_device *vdev = to_video_device(class);
-	struct stk_camera *dev = vdev_to_camera(vdev);
-
-	value = simple_strtoul(buf, &endp, 16);
-
-	dev->vsettings.brightness = (int) value;
-
-	ret = stk_sensor_set_brightness(dev, value >> 8);
-	if (ret)
-		return ret;
-	else
-		return count;
-}
-
-static ssize_t show_hflip(struct device *class,
-		struct device_attribute *attr, char *buf)
-{
-	struct video_device *vdev = to_video_device(class);
-	struct stk_camera *dev = vdev_to_camera(vdev);
-
-	return sprintf(buf, "%d\n", dev->vsettings.hflip);
-}
-
-static ssize_t store_hflip(struct device *class,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct video_device *vdev = to_video_device(class);
-	struct stk_camera *dev = vdev_to_camera(vdev);
-
-	if (strncmp(buf, "1", 1) == 0)
-		dev->vsettings.hflip = 1;
-	else if (strncmp(buf, "0", 1) == 0)
-		dev->vsettings.hflip = 0;
-	else
-		return -EINVAL;
-
-	return strlen(buf);
-}
-
-static ssize_t show_vflip(struct device *class,
-		struct device_attribute *attr, char *buf)
-{
-	struct video_device *vdev = to_video_device(class);
-	struct stk_camera *dev = vdev_to_camera(vdev);
-
-	return sprintf(buf, "%d\n", dev->vsettings.vflip);
-}
-
-static ssize_t store_vflip(struct device *class,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct video_device *vdev = to_video_device(class);
-	struct stk_camera *dev = vdev_to_camera(vdev);
-
-	if (strncmp(buf, "1", 1) == 0)
-		dev->vsettings.vflip = 1;
-	else if (strncmp(buf, "0", 1) == 0)
-		dev->vsettings.vflip = 0;
-	else
-		return -EINVAL;
-
-	return strlen(buf);
-}
-
-static DEVICE_ATTR(brightness, S_IRUGO | S_IWUGO,
-			show_brightness, store_brightness);
-static DEVICE_ATTR(hflip, S_IRUGO | S_IWUGO, show_hflip, store_hflip);
-static DEVICE_ATTR(vflip, S_IRUGO | S_IWUGO, show_vflip, store_vflip);
-
-static int stk_create_sysfs_files(struct video_device *vdev)
-{
-	int ret;
-
-	ret = device_create_file(&vdev->dev, &dev_attr_brightness);
-	ret += device_create_file(&vdev->dev, &dev_attr_hflip);
-	ret += device_create_file(&vdev->dev, &dev_attr_vflip);
-	if (ret)
-		STK_WARNING("Could not create sysfs files\n");
-	return ret;
-}
-
-static void stk_remove_sysfs_files(struct video_device *vdev)
-{
-	device_remove_file(&vdev->dev, &dev_attr_brightness);
-	device_remove_file(&vdev->dev, &dev_attr_hflip);
-	device_remove_file(&vdev->dev, &dev_attr_vflip);
-}
-
-#else
-#define stk_create_sysfs_files(a)
-#define stk_remove_sysfs_files(a)
-#endif
-
 /* *********************************************** */
 /*
  * This function is called as an URB transfert is complete (Isochronous pipe).
@@ -878,7 +764,24 @@ static struct v4l2_queryctrl stk_controls[] = {
 		.step    = 0x0100,
 		.default_value = 0x6000,
 	},
-	/*TODO: get more controls to work */
+	{
+		.id      = V4L2_CID_HFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Horizontal Flip",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+		.default_value = 1,
+	},
+	{
+		.id      = V4L2_CID_VFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Vertical Flip",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+		.default_value = 1,
+	},
 };
 
 static int stk_vidioc_queryctrl(struct file *filp,
@@ -906,6 +809,12 @@ static int stk_vidioc_g_ctrl(struct file *filp,
 	case V4L2_CID_BRIGHTNESS:
 		c->value = dev->vsettings.brightness;
 		break;
+	case V4L2_CID_HFLIP:
+		c->value = dev->vsettings.hflip;
+		break;
+	case V4L2_CID_VFLIP:
+		c->value = dev->vsettings.vflip;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -920,6 +829,12 @@ static int stk_vidioc_s_ctrl(struct file *filp,
 	case V4L2_CID_BRIGHTNESS:
 		dev->vsettings.brightness = c->value;
 		return stk_sensor_set_brightness(dev, c->value >> 8);
+	case V4L2_CID_HFLIP:
+		dev->vsettings.hflip = c->value;
+		return 0;
+	case V4L2_CID_VFLIP:
+		dev->vsettings.vflip = c->value;
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -1394,8 +1309,6 @@ static int stk_camera_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	stk_create_sysfs_files(&dev->vdev);
-
 	return 0;
 
 error:
@@ -1411,7 +1324,6 @@ static void stk_camera_disconnect(struct usb_interface *interface)
 	unset_present(dev);
 
 	wake_up_interruptible(&dev->wait_frame);
-	stk_remove_sysfs_files(&dev->vdev);
 
 	STK_INFO("Syntek USB2.0 Camera release resources device %s\n",
 		 video_device_node_name(&dev->vdev));

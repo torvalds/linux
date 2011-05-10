@@ -625,12 +625,7 @@ static u64 dm365_spi0_dma_mask = DMA_BIT_MASK(32);
 static struct davinci_spi_platform_data dm365_spi0_pdata = {
 	.version 	= SPI_VERSION_1,
 	.num_chipselect = 2,
-	.clk_internal	= 1,
-	.cs_hold	= 1,
-	.intr_level	= 0,
-	.poll_mode	= 1,	/* 0 -> interrupt mode 1-> polling mode */
-	.c2tdelay	= 0,
-	.t2cdelay	= 0,
+	.dma_event_q	= EVENTQ_3,
 };
 
 static struct resource dm365_spi0_resources[] = {
@@ -649,10 +644,6 @@ static struct resource dm365_spi0_resources[] = {
 	},
 	{
 		.start = 16,
-		.flags = IORESOURCE_DMA,
-	},
-	{
-		.start = EVENTQ_3,
 		.flags = IORESOURCE_DMA,
 	},
 };

@@ -133,7 +133,7 @@ different IR's. Due to that, V4L2 API now specifies a standard for mapping Media
 <row><entry><constant>KEY_LEFT</constant></entry><entry>Left key</entry><entry>LEFT</entry></row>
 <row><entry><constant>KEY_RIGHT</constant></entry><entry>Right key</entry><entry>RIGHT</entry></row>
 
-<row><entry><emphasis role="bold">Miscelaneous keys</emphasis></entry></row>
+<row><entry><emphasis role="bold">Miscellaneous keys</emphasis></entry></row>
 
 <row><entry><constant>KEY_DOT</constant></entry><entry>Return a dot</entry><entry>.</entry></row>
 <row><entry><constant>KEY_FN</constant></entry><entry>Select a function</entry><entry>FUNCTION</entry></row>

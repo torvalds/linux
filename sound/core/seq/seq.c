@@ -32,6 +32,7 @@
 #include "seq_timer.h"
 #include "seq_system.h"
 #include "seq_info.h"
+#include <sound/minors.h>
 #include <sound/seq_device.h>
 
 #if defined(CONFIG_SND_SEQ_DUMMY_MODULE)
@@ -72,6 +73,9 @@ module_param(seq_default_timer_subdevice, int, 0644);
 MODULE_PARM_DESC(seq_default_timer_subdevice, "The default timer subdevice number.");
 module_param(seq_default_timer_resolution, int, 0644);
 MODULE_PARM_DESC(seq_default_timer_resolution, "The default timer resolution in Hz.");
+
+MODULE_ALIAS_CHARDEV(CONFIG_SND_MAJOR, SNDRV_MINOR_SEQUENCER);
+MODULE_ALIAS("devname:snd/seq");
 
 /*
  *  INIT PART

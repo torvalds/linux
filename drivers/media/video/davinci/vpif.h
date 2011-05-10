@@ -33,7 +33,7 @@ extern spinlock_t vpif_lock;
 #define regr(reg)               readl((reg) + vpif_base)
 #define regw(value, reg)        writel(value, (reg + vpif_base))
 
-/* Register Addresss Offsets */
+/* Register Address Offsets */
 #define VPIF_PID			(0x0000)
 #define VPIF_CH0_CTRL			(0x0004)
 #define VPIF_CH1_CTRL			(0x0008)
@@ -577,12 +577,10 @@ struct vpif_channel_config_params {
 	char name[VPIF_MAX_NAME];	/* Name of the mode */
 	u16 width;			/* Indicates width of the image */
 	u16 height;			/* Indicates height of the image */
-	u8 fps;
-	u8 frm_fmt;			/* Indicates whether this is interlaced
-					 * or progressive format */
-	u8 ycmux_mode;			/* Indicates whether this mode requires
-					 * single or two channels */
-	u16 eav2sav;			/* length of sav 2 eav */
+	u8 frm_fmt;			/* Interlaced (0) or progressive (1) */
+	u8 ycmux_mode;			/* This mode requires one (0) or two (1)
+					   channels */
+	u16 eav2sav;			/* length of eav 2 sav */
 	u16 sav2eav;			/* length of sav 2 eav */
 	u16 l1, l3, l5, l7, l9, l11;	/* Other parameter configurations */
 	u16 vsize;			/* Vertical size of the image */
@@ -590,9 +588,13 @@ struct vpif_channel_config_params {
 					 * is in BT or in CCD/CMOS */
 	u8  vbi_supported;		/* Indicates whether this mode
 					 * supports capturing vbi or not */
-	u8 hd_sd;
-	v4l2_std_id stdid;
+	u8 hd_sd;			/* HDTV (1) or SDTV (0) format */
+	v4l2_std_id stdid;		/* SDTV format */
+	u32 dv_preset;			/* HDTV format */
 };
+
+extern const unsigned int vpif_ch_params_count;
+extern const struct vpif_channel_config_params ch_params[];
 
 struct vpif_video_params;
 struct vpif_params;

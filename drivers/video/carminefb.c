@@ -654,7 +654,7 @@ static int __devinit carminefb_probe(struct pci_dev *dev,
 		printk(KERN_ERR "carminefb: Memory bar is only %d bytes, %d "
 				"are required.", carminefb_fix.smem_len,
 				CARMINE_TOTAL_DIPLAY_MEM);
-		goto err_free_reg_mmio;
+		goto err_unmap_vregs;
 	}
 
 	if (!request_mem_region(carminefb_fix.smem_start,
@@ -667,8 +667,6 @@ static int __devinit carminefb_probe(struct pci_dev *dev,
 			carminefb_fix.smem_len);
 	if (!hw->screen_mem) {
 		printk(KERN_ERR "carmine: Can't ioremap smem area.\n");
-		release_mem_region(carminefb_fix.smem_start,
-				carminefb_fix.smem_len);
 		goto err_reg_smem;
 	}
 
@@ -710,7 +708,7 @@ err_deinit_hw:
 err_unmap_screen:
 	iounmap(hw->screen_mem);
 err_reg_smem:
-	release_mem_region(carminefb_fix.mmio_start, carminefb_fix.mmio_len);
+	release_mem_region(carminefb_fix.smem_start, carminefb_fix.smem_len);
 err_unmap_vregs:
 	iounmap(hw->v_regs);
 err_free_reg_mmio:

@@ -597,7 +597,7 @@ static int bcm_enet_set_mac_address(struct net_device *dev, void *p)
 }
 
 /*
- * Change rx mode (promiscous/allmulti) and update multicast list
+ * Change rx mode (promiscuous/allmulti) and update multicast list
  */
 static void bcm_enet_set_multicast_list(struct net_device *dev)
 {
@@ -1097,7 +1097,7 @@ static int bcm_enet_stop(struct net_device *dev)
 	enet_dma_writel(priv, 0, ENETDMA_IRMASK_REG(priv->tx_chan));
 
 	/* make sure no mib update is scheduled */
-	flush_scheduled_work();
+	cancel_work_sync(&priv->mib_update_task);
 
 	/* disable dma & mac */
 	bcm_enet_disable_dma(priv, priv->tx_chan);

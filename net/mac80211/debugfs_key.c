@@ -15,18 +15,17 @@
 #include "debugfs.h"
 #include "debugfs_key.h"
 
-#define KEY_READ(name, prop, buflen, format_string)			\
+#define KEY_READ(name, prop, format_string)				\
 static ssize_t key_##name##_read(struct file *file,			\
 				 char __user *userbuf,			\
 				 size_t count, loff_t *ppos)		\
 {									\
-	char buf[buflen];						\
 	struct ieee80211_key *key = file->private_data;			\
-	int res = scnprintf(buf, buflen, format_string, key->prop);	\
-	return simple_read_from_buffer(userbuf, count, ppos, buf, res);	\
+	return mac80211_format_buffer(userbuf, count, ppos, 		\
+				      format_string, key->prop);	\
 }
-#define KEY_READ_D(name) KEY_READ(name, name, 20, "%d\n")
-#define KEY_READ_X(name) KEY_READ(name, name, 20, "0x%x\n")
+#define KEY_READ_D(name) KEY_READ(name, name, "%d\n")
+#define KEY_READ_X(name) KEY_READ(name, name, "0x%x\n")
 
 #define KEY_OPS(name)							\
 static const struct file_operations key_ ##name## _ops = {		\
@@ -39,9 +38,9 @@ static const struct file_operations key_ ##name## _ops = {		\
 		 KEY_READ_##format(name)				\
 		 KEY_OPS(name)
 
-#define KEY_CONF_READ(name, buflen, format_string)			\
-	KEY_READ(conf_##name, conf.name, buflen, format_string)
-#define KEY_CONF_READ_D(name) KEY_CONF_READ(name, 20, "%d\n")
+#define KEY_CONF_READ(name, format_string)				\
+	KEY_READ(conf_##name, conf.name, format_string)
+#define KEY_CONF_READ_D(name) KEY_CONF_READ(name, "%d\n")
 
 #define KEY_CONF_OPS(name)						\
 static const struct file_operations key_ ##name## _ops = {		\
@@ -59,7 +58,7 @@ KEY_CONF_FILE(keyidx, D);
 KEY_CONF_FILE(hw_key_idx, D);
 KEY_FILE(flags, X);
 KEY_FILE(tx_rx_count, D);
-KEY_READ(ifindex, sdata->name, IFNAMSIZ + 2, "%s\n");
+KEY_READ(ifindex, sdata->name, "%s\n");
 KEY_OPS(ifindex);
 
 static ssize_t key_algorithm_read(struct file *file,
@@ -275,7 +274,8 @@ void ieee80211_debugfs_key_remove(struct ieee80211_key *key)
 	debugfs_remove_recursive(key->debugfs.dir);
 	key->debugfs.dir = NULL;
 }
-void ieee80211_debugfs_key_add_default(struct ieee80211_sub_if_data *sdata)
+
+void ieee80211_debugfs_key_update_default(struct ieee80211_sub_if_data *sdata)
 {
 	char buf[50];
 	struct ieee80211_key *key;
@@ -283,25 +283,29 @@ void ieee80211_debugfs_key_add_default(struct ieee80211_sub_if_data *sdata)
 	if (!sdata->debugfs.dir)
 		return;
 
-	/* this is running under the key lock */
+	lockdep_assert_held(&sdata->local->key_mtx);
 
-	key = sdata->default_key;
-	if (key) {
+	if (sdata->default_unicast_key) {
+		key = sdata->default_unicast_key;
 		sprintf(buf, "../keys/%d", key->debugfs.cnt);
-		sdata->debugfs.default_key =
-			debugfs_create_symlink("default_key",
+		sdata->debugfs.default_unicast_key =
+			debugfs_create_symlink("default_unicast_key",
 					       sdata->debugfs.dir, buf);
-	} else
-		ieee80211_debugfs_key_remove_default(sdata);
-}
+	} else {
+		debugfs_remove(sdata->debugfs.default_unicast_key);
+		sdata->debugfs.default_unicast_key = NULL;
+	}
 
-void ieee80211_debugfs_key_remove_default(struct ieee80211_sub_if_data *sdata)
-{
-	if (!sdata)
-		return;
-
-	debugfs_remove(sdata->debugfs.default_key);
-	sdata->debugfs.default_key = NULL;
+	if (sdata->default_multicast_key) {
+		key = sdata->default_multicast_key;
+		sprintf(buf, "../keys/%d", key->debugfs.cnt);
+		sdata->debugfs.default_multicast_key =
+			debugfs_create_symlink("default_multicast_key",
+					       sdata->debugfs.dir, buf);
+	} else {
+		debugfs_remove(sdata->debugfs.default_multicast_key);
+		sdata->debugfs.default_multicast_key = NULL;
+	}
 }
 
 void ieee80211_debugfs_key_add_mgmt_default(struct ieee80211_sub_if_data *sdata)

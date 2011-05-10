@@ -23,6 +23,7 @@
 
 #include <linux/list.h>
 #include <linux/device.h>
+#include <linux/videodev2.h>
 
 /* forward references */
 struct v4l2_ctrl_handler;
@@ -53,8 +54,10 @@ struct v4l2_ctrl_ops {
   * @handler:	The handler that owns the control.
   * @cluster:	Point to start of cluster array.
   * @ncontrols:	Number of controls in cluster array.
-  * @has_new:	Internal flag: set when there is a valid new value.
   * @done:	Internal flag: set for each processed control.
+  * @is_new:	Set when the user specified a new value for this control. It
+  *		is also set when called from v4l2_ctrl_handler_setup. Drivers
+  *		should never set this flag.
   * @is_private: If set, then this control is private to its handler and it
   *		will not be added to any other handlers. Drivers can set
   *		this flag.
@@ -97,9 +100,9 @@ struct v4l2_ctrl {
 	struct v4l2_ctrl_handler *handler;
 	struct v4l2_ctrl **cluster;
 	unsigned ncontrols;
-	unsigned int has_new:1;
 	unsigned int done:1;
 
+	unsigned int is_new:1;
 	unsigned int is_private:1;
 	unsigned int is_volatile:1;
 
@@ -112,7 +115,7 @@ struct v4l2_ctrl {
 		u32 step;
 		u32 menu_skip_mask;
 	};
-	const char **qmenu;
+	const char * const *qmenu;
 	unsigned long flags;
 	union {
 		s32 val;
@@ -202,7 +205,7 @@ struct v4l2_ctrl_config {
 	s32 def;
 	u32 flags;
 	u32 menu_skip_mask;
-	const char **qmenu;
+	const char * const *qmenu;
 	unsigned int is_private:1;
 	unsigned int is_volatile:1;
 };

@@ -239,11 +239,15 @@ static int __devinit ltv350qv_probe(struct spi_device *spi)
 	lcd->spi = spi;
 	lcd->power = FB_BLANK_POWERDOWN;
 	lcd->buffer = kzalloc(8, GFP_KERNEL);
+	if (!lcd->buffer) {
+		ret = -ENOMEM;
+		goto out_free_lcd;
+	}
 
 	ld = lcd_device_register("ltv350qv", &spi->dev, lcd, &ltv_ops);
 	if (IS_ERR(ld)) {
 		ret = PTR_ERR(ld);
-		goto out_free_lcd;
+		goto out_free_buffer;
 	}
 	lcd->ld = ld;
 
@@ -257,6 +261,8 @@ static int __devinit ltv350qv_probe(struct spi_device *spi)
 
 out_unregister:
 	lcd_device_unregister(ld);
+out_free_buffer:
+	kfree(lcd->buffer);
 out_free_lcd:
 	kfree(lcd);
 	return ret;
@@ -268,6 +274,7 @@ static int __devexit ltv350qv_remove(struct spi_device *spi)
 
 	ltv350qv_power(lcd, FB_BLANK_POWERDOWN);
 	lcd_device_unregister(lcd->ld);
+	kfree(lcd->buffer);
 	kfree(lcd);
 
 	return 0;

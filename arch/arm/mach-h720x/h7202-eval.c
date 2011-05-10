@@ -23,7 +23,6 @@
 #include <asm/types.h>
 #include <asm/mach-types.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/mach/arch.h>
 #include <mach/irqs.h>
 #include <mach/hardware.h>

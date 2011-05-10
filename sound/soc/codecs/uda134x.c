@@ -19,7 +19,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
 #include <sound/uda134x.h>
@@ -389,7 +388,7 @@ static int uda134x_set_bias_level(struct snd_soc_codec *codec,
 			pd->power(0);
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -487,7 +486,8 @@ static struct snd_soc_dai_driver uda134x_dai = {
 static int uda134x_soc_probe(struct snd_soc_codec *codec)
 {
 	struct uda134x_priv *uda134x;
-	struct uda134x_platform_data *pd = dev_get_drvdata(codec->card->dev);
+	struct uda134x_platform_data *pd = codec->card->dev->platform_data;
+
 	int ret;
 
 	printk(KERN_INFO "UDA134X SoC Audio Codec\n");

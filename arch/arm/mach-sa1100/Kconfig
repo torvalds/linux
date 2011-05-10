@@ -118,6 +118,16 @@ config SA1100_LART
 	  (also known as the LART).  See <http://www.lartmaker.nl/> for
 	  information on the LART.
 
+config SA1100_NANOENGINE
+	bool "nanoEngine"
+	select CPU_FREQ_SA1110
+	select PCI
+	select PCI_NANOENGINE
+	help
+	  Say Y here if you are using the Bright Star Engineering nanoEngine.
+	  See <http://www.brightstareng.com/arm/nanoeng.htm> for information
+	  on the BSE nanoEngine.
+
 config SA1100_PLEB
 	bool "PLEB"
 	select CPU_FREQ_SA1100

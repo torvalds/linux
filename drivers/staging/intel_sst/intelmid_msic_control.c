@@ -24,6 +24,8 @@
  * This file contains the control operations of msic vendors
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/file.h>
 #include "intel_sst.h"
@@ -83,7 +85,7 @@ static int msic_init_card(void)
 	snd_msic_ops.cap_on = 0;
 	snd_msic_ops.input_dev_id = DMIC; /*def dev*/
 	snd_msic_ops.output_dev_id = STEREO_HEADPHONE;
-	pr_debug("sst: msic init complete!!\n");
+	pr_debug("msic init complete!!\n");
 	return 0;
 }
 
@@ -173,7 +175,7 @@ static int msic_power_up_pb(unsigned int device)
 			return retval;
 	}
 
-	pr_debug("sst: powering up pb.... Device %d\n", device);
+	pr_debug("powering up pb.... Device %d\n", device);
 	sst_sc_reg_access(sc_access1, PMIC_WRITE, 4);
 	switch (device) {
 	case SND_SST_DEVICE_HEADSET:
@@ -205,7 +207,7 @@ static int msic_power_up_pb(unsigned int device)
 		break;
 
 	default:
-		pr_warn("sst: Wrong Device %d, selected %d\n",
+		pr_warn("Wrong Device %d, selected %d\n",
 			       device, snd_msic_ops.output_dev_id);
 	}
 	return sst_sc_reg_access(sc_access_pcm2, PMIC_READ_MODIFY, 1);
@@ -268,7 +270,7 @@ static int msic_power_up_cp(unsigned int device)
 			return retval;
 	}
 
-	pr_debug("sst: powering up cp....%d\n", snd_msic_ops.input_dev_id);
+	pr_debug("powering up cp....%d\n", snd_msic_ops.input_dev_id);
 	sst_sc_reg_access(sc_access2, PMIC_READ_MODIFY, 1);
 	snd_msic_ops.cap_on = 1;
 	if (snd_msic_ops.input_dev_id == AMIC)
@@ -283,7 +285,7 @@ static int msic_power_down(void)
 {
 	int retval = 0;
 
-	pr_debug("sst: powering dn msic\n");
+	pr_debug("powering dn msic\n");
 	snd_msic_ops.pb_on = 0;
 	snd_msic_ops.cap_on = 0;
 	return retval;
@@ -293,7 +295,7 @@ static int msic_power_down_pb(void)
 {
 	int retval = 0;
 
-	pr_debug("sst: powering dn pb....\n");
+	pr_debug("powering dn pb....\n");
 	snd_msic_ops.pb_on = 0;
 	return retval;
 }
@@ -302,7 +304,7 @@ static int msic_power_down_cp(void)
 {
 	int retval = 0;
 
-	pr_debug("sst: powering dn cp....\n");
+	pr_debug("powering dn cp....\n");
 	snd_msic_ops.cap_on = 0;
 	return retval;
 }
@@ -311,7 +313,7 @@ static int msic_set_selected_output_dev(u8 value)
 {
 	int retval = 0;
 
-	pr_debug("sst: msic set selected output:%d\n", value);
+	pr_debug("msic set selected output:%d\n", value);
 	snd_msic_ops.output_dev_id = value;
 	if (snd_msic_ops.pb_on)
 		msic_power_up_pb(SND_SST_DEVICE_HEADSET);
@@ -330,15 +332,15 @@ static int msic_set_selected_input_dev(u8 value)
 	};
 	int retval = 0;
 
-	pr_debug("sst: msic_set_selected_input_dev:%d\n", value);
+	pr_debug("msic_set_selected_input_dev:%d\n", value);
 	snd_msic_ops.input_dev_id = value;
 	switch (value) {
 	case AMIC:
-		pr_debug("sst: Selecting AMIC1\n");
+		pr_debug("Selecting AMIC1\n");
 		retval = sst_sc_reg_access(sc_access_amic, PMIC_WRITE, 1);
 		break;
 	case DMIC:
-		pr_debug("sst: Selecting DMIC1\n");
+		pr_debug("Selecting DMIC1\n");
 		retval = sst_sc_reg_access(sc_access_dmic, PMIC_WRITE, 1);
 		break;
 	default:

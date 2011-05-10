@@ -20,4 +20,4 @@ obj-$(CONFIG_SH_CLK_CPG_LEGACY)	+= clock-cpg.o
 obj-$(CONFIG_SH_FPU)		+= fpu.o
 obj-$(CONFIG_SH_FPU_EMU)	+= fpu.o
 
-obj-y	+= irq/ init.o clock.o hwblk.o
+obj-y	+= irq/ init.o clock.o hwblk.o proc.o

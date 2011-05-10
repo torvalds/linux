@@ -139,49 +139,32 @@ static u8 hour2bcd(bool hr12, int hour)
  * Interface to RTC framework
  */
 
-#ifdef CONFIG_RTC_INTF_DEV
-
-/*
- * Context: caller holds rtc->ops_lock (to protect ds1305->ctrl)
- */
-static int ds1305_ioctl(struct device *dev, unsigned cmd, unsigned long arg)
+static int ds1305_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct ds1305	*ds1305 = dev_get_drvdata(dev);
 	u8		buf[2];
-	int		status = -ENOIOCTLCMD;
+	long		err = -EINVAL;
 
 	buf[0] = DS1305_WRITE | DS1305_CONTROL;
 	buf[1] = ds1305->ctrl[0];
 
-	switch (cmd) {
-	case RTC_AIE_OFF:
-		status = 0;
-		if (!(buf[1] & DS1305_AEI0))
-			goto done;
-		buf[1] &= ~DS1305_AEI0;
-		break;
-
-	case RTC_AIE_ON:
-		status = 0;
+	if (enabled) {
 		if (ds1305->ctrl[0] & DS1305_AEI0)
 			goto done;
 		buf[1] |= DS1305_AEI0;
-		break;
+	} else {
+		if (!(buf[1] & DS1305_AEI0))
+			goto done;
+		buf[1] &= ~DS1305_AEI0;
 	}
-	if (status == 0) {
-		status = spi_write_then_read(ds1305->spi, buf, sizeof buf,
-				NULL, 0);
-		if (status >= 0)
-			ds1305->ctrl[0] = buf[1];
-	}
-
+	err = spi_write_then_read(ds1305->spi, buf, sizeof buf, NULL, 0);
+	if (err >= 0)
+		ds1305->ctrl[0] = buf[1];
 done:
-	return status;
+	return err;
+
 }
 
-#else
-#define ds1305_ioctl	NULL
-#endif
 
 /*
  * Get/set of date and time is pretty normal.
@@ -460,12 +443,12 @@ done:
 #endif
 
 static const struct rtc_class_ops ds1305_ops = {
-	.ioctl		= ds1305_ioctl,
 	.read_time	= ds1305_get_time,
 	.set_time	= ds1305_set_time,
 	.read_alarm	= ds1305_get_alarm,
 	.set_alarm	= ds1305_set_alarm,
 	.proc		= ds1305_proc,
+	.alarm_irq_enable = ds1305_alarm_irq_enable,
 };
 
 static void ds1305_work(struct work_struct *work)
@@ -813,7 +796,7 @@ static int __devexit ds1305_remove(struct spi_device *spi)
 	if (spi->irq) {
 		set_bit(FLAG_EXITING, &ds1305->flags);
 		free_irq(spi->irq, ds1305);
-		flush_scheduled_work();
+		cancel_work_sync(&ds1305->work);
 	}
 
 	rtc_device_unregister(ds1305->rtc);

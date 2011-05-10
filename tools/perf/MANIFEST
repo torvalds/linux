@@ -7,6 +7,7 @@ include/linux/stringify.h
 lib/rbtree.c
 include/linux/swab.h
 arch/*/include/asm/unistd*.h
+arch/*/lib/memcpy*.S
 include/linux/poison.h
 include/linux/magic.h
 include/linux/hw_breakpoint.h

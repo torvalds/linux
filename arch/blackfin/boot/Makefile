@@ -17,7 +17,7 @@ UIMAGE_OPTS-$(CONFIG_ROMKERNEL) += -a $(CONFIG_ROM_BASE) -x
 
 quiet_cmd_uimage = UIMAGE  $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A $(ARCH) -O linux -T kernel \
-                   -C $(2) -n '$(MACHINE)-$(KERNELRELEASE)' \
+                   -C $(2) -n '$(CPU_REV)-$(KERNELRELEASE)' \
                    -e $(shell $(NM) vmlinux | awk '$$NF == "__start" {print $$1}') \
                    $(UIMAGE_OPTS-y) -d $< $@
 

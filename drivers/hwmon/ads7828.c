@@ -4,7 +4,7 @@
 
 	This driver is based on the lm75 and other lm_sensors/hwmon drivers
 
-	Written by Steve Hardy <steve@linuxrealtime.co.uk>
+	Written by Steve Hardy <shardy@redhat.com>
 
 	Datasheet available at: http://focus.ti.com/lit/ds/symlink/ads7828.pdf
 
@@ -271,7 +271,7 @@ static void __exit sensors_ads7828_exit(void)
 	i2c_del_driver(&ads7828_driver);
 }
 
-MODULE_AUTHOR("Steve Hardy <steve@linuxrealtime.co.uk>");
+MODULE_AUTHOR("Steve Hardy <shardy@redhat.com>");
 MODULE_DESCRIPTION("ADS7828 driver");
 MODULE_LICENSE("GPL");
 

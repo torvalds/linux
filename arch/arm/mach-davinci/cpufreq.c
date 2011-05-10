@@ -132,7 +132,7 @@ out:
 	return ret;
 }
 
-static int __init davinci_cpu_init(struct cpufreq_policy *policy)
+static int davinci_cpu_init(struct cpufreq_policy *policy)
 {
 	int result = 0;
 	struct davinci_cpufreq_config *pdata = cpufreq.dev->platform_data;
@@ -167,7 +167,7 @@ static int __init davinci_cpu_init(struct cpufreq_policy *policy)
 	/*
 	 * Time measurement across the target() function yields ~1500-1800us
 	 * time taken with no drivers on notification list.
-	 * Setting the latency to 2000 us to accomodate addition of drivers
+	 * Setting the latency to 2000 us to accommodate addition of drivers
 	 * to pre/post change notification list.
 	 */
 	policy->cpuinfo.transition_latency = 2000 * 1000;

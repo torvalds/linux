@@ -155,7 +155,7 @@ static int max8649_get_voltage(struct regulator_dev *rdev)
 }
 
 static int max8649_set_voltage(struct regulator_dev *rdev,
-			       int min_uV, int max_uV)
+			       int min_uV, int max_uV, unsigned *selector)
 {
 	struct max8649_regulator_info *info = rdev_get_drvdata(rdev);
 	unsigned char data, mask;
@@ -168,6 +168,7 @@ static int max8649_set_voltage(struct regulator_dev *rdev,
 	data = (min_uV - MAX8649_DCDC_VMIN + MAX8649_DCDC_STEP - 1)
 		/ MAX8649_DCDC_STEP;
 	mask = MAX8649_VOL_MASK;
+	*selector = data & mask;
 
 	return max8649_set_bits(info->i2c, info->vol_reg, mask, data);
 }

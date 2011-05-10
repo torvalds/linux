@@ -706,6 +706,43 @@ ixgb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	}
 }
 
+static int ixgb_set_flags(struct net_device *netdev, u32 data)
+{
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
+	bool need_reset;
+	int rc;
+
+	/*
+	 * Tx VLAN insertion does not work per HW design when Rx stripping is
+	 * disabled.  Disable txvlan when rxvlan is turned off, and enable
+	 * rxvlan when txvlan is turned on.
+	 */
+	if (!(data & ETH_FLAG_RXVLAN) &&
+	    (netdev->features & NETIF_F_HW_VLAN_TX))
+		data &= ~ETH_FLAG_TXVLAN;
+	else if (data & ETH_FLAG_TXVLAN)
+		data |= ETH_FLAG_RXVLAN;
+
+	need_reset = (data & ETH_FLAG_RXVLAN) !=
+		     (netdev->features & NETIF_F_HW_VLAN_RX);
+
+	rc = ethtool_op_set_flags(netdev, data, ETH_FLAG_RXVLAN |
+						ETH_FLAG_TXVLAN);
+	if (rc)
+		return rc;
+
+	if (need_reset) {
+		if (netif_running(netdev)) {
+			ixgb_down(adapter, true);
+			ixgb_up(adapter);
+			ixgb_set_speed_duplex(netdev);
+		} else
+			ixgb_reset(adapter);
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops ixgb_ethtool_ops = {
 	.get_settings = ixgb_get_settings,
 	.set_settings = ixgb_set_settings,
@@ -732,6 +769,8 @@ static const struct ethtool_ops ixgb_ethtool_ops = {
 	.phys_id = ixgb_phys_id,
 	.get_sset_count = ixgb_get_sset_count,
 	.get_ethtool_stats = ixgb_get_ethtool_stats,
+	.get_flags = ethtool_op_get_flags,
+	.set_flags = ixgb_set_flags,
 };
 
 void ixgb_set_ethtool_ops(struct net_device *netdev)

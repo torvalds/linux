@@ -278,3 +278,15 @@ method, the sys I/F structure will be built like this:
     |---name:			acpitz
     |---temp1_input:		37000
     |---temp1_crit:		100000
+
+4. Event Notification
+
+The framework includes a simple notification mechanism, in the form of a
+netlink event. Netlink socket initialization is done during the _init_
+of the framework. Drivers which intend to use the notification mechanism
+just need to call generate_netlink_event() with two arguments viz
+(originator, event). Typically the originator will be an integer assigned
+to a thermal_zone_device when it registers itself with the framework. The
+event will be one of:{THERMAL_AUX0, THERMAL_AUX1, THERMAL_CRITICAL,
+THERMAL_DEV_FAULT}. Notification can be sent when the current temperature
+crosses any of the configured thresholds.

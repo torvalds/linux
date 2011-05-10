@@ -1094,7 +1094,7 @@ static int depca_rx(struct net_device *dev)
 				}
 			}
 			/* Change buffer ownership for this last frame, back to the adapter */
-			for (; lp->rx_old != entry; lp->rx_old = (++lp->rx_old) & lp->rxRingMask) {
+			for (; lp->rx_old != entry; lp->rx_old = (lp->rx_old + 1) & lp->rxRingMask) {
 				writel(readl(&lp->rx_ring[lp->rx_old].base) | R_OWN, &lp->rx_ring[lp->rx_old].base);
 			}
 			writel(readl(&lp->rx_ring[entry].base) | R_OWN, &lp->rx_ring[entry].base);
@@ -1103,7 +1103,7 @@ static int depca_rx(struct net_device *dev)
 		/*
 		   ** Update entry information
 		 */
-		lp->rx_new = (++lp->rx_new) & lp->rxRingMask;
+		lp->rx_new = (lp->rx_new + 1) & lp->rxRingMask;
 	}
 
 	return 0;
@@ -1148,7 +1148,7 @@ static int depca_tx(struct net_device *dev)
 		}
 
 		/* Update all the pointers */
-		lp->tx_old = (++lp->tx_old) & lp->txRingMask;
+		lp->tx_old = (lp->tx_old + 1) & lp->txRingMask;
 	}
 
 	return 0;
@@ -1513,7 +1513,7 @@ static enum depca_type __init depca_shmem_probe (ulong *mem_start)
 	return adapter;
 }
 
-static int __init depca_isa_probe (struct platform_device *device)
+static int __devinit depca_isa_probe (struct platform_device *device)
 {
 	struct net_device *dev;
 	struct depca_private *lp;

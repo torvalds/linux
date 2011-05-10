@@ -904,7 +904,7 @@ static void __init smu_i2c_probe(void)
 	printk(KERN_INFO "SMU i2c %s\n", controller->full_name);
 
 	/* Look for childs, note that they might not be of the right
-	 * type as older device trees mix i2c busses and other thigns
+	 * type as older device trees mix i2c busses and other things
 	 * at the same level
 	 */
 	for (busnode = NULL;

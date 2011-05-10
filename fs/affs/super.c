@@ -95,9 +95,16 @@ static struct inode *affs_alloc_inode(struct super_block *sb)
 	return &i->vfs_inode;
 }
 
+static void affs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(affs_inode_cachep, AFFS_I(inode));
+}
+
 static void affs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(affs_inode_cachep, AFFS_I(inode));
+	call_rcu(&inode->i_rcu, affs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -470,12 +477,16 @@ got_root:
 		goto out_error_noinode;
 	}
 
+	if (AFFS_SB(sb)->s_flags & SF_INTL)
+		sb->s_d_op = &affs_intl_dentry_operations;
+	else
+		sb->s_d_op = &affs_dentry_operations;
+
 	sb->s_root = d_alloc_root(root_inode);
 	if (!sb->s_root) {
 		printk(KERN_ERR "AFFS: Get root inode failed\n");
 		goto out_error;
 	}
-	sb->s_root->d_op = &affs_dentry_operations;
 
 	pr_debug("AFFS: s_flags=%lX\n",sb->s_flags);
 	return 0;

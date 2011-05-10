@@ -1,0 +1,47 @@
+Kernel driver ltc4151
+=====================
+
+Supported chips:
+  * Linear Technology LTC4151
+    Prefix: 'ltc4151'
+    Addresses scanned: -
+    Datasheet:
+        http://www.linear.com/docs/Datasheet/4151fc.pdf
+
+Author: Per Dalen <per.dalen@appeartv.com>
+
+
+Description
+-----------
+
+The LTC4151 is a High Voltage I2C Current and Voltage Monitor.
+
+
+Usage Notes
+-----------
+
+This driver does not probe for LTC4151 devices, since there is no register
+which can be safely used to identify the chip. You will have to instantiate
+the devices explicitly.
+
+Example: the following will load the driver for an LTC4151 at address 0x6f
+on I2C bus #0:
+# modprobe ltc4151
+# echo ltc4151 0x6f > /sys/bus/i2c/devices/i2c-0/new_device
+
+
+Sysfs entries
+-------------
+
+Voltage readings provided by this driver are reported as obtained from the ADIN
+and VIN registers.
+
+Current reading provided by this driver is reported as obtained from the Current
+Sense register. The reported value assumes that a 1 mOhm sense resistor is
+installed.
+
+in1_input		VDIN voltage (mV)
+
+in2_input		ADIN voltage (mV)
+
+curr1_input		SENSE current (mA)

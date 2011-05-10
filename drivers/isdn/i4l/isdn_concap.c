@@ -61,7 +61,7 @@ static int isdn_concap_dl_data_req(struct concap_proto *concap, struct sk_buff *
 static int isdn_concap_dl_connect_req(struct concap_proto *concap)
 {
 	struct net_device *ndev = concap -> net_dev;
-	isdn_net_local *lp = (isdn_net_local *) netdev_priv(ndev);
+	isdn_net_local *lp = netdev_priv(ndev);
 	int ret;
 	IX25DEBUG( "isdn_concap_dl_connect_req: %s \n", ndev -> name);
 

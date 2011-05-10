@@ -27,20 +27,6 @@ extern unsigned long __toc_start;
 #ifdef CONFIG_PPC_BOOK3S
 
 /*
- * We only have to have statically allocated lppaca structs on
- * legacy iSeries, which supports at most 64 cpus.
- */
-#ifdef CONFIG_PPC_ISERIES
-#if NR_CPUS < 64
-#define NR_LPPACAS	NR_CPUS
-#else
-#define NR_LPPACAS	64
-#endif
-#else /* not iSeries */
-#define NR_LPPACAS	1
-#endif
-
-/*
  * The structure which the hypervisor knows about - this structure
  * should not cross a page boundary.  The vpa_init/register_vpa call
  * is now known to fail if the lppaca structure crosses a page
@@ -217,7 +203,7 @@ void __init free_unused_pacas(void)
 {
 	int new_size;
 
-	new_size = PAGE_ALIGN(sizeof(struct paca_struct) * num_possible_cpus());
+	new_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpu_ids);
 
 	if (new_size >= paca_size)
 		return;

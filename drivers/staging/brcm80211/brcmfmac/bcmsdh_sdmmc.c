@@ -14,11 +14,10 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/types.h>
+#include <linux/netdevice.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
-#include <bcmendian.h>
 #include <bcmutils.h>
-#include <osl.h>
 #include <sdio.h>		/* SDIO Device and Protocol Specs */
 #include <sdioh.h>		/* SDIO Host Controller Specification */
 #include <bcmsdbus.h>		/* bcmsdh to/from specific controller APIs */
@@ -111,7 +110,7 @@ static int sdioh_sdmmc_card_enablefuncs(sdioh_info_t *sd)
 /*
  *	Public entry points & extern's
  */
-extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq)
+sdioh_info_t *sdioh_attach(void *bar0, uint irq)
 {
 	sdioh_info_t *sd;
 	int err_ret;
@@ -128,7 +127,6 @@ extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq)
 		sd_err(("sdioh_attach: out of memory\n"));
 		return NULL;
 	}
-	sd->osh = osh;
 	if (sdioh_sdmmc_osinit(sd) != 0) {
 		sd_err(("%s:sdioh_sdmmc_osinit() failed\n", __func__));
 		kfree(sd);
@@ -174,7 +172,7 @@ extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq)
 	return sd;
 }
 
-extern SDIOH_API_RC sdioh_detach(osl_t *osh, sdioh_info_t *sd)
+extern SDIOH_API_RC sdioh_detach(sdioh_info_t *sd)
 {
 	sd_trace(("%s\n", __func__));
 
@@ -266,7 +264,7 @@ extern SDIOH_API_RC sdioh_disable_func_intr(void)
 }
 #endif				/* defined(OOB_INTR_ONLY) && defined(HW_OOB) */
 
-/* Configure callback to client when we recieve client interrupt */
+/* Configure callback to client when we receive client interrupt */
 extern SDIOH_API_RC
 sdioh_interrupt_register(sdioh_info_t *sd, sdioh_cb_fn_t fn, void *argh)
 {
@@ -440,7 +438,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		val_size = sizeof(int);
 
 	if (plen >= (int)sizeof(int_val))
-		bcopy(params, &int_val, sizeof(int_val));
+		memcpy(&int_val, params, sizeof(int_val));
 
 	bool_val = (int_val != 0) ? true : false;
 
@@ -448,7 +446,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	switch (actionid) {
 	case IOV_GVAL(IOV_MSGLEVEL):
 		int_val = (s32) sd_msglevel;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_MSGLEVEL):
@@ -457,7 +455,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_GVAL(IOV_BLOCKMODE):
 		int_val = (s32) si->sd_blockmode;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_BLOCKMODE):
@@ -471,7 +469,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 			break;
 		}
 		int_val = (s32) si->client_block_size[int_val];
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_BLOCKSIZE):
@@ -513,12 +511,12 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_GVAL(IOV_RXCHAIN):
 		int_val = false;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_GVAL(IOV_DMA):
 		int_val = (s32) si->sd_use_dma;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_DMA):
@@ -527,7 +525,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_GVAL(IOV_USEINTS):
 		int_val = (s32) si->use_client_ints;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_USEINTS):
@@ -541,7 +539,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_GVAL(IOV_DIVISOR):
 		int_val = (u32) sd_divisor;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_DIVISOR):
@@ -550,7 +548,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_GVAL(IOV_POWER):
 		int_val = (u32) sd_power;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_POWER):
@@ -559,7 +557,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_GVAL(IOV_CLOCK):
 		int_val = (u32) sd_clock;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_CLOCK):
@@ -568,7 +566,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_GVAL(IOV_SDMODE):
 		int_val = (u32) sd_sdmode;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_SDMODE):
@@ -577,7 +575,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_GVAL(IOV_HISPEED):
 		int_val = (u32) sd_hiok;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_HISPEED):
@@ -586,12 +584,12 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_GVAL(IOV_NUMINTS):
 		int_val = (s32) si->intrcount;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_GVAL(IOV_NUMLOCALINTS):
 		int_val = (s32) 0;
-		bcopy(&int_val, arg, val_size);
+		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_GVAL(IOV_HOSTREG):
@@ -620,7 +618,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 				int_val = 32;	/* sdioh_sdmmc_rreg(si,
 						 sd_ptr->offset); */
 
-			bcopy(&int_val, arg, sizeof(int_val));
+			memcpy(arg, &int_val, sizeof(int_val));
 			break;
 		}
 
@@ -656,7 +654,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 			}
 
 			int_val = (int)data;
-			bcopy(&int_val, arg, sizeof(int_val));
+			memcpy(arg, &int_val, sizeof(int_val));
 			break;
 		}
 
@@ -734,7 +732,7 @@ static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, u32 regaddr)
 	}
 
 	/* Only the lower 17-bits are valid */
-	scratch = ltoh32(scratch);
+	scratch = le32_to_cpu(scratch);
 	scratch &= 0x0001FFFF;
 	return scratch;
 }
@@ -750,7 +748,7 @@ sdioh_cis_read(sdioh_info_t *sd, uint func, u8 *cisd, u32 length)
 	sd_trace(("%s: Func = %d\n", __func__, func));
 
 	if (!sd->func_cis_ptr[func]) {
-		bzero(cis, length);
+		memset(cis, 0, length);
 		sd_err(("%s: no func_cis_ptr[%d]\n", __func__, func));
 		return SDIOH_API_RC_FAIL;
 	}
@@ -927,13 +925,13 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func,
 
 static SDIOH_API_RC
 sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
-		     uint addr, void *pkt)
+		     uint addr, struct sk_buff *pkt)
 {
 	bool fifo = (fix_inc == SDIOH_DATA_FIX);
 	u32 SGCount = 0;
 	int err_ret = 0;
 
-	void *pnext;
+	struct sk_buff *pnext;
 
 	sd_trace(("%s: Enter\n", __func__));
 
@@ -943,8 +941,8 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 
 	/* Claim host controller */
 	sdio_claim_host(gInstance->func[func]);
-	for (pnext = pkt; pnext; pnext = PKTNEXT(pnext)) {
-		uint pkt_len = PKTLEN(pnext);
+	for (pnext = pkt; pnext; pnext = pnext->next) {
+		uint pkt_len = pnext->len;
 		pkt_len += 3;
 		pkt_len &= 0xFFFFFFFC;
 
@@ -961,23 +959,23 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 		 * is supposed to give
 		 * us something we can work with.
 		 */
-		ASSERT(((u32) (PKTDATA(pkt)) & DMA_ALIGN_MASK) == 0);
+		ASSERT(((u32) (pkt->data) & DMA_ALIGN_MASK) == 0);
 
 		if ((write) && (!fifo)) {
 			err_ret = sdio_memcpy_toio(gInstance->func[func], addr,
-						   ((u8 *) PKTDATA(pnext)),
+						   ((u8 *) (pnext->data)),
 						   pkt_len);
 		} else if (write) {
 			err_ret = sdio_memcpy_toio(gInstance->func[func], addr,
-						   ((u8 *) PKTDATA(pnext)),
+						   ((u8 *) (pnext->data)),
 						   pkt_len);
 		} else if (fifo) {
 			err_ret = sdio_readsb(gInstance->func[func],
-					      ((u8 *) PKTDATA(pnext)),
+					      ((u8 *) (pnext->data)),
 					      addr, pkt_len);
 		} else {
 			err_ret = sdio_memcpy_fromio(gInstance->func[func],
-						     ((u8 *) PKTDATA(pnext)),
+						     ((u8 *) (pnext->data)),
 						     addr, pkt_len);
 		}
 
@@ -1025,10 +1023,10 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 extern SDIOH_API_RC
 sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		     uint func, uint addr, uint reg_width, uint buflen_u,
-		     u8 *buffer, void *pkt)
+		     u8 *buffer, struct sk_buff *pkt)
 {
 	SDIOH_API_RC Status;
-	void *mypkt = NULL;
+	struct sk_buff *mypkt = NULL;
 
 	sd_trace(("%s: Enter\n", __func__));
 
@@ -1038,52 +1036,52 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 	if (pkt == NULL) {
 		sd_data(("%s: Creating new %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", buflen_u));
-		mypkt = PKTGET(sd->osh, buflen_u, write ? true : false);
+		mypkt = pkt_buf_get_skb(buflen_u);
 		if (!mypkt) {
-			sd_err(("%s: PKTGET failed: len %d\n",
+			sd_err(("%s: pkt_buf_get_skb failed: len %d\n",
 				__func__, buflen_u));
 			return SDIOH_API_RC_FAIL;
 		}
 
 		/* For a write, copy the buffer data into the packet. */
 		if (write)
-			bcopy(buffer, PKTDATA(mypkt), buflen_u);
+			memcpy(mypkt->data, buffer, buflen_u);
 
 		Status =
 		    sdioh_request_packet(sd, fix_inc, write, func, addr, mypkt);
 
 		/* For a read, copy the packet data back to the buffer. */
 		if (!write)
-			bcopy(PKTDATA(mypkt), buffer, buflen_u);
+			memcpy(buffer, mypkt->data, buflen_u);
 
-		PKTFREE(sd->osh, mypkt, write ? true : false);
-	} else if (((u32) (PKTDATA(pkt)) & DMA_ALIGN_MASK) != 0) {
+		pkt_buf_free_skb(mypkt);
+	} else if (((u32) (pkt->data) & DMA_ALIGN_MASK) != 0) {
 		/* Case 2: We have a packet, but it is unaligned. */
 
 		/* In this case, we cannot have a chain. */
-		ASSERT(PKTNEXT(pkt) == NULL);
+		ASSERT(pkt->next == NULL);
 
 		sd_data(("%s: Creating aligned %s Packet, len=%d\n",
-			 __func__, write ? "TX" : "RX", PKTLEN(pkt)));
-		mypkt = PKTGET(sd->osh, PKTLEN(pkt), write ? true : false);
+			 __func__, write ? "TX" : "RX", pkt->len));
+		mypkt = pkt_buf_get_skb(pkt->len);
 		if (!mypkt) {
-			sd_err(("%s: PKTGET failed: len %d\n",
-				__func__, PKTLEN(pkt)));
+			sd_err(("%s: pkt_buf_get_skb failed: len %d\n",
+				__func__, pkt->len));
 			return SDIOH_API_RC_FAIL;
 		}
 
 		/* For a write, copy the buffer data into the packet. */
 		if (write)
-			bcopy(PKTDATA(pkt), PKTDATA(mypkt), PKTLEN(pkt));
+			memcpy(mypkt->data, pkt->data, pkt->len);
 
 		Status =
 		    sdioh_request_packet(sd, fix_inc, write, func, addr, mypkt);
 
 		/* For a read, copy the packet data back to the buffer. */
 		if (!write)
-			bcopy(PKTDATA(mypkt), PKTDATA(pkt), PKTLEN(mypkt));
+			memcpy(pkt->data, mypkt->data, mypkt->len);
 
-		PKTFREE(sd->osh, mypkt, write ? true : false);
+		pkt_buf_free_skb(mypkt);
 	} else {		/* case 3: We have a packet and
 				 it is aligned. */
 		sd_data(("%s: Aligned %s Packet, direct DMA\n",

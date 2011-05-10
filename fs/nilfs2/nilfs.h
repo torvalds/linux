@@ -30,7 +30,6 @@
 #include <linux/blkdev.h>
 #include <linux/nilfs2_fs.h>
 #include "the_nilfs.h"
-#include "sb.h"
 #include "bmap.h"
 
 /*
@@ -115,19 +114,19 @@ enum {
  * Macros to check inode numbers
  */
 #define NILFS_MDT_INO_BITS   \
-  ((unsigned int)(1 << NILFS_DAT_INO | 1 << NILFS_CPFILE_INO |		\
-		  1 << NILFS_SUFILE_INO | 1 << NILFS_IFILE_INO |	\
-		  1 << NILFS_ATIME_INO | 1 << NILFS_SKETCH_INO))
+	((unsigned int)(1 << NILFS_DAT_INO | 1 << NILFS_CPFILE_INO |	\
+			1 << NILFS_SUFILE_INO | 1 << NILFS_IFILE_INO |	\
+			1 << NILFS_ATIME_INO | 1 << NILFS_SKETCH_INO))
 
 #define NILFS_SYS_INO_BITS   \
-  ((unsigned int)(1 << NILFS_ROOT_INO) | NILFS_MDT_INO_BITS)
+	((unsigned int)(1 << NILFS_ROOT_INO) | NILFS_MDT_INO_BITS)
 
-#define NILFS_FIRST_INO(sb)  (NILFS_SB(sb)->s_nilfs->ns_first_ino)
+#define NILFS_FIRST_INO(sb) (((struct the_nilfs *)sb->s_fs_info)->ns_first_ino)
 
 #define NILFS_MDT_INODE(sb, ino) \
-  ((ino) < NILFS_FIRST_INO(sb) && (NILFS_MDT_INO_BITS & (1 << (ino))))
+	((ino) < NILFS_FIRST_INO(sb) && (NILFS_MDT_INO_BITS & (1 << (ino))))
 #define NILFS_VALID_INODE(sb, ino) \
-  ((ino) >= NILFS_FIRST_INO(sb) || (NILFS_SYS_INO_BITS & (1 << (ino))))
+	((ino) >= NILFS_FIRST_INO(sb) || (NILFS_SYS_INO_BITS & (1 << (ino))))
 
 /**
  * struct nilfs_transaction_info: context information for synchronization
@@ -190,11 +189,6 @@ static inline int nilfs_doing_construction(void)
 	return nilfs_test_transaction_flag(NILFS_TI_WRITER);
 }
 
-static inline struct inode *nilfs_dat_inode(const struct the_nilfs *nilfs)
-{
-	return nilfs->ns_dat;
-}
-
 /*
  * function prototype
  */
@@ -217,6 +211,23 @@ static inline int nilfs_init_acl(struct inode *inode, struct inode *dir)
 
 #define NILFS_ATIME_DISABLE
 
+/* Flags that should be inherited by new inodes from their parent. */
+#define NILFS_FL_INHERITED						\
+	(FS_SECRM_FL | FS_UNRM_FL | FS_COMPR_FL | FS_SYNC_FL |		\
+	 FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NODUMP_FL | FS_NOATIME_FL |\
+	 FS_COMPRBLK_FL | FS_NOCOMP_FL | FS_NOTAIL_FL | FS_DIRSYNC_FL)
+
+/* Mask out flags that are inappropriate for the given type of inode. */
+static inline __u32 nilfs_mask_flags(umode_t mode, __u32 flags)
+{
+	if (S_ISDIR(mode))
+		return flags;
+	else if (S_ISREG(mode))
+		return flags & ~(FS_DIRSYNC_FL | FS_TOPDIR_FL);
+	else
+		return flags & (FS_NODUMP_FL | FS_NOATIME_FL);
+}
+
 /* dir.c */
 extern int nilfs_add_link(struct dentry *, struct inode *);
 extern ino_t nilfs_inode_by_name(struct inode *, const struct qstr *);
@@ -234,10 +245,13 @@ extern int nilfs_sync_file(struct file *, int);
 
 /* ioctl.c */
 long nilfs_ioctl(struct file *, unsigned int, unsigned long);
+long nilfs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *, struct nilfs_argv *,
 				       void **);
 
 /* inode.c */
+void nilfs_inode_add_blocks(struct inode *inode, int n);
+void nilfs_inode_sub_blocks(struct inode *inode, int n);
 extern struct inode *nilfs_new_inode(struct inode *, int);
 extern void nilfs_free_inode(struct inode *);
 extern int nilfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
@@ -256,14 +270,14 @@ extern void nilfs_update_inode(struct inode *, struct buffer_head *);
 extern void nilfs_truncate(struct inode *);
 extern void nilfs_evict_inode(struct inode *);
 extern int nilfs_setattr(struct dentry *, struct iattr *);
-int nilfs_permission(struct inode *inode, int mask);
-extern int nilfs_load_inode_block(struct nilfs_sb_info *, struct inode *,
-				  struct buffer_head **);
+int nilfs_permission(struct inode *inode, int mask, unsigned int flags);
+int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh);
 extern int nilfs_inode_dirty(struct inode *);
-extern int nilfs_set_file_dirty(struct nilfs_sb_info *, struct inode *,
-				unsigned);
+int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty);
 extern int nilfs_mark_inode_dirty(struct inode *);
 extern void nilfs_dirty_inode(struct inode *);
+int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		 __u64 start, __u64 len);
 
 /* super.c */
 extern struct inode *nilfs_alloc_inode(struct super_block *);
@@ -271,7 +285,7 @@ extern void nilfs_destroy_inode(struct inode *);
 extern void nilfs_error(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
 extern void nilfs_warning(struct super_block *, const char *, const char *, ...)
-       __attribute__ ((format (printf, 3, 4)));
+	__attribute__ ((format (printf, 3, 4)));
 extern struct nilfs_super_block *
 nilfs_read_super_block(struct super_block *, u64, int, struct buffer_head **);
 extern int nilfs_store_magic_and_option(struct super_block *,
@@ -280,11 +294,11 @@ extern int nilfs_check_feature_compatibility(struct super_block *,
 					     struct nilfs_super_block *);
 extern void nilfs_set_log_cursor(struct nilfs_super_block *,
 				 struct the_nilfs *);
-extern struct nilfs_super_block **nilfs_prepare_super(struct nilfs_sb_info *,
-						      int flip);
-extern int nilfs_commit_super(struct nilfs_sb_info *, int);
-extern int nilfs_cleanup_super(struct nilfs_sb_info *);
-int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
+struct nilfs_super_block **nilfs_prepare_super(struct super_block *sb,
+					       int flip);
+int nilfs_commit_super(struct super_block *sb, int flag);
+int nilfs_cleanup_super(struct super_block *sb);
+int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
 			    struct nilfs_root **root);
 int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cno);
 

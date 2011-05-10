@@ -75,7 +75,7 @@ static ssize_t compass_heading_data_show(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	unsigned char i2c_data[2];
-	unsigned int ret;
+	int ret;
 
 	mutex_lock(&compass_mutex);
 	ret = compass_command(client, 'A');
@@ -86,7 +86,7 @@ static ssize_t compass_heading_data_show(struct device *dev,
 	msleep(10); /* sending 'A' cmd we need to wait for 7-10 millisecs */
 	ret = i2c_master_recv(client, i2c_data, 2);
 	mutex_unlock(&compass_mutex);
-	if (ret != 1) {
+	if (ret < 0) {
 		dev_warn(dev, "i2c read data cmd failed\n");
 		return ret;
 	}

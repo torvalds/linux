@@ -32,7 +32,7 @@ static int mips_next_event(unsigned long delta,
 	cnt = read_c0_count();
 	cnt += delta;
 	write_c0_compare(cnt);
-	res = ((int)(read_c0_count() - cnt) > 0) ? -ETIME : 0;
+	res = ((int)(read_c0_count() - cnt) >= 0) ? -ETIME : 0;
 	return res;
 }
 

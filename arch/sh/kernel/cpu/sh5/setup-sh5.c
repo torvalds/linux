@@ -19,6 +19,8 @@
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= PHYS_PERIPHERAL_BLOCK + 0x01030000,
 	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 39, 40, 42, 0 },
 };

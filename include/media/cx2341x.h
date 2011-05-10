@@ -95,7 +95,7 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 		const struct cx2341x_mpeg_params *new);
 int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 		struct v4l2_queryctrl *qctrl);
-const char **cx2341x_ctrl_get_menu(const struct cx2341x_mpeg_params *p, u32 id);
+const char * const *cx2341x_ctrl_get_menu(const struct cx2341x_mpeg_params *p, u32 id);
 int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params, int busy,
 		struct v4l2_ext_controls *ctrls, unsigned int cmd);
 void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p);

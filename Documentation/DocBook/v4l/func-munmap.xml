@@ -37,7 +37,8 @@
 	  <para>Length of the mapped buffer. This must be the same
 value as given to <function>mmap()</function> and returned by the
 driver in the &v4l2-buffer; <structfield>length</structfield>
-field.</para>
+field for the single-planar API and in the &v4l2-plane;
+<structfield>length</structfield> field for the multi-planar API.</para>
 	</listitem>
       </varlistentry>
     </variablelist>

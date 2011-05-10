@@ -54,6 +54,8 @@ config CRIS
 	bool
 	default y
 	select HAVE_IDE
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_SHOW
 
 config HZ
 	int
@@ -66,10 +68,6 @@ source "kernel/Kconfig.freezer"
 menu "General setup"
 
 source "fs/Kconfig.binfmt"
-
-config GENERIC_HARDIRQS
-	bool
-	default y
 
 config ETRAX_CMDLINE
 	string "Kernel command line"
@@ -277,7 +275,6 @@ config ETRAX_AXISFLASHMAP
 	select MTD_CHAR
 	select MTD_BLOCK
 	select MTD_PARTITIONS
-	select MTD_CONCAT
 	select MTD_COMPLEX_MAPPINGS
 	help
 	  This option enables MTD mapping of flash devices.  Needed to use
@@ -298,8 +295,7 @@ config ETRAX_RTC
 choice
 	prompt "RTC chip"
 	depends on ETRAX_RTC
-	default ETRAX_PCF8563 if ETRAX_ARCH_V32
-	default ETRAX_DS1302 if ETRAX_ARCH_V10
+	default ETRAX_DS1302
 
 config ETRAX_DS1302
 	depends on ETRAX_ARCH_V10

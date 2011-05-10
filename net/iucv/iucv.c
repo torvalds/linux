@@ -36,6 +36,7 @@
 #define KMSG_COMPONENT "iucv"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/spinlock.h>
@@ -734,7 +735,7 @@ static void iucv_cleanup_queue(void)
 	struct iucv_irq_list *p, *n;
 
 	/*
-	 * When a path is severed, the pathid can be reused immediatly
+	 * When a path is severed, the pathid can be reused immediately
 	 * on a iucv connect or a connection pending interrupt. Remove
 	 * all entries from the task queue that refer to a stale pathid
 	 * (iucv_path_table[ix] == NULL). Only then do the iucv connect
@@ -806,7 +807,7 @@ void iucv_unregister(struct iucv_handler *handler, int smp)
 	spin_lock_bh(&iucv_table_lock);
 	/* Remove handler from the iucv_handler_list. */
 	list_del_init(&handler->list);
-	/* Sever all pathids still refering to the handler. */
+	/* Sever all pathids still referring to the handler. */
 	list_for_each_entry_safe(p, n, &handler->paths, list) {
 		iucv_sever_pathid(p->pathid, NULL);
 		iucv_path_table[p->pathid] = NULL;
@@ -1804,6 +1805,7 @@ static void iucv_external_interrupt(unsigned int ext_int_code,
 	struct iucv_irq_data *p;
 	struct iucv_irq_list *work;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_IUC]++;
 	p = iucv_irq_data[smp_processor_id()];
 	if (p->ippathid >= iucv_max_pathid) {
 		WARN_ON(p->ippathid >= iucv_max_pathid);

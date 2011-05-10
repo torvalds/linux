@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
  * Author: Brian Swetland <swetland@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -53,6 +53,13 @@
 #include "msm_iomap-7x00.h"
 #endif
 
+#include "msm_iomap-8960.h"
 
+/* Virtual addressses shared across all MSM targets. */
+#define MSM_CSR_BASE		IOMEM(0xE0001000)
+#define MSM_QGIC_DIST_BASE	IOMEM(0xF0000000)
+#define MSM_QGIC_CPU_BASE	IOMEM(0xF0001000)
+#define MSM_TMR_BASE		IOMEM(0xF0200000)
+#define MSM_TMR0_BASE		IOMEM(0xF0201000)
 
 #endif

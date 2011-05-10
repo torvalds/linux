@@ -717,7 +717,7 @@ bch_mode(struct BCState *bcs, int mode, int bc)
 
         bc = bc ? 1 : 0;  // in case bc is greater than 1
 	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "mode_bch() switch B-% mode %d chan %d", hscx, mode, bc);
+		debugl1(cs, "mode_bch() switch B-%d mode %d chan %d", hscx, mode, bc);
 	bcs->mode = mode;
 	bcs->channel = bc;
   

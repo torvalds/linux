@@ -298,7 +298,7 @@ static unsigned long imx074_query_bus_param(struct soc_camera_device *icd)
 static int imx074_set_bus_param(struct soc_camera_device *icd,
 				 unsigned long flags)
 {
-	return -1;
+	return -EINVAL;
 }
 
 static struct soc_camera_ops imx074_ops = {
@@ -467,7 +467,6 @@ static int imx074_remove(struct i2c_client *client)
 	icd->ops = NULL;
 	if (icl->free_bus)
 		icl->free_bus(icl);
-	client->driver = NULL;
 	kfree(priv);
 
 	return 0;

@@ -22,26 +22,6 @@
 	CFI_ENDPROC
 	.endm
 
-	/* rdi:	arg1 ... normal C conventions. rax is passed from C. */ 	
-	.macro thunk_retrax name,func
-	.globl \name
-\name:	
-	CFI_STARTPROC
-	SAVE_ARGS
-	call \func
-	jmp  restore_norax
-	CFI_ENDPROC
-	.endm
-	
-
-	.section .sched.text, "ax"
-#ifdef CONFIG_RWSEM_XCHGADD_ALGORITHM
-	thunk rwsem_down_read_failed_thunk,rwsem_down_read_failed
-	thunk rwsem_down_write_failed_thunk,rwsem_down_write_failed
-	thunk rwsem_wake_thunk,rwsem_wake
-	thunk rwsem_downgrade_thunk,rwsem_downgrade_wake
-#endif	
-	
 #ifdef CONFIG_TRACE_IRQFLAGS
 	/* put return address in rdi (arg1) */
 	.macro thunk_ra name,func
@@ -71,11 +51,4 @@
 restore:
 	RESTORE_ARGS
 	ret	
-	CFI_ENDPROC
-	
-	CFI_STARTPROC
-	SAVE_ARGS
-restore_norax:	
-	RESTORE_ARGS 1
-	ret
 	CFI_ENDPROC

@@ -377,7 +377,7 @@ static int init_timing_params(unsigned int new_duty_cycle,
 	duty_cycle = new_duty_cycle;
 	freq = new_freq;
 
-	loops_per_sec = current_cpu_data.loops_per_jiffy;
+	loops_per_sec = __this_cpu_read(cpu.info.loops_per_jiffy);
 	loops_per_sec *= HZ;
 
 	/* How many clocks in a microsecond?, avoiding long long divide */
@@ -398,7 +398,7 @@ static int init_timing_params(unsigned int new_duty_cycle,
 	dprintk("in init_timing_params, freq=%d, duty_cycle=%d, "
 		"clk/jiffy=%ld, pulse=%ld, space=%ld, "
 		"conv_us_to_clocks=%ld\n",
-		freq, duty_cycle, current_cpu_data.loops_per_jiffy,
+		freq, duty_cycle, __this_cpu_read(cpu_info.loops_per_jiffy),
 		pulse_width, space_width, conv_us_to_clocks);
 	return 0;
 }
@@ -966,7 +966,7 @@ static ssize_t lirc_write(struct file *file, const char *buf,
 	if (n % sizeof(int) || count % 2 == 0)
 		return -EINVAL;
 	wbuf = memdup_user(buf, n);
-	if (PTR_ERR(wbuf))
+	if (IS_ERR(wbuf))
 		return PTR_ERR(wbuf);
 	spin_lock_irqsave(&hardware[type].lock, flags);
 	if (type == LIRC_IRDEO) {
@@ -981,6 +981,7 @@ static ssize_t lirc_write(struct file *file, const char *buf,
 	}
 	off();
 	spin_unlock_irqrestore(&hardware[type].lock, flags);
+	kfree(wbuf);
 	return n;
 }
 

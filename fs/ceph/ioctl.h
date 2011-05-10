@@ -4,7 +4,7 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-#define CEPH_IOCTL_MAGIC 0x98
+#define CEPH_IOCTL_MAGIC 0x97
 
 /* just use u64 to align sanely on all archs */
 struct ceph_ioctl_layout {

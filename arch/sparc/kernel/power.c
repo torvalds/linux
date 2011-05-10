@@ -33,7 +33,7 @@ static int __devinit has_button_interrupt(unsigned int irq, struct device_node *
 	return 1;
 }
 
-static int __devinit power_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit power_probe(struct platform_device *op)
 {
 	struct resource *res = &op->resource[0];
 	unsigned int irq = op->archdata.irqs[0];
@@ -52,14 +52,14 @@ static int __devinit power_probe(struct platform_device *op, const struct of_dev
 	return 0;
 }
 
-static struct of_device_id __initdata power_match[] = {
+static const struct of_device_id power_match[] = {
 	{
 		.name = "power",
 	},
 	{},
 };
 
-static struct of_platform_driver power_driver = {
+static struct platform_driver power_driver = {
 	.probe		= power_probe,
 	.driver = {
 		.name = "power",
@@ -70,7 +70,7 @@ static struct of_platform_driver power_driver = {
 
 static int __init power_init(void)
 {
-	return of_register_platform_driver(&power_driver);
+	return platform_driver_register(&power_driver);
 }
 
 device_initcall(power_init);

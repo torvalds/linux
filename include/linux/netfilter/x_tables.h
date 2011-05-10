@@ -472,7 +472,7 @@ extern void xt_free_table_info(struct xt_table_info *info);
  *  necessary for reading the counters.
  */
 struct xt_info_lock {
-	spinlock_t lock;
+	seqlock_t lock;
 	unsigned char readers;
 };
 DECLARE_PER_CPU(struct xt_info_lock, xt_info_locks);
@@ -497,7 +497,7 @@ static inline void xt_info_rdlock_bh(void)
 	local_bh_disable();
 	lock = &__get_cpu_var(xt_info_locks);
 	if (likely(!lock->readers++))
-		spin_lock(&lock->lock);
+		write_seqlock(&lock->lock);
 }
 
 static inline void xt_info_rdunlock_bh(void)
@@ -505,7 +505,7 @@ static inline void xt_info_rdunlock_bh(void)
 	struct xt_info_lock *lock = &__get_cpu_var(xt_info_locks);
 
 	if (likely(!--lock->readers))
-		spin_unlock(&lock->lock);
+		write_sequnlock(&lock->lock);
 	local_bh_enable();
 }
 
@@ -516,12 +516,12 @@ static inline void xt_info_rdunlock_bh(void)
  */
 static inline void xt_info_wrlock(unsigned int cpu)
 {
-	spin_lock(&per_cpu(xt_info_locks, cpu).lock);
+	write_seqlock(&per_cpu(xt_info_locks, cpu).lock);
 }
 
 static inline void xt_info_wrunlock(unsigned int cpu)
 {
-	spin_unlock(&per_cpu(xt_info_locks, cpu).lock);
+	write_sequnlock(&per_cpu(xt_info_locks, cpu).lock);
 }
 
 /*
@@ -611,8 +611,9 @@ struct _compat_xt_align {
 extern void xt_compat_lock(u_int8_t af);
 extern void xt_compat_unlock(u_int8_t af);
 
-extern int xt_compat_add_offset(u_int8_t af, unsigned int offset, short delta);
+extern int xt_compat_add_offset(u_int8_t af, unsigned int offset, int delta);
 extern void xt_compat_flush_offsets(u_int8_t af);
+extern void xt_compat_init_offsets(u_int8_t af, unsigned int number);
 extern int xt_compat_calc_jump(u_int8_t af, unsigned int offset);
 
 extern int xt_compat_match_offset(const struct xt_match *match);

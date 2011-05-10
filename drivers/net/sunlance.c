@@ -1295,17 +1295,9 @@ static void sparc_lance_get_drvinfo(struct net_device *dev, struct ethtool_drvin
 	strcpy(info->version, "2.02");
 }
 
-static u32 sparc_lance_get_link(struct net_device *dev)
-{
-	/* We really do not keep track of this, but this
-	 * is better than not reporting anything at all.
-	 */
-	return 1;
-}
-
 static const struct ethtool_ops sparc_lance_ethtool_ops = {
 	.get_drvinfo		= sparc_lance_get_drvinfo,
-	.get_link		= sparc_lance_get_link,
+	.get_link		= ethtool_op_get_link,
 };
 
 static const struct net_device_ops sparc_lance_ops = {
@@ -1503,7 +1495,7 @@ fail:
 	return -ENODEV;
 }
 
-static int __devinit sunlance_sbus_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit sunlance_sbus_probe(struct platform_device *op)
 {
 	struct platform_device *parent = to_platform_device(op->dev.parent);
 	struct device_node *parent_dp = parent->dev.of_node;
@@ -1544,7 +1536,7 @@ static const struct of_device_id sunlance_sbus_match[] = {
 
 MODULE_DEVICE_TABLE(of, sunlance_sbus_match);
 
-static struct of_platform_driver sunlance_sbus_driver = {
+static struct platform_driver sunlance_sbus_driver = {
 	.driver = {
 		.name = "sunlance",
 		.owner = THIS_MODULE,
@@ -1558,12 +1550,12 @@ static struct of_platform_driver sunlance_sbus_driver = {
 /* Find all the lance cards on the system and initialize them */
 static int __init sparc_lance_init(void)
 {
-	return of_register_platform_driver(&sunlance_sbus_driver);
+	return platform_driver_register(&sunlance_sbus_driver);
 }
 
 static void __exit sparc_lance_exit(void)
 {
-	of_unregister_platform_driver(&sunlance_sbus_driver);
+	platform_driver_unregister(&sunlance_sbus_driver);
 }
 
 module_init(sparc_lance_init);

@@ -1,16 +1,11 @@
 /*
- * Copyright 2008 Analog Devices Inc.
+ * Copyright 2008-2010 Analog Devices Inc.
  *
  * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _DEF_BF547_H
 #define _DEF_BF547_H
-
-/* Include all Core registers and bit definitions */
-#include <asm/def_LPBlackfin.h>
-
-/* SYSTEM & MMR ADDRESS DEFINITIONS FOR ADSP-BF547 */
 
 /* Include defBF54x_base.h for the set of #defines that are common to all ADSP-BF54x processors */
 #include "defBF54x_base.h"
@@ -1067,24 +1062,5 @@
 /* Bit masks for USB_DMAxCOUNTLOW */
 
 #define             DMA_COUNT_LOW  0xffff     /* Lower 16-bits of byte count of DMA transfer for DMA master channel */
-
-/* Bit masks for HMDMAx_CONTROL */
-
-#define                   HMDMAEN  0x1        /* Handshake MDMA Enable */
-#define                       REP  0x2        /* Handshake MDMA Request Polarity */
-#define                       UTE  0x8        /* Urgency Threshold Enable */
-#define                       OIE  0x10       /* Overflow Interrupt Enable */
-#define                      BDIE  0x20       /* Block Done Interrupt Enable */
-#define                      MBDI  0x40       /* Mask Block Done Interrupt */
-#define                       DRQ  0x300      /* Handshake MDMA Request Type */
-#define                       RBC  0x1000     /* Force Reload of BCOUNT */
-#define                        PS  0x2000     /* Pin Status */
-#define                        OI  0x4000     /* Overflow Interrupt Generated */
-#define                       BDI  0x8000     /* Block Done Interrupt Generated */
-
-/* ******************************************* */
-/*     MULTI BIT MACRO ENUMERATIONS            */
-/* ******************************************* */
-
 
 #endif /* _DEF_BF547_H */

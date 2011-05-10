@@ -12,31 +12,27 @@
 
 #include <linux/types.h>
 
-enum efx_filter_table_id {
-	EFX_FILTER_TABLE_RX_IP = 0,
-	EFX_FILTER_TABLE_RX_MAC,
-	EFX_FILTER_TABLE_COUNT,
-};
-
 /**
  * enum efx_filter_type - type of hardware filter
- * @EFX_FILTER_RX_TCP_FULL: RX, matching TCP/IPv4 4-tuple
- * @EFX_FILTER_RX_TCP_WILD: RX, matching TCP/IPv4 destination (host, port)
- * @EFX_FILTER_RX_UDP_FULL: RX, matching UDP/IPv4 4-tuple
- * @EFX_FILTER_RX_UDP_WILD: RX, matching UDP/IPv4 destination (host, port)
- * @EFX_FILTER_RX_MAC_FULL: RX, matching Ethernet destination MAC address, VID
- * @EFX_FILTER_RX_MAC_WILD: RX, matching Ethernet destination MAC address
+ * @EFX_FILTER_TCP_FULL: Matching TCP/IPv4 4-tuple
+ * @EFX_FILTER_TCP_WILD: Matching TCP/IPv4 destination (host, port)
+ * @EFX_FILTER_UDP_FULL: Matching UDP/IPv4 4-tuple
+ * @EFX_FILTER_UDP_WILD: Matching UDP/IPv4 destination (host, port)
+ * @EFX_FILTER_MAC_FULL: Matching Ethernet destination MAC address, VID
+ * @EFX_FILTER_MAC_WILD: Matching Ethernet destination MAC address
+ * @EFX_FILTER_UNSPEC: Match type is unspecified
  *
- * Falcon NICs only support the RX TCP/IPv4 and UDP/IPv4 filter types.
+ * Falcon NICs only support the TCP/IPv4 and UDP/IPv4 filter types.
  */
 enum efx_filter_type {
-	EFX_FILTER_RX_TCP_FULL = 0,
-	EFX_FILTER_RX_TCP_WILD,
-	EFX_FILTER_RX_UDP_FULL,
-	EFX_FILTER_RX_UDP_WILD,
-	EFX_FILTER_RX_MAC_FULL = 4,
-	EFX_FILTER_RX_MAC_WILD,
-	EFX_FILTER_TYPE_COUNT,
+	EFX_FILTER_TCP_FULL = 0,
+	EFX_FILTER_TCP_WILD,
+	EFX_FILTER_UDP_FULL,
+	EFX_FILTER_UDP_WILD,
+	EFX_FILTER_MAC_FULL = 4,
+	EFX_FILTER_MAC_WILD,
+	EFX_FILTER_TYPE_COUNT,		/* number of specific types */
+	EFX_FILTER_UNSPEC = 0xf,
 };
 
 /**
@@ -63,13 +59,13 @@ enum efx_filter_priority {
  * @EFX_FILTER_FLAG_RX_OVERRIDE_IP: Enables a MAC filter to override
  *	any IP filter that matches the same packet.  By default, IP
  *	filters take precedence.
- *
- * Currently, no flags are defined for TX filters.
+ * @EFX_FILTER_FLAG_RX: Filter is for RX
  */
 enum efx_filter_flags {
 	EFX_FILTER_FLAG_RX_RSS = 0x01,
 	EFX_FILTER_FLAG_RX_SCATTER = 0x02,
 	EFX_FILTER_FLAG_RX_OVERRIDE_IP = 0x04,
+	EFX_FILTER_FLAG_RX = 0x08,
 };
 
 /**
@@ -91,99 +87,26 @@ struct efx_filter_spec {
 	u32	data[3];
 };
 
-/**
- * efx_filter_set_rx_tcp_full - specify RX filter with TCP/IPv4 full match
- * @spec: Specification to initialise
- * @shost: Source host address (host byte order)
- * @sport: Source port (host byte order)
- * @dhost: Destination host address (host byte order)
- * @dport: Destination port (host byte order)
- */
-static inline void
-efx_filter_set_rx_tcp_full(struct efx_filter_spec *spec,
-			   u32 shost, u16 sport, u32 dhost, u16 dport)
+static inline void efx_filter_init_rx(struct efx_filter_spec *spec,
+				      enum efx_filter_priority priority,
+				      enum efx_filter_flags flags,
+				      unsigned rxq_id)
 {
-	spec->type = EFX_FILTER_RX_TCP_FULL;
-	spec->data[0] = sport | shost << 16;
-	spec->data[1] = dport << 16 | shost >> 16;
-	spec->data[2] = dhost;
+	spec->type = EFX_FILTER_UNSPEC;
+	spec->priority = priority;
+	spec->flags = EFX_FILTER_FLAG_RX | flags;
+	spec->dmaq_id = rxq_id;
 }
 
-/**
- * efx_filter_set_rx_tcp_wild - specify RX filter with TCP/IPv4 wildcard match
- * @spec: Specification to initialise
- * @dhost: Destination host address (host byte order)
- * @dport: Destination port (host byte order)
- */
-static inline void
-efx_filter_set_rx_tcp_wild(struct efx_filter_spec *spec, u32 dhost, u16 dport)
-{
-	spec->type = EFX_FILTER_RX_TCP_WILD;
-	spec->data[0] = 0;
-	spec->data[1] = dport << 16;
-	spec->data[2] = dhost;
-}
-
-/**
- * efx_filter_set_rx_udp_full - specify RX filter with UDP/IPv4 full match
- * @spec: Specification to initialise
- * @shost: Source host address (host byte order)
- * @sport: Source port (host byte order)
- * @dhost: Destination host address (host byte order)
- * @dport: Destination port (host byte order)
- */
-static inline void
-efx_filter_set_rx_udp_full(struct efx_filter_spec *spec,
-			   u32 shost, u16 sport, u32 dhost, u16 dport)
-{
-	spec->type = EFX_FILTER_RX_UDP_FULL;
-	spec->data[0] = sport | shost << 16;
-	spec->data[1] = dport << 16 | shost >> 16;
-	spec->data[2] = dhost;
-}
-
-/**
- * efx_filter_set_rx_udp_wild - specify RX filter with UDP/IPv4 wildcard match
- * @spec: Specification to initialise
- * @dhost: Destination host address (host byte order)
- * @dport: Destination port (host byte order)
- */
-static inline void
-efx_filter_set_rx_udp_wild(struct efx_filter_spec *spec, u32 dhost, u16 dport)
-{
-	spec->type = EFX_FILTER_RX_UDP_WILD;
-	spec->data[0] = dport;
-	spec->data[1] = 0;
-	spec->data[2] = dhost;
-}
-
-/**
- * efx_filter_set_rx_mac_full - specify RX filter with MAC full match
- * @spec: Specification to initialise
- * @vid: VLAN ID
- * @addr: Destination MAC address
- */
-static inline void efx_filter_set_rx_mac_full(struct efx_filter_spec *spec,
-					      u16 vid, const u8 *addr)
-{
-	spec->type = EFX_FILTER_RX_MAC_FULL;
-	spec->data[0] = vid;
-	spec->data[1] = addr[2] << 24 | addr[3] << 16 | addr[4] << 8 | addr[5];
-	spec->data[2] = addr[0] << 8 | addr[1];
-}
-
-/**
- * efx_filter_set_rx_mac_full - specify RX filter with MAC wildcard match
- * @spec: Specification to initialise
- * @addr: Destination MAC address
- */
-static inline void efx_filter_set_rx_mac_wild(struct efx_filter_spec *spec,
-					      const u8 *addr)
-{
-	spec->type = EFX_FILTER_RX_MAC_WILD;
-	spec->data[0] = 0;
-	spec->data[1] = addr[2] << 24 | addr[3] << 16 | addr[4] << 8 | addr[5];
-	spec->data[2] = addr[0] << 8 | addr[1];
-}
+extern int efx_filter_set_ipv4_local(struct efx_filter_spec *spec, u8 proto,
+				     __be32 host, __be16 port);
+extern int efx_filter_set_ipv4_full(struct efx_filter_spec *spec, u8 proto,
+				    __be32 host, __be16 port,
+				    __be32 rhost, __be16 rport);
+extern int efx_filter_set_eth_local(struct efx_filter_spec *spec,
+				    u16 vid, const u8 *addr);
+enum {
+	EFX_FILTER_VID_UNSPEC = 0xffff,
+};
 
 #endif /* EFX_FILTER_H */

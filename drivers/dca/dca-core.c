@@ -110,13 +110,9 @@ static void unregister_dca_providers(void)
 
 	/* at this point only one domain in the list is expected */
 	domain = list_first_entry(&dca_domains, struct dca_domain, node);
-	if (!domain)
-		return;
 
-	list_for_each_entry_safe(dca, _dca, &domain->dca_providers, node) {
-		list_del(&dca->node);
-		list_add(&dca->node, &unregistered_providers);
-	}
+	list_for_each_entry_safe(dca, _dca, &domain->dca_providers, node)
+		list_move(&dca->node, &unregistered_providers);
 
 	dca_free_domain(domain);
 

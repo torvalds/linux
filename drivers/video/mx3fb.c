@@ -1177,9 +1177,9 @@ static int mx3fb_suspend(struct platform_device *pdev, pm_message_t state)
 	struct mx3fb_data *mx3fb = platform_get_drvdata(pdev);
 	struct mx3fb_info *mx3_fbi = mx3fb->fbi->par;
 
-	acquire_console_sem();
+	console_lock();
 	fb_set_suspend(mx3fb->fbi, 1);
-	release_console_sem();
+	console_unlock();
 
 	if (mx3_fbi->blank == FB_BLANK_UNBLANK) {
 		sdc_disable_channel(mx3_fbi);
@@ -1202,9 +1202,9 @@ static int mx3fb_resume(struct platform_device *pdev)
 		sdc_set_brightness(mx3fb, mx3fb->backlight_level);
 	}
 
-	acquire_console_sem();
+	console_lock();
 	fb_set_suspend(mx3fb->fbi, 0);
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }
@@ -1474,8 +1474,7 @@ static int mx3fb_probe(struct platform_device *pdev)
 		goto eremap;
 	}
 
-	pr_debug("Remapped %x to %x at %p\n", sdc_reg->start, sdc_reg->end,
-		 mx3fb->reg_base);
+	pr_debug("Remapped %pR at %p\n", sdc_reg, mx3fb->reg_base);
 
 	/* IDMAC interface */
 	dmaengine_get();

@@ -43,7 +43,7 @@ int bc_send(struct rpc_rqst *req);
  */
 static inline int svc_is_backchannel(const struct svc_rqst *rqstp)
 {
-	if (rqstp->rq_server->bc_xprt)
+	if (rqstp->rq_server->sv_bc_xprt)
 		return 1;
 	return 0;
 }

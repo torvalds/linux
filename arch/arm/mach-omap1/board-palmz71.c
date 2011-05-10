@@ -62,29 +62,32 @@ omap_palmz71_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
 }
 
-static int palmz71_keymap[] = {
+static const unsigned int palmz71_keymap[] = {
 	KEY(0, 0, KEY_F1),
-	KEY(0, 1, KEY_F2),
-	KEY(0, 2, KEY_F3),
-	KEY(0, 3, KEY_F4),
-	KEY(0, 4, KEY_POWER),
-	KEY(1, 0, KEY_LEFT),
+	KEY(1, 0, KEY_F2),
+	KEY(2, 0, KEY_F3),
+	KEY(3, 0, KEY_F4),
+	KEY(4, 0, KEY_POWER),
+	KEY(0, 1, KEY_LEFT),
 	KEY(1, 1, KEY_DOWN),
-	KEY(1, 2, KEY_UP),
-	KEY(1, 3, KEY_RIGHT),
-	KEY(1, 4, KEY_ENTER),
-	KEY(2, 0, KEY_CAMERA),
-	0,
+	KEY(2, 1, KEY_UP),
+	KEY(3, 1, KEY_RIGHT),
+	KEY(4, 1, KEY_ENTER),
+	KEY(0, 2, KEY_CAMERA),
+};
+
+static const struct matrix_keymap_data palmz71_keymap_data = {
+	.keymap		= palmz71_keymap,
+	.keymap_size	= ARRAY_SIZE(palmz71_keymap),
 };
 
 static struct omap_kp_platform_data palmz71_kp_data = {
 	.rows	= 8,
 	.cols	= 8,
-	.keymap	= palmz71_keymap,
-	.rep	= 1,
+	.keymap_data	= &palmz71_keymap_data,
+	.rep	= true,
 	.delay	= 80,
 };
 
@@ -253,12 +256,12 @@ palmz71_powercable(int irq, void *dev_id)
 {
 	if (gpio_get_value(PALMZ71_USBDETECT_GPIO)) {
 		printk(KERN_INFO "PM: Power cable connected\n");
-		set_irq_type(gpio_to_irq(PALMZ71_USBDETECT_GPIO),
-				IRQ_TYPE_EDGE_FALLING);
+		irq_set_irq_type(gpio_to_irq(PALMZ71_USBDETECT_GPIO),
+				 IRQ_TYPE_EDGE_FALLING);
 	} else {
 		printk(KERN_INFO "PM: Power cable disconnected\n");
-		set_irq_type(gpio_to_irq(PALMZ71_USBDETECT_GPIO),
-				IRQ_TYPE_EDGE_RISING);
+		irq_set_irq_type(gpio_to_irq(PALMZ71_USBDETECT_GPIO),
+				 IRQ_TYPE_EDGE_RISING);
 	}
 	return IRQ_HANDLED;
 }

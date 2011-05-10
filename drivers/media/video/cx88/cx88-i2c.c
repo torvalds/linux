@@ -146,7 +146,6 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 	core->i2c_adap.dev.parent = &pci->dev;
 	strlcpy(core->i2c_adap.name,core->name,sizeof(core->i2c_adap.name));
 	core->i2c_adap.owner = THIS_MODULE;
-	core->i2c_adap.id = I2C_HW_B_CX2388x;
 	core->i2c_algo.udelay = i2c_udelay;
 	core->i2c_algo.data = core;
 	i2c_set_adapdata(&core->i2c_adap, &core->v4l2_dev);

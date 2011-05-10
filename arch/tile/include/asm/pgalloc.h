@@ -41,9 +41,9 @@
 static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
 #ifdef CONFIG_64BIT
-	set_pte_order(pmdp, pmd, L2_USER_PGTABLE_ORDER);
+	set_pte(pmdp, pmd);
 #else
-	set_pte_order(&pmdp->pud.pgd, pmd.pud.pgd, L2_USER_PGTABLE_ORDER);
+	set_pte(&pmdp->pud.pgd, pmd.pud.pgd);
 #endif
 }
 
@@ -99,6 +99,9 @@ pte_t *get_prealloc_pte(unsigned long pfn);
 
 /* During init, we can shatter kernel huge pages if needed. */
 void shatter_pmd(pmd_t *pmd);
+
+/* After init, a more complex technique is required. */
+void shatter_huge_page(unsigned long addr);
 
 #ifdef __tilegx__
 /* We share a single page allocator for both L1 and L2 page tables. */

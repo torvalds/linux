@@ -23,6 +23,11 @@
 #include <mach/hardware.h>
 #include <asm-generic/gpio.h>
 
+
+/* There's a off-by-one betweem the gpio bank number and the gpiochip */
+/* range e.g. GPIO_1_5 is gpio 5 under linux */
+#define IMX_GPIO_NR(bank, nr)		(((bank) - 1) * 32 + (nr))
+
 /* use gpiolib dispatchers */
 #define gpio_get_value		__gpio_get_value
 #define gpio_set_value		__gpio_set_value
@@ -40,6 +45,21 @@ struct mxc_gpio_port {
 	u32 both_edges;
 	spinlock_t lock;
 };
+
+#define DEFINE_IMX_GPIO_PORT_IRQ_HIGH(soc, _id, _hwid, _irq, _irq_high)	\
+	{								\
+		.chip.label = "gpio-" #_id,				\
+		.irq = _irq,						\
+		.irq_high = _irq_high,					\
+		.base = soc ## _IO_ADDRESS(				\
+				soc ## _GPIO ## _hwid ## _BASE_ADDR),	\
+		.virtual_irq_start = MXC_GPIO_IRQ_START + (_id) * 32,	\
+	}
+
+#define DEFINE_IMX_GPIO_PORT_IRQ(soc, _id, _hwid, _irq)			\
+	DEFINE_IMX_GPIO_PORT_IRQ_HIGH(soc, _id, _hwid, _irq, 0)
+#define DEFINE_IMX_GPIO_PORT(soc, _id, _hwid)				\
+	DEFINE_IMX_GPIO_PORT_IRQ(soc, _id, _hwid, 0)
 
 int mxc_gpio_init(struct mxc_gpio_port*, int);
 

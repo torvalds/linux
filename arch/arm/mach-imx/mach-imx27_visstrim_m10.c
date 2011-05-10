@@ -30,16 +30,14 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/common.h>
-#include <mach/mmc.h>
 #include <mach/iomux.h>
-#include <mach/mxc_ehci.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 #define OTG_PHY_CS_GPIO (GPIO_PORTF + 17)
 #define SDHC1_IRQ IRQ_GPIOB(25)
@@ -69,6 +67,11 @@ static const int visstrim_m10_pins[] __initconst = {
 	PD15_AOUT_FEC_COL,
 	PD16_AIN_FEC_TX_ER,
 	PF23_AIN_FEC_TX_EN,
+	/* SSI1 */
+	PC20_PF_SSI1_FS,
+	PC21_PF_SSI1_RXD,
+	PC22_PF_SSI1_TXD,
+	PC23_PF_SSI1_CLK,
 	/* SDHC1 */
 	PE18_PF_SD1_D0,
 	PE19_PF_SD1_D1,
@@ -156,7 +159,7 @@ static void visstrim_m10_sdhc1_exit(struct device *dev, void *data)
 	free_irq(SDHC1_IRQ, data);
 }
 
-static struct imxmmc_platform_data visstrim_m10_sdhc_pdata = {
+static const struct imxmmc_platform_data visstrim_m10_sdhc_pdata __initconst = {
 	.init = visstrim_m10_sdhc1_init,
 	.exit = visstrim_m10_sdhc1_exit,
 };
@@ -207,19 +210,30 @@ static struct i2c_board_info visstrim_m10_i2c_devices[] = {
 		I2C_BOARD_INFO("pca9555", 0x20),
 		.platform_data = &visstrim_m10_pca9555_pdata,
 	},
+	{
+		I2C_BOARD_INFO("tlv320aic32x4", 0x18),
+	}
 };
 
 /* USB OTG */
 static int otg_phy_init(struct platform_device *pdev)
 {
 	gpio_set_value(OTG_PHY_CS_GPIO, 0);
-	return 0;
+
+	mdelay(10);
+
+	return mx27_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED);
 }
 
-static struct mxc_usbh_platform_data visstrim_m10_usbotg_pdata = {
+static const struct mxc_usbh_platform_data
+visstrim_m10_usbotg_pdata __initconst = {
 	.init = otg_phy_init,
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
+};
+
+/* SSI */
+static const struct imx_ssi_platform_data visstrim_m10_ssi_pdata __initconst = {
+	.flags			= IMX_SSI_DMA | IMX_SSI_SYN,
 };
 
 static void __init visstrim_m10_board_init(void)
@@ -231,14 +245,15 @@ static void __init visstrim_m10_board_init(void)
 	if (ret)
 		pr_err("Failed to setup pins (%d)\n", ret);
 
+	imx27_add_imx_ssi(0, &visstrim_m10_ssi_pdata);
 	imx27_add_imx_uart0(&uart_pdata);
 
 	i2c_register_board_info(0, visstrim_m10_i2c_devices,
 				ARRAY_SIZE(visstrim_m10_i2c_devices));
 	imx27_add_imx_i2c(0, &visstrim_m10_i2c_data);
 	imx27_add_imx_i2c(1, &visstrim_m10_i2c_data);
-	mxc_register_device(&mxc_sdhc_device0, &visstrim_m10_sdhc_pdata);
-	mxc_register_device(&mxc_otg_host, &visstrim_m10_usbotg_pdata);
+	imx27_add_mxc_mmc(0, &visstrim_m10_sdhc_pdata);
+	imx27_add_mxc_ehci_otg(&visstrim_m10_usbotg_pdata);
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }
@@ -253,9 +268,10 @@ static struct sys_timer visstrim_m10_timer = {
 };
 
 MACHINE_START(IMX27_VISSTRIM_M10, "Vista Silicon Visstrim_M10")
-	.boot_params    = MX27_PHYS_OFFSET + 0x100,
-	.map_io         = mx27_map_io,
-	.init_irq       = mx27_init_irq,
-	.init_machine   = visstrim_m10_board_init,
-	.timer          = &visstrim_m10_timer,
+	.boot_params = MX27_PHYS_OFFSET + 0x100,
+	.map_io = mx27_map_io,
+	.init_early = imx27_init_early,
+	.init_irq = mx27_init_irq,
+	.timer = &visstrim_m10_timer,
+	.init_machine = visstrim_m10_board_init,
 MACHINE_END

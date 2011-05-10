@@ -78,6 +78,7 @@ static void __cmtp_unlink_session(struct cmtp_session *session)
 
 static void __cmtp_copy_session(struct cmtp_session *session, struct cmtp_conninfo *ci)
 {
+	memset(ci, 0, sizeof(*ci));
 	bacpy(&ci->bdaddr, &session->bdaddr);
 
 	ci->flags = session->flags;
@@ -114,7 +115,8 @@ static inline void cmtp_add_msgpart(struct cmtp_session *session, int id, const 
 
 	size = (skb) ? skb->len + count : count;
 
-	if (!(nskb = alloc_skb(size, GFP_ATOMIC))) {
+	nskb = alloc_skb(size, GFP_ATOMIC);
+	if (!nskb) {
 		BT_ERR("Can't allocate memory for CAPI message");
 		return;
 	}
@@ -215,7 +217,8 @@ static void cmtp_process_transmit(struct cmtp_session *session)
 
 	BT_DBG("session %p", session);
 
-	if (!(nskb = alloc_skb(session->mtu, GFP_ATOMIC))) {
+	nskb = alloc_skb(session->mtu, GFP_ATOMIC);
+	if (!nskb) {
 		BT_ERR("Can't allocate memory for new frame");
 		return;
 	}
@@ -223,7 +226,8 @@ static void cmtp_process_transmit(struct cmtp_session *session)
 	while ((skb = skb_dequeue(&session->transmit))) {
 		struct cmtp_scb *scb = (void *) skb->cb;
 
-		if ((tail = (session->mtu - nskb->len)) < 5) {
+		tail = session->mtu - nskb->len;
+		if (tail < 5) {
 			cmtp_send_frame(session, nskb->data, nskb->len);
 			skb_trim(nskb, 0);
 			tail = session->mtu;
@@ -465,8 +469,6 @@ int cmtp_get_conninfo(struct cmtp_conninfo *ci)
 
 static int __init cmtp_init(void)
 {
-	l2cap_load();
-
 	BT_INFO("CMTP (CAPI Emulation) ver %s", VERSION);
 
 	cmtp_init_sockets();

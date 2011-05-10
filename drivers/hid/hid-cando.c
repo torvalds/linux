@@ -207,7 +207,7 @@ static int cando_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	td = kmalloc(sizeof(struct cando_data), GFP_KERNEL);
 	if (!td) {
-		dev_err(&hdev->dev, "cannot allocate Cando Touch data\n");
+		hid_err(hdev, "cannot allocate Cando Touch data\n");
 		return -ENOMEM;
 	}
 	hid_set_drvdata(hdev, td);
@@ -235,6 +235,8 @@ static void cando_remove(struct hid_device *hdev)
 static const struct hid_device_id cando_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CANDO,
 			USB_DEVICE_ID_CANDO_MULTI_TOUCH) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CANDO,
+			USB_DEVICE_ID_CANDO_MULTI_TOUCH_10_1) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CANDO,
 			USB_DEVICE_ID_CANDO_MULTI_TOUCH_11_6) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CANDO,

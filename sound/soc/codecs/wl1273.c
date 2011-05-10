@@ -3,7 +3,7 @@
  *
  * Author:      Matti Aaltonen, <matti.j.aaltonen@nokia.com>
  *
- * Copyright:   (C) 2010 Nokia Corporation
+ * Copyright:   (C) 2010, 2011 Nokia Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,8 +25,7 @@
 #include <linux/slab.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <sound/soc-dai.h>
-#include <sound/soc-dapm.h>
+#include <sound/soc.h>
 #include <sound/initval.h>
 
 #include "wl1273.h"
@@ -43,7 +42,7 @@ struct wl1273_priv {
 static int snd_wl1273_fm_set_i2s_mode(struct wl1273_core *core,
 				      int rate, int width)
 {
-	struct device *dev = &core->i2c_dev->dev;
+	struct device *dev = &core->client->dev;
 	int r = 0;
 	u16 mode;
 
@@ -124,13 +123,13 @@ static int snd_wl1273_fm_set_i2s_mode(struct wl1273_core *core,
 	dev_dbg(dev, "mode: 0x%04x\n", mode);
 
 	if (core->i2s_mode != mode) {
-		r = wl1273_fm_write_cmd(core, WL1273_I2S_MODE_CONFIG_SET, mode);
+		r = core->write(core, WL1273_I2S_MODE_CONFIG_SET, mode);
 		if (r)
 			goto out;
 
 		core->i2s_mode = mode;
-		r = wl1273_fm_write_cmd(core, WL1273_AUDIO_ENABLE,
-					WL1273_AUDIO_ENABLE_I2S);
+		r = core->write(core, WL1273_AUDIO_ENABLE,
+				WL1273_AUDIO_ENABLE_I2S);
 		if (r)
 			goto out;
 	}
@@ -143,8 +142,7 @@ out:
 static int snd_wl1273_fm_set_channel_number(struct wl1273_core *core,
 					    int channel_number)
 {
-	struct i2c_client *client = core->i2c_dev;
-	struct device *dev = &client->dev;
+	struct device *dev = &core->client->dev;
 	int r = 0;
 
 	dev_dbg(dev, "%s\n", __func__);
@@ -155,17 +153,13 @@ static int snd_wl1273_fm_set_channel_number(struct wl1273_core *core,
 		goto out;
 
 	if (channel_number == 1 && core->mode == WL1273_MODE_RX)
-		r = wl1273_fm_write_cmd(core, WL1273_MOST_MODE_SET,
-					WL1273_RX_MONO);
+		r = core->write(core, WL1273_MOST_MODE_SET, WL1273_RX_MONO);
 	else if (channel_number == 1 && core->mode == WL1273_MODE_TX)
-		r = wl1273_fm_write_cmd(core, WL1273_MONO_SET,
-					WL1273_TX_MONO);
+		r = core->write(core, WL1273_MONO_SET, WL1273_TX_MONO);
 	else if (channel_number == 2 && core->mode == WL1273_MODE_RX)
-		r = wl1273_fm_write_cmd(core, WL1273_MOST_MODE_SET,
-					WL1273_RX_STEREO);
+		r = core->write(core, WL1273_MOST_MODE_SET, WL1273_RX_STEREO);
 	else if (channel_number == 2 && core->mode == WL1273_MODE_TX)
-		r = wl1273_fm_write_cmd(core, WL1273_MONO_SET,
-					WL1273_TX_STEREO);
+		r = core->write(core, WL1273_MONO_SET, WL1273_TX_STEREO);
 	else
 		r = -EINVAL;
 out:
@@ -185,7 +179,12 @@ static int snd_wl1273_get_audio_route(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const char *wl1273_audio_route[] = { "Bt", "FmRx", "FmTx" };
+/*
+ * TODO: Implement the audio routing in the driver. Now this control
+ * only indicates the setting that has been done elsewhere (in the user
+ * space).
+ */
+static const char * const wl1273_audio_route[] = { "Bt", "FmRx", "FmTx" };
 
 static int snd_wl1273_set_audio_route(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
@@ -238,14 +237,14 @@ static int snd_wl1273_fm_audio_put(struct snd_kcontrol *kcontrol,
 	if (wl1273->core->audio_mode == val)
 		return 0;
 
-	r = wl1273_fm_set_audio(wl1273->core, val);
+	r = wl1273->core->set_audio(wl1273->core, val);
 	if (r < 0)
 		return r;
 
 	return 1;
 }
 
-static const char *wl1273_audio_strings[] = { "Digital", "Analog" };
+static const char * const wl1273_audio_strings[] = { "Digital", "Analog" };
 
 static const struct soc_enum wl1273_audio_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(wl1273_audio_strings),
@@ -273,8 +272,8 @@ static int snd_wl1273_fm_volume_put(struct snd_kcontrol *kcontrol,
 
 	dev_dbg(codec->dev, "%s: enter.\n", __func__);
 
-	r = wl1273_fm_set_volume(wl1273->core,
-				 ucontrol->value.integer.value[0]);
+	r = wl1273->core->set_volume(wl1273->core,
+				     ucontrol->value.integer.value[0]);
 	if (r)
 		return r;
 
@@ -442,7 +441,8 @@ EXPORT_SYMBOL_GPL(wl1273_get_format);
 
 static int wl1273_probe(struct snd_soc_codec *codec)
 {
-	struct wl1273_core **core = codec->dev->platform_data;
+	struct wl1273_core **core =
+			mfd_get_data(to_platform_device(codec->dev));
 	struct wl1273_priv *wl1273;
 	int r;
 

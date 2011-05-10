@@ -21,12 +21,11 @@
 #include <linux/string.h>
 #include <linux/clk.h>
 #include <linux/spinlock.h>
+#include <linux/clkdev.h>
 #include <mach/csp/hw_cfg.h>
 #include <mach/csp/chipcHw_def.h>
 #include <mach/csp/chipcHw_reg.h>
 #include <mach/csp/chipcHw_inline.h>
-
-#include <asm/clkdev.h>
 
 #include "clock.h"
 

@@ -361,6 +361,7 @@ struct qdio_initialize {
 	qdio_handler_t *input_handler;
 	qdio_handler_t *output_handler;
 	void (*queue_start_poll) (struct ccw_device *, int, unsigned long);
+	int scan_threshold;
 	unsigned long int_parm;
 	void **input_sbal_addr_array;
 	void **output_sbal_addr_array;

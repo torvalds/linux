@@ -24,46 +24,46 @@
 #include "saa7164.h"
 
 /* The PCI address space for buffer handling looks like this:
-
- +-u32 wide-------------+
- |                      +
- +-u64 wide------------------------------------+
- +                                             +
- +----------------------+
- | CurrentBufferPtr     + Pointer to current PCI buffer >-+
- +----------------------+                                 |
- | Unused               +                                 |
- +----------------------+                                 |
- | Pitch                + = 188 (bytes)                   |
- +----------------------+                                 |
- | PCI buffer size      + = pitch * number of lines (312) |
- +----------------------+                                 |
- |0| Buf0 Write Offset  +                                 |
- +----------------------+                                 v
- |1| Buf1 Write Offset  +                                 |
- +----------------------+                                 |
- |2| Buf2 Write Offset  +                                 |
- +----------------------+                                 |
- |3| Buf3 Write Offset  +                                 |
- +----------------------+                                 |
- ... More write offsets                                   |
- +---------------------------------------------+          |
- +0| set of ptrs to PCI pagetables             +          |
- +---------------------------------------------+          |
- +1| set of ptrs to PCI pagetables             + <--------+
- +---------------------------------------------+
- +2| set of ptrs to PCI pagetables             +
- +---------------------------------------------+
- +3| set of ptrs to PCI pagetables             + >--+
- +---------------------------------------------+    |
- ... More buffer pointers                           |  +----------------+
-						    +->| pt[0] TS data  |
-						    |  +----------------+
-						    |
-						    |  +----------------+
-						    +->| pt[1] TS data  |
-						    |  +----------------+
-						    | etc
+ *
+ * +-u32 wide-------------+
+ * |                      +
+ * +-u64 wide------------------------------------+
+ * +                                             +
+ * +----------------------+
+ * | CurrentBufferPtr     + Pointer to current PCI buffer >-+
+ * +----------------------+                                 |
+ * | Unused               +                                 |
+ * +----------------------+                                 |
+ * | Pitch                + = 188 (bytes)                   |
+ * +----------------------+                                 |
+ * | PCI buffer size      + = pitch * number of lines (312) |
+ * +----------------------+                                 |
+ * |0| Buf0 Write Offset  +                                 |
+ * +----------------------+                                 v
+ * |1| Buf1 Write Offset  +                                 |
+ * +----------------------+                                 |
+ * |2| Buf2 Write Offset  +                                 |
+ * +----------------------+                                 |
+ * |3| Buf3 Write Offset  +                                 |
+ * +----------------------+                                 |
+ * ... More write offsets                                   |
+ * +---------------------------------------------+          |
+ * +0| set of ptrs to PCI pagetables             +          |
+ * +---------------------------------------------+          |
+ * +1| set of ptrs to PCI pagetables             + <--------+
+ * +---------------------------------------------+
+ * +2| set of ptrs to PCI pagetables             +
+ * +---------------------------------------------+
+ * +3| set of ptrs to PCI pagetables             + >--+
+ * +---------------------------------------------+    |
+ * ... More buffer pointers                           |  +----------------+
+ *						    +->| pt[0] TS data  |
+ *						    |  +----------------+
+ *						    |
+ *						    |  +----------------+
+ *						    +->| pt[1] TS data  |
+ *						    |  +----------------+
+ *						    | etc
  */
 
 void saa7164_buffer_display(struct saa7164_buffer *buf)
@@ -93,7 +93,7 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 	u32 len)
 {
 	struct tmHWStreamParameters *params = &port->hw_streamingparams;
-	struct saa7164_buffer *buf = 0;
+	struct saa7164_buffer *buf = NULL;
 	struct saa7164_dev *dev = port->dev;
 	int i;
 
@@ -103,7 +103,7 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 	}
 
 	buf = kzalloc(sizeof(struct saa7164_buffer), GFP_KERNEL);
-	if (buf == NULL) {
+	if (!buf) {
 		log_warn("%s() SAA_ERR_NO_RESOURCES\n", __func__);
 		goto ret;
 	}
@@ -157,7 +157,7 @@ fail2:
 fail1:
 	kfree(buf);
 
-	buf = 0;
+	buf = NULL;
 ret:
 	return buf;
 }
@@ -283,19 +283,20 @@ int saa7164_buffer_cfg_port(struct saa7164_port *port)
 	return 0;
 }
 
-struct saa7164_user_buffer *saa7164_buffer_alloc_user(struct saa7164_dev *dev, u32 len)
+struct saa7164_user_buffer *saa7164_buffer_alloc_user(struct saa7164_dev *dev,
+	u32 len)
 {
 	struct saa7164_user_buffer *buf;
 
 	buf = kzalloc(sizeof(struct saa7164_user_buffer), GFP_KERNEL);
-	if (buf == 0)
-		return 0;
+	if (!buf)
+		return NULL;
 
 	buf->data = kzalloc(len, GFP_KERNEL);
 
-	if (buf->data == 0) {
+	if (!buf->data) {
 		kfree(buf);
-		return 0;
+		return NULL;
 	}
 
 	buf->actual_size = len;
@@ -313,12 +314,9 @@ void saa7164_buffer_dealloc_user(struct saa7164_user_buffer *buf)
 	if (!buf)
 		return;
 
-	if (buf->data) {
-		kfree(buf->data);
-		buf->data = 0;
-	}
+	kfree(buf->data);
+	buf->data = NULL;
 
-	if (buf)
-		kfree(buf);
+	kfree(buf);
 }
 

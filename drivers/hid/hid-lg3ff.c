@@ -141,20 +141,20 @@ int lg3ff_init(struct hid_device *hid)
 
 	/* Find the report to use */
 	if (list_empty(report_list)) {
-		err_hid("No output report found");
+		hid_err(hid, "No output report found\n");
 		return -1;
 	}
 
 	/* Check that the report looks ok */
 	report = list_entry(report_list->next, struct hid_report, list);
 	if (!report) {
-		err_hid("NULL output report");
+		hid_err(hid, "NULL output report\n");
 		return -1;
 	}
 
 	field = report->field[0];
 	if (!field) {
-		err_hid("NULL field");
+		hid_err(hid, "NULL field\n");
 		return -1;
 	}
 
@@ -169,8 +169,7 @@ int lg3ff_init(struct hid_device *hid)
 	if (test_bit(FF_AUTOCENTER, dev->ffbit))
 		dev->ff->set_autocenter = hid_lg3ff_set_autocenter;
 
-	dev_info(&hid->dev, "Force feedback for Logitech Flight System G940 by "
-			"Gary Stein <LordCnidarian@gmail.com>\n");
+	hid_info(hid, "Force feedback for Logitech Flight System G940 by Gary Stein <LordCnidarian@gmail.com>\n");
 	return 0;
 }
 

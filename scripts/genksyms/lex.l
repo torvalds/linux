@@ -55,10 +55,6 @@ CHAR			L?\'([^\\\']*\\.)*[^\\\']*\'
 
 MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 
-/* Version 2 checksumming does proper tokenization; version 1 wasn't
-   quite so pedantic.  */
-%s V2_TOKENS
-
 /* We don't do multiple input files.  */
 %option noyywrap
 
@@ -84,9 +80,9 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
     recognized as tokens.  We don't actually use them since we don't
     parse expressions, but we do want whitespace to be arranged
     around them properly.  */
-<V2_TOKENS>{MC_TOKEN}			return OTHER;
-<V2_TOKENS>{INT}			return INT;
-<V2_TOKENS>{REAL}			return REAL;
+{MC_TOKEN}				return OTHER;
+{INT}					return INT;
+{REAL}					return REAL;
 
 "..."					return DOTS;
 
@@ -103,12 +99,23 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 
 /* Macros to append to our phrase collection list.  */
 
+/*
+ * We mark any token, that that equals to a known enumerator, as
+ * SYM_ENUM_CONST. The parser will change this for struct and union tags later,
+ * the only problem is struct and union members:
+ *    enum e { a, b }; struct s { int a, b; }
+ * but in this case, the only effect will be, that the ABI checksums become
+ * more volatile, which is acceptable. Also, such collisions are quite rare,
+ * so far it was only observed in include/linux/telephony.h.
+ */
 #define _APP(T,L)	do {						   \
 			  cur_node = next_node;				   \
 			  next_node = xmalloc(sizeof(*next_node));	   \
 			  next_node->next = cur_node;			   \
 			  cur_node->string = memcpy(xmalloc(L+1), T, L+1); \
-			  cur_node->tag = SYM_NORMAL;			   \
+			  cur_node->tag =				   \
+			    find_symbol(cur_node->string, SYM_ENUM_CONST, 1)?\
+			    SYM_ENUM_CONST : SYM_NORMAL ;		   \
 			} while (0)
 
 #define APP		_APP(yytext, yyleng)
@@ -134,7 +141,6 @@ yylex(void)
 
   if (lexstate == ST_NOTSTARTED)
     {
-      BEGIN(V2_TOKENS);
       next_node = xmalloc(sizeof(*next_node));
       next_node->next = NULL;
       lexstate = ST_NORMAL;
@@ -187,8 +193,8 @@ repeat:
 
 		  case STRUCT_KEYW:
 		  case UNION_KEYW:
-		    dont_want_brace_phrase = 3;
 		  case ENUM_KEYW:
+		    dont_want_brace_phrase = 3;
 		    suppress_type_lookup = 2;
 		    goto fini;
 
@@ -198,8 +204,7 @@ repeat:
 	      }
 	    if (!suppress_type_lookup)
 	      {
-		struct symbol *sym = find_symbol(yytext, SYM_TYPEDEF);
-		if (sym && sym->type == SYM_TYPEDEF)
+		if (find_symbol(yytext, SYM_TYPEDEF, 1))
 		  token = TYPE;
 	      }
 	  }
@@ -318,7 +323,20 @@ repeat:
 	  ++count;
 	  APP;
 	  goto repeat;
-	case ')': case ']': case '}':
+	case '}':
+	  /* is this the last line of an enum declaration? */
+	  if (count == 0)
+	    {
+	      /* Put back the token we just read so's we can find it again
+		 after registering the expression.  */
+	      unput(token);
+
+	      lexstate = ST_NORMAL;
+	      token = EXPRESSION_PHRASE;
+	      break;
+	    }
+	  /* FALLTHRU */
+	case ')': case ']':
 	  --count;
 	  APP;
 	  goto repeat;

@@ -27,8 +27,6 @@
 #include <plat/clock.h>
 #include <plat/sram.h>
 
-#include "prm.h"
-
 #include <plat/sdrc.h>
 #include "sdrc.h"
 

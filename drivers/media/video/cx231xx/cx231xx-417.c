@@ -940,15 +940,15 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	u16 _buffer_size = 4096;
 	u8 *p_buffer;
 
-	p_current_fw = (u32 *)vmalloc(1884180*4);
+	p_current_fw = vmalloc(1884180 * 4);
 	p_fw = p_current_fw;
-	if (p_current_fw == 0) {
+	if (p_current_fw == NULL) {
 		dprintk(2, "FAIL!!!\n");
 		return -1;
 	}
 
-	p_buffer = (u8 *)vmalloc(4096);
-	if (p_buffer == 0) {
+	p_buffer = vmalloc(4096);
+	if (p_buffer == NULL) {
 		dprintk(2, "FAIL!!!\n");
 		return -1;
 	}

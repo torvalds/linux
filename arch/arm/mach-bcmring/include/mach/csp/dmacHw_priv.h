@@ -28,7 +28,7 @@
 
 /* Data type for DMA Link List Item */
 typedef struct {
-	uint32_t sar;		/* Source Adress Register.
+	uint32_t sar;		/* Source Address Register.
 				   Address must be aligned to CTLx.SRC_TR_WIDTH.             */
 	uint32_t dar;		/* Destination Address Register.
 				   Address must be aligned to CTLx.DST_TR_WIDTH.             */

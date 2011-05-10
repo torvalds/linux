@@ -92,7 +92,7 @@ void iio_remove_event_from_list(struct iio_event_handler_list *el,
  *			changes
  * @available_scan_masks: [DRIVER] optional array of allowed bitmasks
  * @trig:		[INTERN] current device trigger (ring buffer modes)
- * @pollfunc:		[DRIVER] function run on trigger being recieved
+ * @pollfunc:		[DRIVER] function run on trigger being received
  **/
 struct iio_dev {
 	int				id;

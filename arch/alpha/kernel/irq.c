@@ -44,10 +44,16 @@ static char irq_user_affinity[NR_IRQS];
 
 int irq_select_affinity(unsigned int irq)
 {
+	struct irq_data *data = irq_get_irq_data(irq);
+	struct irq_chip *chip;
 	static int last_cpu;
 	int cpu = last_cpu + 1;
 
-	if (!irq_desc[irq].chip->set_affinity || irq_user_affinity[irq])
+	if (!data)
+		return 1;
+	chip = irq_data_get_irq_chip(data);
+
+	if (!chip->irq_set_affinity || irq_user_affinity[irq])
 		return 1;
 
 	while (!cpu_possible(cpu) ||
@@ -55,68 +61,27 @@ int irq_select_affinity(unsigned int irq)
 		cpu = (cpu < (NR_CPUS-1) ? cpu + 1 : 0);
 	last_cpu = cpu;
 
-	cpumask_copy(irq_desc[irq].affinity, cpumask_of(cpu));
-	irq_desc[irq].chip->set_affinity(irq, cpumask_of(cpu));
+	cpumask_copy(data->affinity, cpumask_of(cpu));
+	chip->irq_set_affinity(data, cpumask_of(cpu), false);
 	return 0;
 }
 #endif /* CONFIG_SMP */
 
-int
-show_interrupts(struct seq_file *p, void *v)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
 	int j;
-	int irq = *(loff_t *) v;
-	struct irqaction * action;
-	unsigned long flags;
 
 #ifdef CONFIG_SMP
-	if (irq == 0) {
-		seq_puts(p, "           ");
-		for_each_online_cpu(j)
-			seq_printf(p, "CPU%d       ", j);
-		seq_putc(p, '\n');
-	}
+	seq_puts(p, "IPI: ");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10lu ", cpu_data[j].ipi_count);
+	seq_putc(p, '\n');
 #endif
-
-	if (irq < ACTUAL_NR_IRQS) {
-		raw_spin_lock_irqsave(&irq_desc[irq].lock, flags);
-		action = irq_desc[irq].action;
-		if (!action) 
-			goto unlock;
-		seq_printf(p, "%3d: ", irq);
-#ifndef CONFIG_SMP
-		seq_printf(p, "%10u ", kstat_irqs(irq));
-#else
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(irq, j));
-#endif
-		seq_printf(p, " %14s", irq_desc[irq].chip->name);
-		seq_printf(p, "  %c%s",
-			(action->flags & IRQF_DISABLED)?'+':' ',
-			action->name);
-
-		for (action=action->next; action; action = action->next) {
-			seq_printf(p, ", %c%s",
-				  (action->flags & IRQF_DISABLED)?'+':' ',
-				   action->name);
-		}
-
-		seq_putc(p, '\n');
-unlock:
-		raw_spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
-	} else if (irq == ACTUAL_NR_IRQS) {
-#ifdef CONFIG_SMP
-		seq_puts(p, "IPI: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10lu ", cpu_data[j].ipi_count);
-		seq_putc(p, '\n');
-#endif
-		seq_puts(p, "PMI: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10lu ", per_cpu(irq_pmi_count, j));
-		seq_puts(p, "          Performance Monitoring\n");
-		seq_printf(p, "ERR: %10lu\n", irq_err_count);
-	}
+	seq_puts(p, "PMI: ");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10lu ", per_cpu(irq_pmi_count, j));
+	seq_puts(p, "          Performance Monitoring\n");
+	seq_printf(p, "ERR: %10lu\n", irq_err_count);
 	return 0;
 }
 
@@ -142,8 +107,10 @@ handle_irq(int irq)
 	 * handled by some other CPU. (or is disabled)
 	 */
 	static unsigned int illegal_count=0;
+	struct irq_desc *desc = irq_to_desc(irq);
 	
-	if ((unsigned) irq > ACTUAL_NR_IRQS && illegal_count < MAX_ILLEGAL_IRQS ) {
+	if (!desc || ((unsigned) irq > ACTUAL_NR_IRQS &&
+	    illegal_count < MAX_ILLEGAL_IRQS)) {
 		irq_err_count++;
 		illegal_count++;
 		printk(KERN_CRIT "device_interrupt: invalid interrupt %d\n",
@@ -151,14 +118,14 @@ handle_irq(int irq)
 		return;
 	}
 
-	irq_enter();
 	/*
-	 * __do_IRQ() must be called with IPL_MAX. Note that we do not
+	 * From here we must proceed with IPL_MAX. Note that we do not
 	 * explicitly enable interrupts afterwards - some MILO PALcode
 	 * (namely LX164 one) seems to have severe problems with RTI
 	 * at IPL 0.
 	 */
 	local_irq_disable();
-	__do_IRQ(irq);
+	irq_enter();
+	generic_handle_irq_desc(irq, desc);
 	irq_exit();
 }

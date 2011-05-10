@@ -1137,7 +1137,7 @@ void free_guest_pagetable(struct lguest *lg)
  */
 void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages)
 {
-	pte_t *switcher_pte_page = __get_cpu_var(switcher_pte_pages);
+	pte_t *switcher_pte_page = __this_cpu_read(switcher_pte_pages);
 	pte_t regs_pte;
 
 #ifdef CONFIG_X86_PAE

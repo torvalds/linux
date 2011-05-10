@@ -193,7 +193,7 @@ static void calibrate_run_measurement_overhead(void)
 	}
 	run_measurement_overhead = min_delta;
 
-	printf("run measurement overhead: %Ld nsecs\n", min_delta);
+	printf("run measurement overhead: %" PRIu64 " nsecs\n", min_delta);
 }
 
 static void calibrate_sleep_measurement_overhead(void)
@@ -211,7 +211,7 @@ static void calibrate_sleep_measurement_overhead(void)
 	min_delta -= 10000;
 	sleep_measurement_overhead = min_delta;
 
-	printf("sleep measurement overhead: %Ld nsecs\n", min_delta);
+	printf("sleep measurement overhead: %" PRIu64 " nsecs\n", min_delta);
 }
 
 static struct sched_atom *
@@ -369,11 +369,6 @@ static void
 process_sched_event(struct task_desc *this_task __used, struct sched_atom *atom)
 {
 	int ret = 0;
-	u64 now;
-	long long delta;
-
-	now = get_nsecs();
-	delta = start_time + atom->timestamp - now;
 
 	switch (atom->type) {
 		case SCHED_EVENT_RUN:
@@ -489,7 +484,8 @@ static void create_tasks(void)
 
 	err = pthread_attr_init(&attr);
 	BUG_ON(err);
-	err = pthread_attr_setstacksize(&attr, (size_t)(16*1024));
+	err = pthread_attr_setstacksize(&attr,
+			(size_t) max(16 * 1024, PTHREAD_STACK_MIN));
 	BUG_ON(err);
 	err = pthread_mutex_lock(&start_work_mutex);
 	BUG_ON(err);
@@ -561,7 +557,7 @@ static void wait_for_tasks(void)
 
 static void run_one_test(void)
 {
-	u64 T0, T1, delta, avg_delta, fluct, std_dev;
+	u64 T0, T1, delta, avg_delta, fluct;
 
 	T0 = get_nsecs();
 	wait_for_tasks();
@@ -577,7 +573,6 @@ static void run_one_test(void)
 	else
 		fluct = delta - avg_delta;
 	sum_fluct += fluct;
-	std_dev = sum_fluct / nr_runs / sqrt(nr_runs);
 	if (!run_avg)
 		run_avg = delta;
 	run_avg = (run_avg*9 + delta)/10;
@@ -616,13 +611,13 @@ static void test_calibrations(void)
 	burn_nsecs(1e6);
 	T1 = get_nsecs();
 
-	printf("the run test took %Ld nsecs\n", T1-T0);
+	printf("the run test took %" PRIu64 " nsecs\n", T1 - T0);
 
 	T0 = get_nsecs();
 	sleep_nsecs(1e6);
 	T1 = get_nsecs();
 
-	printf("the sleep test took %Ld nsecs\n", T1-T0);
+	printf("the sleep test took %" PRIu64 " nsecs\n", T1 - T0);
 }
 
 #define FILL_FIELD(ptr, field, event, data)	\
@@ -798,7 +793,7 @@ replay_switch_event(struct trace_switch_event *switch_event,
 		    u64 timestamp,
 		    struct thread *thread __used)
 {
-	struct task_desc *prev, *next;
+	struct task_desc *prev, __used *next;
 	u64 timestamp0;
 	s64 delta;
 
@@ -815,10 +810,10 @@ replay_switch_event(struct trace_switch_event *switch_event,
 		delta = 0;
 
 	if (delta < 0)
-		die("hm, delta: %Ld < 0 ?\n", delta);
+		die("hm, delta: %" PRIu64 " < 0 ?\n", delta);
 
 	if (verbose) {
-		printf(" ... switch from %s/%d to %s/%d [ran %Ld nsecs]\n",
+		printf(" ... switch from %s/%d to %s/%d [ran %" PRIu64 " nsecs]\n",
 			switch_event->prev_comm, switch_event->prev_pid,
 			switch_event->next_comm, switch_event->next_pid,
 			delta);
@@ -1047,7 +1042,7 @@ latency_switch_event(struct trace_switch_event *switch_event,
 		delta = 0;
 
 	if (delta < 0)
-		die("hm, delta: %Ld < 0 ?\n", delta);
+		die("hm, delta: %" PRIu64 " < 0 ?\n", delta);
 
 
 	sched_out = perf_session__findnew(session, switch_event->prev_pid);
@@ -1220,7 +1215,7 @@ static void output_lat_thread(struct work_atoms *work_list)
 
 	avg = work_list->total_lat / work_list->nb_atoms;
 
-	printf("|%11.3f ms |%9llu | avg:%9.3f ms | max:%9.3f ms | max at: %9.6f s\n",
+	printf("|%11.3f ms |%9" PRIu64 " | avg:%9.3f ms | max:%9.3f ms | max at: %9.6f s\n",
 	      (double)work_list->total_runtime / 1e6,
 		 work_list->nb_atoms, (double)avg / 1e6,
 		 (double)work_list->max_lat / 1e6,
@@ -1403,7 +1398,7 @@ map_switch_event(struct trace_switch_event *switch_event,
 		 u64 timestamp,
 		 struct thread *thread __used)
 {
-	struct thread *sched_out, *sched_in;
+	struct thread *sched_out __used, *sched_in;
 	int new_shortname;
 	u64 timestamp0;
 	s64 delta;
@@ -1422,7 +1417,7 @@ map_switch_event(struct trace_switch_event *switch_event,
 		delta = 0;
 
 	if (delta < 0)
-		die("hm, delta: %Ld < 0 ?\n", delta);
+		die("hm, delta: %" PRIu64 " < 0 ?\n", delta);
 
 
 	sched_out = perf_session__findnew(session, switch_event->prev_pid);
@@ -1579,9 +1574,9 @@ process_sched_migrate_task_event(void *data, struct perf_session *session,
 						 event, cpu, timestamp, thread);
 }
 
-static void
-process_raw_event(event_t *raw_event __used, struct perf_session *session,
-		  void *data, int cpu, u64 timestamp, struct thread *thread)
+static void process_raw_event(union perf_event *raw_event __used,
+			      struct perf_session *session, void *data, int cpu,
+			      u64 timestamp, struct thread *thread)
 {
 	struct event *event;
 	int type;
@@ -1606,25 +1601,17 @@ process_raw_event(event_t *raw_event __used, struct perf_session *session,
 		process_sched_migrate_task_event(data, session, event, cpu, timestamp, thread);
 }
 
-static int process_sample_event(event_t *event, struct perf_session *session)
+static int process_sample_event(union perf_event *event,
+				struct perf_sample *sample,
+				struct perf_evsel *evsel __used,
+				struct perf_session *session)
 {
-	struct sample_data data;
 	struct thread *thread;
 
 	if (!(session->sample_type & PERF_SAMPLE_RAW))
 		return 0;
 
-	memset(&data, 0, sizeof(data));
-	data.time = -1;
-	data.cpu = -1;
-	data.period = -1;
-
-	event__parse_sample(event, session->sample_type, &data);
-
-	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
-		    data.pid, data.tid, data.ip, data.period);
-
-	thread = perf_session__findnew(session, data.pid);
+	thread = perf_session__findnew(session, sample->pid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);
@@ -1633,26 +1620,28 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	if (profile_cpu != -1 && profile_cpu != (int)data.cpu)
+	if (profile_cpu != -1 && profile_cpu != (int)sample->cpu)
 		return 0;
 
-	process_raw_event(event, session, data.raw_data, data.cpu, data.time, thread);
+	process_raw_event(event, session, sample->raw_data, sample->cpu,
+			  sample->time, thread);
 
 	return 0;
 }
 
 static struct perf_event_ops event_ops = {
 	.sample			= process_sample_event,
-	.comm			= event__process_comm,
-	.lost			= event__process_lost,
-	.fork			= event__process_task,
+	.comm			= perf_event__process_comm,
+	.lost			= perf_event__process_lost,
+	.fork			= perf_event__process_task,
 	.ordered_samples	= true,
 };
 
 static int read_events(void)
 {
 	int err = -EINVAL;
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0, false);
+	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
+							 0, false, &event_ops);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -1720,7 +1709,7 @@ static void __cmd_lat(void)
 	}
 
 	printf(" -----------------------------------------------------------------------------------------\n");
-	printf("  TOTAL:                |%11.3f ms |%9Ld |\n",
+	printf("  TOTAL:                |%11.3f ms |%9" PRIu64 " |\n",
 		(double)all_runtime/1e6, all_count);
 
 	printf(" ---------------------------------------------------\n");
@@ -1850,15 +1839,15 @@ static const char *record_args[] = {
 	"-f",
 	"-m", "1024",
 	"-c", "1",
-	"-e", "sched:sched_switch:r",
-	"-e", "sched:sched_stat_wait:r",
-	"-e", "sched:sched_stat_sleep:r",
-	"-e", "sched:sched_stat_iowait:r",
-	"-e", "sched:sched_stat_runtime:r",
-	"-e", "sched:sched_process_exit:r",
-	"-e", "sched:sched_process_fork:r",
-	"-e", "sched:sched_wakeup:r",
-	"-e", "sched:sched_migrate_task:r",
+	"-e", "sched:sched_switch",
+	"-e", "sched:sched_stat_wait",
+	"-e", "sched:sched_stat_sleep",
+	"-e", "sched:sched_stat_iowait",
+	"-e", "sched:sched_stat_runtime",
+	"-e", "sched:sched_process_exit",
+	"-e", "sched:sched_process_fork",
+	"-e", "sched:sched_wakeup",
+	"-e", "sched:sched_migrate_task",
 };
 
 static int __cmd_record(int argc, const char **argv)
@@ -1868,6 +1857,9 @@ static int __cmd_record(int argc, const char **argv)
 
 	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
+
+	if (rec_argv == NULL)
+		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
 		rec_argv[i] = strdup(record_args[i]);
@@ -1888,10 +1880,10 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(sched_usage, sched_options);
 
 	/*
-	 * Aliased to 'perf trace' for now:
+	 * Aliased to 'perf script' for now:
 	 */
-	if (!strcmp(argv[0], "trace"))
-		return cmd_trace(argc, argv, prefix);
+	if (!strcmp(argv[0], "script"))
+		return cmd_script(argc, argv, prefix);
 
 	symbol__init();
 	if (!strncmp(argv[0], "rec", 3)) {

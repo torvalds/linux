@@ -93,16 +93,16 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
 }
 
 /**
- * ath5k_hw_attach - Check if hw is supported and init the needed structs
+ * ath5k_hw_init - Check if hw is supported and init the needed structs
  *
- * @sc: The &struct ath5k_softc we got from the driver's attach function
+ * @sc: The &struct ath5k_softc we got from the driver's init_softc function
  *
  * Check if the device is supported, perform a POST and initialize the needed
  * structs. Returns -ENOMEM if we don't have memory for the needed structs,
  * -ENODEV if the device is not supported or prints an error msg if something
  * else went wrong.
  */
-int ath5k_hw_attach(struct ath5k_softc *sc)
+int ath5k_hw_init(struct ath5k_softc *sc)
 {
 	struct ath5k_hw *ah = sc->ah;
 	struct ath_common *common = ath5k_hw_common(ah);
@@ -115,11 +115,11 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	 * HW information
 	 */
 	ah->ah_radar.r_enabled = AR5K_TUNE_RADAR_ALERT;
-	ah->ah_turbo = false;
+	ah->ah_bwmode = AR5K_BWMODE_DEFAULT;
 	ah->ah_txpower.txp_tpc = AR5K_TUNE_TPC_TXPOWER;
 	ah->ah_imr = 0;
-	ah->ah_limit_tx_retries = AR5K_INIT_TX_RETRY;
-	ah->ah_software_retry = false;
+	ah->ah_retry_short = AR5K_INIT_RETRY_SHORT;
+	ah->ah_retry_long = AR5K_INIT_RETRY_LONG;
 	ah->ah_ant_mode = AR5K_ANTMODE_DEFAULT;
 	ah->ah_noise_floor = -95;	/* until first NF calibration is run */
 	sc->ani_state.ani_mode = ATH5K_ANI_MODE_AUTO;
@@ -128,13 +128,18 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	/*
 	 * Find the mac version
 	 */
-	srev = ath5k_hw_reg_read(ah, AR5K_SREV);
+	ath5k_hw_read_srev(ah);
+	srev = ah->ah_mac_srev;
 	if (srev < AR5K_SREV_AR5311)
 		ah->ah_version = AR5K_AR5210;
 	else if (srev < AR5K_SREV_AR5212)
 		ah->ah_version = AR5K_AR5211;
 	else
 		ah->ah_version = AR5K_AR5212;
+
+	/* Get the MAC revision */
+	ah->ah_mac_version = AR5K_REG_MS(srev, AR5K_SREV_VER);
+	ah->ah_mac_revision = AR5K_REG_MS(srev, AR5K_SREV_REV);
 
 	/* Fill the ath5k_hw struct with the needed functions */
 	ret = ath5k_hw_init_desc_functions(ah);
@@ -146,9 +151,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	if (ret)
 		goto err;
 
-	/* Get MAC, PHY and RADIO revisions */
-	ah->ah_mac_srev = srev;
-	ah->ah_mac_version = AR5K_REG_MS(srev, AR5K_SREV_VER);
+	/* Get PHY and RADIO revisions */
 	ah->ah_phy_revision = ath5k_hw_reg_read(ah, AR5K_PHY_CHIP_ID) &
 			0xffffffff;
 	ah->ah_radio_5ghz_revision = ath5k_hw_radio_revision(ah,
@@ -217,7 +220,8 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 			ah->ah_radio = AR5K_RF5112;
 			ah->ah_single_chip = false;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_5112B;
-		} else if (ah->ah_mac_version == (AR5K_SREV_AR2415 >> 4)) {
+		} else if (ah->ah_mac_version == (AR5K_SREV_AR2415 >> 4) ||
+			ah->ah_mac_version == (AR5K_SREV_AR2315_R6 >> 4)) {
 			ah->ah_radio = AR5K_RF2316;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_2316;
@@ -273,7 +277,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	/*
 	 * Write PCI-E power save settings
 	 */
-	if ((ah->ah_version == AR5K_AR5212) && (pdev->is_pcie)) {
+	if ((ah->ah_version == AR5K_AR5212) && pdev && (pci_is_pcie(pdev))) {
 		ath5k_hw_reg_write(ah, 0x9248fc00, AR5K_PCIE_SERDES);
 		ath5k_hw_reg_write(ah, 0x24924924, AR5K_PCIE_SERDES);
 
@@ -305,8 +309,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	/* Get misc capabilities */
 	ret = ath5k_hw_set_capabilities(ah);
 	if (ret) {
-		ATH5K_ERR(sc, "unable to get device capabilities: 0x%04x\n",
-			sc->pdev->device);
+		ATH5K_ERR(sc, "unable to get device capabilities\n");
 		goto err;
 	}
 
@@ -346,11 +349,11 @@ err:
 }
 
 /**
- * ath5k_hw_detach - Free the ath5k_hw struct
+ * ath5k_hw_deinit - Free the ath5k_hw struct
  *
  * @ah: The &struct ath5k_hw
  */
-void ath5k_hw_detach(struct ath5k_hw *ah)
+void ath5k_hw_deinit(struct ath5k_hw *ah)
 {
 	__set_bit(ATH_STAT_INVALID, ah->ah_sc->status);
 

@@ -189,6 +189,7 @@ get_order (unsigned long size)
 # define pgprot_val(x)	((x).pgprot)
 
 # define __pte(x)	((pte_t) { (x) } )
+# define __pmd(x)	((pmd_t) { (x) } )
 # define __pgprot(x)	((pgprot_t) { (x) } )
 
 #else /* !STRICT_MM_TYPECHECKS */

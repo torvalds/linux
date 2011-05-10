@@ -12,6 +12,7 @@
 #include <media/v4l2-device.h>
 #include <media/tvp5150.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-ctrls.h>
 
 #include "tvp5150_reg.h"
 
@@ -24,63 +25,24 @@ static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
-/* supported controls */
-static struct v4l2_queryctrl tvp5150_qctrl[] = {
-	{
-		.id = V4L2_CID_BRIGHTNESS,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Brightness",
-		.minimum = 0,
-		.maximum = 255,
-		.step = 1,
-		.default_value = 128,
-		.flags = 0,
-	}, {
-		.id = V4L2_CID_CONTRAST,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Contrast",
-		.minimum = 0,
-		.maximum = 255,
-		.step = 0x1,
-		.default_value = 128,
-		.flags = 0,
-	}, {
-		 .id = V4L2_CID_SATURATION,
-		 .type = V4L2_CTRL_TYPE_INTEGER,
-		 .name = "Saturation",
-		 .minimum = 0,
-		 .maximum = 255,
-		 .step = 0x1,
-		 .default_value = 128,
-		 .flags = 0,
-	}, {
-		.id = V4L2_CID_HUE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Hue",
-		.minimum = -128,
-		.maximum = 127,
-		.step = 0x1,
-		.default_value = 0,
-		.flags = 0,
-	}
-};
-
 struct tvp5150 {
 	struct v4l2_subdev sd;
+	struct v4l2_ctrl_handler hdl;
 
 	v4l2_std_id norm;	/* Current set standard */
 	u32 input;
 	u32 output;
 	int enable;
-	int bright;
-	int contrast;
-	int hue;
-	int sat;
 };
 
 static inline struct tvp5150 *to_tvp5150(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct tvp5150, sd);
+}
+
+static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
+{
+	return &container_of(ctrl->handler, struct tvp5150, hdl)->sd;
 }
 
 static int tvp5150_read(struct v4l2_subdev *sd, unsigned char addr)
@@ -775,27 +737,6 @@ static int tvp5150_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 static int tvp5150_reset(struct v4l2_subdev *sd, u32 val)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	u8 msb_id, lsb_id, msb_rom, lsb_rom;
-
-	msb_id = tvp5150_read(sd, TVP5150_MSB_DEV_ID);
-	lsb_id = tvp5150_read(sd, TVP5150_LSB_DEV_ID);
-	msb_rom = tvp5150_read(sd, TVP5150_ROM_MAJOR_VER);
-	lsb_rom = tvp5150_read(sd, TVP5150_ROM_MINOR_VER);
-
-	if (msb_rom == 4 && lsb_rom == 0) { /* Is TVP5150AM1 */
-		v4l2_info(sd, "tvp%02x%02xam1 detected.\n", msb_id, lsb_id);
-
-		/* ITU-T BT.656.4 timing */
-		tvp5150_write(sd, TVP5150_REV_SELECT, 0);
-	} else {
-		if (msb_rom == 3 || lsb_rom == 0x21) { /* Is TVP5150A */
-			v4l2_info(sd, "tvp%02x%02xa detected.\n", msb_id, lsb_id);
-		} else {
-			v4l2_info(sd, "*** unknown tvp%02x%02x chip detected.\n",
-					msb_id, lsb_id);
-			v4l2_info(sd, "*** Rom ver is %d.%d\n", msb_rom, lsb_rom);
-		}
-	}
 
 	/* Initializes TVP5150 to its default values */
 	tvp5150_write_inittab(sd, tvp5150_init_default);
@@ -810,64 +751,28 @@ static int tvp5150_reset(struct v4l2_subdev *sd, u32 val)
 	tvp5150_write_inittab(sd, tvp5150_init_enable);
 
 	/* Initialize image preferences */
-	tvp5150_write(sd, TVP5150_BRIGHT_CTL, decoder->bright);
-	tvp5150_write(sd, TVP5150_CONTRAST_CTL, decoder->contrast);
-	tvp5150_write(sd, TVP5150_SATURATION_CTL, decoder->contrast);
-	tvp5150_write(sd, TVP5150_HUE_CTL, decoder->hue);
+	v4l2_ctrl_handler_setup(&decoder->hdl);
 
 	tvp5150_set_std(sd, decoder->norm);
 	return 0;
 };
 
-static int tvp5150_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+static int tvp5150_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	v4l2_dbg(1, debug, sd, "g_ctrl called\n");
+	struct v4l2_subdev *sd = to_sd(ctrl);
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		ctrl->value = tvp5150_read(sd, TVP5150_BRIGHT_CTL);
+		tvp5150_write(sd, TVP5150_BRIGHT_CTL, ctrl->val);
 		return 0;
 	case V4L2_CID_CONTRAST:
-		ctrl->value = tvp5150_read(sd, TVP5150_CONTRAST_CTL);
+		tvp5150_write(sd, TVP5150_CONTRAST_CTL, ctrl->val);
 		return 0;
 	case V4L2_CID_SATURATION:
-		ctrl->value = tvp5150_read(sd, TVP5150_SATURATION_CTL);
+		tvp5150_write(sd, TVP5150_SATURATION_CTL, ctrl->val);
 		return 0;
 	case V4L2_CID_HUE:
-		ctrl->value = tvp5150_read(sd, TVP5150_HUE_CTL);
-		return 0;
-	}
-	return -EINVAL;
-}
-
-static int tvp5150_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	u8 i, n;
-	n = ARRAY_SIZE(tvp5150_qctrl);
-
-	for (i = 0; i < n; i++) {
-		if (ctrl->id != tvp5150_qctrl[i].id)
-			continue;
-		if (ctrl->value < tvp5150_qctrl[i].minimum ||
-		    ctrl->value > tvp5150_qctrl[i].maximum)
-			return -ERANGE;
-		v4l2_dbg(1, debug, sd, "s_ctrl: id=%d, value=%d\n",
-					ctrl->id, ctrl->value);
-		break;
-	}
-
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		tvp5150_write(sd, TVP5150_BRIGHT_CTL, ctrl->value);
-		return 0;
-	case V4L2_CID_CONTRAST:
-		tvp5150_write(sd, TVP5150_CONTRAST_CTL, ctrl->value);
-		return 0;
-	case V4L2_CID_SATURATION:
-		tvp5150_write(sd, TVP5150_SATURATION_CTL, ctrl->value);
-		return 0;
-	case V4L2_CID_HUE:
-		tvp5150_write(sd, TVP5150_HUE_CTL, ctrl->value);
+		tvp5150_write(sd, TVP5150_HUE_CTL, ctrl->val);
 		return 0;
 	}
 	return -EINVAL;
@@ -995,29 +900,21 @@ static int tvp5150_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int tvp5150_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
-{
-	int i;
-
-	v4l2_dbg(1, debug, sd, "queryctrl called\n");
-
-	for (i = 0; i < ARRAY_SIZE(tvp5150_qctrl); i++)
-		if (qc->id && qc->id == tvp5150_qctrl[i].id) {
-			memcpy(qc, &(tvp5150_qctrl[i]),
-			       sizeof(*qc));
-			return 0;
-		}
-
-	return -EINVAL;
-}
-
 /* ----------------------------------------------------------------------- */
+
+static const struct v4l2_ctrl_ops tvp5150_ctrl_ops = {
+	.s_ctrl = tvp5150_s_ctrl,
+};
 
 static const struct v4l2_subdev_core_ops tvp5150_core_ops = {
 	.log_status = tvp5150_log_status,
-	.g_ctrl = tvp5150_g_ctrl,
-	.s_ctrl = tvp5150_s_ctrl,
-	.queryctrl = tvp5150_queryctrl,
+	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
+	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
+	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
+	.g_ctrl = v4l2_subdev_g_ctrl,
+	.s_ctrl = v4l2_subdev_s_ctrl,
+	.queryctrl = v4l2_subdev_queryctrl,
+	.querymenu = v4l2_subdev_querymenu,
 	.s_std = tvp5150_s_std,
 	.reset = tvp5150_reset,
 	.g_chip_ident = tvp5150_g_chip_ident,
@@ -1059,6 +956,7 @@ static int tvp5150_probe(struct i2c_client *c,
 {
 	struct tvp5150 *core;
 	struct v4l2_subdev *sd;
+	u8 msb_id, lsb_id, msb_rom, lsb_rom;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(c->adapter,
@@ -1074,13 +972,48 @@ static int tvp5150_probe(struct i2c_client *c,
 	v4l_info(c, "chip found @ 0x%02x (%s)\n",
 		 c->addr << 1, c->adapter->name);
 
+	msb_id = tvp5150_read(sd, TVP5150_MSB_DEV_ID);
+	lsb_id = tvp5150_read(sd, TVP5150_LSB_DEV_ID);
+	msb_rom = tvp5150_read(sd, TVP5150_ROM_MAJOR_VER);
+	lsb_rom = tvp5150_read(sd, TVP5150_ROM_MINOR_VER);
+
+	if (msb_rom == 4 && lsb_rom == 0) { /* Is TVP5150AM1 */
+		v4l2_info(sd, "tvp%02x%02xam1 detected.\n", msb_id, lsb_id);
+
+		/* ITU-T BT.656.4 timing */
+		tvp5150_write(sd, TVP5150_REV_SELECT, 0);
+	} else {
+		if (msb_rom == 3 || lsb_rom == 0x21) { /* Is TVP5150A */
+			v4l2_info(sd, "tvp%02x%02xa detected.\n", msb_id, lsb_id);
+		} else {
+			v4l2_info(sd, "*** unknown tvp%02x%02x chip detected.\n",
+					msb_id, lsb_id);
+			v4l2_info(sd, "*** Rom ver is %d.%d\n", msb_rom, lsb_rom);
+		}
+	}
+
 	core->norm = V4L2_STD_ALL;	/* Default is autodetect */
 	core->input = TVP5150_COMPOSITE1;
 	core->enable = 1;
-	core->bright = 128;
-	core->contrast = 128;
-	core->hue = 0;
-	core->sat = 128;
+
+	v4l2_ctrl_handler_init(&core->hdl, 4);
+	v4l2_ctrl_new_std(&core->hdl, &tvp5150_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(&core->hdl, &tvp5150_ctrl_ops,
+			V4L2_CID_CONTRAST, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(&core->hdl, &tvp5150_ctrl_ops,
+			V4L2_CID_SATURATION, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(&core->hdl, &tvp5150_ctrl_ops,
+			V4L2_CID_HUE, -128, 127, 1, 0);
+	sd->ctrl_handler = &core->hdl;
+	if (core->hdl.error) {
+		int err = core->hdl.error;
+
+		v4l2_ctrl_handler_free(&core->hdl);
+		kfree(core);
+		return err;
+	}
+	v4l2_ctrl_handler_setup(&core->hdl);
 
 	if (debug > 1)
 		tvp5150_log_status(sd);
@@ -1090,12 +1023,14 @@ static int tvp5150_probe(struct i2c_client *c,
 static int tvp5150_remove(struct i2c_client *c)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(c);
+	struct tvp5150 *decoder = to_tvp5150(sd);
 
 	v4l2_dbg(1, debug, sd,
 		"tvp5150.c: removing tvp5150 adapter on address 0x%x\n",
 		c->addr << 1);
 
 	v4l2_device_unregister_subdev(sd);
+	v4l2_ctrl_handler_free(&decoder->hdl);
 	kfree(to_tvp5150(sd));
 	return 0;
 }

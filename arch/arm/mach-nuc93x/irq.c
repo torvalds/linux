@@ -25,9 +25,9 @@
 #include <mach/hardware.h>
 #include <mach/regs-irq.h>
 
-static void nuc93x_irq_mask(unsigned int irq)
+static void nuc93x_irq_mask(struct irq_data *d)
 {
-	__raw_writel(1 << irq, REG_AIC_MDCR);
+	__raw_writel(1 << d->irq, REG_AIC_MDCR);
 }
 
 /*
@@ -35,21 +35,21 @@ static void nuc93x_irq_mask(unsigned int irq)
  * to REG_AIC_EOSCR for ACK
  */
 
-static void nuc93x_irq_ack(unsigned int irq)
+static void nuc93x_irq_ack(struct irq_data *d)
 {
 	__raw_writel(0x01, REG_AIC_EOSCR);
 }
 
-static void nuc93x_irq_unmask(unsigned int irq)
+static void nuc93x_irq_unmask(struct irq_data *d)
 {
-	__raw_writel(1 << irq, REG_AIC_MECR);
+	__raw_writel(1 << d->irq, REG_AIC_MECR);
 
 }
 
 static struct irq_chip nuc93x_irq_chip = {
-	.ack	   = nuc93x_irq_ack,
-	.mask	   = nuc93x_irq_mask,
-	.unmask	   = nuc93x_irq_unmask,
+	.irq_ack	= nuc93x_irq_ack,
+	.irq_mask	= nuc93x_irq_mask,
+	.irq_unmask	= nuc93x_irq_unmask,
 };
 
 void __init nuc93x_init_irq(void)
@@ -59,8 +59,8 @@ void __init nuc93x_init_irq(void)
 	__raw_writel(0xFFFFFFFE, REG_AIC_MDCR);
 
 	for (irqno = IRQ_WDT; irqno <= NR_IRQS; irqno++) {
-		set_irq_chip(irqno, &nuc93x_irq_chip);
-		set_irq_handler(irqno, handle_level_irq);
+		irq_set_chip_and_handler(irqno, &nuc93x_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 }

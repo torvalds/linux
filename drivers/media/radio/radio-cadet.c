@@ -328,11 +328,10 @@ static ssize_t cadet_read(struct file *file, char __user *data, size_t count, lo
 	unsigned char readbuf[RDS_BUFFER];
 	int i = 0;
 
+	mutex_lock(&dev->lock);
 	if (dev->rdsstat == 0) {
-		mutex_lock(&dev->lock);
 		dev->rdsstat = 1;
 		outb(0x80, dev->io);        /* Select RDS fifo */
-		mutex_unlock(&dev->lock);
 		init_timer(&dev->readtimer);
 		dev->readtimer.function = cadet_handler;
 		dev->readtimer.data = (unsigned long)dev;
@@ -340,12 +339,15 @@ static ssize_t cadet_read(struct file *file, char __user *data, size_t count, lo
 		add_timer(&dev->readtimer);
 	}
 	if (dev->rdsin == dev->rdsout) {
+		mutex_unlock(&dev->lock);
 		if (file->f_flags & O_NONBLOCK)
 			return -EWOULDBLOCK;
 		interruptible_sleep_on(&dev->read_queue);
+		mutex_lock(&dev->lock);
 	}
 	while (i < count && dev->rdsin != dev->rdsout)
 		readbuf[i++] = dev->rdsbuf[dev->rdsout++];
+	mutex_unlock(&dev->lock);
 
 	if (copy_to_user(data, readbuf, i))
 		return -EFAULT;
@@ -525,9 +527,11 @@ static int cadet_open(struct file *file)
 {
 	struct cadet *dev = video_drvdata(file);
 
+	mutex_lock(&dev->lock);
 	dev->users++;
 	if (1 == dev->users)
 		init_waitqueue_head(&dev->read_queue);
+	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -535,11 +539,13 @@ static int cadet_release(struct file *file)
 {
 	struct cadet *dev = video_drvdata(file);
 
+	mutex_lock(&dev->lock);
 	dev->users--;
 	if (0 == dev->users) {
 		del_timer_sync(&dev->readtimer);
 		dev->rdsstat = 0;
 	}
+	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -559,7 +565,7 @@ static const struct v4l2_file_operations cadet_fops = {
 	.open		= cadet_open,
 	.release       	= cadet_release,
 	.read		= cadet_read,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 	.poll		= cadet_poll,
 };
 

@@ -1711,6 +1711,7 @@ static int __init psmouse_init(void)
 
 	lifebook_module_init();
 	synaptics_module_init();
+	hgpk_module_init();
 
 	kpsmoused_wq = create_singlethread_workqueue("kpsmoused");
 	if (!kpsmoused_wq) {

@@ -28,4 +28,6 @@
 
 #define PORT_F GPIO_PF0
 
+#include <mach-common/ports-f.h>
+
 #endif /* _MACH_GPIO_H_ */

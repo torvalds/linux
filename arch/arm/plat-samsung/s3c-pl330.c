@@ -68,7 +68,7 @@ struct s3c_pl330_xfer {
  * @req: Two requests to communicate with the PL330 engine.
  * @callback_fn: Callback function to the client.
  * @rqcfg: Channel configuration for the xfers.
- * @xfer_head: Pointer to the xfer to be next excecuted.
+ * @xfer_head: Pointer to the xfer to be next executed.
  * @dmac: Pointer to the DMAC that manages this channel, NULL if the
  * 	channel is available to be acquired.
  * @client: Client of this channel. NULL if the

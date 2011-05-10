@@ -169,14 +169,14 @@ int RTMPAllocAdapterBlock(void *handle,
 		pBeaconBuf = kmalloc(MAX_BEACON_SIZE, MEM_ALLOC_FLAG);
 		if (pBeaconBuf == NULL) {
 			Status = NDIS_STATUS_FAILURE;
-			DBGPRINT_ERR(("Failed to allocate memory - BeaconBuf!\n"));
+			DBGPRINT_ERR("Failed to allocate memory - BeaconBuf!\n");
 			break;
 		}
 		NdisZeroMemory(pBeaconBuf, MAX_BEACON_SIZE);
 
 		Status = AdapterBlockAllocateMemory(handle, (void **) & pAd);
 		if (Status != NDIS_STATUS_SUCCESS) {
-			DBGPRINT_ERR(("Failed to allocate memory - ADAPTER\n"));
+			DBGPRINT_ERR("Failed to allocate memory - ADAPTER\n");
 			break;
 		}
 		pAd->BeaconBuf = pBeaconBuf;
@@ -785,8 +785,7 @@ void NICReadEEPROMParameters(struct rt_rtmp_adapter *pAd, u8 *mac_addr)
 		  Version.field.Version, Version.field.FaeReleaseNumber));
 
 	if (Version.field.Version > VALID_EEPROM_VERSION) {
-		DBGPRINT_ERR(("E2PROM: WRONG VERSION 0x%x, should be %d\n",
-			      Version.field.Version, VALID_EEPROM_VERSION));
+		DBGPRINT_ERR("E2PROM: WRONG VERSION 0x%x, should be %d\n", Version.field.Version, VALID_EEPROM_VERSION);
 		/*pAd->SystemErrorBitmap |= 0x00000001;
 
 		   // hard-code default value when no proper E2PROM installed
@@ -2038,7 +2037,7 @@ void NICUpdateFifoStaCounters(struct rt_rtmp_adapter *pAd)
 
 			pEntry->FIFOCount = 0;
 			pEntry->OneSecTxNoRetryOkCount++;
-			/* update NoDataIdleCount when sucessful send packet to STA. */
+			/* update NoDataIdleCount when successful send packet to STA. */
 			pEntry->NoDataIdleCount = 0;
 			pEntry->ContinueTxFailCnt = 0;
 		}
@@ -2517,7 +2516,7 @@ void UserCfgInit(struct rt_rtmp_adapter *pAd)
 	/*pAd->TurnAggrBulkInCount = 0; */
 	pAd->bUsbTxBulkAggre = 0;
 
-	/* init as unsed value to ensure driver will set to MCU once. */
+	/* init as unused value to ensure driver will set to MCU once. */
 	pAd->LedIndicatorStrength = 0xFF;
 
 	pAd->CommonCfg.MaxPktOneTxBulk = 2;
@@ -2911,7 +2910,7 @@ void RTMPSetTimer(struct rt_ralink_timer *pTimer, unsigned long Value)
 			RTMP_OS_Add_Timer(&pTimer->TimerObj, Value);
 		}
 	} else {
-		DBGPRINT_ERR(("RTMPSetTimer failed, Timer hasn't been initialize!\n"));
+		DBGPRINT_ERR("RTMPSetTimer failed, Timer hasn't been initialize!\n");
 	}
 }
 
@@ -2947,7 +2946,7 @@ void RTMPModTimer(struct rt_ralink_timer *pTimer, unsigned long Value)
 			RTMP_OS_Mod_Timer(&pTimer->TimerObj, Value);
 		}
 	} else {
-		DBGPRINT_ERR(("RTMPModTimer failed, Timer hasn't been initialize!\n"));
+		DBGPRINT_ERR("RTMPModTimer failed, Timer hasn't been initialize!\n");
 	}
 }
 
@@ -2989,7 +2988,7 @@ void RTMPCancelTimer(struct rt_ralink_timer *pTimer, OUT BOOLEAN * pCancelled)
 		RtmpTimerQRemove(pTimer->pAd, pTimer);
 #endif /* RTMP_TIMER_TASK_SUPPORT // */
 	} else {
-		DBGPRINT_ERR(("RTMPCancelTimer failed, Timer hasn't been initialize!\n"));
+		DBGPRINT_ERR("RTMPCancelTimer failed, Timer hasn't been initialize!\n");
 	}
 }
 
@@ -3077,11 +3076,11 @@ void RTMPSetLED(struct rt_rtmp_adapter *pAd, u8 Status)
 	========================================================================
 
 	Routine Description:
-		Set LED Signal Stregth
+		Set LED Signal Strength
 
 	Arguments:
 		pAd						Pointer to our adapter
-		Dbm						Signal Stregth
+		Dbm						Signal Strength
 
 	Return Value:
 		None
@@ -3091,7 +3090,7 @@ void RTMPSetLED(struct rt_rtmp_adapter *pAd, u8 Status)
 	Note:
 		Can be run on any IRQL level.
 
-		According to Microsoft Zero Config Wireless Signal Stregth definition as belows.
+		According to Microsoft Zero Config Wireless Signal Strength definition as belows.
 		<= -90  No Signal
 		<= -81  Very Low
 		<= -71  Low
@@ -3119,7 +3118,7 @@ void RTMPSetSignalLED(struct rt_rtmp_adapter *pAd, IN NDIS_802_11_RSSI Dbm)
 			nLed = 31;
 
 		/* */
-		/* Update Signal Stregth to firmware if changed. */
+		/* Update Signal Strength to firmware if changed. */
 		/* */
 		if (pAd->LedIndicatorStrength != nLed) {
 			AsicSendCommandToMcu(pAd, 0x51, 0xff, nLed,
@@ -3167,7 +3166,7 @@ void RTMPEnableRxTx(struct rt_rtmp_adapter *pAd)
 		if (pAd->CommonCfg.PSPXlink)
 			rx_filter_flag = PSPXLINK;
 		else
-			rx_filter_flag = STANORMAL;	/* Staion not drop control frame will fail WiFi Certification. */
+			rx_filter_flag = STANORMAL;	/* Station not drop control frame will fail WiFi Certification. */
 		RTMP_IO_WRITE32(pAd, RX_FILTR_CFG, rx_filter_flag);
 	}
 
@@ -3251,8 +3250,7 @@ int rt28xx_init(struct rt_rtmp_adapter *pAd,
 	/* Load 8051 firmware */
 	Status = NICLoadFirmware(pAd);
 	if (Status != NDIS_STATUS_SUCCESS) {
-		DBGPRINT_ERR(("NICLoadFirmware failed, Status[=0x%08x]\n",
-			      Status));
+		DBGPRINT_ERR("NICLoadFirmware failed, Status[=0x%08x]\n", Status);
 		goto err1;
 	}
 
@@ -3268,8 +3266,7 @@ int rt28xx_init(struct rt_rtmp_adapter *pAd,
 
 	Status = RTMPAllocTxRxRingMemory(pAd);
 	if (Status != NDIS_STATUS_SUCCESS) {
-		DBGPRINT_ERR(("RTMPAllocDMAMemory failed, Status[=0x%08x]\n",
-			      Status));
+		DBGPRINT_ERR("RTMPAllocDMAMemory failed, Status[=0x%08x]\n", Status);
 		goto err1;
 	}
 
@@ -3284,7 +3281,7 @@ int rt28xx_init(struct rt_rtmp_adapter *pAd,
 
 	Status = MlmeInit(pAd);
 	if (Status != NDIS_STATUS_SUCCESS) {
-		DBGPRINT_ERR(("MlmeInit failed, Status[=0x%08x]\n", Status));
+		DBGPRINT_ERR("MlmeInit failed, Status[=0x%08x]\n", Status);
 		goto err2;
 	}
 	/* Initialize pAd->StaCfg, pAd->ApCfg, pAd->CommonCfg to manufacture default */
@@ -3309,8 +3306,7 @@ int rt28xx_init(struct rt_rtmp_adapter *pAd,
 	/* */
 	Status = NICInitializeAdapter(pAd, TRUE);
 	if (Status != NDIS_STATUS_SUCCESS) {
-		DBGPRINT_ERR(("NICInitializeAdapter failed, Status[=0x%08x]\n",
-			      Status));
+		DBGPRINT_ERR("NICInitializeAdapter failed, Status[=0x%08x]\n", Status);
 		if (Status != NDIS_STATUS_SUCCESS)
 			goto err3;
 	}

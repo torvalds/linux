@@ -132,7 +132,7 @@ static inline void wusb_dev_put(struct wusb_dev *wusb_dev)
 }
 
 /**
- * Wireless USB Host Controlller root hub "fake" ports
+ * Wireless USB Host Controller root hub "fake" ports
  * (state and device information)
  *
  * Wireless USB is wireless, so there are no ports; but we
@@ -231,7 +231,7 @@ struct wusb_port {
  *
  *    Most of the times when you need to use it, it will be non-NULL,
  *    so there is no real need to check for it (wusb_dev will
- *    dissapear before usb_dev).
+ *    disappear before usb_dev).
  *
  *  - The following fields need to be filled out before calling
  *    wusbhc_create(): ports_max, mmcies_max, mmcie_{add,rm}.

@@ -1297,8 +1297,7 @@ static int irda_sendmsg(struct kiocb *iocb, struct socket *sock,
 	/* Note : socket.c set MSG_EOR on SEQPACKET sockets */
 	if (msg->msg_flags & ~(MSG_DONTWAIT | MSG_EOR | MSG_CMSG_COMPAT |
 			       MSG_NOSIGNAL)) {
-		err = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	lock_sock(sk);
@@ -2280,6 +2279,16 @@ static int irda_getsockopt(struct socket *sock, int level, int optname,
 
 	switch (optname) {
 	case IRLMP_ENUMDEVICES:
+
+		/* Offset to first device entry */
+		offset = sizeof(struct irda_device_list) -
+			sizeof(struct irda_device_info);
+
+		if (len < offset) {
+			err = -EINVAL;
+			goto out;
+		}
+
 		/* Ask lmp for the current discovery log */
 		discoveries = irlmp_get_discoveries(&list.len, self->mask.word,
 						    self->nslots);
@@ -2290,14 +2299,8 @@ static int irda_getsockopt(struct socket *sock, int level, int optname,
 		}
 
 		/* Write total list length back to client */
-		if (copy_to_user(optval, &list,
-				 sizeof(struct irda_device_list) -
-				 sizeof(struct irda_device_info)))
+		if (copy_to_user(optval, &list, offset))
 			err = -EFAULT;
-
-		/* Offset to first device entry */
-		offset = sizeof(struct irda_device_list) -
-			sizeof(struct irda_device_info);
 
 		/* Copy the list itself - watch for overflow */
 		if (list.len > 2048) {

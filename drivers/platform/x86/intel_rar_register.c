@@ -485,7 +485,7 @@ EXPORT_SYMBOL(rar_lock);
  *
  *	The register_rar function is to used by other device drivers
  *	to ensure that this driver is ready. As we cannot be sure of
- *	the compile/execute order of drivers in ther kernel, it is
+ *	the compile/execute order of drivers in the kernel, it is
  *	best to give this driver a callback function to call when
  *	it is ready to give out addresses. The callback function
  *	would have those steps that continue the initialization of

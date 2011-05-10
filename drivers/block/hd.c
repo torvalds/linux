@@ -733,7 +733,7 @@ static int __init hd_init(void)
 		 * the BIOS or CMOS.  This doesn't work all that well,
 		 * since this assumes that this is a primary or secondary
 		 * drive, and if we're using this legacy driver, it's
-		 * probably an auxilliary controller added to recover
+		 * probably an auxiliary controller added to recover
 		 * legacy data off an ST-506 drive.  Either way, it's
 		 * definitely safest to have the user explicitly specify
 		 * the information.

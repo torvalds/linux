@@ -44,42 +44,6 @@
 #include "bond_alb.h"
 
 
-#define ALB_TIMER_TICKS_PER_SEC	    10	/* should be a divisor of HZ */
-#define BOND_TLB_REBALANCE_INTERVAL 10	/* In seconds, periodic re-balancing.
-					 * Used for division - never set
-					 * to zero !!!
-					 */
-#define BOND_ALB_LP_INTERVAL	    1	/* In seconds, periodic send of
-					 * learning packets to the switch
-					 */
-
-#define BOND_TLB_REBALANCE_TICKS (BOND_TLB_REBALANCE_INTERVAL \
-				  * ALB_TIMER_TICKS_PER_SEC)
-
-#define BOND_ALB_LP_TICKS (BOND_ALB_LP_INTERVAL \
-			   * ALB_TIMER_TICKS_PER_SEC)
-
-#define TLB_HASH_TABLE_SIZE 256	/* The size of the clients hash table.
-				 * Note that this value MUST NOT be smaller
-				 * because the key hash table is BYTE wide !
-				 */
-
-
-#define TLB_NULL_INDEX		0xffffffff
-#define MAX_LP_BURST		3
-
-/* rlb defs */
-#define RLB_HASH_TABLE_SIZE	256
-#define RLB_NULL_INDEX		0xffffffff
-#define RLB_UPDATE_DELAY	2*ALB_TIMER_TICKS_PER_SEC /* 2 seconds */
-#define RLB_ARP_BURST_SIZE	2
-#define RLB_UPDATE_RETRY	3	/* 3-ticks - must be smaller than the rlb
-					 * rebalance interval (5 min).
-					 */
-/* RLB_PROMISC_TIMEOUT = 10 sec equals the time that the current slave is
- * promiscuous after failover
- */
-#define RLB_PROMISC_TIMEOUT	10*ALB_TIMER_TICKS_PER_SEC
 
 #ifndef __long_aligned
 #define __long_aligned __attribute__((aligned((sizeof(long)))))
@@ -212,7 +176,7 @@ static int tlb_initialize(struct bonding *bond)
 	bond_info->tx_hashtbl = new_hashtbl;
 
 	for (i = 0; i < TLB_HASH_TABLE_SIZE; i++) {
-		tlb_init_table_entry(&bond_info->tx_hashtbl[i], 1);
+		tlb_init_table_entry(&bond_info->tx_hashtbl[i], 0);
 	}
 
 	_unlock_tx_hashtbl(bond);
@@ -361,6 +325,10 @@ static int rlb_arp_recv(struct sk_buff *skb, struct net_device *bond_dev, struct
 		pr_debug("Packet has no ARP data\n");
 		goto out;
 	}
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
+		goto out;
 
 	if (!pskb_may_pull(skb, arp_hdr_len(bond_dev)))
 		goto out;
@@ -636,7 +604,7 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
 
 	_lock_rx_hashtbl(bond);
 
-	hash_index = _simple_hash((u8 *)&arp->ip_dst, sizeof(arp->ip_src));
+	hash_index = _simple_hash((u8 *)&arp->ip_dst, sizeof(arp->ip_dst));
 	client_info = &(bond_info->rx_hashtbl[hash_index]);
 
 	if (client_info->assigned) {
@@ -733,7 +701,7 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 		 */
 		rlb_choose_channel(skb, bond);
 
-		/* The ARP relpy packets must be delayed so that
+		/* The ARP reply packets must be delayed so that
 		 * they can cancel out the influence of the ARP request.
 		 */
 		bond->alb_info.rlb_update_delay_counter = RLB_UPDATE_DELAY;
@@ -1074,7 +1042,7 @@ static void alb_change_hw_addr_on_detach(struct bonding *bond, struct slave *sla
  *
  * If the permanent hw address of @slave is @bond's hw address, we need to
  * find a different hw address to give @slave, that isn't in use by any other
- * slave in the bond. This address must be, of course, one of the premanent
+ * slave in the bond. This address must be, of course, one of the permanent
  * addresses of the other slaves.
  *
  * We go over the slave list, and for each slave there we compare its

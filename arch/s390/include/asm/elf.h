@@ -161,7 +161,9 @@ extern unsigned int vdso_enabled;
    use of this is to invoke "./ld.so someprog" to test out a new version of
    the loader.  We need to make sure that it is out of the way of the program
    that it will "exec", and that there is sufficient room for the brk.  */
-#define ELF_ET_DYN_BASE		(STACK_TOP / 3 * 2)
+
+extern unsigned long randomize_et_dyn(unsigned long base);
+#define ELF_ET_DYN_BASE		(randomize_et_dyn(STACK_TOP / 3 * 2))
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports. */
@@ -206,6 +208,8 @@ do {								\
 	current->mm->context.noexec == 0;		\
 })
 
+#define STACK_RND_MASK	0x7ffUL
+
 #define ARCH_DLINFO							    \
 do {									    \
 	if (vdso_enabled)						    \
@@ -217,5 +221,8 @@ struct linux_binprm;
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
 int arch_setup_additional_pages(struct linux_binprm *, int);
+
+extern unsigned long arch_randomize_brk(struct mm_struct *mm);
+#define arch_randomize_brk arch_randomize_brk
 
 #endif

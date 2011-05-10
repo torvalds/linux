@@ -1,0 +1,19 @@
+What:		/sys/class/tty/console/active
+Date:		Nov 2010
+Contact:	Kay Sievers <kay.sievers@vrfy.org>
+Description:
+		 Shows the list of currently configured
+		 console devices, like 'tty1 ttyS0'.
+		 The last entry in the file is the active
+		 device connected to /dev/console.
+		 The file supports poll() to detect virtual
+		 console switches.
+
+What:		/sys/class/tty/tty0/active
+Date:		Nov 2010
+Contact:	Kay Sievers <kay.sievers@vrfy.org>
+Description:
+		 Shows the currently active virtual console
+		 device, like 'tty1'.
+		 The file supports poll() to detect virtual
+		 console switches.

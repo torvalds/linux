@@ -48,7 +48,7 @@
 #include <linux/usb.h>
 #ifdef CONFIG_CARL9170_LEDS
 #include <linux/leds.h>
-#endif /* CONFIG_CARL170_LEDS */
+#endif /* CONFIG_CARL9170_LEDS */
 #ifdef CONFIG_CARL9170_WPC
 #include <linux/input.h>
 #endif /* CONFIG_CARL9170_WPC */
@@ -161,7 +161,7 @@ struct carl9170_sta_tid {
  * Naturally: The higher the limit, the faster the device CAN send.
  * However, even a slight over-commitment at the wrong time and the
  * hardware is doomed to send all already-queued frames at suboptimal
- * rates. This in turn leads to an enourmous amount of unsuccessful
+ * rates. This in turn leads to an enormous amount of unsuccessful
  * retries => Latency goes up, whereas the throughput goes down. CRASH!
  */
 #define CARL9170_NUM_TX_LIMIT_HARD	((AR9170_TXQ_DEPTH * 3) / 2)
@@ -215,7 +215,7 @@ enum carl9170_restart_reasons {
 	CARL9170_RR_TOO_MANY_FIRMWARE_ERRORS,
 	CARL9170_RR_WATCHDOG,
 	CARL9170_RR_STUCK_TX,
-	CARL9170_RR_SLOW_SYSTEM,
+	CARL9170_RR_UNRESPONSIVE_DEVICE,
 	CARL9170_RR_COMMAND_TIMEOUT,
 	CARL9170_RR_TOO_MANY_PHY_ERRORS,
 	CARL9170_RR_LOST_RSP,
@@ -283,10 +283,12 @@ struct ar9170 {
 		unsigned int mem_blocks;
 		unsigned int mem_block_size;
 		unsigned int rx_size;
+		unsigned int tx_seq_table;
 	} fw;
 
 	/* reset / stuck frames/queue detection */
 	struct work_struct restart_work;
+	struct work_struct ping_work;
 	unsigned int restart_counter;
 	unsigned long queue_stop_timeout[__AR9170_NUM_TXQ];
 	unsigned long max_queue_stop_timeout[__AR9170_NUM_TXQ];
@@ -441,6 +443,7 @@ struct carl9170_ba_stats {
 	u8 ampdu_len;
 	u8 ampdu_ack_len;
 	bool clear;
+	bool req;
 };
 
 struct carl9170_sta_info {
@@ -532,7 +535,7 @@ void carl9170_rx(struct ar9170 *ar, void *buf, unsigned int len);
 void carl9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len);
 
 /* TX */
-int carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
+void carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 void carl9170_tx_janitor(struct work_struct *work);
 void carl9170_tx_process_status(struct ar9170 *ar,
 				const struct carl9170_rsp *cmd);

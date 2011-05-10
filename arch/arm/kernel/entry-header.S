@@ -76,13 +76,13 @@
 #ifndef CONFIG_THUMB2_KERNEL
 	.macro	svc_exit, rpsr
 	msr	spsr_cxsf, \rpsr
-#if defined(CONFIG_CPU_32v6K)
-	clrex					@ clear the exclusive monitor
-	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
-#elif defined (CONFIG_CPU_V6)
+#if defined(CONFIG_CPU_V6)
 	ldr	r0, [sp]
 	strex	r1, r2, [sp]			@ clear the exclusive monitor
 	ldmib	sp, {r1 - pc}^			@ load r1 - pc, cpsr
+#elif defined(CONFIG_CPU_32v6K)
+	clrex					@ clear the exclusive monitor
+	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
 #else
 	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
 #endif
@@ -92,10 +92,10 @@
 	ldr	r1, [sp, #\offset + S_PSR]	@ get calling cpsr
 	ldr	lr, [sp, #\offset + S_PC]!	@ get pc
 	msr	spsr_cxsf, r1			@ save in spsr_svc
-#if defined(CONFIG_CPU_32v6K)
-	clrex					@ clear the exclusive monitor
-#elif defined (CONFIG_CPU_V6)
+#if defined(CONFIG_CPU_V6)
 	strex	r1, r2, [sp]			@ clear the exclusive monitor
+#elif defined(CONFIG_CPU_32v6K)
+	clrex					@ clear the exclusive monitor
 #endif
 	.if	\fast
 	ldmdb	sp, {r1 - lr}^			@ get calling r1 - lr
@@ -164,6 +164,25 @@
 	nop
 	.endm
 #endif	/* !CONFIG_THUMB2_KERNEL */
+
+	@
+	@ Debug exceptions are taken as prefetch or data aborts.
+	@ We must disable preemption during the handler so that
+	@ we can access the debug registers safely.
+	@
+	.macro	debug_entry, fsr
+#if defined(CONFIG_HAVE_HW_BREAKPOINT) && defined(CONFIG_PREEMPT)
+	ldr	r4, =0x40f		@ mask out fsr.fs
+	and	r5, r4, \fsr
+	cmp	r5, #2			@ debug exception
+	bne	1f
+	get_thread_info r10
+	ldr	r6, [r10, #TI_PREEMPT]	@ get preempt count
+	add	r11, r6, #1		@ increment it
+	str	r11, [r10, #TI_PREEMPT]
+1:
+#endif
+	.endm
 
 /*
  * These are the registers used in the syscall handler, and allow us to

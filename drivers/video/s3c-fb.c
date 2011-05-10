@@ -23,6 +23,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 
 #include <mach/map.h>
 #include <plat/regs-fb-v4.h>
@@ -47,7 +48,7 @@
 #undef writel
 #define writel(v, r) do { \
 	printk(KERN_DEBUG "%s: %08x => %p\n", __func__, (unsigned int)v, r); \
-	__raw_writel(v, r); } while(0)
+	__raw_writel(v, r); } while (0)
 #endif /* FB_S3C_DEBUG_REGWRITE */
 
 /* irq_flags bits */
@@ -517,7 +518,7 @@ static int s3c_fb_set_par(struct fb_info *info)
 
 		data = VIDTCON2_LINEVAL(var->yres - 1) |
 		       VIDTCON2_HOZVAL(var->xres - 1);
-		writel(data, regs +sfb->variant.vidtcon + 8 );
+		writel(data, regs + sfb->variant.vidtcon + 8);
 	}
 
 	/* write the buffer address */
@@ -1013,8 +1014,30 @@ static int s3c_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	return ret;
 }
 
+static int s3c_fb_open(struct fb_info *info, int user)
+{
+	struct s3c_fb_win *win = info->par;
+	struct s3c_fb *sfb = win->parent;
+
+	pm_runtime_get_sync(sfb->dev);
+
+	return 0;
+}
+
+static int s3c_fb_release(struct fb_info *info, int user)
+{
+	struct s3c_fb_win *win = info->par;
+	struct s3c_fb *sfb = win->parent;
+
+	pm_runtime_put_sync(sfb->dev);
+
+	return 0;
+}
+
 static struct fb_ops s3c_fb_ops = {
 	.owner		= THIS_MODULE,
+	.fb_open	= s3c_fb_open,
+	.fb_release	= s3c_fb_release,
 	.fb_check_var	= s3c_fb_check_var,
 	.fb_set_par	= s3c_fb_set_par,
 	.fb_blank	= s3c_fb_blank,
@@ -1281,6 +1304,7 @@ static void s3c_fb_clear_win(struct s3c_fb *sfb, int win)
 
 static int __devinit s3c_fb_probe(struct platform_device *pdev)
 {
+	const struct platform_device_id *platid;
 	struct s3c_fb_driverdata *fbdrv;
 	struct device *dev = &pdev->dev;
 	struct s3c_fb_platdata *pd;
@@ -1289,7 +1313,8 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 	int win;
 	int ret = 0;
 
-	fbdrv = (struct s3c_fb_driverdata *)platform_get_device_id(pdev)->driver_data;
+	platid = platform_get_device_id(pdev);
+	fbdrv = (struct s3c_fb_driverdata *)platid->driver_data;
 
 	if (fbdrv->variant.nr_windows > S3C_FB_MAX_WIN) {
 		dev_err(dev, "too many windows, cannot attach\n");
@@ -1317,10 +1342,13 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 	sfb->bus_clk = clk_get(dev, "lcd");
 	if (IS_ERR(sfb->bus_clk)) {
 		dev_err(dev, "failed to get bus clock\n");
+		ret = PTR_ERR(sfb->bus_clk);
 		goto err_sfb;
 	}
 
 	clk_enable(sfb->bus_clk);
+
+	pm_runtime_enable(sfb->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -1359,6 +1387,9 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 	}
 
 	dev_dbg(dev, "got resources (regs %p), probing windows\n", sfb->regs);
+
+	platform_set_drvdata(pdev, sfb);
+	pm_runtime_get_sync(sfb->dev);
 
 	/* setup gpio and output polarity controls */
 
@@ -1400,6 +1431,7 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, sfb);
+	pm_runtime_put_sync(sfb->dev);
 
 	return 0;
 
@@ -1434,6 +1466,8 @@ static int __devexit s3c_fb_remove(struct platform_device *pdev)
 	struct s3c_fb *sfb = platform_get_drvdata(pdev);
 	int win;
 
+	pm_runtime_get_sync(sfb->dev);
+
 	for (win = 0; win < S3C_FB_MAX_WIN; win++)
 		if (sfb->windows[win])
 			s3c_fb_release_win(sfb, sfb->windows[win]);
@@ -1450,12 +1484,16 @@ static int __devexit s3c_fb_remove(struct platform_device *pdev)
 
 	kfree(sfb);
 
+	pm_runtime_put_sync(sfb->dev);
+	pm_runtime_disable(sfb->dev);
+
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static int s3c_fb_suspend(struct platform_device *pdev, pm_message_t state)
+static int s3c_fb_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct s3c_fb *sfb = platform_get_drvdata(pdev);
 	struct s3c_fb_win *win;
 	int win_no;
@@ -1473,8 +1511,9 @@ static int s3c_fb_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int s3c_fb_resume(struct platform_device *pdev)
+static int s3c_fb_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct s3c_fb *sfb = platform_get_drvdata(pdev);
 	struct s3c_fb_platdata *pd = sfb->pdata;
 	struct s3c_fb_win *win;
@@ -1509,9 +1548,70 @@ static int s3c_fb_resume(struct platform_device *pdev)
 
 	return 0;
 }
+
+int s3c_fb_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s3c_fb *sfb = platform_get_drvdata(pdev);
+	struct s3c_fb_win *win;
+	int win_no;
+
+	for (win_no = S3C_FB_MAX_WIN - 1; win_no >= 0; win_no--) {
+		win = sfb->windows[win_no];
+		if (!win)
+			continue;
+
+		/* use the blank function to push into power-down */
+		s3c_fb_blank(FB_BLANK_POWERDOWN, win->fbinfo);
+	}
+
+	clk_disable(sfb->bus_clk);
+	return 0;
+}
+
+int s3c_fb_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s3c_fb *sfb = platform_get_drvdata(pdev);
+	struct s3c_fb_platdata *pd = sfb->pdata;
+	struct s3c_fb_win *win;
+	int win_no;
+
+	clk_enable(sfb->bus_clk);
+
+	/* setup registers */
+	writel(pd->vidcon1, sfb->regs + VIDCON1);
+
+	/* zero all windows before we do anything */
+	for (win_no = 0; win_no < sfb->variant.nr_windows; win_no++)
+		s3c_fb_clear_win(sfb, win_no);
+
+	for (win_no = 0; win_no < sfb->variant.nr_windows - 1; win_no++) {
+		void __iomem *regs = sfb->regs + sfb->variant.keycon;
+
+		regs += (win_no * 8);
+		writel(0xffffff, regs + WKEYCON0);
+		writel(0xffffff, regs + WKEYCON1);
+	}
+
+	/* restore framebuffers */
+	for (win_no = 0; win_no < S3C_FB_MAX_WIN; win_no++) {
+		win = sfb->windows[win_no];
+		if (!win)
+			continue;
+
+		dev_dbg(&pdev->dev, "resuming window %d\n", win_no);
+		s3c_fb_set_par(win->fbinfo);
+	}
+
+	return 0;
+}
+
 #else
 #define s3c_fb_suspend NULL
 #define s3c_fb_resume  NULL
+#define s3c_fb_runtime_suspend NULL
+#define s3c_fb_runtime_resume NULL
 #endif
 
 
@@ -1710,15 +1810,21 @@ static struct platform_device_id s3c_fb_driver_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, s3c_fb_driver_ids);
 
+static const struct dev_pm_ops s3cfb_pm_ops = {
+	.suspend	= s3c_fb_suspend,
+	.resume		= s3c_fb_resume,
+	.runtime_suspend	= s3c_fb_runtime_suspend,
+	.runtime_resume		= s3c_fb_runtime_resume,
+};
+
 static struct platform_driver s3c_fb_driver = {
 	.probe		= s3c_fb_probe,
 	.remove		= __devexit_p(s3c_fb_remove),
-	.suspend	= s3c_fb_suspend,
-	.resume		= s3c_fb_resume,
 	.id_table	= s3c_fb_driver_ids,
 	.driver		= {
 		.name	= "s3c-fb",
 		.owner	= THIS_MODULE,
+		.pm	= &s3cfb_pm_ops,
 	},
 };
 

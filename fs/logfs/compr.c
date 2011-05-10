@@ -81,7 +81,7 @@ error:
 
 int __init logfs_compr_init(void)
 {
-	size_t size = max(zlib_deflate_workspacesize(),
+	size_t size = max(zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL),
 			zlib_inflate_workspacesize());
 	stream.workspace = vmalloc(size);
 	if (!stream.workspace)

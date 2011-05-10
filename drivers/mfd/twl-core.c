@@ -95,7 +95,8 @@
 #define twl_has_rtc()	false
 #endif
 
-#if defined(CONFIG_TWL4030_USB) || defined(CONFIG_TWL4030_USB_MODULE)
+#if defined(CONFIG_TWL4030_USB) || defined(CONFIG_TWL4030_USB_MODULE) ||\
+	defined(CONFIG_TWL6030_USB) || defined(CONFIG_TWL6030_USB_MODULE)
 #define twl_has_usb()	true
 #else
 #define twl_has_usb()	false
@@ -682,14 +683,51 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 			usb3v1.dev = child;
 		}
 	}
+	if (twl_has_usb() && pdata->usb && twl_class_is_6030()) {
 
-	if (twl_has_watchdog()) {
+		static struct regulator_consumer_supply usb3v3 = {
+			.supply =	"vusb",
+		};
+
+		if (twl_has_regulator()) {
+			/* this is a template that gets copied */
+			struct regulator_init_data usb_fixed = {
+				.constraints.valid_modes_mask =
+					REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+				.constraints.valid_ops_mask =
+					REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+			};
+
+			child = add_regulator_linked(TWL6030_REG_VUSB,
+						      &usb_fixed, &usb3v3, 1);
+			if (IS_ERR(child))
+				return PTR_ERR(child);
+		}
+
+		child = add_child(0, "twl6030_usb",
+			pdata->usb, sizeof(*pdata->usb),
+			true,
+			/* irq1 = VBUS_PRES, irq0 = USB ID */
+			pdata->irq_base + USBOTG_INTR_OFFSET,
+			pdata->irq_base + USB_PRES_INTR_OFFSET);
+
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+		/* we need to connect regulators to this transceiver */
+		if (twl_has_regulator() && child)
+			usb3v3.dev = child;
+
+	}
+
+	if (twl_has_watchdog() && twl_class_is_4030()) {
 		child = add_child(0, "twl4030_wdt", NULL, 0, false, 0, 0);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
 
-	if (twl_has_pwrbutton()) {
+	if (twl_has_pwrbutton() && twl_class_is_4030()) {
 		child = add_child(1, "twl4030_pwrbutton",
 				NULL, 0, true, pdata->irq_base + 8 + 0, 0);
 		if (IS_ERR(child))
@@ -815,10 +853,6 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		child = add_regulator(TWL6030_REG_VUSB, pdata->vusb);
-		if (IS_ERR(child))
-			return PTR_ERR(child);
-
 		child = add_regulator(TWL6030_REG_VAUX1_6030, pdata->vaux1);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
@@ -828,6 +862,10 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 			return PTR_ERR(child);
 
 		child = add_regulator(TWL6030_REG_VAUX3_6030, pdata->vaux3);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_CLK32KG, pdata->clk32kg);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
@@ -969,7 +1007,7 @@ static int twl_remove(struct i2c_client *client)
 }
 
 /* NOTE:  this driver only handles a single twl4030/tps659x0 chip */
-static int __init
+static int __devinit
 twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int				status;

@@ -761,6 +761,9 @@ int bioset_integrity_create(struct bio_set *bs, int pool_size)
 {
 	unsigned int max_slab = vecs_to_idx(BIO_MAX_PAGES);
 
+	if (bs->bio_integrity_pool)
+		return 0;
+
 	bs->bio_integrity_pool =
 		mempool_create_slab_pool(pool_size, bip_slab[max_slab].slab);
 
@@ -782,7 +785,12 @@ void __init bio_integrity_init(void)
 {
 	unsigned int i;
 
-	kintegrityd_wq = create_workqueue("kintegrityd");
+	/*
+	 * kintegrityd won't block much but may burn a lot of CPU cycles.
+	 * Make it highpri CPU intensive wq with max concurrency of 1.
+	 */
+	kintegrityd_wq = alloc_workqueue("kintegrityd", WQ_MEM_RECLAIM |
+					 WQ_HIGHPRI | WQ_CPU_INTENSIVE, 1);
 	if (!kintegrityd_wq)
 		panic("Failed to create kintegrityd\n");
 

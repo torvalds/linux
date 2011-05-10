@@ -74,7 +74,7 @@ static inline void musb_writel(void __iomem *addr, unsigned offset, u32 data)
 	{ __raw_writel(data, addr + offset); }
 
 
-#ifdef CONFIG_USB_TUSB6010
+#ifdef CONFIG_USB_MUSB_TUSB6010
 
 /*
  * TUSB6010 doesn't allow 8-bit access; 16-bit access is the minimum.
@@ -114,7 +114,7 @@ static inline u8 musb_readb(const void __iomem *addr, unsigned offset)
 static inline void musb_writeb(void __iomem *addr, unsigned offset, u8 data)
 	{ __raw_writeb(data, addr + offset); }
 
-#endif	/* CONFIG_USB_TUSB6010 */
+#endif	/* CONFIG_USB_MUSB_TUSB6010 */
 
 #else
 

@@ -1,4 +1,4 @@
-/* Copyright 2008-2010 Broadcom Corporation
+/* Copyright 2008-2011 Broadcom Corporation
  *
  * Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -33,7 +33,7 @@
 #define BNX2X_FLOW_CTRL_BOTH		PORT_FEATURE_FLOW_CONTROL_BOTH
 #define BNX2X_FLOW_CTRL_NONE		PORT_FEATURE_FLOW_CONTROL_NONE
 
-#define SPEED_AUTO_NEG	    0
+#define SPEED_AUTO_NEG		0
 #define SPEED_12000		12000
 #define SPEED_12500		12500
 #define SPEED_13000		13000
@@ -44,8 +44,8 @@
 #define SFP_EEPROM_VENDOR_NAME_SIZE		16
 #define SFP_EEPROM_VENDOR_OUI_ADDR		0x25
 #define SFP_EEPROM_VENDOR_OUI_SIZE		3
-#define SFP_EEPROM_PART_NO_ADDR 		0x28
-#define SFP_EEPROM_PART_NO_SIZE		16
+#define SFP_EEPROM_PART_NO_ADDR			0x28
+#define SFP_EEPROM_PART_NO_SIZE			16
 #define PWR_FLT_ERR_MSG_LEN			250
 
 #define XGXS_EXT_PHY_TYPE(ext_phy_config) \
@@ -62,9 +62,25 @@
 #define SINGLE_MEDIA(params)		(params->num_phys == 2)
 /* Dual Media board contains two external phy with different media */
 #define DUAL_MEDIA(params)		(params->num_phys == 3)
-#define FW_PARAM_MDIO_CTRL_OFFSET 16
+#define FW_PARAM_MDIO_CTRL_OFFSET		16
 #define FW_PARAM_SET(phy_addr, phy_type, mdio_access) \
 	(phy_addr | phy_type | mdio_access << FW_PARAM_MDIO_CTRL_OFFSET)
+
+#define PFC_BRB_MAC_PAUSE_XOFF_THRESHOLD_PAUSEABLE		170
+#define PFC_BRB_MAC_PAUSE_XOFF_THRESHOLD_NON_PAUSEABLE		0
+
+#define PFC_BRB_MAC_PAUSE_XON_THRESHOLD_PAUSEABLE			250
+#define PFC_BRB_MAC_PAUSE_XON_THRESHOLD_NON_PAUSEABLE		0
+
+#define PFC_BRB_MAC_FULL_XOFF_THRESHOLD_PAUSEABLE			10
+#define PFC_BRB_MAC_FULL_XOFF_THRESHOLD_NON_PAUSEABLE		90
+
+#define PFC_BRB_MAC_FULL_XON_THRESHOLD_PAUSEABLE			50
+#define PFC_BRB_MAC_FULL_XON_THRESHOLD_NON_PAUSEABLE		250
+
+#define PFC_BRB_FULL_LB_XOFF_THRESHOLD				170
+#define PFC_BRB_FULL_LB_XON_THRESHOLD				250
+
 /***********************************************************/
 /*                         Structs                         */
 /***********************************************************/
@@ -185,12 +201,14 @@ struct link_params {
 
 	/* Default / User Configuration */
 	u8 loopback_mode;
-#define LOOPBACK_NONE	0
-#define LOOPBACK_EMAC	1
-#define LOOPBACK_BMAC	2
+#define LOOPBACK_NONE		0
+#define LOOPBACK_EMAC		1
+#define LOOPBACK_BMAC		2
 #define LOOPBACK_XGXS		3
 #define LOOPBACK_EXT_PHY	4
-#define LOOPBACK_EXT 	5
+#define LOOPBACK_EXT		5
+#define LOOPBACK_UMAC		6
+#define LOOPBACK_XMAC		7
 
 	/* Device parameters */
 	u8 mac_addr[6];
@@ -214,9 +232,11 @@ struct link_params {
 	/* Phy register parameter */
 	u32 chip_id;
 
+	/* features */
 	u32 feature_config_flags;
-#define FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED (1<<0)
-#define FEATURE_CONFIG_BC_SUPPORTS_OPT_MDL_VRFY	(1<<2)
+#define FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED	(1<<0)
+#define FEATURE_CONFIG_PFC_ENABLED			(1<<1)
+#define FEATURE_CONFIG_BC_SUPPORTS_OPT_MDL_VRFY		(1<<2)
 #define FEATURE_CONFIG_BC_SUPPORTS_DUAL_PHY_OPT_MDL_VRFY	(1<<3)
 	/* Will be populated during common init */
 	struct bnx2x_phy phy[MAX_PHYS];
@@ -317,6 +337,11 @@ void bnx2x_ext_phy_hw_reset(struct bnx2x *bp, u8 port);
 /* Reset the external of SFX7101 */
 void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, struct bnx2x_phy *phy);
 
+/* Read "byte_cnt" bytes from address "addr" from the SFP+ EEPROM */
+u8 bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
+				struct link_params *params, u16 addr,
+				u8 byte_cnt, u8 *o_buf);
+
 void bnx2x_hw_reset_phy(struct link_params *params);
 
 /* Checks if HW lock is required for this phy/board type */
@@ -332,4 +357,43 @@ u8 bnx2x_phy_probe(struct link_params *params);
 u8 bnx2x_fan_failure_det_req(struct bnx2x *bp, u32 shmem_base,
 			     u32 shmem2_base, u8 port);
 
+/* PFC port configuration params */
+struct bnx2x_nig_brb_pfc_port_params {
+	/* NIG */
+	u32 pause_enable;
+	u32 llfc_out_en;
+	u32 llfc_enable;
+	u32 pkt_priority_to_cos;
+	u32 rx_cos0_priority_mask;
+	u32 rx_cos1_priority_mask;
+	u32 llfc_high_priority_classes;
+	u32 llfc_low_priority_classes;
+	/* BRB */
+	u32 cos0_pauseable;
+	u32 cos1_pauseable;
+};
+
+/**
+ * Used to update the PFC attributes in EMAC, BMAC, NIG and BRB
+ * when link is already up
+ */
+void bnx2x_update_pfc(struct link_params *params,
+		      struct link_vars *vars,
+		      struct bnx2x_nig_brb_pfc_port_params *pfc_params);
+
+
+/* Used to configure the ETS to disable */
+void bnx2x_ets_disabled(struct link_params *params);
+
+/* Used to configure the ETS to BW limited */
+void bnx2x_ets_bw_limit(const struct link_params *params, const u32 cos0_bw,
+			const u32 cos1_bw);
+
+/* Used to configure the ETS to strict */
+u8 bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos);
+
+/* Read pfc statistic*/
+void bnx2x_pfc_statistic(struct link_params *params, struct link_vars *vars,
+						 u32 pfc_frames_sent[2],
+						 u32 pfc_frames_received[2]);
 #endif /* BNX2X_LINK_H */

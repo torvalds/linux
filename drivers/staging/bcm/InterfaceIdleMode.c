@@ -11,7 +11,7 @@ Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
 
 
 Return:				BCM_STATUS_SUCCESS - If Wakeup of the HW Interface was successful.
-						Other           - If an error occured.
+						Other           - If an error occurred.
 */
 
 
@@ -26,7 +26,7 @@ Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
 
 
 Return:				BCM_STATUS_SUCCESS - If Idle mode response related HW configuration was successful.
-						Other           - If an error occured.
+						Other           - If an error occurred.
 */
 
 /*
@@ -98,14 +98,6 @@ int InterfaceIdleModeRespond(PMINI_ADAPTER Adapter, unsigned int* puiBuffer)
 			Adapter->bTriedToWakeUpFromlowPowerMode = FALSE;
 
 			wake_up(&Adapter->lowpower_mode_wait_queue);
-		#if 0
-			if(Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY)
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL,"LED Thread is Running. Hence Setting the LED Event as IDLEMODE_EXIT");
-				Adapter->DriverState = IDLEMODE_EXIT;
-				wake_up(&Adapter->LEDInfo.notify_led_event);
-			}
-		#endif
 
 		}
 		else
@@ -154,17 +146,7 @@ int InterfaceIdleModeRespond(PMINI_ADAPTER Adapter, unsigned int* puiBuffer)
 	return status;
 }
 
-
-VOID InterfaceWriteIdleModeWakePattern(PMINI_ADAPTER Adapter)
-{
-/*	BeceemWriteMemoryUshort(Adapter, Host2CPU_Mailbox_Low, 0x1d1e);
-	BeceemWriteMemoryUshort(Adapter, Host2CPU_Mailbox_Low, 0x1d1e);
-	BeceemWriteMemoryUshort(Adapter, Host2CPU_Mailbox_Upp, 0xd0ea);
-	BeceemWriteMemoryUshort(Adapter, Host2CPU_Mailbox_Upp, 0xd0ea);*/
-	return;
-}
-
-int InterfaceAbortIdlemode(PMINI_ADAPTER Adapter, unsigned int Pattern)
+static int InterfaceAbortIdlemode(PMINI_ADAPTER Adapter, unsigned int Pattern)
 {
 	int 	status = STATUS_SUCCESS;
 	unsigned int value;

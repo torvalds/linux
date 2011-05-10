@@ -255,6 +255,16 @@ config JOYSTICK_AMIGA
 	  To compile this driver as a module, choose M here: the
 	  module will be called amijoy.
 
+config JOYSTICK_AS5011
+	tristate "Austria Microsystem AS5011 joystick"
+	depends on I2C
+	help
+	  Say Y here if you have an AS5011 digital joystick connected to your
+	  system.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called as5011.
+
 config JOYSTICK_JOYDUMP
 	tristate "Gameport data dumper"
 	select GAMEPORT

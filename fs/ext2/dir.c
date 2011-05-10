@@ -28,21 +28,30 @@
 
 typedef struct ext2_dir_entry_2 ext2_dirent;
 
+/*
+ * Tests against MAX_REC_LEN etc were put in place for 64k block
+ * sizes; if that is not possible on this arch, we can skip
+ * those tests and speed things up.
+ */
 static inline unsigned ext2_rec_len_from_disk(__le16 dlen)
 {
 	unsigned len = le16_to_cpu(dlen);
 
+#if (PAGE_CACHE_SIZE >= 65536)
 	if (len == EXT2_MAX_REC_LEN)
 		return 1 << 16;
+#endif
 	return len;
 }
 
 static inline __le16 ext2_rec_len_to_disk(unsigned len)
 {
+#if (PAGE_CACHE_SIZE >= 65536)
 	if (len == (1 << 16))
 		return cpu_to_le16(EXT2_MAX_REC_LEN);
 	else
 		BUG_ON(len > (1 << 16));
+#endif
 	return cpu_to_le16(len);
 }
 
@@ -129,15 +138,15 @@ static void ext2_check_page(struct page *page, int quiet)
 		p = (ext2_dirent *)(kaddr + offs);
 		rec_len = ext2_rec_len_from_disk(p->rec_len);
 
-		if (rec_len < EXT2_DIR_REC_LEN(1))
+		if (unlikely(rec_len < EXT2_DIR_REC_LEN(1)))
 			goto Eshort;
-		if (rec_len & 3)
+		if (unlikely(rec_len & 3))
 			goto Ealign;
-		if (rec_len < EXT2_DIR_REC_LEN(p->name_len))
+		if (unlikely(rec_len < EXT2_DIR_REC_LEN(p->name_len)))
 			goto Enamelen;
-		if (((offs + rec_len - 1) ^ offs) & ~(chunk_size-1))
+		if (unlikely(((offs + rec_len - 1) ^ offs) & ~(chunk_size-1)))
 			goto Espan;
-		if (le32_to_cpu(p->inode) > max_inumber)
+		if (unlikely(le32_to_cpu(p->inode) > max_inumber))
 			goto Einumber;
 	}
 	if (offs != limit)

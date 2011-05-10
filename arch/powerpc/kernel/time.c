@@ -155,7 +155,7 @@ EXPORT_SYMBOL_GPL(rtc_lock);
 
 static u64 tb_to_ns_scale __read_mostly;
 static unsigned tb_to_ns_shift __read_mostly;
-static unsigned long boot_tb __read_mostly;
+static u64 boot_tb __read_mostly;
 
 extern struct timezone sys_tz;
 static long timezone_offset;
@@ -229,6 +229,9 @@ static u64 scan_dispatch_log(u64 stop_tb)
 	u64 stolen = 0;
 	u64 dtb;
 
+	if (!dtl)
+		return 0;
+
 	if (i == vpa->dtl_idx)
 		return 0;
 	while (i < vpa->dtl_idx) {
@@ -265,11 +268,26 @@ void accumulate_stolen_time(void)
 {
 	u64 sst, ust;
 
-	sst = scan_dispatch_log(get_paca()->starttime_user);
-	ust = scan_dispatch_log(get_paca()->starttime);
-	get_paca()->system_time -= sst;
-	get_paca()->user_time -= ust;
-	get_paca()->stolen_time += ust + sst;
+	u8 save_soft_enabled = local_paca->soft_enabled;
+	u8 save_hard_enabled = local_paca->hard_enabled;
+
+	/* We are called early in the exception entry, before
+	 * soft/hard_enabled are sync'ed to the expected state
+	 * for the exception. We are hard disabled but the PACA
+	 * needs to reflect that so various debug stuff doesn't
+	 * complain
+	 */
+	local_paca->soft_enabled = 0;
+	local_paca->hard_enabled = 0;
+
+	sst = scan_dispatch_log(local_paca->starttime_user);
+	ust = scan_dispatch_log(local_paca->starttime);
+	local_paca->system_time -= sst;
+	local_paca->user_time -= ust;
+	local_paca->stolen_time += ust + sst;
+
+	local_paca->soft_enabled = save_soft_enabled;
+	local_paca->hard_enabled = save_hard_enabled;
 }
 
 static inline u64 calculate_stolen_time(u64 stop_tb)
@@ -341,7 +359,7 @@ void account_system_vtime(struct task_struct *tsk)
 	}
 	get_paca()->user_time_scaled += user_scaled;
 
-	if (in_irq() || idle_task(smp_processor_id()) != tsk) {
+	if (in_interrupt() || idle_task(smp_processor_id()) != tsk) {
 		account_system_time(tsk, 0, delta, sys_scaled);
 		if (stolen)
 			account_steal_time(stolen);
@@ -562,13 +580,20 @@ void timer_interrupt(struct pt_regs * regs)
 	struct clock_event_device *evt = &decrementer->event;
 	u64 now;
 
+	/* Ensure a positive value is written to the decrementer, or else
+	 * some CPUs will continue to take decrementer exceptions.
+	 */
+	set_dec(DECREMENTER_MAX);
+
+	/* Some implementations of hotplug will get timer interrupts while
+	 * offline, just ignore these
+	 */
+	if (!cpu_online(smp_processor_id()))
+		return;
+
 	trace_timer_interrupt_entry(regs);
 
 	__get_cpu_var(irq_stat).timer_irqs++;
-
-	/* Ensure a positive value is written to the decrementer, or else
-	 * some CPUs will continuue to take decrementer exceptions */
-	set_dec(DECREMENTER_MAX);
 
 #if defined(CONFIG_PPC32) && defined(CONFIG_PMAC)
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)

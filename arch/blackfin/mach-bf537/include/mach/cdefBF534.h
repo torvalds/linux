@@ -1,19 +1,11 @@
 /*
- * Copyright 2005-2008 Analog Devices Inc.
+ * Copyright 2005-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later
  */
 
 #ifndef _CDEF_BF534_H
 #define _CDEF_BF534_H
-
-#include <asm/blackfin.h>
-
-/* Include all Core registers and bit definitions 									*/
-#include "defBF534.h"
-
-/* Include core specific register pointer definitions 								*/
-#include <asm/cdef_LPBlackfin.h>
 
 /* Clock and System Control	(0xFFC00000 - 0xFFC000FF)								*/
 #define bfin_read_PLL_CTL()                  bfin_read16(PLL_CTL)
@@ -355,16 +347,10 @@
 #define bfin_write_EBIU_SDSTAT(val)          bfin_write16(EBIU_SDSTAT,val)
 
 /* DMA Traffic Control Registers													*/
-#define bfin_read_DMA_TC_PER()                bfin_read16(DMA_TC_PER)
-#define bfin_write_DMA_TC_PER(val)            bfin_write16(DMA_TC_PER,val)
-#define bfin_read_DMA_TC_CNT()                bfin_read16(DMA_TC_CNT)
-#define bfin_write_DMA_TC_CNT(val)            bfin_write16(DMA_TC_CNT,val)
-
-/* Alternate deprecated register names (below) provided for backwards code compatibility */
-#define bfin_read_DMA_TCPER()                bfin_read16(DMA_TCPER)
-#define bfin_write_DMA_TCPER(val)            bfin_write16(DMA_TCPER,val)
-#define bfin_read_DMA_TCCNT()                bfin_read16(DMA_TCCNT)
-#define bfin_write_DMA_TCCNT(val)            bfin_write16(DMA_TCCNT,val)
+#define bfin_read_DMAC_TC_PER()              bfin_read16(DMAC_TC_PER)
+#define bfin_write_DMAC_TC_PER(val)          bfin_write16(DMAC_TC_PER,val)
+#define bfin_read_DMAC_TC_CNT()              bfin_read16(DMAC_TC_CNT)
+#define bfin_write_DMAC_TC_CNT(val)          bfin_write16(DMAC_TC_CNT,val)
 
 /* DMA Controller																	*/
 #define bfin_read_DMA0_CONFIG()              bfin_read16(DMA0_CONFIG)
@@ -1746,8 +1732,5 @@
 #define bfin_write_HMDMA1_ECOUNT(val)        bfin_write16(HMDMA1_ECOUNT,val)
 #define bfin_read_HMDMA1_BCOUNT()            bfin_read16(HMDMA1_BCOUNT)
 #define bfin_write_HMDMA1_BCOUNT(val)        bfin_write16(HMDMA1_BCOUNT,val)
-
-/* These need to be last due to the cdef/linux inter-dependencies */
-#include <asm/irq.h>
 
 #endif				/* _CDEF_BF534_H */

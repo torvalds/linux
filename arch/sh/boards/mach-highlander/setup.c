@@ -24,10 +24,10 @@
 #include <linux/interrupt.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/m66592.h>
+#include <linux/clkdev.h>
 #include <net/ax88796.h>
 #include <asm/machvec.h>
 #include <mach/highlander.h>
-#include <asm/clkdev.h>
 #include <asm/clock.h>
 #include <asm/heartbeat.h>
 #include <asm/io.h>

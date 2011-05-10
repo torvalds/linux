@@ -364,7 +364,7 @@ static int smsc9420_eeprom_send_cmd(struct smsc9420_pdata *pd, u32 op)
 	}
 
 	if (e2cmd & E2P_CMD_EPC_TIMEOUT_) {
-		smsc_info(HW, "Error occured during eeprom operation");
+		smsc_info(HW, "Error occurred during eeprom operation");
 		return -EINVAL;
 	}
 

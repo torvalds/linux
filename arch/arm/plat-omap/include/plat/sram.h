@@ -11,7 +11,20 @@
 #ifndef __ARCH_ARM_OMAP_SRAM_H
 #define __ARCH_ARM_OMAP_SRAM_H
 
-extern void * omap_sram_push(void * start, unsigned long size);
+#ifndef __ASSEMBLY__
+#include <asm/fncpy.h>
+
+extern void *omap_sram_push_address(unsigned long size);
+
+/* Macro to push a function to the internal SRAM, using the fncpy API */
+#define omap_sram_push(funcp, size) ({				\
+	typeof(&(funcp)) _res = NULL;				\
+	void *_sram_address = omap_sram_push_address(size);	\
+	if (_sram_address)					\
+		_res = fncpy(_sram_address, &(funcp), size);	\
+	_res;							\
+})
+
 extern void omap_sram_reprogram_clock(u32 dpllctl, u32 ckctl);
 
 extern void omap2_sram_ddr_init(u32 *slow_dll_ctrl, u32 fast_dll_ctrl,
@@ -73,5 +86,15 @@ extern void omap_push_sram_idle(void);
 #else
 static inline void omap_push_sram_idle(void) {}
 #endif /* CONFIG_PM */
+
+#endif /* __ASSEMBLY__ */
+
+/*
+ * OMAP2+: define the SRAM PA addresses.
+ * Used by the SRAM management code and the idle sleep code.
+ */
+#define OMAP2_SRAM_PA		0x40200000
+#define OMAP3_SRAM_PA           0x40200000
+#define OMAP4_SRAM_PA		0x40300000
 
 #endif

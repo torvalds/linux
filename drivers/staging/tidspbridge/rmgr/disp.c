@@ -58,15 +58,15 @@
  *  ======== disp_object ========
  */
 struct disp_object {
-	struct dev_object *hdev_obj;	/* Device for this processor */
+	struct dev_object *dev_obj;	/* Device for this processor */
 	/* Function interface to Bridge driver */
 	struct bridge_drv_interface *intf_fxns;
-	struct chnl_mgr *hchnl_mgr;	/* Channel manager */
+	struct chnl_mgr *chnl_mgr;	/* Channel manager */
 	struct chnl_object *chnl_to_dsp;	/* Chnl for commands to RMS */
 	struct chnl_object *chnl_from_dsp;	/* Chnl for replies from RMS */
-	u8 *pbuf;		/* Buffer for commands, replies */
-	u32 ul_bufsize;		/* pbuf size in bytes */
-	u32 ul_bufsize_rms;	/* pbuf size in RMS words */
+	u8 *buf;		/* Buffer for commands, replies */
+	u32 bufsize;		/* buf size in bytes */
+	u32 bufsize_rms;	/* buf size in RMS words */
 	u32 char_size;		/* Size of DSP character */
 	u32 word_size;		/* Size of DSP word */
 	u32 data_mau_size;	/* Size of DSP Data MAU */
@@ -108,11 +108,11 @@ int disp_create(struct disp_object **dispatch_obj,
 	if (disp_obj == NULL)
 		status = -ENOMEM;
 	else
-		disp_obj->hdev_obj = hdev_obj;
+		disp_obj->dev_obj = hdev_obj;
 
 	/* Get Channel manager and Bridge function interface */
 	if (!status) {
-		status = dev_get_chnl_mgr(hdev_obj, &(disp_obj->hchnl_mgr));
+		status = dev_get_chnl_mgr(hdev_obj, &(disp_obj->chnl_mgr));
 		if (!status) {
 			(void)dev_get_intf_fxns(hdev_obj, &intf_fxns);
 			disp_obj->intf_fxns = intf_fxns;
@@ -140,26 +140,26 @@ int disp_create(struct disp_object **dispatch_obj,
 	/* Open channels for communicating with the RMS */
 	chnl_attr_obj.uio_reqs = CHNLIOREQS;
 	chnl_attr_obj.event_obj = NULL;
-	ul_chnl_id = disp_attrs->ul_chnl_offset + CHNLTORMSOFFSET;
-	status = (*intf_fxns->pfn_chnl_open) (&(disp_obj->chnl_to_dsp),
-					      disp_obj->hchnl_mgr,
+	ul_chnl_id = disp_attrs->chnl_offset + CHNLTORMSOFFSET;
+	status = (*intf_fxns->chnl_open) (&(disp_obj->chnl_to_dsp),
+					      disp_obj->chnl_mgr,
 					      CHNL_MODETODSP, ul_chnl_id,
 					      &chnl_attr_obj);
 
 	if (!status) {
-		ul_chnl_id = disp_attrs->ul_chnl_offset + CHNLFROMRMSOFFSET;
+		ul_chnl_id = disp_attrs->chnl_offset + CHNLFROMRMSOFFSET;
 		status =
-		    (*intf_fxns->pfn_chnl_open) (&(disp_obj->chnl_from_dsp),
-						 disp_obj->hchnl_mgr,
+		    (*intf_fxns->chnl_open) (&(disp_obj->chnl_from_dsp),
+						 disp_obj->chnl_mgr,
 						 CHNL_MODEFROMDSP, ul_chnl_id,
 						 &chnl_attr_obj);
 	}
 	if (!status) {
 		/* Allocate buffer for commands, replies */
-		disp_obj->ul_bufsize = disp_attrs->ul_chnl_buf_size;
-		disp_obj->ul_bufsize_rms = RMS_COMMANDBUFSIZE;
-		disp_obj->pbuf = kzalloc(disp_obj->ul_bufsize, GFP_KERNEL);
-		if (disp_obj->pbuf == NULL)
+		disp_obj->bufsize = disp_attrs->chnl_buf_size;
+		disp_obj->bufsize_rms = RMS_COMMANDBUFSIZE;
+		disp_obj->buf = kzalloc(disp_obj->bufsize, GFP_KERNEL);
+		if (disp_obj->buf == NULL)
 			status = -ENOMEM;
 	}
 func_cont:
@@ -232,7 +232,7 @@ int disp_node_change_priority(struct disp_object *disp_obj,
 	DBC_REQUIRE(hnode != NULL);
 
 	/* Send message to RMS to change priority */
-	rms_cmd = (struct rms_command *)(disp_obj->pbuf);
+	rms_cmd = (struct rms_command *)(disp_obj->buf);
 	rms_cmd->fxn = (rms_word) (rms_fxn);
 	rms_cmd->arg1 = (rms_word) node_env;
 	rms_cmd->arg2 = prio;
@@ -282,7 +282,7 @@ int disp_node_create(struct disp_object *disp_obj,
 	DBC_REQUIRE(node_get_type(hnode) != NODE_DEVICE);
 	DBC_REQUIRE(node_env != NULL);
 
-	status = dev_get_dev_type(disp_obj->hdev_obj, &dev_type);
+	status = dev_get_dev_type(disp_obj->dev_obj, &dev_type);
 
 	if (status)
 		goto func_end;
@@ -295,7 +295,7 @@ int disp_node_create(struct disp_object *disp_obj,
 	DBC_REQUIRE(pargs != NULL);
 	node_type = node_get_type(hnode);
 	node_msg_args = pargs->asa.node_msg_args;
-	max = disp_obj->ul_bufsize_rms;	/*Max # of RMS words that can be sent */
+	max = disp_obj->bufsize_rms;	/*Max # of RMS words that can be sent */
 	DBC_ASSERT(max == RMS_COMMANDBUFSIZE);
 	chars_in_rms_word = sizeof(rms_word) / disp_obj->char_size;
 	/* Number of RMS words needed to hold arg data */
@@ -347,7 +347,7 @@ int disp_node_create(struct disp_object *disp_obj,
 	 */
 	if (!status) {
 		total = 0;	/* Total number of words in buffer so far */
-		pdw_buf = (rms_word *) disp_obj->pbuf;
+		pdw_buf = (rms_word *) disp_obj->buf;
 		rms_cmd = (struct rms_command *)pdw_buf;
 		rms_cmd->fxn = (rms_word) (rms_fxn);
 		rms_cmd->arg1 = (rms_word) (ul_create_fxn);
@@ -402,16 +402,16 @@ int disp_node_create(struct disp_object *disp_obj,
 			more_task_args->sysstack_size =
 			    task_arg_obj.sys_stack_size;
 			more_task_args->stack_seg = task_arg_obj.stack_seg;
-			more_task_args->heap_addr = task_arg_obj.udsp_heap_addr;
+			more_task_args->heap_addr = task_arg_obj.dsp_heap_addr;
 			more_task_args->heap_size = task_arg_obj.heap_size;
-			more_task_args->misc = task_arg_obj.ul_dais_arg;
+			more_task_args->misc = task_arg_obj.dais_arg;
 			more_task_args->num_input_streams =
 			    task_arg_obj.num_inputs;
 			total +=
 			    sizeof(struct rms_more_task_args) /
 			    sizeof(rms_word);
-			dev_dbg(bridge, "%s: udsp_heap_addr %x, heap_size %x\n",
-				__func__, task_arg_obj.udsp_heap_addr,
+			dev_dbg(bridge, "%s: dsp_heap_addr %x, heap_size %x\n",
+				__func__, task_arg_obj.dsp_heap_addr,
 				task_arg_obj.heap_size);
 			/* Keep track of pSIOInDef[] and pSIOOutDef[]
 			 * positions in the buffer, since this needs to be
@@ -460,17 +460,6 @@ int disp_node_create(struct disp_object *disp_obj,
 		DBC_ASSERT(ul_bytes < (RMS_COMMANDBUFSIZE * sizeof(rms_word)));
 		status = send_message(disp_obj, node_get_timeout(hnode),
 				      ul_bytes, node_env);
-		if (status >= 0) {
-			/*
-			 * Message successfully received from RMS.
-			 * Return the status of the Node's create function
-			 * on the DSP-side
-			 */
-			status = (((rms_word *) (disp_obj->pbuf))[0]);
-			if (status < 0)
-				dev_dbg(bridge, "%s: DSP-side failed: 0x%x\n",
-					__func__, status);
-		}
 	}
 func_end:
 	return status;
@@ -495,7 +484,7 @@ int disp_node_delete(struct disp_object *disp_obj,
 	DBC_REQUIRE(disp_obj);
 	DBC_REQUIRE(hnode != NULL);
 
-	status = dev_get_dev_type(disp_obj->hdev_obj, &dev_type);
+	status = dev_get_dev_type(disp_obj->dev_obj, &dev_type);
 
 	if (!status) {
 
@@ -504,7 +493,7 @@ int disp_node_delete(struct disp_object *disp_obj,
 			/*
 			 *  Fill in buffer to send to RMS
 			 */
-			rms_cmd = (struct rms_command *)disp_obj->pbuf;
+			rms_cmd = (struct rms_command *)disp_obj->buf;
 			rms_cmd->fxn = (rms_word) (rms_fxn);
 			rms_cmd->arg1 = (rms_word) node_env;
 			rms_cmd->arg2 = (rms_word) (ul_delete_fxn);
@@ -513,18 +502,6 @@ int disp_node_delete(struct disp_object *disp_obj,
 			status = send_message(disp_obj, node_get_timeout(hnode),
 					      sizeof(struct rms_command),
 					      &dw_arg);
-			if (status >= 0) {
-				/*
-				 * Message successfully received from RMS.
-				 * Return the status of the Node's delete
-				 * function on the DSP-side
-				 */
-				status = (((rms_word *) (disp_obj->pbuf))[0]);
-				if (status < 0)
-					dev_dbg(bridge, "%s: DSP-side failed: "
-						"0x%x\n", __func__, status);
-			}
-
 		}
 	}
 	return status;
@@ -548,7 +525,7 @@ int disp_node_run(struct disp_object *disp_obj,
 	DBC_REQUIRE(disp_obj);
 	DBC_REQUIRE(hnode != NULL);
 
-	status = dev_get_dev_type(disp_obj->hdev_obj, &dev_type);
+	status = dev_get_dev_type(disp_obj->dev_obj, &dev_type);
 
 	if (!status) {
 
@@ -557,7 +534,7 @@ int disp_node_run(struct disp_object *disp_obj,
 			/*
 			 *  Fill in buffer to send to RMS.
 			 */
-			rms_cmd = (struct rms_command *)disp_obj->pbuf;
+			rms_cmd = (struct rms_command *)disp_obj->buf;
 			rms_cmd->fxn = (rms_word) (rms_fxn);
 			rms_cmd->arg1 = (rms_word) node_env;
 			rms_cmd->arg2 = (rms_word) (ul_execute_fxn);
@@ -566,18 +543,6 @@ int disp_node_run(struct disp_object *disp_obj,
 			status = send_message(disp_obj, node_get_timeout(hnode),
 					      sizeof(struct rms_command),
 					      &dw_arg);
-			if (status >= 0) {
-				/*
-				 * Message successfully received from RMS.
-				 * Return the status of the Node's execute
-				 * function on the DSP-side
-				 */
-				status = (((rms_word *) (disp_obj->pbuf))[0]);
-				if (status < 0)
-					dev_dbg(bridge, "%s: DSP-side failed: "
-						"0x%x\n", __func__, status);
-			}
-
 		}
 	}
 
@@ -601,7 +566,7 @@ static void delete_disp(struct disp_object *disp_obj)
 		if (disp_obj->chnl_from_dsp) {
 			/* Channel close can fail only if the channel handle
 			 * is invalid. */
-			status = (*intf_fxns->pfn_chnl_close)
+			status = (*intf_fxns->chnl_close)
 			    (disp_obj->chnl_from_dsp);
 			if (status) {
 				dev_dbg(bridge, "%s: Failed to close channel "
@@ -610,14 +575,14 @@ static void delete_disp(struct disp_object *disp_obj)
 		}
 		if (disp_obj->chnl_to_dsp) {
 			status =
-			    (*intf_fxns->pfn_chnl_close) (disp_obj->
+			    (*intf_fxns->chnl_close) (disp_obj->
 							  chnl_to_dsp);
 			if (status) {
 				dev_dbg(bridge, "%s: Failed to close channel to"
 					" RMS: 0x%x\n", __func__, status);
 			}
 		}
-		kfree(disp_obj->pbuf);
+		kfree(disp_obj->buf);
 
 		kfree(disp_obj);
 	}
@@ -646,7 +611,7 @@ static int fill_stream_def(rms_word *pdw_buf, u32 *ptotal, u32 offset,
 		strm_def_obj->nbufs = strm_def.num_bufs;
 		strm_def_obj->segid = strm_def.seg_id;
 		strm_def_obj->align = strm_def.buf_alignment;
-		strm_def_obj->timeout = strm_def.utimeout;
+		strm_def_obj->timeout = strm_def.timeout;
 	}
 
 	if (!status) {
@@ -699,16 +664,16 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 	*pdw_arg = (u32) NULL;
 	intf_fxns = disp_obj->intf_fxns;
 	chnl_obj = disp_obj->chnl_to_dsp;
-	pbuf = disp_obj->pbuf;
+	pbuf = disp_obj->buf;
 
 	/* Send the command */
-	status = (*intf_fxns->pfn_chnl_add_io_req) (chnl_obj, pbuf, ul_bytes, 0,
+	status = (*intf_fxns->chnl_add_io_req) (chnl_obj, pbuf, ul_bytes, 0,
 						    0L, dw_arg);
 	if (status)
 		goto func_end;
 
 	status =
-	    (*intf_fxns->pfn_chnl_get_ioc) (chnl_obj, timeout, &chnl_ioc_obj);
+	    (*intf_fxns->chnl_get_ioc) (chnl_obj, timeout, &chnl_ioc_obj);
 	if (!status) {
 		if (!CHNL_IS_IO_COMPLETE(chnl_ioc_obj)) {
 			if (CHNL_IS_TIMED_OUT(chnl_ioc_obj))
@@ -723,13 +688,13 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 
 	chnl_obj = disp_obj->chnl_from_dsp;
 	ul_bytes = REPLYSIZE;
-	status = (*intf_fxns->pfn_chnl_add_io_req) (chnl_obj, pbuf, ul_bytes,
+	status = (*intf_fxns->chnl_add_io_req) (chnl_obj, pbuf, ul_bytes,
 						    0, 0L, dw_arg);
 	if (status)
 		goto func_end;
 
 	status =
-	    (*intf_fxns->pfn_chnl_get_ioc) (chnl_obj, timeout, &chnl_ioc_obj);
+	    (*intf_fxns->chnl_get_ioc) (chnl_obj, timeout, &chnl_ioc_obj);
 	if (!status) {
 		if (CHNL_IS_TIMED_OUT(chnl_ioc_obj)) {
 			status = -ETIME;
@@ -738,10 +703,17 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 			status = -EPERM;
 		} else {
 			if (CHNL_IS_IO_COMPLETE(chnl_ioc_obj)) {
-				DBC_ASSERT(chnl_ioc_obj.pbuf == pbuf);
-				status = (*((rms_word *) chnl_ioc_obj.pbuf));
+				DBC_ASSERT(chnl_ioc_obj.buf == pbuf);
+				if (*((int *)chnl_ioc_obj.buf) < 0) {
+					/* Translate DSP's to kernel error */
+					status = -EREMOTEIO;
+					dev_dbg(bridge, "%s: DSP-side failed:"
+						" DSP errcode = 0x%x, Kernel "
+						"errcode = %d\n", __func__,
+						*(int *)pbuf, status);
+				}
 				*pdw_arg =
-				    (((rms_word *) (chnl_ioc_obj.pbuf))[1]);
+				    (((rms_word *) (chnl_ioc_obj.buf))[1]);
 			} else {
 				status = -EPERM;
 			}

@@ -40,59 +40,46 @@ unsigned int nr_irq;
 #define MER_ME (1<<0)
 #define MER_HIE (1<<1)
 
-static void intc_enable_or_unmask(unsigned int irq)
+static void intc_enable_or_unmask(struct irq_data *d)
 {
-	unsigned long mask = 1 << irq;
-	pr_debug("enable_or_unmask: %d\n", irq);
+	unsigned long mask = 1 << d->irq;
+	pr_debug("enable_or_unmask: %d\n", d->irq);
 	out_be32(INTC_BASE + SIE, mask);
 
 	/* ack level irqs because they can't be acked during
 	 * ack function since the handle_level_irq function
 	 * acks the irq before calling the interrupt handler
 	 */
-	if (irq_desc[irq].status & IRQ_LEVEL)
+	if (irqd_is_level_type(d))
 		out_be32(INTC_BASE + IAR, mask);
 }
 
-static void intc_disable_or_mask(unsigned int irq)
+static void intc_disable_or_mask(struct irq_data *d)
 {
-	pr_debug("disable: %d\n", irq);
-	out_be32(INTC_BASE + CIE, 1 << irq);
+	pr_debug("disable: %d\n", d->irq);
+	out_be32(INTC_BASE + CIE, 1 << d->irq);
 }
 
-static void intc_ack(unsigned int irq)
+static void intc_ack(struct irq_data *d)
 {
-	pr_debug("ack: %d\n", irq);
-	out_be32(INTC_BASE + IAR, 1 << irq);
+	pr_debug("ack: %d\n", d->irq);
+	out_be32(INTC_BASE + IAR, 1 << d->irq);
 }
 
-static void intc_mask_ack(unsigned int irq)
+static void intc_mask_ack(struct irq_data *d)
 {
-	unsigned long mask = 1 << irq;
-	pr_debug("disable_and_ack: %d\n", irq);
+	unsigned long mask = 1 << d->irq;
+	pr_debug("disable_and_ack: %d\n", d->irq);
 	out_be32(INTC_BASE + CIE, mask);
 	out_be32(INTC_BASE + IAR, mask);
 }
 
-static void intc_end(unsigned int irq)
-{
-	unsigned long mask = 1 << irq;
-	pr_debug("end: %d\n", irq);
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
-		out_be32(INTC_BASE + SIE, mask);
-		/* ack level sensitive intr */
-		if (irq_desc[irq].status & IRQ_LEVEL)
-			out_be32(INTC_BASE + IAR, mask);
-	}
-}
-
 static struct irq_chip intc_dev = {
 	.name = "Xilinx INTC",
-	.unmask = intc_enable_or_unmask,
-	.mask = intc_disable_or_mask,
-	.ack = intc_ack,
-	.mask_ack = intc_mask_ack,
-	.end = intc_end,
+	.irq_unmask = intc_enable_or_unmask,
+	.irq_mask = intc_disable_or_mask,
+	.irq_ack = intc_ack,
+	.irq_mask_ack = intc_mask_ack,
 };
 
 unsigned int get_irq(struct pt_regs *regs)
@@ -170,13 +157,13 @@ void __init init_IRQ(void)
 
 	for (i = 0; i < nr_irq; ++i) {
 		if (intr_type & (0x00000001 << i)) {
-			set_irq_chip_and_handler_name(i, &intc_dev,
-				handle_edge_irq, intc_dev.name);
-			irq_desc[i].status &= ~IRQ_LEVEL;
+			irq_set_chip_and_handler_name(i, &intc_dev,
+				handle_edge_irq, "edge");
+			irq_clear_status_flags(i, IRQ_LEVEL);
 		} else {
-			set_irq_chip_and_handler_name(i, &intc_dev,
-				handle_level_irq, intc_dev.name);
-			irq_desc[i].status |= IRQ_LEVEL;
+			irq_set_chip_and_handler_name(i, &intc_dev,
+				handle_level_irq, "level");
+			irq_set_status_flags(i, IRQ_LEVEL);
 		}
 	}
 }

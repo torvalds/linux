@@ -681,7 +681,7 @@ struct vxge_hw_xmac_aggr_stats {
  * @rx_red_discard: Count of received frames that are discarded because of RED
  *            (Random Early Discard).
  * @rx_xgmii_ctrl_err_cnt: Maintains a count of unexpected or misplaced control
- *            characters occuring between times of normal data transmission
+ *            characters occurring between times of normal data transmission
  *            (i.e. not included in RX_XGMII_DATA_ERR_CNT). This counter is
  *            incremented when either -
  *            1) The Reconciliation Sublayer (RS) is expecting one control
@@ -1695,7 +1695,7 @@ struct vxge_hw_device_stats_sw_err {
  * struct vxge_hw_device_stats - Contains HW per-device statistics,
  * including hw.
  * @devh: HW device handle.
- * @dma_addr: DMA addres of the %hw_info. Given to device to fill-in the stats.
+ * @dma_addr: DMA address of the %hw_info. Given to device to fill-in the stats.
  * @hw_info_dmah: DMA handle used to map hw statistics onto the device memory
  *                space.
  * @hw_info_dma_acch: One more DMA handle used subsequently to free the
@@ -1904,34 +1904,6 @@ enum vxge_hw_ring_tcode {
 	VXGE_HW_RING_T_CODE_MULTI_ERR			= 0xF
 };
 
-/**
- * enum enum vxge_hw_ring_hash_type - RTH hash types
- * @VXGE_HW_RING_HASH_TYPE_NONE: No Hash
- * @VXGE_HW_RING_HASH_TYPE_TCP_IPV4: TCP IPv4
- * @VXGE_HW_RING_HASH_TYPE_UDP_IPV4: UDP IPv4
- * @VXGE_HW_RING_HASH_TYPE_IPV4: IPv4
- * @VXGE_HW_RING_HASH_TYPE_TCP_IPV6: TCP IPv6
- * @VXGE_HW_RING_HASH_TYPE_UDP_IPV6: UDP IPv6
- * @VXGE_HW_RING_HASH_TYPE_IPV6: IPv6
- * @VXGE_HW_RING_HASH_TYPE_TCP_IPV6_EX: TCP IPv6 extension
- * @VXGE_HW_RING_HASH_TYPE_UDP_IPV6_EX: UDP IPv6 extension
- * @VXGE_HW_RING_HASH_TYPE_IPV6_EX: IPv6 extension
- *
- * RTH hash types
- */
-enum vxge_hw_ring_hash_type {
-	VXGE_HW_RING_HASH_TYPE_NONE			= 0x0,
-	VXGE_HW_RING_HASH_TYPE_TCP_IPV4		= 0x1,
-	VXGE_HW_RING_HASH_TYPE_UDP_IPV4		= 0x2,
-	VXGE_HW_RING_HASH_TYPE_IPV4			= 0x3,
-	VXGE_HW_RING_HASH_TYPE_TCP_IPV6		= 0x4,
-	VXGE_HW_RING_HASH_TYPE_UDP_IPV6		= 0x5,
-	VXGE_HW_RING_HASH_TYPE_IPV6			= 0x6,
-	VXGE_HW_RING_HASH_TYPE_TCP_IPV6_EX	= 0x7,
-	VXGE_HW_RING_HASH_TYPE_UDP_IPV6_EX	= 0x8,
-	VXGE_HW_RING_HASH_TYPE_IPV6_EX		= 0x9
-};
-
 enum vxge_hw_status vxge_hw_ring_rxd_reserve(
 	struct __vxge_hw_ring *ring_handle,
 	void **rxdh);
@@ -2109,10 +2081,6 @@ struct __vxge_hw_ring_rxd_priv {
 #endif
 };
 
-/* ========================= FIFO PRIVATE API ============================= */
-
-struct vxge_hw_fifo_attr;
-
 struct vxge_hw_mempool_cbs {
 	void (*item_func_alloc)(
 			struct vxge_hw_mempool *mempoolh,
@@ -2174,6 +2142,10 @@ void vxge_hw_device_clear_tx_rx(
  *  Virtual Paths
  */
 
+void vxge_hw_vpath_dynamic_rti_rtimer_set(struct __vxge_hw_ring *ring);
+
+void vxge_hw_vpath_dynamic_tti_rtimer_set(struct __vxge_hw_fifo *fifo);
+
 u32 vxge_hw_vpath_id(
 	struct __vxge_hw_vpath_handle *vpath_handle);
 
@@ -2186,27 +2158,27 @@ enum vxge_hw_vpath_mac_addr_add_mode {
 enum vxge_hw_status
 vxge_hw_vpath_mac_addr_add(
 	struct __vxge_hw_vpath_handle *vpath_handle,
-	u8 (macaddr)[ETH_ALEN],
-	u8 (macaddr_mask)[ETH_ALEN],
+	u8 *macaddr,
+	u8 *macaddr_mask,
 	enum vxge_hw_vpath_mac_addr_add_mode duplicate_mode);
 
 enum vxge_hw_status
 vxge_hw_vpath_mac_addr_get(
 	struct __vxge_hw_vpath_handle *vpath_handle,
-	u8 (macaddr)[ETH_ALEN],
-	u8 (macaddr_mask)[ETH_ALEN]);
+	u8 *macaddr,
+	u8 *macaddr_mask);
 
 enum vxge_hw_status
 vxge_hw_vpath_mac_addr_get_next(
 	struct __vxge_hw_vpath_handle *vpath_handle,
-	u8 (macaddr)[ETH_ALEN],
-	u8 (macaddr_mask)[ETH_ALEN]);
+	u8 *macaddr,
+	u8 *macaddr_mask);
 
 enum vxge_hw_status
 vxge_hw_vpath_mac_addr_delete(
 	struct __vxge_hw_vpath_handle *vpath_handle,
-	u8 (macaddr)[ETH_ALEN],
-	u8 (macaddr_mask)[ETH_ALEN]);
+	u8 *macaddr,
+	u8 *macaddr_mask);
 
 enum vxge_hw_status
 vxge_hw_vpath_vid_add(
@@ -2277,6 +2249,8 @@ void
 vxge_hw_vpath_msix_mask(struct __vxge_hw_vpath_handle *vpath_handle,
 			int msix_id);
 
+void vxge_hw_vpath_msix_clear(struct __vxge_hw_vpath_handle *vp, int msix_id);
+
 void vxge_hw_device_flush_io(struct __vxge_hw_device *devh);
 
 void
@@ -2302,6 +2276,9 @@ void
 vxge_hw_channel_msix_unmask(struct __vxge_hw_channel *channelh, int msix_id);
 
 void
+vxge_hw_channel_msix_clear(struct __vxge_hw_channel *channelh, int msix_id);
+
+void
 vxge_hw_channel_dtr_try_complete(struct __vxge_hw_channel *channel,
 				 void **dtrh);
 
@@ -2313,7 +2290,9 @@ vxge_hw_channel_dtr_free(struct __vxge_hw_channel *channel, void *dtrh);
 
 int
 vxge_hw_channel_dtr_count(struct __vxge_hw_channel *channel);
-void
-vxge_hw_vpath_tti_ci_set(struct __vxge_hw_device *hldev, u32 vp_id);
+
+void vxge_hw_vpath_tti_ci_set(struct __vxge_hw_fifo *fifo);
+
+void vxge_hw_vpath_dynamic_rti_ci_set(struct __vxge_hw_ring *ring);
 
 #endif

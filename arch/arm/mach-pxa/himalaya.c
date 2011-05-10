@@ -160,7 +160,7 @@ static void __init himalaya_init(void)
 
 MACHINE_START(HIMALAYA, "HTC Himalaya")
 	.boot_params = 0xa0000100,
-	.map_io = pxa_map_io,
+	.map_io = pxa25x_map_io,
 	.init_irq = pxa25x_init_irq,
 	.init_machine = himalaya_init,
 	.timer = &pxa_timer,

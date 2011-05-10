@@ -153,7 +153,6 @@ static struct clocksource clocksource_nuc900 = {
 	.rating	= 200,
 	.read	= nuc900_get_cycles,
 	.mask	= CLOCKSOURCE_MASK(TDR_SHIFT),
-	.shift	= 10,
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -176,9 +175,7 @@ static void __init nuc900_clocksource_init(void)
 	val |= (COUNTEN | PERIOD | PRESCALE);
 	__raw_writel(val, REG_TCSR1);
 
-	clocksource_nuc900.mult =
-		clocksource_khz2mult((rate / 1000), clocksource_nuc900.shift);
-	clocksource_register(&clocksource_nuc900);
+	clocksource_register_hz(&clocksource_nuc900, rate);
 }
 
 static void __init nuc900_timer_init(void)

@@ -182,7 +182,7 @@ static int mscan_restart(struct net_device *dev)
 
 		priv->can.state = CAN_STATE_ERROR_ACTIVE;
 		WARN(!(in_8(&regs->canmisc) & MSCAN_BOHOLD),
-		     "bus-off state expected");
+		     "bus-off state expected\n");
 		out_8(&regs->canmisc, MSCAN_BOHOLD);
 		/* Re-enable receive interrupts. */
 		out_8(&regs->canrier, MSCAN_RX_INTS_ENABLE);
@@ -246,7 +246,7 @@ static netdev_tx_t mscan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		out_be16(&regs->tx.idr3_2, can_id);
 
 		can_id >>= 16;
-		/* EFF_FLAGS are inbetween the IDs :( */
+		/* EFF_FLAGS are between the IDs :( */
 		can_id = (can_id & 0x7) | ((can_id << 2) & 0xffe0)
 			 | MSCAN_EFF_FLAGS;
 	} else {

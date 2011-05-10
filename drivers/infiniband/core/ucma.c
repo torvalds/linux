@@ -636,6 +636,16 @@ static void ucma_copy_iboe_route(struct rdma_ucm_query_route_resp *resp,
 	}
 }
 
+static void ucma_copy_iw_route(struct rdma_ucm_query_route_resp *resp,
+			       struct rdma_route *route)
+{
+	struct rdma_dev_addr *dev_addr;
+
+	dev_addr = &route->addr.dev_addr;
+	rdma_addr_get_dgid(dev_addr, (union ib_gid *) &resp->ib_route[0].dgid);
+	rdma_addr_get_sgid(dev_addr, (union ib_gid *) &resp->ib_route[0].sgid);
+}
+
 static ssize_t ucma_query_route(struct ucma_file *file,
 				const char __user *inbuf,
 				int in_len, int out_len)
@@ -670,8 +680,10 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 
 	resp.node_guid = (__force __u64) ctx->cm_id->device->node_guid;
 	resp.port_num = ctx->cm_id->port_num;
-	if (rdma_node_get_transport(ctx->cm_id->device->node_type) == RDMA_TRANSPORT_IB) {
-		switch (rdma_port_get_link_layer(ctx->cm_id->device, ctx->cm_id->port_num)) {
+	switch (rdma_node_get_transport(ctx->cm_id->device->node_type)) {
+	case RDMA_TRANSPORT_IB:
+		switch (rdma_port_get_link_layer(ctx->cm_id->device,
+			ctx->cm_id->port_num)) {
 		case IB_LINK_LAYER_INFINIBAND:
 			ucma_copy_ib_route(&resp, &ctx->cm_id->route);
 			break;
@@ -681,6 +693,12 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 		default:
 			break;
 		}
+		break;
+	case RDMA_TRANSPORT_IWARP:
+		ucma_copy_iw_route(&resp, &ctx->cm_id->route);
+		break;
+	default:
+		break;
 	}
 
 out:

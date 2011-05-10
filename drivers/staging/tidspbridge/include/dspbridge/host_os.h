@@ -57,13 +57,4 @@
 extern struct platform_device *omap_dspbridge_dev;
 extern struct device *bridge;
 
-#if defined(CONFIG_TIDSPBRIDGE) || defined(CONFIG_TIDSPBRIDGE_MODULE)
-extern void dspbridge_reserve_sdram(void);
-#else
-static inline void dspbridge_reserve_sdram(void)
-{
-}
-#endif
-
-extern unsigned long dspbridge_get_mempool_base(void);
 #endif

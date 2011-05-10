@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2010 ServerEngines
+ * Copyright (C) 2005 - 2011 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -8,11 +8,11 @@
  * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
- * linux-drivers@serverengines.com
+ * linux-drivers@emulex.com
  *
- * ServerEngines
- * 209 N. Fair Oaks Ave
- * Sunnyvale, CA 94085
+ * Emulex
+ * 3333 Susan Street
+ * Costa Mesa, CA 92626
  */
 
 #ifndef BE_H
@@ -33,19 +33,22 @@
 
 #include "be_hw.h"
 
-#define DRV_VER			"2.103.175u"
+#define DRV_VER			"4.0.100u"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"ServerEngines BladeEngine2 10Gbps NIC"
 #define BE3_NAME		"ServerEngines BladeEngine3 10Gbps NIC"
 #define OC_NAME			"Emulex OneConnect 10Gbps NIC"
-#define OC_NAME1		"Emulex OneConnect 10Gbps NIC (be3)"
+#define OC_NAME_BE		OC_NAME	"(be3)"
+#define OC_NAME_LANCER		OC_NAME "(Lancer)"
 #define DRV_DESC		"ServerEngines BladeEngine 10Gbps NIC Driver"
 
 #define BE_VENDOR_ID 		0x19a2
+#define EMULEX_VENDOR_ID	0x10df
 #define BE_DEVICE_ID1		0x211
 #define BE_DEVICE_ID2		0x221
-#define OC_DEVICE_ID1		0x700
-#define OC_DEVICE_ID2		0x710
+#define OC_DEVICE_ID1		0x700	/* Device Id for BE2 cards */
+#define OC_DEVICE_ID2		0x710	/* Device Id for BE3 cards */
+#define OC_DEVICE_ID3		0xe220	/* Device id for Lancer cards */
 
 static inline char *nic_name(struct pci_dev *pdev)
 {
@@ -53,7 +56,9 @@ static inline char *nic_name(struct pci_dev *pdev)
 	case OC_DEVICE_ID1:
 		return OC_NAME;
 	case OC_DEVICE_ID2:
-		return OC_NAME1;
+		return OC_NAME_BE;
+	case OC_DEVICE_ID3:
+		return OC_NAME_LANCER;
 	case BE_DEVICE_ID2:
 		return BE3_NAME;
 	default:
@@ -62,7 +67,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 }
 
 /* Number of bytes of an RX frame that are copied to skb->data */
-#define BE_HDR_LEN 		64
+#define BE_HDR_LEN		((u16) 64)
 #define BE_MAX_JUMBO_FRAME_SIZE	9018
 #define BE_MIN_MTU		256
 
@@ -149,6 +154,7 @@ struct be_eq_obj {
 	u16 min_eqd;		/* in usecs */
 	u16 max_eqd;		/* in usecs */
 	u16 cur_eqd;		/* in usecs */
+	u8  eq_idx;
 
 	struct napi_struct napi;
 };
@@ -205,16 +211,40 @@ struct be_rx_stats {
 	u32 rx_fps;		/* Rx frags per second */
 };
 
+struct be_rx_compl_info {
+	u32 rss_hash;
+	u16 vid;
+	u16 pkt_size;
+	u16 rxq_idx;
+	u16 mac_id;
+	u8 vlanf;
+	u8 num_rcvd;
+	u8 err;
+	u8 ipf;
+	u8 tcpf;
+	u8 udpf;
+	u8 ip_csum;
+	u8 l4_csum;
+	u8 ipv6;
+	u8 vtm;
+	u8 pkt_type;
+};
+
 struct be_rx_obj {
 	struct be_adapter *adapter;
 	struct be_queue_info q;
 	struct be_queue_info cq;
+	struct be_rx_compl_info rxcp;
 	struct be_rx_page_info page_info_tbl[RX_Q_LEN];
 	struct be_eq_obj rx_eq;
 	struct be_rx_stats stats;
 	u8 rss_id;
 	bool rx_post_starved;	/* Zero rx frags have been posted to BE */
 	u32 cache_line_barrier[16];
+};
+
+struct be_drv_stats {
+	u8 be_on_die_temperature;
 };
 
 struct be_vf_cfg {
@@ -226,6 +256,7 @@ struct be_vf_cfg {
 };
 
 #define BE_INVALID_PMAC_ID		0xffffffff
+
 struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
@@ -234,7 +265,7 @@ struct be_adapter {
 	u8 __iomem *db;		/* Door Bell */
 	u8 __iomem *pcicfg;	/* PCI config space */
 
-	spinlock_t mbox_lock;	/* For serializing mbox cmds to BE card */
+	struct mutex mbox_lock; /* For serializing mbox cmds to BE card */
 	struct be_dma_mem mbox_mem;
 	/* Mbox mem is adjusted to align to 16 bytes. The allocated addr
 	 * is stored for freeing purpose */
@@ -260,6 +291,9 @@ struct be_adapter {
 	u32 num_rx_qs;
 	u32 big_page_size;	/* Compounded page size shared by rx wrbs */
 
+	u8 eq_next_idx;
+	struct be_drv_stats drv_stats;
+
 	struct vlan_group *vlan_grp;
 	u16 vlans_added;
 	u16 max_vlans;	/* Number of vlans supported */
@@ -271,6 +305,7 @@ struct be_adapter {
 	struct be_dma_mem stats_cmd;
 	/* Work queue used to perform periodic tasks like getting statistics */
 	struct delayed_work work;
+	u16 work_counter;
 
 	/* Ethtool knobs and info */
 	bool rx_csum; 		/* BE card must perform rx-checksumming */
@@ -288,7 +323,7 @@ struct be_adapter {
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
 	bool ue_detected;
-	bool stats_ioctl_sent;
+	bool stats_cmd_sent;
 	int link_speed;
 	u8 port_type;
 	u8 transceiver;
@@ -297,10 +332,13 @@ struct be_adapter {
 	u32 flash_status;
 	struct completion flash_compl;
 
+	bool be3_native;
 	bool sriov_enabled;
 	struct be_vf_cfg vf_cfg[BE_MAX_VF];
-	u8 base_eq_id;
 	u8 is_virtfn;
+	u32 sli_family;
+	u8 hba_port_num;
+	u16 pvid;
 };
 
 #define be_physfn(adapter) (!adapter->is_virtfn)
@@ -308,6 +346,8 @@ struct be_adapter {
 /* BladeEngine Generation numbers */
 #define BE_GEN2 2
 #define BE_GEN3 3
+
+#define lancer_chip(adapter)		(adapter->pdev->device == OC_DEVICE_ID3)
 
 extern const struct ethtool_ops be_ethtool_ops;
 
@@ -416,10 +456,17 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 static inline void be_check_sriov_fn_type(struct be_adapter *adapter)
 {
 	u8 data;
+	u32 sli_intf;
 
-	pci_write_config_byte(adapter->pdev, 0xFE, 0xAA);
-	pci_read_config_byte(adapter->pdev, 0xFE, &data);
-	adapter->is_virtfn = (data != 0xAA);
+	if (lancer_chip(adapter)) {
+		pci_read_config_dword(adapter->pdev, SLI_INTF_REG_OFFSET,
+								&sli_intf);
+		adapter->is_virtfn = (sli_intf & SLI_INTF_FT_MASK) ? 1 : 0;
+	} else {
+		pci_write_config_byte(adapter->pdev, 0xFE, 0xAA);
+		pci_read_config_byte(adapter->pdev, 0xFE, &data);
+		adapter->is_virtfn = (data != 0xAA);
+	}
 }
 
 static inline void be_vf_eth_addr_generate(struct be_adapter *adapter, u8 *mac)
@@ -431,9 +478,8 @@ static inline void be_vf_eth_addr_generate(struct be_adapter *adapter, u8 *mac)
 	mac[5] = (u8)(addr & 0xFF);
 	mac[4] = (u8)((addr >> 8) & 0xFF);
 	mac[3] = (u8)((addr >> 16) & 0xFF);
-	mac[2] = 0xC9;
-	mac[1] = 0x00;
-	mac[0] = 0x00;
+	/* Use the OUI from the current MAC address */
+	memcpy(mac, adapter->netdev->dev_addr, 3);
 }
 
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,

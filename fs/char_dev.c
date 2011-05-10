@@ -59,7 +59,7 @@ static struct char_device_struct {
 } *chrdevs[CHRDEV_MAJOR_HASH_SIZE];
 
 /* index in the above */
-static inline int major_to_index(int major)
+static inline int major_to_index(unsigned major)
 {
 	return major % CHRDEV_MAJOR_HASH_SIZE;
 }
@@ -417,18 +417,6 @@ static int chrdev_open(struct inode *inode, struct file *filp)
 	return ret;
 }
 
-int cdev_index(struct inode *inode)
-{
-	int idx;
-	struct kobject *kobj;
-
-	kobj = kobj_lookup(cdev_map, inode->i_rdev, &idx);
-	if (!kobj)
-		return -1;
-	kobject_put(kobj);
-	return idx;
-}
-
 void cd_forget(struct inode *inode)
 {
 	spin_lock(&cdev_lock);
@@ -582,7 +570,6 @@ EXPORT_SYMBOL(cdev_init);
 EXPORT_SYMBOL(cdev_alloc);
 EXPORT_SYMBOL(cdev_del);
 EXPORT_SYMBOL(cdev_add);
-EXPORT_SYMBOL(cdev_index);
 EXPORT_SYMBOL(__register_chrdev);
 EXPORT_SYMBOL(__unregister_chrdev);
 EXPORT_SYMBOL(directly_mappable_cdev_bdi);

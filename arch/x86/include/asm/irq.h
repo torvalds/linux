@@ -15,10 +15,6 @@ static inline int irq_canonicalize(int irq)
 	return ((irq == 2) ? 9 : irq);
 }
 
-#ifdef CONFIG_X86_LOCAL_APIC
-# define ARCH_HAS_NMI_WATCHDOG
-#endif
-
 #ifdef CONFIG_X86_32
 extern void irq_ctx_init(int cpu);
 #else

@@ -943,7 +943,7 @@ zoran_open_init_params (struct zoran *zr)
 	memset(zr->jpg_settings.jpg_comp.COM_data, 0,
 	       sizeof(zr->jpg_settings.jpg_comp.COM_data));
 	zr->jpg_settings.jpg_comp.jpeg_markers =
-	    JPEG_MARKER_DHT | JPEG_MARKER_DQT;
+	    V4L2_JPEG_MARKER_DHT | V4L2_JPEG_MARKER_DQT;
 	i = zoran_check_jpg_settings(zr, &zr->jpg_settings, 0);
 	if (i)
 		dprintk(1, KERN_ERR "%s: %s internal error\n",
@@ -1041,7 +1041,7 @@ zr36057_init (struct zoran *zr)
 	/* allocate memory *before* doing anything to the hardware
 	 * in case allocation fails */
 	zr->stat_com = kzalloc(BUZ_NUM_STAT_COM * 4, GFP_KERNEL);
-	zr->video_dev = kmalloc(sizeof(struct video_device), GFP_KERNEL);
+	zr->video_dev = video_device_alloc();
 	if (!zr->stat_com || !zr->video_dev) {
 		dprintk(1,
 			KERN_ERR

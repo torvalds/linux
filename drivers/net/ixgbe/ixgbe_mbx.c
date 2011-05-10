@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -154,9 +154,6 @@ static s32 ixgbe_poll_for_msg(struct ixgbe_hw *hw, u16 mbx_id)
 		udelay(mbx->usec_delay);
 	}
 
-	/* if we failed, all future posted messages fail until reset */
-	if (!countdown)
-		mbx->timeout = 0;
 out:
 	return countdown ? 0 : IXGBE_ERR_MBX;
 }
@@ -183,9 +180,6 @@ static s32 ixgbe_poll_for_ack(struct ixgbe_hw *hw, u16 mbx_id)
 		udelay(mbx->usec_delay);
 	}
 
-	/* if we failed, all future posted messages fail until reset */
-	if (!countdown)
-		mbx->timeout = 0;
 out:
 	return countdown ? 0 : IXGBE_ERR_MBX;
 }
@@ -319,8 +313,16 @@ static s32 ixgbe_check_for_rst_pf(struct ixgbe_hw *hw, u16 vf_number)
 	u32 vflre = 0;
 	s32 ret_val = IXGBE_ERR_MBX;
 
-	if (hw->mac.type == ixgbe_mac_82599EB)
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
 		vflre = IXGBE_READ_REG(hw, IXGBE_VFLRE(reg_offset));
+		break;
+	case ixgbe_mac_X540:
+		vflre = IXGBE_READ_REG(hw, IXGBE_VFLREC(reg_offset));
+		break;
+	default:
+		break;
+	}
 
 	if (vflre & (1 << vf_shift)) {
 		ret_val = 0;
@@ -429,6 +431,7 @@ out_no_read:
 	return ret_val;
 }
 
+#ifdef CONFIG_PCI_IOV
 /**
  *  ixgbe_init_mbx_params_pf - set initial values for pf mailbox
  *  @hw: pointer to the HW structure
@@ -439,22 +442,24 @@ void ixgbe_init_mbx_params_pf(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 
-	if (hw->mac.type != ixgbe_mac_82599EB)
+	if (hw->mac.type != ixgbe_mac_82599EB &&
+	    hw->mac.type != ixgbe_mac_X540)
 		return;
 
 	mbx->timeout = 0;
 	mbx->usec_delay = 0;
-
-	mbx->size = IXGBE_VFMAILBOX_SIZE;
 
 	mbx->stats.msgs_tx = 0;
 	mbx->stats.msgs_rx = 0;
 	mbx->stats.reqs = 0;
 	mbx->stats.acks = 0;
 	mbx->stats.rsts = 0;
-}
 
-struct ixgbe_mbx_operations mbx_ops_82599 = {
+	mbx->size = IXGBE_VFMAILBOX_SIZE;
+}
+#endif /* CONFIG_PCI_IOV */
+
+struct ixgbe_mbx_operations mbx_ops_generic = {
 	.read                   = ixgbe_read_mbx_pf,
 	.write                  = ixgbe_write_mbx_pf,
 	.read_posted            = ixgbe_read_posted_mbx,

@@ -32,7 +32,8 @@
 	Revision History:
 	Who			When			What
 	--------	----------		----------------------------------------------
-	John			2004-08-08			Major modification from RT2560
+	John			2004-08-08		Major modification from RT2560
+	Justin P. Mattock	11/07/2010		Fix typos
 */
 #include "../rt_config.h"
 
@@ -64,7 +65,7 @@ u8 CipherSuiteWpaNoneAesLen =
 
 /* The following MACRO is called after 1. starting an new IBSS, 2. successfully JOIN an IBSS, */
 /* or 3. successfully ASSOCIATE to a BSS, 4. successfully RE_ASSOCIATE to a BSS */
-/* All settings successfuly negotiated furing MLME state machines become final settings */
+/* All settings successfuly negotiated firing MLME state machines become final settings */
 /* and are copied to pAd->StaActive */
 #define COPY_SETTINGS_FROM_MLME_AUX_TO_ACTIVE_CFG(_pAd)                                 \
 {                                                                                       \
@@ -214,8 +215,7 @@ void MlmeCntlMachinePerformAction(struct rt_rtmp_adapter *pAd,
 		break;
 #endif /* RTMP_MAC_USB // */
 	default:
-		DBGPRINT_ERR(("ERROR! CNTL - Illegal message type(=%ld)",
-			      Elem->MsgType));
+		DBGPRINT_ERR("ERROR! CNTL - Illegal message type(=%ld)", Elem->MsgType);
 		break;
 	}
 }
@@ -553,7 +553,7 @@ void CntlOidRTBssidProc(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *
 	NdisMoveMemory(&pAd->MlmeAux.SsidBssTab.BssEntry[0],
 		       &pAd->ScanTab.BssEntry[BssIdx], sizeof(struct rt_bss_entry));
 
-	/* Add SSID into MlmeAux for site surey joining hidden SSID */
+	/* Add SSID into MlmeAux for site survey joining hidden SSID */
 	pAd->MlmeAux.SsidLen = pAd->ScanTab.BssEntry[BssIdx].SsidLen;
 	NdisMoveMemory(pAd->MlmeAux.Ssid, pAd->ScanTab.BssEntry[BssIdx].Ssid,
 		       pAd->MlmeAux.SsidLen);
@@ -666,7 +666,7 @@ void CntlOidRTBssidProc(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *
 }
 
 /* Roaming is the only external request triggering CNTL state machine */
-/* despite of other "SET OID" operation. All "SET OID" related oerations */
+/* despite of other "SET OID" operation. All "SET OID" related operations */
 /* happen in sequence, because no other SET OID will be sent to this device */
 /* until the the previous SET operation is complete (successful o failed). */
 /* So, how do we quarantee this ROAMING request won't corrupt other "SET OID"? */
@@ -1224,7 +1224,7 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 	/* Change to AP channel */
 	if ((pAd->CommonCfg.CentralChannel > pAd->CommonCfg.Channel)
 	    && (pAd->MlmeAux.HtCapability.HtCapInfo.ChannelWidth == BW_40)) {
-		/* Must using 40MHz. */
+		/* Must use 40MHz. */
 		pAd->CommonCfg.BBPCurrentBW = BW_40;
 		AsicSwitchChannel(pAd, pAd->CommonCfg.CentralChannel, FALSE);
 		AsicLockChannel(pAd, pAd->CommonCfg.CentralChannel);
@@ -1259,7 +1259,7 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 	} else if ((pAd->CommonCfg.CentralChannel < pAd->CommonCfg.Channel)
 		   && (pAd->MlmeAux.HtCapability.HtCapInfo.ChannelWidth ==
 		       BW_40)) {
-		/* Must using 40MHz. */
+		/* Must use 40MHz. */
 		pAd->CommonCfg.BBPCurrentBW = BW_40;
 		AsicSwitchChannel(pAd, pAd->CommonCfg.CentralChannel, FALSE);
 		AsicLockChannel(pAd, pAd->CommonCfg.CentralChannel);
@@ -1343,12 +1343,12 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 	AsicSetSlotTime(pAd, TRUE);
 	AsicSetEdcaParm(pAd, &pAd->CommonCfg.APEdcaParm);
 
-	/* Call this for RTS protectionfor legacy rate, we will always enable RTS threshold, but normally it will not hit */
+	/* Call this for RTS protection for legacy rate, we will always enable RTS threshold, but normally it will not hit */
 	AsicUpdateProtect(pAd, 0, (OFDMSETPROTECT | CCKSETPROTECT), TRUE,
 			  FALSE);
 
 	if ((pAd->StaActive.SupportedPhyInfo.bHtEnable == TRUE)) {
-		/* Update HT protectionfor based on AP's operating mode. */
+		/* Update HT protection for based on AP's operating mode. */
 		if (pAd->MlmeAux.AddHtInfo.AddHtInfo2.NonGfPresent == 1) {
 			AsicUpdateProtect(pAd,
 					  pAd->MlmeAux.AddHtInfo.AddHtInfo2.
@@ -1530,7 +1530,7 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 		/* Add BSSID to WCID search table */
 		AsicUpdateRxWCIDTable(pAd, BSSID_WCID, pAd->CommonCfg.Bssid);
 
-		/* If WEP is enabled, add paiewise and shared key */
+		/* If WEP is enabled, add pairwise and shared key */
 		if (((pAd->StaCfg.WpaSupplicantUP) &&
 		     (pAd->StaCfg.WepStatus == Ndis802_11WEPEnabled) &&
 		     (pAd->StaCfg.PortSecured == WPA_802_1X_PORT_SECURED)) ||
@@ -1681,9 +1681,9 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 	pAd->Mlme.PeriodicRound = 0;
 	pAd->Mlme.OneSecPeriodicRound = 0;
 	pAd->bConfigChanged = FALSE;	/* Reset config flag */
-	pAd->ExtraInfo = GENERAL_LINK_UP;	/* Update extra information to link is up */
+	pAd->ExtraInfo = GENERAL_LINK_UP;	/* Update extra information after link is up */
 
-	/* Set asic auto fall back */
+	/* Set basic auto fall back */
 	{
 		u8 *pTable;
 		u8 TableSize = 0;
@@ -1854,8 +1854,8 @@ void LinkUp(struct rt_rtmp_adapter *pAd, u8 BssType)
 	Note:
 		We need more information to know it's this requst from AP.
 		If yes! we need to do extra handling, for example, remove the WPA key.
-		Otherwise on 4-way handshaking will faied, since the WPA key didn't be
-		remove while auto reconnect.
+		Otherwise on 4-way handshaking will fail, since the WPA key didn't get
+		removed while auto reconnect.
 		Disconnect request from AP, it means we will start afresh 4-way handshaking
 		on WPA mode.
 
@@ -1870,9 +1870,9 @@ void LinkDown(struct rt_rtmp_adapter *pAd, IN BOOLEAN IsReqFromAP)
 		return;
 
 	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
-	/*Comment the codes, beasue the line 2291 call the same function. */
-	/*RTMPCancelTimer(&pAd->Mlme.PsPollTimer,               &Cancelled); */
-	/* Not allow go to sleep within linkdown function. */
+	/* Comment the codes, because the line 2291 call the same function. */
+	/* RTMPCancelTimer(&pAd->Mlme.PsPollTimer, &Cancelled); */
+	/* Not allowed go to sleep within the linkdown function. */
 	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
 
 	if (pAd->CommonCfg.bWirelessEvent) {
@@ -1970,7 +1970,7 @@ void LinkDown(struct rt_rtmp_adapter *pAd, IN BOOLEAN IsReqFromAP)
 	/* Set LED */
 	RTMPSetLED(pAd, LED_LINK_DOWN);
 	pAd->LedIndicatorStrength = 0xF0;
-	RTMPSetSignalLED(pAd, -100);	/* Force signal strength Led to be turned off, firmware is not done it. */
+	RTMPSetSignalLED(pAd, -100);	/* Force signal strength Led to be turned off, firmware has not done it. */
 
 	AsicDisableSync(pAd);
 

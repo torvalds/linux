@@ -32,7 +32,7 @@
  * the bitmap transfer time can take much too long,
  * if transmitted in plain text.
  *
- * We try to reduce the transfered bitmap information
+ * We try to reduce the transferred bitmap information
  * by encoding runlengths of bit polarity.
  *
  * We never actually need to encode a "zero" (runlengths are positive).

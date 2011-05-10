@@ -39,7 +39,6 @@
 /* Fast memory region */
 struct qib_fmr {
 	struct ib_fmr ibfmr;
-	u8 page_shift;
 	struct qib_mregion mr;        /* must be last */
 };
 
@@ -107,6 +106,7 @@ static struct qib_mr *alloc_mr(int count, struct qib_lkey_table *lk_table)
 			goto bail;
 	}
 	mr->mr.mapsz = m;
+	mr->mr.page_shift = 0;
 	mr->mr.max_segs = count;
 
 	/*
@@ -231,6 +231,8 @@ struct ib_mr *qib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->mr.access_flags = mr_access_flags;
 	mr->umem = umem;
 
+	if (is_power_of_2(umem->page_size))
+		mr->mr.page_shift = ilog2(umem->page_size);
 	m = 0;
 	n = 0;
 	list_for_each_entry(chunk, &umem->chunk_list, list) {
@@ -390,7 +392,7 @@ struct ib_fmr *qib_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 	fmr->mr.offset = 0;
 	fmr->mr.access_flags = mr_access_flags;
 	fmr->mr.max_segs = fmr_attr->max_pages;
-	fmr->page_shift = fmr_attr->page_shift;
+	fmr->mr.page_shift = fmr_attr->page_shift;
 
 	atomic_set(&fmr->mr.refcount, 0);
 	ret = &fmr->ibfmr;
@@ -437,7 +439,7 @@ int qib_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 	spin_lock_irqsave(&rkt->lock, flags);
 	fmr->mr.user_base = iova;
 	fmr->mr.iova = iova;
-	ps = 1 << fmr->page_shift;
+	ps = 1 << fmr->mr.page_shift;
 	fmr->mr.length = list_len * ps;
 	m = 0;
 	n = 0;

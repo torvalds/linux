@@ -27,6 +27,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/types.h>
 #include <linux/i2c/pcf857x.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/physmap.h>
 #include <linux/regulator/max1586.h>
@@ -50,8 +51,6 @@
 #include <mach/pxa27x-udc.h>
 #include <mach/irda.h>
 #include <mach/ohci.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -264,7 +263,7 @@ static void __init balloon3_lcd_init(void)
 	}
 
 	balloon3_lcd_screen.pxafb_backlight_power = balloon3_backlight_power;
-	set_pxa_fb_info(&balloon3_lcd_screen);
+	pxa_set_fb_info(NULL, &balloon3_lcd_screen);
 	return;
 
 err2:
@@ -477,25 +476,25 @@ static inline void balloon3_leds_init(void) {}
 /******************************************************************************
  * FPGA IRQ
  ******************************************************************************/
-static void balloon3_mask_irq(unsigned int irq)
+static void balloon3_mask_irq(struct irq_data *d)
 {
-	int balloon3_irq = (irq - BALLOON3_IRQ(0));
+	int balloon3_irq = (d->irq - BALLOON3_IRQ(0));
 	balloon3_irq_enabled &= ~(1 << balloon3_irq);
 	__raw_writel(~balloon3_irq_enabled, BALLOON3_INT_CONTROL_REG);
 }
 
-static void balloon3_unmask_irq(unsigned int irq)
+static void balloon3_unmask_irq(struct irq_data *d)
 {
-	int balloon3_irq = (irq - BALLOON3_IRQ(0));
+	int balloon3_irq = (d->irq - BALLOON3_IRQ(0));
 	balloon3_irq_enabled |= (1 << balloon3_irq);
 	__raw_writel(~balloon3_irq_enabled, BALLOON3_INT_CONTROL_REG);
 }
 
 static struct irq_chip balloon3_irq_chip = {
 	.name		= "FPGA",
-	.ack		= balloon3_mask_irq,
-	.mask		= balloon3_mask_irq,
-	.unmask		= balloon3_unmask_irq,
+	.irq_ack	= balloon3_mask_irq,
+	.irq_mask	= balloon3_mask_irq,
+	.irq_unmask	= balloon3_unmask_irq,
 };
 
 static void balloon3_irq_handler(unsigned int irq, struct irq_desc *desc)
@@ -504,8 +503,13 @@ static void balloon3_irq_handler(unsigned int irq, struct irq_desc *desc)
 					balloon3_irq_enabled;
 	do {
 		/* clear useless edge notification */
-		if (desc->chip->ack)
-			desc->chip->ack(BALLOON3_AUX_NIRQ);
+		if (desc->irq_data.chip->irq_ack) {
+			struct irq_data *d;
+
+			d = irq_get_irq_data(BALLOON3_AUX_NIRQ);
+			desc->irq_data.chip->irq_ack(d);
+		}
+
 		while (pending) {
 			irq = BALLOON3_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);
@@ -523,13 +527,13 @@ static void __init balloon3_init_irq(void)
 	pxa27x_init_irq();
 	/* setup extra Balloon3 irqs */
 	for (irq = BALLOON3_IRQ(0); irq <= BALLOON3_IRQ(7); irq++) {
-		set_irq_chip(irq, &balloon3_irq_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &balloon3_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
-	set_irq_chained_handler(BALLOON3_AUX_NIRQ, balloon3_irq_handler);
-	set_irq_type(BALLOON3_AUX_NIRQ, IRQ_TYPE_EDGE_FALLING);
+	irq_set_chained_handler(BALLOON3_AUX_NIRQ, balloon3_irq_handler);
+	irq_set_irq_type(BALLOON3_AUX_NIRQ, IRQ_TYPE_EDGE_FALLING);
 
 	pr_debug("%s: chained handler installed - irq %d automatically "
 		"enabled\n", __func__, BALLOON3_AUX_NIRQ);
@@ -567,27 +571,29 @@ static inline void balloon3_i2c_init(void) {}
  * NAND
  ******************************************************************************/
 #if defined(CONFIG_MTD_NAND_PLATFORM)||defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
-static uint16_t balloon3_ctl =
-	BALLOON3_NAND_CONTROL_FLCE0 | BALLOON3_NAND_CONTROL_FLCE1 |
-	BALLOON3_NAND_CONTROL_FLCE2 | BALLOON3_NAND_CONTROL_FLCE3 |
-	BALLOON3_NAND_CONTROL_FLWP;
-
 static void balloon3_nand_cmd_ctl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
 	struct nand_chip *this = mtd->priv;
+	uint8_t balloon3_ctl_set = 0, balloon3_ctl_clr = 0;
 
 	if (ctrl & NAND_CTRL_CHANGE) {
 		if (ctrl & NAND_CLE)
-			balloon3_ctl |= BALLOON3_NAND_CONTROL_FLCLE;
+			balloon3_ctl_set |= BALLOON3_NAND_CONTROL_FLCLE;
 		else
-			balloon3_ctl &= ~BALLOON3_NAND_CONTROL_FLCLE;
+			balloon3_ctl_clr |= BALLOON3_NAND_CONTROL_FLCLE;
 
 		if (ctrl & NAND_ALE)
-			balloon3_ctl |= BALLOON3_NAND_CONTROL_FLALE;
+			balloon3_ctl_set |= BALLOON3_NAND_CONTROL_FLALE;
 		else
-			balloon3_ctl &= ~BALLOON3_NAND_CONTROL_FLALE;
+			balloon3_ctl_clr |= BALLOON3_NAND_CONTROL_FLALE;
 
-		__raw_writel(balloon3_ctl, BALLOON3_NAND_CONTROL_REG);
+		if (balloon3_ctl_clr)
+			__raw_writel(balloon3_ctl_clr,
+				BALLOON3_NAND_CONTROL_REG);
+		if (balloon3_ctl_set)
+			__raw_writel(balloon3_ctl_set,
+				BALLOON3_NAND_CONTROL_REG |
+				BALLOON3_FPGA_SETnCLR);
 	}
 
 	if (cmd != NAND_CMD_NONE)
@@ -599,28 +605,33 @@ static void balloon3_nand_select_chip(struct mtd_info *mtd, int chip)
 	if (chip < 0 || chip > 3)
 		return;
 
-	balloon3_ctl |= BALLOON3_NAND_CONTROL_FLCE0 |
-			BALLOON3_NAND_CONTROL_FLCE1 |
-			BALLOON3_NAND_CONTROL_FLCE2 |
-			BALLOON3_NAND_CONTROL_FLCE3;
+	/* Assert all nCE lines */
+	__raw_writew(
+		BALLOON3_NAND_CONTROL_FLCE0 | BALLOON3_NAND_CONTROL_FLCE1 |
+		BALLOON3_NAND_CONTROL_FLCE2 | BALLOON3_NAND_CONTROL_FLCE3,
+		BALLOON3_NAND_CONTROL_REG | BALLOON3_FPGA_SETnCLR);
 
 	/* Deassert correct nCE line */
-	balloon3_ctl &= ~(BALLOON3_NAND_CONTROL_FLCE0 << chip);
+	__raw_writew(BALLOON3_NAND_CONTROL_FLCE0 << chip,
+		BALLOON3_NAND_CONTROL_REG);
+}
 
-	__raw_writew(balloon3_ctl, BALLOON3_NAND_CONTROL_REG);
+static int balloon3_nand_dev_ready(struct mtd_info *mtd)
+{
+	return __raw_readl(BALLOON3_NAND_STAT_REG) & BALLOON3_NAND_STAT_RNB;
 }
 
 static int balloon3_nand_probe(struct platform_device *pdev)
 {
-	void __iomem *temp_map;
 	uint16_t ver;
 	int ret;
 
-	__raw_writew(BALLOON3_NAND_CONTROL2_16BIT, BALLOON3_NAND_CONTROL2_REG);
+	__raw_writew(BALLOON3_NAND_CONTROL2_16BIT,
+		BALLOON3_NAND_CONTROL2_REG | BALLOON3_FPGA_SETnCLR);
 
 	ver = __raw_readw(BALLOON3_FPGA_VER);
-	if (ver > 0x0201)
-		pr_warn("The FPGA code, version 0x%04x, is newer than rel-0.3. "
+	if (ver < 0x4f08)
+		pr_warn("The FPGA code, version 0x%04x, is too old. "
 			"NAND support might be broken in this version!", ver);
 
 	/* Power up the NAND chips */
@@ -635,7 +646,11 @@ static int balloon3_nand_probe(struct platform_device *pdev)
 	gpio_set_value(BALLOON3_GPIO_RUN_NAND, 1);
 
 	/* Deassert all nCE lines and write protect line */
-	__raw_writel(balloon3_ctl, BALLOON3_NAND_CONTROL_REG);
+	__raw_writel(
+		BALLOON3_NAND_CONTROL_FLCE0 | BALLOON3_NAND_CONTROL_FLCE1 |
+		BALLOON3_NAND_CONTROL_FLCE2 | BALLOON3_NAND_CONTROL_FLCE3 |
+		BALLOON3_NAND_CONTROL_FLWP,
+		BALLOON3_NAND_CONTROL_REG | BALLOON3_FPGA_SETnCLR);
 	return 0;
 
 err2:
@@ -677,7 +692,7 @@ struct platform_nand_data balloon3_nand_pdata = {
 	},
 	.ctrl = {
 		.hwcontrol	= 0,
-		.dev_ready	= 0,
+		.dev_ready	= balloon3_nand_dev_ready,
 		.select_chip	= balloon3_nand_select_chip,
 		.cmd_ctrl	= balloon3_nand_cmd_ctl,
 		.probe		= balloon3_nand_probe,
@@ -802,7 +817,7 @@ static struct map_desc balloon3_io_desc[] __initdata = {
 
 static void __init balloon3_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 	iotable_init(balloon3_io_desc, ARRAY_SIZE(balloon3_io_desc));
 }
 
@@ -813,5 +828,5 @@ MACHINE_START(BALLOON3, "Balloon3")
 	.init_irq	= balloon3_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= balloon3_init,
-	.boot_params	= PHYS_OFFSET + 0x100,
+	.boot_params	= PLAT_PHYS_OFFSET + 0x100,
 MACHINE_END

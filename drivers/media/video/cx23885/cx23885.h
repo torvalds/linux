@@ -30,7 +30,7 @@
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/videobuf-dvb.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include "btcx-risc.h"
 #include "cx23885-reg.h"
@@ -84,6 +84,8 @@
 #define CX23885_BOARD_HAUPPAUGE_HVR1290        26
 #define CX23885_BOARD_MYGICA_X8558PRO          27
 #define CX23885_BOARD_LEADTEK_WINFAST_PXTV1200 28
+#define CX23885_BOARD_GOTVIEW_X5_3D_HYBRID     29
+#define CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF 30
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -203,14 +205,16 @@ typedef enum {
 struct cx23885_board {
 	char                    *name;
 	port_t			porta, portb, portc;
+	int		num_fds_portb, num_fds_portc;
 	unsigned int		tuner_type;
 	unsigned int		radio_type;
 	unsigned char		tuner_addr;
 	unsigned char		radio_addr;
+	unsigned int		tuner_bus;
 
 	/* Vendors can and do run the PCIe bridge at different
 	 * clock rates, driven physically by crystals on the PCBs.
-	 * The core has to accomodate this. This allows the user
+	 * The core has to accommodate this. This allows the user
 	 * to add new boards with new frequencys. The value is
 	 * expressed in Hz.
 	 *
@@ -219,7 +223,7 @@ struct cx23885_board {
 	 */
 	u32			clk_freq;
 	struct cx23885_input    input[MAX_CX23885_INPUT];
-	int			cimax; /* for NetUP */
+	int			ci_type; /* for NetUP */
 };
 
 struct cx23885_subid {
@@ -302,6 +306,7 @@ struct cx23885_tsport {
 
 	/* Allow a single tsport to have multiple frontends */
 	u32                        num_frontends;
+	void                (*gate_ctrl)(struct cx23885_tsport *port, int open);
 	void                       *port_priv;
 };
 
@@ -310,8 +315,7 @@ struct cx23885_kernel_ir {
 	char			*name;
 	char			*phys;
 
-	struct input_dev	*inp_dev;
-	struct ir_dev_props	props;
+	struct rc_dev		*rc;
 };
 
 struct cx23885_dev {
@@ -362,6 +366,7 @@ struct cx23885_dev {
 	v4l2_std_id                tvnorm;
 	unsigned int               tuner_type;
 	unsigned char              tuner_addr;
+	unsigned int               tuner_bus;
 	unsigned int               radio_type;
 	unsigned char              radio_addr;
 	unsigned int               has_radio;

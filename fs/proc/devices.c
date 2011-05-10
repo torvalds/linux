@@ -9,14 +9,14 @@ static int devinfo_show(struct seq_file *f, void *v)
 
 	if (i < CHRDEV_MAJOR_HASH_SIZE) {
 		if (i == 0)
-			seq_printf(f, "Character devices:\n");
+			seq_puts(f, "Character devices:\n");
 		chrdev_show(f, i);
 	}
 #ifdef CONFIG_BLOCK
 	else {
 		i -= CHRDEV_MAJOR_HASH_SIZE;
 		if (i == 0)
-			seq_printf(f, "\nBlock devices:\n");
+			seq_puts(f, "\nBlock devices:\n");
 		blkdev_show(f, i);
 	}
 #endif

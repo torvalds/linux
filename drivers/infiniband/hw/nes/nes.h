@@ -268,6 +268,9 @@ struct nes_device {
 	u8                     napi_isr_ran;
 	u8                     disable_rx_flow_control;
 	u8                     disable_tx_flow_control;
+
+	struct delayed_work    work;
+	u8                     link_recheck;
 };
 
 
@@ -507,6 +510,7 @@ void nes_nic_ce_handler(struct nes_device *, struct nes_hw_nic_cq *);
 void nes_iwarp_ce_handler(struct nes_device *, struct nes_hw_cq *);
 int nes_destroy_cqp(struct nes_device *);
 int nes_nic_cm_xmit(struct sk_buff *, struct net_device *);
+void nes_recheck_link_status(struct work_struct *work);
 
 /* nes_nic.c */
 struct net_device *nes_netdev_init(struct nes_device *, void __iomem *);

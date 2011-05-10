@@ -500,7 +500,7 @@ u64 gfs2_ri_total(struct gfs2_sbd *sdp)
 	for (rgrps = 0;; rgrps++) {
 		loff_t pos = rgrps * sizeof(struct gfs2_rindex);
 
-		if (pos + sizeof(struct gfs2_rindex) >= i_size_read(inode))
+		if (pos + sizeof(struct gfs2_rindex) > i_size_read(inode))
 			break;
 		error = gfs2_internal_read(ip, &ra_state, buf, &pos,
 					   sizeof(struct gfs2_rindex));
@@ -583,7 +583,7 @@ static int read_rindex_entry(struct gfs2_inode *ip,
  * Returns: 0 on successful update, error code otherwise
  */
 
-static int gfs2_ri_update(struct gfs2_inode *ip)
+int gfs2_ri_update(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct inode *inode = &ip->i_inode;
@@ -609,46 +609,6 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 		if (rgd->rd_data > max_data)
 			max_data = rgd->rd_data;
 	sdp->sd_max_rg_data = max_data;
-	sdp->sd_rindex_uptodate = 1;
-	return 0;
-}
-
-/**
- * gfs2_ri_update_special - Pull in a new resource index from the disk
- *
- * This is a special version that's safe to call from gfs2_inplace_reserve_i.
- * In this case we know that we don't have any resource groups in memory yet.
- *
- * @ip: pointer to the rindex inode
- *
- * Returns: 0 on successful update, error code otherwise
- */
-static int gfs2_ri_update_special(struct gfs2_inode *ip)
-{
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct inode *inode = &ip->i_inode;
-	struct file_ra_state ra_state;
-	struct gfs2_rgrpd *rgd;
-	unsigned int max_data = 0;
-	int error;
-
-	file_ra_state_init(&ra_state, inode->i_mapping);
-	for (sdp->sd_rgrps = 0;; sdp->sd_rgrps++) {
-		/* Ignore partials */
-		if ((sdp->sd_rgrps + 1) * sizeof(struct gfs2_rindex) >
-		    i_size_read(inode))
-			break;
-		error = read_rindex_entry(ip, &ra_state);
-		if (error) {
-			clear_rgrpdi(sdp);
-			return error;
-		}
-	}
-	list_for_each_entry(rgd, &sdp->sd_rindex_list, rd_list)
-		if (rgd->rd_data > max_data)
-			max_data = rgd->rd_data;
-	sdp->sd_max_rg_data = max_data;
-
 	sdp->sd_rindex_uptodate = 1;
 	return 0;
 }
@@ -985,7 +945,7 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 		/* rgblk_search can return a block < goal, so we need to
 		   keep it marching forward. */
 		no_addr = block + rgd->rd_data0;
-		goal++;
+		goal = max(block + 1, goal + 1);
 		if (*last_unlinked != NO_BLOCK && no_addr <= *last_unlinked)
 			continue;
 		if (no_addr == skip)
@@ -1011,7 +971,7 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 			found++;
 
 		/* Limit reclaim to sensible number of tasks */
-		if (found > 2*NR_CPUS)
+		if (found > NR_CPUS)
 			return;
 	}
 
@@ -1226,16 +1186,25 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip, int hold_rindex,
 			error = gfs2_rindex_hold(sdp, &al->al_ri_gh);
 		else if (!sdp->sd_rgrps) /* We may not have the rindex read
 					    in, so: */
-			error = gfs2_ri_update_special(ip);
+			error = gfs2_ri_update(ip);
 		if (error)
 			return error;
 	}
 
+try_again:
 	do {
 		error = get_local_rgrp(ip, &last_unlinked);
 		/* If there is no space, flushing the log may release some */
-		if (error)
+		if (error) {
+			if (ip == GFS2_I(sdp->sd_rindex) &&
+			    !sdp->sd_rindex_uptodate) {
+				error = gfs2_ri_update(ip);
+				if (error)
+					return error;
+				goto try_again;
+			}
 			gfs2_log_flush(sdp, NULL);
+		}
 	} while (error && tries++ < 3);
 
 	if (error) {
@@ -1633,7 +1602,7 @@ rgrp_error:
  *
  */
 
-void gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen)
+void __gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *rgd;
@@ -1648,9 +1617,49 @@ void gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen)
 	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
 
 	gfs2_trans_add_rg(rgd);
+}
 
+/**
+ * gfs2_free_data - free a contiguous run of data block(s)
+ * @ip: the inode these blocks are being freed from
+ * @bstart: first block of a run of contiguous blocks
+ * @blen: the length of the block run
+ *
+ */
+
+void gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+
+	__gfs2_free_data(ip, bstart, blen);
 	gfs2_statfs_change(sdp, 0, +blen, 0);
 	gfs2_quota_change(ip, -(s64)blen, ip->i_inode.i_uid, ip->i_inode.i_gid);
+}
+
+/**
+ * gfs2_free_meta - free a contiguous run of data block(s)
+ * @ip: the inode these blocks are being freed from
+ * @bstart: first block of a run of contiguous blocks
+ * @blen: the length of the block run
+ *
+ */
+
+void __gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_rgrpd *rgd;
+
+	rgd = rgblk_free(sdp, bstart, blen, GFS2_BLKST_FREE);
+	if (!rgd)
+		return;
+	trace_gfs2_block_alloc(ip, bstart, blen, GFS2_BLKST_FREE);
+	rgd->rd_free += blen;
+
+	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
+	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
+
+	gfs2_trans_add_rg(rgd);
+	gfs2_meta_wipe(ip, bstart, blen);
 }
 
 /**
@@ -1664,22 +1673,10 @@ void gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen)
 void gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct gfs2_rgrpd *rgd;
 
-	rgd = rgblk_free(sdp, bstart, blen, GFS2_BLKST_FREE);
-	if (!rgd)
-		return;
-	trace_gfs2_block_alloc(ip, bstart, blen, GFS2_BLKST_FREE);
-	rgd->rd_free += blen;
-
-	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
-	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
-
-	gfs2_trans_add_rg(rgd);
-
+	__gfs2_free_meta(ip, bstart, blen);
 	gfs2_statfs_change(sdp, 0, +blen, 0);
 	gfs2_quota_change(ip, -(s64)blen, ip->i_inode.i_uid, ip->i_inode.i_gid);
-	gfs2_meta_wipe(ip, bstart, blen);
 }
 
 void gfs2_unlink_di(struct inode *inode)

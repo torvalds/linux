@@ -857,7 +857,7 @@ static int mv_cra_hash_init(struct crypto_tfm *tfm, const char *base_hash_name,
 			printk(KERN_WARNING MV_CESA
 			       "Base driver '%s' could not be loaded!\n",
 			       base_hash_name);
-			err = PTR_ERR(fallback_tfm);
+			err = PTR_ERR(base_hash);
 			goto err_bad_base;
 		}
 	}

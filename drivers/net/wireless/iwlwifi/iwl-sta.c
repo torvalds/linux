@@ -107,7 +107,7 @@ static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 	/*
 	 * XXX: The MAC address in the command buffer is often changed from
 	 * the original sent to the device. That is, the MAC address
-	 * written to the command buffer often is not the same MAC adress
+	 * written to the command buffer often is not the same MAC address
 	 * read from the command buffer when the command returns. This
 	 * issue has not yet been resolved and this debugging is left to
 	 * observe the problem.
@@ -169,7 +169,6 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 
 	return ret;
 }
-EXPORT_SYMBOL(iwl_send_add_sta);
 
 static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 				   struct ieee80211_sta *sta,
@@ -316,7 +315,6 @@ u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	return sta_id;
 
 }
-EXPORT_SYMBOL_GPL(iwl_prep_station);
 
 #define STA_WAIT_TIMEOUT (HZ/2)
 
@@ -379,7 +377,6 @@ int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	*sta_id_r = sta_id;
 	return ret;
 }
-EXPORT_SYMBOL(iwl_add_station_common);
 
 /**
  * iwl_sta_ucode_deactivate - deactivate ucode status for a station
@@ -400,7 +397,8 @@ static void iwl_sta_ucode_deactivate(struct iwl_priv *priv, u8 sta_id)
 }
 
 static int iwl_send_remove_station(struct iwl_priv *priv,
-				   const u8 *addr, int sta_id)
+				   const u8 *addr, int sta_id,
+				   bool temporary)
 {
 	struct iwl_rx_packet *pkt;
 	int ret;
@@ -436,9 +434,11 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 	if (!ret) {
 		switch (pkt->u.rem_sta.status) {
 		case REM_STA_SUCCESS_MSK:
-			spin_lock_irqsave(&priv->sta_lock, flags_spin);
-			iwl_sta_ucode_deactivate(priv, sta_id);
-			spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+			if (!temporary) {
+				spin_lock_irqsave(&priv->sta_lock, flags_spin);
+				iwl_sta_ucode_deactivate(priv, sta_id);
+				spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+			}
 			IWL_DEBUG_ASSOC(priv, "REPLY_REMOVE_STA PASSED\n");
 			break;
 		default:
@@ -505,12 +505,11 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	return iwl_send_remove_station(priv, addr, sta_id);
+	return iwl_send_remove_station(priv, addr, sta_id, false);
 out_err:
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(iwl_remove_station);
 
 /**
  * iwl_clear_ucode_stations - clear ucode station table bits
@@ -545,7 +544,6 @@ void iwl_clear_ucode_stations(struct iwl_priv *priv,
 	if (!cleared)
 		IWL_DEBUG_INFO(priv, "No active stations found to be cleared\n");
 }
-EXPORT_SYMBOL(iwl_clear_ucode_stations);
 
 /**
  * iwl_restore_stations() - Restore driver known stations to device
@@ -622,7 +620,48 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	else
 		IWL_DEBUG_INFO(priv, "Restoring all known stations .... complete.\n");
 }
-EXPORT_SYMBOL(iwl_restore_stations);
+
+void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
+{
+	unsigned long flags;
+	int sta_id = ctx->ap_sta_id;
+	int ret;
+	struct iwl_addsta_cmd sta_cmd;
+	struct iwl_link_quality_cmd lq;
+	bool active;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE)) {
+		spin_unlock_irqrestore(&priv->sta_lock, flags);
+		return;
+	}
+
+	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(sta_cmd));
+	sta_cmd.mode = 0;
+	memcpy(&lq, priv->stations[sta_id].lq, sizeof(lq));
+
+	active = priv->stations[sta_id].used & IWL_STA_UCODE_ACTIVE;
+	priv->stations[sta_id].used &= ~IWL_STA_DRIVER_ACTIVE;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	if (active) {
+		ret = iwl_send_remove_station(
+			priv, priv->stations[sta_id].sta.sta.addr,
+			sta_id, true);
+		if (ret)
+			IWL_ERR(priv, "failed to remove STA %pM (%d)\n",
+				priv->stations[sta_id].sta.sta.addr, ret);
+	}
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	priv->stations[sta_id].used |= IWL_STA_DRIVER_ACTIVE;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	ret = iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	if (ret)
+		IWL_ERR(priv, "failed to re-add STA %pM (%d)\n",
+			priv->stations[sta_id].sta.sta.addr, ret);
+	iwl_send_lq_cmd(priv, ctx, &lq, CMD_SYNC, true);
+}
 
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 {
@@ -634,7 +673,6 @@ int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 
 	return WEP_INVALID_OFFSET;
 }
-EXPORT_SYMBOL(iwl_get_free_ucode_key_index);
 
 void iwl_dealloc_bcast_stations(struct iwl_priv *priv)
 {
@@ -654,7 +692,6 @@ void iwl_dealloc_bcast_stations(struct iwl_priv *priv)
 	}
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
-EXPORT_SYMBOL_GPL(iwl_dealloc_bcast_stations);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 static void iwl_dump_lq_cmd(struct iwl_priv *priv,
@@ -736,6 +773,14 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	if (WARN_ON(lq->sta_id == IWL_INVALID_STATION))
 		return -EINVAL;
 
+
+	spin_lock_irqsave(&priv->sta_lock, flags_spin);
+	if (!(priv->stations[lq->sta_id].used & IWL_STA_DRIVER_ACTIVE)) {
+		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+		return -EINVAL;
+	}
+	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+
 	iwl_dump_lq_cmd(priv, lq);
 	BUG_ON(init && (cmd.flags & CMD_ASYNC));
 
@@ -756,7 +801,6 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	}
 	return ret;
 }
-EXPORT_SYMBOL(iwl_send_lq_cmd);
 
 int iwl_mac_sta_remove(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif,
@@ -778,4 +822,3 @@ int iwl_mac_sta_remove(struct ieee80211_hw *hw,
 	mutex_unlock(&priv->mutex);
 	return ret;
 }
-EXPORT_SYMBOL(iwl_mac_sta_remove);

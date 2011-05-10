@@ -180,7 +180,6 @@ enum {
 	NLBL_UNLABEL_C_STATICLISTDEF,
 	__NLBL_UNLABEL_C_MAX,
 };
-#define NLBL_UNLABEL_C_MAX (__NLBL_UNLABEL_C_MAX - 1)
 
 /* NetLabel Unlabeled attributes */
 enum {

@@ -233,8 +233,6 @@ static DEVICE_ATTR(urbnum, S_IRUGO, show_urbnum, NULL);
 
 #ifdef	CONFIG_PM
 
-static const char power_group[] = "power";
-
 static ssize_t
 show_persist(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -278,7 +276,7 @@ static int add_persist_attributes(struct device *dev)
 		if (udev->descriptor.bDeviceClass != USB_CLASS_HUB)
 			rc = sysfs_add_file_to_group(&dev->kobj,
 					&dev_attr_persist.attr,
-					power_group);
+					power_group_name);
 	}
 	return rc;
 }
@@ -287,7 +285,7 @@ static void remove_persist_attributes(struct device *dev)
 {
 	sysfs_remove_file_from_group(&dev->kobj,
 			&dev_attr_persist.attr,
-			power_group);
+			power_group_name);
 }
 #else
 
@@ -336,44 +334,20 @@ static DEVICE_ATTR(active_duration, S_IRUGO, show_active_duration, NULL);
 static ssize_t
 show_autosuspend(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct usb_device *udev = to_usb_device(dev);
-
-	return sprintf(buf, "%d\n", udev->autosuspend_delay / HZ);
+	return sprintf(buf, "%d\n", dev->power.autosuspend_delay / 1000);
 }
 
 static ssize_t
 set_autosuspend(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	struct usb_device *udev = to_usb_device(dev);
-	int value, old_delay;
-	int rc;
+	int value;
 
-	if (sscanf(buf, "%d", &value) != 1 || value >= INT_MAX/HZ ||
-			value <= - INT_MAX/HZ)
+	if (sscanf(buf, "%d", &value) != 1 || value >= INT_MAX/1000 ||
+			value <= -INT_MAX/1000)
 		return -EINVAL;
-	value *= HZ;
 
-	usb_lock_device(udev);
-	old_delay = udev->autosuspend_delay;
-	udev->autosuspend_delay = value;
-
-	if (old_delay < 0) {	/* Autosuspend wasn't allowed */
-		if (value >= 0)
-			usb_autosuspend_device(udev);
-	} else {		/* Autosuspend was allowed */
-		if (value < 0) {
-			rc = usb_autoresume_device(udev);
-			if (rc < 0) {
-				count = rc;
-				udev->autosuspend_delay = old_delay;
-			}
-		} else {
-			usb_try_autosuspend_device(udev);
-		}
-	}
-
-	usb_unlock_device(udev);
+	pm_runtime_set_autosuspend_delay(dev, value * 1000);
 	return count;
 }
 
@@ -438,44 +412,30 @@ set_level(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(level, S_IRUGO | S_IWUSR, show_level, set_level);
 
+static struct attribute *power_attrs[] = {
+	&dev_attr_autosuspend.attr,
+	&dev_attr_level.attr,
+	&dev_attr_connected_duration.attr,
+	&dev_attr_active_duration.attr,
+	NULL,
+};
+static struct attribute_group power_attr_group = {
+	.name	= power_group_name,
+	.attrs	= power_attrs,
+};
+
 static int add_power_attributes(struct device *dev)
 {
 	int rc = 0;
 
-	if (is_usb_device(dev)) {
-		rc = sysfs_add_file_to_group(&dev->kobj,
-				&dev_attr_autosuspend.attr,
-				power_group);
-		if (rc == 0)
-			rc = sysfs_add_file_to_group(&dev->kobj,
-					&dev_attr_level.attr,
-					power_group);
-		if (rc == 0)
-			rc = sysfs_add_file_to_group(&dev->kobj,
-					&dev_attr_connected_duration.attr,
-					power_group);
-		if (rc == 0)
-			rc = sysfs_add_file_to_group(&dev->kobj,
-					&dev_attr_active_duration.attr,
-					power_group);
-	}
+	if (is_usb_device(dev))
+		rc = sysfs_merge_group(&dev->kobj, &power_attr_group);
 	return rc;
 }
 
 static void remove_power_attributes(struct device *dev)
 {
-	sysfs_remove_file_from_group(&dev->kobj,
-			&dev_attr_active_duration.attr,
-			power_group);
-	sysfs_remove_file_from_group(&dev->kobj,
-			&dev_attr_connected_duration.attr,
-			power_group);
-	sysfs_remove_file_from_group(&dev->kobj,
-			&dev_attr_level.attr,
-			power_group);
-	sysfs_remove_file_from_group(&dev->kobj,
-			&dev_attr_autosuspend.attr,
-			power_group);
+	sysfs_unmerge_group(&dev->kobj, &power_attr_group);
 }
 
 #else

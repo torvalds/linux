@@ -117,7 +117,7 @@
 #define TX_DESC_SIZE		10
 #define MAX_RBUFF_SZ		0x600
 #define MAX_TBUFF_SZ		0x600
-#define TX_TIMEOUT		50
+#define TX_TIMEOUT		(HZ/2)
 #define DELAY			1000
 #define CAM0			0x0
 

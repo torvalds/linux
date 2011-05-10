@@ -209,7 +209,7 @@ static int mxc_audmux_v2_init(void)
 		audmux_base = MX35_IO_ADDRESS(MX35_AUDMUX_BASE_ADDR);
 	}
 #endif
-#if defined(CONFIG_ARCH_MX25)
+#if defined(CONFIG_SOC_IMX25)
 	if (cpu_is_mx25()) {
 		audmux_clk = clk_get(NULL, "audmux");
 		if (IS_ERR(audmux_clk)) {
@@ -220,7 +220,7 @@ static int mxc_audmux_v2_init(void)
 		}
 		audmux_base = MX25_IO_ADDRESS(MX25_AUDMUX_BASE_ADDR);
 	}
-#endif
+#endif /* if defined(CONFIG_SOC_IMX25) */
 	audmux_debugfs_init();
 
 	return 0;

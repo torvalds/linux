@@ -37,18 +37,21 @@ label##2:						\
 	.align 2;					\
 label##3:
 
-#define MAKE_FTR_SECTION_ENTRY(msk, val, label, sect)	\
-label##4:						\
-	.popsection;					\
-	.pushsection sect,"a";				\
-	.align 3;					\
-label##5:					       	\
-	FTR_ENTRY_LONG msk;				\
-	FTR_ENTRY_LONG val;				\
-	FTR_ENTRY_OFFSET label##1b-label##5b;		\
-	FTR_ENTRY_OFFSET label##2b-label##5b;	 	\
-	FTR_ENTRY_OFFSET label##3b-label##5b;		\
-	FTR_ENTRY_OFFSET label##4b-label##5b;	 	\
+#define MAKE_FTR_SECTION_ENTRY(msk, val, label, sect)		\
+label##4:							\
+	.popsection;						\
+	.pushsection sect,"a";					\
+	.align 3;						\
+label##5:							\
+	FTR_ENTRY_LONG msk;					\
+	FTR_ENTRY_LONG val;					\
+	FTR_ENTRY_OFFSET label##1b-label##5b;			\
+	FTR_ENTRY_OFFSET label##2b-label##5b;			\
+	FTR_ENTRY_OFFSET label##3b-label##5b;			\
+	FTR_ENTRY_OFFSET label##4b-label##5b;			\
+	.ifgt (label##4b-label##3b)-(label##2b-label##1b);	\
+	.error "Feature section else case larger than body";	\
+	.endif;							\
 	.popsection;
 
 

@@ -35,6 +35,7 @@ int css_init_done = 0;
 int max_ssid;
 
 struct channel_subsystem *channel_subsystems[__MAX_CSSID + 1];
+static struct bus_type css_bus_type;
 
 int
 for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
@@ -618,6 +619,7 @@ EXPORT_SYMBOL_GPL(css_schedule_reprobe);
 static void css_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 {
 	struct subchannel_id mchk_schid;
+	struct subchannel *sch;
 
 	if (overflow) {
 		css_schedule_eval_all();
@@ -635,8 +637,15 @@ static void css_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 	init_subchannel_id(&mchk_schid);
 	mchk_schid.sch_no = crw0->rsid;
 	if (crw1)
-		mchk_schid.ssid = (crw1->rsid >> 8) & 3;
+		mchk_schid.ssid = (crw1->rsid >> 4) & 3;
 
+	if (crw0->erc == CRW_ERC_PMOD) {
+		sch = get_subchannel_by_schid(mchk_schid);
+		if (sch) {
+			css_update_ssd_info(sch);
+			put_device(&sch->dev);
+		}
+	}
 	/*
 	 * Since we are always presented with IPI in the CRW, we have to
 	 * use stsch() to find out if the subchannel in question has come
@@ -1206,7 +1215,7 @@ static const struct dev_pm_ops css_pm_ops = {
 	.restore = css_pm_restore,
 };
 
-struct bus_type css_bus_type = {
+static struct bus_type css_bus_type = {
 	.name     = "css",
 	.match    = css_bus_match,
 	.probe    = css_probe,
@@ -1225,9 +1234,7 @@ struct bus_type css_bus_type = {
  */
 int css_driver_register(struct css_driver *cdrv)
 {
-	cdrv->drv.name = cdrv->name;
 	cdrv->drv.bus = &css_bus_type;
-	cdrv->drv.owner = cdrv->owner;
 	return driver_register(&cdrv->drv);
 }
 EXPORT_SYMBOL_GPL(css_driver_register);
@@ -1245,4 +1252,3 @@ void css_driver_unregister(struct css_driver *cdrv)
 EXPORT_SYMBOL_GPL(css_driver_unregister);
 
 MODULE_LICENSE("GPL");
-EXPORT_SYMBOL(css_bus_type);

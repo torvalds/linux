@@ -225,7 +225,7 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 		      nr_irq_read_safe = 0, nr_irq_read_unsafe = 0,
 		      nr_softirq_read_safe = 0, nr_softirq_read_unsafe = 0,
 		      nr_hardirq_read_safe = 0, nr_hardirq_read_unsafe = 0,
-		      sum_forward_deps = 0, factor = 0;
+		      sum_forward_deps = 0;
 
 	list_for_each_entry(class, &all_lock_classes, lock_entry) {
 
@@ -282,13 +282,6 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 			nr_irq_unsafe * nr_irq_safe +
 			nr_hardirq_unsafe * nr_hardirq_safe +
 			nr_list_entries);
-
-	/*
-	 * Estimated factor between direct and indirect
-	 * dependencies:
-	 */
-	if (nr_list_entries)
-		factor = sum_forward_deps / nr_list_entries;
 
 #ifdef CONFIG_PROVE_LOCKING
 	seq_printf(m, " dependency chains:             %11lu [max: %lu]\n",
@@ -494,7 +487,6 @@ static void seq_stats(struct seq_file *m, struct lock_stat_data *data)
 		namelen += 2;
 
 	for (i = 0; i < LOCKSTAT_POINTS; i++) {
-		char sym[KSYM_SYMBOL_LEN];
 		char ip[32];
 
 		if (class->contention_point[i] == 0)
@@ -503,15 +495,13 @@ static void seq_stats(struct seq_file *m, struct lock_stat_data *data)
 		if (!i)
 			seq_line(m, '-', 40-namelen, namelen);
 
-		sprint_symbol(sym, class->contention_point[i]);
 		snprintf(ip, sizeof(ip), "[<%p>]",
 				(void *)class->contention_point[i]);
-		seq_printf(m, "%40s %14lu %29s %s\n", name,
-				stats->contention_point[i],
-				ip, sym);
+		seq_printf(m, "%40s %14lu %29s %pS\n",
+			   name, stats->contention_point[i],
+			   ip, (void *)class->contention_point[i]);
 	}
 	for (i = 0; i < LOCKSTAT_POINTS; i++) {
-		char sym[KSYM_SYMBOL_LEN];
 		char ip[32];
 
 		if (class->contending_point[i] == 0)
@@ -520,12 +510,11 @@ static void seq_stats(struct seq_file *m, struct lock_stat_data *data)
 		if (!i)
 			seq_line(m, '-', 40-namelen, namelen);
 
-		sprint_symbol(sym, class->contending_point[i]);
 		snprintf(ip, sizeof(ip), "[<%p>]",
 				(void *)class->contending_point[i]);
-		seq_printf(m, "%40s %14lu %29s %s\n", name,
-				stats->contending_point[i],
-				ip, sym);
+		seq_printf(m, "%40s %14lu %29s %pS\n",
+			   name, stats->contending_point[i],
+			   ip, (void *)class->contending_point[i]);
 	}
 	if (i) {
 		seq_puts(m, "\n");

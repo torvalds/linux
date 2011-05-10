@@ -646,9 +646,17 @@ __SYSCALL(__NR_prlimit64, sys_prlimit64)
 __SYSCALL(__NR_fanotify_init, sys_fanotify_init)
 #define __NR_fanotify_mark 263
 __SYSCALL(__NR_fanotify_mark, sys_fanotify_mark)
+#define __NR_name_to_handle_at		264
+__SYSCALL(__NR_name_to_handle_at, sys_name_to_handle_at)
+#define __NR_open_by_handle_at		265
+__SYSCALL(__NR_open_by_handle_at, sys_open_by_handle_at)
+#define __NR_clock_adjtime 266
+__SYSCALL(__NR_clock_adjtime, sys_clock_adjtime)
+#define __NR_syncfs 267
+__SYSCALL(__NR_syncfs, sys_syncfs)
 
 #undef __NR_syscalls
-#define __NR_syscalls 264
+#define __NR_syscalls 268
 
 /*
  * All syscalls below here should go away really,

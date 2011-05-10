@@ -7,6 +7,7 @@
  */
 #ifndef __LINUX_FS_NFS_CALLBACK_H
 #define __LINUX_FS_NFS_CALLBACK_H
+#include <linux/sunrpc/svc.h>
 
 #define NFS4_CALLBACK 0x40000000
 #define NFS4_CALLBACK_XDRSIZE 2048
@@ -34,10 +35,16 @@ enum nfs4_callback_opnum {
 	OP_CB_ILLEGAL = 10044,
 };
 
+struct cb_process_state {
+	__be32			drc_status;
+	struct nfs_client	*clp;
+};
+
 struct cb_compound_hdr_arg {
 	unsigned int taglen;
 	const char *tag;
 	unsigned int minorversion;
+	unsigned int cb_ident; /* v4.0 callback identifier */
 	unsigned nops;
 };
 
@@ -103,14 +110,23 @@ struct cb_sequenceres {
 	uint32_t			csr_target_highestslotid;
 };
 
-extern unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
-				       struct cb_sequenceres *res);
+extern __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
+				       struct cb_sequenceres *res,
+				       struct cb_process_state *cps);
 
 extern int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation,
 					     const nfs4_stateid *stateid);
 
 #define RCA4_TYPE_MASK_RDATA_DLG	0
 #define RCA4_TYPE_MASK_WDATA_DLG	1
+#define RCA4_TYPE_MASK_DIR_DLG         2
+#define RCA4_TYPE_MASK_FILE_LAYOUT     3
+#define RCA4_TYPE_MASK_BLK_LAYOUT      4
+#define RCA4_TYPE_MASK_OBJ_LAYOUT_MIN  8
+#define RCA4_TYPE_MASK_OBJ_LAYOUT_MAX  9
+#define RCA4_TYPE_MASK_OTHER_LAYOUT_MIN 12
+#define RCA4_TYPE_MASK_OTHER_LAYOUT_MAX 15
+#define RCA4_TYPE_MASK_ALL 0xf31f
 
 struct cb_recallanyargs {
 	struct sockaddr	*craa_addr;
@@ -118,25 +134,52 @@ struct cb_recallanyargs {
 	uint32_t	craa_type_mask;
 };
 
-extern unsigned nfs4_callback_recallany(struct cb_recallanyargs *args, void *dummy);
+extern __be32 nfs4_callback_recallany(struct cb_recallanyargs *args,
+					void *dummy,
+					struct cb_process_state *cps);
 
 struct cb_recallslotargs {
 	struct sockaddr	*crsa_addr;
 	uint32_t	crsa_target_max_slots;
 };
-extern unsigned nfs4_callback_recallslot(struct cb_recallslotargs *args,
-					  void *dummy);
+extern __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args,
+					 void *dummy,
+					 struct cb_process_state *cps);
 
+struct cb_layoutrecallargs {
+	struct sockaddr		*cbl_addr;
+	uint32_t		cbl_recall_type;
+	uint32_t		cbl_layout_type;
+	uint32_t		cbl_layoutchanged;
+	union {
+		struct {
+			struct nfs_fh		cbl_fh;
+			struct pnfs_layout_range cbl_range;
+			nfs4_stateid		cbl_stateid;
+		};
+		struct nfs_fsid		cbl_fsid;
+	};
+};
+
+extern unsigned nfs4_callback_layoutrecall(
+	struct cb_layoutrecallargs *args,
+	void *dummy, struct cb_process_state *cps);
+
+extern void nfs4_check_drain_bc_complete(struct nfs4_session *ses);
+extern void nfs4_cb_take_slot(struct nfs_client *clp);
 #endif /* CONFIG_NFS_V4_1 */
-
-extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *res);
-extern __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy);
-
+extern int check_gss_callback_principal(struct nfs_client *, struct svc_rqst *);
+extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
+				    struct cb_getattrres *res,
+				    struct cb_process_state *cps);
+extern __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy,
+				   struct cb_process_state *cps);
 #ifdef CONFIG_NFS_V4
 extern int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt);
 extern void nfs_callback_down(int minorversion);
 extern int nfs4_validate_delegation_stateid(struct nfs_delegation *delegation,
 					    const nfs4_stateid *stateid);
+extern int nfs4_set_callback_sessionid(struct nfs_client *clp);
 #endif /* CONFIG_NFS_V4 */
 /*
  * nfs41: Callbacks are expected to not cause substantial latency,

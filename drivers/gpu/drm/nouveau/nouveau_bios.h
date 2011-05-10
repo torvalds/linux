@@ -251,7 +251,7 @@ struct nvbios {
 	uint8_t digital_min_front_porch;
 	bool fp_no_ddc;
 
-	struct mutex lock;
+	spinlock_t lock;
 
 	uint8_t data[NV_PROM_SIZE];
 	unsigned int length;

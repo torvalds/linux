@@ -360,7 +360,7 @@ ret:
  * HTC Messages are handled directly here and the obtained SKB
  * is freed.
  *
- * Sevice messages (Data, WMI) passed to the corresponding
+ * Service messages (Data, WMI) passed to the corresponding
  * endpoint RX handlers, which have to free the SKB.
  */
 void ath9k_htc_rx_msg(struct htc_target *htc_handle,
@@ -462,9 +462,10 @@ void ath9k_htc_hw_free(struct htc_target *htc)
 }
 
 int ath9k_htc_hw_init(struct htc_target *target,
-		      struct device *dev, u16 devid, char *product)
+		      struct device *dev, u16 devid,
+		      char *product, u32 drv_info)
 {
-	if (ath9k_htc_probe_device(target, dev, devid, product)) {
+	if (ath9k_htc_probe_device(target, dev, devid, product, drv_info)) {
 		printk(KERN_ERR "Failed to initialize the device\n");
 		return -ENODEV;
 	}

@@ -25,8 +25,9 @@ Firmware is available from the Linux firmware repository at:
 	http://git.kernel.org/?p=linux/kernel/git/dwmw2/linux-firmware.git
 	https://git.kernel.org/?p=linux/kernel/git/dwmw2/linux-firmware.git
 
-For 4329 chip, copy brcm/bcm4329-fullmac-4-218-248-5.bin and
-bcm4329-fullmac-4-218-248-5.txt to /lib/firmware/brcm
+For 4329 chip, copy brcm/bcm4329-fullmac-4.bin and brcm/bcm4329-fullmac-4.txt
+to /lib/firmware/brcm (or wherever firmware is normally installed on your
+system).
 
 Contact Info:
 =============

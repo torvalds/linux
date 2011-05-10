@@ -5,9 +5,9 @@
 #include "ieee80211_i.h"
 #include "driver-trace.h"
 
-static inline int drv_tx(struct ieee80211_local *local, struct sk_buff *skb)
+static inline void drv_tx(struct ieee80211_local *local, struct sk_buff *skb)
 {
-	return local->ops->tx(&local->hw, skb);
+	local->ops->tx(&local->hw, skb);
 }
 
 static inline int drv_start(struct ieee80211_local *local)
@@ -233,6 +233,20 @@ static inline void drv_get_tkip_seq(struct ieee80211_local *local,
 	trace_drv_get_tkip_seq(local, hw_key_idx, iv32, iv16);
 }
 
+static inline int drv_set_frag_threshold(struct ieee80211_local *local,
+					u32 value)
+{
+	int ret = 0;
+
+	might_sleep();
+
+	trace_drv_set_frag_threshold(local, value);
+	if (local->ops->set_frag_threshold)
+		ret = local->ops->set_frag_threshold(&local->hw, value);
+	trace_drv_return_int(local, ret);
+	return ret;
+}
+
 static inline int drv_set_rts_threshold(struct ieee80211_local *local,
 					u32 value)
 {
@@ -353,7 +367,7 @@ static inline void drv_reset_tsf(struct ieee80211_local *local)
 
 static inline int drv_tx_last_beacon(struct ieee80211_local *local)
 {
-	int ret = 1;
+	int ret = 0; /* default unsuported op for less congestion */
 
 	might_sleep();
 
@@ -368,17 +382,17 @@ static inline int drv_ampdu_action(struct ieee80211_local *local,
 				   struct ieee80211_sub_if_data *sdata,
 				   enum ieee80211_ampdu_mlme_action action,
 				   struct ieee80211_sta *sta, u16 tid,
-				   u16 *ssn)
+				   u16 *ssn, u8 buf_size)
 {
 	int ret = -EOPNOTSUPP;
 
 	might_sleep();
 
-	trace_drv_ampdu_action(local, sdata, action, sta, tid, ssn);
+	trace_drv_ampdu_action(local, sdata, action, sta, tid, ssn, buf_size);
 
 	if (local->ops->ampdu_action)
 		ret = local->ops->ampdu_action(&local->hw, &sdata->vif, action,
-					       sta, tid, ssn);
+					       sta, tid, ssn, buf_size);
 
 	trace_drv_return_int(local, ret);
 
@@ -425,6 +439,116 @@ static inline void drv_channel_switch(struct ieee80211_local *local,
 
 	trace_drv_channel_switch(local, ch_switch);
 	local->ops->channel_switch(&local->hw, ch_switch);
+	trace_drv_return_void(local);
+}
+
+
+static inline int drv_set_antenna(struct ieee80211_local *local,
+				  u32 tx_ant, u32 rx_ant)
+{
+	int ret = -EOPNOTSUPP;
+	might_sleep();
+	if (local->ops->set_antenna)
+		ret = local->ops->set_antenna(&local->hw, tx_ant, rx_ant);
+	trace_drv_set_antenna(local, tx_ant, rx_ant, ret);
+	return ret;
+}
+
+static inline int drv_get_antenna(struct ieee80211_local *local,
+				  u32 *tx_ant, u32 *rx_ant)
+{
+	int ret = -EOPNOTSUPP;
+	might_sleep();
+	if (local->ops->get_antenna)
+		ret = local->ops->get_antenna(&local->hw, tx_ant, rx_ant);
+	trace_drv_get_antenna(local, *tx_ant, *rx_ant, ret);
+	return ret;
+}
+
+static inline int drv_remain_on_channel(struct ieee80211_local *local,
+					struct ieee80211_channel *chan,
+					enum nl80211_channel_type chantype,
+					unsigned int duration)
+{
+	int ret;
+
+	might_sleep();
+
+	trace_drv_remain_on_channel(local, chan, chantype, duration);
+	ret = local->ops->remain_on_channel(&local->hw, chan, chantype,
+					    duration);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline int drv_cancel_remain_on_channel(struct ieee80211_local *local)
+{
+	int ret;
+
+	might_sleep();
+
+	trace_drv_cancel_remain_on_channel(local);
+	ret = local->ops->cancel_remain_on_channel(&local->hw);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline int drv_offchannel_tx(struct ieee80211_local *local,
+				    struct sk_buff *skb,
+				    struct ieee80211_channel *chan,
+				    enum nl80211_channel_type channel_type,
+				    unsigned int wait)
+{
+	int ret;
+
+	might_sleep();
+
+	trace_drv_offchannel_tx(local, skb, chan, channel_type, wait);
+	ret = local->ops->offchannel_tx(&local->hw, skb, chan,
+					channel_type, wait);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline int drv_offchannel_tx_cancel_wait(struct ieee80211_local *local)
+{
+	int ret;
+
+	might_sleep();
+
+	trace_drv_offchannel_tx_cancel_wait(local);
+	ret = local->ops->offchannel_tx_cancel_wait(&local->hw);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline int drv_set_ringparam(struct ieee80211_local *local,
+				    u32 tx, u32 rx)
+{
+	int ret = -ENOTSUPP;
+
+	might_sleep();
+
+	trace_drv_set_ringparam(local, tx, rx);
+	if (local->ops->set_ringparam)
+		ret = local->ops->set_ringparam(&local->hw, tx, rx);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline void drv_get_ringparam(struct ieee80211_local *local,
+				     u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max)
+{
+	might_sleep();
+
+	trace_drv_get_ringparam(local, tx, tx_max, rx, rx_max);
+	if (local->ops->get_ringparam)
+		local->ops->get_ringparam(&local->hw, tx, tx_max, rx, rx_max);
 	trace_drv_return_void(local);
 }
 

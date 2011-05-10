@@ -225,7 +225,8 @@ static int iwm_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 
 static int iwm_cfg80211_set_default_key(struct wiphy *wiphy,
 					struct net_device *ndev,
-					u8 key_index)
+					u8 key_index, bool unicast,
+					bool multicast)
 {
 	struct iwm_priv *iwm = ndev_to_iwm(ndev);
 
@@ -286,7 +287,8 @@ int iwm_cfg80211_inform_bss(struct iwm_priv *iwm)
 			return -EINVAL;
 		}
 
-		freq = ieee80211_channel_to_frequency(umac_bss->channel);
+		freq = ieee80211_channel_to_frequency(umac_bss->channel,
+						      band->band);
 		channel = ieee80211_get_channel(wiphy, freq);
 		signal = umac_bss->rssi * 100;
 

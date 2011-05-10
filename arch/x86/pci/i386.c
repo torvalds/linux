@@ -65,21 +65,13 @@ pcibios_align_resource(void *data, const struct resource *res,
 			resource_size_t size, resource_size_t align)
 {
 	struct pci_dev *dev = data;
-	resource_size_t start = round_down(res->end - size + 1, align);
+	resource_size_t start = res->start;
 
 	if (res->flags & IORESOURCE_IO) {
-
-		/*
-		 * If we're avoiding ISA aliases, the largest contiguous I/O
-		 * port space is 256 bytes.  Clearing bits 9 and 10 preserves
-		 * all 256-byte and smaller alignments, so the result will
-		 * still be correctly aligned.
-		 */
-		if (!skip_isa_ioresource_align(dev))
-			start &= ~0x300;
-	} else if (res->flags & IORESOURCE_MEM) {
-		if (start < BIOS_END)
-			start = res->end;	/* fail; no space */
+		if (skip_isa_ioresource_align(dev))
+			return start;
+		if (start & 0x300)
+			start = (start + 0x3ff) & ~0x3ff;
 	}
 	return start;
 }
@@ -249,7 +241,7 @@ void __init pcibios_resource_survey(void)
 	e820_reserve_resources_late();
 	/*
 	 * Insert the IO APIC resources after PCI initialization has
-	 * occured to handle IO APICS that are mapped in on a BAR in
+	 * occurred to handle IO APICS that are mapped in on a BAR in
 	 * PCI space, but before trying to assign unassigned pci res.
 	 */
 	ioapic_insert_resources();
@@ -312,7 +304,7 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		/*
 		 * ioremap() and ioremap_nocache() defaults to UC MINUS for now.
 		 * To avoid attribute conflicts, request UC MINUS here
-		 * aswell.
+		 * as well.
 		 */
 		prot |= _PAGE_CACHE_UC_MINUS;
 

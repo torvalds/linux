@@ -22,6 +22,9 @@
 #error "This file is PCI bus glue.  CONFIG_PCI must be defined."
 #endif
 
+/* defined here to avoid adding to pci_ids.h for single instance use */
+#define PCI_DEVICE_ID_INTEL_CE4100_USB	0x2e70
+
 /*-------------------------------------------------------------------------*/
 
 /* called after powerup, by probe or system-pm "wakeup" */
@@ -137,6 +140,10 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 			ehci_info(ehci, "disable lpm for langwell/penwell\n");
 			ehci->has_lpm = 0;
 		}
+		if (pdev->device == PCI_DEVICE_ID_INTEL_CE4100_USB) {
+			hcd->has_tt = 1;
+			tdi_reset(ehci);
+		}
 		break;
 	case PCI_VENDOR_ID_TDI:
 		if (pdev->device == PCI_DEVICE_ID_TDI_EHCI) {
@@ -145,6 +152,9 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		}
 		break;
 	case PCI_VENDOR_ID_AMD:
+		/* AMD PLL quirk */
+		if (usb_amd_find_chipset_info())
+			ehci->amd_pll_fix = 1;
 		/* AMD8111 EHCI doesn't work, according to AMD errata */
 		if (pdev->device == 0x7463) {
 			ehci_info(ehci, "ignoring AMD8111 (errata)\n");
@@ -190,6 +200,9 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		}
 		break;
 	case PCI_VENDOR_ID_ATI:
+		/* AMD PLL quirk */
+		if (usb_amd_find_chipset_info())
+			ehci->amd_pll_fix = 1;
 		/* SB600 and old version of SB700 have a bug in EHCI controller,
 		 * which causes usb devices lose response in some cases.
 		 */
@@ -321,8 +334,8 @@ static int ehci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 	 * mark HW unaccessible.  The PM and USB cores make sure that
 	 * the root hub is either suspended or stopped.
 	 */
-	spin_lock_irqsave (&ehci->lock, flags);
 	ehci_prepare_ports_for_controller_suspend(ehci, do_wakeup);
+	spin_lock_irqsave (&ehci->lock, flags);
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	(void)ehci_readl(ehci, &ehci->regs->intr_enable);
 

@@ -39,17 +39,17 @@
 #define BMI_COMMUNICATION_TIMEOUT       100000
 
 /* ------ Global Variable Declarations ------- */
-static A_BOOL bmiDone;
+static bool bmiDone;
 
-A_STATUS
-bmiBufferSend(HIF_DEVICE *device,
-              A_UCHAR *buffer,
-              A_UINT32 length);
+int
+bmiBufferSend(struct hif_device *device,
+              u8 *buffer,
+              u32 length);
 
-A_STATUS
-bmiBufferReceive(HIF_DEVICE *device,
-                 A_UCHAR *buffer,
-                 A_UINT32 length,
-                 A_BOOL want_timeout);
+int
+bmiBufferReceive(struct hif_device *device,
+                 u8 *buffer,
+                 u32 length,
+                 bool want_timeout);
 
 #endif

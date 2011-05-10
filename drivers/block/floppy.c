@@ -597,6 +597,11 @@ static unsigned char fsector_t;	/* sector in track */
 static unsigned char in_sector_offset;	/* offset within physical sector,
 					 * expressed in units of 512 bytes */
 
+static inline bool drive_no_geom(int drive)
+{
+	return !current_type[drive] && !ITYPE(UDRS->fd_device);
+}
+
 #ifndef fd_eject
 static inline int fd_eject(int drive)
 {
@@ -3276,7 +3281,7 @@ static int set_geometry(unsigned int cmd, struct floppy_struct *g,
 			struct block_device *bdev = opened_bdev[cnt];
 			if (!bdev || ITYPE(drive_state[cnt].fd_device) != type)
 				continue;
-			__invalidate_device(bdev);
+			__invalidate_device(bdev, true);
 		}
 		mutex_unlock(&open_lock);
 	} else {
@@ -3765,13 +3770,14 @@ out2:
 /*
  * Check if the disk has been changed or if a change has been faked.
  */
-static int check_floppy_change(struct gendisk *disk)
+static unsigned int floppy_check_events(struct gendisk *disk,
+					unsigned int clearing)
 {
 	int drive = (long)disk->private_data;
 
 	if (test_bit(FD_DISK_CHANGED_BIT, &UDRS->flags) ||
 	    test_bit(FD_VERIFY_BIT, &UDRS->flags))
-		return 1;
+		return DISK_EVENT_MEDIA_CHANGE;
 
 	if (time_after(jiffies, UDRS->last_checked + UDP->checkfreq)) {
 		lock_fdc(drive, false);
@@ -3782,8 +3788,8 @@ static int check_floppy_change(struct gendisk *disk)
 	if (test_bit(FD_DISK_CHANGED_BIT, &UDRS->flags) ||
 	    test_bit(FD_VERIFY_BIT, &UDRS->flags) ||
 	    test_bit(drive, &fake_change) ||
-	    (!ITYPE(UDRS->fd_device) && !current_type[drive]))
-		return 1;
+	    drive_no_geom(drive))
+		return DISK_EVENT_MEDIA_CHANGE;
 	return 0;
 }
 
@@ -3832,7 +3838,6 @@ static int __floppy_read_block_0(struct block_device *bdev)
 	bio.bi_end_io = floppy_rb0_complete;
 
 	submit_bio(READ, &bio);
-	generic_unplug_device(bdev_get_queue(bdev));
 	process_fd_request();
 	wait_for_completion(&complete);
 
@@ -3848,13 +3853,13 @@ static int __floppy_read_block_0(struct block_device *bdev)
 static int floppy_revalidate(struct gendisk *disk)
 {
 	int drive = (long)disk->private_data;
-#define NO_GEOM (!current_type[drive] && !ITYPE(UDRS->fd_device))
 	int cf;
 	int res = 0;
 
 	if (test_bit(FD_DISK_CHANGED_BIT, &UDRS->flags) ||
 	    test_bit(FD_VERIFY_BIT, &UDRS->flags) ||
-	    test_bit(drive, &fake_change) || NO_GEOM) {
+	    test_bit(drive, &fake_change) ||
+	    drive_no_geom(drive)) {
 		if (WARN(atomic_read(&usage_count) == 0,
 			 "VFS: revalidate called on non-open device.\n"))
 			return -EFAULT;
@@ -3862,7 +3867,7 @@ static int floppy_revalidate(struct gendisk *disk)
 		lock_fdc(drive, false);
 		cf = (test_bit(FD_DISK_CHANGED_BIT, &UDRS->flags) ||
 		      test_bit(FD_VERIFY_BIT, &UDRS->flags));
-		if (!(cf || test_bit(drive, &fake_change) || NO_GEOM)) {
+		if (!(cf || test_bit(drive, &fake_change) || drive_no_geom(drive))) {
 			process_fd_request();	/*already done by another thread */
 			return 0;
 		}
@@ -3874,7 +3879,7 @@ static int floppy_revalidate(struct gendisk *disk)
 		clear_bit(FD_DISK_CHANGED_BIT, &UDRS->flags);
 		if (cf)
 			UDRS->generation++;
-		if (NO_GEOM) {
+		if (drive_no_geom(drive)) {
 			/* auto-sensing */
 			res = __floppy_read_block_0(opened_bdev[drive]);
 		} else {
@@ -3893,7 +3898,7 @@ static const struct block_device_operations floppy_fops = {
 	.release		= floppy_release,
 	.ioctl			= fd_ioctl,
 	.getgeo			= fd_getgeo,
-	.media_changed		= check_floppy_change,
+	.check_events		= floppy_check_events,
 	.revalidate_disk	= floppy_revalidate,
 };
 
@@ -4200,6 +4205,7 @@ static int __init floppy_init(void)
 		disks[dr]->major = FLOPPY_MAJOR;
 		disks[dr]->first_minor = TOMINOR(dr);
 		disks[dr]->fops = &floppy_fops;
+		disks[dr]->events = DISK_EVENT_MEDIA_CHANGE;
 		sprintf(disks[dr]->disk_name, "fd%d", dr);
 
 		init_timer(&motor_off_timer[dr]);
@@ -4352,7 +4358,7 @@ static int __init floppy_init(void)
 out_unreg_platform_dev:
 	platform_device_unregister(&floppy_device[drive]);
 out_flush_work:
-	flush_scheduled_work();
+	flush_work_sync(&floppy_work);
 	if (atomic_read(&usage_count))
 		floppy_release_irq_and_dma();
 out_unreg_region:
@@ -4422,7 +4428,7 @@ static int floppy_grab_irq_and_dma(void)
 	 * We might have scheduled a free_irq(), wait it to
 	 * drain first:
 	 */
-	flush_scheduled_work();
+	flush_work_sync(&floppy_work);
 
 	if (fd_request_irq()) {
 		DPRINT("Unable to grab IRQ%d for the floppy driver\n",

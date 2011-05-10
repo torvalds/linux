@@ -4273,8 +4273,10 @@ static int ioc_general(void __user *arg, char *cmnd)
     }
 
     rval = __gdth_execute(ha->sdev, &gen.command, cmnd, gen.timeout, &gen.info);
-    if (rval < 0)
+    if (rval < 0) {
+	gdth_ioctl_free(ha, gen.data_len+gen.sense_len, buf, paddr);
         return rval;
+    }
     gen.status = rval;
 
     if (copy_to_user(arg + sizeof(gdth_ioctl_general), buf, 

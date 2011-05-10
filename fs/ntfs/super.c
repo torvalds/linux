@@ -1,7 +1,7 @@
 /*
  * super.c - NTFS kernel super block handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2007 Anton Altaparmakov
+ * Copyright (c) 2001-2011 Anton Altaparmakov and Tuxera Inc.
  * Copyright (c) 2001,2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -458,7 +458,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 	 * the volume on boot and updates them.
 	 *
 	 * When remounting read-only, mark the volume clean if no volume errors
-	 * have occured.
+	 * have occurred.
 	 */
 	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
 		static const char *es = ".  Cannot remount read-write.";
@@ -1269,7 +1269,7 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 					"hibernated on the volume.");
 			return 0;
 		}
-		/* A real error occured. */
+		/* A real error occurred. */
 		ntfs_error(vol->sb, "Failed to find inode number for "
 				"hiberfil.sys.");
 		return ret;
@@ -1370,7 +1370,7 @@ static bool load_and_init_quota(ntfs_volume *vol)
 			NVolSetQuotaOutOfDate(vol);
 			return true;
 		}
-		/* A real error occured. */
+		/* A real error occurred. */
 		ntfs_error(vol->sb, "Failed to find inode number for $Quota.");
 		return false;
 	}
@@ -1454,7 +1454,7 @@ not_enabled:
 			NVolSetUsnJrnlStamped(vol);
 			return true;
 		}
-		/* A real error occured. */
+		/* A real error occurred. */
 		ntfs_error(vol->sb, "Failed to find inode number for "
 				"$UsnJrnl.");
 		return false;
@@ -2292,7 +2292,7 @@ static void ntfs_put_super(struct super_block *sb)
 	ntfs_commit_inode(vol->mft_ino);
 
 	/*
-	 * If a read-write mount and no volume errors have occured, mark the
+	 * If a read-write mount and no volume errors have occurred, mark the
 	 * volume clean.  Also, re-commit all affected inodes.
 	 */
 	if (!(sb->s_flags & MS_RDONLY)) {
@@ -2496,7 +2496,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 	if (vol->nr_clusters & 63)
 		nr_free += 64 - (vol->nr_clusters & 63);
 	up_read(&vol->lcnbmp_lock);
-	/* If errors occured we may well have gone below zero, fix this. */
+	/* If errors occurred we may well have gone below zero, fix this. */
 	if (nr_free < 0)
 		nr_free = 0;
 	ntfs_debug("Exiting.");
@@ -2561,7 +2561,7 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 	}
 	ntfs_debug("Finished reading $MFT/$BITMAP, last index = 0x%lx.",
 			index - 1);
-	/* If errors occured we may well have gone below zero, fix this. */
+	/* If errors occurred we may well have gone below zero, fix this. */
 	if (nr_free < 0)
 		nr_free = 0;
 	ntfs_debug("Exiting.");
@@ -3193,8 +3193,8 @@ static void __exit exit_ntfs_fs(void)
 	ntfs_sysctl(0);
 }
 
-MODULE_AUTHOR("Anton Altaparmakov <aia21@cantab.net>");
-MODULE_DESCRIPTION("NTFS 1.2/3.x driver - Copyright (c) 2001-2007 Anton Altaparmakov");
+MODULE_AUTHOR("Anton Altaparmakov <anton@tuxera.com>");
+MODULE_DESCRIPTION("NTFS 1.2/3.x driver - Copyright (c) 2001-2011 Anton Altaparmakov and Tuxera Inc.");
 MODULE_VERSION(NTFS_VERSION);
 MODULE_LICENSE("GPL");
 #ifdef DEBUG

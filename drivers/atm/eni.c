@@ -2244,7 +2244,7 @@ static int __devinit eni_init_one(struct pci_dev *pci_dev,
 		    &zeroes);
 		if (!cpu_zeroes) goto out1;
 	}
-	dev = atm_dev_register(DEV_LABEL,&ops,-1,NULL);
+	dev = atm_dev_register(DEV_LABEL, &pci_dev->dev, &ops, -1, NULL);
 	if (!dev) goto out2;
 	pci_set_drvdata(pci_dev, dev);
 	eni_dev->pci_dev = pci_dev;

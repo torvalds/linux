@@ -122,6 +122,7 @@ static ssize_t xenbus_file_read(struct file *filp,
 	int ret;
 
 	mutex_lock(&u->reply_mutex);
+again:
 	while (list_empty(&u->read_buffers)) {
 		mutex_unlock(&u->reply_mutex);
 		if (filp->f_flags & O_NONBLOCK)
@@ -144,7 +145,7 @@ static ssize_t xenbus_file_read(struct file *filp,
 		i += sz - ret;
 		rb->cons += sz - ret;
 
-		if (ret != sz) {
+		if (ret != 0) {
 			if (i == 0)
 				i = -EFAULT;
 			goto out;
@@ -160,6 +161,8 @@ static ssize_t xenbus_file_read(struct file *filp,
 					struct read_buffer, list);
 		}
 	}
+	if (i == 0)
+		goto again;
 
 out:
 	mutex_unlock(&u->reply_mutex);
@@ -407,6 +410,7 @@ static int xenbus_write_watch(unsigned msg_type, struct xenbus_file_priv *u)
 
 		mutex_lock(&u->reply_mutex);
 		rc = queue_reply(&u->read_buffers, &reply, sizeof(reply));
+		wake_up(&u->read_waitq);
 		mutex_unlock(&u->reply_mutex);
 	}
 
@@ -455,7 +459,7 @@ static ssize_t xenbus_file_write(struct file *filp,
 
 	ret = copy_from_user(u->u.buffer + u->len, ubuf, len);
 
-	if (ret == len) {
+	if (ret != 0) {
 		rc = -EFAULT;
 		goto out;
 	}
@@ -488,21 +492,6 @@ static ssize_t xenbus_file_write(struct file *filp,
 	msg_type = u->u.msg.type;
 
 	switch (msg_type) {
-	case XS_TRANSACTION_START:
-	case XS_TRANSACTION_END:
-	case XS_DIRECTORY:
-	case XS_READ:
-	case XS_GET_PERMS:
-	case XS_RELEASE:
-	case XS_GET_DOMAIN_PATH:
-	case XS_WRITE:
-	case XS_MKDIR:
-	case XS_RM:
-	case XS_SET_PERMS:
-		/* Send out a transaction */
-		ret = xenbus_write_transaction(msg_type, u);
-		break;
-
 	case XS_WATCH:
 	case XS_UNWATCH:
 		/* (Un)Ask for some path to be watched for changes */
@@ -510,7 +499,8 @@ static ssize_t xenbus_file_write(struct file *filp,
 		break;
 
 	default:
-		ret = -EINVAL;
+		/* Send out a transaction */
+		ret = xenbus_write_transaction(msg_type, u);
 		break;
 	}
 	if (ret != 0)
@@ -555,6 +545,7 @@ static int xenbus_file_release(struct inode *inode, struct file *filp)
 	struct xenbus_file_priv *u = filp->private_data;
 	struct xenbus_transaction_holder *trans, *tmp;
 	struct watch_adapter *watch, *tmp_watch;
+	struct read_buffer *rb, *tmp_rb;
 
 	/*
 	 * No need for locking here because there are no other users,
@@ -573,6 +564,10 @@ static int xenbus_file_release(struct inode *inode, struct file *filp)
 		free_watch_adapter(watch);
 	}
 
+	list_for_each_entry_safe(rb, tmp_rb, &u->read_buffers, list) {
+		list_del(&rb->list);
+		kfree(rb);
+	}
 	kfree(u);
 
 	return 0;

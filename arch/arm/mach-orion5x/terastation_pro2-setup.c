@@ -88,7 +88,7 @@ void __init tsp2_pci_preinit(void)
 	pin = TSP2_PCI_SLOT0_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int1") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
+			irq_set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "tsp2_pci_preinit failed "
 					"to set_irq_type pin %d\n", pin);
@@ -361,6 +361,7 @@ MACHINE_START(TERASTATION_PRO2, "Buffalo Terastation Pro II/Live")
 	.boot_params	= 0x00000100,
 	.init_machine	= tsp2_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,

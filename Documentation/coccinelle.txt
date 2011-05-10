@@ -36,6 +36,10 @@ as a regular user, and install it with
 
         sudo make install
 
+The semantic patches in the kernel will work best with Coccinelle version
+0.2.4 or later.  Using earlier versions may incur some parse errors in the
+semantic patch code, but any results that are obtained should still be
+correct.
 
  Using Coccinelle on the Linux kernel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

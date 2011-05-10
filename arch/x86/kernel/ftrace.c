@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/module.h>
 
 #include <trace/syscall.h>
 
@@ -49,6 +50,7 @@ static DEFINE_PER_CPU(int, save_modifying_code);
 int ftrace_arch_code_modify_prepare(void)
 {
 	set_kernel_text_rw();
+	set_all_modules_text_rw();
 	modifying_code = 1;
 	return 0;
 }
@@ -56,6 +58,7 @@ int ftrace_arch_code_modify_prepare(void)
 int ftrace_arch_code_modify_post_process(void)
 {
 	modifying_code = 0;
+	set_all_modules_text_ro();
 	set_kernel_text_ro();
 	return 0;
 }
@@ -167,9 +170,9 @@ static void ftrace_mod_code(void)
 
 void ftrace_nmi_enter(void)
 {
-	__get_cpu_var(save_modifying_code) = modifying_code;
+	__this_cpu_write(save_modifying_code, modifying_code);
 
-	if (!__get_cpu_var(save_modifying_code))
+	if (!__this_cpu_read(save_modifying_code))
 		return;
 
 	if (atomic_inc_return(&nmi_running) & MOD_CODE_WRITE_FLAG) {
@@ -183,7 +186,7 @@ void ftrace_nmi_enter(void)
 
 void ftrace_nmi_exit(void)
 {
-	if (!__get_cpu_var(save_modifying_code))
+	if (!__this_cpu_read(save_modifying_code))
 		return;
 
 	/* Finish all executions before clearing nmi_running */
@@ -434,18 +437,19 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		return;
 	}
 
-	if (ftrace_push_return_trace(old, self_addr, &trace.depth,
-		    frame_pointer) == -EBUSY) {
+	trace.func = self_addr;
+	trace.depth = current->curr_ret_stack + 1;
+
+	/* Only trace if the calling function expects to */
+	if (!ftrace_graph_entry(&trace)) {
 		*parent = old;
 		return;
 	}
 
-	trace.func = self_addr;
-
-	/* Only trace if the calling function expects to */
-	if (!ftrace_graph_entry(&trace)) {
-		current->curr_ret_stack--;
+	if (ftrace_push_return_trace(old, self_addr, &trace.depth,
+		    frame_pointer) == -EBUSY) {
 		*parent = old;
+		return;
 	}
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */

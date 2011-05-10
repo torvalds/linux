@@ -9,7 +9,6 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/sysdev.h>
 #include <linux/timer.h>
@@ -27,7 +26,6 @@ struct test_thread_data {
 	int			opcode;
 	int			opdata;
 	int			mutexes[MAX_RT_TEST_MUTEXES];
-	int			bkl;
 	int			event;
 	struct sys_device	sysdev;
 };
@@ -46,9 +44,8 @@ enum test_opcodes {
 	RTTEST_LOCKINTNOWAIT,	/* 6 Lock interruptible no wait in wakeup, data = lockindex */
 	RTTEST_LOCKCONT,	/* 7 Continue locking after the wakeup delay */
 	RTTEST_UNLOCK,		/* 8 Unlock, data = lockindex */
-	RTTEST_LOCKBKL,		/* 9 Lock BKL */
-	RTTEST_UNLOCKBKL,	/* 10 Unlock BKL */
-	RTTEST_SIGNAL,		/* 11 Signal other test thread, data = thread id */
+	/* 9, 10 - reserved for BKL commemoration */
+	RTTEST_SIGNAL = 11,	/* 11 Signal other test thread, data = thread id */
 	RTTEST_RESETEVENT = 98,	/* 98 Reset event counter */
 	RTTEST_RESET = 99,	/* 99 Reset all pending operations */
 };
@@ -73,13 +70,6 @@ static int handle_op(struct test_thread_data *td, int lockwakeup)
 				rt_mutex_unlock(&mutexes[i]);
 				td->mutexes[i] = 0;
 			}
-		}
-
-		if (!lockwakeup && td->bkl == 4) {
-#ifdef CONFIG_LOCK_KERNEL
-			unlock_kernel();
-#endif
-			td->bkl = 0;
 		}
 		return 0;
 
@@ -131,25 +121,6 @@ static int handle_op(struct test_thread_data *td, int lockwakeup)
 		td->mutexes[id] = 0;
 		return 0;
 
-	case RTTEST_LOCKBKL:
-		if (td->bkl)
-			return 0;
-		td->bkl = 1;
-#ifdef CONFIG_LOCK_KERNEL
-		lock_kernel();
-#endif
-		td->bkl = 4;
-		return 0;
-
-	case RTTEST_UNLOCKBKL:
-		if (td->bkl != 4)
-			break;
-#ifdef CONFIG_LOCK_KERNEL
-		unlock_kernel();
-#endif
-		td->bkl = 0;
-		return 0;
-
 	default:
 		break;
 	}
@@ -196,7 +167,6 @@ void schedule_rt_mutex_test(struct rt_mutex *mutex)
 		td->event = atomic_add_return(1, &rttest_event);
 		break;
 
-	case RTTEST_LOCKBKL:
 	default:
 		break;
 	}
@@ -229,8 +199,6 @@ void schedule_rt_mutex_test(struct rt_mutex *mutex)
 		td->event = atomic_add_return(1, &rttest_event);
 		return;
 
-	case RTTEST_LOCKBKL:
-		return;
 	default:
 		return;
 	}
@@ -380,11 +348,11 @@ static ssize_t sysfs_test_status(struct sys_device *dev, struct sysdev_attribute
 	spin_lock(&rttest_lock);
 
 	curr += sprintf(curr,
-		"O: %4d, E:%8d, S: 0x%08lx, P: %4d, N: %4d, B: %p, K: %d, M:",
+		"O: %4d, E:%8d, S: 0x%08lx, P: %4d, N: %4d, B: %p, M:",
 		td->opcode, td->event, tsk->state,
 			(MAX_RT_PRIO - 1) - tsk->prio,
 			(MAX_RT_PRIO - 1) - tsk->normal_prio,
-		tsk->pi_blocked_on, td->bkl);
+		tsk->pi_blocked_on);
 
 	for (i = MAX_RT_TEST_MUTEXES - 1; i >=0 ; i--)
 		curr += sprintf(curr, "%d", td->mutexes[i]);

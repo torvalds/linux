@@ -168,6 +168,7 @@ static int rpm_check_suspend_allowed(struct device *dev)
 static int rpm_idle(struct device *dev, int rpmflags)
 {
 	int (*callback)(struct device *);
+	int (*domain_callback)(struct device *);
 	int retval;
 
 	retval = rpm_check_suspend_allowed(dev);
@@ -213,19 +214,28 @@ static int rpm_idle(struct device *dev, int rpmflags)
 
 	dev->power.idle_notification = true;
 
-	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_idle)
-		callback = dev->bus->pm->runtime_idle;
-	else if (dev->type && dev->type->pm && dev->type->pm->runtime_idle)
+	if (dev->type && dev->type->pm)
 		callback = dev->type->pm->runtime_idle;
 	else if (dev->class && dev->class->pm)
 		callback = dev->class->pm->runtime_idle;
+	else if (dev->bus && dev->bus->pm)
+		callback = dev->bus->pm->runtime_idle;
 	else
 		callback = NULL;
 
-	if (callback) {
+	if (dev->pwr_domain)
+		domain_callback = dev->pwr_domain->ops.runtime_idle;
+	else
+		domain_callback = NULL;
+
+	if (callback || domain_callback) {
 		spin_unlock_irq(&dev->power.lock);
 
-		callback(dev);
+		if (domain_callback)
+			retval = domain_callback(dev);
+
+		if (!retval && callback)
+			callback(dev);
 
 		spin_lock_irq(&dev->power.lock);
 	}
@@ -250,13 +260,16 @@ static int rpm_callback(int (*cb)(struct device *), struct device *dev)
 	if (!cb)
 		return -ENOSYS;
 
-	spin_unlock_irq(&dev->power.lock);
+	if (dev->power.irq_safe) {
+		retval = cb(dev);
+	} else {
+		spin_unlock_irq(&dev->power.lock);
 
-	retval = cb(dev);
+		retval = cb(dev);
 
-	spin_lock_irq(&dev->power.lock);
+		spin_lock_irq(&dev->power.lock);
+	}
 	dev->power.runtime_error = retval;
-
 	return retval;
 }
 
@@ -369,12 +382,12 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 
 	__update_runtime_status(dev, RPM_SUSPENDING);
 
-	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_suspend)
-		callback = dev->bus->pm->runtime_suspend;
-	else if (dev->type && dev->type->pm && dev->type->pm->runtime_suspend)
+	if (dev->type && dev->type->pm)
 		callback = dev->type->pm->runtime_suspend;
 	else if (dev->class && dev->class->pm)
 		callback = dev->class->pm->runtime_suspend;
+	else if (dev->bus && dev->bus->pm)
+		callback = dev->bus->pm->runtime_suspend;
 	else
 		callback = NULL;
 
@@ -387,6 +400,8 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 		else
 			pm_runtime_cancel_pending(dev);
 	} else {
+		if (dev->pwr_domain)
+			rpm_callback(dev->pwr_domain->ops.runtime_suspend, dev);
  no_callback:
 		__update_runtime_status(dev, RPM_SUSPENDED);
 		pm_runtime_deactivate_timer(dev);
@@ -404,12 +419,15 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 		goto out;
 	}
 
-	if (parent && !parent->power.ignore_children) {
-		spin_unlock_irq(&dev->power.lock);
+	/* Maybe the parent is now able to suspend. */
+	if (parent && !parent->power.ignore_children && !dev->power.irq_safe) {
+		spin_unlock(&dev->power.lock);
 
-		pm_request_idle(parent);
+		spin_lock(&parent->power.lock);
+		rpm_idle(parent, RPM_ASYNC);
+		spin_unlock(&parent->power.lock);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock(&dev->power.lock);
 	}
 
  out:
@@ -425,7 +443,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
  *
  * Check if the device's run-time PM status allows it to be resumed.  Cancel
  * any scheduled or pending requests.  If another resume has been started
- * earlier, either return imediately or wait for it to finish, depending on the
+ * earlier, either return immediately or wait for it to finish, depending on the
  * RPM_NOWAIT and RPM_ASYNC flags.  Similarly, if there's a suspend running in
  * parallel with this function, either tell the other process to resume after
  * suspending (deferred_resume) or wait for it to finish.  If the RPM_ASYNC
@@ -527,10 +545,13 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 	if (!parent && dev->parent) {
 		/*
-		 * Increment the parent's resume counter and resume it if
-		 * necessary.
+		 * Increment the parent's usage counter and resume it if
+		 * necessary.  Not needed if dev is irq-safe; then the
+		 * parent is permanently resumed.
 		 */
 		parent = dev->parent;
+		if (dev->power.irq_safe)
+			goto skip_parent;
 		spin_unlock(&dev->power.lock);
 
 		pm_runtime_get_noresume(parent);
@@ -553,18 +574,22 @@ static int rpm_resume(struct device *dev, int rpmflags)
 			goto out;
 		goto repeat;
 	}
+ skip_parent:
 
 	if (dev->power.no_callbacks)
 		goto no_callback;	/* Assume success. */
 
 	__update_runtime_status(dev, RPM_RESUMING);
 
-	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_resume)
-		callback = dev->bus->pm->runtime_resume;
-	else if (dev->type && dev->type->pm && dev->type->pm->runtime_resume)
+	if (dev->pwr_domain)
+		rpm_callback(dev->pwr_domain->ops.runtime_resume, dev);
+
+	if (dev->type && dev->type->pm)
 		callback = dev->type->pm->runtime_resume;
 	else if (dev->class && dev->class->pm)
 		callback = dev->class->pm->runtime_resume;
+	else if (dev->bus && dev->bus->pm)
+		callback = dev->bus->pm->runtime_resume;
 	else
 		callback = NULL;
 
@@ -584,7 +609,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		rpm_idle(dev, RPM_ASYNC);
 
  out:
-	if (parent) {
+	if (parent && !dev->power.irq_safe) {
 		spin_unlock_irq(&dev->power.lock);
 
 		pm_runtime_put(parent);
@@ -1065,7 +1090,6 @@ EXPORT_SYMBOL_GPL(pm_runtime_allow);
  * Set the power.no_callbacks flag, which tells the PM core that this
  * device is power-managed through its parent and has no run-time PM
  * callbacks of its own.  The run-time sysfs attributes will be removed.
- *
  */
 void pm_runtime_no_callbacks(struct device *dev)
 {
@@ -1076,6 +1100,27 @@ void pm_runtime_no_callbacks(struct device *dev)
 		rpm_sysfs_remove(dev);
 }
 EXPORT_SYMBOL_GPL(pm_runtime_no_callbacks);
+
+/**
+ * pm_runtime_irq_safe - Leave interrupts disabled during callbacks.
+ * @dev: Device to handle
+ *
+ * Set the power.irq_safe flag, which tells the PM core that the
+ * ->runtime_suspend() and ->runtime_resume() callbacks for this device should
+ * always be invoked with the spinlock held and interrupts disabled.  It also
+ * causes the parent's usage counter to be permanently incremented, preventing
+ * the parent from runtime suspending -- otherwise an irq-safe child might have
+ * to wait for a non-irq-safe parent.
+ */
+void pm_runtime_irq_safe(struct device *dev)
+{
+	if (dev->parent)
+		pm_runtime_get_sync(dev->parent);
+	spin_lock_irq(&dev->power.lock);
+	dev->power.irq_safe = 1;
+	spin_unlock_irq(&dev->power.lock);
+}
+EXPORT_SYMBOL_GPL(pm_runtime_irq_safe);
 
 /**
  * update_autosuspend - Handle a change to a device's autosuspend settings.
@@ -1199,4 +1244,6 @@ void pm_runtime_remove(struct device *dev)
 	/* Change the status back to 'suspended' to match the initial status. */
 	if (dev->power.runtime_status == RPM_ACTIVE)
 		pm_runtime_set_suspended(dev);
+	if (dev->power.irq_safe && dev->parent)
+		pm_runtime_put_sync(dev->parent);
 }

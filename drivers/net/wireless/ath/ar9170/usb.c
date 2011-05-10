@@ -161,8 +161,7 @@ static void ar9170_usb_submit_urb(struct ar9170_usb *aru)
 static void ar9170_usb_tx_urb_complete_frame(struct urb *urb)
 {
 	struct sk_buff *skb = urb->context;
-	struct ar9170_usb *aru = (struct ar9170_usb *)
-	      usb_get_intfdata(usb_ifnum_to_if(urb->dev, 0));
+	struct ar9170_usb *aru = usb_get_intfdata(usb_ifnum_to_if(urb->dev, 0));
 
 	if (unlikely(!aru)) {
 		dev_kfree_skb_irq(skb);
@@ -219,8 +218,7 @@ free:
 static void ar9170_usb_rx_completed(struct urb *urb)
 {
 	struct sk_buff *skb = urb->context;
-	struct ar9170_usb *aru = (struct ar9170_usb *)
-		usb_get_intfdata(usb_ifnum_to_if(urb->dev, 0));
+	struct ar9170_usb *aru = usb_get_intfdata(usb_ifnum_to_if(urb->dev, 0));
 	int err;
 
 	if (!aru)

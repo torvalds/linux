@@ -1,16 +1,13 @@
 /*
  * System & MMR bit and Address definitions for ADSP-BF532
  *
- * Copyright 2005-2008 Analog Devices Inc.
+ * Copyright 2005-2010 Analog Devices Inc.
  *
  * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _DEF_BF532_H
 #define _DEF_BF532_H
-
-/* include all Core registers and bit definitions */
-#include <asm/def_LPBlackfin.h>
 
 /*********************************************************************************** */
 /* System MMR Register Map */
@@ -182,12 +179,8 @@
 #define EBIU_SDSTAT			0xFFC00A1C	/* SDRAM Status Register */
 
 /* DMA Traffic controls */
-#define DMA_TC_PER 0xFFC00B0C	/* Traffic Control Periods Register */
-#define DMA_TC_CNT 0xFFC00B10	/* Traffic Control Current Counts Register */
-
-/* Alternate deprecated register names (below) provided for backwards code compatibility */
-#define DMA_TCPER 0xFFC00B0C	/* Traffic Control Periods Register */
-#define DMA_TCCNT 0xFFC00B10	/* Traffic Control Current Counts Register */
+#define DMAC_TC_PER 0xFFC00B0C	/* Traffic Control Periods Register */
+#define DMAC_TC_CNT 0xFFC00B10	/* Traffic Control Current Counts Register */
 
 /* DMA Controller (0xFFC00C00 - 0xFFC00FFF) */
 #define DMA0_CONFIG		0xFFC00C08	/* DMA Channel 0 Configuration Register */
@@ -432,83 +425,6 @@
 #define IWR_ENABLE(x)	       (1 << (x))	/* Wakeup Enable Peripheral #x */
 #define IWR_DISABLE(x) (0xFFFFFFFF ^ (1 << (x)))	/* Wakeup Disable Peripheral #x */
 
-/* ***************************** UART CONTROLLER MASKS ********************** */
-
-/* UART_LCR Register */
-
-#define DLAB	0x80
-#define SB      0x40
-#define STP      0x20
-#define EPS     0x10
-#define PEN	0x08
-#define STB	0x04
-#define WLS(x)	((x-5) & 0x03)
-
-#define DLAB_P	0x07
-#define SB_P	0x06
-#define STP_P	0x05
-#define EPS_P	0x04
-#define PEN_P	0x03
-#define STB_P	0x02
-#define WLS_P1	0x01
-#define WLS_P0	0x00
-
-/* UART_MCR Register */
-#define LOOP_ENA	0x10
-#define LOOP_ENA_P	0x04
-
-/* UART_LSR Register */
-#define TEMT	0x40
-#define THRE	0x20
-#define BI	0x10
-#define FE	0x08
-#define PE	0x04
-#define OE	0x02
-#define DR	0x01
-
-#define TEMP_P	0x06
-#define THRE_P	0x05
-#define BI_P	0x04
-#define FE_P	0x03
-#define PE_P	0x02
-#define OE_P	0x01
-#define DR_P	0x00
-
-/* UART_IER Register */
-#define ELSI	0x04
-#define ETBEI	0x02
-#define ERBFI	0x01
-
-#define ELSI_P	0x02
-#define ETBEI_P	0x01
-#define ERBFI_P	0x00
-
-/* UART_IIR Register */
-#define STATUS(x)	((x << 1) & 0x06)
-#define NINT		0x01
-#define STATUS_P1	0x02
-#define STATUS_P0	0x01
-#define NINT_P		0x00
-#define IIR_TX_READY    0x02	/* UART_THR empty                               */
-#define IIR_RX_READY    0x04	/* Receive data ready                           */
-#define IIR_LINE_CHANGE 0x06	/* Receive line status                          */
-#define IIR_STATUS	0x06
-
-/* UART_GCTL Register */
-#define FFE	0x20
-#define FPE	0x10
-#define RPOLC	0x08
-#define TPOLC	0x04
-#define IREN	0x02
-#define UCEN	0x01
-
-#define FFE_P	0x05
-#define FPE_P	0x04
-#define RPOLC_P	0x03
-#define TPOLC_P	0x02
-#define IREN_P	0x01
-#define UCEN_P	0x00
-
 /*  *********  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS ****************   */
 
 /*  PPI_CONTROL Masks         */
@@ -642,44 +558,6 @@
 #define EMU_RUN_P		0x09
 #define ERR_TYP_P0		0x0E
 #define ERR_TYP_P1		0x0F
-
-/*/ ******************   PROGRAMMABLE FLAG MASKS  ********************* */
-
-/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  Masks */
-#define PF0         0x0001
-#define PF1         0x0002
-#define PF2         0x0004
-#define PF3         0x0008
-#define PF4         0x0010
-#define PF5         0x0020
-#define PF6         0x0040
-#define PF7         0x0080
-#define PF8         0x0100
-#define PF9         0x0200
-#define PF10        0x0400
-#define PF11        0x0800
-#define PF12        0x1000
-#define PF13        0x2000
-#define PF14        0x4000
-#define PF15        0x8000
-
-/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  BIT POSITIONS */
-#define PF0_P         0
-#define PF1_P         1
-#define PF2_P         2
-#define PF3_P         3
-#define PF4_P         4
-#define PF5_P         5
-#define PF6_P         6
-#define PF7_P         7
-#define PF8_P         8
-#define PF9_P         9
-#define PF10_P        10
-#define PF11_P        11
-#define PF12_P        12
-#define PF13_P        13
-#define PF14_P        14
-#define PF15_P        15
 
 /* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  ************* */
 

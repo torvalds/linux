@@ -12,6 +12,8 @@
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/debugfs.h>
+#include <linux/workqueue.h>
+#include <linux/kref.h>
 
 #define REG_FILE_MODE    0440
 #define UPDATE_FILE_MODE 0220
@@ -38,6 +40,33 @@ extern int hypfs_vm_init(void);
 extern void hypfs_vm_exit(void);
 extern int hypfs_vm_create_files(struct super_block *sb, struct dentry *root);
 
-/* Directory for debugfs files */
-extern struct dentry *hypfs_dbfs_dir;
+/* debugfs interface */
+struct hypfs_dbfs_file;
+
+struct hypfs_dbfs_data {
+	void			*buf;
+	void			*buf_free_ptr;
+	size_t			size;
+	struct hypfs_dbfs_file	*dbfs_file;;
+	struct kref		kref;
+};
+
+struct hypfs_dbfs_file {
+	const char	*name;
+	int		(*data_create)(void **data, void **data_free_ptr,
+				       size_t *size);
+	void		(*data_free)(const void *buf_free_ptr);
+
+	/* Private data for hypfs_dbfs.c */
+	struct hypfs_dbfs_data	*data;
+	struct delayed_work	data_free_work;
+	struct mutex		lock;
+	struct dentry		*dentry;
+};
+
+extern int hypfs_dbfs_init(void);
+extern void hypfs_dbfs_exit(void);
+extern int hypfs_dbfs_create_file(struct hypfs_dbfs_file *df);
+extern void hypfs_dbfs_remove_file(struct hypfs_dbfs_file *df);
+
 #endif /* _HYPFS_H_ */

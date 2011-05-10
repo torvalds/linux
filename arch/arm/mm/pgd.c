@@ -17,14 +17,13 @@
 
 #include "mm.h"
 
-#define FIRST_KERNEL_PGD_NR	(FIRST_USER_PGD_NR + USER_PTRS_PER_PGD)
-
 /*
  * need to get a 16k page for level 1
  */
-pgd_t *get_pgd_slow(struct mm_struct *mm)
+pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *new_pgd, *init_pgd;
+	pud_t *new_pud, *init_pud;
 	pmd_t *new_pmd, *init_pmd;
 	pte_t *new_pte, *init_pte;
 
@@ -32,14 +31,14 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 	if (!new_pgd)
 		goto no_pgd;
 
-	memset(new_pgd, 0, FIRST_KERNEL_PGD_NR * sizeof(pgd_t));
+	memset(new_pgd, 0, USER_PTRS_PER_PGD * sizeof(pgd_t));
 
 	/*
 	 * Copy over the kernel and IO PGD entries
 	 */
 	init_pgd = pgd_offset_k(0);
-	memcpy(new_pgd + FIRST_KERNEL_PGD_NR, init_pgd + FIRST_KERNEL_PGD_NR,
-		       (PTRS_PER_PGD - FIRST_KERNEL_PGD_NR) * sizeof(pgd_t));
+	memcpy(new_pgd + USER_PTRS_PER_PGD, init_pgd + USER_PTRS_PER_PGD,
+		       (PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
 
 	clean_dcache_area(new_pgd, PTRS_PER_PGD * sizeof(pgd_t));
 
@@ -48,15 +47,20 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 		 * On ARM, first page must always be allocated since it
 		 * contains the machine vectors.
 		 */
-		new_pmd = pmd_alloc(mm, new_pgd, 0);
+		new_pud = pud_alloc(mm, new_pgd, 0);
+		if (!new_pud)
+			goto no_pud;
+
+		new_pmd = pmd_alloc(mm, new_pud, 0);
 		if (!new_pmd)
 			goto no_pmd;
 
-		new_pte = pte_alloc_map(mm, new_pmd, 0);
+		new_pte = pte_alloc_map(mm, NULL, new_pmd, 0);
 		if (!new_pte)
 			goto no_pte;
 
-		init_pmd = pmd_offset(init_pgd, 0);
+		init_pud = pud_offset(init_pgd, 0);
+		init_pmd = pmd_offset(init_pud, 0);
 		init_pte = pte_offset_map(init_pmd, 0);
 		set_pte_ext(new_pte, *init_pte, 0);
 		pte_unmap(init_pte);
@@ -68,33 +72,44 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 no_pte:
 	pmd_free(mm, new_pmd);
 no_pmd:
+	pud_free(mm, new_pud);
+no_pud:
 	free_pages((unsigned long)new_pgd, 2);
 no_pgd:
 	return NULL;
 }
 
-void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd)
+void pgd_free(struct mm_struct *mm, pgd_t *pgd_base)
 {
+	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pgtable_t pte;
 
-	if (!pgd)
+	if (!pgd_base)
 		return;
 
-	/* pgd is always present and good */
-	pmd = pmd_off(pgd, 0);
-	if (pmd_none(*pmd))
-		goto free;
-	if (pmd_bad(*pmd)) {
-		pmd_ERROR(*pmd);
-		pmd_clear(pmd);
-		goto free;
-	}
+	pgd = pgd_base + pgd_index(0);
+	if (pgd_none_or_clear_bad(pgd))
+		goto no_pgd;
+
+	pud = pud_offset(pgd, 0);
+	if (pud_none_or_clear_bad(pud))
+		goto no_pud;
+
+	pmd = pmd_offset(pud, 0);
+	if (pmd_none_or_clear_bad(pmd))
+		goto no_pmd;
 
 	pte = pmd_pgtable(*pmd);
 	pmd_clear(pmd);
 	pte_free(mm, pte);
+no_pmd:
+	pud_clear(pud);
 	pmd_free(mm, pmd);
-free:
-	free_pages((unsigned long) pgd, 2);
+no_pud:
+	pgd_clear(pgd);
+	pud_free(mm, pud);
+no_pgd:
+	free_pages((unsigned long) pgd_base, 2);
 }

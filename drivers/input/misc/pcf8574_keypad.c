@@ -169,19 +169,29 @@ static int __devexit pcf8574_kp_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int pcf8574_kp_resume(struct i2c_client *client)
+static int pcf8574_kp_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+
 	enable_irq(client->irq);
 
 	return 0;
 }
 
-static int pcf8574_kp_suspend(struct i2c_client *client, pm_message_t mesg)
+static int pcf8574_kp_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+
 	disable_irq(client->irq);
 
 	return 0;
 }
+
+static const struct dev_pm_ops pcf8574_kp_pm_ops = {
+	.suspend	= pcf8574_kp_suspend,
+	.resume		= pcf8574_kp_resume,
+};
+
 #else
 # define pcf8574_kp_resume  NULL
 # define pcf8574_kp_suspend NULL
@@ -197,11 +207,12 @@ static struct i2c_driver pcf8574_kp_driver = {
 	.driver = {
 		.name  = DRV_NAME,
 		.owner = THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm = &pcf8574_kp_pm_ops,
+#endif
 	},
 	.probe    = pcf8574_kp_probe,
 	.remove   = __devexit_p(pcf8574_kp_remove),
-	.suspend  = pcf8574_kp_suspend,
-	.resume   = pcf8574_kp_resume,
 	.id_table = pcf8574_kp_id,
 };
 

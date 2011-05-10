@@ -75,6 +75,7 @@ static int debug;
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x4348, 0x5523) },
 	{ USB_DEVICE(0x1a86, 0x7523) },
+	{ USB_DEVICE(0x1a86, 0x5523) },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -431,7 +432,7 @@ out:
 	kfree(break_reg);
 }
 
-static int ch341_tiocmset(struct tty_struct *tty, struct file *file,
+static int ch341_tiocmset(struct tty_struct *tty,
 			  unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -486,12 +487,22 @@ static void ch341_read_int_callback(struct urb *urb)
 	if (actual_length >= 4) {
 		struct ch341_private *priv = usb_get_serial_port_data(port);
 		unsigned long flags;
+		u8 prev_line_status = priv->line_status;
 
 		spin_lock_irqsave(&priv->lock, flags);
 		priv->line_status = (~(data[2])) & CH341_BITS_MODEM_STAT;
 		if ((data[1] & CH341_MULT_STAT))
 			priv->multi_status_change = 1;
 		spin_unlock_irqrestore(&priv->lock, flags);
+
+		if ((priv->line_status ^ prev_line_status) & CH341_BIT_DCD) {
+			struct tty_struct *tty = tty_port_tty_get(&port->port);
+			if (tty)
+				usb_serial_handle_dcd_change(port, tty,
+					    priv->line_status & CH341_BIT_DCD);
+			tty_kref_put(tty);
+		}
+
 		wake_up_interruptible(&priv->delta_msr_wait);
 	}
 
@@ -542,8 +553,7 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 	return 0;
 }
 
-/*static int ch341_ioctl(struct usb_serial_port *port, struct file *file,*/
-static int ch341_ioctl(struct tty_struct *tty, struct file *file,
+static int ch341_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -562,7 +572,7 @@ static int ch341_ioctl(struct tty_struct *tty, struct file *file,
 	return -ENOIOCTLCMD;
 }
 
-static int ch341_tiocmget(struct tty_struct *tty, struct file *file)
+static int ch341_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ch341_private *priv = usb_get_serial_port_data(port);

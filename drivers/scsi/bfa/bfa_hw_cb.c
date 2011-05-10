@@ -15,6 +15,7 @@
  * General Public License for more details.
  */
 
+#include "bfad_drv.h"
 #include "bfa_modules.h"
 #include "bfi_cbreg.h"
 
@@ -110,7 +111,7 @@ bfa_hwcb_msix_init(struct bfa_s *bfa, int nvecs)
 {
 	int i;
 
-	bfa_assert((nvecs == 1) || (nvecs == __HFN_NUMINTS));
+	WARN_ON((nvecs != 1) && (nvecs != __HFN_NUMINTS));
 
 	bfa->msix.nvecs = nvecs;
 	if (nvecs == 1) {

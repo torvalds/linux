@@ -327,7 +327,7 @@ EXPORT_SYMBOL(dibusb_dib3000mc_tuner_attach);
 /*
  * common remote control stuff
  */
-struct ir_scancode ir_codes_dibusb_table[] = {
+struct rc_map_table rc_map_dibusb_table[] = {
 	/* Key codes for the little Artec T1/Twinhan/HAMA/ remote. */
 	{ 0x0016, KEY_POWER },
 	{ 0x0010, KEY_MUTE },
@@ -456,7 +456,7 @@ struct ir_scancode ir_codes_dibusb_table[] = {
 	{ 0x804e, KEY_ENTER },
 	{ 0x804f, KEY_VOLUMEDOWN },
 };
-EXPORT_SYMBOL(ir_codes_dibusb_table);
+EXPORT_SYMBOL(rc_map_dibusb_table);
 
 int dibusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {

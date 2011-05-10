@@ -10,6 +10,7 @@
  *    Author(s): Christian Borntraeger <borntraeger@de.ibm.com>
  */
 
+#include <linux/kernel_stat.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/err.h>
@@ -25,6 +26,7 @@
 #include <asm/kvm_virtio.h>
 #include <asm/setup.h>
 #include <asm/s390_ext.h>
+#include <asm/irq.h>
 
 #define VIRTIO_SUBCODE_64 0x0D00
 
@@ -382,6 +384,7 @@ static void kvm_extint_handler(unsigned int ext_int_code,
 	subcode = ext_int_code >> 16;
 	if ((subcode & 0xff00) != VIRTIO_SUBCODE_64)
 		return;
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_VRT]++;
 
 	/* The LSB might be overloaded, we have to mask it */
 	vq = (struct virtqueue *)(param64 & ~1UL);

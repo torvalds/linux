@@ -94,7 +94,7 @@ static const struct vio_error_entry viodasd_err_table[] = {
 	{ 0x0204, EIO, "Use Error" },
 	{ 0x0205, EIO, "Release Error" },
 	{ 0x0206, EINVAL, "Invalid Disk" },
-	{ 0x0207, EBUSY, "Cant Lock" },
+	{ 0x0207, EBUSY, "Can't Lock" },
 	{ 0x0208, EIO, "Already Locked" },
 	{ 0x0209, EIO, "Already Unlocked" },
 	{ 0x020A, EIO, "Invalid Arg" },

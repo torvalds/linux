@@ -11,6 +11,7 @@
 #include <linux/string.h>
 #include <linux/ncp.h>
 #include <linux/bitops.h>
+#include "ncp_fs.h"
 #include "ncpsign_kernel.h"
 
 /* i386: 32-bit, little endian, handles mis-alignment */

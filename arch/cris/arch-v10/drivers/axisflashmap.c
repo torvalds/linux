@@ -234,7 +234,6 @@ static struct mtd_info *flash_probe(void)
 	}
 
 	if (mtd_cse0 && mtd_cse1) {
-#ifdef CONFIG_MTD_CONCAT
 		struct mtd_info *mtds[] = { mtd_cse0, mtd_cse1 };
 
 		/* Since the concatenation layer adds a small overhead we
@@ -246,11 +245,6 @@ static struct mtd_info *flash_probe(void)
 		 */
 		mtd_cse = mtd_concat_create(mtds, ARRAY_SIZE(mtds),
 					    "cse0+cse1");
-#else
-		printk(KERN_ERR "%s and %s: Cannot concatenate due to kernel "
-		       "(mis)configuration!\n", map_cse0.name, map_cse1.name);
-		mtd_cse = NULL;
-#endif
 		if (!mtd_cse) {
 			printk(KERN_ERR "%s and %s: Concatenation failed!\n",
 			       map_cse0.name, map_cse1.name);

@@ -110,17 +110,12 @@ struct ceph_msg_pos {
 
 /*
  * ceph_connection state bit flags
- *
- * QUEUED and BUSY are used together to ensure that only a single
- * thread is currently opening, reading or writing data to the socket.
  */
 #define LOSSYTX         0  /* we can close channel or drop messages on errors */
 #define CONNECTING	1
 #define NEGOTIATING	2
 #define KEEPALIVE_PENDING      3
 #define WRITE_PENDING	4  /* we have data ready to send */
-#define QUEUED          5  /* there is work queued on this connection */
-#define BUSY            6  /* work is being done */
 #define STANDBY		8  /* no outgoing messages, socket closed.  we keep
 			    * the ceph_connection around to maintain shared
 			    * state with the peer. */
@@ -128,6 +123,7 @@ struct ceph_msg_pos {
 #define SOCK_CLOSED	11 /* socket state changed to closed */
 #define OPENING         13 /* open connection w/ (possibly new) peer */
 #define DEAD            14 /* dead, about to kfree */
+#define BACKOFF         15
 
 /*
  * A single connection with another host.
@@ -165,7 +161,6 @@ struct ceph_connection {
 	struct list_head out_queue;
 	struct list_head out_sent;   /* sending or sent but unacked */
 	u64 out_seq;		     /* last message queued for send */
-	bool out_keepalive_pending;
 
 	u64 in_seq, in_seq_acked;  /* last message received, acked */
 

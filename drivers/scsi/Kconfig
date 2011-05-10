@@ -381,6 +381,7 @@ config ISCSI_BOOT_SYSFS
 
 source "drivers/scsi/cxgbi/Kconfig"
 source "drivers/scsi/bnx2i/Kconfig"
+source "drivers/scsi/bnx2fc/Kconfig"
 source "drivers/scsi/be2iscsi/Kconfig"
 
 config SGIWD93_SCSI

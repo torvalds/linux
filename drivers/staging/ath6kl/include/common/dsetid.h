@@ -81,8 +81,8 @@
  * This allows for patches to be stored in flash.
  */
 PREPACK struct patch_s {
-    A_UINT32 *address;
-    A_UINT32  data;
+    u32 *address;
+    u32 data;
 } POSTPACK ;
 
 /*
@@ -92,23 +92,23 @@ PREPACK struct patch_s {
  * patch code.  The "data" in a PATCH_SKIP tells how many
  * bytes of length "patch_s" to skip.
  */
-#define PATCH_SKIP      ((A_UINT32 *)0x00000000)
+#define PATCH_SKIP      ((u32 *)0x00000000)
 
 /*
  * Execute code at the address specified by "data".
  * The address of the patch structure is passed as
  * the one parameter.
  */
-#define PATCH_CODE_ABS  ((A_UINT32 *)0x00000001)
+#define PATCH_CODE_ABS  ((u32 *)0x00000001)
 
 /*
  * Same as PATCH_CODE_ABS, but treat "data" as an
  * offset from the start of the patch word.
  */
-#define PATCH_CODE_REL  ((A_UINT32 *)0x00000002)
+#define PATCH_CODE_REL  ((u32 *)0x00000002)
 
 /* Mark the end of this patch DataSet. */
-#define PATCH_END       ((A_UINT32 *)0xffffffff)
+#define PATCH_END       ((u32 *)0xffffffff)
 
 /*
  * A DataSet which contains a Binary Patch to some other DataSet

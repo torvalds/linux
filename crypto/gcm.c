@@ -1102,21 +1102,6 @@ static int crypto_rfc4543_setauthsize(struct crypto_aead *parent,
 	return crypto_aead_setauthsize(ctx->child, authsize);
 }
 
-/* this is the same as crypto_authenc_chain */
-static void crypto_rfc4543_chain(struct scatterlist *head,
-				 struct scatterlist *sg, int chain)
-{
-	if (chain) {
-		head->length += sg->length;
-		sg = scatterwalk_sg_next(sg);
-	}
-
-	if (sg)
-		scatterwalk_sg_chain(head, 2, sg);
-	else
-		sg_mark_end(head);
-}
-
 static struct aead_request *crypto_rfc4543_crypt(struct aead_request *req,
 						 int enc)
 {
@@ -1154,13 +1139,13 @@ static struct aead_request *crypto_rfc4543_crypt(struct aead_request *req,
 
 	sg_init_table(payload, 2);
 	sg_set_buf(payload, req->iv, 8);
-	crypto_rfc4543_chain(payload, dst, vdst == req->iv + 8);
+	scatterwalk_crypto_chain(payload, dst, vdst == req->iv + 8, 2);
 	assoclen += 8 + req->cryptlen - (enc ? 0 : authsize);
 
 	sg_init_table(assoc, 2);
 	sg_set_page(assoc, sg_page(req->assoc), req->assoc->length,
 		    req->assoc->offset);
-	crypto_rfc4543_chain(assoc, payload, 0);
+	scatterwalk_crypto_chain(assoc, payload, 0, 2);
 
 	aead_request_set_tfm(subreq, ctx->child);
 	aead_request_set_callback(subreq, req->base.flags, req->base.complete,

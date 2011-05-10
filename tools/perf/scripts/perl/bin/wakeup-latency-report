@@ -1,6 +1,3 @@
 #!/bin/bash
 # description: system-wide min/max/avg wakeup latency
-perf trace $@ -s "$PERF_EXEC_PATH"/scripts/perl/wakeup-latency.pl
-
-
-
+perf script $@ -s "$PERF_EXEC_PATH"/scripts/perl/wakeup-latency.pl

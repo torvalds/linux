@@ -60,12 +60,15 @@ even in the short term.
 
 Patches must be prepared against a specific version of the kernel.  As a
 general rule, a patch should be based on the current mainline as found in
-Linus's git tree.  It may become necessary to make versions against -mm,
-linux-next, or a subsystem tree, though, to facilitate wider testing and
-review.  Depending on the area of your patch and what is going on
-elsewhere, basing a patch against these other trees can require a
-significant amount of work resolving conflicts and dealing with API
-changes.
+Linus's git tree.  When basing on mainline, start with a well-known release
+point - a stable or -rc release - rather than branching off the mainline at
+an arbitrary spot.
+
+It may become necessary to make versions against -mm, linux-next, or a
+subsystem tree, though, to facilitate wider testing and review.  Depending
+on the area of your patch and what is going on elsewhere, basing a patch
+against these other trees can require a significant amount of work
+resolving conflicts and dealing with API changes.
 
 Only the most simple changes should be formatted as a single patch;
 everything else should be made as a logical series of changes.  Splitting
@@ -100,11 +103,11 @@ rules of thumb, however, which can help considerably:
    result is a broken kernel, you will make life harder for developers and
    users who are engaging in the noble work of tracking down problems.
 
- - Do not overdo it, though.  One developer recently posted a set of edits
+ - Do not overdo it, though.  One developer once posted a set of edits
    to a single file as 500 separate patches - an act which did not make him
    the most popular person on the kernel mailing list.  A single patch can
    be reasonably large as long as it still contains a single *logical*
-   change. 
+   change.
 
  - It can be tempting to add a whole new infrastructure with a series of
    patches, but to leave that infrastructure unused until the final patch
@@ -162,7 +165,8 @@ To that end, the summary line should describe the effects of and motivation
 for the change as well as possible given the one-line constraint.  The
 detailed description can then amplify on those topics and provide any
 needed additional information.  If the patch fixes a bug, cite the commit
-which introduced the bug if possible.  If a problem is associated with
+which introduced the bug if possible (and please provide both the commit ID
+and the title when citing commits).  If a problem is associated with
 specific log or compiler output, include that output to help others
 searching for a solution to the same problem.  If the change is meant to
 support other changes coming in later patch, say so.  If internal APIs are
@@ -230,7 +234,7 @@ take care of:
    which have had gratuitous white-space changes or line wrapping performed
    by the mail client will not apply at the other end, and often will not
    be examined in any detail.  If there is any doubt at all, mail the patch
-   to yourself and convince yourself that it shows up intact.  
+   to yourself and convince yourself that it shows up intact.
 
    Documentation/email-clients.txt has some helpful hints on making
    specific mail clients work for sending patches.
@@ -287,7 +291,7 @@ something like:
 
 where "nn" is the ordinal number of the patch, "mm" is the total number of
 patches in the series, and "subsys" is the name of the affected subsystem.
-Clearly, nn/mm can be omitted for a single, standalone patch.  
+Clearly, nn/mm can be omitted for a single, standalone patch.
 
 If you have a significant series of patches, it is customary to send an
 introductory description as part zero.  This convention is not universally
@@ -299,5 +303,5 @@ In general, the second and following parts of a multi-part patch should be
 sent as a reply to the first part so that they all thread together at the
 receiving end.  Tools like git and quilt have commands to mail out a set of
 patches with the proper threading.  If you have a long series, though, and
-are using git, please provide the --no-chain-reply-to option to avoid
+are using git, please stay away from the --chain-reply-to option to avoid
 creating exceptionally deep nesting.

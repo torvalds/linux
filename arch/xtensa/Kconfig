@@ -7,6 +7,8 @@ config ZONE_DMA
 config XTENSA
 	def_bool y
 	select HAVE_IDE
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_SHOW
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both
@@ -21,10 +23,10 @@ config RWSEM_XCHGADD_ALGORITHM
 config GENERIC_FIND_NEXT_BIT
 	def_bool y
 
-config GENERIC_HWEIGHT
+config GENERIC_FIND_BIT_LE
 	def_bool y
 
-config GENERIC_HARDIRQS
+config GENERIC_HWEIGHT
 	def_bool y
 
 config GENERIC_GPIO

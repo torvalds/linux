@@ -522,7 +522,7 @@ destroy:
 
 	return ret;
 }
-
+EXPORT_SYMBOL(cy_as_storage_start);
 
 static cy_as_return_status_t
 my_handle_response_storage_stop(cy_as_device *dev_p,
@@ -632,6 +632,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_storage_stop);
 
 cy_as_return_status_t
 cy_as_storage_register_callback(cy_as_device_handle handle,
@@ -655,7 +656,7 @@ cy_as_storage_register_callback(cy_as_device_handle handle,
 
 	return CY_AS_ERROR_SUCCESS;
 }
-
+EXPORT_SYMBOL(cy_as_storage_register_callback);
 
 
 static cy_as_return_status_t
@@ -783,6 +784,7 @@ cy_as_storage_claim(cy_as_device_handle handle,
 	return my_storage_claim(dev_p, NULL, bus, device,
 		CY_AS_REQUEST_RESPONSE_MS, cb, client);
 }
+EXPORT_SYMBOL(cy_as_storage_claim);
 
 static cy_as_return_status_t
 my_handle_response_storage_release(cy_as_device *dev_p,
@@ -911,6 +913,7 @@ cy_as_storage_release(cy_as_device_handle handle,
 	return my_storage_release(dev_p, NULL, bus, device,
 		CY_AS_REQUEST_RESPONSE_MS, cb, client);
 }
+EXPORT_SYMBOL(cy_as_storage_release);
 
 static cy_as_return_status_t
 my_handle_response_storage_query_bus(cy_as_device *dev_p,
@@ -1059,6 +1062,7 @@ cy_as_storage_query_bus(cy_as_device_handle handle,
 	return my_storage_query_bus(dev_p, bus, cy_as_media_max_media_value,
 		CY_AS_REQUEST_RESPONSE_MS, count, cb, client);
 }
+EXPORT_SYMBOL(cy_as_storage_query_bus);
 
 cy_as_return_status_t
 cy_as_storage_query_media(cy_as_device_handle handle,
@@ -1086,6 +1090,7 @@ cy_as_storage_query_media(cy_as_device_handle handle,
 	return my_storage_query_bus(dev_p, bus, type, CY_AS_REQUEST_RESPONSE_EX,
 			count, cb, client);
 }
+EXPORT_SYMBOL(cy_as_storage_query_media);
 
 static cy_as_return_status_t
 my_handle_response_storage_query_device(cy_as_device *dev_p,
@@ -1260,6 +1265,7 @@ cy_as_storage_query_device(cy_as_device_handle handle,
 		CY_AS_REQUEST_RESPONSE_MS, data_p->bus,
 			data_p->device, cb, client);
 }
+EXPORT_SYMBOL(cy_as_storage_query_device);
 
 static cy_as_return_status_t
 my_handle_response_storage_query_unit(cy_as_device *dev_p,
@@ -1434,7 +1440,7 @@ cy_as_storage_query_unit(cy_as_device_handle handle,
 	return my_storage_query_unit(dev_p, data_p, CY_AS_REQUEST_RESPONSE_MS,
 		data_p->bus, data_p->device, data_p->unit, cb, client);
 }
-
+EXPORT_SYMBOL(cy_as_storage_query_unit);
 
 static cy_as_return_status_t
 cy_as_get_block_size(cy_as_device *dev_p,
@@ -1615,6 +1621,7 @@ cy_as_storage_device_control(cy_as_device_handle handle,
 	return my_storage_device_control(dev_p, bus, device, card_detect_en,
 		write_prot_en, config_detect, cb, client);
 }
+EXPORT_SYMBOL(cy_as_storage_device_control);
 
 static void
 cy_as_async_storage_callback(cy_as_device *dev_p,
@@ -1766,7 +1773,7 @@ cy_as_storage_async_oper(cy_as_device *dev_p, cy_as_end_point_number_t ep,
 	if (unit > 255)
 		return CY_AS_ERROR_NO_SUCH_UNIT;
 
-	/* We are supposed to return sucess if the number of
+	/* We are supposed to return success if the number of
 	* blocks is zero
 	*/
 	if (num_blocks == 0) {
@@ -1962,7 +1969,7 @@ cy_as_storage_sync_oper(cy_as_device *dev_p,
 	if (cy_as_device_is_usb_async_pending(dev_p, 6))
 		return CY_AS_ERROR_ASYNC_PENDING;
 
-	/* We are supposed to return sucess if the number of
+	/* We are supposed to return success if the number of
 	* blocks is zero
 	*/
 	if (num_blocks == 0)
@@ -2069,6 +2076,7 @@ cy_as_storage_read(cy_as_device_handle handle,
 		CY_RQT_READ_BLOCK, bus, device,
 		unit, block, data_p, num_blocks);
 }
+EXPORT_SYMBOL(cy_as_storage_read);
 
 cy_as_return_status_t
 cy_as_storage_write(cy_as_device_handle handle,
@@ -2089,7 +2097,7 @@ cy_as_storage_write(cy_as_device_handle handle,
 		CY_RQT_WRITE_BLOCK, bus, device,
 		unit, block, data_p, num_blocks);
 }
-
+EXPORT_SYMBOL(cy_as_storage_write);
 
 cy_as_return_status_t
 cy_as_storage_read_async(cy_as_device_handle handle,
@@ -2110,6 +2118,7 @@ cy_as_storage_read_async(cy_as_device_handle handle,
 		CY_AS_REQUEST_RESPONSE_MS, bus, device, unit,
 		block, data_p, num_blocks, NULL, callback);
 }
+EXPORT_SYMBOL(cy_as_storage_read_async);
 
 cy_as_return_status_t
 cy_as_storage_write_async(cy_as_device_handle handle,
@@ -2133,7 +2142,7 @@ cy_as_storage_write_async(cy_as_device_handle handle,
 		CY_AS_REQUEST_RESPONSE_MS, bus, device, unit, block,
 		data_p, num_blocks, NULL, callback);
 }
-
+EXPORT_SYMBOL(cy_as_storage_write_async);
 
 static void
 my_storage_cancel_callback(
@@ -2196,6 +2205,7 @@ cy_as_storage_cancel_async(cy_as_device_handle handle)
 
 	return CY_AS_ERROR_SUCCESS;
 }
+EXPORT_SYMBOL(cy_as_storage_cancel_async);
 
 /*
  * This function does all the API side clean-up associated with
@@ -2374,6 +2384,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_storage_sd_register_read);
 
 cy_as_return_status_t
 cy_as_storage_create_p_partition(
@@ -2450,6 +2461,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_storage_create_p_partition);
 
 cy_as_return_status_t
 cy_as_storage_remove_p_partition(
@@ -2519,6 +2531,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_storage_remove_p_partition);
 
 static cy_as_return_status_t
 my_handle_response_get_transfer_amount(cy_as_device *dev_p,
@@ -2621,6 +2634,7 @@ destroy:
 	return ret;
 
 }
+EXPORT_SYMBOL(cy_as_storage_get_transfer_amount);
 
 cy_as_return_status_t
 cy_as_storage_erase(
@@ -2722,6 +2736,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_storage_erase);
 
 static void
 cy_as_storage_func_callback(cy_as_device *dev_p,
@@ -3005,6 +3020,7 @@ cy_as_sdio_direct_read(
 	return cy_as_sdio_direct_io(handle, bus, device, n_function_no,
 		address, misc_buf, 0x00, cy_false, data_p);
 }
+EXPORT_SYMBOL(cy_as_sdio_direct_read);
 
 cy_as_return_status_t
 cy_as_sdio_direct_write(
@@ -3020,6 +3036,7 @@ cy_as_sdio_direct_write(
 	return cy_as_sdio_direct_io(handle, bus, device, n_function_no,
 		address, misc_buf, argument, cy_true, data_p);
 }
+EXPORT_SYMBOL(cy_as_sdio_direct_write);
 
 /*Cmd53 IO*/
 cy_as_return_status_t
@@ -3268,7 +3285,7 @@ cy_as_sdio_extended_i_o_async(
 	if (callback == 0)
 		return CY_AS_ERROR_NULL_CALLBACK;
 
-	/* We are supposed to return sucess if the number of
+	/* We are supposed to return success if the number of
 	 * blocks is zero
 	 */
 	if (((misc_buf&CY_SDIO_BLOCKMODE) != 0) && (argument == 0)) {
@@ -3403,6 +3420,7 @@ cy_as_sdio_extended_read(
 		n_function_no, address, misc_buf, argument, cy_false,
 		data_p, callback);
 }
+EXPORT_SYMBOL(cy_as_sdio_extended_read);
 
 /* CMD53 Extended Write*/
 cy_as_return_status_t
@@ -3426,7 +3444,7 @@ cy_as_sdio_extended_write(
 		n_function_no, address, misc_buf, argument, cy_true,
 		data_p, callback);
 }
-
+EXPORT_SYMBOL(cy_as_sdio_extended_write);
 
 /* Read the CIS info tuples for the given function and Tuple ID*/
 cy_as_return_status_t
@@ -3617,6 +3635,7 @@ destroy:
 		cy_as_ll_destroy_response(dev_p, reply_p);
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_sdio_query_card);
 
 /*Reset SDIO card. */
 cy_as_return_status_t
@@ -3767,6 +3786,7 @@ destroy:
 		cy_as_ll_destroy_response(dev_p, reply_p);
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_sdio_init_function);
 
 /*Query individual functions. */
 cy_as_return_status_t
@@ -4066,6 +4086,7 @@ cy_as_sdio_set_blocksize(
 			bus, n_function_no, blocksize);
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_sdio_set_blocksize);
 
 /* Deinitialize an SDIO function*/
 cy_as_return_status_t
