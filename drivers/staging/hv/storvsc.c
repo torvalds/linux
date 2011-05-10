@@ -660,10 +660,3 @@ int stor_vsc_get_major_info(struct storvsc_device_info *device_info,
 	return -ENODEV;
 }
 
-/*
- * stor_vsc_on_cleanup - Perform any cleanup when the driver is removed
- */
-void storvsc_cleanup(struct hv_driver *driver)
-{
-}
-

@@ -886,7 +886,6 @@ static int blkvsc_drv_exit_cb(struct device *dev, void *data)
 
 static void blkvsc_drv_exit(void)
 {
-	struct storvsc_driver *storvsc_drv = &blkvsc_drv;
 	struct hv_driver *drv = &blkvsc_drv.base;
 	struct device *current_dev;
 	int ret;
@@ -910,8 +909,6 @@ static void blkvsc_drv_exit(void)
 		/* Initiate removal from the top-down */
 		device_unregister(current_dev);
 	}
-
-	storvsc_cleanup(&storvsc_drv->base);
 
 	vmbus_child_driver_unregister(&drv->driver);
 
