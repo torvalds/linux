@@ -580,7 +580,7 @@ static void netvsc_disconnect_vsp(struct netvsc_device *net_device)
 /*
  * netvsc_device_remove - Callback when the root bus device is removed
  */
-static int netvsc_device_remove(struct hv_device *device)
+int netvsc_device_remove(struct hv_device *device)
 {
 	struct netvsc_device *net_device;
 	struct hv_netvsc_packet *netvsc_packet, *pos;
