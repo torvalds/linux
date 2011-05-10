@@ -236,14 +236,37 @@ static u32 hv_copyfrom_ringbuffer(
 }
 
 
-
-static u32
-hv_copyto_ringbuffer(
+/*
+ *
+ * hv_copyto_ringbuffer()
+ *
+ * Helper routine to copy from source to ring buffer.
+ * Assume there is enough room. Handles wrap-around in dest case only!!
+ *
+ */
+static u32 hv_copyto_ringbuffer(
 	struct hv_ring_buffer_info	*ring_info,
 	u32				start_write_offset,
 	void				*src,
-	u32				srclen);
+	u32				srclen)
+{
+	void *ring_buffer = hv_get_ring_buffer(ring_info);
+	u32 ring_buffer_size = hv_get_ring_buffersize(ring_info);
+	u32 frag_len;
 
+	/* wrap-around detected! */
+	if (srclen > ring_buffer_size - start_write_offset) {
+		frag_len = ring_buffer_size - start_write_offset;
+		memcpy(ring_buffer + start_write_offset, src, frag_len);
+		memcpy(ring_buffer, src + frag_len, srclen - frag_len);
+	} else
+		memcpy(ring_buffer + start_write_offset, src, srclen);
+
+	start_write_offset += srclen;
+	start_write_offset %= ring_buffer_size;
+
+	return start_write_offset;
+}
 
 /*
  *
@@ -498,38 +521,3 @@ int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info, void *buffer,
 
 	return 0;
 }
-
-
-/*
- *
- * hv_copyto_ringbuffer()
- *
- * Helper routine to copy from source to ring buffer.
- * Assume there is enough room. Handles wrap-around in dest case only!!
- *
- */
-static u32
-hv_copyto_ringbuffer(
-	struct hv_ring_buffer_info	*ring_info,
-	u32				start_write_offset,
-	void				*src,
-	u32				srclen)
-{
-	void *ring_buffer = hv_get_ring_buffer(ring_info);
-	u32 ring_buffer_size = hv_get_ring_buffersize(ring_info);
-	u32 frag_len;
-
-	/* wrap-around detected! */
-	if (srclen > ring_buffer_size - start_write_offset) {
-		frag_len = ring_buffer_size - start_write_offset;
-		memcpy(ring_buffer + start_write_offset, src, frag_len);
-		memcpy(ring_buffer, src + frag_len, srclen - frag_len);
-	} else
-		memcpy(ring_buffer + start_write_offset, src, srclen);
-
-	start_write_offset += srclen;
-	start_write_offset %= ring_buffer_size;
-
-	return start_write_offset;
-}
-
