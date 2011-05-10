@@ -712,6 +712,21 @@ static inline int cma_any_addr(struct sockaddr *addr)
 	return cma_zero_addr(addr) || cma_loopback_addr(addr);
 }
 
+static int cma_addr_cmp(struct sockaddr *src, struct sockaddr *dst)
+{
+	if (src->sa_family != dst->sa_family)
+		return -1;
+
+	switch (src->sa_family) {
+	case AF_INET:
+		return ((struct sockaddr_in *) src)->sin_addr.s_addr !=
+		       ((struct sockaddr_in *) dst)->sin_addr.s_addr;
+	default:
+		return ipv6_addr_cmp(&((struct sockaddr_in6 *) src)->sin6_addr,
+				     &((struct sockaddr_in6 *) dst)->sin6_addr);
+	}
+}
+
 static inline __be16 cma_port(struct sockaddr *addr)
 {
 	if (addr->sa_family == AF_INET)
@@ -2168,13 +2183,13 @@ retry:
 static int cma_use_port(struct idr *ps, struct rdma_id_private *id_priv)
 {
 	struct rdma_id_private *cur_id;
-	struct sockaddr_in *sin, *cur_sin;
+	struct sockaddr *addr, *cur_addr;
 	struct rdma_bind_list *bind_list;
 	struct hlist_node *node;
 	unsigned short snum;
 
-	sin = (struct sockaddr_in *) &id_priv->id.route.addr.src_addr;
-	snum = ntohs(sin->sin_port);
+	addr = (struct sockaddr *) &id_priv->id.route.addr.src_addr;
+	snum = ntohs(cma_port(addr));
 	if (snum < PROT_SOCK && !capable(CAP_NET_BIND_SERVICE))
 		return -EACCES;
 
@@ -2186,15 +2201,15 @@ static int cma_use_port(struct idr *ps, struct rdma_id_private *id_priv)
 	 * We don't support binding to any address if anyone is bound to
 	 * a specific address on the same port.
 	 */
-	if (cma_any_addr((struct sockaddr *) &id_priv->id.route.addr.src_addr))
+	if (cma_any_addr(addr))
 		return -EADDRNOTAVAIL;
 
 	hlist_for_each_entry(cur_id, node, &bind_list->owners, node) {
-		if (cma_any_addr((struct sockaddr *) &cur_id->id.route.addr.src_addr))
+		cur_addr = (struct sockaddr *) &cur_id->id.route.addr.src_addr;
+		if (cma_any_addr(cur_addr))
 			return -EADDRNOTAVAIL;
 
-		cur_sin = (struct sockaddr_in *) &cur_id->id.route.addr.src_addr;
-		if (sin->sin_addr.s_addr == cur_sin->sin_addr.s_addr)
+		if (!cma_addr_cmp(addr, cur_addr))
 			return -EADDRINUSE;
 	}
 
