@@ -997,7 +997,7 @@ static int __init mousevsc_init(void)
 	/* Callback to client driver to complete the initialization */
 	mouse_vsc_initialize(&input_drv_obj->base);
 
-	drv->driver.name = input_drv_obj->base.name;
+	drv->driver.name = driver_name;
 
 	/* The driver belongs to vmbus */
 	vmbus_child_driver_register(&drv->driver);
