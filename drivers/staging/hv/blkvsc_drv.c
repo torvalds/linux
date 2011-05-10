@@ -1044,15 +1044,6 @@ static void blkvsc_request_completion(struct hv_storvsc_request *request)
 	spin_unlock_irqrestore(&blkdev->lock, flags);
 }
 
-static int __init blkvsc_init(void)
-{
-	int ret;
-
-	ret = blkvsc_drv_init();
-
-	return ret;
-}
-
 static void __exit blkvsc_exit(void)
 {
 	blkvsc_drv_exit();
@@ -1061,5 +1052,5 @@ static void __exit blkvsc_exit(void)
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
 MODULE_DESCRIPTION("Microsoft Hyper-V virtual block driver");
-module_init(blkvsc_init);
+module_init(blkvsc_drv_init);
 module_exit(blkvsc_exit);
