@@ -253,7 +253,7 @@ unlock:
 
 static int fsl_of_msi_remove(struct platform_device *ofdev)
 {
-	struct fsl_msi *msi = ofdev->dev.platform_data;
+	struct fsl_msi *msi = platform_get_drvdata(ofdev);
 	int virq, i;
 	struct fsl_msi_cascade_data *cascade_data;
 
@@ -327,7 +327,7 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "No memory for MSI structure\n");
 		return -ENOMEM;
 	}
-	dev->dev.platform_data = msi;
+	platform_set_drvdata(dev, msi);
 
 	msi->irqhost = irq_alloc_host(dev->dev.of_node, IRQ_HOST_MAP_LINEAR,
 				      NR_MSI_IRQS, &fsl_msi_host_ops, 0);
