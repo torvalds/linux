@@ -88,7 +88,7 @@ struct bcm_tag {
 	char kernel_crc[CRC_LEN];
 	/* 228-235: Unused at present */
 	char reserved1[8];
-	/* 236-239: CRC32 of header excluding tagVersion */
+	/* 236-239: CRC32 of header excluding last 20 bytes */
 	char header_crc[CRC_LEN];
 	/* 240-255: Unused at present */
 	char reserved2[16];

@@ -522,7 +522,7 @@ sys_call_table:
 	PTR	sys_ioprio_get			/* 4315 */
 	PTR	compat_sys_utimensat
 	PTR	compat_sys_signalfd
-	PTR	sys_ni_syscall
+	PTR	sys_ni_syscall			/* was timerfd */
 	PTR	sys_eventfd
 	PTR	sys32_fallocate			/* 4320 */
 	PTR	sys_timerfd_create
