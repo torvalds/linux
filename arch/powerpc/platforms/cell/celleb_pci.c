@@ -319,7 +319,7 @@ static int __init celleb_setup_fake_pci_device(struct device_node *node,
 
 	size = 256;
 	config = &private->fake_config[devno][fn];
-	*config = alloc_maybe_bootmem(size, GFP_KERNEL);
+	*config = zalloc_maybe_bootmem(size, GFP_KERNEL);
 	if (*config == NULL) {
 		printk(KERN_ERR "PCI: "
 		       "not enough memory for fake configuration space\n");
@@ -330,7 +330,7 @@ static int __init celleb_setup_fake_pci_device(struct device_node *node,
 
 	size = sizeof(struct celleb_pci_resource);
 	res = &private->res[devno][fn];
-	*res = alloc_maybe_bootmem(size, GFP_KERNEL);
+	*res = zalloc_maybe_bootmem(size, GFP_KERNEL);
 	if (*res == NULL) {
 		printk(KERN_ERR
 		       "PCI: not enough memory for resource data space\n");
@@ -431,7 +431,7 @@ static int __init phb_set_bus_ranges(struct device_node *dev,
 static void __init celleb_alloc_private_mem(struct pci_controller *hose)
 {
 	hose->private_data =
-		alloc_maybe_bootmem(sizeof(struct celleb_pci_private),
+		zalloc_maybe_bootmem(sizeof(struct celleb_pci_private),
 			GFP_KERNEL);
 }
 
