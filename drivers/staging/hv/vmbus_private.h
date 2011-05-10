@@ -91,10 +91,6 @@ struct vmbus_msginfo {
 	/* Bookkeeping stuff */
 	struct list_head msglist_entry;
 
-	/* Synchronize the request/response if needed */
-	int wait_condition;
-	wait_queue_head_t  wait_event;
-
 	/* The message itself */
 	unsigned char msg[0];
 };
