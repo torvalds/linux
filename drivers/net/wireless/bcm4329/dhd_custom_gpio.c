@@ -183,6 +183,7 @@ dhd_custom_get_mac_address(unsigned char *buf)
 const struct cntry_locales_custom translate_custom_table[] = {
 /* Table should be filled out based on custom platform regulatory requirement */
 #ifdef EXAMPLE_TABLE
+	{"",   "XY",  4}  /* universal */
 	{"US", "US", 69}, /* input ISO "US" to : US regrev 69 */
 	{"CA", "US", 69}, /* input ISO "CA" to : US regrev 69 */
 	{"EU", "EU",  5}, /* input ISO "EU" to : EU regrev 05 */
@@ -193,7 +194,10 @@ const struct cntry_locales_custom translate_custom_table[] = {
 	{"KR", "XY",  3},
 	{"AU", "XY",  3},
 	{"CN", "XY",  3}, /* input ISO "CN" to : XY regrev 03 */
+	{"HK", "XY",  3},
 	{"TW", "XY",  3},
+	{"BR", "XY",  3},
+	{"MX", "XY",  3},
 	{"AR", "XY",  3}
 #endif /* EXAMPLE_TABLE */
 };
@@ -232,9 +236,11 @@ void get_customized_country_code(char *country_iso_code, wl_country_t *cspec)
 		if (strcmp(country_iso_code, translate_custom_table[i].iso_abbrev) == 0) {
 			memcpy(cspec->ccode, translate_custom_table[i].custom_locale, WLC_CNTRY_BUF_SZ);
 			cspec->rev = translate_custom_table[i].custom_locale_rev;
-			break;
+			return;
 		}
 	}
+	memcpy(cspec->ccode, translate_custom_table[0].custom_locale, WLC_CNTRY_BUF_SZ);
+	cspec->rev = translate_custom_table[0].custom_locale_rev;
 	return;
 #endif
 }
