@@ -34,7 +34,7 @@
 #include "utils.h"
 
 struct vmbus_channel_message_table_entry {
-	enum vmbus_channel_message_type messageType;
+	enum vmbus_channel_message_type message_type;
 	void (*message_handler)(struct vmbus_channel_message_header *msg);
 };
 
