@@ -51,8 +51,6 @@ BRCMSMAC_OFILES := \
 	bcmsrom.o \
 	hnddma.o \
 	nicpci.o \
-	../util/bcmutils.o \
-	../util/bcmwifi.o \
 	nvram.o
 
 MODULEPFX := brcmsmac

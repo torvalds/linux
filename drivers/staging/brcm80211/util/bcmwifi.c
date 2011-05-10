@@ -15,6 +15,7 @@
  */
 #include <linux/ctype.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>
@@ -25,7 +26,7 @@
  * combination could be legal given any set of circumstances.
  * RETURNS: true is the chanspec is malformed, false if it looks good.
  */
-bool wf_chspec_malformed(chanspec_t chanspec)
+bool bcm_chspec_malformed(chanspec_t chanspec)
 {
 	/* must be 2G or 5G band */
 	if (!CHSPEC_IS5G(chanspec) && !CHSPEC_IS2G(chanspec))
@@ -45,13 +46,14 @@ bool wf_chspec_malformed(chanspec_t chanspec)
 
 	return false;
 }
+EXPORT_SYMBOL(bcm_chspec_malformed);
 
 /*
  * This function returns the channel number that control traffic is being sent on, for legacy
  * channels this is just the channel number, for 40MHZ channels it is the upper or lowre 20MHZ
  * sideband depending on the chanspec selected
  */
-u8 wf_chspec_ctlchan(chanspec_t chspec)
+u8 bcm_chspec_ctlchan(chanspec_t chspec)
 {
 	u8 ctl_chan;
 
@@ -74,6 +76,7 @@ u8 wf_chspec_ctlchan(chanspec_t chspec)
 
 	return ctl_chan;
 }
+EXPORT_SYMBOL(bcm_chspec_ctlchan);
 
 /*
  * Return the channel number for a given frequency and base frequency.
@@ -94,7 +97,7 @@ u8 wf_chspec_ctlchan(chanspec_t chspec)
  *
  * Reference 802.11 REVma, section 17.3.8.3, and 802.11B section 18.4.6.2
  */
-int wf_mhz2channel(uint freq, uint start_factor)
+int bcm_mhz2channel(uint freq, uint start_factor)
 {
 	int ch = -1;
 	uint base;
@@ -130,4 +133,5 @@ int wf_mhz2channel(uint freq, uint start_factor)
 
 	return ch;
 }
+EXPORT_SYMBOL(bcm_mhz2channel);
 

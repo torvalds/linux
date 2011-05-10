@@ -87,25 +87,26 @@
 #define pktq_ppeek(pq, prec)            ((pq)->q[prec].head)
 #define pktq_ppeek_tail(pq, prec)       ((pq)->q[prec].tail)
 
-extern struct sk_buff *pktq_penq(struct pktq *pq, int prec,
+extern struct sk_buff *bcm_pktq_penq(struct pktq *pq, int prec,
 				 struct sk_buff *p);
-extern struct sk_buff *pktq_penq_head(struct pktq *pq, int prec,
+extern struct sk_buff *bcm_pktq_penq_head(struct pktq *pq, int prec,
 				      struct sk_buff *p);
-extern struct sk_buff *pktq_pdeq(struct pktq *pq, int prec);
-extern struct sk_buff *pktq_pdeq_tail(struct pktq *pq, int prec);
+extern struct sk_buff *bcm_pktq_pdeq(struct pktq *pq, int prec);
+extern struct sk_buff *bcm_pktq_pdeq_tail(struct pktq *pq, int prec);
 
 /* packet primitives */
-extern struct sk_buff *pkt_buf_get_skb(uint len);
-extern void pkt_buf_free_skb(struct sk_buff *skb);
+extern struct sk_buff *bcm_pkt_buf_get_skb(uint len);
+extern void bcm_pkt_buf_free_skb(struct sk_buff *skb);
 
 /* Empty the queue at particular precedence level */
-extern void pktq_pflush(struct pktq *pq, int prec,
+extern void bcm_pktq_pflush(struct pktq *pq, int prec,
 	bool dir, ifpkt_cb_t fn, int arg);
 
 /* operations on a set of precedences in packet queue */
 
-extern int pktq_mlen(struct pktq *pq, uint prec_bmp);
-extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
+extern int bcm_pktq_mlen(struct pktq *pq, uint prec_bmp);
+extern struct sk_buff *bcm_pktq_mdeq(struct pktq *pq, uint prec_bmp,
+	int *prec_out);
 
 /* operations on packet queue as a whole */
 
@@ -116,35 +117,35 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 #define pktq_empty(pq)                  ((pq)->len == 0)
 
 /* operations for single precedence queues */
-#define pktenq(pq, p)		pktq_penq(((struct pktq *)pq), 0, (p))
-#define pktenq_head(pq, p)	pktq_penq_head(((struct pktq *)pq), 0, (p))
-#define pktdeq(pq)		pktq_pdeq(((struct pktq *)pq), 0)
-#define pktdeq_tail(pq)		pktq_pdeq_tail(((struct pktq *)pq), 0)
-#define pktqinit(pq, len) pktq_init(((struct pktq *)pq), 1, len)
+#define pktenq(pq, p)		bcm_pktq_penq(((struct pktq *)pq), 0, (p))
+#define pktenq_head(pq, p)	bcm_pktq_penq_head(((struct pktq *)pq), 0, (p))
+#define pktdeq(pq)		bcm_pktq_pdeq(((struct pktq *)pq), 0)
+#define pktdeq_tail(pq)		bcm_pktq_pdeq_tail(((struct pktq *)pq), 0)
+#define pktqinit(pq, len)	bcm_pktq_init(((struct pktq *)pq), 1, len)
 
-	extern void pktq_init(struct pktq *pq, int num_prec, int max_len);
+extern void bcm_pktq_init(struct pktq *pq, int num_prec, int max_len);
 /* prec_out may be NULL if caller is not interested in return value */
-	extern struct sk_buff *pktq_peek_tail(struct pktq *pq, int *prec_out);
-	extern void pktq_flush(struct pktq *pq, bool dir,
-		ifpkt_cb_t fn, int arg);
+extern struct sk_buff *bcm_pktq_peek_tail(struct pktq *pq, int *prec_out);
+extern void bcm_pktq_flush(struct pktq *pq, bool dir,
+	ifpkt_cb_t fn, int arg);
 
 /* externs */
 /* packet */
-	extern uint pktfrombuf(struct sk_buff *p,
-			       uint offset, int len, unsigned char *buf);
-	extern uint pkttotlen(struct sk_buff *p);
+extern uint bcm_pktfrombuf(struct sk_buff *p,
+	uint offset, int len, unsigned char *buf);
+extern uint bcm_pkttotlen(struct sk_buff *p);
 
 /* ethernet address */
-	extern int bcm_ether_atoe(char *p, u8 *ea);
+extern int bcm_ether_atoe(char *p, u8 *ea);
 
 /* ip address */
 	struct ipv4_addr;
 	extern char *bcm_ip_ntoa(struct ipv4_addr *ia, char *buf);
 
 #ifdef BCMDBG
-	extern void prpkt(const char *msg, struct sk_buff *p0);
+extern void bcm_prpkt(const char *msg, struct sk_buff *p0);
 #else
-#define prpkt(a, b)
+#define bcm_prpkt(a, b)
 #endif				/* BCMDBG */
 
 #define bcm_perf_enable()
@@ -467,7 +468,7 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 
 /* externs */
 /* crc */
-	extern u8 hndcrc8(u8 *p, uint nbytes, u8 crc);
+extern u8 bcm_crc8(u8 *p, uint nbytes, u8 crc);
 /* format/print */
 #if defined(BCMDBG)
 	extern int bcm_format_flags(const bcm_bit_desc_t *bd, u32 flags,
@@ -475,7 +476,7 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 	extern int bcm_format_hex(char *str, const void *bytes, int len);
 #endif
 	extern char *bcm_chipname(uint chipid, char *buf, uint len);
-	extern void prhex(const char *msg, unsigned char *buf, uint len);
+	extern void bcm_prhex(const char *msg, unsigned char *buf, uint len);
 
 	extern bcm_tlv_t *bcm_parse_tlvs(void *buf, int buflen,
 						    uint key);

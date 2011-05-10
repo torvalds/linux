@@ -1,8 +1,13 @@
+config BRCMUTIL
+	tristate
+	default n
+
 config BRCMSMAC
 	tristate "Broadcom IEEE802.11n PCIe SoftMAC WLAN driver"
 	default n
 	depends on PCI
 	depends on WLAN && MAC80211
+	select BRCMUTIL
 	select FW_LOADER
 	select CRC_CCITT
 	---help---
@@ -15,6 +20,7 @@ config BRCMFMAC
 	default n
 	depends on MMC
 	depends on WLAN && CFG80211
+	select BRCMUTIL
 	select FW_LOADER
 	select WIRELESS_EXT
 	select WEXT_PRIV

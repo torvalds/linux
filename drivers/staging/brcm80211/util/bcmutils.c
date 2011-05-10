@@ -28,7 +28,12 @@
 #include <bcmdevs.h>
 #include <proto/802.11.h>
 
-struct sk_buff *BCMFASTPATH pkt_buf_get_skb(uint len)
+MODULE_AUTHOR("Broadcom Corporation");
+MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver utilities.");
+MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN cards");
+MODULE_LICENSE("Dual BSD/GPL");
+
+struct sk_buff *BCMFASTPATH bcm_pkt_buf_get_skb(uint len)
 {
 	struct sk_buff *skb;
 
@@ -40,9 +45,10 @@ struct sk_buff *BCMFASTPATH pkt_buf_get_skb(uint len)
 
 	return skb;
 }
+EXPORT_SYMBOL(bcm_pkt_buf_get_skb);
 
 /* Free the driver packet. Free the tag if present */
-void BCMFASTPATH pkt_buf_free_skb(struct sk_buff *skb)
+void BCMFASTPATH bcm_pkt_buf_free_skb(struct sk_buff *skb)
 {
 	struct sk_buff *nskb;
 	int nest = 0;
@@ -67,9 +73,11 @@ void BCMFASTPATH pkt_buf_free_skb(struct sk_buff *skb)
 		skb = nskb;
 	}
 }
+EXPORT_SYMBOL(bcm_pkt_buf_free_skb);
+
 
 /* copy a buffer into a pkt buffer chain */
-uint pktfrombuf(struct sk_buff *p, uint offset, int len,
+uint bcm_pktfrombuf(struct sk_buff *p, uint offset, int len,
 		unsigned char *buf)
 {
 	uint n, ret = 0;
@@ -96,8 +104,10 @@ uint pktfrombuf(struct sk_buff *p, uint offset, int len,
 
 	return ret;
 }
+EXPORT_SYMBOL(bcm_pktfrombuf);
+
 /* return total length of buffer chain */
-uint BCMFASTPATH pkttotlen(struct sk_buff *p)
+uint BCMFASTPATH bcm_pkttotlen(struct sk_buff *p)
 {
 	uint total;
 
@@ -106,12 +116,13 @@ uint BCMFASTPATH pkttotlen(struct sk_buff *p)
 		total += p->len;
 	return total;
 }
+EXPORT_SYMBOL(bcm_pkttotlen);
 
 /*
  * osl multiple-precedence packet queue
  * hi_prec is always >= the number of the highest non-empty precedence
  */
-struct sk_buff *BCMFASTPATH pktq_penq(struct pktq *pq, int prec,
+struct sk_buff *BCMFASTPATH bcm_pktq_penq(struct pktq *pq, int prec,
 				      struct sk_buff *p)
 {
 	struct pktq_prec *q;
@@ -136,8 +147,9 @@ struct sk_buff *BCMFASTPATH pktq_penq(struct pktq *pq, int prec,
 
 	return p;
 }
+EXPORT_SYMBOL(bcm_pktq_penq);
 
-struct sk_buff *BCMFASTPATH pktq_penq_head(struct pktq *pq, int prec,
+struct sk_buff *BCMFASTPATH bcm_pktq_penq_head(struct pktq *pq, int prec,
 					   struct sk_buff *p)
 {
 	struct pktq_prec *q;
@@ -161,8 +173,9 @@ struct sk_buff *BCMFASTPATH pktq_penq_head(struct pktq *pq, int prec,
 
 	return p;
 }
+EXPORT_SYMBOL(bcm_pktq_penq_head);
 
-struct sk_buff *BCMFASTPATH pktq_pdeq(struct pktq *pq, int prec)
+struct sk_buff *BCMFASTPATH bcm_pktq_pdeq(struct pktq *pq, int prec)
 {
 	struct pktq_prec *q;
 	struct sk_buff *p;
@@ -185,8 +198,9 @@ struct sk_buff *BCMFASTPATH pktq_pdeq(struct pktq *pq, int prec)
 
 	return p;
 }
+EXPORT_SYMBOL(bcm_pktq_pdeq);
 
-struct sk_buff *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
+struct sk_buff *BCMFASTPATH bcm_pktq_pdeq_tail(struct pktq *pq, int prec)
 {
 	struct pktq_prec *q;
 	struct sk_buff *p, *prev;
@@ -212,9 +226,10 @@ struct sk_buff *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 
 	return p;
 }
+EXPORT_SYMBOL(bcm_pktq_pdeq_tail);
 
 void
-pktq_pflush(struct pktq *pq, int prec, bool dir,
+bcm_pktq_pflush(struct pktq *pq, int prec, bool dir,
 	    ifpkt_cb_t fn, int arg)
 {
 	struct pktq_prec *q;
@@ -230,7 +245,7 @@ pktq_pflush(struct pktq *pq, int prec, bool dir,
 			else
 				prev->prev = p->prev;
 			p->prev = NULL;
-			pkt_buf_free_skb(p);
+			bcm_pkt_buf_free_skb(p);
 			q->len--;
 			pq->len--;
 			p = (head ? q->head : prev->prev);
@@ -244,16 +259,18 @@ pktq_pflush(struct pktq *pq, int prec, bool dir,
 		q->tail = NULL;
 	}
 }
+EXPORT_SYMBOL(bcm_pktq_pflush);
 
-void pktq_flush(struct pktq *pq, bool dir,
+void bcm_pktq_flush(struct pktq *pq, bool dir,
 		ifpkt_cb_t fn, int arg)
 {
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)
-		pktq_pflush(pq, prec, dir, fn, arg);
+		bcm_pktq_pflush(pq, prec, dir, fn, arg);
 }
+EXPORT_SYMBOL(bcm_pktq_flush);
 
-void pktq_init(struct pktq *pq, int num_prec, int max_len)
+void bcm_pktq_init(struct pktq *pq, int num_prec, int max_len)
 {
 	int prec;
 
@@ -268,8 +285,9 @@ void pktq_init(struct pktq *pq, int num_prec, int max_len)
 	for (prec = 0; prec < num_prec; prec++)
 		pq->q[prec].max = pq->max;
 }
+EXPORT_SYMBOL(bcm_pktq_init);
 
-struct sk_buff *pktq_peek_tail(struct pktq *pq, int *prec_out)
+struct sk_buff *bcm_pktq_peek_tail(struct pktq *pq, int *prec_out)
 {
 	int prec;
 
@@ -285,9 +303,10 @@ struct sk_buff *pktq_peek_tail(struct pktq *pq, int *prec_out)
 
 	return pq->q[prec].tail;
 }
+EXPORT_SYMBOL(bcm_pktq_peek_tail);
 
 /* Return sum of lengths of a specific set of precedences */
-int pktq_mlen(struct pktq *pq, uint prec_bmp)
+int bcm_pktq_mlen(struct pktq *pq, uint prec_bmp)
 {
 	int prec, len;
 
@@ -299,8 +318,10 @@ int pktq_mlen(struct pktq *pq, uint prec_bmp)
 
 	return len;
 }
+EXPORT_SYMBOL(bcm_pktq_mlen);
+
 /* Priority dequeue from a specific set of precedences */
-struct sk_buff *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp,
+struct sk_buff *BCMFASTPATH bcm_pktq_mdeq(struct pktq *pq, uint prec_bmp,
 				      int *prec_out)
 {
 	struct pktq_prec *q;
@@ -338,6 +359,7 @@ struct sk_buff *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp,
 
 	return p;
 }
+EXPORT_SYMBOL(bcm_pktq_mdeq);
 
 /* parse a xx:xx:xx:xx:xx:xx format ethernet address */
 int bcm_ether_atoe(char *p, u8 *ea)
@@ -352,10 +374,11 @@ int bcm_ether_atoe(char *p, u8 *ea)
 
 	return i == 6;
 }
+EXPORT_SYMBOL(bcm_ether_atoe);
 
 #if defined(BCMDBG)
 /* pretty hex print a pkt buffer chain */
-void prpkt(const char *msg, struct sk_buff *p0)
+void bcm_prpkt(const char *msg, struct sk_buff *p0)
 {
 	struct sk_buff *p;
 
@@ -363,8 +386,9 @@ void prpkt(const char *msg, struct sk_buff *p0)
 		printk(KERN_DEBUG "%s:\n", msg);
 
 	for (p = p0; p; p = p->next)
-		prhex(NULL, p->data, p->len);
+		bcm_prhex(NULL, p->data, p->len);
 }
+EXPORT_SYMBOL(bcm_prpkt);
 #endif				/* defined(BCMDBG) */
 
 /* iovar table lookup */
@@ -388,6 +412,7 @@ const bcm_iovar_t *bcm_iovar_lookup(const bcm_iovar_t *table, const char *name)
 
 	return NULL;		/* var name not found */
 }
+EXPORT_SYMBOL(bcm_iovar_lookup);
 
 int bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
 {
@@ -432,6 +457,7 @@ int bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
 
 	return bcmerror;
 }
+EXPORT_SYMBOL(bcm_iovar_lencheck);
 
 /*******************************************************************************
  * crc8
@@ -490,7 +516,7 @@ static const u8 crc8_table[256] = {
 	0xF4, 0x03, 0x4D, 0xBA, 0xD1, 0x26, 0x68, 0x9F
 };
 
-u8 hndcrc8(u8 *pdata,	/* pointer to array of data to process */
+u8 bcm_crc8(u8 *pdata,	/* pointer to array of data to process */
 			 uint nbytes,	/* number of input data bytes to process */
 			 u8 crc	/* either CRC8_INIT_VALUE or previous return value */
     ) {
@@ -500,6 +526,7 @@ u8 hndcrc8(u8 *pdata,	/* pointer to array of data to process */
 
 	return crc;
 }
+EXPORT_SYMBOL(bcm_crc8);
 
 /*
  * Traverse a string of 1-byte tag/1-byte length/variable-length value
@@ -528,6 +555,7 @@ bcm_tlv_t *bcm_parse_tlvs(void *buf, int buflen, uint key)
 
 	return NULL;
 }
+EXPORT_SYMBOL(bcm_parse_tlvs);
 
 
 #if defined(BCMDBG)
@@ -583,6 +611,7 @@ bcm_format_flags(const bcm_bit_desc_t *bd, u32 flags, char *buf, int len)
 
 	return (int)(p - buf);
 }
+EXPORT_SYMBOL(bcm_format_flags);
 
 /* print bytes formatted as hex to a string. return the resulting string length */
 int bcm_format_hex(char *str, const void *bytes, int len)
@@ -597,10 +626,11 @@ int bcm_format_hex(char *str, const void *bytes, int len)
 	}
 	return (int)(p - str);
 }
+EXPORT_SYMBOL(bcm_format_hex);
 #endif				/* defined(BCMDBG) */
 
 /* pretty hex print a contiguous buffer */
-void prhex(const char *msg, unsigned char *buf, uint nbytes)
+void bcm_prhex(const char *msg, unsigned char *buf, uint nbytes)
 {
 	char line[128], *p;
 	int len = sizeof(line);
@@ -634,6 +664,7 @@ void prhex(const char *msg, unsigned char *buf, uint nbytes)
 	if (p != line)
 		printk(KERN_DEBUG "%s\n", line);
 }
+EXPORT_SYMBOL(bcm_prhex);
 
 char *bcm_chipname(uint chipid, char *buf, uint len)
 {
@@ -643,6 +674,7 @@ char *bcm_chipname(uint chipid, char *buf, uint len)
 	snprintf(buf, len, fmt, chipid);
 	return buf;
 }
+EXPORT_SYMBOL(bcm_chipname);
 
 uint bcm_mkiovar(char *name, char *data, uint datalen, char *buf, uint buflen)
 {
@@ -661,6 +693,7 @@ uint bcm_mkiovar(char *name, char *data, uint datalen, char *buf, uint buflen)
 
 	return len;
 }
+EXPORT_SYMBOL(bcm_mkiovar);
 
 /* Quarter dBm units to mW
  * Table starts at QDBM_OFFSET, so the first entry is mW for qdBm=153
@@ -715,6 +748,8 @@ u16 bcm_qdbm_to_mw(u8 qdbm)
 	 */
 	return (nqdBm_to_mW_map[idx] + factor / 2) / factor;
 }
+EXPORT_SYMBOL(bcm_qdbm_to_mw);
+
 u8 bcm_mw_to_qdbm(u16 mw)
 {
 	u8 qdbm;
@@ -745,6 +780,8 @@ u8 bcm_mw_to_qdbm(u16 mw)
 
 	return qdbm;
 }
+EXPORT_SYMBOL(bcm_mw_to_qdbm);
+
 uint bcm_bitcount(u8 *bitmap, uint length)
 {
 	uint bitcount = 0, i;
@@ -758,12 +795,15 @@ uint bcm_bitcount(u8 *bitmap, uint length)
 	}
 	return bitcount;
 }
+EXPORT_SYMBOL(bcm_bitcount);
+
 /* Initialization of bcmstrbuf structure */
 void bcm_binit(struct bcmstrbuf *b, char *buf, uint size)
 {
 	b->origsize = b->size = size;
 	b->origbuf = b->buf = buf;
 }
+EXPORT_SYMBOL(bcm_binit);
 
 /* Buffer sprintf wrapper to guard against buffer overflow */
 int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...)
@@ -789,3 +829,4 @@ int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...)
 
 	return r;
 }
+EXPORT_SYMBOL(bcm_bprintf);

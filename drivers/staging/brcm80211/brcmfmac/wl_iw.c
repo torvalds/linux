@@ -375,7 +375,7 @@ wl_iw_set_freq(struct net_device *dev,
 		if (fwrq->m > 4000 && fwrq->m < 5000)
 			sf = WF_CHAN_FACTOR_4_G;
 
-		chan = wf_mhz2channel(fwrq->m, sf);
+		chan = bcm_mhz2channel(fwrq->m, sf);
 	}
 	chan = cpu_to_le32(chan);
 

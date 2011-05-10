@@ -256,7 +256,7 @@ sprom_read_pci(si_t *sih, u16 *sprom, uint wordoff,
 
 		/* fixup the endianness so crc8 will pass */
 		htol16_buf(buf, nwords * 2);
-		if (hndcrc8((u8 *) buf, nwords * 2, CRC8_INIT_VALUE) !=
+		if (bcm_crc8((u8 *) buf, nwords * 2, CRC8_INIT_VALUE) !=
 		    CRC8_GOOD_VALUE) {
 			/* DBG only pci always read srom4 first, then srom8/9 */
 			err = 1;
@@ -296,7 +296,7 @@ static int otp_read_pci(si_t *sih, u16 *buf, uint bufsz)
 
 	/* fixup the endianness so crc8 will pass */
 	htol16_buf(buf, bufsz);
-	if (hndcrc8((u8 *) buf, SROM4_WORDS * 2, CRC8_INIT_VALUE) !=
+	if (bcm_crc8((u8 *) buf, SROM4_WORDS * 2, CRC8_INIT_VALUE) !=
 	    CRC8_GOOD_VALUE) {
 		err = 1;
 	}

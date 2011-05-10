@@ -622,7 +622,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 		len = roundup(len, 4);
 		ampdu_len += (len + (ndelim + 1) * AMPDU_DELIMITER_LEN);
 
-		dma_len += (u16) pkttotlen(p);
+		dma_len += (u16) bcm_pkttotlen(p);
 
 		BCMMSG(wlc->wiphy, "wl%d: ampdu_len %d"
 			" seg_cnt %d null delim %d\n",
@@ -718,7 +718,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 			    ((u8) (p->priority) == tid)) {
 
 				plen =
-				    pkttotlen(p) + AMPDU_MAX_MPDU_OVERHEAD;
+				    bcm_pkttotlen(p) + AMPDU_MAX_MPDU_OVERHEAD;
 				plen = max(scb_ampdu->min_len, plen);
 
 				if ((plen + ampdu_len) > maxlen) {
@@ -735,7 +735,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 					p = NULL;
 					continue;
 				}
-				p = pktq_pdeq(&qi->q, prec);
+				p = bcm_pktq_pdeq(&qi->q, prec);
 			} else {
 				p = NULL;
 			}
@@ -899,7 +899,7 @@ wlc_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 			tx_info = IEEE80211_SKB_CB(p);
 			txh = (d11txh_t *) p->data;
 			mcl = le16_to_cpu(txh->MacTxControlLow);
-			pkt_buf_free_skb(p);
+			bcm_pkt_buf_free_skb(p);
 			/* break out if last packet of ampdu */
 			if (((mcl & TXC_AMPDU_MASK) >> TXC_AMPDU_SHIFT) ==
 			    TXC_AMPDU_LAST)
@@ -1034,7 +1034,7 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				  txs->phyerr);
 
 			if (WL_ERROR_ON()) {
-				prpkt("txpkt (AMPDU)", p);
+				bcm_prpkt("txpkt (AMPDU)", p);
 				wlc_print_txdesc((d11txh_t *) p->data);
 			}
 			wlc_print_txstatus(txs);
@@ -1148,7 +1148,7 @@ ampdu_cleanup_tid_ini(struct ampdu_info *ampdu, scb_ampdu_t *scb_ampdu, u8 tid,
 	scb_ampdu = SCB_AMPDU_CUBBY(ampdu, ini->scb);
 
 	/* free all buffered tx packets */
-	pktq_pflush(&scb_ampdu->txq, ini->tid, true, NULL, 0);
+	bcm_pktq_pflush(&scb_ampdu->txq, ini->tid, true, NULL, 0);
 }
 
 /* initialize the initiator code for tid */
@@ -1337,7 +1337,7 @@ void wlc_ampdu_flush(struct wlc_info *wlc,
 	ampdu_pars.sta = sta;
 	ampdu_pars.tid = tid;
 	for (prec = 0; prec < pq->num_prec; prec++) {
-		pktq_pflush(pq, prec, true, cb_del_ampdu_pkt,
+		bcm_pktq_pflush(pq, prec, true, cb_del_ampdu_pkt,
 			    (int)&ampdu_pars);
 	}
 	wlc_inval_dma_pkts(wlc->hw, sta, dma_cb_fn_ampdu);

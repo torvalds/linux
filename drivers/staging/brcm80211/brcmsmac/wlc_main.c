@@ -709,8 +709,8 @@ static u8 wlc_local_constraint_qdbm(struct wlc_info *wlc)
 
 	local = WLC_TXPWR_MAX;
 	if (wlc->pub->associated &&
-	    (wf_chspec_ctlchan(wlc->chanspec) ==
-	     wf_chspec_ctlchan(wlc->home_chanspec))) {
+	    (bcm_chspec_ctlchan(wlc->chanspec) ==
+	     bcm_chspec_ctlchan(wlc->home_chanspec))) {
 
 		/* get the local power constraint if we are on the AP's
 		 * channel [802.11h, 7.3.2.13]
@@ -2521,7 +2521,7 @@ uint wlc_down(struct wlc_info *wlc)
 
 	/* flush tx queues */
 	for (qi = wlc->tx_queues; qi != NULL; qi = qi->next) {
-		pktq_flush(&qi->q, true, NULL, 0);
+		bcm_pktq_flush(&qi->q, true, NULL, 0);
 	}
 
 	callbacks += wlc_bmac_down_finish(wlc->hw);
@@ -4682,7 +4682,8 @@ void wlc_print_txdesc(d11txh_t *txh)
 	char hexbuf[256];
 
 	/* add plcp header along with txh descriptor */
-	prhex("Raw TxDesc + plcp header", (unsigned char *) txh, sizeof(d11txh_t) + 48);
+	bcm_prhex("Raw TxDesc + plcp header", (unsigned char *) txh,
+		sizeof(d11txh_t) + 48);
 
 	printk(KERN_DEBUG "TxCtlLow: %04x ", mtcl);
 	printk(KERN_DEBUG "TxCtlHigh: %04x ", mtch);
@@ -4753,7 +4754,7 @@ void wlc_print_rxh(d11rxhdr_t *rxh)
 		{0, NULL}
 	};
 
-	prhex("Raw RxDesc", (unsigned char *) rxh, sizeof(d11rxhdr_t));
+	bcm_prhex("Raw RxDesc", (unsigned char *) rxh, sizeof(d11rxhdr_t));
 
 	bcm_format_flags(macstat_flags, macstatus1, flagstr, 64);
 
@@ -4829,7 +4830,7 @@ wlc_prec_enq_head(struct wlc_info *wlc, struct pktq *q, struct sk_buff *pkt,
 	if (pktq_pfull(q, prec))
 		eprec = prec;
 	else if (pktq_full(q)) {
-		p = pktq_peek_tail(q, &eprec);
+		p = bcm_pktq_peek_tail(q, &eprec);
 		if (eprec > prec) {
 			wiphy_err(wlc->wiphy, "%s: Failing: eprec %d > prec %d"
 				  "\n", __func__, eprec, prec);
@@ -4851,25 +4852,25 @@ wlc_prec_enq_head(struct wlc_info *wlc, struct pktq *q, struct sk_buff *pkt,
 		}
 
 		/* Evict packet according to discard policy */
-		p = discard_oldest ? pktq_pdeq(q, eprec) : pktq_pdeq_tail(q,
-									  eprec);
+		p = discard_oldest ? bcm_pktq_pdeq(q, eprec) :
+			bcm_pktq_pdeq_tail(q, eprec);
 		/* Increment wme stats */
 		if (WME_ENAB(wlc->pub)) {
 			WLCNTINCR(wlc->pub->_wme_cnt->
 				  tx_failed[WME_PRIO2AC(p->priority)].packets);
 			WLCNTADD(wlc->pub->_wme_cnt->
 				 tx_failed[WME_PRIO2AC(p->priority)].bytes,
-				 pkttotlen(p));
+				 bcm_pkttotlen(p));
 		}
-		pkt_buf_free_skb(p);
+		bcm_pkt_buf_free_skb(p);
 		wlc->pub->_cnt->txnobuf++;
 	}
 
 	/* Enqueue */
 	if (head)
-		p = pktq_penq_head(q, prec, pkt);
+		p = bcm_pktq_penq_head(q, prec, pkt);
 	else
-		p = pktq_penq(q, prec, pkt);
+		p = bcm_pktq_penq(q, prec, pkt);
 
 	return true;
 }
@@ -4894,7 +4895,7 @@ void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 		 * XXX we might hit this condtion in case
 		 * packet flooding from mac80211 stack
 		 */
-		pkt_buf_free_skb(sdu);
+		bcm_pkt_buf_free_skb(sdu);
 		wlc->pub->_cnt->txnobuf++;
 	}
 
@@ -4961,7 +4962,7 @@ void BCMFASTPATH wlc_send_q(struct wlc_info *wlc)
 	/* Send all the enq'd pkts that we can.
 	 * Dequeue packets with precedence with empty HW fifo only
 	 */
-	while (prec_map && (pkt[0] = pktq_mdeq(q, prec_map, &prec))) {
+	while (prec_map && (pkt[0] = bcm_pktq_mdeq(q, prec_map, &prec))) {
 		tx_info = IEEE80211_SKB_CB(pkt[0]);
 		if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
 			err = wlc_sendampdu(wlc->ampdu, qi, pkt, prec);
@@ -4976,7 +4977,7 @@ void BCMFASTPATH wlc_send_q(struct wlc_info *wlc)
 		}
 
 		if (err == -EBUSY) {
-			pktq_penq_head(q, prec, pkt[0]);
+			bcm_pktq_penq_head(q, prec, pkt[0]);
 			/* If send failed due to any other reason than a change in
 			 * HW FIFO condition, quit. Otherwise, read the new prec_map!
 			 */
@@ -5444,7 +5445,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	qos = ieee80211_is_data_qos(h->frame_control);
 
 	/* compute length of frame in bytes for use in PLCP computations */
-	len = pkttotlen(p);
+	len = bcm_pkttotlen(p);
 	phylen = len + FCS_LEN;
 
 	/* If WEP enabled, add room in phylen for the additional bytes of
@@ -6330,7 +6331,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 			tx_info->flags |= IEEE80211_TX_STAT_ACK;
 	}
 
-	totlen = pkttotlen(p);
+	totlen = bcm_pkttotlen(p);
 	free_pdu = true;
 
 	wlc_txfifo_complete(wlc, queue, 1);
@@ -6353,7 +6354,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 
  fatal:
 	if (p)
-		pkt_buf_free_skb(p);
+		bcm_pkt_buf_free_skb(p);
 
 	return true;
 
@@ -6758,7 +6759,7 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	return;
 
  toss:
-	pkt_buf_free_skb(p);
+	bcm_pkt_buf_free_skb(p);
 }
 
 /* calculate frame duration for Mixed-mode L-SIG spoofing, return
@@ -8049,7 +8050,7 @@ static struct wlc_txq_info *wlc_txq_alloc(struct wlc_info *wlc)
 		 * leave PS mode. The watermark for flowcontrol to OS packets
 		 * will remain the same
 		 */
-		pktq_init(&qi->q, WLC_PREC_COUNT,
+		bcm_pktq_init(&qi->q, WLC_PREC_COUNT,
 			  (2 * wlc->pub->tunables->datahiwat) + PKTQ_LEN_DEFAULT
 			  + wlc->pub->psq_pkts_total);
 
@@ -8133,7 +8134,7 @@ void wlc_wait_for_tx_completion(struct wlc_info *wlc, bool drop)
 {
 	/* flush packet queue when requested */
 	if (drop)
-		pktq_flush(&wlc->pkt_queue->q, false, NULL, 0);
+		bcm_pktq_flush(&wlc->pkt_queue->q, false, NULL, 0);
 
 	/* wait for queue and DMA fifos to run dry */
 	while (!pktq_empty(&wlc->pkt_queue->q) ||

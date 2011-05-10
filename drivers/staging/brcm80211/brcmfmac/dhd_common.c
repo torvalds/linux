@@ -316,7 +316,7 @@ bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
 	 * exceeding total queue length
 	 */
 	if (!pktq_pfull(q, prec) && !pktq_full(q)) {
-		pktq_penq(q, prec, pkt);
+		bcm_pktq_penq(q, prec, pkt);
 		return true;
 	}
 
@@ -324,7 +324,7 @@ bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
 	if (pktq_pfull(q, prec))
 		eprec = prec;
 	else if (pktq_full(q)) {
-		p = pktq_peek_tail(q, &eprec);
+		p = bcm_pktq_peek_tail(q, &eprec);
 		ASSERT(p);
 		if (eprec > prec)
 			return false;
@@ -338,21 +338,21 @@ bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
 		if (eprec == prec && !discard_oldest)
 			return false;	/* refuse newer (incoming) packet */
 		/* Evict packet according to discard policy */
-		p = discard_oldest ? pktq_pdeq(q, eprec) : pktq_pdeq_tail(q,
-						  eprec);
+		p = discard_oldest ? bcm_pktq_pdeq(q, eprec) :
+			bcm_pktq_pdeq_tail(q, eprec);
 		if (p == NULL) {
-			DHD_ERROR(("%s: pktq_penq() failed, oldest %d.",
+			DHD_ERROR(("%s: bcm_pktq_penq() failed, oldest %d.",
 				   __func__, discard_oldest));
 			ASSERT(p);
 		}
 
-		pkt_buf_free_skb(p);
+		bcm_pkt_buf_free_skb(p);
 	}
 
 	/* Enqueue */
-	p = pktq_penq(q, prec, pkt);
+	p = bcm_pktq_penq(q, prec, pkt);
 	if (p == NULL) {
-		DHD_ERROR(("%s: pktq_penq() failed.", __func__));
+		DHD_ERROR(("%s: bcm_pktq_penq() failed.", __func__));
 		ASSERT(p);
 	}
 
