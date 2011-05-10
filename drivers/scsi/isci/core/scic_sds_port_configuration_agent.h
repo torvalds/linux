@@ -64,7 +64,6 @@
  */
 
 #include "scic_sds_port.h"
-#include "scic_sds_phy.h"
 
 struct scic_sds_controller;
 struct scic_sds_port_configuration_agent;

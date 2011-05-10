@@ -12,4 +12,3 @@ isci-objs := init.o phy.o request.o sata.o \
 	     smp_request.o \
 	     core/scic_sds_port.o \
 	     core/scic_sds_port_configuration_agent.o \
-	     core/scic_sds_phy.o \

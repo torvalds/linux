@@ -58,7 +58,7 @@
 
 #include "isci.h"
 #include "sas.h"
-#include "scic_phy.h"
+#include "phy.h"
 
 struct scic_sds_port;
 

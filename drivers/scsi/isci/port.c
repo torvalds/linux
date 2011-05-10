@@ -55,8 +55,6 @@
 
 #include <linux/workqueue.h>
 #include "isci.h"
-#include "scic_phy.h"
-#include "scic_sds_phy.h"
 #include "scic_port.h"
 #include "port.h"
 #include "request.h"
