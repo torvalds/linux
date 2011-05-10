@@ -586,14 +586,14 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 			irq_map[i].host = host;
 			smp_wmb();
 
-			/* Clear norequest flags */
-			irq_clear_status_flags(i, IRQ_NOREQUEST);
-
 			/* Legacy flags are left to default at this point,
 			 * one can then use irq_create_mapping() to
 			 * explicitly change them
 			 */
 			ops->map(host, i, i);
+
+			/* Clear norequest flags */
+			irq_clear_status_flags(i, IRQ_NOREQUEST);
 		}
 		break;
 	case IRQ_HOST_MAP_LINEAR:
@@ -664,8 +664,6 @@ static int irq_setup_virq(struct irq_host *host, unsigned int virq,
 		goto error;
 	}
 
-	irq_clear_status_flags(virq, IRQ_NOREQUEST);
-
 	/* map it */
 	smp_wmb();
 	irq_map[virq].hwirq = hwirq;
@@ -675,6 +673,8 @@ static int irq_setup_virq(struct irq_host *host, unsigned int virq,
 		pr_debug("irq: -> mapping failed, freeing\n");
 		goto errdesc;
 	}
+
+	irq_clear_status_flags(virq, IRQ_NOREQUEST);
 
 	return 0;
 
@@ -819,6 +819,8 @@ void irq_dispose_mapping(unsigned int virq)
 	if (host->revmap_type == IRQ_HOST_MAP_LEGACY)
 		return;
 
+	irq_set_status_flags(virq, IRQ_NOREQUEST);
+
 	/* remove chip and handler */
 	irq_set_chip_and_handler(virq, NULL, NULL);
 
@@ -847,8 +849,6 @@ void irq_dispose_mapping(unsigned int virq)
 	/* Destroy map */
 	smp_mb();
 	irq_map[virq].hwirq = host->inval_irq;
-
-	irq_set_status_flags(virq, IRQ_NOREQUEST);
 
 	irq_free_descs(virq, 1);
 	/* Free it */
