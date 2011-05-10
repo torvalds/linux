@@ -766,8 +766,6 @@ retry_request:
 
 static DEF_SCSI_QCMD(storvsc_queuecommand)
 
-/* Static decl */
-static int storvsc_probe(struct hv_device *dev);
 
 /* The one and only one */
 static struct storvsc_driver g_storvsc_drv;
@@ -800,6 +798,80 @@ static struct scsi_host_template scsi_driver = {
 	.dma_boundary =		PAGE_SIZE-1,
 };
 
+
+/*
+ * storvsc_probe - Add a new device for this driver
+ */
+
+static int storvsc_probe(struct hv_device *device)
+{
+	int ret;
+	struct storvsc_driver *storvsc_drv_obj =
+		 drv_to_stordrv(device->device.driver);
+	struct Scsi_Host *host;
+	struct hv_host_device *host_dev;
+	struct storvsc_device_info device_info;
+
+	if (!storvsc_drv_obj->base.dev_add)
+		return -1;
+
+	host = scsi_host_alloc(&scsi_driver,
+			       sizeof(struct hv_host_device));
+	if (!host)
+		return -ENOMEM;
+
+	dev_set_drvdata(&device->device, host);
+
+	host_dev = (struct hv_host_device *)host->hostdata;
+	memset(host_dev, 0, sizeof(struct hv_host_device));
+
+	host_dev->port = host->host_no;
+	host_dev->dev = device;
+
+	host_dev->request_pool =
+				kmem_cache_create(dev_name(&device->device),
+					sizeof(struct storvsc_cmd_request), 0,
+					SLAB_HWCACHE_ALIGN, NULL);
+
+	if (!host_dev->request_pool) {
+		scsi_host_put(host);
+		return -ENOMEM;
+	}
+
+	device_info.port_number = host->host_no;
+	/* Call to the vsc driver to add the device */
+	ret = storvsc_drv_obj->base.dev_add(device, (void *)&device_info);
+
+	if (ret != 0) {
+		kmem_cache_destroy(host_dev->request_pool);
+		scsi_host_put(host);
+		return -1;
+	}
+
+	host_dev->path = device_info.path_id;
+	host_dev->target = device_info.target_id;
+
+	/* max # of devices per target */
+	host->max_lun = STORVSC_MAX_LUNS_PER_TARGET;
+	/* max # of targets per channel */
+	host->max_id = STORVSC_MAX_TARGETS;
+	/* max # of channels */
+	host->max_channel = STORVSC_MAX_CHANNELS - 1;
+
+	/* Register the HBA and start the scsi bus scan */
+	ret = scsi_add_host(host, &device->device);
+	if (ret != 0) {
+
+		storvsc_drv_obj->base.dev_rm(device);
+
+		kmem_cache_destroy(host_dev->request_pool);
+		scsi_host_put(host);
+		return -1;
+	}
+
+	scsi_scan_host(host);
+	return ret;
+}
 
 /*
  * storvsc_drv_init - StorVsc driver initialization.
@@ -869,79 +941,6 @@ static void storvsc_drv_exit(void)
 
 	vmbus_child_driver_unregister(&drv->driver);
 	return;
-}
-
-/*
- * storvsc_probe - Add a new device for this driver
- */
-static int storvsc_probe(struct hv_device *device)
-{
-	int ret;
-	struct storvsc_driver *storvsc_drv_obj =
-		 drv_to_stordrv(device->device.driver);
-	struct Scsi_Host *host;
-	struct hv_host_device *host_dev;
-	struct storvsc_device_info device_info;
-
-	if (!storvsc_drv_obj->base.dev_add)
-		return -1;
-
-	host = scsi_host_alloc(&scsi_driver,
-			       sizeof(struct hv_host_device));
-	if (!host)
-		return -ENOMEM;
-
-	dev_set_drvdata(&device->device, host);
-
-	host_dev = (struct hv_host_device *)host->hostdata;
-	memset(host_dev, 0, sizeof(struct hv_host_device));
-
-	host_dev->port = host->host_no;
-	host_dev->dev = device;
-
-	host_dev->request_pool =
-				kmem_cache_create(dev_name(&device->device),
-					sizeof(struct storvsc_cmd_request), 0,
-					SLAB_HWCACHE_ALIGN, NULL);
-
-	if (!host_dev->request_pool) {
-		scsi_host_put(host);
-		return -ENOMEM;
-	}
-
-	device_info.port_number = host->host_no;
-	/* Call to the vsc driver to add the device */
-	ret = storvsc_drv_obj->base.dev_add(device, (void *)&device_info);
-
-	if (ret != 0) {
-		kmem_cache_destroy(host_dev->request_pool);
-		scsi_host_put(host);
-		return -1;
-	}
-
-	host_dev->path = device_info.path_id;
-	host_dev->target = device_info.target_id;
-
-	/* max # of devices per target */
-	host->max_lun = STORVSC_MAX_LUNS_PER_TARGET;
-	/* max # of targets per channel */
-	host->max_id = STORVSC_MAX_TARGETS;
-	/* max # of channels */
-	host->max_channel = STORVSC_MAX_CHANNELS - 1;
-
-	/* Register the HBA and start the scsi bus scan */
-	ret = scsi_add_host(host, &device->device);
-	if (ret != 0) {
-
-		storvsc_drv_obj->base.dev_rm(device);
-
-		kmem_cache_destroy(host_dev->request_pool);
-		scsi_host_put(host);
-		return -1;
-	}
-
-	scsi_scan_host(host);
-	return ret;
 }
 
 static int __init storvsc_init(void)
