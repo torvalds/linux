@@ -40,7 +40,7 @@
 #include "channel.h"
 
 
-static const char *g_driver_name = "storvsc";
+static const char *driver_name = "storvsc";
 
 /* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
 static const struct hv_guid gStorVscDeviceType = {
@@ -91,7 +91,7 @@ static int stor_vsc_initialize(struct hv_driver *driver)
 
 	/* Make sure we are at least 2 pages since 1 page is used for control */
 
-	driver->name = g_driver_name;
+	driver->name = driver_name;
 	memcpy(&driver->dev_type, &gStorVscDeviceType,
 	       sizeof(struct hv_guid));
 
