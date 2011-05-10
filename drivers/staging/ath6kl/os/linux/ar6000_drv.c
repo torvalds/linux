@@ -1732,6 +1732,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
 
         ar->arVersion.target_ver = targ_info.target_ver;
         ar->arTargetType = targ_info.target_type;
+	wdev->wiphy->hw_version = targ_info.target_ver;
     }
 
     r = ar6000_configure_target(ar);
