@@ -67,22 +67,6 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 	return 0;
 }
 
-static void smp_beatic_message_pass(int target, int msg)
-{
-	unsigned int i;
-
-	if (target < NR_CPUS) {
-		beatic_cause_IPI(target, msg);
-	} else {
-		for_each_online_cpu(i) {
-			if (target == MSG_ALL_BUT_SELF
-			    && i == smp_processor_id())
-				continue;
-			beatic_cause_IPI(i, msg);
-		}
-	}
-}
-
 static int __init smp_beatic_probe(void)
 {
 	return cpumask_weight(cpu_possible_mask);
@@ -105,7 +89,7 @@ static int smp_celleb_cpu_bootable(unsigned int nr)
 	return 1;
 }
 static struct smp_ops_t bpa_beatic_smp_ops = {
-	.message_pass	= smp_beatic_message_pass,
+	.message_pass	= beatic_cause_IPI,
 	.probe		= smp_beatic_probe,
 	.kick_cpu	= smp_celleb_kick_cpu,
 	.setup_cpu	= smp_beatic_setup_cpu,

@@ -31,7 +31,7 @@ struct kimage;
 
 #ifdef CONFIG_SMP
 struct smp_ops_t {
-	void  (*message_pass)(int target, int msg);
+	void  (*message_pass)(int cpu, int msg);
 	int   (*probe)(void);
 	int   (*kick_cpu)(int nr);
 	void  (*setup_cpu)(int nr);

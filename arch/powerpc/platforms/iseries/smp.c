@@ -59,26 +59,10 @@ void iSeries_smp_message_recv(void)
 			smp_message_recv(msg);
 }
 
-static inline void smp_iSeries_do_message(int cpu, int msg)
+static void smp_iSeries_message_pass(int cpu, int msg)
 {
 	set_bit(msg, &iSeries_smp_message[cpu]);
 	HvCall_sendIPI(&(paca[cpu]));
-}
-
-static void smp_iSeries_message_pass(int target, int msg)
-{
-	int i;
-
-	if (target < NR_CPUS)
-		smp_iSeries_do_message(target, msg);
-	else {
-		for_each_online_cpu(i) {
-			if ((target == MSG_ALL_BUT_SELF) &&
-					(i == smp_processor_id()))
-				continue;
-			smp_iSeries_do_message(i, msg);
-		}
-	}
 }
 
 static int smp_iSeries_probe(void)

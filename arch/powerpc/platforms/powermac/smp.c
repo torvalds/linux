@@ -186,21 +186,10 @@ irqreturn_t psurge_primary_intr(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static void smp_psurge_message_pass(int target, int msg)
+static void smp_psurge_message_pass(int cpu, int msg)
 {
-	int i;
-
-	if (num_online_cpus() < 2)
-		return;
-
-	for_each_online_cpu(i) {
-		if (target == MSG_ALL
-		    || (target == MSG_ALL_BUT_SELF && i != smp_processor_id())
-		    || target == i) {
-			set_bit(msg, &psurge_smp_message[i]);
-			psurge_set_ipi(i);
-		}
-	}
+	set_bit(msg, &psurge_smp_message[cpu]);
+	psurge_set_ipi(cpu);
 }
 
 /*

@@ -134,29 +134,13 @@ static unsigned int icp_native_get_irq(void)
 
 #ifdef CONFIG_SMP
 
-static inline void icp_native_do_message(int cpu, int msg)
+static void icp_native_message_pass(int cpu, int msg)
 {
 	unsigned long *tgt = &per_cpu(xics_ipi_message, cpu);
 
 	set_bit(msg, tgt);
 	mb();
 	icp_native_set_qirr(cpu, IPI_PRIORITY);
-}
-
-static void icp_native_message_pass(int target, int msg)
-{
-	unsigned int i;
-
-	if (target < NR_CPUS) {
-		icp_native_do_message(target, msg);
-	} else {
-		for_each_online_cpu(i) {
-			if (target == MSG_ALL_BUT_SELF
-			    && i == smp_processor_id())
-				continue;
-			icp_native_do_message(i, msg);
-		}
-	}
 }
 
 static irqreturn_t icp_native_ipi_action(int irq, void *dev_id)

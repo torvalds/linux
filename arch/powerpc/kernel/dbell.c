@@ -34,32 +34,13 @@ void doorbell_setup_this_cpu(void)
 	info->tag = mfspr(SPRN_PIR) & 0x3fff;
 }
 
-void doorbell_message_pass(int target, int msg)
+void doorbell_message_pass(int cpu, int msg)
 {
 	struct doorbell_cpu_info *info;
-	int i;
 
-	if (target < NR_CPUS) {
-		info = &per_cpu(doorbell_cpu_info, target);
-		set_bit(msg, &info->messages);
-		ppc_msgsnd(PPC_DBELL, 0, info->tag);
-	}
-	else if (target == MSG_ALL_BUT_SELF) {
-		for_each_online_cpu(i) {
-			if (i == smp_processor_id())
-				continue;
-			info = &per_cpu(doorbell_cpu_info, i);
-			set_bit(msg, &info->messages);
-			ppc_msgsnd(PPC_DBELL, 0, info->tag);
-		}
-	}
-	else { /* target == MSG_ALL */
-		for_each_online_cpu(i) {
-			info = &per_cpu(doorbell_cpu_info, i);
-			set_bit(msg, &info->messages);
-		}
-		ppc_msgsnd(PPC_DBELL, PPC_DBELL_MSG_BRDCAST, 0);
-	}
+	info = &per_cpu(doorbell_cpu_info, cpu);
+	set_bit(msg, &info->messages);
+	ppc_msgsnd(PPC_DBELL, 0, info->tag);
 }
 
 void doorbell_exception(struct pt_regs *regs)

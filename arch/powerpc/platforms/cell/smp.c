@@ -103,22 +103,6 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 	return 1;
 }
 
-static void smp_iic_message_pass(int target, int msg)
-{
-	unsigned int i;
-
-	if (target < NR_CPUS) {
-		iic_cause_IPI(target, msg);
-	} else {
-		for_each_online_cpu(i) {
-			if (target == MSG_ALL_BUT_SELF
-			    && i == smp_processor_id())
-				continue;
-			iic_cause_IPI(i, msg);
-		}
-	}
-}
-
 static int __init smp_iic_probe(void)
 {
 	iic_request_IPIs();
@@ -168,7 +152,7 @@ static int smp_cell_cpu_bootable(unsigned int nr)
 	return 1;
 }
 static struct smp_ops_t bpa_iic_smp_ops = {
-	.message_pass	= smp_iic_message_pass,
+	.message_pass	= iic_cause_IPI,
 	.probe		= smp_iic_probe,
 	.kick_cpu	= smp_cell_kick_cpu,
 	.setup_cpu	= smp_cell_setup_cpu,

@@ -1628,31 +1628,15 @@ static void mpic_send_ipi(unsigned int ipi_no, const struct cpumask *cpu_mask)
 		       mpic_physmask(cpumask_bits(cpu_mask)[0]));
 }
 
-void smp_mpic_message_pass(int target, int msg)
+void smp_mpic_message_pass(int cpu, int msg)
 {
-	cpumask_var_t tmp;
-
 	/* make sure we're sending something that translates to an IPI */
 	if ((unsigned int)msg > 3) {
 		printk("SMP %d: smp_message_pass: unknown msg %d\n",
 		       smp_processor_id(), msg);
 		return;
 	}
-	switch (target) {
-	case MSG_ALL:
-		mpic_send_ipi(msg, cpu_online_mask);
-		break;
-	case MSG_ALL_BUT_SELF:
-		alloc_cpumask_var(&tmp, GFP_NOWAIT);
-		cpumask_andnot(tmp, cpu_online_mask,
-			       cpumask_of(smp_processor_id()));
-		mpic_send_ipi(msg, tmp);
-		free_cpumask_var(tmp);
-		break;
-	default:
-		mpic_send_ipi(msg, cpumask_of(target));
-		break;
-	}
+	mpic_send_ipi(msg, cpumask_of(cpu));
 }
 
 int __init smp_mpic_probe(void)
