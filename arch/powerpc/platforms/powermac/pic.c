@@ -240,12 +240,9 @@ static unsigned int pmac_pic_get_irq(void)
 	unsigned long flags;
 
 #ifdef CONFIG_PPC_PMAC32_PSURGE
-	void psurge_smp_message_recv(void);
-
-       	/* IPI's are a hack on the powersurge -- Cort */
-       	if ( smp_processor_id() != 0 ) {
-		psurge_smp_message_recv();
-		return NO_IRQ_IGNORE;	/* ignore, already handled */
+	/* IPI's are a hack on the powersurge -- Cort */
+	if (smp_processor_id() != 0) {
+		return  psurge_secondary_virq;
         }
 #endif /* CONFIG_PPC_PMAC32_PSURGE */
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);

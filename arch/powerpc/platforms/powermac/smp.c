@@ -124,6 +124,10 @@ static volatile u32 __iomem *psurge_start;
 /* what sort of powersurge board we have */
 static int psurge_type = PSURGE_NONE;
 
+/* irq for secondary cpus to report */
+static struct irq_host *psurge_host;
+int psurge_secondary_virq;
+
 /*
  * Set and clear IPIs for powersurge.
  */
@@ -159,21 +163,49 @@ static inline void psurge_clr_ipi(int cpu)
  * use the generic demux helpers
  *  -- paulus.
  */
-void psurge_smp_message_recv(void)
+static irqreturn_t psurge_ipi_intr(int irq, void *d)
 {
 	psurge_clr_ipi(smp_processor_id());
 	smp_ipi_demux();
-}
 
-irqreturn_t psurge_primary_intr(int irq, void *d)
-{
-	psurge_smp_message_recv();
 	return IRQ_HANDLED;
 }
 
 static void smp_psurge_cause_ipi(int cpu, unsigned long data)
 {
 	psurge_set_ipi(cpu);
+}
+
+static int psurge_host_map(struct irq_host *h, unsigned int virq,
+			 irq_hw_number_t hw)
+{
+	irq_set_chip_and_handler(virq, &dummy_irq_chip, handle_percpu_irq);
+
+	return 0;
+}
+
+struct irq_host_ops psurge_host_ops = {
+	.map	= psurge_host_map,
+};
+
+static int psurge_secondary_ipi_init(void)
+{
+	int rc = -ENOMEM;
+
+	psurge_host = irq_alloc_host(NULL, IRQ_HOST_MAP_NOMAP, 0,
+		&psurge_host_ops, 0);
+
+	if (psurge_host)
+		psurge_secondary_virq = irq_create_direct_mapping(psurge_host);
+
+	if (psurge_secondary_virq)
+		rc = request_irq(psurge_secondary_virq, psurge_ipi_intr,
+			IRQF_DISABLED|IRQF_PERCPU, "IPI", NULL);
+
+	if (rc)
+		pr_err("Failed to setup secondary cpu IPI\n");
+
+	return rc;
 }
 
 /*
@@ -284,6 +316,9 @@ static int __init smp_psurge_probe(void)
 		ncpus = 2;
 	}
 
+	if (psurge_secondary_ipi_init())
+		return 1;
+
 	psurge_start = ioremap(PSURGE_START, 4);
 	psurge_pri_intr = ioremap(PSURGE_PRI_INTR, 4);
 
@@ -372,8 +407,8 @@ static int __init smp_psurge_kick_cpu(int nr)
 }
 
 static struct irqaction psurge_irqaction = {
-	.handler = psurge_primary_intr,
-	.flags = IRQF_DISABLED,
+	.handler = psurge_ipi_intr,
+	.flags = IRQF_DISABLED|IRQF_PERCPU,
 	.name = "primary IPI",
 };
 
