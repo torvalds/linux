@@ -306,6 +306,15 @@ static struct conf_drv_settings default_conf = {
 		.max_dwell_time_passive       = 100000,
 		.num_probe_reqs               = 2,
 	},
+	.sched_scan = {
+		/* sched_scan requires dwell times in TU instead of TU/1000 */
+		.min_dwell_time_active = 8,
+		.max_dwell_time_active = 30,
+		.dwell_time_passive    = 100,
+		.num_probe_reqs        = 2,
+		.rssi_threshold        = -90,
+		.snr_threshold         = 0,
+	},
 	.rf = {
 		.tx_per_channel_power_compensation_2 = {
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

@@ -1147,6 +1147,26 @@ struct conf_scan_settings {
 
 };
 
+struct conf_sched_scan_settings {
+	/* minimum time to wait on the channel for active scans (in TUs) */
+	u16 min_dwell_time_active;
+
+	/* maximum time to wait on the channel for active scans (in TUs) */
+	u16 max_dwell_time_active;
+
+	/* time to wait on the channel for passive scans (in TUs) */
+	u32 dwell_time_passive;
+
+	/* number of probe requests to send on each channel in active scans */
+	u8 num_probe_reqs;
+
+	/* RSSI threshold to be used for filtering */
+	s8 rssi_threshold;
+
+	/* SNR threshold to be used for filtering */
+	s8 snr_threshold;
+};
+
 /* these are number of channels on the band divided by two, rounded up */
 #define CONF_TX_PWR_COMPENSATION_LEN_2 7
 #define CONF_TX_PWR_COMPENSATION_LEN_5 18
@@ -1234,6 +1254,7 @@ struct conf_drv_settings {
 	struct conf_pm_config_settings pm_config;
 	struct conf_roam_trigger_settings roam_trigger;
 	struct conf_scan_settings scan;
+	struct conf_sched_scan_settings sched_scan;
 	struct conf_rf_settings rf;
 	struct conf_ht_setting ht;
 	struct conf_memory_settings mem_wl127x;
