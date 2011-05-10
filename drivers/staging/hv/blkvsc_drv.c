@@ -146,6 +146,8 @@ static int blkvsc_device_add(struct hv_device *device,
 
 	device_info = (struct storvsc_device_info *)additional_info;
 
+	device_info->ring_buffer_size = blkvsc_ringbuffer_size;
+
 	ret = storvsc_dev_add(device, additional_info);
 	if (ret != 0)
 		return ret;
@@ -818,13 +820,10 @@ static const struct block_device_operations block_ops = {
  */
 static int blkvsc_drv_init(void)
 {
-	struct storvsc_driver *storvsc_drv = &blkvsc_drv;
 	struct hv_driver *drv = &blkvsc_drv.base;
 	int ret;
 
 	BUILD_BUG_ON(sizeof(sector_t) != 8);
-
-	storvsc_drv->ring_buffer_size = blkvsc_ringbuffer_size;
 
 	memcpy(&drv->dev_type, &dev_type, sizeof(struct hv_guid));
 	drv->name = drv_name;

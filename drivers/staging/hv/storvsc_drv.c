@@ -733,6 +733,7 @@ static int storvsc_probe(struct hv_device *device)
 	}
 
 	device_info.port_number = host->host_no;
+	device_info.ring_buffer_size  = storvsc_ringbuffer_size;
 	/* Call to the vsc driver to add the device */
 	ret = storvsc_dev_add(device, (void *)&device_info);
 

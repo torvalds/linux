@@ -363,19 +363,17 @@ static void storvsc_on_channel_callback(void *context)
 	return;
 }
 
-static int storvsc_connect_to_vsp(struct hv_device *device)
+static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size)
 {
 	struct vmstorage_channel_properties props;
-	struct storvsc_driver *stor_driver;
 	int ret;
 
-	stor_driver = drv_to_stordrv(device->device.driver);
 	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
 
 	/* Open the channel */
 	ret = vmbus_open(device->channel,
-			 stor_driver->ring_buffer_size,
-			 stor_driver->ring_buffer_size,
+			 ring_size,
+			 ring_size,
 			 (void *)&props,
 			 sizeof(struct vmstorage_channel_properties),
 			 storvsc_on_channel_callback, device);
@@ -413,7 +411,7 @@ int storvsc_dev_add(struct hv_device *device,
 
 	stor_device->port_number = device_info->port_number;
 	/* Send it back up */
-	ret = storvsc_connect_to_vsp(device);
+	ret = storvsc_connect_to_vsp(device, device_info->ring_buffer_size);
 
 	device_info->path_id = stor_device->path_id;
 	device_info->target_id = stor_device->target_id;
