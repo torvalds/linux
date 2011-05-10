@@ -147,7 +147,6 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 	blk_queue_merge_bvec(sdevice->request_queue, storvsc_merge_bvec);
 
 	blk_queue_bounce_limit(sdevice->request_queue, BLK_BOUNCE_ANY);
-	/* sdevice->timeout = (2000 * HZ);//(75 * HZ); */
 
 	return 0;
 }
@@ -554,15 +553,7 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 	struct scsi_sense_hdr sense_hdr;
 	struct vmscsi_request *vm_srb;
 
-	/* ASSERT(request == &cmd_request->request); */
-	/* ASSERT(scmnd); */
-	/* ASSERT((unsigned long)scmnd->host_scribble == */
-	/*        (unsigned long)cmd_request); */
-	/* ASSERT(scmnd->scsi_done); */
-
 	if (cmd_request->bounce_sgl_count) {
-		/* using bounce buffer */
-		/* printk("copy_from_bounce_buffer\n"); */
 
 		/* FIXME: We can optimize on writes by just skipping this */
 		copy_from_bounce_buffer(scsi_sglist(scmnd),
@@ -581,7 +572,6 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 			scsi_print_sense_hdr("storvsc", &sense_hdr);
 	}
 
-	/* ASSERT(request->BytesXfer <= request->data_buffer.Length); */
 	scsi_set_resid(scmnd,
 		request->data_buffer.len -
 		vm_srb->data_transfer_length);
@@ -621,7 +611,6 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 
 	/* If retrying, no need to prep the cmd */
 	if (scmnd->host_scribble) {
-		/* ASSERT(scmnd->scsi_done != NULL); */
 
 		cmd_request =
 			(struct storvsc_cmd_request *)scmnd->host_scribble;
@@ -630,9 +619,6 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 
 		goto retry_request;
 	}
-
-	/* ASSERT(scmnd->scsi_done == NULL); */
-	/* ASSERT(scmnd->host_scribble == NULL); */
 
 	scmnd->scsi_done = done;
 
@@ -672,13 +658,11 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 	request->on_io_completion = storvsc_commmand_completion;
 	request->context = cmd_request;/* scmnd; */
 
-	/* request->PortId = scmnd->device->channel; */
 	vm_srb->port_number = host_dev->port;
 	vm_srb->path_id = scmnd->device->channel;
 	vm_srb->target_id = scmnd->device->id;
 	vm_srb->lun = scmnd->device->lun;
 
-	/* ASSERT(scmnd->cmd_len <= 16); */
 	vm_srb->cdb_length = scmnd->cmd_len;
 
 	memcpy(vm_srb->cdb, scmnd->cmnd, vm_srb->cdb_length);
@@ -727,7 +711,6 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 				page_to_pfn(sg_page((&sgl[i])));
 
 	} else if (scsi_sglist(scmnd)) {
-		/* ASSERT(scsi_bufflen(scmnd) <= PAGE_SIZE); */
 		request->data_buffer.offset =
 			virt_to_phys(scsi_sglist(scmnd)) & (PAGE_SIZE-1);
 		request->data_buffer.pfn_array[0] =
