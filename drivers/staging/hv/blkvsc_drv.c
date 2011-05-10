@@ -197,7 +197,6 @@ static int blk_vsc_initialize(struct hv_driver *driver)
 		    stor_driver->max_outstanding_req_per_channel);
 
 	/* Setup the dispatch table */
-	stor_driver->base.dev_rm = storvsc_dev_remove;
 	stor_driver->base.cleanup = stor_vsc_on_cleanup;
 	stor_driver->on_io_request = stor_vsc_on_io_request;
 
@@ -543,8 +542,6 @@ out:
  */
 static int blkvsc_remove(struct hv_device *dev)
 {
-	struct storvsc_driver *storvsc_drv =
-				drv_to_stordrv(dev->device.driver);
 	struct block_device_context *blkdev = dev_get_drvdata(&dev->device);
 	unsigned long flags;
 
@@ -552,7 +549,7 @@ static int blkvsc_remove(struct hv_device *dev)
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed
 	 */
-	storvsc_drv->base.dev_rm(dev);
+	storvsc_dev_remove(dev);
 
 	/* Get to a known state */
 	spin_lock_irqsave(&blkdev->lock, flags);
@@ -934,9 +931,6 @@ static void blkvsc_drv_exit(void)
  */
 static int blkvsc_probe(struct hv_device *dev)
 {
-	struct storvsc_driver *storvsc_drv =
-			drv_to_stordrv(dev->device.driver);
-
 	struct block_device_context *blkdev = NULL;
 	struct storvsc_device_info device_info;
 	struct storvsc_major_info major_info;
@@ -1033,7 +1027,7 @@ static int blkvsc_probe(struct hv_device *dev)
 	return ret;
 
 remove:
-	storvsc_drv->base.dev_rm(dev);
+	storvsc_dev_remove(dev);
 
 cleanup:
 	if (blkdev) {
