@@ -932,6 +932,28 @@ static void scic_sds_controller_phy_timer_start(struct scic_sds_controller *scic
 	scic->phy_startup_timer_pending = true;
 }
 
+static bool is_phy_starting(struct scic_sds_phy *sci_phy)
+{
+	enum scic_sds_phy_states state;
+
+	state = sci_phy->state_machine.current_state_id;
+	switch (state) {
+	case SCI_BASE_PHY_STATE_STARTING:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL:
+		return true;
+	default:
+		return false;
+	}
+}
+
 /**
  * scic_sds_controller_start_next_phy - start phy
  * @scic: controller
@@ -975,7 +997,7 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 			    (sci_phy->is_in_link_training == false &&
 			     state == SCI_BASE_PHY_STATE_STOPPED) ||
 			    (sci_phy->is_in_link_training == true &&
-			     state == SCI_BASE_PHY_STATE_STARTING)) {
+			     is_phy_starting(sci_phy))) {
 				is_controller_start_complete = false;
 				break;
 			}

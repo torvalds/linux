@@ -142,8 +142,6 @@ struct scic_sds_phy {
 
 	const struct scic_sds_phy_state_handler *state_handlers;
 
-	struct sci_base_state_machine starting_substate_machine;
-
 	/**
 	 * This field is the pointer to the transport layer register for the SCU
 	 * hardware.
@@ -436,34 +434,6 @@ enum scic_sds_phy_states {
 	SCI_BASE_PHY_STATE_STARTING,
 
 	/**
-	 * This state indicates the the phy is now ready.  Thus, the user
-	 * is able to perform IO operations utilizing this phy as long as it
-	 * is currently part of a valid port.
-	 * This state is entered from the STARTING state.
-	 */
-	SCI_BASE_PHY_STATE_READY,
-
-	/**
-	 * This state indicates that the phy is in the process of being reset.
-	 * In this state no new IO operations are permitted on this phy.
-	 * This state is entered from the READY state.
-	 */
-	SCI_BASE_PHY_STATE_RESETTING,
-
-	/**
-	 * Simply the final state for the base phy state machine.
-	 */
-	SCI_BASE_PHY_STATE_FINAL,
-};
-
-
-/**
- * enum scic_sds_phy_starting_substates -
- *
- *
- */
-enum scic_sds_phy_starting_substates {
-	/**
 	 * Initial state
 	 */
 	SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL,
@@ -512,8 +482,27 @@ enum scic_sds_phy_starting_substates {
 	 * Exit state for this state machine
 	 */
 	SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL,
-};
 
+	/**
+	 * This state indicates the the phy is now ready.  Thus, the user
+	 * is able to perform IO operations utilizing this phy as long as it
+	 * is currently part of a valid port.
+	 * This state is entered from the STARTING state.
+	 */
+	SCI_BASE_PHY_STATE_READY,
+
+	/**
+	 * This state indicates that the phy is in the process of being reset.
+	 * In this state no new IO operations are permitted on this phy.
+	 * This state is entered from the READY state.
+	 */
+	SCI_BASE_PHY_STATE_RESETTING,
+
+	/**
+	 * Simply the final state for the base phy state machine.
+	 */
+	SCI_BASE_PHY_STATE_FINAL,
+};
 
 
 typedef enum sci_status (*scic_sds_phy_handler_t)(struct scic_sds_phy *);
