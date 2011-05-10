@@ -192,10 +192,6 @@ static int blk_vsc_initialize(struct hv_driver *driver)
 			   sizeof(struct vstor_packet) + sizeof(u64),
 			   sizeof(u64)));
 
-	DPRINT_INFO(BLKVSC, "max io outstd %u",
-		    stor_driver->max_outstanding_req_per_channel);
-
-
 	return ret;
 }
 
