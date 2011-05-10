@@ -115,7 +115,7 @@ char cursor_img[] = {
 #define LcdRdReg(inf, addr)             (inf->preg->addr)
 #define LcdSetBit(inf, addr, msk)       inf->preg->addr=((inf->regbak.addr) |= (msk))
 #define LcdClrBit(inf, addr, msk)       inf->preg->addr=((inf->regbak.addr) &= ~(msk))
-#define LcdSetRegBit(inf, addr, msk)    inf->preg->addr=((inf->preg->addr) |= (msk))
+#define LcdSetRegisterBit(inf, addr, msk)    inf->preg->addr=((inf->preg->addr) |= (msk))
 #define LcdMskReg(inf, addr, msk, val)  (inf->regbak.addr)&=~(msk);   inf->preg->addr=(inf->regbak.addr|=(val))
 
 
@@ -318,7 +318,7 @@ int mcu_do_refresh(struct rk29fb_inf *inf)
             if(inf->cur_screen->refresh)    inf->cur_screen->refresh(REFRESH_PRE);
             inf->mcu_needflush = 0;
             inf->mcu_isrcnt = 0;
-            LcdSetRegBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST);
+            LcdSetRegisterBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST);
         }
     }
     return 0;
@@ -849,7 +849,7 @@ int rk29_set_cursor_img(struct rk29fb_inf *inf, char *data)
 		rk29_set_cursor_img_transform(cursor_img);
 	}
 	LcdWrReg(inf, HWC_MST, __pa(rk29_cursor_buf));
-	LcdSetBit(inf, SYS_CONFIG,m_HWC_RELOAD_EN);
+	LcdSetRegisterBit(inf, SYS_CONFIG,m_HWC_RELOAD_EN);
 	LcdWrReg(inf, REG_CFG_DONE, 0x01);
     return 0;
 }
@@ -2244,7 +2244,7 @@ static irqreturn_t rk29fb_irq(int irq, void *dev_id)
                     inf->cur_screen->refresh(REFRESH_PRE);
                 inf->mcu_needflush = 0;
                 inf->mcu_isrcnt = 0;
-                LcdSetRegBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST);
+                LcdSetRegisterBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST);
             } else {
                 if(inf->cur_screen->refresh)
                     inf->cur_screen->refresh(REFRESH_END);
