@@ -263,11 +263,6 @@ static void process_chn_event(u32 relid)
 
 	if (channel) {
 		vmbus_onchannel_event(channel);
-		/*
-		 * WorkQueueQueueWorkItem(channel->dataWorkQueue,
-		 *			  vmbus_onchannel_event,
-		 *			  (void*)channel);
-		 */
 	} else {
 		pr_err("channel not found for relid - %u\n", relid);
 	}
@@ -295,7 +290,10 @@ void vmbus_on_event(unsigned long data)
 				relid = (dword << 5) + bit;
 
 				if (relid == 0) {
-					/* special case - vmbus channel protocol msg */
+					/*
+					 * Special case - vmbus
+					 * channel protocol msg
+					 */
 					continue;
 				}
 				process_chn_event(relid);
