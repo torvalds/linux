@@ -976,6 +976,104 @@ void pci_restore_state(struct pci_dev *dev)
 	dev->state_saved = false;
 }
 
+struct pci_saved_state {
+	u32 config_space[16];
+	struct pci_cap_saved_data cap[0];
+};
+
+/**
+ * pci_store_saved_state - Allocate and return an opaque struct containing
+ *			   the device saved state.
+ * @dev: PCI device that we're dealing with
+ *
+ * Rerturn NULL if no state or error.
+ */
+struct pci_saved_state *pci_store_saved_state(struct pci_dev *dev)
+{
+	struct pci_saved_state *state;
+	struct pci_cap_saved_state *tmp;
+	struct pci_cap_saved_data *cap;
+	struct hlist_node *pos;
+	size_t size;
+
+	if (!dev->state_saved)
+		return NULL;
+
+	size = sizeof(*state) + sizeof(struct pci_cap_saved_data);
+
+	hlist_for_each_entry(tmp, pos, &dev->saved_cap_space, next)
+		size += sizeof(struct pci_cap_saved_data) + tmp->cap.size;
+
+	state = kzalloc(size, GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	memcpy(state->config_space, dev->saved_config_space,
+	       sizeof(state->config_space));
+
+	cap = state->cap;
+	hlist_for_each_entry(tmp, pos, &dev->saved_cap_space, next) {
+		size_t len = sizeof(struct pci_cap_saved_data) + tmp->cap.size;
+		memcpy(cap, &tmp->cap, len);
+		cap = (struct pci_cap_saved_data *)((u8 *)cap + len);
+	}
+	/* Empty cap_save terminates list */
+
+	return state;
+}
+EXPORT_SYMBOL_GPL(pci_store_saved_state);
+
+/**
+ * pci_load_saved_state - Reload the provided save state into struct pci_dev.
+ * @dev: PCI device that we're dealing with
+ * @state: Saved state returned from pci_store_saved_state()
+ */
+int pci_load_saved_state(struct pci_dev *dev, struct pci_saved_state *state)
+{
+	struct pci_cap_saved_data *cap;
+
+	dev->state_saved = false;
+
+	if (!state)
+		return 0;
+
+	memcpy(dev->saved_config_space, state->config_space,
+	       sizeof(state->config_space));
+
+	cap = state->cap;
+	while (cap->size) {
+		struct pci_cap_saved_state *tmp;
+
+		tmp = pci_find_saved_cap(dev, cap->cap_nr);
+		if (!tmp || tmp->cap.size != cap->size)
+			return -EINVAL;
+
+		memcpy(tmp->cap.data, cap->data, tmp->cap.size);
+		cap = (struct pci_cap_saved_data *)((u8 *)cap +
+		       sizeof(struct pci_cap_saved_data) + cap->size);
+	}
+
+	dev->state_saved = true;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_load_saved_state);
+
+/**
+ * pci_load_and_free_saved_state - Reload the save state pointed to by state,
+ *				   and free the memory allocated for it.
+ * @dev: PCI device that we're dealing with
+ * @state: Pointer to saved state returned from pci_store_saved_state()
+ */
+int pci_load_and_free_saved_state(struct pci_dev *dev,
+				  struct pci_saved_state **state)
+{
+	int ret = pci_load_saved_state(dev, *state);
+	kfree(*state);
+	*state = NULL;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pci_load_and_free_saved_state);
+
 static int do_pci_enable_device(struct pci_dev *dev, int bars)
 {
 	int err;
