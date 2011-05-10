@@ -3623,7 +3623,8 @@ qla2x00_timer(scsi_qla_host_t *vha)
 	if (!pci_channel_offline(ha->pdev))
 		pci_read_config_word(ha->pdev, PCI_VENDOR_ID, &w);
 
-	if (IS_QLA82XX(ha)) {
+	/* Make sure qla82xx_watchdog is run only for physical port */
+	if (!vha->vp_idx && IS_QLA82XX(ha)) {
 		if (test_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags))
 			start_dpc++;
 		qla82xx_watchdog(vha);
@@ -3704,8 +3705,8 @@ qla2x00_timer(scsi_qla_host_t *vha)
 		    atomic_read(&vha->loop_down_timer)));
 	}
 
-	/* Check if beacon LED needs to be blinked */
-	if (ha->beacon_blink_led == 1) {
+	/* Check if beacon LED needs to be blinked for physical host only */
+	if (!vha->vp_idx && (ha->beacon_blink_led == 1)) {
 		set_bit(BEACON_BLINK_NEEDED, &vha->dpc_flags);
 		start_dpc++;
 	}
