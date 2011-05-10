@@ -437,7 +437,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 		xmon_owner = cpu;
 		mb();
 		if (ncpus > 1) {
-			smp_send_debugger_break(MSG_ALL_BUT_SELF);
+			smp_send_debugger_break();
 			/* wait for other cpus to come in */
 			for (timeout = 100000000; timeout != 0; --timeout) {
 				if (cpumask_weight(&cpus_in_xmon) >= ncpus)

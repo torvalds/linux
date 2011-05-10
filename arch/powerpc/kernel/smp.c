@@ -218,11 +218,18 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 		smp_ops->message_pass(cpu, PPC_MSG_CALL_FUNCTION);
 }
 
-#ifdef CONFIG_DEBUGGER
-void smp_send_debugger_break(int cpu)
+#if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
+void smp_send_debugger_break(void)
 {
-	if (likely(smp_ops))
-		smp_ops->message_pass(cpu, PPC_MSG_DEBUGGER_BREAK);
+	int cpu;
+	int me = raw_smp_processor_id();
+
+	if (unlikely(!smp_ops))
+		return;
+
+	for_each_online_cpu(cpu)
+		if (cpu != me)
+			smp_ops->message_pass(cpu, PPC_MSG_DEBUGGER_BREAK);
 }
 #endif
 
@@ -230,9 +237,9 @@ void smp_send_debugger_break(int cpu)
 void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 {
 	crash_ipi_function_ptr = crash_ipi_callback;
-	if (crash_ipi_callback && smp_ops) {
+	if (crash_ipi_callback) {
 		mb();
-		smp_ops->message_pass(MSG_ALL_BUT_SELF, PPC_MSG_DEBUGGER_BREAK);
+		smp_send_debugger_break();
 	}
 }
 #endif

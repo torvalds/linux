@@ -35,7 +35,7 @@ extern void cpu_die(void);
 
 #ifdef CONFIG_SMP
 
-extern void smp_send_debugger_break(int cpu);
+extern void smp_send_debugger_break(void);
 extern void smp_message_recv(int);
 extern void start_secondary_resume(void);
 
