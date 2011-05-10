@@ -166,18 +166,6 @@ static int blkvsc_device_add(struct hv_device *device,
 	return ret;
 }
 
-
-static int blk_vsc_initialize(struct hv_driver *driver)
-{
-	struct storvsc_driver *stor_driver;
-	int ret = 0;
-
-	stor_driver = hvdr_to_stordr(driver);
-
-	return ret;
-}
-
-
 static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 			void (*request_completion)(struct hv_storvsc_request *))
 {
@@ -835,9 +823,6 @@ static int blkvsc_drv_init(void)
 	int ret;
 
 	storvsc_drv->ring_buffer_size = blkvsc_ringbuffer_size;
-
-	/* Callback to client driver to complete the initialization */
-	blk_vsc_initialize(&storvsc_drv->base);
 
 	memcpy(&drv->dev_type, &dev_type, sizeof(struct hv_guid));
 	drv->name = drv_name;
