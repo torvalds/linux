@@ -751,9 +751,9 @@ static int storvsc_probe(struct hv_device *device)
 
 /* The one and only one */
 
-static struct storvsc_driver storvsc_drv = {
-	.base.probe = storvsc_probe,
-	.base.remove = storvsc_remove,
+static struct hv_driver storvsc_drv = {
+	.probe = storvsc_probe,
+	.remove = storvsc_remove,
 };
 
 
@@ -763,7 +763,7 @@ static struct storvsc_driver storvsc_drv = {
 static int storvsc_drv_init(void)
 {
 	int ret;
-	struct hv_driver *drv = &storvsc_drv.base;
+	struct hv_driver *drv = &storvsc_drv;
 	u32 max_outstanding_req_per_channel;
 
 	/*
@@ -805,7 +805,7 @@ static int storvsc_drv_exit_cb(struct device *dev, void *data)
 
 static void storvsc_drv_exit(void)
 {
-	struct hv_driver *drv = &storvsc_drv.base;
+	struct hv_driver *drv = &storvsc_drv;
 	struct device *current_dev = NULL;
 	int ret;
 
