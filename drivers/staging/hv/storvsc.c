@@ -105,7 +105,7 @@ static inline struct storvsc_device *final_release_stor_device(
 	return stor_device;
 }
 
-static int stor_vsc_channel_init(struct hv_device *device)
+static int storvsc_channel_init(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
 	struct hv_storvsc_request *request;
@@ -437,7 +437,7 @@ static int stor_vsc_connect_to_vsp(struct hv_device *device)
 		return -1;
 	}
 
-	ret = stor_vsc_channel_init(device);
+	ret = storvsc_channel_init(device);
 
 	return ret;
 }
