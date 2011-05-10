@@ -445,12 +445,6 @@ struct scic_sds_io_request_state_handler {
 	scic_sds_io_request_handler_t start_handler;
 
 	/**
-	 * The abort_handler specifies the method invoked when a user attempts to
-	 * abort a request.
-	 */
-	scic_sds_io_request_handler_t abort_handler;
-
-	/**
 	 * The complete_handler specifies the method invoked when a user attempts to
 	 * complete a request.
 	 */
@@ -459,7 +453,6 @@ struct scic_sds_io_request_state_handler {
 	scic_sds_io_request_task_completion_handler_t tc_completion_handler;
 	scic_sds_io_request_event_handler_t event_handler;
 	scic_sds_io_request_frame_handler_t frame_handler;
-
 };
 
 /**
