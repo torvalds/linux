@@ -552,7 +552,6 @@ extern int qla82xx_wr_32(struct qla_hw_data *, ulong, u32);
 extern int qla82xx_rd_32(struct qla_hw_data *, ulong);
 extern int qla82xx_rdmem(struct qla_hw_data *, u64, void *, int);
 extern int qla82xx_wrmem(struct qla_hw_data *, u64, void *, int);
-extern void qla82xx_rom_unlock(struct qla_hw_data *);
 
 /* ISP 8021 IDC */
 extern void qla82xx_clear_drv_active(struct qla_hw_data *);
