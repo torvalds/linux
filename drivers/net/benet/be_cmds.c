@@ -729,8 +729,6 @@ int be_cmd_cq_create(struct be_adapter *adapter,
 	if (lancer_chip(adapter)) {
 		req->hdr.version = 2;
 		req->page_size = 1; /* 1 for 4K */
-		AMAP_SET_BITS(struct amap_cq_context_lancer, coalescwm, ctxt,
-								coalesce_wm);
 		AMAP_SET_BITS(struct amap_cq_context_lancer, nodelay, ctxt,
 								no_delay);
 		AMAP_SET_BITS(struct amap_cq_context_lancer, count, ctxt,
