@@ -3657,7 +3657,8 @@ void qla82xx_watchdog(scsi_qla_host_t *vha)
 		if (dev_state == QLA82XX_DEV_NEED_RESET &&
 		    !test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags)) {
 			qla_printk(KERN_WARNING, ha,
-			    "%s(): Adapter reset needed!\n", __func__);
+			    "scsi(%ld) %s: Adapter reset needed!\n",
+				vha->host_no, __func__);
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
 		} else if (dev_state == QLA82XX_DEV_NEED_QUIESCENT &&
@@ -3704,8 +3705,9 @@ void qla82xx_watchdog(scsi_qla_host_t *vha)
 				if (ha->flags.mbox_busy) {
 					ha->flags.mbox_int = 1;
 					DEBUG2(qla_printk(KERN_ERR, ha,
-					    "Due to fw hung, doing premature "
-					    "completion of mbx command\n"));
+					    "scsi(%ld) Due to fw hung, doing "
+					    "premature completion of mbx "
+					    "command\n", vha->host_no));
 					if (test_bit(MBX_INTR_WAIT,
 					    &ha->mbx_cmd_flags))
 						complete(&ha->mbx_intr_comp);
