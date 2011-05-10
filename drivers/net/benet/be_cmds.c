@@ -293,7 +293,8 @@ static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
 
 		if (msecs > 4000) {
 			dev_err(&adapter->pdev->dev, "mbox poll timed out\n");
-			be_detect_dump_ue(adapter);
+			if (!lancer_chip(adapter))
+				be_detect_dump_ue(adapter);
 			return -1;
 		}
 
