@@ -366,14 +366,12 @@ static unsigned int snd_soc_16_16_read(struct snd_soc_codec *codec,
 static int snd_soc_16_16_write(struct snd_soc_codec *codec, unsigned int reg,
 			       unsigned int value)
 {
-	u8 data[4];
+	u16 data[2];
 
-	data[0] = (reg >> 8) & 0xff;
-	data[1] = reg & 0xff;
-	data[2] = (value >> 8) & 0xff;
-	data[3] = value & 0xff;
+	data[0] = cpu_to_be16(reg);
+	data[1] = cpu_to_be16(value);
 
-	return do_hw_write(codec, reg, value, data, 4);
+	return do_hw_write(codec, reg, value, data, sizeof(data));
 }
 
 #if defined(CONFIG_SPI_MASTER)
