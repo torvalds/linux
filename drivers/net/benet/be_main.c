@@ -1757,12 +1757,15 @@ static int be_poll_rx(struct napi_struct *napi, int budget)
 			break;
 
 		/* Ignore flush completions */
-		if (rxcp->num_rcvd) {
+		if (rxcp->num_rcvd && rxcp->pkt_size) {
 			if (do_gro(rxcp))
 				be_rx_compl_process_gro(adapter, rxo, rxcp);
 			else
 				be_rx_compl_process(adapter, rxo, rxcp);
+		} else if (rxcp->pkt_size == 0) {
+			be_rx_compl_discard(adapter, rxo, rxcp);
 		}
+
 		be_rx_stats_update(rxo, rxcp);
 	}
 
