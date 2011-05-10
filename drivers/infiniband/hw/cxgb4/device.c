@@ -392,7 +392,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	devp = (struct c4iw_dev *)ib_alloc_device(sizeof(*devp));
 	if (!devp) {
 		printk(KERN_ERR MOD "Cannot allocate ib device\n");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 	devp->rdev.lldi = *infop;
 
@@ -414,7 +414,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		mutex_unlock(&dev_mutex);
 		printk(KERN_ERR MOD "Unable to open CXIO rdev err %d\n", ret);
 		ib_dealloc_device(&devp->ibdev);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	idr_init(&devp->cqidr);
@@ -444,7 +444,7 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 		       DRV_VERSION);
 
 	dev = c4iw_alloc(infop);
-	if (!dev)
+	if (IS_ERR(dev))
 		goto out;
 
 	PDBG("%s found device %s nchan %u nrxq %u ntxq %u nports %u\n",
