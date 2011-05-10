@@ -615,11 +615,10 @@ static void mce_async_callback(struct urb *urb, struct pt_regs *regs)
 }
 
 /* request incoming or send outgoing usb packet - used to initialize remote */
-static void mce_request_packet(struct mceusb_dev *ir,
-			       struct usb_endpoint_descriptor *ep,
-			       unsigned char *data, int size, int urb_type)
+static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
+			       int size, int urb_type)
 {
-	int res;
+	int res, pipe;
 	struct urb *async_urb;
 	struct device *dev = ir->dev;
 	unsigned char *async_buf;
@@ -639,10 +638,11 @@ static void mce_request_packet(struct mceusb_dev *ir,
 		}
 
 		/* outbound data */
-		usb_fill_int_urb(async_urb, ir->usbdev,
-			usb_sndintpipe(ir->usbdev, ep->bEndpointAddress),
+		pipe = usb_sndintpipe(ir->usbdev,
+				      ir->usb_ep_out->bEndpointAddress);
+		usb_fill_int_urb(async_urb, ir->usbdev, pipe,
 			async_buf, size, (usb_complete_t)mce_async_callback,
-			ir, ep->bInterval);
+			ir, ir->usb_ep_out->bInterval);
 		memcpy(async_buf, data, size);
 
 	} else if (urb_type == MCEUSB_RX) {
@@ -670,12 +670,12 @@ static void mce_request_packet(struct mceusb_dev *ir,
 
 static void mce_async_out(struct mceusb_dev *ir, unsigned char *data, int size)
 {
-	mce_request_packet(ir, ir->usb_ep_out, data, size, MCEUSB_TX);
+	mce_request_packet(ir, data, size, MCEUSB_TX);
 }
 
 static void mce_sync_in(struct mceusb_dev *ir, unsigned char *data, int size)
 {
-	mce_request_packet(ir, ir->usb_ep_in, data, size, MCEUSB_RX);
+	mce_request_packet(ir, data, size, MCEUSB_RX);
 }
 
 /* Send data out the IR blaster port(s) */
