@@ -191,11 +191,17 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	if (vector & PERIODIC_SCAN_REPORT_EVENT_ID) {
 		wl1271_debug(DEBUG_EVENT, "PERIODIC_SCAN_REPORT_EVENT "
 			     "(status 0x%0x)", mbox->scheduled_scan_status);
+
+		wl1271_scan_sched_scan_results(wl);
 	}
 
 	if (vector & PERIODIC_SCAN_COMPLETE_EVENT_ID) {
 		wl1271_debug(DEBUG_EVENT, "PERIODIC_SCAN_COMPLETE_EVENT "
 			     "(status 0x%0x)", mbox->scheduled_scan_status);
+		if (wl->sched_scanning) {
+			wl1271_scan_sched_scan_stop(wl);
+			ieee80211_sched_scan_stopped(wl->hw);
+		}
 	}
 
 	/* disable dynamic PS when requested by the firmware */

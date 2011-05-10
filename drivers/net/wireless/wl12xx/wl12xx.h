@@ -480,6 +480,8 @@ struct wl1271 {
 	struct wl1271_scan scan;
 	struct delayed_work scan_complete_work;
 
+	bool sched_scanning;
+
 	/* probe-req template for the current AP */
 	struct sk_buff *probereq;
 

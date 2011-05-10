@@ -548,8 +548,12 @@ void wl1271_scan_sched_scan_stop(struct wl1271 *wl)
 
 	ret = wl1271_cmd_send(wl, CMD_STOP_PERIODIC_SCAN, stop,
 			      sizeof(*stop), 0);
-	if (ret < 0)
+	if (ret < 0) {
 		wl1271_error("failed to send sched scan stop command");
+		goto out_free;
+	}
+	wl->sched_scanning = false;
 
+out_free:
 	kfree(stop);
 }
