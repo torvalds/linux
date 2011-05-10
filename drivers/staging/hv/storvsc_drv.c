@@ -86,7 +86,6 @@ static int storvsc_initialize(struct hv_driver *driver)
 
 	/* Make sure we are at least 2 pages since 1 page is used for control */
 
-	driver->name = driver_name;
 	memcpy(&driver->dev_type, &gStorVscDeviceType,
 	       sizeof(struct hv_guid));
 
@@ -806,6 +805,7 @@ static int storvsc_drv_init(void)
 	    STORVSC_MAX_IO_REQUESTS)
 		return -1;
 
+	drv->name = driver_name;
 	drv->driver.name = driver_name;
 
 
