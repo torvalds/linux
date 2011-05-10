@@ -180,7 +180,7 @@ int smp_request_message_ipi(int virq, int msg)
 
 #ifdef CONFIG_PPC_SMP_MUXED_IPI
 struct cpu_messages {
-	unsigned long messages;		/* current messages bits */
+	int messages;			/* current messages */
 	unsigned long data;		/* data for cause ipi */
 };
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct cpu_messages, ipi_message);
@@ -195,9 +195,9 @@ void smp_muxed_ipi_set_data(int cpu, unsigned long data)
 void smp_muxed_ipi_message_pass(int cpu, int msg)
 {
 	struct cpu_messages *info = &per_cpu(ipi_message, cpu);
-	unsigned long *tgt = &info->messages;
+	char *message = (char *)&info->messages;
 
-	set_bit(msg, tgt);
+	message[msg] = 1;
 	mb();
 	smp_ops->cause_ipi(cpu, info->data);
 }
@@ -205,30 +205,35 @@ void smp_muxed_ipi_message_pass(int cpu, int msg)
 void smp_muxed_ipi_resend(void)
 {
 	struct cpu_messages *info = &__get_cpu_var(ipi_message);
-	unsigned long *tgt = &info->messages;
 
-	if (*tgt)
+	if (info->messages)
 		smp_ops->cause_ipi(smp_processor_id(), info->data);
 }
 
 irqreturn_t smp_ipi_demux(void)
 {
 	struct cpu_messages *info = &__get_cpu_var(ipi_message);
-	unsigned long *tgt = &info->messages;
+	unsigned int all;
 
 	mb();	/* order any irq clear */
-	while (*tgt) {
-		if (test_and_clear_bit(PPC_MSG_CALL_FUNCTION, tgt))
+
+	do {
+		all = xchg_local(&info->messages, 0);
+
+#ifdef __BIG_ENDIAN
+		if (all & (1 << (24 - 8 * PPC_MSG_CALL_FUNCTION)))
 			generic_smp_call_function_interrupt();
-		if (test_and_clear_bit(PPC_MSG_RESCHEDULE, tgt))
+		if (all & (1 << (24 - 8 * PPC_MSG_RESCHEDULE)))
 			reschedule_action(0, NULL); /* upcoming sched hook */
-		if (test_and_clear_bit(PPC_MSG_CALL_FUNC_SINGLE, tgt))
+		if (all & (1 << (24 - 8 * PPC_MSG_CALL_FUNC_SINGLE)))
 			generic_smp_call_function_single_interrupt();
-#if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
-		if (test_and_clear_bit(PPC_MSG_DEBUGGER_BREAK, tgt))
+		if (all & (1 << (24 - 8 * PPC_MSG_DEBUGGER_BREAK)))
 			debug_ipi_action(0, NULL);
+#else
+#error Unsupported ENDIAN
 #endif
-	}
+	} while (info->messages);
+
 	return IRQ_HANDLED;
 }
 #endif /* CONFIG_PPC_SMP_MUXED_IPI */
