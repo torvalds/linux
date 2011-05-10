@@ -18,6 +18,7 @@
  * Authors:
  *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
+ *   K. Y. Srinivasan <kys@microsoft.com>
  *
  */
 
@@ -75,7 +76,7 @@ struct hv_ring_buffer_debug_info {
 /* Interface */
 
 
-int ringbuffer_init(struct hv_ring_buffer_info *ring_info, void *buffer,
+int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info, void *buffer,
 		   u32 buflen);
 
 void ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info);

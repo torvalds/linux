@@ -299,13 +299,13 @@ u32 get_ringbuffer_interrupt_mask(struct hv_ring_buffer_info *rbi)
 /*++
 
 Name:
-	ringbuffer_init()
+	hv_ringbuffer_init()
 
 Description:
 	Initialize the ring buffer
 
 --*/
-int ringbuffer_init(struct hv_ring_buffer_info *ring_info,
+int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 		   void *buffer, u32 buflen)
 {
 	if (sizeof(struct hv_ring_buffer) != PAGE_SIZE)

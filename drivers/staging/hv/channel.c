@@ -201,13 +201,16 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	newchannel->ringbuffer_pagecount = (send_ringbuffer_size +
 					   recv_ringbuffer_size) >> PAGE_SHIFT;
 
-	ret = ringbuffer_init(&newchannel->outbound, out, send_ringbuffer_size);
+	ret = hv_ringbuffer_init(
+		&newchannel->outbound, out, send_ringbuffer_size);
+
 	if (ret != 0) {
 		err = ret;
 		goto errorout;
 	}
 
-	ret = ringbuffer_init(&newchannel->inbound, in, recv_ringbuffer_size);
+	ret = hv_ringbuffer_init(
+		&newchannel->inbound, in, recv_ringbuffer_size);
 	if (ret != 0) {
 		err = ret;
 		goto errorout;
