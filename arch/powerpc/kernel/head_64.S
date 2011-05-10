@@ -218,13 +218,19 @@ generic_secondary_common_init:
 	 */
 	LOAD_REG_ADDR(r13, paca)	/* Load paca pointer		 */
 	ld	r13,0(r13)		/* Get base vaddr of paca array	 */
+#ifndef CONFIG_SMP
+	addi	r13,r13,PACA_SIZE	/* know r13 if used accidentally */
+	b	.kexec_wait		/* wait for next kernel if !SMP	 */
+#else
+	LOAD_REG_ADDR(r7, nr_cpu_ids)	/* Load nr_cpu_ids address       */
+	lwz	r7,0(r7)		/* also the max paca allocated 	 */
 	li	r5,0			/* logical cpu id                */
 1:	lhz	r6,PACAHWCPUID(r13)	/* Load HW procid from paca      */
 	cmpw	r6,r24			/* Compare to our id             */
 	beq	2f
 	addi	r13,r13,PACA_SIZE	/* Loop to next PACA on miss     */
 	addi	r5,r5,1
-	cmpwi	r5,NR_CPUS
+	cmpw	r5,r7			/* Check if more pacas exist     */
 	blt	1b
 
 	mr	r3,r24			/* not found, copy phys to r3	 */
@@ -259,9 +265,6 @@ generic_secondary_common_init:
 4:	HMT_LOW
 	lbz	r23,PACAPROCSTART(r13)	/* Test if this processor should */
 					/* start.			 */
-#ifndef CONFIG_SMP
-	b	4b			/* Never go on non-SMP		 */
-#else
 	cmpwi	0,r23,0
 	beq	4b			/* Loop until told to go	 */
 
@@ -273,7 +276,7 @@ generic_secondary_common_init:
 	subi	r1,r1,STACK_FRAME_OVERHEAD
 
 	b	__secondary_start
-#endif
+#endif /* SMP */
 
 /*
  * Turn the MMU off.
