@@ -45,20 +45,6 @@ struct hv_input_dev_info {
 	char name[128];
 };
 
-/* Represents the input vsc driver */
-/* FIXME - can be removed entirely */
-struct mousevsc_drv_obj {
-	struct hv_driver base;
-};
-
-
-static inline
-struct mousevsc_drv_obj *drv_to_mousedrv(struct device_driver *d)
-{
-	struct hv_driver *hvdrv = drv_to_hv_drv(d);
-	return container_of(hvdrv, struct mousevsc_drv_obj, base);
-}
-
 /* The maximum size of a synthetic input message. */
 #define SYNTHHID_MAX_INPUT_REPORT_SIZE 16
 
