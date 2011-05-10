@@ -77,7 +77,7 @@ struct storvsc_cmd_request {
  */
 static int stor_vsc_initialize(struct hv_driver *driver)
 {
-	struct storvsc_driver_object *stor_driver;
+	struct storvsc_driver *stor_driver;
 
 	stor_driver = hvdr_to_stordr(driver);
 
@@ -152,7 +152,7 @@ module_param(storvsc_ringbuffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 
 /* The one and only one */
-static struct storvsc_driver_object g_storvsc_drv;
+static struct storvsc_driver g_storvsc_drv;
 
 /* Scsi driver */
 static struct scsi_host_template scsi_driver = {
@@ -189,7 +189,7 @@ static struct scsi_host_template scsi_driver = {
 static int storvsc_drv_init(void)
 {
 	int ret;
-	struct storvsc_driver_object *storvsc_drv_obj = &g_storvsc_drv;
+	struct storvsc_driver *storvsc_drv_obj = &g_storvsc_drv;
 	struct hv_driver *drv = &g_storvsc_drv.base;
 
 	storvsc_drv_obj->ring_buffer_size = storvsc_ringbuffer_size;
@@ -286,7 +286,7 @@ static int storvsc_drv_exit_cb(struct device *dev, void *data)
 
 static void storvsc_drv_exit(void)
 {
-	struct storvsc_driver_object *storvsc_drv_obj = &g_storvsc_drv;
+	struct storvsc_driver *storvsc_drv_obj = &g_storvsc_drv;
 	struct hv_driver *drv = &g_storvsc_drv.base;
 	struct device *current_dev = NULL;
 	int ret;
@@ -323,7 +323,7 @@ static void storvsc_drv_exit(void)
 static int storvsc_probe(struct hv_device *device)
 {
 	int ret;
-	struct storvsc_driver_object *storvsc_drv_obj =
+	struct storvsc_driver *storvsc_drv_obj =
 		 drv_to_stordrv(device->device.driver);
 	struct Scsi_Host *host;
 	struct host_device_context *host_device_ctx;
@@ -400,7 +400,7 @@ static int storvsc_probe(struct hv_device *device)
  */
 static int storvsc_remove(struct hv_device *dev)
 {
-	struct storvsc_driver_object *storvsc_drv_obj =
+	struct storvsc_driver *storvsc_drv_obj =
 			 drv_to_stordrv(dev->device.driver);
 	struct Scsi_Host *host = dev_get_drvdata(&dev->device);
 	struct host_device_context *host_device_ctx =
@@ -686,7 +686,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 	struct host_device_context *host_device_ctx =
 		(struct host_device_context *)scmnd->device->host->hostdata;
 	struct hv_device *device_ctx = host_device_ctx->device_ctx;
-	struct storvsc_driver_object *storvsc_drv_obj =
+	struct storvsc_driver *storvsc_drv_obj =
 		drv_to_stordrv(device_ctx->device.driver);
 	struct hv_storvsc_request *request;
 	struct storvsc_cmd_request *cmd_request;

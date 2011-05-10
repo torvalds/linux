@@ -170,7 +170,7 @@ static int blk_vsc_on_device_add(struct hv_device *device,
 
 static int blk_vsc_initialize(struct hv_driver *driver)
 {
-	struct storvsc_driver_object *stor_driver;
+	struct storvsc_driver *stor_driver;
 	int ret = 0;
 
 	stor_driver = hvdr_to_stordr(driver);
@@ -211,7 +211,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 {
 	struct block_device_context *blkdev = blkvsc_req->dev;
 	struct hv_device *device_ctx = blkdev->device_ctx;
-	struct storvsc_driver_object *storvsc_drv_obj =
+	struct storvsc_driver *storvsc_drv_obj =
 			drv_to_stordrv(device_ctx->device.driver);
 	struct hv_storvsc_request *storvsc_req;
 	struct vmscsi_request *vm_srb;
@@ -544,7 +544,7 @@ out:
  */
 static int blkvsc_remove(struct hv_device *dev)
 {
-	struct storvsc_driver_object *storvsc_drv_obj =
+	struct storvsc_driver *storvsc_drv_obj =
 				drv_to_stordrv(dev->device.driver);
 	struct block_device_context *blkdev = dev_get_drvdata(&dev->device);
 	unsigned long flags;
@@ -852,7 +852,7 @@ static void blkvsc_request(struct request_queue *queue)
 
 
 /* The one and only one */
-static  struct storvsc_driver_object g_blkvsc_drv;
+static  struct storvsc_driver g_blkvsc_drv;
 
 static const struct block_device_operations block_ops = {
 	.owner = THIS_MODULE,
@@ -867,7 +867,7 @@ static const struct block_device_operations block_ops = {
  */
 static int blkvsc_drv_init(void)
 {
-	struct storvsc_driver_object *storvsc_drv_obj = &g_blkvsc_drv;
+	struct storvsc_driver *storvsc_drv_obj = &g_blkvsc_drv;
 	struct hv_driver *drv = &g_blkvsc_drv.base;
 	int ret;
 
@@ -897,7 +897,7 @@ static int blkvsc_drv_exit_cb(struct device *dev, void *data)
 
 static void blkvsc_drv_exit(void)
 {
-	struct storvsc_driver_object *storvsc_drv_obj = &g_blkvsc_drv;
+	struct storvsc_driver *storvsc_drv_obj = &g_blkvsc_drv;
 	struct hv_driver *drv = &g_blkvsc_drv.base;
 	struct device *current_dev;
 	int ret;
@@ -935,7 +935,7 @@ static void blkvsc_drv_exit(void)
  */
 static int blkvsc_probe(struct hv_device *dev)
 {
-	struct storvsc_driver_object *storvsc_drv_obj =
+	struct storvsc_driver *storvsc_drv_obj =
 			drv_to_stordrv(dev->device.driver);
 
 	struct block_device_context *blkdev = NULL;

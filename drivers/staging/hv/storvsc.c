@@ -411,7 +411,7 @@ static void stor_vsc_on_channel_callback(void *context)
 static int stor_vsc_connect_to_vsp(struct hv_device *device)
 {
 	struct vmstorage_channel_properties props;
-	struct storvsc_driver_object *stor_driver;
+	struct storvsc_driver *stor_driver;
 	int ret;
 
 	stor_driver = drv_to_stordrv(device->device.driver);

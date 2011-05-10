@@ -73,7 +73,7 @@ struct hv_storvsc_request {
 
 
 /* Represents the block vsc driver */
-struct storvsc_driver_object {
+struct storvsc_driver {
 	struct hv_driver base;
 
 	/* Set by caller (in bytes) */
@@ -149,13 +149,13 @@ static inline void put_stor_device(struct hv_device *device)
 	atomic_dec(&stor_device->ref_count);
 }
 
-static inline struct storvsc_driver_object *hvdr_to_stordr(struct hv_driver *d)
+static inline struct storvsc_driver *hvdr_to_stordr(struct hv_driver *d)
 {
-	return container_of(d, struct storvsc_driver_object, base);
+	return container_of(d, struct storvsc_driver, base);
 }
 
 static inline
-struct storvsc_driver_object *drv_to_stordrv(struct device_driver *d)
+struct storvsc_driver *drv_to_stordrv(struct device_driver *d)
 {
 	struct hv_driver *hvdrv = drv_to_hv_drv(d);
 	return hvdr_to_stordr(hvdrv);
