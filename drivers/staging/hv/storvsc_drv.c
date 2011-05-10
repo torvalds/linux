@@ -55,7 +55,7 @@ struct hv_host_device {
 	/* must be 1st field
 	 * FIXME this is a bug */
 	/* point back to our device context */
-	struct hv_device *device_ctx;
+	struct hv_device *dev;
 	struct kmem_cache *request_pool;
 	unsigned int port;
 	unsigned char path;
@@ -345,7 +345,7 @@ static int storvsc_probe(struct hv_device *device)
 	memset(host_dev, 0, sizeof(struct hv_host_device));
 
 	host_dev->port = host->host_no;
-	host_dev->device_ctx = device;
+	host_dev->dev = device;
 
 	host_dev->request_pool =
 				kmem_cache_create(dev_name(&device->device),
@@ -685,7 +685,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 	int ret;
 	struct hv_host_device *host_dev =
 		(struct hv_host_device *)scmnd->device->host->hostdata;
-	struct hv_device *device_ctx = host_dev->device_ctx;
+	struct hv_device *device_ctx = host_dev->dev;
 	struct storvsc_driver *storvsc_drv_obj =
 		drv_to_stordrv(device_ctx->device.driver);
 	struct hv_storvsc_request *request;
@@ -918,7 +918,7 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 	int ret;
 	struct hv_host_device *host_dev =
 		(struct hv_host_device *)scmnd->device->host->hostdata;
-	struct hv_device *device_ctx = host_dev->device_ctx;
+	struct hv_device *device_ctx = host_dev->dev;
 
 	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host resetting...",
 		    scmnd->device, device_ctx);
