@@ -799,8 +799,6 @@ static int storvsc_drv_init(void)
 	sizeof(struct vstor_packet) + sizeof(u64),
 	sizeof(u64)));
 
-	storvsc_drv_obj->ring_buffer_size = storvsc_ringbuffer_size;
-
 	/* Callback to client driver to complete the initialization */
 	storvsc_initialize(&storvsc_drv_obj->base);
 
