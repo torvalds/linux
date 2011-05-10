@@ -42,7 +42,7 @@ struct vmbus_channel_message_table_entry {
 #define MAX_NUM_DEVICE_CLASSES_SUPPORTED 8
 
 static const struct hv_guid
-	gSupportedDeviceClasses[MAX_NUM_DEVICE_CLASSES_SUPPORTED] = {
+	supported_device_classes[MAX_NUM_DEVICE_CLASSES_SUPPORTED] = {
 	/* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
 	/* Storage - SCSI */
 	{
@@ -459,7 +459,8 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 	offer = (struct vmbus_channel_offer_channel *)hdr;
 	for (i = 0; i < MAX_NUM_DEVICE_CLASSES_SUPPORTED; i++) {
 		if (memcmp(&offer->offer.if_type,
-		    &gSupportedDeviceClasses[i], sizeof(struct hv_guid)) == 0) {
+			&supported_device_classes[i],
+			sizeof(struct hv_guid)) == 0) {
 			fsupported = 1;
 			break;
 		}
