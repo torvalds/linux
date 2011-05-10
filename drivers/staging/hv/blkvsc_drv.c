@@ -27,7 +27,6 @@
 #include <linux/major.h>
 #include <linux/delay.h>
 #include <linux/hdreg.h>
-#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -112,8 +111,6 @@ struct block_device_context {
 	unsigned char target;
 	int users;
 };
-
-static DEFINE_MUTEX(blkvsc_mutex);
 
 static const char *g_blk_driver_name = "blkvsc";
 
@@ -620,7 +617,6 @@ static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 {
 	struct block_device_context *blkdev = disk->private_data;
 
-	mutex_lock(&blkvsc_mutex);
 	spin_lock(&blkdev->lock);
 	if (blkdev->users == 1) {
 		spin_unlock(&blkdev->lock);
@@ -631,7 +627,6 @@ static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 	blkdev->users--;
 
 	spin_unlock(&blkdev->lock);
-	mutex_unlock(&blkvsc_mutex);
 	return 0;
 }
 
