@@ -633,7 +633,7 @@ qla2x00_sysfs_write_edc(struct file *filp, struct kobject *kobj,
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "Unable to write EDC (%x) %02x:%02x:%04x:%02x:%02x.\n",
-		    rval, dev, adr, opt, len, *buf));
+		    rval, dev, adr, opt, len, buf[8]));
 		return 0;
 	}
 
