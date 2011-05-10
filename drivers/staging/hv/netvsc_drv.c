@@ -349,9 +349,6 @@ static int netvsc_probe(struct hv_device *dev)
 	struct netvsc_device_info device_info;
 	int ret;
 
-	if (!net_drv_obj->base.dev_add)
-		return -1;
-
 	net = alloc_etherdev(sizeof(struct net_device_context));
 	if (!net)
 		return -1;
@@ -366,7 +363,7 @@ static int netvsc_probe(struct hv_device *dev)
 	INIT_WORK(&net_device_ctx->work, netvsc_send_garp);
 
 	/* Notify the netvsc driver of the new device */
-	ret = net_drv_obj->base.dev_add(dev, &device_info);
+	ret = rndis_filte_device_add(dev, &device_info);
 	if (ret != 0) {
 		free_netdev(net);
 		dev_set_drvdata(&dev->device, NULL);
