@@ -167,7 +167,7 @@ int storvsc_dev_add(struct hv_device *device,
 				void *additional_info);
 int storvsc_dev_remove(struct hv_device *device);
 
-int stor_vsc_on_io_request(struct hv_device *device,
+int storvsc_do_io(struct hv_device *device,
 				struct hv_storvsc_request *request);
 void storvsc_cleanup(struct hv_driver *driver);
 

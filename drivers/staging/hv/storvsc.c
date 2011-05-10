@@ -520,7 +520,7 @@ int storvsc_dev_remove(struct hv_device *device)
 /*
  * stor_vsc_on_io_request - Callback to initiate an I/O request
  */
-int stor_vsc_on_io_request(struct hv_device *device,
+int storvsc_do_io(struct hv_device *device,
 			      struct hv_storvsc_request *request)
 {
 	struct storvsc_device *stor_device;

@@ -196,7 +196,7 @@ static int blk_vsc_initialize(struct hv_driver *driver)
 		    stor_driver->max_outstanding_req_per_channel);
 
 	/* Setup the dispatch table */
-	stor_driver->on_io_request = stor_vsc_on_io_request;
+	stor_driver->on_io_request = storvsc_do_io;
 
 	return ret;
 }

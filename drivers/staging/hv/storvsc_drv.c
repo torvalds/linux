@@ -117,7 +117,7 @@ static int stor_vsc_initialize(struct hv_driver *driver)
 	stor_driver->base.dev_rm	= storvsc_dev_remove;
 	stor_driver->base.cleanup	= storvsc_cleanup;
 
-	stor_driver->on_io_request	= stor_vsc_on_io_request;
+	stor_driver->on_io_request	= storvsc_do_io;
 
 	return 0;
 }
