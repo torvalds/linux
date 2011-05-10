@@ -757,23 +757,80 @@ static u32 sci_req_tx_bytes(struct scic_sds_request *sci_req)
 	return ret_val;
 }
 
-enum sci_status
-scic_sds_request_start(struct scic_sds_request *request)
+enum sci_status scic_sds_request_start(struct scic_sds_request *sci_req)
 {
-	if (request->device_sequence !=
-	    scic_sds_remote_device_get_sequence(request->target_device))
+	struct scic_sds_controller *scic = sci_req->owning_controller;
+	struct scu_task_context *task_context;
+	enum sci_base_request_states state;
+
+	if (sci_req->device_sequence !=
+	    scic_sds_remote_device_get_sequence(sci_req->target_device))
 		return SCI_FAILURE;
 
-	if (request->state_handlers->start_handler)
-		return request->state_handlers->start_handler(request);
+	state = sci_req->state_machine.current_state_id;
+	if (state != SCI_BASE_REQUEST_STATE_CONSTRUCTED) {
+		dev_warn(scic_to_dev(scic),
+			"%s: SCIC IO Request requested to start while in wrong "
+			 "state %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
 
-	dev_warn(scic_to_dev(request->owning_controller),
-		 "%s: SCIC IO Request requested to start while in wrong "
-		 "state %d\n",
-		 __func__,
-		 sci_base_state_machine_get_state(&request->state_machine));
+	/* if necessary, allocate a TCi for the io request object and then will,
+	 * if necessary, copy the constructed TC data into the actual TC buffer.
+	 * If everything is successful the post context field is updated with
+	 * the TCi so the controller can post the request to the hardware.
+	 */
+	if (sci_req->io_tag == SCI_CONTROLLER_INVALID_IO_TAG)
+		sci_req->io_tag = scic_controller_allocate_io_tag(scic);
 
-	return SCI_FAILURE_INVALID_STATE;
+	/* Record the IO Tag in the request */
+	if (sci_req->io_tag != SCI_CONTROLLER_INVALID_IO_TAG) {
+		task_context = sci_req->task_context_buffer;
+
+		task_context->task_index = scic_sds_io_tag_get_index(sci_req->io_tag);
+
+		switch (task_context->protocol_type) {
+		case SCU_TASK_CONTEXT_PROTOCOL_SMP:
+		case SCU_TASK_CONTEXT_PROTOCOL_SSP:
+			/* SSP/SMP Frame */
+			task_context->type.ssp.tag = sci_req->io_tag;
+			task_context->type.ssp.target_port_transfer_tag =
+				0xFFFF;
+			break;
+
+		case SCU_TASK_CONTEXT_PROTOCOL_STP:
+			/* STP/SATA Frame
+			 * task_context->type.stp.ncq_tag = sci_req->ncq_tag;
+			 */
+			break;
+
+		case SCU_TASK_CONTEXT_PROTOCOL_NONE:
+			/* / @todo When do we set no protocol type? */
+			break;
+
+		default:
+			/* This should never happen since we build the IO
+			 * requests */
+			break;
+		}
+
+		/*
+		 * Check to see if we need to copy the task context buffer
+		 * or have been building into the task context buffer */
+		if (sci_req->was_tag_assigned_by_user == false)
+			scic_sds_controller_copy_task_context(scic, sci_req);
+
+		/* Add to the post_context the io tag value */
+		sci_req->post_context |= scic_sds_io_tag_get_index(sci_req->io_tag);
+
+		/* Everything is good go ahead and change state */
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+						    SCI_BASE_REQUEST_STATE_STARTED);
+
+		return SCI_SUCCESS;
+	}
+
+	return SCI_FAILURE_INSUFFICIENT_RESOURCES;
 }
 
 enum sci_status
@@ -901,75 +958,6 @@ static void scic_sds_io_request_copy_response(struct scic_sds_request *sci_req)
 		    be32_to_cpu(ssp_response->response_data_len));
 
 	memcpy(resp_buf, ssp_response->resp_data, len);
-}
-
-/*
- * This method implements the action taken when a constructed
- * SCIC_SDS_IO_REQUEST_T object receives a scic_sds_request_start() request.
- * This method will, if necessary, allocate a TCi for the io request object and
- * then will, if necessary, copy the constructed TC data into the actual TC
- * buffer.  If everything is successful the post context field is updated with
- * the TCi so the controller can post the request to the hardware. enum sci_status
- * SCI_SUCCESS SCI_FAILURE_INSUFFICIENT_RESOURCES
- */
-static enum sci_status scic_sds_request_constructed_state_start_handler(
-	struct scic_sds_request *request)
-{
-	struct scu_task_context *task_context;
-
-	if (request->io_tag == SCI_CONTROLLER_INVALID_IO_TAG) {
-		request->io_tag =
-			scic_controller_allocate_io_tag(request->owning_controller);
-	}
-
-	/* Record the IO Tag in the request */
-	if (request->io_tag != SCI_CONTROLLER_INVALID_IO_TAG) {
-		task_context = request->task_context_buffer;
-
-		task_context->task_index = scic_sds_io_tag_get_index(request->io_tag);
-
-		switch (task_context->protocol_type) {
-		case SCU_TASK_CONTEXT_PROTOCOL_SMP:
-		case SCU_TASK_CONTEXT_PROTOCOL_SSP:
-			/* SSP/SMP Frame */
-			task_context->type.ssp.tag = request->io_tag;
-			task_context->type.ssp.target_port_transfer_tag = 0xFFFF;
-			break;
-
-		case SCU_TASK_CONTEXT_PROTOCOL_STP:
-			/*
-			 * STP/SATA Frame
-			 * task_context->type.stp.ncq_tag = request->ncq_tag; */
-			break;
-
-		case SCU_TASK_CONTEXT_PROTOCOL_NONE:
-			/* / @todo When do we set no protocol type? */
-			break;
-
-		default:
-			/* This should never happen since we build the IO requests */
-			break;
-		}
-
-		/*
-		 * Check to see if we need to copy the task context buffer
-		 * or have been building into the task context buffer */
-		if (request->was_tag_assigned_by_user == false) {
-			scic_sds_controller_copy_task_context(
-				request->owning_controller, request);
-		}
-
-		/* Add to the post_context the io tag value */
-		request->post_context |= scic_sds_io_tag_get_index(request->io_tag);
-
-		/* Everything is good go ahead and change state */
-		sci_base_state_machine_change_state(&request->state_machine,
-						    SCI_BASE_REQUEST_STATE_STARTED);
-
-		return SCI_SUCCESS;
-	}
-
-	return SCI_FAILURE_INSUFFICIENT_RESOURCES;
 }
 
 /*
@@ -2529,10 +2517,8 @@ static enum sci_status scic_sds_stp_request_soft_reset_await_d2h_frame_handler(
 }
 
 static const struct scic_sds_io_request_state_handler scic_sds_request_state_handler_table[] = {
-	[SCI_BASE_REQUEST_STATE_INITIAL] = { },
-	[SCI_BASE_REQUEST_STATE_CONSTRUCTED] = {
-		.start_handler		= scic_sds_request_constructed_state_start_handler,
-	},
+	[SCI_BASE_REQUEST_STATE_INITIAL] = {},
+	[SCI_BASE_REQUEST_STATE_CONSTRUCTED] = {},
 	[SCI_BASE_REQUEST_STATE_STARTED] = {
 		.tc_completion_handler	= scic_sds_request_started_state_tc_completion_handler,
 		.frame_handler		= scic_sds_request_started_state_frame_handler,

@@ -515,7 +515,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 		if (status != SCI_SUCCESS)
 			break;
 
-		status = sci_req->state_handlers->start_handler(sci_req);
+		status = scic_sds_request_start(sci_req);
 		if (status != SCI_SUCCESS)
 			break;
 
@@ -540,7 +540,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 			if (status != SCI_SUCCESS)
 				break;
 
-			status = sci_req->state_handlers->start_handler(sci_req);
+			status = scic_sds_request_start(sci_req);
 		} else
 			return SCI_FAILURE_INVALID_STATE;
 		break;
@@ -709,7 +709,7 @@ enum sci_status scic_sds_remote_device_start_task(struct scic_sds_controller *sc
 		if (status != SCI_SUCCESS)
 			goto out;
 
-		status = sci_req->state_handlers->start_handler(sci_req);
+		status = scic_sds_request_start(sci_req);
 		if (status != SCI_SUCCESS)
 			goto out;
 

@@ -439,12 +439,6 @@ typedef enum sci_status (*scic_sds_io_request_task_completion_handler_t)
  */
 struct scic_sds_io_request_state_handler {
 	/**
-	 * The start_handler specifies the method invoked when a user attempts to
-	 * start a request.
-	 */
-	scic_sds_io_request_handler_t start_handler;
-
-	/**
 	 * The complete_handler specifies the method invoked when a user attempts to
 	 * complete a request.
 	 */
