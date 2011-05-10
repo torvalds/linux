@@ -3,6 +3,7 @@
  *  Copyright (C) 2006 Felix Fietkau <nbd@openwrt.org>
  *  Copyright (C) 2006 Michael Buesch <mb@bu3sch.de>
  *  Copyright (C) 2010 Waldemar Brodkorb <wbx@openadk.org>
+ *  Copyright (C) 2010-2011 Hauke Mehrtens <hauke@hauke-m.de>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -154,6 +155,22 @@ static void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix)
 	}
 }
 
+int bcm47xx_get_sprom(struct ssb_bus *bus, struct ssb_sprom *out)
+{
+	char prefix[10];
+
+	if (bus->bustype == SSB_BUSTYPE_PCI) {
+		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
+			 bus->host_pci->bus->number + 1,
+			 PCI_SLOT(bus->host_pci->devfn));
+		bcm47xx_fill_sprom(out, prefix);
+		return 0;
+	} else {
+		printk(KERN_WARNING "bcm47xx: unable to fill SPROM for given bustype.\n");
+		return -EINVAL;
+	}
+}
+
 static int bcm47xx_get_invariants(struct ssb_bus *bus,
 				   struct ssb_init_invariants *iv)
 {
@@ -184,6 +201,11 @@ void __init plat_mem_setup(void)
 	int err;
 	char buf[100];
 	struct ssb_mipscore *mcore;
+
+	err = ssb_arch_register_fallback_sprom(&bcm47xx_get_sprom);
+	if (err)
+		printk(KERN_WARNING "bcm47xx: someone else already registered"
+			" a ssb SPROM callback handler (err %d)\n", err);
 
 	err = ssb_bus_ssbbus_register(&ssb_bcm47xx, SSB_ENUM_BASE,
 				      bcm47xx_get_invariants);
