@@ -17,8 +17,8 @@
  * Authors:
  *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
+ *   K. Y. Srinivasan <kys@microsoft.com>
  *
- * 4/3/2011: K. Y. Srinivasan - Significant restructuring and cleanup.
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -442,10 +442,6 @@ static int storvsc_connect_to_vsp(struct hv_device *device)
 	return ret;
 }
 
-/*
- * stor_vsc_on_device_add - Callback when the device belonging to this driver
- * is added
- */
 int storvsc_dev_add(struct hv_device *device,
 					void *additional_info)
 {
@@ -484,9 +480,6 @@ cleanup:
 	return ret;
 }
 
-/*
- * stor_vsc_on_device_remove - Callback when the our device is being removed
- */
 int storvsc_dev_remove(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
@@ -518,9 +511,6 @@ int storvsc_dev_remove(struct hv_device *device)
 	return 0;
 }
 
-/*
- * stor_vsc_on_io_request - Callback to initiate an I/O request
- */
 int storvsc_do_io(struct hv_device *device,
 			      struct hv_storvsc_request *request)
 {
