@@ -810,9 +810,6 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 	item->cx = cx;
 	item->type = s->type;
 
-	spin_lock_init(&s->vbuf_q_lock);
-	s->vb_type = 0;
-
 	item->open_id = cx->open_id++;
 	filp->private_data = &item->fh;
 

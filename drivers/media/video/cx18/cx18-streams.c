@@ -275,6 +275,8 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	init_timer(&s->vb_timeout);
 	spin_lock_init(&s->vb_lock);
 	if (type == CX18_ENC_STREAM_TYPE_YUV) {
+		spin_lock_init(&s->vbuf_q_lock);
+
 		s->vb_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		videobuf_queue_vmalloc_init(&s->vbuf_q, &cx18_videobuf_qops,
 			&cx->pci_dev->dev, &s->vbuf_q_lock,
