@@ -135,8 +135,10 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 	free_basic_memory_bitmaps();
 	data = filp->private_data;
 	free_all_swap_pages(data->swap);
-	if (data->frozen)
+	if (data->frozen) {
+		pm_restore_gfp_mask();
 		thaw_processes();
+	}
 	pm_notifier_call_chain(data->mode == O_RDONLY ?
 			PM_POST_HIBERNATION : PM_POST_RESTORE);
 	atomic_inc(&snapshot_device_available);
