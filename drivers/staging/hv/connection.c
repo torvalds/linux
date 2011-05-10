@@ -44,6 +44,7 @@ struct vmbus_connection vmbus_connection = {
 int vmbus_connect(void)
 {
 	int ret = 0;
+	int t;
 	struct vmbus_channel_msginfo *msginfo = NULL;
 	struct vmbus_channel_initiate_contact *msg;
 	unsigned long flags;
@@ -101,7 +102,7 @@ int vmbus_connect(void)
 		goto Cleanup;
 	}
 
-	init_waitqueue_head(&msginfo->waitevent);
+	init_completion(&msginfo->waitevent);
 
 	msg = (struct vmbus_channel_initiate_contact *)msginfo->msg;
 
@@ -134,10 +135,8 @@ int vmbus_connect(void)
 	}
 
 	/* Wait for the connection response */
-	msginfo->wait_condition = 0;
-	wait_event_timeout(msginfo->waitevent, msginfo->wait_condition,
-			msecs_to_jiffies(1000));
-	if (msginfo->wait_condition == 0) {
+	t =  wait_for_completion_timeout(&msginfo->waitevent, HZ);
+	if (t == 0) {
 		spin_lock_irqsave(&vmbus_connection.channelmsg_lock,
 				flags);
 		list_del(&msginfo->msglistentry);

@@ -556,9 +556,9 @@ static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 			    openmsg->openid == result->openid) {
 				memcpy(&msginfo->response.open_result,
 				       result,
-				       sizeof(struct vmbus_channel_open_result));
-				msginfo->wait_condition = 1;
-				wake_up(&msginfo->waitevent);
+				       sizeof(
+					struct vmbus_channel_open_result));
+				complete(&msginfo->waitevent);
 				break;
 			}
 		}
@@ -603,9 +603,9 @@ static void vmbus_ongpadl_created(struct vmbus_channel_message_header *hdr)
 			    (gpadlcreated->gpadl == gpadlheader->gpadl)) {
 				memcpy(&msginfo->response.gpadl_created,
 				       gpadlcreated,
-				       sizeof(struct vmbus_channel_gpadl_created));
-				msginfo->wait_condition = 1;
-				wake_up(&msginfo->waitevent);
+				       sizeof(
+					struct vmbus_channel_gpadl_created));
+				complete(&msginfo->waitevent);
 				break;
 			}
 		}
@@ -648,9 +648,9 @@ static void vmbus_ongpadl_torndown(
 			if (gpadl_torndown->gpadl == gpadl_teardown->gpadl) {
 				memcpy(&msginfo->response.gpadl_torndown,
 				       gpadl_torndown,
-				       sizeof(struct vmbus_channel_gpadl_torndown));
-				msginfo->wait_condition = 1;
-				wake_up(&msginfo->waitevent);
+				       sizeof(
+					struct vmbus_channel_gpadl_torndown));
+				complete(&msginfo->waitevent);
 				break;
 			}
 		}
@@ -689,8 +689,7 @@ static void vmbus_onversion_response(
 			memcpy(&msginfo->response.version_response,
 			      version_response,
 			      sizeof(struct vmbus_channel_version_response));
-			msginfo->wait_condition = 1;
-			wake_up(&msginfo->waitevent);
+			complete(&msginfo->waitevent);
 		}
 	}
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
@@ -753,7 +752,7 @@ int vmbus_request_offers(void)
 {
 	struct vmbus_channel_message_header *msg;
 	struct vmbus_channel_msginfo *msginfo;
-	int ret;
+	int ret, t;
 
 	msginfo = kmalloc(sizeof(*msginfo) +
 			  sizeof(struct vmbus_channel_message_header),
@@ -761,7 +760,7 @@ int vmbus_request_offers(void)
 	if (!msginfo)
 		return -ENOMEM;
 
-	init_waitqueue_head(&msginfo->waitevent);
+	init_completion(&msginfo->waitevent);
 
 	msg = (struct vmbus_channel_message_header *)msginfo->msg;
 
@@ -776,10 +775,8 @@ int vmbus_request_offers(void)
 		goto cleanup;
 	}
 
-	msginfo->wait_condition = 0;
-	wait_event_timeout(msginfo->waitevent, msginfo->wait_condition,
-			msecs_to_jiffies(1000));
-	if (msginfo->wait_condition == 0) {
+	t = wait_for_completion_timeout(&msginfo->waitevent, HZ);
+	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto cleanup;
 	}
