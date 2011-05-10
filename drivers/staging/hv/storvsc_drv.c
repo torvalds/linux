@@ -103,10 +103,6 @@ static int storvsc_initialize(struct hv_driver *driver)
 			   sizeof(struct vstor_packet) + sizeof(u64),
 			   sizeof(u64)));
 
-	DPRINT_INFO(STORVSC, "max io %u, currently %u\n",
-		    stor_driver->max_outstanding_req_per_channel,
-		    STORVSC_MAX_IO_REQUESTS);
-
 
 	return 0;
 }
@@ -806,10 +802,6 @@ static int storvsc_drv_init(void)
 
 	/* Callback to client driver to complete the initialization */
 	storvsc_initialize(&storvsc_drv_obj->base);
-
-	DPRINT_INFO(STORVSC_DRV,
-		    "max outstanding reqs %u",
-		    storvsc_drv_obj->max_outstanding_req_per_channel);
 
 	if (storvsc_drv_obj->max_outstanding_req_per_channel <
 	    STORVSC_MAX_IO_REQUESTS)
