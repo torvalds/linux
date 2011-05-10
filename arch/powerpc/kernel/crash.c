@@ -236,7 +236,7 @@ static void crash_kexec_wait_realmode(int cpu)
 	int i;
 
 	msecs = 10000;
-	for (i=0; i < NR_CPUS && msecs > 0; i++) {
+	for (i=0; i < nr_cpu_ids && msecs > 0; i++) {
 		if (i == cpu)
 			continue;
 
