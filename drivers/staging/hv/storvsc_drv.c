@@ -768,7 +768,7 @@ static DEF_SCSI_QCMD(storvsc_queuecommand)
 
 
 /* The one and only one */
-static struct storvsc_driver g_storvsc_drv;
+static struct storvsc_driver storvsc_drv;
 
 /* Scsi driver */
 static struct scsi_host_template scsi_driver = {
@@ -879,8 +879,8 @@ static int storvsc_probe(struct hv_device *device)
 static int storvsc_drv_init(void)
 {
 	int ret;
-	struct storvsc_driver *storvsc_drv_obj = &g_storvsc_drv;
-	struct hv_driver *drv = &g_storvsc_drv.base;
+	struct storvsc_driver *storvsc_drv_obj = &storvsc_drv;
+	struct hv_driver *drv = &storvsc_drv.base;
 
 	storvsc_drv_obj->ring_buffer_size = storvsc_ringbuffer_size;
 
@@ -915,8 +915,8 @@ static int storvsc_drv_exit_cb(struct device *dev, void *data)
 
 static void storvsc_drv_exit(void)
 {
-	struct storvsc_driver *storvsc_drv_obj = &g_storvsc_drv;
-	struct hv_driver *drv = &g_storvsc_drv.base;
+	struct storvsc_driver *storvsc_drv_obj = &storvsc_drv;
+	struct hv_driver *drv = &storvsc_drv.base;
 	struct device *current_dev = NULL;
 	int ret;
 
