@@ -134,12 +134,8 @@ static unsigned int icp_native_get_irq(void)
 
 #ifdef CONFIG_SMP
 
-static void icp_native_message_pass(int cpu, int msg)
+static void icp_native_cause_ipi(int cpu, unsigned long data)
 {
-	unsigned long *tgt = &per_cpu(xics_ipi_message, cpu);
-
-	set_bit(msg, tgt);
-	mb();
 	icp_native_set_qirr(cpu, IPI_PRIORITY);
 }
 
@@ -149,7 +145,7 @@ static irqreturn_t icp_native_ipi_action(int irq, void *dev_id)
 
 	icp_native_set_qirr(cpu, 0xff);
 
-	return xics_ipi_dispatch(cpu);
+	return smp_ipi_demux();
 }
 
 #endif /* CONFIG_SMP */
@@ -267,7 +263,7 @@ static const struct icp_ops icp_native_ops = {
 	.flush_ipi	= icp_native_flush_ipi,
 #ifdef CONFIG_SMP
 	.ipi_action	= icp_native_ipi_action,
-	.message_pass	= icp_native_message_pass,
+	.cause_ipi	= icp_native_cause_ipi,
 #endif
 };
 

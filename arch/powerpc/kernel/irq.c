@@ -66,7 +66,6 @@
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
 #include <asm/udbg.h>
-#include <asm/dbell.h>
 #include <asm/smp.h>
 
 #ifdef CONFIG_PPC64
@@ -160,7 +159,8 @@ notrace void arch_local_irq_restore(unsigned long en)
 
 #if defined(CONFIG_BOOKE) && defined(CONFIG_SMP)
 	/* Check for pending doorbell interrupts and resend to ourself */
-	doorbell_check_self();
+	if (cpu_has_feature(CPU_FTR_DBELL))
+		smp_muxed_ipi_resend();
 #endif
 
 	/*

@@ -20,6 +20,7 @@
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/kernel.h>
+#include <linux/irqreturn.h>
 
 #ifndef __ASSEMBLY__
 
@@ -37,6 +38,7 @@ extern void cpu_die(void);
 
 struct smp_ops_t {
 	void  (*message_pass)(int cpu, int msg);
+	void  (*cause_ipi)(int cpu, unsigned long data);
 	int   (*probe)(void);
 	int   (*kick_cpu)(int nr);
 	void  (*setup_cpu)(int nr);
@@ -49,7 +51,6 @@ struct smp_ops_t {
 };
 
 extern void smp_send_debugger_break(void);
-extern void smp_message_recv(int);
 extern void start_secondary_resume(void);
 extern void __devinit smp_generic_give_timebase(void);
 extern void __devinit smp_generic_take_timebase(void);
@@ -109,12 +110,15 @@ extern int cpu_to_core_id(int cpu);
 #define PPC_MSG_CALL_FUNC_SINGLE	2
 #define PPC_MSG_DEBUGGER_BREAK  3
 
-/*
- * irq controllers that have dedicated ipis per message and don't
- * need additional code in the action handler may use this
- */
+/* for irq controllers that have dedicated ipis per message (4) */
 extern int smp_request_message_ipi(int virq, int message);
 extern const char *smp_ipi_name[];
+
+/* for irq controllers with only a single ipi */
+extern void smp_muxed_ipi_set_data(int cpu, unsigned long data);
+extern void smp_muxed_ipi_message_pass(int cpu, int msg);
+extern void smp_muxed_ipi_resend(void);
+extern irqreturn_t smp_ipi_demux(void);
 
 void smp_init_iSeries(void);
 void smp_init_pSeries(void);
@@ -184,6 +188,8 @@ extern void generic_secondary_thread_init(void);
 extern unsigned long __secondary_hold_spinloop;
 extern unsigned long __secondary_hold_acknowledge;
 extern char __secondary_hold;
+
+extern irqreturn_t debug_ipi_action(int irq, void *data);
 
 #endif /* __ASSEMBLY__ */
 

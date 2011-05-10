@@ -118,12 +118,8 @@ static void icp_hv_set_cpu_priority(unsigned char cppr)
 
 #ifdef CONFIG_SMP
 
-static void icp_hv_message_pass(int cpu, int msg)
+static void icp_hv_cause_ipi(int cpu, unsigned long data)
 {
-	unsigned long *tgt = &per_cpu(xics_ipi_message, cpu);
-
-	set_bit(msg, tgt);
-	mb();
 	icp_hv_set_qirr(cpu, IPI_PRIORITY);
 }
 
@@ -133,7 +129,7 @@ static irqreturn_t icp_hv_ipi_action(int irq, void *dev_id)
 
 	icp_hv_set_qirr(cpu, 0xff);
 
-	return xics_ipi_dispatch(cpu);
+	return smp_ipi_demux();
 }
 
 #endif /* CONFIG_SMP */
@@ -146,7 +142,7 @@ static const struct icp_ops icp_hv_ops = {
 	.flush_ipi	= icp_hv_flush_ipi,
 #ifdef CONFIG_SMP
 	.ipi_action	= icp_hv_ipi_action,
-	.message_pass	= icp_hv_message_pass,
+	.cause_ipi	= icp_hv_cause_ipi,
 #endif
 };
 

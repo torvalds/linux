@@ -126,32 +126,6 @@ void xics_mask_unknown_vec(unsigned int vec)
 
 #ifdef CONFIG_SMP
 
-DEFINE_PER_CPU_SHARED_ALIGNED(unsigned long, xics_ipi_message);
-
-irqreturn_t xics_ipi_dispatch(int cpu)
-{
-	unsigned long *tgt = &per_cpu(xics_ipi_message, cpu);
-
-	mb();	/* order mmio clearing qirr */
-	while (*tgt) {
-		if (test_and_clear_bit(PPC_MSG_CALL_FUNCTION, tgt)) {
-			smp_message_recv(PPC_MSG_CALL_FUNCTION);
-		}
-		if (test_and_clear_bit(PPC_MSG_RESCHEDULE, tgt)) {
-			smp_message_recv(PPC_MSG_RESCHEDULE);
-		}
-		if (test_and_clear_bit(PPC_MSG_CALL_FUNC_SINGLE, tgt)) {
-			smp_message_recv(PPC_MSG_CALL_FUNC_SINGLE);
-		}
-#if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
-		if (test_and_clear_bit(PPC_MSG_DEBUGGER_BREAK, tgt)) {
-			smp_message_recv(PPC_MSG_DEBUGGER_BREAK);
-		}
-#endif
-	}
-	return IRQ_HANDLED;
-}
-
 static void xics_request_ipi(void)
 {
 	unsigned int ipi;
@@ -170,8 +144,8 @@ static void xics_request_ipi(void)
 
 int __init xics_smp_probe(void)
 {
-	/* Setup message_pass callback  based on which ICP is used */
-	smp_ops->message_pass = icp_ops->message_pass;
+	/* Setup cause_ipi callback  based on which ICP is used */
+	smp_ops->cause_ipi = icp_ops->cause_ipi;
 
 	/* Register all the IPIs */
 	xics_request_ipi();

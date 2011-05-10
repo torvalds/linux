@@ -42,26 +42,8 @@
 #include <asm/cputable.h>
 #include <asm/system.h>
 
-#include "smp.h"
-
-static unsigned long iSeries_smp_message[NR_CPUS];
-
-void iSeries_smp_message_recv(void)
+static void smp_iSeries_cause_ipi(int cpu, unsigned long data)
 {
-	int cpu = smp_processor_id();
-	int msg;
-
-	if (num_online_cpus() < 2)
-		return;
-
-	for (msg = 0; msg < 4; msg++)
-		if (test_and_clear_bit(msg, &iSeries_smp_message[cpu]))
-			smp_message_recv(msg);
-}
-
-static void smp_iSeries_message_pass(int cpu, int msg)
-{
-	set_bit(msg, &iSeries_smp_message[cpu]);
 	HvCall_sendIPI(&(paca[cpu]));
 }
 
@@ -93,7 +75,8 @@ static void __devinit smp_iSeries_setup_cpu(int nr)
 }
 
 static struct smp_ops_t iSeries_smp_ops = {
-	.message_pass = smp_iSeries_message_pass,
+	.message_pass = smp_muxed_ipi_message_pass,
+	.cause_ipi    = smp_iSeries_cause_ipi,
 	.probe        = smp_iSeries_probe,
 	.kick_cpu     = smp_iSeries_kick_cpu,
 	.setup_cpu    = smp_iSeries_setup_cpu,

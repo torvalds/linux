@@ -42,7 +42,6 @@
 #include "irq.h"
 #include "pci.h"
 #include "call_pci.h"
-#include "smp.h"
 
 #ifdef CONFIG_PCI
 
@@ -316,7 +315,7 @@ unsigned int iSeries_get_irq(void)
 #ifdef CONFIG_SMP
 	if (get_lppaca()->int_dword.fields.ipi_cnt) {
 		get_lppaca()->int_dword.fields.ipi_cnt = 0;
-		iSeries_smp_message_recv();
+		smp_ipi_demux();
 	}
 #endif /* CONFIG_SMP */
 	if (hvlpevent_is_pending())

@@ -40,7 +40,7 @@ struct icp_ops {
 	void (*teardown_cpu)(void);
 	void (*flush_ipi)(void);
 #ifdef CONFIG_SMP
-	void (*message_pass)(int cpu, int msg);
+	void (*cause_ipi)(int cpu, unsigned long data);
 	irq_handler_t ipi_action;
 #endif
 };

@@ -111,35 +111,6 @@ int __devinit smp_generic_kick_cpu(int nr)
 }
 #endif
 
-void smp_message_recv(int msg)
-{
-	switch(msg) {
-	case PPC_MSG_CALL_FUNCTION:
-		generic_smp_call_function_interrupt();
-		break;
-	case PPC_MSG_RESCHEDULE:
-		/* we notice need_resched on exit */
-		break;
-	case PPC_MSG_CALL_FUNC_SINGLE:
-		generic_smp_call_function_single_interrupt();
-		break;
-	case PPC_MSG_DEBUGGER_BREAK:
-		if (crash_ipi_function_ptr) {
-			crash_ipi_function_ptr(get_irq_regs());
-			break;
-		}
-#ifdef CONFIG_DEBUGGER
-		debugger_ipi(get_irq_regs());
-		break;
-#endif /* CONFIG_DEBUGGER */
-		/* FALLTHROUGH */
-	default:
-		printk("SMP %d: smp_message_recv(): unknown msg %d\n",
-		       smp_processor_id(), msg);
-		break;
-	}
-}
-
 static irqreturn_t call_function_action(int irq, void *data)
 {
 	generic_smp_call_function_interrupt();
@@ -158,9 +129,17 @@ static irqreturn_t call_function_single_action(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t debug_ipi_action(int irq, void *data)
+irqreturn_t debug_ipi_action(int irq, void *data)
 {
-	smp_message_recv(PPC_MSG_DEBUGGER_BREAK);
+	if (crash_ipi_function_ptr) {
+		crash_ipi_function_ptr(get_irq_regs());
+		return IRQ_HANDLED;
+	}
+
+#ifdef CONFIG_DEBUGGER
+	debugger_ipi(get_irq_regs());
+#endif /* CONFIG_DEBUGGER */
+
 	return IRQ_HANDLED;
 }
 
@@ -197,6 +176,59 @@ int smp_request_message_ipi(int virq, int msg)
 		virq, smp_ipi_name[msg], err);
 
 	return err;
+}
+
+struct cpu_messages {
+	unsigned long messages;		/* current messages bits */
+	unsigned long data;		/* data for cause ipi */
+};
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct cpu_messages, ipi_message);
+
+void smp_muxed_ipi_set_data(int cpu, unsigned long data)
+{
+	struct cpu_messages *info = &per_cpu(ipi_message, cpu);
+
+	info->data = data;
+}
+
+void smp_muxed_ipi_message_pass(int cpu, int msg)
+{
+	struct cpu_messages *info = &per_cpu(ipi_message, cpu);
+	unsigned long *tgt = &info->messages;
+
+	set_bit(msg, tgt);
+	mb();
+	smp_ops->cause_ipi(cpu, info->data);
+}
+
+void smp_muxed_ipi_resend(void)
+{
+	struct cpu_messages *info = &__get_cpu_var(ipi_message);
+	unsigned long *tgt = &info->messages;
+
+	if (*tgt)
+		smp_ops->cause_ipi(smp_processor_id(), info->data);
+}
+
+irqreturn_t smp_ipi_demux(void)
+{
+	struct cpu_messages *info = &__get_cpu_var(ipi_message);
+	unsigned long *tgt = &info->messages;
+
+	mb();	/* order any irq clear */
+	while (*tgt) {
+		if (test_and_clear_bit(PPC_MSG_CALL_FUNCTION, tgt))
+			generic_smp_call_function_interrupt();
+		if (test_and_clear_bit(PPC_MSG_RESCHEDULE, tgt))
+			reschedule_action(0, NULL); /* upcoming sched hook */
+		if (test_and_clear_bit(PPC_MSG_CALL_FUNC_SINGLE, tgt))
+			generic_smp_call_function_single_interrupt();
+#if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
+		if (test_and_clear_bit(PPC_MSG_DEBUGGER_BREAK, tgt))
+			debug_ipi_action(0, NULL);
+#endif
+	}
+	return IRQ_HANDLED;
 }
 
 void smp_send_reschedule(int cpu)

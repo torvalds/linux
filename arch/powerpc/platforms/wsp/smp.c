@@ -75,7 +75,8 @@ static int __init smp_a2_probe(void)
 }
 
 static struct smp_ops_t a2_smp_ops = {
-	.message_pass	= doorbell_message_pass,
+	.message_pass	= smp_muxed_ipi_message_pass,
+	.cause_ipi	= doorbell_cause_ipi,
 	.probe		= smp_a2_probe,
 	.kick_cpu	= smp_a2_kick_cpu,
 	.setup_cpu	= smp_a2_setup_cpu,

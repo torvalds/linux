@@ -156,28 +156,13 @@ static inline void psurge_clr_ipi(int cpu)
 /*
  * On powersurge (old SMP powermac architecture) we don't have
  * separate IPIs for separate messages like openpic does.  Instead
- * we have a bitmap for each processor, where a 1 bit means that
- * the corresponding message is pending for that processor.
- * Ideally each cpu's entry would be in a different cache line.
+ * use the generic demux helpers
  *  -- paulus.
  */
-static unsigned long psurge_smp_message[NR_CPUS];
-
 void psurge_smp_message_recv(void)
 {
-	int cpu = smp_processor_id();
-	int msg;
-
-	/* clear interrupt */
-	psurge_clr_ipi(cpu);
-
-	if (num_online_cpus() < 2)
-		return;
-
-	/* make sure there is a message there */
-	for (msg = 0; msg < 4; msg++)
-		if (test_and_clear_bit(msg, &psurge_smp_message[cpu]))
-			smp_message_recv(msg);
+	psurge_clr_ipi(smp_processor_id());
+	smp_ipi_demux();
 }
 
 irqreturn_t psurge_primary_intr(int irq, void *d)
@@ -186,9 +171,8 @@ irqreturn_t psurge_primary_intr(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static void smp_psurge_message_pass(int cpu, int msg)
+static void smp_psurge_cause_ipi(int cpu, unsigned long data)
 {
-	set_bit(msg, &psurge_smp_message[cpu]);
 	psurge_set_ipi(cpu);
 }
 
@@ -428,7 +412,8 @@ void __init smp_psurge_give_timebase(void)
 
 /* PowerSurge-style Macs */
 struct smp_ops_t psurge_smp_ops = {
-	.message_pass	= smp_psurge_message_pass,
+	.message_pass	= smp_muxed_ipi_message_pass,
+	.cause_ipi	= smp_psurge_cause_ipi,
 	.probe		= smp_psurge_probe,
 	.kick_cpu	= smp_psurge_kick_cpu,
 	.setup_cpu	= smp_psurge_setup_cpu,
