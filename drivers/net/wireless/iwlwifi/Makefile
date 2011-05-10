@@ -16,6 +16,7 @@ iwlagn-objs             += iwl-2000.o
 
 iwlagn-$(CONFIG_IWLWIFI_DEBUGFS) += iwl-debugfs.o
 iwlagn-$(CONFIG_IWLWIFI_DEVICE_TRACING) += iwl-devtrace.o
+iwlagn-$(CONFIG_IWLWIFI_DEVICE_SVTOOL) += iwl-sv-open.o
 
 CFLAGS_iwl-devtrace.o := -I$(src)
 

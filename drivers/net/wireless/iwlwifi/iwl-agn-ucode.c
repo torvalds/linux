@@ -269,7 +269,7 @@ void iwlagn_rx_calib_result(struct iwl_priv *priv,
 	iwl_calib_set(&priv->calib_results[index], pkt->u.raw, len);
 }
 
-static int iwlagn_init_alive_start(struct iwl_priv *priv)
+int iwlagn_init_alive_start(struct iwl_priv *priv)
 {
 	int ret;
 
