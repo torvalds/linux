@@ -42,6 +42,9 @@
 
 static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
 
+module_param(storvsc_ringbuffer_size, int, S_IRUGO);
+MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
+
 static const char *driver_name = "storvsc";
 
 /* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
@@ -539,9 +542,6 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 /* Static decl */
 static int storvsc_probe(struct hv_device *dev);
 static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
-
-module_param(storvsc_ringbuffer_size, int, S_IRUGO);
-MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 
 /* The one and only one */
 static struct storvsc_driver g_storvsc_drv;
