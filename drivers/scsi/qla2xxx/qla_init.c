@@ -5435,6 +5435,13 @@ qla82xx_restart_isp(scsi_qla_host_t *vha)
 		ha->isp_abort_cnt = 0;
 		clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
 
+		/* Update the firmware version */
+		qla2x00_get_fw_version(vha, &ha->fw_major_version,
+		    &ha->fw_minor_version, &ha->fw_subminor_version,
+		    &ha->fw_attributes, &ha->fw_memory_size,
+		    ha->mpi_version, &ha->mpi_capabilities,
+		    ha->phy_version);
+
 		if (ha->fce) {
 			ha->flags.fce_enabled = 1;
 			memset(ha->fce, 0,
