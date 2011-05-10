@@ -381,6 +381,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		 * PM_HIBERNATION_PREPARE
 		 */
 		error = suspend_devices_and_enter(PM_SUSPEND_MEM);
+		data->ready = 0;
 		break;
 
 	case SNAPSHOT_PLATFORM_SUPPORT:
