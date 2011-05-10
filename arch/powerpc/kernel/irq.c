@@ -516,12 +516,6 @@ bool virq_is_host(unsigned int virq, struct irq_host *host)
 }
 EXPORT_SYMBOL_GPL(virq_is_host);
 
-struct irq_host *virq_to_host(unsigned int virq)
-{
-	return irq_map[virq].host;
-}
-EXPORT_SYMBOL_GPL(virq_to_host);
-
 static int default_irq_host_match(struct irq_host *h, struct device_node *np)
 {
 	return h->of_node != NULL && h->of_node == np;
