@@ -71,9 +71,9 @@ struct storvsc_cmd_request {
 
 
 /*
- * stor_vsc_initialize - Main entry point
+ * storvsc_initialize - Main entry point
  */
-static int stor_vsc_initialize(struct hv_driver *driver)
+static int storvsc_initialize(struct hv_driver *driver)
 {
 	struct storvsc_driver *stor_driver;
 
@@ -514,7 +514,7 @@ static int storvsc_drv_init(void)
 	storvsc_drv_obj->ring_buffer_size = storvsc_ringbuffer_size;
 
 	/* Callback to client driver to complete the initialization */
-	stor_vsc_initialize(&storvsc_drv_obj->base);
+	storvsc_initialize(&storvsc_drv_obj->base);
 
 	DPRINT_INFO(STORVSC_DRV,
 		    "max outstanding reqs %u",
