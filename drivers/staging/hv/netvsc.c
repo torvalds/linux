@@ -622,13 +622,6 @@ int netvsc_device_remove(struct hv_device *device)
 	return 0;
 }
 
-/*
- * netvsc_cleanup - Perform any cleanup when the driver is removed
- */
-static void netvsc_cleanup(struct hv_driver *drv)
-{
-}
-
 static void netvsc_send_completion(struct hv_device *device,
 				   struct vmpacket_descriptor *packet)
 {
@@ -1194,7 +1187,6 @@ int netvsc_initialize(struct hv_driver *drv)
 	/* Setup the dispatch table */
 	driver->base.dev_add	= netvsc_device_add;
 	driver->base.dev_rm	= netvsc_device_remove;
-	driver->base.cleanup		= netvsc_cleanup;
 
 	driver->send			= netvsc_send;
 
