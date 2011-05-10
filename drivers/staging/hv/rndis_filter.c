@@ -84,8 +84,6 @@ struct rndis_filter_packet {
 };
 
 
-static void rndis_filter_cleanup(struct hv_driver *drv);
-
 static int rndis_filter_send(struct hv_device *dev,
 			     struct hv_netvsc_packet *pkt);
 
@@ -621,7 +619,6 @@ int rndis_filter_init(struct netvsc_driver *drv)
 	/* Override */
 	drv->base.dev_add = rndis_filte_device_add;
 	drv->base.dev_rm = rndis_filter_device_remove;
-	drv->base.cleanup = rndis_filter_cleanup;
 	drv->send = rndis_filter_send;
 	drv->recv_cb = rndis_filter_receive;
 
@@ -818,9 +815,6 @@ int rndis_filter_device_remove(struct hv_device *dev)
 	return 0;
 }
 
-static void rndis_filter_cleanup(struct hv_driver *drv)
-{
-}
 
 int rndis_filter_open(struct hv_device *dev)
 {
