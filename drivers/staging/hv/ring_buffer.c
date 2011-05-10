@@ -364,7 +364,7 @@ int hv_ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 	u32 totalbytes_towrite = 0;
 
 	struct scatterlist *sg;
-	volatile u32 next_write_location;
+	u32 next_write_location;
 	u64 prev_indices = 0;
 	unsigned long flags;
 
