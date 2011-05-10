@@ -872,7 +872,10 @@ static int storvsc_probe(struct hv_device *device)
 
 /* The one and only one */
 
-static struct storvsc_driver storvsc_drv;
+static struct storvsc_driver storvsc_drv = {
+	.base.probe = storvsc_probe,
+	.base.remove = storvsc_remove,
+};
 
 
 /*
@@ -899,8 +902,6 @@ static int storvsc_drv_init(void)
 
 	drv->driver.name = storvsc_drv_obj->base.name;
 
-	drv->probe = storvsc_probe;
-	drv->remove = storvsc_remove;
 
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(&drv->driver);
