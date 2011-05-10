@@ -1404,11 +1404,23 @@ err:
 /* Uses MCC for this command as it may be called in BH context
  * Uses synchronous mcc
  */
-int be_cmd_promiscuous_config(struct be_adapter *adapter, u8 port_num, bool en)
+int be_cmd_promiscuous_config(struct be_adapter *adapter, bool en)
 {
 	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_promiscuous_config *req;
+	struct be_cmd_req_rx_filter *req;
+	struct be_dma_mem promiscous_cmd;
+	struct be_sge *sge;
 	int status;
+
+	memset(&promiscous_cmd, 0, sizeof(struct be_dma_mem));
+	promiscous_cmd.size = sizeof(struct be_cmd_req_rx_filter);
+	promiscous_cmd.va = pci_alloc_consistent(adapter->pdev,
+				promiscous_cmd.size, &promiscous_cmd.dma);
+	if (!promiscous_cmd.va) {
+		dev_err(&adapter->pdev->dev,
+				"Memory allocation failure\n");
+		return -ENOMEM;
+	}
 
 	spin_lock_bh(&adapter->mcc_lock);
 
@@ -1417,26 +1429,30 @@ int be_cmd_promiscuous_config(struct be_adapter *adapter, u8 port_num, bool en)
 		status = -EBUSY;
 		goto err;
 	}
-	req = embedded_payload(wrb);
 
-	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0, OPCODE_ETH_PROMISCUOUS);
+	req = promiscous_cmd.va;
+	sge = nonembedded_sgl(wrb);
 
-	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH,
-		OPCODE_ETH_PROMISCUOUS, sizeof(*req));
+	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1,
+					OPCODE_COMMON_NTWK_RX_FILTER);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			OPCODE_COMMON_NTWK_RX_FILTER, sizeof(*req));
 
-	/* In FW versions X.102.149/X.101.487 and later,
-	 * the port setting associated only with the
-	 * issuing pci function will take effect
-	 */
-	if (port_num)
-		req->port1_promiscuous = en;
-	else
-		req->port0_promiscuous = en;
+	req->if_id = cpu_to_le32(adapter->if_handle);
+	req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_PROMISCUOUS);
+	if (en)
+		req->if_flags = cpu_to_le32(BE_IF_FLAGS_PROMISCUOUS);
+
+	sge->pa_hi = cpu_to_le32(upper_32_bits(promiscous_cmd.dma));
+	sge->pa_lo = cpu_to_le32(promiscous_cmd.dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(promiscous_cmd.size);
 
 	status = be_mcc_notify_wait(adapter);
 
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
+	pci_free_consistent(adapter->pdev, promiscous_cmd.size,
+			promiscous_cmd.va, promiscous_cmd.dma);
 	return status;
 }
 

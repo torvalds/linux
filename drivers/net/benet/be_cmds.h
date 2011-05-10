@@ -714,13 +714,6 @@ struct be_cmd_req_vlan_config {
 	u16 normal_vlan[64];
 } __packed;
 
-struct be_cmd_req_promiscuous_config {
-	struct be_cmd_req_hdr hdr;
-	u8 port0_promiscuous;
-	u8 port1_promiscuous;
-	u16 rsvd0;
-} __packed;
-
 /******************** Multicast MAC Config *******************/
 #define BE_MAX_MC		64 /* set mcast promisc if > 64 */
 struct macaddr {
@@ -740,6 +733,20 @@ hw_stats_from_cmd(struct be_cmd_resp_get_stats *cmd)
 {
 	return &cmd->hw_stats;
 }
+
+
+/******************* RX FILTER ******************************/
+struct be_cmd_req_rx_filter {
+	struct be_cmd_req_hdr hdr;
+	u32 global_flags_mask;
+	u32 global_flags;
+	u32 if_flags_mask;
+	u32 if_flags;
+	u32 if_id;
+	u32 multicast_num;
+	struct macaddr mac[BE_MAX_MC];
+};
+
 
 /******************** Link Status Query *******************/
 struct be_cmd_req_link_status {
@@ -1122,8 +1129,7 @@ extern int be_cmd_modify_eqd(struct be_adapter *adapter, u32 eq_id, u32 eqd);
 extern int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id,
 			u16 *vtag_array, u32 num, bool untagged,
 			bool promiscuous);
-extern int be_cmd_promiscuous_config(struct be_adapter *adapter,
-			u8 port_num, bool en);
+extern int be_cmd_promiscuous_config(struct be_adapter *adapter, bool en);
 extern int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
 			struct net_device *netdev, struct be_dma_mem *mem);
 extern int be_cmd_set_flow_control(struct be_adapter *adapter,

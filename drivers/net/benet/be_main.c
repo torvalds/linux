@@ -698,7 +698,7 @@ static void be_set_multicast_list(struct net_device *netdev)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	if (netdev->flags & IFF_PROMISC) {
-		be_cmd_promiscuous_config(adapter, adapter->port_num, 1);
+		be_cmd_promiscuous_config(adapter, true);
 		adapter->promiscuous = true;
 		goto done;
 	}
@@ -706,7 +706,7 @@ static void be_set_multicast_list(struct net_device *netdev)
 	/* BE was previously in promiscuous mode; disable it */
 	if (adapter->promiscuous) {
 		adapter->promiscuous = false;
-		be_cmd_promiscuous_config(adapter, adapter->port_num, 0);
+		be_cmd_promiscuous_config(adapter, false);
 	}
 
 	/* Enable multicast promisc if num configured exceeds what we support */
