@@ -170,6 +170,10 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 			printk(KERN_ERR MOD "%s - Device %s not responding - "
 			       "tid %u qpid %u\n", func,
 			       pci_name(rdev->lldi.pdev), hwtid, qpid);
+			if (c4iw_fatal_error(rdev)) {
+				wr_waitp->ret = -EIO;
+				break;
+			}
 			to = to << 2;
 		}
 	} while (!ret);
@@ -187,9 +191,7 @@ struct c4iw_dev {
 	struct idr qpidr;
 	struct idr mmidr;
 	spinlock_t lock;
-	struct list_head entry;
 	struct dentry *debugfs_root;
-	u8 registered;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
