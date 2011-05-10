@@ -606,19 +606,12 @@ int rndis_filter_init(struct netvsc_driver *drv)
 	rndisDriver->OnLinkStatusChanged = Driver->OnLinkStatusChanged;*/
 
 	/* Save the original dispatch handlers before we override it */
-	rndis_filter.inner_drv.base.dev_add = drv->base.dev_add;
-	rndis_filter.inner_drv.base.dev_rm =
-					drv->base.dev_rm;
-	rndis_filter.inner_drv.base.cleanup = drv->base.cleanup;
-
 	rndis_filter.inner_drv.send = drv->send;
 	rndis_filter.inner_drv.recv_cb = drv->recv_cb;
 	rndis_filter.inner_drv.link_status_change =
 					drv->link_status_change;
 
 	/* Override */
-	drv->base.dev_add = rndis_filte_device_add;
-	drv->base.dev_rm = rndis_filter_device_remove;
 	drv->send = rndis_filter_send;
 	drv->recv_cb = rndis_filter_receive;
 
