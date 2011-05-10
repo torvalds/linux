@@ -174,23 +174,8 @@ static int blk_vsc_initialize(struct hv_driver *driver)
 
 	stor_driver = hvdr_to_stordr(driver);
 
-	/* Make sure we are at least 2 pages since 1 page is used for control */
-
 	driver->name = drv_name;
 	memcpy(&driver->dev_type, &dev_type, sizeof(struct hv_guid));
-
-
-	/*
-	 * Divide the ring buffer data size (which is 1 page less than the ring
-	 * buffer size since that page is reserved for the ring buffer indices)
-	 * by the max request size (which is
-	 * vmbus_channel_packet_multipage_buffer + struct vstor_packet + u64)
-	 */
-	stor_driver->max_outstanding_req_per_channel =
-		((stor_driver->ring_buffer_size - PAGE_SIZE) /
-		  ALIGN(MAX_MULTIPAGE_BUFFER_PACKET +
-			   sizeof(struct vstor_packet) + sizeof(u64),
-			   sizeof(u64)));
 
 	return ret;
 }
