@@ -4142,63 +4142,32 @@ int
 qla2x00_get_thermal_temp(scsi_qla_host_t *vha, uint16_t *temp, uint16_t *frac)
 {
 	int rval;
-	mbx_cmd_t mc;
-	mbx_cmd_t *mcp = &mc;
+	uint8_t byte;
 	struct qla_hw_data *ha = vha->hw;
 
-	DEBUG11(printk(KERN_INFO "%s(%ld): entered.\n", __func__, ha->host_no));
+	DEBUG11(printk(KERN_INFO "%s(%ld): entered.\n", __func__, vha->host_no));
 
-	/* High bits. */
-	mcp->mb[0] = MBC_READ_SFP;
-	mcp->mb[1] = 0x98;
-	mcp->mb[2] = 0;
-	mcp->mb[3] = 0;
-	mcp->mb[6] = 0;
-	mcp->mb[7] = 0;
-	mcp->mb[8] = 1;
-	mcp->mb[9] = 0x01;
-	mcp->mb[10] = BIT_13|BIT_0;
-	mcp->out_mb = MBX_10|MBX_9|MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
-	mcp->in_mb = MBX_1|MBX_0;
-	mcp->tov = MBX_TOV_SECONDS;
-	mcp->flags = 0;
-	rval = qla2x00_mailbox_command(vha, mcp);
+	/* Integer part */
+	rval = qla2x00_read_sfp(vha, 0, &byte, 0x98, 0x01, 1, BIT_13|BIT_0);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2_3_11(printk(KERN_WARNING
-		    "%s(%ld): failed=%x (%x).\n", __func__,
-		    vha->host_no, rval, mcp->mb[0]));
+		    "%s(%ld): failed=%x.\n", __func__, vha->host_no, rval));
 		ha->flags.thermal_supported = 0;
 		goto fail;
 	}
-	*temp = mcp->mb[1] & 0xFF;
+	*temp = byte;
 
-	/* Low bits. */
-	mcp->mb[0] = MBC_READ_SFP;
-	mcp->mb[1] = 0x98;
-	mcp->mb[2] = 0;
-	mcp->mb[3] = 0;
-	mcp->mb[6] = 0;
-	mcp->mb[7] = 0;
-	mcp->mb[8] = 1;
-	mcp->mb[9] = 0x10;
-	mcp->mb[10] = BIT_13|BIT_0;
-	mcp->out_mb = MBX_10|MBX_9|MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
-	mcp->in_mb = MBX_1|MBX_0;
-	mcp->tov = MBX_TOV_SECONDS;
-	mcp->flags = 0;
-	rval = qla2x00_mailbox_command(vha, mcp);
+	/* Fraction part */
+	rval = qla2x00_read_sfp(vha, 0, &byte, 0x98, 0x10, 1, BIT_13|BIT_0);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2_3_11(printk(KERN_WARNING
-		    "%s(%ld): failed=%x (%x).\n", __func__,
-		    vha->host_no, rval, mcp->mb[0]));
+		    "%s(%ld): failed=%x.\n", __func__, vha->host_no, rval));
 		ha->flags.thermal_supported = 0;
 		goto fail;
 	}
-	*frac = ((mcp->mb[1] & 0xFF) >> 6) * 25;
+	*frac = (byte >> 6) * 25;
 
-	if (rval == QLA_SUCCESS)
-		DEBUG11(printk(KERN_INFO
-		    "%s(%ld): done.\n", __func__, ha->host_no));
+	DEBUG11(printk(KERN_INFO "%s(%ld): done.\n", __func__, vha->host_no));
 fail:
 	return rval;
 }
