@@ -188,6 +188,16 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		wl1271_scan_stm(wl);
 	}
 
+	if (vector & PERIODIC_SCAN_REPORT_EVENT_ID) {
+		wl1271_debug(DEBUG_EVENT, "PERIODIC_SCAN_REPORT_EVENT "
+			     "(status 0x%0x)", mbox->scheduled_scan_status);
+	}
+
+	if (vector & PERIODIC_SCAN_COMPLETE_EVENT_ID) {
+		wl1271_debug(DEBUG_EVENT, "PERIODIC_SCAN_COMPLETE_EVENT "
+			     "(status 0x%0x)", mbox->scheduled_scan_status);
+	}
+
 	/* disable dynamic PS when requested by the firmware */
 	if (vector & SOFT_GEMINI_SENSE_EVENT_ID &&
 	    wl->bss_type == BSS_TYPE_STA_BSS) {
