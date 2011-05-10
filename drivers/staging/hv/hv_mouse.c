@@ -836,9 +836,6 @@ static int mousevsc_probe(struct hv_device *dev)
 {
 	int ret = 0;
 
-	struct mousevsc_drv_obj *mousevsc_drv_obj =
-		drv_to_mousedrv(dev->device.driver);
-
 	struct input_device_context *input_dev_ctx;
 
 	input_dev_ctx = kmalloc(sizeof(struct input_device_context),
@@ -847,7 +844,7 @@ static int mousevsc_probe(struct hv_device *dev)
 	dev_set_drvdata(&dev->device, input_dev_ctx);
 
 	/* Call to the vsc driver to add the device */
-	ret = mousevsc_drv_obj->base.dev_add(dev, NULL);
+	ret = mousevsc_on_device_add(dev, NULL);
 
 	if (ret != 0) {
 		DPRINT_ERR(INPUTVSC_DRV, "unable to add input vsc device");
