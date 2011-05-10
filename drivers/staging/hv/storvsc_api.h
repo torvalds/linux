@@ -144,18 +144,6 @@ static inline void put_stor_device(struct hv_device *device)
 	atomic_dec(&stor_device->ref_count);
 }
 
-static inline struct storvsc_driver *hvdr_to_stordr(struct hv_driver *d)
-{
-	return container_of(d, struct storvsc_driver, base);
-}
-
-static inline
-struct storvsc_driver *drv_to_stordrv(struct device_driver *d)
-{
-	struct hv_driver *hvdrv = drv_to_hv_drv(d);
-	return hvdr_to_stordr(hvdrv);
-}
-
 static inline void storvsc_wait_to_drain(struct storvsc_device *dev)
 {
 	dev->drain_notify = true;
