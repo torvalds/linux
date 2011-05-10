@@ -120,6 +120,12 @@ struct ampdu_info {
 
 };
 
+/* used for plushing ampdu packets */
+struct cb_del_ampdu_pars {
+	struct ieee80211_sta *sta;
+	u16 tid;
+};
+
 #define AMPDU_CLEANUPFLAG_RX   (0x1)
 #define AMPDU_CLEANUPFLAG_TX   (0x2)
 
@@ -133,9 +139,6 @@ static void wlc_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f);
 static scb_ampdu_tid_ini_t *wlc_ampdu_init_tid_ini(struct ampdu_info *ampdu,
 						   scb_ampdu_t *scb_ampdu,
 						   u8 tid, bool override);
-static void ampdu_cleanup_tid_ini(struct ampdu_info *ampdu,
-				  scb_ampdu_t *scb_ampdu,
-				  u8 tid, bool force);
 static void ampdu_update_max_txlen(struct ampdu_info *ampdu, u8 dur);
 static void scb_ampdu_update_config(struct ampdu_info *ampdu, struct scb *scb);
 static void scb_ampdu_update_config_all(struct ampdu_info *ampdu);
@@ -220,24 +223,6 @@ void wlc_ampdu_detach(struct ampdu_info *ampdu)
 	kfree(ampdu);
 }
 
-void scb_ampdu_cleanup(struct ampdu_info *ampdu, struct scb *scb)
-{
-	scb_ampdu_t *scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
-	u8 tid;
-
-	BCMMSG(ampdu->wlc->wiphy, "enter\n");
-	for (tid = 0; tid < AMPDU_MAX_SCB_TID; tid++) {
-		ampdu_cleanup_tid_ini(ampdu, scb_ampdu, tid, false);
-	}
-}
-
-/* reset the ampdu state machine so that it can gracefully handle packets that were
- * freed from the dma and tx queues during reinit
- */
-void wlc_ampdu_reset(struct ampdu_info *ampdu)
-{
-}
-
 static void scb_ampdu_update_config(struct ampdu_info *ampdu, struct scb *scb)
 {
 	scb_ampdu_t *scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
@@ -266,7 +251,7 @@ static void scb_ampdu_update_config(struct ampdu_info *ampdu, struct scb *scb)
 				 mcs2ampdu_table[FFPLD_MAX_MCS]);
 }
 
-void scb_ampdu_update_config_all(struct ampdu_info *ampdu)
+static void scb_ampdu_update_config_all(struct ampdu_info *ampdu)
 {
 	scb_ampdu_update_config(ampdu, ampdu->wlc->pub->global_scb);
 }
@@ -911,7 +896,7 @@ wlc_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 	wlc_ampdu_txflowcontrol(wlc, scb_ampdu, ini);
 }
 
-void
+static void
 rate_status(struct wlc_info *wlc, struct ieee80211_tx_info *tx_info,
 	    tx_status_t *txs, u8 mcs)
 {
@@ -1131,26 +1116,6 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	wlc_txfifo_complete(wlc, queue, ampdu->txpkt_weight);
 }
 
-static void
-ampdu_cleanup_tid_ini(struct ampdu_info *ampdu, scb_ampdu_t *scb_ampdu, u8 tid,
-		      bool force)
-{
-	scb_ampdu_tid_ini_t *ini;
-	ini = SCB_AMPDU_INI(scb_ampdu, tid);
-	if (!ini)
-		return;
-
-	BCMMSG(ampdu->wlc->wiphy, "wl%d: tid %d\n", ampdu->wlc->pub->unit, tid);
-
-	if (ini->tx_in_transit && !force)
-		return;
-
-	scb_ampdu = SCB_AMPDU_CUBBY(ampdu, ini->scb);
-
-	/* free all buffered tx packets */
-	bcm_pktq_pflush(&scb_ampdu->txq, ini->tid, true, NULL, 0);
-}
-
 /* initialize the initiator code for tid */
 static scb_ampdu_tid_ini_t *wlc_ampdu_init_tid_ini(struct ampdu_info *ampdu,
 						   scb_ampdu_t *scb_ampdu,
@@ -1226,35 +1191,6 @@ static void ampdu_update_max_txlen(struct ampdu_info *ampdu, u8 dur)
 	}
 }
 
-u8 BCMFASTPATH
-wlc_ampdu_null_delim_cnt(struct ampdu_info *ampdu, struct scb *scb,
-			 ratespec_t rspec, int phylen)
-{
-	scb_ampdu_t *scb_ampdu;
-	int bytes, cnt, tmp;
-	u8 tx_density;
-
-	scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
-	if (scb_ampdu->mpdu_density == 0)
-		return 0;
-
-	/* RSPEC2RATE is in kbps units ==> ~RSPEC2RATE/2^13 is in bytes/usec
-	   density x is in 2^(x-4) usec
-	   ==> # of bytes needed for req density = rate/2^(17-x)
-	   ==> # of null delimiters = ceil(ceil(rate/2^(17-x)) - phylen)/4)
-	 */
-
-	tx_density = scb_ampdu->mpdu_density;
-	tmp = 1 << (17 - tx_density);
-	bytes = CEIL(RSPEC2RATE(rspec), tmp);
-
-	if (bytes > phylen) {
-		cnt = CEIL(bytes - phylen, AMPDU_DELIMITER_LEN);
-		return (u8) cnt;
-	} else
-		return 0;
-}
-
 void wlc_ampdu_macaddr_upd(struct wlc_info *wlc)
 {
 	char template[T_RAM_ACCESS_SZ * 2];
@@ -1285,11 +1221,6 @@ void wlc_ampdu_shm_upd(struct ampdu_info *ampdu)
 		wlc_write_shm(wlc, M_WATCHDOG_8TU, WATCHDOG_8TU_DEF);
 	}
 }
-
-struct cb_del_ampdu_pars {
-	struct ieee80211_sta *sta;
-	u16 tid;
-};
 
 /*
  * callback function that helps flushing ampdu packets from a priority queue

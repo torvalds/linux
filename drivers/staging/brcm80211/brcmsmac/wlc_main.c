@@ -398,7 +398,6 @@ void wlc_reset(struct wlc_info *wlc)
 		sizeof(macstat_t));
 
 	wlc_bmac_reset(wlc->hw);
-	wlc_ampdu_reset(wlc->ampdu);
 	wlc->txretried = 0;
 
 }
