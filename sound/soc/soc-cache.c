@@ -133,12 +133,11 @@ static unsigned int snd_soc_7_9_read(struct snd_soc_codec *codec,
 static int snd_soc_7_9_write(struct snd_soc_codec *codec, unsigned int reg,
 			     unsigned int value)
 {
-	u8 data[2];
+	u16 data;
 
-	data[0] = (reg << 1) | ((value >> 8) & 0x0001);
-	data[1] = value & 0x00ff;
+	data = cpu_to_be16((reg << 9) | (value & 0x1ff));
 
-	return do_hw_write(codec, reg, value, data, 2);
+	return do_hw_write(codec, reg, value, &data, 2);
 }
 
 #if defined(CONFIG_SPI_MASTER)
