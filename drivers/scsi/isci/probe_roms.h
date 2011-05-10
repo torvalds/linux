@@ -60,15 +60,117 @@
 #include <linux/pci.h>
 #include "isci.h"
 
-struct isci_orom *isci_request_oprom(struct pci_dev *pdev);
+#define SCIC_SDS_PARM_NO_SPEED   0
+
+/* generation 1 (i.e. 1.5 Gb/s) */
+#define SCIC_SDS_PARM_GEN1_SPEED 1
+
+/* generation 2 (i.e. 3.0 Gb/s) */
+#define SCIC_SDS_PARM_GEN2_SPEED 2
+
+/* generation 3 (i.e. 6.0 Gb/s) */
+#define SCIC_SDS_PARM_GEN3_SPEED 3
+#define SCIC_SDS_PARM_MAX_SPEED SCIC_SDS_PARM_GEN3_SPEED
+
+/* parameters that can be set by module parameters */
+struct scic_sds_user_parameters {
+	struct sci_phy_user_params {
+		/**
+		 * This field specifies the NOTIFY (ENABLE SPIN UP) primitive
+		 * insertion frequency for this phy index.
+		 */
+		u32 notify_enable_spin_up_insertion_frequency;
+
+		/**
+		 * This method specifies the number of transmitted DWORDs within which
+		 * to transmit a single ALIGN primitive.  This value applies regardless
+		 * of what type of device is attached or connection state.  A value of
+		 * 0 indicates that no ALIGN primitives will be inserted.
+		 */
+		u16 align_insertion_frequency;
+
+		/**
+		 * This method specifies the number of transmitted DWORDs within which
+		 * to transmit 2 ALIGN primitives.  This applies for SAS connections
+		 * only.  A minimum value of 3 is required for this field.
+		 */
+		u16 in_connection_align_insertion_frequency;
+
+		/**
+		 * This field indicates the maximum speed generation to be utilized
+		 * by phys in the supplied port.
+		 * - A value of 1 indicates generation 1 (i.e. 1.5 Gb/s).
+		 * - A value of 2 indicates generation 2 (i.e. 3.0 Gb/s).
+		 * - A value of 3 indicates generation 3 (i.e. 6.0 Gb/s).
+		 */
+		u8 max_speed_generation;
+
+	} phys[SCI_MAX_PHYS];
+
+	/**
+	 * This field specifies the maximum number of direct attached devices
+	 * that can have power supplied to them simultaneously.
+	 */
+	u8 max_number_concurrent_device_spin_up;
+
+	/**
+	 * This field specifies the number of seconds to allow a phy to consume
+	 * power before yielding to another phy.
+	 *
+	 */
+	u8 phy_spin_up_delay_interval;
+
+	/**
+	 * These timer values specifies how long a link will remain open with no
+	 * activity in increments of a microsecond, it can be in increments of
+	 * 100 microseconds if the upper most bit is set.
+	 *
+	 */
+	u16 stp_inactivity_timeout;
+	u16 ssp_inactivity_timeout;
+
+	/**
+	 * These timer values specifies how long a link will remain open in increments
+	 * of 100 microseconds.
+	 *
+	 */
+	u16 stp_max_occupancy_timeout;
+	u16 ssp_max_occupancy_timeout;
+
+	/**
+	 * This timer value specifies how long a link will remain open with no
+	 * outbound traffic in increments of a microsecond.
+	 *
+	 */
+	u8 no_outbound_task_timeout;
+
+};
+
+/* XXX kill this union */
+union scic_user_parameters {
+	/**
+	 * This field specifies the user parameters specific to the
+	 * Storage Controller Unit (SCU) Driver Standard (SDS) version
+	 * 1.
+	 */
+	struct scic_sds_user_parameters sds1;
+};
+
+#define SCIC_SDS_PARM_PHY_MASK_MIN 0x0
+#define SCIC_SDS_PARM_PHY_MASK_MAX 0xF
+#define MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT 4
+
+struct scic_sds_oem_params;
+int scic_oem_parameters_validate(struct scic_sds_oem_params *oem);
 
 union scic_oem_parameters;
-struct isci_orom;
+void scic_oem_parameters_get(struct scic_sds_controller *scic,
+			     union scic_oem_parameters *oem);
 
-enum sci_status isci_parse_oem_parameters(
-	union scic_oem_parameters *oem_params,
-	struct isci_orom *orom,
-	int scu_index);
+struct isci_orom;
+struct isci_orom *isci_request_oprom(struct pci_dev *pdev);
+enum sci_status isci_parse_oem_parameters(union scic_oem_parameters *oem,
+					  struct isci_orom *orom, int scu_index);
 struct isci_orom *isci_request_firmware(struct pci_dev *pdev, const struct firmware *fw);
 struct isci_orom *isci_get_efi_var(struct pci_dev *pdev);
 
@@ -152,6 +254,16 @@ struct scic_sds_oem_params {
 		uint32_t afe_tx_amp_control3;
 	} phys[SCI_MAX_PHYS];
 } __attribute__ ((packed));
+
+/* XXX kill this union */
+union scic_oem_parameters {
+	/**
+	 * This field specifies the OEM parameters specific to the
+	 * Storage Controller Unit (SCU) Driver Standard (SDS) version
+	 * 1.
+	 */
+	struct scic_sds_oem_params sds1;
+};
 
 struct isci_orom {
 	struct sci_bios_oem_param_block_hdr hdr;

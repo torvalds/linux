@@ -54,7 +54,6 @@
  */
 
 #include "isci.h"
-#include "scic_port.h"
 #include "task.h"
 #include "request.h"
 #include "sata.h"

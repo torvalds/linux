@@ -57,9 +57,8 @@
 #include "host.h"
 #include "phy.h"
 #include "scu_event_codes.h"
-#include "scic_port.h"
-#include "scic_config_parameters.h"
 #include "timers.h"
+#include "probe_roms.h"
 
 /* Maximum arbitration wait time in micro-seconds */
 #define SCIC_SDS_PHY_MAX_ARBITRATION_WAIT_TIME  (700)

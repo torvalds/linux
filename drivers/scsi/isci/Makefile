@@ -1,4 +1,3 @@
-EXTRA_CFLAGS += -Idrivers/scsi/isci/core/ -Idrivers/scsi/isci/
 obj-$(CONFIG_SCSI_ISCI) += isci.o
 isci-objs := init.o phy.o request.o sata.o \
 	     remote_device.o port.o timers.o \
@@ -10,5 +9,4 @@ isci-objs := init.o phy.o request.o sata.o \
 	     stp_request.o \
 	     ssp_request.o \
 	     smp_request.o \
-	     core/scic_sds_port.o \
-	     core/scic_sds_port_configuration_agent.o \
+	     port_config.o \

@@ -54,7 +54,6 @@
  */
 
 #include "host.h"
-#include "scic_sds_port_configuration_agent.h"
 #include "timers.h"
 
 #define SCIC_SDS_MPC_RECONFIGURATION_TIMEOUT    (10)

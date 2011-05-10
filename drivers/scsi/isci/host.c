@@ -61,7 +61,6 @@
 #include "probe_roms.h"
 #include "remote_device.h"
 #include "request.h"
-#include "scic_sds_port_configuration_agent.h"
 #include "scu_completion_codes.h"
 #include "scu_event_codes.h"
 #include "registers.h"

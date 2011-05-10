@@ -58,6 +58,7 @@
 #include <scsi/sas.h>
 #include <scsi/libsas.h>
 #include "state_machine.h"
+#include "sas.h"
 
 /* This is the timeout value for the SATA phy to wait for a SIGNATURE FIS
  * before restarting the starting state machine.  Technically, the old parallel

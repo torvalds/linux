@@ -55,7 +55,6 @@
 
 #include "host.h"
 #include "state_machine.h"
-#include "scic_sds_port.h"
 #include "remote_device.h"
 #include "remote_node_context.h"
 #include "scu_event_codes.h"

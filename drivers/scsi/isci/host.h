@@ -55,7 +55,6 @@
 #ifndef _SCI_HOST_H_
 #define _SCI_HOST_H_
 
-#include "scic_config_parameters.h"
 #include "remote_device.h"
 #include "phy.h"
 #include "pool.h"
@@ -64,10 +63,11 @@
 #include "registers.h"
 #include "scu_unsolicited_frame.h"
 #include "unsolicited_frame_control.h"
-#include "scic_sds_port_configuration_agent.h"
+#include "probe_roms.h"
 
 struct scic_sds_request;
 struct scu_task_context;
+
 
 /**
  * struct scic_power_control -
@@ -105,6 +105,24 @@ struct scic_power_control {
 	 */
 	struct scic_sds_phy *requesters[SCI_MAX_PHYS];
 
+};
+
+struct scic_sds_port_configuration_agent;
+typedef void (*port_config_fn)(struct scic_sds_controller *,
+			       struct scic_sds_port_configuration_agent *,
+			       struct scic_sds_port *, struct scic_sds_phy *);
+
+struct scic_sds_port_configuration_agent {
+	u16 phy_configured_mask;
+	u16 phy_ready_mask;
+	struct {
+		u8 min_index;
+		u8 max_index;
+	} phy_valid_port_range[SCI_MAX_PHYS];
+	bool timer_pending;
+	port_config_fn link_up_handler;
+	port_config_fn link_down_handler;
+	void *timer;
 };
 
 /**
@@ -800,4 +818,11 @@ u16 scic_controller_allocate_io_tag(
 enum sci_status scic_controller_free_io_tag(
 	struct scic_sds_controller *scic,
 	u16 io_tag);
+
+void scic_sds_port_configuration_agent_construct(
+	struct scic_sds_port_configuration_agent *port_agent);
+
+enum sci_status scic_sds_port_configuration_agent_initialize(
+	struct scic_sds_controller *controller,
+	struct scic_sds_port_configuration_agent *port_agent);
 #endif
