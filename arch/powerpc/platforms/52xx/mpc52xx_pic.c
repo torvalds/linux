@@ -486,7 +486,7 @@ void __init mpc52xx_init_irq(void)
 unsigned int mpc52xx_get_irq(void)
 {
 	u32 status;
-	int irq = NO_IRQ_IGNORE;
+	int irq;
 
 	status = in_be32(&intr->enc_status);
 	if (status & 0x00000400) {	/* critical */
@@ -509,6 +509,8 @@ unsigned int mpc52xx_get_irq(void)
 		} else {
 			irq |= (MPC52xx_IRQ_L1_PERP << MPC52xx_IRQ_L1_OFFSET);
 		}
+	} else {
+		return NO_IRQ;
 	}
 
 	return irq_linear_revmap(mpc52xx_irqhost, irq);
