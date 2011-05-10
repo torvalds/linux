@@ -84,9 +84,6 @@ struct rndis_filter_packet {
 };
 
 
-static int rndis_filte_device_add(struct hv_device *dev,
-				  void *additional_info);
-
 static int rndis_filter_device_remove(struct hv_device *dev);
 
 static void rndis_filter_cleanup(struct hv_driver *drv);
@@ -746,7 +743,7 @@ static int rndis_filter_close_device(struct rndis_device *dev)
 	return ret;
 }
 
-static int rndis_filte_device_add(struct hv_device *dev,
+int rndis_filte_device_add(struct hv_device *dev,
 				  void *additional_info)
 {
 	int ret;
