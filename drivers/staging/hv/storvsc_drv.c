@@ -784,14 +784,9 @@ static struct scsi_host_template scsi_driver = {
 static int storvsc_probe(struct hv_device *device)
 {
 	int ret;
-	struct storvsc_driver *storvsc_drv_obj =
-		 drv_to_stordrv(device->device.driver);
 	struct Scsi_Host *host;
 	struct hv_host_device *host_dev;
 	struct storvsc_device_info device_info;
-
-	if (!storvsc_drv_obj->base.dev_add)
-		return -1;
 
 	host = scsi_host_alloc(&scsi_driver,
 			       sizeof(struct hv_host_device));
@@ -818,7 +813,7 @@ static int storvsc_probe(struct hv_device *device)
 
 	device_info.port_number = host->host_no;
 	/* Call to the vsc driver to add the device */
-	ret = storvsc_drv_obj->base.dev_add(device, (void *)&device_info);
+	ret = storvsc_dev_add(device, (void *)&device_info);
 
 	if (ret != 0) {
 		kmem_cache_destroy(host_dev->request_pool);
