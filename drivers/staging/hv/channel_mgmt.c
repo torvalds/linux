@@ -35,7 +35,7 @@
 
 struct vmbus_channel_message_table_entry {
 	enum vmbus_channel_message_type messageType;
-	void (*messageHandler)(struct vmbus_channel_message_header *msg);
+	void (*message_handler)(struct vmbus_channel_message_header *msg);
 };
 
 #define MAX_MSG_TYPES                    4
@@ -740,8 +740,8 @@ void vmbus_onmessage(void *context)
 		return;
 	}
 
-	if (gChannelMessageTable[hdr->msgtype].messageHandler)
-		gChannelMessageTable[hdr->msgtype].messageHandler(hdr);
+	if (gChannelMessageTable[hdr->msgtype].message_handler)
+		gChannelMessageTable[hdr->msgtype].message_handler(hdr);
 	else
 		pr_err("Unhandled channel message type %d\n", hdr->msgtype);
 }
