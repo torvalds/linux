@@ -26,6 +26,7 @@
 #define _STORVSC_API_H_
 
 #include <linux/kernel.h>
+#include <linux/wait.h>
 #include "vstorage.h"
 #include "vmbus_api.h"
 #include "vmbus.h"
@@ -108,7 +109,10 @@ struct storvsc_device {
 	/* 0 indicates the device is being destroyed */
 	atomic_t ref_count;
 
+	bool	 drain_notify;
 	atomic_t num_outstanding_req;
+
+	wait_queue_head_t waiting_to_drain;
 
 	/*
 	 * Each unique Port/Path/Target represents 1 channel ie scsi
@@ -159,6 +163,14 @@ struct storvsc_driver *drv_to_stordrv(struct device_driver *d)
 {
 	struct hv_driver *hvdrv = drv_to_hv_drv(d);
 	return hvdr_to_stordr(hvdrv);
+}
+
+static inline void storvsc_wait_to_drain(struct storvsc_device *dev)
+{
+	dev->drain_notify = true;
+	wait_event(dev->waiting_to_drain,
+		   atomic_read(&dev->num_outstanding_req) == 0);
+	dev->drain_notify = false;
 }
 
 /* Interface */

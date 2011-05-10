@@ -47,6 +47,7 @@ static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
 	/* (ie get_stor_device() and must_get_stor_device()) to proceed. */
 	atomic_cmpxchg(&stor_device->ref_count, 0, 2);
 
+	init_waitqueue_head(&stor_device->waiting_to_drain);
 	stor_device->device = device;
 	device->ext = stor_device;
 
@@ -332,7 +333,10 @@ static void stor_vsc_on_io_completion(struct hv_device *device,
 
 	request->on_io_completion(request);
 
-	atomic_dec(&stor_device->num_outstanding_req);
+	if (atomic_dec_and_test(&stor_device->num_outstanding_req) &&
+		stor_device->drain_notify)
+		wake_up(&stor_device->waiting_to_drain);
+
 
 	put_stor_device(device);
 }
