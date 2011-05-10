@@ -199,6 +199,43 @@ void hv_dump_ring_info(struct hv_ring_buffer_info *ring_info, char *prefix)
 }
 
 
+/*
+ *
+ * hv_copyfrom_ringbuffer()
+ *
+ * Helper routine to copy to source from ring buffer.
+ * Assume there is enough room. Handles wrap-around in src case only!!
+ *
+ */
+static u32 hv_copyfrom_ringbuffer(
+	struct hv_ring_buffer_info	*ring_info,
+	void				*dest,
+	u32				destlen,
+	u32				start_read_offset)
+{
+	void *ring_buffer = hv_get_ring_buffer(ring_info);
+	u32 ring_buffer_size = hv_get_ring_buffersize(ring_info);
+
+	u32 frag_len;
+
+	/* wrap-around detected at the src */
+	if (destlen > ring_buffer_size - start_read_offset) {
+		frag_len = ring_buffer_size - start_read_offset;
+
+		memcpy(dest, ring_buffer + start_read_offset, frag_len);
+		memcpy(dest + frag_len, ring_buffer, destlen - frag_len);
+	} else
+
+		memcpy(dest, ring_buffer + start_read_offset, destlen);
+
+
+	start_read_offset += destlen;
+	start_read_offset %= ring_buffer_size;
+
+	return start_read_offset;
+}
+
+
 
 static u32
 hv_copyto_ringbuffer(
@@ -206,14 +243,6 @@ hv_copyto_ringbuffer(
 	u32				start_write_offset,
 	void				*src,
 	u32				srclen);
-
-static u32
-hv_copyfrom_ringbuffer(
-	struct hv_ring_buffer_info	*ring_info,
-	void				*dest,
-	u32				destlen,
-	u32				start_read_offset);
-
 
 
 /*
@@ -502,43 +531,5 @@ hv_copyto_ringbuffer(
 	start_write_offset %= ring_buffer_size;
 
 	return start_write_offset;
-}
-
-
-/*
- *
- * hv_copyfrom_ringbuffer()
- *
- * Helper routine to copy to source from ring buffer.
- * Assume there is enough room. Handles wrap-around in src case only!!
- *
- */
-static u32
-hv_copyfrom_ringbuffer(
-	struct hv_ring_buffer_info	*ring_info,
-	void				*dest,
-	u32				destlen,
-	u32				start_read_offset)
-{
-	void *ring_buffer = hv_get_ring_buffer(ring_info);
-	u32 ring_buffer_size = hv_get_ring_buffersize(ring_info);
-
-	u32 frag_len;
-
-	/* wrap-around detected at the src */
-	if (destlen > ring_buffer_size - start_read_offset) {
-		frag_len = ring_buffer_size - start_read_offset;
-
-		memcpy(dest, ring_buffer + start_read_offset, frag_len);
-		memcpy(dest + frag_len, ring_buffer, destlen - frag_len);
-	} else
-
-		memcpy(dest, ring_buffer + start_read_offset, destlen);
-
-
-	start_read_offset += destlen;
-	start_read_offset %= ring_buffer_size;
-
-	return start_read_offset;
 }
 
