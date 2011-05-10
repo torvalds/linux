@@ -979,7 +979,6 @@ static void mousevsc_drv_exit(void)
 
 static int mouse_vsc_initialize(struct hv_driver *driver)
 {
-	driver->name = driver_name;
 	memcpy(&driver->dev_type, &mouse_guid,
 	       sizeof(struct hv_guid));
 
@@ -998,6 +997,7 @@ static int __init mousevsc_init(void)
 	mouse_vsc_initialize(&input_drv_obj->base);
 
 	drv->driver.name = driver_name;
+	drv->name = driver_name;
 
 	/* The driver belongs to vmbus */
 	vmbus_child_driver_register(&drv->driver);
