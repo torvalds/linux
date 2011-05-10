@@ -1198,9 +1198,7 @@ static int pass_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 	PDBG("%s ep %p status %d error %d\n", __func__, ep,
 	     rpl->status, status2errno(rpl->status));
-	ep->com.wr_wait.ret = status2errno(rpl->status);
-	ep->com.wr_wait.done = 1;
-	wake_up(&ep->com.wr_wait.wait);
+	c4iw_wake_up(&ep->com.wr_wait, status2errno(rpl->status));
 
 	return 0;
 }
@@ -1234,9 +1232,7 @@ static int close_listsrv_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct c4iw_listen_ep *ep = lookup_stid(t, stid);
 
 	PDBG("%s ep %p\n", __func__, ep);
-	ep->com.wr_wait.ret = status2errno(rpl->status);
-	ep->com.wr_wait.done = 1;
-	wake_up(&ep->com.wr_wait.wait);
+	c4iw_wake_up(&ep->com.wr_wait, status2errno(rpl->status));
 	return 0;
 }
 
@@ -1492,17 +1488,13 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 		 * in rdma connection migration (see c4iw_accept_cr()).
 		 */
 		__state_set(&ep->com, CLOSING);
-		ep->com.wr_wait.done = 1;
-		ep->com.wr_wait.ret = -ECONNRESET;
 		PDBG("waking up ep %p tid %u\n", ep, ep->hwtid);
-		wake_up(&ep->com.wr_wait.wait);
+		c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
 		break;
 	case MPA_REP_SENT:
 		__state_set(&ep->com, CLOSING);
-		ep->com.wr_wait.done = 1;
-		ep->com.wr_wait.ret = -ECONNRESET;
 		PDBG("waking up ep %p tid %u\n", ep, ep->hwtid);
-		wake_up(&ep->com.wr_wait.wait);
+		c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
 		break;
 	case FPDU_MODE:
 		start_ep_timer(ep);
@@ -1579,9 +1571,7 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 	/*
 	 * Wake up any threads in rdma_init() or rdma_fini().
 	 */
-	ep->com.wr_wait.done = 1;
-	ep->com.wr_wait.ret = -ECONNRESET;
-	wake_up(&ep->com.wr_wait.wait);
+	c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
 
 	mutex_lock(&ep->com.mutex);
 	switch (ep->com.state) {
@@ -2294,14 +2284,8 @@ static int fw6_msg(struct c4iw_dev *dev, struct sk_buff *skb)
 		ret = (int)((be64_to_cpu(rpl->data[0]) >> 8) & 0xff);
 		wr_waitp = (struct c4iw_wr_wait *)(__force unsigned long) rpl->data[1];
 		PDBG("%s wr_waitp %p ret %u\n", __func__, wr_waitp, ret);
-		if (wr_waitp) {
-			if (ret)
-				wr_waitp->ret = -ret;
-			else
-				wr_waitp->ret = 0;
-			wr_waitp->done = 1;
-			wake_up(&wr_waitp->wait);
-		}
+		if (wr_waitp)
+			c4iw_wake_up(wr_waitp, ret ? -ret : 0);
 		kfree_skb(skb);
 		break;
 	case 2:

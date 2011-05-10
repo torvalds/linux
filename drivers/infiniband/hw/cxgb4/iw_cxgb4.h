@@ -131,17 +131,28 @@ static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 
 #define C4IW_WR_TO (10*HZ)
 
+enum {
+	REPLY_READY = 0,
+};
+
 struct c4iw_wr_wait {
 	wait_queue_head_t wait;
-	int done;
+	unsigned long status;
 	int ret;
 };
 
 static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
 {
 	wr_waitp->ret = 0;
-	wr_waitp->done = 0;
+	wr_waitp->status = 0;
 	init_waitqueue_head(&wr_waitp->wait);
+}
+
+static inline void c4iw_wake_up(struct c4iw_wr_wait *wr_waitp, int ret)
+{
+	wr_waitp->ret = ret;
+	set_bit(REPLY_READY, &wr_waitp->status);
+	wake_up(&wr_waitp->wait);
 }
 
 static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
@@ -150,22 +161,23 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 				 const char *func)
 {
 	unsigned to = C4IW_WR_TO;
-	do {
+	int ret;
 
-		wait_event_timeout(wr_waitp->wait, wr_waitp->done, to);
-		if (!wr_waitp->done) {
+	do {
+		ret = wait_event_timeout(wr_waitp->wait,
+			test_and_clear_bit(REPLY_READY, &wr_waitp->status), to);
+		if (!ret) {
 			printk(KERN_ERR MOD "%s - Device %s not responding - "
 			       "tid %u qpid %u\n", func,
 			       pci_name(rdev->lldi.pdev), hwtid, qpid);
 			to = to << 2;
 		}
-	} while (!wr_waitp->done);
+	} while (!ret);
 	if (wr_waitp->ret)
 		PDBG("%s: FW reply %d tid %u qpid %u\n",
 		     pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
 	return wr_waitp->ret;
 }
-
 
 struct c4iw_dev {
 	struct ib_device ibdev;
