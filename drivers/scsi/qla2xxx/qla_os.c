@@ -172,6 +172,12 @@ MODULE_PARM_DESC(ql2xdontresethba,
 	" 0 (Default) -- Reset on failure.\n"
 	" 1 -- Do not reset on failure.\n");
 
+uint ql2xmaxlun = MAX_LUNS;
+module_param(ql2xmaxlun, uint, S_IRUGO);
+MODULE_PARM_DESC(ql2xmaxlun,
+		"Defines the maximum LU number to register with the SCSI "
+		"midlayer. Default is 65535.");
+
 /*
  * SCSI host template entry points
  */
@@ -2136,7 +2142,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		host->max_cmd_len = MAX_CMDSZ;
 	host->max_channel = MAX_BUSES - 1;
-	host->max_lun = MAX_LUNS;
+	host->max_lun = ql2xmaxlun;
 	host->transportt = qla2xxx_transport_template;
 	sht->vendor_id = (SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_QLOGIC);
 
