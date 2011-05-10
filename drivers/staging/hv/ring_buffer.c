@@ -285,13 +285,13 @@ void ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 /*++
 
 Name:
-	get_ringbuffer_interrupt_mask()
+	hv_get_ringbuffer_interrupt_mask()
 
 Description:
 	Get the interrupt mask for the specified ring buffer
 
 --*/
-u32 get_ringbuffer_interrupt_mask(struct hv_ring_buffer_info *rbi)
+u32 hv_get_ringbuffer_interrupt_mask(struct hv_ring_buffer_info *rbi)
 {
 	return rbi->ring_buffer->interrupt_mask;
 }

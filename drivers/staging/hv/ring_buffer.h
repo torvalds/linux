@@ -93,7 +93,7 @@ int hv_ringbuffer_read(struct hv_ring_buffer_info *ring_info,
 		   u32 buflen,
 		   u32 offset);
 
-u32 get_ringbuffer_interrupt_mask(struct hv_ring_buffer_info *ring_info);
+u32 hv_get_ringbuffer_interrupt_mask(struct hv_ring_buffer_info *ring_info);
 
 void dump_ring_info(struct hv_ring_buffer_info *ring_info, char *prefix);
 
