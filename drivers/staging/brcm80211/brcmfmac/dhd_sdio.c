@@ -3690,8 +3690,11 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 				} else {
 					/* Give up on data,
 					request rtx of events */
-					DHD_ERROR(("%s (nextlen): bcm_pkt_buf_get_skb failed: len %d rdlen %d " "expected rxseq %d\n",
-						__func__, len, rdlen, rxseq));
+					DHD_ERROR(("%s (nextlen): "
+						   "bcm_pkt_buf_get_skb failed:"
+						   " len %d rdlen %d expected"
+						   " rxseq %d\n", __func__,
+						   len, rdlen, rxseq));
 					/* Just go try again w/normal
 					header read */
 					dhd_os_sdunlock_rxq(bus->dhd);
