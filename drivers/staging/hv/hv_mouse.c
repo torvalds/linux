@@ -980,19 +980,11 @@ static void mousevsc_drv_exit(void)
 
 static int mouse_vsc_initialize(struct hv_driver *driver)
 {
-	struct mousevsc_drv_obj *input_drv =
-		(struct mousevsc_drv_obj *)driver;
-	int ret = 0;
-
 	driver->name = driver_name;
 	memcpy(&driver->dev_type, &mouse_guid,
 	       sizeof(struct hv_guid));
 
-	/* Setup the dispatch table */
-	input_drv->base.dev_add = mousevsc_on_device_add;
-	input_drv->base.dev_rm = mousevsc_on_device_remove;
-
-	return ret;
+	return 0;
 }
 
 
