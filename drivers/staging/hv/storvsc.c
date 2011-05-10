@@ -277,7 +277,7 @@ cleanup:
 	return ret;
 }
 
-static void stor_vsc_on_io_completion(struct hv_device *device,
+static void storvsc_on_io_completion(struct hv_device *device,
 				  struct vstor_packet *vstor_packet,
 				  struct hv_storvsc_request *request)
 {
@@ -348,7 +348,7 @@ static void stor_vsc_on_receive(struct hv_device *device,
 	switch (vstor_packet->operation) {
 	case VSTOR_OPERATION_COMPLETE_IO:
 		DPRINT_DBG(STORVSC, "IO_COMPLETE_OPERATION");
-		stor_vsc_on_io_completion(device, vstor_packet, request);
+		storvsc_on_io_completion(device, vstor_packet, request);
 		break;
 	case VSTOR_OPERATION_REMOVE_DEVICE:
 		DPRINT_INFO(STORVSC, "REMOVE_DEVICE_OPERATION");
