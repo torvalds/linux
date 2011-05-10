@@ -246,7 +246,7 @@ static const u8 acbitmap2maxprio[] = {
 #define WLC_REPLAY_CNTRS_VALUE	WPA_CAP_16_REPLAY_CNTRS
 
 /* local prototypes */
-static u16 BCMFASTPATH wlc_d11hdrs_mac80211(struct wlc_info *wlc,
+static u16 wlc_d11hdrs_mac80211(struct wlc_info *wlc,
 					       struct ieee80211_hw *hw,
 					       struct sk_buff *p,
 					       struct scb *scb, uint frag,
@@ -4812,13 +4812,13 @@ static u16 wlc_rate_shm_offset(struct wlc_info *wlc, u8 rate)
  *
  * Returns true if packet consumed (queued), false if not.
  */
-bool BCMFASTPATH
+bool
 wlc_prec_enq(struct wlc_info *wlc, struct pktq *q, void *pkt, int prec)
 {
 	return wlc_prec_enq_head(wlc, q, pkt, prec, false);
 }
 
-bool BCMFASTPATH
+bool
 wlc_prec_enq_head(struct wlc_info *wlc, struct pktq *q, struct sk_buff *pkt,
 		  int prec, bool head)
 {
@@ -4874,7 +4874,7 @@ wlc_prec_enq_head(struct wlc_info *wlc, struct pktq *q, struct sk_buff *pkt,
 	return true;
 }
 
-void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
+void wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 			     uint prec)
 {
 	struct wlc_info *wlc = (struct wlc_info *) ctx;
@@ -4915,7 +4915,7 @@ void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 	}
 }
 
-bool BCMFASTPATH
+bool
 wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 		     struct ieee80211_hw *hw)
 {
@@ -4940,7 +4940,7 @@ wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 	return 0;
 }
 
-void BCMFASTPATH wlc_send_q(struct wlc_info *wlc)
+void wlc_send_q(struct wlc_info *wlc)
 {
 	struct sk_buff *pkt[DOT11_MAXNUMFRAGS];
 	int prec;
@@ -5027,7 +5027,7 @@ bcmc_fid_generate(struct wlc_info *wlc, struct wlc_bsscfg *bsscfg,
 	return frameid;
 }
 
-void BCMFASTPATH
+void
 wlc_txfifo(struct wlc_info *wlc, uint fifo, struct sk_buff *p, bool commit,
 	   s8 txpktpend)
 {
@@ -5111,7 +5111,7 @@ wlc_compute_airtime(struct wlc_info *wlc, ratespec_t rspec, uint length)
 	return usec;
 }
 
-void BCMFASTPATH
+void
 wlc_compute_plcp(struct wlc_info *wlc, ratespec_t rspec, uint length, u8 *plcp)
 {
 	if (IS_MCS(rspec)) {
@@ -5139,7 +5139,7 @@ static void wlc_compute_mimo_plcp(ratespec_t rspec, uint length, u8 *plcp)
 }
 
 /* Rate: 802.11 rate code, length: PSDU length in octets */
-static void BCMFASTPATH
+static void
 wlc_compute_ofdm_plcp(ratespec_t rspec, u32 length, u8 *plcp)
 {
 	u8 rate_signal;
@@ -5231,7 +5231,7 @@ static void wlc_compute_cck_plcp(struct wlc_info *wlc, ratespec_t rspec,
  * next_frag_len	next MPDU length in bytes
  * preamble_type	use short/GF or long/MM PLCP header
  */
-static u16 BCMFASTPATH
+static u16
 wlc_compute_frame_dur(struct wlc_info *wlc, ratespec_t rate, u8 preamble_type,
 		      uint next_frag_len)
 {
@@ -5265,7 +5265,7 @@ wlc_compute_frame_dur(struct wlc_info *wlc, ratespec_t rate, u8 preamble_type,
  * rate			next MPDU rate in unit of 500kbps
  * frame_len		next MPDU frame length in bytes
  */
-u16 BCMFASTPATH
+u16
 wlc_compute_rtscts_dur(struct wlc_info *wlc, bool cts_only, ratespec_t rts_rate,
 		       ratespec_t frame_rate, u8 rts_preamble_type,
 		       u8 frame_preamble_type, uint frame_len, bool ba)
@@ -5297,7 +5297,7 @@ wlc_compute_rtscts_dur(struct wlc_info *wlc, bool cts_only, ratespec_t rts_rate,
 	return dur;
 }
 
-u16 BCMFASTPATH wlc_phytxctl1_calc(struct wlc_info *wlc, ratespec_t rspec)
+u16 wlc_phytxctl1_calc(struct wlc_info *wlc, ratespec_t rspec)
 {
 	u16 phyctl1 = 0;
 	u16 bw;
@@ -5344,7 +5344,7 @@ u16 BCMFASTPATH wlc_phytxctl1_calc(struct wlc_info *wlc, ratespec_t rspec)
 	return phyctl1;
 }
 
-ratespec_t BCMFASTPATH
+ratespec_t
 wlc_rspec_to_rts_rspec(struct wlc_info *wlc, ratespec_t rspec, bool use_rspec,
 		       u16 mimo_ctlchbw)
 {
@@ -5400,7 +5400,7 @@ wlc_rspec_to_rts_rspec(struct wlc_info *wlc, ratespec_t rspec, bool use_rspec,
  * headroom == D11_PHY_HDR_LEN + D11_TXH_LEN (D11_TXH_LEN is now 104 bytes)
  *
  */
-static u16 BCMFASTPATH
+static u16
 wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 		     struct sk_buff *p, struct scb *scb, uint frag,
 		     uint nfrags, uint queue, uint next_frag_len,
@@ -6199,7 +6199,7 @@ static void wlc_war16165(struct wlc_info *wlc, bool tx)
 
 /* process an individual tx_status_t */
 /* WLC_HIGH_API */
-bool BCMFASTPATH
+bool
 wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 {
 	struct sk_buff *p;
@@ -6359,7 +6359,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 
 }
 
-void BCMFASTPATH
+void
 wlc_txfifo_complete(struct wlc_info *wlc, uint fifo, s8 txpktpend)
 {
 	TXPKTPENDDEC(wlc, fifo, txpktpend);
@@ -6667,7 +6667,7 @@ void wlc_bss_list_free(struct wlc_info *wlc, struct wlc_bss_list *bss_list)
  * Param 'bound' indicates max. # frames to process before break out.
  */
 /* WLC_HIGH_API */
-void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
+void wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 {
 	d11rxhdr_t *rxh;
 	struct ieee80211_hdr *h;
@@ -6767,7 +6767,7 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
  * Formula given by HT PHY Spec v 1.13
  *   len = 3(nsyms + nstream + 3) - 3
  */
-u16 BCMFASTPATH
+u16
 wlc_calc_lsig_len(struct wlc_info *wlc, ratespec_t ratespec, uint mac_len)
 {
 	uint nsyms, len = 0, kNdps;
@@ -6807,7 +6807,7 @@ wlc_calc_lsig_len(struct wlc_info *wlc, ratespec_t ratespec, uint mac_len)
 }
 
 /* calculate frame duration of a given rate and length, return time in usec unit */
-uint BCMFASTPATH
+uint
 wlc_calc_frame_time(struct wlc_info *wlc, ratespec_t ratespec, u8 preamble_type,
 		    uint mac_len)
 {
@@ -6937,7 +6937,7 @@ wlc_calc_ba_time(struct wlc_info *wlc, ratespec_t rspec, u8 preamble_type)
 				    FCS_LEN));
 }
 
-static uint BCMFASTPATH
+static uint
 wlc_calc_ack_time(struct wlc_info *wlc, ratespec_t rspec, u8 preamble_type)
 {
 	uint dur = 0;

@@ -33,7 +33,7 @@ MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver utilities.");
 MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
-struct sk_buff *BCMFASTPATH bcm_pkt_buf_get_skb(uint len)
+struct sk_buff *bcm_pkt_buf_get_skb(uint len)
 {
 	struct sk_buff *skb;
 
@@ -48,7 +48,7 @@ struct sk_buff *BCMFASTPATH bcm_pkt_buf_get_skb(uint len)
 EXPORT_SYMBOL(bcm_pkt_buf_get_skb);
 
 /* Free the driver packet. Free the tag if present */
-void BCMFASTPATH bcm_pkt_buf_free_skb(struct sk_buff *skb)
+void bcm_pkt_buf_free_skb(struct sk_buff *skb)
 {
 	struct sk_buff *nskb;
 	int nest = 0;
@@ -107,7 +107,7 @@ uint bcm_pktfrombuf(struct sk_buff *p, uint offset, int len,
 EXPORT_SYMBOL(bcm_pktfrombuf);
 
 /* return total length of buffer chain */
-uint BCMFASTPATH bcm_pkttotlen(struct sk_buff *p)
+uint bcm_pkttotlen(struct sk_buff *p)
 {
 	uint total;
 
@@ -122,7 +122,7 @@ EXPORT_SYMBOL(bcm_pkttotlen);
  * osl multiple-precedence packet queue
  * hi_prec is always >= the number of the highest non-empty precedence
  */
-struct sk_buff *BCMFASTPATH bcm_pktq_penq(struct pktq *pq, int prec,
+struct sk_buff *bcm_pktq_penq(struct pktq *pq, int prec,
 				      struct sk_buff *p)
 {
 	struct pktq_prec *q;
@@ -149,7 +149,7 @@ struct sk_buff *BCMFASTPATH bcm_pktq_penq(struct pktq *pq, int prec,
 }
 EXPORT_SYMBOL(bcm_pktq_penq);
 
-struct sk_buff *BCMFASTPATH bcm_pktq_penq_head(struct pktq *pq, int prec,
+struct sk_buff *bcm_pktq_penq_head(struct pktq *pq, int prec,
 					   struct sk_buff *p)
 {
 	struct pktq_prec *q;
@@ -175,7 +175,7 @@ struct sk_buff *BCMFASTPATH bcm_pktq_penq_head(struct pktq *pq, int prec,
 }
 EXPORT_SYMBOL(bcm_pktq_penq_head);
 
-struct sk_buff *BCMFASTPATH bcm_pktq_pdeq(struct pktq *pq, int prec)
+struct sk_buff *bcm_pktq_pdeq(struct pktq *pq, int prec)
 {
 	struct pktq_prec *q;
 	struct sk_buff *p;
@@ -200,7 +200,7 @@ struct sk_buff *BCMFASTPATH bcm_pktq_pdeq(struct pktq *pq, int prec)
 }
 EXPORT_SYMBOL(bcm_pktq_pdeq);
 
-struct sk_buff *BCMFASTPATH bcm_pktq_pdeq_tail(struct pktq *pq, int prec)
+struct sk_buff *bcm_pktq_pdeq_tail(struct pktq *pq, int prec)
 {
 	struct pktq_prec *q;
 	struct sk_buff *p, *prev;
@@ -321,7 +321,7 @@ int bcm_pktq_mlen(struct pktq *pq, uint prec_bmp)
 EXPORT_SYMBOL(bcm_pktq_mlen);
 
 /* Priority dequeue from a specific set of precedences */
-struct sk_buff *BCMFASTPATH bcm_pktq_mdeq(struct pktq *pq, uint prec_bmp,
+struct sk_buff *bcm_pktq_mdeq(struct pktq *pq, uint prec_bmp,
 				      int *prec_out)
 {
 	struct pktq_prec *q;

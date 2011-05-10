@@ -2761,7 +2761,7 @@ void wlc_phy_compute_dB(u32 *cmplx_pwr, s8 *p_cmplx_pwr_dB, u8 core)
 	}
 }
 
-void BCMFASTPATH wlc_phy_rssi_compute(wlc_phy_t *pih, void *ctx)
+void wlc_phy_rssi_compute(wlc_phy_t *pih, void *ctx)
 {
 	wlc_d11rxhdr_t *wlc_rxhdr = (wlc_d11rxhdr_t *) ctx;
 	d11rxhdr_t *rxh = &wlc_rxhdr->rxhdr;

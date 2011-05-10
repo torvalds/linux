@@ -201,7 +201,7 @@ wlc_antsel_init_cfg(struct antsel_info *asi, wlc_antselcfg_t *antsel,
 	}
 }
 
-void BCMFASTPATH
+void
 wlc_antsel_antcfg_get(struct antsel_info *asi, bool usedef, bool sel,
 		      u8 antselid, u8 fbantselid, u8 *antcfg,
 		      u8 *fbantcfg)

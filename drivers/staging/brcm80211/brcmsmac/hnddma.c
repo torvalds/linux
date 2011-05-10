@@ -714,7 +714,7 @@ _dma_rx_param_get(dma_info_t *di, u16 *rxoffset, u16 *rxbufsize)
  *   After it reaches the max size of buffer, the data continues in next DMA descriptor
  *   buffer WITHOUT DMA header
  */
-static void *BCMFASTPATH _dma_rx(dma_info_t *di)
+static void *_dma_rx(dma_info_t *di)
 {
 	struct sk_buff *p, *head, *tail;
 	uint len;
@@ -786,7 +786,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
  *  this will stall the rx dma and user might want to call rxfill again asap
  *  This unlikely happens on memory-rich NIC, but often on memory-constrained dongle
  */
-static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
+static bool _dma_rxfill(dma_info_t *di)
 {
 	struct sk_buff *p;
 	u16 rxin, rxout;
@@ -921,7 +921,7 @@ static void _dma_rxreclaim(dma_info_t *di)
 		bcm_pkt_buf_free_skb(p);
 }
 
-static void *BCMFASTPATH _dma_getnextrxp(dma_info_t *di, bool forceall)
+static void *_dma_getnextrxp(dma_info_t *di, bool forceall)
 {
 	if (di->nrxd == 0)
 		return NULL;
@@ -1136,7 +1136,7 @@ static bool dma64_txsuspended(dma_info_t *di)
 	     D64_XC_SE);
 }
 
-static void BCMFASTPATH dma64_txreclaim(dma_info_t *di, txd_range_t range)
+static void dma64_txreclaim(dma_info_t *di, txd_range_t range)
 {
 	void *p;
 
@@ -1383,7 +1383,7 @@ static int dma64_txunframed(dma_info_t *di, void *buf, uint len, bool commit)
  * WARNING: call must check the return value for error.
  *   the error(toss frames) could be fatal and cause many subsequent hard to debug problems
  */
-static int BCMFASTPATH dma64_txfast(dma_info_t *di, struct sk_buff *p0,
+static int dma64_txfast(dma_info_t *di, struct sk_buff *p0,
 				    bool commit)
 {
 	struct sk_buff *p, *next;
@@ -1505,7 +1505,7 @@ static int BCMFASTPATH dma64_txfast(dma_info_t *di, struct sk_buff *p0,
  * If range is HNDDMA_RANGE_ALL, reclaim all txd(s) posted to the ring and
  * return associated packet regardless of the value of hardware pointers.
  */
-static void *BCMFASTPATH dma64_getnexttxp(dma_info_t *di, txd_range_t range)
+static void *dma64_getnexttxp(dma_info_t *di, txd_range_t range)
 {
 	u16 start, end, i;
 	u16 active_desc;
@@ -1597,7 +1597,7 @@ static void *BCMFASTPATH dma64_getnexttxp(dma_info_t *di, txd_range_t range)
 	return NULL;
 }
 
-static void *BCMFASTPATH dma64_getnextrxp(dma_info_t *di, bool forceall)
+static void *dma64_getnextrxp(dma_info_t *di, bool forceall)
 {
 	uint i, curr;
 	void *rxp;

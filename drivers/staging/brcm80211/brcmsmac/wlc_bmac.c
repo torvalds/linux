@@ -258,7 +258,7 @@ static u32 WLBANDINITFN(wlc_setband_inact) (struct wlc_info *wlc, uint bandunit)
  * Return true if more frames need to be processed. false otherwise.
  * Param 'bound' indicates max. # frames to process before break out.
  */
-static bool BCMFASTPATH
+static bool
 wlc_bmac_recv(struct wlc_hw_info *wlc_hw, uint fifo, bool bound)
 {
 	struct sk_buff *p;
@@ -307,7 +307,7 @@ wlc_bmac_recv(struct wlc_hw_info *wlc_hw, uint fifo, bool bound)
  *   Return true if another dpc needs to be re-scheduled. false otherwise.
  *   Param 'bounded' indicates if applicable loops should be bounded.
  */
-bool BCMFASTPATH wlc_dpc(struct wlc_info *wlc, bool bounded)
+bool wlc_dpc(struct wlc_info *wlc, bool bounded)
 {
 	u32 macintstatus;
 	struct wlc_hw_info *wlc_hw = wlc->hw;
@@ -2985,7 +2985,7 @@ bool wlc_intrsupd(struct wlc_info *wlc)
  * *wantdpc will be set to true if further wlc_dpc() processing is required,
  * false otherwise.
  */
-bool BCMFASTPATH wlc_isr(struct wlc_info *wlc, bool *wantdpc)
+bool wlc_isr(struct wlc_info *wlc, bool *wantdpc)
 {
 	struct wlc_hw_info *wlc_hw = wlc->hw;
 	u32 macintstatus;
@@ -3015,7 +3015,7 @@ bool BCMFASTPATH wlc_isr(struct wlc_info *wlc, bool *wantdpc)
 
 }
 
-static bool BCMFASTPATH
+static bool
 wlc_bmac_dotxstatus(struct wlc_hw_info *wlc_hw, tx_status_t *txs, u32 s2)
 {
 	/* discard intermediate indications for ucode with one legitimate case:
@@ -3034,7 +3034,7 @@ wlc_bmac_dotxstatus(struct wlc_hw_info *wlc_hw, tx_status_t *txs, u32 s2)
 /* process tx completion events in BMAC
  * Return true if more tx status need to be processed. false otherwise.
  */
-static bool BCMFASTPATH
+static bool
 wlc_bmac_txstatus(struct wlc_hw_info *wlc_hw, bool bound, bool *fatal)
 {
 	bool morepending = false;
@@ -3268,7 +3268,7 @@ void wlc_bmac_band_stf_ss_set(struct wlc_hw_info *wlc_hw, u8 stf_mode)
 		wlc_upd_ofdm_pctl1_table(wlc_hw);
 }
 
-void BCMFASTPATH
+void
 wlc_bmac_read_tsf(struct wlc_hw_info *wlc_hw, u32 *tsf_l_ptr,
 		  u32 *tsf_h_ptr)
 {

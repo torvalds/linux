@@ -36,12 +36,6 @@
 
 #define	AUTO	(-1)		/* Auto = -1 */
 
-#ifdef mips
-#define BCMFASTPATH		__attribute__ ((__section__(".text.fastpath")))
-#else
-#define BCMFASTPATH
-#endif
-
 /* Bus types */
 #define	SI_BUS			0	/* SOC Interconnect */
 #define	PCI_BUS			1	/* PCI target */

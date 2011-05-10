@@ -1443,7 +1443,7 @@ uint wl_reset(struct wl_info *wl)
  * These are interrupt on/off entry points. Disable interrupts
  * during interrupt state transition.
  */
-void BCMFASTPATH wl_intrson(struct wl_info *wl)
+void wl_intrson(struct wl_info *wl)
 {
 	unsigned long flags;
 
@@ -1460,7 +1460,7 @@ bool wl_alloc_dma_resources(struct wl_info *wl, uint addrwidth)
 	return true;
 }
 
-u32 BCMFASTPATH wl_intrsoff(struct wl_info *wl)
+u32 wl_intrsoff(struct wl_info *wl)
 {
 	unsigned long flags;
 	u32 status;
@@ -1517,7 +1517,7 @@ void wl_down(struct wl_info *wl)
 	WL_LOCK(wl);
 }
 
-static irqreturn_t BCMFASTPATH wl_isr(int irq, void *dev_id)
+static irqreturn_t wl_isr(int irq, void *dev_id)
 {
 	struct wl_info *wl;
 	bool ours, wantdpc;
@@ -1544,7 +1544,7 @@ static irqreturn_t BCMFASTPATH wl_isr(int irq, void *dev_id)
 	return IRQ_RETVAL(ours);
 }
 
-static void BCMFASTPATH wl_dpc(unsigned long data)
+static void wl_dpc(unsigned long data)
 {
 	struct wl_info *wl;
 

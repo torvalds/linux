@@ -21438,7 +21438,7 @@ static void wlc_phy_rssi_cal_nphy_rev2(phy_info_t *pi, u8 rssi_type)
 	wlc_phy_resetcca_nphy(pi);
 }
 
-int BCMFASTPATH
+int
 wlc_phy_rssi_compute_nphy(phy_info_t *pi, wlc_d11rxhdr_t *wlc_rxh)
 {
 	d11rxhdr_t *rxh = &wlc_rxh->rxhdr;

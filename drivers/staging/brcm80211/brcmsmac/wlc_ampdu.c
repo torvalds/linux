@@ -120,7 +120,7 @@ struct ampdu_info {
 
 };
 
-/* used for plushing ampdu packets */
+/* used for flushing ampdu packets */
 struct cb_del_ampdu_pars {
 	struct ieee80211_sta *sta;
 	u16 tid;
@@ -431,7 +431,7 @@ static void wlc_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
 	}
 }
 
-static void BCMFASTPATH
+static void
 wlc_ampdu_agg(struct ampdu_info *ampdu, struct scb *scb, struct sk_buff *p,
 	      uint prec)
 {
@@ -449,7 +449,7 @@ wlc_ampdu_agg(struct ampdu_info *ampdu, struct scb *scb, struct sk_buff *p,
 	return;
 }
 
-int BCMFASTPATH
+int
 wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 	      struct sk_buff **pdu, int prec)
 {
@@ -840,7 +840,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 	return err;
 }
 
-void BCMFASTPATH
+void
 wlc_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 		     struct sk_buff *p, tx_status_t *txs)
 {
@@ -912,7 +912,7 @@ rate_status(struct wlc_info *wlc, struct ieee80211_tx_info *tx_info,
 
 #define SHORTNAME "AMPDU status"
 
-static void BCMFASTPATH
+static void
 wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			      struct sk_buff *p, tx_status_t *txs,
 			      u32 s1, u32 s2)
