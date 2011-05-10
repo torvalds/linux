@@ -76,9 +76,6 @@ struct hv_storvsc_request {
 /* Represents the block vsc driver */
 struct storvsc_driver {
 	struct hv_driver base;
-
-	/* Set by caller (in bytes) */
-	u32 ring_buffer_size;
 };
 
 struct storvsc_device_info {
