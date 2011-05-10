@@ -227,7 +227,7 @@ static struct rtas_error_log *fwnmi_get_errinfo(struct pt_regs *regs)
 	struct rtas_error_log *h, *errhdr = NULL;
 
 	if (!VALID_FWNMI_BUFFER(regs->gpr[3])) {
-		printk(KERN_ERR "FWNMI: corrupt r3\n");
+		printk(KERN_ERR "FWNMI: corrupt r3 0x%016lx\n", regs->gpr[3]);
 		return NULL;
 	}
 
