@@ -249,12 +249,13 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 static int blkvsc_open(struct block_device *bdev, fmode_t mode)
 {
 	struct block_device_context *blkdev = bdev->bd_disk->private_data;
+	unsigned long flags;
 
-	spin_lock(&blkdev->lock);
+	spin_lock_irqsave(&blkdev->lock, flags);
 
 	blkdev->users++;
 
-	spin_unlock(&blkdev->lock);
+	spin_unlock_irqrestore(&blkdev->lock, flags);
 
 	return 0;
 }
@@ -616,17 +617,18 @@ static void blkvsc_shutdown(struct hv_device *dev)
 static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 {
 	struct block_device_context *blkdev = disk->private_data;
+	unsigned long flags;
 
-	spin_lock(&blkdev->lock);
+	spin_lock_irqsave(&blkdev->lock, flags);
 	if (blkdev->users == 1) {
-		spin_unlock(&blkdev->lock);
+		spin_unlock_irqrestore(&blkdev->lock, flags);
 		blkvsc_do_operation(blkdev, DO_FLUSH);
-		spin_lock(&blkdev->lock);
+		spin_lock_irqsave(&blkdev->lock, flags);
 	}
 
 	blkdev->users--;
 
-	spin_unlock(&blkdev->lock);
+	spin_unlock_irqrestore(&blkdev->lock, flags);
 	return 0;
 }
 
