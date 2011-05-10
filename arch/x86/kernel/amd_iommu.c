@@ -366,7 +366,7 @@ static void iommu_poll_events(struct amd_iommu *iommu)
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-irqreturn_t amd_iommu_int_handler(int irq, void *data)
+irqreturn_t amd_iommu_int_thread(int irq, void *data)
 {
 	struct amd_iommu *iommu;
 
@@ -374,6 +374,11 @@ irqreturn_t amd_iommu_int_handler(int irq, void *data)
 		iommu_poll_events(iommu);
 
 	return IRQ_HANDLED;
+}
+
+irqreturn_t amd_iommu_int_handler(int irq, void *data)
+{
+	return IRQ_WAKE_THREAD;
 }
 
 /****************************************************************************
