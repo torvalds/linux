@@ -34,8 +34,10 @@
 #ifdef DEBUG
 extern unsigned int omapfb_debug;
 #define DBG(format, ...) \
-	if (omapfb_debug) \
-		printk(KERN_DEBUG "OMAPFB: " format, ## __VA_ARGS__)
+	do { \
+		if (omapfb_debug) \
+			printk(KERN_DEBUG "OMAPFB: " format, ## __VA_ARGS__); \
+	} while (0)
 #else
 #define DBG(format, ...)
 #endif
