@@ -79,10 +79,6 @@ struct storvsc_driver {
 
 	/* Set by caller (in bytes) */
 	u32 ring_buffer_size;
-
-	/* Maximum # of requests in flight per channel/device */
-	u32 max_outstanding_req_per_channel;
-
 };
 
 struct storvsc_device_info {
