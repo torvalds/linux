@@ -833,7 +833,6 @@ static int storvsc_drv_exit_cb(struct device *dev, void *data)
 
 static void storvsc_drv_exit(void)
 {
-	struct storvsc_driver *storvsc_drv_obj = &storvsc_drv;
 	struct hv_driver *drv = &storvsc_drv.base;
 	struct device *current_dev = NULL;
 	int ret;
@@ -853,9 +852,6 @@ static void storvsc_drv_exit(void)
 		/* Initiate removal from the top-down */
 		device_unregister(current_dev);
 	}
-
-	if (storvsc_drv_obj->base.cleanup)
-		storvsc_drv_obj->base.cleanup(&storvsc_drv_obj->base);
 
 	vmbus_child_driver_unregister(&drv->driver);
 	return;
