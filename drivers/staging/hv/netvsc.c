@@ -1097,7 +1097,7 @@ out:
  * netvsc_device_add - Callback when the device belonging to this
  * driver is added
  */
-static int netvsc_device_add(struct hv_device *device, void *additional_info)
+int netvsc_device_add(struct hv_device *device, void *additional_info)
 {
 	int ret = 0;
 	int i;

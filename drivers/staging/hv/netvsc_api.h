@@ -117,6 +117,7 @@ struct netvsc_device_info {
 };
 
 /* Interface */
+int netvsc_device_add(struct hv_device *device, void *additional_info);
 int netvsc_initialize(struct hv_driver *drv);
 int rndis_filter_open(struct hv_device *dev);
 int rndis_filter_close(struct hv_device *dev);
