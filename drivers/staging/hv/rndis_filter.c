@@ -755,7 +755,7 @@ int rndis_filte_device_add(struct hv_device *dev,
 	 * NOTE! Once the channel is created, we may get a receive callback
 	 * (RndisFilterOnReceive()) before this call is completed
 	 */
-	ret = rndis_filter.inner_drv.base.dev_add(dev, additional_info);
+	ret = netvsc_device_add(dev, additional_info);
 	if (ret != 0) {
 		kfree(rndisDevice);
 		return ret;
