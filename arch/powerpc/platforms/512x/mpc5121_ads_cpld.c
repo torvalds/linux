@@ -97,7 +97,7 @@ cpld_pic_get_irq(int offset, u8 ignore, u8 __iomem *statusp,
 	status |= (ignore | mask);
 
 	if (status == 0xff)
-		return NO_IRQ_IGNORE;
+		return NO_IRQ;
 
 	cpld_irq = ffz(status) + offset;
 
@@ -109,14 +109,14 @@ cpld_pic_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	irq = cpld_pic_get_irq(0, PCI_IGNORE, &cpld_regs->pci_status,
 		&cpld_regs->pci_mask);
-	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE) {
+	if (irq != NO_IRQ) {
 		generic_handle_irq(irq);
 		return;
 	}
 
 	irq = cpld_pic_get_irq(8, MISC_IGNORE, &cpld_regs->misc_status,
 		&cpld_regs->misc_mask);
-	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE) {
+	if (irq != NO_IRQ) {
 		generic_handle_irq(irq);
 		return;
 	}
