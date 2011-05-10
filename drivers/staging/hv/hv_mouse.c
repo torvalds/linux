@@ -859,9 +859,6 @@ static int mousevsc_remove(struct hv_device *dev)
 {
 	int ret = 0;
 
-	struct mousevsc_drv_obj *mousevsc_drv_obj =
-		drv_to_mousedrv(dev->device.driver);
-
 	struct input_device_context *input_dev_ctx;
 
 	input_dev_ctx = kmalloc(sizeof(struct input_device_context),
@@ -874,14 +871,11 @@ static int mousevsc_remove(struct hv_device *dev)
 		input_dev_ctx->connected = 0;
 	}
 
-	if (!mousevsc_drv_obj->base.dev_rm)
-		return -1;
-
 	/*
 	 * Call to the vsc driver to let it know that the device
 	 * is being removed
 	 */
-	ret = mousevsc_drv_obj->base.dev_rm(dev);
+	ret = mousevsc_on_device_remove(dev);
 
 	if (ret != 0) {
 		DPRINT_ERR(INPUTVSC_DRV,
