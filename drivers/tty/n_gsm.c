@@ -2128,7 +2128,7 @@ static int gsmld_attach_gsm(struct tty_struct *tty, struct gsm_mux *gsm)
 
 /**
  *	gsmld_detach_gsm	-	stop doing 0710 mux
- *	@tty: tty atttached to the mux
+ *	@tty: tty attached to the mux
  *	@gsm: mux
  *
  *	Shutdown and then clean up the resources used by the line discipline

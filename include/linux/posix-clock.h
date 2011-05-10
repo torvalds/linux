@@ -45,7 +45,7 @@ struct posix_clock;
  * @timer_create:   Create a new timer
  * @timer_delete:   Remove a previously created timer
  * @timer_gettime:  Get remaining time and interval of a timer
- * @timer_setttime: Set a timer's initial expiration and interval
+ * @timer_settime: Set a timer's initial expiration and interval
  * @fasync:         Optional character device fasync method
  * @mmap:           Optional character device mmap method
  * @open:           Optional character device open method

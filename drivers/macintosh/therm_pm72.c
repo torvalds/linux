@@ -44,11 +44,11 @@
  * TODO:  - Check MPU structure version/signature
  *        - Add things like /sbin/overtemp for non-critical
  *          overtemp conditions so userland can take some policy
- *          decisions, like slewing down CPUs
+ *          decisions, like slowing down CPUs
  *	  - Deal with fan and i2c failures in a better way
  *	  - Maybe do a generic PID based on params used for
  *	    U3 and Drives ? Definitely need to factor code a bit
- *          bettter... also make sensor detection more robust using
+ *          better... also make sensor detection more robust using
  *          the device-tree to probe for them
  *        - Figure out how to get the slots consumption and set the
  *          slots fan accordingly

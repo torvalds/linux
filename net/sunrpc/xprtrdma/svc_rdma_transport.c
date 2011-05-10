@@ -333,7 +333,7 @@ static void rq_cq_reap(struct svcxprt_rdma *xprt)
 }
 
 /*
- * Processs a completion context
+ * Process a completion context
  */
 static void process_context(struct svcxprt_rdma *xprt,
 			    struct svc_rdma_op_ctxt *ctxt)
