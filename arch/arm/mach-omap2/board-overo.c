@@ -44,7 +44,7 @@
 #include <plat/board.h>
 #include <plat/common.h>
 #include <video/omapdss.h>
-#include <plat/panel-generic-dpi.h>
+#include <video/omap-panel-generic-dpi.h>
 #include <mach/gpio.h>
 #include <plat/gpmc.h>
 #include <mach/hardware.h>

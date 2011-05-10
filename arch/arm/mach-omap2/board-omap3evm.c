@@ -45,7 +45,7 @@
 #include <plat/common.h>
 #include <plat/mcspi.h>
 #include <video/omapdss.h>
-#include <plat/panel-generic-dpi.h>
+#include <video/omap-panel-generic-dpi.h>
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"

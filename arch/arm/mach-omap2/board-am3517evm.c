@@ -35,7 +35,7 @@
 #include <plat/common.h>
 #include <plat/usb.h>
 #include <video/omapdss.h>
-#include <plat/panel-generic-dpi.h>
+#include <video/omap-panel-generic-dpi.h>
 
 #include "mux.h"
 #include "control.h"

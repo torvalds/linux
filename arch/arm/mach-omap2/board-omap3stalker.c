@@ -40,7 +40,7 @@
 #include <plat/nand.h>
 #include <plat/usb.h>
 #include <video/omapdss.h>
-#include <plat/panel-generic-dpi.h>
+#include <video/omap-panel-generic-dpi.h>
 
 #include <plat/mcspi.h>
 #include <linux/input/matrix_keypad.h>

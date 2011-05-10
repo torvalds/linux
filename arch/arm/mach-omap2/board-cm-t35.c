@@ -46,7 +46,7 @@
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 #include <video/omapdss.h>
-#include <plat/panel-generic-dpi.h>
+#include <video/omap-panel-generic-dpi.h>
 #include <plat/mcspi.h>
 
 #include <mach/hardware.h>

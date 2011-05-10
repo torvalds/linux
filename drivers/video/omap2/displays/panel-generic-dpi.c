@@ -35,7 +35,7 @@
 #include <linux/slab.h>
 #include <video/omapdss.h>
 
-#include <plat/panel-generic-dpi.h>
+#include <video/omap-panel-generic-dpi.h>
 
 struct panel_config {
 	struct omap_video_timings timings;

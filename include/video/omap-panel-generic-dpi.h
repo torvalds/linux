@@ -17,8 +17,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __ARCH_ARM_PLAT_OMAP_PANEL_GENERIC_DPI_H
-#define __ARCH_ARM_PLAT_OMAP_PANEL_GENERIC_DPI_H
+#ifndef __OMAP_PANEL_GENERIC_DPI_H
+#define __OMAP_PANEL_GENERIC_DPI_H
 
 struct omap_dss_device;
 
@@ -34,4 +34,4 @@ struct panel_generic_dpi_data {
 	void (*platform_disable)(struct omap_dss_device *dssdev);
 };
 
-#endif /* __ARCH_ARM_PLAT_OMAP_PANEL_GENERIC_DPI_H */
+#endif /* __OMAP_PANEL_GENERIC_DPI_H */
