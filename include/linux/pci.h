@@ -214,10 +214,15 @@ enum pci_bus_speed {
 	PCI_SPEED_UNKNOWN		= 0xff,
 };
 
+struct pci_cap_saved_data {
+	char cap_nr;
+	unsigned int size;
+	u32 data[0];
+};
+
 struct pci_cap_saved_state {
 	struct hlist_node next;
-	char cap_nr;
-	u32 data[0];
+	struct pci_cap_saved_data cap;
 };
 
 struct pcie_link_state;
@@ -366,7 +371,7 @@ static inline struct pci_cap_saved_state *pci_find_saved_cap(
 	struct hlist_node *pos;
 
 	hlist_for_each_entry(tmp, pos, &pci_dev->saved_cap_space, next) {
-		if (tmp->cap_nr == cap)
+		if (tmp->cap.cap_nr == cap)
 			return tmp;
 	}
 	return NULL;

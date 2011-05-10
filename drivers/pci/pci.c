@@ -830,7 +830,7 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 		dev_err(&dev->dev, "buffer not found in %s\n", __func__);
 		return -ENOMEM;
 	}
-	cap = (u16 *)&save_state->data[0];
+	cap = (u16 *)&save_state->cap.data[0];
 
 	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &flags);
 
@@ -863,7 +863,7 @@ static void pci_restore_pcie_state(struct pci_dev *dev)
 	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
 	if (!save_state || pos <= 0)
 		return;
-	cap = (u16 *)&save_state->data[0];
+	cap = (u16 *)&save_state->cap.data[0];
 
 	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &flags);
 
@@ -899,7 +899,8 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 		return -ENOMEM;
 	}
 
-	pci_read_config_word(dev, pos + PCI_X_CMD, (u16 *)save_state->data);
+	pci_read_config_word(dev, pos + PCI_X_CMD,
+			     (u16 *)save_state->cap.data);
 
 	return 0;
 }
@@ -914,7 +915,7 @@ static void pci_restore_pcix_state(struct pci_dev *dev)
 	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 	if (!save_state || pos <= 0)
 		return;
-	cap = (u16 *)&save_state->data[0];
+	cap = (u16 *)&save_state->cap.data[0];
 
 	pci_write_config_word(dev, pos + PCI_X_CMD, cap[i++]);
 }
@@ -1771,7 +1772,8 @@ static int pci_add_cap_save_buffer(
 	if (!save_state)
 		return -ENOMEM;
 
-	save_state->cap_nr = cap;
+	save_state->cap.cap_nr = cap;
+	save_state->cap.size = size;
 	pci_add_saved_cap(dev, save_state);
 
 	return 0;
