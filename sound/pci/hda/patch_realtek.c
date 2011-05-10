@@ -1704,11 +1704,11 @@ static void alc_apply_fixup(struct hda_codec *codec, int action)
 				   codec->chip_name, fix->type);
 			break;
 		}
-		if (!fix[id].chained)
+		if (!fix->chained)
 			break;
 		if (++depth > 10)
 			break;
-		id = fix[id].chain_id;
+		id = fix->chain_id;
 	}
 }
 
@@ -5645,6 +5645,7 @@ static void fillup_priv_adc_nids(struct hda_codec *codec, hda_nid_t *nids,
 static struct snd_pci_quirk beep_white_list[] = {
 	SND_PCI_QUIRK(0x1043, 0x829f, "ASUS", 1),
 	SND_PCI_QUIRK(0x1043, 0x83ce, "EeePC", 1),
+	SND_PCI_QUIRK(0x1043, 0x831a, "EeePC", 1),
 	SND_PCI_QUIRK(0x8086, 0xd613, "Intel", 1),
 	{}
 };
@@ -9863,6 +9864,7 @@ static struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1071, 0x8258, "Evesham Voyaeger", ALC883_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x10f1, 0x2350, "TYAN-S2350", ALC888_6ST_DELL),
 	SND_PCI_QUIRK(0x108e, 0x534d, NULL, ALC883_3ST_6ch),
+	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte P35 DS3R", ALC882_6ST_DIG),
 
 	SND_PCI_QUIRK(0x1462, 0x0349, "MSI", ALC883_TARGA_2ch_DIG),
 	SND_PCI_QUIRK(0x1462, 0x040d, "MSI", ALC883_TARGA_2ch_DIG),
@@ -10699,7 +10701,6 @@ enum {
 	PINFIX_LENOVO_Y530,
 	PINFIX_PB_M5210,
 	PINFIX_ACER_ASPIRE_7736,
-	PINFIX_GIGABYTE_880GM,
 };
 
 static const struct alc_fixup alc882_fixups[] = {
@@ -10731,13 +10732,6 @@ static const struct alc_fixup alc882_fixups[] = {
 		.type = ALC_FIXUP_SKU,
 		.v.sku = ALC_FIXUP_SKU_IGNORE,
 	},
-	[PINFIX_GIGABYTE_880GM] = {
-		.type = ALC_FIXUP_PINS,
-		.v.pins = (const struct alc_pincfg[]) {
-			{ 0x14, 0x1114410 }, /* set as speaker */
-			{ }
-		}
-	},
 };
 
 static struct snd_pci_quirk alc882_fixup_tbl[] = {
@@ -10745,7 +10739,6 @@ static struct snd_pci_quirk alc882_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Y530", PINFIX_LENOVO_Y530),
 	SND_PCI_QUIRK(0x147b, 0x107a, "Abit AW9D-MAX", PINFIX_ABIT_AW9D_MAX),
 	SND_PCI_QUIRK(0x1025, 0x0296, "Acer Aspire 7736z", PINFIX_ACER_ASPIRE_7736),
-	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte", PINFIX_GIGABYTE_880GM),
 	{}
 };
 
@@ -18805,6 +18798,8 @@ static struct snd_pci_quirk alc662_cfg_tbl[] = {
 		      ALC662_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x1179, 0xff6e, "Toshiba NB20x", ALC662_AUTO),
 	SND_PCI_QUIRK(0x144d, 0xca00, "Samsung NC10", ALC272_SAMSUNG_NC10),
+	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte 945GCM-S2L",
+		      ALC662_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x152d, 0x2304, "Quanta WH1", ALC663_ASUS_H13),
 	SND_PCI_QUIRK(0x1565, 0x820f, "Biostar TA780G M2+", ALC662_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x1631, 0xc10c, "PB RS65", ALC663_ASUS_M51VA),
@@ -19478,7 +19473,7 @@ enum {
 	ALC662_FIXUP_IDEAPAD,
 	ALC272_FIXUP_MARIO,
 	ALC662_FIXUP_CZC_P10T,
-	ALC662_FIXUP_GIGABYTE,
+	ALC662_FIXUP_SKU_IGNORE,
 };
 
 static const struct alc_fixup alc662_fixups[] = {
@@ -19507,20 +19502,17 @@ static const struct alc_fixup alc662_fixups[] = {
 			{}
 		}
 	},
-	[ALC662_FIXUP_GIGABYTE] = {
-		.type = ALC_FIXUP_PINS,
-		.v.pins = (const struct alc_pincfg[]) {
-			{ 0x14, 0x1114410 }, /* set as speaker */
-			{ }
-		}
+	[ALC662_FIXUP_SKU_IGNORE] = {
+		.type = ALC_FIXUP_SKU,
+		.v.sku = ALC_FIXUP_SKU_IGNORE,
 	},
 };
 
 static struct snd_pci_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0308, "Acer Aspire 8942G", ALC662_FIXUP_ASPIRE),
+	SND_PCI_QUIRK(0x1025, 0x031c, "Gateway NV79", ALC662_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x1025, 0x038b, "Acer Aspire 8943G", ALC662_FIXUP_ASPIRE),
 	SND_PCI_QUIRK(0x144d, 0xc051, "Samsung R720", ALC662_FIXUP_IDEAPAD),
-	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte", ALC662_FIXUP_GIGABYTE),
 	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo Ideapad Y550P", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Ideapad Y550", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x1b35, 0x2206, "CZC P10T", ALC662_FIXUP_CZC_P10T),

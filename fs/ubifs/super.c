@@ -1257,12 +1257,12 @@ static int mount_ubifs(struct ubifs_info *c)
 		goto out_free;
 	}
 
+	err = alloc_wbufs(c);
+	if (err)
+		goto out_cbuf;
+
 	sprintf(c->bgt_name, BGT_NAME_PATTERN, c->vi.ubi_num, c->vi.vol_id);
 	if (!c->ro_mount) {
-		err = alloc_wbufs(c);
-		if (err)
-			goto out_cbuf;
-
 		/* Create background thread */
 		c->bgt = kthread_create(ubifs_bg_thread, c, "%s", c->bgt_name);
 		if (IS_ERR(c->bgt)) {
@@ -1631,12 +1631,6 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	if (err)
 		goto out;
 
-	err = alloc_wbufs(c);
-	if (err)
-		goto out;
-
-	ubifs_create_buds_lists(c);
-
 	/* Create background thread */
 	c->bgt = kthread_create(ubifs_bg_thread, c, "%s", c->bgt_name);
 	if (IS_ERR(c->bgt)) {
@@ -1744,7 +1738,6 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 	if (err)
 		ubifs_ro_mode(c, err);
 
-	free_wbufs(c);
 	vfree(c->orph_buf);
 	c->orph_buf = NULL;
 	kfree(c->write_reserve_buf);

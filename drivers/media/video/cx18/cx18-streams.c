@@ -350,9 +350,17 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 
 		/* No struct video_device, but can have buffers allocated */
 		if (type == CX18_ENC_STREAM_TYPE_IDX) {
+			/* If the module params didn't inhibit IDX ... */
 			if (cx->stream_buffers[type] != 0) {
 				cx->stream_buffers[type] = 0;
-				cx18_stream_free(&cx->streams[type]);
+				/*
+				 * Before calling cx18_stream_free(),
+				 * check if the IDX stream was actually set up.
+				 * Needed, since the cx18_probe() error path
+				 * exits through here as well as normal clean up
+				 */
+				if (cx->streams[type].buffers != 0)
+					cx18_stream_free(&cx->streams[type]);
 			}
 			continue;
 		}

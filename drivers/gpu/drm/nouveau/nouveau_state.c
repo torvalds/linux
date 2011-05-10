@@ -768,6 +768,11 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	engine->mc.takedown(dev);
 	engine->display.late_takedown(dev);
 
+	if (dev_priv->vga_ram) {
+		nouveau_bo_unpin(dev_priv->vga_ram);
+		nouveau_bo_ref(NULL, &dev_priv->vga_ram);
+	}
+
 	mutex_lock(&dev->struct_mutex);
 	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
 	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_TT);

@@ -431,7 +431,7 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		}
 	}
 
-	/* Acer laptop (Acer TravelMate 5730G) has an HDMI port
+	/* Acer laptop (Acer TravelMate 5730/5730G) has an HDMI port
 	 * on the laptop and a DVI port on the docking station and
 	 * both share the same encoder, hpd pin, and ddc line.
 	 * So while the bios table is technically correct,
@@ -440,7 +440,7 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 	 * with different crtcs which isn't possible on the hardware
 	 * side and leaves no crtcs for LVDS or VGA.
 	 */
-	if ((dev->pdev->device == 0x95c4) &&
+	if (((dev->pdev->device == 0x95c4) || (dev->pdev->device == 0x9591)) &&
 	    (dev->pdev->subsystem_vendor == 0x1025) &&
 	    (dev->pdev->subsystem_device == 0x013c)) {
 		if ((*connector_type == DRM_MODE_CONNECTOR_DVII) &&
@@ -1599,9 +1599,10 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 							memcpy((u8 *)edid, (u8 *)&fake_edid_record->ucFakeEDIDString[0],
 							       fake_edid_record->ucFakeEDIDLength);
 
-							if (drm_edid_is_valid(edid))
+							if (drm_edid_is_valid(edid)) {
 								rdev->mode_info.bios_hardcoded_edid = edid;
-							else
+								rdev->mode_info.bios_hardcoded_edid_size = edid_size;
+							} else
 								kfree(edid);
 						}
 					}

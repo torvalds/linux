@@ -775,6 +775,13 @@ get_more_pages:
 					    ci->i_truncate_seq,
 					    ci->i_truncate_size,
 					    &inode->i_mtime, true, 1, 0);
+
+				if (!req) {
+					rc = -ENOMEM;
+					unlock_page(page);
+					break;
+				}
+
 				max_pages = req->r_num_pages;
 
 				alloc_page_vec(fsc, req);

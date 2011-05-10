@@ -444,7 +444,7 @@ int RTMPCheckRxError(struct rt_rtmp_adapter *pAd,
 			return (NDIS_STATUS_FAILURE);
 		}
 	}
-	/* Drop not U2M frames, can't's drop here because we will drop beacon in this case */
+	/* Drop not U2M frames, can't drop here because we will drop beacon in this case */
 	/* I am kind of doubting the U2M bit operation */
 	/* if (pRxD->U2M == 0) */
 	/*      return(NDIS_STATUS_FAILURE); */

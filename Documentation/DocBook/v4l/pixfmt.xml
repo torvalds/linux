@@ -696,6 +696,7 @@ information.</para>
     &sub-packed-yuv;
     &sub-grey;
     &sub-y10;
+    &sub-y12;
     &sub-y16;
     &sub-yuyv;
     &sub-uyvy;

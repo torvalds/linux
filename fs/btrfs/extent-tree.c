@@ -8059,6 +8059,10 @@ static noinline int relocate_one_extent(struct btrfs_root *extent_root,
 				u64 group_start = group->key.objectid;
 				new_extents = kmalloc(sizeof(*new_extents),
 						      GFP_NOFS);
+				if (!new_extents) {
+					ret = -ENOMEM;
+					goto out;
+				}
 				nr_extents = 1;
 				ret = get_new_locations(reloc_inode,
 							extent_key,
