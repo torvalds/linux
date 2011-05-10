@@ -122,6 +122,13 @@ static int storvsc_device_alloc(struct scsi_device *sdevice)
 	return 0;
 }
 
+static int storvsc_merge_bvec(struct request_queue *q,
+			      struct bvec_merge_data *bmd, struct bio_vec *bvec)
+{
+	/* checking done by caller. */
+	return bvec->bv_len;
+}
+
 /* Static decl */
 static int storvsc_probe(struct hv_device *dev);
 static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
@@ -822,13 +829,6 @@ retry_request:
 }
 
 static DEF_SCSI_QCMD(storvsc_queuecommand)
-
-static int storvsc_merge_bvec(struct request_queue *q,
-			      struct bvec_merge_data *bmd, struct bio_vec *bvec)
-{
-	/* checking done by caller. */
-	return bvec->bv_len;
-}
 
 static int storvsc_device_configure(struct scsi_device *sdevice)
 {
