@@ -841,7 +841,11 @@ static void blkvsc_request(struct request_queue *queue)
 
 
 /* The one and only one */
-static  struct storvsc_driver blkvsc_drv;
+static  struct storvsc_driver blkvsc_drv = {
+	.base.probe =  blkvsc_probe,
+	.base.remove =  blkvsc_remove,
+	.base.shutdown = blkvsc_shutdown,
+};
 
 static const struct block_device_operations block_ops = {
 	.owner = THIS_MODULE,
@@ -866,10 +870,6 @@ static int blkvsc_drv_init(void)
 	blk_vsc_initialize(&storvsc_drv->base);
 
 	drv->driver.name = storvsc_drv->base.name;
-
-	drv->probe = blkvsc_probe;
-	drv->remove = blkvsc_remove;
-	drv->shutdown = blkvsc_shutdown;
 
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(&drv->driver);
