@@ -192,10 +192,10 @@ static int snd_soc_8_16_write(struct snd_soc_codec *codec, unsigned int reg,
 			      unsigned int value)
 {
 	u8 data[3];
+	u16 val = cpu_to_be16(value);
 
 	data[0] = reg;
-	data[1] = (value >> 8) & 0xff;
-	data[2] = value & 0xff;
+	memcpy(&data[1], &val, sizeof(val));
 
 	return do_hw_write(codec, reg, value, data, 3);
 }
