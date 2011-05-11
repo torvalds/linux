@@ -82,6 +82,7 @@ MODULE_LICENSE("GPL v2");
 static struct fw_iso_packet audio_packet = {
 	.payload_length = sizeof(struct audio_payload),
 	.interrupt = 1,
+	.header_length = 4,
 };
 
 static void isight_update_pointers(struct isight *isight, unsigned int count)
