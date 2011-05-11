@@ -23,8 +23,7 @@ config SND_FIREWIRE_SPEAKERS
 	  will be called snd-firewire-speakers.
 
 config SND_ISIGHT
-	tristate "Apple iSight microphone (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Apple iSight microphone"
 	select SND_PCM
 	select SND_FIREWIRE_LIB
 	help
