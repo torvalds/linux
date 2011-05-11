@@ -14,15 +14,8 @@
  */
 #define PLAT_PHYS_OFFSET	UL(0x00000000)
 
-#if !defined(__ASSEMBLY__) && defined(CONFIG_PCI)
-
-void ixp4xx_adjust_zones(unsigned long *size, unsigned long *holes);
-
-#define arch_adjust_zones(size, holes) \
-	ixp4xx_adjust_zones(size, holes)
-
+#ifdef CONFIG_PCI
 #define ARM_DMA_ZONE_SIZE	SZ_64M
-
 #endif
 
 #endif

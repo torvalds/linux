@@ -215,12 +215,6 @@ static inline unsigned long __phys_to_virt(unsigned long x)
 #define ISA_DMA_THRESHOLD	(PHYS_OFFSET + ARM_DMA_ZONE_SIZE - 1)
 #endif
 
-#ifndef arch_adjust_zones
-#define arch_adjust_zones(size,holes) do { } while (0)
-#elif !defined(CONFIG_ZONE_DMA)
-#error "custom arch_adjust_zones() requires CONFIG_ZONE_DMA"
-#endif
-
 /*
  * PFNs are used to describe any physical page; this means
  * PFN 0 == physical address 0.

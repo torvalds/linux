@@ -201,6 +201,20 @@ static void __init arm_bootmem_init(unsigned long start_pfn,
 	}
 }
 
+#ifdef CONFIG_ZONE_DMA
+static void __init arm_adjust_dma_zone(unsigned long *size, unsigned long *hole,
+	unsigned long dma_size)
+{
+	if (size[0] <= dma_size)
+		return;
+
+	size[ZONE_NORMAL] = size[0] - dma_size;
+	size[ZONE_DMA] = dma_size;
+	hole[ZONE_NORMAL] = hole[0];
+	hole[ZONE_DMA] = 0;
+}
+#endif
+
 static void __init arm_bootmem_free(unsigned long min, unsigned long max_low,
 	unsigned long max_high)
 {
@@ -243,11 +257,18 @@ static void __init arm_bootmem_free(unsigned long min, unsigned long max_low,
 #endif
 	}
 
+#ifdef ARM_DMA_ZONE_SIZE
+#ifndef CONFIG_ZONE_DMA
+#error ARM_DMA_ZONE_SIZE set but no DMA zone to limit allocations
+#endif
+
 	/*
 	 * Adjust the sizes according to any special requirements for
 	 * this machine type.
 	 */
-	arch_adjust_zones(zone_size, zhole_size);
+	arm_adjust_dma_zone(zone_size, zhole_size,
+		ARM_DMA_ZONE_SIZE >> PAGE_SHIFT);
+#endif
 
 	free_area_init_node(0, zone_size, min, zhole_size);
 }

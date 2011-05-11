@@ -56,25 +56,6 @@
 
 #include "core.h"
 
-#ifdef CONFIG_ZONE_DMA
-/*
- * Adjust the zones if there are restrictions for DMA access.
- */
-void __init realview_adjust_zones(unsigned long *size, unsigned long *hole)
-{
-	unsigned long dma_size = SZ_256M >> PAGE_SHIFT;
-
-	if (!machine_is_realview_pbx() || size[0] <= dma_size)
-		return;
-
-	size[ZONE_NORMAL] = size[0] - dma_size;
-	size[ZONE_DMA] = dma_size;
-	hole[ZONE_NORMAL] = hole[0];
-	hole[ZONE_DMA] = 0;
-}
-#endif
-
-
 #define REALVIEW_FLASHCTRL    (__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_FLASH_OFFSET)
 
 static int realview_flash_init(void)
