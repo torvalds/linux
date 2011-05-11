@@ -34,7 +34,7 @@
 #include <linux/mutex.h>
 
 #include <video/omapdss.h>
-#include <plat/nokia-dsi-panel.h>
+#include <video/omap-panel-nokia-dsi.h>
 
 /* DSI Virtual channel. Hardcoded for now. */
 #define TCH 0

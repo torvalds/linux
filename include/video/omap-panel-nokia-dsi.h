@@ -1,5 +1,5 @@
-#ifndef __ARCH_ARM_PLAT_OMAP_NOKIA_DSI_PANEL_H
-#define __ARCH_ARM_PLAT_OMAP_NOKIA_DSI_PANEL_H
+#ifndef __OMAP_NOKIA_DSI_PANEL_H
+#define __OMAP_NOKIA_DSI_PANEL_H
 
 struct omap_dss_device;
 
@@ -28,4 +28,4 @@ struct nokia_dsi_panel_data {
 	int (*get_backlight)(struct omap_dss_device *dssdev);
 };
 
-#endif /* __ARCH_ARM_PLAT_OMAP_NOKIA_DSI_PANEL_H */
+#endif /* __OMAP_NOKIA_DSI_PANEL_H */
