@@ -1291,6 +1291,38 @@ Returns the tsc frequency of the guest. The unit of the return value is
 KHz. If the host has unstable tsc this ioctl returns -EIO instead as an
 error.
 
+4.56 KVM_GET_LAPIC
+
+Capability: KVM_CAP_IRQCHIP
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_lapic_state (out)
+Returns: 0 on success, -1 on error
+
+#define KVM_APIC_REG_SIZE 0x400
+struct kvm_lapic_state {
+	char regs[KVM_APIC_REG_SIZE];
+};
+
+Reads the Local APIC registers and copies them into the input argument.  The
+data format and layout are the same as documented in the architecture manual.
+
+4.57 KVM_SET_LAPIC
+
+Capability: KVM_CAP_IRQCHIP
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_lapic_state (in)
+Returns: 0 on success, -1 on error
+
+#define KVM_APIC_REG_SIZE 0x400
+struct kvm_lapic_state {
+	char regs[KVM_APIC_REG_SIZE];
+};
+
+Copies the input argument into the the Local APIC registers.  The data format
+and layout are the same as documented in the architecture manual.
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by
