@@ -1026,8 +1026,11 @@ static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
 	const void *dma_window = NULL;
 	u64 dma_offset;
 
-	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
+	if (!dev->dma_mask)
 		return -EIO;
+
+	if (!dev_is_pci(dev))
+		goto check_mask;
 
 	pdev = to_pci_dev(dev);
 
@@ -1059,12 +1062,16 @@ static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
 		}
 	}
 
-	/* fall-through to iommu ops */
-	if (!ddw_enabled) {
-		dev_info(dev, "Using 32-bit DMA via iommu\n");
+	/* fall back on iommu ops, restore table pointer with ops */
+	if (!ddw_enabled && get_dma_ops(dev) != &dma_iommu_ops) {
+		dev_info(dev, "Restoring 32-bit DMA via iommu\n");
 		set_dma_ops(dev, &dma_iommu_ops);
 		pci_dma_dev_setup_pSeriesLP(pdev);
 	}
+
+check_mask:
+	if (!dma_supported(dev, dma_mask))
+		return -EIO;
 
 	*dev->dma_mask = dma_mask;
 	return 0;
