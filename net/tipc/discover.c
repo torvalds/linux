@@ -39,19 +39,17 @@
 #include "discover.h"
 
 #define TIPC_LINK_REQ_INIT	125	/* min delay during bearer start up */
-#define TIPC_LINK_REQ_FAST	2000	/* normal delay if bearer has no links */
-#define TIPC_LINK_REQ_SLOW	600000	/* normal delay if bearer has links */
-
-/*
- * TODO: Most of the inter-cluster setup stuff should be
- * rewritten, and be made conformant with specification.
- */
+#define TIPC_LINK_REQ_FAST	1000	/* max delay if bearer has no links */
+#define TIPC_LINK_REQ_SLOW	60000	/* max delay if bearer has links */
+#define TIPC_LINK_REQ_INACTIVE	0xffffffff /* indicates no timer in use */
 
 
 /**
  * struct link_req - information about an ongoing link setup request
  * @bearer: bearer issuing requests
  * @dest: destination address for request messages
+ * @domain: network domain to which links can be established
+ * @num_nodes: number of nodes currently discovered (i.e. with an active link)
  * @buf: request message to be (repeatedly) sent
  * @timer: timer governing period between requests
  * @timer_intv: current interval between requests (in ms)
@@ -59,6 +57,8 @@
 struct link_req {
 	struct tipc_bearer *bearer;
 	struct tipc_media_addr dest;
+	u32 domain;
+	int num_nodes;
 	struct sk_buff *buf;
 	struct timer_list timer;
 	unsigned int timer_intv;
@@ -147,7 +147,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	}
 	if (!tipc_in_scope(dest, tipc_own_addr))
 		return;
-	if (!in_own_cluster(orig))
+	if (!tipc_in_scope(b_ptr->link_req->domain, orig))
 		return;
 
 	/* Locate structure corresponding to requesting node */
@@ -214,44 +214,54 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 }
 
 /**
- * tipc_disc_stop_link_req - stop sending periodic link setup requests
+ * disc_update - update frequency of periodic link setup requests
  * @req: ptr to link request structure
+ *
+ * Reinitiates discovery process if discovery object has no associated nodes
+ * and is either not currently searching or is searching at a slow rate
  */
 
-void tipc_disc_stop_link_req(struct link_req *req)
+static void disc_update(struct link_req *req)
 {
-	if (!req)
-		return;
-
-	k_cancel_timer(&req->timer);
-	k_term_timer(&req->timer);
-	buf_discard(req->buf);
-	kfree(req);
+	if (!req->num_nodes) {
+		if ((req->timer_intv == TIPC_LINK_REQ_INACTIVE) ||
+		    (req->timer_intv > TIPC_LINK_REQ_FAST)) {
+			req->timer_intv = TIPC_LINK_REQ_INIT;
+			k_start_timer(&req->timer, req->timer_intv);
+		}
+	}
 }
 
 /**
- * tipc_disc_update_link_req - update frequency of periodic link setup requests
+ * tipc_disc_add_dest - increment set of discovered nodes
  * @req: ptr to link request structure
  */
 
-void tipc_disc_update_link_req(struct link_req *req)
+void tipc_disc_add_dest(struct link_req *req)
 {
-	if (!req)
-		return;
+	req->num_nodes++;
+}
 
-	if (req->timer_intv == TIPC_LINK_REQ_SLOW) {
-		if (!req->bearer->nodes.count) {
-			req->timer_intv = TIPC_LINK_REQ_FAST;
-			k_start_timer(&req->timer, req->timer_intv);
-		}
-	} else if (req->timer_intv == TIPC_LINK_REQ_FAST) {
-		if (req->bearer->nodes.count) {
-			req->timer_intv = TIPC_LINK_REQ_SLOW;
-			k_start_timer(&req->timer, req->timer_intv);
-		}
-	} else {
-		/* leave timer "as is" if haven't yet reached a "normal" rate */
-	}
+/**
+ * tipc_disc_remove_dest - decrement set of discovered nodes
+ * @req: ptr to link request structure
+ */
+
+void tipc_disc_remove_dest(struct link_req *req)
+{
+	req->num_nodes--;
+	disc_update(req);
+}
+
+/**
+ * disc_send_msg - send link setup request message
+ * @req: ptr to link request structure
+ */
+
+static void disc_send_msg(struct link_req *req)
+{
+	if (!req->bearer->blocked)
+		tipc_bearer_send(req->bearer, req->buf, &req->dest);
 }
 
 /**
@@ -263,56 +273,86 @@ void tipc_disc_update_link_req(struct link_req *req)
 
 static void disc_timeout(struct link_req *req)
 {
+	int max_delay;
+
 	spin_lock_bh(&req->bearer->lock);
 
-	req->bearer->media->send_msg(req->buf, req->bearer, &req->dest);
+	/* Stop searching if only desired node has been found */
 
-	if ((req->timer_intv == TIPC_LINK_REQ_SLOW) ||
-	    (req->timer_intv == TIPC_LINK_REQ_FAST)) {
-		/* leave timer interval "as is" if already at a "normal" rate */
-	} else {
-		req->timer_intv *= 2;
-		if (req->timer_intv > TIPC_LINK_REQ_FAST)
-			req->timer_intv = TIPC_LINK_REQ_FAST;
-		if ((req->timer_intv == TIPC_LINK_REQ_FAST) &&
-		    (req->bearer->nodes.count))
-			req->timer_intv = TIPC_LINK_REQ_SLOW;
+	if (tipc_node(req->domain) && req->num_nodes) {
+		req->timer_intv = TIPC_LINK_REQ_INACTIVE;
+		goto exit;
 	}
-	k_start_timer(&req->timer, req->timer_intv);
 
+	/*
+	 * Send discovery message, then update discovery timer
+	 *
+	 * Keep doubling time between requests until limit is reached;
+	 * hold at fast polling rate if don't have any associated nodes,
+	 * otherwise hold at slow polling rate
+	 */
+
+	disc_send_msg(req);
+
+	req->timer_intv *= 2;
+	if (req->num_nodes)
+		max_delay = TIPC_LINK_REQ_SLOW;
+	else
+		max_delay = TIPC_LINK_REQ_FAST;
+	if (req->timer_intv > max_delay)
+		req->timer_intv = max_delay;
+
+	k_start_timer(&req->timer, req->timer_intv);
+exit:
 	spin_unlock_bh(&req->bearer->lock);
 }
 
 /**
- * tipc_disc_init_link_req - start sending periodic link setup requests
+ * tipc_disc_create - create object to send periodic link setup requests
  * @b_ptr: ptr to bearer issuing requests
  * @dest: destination address for request messages
- * @dest_domain: network domain of node(s) which should respond to message
+ * @dest_domain: network domain to which links can be established
  *
- * Returns pointer to link request structure, or NULL if unable to create.
+ * Returns 0 if successful, otherwise -errno.
  */
 
-struct link_req *tipc_disc_init_link_req(struct tipc_bearer *b_ptr,
-					 const struct tipc_media_addr *dest,
-					 u32 dest_domain)
+int tipc_disc_create(struct tipc_bearer *b_ptr,
+		     struct tipc_media_addr *dest, u32 dest_domain)
 {
 	struct link_req *req;
 
 	req = kmalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req)
-		return NULL;
+		return -ENOMEM;
 
 	req->buf = tipc_disc_init_msg(DSC_REQ_MSG, dest_domain, b_ptr);
 	if (!req->buf) {
 		kfree(req);
-		return NULL;
+		return -ENOMSG;
 	}
 
 	memcpy(&req->dest, dest, sizeof(*dest));
 	req->bearer = b_ptr;
+	req->domain = dest_domain;
+	req->num_nodes = 0;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
 	k_init_timer(&req->timer, (Handler)disc_timeout, (unsigned long)req);
 	k_start_timer(&req->timer, req->timer_intv);
-	return req;
+	b_ptr->link_req = req;
+	disc_send_msg(req);
+	return 0;
+}
+
+/**
+ * tipc_disc_delete - destroy object sending periodic link setup requests
+ * @req: ptr to link request structure
+ */
+
+void tipc_disc_delete(struct link_req *req)
+{
+	k_cancel_timer(&req->timer);
+	k_term_timer(&req->timer);
+	buf_discard(req->buf);
+	kfree(req);
 }
 
