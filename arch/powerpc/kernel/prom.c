@@ -68,6 +68,7 @@ int __initdata iommu_force_on;
 unsigned long tce_alloc_start, tce_alloc_end;
 u64 ppc64_rma_size;
 #endif
+static phys_addr_t first_memblock_size;
 
 static int __init early_parse_mem(char *p)
 {
@@ -505,11 +506,14 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 			size = 0x80000000ul - base;
 	}
 #endif
-
-	/* First MEMBLOCK added, do some special initializations */
-	if (memstart_addr == ~(phys_addr_t)0)
-		setup_initial_memory_limit(base, size);
-	memstart_addr = min((u64)memstart_addr, base);
+	/* Keep track of the beginning of memory -and- the size of
+	 * the very first block in the device-tree as it represents
+	 * the RMA on ppc64 server
+	 */
+	if (base < memstart_addr) {
+		memstart_addr = base;
+		first_memblock_size = size;
+	}
 
 	/* Add the chunk to the MEMBLOCK list */
 	memblock_add(base, size);
@@ -694,6 +698,7 @@ void __init early_init_devtree(void *params)
 
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory_ppc, NULL);
+	setup_initial_memory_limit(memstart_addr, first_memblock_size);
 
 	/* Save command line for /proc/cmdline and then parse parameters */
 	strlcpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
