@@ -313,12 +313,6 @@ typedef enum sci_status (*scic_sds_port_io_request_handler_t)(struct scic_sds_po
 
 struct scic_sds_port_state_handler {
 	/**
-	 * The destruct_handler specifies the method invoked when attempting to
-	 * destruct a port.
-	 */
-	scic_sds_port_handler_t destruct_handler;
-
-	/**
 	 * The reset_handler specifies the method invoked when a user
 	 * attempts to hard reset a port.
 	 */
