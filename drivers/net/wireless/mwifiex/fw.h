@@ -816,14 +816,7 @@ struct host_cmd_ds_txpwr_cfg {
 
 struct mwifiex_scan_cmd_config {
 	/*
-	 *  BSS Type to be sent in the firmware command
-	 *
-	 *  Field can be used to restrict the types of networks returned in the
-	 *    scan.  Valid settings are:
-	 *
-	 *   - MWIFIEX_SCAN_MODE_BSS  (infrastructure)
-	 *   - MWIFIEX_SCAN_MODE_IBSS (adhoc)
-	 *   - MWIFIEX_SCAN_MODE_ANY  (unrestricted, adhoc and infrastructure)
+	 *  BSS mode to be sent in the firmware command
 	 */
 	u8 bss_mode;
 
@@ -866,13 +859,6 @@ struct mwifiex_user_scan_cfg {
 	u8 keep_previous_scan;
 	/*
 	 *  BSS mode to be sent in the firmware command
-	 *
-	 *  Field can be used to restrict the types of networks returned in the
-	 *    scan.  Valid settings are:
-	 *
-	 *   - MWIFIEX_SCAN_MODE_BSS  (infrastructure)
-	 *   - MWIFIEX_SCAN_MODE_IBSS (adhoc)
-	 *   - MWIFIEX_SCAN_MODE_ANY  (unrestricted, adhoc and infrastructure)
 	 */
 	u8 bss_mode;
 	/* Configure the number of probe requests for active chan scans */

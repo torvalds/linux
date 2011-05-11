@@ -23,47 +23,14 @@
 #include <net/mac80211.h>
 
 enum {
-	MWIFIEX_SCAN_MODE_UNCHANGED = 0,
-	MWIFIEX_SCAN_MODE_BSS,
-	MWIFIEX_SCAN_MODE_IBSS,
-	MWIFIEX_SCAN_MODE_ANY
-};
-
-enum {
 	MWIFIEX_SCAN_TYPE_UNCHANGED = 0,
 	MWIFIEX_SCAN_TYPE_ACTIVE,
 	MWIFIEX_SCAN_TYPE_PASSIVE
 };
 
-struct mwifiex_get_scan_table_fixed {
-	u8 bssid[ETH_ALEN];
-	u8 channel;
-	u8 rssi;
-	long long network_tsf;
-};
-
-struct mwifiex_scan_time_params {
-	u32 specific_scan_time;
-	u32 active_scan_time;
-	u32 passive_scan_time;
-};
-
 struct mwifiex_user_scan {
 	u32 scan_cfg_len;
 	u8 scan_cfg_buf[1];
-};
-
-struct mwifiex_scan_req {
-	u32 scan_mode;
-	u32 scan_type;
-	struct mwifiex_802_11_ssid scan_ssid;
-	struct mwifiex_scan_time_params scan_time;
-	struct mwifiex_user_scan user_scan;
-};
-
-struct mwifiex_scan_resp {
-	u32 num_in_scan_table;
-	u8 *scan_table;
 };
 
 #define MWIFIEX_PROMISC_MODE            1
@@ -77,16 +44,9 @@ struct mwifiex_multicast_list {
 	u8 mac_list[MWIFIEX_MAX_MULTICAST_LIST_SIZE][ETH_ALEN];
 };
 
-#define MWIFIEX_MAX_CHANNEL_NUM		128
-
 struct mwifiex_chan_freq {
 	u32 channel;
 	u32 freq;
-};
-
-struct mwifiex_chan_list {
-	u32 num_of_chan;
-	struct mwifiex_chan_freq cf[MWIFIEX_MAX_CHANNEL_NUM];
 };
 
 struct mwifiex_ssid_bssid {
@@ -136,18 +96,8 @@ struct mwifiex_ds_get_stats {
 	u32 wep_icv_error[4];
 };
 
-#define BCN_RSSI_LAST_MASK              0x00000001
 #define BCN_RSSI_AVG_MASK               0x00000002
-#define DATA_RSSI_LAST_MASK             0x00000004
-#define DATA_RSSI_AVG_MASK              0x00000008
-#define BCN_SNR_LAST_MASK               0x00000010
-#define BCN_SNR_AVG_MASK                0x00000020
-#define DATA_SNR_LAST_MASK              0x00000040
-#define DATA_SNR_AVG_MASK               0x00000080
-#define BCN_NF_LAST_MASK                0x00000100
 #define BCN_NF_AVG_MASK                 0x00000200
-#define DATA_NF_LAST_MASK               0x00000400
-#define DATA_NF_AVG_MASK                0x00000800
 #define ALL_RSSI_INFO_MASK              0x00000fff
 
 struct mwifiex_ds_get_signal {
@@ -172,11 +122,6 @@ struct mwifiex_ds_get_signal {
 	s16 bcn_nf_avg;
 	s16 data_nf_last;
 	s16 data_nf_avg;
-};
-
-struct mwifiex_fw_info {
-	u32 fw_ver;
-	u8 mac_addr[ETH_ALEN];
 };
 
 #define MWIFIEX_MAX_VER_STR_LEN    128
@@ -286,11 +231,6 @@ struct mwifiex_rate_cfg {
 	u32 rate;
 };
 
-struct mwifiex_data_rate {
-	u32 tx_data_rate;
-	u32 rx_data_rate;
-};
-
 struct mwifiex_power_cfg {
 	u32 is_power_auto;
 	u32 power_level;
@@ -309,20 +249,13 @@ struct mwifiex_ds_hs_cfg {
 };
 
 #define DEEP_SLEEP_ON  1
-#define DEEP_SLEEP_OFF 0
-
 #define DEEP_SLEEP_IDLE_TIME	100
+#define PS_MODE_AUTO		1
 
 struct mwifiex_ds_auto_ds {
 	u16 auto_ds;
 	u16 idle_time;
 };
-
-#define PS_MODE_UNCHANGED			0
-#define PS_MODE_AUTO				1
-#define PS_MODE_POLL				2
-#define PS_MODE_NULL				3
-
 
 struct mwifiex_ds_pm_cfg {
 	union {
@@ -331,18 +264,6 @@ struct mwifiex_ds_pm_cfg {
 		struct mwifiex_ds_auto_ds auto_deep_sleep;
 		u32 sleep_period;
 	} param;
-};
-
-struct mwifiex_ioctl_wmm_queue_status_ac {
-	u8 wmm_acm;
-	u8 flow_required;
-	u8 flow_created;
-	u8 disabled;
-};
-
-struct mwifiex_ds_wmm_queue_status {
-	struct mwifiex_ioctl_wmm_queue_status_ac
-		ac_status[IEEE80211_MAX_QUEUES];
 };
 
 struct mwifiex_ds_11n_tx_cfg {
