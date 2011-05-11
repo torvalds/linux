@@ -527,7 +527,9 @@ int register_sst_card(struct intel_sst_card_ops *card)
 		pr_err("Repeat for registration..denied\n");
 		return -EBADRQC;
 	}
-	sst_drv_ctx->scard_ops->card_status = SND_CARD_UN_INIT;
+	/* The ASoC code doesn't set scard_ops */
+	if (sst_drv_ctx->scard_ops)
+		sst_drv_ctx->scard_ops->card_status = SND_CARD_UN_INIT;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(register_sst_card);
