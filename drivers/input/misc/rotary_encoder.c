@@ -40,50 +40,62 @@ struct rotary_encoder {
 	unsigned char dir;	/* 0 - clockwise, 1 - CCW */
 };
 
-static irqreturn_t rotary_encoder_irq(int irq, void *dev_id)
+static int rotary_encoder_get_state(struct rotary_encoder_platform_data *pdata)
 {
-	struct rotary_encoder *encoder = dev_id;
-	struct rotary_encoder_platform_data *pdata = encoder->pdata;
 	int a = !!gpio_get_value(pdata->gpio_a);
 	int b = !!gpio_get_value(pdata->gpio_b);
-	int state;
 
 	a ^= pdata->inverted_a;
 	b ^= pdata->inverted_b;
-	state = (a << 1) | b;
+
+	return ((a << 1) | b);
+}
+
+static void rotary_encoder_report_event(struct rotary_encoder *encoder)
+{
+	struct rotary_encoder_platform_data *pdata = encoder->pdata;
+
+	if (pdata->relative_axis) {
+		input_report_rel(encoder->input,
+				 pdata->axis, encoder->dir ? -1 : 1);
+	} else {
+		unsigned int pos = encoder->pos;
+
+		if (encoder->dir) {
+			/* turning counter-clockwise */
+			if (pdata->rollover)
+				pos += pdata->steps;
+			if (pos)
+				pos--;
+		} else {
+			/* turning clockwise */
+			if (pdata->rollover || pos < pdata->steps)
+				pos++;
+		}
+
+		if (pdata->rollover)
+			pos %= pdata->steps;
+
+		encoder->pos = pos;
+		input_report_abs(encoder->input, pdata->axis, encoder->pos);
+	}
+
+	input_sync(encoder->input);
+}
+
+static irqreturn_t rotary_encoder_irq(int irq, void *dev_id)
+{
+	struct rotary_encoder *encoder = dev_id;
+	int state;
+
+	state = rotary_encoder_get_state(encoder->pdata);
 
 	switch (state) {
-
 	case 0x0:
-		if (!encoder->armed)
-			break;
-
-		if (pdata->relative_axis) {
-			input_report_rel(encoder->input, pdata->axis,
-					 encoder->dir ? -1 : 1);
-		} else {
-			unsigned int pos = encoder->pos;
-
-			if (encoder->dir) {
-				/* turning counter-clockwise */
-				if (pdata->rollover)
-					pos += pdata->steps;
-				if (pos)
-					pos--;
-			} else {
-				/* turning clockwise */
-				if (pdata->rollover || pos < pdata->steps)
-					pos++;
-			}
-			if (pdata->rollover)
-				pos %= pdata->steps;
-			encoder->pos = pos;
-			input_report_abs(encoder->input, pdata->axis,
-					 encoder->pos);
+		if (encoder->armed) {
+			rotary_encoder_report_event(encoder);
+			encoder->armed = false;
 		}
-		input_sync(encoder->input);
-
-		encoder->armed = false;
 		break;
 
 	case 0x1:
@@ -254,4 +266,3 @@ MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_DESCRIPTION("GPIO rotary encoder driver");
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_LICENSE("GPL v2");
-
