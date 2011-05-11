@@ -426,8 +426,6 @@ typedef enum sci_status (*scic_sds_io_request_handler_t)
 				(struct scic_sds_request *request);
 typedef enum sci_status (*scic_sds_io_request_event_handler_t)
 				(struct scic_sds_request *req, u32 event);
-typedef enum sci_status (*scic_sds_io_request_task_completion_handler_t)
-				(struct scic_sds_request *req, u32 completion_code);
 
 /**
  * struct scic_sds_io_request_state_handler - This is the SDS core definition
@@ -442,7 +440,6 @@ struct scic_sds_io_request_state_handler {
 	 */
 	scic_sds_io_request_handler_t complete_handler;
 
-	scic_sds_io_request_task_completion_handler_t tc_completion_handler;
 	scic_sds_io_request_event_handler_t event_handler;
 };
 

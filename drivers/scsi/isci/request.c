@@ -932,27 +932,14 @@ static void scic_sds_io_request_copy_response(struct scic_sds_request *sci_req)
 	memcpy(resp_buf, ssp_response->resp_data, len);
 }
 
-/*
- * scic_sds_request_started_state_tc_completion_handler() - This method process
- *    TC (task context) completions for normal IO request (i.e. Task/Abort
- *    Completions of type 0).  This method will update the
- *    SCIC_SDS_IO_REQUEST_T::status field.
- * @sci_req: This parameter specifies the request for which a completion
- *    occurred.
- * @completion_code: This parameter specifies the completion code received from
- *    the SCU.
- *
- */
-static enum sci_status
-scic_sds_request_started_state_tc_completion_handler(struct scic_sds_request *sci_req,
-						     u32 completion_code)
+static enum sci_status request_started_state_tc_event(struct scic_sds_request *sci_req,
+						      u32 completion_code)
 {
-	u8 datapres;
 	struct ssp_response_iu *resp_iu;
+	u8 datapres;
 
-	/*
-	 * TODO: Any SDMA return code of other than 0 is bad
-	 *       decode 0x003C0000 to determine SDMA status
+	/* TODO: Any SDMA return code of other than 0 is bad decode 0x003C0000
+	 * to determine SDMA status
 	 */
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
@@ -960,11 +947,8 @@ scic_sds_request_started_state_tc_completion_handler(struct scic_sds_request *sc
 					    SCU_TASK_DONE_GOOD,
 					    SCI_SUCCESS);
 		break;
-
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_EARLY_RESP):
-	{
-		/*
-		 * There are times when the SCU hardware will return an early
+	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_EARLY_RESP): {
+		/* There are times when the SCU hardware will return an early
 		 * response because the io request specified more data than is
 		 * returned by the target device (mode pages, inquiry data,
 		 * etc.).  We must check the response stats to see if this is
@@ -979,21 +963,17 @@ scic_sds_request_started_state_tc_completion_handler(struct scic_sds_request *sc
 			       word_cnt);
 
 		if (resp->status == 0) {
-			scic_sds_request_set_status(
-				sci_req,
-				SCU_TASK_DONE_GOOD,
-				SCI_SUCCESS_IO_DONE_EARLY);
+			scic_sds_request_set_status(sci_req,
+						    SCU_TASK_DONE_GOOD,
+						    SCI_SUCCESS_IO_DONE_EARLY);
 		} else {
-			scic_sds_request_set_status(
-				sci_req,
-				SCU_TASK_DONE_CHECK_RESPONSE,
-				SCI_FAILURE_IO_RESPONSE_VALID);
+			scic_sds_request_set_status(sci_req,
+						    SCU_TASK_DONE_CHECK_RESPONSE,
+						    SCI_FAILURE_IO_RESPONSE_VALID);
 		}
+		break;
 	}
-	break;
-
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_CHECK_RESPONSE):
-	{
+	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_CHECK_RESPONSE): {
 		ssize_t word_cnt = SSP_RESP_IU_MAX_SIZE / sizeof(u32);
 
 		sci_swab32_cpy(&sci_req->ssp.rsp,
@@ -1007,24 +987,22 @@ scic_sds_request_started_state_tc_completion_handler(struct scic_sds_request *sc
 	}
 
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_RESP_LEN_ERR):
-		/*
-		 * / @todo With TASK_DONE_RESP_LEN_ERR is the response frame
+		/* TODO With TASK_DONE_RESP_LEN_ERR is the response frame
 		 * guaranteed to be received before this completion status is
 		 * posted?
 		 */
 		resp_iu = &sci_req->ssp.rsp;
 		datapres = resp_iu->datapres;
 
-		if ((datapres == 0x01) || (datapres == 0x02)) {
-			scic_sds_request_set_status(
-				sci_req,
-				SCU_TASK_DONE_CHECK_RESPONSE,
-				SCI_FAILURE_IO_RESPONSE_VALID);
+		if (datapres == 1 || datapres == 2) {
+			scic_sds_request_set_status(sci_req,
+						    SCU_TASK_DONE_CHECK_RESPONSE,
+						    SCI_FAILURE_IO_RESPONSE_VALID);
 		} else
-			scic_sds_request_set_status(
-				sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS);
+			scic_sds_request_set_status(sci_req,
+						    SCU_TASK_DONE_GOOD,
+						    SCI_SUCCESS);
 		break;
-
 	/* only stp device gets suspended. */
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_ACK_NAK_TO):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_LL_PERR):
@@ -1038,14 +1016,12 @@ scic_sds_request_started_state_tc_completion_handler(struct scic_sds_request *sc
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_REG_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SDB_ERR):
 		if (sci_req->protocol == SCIC_STP_PROTOCOL) {
-			scic_sds_request_set_status(
-				sci_req,
+			scic_sds_request_set_status(sci_req,
 				SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
 				SCU_COMPLETION_TL_STATUS_SHIFT,
 				SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED);
 		} else {
-			scic_sds_request_set_status(
-				sci_req,
+			scic_sds_request_set_status(sci_req,
 				SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
 				SCU_COMPLETION_TL_STATUS_SHIFT,
 				SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
@@ -1063,11 +1039,10 @@ scic_sds_request_started_state_tc_completion_handler(struct scic_sds_request *sc
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_STP_RESOURCES_BUSY):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_PROTOCOL_NOT_SUPPORTED):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_CONNECTION_RATE_NOT_SUPPORTED):
-		scic_sds_request_set_status(
-			sci_req,
-			SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
-			SCU_COMPLETION_TL_STATUS_SHIFT,
-			SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED);
+		scic_sds_request_set_status(sci_req,
+					    SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
+					    SCU_COMPLETION_TL_STATUS_SHIFT,
+					    SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED);
 		break;
 
 	/* neither ssp nor stp gets suspended. */
@@ -1105,22 +1080,6 @@ scic_sds_request_started_state_tc_completion_handler(struct scic_sds_request *sc
 	return SCI_SUCCESS;
 }
 
-enum sci_status
-scic_sds_io_request_tc_completion(struct scic_sds_request *request, u32 completion_code)
-{
-	if (request->state_handlers->tc_completion_handler)
-		return request->state_handlers->tc_completion_handler(request, completion_code);
-
-	dev_warn(scic_to_dev(request->owning_controller),
-		"%s: SCIC IO Request given task completion notification %x "
-		"while in wrong state %d\n",
-		__func__,
-		completion_code,
-		sci_base_state_machine_get_state(&request->state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
 /*
  * This method implements the action to be taken when an SCIC_SDS_IO_REQUEST_T
  * object receives a scic_sds_request_complete() request. This method frees up
@@ -1146,54 +1105,32 @@ static enum sci_status scic_sds_request_completed_state_complete_handler(
 	return SCI_SUCCESS;
 }
 
-/*
- * This method implements the action to be taken when an SCIC_SDS_IO_REQUEST_T
- * object receives a scic_sds_request_task_completion() request. This method
- * decodes the completion type waiting for the abort task complete
- * notification. When the abort task complete is received the io request
- * transitions to the completed state. enum sci_status SCI_SUCCESS
- */
-static enum sci_status scic_sds_request_aborting_state_tc_completion_handler(
+static enum sci_status request_aborting_state_tc_event(
 	struct scic_sds_request *sci_req,
 	u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case (SCU_TASK_DONE_GOOD << SCU_COMPLETION_TL_STATUS_SHIFT):
 	case (SCU_TASK_DONE_TASK_ABORT << SCU_COMPLETION_TL_STATUS_SHIFT):
-		scic_sds_request_set_status(
-			sci_req, SCU_TASK_DONE_TASK_ABORT, SCI_FAILURE_IO_TERMINATED
-			);
+		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_TASK_ABORT,
+					    SCI_FAILURE_IO_TERMINATED);
 
 		sci_base_state_machine_change_state(&sci_req->state_machine,
 						    SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 
 	default:
-		/*
-		 * Unless we get some strange error wait for the task abort to complete
-		 * TODO: Should there be a state change for this completion? */
+		/* Unless we get some strange error wait for the task abort to complete
+		 * TODO: Should there be a state change for this completion?
+		 */
 		break;
 	}
 
 	return SCI_SUCCESS;
 }
 
-/**
- * This method processes the completions transport layer (TL) status to
- *    determine if the RAW task management frame was sent successfully. If the
- *    raw frame was sent successfully, then the state for the task request
- *    transitions to waiting for a response frame.
- * @sci_req: This parameter specifies the request for which the TC
- *    completion was received.
- * @completion_code: This parameter indicates the completion status information
- *    for the TC.
- *
- * Indicate if the tc completion handler was successful. SCI_SUCCESS currently
- * this method always returns success.
- */
-static enum sci_status scic_sds_ssp_task_request_await_tc_completion_tc_completion_handler(
-	struct scic_sds_request *sci_req,
-	u32 completion_code)
+static enum sci_status ssp_task_request_await_tc_event(struct scic_sds_request *sci_req,
+						       u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
@@ -1203,33 +1140,27 @@ static enum sci_status scic_sds_ssp_task_request_await_tc_completion_tc_completi
 		sci_base_state_machine_change_state(&sci_req->state_machine,
 						    SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE);
 		break;
-
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_ACK_NAK_TO):
-		/*
-		 * Currently, the decision is to simply allow the task request to
-		 * timeout if the task IU wasn't received successfully.
-		 * There is a potential for receiving multiple task responses if we
-		 * decide to send the task IU again. */
+		/* Currently, the decision is to simply allow the task request
+		 * to timeout if the task IU wasn't received successfully.
+		 * There is a potential for receiving multiple task responses if
+		 * we decide to send the task IU again.
+		 */
 		dev_warn(scic_to_dev(sci_req->owning_controller),
 			 "%s: TaskRequest:0x%p CompletionCode:%x - "
-			 "ACK/NAK timeout\n",
-			 __func__,
-			 sci_req,
+			 "ACK/NAK timeout\n", __func__, sci_req,
 			 completion_code);
 
 		sci_base_state_machine_change_state(&sci_req->state_machine,
 						    SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE);
 		break;
-
 	default:
-		/*
-		 * All other completion status cause the IO to be complete.  If a NAK
-		 * was received, then it is up to the user to retry the request. */
-		scic_sds_request_set_status(
-			sci_req,
+		/* All other completion status cause the IO to be complete.  If a NAK
+		 * was received, then it is up to the user to retry the request.
+		 */
+		scic_sds_request_set_status(sci_req,
 			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
-			);
+			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
 		sci_base_state_machine_change_state(&sci_req->state_machine,
 						    SCI_BASE_REQUEST_STATE_COMPLETED);
@@ -1239,27 +1170,15 @@ static enum sci_status scic_sds_ssp_task_request_await_tc_completion_tc_completi
 	return SCI_SUCCESS;
 }
 
-/**
- * This method processes an abnormal TC completion while the SMP request is
- *    waiting for a response frame.  It decides what happened to the IO based
- *    on TC completion status.
- * @sci_req: This parameter specifies the request for which the TC
- *    completion was received.
- * @completion_code: This parameter indicates the completion status information
- *    for the TC.
- *
- * Indicate if the tc completion handler was successful. SCI_SUCCESS currently
- * this method always returns success.
- */
-static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler(
-	struct scic_sds_request *sci_req,
-	u32 completion_code)
+static enum sci_status smp_request_await_response_tc_event(struct scic_sds_request *sci_req,
+							   u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		/*
-		 * In the AWAIT RESPONSE state, any TC completion is unexpected.
-		 * but if the TC has success status, we complete the IO anyway. */
+		/* In the AWAIT RESPONSE state, any TC completion is
+		 * unexpected.  but if the TC has success status, we
+		 * complete the IO anyway.
+		 */
 		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD,
 					    SCI_SUCCESS);
 
@@ -1271,11 +1190,13 @@ static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SMP_UFI_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SMP_FRM_TYPE_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SMP_LL_RX_ERR):
-		/*
-		 * These status has been seen in a specific LSI expander, which sometimes
-		 * is not able to send smp response within 2 ms. This causes our hardware
-		 * break the connection and set TC completion with one of these SMP_XXX_XX_ERR
-		 * status. For these type of error, we ask scic user to retry the request. */
+		/* These status has been seen in a specific LSI
+		 * expander, which sometimes is not able to send smp
+		 * response within 2 ms. This causes our hardware break
+		 * the connection and set TC completion with one of
+		 * these SMP_XXX_XX_ERR status. For these type of error,
+		 * we ask scic user to retry the request.
+		 */
 		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_SMP_RESP_TO_ERR,
 					    SCI_FAILURE_RETRY_REQUIRED);
 
@@ -1284,14 +1205,12 @@ static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler
 		break;
 
 	default:
-		/*
-		 * All other completion status cause the IO to be complete.  If a NAK
-		 * was received, then it is up to the user to retry the request. */
-		scic_sds_request_set_status(
-			sci_req,
-			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
-			);
+		/* All other completion status cause the IO to be complete.  If a NAK
+		 * was received, then it is up to the user to retry the request
+		 */
+		scic_sds_request_set_status(sci_req,
+					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
+					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
 		sci_base_state_machine_change_state(&sci_req->state_machine,
 						    SCI_BASE_REQUEST_STATE_COMPLETED);
@@ -1301,22 +1220,8 @@ static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler
 	return SCI_SUCCESS;
 }
 
-/**
- * This method processes the completions transport layer (TL) status to
- *    determine if the SMP request was sent successfully. If the SMP request
- *    was sent successfully, then the state for the SMP request transits to
- *    waiting for a response frame.
- * @sci_req: This parameter specifies the request for which the TC
- *    completion was received.
- * @completion_code: This parameter indicates the completion status information
- *    for the TC.
- *
- * Indicate if the tc completion handler was successful. SCI_SUCCESS currently
- * this method always returns success.
- */
-static enum sci_status scic_sds_smp_request_await_tc_completion_tc_completion_handler(
-	struct scic_sds_request *sci_req,
-	u32 completion_code)
+static enum sci_status smp_request_await_tc_event(struct scic_sds_request *sci_req,
+						  u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
@@ -1326,20 +1231,17 @@ static enum sci_status scic_sds_smp_request_await_tc_completion_tc_completion_ha
 		sci_base_state_machine_change_state(&sci_req->state_machine,
 						    SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
-
 	default:
-		/*
-		 * All other completion status cause the IO to be complete.  If a NAK
-		 * was received, then it is up to the user to retry the request. */
-		scic_sds_request_set_status(
-			sci_req,
-			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
-			);
+		/* All other completion status cause the IO to be
+		 * complete.  If a NAK was received, then it is up to
+		 * the user to retry the request.
+		 */
+		scic_sds_request_set_status(sci_req,
+					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
+					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
-		sci_base_state_machine_change_state(
-			&sci_req->state_machine,
-			SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+						    SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 	}
 
@@ -1400,44 +1302,29 @@ static struct scu_sgl_element *scic_sds_stp_request_pio_get_next_sgl(struct scic
 	return current_sgl;
 }
 
-/**
- *
- * @sci_req:
- * @completion_code:
- *
- * This method processes a TC completion.  The expected TC completion is for
- * the transmission of the H2D register FIS containing the SATA/STP non-data
- * request. This method always successfully processes the TC completion.
- * SCI_SUCCESS This value is always returned.
- */
-static enum sci_status scic_sds_stp_request_non_data_await_h2d_tc_completion_handler(
-	struct scic_sds_request *sci_req,
-	u32 completion_code)
+static enum sci_status stp_request_non_data_await_h2d_tc_event(struct scic_sds_request *sci_req,
+							       u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		scic_sds_request_set_status(
-			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
-			);
+		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD,
+					    SCI_SUCCESS);
 
-		sci_base_state_machine_change_state(
-			&sci_req->state_machine,
-			SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_D2H_SUBSTATE
-			);
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+						    SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_D2H_SUBSTATE);
 		break;
 
 	default:
-		/*
-		 * All other completion status cause the IO to be complete.  If a NAK
-		 * was received, then it is up to the user to retry the request. */
-		scic_sds_request_set_status(
-			sci_req,
-			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
-			);
+		/* All other completion status cause the IO to be
+		 * complete.  If a NAK was received, then it is up to
+		 * the user to retry the request.
+		 */
+		scic_sds_request_set_status(sci_req,
+					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
+					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
-		sci_base_state_machine_change_state(
-			&sci_req->state_machine, SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+						    SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 	}
 
@@ -1613,55 +1500,38 @@ static enum sci_status scic_sds_stp_request_pio_data_in_copy_data(
 	return status;
 }
 
-/**
- *
- * @sci_req:
- * @completion_code:
- *
- * enum sci_status
- */
-static enum sci_status scic_sds_stp_request_pio_await_h2d_completion_tc_completion_handler(
-	struct scic_sds_request *sci_req,
-	u32 completion_code)
+static enum sci_status stp_request_pio_await_h2d_completion_tc_event(struct scic_sds_request *sci_req,
+								     u32 completion_code)
 {
 	enum sci_status status = SCI_SUCCESS;
 
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		scic_sds_request_set_status(
-			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
-			);
+		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS);
 
-		sci_base_state_machine_change_state(
-			&sci_req->state_machine,
-			SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE
-			);
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+						    SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE);
 		break;
 
 	default:
-		/*
-		 * All other completion status cause the IO to be complete.  If a NAK
-		 * was received, then it is up to the user to retry the request. */
-		scic_sds_request_set_status(
-			sci_req,
-			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
-			);
+		/* All other completion status cause the IO to be
+		 * complete.  If a NAK was received, then it is up to
+		 * the user to retry the request.
+		 */
+		scic_sds_request_set_status(sci_req,
+					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
+					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
-		sci_base_state_machine_change_state(
-			&sci_req->state_machine,
-			SCI_BASE_REQUEST_STATE_COMPLETED
-			);
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+						    SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 	}
 
 	return status;
 }
 
-static enum sci_status scic_sds_stp_request_pio_data_out_await_data_transmit_completion_tc_completion_handler(
-
-	struct scic_sds_request *sci_req,
-	u32 completion_code)
+static enum sci_status pio_data_out_tx_done_tc_event(struct scic_sds_request *sci_req,
+						     u32 completion_code)
 {
 	enum sci_status status = SCI_SUCCESS;
 	bool all_frames_transferred = false;
@@ -1695,7 +1565,6 @@ static enum sci_status scic_sds_stp_request_pio_data_out_await_data_transmit_com
 				);
 		}
 		break;
-
 	default:
 		/*
 		 * All other completion status cause the IO to be complete.  If a NAK
@@ -2209,12 +2078,8 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 	}
 }
 
-
-
-
-static enum sci_status scic_sds_stp_request_udma_await_tc_completion_tc_completion_handler(
-	struct scic_sds_request *sci_req,
-	u32 completion_code)
+static enum sci_status stp_request_udma_await_tc_event(struct scic_sds_request *sci_req,
+						       u32 completion_code)
 {
 	enum sci_status status = SCI_SUCCESS;
 
@@ -2226,9 +2091,10 @@ static enum sci_status scic_sds_stp_request_udma_await_tc_completion_tc_completi
 		break;
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_UNEXP_FIS):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_REG_ERR):
-		/*
-		 * We must check ther response buffer to see if the D2H Register FIS was
-		 * received before we got the TC completion. */
+		/* We must check ther response buffer to see if the D2H
+		 * Register FIS was received before we got the TC
+		 * completion.
+		 */
 		if (sci_req->stp.rsp.fis_type == FIS_REGD2H) {
 			scic_sds_remote_device_suspend(sci_req->target_device,
 				SCU_EVENT_SPECIFIC(SCU_NORMALIZE_COMPLETION_STATUS(completion_code)));
@@ -2237,18 +2103,22 @@ static enum sci_status scic_sds_stp_request_udma_await_tc_completion_tc_completi
 								   SCU_TASK_DONE_CHECK_RESPONSE,
 								   SCI_FAILURE_IO_RESPONSE_VALID);
 		} else {
-			/*
-			 * If we have an error completion status for the TC then we can expect a
-			 * D2H register FIS from the device so we must change state to wait for it */
+			/* If we have an error completion status for the
+			 * TC then we can expect a D2H register FIS from
+			 * the device so we must change state to wait
+			 * for it
+			 */
 			sci_base_state_machine_change_state(&sci_req->state_machine,
 				SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE);
 		}
 		break;
 
-	/*
-	 * / @todo Check to see if any of these completion status need to wait for
-	 * /       the device to host register fis. */
-	/* / @todo We can retry the command for SCU_TASK_DONE_CMD_LL_R_ERR - this comes only for B0 */
+	/* TODO Check to see if any of these completion status need to
+	 * wait for the device to host register fis.
+	 */
+	/* TODO We can retry the command for SCU_TASK_DONE_CMD_LL_R_ERR
+	 * - this comes only for B0
+	 */
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_INV_FIS_LEN):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_MAX_PLD_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_LL_R_ERR):
@@ -2268,61 +2138,35 @@ static enum sci_status scic_sds_stp_request_udma_await_tc_completion_tc_completi
 	return status;
 }
 
-/**
- *
- * @sci_req:
- * @completion_code:
- *
- * This method processes a TC completion.  The expected TC completion is for
- * the transmission of the H2D register FIS containing the SATA/STP non-data
- * request. This method always successfully processes the TC completion.
- * SCI_SUCCESS This value is always returned.
- */
-static enum sci_status scic_sds_stp_request_soft_reset_await_h2d_asserted_tc_completion_handler(
-	struct scic_sds_request *sci_req,
-	u32 completion_code)
+static enum sci_status stp_request_soft_reset_await_h2d_asserted_tc_event(struct scic_sds_request *sci_req,
+									  u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		scic_sds_request_set_status(
-			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS
-			);
+		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD,
+					    SCI_SUCCESS);
 
-		sci_base_state_machine_change_state(
-			&sci_req->state_machine,
-			SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_DIAGNOSTIC_COMPLETION_SUBSTATE
-			);
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+			SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_DIAGNOSTIC_COMPLETION_SUBSTATE);
 		break;
 
 	default:
 		/*
 		 * All other completion status cause the IO to be complete.  If a NAK
 		 * was received, then it is up to the user to retry the request. */
-		scic_sds_request_set_status(
-			sci_req,
+		scic_sds_request_set_status(sci_req,
 			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
-			);
+			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
-		sci_base_state_machine_change_state(
-			&sci_req->state_machine, SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+						    SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 	}
 
 	return SCI_SUCCESS;
 }
 
-/**
- *
- * @sci_req:
- * @completion_code:
- *
- * This method processes a TC completion.  The expected TC completion is for
- * the transmission of the H2D register FIS containing the SATA/STP non-data
- * request. This method always successfully processes the TC completion.
- * SCI_SUCCESS This value is always returned.
- */
-static enum sci_status scic_sds_stp_request_soft_reset_await_h2d_diagnostic_tc_completion_handler(
+static enum sci_status stp_request_soft_reset_await_h2d_diagnostic_tc_event(
 	struct scic_sds_request *sci_req,
 	u32 completion_code)
 {
@@ -2336,70 +2180,89 @@ static enum sci_status scic_sds_stp_request_soft_reset_await_h2d_diagnostic_tc_c
 		break;
 
 	default:
-		/*
-		 * All other completion status cause the IO to be complete.  If a NAK
-		 * was received, then it is up to the user to retry the request. */
-		scic_sds_request_set_status(
-			sci_req,
+		/* All other completion status cause the IO to be complete.  If
+		 * a NAK was received, then it is up to the user to retry the
+		 * request.
+		 */
+		scic_sds_request_set_status(sci_req,
 			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
-			);
+			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
 		sci_base_state_machine_change_state(&sci_req->state_machine,
-				SCI_BASE_REQUEST_STATE_COMPLETED);
+						    SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 	}
 
 	return SCI_SUCCESS;
 }
 
+enum sci_status
+scic_sds_io_request_tc_completion(struct scic_sds_request *sci_req, u32 completion_code)
+{
+	enum sci_base_request_states state;
+	struct scic_sds_controller *scic = sci_req->owning_controller;
+
+	state = sci_req->state_machine.current_state_id;
+
+	switch (state) {
+		case SCI_BASE_REQUEST_STATE_STARTED:
+			return request_started_state_tc_event(sci_req, completion_code);
+		case SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION:
+			return ssp_task_request_await_tc_event(sci_req, completion_code);
+		case SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE:
+			return smp_request_await_response_tc_event(sci_req, completion_code);
+		case SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION:
+			return smp_request_await_tc_event(sci_req, completion_code);
+		case SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE:
+			return stp_request_udma_await_tc_event(sci_req, completion_code);
+		case SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE:
+			return stp_request_non_data_await_h2d_tc_event(sci_req, completion_code);
+		case SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE:
+			return stp_request_pio_await_h2d_completion_tc_event(sci_req, completion_code);
+		case SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE:
+			return pio_data_out_tx_done_tc_event(sci_req, completion_code);
+		case SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE:
+			return stp_request_soft_reset_await_h2d_asserted_tc_event(sci_req, completion_code);
+		case SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_DIAGNOSTIC_COMPLETION_SUBSTATE:
+			return stp_request_soft_reset_await_h2d_diagnostic_tc_event(sci_req, completion_code);
+		case SCI_BASE_REQUEST_STATE_ABORTING:
+			return request_aborting_state_tc_event(sci_req, completion_code);
+		default:
+			dev_warn(scic_to_dev(scic),
+				"%s: SCIC IO Request given task completion notification %x "
+				"while in wrong state %d\n", __func__, completion_code,
+				state);
+			return SCI_FAILURE_INVALID_STATE;
+	}
+}
+
+
+
 static const struct scic_sds_io_request_state_handler scic_sds_request_state_handler_table[] = {
 	[SCI_BASE_REQUEST_STATE_INITIAL] = {},
 	[SCI_BASE_REQUEST_STATE_CONSTRUCTED] = {},
-	[SCI_BASE_REQUEST_STATE_STARTED] = {
-		.tc_completion_handler	= scic_sds_request_started_state_tc_completion_handler,
-	},
-	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION] = {
-		.tc_completion_handler	= scic_sds_ssp_task_request_await_tc_completion_tc_completion_handler,
-	},
+	[SCI_BASE_REQUEST_STATE_STARTED] = { },
+	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION] = { },
 	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE] = { },
-	[SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE] = {
-		.tc_completion_handler	= scic_sds_smp_request_await_response_tc_completion_handler,
-	},
-	[SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION] = {
-		.tc_completion_handler	=  scic_sds_smp_request_await_tc_completion_tc_completion_handler,
-	},
-	[SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE] = {
-		.tc_completion_handler	= scic_sds_stp_request_udma_await_tc_completion_tc_completion_handler,
-	},
+	[SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE] = { },
+	[SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION] = { },
+	[SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE] = { },
 	[SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE] = { },
-	[SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE] = {
-		.tc_completion_handler	= scic_sds_stp_request_non_data_await_h2d_tc_completion_handler,
-	},
+	[SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE] = { },
 	[SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_D2H_SUBSTATE] = { },
-	[SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE] = {
-		.tc_completion_handler	= scic_sds_stp_request_pio_await_h2d_completion_tc_completion_handler,
-	},
+	[SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE] = { },
 	[SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE] = { },
 	[SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE] = {
 		.event_handler		= scic_sds_stp_request_pio_data_in_await_data_event_handler,
 	},
-	[SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE] = {
-		.tc_completion_handler	= scic_sds_stp_request_pio_data_out_await_data_transmit_completion_tc_completion_handler,
-	},
-	[SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE] = {
-		.tc_completion_handler	= scic_sds_stp_request_soft_reset_await_h2d_asserted_tc_completion_handler,
-	},
-	[SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_DIAGNOSTIC_COMPLETION_SUBSTATE] = {
-		.tc_completion_handler	= scic_sds_stp_request_soft_reset_await_h2d_diagnostic_tc_completion_handler,
-	},
+	[SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE] = { },
+	[SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE] = { },
+	[SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_DIAGNOSTIC_COMPLETION_SUBSTATE] = { },
 	[SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_D2H_RESPONSE_FRAME_SUBSTATE] = { },
 	[SCI_BASE_REQUEST_STATE_COMPLETED] = {
 		.complete_handler	= scic_sds_request_completed_state_complete_handler,
 	},
-	[SCI_BASE_REQUEST_STATE_ABORTING] = {
-		.tc_completion_handler	= scic_sds_request_aborting_state_tc_completion_handler,
-	},
+	[SCI_BASE_REQUEST_STATE_ABORTING] = { },
 	[SCI_BASE_REQUEST_STATE_FINAL] = { },
 };
 
