@@ -862,7 +862,7 @@ typedef struct wl_ioctl {
 #define PM_MAX	1
 #define PM_FAST 2
 
-#define LISTEN_INTERVAL			20
+#define LISTEN_INTERVAL			10
 
 #define	INTERFERE_NONE	0	
 #define	NON_WLAN	1	
