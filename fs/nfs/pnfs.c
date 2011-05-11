@@ -383,6 +383,7 @@ pnfs_destroy_all_layouts(struct nfs_client *clp)
 				plh_layouts);
 		dprintk("%s freeing layout for inode %lu\n", __func__,
 			lo->plh_inode->i_ino);
+		list_del_init(&lo->plh_layouts);
 		pnfs_destroy_layout(NFS_I(lo->plh_inode));
 	}
 }
