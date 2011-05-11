@@ -5242,17 +5242,17 @@ xfs_bunmapi(
 nodelete:
 		/*
 		 * If not done go on to the next (previous) record.
-		 * Reset ep in case the extents array was re-alloced.
 		 */
-		ep = xfs_iext_get_ext(ifp, lastx);
 		if (bno != (xfs_fileoff_t)-1 && bno >= start) {
-			if (lastx >= XFS_IFORK_NEXTENTS(ip, whichfork) ||
-			    xfs_bmbt_get_startoff(ep) > bno) {
-				if (--lastx >= 0)
-					ep = xfs_iext_get_ext(ifp, lastx);
-			}
-			if (lastx >= 0)
+			if (lastx >= 0) {
+				ep = xfs_iext_get_ext(ifp, lastx);
+				if (xfs_bmbt_get_startoff(ep) > bno) {
+					if (--lastx >= 0)
+						ep = xfs_iext_get_ext(ifp,
+								      lastx);
+				}
 				xfs_bmbt_get_all(ep, &got);
+			}
 			extno++;
 		}
 	}
