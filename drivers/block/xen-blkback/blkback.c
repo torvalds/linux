@@ -62,9 +62,7 @@ MODULE_PARM_DESC(reqs, "Number of blkback requests to allocate");
 
 /* Run-time switchable: /sys/module/blkback/parameters/ */
 static unsigned int log_stats;
-static unsigned int debug_lvl;
 module_param(log_stats, int, 0644);
-module_param(debug_lvl, int, 0644);
 
 /*
  * Each outstanding request that we've passed to the lower device layers has a
@@ -269,9 +267,6 @@ int xen_blkif_schedule(void *arg)
 
 	xen_blkif_get(blkif);
 
-	if (debug_lvl)
-		pr_debug(DRV_PFX "%s: started\n", current->comm);
-
 	while (!kthread_should_stop()) {
 		if (try_to_freeze())
 			continue;
@@ -298,8 +293,6 @@ int xen_blkif_schedule(void *arg)
 
 	if (log_stats)
 		print_stats(blkif);
-	if (debug_lvl)
-		pr_debug(DRV_PFX "%s: exiting\n", current->comm);
 
 	blkif->xenblkd = NULL;
 	xen_blkif_put(blkif);
