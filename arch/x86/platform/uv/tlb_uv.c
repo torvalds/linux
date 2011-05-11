@@ -397,16 +397,13 @@ end_uvhub_quiesce(struct bau_control *hmaster)
  * Wait for completion of a broadcast software ack message
  * return COMPLETE, RETRY(PLUGGED or TIMEOUT) or GIVEUP
  */
-static int uv_wait_completion(struct bau_desc *bau_desc,
+static int uv1_wait_completion(struct bau_desc *bau_desc,
 	unsigned long mmr_offset, int right_shift, int this_cpu,
 	struct bau_control *bcp, struct bau_control *smaster, long try)
 {
 	unsigned long descriptor_status;
 	cycles_t ttime;
 	struct ptc_stats *stat = bcp->statp;
-	struct bau_control *hmaster;
-
-	hmaster = bcp->uvhub_master;
 
 	/* spin on the status MMR, waiting for it to go idle */
 	while ((descriptor_status = (((unsigned long)
@@ -414,16 +411,16 @@ static int uv_wait_completion(struct bau_desc *bau_desc,
 			right_shift) & UV_ACT_STATUS_MASK)) !=
 			DESC_STATUS_IDLE) {
 		/*
-		 * Our software ack messages may be blocked because there are
-		 * no swack resources available.  As long as none of them
-		 * has timed out hardware will NACK our message and its
-		 * state will stay IDLE.
+		 * Our software ack messages may be blocked because
+		 * there are no swack resources available.  As long
+		 * as none of them has timed out hardware will NACK
+		 * our message and its state will stay IDLE.
 		 */
 		if (descriptor_status == DESC_STATUS_SOURCE_TIMEOUT) {
 			stat->s_stimeout++;
 			return FLUSH_GIVEUP;
 		} else if (descriptor_status ==
-					DESC_STATUS_DESTINATION_TIMEOUT) {
+				DESC_STATUS_DESTINATION_TIMEOUT) {
 			stat->s_dtimeout++;
 			ttime = get_cycles();
 
@@ -450,6 +447,86 @@ static int uv_wait_completion(struct bau_desc *bau_desc,
 	}
 	bcp->conseccompletes++;
 	return FLUSH_COMPLETE;
+}
+
+static int uv2_wait_completion(struct bau_desc *bau_desc,
+	unsigned long mmr_offset, int right_shift, int this_cpu,
+	struct bau_control *bcp, struct bau_control *smaster, long try)
+{
+	unsigned long descriptor_status;
+	unsigned long descriptor_status2;
+	int cpu;
+	cycles_t ttime;
+	struct ptc_stats *stat = bcp->statp;
+
+	/* UV2 has an extra bit of status */
+	cpu = bcp->uvhub_cpu;
+	/* spin on the status MMR, waiting for it to go idle */
+	descriptor_status = (((unsigned long)(uv_read_local_mmr
+		(mmr_offset)) >> right_shift) & UV_ACT_STATUS_MASK);
+	descriptor_status2 = (((unsigned long)uv_read_local_mmr
+		(UV2H_LB_BAU_SB_ACTIVATION_STATUS_2) >> cpu) & 0x1UL);
+	descriptor_status = (descriptor_status << 1) |
+		descriptor_status2;
+	while (descriptor_status != UV2H_DESC_IDLE) {
+		/*
+		 * Our software ack messages may be blocked because
+		 * there are no swack resources available.  As long
+		 * as none of them has timed out hardware will NACK
+		 * our message and its state will stay IDLE.
+		 */
+		if ((descriptor_status == UV2H_DESC_SOURCE_TIMEOUT) ||
+		    (descriptor_status == UV2H_DESC_DEST_STRONG_NACK) ||
+		    (descriptor_status == UV2H_DESC_DEST_PUT_ERR)) {
+			stat->s_stimeout++;
+			return FLUSH_GIVEUP;
+		} else if (descriptor_status == UV2H_DESC_DEST_TIMEOUT) {
+			stat->s_dtimeout++;
+			ttime = get_cycles();
+
+			/*
+			 * Our retries may be blocked by all destination
+			 * swack resources being consumed, and a timeout
+			 * pending.  In that case hardware returns the
+			 * ERROR that looks like a destination timeout.
+			 */
+			if (cycles_2_us(ttime - bcp->send_message) <
+							timeout_us) {
+				bcp->conseccompletes = 0;
+				return FLUSH_RETRY_PLUGGED;
+			}
+
+			bcp->conseccompletes = 0;
+			return FLUSH_RETRY_TIMEOUT;
+		} else {
+			/*
+			 * descriptor_status is still BUSY
+			 */
+			cpu_relax();
+		}
+		descriptor_status = (((unsigned long)(uv_read_local_mmr
+			(mmr_offset)) >> right_shift) &
+			UV_ACT_STATUS_MASK);
+		descriptor_status2 = (((unsigned long)uv_read_local_mmr
+			(UV2H_LB_BAU_SB_ACTIVATION_STATUS_2) >> cpu) &
+			0x1UL);
+		descriptor_status = (descriptor_status << 1) |
+			descriptor_status2;
+	}
+	bcp->conseccompletes++;
+	return FLUSH_COMPLETE;
+}
+
+static int uv_wait_completion(struct bau_desc *bau_desc,
+	unsigned long mmr_offset, int right_shift, int this_cpu,
+	struct bau_control *bcp, struct bau_control *smaster, long try)
+{
+	if (is_uv1_hub())
+		return uv1_wait_completion(bau_desc, mmr_offset, right_shift,
+				   this_cpu, bcp, smaster, try);
+	else
+		return uv2_wait_completion(bau_desc, mmr_offset, right_shift,
+				   this_cpu, bcp, smaster, try);
 }
 
 static inline cycles_t
@@ -585,7 +662,8 @@ int uv_flush_send_and_wait(struct bau_desc *bau_desc,
 	struct bau_control *smaster = bcp->socket_master;
 	struct bau_control *hmaster = bcp->uvhub_master;
 
-	if (!atomic_inc_unless_ge(&hmaster->uvhub_lock,
+	if (is_uv1_hub()  &&
+			!atomic_inc_unless_ge(&hmaster->uvhub_lock,
 			&hmaster->active_descriptor_count,
 			hmaster->max_bau_concurrent)) {
 		stat->s_throttles++;
@@ -899,12 +977,17 @@ static void __init uv_enable_timeouts(void)
 		uv_write_global_mmr64
 		    (pnode, UVH_LB_BAU_MISC_CONTROL, mmr_image);
 		/*
+		 * UV1:
 		 * Subsequent reversals of the timebase bit (3) cause an
 		 * immediate timeout of one or all INTD resources as
 		 * indicated in bits 2:0 (7 causes all of them to timeout).
 		 */
 		mmr_image |= ((unsigned long)1 <<
 		    UVH_LB_BAU_MISC_CONTROL_ENABLE_INTD_SOFT_ACK_MODE_SHFT);
+		if (is_uv2_hub()) {
+			mmr_image |= ((unsigned long)1 << UV2_LEG_SHFT);
+			mmr_image |= ((unsigned long)1 << UV2_EXT_SHFT);
+		}
 		uv_write_global_mmr64
 		    (pnode, UVH_LB_BAU_MISC_CONTROL, mmr_image);
 	}
@@ -1486,14 +1569,27 @@ calculate_destination_timeout(void)
 	int ret;
 	unsigned long ts_ns;
 
-	mult1 = UV_INTD_SOFT_ACK_TIMEOUT_PERIOD & BAU_MISC_CONTROL_MULT_MASK;
-	mmr_image = uv_read_local_mmr(UVH_AGING_PRESCALE_SEL);
-	index = (mmr_image >> BAU_URGENCY_7_SHIFT) & BAU_URGENCY_7_MASK;
-	mmr_image = uv_read_local_mmr(UVH_TRANSACTION_TIMEOUT);
-	mult2 = (mmr_image >> BAU_TRANS_SHIFT) & BAU_TRANS_MASK;
-	base = timeout_base_ns[index];
-	ts_ns = base * mult1 * mult2;
-	ret = ts_ns / 1000;
+	if (is_uv1_hub()) {
+		mult1 = UV1_INTD_SOFT_ACK_TIMEOUT_PERIOD &
+			BAU_MISC_CONTROL_MULT_MASK;
+		mmr_image = uv_read_local_mmr(UVH_AGING_PRESCALE_SEL);
+		index = (mmr_image >> BAU_URGENCY_7_SHIFT) & BAU_URGENCY_7_MASK;
+		mmr_image = uv_read_local_mmr(UVH_TRANSACTION_TIMEOUT);
+		mult2 = (mmr_image >> BAU_TRANS_SHIFT) & BAU_TRANS_MASK;
+		base = timeout_base_ns[index];
+		ts_ns = base * mult1 * mult2;
+		ret = ts_ns / 1000;
+	} else {
+		/* 4 bits  0/1 for 10/80us, 3 bits of multiplier */
+		mmr_image = uv_read_local_mmr(UVH_AGING_PRESCALE_SEL);
+		mmr_image = (mmr_image & UV_SA_MASK) >> UV_SA_SHFT;
+		if (mmr_image & ((unsigned long)1 << UV2_ACK_UNITS_SHFT))
+			mult1 = 80;
+		else
+			mult1 = 10;
+		base = mmr_image & UV2_ACK_MASK;
+		ret = mult1 * base;
+	}
 	return ret;
 }
 

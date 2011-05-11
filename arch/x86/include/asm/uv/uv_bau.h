@@ -44,7 +44,10 @@
 #define UV_ACT_STATUS_SIZE		2
 #define UV_DISTRIBUTION_SIZE		256
 #define UV_SW_ACK_NPENDING		8
-#define UV_NET_ENDPOINT_INTD		0x38
+#define UV1_NET_ENDPOINT_INTD		0x38
+#define UV2_NET_ENDPOINT_INTD		0x28
+#define UV_NET_ENDPOINT_INTD		(is_uv1_hub() ?			\
+			UV1_NET_ENDPOINT_INTD : UV2_NET_ENDPOINT_INTD)
 #define UV_DESC_BASE_PNODE_SHIFT	49
 #define UV_PAYLOADQ_PNODE_SHIFT		49
 #define UV_PTC_BASENAME			"sgi_uv/ptc_statistics"
@@ -53,10 +56,22 @@
 #define UV_BAU_TUNABLES_FILE		"bau_tunables"
 #define WHITESPACE			" \t\n"
 #define uv_physnodeaddr(x)		((__pa((unsigned long)(x)) & uv_mmask))
-#define UV_ENABLE_INTD_SOFT_ACK_MODE_SHIFT 15
-#define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHIFT 16
-#define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD 0x0000000009UL
+
+
 /* [19:16] SOFT_ACK timeout period  19: 1 is urgency 7  17:16 1 is multiplier */
+/*
+ * UV2: Bit 19 selects between
+ *  (0): 10 microsecond timebase and
+ *  (1): 80 microseconds
+ *  we're using 655us, similar to UV1: 65 units of 10us
+ */
+#define UV1_INTD_SOFT_ACK_TIMEOUT_PERIOD (9UL)
+#define UV2_INTD_SOFT_ACK_TIMEOUT_PERIOD (65*10UL)
+
+#define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD	(is_uv1_hub() ?			\
+		UV1_INTD_SOFT_ACK_TIMEOUT_PERIOD :			\
+		UV2_INTD_SOFT_ACK_TIMEOUT_PERIOD)
+
 #define BAU_MISC_CONTROL_MULT_MASK 3
 
 #define UVH_AGING_PRESCALE_SEL 0x000000b000UL
@@ -76,6 +91,16 @@
 #define DESC_STATUS_ACTIVE		1
 #define DESC_STATUS_DESTINATION_TIMEOUT	2
 #define DESC_STATUS_SOURCE_TIMEOUT	3
+/*
+ * bits put together from HRP_LB_BAU_SB_ACTIVATION_STATUS_0/1/2
+ * values 1 and 5 will not occur
+ */
+#define UV2H_DESC_IDLE			0
+#define UV2H_DESC_DEST_TIMEOUT		2
+#define UV2H_DESC_DEST_STRONG_NACK	3
+#define UV2H_DESC_BUSY			4
+#define UV2H_DESC_SOURCE_TIMEOUT	6
+#define UV2H_DESC_DEST_PUT_ERR		7
 
 /*
  * delay for 'plugged' timeout retries, in microseconds
@@ -95,6 +120,15 @@
 #define COMPLETE_THRESHOLD 5
 
 #define UV_LB_SUBNODEID 0x10
+
+/* these two are the same for UV1 and UV2: */
+#define UV_SA_SHFT UVH_LB_BAU_MISC_CONTROL_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHFT
+#define UV_SA_MASK UVH_LB_BAU_MISC_CONTROL_INTD_SOFT_ACK_TIMEOUT_PERIOD_MASK
+/* 4 bits of software ack period */
+#define UV2_ACK_MASK 0x7UL
+#define UV2_ACK_UNITS_SHFT 3
+#define UV2_LEG_SHFT UV2H_LB_BAU_MISC_CONTROL_USE_LEGACY_DESCRIPTOR_FORMATS_SHFT
+#define UV2_EXT_SHFT UV2H_LB_BAU_MISC_CONTROL_ENABLE_EXTENDED_SB_STATUS_SHFT
 
 /*
  * number of entries in the destination side payload queue
