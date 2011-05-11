@@ -2825,6 +2825,7 @@
 #define  ILK_eDP_A_DISABLE		(1<<24)
 #define  ILK_DESKTOP			(1<<23)
 #define ILK_DSPCLK_GATE		0x42020
+#define  IVB_VRHUNIT_CLK_GATE	(1<<28)
 #define  ILK_DPARB_CLK_GATE	(1<<5)
 #define  ILK_DPFD_CLK_GATE	(1<<7)
 
