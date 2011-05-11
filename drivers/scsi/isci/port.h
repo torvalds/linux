@@ -81,11 +81,12 @@ enum isci_status {
  * The core port object provides the the abstraction for an SCU port.
  */
 struct scic_sds_port {
-
 	/**
 	 * This field contains the information for the base port state machine.
 	 */
 	struct sci_base_state_machine state_machine;
+
+	bool ready_exit;
 
 	/**
 	 * This field is the port index that is reported to the SCI USER.
@@ -150,11 +151,6 @@ struct scic_sds_port {
 	 */
 	struct scic_sds_port_state_handler *state_handlers;
 
-	/**
-	 * This field is the ready substate machine for the port.
-	 */
-	struct sci_base_state_machine ready_substate_machine;
-
 	/* / Memory mapped hardware register space */
 
 	/**
@@ -175,7 +171,6 @@ struct scic_sds_port {
 	 * This field is the VIIT register space for ths port object.
 	 */
 	struct scu_viit_entry __iomem *viit_registers;
-
 };
 
 
@@ -229,35 +224,6 @@ struct scic_port_properties {
 };
 
 /**
- * enum SCIC_SDS_PORT_READY_SUBSTATES -
- *
- * This enumeration depicts all of the states for the core port ready substate
- * machine.
- */
-enum scic_sds_port_ready_substates {
-	/**
-	 * The substate where the port is started and ready but has no
-	 * active phys.
-	 */
-	SCIC_SDS_PORT_READY_SUBSTATE_WAITING,
-
-	/**
-	 * The substate where the port is started and ready and there is
-	 * at least one phy operational.
-	 */
-	SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL,
-
-	/**
-	 * The substate where the port is started and there was an
-	 * add/remove phy event.  This state is only used in Automatic
-	 * Port Configuration Mode (APC)
-	 */
-	SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING,
-
-	SCIC_SDS_PORT_READY_MAX_SUBSTATES
-};
-
-/**
  * enum scic_sds_port_states - This enumeration depicts all the states for the
  *    common port state machine.
  *
@@ -285,6 +251,25 @@ enum scic_sds_port_states {
 	 * This state is entered from the STARTING state.
 	 */
 	SCI_BASE_PORT_STATE_READY,
+
+	/**
+	 * The substate where the port is started and ready but has no
+	 * active phys.
+	 */
+	SCIC_SDS_PORT_READY_SUBSTATE_WAITING,
+
+	/**
+	 * The substate where the port is started and ready and there is
+	 * at least one phy operational.
+	 */
+	SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL,
+
+	/**
+	 * The substate where the port is started and there was an
+	 * add/remove phy event.  This state is only used in Automatic
+	 * Port Configuration Mode (APC)
+	 */
+	SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING,
 
 	/**
 	 * This state indicates the port is in the process of performing a hard
