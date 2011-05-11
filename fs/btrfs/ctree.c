@@ -1672,9 +1672,6 @@ again:
 		}
 cow_done:
 		BUG_ON(!cow && ins_len);
-		if (level != btrfs_header_level(b))
-			WARN_ON(1);
-		level = btrfs_header_level(b);
 
 		p->nodes[level] = b;
 		if (!p->skip_locking)
