@@ -3741,6 +3741,28 @@ static void ixgbe_configure_pb(struct ixgbe_adapter *adapter)
 	hw->mac.ops.set_rxpba(&adapter->hw, num_tc, hdrm, PBA_STRATEGY_EQUAL);
 }
 
+static void ixgbe_fdir_filter_restore(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct hlist_node *node, *node2;
+	struct ixgbe_fdir_filter *filter;
+
+	spin_lock(&adapter->fdir_perfect_lock);
+
+	if (!hlist_empty(&adapter->fdir_filter_list))
+		ixgbe_fdir_set_input_mask_82599(hw, &adapter->fdir_mask);
+
+	hlist_for_each_entry_safe(filter, node, node2,
+				  &adapter->fdir_filter_list, fdir_node) {
+		ixgbe_fdir_write_perfect_filter_82599(hw,
+						      &filter->filter,
+						      filter->sw_idx,
+						      filter->action);
+	}
+
+	spin_unlock(&adapter->fdir_perfect_lock);
+}
+
 static void ixgbe_configure(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -3765,6 +3787,10 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 			adapter->tx_ring[i]->atr_sample_rate =
 						       adapter->atr_sample_rate;
 		ixgbe_init_fdir_signature_82599(hw, adapter->fdir_pballoc);
+	} else if (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE) {
+		ixgbe_init_fdir_perfect_82599(&adapter->hw,
+					      adapter->fdir_pballoc);
+		ixgbe_fdir_filter_restore(adapter);
 	}
 	ixgbe_configure_virtualization(adapter);
 
@@ -4139,6 +4165,23 @@ static void ixgbe_clean_all_tx_rings(struct ixgbe_adapter *adapter)
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
 		ixgbe_clean_tx_ring(adapter->tx_ring[i]);
+}
+
+static void ixgbe_fdir_filter_exit(struct ixgbe_adapter *adapter)
+{
+	struct hlist_node *node, *node2;
+	struct ixgbe_fdir_filter *filter;
+
+	spin_lock(&adapter->fdir_perfect_lock);
+
+	hlist_for_each_entry_safe(filter, node, node2,
+				  &adapter->fdir_filter_list, fdir_node) {
+		hlist_del(&filter->fdir_node);
+		kfree(filter);
+	}
+	adapter->fdir_filter_count = 0;
+
+	spin_unlock(&adapter->fdir_perfect_lock);
 }
 
 void ixgbe_down(struct ixgbe_adapter *adapter)
@@ -5526,6 +5569,8 @@ static int ixgbe_close(struct net_device *netdev)
 
 	ixgbe_down(adapter);
 	ixgbe_free_irq(adapter);
+
+	ixgbe_fdir_filter_exit(adapter);
 
 	ixgbe_free_all_tx_resources(adapter);
 	ixgbe_free_all_rx_resources(adapter);
