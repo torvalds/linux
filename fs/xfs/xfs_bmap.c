@@ -4825,12 +4825,13 @@ xfs_bmapi(
 		/*
 		 * Else go on to the next record.
 		 */
-		ep = xfs_iext_get_ext(ifp, ++lastx);
 		prev = got;
-		if (lastx >= nextents)
-			eof = 1;
-		else
+		if (++lastx < nextents) {
+			ep = xfs_iext_get_ext(ifp, lastx);
 			xfs_bmbt_get_all(ep, &got);
+		} else {
+			eof = 1;
+		}
 	}
 	*nmap = n;
 	/*
