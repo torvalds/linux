@@ -695,9 +695,9 @@ static void remove_ddw(struct device_node *np)
 			np->full_name, ret, ddr_avail[2], liobn);
 
 delprop:
-	ret = of_remove_property(np, win64);
+	ret = prom_remove_property(np, win64);
 	if (ret)
-		pr_warning("%s: failed to remove direct window property: %d\n"
+		pr_warning("%s: failed to remove direct window property: %d\n",
 			np->full_name, ret);
 }
 
@@ -725,38 +725,38 @@ static u64 dupe_ddw_if_already_created(struct pci_dev *dev, struct device_node *
 	return dma_addr;
 }
 
-static u64 dupe_ddw_if_kexec(struct pci_dev *dev, struct device_node *pdn)
+static int find_existing_ddw_windows(void)
 {
-	struct device_node *dn;
-	struct pci_dn *pcidn;
 	int len;
+	struct device_node *pdn;
 	struct direct_window *window;
 	const struct dynamic_dma_window_prop *direct64;
-	u64 dma_addr = 0;
 
-	dn = pci_device_to_OF_node(dev);
-	pcidn = PCI_DN(dn);
-	direct64 = of_get_property(pdn, DIRECT64_PROPNAME, &len);
-	if (direct64) {
-		if (len < sizeof(struct dynamic_dma_window_prop)) {
+	if (!firmware_has_feature(FW_FEATURE_LPAR))
+		return 0;
+
+	for_each_node_with_property(pdn, DIRECT64_PROPNAME) {
+		direct64 = of_get_property(pdn, DIRECT64_PROPNAME, &len);
+		if (!direct64)
+			continue;
+
+		window = kzalloc(sizeof(*window), GFP_KERNEL);
+		if (!window || len < sizeof(struct dynamic_dma_window_prop)) {
+			kfree(window);
 			remove_ddw(pdn);
-		} else {
-			window = kzalloc(sizeof(*window), GFP_KERNEL);
-			if (!window) {
-				remove_ddw(pdn);
-			} else {
-				window->device = pdn;
-				window->prop = direct64;
-				spin_lock(&direct_window_list_lock);
-				list_add(&window->list, &direct_window_list);
-				spin_unlock(&direct_window_list_lock);
-				dma_addr = direct64->dma_base;
-			}
+			continue;
 		}
+
+		window->device = pdn;
+		window->prop = direct64;
+		spin_lock(&direct_window_list_lock);
+		list_add(&window->list, &direct_window_list);
+		spin_unlock(&direct_window_list_lock);
 	}
 
-	return dma_addr;
+	return 0;
 }
+machine_arch_initcall(pseries, find_existing_ddw_windows);
 
 static int query_ddw(struct pci_dev *dev, const u32 *ddr_avail,
 			struct ddw_query_response *query)
@@ -851,10 +851,6 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	mutex_lock(&direct_window_init_mutex);
 
 	dma_addr = dupe_ddw_if_already_created(dev, pdn);
-	if (dma_addr != 0)
-		goto out_unlock;
-
-	dma_addr = dupe_ddw_if_kexec(dev, pdn);
 	if (dma_addr != 0)
 		goto out_unlock;
 
