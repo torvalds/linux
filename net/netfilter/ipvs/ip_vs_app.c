@@ -576,7 +576,7 @@ static const struct file_operations ip_vs_app_fops = {
 };
 #endif
 
-static int __net_init __ip_vs_app_init(struct net *net)
+int __net_init __ip_vs_app_init(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
@@ -585,26 +585,17 @@ static int __net_init __ip_vs_app_init(struct net *net)
 	return 0;
 }
 
-static void __net_exit __ip_vs_app_cleanup(struct net *net)
+void __net_exit __ip_vs_app_cleanup(struct net *net)
 {
 	proc_net_remove(net, "ip_vs_app");
 }
 
-static struct pernet_operations ip_vs_app_ops = {
-	.init = __ip_vs_app_init,
-	.exit = __ip_vs_app_cleanup,
-};
-
 int __init ip_vs_app_init(void)
 {
-	int rv;
-
-	rv = register_pernet_subsys(&ip_vs_app_ops);
-	return rv;
+	return 0;
 }
 
 
 void ip_vs_app_cleanup(void)
 {
-	unregister_pernet_subsys(&ip_vs_app_ops);
 }

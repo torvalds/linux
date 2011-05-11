@@ -455,6 +455,7 @@ void xt_compat_flush_offsets(u_int8_t af)
 		vfree(xt[af].compat_tab);
 		xt[af].compat_tab = NULL;
 		xt[af].number = 0;
+		xt[af].cur = 0;
 	}
 }
 EXPORT_SYMBOL_GPL(xt_compat_flush_offsets);
@@ -473,8 +474,7 @@ int xt_compat_calc_jump(u_int8_t af, unsigned int offset)
 		else
 			return mid ? tmp[mid - 1].delta : 0;
 	}
-	WARN_ON_ONCE(1);
-	return 0;
+	return left ? tmp[left - 1].delta : 0;
 }
 EXPORT_SYMBOL_GPL(xt_compat_calc_jump);
 
