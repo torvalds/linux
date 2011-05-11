@@ -692,9 +692,11 @@ static int isight_remove(struct device *dev)
 {
 	struct isight *isight = dev_get_drvdata(dev);
 
-	mutex_lock(&isight->mutex);
 	isight_pcm_abort(isight);
+
 	snd_card_disconnect(isight->card);
+
+	mutex_lock(&isight->mutex);
 	isight_stop_streaming(isight);
 	mutex_unlock(&isight->mutex);
 
@@ -707,12 +709,13 @@ static void isight_bus_reset(struct fw_unit *unit)
 {
 	struct isight *isight = dev_get_drvdata(&unit->device);
 
-	mutex_lock(&isight->mutex);
 	if (fw_iso_resources_update(&isight->resources) < 0) {
 		isight_pcm_abort(isight);
+
+		mutex_lock(&isight->mutex);
 		isight_stop_streaming(isight);
+		mutex_unlock(&isight->mutex);
 	}
-	mutex_unlock(&isight->mutex);
 }
 
 static const struct ieee1394_device_id isight_id_table[] = {
