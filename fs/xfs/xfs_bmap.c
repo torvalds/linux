@@ -1629,7 +1629,6 @@ xfs_bmap_add_extent_hole_delay(
 	xfs_bmbt_irec_t		*new,	/* new data to add to file extents */
 	int			*logflagsp) /* inode logging flags */
 {
-	xfs_bmbt_rec_host_t	*ep;	/* extent record for idx */
 	xfs_ifork_t		*ifp;	/* inode fork pointer */
 	xfs_bmbt_irec_t		left;	/* left neighbor extent entry */
 	xfs_filblks_t		newlen=0;	/* new indirect size */
@@ -1639,7 +1638,6 @@ xfs_bmap_add_extent_hole_delay(
 	xfs_filblks_t		temp=0;	/* temp for indirect calculations */
 
 	ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
-	ep = xfs_iext_get_ext(ifp, *idx);
 	state = 0;
 	ASSERT(isnullstartblock(new->br_startblock));
 
@@ -1660,7 +1658,7 @@ xfs_bmap_add_extent_hole_delay(
 	 */
 	if (*idx < ip->i_df.if_bytes / (uint)sizeof(xfs_bmbt_rec_t)) {
 		state |= BMAP_RIGHT_VALID;
-		xfs_bmbt_get_all(ep, &right);
+		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, *idx), &right);
 
 		if (isnullstartblock(right.br_startblock))
 			state |= BMAP_RIGHT_DELAY;
@@ -1740,7 +1738,8 @@ xfs_bmap_add_extent_hole_delay(
 		oldlen = startblockval(new->br_startblock) +
 			startblockval(right.br_startblock);
 		newlen = xfs_bmap_worst_indlen(ip, temp);
-		xfs_bmbt_set_allf(ep, new->br_startoff,
+		xfs_bmbt_set_allf(xfs_iext_get_ext(ifp, *idx),
+			new->br_startoff,
 			nullstartblock((int)newlen), temp, right.br_state);
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
 		break;
@@ -1780,7 +1779,6 @@ xfs_bmap_add_extent_hole_real(
 	int			*logflagsp, /* inode logging flags */
 	int			whichfork) /* data or attr fork */
 {
-	xfs_bmbt_rec_host_t	*ep;	/* pointer to extent entry ins. point */
 	int			error;	/* error return value */
 	int			i;	/* temp state */
 	xfs_ifork_t		*ifp;	/* inode fork pointer */
@@ -1791,7 +1789,6 @@ xfs_bmap_add_extent_hole_real(
 
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	ASSERT(*idx <= ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t));
-	ep = xfs_iext_get_ext(ifp, *idx);
 	state = 0;
 
 	if (whichfork == XFS_ATTR_FORK)
@@ -1813,7 +1810,7 @@ xfs_bmap_add_extent_hole_real(
 	 */
 	if (*idx < ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t)) {
 		state |= BMAP_RIGHT_VALID;
-		xfs_bmbt_get_all(ep, &right);
+		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, *idx), &right);
 		if (isnullstartblock(right.br_startblock))
 			state |= BMAP_RIGHT_DELAY;
 	}
@@ -1925,7 +1922,8 @@ xfs_bmap_add_extent_hole_real(
 		 * Merge the new allocation with the right neighbor.
 		 */
 		trace_xfs_bmap_pre_update(ip, *idx, state, _THIS_IP_);
-		xfs_bmbt_set_allf(ep, new->br_startoff, new->br_startblock,
+		xfs_bmbt_set_allf(xfs_iext_get_ext(ifp, *idx),
+			new->br_startoff, new->br_startblock,
 			new->br_blockcount + right.br_blockcount,
 			right.br_state);
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
