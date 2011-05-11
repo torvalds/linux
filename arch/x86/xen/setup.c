@@ -227,7 +227,11 @@ char * __init xen_memory_setup(void)
 
 	memcpy(map_raw, map, sizeof(map));
 	e820.nr_map = 0;
+#ifdef CONFIG_X86_32
+	xen_extra_mem_start = mem_end;
+#else
 	xen_extra_mem_start = max((1ULL << 32), mem_end);
+#endif
 	for (i = 0; i < memmap.nr_entries; i++) {
 		unsigned long long end;
 
