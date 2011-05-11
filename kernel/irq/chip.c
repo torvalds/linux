@@ -573,6 +573,7 @@ __irq_set_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 	if (handle != handle_bad_irq && is_chained) {
 		irq_settings_set_noprobe(desc);
 		irq_settings_set_norequest(desc);
+		irq_settings_set_nothread(desc);
 		irq_startup(desc);
 	}
 out:
