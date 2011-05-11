@@ -1742,7 +1742,6 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	r10bio_t *r10_bio;
 	struct bio *biolist = NULL, *bio;
 	sector_t max_sector, nr_sectors;
-	int disk;
 	int i;
 	int max_sync;
 	sector_t sync_blocks;
@@ -2020,7 +2019,6 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	do {
 		struct page *page;
 		int len = PAGE_SIZE;
-		disk = 0;
 		if (sector_nr + (len>>9) > max_sector)
 			len = (max_sector - sector_nr) << 9;
 		if (len == 0)
@@ -2039,7 +2037,6 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 				}
 				goto bio_full;
 			}
-			disk = i;
 		}
 		nr_sectors += len>>9;
 		sector_nr += len>>9;
