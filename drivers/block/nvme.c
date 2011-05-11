@@ -892,7 +892,7 @@ static __devinit struct nvme_queue *nvme_create_queue(struct nvme_dev *dev,
 	struct nvme_queue *nvmeq = nvme_alloc_queue(dev, qid, cq_size, vector);
 
 	if (!nvmeq)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	result = adapter_alloc_cq(dev, qid, nvmeq);
 	if (result < 0)
@@ -918,7 +918,7 @@ static __devinit struct nvme_queue *nvme_create_queue(struct nvme_dev *dev,
 	dma_free_coherent(nvmeq->q_dmadev, SQ_SIZE(nvmeq->q_depth),
 					nvmeq->sq_cmds, nvmeq->sq_dma_addr);
 	kfree(nvmeq);
-	return NULL;
+	return ERR_PTR(result);
 }
 
 static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
@@ -1421,8 +1421,8 @@ static int __devinit nvme_setup_io_queues(struct nvme_dev *dev)
 	for (i = 0; i < nr_io_queues; i++) {
 		dev->queues[i + 1] = nvme_create_queue(dev, i + 1,
 							NVME_Q_DEPTH, i);
-		if (!dev->queues[i + 1])
-			return -ENOMEM;
+		if (IS_ERR(dev->queues[i + 1]))
+			return PTR_ERR(dev->queues[i + 1]);
 		dev->queue_count++;
 	}
 
