@@ -60,6 +60,7 @@ err_packets:
 error:
 	return err;
 }
+EXPORT_SYMBOL(iso_packets_buffer_init);
 
 /**
  * iso_packets_buffer_destroy - frees packet buffer resources
@@ -72,3 +73,4 @@ void iso_packets_buffer_destroy(struct iso_packets_buffer *b,
 	fw_iso_buffer_destroy(&b->iso_buffer, fw_parent_device(unit)->card);
 	kfree(b->packets);
 }
+EXPORT_SYMBOL(iso_packets_buffer_destroy);

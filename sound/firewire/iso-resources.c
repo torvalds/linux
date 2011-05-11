@@ -36,6 +36,7 @@ int fw_iso_resources_init(struct fw_iso_resources *r, struct fw_unit *unit)
 
 	return 0;
 }
+EXPORT_SYMBOL(fw_iso_resources_init);
 
 /**
  * fw_iso_resources_destroy - destroy a resource manager
@@ -48,6 +49,7 @@ void fw_iso_resources_destroy(struct fw_iso_resources *r)
 	mutex_destroy(&r->mutex);
 	fw_unit_put(r->unit);
 }
+EXPORT_SYMBOL(fw_iso_resources_destroy);
 
 static unsigned int packet_bandwidth(unsigned int max_payload_bytes, int speed)
 {
@@ -152,6 +154,7 @@ retry_after_bus_reset:
 
 	return channel;
 }
+EXPORT_SYMBOL(fw_iso_resources_allocate);
 
 /**
  * fw_iso_resources_update - update resource allocations after a bus reset
@@ -203,6 +206,7 @@ int fw_iso_resources_update(struct fw_iso_resources *r)
 
 	return channel;
 }
+EXPORT_SYMBOL(fw_iso_resources_update);
 
 /**
  * fw_iso_resources_free - frees allocated resources
@@ -230,3 +234,4 @@ void fw_iso_resources_free(struct fw_iso_resources *r)
 
 	mutex_unlock(&r->mutex);
 }
+EXPORT_SYMBOL(fw_iso_resources_free);
