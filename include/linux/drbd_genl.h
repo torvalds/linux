@@ -143,7 +143,7 @@ GENL_struct(DRBD_NLA_NET_CONF, 5, net_conf,
 	__str_field_def(6,	GENLA_F_MANDATORY,	verify_alg,     SHARED_SECRET_MAX)
 	__str_field_def(7,	GENLA_F_MANDATORY,	csums_alg,	SHARED_SECRET_MAX)
 	__u32_field_def(8,	GENLA_F_MANDATORY,	wire_protocol, DRBD_PROTOCOL_DEF)
-	__u32_field_def(9,	GENLA_F_MANDATORY,	try_connect_int, DRBD_CONNECT_INT_DEF)
+	__u32_field_def(9,	GENLA_F_MANDATORY,	connect_int, DRBD_CONNECT_INT_DEF)
 	__u32_field_def(10,	GENLA_F_MANDATORY,	timeout, DRBD_TIMEOUT_DEF)
 	__u32_field_def(11,	GENLA_F_MANDATORY,	ping_int, DRBD_PING_INT_DEF)
 	__u32_field_def(12,	GENLA_F_MANDATORY,	ping_timeo, DRBD_PING_TIMEO_DEF)

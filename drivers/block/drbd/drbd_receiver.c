@@ -617,7 +617,7 @@ static struct socket *drbd_try_connect(struct drbd_tconn *tconn)
 	struct sockaddr_in6 peer_in6;
 	struct net_conf *nc;
 	int err, peer_addr_len, my_addr_len;
-	int sndbuf_size, rcvbuf_size, try_connect_int;
+	int sndbuf_size, rcvbuf_size, connect_int;
 	int disconnect_on_error = 1;
 
 	rcu_read_lock();
@@ -629,7 +629,7 @@ static struct socket *drbd_try_connect(struct drbd_tconn *tconn)
 
 	sndbuf_size = nc->sndbuf_size;
 	rcvbuf_size = nc->rcvbuf_size;
-	try_connect_int = nc->try_connect_int;
+	connect_int = nc->connect_int;
 
 	my_addr_len = min_t(int, nc->my_addr_len, sizeof(src_in6));
 	memcpy(&src_in6, nc->my_addr, my_addr_len);
@@ -653,7 +653,7 @@ static struct socket *drbd_try_connect(struct drbd_tconn *tconn)
 	}
 
 	sock->sk->sk_rcvtimeo =
-	sock->sk->sk_sndtimeo = try_connect_int * HZ;
+	sock->sk->sk_sndtimeo = connect_int * HZ;
 	drbd_setbufsize(sock, sndbuf_size, rcvbuf_size);
 
        /* explicitly bind to the configured IP as source IP
@@ -702,7 +702,7 @@ out:
 static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn)
 {
 	int timeo, err, my_addr_len;
-	int sndbuf_size, rcvbuf_size, try_connect_int;
+	int sndbuf_size, rcvbuf_size, connect_int;
 	struct socket *s_estab = NULL, *s_listen;
 	struct sockaddr_in6 my_addr;
 	struct net_conf *nc;
@@ -717,7 +717,7 @@ static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn)
 
 	sndbuf_size = nc->sndbuf_size;
 	rcvbuf_size = nc->rcvbuf_size;
-	try_connect_int = nc->try_connect_int;
+	connect_int = nc->connect_int;
 
 	my_addr_len = min_t(int, nc->my_addr_len, sizeof(struct sockaddr_in6));
 	memcpy(&my_addr, nc->my_addr, my_addr_len);
@@ -731,7 +731,7 @@ static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn)
 		goto out;
 	}
 
-	timeo = try_connect_int * HZ;
+	timeo = connect_int * HZ;
 	timeo += (random32() & 1) ? timeo / 7 : -timeo / 7; /* 28.5% random jitter */
 
 	s_listen->sk->sk_reuse    = 1; /* SO_REUSEADDR */
