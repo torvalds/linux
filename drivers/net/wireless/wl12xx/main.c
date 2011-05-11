@@ -257,12 +257,16 @@ static struct conf_drv_settings default_conf = {
 		.wake_up_event               = CONF_WAKE_UP_EVENT_DTIM,
 		.listen_interval             = 1,
 		.bcn_filt_mode               = CONF_BCN_FILT_MODE_ENABLED,
-		.bcn_filt_ie_count           = 1,
+		.bcn_filt_ie_count           = 2,
 		.bcn_filt_ie = {
 			[0] = {
 				.ie          = WLAN_EID_CHANNEL_SWITCH,
 				.rule        = CONF_BCN_RULE_PASS_ON_APPEARANCE,
-			}
+			},
+			[1] = {
+				.ie          = WLAN_EID_HT_INFORMATION,
+				.rule        = CONF_BCN_RULE_PASS_ON_CHANGE,
+			},
 		},
 		.synch_fail_thold            = 10,
 		.bss_lose_timeout            = 100,
