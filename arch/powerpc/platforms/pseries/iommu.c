@@ -693,7 +693,7 @@ static void remove_ddw(struct device_node *np)
 }
 
 
-static int dupe_ddw_if_already_created(struct pci_dev *dev, struct device_node *pdn)
+static u64 dupe_ddw_if_already_created(struct pci_dev *dev, struct device_node *pdn)
 {
 	struct device_node *dn;
 	struct pci_dn *pcidn;
