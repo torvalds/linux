@@ -313,12 +313,6 @@ typedef enum sci_status (*scic_sds_port_io_request_handler_t)(struct scic_sds_po
 
 struct scic_sds_port_state_handler {
 	/**
-	 * The stop_handler specifies the method invoked when a user
-	 * attempts to stop a port.
-	 */
-	scic_sds_port_handler_t stop_handler;
-
-	/**
 	 * The destruct_handler specifies the method invoked when attempting to
 	 * destruct a port.
 	 */
@@ -412,6 +406,7 @@ enum sci_status scic_sds_port_initialize(
 	void __iomem *viit_registers);
 
 enum sci_status scic_sds_port_start(struct scic_sds_port *sci_port);
+enum sci_status scic_sds_port_stop(struct scic_sds_port *sci_port);
 
 enum sci_status scic_sds_port_add_phy(
 	struct scic_sds_port *sci_port,

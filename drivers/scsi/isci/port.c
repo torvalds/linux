@@ -1179,17 +1179,6 @@ static void scic_port_enable_broadcast_change_notification(struct scic_sds_port 
  * **************************************************************************** */
 
 /*
- * This method is the general ready state stop handler for the struct scic_sds_port
- * object.  This function will transition the ready substate machine to its
- * final state. enum sci_status SCI_SUCCESS
- */
-static enum sci_status scic_sds_port_ready_substate_stop_handler(struct scic_sds_port *sci_port)
-{
-	port_state_machine_change(sci_port, SCI_BASE_PORT_STATE_STOPPING);
-	return SCI_SUCCESS;
-}
-
-/*
  * This method is the general ready substate complete io handler for the
  * struct scic_sds_port object.  This function decrments the outstanding request count
  * for this port object. enum sci_status SCI_SUCCESS
@@ -1477,12 +1466,6 @@ static enum sci_status default_port_handler(struct scic_sds_port *sci_port,
 		 "%s: in wrong state: %d\n", func,
 		 sci_base_state_machine_get_state(&sci_port->state_machine));
 	return SCI_FAILURE_INVALID_STATE;
-}
-
-static enum sci_status
-scic_sds_port_default_stop_handler(struct scic_sds_port *sci_port)
-{
-	return default_port_handler(sci_port, __func__);
 }
 
 static enum sci_status
@@ -1848,18 +1831,6 @@ static enum sci_status scic_sds_port_general_complete_io_handler(
 }
 
 /*
- * This method takes the struct scic_sds_port that is in a stopped state and handles a
- * stop request.  This function takes no action. enum sci_status SCI_SUCCESS the
- * stop request is successful as the struct scic_sds_port object is already stopped.
- */
-static enum sci_status scic_sds_port_stopped_state_stop_handler(
-	struct scic_sds_port *port)
-{
-	/* We are already stopped so there is nothing to do here */
-	return SCI_SUCCESS;
-}
-
-/*
  * This method takes the struct scic_sds_port that is in a stopped state and handles
  * the destruct request.  The stopped state is the only state in which the
  * struct scic_sds_port can be destroyed.  This function causes the port object to
@@ -1959,22 +1930,6 @@ static enum sci_status scic_sds_port_stopping_state_complete_io_handler(
  * ****************************************************************************
  * *  RESETTING STATE HANDLERS
  * **************************************************************************** */
-
-/**
- *
- * @port: This is the port object which is being requested to stop.
- *
- * This method will stop a failed port.  This causes a transition to the
- * stopping state. enum sci_status SCI_SUCCESS
- */
-static enum sci_status scic_sds_port_reset_state_stop_handler(
-	struct scic_sds_port *port)
-{
-	port_state_machine_change(port,
-				  SCI_BASE_PORT_STATE_STOPPING);
-
-	return SCI_SUCCESS;
-}
 
 /*
  * This method will transition a failed port to its ready state.  The port
@@ -2093,9 +2048,30 @@ enum sci_status scic_sds_port_start(struct scic_sds_port *sci_port)
 	return status;
 }
 
+enum sci_status scic_sds_port_stop(struct scic_sds_port *sci_port)
+{
+	enum scic_sds_port_states state;
+
+	state = sci_port->state_machine.current_state_id;
+	switch (state) {
+	case SCI_BASE_PORT_STATE_STOPPED:
+		return SCI_SUCCESS;
+	case SCIC_SDS_PORT_READY_SUBSTATE_WAITING:
+	case SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL:
+	case SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING:
+	case SCI_BASE_PORT_STATE_RESETTING:
+		port_state_machine_change(sci_port,
+					  SCI_BASE_PORT_STATE_STOPPING);
+		return SCI_SUCCESS;
+	default:
+		dev_warn(sciport_to_dev(sci_port),
+			 "%s: in wrong state: %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+}
+
 static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = {
 	[SCI_BASE_PORT_STATE_STOPPED] = {
-		.stop_handler   	= scic_sds_port_stopped_state_stop_handler,
 		.destruct_handler 	= scic_sds_port_stopped_state_destruct_handler,
 		.reset_handler  	= scic_sds_port_default_reset_handler,
 		.add_phy_handler 	= scic_sds_port_stopped_state_add_phy_handler,
@@ -2108,7 +2084,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler 	= scic_sds_port_default_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_STOPPING] = {
-		.stop_handler   	= scic_sds_port_default_stop_handler,
 		.destruct_handler 	= scic_sds_port_default_destruct_handler,
 		.reset_handler  	= scic_sds_port_default_reset_handler,
 		.add_phy_handler 	= scic_sds_port_default_add_phy_handler,
@@ -2121,7 +2096,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler 	= scic_sds_port_stopping_state_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_READY] = {
-		.stop_handler    	= scic_sds_port_default_stop_handler,
 		.destruct_handler 	= scic_sds_port_default_destruct_handler,
 		.reset_handler   	= scic_sds_port_default_reset_handler,
 		.add_phy_handler 	= scic_sds_port_default_add_phy_handler,
@@ -2134,7 +2108,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler 	= scic_sds_port_general_complete_io_handler
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_WAITING] = {
-		.stop_handler		= scic_sds_port_ready_substate_stop_handler,
 		.destruct_handler	= scic_sds_port_default_destruct_handler,
 		.reset_handler		= scic_sds_port_default_reset_handler,
 		.add_phy_handler	= scic_sds_port_ready_substate_add_phy_handler,
@@ -2147,7 +2120,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler	= scic_sds_port_ready_substate_complete_io_handler,
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL] = {
-		.stop_handler		= scic_sds_port_ready_substate_stop_handler,
 		.destruct_handler	= scic_sds_port_default_destruct_handler,
 		.reset_handler		= scic_sds_port_ready_operational_substate_reset_handler,
 		.add_phy_handler	= scic_sds_port_ready_substate_add_phy_handler,
@@ -2160,7 +2132,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler	= scic_sds_port_ready_substate_complete_io_handler,
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING] = {
-		.stop_handler		= scic_sds_port_ready_substate_stop_handler,
 		.destruct_handler	= scic_sds_port_default_destruct_handler,
 		.reset_handler		= scic_sds_port_default_reset_handler,
 		.add_phy_handler	= scic_sds_port_ready_configuring_substate_add_phy_handler,
@@ -2173,7 +2144,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler	= scic_sds_port_ready_configuring_substate_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_RESETTING] = {
-		.stop_handler		= scic_sds_port_reset_state_stop_handler,
 		.destruct_handler	= scic_sds_port_default_destruct_handler,
 		.reset_handler		= scic_sds_port_default_reset_handler,
 		.add_phy_handler	= scic_sds_port_default_add_phy_handler,
@@ -2186,7 +2156,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler	= scic_sds_port_general_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_FAILED] = {
-		.stop_handler		= scic_sds_port_default_stop_handler,
 		.destruct_handler	= scic_sds_port_default_destruct_handler,
 		.reset_handler		= scic_sds_port_default_reset_handler,
 		.add_phy_handler	= scic_sds_port_default_add_phy_handler,
