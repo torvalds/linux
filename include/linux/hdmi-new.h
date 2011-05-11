@@ -55,6 +55,7 @@ struct hdmi_ops{
 	int (*insert)(struct hdmi *);
 	int (*remove)(struct hdmi *);
 	int (*power_off)(struct hdmi *);
+	int (*shutdown)(struct hdmi *);
 };
 struct hdmi {
 	int id;
@@ -95,5 +96,6 @@ extern struct hdmi *get_hdmi_struct(int nr);
 
 extern int hdmi_get_default_resolution(void *screen);
 extern void hdmi_set_spk(int on);
+extern void hdmi_set_backlight(int on);
 
 #endif

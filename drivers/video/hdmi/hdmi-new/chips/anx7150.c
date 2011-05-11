@@ -39,6 +39,7 @@ static int anx7150_param_chg(struct anx7150_pdata *anx)
 	int resolution_real;
 
 	hdmi_set_spk(anx->hdmi->display_on);
+	hdmi_set_backlight(anx->hdmi->display_on);
 	hdmi_switch_fb(anx->hdmi, anx->hdmi->display_on);
 	resolution_real = ANX7150_Get_Optimal_resolution(anx->hdmi->resolution);
 	HDMI_Set_Video_Format(resolution_real);
@@ -86,11 +87,19 @@ static int anx7150_remove(struct hdmi *hdmi)
 
 	anx7150_unplug(anx->client);
 	hdmi_set_spk(HDMI_DISABLE);
+	hdmi_set_backlight(HDMI_DISABLE);
 	hdmi_switch_fb(hdmi, HDMI_DISABLE);
 
 	return 0;
 }
+static int anx7150_shutdown(struct hdmi *hdmi)
+{
+	struct anx7150_pdata *anx = hdmi_priv(hdmi);
+	
+	anx7150_unplug(anx->client);
 
+	return 0;
+}
 static int anx7150_display_on(struct hdmi* hdmi)
 {
 	struct anx7150_pdata *anx = hdmi_priv(hdmi);
@@ -131,6 +140,7 @@ static struct hdmi_ops anx7150_ops = {
 	.hdmi_precent = anx7150_hdmi_precent,
 	.insert = anx7150_insert,
 	.remove = anx7150_remove,
+	.shutdown = anx7150_shutdown,
 };
 static irqreturn_t anx7150_detect_irq(int irq, void *dev_id);
 static void anx7150_detect_work(struct work_struct *work)

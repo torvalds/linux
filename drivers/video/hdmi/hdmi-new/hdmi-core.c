@@ -32,7 +32,7 @@ void hdmi_changed(struct hdmi *hdmi, int msec)
 int hdmi_suspend(struct hdmi *hdmi)
 {
 	flush_delayed_work(&hdmi->changed_work);
-	return hdmi->ops->remove(hdmi);
+	return hdmi->ops->shutdown(hdmi);
 }
 int hdmi_resume(struct hdmi *hdmi)
 {
