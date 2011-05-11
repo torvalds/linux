@@ -692,10 +692,9 @@ static int isight_remove(struct device *dev)
 {
 	struct isight *isight = dev_get_drvdata(dev);
 
-	snd_card_disconnect(isight->card);
-
 	mutex_lock(&isight->mutex);
 	isight_pcm_abort(isight);
+	snd_card_disconnect(isight->card);
 	isight_stop_streaming(isight);
 	mutex_unlock(&isight->mutex);
 
