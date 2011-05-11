@@ -3108,6 +3108,8 @@ xfs_iext_get_ext(
 	xfs_extnum_t	idx)		/* index of target extent */
 {
 	ASSERT(idx >= 0);
+	ASSERT(idx < ifp->if_bytes / sizeof(xfs_bmbt_rec_t));
+
 	if ((ifp->if_flags & XFS_IFEXTIREC) && (idx == 0)) {
 		return ifp->if_u1.if_ext_irec->er_extbuf;
 	} else if (ifp->if_flags & XFS_IFEXTIREC) {
@@ -3881,8 +3883,10 @@ xfs_iext_idx_to_irec(
 	xfs_extnum_t	page_idx = *idxp; /* extent index in target list */
 
 	ASSERT(ifp->if_flags & XFS_IFEXTIREC);
-	ASSERT(page_idx >= 0 && page_idx <=
-		ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t));
+	ASSERT(page_idx >= 0);
+	ASSERT(page_idx <= ifp->if_bytes / sizeof(xfs_bmbt_rec_t));
+	ASSERT(page_idx < ifp->if_bytes / sizeof(xfs_bmbt_rec_t) || realloc);
+
 	nlists = ifp->if_real_bytes / XFS_IEXT_BUFSZ;
 	erp_idx = 0;
 	low = 0;
