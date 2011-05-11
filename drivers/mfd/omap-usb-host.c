@@ -25,7 +25,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
 #include <linux/gpio.h>
-#include <linux/regulator/consumer.h>
 #include <plat/usb.h>
 
 #define USBHS_DRIVER_NAME	"usbhs-omap"
@@ -700,8 +699,7 @@ static int usbhs_enable(struct device *dev)
 	dev_dbg(dev, "starting TI HSUSB Controller\n");
 	if (!pdata) {
 		dev_dbg(dev, "missing platform_data\n");
-		ret =  -ENODEV;
-		goto end_enable;
+		return  -ENODEV;
 	}
 
 	spin_lock_irqsave(&omap->lock, flags);
@@ -915,7 +913,8 @@ static int usbhs_enable(struct device *dev)
 
 end_count:
 	omap->count++;
-	goto end_enable;
+	spin_unlock_irqrestore(&omap->lock, flags);
+	return 0;
 
 err_tll:
 	if (pdata->ehci_data->phy_reset) {
@@ -931,8 +930,6 @@ err_tll:
 	clk_disable(omap->usbhost_fs_fck);
 	clk_disable(omap->usbhost_hs_fck);
 	clk_disable(omap->usbhost_ick);
-
-end_enable:
 	spin_unlock_irqrestore(&omap->lock, flags);
 	return ret;
 }
