@@ -125,9 +125,10 @@
  * the upper limit with 64bit kernel, enough ram and flexible meta data
  * is 1 PiB, currently. */
 /* DRBD_MAX_SECTORS */
-#define DRBD_DISK_SIZE_SECT_MIN  0
-#define DRBD_DISK_SIZE_SECT_MAX  (1 * (2LLU << 40))
-#define DRBD_DISK_SIZE_SECT_DEF  0 /* = disabled = no user size... */
+#define DRBD_DISK_SIZE_MIN  0
+#define DRBD_DISK_SIZE_MAX  (16 * (2LLU << 30))
+#define DRBD_DISK_SIZE_DEF  0 /* = disabled = no user size... */
+#define DRBD_DISK_SIZE_SCALE 's'  /* sectors */
 
 #define DRBD_ON_IO_ERROR_DEF EP_DETACH
 #define DRBD_FENCING_DEF FP_DONT_CARE
