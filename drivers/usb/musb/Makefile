@@ -2,8 +2,6 @@
 # for USB OTG silicon based on Mentor Graphics INVENTRA designs
 #
 
-ccflags-$(CONFIG_USB_MUSB_DEBUG) := -DDEBUG
-
 obj-$(CONFIG_USB_MUSB_HDRC) += musb_hdrc.o
 
 musb_hdrc-y := musb_core.o
