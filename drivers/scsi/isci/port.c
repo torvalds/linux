@@ -1480,12 +1480,6 @@ static enum sci_status default_port_handler(struct scic_sds_port *sci_port,
 }
 
 static enum sci_status
-scic_sds_port_default_start_handler(struct scic_sds_port *sci_port)
-{
-	return default_port_handler(sci_port, __func__);
-}
-
-static enum sci_status
 scic_sds_port_default_stop_handler(struct scic_sds_port *sci_port)
 {
 	return default_port_handler(sci_port, __func__);
@@ -1853,95 +1847,6 @@ static enum sci_status scic_sds_port_general_complete_io_handler(
 	return SCI_SUCCESS;
 }
 
-/**
- * scic_sds_port_stopped_state_start_handler() - stop a port from "started"
- *
- * @port: This is the struct scic_sds_port object which is cast into a
- * struct scic_sds_port object.
- *
- * This function takes the struct scic_sds_port from a stopped state and
- * attempts to start it.  To start a port it must have no assiged devices and
- * it must have at least one phy assigned to it.  If those conditions are
- * met then the port can transition to the ready state.
- * enum sci_status
- * SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION
- * This struct scic_sds_port object could not be started because the port
- * configuration is not valid.
- * SCI_SUCCESS
- * the start request is successful and the struct scic_sds_port object
- * has transitioned to the SCI_BASE_PORT_STATE_READY.
- */
-static enum sci_status
-scic_sds_port_stopped_state_start_handler(struct scic_sds_port *sci_port)
-{
-	struct scic_sds_controller *scic = sci_port->owning_controller;
-	struct isci_host *ihost = scic_to_ihost(scic);
-	enum sci_status status = SCI_SUCCESS;
-	u32 phy_mask;
-
-	if (sci_port->assigned_device_count > 0) {
-		/*
-		 * @todo This is a start failure operation because
-		 * there are still devices assigned to this port.
-		 * There must be no devices assigned to a port on a
-		 * start operation.
-		 */
-		return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
-	}
-
-	sci_port->timer_handle =
-		isci_timer_create(ihost,
-				  sci_port,
-				  scic_sds_port_timeout_handler);
-
-	if (!sci_port->timer_handle)
-		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
-
-	if (sci_port->reserved_rni == SCU_DUMMY_INDEX) {
-		u16 rni = scic_sds_remote_node_table_allocate_remote_node(
-				&scic->available_remote_nodes, 1);
-
-		if (rni != SCU_DUMMY_INDEX)
-			scic_sds_port_construct_dummy_rnc(sci_port, rni);
-		else
-			status = SCI_FAILURE_INSUFFICIENT_RESOURCES;
-		sci_port->reserved_rni = rni;
-	}
-
-	if (sci_port->reserved_tci == SCU_DUMMY_INDEX) {
-		/* Allocate a TCI and remove the sequence nibble */
-		u16 tci = scic_controller_allocate_io_tag(scic);
-
-		if (tci != SCU_DUMMY_INDEX)
-			scic_sds_port_construct_dummy_task(sci_port, tci);
-		else
-			status = SCI_FAILURE_INSUFFICIENT_RESOURCES;
-		sci_port->reserved_tci = tci;
-	}
-
-	if (status == SCI_SUCCESS) {
-		phy_mask = scic_sds_port_get_phys(sci_port);
-
-		/*
-		 * There are one or more phys assigned to this port.  Make sure
-		 * the port's phy mask is in fact legal and supported by the
-		 * silicon.
-		 */
-		if (scic_sds_port_is_phy_mask_valid(sci_port, phy_mask) == true) {
-			port_state_machine_change(sci_port,
-						  SCI_BASE_PORT_STATE_READY);
-
-			return SCI_SUCCESS;
-		} else
-			status = SCI_FAILURE;
-	}
-
-	if (status != SCI_SUCCESS)
-		scic_sds_port_destroy_dummy_resources(sci_port);
-
-	return status;
-}
-
 /*
  * This method takes the struct scic_sds_port that is in a stopped state and handles a
  * stop request.  This function takes no action. enum sci_status SCI_SUCCESS the
@@ -2111,9 +2016,85 @@ static void scic_sds_port_reset_state_link_down_handler(
 	scic_sds_port_deactivate_phy(port, phy, false);
 }
 
+enum sci_status scic_sds_port_start(struct scic_sds_port *sci_port)
+{
+	struct scic_sds_controller *scic = sci_port->owning_controller;
+	struct isci_host *ihost = scic_to_ihost(scic);
+	enum sci_status status = SCI_SUCCESS;
+	enum scic_sds_port_states state;
+	u32 phy_mask;
+
+	state = sci_port->state_machine.current_state_id;
+	if (state != SCI_BASE_PORT_STATE_STOPPED) {
+		dev_warn(sciport_to_dev(sci_port),
+			 "%s: in wrong state: %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+
+	if (sci_port->assigned_device_count > 0) {
+		/* TODO This is a start failure operation because
+		 * there are still devices assigned to this port.
+		 * There must be no devices assigned to a port on a
+		 * start operation.
+		 */
+		return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
+	}
+
+	sci_port->timer_handle =
+		isci_timer_create(ihost,
+				  sci_port,
+				  scic_sds_port_timeout_handler);
+
+	if (!sci_port->timer_handle)
+		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
+
+	if (sci_port->reserved_rni == SCU_DUMMY_INDEX) {
+		u16 rni = scic_sds_remote_node_table_allocate_remote_node(
+				&scic->available_remote_nodes, 1);
+
+		if (rni != SCU_DUMMY_INDEX)
+			scic_sds_port_construct_dummy_rnc(sci_port, rni);
+		else
+			status = SCI_FAILURE_INSUFFICIENT_RESOURCES;
+		sci_port->reserved_rni = rni;
+	}
+
+	if (sci_port->reserved_tci == SCU_DUMMY_INDEX) {
+		/* Allocate a TCI and remove the sequence nibble */
+		u16 tci = scic_controller_allocate_io_tag(scic);
+
+		if (tci != SCU_DUMMY_INDEX)
+			scic_sds_port_construct_dummy_task(sci_port, tci);
+		else
+			status = SCI_FAILURE_INSUFFICIENT_RESOURCES;
+		sci_port->reserved_tci = tci;
+	}
+
+	if (status == SCI_SUCCESS) {
+		phy_mask = scic_sds_port_get_phys(sci_port);
+
+		/*
+		 * There are one or more phys assigned to this port.  Make sure
+		 * the port's phy mask is in fact legal and supported by the
+		 * silicon.
+		 */
+		if (scic_sds_port_is_phy_mask_valid(sci_port, phy_mask) == true) {
+			port_state_machine_change(sci_port,
+						  SCI_BASE_PORT_STATE_READY);
+
+			return SCI_SUCCESS;
+		}
+		status = SCI_FAILURE;
+	}
+
+	if (status != SCI_SUCCESS)
+		scic_sds_port_destroy_dummy_resources(sci_port);
+
+	return status;
+}
+
 static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = {
 	[SCI_BASE_PORT_STATE_STOPPED] = {
-		.start_handler  	= scic_sds_port_stopped_state_start_handler,
 		.stop_handler   	= scic_sds_port_stopped_state_stop_handler,
 		.destruct_handler 	= scic_sds_port_stopped_state_destruct_handler,
 		.reset_handler  	= scic_sds_port_default_reset_handler,
@@ -2127,7 +2108,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler 	= scic_sds_port_default_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_STOPPING] = {
-		.start_handler  	= scic_sds_port_default_start_handler,
 		.stop_handler   	= scic_sds_port_default_stop_handler,
 		.destruct_handler 	= scic_sds_port_default_destruct_handler,
 		.reset_handler  	= scic_sds_port_default_reset_handler,
@@ -2141,7 +2121,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler 	= scic_sds_port_stopping_state_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_READY] = {
-		.start_handler		= scic_sds_port_default_start_handler,
 		.stop_handler    	= scic_sds_port_default_stop_handler,
 		.destruct_handler 	= scic_sds_port_default_destruct_handler,
 		.reset_handler   	= scic_sds_port_default_reset_handler,
@@ -2155,7 +2134,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler 	= scic_sds_port_general_complete_io_handler
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_WAITING] = {
-		.start_handler		= scic_sds_port_default_start_handler,
 		.stop_handler		= scic_sds_port_ready_substate_stop_handler,
 		.destruct_handler	= scic_sds_port_default_destruct_handler,
 		.reset_handler		= scic_sds_port_default_reset_handler,
@@ -2169,7 +2147,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler	= scic_sds_port_ready_substate_complete_io_handler,
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL] = {
-		.start_handler		= scic_sds_port_default_start_handler,
 		.stop_handler		= scic_sds_port_ready_substate_stop_handler,
 		.destruct_handler	= scic_sds_port_default_destruct_handler,
 		.reset_handler		= scic_sds_port_ready_operational_substate_reset_handler,
@@ -2183,7 +2160,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler	= scic_sds_port_ready_substate_complete_io_handler,
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING] = {
-		.start_handler		= scic_sds_port_default_start_handler,
 		.stop_handler		= scic_sds_port_ready_substate_stop_handler,
 		.destruct_handler	= scic_sds_port_default_destruct_handler,
 		.reset_handler		= scic_sds_port_default_reset_handler,
@@ -2197,7 +2173,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler	= scic_sds_port_ready_configuring_substate_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_RESETTING] = {
-		.start_handler		= scic_sds_port_default_start_handler,
 		.stop_handler		= scic_sds_port_reset_state_stop_handler,
 		.destruct_handler	= scic_sds_port_default_destruct_handler,
 		.reset_handler		= scic_sds_port_default_reset_handler,
@@ -2211,7 +2186,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler	= scic_sds_port_general_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_FAILED] = {
-		.start_handler		= scic_sds_port_default_start_handler,
 		.stop_handler		= scic_sds_port_default_stop_handler,
 		.destruct_handler	= scic_sds_port_default_destruct_handler,
 		.reset_handler		= scic_sds_port_default_reset_handler,

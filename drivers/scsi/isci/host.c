@@ -1108,7 +1108,7 @@ static enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 	for (index = 0; index < scic->logical_port_entries; index++) {
 		struct scic_sds_port *sci_port = &ihost->ports[index].sci;
 
-		result = sci_port->state_handlers->start_handler(sci_port);
+		result = scic_sds_port_start(sci_port);
 		if (result)
 			return result;
 	}
