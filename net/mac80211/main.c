@@ -358,7 +358,8 @@ static void ieee80211_restart_work(struct work_struct *work)
 	flush_workqueue(local->workqueue);
 
 	mutex_lock(&local->mtx);
-	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning),
+	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning) ||
+	     local->sched_scanning,
 		"%s called with hardware scan in progress\n", __func__);
 	mutex_unlock(&local->mtx);
 
@@ -832,6 +833,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	if (!local->ops->remain_on_channel)
 		local->hw.wiphy->max_remain_on_channel_duration = 5000;
+
+	if (local->ops->sched_scan_start)
+		local->hw.wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
 
 	result = wiphy_register(local->hw.wiphy);
 	if (result < 0)

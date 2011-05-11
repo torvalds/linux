@@ -1362,6 +1362,31 @@ static int ieee80211_scan(struct wiphy *wiphy,
 	return ieee80211_request_scan(sdata, req);
 }
 
+static int
+ieee80211_sched_scan_start(struct wiphy *wiphy,
+			   struct net_device *dev,
+			   struct cfg80211_sched_scan_request *req)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (!sdata->local->ops->sched_scan_start)
+		return -EOPNOTSUPP;
+
+	return ieee80211_request_sched_scan_start(sdata, req);
+}
+
+static int
+ieee80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev,
+			  bool driver_initiated)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (!sdata->local->ops->sched_scan_stop)
+		return -EOPNOTSUPP;
+
+	return ieee80211_request_sched_scan_stop(sdata, driver_initiated);
+}
+
 static int ieee80211_auth(struct wiphy *wiphy, struct net_device *dev,
 			  struct cfg80211_auth_request *req)
 {
@@ -2103,6 +2128,8 @@ struct cfg80211_ops mac80211_config_ops = {
 	.suspend = ieee80211_suspend,
 	.resume = ieee80211_resume,
 	.scan = ieee80211_scan,
+	.sched_scan_start = ieee80211_sched_scan_start,
+	.sched_scan_stop = ieee80211_sched_scan_stop,
 	.auth = ieee80211_auth,
 	.assoc = ieee80211_assoc,
 	.deauth = ieee80211_deauth,

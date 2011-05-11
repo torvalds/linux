@@ -212,10 +212,37 @@ static inline int drv_hw_scan(struct ieee80211_local *local,
 
 	might_sleep();
 
-	trace_drv_hw_scan(local, sdata, req);
+	trace_drv_hw_scan(local, sdata);
 	ret = local->ops->hw_scan(&local->hw, &sdata->vif, req);
 	trace_drv_return_int(local, ret);
 	return ret;
+}
+
+static inline int
+drv_sched_scan_start(struct ieee80211_local *local,
+		     struct ieee80211_sub_if_data *sdata,
+		     struct cfg80211_sched_scan_request *req,
+		     struct ieee80211_sched_scan_ies *ies)
+{
+	int ret;
+
+	might_sleep();
+
+	trace_drv_sched_scan_start(local, sdata);
+	ret = local->ops->sched_scan_start(&local->hw, &sdata->vif,
+					      req, ies);
+	trace_drv_return_int(local, ret);
+	return ret;
+}
+
+static inline void drv_sched_scan_stop(struct ieee80211_local *local,
+				       struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+
+	trace_drv_sched_scan_stop(local, sdata);
+	local->ops->sched_scan_stop(&local->hw, &sdata->vif);
+	trace_drv_return_void(local);
 }
 
 static inline void drv_sw_scan_start(struct ieee80211_local *local)

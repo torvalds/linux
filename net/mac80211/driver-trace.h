@@ -98,6 +98,27 @@ DECLARE_EVENT_CLASS(local_u32_evt,
 	)
 );
 
+DECLARE_EVENT_CLASS(local_sdata_evt,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG
+	)
+);
+
 DEFINE_EVENT(local_only_evt, drv_return_void,
 	TP_PROTO(struct ieee80211_local *local),
 	TP_ARGS(local)
@@ -433,27 +454,22 @@ TRACE_EVENT(drv_update_tkip_key,
 	)
 );
 
-TRACE_EVENT(drv_hw_scan,
+DEFINE_EVENT(local_sdata_evt, drv_hw_scan,
 	TP_PROTO(struct ieee80211_local *local,
-		 struct ieee80211_sub_if_data *sdata,
-		 struct cfg80211_scan_request *req),
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
+);
 
-	TP_ARGS(local, sdata, req),
+DEFINE_EVENT(local_sdata_evt, drv_sched_scan_start,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
+);
 
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		VIF_ENTRY
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		VIF_ASSIGN;
-	),
-
-	TP_printk(
-		LOCAL_PR_FMT VIF_PR_FMT,
-		LOCAL_PR_ARG,VIF_PR_ARG
-	)
+DEFINE_EVENT(local_sdata_evt, drv_sched_scan_stop,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
 );
 
 DEFINE_EVENT(local_only_evt, drv_sw_scan_start,
@@ -1177,6 +1193,42 @@ TRACE_EVENT(api_scan_completed,
 	TP_printk(
 		LOCAL_PR_FMT " aborted:%d",
 		LOCAL_PR_ARG, __entry->aborted
+	)
+);
+
+TRACE_EVENT(api_sched_scan_results,
+	TP_PROTO(struct ieee80211_local *local),
+
+	TP_ARGS(local),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT, LOCAL_PR_ARG
+	)
+);
+
+TRACE_EVENT(api_sched_scan_stopped,
+	TP_PROTO(struct ieee80211_local *local),
+
+	TP_ARGS(local),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT, LOCAL_PR_ARG
 	)
 );
 
