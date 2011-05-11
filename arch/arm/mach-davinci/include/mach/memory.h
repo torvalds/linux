@@ -59,8 +59,7 @@ __arch_adjust_zones(unsigned long *size, unsigned long *holes)
 #define arch_adjust_zones(zone_size, holes) \
         if ((meminfo.bank[0].size >> 20) > 128) __arch_adjust_zones(zone_size, holes)
 
-#define ISA_DMA_THRESHOLD	(PHYS_OFFSET + (128<<20) - 1)
-#define MAX_DMA_ADDRESS		(PAGE_OFFSET + (128<<20))
+#define ARM_DMA_ZONE_SIZE	SZ_128M
 
 #endif
 

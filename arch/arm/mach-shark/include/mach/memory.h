@@ -32,8 +32,7 @@ static inline void __arch_adjust_zones(unsigned long *zone_size, unsigned long *
 #define arch_adjust_zones(size, holes) \
 	__arch_adjust_zones(size, holes)
 
-#define ISA_DMA_THRESHOLD	(PHYS_OFFSET + SZ_4M - 1)
-#define MAX_DMA_ADDRESS		(PAGE_OFFSET + SZ_4M)
+#define ARM_DMA_ZONE_SIZE	SZ_4M
 
 #endif
 
