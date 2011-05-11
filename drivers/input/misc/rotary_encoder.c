@@ -2,6 +2,7 @@
  * rotary_encoder.c
  *
  * (c) 2009 Daniel Mack <daniel@caiaq.de>
+ * Copyright (C) 2011 Johan Hovold <jhovold@gmail.com>
  *
  * state machine code inspired by code from Tim Ruetz
  *
@@ -38,6 +39,8 @@ struct rotary_encoder {
 
 	bool armed;
 	unsigned char dir;	/* 0 - clockwise, 1 - CCW */
+
+	char last_stable;
 };
 
 static int rotary_encoder_get_state(struct rotary_encoder_platform_data *pdata)
@@ -112,11 +115,37 @@ static irqreturn_t rotary_encoder_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t rotary_encoder_half_period_irq(int irq, void *dev_id)
+{
+	struct rotary_encoder *encoder = dev_id;
+	int state;
+
+	state = rotary_encoder_get_state(encoder->pdata);
+
+	switch (state) {
+	case 0x00:
+	case 0x03:
+		if (state != encoder->last_stable) {
+			rotary_encoder_report_event(encoder);
+			encoder->last_stable = state;
+		}
+		break;
+
+	case 0x01:
+	case 0x02:
+		encoder->dir = (encoder->last_stable + state) & 0x01;
+		break;
+	}
+
+	return IRQ_HANDLED;
+}
+
 static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 {
 	struct rotary_encoder_platform_data *pdata = pdev->dev.platform_data;
 	struct rotary_encoder *encoder;
 	struct input_dev *input;
+	irq_handler_t handler;
 	int err;
 
 	if (!pdata) {
@@ -187,7 +216,14 @@ static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 	}
 
 	/* request the IRQs */
-	err = request_irq(encoder->irq_a, &rotary_encoder_irq,
+	if (pdata->half_period) {
+		handler = &rotary_encoder_half_period_irq;
+		encoder->last_stable = rotary_encoder_get_state(pdata);
+	} else {
+		handler = &rotary_encoder_irq;
+	}
+
+	err = request_irq(encoder->irq_a, handler,
 			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  DRV_NAME, encoder);
 	if (err) {
@@ -196,7 +232,7 @@ static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 		goto exit_free_gpio_b;
 	}
 
-	err = request_irq(encoder->irq_b, &rotary_encoder_irq,
+	err = request_irq(encoder->irq_b, handler,
 			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  DRV_NAME, encoder);
 	if (err) {
@@ -264,5 +300,5 @@ module_exit(rotary_encoder_exit);
 
 MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_DESCRIPTION("GPIO rotary encoder driver");
-MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
+MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>, Johan Hovold");
 MODULE_LICENSE("GPL v2");
