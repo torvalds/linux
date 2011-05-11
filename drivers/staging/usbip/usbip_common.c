@@ -30,7 +30,7 @@
 #define DRIVER_AUTHOR "Takahiro Hirofuchi <hirofuchi@users.sourceforge.net>"
 #define DRIVER_DESC "USB/IP Common Driver"
 
-#ifdef CONFIG_USB_IP_DEBUG_ENABLE
+#ifdef CONFIG_USB_IP_DEBUG
 unsigned long usbip_debug_flag = 0xffffffff;
 #else
 unsigned long usbip_debug_flag;

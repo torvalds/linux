@@ -27,11 +27,11 @@
 #include <net/sock.h>
 
 /**
- * usbip_udbg - print debug messages if CONFIG_USB_IP_DEBUG_ENABLE is defined
+ * usbip_udbg - print debug messages if CONFIG_USB_IP_DEBUG is defined
  * @fmt:
  * @args:
  */
-#ifdef CONFIG_USB_IP_DEBUG_ENABLE
+#ifdef CONFIG_USB_IP_DEBUG
 
 #define usbip_udbg(fmt, args...)					\
 	do {								\
@@ -40,11 +40,11 @@
 		       __FILE__, __LINE__, __func__, ##args);		\
 	} while (0)
 
-#else  /* CONFIG_USB_IP_DEBUG_ENABLE */
+#else
 
 #define usbip_udbg(fmt, args...)	do { } while (0)
 
-#endif /* CONFIG_USB_IP_DEBUG_ENABLE */
+#endif /* CONFIG_USB_IP_DEBUG */
 
 enum {
 	usbip_debug_xmit	= (1 << 0),
