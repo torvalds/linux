@@ -26,6 +26,8 @@
 #include <asm/byteorder.h>
 #include <net/sock.h>
 
+#define USBIP_VERSION "1.0.0"
+
 /**
  * usbip_udbg - print debug messages if CONFIG_USB_IP_DEBUG is defined
  * @fmt:

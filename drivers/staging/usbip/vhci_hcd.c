@@ -23,7 +23,6 @@
 #include "usbip_common.h"
 #include "vhci.h"
 
-#define DRIVER_VERSION "1.0"
 #define DRIVER_AUTHOR "Takahiro Hirofuchi"
 #define DRIVER_DESC "Virtual Host Controller Interface Driver for USB/IP"
 
@@ -1232,7 +1231,7 @@ static int __init vhci_init(void)
 		return -ENODEV;
 
 	printk(KERN_INFO KBUILD_MODNAME ": %s, %s\n", driver_name,
-	       DRIVER_VERSION);
+	       USBIP_VERSION);
 
 	ret = platform_driver_register(&vhci_driver);
 	if (ret < 0)
@@ -1269,4 +1268,4 @@ module_exit(vhci_cleanup);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRIVER_VERSION);
+MODULE_VERSION(USBIP_VERSION);

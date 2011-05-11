@@ -22,7 +22,6 @@
 #include "usbip_common.h"
 #include "stub.h"
 
-#define DRIVER_VERSION "1.0"
 #define DRIVER_AUTHOR "Takahiro Hirofuchi"
 #define DRIVER_DESC "Stub Driver for USB/IP"
 
@@ -278,7 +277,7 @@ static int __init usb_stub_init(void)
 		goto error_usb_register;
 	}
 
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC " " DRIVER_VERSION
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC " " USBIP_VERSION
 	       "\n");
 
 	init_busid_table();
@@ -319,4 +318,4 @@ module_exit(usb_stub_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRIVER_VERSION);
+MODULE_VERSION(USBIP_VERSION);
