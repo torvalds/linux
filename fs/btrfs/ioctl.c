@@ -413,8 +413,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 
 	btrfs_record_root_in_trans(trans, new_root);
 
-	ret = btrfs_create_subvol_root(trans, new_root, new_dirid,
-				       BTRFS_I(dir)->block_group);
+	ret = btrfs_create_subvol_root(trans, new_root, new_dirid);
 	/*
 	 * insert the directory item
 	 */

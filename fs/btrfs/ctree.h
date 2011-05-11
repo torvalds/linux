@@ -2512,8 +2512,7 @@ int btrfs_set_extent_delalloc(struct inode *inode, u64 start, u64 end,
 int btrfs_writepages(struct address_space *mapping,
 		     struct writeback_control *wbc);
 int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
-			     struct btrfs_root *new_root,
-			     u64 new_dirid, u64 alloc_hint);
+			     struct btrfs_root *new_root, u64 new_dirid);
 int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 			 size_t size, struct bio *bio, unsigned long bio_flags);
 

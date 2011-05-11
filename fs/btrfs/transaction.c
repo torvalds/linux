@@ -241,7 +241,6 @@ again:
 	h->transid = cur_trans->transid;
 	h->transaction = cur_trans;
 	h->blocks_used = 0;
-	h->block_group = 0;
 	h->bytes_reserved = 0;
 	h->delayed_ref_updates = 0;
 	h->use_count = 1;

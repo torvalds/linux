@@ -47,7 +47,6 @@ struct btrfs_transaction {
 
 struct btrfs_trans_handle {
 	u64 transid;
-	u64 block_group;
 	u64 bytes_reserved;
 	unsigned long use_count;
 	unsigned long blocks_reserved;
@@ -69,19 +68,6 @@ struct btrfs_pending_snapshot {
 	bool readonly;
 	struct list_head list;
 };
-
-static inline void btrfs_set_trans_block_group(struct btrfs_trans_handle *trans,
-					       struct inode *inode)
-{
-	trans->block_group = BTRFS_I(inode)->block_group;
-}
-
-static inline void btrfs_update_inode_block_group(
-					  struct btrfs_trans_handle *trans,
-					  struct inode *inode)
-{
-	BTRFS_I(inode)->block_group = trans->block_group;
-}
 
 static inline void btrfs_set_inode_last_trans(struct btrfs_trans_handle *trans,
 					      struct inode *inode)

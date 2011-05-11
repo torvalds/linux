@@ -5319,6 +5319,7 @@ checks:
 			btrfs_add_free_space(block_group, offset,
 					     search_start - offset);
 		BUG_ON(offset > search_start);
+		btrfs_put_block_group(block_group);
 		break;
 loop:
 		failed_cluster_refill = false;
@@ -5411,14 +5412,7 @@ loop:
 		ret = -ENOSPC;
 	} else if (!ins->objectid) {
 		ret = -ENOSPC;
-	}
-
-	/* we found what we needed */
-	if (ins->objectid) {
-		if (!(data & BTRFS_BLOCK_GROUP_DATA))
-			trans->block_group = block_group->key.objectid;
-
-		btrfs_put_block_group(block_group);
+	} else if (ins->objectid) {
 		ret = 0;
 	}
 

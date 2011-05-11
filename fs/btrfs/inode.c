@@ -136,7 +136,6 @@ static noinline int insert_inline_extent(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	path->leave_spinning = 1;
-	btrfs_set_trans_block_group(trans, inode);
 
 	key.objectid = inode->i_ino;
 	key.offset = start;
@@ -422,7 +421,6 @@ again:
 	if (start == 0) {
 		trans = btrfs_join_transaction(root);
 		BUG_ON(IS_ERR(trans));
-		btrfs_set_trans_block_group(trans, inode);
 		trans->block_rsv = &root->fs_info->delalloc_block_rsv;
 
 		/* lets try to make an inline extent */
@@ -781,7 +779,6 @@ static noinline int cow_file_range(struct inode *inode,
 	BUG_ON(root == root->fs_info->tree_root);
 	trans = btrfs_join_transaction(root);
 	BUG_ON(IS_ERR(trans));
-	btrfs_set_trans_block_group(trans, inode);
 	trans->block_rsv = &root->fs_info->delalloc_block_rsv;
 
 	num_bytes = (end - start + blocksize) & ~(blocksize - 1);
@@ -1502,8 +1499,6 @@ static noinline int add_pending_csums(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_ordered_sum *sum;
 
-	btrfs_set_trans_block_group(trans, inode);
-
 	list_for_each_entry(sum, list, list) {
 		btrfs_csum_file_blocks(trans,
 		       BTRFS_I(inode)->root->fs_info->csum_root, sum);
@@ -1722,7 +1717,6 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 			else
 				trans = btrfs_join_transaction(root);
 			BUG_ON(IS_ERR(trans));
-			btrfs_set_trans_block_group(trans, inode);
 			trans->block_rsv = &root->fs_info->delalloc_block_rsv;
 			ret = btrfs_update_inode(trans, root, inode);
 			BUG_ON(ret);
@@ -1739,7 +1733,6 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	else
 		trans = btrfs_join_transaction(root);
 	BUG_ON(IS_ERR(trans));
-	btrfs_set_trans_block_group(trans, inode);
 	trans->block_rsv = &root->fs_info->delalloc_block_rsv;
 
 	if (test_bit(BTRFS_ORDERED_COMPRESSED, &ordered_extent->flags))
@@ -2495,7 +2488,6 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key location;
 	int maybe_acls;
-	u64 alloc_group_block;
 	u32 rdev;
 	int ret;
 
@@ -2539,8 +2531,6 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	BTRFS_I(inode)->index_cnt = (u64)-1;
 	BTRFS_I(inode)->flags = btrfs_inode_flags(leaf, inode_item);
 
-	alloc_group_block = btrfs_inode_block_group(leaf, inode_item);
-
 	/*
 	 * try to precache a NULL acl entry for files that don't have
 	 * any xattrs or acls
@@ -2549,8 +2539,6 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	if (!maybe_acls)
 		cache_no_acl(inode);
 
-	BTRFS_I(inode)->block_group = btrfs_find_block_group(root, 0,
-						alloc_group_block, 0);
 	btrfs_free_path(path);
 	inode_item = NULL;
 
@@ -2630,7 +2618,7 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 	btrfs_set_inode_transid(leaf, item, trans->transid);
 	btrfs_set_inode_rdev(leaf, item, inode->i_rdev);
 	btrfs_set_inode_flags(leaf, item, BTRFS_I(inode)->flags);
-	btrfs_set_inode_block_group(leaf, item, BTRFS_I(inode)->block_group);
+	btrfs_set_inode_block_group(leaf, item, 0);
 
 	if (leaf->map_token) {
 		unmap_extent_buffer(leaf, leaf->map_token, KM_USER1);
@@ -2971,8 +2959,6 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	btrfs_set_trans_block_group(trans, dir);
-
 	btrfs_record_unlink_dir(trans, dir, dentry->d_inode, 0);
 
 	ret = btrfs_unlink_inode(trans, root, dir, dentry->d_inode,
@@ -3067,8 +3053,6 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	trans = __unlink_start_trans(dir, dentry);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
-
-	btrfs_set_trans_block_group(trans, dir);
 
 	if (unlikely(inode->i_ino == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)) {
 		err = btrfs_unlink_subvol(trans, root, dir,
@@ -3649,7 +3633,6 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 				err = PTR_ERR(trans);
 				break;
 			}
-			btrfs_set_trans_block_group(trans, inode);
 
 			err = btrfs_drop_extents(trans, inode, cur_offset,
 						 cur_offset + hole_size,
@@ -3785,7 +3768,6 @@ void btrfs_evict_inode(struct inode *inode)
 	while (1) {
 		trans = btrfs_start_transaction(root, 0);
 		BUG_ON(IS_ERR(trans));
-		btrfs_set_trans_block_group(trans, inode);
 		trans->block_rsv = root->orphan_block_rsv;
 
 		ret = btrfs_block_rsv_check(trans, root,
@@ -4383,7 +4365,6 @@ int btrfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 			trans = btrfs_join_transaction(root);
 		if (IS_ERR(trans))
 			return PTR_ERR(trans);
-		btrfs_set_trans_block_group(trans, inode);
 		if (nolock)
 			ret = btrfs_end_transaction_nolock(trans, root);
 		else
@@ -4409,7 +4390,6 @@ void btrfs_dirty_inode(struct inode *inode)
 
 	trans = btrfs_join_transaction(root);
 	BUG_ON(IS_ERR(trans));
-	btrfs_set_trans_block_group(trans, inode);
 
 	ret = btrfs_update_inode(trans, root, inode);
 	if (ret && ret == -ENOSPC) {
@@ -4424,7 +4404,6 @@ void btrfs_dirty_inode(struct inode *inode)
 			}
 			return;
 		}
-		btrfs_set_trans_block_group(trans, inode);
 
 		ret = btrfs_update_inode(trans, root, inode);
 		if (ret) {
@@ -4519,8 +4498,8 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root,
 				     struct inode *dir,
 				     const char *name, int name_len,
-				     u64 ref_objectid, u64 objectid,
-				     u64 alloc_hint, int mode, u64 *index)
+				     u64 ref_objectid, u64 objectid, int mode,
+				     u64 *index)
 {
 	struct inode *inode;
 	struct btrfs_inode_item *inode_item;
@@ -4567,8 +4546,6 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		owner = 0;
 	else
 		owner = 1;
-	BTRFS_I(inode)->block_group =
-			btrfs_find_block_group(root, 0, alloc_hint, owner);
 
 	key[0].objectid = objectid;
 	btrfs_set_key_type(&key[0], BTRFS_INODE_ITEM_KEY);
@@ -4729,11 +4706,9 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	btrfs_set_trans_block_group(trans, dir);
-
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
 				dentry->d_name.len, dir->i_ino, objectid,
-				BTRFS_I(dir)->block_group, mode, &index);
+				mode, &index);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out_unlock;
@@ -4745,7 +4720,6 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 		goto out_unlock;
 	}
 
-	btrfs_set_trans_block_group(trans, inode);
 	err = btrfs_add_nondir(trans, dir, dentry, inode, 0, index);
 	if (err)
 		drop_inode = 1;
@@ -4754,8 +4728,6 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 		init_special_inode(inode, inode->i_mode, rdev);
 		btrfs_update_inode(trans, root, inode);
 	}
-	btrfs_update_inode_block_group(trans, inode);
-	btrfs_update_inode_block_group(trans, dir);
 out_unlock:
 	nr = trans->blocks_used;
 	btrfs_end_transaction_throttle(trans, root);
@@ -4791,11 +4763,9 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	btrfs_set_trans_block_group(trans, dir);
-
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
 				dentry->d_name.len, dir->i_ino, objectid,
-				BTRFS_I(dir)->block_group, mode, &index);
+				mode, &index);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out_unlock;
@@ -4807,7 +4777,6 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		goto out_unlock;
 	}
 
-	btrfs_set_trans_block_group(trans, inode);
 	err = btrfs_add_nondir(trans, dir, dentry, inode, 0, index);
 	if (err)
 		drop_inode = 1;
@@ -4818,8 +4787,6 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		inode->i_op = &btrfs_file_inode_operations;
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
 	}
-	btrfs_update_inode_block_group(trans, inode);
-	btrfs_update_inode_block_group(trans, dir);
 out_unlock:
 	nr = trans->blocks_used;
 	btrfs_end_transaction_throttle(trans, root);
@@ -4866,8 +4833,6 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 
 	btrfs_inc_nlink(inode);
 	inode->i_ctime = CURRENT_TIME;
-
-	btrfs_set_trans_block_group(trans, dir);
 	ihold(inode);
 
 	err = btrfs_add_nondir(trans, dir, dentry, inode, 1, index);
@@ -4876,7 +4841,6 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		drop_inode = 1;
 	} else {
 		struct dentry *parent = dget_parent(dentry);
-		btrfs_update_inode_block_group(trans, dir);
 		err = btrfs_update_inode(trans, root, inode);
 		BUG_ON(err);
 		btrfs_log_new_name(trans, inode, NULL, parent);
@@ -4917,12 +4881,10 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	trans = btrfs_start_transaction(root, 5);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
-	btrfs_set_trans_block_group(trans, dir);
 
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
 				dentry->d_name.len, dir->i_ino, objectid,
-				BTRFS_I(dir)->block_group, S_IFDIR | mode,
-				&index);
+				S_IFDIR | mode, &index);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out_fail;
@@ -4936,7 +4898,6 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	inode->i_op = &btrfs_dir_inode_operations;
 	inode->i_fop = &btrfs_dir_file_operations;
-	btrfs_set_trans_block_group(trans, inode);
 
 	btrfs_i_size_write(inode, 0);
 	err = btrfs_update_inode(trans, root, inode);
@@ -4950,8 +4911,6 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	d_instantiate(dentry, inode);
 	drop_on_err = 0;
-	btrfs_update_inode_block_group(trans, inode);
-	btrfs_update_inode_block_group(trans, dir);
 
 out_fail:
 	nr = trans->blocks_used;
@@ -6652,8 +6611,6 @@ static int btrfs_truncate(struct inode *inode)
 		goto out;
 	}
 
-	btrfs_set_trans_block_group(trans, inode);
-
 	/*
 	 * Reserve space for the truncate process.  Truncate should be adding
 	 * space, but if there are snapshots it may end up using space.
@@ -6680,7 +6637,6 @@ static int btrfs_truncate(struct inode *inode)
 		err = PTR_ERR(trans);
 		goto out;
 	}
-	btrfs_set_trans_block_group(trans, inode);
 	trans->block_rsv = rsv;
 
 	/*
@@ -6715,7 +6671,6 @@ static int btrfs_truncate(struct inode *inode)
 							      rsv);
 			BUG_ON(ret);
 
-			btrfs_set_trans_block_group(trans, inode);
 			trans->block_rsv = rsv;
 		}
 
@@ -6775,15 +6730,14 @@ out:
  * create a new subvolume directory/inode (helper for the ioctl).
  */
 int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
-			     struct btrfs_root *new_root,
-			     u64 new_dirid, u64 alloc_hint)
+			     struct btrfs_root *new_root, u64 new_dirid)
 {
 	struct inode *inode;
 	int err;
 	u64 index = 0;
 
 	inode = btrfs_new_inode(trans, new_root, NULL, "..", 2, new_dirid,
-				new_dirid, alloc_hint, S_IFDIR | 0700, &index);
+				new_dirid, S_IFDIR | 0700, &index);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 	inode->i_op = &btrfs_dir_inode_operations;
@@ -6891,21 +6845,6 @@ void btrfs_destroy_inode(struct inode *inode)
 		spin_lock(&root->fs_info->ordered_extent_lock);
 		list_del_init(&BTRFS_I(inode)->ordered_operations);
 		spin_unlock(&root->fs_info->ordered_extent_lock);
-	}
-
-	if (root == root->fs_info->tree_root) {
-		struct btrfs_block_group_cache *block_group;
-
-		block_group = btrfs_lookup_block_group(root->fs_info,
-						BTRFS_I(inode)->block_group);
-		if (block_group && block_group->inode == inode) {
-			spin_lock(&block_group->lock);
-			block_group->inode = NULL;
-			spin_unlock(&block_group->lock);
-			btrfs_put_block_group(block_group);
-		} else if (block_group) {
-			btrfs_put_block_group(block_group);
-		}
 	}
 
 	spin_lock(&root->orphan_lock);
@@ -7090,8 +7029,6 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
                 ret = PTR_ERR(trans);
                 goto out_notrans;
         }
-
-	btrfs_set_trans_block_group(trans, new_dir);
 
 	if (dest != root)
 		btrfs_record_root_in_trans(trans, dest);
@@ -7331,12 +7268,9 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	btrfs_set_trans_block_group(trans, dir);
-
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
 				dentry->d_name.len, dir->i_ino, objectid,
-				BTRFS_I(dir)->block_group, S_IFLNK|S_IRWXUGO,
-				&index);
+				S_IFLNK|S_IRWXUGO, &index);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out_unlock;
@@ -7348,7 +7282,6 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		goto out_unlock;
 	}
 
-	btrfs_set_trans_block_group(trans, inode);
 	err = btrfs_add_nondir(trans, dir, dentry, inode, 0, index);
 	if (err)
 		drop_inode = 1;
@@ -7359,8 +7292,6 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		inode->i_op = &btrfs_file_inode_operations;
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
 	}
-	btrfs_update_inode_block_group(trans, inode);
-	btrfs_update_inode_block_group(trans, dir);
 	if (drop_inode)
 		goto out_unlock;
 
