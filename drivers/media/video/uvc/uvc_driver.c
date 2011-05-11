@@ -84,6 +84,11 @@ static struct uvc_format_desc uvc_fmts[] = {
 		.fcc		= V4L2_PIX_FMT_YUV420,
 	},
 	{
+		.name		= "YUV 4:2:0 (M420)",
+		.guid		= UVC_GUID_FORMAT_M420,
+		.fcc		= V4L2_PIX_FMT_M420,
+	},
+	{
 		.name		= "YUV 4:2:2 (UYVY)",
 		.guid		= UVC_GUID_FORMAT_UYVY,
 		.fcc		= V4L2_PIX_FMT_UYVY,
