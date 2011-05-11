@@ -5143,9 +5143,12 @@ xfs_bunmapi(
 				 */
 				ASSERT(bno >= del.br_blockcount);
 				bno -= del.br_blockcount;
-				if (bno < got.br_startoff) {
-					if (--lastx >= 0)
-						xfs_bmbt_get_all(--ep, &got);
+				if (got.br_startoff > bno) {
+					if (--lastx >= 0) {
+						ep = xfs_iext_get_ext(ifp,
+								      lastx);
+						xfs_bmbt_get_all(ep, &got);
+					}
 				}
 				continue;
 			} else if (del.br_state == XFS_EXT_UNWRITTEN) {
