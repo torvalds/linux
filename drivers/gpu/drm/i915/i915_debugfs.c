@@ -1383,13 +1383,13 @@ static int i915_forcewake_create(struct dentry *root, struct drm_minor *minor)
 	struct dentry *ent;
 
 	ent = debugfs_create_file("i915_forcewake_user",
-				  S_IRWXU,
+				  S_IRUSR,
 				  root, dev,
 				  &i915_forcewake_fops);
 	if (IS_ERR(ent))
 		return PTR_ERR(ent);
 
-	return 0;
+	return drm_add_fake_info_node(minor, ent, &i915_forcewake_fops);
 }
 
 static struct drm_info_list i915_debugfs_list[] = {
