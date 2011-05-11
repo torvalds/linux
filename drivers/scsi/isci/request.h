@@ -424,8 +424,6 @@ enum sci_base_request_states {
 
 typedef enum sci_status (*scic_sds_io_request_handler_t)
 				(struct scic_sds_request *request);
-typedef enum sci_status (*scic_sds_io_request_frame_handler_t)
-				(struct scic_sds_request *req, u32 frame);
 typedef enum sci_status (*scic_sds_io_request_event_handler_t)
 				(struct scic_sds_request *req, u32 event);
 typedef enum sci_status (*scic_sds_io_request_task_completion_handler_t)
@@ -446,7 +444,6 @@ struct scic_sds_io_request_state_handler {
 
 	scic_sds_io_request_task_completion_handler_t tc_completion_handler;
 	scic_sds_io_request_event_handler_t event_handler;
-	scic_sds_io_request_frame_handler_t frame_handler;
 };
 
 /**
@@ -839,9 +836,6 @@ enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
 					    struct scic_sds_request *sci_req);
 enum sci_status scic_task_request_construct_ssp(struct scic_sds_request *sci_req);
 enum sci_status scic_task_request_construct_sata(struct scic_sds_request *sci_req);
-enum sci_status scic_sds_stp_udma_request_construct(struct scic_sds_request *sci_req,
-						    u32 transfer_length,
-						    enum dma_data_direction dir);
 void scic_stp_io_request_set_ncq_tag(struct scic_sds_request *sci_req, u16 ncq_tag);
 void scic_sds_smp_request_copy_response(struct scic_sds_request *sci_req);
 #endif /* !defined(_ISCI_REQUEST_H_) */

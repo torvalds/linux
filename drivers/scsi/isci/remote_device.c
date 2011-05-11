@@ -310,8 +310,7 @@ enum sci_status scic_sds_remote_device_frame_handler(struct scic_sds_remote_devi
 		sci_req = scic_request_by_tag(scic, be16_to_cpu(hdr.tag));
 		if (sci_req && sci_req->target_device == sci_dev) {
 			/* The IO request is now in charge of releasing the frame */
-			status = sci_req->state_handlers->frame_handler(sci_req,
-									frame_index);
+			status = scic_sds_io_request_frame_handler(sci_req, frame_index);
 		} else {
 			/* We could not map this tag to a valid IO
 			 * request Just toss the frame and continue

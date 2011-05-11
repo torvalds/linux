@@ -907,34 +907,6 @@ enum sci_status scic_sds_io_request_event_handler(
 	return SCI_FAILURE_INVALID_STATE;
 }
 
-/**
- *
- * @sci_req: The SCIC_SDS_IO_REQUEST_T object for which the start
- *    operation is to be executed.
- * @frame_index: The frame index returned by the hardware for the reqeust
- *    object.
- *
- * This method invokes the core state frame handler for the
- * SCIC_SDS_IO_REQUEST_T object. enum sci_status
- */
-enum sci_status scic_sds_io_request_frame_handler(
-	struct scic_sds_request *request,
-	u32 frame_index)
-{
-	if (request->state_handlers->frame_handler)
-		return request->state_handlers->frame_handler(request, frame_index);
-
-	dev_warn(scic_to_dev(request->owning_controller),
-		 "%s: SCIC IO Request given unexpected frame %x while in "
-		 "state %d\n",
-		 __func__,
-		 frame_index,
-		 sci_base_state_machine_get_state(&request->state_machine));
-
-	scic_sds_controller_release_frame(request->owning_controller, frame_index);
-	return SCI_FAILURE_INVALID_STATE;
-}
-
 /*
  * This function copies response data for requests returning response data
  *    instead of sense data.
@@ -1151,81 +1123,6 @@ scic_sds_io_request_tc_completion(struct scic_sds_request *request, u32 completi
 
 /*
  * This method implements the action to be taken when an SCIC_SDS_IO_REQUEST_T
- * object receives a scic_sds_request_frame_handler() request. This method
- * first determines the frame type received.  If this is a response frame then
- * the response data is copied to the io request response buffer for processing
- * at completion time. If the frame type is not a response buffer an error is
- * logged. enum sci_status SCI_SUCCESS SCI_FAILURE_INVALID_PARAMETER_VALUE
- */
-static enum sci_status
-scic_sds_request_started_state_frame_handler(struct scic_sds_request *sci_req,
-					     u32 frame_index)
-{
-	enum sci_status status;
-	u32 *frame_header;
-	struct ssp_frame_hdr ssp_hdr;
-	ssize_t word_cnt;
-
-	status = scic_sds_unsolicited_frame_control_get_header(
-		&(scic_sds_request_get_controller(sci_req)->uf_control),
-		frame_index,
-		(void **)&frame_header);
-
-	word_cnt = sizeof(struct ssp_frame_hdr) / sizeof(u32);
-	sci_swab32_cpy(&ssp_hdr, frame_header, word_cnt);
-
-	if (ssp_hdr.frame_type == SSP_RESPONSE) {
-		struct ssp_response_iu *resp_iu;
-		ssize_t word_cnt = SSP_RESP_IU_MAX_SIZE / sizeof(u32);
-
-		status = scic_sds_unsolicited_frame_control_get_buffer(
-			&(scic_sds_request_get_controller(sci_req)->uf_control),
-			frame_index,
-			(void **)&resp_iu);
-
-		sci_swab32_cpy(&sci_req->ssp.rsp,
-			       resp_iu, word_cnt);
-
-		resp_iu = &sci_req->ssp.rsp;
-
-		if ((resp_iu->datapres == 0x01) ||
-		    (resp_iu->datapres == 0x02)) {
-			scic_sds_request_set_status(
-				sci_req,
-				SCU_TASK_DONE_CHECK_RESPONSE,
-				SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
-		} else
-			scic_sds_request_set_status(
-				sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS);
-	} else {
-		/* This was not a response frame why did it get forwarded? */
-		dev_err(scic_to_dev(sci_req->owning_controller),
-			"%s: SCIC IO Request 0x%p received unexpected "
-			"frame %d type 0x%02x\n",
-			__func__,
-			sci_req,
-			frame_index,
-			ssp_hdr.frame_type);
-	}
-
-	/*
-	 * In any case we are done with this frame buffer return it to the
-	 * controller
-	 */
-	scic_sds_controller_release_frame(
-		sci_req->owning_controller, frame_index);
-
-	return SCI_SUCCESS;
-}
-
-/*
- * *****************************************************************************
- * *  COMPLETED STATE HANDLERS
- * ***************************************************************************** */
-
-
-/*
- * This method implements the action to be taken when an SCIC_SDS_IO_REQUEST_T
  * object receives a scic_sds_request_complete() request. This method frees up
  * any io request resources that have been allocated and transitions the
  * request to its final state. Consider stopping the state machine instead of
@@ -1277,24 +1174,6 @@ static enum sci_status scic_sds_request_aborting_state_tc_completion_handler(
 		 * TODO: Should there be a state change for this completion? */
 		break;
 	}
-
-	return SCI_SUCCESS;
-}
-
-/*
- * This method implements the action to be taken when an SCIC_SDS_IO_REQUEST_T
- * object receives a scic_sds_request_frame_handler() request. This method
- * discards the unsolicited frame since we are waiting for the abort task
- * completion. enum sci_status SCI_SUCCESS
- */
-static enum sci_status scic_sds_request_aborting_state_frame_handler(
-	struct scic_sds_request *sci_req,
-	u32 frame_index)
-{
-	/* TODO: Is it even possible to get an unsolicited frame in the aborting state? */
-
-	scic_sds_controller_release_frame(
-		sci_req->owning_controller, frame_index);
 
 	return SCI_SUCCESS;
 }
@@ -1361,34 +1240,6 @@ static enum sci_status scic_sds_ssp_task_request_await_tc_completion_tc_completi
 }
 
 /**
- * This method processes an unsolicited frame while the task mgmt request is
- *    waiting for a response frame.  It will copy the response data, release
- *    the unsolicited frame, and transition the request to the
- *    SCI_BASE_REQUEST_STATE_COMPLETED state.
- * @sci_req: This parameter specifies the request for which the
- *    unsolicited frame was received.
- * @frame_index: This parameter indicates the unsolicited frame index that
- *    should contain the response.
- *
- * This method returns an indication of whether the TC response frame was
- * handled successfully or not. SCI_SUCCESS Currently this value is always
- * returned and indicates successful processing of the TC response. Should
- * probably update to check frame type and make sure it is a response frame.
- */
-static enum sci_status scic_sds_ssp_task_request_await_tc_response_frame_handler(
-	struct scic_sds_request *request,
-	u32 frame_index)
-{
-	scic_sds_io_request_copy_response(request);
-
-	sci_base_state_machine_change_state(&request->state_machine,
-					    SCI_BASE_REQUEST_STATE_COMPLETED);
-	scic_sds_controller_release_frame(request->owning_controller,
-			frame_index);
-	return SCI_SUCCESS;
-}
-
-/**
  * This method processes an abnormal TC completion while the SMP request is
  *    waiting for a response frame.  It decides what happened to the IO based
  *    on TC completion status.
@@ -1446,81 +1297,6 @@ static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler
 						    SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 	}
-
-	return SCI_SUCCESS;
-}
-
-/*
- * This function processes an unsolicited frame while the SMP request is waiting
- *    for a response frame.  It will copy the response data, release the
- *    unsolicited frame, and transition the request to the
- *    SCI_BASE_REQUEST_STATE_COMPLETED state.
- * @sci_req: This parameter specifies the request for which the
- *    unsolicited frame was received.
- * @frame_index: This parameter indicates the unsolicited frame index that
- *    should contain the response.
- *
- * This function returns an indication of whether the response frame was handled
- * successfully or not. SCI_SUCCESS Currently this value is always returned and
- * indicates successful processing of the TC response.
- */
-static enum sci_status
-scic_sds_smp_request_await_response_frame_handler(struct scic_sds_request *sci_req,
-						  u32 frame_index)
-{
-	enum sci_status status;
-	void *frame_header;
-	struct smp_resp *rsp_hdr = &sci_req->smp.rsp;
-	ssize_t word_cnt = SMP_RESP_HDR_SZ / sizeof(u32);
-
-	status = scic_sds_unsolicited_frame_control_get_header(
-		&(scic_sds_request_get_controller(sci_req)->uf_control),
-		frame_index,
-		&frame_header);
-
-	/* byte swap the header. */
-	sci_swab32_cpy(rsp_hdr, frame_header, word_cnt);
-
-	if (rsp_hdr->frame_type == SMP_RESPONSE) {
-		void *smp_resp;
-
-		status = scic_sds_unsolicited_frame_control_get_buffer(
-			&(scic_sds_request_get_controller(sci_req)->uf_control),
-			frame_index,
-			&smp_resp);
-
-		word_cnt = (sizeof(struct smp_req) - SMP_RESP_HDR_SZ) /
-			sizeof(u32);
-
-		sci_swab32_cpy(((u8 *) rsp_hdr) + SMP_RESP_HDR_SZ,
-			       smp_resp, word_cnt);
-
-		scic_sds_request_set_status(
-			sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS);
-
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION);
-	} else {
-		/* This was not a response frame why did it get forwarded? */
-		dev_err(scic_to_dev(sci_req->owning_controller),
-			"%s: SCIC SMP Request 0x%p received unexpected frame "
-			"%d type 0x%02x\n",
-			__func__,
-			sci_req,
-			frame_index,
-			rsp_hdr->frame_type);
-
-		scic_sds_request_set_status(
-			sci_req,
-			SCU_TASK_DONE_SMP_FRM_TYPE_ERR,
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
-
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
-	}
-
-	scic_sds_controller_release_frame(sci_req->owning_controller,
-					  frame_index);
 
 	return SCI_SUCCESS;
 }
@@ -1666,76 +1442,6 @@ static enum sci_status scic_sds_stp_request_non_data_await_h2d_tc_completion_han
 	}
 
 	return SCI_SUCCESS;
-}
-
-/**
- *
- * @request: This parameter specifies the request for which a frame has been
- *    received.
- * @frame_index: This parameter specifies the index of the frame that has been
- *    received.
- *
- * This method processes frames received from the target while waiting for a
- * device to host register FIS.  If a non-register FIS is received during this
- * time, it is treated as a protocol violation from an IO perspective. Indicate
- * if the received frame was processed successfully.
- */
-static enum sci_status scic_sds_stp_request_non_data_await_d2h_frame_handler(
-	struct scic_sds_request *sci_req,
-	u32 frame_index)
-{
-	enum sci_status status;
-	struct dev_to_host_fis *frame_header;
-	u32 *frame_buffer;
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
-	struct scic_sds_controller *scic = sci_req->owning_controller;
-
-	status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
-							       frame_index,
-							       (void **)&frame_header);
-
-	if (status != SCI_SUCCESS) {
-		dev_err(scic_to_dev(sci_req->owning_controller),
-			"%s: SCIC IO Request 0x%p could not get frame header "
-			"for frame index %d, status %x\n",
-			__func__, stp_req, frame_index, status);
-
-		return status;
-	}
-
-	switch (frame_header->fis_type) {
-	case FIS_REGD2H:
-		scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
-							      frame_index,
-							      (void **)&frame_buffer);
-
-		scic_sds_controller_copy_sata_response(&sci_req->stp.rsp,
-						       frame_header,
-						       frame_buffer);
-
-		/* The command has completed with error */
-		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_CHECK_RESPONSE,
-					    SCI_FAILURE_IO_RESPONSE_VALID);
-		break;
-
-	default:
-		dev_warn(scic_to_dev(scic),
-			 "%s: IO Request:0x%p Frame Id:%d protocol "
-			  "violation occurred\n", __func__, stp_req,
-			  frame_index);
-
-		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_UNEXP_FIS,
-					    SCI_FAILURE_PROTOCOL_VIOLATION);
-		break;
-	}
-
-	sci_base_state_machine_change_state(&sci_req->state_machine,
-					    SCI_BASE_REQUEST_STATE_COMPLETED);
-
-	/* Frame has been decoded return it to the controller */
-	scic_sds_controller_release_frame(scic, frame_index);
-
-	return status;
 }
 
 #define SCU_MAX_FRAME_BUFFER_SIZE  0x400  /* 1K is the maximum SCU frame data payload */
@@ -1952,196 +1658,6 @@ static enum sci_status scic_sds_stp_request_pio_await_h2d_completion_tc_completi
 	return status;
 }
 
-static enum sci_status scic_sds_stp_request_pio_await_frame_frame_handler(struct scic_sds_request *sci_req,
-									  u32 frame_index)
-{
-	struct scic_sds_controller *scic = sci_req->owning_controller;
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
-	struct isci_request *ireq = sci_req_to_ireq(sci_req);
-	struct sas_task *task = isci_request_access_task(ireq);
-	struct dev_to_host_fis *frame_header;
-	enum sci_status status;
-	u32 *frame_buffer;
-
-	status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
-							       frame_index,
-							       (void **)&frame_header);
-
-	if (status != SCI_SUCCESS) {
-		dev_err(scic_to_dev(scic),
-			"%s: SCIC IO Request 0x%p could not get frame header "
-			"for frame index %d, status %x\n",
-			__func__, stp_req, frame_index, status);
-		return status;
-	}
-
-	switch (frame_header->fis_type) {
-	case FIS_PIO_SETUP:
-		/* Get from the frame buffer the PIO Setup Data */
-		scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
-							      frame_index,
-							      (void **)&frame_buffer);
-
-		/* Get the data from the PIO Setup The SCU Hardware returns
-		 * first word in the frame_header and the rest of the data is in
-		 * the frame buffer so we need to back up one dword
-		 */
-
-		/* transfer_count: first 16bits in the 4th dword */
-		stp_req->type.pio.pio_transfer_bytes = frame_buffer[3] & 0xffff;
-
-		/* ending_status: 4th byte in the 3rd dword */
-		stp_req->type.pio.ending_status = (frame_buffer[2] >> 24) & 0xff;
-
-		scic_sds_controller_copy_sata_response(&sci_req->stp.rsp,
-						       frame_header,
-						       frame_buffer);
-
-		sci_req->stp.rsp.status = stp_req->type.pio.ending_status;
-
-		/* The next state is dependent on whether the
-		 * request was PIO Data-in or Data out
-		 */
-		if (task->data_dir == DMA_FROM_DEVICE) {
-			sci_base_state_machine_change_state(&sci_req->state_machine,
-							    SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE);
-		} else if (task->data_dir == DMA_TO_DEVICE) {
-			/* Transmit data */
-			status = scic_sds_stp_request_pio_data_out_transmit_data(sci_req);
-			if (status != SCI_SUCCESS)
-				break;
-			sci_base_state_machine_change_state(&sci_req->state_machine,
-							    SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE);
-		}
-		break;
-	case FIS_SETDEVBITS:
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE);
-		break;
-	case FIS_REGD2H:
-		if (frame_header->status & ATA_BUSY) {
-			/* Now why is the drive sending a D2H Register FIS when
-			 * it is still busy?  Do nothing since we are still in
-			 * the right state.
-			 */
-			dev_dbg(scic_to_dev(scic),
-				"%s: SCIC PIO Request 0x%p received "
-				"D2H Register FIS with BSY status "
-				"0x%x\n", __func__, stp_req,
-				frame_header->status);
-			break;
-		}
-
-		scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
-							      frame_index,
-							      (void **)&frame_buffer);
-
-		scic_sds_controller_copy_sata_response(&sci_req->stp.req,
-						       frame_header,
-						       frame_buffer);
-
-		scic_sds_request_set_status(sci_req,
-					    SCU_TASK_DONE_CHECK_RESPONSE,
-					    SCI_FAILURE_IO_RESPONSE_VALID);
-
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
-		break;
-	default:
-		/* FIXME: what do we do here? */
-		break;
-	}
-
-	/* Frame is decoded return it to the controller */
-	scic_sds_controller_release_frame(scic, frame_index);
-
-	return status;
-}
-
-static enum sci_status scic_sds_stp_request_pio_data_in_await_data_frame_handler(struct scic_sds_request *sci_req,
-										 u32 frame_index)
-{
-	enum sci_status status;
-	struct dev_to_host_fis *frame_header;
-	struct sata_fis_data *frame_buffer;
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
-	struct scic_sds_controller *scic = sci_req->owning_controller;
-
-	status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
-							       frame_index,
-							       (void **)&frame_header);
-
-	if (status != SCI_SUCCESS) {
-		dev_err(scic_to_dev(scic),
-			"%s: SCIC IO Request 0x%p could not get frame header "
-			"for frame index %d, status %x\n",
-			__func__, stp_req, frame_index, status);
-		return status;
-	}
-
-	if (frame_header->fis_type == FIS_DATA) {
-		if (stp_req->type.pio.request_current.sgl_pair == NULL) {
-			sci_req->saved_rx_frame_index = frame_index;
-			stp_req->type.pio.pio_transfer_bytes = 0;
-		} else {
-			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
-								      frame_index,
-								      (void **)&frame_buffer);
-
-			status = scic_sds_stp_request_pio_data_in_copy_data(stp_req,
-									    (u8 *)frame_buffer);
-
-			/* Frame is decoded return it to the controller */
-			scic_sds_controller_release_frame(scic, frame_index);
-		}
-
-		/* Check for the end of the transfer, are there more
-		 * bytes remaining for this data transfer
-		 */
-		if (status != SCI_SUCCESS ||
-		    stp_req->type.pio.pio_transfer_bytes != 0)
-			return status;
-
-		if ((stp_req->type.pio.ending_status & ATA_BUSY) == 0) {
-			scic_sds_request_set_status(sci_req,
-						    SCU_TASK_DONE_CHECK_RESPONSE,
-						    SCI_FAILURE_IO_RESPONSE_VALID);
-
-			sci_base_state_machine_change_state(&sci_req->state_machine,
-							    SCI_BASE_REQUEST_STATE_COMPLETED);
-		} else {
-			sci_base_state_machine_change_state(&sci_req->state_machine,
-							    SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE);
-		}
-	} else {
-		dev_err(scic_to_dev(scic),
-			"%s: SCIC PIO Request 0x%p received frame %d "
-			"with fis type 0x%02x when expecting a data "
-			"fis.\n", __func__, stp_req, frame_index,
-			frame_header->fis_type);
-
-		scic_sds_request_set_status(sci_req,
-					    SCU_TASK_DONE_GOOD,
-					    SCI_FAILURE_IO_REQUIRES_SCSI_ABORT);
-
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
-
-		/* Frame is decoded return it to the controller */
-		scic_sds_controller_release_frame(scic, frame_index);
-	}
-
-	return status;
-}
-
-
-/**
- *
- * @sci_req:
- * @completion_code:
- *
- * enum sci_status
- */
 static enum sci_status scic_sds_stp_request_pio_data_out_await_data_transmit_completion_tc_completion_handler(
 
 	struct scic_sds_request *sci_req,
@@ -2280,6 +1796,422 @@ static enum sci_status scic_sds_stp_request_udma_general_frame_handler(struct sc
 	return status;
 }
 
+enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
+						  u32 frame_index)
+{
+	struct scic_sds_controller *scic = sci_req->owning_controller;
+	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
+	enum sci_base_request_states state;
+	enum sci_status status;
+	ssize_t word_cnt;
+
+	state = sci_req->state_machine.current_state_id;
+	switch (state)  {
+	case SCI_BASE_REQUEST_STATE_STARTED: {
+		struct ssp_frame_hdr ssp_hdr;
+		void *frame_header;
+
+		scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+							      frame_index,
+							      &frame_header);
+
+		word_cnt = sizeof(struct ssp_frame_hdr) / sizeof(u32);
+		sci_swab32_cpy(&ssp_hdr, frame_header, word_cnt);
+
+		if (ssp_hdr.frame_type == SSP_RESPONSE) {
+			struct ssp_response_iu *resp_iu;
+			ssize_t word_cnt = SSP_RESP_IU_MAX_SIZE / sizeof(u32);
+
+			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+								      frame_index,
+								      (void **)&resp_iu);
+
+			sci_swab32_cpy(&sci_req->ssp.rsp, resp_iu, word_cnt);
+
+			resp_iu = &sci_req->ssp.rsp;
+
+			if (resp_iu->datapres == 0x01 ||
+			    resp_iu->datapres == 0x02) {
+				scic_sds_request_set_status(sci_req,
+							    SCU_TASK_DONE_CHECK_RESPONSE,
+							    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
+			} else
+				scic_sds_request_set_status(sci_req,
+							    SCU_TASK_DONE_GOOD,
+							    SCI_SUCCESS);
+		} else {
+			/* not a response frame, why did it get forwarded? */
+			dev_err(scic_to_dev(scic),
+				"%s: SCIC IO Request 0x%p received unexpected "
+				"frame %d type 0x%02x\n", __func__, sci_req,
+				frame_index, ssp_hdr.frame_type);
+		}
+
+		/*
+		 * In any case we are done with this frame buffer return it to the
+		 * controller
+		 */
+		scic_sds_controller_release_frame(scic, frame_index);
+
+		return SCI_SUCCESS;
+	}
+	case SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE:
+		scic_sds_io_request_copy_response(sci_req);
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		scic_sds_controller_release_frame(scic,frame_index);
+		return SCI_SUCCESS;
+	case SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE: {
+		struct smp_resp *rsp_hdr = &sci_req->smp.rsp;
+		void *frame_header;
+
+		scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+							      frame_index,
+							      &frame_header);
+
+		/* byte swap the header. */
+		word_cnt = SMP_RESP_HDR_SZ / sizeof(u32);
+		sci_swab32_cpy(rsp_hdr, frame_header, word_cnt);
+
+		if (rsp_hdr->frame_type == SMP_RESPONSE) {
+			void *smp_resp;
+
+			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+								      frame_index,
+								      &smp_resp);
+
+			word_cnt = (sizeof(struct smp_req) - SMP_RESP_HDR_SZ) /
+				sizeof(u32);
+
+			sci_swab32_cpy(((u8 *) rsp_hdr) + SMP_RESP_HDR_SZ,
+				       smp_resp, word_cnt);
+
+			scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD,
+						    SCI_SUCCESS);
+
+			sci_base_state_machine_change_state(&sci_req->state_machine,
+							    SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION);
+		} else {
+			/* This was not a response frame why did it get forwarded? */
+			dev_err(scic_to_dev(scic),
+				"%s: SCIC SMP Request 0x%p received unexpected frame "
+				"%d type 0x%02x\n", __func__, sci_req,
+				frame_index, rsp_hdr->frame_type);
+
+			scic_sds_request_set_status(sci_req,
+						    SCU_TASK_DONE_SMP_FRM_TYPE_ERR,
+						    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
+
+			sci_base_state_machine_change_state(&sci_req->state_machine,
+							    SCI_BASE_REQUEST_STATE_COMPLETED);
+		}
+
+		scic_sds_controller_release_frame(scic, frame_index);
+
+		return SCI_SUCCESS;
+	}
+	case SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE:
+		return scic_sds_stp_request_udma_general_frame_handler(sci_req, frame_index);
+	case SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE:
+		/* Use the general frame handler to copy the resposne data */
+		status = scic_sds_stp_request_udma_general_frame_handler(sci_req, frame_index);
+
+		if (status != SCI_SUCCESS)
+			return status;
+
+		scic_sds_stp_request_udma_complete_request(sci_req,
+							   SCU_TASK_DONE_CHECK_RESPONSE,
+							   SCI_FAILURE_IO_RESPONSE_VALID);
+		return SCI_SUCCESS;
+	case SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_D2H_SUBSTATE: {
+		struct dev_to_host_fis *frame_header;
+		u32 *frame_buffer;
+
+		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+								       frame_index,
+								       (void **)&frame_header);
+
+		if (status != SCI_SUCCESS) {
+			dev_err(scic_to_dev(scic),
+				"%s: SCIC IO Request 0x%p could not get frame header "
+				"for frame index %d, status %x\n",
+				__func__, stp_req, frame_index, status);
+
+			return status;
+		}
+
+		switch (frame_header->fis_type) {
+		case FIS_REGD2H:
+			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+								      frame_index,
+								      (void **)&frame_buffer);
+
+			scic_sds_controller_copy_sata_response(&sci_req->stp.rsp,
+							       frame_header,
+							       frame_buffer);
+
+			/* The command has completed with error */
+			scic_sds_request_set_status(sci_req, SCU_TASK_DONE_CHECK_RESPONSE,
+						    SCI_FAILURE_IO_RESPONSE_VALID);
+			break;
+
+		default:
+			dev_warn(scic_to_dev(scic),
+				 "%s: IO Request:0x%p Frame Id:%d protocol "
+				  "violation occurred\n", __func__, stp_req,
+				  frame_index);
+
+			scic_sds_request_set_status(sci_req, SCU_TASK_DONE_UNEXP_FIS,
+						    SCI_FAILURE_PROTOCOL_VIOLATION);
+			break;
+		}
+
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+						    SCI_BASE_REQUEST_STATE_COMPLETED);
+
+		/* Frame has been decoded return it to the controller */
+		scic_sds_controller_release_frame(scic, frame_index);
+
+		return status;
+	}
+	case SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE: {
+		struct isci_request *ireq = sci_req_to_ireq(sci_req);
+		struct sas_task *task = isci_request_access_task(ireq);
+		struct dev_to_host_fis *frame_header;
+		u32 *frame_buffer;
+
+		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+								       frame_index,
+								       (void **)&frame_header);
+
+		if (status != SCI_SUCCESS) {
+			dev_err(scic_to_dev(scic),
+				"%s: SCIC IO Request 0x%p could not get frame header "
+				"for frame index %d, status %x\n",
+				__func__, stp_req, frame_index, status);
+			return status;
+		}
+
+		switch (frame_header->fis_type) {
+		case FIS_PIO_SETUP:
+			/* Get from the frame buffer the PIO Setup Data */
+			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+								      frame_index,
+								      (void **)&frame_buffer);
+
+			/* Get the data from the PIO Setup The SCU Hardware returns
+			 * first word in the frame_header and the rest of the data is in
+			 * the frame buffer so we need to back up one dword
+			 */
+
+			/* transfer_count: first 16bits in the 4th dword */
+			stp_req->type.pio.pio_transfer_bytes = frame_buffer[3] & 0xffff;
+
+			/* ending_status: 4th byte in the 3rd dword */
+			stp_req->type.pio.ending_status = (frame_buffer[2] >> 24) & 0xff;
+
+			scic_sds_controller_copy_sata_response(&sci_req->stp.rsp,
+							       frame_header,
+							       frame_buffer);
+
+			sci_req->stp.rsp.status = stp_req->type.pio.ending_status;
+
+			/* The next state is dependent on whether the
+			 * request was PIO Data-in or Data out
+			 */
+			if (task->data_dir == DMA_FROM_DEVICE) {
+				sci_base_state_machine_change_state(&sci_req->state_machine,
+								    SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE);
+			} else if (task->data_dir == DMA_TO_DEVICE) {
+				/* Transmit data */
+				status = scic_sds_stp_request_pio_data_out_transmit_data(sci_req);
+				if (status != SCI_SUCCESS)
+					break;
+				sci_base_state_machine_change_state(&sci_req->state_machine,
+								    SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE);
+			}
+			break;
+		case FIS_SETDEVBITS:
+			sci_base_state_machine_change_state(&sci_req->state_machine,
+							    SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE);
+			break;
+		case FIS_REGD2H:
+			if (frame_header->status & ATA_BUSY) {
+				/* Now why is the drive sending a D2H Register FIS when
+				 * it is still busy?  Do nothing since we are still in
+				 * the right state.
+				 */
+				dev_dbg(scic_to_dev(scic),
+					"%s: SCIC PIO Request 0x%p received "
+					"D2H Register FIS with BSY status "
+					"0x%x\n", __func__, stp_req,
+					frame_header->status);
+				break;
+			}
+
+			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+								      frame_index,
+								      (void **)&frame_buffer);
+
+			scic_sds_controller_copy_sata_response(&sci_req->stp.req,
+							       frame_header,
+							       frame_buffer);
+
+			scic_sds_request_set_status(sci_req,
+						    SCU_TASK_DONE_CHECK_RESPONSE,
+						    SCI_FAILURE_IO_RESPONSE_VALID);
+
+			sci_base_state_machine_change_state(&sci_req->state_machine,
+							    SCI_BASE_REQUEST_STATE_COMPLETED);
+			break;
+		default:
+			/* FIXME: what do we do here? */
+			break;
+		}
+
+		/* Frame is decoded return it to the controller */
+		scic_sds_controller_release_frame(scic, frame_index);
+
+		return status;
+	}
+	case SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE: {
+		struct dev_to_host_fis *frame_header;
+		struct sata_fis_data *frame_buffer;
+
+		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+								       frame_index,
+								       (void **)&frame_header);
+
+		if (status != SCI_SUCCESS) {
+			dev_err(scic_to_dev(scic),
+				"%s: SCIC IO Request 0x%p could not get frame header "
+				"for frame index %d, status %x\n",
+				__func__, stp_req, frame_index, status);
+			return status;
+		}
+
+		if (frame_header->fis_type != FIS_DATA) {
+			dev_err(scic_to_dev(scic),
+				"%s: SCIC PIO Request 0x%p received frame %d "
+				"with fis type 0x%02x when expecting a data "
+				"fis.\n", __func__, stp_req, frame_index,
+				frame_header->fis_type);
+
+			scic_sds_request_set_status(sci_req,
+						    SCU_TASK_DONE_GOOD,
+						    SCI_FAILURE_IO_REQUIRES_SCSI_ABORT);
+
+			sci_base_state_machine_change_state(&sci_req->state_machine,
+							    SCI_BASE_REQUEST_STATE_COMPLETED);
+
+			/* Frame is decoded return it to the controller */
+			scic_sds_controller_release_frame(scic, frame_index);
+			return status;
+		}
+
+		if (stp_req->type.pio.request_current.sgl_pair == NULL) {
+			sci_req->saved_rx_frame_index = frame_index;
+			stp_req->type.pio.pio_transfer_bytes = 0;
+		} else {
+			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+								      frame_index,
+								      (void **)&frame_buffer);
+
+			status = scic_sds_stp_request_pio_data_in_copy_data(stp_req,
+									    (u8 *)frame_buffer);
+
+			/* Frame is decoded return it to the controller */
+			scic_sds_controller_release_frame(scic, frame_index);
+		}
+
+		/* Check for the end of the transfer, are there more
+		 * bytes remaining for this data transfer
+		 */
+		if (status != SCI_SUCCESS ||
+		    stp_req->type.pio.pio_transfer_bytes != 0)
+			return status;
+
+		if ((stp_req->type.pio.ending_status & ATA_BUSY) == 0) {
+			scic_sds_request_set_status(sci_req,
+						    SCU_TASK_DONE_CHECK_RESPONSE,
+						    SCI_FAILURE_IO_RESPONSE_VALID);
+
+			sci_base_state_machine_change_state(&sci_req->state_machine,
+							    SCI_BASE_REQUEST_STATE_COMPLETED);
+		} else {
+			sci_base_state_machine_change_state(&sci_req->state_machine,
+							    SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE);
+		}
+		return status;
+	}
+	case SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_D2H_RESPONSE_FRAME_SUBSTATE: {
+		struct dev_to_host_fis *frame_header;
+		u32 *frame_buffer;
+
+		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+								       frame_index,
+								       (void **)&frame_header);
+		if (status != SCI_SUCCESS) {
+			dev_err(scic_to_dev(scic),
+				"%s: SCIC IO Request 0x%p could not get frame header "
+				"for frame index %d, status %x\n",
+				__func__, stp_req, frame_index, status);
+			return status;
+		}
+
+		switch (frame_header->fis_type) {
+		case FIS_REGD2H:
+			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+								      frame_index,
+								      (void **)&frame_buffer);
+
+			scic_sds_controller_copy_sata_response(&sci_req->stp.rsp,
+							       frame_header,
+							       frame_buffer);
+
+			/* The command has completed with error */
+			scic_sds_request_set_status(sci_req,
+						    SCU_TASK_DONE_CHECK_RESPONSE,
+						    SCI_FAILURE_IO_RESPONSE_VALID);
+			break;
+		default:
+			dev_warn(scic_to_dev(scic),
+				 "%s: IO Request:0x%p Frame Id:%d protocol "
+				 "violation occurred\n", __func__, stp_req,
+				 frame_index);
+
+			scic_sds_request_set_status(sci_req, SCU_TASK_DONE_UNEXP_FIS,
+						    SCI_FAILURE_PROTOCOL_VIOLATION);
+			break;
+		}
+
+		sci_base_state_machine_change_state(&sci_req->state_machine,
+						    SCI_BASE_REQUEST_STATE_COMPLETED);
+
+		/* Frame has been decoded return it to the controller */
+		scic_sds_controller_release_frame(scic, frame_index);
+
+		return status;
+	}
+	case SCI_BASE_REQUEST_STATE_ABORTING:
+		/* TODO: Is it even possible to get an unsolicited frame in the
+		 * aborting state?
+		 */
+		scic_sds_controller_release_frame(scic, frame_index);
+		return SCI_SUCCESS;
+	default:
+		dev_warn(scic_to_dev(scic),
+			 "%s: SCIC IO Request given unexpected frame %x while in "
+			 "state %d\n", __func__, frame_index, state);
+
+		scic_sds_controller_release_frame(scic, frame_index);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+}
+
+
+
+
 static enum sci_status scic_sds_stp_request_udma_await_tc_completion_tc_completion_handler(
 	struct scic_sds_request *sci_req,
 	u32 completion_code)
@@ -2334,32 +2266,6 @@ static enum sci_status scic_sds_stp_request_udma_await_tc_completion_tc_completi
 	}
 
 	return status;
-}
-
-static enum sci_status scic_sds_stp_request_udma_await_d2h_reg_fis_frame_handler(
-	struct scic_sds_request *sci_req,
-	u32 frame_index)
-{
-	enum sci_status status;
-
-	/* Use the general frame handler to copy the resposne data */
-	status = scic_sds_stp_request_udma_general_frame_handler(sci_req, frame_index);
-
-	if (status != SCI_SUCCESS)
-		return status;
-
-	scic_sds_stp_request_udma_complete_request(sci_req,
-						   SCU_TASK_DONE_CHECK_RESPONSE,
-						   SCI_FAILURE_IO_RESPONSE_VALID);
-
-	return status;
-}
-
-enum sci_status scic_sds_stp_udma_request_construct(struct scic_sds_request *sci_req,
-						    u32 len,
-						    enum dma_data_direction dir)
-{
-	return SCI_SUCCESS;
 }
 
 /**
@@ -2447,117 +2353,36 @@ static enum sci_status scic_sds_stp_request_soft_reset_await_h2d_diagnostic_tc_c
 	return SCI_SUCCESS;
 }
 
-/**
- *
- * @request: This parameter specifies the request for which a frame has been
- *    received.
- * @frame_index: This parameter specifies the index of the frame that has been
- *    received.
- *
- * This method processes frames received from the target while waiting for a
- * device to host register FIS.  If a non-register FIS is received during this
- * time, it is treated as a protocol violation from an IO perspective. Indicate
- * if the received frame was processed successfully.
- */
-static enum sci_status scic_sds_stp_request_soft_reset_await_d2h_frame_handler(
-	struct scic_sds_request *sci_req,
-	u32 frame_index)
-{
-	enum sci_status status;
-	struct dev_to_host_fis *frame_header;
-	u32 *frame_buffer;
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
-	struct scic_sds_controller *scic = sci_req->owning_controller;
-
-	status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
-							       frame_index,
-							       (void **)&frame_header);
-	if (status != SCI_SUCCESS) {
-		dev_err(scic_to_dev(scic),
-			"%s: SCIC IO Request 0x%p could not get frame header "
-			"for frame index %d, status %x\n",
-			__func__, stp_req, frame_index, status);
-		return status;
-	}
-
-	switch (frame_header->fis_type) {
-	case FIS_REGD2H:
-		scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
-							      frame_index,
-							      (void **)&frame_buffer);
-
-		scic_sds_controller_copy_sata_response(&sci_req->stp.rsp,
-						       frame_header,
-						       frame_buffer);
-
-		/* The command has completed with error */
-		scic_sds_request_set_status(sci_req,
-					    SCU_TASK_DONE_CHECK_RESPONSE,
-					    SCI_FAILURE_IO_RESPONSE_VALID);
-		break;
-
-	default:
-		dev_warn(scic_to_dev(scic),
-			 "%s: IO Request:0x%p Frame Id:%d protocol "
-			 "violation occurred\n", __func__, stp_req,
-			 frame_index);
-
-		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_UNEXP_FIS,
-					    SCI_FAILURE_PROTOCOL_VIOLATION);
-		break;
-	}
-
-	sci_base_state_machine_change_state(&sci_req->state_machine,
-					    SCI_BASE_REQUEST_STATE_COMPLETED);
-
-	/* Frame has been decoded return it to the controller */
-	scic_sds_controller_release_frame(scic, frame_index);
-
-	return status;
-}
-
 static const struct scic_sds_io_request_state_handler scic_sds_request_state_handler_table[] = {
 	[SCI_BASE_REQUEST_STATE_INITIAL] = {},
 	[SCI_BASE_REQUEST_STATE_CONSTRUCTED] = {},
 	[SCI_BASE_REQUEST_STATE_STARTED] = {
 		.tc_completion_handler	= scic_sds_request_started_state_tc_completion_handler,
-		.frame_handler		= scic_sds_request_started_state_frame_handler,
 	},
 	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION] = {
 		.tc_completion_handler	= scic_sds_ssp_task_request_await_tc_completion_tc_completion_handler,
 	},
-	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE] = {
-		.frame_handler		= scic_sds_ssp_task_request_await_tc_response_frame_handler,
-	},
+	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE] = { },
 	[SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE] = {
 		.tc_completion_handler	= scic_sds_smp_request_await_response_tc_completion_handler,
-		.frame_handler		= scic_sds_smp_request_await_response_frame_handler,
 	},
 	[SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION] = {
 		.tc_completion_handler	=  scic_sds_smp_request_await_tc_completion_tc_completion_handler,
 	},
 	[SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE] = {
 		.tc_completion_handler	= scic_sds_stp_request_udma_await_tc_completion_tc_completion_handler,
-		.frame_handler		= scic_sds_stp_request_udma_general_frame_handler,
 	},
-	[SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE] = {
-		.frame_handler		= scic_sds_stp_request_udma_await_d2h_reg_fis_frame_handler,
-	},
+	[SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE] = { },
 	[SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE] = {
 		.tc_completion_handler	= scic_sds_stp_request_non_data_await_h2d_tc_completion_handler,
 	},
-	[SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_D2H_SUBSTATE] = {
-		.frame_handler		= scic_sds_stp_request_non_data_await_d2h_frame_handler,
-	},
+	[SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_D2H_SUBSTATE] = { },
 	[SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE] = {
 		.tc_completion_handler	= scic_sds_stp_request_pio_await_h2d_completion_tc_completion_handler,
 	},
-	[SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE] = {
-		.frame_handler		= scic_sds_stp_request_pio_await_frame_frame_handler
-	},
+	[SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE] = { },
 	[SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE] = {
 		.event_handler		= scic_sds_stp_request_pio_data_in_await_data_event_handler,
-		.frame_handler		= scic_sds_stp_request_pio_data_in_await_data_frame_handler
 	},
 	[SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE] = {
 		.tc_completion_handler	= scic_sds_stp_request_pio_data_out_await_data_transmit_completion_tc_completion_handler,
@@ -2568,15 +2393,12 @@ static const struct scic_sds_io_request_state_handler scic_sds_request_state_han
 	[SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_DIAGNOSTIC_COMPLETION_SUBSTATE] = {
 		.tc_completion_handler	= scic_sds_stp_request_soft_reset_await_h2d_diagnostic_tc_completion_handler,
 	},
-	[SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_D2H_RESPONSE_FRAME_SUBSTATE] = {
-		.frame_handler		= scic_sds_stp_request_soft_reset_await_d2h_frame_handler,
-	},
+	[SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_D2H_RESPONSE_FRAME_SUBSTATE] = { },
 	[SCI_BASE_REQUEST_STATE_COMPLETED] = {
 		.complete_handler	= scic_sds_request_completed_state_complete_handler,
 	},
 	[SCI_BASE_REQUEST_STATE_ABORTING] = {
 		.tc_completion_handler	= scic_sds_request_aborting_state_tc_completion_handler,
-		.frame_handler		= scic_sds_request_aborting_state_frame_handler,
 	},
 	[SCI_BASE_REQUEST_STATE_FINAL] = { },
 };
