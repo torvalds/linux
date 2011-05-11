@@ -36,7 +36,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/nmi.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/completion.h>
@@ -1526,13 +1526,10 @@ static void rcu_cpu_kthread_setrt(int cpu, int to_rt)
  */
 static void rcu_cpu_kthread_timer(unsigned long arg)
 {
-	unsigned long flags;
 	struct rcu_data *rdp = per_cpu_ptr(rcu_state->rda, arg);
 	struct rcu_node *rnp = rdp->mynode;
 
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	rnp->wakemask |= rdp->grpmask;
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	atomic_or(rdp->grpmask, &rnp->wakemask);
 	invoke_rcu_node_kthread(rnp);
 }
 
@@ -1680,11 +1677,11 @@ static int rcu_node_kthread(void *arg)
 
 	for (;;) {
 		rnp->node_kthread_status = RCU_KTHREAD_WAITING;
-		wait_event_interruptible(rnp->node_wq, rnp->wakemask != 0);
+		wait_event_interruptible(rnp->node_wq,
+					 atomic_read(&rnp->wakemask) != 0);
 		rnp->node_kthread_status = RCU_KTHREAD_RUNNING;
 		raw_spin_lock_irqsave(&rnp->lock, flags);
-		mask = rnp->wakemask;
-		rnp->wakemask = 0;
+		mask = atomic_xchg(&rnp->wakemask, 0);
 		rcu_initiate_boost(rnp, flags); /* releases rnp->lock. */
 		for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask >>= 1) {
 			if ((mask & 0x1) == 0)
