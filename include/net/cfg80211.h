@@ -824,6 +824,33 @@ struct cfg80211_scan_request {
 };
 
 /**
+ * struct cfg80211_sched_scan_request - scheduled scan request description
+ *
+ * @ssids: SSIDs to scan for (passed in the probe_reqs in active scans)
+ * @n_ssids: number of SSIDs
+ * @n_channels: total number of channels to scan
+ * @ie: optional information element(s) to add into Probe Request or %NULL
+ * @ie_len: length of ie in octets
+ * @wiphy: the wiphy this was for
+ * @dev: the interface
+ * @channels: channels to scan
+ */
+struct cfg80211_sched_scan_request {
+	struct cfg80211_ssid *ssids;
+	int n_ssids;
+	u32 n_channels;
+	const u8 *ie;
+	size_t ie_len;
+
+	/* internal */
+	struct wiphy *wiphy;
+	struct net_device *dev;
+
+	/* keep last */
+	struct ieee80211_channel *channels[0];
+};
+
+/**
  * enum cfg80211_signal_type - signal type
  *
  * @CFG80211_SIGNAL_TYPE_NONE: no signal strength information available
@@ -1292,6 +1319,10 @@ struct cfg80211_wowlan {
  * @set_power_mgmt: Configure WLAN power management. A timeout value of -1
  *	allows the driver to adjust the dynamic ps timeout value.
  * @set_cqm_rssi_config: Configure connection quality monitor RSSI threshold.
+ * @sched_scan_start: Tell the driver to start a scheduled scan.
+ * @sched_scan_stop: Tell the driver to stop an ongoing scheduled
+ *	scan.  The driver_initiated flag specifies whether the driver
+ *	itself has informed that the scan has stopped.
  *
  * @mgmt_frame_register: Notify driver that a management frame type was
  *	registered. Note that this callback may not sleep, and cannot run
@@ -1478,6 +1509,12 @@ struct cfg80211_ops {
 	int	(*set_ringparam)(struct wiphy *wiphy, u32 tx, u32 rx);
 	void	(*get_ringparam)(struct wiphy *wiphy,
 				 u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max);
+
+	int	(*sched_scan_start)(struct wiphy *wiphy,
+				struct net_device *dev,
+				struct cfg80211_sched_scan_request *request);
+	int	(*sched_scan_stop)(struct wiphy *wiphy, struct net_device *dev,
+				   bool driver_initiated);
 };
 
 /*
@@ -1522,6 +1559,7 @@ struct cfg80211_ops {
  * @WIPHY_FLAG_IBSS_RSN: The device supports IBSS RSN.
  * @WIPHY_FLAG_MESH_AUTH: The device supports mesh authentication by routing
  *	auth frames to userspace. See @NL80211_MESH_SETUP_USERSPACE_AUTH.
+ * @WIPHY_FLAG_SCHED_SCAN: The device supports scheduled scans.
  */
 enum wiphy_flags {
 	WIPHY_FLAG_CUSTOM_REGULATORY		= BIT(0),
@@ -1534,6 +1572,7 @@ enum wiphy_flags {
 	WIPHY_FLAG_CONTROL_PORT_PROTOCOL	= BIT(7),
 	WIPHY_FLAG_IBSS_RSN			= BIT(8),
 	WIPHY_FLAG_MESH_AUTH			= BIT(10),
+	WIPHY_FLAG_SUPPORTS_SCHED_SCAN		= BIT(11),
 };
 
 struct mac_address {
@@ -2353,6 +2392,24 @@ int cfg80211_wext_siwpmksa(struct net_device *dev,
  *	userspace will be notified of that
  */
 void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted);
+
+/**
+ * cfg80211_sched_scan_results - notify that new scan results are available
+ *
+ * @wiphy: the wiphy which got scheduled scan results
+ */
+void cfg80211_sched_scan_results(struct wiphy *wiphy);
+
+/**
+ * cfg80211_sched_scan_stopped - notify that the scheduled scan has stopped
+ *
+ * @wiphy: the wiphy on which the scheduled scan stopped
+ *
+ * The driver can call this function to inform cfg80211 that the
+ * scheduled scan had to be stopped, for whatever reason.  The driver
+ * is then called back via the sched_scan_stop operation when done.
+ */
+void cfg80211_sched_scan_stopped(struct wiphy *wiphy);
 
 /**
  * cfg80211_inform_bss_frame - inform cfg80211 of a received BSS frame

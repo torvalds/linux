@@ -93,6 +93,76 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
 }
 EXPORT_SYMBOL(cfg80211_scan_done);
 
+void __cfg80211_sched_scan_results(struct work_struct *wk)
+{
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(wk, struct cfg80211_registered_device,
+			    sched_scan_results_wk);
+
+	cfg80211_lock_rdev(rdev);
+
+	/* we don't have sched_scan_req anymore if the scan is stopping */
+	if (rdev->sched_scan_req)
+		nl80211_send_sched_scan_results(rdev,
+						rdev->sched_scan_req->dev);
+
+	cfg80211_unlock_rdev(rdev);
+}
+
+void cfg80211_sched_scan_results(struct wiphy *wiphy)
+{
+	/* ignore if we're not scanning */
+	if (wiphy_to_dev(wiphy)->sched_scan_req)
+		queue_work(cfg80211_wq,
+			   &wiphy_to_dev(wiphy)->sched_scan_results_wk);
+}
+EXPORT_SYMBOL(cfg80211_sched_scan_results);
+
+void __cfg80211_sched_scan_stopped(struct work_struct *wk)
+{
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(wk, struct cfg80211_registered_device,
+			    sched_scan_stopped_wk);
+
+	cfg80211_lock_rdev(rdev);
+	__cfg80211_stop_sched_scan(rdev, true);
+	cfg80211_unlock_rdev(rdev);
+}
+
+void cfg80211_sched_scan_stopped(struct wiphy *wiphy)
+{
+	queue_work(cfg80211_wq, &wiphy_to_dev(wiphy)->sched_scan_stopped_wk);
+}
+EXPORT_SYMBOL(cfg80211_sched_scan_stopped);
+
+int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
+			       bool driver_initiated)
+{
+	int err;
+	struct net_device *dev;
+
+	ASSERT_RDEV_LOCK(rdev);
+
+	if (!rdev->sched_scan_req)
+		return 0;
+
+	dev = rdev->sched_scan_req->dev;
+
+	err = rdev->ops->sched_scan_stop(&rdev->wiphy, dev,
+					 driver_initiated);
+	if (err)
+		return err;
+
+	nl80211_send_sched_scan(rdev, dev, NL80211_CMD_SCHED_SCAN_STOPPED);
+
+	kfree(rdev->sched_scan_req);
+	rdev->sched_scan_req = NULL;
+
+	return err;
+}
+
 static void bss_release(struct kref *ref)
 {
 	struct cfg80211_internal_bss *bss;

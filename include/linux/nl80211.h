@@ -203,6 +203,26 @@
  * @NL80211_CMD_SCAN_ABORTED: scan was aborted, for unspecified reasons,
  *	partial scan results may be available
  *
+ * @NL80211_CMD_START_SCHED_SCAN: start a scheduled scan.  Like with normal
+ *	scans, if SSIDs (%NL80211_ATTR_SCAN_SSIDS) are passed, they are used
+ *	in the probe requests.  For broadcast, a broadcast SSID must be
+ *	passed (ie. an empty string).  If no SSID is passed, no probe
+ *	requests are sent and a passive scan is performed.
+ *	%NL80211_ATTR_SCAN_FREQUENCIES, if passed, define which channels
+ *	should be scanned; if not passed, all channels allowed for the
+ *	current regulatory domain are used.  Extra IEs can also be passed
+ *	from the userspace by using the %NL80211_ATTR_IE attribute.
+ * @NL80211_CMD_STOP_SCHED_SCAN: stop a scheduled scan
+ * @NL80211_CMD_SCHED_SCAN_RESULTS: indicates that there are scheduled scan
+ *	results available.
+ * @NL80211_CMD_SCHED_SCAN_STOPPED: indicates that the scheduled scan has
+ *	stopped.  The driver may issue this event at any time during a
+ *	scheduled scan.  One reason for stopping the scan is if the hardware
+ *	does not support starting an association or a normal scan while running
+ *	a scheduled scan.  This event is also sent when the
+ *	%NL80211_CMD_STOP_SCHED_SCAN command is received or when the interface
+ *	is brought down while a scheduled scan was running.
+ *
  * @NL80211_CMD_GET_SURVEY: get survey resuls, e.g. channel occupation
  *      or noise level
  * @NL80211_CMD_NEW_SURVEY_RESULTS: survey data notification (as a reply to
@@ -544,6 +564,11 @@ enum nl80211_commands {
 
 	NL80211_CMD_GET_WOWLAN,
 	NL80211_CMD_SET_WOWLAN,
+
+	NL80211_CMD_START_SCHED_SCAN,
+	NL80211_CMD_STOP_SCHED_SCAN,
+	NL80211_CMD_SCHED_SCAN_RESULTS,
+	NL80211_CMD_SCHED_SCAN_STOPPED,
 
 	/* add new commands above here */
 
