@@ -736,16 +736,6 @@ config ARCH_S5P64X0
 	  Samsung S5P64X0 CPU based systems, such as the Samsung SMDK6440,
 	  SMDK6450.
 
-config ARCH_S5P6442
-	bool "Samsung S5P6442"
-	select CPU_V6
-	select GENERIC_GPIO
-	select HAVE_CLK
-	select ARCH_USES_GETTIMEOFFSET
-	select HAVE_S3C2410_WATCHDOG if WATCHDOG
-	help
-	  Samsung S5P6442 CPU based systems
-
 config ARCH_S5PC100
 	bool "Samsung S5PC100"
 	select GENERIC_GPIO
@@ -994,8 +984,6 @@ source "arch/arm/mach-s3c64xx/Kconfig"
 endif
 
 source "arch/arm/mach-s5p64x0/Kconfig"
-
-source "arch/arm/mach-s5p6442/Kconfig"
 
 source "arch/arm/mach-s5pc100/Kconfig"
 
@@ -1424,7 +1412,7 @@ source kernel/Kconfig.preempt
 config HZ
 	int
 	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P64X0 || \
-		ARCH_S5P6442 || ARCH_S5PV210 || ARCH_EXYNOS4
+		ARCH_S5PV210 || ARCH_EXYNOS4
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
 	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
@@ -2010,7 +1998,7 @@ menu "Power management options"
 source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
-	depends on !ARCH_S5P64X0 && !ARCH_S5P6442
+	depends on !ARCH_S5P64X0
 	depends on CPU_ARM920T || CPU_ARM926T || CPU_SA1100 || \
 		CPU_V6 || CPU_V6K || CPU_V7 || CPU_XSC3 || CPU_XSCALE
 	def_bool y

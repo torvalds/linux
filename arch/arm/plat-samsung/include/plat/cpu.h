@@ -80,7 +80,6 @@ extern struct sysdev_class s3c2443_sysclass;
 extern struct sysdev_class s3c6410_sysclass;
 extern struct sysdev_class s3c64xx_sysclass;
 extern struct sysdev_class s5p64x0_sysclass;
-extern struct sysdev_class s5p6442_sysclass;
 extern struct sysdev_class s5pv210_sysclass;
 extern struct sysdev_class exynos4_sysclass;
 
