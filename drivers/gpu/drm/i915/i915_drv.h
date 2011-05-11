@@ -210,6 +210,7 @@ struct drm_i915_display_funcs {
 			     struct drm_framebuffer *old_fb);
 	void (*fdi_link_train)(struct drm_crtc *crtc);
 	void (*init_clock_gating)(struct drm_device *dev);
+	void (*init_pch_clock_gating)(struct drm_device *dev);
 	/* clock updates for mode set */
 	/* cursor updates */
 	/* render clock increase/decrease */

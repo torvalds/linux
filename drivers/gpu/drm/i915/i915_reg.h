@@ -3074,6 +3074,9 @@
 #define  TRANS_6BPC             (2<<5)
 #define  TRANS_12BPC            (3<<5)
 
+#define SOUTH_CHICKEN2		0xc2004
+#define  DPLS_EDP_PPS_FIX_DIS	(1<<0)
+
 #define _FDI_RXA_CHICKEN         0xc200c
 #define _FDI_RXB_CHICKEN         0xc2010
 #define  FDI_RX_PHASE_SYNC_POINTER_OVR	(1<<1)

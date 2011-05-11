@@ -344,4 +344,6 @@ extern int intel_overlay_attrs(struct drm_device *dev, void *data,
 
 extern void intel_fb_output_poll_changed(struct drm_device *dev);
 extern void intel_fb_restore_mode(struct drm_device *dev);
+
+extern void intel_init_clock_gating(struct drm_device *dev);
 #endif /* __INTEL_DRV_H__ */
