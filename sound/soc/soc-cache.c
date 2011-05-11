@@ -314,9 +314,9 @@ static int snd_soc_16_8_write(struct snd_soc_codec *codec, unsigned int reg,
 			      unsigned int value)
 {
 	u8 data[3];
+	u16 rval = cpu_to_be16(reg);
 
-	data[0] = (reg >> 8) & 0xff;
-	data[1] = reg & 0xff;
+	memcpy(data, &rval, sizeof(rval));
 	data[2] = value;
 	reg &= 0xff;
 
