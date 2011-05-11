@@ -1567,56 +1567,48 @@ static enum sci_status scic_sds_port_default_complete_io_handler(struct scic_sds
 	return default_port_handler(sci_port, __func__);
 }
 
-
-
-static struct scic_sds_port_state_handler
-scic_sds_port_ready_substate_handler_table[SCIC_SDS_PORT_READY_MAX_SUBSTATES] = {
-	{
-		/* SCIC_SDS_PORT_READY_SUBSTATE_WAITING */
-		scic_sds_port_default_start_handler,
-		scic_sds_port_ready_substate_stop_handler,
-		scic_sds_port_default_destruct_handler,
-		scic_sds_port_default_reset_handler,
-		scic_sds_port_ready_substate_add_phy_handler,
-		scic_sds_port_default_remove_phy_handler,
-		scic_sds_port_default_frame_handler,
-		scic_sds_port_default_event_handler,
-		scic_sds_port_ready_waiting_substate_link_up_handler,
-		scic_sds_port_default_link_down_handler,
-		scic_sds_port_ready_waiting_substate_start_io_handler,
-		scic_sds_port_ready_substate_complete_io_handler,
+static struct scic_sds_port_state_handler scic_sds_port_ready_substate_handler_table[] = {
+	[SCIC_SDS_PORT_READY_SUBSTATE_WAITING] = {
+		.start_handler		= scic_sds_port_default_start_handler,
+		.stop_handler		= scic_sds_port_ready_substate_stop_handler,
+		.destruct_handler	= scic_sds_port_default_destruct_handler,
+		.reset_handler		= scic_sds_port_default_reset_handler,
+		.add_phy_handler	= scic_sds_port_ready_substate_add_phy_handler,
+		.remove_phy_handler	= scic_sds_port_default_remove_phy_handler,
+		.frame_handler		= scic_sds_port_default_frame_handler,
+		.event_handler		= scic_sds_port_default_event_handler,
+		.link_up_handler	= scic_sds_port_ready_waiting_substate_link_up_handler,
+		.link_down_handler	= scic_sds_port_default_link_down_handler,
+		.start_io_handler	= scic_sds_port_ready_waiting_substate_start_io_handler,
+		.complete_io_handler	= scic_sds_port_ready_substate_complete_io_handler,
 	},
-
-	{
-		/* SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL */
-		scic_sds_port_default_start_handler,
-		scic_sds_port_ready_substate_stop_handler,
-		scic_sds_port_default_destruct_handler,
-		scic_sds_port_ready_operational_substate_reset_handler,
-		scic_sds_port_ready_substate_add_phy_handler,
-		scic_sds_port_ready_substate_remove_phy_handler,
-		scic_sds_port_default_frame_handler,
-		scic_sds_port_default_event_handler,
-		scic_sds_port_ready_operational_substate_link_up_handler,
-		scic_sds_port_ready_operational_substate_link_down_handler,
-		scic_sds_port_ready_operational_substate_start_io_handler,
-		scic_sds_port_ready_substate_complete_io_handler,
+	[SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL] = {
+		.start_handler		= scic_sds_port_default_start_handler,
+		.stop_handler		= scic_sds_port_ready_substate_stop_handler,
+		.destruct_handler	= scic_sds_port_default_destruct_handler,
+		.reset_handler		= scic_sds_port_ready_operational_substate_reset_handler,
+		.add_phy_handler	= scic_sds_port_ready_substate_add_phy_handler,
+		.remove_phy_handler	= scic_sds_port_ready_substate_remove_phy_handler,
+		.frame_handler		= scic_sds_port_default_frame_handler,
+		.event_handler		= scic_sds_port_default_event_handler,
+		.link_up_handler	= scic_sds_port_ready_operational_substate_link_up_handler,
+		.link_down_handler	= scic_sds_port_ready_operational_substate_link_down_handler,
+		.start_io_handler	= scic_sds_port_ready_operational_substate_start_io_handler,
+		.complete_io_handler	= scic_sds_port_ready_substate_complete_io_handler,
 	},
-
-	{
-		/* SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING */
-		scic_sds_port_default_start_handler,
-		scic_sds_port_ready_substate_stop_handler,
-		scic_sds_port_default_destruct_handler,
-		scic_sds_port_default_reset_handler,
-		scic_sds_port_ready_configuring_substate_add_phy_handler,
-		scic_sds_port_ready_configuring_substate_remove_phy_handler,
-		scic_sds_port_default_frame_handler,
-		scic_sds_port_default_event_handler,
-		scic_sds_port_default_link_up_handler,
-		scic_sds_port_default_link_down_handler,
-		scic_sds_port_default_start_io_handler,
-		scic_sds_port_ready_configuring_substate_complete_io_handler
+	[SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING] = {
+		.start_handler		= scic_sds_port_default_start_handler,
+		.stop_handler		= scic_sds_port_ready_substate_stop_handler,
+		.destruct_handler	= scic_sds_port_default_destruct_handler,
+		.reset_handler		= scic_sds_port_default_reset_handler,
+		.add_phy_handler	= scic_sds_port_ready_configuring_substate_add_phy_handler,
+		.remove_phy_handler	= scic_sds_port_ready_configuring_substate_remove_phy_handler,
+		.frame_handler		= scic_sds_port_default_frame_handler,
+		.event_handler		= scic_sds_port_default_event_handler,
+		.link_up_handler	= scic_sds_port_default_link_up_handler,
+		.link_down_handler	= scic_sds_port_default_link_down_handler,
+		.start_io_handler	= scic_sds_port_default_start_io_handler,
+		.complete_io_handler	= scic_sds_port_ready_configuring_substate_complete_io_handler
 	}
 };
 
@@ -2166,83 +2158,76 @@ static void scic_sds_port_reset_state_link_down_handler(
 	scic_sds_port_deactivate_phy(port, phy, false);
 }
 
-static struct scic_sds_port_state_handler
-scic_sds_port_state_handler_table[SCI_BASE_PORT_MAX_STATES] =
-{
-	/* SCI_BASE_PORT_STATE_STOPPED */
-	{
-		scic_sds_port_stopped_state_start_handler,
-		scic_sds_port_stopped_state_stop_handler,
-		scic_sds_port_stopped_state_destruct_handler,
-		scic_sds_port_default_reset_handler,
-		scic_sds_port_stopped_state_add_phy_handler,
-		scic_sds_port_stopped_state_remove_phy_handler,
-		scic_sds_port_default_frame_handler,
-		scic_sds_port_default_event_handler,
-		scic_sds_port_default_link_up_handler,
-		scic_sds_port_default_link_down_handler,
-		scic_sds_port_default_start_io_handler,
-		scic_sds_port_default_complete_io_handler
+static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = {
+	[SCI_BASE_PORT_STATE_STOPPED] = {
+		.start_handler  	= scic_sds_port_stopped_state_start_handler,
+		.stop_handler   	= scic_sds_port_stopped_state_stop_handler,
+		.destruct_handler 	= scic_sds_port_stopped_state_destruct_handler,
+		.reset_handler  	= scic_sds_port_default_reset_handler,
+		.add_phy_handler 	= scic_sds_port_stopped_state_add_phy_handler,
+		.remove_phy_handler 	= scic_sds_port_stopped_state_remove_phy_handler,
+		.frame_handler  	= scic_sds_port_default_frame_handler,
+		.event_handler  	= scic_sds_port_default_event_handler,
+		.link_up_handler        = scic_sds_port_default_link_up_handler,
+		.link_down_handler 	= scic_sds_port_default_link_down_handler,
+		.start_io_handler 	= scic_sds_port_default_start_io_handler,
+		.complete_io_handler 	= scic_sds_port_default_complete_io_handler
 	},
-	/* SCI_BASE_PORT_STATE_STOPPING */
-	{
-		scic_sds_port_default_start_handler,
-		scic_sds_port_default_stop_handler,
-		scic_sds_port_default_destruct_handler,
-		scic_sds_port_default_reset_handler,
-		scic_sds_port_default_add_phy_handler,
-		scic_sds_port_default_remove_phy_handler,
-		scic_sds_port_default_frame_handler,
-		scic_sds_port_default_event_handler,
-		scic_sds_port_default_link_up_handler,
-		scic_sds_port_default_link_down_handler,
-		scic_sds_port_default_start_io_handler,
-		scic_sds_port_stopping_state_complete_io_handler
+	[SCI_BASE_PORT_STATE_STOPPING] = {
+		.start_handler  	= scic_sds_port_default_start_handler,
+		.stop_handler   	= scic_sds_port_default_stop_handler,
+		.destruct_handler 	= scic_sds_port_default_destruct_handler,
+		.reset_handler  	= scic_sds_port_default_reset_handler,
+		.add_phy_handler 	= scic_sds_port_default_add_phy_handler,
+		.remove_phy_handler 	= scic_sds_port_default_remove_phy_handler,
+		.frame_handler  	= scic_sds_port_default_frame_handler,
+		.event_handler  	= scic_sds_port_default_event_handler,
+		.link_up_handler        = scic_sds_port_default_link_up_handler,
+		.link_down_handler 	= scic_sds_port_default_link_down_handler,
+		.start_io_handler 	= scic_sds_port_default_start_io_handler,
+		.complete_io_handler 	= scic_sds_port_stopping_state_complete_io_handler
 	},
-	/* SCI_BASE_PORT_STATE_READY */
-	{
-		scic_sds_port_default_start_handler,
-		scic_sds_port_default_stop_handler,
-		scic_sds_port_default_destruct_handler,
-		scic_sds_port_default_reset_handler,
-		scic_sds_port_default_add_phy_handler,
-		scic_sds_port_default_remove_phy_handler,
-		scic_sds_port_default_frame_handler,
-		scic_sds_port_default_event_handler,
-		scic_sds_port_default_link_up_handler,
-		scic_sds_port_default_link_down_handler,
-		scic_sds_port_default_start_io_handler,
-		scic_sds_port_general_complete_io_handler
+	[SCI_BASE_PORT_STATE_READY] = {
+		.start_handler		= scic_sds_port_default_start_handler,
+		.stop_handler    	= scic_sds_port_default_stop_handler,
+		.destruct_handler 	= scic_sds_port_default_destruct_handler,
+		.reset_handler   	= scic_sds_port_default_reset_handler,
+		.add_phy_handler 	= scic_sds_port_default_add_phy_handler,
+		.remove_phy_handler 	= scic_sds_port_default_remove_phy_handler,
+		.frame_handler   	= scic_sds_port_default_frame_handler,
+		.event_handler   	= scic_sds_port_default_event_handler,
+		.link_up_handler 	= scic_sds_port_default_link_up_handler,
+		.link_down_handler 	= scic_sds_port_default_link_down_handler,
+		.start_io_handler 	= scic_sds_port_default_start_io_handler,
+		.complete_io_handler 	= scic_sds_port_general_complete_io_handler
 	},
-	/* SCI_BASE_PORT_STATE_RESETTING */
-	{
-		scic_sds_port_default_start_handler,
-		scic_sds_port_reset_state_stop_handler,
-		scic_sds_port_default_destruct_handler,
-		scic_sds_port_default_reset_handler,
-		scic_sds_port_default_add_phy_handler,
-		scic_sds_port_default_remove_phy_handler,
-		scic_sds_port_default_frame_handler,
-		scic_sds_port_default_event_handler,
-		scic_sds_port_reset_state_link_up_handler,
-		scic_sds_port_reset_state_link_down_handler,
-		scic_sds_port_default_start_io_handler,
-		scic_sds_port_general_complete_io_handler
+	[SCI_BASE_PORT_STATE_RESETTING] = {
+		.start_handler		= scic_sds_port_default_start_handler,
+		.stop_handler		= scic_sds_port_reset_state_stop_handler,
+		.destruct_handler	= scic_sds_port_default_destruct_handler,
+		.reset_handler		= scic_sds_port_default_reset_handler,
+		.add_phy_handler	= scic_sds_port_default_add_phy_handler,
+		.remove_phy_handler	= scic_sds_port_default_remove_phy_handler,
+		.frame_handler		= scic_sds_port_default_frame_handler,
+		.event_handler		= scic_sds_port_default_event_handler,
+		.link_up_handler	= scic_sds_port_reset_state_link_up_handler,
+		.link_down_handler	= scic_sds_port_reset_state_link_down_handler,
+		.start_io_handler	= scic_sds_port_default_start_io_handler,
+		.complete_io_handler	= scic_sds_port_general_complete_io_handler
 	},
-	/* SCI_BASE_PORT_STATE_FAILED */
-	{
-		scic_sds_port_default_start_handler,
-		scic_sds_port_default_stop_handler,
-		scic_sds_port_default_destruct_handler,
-		scic_sds_port_default_reset_handler,
-		scic_sds_port_default_add_phy_handler,
-		scic_sds_port_default_remove_phy_handler,
-		scic_sds_port_default_frame_handler,
-		scic_sds_port_default_event_handler,
-		scic_sds_port_default_link_up_handler,
-		scic_sds_port_default_link_down_handler,
-		scic_sds_port_default_start_io_handler,
-		scic_sds_port_general_complete_io_handler
+	[SCI_BASE_PORT_STATE_FAILED] = {
+		.start_handler		= scic_sds_port_default_start_handler,
+		.stop_handler		= scic_sds_port_default_stop_handler,
+		.destruct_handler	= scic_sds_port_default_destruct_handler,
+		.reset_handler		= scic_sds_port_default_reset_handler,
+		.add_phy_handler	= scic_sds_port_default_add_phy_handler,
+		.remove_phy_handler	= scic_sds_port_default_remove_phy_handler,
+		.frame_handler		= scic_sds_port_default_frame_handler,
+		.event_handler		= scic_sds_port_default_event_handler,
+		.link_up_handler	= scic_sds_port_default_link_up_handler,
+		.link_down_handler	= scic_sds_port_default_link_down_handler,
+		.start_io_handler	= scic_sds_port_default_start_io_handler,
+		.complete_io_handler	= scic_sds_port_general_complete_io_handler
 	}
 };
 
