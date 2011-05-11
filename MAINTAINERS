@@ -5313,6 +5313,13 @@ L:	reiserfs-devel@vger.kernel.org
 S:	Supported
 F:	fs/reiserfs/
 
+REGISTER MAP ABSTRACTION
+M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/regmap.git
+S:	Supported
+F:	drivers/base/regmap/
+F:	include/linux/regmap.h
+
 RFKILL
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-wireless@vger.kernel.org

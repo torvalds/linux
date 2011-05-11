@@ -1,0 +1,6 @@
+# Generic register map support.  There are no user servicable options here,
+# this is an API intended to be used by other kernel subsystems.  These
+# subsystems should select the appropriate symbols.
+
+config REGMAP
+	bool
