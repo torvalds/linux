@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include "pci-quirks.h"
 #include "xhci-ext-caps.h"
 
@@ -507,9 +508,20 @@ static void __devinit ehci_bios_handoff(struct pci_dev *pdev,
 					void __iomem *op_reg_base,
 					u32 cap, u8 offset)
 {
-	int msec, tried_handoff = 0;
+	int try_handoff = 1, tried_handoff = 0;
 
-	if (cap & EHCI_USBLEGSUP_BIOS) {
+	/* The Pegatron Lucid (ExoPC) tablet sporadically waits for 90
+	 * seconds trying the handoff on its unused controller.  Skip
+	 * it. */
+	if (pdev->vendor == 0x8086 && pdev->device == 0x283a) {
+		const char *dmi_bn = dmi_get_system_info(DMI_BOARD_NAME);
+		const char *dmi_bv = dmi_get_system_info(DMI_BIOS_VERSION);
+		if (dmi_bn && !strcmp(dmi_bn, "EXOPG06411") &&
+		    dmi_bv && !strcmp(dmi_bv, "Lucid-CE-133"))
+			try_handoff = 0;
+	}
+
+	if (try_handoff && (cap & EHCI_USBLEGSUP_BIOS)) {
 		dev_dbg(&pdev->dev, "EHCI: BIOS handoff\n");
 
 #if 0
@@ -534,20 +546,23 @@ static void __devinit ehci_bios_handoff(struct pci_dev *pdev,
 	}
 
 	/* if boot firmware now owns EHCI, spin till it hands it over. */
-	msec = 1000;
-	while ((cap & EHCI_USBLEGSUP_BIOS) && (msec > 0)) {
-		tried_handoff = 1;
-		msleep(10);
-		msec -= 10;
-		pci_read_config_dword(pdev, offset, &cap);
+	if (try_handoff) {
+		int msec = 1000;
+		while ((cap & EHCI_USBLEGSUP_BIOS) && (msec > 0)) {
+			tried_handoff = 1;
+			msleep(10);
+			msec -= 10;
+			pci_read_config_dword(pdev, offset, &cap);
+		}
 	}
 
 	if (cap & EHCI_USBLEGSUP_BIOS) {
 		/* well, possibly buggy BIOS... try to shut it down,
 		 * and hope nothing goes too wrong
 		 */
-		dev_warn(&pdev->dev, "EHCI: BIOS handoff failed"
-			 " (BIOS bug?) %08x\n", cap);
+		if (try_handoff)
+			dev_warn(&pdev->dev, "EHCI: BIOS handoff failed"
+				 " (BIOS bug?) %08x\n", cap);
 		pci_write_config_byte(pdev, offset + 2, 0);
 	}
 
