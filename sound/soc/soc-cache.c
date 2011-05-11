@@ -20,6 +20,20 @@
 
 #include <trace/events/asoc.h>
 
+#ifdef CONFIG_SPI_MASTER
+static int do_spi_write(void *control, const char *data, int len)
+{
+	struct spi_device *spi = control;
+	int ret;
+
+	ret = spi_write(spi, data, len);
+	if (ret < 0)
+		return ret;
+
+	return len;
+}
+#endif
+
 static int do_hw_write(struct snd_soc_codec *codec, unsigned int reg,
 		       unsigned int value, const void *data, int len)
 {
@@ -412,7 +426,7 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 
 	case SND_SOC_SPI:
 #ifdef CONFIG_SPI_MASTER
-		codec->hw_write = (hw_write_t)spi_write;
+		codec->hw_write = do_spi_write;
 #endif
 
 		codec->control_data = container_of(codec->dev,
