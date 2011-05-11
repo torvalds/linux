@@ -319,7 +319,6 @@ static int snd_soc_16_8_write(struct snd_soc_codec *codec, unsigned int reg,
 	data[0] = (reg >> 8) & 0xff;
 	data[1] = reg & 0xff;
 	data[2] = value;
-	reg &= 0xff;
 
 	return do_hw_write(codec, reg, value, data, 3);
 }
