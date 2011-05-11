@@ -378,15 +378,18 @@ again:
 			if (ret)
 				break;
 
-			caching_ctl->progress = last;
-			btrfs_release_path(extent_root, path);
-			up_read(&fs_info->extent_commit_sem);
-			mutex_unlock(&caching_ctl->mutex);
-			if (btrfs_transaction_in_commit(fs_info))
-				schedule_timeout(1);
-			else
+			if (need_resched() ||
+			    btrfs_next_leaf(extent_root, path)) {
+				caching_ctl->progress = last;
+				btrfs_release_path(extent_root, path);
+				up_read(&fs_info->extent_commit_sem);
+				mutex_unlock(&caching_ctl->mutex);
 				cond_resched();
-			goto again;
+				goto again;
+			}
+			leaf = path->nodes[0];
+			nritems = btrfs_header_nritems(leaf);
+			continue;
 		}
 
 		if (key.objectid < block_group->key.objectid) {
