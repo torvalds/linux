@@ -73,13 +73,13 @@ module_param(debug_lvl, int, 0644);
  * response queued for it, with the saved 'id' passed back.
  */
 struct pending_req {
-	struct blkif_st       *blkif;
-	u64            id;
-	int            nr_pages;
-	atomic_t       pendcnt;
-	unsigned short operation;
-	int            status;
-	struct list_head free_list;
+	struct blkif_st		*blkif;
+	u64			id;
+	int			nr_pages;
+	atomic_t		pendcnt;
+	unsigned short		operation;
+	int			status;
+	struct list_head	free_list;
 };
 
 #define BLKBACK_INVALID_HANDLE (~0)
@@ -103,7 +103,8 @@ static struct xen_blkbk *blkbk;
  * Little helpful macro to figure out the index and virtual address of the
  * pending_pages[..]. For each 'pending_req' we have have up to
  * BLKIF_MAX_SEGMENTS_PER_REQUEST (11) pages. The seg would be from 0 through
- * 10 and would index in the pending_pages[..]. */
+ * 10 and would index in the pending_pages[..].
+ */
 static inline int vaddr_pagenr(struct pending_req *req, int seg)
 {
 	return (req - blkbk->pending_reqs) *
@@ -167,8 +168,6 @@ static void free_req(struct pending_req *req)
 /*
  * Routines for managing virtual block devices (vbds).
  */
-
-
 static int vbd_translate(struct phys_req *req, struct blkif_st *blkif,
 			 int operation)
 {
@@ -315,7 +314,7 @@ struct seg_buf {
 /*
  * Unmap the grant references, and also remove the M2P over-rides
  * used in the 'pending_req'.
-*/
+ */
 static void xen_blkbk_unmap(struct pending_req *req)
 {
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
@@ -336,27 +335,32 @@ static void xen_blkbk_unmap(struct pending_req *req)
 	ret = HYPERVISOR_grant_table_op(
 		GNTTABOP_unmap_grant_ref, unmap, invcount);
 	BUG_ON(ret);
-	/* Note, we use invcount, so nr->pages, so we can't index
+	/*
+	 * Note, we use invcount, so nr->pages, so we can't index
 	 * using vaddr(req, i).
 	 */
 	for (i = 0; i < invcount; i++) {
 		ret = m2p_remove_override(
 			virt_to_page(unmap[i].host_addr), false);
 		if (ret) {
-			printk(KERN_ALERT "Failed to remove M2P override for " \
-				"%lx\n", (unsigned long)unmap[i].host_addr);
+			printk(KERN_ALERT "Failed to remove M2P override for %lx\n",
+			       (unsigned long)unmap[i].host_addr);
 			continue;
 		}
 	}
 }
-static int xen_blkbk_map(struct blkif_request *req, struct pending_req *pending_req,
+
+static int xen_blkbk_map(struct blkif_request *req,
+			 struct pending_req *pending_req,
 			 struct seg_buf seg[])
 {
 	struct gnttab_map_grant_ref map[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	int i;
 	int nseg = req->nr_segments;
 	int ret = 0;
-	/* Fill out preq.nr_sects with proper amount of sectors, and setup
+
+	/*
+	 * Fill out preq.nr_sects with proper amount of sectors, and setup
 	 * assign map[..] with the PFN of the page in our domain with the
 	 * corresponding grant reference for each page.
 	 */
@@ -367,13 +371,15 @@ static int xen_blkbk_map(struct blkif_request *req, struct pending_req *pending_
 		if (pending_req->operation != BLKIF_OP_READ)
 			flags |= GNTMAP_readonly;
 		gnttab_set_map_op(&map[i], vaddr(pending_req, i), flags,
-				  req->u.rw.seg[i].gref, pending_req->blkif->domid);
+				  req->u.rw.seg[i].gref,
+				  pending_req->blkif->domid);
 	}
 
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, map, nseg);
 	BUG_ON(ret);
 
-	/* Now swizzel the MFN in our domain with the MFN from the other domain
+	/*
+	 * Now swizzle the MFN in our domain with the MFN from the other domain
 	 * so that when we access vaddr(pending_req,i) it has the contents of
 	 * the page from the other domain.
 	 */
@@ -423,7 +429,8 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 		pending_req->status = BLKIF_RSP_ERROR;
 	}
 
-	/* If all of the bio's have completed it is time to unmap
+	/*
+	 * If all of the bio's have completed it is time to unmap
 	 * the grant references associated with 'request' and provide
 	 * the proper response on the ring.
 	 */
@@ -510,8 +517,8 @@ static int do_block_io_op(struct blkif_st *blkif)
 }
 
 /*
- * Transumation of the 'struct blkif_request' to a proper 'struct bio'
- * and call the 'submit_bio' to pass it to the underlaying storage.
+ * Transmutation of the 'struct blkif_request' to a proper 'struct bio'
+ * and call the 'submit_bio' to pass it to the underlying storage.
  */
 static int dispatch_rw_block_io(struct blkif_st *blkif,
 				 struct blkif_request *req,
@@ -538,8 +545,10 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 	case BLKIF_OP_FLUSH_DISKCACHE:
 		blkif->st_f_req++;
 		operation = WRITE_FLUSH;
-		/* The frontend likes to set this to -1, which vbd_translate
-		 * is alergic too. */
+		/*
+		 * The frontend likes to set this to -1, which vbd_translate
+		 * is alergic too.
+		 */
 		req->u.rw.sector_number = 0;
 		break;
 	case BLKIF_OP_WRITE_BARRIER:
@@ -585,8 +594,11 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 			preq.sector_number + preq.nr_sects, preq.dev);
 		goto fail_response;
 	}
-	/* This check _MUST_ be done after vbd_translate as the preq.bdev
-	 * is set there. */
+
+	/*
+	 * This check _MUST_ be done after vbd_translate as the preq.bdev
+	 * is set there.
+	 */
 	for (i = 0; i < nseg; i++) {
 		if (((int)preq.sector_number|(int)seg[i].nsec) &
 		    ((bdev_logical_block_size(preq.bdev) >> 9) - 1)) {
@@ -595,7 +607,9 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 			goto fail_response;
 		}
 	}
-	/* If we have failed at this point, we need to undo the M2P override,
+
+	/*
+	 * If we have failed at this point, we need to undo the M2P override,
 	 * set gnttab_set_unmap_op on all of the grant references and perform
 	 * the hypercall to unmap the grants - that is all done in
 	 * xen_blkbk_unmap.
@@ -638,8 +652,8 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 		bio->bi_end_io  = end_block_io_op;
 	}
 
-
-	/* We set it one so that the last submit_bio does not have to call
+	/*
+	 * We set it one so that the last submit_bio does not have to call
 	 * atomic_inc.
 	 */
 	atomic_set(&pending_req->pendcnt, nbio);

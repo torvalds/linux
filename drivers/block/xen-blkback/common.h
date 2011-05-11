@@ -47,53 +47,58 @@
 		 __FILE__ , __LINE__ , ## _a)
 
 struct vbd {
-	blkif_vdev_t   handle;      /* what the domain refers to this vbd as */
-	unsigned char  readonly;    /* Non-zero -> read-only */
-	unsigned char  type;        /* VDISK_xxx */
-	u32            pdevice;     /* phys device that this vbd maps to */
-	struct block_device *bdev;
-	sector_t       size;        /* Cached size parameter */
-	bool           flush_support;
+	/* What the domain refers to this vbd as. */
+	blkif_vdev_t		handle;
+	/* Non-zero -> read-only */
+	unsigned char		readonly;
+	/* VDISK_xxx */
+	unsigned char		type;
+	/* phys device that this vbd maps to. */
+	u32			pdevice;
+	struct block_device	*bdev;
+	/* Cached size parameter. */
+	sector_t		size;
+	bool			flush_support;
 };
 
 struct backend_info;
 
 struct blkif_st {
 	/* Unique identifier for this interface. */
-	domid_t           domid;
-	unsigned int      handle;
+	domid_t			domid;
+	unsigned int		handle;
 	/* Physical parameters of the comms window. */
-	unsigned int      irq;
+	unsigned int		irq;
 	/* Comms information. */
-	enum blkif_protocol blk_protocol;
-	union blkif_back_rings blk_rings;
-	struct vm_struct *blk_ring_area;
+	enum blkif_protocol	blk_protocol;
+	union blkif_back_rings	blk_rings;
+	struct vm_struct	*blk_ring_area;
 	/* The VBD attached to this interface. */
-	struct vbd        vbd;
+	struct vbd		vbd;
 	/* Back pointer to the backend_info. */
-	struct backend_info *be;
+	struct backend_info	*be;
 	/* Private fields. */
-	spinlock_t       blk_ring_lock;
-	atomic_t         refcnt;
+	spinlock_t		blk_ring_lock;
+	atomic_t		refcnt;
 
-	wait_queue_head_t   wq;
+	wait_queue_head_t	wq;
 	/* One thread per one blkif. */
-	struct task_struct  *xenblkd;
-	unsigned int        waiting_reqs;
+	struct task_struct	*xenblkd;
+	unsigned int		waiting_reqs;
 
 	/* statistics */
-	unsigned long       st_print;
-	int                 st_rd_req;
-	int                 st_wr_req;
-	int                 st_oo_req;
-	int                 st_f_req;
-	int                 st_rd_sect;
-	int                 st_wr_sect;
+	unsigned long		st_print;
+	int			st_rd_req;
+	int			st_wr_req;
+	int			st_oo_req;
+	int			st_f_req;
+	int			st_rd_sect;
+	int			st_wr_sect;
 
-	wait_queue_head_t waiting_to_free;
+	wait_queue_head_t	waiting_to_free;
 
-	grant_handle_t shmem_handle;
-	grant_ref_t    shmem_ref;
+	grant_handle_t		shmem_handle;
+	grant_ref_t		shmem_ref;
 };
 
 
@@ -109,10 +114,10 @@ struct blkif_st {
 	} while (0)
 
 struct phys_req {
-	unsigned short       dev;
-	unsigned short       nr_sects;
-	struct block_device *bdev;
-	blkif_sector_t       sector_number;
+	unsigned short		dev;
+	unsigned short		nr_sects;
+	struct block_device	*bdev;
+	blkif_sector_t		sector_number;
 };
 int xen_blkif_interface_init(void);
 

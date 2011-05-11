@@ -27,12 +27,12 @@
 		 __func__, __LINE__, ##args)
 
 struct backend_info {
-	struct xenbus_device *dev;
-	struct blkif_st *blkif;
-	struct xenbus_watch backend_watch;
-	unsigned major;
-	unsigned minor;
-	char *mode;
+	struct xenbus_device	*dev;
+	struct blkif_st		*blkif;
+	struct xenbus_watch	backend_watch;
+	unsigned		major;
+	unsigned		minor;
+	char			*mode;
 };
 
 static struct kmem_cache *xen_blkif_cachep;
@@ -425,7 +425,7 @@ int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
 	return err;
 }
 
-/**
+/*
  * Entry point to this code when a new device is created.  Allocate the basic
  * structures, and watch the store waiting for the hotplug scripts to tell us
  * the device's physical major and minor numbers.  Switch to InitWait.
@@ -473,7 +473,7 @@ fail:
 }
 
 
-/**
+/*
  * Callback received when the hotplug scripts have placed the physical-device
  * node.  Read it and the mode node, and create a vbd.  If the frontend is
  * ready, connect.
@@ -495,9 +495,11 @@ static void backend_changed(struct xenbus_watch *watch,
 	err = xenbus_scanf(XBT_NIL, dev->nodename, "physical-device", "%x:%x",
 			   &major, &minor);
 	if (XENBUS_EXIST_ERR(err)) {
-		/* Since this watch will fire once immediately after it is
-		   registered, we expect this.  Ignore it, and wait for the
-		   hotplug scripts. */
+		/*
+		 * Since this watch will fire once immediately after it is
+		 * registered, we expect this.  Ignore it, and wait for the
+		 * hotplug scripts.
+		 */
 		return;
 	}
 	if (err != 2) {
@@ -562,7 +564,7 @@ static void backend_changed(struct xenbus_watch *watch,
 }
 
 
-/**
+/*
  * Callback received when the frontend's state changes.
  */
 static void frontend_changed(struct xenbus_device *dev,
@@ -584,13 +586,16 @@ static void frontend_changed(struct xenbus_device *dev,
 
 	case XenbusStateInitialised:
 	case XenbusStateConnected:
-		/* Ensure we connect even when two watches fire in
-		   close successsion and we miss the intermediate value
-		   of frontend_state. */
+		/*
+		 * Ensure we connect even when two watches fire in
+		 * close successsion and we miss the intermediate value
+		 * of frontend_state.
+		 */
 		if (dev->state == XenbusStateConnected)
 			break;
 
-		/* Enforce precondition before potential leak point.
+		/*
+		 * Enforce precondition before potential leak point.
 		 * blkif_disconnect() is idempotent.
 		 */
 		xen_blkif_disconnect(be->blkif);
@@ -627,7 +632,7 @@ static void frontend_changed(struct xenbus_device *dev,
 /* ** Connection ** */
 
 
-/**
+/*
  * Write the physical details regarding the block device to the store, and
  * switch to Connected state.
  */
