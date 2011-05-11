@@ -345,7 +345,7 @@ static int isight_hw_free(struct snd_pcm_substream *substream)
 
 static int isight_start_streaming(struct isight *isight)
 {
-	__be32 sample_rate;
+	__be32 value;
 	unsigned int i;
 	int err;
 
@@ -356,16 +356,23 @@ static int isight_start_streaming(struct isight *isight)
 			return 0;
 	}
 
-	sample_rate = cpu_to_be32(RATE_48000);
+	value = cpu_to_be32(RATE_48000);
 	err = snd_fw_transaction(isight->unit, TCODE_WRITE_QUADLET_REQUEST,
 				 isight->audio_base + REG_SAMPLE_RATE,
-				 &sample_rate, 4);
+				 &value, 4);
 	if (err < 0)
 		return err;
 
 	err = isight_connect(isight);
 	if (err < 0)
 		goto error;
+
+	value = cpu_to_be32(AUDIO_ENABLE);
+	err = snd_fw_transaction(isight->unit, TCODE_WRITE_QUADLET_REQUEST,
+				 isight->audio_base + REG_AUDIO_ENABLE,
+				 &value, 4);
+	if (err < 0)
+		goto err_resources;
 
 	isight->context = fw_iso_context_create(isight->device->card,
 						FW_ISO_CONTEXT_RECEIVE,
@@ -400,6 +407,10 @@ err_context:
 	fw_iso_context_destroy(isight->context);
 	isight->context = NULL;
 err_resources:
+	value = 0;
+	snd_fw_transaction(isight->unit, TCODE_WRITE_QUADLET_REQUEST,
+			   isight->audio_base + REG_AUDIO_ENABLE,
+			   &value, 4);
 	fw_iso_resources_free(&isight->resources);
 error:
 	return err;
