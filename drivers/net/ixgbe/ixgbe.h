@@ -482,6 +482,17 @@ struct ixgbe_adapter {
 	struct vf_macvlans vf_mvs;
 	struct vf_macvlans *mv_list;
 	bool antispoofing_enabled;
+
+	struct hlist_head fdir_filter_list;
+	union ixgbe_atr_input fdir_mask;
+	int fdir_filter_count;
+};
+
+struct ixgbe_fdir_filter {
+	struct hlist_node fdir_node;
+	union ixgbe_atr_input filter;
+	u16 sw_idx;
+	u16 action;
 };
 
 enum ixbge_state_t {
