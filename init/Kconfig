@@ -1226,7 +1226,6 @@ config SLAB
 	  per cpu and per node queues.
 
 config SLUB
-	depends on BROKEN || NUMA || !DISCONTIGMEM
 	bool "SLUB (Unqueued Allocator)"
 	help
 	   SLUB is a slab allocator that minimizes cache line usage
