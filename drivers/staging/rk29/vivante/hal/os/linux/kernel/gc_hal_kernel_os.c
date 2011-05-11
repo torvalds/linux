@@ -1296,11 +1296,7 @@ gckOS_AllocateNonPagedMemory(
     }
 
     vaddr           = (gctPOINTER)page_address(page);
-#if gcdENABLE_MEM_CACHE
-    addr            = ioremap_cached(virt_to_phys(vaddr), size);
-#else
     addr            = ioremap_nocache(virt_to_phys(vaddr), size);
-#endif
     mdl->dmaHandle  = virt_to_phys(vaddr);
     mdl->kaddr      = vaddr;
 
@@ -1430,13 +1426,7 @@ gckOS_AllocateNonPagedMemory(
         }
 #else
 
-#if (2==gcdENABLE_MEM_CACHE)
-        mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
-#elif (1==gcdENABLE_MEM_CACHE)
-        // NULL
-#else
         mdlMap->vma->vm_page_prot = pgprot_noncached(mdlMap->vma->vm_page_prot);
-#endif
         mdlMap->vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_RESERVED;
         mdlMap->vma->vm_pgoff = 0;
 
