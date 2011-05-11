@@ -237,24 +237,24 @@ static struct mmc_blk_ioc_data *mmc_blk_ioctl_copy_from_user(
 	idata = kzalloc(sizeof(*idata), GFP_KERNEL);
 	if (!idata) {
 		err = -ENOMEM;
-		goto copy_err;
+		goto out;
 	}
 
 	if (copy_from_user(&idata->ic, user, sizeof(idata->ic))) {
 		err = -EFAULT;
-		goto copy_err;
+		goto idata_err;
 	}
 
 	idata->buf_bytes = (u64) idata->ic.blksz * idata->ic.blocks;
 	if (idata->buf_bytes > MMC_IOC_MAX_BYTES) {
 		err = -EOVERFLOW;
-		goto copy_err;
+		goto idata_err;
 	}
 
 	idata->buf = kzalloc(idata->buf_bytes, GFP_KERNEL);
 	if (!idata->buf) {
 		err = -ENOMEM;
-		goto copy_err;
+		goto idata_err;
 	}
 
 	if (copy_from_user(idata->buf, (void __user *)(unsigned long)
@@ -267,9 +267,10 @@ static struct mmc_blk_ioc_data *mmc_blk_ioctl_copy_from_user(
 
 copy_err:
 	kfree(idata->buf);
+idata_err:
 	kfree(idata);
+out:
 	return ERR_PTR(err);
-
 }
 
 static int mmc_blk_ioctl_cmd(struct block_device *bdev,
