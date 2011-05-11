@@ -389,21 +389,21 @@ struct p_barrier_ack {
 } __packed;
 
 struct p_rs_param {
-	u32 rate;
+	u32 resync_rate;
 
 	      /* Since protocol version 88 and higher. */
 	char verify_alg[0];
 } __packed;
 
 struct p_rs_param_89 {
-	u32 rate;
+	u32 resync_rate;
         /* protocol version 89: */
 	char verify_alg[SHARED_SECRET_MAX];
 	char csums_alg[SHARED_SECRET_MAX];
 } __packed;
 
 struct p_rs_param_95 {
-	u32 rate;
+	u32 resync_rate;
 	char verify_alg[SHARED_SECRET_MAX];
 	char csums_alg[SHARED_SECRET_MAX];
 	u32 c_plan_ahead;

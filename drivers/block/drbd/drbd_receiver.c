@@ -3221,7 +3221,7 @@ static int receive_SyncParam(struct drbd_tconn *tconn, struct packet_info *pi)
 		old_disk_conf = mdev->ldev->disk_conf;
 		*new_disk_conf = *old_disk_conf;
 
-		new_disk_conf->resync_rate = be32_to_cpu(p->rate);
+		new_disk_conf->resync_rate = be32_to_cpu(p->resync_rate);
 	}
 
 	if (apv >= 88) {

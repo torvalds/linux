@@ -888,14 +888,14 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
 
 	if (get_ldev(mdev)) {
 		dc = rcu_dereference(mdev->ldev->disk_conf);
-		p->rate = cpu_to_be32(dc->resync_rate);
+		p->resync_rate = cpu_to_be32(dc->resync_rate);
 		p->c_plan_ahead = cpu_to_be32(dc->c_plan_ahead);
 		p->c_delay_target = cpu_to_be32(dc->c_delay_target);
 		p->c_fill_target = cpu_to_be32(dc->c_fill_target);
 		p->c_max_rate = cpu_to_be32(dc->c_max_rate);
 		put_ldev(mdev);
 	} else {
-		p->rate = cpu_to_be32(DRBD_RATE_DEF);
+		p->resync_rate = cpu_to_be32(DRBD_RESYNC_RATE_DEF);
 		p->c_plan_ahead = cpu_to_be32(DRBD_C_PLAN_AHEAD_DEF);
 		p->c_delay_target = cpu_to_be32(DRBD_C_DELAY_TARGET_DEF);
 		p->c_fill_target = cpu_to_be32(DRBD_C_FILL_TARGET_DEF);
