@@ -665,8 +665,11 @@ static void remove_ddw(struct device_node *np)
 
 	ddr_avail = of_get_property(np, "ibm,ddw-applicable", &len);
 	win64 = of_find_property(np, DIRECT64_PROPNAME, NULL);
-	if (!win64 || !ddr_avail || len < 3 * sizeof(u32))
+	if (!win64)
 		return;
+
+	if (!ddr_avail || len < 3 * sizeof(u32) || win64->length < sizeof(*dwp))
+		goto delprop;
 
 	dwp = win64->value;
 	liobn = (u64)be32_to_cpu(dwp->liobn);
@@ -690,8 +693,13 @@ static void remove_ddw(struct device_node *np)
 		pr_debug("%s: successfully removed direct window: rtas returned "
 			"%d to ibm,remove-pe-dma-window(%x) %llx\n",
 			np->full_name, ret, ddr_avail[2], liobn);
-}
 
+delprop:
+	ret = of_remove_property(np, win64);
+	if (ret)
+		pr_warning("%s: failed to remove direct window property: %d\n"
+			np->full_name, ret);
+}
 
 static u64 dupe_ddw_if_already_created(struct pci_dev *dev, struct device_node *pdn)
 {
