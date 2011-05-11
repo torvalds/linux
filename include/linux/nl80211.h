@@ -203,15 +203,17 @@
  * @NL80211_CMD_SCAN_ABORTED: scan was aborted, for unspecified reasons,
  *	partial scan results may be available
  *
- * @NL80211_CMD_START_SCHED_SCAN: start a scheduled scan.  Like with normal
- *	scans, if SSIDs (%NL80211_ATTR_SCAN_SSIDS) are passed, they are used
- *	in the probe requests.  For broadcast, a broadcast SSID must be
- *	passed (ie. an empty string).  If no SSID is passed, no probe
- *	requests are sent and a passive scan is performed.
- *	%NL80211_ATTR_SCAN_FREQUENCIES, if passed, define which channels
- *	should be scanned; if not passed, all channels allowed for the
- *	current regulatory domain are used.  Extra IEs can also be passed
- *	from the userspace by using the %NL80211_ATTR_IE attribute.
+ * @NL80211_CMD_START_SCHED_SCAN: start a scheduled scan at certain
+ *	intervals, as specified by %NL80211_ATTR_SCHED_SCAN_INTERVAL.
+ *	Like with normal scans, if SSIDs (%NL80211_ATTR_SCAN_SSIDS)
+ *	are passed, they are used in the probe requests.  For
+ *	broadcast, a broadcast SSID must be passed (ie. an empty
+ *	string).  If no SSID is passed, no probe requests are sent and
+ *	a passive scan is performed.  %NL80211_ATTR_SCAN_FREQUENCIES,
+ *	if passed, define which channels should be scanned; if not
+ *	passed, all channels allowed for the current regulatory domain
+ *	are used.  Extra IEs can also be passed from the userspace by
+ *	using the %NL80211_ATTR_IE attribute.
  * @NL80211_CMD_STOP_SCHED_SCAN: stop a scheduled scan
  * @NL80211_CMD_SCHED_SCAN_RESULTS: indicates that there are scheduled scan
  *	results available.
@@ -948,6 +950,9 @@ enum nl80211_commands {
  *	indicate which WoW triggers should be enabled. This is also
  *	used by %NL80211_CMD_GET_WOWLAN to get the currently enabled WoWLAN
  *	triggers.
+
+ * @NL80211_ATTR_SCHED_SCAN_INTERVAL: Interval between scheduled scan
+ *	cycles, in msecs.
  *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -1141,6 +1146,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_WOWLAN_TRIGGERS,
 	NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED,
+
+	NL80211_ATTR_SCHED_SCAN_INTERVAL,
 
 	/* add attributes here, update the policy in nl80211.c */
 
