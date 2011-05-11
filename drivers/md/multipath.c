@@ -186,6 +186,7 @@ static int multipath_congested(void *data, int bits)
 static void multipath_error (mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	multipath_conf_t *conf = mddev->private;
+	char b[BDEVNAME_SIZE];
 
 	if (conf->raid_disks - mddev->degraded <= 1) {
 		/*
@@ -194,26 +195,27 @@ static void multipath_error (mddev_t *mddev, mdk_rdev_t *rdev)
 		 * which has just failed.
 		 */
 		printk(KERN_ALERT 
-			"multipath: only one IO path left and IO error.\n");
+		       "multipath: only one IO path left and IO error.\n");
 		/* leave it active... it's all we have */
-	} else {
-		/*
-		 * Mark disk as unusable
-		 */
-		if (!test_bit(Faulty, &rdev->flags)) {
-			char b[BDEVNAME_SIZE];
-			clear_bit(In_sync, &rdev->flags);
-			set_bit(Faulty, &rdev->flags);
-			set_bit(MD_CHANGE_DEVS, &mddev->flags);
-			mddev->degraded++;
-			printk(KERN_ALERT "multipath: IO failure on %s,"
-				" disabling IO path.\n"
-				"multipath: Operation continuing"
-				" on %d IO paths.\n",
-				bdevname (rdev->bdev,b),
-				conf->raid_disks - mddev->degraded);
-		}
+		return;
 	}
+	/*
+	 * Mark disk as unusable
+	 */
+	if (test_and_clear_bit(In_sync, &rdev->flags)) {
+		unsigned long flags;
+		spin_lock_irqsave(&conf->device_lock, flags);
+		mddev->degraded++;
+		spin_unlock_irqrestore(&conf->device_lock, flags);
+	}
+	set_bit(Faulty, &rdev->flags);
+	set_bit(MD_CHANGE_DEVS, &mddev->flags);
+	printk(KERN_ALERT "multipath: IO failure on %s,"
+	       " disabling IO path.\n"
+	       "multipath: Operation continuing"
+	       " on %d IO paths.\n",
+	       bdevname(rdev->bdev, b),
+	       conf->raid_disks - mddev->degraded);
 }
 
 static void print_multipath_conf (multipath_conf_t *conf)
@@ -273,9 +275,11 @@ static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 							   PAGE_CACHE_SIZE - 1);
 			}
 
+			spin_lock_irq(&conf->device_lock);
 			mddev->degraded--;
 			rdev->raid_disk = path;
 			set_bit(In_sync, &rdev->flags);
+			spin_unlock_irq(&conf->device_lock);
 			rcu_assign_pointer(p->rdev, rdev);
 			err = 0;
 			md_integrity_add_rdev(rdev, mddev);
