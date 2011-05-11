@@ -325,6 +325,18 @@ config KEYBOARD_MCS
 	  To compile this driver as a module, choose M here: the
 	  module will be called mcs_touchkey.
 
+config KEYBOARD_MPR121
+	tristate "Freescale MPR121 Touchkey"
+	depends on I2C
+	help
+	  Say Y here if you have Freescale MPR121 touchkey controller
+	  chip in your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mpr121_touchkey.
+
 config KEYBOARD_IMX
 	tristate "IMX keypad support"
 	depends on ARCH_MXC
