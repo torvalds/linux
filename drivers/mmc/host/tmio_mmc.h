@@ -131,4 +131,7 @@ int tmio_mmc_host_resume(struct device *dev);
 #define tmio_mmc_host_resume NULL
 #endif
 
+int tmio_mmc_host_runtime_suspend(struct device *dev);
+int tmio_mmc_host_runtime_resume(struct device *dev);
+
 #endif

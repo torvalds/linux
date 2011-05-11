@@ -746,6 +746,7 @@ fail:
 static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct tmio_mmc_data *pdata = host->pdata;
 	unsigned long flags;
 
 	spin_lock_irqsave(&host->lock, flags);
@@ -775,13 +776,24 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	/* Power sequence - OFF -> UP -> ON */
 	if (ios->power_mode == MMC_POWER_UP) {
+		if ((pdata->flags & TMIO_MMC_HAS_COLD_CD) && !pdata->power) {
+			pm_runtime_get_sync(&host->pdev->dev);
+			pdata->power = true;
+		}
 		/* power up SD bus */
 		if (host->set_pwr)
 			host->set_pwr(host->pdev, 1);
 	} else if (ios->power_mode == MMC_POWER_OFF || !ios->clock) {
 		/* power down SD bus */
-		if (ios->power_mode == MMC_POWER_OFF && host->set_pwr)
-			host->set_pwr(host->pdev, 0);
+		if (ios->power_mode == MMC_POWER_OFF) {
+			if (host->set_pwr)
+				host->set_pwr(host->pdev, 0);
+			if ((pdata->flags & TMIO_MMC_HAS_COLD_CD) &&
+			    pdata->power) {
+				pdata->power = false;
+				pm_runtime_put(&host->pdev->dev);
+			}
+		}
 		tmio_mmc_clk_stop(host);
 	} else {
 		/* start bus clock */
@@ -853,6 +865,7 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	if (!mmc)
 		return -ENOMEM;
 
+	pdata->dev = &pdev->dev;
 	_host = mmc_priv(mmc);
 	_host->pdata = pdata;
 	_host->mmc = mmc;
@@ -886,6 +899,7 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	else
 		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
+	pdata->power = false;
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_resume(&pdev->dev);
 	if (ret < 0)
@@ -907,7 +921,8 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	tmio_mmc_request_dma(_host, pdata);
 
 	/* We have to keep the device powered for its card detection to work */
-	pm_runtime_get_noresume(&pdev->dev);
+	if (!(pdata->flags & TMIO_MMC_HAS_COLD_CD))
+		pm_runtime_get_noresume(&pdev->dev);
 
 	mmc_add_host(mmc);
 
@@ -937,15 +952,25 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 {
 	struct platform_device *pdev = host->pdev;
 
+	/*
+	 * We don't have to manipulate pdata->power here: if there is a card in
+	 * the slot, the runtime PM is active and our .runtime_resume() will not
+	 * be run. If there is no card in the slot and the platform can suspend
+	 * the controller, the runtime PM is suspended and pdata->power == false,
+	 * so, our .runtime_resume() will not try to detect a card in the slot.
+	 */
+	if (host->pdata->flags & TMIO_MMC_HAS_COLD_CD)
+		pm_runtime_get_sync(&pdev->dev);
+
 	mmc_remove_host(host->mmc);
 	cancel_delayed_work_sync(&host->delayed_reset_work);
 	tmio_mmc_release_dma(host);
-	iounmap(host->ctl);
-	mmc_free_host(host->mmc);
 
-	/* Compensate for pm_runtime_get_sync() in probe() above */
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	iounmap(host->ctl);
+	mmc_free_host(host->mmc);
 }
 EXPORT_SYMBOL(tmio_mmc_host_remove);
 
@@ -970,6 +995,9 @@ int tmio_mmc_host_resume(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 
+	/* The MMC core will perform the complete set up */
+	host->pdata->power = false;
+
 	if (!host->pm_error)
 		pm_runtime_get_sync(dev);
 
@@ -981,5 +1009,29 @@ int tmio_mmc_host_resume(struct device *dev)
 EXPORT_SYMBOL(tmio_mmc_host_resume);
 
 #endif	/* CONFIG_PM */
+
+int tmio_mmc_host_runtime_suspend(struct device *dev)
+{
+	return 0;
+}
+EXPORT_SYMBOL(tmio_mmc_host_runtime_suspend);
+
+int tmio_mmc_host_runtime_resume(struct device *dev)
+{
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct tmio_mmc_data *pdata = host->pdata;
+
+	tmio_mmc_reset(host);
+
+	if (pdata->power) {
+		/* Only entered after a card-insert interrupt */
+		tmio_mmc_set_ios(mmc, &mmc->ios);
+		mmc_detect_change(mmc, msecs_to_jiffies(100));
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(tmio_mmc_host_runtime_resume);
 
 MODULE_LICENSE("GPL v2");
