@@ -2199,11 +2199,11 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
  * setup rate table in uCode
  * return rate_n_flags as used in the table
  */
-static u32 rs_update_rate_tbl(struct iwl_priv *priv,
-			      struct iwl_rxon_context *ctx,
-				struct iwl_lq_sta *lq_sta,
-				struct iwl_scale_tbl_info *tbl,
-				int index, u8 is_green)
+static void rs_update_rate_tbl(struct iwl_priv *priv,
+			       struct iwl_rxon_context *ctx,
+			       struct iwl_lq_sta *lq_sta,
+			       struct iwl_scale_tbl_info *tbl,
+			       int index, u8 is_green)
 {
 	u32 rate;
 
@@ -2211,8 +2211,6 @@ static u32 rs_update_rate_tbl(struct iwl_priv *priv,
 	rate = rate_n_flags_from_tbl(priv, tbl, index, is_green);
 	rs_fill_link_cmd(priv, lq_sta, rate);
 	iwl_send_lq_cmd(priv, ctx, &lq_sta->lq, CMD_ASYNC, false);
-
-	return rate;
 }
 
 /*
@@ -2241,7 +2239,6 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	u8 update_lq = 0;
 	struct iwl_scale_tbl_info *tbl, *tbl1;
 	u16 rate_scale_index_msk = 0;
-	u32 rate;
 	u8 is_green = 0;
 	u8 active_tbl = 0;
 	u8 done_search = 0;
@@ -2328,8 +2325,8 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 			tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 			/* get "active" rate info */
 			index = iwl_hwrate_to_plcp_idx(tbl->current_rate);
-			rate = rs_update_rate_tbl(priv, ctx, lq_sta,
-						  tbl, index, is_green);
+			rs_update_rate_tbl(priv, ctx, lq_sta, tbl,
+					   index, is_green);
 		}
 		return;
 	}
@@ -2570,8 +2567,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 lq_update:
 	/* Replace uCode's rate table for the destination station. */
 	if (update_lq)
-		rate = rs_update_rate_tbl(priv, ctx, lq_sta,
-					  tbl, index, is_green);
+		rs_update_rate_tbl(priv, ctx, lq_sta, tbl, index, is_green);
 
 	if (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_MULTI) {
 		/* Should we stay with this modulation mode,
@@ -3270,14 +3266,10 @@ static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
 static ssize_t rs_sta_dbgfs_rate_scale_data_read(struct file *file,
 			char __user *user_buf, size_t count, loff_t *ppos)
 {
+	struct iwl_lq_sta *lq_sta = file->private_data;
+	struct iwl_scale_tbl_info *tbl = &lq_sta->lq_info[lq_sta->active_tbl];
 	char buff[120];
 	int desc = 0;
-
-	struct iwl_lq_sta *lq_sta = file->private_data;
-	struct iwl_priv *priv;
-	struct iwl_scale_tbl_info *tbl = &lq_sta->lq_info[lq_sta->active_tbl];
-
-	priv = lq_sta->drv;
 
 	if (is_Ht(tbl->lq_type))
 		desc += sprintf(buff+desc,
