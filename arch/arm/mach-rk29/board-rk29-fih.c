@@ -1016,14 +1016,6 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
-#if defined (CONFIG_BATTERY_BQ27510)
-	{
-		.type    		= "bq27510",
-		.addr           = 0x55,
-		.flags			= 0,
-		.platform_data  = &bq27510_info,
-	},
-#endif
 #if defined (CONFIG_RTC_HYM8563)
 	{
 		.type    		= "rtc_hym8563",
@@ -1129,6 +1121,14 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
         .irq            = TPS65910_HOST_IRQ,
         .platform_data  = &rk29_tps65910_data,
 	},
+#endif
+#if defined (CONFIG_BATTERY_BQ27510)
+{
+	.type    		= "bq27510",
+	.addr           = 0x55,
+	.flags			= 0,
+	.platform_data  = &bq27510_info,
+},
 #endif
 };
 #endif

@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.27
-# Sat May  7 10:51:04 2011
+# Wed May 11 10:45:06 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1040,7 +1040,7 @@ CONFIG_POWER_SUPPLY=y
 CONFIG_BATTERY_BQ27510=y
 # CONFIG_BATTERY_BQ3060 is not set
 # CONFIG_CHECK_BATT_CAPACITY is not set
-CONFIG_NO_BATTERY_IC=y
+# CONFIG_NO_BATTERY_IC is not set
 # CONFIG_HWMON is not set
 # CONFIG_THERMAL is not set
 # CONFIG_WATCHDOG is not set
