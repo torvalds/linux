@@ -966,6 +966,13 @@ static int __devinit ads7846_setup_pendown(struct spi_device *spi, struct ads784
 				pdata->gpio_pendown);
 			return err;
 		}
+		err = gpio_direction_input(pdata->gpio_pendown);
+		if (err) {
+			dev_err(&spi->dev, "failed to setup pendown GPIO%d\n",
+				pdata->gpio_pendown);
+			gpio_free(pdata->gpio_pendown);
+			return err;
+		}
 
 		ts->gpio_pendown = pdata->gpio_pendown;
 
