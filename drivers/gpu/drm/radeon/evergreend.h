@@ -200,6 +200,7 @@
 #define		BURSTLENGTH_SHIFT				9
 #define		BURSTLENGTH_MASK				0x00000200
 #define		CHANSIZE_OVERRIDE				(1 << 11)
+#define	FUS_MC_ARB_RAMCFG				0x2768
 #define	MC_VM_AGP_TOP					0x2028
 #define	MC_VM_AGP_BOT					0x202C
 #define	MC_VM_AGP_BASE					0x2030
