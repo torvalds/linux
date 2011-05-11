@@ -161,6 +161,7 @@ static struct dentry *proc_ns_dir_lookup(struct inode *dir,
 		if (!memcmp(dentry->d_name.name, (*entry)->name, len))
 			break;
 	}
+	error = ERR_PTR(-ENOENT);
 	if (entry > last)
 		goto out;
 
