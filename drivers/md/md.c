@@ -5216,6 +5216,16 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		} else
 			super_types[mddev->major_version].
 				validate_super(mddev, rdev);
+		if ((info->state & (1<<MD_DISK_SYNC)) &&
+		    (!test_bit(In_sync, &rdev->flags) ||
+		     rdev->raid_disk != info->raid_disk)) {
+			/* This was a hot-add request, but events doesn't
+			 * match, so reject it.
+			 */
+			export_rdev(rdev);
+			return -EINVAL;
+		}
+
 		if (test_bit(In_sync, &rdev->flags))
 			rdev->saved_raid_disk = rdev->raid_disk;
 		else
