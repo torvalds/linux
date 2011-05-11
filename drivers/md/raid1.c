@@ -1282,6 +1282,7 @@ static int fix_sync_read_error(r1bio_t *r1_bio)
 		idx ++;
 	}
 	set_bit(R1BIO_Uptodate, &r1_bio->state);
+	set_bit(BIO_UPTODATE, &bio->bi_flags);
 	return 1;
 }
 
@@ -1299,15 +1300,6 @@ static int process_checks(r1bio_t *r1_bio)
 	int primary;
 	int i;
 
-	if (!test_bit(R1BIO_Uptodate, &r1_bio->state)) {
-		for (i=0; i < conf->raid_disks; i++)
-			if (r1_bio->bios[i]->bi_end_io == end_sync_read)
-				md_error(mddev, conf->mirrors[i].rdev);
-
-		md_done_sync(mddev, r1_bio->sectors, 1);
-		put_buf(r1_bio);
-		return -1;
-	}
 	for (primary = 0; primary < conf->raid_disks; primary++)
 		if (r1_bio->bios[primary]->bi_end_io == end_sync_read &&
 		    test_bit(BIO_UPTODATE, &r1_bio->bios[primary]->bi_flags)) {
@@ -1385,14 +1377,13 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 
 	bio = r1_bio->bios[r1_bio->read_disk];
 
-
-	if (test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
-		if (process_checks(r1_bio) < 0)
-			return;
-
 	if (!test_bit(R1BIO_Uptodate, &r1_bio->state))
 		/* ouch - failed to read all of that. */
 		if (!fix_sync_read_error(r1_bio))
+			return;
+
+	if (test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
+		if (process_checks(r1_bio) < 0)
 			return;
 	/*
 	 * schedule writes
