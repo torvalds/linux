@@ -1435,16 +1435,15 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 
 	/* Add tunnel to our list */
 	INIT_LIST_HEAD(&tunnel->list);
-	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
-	list_add_rcu(&tunnel->list, &pn->l2tp_tunnel_list);
-	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
-	synchronize_rcu();
 	atomic_inc(&l2tp_tunnel_count);
 
 	/* Bump the reference count. The tunnel context is deleted
-	 * only when this drops to zero.
+	 * only when this drops to zero. Must be done before list insertion
 	 */
 	l2tp_tunnel_inc_refcount(tunnel);
+	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
+	list_add_rcu(&tunnel->list, &pn->l2tp_tunnel_list);
+	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
 
 	err = 0;
 err:
@@ -1636,7 +1635,6 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 			hlist_add_head_rcu(&session->global_hlist,
 					   l2tp_session_id_hash_2(pn, session_id));
 			spin_unlock_bh(&pn->l2tp_session_hlist_lock);
-			synchronize_rcu();
 		}
 
 		/* Ignore management session in session count value */
