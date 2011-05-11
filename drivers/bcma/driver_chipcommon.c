@@ -29,8 +29,10 @@ void bcma_core_chipcommon_init(struct bcma_drv_cc *cc)
 	if (cc->core->id.rev >= 35)
 		cc->capabilities_ext = bcma_cc_read32(cc, BCMA_CC_CAP_EXT);
 
-	bcma_cc_write32(cc, 0x58, 0);
-	bcma_cc_write32(cc, 0x5C, 0);
+	if (cc->core->id.rev >= 20) {
+		bcma_cc_write32(cc, BCMA_CC_GPIOPULLUP, 0);
+		bcma_cc_write32(cc, BCMA_CC_GPIOPULLDOWN, 0);
+	}
 
 	if (cc->capabilities & BCMA_CC_CAP_PMU)
 		bcma_pmu_init(cc);
