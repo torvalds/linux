@@ -20,7 +20,7 @@
 #ifndef __ARCH_ARM_PLAT_OMAP_PANEL_GENERIC_DPI_H
 #define __ARCH_ARM_PLAT_OMAP_PANEL_GENERIC_DPI_H
 
-#include "display.h"
+struct omap_dss_device;
 
 /**
  * struct panel_generic_dpi_data - panel driver configuration data

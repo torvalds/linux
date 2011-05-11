@@ -27,7 +27,7 @@
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include "dss.h"
 
 static ssize_t display_enabled_show(struct device *dev,

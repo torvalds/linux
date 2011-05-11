@@ -44,7 +44,7 @@
 #include <plat/usb.h>
 #include <plat/common.h>
 #include <plat/mcspi.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/panel-generic-dpi.h>
 
 #include "mux.h"

@@ -22,7 +22,7 @@
 #define _OMAP4_DSS_HDMI_H_
 
 #include <linux/string.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 #define HDMI_WP		0x0
 #define HDMI_CORE_SYS		0x400

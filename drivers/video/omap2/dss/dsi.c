@@ -34,7 +34,7 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/clock.h>
 
 #include "dss.h"

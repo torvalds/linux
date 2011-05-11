@@ -33,7 +33,7 @@
 #include <linux/hrtimer.h>
 #include <linux/seq_file.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include "dss.h"
 
 struct rfbi_reg { u16 idx; };

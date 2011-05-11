@@ -1,7 +1,7 @@
 #ifndef __ARCH_ARM_PLAT_OMAP_NOKIA_DSI_PANEL_H
 #define __ARCH_ARM_PLAT_OMAP_NOKIA_DSI_PANEL_H
 
-#include "display.h"
+struct omap_dss_device;
 
 /**
  * struct nokia_dsi_panel_data - Nokia DSI panel driver configuration

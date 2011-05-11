@@ -31,7 +31,7 @@
 #include <plat/common.h>
 #include <plat/gpmc.h>
 #include <plat/usb.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/panel-generic-dpi.h>
 #include <plat/onenand.h>
 

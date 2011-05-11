@@ -1,6 +1,4 @@
 /*
- * linux/include/asm-arm/arch-omap/display.h
- *
  * Copyright (C) 2008 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *
@@ -17,8 +15,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __ASM_ARCH_OMAP_DISPLAY_H
-#define __ASM_ARCH_OMAP_DISPLAY_H
+#ifndef __OMAP_OMAPDSS_H
+#define __OMAP_OMAPDSS_H
 
 #include <linux/list.h>
 #include <linux/kobject.h>

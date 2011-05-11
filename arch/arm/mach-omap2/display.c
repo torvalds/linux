@@ -22,7 +22,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
 

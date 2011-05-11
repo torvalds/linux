@@ -29,7 +29,7 @@
 #include <linux/spinlock.h>
 #include <linux/jiffies.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/cpu.h>
 
 #include "dss.h"

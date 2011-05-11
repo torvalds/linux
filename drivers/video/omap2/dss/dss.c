@@ -29,7 +29,7 @@
 #include <linux/seq_file.h>
 #include <linux/clk.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/clock.h>
 #include "dss.h"
 #include "dss_features.h"

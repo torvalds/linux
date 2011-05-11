@@ -37,7 +37,7 @@
 #include <plat/common.h>
 #include <plat/dma.h>
 #include <plat/gpmc.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/panel-generic-dpi.h>
 
 #include <plat/gpmc-smc91x.h>

@@ -29,7 +29,7 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/string.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 #include "dss.h"
 #include "hdmi.h"

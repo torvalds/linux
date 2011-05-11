@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <video/omapdss.h>
 
 #include <plat/panel-generic-dpi.h>
 

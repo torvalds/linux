@@ -36,7 +36,7 @@
 #include <plat/usb.h>
 #include <plat/mmc.h>
 #include <plat/omap4-keypad.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 #include "mux.h"
 #include "hsmmc.h"

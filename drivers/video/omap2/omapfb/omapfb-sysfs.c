@@ -29,7 +29,7 @@
 #include <linux/mm.h>
 #include <linux/omapfb.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/vrfb.h>
 
 #include "omapfb.h"

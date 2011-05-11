@@ -33,7 +33,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/mutex.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/nokia-dsi-panel.h>
 
 /* DSI Virtual channel. Hardcoded for now. */

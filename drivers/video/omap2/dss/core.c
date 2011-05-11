@@ -33,7 +33,7 @@
 #include <linux/device.h>
 #include <linux/regulator/consumer.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 #include "dss.h"
 #include "dss_features.h"

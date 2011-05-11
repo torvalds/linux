@@ -25,7 +25,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 struct sharp_data {
 	struct backlight_device *bl;

@@ -37,7 +37,7 @@
 #include <plat/sram.h>
 #include <plat/clock.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 #include "dss.h"
 #include "dss_features.h"
