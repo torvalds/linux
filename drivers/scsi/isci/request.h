@@ -224,13 +224,6 @@ struct scic_sds_request {
 	u32 saved_rx_frame_index;
 
 	/**
-	 * This field specifies the current state handlers in place for this
-	 * IO Request object.  This field is updated each time the request
-	 * changes state.
-	 */
-	const struct scic_sds_io_request_state_handler *state_handlers;
-
-	/**
 	 * This field in the recorded device sequence for the io request.  This is
 	 * recorded during the build operation and is compared in the start
 	 * operation.  If the sequence is different then there was a change of
@@ -422,27 +415,6 @@ enum sci_base_request_states {
 	SCI_BASE_REQUEST_STATE_FINAL,
 };
 
-typedef enum sci_status (*scic_sds_io_request_handler_t)
-				(struct scic_sds_request *request);
-typedef enum sci_status (*scic_sds_io_request_event_handler_t)
-				(struct scic_sds_request *req, u32 event);
-
-/**
- * struct scic_sds_io_request_state_handler - This is the SDS core definition
- *    of the state handlers.
- *
- *
- */
-struct scic_sds_io_request_state_handler {
-	/**
-	 * The complete_handler specifies the method invoked when a user attempts to
-	 * complete a request.
-	 */
-	scic_sds_io_request_handler_t complete_handler;
-
-	scic_sds_io_request_event_handler_t event_handler;
-};
-
 /**
  * scic_sds_request_get_controller() -
  *
@@ -495,13 +467,6 @@ struct scic_sds_io_request_state_handler {
 		(request)->sci_status = (sci_status_code); \
 	}
 
-#define scic_sds_request_complete(a_request) \
-	((a_request)->state_handlers->complete_handler(a_request))
-
-
-extern enum sci_status
-scic_sds_io_request_tc_completion(struct scic_sds_request *request, u32 completion_code);
-
 /**
  * SCU_SGL_ZERO() -
  *
@@ -538,6 +503,8 @@ enum sci_status scic_sds_io_request_event_handler(struct scic_sds_request *sci_r
 enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
 						  u32 frame_index);
 enum sci_status scic_sds_task_request_terminate(struct scic_sds_request *sci_req);
+extern enum sci_status scic_sds_request_complete(struct scic_sds_request *sci_req);
+extern enum sci_status scic_sds_io_request_tc_completion(struct scic_sds_request *sci_req, u32 code);
 
 /* XXX open code in caller */
 static inline void *scic_request_get_virt_addr(struct scic_sds_request *sci_req,
