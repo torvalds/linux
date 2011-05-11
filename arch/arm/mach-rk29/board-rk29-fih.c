@@ -850,7 +850,7 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 
 	printk(KERN_INFO "TPS65910 Set default voltage.\n");
 #if 1
-	/* VGIG1 Set the default voltage from 1800mV to 2700 mV for camera io */
+	/* VDIG1 Set the default voltage from 1800mV to 2700 mV for camera io */
 	val = 0x01;
 	val |= (0x03 << 2);
 	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDIG1);
@@ -872,7 +872,7 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 	}
 #endif
 
-#if 0
+#if 1
 	/* VDD2 whitch suplies for ddr3 Set the default voltage: 1087 * 1.25mV(41)*/
 	val = 42;	
 	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD2_OP);
