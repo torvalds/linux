@@ -717,13 +717,30 @@ static const struct file_operations fb_proc_fops = {
 	.release	= seq_release,
 };
 
+/*
+ * We hold a reference to the fb_info in file->private_data,
+ * but if the current registered fb has changed, we don't
+ * actually want to use it.
+ *
+ * So look up the fb_info using the inode minor number,
+ * and just verify it against the reference we have.
+ */
+static struct fb_info *file_fb_info(struct file *file)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	int fbidx = iminor(inode);
+	struct fb_info *info = registered_fb[fbidx];
+
+	if (info != file->private_data)
+		info = NULL;
+	return info;
+}
+
 static ssize_t
 fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
+	struct fb_info *info = file_fb_info(file);
 	u8 *buffer, *dst;
 	u8 __iomem *src;
 	int c, cnt = 0, err = 0;
@@ -788,9 +805,7 @@ static ssize_t
 fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
+	struct fb_info *info = file_fb_info(file);
 	u8 *buffer, *src;
 	u8 __iomem *dst;
 	int c, cnt = 0, err = 0;
@@ -1168,10 +1183,10 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 static long fb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
+	struct fb_info *info = file_fb_info(file);
 
+	if (!info)
+		return -ENODEV;
 	return do_fb_ioctl(info, cmd, arg);
 }
 
@@ -1292,12 +1307,13 @@ static int fb_get_fscreeninfo(struct fb_info *info, unsigned int cmd,
 static long fb_compat_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
-	struct fb_ops *fb = info->fbops;
+	struct fb_info *info = file_fb_info(file);
+	struct fb_ops *fb;
 	long ret = -ENOIOCTLCMD;
 
+	if (!info)
+		return -ENODEV;
+	fb = info->fbops;
 	switch(cmd) {
 	case FBIOGET_VSCREENINFO:
 	case FBIOPUT_VSCREENINFO:
@@ -1330,16 +1346,18 @@ static long fb_compat_ioctl(struct file *file, unsigned int cmd,
 static int
 fb_mmap(struct file *file, struct vm_area_struct * vma)
 {
-	int fbidx = iminor(file->f_path.dentry->d_inode);
-	struct fb_info *info = registered_fb[fbidx];
-	struct fb_ops *fb = info->fbops;
+	struct fb_info *info = file_fb_info(file);
+	struct fb_ops *fb;
 	unsigned long off;
 	unsigned long start;
 	u32 len;
 
+	if (!info)
+		return -ENODEV;
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;
 	off = vma->vm_pgoff << PAGE_SHIFT;
+	fb = info->fbops;
 	if (!fb)
 		return -ENODEV;
 	mutex_lock(&info->mm_lock);
