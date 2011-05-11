@@ -21,11 +21,6 @@
 #include <xen/grant_table.h>
 #include "common.h"
 
-#undef DPRINTK
-#define DPRINTK(fmt, args...)				\
-	pr_debug("xen-blkback: (%s:%d) " fmt ".\n",	\
-		 __func__, __LINE__, ##args)
-
 struct backend_info {
 	struct xenbus_device	*dev;
 	struct blkif_st		*blkif;

@@ -42,9 +42,9 @@
 #include <xen/grant_table.h>
 #include <xen/xenbus.h>
 
-#define DPRINTK(_f, _a...)			\
-	pr_debug("(file=%s, line=%d) " _f,	\
-		 __FILE__ , __LINE__ , ## _a)
+#define DPRINTK(fmt, args...)				\
+	pr_debug("xen-blkback: (%s:%d) " fmt ".\n",	\
+		 __func__, __LINE__, ##args)
 
 struct vbd {
 	/* What the domain refers to this vbd as. */
