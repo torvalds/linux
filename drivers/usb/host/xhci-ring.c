@@ -1081,8 +1081,13 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		complete(&xhci->addr_dev);
 		break;
 	case TRB_TYPE(TRB_DISABLE_SLOT):
-		if (xhci->devs[slot_id])
+		if (xhci->devs[slot_id]) {
+			if (xhci->quirks & XHCI_EP_LIMIT_QUIRK)
+				/* Delete default control endpoint resources */
+				xhci_free_device_endpoint_resources(xhci,
+						xhci->devs[slot_id], true);
 			xhci_free_virt_device(xhci, slot_id);
+		}
 		break;
 	case TRB_TYPE(TRB_CONFIG_EP):
 		virt_dev = xhci->devs[slot_id];

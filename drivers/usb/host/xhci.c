@@ -1582,6 +1582,113 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 	return ret;
 }
 
+static u32 xhci_count_num_new_endpoints(struct xhci_hcd *xhci,
+		struct xhci_container_ctx *in_ctx)
+{
+	struct xhci_input_control_ctx *ctrl_ctx;
+	u32 valid_add_flags;
+	u32 valid_drop_flags;
+
+	ctrl_ctx = xhci_get_input_control_ctx(xhci, in_ctx);
+	/* Ignore the slot flag (bit 0), and the default control endpoint flag
+	 * (bit 1).  The default control endpoint is added during the Address
+	 * Device command and is never removed until the slot is disabled.
+	 */
+	valid_add_flags = ctrl_ctx->add_flags >> 2;
+	valid_drop_flags = ctrl_ctx->drop_flags >> 2;
+
+	/* Use hweight32 to count the number of ones in the add flags, or
+	 * number of endpoints added.  Don't count endpoints that are changed
+	 * (both added and dropped).
+	 */
+	return hweight32(valid_add_flags) -
+		hweight32(valid_add_flags & valid_drop_flags);
+}
+
+static unsigned int xhci_count_num_dropped_endpoints(struct xhci_hcd *xhci,
+		struct xhci_container_ctx *in_ctx)
+{
+	struct xhci_input_control_ctx *ctrl_ctx;
+	u32 valid_add_flags;
+	u32 valid_drop_flags;
+
+	ctrl_ctx = xhci_get_input_control_ctx(xhci, in_ctx);
+	valid_add_flags = ctrl_ctx->add_flags >> 2;
+	valid_drop_flags = ctrl_ctx->drop_flags >> 2;
+
+	return hweight32(valid_drop_flags) -
+		hweight32(valid_add_flags & valid_drop_flags);
+}
+
+/*
+ * We need to reserve the new number of endpoints before the configure endpoint
+ * command completes.  We can't subtract the dropped endpoints from the number
+ * of active endpoints until the command completes because we can oversubscribe
+ * the host in this case:
+ *
+ *  - the first configure endpoint command drops more endpoints than it adds
+ *  - a second configure endpoint command that adds more endpoints is queued
+ *  - the first configure endpoint command fails, so the config is unchanged
+ *  - the second command may succeed, even though there isn't enough resources
+ *
+ * Must be called with xhci->lock held.
+ */
+static int xhci_reserve_host_resources(struct xhci_hcd *xhci,
+		struct xhci_container_ctx *in_ctx)
+{
+	u32 added_eps;
+
+	added_eps = xhci_count_num_new_endpoints(xhci, in_ctx);
+	if (xhci->num_active_eps + added_eps > xhci->limit_active_eps) {
+		xhci_dbg(xhci, "Not enough ep ctxs: "
+				"%u active, need to add %u, limit is %u.\n",
+				xhci->num_active_eps, added_eps,
+				xhci->limit_active_eps);
+		return -ENOMEM;
+	}
+	xhci->num_active_eps += added_eps;
+	xhci_dbg(xhci, "Adding %u ep ctxs, %u now active.\n", added_eps,
+			xhci->num_active_eps);
+	return 0;
+}
+
+/*
+ * The configure endpoint was failed by the xHC for some other reason, so we
+ * need to revert the resources that failed configuration would have used.
+ *
+ * Must be called with xhci->lock held.
+ */
+static void xhci_free_host_resources(struct xhci_hcd *xhci,
+		struct xhci_container_ctx *in_ctx)
+{
+	u32 num_failed_eps;
+
+	num_failed_eps = xhci_count_num_new_endpoints(xhci, in_ctx);
+	xhci->num_active_eps -= num_failed_eps;
+	xhci_dbg(xhci, "Removing %u failed ep ctxs, %u now active.\n",
+			num_failed_eps,
+			xhci->num_active_eps);
+}
+
+/*
+ * Now that the command has completed, clean up the active endpoint count by
+ * subtracting out the endpoints that were dropped (but not changed).
+ *
+ * Must be called with xhci->lock held.
+ */
+static void xhci_finish_resource_reservation(struct xhci_hcd *xhci,
+		struct xhci_container_ctx *in_ctx)
+{
+	u32 num_dropped_eps;
+
+	num_dropped_eps = xhci_count_num_dropped_endpoints(xhci, in_ctx);
+	xhci->num_active_eps -= num_dropped_eps;
+	if (num_dropped_eps)
+		xhci_dbg(xhci, "Removing %u dropped ep ctxs, %u now active.\n",
+				num_dropped_eps,
+				xhci->num_active_eps);
+}
+
 /* Issue a configure endpoint command or evaluate context command
  * and wait for it to finish.
  */
@@ -1602,6 +1709,15 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	virt_dev = xhci->devs[udev->slot_id];
 	if (command) {
 		in_ctx = command->in_ctx;
+		if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK) &&
+				xhci_reserve_host_resources(xhci, in_ctx)) {
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			xhci_warn(xhci, "Not enough host resources, "
+					"active endpoint contexts = %u\n",
+					xhci->num_active_eps);
+			return -ENOMEM;
+		}
+
 		cmd_completion = command->completion;
 		cmd_status = &command->status;
 		command->command_trb = xhci->cmd_ring->enqueue;
@@ -1617,6 +1733,14 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 		list_add_tail(&command->cmd_list, &virt_dev->cmd_list);
 	} else {
 		in_ctx = virt_dev->in_ctx;
+		if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK) &&
+				xhci_reserve_host_resources(xhci, in_ctx)) {
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			xhci_warn(xhci, "Not enough host resources, "
+					"active endpoint contexts = %u\n",
+					xhci->num_active_eps);
+			return -ENOMEM;
+		}
 		cmd_completion = &virt_dev->cmd_completion;
 		cmd_status = &virt_dev->cmd_status;
 	}
@@ -1631,6 +1755,8 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	if (ret < 0) {
 		if (command)
 			list_del(&command->cmd_list);
+		if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK))
+			xhci_free_host_resources(xhci, in_ctx);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		xhci_dbg(xhci, "FIXME allocate a new ring segment\n");
 		return -ENOMEM;
@@ -1653,8 +1779,22 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	}
 
 	if (!ctx_change)
-		return xhci_configure_endpoint_result(xhci, udev, cmd_status);
-	return xhci_evaluate_context_result(xhci, udev, cmd_status);
+		ret = xhci_configure_endpoint_result(xhci, udev, cmd_status);
+	else
+		ret = xhci_evaluate_context_result(xhci, udev, cmd_status);
+
+	if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK)) {
+		spin_lock_irqsave(&xhci->lock, flags);
+		/* If the command failed, remove the reserved resources.
+		 * Otherwise, clean up the estimate to include dropped eps.
+		 */
+		if (ret)
+			xhci_free_host_resources(xhci, in_ctx);
+		else
+			xhci_finish_resource_reservation(xhci, in_ctx);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+	}
+	return ret;
 }
 
 /* Called after one or more calls to xhci_add_endpoint() or
@@ -2272,6 +2412,34 @@ int xhci_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
 }
 
 /*
+ * Deletes endpoint resources for endpoints that were active before a Reset
+ * Device command, or a Disable Slot command.  The Reset Device command leaves
+ * the control endpoint intact, whereas the Disable Slot command deletes it.
+ *
+ * Must be called with xhci->lock held.
+ */
+void xhci_free_device_endpoint_resources(struct xhci_hcd *xhci,
+	struct xhci_virt_device *virt_dev, bool drop_control_ep)
+{
+	int i;
+	unsigned int num_dropped_eps = 0;
+	unsigned int drop_flags = 0;
+
+	for (i = (drop_control_ep ? 0 : 1); i < 31; i++) {
+		if (virt_dev->eps[i].ring) {
+			drop_flags |= 1 << i;
+			num_dropped_eps++;
+		}
+	}
+	xhci->num_active_eps -= num_dropped_eps;
+	if (num_dropped_eps)
+		xhci_dbg(xhci, "Dropped %u ep ctxs, flags = 0x%x, "
+				"%u now active.\n",
+				num_dropped_eps, drop_flags,
+				xhci->num_active_eps);
+}
+
+/*
  * This submits a Reset Device Command, which will set the device state to 0,
  * set the device address to 0, and disable all the endpoints except the default
  * control endpoint.  The USB core should come back and call
@@ -2412,6 +2580,14 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 		goto command_cleanup;
 	}
 
+	/* Free up host controller endpoint resources */
+	if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK)) {
+		spin_lock_irqsave(&xhci->lock, flags);
+		/* Don't delete the default control endpoint resources */
+		xhci_free_device_endpoint_resources(xhci, virt_dev, false);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+	}
+
 	/* Everything but endpoint 0 is disabled, so free or cache the rings. */
 	last_freed_endpoint = 1;
 	for (i = 1; i < 31; ++i) {
@@ -2485,6 +2661,27 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 }
 
 /*
+ * Checks if we have enough host controller resources for the default control
+ * endpoint.
+ *
+ * Must be called with xhci->lock held.
+ */
+static int xhci_reserve_host_control_ep_resources(struct xhci_hcd *xhci)
+{
+	if (xhci->num_active_eps + 1 > xhci->limit_active_eps) {
+		xhci_dbg(xhci, "Not enough ep ctxs: "
+				"%u active, need to add 1, limit is %u.\n",
+				xhci->num_active_eps, xhci->limit_active_eps);
+		return -ENOMEM;
+	}
+	xhci->num_active_eps += 1;
+	xhci_dbg(xhci, "Adding 1 ep ctx, %u now active.\n",
+			xhci->num_active_eps);
+	return 0;
+}
+
+
+/*
  * Returns 0 if the xHC ran out of device slots, the Enable Slot command
  * timed out, or allocating memory failed.  Returns 1 on success.
  */
@@ -2519,24 +2716,39 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		xhci_err(xhci, "Error while assigning device slot ID\n");
 		return 0;
 	}
-	/* xhci_alloc_virt_device() does not touch rings; no need to lock.
-	 * Use GFP_NOIO, since this function can be called from
+
+	if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK)) {
+		spin_lock_irqsave(&xhci->lock, flags);
+		ret = xhci_reserve_host_control_ep_resources(xhci);
+		if (ret) {
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			xhci_warn(xhci, "Not enough host resources, "
+					"active endpoint contexts = %u\n",
+					xhci->num_active_eps);
+			goto disable_slot;
+		}
+		spin_unlock_irqrestore(&xhci->lock, flags);
+	}
+	/* Use GFP_NOIO, since this function can be called from
 	 * xhci_discover_or_reset_device(), which may be called as part of
 	 * mass storage driver error handling.
 	 */
 	if (!xhci_alloc_virt_device(xhci, xhci->slot_id, udev, GFP_NOIO)) {
-		/* Disable slot, if we can do it without mem alloc */
 		xhci_warn(xhci, "Could not allocate xHCI USB device data structures\n");
-		spin_lock_irqsave(&xhci->lock, flags);
-		if (!xhci_queue_slot_control(xhci, TRB_DISABLE_SLOT, udev->slot_id))
-			xhci_ring_cmd_db(xhci);
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		return 0;
+		goto disable_slot;
 	}
 	udev->slot_id = xhci->slot_id;
 	/* Is this a LS or FS device under a HS hub? */
 	/* Hub or peripherial? */
 	return 1;
+
+disable_slot:
+	/* Disable slot, if we can do it without mem alloc */
+	spin_lock_irqsave(&xhci->lock, flags);
+	if (!xhci_queue_slot_control(xhci, TRB_DISABLE_SLOT, udev->slot_id))
+		xhci_ring_cmd_db(xhci);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	return 0;
 }
 
 /*

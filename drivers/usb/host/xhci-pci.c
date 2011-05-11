@@ -121,6 +121,8 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
 			pdev->device == PCI_DEVICE_ID_INTEL_PANTHERPOINT_XHCI) {
 		xhci->quirks |= XHCI_SPURIOUS_SUCCESS;
+		xhci->quirks |= XHCI_EP_LIMIT_QUIRK;
+		xhci->limit_active_eps = 64;
 	}
 
 	/* Make sure the HC is halted. */

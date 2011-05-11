@@ -1292,6 +1292,18 @@ struct xhci_hcd {
 #define XHCI_NEC_HOST		(1 << 2)
 #define XHCI_AMD_PLL_FIX	(1 << 3)
 #define XHCI_SPURIOUS_SUCCESS	(1 << 4)
+/*
+ * Certain Intel host controllers have a limit to the number of endpoint
+ * contexts they can handle.  Ideally, they would signal that they can't handle
+ * anymore endpoint contexts by returning a Resource Error for the Configure
+ * Endpoint command, but they don't.  Instead they expect software to keep track
+ * of the number of active endpoints for them, across configure endpoint
+ * commands, reset device commands, disable slot commands, and address device
+ * commands.
+ */
+#define XHCI_EP_LIMIT_QUIRK	(1 << 5)
+	unsigned int		num_active_eps;
+	unsigned int		limit_active_eps;
 	/* There are two roothubs to keep track of bus suspend info for */
 	struct xhci_bus_state   bus_state[2];
 	/* Is each xHCI roothub port a USB 3.0, USB 2.0, or USB 1.1 port? */
@@ -1435,6 +1447,8 @@ void xhci_setup_streams_ep_input_ctx(struct xhci_hcd *xhci,
 void xhci_setup_no_streams_ep_input_ctx(struct xhci_hcd *xhci,
 		struct xhci_ep_ctx *ep_ctx,
 		struct xhci_virt_ep *ep);
+void xhci_free_device_endpoint_resources(struct xhci_hcd *xhci,
+	struct xhci_virt_device *virt_dev, bool drop_control_ep);
 struct xhci_ring *xhci_dma_to_transfer_ring(
 		struct xhci_virt_ep *ep,
 		u64 address);
