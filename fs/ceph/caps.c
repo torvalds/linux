@@ -819,7 +819,7 @@ int __ceph_caps_used(struct ceph_inode_info *ci)
 		used |= CEPH_CAP_FILE_CACHE;
 	if (ci->i_wr_ref)
 		used |= CEPH_CAP_FILE_WR;
-	if (ci->i_wrbuffer_ref)
+	if (ci->i_wb_ref || ci->i_wrbuffer_ref)
 		used |= CEPH_CAP_FILE_BUFFER;
 	return used;
 }
@@ -1990,11 +1990,11 @@ static void __take_cap_refs(struct ceph_inode_info *ci, int got)
 	if (got & CEPH_CAP_FILE_WR)
 		ci->i_wr_ref++;
 	if (got & CEPH_CAP_FILE_BUFFER) {
-		if (ci->i_wrbuffer_ref == 0)
+		if (ci->i_wb_ref == 0)
 			ihold(&ci->vfs_inode);
-		ci->i_wrbuffer_ref++;
-		dout("__take_cap_refs %p wrbuffer %d -> %d (?)\n",
-		     &ci->vfs_inode, ci->i_wrbuffer_ref-1, ci->i_wrbuffer_ref);
+		ci->i_wb_ref++;
+		dout("__take_cap_refs %p wb %d -> %d (?)\n",
+		     &ci->vfs_inode, ci->i_wb_ref-1, ci->i_wb_ref);
 	}
 }
 
@@ -2169,12 +2169,12 @@ void ceph_put_cap_refs(struct ceph_inode_info *ci, int had)
 		if (--ci->i_rdcache_ref == 0)
 			last++;
 	if (had & CEPH_CAP_FILE_BUFFER) {
-		if (--ci->i_wrbuffer_ref == 0) {
+		if (--ci->i_wb_ref == 0) {
 			last++;
 			put++;
 		}
-		dout("put_cap_refs %p wrbuffer %d -> %d (?)\n",
-		     inode, ci->i_wrbuffer_ref+1, ci->i_wrbuffer_ref);
+		dout("put_cap_refs %p wb %d -> %d (?)\n",
+		     inode, ci->i_wb_ref+1, ci->i_wb_ref);
 	}
 	if (had & CEPH_CAP_FILE_WR)
 		if (--ci->i_wr_ref == 0) {
