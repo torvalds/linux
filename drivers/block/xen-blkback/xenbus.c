@@ -351,7 +351,7 @@ static int vbd_create(struct blkif_st *blkif, blkif_vdev_t handle,
 				 FMODE_READ : FMODE_WRITE, NULL);
 
 	if (IS_ERR(bdev)) {
-		DPRINTK("vbd_creat: device %08x could not be opened.\n",
+		DPRINTK("vbd_create: device %08x could not be opened.\n",
 			vbd->pdevice);
 		return -ENOENT;
 	}
@@ -360,7 +360,7 @@ static int vbd_create(struct blkif_st *blkif, blkif_vdev_t handle,
 	vbd->size = vbd_sz(vbd);
 
 	if (vbd->bdev->bd_disk == NULL) {
-		DPRINTK("vbd_creat: device %08x doesn't exist.\n",
+		DPRINTK("vbd_create: device %08x doesn't exist.\n",
 			vbd->pdevice);
 		vbd_free(vbd);
 		return -ENOENT;
