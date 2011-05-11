@@ -560,6 +560,15 @@ source "drivers/scsi/aic7xxx/Kconfig.aic79xx"
 source "drivers/scsi/aic94xx/Kconfig"
 source "drivers/scsi/mvsas/Kconfig"
 
+config SCSI_MVUMI
+	tristate "Marvell UMI driver"
+	depends on SCSI && PCI
+	help
+	  Module for Marvell Universal Message Interface(UMI) driver
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mvumi.
+
 config SCSI_DPT_I2O
 	tristate "Adaptec I2O RAID support "
 	depends on SCSI && PCI && VIRT_TO_BUS
