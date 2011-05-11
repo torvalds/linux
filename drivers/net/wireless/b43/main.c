@@ -4221,7 +4221,18 @@ static void b43_bluetooth_coext_disable(struct b43_wldev *dev)
 
 static void b43_imcfglo_timeouts_workaround(struct b43_wldev *dev)
 {
-	/* TODO: implement 80211 core workaround here */
+	struct ssb_bus *bus = dev->dev->bus;
+	u32 tmp;
+
+	if ((bus->chip_id == 0x4311 && bus->chip_rev == 2) ||
+	    (bus->chip_id == 0x4312)) {
+		tmp = ssb_read32(dev->dev, SSB_IMCFGLO);
+		tmp &= ~SSB_IMCFGLO_REQTO;
+		tmp &= ~SSB_IMCFGLO_SERTO;
+		tmp |= 0x3;
+		ssb_write32(dev->dev, SSB_IMCFGLO, tmp);
+		ssb_commit_settings(bus);
+	}
 }
 
 static void b43_set_synth_pu_delay(struct b43_wldev *dev, bool idle)
