@@ -183,7 +183,6 @@ static void usbhsp_pipe_select(struct usbhs_pipe *pipe)
 static int usbhsp_pipe_barrier(struct usbhs_pipe *pipe)
 {
 	struct usbhs_priv *priv = usbhsp_pipe_to_priv(pipe);
-	struct device *dev = usbhs_priv_to_dev(priv);
 	int timeout = 1024;
 	u16 val;
 
@@ -206,6 +205,7 @@ static int usbhsp_pipe_barrier(struct usbhs_pipe *pipe)
 	 *   - "Pipe Control Registers Switching Procedure"
 	 */
 	usbhs_write(priv, CFIFOSEL, 0);
+	usbhs_fifo_disable(pipe);
 
 	do {
 		val  = usbhsp_pipectrl_get(pipe);
@@ -216,21 +216,6 @@ static int usbhsp_pipe_barrier(struct usbhs_pipe *pipe)
 		udelay(10);
 
 	} while (timeout--);
-
-	/*
-	 * force NAK
-	 */
-	timeout = 1024;
-	usbhs_fifo_disable(pipe);
-	do {
-		val  = usbhsp_pipectrl_get(pipe);
-		val &= PBUSY;
-		if (!val)
-			return 0;
-
-	} while (timeout--);
-
-	dev_err(dev, "pipe barrier failed\n");
 
 	return -EBUSY;
 }
@@ -270,10 +255,22 @@ static void __usbhsp_pid_try_nak_if_stall(struct usbhs_pipe *pipe)
 
 void usbhs_fifo_disable(struct usbhs_pipe *pipe)
 {
+	int timeout = 1024;
+	u16 val;
+
 	/* see "Pipe n Control Register" - "PID" */
 	__usbhsp_pid_try_nak_if_stall(pipe);
 
 	usbhsp_pipectrl_set(pipe, PID_MASK, PID_NAK);
+
+	do {
+		val  = usbhsp_pipectrl_get(pipe);
+		val &= PBUSY;
+		if (!val)
+			break;
+
+		udelay(10);
+	} while (timeout--);
 }
 
 void usbhs_fifo_enable(struct usbhs_pipe *pipe)
