@@ -36,6 +36,10 @@ unsigned int lbs_debug;
 EXPORT_SYMBOL_GPL(lbs_debug);
 module_param_named(libertas_debug, lbs_debug, int, 0644);
 
+unsigned int lbs_disablemesh;
+EXPORT_SYMBOL_GPL(lbs_disablemesh);
+module_param_named(libertas_disablemesh, lbs_disablemesh, int, 0644);
+
 
 /*
  * This global structure is used to send the confirm_sleep command as
@@ -944,7 +948,10 @@ int lbs_start_card(struct lbs_private *priv)
 
 	lbs_update_channel(priv);
 
-	lbs_init_mesh(priv);
+	if (!lbs_disablemesh)
+		lbs_init_mesh(priv);
+	else
+		pr_info("%s: mesh disabled\n", dev->name);
 
 	lbs_debugfs_init_one(priv, dev);
 
