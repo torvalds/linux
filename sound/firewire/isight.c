@@ -5,6 +5,7 @@
  * Licensed under the terms of the GNU General Public License, version 2.
  */
 
+#include <asm/byteorder.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firewire.h>
@@ -311,23 +312,28 @@ static int isight_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int reg_read(struct isight *isight, int offset, __be32 *value)
+{
+	return snd_fw_transaction(isight->unit, TCODE_READ_QUADLET_REQUEST,
+				  isight->audio_base + offset, value, 4);
+}
+
+static int reg_write(struct isight *isight, int offset, __be32 value)
+{
+	return snd_fw_transaction(isight->unit, TCODE_WRITE_QUADLET_REQUEST,
+				  isight->audio_base + offset, &value, 4);
+}
+
 static void isight_stop_streaming(struct isight *isight)
 {
-	__be32 value;
-
 	if (!isight->context)
 		return;
 
 	fw_iso_context_stop(isight->context);
 	fw_iso_context_destroy(isight->context);
 	isight->context = NULL;
-
-	value = 0;
-	snd_fw_transaction(isight->unit, TCODE_WRITE_QUADLET_REQUEST,
-			   isight->audio_base + REG_AUDIO_ENABLE,
-			   &value, 4);
-
 	fw_iso_resources_free(&isight->resources);
+	reg_write(isight, REG_AUDIO_ENABLE, 0);
 }
 
 static int isight_hw_free(struct snd_pcm_substream *substream)
@@ -345,7 +351,6 @@ static int isight_hw_free(struct snd_pcm_substream *substream)
 
 static int isight_start_streaming(struct isight *isight)
 {
-	__be32 value;
 	unsigned int i;
 	int err;
 
@@ -356,21 +361,15 @@ static int isight_start_streaming(struct isight *isight)
 			return 0;
 	}
 
-	value = cpu_to_be32(RATE_48000);
-	err = snd_fw_transaction(isight->unit, TCODE_WRITE_QUADLET_REQUEST,
-				 isight->audio_base + REG_SAMPLE_RATE,
-				 &value, 4);
+	err = reg_write(isight, REG_SAMPLE_RATE, cpu_to_be32(RATE_48000));
 	if (err < 0)
-		return err;
+		goto error;
 
 	err = isight_connect(isight);
 	if (err < 0)
 		goto error;
 
-	value = cpu_to_be32(AUDIO_ENABLE);
-	err = snd_fw_transaction(isight->unit, TCODE_WRITE_QUADLET_REQUEST,
-				 isight->audio_base + REG_AUDIO_ENABLE,
-				 &value, 4);
+	err = reg_write(isight, REG_AUDIO_ENABLE, cpu_to_be32(AUDIO_ENABLE));
 	if (err < 0)
 		goto err_resources;
 
@@ -407,11 +406,8 @@ err_context:
 	fw_iso_context_destroy(isight->context);
 	isight->context = NULL;
 err_resources:
-	value = 0;
-	snd_fw_transaction(isight->unit, TCODE_WRITE_QUADLET_REQUEST,
-			   isight->audio_base + REG_AUDIO_ENABLE,
-			   &value, 4);
 	fw_iso_resources_free(&isight->resources);
+	reg_write(isight, REG_AUDIO_ENABLE, 0);
 error:
 	return err;
 }
@@ -503,8 +499,7 @@ static int isight_gain_get(struct snd_kcontrol *ctl,
 	__be32 gain;
 	int err;
 
-	err = snd_fw_transaction(isight->unit, TCODE_READ_QUADLET_REQUEST,
-				 isight->audio_base + REG_GAIN, &gain, 4);
+	err = reg_read(isight, REG_GAIN, &gain);
 	if (err < 0)
 		return err;
 
@@ -517,15 +512,13 @@ static int isight_gain_put(struct snd_kcontrol *ctl,
 			   struct snd_ctl_elem_value *value)
 {
 	struct isight *isight = ctl->private_data;
-	__be32 gain;
 
 	if (value->value.integer.value[0] < isight->gain_min ||
 	    value->value.integer.value[0] > isight->gain_max)
 		return -EINVAL;
 
-	gain = cpu_to_be32(value->value.integer.value[0]);
-	return snd_fw_transaction(isight->unit, TCODE_WRITE_QUADLET_REQUEST,
-				  isight->audio_base + REG_GAIN, &gain, 4);
+	return reg_write(isight, REG_GAIN,
+			 cpu_to_be32(value->value.integer.value[0]));
 }
 
 static int isight_mute_get(struct snd_kcontrol *ctl,
@@ -535,8 +528,7 @@ static int isight_mute_get(struct snd_kcontrol *ctl,
 	__be32 mute;
 	int err;
 
-	err = snd_fw_transaction(isight->unit, TCODE_READ_QUADLET_REQUEST,
-				 isight->audio_base + REG_MUTE, &mute, 4);
+	err = reg_read(isight, REG_MUTE, &mute);
 	if (err < 0)
 		return err;
 
@@ -549,11 +541,9 @@ static int isight_mute_put(struct snd_kcontrol *ctl,
 			   struct snd_ctl_elem_value *value)
 {
 	struct isight *isight = ctl->private_data;
-	__be32 mute;
 
-	mute = (__force __be32)!value->value.integer.value[0];
-	return snd_fw_transaction(isight->unit, TCODE_WRITE_QUADLET_REQUEST,
-				  isight->audio_base + REG_MUTE, &mute, 4);
+	return reg_write(isight, REG_MUTE,
+			 (__force __be32)!value->value.integer.value[0]);
 }
 
 static int isight_create_mixer(struct isight *isight)
@@ -578,31 +568,25 @@ static int isight_create_mixer(struct isight *isight)
 	struct snd_kcontrol *ctl;
 	int err;
 
-	err = snd_fw_transaction(isight->unit, TCODE_READ_QUADLET_REQUEST,
-				 isight->audio_base + REG_GAIN_RAW_START,
-				 &value, 4);
+	err = reg_read(isight, REG_GAIN_RAW_START, &value);
 	if (err < 0)
 		return err;
 	isight->gain_min = be32_to_cpu(value);
 
-	err = snd_fw_transaction(isight->unit, TCODE_READ_QUADLET_REQUEST,
-				 isight->audio_base + REG_GAIN_RAW_END,
-				 &value, 4);
+	err = reg_read(isight, REG_GAIN_RAW_END, &value);
 	if (err < 0)
 		return err;
 	isight->gain_max = be32_to_cpu(value);
 
 	isight->gain_tlv[0] = SNDRV_CTL_TLVT_DB_MINMAX;
 	isight->gain_tlv[1] = 2 * sizeof(unsigned int);
-	err = snd_fw_transaction(isight->unit, TCODE_READ_QUADLET_REQUEST,
-				 isight->audio_base + REG_GAIN_DB_START,
-				 &value, 4);
+
+	err = reg_read(isight, REG_GAIN_DB_START, &value);
 	if (err < 0)
 		return err;
 	isight->gain_tlv[2] = (s32)be32_to_cpu(value) * 100;
-	err = snd_fw_transaction(isight->unit, TCODE_READ_QUADLET_REQUEST,
-				 isight->audio_base + REG_GAIN_DB_END,
-				 &value, 4);
+
+	err = reg_read(isight, REG_GAIN_DB_END, &value);
 	if (err < 0)
 		return err;
 	isight->gain_tlv[3] = (s32)be32_to_cpu(value) * 100;
