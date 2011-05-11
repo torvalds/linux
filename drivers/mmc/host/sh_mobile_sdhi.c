@@ -71,6 +71,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	}
 
 	mmc_data = &priv->mmc_data;
+	p->pdata = mmc_data;
 
 	snprintf(clk_name, sizeof(clk_name), "sdhi%d", pdev->id);
 	priv->clk = clk_get(&pdev->dev, clk_name);
@@ -159,7 +160,10 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
+	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 	int i, irq;
+
+	p->pdata = NULL;
 
 	for (i = 0; i < 3; i++) {
 		irq = platform_get_irq(pdev, i);
@@ -178,6 +182,8 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 static const struct dev_pm_ops tmio_mmc_dev_pm_ops = {
 	.suspend = tmio_mmc_host_suspend,
 	.resume = tmio_mmc_host_resume,
+	.runtime_suspend = tmio_mmc_host_runtime_suspend,
+	.runtime_resume = tmio_mmc_host_runtime_resume,
 };
 
 static struct platform_driver sh_mobile_sdhi_driver = {
