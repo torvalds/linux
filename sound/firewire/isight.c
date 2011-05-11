@@ -198,9 +198,6 @@ static void isight_packet(struct fw_iso_context *context, u32 cycle,
 		}
 	}
 
-	if (++index >= QUEUE_LENGTH)
-		index = 0;
-
 	err = fw_iso_context_queue(isight->context, &audio_packet,
 				   &isight->buffer.iso_buffer,
 				   isight->buffer.packets[index].offset);
@@ -211,6 +208,8 @@ static void isight_packet(struct fw_iso_context *context, u32 cycle,
 		return;
 	}
 
+	if (++index >= QUEUE_LENGTH)
+		index = 0;
 	isight->packet_index = index;
 }
 
