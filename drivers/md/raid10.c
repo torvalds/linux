@@ -1650,8 +1650,8 @@ static void raid10d(mddev_t *mddev)
 			}
 			rdev_dec_pending(conf->mirrors[mirror].rdev, mddev);
 
-			bio = r10_bio->devs[r10_bio->read_slot].bio;
-			r10_bio->devs[r10_bio->read_slot].bio =
+			bio = r10_bio->devs[slot].bio;
+			r10_bio->devs[slot].bio =
 				mddev->ro ? IO_BLOCKED : NULL;
 			mirror = read_balance(conf, r10_bio);
 			if (mirror == -1) {
@@ -1665,6 +1665,7 @@ static void raid10d(mddev_t *mddev)
 			} else {
 				const unsigned long do_sync = (r10_bio->master_bio->bi_rw & REQ_SYNC);
 				bio_put(bio);
+				slot = r10_bio->read_slot;
 				rdev = conf->mirrors[mirror].rdev;
 				if (printk_ratelimit())
 					printk(KERN_ERR "md/raid10:%s: %s: redirecting sector %llu to"
@@ -1674,8 +1675,8 @@ static void raid10d(mddev_t *mddev)
 					       (unsigned long long)r10_bio->sector);
 				bio = bio_clone_mddev(r10_bio->master_bio,
 						      GFP_NOIO, mddev);
-				r10_bio->devs[r10_bio->read_slot].bio = bio;
-				bio->bi_sector = r10_bio->devs[r10_bio->read_slot].addr
+				r10_bio->devs[slot].bio = bio;
+				bio->bi_sector = r10_bio->devs[slot].addr
 					+ rdev->data_offset;
 				bio->bi_bdev = rdev->bdev;
 				bio->bi_rw = READ | do_sync;
