@@ -56,6 +56,7 @@ struct isight {
 	struct iso_packets_buffer buffer;
 	struct fw_iso_resources resources;
 	struct fw_iso_context *context;
+	bool pcm_active;
 	bool pcm_running;
 	bool first_packet;
 	int packet_index;
@@ -131,10 +132,12 @@ static void isight_pcm_abort(struct isight *isight)
 {
 	unsigned long flags;
 
-	snd_pcm_stream_lock_irqsave(isight->pcm, flags);
-	if (snd_pcm_running(isight->pcm))
-		snd_pcm_stop(isight->pcm, SNDRV_PCM_STATE_XRUN);
-	snd_pcm_stream_unlock_irqrestore(isight->pcm, flags);
+	if (ACCESS_ONCE(isight->pcm_active)) {
+		snd_pcm_stream_lock_irqsave(isight->pcm, flags);
+		if (snd_pcm_running(isight->pcm))
+			snd_pcm_stop(isight->pcm, SNDRV_PCM_STATE_XRUN);
+		snd_pcm_stream_unlock_irqrestore(isight->pcm, flags);
+	}
 }
 
 static void isight_dropped_samples(struct isight *isight, unsigned int total)
@@ -295,8 +298,17 @@ static int isight_close(struct snd_pcm_substream *substream)
 static int isight_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *hw_params)
 {
-	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
-						params_buffer_bytes(hw_params));
+	struct isight *isight = substream->private_data;
+	int err;
+
+	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
+					       params_buffer_bytes(hw_params));
+	if (err < 0)
+		return err;
+
+	ACCESS_ONCE(isight->pcm_active) = true;
+
+	return 0;
 }
 
 static void isight_stop_streaming(struct isight *isight)
@@ -321,6 +333,8 @@ static void isight_stop_streaming(struct isight *isight)
 static int isight_hw_free(struct snd_pcm_substream *substream)
 {
 	struct isight *isight = substream->private_data;
+
+	ACCESS_ONCE(isight->pcm_active) = false;
 
 	mutex_lock(&isight->mutex);
 	isight_stop_streaming(isight);
