@@ -2095,7 +2095,7 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	u16 dcid = 0, scid = __le16_to_cpu(req->scid);
 	__le16 psm = req->psm;
 
-	BT_ERR("psm 0x%2.2x scid 0x%4.4x", psm, scid);
+	BT_DBG("psm 0x%2.2x scid 0x%4.4x", psm, scid);
 
 	/* Check if we have socket listening on psm */
 	pchan = l2cap_global_chan_by_psm(BT_LISTEN, psm, conn->src);
@@ -2103,8 +2103,6 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 		result = L2CAP_CR_BAD_PSM;
 		goto sendresp;
 	}
-
-	BT_ERR("%p 0x%2.2x", pchan, pchan->psm);
 
 	parent = pchan->sk;
 
