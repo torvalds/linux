@@ -32,7 +32,7 @@
 #define TIMER_FREQ_KHZ	(1000)
 #define TIMER_RELOAD	(TIMER_FREQ_KHZ * 1000 / HZ)
 
-void __init sp804_clocksource_init(void __iomem *base)
+void __init sp804_clocksource_init(void __iomem *base, const char *name)
 {
 	/* setup timer 0 as free-running clocksource */
 	writel(0, base + TIMER_CTRL);
@@ -41,7 +41,7 @@ void __init sp804_clocksource_init(void __iomem *base)
 	writel(TIMER_CTRL_32BIT | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC,
 		base + TIMER_CTRL);
 
-	clocksource_mmio_init(base + TIMER_VALUE, "timer3",
+	clocksource_mmio_init(base + TIMER_VALUE, name,
 		TIMER_FREQ_KHZ * 1000, 200, 32, clocksource_mmio_readl_down);
 }
 

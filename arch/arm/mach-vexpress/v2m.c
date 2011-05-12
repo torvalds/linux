@@ -65,7 +65,7 @@ static void __init v2m_timer_init(void)
 	writel(0, MMIO_P2V(V2M_TIMER0) + TIMER_CTRL);
 	writel(0, MMIO_P2V(V2M_TIMER1) + TIMER_CTRL);
 
-	sp804_clocksource_init(MMIO_P2V(V2M_TIMER1));
+	sp804_clocksource_init(MMIO_P2V(V2M_TIMER1), "v2m-timer1");
 	sp804_clockevents_init(MMIO_P2V(V2M_TIMER0), IRQ_V2M_TIMER0);
 }
 
