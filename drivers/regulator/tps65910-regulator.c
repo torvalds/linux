@@ -604,7 +604,6 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	struct tps65910_reg *pmic;
 	struct tps65910_board *pmic_plat_data;
-	static int desc_id;
 	int i, err;
 
 	pmic_plat_data = dev_get_platdata(tps65910->dev);
@@ -630,7 +629,7 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 		pmic->info[i] = info;
 
 		pmic->desc[i].name = info->name;
-		pmic->desc[i].id = desc_id++;
+		pmic->desc[i].id = i;
 		pmic->desc[i].n_voltages = info->table_len;
 
 		if ((i == TPS65910_REG_VDD1) || (i == TPS65910_REG_VDD2))
