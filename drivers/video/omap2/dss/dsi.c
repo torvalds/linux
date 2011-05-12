@@ -330,6 +330,11 @@ struct dsi_data {
 	unsigned scp_clk_refcount;
 };
 
+struct dsi_packet_sent_handler_data {
+	struct platform_device *dsidev;
+	struct completion *completion;
+};
+
 static struct platform_device *dsi_pdev_map[MAX_NUM_DSI];
 
 #ifdef DEBUG
@@ -2394,27 +2399,28 @@ static bool dsi_vc_is_enabled(struct platform_device *dsidev, int channel)
 
 static void dsi_packet_sent_handler_vp(void *data, u32 mask)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_id(0);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_packet_sent_handler_data *vp_data =
+		(struct dsi_packet_sent_handler_data *) data;
+	struct dsi_data *dsi = dsi_get_dsidrv_data(vp_data->dsidev);
 	const int channel = dsi->update_channel;
 	u8 bit = dsi->te_enabled ? 30 : 31;
 
-	if (REG_GET(dsidev, DSI_VC_TE(channel), bit, bit) == 0)
-		complete((struct completion *)data);
+	if (REG_GET(vp_data->dsidev, DSI_VC_TE(channel), bit, bit) == 0)
+		complete(vp_data->completion);
 }
 
 static int dsi_sync_vc_vp(struct platform_device *dsidev, int channel)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	DECLARE_COMPLETION_ONSTACK(completion);
+	struct dsi_packet_sent_handler_data vp_data = { dsidev, &completion };
 	int r = 0;
 	u8 bit;
-
-	DECLARE_COMPLETION_ONSTACK(completion);
 
 	bit = dsi->te_enabled ? 30 : 31;
 
 	r = dsi_register_isr_vc(dsidev, channel, dsi_packet_sent_handler_vp,
-		&completion, DSI_VC_IRQ_PACKET_SENT);
+		&vp_data, DSI_VC_IRQ_PACKET_SENT);
 	if (r)
 		goto err0;
 
@@ -2429,34 +2435,35 @@ static int dsi_sync_vc_vp(struct platform_device *dsidev, int channel)
 	}
 
 	dsi_unregister_isr_vc(dsidev, channel, dsi_packet_sent_handler_vp,
-		&completion, DSI_VC_IRQ_PACKET_SENT);
+		&vp_data, DSI_VC_IRQ_PACKET_SENT);
 
 	return 0;
 err1:
 	dsi_unregister_isr_vc(dsidev, channel, dsi_packet_sent_handler_vp,
-		&completion, DSI_VC_IRQ_PACKET_SENT);
+		&vp_data, DSI_VC_IRQ_PACKET_SENT);
 err0:
 	return r;
 }
 
 static void dsi_packet_sent_handler_l4(void *data, u32 mask)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_id(0);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_packet_sent_handler_data *l4_data =
+		(struct dsi_packet_sent_handler_data *) data;
+	struct dsi_data *dsi = dsi_get_dsidrv_data(l4_data->dsidev);
 	const int channel = dsi->update_channel;
 
-	if (REG_GET(dsidev, DSI_VC_CTRL(channel), 5, 5) == 0)
-		complete((struct completion *)data);
+	if (REG_GET(l4_data->dsidev, DSI_VC_CTRL(channel), 5, 5) == 0)
+		complete(l4_data->completion);
 }
 
 static int dsi_sync_vc_l4(struct platform_device *dsidev, int channel)
 {
+	DECLARE_COMPLETION_ONSTACK(completion);
+	struct dsi_packet_sent_handler_data l4_data = { dsidev, &completion };
 	int r = 0;
 
-	DECLARE_COMPLETION_ONSTACK(completion);
-
 	r = dsi_register_isr_vc(dsidev, channel, dsi_packet_sent_handler_l4,
-		&completion, DSI_VC_IRQ_PACKET_SENT);
+		&l4_data, DSI_VC_IRQ_PACKET_SENT);
 	if (r)
 		goto err0;
 
@@ -2471,12 +2478,12 @@ static int dsi_sync_vc_l4(struct platform_device *dsidev, int channel)
 	}
 
 	dsi_unregister_isr_vc(dsidev, channel, dsi_packet_sent_handler_l4,
-		&completion, DSI_VC_IRQ_PACKET_SENT);
+		&l4_data, DSI_VC_IRQ_PACKET_SENT);
 
 	return 0;
 err1:
 	dsi_unregister_isr_vc(dsidev, channel, dsi_packet_sent_handler_l4,
-		&completion, DSI_VC_IRQ_PACKET_SENT);
+		&l4_data, DSI_VC_IRQ_PACKET_SENT);
 err0:
 	return r;
 }
