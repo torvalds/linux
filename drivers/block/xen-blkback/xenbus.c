@@ -23,7 +23,7 @@
 
 struct backend_info {
 	struct xenbus_device	*dev;
-	struct xen_blkif		*blkif;
+	struct xen_blkif	*blkif;
 	struct xenbus_watch	backend_watch;
 	unsigned		major;
 	unsigned		minor;
