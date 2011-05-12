@@ -569,7 +569,8 @@ retry:
 		list_add_tail(&cap->session_caps, &session->s_caps);
 		session->s_nr_caps++;
 		spin_unlock(&session->s_cap_lock);
-	}
+	} else if (new_cap)
+		ceph_put_cap(mdsc, new_cap);
 
 	if (!ci->i_snap_realm) {
 		/*
