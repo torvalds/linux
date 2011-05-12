@@ -2793,7 +2793,6 @@ static int __devinit snd_es1968_create(struct snd_card *card,
 	snd_card_set_dev(card, &pci->dev);
 
 #ifdef CONFIG_SND_ES1968_RADIO
-	chip->tea.card = card;
 	chip->tea.private_data = chip;
 	chip->tea.ops = &snd_es1968_tea_ops;
 	if (!snd_tea575x_init(&chip->tea))

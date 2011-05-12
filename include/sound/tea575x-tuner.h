@@ -42,7 +42,6 @@ struct snd_tea575x_ops {
 };
 
 struct snd_tea575x {
-	struct snd_card *card;
 	struct video_device *vd;	/* video device */
 	bool tea5759;			/* 5759 chip is present */
 	bool mute;			/* Device is muted? */
