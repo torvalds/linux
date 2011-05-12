@@ -40,6 +40,50 @@ static struct mesh_table *mesh_paths;
 static struct mesh_table *mpp_paths; /* Store paths for MPP&MAP */
 
 int mesh_paths_generation;
+
+/* This lock will have the grow table function as writer and add / delete nodes
+ * as readers. When reading the table (i.e. doing lookups) we are well protected
+ * by RCU
+ */
+static DEFINE_RWLOCK(pathtbl_resize_lock);
+
+
+static struct mesh_table *mesh_table_alloc(int size_order)
+{
+	int i;
+	struct mesh_table *newtbl;
+
+	newtbl = kmalloc(sizeof(struct mesh_table), GFP_KERNEL);
+	if (!newtbl)
+		return NULL;
+
+	newtbl->hash_buckets = kzalloc(sizeof(struct hlist_head) *
+			(1 << size_order), GFP_KERNEL);
+
+	if (!newtbl->hash_buckets) {
+		kfree(newtbl);
+		return NULL;
+	}
+
+	newtbl->hashwlock = kmalloc(sizeof(spinlock_t) *
+			(1 << size_order), GFP_KERNEL);
+	if (!newtbl->hashwlock) {
+		kfree(newtbl->hash_buckets);
+		kfree(newtbl);
+		return NULL;
+	}
+
+	newtbl->size_order = size_order;
+	newtbl->hash_mask = (1 << size_order) - 1;
+	atomic_set(&newtbl->entries,  0);
+	get_random_bytes(&newtbl->hash_rnd,
+			sizeof(newtbl->hash_rnd));
+	for (i = 0; i <= newtbl->hash_mask; i++)
+		spin_lock_init(&newtbl->hashwlock[i]);
+
+	return newtbl;
+}
+
 static void __mesh_table_free(struct mesh_table *tbl)
 {
 	kfree(tbl->hash_buckets);
@@ -47,7 +91,7 @@ static void __mesh_table_free(struct mesh_table *tbl)
 	kfree(tbl);
 }
 
-void mesh_table_free(struct mesh_table *tbl, bool free_leafs)
+static void mesh_table_free(struct mesh_table *tbl, bool free_leafs)
 {
 	struct hlist_head *mesh_hash;
 	struct hlist_node *p, *q;
@@ -66,7 +110,7 @@ void mesh_table_free(struct mesh_table *tbl, bool free_leafs)
 }
 
 static int mesh_table_grow(struct mesh_table *oldtbl,
-		struct mesh_table *newtbl)
+			   struct mesh_table *newtbl)
 {
 	struct hlist_head *oldhash;
 	struct hlist_node *p, *q;
@@ -97,12 +141,14 @@ errcopy:
 	return -ENOMEM;
 }
 
+static u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata,
+			   struct mesh_table *tbl)
+{
+	/* Use last four bytes of hw addr and interface index as hash index */
+	return jhash_2words(*(u32 *)(addr+2), sdata->dev->ifindex, tbl->hash_rnd)
+		& tbl->hash_mask;
+}
 
-/* This lock will have the grow table function as writer and add / delete nodes
- * as readers. When reading the table (i.e. doing lookups) we are well protected
- * by RCU
- */
-static DEFINE_RWLOCK(pathtbl_resize_lock);
 
 /**
  *
