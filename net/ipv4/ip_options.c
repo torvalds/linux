@@ -601,7 +601,7 @@ int ip_options_rcv_srr(struct sk_buff *skb)
 	unsigned long orefdst;
 	int err;
 
-	if (!opt->srr || !rt)
+	if (!rt)
 		return 0;
 
 	if (skb->pkt_type != PACKET_HOST)
