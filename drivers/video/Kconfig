@@ -2266,28 +2266,33 @@ config FB_METRONOME
 config FB_MB862XX
 	tristate "Fujitsu MB862xx GDC support"
 	depends on FB
+	depends on PCI || (OF && PPC)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	---help---
 	  Frame buffer driver for Fujitsu Carmine/Coral-P(A)/Lime controllers.
 
+choice
+	prompt "GDC variant"
+	depends on FB_MB862XX
+
 config FB_MB862XX_PCI_GDC
 	bool "Carmine/Coral-P(A) GDC"
-	depends on PCI && FB_MB862XX
+	depends on PCI
 	---help---
 	  This enables framebuffer support for Fujitsu Carmine/Coral-P(A)
 	  PCI graphics controller devices.
 
 config FB_MB862XX_LIME
 	bool "Lime GDC"
-	depends on FB_MB862XX
-	depends on OF && !FB_MB862XX_PCI_GDC
-	depends on PPC
+	depends on OF && PPC
 	select FB_FOREIGN_ENDIAN
 	select FB_LITTLE_ENDIAN
 	---help---
 	  Framebuffer support for Fujitsu Lime GDC on host CPU bus.
+
+endchoice
 
 config FB_EP93XX
 	tristate "EP93XX frame buffer support"
