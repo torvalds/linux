@@ -26,6 +26,8 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
 
+#define TEA575X_FMIF	10700
+
 #define TEA575X_DATA	(1 << 0)
 #define TEA575X_CLK	(1 << 1)
 #define TEA575X_WREN	(1 << 2)
@@ -46,7 +48,6 @@ struct snd_tea575x {
 	bool mute;			/* Device is muted? */
 	bool stereo;			/* receiving stereo */
 	bool tuned;			/* tuned to a station */
-	unsigned int freq_fixup;	/* crystal onboard */
 	unsigned int val;		/* hw value */
 	unsigned long freq;		/* frequency */
 	unsigned long in_use;		/* set if the device is in use */

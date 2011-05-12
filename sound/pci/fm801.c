@@ -1231,7 +1231,6 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 
 #ifdef TEA575X_RADIO
 	chip->tea.card = card;
-	chip->tea.freq_fixup = 10700;
 	chip->tea.private_data = chip;
 	chip->tea.ops = &snd_fm801_tea_ops;
 	if ((tea575x_tuner & TUNER_TYPE_MASK) > 0 &&

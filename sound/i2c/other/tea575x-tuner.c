@@ -141,9 +141,9 @@ static void snd_tea575x_get_freq(struct snd_tea575x *tea)
 	freq /= 10;
 	/* crystal fixup */
 	if (tea->tea5759)
-		freq += tea->freq_fixup;
+		freq += TEA575X_FMIF;
 	else
-		freq -= tea->freq_fixup;
+		freq -= TEA575X_FMIF;
 
 	tea->freq = freq * 16;		/* from kHz */
 }
@@ -156,9 +156,9 @@ static void snd_tea575x_set_freq(struct snd_tea575x *tea)
 	freq /= 16;		/* to kHz */
 	/* crystal fixup */
 	if (tea->tea5759)
-		freq -= tea->freq_fixup;
+		freq -= TEA575X_FMIF;
 	else
-		freq += tea->freq_fixup;
+		freq += TEA575X_FMIF;
 	/* freq /= 12.5 */
 	freq *= 10;
 	freq /= 125;
