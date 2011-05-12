@@ -251,7 +251,7 @@ irqreturn_t xen_blkif_be_int(int irq, void *dev_id)
 
 static void print_stats(struct xen_blkif *blkif)
 {
-	pr_debug("xen-blkback (%s): oo %3d  |  rd %4d  |  wr %4d  |  f %4d\n",
+	pr_info("xen-blkback (%s): oo %3d  |  rd %4d  |  wr %4d  |  f %4d\n",
 		 current->comm, blkif->st_oo_req,
 		 blkif->st_rd_req, blkif->st_wr_req, blkif->st_f_req);
 	blkif->st_print = jiffies + msecs_to_jiffies(10 * 1000);
