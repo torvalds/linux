@@ -312,9 +312,6 @@ typedef enum sci_status (*scic_sds_port_io_request_handler_t)(struct scic_sds_po
 							      struct scic_sds_request *);
 
 struct scic_sds_port_state_handler {
-	scic_sds_port_link_handler_t link_up_handler;
-	scic_sds_port_link_handler_t link_down_handler;
-
 	scic_sds_port_io_request_handler_t start_io_handler;
 	scic_sds_port_io_request_handler_t complete_io_handler;
 };
@@ -402,13 +399,10 @@ bool scic_sds_port_link_detected(
 	struct scic_sds_port *sci_port,
 	struct scic_sds_phy *sci_phy);
 
-void scic_sds_port_link_up(
-	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy);
-
-void scic_sds_port_link_down(
-	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy);
+enum sci_status scic_sds_port_link_up(struct scic_sds_port *sci_port,
+				      struct scic_sds_phy *sci_phy);
+enum sci_status scic_sds_port_link_down(struct scic_sds_port *sci_port,
+					struct scic_sds_phy *sci_phy);
 
 enum sci_status scic_sds_port_start_io(
 	struct scic_sds_port *sci_port,

@@ -929,36 +929,6 @@ bool scic_sds_port_link_detected(
 }
 
 /**
- * This method is the entry point for the phy to inform the port that it is now
- *    in a ready state
- * @sci_port:
- *
- *
- */
-void scic_sds_port_link_up(
-	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy)
-{
-	sci_phy->is_in_link_training = false;
-
-	sci_port->state_handlers->link_up_handler(sci_port, sci_phy);
-}
-
-/**
- * This method is the entry point for the phy to inform the port that it is no
- *    longer in a ready state
- * @sci_port:
- *
- *
- */
-void scic_sds_port_link_down(
-	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy)
-{
-	sci_port->state_handlers->link_down_handler(sci_port, sci_phy);
-}
-
-/**
  * This method is called to start an IO request on this port.
  * @sci_port:
  * @sci_dev:
@@ -1135,29 +1105,6 @@ static enum sci_status scic_sds_port_ready_substate_complete_io_handler(
 	return SCI_SUCCESS;
 }
 
-/**
- *
- * @sci_port: This is the struct scic_sds_port object that which has a phy that has
- *    gone link up.
- * @sci_phy: This is the struct scic_sds_phy object that has gone link up.
- *
- * This method is the ready waiting substate link up handler for the
- * struct scic_sds_port object.  This methos will report the link up condition for
- * this port and will transition to the ready operational substate. none
- */
-static void scic_sds_port_ready_waiting_substate_link_up_handler(
-	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy)
-{
-	/*
-	 * Since this is the first phy going link up for the port we can just enable
-	 * it and continue. */
-	scic_sds_port_activate_phy(sci_port, sci_phy, true);
-
-	port_state_machine_change(sci_port,
-				  SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL);
-}
-
 /*
  * This method is the ready waiting substate start io handler for the
  * struct scic_sds_port object. The port object can not accept new requests so the
@@ -1169,49 +1116,6 @@ static enum sci_status scic_sds_port_ready_waiting_substate_start_io_handler(
 	struct scic_sds_request *io_request)
 {
 	return SCI_FAILURE_INVALID_STATE;
-}
-
-/**
- * scic_sds_port_ready_operational_substate_link_up_handler() -
- * @sci_port: This is the struct scic_sds_port object that which has a phy that has
- *    gone link up.
- * @sci_phy: This is the struct scic_sds_phy object that has gone link up.
- *
- * This method is the ready operational substate link up handler for the
- * struct scic_sds_port object. This function notifies the SCI User that the phy has
- * gone link up. none
- */
-static void scic_sds_port_ready_operational_substate_link_up_handler(
-	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy)
-{
-	scic_sds_port_general_link_up_handler(sci_port, sci_phy, true);
-}
-
-/**
- * scic_sds_port_ready_operational_substate_link_down_handler() -
- * @sci_port: This is the struct scic_sds_port object that which has a phy that has
- *    gone link down.
- * @sci_phy: This is the struct scic_sds_phy object that has gone link down.
- *
- * This method is the ready operational substate link down handler for the
- * struct scic_sds_port object. This function notifies the SCI User that the phy has
- * gone link down and if this is the last phy in the port the port will change
- * state to the ready waiting substate. none
- */
-static void scic_sds_port_ready_operational_substate_link_down_handler(
-	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy)
-{
-	scic_sds_port_deactivate_phy(sci_port, sci_phy, true);
-
-	/*
-	 * If there are no active phys left in the port, then transition
-	 * the port to the WAITING state until such time as a phy goes
-	 * link up. */
-	if (sci_port->active_phy_mask == 0)
-		port_state_machine_change(sci_port,
-				          SCIC_SDS_PORT_READY_SUBSTATE_WAITING);
 }
 
 /*
@@ -1260,18 +1164,6 @@ static enum sci_status default_port_handler(struct scic_sds_port *sci_port,
 		 "%s: in wrong state: %d\n", func,
 		 sci_base_state_machine_get_state(&sci_port->state_machine));
 	return SCI_FAILURE_INVALID_STATE;
-}
-
-static void scic_sds_port_default_link_up_handler(struct scic_sds_port *sci_port,
-					   struct scic_sds_phy *sci_phy)
-{
-	default_port_handler(sci_port, __func__);
-}
-
-static void scic_sds_port_default_link_down_handler(struct scic_sds_port *sci_port,
-					     struct scic_sds_phy *sci_phy)
-{
-	default_port_handler(sci_port, __func__);
 }
 
 static enum sci_status scic_sds_port_default_start_io_handler(struct scic_sds_port *sci_port,
@@ -1592,51 +1484,6 @@ static enum sci_status scic_sds_port_stopping_state_complete_io_handler(
 	return SCI_SUCCESS;
 }
 
-/*
- * ****************************************************************************
- * *  RESETTING STATE HANDLERS
- * **************************************************************************** */
-
-/*
- * This method will transition a failed port to its ready state.  The port
- * failed because a hard reset request timed out but at some time later one or
- * more phys in the port became ready. enum sci_status SCI_SUCCESS
- */
-static void scic_sds_port_reset_state_link_up_handler(
-	struct scic_sds_port *port,
-	struct scic_sds_phy *phy)
-{
-	/*
-	 * / @todo We should make sure that the phy that has gone link up is the same
-	 * /       one on which we sent the reset.  It is possible that the phy on
-	 * /       which we sent the reset is not the one that has gone link up and we
-	 * /       want to make sure that phy being reset comes back.  Consider the
-	 * /       case where a reset is sent but before the hardware processes the
-	 * /       reset it get a link up on the port because of a hot plug event.
-	 * /       because of the reset request this phy will go link down almost
-	 * /       immediately. */
-
-	/*
-	 * In the resetting state we don't notify the user regarding
-	 * link up and link down notifications. */
-	scic_sds_port_general_link_up_handler(port, phy, false);
-}
-
-/*
- * This method process link down notifications that occur during a port reset
- * operation. Link downs can occur during the reset operation. enum sci_status
- * SCI_SUCCESS
- */
-static void scic_sds_port_reset_state_link_down_handler(
-	struct scic_sds_port *port,
-	struct scic_sds_phy *phy)
-{
-	/*
-	 * In the resetting state we don't notify the user regarding
-	 * link up and link down notifications. */
-	scic_sds_port_deactivate_phy(port, phy, false);
-}
-
 enum sci_status scic_sds_port_start(struct scic_sds_port *sci_port)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
@@ -1890,7 +1737,79 @@ enum sci_status scic_sds_port_remove_phy(struct scic_sds_port *sci_port,
 		 */
 		port_state_machine_change(sci_port,
 					  SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
+		return SCI_SUCCESS;
+	default:
+		dev_warn(sciport_to_dev(sci_port),
+			 "%s: in wrong state: %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+}
 
+enum sci_status scic_sds_port_link_up(struct scic_sds_port *sci_port,
+				      struct scic_sds_phy *sci_phy)
+{
+	enum scic_sds_port_states state;
+
+	state = sci_port->state_machine.current_state_id;
+	switch (state) {
+	case SCIC_SDS_PORT_READY_SUBSTATE_WAITING:
+		/* Since this is the first phy going link up for the port we
+		 * can just enable it and continue
+		 */
+		scic_sds_port_activate_phy(sci_port, sci_phy, true);
+
+		port_state_machine_change(sci_port,
+					  SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL);
+		return SCI_SUCCESS;
+	case SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL:
+		scic_sds_port_general_link_up_handler(sci_port, sci_phy, true);
+		return SCI_SUCCESS;
+	case SCI_BASE_PORT_STATE_RESETTING:
+		/* TODO We should  make  sure  that  the phy  that  has gone
+		 * link up is the same one on which we sent the reset.  It is
+		 * possible that the phy on which we sent  the reset is not the
+		 * one that has  gone  link up  and we  want to make sure that
+		 * phy being reset  comes  back.  Consider the case where a
+		 * reset is sent but before the hardware processes the reset it
+		 * get a link up on  the  port because of a hot plug event.
+		 * because  of  the reset request this phy will go link down
+		 * almost immediately.
+		 */
+
+		/* In the resetting state we don't notify the user regarding
+		 * link up and link down notifications.
+		 */
+		scic_sds_port_general_link_up_handler(sci_port, sci_phy, false);
+		return SCI_SUCCESS;
+	default:
+		dev_warn(sciport_to_dev(sci_port),
+			 "%s: in wrong state: %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+}
+
+enum sci_status scic_sds_port_link_down(struct scic_sds_port *sci_port,
+					struct scic_sds_phy *sci_phy)
+{
+	enum scic_sds_port_states state;
+
+	state = sci_port->state_machine.current_state_id;
+	switch (state) {
+	case SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL:
+		scic_sds_port_deactivate_phy(sci_port, sci_phy, true);
+
+		/* If there are no active phys left in the port, then
+		 * transition the port to the WAITING state until such time
+		 * as a phy goes link up
+		 */
+		if (sci_port->active_phy_mask == 0)
+			port_state_machine_change(sci_port,
+						  SCIC_SDS_PORT_READY_SUBSTATE_WAITING);
+		return SCI_SUCCESS;
+	case SCI_BASE_PORT_STATE_RESETTING:
+		/* In the resetting state we don't notify the user regarding
+		 * link up and link down notifications. */
+		scic_sds_port_deactivate_phy(sci_port, sci_phy, false);
 		return SCI_SUCCESS;
 	default:
 		dev_warn(sciport_to_dev(sci_port),
@@ -1901,50 +1820,34 @@ enum sci_status scic_sds_port_remove_phy(struct scic_sds_port *sci_port,
 
 static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = {
 	[SCI_BASE_PORT_STATE_STOPPED] = {
-		.link_up_handler        = scic_sds_port_default_link_up_handler,
-		.link_down_handler 	= scic_sds_port_default_link_down_handler,
 		.start_io_handler 	= scic_sds_port_default_start_io_handler,
 		.complete_io_handler 	= scic_sds_port_default_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_STOPPING] = {
-		.link_up_handler        = scic_sds_port_default_link_up_handler,
-		.link_down_handler 	= scic_sds_port_default_link_down_handler,
 		.start_io_handler 	= scic_sds_port_default_start_io_handler,
 		.complete_io_handler 	= scic_sds_port_stopping_state_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_READY] = {
-		.link_up_handler 	= scic_sds_port_default_link_up_handler,
-		.link_down_handler 	= scic_sds_port_default_link_down_handler,
 		.start_io_handler 	= scic_sds_port_default_start_io_handler,
 		.complete_io_handler 	= scic_sds_port_general_complete_io_handler
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_WAITING] = {
-		.link_up_handler	= scic_sds_port_ready_waiting_substate_link_up_handler,
-		.link_down_handler	= scic_sds_port_default_link_down_handler,
 		.start_io_handler	= scic_sds_port_ready_waiting_substate_start_io_handler,
 		.complete_io_handler	= scic_sds_port_ready_substate_complete_io_handler,
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL] = {
-		.link_up_handler	= scic_sds_port_ready_operational_substate_link_up_handler,
-		.link_down_handler	= scic_sds_port_ready_operational_substate_link_down_handler,
 		.start_io_handler	= scic_sds_port_ready_operational_substate_start_io_handler,
 		.complete_io_handler	= scic_sds_port_ready_substate_complete_io_handler,
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING] = {
-		.link_up_handler	= scic_sds_port_default_link_up_handler,
-		.link_down_handler	= scic_sds_port_default_link_down_handler,
 		.start_io_handler	= scic_sds_port_default_start_io_handler,
 		.complete_io_handler	= scic_sds_port_ready_configuring_substate_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_RESETTING] = {
-		.link_up_handler	= scic_sds_port_reset_state_link_up_handler,
-		.link_down_handler	= scic_sds_port_reset_state_link_down_handler,
 		.start_io_handler	= scic_sds_port_default_start_io_handler,
 		.complete_io_handler	= scic_sds_port_general_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_FAILED] = {
-		.link_up_handler	= scic_sds_port_default_link_up_handler,
-		.link_down_handler	= scic_sds_port_default_link_down_handler,
 		.start_io_handler	= scic_sds_port_default_start_io_handler,
 		.complete_io_handler	= scic_sds_port_general_complete_io_handler
 	}
