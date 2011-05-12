@@ -619,11 +619,12 @@ static int prepare_connect_authorizer(struct ceph_connection *con)
 	con->out_connect.authorizer_protocol = cpu_to_le32(auth_protocol);
 	con->out_connect.authorizer_len = cpu_to_le32(auth_len);
 
-	con->out_kvec[con->out_kvec_left].iov_base = auth_buf;
-	con->out_kvec[con->out_kvec_left].iov_len = auth_len;
-	con->out_kvec_left++;
-	con->out_kvec_bytes += auth_len;
-
+	if (auth_len) {
+		con->out_kvec[con->out_kvec_left].iov_base = auth_buf;
+		con->out_kvec[con->out_kvec_left].iov_len = auth_len;
+		con->out_kvec_left++;
+		con->out_kvec_bytes += auth_len;
+	}
 	return 0;
 }
 
