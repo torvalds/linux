@@ -1277,39 +1277,6 @@ static int qeth_l3_start_ipa_multicast(struct qeth_card *card)
 	return rc;
 }
 
-static int qeth_l3_query_ipassists_cb(struct qeth_card *card,
-		struct qeth_reply *reply, unsigned long data)
-{
-	struct qeth_ipa_cmd *cmd;
-
-	QETH_DBF_TEXT(SETUP, 2, "qipasscb");
-
-	cmd = (struct qeth_ipa_cmd *) data;
-	if (cmd->hdr.prot_version == QETH_PROT_IPV4) {
-		card->options.ipa4.supported_funcs = cmd->hdr.ipa_supported;
-		card->options.ipa4.enabled_funcs = cmd->hdr.ipa_enabled;
-	} else {
-		card->options.ipa6.supported_funcs = cmd->hdr.ipa_supported;
-		card->options.ipa6.enabled_funcs = cmd->hdr.ipa_enabled;
-	}
-	QETH_DBF_TEXT(SETUP, 2, "suppenbl");
-	QETH_DBF_TEXT_(SETUP, 2, "%x", cmd->hdr.ipa_supported);
-	QETH_DBF_TEXT_(SETUP, 2, "%x", cmd->hdr.ipa_enabled);
-	return 0;
-}
-
-static int qeth_l3_query_ipassists(struct qeth_card *card,
-				enum qeth_prot_versions prot)
-{
-	int rc;
-	struct qeth_cmd_buffer *iob;
-
-	QETH_DBF_TEXT_(SETUP, 2, "qipassi%i", prot);
-	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_QIPASSIST, prot);
-	rc = qeth_send_ipa_cmd(card, iob, qeth_l3_query_ipassists_cb, NULL);
-	return rc;
-}
-
 #ifdef CONFIG_QETH_IPV6
 static int qeth_l3_softsetup_ipv6(struct qeth_card *card)
 {
@@ -1320,7 +1287,7 @@ static int qeth_l3_softsetup_ipv6(struct qeth_card *card)
 	if (card->info.type == QETH_CARD_TYPE_IQD)
 		goto out;
 
-	rc = qeth_l3_query_ipassists(card, QETH_PROT_IPV6);
+	rc = qeth_query_ipassists(card, QETH_PROT_IPV6);
 	if (rc) {
 		dev_err(&card->gdev->dev,
 			"Activating IPv6 support for %s failed\n",
@@ -3371,6 +3338,7 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 
 	qeth_l3_create_device_attributes(&gdev->dev);
 	card->options.layer2 = 0;
+	card->info.hwtrap = 0;
 	card->discipline.start_poll = qeth_qdio_start_poll;
 	card->discipline.input_handler = (qdio_handler_t *)
 		qeth_qdio_input_handler;
@@ -3422,12 +3390,17 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		goto out_remove;
 	}
 
-	qeth_l3_query_ipassists(card, QETH_PROT_IPV4);
-
 	if (!card->dev && qeth_l3_setup_netdev(card)) {
 		rc = -ENODEV;
 		goto out_remove;
 	}
+
+	if (qeth_is_diagass_supported(card, QETH_DIAGS_CMD_TRAP)) {
+		if (card->info.hwtrap &&
+		    qeth_hw_trap(card, QETH_DIAGS_TRAP_ARM))
+			card->info.hwtrap = 0;
+	} else
+		card->info.hwtrap = 0;
 
 	card->state = CARD_STATE_HARDSETUP;
 	memset(&card->rx, 0, sizeof(struct qeth_rx));
@@ -3530,6 +3503,10 @@ static int __qeth_l3_set_offline(struct ccwgroup_device *cgdev,
 	if (card->dev && netif_carrier_ok(card->dev))
 		netif_carrier_off(card->dev);
 	recover_flag = card->state;
+	if ((!recovery_mode && card->info.hwtrap) || card->info.hwtrap == 2) {
+		qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
+		card->info.hwtrap = 1;
+	}
 	qeth_l3_stop_card(card, recovery_mode);
 	rc  = ccw_device_set_offline(CARD_DDEV(card));
 	rc2 = ccw_device_set_offline(CARD_WDEV(card));
@@ -3585,6 +3562,8 @@ static int qeth_l3_recover(void *ptr)
 static void qeth_l3_shutdown(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	if ((gdev->state == CCWGROUP_ONLINE) && card->info.hwtrap)
+		qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
 	qeth_qdio_clear_card(card, 0);
 	qeth_clear_qdio_buffers(card);
 }
@@ -3600,6 +3579,8 @@ static int qeth_l3_pm_suspend(struct ccwgroup_device *gdev)
 	if (gdev->state == CCWGROUP_OFFLINE)
 		return 0;
 	if (card->state == CARD_STATE_UP) {
+		if (card->info.hwtrap)
+			qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
 		__qeth_l3_set_offline(card->gdev, 1);
 	} else
 		__qeth_l3_set_offline(card->gdev, 0);

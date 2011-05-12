@@ -876,6 +876,7 @@ static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 	INIT_LIST_HEAD(&card->vid_list);
 	INIT_LIST_HEAD(&card->mc_list);
 	card->options.layer2 = 1;
+	card->info.hwtrap = 0;
 	card->discipline.start_poll = qeth_qdio_start_poll;
 	card->discipline.input_handler = (qdio_handler_t *)
 		qeth_qdio_input_handler;
@@ -994,6 +995,13 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	if (card->info.type != QETH_CARD_TYPE_OSN)
 		qeth_l2_send_setmac(card, &card->dev->dev_addr[0]);
 
+	if (qeth_is_diagass_supported(card, QETH_DIAGS_CMD_TRAP)) {
+		if (card->info.hwtrap &&
+		    qeth_hw_trap(card, QETH_DIAGS_TRAP_ARM))
+			card->info.hwtrap = 0;
+	} else
+		card->info.hwtrap = 0;
+
 	card->state = CARD_STATE_HARDSETUP;
 	memset(&card->rx, 0, sizeof(struct qeth_rx));
 	qeth_print_status_message(card);
@@ -1092,6 +1100,10 @@ static int __qeth_l2_set_offline(struct ccwgroup_device *cgdev,
 	if (card->dev && netif_carrier_ok(card->dev))
 		netif_carrier_off(card->dev);
 	recover_flag = card->state;
+	if ((!recovery_mode && card->info.hwtrap) || card->info.hwtrap == 2) {
+		qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
+		card->info.hwtrap = 1;
+	}
 	qeth_l2_stop_card(card, recovery_mode);
 	rc  = ccw_device_set_offline(CARD_DDEV(card));
 	rc2 = ccw_device_set_offline(CARD_WDEV(card));
@@ -1157,6 +1169,8 @@ static void __exit qeth_l2_exit(void)
 static void qeth_l2_shutdown(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	if ((gdev->state == CCWGROUP_ONLINE) && card->info.hwtrap)
+		qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
 	qeth_qdio_clear_card(card, 0);
 	qeth_clear_qdio_buffers(card);
 }
@@ -1172,6 +1186,8 @@ static int qeth_l2_pm_suspend(struct ccwgroup_device *gdev)
 	if (gdev->state == CCWGROUP_OFFLINE)
 		return 0;
 	if (card->state == CARD_STATE_UP) {
+		if (card->info.hwtrap)
+			qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
 		__qeth_l2_set_offline(card->gdev, 1);
 	} else
 		__qeth_l2_set_offline(card->gdev, 0);

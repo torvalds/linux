@@ -448,6 +448,12 @@ enum qeth_diags_trace_cmds {
 	QETH_DIAGS_CMD_TRACE_QUERY	= 0x0010,
 };
 
+enum qeth_diags_trap_action {
+	QETH_DIAGS_TRAP_ARM	= 0x01,
+	QETH_DIAGS_TRAP_DISARM	= 0x02,
+	QETH_DIAGS_TRAP_CAPTURE = 0x04,
+};
+
 struct qeth_ipacmd_diagass {
 	__u32  host_tod2;
 	__u32:32;
@@ -457,7 +463,8 @@ struct qeth_ipacmd_diagass {
 	__u8   type;
 	__u8   action;
 	__u16  options;
-	__u32:32;
+	__u32  ext;
+	__u8   cdata[64];
 } __attribute__ ((packed));
 
 /* Header for each IPA command */
