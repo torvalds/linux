@@ -145,15 +145,6 @@ struct scic_sds_port {
 	void *timer_handle;
 
 	/**
-	 * This field points to the current set of state handlers for this port
-	 * object.  These state handlers are assigned at each enter state of
-	 * the state machine.
-	 */
-	struct scic_sds_port_state_handler *state_handlers;
-
-	/* / Memory mapped hardware register space */
-
-	/**
 	 * This field is the pointer to the port task scheduler registers
 	 * for the SCU hardware.
 	 */
@@ -286,34 +277,7 @@ enum scic_sds_port_states {
 	 */
 	SCI_BASE_PORT_STATE_FAILED,
 
-	SCI_BASE_PORT_MAX_STATES
 
-};
-
-struct scic_sds_remote_device;
-struct scic_sds_request;
-
-typedef enum sci_status (*scic_sds_port_handler_t)(struct scic_sds_port *);
-
-typedef enum sci_status (*scic_sds_port_phy_handler_t)(struct scic_sds_port *,
-						       struct scic_sds_phy *);
-
-typedef enum sci_status (*scic_sds_port_reset_handler_t)(struct scic_sds_port *,
-							 u32 timeout);
-
-typedef enum sci_status (*scic_sds_port_event_handler_t)(struct scic_sds_port *, u32);
-
-typedef enum sci_status (*scic_sds_port_frame_handler_t)(struct scic_sds_port *, u32);
-
-typedef void (*scic_sds_port_link_handler_t)(struct scic_sds_port *, struct scic_sds_phy *);
-
-typedef enum sci_status (*scic_sds_port_io_request_handler_t)(struct scic_sds_port *,
-							      struct scic_sds_remote_device *,
-							      struct scic_sds_request *);
-
-struct scic_sds_port_state_handler {
-	scic_sds_port_io_request_handler_t start_io_handler;
-	scic_sds_port_io_request_handler_t complete_io_handler;
 };
 
 /**
@@ -323,23 +287,6 @@ struct scic_sds_port_state_handler {
  */
 #define scic_sds_port_get_controller(this_port)	\
 	((this_port)->owning_controller)
-
-/**
- * scic_sds_port_set_base_state_handlers() -
- *
- * This macro will change the state handlers to those of the specified state id
- */
-#define scic_sds_port_set_base_state_handlers(this_port, state_id) \
-	scic_sds_port_set_state_handlers(\
-		(this_port), &scic_sds_port_state_handler_table[(state_id)])
-
-/**
- * scic_sds_port_set_state_handlers() -
- *
- * Helper macro to set the port object state handlers
- */
-#define scic_sds_port_set_state_handlers(this_port, handlers) \
-	((this_port)->state_handlers = (handlers))
 
 /**
  * scic_sds_port_get_index() -
@@ -404,6 +351,8 @@ enum sci_status scic_sds_port_link_up(struct scic_sds_port *sci_port,
 enum sci_status scic_sds_port_link_down(struct scic_sds_port *sci_port,
 					struct scic_sds_phy *sci_phy);
 
+struct scic_sds_request;
+struct scic_sds_remote_device;
 enum sci_status scic_sds_port_start_io(
 	struct scic_sds_port *sci_port,
 	struct scic_sds_remote_device *sci_dev,
