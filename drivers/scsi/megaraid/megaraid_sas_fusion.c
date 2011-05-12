@@ -696,22 +696,6 @@ fail_get_cmd:
 }
 
 /*
- * megasas_return_cmd_for_smid -	Returns a cmd_fusion for a SMID
- * @instance:				Adapter soft state
- *
- */
-void
-megasas_return_cmd_for_smid(struct megasas_instance *instance, u16 smid)
-{
-	struct fusion_context *fusion;
-	struct megasas_cmd_fusion *cmd;
-
-	fusion = instance->ctrl_context;
-	cmd = fusion->cmd_list[smid - 1];
-	megasas_return_cmd_fusion(instance, cmd);
-}
-
-/*
  * megasas_get_ld_map_info -	Returns FW's ld_map structure
  * @instance:				Adapter soft state
  * @pend:				Pend the command or not
