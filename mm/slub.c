@@ -1845,7 +1845,6 @@ new_slab:
 	page = get_partial(s, gfpflags, node);
 	if (page) {
 		stat(s, ALLOC_FROM_PARTIAL);
-load_from_page:
 		c->node = page_to_nid(page);
 		c->page = page;
 		goto load_freelist;
@@ -1868,8 +1867,9 @@ load_from_page:
 
 		slab_lock(page);
 		__SetPageSlubFrozen(page);
-
-		goto load_from_page;
+		c->node = page_to_nid(page);
+		c->page = page;
+		goto load_freelist;
 	}
 	if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
 		slab_out_of_memory(s, gfpflags, node);
