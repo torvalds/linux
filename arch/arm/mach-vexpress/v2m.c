@@ -370,6 +370,10 @@ static struct clk_lookup v2m_lookups[] = {
 		.clk		= &osc1_clk,
 	}, {	/* SP804 timers */
 		.dev_id		= "sp804",
+		.con_id		= "v2m-timer0",
+		.clk		= &v2m_sp804_clk,
+	}, {	/* SP804 timers */
+		.dev_id		= "sp804",
 		.con_id		= "v2m-timer1",
 		.clk		= &v2m_sp804_clk,
 	},

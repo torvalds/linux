@@ -152,6 +152,10 @@ static struct clk_lookup lookups[] = {
 		.clk		= &osc1_clk,
 	}, {	/* SP804 timers */
 		.dev_id		= "sp804",
+		.con_id		= "ct-timer0",
+		.clk		= &ct_sp804_clk,
+	}, {	/* SP804 timers */
+		.dev_id		= "sp804",
 		.con_id		= "ct-timer1",
 		.clk		= &ct_sp804_clk,
 	},

@@ -28,12 +28,6 @@
 
 #include <asm/hardware/arm_timer.h>
 
-/*
- * These timers are currently always setup to be clocked at 1MHz.
- */
-#define TIMER_FREQ_KHZ	(1000)
-#define TIMER_RELOAD	(TIMER_FREQ_KHZ * 1000 / HZ)
-
 static long __init sp804_get_clock_rate(const char *name)
 {
 	struct clk *clk;
@@ -84,6 +78,7 @@ void __init sp804_clocksource_init(void __iomem *base, const char *name)
 
 
 static void __iomem *clkevt_base;
+static unsigned long clkevt_reload;
 
 /*
  * IRQ handler for the timer
@@ -109,7 +104,7 @@ static void sp804_set_mode(enum clock_event_mode mode,
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		writel(TIMER_RELOAD, clkevt_base + TIMER_LOAD);
+		writel(clkevt_reload, clkevt_base + TIMER_LOAD);
 		ctrl |= TIMER_CTRL_PERIODIC | TIMER_CTRL_ENABLE;
 		break;
 
@@ -158,12 +153,17 @@ void __init sp804_clockevents_init(void __iomem *base, unsigned int irq,
 	const char *name)
 {
 	struct clock_event_device *evt = &sp804_clockevent;
+	long rate = sp804_get_clock_rate(name);
+
+	if (rate < 0)
+		return;
 
 	clkevt_base = base;
+	clkevt_reload = DIV_ROUND_CLOSEST(rate, HZ);
 
 	evt->name = name;
 	evt->irq = irq;
-	evt->mult = div_sc(TIMER_FREQ_KHZ, NSEC_PER_MSEC, evt->shift);
+	evt->mult = div_sc(rate, NSEC_PER_SEC, evt->shift);
 	evt->max_delta_ns = clockevent_delta2ns(0xffffffff, evt);
 	evt->min_delta_ns = clockevent_delta2ns(0xf, evt);
 
