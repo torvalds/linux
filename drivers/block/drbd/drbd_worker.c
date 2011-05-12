@@ -57,7 +57,7 @@ static int w_make_ov_request(struct drbd_work *w, int cancel);
 
 /* About the global_state_lock
    Each state transition on an device holds a read lock. In case we have
-   to evaluate the sync after dependencies, we grab a write lock, because
+   to evaluate the resync after dependencies, we grab a write lock, because
    we need stable states on all devices for that.  */
 rwlock_t global_state_lock;
 
@@ -1340,17 +1340,17 @@ int w_restart_disk_io(struct drbd_work *w, int cancel)
 static int _drbd_may_sync_now(struct drbd_conf *mdev)
 {
 	struct drbd_conf *odev = mdev;
-	int ra;
+	int resync_after;
 
 	while (1) {
 		if (!odev->ldev)
 			return 1;
 		rcu_read_lock();
-		ra = rcu_dereference(odev->ldev->disk_conf)->resync_after;
+		resync_after = rcu_dereference(odev->ldev->disk_conf)->resync_after;
 		rcu_read_unlock();
-		if (ra == -1)
+		if (resync_after == -1)
 			return 1;
-		odev = minor_to_mdev(ra);
+		odev = minor_to_mdev(resync_after);
 		if (!expect(odev))
 			return 1;
 		if ((odev->state.conn >= C_SYNC_SOURCE &&
@@ -1426,36 +1426,36 @@ void suspend_other_sg(struct drbd_conf *mdev)
 }
 
 /* caller must hold global_state_lock */
-enum drbd_ret_code drbd_sync_after_valid(struct drbd_conf *mdev, int o_minor)
+enum drbd_ret_code drbd_resync_after_valid(struct drbd_conf *mdev, int o_minor)
 {
 	struct drbd_conf *odev;
-	int ra;
+	int resync_after;
 
 	if (o_minor == -1)
 		return NO_ERROR;
 	if (o_minor < -1 || minor_to_mdev(o_minor) == NULL)
-		return ERR_SYNC_AFTER;
+		return ERR_RESYNC_AFTER;
 
 	/* check for loops */
 	odev = minor_to_mdev(o_minor);
 	while (1) {
 		if (odev == mdev)
-			return ERR_SYNC_AFTER_CYCLE;
+			return ERR_RESYNC_AFTER_CYCLE;
 
 		rcu_read_lock();
-		ra = rcu_dereference(odev->ldev->disk_conf)->resync_after;
+		resync_after = rcu_dereference(odev->ldev->disk_conf)->resync_after;
 		rcu_read_unlock();
 		/* dependency chain ends here, no cycles. */
-		if (ra == -1)
+		if (resync_after == -1)
 			return NO_ERROR;
 
 		/* follow the dependency chain */
-		odev = minor_to_mdev(ra);
+		odev = minor_to_mdev(resync_after);
 	}
 }
 
 /* caller must hold global_state_lock */
-void drbd_sync_after_changed(struct drbd_conf *mdev)
+void drbd_resync_after_changed(struct drbd_conf *mdev)
 {
 	int changes;
 

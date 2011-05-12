@@ -1408,8 +1408,8 @@ extern int drbd_khelper(struct drbd_conf *mdev, char *cmd);
 
 /* drbd_worker.c */
 extern int drbd_worker(struct drbd_thread *thi);
-enum drbd_ret_code drbd_sync_after_valid(struct drbd_conf *mdev, int o_minor);
-void drbd_sync_after_changed(struct drbd_conf *mdev);
+enum drbd_ret_code drbd_resync_after_valid(struct drbd_conf *mdev, int o_minor);
+void drbd_resync_after_changed(struct drbd_conf *mdev);
 extern void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side);
 extern void resume_next_sg(struct drbd_conf *mdev);
 extern void suspend_other_sg(struct drbd_conf *mdev);

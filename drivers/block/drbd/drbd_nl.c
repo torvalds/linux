@@ -1183,10 +1183,10 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	write_lock_irq(&global_state_lock);
-	retcode = drbd_sync_after_valid(mdev, new_disk_conf->resync_after);
+	retcode = drbd_resync_after_valid(mdev, new_disk_conf->resync_after);
 	if (retcode == NO_ERROR) {
 		rcu_assign_pointer(mdev->ldev->disk_conf, new_disk_conf);
-		drbd_sync_after_changed(mdev);
+		drbd_resync_after_changed(mdev);
 	}
 	write_unlock_irq(&global_state_lock);
 
