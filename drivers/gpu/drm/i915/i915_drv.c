@@ -348,12 +348,17 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 
 void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 {
-	int loop = 500;
-	u32 fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
-	while (fifo < 20 && loop--) {
-		udelay(10);
-		fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+	if (dev_priv->gt_fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES ) {
+		int loop = 500;
+		u32 fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+		while (fifo <= GT_FIFO_NUM_RESERVED_ENTRIES && loop--) {
+			udelay(10);
+			fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+		}
+		WARN_ON(loop < 0 && fifo <= GT_FIFO_NUM_RESERVED_ENTRIES);
+		dev_priv->gt_fifo_count = fifo;
 	}
+	dev_priv->gt_fifo_count--;
 }
 
 static int i915_drm_freeze(struct drm_device *dev)

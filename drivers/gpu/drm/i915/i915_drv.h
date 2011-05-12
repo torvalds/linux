@@ -277,6 +277,7 @@ typedef struct drm_i915_private {
 	int relative_constants_mode;
 
 	void __iomem *regs;
+	u32 gt_fifo_count;
 
 	struct intel_gmbus {
 		struct i2c_adapter adapter;
