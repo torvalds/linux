@@ -316,12 +316,39 @@ void __put_net(struct net *net)
 }
 EXPORT_SYMBOL_GPL(__put_net);
 
+struct net *get_net_ns_by_fd(int fd)
+{
+	struct proc_inode *ei;
+	struct file *file;
+	struct net *net;
+
+	net = ERR_PTR(-EINVAL);
+	file = proc_ns_fget(fd);
+	if (!file)
+		goto out;
+
+	ei = PROC_I(file->f_dentry->d_inode);
+	if (ei->ns_ops != &netns_operations)
+		goto out;
+
+	net = get_net(ei->ns);
+out:
+	if (file)
+		fput(file);
+	return net;
+}
+
 #else
 struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 {
 	if (flags & CLONE_NEWNET)
 		return ERR_PTR(-EINVAL);
 	return old_net;
+}
+
+struct net *get_net_ns_by_fd(int fd)
+{
+	return ERR_PTR(-EINVAL);
 }
 #endif
 
@@ -344,28 +371,6 @@ struct net *get_net_ns_by_pid(pid_t pid)
 	return net;
 }
 EXPORT_SYMBOL_GPL(get_net_ns_by_pid);
-
-struct net *get_net_ns_by_fd(int fd)
-{
-	struct proc_inode *ei;
-	struct file *file;
-	struct net *net;
-
-	net = ERR_PTR(-EINVAL);
-	file = proc_ns_fget(fd);
-	if (!file)
-		goto out;
-
-	ei = PROC_I(file->f_dentry->d_inode);
-	if (ei->ns_ops != &netns_operations)
-		goto out;
-
-	net = get_net(ei->ns);
-out:
-	if (file)
-		fput(file);
-	return net;
-}
 
 static int __init net_ns_init(void)
 {
