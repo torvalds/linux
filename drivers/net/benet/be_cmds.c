@@ -298,8 +298,7 @@ static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
 			return -1;
 		}
 
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(msecs_to_jiffies(1));
+		msleep(1);
 		msecs++;
 	} while (true);
 
