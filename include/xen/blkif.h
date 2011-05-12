@@ -72,9 +72,12 @@ struct blkif_x86_64_response {
 typedef struct blkif_x86_64_request blkif_x86_64_request_t;
 typedef struct blkif_x86_64_response blkif_x86_64_response_t;
 
-DEFINE_RING_TYPES(blkif_common, struct blkif_common_request, struct blkif_common_response);
-DEFINE_RING_TYPES(blkif_x86_32, struct blkif_x86_32_request, struct blkif_x86_32_response);
-DEFINE_RING_TYPES(blkif_x86_64, struct blkif_x86_64_request, struct blkif_x86_64_response);
+DEFINE_RING_TYPES(blkif_common, struct blkif_common_request,
+		  struct blkif_common_response);
+DEFINE_RING_TYPES(blkif_x86_32, struct blkif_x86_32_request,
+		  struct blkif_x86_32_response);
+DEFINE_RING_TYPES(blkif_x86_64, struct blkif_x86_64_request,
+		  struct blkif_x86_64_response);
 
 union blkif_back_rings {
 	struct blkif_back_ring        native;
