@@ -155,6 +155,9 @@ static struct nvme_cmd_info *nvme_cmd_info(struct nvme_queue *nvmeq)
  * the bottom two bits of the ctx pointer to store the handler ID.
  * Passing in a pointer that's not 4-byte aligned will cause a BUG.
  * We can change this if it becomes a problem.
+ *
+ * May be called with local interrupts disabled and the q_lock held,
+ * or with interrupts enabled and no locks held.
  */
 static int alloc_cmdid(struct nvme_queue *nvmeq, void *ctx, int handler,
 							unsigned timeout)
@@ -202,6 +205,9 @@ enum {
 #define CMD_CTX_INVALID		(0x314 + CMD_CTX_BASE)
 #define CMD_CTX_FLUSH		(0x318 + CMD_CTX_BASE)
 
+/*
+ * Called with local interrupts disabled and the q_lock held.  May not sleep.
+ */
 static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
 {
 	unsigned long data;
@@ -326,7 +332,7 @@ static void bio_completion(struct nvme_queue *nvmeq, void *ctx,
 	}
 }
 
-/* length is in bytes */
+/* length is in bytes.  gfp flags indicates whether we may sleep. */
 static struct nvme_prps *nvme_setup_prps(struct nvme_dev *dev,
 					struct nvme_common_command *cmd,
 					struct scatterlist *sg, int *len,
@@ -483,6 +489,9 @@ static int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns)
 	return nvme_submit_flush(nvmeq, ns, cmdid);
 }
 
+/*
+ * Called with local interrupts disabled and the q_lock held.  May not sleep.
+ */
 static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 								struct bio *bio)
 {
