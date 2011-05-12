@@ -484,7 +484,7 @@ static void __init intcp_timer_init(void)
 	writel(0, TIMER2_VA_BASE + TIMER_CTRL);
 
 	sp804_clocksource_init(TIMER2_VA_BASE, "timer2");
-	sp804_clockevents_init(TIMER1_VA_BASE, IRQ_TIMERINT1);
+	sp804_clockevents_init(TIMER1_VA_BASE, IRQ_TIMERINT1, "timer1");
 }
 
 static struct sys_timer cp_timer = {

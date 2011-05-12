@@ -139,7 +139,6 @@ static int sp804_set_next_event(unsigned long next,
 }
 
 static struct clock_event_device sp804_clockevent = {
-	.name		= "timer0",
 	.shift		= 32,
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode	= sp804_set_mode,
@@ -155,17 +154,19 @@ static struct irqaction sp804_timer_irq = {
 	.dev_id		= &sp804_clockevent,
 };
 
-void __init sp804_clockevents_init(void __iomem *base, unsigned int timer_irq)
+void __init sp804_clockevents_init(void __iomem *base, unsigned int irq,
+	const char *name)
 {
 	struct clock_event_device *evt = &sp804_clockevent;
 
 	clkevt_base = base;
 
-	evt->irq = timer_irq;
+	evt->name = name;
+	evt->irq = irq;
 	evt->mult = div_sc(TIMER_FREQ_KHZ, NSEC_PER_MSEC, evt->shift);
 	evt->max_delta_ns = clockevent_delta2ns(0xffffffff, evt);
 	evt->min_delta_ns = clockevent_delta2ns(0xf, evt);
 
-	setup_irq(timer_irq, &sp804_timer_irq);
+	setup_irq(irq, &sp804_timer_irq);
 	clockevents_register_device(evt);
 }
