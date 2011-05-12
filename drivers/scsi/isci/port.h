@@ -312,24 +312,6 @@ typedef enum sci_status (*scic_sds_port_io_request_handler_t)(struct scic_sds_po
 							      struct scic_sds_request *);
 
 struct scic_sds_port_state_handler {
-	/**
-	 * The reset_handler specifies the method invoked when a user
-	 * attempts to hard reset a port.
-	 */
-	scic_sds_port_reset_handler_t reset_handler;
-
-	/**
-	 * The add_phy_handler specifies the method invoked when a user
-	 * attempts to add another phy into the port.
-	 */
-	scic_sds_port_phy_handler_t add_phy_handler;
-
-	/**
-	 * The remove_phy_handler specifies the method invoked when a user
-	 * attempts to remove a phy from the port.
-	 */
-	scic_sds_port_phy_handler_t remove_phy_handler;
-
 	scic_sds_port_frame_handler_t frame_handler;
 	scic_sds_port_event_handler_t event_handler;
 
@@ -338,7 +320,6 @@ struct scic_sds_port_state_handler {
 
 	scic_sds_port_io_request_handler_t start_io_handler;
 	scic_sds_port_io_request_handler_t complete_io_handler;
-
 };
 
 /**

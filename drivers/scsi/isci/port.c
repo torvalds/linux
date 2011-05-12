@@ -531,40 +531,6 @@ static enum sci_status scic_sds_port_clear_phy(
 	return SCI_FAILURE;
 }
 
-/**
- * scic_sds_port_add_phy() -
- * @sci_port: This parameter specifies the port in which the phy will be added.
- * @sci_phy: This parameter is the phy which is to be added to the port.
- *
- * This method will add a PHY to the selected port. This method returns an
- * enum sci_status. SCI_SUCCESS the phy has been added to the port. Any other status
- * is failre to add the phy to the port.
- */
-enum sci_status scic_sds_port_add_phy(
-	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy)
-{
-	return sci_port->state_handlers->add_phy_handler(
-		       sci_port, sci_phy);
-}
-
-
-/**
- * scic_sds_port_remove_phy() -
- * @sci_port: This parameter specifies the port in which the phy will be added.
- * @sci_phy: This parameter is the phy which is to be added to the port.
- *
- * This method will remove the PHY from the selected PORT. This method returns
- * an enum sci_status. SCI_SUCCESS the phy has been removed from the port. Any other
- * status is failre to add the phy to the port.
- */
-enum sci_status scic_sds_port_remove_phy(
-	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy)
-{
-	return sci_port->state_handlers->remove_phy_handler(
-		       sci_port, sci_phy);
-}
 
 /**
  * This method requests the SAS address for the supplied SAS port from the SCI
@@ -745,23 +711,6 @@ enum sci_status scic_sds_port_initialize(
 	return SCI_SUCCESS;
 }
 
-/**
- * scic_port_hard_reset() - perform port hard reset
- * @port: a handle corresponding to the SAS port to be hard reset.
- * @reset_timeout: This parameter specifies the number of milliseconds in which
- *    the port reset operation should complete.
- *
- * The SCI User callback in scic_user_callbacks_t will only be called once for
- * each phy in the SAS Port at completion of the hard reset sequence. Return a
- * status indicating whether the hard reset started successfully. SCI_SUCCESS
- * This value is returned if the hard reset operation started successfully.
- */
-static enum sci_status scic_port_hard_reset(struct scic_sds_port *port,
-					    u32 reset_timeout)
-{
-	return port->state_handlers->reset_handler(
-		       port, reset_timeout);
-}
 
 /**
  * This method assigns the direct attached device ID for this port.
@@ -1186,48 +1135,6 @@ static enum sci_status scic_sds_port_ready_substate_complete_io_handler(
 	return SCI_SUCCESS;
 }
 
-static enum sci_status scic_sds_port_ready_substate_add_phy_handler(struct scic_sds_port *sci_port,
-								    struct scic_sds_phy *sci_phy)
-{
-	enum sci_status status;
-
-	status = scic_sds_port_set_phy(sci_port, sci_phy);
-
-	if (status != SCI_SUCCESS)
-		return status;
-
-	scic_sds_port_general_link_up_handler(sci_port, sci_phy, true);
-	sci_port->not_ready_reason = SCIC_PORT_NOT_READY_RECONFIGURING;
-	port_state_machine_change(sci_port, SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
-
-	return status;
-}
-
-
-static enum sci_status scic_sds_port_ready_substate_remove_phy_handler(struct scic_sds_port *port,
-								       struct scic_sds_phy *phy)
-{
-	enum sci_status status;
-
-	status = scic_sds_port_clear_phy(port, phy);
-
-	if (status != SCI_SUCCESS)
-		return status;
-
-	scic_sds_port_deactivate_phy(port, phy, true);
-
-	port->not_ready_reason = SCIC_PORT_NOT_READY_RECONFIGURING;
-
-	port_state_machine_change(port,
-				  SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
-	return status;
-}
-
-/*
- * ****************************************************************************
- * *  READY SUBSTATE WAITING HANDLERS
- * **************************************************************************** */
-
 /**
  *
  * @sci_port: This is the struct scic_sds_port object that which has a phy that has
@@ -1262,57 +1169,6 @@ static enum sci_status scic_sds_port_ready_waiting_substate_start_io_handler(
 	struct scic_sds_request *io_request)
 {
 	return SCI_FAILURE_INVALID_STATE;
-}
-
-/*
- * ****************************************************************************
- * *  READY SUBSTATE OPERATIONAL HANDLERS
- * **************************************************************************** */
-
-/*
- * This method will casue the port to reset. enum sci_status SCI_SUCCESS
- */
-static enum
-sci_status scic_sds_port_ready_operational_substate_reset_handler(
-		struct scic_sds_port *port,
-		u32 timeout)
-{
-	enum sci_status status = SCI_FAILURE_INVALID_PHY;
-	u32 phy_index;
-	struct scic_sds_phy *selected_phy = NULL;
-
-
-	/* Select a phy on which we can send the hard reset request. */
-	for (phy_index = 0;
-	     (phy_index < SCI_MAX_PHYS) && (selected_phy == NULL);
-	     phy_index++) {
-		selected_phy = port->phy_table[phy_index];
-
-		if ((selected_phy != NULL) &&
-		    !scic_sds_port_active_phy(port, selected_phy)) {
-			/*
-			 * We found a phy but it is not ready select
-			 * different phy
-			 */
-			selected_phy = NULL;
-		}
-	}
-
-	/* If we have a phy then go ahead and start the reset procedure */
-	if (selected_phy != NULL) {
-		status = scic_sds_phy_reset(selected_phy);
-
-		if (status == SCI_SUCCESS) {
-			isci_timer_start(port->timer_handle, timeout);
-			port->not_ready_reason =
-				SCIC_PORT_NOT_READY_HARD_RESET_REQUESTED;
-
-			port_state_machine_change(port,
-						  SCI_BASE_PORT_STATE_RESETTING);
-		}
-	}
-
-	return status;
 }
 
 /**
@@ -1372,61 +1228,6 @@ static enum sci_status scic_sds_port_ready_operational_substate_start_io_handler
 	return SCI_SUCCESS;
 }
 
-/*
- * ****************************************************************************
- * *  READY SUBSTATE OPERATIONAL HANDLERS
- * **************************************************************************** */
-
-/*
- * This is the default method for a port add phy request.  It will report a
- * warning and exit. enum sci_status SCI_FAILURE_INVALID_STATE
- */
-static enum sci_status scic_sds_port_ready_configuring_substate_add_phy_handler(
-	struct scic_sds_port *port,
-	struct scic_sds_phy *phy)
-{
-	enum sci_status status;
-
-	status = scic_sds_port_set_phy(port, phy);
-
-	if (status == SCI_SUCCESS) {
-		scic_sds_port_general_link_up_handler(port, phy, true);
-
-		/*
-		 * Re-enter the configuring state since this may be the last phy in
-		 * the port. */
-		port_state_machine_change(port,
-					  SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
-	}
-
-	return status;
-}
-
-/*
- * This is the default method for a port remove phy request.  It will report a
- * warning and exit. enum sci_status SCI_FAILURE_INVALID_STATE
- */
-static enum sci_status scic_sds_port_ready_configuring_substate_remove_phy_handler(
-	struct scic_sds_port *port,
-	struct scic_sds_phy *phy)
-{
-	enum sci_status status;
-
-	status = scic_sds_port_clear_phy(port, phy);
-
-	if (status != SCI_SUCCESS)
-		return status;
-	scic_sds_port_deactivate_phy(port, phy, true);
-
-	/* Re-enter the configuring state since this may be the last phy in
-	 * the port
-	 */
-	port_state_machine_change(port,
-				  SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
-
-	return status;
-}
-
 /**
  * scic_sds_port_ready_configuring_substate_complete_io_handler() -
  * @port: This is the port that is being requested to complete the io request.
@@ -1459,27 +1260,6 @@ static enum sci_status default_port_handler(struct scic_sds_port *sci_port,
 		 "%s: in wrong state: %d\n", func,
 		 sci_base_state_machine_get_state(&sci_port->state_machine));
 	return SCI_FAILURE_INVALID_STATE;
-}
-
-static enum sci_status
-scic_sds_port_default_reset_handler(struct scic_sds_port *sci_port,
-				    u32 timeout)
-{
-	return default_port_handler(sci_port, __func__);
-}
-
-static enum sci_status
-scic_sds_port_default_add_phy_handler(struct scic_sds_port *sci_port,
-				      struct scic_sds_phy *base_phy)
-{
-	return default_port_handler(sci_port, __func__);
-}
-
-static enum sci_status
-scic_sds_port_default_remove_phy_handler(struct scic_sds_port *sci_port,
-					 struct scic_sds_phy *base_phy)
-{
-	return default_port_handler(sci_port, __func__);
 }
 
 /*
@@ -1818,70 +1598,6 @@ static enum sci_status scic_sds_port_general_complete_io_handler(
 }
 
 /*
- * This method takes the struct scic_sds_port that is in a stopped state and handles
- * the add phy request.  In MPC mode the only time a phy can be added to a port
- * is in the SCI_BASE_PORT_STATE_STOPPED. enum sci_status
- * SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION is returned when the phy can not
- * be added to the port. SCI_SUCCESS if the phy is added to the port.
- */
-static enum sci_status scic_sds_port_stopped_state_add_phy_handler(
-	struct scic_sds_port *port,
-	struct scic_sds_phy *phy)
-{
-	struct sci_sas_address port_sas_address;
-
-	/* Read the port assigned SAS Address if there is one */
-	scic_sds_port_get_sas_address(port, &port_sas_address);
-
-	if (port_sas_address.high != 0 && port_sas_address.low != 0) {
-		struct sci_sas_address phy_sas_address;
-
-		/*
-		 * Make sure that the PHY SAS Address matches the SAS Address
-		 * for this port. */
-		scic_sds_phy_get_sas_address(phy, &phy_sas_address);
-
-		if (
-			(port_sas_address.high != phy_sas_address.high)
-			|| (port_sas_address.low  != phy_sas_address.low)
-			) {
-			return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
-		}
-	}
-
-	return scic_sds_port_set_phy(port, phy);
-}
-
-/*
- * This method takes the struct scic_sds_port that is in a stopped state and handles
- * the remove phy request.  In MPC mode the only time a phy can be removed from
- * a port is in the SCI_BASE_PORT_STATE_STOPPED. enum sci_status
- * SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION is returned when the phy can not
- * be added to the port. SCI_SUCCESS if the phy is added to the port.
- */
-static enum sci_status scic_sds_port_stopped_state_remove_phy_handler(
-	struct scic_sds_port *port,
-	struct scic_sds_phy *phy)
-{
-	return scic_sds_port_clear_phy(port, phy);
-}
-
-/*
- * ****************************************************************************
- * *  READY STATE HANDLERS
- * **************************************************************************** */
-
-/*
- * ****************************************************************************
- * *  RESETTING STATE HANDLERS
- * **************************************************************************** */
-
-/*
- * ****************************************************************************
- * *  STOPPING STATE HANDLERS
- * **************************************************************************** */
-
-/*
  * This method takes the struct scic_sds_port that is in a stopping state and handles
  * the complete io request. Should the request count reach 0 then the port
  * object will transition to the stopped state. enum sci_status SCI_SUCCESS
@@ -2044,11 +1760,171 @@ enum sci_status scic_sds_port_stop(struct scic_sds_port *sci_port)
 	}
 }
 
+static enum sci_status scic_port_hard_reset(struct scic_sds_port *sci_port, u32 timeout)
+{
+	enum sci_status status = SCI_FAILURE_INVALID_PHY;
+	struct scic_sds_phy *selected_phy = NULL;
+	enum scic_sds_port_states state;
+	u32 phy_index;
+
+	state = sci_port->state_machine.current_state_id;
+	if (state != SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL) {
+		dev_warn(sciport_to_dev(sci_port),
+			 "%s: in wrong state: %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+
+	/* Select a phy on which we can send the hard reset request. */
+	for (phy_index = 0; phy_index < SCI_MAX_PHYS && !selected_phy; phy_index++) {
+		selected_phy = sci_port->phy_table[phy_index];
+		if (selected_phy &&
+		    !scic_sds_port_active_phy(sci_port, selected_phy)) {
+			/*
+			 * We found a phy but it is not ready select
+			 * different phy
+			 */
+			selected_phy = NULL;
+		}
+	}
+
+	/* If we have a phy then go ahead and start the reset procedure */
+	if (!selected_phy)
+		return status;
+	status = scic_sds_phy_reset(selected_phy);
+
+	if (status != SCI_SUCCESS)
+		return status;
+
+	isci_timer_start(sci_port->timer_handle, timeout);
+	sci_port->not_ready_reason = SCIC_PORT_NOT_READY_HARD_RESET_REQUESTED;
+
+	port_state_machine_change(sci_port,
+				  SCI_BASE_PORT_STATE_RESETTING);
+	return SCI_SUCCESS;
+}
+
+/**
+ * scic_sds_port_add_phy() -
+ * @sci_port: This parameter specifies the port in which the phy will be added.
+ * @sci_phy: This parameter is the phy which is to be added to the port.
+ *
+ * This method will add a PHY to the selected port. This method returns an
+ * enum sci_status. SCI_SUCCESS the phy has been added to the port. Any other
+ * status is a failure to add the phy to the port.
+ */
+enum sci_status scic_sds_port_add_phy(struct scic_sds_port *sci_port,
+				      struct scic_sds_phy *sci_phy)
+{
+	enum sci_status status;
+	enum scic_sds_port_states state;
+
+	state = sci_port->state_machine.current_state_id;
+	switch (state) {
+	case SCI_BASE_PORT_STATE_STOPPED: {
+		struct sci_sas_address port_sas_address;
+
+		/* Read the port assigned SAS Address if there is one */
+		scic_sds_port_get_sas_address(sci_port, &port_sas_address);
+
+		if (port_sas_address.high != 0 && port_sas_address.low != 0) {
+			struct sci_sas_address phy_sas_address;
+
+			/* Make sure that the PHY SAS Address matches the SAS Address
+			 * for this port
+			 */
+			scic_sds_phy_get_sas_address(sci_phy, &phy_sas_address);
+
+			if (port_sas_address.high != phy_sas_address.high ||
+			    port_sas_address.low  != phy_sas_address.low)
+				return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
+		}
+		return scic_sds_port_set_phy(sci_port, sci_phy);
+	}
+	case SCIC_SDS_PORT_READY_SUBSTATE_WAITING:
+	case SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL:
+		status = scic_sds_port_set_phy(sci_port, sci_phy);
+
+		if (status != SCI_SUCCESS)
+			return status;
+
+		scic_sds_port_general_link_up_handler(sci_port, sci_phy, true);
+		sci_port->not_ready_reason = SCIC_PORT_NOT_READY_RECONFIGURING;
+		port_state_machine_change(sci_port, SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
+
+		return status;
+	case SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING:
+		status = scic_sds_port_set_phy(sci_port, sci_phy);
+
+		if (status != SCI_SUCCESS)
+			return status;
+		scic_sds_port_general_link_up_handler(sci_port, sci_phy, true);
+
+		/* Re-enter the configuring state since this may be the last phy in
+		 * the port.
+		 */
+		port_state_machine_change(sci_port,
+					  SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
+		return SCI_SUCCESS;
+	default:
+		dev_warn(sciport_to_dev(sci_port),
+			 "%s: in wrong state: %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+}
+
+/**
+ * scic_sds_port_remove_phy() -
+ * @sci_port: This parameter specifies the port in which the phy will be added.
+ * @sci_phy: This parameter is the phy which is to be added to the port.
+ *
+ * This method will remove the PHY from the selected PORT. This method returns
+ * an enum sci_status. SCI_SUCCESS the phy has been removed from the port. Any
+ * other status is a failure to add the phy to the port.
+ */
+enum sci_status scic_sds_port_remove_phy(struct scic_sds_port *sci_port,
+					 struct scic_sds_phy *sci_phy)
+{
+	enum sci_status status;
+	enum scic_sds_port_states state;
+
+	state = sci_port->state_machine.current_state_id;
+
+	switch (state) {
+	case SCI_BASE_PORT_STATE_STOPPED:
+		return scic_sds_port_clear_phy(sci_port, sci_phy);
+	case SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL:
+		status = scic_sds_port_clear_phy(sci_port, sci_phy);
+		if (status != SCI_SUCCESS)
+			return status;
+
+		scic_sds_port_deactivate_phy(sci_port, sci_phy, true);
+		sci_port->not_ready_reason = SCIC_PORT_NOT_READY_RECONFIGURING;
+		port_state_machine_change(sci_port,
+					  SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
+		return SCI_SUCCESS;
+	case SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING:
+		status = scic_sds_port_clear_phy(sci_port, sci_phy);
+
+		if (status != SCI_SUCCESS)
+			return status;
+		scic_sds_port_deactivate_phy(sci_port, sci_phy, true);
+
+		/* Re-enter the configuring state since this may be the last phy in
+		 * the port
+		 */
+		port_state_machine_change(sci_port,
+					  SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
+
+		return SCI_SUCCESS;
+	default:
+		dev_warn(sciport_to_dev(sci_port),
+			 "%s: in wrong state: %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+}
+
 static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = {
 	[SCI_BASE_PORT_STATE_STOPPED] = {
-		.reset_handler  	= scic_sds_port_default_reset_handler,
-		.add_phy_handler 	= scic_sds_port_stopped_state_add_phy_handler,
-		.remove_phy_handler 	= scic_sds_port_stopped_state_remove_phy_handler,
 		.frame_handler  	= scic_sds_port_default_frame_handler,
 		.event_handler  	= scic_sds_port_default_event_handler,
 		.link_up_handler        = scic_sds_port_default_link_up_handler,
@@ -2057,9 +1933,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler 	= scic_sds_port_default_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_STOPPING] = {
-		.reset_handler  	= scic_sds_port_default_reset_handler,
-		.add_phy_handler 	= scic_sds_port_default_add_phy_handler,
-		.remove_phy_handler 	= scic_sds_port_default_remove_phy_handler,
 		.frame_handler  	= scic_sds_port_default_frame_handler,
 		.event_handler  	= scic_sds_port_default_event_handler,
 		.link_up_handler        = scic_sds_port_default_link_up_handler,
@@ -2068,9 +1941,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler 	= scic_sds_port_stopping_state_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_READY] = {
-		.reset_handler   	= scic_sds_port_default_reset_handler,
-		.add_phy_handler 	= scic_sds_port_default_add_phy_handler,
-		.remove_phy_handler 	= scic_sds_port_default_remove_phy_handler,
 		.frame_handler   	= scic_sds_port_default_frame_handler,
 		.event_handler   	= scic_sds_port_default_event_handler,
 		.link_up_handler 	= scic_sds_port_default_link_up_handler,
@@ -2079,9 +1949,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler 	= scic_sds_port_general_complete_io_handler
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_WAITING] = {
-		.reset_handler		= scic_sds_port_default_reset_handler,
-		.add_phy_handler	= scic_sds_port_ready_substate_add_phy_handler,
-		.remove_phy_handler	= scic_sds_port_default_remove_phy_handler,
 		.frame_handler		= scic_sds_port_default_frame_handler,
 		.event_handler		= scic_sds_port_default_event_handler,
 		.link_up_handler	= scic_sds_port_ready_waiting_substate_link_up_handler,
@@ -2090,9 +1957,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler	= scic_sds_port_ready_substate_complete_io_handler,
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL] = {
-		.reset_handler		= scic_sds_port_ready_operational_substate_reset_handler,
-		.add_phy_handler	= scic_sds_port_ready_substate_add_phy_handler,
-		.remove_phy_handler	= scic_sds_port_ready_substate_remove_phy_handler,
 		.frame_handler		= scic_sds_port_default_frame_handler,
 		.event_handler		= scic_sds_port_default_event_handler,
 		.link_up_handler	= scic_sds_port_ready_operational_substate_link_up_handler,
@@ -2101,9 +1965,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler	= scic_sds_port_ready_substate_complete_io_handler,
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING] = {
-		.reset_handler		= scic_sds_port_default_reset_handler,
-		.add_phy_handler	= scic_sds_port_ready_configuring_substate_add_phy_handler,
-		.remove_phy_handler	= scic_sds_port_ready_configuring_substate_remove_phy_handler,
 		.frame_handler		= scic_sds_port_default_frame_handler,
 		.event_handler		= scic_sds_port_default_event_handler,
 		.link_up_handler	= scic_sds_port_default_link_up_handler,
@@ -2112,9 +1973,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler	= scic_sds_port_ready_configuring_substate_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_RESETTING] = {
-		.reset_handler		= scic_sds_port_default_reset_handler,
-		.add_phy_handler	= scic_sds_port_default_add_phy_handler,
-		.remove_phy_handler	= scic_sds_port_default_remove_phy_handler,
 		.frame_handler		= scic_sds_port_default_frame_handler,
 		.event_handler		= scic_sds_port_default_event_handler,
 		.link_up_handler	= scic_sds_port_reset_state_link_up_handler,
@@ -2123,9 +1981,6 @@ static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = 
 		.complete_io_handler	= scic_sds_port_general_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_FAILED] = {
-		.reset_handler		= scic_sds_port_default_reset_handler,
-		.add_phy_handler	= scic_sds_port_default_add_phy_handler,
-		.remove_phy_handler	= scic_sds_port_default_remove_phy_handler,
 		.frame_handler		= scic_sds_port_default_frame_handler,
 		.event_handler		= scic_sds_port_default_event_handler,
 		.link_up_handler	= scic_sds_port_default_link_up_handler,
