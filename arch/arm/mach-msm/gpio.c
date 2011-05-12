@@ -25,17 +25,17 @@
 
 #define FIRST_GPIO_IRQ MSM_GPIO_TO_INT(0)
 
-#define MSM_GPIO_BANK(bank, first, last)				\
+#define MSM_GPIO_BANK(soc, bank, first, last)				\
 	{								\
 		.regs = {						\
-			.out =         MSM_GPIO_OUT_##bank,		\
-			.in =          MSM_GPIO_IN_##bank,		\
-			.int_status =  MSM_GPIO_INT_STATUS_##bank,	\
-			.int_clear =   MSM_GPIO_INT_CLEAR_##bank,	\
-			.int_en =      MSM_GPIO_INT_EN_##bank,		\
-			.int_edge =    MSM_GPIO_INT_EDGE_##bank,	\
-			.int_pos =     MSM_GPIO_INT_POS_##bank,		\
-			.oe =          MSM_GPIO_OE_##bank,		\
+			.out =         soc##_GPIO_OUT_##bank,		\
+			.in =          soc##_GPIO_IN_##bank,		\
+			.int_status =  soc##_GPIO_INT_STATUS_##bank,	\
+			.int_clear =   soc##_GPIO_INT_CLEAR_##bank,	\
+			.int_en =      soc##_GPIO_INT_EN_##bank,	\
+			.int_edge =    soc##_GPIO_INT_EDGE_##bank,	\
+			.int_pos =     soc##_GPIO_INT_POS_##bank,	\
+			.oe =          soc##_GPIO_OE_##bank,		\
 		},							\
 		.chip = {						\
 			.base = (first),				\
@@ -191,30 +191,30 @@ static void msm_gpio_free(struct gpio_chip *chip, unsigned offset)
 
 struct msm_gpio_chip msm_gpio_chips[] = {
 #if defined(CONFIG_ARCH_MSM7X00A)
-	MSM_GPIO_BANK(0,   0,  15),
-	MSM_GPIO_BANK(1,  16,  42),
-	MSM_GPIO_BANK(2,  43,  67),
-	MSM_GPIO_BANK(3,  68,  94),
-	MSM_GPIO_BANK(4,  95, 106),
-	MSM_GPIO_BANK(5, 107, 121),
+	MSM_GPIO_BANK(MSM7X00, 0,   0,  15),
+	MSM_GPIO_BANK(MSM7X00, 1,  16,  42),
+	MSM_GPIO_BANK(MSM7X00, 2,  43,  67),
+	MSM_GPIO_BANK(MSM7X00, 3,  68,  94),
+	MSM_GPIO_BANK(MSM7X00, 4,  95, 106),
+	MSM_GPIO_BANK(MSM7X00, 5, 107, 121),
 #elif defined(CONFIG_ARCH_MSM7X30)
-	MSM_GPIO_BANK(0,   0,  15),
-	MSM_GPIO_BANK(1,  16,  43),
-	MSM_GPIO_BANK(2,  44,  67),
-	MSM_GPIO_BANK(3,  68,  94),
-	MSM_GPIO_BANK(4,  95, 106),
-	MSM_GPIO_BANK(5, 107, 133),
-	MSM_GPIO_BANK(6, 134, 150),
-	MSM_GPIO_BANK(7, 151, 181),
+	MSM_GPIO_BANK(MSM7X30, 0,   0,  15),
+	MSM_GPIO_BANK(MSM7X30, 1,  16,  43),
+	MSM_GPIO_BANK(MSM7X30, 2,  44,  67),
+	MSM_GPIO_BANK(MSM7X30, 3,  68,  94),
+	MSM_GPIO_BANK(MSM7X30, 4,  95, 106),
+	MSM_GPIO_BANK(MSM7X30, 5, 107, 133),
+	MSM_GPIO_BANK(MSM7X30, 6, 134, 150),
+	MSM_GPIO_BANK(MSM7X30, 7, 151, 181),
 #elif defined(CONFIG_ARCH_QSD8X50)
-	MSM_GPIO_BANK(0,   0,  15),
-	MSM_GPIO_BANK(1,  16,  42),
-	MSM_GPIO_BANK(2,  43,  67),
-	MSM_GPIO_BANK(3,  68,  94),
-	MSM_GPIO_BANK(4,  95, 103),
-	MSM_GPIO_BANK(5, 104, 121),
-	MSM_GPIO_BANK(6, 122, 152),
-	MSM_GPIO_BANK(7, 153, 164),
+	MSM_GPIO_BANK(QSD8X50, 0,   0,  15),
+	MSM_GPIO_BANK(QSD8X50, 1,  16,  42),
+	MSM_GPIO_BANK(QSD8X50, 2,  43,  67),
+	MSM_GPIO_BANK(QSD8X50, 3,  68,  94),
+	MSM_GPIO_BANK(QSD8X50, 4,  95, 103),
+	MSM_GPIO_BANK(QSD8X50, 5, 104, 121),
+	MSM_GPIO_BANK(QSD8X50, 6, 122, 152),
+	MSM_GPIO_BANK(QSD8X50, 7, 153, 164),
 #endif
 };
 
