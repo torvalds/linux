@@ -1445,34 +1445,30 @@ static int qeth_l3_send_checksum_command(struct qeth_card *card)
 	return 0;
 }
 
-int qeth_l3_set_rx_csum(struct qeth_card *card,
-	enum qeth_checksum_types csum_type)
+int qeth_l3_set_rx_csum(struct qeth_card *card, int on)
 {
 	int rc = 0;
 
-	if (card->options.checksum_type == HW_CHECKSUMMING) {
-		if ((csum_type != HW_CHECKSUMMING) &&
-			(card->state != CARD_STATE_DOWN)) {
-			rc = qeth_l3_send_simple_setassparms(card,
-				IPA_INBOUND_CHECKSUM, IPA_CMD_ASS_STOP, 0);
+	if (on) {
+		if (card->state != CARD_STATE_DOWN) {
+			if (!qeth_is_supported(card,
+				    IPA_INBOUND_CHECKSUM))
+					return -EPERM;
+			rc = qeth_l3_send_checksum_command(card);
 			if (rc)
 				return -EIO;
 		}
 		card->dev->features |= NETIF_F_RXCSUM;
 	} else {
-		if (csum_type == HW_CHECKSUMMING) {
-			if (card->state != CARD_STATE_DOWN) {
-				if (!qeth_is_supported(card,
-				    IPA_INBOUND_CHECKSUM))
-					return -EPERM;
-				rc = qeth_l3_send_checksum_command(card);
-				if (rc)
-					return -EIO;
-			}
+		if (card->state != CARD_STATE_DOWN) {
+			rc = qeth_l3_send_simple_setassparms(card,
+				IPA_INBOUND_CHECKSUM, IPA_CMD_ASS_STOP, 0);
+			if (rc)
+				return -EIO;
 		}
 		card->dev->features &= ~NETIF_F_RXCSUM;
 	}
-	card->options.checksum_type = csum_type;
+
 	return rc;
 }
 
@@ -1482,32 +1478,34 @@ static int qeth_l3_start_ipa_checksum(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 3, "strtcsum");
 
-	if (card->options.checksum_type == NO_CHECKSUMMING) {
-		dev_info(&card->gdev->dev,
-			"Using no checksumming on %s.\n",
-			QETH_CARD_IFNAME(card));
-		return 0;
-	}
-	if (card->options.checksum_type == SW_CHECKSUMMING) {
-		dev_info(&card->gdev->dev,
-			"Using SW checksumming on %s.\n",
-			QETH_CARD_IFNAME(card));
-		return 0;
-	}
-	if (!qeth_is_supported(card, IPA_INBOUND_CHECKSUM)) {
-		dev_info(&card->gdev->dev,
+	if (card->dev->features & NETIF_F_RXCSUM) {
+		/* hw may have changed during offline or recovery */
+		if (!qeth_is_supported(card, IPA_INBOUND_CHECKSUM)) {
+			dev_info(&card->gdev->dev,
 			"Inbound HW Checksumming not "
 			"supported on %s,\ncontinuing "
 			"using Inbound SW Checksumming\n",
 			QETH_CARD_IFNAME(card));
-		card->options.checksum_type = SW_CHECKSUMMING;
-		return 0;
-	}
-	rc = qeth_l3_send_checksum_command(card);
-	if (!rc)
-		dev_info(&card->gdev->dev,
-			"HW Checksumming (inbound) enabled\n");
+			goto update_feature;
+		}
 
+		rc = qeth_l3_send_checksum_command(card);
+		if (!rc)
+			dev_info(&card->gdev->dev,
+			"HW Checksumming (inbound) enabled\n");
+		else
+			goto update_feature;
+	} else
+		dev_info(&card->gdev->dev,
+			"Using SW checksumming on %s.\n",
+			QETH_CARD_IFNAME(card));
+	return 0;
+
+update_feature:
+	rtnl_lock();
+	card->dev->features &= ~NETIF_F_RXCSUM;
+	netdev_update_features(card->dev);
+	rtnl_unlock();
 	return rc;
 }
 
@@ -2037,14 +2035,7 @@ static inline int qeth_l3_rebuild_skb(struct qeth_card *card,
 		is_vlan = 1;
 	}
 
-	switch (card->options.checksum_type) {
-	case SW_CHECKSUMMING:
-		skb->ip_summed = CHECKSUM_NONE;
-		break;
-	case NO_CHECKSUMMING:
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		break;
-	case HW_CHECKSUMMING:
+	if (card->dev->features & NETIF_F_RXCSUM) {
 		if ((hdr->hdr.l3.ext_flags &
 		    (QETH_HDR_EXT_CSUM_HDR_REQ |
 		     QETH_HDR_EXT_CSUM_TRANSP_REQ)) ==
@@ -2053,7 +2044,8 @@ static inline int qeth_l3_rebuild_skb(struct qeth_card *card,
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
 			skb->ip_summed = CHECKSUM_NONE;
-	}
+	} else
+		skb->ip_summed = CHECKSUM_NONE;
 
 	return is_vlan;
 }
@@ -3235,20 +3227,19 @@ static u32 qeth_l3_fix_features(struct net_device *dev, u32 features)
 
 static int qeth_l3_set_features(struct net_device *dev, u32 features)
 {
-	enum qeth_checksum_types csum_type;
 	struct qeth_card *card = dev->ml_priv;
 	u32 changed = dev->features ^ features;
+	int on;
 
 	if (!(changed & NETIF_F_RXCSUM))
 		return 0;
 
 	if (features & NETIF_F_RXCSUM)
-		csum_type = HW_CHECKSUMMING;
+		on = 1;
 	else
-		csum_type = SW_CHECKSUMMING;
+		on = 0;
 
-	dev->features = features ^ NETIF_F_RXCSUM;
-	return qeth_l3_set_rx_csum(card, csum_type);
+	return qeth_l3_set_rx_csum(card, on);
 }
 
 static const struct ethtool_ops qeth_l3_ethtool_ops = {
@@ -3342,6 +3333,12 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 			if (!(card->info.unique_id & UNIQUE_ID_NOT_BY_CARD))
 				card->dev->dev_id = card->info.unique_id &
 							 0xffff;
+			if (!card->info.guestlan) {
+				card->dev->hw_features = NETIF_F_SG |
+					NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
+					NETIF_F_TSO;
+				card->dev->features = NETIF_F_RXCSUM;
+			}
 		}
 	} else if (card->info.type == QETH_CARD_TYPE_IQD) {
 		card->dev = alloc_netdev(0, "hsi%d", ether_setup);
@@ -3357,8 +3354,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	card->dev->watchdog_timeo = QETH_TX_TIMEOUT;
 	card->dev->mtu = card->info.initial_mtu;
 	SET_ETHTOOL_OPS(card->dev, &qeth_l3_ethtool_ops);
-	card->dev->hw_features = NETIF_F_SG | NETIF_F_RXCSUM |
-		NETIF_F_IP_CSUM | NETIF_F_TSO;
 	card->dev->features |=	NETIF_F_HW_VLAN_TX |
 				NETIF_F_HW_VLAN_RX |
 				NETIF_F_HW_VLAN_FILTER;
@@ -3382,9 +3377,6 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 	card->discipline.output_handler = (qdio_handler_t *)
 		qeth_qdio_output_handler;
 	card->discipline.recover = qeth_l3_recover;
-	if ((card->info.type == QETH_CARD_TYPE_OSD) ||
-	    (card->info.type == QETH_CARD_TYPE_OSX))
-		card->options.checksum_type = HW_CHECKSUMMING;
 	return 0;
 }
 

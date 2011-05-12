@@ -80,14 +80,6 @@ enum qeth_tr_broadcast_modes {
 	QETH_TR_BROADCAST_LOCAL    = 1,
 };
 
-/* these values match CHECKSUM_* in include/linux/skbuff.h */
-enum qeth_checksum_types {
-	SW_CHECKSUMMING = 0, /* TODO: set to bit flag used in IPA Command */
-	HW_CHECKSUMMING = 1,
-	NO_CHECKSUMMING = 2,
-};
-#define QETH_CHECKSUM_DEFAULT SW_CHECKSUMMING
-
 /*
  * Routing stuff
  */
