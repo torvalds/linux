@@ -1066,16 +1066,17 @@ static ssize_t ceph_read_dir(struct file *file, char __user *buf, size_t size,
 	struct inode *inode = file->f_dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int left;
+	const int bufsize = 1024;
 
 	if (!ceph_test_mount_opt(ceph_sb_to_client(inode->i_sb), DIRSTAT))
 		return -EISDIR;
 
 	if (!cf->dir_info) {
-		cf->dir_info = kmalloc(1024, GFP_NOFS);
+		cf->dir_info = kmalloc(bufsize, GFP_NOFS);
 		if (!cf->dir_info)
 			return -ENOMEM;
 		cf->dir_info_len =
-			sprintf(cf->dir_info,
+			snprintf(cf->dir_info, bufsize,
 				"entries:   %20lld\n"
 				" files:    %20lld\n"
 				" subdirs:  %20lld\n"
