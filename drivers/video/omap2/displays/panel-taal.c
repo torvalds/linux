@@ -1031,8 +1031,8 @@ static int taal_probe(struct omap_dss_device *dssdev)
 		props.max_brightness = 127;
 
 	props.type = BACKLIGHT_RAW;
-	bldev = backlight_device_register("taal", &dssdev->dev, dssdev,
-					  &taal_bl_ops, &props);
+	bldev = backlight_device_register(dev_name(&dssdev->dev), &dssdev->dev,
+					dssdev, &taal_bl_ops, &props);
 	if (IS_ERR(bldev)) {
 		r = PTR_ERR(bldev);
 		goto err_bl;
