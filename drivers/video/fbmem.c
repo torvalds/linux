@@ -42,8 +42,33 @@
 
 #define FBPIXMAPSIZE	(1024 * 8)
 
+static DEFINE_MUTEX(registration_lock);
 struct fb_info *registered_fb[FB_MAX] __read_mostly;
 int num_registered_fb __read_mostly;
+
+static struct fb_info *get_fb_info(unsigned int idx)
+{
+	struct fb_info *fb_info;
+
+	if (idx >= FB_MAX)
+		return ERR_PTR(-ENODEV);
+
+	mutex_lock(&registration_lock);
+	fb_info = registered_fb[idx];
+	if (fb_info)
+		atomic_inc(&fb_info->count);
+	mutex_unlock(&registration_lock);
+
+	return fb_info;
+}
+
+static void put_fb_info(struct fb_info *fb_info)
+{
+	if (!atomic_dec_and_test(&fb_info->count))
+		return;
+	if (fb_info->fbops->fb_destroy)
+		fb_info->fbops->fb_destroy(fb_info);
+}
 
 int lock_fb_info(struct fb_info *info)
 {
@@ -647,6 +672,7 @@ int fb_show_logo(struct fb_info *info, int rotate) { return 0; }
 
 static void *fb_seq_start(struct seq_file *m, loff_t *pos)
 {
+	mutex_lock(&registration_lock);
 	return (*pos < FB_MAX) ? pos : NULL;
 }
 
@@ -658,6 +684,7 @@ static void *fb_seq_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void fb_seq_stop(struct seq_file *m, void *v)
 {
+	mutex_unlock(&registration_lock);
 }
 
 static int fb_seq_show(struct seq_file *m, void *v)
@@ -690,13 +717,30 @@ static const struct file_operations fb_proc_fops = {
 	.release	= seq_release,
 };
 
+/*
+ * We hold a reference to the fb_info in file->private_data,
+ * but if the current registered fb has changed, we don't
+ * actually want to use it.
+ *
+ * So look up the fb_info using the inode minor number,
+ * and just verify it against the reference we have.
+ */
+static struct fb_info *file_fb_info(struct file *file)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	int fbidx = iminor(inode);
+	struct fb_info *info = registered_fb[fbidx];
+
+	if (info != file->private_data)
+		info = NULL;
+	return info;
+}
+
 static ssize_t
 fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
+	struct fb_info *info = file_fb_info(file);
 	u8 *buffer, *dst;
 	u8 __iomem *src;
 	int c, cnt = 0, err = 0;
@@ -761,9 +805,7 @@ static ssize_t
 fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
+	struct fb_info *info = file_fb_info(file);
 	u8 *buffer, *src;
 	u8 __iomem *dst;
 	int c, cnt = 0, err = 0;
@@ -1141,10 +1183,10 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 static long fb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
+	struct fb_info *info = file_fb_info(file);
 
+	if (!info)
+		return -ENODEV;
 	return do_fb_ioctl(info, cmd, arg);
 }
 
@@ -1265,12 +1307,13 @@ static int fb_get_fscreeninfo(struct fb_info *info, unsigned int cmd,
 static long fb_compat_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
-	struct fb_ops *fb = info->fbops;
+	struct fb_info *info = file_fb_info(file);
+	struct fb_ops *fb;
 	long ret = -ENOIOCTLCMD;
 
+	if (!info)
+		return -ENODEV;
+	fb = info->fbops;
 	switch(cmd) {
 	case FBIOGET_VSCREENINFO:
 	case FBIOPUT_VSCREENINFO:
@@ -1303,16 +1346,18 @@ static long fb_compat_ioctl(struct file *file, unsigned int cmd,
 static int
 fb_mmap(struct file *file, struct vm_area_struct * vma)
 {
-	int fbidx = iminor(file->f_path.dentry->d_inode);
-	struct fb_info *info = registered_fb[fbidx];
-	struct fb_ops *fb = info->fbops;
+	struct fb_info *info = file_fb_info(file);
+	struct fb_ops *fb;
 	unsigned long off;
 	unsigned long start;
 	u32 len;
 
+	if (!info)
+		return -ENODEV;
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;
 	off = vma->vm_pgoff << PAGE_SHIFT;
+	fb = info->fbops;
 	if (!fb)
 		return -ENODEV;
 	mutex_lock(&info->mm_lock);
@@ -1361,14 +1406,16 @@ __releases(&info->lock)
 	struct fb_info *info;
 	int res = 0;
 
-	if (fbidx >= FB_MAX)
-		return -ENODEV;
-	info = registered_fb[fbidx];
-	if (!info)
+	info = get_fb_info(fbidx);
+	if (!info) {
 		request_module("fb%d", fbidx);
-	info = registered_fb[fbidx];
-	if (!info)
-		return -ENODEV;
+		info = get_fb_info(fbidx);
+		if (!info)
+			return -ENODEV;
+	}
+	if (IS_ERR(info))
+		return PTR_ERR(info);
+
 	mutex_lock(&info->lock);
 	if (!try_module_get(info->fbops->owner)) {
 		res = -ENODEV;
@@ -1386,6 +1433,8 @@ __releases(&info->lock)
 #endif
 out:
 	mutex_unlock(&info->lock);
+	if (res)
+		put_fb_info(info);
 	return res;
 }
 
@@ -1401,6 +1450,7 @@ __releases(&info->lock)
 		info->fbops->fb_release(info,1);
 	module_put(info->fbops->owner);
 	mutex_unlock(&info->lock);
+	put_fb_info(info);
 	return 0;
 }
 
@@ -1542,11 +1592,13 @@ register_framebuffer(struct fb_info *fb_info)
 	remove_conflicting_framebuffers(fb_info->apertures, fb_info->fix.id,
 					 fb_is_primary_device(fb_info));
 
+	mutex_lock(&registration_lock);
 	num_registered_fb++;
 	for (i = 0 ; i < FB_MAX; i++)
 		if (!registered_fb[i])
 			break;
 	fb_info->node = i;
+	atomic_set(&fb_info->count, 1);
 	mutex_init(&fb_info->lock);
 	mutex_init(&fb_info->mm_lock);
 
@@ -1583,6 +1635,7 @@ register_framebuffer(struct fb_info *fb_info)
 	fb_var_to_videomode(&mode, &fb_info->var);
 	fb_add_videomode(&mode, &fb_info->modelist);
 	registered_fb[i] = fb_info;
+	mutex_unlock(&registration_lock);
 
 	event.info = fb_info;
 	if (!lock_fb_info(fb_info))
@@ -1616,6 +1669,7 @@ unregister_framebuffer(struct fb_info *fb_info)
 	struct fb_event event;
 	int i, ret = 0;
 
+	mutex_lock(&registration_lock);
 	i = fb_info->node;
 	if (!registered_fb[i]) {
 		ret = -EINVAL;
@@ -1638,7 +1692,7 @@ unregister_framebuffer(struct fb_info *fb_info)
 	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
 		kfree(fb_info->pixmap.addr);
 	fb_destroy_modelist(&fb_info->modelist);
-	registered_fb[i]=NULL;
+	registered_fb[i] = NULL;
 	num_registered_fb--;
 	fb_cleanup_device(fb_info);
 	device_destroy(fb_class, MKDEV(FB_MAJOR, i));
@@ -1646,9 +1700,9 @@ unregister_framebuffer(struct fb_info *fb_info)
 	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
 
 	/* this may free fb info */
-	if (fb_info->fbops->fb_destroy)
-		fb_info->fbops->fb_destroy(fb_info);
+	put_fb_info(fb_info);
 done:
+	mutex_unlock(&registration_lock);
 	return ret;
 }
 
