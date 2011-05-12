@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef __BLKIF__BACKEND__COMMON_H__
-#define __BLKIF__BACKEND__COMMON_H__
+#ifndef __XEN_BLKIF__BACKEND__COMMON_H__
+#define __XEN_BLKIF__BACKEND__COMMON_H__
 
 #include <linux/version.h>
 #include <linux/module.h>
@@ -230,4 +230,4 @@ static inline void blkif_get_x86_64_req(struct blkif_request *dst,
 		dst->u.rw.seg[i] = src->seg[i];
 }
 
-#endif /* __BLKIF__BACKEND__COMMON_H__ */
+#endif /* __XEN_BLKIF__BACKEND__COMMON_H__ */
