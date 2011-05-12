@@ -17,7 +17,7 @@
  * USA.
  */
 
-#include <linux/slab.h>
+#include <linux/device.h>
 #include <linux/kthread.h>
 
 #include "usbip_common.h"

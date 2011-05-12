@@ -17,14 +17,18 @@
  * USA.
  */
 
-#ifndef __VHCI_COMMON_H
-#define __VHCI_COMMON_H
+#ifndef __USBIP_COMMON_H
+#define __USBIP_COMMON_H
 
-#include <linux/version.h>
 #include <linux/compiler.h>
+#include <linux/device.h>
+#include <linux/interrupt.h>
+#include <linux/net.h>
+#include <linux/printk.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
 #include <linux/usb.h>
-#include <asm/byteorder.h>
-#include <net/sock.h>
+#include <linux/wait.h>
 
 #define USBIP_VERSION "1.0.0"
 
@@ -366,4 +370,4 @@ void usbip_stop_eh(struct usbip_device *ud);
 void usbip_event_add(struct usbip_device *ud, unsigned long event);
 int usbip_event_happened(struct usbip_device *ud);
 
-#endif
+#endif /* __USBIP_COMMON_H */

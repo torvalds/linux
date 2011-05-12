@@ -17,7 +17,7 @@
  * USA.
  */
 
-#include <linux/slab.h>
+#include <linux/string.h>
 
 #include "usbip_common.h"
 #include "stub.h"

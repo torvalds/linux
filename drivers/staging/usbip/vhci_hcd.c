@@ -17,8 +17,12 @@
  * USA.
  */
 
-#include <linux/slab.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/kthread.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include "usbip_common.h"
 #include "vhci.h"

@@ -17,13 +17,12 @@
  * USA.
  */
 
-#include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/spinlock.h>
 #include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/module.h>
-#include <linux/net.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
+#include <linux/usb.h>
+#include <linux/wait.h>
 
 #define STUB_BUSID_OTHER 0
 #define STUB_BUSID_REMOV 1

@@ -17,8 +17,14 @@
  * USA.
  */
 
-#include <linux/platform_device.h>
+#include <linux/device.h>
+#include <linux/list.h>
+#include <linux/spinlock.h>
+#include <linux/sysfs.h>
+#include <linux/types.h>
+#include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/wait.h>
 
 struct vhci_device {
 	struct usb_device *udev;

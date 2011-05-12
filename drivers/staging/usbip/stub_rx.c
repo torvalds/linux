@@ -17,12 +17,13 @@
  * USA.
  */
 
-#include <linux/slab.h>
+#include <asm/byteorder.h>
 #include <linux/kthread.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
 
 #include "usbip_common.h"
 #include "stub.h"
-#include <linux/usb/hcd.h>
 
 static int is_clear_halt_cmd(struct urb *urb)
 {

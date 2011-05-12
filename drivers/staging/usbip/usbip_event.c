@@ -18,6 +18,7 @@
  */
 
 #include <linux/kthread.h>
+
 #include "usbip_common.h"
 
 static int event_handler(struct usbip_device *ud)

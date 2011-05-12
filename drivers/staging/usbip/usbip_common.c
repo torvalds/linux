@@ -17,12 +17,12 @@
  * USA.
  */
 
-#include <linux/kernel.h>
+#include <asm/byteorder.h>
 #include <linux/file.h>
-#include <linux/tcp.h>
-#include <linux/in.h>
-#include <linux/kthread.h>
+#include <linux/fs.h>
+#include <linux/kernel.h>
 #include <linux/slab.h>
+#include <net/sock.h>
 
 #include "usbip_common.h"
 
