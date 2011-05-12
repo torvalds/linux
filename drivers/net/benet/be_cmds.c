@@ -376,23 +376,25 @@ int be_cmd_POST(struct be_adapter *adapter)
 {
 	u16 stage;
 	int status, timeout = 0;
+	struct device *dev = &adapter->pdev->dev;
 
 	do {
 		status = be_POST_stage_get(adapter, &stage);
 		if (status) {
-			dev_err(&adapter->pdev->dev, "POST error; stage=0x%x\n",
-				stage);
+			dev_err(dev, "POST error; stage=0x%x\n", stage);
 			return -1;
 		} else if (stage != POST_STAGE_ARMFW_RDY) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(2 * HZ);
+			if (msleep_interruptible(2000)) {
+				dev_err(dev, "Waiting for POST aborted\n");
+				return -EINTR;
+			}
 			timeout += 2;
 		} else {
 			return 0;
 		}
 	} while (timeout < 40);
 
-	dev_err(&adapter->pdev->dev, "POST timeout; stage=0x%x\n", stage);
+	dev_err(dev, "POST timeout; stage=0x%x\n", stage);
 	return -1;
 }
 
