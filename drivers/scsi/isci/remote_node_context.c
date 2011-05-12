@@ -299,21 +299,6 @@ static enum sci_status scic_sds_remote_node_context_default_start_task_handler(
 	return SCI_FAILURE;
 }
 
-static enum sci_status scic_sds_remote_node_context_default_event_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	u32 event_code)
-{
-	dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-		 "%s: SCIC Remote Node Context 0x%p requested to process "
-		 "event 0x%x while in wrong state %d\n",
-		 __func__,
-		 sci_rnc,
-		 event_code,
-		 sci_base_state_machine_get_state(&sci_rnc->state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
 /**
  *
  * @sci_rnc: The rnc for which the task request is targeted.
@@ -383,41 +368,6 @@ static enum sci_status scic_sds_remote_node_context_initial_state_resume_handler
 	return SCI_FAILURE_INVALID_STATE;
 }
 
-/* --------------------------------------------------------------------------- */
-
-static enum sci_status scic_sds_remote_node_context_posting_state_event_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	u32 event_code)
-{
-	enum sci_status status;
-
-	switch (scu_get_event_code(event_code)) {
-	case SCU_EVENT_POST_RNC_COMPLETE:
-		status = SCI_SUCCESS;
-
-		sci_base_state_machine_change_state(
-			&sci_rnc->state_machine,
-			SCIC_SDS_REMOTE_NODE_CONTEXT_READY_STATE
-			);
-		break;
-
-	default:
-		status = SCI_FAILURE;
-		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-			 "%s: SCIC Remote Node Context 0x%p requested to "
-			 "process unexpected event 0x%x while in posting "
-			 "state\n",
-			 __func__,
-			 sci_rnc,
-			 event_code);
-		break;
-	}
-
-	return status;
-}
-
-/* --------------------------------------------------------------------------- */
-
 static enum sci_status scic_sds_remote_node_context_invalidating_state_destruct_handler(
 	struct scic_sds_remote_node_context *sci_rnc,
 	scics_sds_remote_node_context_callback callback,
@@ -429,110 +379,6 @@ static enum sci_status scic_sds_remote_node_context_invalidating_state_destruct_
 
 	return SCI_SUCCESS;
 }
-
-static enum sci_status scic_sds_remote_node_context_invalidating_state_event_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	u32 event_code)
-{
-	enum sci_status status;
-
-	if (scu_get_event_code(event_code) == SCU_EVENT_POST_RNC_INVALIDATE_COMPLETE) {
-		status = SCI_SUCCESS;
-
-		if (sci_rnc->destination_state == SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_FINAL) {
-			sci_base_state_machine_change_state(
-				&sci_rnc->state_machine,
-				SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE
-				);
-		} else {
-			sci_base_state_machine_change_state(
-				&sci_rnc->state_machine,
-				SCIC_SDS_REMOTE_NODE_CONTEXT_POSTING_STATE
-				);
-		}
-	} else {
-		switch (scu_get_event_type(event_code)) {
-		case SCU_EVENT_TYPE_RNC_SUSPEND_TX:
-		case SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX:
-			/*
-			 * We really dont care if the hardware is going to suspend
-			 * the device since it's being invalidated anyway */
-			dev_dbg(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-				"%s: SCIC Remote Node Context 0x%p was "
-				"suspeneded by hardware while being "
-				"invalidated.\n",
-				__func__,
-				sci_rnc);
-			status = SCI_SUCCESS;
-			break;
-
-		default:
-			dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-				 "%s: SCIC Remote Node Context 0x%p "
-				 "requested to process event 0x%x while "
-				 "in state %d.\n",
-				 __func__,
-				 sci_rnc,
-				 event_code,
-				 sci_base_state_machine_get_state(
-					 &sci_rnc->state_machine));
-			status = SCI_FAILURE;
-			break;
-		}
-	}
-
-	return status;
-}
-
-/* --------------------------------------------------------------------------- */
-
-
-static enum sci_status scic_sds_remote_node_context_resuming_state_event_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	u32 event_code)
-{
-	enum sci_status status;
-
-	if (scu_get_event_code(event_code) == SCU_EVENT_POST_RCN_RELEASE) {
-		status = SCI_SUCCESS;
-
-		sci_base_state_machine_change_state(
-			&sci_rnc->state_machine,
-			SCIC_SDS_REMOTE_NODE_CONTEXT_READY_STATE
-			);
-	} else {
-		switch (scu_get_event_type(event_code)) {
-		case SCU_EVENT_TYPE_RNC_SUSPEND_TX:
-		case SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX:
-			/*
-			 * We really dont care if the hardware is going to suspend
-			 * the device since it's being resumed anyway */
-			dev_dbg(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-				"%s: SCIC Remote Node Context 0x%p was "
-				"suspeneded by hardware while being resumed.\n",
-				__func__,
-				sci_rnc);
-			status = SCI_SUCCESS;
-			break;
-
-		default:
-			dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-				 "%s: SCIC Remote Node Context 0x%p requested "
-				 "to process event 0x%x while in state %d.\n",
-				 __func__,
-				 sci_rnc,
-				 event_code,
-				 sci_base_state_machine_get_state(
-					 &sci_rnc->state_machine));
-			status = SCI_FAILURE;
-			break;
-		}
-	}
-
-	return status;
-}
-
-/* --------------------------------------------------------------------------- */
 
 /**
  *
@@ -581,53 +427,6 @@ static enum sci_status scic_sds_remote_node_context_ready_state_start_io_handler
 {
 	return SCI_SUCCESS;
 }
-
-
-static enum sci_status scic_sds_remote_node_context_ready_state_event_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	u32 event_code)
-{
-	enum sci_status status;
-
-	switch (scu_get_event_type(event_code)) {
-	case SCU_EVENT_TL_RNC_SUSPEND_TX:
-		sci_base_state_machine_change_state(
-			&sci_rnc->state_machine,
-			SCIC_SDS_REMOTE_NODE_CONTEXT_TX_SUSPENDED_STATE
-			);
-
-		sci_rnc->suspension_code = scu_get_event_specifier(event_code);
-		status = SCI_SUCCESS;
-		break;
-
-	case SCU_EVENT_TL_RNC_SUSPEND_TX_RX:
-		sci_base_state_machine_change_state(
-			&sci_rnc->state_machine,
-			SCIC_SDS_REMOTE_NODE_CONTEXT_TX_RX_SUSPENDED_STATE
-			);
-
-		sci_rnc->suspension_code = scu_get_event_specifier(event_code);
-		status = SCI_SUCCESS;
-		break;
-
-	default:
-		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-			"%s: SCIC Remote Node Context 0x%p requested to "
-			"process event 0x%x while in state %d.\n",
-			__func__,
-			sci_rnc,
-			event_code,
-			sci_base_state_machine_get_state(
-				&sci_rnc->state_machine));
-
-		status = SCI_FAILURE;
-		break;
-	}
-
-	return status;
-}
-
-/* --------------------------------------------------------------------------- */
 
 static enum sci_status scic_sds_remote_node_context_tx_suspended_state_resume_handler(
 	struct scic_sds_remote_node_context *sci_rnc,
@@ -738,61 +537,13 @@ static enum sci_status scic_sds_remote_node_context_await_suspension_state_start
 	return SCI_SUCCESS;
 }
 
-static enum sci_status scic_sds_remote_node_context_await_suspension_state_event_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	u32 event_code)
-{
-	enum sci_status status;
-
-	switch (scu_get_event_type(event_code)) {
-	case SCU_EVENT_TL_RNC_SUSPEND_TX:
-		sci_base_state_machine_change_state(
-			&sci_rnc->state_machine,
-			SCIC_SDS_REMOTE_NODE_CONTEXT_TX_SUSPENDED_STATE
-			);
-
-		sci_rnc->suspension_code = scu_get_event_specifier(event_code);
-		status = SCI_SUCCESS;
-		break;
-
-	case SCU_EVENT_TL_RNC_SUSPEND_TX_RX:
-		sci_base_state_machine_change_state(
-			&sci_rnc->state_machine,
-			SCIC_SDS_REMOTE_NODE_CONTEXT_TX_RX_SUSPENDED_STATE
-			);
-
-		sci_rnc->suspension_code = scu_get_event_specifier(event_code);
-		status = SCI_SUCCESS;
-		break;
-
-	default:
-		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-			 "%s: SCIC Remote Node Context 0x%p requested to "
-			 "process event 0x%x while in state %d.\n",
-			 __func__,
-			 sci_rnc,
-			 event_code,
-			 sci_base_state_machine_get_state(
-				 &sci_rnc->state_machine));
-
-		status = SCI_FAILURE;
-		break;
-	}
-
-	return status;
-}
-
-/* --------------------------------------------------------------------------- */
-
-static struct scic_sds_remote_node_context_handlers
-scic_sds_remote_node_context_state_handler_table[] = {
+static struct scic_sds_remote_node_context_handlers scic_sds_remote_node_context_state_handler_table[] = {
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE] = {
 		.destruct_handler	= scic_sds_remote_node_context_default_destruct_handler,
 		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_node_context_initial_state_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_default_start_task_handler,
-		.event_handler		= scic_sds_remote_node_context_default_event_handler
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_POSTING_STATE] = {
 		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
@@ -800,7 +551,6 @@ scic_sds_remote_node_context_state_handler_table[] = {
 		.resume_handler		= scic_sds_remote_node_context_continue_to_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_default_start_task_handler,
-		.event_handler		= scic_sds_remote_node_context_posting_state_event_handler
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE] = {
 		.destruct_handler	= scic_sds_remote_node_context_invalidating_state_destruct_handler,
@@ -808,7 +558,6 @@ scic_sds_remote_node_context_state_handler_table[] = {
 		.resume_handler		= scic_sds_remote_node_context_continue_to_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_default_start_task_handler,
-		.event_handler		= scic_sds_remote_node_context_invalidating_state_event_handler
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE] = {
 		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
@@ -816,7 +565,6 @@ scic_sds_remote_node_context_state_handler_table[] = {
 		.resume_handler		= scic_sds_remote_node_context_continue_to_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_success_start_task_handler,
-		.event_handler		= scic_sds_remote_node_context_resuming_state_event_handler
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_READY_STATE] = {
 		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
@@ -824,7 +572,6 @@ scic_sds_remote_node_context_state_handler_table[] = {
 		.resume_handler		= scic_sds_remote_node_context_default_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_ready_state_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_success_start_task_handler,
-		.event_handler		= scic_sds_remote_node_context_ready_state_event_handler
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_TX_SUSPENDED_STATE] = {
 		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
@@ -832,7 +579,6 @@ scic_sds_remote_node_context_state_handler_table[] = {
 		.resume_handler		= scic_sds_remote_node_context_tx_suspended_state_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_suspended_start_task_handler,
-		.event_handler		= scic_sds_remote_node_context_default_event_handler
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_TX_RX_SUSPENDED_STATE] = {
 		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
@@ -840,7 +586,6 @@ scic_sds_remote_node_context_state_handler_table[] = {
 		.resume_handler		= scic_sds_remote_node_context_tx_rx_suspended_state_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_suspended_start_task_handler,
-		.event_handler		= scic_sds_remote_node_context_default_event_handler
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_AWAIT_SUSPENSION_STATE] = {
 		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
@@ -848,7 +593,6 @@ scic_sds_remote_node_context_state_handler_table[] = {
 		.resume_handler		= scic_sds_remote_node_context_await_suspension_state_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_await_suspension_state_start_task_handler,
-		.event_handler		= scic_sds_remote_node_context_await_suspension_state_event_handler
 	}
 };
 
@@ -1171,4 +915,111 @@ void scic_sds_remote_node_context_construct(struct scic_sds_remote_node_context 
 		);
 
 	sci_base_state_machine_start(&rnc->state_machine);
+}
+
+enum sci_status scic_sds_remote_node_context_event_handler(struct scic_sds_remote_node_context *sci_rnc,
+							   u32 event_code)
+{
+	enum scis_sds_remote_node_context_states state;
+
+	state = sci_rnc->state_machine.current_state_id;
+	switch (state) {
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_POSTING_STATE:
+		switch (scu_get_event_code(event_code)) {
+		case SCU_EVENT_POST_RNC_COMPLETE:
+			sci_base_state_machine_change_state(&sci_rnc->state_machine,
+							    SCIC_SDS_REMOTE_NODE_CONTEXT_READY_STATE);
+			break;
+		default:
+			goto out;
+		}
+		break;
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE:
+		if (scu_get_event_code(event_code) == SCU_EVENT_POST_RNC_INVALIDATE_COMPLETE) {
+			if (sci_rnc->destination_state == SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_FINAL)
+				state = SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE;
+			else
+				state = SCIC_SDS_REMOTE_NODE_CONTEXT_POSTING_STATE;
+			sci_base_state_machine_change_state(&sci_rnc->state_machine,
+							    state);
+		} else {
+			switch (scu_get_event_type(event_code)) {
+			case SCU_EVENT_TYPE_RNC_SUSPEND_TX:
+			case SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX:
+				/* We really dont care if the hardware is going to suspend
+				 * the device since it's being invalidated anyway */
+				dev_dbg(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+					"%s: SCIC Remote Node Context 0x%p was "
+					"suspeneded by hardware while being "
+					"invalidated.\n", __func__, sci_rnc);
+				break;
+			default:
+				goto out;
+			}
+		}
+		break;
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE:
+		if (scu_get_event_code(event_code) == SCU_EVENT_POST_RCN_RELEASE) {
+			sci_base_state_machine_change_state(&sci_rnc->state_machine,
+							    SCIC_SDS_REMOTE_NODE_CONTEXT_READY_STATE);
+		} else {
+			switch (scu_get_event_type(event_code)) {
+			case SCU_EVENT_TYPE_RNC_SUSPEND_TX:
+			case SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX:
+				/* We really dont care if the hardware is going to suspend
+				 * the device since it's being resumed anyway */
+				dev_dbg(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+					"%s: SCIC Remote Node Context 0x%p was "
+					"suspeneded by hardware while being resumed.\n",
+					__func__, sci_rnc);
+				break;
+			default:
+				goto out;
+			}
+		}
+		break;
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_READY_STATE:
+		switch (scu_get_event_type(event_code)) {
+		case SCU_EVENT_TL_RNC_SUSPEND_TX:
+			sci_base_state_machine_change_state(&sci_rnc->state_machine,
+							    SCIC_SDS_REMOTE_NODE_CONTEXT_TX_SUSPENDED_STATE);
+			sci_rnc->suspension_code = scu_get_event_specifier(event_code);
+			break;
+		case SCU_EVENT_TL_RNC_SUSPEND_TX_RX:
+			sci_base_state_machine_change_state(&sci_rnc->state_machine,
+							    SCIC_SDS_REMOTE_NODE_CONTEXT_TX_RX_SUSPENDED_STATE);
+			sci_rnc->suspension_code = scu_get_event_specifier(event_code);
+			break;
+		default:
+			goto out;
+		}
+		break;
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_AWAIT_SUSPENSION_STATE:
+		switch (scu_get_event_type(event_code)) {
+		case SCU_EVENT_TL_RNC_SUSPEND_TX:
+			sci_base_state_machine_change_state(&sci_rnc->state_machine,
+							    SCIC_SDS_REMOTE_NODE_CONTEXT_TX_SUSPENDED_STATE);
+			sci_rnc->suspension_code = scu_get_event_specifier(event_code);
+			break;
+		case SCU_EVENT_TL_RNC_SUSPEND_TX_RX:
+			sci_base_state_machine_change_state(&sci_rnc->state_machine,
+							    SCIC_SDS_REMOTE_NODE_CONTEXT_TX_RX_SUSPENDED_STATE);
+			sci_rnc->suspension_code = scu_get_event_specifier(event_code);
+			break;
+		default:
+			goto out;
+		}
+		break;
+	default:
+		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+			 "%s: invalid state %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+	return SCI_SUCCESS;
+
+ out:
+	dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+		 "%s: code: %#x state: %d\n", __func__, event_code, state);
+	return SCI_FAILURE;
+
 }

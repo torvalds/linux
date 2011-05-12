@@ -102,11 +102,6 @@ typedef enum sci_status (*scic_sds_remote_node_context_io_request)(
 	struct scic_sds_request *sci_req
 	);
 
-typedef enum sci_status (*scic_sds_remote_node_context_event_handler)(
-	struct scic_sds_remote_node_context *sci_rnc,
-	u32 event_code
-	);
-
 struct scic_sds_remote_node_context_handlers {
 	/**
 	 * This handle is invoked to stop the RNC.  The callback is invoked when after
@@ -138,12 +133,6 @@ struct scic_sds_remote_node_context_handlers {
 	 * operation.
 	 */
 	scic_sds_remote_node_context_io_request start_task_handler;
-
-	/**
-	 * This handler is invoked where there is an RNC event that must be processed.
-	 */
-	scic_sds_remote_node_context_event_handler event_handler;
-
 };
 
 /**
@@ -271,8 +260,9 @@ bool scic_sds_remote_node_context_is_ready(
 #define scic_sds_remote_node_context_get_remote_node_index(rcn)	\
 	((rnc)->remote_node_index)
 
-#define scic_sds_remote_node_context_event_handler(rnc, event_code) \
-	((rnc)->state_handlers->event_handler(rnc, event_code))
+
+enum sci_status scic_sds_remote_node_context_event_handler(struct scic_sds_remote_node_context *sci_rnc,
+							   u32 event_code);
 
 #define scic_sds_remote_node_context_resume(rnc, callback, parameter) \
 	((rnc)->state_handlers->resume_handler(rnc, callback, parameter))
