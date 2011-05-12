@@ -184,7 +184,7 @@ static struct tty_driver *hvc_console_device(struct console *c, int *index)
 }
 
 static int __init hvc_console_setup(struct console *co, char *options)
-{
+{	
 	if (co->index < 0 || co->index >= MAX_NR_HVC_CONSOLES)
 		return -ENODEV;
 
@@ -745,6 +745,25 @@ static int khvcd(void *unused)
 	return 0;
 }
 
+static int hvc_tiocmget(struct tty_struct *tty)
+{
+	struct hvc_struct *hp = tty->driver_data;
+
+	if (!hp || !hp->ops->tiocmget)
+		return -EINVAL;
+	return hp->ops->tiocmget(hp);
+}
+
+static int hvc_tiocmset(struct tty_struct *tty,
+			unsigned int set, unsigned int clear)
+{
+	struct hvc_struct *hp = tty->driver_data;
+
+	if (!hp || !hp->ops->tiocmset)
+		return -EINVAL;
+	return hp->ops->tiocmset(hp, set, clear);
+}
+
 static const struct tty_operations hvc_ops = {
 	.open = hvc_open,
 	.close = hvc_close,
@@ -753,6 +772,8 @@ static const struct tty_operations hvc_ops = {
 	.unthrottle = hvc_unthrottle,
 	.write_room = hvc_write_room,
 	.chars_in_buffer = hvc_chars_in_buffer,
+	.tiocmget = hvc_tiocmget,
+	.tiocmset = hvc_tiocmset,
 };
 
 struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
