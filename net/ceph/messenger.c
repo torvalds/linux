@@ -76,7 +76,8 @@ const char *ceph_pr_addr(const struct sockaddr_storage *ss)
 		break;
 
 	default:
-		sprintf(s, "(unknown sockaddr family %d)", (int)ss->ss_family);
+		snprintf(s, MAX_ADDR_STR_LEN, "(unknown sockaddr family %d)",
+			 (int)ss->ss_family);
 	}
 
 	return s;
