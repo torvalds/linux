@@ -1355,7 +1355,9 @@ static int process_connect(struct ceph_connection *con)
 		 * to WAIT.  This shouldn't happen if we are the
 		 * client.
 		 */
-		pr_err("process_connect peer connecting WAIT\n");
+		pr_err("process_connect got WAIT as client\n");
+		con->error_msg = "protocol error, got WAIT as client";
+		return -1;
 
 	default:
 		pr_err("connect protocol error, will retry\n");
