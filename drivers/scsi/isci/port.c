@@ -1262,30 +1262,6 @@ static enum sci_status default_port_handler(struct scic_sds_port *sci_port,
 	return SCI_FAILURE_INVALID_STATE;
 }
 
-/*
- * This is the default method for a port unsolicited frame request.  It will
- * report a warning and exit. enum sci_status SCI_FAILURE_INVALID_STATE Is it even
- * possible to receive an unsolicited frame directed to a port object?  It
- * seems possible if we implementing virtual functions but until then?
- */
-static enum sci_status
-scic_sds_port_default_frame_handler(struct scic_sds_port *sci_port,
-				    u32 frame_index)
-{
-	struct scic_sds_controller *scic = scic_sds_port_get_controller(sci_port);
-
-	default_port_handler(sci_port, __func__);
-	scic_sds_controller_release_frame(scic, frame_index);
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-static enum sci_status scic_sds_port_default_event_handler(struct scic_sds_port *sci_port,
-						    u32 event_code)
-{
-	return default_port_handler(sci_port, __func__);
-}
-
 static void scic_sds_port_default_link_up_handler(struct scic_sds_port *sci_port,
 					   struct scic_sds_phy *sci_phy)
 {
@@ -1925,64 +1901,48 @@ enum sci_status scic_sds_port_remove_phy(struct scic_sds_port *sci_port,
 
 static struct scic_sds_port_state_handler scic_sds_port_state_handler_table[] = {
 	[SCI_BASE_PORT_STATE_STOPPED] = {
-		.frame_handler  	= scic_sds_port_default_frame_handler,
-		.event_handler  	= scic_sds_port_default_event_handler,
 		.link_up_handler        = scic_sds_port_default_link_up_handler,
 		.link_down_handler 	= scic_sds_port_default_link_down_handler,
 		.start_io_handler 	= scic_sds_port_default_start_io_handler,
 		.complete_io_handler 	= scic_sds_port_default_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_STOPPING] = {
-		.frame_handler  	= scic_sds_port_default_frame_handler,
-		.event_handler  	= scic_sds_port_default_event_handler,
 		.link_up_handler        = scic_sds_port_default_link_up_handler,
 		.link_down_handler 	= scic_sds_port_default_link_down_handler,
 		.start_io_handler 	= scic_sds_port_default_start_io_handler,
 		.complete_io_handler 	= scic_sds_port_stopping_state_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_READY] = {
-		.frame_handler   	= scic_sds_port_default_frame_handler,
-		.event_handler   	= scic_sds_port_default_event_handler,
 		.link_up_handler 	= scic_sds_port_default_link_up_handler,
 		.link_down_handler 	= scic_sds_port_default_link_down_handler,
 		.start_io_handler 	= scic_sds_port_default_start_io_handler,
 		.complete_io_handler 	= scic_sds_port_general_complete_io_handler
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_WAITING] = {
-		.frame_handler		= scic_sds_port_default_frame_handler,
-		.event_handler		= scic_sds_port_default_event_handler,
 		.link_up_handler	= scic_sds_port_ready_waiting_substate_link_up_handler,
 		.link_down_handler	= scic_sds_port_default_link_down_handler,
 		.start_io_handler	= scic_sds_port_ready_waiting_substate_start_io_handler,
 		.complete_io_handler	= scic_sds_port_ready_substate_complete_io_handler,
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL] = {
-		.frame_handler		= scic_sds_port_default_frame_handler,
-		.event_handler		= scic_sds_port_default_event_handler,
 		.link_up_handler	= scic_sds_port_ready_operational_substate_link_up_handler,
 		.link_down_handler	= scic_sds_port_ready_operational_substate_link_down_handler,
 		.start_io_handler	= scic_sds_port_ready_operational_substate_start_io_handler,
 		.complete_io_handler	= scic_sds_port_ready_substate_complete_io_handler,
 	},
 	[SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING] = {
-		.frame_handler		= scic_sds_port_default_frame_handler,
-		.event_handler		= scic_sds_port_default_event_handler,
 		.link_up_handler	= scic_sds_port_default_link_up_handler,
 		.link_down_handler	= scic_sds_port_default_link_down_handler,
 		.start_io_handler	= scic_sds_port_default_start_io_handler,
 		.complete_io_handler	= scic_sds_port_ready_configuring_substate_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_RESETTING] = {
-		.frame_handler		= scic_sds_port_default_frame_handler,
-		.event_handler		= scic_sds_port_default_event_handler,
 		.link_up_handler	= scic_sds_port_reset_state_link_up_handler,
 		.link_down_handler	= scic_sds_port_reset_state_link_down_handler,
 		.start_io_handler	= scic_sds_port_default_start_io_handler,
 		.complete_io_handler	= scic_sds_port_general_complete_io_handler
 	},
 	[SCI_BASE_PORT_STATE_FAILED] = {
-		.frame_handler		= scic_sds_port_default_frame_handler,
-		.event_handler		= scic_sds_port_default_event_handler,
 		.link_up_handler	= scic_sds_port_default_link_up_handler,
 		.link_down_handler	= scic_sds_port_default_link_down_handler,
 		.start_io_handler	= scic_sds_port_default_start_io_handler,

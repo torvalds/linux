@@ -312,9 +312,6 @@ typedef enum sci_status (*scic_sds_port_io_request_handler_t)(struct scic_sds_po
 							      struct scic_sds_request *);
 
 struct scic_sds_port_state_handler {
-	scic_sds_port_frame_handler_t frame_handler;
-	scic_sds_port_event_handler_t event_handler;
-
 	scic_sds_port_link_handler_t link_up_handler;
 	scic_sds_port_link_handler_t link_down_handler;
 
