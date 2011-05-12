@@ -1343,6 +1343,10 @@ static void qlcnic_free_adapter_resources(struct qlcnic_adapter *adapter)
 	kfree(adapter->recv_ctx);
 	adapter->recv_ctx = NULL;
 
+	if (adapter->ahw->fw_dump.tmpl_hdr) {
+		vfree(adapter->ahw->fw_dump.tmpl_hdr);
+		adapter->ahw->fw_dump.tmpl_hdr = NULL;
+	}
 	kfree(adapter->ahw);
 	adapter->ahw = NULL;
 }
@@ -1585,6 +1589,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* This will be reset for mezz cards  */
 	adapter->portnum = adapter->ahw->pci_func;
+
+	/* Get FW dump template and store it */
+	if (adapter->op_mode != QLCNIC_NON_PRIV_FUNC)
+		qlcnic_fw_cmd_get_minidump_temp(adapter);
 
 	err = qlcnic_get_board_info(adapter);
 	if (err) {
@@ -2825,6 +2833,8 @@ skip_ack_check:
 			set_bit(__QLCNIC_START_FW, &adapter->state);
 			QLCDB(adapter, DRV, "Restarting fw\n");
 			qlcnic_idc_debug_info(adapter, 0);
+			QLCDB(adapter, DRV, "Take FW dump\n");
+			qlcnic_dump_fw(adapter);
 		}
 
 		qlcnic_api_unlock(adapter);
@@ -2923,7 +2933,7 @@ qlcnic_set_npar_non_operational(struct qlcnic_adapter *adapter)
 }
 
 /*Transit to RESET state from READY state only */
-static void
+void
 qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
 {
 	u32 state;
@@ -3514,7 +3524,6 @@ qlcnic_sysfs_write_mem(struct file *filp, struct kobject *kobj,
 
 	return size;
 }
-
 
 static struct bin_attribute bin_attr_crb = {
 	.attr = {.name = "crb", .mode = (S_IRUGO | S_IWUSR)},
