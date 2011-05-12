@@ -23,7 +23,7 @@
 
 #undef DPRINTK
 #define DPRINTK(fmt, args...)				\
-	pr_debug("blkback/xenbus (%s:%d) " fmt ".\n",	\
+	pr_debug("xen-blkback: (%s:%d) " fmt ".\n",	\
 		 __func__, __LINE__, ##args)
 
 struct backend_info {
@@ -136,7 +136,7 @@ static int map_frontend_page(struct blkif_st *blkif, unsigned long shared_page)
 		BUG();
 
 	if (op.status) {
-		DPRINTK(" Grant table operation failure !\n");
+		DPRINTK("Grant table operation failure !\n");
 		return op.status;
 	}
 
@@ -509,10 +509,8 @@ static void backend_changed(struct xenbus_watch *watch,
 
 	if ((be->major || be->minor) &&
 	    ((be->major != major) || (be->minor != minor))) {
-		printk(KERN_WARNING
-		       "blkback: changing physical device (from %x:%x to "
-		       "%x:%x) not supported.\n", be->major, be->minor,
-		       major, minor);
+		pr_warn("xen-blkback: changing physical device (from %x:%x to %x:%x) not supported.\n",
+			be->major, be->minor, major, minor);
 		return;
 	}
 
@@ -578,8 +576,8 @@ static void frontend_changed(struct xenbus_device *dev,
 	switch (frontend_state) {
 	case XenbusStateInitialising:
 		if (dev->state == XenbusStateClosed) {
-			printk(KERN_INFO "%s: %s: prepare for reconnect\n",
-			       __func__, dev->nodename);
+			pr_info("xen-blkback: %s: prepare for reconnect\n",
+				dev->nodename);
 			xenbus_switch_state(dev, XenbusStateInitWait);
 		}
 		break;
@@ -733,9 +731,8 @@ static int connect_ring(struct backend_info *be)
 		xenbus_dev_fatal(dev, err, "unknown fe protocol %s", protocol);
 		return -1;
 	}
-	printk(KERN_INFO
-	       "blkback: ring-ref %ld, event-channel %d, protocol %d (%s)\n",
-	       ring_ref, evtchn, be->blkif->blk_protocol, protocol);
+	pr_info("xen-blkback: ring-ref %ld, event-channel %d, protocol %d (%s)\n",
+		ring_ref, evtchn, be->blkif->blk_protocol, protocol);
 
 	/* Map the shared frame, irq etc. */
 	err = xen_blkif_map(be->blkif, ring_ref, evtchn);
