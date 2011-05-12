@@ -620,10 +620,11 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 				     seg[i].nsec << 9,
 				     seg[i].buf & ~PAGE_MASK) == 0)) {
 
-			bio = biolist[nbio++] = bio_alloc(GFP_KERNEL, nseg-i);
+			bio = bio_alloc(GFP_KERNEL, nseg-i);
 			if (unlikely(bio == NULL))
 				goto fail_put_bio;
 
+			biolist[nbio++] = bio;
 			bio->bi_bdev    = preq.bdev;
 			bio->bi_private = pending_req;
 			bio->bi_end_io  = end_block_io_op;
@@ -636,10 +637,12 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 	/* This will be hit if the operation was a flush. */
 	if (!bio) {
 		BUG_ON(operation != WRITE_FLUSH);
-		bio = biolist[nbio++] = bio_alloc(GFP_KERNEL, 0);
+		
+		bio = bio_alloc(GFP_KERNEL, 0);
 		if (unlikely(bio == NULL))
 			goto fail_put_bio;
 
+		biolist[nbio++] = bio;
 		bio->bi_bdev    = preq.bdev;
 		bio->bi_private = pending_req;
 		bio->bi_end_io  = end_block_io_op;
@@ -677,7 +680,7 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 	return -EIO;
 
  fail_put_bio:
-	for (i = 0; i < (nbio-1); i++)
+	for (i = 0; i < nbio; i++)
 		bio_put(biolist[i]);
 	__end_block_io_op(pending_req, -EINVAL);
 	msleep(1); /* back off a bit */

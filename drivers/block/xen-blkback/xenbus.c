@@ -538,7 +538,8 @@ static void backend_changed(struct xenbus_watch *watch,
 		err = vbd_create(be->blkif, handle, major, minor,
 				 (NULL == strchr(be->mode, 'w')), cdrom);
 		if (err) {
-			be->major = be->minor = 0;
+			be->major = 0;
+			be->minor = 0;
 			xenbus_dev_fatal(dev, err, "creating vbd structure");
 			return;
 		}
@@ -546,7 +547,8 @@ static void backend_changed(struct xenbus_watch *watch,
 		err = xenvbd_sysfs_addif(dev);
 		if (err) {
 			vbd_free(&be->blkif->vbd);
-			be->major = be->minor = 0;
+			be->major = 0;
+			be->minor = 0;
 			xenbus_dev_fatal(dev, err, "creating sysfs entries");
 			return;
 		}
