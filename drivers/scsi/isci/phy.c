@@ -505,16 +505,53 @@ enum sci_status scic_sds_phy_reset(struct scic_sds_phy *sci_phy)
 	return SCI_SUCCESS;
 }
 
-/**
- * This method will give the phy permission to consume power
- * @sci_phy:
- *
- * enum sci_status
- */
-enum sci_status scic_sds_phy_consume_power_handler(
-	struct scic_sds_phy *sci_phy)
+enum sci_status scic_sds_phy_consume_power_handler(struct scic_sds_phy *sci_phy)
 {
-	return sci_phy->state_handlers->consume_power_handler(sci_phy);
+	enum scic_sds_phy_states state = sci_phy->state_machine.current_state_id;
+
+	switch (state) {
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER: {
+		u32 enable_spinup;
+
+		enable_spinup = readl(&sci_phy->link_layer_registers->notify_enable_spinup_control);
+		enable_spinup |= SCU_ENSPINUP_GEN_BIT(ENABLE);
+		writel(enable_spinup, &sci_phy->link_layer_registers->notify_enable_spinup_control);
+
+		/* Change state to the final state this substate machine has run to completion */
+		sci_base_state_machine_change_state(&sci_phy->state_machine,
+						    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
+
+		return SCI_SUCCESS;
+	}
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER: {
+		u32 scu_sas_pcfg_value;
+
+		/* Release the spinup hold state and reset the OOB state machine */
+		scu_sas_pcfg_value =
+			readl(&sci_phy->link_layer_registers->phy_configuration);
+		scu_sas_pcfg_value &=
+			~(SCU_SAS_PCFG_GEN_BIT(SATA_SPINUP_HOLD) | SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE));
+		scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
+		writel(scu_sas_pcfg_value,
+			&sci_phy->link_layer_registers->phy_configuration);
+
+		/* Now restart the OOB operation */
+		scu_sas_pcfg_value &= ~SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
+		scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
+		writel(scu_sas_pcfg_value,
+			&sci_phy->link_layer_registers->phy_configuration);
+
+		/* Change state to the final state this substate machine has run to completion */
+		sci_base_state_machine_change_state(&sci_phy->state_machine,
+						    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN);
+
+		return SCI_SUCCESS;
+	}
+	default:
+		dev_dbg(sciphy_to_dev(sci_phy),
+			"%s: in wrong state: %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
 }
 
 /*
@@ -591,76 +628,6 @@ static void scic_sds_phy_complete_link_training(
 	sci_base_state_machine_change_state(&sci_phy->state_machine,
 					    next_state);
 }
-
-/*
- * This method is called by the struct scic_sds_controller when the phy object is
- * granted power. - The notify enable spinups are turned on for this phy object
- * - The phy state machine is transitioned to the
- * SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL. enum sci_status SCI_SUCCESS
- */
-static enum sci_status scic_sds_phy_starting_substate_await_sas_power_consume_power_handler(
-	struct scic_sds_phy *sci_phy)
-{
-	u32 enable_spinup;
-
-	enable_spinup = readl(&sci_phy->link_layer_registers->notify_enable_spinup_control);
-	enable_spinup |= SCU_ENSPINUP_GEN_BIT(ENABLE);
-	writel(enable_spinup, &sci_phy->link_layer_registers->notify_enable_spinup_control);
-
-	/* Change state to the final state this substate machine has run to completion */
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
-
-	return SCI_SUCCESS;
-}
-
-/*
- * This method is called by the struct scic_sds_controller when the phy object is
- * granted power. - The phy state machine is transitioned to the
- * SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN. enum sci_status SCI_SUCCESS
- */
-static enum sci_status scic_sds_phy_starting_substate_await_sata_power_consume_power_handler(
-	struct scic_sds_phy *sci_phy)
-{
-	u32 scu_sas_pcfg_value;
-
-	/* Release the spinup hold state and reset the OOB state machine */
-	scu_sas_pcfg_value =
-		readl(&sci_phy->link_layer_registers->phy_configuration);
-	scu_sas_pcfg_value &=
-		~(SCU_SAS_PCFG_GEN_BIT(SATA_SPINUP_HOLD) | SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE));
-	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
-	writel(scu_sas_pcfg_value,
-		&sci_phy->link_layer_registers->phy_configuration);
-
-	/* Now restart the OOB operation */
-	scu_sas_pcfg_value &= ~SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
-	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
-	writel(scu_sas_pcfg_value,
-		&sci_phy->link_layer_registers->phy_configuration);
-
-	/* Change state to the final state this substate machine has run to completion */
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN);
-
-	return SCI_SUCCESS;
-}
-
-static enum sci_status default_phy_handler(struct scic_sds_phy *sci_phy,
-					   const char *func)
-{
-	dev_dbg(sciphy_to_dev(sci_phy),
-		 "%s: in wrong state: %d\n", func,
-		 sci_base_state_machine_get_state(&sci_phy->state_machine));
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-static enum sci_status
-scic_sds_phy_default_consume_power_handler(struct scic_sds_phy *sci_phy)
-{
-	return default_phy_handler(sci_phy, __func__);
-}
-
 
 enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 					   u32 event_code)
@@ -1059,287 +1026,71 @@ enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
 	
 }
 
-
-
-/* --------------------------------------------------------------------------- */
-
-static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[] = {
-	[SCI_BASE_PHY_STATE_INITIAL] = {
-		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
-	},
-	[SCI_BASE_PHY_STATE_STOPPED]  = {
-		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
-	},
-	[SCI_BASE_PHY_STATE_STARTING] = {
-		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
-	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL] = {
-		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
-	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN] = {
-		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
-	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN] = {
-		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
-	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF] = {
-		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
-	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER] = {
-		.consume_power_handler	= scic_sds_phy_starting_substate_await_sas_power_consume_power_handler
-	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER] = {
-		.consume_power_handler	= scic_sds_phy_starting_substate_await_sata_power_consume_power_handler
-	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN] = {
-		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
-	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN] = {
-		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
-	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF] = {
-		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
-	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL] = {
-		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
-	},
-	[SCI_BASE_PHY_STATE_READY] = {
-		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
-	},
-	[SCI_BASE_PHY_STATE_RESETTING] = {
-		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
-	},
-	[SCI_BASE_PHY_STATE_FINAL] = {
-		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
-	}
-};
-
-/*
- * ****************************************************************************
- * *  PHY STARTING SUBSTATE METHODS
- * **************************************************************************** */
-
-/**
- * scic_sds_phy_starting_initial_substate_enter -
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on
- * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL. - The initial state
- * handlers are put in place for the struct scic_sds_phy object. - The state is
- * changed to the wait phy type event notification. none
- */
 static void scic_sds_phy_starting_initial_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
-
-	scic_sds_phy_set_base_state_handlers(
-		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL);
 
 	/* This is just an temporary state go off to the starting state */
 	sci_base_state_machine_change_state(&sci_phy->state_machine,
 					    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on
- * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_PHY_TYPE_EN. - Set the
- * struct scic_sds_phy object state handlers for this state. none
- */
-static void scic_sds_phy_starting_await_ossp_en_substate_enter(void *object)
-{
-	struct scic_sds_phy *sci_phy = object;
-
-	scic_sds_phy_set_base_state_handlers(
-		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN
-		);
-}
-
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on
- * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SPEED_EN. - Set the
- * struct scic_sds_phy object state handlers for this state. none
- */
-static void scic_sds_phy_starting_await_sas_speed_en_substate_enter(
-		void *object)
-{
-	struct scic_sds_phy *sci_phy = object;
-
-	scic_sds_phy_set_base_state_handlers(
-		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN
-		);
-}
-
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on
- * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF. - Set the
- * struct scic_sds_phy object state handlers for this state. none
- */
-static void scic_sds_phy_starting_await_iaf_uf_substate_enter(void *object)
-{
-	struct scic_sds_phy *sci_phy = object;
-
-	scic_sds_phy_set_base_state_handlers(
-		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF
-		);
-}
-
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on
- * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER. - Set the
- * struct scic_sds_phy object state handlers for this state. - Add this phy object to
- * the power control queue none
- */
 static void scic_sds_phy_starting_await_sas_power_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 
-	scic_sds_phy_set_base_state_handlers(
-		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER
-		);
-
-	scic_sds_controller_power_control_queue_insert(
-		scic_sds_phy_get_controller(sci_phy),
-		sci_phy
-		);
+	scic_sds_controller_power_control_queue_insert(scic, sci_phy);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on exiting
- * the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER. - Remove the
- * struct scic_sds_phy object from the power control queue. none
- */
 static void scic_sds_phy_starting_await_sas_power_substate_exit(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 
-	scic_sds_controller_power_control_queue_remove(
-		scic_sds_phy_get_controller(sci_phy), sci_phy
-		);
+	scic_sds_controller_power_control_queue_remove(scic, sci_phy);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on
- * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER. - Set the
- * struct scic_sds_phy object state handlers for this state. - Add this phy object to
- * the power control queue none
- */
 static void scic_sds_phy_starting_await_sata_power_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 
-	scic_sds_phy_set_base_state_handlers(
-		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER
-		);
-
-	scic_sds_controller_power_control_queue_insert(
-		scic_sds_phy_get_controller(sci_phy),
-		sci_phy
-		);
+	scic_sds_controller_power_control_queue_insert(scic, sci_phy);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on exiting
- * the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER. - Remove the
- * struct scic_sds_phy object from the power control queue. none
- */
 static void scic_sds_phy_starting_await_sata_power_substate_exit(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 
-	scic_sds_controller_power_control_queue_remove(
-		scic_sds_phy_get_controller(sci_phy),
-		sci_phy
-		);
+	scic_sds_controller_power_control_queue_remove(scic, sci_phy);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This function will perform the actions required by the struct scic_sds_phy on
- * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN. - Set the
- * struct scic_sds_phy object state handlers for this state. none
- */
 static void scic_sds_phy_starting_await_sata_phy_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
-
-	scic_sds_phy_set_base_state_handlers(
-			sci_phy,
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN);
 
 	isci_timer_start(sci_phy->sata_timeout_timer,
 			 SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy
- * on exiting
- * the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN. - stop the timer
- * that was started on entry to await sata phy event notification none
- */
-static inline void scic_sds_phy_starting_await_sata_phy_substate_exit(
-		void *object)
+static void scic_sds_phy_starting_await_sata_phy_substate_exit(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
 
 	isci_timer_stop(sci_phy->sata_timeout_timer);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on
- * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN. - Set the
- * struct scic_sds_phy object state handlers for this state. none
- */
 static void scic_sds_phy_starting_await_sata_speed_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
-
-	scic_sds_phy_set_base_state_handlers(
-			sci_phy,
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN);
 
 	isci_timer_start(sci_phy->sata_timeout_timer,
 			 SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This function will perform the actions required by the
- * struct scic_sds_phy on exiting
- * the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN. - stop the timer
- * that was started on entry to await sata phy event notification none
- */
-static inline void scic_sds_phy_starting_await_sata_speed_substate_exit(
+static void scic_sds_phy_starting_await_sata_speed_substate_exit(
 	void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
@@ -1347,30 +1098,12 @@ static inline void scic_sds_phy_starting_await_sata_speed_substate_exit(
 	isci_timer_stop(sci_phy->sata_timeout_timer);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This function will perform the actions required by the struct scic_sds_phy on
- * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF. - Set the
- * struct scic_sds_phy object state handlers for this state.
- * - Start the SIGNATURE FIS
- * timeout timer none
- */
 static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(void *object)
 {
-	bool continue_to_ready_state;
 	struct scic_sds_phy *sci_phy = object;
 
-	scic_sds_phy_set_base_state_handlers(
-			sci_phy,
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
+	if (scic_sds_port_link_detected(sci_phy->owning_port, sci_phy)) {
 
-	continue_to_ready_state = scic_sds_port_link_detected(
-		sci_phy->owning_port,
-		sci_phy);
-
-	if (continue_to_ready_state) {
 		/*
 		 * Clear the PE suspend condition so we can actually
 		 * receive SIG FIS
@@ -1385,38 +1118,16 @@ static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(void *object)
 		sci_phy->is_in_link_training = false;
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This function will perform the actions required by the
- * struct scic_sds_phy on exiting
- * the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF. - Stop the SIGNATURE
- * FIS timeout timer. none
- */
-static inline void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(
-	void *object)
+static void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
 
 	isci_timer_stop(sci_phy->sata_timeout_timer);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on
- * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL. - Set the struct scic_sds_phy
- * object state handlers for this state. - Change base state machine to the
- * ready state. none
- */
 static void scic_sds_phy_starting_final_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
-
-	scic_sds_phy_set_base_state_handlers(sci_phy,
-						    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
 
 	/* State machine has run to completion so exit out and change
 	 * the base state machine to the ready state
@@ -1424,11 +1135,6 @@ static void scic_sds_phy_starting_final_substate_enter(void *object)
 	sci_base_state_machine_change_state(&sci_phy->state_machine,
 					    SCI_BASE_PHY_STATE_READY);
 }
-
-/*
- * ****************************************************************************
- * *  PHY STATE PRIVATE METHODS
- * **************************************************************************** */
 
 /**
  *
@@ -1511,49 +1217,17 @@ static void scu_link_layer_tx_hard_reset(
 	       &sci_phy->link_layer_registers->phy_configuration);
 }
 
-/*
- * ****************************************************************************
- * *  PHY BASE STATE METHODS
- * **************************************************************************** */
-
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on
- * entering the SCI_BASE_PHY_STATE_INITIAL. - This function sets the state
- * handlers for the phy object base state machine initial state. none
- */
-static void scic_sds_phy_initial_state_enter(void *object)
-{
-	struct scic_sds_phy *sci_phy = object;
-
-	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_INITIAL);
-}
-
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This function will perform the actions required by the struct scic_sds_phy on
- * entering the SCI_BASE_PHY_STATE_INITIAL. - This function sets the state
- * handlers for the phy object base state machine initial state. - The SCU
- * hardware is requested to stop the protocol engine. none
- */
 static void scic_sds_phy_stopped_state_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
-	struct scic_sds_controller *scic = scic_sds_phy_get_controller(sci_phy);
+	struct scic_sds_port *sci_port = sci_phy->owning_port;
+	struct scic_sds_controller *scic = sci_port->owning_controller;
 	struct isci_host *ihost = scic_to_ihost(scic);
 
 	/*
 	 * @todo We need to get to the controller to place this PE in a
 	 * reset state
 	 */
-
-	scic_sds_phy_set_base_state_handlers(sci_phy,
-					     SCI_BASE_PHY_STATE_STOPPED);
-
 	if (sci_phy->sata_timeout_timer != NULL) {
 		isci_del_timer(ihost, sci_phy->sata_timeout_timer);
 
@@ -1562,31 +1236,15 @@ static void scic_sds_phy_stopped_state_enter(void *object)
 
 	scu_link_layer_stop_protocol_engine(sci_phy);
 
-	if (sci_phy->state_machine.previous_state_id !=
-			SCI_BASE_PHY_STATE_INITIAL)
-		scic_sds_controller_link_down(
-				scic_sds_phy_get_controller(sci_phy),
-				scic_sds_phy_get_port(sci_phy),
-				sci_phy);
+	if (sci_phy->state_machine.previous_state_id != SCI_BASE_PHY_STATE_INITIAL)
+		scic_sds_controller_link_down(scic_sds_phy_get_controller(sci_phy),
+					      scic_sds_phy_get_port(sci_phy),
+					      sci_phy);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on
- * entering the SCI_BASE_PHY_STATE_STARTING. - This function sets the state
- * handlers for the phy object base state machine starting state. - The SCU
- * hardware is requested to start OOB/SN on this protocl engine. - The phy
- * starting substate machine is started. - If the previous state was the ready
- * state then the struct scic_sds_controller is informed that the phy has gone link
- * down. none
- */
 static void scic_sds_phy_starting_state_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
-
-	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_STARTING);
 
 	scu_link_layer_stop_protocol_engine(sci_phy);
 	scu_link_layer_start_oob(sci_phy);
@@ -1595,50 +1253,25 @@ static void scic_sds_phy_starting_state_enter(void *object)
 	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_UNKNOWN;
 	sci_phy->bcn_received_while_port_unassigned = false;
 
-	if (sci_phy->state_machine.previous_state_id
-	    == SCI_BASE_PHY_STATE_READY) {
-		scic_sds_controller_link_down(
-			scic_sds_phy_get_controller(sci_phy),
-			scic_sds_phy_get_port(sci_phy),
-			sci_phy
-			);
-	}
+	if (sci_phy->state_machine.previous_state_id == SCI_BASE_PHY_STATE_READY)
+		scic_sds_controller_link_down(scic_sds_phy_get_controller(sci_phy),
+					      scic_sds_phy_get_port(sci_phy),
+					      sci_phy);
 
 	sci_base_state_machine_change_state(&sci_phy->state_machine,
 					    SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on
- * entering the SCI_BASE_PHY_STATE_READY. - This function sets the state
- * handlers for the phy object base state machine ready state. - The SCU
- * hardware protocol engine is resumed. - The struct scic_sds_controller is informed
- * that the phy object has gone link up. none
- */
 static void scic_sds_phy_ready_state_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
 
-	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_READY);
+	scic_sds_controller_link_up(scic_sds_phy_get_controller(sci_phy),
+				    scic_sds_phy_get_port(sci_phy),
+				    sci_phy);
 
-	scic_sds_controller_link_up(
-		scic_sds_phy_get_controller(sci_phy),
-		scic_sds_phy_get_port(sci_phy),
-		sci_phy
-		);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on exiting
- * the SCI_BASE_PHY_STATE_INITIAL. This function suspends the SCU hardware
- * protocol engine represented by this struct scic_sds_phy object. none
- */
 static void scic_sds_phy_ready_state_exit(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
@@ -1646,62 +1279,29 @@ static void scic_sds_phy_ready_state_exit(void *object)
 	scic_sds_phy_suspend(sci_phy);
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on
- * entering the SCI_BASE_PHY_STATE_RESETTING. - This function sets the state
- * handlers for the phy object base state machine resetting state. none
- */
 static void scic_sds_phy_resetting_state_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = object;
 
-	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_RESETTING);
-
-	/*
-	 * The phy is being reset, therefore deactivate it from the port.
-	 * In the resetting state we don't notify the user regarding
-	 * link up and link down notifications. */
+	/* The phy is being reset, therefore deactivate it from the port.  In
+	 * the resetting state we don't notify the user regarding link up and
+	 * link down notifications
+	 */
 	scic_sds_port_deactivate_phy(sci_phy->owning_port, sci_phy, false);
 
 	if (sci_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
 		scu_link_layer_tx_hard_reset(sci_phy);
 	} else {
-		/*
-		 * The SCU does not need to have a discrete reset state so
+		/* The SCU does not need to have a discrete reset state so
 		 * just go back to the starting state.
 		 */
-		sci_base_state_machine_change_state(
-				&sci_phy->state_machine,
-				SCI_BASE_PHY_STATE_STARTING);
+		sci_base_state_machine_change_state(&sci_phy->state_machine,
+						    SCI_BASE_PHY_STATE_STARTING);
 	}
 }
 
-/**
- *
- * @object: This is the object which is cast to a struct scic_sds_phy object.
- *
- * This method will perform the actions required by the struct scic_sds_phy on
- * entering the SCI_BASE_PHY_STATE_FINAL. - This function sets the state
- * handlers for the phy object base state machine final state. none
- */
-static void scic_sds_phy_final_state_enter(void *object)
-{
-	struct scic_sds_phy *sci_phy = object;
-
-	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_FINAL);
-
-	/* Nothing to do here */
-}
-
-/* --------------------------------------------------------------------------- */
-
 static const struct sci_base_state scic_sds_phy_state_table[] = {
-	[SCI_BASE_PHY_STATE_INITIAL] = {
-		.enter_state = scic_sds_phy_initial_state_enter,
-	},
+	[SCI_BASE_PHY_STATE_INITIAL] = { },
 	[SCI_BASE_PHY_STATE_STOPPED] = {
 		.enter_state = scic_sds_phy_stopped_state_enter,
 	},
@@ -1711,15 +1311,9 @@ static const struct sci_base_state scic_sds_phy_state_table[] = {
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL] = {
 		.enter_state = scic_sds_phy_starting_initial_substate_enter,
 	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN] = {
-		.enter_state = scic_sds_phy_starting_await_ossp_en_substate_enter,
-	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN] = {
-		.enter_state = scic_sds_phy_starting_await_sas_speed_en_substate_enter,
-	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF] = {
-		.enter_state = scic_sds_phy_starting_await_iaf_uf_substate_enter,
-	},
+	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN] = { },
+	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN] = { },
+	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF] = { },
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER] = {
 		.enter_state = scic_sds_phy_starting_await_sas_power_substate_enter,
 		.exit_state  = scic_sds_phy_starting_await_sas_power_substate_exit,
@@ -1750,9 +1344,7 @@ static const struct sci_base_state scic_sds_phy_state_table[] = {
 	[SCI_BASE_PHY_STATE_RESETTING] = {
 		.enter_state = scic_sds_phy_resetting_state_enter,
 	},
-	[SCI_BASE_PHY_STATE_FINAL] = {
-		.enter_state = scic_sds_phy_final_state_enter,
-	},
+	[SCI_BASE_PHY_STATE_FINAL] = { },
 };
 
 void scic_sds_phy_construct(struct scic_sds_phy *sci_phy,

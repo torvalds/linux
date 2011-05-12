@@ -140,8 +140,6 @@ struct scic_sds_phy {
 	 */
 	void *sata_timeout_timer;
 
-	const struct scic_sds_phy_state_handler *state_handlers;
-
 	/**
 	 * This field is the pointer to the transport layer register for the SCU
 	 * hardware.
@@ -504,20 +502,6 @@ enum scic_sds_phy_states {
 	SCI_BASE_PHY_STATE_FINAL,
 };
 
-
-typedef enum sci_status (*scic_sds_phy_handler_t)(struct scic_sds_phy *);
-typedef enum sci_status (*scic_sds_phy_event_handler_t)(struct scic_sds_phy *, u32);
-typedef enum sci_status (*scic_sds_phy_frame_handler_t)(struct scic_sds_phy *, u32);
-typedef enum sci_status (*scic_sds_phy_power_handler_t)(struct scic_sds_phy *);
-
-struct scic_sds_phy_state_handler {
-	/**
-	 * The state handler for staggered spinup.
-	 */
-	scic_sds_phy_power_handler_t consume_power_handler;
-
-};
-
 /**
  * scic_sds_phy_get_index() -
  *
@@ -534,26 +518,6 @@ struct scic_sds_phy_state_handler {
  */
 #define scic_sds_phy_get_controller(phy) \
 	(scic_sds_port_get_controller((phy)->owning_port))
-
-/**
- * scic_sds_phy_set_state_handlers() - This macro sets the state handlers for
- *    this phy object
- *
- *
- */
-#define scic_sds_phy_set_state_handlers(phy, handlers) \
-	((phy)->state_handlers = (handlers))
-
-/**
- * scic_sds_phy_set_base_state_handlers() -
- *
- * This macro set the base state handlers for the phy object.
- */
-#define scic_sds_phy_set_base_state_handlers(phy, state_id) \
-	scic_sds_phy_set_state_handlers(\
-		(phy), \
-		&scic_sds_phy_state_handler_table[(state_id)] \
-		)
 
 void scic_sds_phy_construct(
 	struct scic_sds_phy *this_phy,
