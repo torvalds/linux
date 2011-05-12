@@ -145,15 +145,11 @@ static int oprofile_hwsampler_init(struct oprofile_operations *ops)
 	 * create hwsampler files only if hwsampler_setup() succeeds.
 	 */
 	oprofile_min_interval = hwsampler_query_min_interval();
-	if (oprofile_min_interval < 0) {
-		oprofile_min_interval = 0;
+	if (oprofile_min_interval == 0)
 		return -ENODEV;
-	}
 	oprofile_max_interval = hwsampler_query_max_interval();
-	if (oprofile_max_interval < 0) {
-		oprofile_max_interval = 0;
+	if (oprofile_max_interval == 0)
 		return -ENODEV;
-	}
 
 	if (oprofile_timer_init(ops))
 		return -ENODEV;
