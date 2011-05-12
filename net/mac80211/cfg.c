@@ -738,6 +738,7 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 						  &sta->sta.ht_cap);
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
+#ifdef CONFIG_MAC80211_MESH
 		if (sdata->u.mesh.security & IEEE80211_MESH_SEC_SECURED)
 			switch (params->plink_state) {
 			case PLINK_LISTEN:
@@ -758,6 +759,7 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 				mesh_plink_block(sta);
 				break;
 			}
+#endif
 	}
 }
 
