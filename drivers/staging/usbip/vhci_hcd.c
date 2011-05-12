@@ -28,7 +28,7 @@
 #include "vhci.h"
 
 #define DRIVER_AUTHOR "Takahiro Hirofuchi"
-#define DRIVER_DESC "Virtual Host Controller Interface Driver for USB/IP"
+#define DRIVER_DESC "USB/IP 'Virtual' Host Controller (VHCI) Driver"
 
 /*
  * TODO

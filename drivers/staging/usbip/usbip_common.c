@@ -27,9 +27,9 @@
 #include "usbip_common.h"
 
 #define DRIVER_AUTHOR "Takahiro Hirofuchi <hirofuchi@users.sourceforge.net>"
-#define DRIVER_DESC "USB/IP Common Driver"
+#define DRIVER_DESC "USB/IP Core"
 
-#ifdef CONFIG_USB_IP_DEBUG
+#ifdef CONFIG_USBIP_DEBUG
 unsigned long usbip_debug_flag = 0xffffffff;
 #else
 unsigned long usbip_debug_flag;
