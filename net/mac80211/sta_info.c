@@ -652,10 +652,12 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	if (ret)
 		return ret;
 
+	mutex_lock(&local->key_mtx);
 	for (i = 0; i < NUM_DEFAULT_KEYS; i++)
-		ieee80211_key_free(local, sta->gtk[i]);
+		__ieee80211_key_free(sta->gtk[i]);
 	if (sta->ptk)
-		ieee80211_key_free(local, sta->ptk);
+		__ieee80211_key_free(sta->ptk);
+	mutex_unlock(&local->key_mtx);
 
 	sta->dead = true;
 
