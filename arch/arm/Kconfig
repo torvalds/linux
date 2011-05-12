@@ -1520,8 +1520,8 @@ config ARCH_SELECT_MEMORY_MODEL
 	def_bool ARCH_SPARSEMEM_ENABLE
 
 config HIGHMEM
-	bool "High Memory Support (EXPERIMENTAL)"
-	depends on MMU && EXPERIMENTAL
+	bool "High Memory Support"
+	depends on MMU
 	help
 	  The address space of ARM processors is only 4 Gigabytes large
 	  and it has to accommodate user address space, kernel address
