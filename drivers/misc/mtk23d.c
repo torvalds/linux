@@ -145,6 +145,12 @@ static int mtk23d_open(struct inode *inode, struct file *file)
 	{
 		power_on = 0;
 		modem_poweron_off(1);
+		#if 1 // phc
+		rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_UART0_SOUT);
+		rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_UART0_SIN); 
+		rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
+		rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_UART0_CTS_N); 	
+		#endif
 	}
 	device_init_wakeup(&pdev, 1);
 
