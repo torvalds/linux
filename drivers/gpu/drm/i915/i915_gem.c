@@ -1449,8 +1449,9 @@ i915_gem_get_unfenced_gtt_alignment(struct drm_i915_gem_object *obj)
 	 * edge of an even tile row (where tile rows are counted as if the bo is
 	 * placed in a fenced gtt region).
 	 */
-	if (IS_GEN2(dev) ||
-	    (obj->tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev)))
+	if (IS_GEN2(dev))
+		tile_height = 16;
+	else if (obj->tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev))
 		tile_height = 32;
 	else
 		tile_height = 8;
