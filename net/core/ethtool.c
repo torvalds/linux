@@ -1823,6 +1823,87 @@ static noinline_for_stack int ethtool_flash_device(struct net_device *dev,
 	return dev->ethtool_ops->flash_device(dev, &efl);
 }
 
+static int ethtool_set_dump(struct net_device *dev,
+			void __user *useraddr)
+{
+	struct ethtool_dump dump;
+
+	if (!dev->ethtool_ops->set_dump)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&dump, useraddr, sizeof(dump)))
+		return -EFAULT;
+
+	return dev->ethtool_ops->set_dump(dev, &dump);
+}
+
+static int ethtool_get_dump_flag(struct net_device *dev,
+				void __user *useraddr)
+{
+	int ret;
+	struct ethtool_dump dump;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+
+	if (!dev->ethtool_ops->get_dump_flag)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&dump, useraddr, sizeof(dump)))
+		return -EFAULT;
+
+	ret = ops->get_dump_flag(dev, &dump);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(useraddr, &dump, sizeof(dump)))
+		return -EFAULT;
+	return 0;
+}
+
+static int ethtool_get_dump_data(struct net_device *dev,
+				void __user *useraddr)
+{
+	int ret;
+	__u32 len;
+	struct ethtool_dump dump, tmp;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	void *data = NULL;
+
+	if (!dev->ethtool_ops->get_dump_data ||
+		!dev->ethtool_ops->get_dump_flag)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&dump, useraddr, sizeof(dump)))
+		return -EFAULT;
+
+	memset(&tmp, 0, sizeof(tmp));
+	tmp.cmd = ETHTOOL_GET_DUMP_FLAG;
+	ret = ops->get_dump_flag(dev, &tmp);
+	if (ret)
+		return ret;
+
+	len = (tmp.len > dump.len) ? dump.len : tmp.len;
+	if (!len)
+		return -EFAULT;
+
+	data = vzalloc(tmp.len);
+	if (!data)
+		return -ENOMEM;
+	ret = ops->get_dump_data(dev, &dump, data);
+	if (ret)
+		goto out;
+
+	if (copy_to_user(useraddr, &dump, sizeof(dump))) {
+		ret = -EFAULT;
+		goto out;
+	}
+	useraddr += offsetof(struct ethtool_dump, data);
+	if (copy_to_user(useraddr, data, len))
+		ret = -EFAULT;
+out:
+	vfree(data);
+	return ret;
+}
+
 /* The main entry point in this file.  Called from net/core/dev.c */
 
 int dev_ethtool(struct net *net, struct ifreq *ifr)
@@ -2038,6 +2119,15 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_SCHANNELS:
 		rc = ethtool_set_channels(dev, useraddr);
+		break;
+	case ETHTOOL_SET_DUMP:
+		rc = ethtool_set_dump(dev, useraddr);
+		break;
+	case ETHTOOL_GET_DUMP_FLAG:
+		rc = ethtool_get_dump_flag(dev, useraddr);
+		break;
+	case ETHTOOL_GET_DUMP_DATA:
+		rc = ethtool_get_dump_data(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;
