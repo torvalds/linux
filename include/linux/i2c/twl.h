@@ -170,6 +170,8 @@ static inline int twl_class_is_ ##class(void)	\
 TWL_CLASS_IS(4030, TWL4030_CLASS_ID)
 TWL_CLASS_IS(6030, TWL6030_CLASS_ID)
 
+#define TWL6025_SUBCLASS	BIT(4)  /* TWL6025 has changed registers */
+
 /*
  * Read and write single 8-bit registers
  */
@@ -608,6 +610,7 @@ enum twl4030_usb_mode {
 
 struct twl4030_usb_data {
 	enum twl4030_usb_mode	usb_mode;
+	unsigned long		features;
 
 	int		(*phy_init)(struct device *dev);
 	int		(*phy_exit)(struct device *dev);
@@ -714,6 +717,20 @@ struct twl4030_platform_data {
 	struct regulator_init_data              *vcxio;
 	struct regulator_init_data              *vusb;
 	struct regulator_init_data		*clk32kg;
+	/* TWL6025 LDO regulators */
+	struct regulator_init_data		*ldo1;
+	struct regulator_init_data		*ldo2;
+	struct regulator_init_data		*ldo3;
+	struct regulator_init_data		*ldo4;
+	struct regulator_init_data		*ldo5;
+	struct regulator_init_data		*ldo6;
+	struct regulator_init_data		*ldo7;
+	struct regulator_init_data		*ldoln;
+	struct regulator_init_data		*ldousb;
+	/* TWL6025 DCDC regulators */
+	struct regulator_init_data		*smps3;
+	struct regulator_init_data		*smps4;
+	struct regulator_init_data		*vio6025;
 };
 
 /*----------------------------------------------------------------------*/
@@ -794,5 +811,22 @@ static inline int twl4030charger_usb_en(int enable) { return 0; }
 /* INTERNAL LDOs */
 #define TWL6030_REG_VRTC	47
 #define TWL6030_REG_CLK32KG	48
+
+/* LDOs on 6025 have different names */
+#define TWL6025_REG_LDO2	49
+#define TWL6025_REG_LDO4	50
+#define TWL6025_REG_LDO3	51
+#define TWL6025_REG_LDO5	52
+#define TWL6025_REG_LDO1	53
+#define TWL6025_REG_LDO7	54
+#define TWL6025_REG_LDO6	55
+#define TWL6025_REG_LDOLN	56
+#define TWL6025_REG_LDOUSB	57
+
+/* 6025 DCDC supplies */
+#define TWL6025_REG_SMPS3	58
+#define TWL6025_REG_SMPS4	59
+#define TWL6025_REG_VIO		60
+
 
 #endif /* End of __TWL4030_H */
