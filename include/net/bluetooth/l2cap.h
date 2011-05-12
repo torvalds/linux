@@ -350,6 +350,7 @@ struct l2cap_chan {
 	struct list_head	srej_l;
 
 	struct list_head list;
+	struct list_head global_l;
 };
 
 struct l2cap_conn {
@@ -441,7 +442,6 @@ static inline int l2cap_tx_window_full(struct l2cap_chan *ch)
 #define __is_sar_start(ctrl)	(((ctrl) & L2CAP_CTRL_SAR) == L2CAP_SDU_START)
 
 extern int disable_ertm;
-extern struct bt_sock_list l2cap_sk_list;
 
 int l2cap_init_sockets(void);
 void l2cap_cleanup_sockets(void);
@@ -458,6 +458,9 @@ void l2cap_do_send(struct l2cap_chan *chan, struct sk_buff *skb);
 void l2cap_streaming_send(struct l2cap_chan *chan);
 int l2cap_ertm_send(struct l2cap_chan *chan);
 
+int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm);
+int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);
+
 void l2cap_sock_set_timer(struct sock *sk, long timeout);
 void l2cap_sock_clear_timer(struct sock *sk);
 void __l2cap_sock_close(struct sock *sk, int reason);
@@ -466,9 +469,9 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent);
 struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 							int proto, gfp_t prio);
 void l2cap_send_disconn_req(struct l2cap_conn *conn, struct l2cap_chan *chan, int err);
-struct l2cap_chan *l2cap_chan_alloc(struct sock *sk);
+struct l2cap_chan *l2cap_chan_create(struct sock *sk);
 void l2cap_chan_del(struct l2cap_chan *chan, int err);
-void l2cap_chan_free(struct l2cap_chan *chan);
+void l2cap_chan_destroy(struct l2cap_chan *chan);
 int l2cap_chan_connect(struct l2cap_chan *chan);
 
 #endif /* __L2CAP_H */
