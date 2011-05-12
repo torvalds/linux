@@ -234,6 +234,7 @@ stmmac_set_pauseparam(struct net_device *netdev,
 		new_pause |= FLOW_TX;
 
 	priv->flow_ctrl = new_pause;
+	phy->autoneg = pause->autoneg;
 
 	if (phy->autoneg) {
 		if (netif_running(netdev))
