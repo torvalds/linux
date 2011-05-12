@@ -174,7 +174,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		if (!inode)
 			return 0;
 
-		if (nd->flags & LOOKUP_RCU)
+		if (nd && (nd->flags & LOOKUP_RCU))
 			return -ECHILD;
 
 		fc = get_fuse_conn(inode);
