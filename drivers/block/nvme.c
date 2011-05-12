@@ -18,6 +18,7 @@
 
 #include <linux/nvme.h>
 #include <linux/bio.h>
+#include <linux/bitops.h>
 #include <linux/blkdev.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -601,14 +602,14 @@ static void sync_completion(struct nvme_queue *nvmeq, void *ctx,
 typedef void (*completion_fn)(struct nvme_queue *, void *,
 						struct nvme_completion *);
 
+static const completion_fn nvme_completions[4] = {
+	[sync_completion_id] = sync_completion,
+	[bio_completion_id]  = bio_completion,
+};
+
 static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
 {
 	u16 head, phase;
-
-	static const completion_fn completions[4] = {
-		[sync_completion_id] = sync_completion,
-		[bio_completion_id]  = bio_completion,
-	};
 
 	head = nvmeq->cq_head;
 	phase = nvmeq->cq_phase;
@@ -629,7 +630,7 @@ static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
 		data = free_cmdid(nvmeq, cqe.command_id);
 		handler = data & 3;
 		ptr = (void *)(data & ~3UL);
-		completions[handler](nvmeq, ptr, &cqe);
+		nvme_completions[handler](nvmeq, ptr, &cqe);
 	}
 
 	/* If the controller ignores the cq head doorbell and continuously
@@ -1172,6 +1173,29 @@ static const struct block_device_operations nvme_fops = {
 	.compat_ioctl	= nvme_ioctl,
 };
 
+static void nvme_timeout_ios(struct nvme_queue *nvmeq)
+{
+	int depth = nvmeq->q_depth - 1;
+	struct nvme_cmd_info *info = nvme_cmd_info(nvmeq);
+	unsigned long now = jiffies;
+	int cmdid;
+
+	for_each_set_bit(cmdid, nvmeq->cmdid_data, depth) {
+		unsigned long data;
+		void *ptr;
+		unsigned char handler;
+		static struct nvme_completion cqe = { .status = cpu_to_le16(NVME_SC_ABORT_REQ) << 1, };
+
+		if (!time_after(now, info[cmdid].timeout))
+			continue;
+		dev_warn(nvmeq->q_dmadev, "Timing out I/O %d\n", cmdid);
+		data = cancel_cmdid(nvmeq, cmdid);
+		handler = data & 3;
+		ptr = (void *)(data & ~3UL);
+		nvme_completions[handler](nvmeq, ptr, &cqe);
+	}
+}
+
 static void nvme_resubmit_bios(struct nvme_queue *nvmeq)
 {
 	while (bio_list_peek(&nvmeq->sq_cong)) {
@@ -1203,6 +1227,7 @@ static int nvme_kthread(void *data)
 				spin_lock_irq(&nvmeq->q_lock);
 				if (nvme_process_cq(nvmeq))
 					printk("process_cq did something\n");
+				nvme_timeout_ios(nvmeq);
 				nvme_resubmit_bios(nvmeq);
 				spin_unlock_irq(&nvmeq->q_lock);
 			}
