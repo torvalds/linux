@@ -109,6 +109,8 @@ static ssize_t ahci_read_em_buffer(struct device *dev,
 static ssize_t ahci_store_em_buffer(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t size);
+static ssize_t ahci_show_em_supported(struct device *dev,
+				      struct device_attribute *attr, char *buf);
 
 static DEVICE_ATTR(ahci_host_caps, S_IRUGO, ahci_show_host_caps, NULL);
 static DEVICE_ATTR(ahci_host_cap2, S_IRUGO, ahci_show_host_cap2, NULL);
@@ -116,6 +118,7 @@ static DEVICE_ATTR(ahci_host_version, S_IRUGO, ahci_show_host_version, NULL);
 static DEVICE_ATTR(ahci_port_cmd, S_IRUGO, ahci_show_port_cmd, NULL);
 static DEVICE_ATTR(em_buffer, S_IWUSR | S_IRUGO,
 		   ahci_read_em_buffer, ahci_store_em_buffer);
+static DEVICE_ATTR(em_message_supported, S_IRUGO, ahci_show_em_supported, NULL);
 
 struct device_attribute *ahci_shost_attrs[] = {
 	&dev_attr_link_power_management_policy,
@@ -126,6 +129,7 @@ struct device_attribute *ahci_shost_attrs[] = {
 	&dev_attr_ahci_host_version,
 	&dev_attr_ahci_port_cmd,
 	&dev_attr_em_buffer,
+	&dev_attr_em_message_supported,
 	NULL
 };
 EXPORT_SYMBOL_GPL(ahci_shost_attrs);
@@ -343,6 +347,24 @@ static ssize_t ahci_store_em_buffer(struct device *dev,
 	return size;
 }
 
+static ssize_t ahci_show_em_supported(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct ata_port *ap = ata_shost_to_port(shost);
+	struct ahci_host_priv *hpriv = ap->host->private_data;
+	void __iomem *mmio = hpriv->mmio;
+	u32 em_ctl;
+
+	em_ctl = readl(mmio + HOST_EM_CTL);
+
+	return sprintf(buf, "%s%s%s%s\n",
+		       em_ctl & EM_CTL_LED ? "led " : "",
+		       em_ctl & EM_CTL_SAFTE ? "saf-te " : "",
+		       em_ctl & EM_CTL_SES ? "ses-2 " : "",
+		       em_ctl & EM_CTL_SGPIO ? "sgpio " : "");
+}
+
 /**
  *	ahci_save_initial_config - Save and fixup initial config values
  *	@dev: target AHCI device
@@ -539,6 +561,27 @@ void ahci_start_engine(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ahci_port_base(ap);
 	u32 tmp;
+	u8 status;
+
+	status = readl(port_mmio + PORT_TFDATA) & 0xFF;
+
+	/*
+	 * At end of section 10.1 of AHCI spec (rev 1.3), it states
+	 * Software shall not set PxCMD.ST to 1 until it is determined
+	 * that a functoinal device is present on the port as determined by
+	 * PxTFD.STS.BSY=0, PxTFD.STS.DRQ=0 and PxSSTS.DET=3h
+	 *
+	 * Even though most AHCI host controllers work without this check,
+	 * specific controller will fail under this condition
+	 */
+	if (status & (ATA_BUSY | ATA_DRQ))
+		return;
+	else {
+		ahci_scr_read(&ap->link, SCR_STATUS, &tmp);
+
+		if ((tmp & 0xf) != 0x3)
+			return;
+	}
 
 	/* start DMA */
 	tmp = readl(port_mmio + PORT_CMD);
@@ -1897,7 +1940,17 @@ static void ahci_pmp_attach(struct ata_port *ap)
 	ahci_enable_fbs(ap);
 
 	pp->intr_mask |= PORT_IRQ_BAD_PMP;
-	writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
+
+	/*
+	 * We must not change the port interrupt mask register if the
+	 * port is marked frozen, the value in pp->intr_mask will be
+	 * restored later when the port is thawed.
+	 *
+	 * Note that during initialization, the port is marked as
+	 * frozen since the irq handler is not yet registered.
+	 */
+	if (!(ap->pflags & ATA_PFLAG_FROZEN))
+		writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
 }
 
 static void ahci_pmp_detach(struct ata_port *ap)
@@ -1913,7 +1966,10 @@ static void ahci_pmp_detach(struct ata_port *ap)
 	writel(cmd, port_mmio + PORT_CMD);
 
 	pp->intr_mask &= ~PORT_IRQ_BAD_PMP;
-	writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
+
+	/* see comment above in ahci_pmp_attach() */
+	if (!(ap->pflags & ATA_PFLAG_FROZEN))
+		writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
 }
 
 int ahci_port_resume(struct ata_port *ap)

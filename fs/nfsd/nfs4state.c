@@ -258,6 +258,7 @@ static void nfs4_put_deleg_lease(struct nfs4_file *fp)
 	if (atomic_dec_and_test(&fp->fi_delegees)) {
 		vfs_setlease(fp->fi_deleg_file, F_UNLCK, &fp->fi_lease);
 		fp->fi_lease = NULL;
+		fput(fp->fi_deleg_file);
 		fp->fi_deleg_file = NULL;
 	}
 }
@@ -402,8 +403,8 @@ static void free_generic_stateid(struct nfs4_stateid *stp)
 	if (stp->st_access_bmap) {
 		oflag = nfs4_access_bmap_to_omode(stp);
 		nfs4_file_put_access(stp->st_file, oflag);
-		put_nfs4_file(stp->st_file);
 	}
+	put_nfs4_file(stp->st_file);
 	kmem_cache_free(stateid_slab, stp);
 }
 

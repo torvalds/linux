@@ -4773,7 +4773,7 @@ static int dev_ifsioc_locked(struct net *net, struct ifreq *ifr, unsigned int cm
 		 * is never reached
 		 */
 		WARN_ON(1);
-		err = -EINVAL;
+		err = -ENOTTY;
 		break;
 
 	}
@@ -5041,7 +5041,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		/* Set the per device memory buffer space.
 		 * Not applicable in our case */
 	case SIOCSIFLINK:
-		return -EINVAL;
+		return -ENOTTY;
 
 	/*
 	 *	Unknown or private ioctl.
@@ -5062,7 +5062,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		/* Take care of Wireless Extensions */
 		if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST)
 			return wext_handle_ioctl(net, &ifr, cmd, arg);
-		return -EINVAL;
+		return -ENOTTY;
 	}
 }
 
@@ -5203,10 +5203,14 @@ u32 netdev_fix_features(struct net_device *dev, u32 features)
 	}
 
 	/* TSO requires that SG is present as well. */
-	if ((features & NETIF_F_TSO) && !(features & NETIF_F_SG)) {
-		netdev_info(dev, "Dropping NETIF_F_TSO since no SG feature.\n");
-		features &= ~NETIF_F_TSO;
+	if ((features & NETIF_F_ALL_TSO) && !(features & NETIF_F_SG)) {
+		netdev_info(dev, "Dropping TSO features since no SG feature.\n");
+		features &= ~NETIF_F_ALL_TSO;
 	}
+
+	/* TSO ECN requires that TSO is present as well. */
+	if ((features & NETIF_F_ALL_TSO) == NETIF_F_TSO_ECN)
+		features &= ~NETIF_F_TSO_ECN;
 
 	/* Software GSO depends on SG. */
 	if ((features & NETIF_F_GSO) && !(features & NETIF_F_SG)) {

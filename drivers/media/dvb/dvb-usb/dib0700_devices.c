@@ -2162,7 +2162,7 @@ struct dibx000_agc_config dib7090_agc_config[2] = {
 		.agc1_pt3       = 98,
 		.agc1_slope1    = 0,
 		.agc1_slope2    = 167,
-		.agc1_pt1       = 98,
+		.agc2_pt1       = 98,
 		.agc2_pt2       = 255,
 		.agc2_slope1    = 104,
 		.agc2_slope2    = 0,
@@ -2440,10 +2440,10 @@ static int tfe7090pvr_frontend0_attach(struct dvb_usb_adapter *adap)
 	dib0700_set_i2c_speed(adap->dev, 340);
 	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x90, &tfe7090pvr_dib7000p_config[0]);
 
-	dib7090_slave_reset(adap->fe);
-
 	if (adap->fe == NULL)
 		return -ENODEV;
+
+	dib7090_slave_reset(adap->fe);
 
 	return 0;
 }

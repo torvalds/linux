@@ -777,9 +777,9 @@ static int rbd_do_request(struct request *rq,
 				      ops,
 				      false,
 				      GFP_NOIO, pages, bio);
-	if (IS_ERR(req)) {
+	if (!req) {
 		up_read(&header->snap_rwsem);
-		ret = PTR_ERR(req);
+		ret = -ENOMEM;
 		goto done_pages;
 	}
 

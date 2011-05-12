@@ -470,8 +470,8 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					 snapc, ops,
 					 use_mempool,
 					 GFP_NOFS, NULL, NULL);
-	if (IS_ERR(req))
-		return req;
+	if (!req)
+		return NULL;
 
 	/* calculate max write size */
 	calc_layout(osdc, vino, layout, off, plen, req, ops);

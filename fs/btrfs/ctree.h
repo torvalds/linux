@@ -718,7 +718,7 @@ struct btrfs_space_info {
 	u64 total_bytes;	/* total bytes in the space,
 				   this doesn't take mirrors into account */
 	u64 bytes_used;		/* total bytes used,
-				   this does't take mirrors into account */
+				   this doesn't take mirrors into account */
 	u64 bytes_pinned;	/* total bytes pinned, will be freed when the
 				   transaction finishes */
 	u64 bytes_reserved;	/* total bytes the allocator has reserved for

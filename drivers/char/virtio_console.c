@@ -1280,18 +1280,7 @@ static void unplug_port(struct port *port)
 		spin_lock_irq(&pdrvdata_lock);
 		list_del(&port->cons.list);
 		spin_unlock_irq(&pdrvdata_lock);
-#if 0
-		/*
-		 * hvc_remove() not called as removing one hvc port
-		 * results in other hvc ports getting frozen.
-		 *
-		 * Once this is resolved in hvc, this functionality
-		 * will be enabled.  Till that is done, the -EPIPE
-		 * return from get_chars() above will help
-		 * hvc_console.c to clean up on ports we remove here.
-		 */
 		hvc_remove(port->cons.hvc);
-#endif
 	}
 
 	/* Remove unused data this port might have received. */

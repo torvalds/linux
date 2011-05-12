@@ -674,6 +674,36 @@ dasd_device_from_cdev(struct ccw_device *cdev)
 	return device;
 }
 
+void dasd_add_link_to_gendisk(struct gendisk *gdp, struct dasd_device *device)
+{
+	struct dasd_devmap *devmap;
+
+	devmap = dasd_find_busid(dev_name(&device->cdev->dev));
+	if (IS_ERR(devmap))
+		return;
+	spin_lock(&dasd_devmap_lock);
+	gdp->private_data = devmap;
+	spin_unlock(&dasd_devmap_lock);
+}
+
+struct dasd_device *dasd_device_from_gendisk(struct gendisk *gdp)
+{
+	struct dasd_device *device;
+	struct dasd_devmap *devmap;
+
+	if (!gdp->private_data)
+		return NULL;
+	device = NULL;
+	spin_lock(&dasd_devmap_lock);
+	devmap = gdp->private_data;
+	if (devmap && devmap->device) {
+		device = devmap->device;
+		dasd_get_device(device);
+	}
+	spin_unlock(&dasd_devmap_lock);
+	return device;
+}
+
 /*
  * SECTION: files in sysfs
  */

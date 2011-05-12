@@ -47,6 +47,7 @@ struct nfs_client {
 
 #ifdef CONFIG_NFS_V4
 	u64			cl_clientid;	/* constant */
+	nfs4_verifier		cl_confirm;	/* Clientid verifier */
 	unsigned long		cl_state;
 
 	spinlock_t		cl_lock;

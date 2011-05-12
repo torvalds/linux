@@ -1742,6 +1742,7 @@ static struct omap_hwmod_ocp_if *omap2430_gpio1_slaves[] = {
 
 static struct omap_hwmod omap2430_gpio1_hwmod = {
 	.name		= "gpio1",
+	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap243x_gpio1_irqs,
 	.mpu_irqs_cnt	= ARRAY_SIZE(omap243x_gpio1_irqs),
 	.main_clk	= "gpios_fck",
@@ -1772,6 +1773,7 @@ static struct omap_hwmod_ocp_if *omap2430_gpio2_slaves[] = {
 
 static struct omap_hwmod omap2430_gpio2_hwmod = {
 	.name		= "gpio2",
+	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap243x_gpio2_irqs,
 	.mpu_irqs_cnt	= ARRAY_SIZE(omap243x_gpio2_irqs),
 	.main_clk	= "gpios_fck",
@@ -1802,6 +1804,7 @@ static struct omap_hwmod_ocp_if *omap2430_gpio3_slaves[] = {
 
 static struct omap_hwmod omap2430_gpio3_hwmod = {
 	.name		= "gpio3",
+	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap243x_gpio3_irqs,
 	.mpu_irqs_cnt	= ARRAY_SIZE(omap243x_gpio3_irqs),
 	.main_clk	= "gpios_fck",
@@ -1832,6 +1835,7 @@ static struct omap_hwmod_ocp_if *omap2430_gpio4_slaves[] = {
 
 static struct omap_hwmod omap2430_gpio4_hwmod = {
 	.name		= "gpio4",
+	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap243x_gpio4_irqs,
 	.mpu_irqs_cnt	= ARRAY_SIZE(omap243x_gpio4_irqs),
 	.main_clk	= "gpios_fck",
@@ -1862,6 +1866,7 @@ static struct omap_hwmod_ocp_if *omap2430_gpio5_slaves[] = {
 
 static struct omap_hwmod omap2430_gpio5_hwmod = {
 	.name		= "gpio5",
+	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap243x_gpio5_irqs,
 	.mpu_irqs_cnt	= ARRAY_SIZE(omap243x_gpio5_irqs),
 	.main_clk	= "gpio5_fck",
@@ -1915,7 +1920,7 @@ static struct omap_hwmod_irq_info omap2430_dma_system_irqs[] = {
 static struct omap_hwmod_addr_space omap2430_dma_system_addrs[] = {
 	{
 		.pa_start	= 0x48056000,
-		.pa_end		= 0x4a0560ff,
+		.pa_end		= 0x48056fff,
 		.flags		= ADDR_TYPE_RT
 	},
 };

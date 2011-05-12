@@ -167,9 +167,6 @@ int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	radeon_crtc->cursor_width = width;
-	radeon_crtc->cursor_height = height;
-
 	obj = drm_gem_object_lookup(crtc->dev, file_priv, handle);
 	if (!obj) {
 		DRM_ERROR("Cannot find cursor object %x for crtc %d\n", handle, radeon_crtc->crtc_id);
@@ -179,6 +176,9 @@ int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 	ret = radeon_gem_object_pin(obj, RADEON_GEM_DOMAIN_VRAM, &gpu_addr);
 	if (ret)
 		goto fail;
+
+	radeon_crtc->cursor_width = width;
+	radeon_crtc->cursor_height = height;
 
 	radeon_lock_cursor(crtc, true);
 	/* XXX only 27 bit offset for legacy cursor */

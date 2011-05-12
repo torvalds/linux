@@ -25,7 +25,7 @@ struct intel_percore {
 /*
  * Intel PerfMon, used on Core and later.
  */
-static const u64 intel_perfmon_event_map[] =
+static u64 intel_perfmon_event_map[PERF_COUNT_HW_MAX] __read_mostly =
 {
   [PERF_COUNT_HW_CPU_CYCLES]		= 0x003c,
   [PERF_COUNT_HW_INSTRUCTIONS]		= 0x00c0,
@@ -184,26 +184,23 @@ static __initconst const u64 snb_hw_cache_event_ids
 	},
  },
  [ C(LL  ) ] = {
-	/*
-	 * TBD: Need Off-core Response Performance Monitoring support
-	 */
 	[ C(OP_READ) ] = {
-		/* OFFCORE_RESPONSE_0.ANY_DATA.LOCAL_CACHE */
+		/* OFFCORE_RESPONSE.ANY_DATA.LOCAL_CACHE */
 		[ C(RESULT_ACCESS) ] = 0x01b7,
-		/* OFFCORE_RESPONSE_1.ANY_DATA.ANY_LLC_MISS */
-		[ C(RESULT_MISS)   ] = 0x01bb,
+		/* OFFCORE_RESPONSE.ANY_DATA.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
 	[ C(OP_WRITE) ] = {
-		/* OFFCORE_RESPONSE_0.ANY_RFO.LOCAL_CACHE */
+		/* OFFCORE_RESPONSE.ANY_RFO.LOCAL_CACHE */
 		[ C(RESULT_ACCESS) ] = 0x01b7,
-		/* OFFCORE_RESPONSE_1.ANY_RFO.ANY_LLC_MISS */
-		[ C(RESULT_MISS)   ] = 0x01bb,
+		/* OFFCORE_RESPONSE.ANY_RFO.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
 	[ C(OP_PREFETCH) ] = {
-		/* OFFCORE_RESPONSE_0.PREFETCH.LOCAL_CACHE */
+		/* OFFCORE_RESPONSE.PREFETCH.LOCAL_CACHE */
 		[ C(RESULT_ACCESS) ] = 0x01b7,
-		/* OFFCORE_RESPONSE_1.PREFETCH.ANY_LLC_MISS */
-		[ C(RESULT_MISS)   ] = 0x01bb,
+		/* OFFCORE_RESPONSE.PREFETCH.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
  },
  [ C(DTLB) ] = {
@@ -285,26 +282,26 @@ static __initconst const u64 westmere_hw_cache_event_ids
  },
  [ C(LL  ) ] = {
 	[ C(OP_READ) ] = {
-		/* OFFCORE_RESPONSE_0.ANY_DATA.LOCAL_CACHE */
+		/* OFFCORE_RESPONSE.ANY_DATA.LOCAL_CACHE */
 		[ C(RESULT_ACCESS) ] = 0x01b7,
-		/* OFFCORE_RESPONSE_1.ANY_DATA.ANY_LLC_MISS */
-		[ C(RESULT_MISS)   ] = 0x01bb,
+		/* OFFCORE_RESPONSE.ANY_DATA.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
 	/*
 	 * Use RFO, not WRITEBACK, because a write miss would typically occur
 	 * on RFO.
 	 */
 	[ C(OP_WRITE) ] = {
-		/* OFFCORE_RESPONSE_1.ANY_RFO.LOCAL_CACHE */
-		[ C(RESULT_ACCESS) ] = 0x01bb,
-		/* OFFCORE_RESPONSE_0.ANY_RFO.ANY_LLC_MISS */
+		/* OFFCORE_RESPONSE.ANY_RFO.LOCAL_CACHE */
+		[ C(RESULT_ACCESS) ] = 0x01b7,
+		/* OFFCORE_RESPONSE.ANY_RFO.ANY_LLC_MISS */
 		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
 	[ C(OP_PREFETCH) ] = {
-		/* OFFCORE_RESPONSE_0.PREFETCH.LOCAL_CACHE */
+		/* OFFCORE_RESPONSE.PREFETCH.LOCAL_CACHE */
 		[ C(RESULT_ACCESS) ] = 0x01b7,
-		/* OFFCORE_RESPONSE_1.PREFETCH.ANY_LLC_MISS */
-		[ C(RESULT_MISS)   ] = 0x01bb,
+		/* OFFCORE_RESPONSE.PREFETCH.ANY_LLC_MISS */
+		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
  },
  [ C(DTLB) ] = {
@@ -352,16 +349,36 @@ static __initconst const u64 westmere_hw_cache_event_ids
 };
 
 /*
- * OFFCORE_RESPONSE MSR bits (subset), See IA32 SDM Vol 3 30.6.1.3
+ * Nehalem/Westmere MSR_OFFCORE_RESPONSE bits;
+ * See IA32 SDM Vol 3B 30.6.1.3
  */
 
-#define DMND_DATA_RD     (1 << 0)
-#define DMND_RFO         (1 << 1)
-#define DMND_WB          (1 << 3)
-#define PF_DATA_RD       (1 << 4)
-#define PF_DATA_RFO      (1 << 5)
-#define RESP_UNCORE_HIT  (1 << 8)
-#define RESP_MISS        (0xf600) /* non uncore hit */
+#define NHM_DMND_DATA_RD	(1 << 0)
+#define NHM_DMND_RFO		(1 << 1)
+#define NHM_DMND_IFETCH		(1 << 2)
+#define NHM_DMND_WB		(1 << 3)
+#define NHM_PF_DATA_RD		(1 << 4)
+#define NHM_PF_DATA_RFO		(1 << 5)
+#define NHM_PF_IFETCH		(1 << 6)
+#define NHM_OFFCORE_OTHER	(1 << 7)
+#define NHM_UNCORE_HIT		(1 << 8)
+#define NHM_OTHER_CORE_HIT_SNP	(1 << 9)
+#define NHM_OTHER_CORE_HITM	(1 << 10)
+        			/* reserved */
+#define NHM_REMOTE_CACHE_FWD	(1 << 12)
+#define NHM_REMOTE_DRAM		(1 << 13)
+#define NHM_LOCAL_DRAM		(1 << 14)
+#define NHM_NON_DRAM		(1 << 15)
+
+#define NHM_ALL_DRAM		(NHM_REMOTE_DRAM|NHM_LOCAL_DRAM)
+
+#define NHM_DMND_READ		(NHM_DMND_DATA_RD)
+#define NHM_DMND_WRITE		(NHM_DMND_RFO|NHM_DMND_WB)
+#define NHM_DMND_PREFETCH	(NHM_PF_DATA_RD|NHM_PF_DATA_RFO)
+
+#define NHM_L3_HIT	(NHM_UNCORE_HIT|NHM_OTHER_CORE_HIT_SNP|NHM_OTHER_CORE_HITM)
+#define NHM_L3_MISS	(NHM_NON_DRAM|NHM_ALL_DRAM|NHM_REMOTE_CACHE_FWD)
+#define NHM_L3_ACCESS	(NHM_L3_HIT|NHM_L3_MISS)
 
 static __initconst const u64 nehalem_hw_cache_extra_regs
 				[PERF_COUNT_HW_CACHE_MAX]
@@ -370,16 +387,16 @@ static __initconst const u64 nehalem_hw_cache_extra_regs
 {
  [ C(LL  ) ] = {
 	[ C(OP_READ) ] = {
-		[ C(RESULT_ACCESS) ] = DMND_DATA_RD|RESP_UNCORE_HIT,
-		[ C(RESULT_MISS)   ] = DMND_DATA_RD|RESP_MISS,
+		[ C(RESULT_ACCESS) ] = NHM_DMND_READ|NHM_L3_ACCESS,
+		[ C(RESULT_MISS)   ] = NHM_DMND_READ|NHM_L3_MISS,
 	},
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = DMND_RFO|DMND_WB|RESP_UNCORE_HIT,
-		[ C(RESULT_MISS)   ] = DMND_RFO|DMND_WB|RESP_MISS,
+		[ C(RESULT_ACCESS) ] = NHM_DMND_WRITE|NHM_L3_ACCESS,
+		[ C(RESULT_MISS)   ] = NHM_DMND_WRITE|NHM_L3_MISS,
 	},
 	[ C(OP_PREFETCH) ] = {
-		[ C(RESULT_ACCESS) ] = PF_DATA_RD|PF_DATA_RFO|RESP_UNCORE_HIT,
-		[ C(RESULT_MISS)   ] = PF_DATA_RD|PF_DATA_RFO|RESP_MISS,
+		[ C(RESULT_ACCESS) ] = NHM_DMND_PREFETCH|NHM_L3_ACCESS,
+		[ C(RESULT_MISS)   ] = NHM_DMND_PREFETCH|NHM_L3_MISS,
 	},
  }
 };
@@ -391,12 +408,12 @@ static __initconst const u64 nehalem_hw_cache_event_ids
 {
  [ C(L1D) ] = {
 	[ C(OP_READ) ] = {
-		[ C(RESULT_ACCESS) ] = 0x0f40, /* L1D_CACHE_LD.MESI            */
-		[ C(RESULT_MISS)   ] = 0x0140, /* L1D_CACHE_LD.I_STATE         */
+		[ C(RESULT_ACCESS) ] = 0x010b, /* MEM_INST_RETIRED.LOADS       */
+		[ C(RESULT_MISS)   ] = 0x0151, /* L1D.REPL                     */
 	},
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = 0x0f41, /* L1D_CACHE_ST.MESI            */
-		[ C(RESULT_MISS)   ] = 0x0141, /* L1D_CACHE_ST.I_STATE         */
+		[ C(RESULT_ACCESS) ] = 0x020b, /* MEM_INST_RETURED.STORES      */
+		[ C(RESULT_MISS)   ] = 0x0251, /* L1D.M_REPL                   */
 	},
 	[ C(OP_PREFETCH) ] = {
 		[ C(RESULT_ACCESS) ] = 0x014e, /* L1D_PREFETCH.REQUESTS        */
@@ -933,6 +950,16 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
+	/*
+	 * Some chipsets need to unmask the LVTPC in a particular spot
+	 * inside the nmi handler.  As a result, the unmasking was pushed
+	 * into all the nmi handlers.
+	 *
+	 * This handler doesn't seem to have any issues with the unmasking
+	 * so it was left at the top.
+	 */
+	apic_write(APIC_LVTPC, APIC_DM_NMI);
+
 	intel_pmu_disable_all();
 	handled = intel_pmu_drain_bts_buffer();
 	status = intel_pmu_get_status();
@@ -997,6 +1024,9 @@ intel_bts_constraints(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	unsigned int hw_event, bts_event;
+
+	if (event->attr.freq)
+		return NULL;
 
 	hw_event = hwc->config & INTEL_ARCH_EVENT_MASK;
 	bts_event = x86_pmu.event_map(PERF_COUNT_HW_BRANCH_INSTRUCTIONS);
@@ -1305,7 +1335,7 @@ static void intel_clovertown_quirks(void)
 	 * AJ106 could possibly be worked around by not allowing LBR
 	 *       usage from PEBS, including the fixup.
 	 * AJ68  could possibly be worked around by always programming
-	 * 	 a pebs_event_reset[0] value and coping with the lost events.
+	 *	 a pebs_event_reset[0] value and coping with the lost events.
 	 *
 	 * But taken together it might just make sense to not enable PEBS on
 	 * these chips.
@@ -1409,6 +1439,18 @@ static __init int intel_pmu_init(void)
 		x86_pmu.percore_constraints = intel_nehalem_percore_constraints;
 		x86_pmu.enable_all = intel_pmu_nhm_enable_all;
 		x86_pmu.extra_regs = intel_nehalem_extra_regs;
+
+		if (ebx & 0x40) {
+			/*
+			 * Erratum AAJ80 detected, we work it around by using
+			 * the BR_MISP_EXEC.ANY event. This will over-count
+			 * branch-misses, but it's still much better than the
+			 * architectural event which is often completely bogus:
+			 */
+			intel_perfmon_event_map[PERF_COUNT_HW_BRANCH_MISSES] = 0x7f89;
+
+			pr_cont("erratum AAJ80 worked around, ");
+		}
 		pr_cont("Nehalem events, ");
 		break;
 
@@ -1425,6 +1467,7 @@ static __init int intel_pmu_init(void)
 
 	case 37: /* 32 nm nehalem, "Clarkdale" */
 	case 44: /* 32 nm nehalem, "Gulftown" */
+	case 47: /* 32 nm Xeon E7 */
 		memcpy(hw_cache_event_ids, westmere_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, nehalem_hw_cache_extra_regs,

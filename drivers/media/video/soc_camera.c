@@ -996,10 +996,11 @@ static void soc_camera_free_i2c(struct soc_camera_device *icd)
 {
 	struct i2c_client *client =
 		to_i2c_client(to_soc_camera_control(icd));
+	struct i2c_adapter *adap = client->adapter;
 	dev_set_drvdata(&icd->dev, NULL);
 	v4l2_device_unregister_subdev(i2c_get_clientdata(client));
 	i2c_unregister_device(client);
-	i2c_put_adapter(client->adapter);
+	i2c_put_adapter(adap);
 }
 #else
 #define soc_camera_init_i2c(icd, icl)	(-ENODEV)
@@ -1071,6 +1072,9 @@ static int soc_camera_probe(struct device *dev)
 		}
 	}
 
+	sd = soc_camera_to_subdev(icd);
+	sd->grp_id = (long)icd;
+
 	/* At this point client .probe() should have run already */
 	ret = soc_camera_init_user_formats(icd);
 	if (ret < 0)
@@ -1092,7 +1096,6 @@ static int soc_camera_probe(struct device *dev)
 		goto evidstart;
 
 	/* Try to improve our guess of a reasonable window format */
-	sd = soc_camera_to_subdev(icd);
 	if (!v4l2_subdev_call(sd, video, g_mbus_fmt, &mf)) {
 		icd->user_width		= mf.width;
 		icd->user_height	= mf.height;

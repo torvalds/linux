@@ -116,18 +116,20 @@ struct snd_soc_dai_driver sst_platform_dai[] = {
 static inline void sst_set_stream_status(struct sst_runtime_stream *stream,
 					int state)
 {
-	spin_lock(&stream->status_lock);
+	unsigned long flags;
+	spin_lock_irqsave(&stream->status_lock, flags);
 	stream->stream_status = state;
-	spin_unlock(&stream->status_lock);
+	spin_unlock_irqrestore(&stream->status_lock, flags);
 }
 
 static inline int sst_get_stream_status(struct sst_runtime_stream *stream)
 {
 	int state;
+	unsigned long flags;
 
-	spin_lock(&stream->status_lock);
+	spin_lock_irqsave(&stream->status_lock, flags);
 	state = stream->stream_status;
-	spin_unlock(&stream->status_lock);
+	spin_unlock_irqrestore(&stream->status_lock, flags);
 	return state;
 }
 

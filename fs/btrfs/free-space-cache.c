@@ -1768,10 +1768,13 @@ void btrfs_remove_free_space_cache(struct btrfs_block_group_cache *block_group)
 
 	while ((node = rb_last(&block_group->free_space_offset)) != NULL) {
 		info = rb_entry(node, struct btrfs_free_space, offset_index);
-		unlink_free_space(block_group, info);
-		if (info->bitmap)
-			kfree(info->bitmap);
-		kmem_cache_free(btrfs_free_space_cachep, info);
+		if (!info->bitmap) {
+			unlink_free_space(block_group, info);
+			kmem_cache_free(btrfs_free_space_cachep, info);
+		} else {
+			free_bitmap(block_group, info);
+		}
+
 		if (need_resched()) {
 			spin_unlock(&block_group->tree_lock);
 			cond_resched();
@@ -2301,7 +2304,7 @@ int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
 			start = entry->offset;
 			bytes = min(entry->bytes, end - start);
 			unlink_free_space(block_group, entry);
-			kfree(entry);
+			kmem_cache_free(btrfs_free_space_cachep, entry);
 		}
 
 		spin_unlock(&block_group->tree_lock);
