@@ -242,7 +242,7 @@ static ssize_t codec_reg_write_file(struct file *file,
 		const char __user *user_buf, size_t count, loff_t *ppos)
 {
 	char buf[32];
-	int buf_size;
+	size_t buf_size;
 	char *start = buf;
 	unsigned long reg, value;
 	int step = 1;
