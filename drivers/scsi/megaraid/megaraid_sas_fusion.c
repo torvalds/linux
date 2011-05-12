@@ -1137,7 +1137,7 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 	u64 start_blk = io_info->pdBlock;
 	u8 *cdb = io_request->CDB.CDB32;
 	u32 num_blocks = io_info->numBlocks;
-	u8 opcode, flagvals, groupnum, control;
+	u8 opcode = 0, flagvals = 0, groupnum = 0, control = 0;
 
 	/* Check if T10 PI (DIF) is enabled for this LD */
 	ld = MR_TargetIdToLdGet(io_info->ldTgtId, local_map_ptr);
@@ -1219,7 +1219,46 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 			cdb[8] = (u8)(num_blocks & 0xff);
 			cdb[7] = (u8)((num_blocks >> 8) & 0xff);
 
+			io_request->IoFlags = 10; /* Specify 10-byte cdb */
 			cdb_len = 10;
+		} else if ((cdb_len < 16) && (start_blk > 0xffffffff)) {
+			/* Convert to 16 byte CDB for large LBA's */
+			switch (cdb_len) {
+			case 6:
+				opcode = cdb[0] == READ_6 ? READ_16 : WRITE_16;
+				control = cdb[5];
+				break;
+			case 10:
+				opcode =
+					cdb[0] == READ_10 ? READ_16 : WRITE_16;
+				flagvals = cdb[1];
+				groupnum = cdb[6];
+				control = cdb[9];
+				break;
+			case 12:
+				opcode =
+					cdb[0] == READ_12 ? READ_16 : WRITE_16;
+				flagvals = cdb[1];
+				groupnum = cdb[10];
+				control = cdb[11];
+				break;
+			}
+
+			memset(cdb, 0, sizeof(io_request->CDB.CDB32));
+
+			cdb[0] = opcode;
+			cdb[1] = flagvals;
+			cdb[14] = groupnum;
+			cdb[15] = control;
+
+			/* Transfer length */
+			cdb[13] = (u8)(num_blocks & 0xff);
+			cdb[12] = (u8)((num_blocks >> 8) & 0xff);
+			cdb[11] = (u8)((num_blocks >> 16) & 0xff);
+			cdb[10] = (u8)((num_blocks >> 24) & 0xff);
+
+			io_request->IoFlags = 16; /* Specify 16-byte cdb */
+			cdb_len = 16;
 		}
 
 		/* Normal case, just load LBA here */
