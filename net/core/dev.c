@@ -5437,6 +5437,10 @@ int register_netdevice(struct net_device *dev)
 
 	dev->iflink = -1;
 
+	ret = dev_get_valid_name(dev, dev->name);
+	if (ret < 0)
+		goto out;
+
 	/* Init, if this function is available */
 	if (dev->netdev_ops->ndo_init) {
 		ret = dev->netdev_ops->ndo_init(dev);
@@ -5446,10 +5450,6 @@ int register_netdevice(struct net_device *dev)
 			goto out;
 		}
 	}
-
-	ret = dev_get_valid_name(dev, dev->name);
-	if (ret < 0)
-		goto err_uninit;
 
 	dev->ifindex = dev_new_index(net);
 	if (dev->iflink == -1)
