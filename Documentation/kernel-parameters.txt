@@ -48,6 +48,7 @@ parameter is applicable:
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
 	EFI	EFI Partitioning (GPT) is enabled
 	EIDE	EIDE/ATAPI support is enabled.
+	EVM	Extended Verification Module
 	FB	The frame buffer device is enabled.
 	GCOV	GCOV profiling is enabled.
 	HW	Appropriate hardware is enabled.
@@ -749,6 +750,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ether=		[HW,NET] Ethernet cards parameters
 			This option is obsoleted by the "netdev=" option, which
 			has equivalent usage. See its documentation for details.
+
+	evm=		[EVM]
+			Format: { "fix" }
+			Permit 'security.evm' to be updated regardless of
+			current integrity status.
 
 	failslab=
 	fail_page_alloc=

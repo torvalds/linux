@@ -37,13 +37,25 @@ char *evm_config_xattrnames[] = {
 	NULL
 };
 
+static int evm_fixmode;
+static int __init evm_set_fixmode(char *str)
+{
+	if (strncmp(str, "fix", 3) == 0)
+		evm_fixmode = 1;
+	return 0;
+}
+__setup("evm=", evm_set_fixmode);
+
 /*
  * evm_verify_hmac - calculate and compare the HMAC with the EVM xattr
  *
  * Compute the HMAC on the dentry's protected set of extended attributes
- * and compare it against the stored security.evm xattr. (For performance,
- * use the previoulsy retrieved xattr value and length to calculate the
- * HMAC.)
+ * and compare it against the stored security.evm xattr.
+ *
+ * For performance:
+ * - use the previoulsy retrieved xattr value and length to calculate the
+ *   HMAC.)
+ * - cache the verification result in the iint, when available.
  *
  * Returns integrity status
  */
@@ -54,9 +66,10 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 					     struct integrity_iint_cache *iint)
 {
 	struct evm_ima_xattr_data xattr_data;
+	enum integrity_status evm_status;
 	int rc;
 
-	if (iint->evm_status == INTEGRITY_PASS)
+	if (iint && iint->evm_status == INTEGRITY_PASS)
 		return iint->evm_status;
 
 	/* if status is not PASS, try to check again - against -ENOMEM */
@@ -71,18 +84,21 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 			   sizeof xattr_data, GFP_NOFS);
 	if (rc < 0)
 		goto err_out;
-	iint->evm_status = INTEGRITY_PASS;
-	return iint->evm_status;
+	evm_status = INTEGRITY_PASS;
+	goto out;
 
 err_out:
 	switch (rc) {
 	case -ENODATA:		/* file not labelled */
-		iint->evm_status = INTEGRITY_NOLABEL;
+		evm_status = INTEGRITY_NOLABEL;
 		break;
 	default:
-		iint->evm_status = INTEGRITY_FAIL;
+		evm_status = INTEGRITY_FAIL;
 	}
-	return iint->evm_status;
+out:
+	if (iint)
+		iint->evm_status = evm_status;
+	return evm_status;
 }
 
 static int evm_protected_xattr(const char *req_xattr_name)
@@ -157,6 +173,22 @@ static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
 	return 0;
 }
 
+/*
+ * evm_verify_current_integrity - verify the dentry's metadata integrity
+ * @dentry: pointer to the affected dentry
+ *
+ * Verify and return the dentry's metadata integrity. The exceptions are
+ * before EVM is initialized or in 'fix' mode.
+ */
+static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
+{
+	struct inode *inode = dentry->d_inode;
+
+	if (!evm_initialized || !S_ISREG(inode->i_mode) || evm_fixmode)
+		return 0;
+	return evm_verify_hmac(dentry, NULL, NULL, 0, NULL);
+}
+
 /**
  * evm_inode_setxattr - protect the EVM extended attribute
  * @dentry: pointer to the affected dentry
@@ -164,13 +196,22 @@ static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
  * @xattr_value: pointer to the new extended attribute value
  * @xattr_value_len: pointer to the new extended attribute value length
  *
- * Prevent 'security.evm' from being modified
+ * Updating 'security.evm' requires CAP_SYS_ADMIN privileges and that
+ * the current value is valid.
  */
 int evm_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 		       const void *xattr_value, size_t xattr_value_len)
 {
-	return evm_protect_xattr(dentry, xattr_name, xattr_value,
-				 xattr_value_len);
+
+	enum integrity_status evm_status;
+	int ret;
+
+	ret = evm_protect_xattr(dentry, xattr_name, xattr_value,
+				xattr_value_len);
+	if (ret)
+		return ret;
+	evm_status = evm_verify_current_integrity(dentry);
+	return evm_status == INTEGRITY_PASS ? 0 : -EPERM;
 }
 
 /**
@@ -178,11 +219,19 @@ int evm_inode_setxattr(struct dentry *dentry, const char *xattr_name,
  * @dentry: pointer to the affected dentry
  * @xattr_name: pointer to the affected extended attribute name
  *
- * Prevent 'security.evm' from being removed.
+ * Removing 'security.evm' requires CAP_SYS_ADMIN privileges and that
+ * the current value is valid.
  */
 int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name)
 {
-	return evm_protect_xattr(dentry, xattr_name, NULL, 0);
+	enum integrity_status evm_status;
+	int ret;
+
+	ret = evm_protect_xattr(dentry, xattr_name, NULL, 0);
+	if (ret)
+		return ret;
+	evm_status = evm_verify_current_integrity(dentry);
+	return evm_status == INTEGRITY_PASS ? 0 : -EPERM;
 }
 
 /**
