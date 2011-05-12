@@ -1191,14 +1191,19 @@ static int rbd_req_sync_notify_ack(struct rbd_device *dev,
 static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 {
 	struct rbd_device *dev = (struct rbd_device *)data;
+	int rc;
+
 	if (!dev)
 		return;
 
 	dout("rbd_watch_cb %s notify_id=%lld opcode=%d\n", dev->obj_md_name,
 		notify_id, (int)opcode);
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-	__rbd_update_snaps(dev);
+	rc = __rbd_update_snaps(dev);
 	mutex_unlock(&ctl_mutex);
+	if (rc)
+		pr_warning(DRV_NAME "%d got notification but failed to update"
+			   " snaps: %d\n", dev->major, rc);
 
 	rbd_req_sync_notify_ack(dev, ver, notify_id, dev->obj_md_name);
 }
