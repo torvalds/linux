@@ -132,7 +132,7 @@ int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
 
 struct xenbus_device *xen_blkbk_xenbus(struct backend_info *be);
 
-static void inline blkif_get_x86_32_req(struct blkif_request *dst,
+static inline void blkif_get_x86_32_req(struct blkif_request *dst,
 					struct blkif_x86_32_request *src)
 {
 	int i, n = BLKIF_MAX_SEGMENTS_PER_REQUEST;
@@ -148,7 +148,7 @@ static void inline blkif_get_x86_32_req(struct blkif_request *dst,
 		dst->u.rw.seg[i] = src->seg[i];
 }
 
-static void inline blkif_get_x86_64_req(struct blkif_request *dst,
+static inline void blkif_get_x86_64_req(struct blkif_request *dst,
 					struct blkif_x86_64_request *src)
 {
 	int i, n = BLKIF_MAX_SEGMENTS_PER_REQUEST;

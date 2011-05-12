@@ -637,7 +637,7 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 	/* This will be hit if the operation was a flush. */
 	if (!bio) {
 		BUG_ON(operation != WRITE_FLUSH);
-		
+
 		bio = bio_alloc(GFP_KERNEL, 0);
 		if (unlikely(bio == NULL))
 			goto fail_put_bio;
