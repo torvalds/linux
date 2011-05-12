@@ -74,7 +74,7 @@ static struct {
 	struct dss_clock_info cache_dss_cinfo;
 	struct dispc_clock_info cache_dispc_cinfo;
 
-	enum omap_dss_clk_source dsi_clk_source;
+	enum omap_dss_clk_source dsi_clk_source[MAX_NUM_DSI];
 	enum omap_dss_clk_source dispc_clk_source;
 	enum omap_dss_clk_source lcd_clk_source[MAX_DSS_LCD_MANAGERS];
 
@@ -313,6 +313,11 @@ void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src)
 		dsidev = dsi_get_dsidev_from_id(0);
 		dsi_wait_pll_hsdiv_dispc_active(dsidev);
 		break;
+	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
+		b = 2;
+		dsidev = dsi_get_dsidev_from_id(1);
+		dsi_wait_pll_hsdiv_dispc_active(dsidev);
+		break;
 	default:
 		BUG();
 	}
@@ -324,7 +329,8 @@ void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src)
 	dss.dispc_clk_source = clk_src;
 }
 
-void dss_select_dsi_clk_source(enum omap_dss_clk_source clk_src)
+void dss_select_dsi_clk_source(int dsi_module,
+		enum omap_dss_clk_source clk_src)
 {
 	struct platform_device *dsidev;
 	int b;
@@ -334,8 +340,15 @@ void dss_select_dsi_clk_source(enum omap_dss_clk_source clk_src)
 		b = 0;
 		break;
 	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI:
+		BUG_ON(dsi_module != 0);
 		b = 1;
 		dsidev = dsi_get_dsidev_from_id(0);
+		dsi_wait_pll_hsdiv_dsi_active(dsidev);
+		break;
+	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI:
+		BUG_ON(dsi_module != 1);
+		b = 1;
+		dsidev = dsi_get_dsidev_from_id(1);
 		dsi_wait_pll_hsdiv_dsi_active(dsidev);
 		break;
 	default:
@@ -344,7 +357,7 @@ void dss_select_dsi_clk_source(enum omap_dss_clk_source clk_src)
 
 	REG_FLD_MOD(DSS_CONTROL, b, 1, 1);	/* DSI_CLK_SWITCH */
 
-	dss.dsi_clk_source = clk_src;
+	dss.dsi_clk_source[dsi_module] = clk_src;
 }
 
 void dss_select_lcd_clk_source(enum omap_channel channel,
@@ -366,6 +379,12 @@ void dss_select_lcd_clk_source(enum omap_channel channel,
 		dsidev = dsi_get_dsidev_from_id(0);
 		dsi_wait_pll_hsdiv_dispc_active(dsidev);
 		break;
+	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
+		BUG_ON(channel != OMAP_DSS_CHANNEL_LCD2);
+		b = 1;
+		dsidev = dsi_get_dsidev_from_id(1);
+		dsi_wait_pll_hsdiv_dispc_active(dsidev);
+		break;
 	default:
 		BUG();
 	}
@@ -382,9 +401,9 @@ enum omap_dss_clk_source dss_get_dispc_clk_source(void)
 	return dss.dispc_clk_source;
 }
 
-enum omap_dss_clk_source dss_get_dsi_clk_source(void)
+enum omap_dss_clk_source dss_get_dsi_clk_source(int dsi_module)
 {
-	return dss.dsi_clk_source;
+	return dss.dsi_clk_source[dsi_module];
 }
 
 enum omap_dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel)
@@ -715,7 +734,8 @@ static int dss_init(void)
 
 	dss.dpll4_m4_ck = dpll4_m4_ck;
 
-	dss.dsi_clk_source = OMAP_DSS_CLK_SRC_FCK;
+	dss.dsi_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
+	dss.dsi_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
 	dss.dispc_clk_source = OMAP_DSS_CLK_SRC_FCK;
 	dss.lcd_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
 	dss.lcd_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;

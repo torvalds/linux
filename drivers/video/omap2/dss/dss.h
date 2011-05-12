@@ -240,11 +240,12 @@ int dss_sdi_enable(void);
 void dss_sdi_disable(void);
 
 void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src);
-void dss_select_dsi_clk_source(enum omap_dss_clk_source clk_src);
+void dss_select_dsi_clk_source(int dsi_module,
+		enum omap_dss_clk_source clk_src);
 void dss_select_lcd_clk_source(enum omap_channel channel,
 		enum omap_dss_clk_source clk_src);
 enum omap_dss_clk_source dss_get_dispc_clk_source(void);
-enum omap_dss_clk_source dss_get_dsi_clk_source(void);
+enum omap_dss_clk_source dss_get_dsi_clk_source(int dsi_module);
 enum omap_dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel);
 
 void dss_set_venc_output(enum omap_dss_venc_type type);
@@ -275,12 +276,18 @@ static inline void sdi_exit(void)
 
 /* DSI */
 #ifdef CONFIG_OMAP2_DSS_DSI
+
+struct dentry;
+struct file_operations;
+
 int dsi_init_platform_driver(void);
 void dsi_uninit_platform_driver(void);
 
 void dsi_dump_clocks(struct seq_file *s);
-void dsi_dump_irqs(struct seq_file *s);
-void dsi_dump_regs(struct seq_file *s);
+void dsi_create_debugfs_files_irq(struct dentry *debugfs_dir,
+		const struct file_operations *debug_fops);
+void dsi_create_debugfs_files_reg(struct dentry *debugfs_dir,
+		const struct file_operations *debug_fops);
 
 void dsi_save_context(void);
 void dsi_restore_context(void);

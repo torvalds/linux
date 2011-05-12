@@ -2250,6 +2250,10 @@ unsigned long dispc_fclk_rate(void)
 		dsidev = dsi_get_dsidev_from_id(0);
 		r = dsi_get_pll_hsdiv_dispc_rate(dsidev);
 		break;
+	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
+		dsidev = dsi_get_dsidev_from_id(1);
+		r = dsi_get_pll_hsdiv_dispc_rate(dsidev);
+		break;
 	default:
 		BUG();
 	}
@@ -2274,6 +2278,10 @@ unsigned long dispc_lclk_rate(enum omap_channel channel)
 		break;
 	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
 		dsidev = dsi_get_dsidev_from_id(0);
+		r = dsi_get_pll_hsdiv_dispc_rate(dsidev);
+		break;
+	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
+		dsidev = dsi_get_dsidev_from_id(1);
 		r = dsi_get_pll_hsdiv_dispc_rate(dsidev);
 		break;
 	default:

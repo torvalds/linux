@@ -127,8 +127,7 @@ static int dss_initialize_debugfs(void)
 #endif
 
 #if defined(CONFIG_OMAP2_DSS_DSI) && defined(CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS)
-	debugfs_create_file("dsi_irq", S_IRUGO, dss_debugfs_dir,
-			&dsi_dump_irqs, &dss_debug_fops);
+	dsi_create_debugfs_files_irq(dss_debugfs_dir, &dss_debug_fops);
 #endif
 
 	debugfs_create_file("dss", S_IRUGO, dss_debugfs_dir,
@@ -140,8 +139,7 @@ static int dss_initialize_debugfs(void)
 			&rfbi_dump_regs, &dss_debug_fops);
 #endif
 #ifdef CONFIG_OMAP2_DSS_DSI
-	debugfs_create_file("dsi", S_IRUGO, dss_debugfs_dir,
-			&dsi_dump_regs, &dss_debug_fops);
+	dsi_create_debugfs_files_reg(dss_debugfs_dir, &dss_debug_fops);
 #endif
 #ifdef CONFIG_OMAP2_DSS_VENC
 	debugfs_create_file("venc", S_IRUGO, dss_debugfs_dir,

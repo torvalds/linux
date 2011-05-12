@@ -35,6 +35,7 @@
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/debugfs.h>
 
 #include <video/omapdss.h>
 #include <plat/clock.h>
@@ -1143,8 +1144,9 @@ static unsigned long dsi_get_txbyteclkhs(struct platform_device *dsidev)
 static unsigned long dsi_fclk_rate(struct platform_device *dsidev)
 {
 	unsigned long r;
+	int dsi_module = dsi_get_dsidev_id(dsidev);
 
-	if (dss_get_dsi_clk_source() == OMAP_DSS_CLK_SRC_FCK) {
+	if (dss_get_dsi_clk_source(dsi_module) == OMAP_DSS_CLK_SRC_FCK) {
 		/* DSI FCLK source is DSS_CLK_FCK */
 		r = dss_clk_get_rate(DSS_CLK_FCK);
 	} else {
@@ -1670,19 +1672,20 @@ void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes)
 	DSSDBG("PLL uninit done\n");
 }
 
-void dsi_dump_clocks(struct seq_file *s)
+static void dsi_dump_dsidev_clocks(struct platform_device *dsidev,
+		struct seq_file *s)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_id(0);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct dsi_clock_info *cinfo = &dsi->current_cinfo;
 	enum omap_dss_clk_source dispc_clk_src, dsi_clk_src;
+	int dsi_module = dsi_get_dsidev_id(dsidev);
 
 	dispc_clk_src = dss_get_dispc_clk_source();
-	dsi_clk_src = dss_get_dsi_clk_source();
+	dsi_clk_src = dss_get_dsi_clk_source(dsi_module);
 
 	enable_clocks(1);
 
-	seq_printf(s,	"- DSI PLL -\n");
+	seq_printf(s,	"- DSI%d PLL -\n", dsi_module + 1);
 
 	seq_printf(s,	"dsi pll source = %s\n",
 			cinfo->use_sys_clk ? "dss_sys_clk" : "pclkfree");
@@ -1708,7 +1711,7 @@ void dsi_dump_clocks(struct seq_file *s)
 			dsi_clk_src == OMAP_DSS_CLK_SRC_FCK ?
 			"off" : "on");
 
-	seq_printf(s,	"- DSI -\n");
+	seq_printf(s,	"- DSI%d -\n", dsi_module + 1);
 
 	seq_printf(s,	"dsi fclk source = %s (%s)\n",
 			dss_get_generic_clk_source_name(dsi_clk_src),
@@ -1731,13 +1734,26 @@ void dsi_dump_clocks(struct seq_file *s)
 	enable_clocks(0);
 }
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-void dsi_dump_irqs(struct seq_file *s)
+void dsi_dump_clocks(struct seq_file *s)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_id(0);
+	struct platform_device *dsidev;
+	int i;
+
+	for  (i = 0; i < MAX_NUM_DSI; i++) {
+		dsidev = dsi_get_dsidev_from_id(i);
+		if (dsidev)
+			dsi_dump_dsidev_clocks(dsidev, s);
+	}
+}
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+static void dsi_dump_dsidev_irqs(struct platform_device *dsidev,
+		struct seq_file *s)
+{
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned long flags;
 	struct dsi_irq_stats stats;
+	int dsi_module = dsi_get_dsidev_id(dsidev);
 
 	spin_lock_irqsave(&dsi->irq_stats_lock, flags);
 
@@ -1754,7 +1770,7 @@ void dsi_dump_irqs(struct seq_file *s)
 #define PIS(x) \
 	seq_printf(s, "%-20s %10d\n", #x, stats.dsi_irqs[ffs(DSI_IRQ_##x)-1]);
 
-	seq_printf(s, "-- DSI interrupts --\n");
+	seq_printf(s, "-- DSI%d interrupts --\n", dsi_module + 1);
 	PIS(VC0);
 	PIS(VC1);
 	PIS(VC2);
@@ -1820,12 +1836,41 @@ void dsi_dump_irqs(struct seq_file *s)
 	PIS(ULPSACTIVENOT_ALL1);
 #undef PIS
 }
-#endif
 
-void dsi_dump_regs(struct seq_file *s)
+static void dsi1_dump_irqs(struct seq_file *s)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_id(0);
 
+	dsi_dump_dsidev_irqs(dsidev, s);
+}
+
+static void dsi2_dump_irqs(struct seq_file *s)
+{
+	struct platform_device *dsidev = dsi_get_dsidev_from_id(1);
+
+	dsi_dump_dsidev_irqs(dsidev, s);
+}
+
+void dsi_create_debugfs_files_irq(struct dentry *debugfs_dir,
+		const struct file_operations *debug_fops)
+{
+	struct platform_device *dsidev;
+
+	dsidev = dsi_get_dsidev_from_id(0);
+	if (dsidev)
+		debugfs_create_file("dsi1_irqs", S_IRUGO, debugfs_dir,
+			&dsi1_dump_irqs, debug_fops);
+
+	dsidev = dsi_get_dsidev_from_id(1);
+	if (dsidev)
+		debugfs_create_file("dsi2_irqs", S_IRUGO, debugfs_dir,
+			&dsi2_dump_irqs, debug_fops);
+}
+#endif
+
+static void dsi_dump_dsidev_regs(struct platform_device *dsidev,
+		struct seq_file *s)
+{
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dsi_read_reg(dsidev, r))
 
 	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
@@ -1906,6 +1951,35 @@ void dsi_dump_regs(struct seq_file *s)
 #undef DUMPREG
 }
 
+static void dsi1_dump_regs(struct seq_file *s)
+{
+	struct platform_device *dsidev = dsi_get_dsidev_from_id(0);
+
+	dsi_dump_dsidev_regs(dsidev, s);
+}
+
+static void dsi2_dump_regs(struct seq_file *s)
+{
+	struct platform_device *dsidev = dsi_get_dsidev_from_id(1);
+
+	dsi_dump_dsidev_regs(dsidev, s);
+}
+
+void dsi_create_debugfs_files_reg(struct dentry *debugfs_dir,
+		const struct file_operations *debug_fops)
+{
+	struct platform_device *dsidev;
+
+	dsidev = dsi_get_dsidev_from_id(0);
+	if (dsidev)
+		debugfs_create_file("dsi1_regs", S_IRUGO, debugfs_dir,
+			&dsi1_dump_regs, debug_fops);
+
+	dsidev = dsi_get_dsidev_from_id(1);
+	if (dsidev)
+		debugfs_create_file("dsi2_regs", S_IRUGO, debugfs_dir,
+			&dsi2_dump_regs, debug_fops);
+}
 enum dsi_cio_power_state {
 	DSI_COMPLEXIO_POWER_OFF		= 0x0,
 	DSI_COMPLEXIO_POWER_ON		= 0x1,
@@ -3847,9 +3921,13 @@ EXPORT_SYMBOL(omap_dsi_update);
 static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 {
 	int r;
+	u32 irq;
+
+	irq = dssdev->manager->id == OMAP_DSS_CHANNEL_LCD ?
+		DISPC_IRQ_FRAMEDONE : DISPC_IRQ_FRAMEDONE2;
 
 	r = omap_dispc_register_isr(dsi_framedone_irq_callback, (void *) dssdev,
-			DISPC_IRQ_FRAMEDONE);
+			irq);
 	if (r) {
 		DSSERR("can't get FRAMEDONE irq\n");
 		return r;
@@ -3882,8 +3960,13 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 
 static void dsi_display_uninit_dispc(struct omap_dss_device *dssdev)
 {
+	u32 irq;
+
+	irq = dssdev->manager->id == OMAP_DSS_CHANNEL_LCD ?
+		DISPC_IRQ_FRAMEDONE : DISPC_IRQ_FRAMEDONE2;
+
 	omap_dispc_unregister_isr(dsi_framedone_irq_callback, (void *) dssdev,
-			DISPC_IRQ_FRAMEDONE);
+			irq);
 }
 
 static int dsi_configure_dsi_clocks(struct omap_dss_device *dssdev)
@@ -3943,6 +4026,7 @@ static int dsi_configure_dispc_clocks(struct omap_dss_device *dssdev)
 static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	int dsi_module = dsi_get_dsidev_id(dsidev);
 	int r;
 
 	r = dsi_pll_init(dsidev, true, true);
@@ -3954,7 +4038,7 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 		goto err1;
 
 	dss_select_dispc_clk_source(dssdev->clocks.dispc.dispc_fclk_src);
-	dss_select_dsi_clk_source(dssdev->clocks.dsi.dsi_fclk_src);
+	dss_select_dsi_clk_source(dsi_module, dssdev->clocks.dsi.dsi_fclk_src);
 	dss_select_lcd_clk_source(dssdev->manager->id,
 			dssdev->clocks.dispc.channel.lcd_clk_src);
 
@@ -3993,7 +4077,7 @@ err3:
 	dsi_cio_uninit(dsidev);
 err2:
 	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
-	dss_select_dsi_clk_source(OMAP_DSS_CLK_SRC_FCK);
+	dss_select_dsi_clk_source(dsi_module, OMAP_DSS_CLK_SRC_FCK);
 err1:
 	dsi_pll_uninit(dsidev, true);
 err0:
@@ -4005,6 +4089,7 @@ static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev,
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	int dsi_module = dsi_get_dsidev_id(dsidev);
 
 	if (enter_ulps && !dsi->ulps_enabled)
 		dsi_enter_ulps(dsidev);
@@ -4017,7 +4102,7 @@ static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev,
 	dsi_vc_enable(dsidev, 3, 0);
 
 	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
-	dss_select_dsi_clk_source(OMAP_DSS_CLK_SRC_FCK);
+	dss_select_dsi_clk_source(dsi_module, OMAP_DSS_CLK_SRC_FCK);
 	dsi_cio_uninit(dsidev);
 	dsi_pll_uninit(dsidev, disconnect_lanes);
 }
