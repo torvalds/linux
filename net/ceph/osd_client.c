@@ -1677,8 +1677,14 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 	 */
 	if (req->r_sent == 0) {
 		rc = __map_request(osdc, req);
-		if (rc < 0)
+		if (rc < 0) {
+			if (nofail) {
+				dout("osdc_start_request failed map, "
+				     " will retry %lld\n", req->r_tid);
+				rc = 0;
+			}
 			goto out_unlock;
+		}
 		if (req->r_osd == NULL) {
 			dout("send_request %p no up osds in pg\n", req);
 			ceph_monc_request_next_osdmap(&osdc->client->monc);

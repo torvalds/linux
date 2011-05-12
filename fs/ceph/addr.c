@@ -848,7 +848,8 @@ get_more_pages:
 		op->payload_len = cpu_to_le32(len);
 		req->r_request->hdr.data_len = cpu_to_le32(len);
 
-		ceph_osdc_start_request(&fsc->client->osdc, req, true);
+		rc = ceph_osdc_start_request(&fsc->client->osdc, req, true);
+		BUG_ON(rc);
 		req = NULL;
 
 		/* continue? */
