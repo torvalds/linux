@@ -1602,7 +1602,7 @@ static int rbd_header_add_snap(struct rbd_device *dev,
 	int name_len = strlen(snap_name);
 	u64 new_snapid;
 	int ret;
-	void *data, *data_start, *data_end;
+	void *data, *p, *e;
 	u64 ver;
 
 	/* we should create a snapshot only if we're pointing at the head */
@@ -1619,16 +1619,16 @@ static int rbd_header_add_snap(struct rbd_device *dev,
 	if (!data)
 		return -ENOMEM;
 
-	data_start = data;
-	data_end = data + name_len + 16;
+	p = data;
+	e = data + name_len + 16;
 
-	ceph_encode_string_safe(&data, data_end, snap_name, name_len, bad);
-	ceph_encode_64_safe(&data, data_end, new_snapid, bad);
+	ceph_encode_string_safe(&p, e, snap_name, name_len, bad);
+	ceph_encode_64_safe(&p, e, new_snapid, bad);
 
 	ret = rbd_req_sync_exec(dev, dev->obj_md_name, "rbd", "snap_add",
-				data_start, data - data_start, &ver);
+				data, p - data, &ver);
 
-	kfree(data_start);
+	kfree(data);
 
 	if (ret < 0)
 		return ret;
