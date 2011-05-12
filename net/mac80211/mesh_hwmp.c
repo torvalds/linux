@@ -966,20 +966,11 @@ endlookup:
 
 void mesh_path_timer(unsigned long data)
 {
-	struct ieee80211_sub_if_data *sdata;
-	struct mesh_path *mpath;
+	struct mesh_path *mpath = (void *) data;
+	struct ieee80211_sub_if_data *sdata = mpath->sdata;
 
-	rcu_read_lock();
-	mpath = (struct mesh_path *) data;
-	mpath = rcu_dereference(mpath);
-	if (!mpath)
-		goto endmpathtimer;
-	sdata = mpath->sdata;
-
-	if (sdata->local->quiescing) {
-		rcu_read_unlock();
+	if (sdata->local->quiescing)
 		return;
-	}
 
 	spin_lock_bh(&mpath->state_lock);
 	if (mpath->flags & MESH_PATH_RESOLVED ||
@@ -996,8 +987,6 @@ void mesh_path_timer(unsigned long data)
 	}
 
 	spin_unlock_bh(&mpath->state_lock);
-endmpathtimer:
-	rcu_read_unlock();
 }
 
 void
