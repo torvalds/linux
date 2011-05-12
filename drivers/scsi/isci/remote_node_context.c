@@ -195,60 +195,6 @@ static void scic_sds_remote_node_context_setup_to_destory(
 	sci_rnc->user_cookie       = callback_parameter;
 }
 
-/**
- *
- * @sci_rnc:
- * @callback:
- *
- * This method will continue to resume a remote node context.  This is used in
- * the states where a resume is requested while a resume is in progress.
- */
-static enum sci_status scic_sds_remote_node_context_continue_to_resume_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	scics_sds_remote_node_context_callback callback,
-	void *callback_parameter)
-{
-	if (sci_rnc->destination_state == SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_READY) {
-		sci_rnc->user_callback = callback;
-		sci_rnc->user_cookie   = callback_parameter;
-
-		return SCI_SUCCESS;
-	}
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-static enum sci_status scic_sds_remote_node_context_default_suspend_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	u32 suspend_type,
-	scics_sds_remote_node_context_callback callback,
-	void *callback_parameter)
-{
-	dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-		 "%s: SCIC Remote Node Context 0x%p requested to suspend "
-		 "while in wrong state %d\n",
-		 __func__,
-		 sci_rnc,
-		 sci_base_state_machine_get_state(&sci_rnc->state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-static enum sci_status scic_sds_remote_node_context_default_resume_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	scics_sds_remote_node_context_callback callback,
-	void *callback_parameter)
-{
-	dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-		 "%s: SCIC Remote Node Context 0x%p requested to resume "
-		 "while in wrong state %d\n",
-		 __func__,
-		 sci_rnc,
-		 sci_base_state_machine_get_state(&sci_rnc->state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
 static enum sci_status scic_sds_remote_node_context_default_start_io_handler(
 	struct scic_sds_remote_node_context *sci_rnc,
 	struct scic_sds_request *sci_req)
@@ -295,61 +241,6 @@ static enum sci_status scic_sds_remote_node_context_success_start_task_handler(
 	return SCI_SUCCESS;
 }
 
-static enum sci_status scic_sds_remote_node_context_initial_state_resume_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	scics_sds_remote_node_context_callback callback,
-	void *callback_parameter)
-{
-	if (sci_rnc->remote_node_index != SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX) {
-		scic_sds_remote_node_context_setup_to_resume(
-			sci_rnc, callback, callback_parameter
-			);
-
-		scic_sds_remote_node_context_construct_buffer(sci_rnc);
-
-		sci_base_state_machine_change_state(
-			&sci_rnc->state_machine,
-			SCIC_SDS_REMOTE_NODE_CONTEXT_POSTING_STATE
-			);
-
-		return SCI_SUCCESS;
-	}
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-/**
- *
- * @sci_rnc: The remote node context object being suspended.
- * @callback: The callback when the suspension is complete.
- * @callback_parameter: The parameter that is to be passed into the callback.
- *
- * This method will handle the suspend requests from the ready state.
- * SCI_SUCCESS
- */
-static enum sci_status scic_sds_remote_node_context_ready_state_suspend_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	u32 suspend_type,
-	scics_sds_remote_node_context_callback callback,
-	void *callback_parameter)
-{
-	sci_rnc->user_callback   = callback;
-	sci_rnc->user_cookie     = callback_parameter;
-	sci_rnc->suspension_code = suspend_type;
-
-	if (suspend_type == SCI_SOFTWARE_SUSPENSION) {
-		scic_sds_remote_device_post_request(rnc_to_dev(sci_rnc),
-						    SCU_CONTEXT_COMMAND_POST_RNC_SUSPEND_TX);
-	}
-
-	sci_base_state_machine_change_state(
-		&sci_rnc->state_machine,
-		SCIC_SDS_REMOTE_NODE_CONTEXT_AWAIT_SUSPENSION_STATE
-		);
-
-	return SCI_SUCCESS;
-}
-
 /**
  *
  * @sci_rnc: The rnc for which the io request is targeted.
@@ -364,39 +255,6 @@ static enum sci_status scic_sds_remote_node_context_ready_state_start_io_handler
 	struct scic_sds_request *sci_req)
 {
 	return SCI_SUCCESS;
-}
-
-static enum sci_status scic_sds_remote_node_context_tx_suspended_state_resume_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	scics_sds_remote_node_context_callback callback,
-	void *callback_parameter)
-{
-	struct scic_sds_remote_device *sci_dev = rnc_to_dev(sci_rnc);
-	struct domain_device *dev = sci_dev_to_domain(sci_dev);
-	enum sci_status status = SCI_SUCCESS;
-
-	scic_sds_remote_node_context_setup_to_resume(sci_rnc, callback,
-						     callback_parameter);
-
-	/* TODO: consider adding a resume action of NONE, INVALIDATE, WRITE_TLCR */
-	if (dev->dev_type == SAS_END_DEV || dev_is_expander(dev))
-		sci_base_state_machine_change_state(&sci_rnc->state_machine,
-						    SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE);
-	else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
-		if (sci_dev->is_direct_attached) {
-			/* @todo Fix this since I am being silly in writing to the STPTLDARNI register. */
-			sci_base_state_machine_change_state(
-				&sci_rnc->state_machine,
-				SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE);
-		} else {
-			sci_base_state_machine_change_state(
-				&sci_rnc->state_machine,
-				SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE);
-		}
-	} else
-		status = SCI_FAILURE;
-
-	return status;
 }
 
 /**
@@ -415,44 +273,6 @@ static enum sci_status scic_sds_remote_node_context_suspended_start_task_handler
 	struct scic_sds_request *sci_req)
 {
 	scic_sds_remote_node_context_resume(sci_rnc, NULL, NULL);
-
-	return SCI_SUCCESS;
-}
-
-/* --------------------------------------------------------------------------- */
-
-static enum sci_status scic_sds_remote_node_context_tx_rx_suspended_state_resume_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	scics_sds_remote_node_context_callback callback,
-	void *callback_parameter)
-{
-	scic_sds_remote_node_context_setup_to_resume(
-		sci_rnc, callback, callback_parameter
-		);
-
-	sci_base_state_machine_change_state(
-		&sci_rnc->state_machine,
-		SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE
-		);
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-/* --------------------------------------------------------------------------- */
-
-/**
- *
- *
- *
- */
-static enum sci_status scic_sds_remote_node_context_await_suspension_state_resume_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	scics_sds_remote_node_context_callback callback,
-	void *callback_parameter)
-{
-	scic_sds_remote_node_context_setup_to_resume(
-		sci_rnc, callback, callback_parameter
-		);
 
 	return SCI_SUCCESS;
 }
@@ -477,50 +297,34 @@ static enum sci_status scic_sds_remote_node_context_await_suspension_state_start
 
 static struct scic_sds_remote_node_context_handlers scic_sds_remote_node_context_state_handler_table[] = {
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE] = {
-		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
-		.resume_handler		= scic_sds_remote_node_context_initial_state_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_default_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_POSTING_STATE] = {
-		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
-		.resume_handler		= scic_sds_remote_node_context_continue_to_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_default_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE] = {
-		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
-		.resume_handler		= scic_sds_remote_node_context_continue_to_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_default_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE] = {
-		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
-		.resume_handler		= scic_sds_remote_node_context_continue_to_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_success_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_READY_STATE] = {
-		.suspend_handler	= scic_sds_remote_node_context_ready_state_suspend_handler,
-		.resume_handler		= scic_sds_remote_node_context_default_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_ready_state_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_success_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_TX_SUSPENDED_STATE] = {
-		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
-		.resume_handler		= scic_sds_remote_node_context_tx_suspended_state_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_suspended_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_TX_RX_SUSPENDED_STATE] = {
-		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
-		.resume_handler		= scic_sds_remote_node_context_tx_rx_suspended_state_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_suspended_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_AWAIT_SUSPENSION_STATE] = {
-		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
-		.resume_handler		= scic_sds_remote_node_context_await_suspension_state_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_await_suspension_state_start_task_handler,
 	}
@@ -548,21 +352,11 @@ static void scic_sds_remote_node_context_notify_user(
 	}
 }
 
-/**
- *
- *
- * This method will continue the remote node context state machine by
- * requesting to resume the remote node context state machine from its current
- * state.
- */
-static void scic_sds_remote_node_context_continue_state_transitions(
-	struct scic_sds_remote_node_context *rnc)
+static void scic_sds_remote_node_context_continue_state_transitions(struct scic_sds_remote_node_context *rnc)
 {
-	if (rnc->destination_state == SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_READY) {
-		rnc->state_handlers->resume_handler(
-			rnc, rnc->user_callback, rnc->user_cookie
-			);
-	}
+	if (rnc->destination_state == SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_READY)
+		scic_sds_remote_node_context_resume(rnc, rnc->user_callback,
+						    rnc->user_cookie);
 }
 
 /**
@@ -982,6 +776,98 @@ enum sci_status scic_sds_remote_node_context_destruct(struct scic_sds_remote_nod
 		 * can not fail since it is either in the initial/destroyed state or is
 		 * can be destroyed.
 		 */
+		return SCI_SUCCESS;
+	default:
+		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+			 "%s: invalid state %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+}
+
+enum sci_status scic_sds_remote_node_context_suspend(struct scic_sds_remote_node_context *sci_rnc,
+						     u32 suspend_type,
+						     scics_sds_remote_node_context_callback cb_fn,
+						     void *cb_p)
+{
+	enum scis_sds_remote_node_context_states state;
+
+	state = sci_rnc->state_machine.current_state_id;
+	if (state != SCIC_SDS_REMOTE_NODE_CONTEXT_READY_STATE) {
+		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+			 "%s: invalid state %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+
+	sci_rnc->user_callback   = cb_fn;
+	sci_rnc->user_cookie     = cb_p;
+	sci_rnc->suspension_code = suspend_type;
+
+	if (suspend_type == SCI_SOFTWARE_SUSPENSION) {
+		scic_sds_remote_device_post_request(rnc_to_dev(sci_rnc),
+						    SCU_CONTEXT_COMMAND_POST_RNC_SUSPEND_TX);
+	}
+
+	sci_base_state_machine_change_state(&sci_rnc->state_machine,
+					    SCIC_SDS_REMOTE_NODE_CONTEXT_AWAIT_SUSPENSION_STATE);
+	return SCI_SUCCESS;
+}
+
+enum sci_status scic_sds_remote_node_context_resume(struct scic_sds_remote_node_context *sci_rnc,
+						    scics_sds_remote_node_context_callback cb_fn,
+						    void *cb_p)
+{
+	enum scis_sds_remote_node_context_states state;
+
+	state = sci_rnc->state_machine.current_state_id;
+	switch (state) {
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE:
+		if (sci_rnc->remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
+			return SCI_FAILURE_INVALID_STATE;
+
+		scic_sds_remote_node_context_setup_to_resume(sci_rnc, cb_fn, cb_p);
+		scic_sds_remote_node_context_construct_buffer(sci_rnc);
+		sci_base_state_machine_change_state(&sci_rnc->state_machine,
+						    SCIC_SDS_REMOTE_NODE_CONTEXT_POSTING_STATE);
+		return SCI_SUCCESS;
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_POSTING_STATE:
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE:
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE:
+		if (sci_rnc->destination_state != SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_READY)
+			return SCI_FAILURE_INVALID_STATE;
+
+		sci_rnc->user_callback = cb_fn;
+		sci_rnc->user_cookie   = cb_p;
+		return SCI_SUCCESS;
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_TX_SUSPENDED_STATE: {
+		struct scic_sds_remote_device *sci_dev = rnc_to_dev(sci_rnc);
+		struct domain_device *dev = sci_dev_to_domain(sci_dev);
+
+		scic_sds_remote_node_context_setup_to_resume(sci_rnc, cb_fn, cb_p);
+
+		/* TODO: consider adding a resume action of NONE, INVALIDATE, WRITE_TLCR */
+		if (dev->dev_type == SAS_END_DEV || dev_is_expander(dev))
+			sci_base_state_machine_change_state(&sci_rnc->state_machine,
+							    SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE);
+		else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
+			if (sci_dev->is_direct_attached) {
+				/* @todo Fix this since I am being silly in writing to the STPTLDARNI register. */
+				sci_base_state_machine_change_state(&sci_rnc->state_machine,
+					SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE);
+			} else {
+				sci_base_state_machine_change_state(&sci_rnc->state_machine,
+					SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE);
+			}
+		} else
+			return SCI_FAILURE;
+		return SCI_SUCCESS;
+	}
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_TX_RX_SUSPENDED_STATE:
+		scic_sds_remote_node_context_setup_to_resume(sci_rnc, cb_fn, cb_p);
+		sci_base_state_machine_change_state(&sci_rnc->state_machine,
+						    SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE);
+		return SCI_FAILURE_INVALID_STATE;
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_AWAIT_SUSPENSION_STATE:
+		scic_sds_remote_node_context_setup_to_resume(sci_rnc, cb_fn, cb_p);
 		return SCI_SUCCESS;
 	default:
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),

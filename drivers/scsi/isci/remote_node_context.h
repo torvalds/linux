@@ -90,32 +90,12 @@ typedef enum sci_status (*scic_sds_remote_node_context_operation)(
 	void *callback_parameter
 	);
 
-typedef enum sci_status (*scic_sds_remote_node_context_suspend_operation)(
-	struct scic_sds_remote_node_context *sci_rnc,
-	u32 suspension_type,
-	scics_sds_remote_node_context_callback callback,
-	void *callback_parameter
-	);
-
 typedef enum sci_status (*scic_sds_remote_node_context_io_request)(
 	struct scic_sds_remote_node_context *sci_rnc,
 	struct scic_sds_request *sci_req
 	);
 
 struct scic_sds_remote_node_context_handlers {
-	/**
-	 * This handler is invoked when there is a request to suspend  the RNC.  The
-	 * callback is invoked after the hardware notification that the remote node is
-	 * suspended.
-	 */
-	scic_sds_remote_node_context_suspend_operation suspend_handler;
-
-	/**
-	 * This handler is invoked when there is a request to resume the RNC.  The
-	 * callback is invoked when after the RNC has reached the ready state.
-	 */
-	scic_sds_remote_node_context_operation resume_handler;
-
 	/**
 	 * This handler is invoked when there is a request to start an io request
 	 * operation.
@@ -260,11 +240,15 @@ enum sci_status scic_sds_remote_node_context_event_handler(struct scic_sds_remot
 enum sci_status scic_sds_remote_node_context_destruct(struct scic_sds_remote_node_context *sci_rnc,
 						      scics_sds_remote_node_context_callback callback,
 						      void *callback_parameter);
-#define scic_sds_remote_node_context_resume(rnc, callback, parameter) \
-	((rnc)->state_handlers->resume_handler(rnc, callback, parameter))
 
-#define scic_sds_remote_node_context_suspend(rnc, suspend_type, callback, parameter) \
-	((rnc)->state_handlers->suspend_handler(rnc, suspend_type, callback, parameter))
+enum sci_status scic_sds_remote_node_context_suspend(struct scic_sds_remote_node_context *sci_rnc,
+						     u32 suspend_type,
+						     scics_sds_remote_node_context_callback cb_fn,
+						     void *cb_p);
+
+enum sci_status scic_sds_remote_node_context_resume(struct scic_sds_remote_node_context *sci_rnc,
+						    scics_sds_remote_node_context_callback cb_fn,
+						    void *cb_p);
 
 #define scic_sds_remote_node_context_start_io(rnc, request) \
 	((rnc)->state_handlers->start_io_handler(rnc, request))
