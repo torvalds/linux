@@ -23,6 +23,7 @@
 #define MAX_DSS_MANAGERS	3
 #define MAX_DSS_OVERLAYS	3
 #define MAX_DSS_LCD_MANAGERS	2
+#define MAX_NUM_DSI		2
 
 /* DSS has feature id */
 enum dss_feat_id {

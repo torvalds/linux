@@ -2239,6 +2239,7 @@ static void dispc_get_lcd_divisor(enum omap_channel channel, int *lck_div,
 
 unsigned long dispc_fclk_rate(void)
 {
+	struct platform_device *dsidev;
 	unsigned long r = 0;
 
 	switch (dss_get_dispc_clk_source()) {
@@ -2246,7 +2247,8 @@ unsigned long dispc_fclk_rate(void)
 		r = dss_clk_get_rate(DSS_CLK_FCK);
 		break;
 	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
-		r = dsi_get_pll_hsdiv_dispc_rate();
+		dsidev = dsi_get_dsidev_from_id(0);
+		r = dsi_get_pll_hsdiv_dispc_rate(dsidev);
 		break;
 	default:
 		BUG();
@@ -2257,6 +2259,7 @@ unsigned long dispc_fclk_rate(void)
 
 unsigned long dispc_lclk_rate(enum omap_channel channel)
 {
+	struct platform_device *dsidev;
 	int lcd;
 	unsigned long r;
 	u32 l;
@@ -2270,7 +2273,8 @@ unsigned long dispc_lclk_rate(enum omap_channel channel)
 		r = dss_clk_get_rate(DSS_CLK_FCK);
 		break;
 	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
-		r = dsi_get_pll_hsdiv_dispc_rate();
+		dsidev = dsi_get_dsidev_from_id(0);
+		r = dsi_get_pll_hsdiv_dispc_rate(dsidev);
 		break;
 	default:
 		BUG();

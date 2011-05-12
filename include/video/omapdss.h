@@ -417,6 +417,8 @@ struct omap_dss_device {
 			u8 data2_lane;
 			u8 data2_pol;
 
+			int module;
+
 			bool ext_te;
 			u8 ext_te_gpio;
 		} dsi;

@@ -287,18 +287,21 @@ void dsi_restore_context(void);
 
 int dsi_init_display(struct omap_dss_device *display);
 void dsi_irq_handler(void);
-unsigned long dsi_get_pll_hsdiv_dispc_rate(void);
-int dsi_pll_set_clock_div(struct dsi_clock_info *cinfo);
-int dsi_pll_calc_clock_div_pck(bool is_tft, unsigned long req_pck,
-		struct dsi_clock_info *cinfo,
+unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev);
+int dsi_pll_set_clock_div(struct platform_device *dsidev,
+		struct dsi_clock_info *cinfo);
+int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev, bool is_tft,
+		unsigned long req_pck, struct dsi_clock_info *cinfo,
 		struct dispc_clock_info *dispc_cinfo);
-int dsi_pll_init(bool enable_hsclk, bool enable_hsdiv);
-void dsi_pll_uninit(bool disconnect_lanes);
+int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
+		bool enable_hsdiv);
+void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes);
 void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 		u32 fifo_size, enum omap_burst_size *burst_size,
 		u32 *fifo_low, u32 *fifo_high);
-void dsi_wait_pll_hsdiv_dispc_active(void);
-void dsi_wait_pll_hsdiv_dsi_active(void);
+void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev);
+void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev);
+struct platform_device *dsi_get_dsidev_from_id(int module);
 #else
 static inline int dsi_init_platform_driver(void)
 {
@@ -307,16 +310,22 @@ static inline int dsi_init_platform_driver(void)
 static inline void dsi_uninit_platform_driver(void)
 {
 }
-static inline unsigned long dsi_get_pll_hsdiv_dispc_rate(void)
+static inline unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev)
 {
 	WARN("%s: DSI not compiled in, returning rate as 0\n", __func__);
 	return 0;
 }
-static inline void dsi_wait_pll_hsdiv_dispc_active(void)
+static inline void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev)
 {
 }
-static inline void dsi_wait_pll_hsdiv_dsi_active(void)
+static inline void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev)
 {
+}
+static inline struct platform_device *dsi_get_dsidev_from_id(int module)
+{
+	WARN("%s: DSI not compiled in, returning platform device as NULL\n",
+			__func__);
+	return NULL;
 }
 #endif
 
