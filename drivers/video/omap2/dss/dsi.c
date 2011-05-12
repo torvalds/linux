@@ -1470,8 +1470,7 @@ err:
 	return r;
 }
 
-int dsi_pll_init(struct omap_dss_device *dssdev, bool enable_hsclk,
-		bool enable_hsdiv)
+int dsi_pll_init(bool enable_hsclk, bool enable_hsdiv)
 {
 	int r = 0;
 	enum dsi_pll_power_state pwstate;
@@ -3745,7 +3744,7 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 {
 	int r;
 
-	r = dsi_pll_init(dssdev, true, true);
+	r = dsi_pll_init(true, true);
 	if (r)
 		goto err0;
 
