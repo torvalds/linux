@@ -361,7 +361,7 @@ static const char netdev_features_strings[ETHTOOL_DEV_FEATURE_WORDS * 32][ETH_GS
 	/* NETIF_F_NTUPLE */          "rx-ntuple-filter",
 	/* NETIF_F_RXHASH */          "rx-hashing",
 	/* NETIF_F_RXCSUM */          "rx-checksum",
-	/* NETIF_F_NOCACHE_COPY */    "tx-nocache-copy"
+	/* NETIF_F_NOCACHE_COPY */    "tx-nocache-copy",
 	/* NETIF_F_LOOPBACK */        "loopback",
 };
 
