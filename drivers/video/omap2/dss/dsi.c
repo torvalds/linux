@@ -354,13 +354,13 @@ void dsi_restore_context(void)
 {
 }
 
-void dsi_bus_lock(void)
+void dsi_bus_lock(struct omap_dss_device *dssdev)
 {
 	down(&dsi.bus_lock);
 }
 EXPORT_SYMBOL(dsi_bus_lock);
 
-void dsi_bus_unlock(void)
+void dsi_bus_unlock(struct omap_dss_device *dssdev)
 {
 	up(&dsi.bus_lock);
 }
@@ -2473,7 +2473,8 @@ static int dsi_vc_config_vp(int channel)
 }
 
 
-void omapdss_dsi_vc_enable_hs(int channel, bool enable)
+void omapdss_dsi_vc_enable_hs(struct omap_dss_device *dssdev, int channel,
+		bool enable)
 {
 	DSSDBG("dsi_vc_enable_hs(%d, %d)\n", channel, enable);
 
@@ -2587,7 +2588,7 @@ static int dsi_vc_send_bta(int channel)
 	return 0;
 }
 
-int dsi_vc_send_bta_sync(int channel)
+int dsi_vc_send_bta_sync(struct omap_dss_device *dssdev, int channel)
 {
 	DECLARE_COMPLETION_ONSTACK(completion);
 	int r = 0;
@@ -2751,14 +2752,15 @@ static int dsi_vc_send_short(int channel, u8 data_type, u16 data, u8 ecc)
 	return 0;
 }
 
-int dsi_vc_send_null(int channel)
+int dsi_vc_send_null(struct omap_dss_device *dssdev, int channel)
 {
 	u8 nullpkg[] = {0, 0, 0, 0};
 	return dsi_vc_send_long(channel, DSI_DT_NULL_PACKET, nullpkg, 4, 0);
 }
 EXPORT_SYMBOL(dsi_vc_send_null);
 
-int dsi_vc_dcs_write_nosync(int channel, u8 *data, int len)
+int dsi_vc_dcs_write_nosync(struct omap_dss_device *dssdev, int channel,
+		u8 *data, int len)
 {
 	int r;
 
@@ -2780,15 +2782,16 @@ int dsi_vc_dcs_write_nosync(int channel, u8 *data, int len)
 }
 EXPORT_SYMBOL(dsi_vc_dcs_write_nosync);
 
-int dsi_vc_dcs_write(int channel, u8 *data, int len)
+int dsi_vc_dcs_write(struct omap_dss_device *dssdev, int channel, u8 *data,
+		int len)
 {
 	int r;
 
-	r = dsi_vc_dcs_write_nosync(channel, data, len);
+	r = dsi_vc_dcs_write_nosync(dssdev, channel, data, len);
 	if (r)
 		goto err;
 
-	r = dsi_vc_send_bta_sync(channel);
+	r = dsi_vc_send_bta_sync(dssdev, channel);
 	if (r)
 		goto err;
 
@@ -2807,22 +2810,24 @@ err:
 }
 EXPORT_SYMBOL(dsi_vc_dcs_write);
 
-int dsi_vc_dcs_write_0(int channel, u8 dcs_cmd)
+int dsi_vc_dcs_write_0(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd)
 {
-	return dsi_vc_dcs_write(channel, &dcs_cmd, 1);
+	return dsi_vc_dcs_write(dssdev, channel, &dcs_cmd, 1);
 }
 EXPORT_SYMBOL(dsi_vc_dcs_write_0);
 
-int dsi_vc_dcs_write_1(int channel, u8 dcs_cmd, u8 param)
+int dsi_vc_dcs_write_1(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
+		u8 param)
 {
 	u8 buf[2];
 	buf[0] = dcs_cmd;
 	buf[1] = param;
-	return dsi_vc_dcs_write(channel, buf, 2);
+	return dsi_vc_dcs_write(dssdev, channel, buf, 2);
 }
 EXPORT_SYMBOL(dsi_vc_dcs_write_1);
 
-int dsi_vc_dcs_read(int channel, u8 dcs_cmd, u8 *buf, int buflen)
+int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
+		u8 *buf, int buflen)
 {
 	u32 val;
 	u8 dt;
@@ -2835,7 +2840,7 @@ int dsi_vc_dcs_read(int channel, u8 dcs_cmd, u8 *buf, int buflen)
 	if (r)
 		goto err;
 
-	r = dsi_vc_send_bta_sync(channel);
+	r = dsi_vc_send_bta_sync(dssdev, channel);
 	if (r)
 		goto err;
 
@@ -2929,11 +2934,12 @@ err:
 }
 EXPORT_SYMBOL(dsi_vc_dcs_read);
 
-int dsi_vc_dcs_read_1(int channel, u8 dcs_cmd, u8 *data)
+int dsi_vc_dcs_read_1(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
+		u8 *data)
 {
 	int r;
 
-	r = dsi_vc_dcs_read(channel, dcs_cmd, data, 1);
+	r = dsi_vc_dcs_read(dssdev, channel, dcs_cmd, data, 1);
 
 	if (r < 0)
 		return r;
@@ -2945,12 +2951,13 @@ int dsi_vc_dcs_read_1(int channel, u8 dcs_cmd, u8 *data)
 }
 EXPORT_SYMBOL(dsi_vc_dcs_read_1);
 
-int dsi_vc_dcs_read_2(int channel, u8 dcs_cmd, u8 *data1, u8 *data2)
+int dsi_vc_dcs_read_2(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
+		u8 *data1, u8 *data2)
 {
 	u8 buf[2];
 	int r;
 
-	r = dsi_vc_dcs_read(channel, dcs_cmd, buf, 2);
+	r = dsi_vc_dcs_read(dssdev, channel, dcs_cmd, buf, 2);
 
 	if (r < 0)
 		return r;
@@ -2965,7 +2972,8 @@ int dsi_vc_dcs_read_2(int channel, u8 dcs_cmd, u8 *data1, u8 *data2)
 }
 EXPORT_SYMBOL(dsi_vc_dcs_read_2);
 
-int dsi_vc_set_max_rx_packet_size(int channel, u16 len)
+int dsi_vc_set_max_rx_packet_size(struct omap_dss_device *dssdev, int channel,
+		u16 len)
 {
 	return dsi_vc_send_short(channel, DSI_DT_SET_MAX_RET_PKG_SIZE,
 			len, 0);
