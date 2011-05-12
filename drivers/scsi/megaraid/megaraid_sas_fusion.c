@@ -2010,16 +2010,10 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 	struct fusion_context *fusion;
 	struct megasas_cmd *cmd_mfi;
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
-	u32 host_diag, abs_state;
+	u32 host_diag, abs_state, status_reg, reset_adapter;
 
 	instance = (struct megasas_instance *)shost->hostdata;
 	fusion = instance->ctrl_context;
-
-	mutex_lock(&instance->reset_mutex);
-	set_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
-	instance->adprecovery = MEGASAS_ADPRESET_SM_INFAULT;
-	instance->instancet->disable_intr(instance->reg_set);
-	msleep(1000);
 
 	if (instance->adprecovery == MEGASAS_HW_CRITICAL_ERROR) {
 		printk(KERN_WARNING "megaraid_sas: Hardware critical error, "
@@ -2027,6 +2021,12 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 		retval = FAILED;
 		goto out;
 	}
+
+	mutex_lock(&instance->reset_mutex);
+	set_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
+	instance->adprecovery = MEGASAS_ADPRESET_SM_INFAULT;
+	instance->instancet->disable_intr(instance->reg_set);
+	msleep(1000);
 
 	/* First try waiting for commands to complete */
 	if (megasas_wait_for_outstanding_fusion(instance)) {
@@ -2044,7 +2044,12 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 			}
 		}
 
-		if (instance->disableOnlineCtrlReset == 1) {
+		status_reg = instance->instancet->read_fw_status_reg(
+			instance->reg_set);
+		abs_state = status_reg & MFI_STATE_MASK;
+		reset_adapter = status_reg & MFI_RESET_ADAPTER;
+		if (instance->disableOnlineCtrlReset ||
+		    (abs_state == MFI_STATE_FAULT && !reset_adapter)) {
 			/* Reset not supported, kill adapter */
 			printk(KERN_WARNING "megaraid_sas: Reset not supported"
 			       ", killing adapter.\n");
@@ -2073,6 +2078,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 
 			/* Check that the diag write enable (DRWE) bit is on */
 			host_diag = readl(&instance->reg_set->fusion_host_diag);
+			retry = 0;
 			while (!(host_diag & HOST_DIAG_WRITE_ENABLE)) {
 				msleep(100);
 				host_diag =
@@ -2110,7 +2116,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 
 			abs_state =
 				instance->instancet->read_fw_status_reg(
-					instance->reg_set);
+					instance->reg_set) & MFI_STATE_MASK;
 			retry = 0;
 
 			while ((abs_state <= MFI_STATE_FW_INIT) &&
@@ -2118,7 +2124,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 				msleep(100);
 				abs_state =
 				instance->instancet->read_fw_status_reg(
-					instance->reg_set);
+					instance->reg_set) & MFI_STATE_MASK;
 			}
 			if (abs_state <= MFI_STATE_FW_INIT) {
 				printk(KERN_WARNING "megaraid_sas: firmware "
