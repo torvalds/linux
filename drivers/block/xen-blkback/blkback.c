@@ -196,20 +196,20 @@ static void vbd_resize(struct blkif_st *blkif)
 	struct xenbus_device *dev = xen_blkbk_xenbus(blkif->be);
 	unsigned long long new_size = vbd_sz(vbd);
 
-	pr_info("xen-blkback: VBD Resize: Domid: %d, Device: (%d, %d)\n",
+	pr_info(DRV_PFX "VBD Resize: Domid: %d, Device: (%d, %d)\n",
 		blkif->domid, MAJOR(vbd->pdevice), MINOR(vbd->pdevice));
-	pr_info("xen-blkback: VBD Resize: new size %llu\n", new_size);
+	pr_info(DRV_PFX "VBD Resize: new size %llu\n", new_size);
 	vbd->size = new_size;
 again:
 	err = xenbus_transaction_start(&xbt);
 	if (err) {
-		pr_warn("xen-blkback: Error starting transaction");
+		pr_warn(DRV_PFX "Error starting transaction");
 		return;
 	}
 	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
 			    (unsigned long long)vbd_sz(vbd));
 	if (err) {
-		pr_warn("xen-blkback: Error writing new size");
+		pr_warn(DRV_PFX "Error writing new size");
 		goto abort;
 	}
 	/*
@@ -219,7 +219,7 @@ again:
 	 */
 	err = xenbus_printf(xbt, dev->nodename, "state", "%d", dev->state);
 	if (err) {
-		pr_warn("xen-blkback: Error writing the state");
+		pr_warn(DRV_PFX "Error writing the state");
 		goto abort;
 	}
 
@@ -227,7 +227,7 @@ again:
 	if (err == -EAGAIN)
 		goto again;
 	if (err)
-		pr_warn("xen-blkback: Error ending transaction");
+		pr_warn(DRV_PFX "Error ending transaction");
 abort:
 	xenbus_transaction_end(xbt, 1);
 }
@@ -270,7 +270,7 @@ int xen_blkif_schedule(void *arg)
 	xen_blkif_get(blkif);
 
 	if (debug_lvl)
-		pr_debug("xen-blkback: %s: started\n", current->comm);
+		pr_debug(DRV_PFX "%s: started\n", current->comm);
 
 	while (!kthread_should_stop()) {
 		if (try_to_freeze())
@@ -299,7 +299,7 @@ int xen_blkif_schedule(void *arg)
 	if (log_stats)
 		print_stats(blkif);
 	if (debug_lvl)
-		pr_debug("xen-blkback: %s: exiting\n", current->comm);
+		pr_debug(DRV_PFX "%s: exiting\n", current->comm);
 
 	blkif->xenblkd = NULL;
 	xen_blkif_put(blkif);
@@ -343,7 +343,7 @@ static void xen_blkbk_unmap(struct pending_req *req)
 		ret = m2p_remove_override(
 			virt_to_page(unmap[i].host_addr), false);
 		if (ret) {
-			pr_alert("xen-blkback: Failed to remove M2P override for %lx\n",
+			pr_alert(DRV_PFX "Failed to remove M2P override for %lx\n",
 				 (unsigned long)unmap[i].host_addr);
 			continue;
 		}
@@ -385,7 +385,7 @@ static int xen_blkbk_map(struct blkif_request *req,
 	 */
 	for (i = 0; i < nseg; i++) {
 		if (unlikely(map[i].status != 0)) {
-			pr_debug("xen-blkback: invalid buffer -- could not remap it\n");
+			pr_debug(DRV_PFX "invalid buffer -- could not remap it\n");
 			map[i].handle = BLKBACK_INVALID_HANDLE;
 			ret |= 1;
 		}
@@ -398,7 +398,7 @@ static int xen_blkbk_map(struct blkif_request *req,
 		ret = m2p_add_override(PFN_DOWN(map[i].dev_bus_addr),
 			blkbk->pending_page(pending_req, i), false);
 		if (ret) {
-			pr_alert("xen-blkback: Failed to install M2P override for %lx (ret: %d)\n",
+			pr_alert(DRV_PFX "Failed to install M2P override for %lx (ret: %d)\n",
 				 (unsigned long)map[i].dev_bus_addr, ret);
 			/* We could switch over to GNTTABOP_copy */
 			continue;
@@ -419,11 +419,11 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 	/* An error fails the entire request. */
 	if ((pending_req->operation == BLKIF_OP_FLUSH_DISKCACHE) &&
 	    (error == -EOPNOTSUPP)) {
-		pr_debug("xen-blkback: flush diskcache op failed, not supported\n");
+		pr_debug(DRV_PFX "flush diskcache op failed, not supported\n");
 		xen_blkbk_flush_diskcache(XBT_NIL, pending_req->blkif->be, 0);
 		pending_req->status = BLKIF_RSP_EOPNOTSUPP;
 	} else if (error) {
-		pr_debug("xen-blkback: Buffer not up-to-date at end of operation,"
+		pr_debug(DRV_PFX "Buffer not up-to-date at end of operation,"
 			 " error=%d\n", error);
 		pending_req->status = BLKIF_RSP_ERROR;
 	}
@@ -561,7 +561,7 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 	nseg = req->nr_segments;
 	if (unlikely(nseg == 0 && operation != WRITE_FLUSH) ||
 	    unlikely(nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST)) {
-		pr_debug("xen-blkback: Bad number of segments in request (%d)\n",
+		pr_debug(DRV_PFX "Bad number of segments in request (%d)\n",
 			 nseg);
 		/* Haven't submitted any bio's yet. */
 		goto fail_response;
@@ -588,7 +588,7 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 	}
 
 	if (vbd_translate(&preq, blkif, operation) != 0) {
-		pr_debug("xen-blkback: access denied: %s of [%llu,%llu] on dev=%04x\n",
+		pr_debug(DRV_PFX "access denied: %s of [%llu,%llu] on dev=%04x\n",
 			 operation == READ ? "read" : "write",
 			 preq.sector_number,
 			 preq.sector_number + preq.nr_sects, preq.dev);
@@ -602,7 +602,7 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 	for (i = 0; i < nseg; i++) {
 		if (((int)preq.sector_number|(int)seg[i].nsec) &
 		    ((bdev_logical_block_size(preq.bdev) >> 9) - 1)) {
-			pr_debug("xen-blkback: Misaligned I/O request from domain %d",
+			pr_debug(DRV_PFX "Misaligned I/O request from domain %d",
 				 blkif->domid);
 			goto fail_response;
 		}
@@ -759,7 +759,7 @@ static int __init xen_blkif_init(void)
 
 	blkbk = kzalloc(sizeof(struct xen_blkbk), GFP_KERNEL);
 	if (!blkbk) {
-		pr_alert("xen-blkback: %s: out of memory!\n", __func__);
+		pr_alert(DRV_PFX "%s: out of memory!\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -807,7 +807,7 @@ static int __init xen_blkif_init(void)
 	return 0;
 
  out_of_memory:
-	pr_alert("xen-blkback: %s: out of memory\n", __func__);
+	pr_alert(DRV_PFX "%s: out of memory\n", __func__);
  failed_init:
 	kfree(blkbk->pending_reqs);
 	kfree(blkbk->pending_grant_handles);

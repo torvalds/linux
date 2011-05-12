@@ -504,7 +504,7 @@ static void backend_changed(struct xenbus_watch *watch,
 
 	if ((be->major || be->minor) &&
 	    ((be->major != major) || (be->minor != minor))) {
-		pr_warn("xen-blkback: changing physical device (from %x:%x to %x:%x) not supported.\n",
+		pr_warn(DRV_PFX "changing physical device (from %x:%x to %x:%x) not supported.\n",
 			be->major, be->minor, major, minor);
 		return;
 	}
@@ -571,7 +571,7 @@ static void frontend_changed(struct xenbus_device *dev,
 	switch (frontend_state) {
 	case XenbusStateInitialising:
 		if (dev->state == XenbusStateClosed) {
-			pr_info("xen-blkback: %s: prepare for reconnect\n",
+			pr_info(DRV_PFX "%s: prepare for reconnect\n",
 				dev->nodename);
 			xenbus_switch_state(dev, XenbusStateInitWait);
 		}
@@ -726,7 +726,7 @@ static int connect_ring(struct backend_info *be)
 		xenbus_dev_fatal(dev, err, "unknown fe protocol %s", protocol);
 		return -1;
 	}
-	pr_info("xen-blkback: ring-ref %ld, event-channel %d, protocol %d (%s)\n",
+	pr_info(DRV_PFX "ring-ref %ld, event-channel %d, protocol %d (%s)\n",
 		ring_ref, evtchn, be->blkif->blk_protocol, protocol);
 
 	/* Map the shared frame, irq etc. */
