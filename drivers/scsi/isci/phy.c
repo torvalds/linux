@@ -463,16 +463,31 @@ enum sci_status scic_sds_phy_start(struct scic_sds_phy *sci_phy)
 	return SCI_SUCCESS;
 }
 
-/**
- * This method will attempt to stop the phy object.
- * @sci_phy:
- *
- * enum sci_status SCI_SUCCESS if the phy is going to stop SCI_INVALID_STATE
- * if the phy is not in a valid state to stop
- */
 enum sci_status scic_sds_phy_stop(struct scic_sds_phy *sci_phy)
 {
-	return sci_phy->state_handlers->stop_handler(sci_phy);
+	enum scic_sds_phy_states state = sci_phy->state_machine.current_state_id;
+
+	switch (state) {
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF:
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL:
+	case SCI_BASE_PHY_STATE_READY:
+		break;
+	default:
+		dev_dbg(sciphy_to_dev(sci_phy),
+			"%s: in wrong state: %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+
+	sci_base_state_machine_change_state(&sci_phy->state_machine,
+					    SCI_BASE_PHY_STATE_STOPPED);
+	return SCI_SUCCESS;
 }
 
 /**
@@ -610,23 +625,6 @@ static void scic_sds_phy_restart_starting_state(
 	sci_base_state_machine_change_state(&sci_phy->state_machine,
 					    SCI_BASE_PHY_STATE_STARTING);
 }
-
-/* ****************************************************************************
-   * SCIC SDS PHY general handlers
-   ************************************************************************** */
-static enum sci_status scic_sds_phy_starting_substate_general_stop_handler(
-	struct scic_sds_phy *phy)
-{
-	sci_base_state_machine_change_state(&phy->state_machine,
-						 SCI_BASE_PHY_STATE_STOPPED);
-
-	return SCI_SUCCESS;
-}
-
-/*
- * *****************************************************************************
- * * SCIC SDS PHY EVENT_HANDLERS
- * ***************************************************************************** */
 
 /**
  *
@@ -1268,12 +1266,6 @@ static enum sci_status default_phy_handler(struct scic_sds_phy *sci_phy,
 }
 
 static enum sci_status
-scic_sds_phy_default_stop_handler(struct scic_sds_phy *sci_phy)
-{
-	return default_phy_handler(sci_phy, __func__);
-}
-
-static enum sci_status
 scic_sds_phy_default_reset_handler(struct scic_sds_phy *sci_phy)
 {
 	return default_phy_handler(sci_phy, __func__);
@@ -1313,15 +1305,6 @@ scic_sds_phy_default_consume_power_handler(struct scic_sds_phy *sci_phy)
 static enum sci_status
 scic_sds_phy_stopped_state_destroy_handler(struct scic_sds_phy *sci_phy)
 {
-	return SCI_SUCCESS;
-}
-
-static enum sci_status
-scic_sds_phy_ready_state_stop_handler(struct scic_sds_phy *sci_phy)
-{
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCI_BASE_PHY_STATE_STOPPED);
-
 	return SCI_SUCCESS;
 }
 
@@ -1409,7 +1392,6 @@ static enum sci_status scic_sds_phy_resetting_state_event_handler(struct scic_sd
 
 static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[] = {
 	[SCI_BASE_PHY_STATE_INITIAL] = {
-		.stop_handler  = scic_sds_phy_default_stop_handler,
 		.reset_handler = scic_sds_phy_default_reset_handler,
 		.destruct_handler = scic_sds_phy_default_destroy_handler,
 		.frame_handler		 = scic_sds_phy_default_frame_handler,
@@ -1417,7 +1399,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_STOPPED]  = {
-		.stop_handler  = scic_sds_phy_default_stop_handler,
 		.reset_handler = scic_sds_phy_default_reset_handler,
 		.destruct_handler = scic_sds_phy_stopped_state_destroy_handler,
 		.frame_handler		 = scic_sds_phy_default_frame_handler,
@@ -1425,7 +1406,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_STARTING] = {
-		.stop_handler  = scic_sds_phy_default_stop_handler,
 		.reset_handler = scic_sds_phy_default_reset_handler,
 		.destruct_handler = scic_sds_phy_default_destroy_handler,
 		.frame_handler		 = scic_sds_phy_default_frame_handler,
@@ -1433,7 +1413,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL] = {
-		.stop_handler		= scic_sds_phy_starting_substate_general_stop_handler,
 		.reset_handler		= scic_sds_phy_default_reset_handler,
 		.destruct_handler	= scic_sds_phy_default_destroy_handler,
 		.frame_handler		= scic_sds_phy_default_frame_handler,
@@ -1441,7 +1420,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN] = {
-		.stop_handler		= scic_sds_phy_starting_substate_general_stop_handler,
 		.reset_handler		= scic_sds_phy_default_reset_handler,
 		.destruct_handler	= scic_sds_phy_default_destroy_handler,
 		.frame_handler		= scic_sds_phy_default_frame_handler,
@@ -1449,7 +1427,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN] = {
-		.stop_handler		= scic_sds_phy_starting_substate_general_stop_handler,
 		.reset_handler		= scic_sds_phy_default_reset_handler,
 		.destruct_handler	= scic_sds_phy_default_destroy_handler,
 		.frame_handler		= scic_sds_phy_default_frame_handler,
@@ -1457,7 +1434,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF] = {
-		.stop_handler		= scic_sds_phy_default_stop_handler,
 		.reset_handler		= scic_sds_phy_default_reset_handler,
 		.destruct_handler	= scic_sds_phy_default_destroy_handler,
 		.frame_handler		= scic_sds_phy_starting_substate_await_iaf_uf_frame_handler,
@@ -1465,7 +1441,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER] = {
-		.stop_handler		= scic_sds_phy_starting_substate_general_stop_handler,
 		.reset_handler		= scic_sds_phy_default_reset_handler,
 		.destruct_handler	= scic_sds_phy_default_destroy_handler,
 		.frame_handler		= scic_sds_phy_default_frame_handler,
@@ -1473,7 +1448,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	= scic_sds_phy_starting_substate_await_sas_power_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER] = {
-		.stop_handler		= scic_sds_phy_starting_substate_general_stop_handler,
 		.reset_handler		= scic_sds_phy_default_reset_handler,
 		.destruct_handler	= scic_sds_phy_default_destroy_handler,
 		.frame_handler		= scic_sds_phy_default_frame_handler,
@@ -1481,7 +1455,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	= scic_sds_phy_starting_substate_await_sata_power_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN] = {
-		.stop_handler		= scic_sds_phy_starting_substate_general_stop_handler,
 		.reset_handler		= scic_sds_phy_default_reset_handler,
 		.destruct_handler	= scic_sds_phy_default_destroy_handler,
 		.frame_handler		= scic_sds_phy_default_frame_handler,
@@ -1489,7 +1462,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN] = {
-		.stop_handler		= scic_sds_phy_starting_substate_general_stop_handler,
 		.reset_handler		= scic_sds_phy_default_reset_handler,
 		.destruct_handler	= scic_sds_phy_default_destroy_handler,
 		.frame_handler		= scic_sds_phy_default_frame_handler,
@@ -1497,7 +1469,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF] = {
-		.stop_handler		= scic_sds_phy_starting_substate_general_stop_handler,
 		.reset_handler		= scic_sds_phy_default_reset_handler,
 		.destruct_handler	= scic_sds_phy_default_destroy_handler,
 		.frame_handler		= scic_sds_phy_starting_substate_await_sig_fis_frame_handler,
@@ -1505,7 +1476,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL] = {
-		.stop_handler		= scic_sds_phy_starting_substate_general_stop_handler,
 		.reset_handler		= scic_sds_phy_default_reset_handler,
 		.destruct_handler	= scic_sds_phy_default_destroy_handler,
 		.frame_handler		 = scic_sds_phy_default_frame_handler,
@@ -1513,7 +1483,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_READY] = {
-		.stop_handler  = scic_sds_phy_ready_state_stop_handler,
 		.reset_handler = scic_sds_phy_ready_state_reset_handler,
 		.destruct_handler = scic_sds_phy_default_destroy_handler,
 		.frame_handler		 = scic_sds_phy_default_frame_handler,
@@ -1521,7 +1490,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_RESETTING] = {
-		.stop_handler  = scic_sds_phy_default_stop_handler,
 		.reset_handler = scic_sds_phy_default_reset_handler,
 		.destruct_handler = scic_sds_phy_default_destroy_handler,
 		.frame_handler		 = scic_sds_phy_default_frame_handler,
@@ -1529,7 +1497,6 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_FINAL] = {
-		.stop_handler  = scic_sds_phy_default_stop_handler,
 		.reset_handler = scic_sds_phy_default_reset_handler,
 		.destruct_handler = scic_sds_phy_default_destroy_handler,
 		.frame_handler		 = scic_sds_phy_default_frame_handler,
