@@ -849,6 +849,7 @@ struct ieee80211_local {
 
 	bool sched_scanning;
 	struct ieee80211_sched_scan_ies sched_scan_ies;
+	struct work_struct sched_scan_stopped_work;
 
 	unsigned long leave_oper_channel_time;
 	enum mac80211_scan_state next_scan_state;
@@ -1160,8 +1161,8 @@ void ieee80211_rx_bss_put(struct ieee80211_local *local,
 /* scheduled scan handling */
 int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 				       struct cfg80211_sched_scan_request *req);
-int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata,
-				      bool driver_initiated);
+int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata);
+void ieee80211_sched_scan_stopped_work(struct work_struct *work);
 
 /* off-channel helpers */
 bool ieee80211_cfg_on_oper_channel(struct ieee80211_local *local);

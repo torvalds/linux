@@ -119,21 +119,13 @@ void cfg80211_sched_scan_results(struct wiphy *wiphy)
 }
 EXPORT_SYMBOL(cfg80211_sched_scan_results);
 
-void __cfg80211_sched_scan_stopped(struct work_struct *wk)
+void cfg80211_sched_scan_stopped(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *rdev;
-
-	rdev = container_of(wk, struct cfg80211_registered_device,
-			    sched_scan_stopped_wk);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
 	cfg80211_lock_rdev(rdev);
 	__cfg80211_stop_sched_scan(rdev, true);
 	cfg80211_unlock_rdev(rdev);
-}
-
-void cfg80211_sched_scan_stopped(struct wiphy *wiphy)
-{
-	queue_work(cfg80211_wq, &wiphy_to_dev(wiphy)->sched_scan_stopped_wk);
 }
 EXPORT_SYMBOL(cfg80211_sched_scan_stopped);
 
@@ -150,10 +142,11 @@ int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 
 	dev = rdev->sched_scan_req->dev;
 
-	err = rdev->ops->sched_scan_stop(&rdev->wiphy, dev,
-					 driver_initiated);
-	if (err)
-		return err;
+	if (!driver_initiated) {
+		err = rdev->ops->sched_scan_stop(&rdev->wiphy, dev);
+		if (err)
+			return err;
+	}
 
 	nl80211_send_sched_scan(rdev, dev, NL80211_CMD_SCHED_SCAN_STOPPED);
 

@@ -902,8 +902,7 @@ out:
 	return ret;
 }
 
-int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata,
-				      bool driver_initiated)
+int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	int ret = 0, i;
@@ -919,11 +918,9 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata,
 		for (i = 0; i < IEEE80211_NUM_BANDS; i++)
 			kfree(local->sched_scan_ies.ie[i]);
 
-		if (!driver_initiated)
-			drv_sched_scan_stop(local, sdata);
+		drv_sched_scan_stop(local, sdata);
 		local->sched_scanning = false;
 	}
-
 out:
 	mutex_unlock(&sdata->local->mtx);
 
@@ -940,12 +937,36 @@ void ieee80211_sched_scan_results(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(ieee80211_sched_scan_results);
 
+void ieee80211_sched_scan_stopped_work(struct work_struct *work)
+{
+	struct ieee80211_local *local =
+		container_of(work, struct ieee80211_local,
+			     sched_scan_stopped_work);
+	int i;
+
+	mutex_lock(&local->mtx);
+
+	if (!local->sched_scanning) {
+		mutex_unlock(&local->mtx);
+		return;
+	}
+
+	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+		kfree(local->sched_scan_ies.ie[i]);
+
+	local->sched_scanning = false;
+
+	mutex_unlock(&local->mtx);
+
+	cfg80211_sched_scan_stopped(local->hw.wiphy);
+}
+
 void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	trace_api_sched_scan_stopped(local);
 
-	cfg80211_sched_scan_stopped(hw->wiphy);
+	ieee80211_queue_work(&local->hw, &local->sched_scan_stopped_work);
 }
 EXPORT_SYMBOL(ieee80211_sched_scan_stopped);

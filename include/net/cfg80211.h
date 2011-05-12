@@ -1515,8 +1515,7 @@ struct cfg80211_ops {
 	int	(*sched_scan_start)(struct wiphy *wiphy,
 				struct net_device *dev,
 				struct cfg80211_sched_scan_request *request);
-	int	(*sched_scan_stop)(struct wiphy *wiphy, struct net_device *dev,
-				   bool driver_initiated);
+	int	(*sched_scan_stop)(struct wiphy *wiphy, struct net_device *dev);
 };
 
 /*
