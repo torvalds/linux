@@ -1073,8 +1073,10 @@ static void addr_set_port(struct sockaddr_storage *ss, int p)
 	switch (ss->ss_family) {
 	case AF_INET:
 		((struct sockaddr_in *)ss)->sin_port = htons(p);
+		break;
 	case AF_INET6:
 		((struct sockaddr_in6 *)ss)->sin6_port = htons(p);
+		break;
 	}
 }
 
