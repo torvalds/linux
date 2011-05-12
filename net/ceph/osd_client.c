@@ -124,7 +124,7 @@ static void calc_layout(struct ceph_osd_client *osdc,
 	ceph_calc_raw_layout(osdc, layout, vino.snap, off,
 			     plen, &bno, req, op);
 
-	sprintf(req->r_oid, "%llx.%08llx", vino.ino, bno);
+	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx", vino.ino, bno);
 	req->r_oid_len = strlen(req->r_oid);
 }
 
