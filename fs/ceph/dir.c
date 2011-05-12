@@ -360,7 +360,7 @@ more:
 	rinfo = &fi->last_readdir->r_reply_info;
 	dout("readdir frag %x num %d off %d chunkoff %d\n", frag,
 	     rinfo->dir_nr, off, fi->offset);
-	while (off - fi->offset >= 0 && off - fi->offset < rinfo->dir_nr) {
+	while (off >= fi->offset && off - fi->offset < rinfo->dir_nr) {
 		u64 pos = ceph_make_fpos(frag, off);
 		struct ceph_mds_reply_inode *in =
 			rinfo->dir_in[off - fi->offset].in;
