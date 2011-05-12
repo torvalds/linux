@@ -130,7 +130,7 @@ struct vbd {
 
 struct backend_info;
 
-struct blkif_st {
+struct xen_blkif {
 	/* Unique identifier for this interface. */
 	domid_t			domid;
 	unsigned int		handle;

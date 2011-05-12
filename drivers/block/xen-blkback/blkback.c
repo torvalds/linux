@@ -71,7 +71,7 @@ module_param(log_stats, int, 0644);
  * response queued for it, with the saved 'id' passed back.
  */
 struct pending_req {
-	struct blkif_st		*blkif;
+	struct xen_blkif	*blkif;
 	u64			id;
 	int			nr_pages;
 	atomic_t		pendcnt;
@@ -121,11 +121,11 @@ static inline unsigned long vaddr(struct pending_req *req, int seg)
 	(blkbk->pending_grant_handles[vaddr_pagenr(_req, _seg)])
 
 
-static int do_block_io_op(struct blkif_st *blkif);
-static int dispatch_rw_block_io(struct blkif_st *blkif,
+static int do_block_io_op(struct xen_blkif *blkif);
+static int dispatch_rw_block_io(struct xen_blkif *blkif,
 				struct blkif_request *req,
 				struct pending_req *pending_req);
-static void make_response(struct blkif_st *blkif, u64 id,
+static void make_response(struct xen_blkif *blkif, u64 id,
 			  unsigned short op, int st);
 
 /*
@@ -166,7 +166,7 @@ static void free_req(struct pending_req *req)
 /*
  * Routines for managing virtual block devices (vbds).
  */
-static int vbd_translate(struct phys_req *req, struct blkif_st *blkif,
+static int vbd_translate(struct phys_req *req, struct xen_blkif *blkif,
 			 int operation)
 {
 	struct vbd *vbd = &blkif->vbd;
@@ -186,7 +186,7 @@ static int vbd_translate(struct phys_req *req, struct blkif_st *blkif,
 	return rc;
 }
 
-static void vbd_resize(struct blkif_st *blkif)
+static void vbd_resize(struct xen_blkif *blkif)
 {
 	struct vbd *vbd = &blkif->vbd;
 	struct xenbus_transaction xbt;
@@ -233,7 +233,7 @@ abort:
 /*
  * Notification from the guest OS.
  */
-static void blkif_notify_work(struct blkif_st *blkif)
+static void blkif_notify_work(struct xen_blkif *blkif)
 {
 	blkif->waiting_reqs = 1;
 	wake_up(&blkif->wq);
@@ -249,7 +249,7 @@ irqreturn_t xen_blkif_be_int(int irq, void *dev_id)
  * SCHEDULER FUNCTIONS
  */
 
-static void print_stats(struct blkif_st *blkif)
+static void print_stats(struct xen_blkif *blkif)
 {
 	pr_debug("xen-blkback (%s): oo %3d  |  rd %4d  |  wr %4d  |  f %4d\n",
 		 current->comm, blkif->st_oo_req,
@@ -262,7 +262,7 @@ static void print_stats(struct blkif_st *blkif)
 
 int xen_blkif_schedule(void *arg)
 {
-	struct blkif_st *blkif = arg;
+	struct xen_blkif *blkif = arg;
 	struct vbd *vbd = &blkif->vbd;
 
 	xen_blkif_get(blkif);
@@ -451,7 +451,7 @@ static void end_block_io_op(struct bio *bio, int error)
  * (which has the sectors we want, number of them, grant references, etc),
  * and transmute  it to the block API to hand it over to the proper block disk.
  */
-static int do_block_io_op(struct blkif_st *blkif)
+static int do_block_io_op(struct xen_blkif *blkif)
 {
 	union blkif_back_rings *blk_rings = &blkif->blk_rings;
 	struct blkif_request req;
@@ -512,9 +512,9 @@ static int do_block_io_op(struct blkif_st *blkif)
  * Transmutation of the 'struct blkif_request' to a proper 'struct bio'
  * and call the 'submit_bio' to pass it to the underlying storage.
  */
-static int dispatch_rw_block_io(struct blkif_st *blkif,
-				 struct blkif_request *req,
-				 struct pending_req *pending_req)
+static int dispatch_rw_block_io(struct xen_blkif *blkif,
+				struct blkif_request *req,
+				struct pending_req *pending_req)
 {
 	struct phys_req preq;
 	struct seg_buf seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
@@ -692,7 +692,7 @@ static int dispatch_rw_block_io(struct blkif_st *blkif,
 /*
  * Put a response on the ring on how the operation fared.
  */
-static void make_response(struct blkif_st *blkif, u64 id,
+static void make_response(struct xen_blkif *blkif, u64 id,
 			  unsigned short op, int st)
 {
 	struct blkif_response  resp;

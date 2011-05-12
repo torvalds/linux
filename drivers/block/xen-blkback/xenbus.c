@@ -23,7 +23,7 @@
 
 struct backend_info {
 	struct xenbus_device	*dev;
-	struct blkif_st		*blkif;
+	struct xen_blkif		*blkif;
 	struct xenbus_watch	backend_watch;
 	unsigned		major;
 	unsigned		minor;
@@ -41,7 +41,7 @@ struct xenbus_device *xen_blkbk_xenbus(struct backend_info *be)
 	return be->dev;
 }
 
-static int blkback_name(struct blkif_st *blkif, char *buf)
+static int blkback_name(struct xen_blkif *blkif, char *buf)
 {
 	char *devpath, *devname;
 	struct xenbus_device *dev = blkif->be->dev;
@@ -62,7 +62,7 @@ static int blkback_name(struct blkif_st *blkif, char *buf)
 	return 0;
 }
 
-static void xen_update_blkif_status(struct blkif_st *blkif)
+static void xen_update_blkif_status(struct xen_blkif *blkif)
 {
 	int err;
 	char name[TASK_COMM_LEN];
@@ -101,9 +101,9 @@ static void xen_update_blkif_status(struct blkif_st *blkif)
 	}
 }
 
-static struct blkif_st *xen_blkif_alloc(domid_t domid)
+static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 {
-	struct blkif_st *blkif;
+	struct xen_blkif *blkif;
 
 	blkif = kmem_cache_alloc(xen_blkif_cachep, GFP_KERNEL);
 	if (!blkif)
@@ -120,7 +120,7 @@ static struct blkif_st *xen_blkif_alloc(domid_t domid)
 	return blkif;
 }
 
-static int map_frontend_page(struct blkif_st *blkif, unsigned long shared_page)
+static int map_frontend_page(struct xen_blkif *blkif, unsigned long shared_page)
 {
 	struct gnttab_map_grant_ref op;
 
@@ -141,7 +141,7 @@ static int map_frontend_page(struct blkif_st *blkif, unsigned long shared_page)
 	return 0;
 }
 
-static void unmap_frontend_page(struct blkif_st *blkif)
+static void unmap_frontend_page(struct xen_blkif *blkif)
 {
 	struct gnttab_unmap_grant_ref op;
 
@@ -152,7 +152,7 @@ static void unmap_frontend_page(struct blkif_st *blkif)
 		BUG();
 }
 
-static int xen_blkif_map(struct blkif_st *blkif, unsigned long shared_page,
+static int xen_blkif_map(struct xen_blkif *blkif, unsigned long shared_page,
 			 unsigned int evtchn)
 {
 	int err;
@@ -211,7 +211,7 @@ static int xen_blkif_map(struct blkif_st *blkif, unsigned long shared_page,
 	return 0;
 }
 
-static void xen_blkif_disconnect(struct blkif_st *blkif)
+static void xen_blkif_disconnect(struct xen_blkif *blkif)
 {
 	if (blkif->xenblkd) {
 		kthread_stop(blkif->xenblkd);
@@ -234,7 +234,7 @@ static void xen_blkif_disconnect(struct blkif_st *blkif)
 	}
 }
 
-void xen_blkif_free(struct blkif_st *blkif)
+void xen_blkif_free(struct xen_blkif *blkif)
 {
 	if (!atomic_dec_and_test(&blkif->refcnt))
 		BUG();
@@ -244,7 +244,7 @@ void xen_blkif_free(struct blkif_st *blkif)
 int __init xen_blkif_interface_init(void)
 {
 	xen_blkif_cachep = kmem_cache_create("blkif_cache",
-					     sizeof(struct blkif_st),
+					     sizeof(struct xen_blkif),
 					     0, 0, NULL);
 	if (!xen_blkif_cachep)
 		return -ENOMEM;
@@ -332,7 +332,7 @@ static void vbd_free(struct vbd *vbd)
 	vbd->bdev = NULL;
 }
 
-static int vbd_create(struct blkif_st *blkif, blkif_vdev_t handle,
+static int vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 		      unsigned major, unsigned minor, int readonly,
 		      int cdrom)
 {
