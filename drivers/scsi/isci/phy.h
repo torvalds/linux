@@ -512,12 +512,6 @@ typedef enum sci_status (*scic_sds_phy_power_handler_t)(struct scic_sds_phy *);
 
 struct scic_sds_phy_state_handler {
 	/**
-	 * The start_handler specifies the method invoked when there is an
-	 * attempt to start a phy.
-	 */
-	scic_sds_phy_handler_t start_handler;
-
-	/**
 	 * The stop_handler specifies the method invoked when there is an
 	 * attempt to stop a phy.
 	 */
