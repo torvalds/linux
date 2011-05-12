@@ -229,8 +229,6 @@ obj-$(CONFIG_MACH_CM_T35)		+= board-cm-t35.o \
 obj-$(CONFIG_MACH_CM_T3517)		+= board-cm-t3517.o
 obj-$(CONFIG_MACH_IGEP0020)		+= board-igep0020.o \
 					   hsmmc.o
-obj-$(CONFIG_MACH_IGEP0030)		+= board-igep0030.o \
-					   hsmmc.o
 obj-$(CONFIG_MACH_OMAP3_TOUCHBOOK)	+= board-omap3touchbook.o \
 					   hsmmc.o
 obj-$(CONFIG_MACH_OMAP_4430SDP)		+= board-4430sdp.o \
