@@ -996,6 +996,8 @@ static int rbd_do_op(struct request *rq,
 			     ops,
 			     num_reply,
 			     rbd_req_cb, 0, NULL);
+
+	rbd_destroy_ops(ops);
 done:
 	kfree(seg_name);
 	return ret;
@@ -1063,7 +1065,9 @@ static int rbd_req_sync_notify_ack(struct rbd_device *dev,
 {
 	struct ceph_osd_req_op *ops;
 	struct page **pages = NULL;
-	int ret = rbd_create_rw_ops(&ops, 1, CEPH_OSD_OP_NOTIFY_ACK, 0);
+	int ret;
+
+	ret = rbd_create_rw_ops(&ops, 1, CEPH_OSD_OP_NOTIFY_ACK, 0);
 	if (ret < 0)
 		return ret;
 
