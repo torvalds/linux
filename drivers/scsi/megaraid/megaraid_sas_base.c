@@ -4526,6 +4526,11 @@ static void megasas_shutdown(struct pci_dev *pdev)
 	instance->unload = 1;
 	megasas_flush_cache(instance);
 	megasas_shutdown_controller(instance, MR_DCMD_CTRL_SHUTDOWN);
+	instance->instancet->disable_intr(instance->reg_set);
+	free_irq(instance->msi_flag ? instance->msixentry.vector :
+		 instance->pdev->irq, instance);
+	if (instance->msi_flag)
+		pci_disable_msix(instance->pdev);
 }
 
 /**
