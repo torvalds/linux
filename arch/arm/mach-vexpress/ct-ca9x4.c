@@ -141,10 +141,18 @@ static struct clk osc1_clk = {
 	.rate	= 24000000,
 };
 
+static struct clk ct_sp804_clk = {
+	.rate	= 1000000,
+};
+
 static struct clk_lookup lookups[] = {
 	{	/* CLCD */
 		.dev_id		= "ct:clcd",
 		.clk		= &osc1_clk,
+	}, {	/* SP804 timers */
+		.dev_id		= "sp804",
+		.con_id		= "ct-timer1",
+		.clk		= &ct_sp804_clk,
 	},
 };
 

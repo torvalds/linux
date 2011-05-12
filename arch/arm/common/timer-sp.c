@@ -18,8 +18,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <linux/clk.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
@@ -32,8 +34,43 @@
 #define TIMER_FREQ_KHZ	(1000)
 #define TIMER_RELOAD	(TIMER_FREQ_KHZ * 1000 / HZ)
 
+static long __init sp804_get_clock_rate(const char *name)
+{
+	struct clk *clk;
+	long rate;
+	int err;
+
+	clk = clk_get_sys("sp804", name);
+	if (IS_ERR(clk)) {
+		pr_err("sp804: %s clock not found: %d\n", name,
+			(int)PTR_ERR(clk));
+		return PTR_ERR(clk);
+	}
+
+	err = clk_enable(clk);
+	if (err) {
+		pr_err("sp804: %s clock failed to enable: %d\n", name, err);
+		clk_put(clk);
+		return err;
+	}
+
+	rate = clk_get_rate(clk);
+	if (rate < 0) {
+		pr_err("sp804: %s clock failed to get rate: %ld\n", name, rate);
+		clk_disable(clk);
+		clk_put(clk);
+	}
+
+	return rate;
+}
+
 void __init sp804_clocksource_init(void __iomem *base, const char *name)
 {
+	long rate = sp804_get_clock_rate(name);
+
+	if (rate < 0)
+		return;
+
 	/* setup timer 0 as free-running clocksource */
 	writel(0, base + TIMER_CTRL);
 	writel(0xffffffff, base + TIMER_LOAD);
@@ -42,7 +79,7 @@ void __init sp804_clocksource_init(void __iomem *base, const char *name)
 		base + TIMER_CTRL);
 
 	clocksource_mmio_init(base + TIMER_VALUE, name,
-		TIMER_FREQ_KHZ * 1000, 200, 32, clocksource_mmio_readl_down);
+		rate, 200, 32, clocksource_mmio_readl_down);
 }
 
 

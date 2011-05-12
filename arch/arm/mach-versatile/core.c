@@ -375,6 +375,10 @@ static struct clk ref24_clk = {
 	.rate	= 24000000,
 };
 
+static struct clk sp804_clk = {
+	.rate	= 1000000,
+};
+
 static struct clk dummy_apb_pclk;
 
 static struct clk_lookup lookups[] = {
@@ -411,7 +415,10 @@ static struct clk_lookup lookups[] = {
 	}, {	/* CLCD */
 		.dev_id		= "dev:20",
 		.clk		= &osc4_clk,
-	}
+	}, {	/* SP804 timers */
+		.dev_id		= "sp804",
+		.clk		= &sp804_clk,
+	},
 };
 
 /*
