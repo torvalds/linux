@@ -177,31 +177,6 @@ int mwifiex_recv_packet(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 }
 
 /*
- * Receive packet completion callback handler.
- *
- * This function updates the statistics and frees the buffer SKB.
- */
-int mwifiex_recv_complete(struct mwifiex_adapter *adapter,
-			  struct sk_buff *skb, int status)
-{
-	struct mwifiex_private *priv;
-	struct mwifiex_rxinfo *rx_info;
-
-	if (!skb)
-		return 0;
-
-	rx_info = MWIFIEX_SKB_RXCB(skb);
-	priv = mwifiex_bss_index_to_priv(adapter, rx_info->bss_index);
-
-	if (priv && (status == -1))
-		priv->stats.rx_dropped++;
-
-	dev_kfree_skb_any(skb);
-
-	return 0;
-}
-
-/*
  * IOCTL completion callback handler.
  *
  * This function is called when a pending IOCTL is completed.

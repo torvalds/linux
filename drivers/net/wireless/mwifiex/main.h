@@ -692,10 +692,6 @@ int mwifiex_shutdown_fw_complete(struct mwifiex_adapter *adapter);
 
 int mwifiex_dnld_fw(struct mwifiex_adapter *, struct mwifiex_fw_image *);
 
-int mwifiex_recv_complete(struct mwifiex_adapter *,
-			  struct sk_buff *skb,
-			  int status);
-
 int mwifiex_recv_packet(struct mwifiex_adapter *, struct sk_buff *skb);
 
 int mwifiex_process_event(struct mwifiex_adapter *adapter);

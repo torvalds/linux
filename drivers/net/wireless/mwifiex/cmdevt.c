@@ -91,7 +91,7 @@ mwifiex_clean_cmd_node(struct mwifiex_adapter *adapter,
 	cmd_node->wait_q_enabled = false;
 
 	if (cmd_node->resp_skb) {
-		mwifiex_recv_complete(adapter, cmd_node->resp_skb, 0);
+		dev_kfree_skb_any(cmd_node->resp_skb);
 		cmd_node->resp_skb = NULL;
 	}
 }
@@ -339,7 +339,7 @@ int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
 		}
 		if (!cmd_array[i].resp_skb)
 			continue;
-		mwifiex_recv_complete(adapter, cmd_array[i].resp_skb, 0);
+		dev_kfree_skb_any(cmd_array[i].resp_skb);
 	}
 	/* Release struct cmd_ctrl_node */
 	if (adapter->cmd_pool) {
@@ -402,7 +402,7 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 	adapter->event_cause = 0;
 	adapter->event_skb = NULL;
 
-	mwifiex_recv_complete(adapter, skb, 0);
+	dev_kfree_skb_any(skb);
 
 	return ret;
 }
