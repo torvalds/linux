@@ -99,11 +99,18 @@ o	"qp" indicates that RCU still expects a quiescent state from
 
 o	"dt" is the current value of the dyntick counter that is incremented
 	when entering or leaving dynticks idle state, either by the
-	scheduler or by irq.  This number is even if the CPU is in
-	dyntick idle mode and odd otherwise.  The number after the first
-	"/" is the interrupt nesting depth when in dyntick-idle state,
-	or one greater than the interrupt-nesting depth otherwise.
-	The number after the second "/" is the NMI nesting depth.
+	scheduler or by irq.  The number after the "/" is the interrupt
+	nesting depth when in dyntick-idle state, or one greater than
+	the interrupt-nesting depth otherwise.
+
+	This field is displayed only for CONFIG_NO_HZ kernels.
+
+o	"dn" is the current value of the dyntick counter that is incremented
+	when entering or leaving dynticks idle state via NMI.  If both
+	the "dt" and "dn" values are even, then this CPU is in dynticks
+	idle mode and may be ignored by RCU.  If either of these two
+	counters is odd, then RCU must be alert to the possibility of
+	an RCU read-side critical section running on this CPU.
 
 	This field is displayed only for CONFIG_NO_HZ kernels.
 
