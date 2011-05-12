@@ -404,7 +404,7 @@ static int rk29_pm_enter(suspend_state_t state)
 	clkgate[1] = cru_readl(CRU_CLKGATE1_CON);
 	clkgate[2] = cru_readl(CRU_CLKGATE2_CON);
 	clkgate[3] = cru_clkgate3_con_mirror;
-	cru_writel((~((1 << CLK_GATE_CORE)
+	cru_writel(~((1 << CLK_GATE_CORE)
 		   | (1 << CLK_GATE_ACLK_CPU)
 		   | (1 << CLK_GATE_ACLK_CPU2)
 		   | (1 << CLK_GATE_PCLK_CPU)
@@ -416,7 +416,7 @@ static int rk29_pm_enter(suspend_state_t state)
 		   | (1 << CLK_GATE_GPIO0)
 		   | (1 << CLK_GATE_RTC)
 		   | (1 << CLK_GATE_GRF)
-		   ) | clkgate[0])&(~(1 << CLK_GATE_UART0)), CRU_CLKGATE0_CON);
+		   ) | clkgate[0], CRU_CLKGATE0_CON);
 	cru_writel(~0, CRU_CLKGATE1_CON);
 	cru_writel(~((1 << CLK_GATE_GPIO1 % 32)
 		   | (1 << CLK_GATE_GPIO2 % 32)
