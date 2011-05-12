@@ -266,10 +266,9 @@ static void scic_sds_remote_node_context_invalidate_context_buffer(
 					    SCU_CONTEXT_COMMAND_POST_RNC_INVALIDATE);
 }
 
-static void scic_sds_remote_node_context_initial_state_enter(void *object)
+static void scic_sds_remote_node_context_initial_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_node_context *rnc = object;
-	struct sci_base_state_machine *sm = &rnc->state_machine;
+	struct scic_sds_remote_node_context *rnc = container_of(sm, typeof(*rnc), state_machine);
 
 	/* Check to see if we have gotten back to the initial state because
 	 * someone requested to destroy the remote node context object.
@@ -280,23 +279,23 @@ static void scic_sds_remote_node_context_initial_state_enter(void *object)
 	}
 }
 
-static void scic_sds_remote_node_context_posting_state_enter(void *object)
+static void scic_sds_remote_node_context_posting_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_node_context *sci_rnc = object;
+	struct scic_sds_remote_node_context *sci_rnc = container_of(sm, typeof(*sci_rnc), state_machine);
 
 	scic_sds_remote_node_context_validate_context_buffer(sci_rnc);
 }
 
-static void scic_sds_remote_node_context_invalidating_state_enter(void *object)
+static void scic_sds_remote_node_context_invalidating_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_node_context *rnc = object;
+	struct scic_sds_remote_node_context *rnc = container_of(sm, typeof(*rnc), state_machine);
 
 	scic_sds_remote_node_context_invalidate_context_buffer(rnc);
 }
 
-static void scic_sds_remote_node_context_resuming_state_enter(void *object)
+static void scic_sds_remote_node_context_resuming_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_node_context *rnc = object;
+	struct scic_sds_remote_node_context *rnc = container_of(sm, typeof(*rnc), state_machine);
 	struct scic_sds_remote_device *sci_dev;
 	struct domain_device *dev;
 
@@ -317,9 +316,9 @@ static void scic_sds_remote_node_context_resuming_state_enter(void *object)
 	scic_sds_remote_device_post_request(sci_dev, SCU_CONTEXT_COMMAND_POST_RNC_RESUME);
 }
 
-static void scic_sds_remote_node_context_ready_state_enter(void *object)
+static void scic_sds_remote_node_context_ready_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_node_context *rnc = object;
+	struct scic_sds_remote_node_context *rnc = container_of(sm, typeof(*rnc), state_machine);
 
 	rnc->destination_state = SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_UNSPECIFIED;
 
@@ -327,17 +326,16 @@ static void scic_sds_remote_node_context_ready_state_enter(void *object)
 		scic_sds_remote_node_context_notify_user(rnc);
 }
 
-static void scic_sds_remote_node_context_tx_suspended_state_enter(void *object)
+static void scic_sds_remote_node_context_tx_suspended_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_node_context *rnc = object;
+	struct scic_sds_remote_node_context *rnc = container_of(sm, typeof(*rnc), state_machine);
 
 	scic_sds_remote_node_context_continue_state_transitions(rnc);
 }
 
-static void scic_sds_remote_node_context_tx_rx_suspended_state_enter(
-		void *object)
+static void scic_sds_remote_node_context_tx_rx_suspended_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_node_context *rnc = object;
+	struct scic_sds_remote_node_context *rnc = container_of(sm, typeof(*rnc), state_machine);
 
 	scic_sds_remote_node_context_continue_state_transitions(rnc);
 }
@@ -375,12 +373,9 @@ void scic_sds_remote_node_context_construct(struct scic_sds_remote_node_context 
 	rnc->remote_node_index = remote_node_index;
 	rnc->destination_state = SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_UNSPECIFIED;
 
-	sci_base_state_machine_construct(
-		&rnc->state_machine,
-		rnc,
-		scic_sds_remote_node_context_state_table,
-		SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE
-		);
+	sci_base_state_machine_construct(&rnc->state_machine,
+					 scic_sds_remote_node_context_state_table,
+					 SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE);
 
 	sci_base_state_machine_start(&rnc->state_machine);
 }

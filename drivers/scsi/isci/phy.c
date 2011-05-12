@@ -1026,81 +1026,80 @@ enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
 	
 }
 
-static void scic_sds_phy_starting_initial_substate_enter(void *object)
+static void scic_sds_phy_starting_initial_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
 	/* This is just an temporary state go off to the starting state */
 	sci_base_state_machine_change_state(&sci_phy->state_machine,
 					    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN);
 }
 
-static void scic_sds_phy_starting_await_sas_power_substate_enter(void *object)
+static void scic_sds_phy_starting_await_sas_power_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 
 	scic_sds_controller_power_control_queue_insert(scic, sci_phy);
 }
 
-static void scic_sds_phy_starting_await_sas_power_substate_exit(void *object)
+static void scic_sds_phy_starting_await_sas_power_substate_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 
 	scic_sds_controller_power_control_queue_remove(scic, sci_phy);
 }
 
-static void scic_sds_phy_starting_await_sata_power_substate_enter(void *object)
+static void scic_sds_phy_starting_await_sata_power_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 
 	scic_sds_controller_power_control_queue_insert(scic, sci_phy);
 }
 
-static void scic_sds_phy_starting_await_sata_power_substate_exit(void *object)
+static void scic_sds_phy_starting_await_sata_power_substate_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 
 	scic_sds_controller_power_control_queue_remove(scic, sci_phy);
 }
 
-static void scic_sds_phy_starting_await_sata_phy_substate_enter(void *object)
+static void scic_sds_phy_starting_await_sata_phy_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
 	isci_timer_start(sci_phy->sata_timeout_timer,
 			 SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT);
 }
 
-static void scic_sds_phy_starting_await_sata_phy_substate_exit(void *object)
+static void scic_sds_phy_starting_await_sata_phy_substate_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
 	isci_timer_stop(sci_phy->sata_timeout_timer);
 }
 
-static void scic_sds_phy_starting_await_sata_speed_substate_enter(void *object)
+static void scic_sds_phy_starting_await_sata_speed_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
 	isci_timer_start(sci_phy->sata_timeout_timer,
 			 SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT);
 }
 
-static void scic_sds_phy_starting_await_sata_speed_substate_exit(
-	void *object)
+static void scic_sds_phy_starting_await_sata_speed_substate_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
 	isci_timer_stop(sci_phy->sata_timeout_timer);
 }
 
-static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(void *object)
+static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
 	if (scic_sds_port_link_detected(sci_phy->owning_port, sci_phy)) {
 
@@ -1118,16 +1117,16 @@ static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(void *object)
 		sci_phy->is_in_link_training = false;
 }
 
-static void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(void *object)
+static void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
 	isci_timer_stop(sci_phy->sata_timeout_timer);
 }
 
-static void scic_sds_phy_starting_final_substate_enter(void *object)
+static void scic_sds_phy_starting_final_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
 	/* State machine has run to completion so exit out and change
 	 * the base state machine to the ready state
@@ -1217,9 +1216,9 @@ static void scu_link_layer_tx_hard_reset(
 	       &sci_phy->link_layer_registers->phy_configuration);
 }
 
-static void scic_sds_phy_stopped_state_enter(void *object)
+static void scic_sds_phy_stopped_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 	struct scic_sds_port *sci_port = sci_phy->owning_port;
 	struct scic_sds_controller *scic = sci_port->owning_controller;
 	struct isci_host *ihost = scic_to_ihost(scic);
@@ -1242,9 +1241,9 @@ static void scic_sds_phy_stopped_state_enter(void *object)
 					      sci_phy);
 }
 
-static void scic_sds_phy_starting_state_enter(void *object)
+static void scic_sds_phy_starting_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
 	scu_link_layer_stop_protocol_engine(sci_phy);
 	scu_link_layer_start_oob(sci_phy);
@@ -1262,9 +1261,9 @@ static void scic_sds_phy_starting_state_enter(void *object)
 					    SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL);
 }
 
-static void scic_sds_phy_ready_state_enter(void *object)
+static void scic_sds_phy_ready_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
 	scic_sds_controller_link_up(scic_sds_phy_get_controller(sci_phy),
 				    phy_get_non_dummy_port(sci_phy),
@@ -1272,16 +1271,16 @@ static void scic_sds_phy_ready_state_enter(void *object)
 
 }
 
-static void scic_sds_phy_ready_state_exit(void *object)
+static void scic_sds_phy_ready_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
 	scic_sds_phy_suspend(sci_phy);
 }
 
-static void scic_sds_phy_resetting_state_enter(void *object)
+static void scic_sds_phy_resetting_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = object;
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
 	/* The phy is being reset, therefore deactivate it from the port.  In
 	 * the resetting state we don't notify the user regarding link up and
@@ -1351,7 +1350,6 @@ void scic_sds_phy_construct(struct scic_sds_phy *sci_phy,
 			    struct scic_sds_port *owning_port, u8 phy_index)
 {
 	sci_base_state_machine_construct(&sci_phy->state_machine,
-					 sci_phy,
 					 scic_sds_phy_state_table,
 					 SCI_BASE_PHY_STATE_INITIAL);
 

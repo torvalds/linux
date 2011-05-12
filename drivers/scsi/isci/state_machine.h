@@ -58,9 +58,9 @@
 
 #include <linux/types.h>
 
+struct sci_base_state_machine;
 typedef void (*sci_base_state_handler_t)(void);
-
-typedef void (*sci_state_transition_t)(void *base_object);
+typedef void (*sci_state_transition_t)(struct sci_base_state_machine *sm);
 
 /**
  * struct sci_base_state - The base state object abstracts the fields common to
@@ -80,7 +80,6 @@ struct sci_base_state {
 	 * invoked when the state is exited.
 	 */
 	sci_state_transition_t exit_state;
-
 };
 
 /**
@@ -94,13 +93,6 @@ struct sci_base_state_machine {
 	 * This field points to the start of the state machine's state table.
 	 */
 	const struct sci_base_state *state_table;
-
-	/**
-	 * This field points to the object to which this state machine is
-	 * associated.  It serves as a cookie to be provided to the state
-	 * enter/exit methods.
-	 */
-	void *state_machine_owner;
 
 	/**
 	 * This field simply indicates the state value for the state machine's
@@ -120,28 +112,13 @@ struct sci_base_state_machine {
 
 };
 
-/*
- * ******************************************************************************
- * * P R O T E C T E D    M E T H O D S
- * ****************************************************************************** */
-
-void sci_base_state_machine_construct(
-	struct sci_base_state_machine *this_state_machine,
-	void *state_machine_owner,
-	const struct sci_base_state *state_table,
-	u32 initial_state);
-
-void sci_base_state_machine_start(
-	struct sci_base_state_machine *this_state_machine);
-
-void sci_base_state_machine_stop(
-	struct sci_base_state_machine *this_state_machine);
-
-void sci_base_state_machine_change_state(
-	struct sci_base_state_machine *this_state_machine,
-	u32 next_state);
-
-u32 sci_base_state_machine_get_state(
-	struct sci_base_state_machine *this_state_machine);
+void sci_base_state_machine_construct(struct sci_base_state_machine *sm,
+				      const struct sci_base_state *state_table,
+				      u32 initial_state);
+void sci_base_state_machine_start(struct sci_base_state_machine *sm);
+void sci_base_state_machine_stop(struct sci_base_state_machine *sm);
+void sci_base_state_machine_change_state(struct sci_base_state_machine *sm,
+					 u32 next_state);
+u32 sci_base_state_machine_get_state(struct sci_base_state_machine *sm);
 
 #endif /* _SCI_BASE_STATE_MACHINE_H_ */

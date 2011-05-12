@@ -68,7 +68,7 @@ static void sci_state_machine_exit_state(struct sci_base_state_machine *sm)
 	sci_state_transition_t exit = sm->state_table[state].exit_state;
 
 	if (exit)
-		exit(sm->state_machine_owner);
+		exit(sm);
 }
 
 static void sci_state_machine_enter_state(struct sci_base_state_machine *sm)
@@ -77,13 +77,8 @@ static void sci_state_machine_enter_state(struct sci_base_state_machine *sm)
 	sci_state_transition_t enter = sm->state_table[state].enter_state;
 
 	if (enter)
-		enter(sm->state_machine_owner);
+		enter(sm);
 }
-
-/*
- * ******************************************************************************
- * * P R O T E C T E D    M E T H O D S
- * ****************************************************************************** */
 
 /**
  * This method will set the initial state and state table for the state
@@ -91,8 +86,6 @@ static void sci_state_machine_enter_state(struct sci_base_state_machine *sm)
  *    request to cause the state machine to start.
  * @sm: This parameter provides the state machine object to be
  *    constructed.
- * @state_machine_owner: This parameter indicates the object that is owns the
- *    state machine being constructed.
  * @state_table: This parameter specifies the table of state objects that is
  *    managed by this state machine.
  * @initial_state: This parameter specifies the value of the initial state for
@@ -100,11 +93,9 @@ static void sci_state_machine_enter_state(struct sci_base_state_machine *sm)
  *
  */
 void sci_base_state_machine_construct(struct sci_base_state_machine *sm,
-				      void *owner,
 				      const struct sci_base_state *state_table,
 				      u32 initial_state)
 {
-	sm->state_machine_owner = owner;
 	sm->initial_state_id    = initial_state;
 	sm->previous_state_id   = initial_state;
 	sm->current_state_id    = initial_state;

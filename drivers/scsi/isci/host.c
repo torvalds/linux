@@ -1404,17 +1404,17 @@ static void isci_user_parameters_get(
 	u->max_number_concurrent_device_spin_up = max_concurr_spinup;
 }
 
-static void scic_sds_controller_initial_state_enter(void *object)
+static void scic_sds_controller_initial_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = object;
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
 
 	sci_base_state_machine_change_state(&scic->state_machine,
 			SCI_BASE_CONTROLLER_STATE_RESET);
 }
 
-static inline void scic_sds_controller_starting_state_exit(void *object)
+static inline void scic_sds_controller_starting_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = object;
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
 
 	isci_timer_stop(scic->timeout_timer);
 }
@@ -1539,17 +1539,17 @@ static enum sci_status scic_controller_set_interrupt_coalescence(
 }
 
 
-static void scic_sds_controller_ready_state_enter(void *object)
+static void scic_sds_controller_ready_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = object;
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
 
 	/* set the default interrupt coalescence number and timeout value. */
 	scic_controller_set_interrupt_coalescence(scic, 0x10, 250);
 }
 
-static void scic_sds_controller_ready_state_exit(void *object)
+static void scic_sds_controller_ready_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = object;
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
 
 	/* disable interrupt coalescence. */
 	scic_controller_set_interrupt_coalescence(scic, 0, 0);
@@ -1638,9 +1638,9 @@ static enum sci_status scic_sds_controller_stop_devices(struct scic_sds_controll
 	return status;
 }
 
-static void scic_sds_controller_stopping_state_enter(void *object)
+static void scic_sds_controller_stopping_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = object;
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
 
 	/* Stop all of the components for this controller */
 	scic_sds_controller_stop_phys(scic);
@@ -1648,9 +1648,9 @@ static void scic_sds_controller_stopping_state_enter(void *object)
 	scic_sds_controller_stop_devices(scic);
 }
 
-static void scic_sds_controller_stopping_state_exit(void *object)
+static void scic_sds_controller_stopping_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = object;
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
 
 	isci_timer_stop(scic->timeout_timer);
 }
@@ -1679,9 +1679,9 @@ static void scic_sds_controller_reset_hardware(struct scic_sds_controller *scic)
 	writel(0, &scic->scu_registers->sdma.unsolicited_frame_get_pointer);
 }
 
-static void scic_sds_controller_resetting_state_enter(void *object)
+static void scic_sds_controller_resetting_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = object;
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
 
 	scic_sds_controller_reset_hardware(scic);
 	sci_base_state_machine_change_state(&scic->state_machine,
@@ -1785,8 +1785,8 @@ static enum sci_status scic_controller_construct(struct scic_sds_controller *sci
 	u8 i;
 
 	sci_base_state_machine_construct(&scic->state_machine,
-		scic, scic_sds_controller_state_table,
-		SCI_BASE_CONTROLLER_STATE_INITIAL);
+					 scic_sds_controller_state_table,
+					 SCI_BASE_CONTROLLER_STATE_INITIAL);
 
 	sci_base_state_machine_start(&scic->state_machine);
 

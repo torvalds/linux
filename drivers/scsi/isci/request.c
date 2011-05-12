@@ -2900,10 +2900,9 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 	isci_host_can_dequeue(isci_host, 1);
 }
 
-static void scic_sds_request_started_state_enter(void *object)
+static void scic_sds_request_started_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = object;
-	struct sci_base_state_machine *sm = &sci_req->state_machine;
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
 	struct isci_request *ireq = sci_req_to_ireq(sci_req);
 	struct domain_device *dev = sci_dev_to_domain(sci_req->target_device);
 	struct sas_task *task;
@@ -2942,9 +2941,9 @@ static void scic_sds_request_started_state_enter(void *object)
 	}
 }
 
-static void scic_sds_request_completed_state_enter(void *object)
+static void scic_sds_request_completed_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = object;
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
 	struct scic_sds_controller *scic = sci_req->owning_controller;
 	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_request *ireq = sci_req_to_ireq(sci_req);
@@ -2957,42 +2956,41 @@ static void scic_sds_request_completed_state_enter(void *object)
 		isci_task_request_complete(ihost, ireq, sci_req->sci_status);
 }
 
-static void scic_sds_request_aborting_state_enter(void *object)
+static void scic_sds_request_aborting_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = object;
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
 
 	/* Setting the abort bit in the Task Context is required by the silicon. */
 	sci_req->task_context_buffer->abort = 1;
 }
 
-static void scic_sds_stp_request_started_non_data_await_h2d_completion_enter(
-	void *object)
+static void scic_sds_stp_request_started_non_data_await_h2d_completion_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = object;
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
 
 	scic_sds_remote_device_set_working_request(sci_req->target_device,
 						   sci_req);
 }
 
-static void scic_sds_stp_request_started_pio_await_h2d_completion_enter(void *object)
+static void scic_sds_stp_request_started_pio_await_h2d_completion_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = object;
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
 
 	scic_sds_remote_device_set_working_request(sci_req->target_device,
 						   sci_req);
 }
 
-static void scic_sds_stp_request_started_soft_reset_await_h2d_asserted_completion_enter(void *object)
+static void scic_sds_stp_request_started_soft_reset_await_h2d_asserted_completion_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = object;
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
 
 	scic_sds_remote_device_set_working_request(sci_req->target_device,
 						   sci_req);
 }
 
-static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_completion_enter(void *object)
+static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_completion_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = object;
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
 	struct scu_task_context *task_context;
 	struct host_to_dev_fis *h2d_fis;
 	enum sci_status status;
@@ -3052,8 +3050,9 @@ static void scic_sds_general_request_construct(struct scic_sds_controller *scic,
 					       struct scic_sds_remote_device *sci_dev,
 					       u16 io_tag, struct scic_sds_request *sci_req)
 {
-	sci_base_state_machine_construct(&sci_req->state_machine, sci_req,
-			scic_sds_request_state_table, SCI_BASE_REQUEST_STATE_INITIAL);
+	sci_base_state_machine_construct(&sci_req->state_machine,
+					 scic_sds_request_state_table,
+					 SCI_BASE_REQUEST_STATE_INITIAL);
 	sci_base_state_machine_start(&sci_req->state_machine);
 
 	sci_req->io_tag = io_tag;
