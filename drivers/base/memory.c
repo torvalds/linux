@@ -278,7 +278,7 @@ memory_block_action(unsigned long phys_index, unsigned long action)
 static int memory_block_change_state(struct memory_block *mem,
 		unsigned long to_state, unsigned long from_state_req)
 {
-	int i, ret = 0;
+	int ret = 0;
 
 	mutex_lock(&mem->state_mutex);
 
