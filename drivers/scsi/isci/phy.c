@@ -519,18 +519,100 @@ enum sci_status scic_sds_phy_event_handler(
 	return sci_phy->state_handlers->event_handler(sci_phy, event_code);
 }
 
-/**
- * This method will process the frame index received.
- * @sci_phy:
- * @frame_index:
- *
- * enum sci_status
- */
-enum sci_status scic_sds_phy_frame_handler(
-	struct scic_sds_phy *sci_phy,
-	u32 frame_index)
+enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
+					   u32 frame_index)
 {
-	return sci_phy->state_handlers->frame_handler(sci_phy, frame_index);
+	enum scic_sds_phy_states state = sci_phy->state_machine.current_state_id;
+	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
+	enum sci_status result;
+
+	switch (state) {
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF: {
+		u32 *frame_words;
+		struct sas_identify_frame iaf;
+		struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
+
+		result = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+								       frame_index,
+								       (void **)&frame_words);
+
+		if (result != SCI_SUCCESS)
+			return result;
+
+		sci_swab32_cpy(&iaf, frame_words, sizeof(iaf) / sizeof(u32));
+		if (iaf.frame_type == 0) {
+			u32 state;
+
+			memcpy(&iphy->frame_rcvd.iaf, &iaf, sizeof(iaf));
+			if (iaf.smp_tport) {
+				/* We got the IAF for an expander PHY go to the final
+				 * state since there are no power requirements for
+				 * expander phys.
+				 */
+				state = SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL;
+			} else {
+				/* We got the IAF we can now go to the await spinup
+				 * semaphore state
+				 */
+				state = SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER;
+			}
+			sci_base_state_machine_change_state(&sci_phy->state_machine,
+							    state);
+			result = SCI_SUCCESS;
+		} else
+			dev_warn(sciphy_to_dev(sci_phy),
+				"%s: PHY starting substate machine received "
+				"unexpected frame id %x\n",
+				__func__, frame_index);
+
+		scic_sds_controller_release_frame(scic, frame_index);
+		return result;
+	}
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF: {
+		struct dev_to_host_fis *frame_header;
+		u32 *fis_frame_data;
+		struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
+
+		result = scic_sds_unsolicited_frame_control_get_header(
+			&(scic_sds_phy_get_controller(sci_phy)->uf_control),
+			frame_index,
+			(void **)&frame_header);
+
+		if (result != SCI_SUCCESS)
+			return result;
+
+		if ((frame_header->fis_type == FIS_REGD2H) &&
+		    !(frame_header->status & ATA_BUSY)) {
+			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+								      frame_index,
+								      (void **)&fis_frame_data);
+
+			scic_sds_controller_copy_sata_response(&iphy->frame_rcvd.fis,
+							       frame_header,
+							       fis_frame_data);
+
+			/* got IAF we can now go to the await spinup semaphore state */
+			sci_base_state_machine_change_state(&sci_phy->state_machine,
+							    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
+
+			result = SCI_SUCCESS;
+		} else
+			dev_warn(sciphy_to_dev(sci_phy),
+				 "%s: PHY starting substate machine received "
+				 "unexpected frame id %x\n",
+				 __func__, frame_index);
+
+		/* Regardless of the result we are done with this frame with it */
+		scic_sds_controller_release_frame(scic, frame_index);
+
+		return result;
+	}
+	default:
+		dev_dbg(sciphy_to_dev(sci_phy),
+			"%s: in wrong state: %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
+	
 }
 
 /**
@@ -1069,141 +1151,6 @@ static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_event_handle
 	return result;
 }
 
-
-/*
- * *****************************************************************************
- * *  SCIC SDS PHY FRAME_HANDLERS
- * ***************************************************************************** */
-
-/**
- *
- * @phy: This is struct scic_sds_phy object which is being requested to decode the
- *    frame data.
- * @frame_index: This is the index of the unsolicited frame which was received
- *    for this phy.
- *
- * This method decodes the unsolicited frame when the struct scic_sds_phy is in the
- * SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF. - Get the UF Header - If the UF
- * is an IAF - Copy IAF data to local phy object IAF data buffer. - Change
- * starting substate to wait power. - else - log warning message of unexpected
- * unsolicted frame - release frame buffer enum sci_status SCI_SUCCESS
- */
-static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler(
-	struct scic_sds_phy *sci_phy, u32 frame_index)
-{
-	enum sci_status result;
-	u32 *frame_words;
-	struct sas_identify_frame iaf;
-	struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
-
-	result = scic_sds_unsolicited_frame_control_get_header(
-		&(scic_sds_phy_get_controller(sci_phy)->uf_control),
-		frame_index,
-		(void **)&frame_words);
-
-	if (result != SCI_SUCCESS)
-		return result;
-
-	sci_swab32_cpy(&iaf, frame_words, sizeof(iaf) / sizeof(u32));
-	if (iaf.frame_type == 0) {
-		u32 state;
-
-		memcpy(&iphy->frame_rcvd.iaf, &iaf, sizeof(iaf));
-		if (iaf.smp_tport) {
-			/* We got the IAF for an expander PHY go to the final
-			 * state since there are no power requirements for
-			 * expander phys.
-			 */
-			state = SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL;
-		} else {
-			/* We got the IAF we can now go to the await spinup
-			 * semaphore state
-			 */
-			state = SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER;
-		}
-		sci_base_state_machine_change_state(
-				&sci_phy->state_machine,
-				state);
-		result = SCI_SUCCESS;
-	} else
-		dev_warn(sciphy_to_dev(sci_phy),
-			"%s: PHY starting substate machine received "
-			"unexpected frame id %x\n",
-			__func__,
-			frame_index);
-
-	scic_sds_controller_release_frame(scic_sds_phy_get_controller(sci_phy),
-					  frame_index);
-
-	return result;
-}
-
-/**
- *
- * @phy: This is struct scic_sds_phy object which is being requested to decode the
- *    frame data.
- * @frame_index: This is the index of the unsolicited frame which was received
- *    for this phy.
- *
- * This method decodes the unsolicited frame when the struct scic_sds_phy is in the
- * SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF. - Get the UF Header - If
- * the UF is an SIGNATURE FIS - Copy IAF data to local phy object SIGNATURE FIS
- * data buffer. - else - log warning message of unexpected unsolicted frame -
- * release frame buffer enum sci_status SCI_SUCCESS Must decode the SIGNATURE FIS
- * data
- */
-static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_frame_handler(
-	struct scic_sds_phy *sci_phy,
-	u32 frame_index)
-{
-	enum sci_status result;
-	struct dev_to_host_fis *frame_header;
-	u32 *fis_frame_data;
-	struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
-
-	result = scic_sds_unsolicited_frame_control_get_header(
-		&(scic_sds_phy_get_controller(sci_phy)->uf_control),
-		frame_index,
-		(void **)&frame_header);
-
-	if (result != SCI_SUCCESS)
-		return result;
-
-	if ((frame_header->fis_type == FIS_REGD2H) &&
-	    !(frame_header->status & ATA_BUSY)) {
-		scic_sds_unsolicited_frame_control_get_buffer(
-			&(scic_sds_phy_get_controller(sci_phy)->uf_control),
-			frame_index,
-			(void **)&fis_frame_data);
-
-		scic_sds_controller_copy_sata_response(&iphy->frame_rcvd.fis,
-						       frame_header,
-						       fis_frame_data);
-
-		/* got IAF we can now go to the await spinup semaphore state */
-		sci_base_state_machine_change_state(&sci_phy->state_machine,
-						    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
-
-		result = SCI_SUCCESS;
-	} else
-		dev_warn(sciphy_to_dev(sci_phy),
-			 "%s: PHY starting substate machine received "
-			 "unexpected frame id %x\n",
-			 __func__,
-			 frame_index);
-
-	/* Regardless of the result we are done with this frame with it */
-	scic_sds_controller_release_frame(scic_sds_phy_get_controller(sci_phy),
-					  frame_index);
-
-	return result;
-}
-
-/*
- * *****************************************************************************
- * * SCIC SDS PHY POWER_HANDLERS
- * ***************************************************************************** */
-
 /*
  * This method is called by the struct scic_sds_controller when the phy object is
  * granted power. - The notify enable spinups are turned on for this phy object
@@ -1264,18 +1211,6 @@ static enum sci_status default_phy_handler(struct scic_sds_phy *sci_phy,
 	dev_dbg(sciphy_to_dev(sci_phy),
 		 "%s: in wrong state: %d\n", func,
 		 sci_base_state_machine_get_state(&sci_phy->state_machine));
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-static enum sci_status
-scic_sds_phy_default_frame_handler(struct scic_sds_phy *sci_phy,
-				   u32 frame_index)
-{
-	struct scic_sds_controller *scic = scic_sds_phy_get_controller(sci_phy);
-
-	default_phy_handler(sci_phy, __func__);
-	scic_sds_controller_release_frame(scic, frame_index);
-
 	return SCI_FAILURE_INVALID_STATE;
 }
 
@@ -1367,82 +1302,66 @@ static enum sci_status scic_sds_phy_resetting_state_event_handler(struct scic_sd
 
 static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[] = {
 	[SCI_BASE_PHY_STATE_INITIAL] = {
-		.frame_handler		 = scic_sds_phy_default_frame_handler,
 		.event_handler		 = scic_sds_phy_default_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_STOPPED]  = {
-		.frame_handler		 = scic_sds_phy_default_frame_handler,
 		.event_handler		 = scic_sds_phy_default_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_STARTING] = {
-		.frame_handler		 = scic_sds_phy_default_frame_handler,
 		.event_handler		 = scic_sds_phy_default_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL] = {
-		.frame_handler		= scic_sds_phy_default_frame_handler,
 		.event_handler		= scic_sds_phy_default_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN] = {
-		.frame_handler		= scic_sds_phy_default_frame_handler,
 		.event_handler		= scic_sds_phy_starting_substate_await_ossp_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN] = {
-		.frame_handler		= scic_sds_phy_default_frame_handler,
 		.event_handler		= scic_sds_phy_starting_substate_await_sas_phy_speed_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF] = {
-		.frame_handler		= scic_sds_phy_starting_substate_await_iaf_uf_frame_handler,
 		.event_handler		= scic_sds_phy_starting_substate_await_iaf_uf_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER] = {
-		.frame_handler		= scic_sds_phy_default_frame_handler,
 		.event_handler		= scic_sds_phy_starting_substate_await_sas_power_event_handler,
 		.consume_power_handler	= scic_sds_phy_starting_substate_await_sas_power_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER] = {
-		.frame_handler		= scic_sds_phy_default_frame_handler,
 		.event_handler		= scic_sds_phy_starting_substate_await_sata_power_event_handler,
 		.consume_power_handler	= scic_sds_phy_starting_substate_await_sata_power_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN] = {
-		.frame_handler		= scic_sds_phy_default_frame_handler,
 		.event_handler		= scic_sds_phy_starting_substate_await_sata_phy_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN] = {
-		.frame_handler		= scic_sds_phy_default_frame_handler,
 		.event_handler		= scic_sds_phy_starting_substate_await_sata_speed_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF] = {
-		.frame_handler		= scic_sds_phy_starting_substate_await_sig_fis_frame_handler,
 		.event_handler		= scic_sds_phy_starting_substate_await_sig_fis_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL] = {
-		.frame_handler		 = scic_sds_phy_default_frame_handler,
 		.event_handler		 = scic_sds_phy_default_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_READY] = {
-		.frame_handler		 = scic_sds_phy_default_frame_handler,
 		.event_handler		 = scic_sds_phy_ready_state_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_RESETTING] = {
-		.frame_handler		 = scic_sds_phy_default_frame_handler,
 		.event_handler		 = scic_sds_phy_resetting_state_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_FINAL] = {
-		.frame_handler		 = scic_sds_phy_default_frame_handler,
 		.event_handler		 = scic_sds_phy_default_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	}

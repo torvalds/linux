@@ -512,11 +512,6 @@ typedef enum sci_status (*scic_sds_phy_power_handler_t)(struct scic_sds_phy *);
 
 struct scic_sds_phy_state_handler {
 	/**
-	 * The state handler for unsolicited frames received from the SCU hardware.
-	 */
-	scic_sds_phy_frame_handler_t frame_handler;
-
-	/**
 	 * The state handler for events received from the SCU hardware.
 	 */
 	scic_sds_phy_event_handler_t event_handler;
