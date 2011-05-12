@@ -223,11 +223,11 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 			goto out;
 
 		if (pairwise)
-			key = sta->ptk;
+			key = rcu_dereference(sta->ptk);
 		else if (key_idx < NUM_DEFAULT_KEYS)
-			key = sta->gtk[key_idx];
+			key = rcu_dereference(sta->gtk[key_idx]);
 	} else
-		key = sdata->keys[key_idx];
+		key = rcu_dereference(sdata->keys[key_idx]);
 
 	if (!key)
 		goto out;
@@ -952,8 +952,10 @@ static int ieee80211_change_mpath(struct wiphy *wiphy,
 static void mpath_set_pinfo(struct mesh_path *mpath, u8 *next_hop,
 			    struct mpath_info *pinfo)
 {
-	if (mpath->next_hop)
-		memcpy(next_hop, mpath->next_hop->sta.addr, ETH_ALEN);
+	struct sta_info *next_hop_sta = rcu_dereference(mpath->next_hop);
+
+	if (next_hop_sta)
+		memcpy(next_hop, next_hop_sta->sta.addr, ETH_ALEN);
 	else
 		memset(next_hop, 0, ETH_ALEN);
 
