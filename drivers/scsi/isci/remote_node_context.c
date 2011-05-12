@@ -218,26 +218,6 @@ static enum sci_status scic_sds_remote_node_context_continue_to_resume_handler(
 	return SCI_FAILURE_INVALID_STATE;
 }
 
-/* --------------------------------------------------------------------------- */
-
-static enum sci_status scic_sds_remote_node_context_default_destruct_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	scics_sds_remote_node_context_callback callback,
-	void *callback_parameter)
-{
-	dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-		 "%s: SCIC Remote Node Context 0x%p requested to stop while "
-		 "in unexpected state %d\n",
-		 __func__,
-		 sci_rnc,
-		 sci_base_state_machine_get_state(&sci_rnc->state_machine));
-
-	/*
-	 * We have decided that the destruct request on the remote node context can not fail
-	 * since it is either in the initial/destroyed state or is can be destroyed. */
-	return SCI_SUCCESS;
-}
-
 static enum sci_status scic_sds_remote_node_context_default_suspend_handler(
 	struct scic_sds_remote_node_context *sci_rnc,
 	u32 suspend_type,
@@ -315,36 +295,6 @@ static enum sci_status scic_sds_remote_node_context_success_start_task_handler(
 	return SCI_SUCCESS;
 }
 
-/**
- *
- * @sci_rnc:
- * @callback:
- * @callback_parameter:
- *
- * This method handles destruct calls from the various state handlers.  The
- * remote node context can be requested to destroy from any state. If there was
- * a user callback it is always replaced with the request to destroy user
- * callback. enum sci_status
- */
-static enum sci_status scic_sds_remote_node_context_general_destruct_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	scics_sds_remote_node_context_callback callback,
-	void *callback_parameter)
-{
-	scic_sds_remote_node_context_setup_to_destory(
-		sci_rnc, callback, callback_parameter
-		);
-
-	sci_base_state_machine_change_state(
-		&sci_rnc->state_machine,
-		SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE
-		);
-
-	return SCI_SUCCESS;
-}
-
-/* --------------------------------------------------------------------------- */
-
 static enum sci_status scic_sds_remote_node_context_initial_state_resume_handler(
 	struct scic_sds_remote_node_context *sci_rnc,
 	scics_sds_remote_node_context_callback callback,
@@ -366,18 +316,6 @@ static enum sci_status scic_sds_remote_node_context_initial_state_resume_handler
 	}
 
 	return SCI_FAILURE_INVALID_STATE;
-}
-
-static enum sci_status scic_sds_remote_node_context_invalidating_state_destruct_handler(
-	struct scic_sds_remote_node_context *sci_rnc,
-	scics_sds_remote_node_context_callback callback,
-	void *callback_parameter)
-{
-	scic_sds_remote_node_context_setup_to_destory(
-		sci_rnc, callback, callback_parameter
-		);
-
-	return SCI_SUCCESS;
 }
 
 /**
@@ -539,56 +477,48 @@ static enum sci_status scic_sds_remote_node_context_await_suspension_state_start
 
 static struct scic_sds_remote_node_context_handlers scic_sds_remote_node_context_state_handler_table[] = {
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE] = {
-		.destruct_handler	= scic_sds_remote_node_context_default_destruct_handler,
 		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_node_context_initial_state_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_default_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_POSTING_STATE] = {
-		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
 		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_node_context_continue_to_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_default_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE] = {
-		.destruct_handler	= scic_sds_remote_node_context_invalidating_state_destruct_handler,
 		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_node_context_continue_to_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_default_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE] = {
-		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
 		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_node_context_continue_to_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_success_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_READY_STATE] = {
-		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
 		.suspend_handler	= scic_sds_remote_node_context_ready_state_suspend_handler,
 		.resume_handler		= scic_sds_remote_node_context_default_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_ready_state_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_success_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_TX_SUSPENDED_STATE] = {
-		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
 		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_node_context_tx_suspended_state_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_suspended_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_TX_RX_SUSPENDED_STATE] = {
-		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
 		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_node_context_tx_rx_suspended_state_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
 		.start_task_handler	= scic_sds_remote_node_context_suspended_start_task_handler,
 	},
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_AWAIT_SUSPENSION_STATE] = {
-		.destruct_handler	= scic_sds_remote_node_context_general_destruct_handler,
 		.suspend_handler	= scic_sds_remote_node_context_default_suspend_handler,
 		.resume_handler		= scic_sds_remote_node_context_await_suspension_state_resume_handler,
 		.start_io_handler	= scic_sds_remote_node_context_default_start_io_handler,
@@ -1022,4 +952,40 @@ enum sci_status scic_sds_remote_node_context_event_handler(struct scic_sds_remot
 		 "%s: code: %#x state: %d\n", __func__, event_code, state);
 	return SCI_FAILURE;
 
+}
+
+enum sci_status scic_sds_remote_node_context_destruct(struct scic_sds_remote_node_context *sci_rnc,
+						      scics_sds_remote_node_context_callback cb_fn,
+						      void *cb_p)
+{
+	enum scis_sds_remote_node_context_states state;
+
+	state = sci_rnc->state_machine.current_state_id;
+	switch (state) {
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE:
+		scic_sds_remote_node_context_setup_to_destory(sci_rnc, cb_fn, cb_p);
+		return SCI_SUCCESS;
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_POSTING_STATE:
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_RESUMING_STATE:
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_READY_STATE:
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_TX_SUSPENDED_STATE:
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_TX_RX_SUSPENDED_STATE:
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_AWAIT_SUSPENSION_STATE:
+		scic_sds_remote_node_context_setup_to_destory(sci_rnc, cb_fn, cb_p);
+		sci_base_state_machine_change_state(&sci_rnc->state_machine,
+						    SCIC_SDS_REMOTE_NODE_CONTEXT_INVALIDATING_STATE);
+		return SCI_SUCCESS;
+	case SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE:
+		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+			 "%s: invalid state %d\n", __func__, state);
+		/* We have decided that the destruct request on the remote node context
+		 * can not fail since it is either in the initial/destroyed state or is
+		 * can be destroyed.
+		 */
+		return SCI_SUCCESS;
+	default:
+		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+			 "%s: invalid state %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
 }

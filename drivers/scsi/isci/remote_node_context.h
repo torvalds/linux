@@ -104,12 +104,6 @@ typedef enum sci_status (*scic_sds_remote_node_context_io_request)(
 
 struct scic_sds_remote_node_context_handlers {
 	/**
-	 * This handle is invoked to stop the RNC.  The callback is invoked when after
-	 * the hardware notification that the RNC has been invalidated.
-	 */
-	scic_sds_remote_node_context_operation destruct_handler;
-
-	/**
 	 * This handler is invoked when there is a request to suspend  the RNC.  The
 	 * callback is invoked after the hardware notification that the remote node is
 	 * suspended.
@@ -260,18 +254,17 @@ bool scic_sds_remote_node_context_is_ready(
 #define scic_sds_remote_node_context_get_remote_node_index(rcn)	\
 	((rnc)->remote_node_index)
 
-
 enum sci_status scic_sds_remote_node_context_event_handler(struct scic_sds_remote_node_context *sci_rnc,
 							   u32 event_code);
 
+enum sci_status scic_sds_remote_node_context_destruct(struct scic_sds_remote_node_context *sci_rnc,
+						      scics_sds_remote_node_context_callback callback,
+						      void *callback_parameter);
 #define scic_sds_remote_node_context_resume(rnc, callback, parameter) \
 	((rnc)->state_handlers->resume_handler(rnc, callback, parameter))
 
 #define scic_sds_remote_node_context_suspend(rnc, suspend_type, callback, parameter) \
 	((rnc)->state_handlers->suspend_handler(rnc, suspend_type, callback, parameter))
-
-#define scic_sds_remote_node_context_destruct(rnc, callback, parameter)	\
-	((rnc)->state_handlers->destruct_handler(rnc, callback, parameter))
 
 #define scic_sds_remote_node_context_start_io(rnc, request) \
 	((rnc)->state_handlers->start_io_handler(rnc, request))
