@@ -1926,9 +1926,11 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 					card->num_dapm_routes);
 
 	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),
-		 "%s",  card->name);
-	snprintf(card->snd_card->longname, sizeof(card->snd_card->longname),
 		 "%s", card->name);
+	snprintf(card->snd_card->longname, sizeof(card->snd_card->longname),
+		 "%s", card->long_name ? card->long_name : card->name);
+	snprintf(card->snd_card->driver, sizeof(card->snd_card->driver),
+		 "%s", card->driver_name);
 
 	if (card->late_probe) {
 		ret = card->late_probe(card);

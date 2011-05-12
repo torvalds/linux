@@ -702,6 +702,8 @@ struct snd_soc_aux_dev {
 /* SoC card */
 struct snd_soc_card {
 	const char *name;
+	const char *long_name;
+	const char *driver_name;
 	struct device *dev;
 	struct snd_card *snd_card;
 	struct module *owner;
