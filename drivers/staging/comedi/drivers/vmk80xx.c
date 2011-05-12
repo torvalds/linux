@@ -305,8 +305,10 @@ exit:
 
 static int vmk80xx_check_data_link(struct vmk80xx_usb *dev)
 {
-	unsigned int tx_pipe, rx_pipe;
-	unsigned char tx[1], rx[2];
+	unsigned int tx_pipe;
+	unsigned int rx_pipe;
+	unsigned char tx[1];
+	unsigned char rx[2];
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
@@ -315,9 +317,11 @@ static int vmk80xx_check_data_link(struct vmk80xx_usb *dev)
 
 	tx[0] = VMK8061_CMD_RD_PWR_STAT;
 
-	/* Check that IC6 (PIC16F871) is powered and
+	/*
+	 * Check that IC6 (PIC16F871) is powered and
 	 * running and the data link between IC3 and
-	 * IC6 is working properly */
+	 * IC6 is working properly
+	 */
 	usb_bulk_msg(dev->udev, tx_pipe, tx, 1, NULL, dev->ep_tx->bInterval);
 	usb_bulk_msg(dev->udev, rx_pipe, rx, 2, NULL, HZ * 10);
 
@@ -326,8 +330,10 @@ static int vmk80xx_check_data_link(struct vmk80xx_usb *dev)
 
 static void vmk80xx_read_eeprom(struct vmk80xx_usb *dev, int flag)
 {
-	unsigned int tx_pipe, rx_pipe;
-	unsigned char tx[1], rx[64];
+	unsigned int tx_pipe;
+	unsigned int rx_pipe;
+	unsigned char tx[1];
+	unsigned char rx[64];
 	int cnt;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -337,8 +343,10 @@ static void vmk80xx_read_eeprom(struct vmk80xx_usb *dev, int flag)
 
 	tx[0] = VMK8061_CMD_RD_VERSION;
 
-	/* Read the firmware version info of IC3 and
-	 * IC6 from the internal EEPROM of the IC */
+	/*
+	 * Read the firmware version info of IC3 and
+	 * IC6 from the internal EEPROM of the IC
+	 */
 	usb_bulk_msg(dev->udev, tx_pipe, tx, 1, NULL, dev->ep_tx->bInterval);
 	usb_bulk_msg(dev->udev, rx_pipe, rx, 64, &cnt, HZ * 10);
 
@@ -388,7 +396,8 @@ static int vmk80xx_reset_device(struct vmk80xx_usb *dev)
 static void vmk80xx_build_int_urb(struct urb *urb, int flag)
 {
 	struct vmk80xx_usb *dev = urb->context;
-	__u8 rx_addr, tx_addr;
+	__u8 rx_addr;
+	__u8 tx_addr;
 	unsigned int pipe;
 	unsigned char *buf;
 	size_t size;
@@ -418,8 +427,10 @@ static void vmk80xx_build_int_urb(struct urb *urb, int flag)
 
 static void vmk80xx_do_bulk_msg(struct vmk80xx_usb *dev)
 {
-	__u8 tx_addr, rx_addr;
-	unsigned int tx_pipe, rx_pipe;
+	__u8 tx_addr;
+	__u8 rx_addr;
+	unsigned int tx_pipe;
+	unsigned int rx_pipe;
 	size_t size;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -432,8 +443,10 @@ static void vmk80xx_do_bulk_msg(struct vmk80xx_usb *dev)
 	tx_pipe = usb_sndbulkpipe(dev->udev, tx_addr);
 	rx_pipe = usb_rcvbulkpipe(dev->udev, rx_addr);
 
-	/* The max packet size attributes of the K8061
-	 * input/output endpoints are identical */
+	/*
+	 * The max packet size attributes of the K8061
+	 * input/output endpoints are identical
+	 */
 	size = le16_to_cpu(dev->ep_tx->wMaxPacketSize);
 
 	usb_bulk_msg(dev->udev, tx_pipe, dev->usb_tx_buf,
@@ -566,7 +579,8 @@ static int vmk80xx_ai_rinsn(struct comedi_device *cdev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *dev = cdev->private;
-	int chan, reg[2];
+	int chan;
+	int reg[2];
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -615,7 +629,9 @@ static int vmk80xx_ao_winsn(struct comedi_device *cdev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *dev = cdev->private;
-	int chan, cmd, reg;
+	int chan;
+	int cmd;
+	int reg;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -657,7 +673,8 @@ static int vmk80xx_ao_rinsn(struct comedi_device *cdev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *dev = cdev->private;
-	int chan, reg;
+	int chan;
+	int reg;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -690,7 +707,8 @@ static int vmk80xx_di_rinsn(struct comedi_device *cdev,
 	struct vmk80xx_usb *dev = cdev->private;
 	int chan;
 	unsigned char *rx_buf;
-	int reg, inp;
+	int reg;
+	int inp;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -705,9 +723,9 @@ static int vmk80xx_di_rinsn(struct comedi_device *cdev,
 	if (dev->board.model == VMK8061_MODEL) {
 		reg = VMK8061_DI_REG;
 		dev->usb_tx_buf[0] = VMK8061_CMD_RD_DI;
-	} else
+	} else {
 		reg = VMK8055_DI_REG;
-
+	}
 	for (n = 0; n < insn->n; n++) {
 		if (vmk80xx_read_packet(dev))
 			break;
@@ -731,11 +749,11 @@ static int vmk80xx_do_winsn(struct comedi_device *cdev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-
 	struct vmk80xx_usb *dev = cdev->private;
 	int chan;
 	unsigned char *tx_buf;
-	int reg, cmd;
+	int reg;
+	int cmd;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -755,21 +773,17 @@ static int vmk80xx_do_winsn(struct comedi_device *cdev,
 				tx_buf[reg] |= (1 << chan);
 			else
 				tx_buf[reg] ^= (1 << chan);
-
-			goto write_packet;
+		} else { /* VMK8061_MODEL */
+			reg = VMK8061_DO_REG;
+			if (data[n] == 1) {
+				cmd = VMK8061_CMD_SET_DO;
+				tx_buf[reg] = 1 << chan;
+			} else {
+				cmd = VMK8061_CMD_CLR_DO;
+				tx_buf[reg] = 0xff - (1 << chan);
+			}
 		}
 
-		/* VMK8061_MODEL */
-		reg = VMK8061_DO_REG;
-		if (data[n] == 1) {
-			cmd = VMK8061_CMD_SET_DO;
-			tx_buf[reg] = 1 << chan;
-		} else {
-			cmd = VMK8061_CMD_CLR_DO;
-			tx_buf[reg] = 0xff - (1 << chan);
-		}
-
-write_packet:
 		if (vmk80xx_write_packet(dev, cmd))
 			break;
 	}
@@ -784,7 +798,9 @@ static int vmk80xx_do_rinsn(struct comedi_device *cdev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *dev = cdev->private;
-	int chan, reg, mask;
+	int chan;
+	int reg;
+	int mask;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -816,7 +832,8 @@ static int vmk80xx_cnt_rinsn(struct comedi_device *cdev,
 			     struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *dev = cdev->private;
-	int chan, reg[2];
+	int chan;
+	int reg[2];
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -844,14 +861,11 @@ static int vmk80xx_cnt_rinsn(struct comedi_device *cdev,
 		if (vmk80xx_read_packet(dev))
 			break;
 
-		if (dev->board.model == VMK8055_MODEL) {
+		if (dev->board.model == VMK8055_MODEL)
 			data[n] = dev->usb_rx_buf[reg[0]];
-			continue;
-		}
-
-		/* VMK8061_MODEL */
-		data[n] = dev->usb_rx_buf[reg[0] * (chan + 1) + 1]
-		    + 256 * dev->usb_rx_buf[reg[1] * 2 + 2];
+		else /* VMK8061_MODEL */
+			data[n] = dev->usb_rx_buf[reg[0] * (chan + 1) + 1]
+			    + 256 * dev->usb_rx_buf[reg[1] * 2 + 2];
 	}
 
 	up(&dev->limit_sem);
@@ -865,7 +879,9 @@ static int vmk80xx_cnt_cinsn(struct comedi_device *cdev,
 {
 	struct vmk80xx_usb *dev = cdev->private;
 	unsigned int insn_cmd;
-	int chan, cmd, reg;
+	int chan;
+	int cmd;
+	int reg;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -890,8 +906,9 @@ static int vmk80xx_cnt_cinsn(struct comedi_device *cdev,
 		}
 
 		dev->usb_tx_buf[reg] = 0x00;
-	} else
+	} else {
 		cmd = VMK8061_CMD_RST_CNT;
+	}
 
 	for (n = 0; n < insn->n; n++)
 		if (vmk80xx_write_packet(dev, cmd))
@@ -907,8 +924,10 @@ static int vmk80xx_cnt_winsn(struct comedi_device *cdev,
 			     struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *dev = cdev->private;
-	unsigned long debtime, val;
-	int chan, cmd;
+	unsigned long debtime;
+	unsigned long val;
+	int chan;
+	int cmd;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -984,7 +1003,8 @@ static int vmk80xx_pwm_winsn(struct comedi_device *cdev,
 {
 	struct vmk80xx_usb *dev = cdev->private;
 	unsigned char *tx_buf;
-	int reg[2], cmd;
+	int reg[2];
+	int cmd;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -1026,8 +1046,8 @@ static int vmk80xx_pwm_winsn(struct comedi_device *cdev,
 	return n;
 }
 
-static int
-vmk80xx_attach(struct comedi_device *cdev, struct comedi_devconfig *it)
+static int vmk80xx_attach(struct comedi_device *cdev,
+			  struct comedi_devconfig *it)
 {
 	int i;
 	struct vmk80xx_usb *dev;
@@ -1179,8 +1199,8 @@ static int vmk80xx_detach(struct comedi_device *cdev)
 	return 0;
 }
 
-static int
-vmk80xx_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int vmk80xx_probe(struct usb_interface *intf,
+			 const struct usb_device_id *id)
 {
 	int i;
 	struct vmk80xx_usb *dev;
@@ -1309,8 +1329,9 @@ vmk80xx_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			vmk80xx_read_eeprom(dev, IC6_VERSION);
 			printk(KERN_INFO "comedi#: vmk80xx: %s\n",
 			       dev->fw.ic6_vers);
-		} else
+		} else {
 			dbgcm("comedi#: vmk80xx: no conn. to CPU\n");
+		}
 	}
 
 	if (dev->board.model == VMK8055_MODEL)
