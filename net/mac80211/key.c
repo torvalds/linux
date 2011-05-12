@@ -471,8 +471,11 @@ int ieee80211_key_link(struct ieee80211_key *key,
 	return ret;
 }
 
-static void __ieee80211_key_free(struct ieee80211_key *key)
+void __ieee80211_key_free(struct ieee80211_key *key)
 {
+	if (!key)
+		return;
+
 	/*
 	 * Replace key with nothingness if it was ever used.
 	 */
@@ -486,9 +489,6 @@ static void __ieee80211_key_free(struct ieee80211_key *key)
 void ieee80211_key_free(struct ieee80211_local *local,
 			struct ieee80211_key *key)
 {
-	if (!key)
-		return;
-
 	mutex_lock(&local->key_mtx);
 	__ieee80211_key_free(key);
 	mutex_unlock(&local->key_mtx);

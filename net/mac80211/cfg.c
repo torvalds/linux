@@ -160,13 +160,14 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 			     u8 key_idx, bool pairwise, const u8 *mac_addr)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
+	struct ieee80211_key *key = NULL;
 	int ret;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	mutex_lock(&sdata->local->sta_mtx);
+	mutex_lock(&local->sta_mtx);
+	mutex_lock(&local->key_mtx);
 
 	if (mac_addr) {
 		ret = -ENOENT;
@@ -175,33 +176,24 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 		if (!sta)
 			goto out_unlock;
 
-		if (pairwise) {
-			if (sta->ptk) {
-				ieee80211_key_free(sdata->local, sta->ptk);
-				ret = 0;
-			}
-		} else {
-			if (sta->gtk[key_idx]) {
-				ieee80211_key_free(sdata->local,
-						   sta->gtk[key_idx]);
-				ret = 0;
-			}
-		}
+		if (pairwise)
+			key = sta->ptk;
+		else
+			key = sta->gtk[key_idx];
+	} else
+		key = sdata->keys[key_idx];
 
-		goto out_unlock;
-	}
-
-	if (!sdata->keys[key_idx]) {
+	if (!key) {
 		ret = -ENOENT;
 		goto out_unlock;
 	}
 
-	ieee80211_key_free(sdata->local, sdata->keys[key_idx]);
-	WARN_ON(sdata->keys[key_idx]);
+	__ieee80211_key_free(key);
 
 	ret = 0;
  out_unlock:
-	mutex_unlock(&sdata->local->sta_mtx);
+	mutex_unlock(&local->key_mtx);
+	mutex_unlock(&local->sta_mtx);
 
 	return ret;
 }
