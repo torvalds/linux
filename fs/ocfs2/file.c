@@ -1607,6 +1607,9 @@ static void ocfs2_calc_trunc_pos(struct inode *inode,
 	range = le32_to_cpu(rec->e_cpos) + ocfs2_rec_clusters(el, rec);
 
 	if (le32_to_cpu(rec->e_cpos) >= trunc_start) {
+		/*
+		 * remove an entire extent record.
+		 */
 		*trunc_cpos = le32_to_cpu(rec->e_cpos);
 		/*
 		 * Skip holes if any.
@@ -1617,7 +1620,16 @@ static void ocfs2_calc_trunc_pos(struct inode *inode,
 		*blkno = le64_to_cpu(rec->e_blkno);
 		*trunc_end = le32_to_cpu(rec->e_cpos);
 	} else if (range > trunc_start) {
+		/*
+		 * remove a partial extent record, which means we're
+		 * removing the last extent record.
+		 */
 		*trunc_cpos = trunc_start;
+		/*
+		 * skip hole if any.
+		 */
+		if (range < *trunc_end)
+			*trunc_end = range;
 		*trunc_len = *trunc_end - trunc_start;
 		coff = trunc_start - le32_to_cpu(rec->e_cpos);
 		*blkno = le64_to_cpu(rec->e_blkno) +
