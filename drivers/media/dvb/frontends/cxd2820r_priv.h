@@ -40,18 +40,6 @@
 #undef warn
 #define warn(f, arg...) printk(KERN_WARNING LOG_PREFIX": " f "\n" , ## arg)
 
-/*
- * FIXME: These are totally wrong and must be added properly to the API.
- * Only temporary solution in order to get driver compile.
- */
-#define SYS_DVBT2             SYS_DAB
-#define TRANSMISSION_MODE_1K  0
-#define TRANSMISSION_MODE_16K 0
-#define TRANSMISSION_MODE_32K 0
-#define GUARD_INTERVAL_1_128  0
-#define GUARD_INTERVAL_19_128 0
-#define GUARD_INTERVAL_19_256 0
-
 struct reg_val_mask {
 	u32 reg;
 	u8  val;

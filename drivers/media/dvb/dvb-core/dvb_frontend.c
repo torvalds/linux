@@ -1148,10 +1148,9 @@ static void dtv_property_adv_params_sync(struct dvb_frontend *fe)
 		break;
 	}
 
-	if(c->delivery_system == SYS_ISDBT) {
-		/* Fake out a generic DVB-T request so we pass validation in the ioctl */
-		p->frequency = c->frequency;
-		p->inversion = c->inversion;
+	/* Fake out a generic DVB-T request so we pass validation in the ioctl */
+	if ((c->delivery_system == SYS_ISDBT) ||
+	    (c->delivery_system == SYS_DVBT2)) {
 		p->u.ofdm.constellation = QAM_AUTO;
 		p->u.ofdm.code_rate_HP = FEC_AUTO;
 		p->u.ofdm.code_rate_LP = FEC_AUTO;
@@ -1324,6 +1323,9 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 	case DTV_ISDBS_TS_ID:
 		tvp->u.data = fe->dtv_property_cache.isdbs_ts_id;
 		break;
+	case DTV_DVBT2_PLP_ID:
+		tvp->u.data = fe->dtv_property_cache.dvbt2_plp_id;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1478,6 +1480,9 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		break;
 	case DTV_ISDBS_TS_ID:
 		fe->dtv_property_cache.isdbs_ts_id = tvp->u.data;
+		break;
+	case DTV_DVBT2_PLP_ID:
+		fe->dtv_property_cache.dvbt2_plp_id = tvp->u.data;
 		break;
 	default:
 		return -EINVAL;
