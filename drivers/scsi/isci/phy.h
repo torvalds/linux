@@ -512,12 +512,6 @@ typedef enum sci_status (*scic_sds_phy_power_handler_t)(struct scic_sds_phy *);
 
 struct scic_sds_phy_state_handler {
 	/**
-	 * The reset_handler specifies the method invoked when there is an
-	 * attempt to reset a phy.
-	 */
-	scic_sds_phy_handler_t reset_handler;
-
-	/**
 	 * The destruct_handler specifies the method invoked when attempting to
 	 * destruct a phy.
 	 */
