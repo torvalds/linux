@@ -2695,7 +2695,6 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 {
 	struct super_block *sb = mdsc->fsc->sb;
 	struct inode *inode;
-	struct ceph_inode_info *ci;
 	struct dentry *parent, *dentry;
 	struct ceph_dentry_info *di;
 	int mds = session->s_mds;
@@ -2732,7 +2731,6 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 		dout("handle_lease no inode %llx\n", vino.ino);
 		goto release;
 	}
-	ci = ceph_inode(inode);
 
 	/* dentry */
 	parent = d_find_alias(inode);
