@@ -229,8 +229,6 @@ out_err:
 
 /*
  * Get route to destination or remote server
- * rt_mode: flags, &1=Allow local dest, &2=Allow non-local dest,
- *	    &4=Allow redirect from remote daddr to local
  */
 static struct rt6_info *
 __ip_vs_get_out_rt_v6(struct sk_buff *skb, struct ip_vs_dest *dest,
@@ -274,13 +272,14 @@ __ip_vs_get_out_rt_v6(struct sk_buff *skb, struct ip_vs_dest *dest,
 	}
 
 	local = __ip_vs_is_local_route6(rt);
-	if (!((local ? 1 : 2) & rt_mode)) {
+	if (!((local ? IP_VS_RT_MODE_LOCAL : IP_VS_RT_MODE_NON_LOCAL) &
+	      rt_mode)) {
 		IP_VS_DBG_RL("Stopping traffic to %s address, dest: %pI6\n",
 			     local ? "local":"non-local", daddr);
 		dst_release(&rt->dst);
 		return NULL;
 	}
-	if (local && !(rt_mode & 4) &&
+	if (local && !(rt_mode & IP_VS_RT_MODE_RDR) &&
 	    !((ort = (struct rt6_info *) skb_dst(skb)) &&
 	      __ip_vs_is_local_route6(ort))) {
 		IP_VS_DBG_RL("Redirect from non-local address %pI6 to local "
@@ -440,7 +439,8 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	EnterFunction(10);
 
-	if (!(rt = __ip_vs_get_out_rt_v6(skb, NULL, &iph->daddr, NULL, 0, 2)))
+	if (!(rt = __ip_vs_get_out_rt_v6(skb, NULL, &iph->daddr, NULL, 0,
+					 IP_VS_RT_MODE_NON_LOCAL)))
 		goto tx_error_icmp;
 
 	/* MTU checking */
@@ -632,7 +632,9 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	}
 
 	if (!(rt = __ip_vs_get_out_rt_v6(skb, cp->dest, &cp->daddr.in6, NULL,
-					 0, 1|2|4)))
+					 0, (IP_VS_RT_MODE_LOCAL |
+					     IP_VS_RT_MODE_NON_LOCAL |
+					     IP_VS_RT_MODE_RDR))))
 		goto tx_error_icmp;
 	local = __ip_vs_is_local_route6(rt);
 	/*
@@ -875,7 +877,8 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	EnterFunction(10);
 
 	if (!(rt = __ip_vs_get_out_rt_v6(skb, cp->dest, &cp->daddr.in6,
-					 &saddr, 1, 1|2)))
+					 &saddr, 1, (IP_VS_RT_MODE_LOCAL |
+						     IP_VS_RT_MODE_NON_LOCAL))))
 		goto tx_error_icmp;
 	if (__ip_vs_is_local_route6(rt)) {
 		dst_release(&rt->dst);
@@ -1050,7 +1053,8 @@ ip_vs_dr_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	EnterFunction(10);
 
 	if (!(rt = __ip_vs_get_out_rt_v6(skb, cp->dest, &cp->daddr.in6, NULL,
-					 0, 1|2)))
+					 0, (IP_VS_RT_MODE_LOCAL |
+					     IP_VS_RT_MODE_NON_LOCAL))))
 		goto tx_error_icmp;
 	if (__ip_vs_is_local_route6(rt)) {
 		dst_release(&rt->dst);
@@ -1254,7 +1258,9 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	 */
 
 	if (!(rt = __ip_vs_get_out_rt_v6(skb, cp->dest, &cp->daddr.in6, NULL,
-					 0, 1|2|4)))
+					 0, (IP_VS_RT_MODE_LOCAL |
+					     IP_VS_RT_MODE_NON_LOCAL |
+					     IP_VS_RT_MODE_RDR))))
 		goto tx_error_icmp;
 
 	local = __ip_vs_is_local_route6(rt);
