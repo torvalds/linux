@@ -1377,11 +1377,23 @@ static int *task_stopped_code(struct task_struct *p, bool ptrace)
 	return NULL;
 }
 
-/*
- * Handle sys_wait4 work for one task in state TASK_STOPPED.  We hold
- * read_lock(&tasklist_lock) on entry.  If we return zero, we still hold
- * the lock and this task is uninteresting.  If we return nonzero, we have
- * released the lock and the system call should return.
+/**
+ * wait_task_stopped - Wait for %TASK_STOPPED or %TASK_TRACED
+ * @wo: wait options
+ * @ptrace: is the wait for ptrace
+ * @p: task to wait for
+ *
+ * Handle sys_wait4() work for %p in state %TASK_STOPPED or %TASK_TRACED.
+ *
+ * CONTEXT:
+ * read_lock(&tasklist_lock), which is released if return value is
+ * non-zero.  Also, grabs and releases @p->sighand->siglock.
+ *
+ * RETURNS:
+ * 0 if wait condition didn't exist and search for other wait conditions
+ * should continue.  Non-zero return, -errno on failure and @p's pid on
+ * success, implies that tasklist_lock is released and wait condition
+ * search should terminate.
  */
 static int wait_task_stopped(struct wait_opts *wo,
 				int ptrace, struct task_struct *p)
@@ -1395,6 +1407,9 @@ static int wait_task_stopped(struct wait_opts *wo,
 	 * Traditionally we see ptrace'd stopped tasks regardless of options.
 	 */
 	if (!ptrace && !(wo->wo_flags & WUNTRACED))
+		return 0;
+
+	if (!task_stopped_code(p, ptrace))
 		return 0;
 
 	exit_code = 0;
@@ -1607,8 +1622,9 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 	 * Wait for stopped.  Depending on @ptrace, different stopped state
 	 * is used and the two don't interact with each other.
 	 */
-	if (task_stopped_code(p, ptrace))
-		return wait_task_stopped(wo, ptrace, p);
+	ret = wait_task_stopped(wo, ptrace, p);
+	if (ret)
+		return ret;
 
 	/*
 	 * Wait for continued.  There's only one continued state and the
