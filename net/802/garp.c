@@ -603,6 +603,11 @@ err1:
 }
 EXPORT_SYMBOL_GPL(garp_init_applicant);
 
+static void garp_app_kfree_rcu(struct rcu_head *head)
+{
+	kfree(container_of(head, struct garp_applicant, rcu));
+}
+
 void garp_uninit_applicant(struct net_device *dev, struct garp_application *appl)
 {
 	struct garp_port *port = rtnl_dereference(dev->garp_port);
@@ -611,7 +616,6 @@ void garp_uninit_applicant(struct net_device *dev, struct garp_application *appl
 	ASSERT_RTNL();
 
 	rcu_assign_pointer(port->applicants[appl->type], NULL);
-	synchronize_rcu();
 
 	/* Delete timer and generate a final TRANSMIT_PDU event to flush out
 	 * all pending messages before the applicant is gone. */
@@ -621,7 +625,7 @@ void garp_uninit_applicant(struct net_device *dev, struct garp_application *appl
 	garp_queue_xmit(app);
 
 	dev_mc_del(dev, appl->proto.group_address);
-	kfree(app);
+	call_rcu(&app->rcu, garp_app_kfree_rcu);
 	garp_release_port(dev);
 }
 EXPORT_SYMBOL_GPL(garp_uninit_applicant);
@@ -639,3 +643,9 @@ void garp_unregister_application(struct garp_application *appl)
 	stp_proto_unregister(&appl->proto);
 }
 EXPORT_SYMBOL_GPL(garp_unregister_application);
+
+static void __exit garp_cleanup_module(void)
+{
+	rcu_barrier(); /* Wait for completion of call_rcu()'s */
+}
+module_exit(garp_cleanup_module);
