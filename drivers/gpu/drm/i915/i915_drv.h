@@ -716,6 +716,7 @@ typedef struct drm_i915_private {
 	struct intel_fbdev *fbdev;
 
 	struct drm_property *broadcast_rgb_property;
+	struct drm_property *force_audio_property;
 
 	atomic_t forcewake_count;
 } drm_i915_private_t;
