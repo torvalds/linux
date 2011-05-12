@@ -267,7 +267,6 @@ static int max8997_get_enable_register(struct regulator_dev *rdev,
 	default:
 		/* Not controllable or not exists */
 		return -EINVAL;
-		break;
 	}
 
 	return 0;
