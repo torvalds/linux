@@ -437,6 +437,9 @@ static inline int s_name ## _to_unpriv_skb(struct sk_buff *skb,		\
 #undef __u32_field_def
 #define __u32_field_def(attr_nr, attr_flag, name, default)		\
 	x->name = default;
+#undef __s32_field_def
+#define __s32_field_def(attr_nr, attr_flag, name, default)		\
+	x->name = default;
 #undef __flg_field_def
 #define __flg_field_def(attr_nr, attr_flag, name, default)		\
 	x->name = default;
