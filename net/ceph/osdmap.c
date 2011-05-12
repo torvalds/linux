@@ -765,7 +765,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	}
 
 	map->epoch++;
-	map->modified = map->modified;
+	map->modified = modified;
 	if (newcrush) {
 		if (map->crush)
 			crush_destroy(map->crush);
