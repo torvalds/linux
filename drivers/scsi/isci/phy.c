@@ -506,17 +506,461 @@ enum sci_status scic_sds_phy_reset(struct scic_sds_phy *sci_phy)
 }
 
 /**
- * This method will process the event code received.
+ * This method will give the phy permission to consume power
  * @sci_phy:
- * @event_code:
  *
  * enum sci_status
  */
-enum sci_status scic_sds_phy_event_handler(
-	struct scic_sds_phy *sci_phy,
-	u32 event_code)
+enum sci_status scic_sds_phy_consume_power_handler(
+	struct scic_sds_phy *sci_phy)
 {
-	return sci_phy->state_handlers->event_handler(sci_phy, event_code);
+	return sci_phy->state_handlers->consume_power_handler(sci_phy);
+}
+
+/*
+ * *****************************************************************************
+ * * SCIC SDS PHY HELPER FUNCTIONS
+ * ***************************************************************************** */
+
+
+/**
+ *
+ * @sci_phy: The phy object that received SAS PHY DETECTED.
+ *
+ * This method continues the link training for the phy as if it were a SAS PHY
+ * instead of a SATA PHY. This is done because the completion queue had a SAS
+ * PHY DETECTED event when the state machine was expecting a SATA PHY event.
+ * none
+ */
+static void scic_sds_phy_start_sas_link_training(
+	struct scic_sds_phy *sci_phy)
+{
+	u32 phy_control;
+
+	phy_control =
+		readl(&sci_phy->link_layer_registers->phy_configuration);
+	phy_control |= SCU_SAS_PCFG_GEN_BIT(SATA_SPINUP_HOLD);
+	writel(phy_control,
+		&sci_phy->link_layer_registers->phy_configuration);
+
+	sci_base_state_machine_change_state(
+		&sci_phy->state_machine,
+		SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN
+		);
+
+	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SAS;
+}
+
+/**
+ *
+ * @sci_phy: The phy object that received a SATA SPINUP HOLD event
+ *
+ * This method continues the link training for the phy as if it were a SATA PHY
+ * instead of a SAS PHY.  This is done because the completion queue had a SATA
+ * SPINUP HOLD event when the state machine was expecting a SAS PHY event. none
+ */
+static void scic_sds_phy_start_sata_link_training(
+	struct scic_sds_phy *sci_phy)
+{
+	sci_base_state_machine_change_state(
+		&sci_phy->state_machine,
+		SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER
+		);
+
+	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SATA;
+}
+
+/**
+ * scic_sds_phy_complete_link_training - perform processing common to
+ *    all protocols upon completion of link training.
+ * @sci_phy: This parameter specifies the phy object for which link training
+ *    has completed.
+ * @max_link_rate: This parameter specifies the maximum link rate to be
+ *    associated with this phy.
+ * @next_state: This parameter specifies the next state for the phy's starting
+ *    sub-state machine.
+ *
+ */
+static void scic_sds_phy_complete_link_training(
+	struct scic_sds_phy *sci_phy,
+	enum sas_linkrate max_link_rate,
+	u32 next_state)
+{
+	sci_phy->max_negotiated_speed = max_link_rate;
+
+	sci_base_state_machine_change_state(&sci_phy->state_machine,
+					    next_state);
+}
+
+/*
+ * This method is called by the struct scic_sds_controller when the phy object is
+ * granted power. - The notify enable spinups are turned on for this phy object
+ * - The phy state machine is transitioned to the
+ * SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL. enum sci_status SCI_SUCCESS
+ */
+static enum sci_status scic_sds_phy_starting_substate_await_sas_power_consume_power_handler(
+	struct scic_sds_phy *sci_phy)
+{
+	u32 enable_spinup;
+
+	enable_spinup = readl(&sci_phy->link_layer_registers->notify_enable_spinup_control);
+	enable_spinup |= SCU_ENSPINUP_GEN_BIT(ENABLE);
+	writel(enable_spinup, &sci_phy->link_layer_registers->notify_enable_spinup_control);
+
+	/* Change state to the final state this substate machine has run to completion */
+	sci_base_state_machine_change_state(&sci_phy->state_machine,
+					    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
+
+	return SCI_SUCCESS;
+}
+
+/*
+ * This method is called by the struct scic_sds_controller when the phy object is
+ * granted power. - The phy state machine is transitioned to the
+ * SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN. enum sci_status SCI_SUCCESS
+ */
+static enum sci_status scic_sds_phy_starting_substate_await_sata_power_consume_power_handler(
+	struct scic_sds_phy *sci_phy)
+{
+	u32 scu_sas_pcfg_value;
+
+	/* Release the spinup hold state and reset the OOB state machine */
+	scu_sas_pcfg_value =
+		readl(&sci_phy->link_layer_registers->phy_configuration);
+	scu_sas_pcfg_value &=
+		~(SCU_SAS_PCFG_GEN_BIT(SATA_SPINUP_HOLD) | SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE));
+	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
+	writel(scu_sas_pcfg_value,
+		&sci_phy->link_layer_registers->phy_configuration);
+
+	/* Now restart the OOB operation */
+	scu_sas_pcfg_value &= ~SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
+	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
+	writel(scu_sas_pcfg_value,
+		&sci_phy->link_layer_registers->phy_configuration);
+
+	/* Change state to the final state this substate machine has run to completion */
+	sci_base_state_machine_change_state(&sci_phy->state_machine,
+					    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN);
+
+	return SCI_SUCCESS;
+}
+
+static enum sci_status default_phy_handler(struct scic_sds_phy *sci_phy,
+					   const char *func)
+{
+	dev_dbg(sciphy_to_dev(sci_phy),
+		 "%s: in wrong state: %d\n", func,
+		 sci_base_state_machine_get_state(&sci_phy->state_machine));
+	return SCI_FAILURE_INVALID_STATE;
+}
+
+static enum sci_status
+scic_sds_phy_default_consume_power_handler(struct scic_sds_phy *sci_phy)
+{
+	return default_phy_handler(sci_phy, __func__);
+}
+
+
+enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
+					   u32 event_code)
+{
+	enum scic_sds_phy_states state = sci_phy->state_machine.current_state_id;
+
+	switch (state) {
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN:
+		switch (scu_get_event_code(event_code)) {
+		case SCU_EVENT_SAS_PHY_DETECTED:
+			scic_sds_phy_start_sas_link_training(sci_phy);
+			sci_phy->is_in_link_training = true;
+			break;
+		case SCU_EVENT_SATA_SPINUP_HOLD:
+			scic_sds_phy_start_sata_link_training(sci_phy);
+			sci_phy->is_in_link_training = true;
+			break;
+		default:
+			dev_dbg(sciphy_to_dev(sci_phy),
+				"%s: PHY starting substate machine received "
+				"unexpected event_code %x\n",
+				__func__,
+				event_code);
+			return SCI_FAILURE;
+		}
+		return SCI_SUCCESS;
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN:
+		switch (scu_get_event_code(event_code)) {
+		case SCU_EVENT_SAS_PHY_DETECTED:
+			/*
+			 * Why is this being reported again by the controller?
+			 * We would re-enter this state so just stay here */
+			break;
+		case SCU_EVENT_SAS_15:
+		case SCU_EVENT_SAS_15_SSC:
+			scic_sds_phy_complete_link_training(
+				sci_phy,
+				SAS_LINK_RATE_1_5_GBPS,
+				SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF);
+			break;
+		case SCU_EVENT_SAS_30:
+		case SCU_EVENT_SAS_30_SSC:
+			scic_sds_phy_complete_link_training(
+				sci_phy,
+				SAS_LINK_RATE_3_0_GBPS,
+				SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF);
+			break;
+		case SCU_EVENT_SAS_60:
+		case SCU_EVENT_SAS_60_SSC:
+			scic_sds_phy_complete_link_training(
+				sci_phy,
+				SAS_LINK_RATE_6_0_GBPS,
+				SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF);
+			break;
+		case SCU_EVENT_SATA_SPINUP_HOLD:
+			/*
+			 * We were doing SAS PHY link training and received a SATA PHY event
+			 * continue OOB/SN as if this were a SATA PHY */
+			scic_sds_phy_start_sata_link_training(sci_phy);
+			break;
+		case SCU_EVENT_LINK_FAILURE:
+			/* Link failure change state back to the starting state */
+			sci_base_state_machine_change_state(&sci_phy->state_machine,
+							    SCI_BASE_PHY_STATE_STARTING);
+			break;
+		default:
+			dev_warn(sciphy_to_dev(sci_phy),
+				 "%s: PHY starting substate machine received "
+				 "unexpected event_code %x\n",
+				 __func__, event_code);
+
+			return SCI_FAILURE;
+			break;
+		}
+		return SCI_SUCCESS;
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF:
+		switch (scu_get_event_code(event_code)) {
+		case SCU_EVENT_SAS_PHY_DETECTED:
+			/* Backup the state machine */
+			scic_sds_phy_start_sas_link_training(sci_phy);
+			break;
+		case SCU_EVENT_SATA_SPINUP_HOLD:
+			/* We were doing SAS PHY link training and received a
+			 * SATA PHY event continue OOB/SN as if this were a
+			 * SATA PHY
+			 */
+			scic_sds_phy_start_sata_link_training(sci_phy);
+			break;
+		case SCU_EVENT_RECEIVED_IDENTIFY_TIMEOUT:
+		case SCU_EVENT_LINK_FAILURE:
+		case SCU_EVENT_HARD_RESET_RECEIVED:
+			/* Start the oob/sn state machine over again */
+			sci_base_state_machine_change_state(&sci_phy->state_machine,
+							    SCI_BASE_PHY_STATE_STARTING);
+			break;
+		default:
+			dev_warn(sciphy_to_dev(sci_phy),
+				 "%s: PHY starting substate machine received "
+				 "unexpected event_code %x\n",
+				 __func__, event_code);
+			return SCI_FAILURE;
+		}
+		return SCI_SUCCESS;
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER:
+		switch (scu_get_event_code(event_code)) {
+		case SCU_EVENT_LINK_FAILURE:
+			/* Link failure change state back to the starting state */
+			sci_base_state_machine_change_state(&sci_phy->state_machine,
+							    SCI_BASE_PHY_STATE_STARTING);
+			break;
+		default:
+			dev_warn(sciphy_to_dev(sci_phy),
+				"%s: PHY starting substate machine received unexpected "
+				"event_code %x\n",
+				__func__,
+				event_code);
+			return SCI_FAILURE;
+		}
+		return SCI_SUCCESS;
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER:
+		switch (scu_get_event_code(event_code)) {
+		case SCU_EVENT_LINK_FAILURE:
+			/* Link failure change state back to the starting state */
+			sci_base_state_machine_change_state(&sci_phy->state_machine,
+							    SCI_BASE_PHY_STATE_STARTING);
+			break;
+		case SCU_EVENT_SATA_SPINUP_HOLD:
+			/* These events are received every 10ms and are
+			 * expected while in this state
+			 */
+			break;
+
+		case SCU_EVENT_SAS_PHY_DETECTED:
+			/* There has been a change in the phy type before OOB/SN for the
+			 * SATA finished start down the SAS link traning path.
+			 */
+			scic_sds_phy_start_sas_link_training(sci_phy);
+			break;
+
+		default:
+			dev_warn(sciphy_to_dev(sci_phy),
+				 "%s: PHY starting substate machine received "
+				 "unexpected event_code %x\n",
+				 __func__, event_code);
+
+			return SCI_FAILURE;
+		}
+		return SCI_SUCCESS;
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN:
+		switch (scu_get_event_code(event_code)) {
+		case SCU_EVENT_LINK_FAILURE:
+			/* Link failure change state back to the starting state */
+			sci_base_state_machine_change_state(&sci_phy->state_machine,
+							    SCI_BASE_PHY_STATE_STARTING);
+			break;
+		case SCU_EVENT_SATA_SPINUP_HOLD:
+			/* These events might be received since we dont know how many may be in
+			 * the completion queue while waiting for power
+			 */
+			break;
+		case SCU_EVENT_SATA_PHY_DETECTED:
+			sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SATA;
+
+			/* We have received the SATA PHY notification change state */
+			sci_base_state_machine_change_state(&sci_phy->state_machine,
+							    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN);
+			break;
+		case SCU_EVENT_SAS_PHY_DETECTED:
+			/* There has been a change in the phy type before OOB/SN for the
+			 * SATA finished start down the SAS link traning path.
+			 */
+			scic_sds_phy_start_sas_link_training(sci_phy);
+			break;
+		default:
+			dev_warn(sciphy_to_dev(sci_phy),
+				 "%s: PHY starting substate machine received "
+				 "unexpected event_code %x\n",
+				 __func__,
+				 event_code);
+
+			return SCI_FAILURE;;
+		}
+		return SCI_SUCCESS;
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN:
+		switch (scu_get_event_code(event_code)) {
+		case SCU_EVENT_SATA_PHY_DETECTED:
+			/*
+			 * The hardware reports multiple SATA PHY detected events
+			 * ignore the extras */
+			break;
+		case SCU_EVENT_SATA_15:
+		case SCU_EVENT_SATA_15_SSC:
+			scic_sds_phy_complete_link_training(
+				sci_phy,
+				SAS_LINK_RATE_1_5_GBPS,
+				SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
+			break;
+		case SCU_EVENT_SATA_30:
+		case SCU_EVENT_SATA_30_SSC:
+			scic_sds_phy_complete_link_training(
+				sci_phy,
+				SAS_LINK_RATE_3_0_GBPS,
+				SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
+			break;
+		case SCU_EVENT_SATA_60:
+		case SCU_EVENT_SATA_60_SSC:
+			scic_sds_phy_complete_link_training(
+				sci_phy,
+				SAS_LINK_RATE_6_0_GBPS,
+				SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
+			break;
+		case SCU_EVENT_LINK_FAILURE:
+			/* Link failure change state back to the starting state */
+			sci_base_state_machine_change_state(&sci_phy->state_machine,
+							    SCI_BASE_PHY_STATE_STARTING);
+			break;
+		case SCU_EVENT_SAS_PHY_DETECTED:
+			/*
+			 * There has been a change in the phy type before OOB/SN for the
+			 * SATA finished start down the SAS link traning path. */
+			scic_sds_phy_start_sas_link_training(sci_phy);
+			break;
+		default:
+			dev_warn(sciphy_to_dev(sci_phy),
+				 "%s: PHY starting substate machine received "
+				 "unexpected event_code %x\n",
+				 __func__, event_code);
+
+			return SCI_FAILURE;
+		}
+
+		return SCI_SUCCESS;
+	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF:
+		switch (scu_get_event_code(event_code)) {
+		case SCU_EVENT_SATA_PHY_DETECTED:
+			/* Backup the state machine */
+			sci_base_state_machine_change_state(&sci_phy->state_machine,
+							    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN);
+			break;
+
+		case SCU_EVENT_LINK_FAILURE:
+			/* Link failure change state back to the starting state */
+			sci_base_state_machine_change_state(&sci_phy->state_machine,
+							    SCI_BASE_PHY_STATE_STARTING);
+			break;
+
+		default:
+			dev_warn(sciphy_to_dev(sci_phy),
+				 "%s: PHY starting substate machine received "
+				 "unexpected event_code %x\n",
+				 __func__,
+				 event_code);
+
+			return SCI_FAILURE;
+		}
+		return SCI_SUCCESS;
+	case SCI_BASE_PHY_STATE_READY:
+		switch (scu_get_event_code(event_code)) {
+		case SCU_EVENT_LINK_FAILURE:
+			/* Link failure change state back to the starting state */
+			sci_base_state_machine_change_state(&sci_phy->state_machine,
+							    SCI_BASE_PHY_STATE_STARTING);
+			break;
+		case SCU_EVENT_BROADCAST_CHANGE:
+			/* Broadcast change received. Notify the port. */
+			if (scic_sds_phy_get_port(sci_phy) != NULL)
+				scic_sds_port_broadcast_change_received(sci_phy->owning_port, sci_phy);
+			else
+				sci_phy->bcn_received_while_port_unassigned = true;
+			break;
+		default:
+			dev_warn(sciphy_to_dev(sci_phy),
+				 "%sP SCIC PHY 0x%p ready state machine received "
+				 "unexpected event_code %x\n",
+				 __func__, sci_phy, event_code);
+			return SCI_FAILURE_INVALID_STATE;
+		}
+		return SCI_SUCCESS;
+	case SCI_BASE_PHY_STATE_RESETTING:
+		switch (scu_get_event_code(event_code)) {
+		case SCU_EVENT_HARD_RESET_TRANSMITTED:
+			/* Link failure change state back to the starting state */
+			sci_base_state_machine_change_state(&sci_phy->state_machine,
+							    SCI_BASE_PHY_STATE_STARTING);
+			break;
+		default:
+			dev_warn(sciphy_to_dev(sci_phy),
+				 "%s: SCIC PHY 0x%p resetting state machine received "
+				 "unexpected event_code %x\n",
+				 __func__, sci_phy, event_code);
+
+			return SCI_FAILURE_INVALID_STATE;
+			break;
+		}
+		return SCI_SUCCESS;
+	default:
+		dev_dbg(sciphy_to_dev(sci_phy),
+			"%s: in wrong state: %d\n", __func__, state);
+		return SCI_FAILURE_INVALID_STATE;
+	}
 }
 
 enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
@@ -615,754 +1059,57 @@ enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
 	
 }
 
-/**
- * This method will give the phy permission to consume power
- * @sci_phy:
- *
- * enum sci_status
- */
-enum sci_status scic_sds_phy_consume_power_handler(
-	struct scic_sds_phy *sci_phy)
-{
-	return sci_phy->state_handlers->consume_power_handler(sci_phy);
-}
 
-/*
- * *****************************************************************************
- * * SCIC SDS PHY HELPER FUNCTIONS
- * ***************************************************************************** */
-
-
-/**
- *
- * @sci_phy: The phy object that received SAS PHY DETECTED.
- *
- * This method continues the link training for the phy as if it were a SAS PHY
- * instead of a SATA PHY. This is done because the completion queue had a SAS
- * PHY DETECTED event when the state machine was expecting a SATA PHY event.
- * none
- */
-static void scic_sds_phy_start_sas_link_training(
-	struct scic_sds_phy *sci_phy)
-{
-	u32 phy_control;
-
-	phy_control =
-		readl(&sci_phy->link_layer_registers->phy_configuration);
-	phy_control |= SCU_SAS_PCFG_GEN_BIT(SATA_SPINUP_HOLD);
-	writel(phy_control,
-		&sci_phy->link_layer_registers->phy_configuration);
-
-	sci_base_state_machine_change_state(
-		&sci_phy->state_machine,
-		SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN
-		);
-
-	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SAS;
-}
-
-/**
- *
- * @sci_phy: The phy object that received a SATA SPINUP HOLD event
- *
- * This method continues the link training for the phy as if it were a SATA PHY
- * instead of a SAS PHY.  This is done because the completion queue had a SATA
- * SPINUP HOLD event when the state machine was expecting a SAS PHY event. none
- */
-static void scic_sds_phy_start_sata_link_training(
-	struct scic_sds_phy *sci_phy)
-{
-	sci_base_state_machine_change_state(
-		&sci_phy->state_machine,
-		SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER
-		);
-
-	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SATA;
-}
-
-/**
- * scic_sds_phy_complete_link_training - perform processing common to
- *    all protocols upon completion of link training.
- * @sci_phy: This parameter specifies the phy object for which link training
- *    has completed.
- * @max_link_rate: This parameter specifies the maximum link rate to be
- *    associated with this phy.
- * @next_state: This parameter specifies the next state for the phy's starting
- *    sub-state machine.
- *
- */
-static void scic_sds_phy_complete_link_training(
-	struct scic_sds_phy *sci_phy,
-	enum sas_linkrate max_link_rate,
-	u32 next_state)
-{
-	sci_phy->max_negotiated_speed = max_link_rate;
-
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    next_state);
-}
-
-static void scic_sds_phy_restart_starting_state(
-	struct scic_sds_phy *sci_phy)
-{
-	/* Re-enter the base state machine starting state */
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCI_BASE_PHY_STATE_STARTING);
-}
-
-/**
- *
- * @phy: This struct scic_sds_phy object which has received an event.
- * @event_code: This is the event code which the phy object is to decode.
- *
- * This method is called when an event notification is received for the phy
- * object when in the state SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SPEED_EN. -
- * decode the event - sas phy detected causes a state transition to the wait
- * for speed event notification. - any other events log a warning message and
- * set a failure status enum sci_status SCI_SUCCESS on any valid event notification
- * SCI_FAILURE on any unexpected event notifation
- */
-static enum sci_status scic_sds_phy_starting_substate_await_ossp_event_handler(
-	struct scic_sds_phy *sci_phy,
-	u32 event_code)
-{
-	u32 result = SCI_SUCCESS;
-
-	switch (scu_get_event_code(event_code)) {
-	case SCU_EVENT_SAS_PHY_DETECTED:
-		scic_sds_phy_start_sas_link_training(sci_phy);
-		sci_phy->is_in_link_training = true;
-		break;
-
-	case SCU_EVENT_SATA_SPINUP_HOLD:
-		scic_sds_phy_start_sata_link_training(sci_phy);
-		sci_phy->is_in_link_training = true;
-		break;
-
-	default:
-		dev_dbg(sciphy_to_dev(sci_phy),
-			"%s: PHY starting substate machine received "
-			"unexpected event_code %x\n",
-			__func__,
-			event_code);
-
-		result = SCI_FAILURE;
-		break;
-	}
-
-	return result;
-}
-
-/**
- *
- * @phy: This struct scic_sds_phy object which has received an event.
- * @event_code: This is the event code which the phy object is to decode.
- *
- * This method is called when an event notification is received for the phy
- * object when in the state SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SPEED_EN. -
- * decode the event - sas phy detected returns us back to this state. - speed
- * event detected causes a state transition to the wait for iaf. - identify
- * timeout is an un-expected event and the state machine is restarted. - link
- * failure events restart the starting state machine - any other events log a
- * warning message and set a failure status enum sci_status SCI_SUCCESS on any valid
- * event notification SCI_FAILURE on any unexpected event notifation
- */
-static enum sci_status scic_sds_phy_starting_substate_await_sas_phy_speed_event_handler(
-	struct scic_sds_phy *sci_phy,
-	u32 event_code)
-{
-	u32 result = SCI_SUCCESS;
-
-	switch (scu_get_event_code(event_code)) {
-	case SCU_EVENT_SAS_PHY_DETECTED:
-		/*
-		 * Why is this being reported again by the controller?
-		 * We would re-enter this state so just stay here */
-		break;
-
-	case SCU_EVENT_SAS_15:
-	case SCU_EVENT_SAS_15_SSC:
-		scic_sds_phy_complete_link_training(
-			sci_phy,
-			SAS_LINK_RATE_1_5_GBPS,
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF);
-		break;
-
-	case SCU_EVENT_SAS_30:
-	case SCU_EVENT_SAS_30_SSC:
-		scic_sds_phy_complete_link_training(
-			sci_phy,
-			SAS_LINK_RATE_3_0_GBPS,
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF);
-		break;
-
-	case SCU_EVENT_SAS_60:
-	case SCU_EVENT_SAS_60_SSC:
-		scic_sds_phy_complete_link_training(
-			sci_phy,
-			SAS_LINK_RATE_6_0_GBPS,
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF);
-		break;
-
-	case SCU_EVENT_SATA_SPINUP_HOLD:
-		/*
-		 * We were doing SAS PHY link training and received a SATA PHY event
-		 * continue OOB/SN as if this were a SATA PHY */
-		scic_sds_phy_start_sata_link_training(sci_phy);
-		break;
-
-	case SCU_EVENT_LINK_FAILURE:
-		/* Link failure change state back to the starting state */
-		scic_sds_phy_restart_starting_state(sci_phy);
-		break;
-
-	default:
-		dev_warn(sciphy_to_dev(sci_phy),
-			 "%s: PHY starting substate machine received "
-			 "unexpected event_code %x\n",
-			 __func__,
-			 event_code);
-
-		result = SCI_FAILURE;
-		break;
-	}
-
-	return result;
-}
-
-/**
- *
- * @phy: This struct scic_sds_phy object which has received an event.
- * @event_code: This is the event code which the phy object is to decode.
- *
- * This method is called when an event notification is received for the phy
- * object when in the state SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF. -
- * decode the event - sas phy detected event backs up the state machine to the
- * await speed notification. - identify timeout is an un-expected event and the
- * state machine is restarted. - link failure events restart the starting state
- * machine - any other events log a warning message and set a failure status
- * enum sci_status SCI_SUCCESS on any valid event notification SCI_FAILURE on any
- * unexpected event notifation
- */
-static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_event_handler(
-	struct scic_sds_phy *sci_phy,
-	u32 event_code)
-{
-	u32 result = SCI_SUCCESS;
-
-	switch (scu_get_event_code(event_code)) {
-	case SCU_EVENT_SAS_PHY_DETECTED:
-		/* Backup the state machine */
-		scic_sds_phy_start_sas_link_training(sci_phy);
-		break;
-
-	case SCU_EVENT_SATA_SPINUP_HOLD:
-		/*
-		 * We were doing SAS PHY link training and received a SATA PHY event
-		 * continue OOB/SN as if this were a SATA PHY */
-		scic_sds_phy_start_sata_link_training(sci_phy);
-		break;
-
-	case SCU_EVENT_RECEIVED_IDENTIFY_TIMEOUT:
-	case SCU_EVENT_LINK_FAILURE:
-	case SCU_EVENT_HARD_RESET_RECEIVED:
-		/* Start the oob/sn state machine over again */
-		scic_sds_phy_restart_starting_state(sci_phy);
-		break;
-
-	default:
-		dev_warn(sciphy_to_dev(sci_phy),
-			 "%s: PHY starting substate machine received "
-			 "unexpected event_code %x\n",
-			 __func__,
-			 event_code);
-
-		result = SCI_FAILURE;
-		break;
-	}
-
-	return result;
-}
-
-/**
- *
- * @phy: This struct scic_sds_phy object which has received an event.
- * @event_code: This is the event code which the phy object is to decode.
- *
- * This method is called when an event notification is received for the phy
- * object when in the state SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_POWER. -
- * decode the event - link failure events restart the starting state machine -
- * any other events log a warning message and set a failure status enum sci_status
- * SCI_SUCCESS on a link failure event SCI_FAILURE on any unexpected event
- * notifation
- */
-static enum sci_status scic_sds_phy_starting_substate_await_sas_power_event_handler(
-	struct scic_sds_phy *sci_phy,
-	u32 event_code)
-{
-	u32 result = SCI_SUCCESS;
-
-	switch (scu_get_event_code(event_code)) {
-	case SCU_EVENT_LINK_FAILURE:
-		/* Link failure change state back to the starting state */
-		scic_sds_phy_restart_starting_state(sci_phy);
-		break;
-
-	default:
-		dev_warn(sciphy_to_dev(sci_phy),
-			"%s: PHY starting substate machine received unexpected "
-			"event_code %x\n",
-			__func__,
-			event_code);
-
-		result = SCI_FAILURE;
-		break;
-	}
-
-	return result;
-}
-
-/**
- *
- * @phy: This struct scic_sds_phy object which has received an event.
- * @event_code: This is the event code which the phy object is to decode.
- *
- * This method is called when an event notification is received for the phy
- * object when in the state SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER. -
- * decode the event - link failure events restart the starting state machine -
- * sata spinup hold events are ignored since they are expected - any other
- * events log a warning message and set a failure status enum sci_status SCI_SUCCESS
- * on a link failure event SCI_FAILURE on any unexpected event notifation
- */
-static enum sci_status scic_sds_phy_starting_substate_await_sata_power_event_handler(
-	struct scic_sds_phy *sci_phy,
-	u32 event_code)
-{
-	u32 result = SCI_SUCCESS;
-
-	switch (scu_get_event_code(event_code)) {
-	case SCU_EVENT_LINK_FAILURE:
-		/* Link failure change state back to the starting state */
-		scic_sds_phy_restart_starting_state(sci_phy);
-		break;
-
-	case SCU_EVENT_SATA_SPINUP_HOLD:
-		/* These events are received every 10ms and are expected while in this state */
-		break;
-
-	case SCU_EVENT_SAS_PHY_DETECTED:
-		/*
-		 * There has been a change in the phy type before OOB/SN for the
-		 * SATA finished start down the SAS link traning path. */
-		scic_sds_phy_start_sas_link_training(sci_phy);
-		break;
-
-	default:
-		dev_warn(sciphy_to_dev(sci_phy),
-			 "%s: PHY starting substate machine received "
-			 "unexpected event_code %x\n",
-			 __func__,
-			 event_code);
-
-		result = SCI_FAILURE;
-		break;
-	}
-
-	return result;
-}
-
-/**
- * scic_sds_phy_starting_substate_await_sata_phy_event_handler -
- * @phy: This struct scic_sds_phy object which has received an event.
- * @event_code: This is the event code which the phy object is to decode.
- *
- * This method is called when an event notification is received for the phy
- * object when in the state SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN. -
- * decode the event - link failure events restart the starting state machine -
- * sata spinup hold events are ignored since they are expected - sata phy
- * detected event change to the wait speed event - any other events log a
- * warning message and set a failure status enum sci_status SCI_SUCCESS on a link
- * failure event SCI_FAILURE on any unexpected event notifation
- */
-static enum sci_status scic_sds_phy_starting_substate_await_sata_phy_event_handler(
-	struct scic_sds_phy *sci_phy, u32 event_code)
-{
-	u32 result = SCI_SUCCESS;
-
-	switch (scu_get_event_code(event_code)) {
-	case SCU_EVENT_LINK_FAILURE:
-		/* Link failure change state back to the starting state */
-		scic_sds_phy_restart_starting_state(sci_phy);
-		break;
-
-	case SCU_EVENT_SATA_SPINUP_HOLD:
-		/* These events might be received since we dont know how many may be in
-		 * the completion queue while waiting for power
-		 */
-		break;
-
-	case SCU_EVENT_SATA_PHY_DETECTED:
-		sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SATA;
-
-		/* We have received the SATA PHY notification change state */
-		sci_base_state_machine_change_state(&sci_phy->state_machine,
-						    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN);
-		break;
-
-	case SCU_EVENT_SAS_PHY_DETECTED:
-		/* There has been a change in the phy type before OOB/SN for the
-		 * SATA finished start down the SAS link traning path.
-		 */
-		scic_sds_phy_start_sas_link_training(sci_phy);
-		break;
-
-	default:
-		dev_warn(sciphy_to_dev(sci_phy),
-			 "%s: PHY starting substate machine received "
-			 "unexpected event_code %x\n",
-			 __func__,
-			 event_code);
-
-		result = SCI_FAILURE;
-		break;
-	}
-
-	return result;
-}
-
-/**
- *
- * @phy: This struct scic_sds_phy object which has received an event.
- * @event_code: This is the event code which the phy object is to decode.
- *
- * This method is called when an event notification is received for the phy
- * object when in the state SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN.
- * - decode the event - sata phy detected returns us back to this state. -
- * speed event detected causes a state transition to the wait for signature. -
- * link failure events restart the starting state machine - any other events
- * log a warning message and set a failure status enum sci_status SCI_SUCCESS on any
- * valid event notification SCI_FAILURE on any unexpected event notifation
- */
-static enum sci_status scic_sds_phy_starting_substate_await_sata_speed_event_handler(
-	struct scic_sds_phy *sci_phy,
-	u32 event_code)
-{
-	u32 result = SCI_SUCCESS;
-
-	switch (scu_get_event_code(event_code)) {
-	case SCU_EVENT_SATA_PHY_DETECTED:
-		/*
-		 * The hardware reports multiple SATA PHY detected events
-		 * ignore the extras */
-		break;
-
-	case SCU_EVENT_SATA_15:
-	case SCU_EVENT_SATA_15_SSC:
-		scic_sds_phy_complete_link_training(
-			sci_phy,
-			SAS_LINK_RATE_1_5_GBPS,
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
-		break;
-
-	case SCU_EVENT_SATA_30:
-	case SCU_EVENT_SATA_30_SSC:
-		scic_sds_phy_complete_link_training(
-			sci_phy,
-			SAS_LINK_RATE_3_0_GBPS,
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
-		break;
-
-	case SCU_EVENT_SATA_60:
-	case SCU_EVENT_SATA_60_SSC:
-		scic_sds_phy_complete_link_training(
-			sci_phy,
-			SAS_LINK_RATE_6_0_GBPS,
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
-		break;
-
-	case SCU_EVENT_LINK_FAILURE:
-		/* Link failure change state back to the starting state */
-		scic_sds_phy_restart_starting_state(sci_phy);
-		break;
-
-	case SCU_EVENT_SAS_PHY_DETECTED:
-		/*
-		 * There has been a change in the phy type before OOB/SN for the
-		 * SATA finished start down the SAS link traning path. */
-		scic_sds_phy_start_sas_link_training(sci_phy);
-		break;
-
-	default:
-		dev_warn(sciphy_to_dev(sci_phy),
-			 "%s: PHY starting substate machine received "
-			 "unexpected event_code %x\n",
-			 __func__,
-			 event_code);
-
-		result = SCI_FAILURE;
-		break;
-	}
-
-	return result;
-}
-
-/**
- * scic_sds_phy_starting_substate_await_sig_fis_event_handler -
- * @phy: This struct scic_sds_phy object which has received an event.
- * @event_code: This is the event code which the phy object is to decode.
- *
- * This method is called when an event notification is received for the phy
- * object when in the state SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF. -
- * decode the event - sas phy detected event backs up the state machine to the
- * await speed notification. - identify timeout is an un-expected event and the
- * state machine is restarted. - link failure events restart the starting state
- * machine - any other events log a warning message and set a failure status
- * enum sci_status SCI_SUCCESS on any valid event notification SCI_FAILURE on any
- * unexpected event notifation
- */
-static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_event_handler(
-	struct scic_sds_phy *sci_phy, u32 event_code)
-{
-	u32 result = SCI_SUCCESS;
-
-	switch (scu_get_event_code(event_code)) {
-	case SCU_EVENT_SATA_PHY_DETECTED:
-		/* Backup the state machine */
-		sci_base_state_machine_change_state(&sci_phy->state_machine,
-						    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN);
-		break;
-
-	case SCU_EVENT_LINK_FAILURE:
-		/* Link failure change state back to the starting state */
-		scic_sds_phy_restart_starting_state(sci_phy);
-		break;
-
-	default:
-		dev_warn(sciphy_to_dev(sci_phy),
-			 "%s: PHY starting substate machine received "
-			 "unexpected event_code %x\n",
-			 __func__,
-			 event_code);
-
-		result = SCI_FAILURE;
-		break;
-	}
-
-	return result;
-}
-
-/*
- * This method is called by the struct scic_sds_controller when the phy object is
- * granted power. - The notify enable spinups are turned on for this phy object
- * - The phy state machine is transitioned to the
- * SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL. enum sci_status SCI_SUCCESS
- */
-static enum sci_status scic_sds_phy_starting_substate_await_sas_power_consume_power_handler(
-	struct scic_sds_phy *sci_phy)
-{
-	u32 enable_spinup;
-
-	enable_spinup = readl(&sci_phy->link_layer_registers->notify_enable_spinup_control);
-	enable_spinup |= SCU_ENSPINUP_GEN_BIT(ENABLE);
-	writel(enable_spinup, &sci_phy->link_layer_registers->notify_enable_spinup_control);
-
-	/* Change state to the final state this substate machine has run to completion */
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
-
-	return SCI_SUCCESS;
-}
-
-/*
- * This method is called by the struct scic_sds_controller when the phy object is
- * granted power. - The phy state machine is transitioned to the
- * SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN. enum sci_status SCI_SUCCESS
- */
-static enum sci_status scic_sds_phy_starting_substate_await_sata_power_consume_power_handler(
-	struct scic_sds_phy *sci_phy)
-{
-	u32 scu_sas_pcfg_value;
-
-	/* Release the spinup hold state and reset the OOB state machine */
-	scu_sas_pcfg_value =
-		readl(&sci_phy->link_layer_registers->phy_configuration);
-	scu_sas_pcfg_value &=
-		~(SCU_SAS_PCFG_GEN_BIT(SATA_SPINUP_HOLD) | SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE));
-	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
-	writel(scu_sas_pcfg_value,
-		&sci_phy->link_layer_registers->phy_configuration);
-
-	/* Now restart the OOB operation */
-	scu_sas_pcfg_value &= ~SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
-	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
-	writel(scu_sas_pcfg_value,
-		&sci_phy->link_layer_registers->phy_configuration);
-
-	/* Change state to the final state this substate machine has run to completion */
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN);
-
-	return SCI_SUCCESS;
-}
-
-static enum sci_status default_phy_handler(struct scic_sds_phy *sci_phy,
-					   const char *func)
-{
-	dev_dbg(sciphy_to_dev(sci_phy),
-		 "%s: in wrong state: %d\n", func,
-		 sci_base_state_machine_get_state(&sci_phy->state_machine));
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-static enum sci_status
-scic_sds_phy_default_event_handler(struct scic_sds_phy *sci_phy,
-				   u32 event_code)
-{
-	return default_phy_handler(sci_phy, __func__);
-}
-
-static enum sci_status
-scic_sds_phy_default_consume_power_handler(struct scic_sds_phy *sci_phy)
-{
-	return default_phy_handler(sci_phy, __func__);
-}
-
-/**
- * scic_sds_phy_ready_state_event_handler -
- * @phy: This is the struct scic_sds_phy object which has received the event.
- *
- * This method request the struct scic_sds_phy handle the received event.  The only
- * event that we are interested in while in the ready state is the link failure
- * event. - decoded event is a link failure - transition the struct scic_sds_phy back
- * to the SCI_BASE_PHY_STATE_STARTING state. - any other event received will
- * report a warning message enum sci_status SCI_SUCCESS if the event received is a
- * link failure SCI_FAILURE_INVALID_STATE for any other event received.
- */
-static enum sci_status scic_sds_phy_ready_state_event_handler(struct scic_sds_phy *sci_phy,
-							      u32 event_code)
-{
-	enum sci_status result = SCI_FAILURE;
-
-	switch (scu_get_event_code(event_code)) {
-	case SCU_EVENT_LINK_FAILURE:
-		/* Link failure change state back to the starting state */
-		sci_base_state_machine_change_state(&sci_phy->state_machine,
-						    SCI_BASE_PHY_STATE_STARTING);
-		result = SCI_SUCCESS;
-		break;
-
-	case SCU_EVENT_BROADCAST_CHANGE:
-		/* Broadcast change received. Notify the port. */
-		if (scic_sds_phy_get_port(sci_phy) != NULL)
-			scic_sds_port_broadcast_change_received(sci_phy->owning_port, sci_phy);
-		else
-			sci_phy->bcn_received_while_port_unassigned = true;
-		break;
-
-	default:
-		dev_warn(sciphy_to_dev(sci_phy),
-			 "%sP SCIC PHY 0x%p ready state machine received "
-			 "unexpected event_code %x\n",
-			 __func__, sci_phy, event_code);
-
-		result = SCI_FAILURE_INVALID_STATE;
-		break;
-	}
-
-	return result;
-}
-
-static enum sci_status scic_sds_phy_resetting_state_event_handler(struct scic_sds_phy *sci_phy,
-								  u32 event_code)
-{
-	enum sci_status result = SCI_FAILURE;
-
-	switch (scu_get_event_code(event_code)) {
-	case SCU_EVENT_HARD_RESET_TRANSMITTED:
-		/* Link failure change state back to the starting state */
-		sci_base_state_machine_change_state(&sci_phy->state_machine,
-						    SCI_BASE_PHY_STATE_STARTING);
-		result = SCI_SUCCESS;
-		break;
-
-	default:
-		dev_warn(sciphy_to_dev(sci_phy),
-			 "%s: SCIC PHY 0x%p resetting state machine received "
-			 "unexpected event_code %x\n",
-			 __func__, sci_phy, event_code);
-
-		result = SCI_FAILURE_INVALID_STATE;
-		break;
-	}
-
-	return result;
-}
 
 /* --------------------------------------------------------------------------- */
 
 static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[] = {
 	[SCI_BASE_PHY_STATE_INITIAL] = {
-		.event_handler		 = scic_sds_phy_default_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_STOPPED]  = {
-		.event_handler		 = scic_sds_phy_default_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_STARTING] = {
-		.event_handler		 = scic_sds_phy_default_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL] = {
-		.event_handler		= scic_sds_phy_default_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN] = {
-		.event_handler		= scic_sds_phy_starting_substate_await_ossp_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN] = {
-		.event_handler		= scic_sds_phy_starting_substate_await_sas_phy_speed_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF] = {
-		.event_handler		= scic_sds_phy_starting_substate_await_iaf_uf_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER] = {
-		.event_handler		= scic_sds_phy_starting_substate_await_sas_power_event_handler,
 		.consume_power_handler	= scic_sds_phy_starting_substate_await_sas_power_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER] = {
-		.event_handler		= scic_sds_phy_starting_substate_await_sata_power_event_handler,
 		.consume_power_handler	= scic_sds_phy_starting_substate_await_sata_power_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN] = {
-		.event_handler		= scic_sds_phy_starting_substate_await_sata_phy_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN] = {
-		.event_handler		= scic_sds_phy_starting_substate_await_sata_speed_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF] = {
-		.event_handler		= scic_sds_phy_starting_substate_await_sig_fis_event_handler,
 		.consume_power_handler	= scic_sds_phy_default_consume_power_handler
 	},
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL] = {
-		.event_handler		 = scic_sds_phy_default_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_READY] = {
-		.event_handler		 = scic_sds_phy_ready_state_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_RESETTING] = {
-		.event_handler		 = scic_sds_phy_resetting_state_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	},
 	[SCI_BASE_PHY_STATE_FINAL] = {
-		.event_handler		 = scic_sds_phy_default_event_handler,
 		.consume_power_handler	 = scic_sds_phy_default_consume_power_handler
 	}
 };
