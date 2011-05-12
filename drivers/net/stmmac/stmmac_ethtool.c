@@ -236,17 +236,8 @@ stmmac_set_pauseparam(struct net_device *netdev,
 	priv->flow_ctrl = new_pause;
 
 	if (phy->autoneg) {
-		if (netif_running(netdev)) {
-			struct ethtool_cmd cmd = { .cmd = ETHTOOL_SSET };
-			/* auto-negotiation automatically restarted */
-			cmd.supported = phy->supported;
-			cmd.advertising = phy->advertising;
-			cmd.autoneg = phy->autoneg;
-			ethtool_cmd_speed_set(&cmd, phy->speed);
-			cmd.duplex = phy->duplex;
-			cmd.phy_address = phy->addr;
-			ret = phy_ethtool_sset(phy, &cmd);
-		}
+		if (netif_running(netdev))
+			ret = phy_start_aneg(phy);
 	} else
 		priv->hw->mac->flow_ctrl(priv->ioaddr, phy->duplex,
 					 priv->flow_ctrl, priv->pause);
