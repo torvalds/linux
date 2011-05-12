@@ -880,8 +880,6 @@ release_pvec_pages:
 out:
 	if (req)
 		ceph_osdc_put_request(req);
-	if (rc > 0)
-		rc = 0;  /* vfs expects us to return 0 */
 	ceph_put_snap_context(snapc);
 	dout("writepages done, rc = %d\n", rc);
 	return rc;
