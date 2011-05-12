@@ -1608,7 +1608,7 @@ void mmc_rescan(struct work_struct *work)
 	for (i = 0; i < ARRAY_SIZE(freqs); i++) {
 		if (!mmc_rescan_try_freq(host, max(freqs[i], host->f_min)))
 			break;
-		if (freqs[i] < host->f_min)
+		if (freqs[i] <= host->f_min)
 			break;
 	}
 	mmc_release_host(host);
