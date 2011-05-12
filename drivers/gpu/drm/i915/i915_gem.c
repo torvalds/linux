@@ -354,7 +354,7 @@ i915_gem_shmem_pread_fast(struct drm_device *dev,
 		 * page_offset = offset within page
 		 * page_length = bytes to copy for this page
 		 */
-		page_offset = offset & (PAGE_SIZE-1);
+		page_offset = offset_in_page(offset);
 		page_length = remain;
 		if ((page_offset + remain) > PAGE_SIZE)
 			page_length = PAGE_SIZE - page_offset;
@@ -453,9 +453,9 @@ i915_gem_shmem_pread_slow(struct drm_device *dev,
 		 * data_page_offset = offset with data_page_index page.
 		 * page_length = bytes to copy for this page
 		 */
-		shmem_page_offset = offset & ~PAGE_MASK;
+		shmem_page_offset = offset_in_page(offset);
 		data_page_index = data_ptr / PAGE_SIZE - first_data_page;
-		data_page_offset = data_ptr & ~PAGE_MASK;
+		data_page_offset = offset_in_page(data_ptr);
 
 		page_length = remain;
 		if ((shmem_page_offset + page_length) > PAGE_SIZE)
@@ -638,8 +638,8 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 		 * page_offset = offset within page
 		 * page_length = bytes to copy for this page
 		 */
-		page_base = (offset & ~(PAGE_SIZE-1));
-		page_offset = offset & (PAGE_SIZE-1);
+		page_base = offset & PAGE_MASK;
+		page_offset = offset_in_page(offset);
 		page_length = remain;
 		if ((page_offset + remain) > PAGE_SIZE)
 			page_length = PAGE_SIZE - page_offset;
@@ -650,7 +650,6 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 		 */
 		if (fast_user_write(dev_priv->mm.gtt_mapping, page_base,
 				    page_offset, user_data, page_length))
-
 			return -EFAULT;
 
 		remain -= page_length;
@@ -730,9 +729,9 @@ i915_gem_gtt_pwrite_slow(struct drm_device *dev,
 		 * page_length = bytes to copy for this page
 		 */
 		gtt_page_base = offset & PAGE_MASK;
-		gtt_page_offset = offset & ~PAGE_MASK;
+		gtt_page_offset = offset_in_page(offset);
 		data_page_index = data_ptr / PAGE_SIZE - first_data_page;
-		data_page_offset = data_ptr & ~PAGE_MASK;
+		data_page_offset = offset_in_page(data_ptr);
 
 		page_length = remain;
 		if ((gtt_page_offset + page_length) > PAGE_SIZE)
@@ -791,7 +790,7 @@ i915_gem_shmem_pwrite_fast(struct drm_device *dev,
 		 * page_offset = offset within page
 		 * page_length = bytes to copy for this page
 		 */
-		page_offset = offset & (PAGE_SIZE-1);
+		page_offset = offset_in_page(offset);
 		page_length = remain;
 		if ((page_offset + remain) > PAGE_SIZE)
 			page_length = PAGE_SIZE - page_offset;
@@ -896,9 +895,9 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev,
 		 * data_page_offset = offset with data_page_index page.
 		 * page_length = bytes to copy for this page
 		 */
-		shmem_page_offset = offset & ~PAGE_MASK;
+		shmem_page_offset = offset_in_page(offset);
 		data_page_index = data_ptr / PAGE_SIZE - first_data_page;
-		data_page_offset = data_ptr & ~PAGE_MASK;
+		data_page_offset = offset_in_page(data_ptr);
 
 		page_length = remain;
 		if ((shmem_page_offset + page_length) > PAGE_SIZE)
