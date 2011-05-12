@@ -84,31 +84,6 @@ struct scic_sds_remote_node_context;
 
 typedef void (*scics_sds_remote_node_context_callback)(void *);
 
-typedef enum sci_status (*scic_sds_remote_node_context_operation)(
-	struct scic_sds_remote_node_context *sci_rnc,
-	scics_sds_remote_node_context_callback callback,
-	void *callback_parameter
-	);
-
-typedef enum sci_status (*scic_sds_remote_node_context_io_request)(
-	struct scic_sds_remote_node_context *sci_rnc,
-	struct scic_sds_request *sci_req
-	);
-
-struct scic_sds_remote_node_context_handlers {
-	/**
-	 * This handler is invoked when there is a request to start an io request
-	 * operation.
-	 */
-	scic_sds_remote_node_context_io_request start_io_handler;
-
-	/**
-	 * This handler is invoked when there is a request to start a task request
-	 * operation.
-	 */
-	scic_sds_remote_node_context_io_request start_task_handler;
-};
-
 /**
  * This is the enumeration of the remote node context states.
  */
@@ -220,8 +195,6 @@ struct scic_sds_remote_node_context {
 	 * This field contains the data for the object's state machine.
 	 */
 	struct sci_base_state_machine state_machine;
-
-	struct scic_sds_remote_node_context_handlers *state_handlers;
 };
 
 void scic_sds_remote_node_context_construct(struct scic_sds_remote_node_context *rnc,
@@ -236,24 +209,19 @@ bool scic_sds_remote_node_context_is_ready(
 
 enum sci_status scic_sds_remote_node_context_event_handler(struct scic_sds_remote_node_context *sci_rnc,
 							   u32 event_code);
-
 enum sci_status scic_sds_remote_node_context_destruct(struct scic_sds_remote_node_context *sci_rnc,
 						      scics_sds_remote_node_context_callback callback,
 						      void *callback_parameter);
-
 enum sci_status scic_sds_remote_node_context_suspend(struct scic_sds_remote_node_context *sci_rnc,
 						     u32 suspend_type,
 						     scics_sds_remote_node_context_callback cb_fn,
 						     void *cb_p);
-
 enum sci_status scic_sds_remote_node_context_resume(struct scic_sds_remote_node_context *sci_rnc,
 						    scics_sds_remote_node_context_callback cb_fn,
 						    void *cb_p);
-
-#define scic_sds_remote_node_context_start_io(rnc, request) \
-	((rnc)->state_handlers->start_io_handler(rnc, request))
-
-#define scic_sds_remote_node_context_start_task(rnc, task) \
-	((rnc)->state_handlers->start_task_handler(rnc, task))
+enum sci_status scic_sds_remote_node_context_start_task(struct scic_sds_remote_node_context *sci_rnc,
+							struct scic_sds_request *sci_req);
+enum sci_status scic_sds_remote_node_context_start_io(struct scic_sds_remote_node_context *sci_rnc,
+						      struct scic_sds_request *sci_req);
 
 #endif  /* _SCIC_SDS_REMOTE_NODE_CONTEXT_H_ */

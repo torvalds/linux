@@ -84,14 +84,6 @@ struct sci_base_state {
 };
 
 /**
- * SET_STATE_HANDLER() -
- *
- * This macro simply provides simplified retrieval of an objects state handler.
- */
-#define SET_STATE_HANDLER(object, table, state)	\
-	(object)->state_handlers = &(table)[(state)]
-
-/**
  * struct sci_base_state_machine - This structure defines the fields common to
  *    all state machines.
  *
