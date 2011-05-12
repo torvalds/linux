@@ -3454,7 +3454,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 {
 	u32 max_sectors_1;
 	u32 max_sectors_2;
-	u32 tmp_sectors;
+	u32 tmp_sectors, msix_enable;
 	struct megasas_register_set __iomem *reg_set;
 	struct megasas_ctrl_info *ctrl_info;
 	unsigned long bar_list;
@@ -3506,6 +3506,13 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	 */
 	if (megasas_transition_to_ready(instance))
 		goto fail_ready_state;
+
+	/* Check if MSI-X is supported while in ready state */
+	msix_enable = (instance->instancet->read_fw_status_reg(reg_set) &
+		       0x4000000) >> 0x1a;
+	if (msix_enable && !msix_disable &&
+	    !pci_enable_msix(instance->pdev, &instance->msixentry, 1))
+		instance->msi_flag = 1;
 
 	/* Get operational params, sge flags, send init cmd to controller */
 	if (instance->instancet->init_adapter(instance))
@@ -4076,14 +4083,6 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		INIT_WORK(&instance->work_init, process_fw_state_change_wq);
 
-	/* Try to enable MSI-X */
-	if ((instance->pdev->device != PCI_DEVICE_ID_LSI_SAS1078R) &&
-	    (instance->pdev->device != PCI_DEVICE_ID_LSI_SAS1078DE) &&
-	    (instance->pdev->device != PCI_DEVICE_ID_LSI_VERDE_ZCR) &&
-	    !msix_disable && !pci_enable_msix(instance->pdev,
-					      &instance->msixentry, 1))
-		instance->msi_flag = 1;
-
 	/*
 	 * Initialize MFI Firmware
 	 */
@@ -4332,10 +4331,6 @@ megasas_resume(struct pci_dev *pdev)
 	if (megasas_set_dma_mask(pdev))
 		goto fail_set_dma_mask;
 
-	/* Now re-enable MSI-X */
-	if (instance->msi_flag)
-		pci_enable_msix(instance->pdev, &instance->msixentry, 1);
-
 	/*
 	 * Initialize MFI Firmware
 	 */
@@ -4347,6 +4342,10 @@ megasas_resume(struct pci_dev *pdev)
 	 */
 	if (megasas_transition_to_ready(instance))
 		goto fail_ready_state;
+
+	/* Now re-enable MSI-X */
+	if (instance->msi_flag)
+		pci_enable_msix(instance->pdev, &instance->msixentry, 1);
 
 	switch (instance->pdev->device) {
 	case PCI_DEVICE_ID_LSI_FUSION:
