@@ -113,7 +113,7 @@ enum blkif_protocol {
 	BLKIF_PROTOCOL_X86_64 = 3,
 };
 
-struct vbd {
+struct xen_vbd {
 	/* What the domain refers to this vbd as. */
 	blkif_vdev_t		handle;
 	/* Non-zero -> read-only */
@@ -141,7 +141,7 @@ struct xen_blkif {
 	union blkif_back_rings	blk_rings;
 	struct vm_struct	*blk_ring_area;
 	/* The VBD attached to this interface. */
-	struct vbd		vbd;
+	struct xen_vbd		vbd;
 	/* Back pointer to the backend_info. */
 	struct backend_info	*be;
 	/* Private fields. */

@@ -166,10 +166,10 @@ static void free_req(struct pending_req *req)
 /*
  * Routines for managing virtual block devices (vbds).
  */
-static int vbd_translate(struct phys_req *req, struct xen_blkif *blkif,
-			 int operation)
+static int xen_vbd_translate(struct phys_req *req, struct xen_blkif *blkif,
+			     int operation)
 {
-	struct vbd *vbd = &blkif->vbd;
+	struct xen_vbd *vbd = &blkif->vbd;
 	int rc = -EACCES;
 
 	if ((operation != READ) && vbd->readonly)
@@ -186,9 +186,9 @@ static int vbd_translate(struct phys_req *req, struct xen_blkif *blkif,
 	return rc;
 }
 
-static void vbd_resize(struct xen_blkif *blkif)
+static void xen_vbd_resize(struct xen_blkif *blkif)
 {
-	struct vbd *vbd = &blkif->vbd;
+	struct xen_vbd *vbd = &blkif->vbd;
 	struct xenbus_transaction xbt;
 	int err;
 	struct xenbus_device *dev = xen_blkbk_xenbus(blkif->be);
@@ -263,7 +263,7 @@ static void print_stats(struct xen_blkif *blkif)
 int xen_blkif_schedule(void *arg)
 {
 	struct xen_blkif *blkif = arg;
-	struct vbd *vbd = &blkif->vbd;
+	struct xen_vbd *vbd = &blkif->vbd;
 
 	xen_blkif_get(blkif);
 
@@ -271,7 +271,7 @@ int xen_blkif_schedule(void *arg)
 		if (try_to_freeze())
 			continue;
 		if (unlikely(vbd->size != vbd_sz(vbd)))
-			vbd_resize(blkif);
+			xen_vbd_resize(blkif);
 
 		wait_event_interruptible(
 			blkif->wq,
@@ -538,7 +538,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		blkif->st_f_req++;
 		operation = WRITE_FLUSH;
 		/*
-		 * The frontend likes to set this to -1, which vbd_translate
+		 * The frontend likes to set this to -1, which xen_vbd_translate
 		 * is alergic too.
 		 */
 		req->u.rw.sector_number = 0;
@@ -580,7 +580,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 
 	}
 
-	if (vbd_translate(&preq, blkif, operation) != 0) {
+	if (xen_vbd_translate(&preq, blkif, operation) != 0) {
 		pr_debug(DRV_PFX "access denied: %s of [%llu,%llu] on dev=%04x\n",
 			 operation == READ ? "read" : "write",
 			 preq.sector_number,
@@ -589,7 +589,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	}
 
 	/*
-	 * This check _MUST_ be done after vbd_translate as the preq.bdev
+	 * This check _MUST_ be done after xen_vbd_translate as the preq.bdev
 	 * is set there.
 	 */
 	for (i = 0; i < nseg; i++) {

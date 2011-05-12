@@ -275,7 +275,7 @@ VBD_SHOW(f_req,  "%d\n", be->blkif->st_f_req);
 VBD_SHOW(rd_sect, "%d\n", be->blkif->st_rd_sect);
 VBD_SHOW(wr_sect, "%d\n", be->blkif->st_wr_sect);
 
-static struct attribute *vbdstat_attrs[] = {
+static struct attribute *xen_vbdstat_attrs[] = {
 	&dev_attr_oo_req.attr,
 	&dev_attr_rd_req.attr,
 	&dev_attr_wr_req.attr,
@@ -285,9 +285,9 @@ static struct attribute *vbdstat_attrs[] = {
 	NULL
 };
 
-static struct attribute_group vbdstat_group = {
+static struct attribute_group xen_vbdstat_group = {
 	.name = "statistics",
-	.attrs = vbdstat_attrs,
+	.attrs = xen_vbdstat_attrs,
 };
 
 VBD_SHOW(physical_device, "%x:%x\n", be->major, be->minor);
@@ -305,13 +305,13 @@ int xenvbd_sysfs_addif(struct xenbus_device *dev)
 	if (error)
 		goto fail2;
 
-	error = sysfs_create_group(&dev->dev.kobj, &vbdstat_group);
+	error = sysfs_create_group(&dev->dev.kobj, &xen_vbdstat_group);
 	if (error)
 		goto fail3;
 
 	return 0;
 
-fail3:	sysfs_remove_group(&dev->dev.kobj, &vbdstat_group);
+fail3:	sysfs_remove_group(&dev->dev.kobj, &xen_vbdstat_group);
 fail2:	device_remove_file(&dev->dev, &dev_attr_mode);
 fail1:	device_remove_file(&dev->dev, &dev_attr_physical_device);
 	return error;
@@ -319,24 +319,24 @@ fail1:	device_remove_file(&dev->dev, &dev_attr_physical_device);
 
 void xenvbd_sysfs_delif(struct xenbus_device *dev)
 {
-	sysfs_remove_group(&dev->dev.kobj, &vbdstat_group);
+	sysfs_remove_group(&dev->dev.kobj, &xen_vbdstat_group);
 	device_remove_file(&dev->dev, &dev_attr_mode);
 	device_remove_file(&dev->dev, &dev_attr_physical_device);
 }
 
 
-static void vbd_free(struct vbd *vbd)
+static void xen_vbd_free(struct xen_vbd *vbd)
 {
 	if (vbd->bdev)
 		blkdev_put(vbd->bdev, vbd->readonly ? FMODE_READ : FMODE_WRITE);
 	vbd->bdev = NULL;
 }
 
-static int vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
-		      unsigned major, unsigned minor, int readonly,
-		      int cdrom)
+static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
+			  unsigned major, unsigned minor, int readonly,
+			  int cdrom)
 {
-	struct vbd *vbd;
+	struct xen_vbd *vbd;
 	struct block_device *bdev;
 	struct request_queue *q;
 
@@ -351,7 +351,7 @@ static int vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 				 FMODE_READ : FMODE_WRITE, NULL);
 
 	if (IS_ERR(bdev)) {
-		DPRINTK("vbd_create: device %08x could not be opened.\n",
+		DPRINTK("xen_vbd_create: device %08x could not be opened.\n",
 			vbd->pdevice);
 		return -ENOENT;
 	}
@@ -360,9 +360,9 @@ static int vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 	vbd->size = vbd_sz(vbd);
 
 	if (vbd->bdev->bd_disk == NULL) {
-		DPRINTK("vbd_create: device %08x doesn't exist.\n",
+		DPRINTK("xen_vbd_create: device %08x doesn't exist.\n",
 			vbd->pdevice);
-		vbd_free(vbd);
+		xen_vbd_free(vbd);
 		return -ENOENT;
 	}
 
@@ -396,7 +396,7 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 
 	if (be->blkif) {
 		xen_blkif_disconnect(be->blkif);
-		vbd_free(&be->blkif->vbd);
+		xen_vbd_free(&be->blkif->vbd);
 		xen_blkif_free(be->blkif);
 		be->blkif = NULL;
 	}
@@ -535,7 +535,7 @@ static void backend_changed(struct xenbus_watch *watch,
 		be->major = major;
 		be->minor = minor;
 
-		err = vbd_create(be->blkif, handle, major, minor,
+		err = xen_vbd_create(be->blkif, handle, major, minor,
 				 (NULL == strchr(be->mode, 'w')), cdrom);
 		if (err) {
 			be->major = 0;
@@ -546,7 +546,7 @@ static void backend_changed(struct xenbus_watch *watch,
 
 		err = xenvbd_sysfs_addif(dev);
 		if (err) {
-			vbd_free(&be->blkif->vbd);
+			xen_vbd_free(&be->blkif->vbd);
 			be->major = 0;
 			be->minor = 0;
 			xenbus_dev_fatal(dev, err, "creating sysfs entries");
