@@ -133,6 +133,19 @@
        #define M98088_REC_LINEMODE             (1<<7)
        #define M98088_REC_LINEMODE_MASK        (1<<7)
 
+/* M98088_REG_2D_MIX_SPK_CNTL */
+       #define M98088_MIX_SPKR_GAIN_MASK       (3<<2)
+       #define M98088_MIX_SPKR_GAIN_SHIFT      2
+       #define M98088_MIX_SPKL_GAIN_MASK       (3<<0)
+       #define M98088_MIX_SPKL_GAIN_SHIFT      0
+
+/* M98088_REG_2F_LVL_DAI1_PLAY, M98088_REG_31_LVL_DAI2_PLAY */
+       #define M98088_DAI_MUTE                 (1<<7)
+       #define M98088_DAI_MUTE_MASK            (1<<7)
+       #define M98088_DAI_VOICE_GAIN_MASK      (3<<4)
+       #define M98088_DAI_ATTENUATION_MASK     (0xF<<0)
+       #define M98088_DAI_ATTENUATION_SHIFT    0
+
 /* M98088_REG_35_LVL_MIC1, M98088_REG_36_LVL_MIC2 */
        #define M98088_MICPRE_MASK              (3<<5)
        #define M98088_MICPRE_SHIFT             5

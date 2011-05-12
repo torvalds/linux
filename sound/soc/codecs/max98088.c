@@ -1566,6 +1566,36 @@ static int max98088_dai2_set_fmt(struct snd_soc_dai *codec_dai,
        return 0;
 }
 
+static int max98088_dai1_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+{
+       struct snd_soc_codec *codec = codec_dai->codec;
+       int reg;
+
+       if (mute)
+               reg = M98088_DAI_MUTE;
+       else
+               reg = 0;
+
+       snd_soc_update_bits(codec, M98088_REG_2F_LVL_DAI1_PLAY,
+                           M98088_DAI_MUTE_MASK, reg);
+       return 0;
+}
+
+static int max98088_dai2_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+{
+       struct snd_soc_codec *codec = codec_dai->codec;
+       int reg;
+
+       if (mute)
+               reg = M98088_DAI_MUTE;
+       else
+               reg = 0;
+
+       snd_soc_update_bits(codec, M98088_REG_31_LVL_DAI2_PLAY,
+                           M98088_DAI_MUTE_MASK, reg);
+       return 0;
+}
+
 static void max98088_sync_cache(struct snd_soc_codec *codec)
 {
        u16 *reg_cache = codec->reg_cache;
@@ -1627,12 +1657,14 @@ static struct snd_soc_dai_ops max98088_dai1_ops = {
        .set_sysclk = max98088_dai_set_sysclk,
        .set_fmt = max98088_dai1_set_fmt,
        .hw_params = max98088_dai1_hw_params,
+       .digital_mute = max98088_dai1_digital_mute,
 };
 
 static struct snd_soc_dai_ops max98088_dai2_ops = {
        .set_sysclk = max98088_dai_set_sysclk,
        .set_fmt = max98088_dai2_set_fmt,
        .hw_params = max98088_dai2_hw_params,
+       .digital_mute = max98088_dai2_digital_mute,
 };
 
 static struct snd_soc_dai_driver max98088_dai[] = {
