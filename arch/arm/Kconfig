@@ -197,15 +197,21 @@ config ARM_PATCH_PHYS_VIRT
 	depends on !XIP_KERNEL && MMU
 	depends on !ARCH_REALVIEW || !SPARSEMEM
 	help
-	  Patch phys-to-virt translation functions at runtime according to
-	  the position of the kernel in system memory.
+	  Patch phys-to-virt and virt-to-phys translation functions at
+	  boot and module load time according to the position of the
+	  kernel in system memory.
 
-	  This can only be used with non-XIP with MMU kernels where
-	  the base of physical memory is at a 16MB boundary.
+	  This can only be used with non-XIP MMU kernels where the base
+	  of physical memory is at a 16MB boundary, or theoretically 64K
+	  for the MSM machine class.
 
 config ARM_PATCH_PHYS_VIRT_16BIT
 	def_bool y
 	depends on ARM_PATCH_PHYS_VIRT && ARCH_MSM
+	help
+	  This option extends the physical to virtual translation patching
+	  to allow physical memory down to a theoretical minimum of 64K
+	  boundaries.
 
 source "init/Kconfig"
 
