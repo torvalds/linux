@@ -17,10 +17,14 @@ static ssize_t hdmi_show_state_attrs(struct device *dev,
 						"resolution=%d\n"
 						"--------------------------\n"
 						"resolution support:\n"
-						"0 -- 1280x720p_50Hz\n"
-						"1 -- 1280x720p_60Hz\n"
-						"2 -- 720x576p_50Hz\n"
-						"3 -- 1920x1080p_50Hz\n"
+						"HDMI_1280x720p_50Hz        0\n"
+						"HDMI_1280x720p_60Hz        1\n"
+						"HDMI_720x576p_50Hz_4x3     2\n"
+						"HDMI_720x576p_50Hz_16x9    3\n"
+						"HDMI_720x480p_60Hz_4x3     4\n"
+						"HDMI_720x480p_60Hz_16x9    5\n"
+						"HDMI_1920x1080p_50Hz       6\n"
+						"HDMI_1920x1080p_60Hz       7\n"
 						"--------------------------\n", 
 						hdmi->display_on,hdmi->ops->hdmi_precent(hdmi),
 						hdmi->auto_switch, hdmi->hdcp_on,

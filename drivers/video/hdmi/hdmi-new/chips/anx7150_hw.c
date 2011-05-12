@@ -1897,15 +1897,39 @@ int ANX7150_Get_Optimal_resolution(int resolution_set)
 			find_resolution = 1;
 		}
 		break;
-	case HDMI_720x576p_50Hz:
+	case HDMI_720x576p_50Hz_4x3:
 		if(ANX7150_edid_result.supported_576p_50Hz){
-			resolution_real = HDMI_720x576p_50Hz;
+			resolution_real = HDMI_720x576p_50Hz_4x3;
+			find_resolution = 1;
+		}
+		break;
+	case HDMI_720x576p_50Hz_16x9:
+		if(ANX7150_edid_result.supported_576p_50Hz){
+			resolution_real = HDMI_720x576p_50Hz_16x9;
+			find_resolution = 1;
+		}
+		break;
+	case HDMI_720x480p_60Hz_4x3:
+		if(ANX7150_edid_result.supported_720x480p_60Hz){
+			resolution_real = HDMI_720x480p_60Hz_4x3;
+			find_resolution = 1;
+		}
+		break;
+	case HDMI_720x480p_60Hz_16x9:
+		if(ANX7150_edid_result.supported_720x480p_60Hz){
+			resolution_real = HDMI_720x480p_60Hz_16x9;
 			find_resolution = 1;
 		}
 		break;
 	case HDMI_1920x1080p_50Hz:
 		if(ANX7150_edid_result.supported_1080p_50Hz){
 			resolution_real = HDMI_1920x1080p_50Hz;
+			find_resolution = 1;
+		}
+		break;
+	case HDMI_1920x1080p_60Hz:
+		if(ANX7150_edid_result.supported_1080p_60Hz){
+			resolution_real = HDMI_1920x1080p_60Hz;
 			find_resolution = 1;
 		}
 		break;
@@ -1920,9 +1944,13 @@ int ANX7150_Get_Optimal_resolution(int resolution_set)
 		else if(ANX7150_edid_result.supported_720p_60Hz)
 			resolution_real = HDMI_1280x720p_60Hz;
 		else if(ANX7150_edid_result.supported_576p_50Hz)
-			resolution_real = HDMI_720x576p_50Hz;
+			resolution_real = HDMI_720x576p_50Hz_4x3;
+		else if(ANX7150_edid_result.supported_720x480p_60Hz)
+			resolution_real = HDMI_720x480p_60Hz_4x3;
 		else if(ANX7150_edid_result.supported_1080p_50Hz)
 			resolution_real = HDMI_1920x1080p_50Hz;
+		else if(ANX7150_edid_result.supported_1080p_60Hz)
+			resolution_real = HDMI_1920x1080p_60Hz;
 		else
 			resolution_real = HDMI_1280x720p_50Hz;
 	}
@@ -4198,11 +4226,23 @@ void  HDMI_Set_Video_Format(u8 video_format) //CPU set the lowpower mode
 		case HDMI_1280x720p_60Hz:
 			g_video_format = ANX7150_V1280x720p_60Hz;
 			break;
-		case HDMI_720x576p_50Hz:
+		case HDMI_720x576p_50Hz_4x3:
 			g_video_format = ANX7150_V720x576p_50Hz_4x3;
+			break;
+		case HDMI_720x576p_50Hz_16x9:
+			g_video_format = ANX7150_V720x576p_50Hz_16x9;
+			break;
+		case HDMI_720x480p_60Hz_4x3:
+			g_video_format = ANX7150_V720x480p_60Hz_4x3;
+			break;
+		case HDMI_720x480p_60Hz_16x9:
+			g_video_format = ANX7150_V720x480p_60Hz_16x9;
 			break;
 		case HDMI_1920x1080p_50Hz:
 			g_video_format = ANX7150_V1920x1080p_50Hz;
+			break;
+		case HDMI_1920x1080p_60Hz:
+			g_video_format = ANX7150_V1920x1080p_60Hz;
 			break;
         default:
             g_video_format = ANX7150_V1280x720p_50Hz;
