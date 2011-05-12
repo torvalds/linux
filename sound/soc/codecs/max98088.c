@@ -656,8 +656,6 @@ static const struct soc_enum max98088_exmode_enum =
                              ARRAY_SIZE(max98088_exmode_texts),
                              max98088_exmode_texts,
                              max98088_exmode_values);
-static const struct snd_kcontrol_new max98088_exmode_controls =
-       SOC_DAPM_VALUE_ENUM("Route", max98088_exmode_enum);
 
 static const char *max98088_ex_thresh[] = { /* volts PP */
        "0.6", "1.2", "1.8", "2.4", "3.0", "3.6", "4.2", "4.8"};
@@ -783,6 +781,7 @@ static const struct snd_kcontrol_new max98088_snd_controls[] = {
        SOC_SINGLE("EQ1 Switch", M98088_REG_49_CFG_LEVEL, 0, 1, 0),
        SOC_SINGLE("EQ2 Switch", M98088_REG_49_CFG_LEVEL, 1, 1, 0),
 
+       SOC_ENUM("EX Limiter Mode", max98088_exmode_enum),
        SOC_ENUM("EX Limiter Threshold", max98088_ex_thresh_enum),
 
        SOC_ENUM("DAI1 Filter Mode", max98088_filter_mode_enum),
@@ -1093,9 +1092,6 @@ static const struct snd_soc_dapm_widget max98088_dapm_widgets[] = {
                SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
        SND_SOC_DAPM_MICBIAS("MICBIAS", M98088_REG_4C_PWR_EN_IN, 3, 0),
-
-       SND_SOC_DAPM_MUX("EX Limiter Mode", SND_SOC_NOPM, 0, 0,
-               &max98088_exmode_controls),
 
        SND_SOC_DAPM_OUTPUT("HPL"),
        SND_SOC_DAPM_OUTPUT("HPR"),
