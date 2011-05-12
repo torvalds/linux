@@ -828,14 +828,14 @@ EXPORT_SYMBOL(iucv_unregister);
 static int iucv_reboot_event(struct notifier_block *this,
 			     unsigned long event, void *ptr)
 {
-	int i, rc;
+	int i;
 
 	get_online_cpus();
 	on_each_cpu(iucv_block_cpu, NULL, 1);
 	preempt_disable();
 	for (i = 0; i < iucv_max_pathid; i++) {
 		if (iucv_path_table[i])
-			rc = iucv_sever_pathid(i, NULL);
+			iucv_sever_pathid(i, NULL);
 	}
 	preempt_enable();
 	put_online_cpus();
