@@ -353,7 +353,7 @@ static void scic_sds_mpc_agent_timeout_handler(void *object)
 
 		if (configure_phy_mask & (1 << index)) {
 			port_agent->link_up_handler(scic, port_agent,
-						    scic_sds_phy_get_port(sci_phy),
+						    phy_get_non_dummy_port(sci_phy),
 						    sci_phy);
 		}
 	}

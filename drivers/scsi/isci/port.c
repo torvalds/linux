@@ -485,7 +485,7 @@ static enum sci_status scic_sds_port_set_phy(
 	 * not already have a phy assinged to the phy index. */
 	if (
 		(port->phy_table[phy->phy_index] == NULL)
-		&& (scic_sds_phy_get_port(phy) == NULL)
+		&& (phy_get_non_dummy_port(phy) == NULL)
 		&& scic_sds_port_is_valid_phy_assignment(port, phy->phy_index)
 		) {
 		/*
@@ -516,7 +516,7 @@ static enum sci_status scic_sds_port_clear_phy(
 {
 	/* Make sure that this phy is part of this port */
 	if (port->phy_table[phy->phy_index] == phy &&
-	    scic_sds_phy_get_port(phy) == port) {
+	    phy_get_non_dummy_port(phy) == port) {
 		struct scic_sds_controller *scic = port->owning_controller;
 		struct isci_host *ihost = scic_to_ihost(scic);
 

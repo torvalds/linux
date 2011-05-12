@@ -524,8 +524,7 @@ void scic_sds_phy_construct(
 	struct scic_sds_port *owning_port,
 	u8 phy_index);
 
-struct scic_sds_port *scic_sds_phy_get_port(
-	struct scic_sds_phy *this_phy);
+struct scic_sds_port *phy_get_non_dummy_port(struct scic_sds_phy *sci_phy);
 
 void scic_sds_phy_set_port(
 	struct scic_sds_phy *this_phy,

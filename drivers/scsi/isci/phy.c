@@ -287,7 +287,7 @@ static void scic_sds_phy_sata_timeout(void *phy)
  * port (i.e. it's contained in the dummy port). !NULL All other
  * values indicate a handle/pointer to the port containing the phy.
  */
-struct scic_sds_port *scic_sds_phy_get_port(
+struct scic_sds_port *phy_get_non_dummy_port(
 	struct scic_sds_phy *sci_phy)
 {
 	if (scic_sds_port_get_index(sci_phy->owning_port) == SCIC_SDS_DUMMY_PORT)
@@ -893,7 +893,7 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 			break;
 		case SCU_EVENT_BROADCAST_CHANGE:
 			/* Broadcast change received. Notify the port. */
-			if (scic_sds_phy_get_port(sci_phy) != NULL)
+			if (phy_get_non_dummy_port(sci_phy) != NULL)
 				scic_sds_port_broadcast_change_received(sci_phy->owning_port, sci_phy);
 			else
 				sci_phy->bcn_received_while_port_unassigned = true;
@@ -1238,7 +1238,7 @@ static void scic_sds_phy_stopped_state_enter(void *object)
 
 	if (sci_phy->state_machine.previous_state_id != SCI_BASE_PHY_STATE_INITIAL)
 		scic_sds_controller_link_down(scic_sds_phy_get_controller(sci_phy),
-					      scic_sds_phy_get_port(sci_phy),
+					      phy_get_non_dummy_port(sci_phy),
 					      sci_phy);
 }
 
@@ -1255,7 +1255,7 @@ static void scic_sds_phy_starting_state_enter(void *object)
 
 	if (sci_phy->state_machine.previous_state_id == SCI_BASE_PHY_STATE_READY)
 		scic_sds_controller_link_down(scic_sds_phy_get_controller(sci_phy),
-					      scic_sds_phy_get_port(sci_phy),
+					      phy_get_non_dummy_port(sci_phy),
 					      sci_phy);
 
 	sci_base_state_machine_change_state(&sci_phy->state_machine,
@@ -1267,7 +1267,7 @@ static void scic_sds_phy_ready_state_enter(void *object)
 	struct scic_sds_phy *sci_phy = object;
 
 	scic_sds_controller_link_up(scic_sds_phy_get_controller(sci_phy),
-				    scic_sds_phy_get_port(sci_phy),
+				    phy_get_non_dummy_port(sci_phy),
 				    sci_phy);
 
 }

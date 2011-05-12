@@ -983,7 +983,7 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 			sci_phy = &ihost->phys[index].sci;
 			state = sci_phy->state_machine.current_state_id;
 
-			if (!scic_sds_phy_get_port(sci_phy))
+			if (!phy_get_non_dummy_port(sci_phy))
 				continue;
 
 			/* The controller start operation is complete iff:
@@ -1014,7 +1014,7 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 		sci_phy = &ihost->phys[scic->next_phy_to_start].sci;
 
 		if (oem->controller.mode_type == SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
-			if (scic_sds_phy_get_port(sci_phy) == NULL) {
+			if (phy_get_non_dummy_port(sci_phy) == NULL) {
 				scic->next_phy_to_start++;
 
 				/* Caution recursion ahead be forwarned
