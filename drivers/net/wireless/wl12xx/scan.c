@@ -505,6 +505,12 @@ int wl1271_scan_sched_scan_start(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_CMD, "cmd periodic scan start");
 
+	if (wl->bss_type != BSS_TYPE_STA_BSS)
+		return -EOPNOTSUPP;
+
+	if (!test_bit(WL1271_FLAG_IDLE, &wl->flags))
+		return -EBUSY;
+
 	start = kzalloc(sizeof(*start), GFP_KERNEL);
 	if (!start)
 		return -ENOMEM;
