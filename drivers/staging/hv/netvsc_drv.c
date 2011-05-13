@@ -438,6 +438,21 @@ static void netvsc_drv_exit(void)
 	vmbus_child_driver_unregister(&netvsc_drv.driver);
 }
 
+
+static const struct dmi_system_id __initconst
+hv_netvsc_dmi_table[] __maybe_unused  = {
+	{
+		.ident = "Hyper-V",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Virtual Machine"),
+			DMI_MATCH(DMI_BOARD_NAME, "Virtual Machine"),
+		},
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(dmi, hv_netvsc_dmi_table);
+
 static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 {
 	struct hv_driver *drv = &netvsc_drv;
@@ -453,20 +468,6 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 
 	return ret;
 }
-
-static const struct dmi_system_id __initconst
-hv_netvsc_dmi_table[] __maybe_unused  = {
-	{
-		.ident = "Hyper-V",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Virtual Machine"),
-			DMI_MATCH(DMI_BOARD_NAME, "Virtual Machine"),
-		},
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(dmi, hv_netvsc_dmi_table);
 
 static int __init netvsc_init(void)
 {
