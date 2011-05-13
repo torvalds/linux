@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
+#include <linux/seq_file.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/major.h>
@@ -705,44 +706,32 @@ EXPORT_SYMBOL_GPL(mtd_kmalloc_up_to);
 
 static struct proc_dir_entry *proc_mtd;
 
-static inline int mtd_proc_info(char *buf, struct mtd_info *this)
-{
-	return sprintf(buf, "mtd%d: %8.8llx %8.8x \"%s\"\n", this->index,
-		       (unsigned long long)this->size,
-		       this->erasesize, this->name);
-}
-
-static int mtd_read_proc (char *page, char **start, off_t off, int count,
-			  int *eof, void *data_unused)
+static int mtd_proc_show(struct seq_file *m, void *v)
 {
 	struct mtd_info *mtd;
-	int len, l;
-        off_t   begin = 0;
 
+	seq_puts(m, "dev:    size   erasesize  name\n");
 	mutex_lock(&mtd_table_mutex);
-
-	len = sprintf(page, "dev:    size   erasesize  name\n");
 	mtd_for_each_device(mtd) {
-		l = mtd_proc_info(page + len, mtd);
-                len += l;
-                if (len+begin > off+count)
-                        goto done;
-                if (len+begin < off) {
-                        begin += len;
-                        len = 0;
-                }
+		seq_printf(m, "mtd%d: %8.8llx %8.8x \"%s\"\n",
+			   mtd->index, (unsigned long long)mtd->size,
+			   mtd->erasesize, mtd->name);
         }
-
-        *eof = 1;
-
-done:
 	mutex_unlock(&mtd_table_mutex);
-        if (off >= len+begin)
-                return 0;
-        *start = page + (off-begin);
-        return ((count < begin+len-off) ? count : begin+len-off);
+        return 0;
 }
 
+static int mtd_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, mtd_proc_show, NULL);
+}
+
+static const struct file_operations mtd_proc_ops = {
+	.open		= mtd_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 #endif /* CONFIG_PROC_FS */
 
 /*====================================================================*/
@@ -783,8 +772,7 @@ static int __init init_mtd(void)
 		goto err_bdi3;
 
 #ifdef CONFIG_PROC_FS
-	if ((proc_mtd = create_proc_entry( "mtd", 0, NULL )))
-		proc_mtd->read_proc = mtd_read_proc;
+	proc_mtd = proc_create("mtd", 0, NULL, &mtd_proc_ops);
 #endif /* CONFIG_PROC_FS */
 	return 0;
 
