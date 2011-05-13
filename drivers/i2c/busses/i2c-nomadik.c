@@ -255,8 +255,6 @@ static int init_hw(struct nmk_i2c_dev *dev)
 {
 	int stat;
 
-	clk_enable(dev->clk);
-
 	stat = flush_i2c_fifo(dev);
 	if (stat)
 		goto exit;
@@ -271,8 +269,6 @@ static int init_hw(struct nmk_i2c_dev *dev)
 	dev->cli.operation = I2C_NO_OPERATION;
 
 exit:
-	/* TODO: Why disable clocks after init hw? */
-	clk_disable(dev->clk);
 	/*
 	 * TODO: What is this delay for?
 	 * Must be pretty pointless since the hw block
@@ -572,6 +568,7 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 	u32 cause;
 	struct nmk_i2c_dev *dev = i2c_get_adapdata(i2c_adap);
 	u32 i2c_sr;
+	int j;
 
 	dev->busy = true;
 
@@ -579,63 +576,67 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 		regulator_enable(dev->regulator);
 	pm_runtime_get_sync(&dev->pdev->dev);
 
-	status = init_hw(dev);
-	if (status)
-		goto out2;
-
 	clk_enable(dev->clk);
 
-	/* setup the i2c controller */
-	setup_i2c_controller(dev);
+	status = init_hw(dev);
+	if (status)
+		goto out;
 
-	for (i = 0; i < num_msgs; i++) {
-		if (unlikely(msgs[i].flags & I2C_M_TEN)) {
-			dev_err(&dev->pdev->dev, "10 bit addressing"
-					"not supported\n");
+	for (j = 0; j < 3; j++) {
+		/* setup the i2c controller */
+		setup_i2c_controller(dev);
 
-			status = -EINVAL;
-			goto out;
-		}
-		dev->cli.slave_adr	= msgs[i].addr;
-		dev->cli.buffer		= msgs[i].buf;
-		dev->cli.count		= msgs[i].len;
-		dev->stop = (i < (num_msgs - 1)) ? 0 : 1;
-		dev->result = 0;
+		for (i = 0; i < num_msgs; i++) {
+			if (unlikely(msgs[i].flags & I2C_M_TEN)) {
+				dev_err(&dev->pdev->dev, "10 bit addressing"
+						"not supported\n");
 
-		if (msgs[i].flags & I2C_M_RD) {
-			/* it is a read operation */
-			dev->cli.operation = I2C_READ;
-			status = read_i2c(dev);
-		} else {
-			/* write operation */
-			dev->cli.operation = I2C_WRITE;
-			status = write_i2c(dev);
-		}
-		if (status || (dev->result)) {
-			i2c_sr = readl(dev->virtbase + I2C_SR);
-			/*
-			 * Check if the controller I2C operation status is set
-			 * to ABORT(11b).
-			 */
-			if (((i2c_sr >> 2) & 0x3) == 0x3) {
-				/* get the abort cause */
-				cause =	(i2c_sr >> 4)
-					& 0x7;
-				dev_err(&dev->pdev->dev, "%s\n", cause >=
-						ARRAY_SIZE(abort_causes) ?
+				status = -EINVAL;
+				goto out;
+			}
+			dev->cli.slave_adr	= msgs[i].addr;
+			dev->cli.buffer		= msgs[i].buf;
+			dev->cli.count		= msgs[i].len;
+			dev->stop = (i < (num_msgs - 1)) ? 0 : 1;
+			dev->result = 0;
+
+			if (msgs[i].flags & I2C_M_RD) {
+				/* it is a read operation */
+				dev->cli.operation = I2C_READ;
+				status = read_i2c(dev);
+			} else {
+				/* write operation */
+				dev->cli.operation = I2C_WRITE;
+				status = write_i2c(dev);
+			}
+			if (status || (dev->result)) {
+				i2c_sr = readl(dev->virtbase + I2C_SR);
+				/*
+				 * Check if the controller I2C operation status
+				 * is set to ABORT(11b).
+				 */
+				if (((i2c_sr >> 2) & 0x3) == 0x3) {
+					/* get the abort cause */
+					cause =	(i2c_sr >> 4)
+						& 0x7;
+					dev_err(&dev->pdev->dev, "%s\n", cause
+						>= ARRAY_SIZE(abort_causes) ?
 						"unknown reason" :
 						abort_causes[cause]);
-			}
+				}
 
-			status = status ? status : dev->result;
-			goto out;
+				status = status ? status : dev->result;
+
+				break;
+			}
+			udelay(I2C_DELAY);
 		}
-		udelay(I2C_DELAY);
+		if (status == 0)
+			break;
 	}
 
 out:
 	clk_disable(dev->clk);
-out2:
 	pm_runtime_put_sync(&dev->pdev->dev);
 	if (dev->regulator)
 		regulator_disable(dev->regulator);
