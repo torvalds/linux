@@ -317,10 +317,10 @@ static void rndis_filter_receive_indicate_status(struct rndis_device *dev,
 			&resp->msg.indicate_status;
 
 	if (indicate->status == RNDIS_STATUS_MEDIA_CONNECT) {
-		rndis_filter.inner_drv.link_status_change(
+		netvsc_linkstatus_callback(
 			dev->net_dev->dev, 1);
 	} else if (indicate->status == RNDIS_STATUS_MEDIA_DISCONNECT) {
-		rndis_filter.inner_drv.link_status_change(
+		netvsc_linkstatus_callback(
 			dev->net_dev->dev, 0);
 	} else {
 		/*
