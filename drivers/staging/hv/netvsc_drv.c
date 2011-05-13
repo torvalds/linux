@@ -453,7 +453,7 @@ hv_netvsc_dmi_table[] __maybe_unused  = {
 };
 MODULE_DEVICE_TABLE(dmi, hv_netvsc_dmi_table);
 
-static int netvsc_drv_init(void)
+static int __init netvsc_drv_init(void)
 {
 	struct hv_driver *drv = &netvsc_drv;
 	int ret;
@@ -475,11 +475,6 @@ static int netvsc_drv_init(void)
 	return ret;
 }
 
-static int __init netvsc_init(void)
-{
-	return netvsc_drv_init();
-}
-
 static void __exit netvsc_exit(void)
 {
 	netvsc_drv_exit();
@@ -496,5 +491,5 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
 MODULE_DESCRIPTION("Microsoft Hyper-V network driver");
 
-module_init(netvsc_init);
+module_init(netvsc_drv_init);
 module_exit(netvsc_exit);
