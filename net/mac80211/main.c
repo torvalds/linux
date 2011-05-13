@@ -752,10 +752,24 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_MONITOR);
 	hw->wiphy->software_iftypes |= BIT(NL80211_IFTYPE_MONITOR);
 
-	/* mac80211 doesn't support more than 1 channel */
-	for (i = 0; i < hw->wiphy->n_iface_combinations; i++)
-		if (hw->wiphy->iface_combinations[i].num_different_channels > 1)
+	/*
+	 * mac80211 doesn't support more than 1 channel, and also not more
+	 * than one IBSS interface
+	 */
+	for (i = 0; i < hw->wiphy->n_iface_combinations; i++) {
+		const struct ieee80211_iface_combination *c;
+		int j;
+
+		c = &hw->wiphy->iface_combinations[i];
+
+		if (c->num_different_channels > 1)
 			return -EINVAL;
+
+		for (j = 0; j < c->n_limits; j++)
+			if ((c->limits[j].types & BIT(NL80211_IFTYPE_ADHOC)) &&
+			    c->limits[j].max > 1)
+				return -EINVAL;
+	}
 
 #ifndef CONFIG_MAC80211_MESH
 	/* mesh depends on Kconfig, but drivers should set it if they want */
