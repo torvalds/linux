@@ -125,10 +125,11 @@ static int set_bud_lprops(struct ubifs_info *c, struct replay_entry *r)
 		 * zero which means the LEB must have been empty. The LEB
 		 * property values should be lp->free == c->leb_size and
 		 * lp->dirty == 0, but that is not the case. The reason is that
-		 * the LEB was garbage collected. The garbage collector resets
-		 * the free and dirty space without recording it anywhere except
-		 * lprops, so if there is not a commit then lprops does not have
-		 * that information next time the file system is mounted.
+		 * the LEB had been garbage collected before it became the bud,
+		 * and there was not commit inbetween. The garbage collector
+		 * resets the free and dirty space without recording it
+		 * anywhere except lprops, so if there was no commit then
+		 * lprops does not have that information.
 		 *
 		 * We do not need to adjust free space because the scan has told
 		 * us the exact value which is recorded in the replay entry as
