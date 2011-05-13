@@ -52,5 +52,5 @@ DHDOFILES = \
 	bcmsdh_sdmmc.o \
 	bcmsdh_sdmmc_linux.o
 
-obj-m += brcmfmac.o
+obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
 brcmfmac-objs += $(DHDOFILES)

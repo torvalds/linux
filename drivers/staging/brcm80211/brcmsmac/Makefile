@@ -55,5 +55,5 @@ BRCMSMAC_OFILES := \
 
 MODULEPFX := brcmsmac
 
-obj-m	+= $(MODULEPFX).o
+obj-$(CONFIG_BRCMSMAC)	+= $(MODULEPFX).o
 $(MODULEPFX)-objs	= $(BRCMSMAC_OFILES)
