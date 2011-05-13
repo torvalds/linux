@@ -27,7 +27,6 @@
 
 #define __struct_bcount(x)
 
-#include "netvsc.h"
 
 #include "rndis.h"
 
