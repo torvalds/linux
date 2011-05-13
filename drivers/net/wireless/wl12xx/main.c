@@ -257,12 +257,16 @@ static struct conf_drv_settings default_conf = {
 		.wake_up_event               = CONF_WAKE_UP_EVENT_DTIM,
 		.listen_interval             = 1,
 		.bcn_filt_mode               = CONF_BCN_FILT_MODE_ENABLED,
-		.bcn_filt_ie_count           = 1,
+		.bcn_filt_ie_count           = 2,
 		.bcn_filt_ie = {
 			[0] = {
 				.ie          = WLAN_EID_CHANNEL_SWITCH,
 				.rule        = CONF_BCN_RULE_PASS_ON_APPEARANCE,
-			}
+			},
+			[1] = {
+				.ie          = WLAN_EID_HT_INFORMATION,
+				.rule        = CONF_BCN_RULE_PASS_ON_CHANGE,
+			},
 		},
 		.synch_fail_thold            = 10,
 		.bss_lose_timeout            = 100,
@@ -301,6 +305,15 @@ static struct conf_drv_settings default_conf = {
 		.min_dwell_time_passive       = 100000,
 		.max_dwell_time_passive       = 100000,
 		.num_probe_reqs               = 2,
+	},
+	.sched_scan = {
+		/* sched_scan requires dwell times in TU instead of TU/1000 */
+		.min_dwell_time_active = 8,
+		.max_dwell_time_active = 30,
+		.dwell_time_passive    = 100,
+		.num_probe_reqs        = 2,
+		.rssi_threshold        = -90,
+		.snr_threshold         = 0,
 	},
 	.rf = {
 		.tx_per_channel_power_compensation_2 = {
@@ -975,6 +988,11 @@ static void wl1271_recovery_work(struct work_struct *work)
 	/* Prevent spurious TX during FW restart */
 	ieee80211_stop_queues(wl->hw);
 
+	if (wl->sched_scanning) {
+		ieee80211_sched_scan_stopped(wl->hw);
+		wl->sched_scanning = false;
+	}
+
 	/* reboot the chipset */
 	__wl1271_op_remove_interface(wl, false);
 	ieee80211_restart_hw(wl->hw);
@@ -1332,6 +1350,150 @@ static struct notifier_block wl1271_dev_notifier = {
 	.notifier_call = wl1271_dev_notify,
 };
 
+static int wl1271_configure_suspend(struct wl1271 *wl)
+{
+	int ret;
+
+	if (wl->bss_type != BSS_TYPE_STA_BSS)
+		return 0;
+
+	mutex_lock(&wl->mutex);
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out_unlock;
+
+	/* enter psm if needed*/
+	if (!test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+		DECLARE_COMPLETION_ONSTACK(compl);
+
+		wl->ps_compl = &compl;
+		ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
+				   wl->basic_rate, true);
+		if (ret < 0)
+			goto out_sleep;
+
+		/* we must unlock here so we will be able to get events */
+		wl1271_ps_elp_sleep(wl);
+		mutex_unlock(&wl->mutex);
+
+		ret = wait_for_completion_timeout(
+			&compl, msecs_to_jiffies(WL1271_PS_COMPLETE_TIMEOUT));
+		if (ret <= 0) {
+			wl1271_warning("couldn't enter ps mode!");
+			ret = -EBUSY;
+			goto out;
+		}
+
+		/* take mutex again, and wakeup */
+		mutex_lock(&wl->mutex);
+
+		ret = wl1271_ps_elp_wakeup(wl);
+		if (ret < 0)
+			goto out_unlock;
+	}
+out_sleep:
+	wl1271_ps_elp_sleep(wl);
+out_unlock:
+	mutex_unlock(&wl->mutex);
+out:
+	return ret;
+
+}
+
+static void wl1271_configure_resume(struct wl1271 *wl)
+{
+	int ret;
+
+	if (wl->bss_type != BSS_TYPE_STA_BSS)
+		return;
+
+	mutex_lock(&wl->mutex);
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	/* exit psm if it wasn't configured */
+	if (!test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags))
+		wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
+				   wl->basic_rate, true);
+
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+}
+
+static int wl1271_op_suspend(struct ieee80211_hw *hw,
+			    struct cfg80211_wowlan *wow)
+{
+	struct wl1271 *wl = hw->priv;
+	wl1271_debug(DEBUG_MAC80211, "mac80211 suspend wow=%d", !!wow);
+	wl->wow_enabled = !!wow;
+	if (wl->wow_enabled) {
+		int ret;
+		ret = wl1271_configure_suspend(wl);
+		if (ret < 0) {
+			wl1271_warning("couldn't prepare device to suspend");
+			return ret;
+		}
+		/* flush any remaining work */
+		wl1271_debug(DEBUG_MAC80211, "flushing remaining works");
+		flush_delayed_work(&wl->scan_complete_work);
+
+		/*
+		 * disable and re-enable interrupts in order to flush
+		 * the threaded_irq
+		 */
+		wl1271_disable_interrupts(wl);
+
+		/*
+		 * set suspended flag to avoid triggering a new threaded_irq
+		 * work. no need for spinlock as interrupts are disabled.
+		 */
+		set_bit(WL1271_FLAG_SUSPENDED, &wl->flags);
+
+		wl1271_enable_interrupts(wl);
+		flush_work(&wl->tx_work);
+		flush_delayed_work(&wl->pspoll_work);
+		flush_delayed_work(&wl->elp_work);
+	}
+	return 0;
+}
+
+static int wl1271_op_resume(struct ieee80211_hw *hw)
+{
+	struct wl1271 *wl = hw->priv;
+	wl1271_debug(DEBUG_MAC80211, "mac80211 resume wow=%d",
+		     wl->wow_enabled);
+
+	/*
+	 * re-enable irq_work enqueuing, and call irq_work directly if
+	 * there is a pending work.
+	 */
+	if (wl->wow_enabled) {
+		struct wl1271 *wl = hw->priv;
+		unsigned long flags;
+		bool run_irq_work = false;
+
+		spin_lock_irqsave(&wl->wl_lock, flags);
+		clear_bit(WL1271_FLAG_SUSPENDED, &wl->flags);
+		if (test_and_clear_bit(WL1271_FLAG_PENDING_WORK, &wl->flags))
+			run_irq_work = true;
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+		if (run_irq_work) {
+			wl1271_debug(DEBUG_MAC80211,
+				     "run postponed irq_work directly");
+			wl1271_irq(0, wl);
+			wl1271_enable_interrupts(wl);
+		}
+
+		wl1271_configure_resume(wl);
+	}
+
+	return 0;
+}
+
 static int wl1271_op_start(struct ieee80211_hw *hw)
 {
 	wl1271_debug(DEBUG_MAC80211, "mac80211 start");
@@ -1563,6 +1725,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	memset(wl->ap_hlid_map, 0, sizeof(wl->ap_hlid_map));
 	wl->ap_fw_ps_map = 0;
 	wl->ap_ps_map = 0;
+	wl->sched_scanning = false;
 
 	/*
 	 * this is performed after the cancel_work calls and the associated
@@ -1765,6 +1928,13 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, bool idle)
 		wl->session_counter++;
 		if (wl->session_counter >= SESSION_COUNTER_MAX)
 			wl->session_counter = 0;
+
+		/* The current firmware only supports sched_scan in idle */
+		if (wl->sched_scanning) {
+			wl1271_scan_sched_scan_stop(wl);
+			ieee80211_sched_scan_stopped(wl->hw);
+		}
+
 		ret = wl1271_dummy_join(wl);
 		if (ret < 0)
 			goto out;
@@ -2317,6 +2487,60 @@ out:
 	return ret;
 }
 
+static int wl1271_op_sched_scan_start(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct cfg80211_sched_scan_request *req,
+				      struct ieee80211_sched_scan_ies *ies)
+{
+	struct wl1271 *wl = hw->priv;
+	int ret;
+
+	wl1271_debug(DEBUG_MAC80211, "wl1271_op_sched_scan_start");
+
+	mutex_lock(&wl->mutex);
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	ret = wl1271_scan_sched_scan_config(wl, req, ies);
+	if (ret < 0)
+		goto out_sleep;
+
+	ret = wl1271_scan_sched_scan_start(wl);
+	if (ret < 0)
+		goto out_sleep;
+
+	wl->sched_scanning = true;
+
+out_sleep:
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+	return ret;
+}
+
+static void wl1271_op_sched_scan_stop(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif)
+{
+	struct wl1271 *wl = hw->priv;
+	int ret;
+
+	wl1271_debug(DEBUG_MAC80211, "wl1271_op_sched_scan_stop");
+
+	mutex_lock(&wl->mutex);
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	wl1271_scan_sched_scan_stop(wl);
+
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+}
+
 static int wl1271_op_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 {
 	struct wl1271 *wl = hw->priv;
@@ -2376,20 +2600,24 @@ out:
 static int wl1271_ssid_set(struct wl1271 *wl, struct sk_buff *skb,
 			    int offset)
 {
-	u8 *ptr = skb->data + offset;
+	u8 ssid_len;
+	const u8 *ptr = cfg80211_find_ie(WLAN_EID_SSID, skb->data + offset,
+					 skb->len - offset);
 
-	/* find the location of the ssid in the beacon */
-	while (ptr < skb->data + skb->len) {
-		if (ptr[0] == WLAN_EID_SSID) {
-			wl->ssid_len = ptr[1];
-			memcpy(wl->ssid, ptr+2, wl->ssid_len);
-			return 0;
-		}
-		ptr += (ptr[1] + 2);
+	if (!ptr) {
+		wl1271_error("No SSID in IEs!");
+		return -ENOENT;
 	}
 
-	wl1271_error("No SSID in IEs!\n");
-	return -ENOENT;
+	ssid_len = ptr[1];
+	if (ssid_len > IEEE80211_MAX_SSID_LEN) {
+		wl1271_error("SSID is too long!");
+		return -EINVAL;
+	}
+
+	wl->ssid_len = ssid_len;
+	memcpy(wl->ssid, ptr+2, ssid_len);
+	return 0;
 }
 
 static int wl1271_bss_erp_info_changed(struct wl1271 *wl,
@@ -3422,12 +3650,16 @@ static const struct ieee80211_ops wl1271_ops = {
 	.stop = wl1271_op_stop,
 	.add_interface = wl1271_op_add_interface,
 	.remove_interface = wl1271_op_remove_interface,
+	.suspend = wl1271_op_suspend,
+	.resume = wl1271_op_resume,
 	.config = wl1271_op_config,
 	.prepare_multicast = wl1271_op_prepare_multicast,
 	.configure_filter = wl1271_op_configure_filter,
 	.tx = wl1271_op_tx,
 	.set_key = wl1271_op_set_key,
 	.hw_scan = wl1271_op_hw_scan,
+	.sched_scan_start = wl1271_op_sched_scan_start,
+	.sched_scan_stop = wl1271_op_sched_scan_stop,
 	.bss_info_changed = wl1271_op_bss_info_changed,
 	.set_frag_threshold = wl1271_op_set_frag_threshold,
 	.set_rts_threshold = wl1271_op_set_rts_threshold,
@@ -3626,6 +3858,7 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 		IEEE80211_HW_CONNECTION_MONITOR |
 		IEEE80211_HW_SUPPORTS_CQM_RSSI |
 		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
+		IEEE80211_HW_SPECTRUM_MGMT |
 		IEEE80211_HW_AP_LINK_PS;
 
 	wl->hw->wiphy->cipher_suites = cipher_suites;
@@ -3747,6 +3980,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->ap_fw_ps_map = 0;
 	wl->quirks = 0;
 	wl->platform_quirks = 0;
+	wl->sched_scanning = false;
 
 	memset(wl->tx_frames_map, 0, sizeof(wl->tx_frames_map));
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)

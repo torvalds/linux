@@ -82,6 +82,16 @@ static irqreturn_t wl1271_hardirq(int irq, void *cookie)
 		complete(wl->elp_compl);
 		wl->elp_compl = NULL;
 	}
+
+	if (test_bit(WL1271_FLAG_SUSPENDED, &wl->flags)) {
+		/* don't enqueue a work right now. mark it as pending */
+		set_bit(WL1271_FLAG_PENDING_WORK, &wl->flags);
+		wl1271_debug(DEBUG_IRQ, "should not enqueue work");
+		disable_irq_nosync(wl->irq);
+		pm_wakeup_event(wl1271_sdio_wl_to_dev(wl), 0);
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+		return IRQ_HANDLED;
+	}
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	return IRQ_WAKE_THREAD;
@@ -221,6 +231,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	const struct wl12xx_platform_data *wlan_data;
 	struct wl1271 *wl;
 	unsigned long irqflags;
+	mmc_pm_flag_t mmcflags;
 	int ret;
 
 	/* We are only able to handle the wlan function */
@@ -267,7 +278,17 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 		goto out_free;
 	}
 
+	enable_irq_wake(wl->irq);
+	device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 1);
+
 	disable_irq(wl->irq);
+
+	/* if sdio can keep power while host is suspended, enable wow */
+	mmcflags = sdio_get_host_pm_caps(func);
+	wl1271_debug(DEBUG_SDIO, "sdio PM caps = 0x%x", mmcflags);
+
+	if (mmcflags & MMC_PM_KEEP_POWER)
+		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_ANY;
 
 	ret = wl1271_init_ieee80211(wl);
 	if (ret)
@@ -303,6 +324,8 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 	pm_runtime_get_noresume(&func->dev);
 
 	wl1271_unregister_hw(wl);
+	device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 0);
+	disable_irq_wake(wl->irq);
 	free_irq(wl->irq, wl);
 	wl1271_free_hw(wl);
 }
@@ -311,11 +334,50 @@ static int wl1271_suspend(struct device *dev)
 {
 	/* Tell MMC/SDIO core it's OK to power down the card
 	 * (if it isn't already), but not to remove it completely */
-	return 0;
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct wl1271 *wl = sdio_get_drvdata(func);
+	mmc_pm_flag_t sdio_flags;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_MAC80211, "wl1271 suspend. wow_enabled: %d",
+		     wl->wow_enabled);
+
+	/* check whether sdio should keep power */
+	if (wl->wow_enabled) {
+		sdio_flags = sdio_get_host_pm_caps(func);
+
+		if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
+			wl1271_error("can't keep power while host "
+				     "is suspended");
+			ret = -EINVAL;
+			goto out;
+		}
+
+		/* keep power while host suspended */
+		ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+		if (ret) {
+			wl1271_error("error while trying to keep power");
+			goto out;
+		}
+
+		/* release host */
+		sdio_release_host(func);
+	}
+out:
+	return ret;
 }
 
 static int wl1271_resume(struct device *dev)
 {
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct wl1271 *wl = sdio_get_drvdata(func);
+
+	wl1271_debug(DEBUG_MAC80211, "wl1271 resume");
+	if (wl->wow_enabled) {
+		/* claim back host */
+		sdio_claim_host(func);
+	}
+
 	return 0;
 }
 
