@@ -1019,6 +1019,13 @@ struct rndis_message {
 	union rndis_message_container msg;
 };
 
+
+struct rndis_filter_packet {
+	void *completion_ctx;
+	void (*completion)(void *context);
+	struct rndis_message msg;
+};
+
 /* Handy macros */
 
 /* get the size of an RNDIS message. Pass in the message type, */

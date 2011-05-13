@@ -74,14 +74,6 @@ struct rndis_request {
 	struct rndis_message request_msg;
 };
 
-
-struct rndis_filter_packet {
-	void *completion_ctx;
-	void (*completion)(void *context);
-	struct rndis_message msg;
-};
-
-
 static void rndis_filter_send_completion(void *ctx);
 
 static void rndis_filter_send_request_completion(void *ctx);
