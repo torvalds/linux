@@ -58,6 +58,20 @@ struct soc_mbus_pixelfmt {
 	u8			bits_per_sample;
 };
 
+/**
+ * struct soc_mbus_lookup - Lookup FOURCC IDs by mediabus codes for pass-through
+ * @code:	mediabus pixel-code
+ * @fmt:	pixel format description
+ */
+struct soc_mbus_lookup {
+	enum v4l2_mbus_pixelcode	code;
+	struct soc_mbus_pixelfmt	fmt;
+};
+
+const struct soc_mbus_pixelfmt *soc_mbus_find_fmtdesc(
+	enum v4l2_mbus_pixelcode code,
+	const struct soc_mbus_lookup *lookup,
+	int n);
 const struct soc_mbus_pixelfmt *soc_mbus_get_fmtdesc(
 	enum v4l2_mbus_pixelcode code);
 s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf);
