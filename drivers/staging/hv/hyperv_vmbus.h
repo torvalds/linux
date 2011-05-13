@@ -25,6 +25,12 @@
 #ifndef _HYPERV_VMBUS_H
 #define _HYPERV_VMBUS_H
 
+#include <linux/list.h>
+#include <asm/sync_bitops.h>
+#include <linux/atomic.h>
+
+#include "hyperv.h"
+
 /*
  * The below CPUID leaves are present if VersionAndFeatures.HypervisorPresent
  * is set by CPUID(HVCPUID_VERSION_FEATURES).
@@ -528,11 +534,6 @@ void hv_dump_ring_info(struct hv_ring_buffer_info *ring_info, char *prefix);
 
 void hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 			    struct hv_ring_buffer_debug_info *debug_info);
-
-#include "hyperv.h"
-#include <linux/list.h>
-#include <asm/sync_bitops.h>
-
 
 /*
  * Maximum channels is determined by the size of the interrupt page
