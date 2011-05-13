@@ -444,8 +444,6 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	struct hv_driver *drv = &netvsc_drv.base;
 	int ret;
 
-	net_drv_obj->ring_buf_size = ring_size * PAGE_SIZE;
-
 	/* Callback to client driver to complete the initialization */
 	drv_init(&net_drv_obj->base);
 
