@@ -231,6 +231,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	const struct wl12xx_platform_data *wlan_data;
 	struct wl1271 *wl;
 	unsigned long irqflags;
+	mmc_pm_flag_t mmcflags;
 	int ret;
 
 	/* We are only able to handle the wlan function */
@@ -281,6 +282,13 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 1);
 
 	disable_irq(wl->irq);
+
+	/* if sdio can keep power while host is suspended, enable wow */
+	mmcflags = sdio_get_host_pm_caps(func);
+	wl1271_debug(DEBUG_SDIO, "sdio PM caps = 0x%x", mmcflags);
+
+	if (mmcflags & MMC_PM_KEEP_POWER)
+		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_ANY;
 
 	ret = wl1271_init_ieee80211(wl);
 	if (ret)
