@@ -433,7 +433,7 @@ static struct  hv_driver netvsc_drv = {
 	.remove = netvsc_remove,
 };
 
-static void netvsc_drv_exit(void)
+static void __exit netvsc_drv_exit(void)
 {
 	vmbus_child_driver_unregister(&netvsc_drv.driver);
 }
@@ -475,11 +475,6 @@ static int __init netvsc_drv_init(void)
 	return ret;
 }
 
-static void __exit netvsc_exit(void)
-{
-	netvsc_drv_exit();
-}
-
 static const struct pci_device_id __initconst
 hv_netvsc_pci_table[] __maybe_unused = {
 	{ PCI_DEVICE(0x1414, 0x5353) }, /* VGA compatible controller */
@@ -492,4 +487,4 @@ MODULE_VERSION(HV_DRV_VERSION);
 MODULE_DESCRIPTION("Microsoft Hyper-V network driver");
 
 module_init(netvsc_drv_init);
-module_exit(netvsc_exit);
+module_exit(netvsc_drv_exit);
