@@ -458,6 +458,12 @@ static int netvsc_drv_init(void)
 	struct hv_driver *drv = &netvsc_drv;
 	int ret;
 
+	pr_info("initializing....");
+
+	if (!dmi_check_system(hv_netvsc_dmi_table))
+		return -ENODEV;
+
+
 	/* Callback to client driver to complete the initialization */
 	netvsc_initialize(drv);
 
@@ -471,11 +477,6 @@ static int netvsc_drv_init(void)
 
 static int __init netvsc_init(void)
 {
-	pr_info("initializing....");
-
-	if (!dmi_check_system(hv_netvsc_dmi_table))
-		return -ENODEV;
-
 	return netvsc_drv_init();
 }
 
