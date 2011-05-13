@@ -536,10 +536,8 @@ extern int wlc_bmac_down_finish(struct wlc_hw_info *wlc_hw);
 
 extern u32 wlc_reg_read(struct wlc_info *wlc, void *r, uint size);
 extern void wlc_reg_write(struct wlc_info *wlc, void *r, u32 v, uint size);
-extern void wlc_corereset(struct wlc_info *wlc, u32 flags);
 extern void wlc_mhf(struct wlc_info *wlc, u8 idx, u16 mask, u16 val,
 		    int bands);
-extern u16 wlc_mhf_get(struct wlc_info *wlc, u8 idx, int bands);
 extern u32 wlc_delta_txfunfl(struct wlc_info *wlc, int fifo);
 extern void wlc_rate_lookup_init(struct wlc_info *wlc, wlc_rateset_t *rateset);
 extern void wlc_default_rateset(struct wlc_info *wlc, wlc_rateset_t *rs);
@@ -579,12 +577,6 @@ static inline int wlc_iovar_getuint(struct wlc_info *wlc, const char *name,
 	return wlc_iovar_getint(wlc, name, (int *)arg);
 }
 
-static inline int wlc_iovar_getu8(struct wlc_info *wlc, const char *name,
-				     u8 *arg)
-{
-	return wlc_iovar_gets8(wlc, name, (s8 *) arg);
-}
-
 static inline int wlc_iovar_setuint(struct wlc_info *wlc, const char *name,
 				    uint arg)
 {
@@ -593,9 +585,6 @@ static inline int wlc_iovar_setuint(struct wlc_info *wlc, const char *name,
 
 #if defined(BCMDBG)
 extern int wlc_iocregchk(struct wlc_info *wlc, uint band);
-#endif
-#if defined(BCMDBG)
-extern int wlc_iocpichk(struct wlc_info *wlc, uint phytype);
 #endif
 
 /* helper functions */
