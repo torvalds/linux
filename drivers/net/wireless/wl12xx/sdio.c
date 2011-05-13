@@ -267,6 +267,8 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 		goto out_free;
 	}
 
+	enable_irq_wake(wl->irq);
+
 	disable_irq(wl->irq);
 
 	ret = wl1271_init_ieee80211(wl);
@@ -303,6 +305,7 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 	pm_runtime_get_noresume(&func->dev);
 
 	wl1271_unregister_hw(wl);
+	disable_irq_wake(wl->irq);
 	free_irq(wl->irq, wl);
 	wl1271_free_hw(wl);
 }
