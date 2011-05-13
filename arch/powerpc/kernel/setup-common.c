@@ -602,6 +602,10 @@ int check_legacy_ioport(unsigned long base_port)
 		 * name instead */
 		if (!np)
 			np = of_find_node_by_name(NULL, "8042");
+		if (np) {
+			of_i8042_kbd_irq = 1;
+			of_i8042_aux_irq = 12;
+		}
 		break;
 	case FDC_BASE: /* FDC1 */
 		np = of_find_node_by_type(NULL, "fdc");
