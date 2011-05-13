@@ -83,10 +83,11 @@ static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 	if (!priv)
 		return -EINVAL;
 
-	/* Get length of CAIF packet. */
-	pktlen = cfpkt_getlen(pkt);
-
 	skb = (struct sk_buff *) cfpkt_tonative(pkt);
+
+	/* Get length of CAIF packet. */
+	pktlen = skb->len;
+
 	/* Pass some minimum information and
 	 * send the packet to the net stack.
 	 */

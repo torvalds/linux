@@ -117,7 +117,6 @@ out_of_mem:
 	kfree(this);
 	return NULL;
 }
-EXPORT_SYMBOL(cfcnfg_create);
 
 void cfcnfg_remove(struct cfcnfg *cfg)
 {

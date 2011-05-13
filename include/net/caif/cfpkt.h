@@ -195,5 +195,4 @@ void *cfpkt_tonative(struct cfpkt *pkt);
  * @return Packet information
  */
 struct caif_payload_info *cfpkt_info(struct cfpkt *pkt);
-/*! @} */
 #endif				/* CFPKT_H_ */

@@ -205,7 +205,7 @@ static int caif_sktrecv_cb(struct cflayer *layr, struct cfpkt *pkt)
 	skb = cfpkt_tonative(pkt);
 
 	if (unlikely(cf_sk->sk.sk_state != CAIF_CONNECTED)) {
-		cfpkt_destroy(pkt);
+		kfree_skb(skb);
 		return 0;
 	}
 	caif_queue_rcv_skb(&cf_sk->sk, skb);
@@ -537,7 +537,7 @@ static int transmit_skb(struct sk_buff *skb, struct caifsock *cf_sk,
 	struct cfpkt *pkt;
 
 	pkt = cfpkt_fromnative(CAIF_DIR_OUT, skb);
-	memset(cfpkt_info(pkt), 0, sizeof(struct caif_payload_info));
+	memset(skb->cb, 0, sizeof(struct caif_payload_info));
 
 	if (cf_sk->layer.dn == NULL)
 		return -EINVAL;
