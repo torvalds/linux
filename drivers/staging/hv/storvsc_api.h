@@ -27,7 +27,7 @@
 
 #include <linux/kernel.h>
 #include <linux/wait.h>
-#include "vstorage.h"
+#include "hyperv_storage.h"
 #include "hyperv.h"
 
 /* Defines */

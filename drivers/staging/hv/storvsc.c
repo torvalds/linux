@@ -31,7 +31,6 @@
 #include "hyperv.h"
 #include "hyperv_storage.h"
 #include "storvsc_api.h"
-#include "vstorage.h"
 
 
 static inline struct storvsc_device *alloc_stor_device(struct hv_device *device)
