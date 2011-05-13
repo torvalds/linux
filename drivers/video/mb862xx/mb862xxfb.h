@@ -1,6 +1,26 @@
 #ifndef __MB862XX_H__
 #define __MB862XX_H__
 
+struct mb862xx_l1_cfg {
+	unsigned short sx;
+	unsigned short sy;
+	unsigned short sw;
+	unsigned short sh;
+	unsigned short dx;
+	unsigned short dy;
+	unsigned short dw;
+	unsigned short dh;
+	int mirror;
+};
+
+#define MB862XX_BASE		'M'
+#define MB862XX_L1_GET_CFG	_IOR(MB862XX_BASE, 0, struct mb862xx_l1_cfg*)
+#define MB862XX_L1_SET_CFG	_IOW(MB862XX_BASE, 1, struct mb862xx_l1_cfg*)
+#define MB862XX_L1_ENABLE	_IOW(MB862XX_BASE, 2, int)
+#define MB862XX_L1_CAP_CTL	_IOW(MB862XX_BASE, 3, int)
+
+#ifdef __KERNEL__
+
 #define PCI_VENDOR_ID_FUJITSU_LIMITED	0x10cf
 #define PCI_DEVICE_ID_FUJITSU_CORALP	0x2019
 #define PCI_DEVICE_ID_FUJITSU_CORALPA	0x201e
@@ -38,6 +58,8 @@ struct mb862xxfb_par {
 	void __iomem		*mmio_base;	/* remapped registers */
 	size_t			mapped_vram;	/* length of remapped vram */
 	size_t			mmio_len;	/* length of register region */
+	unsigned long		cap_buf;	/* capture buffers offset */
+	size_t			cap_len;	/* length of capture buffers */
 
 	void __iomem		*host;		/* relocatable reg. bases */
 	void __iomem		*i2c;
@@ -59,6 +81,9 @@ struct mb862xxfb_par {
 	int			pre_init;	/* don't init display if 1 */
 	struct i2c_adapter	*adap;		/* GDC I2C bus adapter */
 	int			i2c_rs;
+
+	struct mb862xx_l1_cfg	l1_cfg;
+	int			l1_stride;
 
 	u32			pseudo_palette[16];
 };
@@ -90,5 +115,7 @@ static inline void mb862xx_i2c_exit(struct mb862xxfb_par *par) { }
 	gdc_write((val), (par->type + (off)))
 
 #define pack(a, b)	(((a) << 16) | (b))
+
+#endif /* __KERNEL__ */
 
 #endif
