@@ -519,6 +519,13 @@ int cfcnfg_del_phy_layer(struct cfcnfg *cnfg, struct cflayer *phy_layer)
 	caif_assert(phy_layer->id == phyid);
 	caif_assert(phyinfo->frm_layer->id == phyid);
 
+	/* Fail if reference count is not zero */
+	if (cffrml_refcnt_read(phyinfo->frm_layer) != 0) {
+		pr_info("Wait for device inuse\n");
+		mutex_unlock(&cnfg->lock);
+		return -EAGAIN;
+	}
+
 	list_del_rcu(&phyinfo->node);
 	synchronize_rcu();
 
@@ -537,7 +544,7 @@ int cfcnfg_del_phy_layer(struct cfcnfg *cnfg, struct cflayer *phy_layer)
 	if (phyinfo->phy_layer != frml_dn)
 		kfree(frml_dn);
 
-	kfree(frml);
+	cffrml_free(frml);
 	kfree(phyinfo);
 	mutex_unlock(&cnfg->lock);
 
