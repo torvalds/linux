@@ -1699,22 +1699,26 @@ static int ip_rt_bug(struct sk_buff *skb)
    in IP options!
  */
 
-void ip_rt_get_source(u8 *addr, struct rtable *rt)
+void ip_rt_get_source(u8 *addr, struct sk_buff *skb, struct rtable *rt)
 {
 	__be32 src;
-	struct fib_result res;
 
 	if (rt_is_output_route(rt))
 		src = rt->rt_src;
 	else {
-		struct flowi4 fl4 = {
-			.daddr = rt->rt_key_dst,
-			.saddr = rt->rt_key_src,
-			.flowi4_tos = rt->rt_key_tos,
-			.flowi4_oif = rt->rt_oif,
-			.flowi4_iif = rt->rt_iif,
-			.flowi4_mark = rt->rt_mark,
-		};
+		struct fib_result res;
+		struct flowi4 fl4;
+		struct iphdr *iph;
+
+		iph = ip_hdr(skb);
+
+		memset(&fl4, 0, sizeof(fl4));
+		fl4.daddr = iph->daddr;
+		fl4.saddr = iph->saddr;
+		fl4.flowi4_tos = iph->tos;
+		fl4.flowi4_oif = rt->dst.dev->ifindex;
+		fl4.flowi4_iif = skb->dev->ifindex;
+		fl4.flowi4_mark = skb->mark;
 
 		rcu_read_lock();
 		if (fib_lookup(dev_net(rt->dst.dev), &fl4, &res) == 0)

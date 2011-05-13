@@ -37,7 +37,7 @@
  */
 
 void ip_options_build(struct sk_buff *skb, struct ip_options *opt,
-			    __be32 daddr, struct rtable *rt, int is_frag)
+		      __be32 daddr, struct rtable *rt, int is_frag)
 {
 	unsigned char *iph = skb_network_header(skb);
 
@@ -50,9 +50,9 @@ void ip_options_build(struct sk_buff *skb, struct ip_options *opt,
 
 	if (!is_frag) {
 		if (opt->rr_needaddr)
-			ip_rt_get_source(iph+opt->rr+iph[opt->rr+2]-5, rt);
+			ip_rt_get_source(iph+opt->rr+iph[opt->rr+2]-5, skb, rt);
 		if (opt->ts_needaddr)
-			ip_rt_get_source(iph+opt->ts+iph[opt->ts+2]-9, rt);
+			ip_rt_get_source(iph+opt->ts+iph[opt->ts+2]-9, skb, rt);
 		if (opt->ts_needtime) {
 			struct timespec tv;
 			__be32 midtime;
@@ -553,7 +553,7 @@ void ip_forward_options(struct sk_buff *skb)
 
 	if (opt->rr_needaddr) {
 		optptr = (unsigned char *)raw + opt->rr;
-		ip_rt_get_source(&optptr[optptr[2]-5], rt);
+		ip_rt_get_source(&optptr[optptr[2]-5], skb, rt);
 		opt->is_changed = 1;
 	}
 	if (opt->srr_is_hit) {
@@ -572,13 +572,13 @@ void ip_forward_options(struct sk_buff *skb)
 		}
 		if (srrptr + 3 <= srrspace) {
 			opt->is_changed = 1;
-			ip_rt_get_source(&optptr[srrptr-1], rt);
+			ip_rt_get_source(&optptr[srrptr-1], skb, rt);
 			optptr[2] = srrptr+4;
 		} else if (net_ratelimit())
 			printk(KERN_CRIT "ip_forward(): Argh! Destination lost!\n");
 		if (opt->ts_needaddr) {
 			optptr = raw + opt->ts;
-			ip_rt_get_source(&optptr[optptr[2]-9], rt);
+			ip_rt_get_source(&optptr[optptr[2]-9], skb, rt);
 			opt->is_changed = 1;
 		}
 	}
