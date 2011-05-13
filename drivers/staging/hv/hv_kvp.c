@@ -30,7 +30,6 @@
 #include "hyperv.h"
 #include "hv_api.h"
 #include "vmbus_private.h"
-#include "utils.h"
 #include "hv_kvp.h"
 
 

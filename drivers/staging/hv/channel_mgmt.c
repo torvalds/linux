@@ -32,7 +32,6 @@
 #include "hyperv.h"
 #include "hv_api.h"
 #include "vmbus_private.h"
-#include "utils.h"
 
 struct vmbus_channel_message_table_entry {
 	enum vmbus_channel_message_type message_type;
