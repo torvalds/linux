@@ -121,6 +121,18 @@ static inline void ath9k_hw_set_clrdmask(struct ath_hw *ah, void *ds, bool val)
 	ath9k_hw_ops(ah)->set_clrdmask(ah, ds, val);
 }
 
+static inline void ath9k_hw_antdiv_comb_conf_get(struct ath_hw *ah,
+		struct ath_hw_antcomb_conf *antconf)
+{
+	ath9k_hw_ops(ah)->antdiv_comb_conf_get(ah, antconf);
+}
+
+static inline void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
+		struct ath_hw_antcomb_conf *antconf)
+{
+	ath9k_hw_ops(ah)->antdiv_comb_conf_set(ah, antconf);
+}
+
 /* Private hardware call ops */
 
 /* PHY ops */
