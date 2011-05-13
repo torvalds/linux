@@ -2840,15 +2840,31 @@ int bnx2x_set_features(struct net_device *dev, u32 features)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 flags = bp->flags;
+	bool bnx2x_reload = false;
 
 	if (features & NETIF_F_LRO)
 		flags |= TPA_ENABLE_FLAG;
 	else
 		flags &= ~TPA_ENABLE_FLAG;
 
+	if (features & NETIF_F_LOOPBACK) {
+		if (bp->link_params.loopback_mode != LOOPBACK_BMAC) {
+			bp->link_params.loopback_mode = LOOPBACK_BMAC;
+			bnx2x_reload = true;
+		}
+	} else {
+		if (bp->link_params.loopback_mode != LOOPBACK_NONE) {
+			bp->link_params.loopback_mode = LOOPBACK_NONE;
+			bnx2x_reload = true;
+		}
+	}
+
 	if (flags ^ bp->flags) {
 		bp->flags = flags;
+		bnx2x_reload = true;
+	}
 
+	if (bnx2x_reload) {
 		if (bp->recovery_state == BNX2X_RECOVERY_DONE)
 			return bnx2x_reload_if_running(dev);
 		/* else: bnx2x_nic_load() will be called at end of recovery */

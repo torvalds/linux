@@ -9273,6 +9273,9 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	if (bp->flags & USING_DAC_FLAG)
 		dev->features |= NETIF_F_HIGHDMA;
 
+	/* Add Loopback capability to the device */
+	dev->hw_features |= NETIF_F_LOOPBACK;
+
 #ifdef BCM_DCBNL
 	dev->dcbnl_ops = &bnx2x_dcbnl_ops;
 #endif
