@@ -1133,7 +1133,7 @@ static irqreturn_t s3c_hsudc_irq(int irq, void *_dev)
 }
 
 int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
-               int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *))
 {
 	struct s3c_hsudc *hsudc = the_controller;
 	int ret;
