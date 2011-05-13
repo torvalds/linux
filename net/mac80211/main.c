@@ -685,7 +685,7 @@ EXPORT_SYMBOL(ieee80211_alloc_hw);
 int ieee80211_register_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	int result;
+	int result, i;
 	enum ieee80211_band band;
 	int channels, max_bitrates;
 	bool supp_ht;
@@ -743,11 +743,19 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		return -ENOMEM;
 
 	/* if low-level driver supports AP, we also support VLAN */
-	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_AP))
-		local->hw.wiphy->interface_modes |= BIT(NL80211_IFTYPE_AP_VLAN);
+	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_AP)) {
+		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_AP_VLAN);
+		hw->wiphy->software_iftypes |= BIT(NL80211_IFTYPE_AP_VLAN);
+	}
 
 	/* mac80211 always supports monitor */
-	local->hw.wiphy->interface_modes |= BIT(NL80211_IFTYPE_MONITOR);
+	hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_MONITOR);
+	hw->wiphy->software_iftypes |= BIT(NL80211_IFTYPE_MONITOR);
+
+	/* mac80211 doesn't support more than 1 channel */
+	for (i = 0; i < hw->wiphy->n_iface_combinations; i++)
+		if (hw->wiphy->iface_combinations[i].num_different_channels > 1)
+			return -EINVAL;
 
 #ifndef CONFIG_MAC80211_MESH
 	/* mesh depends on Kconfig, but drivers should set it if they want */

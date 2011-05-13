@@ -803,6 +803,11 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		return -EBUSY;
 
 	if (ntype != otype) {
+		err = cfg80211_can_change_interface(rdev, dev->ieee80211_ptr,
+						    ntype);
+		if (err)
+			return err;
+
 		dev->ieee80211_ptr->use_4addr = false;
 		dev->ieee80211_ptr->mesh_id_up_len = 0;
 
@@ -920,4 +925,79 @@ int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 	mutex_unlock(&rdev->devlist_mtx);
 
 	return res;
+}
+
+int cfg80211_can_change_interface(struct cfg80211_registered_device *rdev,
+				  struct wireless_dev *wdev,
+				  enum nl80211_iftype iftype)
+{
+	struct wireless_dev *wdev_iter;
+	int num[NUM_NL80211_IFTYPES];
+	int total = 1;
+	int i, j;
+
+	ASSERT_RTNL();
+
+	/* Always allow software iftypes */
+	if (rdev->wiphy.software_iftypes & BIT(iftype))
+		return 0;
+
+	/*
+	 * Drivers will gradually all set this flag, until all
+	 * have it we only enforce for those that set it.
+	 */
+	if (!(rdev->wiphy.flags & WIPHY_FLAG_ENFORCE_COMBINATIONS))
+		return 0;
+
+	memset(num, 0, sizeof(num));
+
+	num[iftype] = 1;
+
+	mutex_lock(&rdev->devlist_mtx);
+	list_for_each_entry(wdev_iter, &rdev->netdev_list, list) {
+		if (wdev_iter == wdev)
+			continue;
+		if (!netif_running(wdev_iter->netdev))
+			continue;
+
+		if (rdev->wiphy.software_iftypes & BIT(wdev_iter->iftype))
+			continue;
+
+		num[wdev_iter->iftype]++;
+		total++;
+	}
+	mutex_unlock(&rdev->devlist_mtx);
+
+	for (i = 0; i < rdev->wiphy.n_iface_combinations; i++) {
+		const struct ieee80211_iface_combination *c;
+		struct ieee80211_iface_limit *limits;
+
+		c = &rdev->wiphy.iface_combinations[i];
+
+		limits = kmemdup(c->limits, sizeof(limits[0]) * c->n_limits,
+				 GFP_KERNEL);
+		if (!limits)
+			return -ENOMEM;
+		if (total > c->max_interfaces)
+			goto cont;
+
+		for (iftype = 0; iftype < NUM_NL80211_IFTYPES; iftype++) {
+			if (rdev->wiphy.software_iftypes & BIT(iftype))
+				continue;
+			for (j = 0; j < c->n_limits; j++) {
+				if (!(limits[j].types & iftype))
+					continue;
+				if (limits[j].max < num[iftype])
+					goto cont;
+				limits[j].max -= num[iftype];
+			}
+		}
+		/* yay, it fits */
+		kfree(limits);
+		return 0;
+ cont:
+		kfree(limits);
+	}
+
+	return -EBUSY;
 }

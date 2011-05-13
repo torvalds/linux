@@ -416,6 +416,67 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 }
 EXPORT_SYMBOL(wiphy_new);
 
+static int wiphy_verify_combinations(struct wiphy *wiphy)
+{
+	const struct ieee80211_iface_combination *c;
+	int i, j;
+
+	/* If we have combinations enforce them */
+	if (wiphy->n_iface_combinations)
+		wiphy->flags |= WIPHY_FLAG_ENFORCE_COMBINATIONS;
+
+	for (i = 0; i < wiphy->n_iface_combinations; i++) {
+		u32 cnt = 0;
+		u16 all_iftypes = 0;
+
+		c = &wiphy->iface_combinations[i];
+
+		/* Combinations with just one interface aren't real */
+		if (WARN_ON(c->max_interfaces < 2))
+			return -EINVAL;
+
+		/* Need at least one channel */
+		if (WARN_ON(!c->num_different_channels))
+			return -EINVAL;
+
+		if (WARN_ON(!c->n_limits))
+			return -EINVAL;
+
+		for (j = 0; j < c->n_limits; j++) {
+			u16 types = c->limits[j].types;
+
+			/*
+			 * interface types shouldn't overlap, this is
+			 * used in cfg80211_can_change_interface()
+			 */
+			if (WARN_ON(types & all_iftypes))
+				return -EINVAL;
+			all_iftypes |= types;
+
+			if (WARN_ON(!c->limits[j].max))
+				return -EINVAL;
+
+			/* Shouldn't list software iftypes in combinations! */
+			if (WARN_ON(wiphy->software_iftypes & types))
+				return -EINVAL;
+
+			cnt += c->limits[j].max;
+			/*
+			 * Don't advertise an unsupported type
+			 * in a combination.
+			 */
+			if (WARN_ON((wiphy->interface_modes & types) != types))
+				return -EINVAL;
+		}
+
+		/* You can't even choose that many! */
+		if (WARN_ON(cnt < c->max_interfaces))
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 int wiphy_register(struct wiphy *wiphy)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
@@ -443,6 +504,10 @@ int wiphy_register(struct wiphy *wiphy)
 	ifmodes &= ((1 << NUM_NL80211_IFTYPES) - 1) & ~1;
 	if (WARN_ON(ifmodes != wiphy->interface_modes))
 		wiphy->interface_modes = ifmodes;
+
+	res = wiphy_verify_combinations(wiphy);
+	if (res)
+		return res;
 
 	/* sanity check supported bands/channels */
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
@@ -698,6 +763,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 	struct net_device *dev = ndev;
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev;
+	int ret;
 
 	if (!wdev)
 		return NOTIFY_DONE;
@@ -893,6 +959,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			return notifier_from_errno(-EOPNOTSUPP);
 		if (rfkill_blocked(rdev->rfkill))
 			return notifier_from_errno(-ERFKILL);
+		ret = cfg80211_can_add_interface(rdev, wdev->iftype);
+		if (ret)
+			return notifier_from_errno(ret);
 		break;
 	}
 

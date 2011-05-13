@@ -1547,6 +1547,10 @@ struct cfg80211_ops {
  *	hints read the documenation for regulatory_hint_found_beacon()
  * @WIPHY_FLAG_NETNS_OK: if not set, do not allow changing the netns of this
  *	wiphy at all
+ * @WIPHY_FLAG_ENFORCE_COMBINATIONS: Set this flag to enforce interface
+ *	combinations for this device. This flag is used for backward
+ *	compatibility only until all drivers advertise combinations and
+ *	they will always be enforced.
  * @WIPHY_FLAG_PS_ON_BY_DEFAULT: if set to true, powersave will be enabled
  *	by default -- this flag will be set depending on the kernel's default
  *	on wiphy_new(), but can be changed by the driver if it has a good
@@ -1574,6 +1578,81 @@ enum wiphy_flags {
 	WIPHY_FLAG_IBSS_RSN			= BIT(8),
 	WIPHY_FLAG_MESH_AUTH			= BIT(10),
 	WIPHY_FLAG_SUPPORTS_SCHED_SCAN		= BIT(11),
+	WIPHY_FLAG_ENFORCE_COMBINATIONS		= BIT(12),
+};
+
+/**
+ * struct ieee80211_iface_limit - limit on certain interface types
+ * @max: maximum number of interfaces of these types
+ * @types: interface types (bits)
+ */
+struct ieee80211_iface_limit {
+	u16 max;
+	u16 types;
+};
+
+/**
+ * struct ieee80211_iface_combination - possible interface combination
+ * @limits: limits for the given interface types
+ * @n_limits: number of limitations
+ * @num_different_channels: can use up to this many different channels
+ * @max_interfaces: maximum number of interfaces in total allowed in this
+ *	group
+ * @beacon_int_infra_match: In this combination, the beacon intervals
+ *	between infrastructure and AP types must match. This is required
+ *	only in special cases.
+ *
+ * These examples can be expressed as follows:
+ *
+ * Allow #STA <= 1, #AP <= 1, matching BI, channels = 1, 2 total:
+ *
+ *  struct ieee80211_iface_limit limits1[] = {
+ *	{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION), },
+ *	{ .max = 1, .types = BIT(NL80211_IFTYPE_AP}, },
+ *  };
+ *  struct ieee80211_iface_combination combination1 = {
+ *	.limits = limits1,
+ *	.n_limits = ARRAY_SIZE(limits1),
+ *	.max_interfaces = 2,
+ *	.beacon_int_infra_match = true,
+ *  };
+ *
+ *
+ * Allow #{AP, P2P-GO} <= 8, channels = 1, 8 total:
+ *
+ *  struct ieee80211_iface_limit limits2[] = {
+ *	{ .max = 8, .types = BIT(NL80211_IFTYPE_AP) |
+ *			     BIT(NL80211_IFTYPE_P2P_GO), },
+ *  };
+ *  struct ieee80211_iface_combination combination2 = {
+ *	.limits = limits2,
+ *	.n_limits = ARRAY_SIZE(limits2),
+ *	.max_interfaces = 8,
+ *	.num_different_channels = 1,
+ *  };
+ *
+ *
+ * Allow #STA <= 1, #{P2P-client,P2P-GO} <= 3 on two channels, 4 total.
+ * This allows for an infrastructure connection and three P2P connections.
+ *
+ *  struct ieee80211_iface_limit limits3[] = {
+ *	{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION), },
+ *	{ .max = 3, .types = BIT(NL80211_IFTYPE_P2P_GO) |
+ *			     BIT(NL80211_IFTYPE_P2P_CLIENT), },
+ *  };
+ *  struct ieee80211_iface_combination combination3 = {
+ *	.limits = limits3,
+ *	.n_limits = ARRAY_SIZE(limits3),
+ *	.max_interfaces = 4,
+ *	.num_different_channels = 2,
+ *  };
+ */
+struct ieee80211_iface_combination {
+	const struct ieee80211_iface_limit *limits;
+	u32 num_different_channels;
+	u16 max_interfaces;
+	u8 n_limits;
+	bool beacon_int_infra_match;
 };
 
 struct mac_address {
@@ -1653,6 +1732,11 @@ struct wiphy_wowlan_support {
  * @priv: driver private data (sized according to wiphy_new() parameter)
  * @interface_modes: bitmask of interfaces types valid for this wiphy,
  *	must be set by driver
+ * @iface_combinations: Valid interface combinations array, should not
+ *	list single interface types.
+ * @n_iface_combinations: number of entries in @iface_combinations array.
+ * @software_iftypes: bitmask of software interface types, these are not
+ *	subject to any restrictions since they are purely managed in SW.
  * @flags: wiphy flags, see &enum wiphy_flags
  * @bss_priv_size: each BSS struct has private data allocated with it,
  *	this variable determines its size
@@ -1696,6 +1780,10 @@ struct wiphy {
 	struct mac_address *addresses;
 
 	const struct ieee80211_txrx_stypes *mgmt_stypes;
+
+	const struct ieee80211_iface_combination *iface_combinations;
+	int n_iface_combinations;
+	u16 software_iftypes;
 
 	u16 n_addresses;
 
