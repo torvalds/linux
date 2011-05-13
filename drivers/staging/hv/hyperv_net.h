@@ -135,6 +135,9 @@ int rndis_filter_receive(struct hv_device *dev,
 
 
 
+int rndis_filter_send(struct hv_device *dev,
+			struct hv_netvsc_packet *pkt);
+
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)
 
 #define NVSP_PROTOCOL_VERSION_1		2

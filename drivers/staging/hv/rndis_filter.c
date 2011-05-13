@@ -82,9 +82,6 @@ struct rndis_filter_packet {
 };
 
 
-static int rndis_filter_send(struct hv_device *dev,
-			     struct hv_netvsc_packet *pkt);
-
 static void rndis_filter_send_completion(void *ctx);
 
 static void rndis_filter_send_request_completion(void *ctx);
@@ -822,7 +819,7 @@ int rndis_filter_close(struct hv_device *dev)
 	return rndis_filter_close_device(netDevice->extension);
 }
 
-static int rndis_filter_send(struct hv_device *dev,
+int rndis_filter_send(struct hv_device *dev,
 			     struct hv_netvsc_packet *pkt)
 {
 	int ret;
