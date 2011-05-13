@@ -259,8 +259,6 @@ static s32 wl_dongle_up(struct net_device *ndev, u32 up);
 static s32 wl_dongle_power(struct net_device *ndev, u32 power_mode);
 static s32 wl_dongle_glom(struct net_device *ndev, u32 glom,
 			    u32 dongle_align);
-static s32 wl_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
-				s32 scan_unassoc_time);
 static s32 wl_dongle_offload(struct net_device *ndev, s32 arpoe,
 			       s32 arp_ol);
 static s32 wl_pattern_atoh(s8 *src, s8 *dst);
@@ -269,6 +267,8 @@ static s32 wl_update_wiphybands(struct wl_priv *wl);
 #endif				/* !EMBEDDED_PLATFORM */
 
 static s32 wl_dongle_eventmsg(struct net_device *ndev);
+static s32 wl_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
+				s32 scan_unassoc_time, s32 scan_passive_time);
 static s32 wl_config_dongle(struct wl_priv *wl, bool need_lock);
 static s32 wl_dongle_roam(struct net_device *ndev, u32 roamvar,
 			    u32 bcn_timeout);
@@ -3633,37 +3633,6 @@ dongle_glom_out:
 }
 
 static s32
-wl_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
-		   s32 scan_unassoc_time)
-{
-	s32 err = 0;
-
-	err = wl_dev_ioctl(ndev, WLC_SET_SCAN_CHANNEL_TIME, &scan_assoc_time,
-			sizeof(scan_assoc_time));
-	if (err) {
-		if (err == -EOPNOTSUPP) {
-			WL_INFO("Scan assoc time is not supported\n");
-		} else {
-			WL_ERR("Scan assoc time error (%d)\n", err);
-		}
-		goto dongle_scantime_out;
-	}
-	err = wl_dev_ioctl(ndev, WLC_SET_SCAN_UNASSOC_TIME, &scan_unassoc_time,
-			sizeof(scan_unassoc_time));
-	if (err) {
-		if (err == -EOPNOTSUPP) {
-			WL_INFO("Scan unassoc time is not supported\n");
-		} else {
-			WL_ERR("Scan unassoc time error (%d)\n", err);
-		}
-		goto dongle_scantime_out;
-	}
-
-dongle_scantime_out:
-	return err;
-}
-
-static s32
 wl_dongle_offload(struct net_device *ndev, s32 arpoe, s32 arp_ol)
 {
 	s8 iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
@@ -3917,6 +3886,45 @@ dongle_rom_out:
 	return err;
 }
 
+static s32
+wl_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
+		s32 scan_unassoc_time, s32 scan_passive_time)
+{
+	s32 err = 0;
+
+	err = wl_dev_ioctl(ndev, WLC_SET_SCAN_CHANNEL_TIME, &scan_assoc_time,
+			sizeof(scan_assoc_time));
+	if (err) {
+		if (err == -EOPNOTSUPP)
+			WL_INFO("Scan assoc time is not supported\n");
+		else
+			WL_ERR("Scan assoc time error (%d)\n", err);
+		goto dongle_scantime_out;
+	}
+	err = wl_dev_ioctl(ndev, WLC_SET_SCAN_UNASSOC_TIME, &scan_unassoc_time,
+			sizeof(scan_unassoc_time));
+	if (err) {
+		if (err == -EOPNOTSUPP)
+			WL_INFO("Scan unassoc time is not supported\n");
+		else
+			WL_ERR("Scan unassoc time error (%d)\n", err);
+		goto dongle_scantime_out;
+	}
+
+	err = wl_dev_ioctl(ndev, WLC_SET_SCAN_PASSIVE_TIME, &scan_passive_time,
+			sizeof(scan_passive_time));
+	if (err) {
+		if (err == -EOPNOTSUPP)
+			WL_INFO("Scan passive time is not supported\n");
+		else
+			WL_ERR("Scan passive time error (%d)\n", err);
+		goto dongle_scantime_out;
+	}
+
+dongle_scantime_out:
+	return err;
+}
+
 s32 wl_config_dongle(struct wl_priv *wl, bool need_lock)
 {
 #ifndef DHD_SDALIGN
@@ -3947,10 +3955,13 @@ s32 wl_config_dongle(struct wl_priv *wl, bool need_lock)
 	err = wl_dongle_glom(ndev, 0, DHD_SDALIGN);
 	if (unlikely(err))
 		goto default_conf_out;
-	wl_dongle_scantime(ndev, 40, 80);
+
 	wl_dongle_offload(ndev, 1, 0xf);
 	wl_dongle_filter(ndev, 1);
-#endif				/* !EMBEDDED_PLATFORM */
+#endif /* !EMBEDDED_PLATFORM */
+
+	wl_dongle_scantime(ndev, WL_SCAN_CHANNEL_TIME,
+			WL_SCAN_UNASSOC_TIME, WL_SCAN_PASSIVE_TIME);
 
 	err = wl_dongle_eventmsg(ndev);
 	if (unlikely(err))

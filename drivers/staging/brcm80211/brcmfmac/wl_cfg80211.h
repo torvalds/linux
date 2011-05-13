@@ -99,6 +99,10 @@ do {								\
 #define WL_ROAM_DELTA			20
 #define WL_BEACON_TIMEOUT		3
 
+#define WL_SCAN_CHANNEL_TIME		40
+#define WL_SCAN_UNASSOC_TIME		40
+#define WL_SCAN_PASSIVE_TIME		120
+
 /* dongle status */
 enum wl_status {
 	WL_STATUS_READY,
