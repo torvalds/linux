@@ -49,9 +49,9 @@
 #include <net/checksum.h>
 
 
-struct ping_table ping_table __read_mostly;
+static struct ping_table ping_table;
 
-u16 ping_port_rover;
+static u16 ping_port_rover;
 
 static inline int ping_hashfn(struct net *net, unsigned num, unsigned mask)
 {
@@ -150,8 +150,8 @@ static void ping_v4_unhash(struct sock *sk)
 	}
 }
 
-struct sock *ping_v4_lookup(struct net *net, u32 saddr, u32 daddr,
-	 u16 ident, int dif)
+static struct sock *ping_v4_lookup(struct net *net, u32 saddr, u32 daddr,
+				   u16 ident, int dif)
 {
 	struct hlist_nulls_head *hslot = ping_hashslot(&ping_table, net, ident);
 	struct sock *sk = NULL;
