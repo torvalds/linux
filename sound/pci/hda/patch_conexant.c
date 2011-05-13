@@ -1512,6 +1512,7 @@ enum {
 #ifdef CONFIG_SND_DEBUG
 	CXT5047_TEST,
 #endif
+	CXT5047_AUTO,
 	CXT5047_MODELS
 };
 
@@ -1522,6 +1523,7 @@ static const char * const cxt5047_models[CXT5047_MODELS] = {
 #ifdef CONFIG_SND_DEBUG
 	[CXT5047_TEST]		= "test",
 #endif
+	[CXT5047_AUTO]		= "auto",
 };
 
 static const struct snd_pci_quirk cxt5047_cfg_tbl[] = {
@@ -1536,6 +1538,16 @@ static int patch_cxt5047(struct hda_codec *codec)
 {
 	struct conexant_spec *spec;
 	int board_config;
+
+	board_config = snd_hda_check_board_config(codec, CXT5047_MODELS,
+						  cxt5047_models,
+						  cxt5047_cfg_tbl);
+#if 0 /* not enabled as default, as BIOS often broken for this codec */
+	if (board_config < 0)
+		board_config = CXT5047_AUTO;
+#endif
+	if (board_config == CXT5047_AUTO)
+		return patch_conexant_auto(codec);
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
@@ -1560,9 +1572,6 @@ static int patch_cxt5047(struct hda_codec *codec)
 
 	codec->patch_ops = conexant_patch_ops;
 
-	board_config = snd_hda_check_board_config(codec, CXT5047_MODELS,
-						  cxt5047_models,
-						  cxt5047_cfg_tbl);
 	switch (board_config) {
 	case CXT5047_LAPTOP:
 		spec->num_mixers = 2;
@@ -4061,6 +4070,12 @@ static int patch_conexant_auto(struct hda_codec *codec)
 		spec->adc_nids = cxt5045_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(cxt5045_adc_nids);
 		spec->capsrc_nids = spec->adc_nids;
+		break;
+	case 0x14f15047:
+		codec->pin_amp_workaround = 1;
+		spec->adc_nids = cxt5047_adc_nids;
+		spec->num_adc_nids = ARRAY_SIZE(cxt5047_adc_nids);
+		spec->capsrc_nids = cxt5047_capsrc_nids;
 		break;
 	default:
 		spec->adc_nids = cx_auto_adc_nids;
