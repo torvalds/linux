@@ -86,8 +86,6 @@ struct netvsc_driver {
 	/* Must be the first field */
 	/* Which is a bug FIXME! */
 	struct hv_driver base;
-
-	u32 ring_buf_size;
 };
 
 static inline
