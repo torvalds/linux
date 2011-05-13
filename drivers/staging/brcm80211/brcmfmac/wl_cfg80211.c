@@ -1616,6 +1616,7 @@ wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	s32 val;
 	s32 wsec;
 	s32 err = 0;
+	u8 keybuf[8];
 
 	WL_DBG("key index (%d)\n", key_idx);
 	CHECK_SYS_UP();
@@ -1644,6 +1645,9 @@ wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		WL_DBG("WLAN_CIPHER_SUITE_WEP104\n");
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
+		memcpy(keybuf, &key.data[24], sizeof(keybuf));
+		memcpy(&key.data[24], &key.data[16], sizeof(keybuf));
+		memcpy(&key.data[16], keybuf, sizeof(keybuf));
 		key.algo = CRYPTO_ALGO_TKIP;
 		WL_DBG("WLAN_CIPHER_SUITE_TKIP\n");
 		break;
