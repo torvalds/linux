@@ -104,6 +104,7 @@ struct garp_applicant {
 	struct sk_buff_head	queue;
 	struct sk_buff		*pdu;
 	struct rb_root		gid;
+	struct rcu_head		rcu;
 };
 
 struct garp_port {

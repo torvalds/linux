@@ -3373,8 +3373,8 @@ relink:
 		tg3_phy_copper_begin(tp);
 
 		tg3_readphy(tp, MII_BMSR, &bmsr);
-		if (!tg3_readphy(tp, MII_BMSR, &bmsr) &&
-		    (bmsr & BMSR_LSTATUS))
+		if ((!tg3_readphy(tp, MII_BMSR, &bmsr) && (bmsr & BMSR_LSTATUS)) ||
+		    (tp->mac_mode & MAC_MODE_PORT_INT_LPBACK))
 			current_link_up = 1;
 	}
 
@@ -6309,6 +6309,42 @@ dma_error:
 	return NETDEV_TX_OK;
 }
 
+static void tg3_set_loopback(struct net_device *dev, u32 features)
+{
+	struct tg3 *tp = netdev_priv(dev);
+
+	if (features & NETIF_F_LOOPBACK) {
+		if (tp->mac_mode & MAC_MODE_PORT_INT_LPBACK)
+			return;
+
+		/*
+		 * Clear MAC_MODE_HALF_DUPLEX or you won't get packets back in
+		 * loopback mode if Half-Duplex mode was negotiated earlier.
+		 */
+		tp->mac_mode &= ~MAC_MODE_HALF_DUPLEX;
+
+		/* Enable internal MAC loopback mode */
+		tp->mac_mode |= MAC_MODE_PORT_INT_LPBACK;
+		spin_lock_bh(&tp->lock);
+		tw32(MAC_MODE, tp->mac_mode);
+		netif_carrier_on(tp->dev);
+		spin_unlock_bh(&tp->lock);
+		netdev_info(dev, "Internal MAC loopback mode enabled.\n");
+	} else {
+		if (!(tp->mac_mode & MAC_MODE_PORT_INT_LPBACK))
+			return;
+
+		/* Disable internal MAC loopback mode */
+		tp->mac_mode &= ~MAC_MODE_PORT_INT_LPBACK;
+		spin_lock_bh(&tp->lock);
+		tw32(MAC_MODE, tp->mac_mode);
+		/* Force link status check */
+		tg3_setup_phy(tp, 1);
+		spin_unlock_bh(&tp->lock);
+		netdev_info(dev, "Internal MAC loopback mode disabled.\n");
+	}
+}
+
 static u32 tg3_fix_features(struct net_device *dev, u32 features)
 {
 	struct tg3 *tp = netdev_priv(dev);
@@ -6317,6 +6353,16 @@ static u32 tg3_fix_features(struct net_device *dev, u32 features)
 		features &= ~NETIF_F_ALL_TSO;
 
 	return features;
+}
+
+static int tg3_set_features(struct net_device *dev, u32 features)
+{
+	u32 changed = dev->features ^ features;
+
+	if ((changed & NETIF_F_LOOPBACK) && netif_running(dev))
+		tg3_set_loopback(dev, features);
+
+	return 0;
 }
 
 static inline void tg3_set_mtu(struct net_device *dev, struct tg3 *tp,
@@ -9484,6 +9530,13 @@ static int tg3_open(struct net_device *dev)
 	tg3_full_unlock(tp);
 
 	netif_tx_start_all_queues(dev);
+
+	/*
+	 * Reset loopback feature if it was turned on while the device was down
+	 * make sure that it's installed properly now.
+	 */
+	if (dev->features & NETIF_F_LOOPBACK)
+		tg3_set_loopback(dev, dev->features);
 
 	return 0;
 
@@ -15033,6 +15086,7 @@ static const struct net_device_ops tg3_netdev_ops = {
 	.ndo_tx_timeout		= tg3_tx_timeout,
 	.ndo_change_mtu		= tg3_change_mtu,
 	.ndo_fix_features	= tg3_fix_features,
+	.ndo_set_features	= tg3_set_features,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= tg3_poll_controller,
 #endif
@@ -15049,6 +15103,7 @@ static const struct net_device_ops tg3_netdev_ops_dma_bug = {
 	.ndo_do_ioctl		= tg3_ioctl,
 	.ndo_tx_timeout		= tg3_tx_timeout,
 	.ndo_change_mtu		= tg3_change_mtu,
+	.ndo_set_features	= tg3_set_features,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= tg3_poll_controller,
 #endif
@@ -15245,6 +15300,16 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	dev->hw_features |= hw_features;
 	dev->features |= hw_features;
 	dev->vlan_features |= hw_features;
+
+	/*
+	 * Add loopback capability only for a subset of devices that support
+	 * MAC-LOOPBACK. Eventually this need to be enhanced to allow INT-PHY
+	 * loopback for the remaining devices.
+	 */
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5780 &&
+	    !tg3_flag(tp, CPMU_PRESENT))
+		/* Add the loopback capability */
+		dev->hw_features |= NETIF_F_LOOPBACK;
 
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5705_A1 &&
 	    !tg3_flag(tp, TSO_CAPABLE) &&

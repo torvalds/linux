@@ -1097,10 +1097,14 @@ struct net_device {
 
 #define NETIF_F_ALL_TSO 	(NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 
+#define NETIF_F_ALL_FCOE	(NETIF_F_FCOE_CRC | NETIF_F_FCOE_MTU | \
+				 NETIF_F_FSO)
+
 #define NETIF_F_ALL_TX_OFFLOADS	(NETIF_F_ALL_CSUM | NETIF_F_SG | \
 				 NETIF_F_FRAGLIST | NETIF_F_ALL_TSO | \
 				 NETIF_F_HIGHDMA | \
-				 NETIF_F_SCTP_CSUM | NETIF_F_FCOE_CRC)
+				 NETIF_F_SCTP_CSUM | \
+				 NETIF_F_ALL_FCOE)
 
 	/*
 	 * If one device supports one of these features, then enable them
@@ -2561,6 +2565,7 @@ u32 netdev_increment_features(u32 all, u32 one, u32 mask);
 u32 netdev_fix_features(struct net_device *dev, u32 features);
 int __netdev_update_features(struct net_device *dev);
 void netdev_update_features(struct net_device *dev);
+void netdev_change_features(struct net_device *dev);
 
 void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 					struct net_device *dev);

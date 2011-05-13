@@ -2884,6 +2884,9 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	int num_tx_queues;
 	int num_rx_queues;
 
+	if (!pci_msi_enabled())
+		enable_mq = 0;
+
 #ifdef VMXNET3_RSS
 	if (enable_mq)
 		num_rx_queues = min(VMXNET3_DEVICE_MAX_RX_QUEUES,

@@ -601,7 +601,7 @@ int ip_options_rcv_srr(struct sk_buff *skb)
 	unsigned long orefdst;
 	int err;
 
-	if (!opt->srr || !rt)
+	if (!rt)
 		return 0;
 
 	if (skb->pkt_type != PACKET_HOST)
@@ -635,7 +635,7 @@ int ip_options_rcv_srr(struct sk_buff *skb)
 		if (rt2->rt_type != RTN_LOCAL)
 			break;
 		/* Superfast 8) loopback forward */
-		memcpy(&iph->daddr, &optptr[srrptr-1], 4);
+		iph->daddr = nexthop;
 		opt->is_changed = 1;
 	}
 	if (srrptr <= srrspace) {
