@@ -27,7 +27,6 @@
 
 #include <linux/list.h>
 #include "hyperv.h"
-#include "netvsc_api.h"
 
 
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)

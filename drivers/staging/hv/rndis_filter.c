@@ -29,7 +29,6 @@
 
 #include "hyperv.h"
 #include "hyperv_net.h"
-#include "netvsc_api.h"
 #include "rndis_filter.h"
 
 /* Data types */
