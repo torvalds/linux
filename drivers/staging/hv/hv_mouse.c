@@ -29,7 +29,6 @@
 #include "hyperv.h"
 #include "hv_api.h"
 #include "logging.h"
-#include "version_info.h"
 #include "vmbus.h"
 #include "vmbus_api.h"
 #include "channel.h"
