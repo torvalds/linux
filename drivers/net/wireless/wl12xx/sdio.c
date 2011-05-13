@@ -303,8 +303,6 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	/* Tell PM core that we don't need the card to be powered now */
 	pm_runtime_put_noidle(&func->dev);
 
-	wl1271_notice("initialized");
-
 	return 0;
 
  out_irq:
@@ -402,23 +400,12 @@ static struct sdio_driver wl1271_sdio_driver = {
 
 static int __init wl1271_init(void)
 {
-	int ret;
-
-	ret = sdio_register_driver(&wl1271_sdio_driver);
-	if (ret < 0) {
-		wl1271_error("failed to register sdio driver: %d", ret);
-		goto out;
-	}
-
-out:
-	return ret;
+	return sdio_register_driver(&wl1271_sdio_driver);
 }
 
 static void __exit wl1271_exit(void)
 {
 	sdio_unregister_driver(&wl1271_sdio_driver);
-
-	wl1271_notice("unloaded");
 }
 
 module_init(wl1271_init);
