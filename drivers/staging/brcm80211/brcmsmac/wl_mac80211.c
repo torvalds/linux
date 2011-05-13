@@ -1731,35 +1731,6 @@ void wl_free_timer(struct wl_info *wl, struct wl_timer *t)
  */
 static int wl_linux_watchdog(void *ctx)
 {
-	struct wl_info *wl = (struct wl_info *) ctx;
-	struct wl_cnt *cnt;
-	struct net_device_stats *stats = NULL;
-	uint id;
-	/* refresh stats */
-	if (wl->pub->up) {
-		cnt = wl->pub->_cnt;
-		id = 1 - wl->stats_id;
-		stats = &wl->stats_watchdog[id];
-		stats->rx_packets = cnt->rxframe;
-		stats->tx_packets = cnt->txframe;
-		stats->rx_bytes = cnt->rxbyte;
-		stats->tx_bytes = cnt->txbyte;
-		stats->rx_errors = cnt->rxerror;
-		stats->tx_errors = cnt->txerror;
-		stats->collisions = 0;
-
-		stats->rx_length_errors = 0;
-		stats->rx_over_errors = cnt->rxoflo;
-		stats->rx_crc_errors = cnt->rxcrc;
-		stats->rx_frame_errors = 0;
-		stats->rx_fifo_errors = cnt->rxoflo;
-		stats->rx_missed_errors = 0;
-
-		stats->tx_fifo_errors = cnt->txuflo;
-
-		wl->stats_id = id;
-	}
-
 	return 0;
 }
 
