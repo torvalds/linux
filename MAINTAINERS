@@ -4380,9 +4380,8 @@ W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/Linux?Anonymous
 W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/X3100Linux?Anonymous
 S:	Supported
 F:	Documentation/networking/s2io.txt
-F:	drivers/net/s2io*
 F:	Documentation/networking/vxge.txt
-F:	drivers/net/vxge/
+F:	drivers/net/ethernet/neterion/
 
 NETFILTER/IPTABLES/IPCHAINS
 P:	Rusty Russell
