@@ -734,7 +734,7 @@ void pcie_aspm_powersave_config_link(struct pci_dev *pdev)
  * pci_disable_link_state - disable pci device's link state, so the link will
  * never enter specific states
  */
-void pci_disable_link_state(struct pci_dev *pdev, int state)
+static void __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem)
 {
 	struct pci_dev *parent = pdev->bus->self;
 	struct pcie_link_state *link;
@@ -747,7 +747,8 @@ void pci_disable_link_state(struct pci_dev *pdev, int state)
 	if (!parent || !parent->link_state)
 		return;
 
-	down_read(&pci_bus_sem);
+	if (sem)
+		down_read(&pci_bus_sem);
 	mutex_lock(&aspm_lock);
 	link = parent->link_state;
 	if (state & PCIE_LINK_STATE_L0S)
@@ -761,7 +762,19 @@ void pci_disable_link_state(struct pci_dev *pdev, int state)
 		pcie_set_clkpm(link, 0);
 	}
 	mutex_unlock(&aspm_lock);
-	up_read(&pci_bus_sem);
+	if (sem)
+		up_read(&pci_bus_sem);
+}
+
+void pci_disable_link_state_locked(struct pci_dev *pdev, int state)
+{
+	__pci_disable_link_state(pdev, state, false);
+}
+EXPORT_SYMBOL(pci_disable_link_state_locked);
+
+void pci_disable_link_state(struct pci_dev *pdev, int state)
+{
+	__pci_disable_link_state(pdev, state, true);
 }
 EXPORT_SYMBOL(pci_disable_link_state);
 
