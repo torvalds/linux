@@ -1442,7 +1442,7 @@ static void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 		}
 
 		if ((alt_rssi_avg < (main_rssi_avg +
-		    ATH_ANT_DIV_COMB_LNA1_LNA2_DELTA)))
+						div_ant_conf.lna1_lna2_delta)))
 			goto div_comb_done;
 	}
 
