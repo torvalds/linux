@@ -25,7 +25,6 @@
 #ifndef _VMBUS_PRIVATE_H_
 #define _VMBUS_PRIVATE_H_
 
-#include "hv.h"
 #include "hyperv.h"
 #include "ring_buffer.h"
 #include <linux/list.h>
