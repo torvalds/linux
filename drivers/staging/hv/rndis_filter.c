@@ -568,11 +568,6 @@ Exit:
 	return ret;
 }
 
-int rndis_filter_init(struct netvsc_driver *drv)
-{
-
-	return 0;
-}
 
 static int rndis_filter_init_device(struct rndis_device *dev)
 {

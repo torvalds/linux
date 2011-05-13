@@ -1077,8 +1077,5 @@ struct rndis_filter_packet {
 #define NDIS_PACKET_TYPE_MAC_FRAME	0x00000800
 
 
-/* Interface */
-
-extern int rndis_filter_init(struct netvsc_driver *driver);
 
 #endif /* _HYPERV_NET_H */

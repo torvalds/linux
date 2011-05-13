@@ -1168,12 +1168,9 @@ cleanup:
  */
 int netvsc_initialize(struct hv_driver *drv)
 {
-	struct netvsc_driver *driver =
-		drv_to_netvscdrv(&drv->driver);
 
 	drv->name = driver_name;
 	memcpy(&drv->dev_type, &netvsc_device_type, sizeof(struct hv_guid));
 
-	rndis_filter_init(driver);
 	return 0;
 }
