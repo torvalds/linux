@@ -5159,6 +5159,14 @@ have_block_group:
 		if (unlikely(block_group->ro))
 			goto loop;
 
+		spin_lock(&block_group->tree_lock);
+		if (cached &&
+		    block_group->free_space < num_bytes + empty_size) {
+			spin_unlock(&block_group->tree_lock);
+			goto loop;
+		}
+		spin_unlock(&block_group->tree_lock);
+
 		/*
 		 * Ok we want to try and use the cluster allocator, so lets look
 		 * there, unless we are on LOOP_NO_EMPTY_SIZE, since we will
