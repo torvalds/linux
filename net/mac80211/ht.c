@@ -160,7 +160,7 @@ void ieee80211_ba_session_work(struct work_struct *work)
 			continue;
 		}
 
-		tid_tx = sta->ampdu_mlme.tid_tx[tid];
+		tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
 		if (tid_tx && test_and_clear_bit(HT_AGG_STATE_WANT_STOP,
 						 &tid_tx->state))
 			___ieee80211_stop_tx_ba_session(sta, tid,

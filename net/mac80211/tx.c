@@ -1147,7 +1147,7 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 		 *     packet pass through because splicing the frames
 		 *     back is already done.
 		 */
-		tid_tx = tx->sta->ampdu_mlme.tid_tx[tid];
+		tid_tx = rcu_dereference_protected_tid_tx(tx->sta, tid);
 
 		if (!tid_tx) {
 			/* do nothing, let packet pass through */

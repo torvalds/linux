@@ -146,4 +146,7 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata);
 void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata);
 void ieee80211_disable_keys(struct ieee80211_sub_if_data *sdata);
 
+#define key_mtx_dereference(local, ref) \
+	rcu_dereference_protected(ref, lockdep_is_held(&((local)->key_mtx)))
+
 #endif /* IEEE80211_KEY_H */

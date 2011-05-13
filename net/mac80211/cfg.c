@@ -177,11 +177,11 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 			goto out_unlock;
 
 		if (pairwise)
-			key = sta->ptk;
+			key = key_mtx_dereference(local, sta->ptk);
 		else
-			key = sta->gtk[key_idx];
+			key = key_mtx_dereference(local, sta->gtk[key_idx]);
 	} else
-		key = sdata->keys[key_idx];
+		key = key_mtx_dereference(local, sdata->keys[key_idx]);
 
 	if (!key) {
 		ret = -ENOENT;
@@ -463,7 +463,7 @@ static int ieee80211_config_beacon(struct ieee80211_sub_if_data *sdata,
 	int size;
 	int err = -EINVAL;
 
-	old = sdata->u.ap.beacon;
+	old = rtnl_dereference(sdata->u.ap.beacon);
 
 	/* head must not be zero-length */
 	if (params->head && !params->head_len)
@@ -558,8 +558,7 @@ static int ieee80211_add_beacon(struct wiphy *wiphy, struct net_device *dev,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	old = sdata->u.ap.beacon;
-
+	old = rtnl_dereference(sdata->u.ap.beacon);
 	if (old)
 		return -EALREADY;
 
@@ -574,8 +573,7 @@ static int ieee80211_set_beacon(struct wiphy *wiphy, struct net_device *dev,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	old = sdata->u.ap.beacon;
-
+	old = rtnl_dereference(sdata->u.ap.beacon);
 	if (!old)
 		return -ENOENT;
 
@@ -589,8 +587,7 @@ static int ieee80211_del_beacon(struct wiphy *wiphy, struct net_device *dev)
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	old = sdata->u.ap.beacon;
-
+	old = rtnl_dereference(sdata->u.ap.beacon);
 	if (!old)
 		return -ENOENT;
 

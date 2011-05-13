@@ -164,11 +164,11 @@ struct tid_ampdu_rx {
 struct sta_ampdu_mlme {
 	struct mutex mtx;
 	/* rx */
-	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
+	struct tid_ampdu_rx __rcu *tid_rx[STA_TID_NUM];
 	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(STA_TID_NUM)];
 	/* tx */
 	struct work_struct work;
-	struct tid_ampdu_tx *tid_tx[STA_TID_NUM];
+	struct tid_ampdu_tx __rcu *tid_tx[STA_TID_NUM];
 	struct tid_ampdu_tx *tid_start_tx[STA_TID_NUM];
 	u8 addba_req_num[STA_TID_NUM];
 	u8 dialog_token_allocator;
@@ -243,11 +243,11 @@ struct sta_ampdu_mlme {
 struct sta_info {
 	/* General information, mostly static */
 	struct list_head list;
-	struct sta_info *hnext;
+	struct sta_info __rcu *hnext;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_key *gtk[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
-	struct ieee80211_key *ptk;
+	struct ieee80211_key __rcu *gtk[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
+	struct ieee80211_key __rcu *ptk;
 	struct rate_control_ref *rate_ctrl;
 	void *rate_ctrl_priv;
 	spinlock_t lock;
@@ -403,6 +403,13 @@ static inline u32 get_sta_flags(struct sta_info *sta)
 void ieee80211_assign_tid_tx(struct sta_info *sta, int tid,
 			     struct tid_ampdu_tx *tid_tx);
 
+static inline struct tid_ampdu_tx *
+rcu_dereference_protected_tid_tx(struct sta_info *sta, int tid)
+{
+	return rcu_dereference_protected(sta->ampdu_mlme.tid_tx[tid],
+					 lockdep_is_held(&sta->lock) ||
+					 lockdep_is_held(&sta->ampdu_mlme.mtx));
+}
 
 #define STA_HASH_SIZE 256
 #define STA_HASH(sta) (sta[5])

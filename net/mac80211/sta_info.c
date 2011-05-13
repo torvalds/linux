@@ -67,7 +67,8 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 {
 	struct sta_info *s;
 
-	s = local->sta_hash[STA_HASH(sta->sta.addr)];
+	s = rcu_dereference_protected(local->sta_hash[STA_HASH(sta->sta.addr)],
+				      lockdep_is_held(&local->sta_lock));
 	if (!s)
 		return -ENOENT;
 	if (s == sta) {
@@ -76,9 +77,11 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 		return 0;
 	}
 
-	while (s->hnext && s->hnext != sta)
-		s = s->hnext;
-	if (s->hnext) {
+	while (rcu_access_pointer(s->hnext) &&
+	       rcu_access_pointer(s->hnext) != sta)
+		s = rcu_dereference_protected(s->hnext,
+					lockdep_is_held(&local->sta_lock));
+	if (rcu_access_pointer(s->hnext)) {
 		rcu_assign_pointer(s->hnext, sta->hnext);
 		return 0;
 	}
@@ -654,9 +657,9 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	mutex_lock(&local->key_mtx);
 	for (i = 0; i < NUM_DEFAULT_KEYS; i++)
-		__ieee80211_key_free(sta->gtk[i]);
+		__ieee80211_key_free(key_mtx_dereference(local, sta->gtk[i]));
 	if (sta->ptk)
-		__ieee80211_key_free(sta->ptk);
+		__ieee80211_key_free(key_mtx_dereference(local, sta->ptk));
 	mutex_unlock(&local->key_mtx);
 
 	sta->dead = true;
