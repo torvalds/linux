@@ -31,17 +31,6 @@ config PCMCIA_FMVJ18X
 	  To compile this driver as a module, choose M here: the module will be
 	  called fmvj18x_cs.  If unsure, say N.
 
-config PCMCIA_SMC91C92
-	tristate "SMC 91Cxx PCMCIA support"
-	select CRC32
-	select MII
-	help
-	  Say Y here if you intend to attach an SMC 91Cxx compatible PCMCIA
-	  (PC-card) Ethernet or Fast Ethernet card to your computer.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called smc91c92_cs.  If unsure, say N.
-
 config PCMCIA_XIRC2PS
 	tristate "Xircom 16-bit PCMCIA support"
 	help

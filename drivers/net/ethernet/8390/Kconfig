@@ -264,22 +264,9 @@ config STNIC
 
 	  If unsure, say N.
 
-config NET_VENDOR_SMC
-	bool "Western Digital/SMC cards"
-	depends on (ISA || MCA || EISA || MAC)
-	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  Note that the answer to this question doesn't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
-	  the questions about Western Digital cards. If you say Y, you will be
-	  asked for your specific card in the following questions.
-
 config ULTRAMCA
 	tristate "SMC Ultra MCA support"
-	depends on NET_VENDOR_SMC && MCA
+	depends on MCA
 	select CRC32
 	---help---
 	  If you have a network (Ethernet) card of this type and are running
@@ -291,7 +278,7 @@ config ULTRAMCA
 
 config ULTRA
 	tristate "SMC Ultra support"
-	depends on NET_VENDOR_SMC && ISA
+	depends on ISA
 	select CRC32
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
@@ -310,7 +297,7 @@ config ULTRA
 
 config ULTRA32
 	tristate "SMC Ultra32 EISA support"
-	depends on NET_VENDOR_SMC && EISA
+	depends on EISA
 	select CRC32
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
@@ -322,7 +309,7 @@ config ULTRA32
 
 config WD80x3
 	tristate "WD80*3 support"
-	depends on NET_VENDOR_SMC && ISA
+	depends on ISA
 	select CRC32
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read

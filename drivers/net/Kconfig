@@ -565,39 +565,6 @@ config BFIN_MAC_USE_HWSTAMP
 	help
 	  To support the IEEE 1588 Precision Time Protocol (PTP), select y here
 
-config SMC9194
-	tristate "SMC 9194 support"
-	depends on NET_VENDOR_SMC && (ISA || MAC && BROKEN)
-	select CRC32
-	---help---
-	  This is support for the SMC9xxx based Ethernet cards. Choose this
-	  option if you have a DELL laptop with the docking station, or
-	  another SMC9192/9194 based chipset.  Say Y if you want it compiled
-	  into the kernel, and read the file
-	  <file:Documentation/networking/smc9.txt> and the Ethernet-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called smc9194.
-
-config SMC91X
-	tristate "SMC 91C9x/91C1xxx support"
-	select CRC32
-	select MII
-	depends on ARM || M32R || SUPERH || \
-		MIPS || BLACKFIN || MN10300 || COLDFIRE
-	help
-	  This is a driver for SMC's 91x series of Ethernet chipsets,
-	  including the SMC91C94 and the SMC91C111. Say Y if you want it
-	  compiled into the kernel, and read the file
-	  <file:Documentation/networking/smc9.txt>  and the Ethernet-HOWTO,
-	  available from  <http://www.tldp.org/docs.html#howto>.
-
-	  This driver is also available as a module ( = code which can be
-	  inserted in and removed from the running kernel whenever you want).
-	  The module will be called smc91x.  If you want to compile it as a
-	  module, say M here and read <file:Documentation/kbuild/modules.txt>.
-
 config PXA168_ETH
 	tristate "Marvell pxa168 ethernet support"
 	depends on CPU_PXA168
@@ -711,44 +678,6 @@ config GRETH
 	select CRC32
 	help
 	  Say Y here if you want to use the Aeroflex Gaisler GRETH Ethernet MAC.
-
-config SMC911X
-	tristate "SMSC LAN911[5678] support"
-	select CRC32
-	select MII
-	depends on ARM || SUPERH || MN10300
-	help
-	  This is a driver for SMSC's LAN911x series of Ethernet chipsets
-	  including the new LAN9115, LAN9116, LAN9117, and LAN9118.
-	  Say Y if you want it compiled into the kernel, 
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  This driver is also available as a module. The module will be 
-	  called smc911x.  If you want to compile it as a module, say M 
-	  here and read <file:Documentation/kbuild/modules.txt>
-
-config SMSC911X
-	tristate "SMSC LAN911x/LAN921x families embedded ethernet support"
-	depends on ARM || SUPERH || BLACKFIN || MIPS || MN10300
-	select CRC32
-	select MII
-	select PHYLIB
-	---help---
-	  Say Y here if you want support for SMSC LAN911x and LAN921x families
-	  of ethernet controllers.
-
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>. The module
-	  will be called smsc911x.
-
-config SMSC911X_ARCH_HOOKS
-	def_bool n
-	depends on SMSC911X
-	help
-	  If the arch enables this, it allows the arch to implement various
-	  hooks for more comprehensive interrupt control and also to override
-	  the source of the MAC address.
 
 config NET_VENDOR_RACAL
 	bool "Racal-Interlan (Micom) NI cards"
@@ -1147,33 +1076,6 @@ config SIS900
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called sis900.  This is recommended.
-
-config EPIC100
-	tristate "SMC EtherPower II"
-	depends on NET_PCI && PCI
-	select CRC32
-	select MII
-	help
-	  This driver is for the SMC EtherPower II 9432 PCI Ethernet NIC,
-	  which is based on the SMC83c17x (EPIC/100).
-	  More specific information and updates are available from
-	  <http://www.scyld.com/network/epic100.html>.
-
-config SMSC9420
-	tristate "SMSC LAN9420 PCI ethernet adapter support"
-	depends on NET_PCI && PCI
-	select CRC32
-	select PHYLIB
-	select SMSC_PHY
-	help
-	  This is a driver for SMSC's LAN9420 PCI ethernet adapter.
-	  Say Y if you want it compiled into the kernel,
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  This driver is also available as a module. The module will be
-	  called smsc9420.  If you want to compile it as a module, say M
-	  here and read <file:Documentation/kbuild/modules.txt>
 
 config SUNDANCE
 	tristate "Sundance Alta support"
@@ -1890,13 +1792,6 @@ config MYRI10GE_DCA
 	  Say Y here if you want to use Direct Cache Access (DCA) in the
 	  driver.  DCA is a method for warming the CPU cache before data
 	  is used, with the intent of lessening the impact of cache misses.
-
-config NETXEN_NIC
-	tristate "NetXen Multi port (1/10) Gigabit Ethernet NIC"
-	depends on PCI
-	select FW_LOADER
-	help
-	  This enables the support for NetXen's Gigabit Ethernet card.
 
 config NIU
 	tristate "Sun Neptune 10Gbit Ethernet support"
