@@ -81,13 +81,6 @@ struct hv_netvsc_packet {
 	struct hv_page_buffer page_buf[NETVSC_PACKET_MAXPAGE];
 };
 
-/* Represents the net vsc driver */
-struct netvsc_driver {
-	/* Must be the first field */
-	/* Which is a bug FIXME! */
-	struct hv_driver base;
-};
-
 struct netvsc_device_info {
 	unsigned char mac_adr[6];
 	bool link_state;	/* 0 - link up, 1 - link down */
