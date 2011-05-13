@@ -33,6 +33,7 @@
 #include <scsi/scsi_dbg.h>
 
 #include "hyperv.h"
+#include "hyperv_storage.h"
 #include "storvsc_api.h"
 
 
