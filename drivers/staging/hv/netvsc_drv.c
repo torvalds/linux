@@ -233,7 +233,7 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
  * netvsc_recv_callback -  Callback when we receive a packet from the
  * "wire" on the specified device.
  */
-static int netvsc_recv_callback(struct hv_device *device_obj,
+int netvsc_recv_callback(struct hv_device *device_obj,
 				struct hv_netvsc_packet *packet)
 {
 	struct net_device *net = dev_get_drvdata(&device_obj->device);
