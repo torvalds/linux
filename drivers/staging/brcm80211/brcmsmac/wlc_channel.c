@@ -107,7 +107,7 @@ static void wlc_channel_min_txpower_limits_with_local_constraint(wlc_cm_info_t *
 								 *txpwr,
 								 u8
 								 local_constraint_qdbm);
-void wlc_locale_add_channels(chanvec_t *target, const chanvec_t *channels);
+static void wlc_locale_add_channels(chanvec_t *target, const chanvec_t *channels);
 static const locale_mimo_info_t *wlc_get_mimo_2g(u8 locale_idx);
 static const locale_mimo_info_t *wlc_get_mimo_5g(u8 locale_idx);
 
@@ -397,7 +397,7 @@ static const chanvec_t *g_table_locale_base[] = {
 	&locale_5g_HIGH4
 };
 
-void wlc_locale_add_channels(chanvec_t *target, const chanvec_t *channels)
+static void wlc_locale_add_channels(chanvec_t *target, const chanvec_t *channels)
 {
 	u8 i;
 	for (i = 0; i < sizeof(chanvec_t); i++) {
@@ -608,7 +608,7 @@ static const locale_info_t *wlc_get_locale_5g(u8 locale_idx)
 	return g_locale_5g_table[locale_idx];
 }
 
-const locale_mimo_info_t *wlc_get_mimo_2g(u8 locale_idx)
+static const locale_mimo_info_t *wlc_get_mimo_2g(u8 locale_idx)
 {
 	if (locale_idx >= ARRAY_SIZE(g_mimo_2g_table)) {
 		return NULL;
@@ -616,7 +616,7 @@ const locale_mimo_info_t *wlc_get_mimo_2g(u8 locale_idx)
 	return g_mimo_2g_table[locale_idx];
 }
 
-const locale_mimo_info_t *wlc_get_mimo_5g(u8 locale_idx)
+static const locale_mimo_info_t *wlc_get_mimo_5g(u8 locale_idx)
 {
 	if (locale_idx >= ARRAY_SIZE(g_mimo_5g_table)) {
 		return NULL;
