@@ -108,9 +108,6 @@ extern int gfs2_inode_refresh(struct gfs2_inode *ip);
 
 extern struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 				  int is_root);
-extern struct inode *gfs2_createi(struct gfs2_holder *ghs,
-				  const struct qstr *name,
-				  unsigned int mode, dev_t dev);
 extern int gfs2_permission(struct inode *inode, int mask, unsigned int flags);
 extern int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr);
 extern struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
