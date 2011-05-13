@@ -28,49 +28,6 @@
 
 #include <linux/scatterlist.h>
 
-struct hv_ring_buffer {
-	/* Offset in bytes from the start of ring data below */
-	u32 write_index;
-
-	/* Offset in bytes from the start of ring data below */
-	u32 read_index;
-
-	u32 interrupt_mask;
-
-	/* Pad it to PAGE_SIZE so that data starts on page boundary */
-	u8	reserved[4084];
-
-	/* NOTE:
-	 * The interrupt_mask field is used only for channels but since our
-	 * vmbus connection also uses this data structure and its data starts
-	 * here, we commented out this field.
-	 */
-
-	/*
-	 * Ring data starts here + RingDataStartOffset
-	 * !!! DO NOT place any fields below this !!!
-	 */
-	u8 buffer[0];
-} __packed;
-
-struct hv_ring_buffer_info {
-	struct hv_ring_buffer *ring_buffer;
-	u32 ring_size;			/* Include the shared header */
-	spinlock_t ring_lock;
-
-	u32 ring_datasize;		/* < ring_size */
-	u32 ring_data_startoffset;
-};
-
-struct hv_ring_buffer_debug_info {
-	u32 current_interrupt_mask;
-	u32 current_read_index;
-	u32 current_write_index;
-	u32 bytes_avail_toread;
-	u32 bytes_avail_towrite;
-};
-
-
 
 /* Interface */
 
