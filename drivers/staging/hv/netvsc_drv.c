@@ -127,8 +127,6 @@ static void netvsc_xmit_completion(void *context)
 static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct netvsc_driver *net_drv_obj =
-		drv_to_netvscdrv(net_device_ctx->device_ctx->device.driver);
 	struct hv_netvsc_packet *packet;
 	int ret;
 	unsigned int i, num_pages;
@@ -141,7 +139,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	/* Allocate a netvsc packet based on # of frags. */
 	packet = kzalloc(sizeof(struct hv_netvsc_packet) +
 			 (num_pages * sizeof(struct hv_page_buffer)) +
-			 net_drv_obj->req_ext_size, GFP_ATOMIC);
+			 sizeof(struct rndis_filter_packet), GFP_ATOMIC);
 	if (!packet) {
 		/* out of memory, silently drop packet */
 		netdev_err(net, "unable to allocate hv_netvsc_packet\n");
