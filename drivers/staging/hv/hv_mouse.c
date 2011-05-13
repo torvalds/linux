@@ -32,7 +32,6 @@
 #include "vmbus.h"
 #include "vmbus_api.h"
 #include "channel.h"
-#include "vmbus_packet_format.h"
 
 
 /*

@@ -30,7 +30,6 @@
 #include <linux/workqueue.h>
 #include <linux/completion.h>
 #include "hyperv.h"
-#include "vmbus_packet_format.h"
 
 /* Version 1 messages */
 enum vmbus_channel_message_type {

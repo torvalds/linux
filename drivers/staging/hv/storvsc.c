@@ -32,7 +32,6 @@
 #include "hv_api.h"
 #include "logging.h"
 #include "storvsc_api.h"
-#include "vmbus_packet_format.h"
 #include "vstorage.h"
 #include "channel.h"
 
