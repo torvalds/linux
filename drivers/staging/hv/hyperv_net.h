@@ -100,6 +100,7 @@ struct netvsc_driver *drv_to_netvscdrv(struct device_driver *d)
 struct netvsc_device_info {
 	unsigned char mac_adr[6];
 	bool link_state;	/* 0 - link up, 1 - link down */
+	int  ring_size;
 };
 
 /* Interface */
