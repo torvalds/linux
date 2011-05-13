@@ -359,7 +359,7 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 						   pkt);
 }
 
-static int rndis_filter_receive(struct hv_device *dev,
+int rndis_filter_receive(struct hv_device *dev,
 				struct hv_netvsc_packet	*pkt)
 {
 	struct netvsc_device *net_dev = dev->ext;

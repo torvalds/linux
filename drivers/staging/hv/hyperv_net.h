@@ -130,7 +130,8 @@ int rndis_filter_close(struct hv_device *dev);
 int rndis_filte_device_add(struct hv_device *dev,
 			void *additional_info);
 int rndis_filter_device_remove(struct hv_device *dev);
-
+int rndis_filter_receive(struct hv_device *dev,
+			struct hv_netvsc_packet *pkt);
 
 
 
