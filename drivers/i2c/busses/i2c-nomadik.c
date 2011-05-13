@@ -609,8 +609,6 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 		if (status || (dev->result)) {
 			/* get the abort cause */
 			cause =	(readl(dev->virtbase + I2C_SR) >> 4) & 0x7;
-			dev_err(&dev->pdev->dev, "error during I2C"
-					"message xfer: %d\n", cause);
 			dev_err(&dev->pdev->dev, "%s\n",
 				cause >= ARRAY_SIZE(abort_causes)
 				? "unknown reason" : abort_causes[cause]);
