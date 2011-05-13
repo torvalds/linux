@@ -501,4 +501,32 @@ extern void hv_synic_init(void *irqarg);
 
 extern void hv_synic_cleanup(void *arg);
 
+
+/* Interface */
+
+
+int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info, void *buffer,
+		   u32 buflen);
+
+void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info);
+
+int hv_ringbuffer_write(struct hv_ring_buffer_info *ring_info,
+		    struct scatterlist *sglist,
+		    u32 sgcount);
+
+int hv_ringbuffer_peek(struct hv_ring_buffer_info *ring_info, void *buffer,
+		   u32 buflen);
+
+int hv_ringbuffer_read(struct hv_ring_buffer_info *ring_info,
+		   void *buffer,
+		   u32 buflen,
+		   u32 offset);
+
+u32 hv_get_ringbuffer_interrupt_mask(struct hv_ring_buffer_info *ring_info);
+
+void hv_dump_ring_info(struct hv_ring_buffer_info *ring_info, char *prefix);
+
+void hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
+			    struct hv_ring_buffer_debug_info *debug_info);
+
 #endif /* _HYPERV_VMBUS_H */

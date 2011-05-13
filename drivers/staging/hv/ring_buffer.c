@@ -28,7 +28,6 @@
 
 #include "hyperv.h"
 #include "hyperv_vmbus.h"
-#include "ring_buffer.h"
 
 
 /* #defines */
