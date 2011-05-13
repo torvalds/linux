@@ -24,13 +24,15 @@ enum i2c_freq_mode {
  *		to the values of 14, 6, 2 for a 48 MHz i2c clk
  * @tft:	Tx FIFO Threshold in bytes
  * @rft:	Rx FIFO Threshold in bytes
+ * @timeout	Slave response timeout(ms)
  * @sm:		speed mode
  */
 struct nmk_i2c_controller {
 	unsigned long	clk_freq;
 	unsigned short	slsu;
-	unsigned char 	tft;
-	unsigned char 	rft;
+	unsigned char	tft;
+	unsigned char	rft;
+	int timeout;
 	enum i2c_freq_mode	sm;
 };
 
