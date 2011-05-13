@@ -363,7 +363,7 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 
 	/* We are displaying this buffer, make sure it is actually loaded
 	   into the GTT */
-	ret = psb_gtt_pin(dev, psbfb->gtt);
+	ret = psb_gtt_pin(psbfb->gtt);
 	if (ret < 0)
 		goto psb_intel_pipe_set_base_exit;
 	start = psbfb->gtt->offset;
@@ -392,7 +392,7 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 	default:
 		DRM_ERROR("Unknown color depth\n");
 		ret = -EINVAL;
-		psb_gtt_unpin(dev, psbfb->gtt);
+		psb_gtt_unpin(psbfb->gtt);
 		goto psb_intel_pipe_set_base_exit;
 	}
 	REG_WRITE(dspcntr_reg, dspcntr);
@@ -411,7 +411,7 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 
 	/* If there was a previous display we can now unpin it */
 	if (old_fb)
-		psb_gtt_unpin(dev, to_psb_fb(old_fb)->gtt);
+		psb_gtt_unpin(to_psb_fb(old_fb)->gtt);
 
 psb_intel_pipe_set_base_exit:
 	gma_power_end(dev);
@@ -1057,7 +1057,7 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 		if (psb_intel_crtc->cursor_obj) {
 			gt = container_of(psb_intel_crtc->cursor_obj,
 							struct gtt_range, gem);
-			psb_gtt_unpin(crtc->dev, gt);
+			psb_gtt_unpin(gt);
 			drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
 			psb_intel_crtc->cursor_obj = NULL;
 		}
@@ -1083,7 +1083,7 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	gt = container_of(obj, struct gtt_range, gem);
 
 	/* Pin the memory into the GTT */
-	ret = psb_gtt_pin(crtc->dev, gt);
+	ret = psb_gtt_pin(gt);
 	if (ret) {
 		DRM_ERROR("Can not pin down handle 0x%x\n", handle);
 		return ret;
@@ -1109,7 +1109,7 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	if (psb_intel_crtc->cursor_obj && psb_intel_crtc->cursor_obj != obj) {
 		gt = container_of(psb_intel_crtc->cursor_obj,
 							struct gtt_range, gem);
-		psb_gtt_unpin(crtc->dev, gt);
+		psb_gtt_unpin(gt);
 		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
 		psb_intel_crtc->cursor_obj = obj;
 	}
@@ -1318,7 +1318,7 @@ static void psb_intel_crtc_destroy(struct drm_crtc *crtc)
 	if (psb_intel_crtc->cursor_obj) {
 		gt = container_of(psb_intel_crtc->cursor_obj,
 						struct gtt_range, gem);
-		psb_gtt_unpin(crtc->dev, gt);
+		psb_gtt_unpin(gt);
 		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
 		psb_intel_crtc->cursor_obj = NULL;
 	}

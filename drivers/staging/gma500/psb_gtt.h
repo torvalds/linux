@@ -47,6 +47,7 @@ struct gtt_range {
 	struct drm_gem_object gem;	/* GEM high level stuff */
 	int in_gart;			/* Currently in the GART (ref ct) */
         bool stolen;			/* Backed from stolen RAM */
+        bool mmapping;			/* Is mmappable */
 	struct page **pages;		/* Backing pages if present */
 };
 
@@ -54,7 +55,7 @@ extern struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 						const char *name, int backed);
 extern void psb_gtt_kref_put(struct gtt_range *gt);
 extern void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt);
-extern int psb_gtt_pin(struct drm_device *dev, struct gtt_range *gt);
-extern void psb_gtt_unpin(struct drm_device *dev, struct gtt_range *gt);
+extern int psb_gtt_pin(struct gtt_range *gt);
+extern void psb_gtt_unpin(struct gtt_range *gt);
 
 #endif

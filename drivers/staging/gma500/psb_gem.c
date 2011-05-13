@@ -1,5 +1,5 @@
 /*
- *  psb backlight interface
+ *  psb GEM interface
  *
  * Copyright (c) 2011, Intel Corporation.
  *
@@ -251,6 +251,14 @@ int psb_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
  *	The VMA was set up by GEM. In doing so it also ensured that the
  *	vma->vm_private_data points to the GEM object that is backing this
  *	mapping.
+ *
+ *	To avoid aliasing and cache funnies we want to map the object
+ *	through the GART. For the moment this is slightly hackish. It would
+ *	be nicer if GEM provided mmap opened/closed hooks for us giving
+ *	the object so that we could track things nicely. That needs changes
+ *	to the core GEM code so must be tackled post staging
+ *
+ *	FIXME
  */
 int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
@@ -259,9 +267,27 @@ int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	int ret;
 	unsigned long pfn;
 	pgoff_t page_offset;
+	struct drm_device *dev;
 
 	obj = vma->vm_private_data;	/* GEM object */
+	dev = obj->dev;
+
 	r = container_of(obj, struct gtt_range, gem);	/* Get the gtt range */
+
+	/* Make sure we don't parallel update on a fault, nor move or remove
+	   something from beneath our feet */
+	mutex_lock(&dev->struct_mutex);
+
+	/* For now the mmap pins the object and it stays pinned. As things
+	   stand that will do us no harm */
+	if (r->mmapping == 0) {
+		ret = psb_gtt_pin(r);
+		if (ret < 0) {
+		        DRM_ERROR("gma500: pin failed: %d\n", ret);
+		        goto fail;
+                }
+		r->mmapping = 1;
+	}
 
 	/* FIXME: Locking. We may also need to repack the GART sometimes */
 
@@ -273,7 +299,14 @@ int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	/* Assumes gtt allocations are page aligned */
 	pfn = (r->resource.start >> PAGE_SHIFT) + page_offset;
 
+	pr_debug("Object GTT base at %p\n", (void *)(r->resource.start));
+	pr_debug("Inserting %p pfn %lx, pa %lx\n", vmf->virtual_address,
+	        pfn, pfn << PAGE_SHIFT);
+
 	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
+
+fail:
+        mutex_unlock(&dev->struct_mutex);
 	switch (ret) {
 	case 0:
 	case -ERESTARTSYS:

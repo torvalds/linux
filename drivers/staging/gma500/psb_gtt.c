@@ -78,6 +78,7 @@ u32 *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
  */
 static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 {
+        struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 *gtt_slot, pte;
 	int numpages = (r->resource.end + 1 - r->resource.start) >> PAGE_SHIFT;
 	struct page **pages;
@@ -93,6 +94,9 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 	gtt_slot = psb_gtt_entry(dev, r);
 	pages = r->pages;
 
+	/* Make sure we have no alias present */
+	wbinvd();
+
 	/* Write our page entries into the GART itself */
 	for (i = 0; i < numpages; i++) {
 		pte = psb_gtt_mask_pte(page_to_pfn(*pages++), 0/*type*/);
@@ -101,8 +105,6 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 	/* Make sure all the entries are set before we return */
 	ioread32(gtt_slot - 1);
 	
-	r->in_gart = 1;
-
 	return 0;
 }
 
@@ -130,8 +132,6 @@ static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 	for (i = 0; i < numpages; i++)
 		iowrite32(pte, gtt_slot++);
 	ioread32(gtt_slot - 1);
-	
-	r->in_gart = 0;
 }
 
 /**
@@ -140,6 +140,8 @@ static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
  *
  *	Pin and build an in kernel list of the pages that back our GEM object.
  *	While we hold this the pages cannot be swapped out
+ *
+ *	FIXME: Do we need to cache flush when we update the GTT
  */
 static int psb_gtt_attach_pages(struct gtt_range *gt)
 {
@@ -183,6 +185,8 @@ err:
  *	Undo the effect of psb_gtt_attach_pages. At this point the pages
  *	must have been removed from the GART as they could now be paged out
  *	and move bus address.
+ *
+ *	FIXME: Do we need to cache flush when we update the GTT
  */
 static void psb_gtt_detach_pages(struct gtt_range *gt)
 {
@@ -199,13 +203,20 @@ static void psb_gtt_detach_pages(struct gtt_range *gt)
 	gt->pages = NULL;
 }
 
-/*
- *	Manage pinning of resources into the GART
+/**
+ *	psb_gtt_pin		-	pin pages into the GTT
+ *	@gt: range to pin
+ *
+ *	Pin a set of pages into the GTT. The pins are refcounted so that
+ *	multiple pins need multiple unpins to undo.
+ *
+ *	Non GEM backed objects treat this as a no-op as they are always GTT
+ *	backed objects.
  */
-
-int psb_gtt_pin(struct drm_device *dev, struct gtt_range *gt)
+int psb_gtt_pin(struct gtt_range *gt)
 {
 	int ret;
+	struct drm_device *dev = gt->gem.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
 	mutex_lock(&dev_priv->gtt_mutex);
@@ -226,8 +237,20 @@ out:
 	return ret;
 }
 
-void psb_gtt_unpin(struct drm_device *dev, struct gtt_range *gt)
+/**
+ *	psb_gtt_unpin		-	Drop a GTT pin requirement
+ *	@gt: range to pin
+ *
+ *	Undoes the effect of psb_gtt_pin. On the last drop the GEM object
+ *	will be removed from the GTT which will also drop the page references
+ *	and allow the VM to clean up or page stuff.
+ *
+ *	Non GEM backed objects treat this as a no-op as they are always GTT
+ *	backed objects.
+ */
+void psb_gtt_unpin(struct gtt_range *gt)
 {
+	struct drm_device *dev = gt->gem.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
 	mutex_lock(&dev_priv->gtt_mutex);
@@ -239,7 +262,6 @@ void psb_gtt_unpin(struct drm_device *dev, struct gtt_range *gt)
 		psb_gtt_remove(dev, gt);
 		psb_gtt_detach_pages(gt);
 	}
-
 	mutex_unlock(&dev_priv->gtt_mutex);
 }
 	
@@ -286,6 +308,8 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
         gt->resource.name = name;
         gt->stolen = backed;
         gt->in_gart = backed;
+        /* Ensure this is set for non GEM objects */
+        gt->gem.dev = dev;
 	kref_init(&gt->kref);
 
 	ret = allocate_resource(dev_priv->gtt_mem, &gt->resource,
@@ -298,9 +322,24 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 	return NULL;
 }
 
+/**
+ *	psb_gtt_destroy		-	final free up of a gtt
+ *	@kref: the kref of the gtt
+ *
+ *	Called from the kernel kref put when the final reference to our
+ *	GTT object is dropped. At that point we can free up the resources.
+ *
+ *	For now we handle mmap clean up here to work around limits in GEM
+ */
 static void psb_gtt_destroy(struct kref *kref)
 {
 	struct gtt_range *gt = container_of(kref, struct gtt_range, kref);
+
+	/* Undo the mmap pin if we are destroying the object */
+	if (gt->mmapping) {
+		psb_gtt_unpin(gt);
+		gt->mmapping = 0;
+	}
 	WARN_ON(gt->in_gart && !gt->stolen);
 	release_resource(&gt->resource);
 	kfree(gt);
