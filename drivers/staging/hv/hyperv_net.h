@@ -25,6 +25,7 @@
 #ifndef _HYPERV_NET_H
 #define _HYPERV_NET_H
 
+#include <linux/list.h>
 #include "hyperv.h"
 
 /* Fwd declaration */
@@ -126,9 +127,6 @@ int rndis_filte_device_add(struct hv_device *dev,
 int rndis_filter_device_remove(struct hv_device *dev);
 
 
-
-#include <linux/list.h>
-#include "hyperv.h"
 
 
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)
