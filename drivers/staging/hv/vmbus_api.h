@@ -28,36 +28,6 @@
 #include <linux/device.h>
 #include <linux/workqueue.h>
 
-#define MAX_PAGE_BUFFER_COUNT				16
-#define MAX_MULTIPAGE_BUFFER_COUNT			32 /* 128K */
-
-#pragma pack(push, 1)
-
-/* Single-page buffer */
-struct hv_page_buffer {
-	u32 len;
-	u32 offset;
-	u64 pfn;
-};
-
-/* Multiple-page buffer */
-struct hv_multipage_buffer {
-	/* Length and Offset determines the # of pfns in the array */
-	u32 len;
-	u32 offset;
-	u64 pfn_array[MAX_MULTIPAGE_BUFFER_COUNT];
-};
-
-/* 0x18 includes the proprietary packet header */
-#define MAX_PAGE_BUFFER_PACKET		(0x18 +			\
-					(sizeof(struct hv_page_buffer) * \
-					 MAX_PAGE_BUFFER_COUNT))
-#define MAX_MULTIPAGE_BUFFER_PACKET	(0x18 +			\
-					 sizeof(struct hv_multipage_buffer))
-
-
-#pragma pack(pop)
-
 struct hv_driver;
 struct hv_device;
 
