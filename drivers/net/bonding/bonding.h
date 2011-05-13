@@ -39,16 +39,6 @@
 	       netif_carrier_ok(dev))
 
 /*
- * Checks whether bond is ready for transmit.
- *
- * Caller must hold bond->lock
- */
-#define BOND_IS_OK(bond)			     \
-		   (((bond)->dev->flags & IFF_UP) && \
-		    netif_running((bond)->dev)	  && \
-		    ((bond)->slave_cnt > 0))
-
-/*
  * Checks whether slave is ready for transmit.
  */
 #define SLAVE_IS_OK(slave)			        \

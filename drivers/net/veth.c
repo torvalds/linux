@@ -22,7 +22,6 @@
 
 #define MIN_MTU 68		/* Min L3 MTU */
 #define MAX_MTU 65535		/* Max L3 MTU (arbitrary) */
-#define MTU_PAD (ETH_HLEN + 4)  /* Max difference between L2 and L3 size MTU */
 
 struct veth_net_stats {
 	unsigned long	rx_packets;
