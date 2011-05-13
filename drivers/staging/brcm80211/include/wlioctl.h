@@ -585,15 +585,6 @@ struct maclist {
 	u8 ea[1][ETH_ALEN];	/* variable length array of MAC addresses */
 };
 
-/* get pkt count struct passed through ioctl */
-typedef struct get_pktcnt {
-	uint rx_good_pkt;
-	uint rx_bad_pkt;
-	uint tx_good_pkt;
-	uint tx_bad_pkt;
-	uint rx_ocast_good_pkt;	/* unicast packets destined for others */
-} get_pktcnt_t;
-
 #ifdef BRCM_FULLMAC
 /* Linux network driver ioctl encoding */
 typedef struct wl_ioctl {

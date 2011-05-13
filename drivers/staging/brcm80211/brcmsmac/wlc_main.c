@@ -3542,24 +3542,6 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 		wlc->default_bss->atim_window = (u32) val;
 		break;
 
-	case WLC_GET_PKTCNTS:{
-			get_pktcnt_t *pktcnt = (get_pktcnt_t *) pval;
-			wlc_statsupd(wlc);
-			pktcnt->rx_good_pkt = wlc->pub->_cnt->rxframe;
-			pktcnt->rx_bad_pkt = wlc->pub->_cnt->rxerror;
-			pktcnt->tx_good_pkt =
-			    wlc->pub->_cnt->txfrmsnt;
-			pktcnt->tx_bad_pkt =
-			    wlc->pub->_cnt->txerror +
-			    wlc->pub->_cnt->txfail;
-			if (len >= (int)sizeof(get_pktcnt_t)) {
-				/* Be backward compatible - only if buffer is large enough  */
-				pktcnt->rx_ocast_good_pkt =
-				    wlc->pub->_cnt->rxmfrmocast;
-			}
-			break;
-		}
-
 #ifdef SUPPORT_HWKEY
 	case WLC_GET_WSEC:
 		bcmerror =
