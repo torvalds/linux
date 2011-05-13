@@ -28,7 +28,6 @@
 #include <linux/workqueue.h>
 
 #include "hyperv.h"
-#include "vmbus_private.h"
 #include "hv_kvp.h"
 
 

@@ -28,7 +28,6 @@
 
 #include "hyperv.h"
 #include "hyperv_vmbus.h"
-#include "vmbus_private.h"
 
 /* The one and only */
 struct hv_context hv_context = {

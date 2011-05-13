@@ -37,7 +37,6 @@
 
 #include "hyperv.h"
 #include "hyperv_vmbus.h"
-#include "vmbus_private.h"
 
 
 static struct pci_dev *hv_pci_dev;

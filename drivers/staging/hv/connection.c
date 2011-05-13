@@ -31,7 +31,6 @@
 
 #include "hyperv.h"
 #include "hyperv_vmbus.h"
-#include "vmbus_private.h"
 
 
 struct vmbus_connection vmbus_connection = {

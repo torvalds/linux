@@ -30,7 +30,6 @@
 #include <linux/pci.h>
 
 #include "hyperv.h"
-#include "vmbus_private.h"
 #include "hv_kvp.h"
 
 static u8 *shut_txf_buf;
