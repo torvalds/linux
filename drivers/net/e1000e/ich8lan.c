@@ -889,8 +889,13 @@ static void e1000_release_swflag_ich8lan(struct e1000_hw *hw)
 	u32 extcnf_ctrl;
 
 	extcnf_ctrl = er32(EXTCNF_CTRL);
-	extcnf_ctrl &= ~E1000_EXTCNF_CTRL_SWFLAG;
-	ew32(EXTCNF_CTRL, extcnf_ctrl);
+
+	if (extcnf_ctrl & E1000_EXTCNF_CTRL_SWFLAG) {
+		extcnf_ctrl &= ~E1000_EXTCNF_CTRL_SWFLAG;
+		ew32(EXTCNF_CTRL, extcnf_ctrl);
+	} else {
+		e_dbg("Semaphore unexpectedly released by sw/fw/hw\n");
+	}
 
 	mutex_unlock(&swflag_mutex);
 }
@@ -3066,7 +3071,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	msleep(20);
 
 	if (!ret_val)
-		e1000_release_swflag_ich8lan(hw);
+		mutex_unlock(&swflag_mutex);
 
 	if (ctrl & E1000_CTRL_PHY_RST) {
 		ret_val = hw->phy.ops.get_cfg_done(hw);
