@@ -544,7 +544,8 @@ EXPORT_SYMBOL(ieee80211_data_from_8023);
 
 void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 			      const u8 *addr, enum nl80211_iftype iftype,
-			      const unsigned int extra_headroom)
+			      const unsigned int extra_headroom,
+			      bool has_80211_header)
 {
 	struct sk_buff *frame = NULL;
 	u16 ethertype;
@@ -553,14 +554,18 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 	int remaining, err;
 	u8 dst[ETH_ALEN], src[ETH_ALEN];
 
-	err = ieee80211_data_to_8023(skb, addr, iftype);
-	if (err)
-		goto out;
+	if (has_80211_header) {
+		err = ieee80211_data_to_8023(skb, addr, iftype);
+		if (err)
+			goto out;
 
-	/* skip the wrapping header */
-	eth = (struct ethhdr *) skb_pull(skb, sizeof(struct ethhdr));
-	if (!eth)
-		goto out;
+		/* skip the wrapping header */
+		eth = (struct ethhdr *) skb_pull(skb, sizeof(struct ethhdr));
+		if (!eth)
+			goto out;
+	} else {
+		eth = (struct ethhdr *) skb->data;
+	}
 
 	while (skb != frame) {
 		u8 padding;
