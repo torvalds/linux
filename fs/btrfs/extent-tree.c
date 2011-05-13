@@ -347,7 +347,7 @@ static int caching_kthread(void *data)
 	 */
 	path->skip_locking = 1;
 	path->search_commit_root = 1;
-	path->reada = 2;
+	path->reada = 1;
 
 	key.objectid = last;
 	key.offset = 0;
@@ -8556,6 +8556,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+	path->reada = 1;
 
 	cache_gen = btrfs_super_cache_generation(&root->fs_info->super_copy);
 	if (cache_gen != 0 &&

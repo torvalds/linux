@@ -4242,7 +4242,9 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 		filp->f_pos = 2;
 	}
 	path = btrfs_alloc_path();
-	path->reada = 2;
+	if (!path)
+		return -ENOMEM;
+	path->reada = 1;
 
 	btrfs_set_key_type(&key, key_type);
 	key.offset = filp->f_pos;
@@ -5043,7 +5045,15 @@ again:
 
 	if (!path) {
 		path = btrfs_alloc_path();
-		BUG_ON(!path);
+		if (!path) {
+			err = -ENOMEM;
+			goto out;
+		}
+		/*
+		 * Chances are we'll be called again, so go ahead and do
+		 * readahead
+		 */
+		path->reada = 1;
 	}
 
 	ret = btrfs_lookup_file_extent(trans, root, path,
