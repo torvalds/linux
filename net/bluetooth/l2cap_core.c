@@ -2929,11 +2929,7 @@ static int l2cap_ertm_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *sk
 		if (chan->conn_state & L2CAP_CONN_SAR_SDU)
 			goto drop;
 
-		err = sock_queue_rcv_skb(chan->sk, skb);
-		if (!err)
-			return err;
-
-		break;
+		return sock_queue_rcv_skb(chan->sk, skb);
 
 	case L2CAP_SDU_START:
 		if (chan->conn_state & L2CAP_CONN_SAR_SDU)
