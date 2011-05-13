@@ -210,7 +210,7 @@ static int flush_i2c_fifo(struct nmk_i2c_dev *dev)
 	writel((I2C_CR_FTX | I2C_CR_FRX), dev->virtbase + I2C_CR);
 
 	for (i = 0; i < LOOP_ATTEMPTS; i++) {
-		timeout = jiffies + msecs_to_jiffies(dev->adap.timeout);
+		timeout = jiffies + dev->adap.timeout;
 
 		while (!time_after(jiffies, timeout)) {
 			if ((readl(dev->virtbase + I2C_CR) &
@@ -431,7 +431,7 @@ static int read_i2c(struct nmk_i2c_dev *dev)
 			dev->virtbase + I2C_IMSCR);
 
 	timeout = wait_for_completion_interruptible_timeout(
-		&dev->xfer_complete, msecs_to_jiffies(dev->adap.timeout));
+		&dev->xfer_complete, dev->adap.timeout);
 
 	if (timeout < 0) {
 		dev_err(&dev->pdev->dev,
@@ -495,7 +495,7 @@ static int write_i2c(struct nmk_i2c_dev *dev)
 			dev->virtbase + I2C_IMSCR);
 
 	timeout = wait_for_completion_interruptible_timeout(
-		&dev->xfer_complete, msecs_to_jiffies(dev->adap.timeout));
+		&dev->xfer_complete, dev->adap.timeout);
 
 	if (timeout < 0) {
 		dev_err(&dev->pdev->dev,
@@ -914,7 +914,8 @@ static int __devinit nmk_i2c_probe(struct platform_device *pdev)
 	adap->owner	= THIS_MODULE;
 	adap->class	= I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->algo	= &nmk_i2c_algo;
-	adap->timeout	= pdata->timeout ? pdata->timeout : 20000;
+	adap->timeout	= pdata->timeout ? msecs_to_jiffies(pdata->timeout) :
+		msecs_to_jiffies(20000);
 	snprintf(adap->name, sizeof(adap->name),
 		 "Nomadik I2C%d at %lx", pdev->id, (unsigned long)res->start);
 
