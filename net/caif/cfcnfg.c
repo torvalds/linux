@@ -150,7 +150,7 @@ static void cfctrl_enum_resp(void)
 {
 }
 
-struct dev_info *cfcnfg_get_phyid(struct cfcnfg *cnfg,
+static struct dev_info *cfcnfg_get_phyid(struct cfcnfg *cnfg,
 				  enum cfcnfg_phy_preference phy_pref)
 {
 	/* Try to match with specified preference */
@@ -171,7 +171,7 @@ struct dev_info *cfcnfg_get_phyid(struct cfcnfg *cnfg,
 	return NULL;
 }
 
-int cfcnfg_get_id_from_ifi(struct cfcnfg *cnfg, int ifi)
+static int cfcnfg_get_id_from_ifi(struct cfcnfg *cnfg, int ifi)
 {
 	struct cfcnfg_phyinfo *phy;
 
@@ -181,11 +181,12 @@ int cfcnfg_get_id_from_ifi(struct cfcnfg *cnfg, int ifi)
 	return -ENODEV;
 }
 
-int cfcnfg_disconn_adapt_layer(struct cfcnfg *cfg, struct cflayer *adap_layer)
+int caif_disconnect_client(struct net *net, struct cflayer *adap_layer)
 {
 	u8 channel_id = 0;
 	int ret = 0;
 	struct cflayer *servl = NULL;
+	struct cfcnfg *cfg = get_cfcnfg(net);
 
 	caif_assert(adap_layer != NULL);
 
@@ -217,14 +218,7 @@ end:
 	return ret;
 
 }
-EXPORT_SYMBOL(cfcnfg_disconn_adapt_layer);
-
-void cfcnfg_release_adap_layer(struct cflayer *adap_layer)
-{
-	if (adap_layer->dn)
-		cfsrvl_put(adap_layer->dn);
-}
-EXPORT_SYMBOL(cfcnfg_release_adap_layer);
+EXPORT_SYMBOL(caif_disconnect_client);
 
 static void cfcnfg_linkdestroy_rsp(struct cflayer *layer, u8 channel_id)
 {
@@ -238,19 +232,109 @@ static const int protohead[CFCTRL_SRV_MASK] = {
 	[CFCTRL_SRV_DBG] = 3,
 };
 
-int cfcnfg_add_adaptation_layer(struct cfcnfg *cnfg,
-				struct cfctrl_link_param *param,
-				struct cflayer *adap_layer,
-				int *ifindex,
+
+static int caif_connect_req_to_link_param(struct cfcnfg *cnfg,
+				   struct caif_connect_request *s,
+				   struct cfctrl_link_param *l)
+{
+	struct dev_info *dev_info;
+	enum cfcnfg_phy_preference pref;
+	int res;
+
+	memset(l, 0, sizeof(*l));
+	/* In caif protocol low value is high priority */
+	l->priority = CAIF_PRIO_MAX - s->priority + 1;
+
+	if (s->ifindex != 0) {
+		res = cfcnfg_get_id_from_ifi(cnfg, s->ifindex);
+		if (res < 0)
+			return res;
+		l->phyid = res;
+	} else {
+		switch (s->link_selector) {
+		case CAIF_LINK_HIGH_BANDW:
+			pref = CFPHYPREF_HIGH_BW;
+			break;
+		case CAIF_LINK_LOW_LATENCY:
+			pref = CFPHYPREF_LOW_LAT;
+			break;
+		default:
+			return -EINVAL;
+		}
+		dev_info = cfcnfg_get_phyid(cnfg, pref);
+		if (dev_info == NULL)
+			return -ENODEV;
+		l->phyid = dev_info->id;
+	}
+	switch (s->protocol) {
+	case CAIFPROTO_AT:
+		l->linktype = CFCTRL_SRV_VEI;
+		l->endpoint = (s->sockaddr.u.at.type >> 2) & 0x3;
+		l->chtype = s->sockaddr.u.at.type & 0x3;
+		break;
+	case CAIFPROTO_DATAGRAM:
+		l->linktype = CFCTRL_SRV_DATAGRAM;
+		l->chtype = 0x00;
+		l->u.datagram.connid = s->sockaddr.u.dgm.connection_id;
+		break;
+	case CAIFPROTO_DATAGRAM_LOOP:
+		l->linktype = CFCTRL_SRV_DATAGRAM;
+		l->chtype = 0x03;
+		l->endpoint = 0x00;
+		l->u.datagram.connid = s->sockaddr.u.dgm.connection_id;
+		break;
+	case CAIFPROTO_RFM:
+		l->linktype = CFCTRL_SRV_RFM;
+		l->u.datagram.connid = s->sockaddr.u.rfm.connection_id;
+		strncpy(l->u.rfm.volume, s->sockaddr.u.rfm.volume,
+			sizeof(l->u.rfm.volume)-1);
+		l->u.rfm.volume[sizeof(l->u.rfm.volume)-1] = 0;
+		break;
+	case CAIFPROTO_UTIL:
+		l->linktype = CFCTRL_SRV_UTIL;
+		l->endpoint = 0x00;
+		l->chtype = 0x00;
+		strncpy(l->u.utility.name, s->sockaddr.u.util.service,
+			sizeof(l->u.utility.name)-1);
+		l->u.utility.name[sizeof(l->u.utility.name)-1] = 0;
+		caif_assert(sizeof(l->u.utility.name) > 10);
+		l->u.utility.paramlen = s->param.size;
+		if (l->u.utility.paramlen > sizeof(l->u.utility.params))
+			l->u.utility.paramlen = sizeof(l->u.utility.params);
+
+		memcpy(l->u.utility.params, s->param.data,
+		       l->u.utility.paramlen);
+
+		break;
+	case CAIFPROTO_DEBUG:
+		l->linktype = CFCTRL_SRV_DBG;
+		l->endpoint = s->sockaddr.u.dbg.service;
+		l->chtype = s->sockaddr.u.dbg.type;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+int caif_connect_client(struct net *net, struct caif_connect_request *conn_req,
+			struct cflayer *adap_layer, int *ifindex,
 				int *proto_head,
 				int *proto_tail)
 {
 	struct cflayer *frml;
 	struct cfcnfg_phyinfo *phy;
 	int err;
+	struct cfctrl_link_param param;
+	struct cfcnfg *cfg = get_cfcnfg(net);
+	caif_assert(cfg != NULL);
 
 	rcu_read_lock();
-	phy = cfcnfg_get_phyinfo_rcu(cnfg, param->phyid);
+	err = caif_connect_req_to_link_param(cfg, conn_req, &param);
+	if (err)
+		goto unlock;
+
+	phy = cfcnfg_get_phyinfo_rcu(cfg, param.phyid);
 	if (!phy) {
 		err = -ENODEV;
 		goto unlock;
@@ -276,28 +360,29 @@ int cfcnfg_add_adaptation_layer(struct cfcnfg *cnfg,
 		pr_err("Specified PHY type does not exist!\n");
 		goto unlock;
 	}
-	caif_assert(param->phyid == phy->id);
+	caif_assert(param.phyid == phy->id);
 	caif_assert(phy->frm_layer->id ==
-		     param->phyid);
+		     param.phyid);
 	caif_assert(phy->phy_layer->id ==
-		     param->phyid);
+		     param.phyid);
 
 	*ifindex = phy->ifindex;
 	*proto_tail = 2;
 	*proto_head =
-		protohead[param->linktype] + (phy->use_stx ? 1 : 0);
+
+	protohead[param.linktype] + (phy->use_stx ? 1 : 0);
 
 	rcu_read_unlock();
 
 	/* FIXME: ENUMERATE INITIALLY WHEN ACTIVATING PHYSICAL INTERFACE */
-	cfctrl_enum_req(cnfg->ctrl, param->phyid);
-	return cfctrl_linkup_request(cnfg->ctrl, param, adap_layer);
+	cfctrl_enum_req(cfg->ctrl, param.phyid);
+	return cfctrl_linkup_request(cfg->ctrl, &param, adap_layer);
 
 unlock:
 	rcu_read_unlock();
 	return err;
 }
-EXPORT_SYMBOL(cfcnfg_add_adaptation_layer);
+EXPORT_SYMBOL(caif_connect_client);
 
 static void cfcnfg_reject_rsp(struct cflayer *layer, u8 channel_id,
 			     struct cflayer *adapt_layer)
@@ -389,7 +474,7 @@ unlock:
 void
 cfcnfg_add_phy_layer(struct cfcnfg *cnfg, enum cfcnfg_phy_type phy_type,
 		     struct net_device *dev, struct cflayer *phy_layer,
-		     u16 *phy_id, enum cfcnfg_phy_preference pref,
+		     enum cfcnfg_phy_preference pref,
 		     bool fcs, bool stx)
 {
 	struct cflayer *frml;
@@ -512,22 +597,25 @@ int cfcnfg_del_phy_layer(struct cfcnfg *cnfg, struct cflayer *phy_layer)
 	phyid = phy_layer->id;
 	phyinfo = cfcnfg_get_phyinfo_rcu(cnfg, phyid);
 
-	if (phyinfo == NULL)
+	if (phyinfo == NULL) {
+		mutex_unlock(&cnfg->lock);
 		return 0;
+	}
 	caif_assert(phyid == phyinfo->id);
 	caif_assert(phy_layer == phyinfo->phy_layer);
 	caif_assert(phy_layer->id == phyid);
 	caif_assert(phyinfo->frm_layer->id == phyid);
 
+	list_del_rcu(&phyinfo->node);
+	synchronize_rcu();
+
 	/* Fail if reference count is not zero */
 	if (cffrml_refcnt_read(phyinfo->frm_layer) != 0) {
 		pr_info("Wait for device inuse\n");
+		list_add_rcu(&phyinfo->node, &cnfg->phys);
 		mutex_unlock(&cnfg->lock);
 		return -EAGAIN;
 	}
-
-	list_del_rcu(&phyinfo->node);
-	synchronize_rcu();
 
 	frml = phyinfo->frm_layer;
 	frml_dn = frml->dn;
@@ -538,8 +626,6 @@ int cfcnfg_del_phy_layer(struct cfcnfg *cnfg, struct cflayer *phy_layer)
 		layer_set_dn(frml_dn, NULL);
 	}
 	layer_set_up(phy_layer, NULL);
-
-
 
 	if (phyinfo->phy_layer != frml_dn)
 		kfree(frml_dn);

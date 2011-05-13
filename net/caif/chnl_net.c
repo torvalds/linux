@@ -20,7 +20,6 @@
 #include <linux/caif/if_caif.h>
 #include <net/rtnetlink.h>
 #include <net/caif/caif_layer.h>
-#include <net/caif/cfcnfg.h>
 #include <net/caif/cfpkt.h>
 #include <net/caif/caif_dev.h>
 
@@ -270,8 +269,9 @@ static int chnl_net_open(struct net_device *dev)
 
 	if (priv->state != CAIF_CONNECTING) {
 		priv->state = CAIF_CONNECTING;
-		result = caif_connect_client(&priv->conn_req, &priv->chnl,
-					&llifindex, &headroom, &tailroom);
+		result = caif_connect_client(dev_net(dev), &priv->conn_req,
+						&priv->chnl, &llifindex,
+						&headroom, &tailroom);
 		if (result != 0) {
 				pr_debug("err: "
 					 "Unable to register and open device,"
@@ -327,7 +327,7 @@ static int chnl_net_open(struct net_device *dev)
 
 	if (result == 0) {
 		pr_debug("connect timeout\n");
-		caif_disconnect_client(&priv->chnl);
+		caif_disconnect_client(dev_net(dev), &priv->chnl);
 		priv->state = CAIF_DISCONNECTED;
 		pr_debug("state disconnected\n");
 		result = -ETIMEDOUT;
@@ -343,7 +343,7 @@ static int chnl_net_open(struct net_device *dev)
 	return 0;
 
 error:
-	caif_disconnect_client(&priv->chnl);
+	caif_disconnect_client(dev_net(dev), &priv->chnl);
 	priv->state = CAIF_DISCONNECTED;
 	pr_debug("state disconnected\n");
 	return result;
@@ -357,7 +357,7 @@ static int chnl_net_stop(struct net_device *dev)
 	ASSERT_RTNL();
 	priv = netdev_priv(dev);
 	priv->state = CAIF_DISCONNECTED;
-	caif_disconnect_client(&priv->chnl);
+	caif_disconnect_client(dev_net(dev), &priv->chnl);
 	return 0;
 }
 

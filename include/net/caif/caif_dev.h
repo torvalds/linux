@@ -11,6 +11,7 @@
 #include <net/caif/cfcnfg.h>
 #include <linux/caif/caif_socket.h>
 #include <linux/if.h>
+#include <linux/net.h>
 
 /**
  * struct caif_param - CAIF parameters.
@@ -62,16 +63,18 @@ struct caif_connect_request {
  * E.g. CAIF Socket will call this function for each socket it connects
  * and have one client_layer instance for each socket.
  */
-int caif_connect_client(struct caif_connect_request *conn_req,
+int caif_connect_client(struct net *net,
+			struct caif_connect_request *conn_req,
 			struct cflayer *client_layer, int *ifindex,
 			int *headroom, int *tailroom);
 
 /**
  * caif_disconnect_client - Disconnects a client from the CAIF stack.
  *
- * @client_layer: Client layer to be removed.
+ * @client_layer: Client layer to be disconnected.
  */
-int caif_disconnect_client(struct cflayer *client_layer);
+int caif_disconnect_client(struct net *net, struct cflayer *client_layer);
+
 
 /**
  * caif_client_register_refcnt - register ref-count functions provided by client.
@@ -90,21 +93,6 @@ int caif_disconnect_client(struct cflayer *client_layer);
 void caif_client_register_refcnt(struct cflayer *adapt_layer,
 					void (*hold)(struct cflayer *lyr),
 					void (*put)(struct cflayer *lyr));
-/**
- * caif_connect_req_to_link_param - Translate configuration parameters
- *				    from socket format to internal format.
- * @cnfg:	Pointer to configuration handler
- * @con_req:	Configuration parameters supplied in function
- *		caif_connect_client
- * @channel_setup_param: Parameters supplied to the CAIF Core stack for
- *			 setting up channels.
- *
- */
-
-int caif_connect_req_to_link_param(struct cfcnfg *cnfg,
-				   struct caif_connect_request *con_req,
-				   struct cfctrl_link_param *setup_param);
-
 /**
  * caif_free_client - Free memory used to manage the client in the CAIF Stack.
  *

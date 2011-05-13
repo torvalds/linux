@@ -810,7 +810,7 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 				sk->sk_state == CAIF_DISCONNECTED);
 		if (sk->sk_shutdown & SHUTDOWN_MASK) {
 			/* Allow re-connect after SHUTDOWN_IND */
-			caif_disconnect_client(&cf_sk->layer);
+			caif_disconnect_client(sock_net(sk), &cf_sk->layer);
 			break;
 		}
 		/* No reconnect on a seqpacket socket */
@@ -851,7 +851,7 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	dbfs_atomic_inc(&cnt.num_connect_req);
 	cf_sk->layer.receive = caif_sktrecv_cb;
 
-	err = caif_connect_client(&cf_sk->conn_req,
+	err = caif_connect_client(sock_net(sk), &cf_sk->conn_req,
 				&cf_sk->layer, &ifindex, &headroom, &tailroom);
 
 	if (err < 0) {
@@ -949,7 +949,7 @@ static int caif_release(struct socket *sock)
 
 	if (cf_sk->sk.sk_socket->state == SS_CONNECTED ||
 		cf_sk->sk.sk_socket->state == SS_CONNECTING)
-		res = caif_disconnect_client(&cf_sk->layer);
+		res = caif_disconnect_client(sock_net(sk), &cf_sk->layer);
 
 	cf_sk->sk.sk_socket->state = SS_DISCONNECTING;
 	wake_up_interruptible_poll(sk_sleep(sk), POLLERR|POLLHUP);
