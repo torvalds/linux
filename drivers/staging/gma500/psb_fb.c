@@ -648,6 +648,8 @@ static int psb_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 {
         struct psb_framebuffer *psbfb = to_psb_fb(fb);
         struct gtt_range *r = psbfb->gtt;
+        if (r->stolen)
+                return -EOPNOTSUPP;
         return drm_gem_handle_create(file_priv, &r->gem, handle);
 }
 
