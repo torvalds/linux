@@ -833,42 +833,11 @@ static int blkvsc_drv_init(void)
 	return ret;
 }
 
-static int blkvsc_drv_exit_cb(struct device *dev, void *data)
-{
-	struct device **curr = (struct device **)data;
-	*curr = dev;
-	return 1; /* stop iterating */
-}
 
 static void blkvsc_drv_exit(void)
 {
-	struct hv_driver *drv = &blkvsc_drv;
-	struct device *current_dev;
-	int ret;
 
-	while (1) {
-		current_dev = NULL;
-
-		/* Get the device */
-		ret = driver_for_each_device(&drv->driver, NULL,
-					     (void *) &current_dev,
-					     blkvsc_drv_exit_cb);
-
-		if (ret)
-			DPRINT_WARN(BLKVSC_DRV,
-				    "driver_for_each_device returned %d", ret);
-
-
-		if (current_dev == NULL)
-			break;
-
-		/* Initiate removal from the top-down */
-		device_unregister(current_dev);
-	}
-
-	vmbus_child_driver_unregister(&drv->driver);
-
-	return;
+	vmbus_child_driver_unregister(&blkvsc_drv.driver);
 }
 
 /*
