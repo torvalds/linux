@@ -30,7 +30,6 @@
 
 #include "hyperv.h"
 #include "hv_api.h"
-#include "logging.h"
 #include "storvsc_api.h"
 #include "vstorage.h"
 

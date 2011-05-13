@@ -30,7 +30,6 @@
 #include <linux/pci.h>
 
 #include "hyperv.h"
-#include "logging.h"
 #include "hv_api.h"
 #include "vmbus.h"
 #include "vmbus_private.h"

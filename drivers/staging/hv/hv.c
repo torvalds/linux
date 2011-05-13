@@ -28,7 +28,6 @@
 
 #include "hyperv.h"
 #include "hv_api.h"
-#include "logging.h"
 #include "vmbus_private.h"
 
 /* The one and only */

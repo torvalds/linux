@@ -29,7 +29,6 @@
 
 #include "hyperv.h"
 #include "hv_api.h"
-#include "logging.h"
 #include "vmbus_private.h"
 
 #define NUM_PAGES_SPANNED(addr, len) \

@@ -27,7 +27,6 @@
 #include <linux/mm.h>
 
 #include "hyperv.h"
-#include "logging.h"
 #include "ring_buffer.h"
 
 

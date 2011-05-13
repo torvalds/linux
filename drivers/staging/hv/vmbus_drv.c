@@ -37,7 +37,6 @@
 
 #include "hyperv.h"
 #include "hv_api.h"
-#include "logging.h"
 #include "vmbus.h"
 #include "vmbus_private.h"
 

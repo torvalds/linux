@@ -28,7 +28,6 @@
 #include <linux/netdevice.h>
 
 #include "hyperv.h"
-#include "logging.h"
 #include "hv_api.h"
 #include "netvsc_api.h"
 #include "rndis_filter.h"

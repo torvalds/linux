@@ -41,7 +41,6 @@
 
 #include "hyperv.h"
 #include "hv_api.h"
-#include "logging.h"
 #include "vmbus.h"
 #include "netvsc_api.h"
 
