@@ -3833,6 +3833,8 @@ static void e1000_update_phy_info(unsigned long data)
 /**
  * e1000e_update_phy_stats - Update the PHY statistics counters
  * @adapter: board private structure
+ *
+ * Read/clear the upper 16-bit PHY registers and read/accumulate lower
  **/
 static void e1000e_update_phy_stats(struct e1000_adapter *adapter)
 {
@@ -3844,89 +3846,61 @@ static void e1000e_update_phy_stats(struct e1000_adapter *adapter)
 	if (ret_val)
 		return;
 
-	hw->phy.addr = 1;
-
-#define HV_PHY_STATS_PAGE	778
 	/*
 	 * A page set is expensive so check if already on desired page.
 	 * If not, set to the page with the PHY status registers.
 	 */
+	hw->phy.addr = 1;
 	ret_val = e1000e_read_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT,
 					   &phy_data);
 	if (ret_val)
 		goto release;
-	if (phy_data != (HV_PHY_STATS_PAGE << IGP_PAGE_SHIFT)) {
-		ret_val = e1000e_write_phy_reg_mdic(hw,
-						    IGP01E1000_PHY_PAGE_SELECT,
-						    (HV_PHY_STATS_PAGE <<
-						     IGP_PAGE_SHIFT));
+	if (phy_data != (HV_STATS_PAGE << IGP_PAGE_SHIFT)) {
+		ret_val = hw->phy.ops.set_page(hw,
+					       HV_STATS_PAGE << IGP_PAGE_SHIFT);
 		if (ret_val)
 			goto release;
 	}
 
-	/* Read/clear the upper 16-bit registers and read/accumulate lower */
-
 	/* Single Collision Count */
-	e1000e_read_phy_reg_mdic(hw, HV_SCC_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_SCC_LOWER & MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_SCC_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_SCC_LOWER, &phy_data);
 	if (!ret_val)
 		adapter->stats.scc += phy_data;
 
 	/* Excessive Collision Count */
-	e1000e_read_phy_reg_mdic(hw, HV_ECOL_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_ECOL_LOWER & MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_ECOL_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_ECOL_LOWER, &phy_data);
 	if (!ret_val)
 		adapter->stats.ecol += phy_data;
 
 	/* Multiple Collision Count */
-	e1000e_read_phy_reg_mdic(hw, HV_MCC_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_MCC_LOWER & MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_MCC_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_MCC_LOWER, &phy_data);
 	if (!ret_val)
 		adapter->stats.mcc += phy_data;
 
 	/* Late Collision Count */
-	e1000e_read_phy_reg_mdic(hw, HV_LATECOL_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_LATECOL_LOWER &
-					   MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_LATECOL_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_LATECOL_LOWER, &phy_data);
 	if (!ret_val)
 		adapter->stats.latecol += phy_data;
 
 	/* Collision Count - also used for adaptive IFS */
-	e1000e_read_phy_reg_mdic(hw, HV_COLC_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_COLC_LOWER & MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_COLC_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_COLC_LOWER, &phy_data);
 	if (!ret_val)
 		hw->mac.collision_delta = phy_data;
 
 	/* Defer Count */
-	e1000e_read_phy_reg_mdic(hw, HV_DC_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_DC_LOWER & MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_DC_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_DC_LOWER, &phy_data);
 	if (!ret_val)
 		adapter->stats.dc += phy_data;
 
 	/* Transmit with no CRS */
-	e1000e_read_phy_reg_mdic(hw, HV_TNCRS_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_TNCRS_LOWER & MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_TNCRS_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_TNCRS_LOWER, &phy_data);
 	if (!ret_val)
 		adapter->stats.tncrs += phy_data;
 
@@ -5154,21 +5128,34 @@ static int e1000_init_phy_wakeup(struct e1000_adapter *adapter, u32 wufc)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 i, mac_reg;
-	u16 phy_reg;
+	u16 phy_reg, wuc_enable;
 	int retval = 0;
 
 	/* copy MAC RARs to PHY RARs */
 	e1000_copy_rx_addrs_to_phy_ich8lan(hw);
 
-	/* copy MAC MTA to PHY MTA */
+	retval = hw->phy.ops.acquire(hw);
+	if (retval) {
+		e_err("Could not acquire PHY\n");
+		return retval;
+	}
+
+	/* Enable access to wakeup registers on and set page to BM_WUC_PAGE */
+	retval = e1000_enable_phy_wakeup_reg_access_bm(hw, &wuc_enable);
+	if (retval)
+		goto out;
+
+	/* copy MAC MTA to PHY MTA - only needed for pchlan */
 	for (i = 0; i < adapter->hw.mac.mta_reg_count; i++) {
 		mac_reg = E1000_READ_REG_ARRAY(hw, E1000_MTA, i);
-		e1e_wphy(hw, BM_MTA(i), (u16)(mac_reg & 0xFFFF));
-		e1e_wphy(hw, BM_MTA(i) + 1, (u16)((mac_reg >> 16) & 0xFFFF));
+		hw->phy.ops.write_reg_page(hw, BM_MTA(i),
+					   (u16)(mac_reg & 0xFFFF));
+		hw->phy.ops.write_reg_page(hw, BM_MTA(i) + 1,
+					   (u16)((mac_reg >> 16) & 0xFFFF));
 	}
 
 	/* configure PHY Rx Control register */
-	e1e_rphy(&adapter->hw, BM_RCTL, &phy_reg);
+	hw->phy.ops.read_reg_page(&adapter->hw, BM_RCTL, &phy_reg);
 	mac_reg = er32(RCTL);
 	if (mac_reg & E1000_RCTL_UPE)
 		phy_reg |= BM_RCTL_UPE;
@@ -5185,31 +5172,19 @@ static int e1000_init_phy_wakeup(struct e1000_adapter *adapter, u32 wufc)
 	mac_reg = er32(CTRL);
 	if (mac_reg & E1000_CTRL_RFCE)
 		phy_reg |= BM_RCTL_RFCE;
-	e1e_wphy(&adapter->hw, BM_RCTL, phy_reg);
+	hw->phy.ops.write_reg_page(&adapter->hw, BM_RCTL, phy_reg);
 
 	/* enable PHY wakeup in MAC register */
 	ew32(WUFC, wufc);
 	ew32(WUC, E1000_WUC_PHY_WAKE | E1000_WUC_PME_EN);
 
 	/* configure and enable PHY wakeup in PHY registers */
-	e1e_wphy(&adapter->hw, BM_WUFC, wufc);
-	e1e_wphy(&adapter->hw, BM_WUC, E1000_WUC_PME_EN);
+	hw->phy.ops.write_reg_page(&adapter->hw, BM_WUFC, wufc);
+	hw->phy.ops.write_reg_page(&adapter->hw, BM_WUC, E1000_WUC_PME_EN);
 
 	/* activate PHY wakeup */
-	retval = hw->phy.ops.acquire(hw);
-	if (retval) {
-		e_err("Could not acquire PHY\n");
-		return retval;
-	}
-	e1000e_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT,
-	                         (BM_WUC_ENABLE_PAGE << IGP_PAGE_SHIFT));
-	retval = e1000e_read_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, &phy_reg);
-	if (retval) {
-		e_err("Could not read PHY page 769\n");
-		goto out;
-	}
-	phy_reg |= BM_WUC_ENABLE_BIT | BM_WUC_HOST_WU_BIT;
-	retval = e1000e_write_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, phy_reg);
+	wuc_enable |= BM_WUC_ENABLE_BIT | BM_WUC_HOST_WU_BIT;
+	retval = e1000_disable_phy_wakeup_reg_access_bm(hw, &wuc_enable);
 	if (retval)
 		e_err("Could not set PHY Host Wakeup bit\n");
 out:

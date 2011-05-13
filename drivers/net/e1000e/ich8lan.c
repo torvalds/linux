@@ -303,12 +303,15 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->addr                     = 1;
 	phy->reset_delay_us           = 100;
 
+	phy->ops.set_page             = e1000_set_page_igp;
 	phy->ops.read_reg             = e1000_read_phy_reg_hv;
 	phy->ops.read_reg_locked      = e1000_read_phy_reg_hv_locked;
+	phy->ops.read_reg_page        = e1000_read_phy_reg_page_hv;
 	phy->ops.set_d0_lplu_state    = e1000_set_lplu_state_pchlan;
 	phy->ops.set_d3_lplu_state    = e1000_set_lplu_state_pchlan;
 	phy->ops.write_reg            = e1000_write_phy_reg_hv;
 	phy->ops.write_reg_locked     = e1000_write_phy_reg_hv_locked;
+	phy->ops.write_reg_page       = e1000_write_phy_reg_page_hv;
 	phy->ops.power_up             = e1000_power_up_phy_copper;
 	phy->ops.power_down           = e1000_power_down_phy_copper_ich8lan;
 	phy->autoneg_mask             = AUTONEG_ADVERTISE_SPEED_DEFAULT;
@@ -1409,17 +1412,36 @@ out:
 void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw)
 {
 	u32 mac_reg;
-	u16 i;
+	u16 i, phy_reg = 0;
+	s32 ret_val;
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		return;
+	ret_val = e1000_enable_phy_wakeup_reg_access_bm(hw, &phy_reg);
+	if (ret_val)
+		goto release;
 
 	/* Copy both RAL/H (rar_entry_count) and SHRAL/H (+4) to PHY */
 	for (i = 0; i < (hw->mac.rar_entry_count + 4); i++) {
 		mac_reg = er32(RAL(i));
-		e1e_wphy(hw, BM_RAR_L(i), (u16)(mac_reg & 0xFFFF));
-		e1e_wphy(hw, BM_RAR_M(i), (u16)((mac_reg >> 16) & 0xFFFF));
+		hw->phy.ops.write_reg_page(hw, BM_RAR_L(i),
+					   (u16)(mac_reg & 0xFFFF));
+		hw->phy.ops.write_reg_page(hw, BM_RAR_M(i),
+					   (u16)((mac_reg >> 16) & 0xFFFF));
+
 		mac_reg = er32(RAH(i));
-		e1e_wphy(hw, BM_RAR_H(i), (u16)(mac_reg & 0xFFFF));
-		e1e_wphy(hw, BM_RAR_CTRL(i), (u16)((mac_reg >> 16) & 0x8000));
+		hw->phy.ops.write_reg_page(hw, BM_RAR_H(i),
+					   (u16)(mac_reg & 0xFFFF));
+		hw->phy.ops.write_reg_page(hw, BM_RAR_CTRL(i),
+					   (u16)((mac_reg & E1000_RAH_AV)
+						 >> 16));
 	}
+
+	e1000_disable_phy_wakeup_reg_access_bm(hw, &phy_reg);
+
+release:
+	hw->phy.ops.release(hw);
 }
 
 /**
@@ -3897,6 +3919,7 @@ static void e1000_power_down_phy_copper_ich8lan(struct e1000_hw *hw)
 static void e1000_clear_hw_cntrs_ich8lan(struct e1000_hw *hw)
 {
 	u16 phy_data;
+	s32 ret_val;
 
 	e1000e_clear_hw_cntrs_base(hw);
 
@@ -3918,20 +3941,29 @@ static void e1000_clear_hw_cntrs_ich8lan(struct e1000_hw *hw)
 	if ((hw->phy.type == e1000_phy_82578) ||
 	    (hw->phy.type == e1000_phy_82579) ||
 	    (hw->phy.type == e1000_phy_82577)) {
-		e1e_rphy(hw, HV_SCC_UPPER, &phy_data);
-		e1e_rphy(hw, HV_SCC_LOWER, &phy_data);
-		e1e_rphy(hw, HV_ECOL_UPPER, &phy_data);
-		e1e_rphy(hw, HV_ECOL_LOWER, &phy_data);
-		e1e_rphy(hw, HV_MCC_UPPER, &phy_data);
-		e1e_rphy(hw, HV_MCC_LOWER, &phy_data);
-		e1e_rphy(hw, HV_LATECOL_UPPER, &phy_data);
-		e1e_rphy(hw, HV_LATECOL_LOWER, &phy_data);
-		e1e_rphy(hw, HV_COLC_UPPER, &phy_data);
-		e1e_rphy(hw, HV_COLC_LOWER, &phy_data);
-		e1e_rphy(hw, HV_DC_UPPER, &phy_data);
-		e1e_rphy(hw, HV_DC_LOWER, &phy_data);
-		e1e_rphy(hw, HV_TNCRS_UPPER, &phy_data);
-		e1e_rphy(hw, HV_TNCRS_LOWER, &phy_data);
+		ret_val = hw->phy.ops.acquire(hw);
+		if (ret_val)
+			return;
+		ret_val = hw->phy.ops.set_page(hw,
+					       HV_STATS_PAGE << IGP_PAGE_SHIFT);
+		if (ret_val)
+			goto release;
+		hw->phy.ops.read_reg_page(hw, HV_SCC_UPPER, &phy_data);
+		hw->phy.ops.read_reg_page(hw, HV_SCC_LOWER, &phy_data);
+		hw->phy.ops.read_reg_page(hw, HV_ECOL_UPPER, &phy_data);
+		hw->phy.ops.read_reg_page(hw, HV_ECOL_LOWER, &phy_data);
+		hw->phy.ops.read_reg_page(hw, HV_MCC_UPPER, &phy_data);
+		hw->phy.ops.read_reg_page(hw, HV_MCC_LOWER, &phy_data);
+		hw->phy.ops.read_reg_page(hw, HV_LATECOL_UPPER, &phy_data);
+		hw->phy.ops.read_reg_page(hw, HV_LATECOL_LOWER, &phy_data);
+		hw->phy.ops.read_reg_page(hw, HV_COLC_UPPER, &phy_data);
+		hw->phy.ops.read_reg_page(hw, HV_COLC_LOWER, &phy_data);
+		hw->phy.ops.read_reg_page(hw, HV_DC_UPPER, &phy_data);
+		hw->phy.ops.read_reg_page(hw, HV_DC_LOWER, &phy_data);
+		hw->phy.ops.read_reg_page(hw, HV_TNCRS_UPPER, &phy_data);
+		hw->phy.ops.read_reg_page(hw, HV_TNCRS_LOWER, &phy_data);
+release:
+		hw->phy.ops.release(hw);
 	}
 }
 
