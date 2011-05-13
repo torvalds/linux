@@ -88,8 +88,6 @@ struct netvsc_driver {
 	struct hv_driver base;
 
 	u32 ring_buf_size;
-	u32 req_ext_size;
-
 };
 
 static inline
