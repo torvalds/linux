@@ -1537,8 +1537,10 @@ static bool fb_do_apertures_overlap(struct apertures_struct *gena,
 	return false;
 }
 
+static int do_unregister_framebuffer(struct fb_info *fb_info);
+
 #define VGA_FB_PHYS 0xA0000
-void remove_conflicting_framebuffers(struct apertures_struct *a,
+static void do_remove_conflicting_framebuffers(struct apertures_struct *a,
 				     const char *name, bool primary)
 {
 	int i;
@@ -1560,24 +1562,12 @@ void remove_conflicting_framebuffers(struct apertures_struct *a,
 			printk(KERN_INFO "fb: conflicting fb hw usage "
 			       "%s vs %s - removing generic driver\n",
 			       name, registered_fb[i]->fix.id);
-			unregister_framebuffer(registered_fb[i]);
+			do_unregister_framebuffer(registered_fb[i]);
 		}
 	}
 }
-EXPORT_SYMBOL(remove_conflicting_framebuffers);
 
-/**
- *	register_framebuffer - registers a frame buffer device
- *	@fb_info: frame buffer info structure
- *
- *	Registers a frame buffer device @fb_info.
- *
- *	Returns negative errno on error, or zero for success.
- *
- */
-
-int
-register_framebuffer(struct fb_info *fb_info)
+static int do_register_framebuffer(struct fb_info *fb_info)
 {
 	int i;
 	struct fb_event event;
@@ -1589,10 +1579,9 @@ register_framebuffer(struct fb_info *fb_info)
 	if (fb_check_foreignness(fb_info))
 		return -ENOSYS;
 
-	remove_conflicting_framebuffers(fb_info->apertures, fb_info->fix.id,
+	do_remove_conflicting_framebuffers(fb_info->apertures, fb_info->fix.id,
 					 fb_is_primary_device(fb_info));
 
-	mutex_lock(&registration_lock);
 	num_registered_fb++;
 	for (i = 0 ; i < FB_MAX; i++)
 		if (!registered_fb[i])
@@ -1635,7 +1624,6 @@ register_framebuffer(struct fb_info *fb_info)
 	fb_var_to_videomode(&mode, &fb_info->var);
 	fb_add_videomode(&mode, &fb_info->modelist);
 	registered_fb[i] = fb_info;
-	mutex_unlock(&registration_lock);
 
 	event.info = fb_info;
 	if (!lock_fb_info(fb_info))
@@ -1645,6 +1633,69 @@ register_framebuffer(struct fb_info *fb_info)
 	return 0;
 }
 
+static int do_unregister_framebuffer(struct fb_info *fb_info)
+{
+	struct fb_event event;
+	int i, ret = 0;
+
+	i = fb_info->node;
+	if (!registered_fb[i])
+		return -EINVAL;
+
+	if (!lock_fb_info(fb_info))
+		return -ENODEV;
+	event.info = fb_info;
+	ret = fb_notifier_call_chain(FB_EVENT_FB_UNBIND, &event);
+	unlock_fb_info(fb_info);
+
+	if (ret)
+		return -EINVAL;
+
+	if (fb_info->pixmap.addr &&
+	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
+		kfree(fb_info->pixmap.addr);
+	fb_destroy_modelist(&fb_info->modelist);
+	registered_fb[i] = NULL;
+	num_registered_fb--;
+	fb_cleanup_device(fb_info);
+	device_destroy(fb_class, MKDEV(FB_MAJOR, i));
+	event.info = fb_info;
+	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
+
+	/* this may free fb info */
+	put_fb_info(fb_info);
+	return 0;
+}
+
+void remove_conflicting_framebuffers(struct apertures_struct *a,
+				     const char *name, bool primary)
+{
+	mutex_lock(&registration_lock);
+	do_remove_conflicting_framebuffers(a, name, primary);
+	mutex_unlock(&registration_lock);
+}
+EXPORT_SYMBOL(remove_conflicting_framebuffers);
+
+/**
+ *	register_framebuffer - registers a frame buffer device
+ *	@fb_info: frame buffer info structure
+ *
+ *	Registers a frame buffer device @fb_info.
+ *
+ *	Returns negative errno on error, or zero for success.
+ *
+ */
+int
+register_framebuffer(struct fb_info *fb_info)
+{
+	int ret;
+
+	mutex_lock(&registration_lock);
+	ret = do_register_framebuffer(fb_info);
+	mutex_unlock(&registration_lock);
+
+	return ret;
+}
 
 /**
  *	unregister_framebuffer - releases a frame buffer device
@@ -1662,47 +1713,15 @@ register_framebuffer(struct fb_info *fb_info)
  *      that the driver implements fb_open() and fb_release() to
  *      check that no processes are using the device.
  */
-
 int
 unregister_framebuffer(struct fb_info *fb_info)
 {
-	struct fb_event event;
-	int i, ret = 0;
+	int ret;
 
 	mutex_lock(&registration_lock);
-	i = fb_info->node;
-	if (!registered_fb[i]) {
-		ret = -EINVAL;
-		goto done;
-	}
-
-
-	if (!lock_fb_info(fb_info))
-		return -ENODEV;
-	event.info = fb_info;
-	ret = fb_notifier_call_chain(FB_EVENT_FB_UNBIND, &event);
-	unlock_fb_info(fb_info);
-
-	if (ret) {
-		ret = -EINVAL;
-		goto done;
-	}
-
-	if (fb_info->pixmap.addr &&
-	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
-		kfree(fb_info->pixmap.addr);
-	fb_destroy_modelist(&fb_info->modelist);
-	registered_fb[i] = NULL;
-	num_registered_fb--;
-	fb_cleanup_device(fb_info);
-	device_destroy(fb_class, MKDEV(FB_MAJOR, i));
-	event.info = fb_info;
-	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
-
-	/* this may free fb info */
-	put_fb_info(fb_info);
-done:
+	ret = do_unregister_framebuffer(fb_info);
 	mutex_unlock(&registration_lock);
+
 	return ret;
 }
 
