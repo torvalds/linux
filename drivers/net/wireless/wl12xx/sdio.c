@@ -314,7 +314,34 @@ static int wl1271_suspend(struct device *dev)
 {
 	/* Tell MMC/SDIO core it's OK to power down the card
 	 * (if it isn't already), but not to remove it completely */
-	return 0;
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct wl1271 *wl = sdio_get_drvdata(func);
+	mmc_pm_flag_t sdio_flags;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_MAC80211, "wl1271 suspend. wow_enabled: %d",
+		     wl->wow_enabled);
+
+	/* check whether sdio should keep power */
+	if (wl->wow_enabled) {
+		sdio_flags = sdio_get_host_pm_caps(func);
+
+		if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
+			wl1271_error("can't keep power while host "
+				     "is suspended");
+			ret = -EINVAL;
+			goto out;
+		}
+
+		/* keep power while host suspended */
+		ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+		if (ret) {
+			wl1271_error("error while trying to keep power");
+			goto out;
+		}
+	}
+out:
+	return ret;
 }
 
 static int wl1271_resume(struct device *dev)
