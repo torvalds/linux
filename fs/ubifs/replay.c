@@ -509,7 +509,7 @@ static int replay_bud(struct ubifs_info *c, int lnum, int offs, int jhead,
 	struct ubifs_scan_node *snod;
 	struct ubifs_bud *bud;
 
-	dbg_mnt("replay bud LEB %d, head %d", lnum, jhead);
+	dbg_mnt("replay bud LEB %d, head %d, offs %d", lnum, jhead, offs);
 	if (c->need_recovery)
 		sleb = ubifs_recover_leb(c, lnum, offs, c->sbuf, jhead != GCHD);
 	else
@@ -636,6 +636,7 @@ static int replay_bud(struct ubifs_info *c, int lnum, int offs, int jhead,
 
 	*dirty = sleb->endpt - offs - used;
 	*free = c->leb_size - sleb->endpt;
+	dbg_mnt("bud LEB %d replied: dirty %d, free %d", lnum, *dirty, *free);
 
 out:
 	ubifs_scan_destroy(sleb);

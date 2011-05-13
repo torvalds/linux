@@ -1140,12 +1140,11 @@ int ubifs_rcvry_gc_commit(struct ubifs_info *c)
 	struct ubifs_lprops lp;
 	int err;
 
+	dbg_rcvry("GC head LEB %d, offs %d", wbuf->lnum, wbuf->offs);
+
 	c->gc_lnum = -1;
-	if (wbuf->lnum == -1 || wbuf->offs == c->leb_size) {
-		dbg_rcvry("no GC head: wbuf->lnum %d, wbuf->offs %d",
-			  wbuf->lnum, wbuf->offs);
+	if (wbuf->lnum == -1 || wbuf->offs == c->leb_size)
 		return grab_empty_leb(c);
-	}
 
 	err = ubifs_find_dirty_leb(c, &lp, wbuf->offs, 2);
 	if (err) {
