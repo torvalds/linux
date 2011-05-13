@@ -1299,9 +1299,9 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	s3c_hsudc_setup_ep(hsudc);
 
 	hsudc->uclk = clk_get(&pdev->dev, "usb-device");
-	if (hsudc->uclk == NULL) {
+	if (IS_ERR(hsudc->uclk)) {
 		dev_err(dev, "failed to find usb-device clock source\n");
-		return -ENOENT;
+		return PTR_ERR(hsudc->uclk);
 	}
 	clk_enable(hsudc->uclk);
 
