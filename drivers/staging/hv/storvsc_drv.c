@@ -35,7 +35,6 @@
 
 #include "hyperv.h"
 #include "hyperv_storage.h"
-#include "storvsc_api.h"
 
 static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
 

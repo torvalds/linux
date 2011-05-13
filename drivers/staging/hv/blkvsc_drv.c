@@ -34,7 +34,6 @@
 
 #include "hyperv.h"
 #include "hyperv_storage.h"
-#include "storvsc_api.h"
 
 
 #define BLKVSC_MINORS	64
