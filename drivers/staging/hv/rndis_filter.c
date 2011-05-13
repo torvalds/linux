@@ -30,11 +30,6 @@
 #include "hyperv.h"
 #include "hyperv_net.h"
 
-/* Data types */
-struct rndis_filter_driver_object {
-	/* The original driver */
-	struct netvsc_driver inner_drv;
-};
 
 enum rndis_device_state {
 	RNDIS_DEV_UNINITIALIZED = 0,
@@ -79,8 +74,6 @@ static void rndis_filter_send_completion(void *ctx);
 static void rndis_filter_send_request_completion(void *ctx);
 
 
-/* The one and only */
-static struct rndis_filter_driver_object rndis_filter;
 
 static struct rndis_device *get_rndis_device(void)
 {
@@ -577,15 +570,6 @@ Exit:
 
 int rndis_filter_init(struct netvsc_driver *drv)
 {
-
-	/* Driver->Context = rndisDriver; */
-
-	memset(&rndis_filter, 0, sizeof(struct rndis_filter_driver_object));
-
-	/*rndisDriver->Driver = Driver;
-
-	ASSERT(Driver->OnLinkStatusChanged);
-	rndisDriver->OnLinkStatusChanged = Driver->OnLinkStatusChanged;*/
 
 	return 0;
 }
