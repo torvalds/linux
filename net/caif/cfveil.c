@@ -82,13 +82,14 @@ static int cfvei_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	int ret;
 	struct cfsrvl *service = container_obj(layr);
 	if (!cfsrvl_ready(service, &ret))
-		return ret;
+		goto err;
 	caif_assert(layr->dn != NULL);
 	caif_assert(layr->dn->transmit != NULL);
 
 	if (cfpkt_add_head(pkt, &tmp, 1) < 0) {
 		pr_err("Packet is erroneous!\n");
-		return -EPROTO;
+		ret = -EPROTO;
+		goto err;
 	}
 
 	/* Add info-> for MUX-layer to route the packet out. */
@@ -97,4 +98,7 @@ static int cfvei_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	info->hdr_len = 1;
 	info->dev_info = &service->dev_info;
 	return layr->dn->transmit(layr->dn, pkt);
+err:
+	cfpkt_destroy(pkt);
+	return ret;
 }

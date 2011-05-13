@@ -126,7 +126,7 @@ void cfcnfg_remove(struct cfcnfg *cfg)
 		synchronize_rcu();
 
 		kfree(cfg->mux);
-		kfree(cfg->ctrl);
+		cfctrl_remove(cfg->ctrl);
 		kfree(cfg);
 	}
 }

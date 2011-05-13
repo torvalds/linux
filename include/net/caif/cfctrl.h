@@ -124,6 +124,7 @@ int  cfctrl_linkdown_req(struct cflayer *cfctrl, u8 linkid,
 
 struct cflayer *cfctrl_create(void);
 struct cfctrl_rsp *cfctrl_get_respfuncs(struct cflayer *layer);
-void cfctrl_cancel_req(struct cflayer *layr, struct cflayer *adap_layer);
+int cfctrl_cancel_req(struct cflayer *layr, struct cflayer *adap_layer);
+void cfctrl_remove(struct cflayer *layr);
 
 #endif				/* CFCTRL_H_ */

@@ -604,7 +604,9 @@ static int caif_seqpkt_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		goto err;
 	ret = transmit_skb(skb, cf_sk, noblock, timeo);
 	if (ret < 0)
-		goto err;
+		/* skb is already freed */
+		return ret;
+
 	return len;
 err:
 	kfree_skb(skb);
@@ -933,9 +935,9 @@ static int caif_release(struct socket *sock)
 	 * caif_queue_rcv_skb checks SOCK_DEAD holding the queue lock,
 	 * this ensures no packets when sock is dead.
 	 */
-	spin_lock(&sk->sk_receive_queue.lock);
+	spin_lock_bh(&sk->sk_receive_queue.lock);
 	sock_set_flag(sk, SOCK_DEAD);
-	spin_unlock(&sk->sk_receive_queue.lock);
+	spin_unlock_bh(&sk->sk_receive_queue.lock);
 	sock->sk = NULL;
 
 	dbfs_atomic_inc(&cnt.num_disconnect);

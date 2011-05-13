@@ -118,6 +118,7 @@ static struct caif_device_entry *caif_get(struct net_device *dev)
 
 static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 {
+	int err;
 	struct caif_device_entry *caifd =
 	    container_of(layer, struct caif_device_entry, layer);
 	struct sk_buff *skb;
@@ -125,9 +126,11 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 	skb = cfpkt_tonative(pkt);
 	skb->dev = caifd->netdev;
 
-	dev_queue_xmit(skb);
+	err = dev_queue_xmit(skb);
+	if (err > 0)
+		err = -EIO;
 
-	return 0;
+	return err;
 }
 
 /*

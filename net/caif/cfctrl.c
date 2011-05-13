@@ -17,7 +17,6 @@
 #define UTILITY_NAME_LENGTH 16
 #define CFPKT_CTRL_PKT_LEN 20
 
-
 #ifdef CAIF_NO_LOOP
 static int handle_loop(struct cfctrl *ctrl,
 			      int cmd, struct cfpkt *pkt){
@@ -51,11 +50,27 @@ struct cflayer *cfctrl_create(void)
 	this->serv.layer.receive = cfctrl_recv;
 	sprintf(this->serv.layer.name, "ctrl");
 	this->serv.layer.ctrlcmd = cfctrl_ctrlcmd;
+#ifndef CAIF_NO_LOOP
 	spin_lock_init(&this->loop_linkid_lock);
+	this->loop_linkid = 1;
+#endif
 	spin_lock_init(&this->info_list_lock);
 	INIT_LIST_HEAD(&this->list);
-	this->loop_linkid = 1;
 	return &this->serv.layer;
+}
+
+void cfctrl_remove(struct cflayer *layer)
+{
+	struct cfctrl_request_info *p, *tmp;
+	struct cfctrl *ctrl = container_obj(layer);
+
+	spin_lock_bh(&ctrl->info_list_lock);
+	list_for_each_entry_safe(p, tmp, &ctrl->list, list) {
+		list_del(&p->list);
+		kfree(p);
+	}
+	spin_unlock_bh(&ctrl->info_list_lock);
+	kfree(layer);
 }
 
 static bool param_eq(const struct cfctrl_link_param *p1,
@@ -116,11 +131,11 @@ static bool cfctrl_req_eq(const struct cfctrl_request_info *r1,
 static void cfctrl_insert_req(struct cfctrl *ctrl,
 			      struct cfctrl_request_info *req)
 {
-	spin_lock(&ctrl->info_list_lock);
+	spin_lock_bh(&ctrl->info_list_lock);
 	atomic_inc(&ctrl->req_seq_no);
 	req->sequence_no = atomic_read(&ctrl->req_seq_no);
 	list_add_tail(&req->list, &ctrl->list);
-	spin_unlock(&ctrl->info_list_lock);
+	spin_unlock_bh(&ctrl->info_list_lock);
 }
 
 /* Compare and remove request */
@@ -129,7 +144,6 @@ static struct cfctrl_request_info *cfctrl_remove_req(struct cfctrl *ctrl,
 {
 	struct cfctrl_request_info *p, *tmp, *first;
 
-	spin_lock(&ctrl->info_list_lock);
 	first = list_first_entry(&ctrl->list, struct cfctrl_request_info, list);
 
 	list_for_each_entry_safe(p, tmp, &ctrl->list, list) {
@@ -145,7 +159,6 @@ static struct cfctrl_request_info *cfctrl_remove_req(struct cfctrl *ctrl,
 	}
 	p = NULL;
 out:
-	spin_unlock(&ctrl->info_list_lock);
 	return p;
 }
 
@@ -179,10 +192,6 @@ void cfctrl_enum_req(struct cflayer *layer, u8 physlinkid)
 	cfpkt_addbdy(pkt, physlinkid);
 	ret =
 	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
-	if (ret < 0) {
-		pr_err("Could not transmit enum message\n");
-		cfpkt_destroy(pkt);
-	}
 }
 
 int cfctrl_linkup_request(struct cflayer *layer,
@@ -196,14 +205,23 @@ int cfctrl_linkup_request(struct cflayer *layer,
 	struct cfctrl_request_info *req;
 	int ret;
 	char utility_name[16];
-	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
+	struct cfpkt *pkt;
+
+	if (cfctrl_cancel_req(layer, user_layer) > 0) {
+		/* Slight Paranoia, check if already connecting */
+		pr_err("Duplicate connect request for same client\n");
+		WARN_ON(1);
+		return -EALREADY;
+	}
+
+	pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
 	if (!pkt) {
 		pr_warn("Out of memory\n");
 		return -ENOMEM;
 	}
 	cfpkt_addbdy(pkt, CFCTRL_CMD_LINK_SETUP);
-	cfpkt_addbdy(pkt, (param->chtype << 4) + param->linktype);
-	cfpkt_addbdy(pkt, (param->priority << 3) + param->phyid);
+	cfpkt_addbdy(pkt, (param->chtype << 4) | param->linktype);
+	cfpkt_addbdy(pkt, (param->priority << 3) | param->phyid);
 	cfpkt_addbdy(pkt, param->endpoint & 0x03);
 
 	switch (param->linktype) {
@@ -266,9 +284,13 @@ int cfctrl_linkup_request(struct cflayer *layer,
 	ret =
 	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
 	if (ret < 0) {
-		pr_err("Could not transmit linksetup request\n");
-		cfpkt_destroy(pkt);
-		return -ENODEV;
+		int count;
+
+		count = cfctrl_cancel_req(&cfctrl->serv.layer,
+						user_layer);
+		if (count != 1)
+			pr_err("Could not remove request (%d)", count);
+			return -ENODEV;
 	}
 	return 0;
 }
@@ -288,28 +310,29 @@ int cfctrl_linkdown_req(struct cflayer *layer, u8 channelid,
 	init_info(cfpkt_info(pkt), cfctrl);
 	ret =
 	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
-	if (ret < 0) {
-		pr_err("Could not transmit link-down request\n");
-		cfpkt_destroy(pkt);
-	}
+#ifndef CAIF_NO_LOOP
+	cfctrl->loop_linkused[channelid] = 0;
+#endif
 	return ret;
 }
 
-void cfctrl_cancel_req(struct cflayer *layr, struct cflayer *adap_layer)
+int cfctrl_cancel_req(struct cflayer *layr, struct cflayer *adap_layer)
 {
 	struct cfctrl_request_info *p, *tmp;
 	struct cfctrl *ctrl = container_obj(layr);
-	spin_lock(&ctrl->info_list_lock);
+	int found = 0;
+	spin_lock_bh(&ctrl->info_list_lock);
 
 	list_for_each_entry_safe(p, tmp, &ctrl->list, list) {
 		if (p->client_layer == adap_layer) {
-			pr_debug("cancel req :%d\n", p->sequence_no);
 			list_del(&p->list);
 			kfree(p);
+			found++;
 		}
 	}
 
-	spin_unlock(&ctrl->info_list_lock);
+	spin_unlock_bh(&ctrl->info_list_lock);
+	return found;
 }
 
 static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
@@ -461,6 +484,7 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 
 			rsp.cmd = cmd;
 			rsp.param = linkparam;
+			spin_lock_bh(&cfctrl->info_list_lock);
 			req = cfctrl_remove_req(cfctrl, &rsp);
 
 			if (CFCTRL_ERR_BIT == (CFCTRL_ERR_BIT & cmdrsp) ||
@@ -480,6 +504,8 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 
 			if (req != NULL)
 				kfree(req);
+
+			spin_unlock_bh(&cfctrl->info_list_lock);
 		}
 		break;
 	case CFCTRL_CMD_LINK_DESTROY:
@@ -523,12 +549,29 @@ static void cfctrl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 	switch (ctrl) {
 	case _CAIF_CTRLCMD_PHYIF_FLOW_OFF_IND:
 	case CAIF_CTRLCMD_FLOW_OFF_IND:
-		spin_lock(&this->info_list_lock);
+		spin_lock_bh(&this->info_list_lock);
 		if (!list_empty(&this->list)) {
 			pr_debug("Received flow off in control layer\n");
 		}
-		spin_unlock(&this->info_list_lock);
+		spin_unlock_bh(&this->info_list_lock);
 		break;
+	case _CAIF_CTRLCMD_PHYIF_DOWN_IND: {
+		struct cfctrl_request_info *p, *tmp;
+
+		/* Find all connect request and report failure */
+		spin_lock_bh(&this->info_list_lock);
+		list_for_each_entry_safe(p, tmp, &this->list, list) {
+			if (p->param.phyid == phyid) {
+				list_del(&p->list);
+				p->client_layer->ctrlcmd(p->client_layer,
+						CAIF_CTRLCMD_INIT_FAIL_RSP,
+						phyid);
+				kfree(p);
+			}
+		}
+		spin_unlock_bh(&this->info_list_lock);
+		break;
+	}
 	default:
 		break;
 	}
@@ -538,27 +581,33 @@ static void cfctrl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 static int handle_loop(struct cfctrl *ctrl, int cmd, struct cfpkt *pkt)
 {
 	static int last_linkid;
+	static int dec;
 	u8 linkid, linktype, tmp;
 	switch (cmd) {
 	case CFCTRL_CMD_LINK_SETUP:
-		spin_lock(&ctrl->loop_linkid_lock);
-		for (linkid = last_linkid + 1; linkid < 255; linkid++)
-			if (!ctrl->loop_linkused[linkid])
-				goto found;
+		spin_lock_bh(&ctrl->loop_linkid_lock);
+		if (!dec) {
+			for (linkid = last_linkid + 1; linkid < 255; linkid++)
+				if (!ctrl->loop_linkused[linkid])
+					goto found;
+		}
+		dec = 1;
 		for (linkid = last_linkid - 1; linkid > 0; linkid--)
 			if (!ctrl->loop_linkused[linkid])
 				goto found;
-		spin_unlock(&ctrl->loop_linkid_lock);
-		pr_err("Out of link-ids\n");
-		return -EINVAL;
+		spin_unlock_bh(&ctrl->loop_linkid_lock);
+
 found:
+		if (linkid < 10)
+			dec = 0;
+
 		if (!ctrl->loop_linkused[linkid])
 			ctrl->loop_linkused[linkid] = 1;
 
 		last_linkid = linkid;
 
 		cfpkt_add_trail(pkt, &linkid, 1);
-		spin_unlock(&ctrl->loop_linkid_lock);
+		spin_unlock_bh(&ctrl->loop_linkid_lock);
 		cfpkt_peek_head(pkt, &linktype, 1);
 		if (linktype ==  CFCTRL_SRV_UTIL) {
 			tmp = 0x01;
@@ -568,10 +617,10 @@ found:
 		break;
 
 	case CFCTRL_CMD_LINK_DESTROY:
-		spin_lock(&ctrl->loop_linkid_lock);
+		spin_lock_bh(&ctrl->loop_linkid_lock);
 		cfpkt_peek_head(pkt, &linkid, 1);
 		ctrl->loop_linkused[linkid] = 0;
-		spin_unlock(&ctrl->loop_linkid_lock);
+		spin_unlock_bh(&ctrl->loop_linkid_lock);
 		break;
 	default:
 		break;
