@@ -1356,6 +1356,28 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 	struct wl1271 *wl = hw->priv;
 	wl1271_debug(DEBUG_MAC80211, "mac80211 suspend wow=%d", !!wow);
 	wl->wow_enabled = !!wow;
+	if (wl->wow_enabled) {
+		/* flush any remaining work */
+		wl1271_debug(DEBUG_MAC80211, "flushing remaining works");
+		flush_delayed_work(&wl->scan_complete_work);
+
+		/*
+		 * disable and re-enable interrupts in order to flush
+		 * the threaded_irq
+		 */
+		wl1271_disable_interrupts(wl);
+
+		/*
+		 * set suspended flag to avoid triggering a new threaded_irq
+		 * work. no need for spinlock as interrupts are disabled.
+		 */
+		set_bit(WL1271_FLAG_SUSPENDED, &wl->flags);
+
+		wl1271_enable_interrupts(wl);
+		flush_work(&wl->tx_work);
+		flush_delayed_work(&wl->pspoll_work);
+		flush_delayed_work(&wl->elp_work);
+	}
 	return 0;
 }
 
@@ -1364,6 +1386,30 @@ static int wl1271_op_resume(struct ieee80211_hw *hw)
 	struct wl1271 *wl = hw->priv;
 	wl1271_debug(DEBUG_MAC80211, "mac80211 resume wow=%d",
 		     wl->wow_enabled);
+
+	/*
+	 * re-enable irq_work enqueuing, and call irq_work directly if
+	 * there is a pending work.
+	 */
+	if (wl->wow_enabled) {
+		struct wl1271 *wl = hw->priv;
+		unsigned long flags;
+		bool run_irq_work = false;
+
+		spin_lock_irqsave(&wl->wl_lock, flags);
+		clear_bit(WL1271_FLAG_SUSPENDED, &wl->flags);
+		if (test_and_clear_bit(WL1271_FLAG_PENDING_WORK, &wl->flags))
+			run_irq_work = true;
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+		if (run_irq_work) {
+			wl1271_debug(DEBUG_MAC80211,
+				     "run postponed irq_work directly");
+			wl1271_irq(0, wl);
+			wl1271_enable_interrupts(wl);
+		}
+	}
+
 	return 0;
 }
 

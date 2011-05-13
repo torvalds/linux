@@ -82,6 +82,16 @@ static irqreturn_t wl1271_hardirq(int irq, void *cookie)
 		complete(wl->elp_compl);
 		wl->elp_compl = NULL;
 	}
+
+	if (test_bit(WL1271_FLAG_SUSPENDED, &wl->flags)) {
+		/* don't enqueue a work right now. mark it as pending */
+		set_bit(WL1271_FLAG_PENDING_WORK, &wl->flags);
+		wl1271_debug(DEBUG_IRQ, "should not enqueue work");
+		disable_irq_nosync(wl->irq);
+		pm_wakeup_event(wl1271_sdio_wl_to_dev(wl), 0);
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+		return IRQ_HANDLED;
+	}
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	return IRQ_WAKE_THREAD;
@@ -268,6 +278,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	}
 
 	enable_irq_wake(wl->irq);
+	device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 1);
 
 	disable_irq(wl->irq);
 
@@ -305,6 +316,7 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 	pm_runtime_get_noresume(&func->dev);
 
 	wl1271_unregister_hw(wl);
+	device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 0);
 	disable_irq_wake(wl->irq);
 	free_irq(wl->irq, wl);
 	wl1271_free_hw(wl);
@@ -339,6 +351,9 @@ static int wl1271_suspend(struct device *dev)
 			wl1271_error("error while trying to keep power");
 			goto out;
 		}
+
+		/* release host */
+		sdio_release_host(func);
 	}
 out:
 	return ret;
@@ -346,6 +361,15 @@ out:
 
 static int wl1271_resume(struct device *dev)
 {
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct wl1271 *wl = sdio_get_drvdata(func);
+
+	wl1271_debug(DEBUG_MAC80211, "wl1271 resume");
+	if (wl->wow_enabled) {
+		/* claim back host */
+		sdio_claim_host(func);
+	}
+
 	return 0;
 }
 
