@@ -107,7 +107,8 @@ static void wlc_channel_min_txpower_limits_with_local_constraint(wlc_cm_info_t *
 								 *txpwr,
 								 u8
 								 local_constraint_qdbm);
-static void wlc_locale_add_channels(chanvec_t *target, const chanvec_t *channels);
+static void wlc_locale_add_channels(chanvec_t *target,
+				    const chanvec_t *channels);
 static const locale_mimo_info_t *wlc_get_mimo_2g(u8 locale_idx);
 static const locale_mimo_info_t *wlc_get_mimo_5g(u8 locale_idx);
 
@@ -397,7 +398,8 @@ static const chanvec_t *g_table_locale_base[] = {
 	&locale_5g_HIGH4
 };
 
-static void wlc_locale_add_channels(chanvec_t *target, const chanvec_t *channels)
+static void wlc_locale_add_channels(chanvec_t *target,
+				    const chanvec_t *channels)
 {
 	u8 i;
 	for (i = 0; i < sizeof(chanvec_t); i++) {
