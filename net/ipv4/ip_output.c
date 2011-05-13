@@ -1327,10 +1327,6 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	iph = (struct iphdr *)skb->data;
 	iph->version = 4;
 	iph->ihl = 5;
-	if (opt) {
-		iph->ihl += opt->optlen>>2;
-		ip_options_build(skb, opt, cork->addr, rt, 0);
-	}
 	iph->tos = inet->tos;
 	iph->frag_off = df;
 	ip_select_ident(iph, &rt->dst, sk);
@@ -1338,6 +1334,11 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	iph->protocol = sk->sk_protocol;
 	iph->saddr = fl4->saddr;
 	iph->daddr = fl4->daddr;
+
+	if (opt) {
+		iph->ihl += opt->optlen>>2;
+		ip_options_build(skb, opt, cork->addr, rt, 0);
+	}
 
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
