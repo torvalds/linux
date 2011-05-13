@@ -298,7 +298,6 @@ struct wl_priv {
 						 cfg80211 layer */
 	struct wl_ie ie;	/* information element object for
 					 internal purpose */
-	u8 bssid[ETH_ALEN];	/* bssid of currently engaged network */
 	struct semaphore event_sync;	/* for synchronization of main event
 					 thread */
 	struct wl_profile *profile;	/* holding dongle profile */
