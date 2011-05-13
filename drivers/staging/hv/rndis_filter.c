@@ -252,7 +252,7 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 		rndis_filter_send_request_completion;
 	packet->completion.send.send_completion_tid = (unsigned long)dev;
 
-	ret = rndis_filter.inner_drv.send(dev->net_dev->dev, packet);
+	ret = netvsc_send(dev->net_dev->dev, packet);
 	return ret;
 }
 
@@ -859,7 +859,7 @@ int rndis_filter_send(struct hv_device *dev,
 	pkt->completion.send.send_completion = rndis_filter_send_completion;
 	pkt->completion.send.send_completion_ctx = filterPacket;
 
-	ret = rndis_filter.inner_drv.send(dev, pkt);
+	ret = netvsc_send(dev, pkt);
 	if (ret != 0) {
 		/*
 		 * Reset the completion to originals to allow retries from
