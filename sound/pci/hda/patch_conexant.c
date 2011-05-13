@@ -1059,6 +1059,7 @@ enum {
 #ifdef CONFIG_SND_DEBUG
 	CXT5045_TEST,
 #endif
+	CXT5045_AUTO,
 	CXT5045_MODELS
 };
 
@@ -1071,6 +1072,7 @@ static const char * const cxt5045_models[CXT5045_MODELS] = {
 #ifdef CONFIG_SND_DEBUG
 	[CXT5045_TEST]		= "test",
 #endif
+	[CXT5045_AUTO]			= "auto",
 };
 
 static const struct snd_pci_quirk cxt5045_cfg_tbl[] = {
@@ -1096,6 +1098,14 @@ static int patch_cxt5045(struct hda_codec *codec)
 {
 	struct conexant_spec *spec;
 	int board_config;
+
+	board_config = snd_hda_check_board_config(codec, CXT5045_MODELS,
+						  cxt5045_models,
+						  cxt5045_cfg_tbl);
+	if (board_config < 0)
+		board_config = CXT5045_AUTO;
+	if (board_config == CXT5045_AUTO)
+		return patch_conexant_auto(codec);
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
@@ -1123,9 +1133,6 @@ static int patch_cxt5045(struct hda_codec *codec)
 
 	codec->patch_ops = conexant_patch_ops;
 
-	board_config = snd_hda_check_board_config(codec, CXT5045_MODELS,
-						  cxt5045_models,
-						  cxt5045_cfg_tbl);
 	switch (board_config) {
 	case CXT5045_LAPTOP_HPSENSE:
 		codec->patch_ops.unsol_event = cxt5045_hp_unsol_event;
@@ -1956,11 +1963,8 @@ static int patch_cxt5051(struct hda_codec *codec)
 						  cxt5051_cfg_tbl);
 	if (board_config < 0)
 		board_config = CXT5051_AUTO;
-	if (board_config == CXT5051_AUTO) {
-		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
-		       codec->chip_name);
+	if (board_config == CXT5051_AUTO)
 		return patch_conexant_auto(codec);
-	}
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
@@ -3688,15 +3692,15 @@ static void select_connection(struct hda_codec *codec, hda_nid_t pin,
 				    AC_VERB_SET_CONNECT_SEL, idx);
 }
 
-static void cx_auto_init_output(struct hda_codec *codec)
+static void mute_outputs(struct hda_codec *codec, int num_nids,
+			 const hda_nid_t *nids)
 {
-	struct conexant_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-	hda_nid_t nid;
 	int i, val;
 
-	for (i = 0; i < spec->multiout.num_dacs; i++) {
-		nid = spec->multiout.dac_nids[i];
+	for (i = 0; i < num_nids; i++) {
+		hda_nid_t nid = nids[i];
+		if (!(get_wcaps(codec, nid) & AC_WCAP_OUT_AMP))
+			continue;
 		if (query_amp_caps(codec, nid, HDA_OUTPUT) & AC_AMPCAP_MUTE)
 			val = AMP_OUT_MUTE;
 		else
@@ -3704,10 +3708,22 @@ static void cx_auto_init_output(struct hda_codec *codec)
 		snd_hda_codec_write(codec, nid, 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE, val);
 	}
+}
 
+static void cx_auto_init_output(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	hda_nid_t nid;
+	int i;
+
+	mute_outputs(codec, spec->multiout.num_dacs, spec->multiout.dac_nids);
 	for (i = 0; i < cfg->hp_outs; i++)
 		snd_hda_codec_write(codec, cfg->hp_pins[i], 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
+	mute_outputs(codec, cfg->hp_outs, cfg->hp_pins);
+	mute_outputs(codec, cfg->line_outs, cfg->line_out_pins);
+	mute_outputs(codec, cfg->speaker_outs, cfg->speaker_pins);
 	if (spec->auto_mute) {
 		for (i = 0; i < cfg->hp_outs; i++) {
 			snd_hda_codec_write(codec, cfg->hp_pins[i], 0,
@@ -3747,6 +3763,8 @@ static void cx_auto_init_input(struct hda_codec *codec)
 
 	for (i = 0; i < spec->num_adc_nids; i++) {
 		hda_nid_t nid = spec->adc_nids[i];
+		if (!(get_wcaps(codec, nid) & AC_WCAP_IN_AMP))
+			continue;
 		if (query_amp_caps(codec, nid, HDA_INPUT) & AC_AMPCAP_MUTE)
 			val = AMP_IN_MUTE(0);
 		else
@@ -3839,6 +3857,19 @@ static int cx_auto_add_volume_idx(struct hda_codec *codec, const char *basename,
 #define cx_auto_add_pb_volume(codec, nid, str, idx)			\
 	cx_auto_add_volume(codec, str, " Playback", idx, nid, HDA_OUTPUT)
 
+static int try_add_pb_volume(struct hda_codec *codec, hda_nid_t dac,
+			     hda_nid_t pin, const char *name, int idx)
+{
+	unsigned int caps;
+	caps = query_amp_caps(codec, dac, HDA_OUTPUT);
+	if (caps & AC_AMPCAP_NUM_STEPS)
+		return cx_auto_add_pb_volume(codec, dac, name, idx);
+	caps = query_amp_caps(codec, pin, HDA_OUTPUT);
+	if (caps & AC_AMPCAP_NUM_STEPS)
+		return cx_auto_add_pb_volume(codec, pin, name, idx);
+	return 0;
+}
+
 static int cx_auto_build_output_controls(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -3847,8 +3878,10 @@ static int cx_auto_build_output_controls(struct hda_codec *codec)
 	static const char * const texts[3] = { "Front", "Surround", "CLFE" };
 
 	if (spec->dac_info_filled == 1)
-		return cx_auto_add_pb_volume(codec, spec->dac_info[0].dac,
-					     "Master", 0);
+		return try_add_pb_volume(codec, spec->dac_info[0].dac,
+					 spec->dac_info[0].pin,
+					 "Master", 0);
+
 	for (i = 0; i < spec->dac_info_filled; i++) {
 		const char *label;
 		int idx, type;
@@ -3872,8 +3905,9 @@ static int cx_auto_build_output_controls(struct hda_codec *codec)
 			idx = num_spk++;
 			break;
 		}
-		err = cx_auto_add_pb_volume(codec, spec->dac_info[i].dac,
-					    label, idx);
+		err = try_add_pb_volume(codec, spec->dac_info[i].dac,
+					spec->dac_info[i].pin,
+					label, idx);
 		if (err < 0)
 			return err;
 	}
@@ -3976,19 +4010,31 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	struct conexant_spec *spec;
 	int err;
 
+	printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
+	       codec->chip_name);
+
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
-	if (codec->vendor_id == 0x14f15051) {
+	switch (codec->vendor_id) {
+	case 0x14f15051:
 		codec->pin_amp_workaround = 1;
 		spec->adc_nids = cxt5051_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(cxt5051_adc_nids);
 		spec->capsrc_nids = spec->adc_nids;
-	} else {
+		break;
+	case 0x14f15045:
+		codec->pin_amp_workaround = 1;
+		spec->adc_nids = cxt5045_adc_nids;
+		spec->num_adc_nids = ARRAY_SIZE(cxt5045_adc_nids);
+		spec->capsrc_nids = spec->adc_nids;
+		break;
+	default:
 		spec->adc_nids = cx_auto_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(cx_auto_adc_nids);
 		spec->capsrc_nids = spec->adc_nids;
+		break;
 	}
 	err = cx_auto_parse_auto_config(codec);
 	if (err < 0) {
