@@ -447,6 +447,24 @@ static int read_i2c(struct nmk_i2c_dev *dev)
 	return status;
 }
 
+static void fill_tx_fifo(struct nmk_i2c_dev *dev, int no_bytes)
+{
+	int count;
+
+	for (count = (no_bytes - 2);
+			(count > 0) &&
+			(dev->cli.count != 0);
+			count--) {
+		/* write to the Tx FIFO */
+		writeb(*dev->cli.buffer,
+			dev->virtbase + I2C_TFR);
+		dev->cli.buffer++;
+		dev->cli.count--;
+		dev->cli.xfer_bytes++;
+	}
+
+}
+
 /**
  * write_i2c() - Write data to I2C client.
  * @dev: private data of I2C Driver
@@ -474,8 +492,13 @@ static int write_i2c(struct nmk_i2c_dev *dev)
 	init_completion(&dev->xfer_complete);
 
 	/* enable interrupts by settings the masks */
-	irq_mask = (I2C_IT_TXFNE | I2C_IT_TXFOVR |
-			I2C_IT_MAL | I2C_IT_BERR);
+	irq_mask = (I2C_IT_TXFOVR | I2C_IT_MAL | I2C_IT_BERR);
+
+	/* Fill the TX FIFO with transmit data */
+	fill_tx_fifo(dev, MAX_I2C_FIFO_THRESHOLD);
+
+	if (dev->cli.count != 0)
+		irq_mask |= I2C_IT_TXFNE;
 
 	/*
 	 * check if we want to transfer a single or multiple bytes, if so
@@ -702,17 +725,7 @@ static irqreturn_t i2c_irq_handler(int irq, void *arg)
 			 */
 			disable_interrupts(dev, I2C_IT_TXFNE);
 		} else {
-			for (count = (MAX_I2C_FIFO_THRESHOLD - tft - 2);
-					(count > 0) &&
-					(dev->cli.count != 0);
-					count--) {
-				/* write to the Tx FIFO */
-				writeb(*dev->cli.buffer,
-					dev->virtbase + I2C_TFR);
-				dev->cli.buffer++;
-				dev->cli.count--;
-				dev->cli.xfer_bytes++;
-			}
+			fill_tx_fifo(dev, (MAX_I2C_FIFO_THRESHOLD - tft));
 			/*
 			 * if done, close the transfer by disabling the
 			 * corresponding TXFNE interrupt
