@@ -75,7 +75,7 @@ struct conexant_spec {
 	unsigned int cur_eapd;
 	unsigned int hp_present;
 	unsigned int auto_mic;
-	int auto_mic_ext;		/* autocfg.inputs[] index for ext mic */
+	int auto_mic_ext;		/* imux_pins[] index for ext mic */
 	unsigned int need_dac_fix;
 	hda_nid_t slave_dig_outs[2];
 
@@ -109,6 +109,7 @@ struct conexant_spec {
 	struct auto_pin_cfg autocfg;
 	struct hda_input_mux private_imux;
 	hda_nid_t imux_adcs[HDA_MAX_NUM_INPUTS];
+	hda_nid_t imux_pins[HDA_MAX_NUM_INPUTS];
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 	struct pin_dac_pair dac_info[8];
 	int dac_info_filled;
@@ -3509,12 +3510,11 @@ static const struct snd_kcontrol_new cx_auto_capture_mixers[] = {
 static void cx_auto_automic(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int ext_idx = spec->auto_mic_ext;
 
 	if (!spec->auto_mic)
 		return;
-	if (snd_hda_jack_detect(codec, cfg->inputs[ext_idx].pin))
+	if (snd_hda_jack_detect(codec, spec->imux_pins[ext_idx]))
 		cx_auto_mux_enum_update(codec, &spec->private_imux, ext_idx);
 	else
 		cx_auto_mux_enum_update(codec, &spec->private_imux, !ext_idx);
@@ -3558,16 +3558,15 @@ static int is_ext_mic(struct hda_codec *codec, hda_nid_t pin)
 static void cx_auto_check_auto_mic(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
 
-	if (is_ext_mic(codec, cfg->inputs[0].pin) &&
-	    is_int_mic(codec, cfg->inputs[1].pin)) {
+	if (is_ext_mic(codec, spec->imux_pins[0]) &&
+	    is_int_mic(codec, spec->imux_pins[1])) {
 		spec->auto_mic = 1;
 		spec->auto_mic_ext = 0;
 		return;
 	}
-	if (is_int_mic(codec, cfg->inputs[0].pin) &&
-	    is_ext_mic(codec, cfg->inputs[1].pin)) {
+	if (is_int_mic(codec, spec->imux_pins[0]) &&
+	    is_ext_mic(codec, spec->imux_pins[1])) {
 		spec->auto_mic = 1;
 		spec->auto_mic_ext = 1;
 		return;
@@ -3590,8 +3589,10 @@ static void cx_auto_parse_input(struct hda_codec *codec)
 			if (idx >= 0) {
 				const char *label;
 				label = hda_get_autocfg_input_label(codec, cfg, i);
+				spec->imux_adcs[imux->num_items] = adc;
+				spec->imux_pins[imux->num_items] =
+					cfg->inputs[i].pin;
 				snd_hda_add_imux_item(imux, label, idx, NULL);
-				spec->imux_adcs[i] = adc;
 				break;
 			}
 		}
