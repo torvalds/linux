@@ -226,6 +226,7 @@ again:
 		goto again;
 	if (err)
 		pr_warn(DRV_PFX "Error ending transaction");
+	return;
 abort:
 	xenbus_transaction_end(xbt, 1);
 }
