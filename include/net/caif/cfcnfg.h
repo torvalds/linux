@@ -145,4 +145,14 @@ struct dev_info *cfcnfg_get_phyid(struct cfcnfg *cnfg,
  * @ifi:	ifindex obtained from socket.c bindtodevice.
  */
 int cfcnfg_get_id_from_ifi(struct cfcnfg *cnfg, int ifi);
+
+/**
+ * cfcnfg_set_phy_state() - Set the state of the physical interface device.
+ * @cnfg:	Configuration object
+ * @phy_layer:	Physical Layer representation
+ * @up:	State of device
+ */
+int cfcnfg_set_phy_state(struct cfcnfg *cnfg, struct cflayer *phy_layer,
+				bool up);
+
 #endif				/* CFCNFG_H_ */
