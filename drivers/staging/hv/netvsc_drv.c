@@ -205,7 +205,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 /*
  * netvsc_linkstatus_callback - Link up/down notification
  */
-static void netvsc_linkstatus_callback(struct hv_device *device_obj,
+void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				       unsigned int status)
 {
 	struct net_device *net = dev_get_drvdata(&device_obj->device);

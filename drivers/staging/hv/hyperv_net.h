@@ -120,6 +120,8 @@ int netvsc_device_add(struct hv_device *device, void *additional_info);
 int netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct hv_device *device,
 		struct hv_netvsc_packet *packet);
+void netvsc_linkstatus_callback(struct hv_device *device_obj,
+				unsigned int status);
 int netvsc_initialize(struct hv_driver *drv);
 int rndis_filter_open(struct hv_device *dev);
 int rndis_filter_close(struct hv_device *dev);
