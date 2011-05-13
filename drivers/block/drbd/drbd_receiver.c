@@ -787,7 +787,7 @@ static int drbd_connect(struct drbd_conf *mdev)
 		}
 
 		if (sock && msock) {
-			schedule_timeout_interruptible(HZ / 10);
+			schedule_timeout_interruptible(mdev->net_conf->ping_timeo*HZ/10);
 			ok = drbd_socket_okay(mdev, &sock);
 			ok = drbd_socket_okay(mdev, &msock) && ok;
 			if (ok)
