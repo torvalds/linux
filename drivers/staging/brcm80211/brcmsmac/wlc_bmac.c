@@ -362,11 +362,6 @@ bool wlc_dpc(struct wlc_info *wlc, bool bounded)
 		wlc->qvalid = 0;
 	}
 
-	/* phy tx error */
-	if (macintstatus & MI_PHYTXERR) {
-		wlc->pub->_cnt->txphyerr++;
-	}
-
 	/* received data or control frame, MI_DMAINT is indication of RX_FIFO interrupt */
 	if (macintstatus & MI_DMAINT) {
 		if (wlc_bmac_recv(wlc_hw, RX_FIFO, bounded)) {
@@ -393,9 +388,6 @@ bool wlc_dpc(struct wlc_info *wlc, bool bounded)
 		printk_once("%s : PSM Watchdog, chipid 0x%x, chiprev 0x%x\n",
 					__func__, wlc_hw->sih->chip,
 					wlc_hw->sih->chiprev);
-
-		wlc->pub->_cnt->psmwds++;
-
 		/* big hammer */
 		wl_init(wlc->wl);
 	}
@@ -408,7 +400,6 @@ bool wlc_dpc(struct wlc_info *wlc, bool bounded)
 	if (macintstatus & MI_RFDISABLE) {
 		BCMMSG(wlc->wiphy, "wl%d: BMAC Detected a change on the"
 		       " RF Disable Input\n", wlc_hw->unit);
-		wlc->pub->_cnt->rfdisable++;
 		wl_rfkill_set_hw_state(wlc->wl);
 	}
 
@@ -1035,8 +1026,6 @@ int wlc_bmac_detach(struct wlc_info *wlc)
 void wlc_bmac_reset(struct wlc_hw_info *wlc_hw)
 {
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
-
-	wlc_hw->wlc->pub->_cnt->reset++;
 
 	/* reset the core */
 	if (!DEVICEREMOVED(wlc_hw->wlc))
@@ -2638,41 +2627,35 @@ void wlc_bmac_fifoerrors(struct wlc_hw_info *wlc_hw)
 		if (intstatus & I_RO) {
 			wiphy_err(wiphy, "wl%d: fifo %d: receive fifo "
 				  "overflow\n", unit, idx);
-			wlc_hw->wlc->pub->_cnt->rxoflo++;
 			fatal = true;
 		}
 
 		if (intstatus & I_PC) {
 			wiphy_err(wiphy, "wl%d: fifo %d: descriptor error\n",
 				 unit, idx);
-			wlc_hw->wlc->pub->_cnt->dmade++;
 			fatal = true;
 		}
 
 		if (intstatus & I_PD) {
 			wiphy_err(wiphy, "wl%d: fifo %d: data error\n", unit,
 				  idx);
-			wlc_hw->wlc->pub->_cnt->dmada++;
 			fatal = true;
 		}
 
 		if (intstatus & I_DE) {
 			wiphy_err(wiphy, "wl%d: fifo %d: descriptor protocol "
 				  "error\n", unit, idx);
-			wlc_hw->wlc->pub->_cnt->dmape++;
 			fatal = true;
 		}
 
 		if (intstatus & I_RU) {
 			wiphy_err(wiphy, "wl%d: fifo %d: receive descriptor "
 				  "underflow\n", idx, unit);
-			wlc_hw->wlc->pub->_cnt->rxuflo[idx]++;
 		}
 
 		if (intstatus & I_XU) {
 			wiphy_err(wiphy, "wl%d: fifo %d: transmit fifo "
 				  "underflow\n", idx, unit);
-			wlc_hw->wlc->pub->_cnt->txuflo++;
 			fatal = true;
 		}
 

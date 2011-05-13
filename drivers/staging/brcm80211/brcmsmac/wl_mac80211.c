@@ -532,10 +532,10 @@ wl_ops_get_stats(struct ieee80211_hw *hw,
 
 	WL_LOCK(wl);
 	cnt = wl->pub->_cnt;
-	stats->dot11ACKFailureCount = cnt->txnoack;
-	stats->dot11RTSFailureCount = cnt->txnocts;
-	stats->dot11FCSErrorCount = cnt->rxcrc;
-	stats->dot11RTSSuccessCount = cnt->txrts;
+	stats->dot11ACKFailureCount = 0;
+	stats->dot11RTSFailureCount = 0;
+	stats->dot11FCSErrorCount = 0;
+	stats->dot11RTSSuccessCount = 0;
 	WL_UNLOCK(wl);
 	return 0;
 }

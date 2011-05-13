@@ -982,11 +982,7 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			if (supr_status == TX_STATUS_SUPR_BADCH ||
 			    supr_status == TX_STATUS_SUPR_EXPTIME) {
 				retry = false;
-				wlc->pub->_cnt->txchanrej++;
 			} else if (supr_status == TX_STATUS_SUPR_EXPTIME) {
-
-				wlc->pub->_cnt->txexptime++;
-
 				/* TX underflow : try tuning pre-loading or ampdu size */
 			} else if (supr_status == TX_STATUS_SUPR_FRAG) {
 				/* if there were underflows, but pre-loading is not active,
@@ -999,7 +995,6 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			}
 		} else if (txs->phyerr) {
 			update_rate = false;
-			wlc->pub->_cnt->txphyerr++;
 			wiphy_err(wiphy, "wl%d: wlc_ampdu_dotxstatus: tx phy "
 				  "error (0x%x)\n", wlc->pub->unit,
 				  txs->phyerr);

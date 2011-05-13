@@ -80,10 +80,6 @@ static struct wlc_pub *wlc_pub_malloc(uint unit, uint *err, uint devid)
 	/* need to init the tunables now */
 	wlc_tunables_init(pub->tunables, devid);
 
-	pub->_cnt =  kzalloc(sizeof(struct wl_cnt), GFP_ATOMIC);
-	if (pub->_cnt == NULL)
-		goto fail;
-
 	pub->multicast = kzalloc(ETH_ALEN * MAXMULTILIST, GFP_ATOMIC);
 	if (pub->multicast == NULL) {
 		*err = 1003;
@@ -103,7 +99,6 @@ static void wlc_pub_mfree(struct wlc_pub *pub)
 		return;
 
 	kfree(pub->multicast);
-	kfree(pub->_cnt);
 	kfree(pub->tunables);
 	kfree(pub);
 }
