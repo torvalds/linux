@@ -25,7 +25,7 @@
 #ifndef _CHANNEL_H_
 #define _CHANNEL_H_
 
-#include "channel_mgmt.h"
+#include "hyperv.h"
 
 /* The format must be the same as struct vmdata_gpa_direct */
 struct vmbus_channel_packet_page_buffer {
