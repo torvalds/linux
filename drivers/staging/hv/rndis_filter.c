@@ -577,7 +577,6 @@ Exit:
 
 int rndis_filter_init(struct netvsc_driver *drv)
 {
-	drv->req_ext_size = sizeof(struct rndis_filter_packet);
 
 	/* Driver->Context = rndisDriver; */
 
