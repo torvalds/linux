@@ -489,7 +489,7 @@ static void mousevsc_on_channel_callback(void *context)
 
 	u32 bytes_recvd;
 	u64 req_id;
-	unsigned char packet[packetSize];
+	unsigned char packet[0x100];
 	struct vmpacket_descriptor *desc;
 	unsigned char	*buffer = packet;
 	int	bufferlen = packetSize;
