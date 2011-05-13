@@ -1701,8 +1701,17 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_dbg_ctx(xhci, virt_dev->out_ctx,
 		     LAST_CTX_TO_EP_NUM(le32_to_cpu(slot_ctx->dev_info)));
 
+	/* Free any rings that were dropped, but not changed. */
+	for (i = 1; i < 31; ++i) {
+		if ((ctrl_ctx->drop_flags & (1 << (i + 1))) &&
+				!(ctrl_ctx->add_flags & (1 << (i + 1))))
+			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
+	}
 	xhci_zero_in_ctx(xhci, virt_dev);
-	/* Install new rings and free or cache any old rings */
+	/*
+	 * Install any rings for completely new endpoints or changed endpoints,
+	 * and free or cache any old rings from changed endpoints.
+	 */
 	for (i = 1; i < 31; ++i) {
 		if (!virt_dev->eps[i].new_ring)
 			continue;
