@@ -56,13 +56,6 @@
 #include "wl_mac80211.h"
 
 /*
- *	Disable statistics counting for WME
- */
-#define WLCNTSET(a, b)
-#define WLCNTINCR(a)
-#define WLCNTADD(a, b)
-
-/*
  * WPA(2) definitions
  */
 #define RSN_CAP_4_REPLAY_CNTRS		2
@@ -1761,9 +1754,6 @@ void *wlc_attach(struct wl_info *wl, u16 vendor, u16 device, uint unit,
 
 	pub->_cnt->version = WL_CNT_T_VERSION;
 	pub->_cnt->length = sizeof(struct wl_cnt);
-
-	WLCNTSET(pub->_wme_cnt->version, WL_WME_CNT_VERSION);
-	WLCNTSET(pub->_wme_cnt->length, sizeof(wl_wme_cnt_t));
 
 	wlc_wme_initparams_sta(wlc, &wlc->wme_param_ie);
 
@@ -4508,44 +4498,13 @@ void wlc_statsupd(struct wlc_info *wlc)
 	}
 #endif				/* BCMDBG */
 
-	/* dot11 counter update */
-
-	WLCNTSET(wlc->pub->_cnt->txrts,
-		 (wlc->pub->_cnt->rxctsucast -
-		  wlc->pub->_cnt->d11cnt_txrts_off));
-	WLCNTSET(wlc->pub->_cnt->rxcrc,
-		 (wlc->pub->_cnt->rxbadfcs - wlc->pub->_cnt->d11cnt_rxcrc_off));
-	WLCNTSET(wlc->pub->_cnt->txnocts,
-		 ((wlc->pub->_cnt->txrtsfrm - wlc->pub->_cnt->rxctsucast) -
-		  wlc->pub->_cnt->d11cnt_txnocts_off));
-
 	/* merge counters from dma module */
 	for (i = 0; i < NFIFO; i++) {
 		if (wlc->hw->di[i]) {
-			WLCNTADD(wlc->pub->_cnt->txnobuf,
-				 (wlc->hw->di[i])->txnobuf);
-			WLCNTADD(wlc->pub->_cnt->rxnobuf,
-				 (wlc->hw->di[i])->rxnobuf);
-			WLCNTADD(wlc->pub->_cnt->rxgiant,
-				 (wlc->hw->di[i])->rxgiants);
 			dma_counterreset(wlc->hw->di[i]);
 		}
 	}
 
-	/*
-	 * Aggregate transmit and receive errors that probably resulted
-	 * in the loss of a frame are computed on the fly.
-	 */
-	WLCNTSET(wlc->pub->_cnt->txerror,
-		 wlc->pub->_cnt->txnobuf + wlc->pub->_cnt->txnoassoc +
-		 wlc->pub->_cnt->txuflo + wlc->pub->_cnt->txrunt +
-		 wlc->pub->_cnt->dmade + wlc->pub->_cnt->dmada +
-		 wlc->pub->_cnt->dmape);
-	WLCNTSET(wlc->pub->_cnt->rxerror,
-		 wlc->pub->_cnt->rxoflo + wlc->pub->_cnt->rxnobuf +
-		 wlc->pub->_cnt->rxfragerr + wlc->pub->_cnt->rxrunt +
-		 wlc->pub->_cnt->rxgiant + wlc->pub->_cnt->rxnoscb +
-		 wlc->pub->_cnt->rxbadsrcmac);
 	for (i = 0; i < NFIFO; i++)
 		wlc->pub->_cnt->rxerror += wlc->pub->_cnt->rxuflo[i];
 }
@@ -4778,14 +4737,6 @@ wlc_prec_enq_head(struct wlc_info *wlc, struct pktq *q, struct sk_buff *pkt,
 		/* Evict packet according to discard policy */
 		p = discard_oldest ? bcm_pktq_pdeq(q, eprec) :
 			bcm_pktq_pdeq_tail(q, eprec);
-		/* Increment wme stats */
-		if (WME_ENAB(wlc->pub)) {
-			WLCNTINCR(wlc->pub->_wme_cnt->
-				  tx_failed[WME_PRIO2AC(p->priority)].packets);
-			WLCNTADD(wlc->pub->_wme_cnt->
-				 tx_failed[WME_PRIO2AC(p->priority)].bytes,
-				 bcm_pkttotlen(p));
-		}
 		bcm_pkt_buf_free_skb(p);
 		wlc->pub->_cnt->txnobuf++;
 	}
@@ -5989,10 +5940,6 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	 */
 	if (!(txs->status & TX_STATUS_AMPDU)
 	    && (txs->status & TX_STATUS_INTERMEDIATE)) {
-		WLCNTADD(wlc->pub->_cnt->txnoack,
-			 ((txs->
-			   status & TX_STATUS_FRM_RTX_MASK) >>
-			  TX_STATUS_FRM_RTX_SHIFT));
 		wiphy_err(wlc->wiphy, "%s: INTERMEDIATE but not AMPDU\n",
 			  __func__);
 		return false;

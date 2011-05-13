@@ -149,7 +149,6 @@ extern void bcm_prpkt(const char *msg, struct sk_buff *p0);
 #endif				/* BCMDBG */
 
 #define bcm_perf_enable()
-#define bcmstats(fmt)
 #define	bcmlog(fmt, a1, a2)
 #define	bcmdumplog(buf, size)	(*buf = '\0')
 #define	bcmdumplogent(buf, idx)	-1

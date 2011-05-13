@@ -38,12 +38,6 @@
 #include "wlc_main.h"
 #include "wlc_ampdu.h"
 
-/*
- *	Disable AMPDU statistics counters for now
- */
-#define WLCNTINCR(a)
-#define WLCNTADD(a, b)
-
 #define AMPDU_MAX_MPDU		32	/* max number of mpdus in an ampdu */
 #define AMPDU_NUM_MPDU_LEGACY	16	/* max number of mpdus in an ampdu to a legacy */
 #define AMPDU_TX_BA_MAX_WSIZE	64	/* max Tx ba window size (in pdu) */
@@ -532,7 +526,6 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 				wiphy_err(wiphy, "wl%d: wlc_sendampdu: "
 					  "prep_xdu retry; seq 0x%x\n",
 					  wlc->pub->unit, seq);
-				WLCNTINCR(ampdu->cnt->sduretry);
 				*pdu = p;
 				break;
 			}
@@ -540,8 +533,6 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 			/* error in the packet; reject it */
 			wiphy_err(wiphy, "wl%d: wlc_sendampdu: prep_xdu "
 				  "rejected; seq 0x%x\n", wlc->pub->unit, seq);
-			WLCNTINCR(ampdu->cnt->sdurejected);
-
 			*pdu = NULL;
 			break;
 		}
@@ -730,8 +721,6 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 	ini->tx_in_transit += count;
 
 	if (count) {
-		WLCNTADD(ampdu->cnt->txmpdu, count);
-
 		/* patch up the last txh */
 		txh = (d11txh_t *) pkt[count - 1]->data;
 		mcl = le16_to_cpu(txh->MacTxControlLow);
@@ -814,8 +803,6 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 
 		/* set flag and plcp for fallback rate */
 		if (fbr) {
-			WLCNTADD(ampdu->cnt->txfbr_mpdu, count);
-			WLCNTINCR(ampdu->cnt->txfbr_ampdu);
 			mch |= TXC_AMPDU_FBR;
 			txh->MacTxControlHigh = cpu_to_le16(mch);
 			WLC_SET_MIMO_PLCP_AMPDU(plcp);
@@ -978,7 +965,6 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 
 		ba_recd = true;
 	} else {
-		WLCNTINCR(ampdu->cnt->noba);
 		if (supr_status) {
 			update_rate = false;
 			if (supr_status == TX_STATUS_SUPR_BADCH) {
@@ -1134,8 +1120,6 @@ static scb_ampdu_tid_ini_t *wlc_ampdu_init_tid_ini(struct ampdu_info *ampdu,
 	ini->tid = tid;
 	ini->scb = scb_ampdu->scb;
 	ini->magic = INI_MAGIC;
-	WLCNTINCR(ampdu->cnt->txaddbareq);
-
 	return ini;
 }
 
