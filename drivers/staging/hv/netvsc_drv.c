@@ -184,7 +184,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	packet->completion.send.send_completion_ctx = packet;
 	packet->completion.send.send_completion_tid = (unsigned long)skb;
 
-	ret = net_drv_obj->send(net_device_ctx->device_ctx,
+	ret = rndis_filter_send(net_device_ctx->device_ctx,
 				  packet);
 	if (ret == 0) {
 		net->stats.tx_bytes += skb->len;
