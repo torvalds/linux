@@ -705,7 +705,7 @@ enum {
 
 /* Data structure for one wireless device (802.11 core) */
 struct b43_wldev {
-	struct ssb_device *dev;
+	struct ssb_device *sdev;
 	struct b43_wl *wl;
 
 	/* The device initialization status.
@@ -879,22 +879,22 @@ static inline enum ieee80211_band b43_current_band(struct b43_wl *wl)
 
 static inline u16 b43_read16(struct b43_wldev *dev, u16 offset)
 {
-	return ssb_read16(dev->dev, offset);
+	return ssb_read16(dev->sdev, offset);
 }
 
 static inline void b43_write16(struct b43_wldev *dev, u16 offset, u16 value)
 {
-	ssb_write16(dev->dev, offset, value);
+	ssb_write16(dev->sdev, offset, value);
 }
 
 static inline u32 b43_read32(struct b43_wldev *dev, u16 offset)
 {
-	return ssb_read32(dev->dev, offset);
+	return ssb_read32(dev->sdev, offset);
 }
 
 static inline void b43_write32(struct b43_wldev *dev, u16 offset, u32 value)
 {
-	ssb_write32(dev->dev, offset, value);
+	ssb_write32(dev->sdev, offset, value);
 }
 
 static inline bool b43_using_pio_transfers(struct b43_wldev *dev)
