@@ -106,6 +106,7 @@
 #define IXGBE_MAX_VF_FUNCTIONS          64
 #define IXGBE_MAX_VFTA_ENTRIES          128
 #define MAX_EMULATION_MAC_ADDRS         16
+#define IXGBE_MAX_PF_MACVLANS           15
 #define VMDQ_P(p)   ((p) + adapter->num_vfs)
 
 struct vf_data_storage {
@@ -119,6 +120,15 @@ struct vf_data_storage {
 	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
 	u16 pf_qos;
 	u16 tx_rate;
+};
+
+struct vf_macvlans {
+	struct list_head l;
+	int vf;
+	int rar_entry;
+	bool free;
+	bool is_macvlan;
+	u8 vf_macvlan[ETH_ALEN];
 };
 
 /* wrapper around a pointer to a socket buffer,
@@ -471,6 +481,9 @@ struct ixgbe_adapter {
 	unsigned int num_vfs;
 	struct vf_data_storage *vfinfo;
 	int vf_rate_link_speed;
+	struct vf_macvlans vf_mvs;
+	struct vf_macvlans *mv_list;
+	bool antispoofing_enabled;
 };
 
 enum ixbge_state_t {

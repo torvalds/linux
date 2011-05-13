@@ -82,6 +82,21 @@ static int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
 	return 0;
 }
 
+static void ixgbe_restore_vf_macvlans(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct list_head *pos;
+	struct vf_macvlans *entry;
+
+	list_for_each(pos, &adapter->vf_mvs.l) {
+		entry = list_entry(pos, struct vf_macvlans, l);
+		if (entry->free == false)
+			hw->mac.ops.set_rar(hw, entry->rar_entry,
+					    entry->vf_macvlan,
+					    entry->vf, IXGBE_RAH_AV);
+	}
+}
+
 void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -102,6 +117,9 @@ void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter)
 			IXGBE_WRITE_REG(hw, IXGBE_MTA(vector_reg), mta_reg);
 		}
 	}
+
+	/* Restore any VF macvlans */
+	ixgbe_restore_vf_macvlans(adapter);
 }
 
 static int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid,
@@ -200,6 +218,61 @@ static int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
 	return 0;
 }
 
+static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
+				int vf, int index, unsigned char *mac_addr)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct list_head *pos;
+	struct vf_macvlans *entry;
+
+	if (index <= 1) {
+		list_for_each(pos, &adapter->vf_mvs.l) {
+			entry = list_entry(pos, struct vf_macvlans, l);
+			if (entry->vf == vf) {
+				entry->vf = -1;
+				entry->free = true;
+				entry->is_macvlan = false;
+				hw->mac.ops.clear_rar(hw, entry->rar_entry);
+			}
+		}
+	}
+
+	/*
+	 * If index was zero then we were asked to clear the uc list
+	 * for the VF.  We're done.
+	 */
+	if (!index)
+		return 0;
+
+	entry = NULL;
+
+	list_for_each(pos, &adapter->vf_mvs.l) {
+		entry = list_entry(pos, struct vf_macvlans, l);
+		if (entry->free)
+			break;
+	}
+
+	/*
+	 * If we traversed the entire list and didn't find a free entry
+	 * then we're out of space on the RAR table.  Also entry may
+	 * be NULL because the original memory allocation for the list
+	 * failed, which is not fatal but does mean we can't support
+	 * VF requests for MACVLAN because we couldn't allocate
+	 * memory for the list management required.
+	 */
+	if (!entry || !entry->free)
+		return -ENOSPC;
+
+	entry->free = false;
+	entry->is_macvlan = true;
+	entry->vf = vf;
+	memcpy(entry->vf_macvlan, mac_addr, ETH_ALEN);
+
+	hw->mac.ops.set_rar(hw, entry->rar_entry, mac_addr, vf, IXGBE_RAH_AV);
+
+	return 0;
+}
+
 int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 {
 	unsigned char vf_mac_addr[6];
@@ -256,7 +329,7 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 	s32 retval;
 	int entries;
 	u16 *hash_list;
-	int add, vid;
+	int add, vid, index;
 	u8 *new_mac;
 
 	retval = ixgbe_read_mbx(hw, msgbuf, mbx_size, vf);
@@ -344,6 +417,24 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 		} else {
 			retval = ixgbe_set_vf_vlan(adapter, add, vid, vf);
 		}
+		break;
+	case IXGBE_VF_SET_MACVLAN:
+		index = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >>
+			IXGBE_VT_MSGINFO_SHIFT;
+		/*
+		 * If the VF is allowed to set MAC filters then turn off
+		 * anti-spoofing to avoid false positives.  An index
+		 * greater than 0 will indicate the VF is setting a
+		 * macvlan MAC filter.
+		 */
+		if (index > 0 && adapter->antispoofing_enabled) {
+			hw->mac.ops.set_mac_anti_spoofing(hw, false,
+							  adapter->num_vfs);
+			hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
+			adapter->antispoofing_enabled = false;
+		}
+		retval = ixgbe_set_vf_macvlan(adapter, vf, index,
+					      (unsigned char *)(&msgbuf[1]));
 		break;
 	default:
 		e_err(drv, "Unhandled Msg %8.8x\n", msgbuf[0]);
@@ -452,7 +543,8 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 			goto out;
 		ixgbe_set_vmvir(adapter, vlan | (qos << VLAN_PRIO_SHIFT), vf);
 		ixgbe_set_vmolr(hw, vf, false);
-		hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
+		if (adapter->antispoofing_enabled)
+			hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
 		adapter->vfinfo[vf].pf_vlan = vlan;
 		adapter->vfinfo[vf].pf_qos = qos;
 		dev_info(&adapter->pdev->dev,

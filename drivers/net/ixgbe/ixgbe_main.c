@@ -3188,7 +3188,9 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	/* enable Tx loopback for VF/PF communication */
 	IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, IXGBE_PFDTXGSWC_VT_LBEN);
 	/* Enable MAC Anti-Spoofing */
-	hw->mac.ops.set_mac_anti_spoofing(hw, (adapter->num_vfs != 0),
+	hw->mac.ops.set_mac_anti_spoofing(hw,
+					  (adapter->antispoofing_enabled =
+					   (adapter->num_vfs != 0)),
 					  adapter->num_vfs);
 }
 
@@ -3497,7 +3499,7 @@ static int ixgbe_write_uc_addr_list(struct net_device *netdev)
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 	unsigned int vfn = adapter->num_vfs;
-	unsigned int rar_entries = hw->mac.num_rar_entries - (vfn + 1);
+	unsigned int rar_entries = IXGBE_MAX_PF_MACVLANS;
 	int count = 0;
 
 	/* return ENOMEM indicating insufficient memory for addresses */
@@ -7107,6 +7109,8 @@ static void __devinit ixgbe_probe_vf(struct ixgbe_adapter *adapter,
 #ifdef CONFIG_PCI_IOV
 	struct ixgbe_hw *hw = &adapter->hw;
 	int err;
+	int num_vf_macvlans, i;
+	struct vf_macvlans *mv_list;
 
 	if (hw->mac.type == ixgbe_mac_82598EB || !max_vfs)
 		return;
@@ -7123,6 +7127,26 @@ static void __devinit ixgbe_probe_vf(struct ixgbe_adapter *adapter,
 		e_err(probe, "Failed to enable PCI sriov: %d\n", err);
 		goto err_novfs;
 	}
+
+	num_vf_macvlans = hw->mac.num_rar_entries -
+		(IXGBE_MAX_PF_MACVLANS + 1 + adapter->num_vfs);
+
+	adapter->mv_list = mv_list = kcalloc(num_vf_macvlans,
+					     sizeof(struct vf_macvlans),
+					     GFP_KERNEL);
+	if (mv_list) {
+		/* Initialize list of VF macvlans */
+		INIT_LIST_HEAD(&adapter->vf_mvs.l);
+		for (i = 0; i < num_vf_macvlans; i++) {
+			mv_list->vf = -1;
+			mv_list->free = true;
+			mv_list->rar_entry = hw->mac.num_rar_entries -
+				(i + adapter->num_vfs + 1);
+			list_add(&mv_list->l, &adapter->vf_mvs.l);
+			mv_list++;
+		}
+	}
+
 	/* If call to enable VFs succeeded then allocate memory
 	 * for per VF control structures.
 	 */
