@@ -83,7 +83,7 @@ void mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
  */
 static inline void mesh_plink_fsm_restart(struct sta_info *sta)
 {
-	sta->plink_state = PLINK_LISTEN;
+	sta->plink_state = NL80211_PLINK_LISTEN;
 	sta->llid = sta->plid = sta->reason = 0;
 	sta->plink_retries = 0;
 }
@@ -126,11 +126,11 @@ static bool __mesh_plink_deactivate(struct sta_info *sta)
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	bool deactivated = false;
 
-	if (sta->plink_state == PLINK_ESTAB) {
+	if (sta->plink_state == NL80211_PLINK_ESTAB) {
 		mesh_plink_dec_estab_count(sdata);
 		deactivated = true;
 	}
-	sta->plink_state = PLINK_BLOCKED;
+	sta->plink_state = NL80211_PLINK_BLOCKED;
 	mesh_path_flush_by_nexthop(sta);
 
 	return deactivated;
@@ -268,7 +268,7 @@ void mesh_neighbour_update(u8 *hw_addr, u32 rates,
 	sta->last_rx = jiffies;
 	sta->sta.supp_rates[local->hw.conf.channel->band] = rates;
 	if (mesh_peer_accepts_plinks(elems) &&
-			sta->plink_state == PLINK_LISTEN &&
+			sta->plink_state == NL80211_PLINK_LISTEN &&
 			sdata->u.mesh.accepting_plinks &&
 			sdata->u.mesh.mshcfg.auto_open_plinks)
 		mesh_plink_open(sta);
@@ -308,8 +308,8 @@ static void mesh_plink_timer(unsigned long data)
 	sdata = sta->sdata;
 
 	switch (sta->plink_state) {
-	case PLINK_OPN_RCVD:
-	case PLINK_OPN_SNT:
+	case NL80211_PLINK_OPN_RCVD:
+	case NL80211_PLINK_OPN_SNT:
 		/* retry timer */
 		if (sta->plink_retries < dot11MeshMaxRetries(sdata)) {
 			u32 rand;
@@ -328,17 +328,17 @@ static void mesh_plink_timer(unsigned long data)
 		}
 		reason = cpu_to_le16(MESH_MAX_RETRIES);
 		/* fall through on else */
-	case PLINK_CNF_RCVD:
+	case NL80211_PLINK_CNF_RCVD:
 		/* confirm timer */
 		if (!reason)
 			reason = cpu_to_le16(MESH_CONFIRM_TIMEOUT);
-		sta->plink_state = PLINK_HOLDING;
+		sta->plink_state = NL80211_PLINK_HOLDING;
 		mod_plink_timer(sta, dot11MeshHoldingTimeout(sdata));
 		spin_unlock_bh(&sta->lock);
 		mesh_plink_frame_tx(sdata, PLINK_CLOSE, sta->sta.addr, llid, plid,
 				    reason);
 		break;
-	case PLINK_HOLDING:
+	case NL80211_PLINK_HOLDING:
 		/* holding timer */
 		del_timer(&sta->plink_timer);
 		mesh_plink_fsm_restart(sta);
@@ -386,11 +386,11 @@ int mesh_plink_open(struct sta_info *sta)
 	spin_lock_bh(&sta->lock);
 	get_random_bytes(&llid, 2);
 	sta->llid = llid;
-	if (sta->plink_state != PLINK_LISTEN) {
+	if (sta->plink_state != NL80211_PLINK_LISTEN) {
 		spin_unlock_bh(&sta->lock);
 		return -EBUSY;
 	}
-	sta->plink_state = PLINK_OPN_SNT;
+	sta->plink_state = NL80211_PLINK_OPN_SNT;
 	mesh_plink_timer_set(sta, dot11MeshRetryTimeout(sdata));
 	spin_unlock_bh(&sta->lock);
 	mpl_dbg("Mesh plink: starting establishment with %pM\n",
@@ -407,7 +407,7 @@ void mesh_plink_block(struct sta_info *sta)
 
 	spin_lock_bh(&sta->lock);
 	deactivated = __mesh_plink_deactivate(sta);
-	sta->plink_state = PLINK_BLOCKED;
+	sta->plink_state = NL80211_PLINK_BLOCKED;
 	spin_unlock_bh(&sta->lock);
 
 	if (deactivated)
@@ -430,13 +430,13 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	__le16 plid, llid, reason;
 #ifdef CONFIG_MAC80211_VERBOSE_MPL_DEBUG
 	static const char *mplstates[] = {
-		[PLINK_LISTEN] = "LISTEN",
-		[PLINK_OPN_SNT] = "OPN-SNT",
-		[PLINK_OPN_RCVD] = "OPN-RCVD",
-		[PLINK_CNF_RCVD] = "CNF_RCVD",
-		[PLINK_ESTAB] = "ESTAB",
-		[PLINK_HOLDING] = "HOLDING",
-		[PLINK_BLOCKED] = "BLOCKED"
+		[NL80211_PLINK_LISTEN] = "LISTEN",
+		[NL80211_PLINK_OPN_SNT] = "OPN-SNT",
+		[NL80211_PLINK_OPN_RCVD] = "OPN-RCVD",
+		[NL80211_PLINK_CNF_RCVD] = "CNF_RCVD",
+		[NL80211_PLINK_ESTAB] = "ESTAB",
+		[NL80211_PLINK_HOLDING] = "HOLDING",
+		[NL80211_PLINK_BLOCKED] = "BLOCKED"
 	};
 #endif
 
@@ -502,7 +502,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		return;
 	}
 
-	if (sta && sta->plink_state == PLINK_BLOCKED) {
+	if (sta && sta->plink_state == NL80211_PLINK_BLOCKED) {
 		rcu_read_unlock();
 		return;
 	}
@@ -572,7 +572,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 				event = CNF_ACPT;
 			break;
 		case PLINK_CLOSE:
-			if (sta->plink_state == PLINK_ESTAB)
+			if (sta->plink_state == NL80211_PLINK_ESTAB)
 				/* Do not check for llid or plid. This does not
 				 * follow the standard but since multiple plinks
 				 * per sta are not supported, it is necessary in
@@ -607,14 +607,14 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	reason = 0;
 	switch (sta->plink_state) {
 		/* spin_unlock as soon as state is updated at each case */
-	case PLINK_LISTEN:
+	case NL80211_PLINK_LISTEN:
 		switch (event) {
 		case CLS_ACPT:
 			mesh_plink_fsm_restart(sta);
 			spin_unlock_bh(&sta->lock);
 			break;
 		case OPN_ACPT:
-			sta->plink_state = PLINK_OPN_RCVD;
+			sta->plink_state = NL80211_PLINK_OPN_RCVD;
 			sta->plid = plid;
 			get_random_bytes(&llid, 2);
 			sta->llid = llid;
@@ -631,7 +631,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		}
 		break;
 
-	case PLINK_OPN_SNT:
+	case NL80211_PLINK_OPN_SNT:
 		switch (event) {
 		case OPN_RJCT:
 		case CNF_RJCT:
@@ -640,7 +640,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			if (!reason)
 				reason = cpu_to_le16(MESH_CLOSE_RCVD);
 			sta->reason = reason;
-			sta->plink_state = PLINK_HOLDING;
+			sta->plink_state = NL80211_PLINK_HOLDING;
 			if (!mod_plink_timer(sta,
 					     dot11MeshHoldingTimeout(sdata)))
 				sta->ignore_plink_timer = true;
@@ -652,7 +652,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			break;
 		case OPN_ACPT:
 			/* retry timer is left untouched */
-			sta->plink_state = PLINK_OPN_RCVD;
+			sta->plink_state = NL80211_PLINK_OPN_RCVD;
 			sta->plid = plid;
 			llid = sta->llid;
 			spin_unlock_bh(&sta->lock);
@@ -660,7 +660,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 					    plid, 0);
 			break;
 		case CNF_ACPT:
-			sta->plink_state = PLINK_CNF_RCVD;
+			sta->plink_state = NL80211_PLINK_CNF_RCVD;
 			if (!mod_plink_timer(sta,
 					     dot11MeshConfirmTimeout(sdata)))
 				sta->ignore_plink_timer = true;
@@ -673,7 +673,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		}
 		break;
 
-	case PLINK_OPN_RCVD:
+	case NL80211_PLINK_OPN_RCVD:
 		switch (event) {
 		case OPN_RJCT:
 		case CNF_RJCT:
@@ -682,7 +682,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			if (!reason)
 				reason = cpu_to_le16(MESH_CLOSE_RCVD);
 			sta->reason = reason;
-			sta->plink_state = PLINK_HOLDING;
+			sta->plink_state = NL80211_PLINK_HOLDING;
 			if (!mod_plink_timer(sta,
 					     dot11MeshHoldingTimeout(sdata)))
 				sta->ignore_plink_timer = true;
@@ -700,7 +700,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			break;
 		case CNF_ACPT:
 			del_timer(&sta->plink_timer);
-			sta->plink_state = PLINK_ESTAB;
+			sta->plink_state = NL80211_PLINK_ESTAB;
 			spin_unlock_bh(&sta->lock);
 			mesh_plink_inc_estab_count(sdata);
 			ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
@@ -713,7 +713,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		}
 		break;
 
-	case PLINK_CNF_RCVD:
+	case NL80211_PLINK_CNF_RCVD:
 		switch (event) {
 		case OPN_RJCT:
 		case CNF_RJCT:
@@ -722,7 +722,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			if (!reason)
 				reason = cpu_to_le16(MESH_CLOSE_RCVD);
 			sta->reason = reason;
-			sta->plink_state = PLINK_HOLDING;
+			sta->plink_state = NL80211_PLINK_HOLDING;
 			if (!mod_plink_timer(sta,
 					     dot11MeshHoldingTimeout(sdata)))
 				sta->ignore_plink_timer = true;
@@ -734,7 +734,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			break;
 		case OPN_ACPT:
 			del_timer(&sta->plink_timer);
-			sta->plink_state = PLINK_ESTAB;
+			sta->plink_state = NL80211_PLINK_ESTAB;
 			spin_unlock_bh(&sta->lock);
 			mesh_plink_inc_estab_count(sdata);
 			ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
@@ -749,13 +749,13 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		}
 		break;
 
-	case PLINK_ESTAB:
+	case NL80211_PLINK_ESTAB:
 		switch (event) {
 		case CLS_ACPT:
 			reason = cpu_to_le16(MESH_CLOSE_RCVD);
 			sta->reason = reason;
 			deactivated = __mesh_plink_deactivate(sta);
-			sta->plink_state = PLINK_HOLDING;
+			sta->plink_state = NL80211_PLINK_HOLDING;
 			llid = sta->llid;
 			mod_plink_timer(sta, dot11MeshHoldingTimeout(sdata));
 			spin_unlock_bh(&sta->lock);
@@ -775,7 +775,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			break;
 		}
 		break;
-	case PLINK_HOLDING:
+	case NL80211_PLINK_HOLDING:
 		switch (event) {
 		case CLS_ACPT:
 			if (del_timer(&sta->plink_timer))

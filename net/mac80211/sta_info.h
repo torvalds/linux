@@ -318,7 +318,7 @@ struct sta_info {
 	u8 plink_retries;
 	bool ignore_plink_timer;
 	bool plink_timer_was_running;
-	enum plink_state plink_state;
+	enum nl80211_plink_state plink_state;
 	u32 plink_timeout;
 	struct timer_list plink_timer;
 #endif
@@ -336,12 +336,12 @@ struct sta_info {
 	struct ieee80211_sta sta;
 };
 
-static inline enum plink_state sta_plink_state(struct sta_info *sta)
+static inline enum nl80211_plink_state sta_plink_state(struct sta_info *sta)
 {
 #ifdef CONFIG_MAC80211_MESH
 	return sta->plink_state;
 #endif
-	return PLINK_LISTEN;
+	return NL80211_PLINK_LISTEN;
 }
 
 static inline void set_sta_flags(struct sta_info *sta, const u32 flags)

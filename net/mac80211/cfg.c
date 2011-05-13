@@ -730,9 +730,9 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 #ifdef CONFIG_MAC80211_MESH
 		if (sdata->u.mesh.security & IEEE80211_MESH_SEC_SECURED)
 			switch (params->plink_state) {
-			case PLINK_LISTEN:
-			case PLINK_ESTAB:
-			case PLINK_BLOCKED:
+			case NL80211_PLINK_LISTEN:
+			case NL80211_PLINK_ESTAB:
+			case NL80211_PLINK_BLOCKED:
 				sta->plink_state = params->plink_state;
 				break;
 			default:

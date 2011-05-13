@@ -973,9 +973,10 @@ enum nl80211_commands {
  * @NL80211_ATTR_SUPPORT_MESH_AUTH: Currently, this means the underlying driver
  *	allows auth frames in a mesh to be passed to userspace for processing via
  *	the @NL80211_MESH_SETUP_USERSPACE_AUTH flag.
- * @NL80211_ATTR_STA_PLINK_STATE: The state of a mesh peer link. Used when
- *      userspace is driving the peer link management state machine.
- *      @NL80211_MESH_SETUP_USERSPACE_AMPE must be enabled.
+ * @NL80211_ATTR_STA_PLINK_STATE: The state of a mesh peer link as
+ *	defined in &enum nl80211_plink_state. Used when userspace is
+ *	driving the peer link management state machine.
+ *	@NL80211_MESH_SETUP_USERSPACE_AMPE must be enabled.
  *
  * @NL80211_ATTR_WOWLAN_SUPPORTED: indicates, as part of the wiphy capabilities,
  *	the supported WoWLAN triggers
@@ -1396,6 +1397,7 @@ enum nl80211_sta_bss_param {
  * @NL80211_STA_INFO_LLID: the station's mesh LLID
  * @NL80211_STA_INFO_PLID: the station's mesh PLID
  * @NL80211_STA_INFO_PLINK_STATE: peer link state for the station
+ *	(see %enum nl80211_plink_state)
  * @NL80211_STA_INFO_RX_BITRATE: last unicast data frame rx rate, nested
  *	attribute, like NL80211_STA_INFO_TX_BITRATE.
  * @NL80211_STA_INFO_BSS_PARAM: current station's view of BSS, nested attribute
@@ -2324,6 +2326,39 @@ enum nl80211_if_combination_attrs {
 	/* keep last */
 	NUM_NL80211_IFACE_COMB,
 	MAX_NL80211_IFACE_COMB = NUM_NL80211_IFACE_COMB - 1
+};
+
+
+/**
+ * enum nl80211_plink_state - state of a mesh peer link finite state machine
+ *
+ * @NL80211_PLINK_LISTEN: initial state, considered the implicit
+ *	state of non existant mesh peer links
+ * @NL80211_PLINK_OPN_SNT: mesh plink open frame has been sent to
+ *	this mesh peer
+ * @NL80211_PLINK_OPN_RCVD: mesh plink open frame has been received
+ *	from this mesh peer
+ * @NL80211_PLINK_CNF_RCVD: mesh plink confirm frame has been
+ *	received from this mesh peer
+ * @NL80211_PLINK_ESTAB: mesh peer link is established
+ * @NL80211_PLINK_HOLDING: mesh peer link is being closed or cancelled
+ * @NL80211_PLINK_BLOCKED: all frames transmitted from this mesh
+ *	plink are discarded
+ * @NUM_NL80211_PLINK_STATES: number of peer link states
+ * @MAX_NL80211_PLINK_STATES: highest numerical value of plink states
+ */
+enum nl80211_plink_state {
+	NL80211_PLINK_LISTEN,
+	NL80211_PLINK_OPN_SNT,
+	NL80211_PLINK_OPN_RCVD,
+	NL80211_PLINK_CNF_RCVD,
+	NL80211_PLINK_ESTAB,
+	NL80211_PLINK_HOLDING,
+	NL80211_PLINK_BLOCKED,
+
+	/* keep last */
+	NUM_NL80211_PLINK_STATES,
+	MAX_NL80211_PLINK_STATES = NUM_NL80211_PLINK_STATES - 1
 };
 
 #endif /* __LINUX_NL80211_H */

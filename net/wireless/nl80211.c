@@ -2335,7 +2335,7 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 	memset(&params, 0, sizeof(params));
 
 	params.listen_interval = -1;
-	params.plink_state = PLINK_INVALID;
+	params.plink_state = -1;
 
 	if (info->attrs[NL80211_ATTR_STA_AID])
 		return -EINVAL;
