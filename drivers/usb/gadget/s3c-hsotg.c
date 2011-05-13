@@ -616,11 +616,10 @@ static unsigned get_ep_limit(struct s3c_hsotg_ep *hs_ep)
 		maxpkt = S3C_DxEPTSIZ_PktCnt_LIMIT + 1;
 	} else {
 		maxsize = 64+64;
-		if (hs_ep->dir_in) {
+		if (hs_ep->dir_in)
 			maxpkt = S3C_DIEPTSIZ0_PktCnt_LIMIT + 1;
-		} else {
+		else
 			maxpkt = 2;
-		}
 	}
 
 	/* we made the constant loading easier above by using +1 */
@@ -2568,7 +2567,7 @@ static int s3c_hsotg_corereset(struct s3c_hsotg *hsotg)
 		if (!(grstctl & S3C_GRSTCTL_AHBIdle))
 			continue;
 
-		break; 		/* reset done */
+		break;		/* reset done */
 	}
 
 	dev_dbg(hsotg->dev, "reset successful\n");
