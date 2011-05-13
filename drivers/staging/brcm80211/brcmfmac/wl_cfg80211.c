@@ -3391,7 +3391,6 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 		goto cfg80211_attach_out;
 	}
 	wl_set_drvdata(wl_cfg80211_dev, ci);
-	set_bit(WL_STATUS_READY, &wl->status);
 
 	return err;
 
@@ -4021,6 +4020,8 @@ static s32 __wl_cfg80211_up(struct wl_priv *wl)
 {
 	s32 err = 0;
 
+	set_bit(WL_STATUS_READY, &wl->status);
+
 	wl_debugfs_add_netdev_params(wl);
 
 	err = wl_config_dongle(wl, false);
@@ -4028,41 +4029,29 @@ static s32 __wl_cfg80211_up(struct wl_priv *wl)
 		return err;
 
 	wl_invoke_iscan(wl);
-	set_bit(WL_STATUS_READY, &wl->status);
+
 	return err;
 }
 
 static s32 __wl_cfg80211_down(struct wl_priv *wl)
 {
-	s32 err = 0;
-
-	/* Check if cfg80211 interface is already down */
-	if (!test_bit(WL_STATUS_READY, &wl->status))
-		return err;	/* it is even not ready */
-
 	set_bit(WL_STATUS_SCAN_ABORTING, &wl->status);
 	wl_term_iscan(wl);
 	if (wl->scan_request) {
-		cfg80211_scan_done(wl->scan_request, true);	/* true
-								 means abort */
-		/* wl_set_mpc(wl_to_ndev(wl), 1); */	/* BUG
-						* this operation cannot help
-						* but here because sdio
-						* is already down through
-						* rmmod process.
-						* Need to figure out how to
-						* address this issue
-						*/
+		cfg80211_scan_done(wl->scan_request, true);
+		/* May need to perform this to cover rmmod */
+		/* wl_set_mpc(wl_to_ndev(wl), 1); */
 		wl->scan_request = NULL;
 	}
 	clear_bit(WL_STATUS_READY, &wl->status);
 	clear_bit(WL_STATUS_SCANNING, &wl->status);
 	clear_bit(WL_STATUS_SCAN_ABORTING, &wl->status);
+	clear_bit(WL_STATUS_CONNECTING, &wl->status);
 	clear_bit(WL_STATUS_CONNECTED, &wl->status);
 
 	wl_debugfs_remove_netdev(wl);
 
-	return err;
+	return 0;
 }
 
 s32 wl_cfg80211_up(void)
