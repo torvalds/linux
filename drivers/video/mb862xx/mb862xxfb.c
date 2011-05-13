@@ -336,7 +336,6 @@ static int mb862xxfb_init_fbinfo(struct fb_info *fbi)
 
 	strcpy(fbi->fix.id, DRV_NAME);
 	fbi->fix.smem_start = (unsigned long)par->fb_base_phys;
-	fbi->fix.smem_len = par->mapped_vram;
 	fbi->fix.mmio_start = (unsigned long)par->mmio_base_phys;
 	fbi->fix.mmio_len = par->mmio_len;
 	fbi->fix.accel = FB_ACCEL_NONE;
@@ -420,6 +419,7 @@ static int mb862xxfb_init_fbinfo(struct fb_info *fbi)
 			 FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_TRUECOLOR;
 	fbi->fix.line_length = (fbi->var.xres_virtual *
 				fbi->var.bits_per_pixel) / 8;
+	fbi->fix.smem_len = fbi->fix.line_length * fbi->var.yres_virtual;
 	return 0;
 }
 
