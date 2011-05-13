@@ -742,6 +742,12 @@ static int coralp_init(struct mb862xxfb_par *par)
 
 	par->refclk = GC_DISP_REFCLK_400;
 
+	if (par->mapped_vram >= 0x2000000) {
+		/* relocate gdc registers space */
+		writel(1, par->fb_base + MB862XX_MMIO_BASE + GC_RSW);
+		udelay(1); /* wait at least 20 bus cycles */
+	}
+
 	ver = inreg(host, GC_CID);
 	cn = (ver & GC_CID_CNAME_MSK) >> 8;
 	ver = ver & GC_CID_VERSION_MSK;
@@ -907,7 +913,13 @@ static int __devinit mb862xx_pci_probe(struct pci_dev *pdev,
 	case PCI_DEVICE_ID_FUJITSU_CORALPA:
 		par->fb_base_phys = pci_resource_start(par->pdev, 0);
 		par->mapped_vram = CORALP_MEM_SIZE;
-		par->mmio_base_phys = par->fb_base_phys + MB862XX_MMIO_BASE;
+		if (par->mapped_vram >= 0x2000000) {
+			par->mmio_base_phys = par->fb_base_phys +
+					      MB862XX_MMIO_HIGH_BASE;
+		} else {
+			par->mmio_base_phys = par->fb_base_phys +
+					      MB862XX_MMIO_BASE;
+		}
 		par->mmio_len = MB862XX_MMIO_SIZE;
 		par->type = BT_CORALP;
 		break;
