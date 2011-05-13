@@ -27,7 +27,7 @@
 
 #include <linux/list.h>
 #include "vmbus_packet_format.h"
-#include "vmbus_channel_interface.h"
+#include "hyperv.h"
 #include "netvsc_api.h"
 
 

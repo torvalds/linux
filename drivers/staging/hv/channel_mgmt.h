@@ -29,8 +29,7 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
-#include "ring_buffer.h"
-#include "vmbus_channel_interface.h"
+#include "hyperv.h"
 #include "vmbus_packet_format.h"
 
 /* Version 1 messages */
