@@ -453,13 +453,13 @@ hv_netvsc_dmi_table[] __maybe_unused  = {
 };
 MODULE_DEVICE_TABLE(dmi, hv_netvsc_dmi_table);
 
-static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
+static int netvsc_drv_init(void)
 {
 	struct hv_driver *drv = &netvsc_drv;
 	int ret;
 
 	/* Callback to client driver to complete the initialization */
-	drv_init(drv);
+	netvsc_initialize(drv);
 
 	drv->driver.name = drv->name;
 
@@ -476,7 +476,7 @@ static int __init netvsc_init(void)
 	if (!dmi_check_system(hv_netvsc_dmi_table))
 		return -ENODEV;
 
-	return netvsc_drv_init(netvsc_initialize);
+	return netvsc_drv_init();
 }
 
 static void __exit netvsc_exit(void)
