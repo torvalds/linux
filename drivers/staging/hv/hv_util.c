@@ -33,7 +33,6 @@
 #include "hv_api.h"
 #include "vmbus.h"
 #include "vmbus_private.h"
-#include "vmbus_api.h"
 #include "utils.h"
 #include "hv_kvp.h"
 

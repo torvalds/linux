@@ -25,7 +25,7 @@
 #ifndef _NETVSC_API_H_
 #define _NETVSC_API_H_
 
-#include "vmbus_api.h"
+#include "hyperv.h"
 #include "vmbus.h"
 
 /* Fwd declaration */

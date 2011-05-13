@@ -26,7 +26,7 @@
 #define _VMBUS_H_
 
 #include <linux/device.h>
-#include "vmbus_api.h"
+#include "hyperv.h"
 
 
 

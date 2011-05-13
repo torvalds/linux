@@ -28,7 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/wait.h>
 #include "vstorage.h"
-#include "vmbus_api.h"
+#include "hyperv.h"
 #include "vmbus.h"
 
 /* Defines */

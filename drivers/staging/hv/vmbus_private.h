@@ -26,7 +26,7 @@
 #define _VMBUS_PRIVATE_H_
 
 #include "hv.h"
-#include "vmbus_api.h"
+#include "hyperv.h"
 #include "ring_buffer.h"
 #include <linux/list.h>
 #include <asm/sync_bitops.h>
