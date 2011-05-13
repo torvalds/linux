@@ -1411,6 +1411,12 @@ iwl_legacy_is_channel_passive(const struct iwl_channel_info *ch)
 	return (!(ch->flags & EEPROM_CHANNEL_ACTIVE)) ? 1 : 0;
 }
 
+static inline int
+iwl_legacy_is_channel_ibss(const struct iwl_channel_info *ch)
+{
+	return (ch->flags & EEPROM_CHANNEL_IBSS) ? 1 : 0;
+}
+
 static inline void
 __iwl_legacy_free_pages(struct iwl_priv *priv, struct page *page)
 {

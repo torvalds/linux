@@ -220,12 +220,26 @@ static int siena_probe_nic(struct efx_nic *efx)
 	efx_reado(efx, &reg, FR_AZ_CS_DEBUG);
 	efx->net_dev->dev_id = EFX_OWORD_FIELD(reg, FRF_CZ_CS_PORT_NUM) - 1;
 
+	/* Initialise MCDI */
+	nic_data->mcdi_smem = ioremap_nocache(efx->membase_phys +
+					      FR_CZ_MC_TREG_SMEM,
+					      FR_CZ_MC_TREG_SMEM_STEP *
+					      FR_CZ_MC_TREG_SMEM_ROWS);
+	if (!nic_data->mcdi_smem) {
+		netif_err(efx, probe, efx->net_dev,
+			  "could not map MCDI at %llx+%x\n",
+			  (unsigned long long)efx->membase_phys +
+			  FR_CZ_MC_TREG_SMEM,
+			  FR_CZ_MC_TREG_SMEM_STEP * FR_CZ_MC_TREG_SMEM_ROWS);
+		rc = -ENOMEM;
+		goto fail1;
+	}
 	efx_mcdi_init(efx);
 
 	/* Recover from a failed assertion before probing */
 	rc = efx_mcdi_handle_assertion(efx);
 	if (rc)
-		goto fail1;
+		goto fail2;
 
 	/* Let the BMC know that the driver is now in charge of link and
 	 * filter settings. We must do this before we reset the NIC */
@@ -280,6 +294,7 @@ fail4:
 fail3:
 	efx_mcdi_drv_attach(efx, false, NULL);
 fail2:
+	iounmap(nic_data->mcdi_smem);
 fail1:
 	kfree(efx->nic_data);
 	return rc;
@@ -359,6 +374,8 @@ static int siena_init_nic(struct efx_nic *efx)
 
 static void siena_remove_nic(struct efx_nic *efx)
 {
+	struct siena_nic_data *nic_data = efx->nic_data;
+
 	efx_nic_free_buffer(efx, &efx->irq_status);
 
 	siena_reset_hw(efx, RESET_TYPE_ALL);
@@ -368,7 +385,8 @@ static void siena_remove_nic(struct efx_nic *efx)
 		efx_mcdi_drv_attach(efx, false, NULL);
 
 	/* Tear down the private nic state */
-	kfree(efx->nic_data);
+	iounmap(nic_data->mcdi_smem);
+	kfree(nic_data);
 	efx->nic_data = NULL;
 }
 
@@ -606,8 +624,7 @@ struct efx_nic_type siena_a0_nic_type = {
 	.default_mac_ops = &efx_mcdi_mac_operations,
 
 	.revision = EFX_REV_SIENA_A0,
-	.mem_map_size = (FR_CZ_MC_TREG_SMEM +
-			 FR_CZ_MC_TREG_SMEM_STEP * FR_CZ_MC_TREG_SMEM_ROWS),
+	.mem_map_size = FR_CZ_MC_TREG_SMEM, /* MC_TREG_SMEM mapped separately */
 	.txd_ptr_tbl_base = FR_BZ_TX_DESC_PTR_TBL,
 	.rxd_ptr_tbl_base = FR_BZ_RX_DESC_PTR_TBL,
 	.buf_tbl_base = FR_BZ_BUF_FULL_TBL,

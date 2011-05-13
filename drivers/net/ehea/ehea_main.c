@@ -2688,9 +2688,6 @@ static int ehea_open(struct net_device *dev)
 		netif_start_queue(dev);
 	}
 
-	init_waitqueue_head(&port->swqe_avail_wq);
-	init_waitqueue_head(&port->restart_wq);
-
 	mutex_unlock(&port->port_lock);
 
 	return ret;
@@ -3275,6 +3272,9 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 		dev->features |= NETIF_F_LRO;
 
 	INIT_WORK(&port->reset_task, ehea_reset_port);
+
+	init_waitqueue_head(&port->swqe_avail_wq);
+	init_waitqueue_head(&port->restart_wq);
 
 	ret = register_netdev(dev);
 	if (ret) {
