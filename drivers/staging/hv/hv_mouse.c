@@ -915,13 +915,6 @@ static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 	kfree(hid_dev);
 }
 
-static int mousevsc_drv_exit_cb(struct device *dev, void *data)
-{
-	struct device **curr = (struct device **)data;
-	*curr = dev;
-
-	return 1;
-}
 
 static struct  hv_driver mousevsc_drv = {
 	.probe = mousevsc_probe,
@@ -930,31 +923,7 @@ static struct  hv_driver mousevsc_drv = {
 
 static void mousevsc_drv_exit(void)
 {
-	struct hv_driver *drv = &mousevsc_drv;
-	int ret;
-
-	struct device *current_dev = NULL;
-
-	while (1) {
-		current_dev = NULL;
-
-		/* Get the device */
-		ret = driver_for_each_device(&drv->driver, NULL,
-					     (void *)&current_dev,
-					     mousevsc_drv_exit_cb);
-		if (ret)
-			printk(KERN_ERR "Can't find mouse device!\n");
-
-		if (current_dev == NULL)
-			break;
-
-		/* Initiate removal from the top-down */
-		device_unregister(current_dev);
-	}
-
-	vmbus_child_driver_unregister(&drv->driver);
-
-	return;
+	vmbus_child_driver_unregister(&mousevsc_drv.driver);
 }
 
 static int __init mousevsc_init(void)
