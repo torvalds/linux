@@ -1391,14 +1391,11 @@ static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		goto out;
-	ret_val = hw->phy.ops.read_reg_locked(hw,
-	                                      PHY_REG(BM_PORT_CTRL_PAGE, 17),
-	                                      &phy_data);
+	ret_val = hw->phy.ops.read_reg_locked(hw, BM_PORT_GEN_CFG, &phy_data);
 	if (ret_val)
 		goto release;
-	ret_val = hw->phy.ops.write_reg_locked(hw,
-	                                       PHY_REG(BM_PORT_CTRL_PAGE, 17),
-	                                       phy_data & 0x00FF);
+	ret_val = hw->phy.ops.write_reg_locked(hw, BM_PORT_GEN_CFG,
+					       phy_data & 0x00FF);
 release:
 	hw->phy.ops.release(hw);
 out:
@@ -1760,9 +1757,12 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 		break;
 	}
 
-	/* Dummy read to clear the phy wakeup bit after lcd reset */
-	if (hw->mac.type >= e1000_pchlan)
-		e1e_rphy(hw, BM_WUC, &reg);
+	/* Clear the host wakeup bit after lcd reset */
+	if (hw->mac.type >= e1000_pchlan) {
+		e1e_rphy(hw, BM_PORT_GEN_CFG, &reg);
+		reg &= ~BM_WUC_HOST_WU_BIT;
+		e1e_wphy(hw, BM_PORT_GEN_CFG, reg);
+	}
 
 	/* Configure the LCD with the extended configuration region in NVM */
 	ret_val = e1000_sw_lcd_config_ich8lan(hw);
@@ -3161,11 +3161,13 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 
 	/*
 	 * The 82578 Rx buffer will stall if wakeup is enabled in host and
-	 * the ME.  Reading the BM_WUC register will clear the host wakeup bit.
+	 * the ME.  Disable wakeup by clearing the host wakeup bit.
 	 * Reset the phy after disabling host wakeup to reset the Rx buffer.
 	 */
 	if (hw->phy.type == e1000_phy_82578) {
-		e1e_rphy(hw, BM_WUC, &i);
+		e1e_rphy(hw, BM_PORT_GEN_CFG, &i);
+		i &= ~BM_WUC_HOST_WU_BIT;
+		e1e_wphy(hw, BM_PORT_GEN_CFG, i);
 		ret_val = e1000_phy_hw_reset_ich8lan(hw);
 		if (ret_val)
 			return ret_val;

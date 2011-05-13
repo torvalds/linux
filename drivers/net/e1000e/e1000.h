@@ -104,6 +104,7 @@ struct e1000_info;
 	 (((reg) & ~MAX_PHY_REG_ADDRESS) << (PHY_UPPER_SHIFT - PHY_PAGE_SHIFT)))
 
 /* PHY Wakeup Registers and defines */
+#define BM_PORT_GEN_CFG PHY_REG(BM_PORT_CTRL_PAGE, 17)
 #define BM_RCTL         PHY_REG(BM_WUC_PAGE, 0)
 #define BM_WUC          PHY_REG(BM_WUC_PAGE, 1)
 #define BM_WUFC         PHY_REG(BM_WUC_PAGE, 2)
