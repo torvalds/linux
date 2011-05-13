@@ -1946,7 +1946,6 @@ dhd_pub_t *dhd_attach(struct dhd_bus *bus, uint bus_hdrlen)
 			strcpy(fw_path, wl_cfg80211_get_fwname());
 			strcpy(nv_path, wl_cfg80211_get_nvramname());
 		}
-		wl_cfg80211_dbg_level(DBG_CFG80211_GET());
 	}
 
 	/* Set up the watchdog timer */

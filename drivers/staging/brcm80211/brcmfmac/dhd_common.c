@@ -586,6 +586,8 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 	}
 
 	DHD_EVENT(("EVENT: %s, event ID = %d\n", event_name, event_type));
+	DHD_EVENT(("flags 0x%04x, status %d, reason %d, auth_type %d MAC %s\n",
+				flags, status, reason, auth_type, eabuf));
 
 	if (flags & WLC_EVENT_MSG_LINK)
 		link = true;
