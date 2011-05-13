@@ -4520,7 +4520,7 @@ M:	Jan-Pascal van Best <janpascal@vanbest.org>
 M:	Andreas Mohr <andi@lisas.de>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/ni5010.*
+F:	drivers/net/ethernet/racal/ni5010.*
 
 NILFS2 FILESYSTEM
 M:	KONISHI Ryusuke <konishi.ryusuke@lab.ntt.co.jp>
