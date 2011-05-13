@@ -1460,6 +1460,34 @@ static void ixgbevf_restore_vlan(struct ixgbevf_adapter *adapter)
 	}
 }
 
+static int ixgbevf_write_uc_addr_list(struct net_device *netdev)
+{
+	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	int count = 0;
+
+	if ((netdev_uc_count(netdev)) > 10) {
+		printk(KERN_ERR "Too many unicast filters - No Space\n");
+		return -ENOSPC;
+	}
+
+	if (!netdev_uc_empty(netdev)) {
+		struct netdev_hw_addr *ha;
+		netdev_for_each_uc_addr(ha, netdev) {
+			hw->mac.ops.set_uc_addr(hw, ++count, ha->addr);
+			udelay(200);
+		}
+	} else {
+		/*
+		 * If the list is empty then send message to PF driver to
+		 * clear all macvlans on this VF.
+		 */
+		hw->mac.ops.set_uc_addr(hw, 0, NULL);
+	}
+
+	return count;
+}
+
 /**
  * ixgbevf_set_rx_mode - Multicast set
  * @netdev: network interface device structure
@@ -1476,6 +1504,8 @@ static void ixgbevf_set_rx_mode(struct net_device *netdev)
 	/* reprogram multicast list */
 	if (hw->mac.ops.update_mc_addr_list)
 		hw->mac.ops.update_mc_addr_list(hw, netdev);
+
+	ixgbevf_write_uc_addr_list(netdev);
 }
 
 static void ixgbevf_napi_enable_all(struct ixgbevf_adapter *adapter)
