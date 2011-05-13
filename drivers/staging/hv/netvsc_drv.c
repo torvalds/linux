@@ -428,15 +428,6 @@ static int netvsc_remove(struct hv_device *dev)
 	return ret;
 }
 
-static int netvsc_drv_exit_cb(struct device *dev, void *data)
-{
-	struct device **curr = (struct device **)data;
-
-	*curr = dev;
-	/* stop iterating */
-	return 1;
-}
-
 /* The one and only one */
 static struct  netvsc_driver netvsc_drv = {
 	.base.probe = netvsc_probe,
@@ -445,30 +436,7 @@ static struct  netvsc_driver netvsc_drv = {
 
 static void netvsc_drv_exit(void)
 {
-	struct hv_driver *drv = &netvsc_drv.base;
-	struct device *current_dev;
-	int ret;
-
-	while (1) {
-		current_dev = NULL;
-
-		/* Get the device */
-		ret = driver_for_each_device(&drv->driver, NULL,
-					     &current_dev, netvsc_drv_exit_cb);
-
-		if (current_dev == NULL)
-			break;
-
-		/* Initiate removal from the top-down */
-		dev_err(current_dev, "unregistering device (%s)...\n",
-			dev_name(current_dev));
-
-		device_unregister(current_dev);
-	}
-
-	vmbus_child_driver_unregister(&drv->driver);
-
-	return;
+	vmbus_child_driver_unregister(&netvsc_drv.base.driver);
 }
 
 static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
