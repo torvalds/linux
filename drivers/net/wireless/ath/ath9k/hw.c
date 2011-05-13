@@ -2022,6 +2022,22 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 
+	if (AR_SREV_9485(ah)) {
+		ant_div_ctl1 = ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
+		/*
+		 * enable the diversity-combining algorithm only when
+		 * both enable_lna_div and enable_fast_div are set
+		 *		Table for Diversity
+		 * ant_div_alt_lnaconf		bit 0-1
+		 * ant_div_main_lnaconf		bit 2-3
+		 * ant_div_alt_gaintb		bit 4
+		 * ant_div_main_gaintb		bit 5
+		 * enable_ant_div_lnadiv	bit 6
+		 * enable_ant_fast_div		bit 7
+		 */
+		if ((ant_div_ctl1 >> 0x6) == 0x3)
+			pCap->hw_caps |= ATH9K_HW_CAP_ANT_DIV_COMB;
+	}
 
 	if (AR_SREV_9485_10(ah)) {
 		pCap->pcie_lcr_extsync_en = true;
