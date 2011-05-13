@@ -6272,6 +6272,7 @@ S:	Maintained
 F:	arch/m68k/kernel/*sun3*
 F:	arch/m68k/sun3*/
 F:	arch/m68k/include/asm/sun3*
+F:	drivers/net/ethernet/i825xx/sun3*
 
 SUPERH
 M:	Paul Mundt <lethal@linux-sh.org>

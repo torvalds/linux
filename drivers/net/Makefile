@@ -44,13 +44,6 @@ obj-$(CONFIG_PLIP) += plip.o
 
 obj-$(CONFIG_ROADRUNNER) += rrunner.o
 
-obj-$(CONFIG_HAPPYMEAL) += sunhme.o
-obj-$(CONFIG_SUNQE) += sunqe.o
-obj-$(CONFIG_SUNBMAC) += sunbmac.o
-obj-$(CONFIG_SUNGEM) += sungem.o sungem_phy.o
-obj-$(CONFIG_CASSINI) += cassini.o
-obj-$(CONFIG_SUNVNET) += sunvnet.o
-
 obj-$(CONFIG_MACE) += mace.o
 obj-$(CONFIG_BMAC) += bmac.o
 
@@ -64,7 +57,7 @@ obj-$(CONFIG_NATSEMI) += natsemi.o
 obj-$(CONFIG_NS83820) += ns83820.o
 obj-$(CONFIG_FEALNX) += fealnx.o
 spidernet-y += spider_net.o spider_net_ethtool.o
-obj-$(CONFIG_SPIDER_NET) += spidernet.o sungem_phy.o
+obj-$(CONFIG_SPIDER_NET) += spidernet.o ethernet/sun/sungem_phy.o
 obj-$(CONFIG_GELIC_NET) += ps3_gelic.o
 gelic_wireless-$(CONFIG_GELIC_WIRELESS) += ps3_gelic_wireless.o
 ps3_gelic-objs += ps3_gelic_net.o $(gelic_wireless-y)
@@ -207,7 +200,6 @@ obj-$(CONFIG_NETCONSOLE) += netconsole.o
 
 obj-$(CONFIG_FS_ENET) += fs_enet/
 
-obj-$(CONFIG_NIU) += niu.o
 obj-$(CONFIG_VIRTIO_NET) += virtio_net.o
 obj-$(CONFIG_SFC) += sfc/
 

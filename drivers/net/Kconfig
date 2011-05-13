@@ -363,64 +363,6 @@ config SH_ETH
 	  This driver supporting CPUs are:
 		- SH7710, SH7712, SH7763, SH7619, SH7724, and SH7757.
 
-config HAPPYMEAL
-	tristate "Sun Happy Meal 10/100baseT support"
-	depends on SBUS || PCI
-	select CRC32
-	help
-	  This driver supports the "hme" interface present on most Ultra
-	  systems and as an option on older Sbus systems. This driver supports
-	  both PCI and Sbus devices. This driver also supports the "qfe" quad
-	  100baseT device available in both PCI and Sbus configurations.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called sunhme.
-
-config SUNBMAC
-	tristate "Sun BigMAC 10/100baseT support (EXPERIMENTAL)"
-	depends on SBUS && EXPERIMENTAL
-	select CRC32
-	help
-	  This driver supports the "be" interface available as an Sbus option.
-	  This is Sun's older 100baseT Ethernet device.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called sunbmac.
-
-config SUNQE
-	tristate "Sun QuadEthernet support"
-	depends on SBUS
-	select CRC32
-	help
-	  This driver supports the "qe" 10baseT Ethernet device, available as
-	  an Sbus option. Note that this is not the same as Quad FastEthernet
-	  "qfe" which is supported by the Happy Meal driver instead.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called sunqe.
-
-config SUNGEM
-	tristate "Sun GEM support"
-	depends on PCI
-	select CRC32
-	help
-	  Support for the Sun GEM chip, aka Sun GigabitEthernet/P 2.0.  See also
-	  <http://www.sun.com/products-n-solutions/hardware/docs/pdf/806-3985-10.pdf>.
-
-config CASSINI
-	tristate "Sun Cassini support"
-	depends on PCI
-	select CRC32
-	help
-	  Support for the Sun Cassini chip, aka Sun GigaSwift Ethernet. See also
-	  <http://www.sun.com/products-n-solutions/hardware/docs/pdf/817-4341-10.pdf>
-
-config SUNVNET
-	tristate "Sun Virtual Network support"
-	depends on SUN_LDOMS
-	help
-	  Support for virtual network devices under Sun Logical Domains.
-
 config BFIN_MAC
 	tristate "Blackfin on-chip MAC support"
 	depends on NET_ETHERNET && (BF516 || BF518 || BF526 || BF527 || BF536 || BF537)
@@ -1602,14 +1544,6 @@ config MYRI10GE_DCA
 	  Say Y here if you want to use Direct Cache Access (DCA) in the
 	  driver.  DCA is a method for warming the CPU cache before data
 	  is used, with the intent of lessening the impact of cache misses.
-
-config NIU
-	tristate "Sun Neptune 10Gbit Ethernet support"
-	depends on PCI
-	select CRC32
-	help
-	  This enables support for cards based upon Sun's
-	  Neptune chipset.
 
 config PASEMI_MAC
 	tristate "PA Semi 1/10Gbit MAC"

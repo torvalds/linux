@@ -21,5 +21,6 @@ source "drivers/net/ethernet/i825xx/Kconfig"
 source "drivers/net/ethernet/qlogic/Kconfig"
 source "drivers/net/ethernet/racal/Kconfig"
 source "drivers/net/ethernet/smsc/Kconfig"
+source "drivers/net/ethernet/sun/Kconfig"
 
 endif # ETHERNET

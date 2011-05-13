@@ -12,3 +12,4 @@ obj-$(CONFIG_NET_VENDOR_I825XX) += i825xx/
 obj-$(CONFIG_NET_VENDOR_QLOGIC) += qlogic/
 obj-$(CONFIG_NET_VENDOR_RACAL) += racal/
 obj-$(CONFIG_NET_VENDOR_SMSC) += smsc/
+obj-$(CONFIG_NET_VENDOR_SUN) += sun/
