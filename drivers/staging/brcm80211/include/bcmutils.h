@@ -277,7 +277,7 @@ extern void bcm_prpkt(const char *msg, struct sk_buff *p0);
 #define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
 
 /* register access macros */
-#ifndef IL_BIGENDIAN
+#ifndef __BIG_ENDIAN
 #ifndef __mips__
 #define R_REG(r) (\
 	SELECT_BUS_READ(sizeof(*(r)) == sizeof(u8) ? \
@@ -328,7 +328,7 @@ extern void bcm_prpkt(const char *msg, struct sk_buff *p0);
 		}, \
 		(OSL_WRITE_REG(r, v))); \
 	} while (0)
-#else				/* IL_BIGENDIAN */
+#else				/* __BIG_ENDIAN */
 #define R_REG(r) (\
 	SELECT_BUS_READ( \
 		({ \
@@ -365,7 +365,7 @@ extern void bcm_prpkt(const char *msg, struct sk_buff *p0);
 		}, \
 		(OSL_WRITE_REG(r, v))); \
 	} while (0)
-#endif				/* IL_BIGENDIAN */
+#endif				/* __BIG_ENDIAN */
 
 #define AND_REG(r, v)	W_REG((r), R_REG(r) & (v))
 #define OR_REG(r, v)	W_REG((r), R_REG(r) | (v))

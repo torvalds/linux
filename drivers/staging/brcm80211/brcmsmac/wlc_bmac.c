@@ -1623,9 +1623,6 @@ wlc_bmac_write_template_ram(struct wlc_hw_info *wlc_hw, int offset, int len,
 	d11regs_t *regs;
 	u32 word;
 	bool be_bit;
-#ifdef IL_BIGENDIAN
-	volatile u16 *dptr = NULL;
-#endif				/* IL_BIGENDIAN */
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	regs = wlc_hw->regs;
