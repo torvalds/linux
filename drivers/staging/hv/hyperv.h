@@ -822,4 +822,24 @@ struct hv_device {
 	void *ext;
 };
 
+#include <linux/device.h>
+
+
+static inline struct hv_device *device_to_hv_device(struct device *d)
+{
+	return container_of(d, struct hv_device, device);
+}
+
+static inline struct hv_driver *drv_to_hv_drv(struct device_driver *d)
+{
+	return container_of(d, struct hv_driver, driver);
+}
+
+
+/* Vmbus interface */
+int vmbus_child_driver_register(struct device_driver *drv);
+void vmbus_child_driver_unregister(struct device_driver *drv);
+
+extern struct completion hv_channel_ready;
+
 #endif /* _HYPERV_H */

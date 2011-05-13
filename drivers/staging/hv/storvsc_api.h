@@ -29,7 +29,6 @@
 #include <linux/wait.h>
 #include "vstorage.h"
 #include "hyperv.h"
-#include "vmbus.h"
 
 /* Defines */
 #define STORVSC_RING_BUFFER_SIZE			(20*PAGE_SIZE)

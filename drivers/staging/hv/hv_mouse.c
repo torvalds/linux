@@ -28,7 +28,6 @@
 
 #include "hyperv.h"
 #include "hv_api.h"
-#include "vmbus.h"
 
 
 /*

@@ -26,7 +26,6 @@
 #define _NETVSC_API_H_
 
 #include "hyperv.h"
-#include "vmbus.h"
 
 /* Fwd declaration */
 struct hv_netvsc_packet;

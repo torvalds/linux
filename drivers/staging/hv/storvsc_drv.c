@@ -35,7 +35,6 @@
 
 #include "hyperv.h"
 #include "hv_api.h"
-#include "vmbus.h"
 #include "storvsc_api.h"
 #include "vstorage.h"
 

@@ -41,7 +41,6 @@
 
 #include "hyperv.h"
 #include "hv_api.h"
-#include "vmbus.h"
 #include "netvsc_api.h"
 
 struct net_device_context {
