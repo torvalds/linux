@@ -1969,34 +1969,91 @@ wl_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
 
 static s32 wl_cfg80211_resume(struct wiphy *wiphy)
 {
-	s32 err = 0;
+	struct wl_priv *wl = wiphy_to_wl(wiphy);
+	struct net_device *ndev = wl_to_ndev(wl);
 
-	CHECK_SYS_UP();
-	wl_invoke_iscan(wiphy_to_wl(wiphy));
+	/*
+	 * Check for WL_STATUS_READY before any function call which
+	 * could result is bus access. Don't block the resume for
+	 * any driver error conditions
+	 */
 
-	return err;
+#if defined(CONFIG_PM_SLEEP)
+	atomic_set(&dhd_mmc_suspend, false);
+#endif	/*  defined(CONFIG_PM_SLEEP) */
+
+	if (test_bit(WL_STATUS_READY, &wl->status)) {
+		/* Turn on Watchdog timer */
+		wl_os_wd_timer(ndev, dhd_watchdog_ms);
+		wl_invoke_iscan(wiphy_to_wl(wiphy));
+	}
+
+	return 0;
 }
 
 static s32 wl_cfg80211_suspend(struct wiphy *wiphy)
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
 	struct net_device *ndev = wl_to_ndev(wl);
-	s32 err = 0;
+
+
+	/*
+	 * Check for WL_STATUS_READY before any function call which
+	 * could result is bus access. Don't block the suspend for
+	 * any driver error conditions
+	 */
+
+	/*
+	 * While going to suspend if associated with AP disassociate
+	 * from AP to save power while system is in suspended state
+	 */
+	if (test_bit(WL_STATUS_CONNECTED, &wl->status) &&
+		test_bit(WL_STATUS_READY, &wl->status)) {
+		WL_INFO("Disassociating from AP"
+			" while entering suspend state\n");
+		wl_link_down(wl);
+
+		/*
+		 * Make sure WPA_Supplicant receives all the event
+		 * generated due to DISASSOC call to the fw to keep
+		 * the state fw and WPA_Supplicant state consistent
+		 */
+		rtnl_unlock();
+		wl_delay(500);
+		rtnl_lock();
+	}
 
 	set_bit(WL_STATUS_SCAN_ABORTING, &wl->status);
-	wl_term_iscan(wl);
+	if (test_bit(WL_STATUS_READY, &wl->status))
+		wl_term_iscan(wl);
+
 	if (wl->scan_request) {
-		cfg80211_scan_done(wl->scan_request, true);	/* true means
-								 abort */
-		wl_set_mpc(ndev, 1);
+		/* Indidate scan abort to cfg80211 layer */
+		WL_INFO("Terminating scan in progress\n");
+		cfg80211_scan_done(wl->scan_request, true);
 		wl->scan_request = NULL;
 	}
 	clear_bit(WL_STATUS_SCANNING, &wl->status);
 	clear_bit(WL_STATUS_SCAN_ABORTING, &wl->status);
+	clear_bit(WL_STATUS_CONNECTING, &wl->status);
+	clear_bit(WL_STATUS_CONNECTED, &wl->status);
 
+	/* Inform SDIO stack not to switch off power to the chip */
 	sdioh_sdio_set_host_pm_flags(MMC_PM_KEEP_POWER);
 
-	return err;
+	/* Turn off watchdog timer */
+	if (test_bit(WL_STATUS_READY, &wl->status)) {
+		WL_INFO("Terminate watchdog timer and enable MPC\n");
+		wl_set_mpc(ndev, 1);
+		wl_os_wd_timer(ndev, 0);
+	}
+
+#if defined(CONFIG_PM_SLEEP)
+	atomic_set(&dhd_mmc_suspend, true);
+#endif	/*  defined(CONFIG_PM_SLEEP) */
+
+
+	return 0;
 }
 
 static __used s32

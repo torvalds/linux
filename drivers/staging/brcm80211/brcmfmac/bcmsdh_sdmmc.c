@@ -26,14 +26,11 @@
 #include <linux/mmc/core.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
+#include <linux/suspend.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>
 
-#if defined(CONFIG_PM_SLEEP)
-#include <linux/suspend.h>
-extern volatile bool dhd_mmc_suspend;
-#endif
 #include "bcmsdh_sdmmc.h"
 
 extern int sdio_function_init(void);

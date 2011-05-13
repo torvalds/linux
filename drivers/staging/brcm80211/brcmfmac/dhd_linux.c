@@ -166,7 +166,7 @@ void wifi_del_dev(void)
 
 #if defined(CONFIG_PM_SLEEP)
 #include <linux/suspend.h>
-volatile bool dhd_mmc_suspend = false;
+atomic_t dhd_mmc_suspend;
 DECLARE_WAIT_QUEUE_HEAD(dhd_dpc_wait);
 #endif	/*  defined(CONFIG_PM_SLEEP) */
 
@@ -407,11 +407,11 @@ static int dhd_sleep_pm_callback(struct notifier_block *nfb,
 	switch (action) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
-		dhd_mmc_suspend = true;
+		atomic_set(&dhd_mmc_suspend, true);
 		return NOTIFY_OK;
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
-		dhd_mmc_suspend = false;
+		atomic_set(&dhd_mmc_suspend, false);
 		return NOTIFY_OK;
 	}
 	return 0;
@@ -2011,7 +2011,9 @@ dhd_pub_t *dhd_attach(struct dhd_bus *bus, uint bus_hdrlen)
 	g_bus = bus;
 #endif
 #if defined(CONFIG_PM_SLEEP)
-	register_pm_notifier(&dhd_sleep_pm_notifier);
+	atomic_set(&dhd_mmc_suspend, false);
+	if (!IS_CFG80211_FAVORITE())
+		register_pm_notifier(&dhd_sleep_pm_notifier);
 #endif	/* defined(CONFIG_PM_SLEEP) */
 	/* && defined(DHD_GPL) */
 	/* Init lock suspend to prevent kernel going to suspend */
@@ -2305,7 +2307,8 @@ void dhd_detach(dhd_pub_t *dhdp)
 				wl_cfg80211_detach();
 
 #if defined(CONFIG_PM_SLEEP)
-			unregister_pm_notifier(&dhd_sleep_pm_notifier);
+			if (!IS_CFG80211_FAVORITE())
+				unregister_pm_notifier(&dhd_sleep_pm_notifier);
 #endif	/* defined(CONFIG_PM_SLEEP) */
 			/* && defined(DHD_GPL) */
 			free_netdev(ifp->net);
@@ -2814,6 +2817,13 @@ int dhd_wait_pend8021x(struct net_device *dev)
 		pend = dhd_get_pend_8021x_cnt(dhd);
 	}
 	return pend;
+}
+
+void wl_os_wd_timer(struct net_device *ndev, uint wdtick)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(ndev);
+
+	dhd_os_wd_timer(&dhd->pub, wdtick);
 }
 
 #ifdef DHD_DEBUG

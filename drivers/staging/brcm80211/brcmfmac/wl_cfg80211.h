@@ -375,5 +375,6 @@ extern s8 *wl_cfg80211_get_fwname(void);	/* get firmware name for
 						 the dongle */
 extern s8 *wl_cfg80211_get_nvramname(void);	/* get nvram name for
 						 the dongle */
+extern void wl_os_wd_timer(struct net_device *ndev, uint wdtick);
 
 #endif				/* _wl_cfg80211_h_ */
