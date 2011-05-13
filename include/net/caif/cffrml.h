@@ -12,5 +12,7 @@ struct cffrml;
 struct cflayer *cffrml_create(u16 phyid, bool DoFCS);
 void cffrml_set_uplayer(struct cflayer *this, struct cflayer *up);
 void cffrml_set_dnlayer(struct cflayer *this, struct cflayer *dn);
+void cffrml_put(struct cflayer *layr);
+void cffrml_hold(struct cflayer *layr);
 
 #endif /* CFFRML_H_ */

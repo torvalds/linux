@@ -145,3 +145,11 @@ static void cffrml_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 	if (layr->up->ctrlcmd)
 		layr->up->ctrlcmd(layr->up, ctrl, layr->id);
 }
+
+void cffrml_put(struct cflayer *layr)
+{
+}
+
+void cffrml_hold(struct cflayer *layr)
+{
+}
