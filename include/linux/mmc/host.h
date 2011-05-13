@@ -66,6 +66,7 @@ struct mmc_ios {
 
 #define MMC_SIGNAL_VOLTAGE_330	0
 #define MMC_SIGNAL_VOLTAGE_180	1
+#define MMC_SIGNAL_VOLTAGE_120	2
 
 	unsigned char	drv_type;		/* driver type (A, B, C, D) */
 
