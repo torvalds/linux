@@ -3549,11 +3549,17 @@ static void cx_auto_init_output(struct hda_codec *codec)
 	struct conexant_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	hda_nid_t nid;
-	int i;
+	int i, val;
 
-	for (i = 0; i < spec->multiout.num_dacs; i++)
-		snd_hda_codec_write(codec, spec->multiout.dac_nids[i], 0,
-				    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+	for (i = 0; i < spec->multiout.num_dacs; i++) {
+		nid = spec->multiout.dac_nids[i];
+		if (query_amp_caps(codec, nid, HDA_OUTPUT) & AC_AMPCAP_MUTE)
+			val = AMP_OUT_MUTE;
+		else
+			val = AMP_OUT_ZERO;
+		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_AMP_GAIN_MUTE, val);
+	}
 
 	for (i = 0; i < cfg->hp_outs; i++)
 		snd_hda_codec_write(codec, cfg->hp_pins[i], 0,
@@ -3593,11 +3599,17 @@ static void cx_auto_init_input(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i;
+	int i, val;
 
-	for (i = 0; i < spec->num_adc_nids; i++)
-		snd_hda_codec_write(codec, spec->adc_nids[i], 0,
-				    AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0));
+	for (i = 0; i < spec->num_adc_nids; i++) {
+		hda_nid_t nid = spec->adc_nids[i];
+		if (query_amp_caps(codec, nid, HDA_INPUT) & AC_AMPCAP_MUTE)
+			val = AMP_IN_MUTE(0);
+		else
+			val = AMP_IN_UNMUTE(0);
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				    val);
+	}
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		unsigned int type;
