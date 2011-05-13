@@ -90,17 +90,6 @@ struct netvsc_driver {
 	u32 ring_buf_size;
 	u32 req_ext_size;
 
-	/*
-	 * This is set by the caller to allow us to callback when we
-	 * receive a packet from the "wire"
-	 */
-	int (*recv_cb)(struct hv_device *dev,
-				 struct hv_netvsc_packet *packet);
-	void (*link_status_change)(struct hv_device *dev, u32 status);
-
-	/* Specific to this driver */
-	int (*send)(struct hv_device *dev, struct hv_netvsc_packet *packet);
-
 };
 
 static inline
