@@ -3276,15 +3276,6 @@ static int get_connection_index(struct hda_codec *codec, hda_nid_t mux,
 	return -1;
 }
 
-static int has_multi_connection(struct hda_codec *codec, hda_nid_t mux)
-{
-	hda_nid_t conn[HDA_MAX_NUM_INPUTS];
-	int nums;
-
-	nums = snd_hda_get_connections(codec, mux, conn, ARRAY_SIZE(conn));
-	return nums > 1;
-}
-
 /* get an unassigned DAC from the given list.
  * Return the nid if found and reduce the DAC list, or return zero if
  * not found
@@ -3455,6 +3446,51 @@ static int cx_auto_mux_enum_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+/* look for the route the given pin from mux and return the index;
+ * if do_select is set, actually select the route.
+ */
+static int __select_input_connection(struct hda_codec *codec, hda_nid_t mux,
+				     hda_nid_t pin, bool do_select, int depth)
+{
+	hda_nid_t conn[HDA_MAX_NUM_INPUTS];
+	int i, nums;
+
+	nums = snd_hda_get_connections(codec, mux, conn, ARRAY_SIZE(conn));
+	for (i = 0; i < nums; i++)
+		if (conn[i] == pin) {
+			if (do_select)
+				snd_hda_codec_write(codec, mux, 0,
+						    AC_VERB_SET_CONNECT_SEL, i);
+			return i;
+		}
+	depth++;
+	if (depth == 2)
+		return -1;
+	for (i = 0; i < nums; i++) {
+		int ret  = __select_input_connection(codec, conn[i], pin,
+						     do_select, depth);
+		if (ret >= 0) {
+			if (do_select)
+				snd_hda_codec_write(codec, mux, 0,
+						    AC_VERB_SET_CONNECT_SEL, i);
+			return ret;
+		}
+	}
+	return -1;
+}
+
+static void select_input_connection(struct hda_codec *codec, hda_nid_t mux,
+				   hda_nid_t pin)
+{
+	__select_input_connection(codec, mux, pin, true, 0);
+}
+
+static int get_input_connection(struct hda_codec *codec, hda_nid_t mux,
+				hda_nid_t pin)
+{
+	return __select_input_connection(codec, mux, pin, false, 0);
+}
+
 static int cx_auto_mux_enum_update(struct hda_codec *codec,
 				   const struct hda_input_mux *imux,
 				   unsigned int idx)
@@ -3469,10 +3505,8 @@ static int cx_auto_mux_enum_update(struct hda_codec *codec,
 	if (spec->cur_mux[0] == idx)
 		return 0;
 	adc = spec->imux_adcs[idx];
-	if (has_multi_connection(codec, adc))
-		snd_hda_codec_write(codec, adc, 0,
-				    AC_VERB_SET_CONNECT_SEL,
-				    imux->items[idx].index);
+	select_input_connection(codec, spec->imux_adcs[idx],
+				spec->imux_pins[idx]);
 	if (spec->cur_adc && spec->cur_adc != adc) {
 		/* stream is running, let's swap the current ADC */
 		__snd_hda_codec_cleanup_stream(codec, spec->cur_adc, 1);
@@ -3584,8 +3618,8 @@ static void cx_auto_parse_input(struct hda_codec *codec)
 	for (i = 0; i < cfg->num_inputs; i++) {
 		for (j = 0; j < spec->num_adc_nids; j++) {
 			hda_nid_t adc = spec->adc_nids[j];
-			int idx = get_connection_index(codec, adc,
-					       cfg->inputs[i].pin);
+			int idx = get_input_connection(codec, adc,
+						       cfg->inputs[i].pin);
 			if (idx >= 0) {
 				const char *label;
 				label = hda_get_autocfg_input_label(codec, cfg, i);
@@ -3791,11 +3825,8 @@ static void cx_auto_init_input(struct hda_codec *codec)
 				    AC_USRSP_EN | CONEXANT_MIC_EVENT);
 		cx_auto_automic(codec);
 	} else {
-		for (i = 0; i < spec->num_adc_nids; i++) {
-			snd_hda_codec_write(codec, spec->adc_nids[i], 0,
-					    AC_VERB_SET_CONNECT_SEL,
-					    spec->private_imux.items[0].index);
-		}
+		select_input_connection(codec, spec->imux_adcs[0],
+					spec->imux_pins[0]);
 	}
 }
 
@@ -3924,7 +3955,7 @@ static int cx_auto_add_capture_volume(struct hda_codec *codec, hda_nid_t nid,
 
 	for (i = 0; i < spec->num_adc_nids; i++) {
 		hda_nid_t adc_nid = spec->adc_nids[i];
-		int idx = get_connection_index(codec, adc_nid, nid);
+		int idx = get_input_connection(codec, adc_nid, nid);
 		if (idx < 0)
 			continue;
 		return cx_auto_add_volume_idx(codec, label, pfx,
