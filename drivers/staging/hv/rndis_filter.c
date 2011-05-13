@@ -352,8 +352,7 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 
 	pkt->is_data_pkt = true;
 
-	rndis_filter.inner_drv.recv_cb(dev->net_dev->dev,
-						   pkt);
+	netvsc_recv_callback(dev->net_dev->dev, pkt);
 }
 
 int rndis_filter_receive(struct hv_device *dev,
