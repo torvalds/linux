@@ -1346,27 +1346,30 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			sdhci_set_clock(host, clock);
 		}
 
-		ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
-
-		/* Select Bus Speed Mode for host */
-		ctrl_2 &= ~SDHCI_CTRL_UHS_MASK;
-		if (ios->timing == MMC_TIMING_UHS_SDR12)
-			ctrl_2 |= SDHCI_CTRL_UHS_SDR12;
-		else if (ios->timing == MMC_TIMING_UHS_SDR25)
-			ctrl_2 |= SDHCI_CTRL_UHS_SDR25;
-		else if (ios->timing == MMC_TIMING_UHS_SDR50)
-			ctrl_2 |= SDHCI_CTRL_UHS_SDR50;
-		else if (ios->timing == MMC_TIMING_UHS_SDR104)
-			ctrl_2 |= SDHCI_CTRL_UHS_SDR104;
-		else if (ios->timing == MMC_TIMING_UHS_DDR50)
-			ctrl_2 |= SDHCI_CTRL_UHS_DDR50;
 
 		/* Reset SD Clock Enable */
 		clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
 		clk &= ~SDHCI_CLOCK_CARD_EN;
 		sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
 
-		sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
+		if (host->ops->set_uhs_signaling)
+			host->ops->set_uhs_signaling(host, ios->timing);
+		else {
+			ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+			/* Select Bus Speed Mode for host */
+			ctrl_2 &= ~SDHCI_CTRL_UHS_MASK;
+			if (ios->timing == MMC_TIMING_UHS_SDR12)
+				ctrl_2 |= SDHCI_CTRL_UHS_SDR12;
+			else if (ios->timing == MMC_TIMING_UHS_SDR25)
+				ctrl_2 |= SDHCI_CTRL_UHS_SDR25;
+			else if (ios->timing == MMC_TIMING_UHS_SDR50)
+				ctrl_2 |= SDHCI_CTRL_UHS_SDR50;
+			else if (ios->timing == MMC_TIMING_UHS_SDR104)
+				ctrl_2 |= SDHCI_CTRL_UHS_SDR104;
+			else if (ios->timing == MMC_TIMING_UHS_DDR50)
+				ctrl_2 |= SDHCI_CTRL_UHS_DDR50;
+			sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
+		}
 
 		/* Re-enable SD Clock */
 		clock = host->clock;
