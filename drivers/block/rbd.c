@@ -1721,7 +1721,8 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	if (!disk)
 		goto out;
 
-	sprintf(disk->disk_name, DRV_NAME "%d", rbd_dev->id);
+	snprintf(disk->disk_name, sizeof(disk->disk_name), DRV_NAME "%d",
+		 rbd_dev->id);
 	disk->major = rbd_dev->major;
 	disk->first_minor = 0;
 	disk->fops = &rbd_bd_ops;
