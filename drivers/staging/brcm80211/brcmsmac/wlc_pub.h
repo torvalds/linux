@@ -505,8 +505,6 @@ extern void wlc_intrsrestore(struct wlc_info *wlc, u32 macintmask);
 extern bool wlc_intrsupd(struct wlc_info *wlc);
 extern bool wlc_isr(struct wlc_info *wlc, bool *wantdpc);
 extern bool wlc_dpc(struct wlc_info *wlc, bool bounded);
-extern bool wlc_send80211_raw(struct wlc_info *wlc, struct wlc_if *wlcif,
-			      void *p, uint ac);
 extern bool wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 				 struct ieee80211_hw *hw);
 extern int wlc_iovar_op(struct wlc_info *wlc, const char *name, void *params,
@@ -529,16 +527,8 @@ extern void wlc_wme_setparams(struct wlc_info *wlc, u16 aci,
 extern struct wlc_pub *wlc_pub(void *wlc);
 
 /* common functions for every port */
-extern int wlc_bmac_up_prep(struct wlc_hw_info *wlc_hw);
-extern int wlc_bmac_up_finish(struct wlc_hw_info *wlc_hw);
-extern int wlc_bmac_down_prep(struct wlc_hw_info *wlc_hw);
-extern int wlc_bmac_down_finish(struct wlc_hw_info *wlc_hw);
-
-extern u32 wlc_reg_read(struct wlc_info *wlc, void *r, uint size);
-extern void wlc_reg_write(struct wlc_info *wlc, void *r, u32 v, uint size);
 extern void wlc_mhf(struct wlc_info *wlc, u8 idx, u16 mask, u16 val,
 		    int bands);
-extern u32 wlc_delta_txfunfl(struct wlc_info *wlc, int fifo);
 extern void wlc_rate_lookup_init(struct wlc_info *wlc, wlc_rateset_t *rateset);
 extern void wlc_default_rateset(struct wlc_info *wlc, wlc_rateset_t *rs);
 
@@ -549,11 +539,8 @@ extern void wlc_ampdu_flush(struct wlc_info *wlc, struct ieee80211_sta *sta,
 /* wlc_phy.c helper functions */
 extern void wlc_set_ps_ctrl(struct wlc_info *wlc);
 extern void wlc_mctrl(struct wlc_info *wlc, u32 mask, u32 val);
-extern void wlc_scb_ratesel_init_all(struct wlc_info *wlc);
 
 /* ioctl */
-extern int wlc_iovar_gets8(struct wlc_info *wlc, const char *name,
-			     s8 *arg);
 extern int wlc_iovar_check(struct wlc_pub *pub, const bcm_iovar_t *vi,
 			   void *arg,
 			   int len, bool set);
@@ -570,18 +557,6 @@ extern void wlc_scan_start(struct wlc_info *wlc);
 extern void wlc_scan_stop(struct wlc_info *wlc);
 extern int wlc_get_curband(struct wlc_info *wlc);
 extern void wlc_wait_for_tx_completion(struct wlc_info *wlc, bool drop);
-
-static inline int wlc_iovar_getuint(struct wlc_info *wlc, const char *name,
-				    uint *arg)
-{
-	return wlc_iovar_getint(wlc, name, (int *)arg);
-}
-
-static inline int wlc_iovar_setuint(struct wlc_info *wlc, const char *name,
-				    uint arg)
-{
-	return wlc_iovar_setint(wlc, name, (int)arg);
-}
 
 #if defined(BCMDBG)
 extern int wlc_iocregchk(struct wlc_info *wlc, uint band);

@@ -1562,33 +1562,6 @@ static void wlc_ucode_mute_override_clear(struct wlc_hw_info *wlc_hw)
 }
 
 /*
- * Write a MAC address to the rcmta structure
- */
-void
-wlc_bmac_set_rcmta(struct wlc_hw_info *wlc_hw, int idx,
-		   const u8 *addr)
-{
-	d11regs_t *regs = wlc_hw->regs;
-	volatile u16 *objdata16 = (volatile u16 *)&regs->objdata;
-	u32 mac_hm;
-	u16 mac_l;
-
-	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
-
-	mac_hm =
-	    (addr[3] << 24) | (addr[2] << 16) |
-	    (addr[1] << 8) | addr[0];
-	mac_l = (addr[5] << 8) | addr[4];
-
-	W_REG(&regs->objaddr, (OBJADDR_RCMTA_SEL | (idx * 2)));
-	(void)R_REG(&regs->objaddr);
-	W_REG(&regs->objdata, mac_hm);
-	W_REG(&regs->objaddr, (OBJADDR_RCMTA_SEL | ((idx * 2) + 1)));
-	(void)R_REG(&regs->objaddr);
-	W_REG(objdata16, mac_l);
-}
-
-/*
  * Write a MAC address to the given match reg offset in the RXE match engine.
  */
 void
@@ -3481,22 +3454,6 @@ void wlc_bmac_write_shm(struct wlc_hw_info *wlc_hw, uint offset, u16 v)
 	wlc_bmac_write_objmem(wlc_hw, offset, v, OBJADDR_SHM_SEL);
 }
 
-/* Set a range of shared memory to a value.
- * SHM 'offset' needs to be an even address and
- * Buffer length 'len' must be an even number of bytes
- */
-void wlc_bmac_set_shm(struct wlc_hw_info *wlc_hw, uint offset, u16 v, int len)
-{
-	int i;
-
-	if (len <= 0 || (offset & 1) || (len & 1))
-		return;
-
-	for (i = 0; i < len; i += 2) {
-		wlc_bmac_write_objmem(wlc_hw, offset + i, v, OBJADDR_SHM_SEL);
-	}
-}
-
 static u16
 wlc_bmac_read_objmem(struct wlc_hw_info *wlc_hw, uint offset, u32 sel)
 {
@@ -3602,11 +3559,6 @@ void wlc_bmac_retrylimit_upd(struct wlc_hw_info *wlc_hw, u16 SRL, u16 LRL)
 		(void)R_REG(&wlc_hw->regs->objaddr);
 		W_REG(&wlc_hw->regs->objdata, wlc_hw->LRL);
 	}
-}
-
-void wlc_bmac_set_noreset(struct wlc_hw_info *wlc_hw, bool noreset_flag)
-{
-	wlc_hw->noreset = noreset_flag;
 }
 
 void wlc_bmac_pllreq(struct wlc_hw_info *wlc_hw, bool set, mbool req_bit)
