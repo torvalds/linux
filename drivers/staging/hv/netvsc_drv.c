@@ -40,6 +40,7 @@
 #include <net/pkt_sched.h>
 
 #include "hyperv.h"
+#include "hyperv_net.h"
 #include "netvsc_api.h"
 
 struct net_device_context {
