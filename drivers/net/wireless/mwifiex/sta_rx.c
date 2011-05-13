@@ -141,10 +141,28 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *adapter,
 		dev_kfree_skb_any(skb);
 		return ret;
 	}
+
 	if (local_rx_pd->rx_pkt_type == PKT_TYPE_AMSDU) {
-		mwifiex_11n_deaggregate_pkt(priv, skb);
-		return ret;
+		struct sk_buff_head list;
+		struct sk_buff *rx_skb;
+
+		__skb_queue_head_init(&list);
+
+		skb_pull(skb, local_rx_pd->rx_pkt_offset);
+		skb_trim(skb, local_rx_pd->rx_pkt_length);
+
+		ieee80211_amsdu_to_8023s(skb, &list, priv->curr_addr,
+				priv->wdev->iftype, 0, false);
+
+		while (!skb_queue_empty(&list)) {
+			rx_skb = __skb_dequeue(&list);
+			ret = mwifiex_recv_packet(adapter, rx_skb);
+			if (ret == -1)
+				dev_err(adapter->dev, "Rx of A-MSDU failed");
+		}
+		return 0;
 	}
+
 	/*
 	 * If the packet is not an unicast packet then send the packet
 	 * directly to os. Don't pass thru rx reordering
