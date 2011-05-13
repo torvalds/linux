@@ -3420,13 +3420,13 @@ static void cx_auto_check_auto_mic(struct hda_codec *codec)
 	if (is_ext_mic(codec, cfg->inputs[0].pin) &&
 	    is_int_mic(codec, cfg->inputs[1].pin)) {
 		spec->auto_mic = 1;
-		spec->auto_mic_ext = 1;
+		spec->auto_mic_ext = 0;
 		return;
 	}
-	if (is_int_mic(codec, cfg->inputs[1].pin) &&
-	    is_ext_mic(codec, cfg->inputs[0].pin)) {
+	if (is_int_mic(codec, cfg->inputs[0].pin) &&
+	    is_ext_mic(codec, cfg->inputs[1].pin)) {
 		spec->auto_mic = 1;
-		spec->auto_mic_ext = 0;
+		spec->auto_mic_ext = 1;
 		return;
 	}
 }
