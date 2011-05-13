@@ -87,7 +87,6 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_PHY_CALIBRATION_CMD,
-		.flags = CMD_SIZE_HUGE,
 	};
 
 	for (i = 0; i < IWL_CALIB_MAX; i++) {
@@ -95,6 +94,7 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 		    priv->calib_results[i].buf) {
 			hcmd.len[0] = priv->calib_results[i].buf_len;
 			hcmd.data[0] = priv->calib_results[i].buf;
+			hcmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
 			ret = iwl_send_cmd_sync(priv, &hcmd);
 			if (ret) {
 				IWL_ERR(priv, "Error %d iteration %d\n",

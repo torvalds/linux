@@ -134,12 +134,10 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	struct iwl_tx_beacon_cmd *tx_beacon_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_TX_BEACON,
-		.flags = CMD_SIZE_HUGE,
 	};
 	u32 frame_size;
 	u32 rate_flags;
 	u32 rate;
-	int err;
 
 	/*
 	 * We have to set up the TX command, the TX Beacon command, and the
@@ -156,16 +154,14 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	if (WARN_ON(!priv->beacon_skb))
 		return -EINVAL;
 
-	/* Allocate beacon memory */
-	tx_beacon_cmd = kzalloc(sizeof(*tx_beacon_cmd) + priv->beacon_skb->len,
-				GFP_KERNEL);
+	/* Allocate beacon command */
+	if (!priv->beacon_cmd)
+		priv->beacon_cmd = kzalloc(sizeof(*tx_beacon_cmd), GFP_KERNEL);
+	tx_beacon_cmd = priv->beacon_cmd;
 	if (!tx_beacon_cmd)
 		return -ENOMEM;
 
 	frame_size = priv->beacon_skb->len;
-
-	/* Set up TX beacon contents */
-	memcpy(tx_beacon_cmd->frame, priv->beacon_skb->data, frame_size);
 
 	/* Set up TX command fields */
 	tx_beacon_cmd->tx.len = cpu_to_le16((u16)frame_size);
@@ -175,7 +171,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 		TX_CMD_FLG_TSF_MSK | TX_CMD_FLG_STA_RATE_MSK;
 
 	/* Set up TX beacon command fields */
-	iwl_set_beacon_tim(priv, tx_beacon_cmd, (u8 *)tx_beacon_cmd->frame,
+	iwl_set_beacon_tim(priv, tx_beacon_cmd, priv->beacon_skb->data,
 			   frame_size);
 
 	/* Set up packet rate and flags */
@@ -189,15 +185,14 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 			rate_flags);
 
 	/* Submit command */
-	cmd.len[0] = sizeof(*tx_beacon_cmd) + frame_size;
+	cmd.len[0] = sizeof(*tx_beacon_cmd);
 	cmd.data[0] = tx_beacon_cmd;
+	cmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
+	cmd.len[1] = frame_size;
+	cmd.data[1] = priv->beacon_skb->data;
+	cmd.dataflags[1] = IWL_HCMD_DFL_NOCOPY;
 
-	err = iwl_send_cmd_sync(priv, &cmd);
-
-	/* Free temporary storage */
-	kfree(tx_beacon_cmd);
-
-	return err;
+	return iwl_send_cmd_sync(priv, &cmd);
 }
 
 static void iwl_bg_beacon_update(struct work_struct *work)
@@ -3246,6 +3241,7 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 	iwlcore_free_geos(priv);
 	iwl_free_channel_map(priv);
 	kfree(priv->scan_cmd);
+	kfree(priv->beacon_cmd);
 }
 
 struct ieee80211_ops iwlagn_hw_ops = {
