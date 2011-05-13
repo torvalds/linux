@@ -278,6 +278,21 @@ void evm_inode_post_removexattr(struct dentry *dentry, const char *xattr_name)
 }
 
 /**
+ * evm_inode_setattr - prevent updating an invalid EVM extended attribute
+ * @dentry: pointer to the affected dentry
+ */
+int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	unsigned int ia_valid = attr->ia_valid;
+	enum integrity_status evm_status;
+
+	if (ia_valid & ~(ATTR_MODE | ATTR_UID | ATTR_GID))
+		return 0;
+	evm_status = evm_verify_current_integrity(dentry);
+	return evm_status == INTEGRITY_PASS ? 0 : -EPERM;
+}
+
+/**
  * evm_inode_post_setattr - update 'security.evm' after modifying metadata
  * @dentry: pointer to the affected dentry
  * @ia_valid: for the UID and GID status

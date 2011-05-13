@@ -19,6 +19,7 @@ extern enum integrity_status evm_verifyxattr(struct dentry *dentry,
 					     void *xattr_value,
 					     size_t xattr_value_len,
 					     struct integrity_iint_cache *iint);
+extern int evm_inode_setattr(struct dentry *dentry, struct iattr *attr);
 extern void evm_inode_post_setattr(struct dentry *dentry, int ia_valid);
 extern int evm_inode_setxattr(struct dentry *dentry, const char *name,
 			      const void *value, size_t size);
@@ -43,6 +44,11 @@ static inline enum integrity_status evm_verifyxattr(struct dentry *dentry,
 	return INTEGRITY_UNKNOWN;
 }
 #endif
+
+static int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	return 0;
+}
 
 static inline void evm_inode_post_setattr(struct dentry *dentry, int ia_valid)
 {

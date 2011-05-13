@@ -571,9 +571,14 @@ int security_inode_exec_permission(struct inode *inode, unsigned int flags)
 
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
 {
+	int ret;
+
 	if (unlikely(IS_PRIVATE(dentry->d_inode)))
 		return 0;
-	return security_ops->inode_setattr(dentry, attr);
+	ret = security_ops->inode_setattr(dentry, attr);
+	if (ret)
+		return ret;
+	return evm_inode_setattr(dentry, attr);
 }
 EXPORT_SYMBOL_GPL(security_inode_setattr);
 
