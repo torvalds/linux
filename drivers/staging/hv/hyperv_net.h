@@ -101,7 +101,6 @@ struct netvsc_driver {
 	/* Specific to this driver */
 	int (*send)(struct hv_device *dev, struct hv_netvsc_packet *packet);
 
-	void *ctx;
 };
 
 static inline
