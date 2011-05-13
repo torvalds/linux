@@ -533,7 +533,8 @@ extern void e1000e_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
 						 bool state);
 extern void e1000e_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw);
 extern void e1000e_gig_downshift_workaround_ich8lan(struct e1000_hw *hw);
-extern void e1000e_disable_gig_wol_ich8lan(struct e1000_hw *hw);
+extern void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw);
+extern void e1000_resume_workarounds_pchlan(struct e1000_hw *hw);
 extern s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable);
 extern s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable);
 extern void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw);
