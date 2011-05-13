@@ -18,10 +18,8 @@
 #include <linux/string.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
-#include <siutils.h>
 #include <bcmnvram.h>
 #include <sbchipc.h>
-#include <bcmsrom.h>
 #include <bcmdevs.h>
 #include <hndsoc.h>
 
@@ -42,7 +40,7 @@ static vars_t *vars;
 
 static char *findvar(char *vars, char *lim, const char *name);
 
-int nvram_init(void *si)
+int nvram_init(void)
 {
 
 	/* Make sure we read nvram in flash just once before freeing the memory */
@@ -53,7 +51,7 @@ int nvram_init(void *si)
 	return 0;
 }
 
-int nvram_append(void *si, char *varlst, uint varsz)
+int nvram_append(char *varlst, uint varsz)
 {
 	uint bufsz = VARS_T_OH;
 	vars_t *new;
@@ -71,14 +69,11 @@ int nvram_append(void *si, char *varlst, uint varsz)
 	return 0;
 }
 
-void nvram_exit(void *si)
+void nvram_exit(void)
 {
 	vars_t *this, *next;
-	si_t *sih;
 
-	sih = (si_t *) si;
 	this = vars;
-
 	if (this)
 		kfree(this->vars);
 
@@ -175,7 +170,7 @@ int nvram_unset(const char *name)
 	return 0;
 }
 
-int nvram_reset(void *si)
+int nvram_reset(void)
 {
 	return 0;
 }

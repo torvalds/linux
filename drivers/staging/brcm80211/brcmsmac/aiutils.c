@@ -860,7 +860,7 @@ static si_info_t *ai_doattach(si_info_t *sii, uint devid,
 	}
 
 	/* Init nvram from flash if it exists */
-	nvram_init((void *)&(sii->pub));
+	nvram_init();
 
 	/* Init nvram from sprom/otp if they exist */
 	if (srom_var_init
@@ -970,7 +970,7 @@ void ai_detach(si_t *sih)
 				sii->regs[idx] = NULL;
 			}
 
-	nvram_exit((void *)si_local);	/* free up nvram buffers */
+	nvram_exit();	/* free up nvram buffers */
 
 	if (sih->bustype == PCI_BUS) {
 		if (sii->pch)

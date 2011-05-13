@@ -30,31 +30,26 @@ struct nvram_header {
 };
 
 /*
- * Get default value for an NVRAM variable
- */
-extern char *nvram_default_get(const char *name);
-
-/*
  * Initialize NVRAM access. May be unnecessary or undefined on certain
  * platforms.
  */
-extern int nvram_init(void *sih);
+extern int nvram_init(void);
 
 /*
  * Append a chunk of nvram variables to the global list
  */
-extern int nvram_append(void *si, char *vars, uint varsz);
+extern int nvram_append(char *vars, uint varsz);
 
 /*
  * Check for reset button press for restoring factory defaults.
  */
-extern int nvram_reset(void *sih);
+extern int nvram_reset(void);
 
 /*
  * Disable NVRAM access. May be unnecessary or undefined on certain
  * platforms.
  */
-extern void nvram_exit(void *sih);
+extern void nvram_exit(void);
 
 /*
  * Get the value of an NVRAM variable. The pointer returned may be
@@ -63,12 +58,6 @@ extern void nvram_exit(void *sih);
  * @return	value of variable or NULL if undefined
  */
 extern char *nvram_get(const char *name);
-
-/*
- * Read the reset GPIO value from the nvram and set the GPIO
- * as input
- */
-extern int nvram_resetgpio_init(void *sih);
 
 /*
  * Get the value of an NVRAM variable.
@@ -138,12 +127,6 @@ extern int nvram_commit(void);
  * @return	0 on success and errno on failure
  */
 extern int nvram_getall(char *nvram_buf, int count);
-
-/*
- * returns the crc value of the nvram
- * @param	nvh	nvram header pointer
- */
-u8 nvram_calc_crc(struct nvram_header *nvh);
 
 #endif				/* _LANGUAGE_ASSEMBLY */
 
