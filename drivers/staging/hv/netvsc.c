@@ -660,7 +660,7 @@ static void netvsc_send_completion(struct hv_device *device,
 	put_net_device(device);
 }
 
-static int netvsc_send(struct hv_device *device,
+int netvsc_send(struct hv_device *device,
 			struct hv_netvsc_packet *packet)
 {
 	struct netvsc_device *net_device;
