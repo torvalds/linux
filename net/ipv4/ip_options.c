@@ -567,7 +567,7 @@ void ip_forward_options(struct sk_buff *skb)
 		     ) {
 			if (srrptr + 3 > srrspace)
 				break;
-			if (memcmp(&rt->rt_dst, &optptr[srrptr-1], 4) == 0)
+			if (memcmp(&ip_hdr(skb)->daddr, &optptr[srrptr-1], 4) == 0)
 				break;
 		}
 		if (srrptr + 3 <= srrspace) {
