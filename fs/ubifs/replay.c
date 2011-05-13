@@ -713,6 +713,7 @@ static int replay_buds(struct ubifs_info *c)
 {
 	struct bud_entry *b;
 	int err, uninitialized_var(free), uninitialized_var(dirty);
+	unsigned long long prev_sqnum = 0;
 
 	list_for_each_entry(b, &c->replay_buds, list) {
 		err = replay_bud(c, b->bud->lnum, b->bud->start, b->bud->jhead,
@@ -723,6 +724,9 @@ static int replay_buds(struct ubifs_info *c)
 				      free, dirty, b->bud->jhead);
 		if (err)
 			return err;
+
+		ubifs_assert(b->sqnum > prev_sqnum);
+		prev_sqnum = b->sqnum;
 	}
 
 	return 0;
