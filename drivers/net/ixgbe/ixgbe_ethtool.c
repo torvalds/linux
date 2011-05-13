@@ -458,17 +458,6 @@ static u32 ixgbe_get_rx_csum(struct net_device *netdev)
 	return adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED;
 }
 
-static int ixgbe_set_rx_csum(struct net_device *netdev, u32 data)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	if (data)
-		adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
-	else
-		adapter->flags &= ~IXGBE_FLAG_RX_CSUM_ENABLED;
-
-	return 0;
-}
-
 static void ixgbe_set_rsc(struct ixgbe_adapter *adapter)
 {
 	int i;
@@ -482,6 +471,39 @@ static void ixgbe_set_rsc(struct ixgbe_adapter *adapter)
 			ixgbe_clear_rscctl(adapter, ring);
 		}
 	}
+}
+
+static int ixgbe_set_rx_csum(struct net_device *netdev, u32 data)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	bool need_reset = false;
+
+	if (data) {
+		adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
+	} else {
+		adapter->flags &= ~IXGBE_FLAG_RX_CSUM_ENABLED;
+
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE) {
+			adapter->flags2 &= ~IXGBE_FLAG2_RSC_ENABLED;
+			netdev->features &= ~NETIF_F_LRO;
+		}
+
+		switch (adapter->hw.mac.type) {
+		case ixgbe_mac_X540:
+			ixgbe_set_rsc(adapter);
+			break;
+		case ixgbe_mac_82599EB:
+			need_reset = true;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (need_reset)
+		ixgbe_do_reset(netdev);
+
+	return 0;
 }
 
 static u32 ixgbe_get_tx_csum(struct net_device *netdev)
