@@ -428,26 +428,25 @@ static int netvsc_remove(struct hv_device *dev)
 }
 
 /* The one and only one */
-static struct  netvsc_driver netvsc_drv = {
-	.base.probe = netvsc_probe,
-	.base.remove = netvsc_remove,
+static struct  hv_driver netvsc_drv = {
+	.probe = netvsc_probe,
+	.remove = netvsc_remove,
 };
 
 static void netvsc_drv_exit(void)
 {
-	vmbus_child_driver_unregister(&netvsc_drv.base.driver);
+	vmbus_child_driver_unregister(&netvsc_drv.driver);
 }
 
 static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 {
-	struct netvsc_driver *net_drv_obj = &netvsc_drv;
-	struct hv_driver *drv = &netvsc_drv.base;
+	struct hv_driver *drv = &netvsc_drv;
 	int ret;
 
 	/* Callback to client driver to complete the initialization */
-	drv_init(&net_drv_obj->base);
+	drv_init(drv);
 
-	drv->driver.name = net_drv_obj->base.name;
+	drv->driver.name = drv->name;
 
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(&drv->driver);
