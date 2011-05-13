@@ -4107,8 +4107,6 @@ static void *wl_read_prof(struct wl_priv *wl, s32 item)
 	switch (item) {
 	case WL_PROF_SEC:
 		return &wl->profile->sec;
-	case WL_PROF_ACT:
-		return &wl->profile->active;
 	case WL_PROF_BSSID:
 		return &wl->profile->bssid;
 	case WL_PROF_SSID:
@@ -4141,9 +4139,6 @@ wl_update_prof(struct wl_priv *wl, const wl_event_msg_t *e, void *data,
 		break;
 	case WL_PROF_SEC:
 		memcpy(&wl->profile->sec, data, sizeof(wl->profile->sec));
-		break;
-	case WL_PROF_ACT:
-		wl->profile->active = *(bool *)data;
 		break;
 	case WL_PROF_BEACONINT:
 		wl->profile->beacon_interval = *(u16 *)data;

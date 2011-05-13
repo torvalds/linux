@@ -235,7 +235,6 @@ struct wl_profile {
 	struct wl_security sec;
 	struct wl_ibss ibss;
 	s32 band;
-	bool active;
 };
 
 /* dongle iscan event loop */
