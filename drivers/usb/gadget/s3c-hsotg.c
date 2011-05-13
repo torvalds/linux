@@ -3318,7 +3318,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	hsotg->clk = clk_get(&pdev->dev, "otg");
 	if (IS_ERR(hsotg->clk)) {
 		dev_err(dev, "cannot get otg clock\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(hsotg->clk);
 		goto err_mem;
 	}
 
