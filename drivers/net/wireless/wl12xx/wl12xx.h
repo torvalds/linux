@@ -565,6 +565,12 @@ struct wl1271 {
 	int tcxo_clock;
 
 	/*
+	 * wowlan trigger was configured during suspend.
+	 * (currently, only "ANY" trigger is supported)
+	 */
+	bool wow_enabled;
+
+	/*
 	 * AP-mode - links indexed by HLID. The global and broadcast links
 	 * are always active.
 	 */
