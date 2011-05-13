@@ -627,18 +627,6 @@ config IBMLANA
 	  boards with this driver should be possible, but has not been tested
 	  up to now due to lack of hardware.
 
-config IBMVETH
-	tristate "IBM LAN Virtual Ethernet support"
-	depends on PPC_PSERIES
-	---help---
-	  This driver supports virtual ethernet adapters on newer IBM iSeries
-	  and pSeries systems.
-
-	  To compile this driver as a module, choose M here. The module will
-	  be called ibmveth.
-
-source "drivers/net/ibm_newemac/Kconfig"
-
 config NET_PCI
 	bool "EISA, VLB, PCI and on board controllers"
 	depends on ISA || EISA || PCI
@@ -1469,16 +1457,6 @@ if NETDEV_10000
 config MDIO
 	tristate
 
-config EHEA
-	tristate "eHEA Ethernet support"
-	depends on IBMEBUS && INET && SPARSEMEM
-	select INET_LRO
-	---help---
-	  This driver supports the IBM pSeries eHEA ethernet adapter.
-
-	  To compile the driver as a module, choose M here. The module
-	  will be called ehea.
-
 config ENIC
 	tristate "Cisco VIC Ethernet NIC Support"
 	depends on PCI && INET
@@ -1572,10 +1550,6 @@ config XEN_NETDEV_BACKEND
 	  domain (often this is domain 0) you should say Y here. To
 	  compile this driver as a module, chose M here: the module
 	  will be called xen-netback.
-
-config ISERIES_VETH
-	tristate "iSeries Virtual Ethernet driver support"
-	depends on PPC_ISERIES
 
 config RIONET
 	tristate "RapidIO Ethernet over messaging driver support"

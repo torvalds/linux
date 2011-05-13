@@ -2465,7 +2465,7 @@ EHEA (IBM pSeries eHEA 10Gb ethernet adapter) DRIVER
 M:	Breno Leitao <leitao@linux.vnet.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/ehea/
+F:	drivers/net/ethernet/ibm/ehea/
 
 EMBEDDED LINUX
 M:	Paul Gortmaker <paul.gortmaker@windriver.com>
@@ -3163,7 +3163,7 @@ IBM Power Virtual Ethernet Device Driver
 M:	Santiago Leon <santil@linux.vnet.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	drivers/net/ibmveth.*
+F:	drivers/net/ethernet/ibm/ibmveth.*
 
 IBM ServeRAID RAID DRIVER
 P:	Jack Hammer
