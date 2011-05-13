@@ -259,6 +259,7 @@ typedef struct wl_u32_list {
 /* used for association with a specific BSSID and chanspec list */
 typedef struct wl_assoc_params {
 	u8 bssid[ETH_ALEN];	/* 00:00:00:00:00:00: broadcast scan */
+	u16 bssid_cnt;
 	s32 chanspec_num;	/* 0: all available channels,
 				 * otherwise count of chanspecs in chanspec_list
 				 */
