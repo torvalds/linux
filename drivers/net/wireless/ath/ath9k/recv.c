@@ -1468,8 +1468,8 @@ static void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 	main_ant_conf = (rs->rs_rssi_ctl2 >> ATH_ANT_RX_MAIN_SHIFT) &
 			 ATH_ANT_RX_MASK;
 
-	/* Record packet only when alt_rssi is positive */
-	if (alt_rssi > 0) {
+	/* Record packet only when both main_rssi and  alt_rssi is positive */
+	if (main_rssi > 0 && alt_rssi > 0) {
 		antcomb->total_pkt_count++;
 		antcomb->main_total_rssi += main_rssi;
 		antcomb->alt_total_rssi  += alt_rssi;
