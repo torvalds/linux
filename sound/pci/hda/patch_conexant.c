@@ -3325,6 +3325,9 @@ static void cx_auto_parse_output(struct hda_codec *codec)
 	spec->vmaster_nid = spec->private_dac_nids[0];
 }
 
+static void cx_auto_turn_eapd(struct hda_codec *codec, int num_pins,
+			      hda_nid_t *pins, bool on);
+
 /* auto-mute/unmute speaker and line outs according to headphone jack */
 static void cx_auto_hp_automute(struct hda_codec *codec)
 {
@@ -3341,11 +3344,13 @@ static void cx_auto_hp_automute(struct hda_codec *codec)
 			break;
 		}
 	}
+	cx_auto_turn_eapd(codec, cfg->hp_outs, cfg->hp_pins, present);
 	for (i = 0; i < cfg->line_outs; i++) {
 		snd_hda_codec_write(codec, cfg->line_out_pins[i], 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL,
 				    present ? 0 : PIN_OUT);
 	}
+	cx_auto_turn_eapd(codec, cfg->line_outs, cfg->line_out_pins, !present);
 	for (i = 0; !present && i < cfg->line_outs; i++)
 		if (snd_hda_jack_detect(codec, cfg->line_out_pins[i]))
 			present = 1;
@@ -3354,6 +3359,7 @@ static void cx_auto_hp_automute(struct hda_codec *codec)
 				    AC_VERB_SET_PIN_WIDGET_CONTROL,
 				    present ? 0 : PIN_OUT);
 	}
+	cx_auto_turn_eapd(codec, cfg->speaker_outs, cfg->speaker_pins, !present);
 }
 
 /* automatic switch internal and external mic */
@@ -3517,14 +3523,15 @@ static int cx_auto_parse_auto_config(struct hda_codec *codec)
 	return 0;
 }
 
-static void cx_auto_turn_on_eapd(struct hda_codec *codec, int num_pins,
-				 hda_nid_t *pins)
+static void cx_auto_turn_eapd(struct hda_codec *codec, int num_pins,
+			      hda_nid_t *pins, bool on)
 {
 	int i;
 	for (i = 0; i < num_pins; i++) {
 		if (snd_hda_query_pin_caps(codec, pins[i]) & AC_PINCAP_EAPD)
 			snd_hda_codec_write(codec, pins[i], 0,
-					    AC_VERB_SET_EAPD_BTLENABLE, 0x02);
+					    AC_VERB_SET_EAPD_BTLENABLE,
+					    on ? 0x02 : 0);
 	}
 }
 
@@ -3565,6 +3572,13 @@ static void cx_auto_init_output(struct hda_codec *codec)
 		for (i = 0; i < cfg->speaker_outs; i++)
 			snd_hda_codec_write(codec, cfg->speaker_pins[i], 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+		/* turn on EAPD */
+		cx_auto_turn_eapd(codec, cfg->line_outs, cfg->line_out_pins,
+				  true);
+		cx_auto_turn_eapd(codec, cfg->hp_outs, cfg->hp_pins,
+				  true);
+		cx_auto_turn_eapd(codec, cfg->speaker_outs, cfg->speaker_pins,
+				  true);
 	}
 
 	for (i = 0; i < spec->dac_info_filled; i++) {
@@ -3573,11 +3587,6 @@ static void cx_auto_init_output(struct hda_codec *codec)
 			nid = spec->multiout.dac_nids[0];
 		select_connection(codec, spec->dac_info[i].pin, nid);
 	}
-
-	/* turn on EAPD */
-	cx_auto_turn_on_eapd(codec, cfg->line_outs, cfg->line_out_pins);
-	cx_auto_turn_on_eapd(codec, cfg->hp_outs, cfg->hp_pins);
-	cx_auto_turn_on_eapd(codec, cfg->speaker_outs, cfg->speaker_pins);
 }
 
 static void cx_auto_init_input(struct hda_codec *codec)
