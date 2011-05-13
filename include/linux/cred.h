@@ -146,6 +146,7 @@ struct cred {
 	void		*security;	/* subjective LSM security */
 #endif
 	struct user_struct *user;	/* real user ID subscription */
+	struct user_namespace *user_ns; /* cached user->user_ns */
 	struct group_info *group_info;	/* supplementary groups for euid/fsgid */
 	struct rcu_head	rcu;		/* RCU deletion hook */
 };
@@ -354,10 +355,15 @@ static inline void put_cred(const struct cred *_cred)
 #define current_fsgid() 	(current_cred_xxx(fsgid))
 #define current_cap()		(current_cred_xxx(cap_effective))
 #define current_user()		(current_cred_xxx(user))
-#define _current_user_ns()	(current_cred_xxx(user)->user_ns)
 #define current_security()	(current_cred_xxx(security))
 
-extern struct user_namespace *current_user_ns(void);
+#ifdef CONFIG_USER_NS
+#define current_user_ns() (current_cred_xxx(user_ns))
+#else
+extern struct user_namespace init_user_ns;
+#define current_user_ns() (&init_user_ns)
+#endif
+
 
 #define current_uid_gid(_uid, _gid)		\
 do {						\
