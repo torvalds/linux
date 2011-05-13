@@ -1435,7 +1435,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 		    peer->rate_tokens == ip_rt_redirect_number &&
 		    net_ratelimit())
 			printk(KERN_WARNING "host %pI4/if%d ignores redirects for %pI4 to %pI4.\n",
-				&rt->rt_src, rt->rt_iif,
+			       &ip_hdr(skb)->saddr, rt->rt_iif,
 				&rt->rt_dst, &rt->rt_gateway);
 #endif
 	}
@@ -1704,7 +1704,7 @@ void ip_rt_get_source(u8 *addr, struct sk_buff *skb, struct rtable *rt)
 	__be32 src;
 
 	if (rt_is_output_route(rt))
-		src = rt->rt_src;
+		src = ip_hdr(skb)->saddr;
 	else {
 		struct fib_result res;
 		struct flowi4 fl4;
