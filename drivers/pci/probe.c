@@ -95,6 +95,7 @@ static void release_pcibus_dev(struct device *dev)
 static struct class pcibus_class = {
 	.name		= "pci_bus",
 	.dev_release	= &release_pcibus_dev,
+	.dev_attrs	= pcibus_dev_attrs,
 };
 
 static int __init pcibus_class_init(void)
