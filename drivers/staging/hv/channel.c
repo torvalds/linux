@@ -26,6 +26,8 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+
+#include "hyperv.h"
 #include "hv_api.h"
 #include "logging.h"
 #include "vmbus_private.h"

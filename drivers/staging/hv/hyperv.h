@@ -21,3 +21,13 @@
  *   K. Y. Srinivasan <kys@microsoft.com>
  *
  */
+
+#ifndef _HYPERV_H
+#define _HYPERV_H
+
+struct hv_guid {
+	unsigned char data[16];
+};
+
+
+#endif /* _HYPERV_H */

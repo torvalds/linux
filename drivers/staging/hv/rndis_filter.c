@@ -26,6 +26,8 @@
 #include <linux/io.h>
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
+
+#include "hyperv.h"
 #include "logging.h"
 #include "hv_api.h"
 #include "netvsc_api.h"

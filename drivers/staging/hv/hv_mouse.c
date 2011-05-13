@@ -26,6 +26,7 @@
 #include <linux/dmi.h>
 #include <linux/delay.h>
 
+#include "hyperv.h"
 #include "hv_api.h"
 #include "logging.h"
 #include "version_info.h"

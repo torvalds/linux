@@ -28,6 +28,8 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/completion.h>
+
+#include "hyperv.h"
 #include "hv_api.h"
 #include "logging.h"
 #include "vmbus_private.h"

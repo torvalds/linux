@@ -34,6 +34,8 @@
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <linux/completion.h>
+
+#include "hyperv.h"
 #include "version_info.h"
 #include "hv_api.h"
 #include "logging.h"
