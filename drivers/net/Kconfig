@@ -1598,8 +1598,6 @@ config BNA
 
 	  <http://support.brocade.com>
 
-source "drivers/net/benet/Kconfig"
-
 endif # NETDEV_10000
 
 source "drivers/net/tokenring/Kconfig"

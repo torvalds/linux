@@ -1,0 +1,6 @@
+config BE2NET
+	tristate "ServerEngines' 10Gbps NIC - BladeEngine"
+	depends on PCI && INET
+	---help---
+	  This driver implements the NIC functionality for ServerEngines'
+	  10Gbps network adapter - BladeEngine.
