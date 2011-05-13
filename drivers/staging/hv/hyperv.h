@@ -25,6 +25,16 @@
 #ifndef _HYPERV_H
 #define _HYPERV_H
 
+#include <linux/scatterlist.h>
+#include <linux/list.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
+#include <linux/completion.h>
+#include <linux/device.h>
+
+
+#include <asm/hyperv.h>
+
 struct hv_guid {
 	unsigned char data[16];
 };
@@ -318,12 +328,6 @@ enum vmbus_packet_type {
 
 #define VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED	1
 
-
-#include <linux/list.h>
-#include <linux/timer.h>
-#include <linux/workqueue.h>
-#include <linux/completion.h>
-#include "hyperv.h"
 
 /* Version 1 messages */
 enum vmbus_channel_message_type {
@@ -759,9 +763,6 @@ extern unsigned int vmbus_loglevel;
 
 
 
-#include <linux/device.h>
-#include <linux/workqueue.h>
-
 struct hv_driver;
 struct hv_device;
 
@@ -821,8 +822,6 @@ struct hv_device {
 	/* Device extension; */
 	void *ext;
 };
-
-#include <linux/device.h>
 
 
 static inline struct hv_device *device_to_hv_device(struct device *d)
