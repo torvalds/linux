@@ -23,6 +23,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pm_runtime.h>
 
 #include <plat/i2c.h>
 
@@ -576,6 +577,7 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	if (dev->regulator)
 		regulator_enable(dev->regulator);
+	pm_runtime_get_sync(&dev->pdev->dev);
 
 	status = init_hw(dev);
 	if (status)
@@ -634,6 +636,7 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 out:
 	clk_disable(dev->clk);
 out2:
+	pm_runtime_put_sync(&dev->pdev->dev);
 	if (dev->regulator)
 		regulator_disable(dev->regulator);
 
@@ -839,18 +842,35 @@ static irqreturn_t i2c_irq_handler(int irq, void *arg)
 
 
 #ifdef CONFIG_PM
-static int nmk_i2c_suspend(struct platform_device *pdev, pm_message_t mesg)
+static int nmk_i2c_suspend(struct device *dev)
 {
-	struct nmk_i2c_dev *dev = platform_get_drvdata(pdev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct nmk_i2c_dev *nmk_i2c = platform_get_drvdata(pdev);
 
-	if (dev->busy)
+	if (nmk_i2c->busy)
 		return -EBUSY;
-	else
-		return 0;
+
+	return 0;
+}
+
+static int nmk_i2c_resume(struct device *dev)
+{
+	return 0;
 }
 #else
 #define nmk_i2c_suspend	NULL
+#define nmk_i2c_resume	NULL
 #endif
+
+/*
+ * We use noirq so that we suspend late and resume before the wakeup interrupt
+ * to ensure that we do the !pm_runtime_suspended() check in resume before
+ * there has been a regular pm runtime resume (via pm_runtime_get_sync()).
+ */
+static const struct dev_pm_ops nmk_i2c_pm = {
+	.suspend_noirq	= nmk_i2c_suspend,
+	.resume_noirq	= nmk_i2c_resume,
+};
 
 static unsigned int nmk_i2c_functionality(struct i2c_adapter *adap)
 {
@@ -913,6 +933,9 @@ static int __devinit nmk_i2c_probe(struct platform_device *pdev)
 		dev->regulator = NULL;
 	}
 
+	pm_suspend_ignore_children(&pdev->dev, true);
+	pm_runtime_enable(&pdev->dev);
+
 	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
 		dev_err(&pdev->dev, "could not get i2c clock\n");
@@ -958,6 +981,7 @@ static int __devinit nmk_i2c_probe(struct platform_device *pdev)
  err_no_clk:
 	if (dev->regulator)
 		regulator_put(dev->regulator);
+	pm_runtime_disable(&pdev->dev);
 	free_irq(dev->irq, dev);
  err_irq:
 	iounmap(dev->virtbase);
@@ -990,6 +1014,7 @@ static int __devexit nmk_i2c_remove(struct platform_device *pdev)
 	clk_put(dev->clk);
 	if (dev->regulator)
 		regulator_put(dev->regulator);
+	pm_runtime_disable(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);
 	kfree(dev);
 
@@ -1000,10 +1025,10 @@ static struct platform_driver nmk_i2c_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = DRIVER_NAME,
+		.pm = &nmk_i2c_pm,
 	},
 	.probe = nmk_i2c_probe,
 	.remove = __devexit_p(nmk_i2c_remove),
-	.suspend = nmk_i2c_suspend,
 };
 
 static int __init nmk_i2c_init(void)
