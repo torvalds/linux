@@ -1184,9 +1184,50 @@ static void ar9003_hw_set_radar_conf(struct ath_hw *ah)
 	conf->radar_inband = 8;
 }
 
+static void ar9003_hw_antdiv_comb_conf_get(struct ath_hw *ah,
+				   struct ath_hw_antcomb_conf *antconf)
+{
+	u32 regval;
+
+	regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
+	antconf->main_lna_conf = (regval & AR_PHY_9485_ANT_DIV_MAIN_LNACONF) >>
+				  AR_PHY_9485_ANT_DIV_MAIN_LNACONF_S;
+	antconf->alt_lna_conf = (regval & AR_PHY_9485_ANT_DIV_ALT_LNACONF) >>
+				 AR_PHY_9485_ANT_DIV_ALT_LNACONF_S;
+	antconf->fast_div_bias = (regval & AR_PHY_9485_ANT_FAST_DIV_BIAS) >>
+				  AR_PHY_9485_ANT_FAST_DIV_BIAS_S;
+}
+
+static void ar9003_hw_antdiv_comb_conf_set(struct ath_hw *ah,
+				   struct ath_hw_antcomb_conf *antconf)
+{
+	u32 regval;
+
+	regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
+	regval &= ~(AR_PHY_9485_ANT_DIV_MAIN_LNACONF |
+		    AR_PHY_9485_ANT_DIV_ALT_LNACONF |
+		    AR_PHY_9485_ANT_FAST_DIV_BIAS |
+		    AR_PHY_9485_ANT_DIV_MAIN_GAINTB |
+		    AR_PHY_9485_ANT_DIV_ALT_GAINTB);
+	regval |= ((antconf->main_lna_conf <<
+					AR_PHY_9485_ANT_DIV_MAIN_LNACONF_S)
+		   & AR_PHY_9485_ANT_DIV_MAIN_LNACONF);
+	regval |= ((antconf->alt_lna_conf << AR_PHY_9485_ANT_DIV_ALT_LNACONF_S)
+		   & AR_PHY_9485_ANT_DIV_ALT_LNACONF);
+	regval |= ((antconf->fast_div_bias << AR_PHY_9485_ANT_FAST_DIV_BIAS_S)
+		   & AR_PHY_9485_ANT_FAST_DIV_BIAS);
+	regval |= ((antconf->main_gaintb << AR_PHY_9485_ANT_DIV_MAIN_GAINTB_S)
+		   & AR_PHY_9485_ANT_DIV_MAIN_GAINTB);
+	regval |= ((antconf->alt_gaintb << AR_PHY_9485_ANT_DIV_ALT_GAINTB_S)
+		   & AR_PHY_9485_ANT_DIV_ALT_GAINTB);
+
+	REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
+}
+
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
+	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
 	static const u32 ar9300_cca_regs[6] = {
 		AR_PHY_CCA_0,
 		AR_PHY_CCA_1,
@@ -1212,6 +1253,9 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->do_getnf = ar9003_hw_do_getnf;
 	priv_ops->ani_cache_ini_regs = ar9003_hw_ani_cache_ini_regs;
 	priv_ops->set_radar_params = ar9003_hw_set_radar_params;
+
+	ops->antdiv_comb_conf_get = ar9003_hw_antdiv_comb_conf_get;
+	ops->antdiv_comb_conf_set = ar9003_hw_antdiv_comb_conf_set;
 
 	ar9003_hw_set_nf_limits(ah);
 	ar9003_hw_set_radar_conf(ah);
