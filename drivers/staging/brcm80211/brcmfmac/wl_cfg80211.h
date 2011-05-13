@@ -95,6 +95,10 @@ do {								\
 				 */
 #define WL_FILE_NAME_MAX		256
 
+#define WL_ROAM_TRIGGER_LEVEL		-75
+#define WL_ROAM_DELTA			20
+#define WL_BEACON_TIMEOUT		3
+
 /* dongle status */
 enum wl_status {
 	WL_STATUS_READY,

@@ -259,8 +259,6 @@ static s32 wl_dongle_up(struct net_device *ndev, u32 up);
 static s32 wl_dongle_power(struct net_device *ndev, u32 power_mode);
 static s32 wl_dongle_glom(struct net_device *ndev, u32 glom,
 			    u32 dongle_align);
-static s32 wl_dongle_roam(struct net_device *ndev, u32 roamvar,
-			    u32 bcn_timeout);
 static s32 wl_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
 				s32 scan_unassoc_time);
 static s32 wl_dongle_offload(struct net_device *ndev, s32 arpoe,
@@ -272,6 +270,8 @@ static s32 wl_update_wiphybands(struct wl_priv *wl);
 
 static s32 wl_dongle_eventmsg(struct net_device *ndev);
 static s32 wl_config_dongle(struct wl_priv *wl, bool need_lock);
+static s32 wl_dongle_roam(struct net_device *ndev, u32 roamvar,
+			    u32 bcn_timeout);
 
 /*
 ** iscan handler
@@ -3633,36 +3633,6 @@ dongle_glom_out:
 }
 
 static s32
-wl_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
-{
-	s8 iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
-						 '\0' + bitvec  */
-	s32 err = 0;
-
-	/* Setup timeout if Beacons are lost and roam is
-		 off to report link down */
-	if (roamvar) {
-		bcm_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf,
-			    sizeof(iovbuf));
-		err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
-		if (unlikely(err)) {
-			WL_ERR("bcn_timeout error (%d)\n", err);
-			goto dongle_rom_out;
-		}
-	}
-	/* Enable/Disable built-in roaming to allow supplicant
-		 to take care of roaming */
-	bcm_mkiovar("roam_off", (char *)&roamvar, 4, iovbuf, sizeof(iovbuf));
-	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
-	if (unlikely(err)) {
-		WL_ERR("roam_off error (%d)\n", err);
-		goto dongle_rom_out;
-	}
-dongle_rom_out:
-	return err;
-}
-
-static s32
 wl_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
 		   s32 scan_unassoc_time)
 {
@@ -3890,6 +3860,63 @@ dongle_eventmsg_out:
 	return err;
 }
 
+static s32
+wl_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
+{
+	s8 iovbuf[32];
+	s32 roamtrigger[2];
+	s32 roam_delta[2];
+	s32 err = 0;
+
+	/*
+	 * Setup timeout if Beacons are lost and roam is
+	 * off to report link down
+	 */
+	if (roamvar) {
+		bcm_mkiovar("bcn_timeout", (char *)&bcn_timeout,
+			sizeof(bcn_timeout), iovbuf, sizeof(iovbuf));
+		err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+		if (unlikely(err)) {
+			WL_ERR("bcn_timeout error (%d)\n", err);
+			goto dongle_rom_out;
+		}
+	}
+
+	/*
+	 * Enable/Disable built-in roaming to allow supplicant
+	 * to take care of roaming
+	 */
+	WL_INFO("Internal Roaming = %s\n", roamvar ? "Off" : "On");
+	bcm_mkiovar("roam_off", (char *)&roamvar,
+				sizeof(roamvar), iovbuf, sizeof(iovbuf));
+	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+	if (unlikely(err)) {
+		WL_ERR("roam_off error (%d)\n", err);
+		goto dongle_rom_out;
+	}
+
+	roamtrigger[0] = WL_ROAM_TRIGGER_LEVEL;
+	roamtrigger[1] = WLC_BAND_ALL;
+	err = wl_dev_ioctl(ndev, WLC_SET_ROAM_TRIGGER,
+			(void *)roamtrigger, sizeof(roamtrigger));
+	if (unlikely(err)) {
+		WL_ERR("WLC_SET_ROAM_TRIGGER error (%d)\n", err);
+		goto dongle_rom_out;
+	}
+
+	roam_delta[0] = WL_ROAM_DELTA;
+	roam_delta[1] = WLC_BAND_ALL;
+	err = wl_dev_ioctl(ndev, WLC_SET_ROAM_DELTA,
+				(void *)roam_delta, sizeof(roam_delta));
+	if (unlikely(err)) {
+		WL_ERR("WLC_SET_ROAM_DELTA error (%d)\n", err);
+		goto dongle_rom_out;
+	}
+
+dongle_rom_out:
+	return err;
+}
+
 s32 wl_config_dongle(struct wl_priv *wl, bool need_lock)
 {
 #ifndef DHD_SDALIGN
@@ -3920,15 +3947,15 @@ s32 wl_config_dongle(struct wl_priv *wl, bool need_lock)
 	err = wl_dongle_glom(ndev, 0, DHD_SDALIGN);
 	if (unlikely(err))
 		goto default_conf_out;
-	err = wl_dongle_roam(ndev, (wl->roam_on ? 0 : 1), 3);
-	if (unlikely(err))
-		goto default_conf_out;
 	wl_dongle_scantime(ndev, 40, 80);
 	wl_dongle_offload(ndev, 1, 0xf);
 	wl_dongle_filter(ndev, 1);
 #endif				/* !EMBEDDED_PLATFORM */
 
 	err = wl_dongle_eventmsg(ndev);
+	if (unlikely(err))
+		goto default_conf_out;
+	err = wl_dongle_roam(ndev, (wl->roam_on ? 0 : 1), WL_BEACON_TIMEOUT);
 	if (unlikely(err))
 		goto default_conf_out;
 	err = wl_dongle_mode(ndev, wdev->iftype);
