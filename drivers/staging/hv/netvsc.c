@@ -820,8 +820,6 @@ static void netvsc_receive(struct hv_device *device,
 	int i, j;
 	int count = 0, bytes_remain = 0;
 	unsigned long flags;
-	struct netvsc_driver *netvsc_drv =
-		 drv_to_netvscdrv(device->device.driver);
 
 	LIST_HEAD(listHead);
 
@@ -983,7 +981,7 @@ static void netvsc_receive(struct hv_device *device,
 		}
 
 		/* Pass it to the upper layer */
-		netvsc_drv->recv_cb(device, netvsc_packet);
+		rndis_filter_receive(device, netvsc_packet);
 
 		netvsc_receive_completion(netvsc_packet->
 				completion.recv.recv_completion_ctx);
