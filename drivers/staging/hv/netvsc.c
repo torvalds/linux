@@ -1084,10 +1084,10 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 {
 	int ret = 0;
 	int i;
+	int ring_size =
+	((struct netvsc_device_info *)additional_info)->ring_size;
 	struct netvsc_device *net_device;
 	struct hv_netvsc_packet *packet, *pos;
-	struct netvsc_driver *net_driver =
-		drv_to_netvscdrv(device->device.driver);
 
 	net_device = alloc_net_device(device);
 	if (!net_device) {
@@ -1116,8 +1116,8 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 	init_completion(&net_device->channel_init_wait);
 
 	/* Open the channel */
-	ret = vmbus_open(device->channel, net_driver->ring_buf_size,
-			 net_driver->ring_buf_size, NULL, 0,
+	ret = vmbus_open(device->channel, ring_size * PAGE_SIZE,
+			 ring_size * PAGE_SIZE, NULL, 0,
 			 netvsc_channel_cb, device);
 
 	if (ret != 0) {
