@@ -420,7 +420,14 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 				spin_lock(&block_group->tree_lock);
 				ret = link_free_space(block_group, e);
 				spin_unlock(&block_group->tree_lock);
-				BUG_ON(ret);
+				if (ret) {
+					printk(KERN_ERR "Duplicate entries in "
+					       "free space cache, dumping\n");
+					kunmap(page);
+					unlock_page(page);
+					page_cache_release(page);
+					goto free_cache;
+				}
 			} else {
 				e->bitmap = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
 				if (!e->bitmap) {
@@ -437,6 +444,14 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 				recalculate_thresholds(block_group);
 				spin_unlock(&block_group->tree_lock);
 				list_add_tail(&e->list, &bitmaps);
+				if (ret) {
+					printk(KERN_ERR "Duplicate entries in "
+					       "free space cache, dumping\n");
+					kunmap(page);
+					unlock_page(page);
+					page_cache_release(page);
+					goto free_cache;
+				}
 			}
 
 			num_entries--;
@@ -909,10 +924,16 @@ static int tree_insert_offset(struct rb_root *root, u64 offset,
 			 * logically.
 			 */
 			if (bitmap) {
-				WARN_ON(info->bitmap);
+				if (info->bitmap) {
+					WARN_ON_ONCE(1);
+					return -EEXIST;
+				}
 				p = &(*p)->rb_right;
 			} else {
-				WARN_ON(!info->bitmap);
+				if (!info->bitmap) {
+					WARN_ON_ONCE(1);
+					return -EEXIST;
+				}
 				p = &(*p)->rb_left;
 			}
 		}
