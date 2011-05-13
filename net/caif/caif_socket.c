@@ -209,6 +209,18 @@ static int caif_sktrecv_cb(struct cflayer *layr, struct cfpkt *pkt)
 	return 0;
 }
 
+static void cfsk_hold(struct cflayer *layr)
+{
+	struct caifsock *cf_sk = container_of(layr, struct caifsock, layer);
+	sock_hold(&cf_sk->sk);
+}
+
+static void cfsk_put(struct cflayer *layr)
+{
+	struct caifsock *cf_sk = container_of(layr, struct caifsock, layer);
+	sock_put(&cf_sk->sk);
+}
+
 /* Packet Control Callback function called from CAIF */
 static void caif_ctrl_cb(struct cflayer *layr,
 				enum caif_ctrlcmd flow,
@@ -232,6 +244,8 @@ static void caif_ctrl_cb(struct cflayer *layr,
 
 	case CAIF_CTRLCMD_INIT_RSP:
 		/* We're now connected */
+		caif_client_register_refcnt(&cf_sk->layer,
+						cfsk_hold, cfsk_put);
 		dbfs_atomic_inc(&cnt.num_connect_resp);
 		cf_sk->sk.sk_state = CAIF_CONNECTED;
 		set_tx_flow_on(cf_sk);
@@ -242,7 +256,6 @@ static void caif_ctrl_cb(struct cflayer *layr,
 		/* We're now disconnected */
 		cf_sk->sk.sk_state = CAIF_DISCONNECTED;
 		cf_sk->sk.sk_state_change(&cf_sk->sk);
-		cfcnfg_release_adap_layer(&cf_sk->layer);
 		break;
 
 	case CAIF_CTRLCMD_INIT_FAIL_RSP:
@@ -837,8 +850,10 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 
 	dbfs_atomic_inc(&cnt.num_connect_req);
 	cf_sk->layer.receive = caif_sktrecv_cb;
+
 	err = caif_connect_client(&cf_sk->conn_req,
 				&cf_sk->layer, &ifindex, &headroom, &tailroom);
+
 	if (err < 0) {
 		cf_sk->sk.sk_socket->state = SS_UNCONNECTED;
 		cf_sk->sk.sk_state = CAIF_DISCONNECTED;
@@ -940,7 +955,6 @@ static int caif_release(struct socket *sock)
 	wake_up_interruptible_poll(sk_sleep(sk), POLLERR|POLLHUP);
 
 	sock_orphan(sk);
-	cf_sk->layer.dn = NULL;
 	sk_stream_kill_queues(&cf_sk->sk);
 	release_sock(sk);
 	sock_put(sk);
@@ -1036,6 +1050,7 @@ static void caif_sock_destructor(struct sock *sk)
 	}
 	sk_stream_kill_queues(&cf_sk->sk);
 	dbfs_atomic_dec(&cnt.caif_nr_socks);
+	caif_free_client(&cf_sk->layer);
 }
 
 static int caif_create(struct net *net, struct socket *sock, int protocol,

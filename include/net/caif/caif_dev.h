@@ -74,6 +74,23 @@ int caif_connect_client(struct caif_connect_request *conn_req,
 int caif_disconnect_client(struct cflayer *client_layer);
 
 /**
+ * caif_client_register_refcnt - register ref-count functions provided by client.
+ *
+ * @adapt_layer: Client layer using CAIF Stack.
+ * @hold:	Function provided by client layer increasing ref-count
+ * @put:	Function provided by client layer decreasing ref-count
+ *
+ * Client of the CAIF Stack must register functions for reference counting.
+ * These functions are called by the CAIF Stack for every upstream packet,
+ * and must therefore be implemented efficiently.
+ *
+ * Client should call caif_free_client when reference count degrease to zero.
+ */
+
+void caif_client_register_refcnt(struct cflayer *adapt_layer,
+					void (*hold)(struct cflayer *lyr),
+					void (*put)(struct cflayer *lyr));
+/**
  * caif_connect_req_to_link_param - Translate configuration parameters
  *				    from socket format to internal format.
  * @cnfg:	Pointer to configuration handler
@@ -83,8 +100,20 @@ int caif_disconnect_client(struct cflayer *client_layer);
  *			 setting up channels.
  *
  */
+
 int caif_connect_req_to_link_param(struct cfcnfg *cnfg,
 				   struct caif_connect_request *con_req,
 				   struct cfctrl_link_param *setup_param);
+
+/**
+ * caif_free_client - Free memory used to manage the client in the CAIF Stack.
+ *
+ * @client_layer: Client layer to be removed.
+ *
+ * This function must be called from client layer in order to free memory.
+ * Caller must guarantee that no packets are in flight upstream when calling
+ * this function.
+ */
+void caif_free_client(struct cflayer *adap_layer);
 
 #endif /* CAIF_DEV_H_ */
