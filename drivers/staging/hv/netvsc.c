@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 
 #include "hyperv.h"
-#include "hv_api.h"
 #include "netvsc.h"
 #include "rndis_filter.h"
 

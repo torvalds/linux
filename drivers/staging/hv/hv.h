@@ -25,7 +25,7 @@
 #ifndef __HV_H__
 #define __HV_H__
 
-#include "hv_api.h"
+#include "hyperv_vmbus.h"
 
 enum {
 	VMBUS_MESSAGE_CONNECTION_ID	= 1,

@@ -34,7 +34,6 @@
 #include <scsi/scsi_dbg.h>
 
 #include "hyperv.h"
-#include "hv_api.h"
 #include "storvsc_api.h"
 #include "vstorage.h"
 

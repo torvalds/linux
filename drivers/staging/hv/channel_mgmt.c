@@ -31,7 +31,6 @@
 
 #include "hyperv.h"
 #include "hyperv_vmbus.h"
-#include "hv_api.h"
 #include "vmbus_private.h"
 
 struct vmbus_channel_message_table_entry {

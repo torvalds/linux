@@ -27,7 +27,6 @@
 #include <linux/delay.h>
 
 #include "hyperv.h"
-#include "hv_api.h"
 
 
 /*
