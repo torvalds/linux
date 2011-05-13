@@ -385,10 +385,6 @@ module_param(dhd_pktgen_len, uint, 0);
 #define DHD_COMPILED
 #endif
 
-#if defined(CONFIG_WIRELESS_EXT)
-struct iw_statistics *dhd_get_wireless_stats(struct net_device *dev);
-#endif				/* defined(CONFIG_WIRELESS_EXT) */
-
 static void dhd_dpc(unsigned long data);
 /* forward decl */
 extern int dhd_wait_pend8021x(struct net_device *dev);
@@ -2205,18 +2201,6 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 	net->hard_header_len = ETH_HLEN + dhd->pub.hdrlen;
 	net->ethtool_ops = &dhd_ethtool_ops;
 
-#if defined(CONFIG_WIRELESS_EXT)
-	if (!IS_CFG80211_FAVORITE()) {
-#if WIRELESS_EXT < 19
-		net->get_wireless_stats = dhd_get_wireless_stats;
-#endif				/* WIRELESS_EXT < 19 */
-#if WIRELESS_EXT > 12
-		net->wireless_handlers =
-		    (struct iw_handler_def *)&wl_iw_handler_def;
-#endif				/* WIRELESS_EXT > 12 */
-	}
-#endif				/* defined(CONFIG_WIRELESS_EXT) */
-
 	dhd->pub.rxsz = net->mtu + net->hard_header_len + dhd->pub.hdrlen;
 
 	memcpy(net->dev_addr, temp_addr, ETH_ALEN);
@@ -2622,21 +2606,6 @@ void dhd_os_sdtxunlock(dhd_pub_t *pub)
 {
 	dhd_os_sdunlock(pub);
 }
-
-#if defined(CONFIG_WIRELESS_EXT)
-struct iw_statistics *dhd_get_wireless_stats(struct net_device *dev)
-{
-	int res = 0;
-	dhd_info_t *dhd = *(dhd_info_t **) netdev_priv(dev);
-
-	res = wl_iw_get_wireless_stats(dev, &dhd->iw.wstats);
-
-	if (res == 0)
-		return &dhd->iw.wstats;
-	else
-		return NULL;
-}
-#endif	/* defined(CONFIG_WIRELESS_EXT) */
 
 static int
 dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,

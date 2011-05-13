@@ -69,8 +69,6 @@ uint wl_msg_level = WL_ERROR_VAL;
 #define MAX_WLIW_IOCTL_LEN 1024
 
 #ifdef CONFIG_WIRELESS_EXT
-
-extern struct iw_statistics *dhd_get_wireless_stats(struct net_device *dev);
 extern int dhd_wait_pend8021x(struct net_device *dev);
 #endif
 
@@ -3132,7 +3130,7 @@ const struct iw_handler_def wl_iw_handler_def = {
 	.private_args = 0,
 
 #if WIRELESS_EXT >= 19
-	.get_wireless_stats = dhd_get_wireless_stats,
+	.get_wireless_stats = NULL,
 #endif
 };
 #endif				/* WIRELESS_EXT > 12 */
@@ -3547,103 +3545,6 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 	}
 #endif				/* WIRELESS_EXT > 14 */
 #endif				/* WIRELESS_EXT > 13 */
-}
-
-int
-wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstats)
-{
-	int res = 0;
-	struct wl_cnt cnt;
-	int phy_noise;
-	int rssi;
-	scb_val_t scb_val;
-
-	phy_noise = 0;
-	res = dev_wlc_ioctl(dev, WLC_GET_PHY_NOISE, &phy_noise,
-				sizeof(phy_noise));
-	if (res)
-		goto done;
-
-	phy_noise = le32_to_cpu(phy_noise);
-	WL_TRACE("wl_iw_get_wireless_stats phy noise=%d\n", phy_noise);
-
-	memset(&scb_val, 0, sizeof(scb_val_t));
-	res = dev_wlc_ioctl(dev, WLC_GET_RSSI, &scb_val, sizeof(scb_val_t));
-	if (res)
-		goto done;
-
-	rssi = le32_to_cpu(scb_val.val);
-	WL_TRACE("wl_iw_get_wireless_stats rssi=%d\n", rssi);
-	if (rssi <= WL_IW_RSSI_NO_SIGNAL)
-		wstats->qual.qual = 0;
-	else if (rssi <= WL_IW_RSSI_VERY_LOW)
-		wstats->qual.qual = 1;
-	else if (rssi <= WL_IW_RSSI_LOW)
-		wstats->qual.qual = 2;
-	else if (rssi <= WL_IW_RSSI_GOOD)
-		wstats->qual.qual = 3;
-	else if (rssi <= WL_IW_RSSI_VERY_GOOD)
-		wstats->qual.qual = 4;
-	else
-		wstats->qual.qual = 5;
-
-	wstats->qual.level = 0x100 + rssi;
-	wstats->qual.noise = 0x100 + phy_noise;
-#if WIRELESS_EXT > 18
-	wstats->qual.updated |= (IW_QUAL_ALL_UPDATED | IW_QUAL_DBM);
-#else
-	wstats->qual.updated |= 7;
-#endif
-
-#if WIRELESS_EXT > 11
-	WL_TRACE("wl_iw_get_wireless_stats counters=%zu\n",
-		 sizeof(struct wl_cnt));
-
-	memset(&cnt, 0, sizeof(struct wl_cnt));
-	res =
-	    dev_wlc_bufvar_get(dev, "counters", (char *)&cnt,
-			       sizeof(struct wl_cnt));
-	if (res) {
-		WL_ERROR("wl_iw_get_wireless_stats counters failed error=%d\n",
-			 res);
-		goto done;
-	}
-
-	cnt.version = le16_to_cpu(cnt.version);
-	if (cnt.version != WL_CNT_T_VERSION) {
-		WL_TRACE("\tIncorrect counter version: expected %d; got %d\n",
-			 WL_CNT_T_VERSION, cnt.version);
-		goto done;
-	}
-
-	wstats->discard.nwid = 0;
-	wstats->discard.code = le32_to_cpu(cnt.rxundec);
-	wstats->discard.fragment = le32_to_cpu(cnt.rxfragerr);
-	wstats->discard.retries = le32_to_cpu(cnt.txfail);
-	wstats->discard.misc = le32_to_cpu(cnt.rxrunt) +
-		le32_to_cpu(cnt.rxgiant);
-	wstats->miss.beacon = 0;
-
-	WL_TRACE("wl_iw_get_wireless_stats counters txframe=%d txbyte=%d\n",
-		 le32_to_cpu(cnt.txframe), le32_to_cpu(cnt.txbyte));
-	WL_TRACE("wl_iw_get_wireless_stats counters rxfrmtoolong=%d\n",
-		  le32_to_cpu(cnt.rxfrmtoolong));
-	WL_TRACE("wl_iw_get_wireless_stats counters rxbadplcp=%d\n",
-		  le32_to_cpu(cnt.rxbadplcp));
-	WL_TRACE("wl_iw_get_wireless_stats counters rxundec=%d\n",
-		  le32_to_cpu(cnt.rxundec));
-	WL_TRACE("wl_iw_get_wireless_stats counters rxfragerr=%d\n",
-		  le32_to_cpu(cnt.rxfragerr));
-	WL_TRACE("wl_iw_get_wireless_stats counters txfail=%d\n",
-		  le32_to_cpu(cnt.txfail));
-	WL_TRACE("wl_iw_get_wireless_stats counters rxrunt=%d\n",
-		  le32_to_cpu(cnt.rxrunt));
-	WL_TRACE("wl_iw_get_wireless_stats counters rxgiant=%d\n",
-		  le32_to_cpu(cnt.rxgiant));
-#endif				/* WIRELESS_EXT > 11 */
-
-done:
-	return res;
 }
 
 int wl_iw_attach(struct net_device *dev, void *dhdp)
