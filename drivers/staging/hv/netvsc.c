@@ -30,7 +30,6 @@
 
 #include "hyperv.h"
 #include "hyperv_net.h"
-#include "rndis_filter.h"
 
 
 /* Globals */
