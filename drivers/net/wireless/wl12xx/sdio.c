@@ -107,14 +107,6 @@ static void wl1271_sdio_enable_interrupts(struct wl1271 *wl)
 	enable_irq(wl->irq);
 }
 
-static void wl1271_sdio_reset(struct wl1271 *wl)
-{
-}
-
-static void wl1271_sdio_init(struct wl1271 *wl)
-{
-}
-
 static void wl1271_sdio_raw_read(struct wl1271 *wl, int addr, void *buf,
 				 size_t len, bool fixed)
 {
@@ -215,8 +207,6 @@ static int wl1271_sdio_set_power(struct wl1271 *wl, bool enable)
 static struct wl1271_if_operations sdio_ops = {
 	.read		= wl1271_sdio_raw_read,
 	.write		= wl1271_sdio_raw_write,
-	.reset		= wl1271_sdio_reset,
-	.init		= wl1271_sdio_init,
 	.power		= wl1271_sdio_set_power,
 	.dev		= wl1271_sdio_wl_to_dev,
 	.enable_irq	= wl1271_sdio_enable_interrupts,
