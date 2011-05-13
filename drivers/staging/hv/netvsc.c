@@ -33,7 +33,6 @@
 #include "logging.h"
 #include "netvsc.h"
 #include "rndis_filter.h"
-#include "channel.h"
 
 
 /* Globals */

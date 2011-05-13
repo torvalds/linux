@@ -31,7 +31,6 @@
 #include "logging.h"
 #include "vmbus.h"
 #include "vmbus_api.h"
-#include "channel.h"
 
 
 /*

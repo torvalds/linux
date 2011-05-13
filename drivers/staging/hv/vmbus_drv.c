@@ -39,7 +39,6 @@
 #include "hv_api.h"
 #include "logging.h"
 #include "vmbus.h"
-#include "channel.h"
 #include "vmbus_private.h"
 
 
