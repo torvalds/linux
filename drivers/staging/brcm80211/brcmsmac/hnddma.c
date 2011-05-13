@@ -728,16 +728,7 @@ static void *_dma_rx(dma_info_t *di)
 
 	len = le16_to_cpu(*(u16 *) (head->data));
 	DMA_TRACE(("%s: dma_rx len %d\n", di->name, len));
-
-#if defined(__mips__)
-#define OSL_UNCACHED(va)        ((void *)KSEG1ADDR((va)))
-	if (!len) {
-		while (!(len = *(u16 *) OSL_UNCACHED(head->data)))
-			udelay(1);
-
-		*(u16 *) (head->data) = cpu_to_le16((u16) len);
-	}
-#endif				/* defined(__mips__) */
+	dma_spin_for_len(len, head);
 
 	/* set actual length */
 	pkt_len = min((di->rxoffset + len), di->rxbufsize);
