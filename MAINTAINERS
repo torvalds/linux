@@ -5754,7 +5754,7 @@ M:	Steve Hodgson <shodgson@solarflare.com>
 M:	Ben Hutchings <bhutchings@solarflare.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	drivers/net/sfc/
+F:	drivers/net/ethernet/sfc/
 
 SGI GRU DRIVER
 M:	Jack Steiner <steiner@sgi.com>
