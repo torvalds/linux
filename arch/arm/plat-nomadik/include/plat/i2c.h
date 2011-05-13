@@ -11,8 +11,8 @@
 enum i2c_freq_mode {
 	I2C_FREQ_MODE_STANDARD,		/* up to 100 Kb/s */
 	I2C_FREQ_MODE_FAST,		/* up to 400 Kb/s */
+	I2C_FREQ_MODE_HIGH_SPEED,	/* up to 3.4 Mb/s */
 	I2C_FREQ_MODE_FAST_PLUS,	/* up to 1 Mb/s */
-	I2C_FREQ_MODE_HIGH_SPEED	/* up to 3.4 Mb/s */
 };
 
 /**
