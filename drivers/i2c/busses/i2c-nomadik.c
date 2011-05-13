@@ -615,6 +615,8 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 				cause >= ARRAY_SIZE(abort_causes)
 				? "unknown reason" : abort_causes[cause]);
 
+			status = status ? status : dev->result;
+
 			goto out;
 		}
 		udelay(I2C_DELAY);
@@ -759,7 +761,7 @@ static irqreturn_t i2c_irq_handler(int irq, void *arg)
 					| I2C_IT_RXFF | I2C_IT_RXFE));
 
 		if (dev->cli.count) {
-			dev->result = -1;
+			dev->result = -EIO;
 			dev_err(&dev->pdev->dev, "%lu bytes still remain to be"
 					"xfered\n", dev->cli.count);
 			(void) init_hw(dev);
@@ -770,7 +772,7 @@ static irqreturn_t i2c_irq_handler(int irq, void *arg)
 
 	/* Master Arbitration lost interrupt */
 	case I2C_IT_MAL:
-		dev->result = -1;
+		dev->result = -EIO;
 		(void) init_hw(dev);
 
 		i2c_set_bit(dev->virtbase + I2C_ICR, I2C_IT_MAL);
@@ -784,7 +786,7 @@ static irqreturn_t i2c_irq_handler(int irq, void *arg)
 	 * during the transaction.
 	 */
 	case I2C_IT_BERR:
-		dev->result = -1;
+		dev->result = -EIO;
 		/* get the status */
 		if (((readl(dev->virtbase + I2C_SR) >> 2) & 0x3) == I2C_ABORT)
 			(void) init_hw(dev);
@@ -800,7 +802,7 @@ static irqreturn_t i2c_irq_handler(int irq, void *arg)
 	 * the Tx FIFO is full.
 	 */
 	case I2C_IT_TXFOVR:
-		dev->result = -1;
+		dev->result = -EIO;
 		(void) init_hw(dev);
 
 		dev_err(&dev->pdev->dev, "Tx Fifo Over run\n");
