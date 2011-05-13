@@ -140,14 +140,29 @@ void ieee80211_ba_session_work(struct work_struct *work)
 				sta, tid, WLAN_BACK_RECIPIENT,
 				WLAN_REASON_QSTA_TIMEOUT, true);
 
-		tid_tx = sta->ampdu_mlme.tid_tx[tid];
-		if (!tid_tx)
-			continue;
+		tid_tx = sta->ampdu_mlme.tid_start_tx[tid];
+		if (tid_tx) {
+			/*
+			 * Assign it over to the normal tid_tx array
+			 * where it "goes live".
+			 */
+			spin_lock_bh(&sta->lock);
 
-		if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state))
+			sta->ampdu_mlme.tid_start_tx[tid] = NULL;
+			/* could there be a race? */
+			if (sta->ampdu_mlme.tid_tx[tid])
+				kfree(tid_tx);
+			else
+				ieee80211_assign_tid_tx(sta, tid, tid_tx);
+			spin_unlock_bh(&sta->lock);
+
 			ieee80211_tx_ba_session_handle_start(sta, tid);
-		else if (test_and_clear_bit(HT_AGG_STATE_WANT_STOP,
-					    &tid_tx->state))
+			continue;
+		}
+
+		tid_tx = sta->ampdu_mlme.tid_tx[tid];
+		if (tid_tx && test_and_clear_bit(HT_AGG_STATE_WANT_STOP,
+						 &tid_tx->state))
 			___ieee80211_stop_tx_ba_session(sta, tid,
 							WLAN_BACK_INITIATOR,
 							true);

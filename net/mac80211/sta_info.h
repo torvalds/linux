@@ -152,6 +152,7 @@ struct tid_ampdu_rx {
  *
  * @tid_rx: aggregation info for Rx per TID -- RCU protected
  * @tid_tx: aggregation info for Tx per TID
+ * @tid_start_tx: sessions where start was requested
  * @addba_req_num: number of times addBA request has been sent.
  * @dialog_token_allocator: dialog token enumerator for each new session;
  * @work: work struct for starting/stopping aggregation
@@ -168,6 +169,7 @@ struct sta_ampdu_mlme {
 	/* tx */
 	struct work_struct work;
 	struct tid_ampdu_tx *tid_tx[STA_TID_NUM];
+	struct tid_ampdu_tx *tid_start_tx[STA_TID_NUM];
 	u8 addba_req_num[STA_TID_NUM];
 	u8 dialog_token_allocator;
 };
@@ -398,6 +400,8 @@ static inline u32 get_sta_flags(struct sta_info *sta)
 	return ret;
 }
 
+void ieee80211_assign_tid_tx(struct sta_info *sta, int tid,
+			     struct tid_ampdu_tx *tid_tx);
 
 
 #define STA_HASH_SIZE 256
