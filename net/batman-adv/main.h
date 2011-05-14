@@ -136,7 +136,7 @@ void dec_module_count(void);
 int is_my_mac(uint8_t *addr);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-int debug_log(struct bat_priv *bat_priv, char *fmt, ...);
+int debug_log(struct bat_priv *bat_priv, char *fmt, ...) __printf(2, 3);
 
 #define bat_dbg(type, bat_priv, fmt, arg...)			\
 	do {							\
@@ -145,6 +145,7 @@ int debug_log(struct bat_priv *bat_priv, char *fmt, ...);
 	}							\
 	while (0)
 #else /* !CONFIG_BATMAN_ADV_DEBUG */
+__printf(3, 4)
 static inline void bat_dbg(char type __always_unused,
 			   struct bat_priv *bat_priv __always_unused,
 			   char *fmt __always_unused, ...)

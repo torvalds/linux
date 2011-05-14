@@ -50,6 +50,7 @@ static void emit_log_char(struct debug_log *debug_log, char c)
 		debug_log->log_start = debug_log->log_end - log_buff_len;
 }
 
+__printf(2, 3)
 static int fdebug_log(struct debug_log *debug_log, char *fmt, ...)
 {
 	va_list args;
