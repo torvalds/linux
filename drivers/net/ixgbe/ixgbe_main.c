@@ -3755,9 +3755,11 @@ static void ixgbe_fdir_filter_restore(struct ixgbe_adapter *adapter)
 	hlist_for_each_entry_safe(filter, node, node2,
 				  &adapter->fdir_filter_list, fdir_node) {
 		ixgbe_fdir_write_perfect_filter_82599(hw,
-						      &filter->filter,
-						      filter->sw_idx,
-						      filter->action);
+				&filter->filter,
+				filter->sw_idx,
+				(filter->action == IXGBE_FDIR_DROP_QUEUE) ?
+				IXGBE_FDIR_DROP_QUEUE :
+				adapter->rx_ring[filter->action]->reg_idx);
 	}
 
 	spin_unlock(&adapter->fdir_perfect_lock);
