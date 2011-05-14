@@ -1037,7 +1037,6 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	struct address_space *mapping;
 	unsigned long index;
 	struct inode *inode;
-	bool unlock_mutex = false;
 
 	BUG_ON(!PageLocked(page));
 	mapping = page->mapping;
@@ -1072,15 +1071,14 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	 * we've taken the spinlock, because shmem_unuse_inode() will
 	 * prune a !swapped inode from the swaplist under both locks.
 	 */
-	if (swap.val && list_empty(&info->swaplist)) {
+	if (swap.val) {
 		mutex_lock(&shmem_swaplist_mutex);
-		/* move instead of add in case we're racing */
-		list_move_tail(&info->swaplist, &shmem_swaplist);
-		unlock_mutex = true;
+		if (list_empty(&info->swaplist))
+			list_add_tail(&info->swaplist, &shmem_swaplist);
 	}
 
 	spin_lock(&info->lock);
-	if (unlock_mutex)
+	if (swap.val)
 		mutex_unlock(&shmem_swaplist_mutex);
 
 	if (index >= info->next_index) {
