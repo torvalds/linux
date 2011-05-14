@@ -185,7 +185,7 @@ static int debug_log_setup(struct bat_priv *bat_priv)
 	if (!bat_priv->debug_dir)
 		goto err;
 
-	bat_priv->debug_log = kzalloc(sizeof(struct debug_log), GFP_ATOMIC);
+	bat_priv->debug_log = kzalloc(sizeof(*bat_priv->debug_log), GFP_ATOMIC);
 	if (!bat_priv->debug_log)
 		goto err;
 

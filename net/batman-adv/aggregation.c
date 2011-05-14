@@ -119,7 +119,7 @@ static void new_aggregated_packet(const unsigned char *packet_buff,
 		}
 	}
 
-	forw_packet_aggr = kmalloc(sizeof(struct forw_packet), GFP_ATOMIC);
+	forw_packet_aggr = kmalloc(sizeof(*forw_packet_aggr), GFP_ATOMIC);
 	if (!forw_packet_aggr) {
 		if (!own_packet)
 			atomic_inc(&bat_priv->batman_queue_left);

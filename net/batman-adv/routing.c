@@ -1357,7 +1357,7 @@ out:
 int recv_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct unicast_packet *unicast_packet;
-	int hdr_size = sizeof(struct unicast_packet);
+	int hdr_size = sizeof(*unicast_packet);
 
 	if (check_unicast_packet(skb, hdr_size) < 0)
 		return NET_RX_DROP;
@@ -1377,7 +1377,7 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct unicast_frag_packet *unicast_packet;
-	int hdr_size = sizeof(struct unicast_frag_packet);
+	int hdr_size = sizeof(*unicast_packet);
 	struct sk_buff *new_skb = NULL;
 	int ret;
 
@@ -1413,7 +1413,7 @@ int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	struct orig_node *orig_node = NULL;
 	struct bcast_packet *bcast_packet;
 	struct ethhdr *ethhdr;
-	int hdr_size = sizeof(struct bcast_packet);
+	int hdr_size = sizeof(*bcast_packet);
 	int ret = NET_RX_DROP;
 	int32_t seq_diff;
 
@@ -1491,7 +1491,7 @@ int recv_vis_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	struct vis_packet *vis_packet;
 	struct ethhdr *ethhdr;
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
-	int hdr_size = sizeof(struct vis_packet);
+	int hdr_size = sizeof(*vis_packet);
 
 	/* keep skb linear */
 	if (skb_linearize(skb) < 0)

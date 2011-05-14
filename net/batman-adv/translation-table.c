@@ -164,7 +164,7 @@ void tt_local_add(struct net_device *soft_iface, const uint8_t *addr)
 	bat_dbg(DBG_ROUTES, bat_priv,
 		"Creating new local tt entry: %pM\n", addr);
 
-	tt_local_entry = kmalloc(sizeof(struct tt_local_entry), GFP_ATOMIC);
+	tt_local_entry = kmalloc(sizeof(*tt_local_entry), GFP_ATOMIC);
 	if (!tt_local_entry)
 		return;
 
@@ -427,9 +427,8 @@ void tt_global_add_orig(struct bat_priv *bat_priv,
 		if (!tt_global_entry) {
 			spin_unlock_bh(&bat_priv->tt_ghash_lock);
 
-			tt_global_entry =
-				kmalloc(sizeof(struct tt_global_entry),
-					GFP_ATOMIC);
+			tt_global_entry = kmalloc(sizeof(*tt_global_entry),
+						  GFP_ATOMIC);
 
 			if (!tt_global_entry)
 				break;

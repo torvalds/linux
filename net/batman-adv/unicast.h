@@ -49,7 +49,7 @@ static inline int frag_can_reassemble(const struct sk_buff *skb, int mtu)
 			uneven_correction = -1;
 	}
 
-	merged_size = (skb->len - sizeof(struct unicast_frag_packet)) * 2;
+	merged_size = (skb->len - sizeof(*unicast_packet)) * 2;
 	merged_size += sizeof(struct unicast_packet) + uneven_correction;
 
 	return merged_size <= mtu;

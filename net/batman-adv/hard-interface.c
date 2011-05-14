@@ -459,7 +459,7 @@ static struct hard_iface *hardif_add_interface(struct net_device *net_dev)
 
 	dev_hold(net_dev);
 
-	hard_iface = kmalloc(sizeof(struct hard_iface), GFP_ATOMIC);
+	hard_iface = kmalloc(sizeof(*hard_iface), GFP_ATOMIC);
 	if (!hard_iface) {
 		pr_err("Can't add interface (%s): out of memory\n",
 		       net_dev->name);

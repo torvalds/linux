@@ -73,7 +73,7 @@ int send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
 	}
 
 	/* push to the ethernet header. */
-	if (my_skb_head_push(skb, sizeof(struct ethhdr)) < 0)
+	if (my_skb_head_push(skb, sizeof(*ethhdr)) < 0)
 		goto send_skb_err;
 
 	skb_reset_mac_header(skb);
@@ -144,7 +144,7 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 			hard_iface->net_dev->name,
 			hard_iface->net_dev->dev_addr);
 
-		buff_pos += sizeof(struct batman_packet) +
+		buff_pos += sizeof(*batman_packet) +
 			(batman_packet->num_tt * ETH_ALEN);
 		packet_num++;
 		batman_packet = (struct batman_packet *)
@@ -220,19 +220,18 @@ static void rebuild_batman_packet(struct bat_priv *bat_priv,
 	unsigned char *new_buff;
 	struct batman_packet *batman_packet;
 
-	new_len = sizeof(struct batman_packet) +
-			(bat_priv->num_local_tt * ETH_ALEN);
+	new_len = sizeof(*batman_packet) + (bat_priv->num_local_tt * ETH_ALEN);
 	new_buff = kmalloc(new_len, GFP_ATOMIC);
 
 	/* keep old buffer if kmalloc should fail */
 	if (new_buff) {
 		memcpy(new_buff, hard_iface->packet_buff,
-		       sizeof(struct batman_packet));
+		       sizeof(*batman_packet));
 		batman_packet = (struct batman_packet *)new_buff;
 
 		batman_packet->num_tt = tt_local_fill_buffer(bat_priv,
-				new_buff + sizeof(struct batman_packet),
-				new_len - sizeof(struct batman_packet));
+					new_buff + sizeof(*batman_packet),
+					new_len - sizeof(*batman_packet));
 
 		kfree(hard_iface->packet_buff);
 		hard_iface->packet_buff = new_buff;
@@ -368,7 +367,7 @@ void schedule_forward_packet(struct orig_node *orig_node,
 	send_time = forward_send_time();
 	add_bat_packet_to_list(bat_priv,
 			       (unsigned char *)batman_packet,
-			       sizeof(struct batman_packet) + tt_buff_len,
+			       sizeof(*batman_packet) + tt_buff_len,
 			       if_incoming, 0, send_time);
 }
 
@@ -424,7 +423,7 @@ int add_bcast_packet_to_list(struct bat_priv *bat_priv,
 	if (!primary_if)
 		goto out_and_inc;
 
-	forw_packet = kmalloc(sizeof(struct forw_packet), GFP_ATOMIC);
+	forw_packet = kmalloc(sizeof(*forw_packet), GFP_ATOMIC);
 
 	if (!forw_packet)
 		goto out_and_inc;
