@@ -7314,6 +7314,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 				      datasize);
 	if (err) {
 		drop_inode = 1;
+		btrfs_free_path(path);
 		goto out_unlock;
 	}
 	leaf = path->nodes[0];
