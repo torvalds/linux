@@ -4,6 +4,11 @@ AC_PREREQ(2.59)
 AC_INIT([usbip], [0.1.8], [usbip-devel@lists.sourceforge.net])
 AC_DEFINE([USBIP_VERSION], [0x000106], [numeric version number])
 
+CURRENT=0
+REVISION=1
+AGE=0
+AC_SUBST([LIBUSBIP_VERSION], [$CURRENT:$REVISION:$AGE], [library version])
+
 AC_CONFIG_SRCDIR([src/usbipd.c])
 AC_CONFIG_HEADERS([config.h])
 
