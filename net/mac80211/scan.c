@@ -719,6 +719,11 @@ void ieee80211_scan_work(struct work_struct *work)
 	 * without scheduling a new work
 	 */
 	do {
+		if (!ieee80211_sdata_running(sdata)) {
+			aborted = true;
+			goto out_complete;
+		}
+
 		switch (local->next_scan_state) {
 		case SCAN_DECISION:
 			/* if no more bands/channels left, complete scan */
