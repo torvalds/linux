@@ -52,10 +52,10 @@
 
 #define bfin_read(addr) \
 ({ \
-    sizeof(*(addr)) == 1 ? bfin_read8(addr)  : \
-    sizeof(*(addr)) == 2 ? bfin_read16(addr) : \
-    sizeof(*(addr)) == 4 ? bfin_read32(addr) : \
-    ({ BUG(); 0; }); \
+	sizeof(*(addr)) == 1 ? bfin_read8(addr)  : \
+	sizeof(*(addr)) == 2 ? bfin_read16(addr) : \
+	sizeof(*(addr)) == 4 ? bfin_read32(addr) : \
+	({ BUG(); 0; }); \
 })
 #define bfin_write(addr, val) \
 do { \
