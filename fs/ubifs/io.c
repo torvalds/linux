@@ -573,7 +573,7 @@ out_timers:
 int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 {
 	struct ubifs_info *c = wbuf->c;
-	int err, written, n, aligned_len = ALIGN(len, 8), offs;
+	int err, written, n, aligned_len = ALIGN(len, 8);
 
 	dbg_io("%d bytes (%s) to jhead %s wbuf at LEB %d:%d", len,
 	       dbg_ntype(((struct ubifs_ch *)buf)->node_type),
@@ -636,7 +636,6 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		goto exit;
 	}
 
-	offs = wbuf->offs;
 	written = 0;
 
 	if (wbuf->used) {
@@ -653,7 +652,7 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		if (err)
 			goto out;
 
-		offs += wbuf->size;
+		wbuf->offs += wbuf->size;
 		len -= wbuf->avail;
 		aligned_len -= wbuf->avail;
 		written += wbuf->avail;
@@ -672,7 +671,7 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		if (err)
 			goto out;
 
-		offs += wbuf->size;
+		wbuf->offs += wbuf->size;
 		len -= wbuf->size;
 		aligned_len -= wbuf->size;
 		written += wbuf->size;
@@ -687,12 +686,13 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 	n = aligned_len >> c->max_write_shift;
 	if (n) {
 		n <<= c->max_write_shift;
-		dbg_io("write %d bytes to LEB %d:%d", n, wbuf->lnum, offs);
-		err = ubi_leb_write(c->ubi, wbuf->lnum, buf + written, offs, n,
-				    wbuf->dtype);
+		dbg_io("write %d bytes to LEB %d:%d", n, wbuf->lnum,
+		       wbuf->offs);
+		err = ubi_leb_write(c->ubi, wbuf->lnum, buf + written,
+				    wbuf->offs, n, wbuf->dtype);
 		if (err)
 			goto out;
-		offs += n;
+		wbuf->offs += n;
 		aligned_len -= n;
 		len -= n;
 		written += n;
@@ -707,7 +707,6 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		 */
 		memcpy(wbuf->buf, buf + written, len);
 
-	wbuf->offs = offs;
 	if (c->leb_size - wbuf->offs >= c->max_write_size)
 		wbuf->size = c->max_write_size;
 	else
