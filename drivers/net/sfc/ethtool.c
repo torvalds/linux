@@ -955,8 +955,9 @@ static int efx_ethtool_set_rx_ntuple(struct net_device *net_dev,
 
 	if (ntuple->fs.action == ETHTOOL_RXNTUPLE_ACTION_CLEAR)
 		return efx_filter_remove_filter(efx, &filter);
-	else
-		return efx_filter_insert_filter(efx, &filter, true);
+
+	rc = efx_filter_insert_filter(efx, &filter, true);
+	return rc < 0 ? rc : 0;
 }
 
 static int efx_ethtool_get_rxfh_indir(struct net_device *net_dev,
