@@ -68,10 +68,10 @@ static void free_info(struct kref *ref)
 }
 
 /* Compare two vis packets, used by the hashing algorithm */
-static int vis_info_cmp(struct hlist_node *node, void *data2)
+static int vis_info_cmp(const struct hlist_node *node, const void *data2)
 {
-	struct vis_info *d1, *d2;
-	struct vis_packet *p1, *p2;
+	const struct vis_info *d1, *d2;
+	const struct vis_packet *p1, *p2;
 
 	d1 = container_of(node, struct vis_info, hash_entry);
 	d2 = data2;
@@ -82,11 +82,11 @@ static int vis_info_cmp(struct hlist_node *node, void *data2)
 
 /* hash function to choose an entry in a hash table of given size */
 /* hash algorithm from http://en.wikipedia.org/wiki/Hash_table */
-static int vis_info_choose(void *data, int size)
+static int vis_info_choose(const void *data, int size)
 {
-	struct vis_info *vis_info = data;
-	struct vis_packet *packet;
-	unsigned char *key;
+	const struct vis_info *vis_info = data;
+	const struct vis_packet *packet;
+	const unsigned char *key;
 	uint32_t hash = 0;
 	size_t i;
 
@@ -106,7 +106,7 @@ static int vis_info_choose(void *data, int size)
 }
 
 static struct vis_info *vis_hash_find(struct bat_priv *bat_priv,
-				      void *data)
+				      const void *data)
 {
 	struct hashtable_t *hash = bat_priv->vis_hash;
 	struct hlist_head *head;
@@ -143,7 +143,7 @@ static void vis_data_insert_interface(const uint8_t *interface,
 	struct hlist_node *pos;
 
 	hlist_for_each_entry(entry, pos, if_list, list) {
-		if (compare_eth(entry->addr, (void *)interface))
+		if (compare_eth(entry->addr, interface))
 			return;
 	}
 
@@ -156,7 +156,8 @@ static void vis_data_insert_interface(const uint8_t *interface,
 	hlist_add_head(&entry->list, if_list);
 }
 
-static ssize_t vis_data_read_prim_sec(char *buff, struct hlist_head *if_list)
+static ssize_t vis_data_read_prim_sec(char *buff,
+				      const struct hlist_head *if_list)
 {
 	struct if_list_entry *entry;
 	struct hlist_node *pos;
@@ -189,8 +190,9 @@ static size_t vis_data_count_prim_sec(struct hlist_head *if_list)
 }
 
 /* read an entry  */
-static ssize_t vis_data_read_entry(char *buff, struct vis_info_entry *entry,
-				   uint8_t *src, bool primary)
+static ssize_t vis_data_read_entry(char *buff,
+				   const struct vis_info_entry *entry,
+				   const uint8_t *src, bool primary)
 {
 	/* maximal length: max(4+17+2, 3+17+1+3+2) == 26 */
 	if (primary && entry->quality == 0)
@@ -361,7 +363,7 @@ static void send_list_del(struct vis_info *info)
 
 /* tries to add one entry to the receive list. */
 static void recv_list_add(struct bat_priv *bat_priv,
-			  struct list_head *recv_list, char *mac)
+			  struct list_head *recv_list, const char *mac)
 {
 	struct recvlist_node *entry;
 
@@ -377,9 +379,9 @@ static void recv_list_add(struct bat_priv *bat_priv,
 
 /* returns 1 if this mac is in the recv_list */
 static int recv_list_is_in(struct bat_priv *bat_priv,
-			   struct list_head *recv_list, char *mac)
+			   const struct list_head *recv_list, const char *mac)
 {
-	struct recvlist_node *entry;
+	const struct recvlist_node *entry;
 
 	spin_lock_bh(&bat_priv->vis_list_lock);
 	list_for_each_entry(entry, recv_list, list) {
@@ -599,9 +601,9 @@ static int find_best_vis_server(struct bat_priv *bat_priv,
 }
 
 /* Return true if the vis packet is full. */
-static bool vis_packet_full(struct vis_info *info)
+static bool vis_packet_full(const struct vis_info *info)
 {
-	struct vis_packet *packet;
+	const struct vis_packet *packet;
 	packet = (struct vis_packet *)info->skb_packet->data;
 
 	if (MAX_VIS_PACKET_SIZE / sizeof(struct vis_info_entry)

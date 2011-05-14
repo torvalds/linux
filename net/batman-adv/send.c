@@ -33,14 +33,14 @@
 static void send_outstanding_bcast_packet(struct work_struct *work);
 
 /* apply hop penalty for a normal link */
-static uint8_t hop_penalty(const uint8_t tq, struct bat_priv *bat_priv)
+static uint8_t hop_penalty(uint8_t tq, const struct bat_priv *bat_priv)
 {
 	int hop_penalty = atomic_read(&bat_priv->hop_penalty);
 	return (tq * (TQ_MAX_VALUE - hop_penalty)) / (TQ_MAX_VALUE);
 }
 
 /* when do we schedule our own packet to be sent */
-static unsigned long own_send_time(struct bat_priv *bat_priv)
+static unsigned long own_send_time(const struct bat_priv *bat_priv)
 {
 	return jiffies + msecs_to_jiffies(
 		   atomic_read(&bat_priv->orig_interval) -
@@ -55,9 +55,8 @@ static unsigned long forward_send_time(void)
 
 /* send out an already prepared packet to the given address via the
  * specified batman interface */
-int send_skb_packet(struct sk_buff *skb,
-				struct hard_iface *hard_iface,
-				uint8_t *dst_addr)
+int send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
+		    const uint8_t *dst_addr)
 {
 	struct ethhdr *ethhdr;
 
@@ -307,7 +306,7 @@ void schedule_own_packet(struct hard_iface *hard_iface)
 }
 
 void schedule_forward_packet(struct orig_node *orig_node,
-			     struct ethhdr *ethhdr,
+			     const struct ethhdr *ethhdr,
 			     struct batman_packet *batman_packet,
 			     uint8_t directlink, int tt_buff_len,
 			     struct hard_iface *if_incoming)
@@ -408,11 +407,13 @@ static void _add_bcast_packet_to_list(struct bat_priv *bat_priv,
  *
  * The skb is not consumed, so the caller should make sure that the
  * skb is freed. */
-int add_bcast_packet_to_list(struct bat_priv *bat_priv, struct sk_buff *skb)
+int add_bcast_packet_to_list(struct bat_priv *bat_priv,
+			     const struct sk_buff *skb)
 {
 	struct hard_iface *primary_if = NULL;
 	struct forw_packet *forw_packet;
 	struct bcast_packet *bcast_packet;
+	struct sk_buff *newskb;
 
 	if (!atomic_dec_not_zero(&bat_priv->bcast_queue_left)) {
 		bat_dbg(DBG_BATMAN, bat_priv, "bcast packet queue full\n");
@@ -428,17 +429,17 @@ int add_bcast_packet_to_list(struct bat_priv *bat_priv, struct sk_buff *skb)
 	if (!forw_packet)
 		goto out_and_inc;
 
-	skb = skb_copy(skb, GFP_ATOMIC);
-	if (!skb)
+	newskb = skb_copy(skb, GFP_ATOMIC);
+	if (!newskb)
 		goto packet_free;
 
 	/* as we have a copy now, it is safe to decrease the TTL */
-	bcast_packet = (struct bcast_packet *)skb->data;
+	bcast_packet = (struct bcast_packet *)newskb->data;
 	bcast_packet->ttl--;
 
-	skb_reset_mac_header(skb);
+	skb_reset_mac_header(newskb);
 
-	forw_packet->skb = skb;
+	forw_packet->skb = newskb;
 	forw_packet->if_incoming = primary_if;
 
 	/* how often did we send the bcast packet ? */
@@ -537,7 +538,7 @@ out:
 }
 
 void purge_outstanding_packets(struct bat_priv *bat_priv,
-			       struct hard_iface *hard_iface)
+			       const struct hard_iface *hard_iface)
 {
 	struct forw_packet *forw_packet;
 	struct hlist_node *tmp_node, *safe_tmp_node;

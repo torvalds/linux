@@ -26,7 +26,7 @@
 
 /* returns true if the corresponding bit in the given seq_bits indicates true
  * and curr_seqno is within range of last_seqno */
-uint8_t get_bit_status(unsigned long *seq_bits, uint32_t last_seqno,
+uint8_t get_bit_status(const unsigned long *seq_bits, uint32_t last_seqno,
 		       uint32_t curr_seqno)
 {
 	int32_t diff, word_offset, word_num;
@@ -190,7 +190,7 @@ char bit_get_packet(void *priv, unsigned long *seq_bits,
 /* count the hamming weight, how many good packets did we receive? just count
  * the 1's.
  */
-int bit_packet_count(unsigned long *seq_bits)
+int bit_packet_count(const unsigned long *seq_bits)
 {
 	int i, hamming = 0;
 

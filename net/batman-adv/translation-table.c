@@ -29,20 +29,22 @@
 static void tt_local_purge(struct work_struct *work);
 static void _tt_global_del_orig(struct bat_priv *bat_priv,
 				 struct tt_global_entry *tt_global_entry,
-				 char *message);
+				 const char *message);
 
 /* returns 1 if they are the same mac addr */
-static int compare_ltt(struct hlist_node *node, void *data2)
+static int compare_ltt(const struct hlist_node *node, const void *data2)
 {
-	void *data1 = container_of(node, struct tt_local_entry, hash_entry);
+	const void *data1 = container_of(node, struct tt_local_entry,
+					 hash_entry);
 
 	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
 }
 
 /* returns 1 if they are the same mac addr */
-static int compare_gtt(struct hlist_node *node, void *data2)
+static int compare_gtt(const struct hlist_node *node, const void *data2)
 {
-	void *data1 = container_of(node, struct tt_global_entry, hash_entry);
+	const void *data1 = container_of(node, struct tt_global_entry,
+					 hash_entry);
 
 	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
 }
@@ -54,7 +56,7 @@ static void tt_local_start_timer(struct bat_priv *bat_priv)
 }
 
 static struct tt_local_entry *tt_local_hash_find(struct bat_priv *bat_priv,
-						   void *data)
+						 const void *data)
 {
 	struct hashtable_t *hash = bat_priv->tt_local_hash;
 	struct hlist_head *head;
@@ -82,7 +84,7 @@ static struct tt_local_entry *tt_local_hash_find(struct bat_priv *bat_priv,
 }
 
 static struct tt_global_entry *tt_global_hash_find(struct bat_priv *bat_priv,
-						     void *data)
+						   const void *data)
 {
 	struct hashtable_t *hash = bat_priv->tt_global_hash;
 	struct hlist_head *head;
@@ -126,7 +128,7 @@ int tt_local_init(struct bat_priv *bat_priv)
 	return 1;
 }
 
-void tt_local_add(struct net_device *soft_iface, uint8_t *addr)
+void tt_local_add(struct net_device *soft_iface, const uint8_t *addr)
 {
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	struct tt_local_entry *tt_local_entry;
@@ -320,8 +322,8 @@ static void _tt_local_del(struct hlist_node *node, void *arg)
 }
 
 static void tt_local_del(struct bat_priv *bat_priv,
-			  struct tt_local_entry *tt_local_entry,
-			  char *message)
+			 struct tt_local_entry *tt_local_entry,
+			 const char *message)
 {
 	bat_dbg(DBG_ROUTES, bat_priv, "Deleting local tt entry (%pM): %s\n",
 		tt_local_entry->addr, message);
@@ -332,7 +334,7 @@ static void tt_local_del(struct bat_priv *bat_priv,
 }
 
 void tt_local_remove(struct bat_priv *bat_priv,
-		      uint8_t *addr, char *message)
+		     const uint8_t *addr, const char *message)
 {
 	struct tt_local_entry *tt_local_entry;
 
@@ -409,12 +411,12 @@ int tt_global_init(struct bat_priv *bat_priv)
 
 void tt_global_add_orig(struct bat_priv *bat_priv,
 			 struct orig_node *orig_node,
-			 unsigned char *tt_buff, int tt_buff_len)
+			 const unsigned char *tt_buff, int tt_buff_len)
 {
 	struct tt_global_entry *tt_global_entry;
 	struct tt_local_entry *tt_local_entry;
 	int tt_buff_count = 0;
-	unsigned char *tt_ptr;
+	const unsigned char *tt_ptr;
 
 	while ((tt_buff_count + 1) * ETH_ALEN <= tt_buff_len) {
 		spin_lock_bh(&bat_priv->tt_ghash_lock);
@@ -557,7 +559,7 @@ out:
 
 static void _tt_global_del_orig(struct bat_priv *bat_priv,
 				 struct tt_global_entry *tt_global_entry,
-				 char *message)
+				 const char *message)
 {
 	bat_dbg(DBG_ROUTES, bat_priv,
 		"Deleting global tt entry %pM (via %pM): %s\n",
@@ -570,7 +572,7 @@ static void _tt_global_del_orig(struct bat_priv *bat_priv,
 }
 
 void tt_global_del_orig(struct bat_priv *bat_priv,
-			 struct orig_node *orig_node, char *message)
+			 struct orig_node *orig_node, const char *message)
 {
 	struct tt_global_entry *tt_global_entry;
 	int tt_buff_count = 0;
@@ -616,7 +618,8 @@ void tt_global_free(struct bat_priv *bat_priv)
 	bat_priv->tt_global_hash = NULL;
 }
 
-struct orig_node *transtable_search(struct bat_priv *bat_priv, uint8_t *addr)
+struct orig_node *transtable_search(struct bat_priv *bat_priv,
+				    const uint8_t *addr)
 {
 	struct tt_global_entry *tt_global_entry;
 	struct orig_node *orig_node = NULL;

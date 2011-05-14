@@ -115,7 +115,7 @@ static int frag_create_buffer(struct list_head *head)
 }
 
 static struct frag_packet_list_entry *frag_search_packet(struct list_head *head,
-						 struct unicast_frag_packet *up)
+					   const struct unicast_frag_packet *up)
 {
 	struct frag_packet_list_entry *tfp;
 	struct unicast_frag_packet *tmp_up = NULL;
@@ -218,7 +218,7 @@ out:
 }
 
 int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
-		  struct hard_iface *hard_iface, uint8_t dstaddr[])
+		  struct hard_iface *hard_iface, const uint8_t dstaddr[])
 {
 	struct unicast_packet tmp_uc, *unicast_packet;
 	struct hard_iface *primary_if;

@@ -51,7 +51,7 @@ static void emit_log_char(struct debug_log *debug_log, char c)
 }
 
 __printf(2, 3)
-static int fdebug_log(struct debug_log *debug_log, char *fmt, ...)
+static int fdebug_log(struct debug_log *debug_log, const char *fmt, ...)
 {
 	va_list args;
 	static char debug_log_buf[256];
@@ -75,7 +75,7 @@ static int fdebug_log(struct debug_log *debug_log, char *fmt, ...)
 	return 0;
 }
 
-int debug_log(struct bat_priv *bat_priv, char *fmt, ...)
+int debug_log(struct bat_priv *bat_priv, const char *fmt, ...)
 {
 	va_list args;
 	char tmp_log_buf[256];

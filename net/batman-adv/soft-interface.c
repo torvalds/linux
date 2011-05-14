@@ -146,7 +146,7 @@ out:
 }
 
 static struct softif_neigh *softif_neigh_get(struct bat_priv *bat_priv,
-					     uint8_t *addr, short vid)
+					     const uint8_t *addr, short vid)
 {
 	struct softif_neigh_vid *softif_neigh_vid;
 	struct softif_neigh *softif_neigh = NULL;
@@ -793,7 +793,7 @@ static void interface_setup(struct net_device *dev)
 	memset(priv, 0, sizeof(struct bat_priv));
 }
 
-struct net_device *softif_create(char *name)
+struct net_device *softif_create(const char *name)
 {
 	struct net_device *soft_iface;
 	struct bat_priv *bat_priv;
@@ -872,7 +872,7 @@ void softif_destroy(struct net_device *soft_iface)
 	unregister_netdevice(soft_iface);
 }
 
-int softif_is_valid(struct net_device *net_dev)
+int softif_is_valid(const struct net_device *net_dev)
 {
 #ifdef HAVE_NET_DEVICE_OPS
 	if (net_dev->netdev_ops->ndo_start_xmit == interface_tx)
@@ -924,4 +924,3 @@ static u32 bat_get_link(struct net_device *dev)
 {
 	return 1;
 }
-

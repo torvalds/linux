@@ -46,7 +46,7 @@ void hardif_free_rcu(struct rcu_head *rcu)
 	kfree(hard_iface);
 }
 
-struct hard_iface *hardif_get_by_netdev(struct net_device *net_dev)
+struct hard_iface *hardif_get_by_netdev(const struct net_device *net_dev)
 {
 	struct hard_iface *hard_iface;
 
@@ -64,7 +64,7 @@ out:
 	return hard_iface;
 }
 
-static int is_valid_iface(struct net_device *net_dev)
+static int is_valid_iface(const struct net_device *net_dev)
 {
 	if (net_dev->flags & IFF_LOOPBACK)
 		return 0;
@@ -86,7 +86,7 @@ static int is_valid_iface(struct net_device *net_dev)
 	return 1;
 }
 
-static struct hard_iface *hardif_get_active(struct net_device *soft_iface)
+static struct hard_iface *hardif_get_active(const struct net_device *soft_iface)
 {
 	struct hard_iface *hard_iface;
 
@@ -160,7 +160,7 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	atomic_set(&bat_priv->tt_local_changed, 1);
 }
 
-static bool hardif_is_iface_up(struct hard_iface *hard_iface)
+static bool hardif_is_iface_up(const struct hard_iface *hard_iface)
 {
 	if (hard_iface->net_dev->flags & IFF_UP)
 		return true;
@@ -176,9 +176,9 @@ static void update_mac_addresses(struct hard_iface *hard_iface)
 	       hard_iface->net_dev->dev_addr, ETH_ALEN);
 }
 
-static void check_known_mac_addr(struct net_device *net_dev)
+static void check_known_mac_addr(const struct net_device *net_dev)
 {
-	struct hard_iface *hard_iface;
+	const struct hard_iface *hard_iface;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
@@ -204,8 +204,8 @@ static void check_known_mac_addr(struct net_device *net_dev)
 
 int hardif_min_mtu(struct net_device *soft_iface)
 {
-	struct bat_priv *bat_priv = netdev_priv(soft_iface);
-	struct hard_iface *hard_iface;
+	const struct bat_priv *bat_priv = netdev_priv(soft_iface);
+	const struct hard_iface *hard_iface;
 	/* allow big frames if all devices are capable to do so
 	 * (have MTU > 1500 + BAT_HEADER_LEN) */
 	int min_mtu = ETH_DATA_LEN;
@@ -285,7 +285,8 @@ static void hardif_deactivate_interface(struct hard_iface *hard_iface)
 	update_min_mtu(hard_iface->soft_iface);
 }
 
-int hardif_enable_interface(struct hard_iface *hard_iface, char *iface_name)
+int hardif_enable_interface(struct hard_iface *hard_iface,
+			    const char *iface_name)
 {
 	struct bat_priv *bat_priv;
 	struct batman_packet *batman_packet;

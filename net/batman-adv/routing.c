@@ -65,7 +65,7 @@ void slide_own_bcast_window(struct hard_iface *hard_iface)
 }
 
 static void update_TT(struct bat_priv *bat_priv, struct orig_node *orig_node,
-		       unsigned char *tt_buff, int tt_buff_len)
+		      const unsigned char *tt_buff, int tt_buff_len)
 {
 	if ((tt_buff_len != orig_node->tt_buff_len) ||
 	    ((tt_buff_len > 0) &&
@@ -82,10 +82,9 @@ static void update_TT(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	}
 }
 
-static void update_route(struct bat_priv *bat_priv,
-			 struct orig_node *orig_node,
+static void update_route(struct bat_priv *bat_priv, struct orig_node *orig_node,
 			 struct neigh_node *neigh_node,
-			 unsigned char *tt_buff, int tt_buff_len)
+			 const unsigned char *tt_buff, int tt_buff_len)
 {
 	struct neigh_node *curr_router;
 
@@ -133,9 +132,8 @@ static void update_route(struct bat_priv *bat_priv,
 		neigh_node_free_ref(curr_router);
 }
 
-
 void update_routes(struct bat_priv *bat_priv, struct orig_node *orig_node,
-		   struct neigh_node *neigh_node, unsigned char *tt_buff,
+		   struct neigh_node *neigh_node, const unsigned char *tt_buff,
 		   int tt_buff_len)
 {
 	struct neigh_node *router = NULL;
@@ -348,9 +346,9 @@ out:
 }
 
 /* copy primary address for bonding */
-static void bonding_save_primary(struct orig_node *orig_node,
+static void bonding_save_primary(const struct orig_node *orig_node,
 				 struct orig_node *orig_neigh_node,
-				 struct batman_packet *batman_packet)
+				 const struct batman_packet *batman_packet)
 {
 	if (!(batman_packet->flags & PRIMARIES_FIRST_HOP))
 		return;
@@ -358,12 +356,11 @@ static void bonding_save_primary(struct orig_node *orig_node,
 	memcpy(orig_neigh_node->primary_addr, orig_node->orig, ETH_ALEN);
 }
 
-static void update_orig(struct bat_priv *bat_priv,
-			struct orig_node *orig_node,
-			struct ethhdr *ethhdr,
-			struct batman_packet *batman_packet,
+static void update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
+			const struct ethhdr *ethhdr,
+			const struct batman_packet *batman_packet,
 			struct hard_iface *if_incoming,
-			unsigned char *tt_buff, int tt_buff_len,
+			const unsigned char *tt_buff, int tt_buff_len,
 			char is_duplicate)
 {
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
@@ -531,9 +528,9 @@ static int window_protected(struct bat_priv *bat_priv,
  *  -1 the packet is old and has been received while the seqno window
  *     was protected. Caller should drop it.
  */
-static char count_real_packets(struct ethhdr *ethhdr,
-			       struct batman_packet *batman_packet,
-			       struct hard_iface *if_incoming)
+static char count_real_packets(const struct ethhdr *ethhdr,
+			       const struct batman_packet *batman_packet,
+			       const struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct orig_node *orig_node;
@@ -595,9 +592,9 @@ out:
 	return ret;
 }
 
-void receive_bat_packet(struct ethhdr *ethhdr,
+void receive_bat_packet(const struct ethhdr *ethhdr,
 			struct batman_packet *batman_packet,
-			unsigned char *tt_buff, int tt_buff_len,
+			const unsigned char *tt_buff, int tt_buff_len,
 			struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
@@ -1077,7 +1074,7 @@ out:
  * This method rotates the bonding list and increases the
  * returned router's refcount. */
 static struct neigh_node *find_bond_router(struct orig_node *primary_orig,
-					   struct hard_iface *recv_if)
+					   const struct hard_iface *recv_if)
 {
 	struct neigh_node *tmp_neigh_node;
 	struct neigh_node *router = NULL, *first_candidate = NULL;
@@ -1128,7 +1125,7 @@ out:
  *
  * Increases the returned router's refcount */
 static struct neigh_node *find_ifalter_router(struct orig_node *primary_orig,
-					      struct hard_iface *recv_if)
+					      const struct hard_iface *recv_if)
 {
 	struct neigh_node *tmp_neigh_node;
 	struct neigh_node *router = NULL, *first_candidate = NULL;
@@ -1176,7 +1173,7 @@ static struct neigh_node *find_ifalter_router(struct orig_node *primary_orig,
  * refcount.*/
 struct neigh_node *find_router(struct bat_priv *bat_priv,
 			       struct orig_node *orig_node,
-			       struct hard_iface *recv_if)
+			       const struct hard_iface *recv_if)
 {
 	struct orig_node *primary_orig_node;
 	struct orig_node *router_orig;

@@ -393,8 +393,8 @@ void gw_node_purge(struct bat_priv *bat_priv)
 /**
  * fails if orig_node has no router
  */
-static int _write_buffer_text(struct bat_priv *bat_priv,
-			      struct seq_file *seq, struct gw_node *gw_node)
+static int _write_buffer_text(struct bat_priv *bat_priv, struct seq_file *seq,
+			      const struct gw_node *gw_node)
 {
 	struct gw_node *curr_gw;
 	struct neigh_node *router;

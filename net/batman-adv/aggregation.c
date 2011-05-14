@@ -26,18 +26,18 @@
 #include "hard-interface.h"
 
 /* calculate the size of the tt information for a given packet */
-static int tt_len(struct batman_packet *batman_packet)
+static int tt_len(const struct batman_packet *batman_packet)
 {
 	return batman_packet->num_tt * ETH_ALEN;
 }
 
 /* return true if new_packet can be aggregated with forw_packet */
-static bool can_aggregate_with(struct batman_packet *new_batman_packet,
+static bool can_aggregate_with(const struct batman_packet *new_batman_packet,
 			       int packet_len,
 			       unsigned long send_time,
 			       bool directlink,
-			       struct hard_iface *if_incoming,
-			       struct forw_packet *forw_packet)
+			       const struct hard_iface *if_incoming,
+			       const struct forw_packet *forw_packet)
 {
 	struct batman_packet *batman_packet =
 		(struct batman_packet *)forw_packet->skb->data;
@@ -97,8 +97,9 @@ static bool can_aggregate_with(struct batman_packet *new_batman_packet,
 }
 
 /* create a new aggregated packet and add this packet to it */
-static void new_aggregated_packet(unsigned char *packet_buff, int packet_len,
-				  unsigned long send_time, bool direct_link,
+static void new_aggregated_packet(const unsigned char *packet_buff,
+				  int packet_len, unsigned long send_time,
+				  bool direct_link,
 				  struct hard_iface *if_incoming,
 				  int own_packet)
 {
@@ -176,8 +177,7 @@ out:
 
 /* aggregate a new packet into the existing aggregation */
 static void aggregate(struct forw_packet *forw_packet_aggr,
-		      unsigned char *packet_buff,
-		      int packet_len,
+		      const unsigned char *packet_buff, int packet_len,
 		      bool direct_link)
 {
 	unsigned char *skb_buff;
@@ -253,8 +253,9 @@ void add_bat_packet_to_list(struct bat_priv *bat_priv,
 }
 
 /* unpack the aggregated packets and process them one by one */
-void receive_aggr_bat_packet(struct ethhdr *ethhdr, unsigned char *packet_buff,
-			     int packet_len, struct hard_iface *if_incoming)
+void receive_aggr_bat_packet(const struct ethhdr *ethhdr,
+			     unsigned char *packet_buff, int packet_len,
+			     struct hard_iface *if_incoming)
 {
 	struct batman_packet *batman_packet;
 	int buff_pos = 0;

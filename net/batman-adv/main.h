@@ -133,10 +133,10 @@ int mesh_init(struct net_device *soft_iface);
 void mesh_free(struct net_device *soft_iface);
 void inc_module_count(void);
 void dec_module_count(void);
-int is_my_mac(uint8_t *addr);
+int is_my_mac(const uint8_t *addr);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-int debug_log(struct bat_priv *bat_priv, char *fmt, ...) __printf(2, 3);
+int debug_log(struct bat_priv *bat_priv, const char *fmt, ...) __printf(2, 3);
 
 #define bat_dbg(type, bat_priv, fmt, arg...)			\
 	do {							\
@@ -148,7 +148,7 @@ int debug_log(struct bat_priv *bat_priv, char *fmt, ...) __printf(2, 3);
 __printf(3, 4)
 static inline void bat_dbg(char type __always_unused,
 			   struct bat_priv *bat_priv __always_unused,
-			   char *fmt __always_unused, ...)
+			   const char *fmt __always_unused, ...)
 {
 }
 #endif
@@ -173,10 +173,12 @@ static inline void bat_dbg(char type __always_unused,
  *
  * note: can't use compare_ether_addr() as it requires aligned memory
  */
-static inline int compare_eth(void *data1, void *data2)
+
+static inline int compare_eth(const void *data1, const void *data2)
 {
 	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
 }
+
 
 #define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
 

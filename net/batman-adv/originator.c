@@ -77,7 +77,7 @@ struct neigh_node *orig_node_get_router(struct orig_node *orig_node)
 
 struct neigh_node *create_neighbor(struct orig_node *orig_node,
 				   struct orig_node *orig_neigh_node,
-				   uint8_t *neigh,
+				   const uint8_t *neigh,
 				   struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
@@ -183,7 +183,7 @@ void originator_free(struct bat_priv *bat_priv)
 
 /* this function finds or creates an originator entry for the given
  * address if it does not exits */
-struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
+struct orig_node *get_orig_node(struct bat_priv *bat_priv, const uint8_t *addr)
 {
 	struct orig_node *orig_node;
 	int size;
