@@ -421,7 +421,7 @@ int add_bcast_packet_to_list(struct bat_priv *bat_priv, struct sk_buff *skb)
 
 	primary_if = primary_if_get_selected(bat_priv);
 	if (!primary_if)
-		goto out;
+		goto out_and_inc;
 
 	forw_packet = kmalloc(sizeof(struct forw_packet), GFP_ATOMIC);
 
