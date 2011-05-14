@@ -655,7 +655,6 @@ static int segmented_read_std(struct x86_emulate_ctxt *ctxt,
 }
 
 static int do_insn_fetch_byte(struct x86_emulate_ctxt *ctxt,
-			      struct x86_emulate_ops *ops,
 			      unsigned long eip, u8 *dest)
 {
 	struct fetch_cache *fc = &ctxt->decode.fetch;
@@ -670,8 +669,8 @@ static int do_insn_fetch_byte(struct x86_emulate_ctxt *ctxt,
 		rc = __linearize(ctxt, addr, size, false, true, &linear);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
-		rc = ops->fetch(ctxt, linear, fc->data + cur_size,
-				size, &ctxt->exception);
+		rc = ctxt->ops->fetch(ctxt, linear, fc->data + cur_size,
+				      size, &ctxt->exception);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		fc->end += size;
@@ -681,7 +680,6 @@ static int do_insn_fetch_byte(struct x86_emulate_ctxt *ctxt,
 }
 
 static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
-			 struct x86_emulate_ops *ops,
 			 unsigned long eip, void *dest, unsigned size)
 {
 	int rc;
@@ -690,7 +688,7 @@ static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
 	if (eip + size - ctxt->eip > 15)
 		return X86EMUL_UNHANDLEABLE;
 	while (size--) {
-		rc = do_insn_fetch_byte(ctxt, ops, eip++, dest++);
+		rc = do_insn_fetch_byte(ctxt, eip++, dest++);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 	}
@@ -700,7 +698,7 @@ static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
 /* Fetch next part of the instruction being emulated. */
 #define insn_fetch(_type, _size, _eip)					\
 ({	unsigned long _x;						\
-	rc = do_insn_fetch(ctxt, ops, (_eip), &_x, (_size));		\
+	rc = do_insn_fetch(ctxt, (_eip), &_x, (_size));			\
 	if (rc != X86EMUL_CONTINUE)					\
 		goto done;						\
 	(_eip) += (_size);						\
@@ -708,7 +706,7 @@ static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
 })
 
 #define insn_fetch_arr(_arr, _size, _eip)				\
-({	rc = do_insn_fetch(ctxt, ops, (_eip), _arr, (_size));		\
+({	rc = do_insn_fetch(ctxt, (_eip), _arr, (_size));		\
 	if (rc != X86EMUL_CONTINUE)					\
 		goto done;						\
 	(_eip) += (_size);						\
@@ -887,7 +885,6 @@ static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
 }
 
 static int decode_modrm(struct x86_emulate_ctxt *ctxt,
-			struct x86_emulate_ops *ops,
 			struct operand *op)
 {
 	struct decode_cache *c = &ctxt->decode;
@@ -1014,7 +1011,6 @@ done:
 }
 
 static int decode_abs(struct x86_emulate_ctxt *ctxt,
-		      struct x86_emulate_ops *ops,
 		      struct operand *op)
 {
 	struct decode_cache *c = &ctxt->decode;
@@ -3327,7 +3323,6 @@ static int decode_imm(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		      unsigned size, bool sign_extension)
 {
 	struct decode_cache *c = &ctxt->decode;
-	struct x86_emulate_ops *ops = ctxt->ops;
 	int rc = X86EMUL_CONTINUE;
 
 	op->type = OP_IMM;
@@ -3362,10 +3357,8 @@ done:
 	return rc;
 }
 
-int
-x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
+int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 {
-	struct x86_emulate_ops *ops = ctxt->ops;
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
 	int mode = ctxt->mode;
@@ -3531,11 +3524,11 @@ done_prefixes:
 
 	/* ModRM and SIB bytes. */
 	if (c->d & ModRM) {
-		rc = decode_modrm(ctxt, ops, &memop);
+		rc = decode_modrm(ctxt, &memop);
 		if (!c->has_seg_override)
 			set_seg_override(c, c->modrm_seg);
 	} else if (c->d & MemAbs)
-		rc = decode_abs(ctxt, ops, &memop);
+		rc = decode_abs(ctxt, &memop);
 	if (rc != X86EMUL_CONTINUE)
 		goto done;
 
