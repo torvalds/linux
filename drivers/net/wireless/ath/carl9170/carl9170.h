@@ -286,6 +286,10 @@ struct ar9170 {
 		unsigned int tx_seq_table;
 	} fw;
 
+	/* interface configuration combinations */
+	struct ieee80211_iface_limit if_comb_limits[1];
+	struct ieee80211_iface_combination if_combs[1];
+
 	/* reset / stuck frames/queue detection */
 	struct work_struct restart_work;
 	struct work_struct ping_work;
