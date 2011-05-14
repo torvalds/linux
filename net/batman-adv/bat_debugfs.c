@@ -115,7 +115,7 @@ static ssize_t log_read(struct file *file, char __user *buf,
 	    !(debug_log->log_end - debug_log->log_start))
 		return -EAGAIN;
 
-	if ((!buf) || (count < 0))
+	if (!buf)
 		return -EINVAL;
 
 	if (count == 0)
