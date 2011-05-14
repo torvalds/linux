@@ -138,7 +138,7 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	if (new_hard_iface && !atomic_inc_not_zero(&new_hard_iface->refcount))
 		new_hard_iface = NULL;
 
-	curr_hard_iface = bat_priv->primary_if;
+	curr_hard_iface = rcu_dereference_protected(bat_priv->primary_if, 1);
 	rcu_assign_pointer(bat_priv->primary_if, new_hard_iface);
 
 	if (curr_hard_iface)
