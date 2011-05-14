@@ -7,8 +7,8 @@ usbip_bind_driver \- change driver binding for USB/IP
 [\fIoptions\fR]
 
 .SH DESCRIPTION
-Driver bindings for USB devices can be changed using 
-this program. It is used to export and unexport USB 
+Driver bindings for USB devices can be changed using
+this program. It is used to export and unexport USB
 devices over USB/IP.
 
 .SH OPTIONS
@@ -34,7 +34,7 @@ Print usb devices and their drivers in parseable mode
         - Bind usbip.ko to the device of busid 1-2.
         - A usb device 1-2 is now exportable to other hosts!
 
-    server:# usbip_bind_driver --other 1-2 
+    server:# usbip_bind_driver --other 1-2
         - Shutdown exporting and use the device locally.
 
 .SH "SEE ALSO"

@@ -87,7 +87,7 @@ static int32_t read_attr_usbip_status(struct usb_device *udev)
 	}
 
 	if (retries == 0)
-		err("usbip_status not ready after %d retries", 
+		err("usbip_status not ready after %d retries",
 			SYSFS_OPEN_RETRIES);
 	else if (retries < SYSFS_OPEN_RETRIES)
 		info("warning: usbip_status ready after %d retries",

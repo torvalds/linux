@@ -93,7 +93,7 @@ AC_ARG_ENABLE(usbids-install,
  *)   AC_MSG_ERROR(bad value ${enableval} for --enable-usbids-install) ;;
  esac])
 AM_CONDITIONAL(INSTALL_USBIDS, test x$usbids = xinstall)
-    	
+
 
 
 GLIB2_REQUIRED=2.6.0

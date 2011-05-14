@@ -177,13 +177,13 @@ static int unbind(char *busid)
 		return -1;
 	}
 
- 	for (i = 0; i < ninterface; i++) {
- 		char driver[PATH_MAX];
+	for (i = 0; i < ninterface; i++) {
+		char driver[PATH_MAX];
 		int ret;
 
 		bzero(&driver, sizeof(driver));
 
- 		getdriver(busid, configvalue, i, driver, PATH_MAX-1);
+		getdriver(busid, configvalue, i, driver, PATH_MAX-1);
 
 		g_debug(" %s:%d.%d	-> %s ", busid, configvalue, i, driver);
 
@@ -226,7 +226,7 @@ static int bind_to_usbip(char *busid)
 		return -1;
 	}
 
- 	for (i = 0; i < ninterface; i++) {
+	for (i = 0; i < ninterface; i++) {
 		int ret;
 
 		ret = bind_interface(busid, configvalue, i, "usbip");
@@ -527,7 +527,7 @@ static int allusbip(void)
 				}
 #endif
 			}
-			
+
 			if (be_local == 0)
 				use_device_by_usbip(busid);
 		}

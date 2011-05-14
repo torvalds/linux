@@ -619,9 +619,9 @@ int main(int argc, char *argv[])
 	if (geteuid() != 0)
 		g_warning("running non-root?");
 
- 	ret = usbip_names_init(USBIDS_FILE);
- 	if (ret)
- 		notice("failed to open %s", USBIDS_FILE);
+	ret = usbip_names_init(USBIDS_FILE);
+	if (ret)
+		notice("failed to open %s", USBIDS_FILE);
 
 	for (;;) {
 		int c;
