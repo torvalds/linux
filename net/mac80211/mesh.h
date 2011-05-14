@@ -289,10 +289,6 @@ static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)
 	return sdata->u.mesh.mesh_pp_id == IEEE80211_PATH_PROTOCOL_HWMP;
 }
 
-#define for_each_mesh_entry(x, p, node, i) \
-	for (i = 0; i <= x->hash_mask; i++) \
-		hlist_for_each_entry_rcu(node, p, &x->hash_buckets[i], list)
-
 void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local);
 
 void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata);
