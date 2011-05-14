@@ -388,7 +388,8 @@ static void set_signal(void)
 }
 
 
-gboolean process_comming_request(GIOChannel *gio, GIOCondition condition, gpointer data)
+gboolean process_comming_request(GIOChannel *gio, GIOCondition condition,
+				 gpointer data __attribute__((unused)))
 {
 	int ret;
 

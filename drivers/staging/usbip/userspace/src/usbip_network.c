@@ -40,7 +40,8 @@ void pack_usb_device(int pack, struct usb_device *udev)
 	pack_uint16_t(pack, &udev->bcdDevice);
 }
 
-void pack_usb_interface(int pack, struct usb_interface *udev)
+void pack_usb_interface(int pack __attribute__((unused)),
+			struct usb_interface *udev __attribute__((unused)))
 {
 	/* uint8_t members need nothing */
 }

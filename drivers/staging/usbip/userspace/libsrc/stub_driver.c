@@ -181,7 +181,7 @@ static int check_new(struct dlist *dlist, struct sysfs_device *target)
 	return 1;
 }
 
-static void delete_nothing(void *dev)
+static void delete_nothing(void *dev __attribute__((unused)))
 {
 	/* do not delete anything. but, its container will be deleted. */
 }
