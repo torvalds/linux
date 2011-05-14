@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -84,11 +84,36 @@ typedef struct _gckGALDEVICE
 * gckGALDEVICE;
 
 #if gcdkUSE_MEMORY_RECORD
+typedef enum _gceMEMORY_TYPE
+{
+    gcvNON_PAGED_MEMORY     = 0,
+    gcvCONTIGUOUS_MEMORY,
+    gcvVIDEO_MEMORY
+}
+gceMEMORY_TYPE;
 typedef struct MEMORY_RECORD
 {
-	gcuVIDMEM_NODE_PTR		node;
-	gceSURF_TYPE            type;
-	gctSIZE_T				bytes;
+	    gceMEMORY_TYPE          type;
+
+    union
+    {
+        struct
+        {
+	        gctSIZE_T               bytes;
+	        gctPHYS_ADDR            physical;
+	        gctPOINTER              logical;
+        }
+        Memory;
+
+        struct
+        {
+	        gcuVIDMEM_NODE_PTR		node;
+	        gceSURF_TYPE            type;
+	        gctSIZE_T				bytes;
+        }
+        VideoMemory;
+    }
+    u;
 
 	struct MEMORY_RECORD *	prev;
 	struct MEMORY_RECORD *	next;
@@ -104,6 +129,12 @@ typedef struct _gcsHAL_PRIVATE_DATA
 
 #if gcdkUSE_MEMORY_RECORD
 	MEMORY_RECORD		memoryRecordList;
+#if gcdkREPORT_VIDMEM_USAGE
+    gctUINT64           allocatedMem[gcvSURF_NUM_TYPES];
+    gctUINT64           maxAllocatedMem[gcvSURF_NUM_TYPES];
+    gctUINT64           totalAllocatedMem;
+    gctUINT64           maxTotalAllocatedMem;
+#endif
 #endif
 }
 gcsHAL_PRIVATE_DATA, * gcsHAL_PRIVATE_DATA_PTR;

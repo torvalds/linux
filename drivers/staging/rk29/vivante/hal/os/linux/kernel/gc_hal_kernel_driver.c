@@ -87,6 +87,90 @@ unsigned long coreClock = 552*1000000;
 module_param(coreClock, ulong, 0644);
 #endif
 
+#if gcdkREPORT_VIDMEM_USAGE
+#include <linux/proc_fs.h>
+
+static struct proc_dir_entry *s_gckGPUProc;
+static gcsHAL_PRIVATE_DATA_PTR s_gckHalPrivate;
+
+static char * _MemTypes[gcvSURF_NUM_TYPES] =
+{
+    "UNKNOWN",  /* gcvSURF_TYPE_UNKNOWN       */
+    "INDEX",    /* gcvSURF_INDEX              */
+    "VERTEX",   /* gcvSURF_VERTEX             */
+    "TEXTURE",  /* gcvSURF_TEXTURE            */
+    "RT",       /* gcvSURF_RENDER_TARGET      */
+    "DEPTH",    /* gcvSURF_DEPTH              */
+    "BITMAP",   /* gcvSURF_BITMAP             */
+    "TILE_STA", /*  gcvSURF_TILE_STATUS       */
+    "MASK",     /* gcvSURF_MASK               */
+    "SCISSOR",  /* gcvSURF_SCISSOR            */
+    "HZ"        /* gcvSURF_HIERARCHICAL_DEPTH */
+};
+
+gctINT gvkGAL_Read_Proc(char *page, char **start, off_t offset, int count, int *eof, void *data)
+{
+    gctINT len = 0;
+    gctUINT type;
+    
+    len += sprintf(page+len, "------------------------------------\n");
+    len += sprintf(page+len, "   Type         Current          Max\n");
+
+    if(NULL == s_gckHalPrivate)
+    {
+        *eof = 1;
+        return len;
+    }
+    
+    for (type = 0; type < gcvSURF_NUM_TYPES; type++)
+    {
+        len += sprintf(page+len, "[%8s]  %8llu KB  %8llu KB\n", 
+               _MemTypes[type],
+               s_gckHalPrivate->allocatedMem[type] / 1024,
+               s_gckHalPrivate->maxAllocatedMem[type] / 1024);
+    }
+    
+    len += sprintf(page+len, "[   TOTAL]  %8llu KB  %8llu KB\n",
+           s_gckHalPrivate->totalAllocatedMem / 1024,
+           s_gckHalPrivate->maxTotalAllocatedMem / 1024);
+
+    *eof = 1;
+    return len;
+}
+
+
+static gctINT gckDeviceProc_Register(void)
+{
+    s_gckGPUProc = create_proc_read_entry("graphics/gpu", 0, NULL, gvkGAL_Read_Proc, NULL);
+    if(NULL == s_gckGPUProc)
+    {
+        return -1;
+    }
+
+    return 0;
+}
+
+static void gckDeviceProc_UnRegister(void)
+{
+    if(NULL != s_gckGPUProc)
+    {
+        struct proc_dir_entry *gckGPUPrarentProc = s_gckGPUProc->parent;
+        if(NULL == gckGPUPrarentProc)
+        {
+            return ;    
+        }
+        
+        remove_proc_entry("gpu", gckGPUPrarentProc);
+        
+        /** no subdir */
+        if(NULL == gckGPUPrarentProc->subdir)
+        {
+            remove_proc_entry("graphics", NULL);
+        }
+    }
+}
+#endif
+
 int shutdown = 0;
 
 static int drv_open(struct inode *inode, struct file *filp);
@@ -180,6 +264,9 @@ int drv_open(struct inode *inode, struct file* filp)
     {
     	return -ENOTTY;
     }
+	/* Zero the memory. */
+    gckOS_ZeroMemory(private, gcmSIZEOF(gcsHAL_PRIVATE_DATA));
+	
 
     private->device				= galDevice;
     private->mappedMemory		= gcvNULL;
@@ -203,6 +290,9 @@ int drv_open(struct inode *inode, struct file* filp)
     }
 
     filp->private_data = private;
+#if gcdkREPORT_VIDMEM_USAGE
+    s_gckHalPrivate = private;
+#endif
 
     return 0;
 }
@@ -230,10 +320,10 @@ int drv_release(struct inode* inode, struct file* filp)
     device = private->device;
 
 #if gcdkUSE_MEMORY_RECORD
-	FreeAllMemoryRecord(galDevice->os, &private->memoryRecordList);
+	FreeAllMemoryRecord(galDevice->os, private, &private->memoryRecordList);
 
 #ifdef ANDROID
-	/* gcmkVERIFY_OK(gckOS_Delay(galDevice->os, 1000)); */
+	gcmkVERIFY_OK(gckOS_Delay(galDevice->os, 1000));
 #else
 	gcmkVERIFY_OK(gckCOMMAND_Stall(device->kernel->command));
 #endif
@@ -253,6 +343,9 @@ int drv_release(struct inode* inode, struct file* filp)
 	/* A process gets detached. */
 	gcmkVERIFY_OK(
 		gckKERNEL_AttachProcess(galDevice->kernel, gcvFALSE));
+#if gcdkREPORT_VIDMEM_USAGE
+    s_gckHalPrivate = NULL;
+#endif
 
     kfree(private);
     filp->private_data = NULL;
@@ -351,19 +444,56 @@ int drv_ioctl(struct inode *inode,
 
 			switch (record->iface.command)
 			{
+			case gcvHAL_FREE_NON_PAGED_MEMORY:
+		        mr = FindMemoryRecord(device->os,
+                                      private,
+                                      &private->memoryRecordList,
+                                      gcvNON_PAGED_MEMORY,
+                                      record->iface.u.FreeNonPagedMemory.bytes,
+                                      record->iface.u.FreeNonPagedMemory.physical,
+                                      record->iface.u.FreeNonPagedMemory.logical);
+        		
+		        if (mr != gcvNULL)
+		        {
+			        DestroyMemoryRecord(device->os, private, mr);
+		        }
+		        else
+		        {
+			        gcmkPRINT("*ERROR* Invalid non-paged memory for free");
+		        }
+                break;
+
+            case gcvHAL_FREE_CONTIGUOUS_MEMORY:
+		        mr = FindMemoryRecord(device->os,
+                                      private,
+                                      &private->memoryRecordList,
+                                      gcvCONTIGUOUS_MEMORY,
+                                      record->iface.u.FreeContiguousMemory.bytes,
+                                      record->iface.u.FreeContiguousMemory.physical,
+                                      record->iface.u.FreeContiguousMemory.logical);
+        		
+		        if (mr != gcvNULL)
+		        {
+			        DestroyMemoryRecord(device->os, private, mr);
+		        }
+		        else
+		        {
+			        gcmkPRINT("*ERROR* Invalid contiguous memory for free");
+		        }
+                break;
 			case gcvHAL_FREE_VIDEO_MEMORY:
-				mr = FindMemoryRecord(device->os,
-									&private->memoryRecordList,
-									record->iface.u.FreeVideoMemory.node);
+					mr = FindVideoMemoryRecord(device->os,
+                                           private,
+                                           &private->memoryRecordList,
+                                           record->iface.u.FreeVideoMemory.node);
 
 				if (mr != gcvNULL)
 				{
-					DestoryMemoryRecord(device->os, mr);
+					DestroyVideoMemoryRecord(device->os, private, mr);
 				}
 				else
 				{
-					printk("*ERROR* Invalid video memory (%p) for free\n",
-						record->iface.u.FreeVideoMemory.node);
+					gcmkPRINT("*ERROR* Invalid video memory for free");
 				}
                 break;
 
@@ -420,12 +550,75 @@ int drv_ioctl(struct inode *inode,
 		}
     }
 #if gcdkUSE_MEMORY_RECORD
+	else if (iface.command == gcvHAL_ALLOCATE_NON_PAGED_MEMORY)
+	{
+		CreateMemoryRecord(device->os,
+                           private,
+                           &private->memoryRecordList,
+                           gcvNON_PAGED_MEMORY,
+                           iface.u.AllocateNonPagedMemory.bytes,
+                           iface.u.AllocateNonPagedMemory.physical,
+                           iface.u.AllocateNonPagedMemory.logical);
+    }
+	else if (iface.command == gcvHAL_FREE_NON_PAGED_MEMORY)
+	{
+		MEMORY_RECORD_PTR mr;
+		
+		mr = FindMemoryRecord(device->os,
+                              private,
+                              &private->memoryRecordList,
+                              gcvNON_PAGED_MEMORY,
+                              iface.u.FreeNonPagedMemory.bytes,
+                              iface.u.FreeNonPagedMemory.physical,
+                              iface.u.FreeNonPagedMemory.logical);
+		
+		if (mr != gcvNULL)
+		{
+			DestroyMemoryRecord(device->os, private, mr);
+		}
+		else
+		{
+			gcmkPRINT("*ERROR* Invalid non-paged memory for free");
+		}
+    }
+	else if (iface.command == gcvHAL_ALLOCATE_CONTIGUOUS_MEMORY)
+	{
+		CreateMemoryRecord(device->os,
+                           private,
+                           &private->memoryRecordList,
+                           gcvCONTIGUOUS_MEMORY,
+                           iface.u.AllocateContiguousMemory.bytes,
+                           iface.u.AllocateContiguousMemory.physical,
+                           iface.u.AllocateContiguousMemory.logical);
+    }
+	else if (iface.command == gcvHAL_FREE_CONTIGUOUS_MEMORY)
+	{
+		MEMORY_RECORD_PTR mr;
+		
+		mr = FindMemoryRecord(device->os,
+                              private,
+                              &private->memoryRecordList,
+                              gcvCONTIGUOUS_MEMORY,
+                              iface.u.FreeContiguousMemory.bytes,
+                              iface.u.FreeContiguousMemory.physical,
+                              iface.u.FreeContiguousMemory.logical);
+		
+		if (mr != gcvNULL)
+		{
+			DestroyMemoryRecord(device->os, private, mr);
+		}
+		else
+		{
+			gcmkPRINT("*ERROR* Invalid contiguous memory for free");
+		}
+    }
 	else if (iface.command == gcvHAL_ALLOCATE_VIDEO_MEMORY)
 	{
 		gctSIZE_T bytes = (iface.u.AllocateVideoMemory.node->VidMem.memory->object.type == gcvOBJ_VIDMEM)
 						? iface.u.AllocateVideoMemory.node->VidMem.bytes
 						: iface.u.AllocateVideoMemory.node->Virtual.bytes;
-		CreateMemoryRecord(device->os,
+		CreateVideoMemoryRecord(device->os,
+							private,
 							&private->memoryRecordList,
 							iface.u.AllocateVideoMemory.node,
 							iface.u.AllocateVideoMemory.type & 0xFF,
@@ -436,7 +629,8 @@ int drv_ioctl(struct inode *inode,
 		gctSIZE_T bytes = (iface.u.AllocateLinearVideoMemory.node->VidMem.memory->object.type == gcvOBJ_VIDMEM)
 						? iface.u.AllocateLinearVideoMemory.node->VidMem.bytes
 						: iface.u.AllocateLinearVideoMemory.node->Virtual.bytes;
-		CreateMemoryRecord(device->os,
+		CreateVideoMemoryRecord(device->os,
+							private,
 							&private->memoryRecordList,
 							iface.u.AllocateLinearVideoMemory.node,
 							iface.u.AllocateLinearVideoMemory.type & 0xFF,
@@ -446,17 +640,18 @@ int drv_ioctl(struct inode *inode,
 	{
 		MEMORY_RECORD_PTR mr;
 
-		mr = FindMemoryRecord(device->os,
+		mr = FindVideoMemoryRecord(device->os,
+							private,
 							&private->memoryRecordList,
 							iface.u.FreeVideoMemory.node);
 
 		if (mr != gcvNULL)
 		{
-			DestoryMemoryRecord(device->os, mr);
+			DestroyVideoMemoryRecord(device->os, private, mr);
 		}
 		else
 		{
-			printk("*ERROR* Invalid video memory for free\n");
+			gcmkPRINT("*ERROR* Invalid video memory for free");
 		}
 	}
 #endif
@@ -961,10 +1156,10 @@ static int __init gpu_init(void)
 	gpu_resources[0].start = gpu_resources[0].end = irqLine;
 
 	gpu_resources[1].start = registerMemBase;
-	gpu_resources[1].end   = registerMemBase + registerMemSize;
+	gpu_resources[1].end   = registerMemBase + registerMemSize - 1;
 
 	gpu_resources[2].start = contiguousBase;
-	gpu_resources[2].end   = contiguousBase + contiguousSize;
+	gpu_resources[2].end   = contiguousBase + contiguousSize - 1;
 
 	/* Allocate device */
 	gpu_device = platform_device_alloc(DEVICE_NAME, -1);
@@ -995,6 +1190,10 @@ static int __init gpu_init(void)
 	ret = platform_driver_register(&gpu_driver);
 	if (!ret)
 	{
+#if gcdkREPORT_VIDMEM_USAGE
+        gckDeviceProc_Register();
+#endif
+        
 		goto out;
 	}
 
@@ -1020,6 +1219,11 @@ static void __exit gpu_exit(void)
 	platform_device_unregister(gpu_device);
 #endif
 #endif
+
+#if gcdkREPORT_VIDMEM_USAGE
+   gckDeviceProc_UnRegister();
+#endif
+   printk("UnLoad galcore.ko success.\n");
 }
 
 module_init(gpu_init);

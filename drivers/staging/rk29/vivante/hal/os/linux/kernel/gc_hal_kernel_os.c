@@ -70,17 +70,33 @@ int g_pages_alloced = 0;
 #define MEMORY_MAP_UNLOCK(os) \
     gcmkVERIFY_OK(gckOS_ReleaseMutex((os), (os)->memoryMapLock))
 
-#if gcdkREPORT_VIDMEM_USAGE
-static gctUINT64  AllocatedSurfaceTotal[12] = {0};
-/*
- * AllocatedSurfaceMax[12]: Current total memory
- * AllocatedSurfaceMax[13]: Current total memory in history
- */
-static gctUINT64  AllocatedSurfaceMax[12 + 2] = {0};
-static char *pszSurfaceType[12] = {"UNKNOWN", "INDEX", "VERTEX", "TEXTURE", "RENDER_TARGET", \
-                                "DEPTH", "BITMAP", "TILE_STATUS", "MASK", "SCISSOR", "HIERARCHICAL_DEPTH", \
-                                "NUM_TYPES"};
+// 512M内存的情况下,测试几个游戏把内存耗光，其值就到40，因此100应该是够用的
+#define gcdkUSE_NON_PAGED_MEMORY_CACHE		100 
+
+#if gcdkUSE_NON_PAGED_MEMORY_CACHE
+typedef struct _gcsNonPagedMemoryCache
+{
+#ifndef NO_DMA_COHERENT
+    gctINT                           size;
+    gctSTRING                        addr;
+    dma_addr_t                       dmaHandle;
+#else
+    long                             order;
+    struct page *                    page;
 #endif
+
+    struct _gcsNonPagedMemoryCache * prev;
+    struct _gcsNonPagedMemoryCache * next;
+}
+gcsNonPagedMemoryCache;
+
+static void
+_FreeAllNonPagedMemoryCache(
+    gckOS Os
+    );
+
+#endif /* gcdkUSE_NON_PAGED_MEMORY_CACHE */
+
 
 /******************************************************************************\
 ********************************** Structures **********************************
@@ -127,6 +143,11 @@ struct _gckOS
         /* Lock. */
         gctPOINTER              lock;
     } signal;
+#endif
+#if gcdkUSE_NON_PAGED_MEMORY_CACHE
+    gctUINT                      cacheSize;
+    gcsNonPagedMemoryCache *     cacheHead;
+    gcsNonPagedMemoryCache *     cacheTail;
 #endif
 };
 
@@ -510,6 +531,12 @@ gckOS_Construct(
     os->signal.currentID = 0;
 #endif
 
+#if gcdkUSE_NON_PAGED_MEMORY_CACHE
+    os->cacheSize = 0;
+    os->cacheHead = gcvNULL;
+    os->cacheTail = gcvNULL;
+#endif
+
     /* Return pointer to the gckOS object. */
     *Os = os;
 
@@ -581,6 +608,10 @@ gckOS_Destroy(
 
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
+
+#if gcdkUSE_NON_PAGED_MEMORY_CACHE
+    _FreeAllNonPagedMemoryCache(Os);
+#endif
 
 #if !USE_NEW_LINUX_SIGNAL
     /*
@@ -1197,6 +1228,214 @@ gckOS_UnmapMemory(
     return gcvSTATUS_OK;
 }
 
+#if gcdkUSE_NON_PAGED_MEMORY_CACHE
+
+static gctBOOL
+_AddNonPagedMemoryCache(
+    gckOS Os,
+#ifndef NO_DMA_COHERENT
+    gctINT Size,
+    gctSTRING Addr,
+    dma_addr_t DmaHandle
+#else
+    long Order,
+    struct page * Page
+#endif
+    )
+{
+    gcsNonPagedMemoryCache *cache;
+
+    if (Os->cacheSize >= gcdkUSE_NON_PAGED_MEMORY_CACHE)
+    {
+        return gcvFALSE;
+    }
+
+    /* Allocate the cache record */
+    cache = (gcsNonPagedMemoryCache *)kmalloc(sizeof(gcsNonPagedMemoryCache), GFP_ATOMIC);
+
+    if (cache == gcvNULL) return gcvFALSE;
+
+#ifndef NO_DMA_COHERENT
+    cache->size  = Size;
+    cache->addr  = Addr;
+    cache->dmaHandle = DmaHandle;
+#else
+    cache->order = Order;
+    cache->page  = Page;
+#endif
+
+    /* Add to list */
+    if (Os->cacheHead == gcvNULL)
+    {
+        cache->prev   = gcvNULL;
+        cache->next   = gcvNULL;
+        Os->cacheHead = 
+        Os->cacheTail = cache;
+    }
+    else
+    {
+        /* Add to the tail. */
+        cache->prev         = Os->cacheTail;
+        cache->next         = gcvNULL;
+        Os->cacheTail->next = cache;
+        Os->cacheTail       = cache;
+    }
+
+    Os->cacheSize++;
+    //printk("+ Os->cacheSize = %d \n", Os->cacheSize);
+
+    return gcvTRUE;
+}
+
+#ifndef NO_DMA_COHERENT
+static gctSTRING
+_GetNonPagedMemoryCache(
+    gckOS Os,
+    gctINT Size,
+    dma_addr_t * DmaHandle
+    )
+#else
+static struct page *
+_GetNonPagedMemoryCache(
+    gckOS Os,
+    long Order
+    )
+#endif
+{
+    gcsNonPagedMemoryCache *cache;
+#ifndef NO_DMA_COHERENT
+    gctSTRING addr;
+#else
+    struct page * page;
+#endif
+
+    if (Os->cacheHead == gcvNULL) return gcvNULL;
+
+    /* Find the right cache */
+    cache = Os->cacheHead;
+
+    while (cache != gcvNULL)
+    {
+#ifndef NO_DMA_COHERENT
+        if (cache->size == Size) break;
+#else
+        if (cache->order == Order) break;
+#endif
+
+        cache = cache->next;
+    }
+
+    if (cache == gcvNULL) return gcvNULL;
+
+    /* Remove the cache from list */
+    if (cache == Os->cacheHead)
+    {
+        Os->cacheHead = cache->next;
+
+        if (Os->cacheHead == gcvNULL)
+        {
+            Os->cacheTail = gcvNULL;
+        }
+    }
+    else
+    {
+        cache->prev->next = cache->next;
+
+        if (cache == Os->cacheTail)
+        {
+            Os->cacheTail = cache->prev;
+        }
+        else
+        {
+            cache->next->prev = cache->prev;
+        }
+    }
+
+    /* Destroy cache */
+#ifndef NO_DMA_COHERENT
+    addr       = cache->addr;
+    *DmaHandle = cache->dmaHandle;
+#else
+    page       = cache->page;
+#endif
+
+    kfree(cache);
+
+    Os->cacheSize--;
+    //printk("- Os->cacheSize = %d \n", Os->cacheSize);
+
+#ifndef NO_DMA_COHERENT
+    return addr;
+#else
+    return page;
+#endif
+}
+
+static void
+_FreeAllNonPagedMemoryCache(
+    gckOS Os
+    )
+{
+    gcsNonPagedMemoryCache *cache, *nextCache;
+
+    MEMORY_LOCK(Os);
+
+    cache = Os->cacheHead;
+
+    while (cache != gcvNULL)
+    {
+        if (cache != Os->cacheTail)
+        {
+            nextCache = cache->next;
+        }
+        else
+        {
+            nextCache = gcvNULL;
+        }
+
+        /* Remove the cache from list */
+        if (cache == Os->cacheHead)
+        {
+            Os->cacheHead = cache->next;
+
+            if (Os->cacheHead == gcvNULL)
+            {
+                Os->cacheTail = gcvNULL;
+            }
+        }
+        else
+        {
+            cache->prev->next = cache->next;
+
+            if (cache == Os->cacheTail)
+            {
+                Os->cacheTail = cache->prev;
+            }
+            else
+            {
+                cache->next->prev = cache->prev;
+            }
+        }
+
+#ifndef NO_DMA_COHERENT
+	    dma_free_coherent(gcvNULL,
+	                    cache->size,
+	                    cache->addr,
+	                    cache->dmaHandle);
+#else
+	    free_pages((unsigned long)page_address(cache->page), cache->order);
+#endif
+
+        kfree(cache);
+
+        cache = nextCache;
+    }
+
+    MEMORY_UNLOCK(Os);
+}
+
+#endif /* gcdkUSE_NON_PAGED_MEMORY_CACHE */
+
 /*******************************************************************************
 **
 **  gckOS_AllocateNonPagedMemory
@@ -1278,15 +1517,37 @@ gckOS_AllocateNonPagedMemory(
     MEMORY_LOCK(Os);
 
 #ifndef NO_DMA_COHERENT
+#if gcdkUSE_NON_PAGED_MEMORY_CACHE
+    addr = _GetNonPagedMemoryCache(Os,
+                mdl->numPages * PAGE_SIZE,
+                &mdl->dmaHandle);
+
+    if (addr == gcvNULL)
+    {
+	    addr = dma_alloc_coherent(NULL,
+	                mdl->numPages * PAGE_SIZE,
+	                &mdl->dmaHandle,
+	                GFP_ATOMIC);
+    }
+#else
     addr = dma_alloc_coherent(NULL,
                 mdl->numPages * PAGE_SIZE,
                 &mdl->dmaHandle,
                 GFP_ATOMIC);
+#endif /* gcdkUSE_NON_PAGED_MEMORY_CACHE */
 #else
     size    = mdl->numPages * PAGE_SIZE;
     order   = get_order(size);
-    //page    = alloc_pages(GFP_KERNEL | GFP_DMA, order);
+#if gcdkUSE_NON_PAGED_MEMORY_CACHE
+    page = _GetNonPagedMemoryCache(Os, order);
+
+    if (page == gcvNULL)
+    {
+    	page    = alloc_pages(GFP_KERNEL, order);
+    }
+#else
     page    = alloc_pages(GFP_KERNEL , order);  // dkm modify 110330 将GFP_DMA去掉,避免分配不到DMA内存
+#endif /* gcdkUSE_NON_PAGED_MEMORY_CACHE */
 
     if (page == gcvNULL)
     {
@@ -1560,10 +1821,23 @@ gceSTATUS gckOS_FreeNonPagedMemory(
     MEMORY_LOCK(Os);
 
 #ifndef NO_DMA_COHERENT
+#if gcdkUSE_NON_PAGED_MEMORY_CACHE
+    if (!_AddNonPagedMemoryCache(Os,
+                                 mdl->numPages * PAGE_SIZE,
+                                 mdl->addr,
+	                             mdl->dmaHandle))
+    {
+	    dma_free_coherent(gcvNULL,
+	                    mdl->numPages * PAGE_SIZE,
+	                    mdl->addr,
+	                    mdl->dmaHandle);
+    }
+#else
     dma_free_coherent(gcvNULL,
                     mdl->numPages * PAGE_SIZE,
                     mdl->addr,
                     mdl->dmaHandle);
+#endif /* gcdkUSE_NON_PAGED_MEMORY_CACHE */
 #else
     size    = mdl->numPages * PAGE_SIZE;
     vaddr   = mdl->kaddr;
@@ -1576,7 +1850,16 @@ gceSTATUS gckOS_FreeNonPagedMemory(
         size    -= PAGE_SIZE;
     }
 
+#if gcdkUSE_NON_PAGED_MEMORY_CACHE
+    if (!_AddNonPagedMemoryCache(Os,
+                                 get_order(mdl->numPages * PAGE_SIZE),
+                                 virt_to_page(mdl->kaddr)))
+    {
+	    free_pages((unsigned long)mdl->kaddr, get_order(mdl->numPages * PAGE_SIZE));
+    }
+#else
     free_pages((unsigned long)mdl->kaddr, get_order(mdl->numPages * PAGE_SIZE));
+#endif /* gcdkUSE_NON_PAGED_MEMORY_CACHE */
 
     iounmap(mdl->addr);
 #endif /* NO_DMA_COHERENT */
@@ -4769,7 +5052,7 @@ gckOS_DestroyAllUserSignals(
         if (Os->signal.table[signal] != gcvNULL &&
             ((gcsSIGNAL_PTR)Os->signal.table[signal])->process == (gctHANDLE) current->tgid)
         {
-            gckOS_Signal(Os, Os->signal.table[signal], gcvTRUE);
+			gckOS_Signal(Os, Os->signal.table[signal], gcvTRUE);
 
             gckOS_DestroySignal(Os, Os->signal.table[signal]);
 
@@ -5386,6 +5669,100 @@ gckOS_ZeroMemory(
 MEMORY_RECORD_PTR
 CreateMemoryRecord(
     gckOS Os,
+	gcsHAL_PRIVATE_DATA_PTR private,
+    MEMORY_RECORD_PTR List,
+    gceMEMORY_TYPE Type,
+	gctSIZE_T Bytes,
+	gctPHYS_ADDR Physical,
+	gctPOINTER Logical
+    )
+{
+    MEMORY_RECORD_PTR   mr;
+
+    gcmkASSERT(Type == gcvCONTIGUOUS_MEMORY || Type == gcvNON_PAGED_MEMORY);
+
+    mr = (MEMORY_RECORD_PTR)kmalloc(sizeof(struct MEMORY_RECORD), GFP_ATOMIC);
+    if (mr == gcvNULL) return gcvNULL;
+
+    MEMORY_LOCK(Os);
+
+    mr->type                = Type;
+    mr->u.Memory.bytes      = Bytes;
+    mr->u.Memory.physical   = Physical;
+    mr->u.Memory.logical    = Logical;
+
+    mr->prev            = List->prev;
+    mr->next            = List;
+    List->prev->next    = mr;
+    List->prev          = mr;
+
+    MEMORY_UNLOCK(Os);
+
+    return mr;
+}
+
+void
+DestroyMemoryRecord(
+    gckOS Os,
+    gcsHAL_PRIVATE_DATA_PTR private,
+    MEMORY_RECORD_PTR Mr
+    )
+{
+    gcmkASSERT(Mr->type == gcvCONTIGUOUS_MEMORY || Mr->type == gcvNON_PAGED_MEMORY);
+
+    MEMORY_LOCK(Os);
+
+    Mr->prev->next      = Mr->next;
+    Mr->next->prev      = Mr->prev;
+
+    MEMORY_UNLOCK(Os);
+
+    kfree(Mr);
+}
+
+MEMORY_RECORD_PTR
+FindMemoryRecord(
+    gckOS Os,
+    gcsHAL_PRIVATE_DATA_PTR private,
+    MEMORY_RECORD_PTR List,
+    gceMEMORY_TYPE Type,
+	gctSIZE_T Bytes,
+	gctPHYS_ADDR Physical,
+	gctPOINTER Logical
+    )
+{
+    MEMORY_RECORD_PTR mr;
+
+    gcmkASSERT(Type == gcvCONTIGUOUS_MEMORY || Type == gcvNON_PAGED_MEMORY);
+
+    MEMORY_LOCK(Os);
+
+    mr = List->next;
+
+    while (mr != List)
+    {
+        if (mr->type                    == Type 
+            && mr->u.Memory.bytes       == Bytes
+            && mr->u.Memory.physical    == Physical
+            && mr->u.Memory.logical     == Logical)
+        {
+            MEMORY_UNLOCK(Os);
+
+            return mr;
+        }
+
+        mr = mr->next;
+    }
+
+    MEMORY_UNLOCK(Os);
+
+    return gcvNULL;
+}
+
+MEMORY_RECORD_PTR
+CreateVideoMemoryRecord(
+    gckOS Os,
+    gcsHAL_PRIVATE_DATA_PTR private,
     MEMORY_RECORD_PTR List,
     gcuVIDMEM_NODE_PTR Node,
     gceSURF_TYPE Type,
@@ -5399,19 +5776,21 @@ CreateMemoryRecord(
 
     MEMORY_LOCK(Os);
 
-    mr->node            = Node;
-    mr->type            = Type;
-    mr->bytes           = Bytes;
+    mr->type                = gcvVIDEO_MEMORY;
+    mr->u.VideoMemory.node  = Node;
+    mr->u.VideoMemory.type  = Type;
+    mr->u.VideoMemory.bytes = Bytes;
 
 #if gcdkREPORT_VIDMEM_USAGE
-    AllocatedSurfaceTotal[Type] += Bytes;
-    AllocatedSurfaceMax[Type] = (AllocatedSurfaceMax[Type] > AllocatedSurfaceTotal[Type])
-                       ? AllocatedSurfaceMax[Type] : AllocatedSurfaceTotal[Type];
-    AllocatedSurfaceMax[12] += Bytes;
-    if(AllocatedSurfaceMax[12] > AllocatedSurfaceMax[13])
-    {
-        AllocatedSurfaceMax[13] = AllocatedSurfaceMax[12];
-    }
+    private->allocatedMem[Type]   += Bytes;
+    private->maxAllocatedMem[Type] = 
+        (private->maxAllocatedMem[Type] > private->allocatedMem[Type])
+            ? private->maxAllocatedMem[Type] : private->allocatedMem[Type];
+
+    private->totalAllocatedMem   += Bytes;
+    private->maxTotalAllocatedMem = 
+        (private->maxTotalAllocatedMem > private->totalAllocatedMem)
+            ? private->maxTotalAllocatedMem : private->totalAllocatedMem;
 #endif
 
     mr->prev            = List->prev;
@@ -5425,16 +5804,18 @@ CreateMemoryRecord(
 }
 
 void
-DestoryMemoryRecord(
+DestroyVideoMemoryRecord(
     gckOS Os,
+	gcsHAL_PRIVATE_DATA_PTR private,
     MEMORY_RECORD_PTR Mr
     )
 {
+	gcmkASSERT(Mr->type == gcvVIDEO_MEMORY);
     MEMORY_LOCK(Os);
 
 #if gcdkREPORT_VIDMEM_USAGE
-    AllocatedSurfaceTotal[Mr->type] -= Mr->bytes;
-    AllocatedSurfaceMax[12] -= Mr->bytes;
+    private->allocatedMem[Mr->u.VideoMemory.type] -= Mr->u.VideoMemory.bytes;
+    private->totalAllocatedMem                    -= Mr->u.VideoMemory.bytes;
 #endif
 
     Mr->prev->next      = Mr->next;
@@ -5446,8 +5827,9 @@ DestoryMemoryRecord(
 }
 
 MEMORY_RECORD_PTR
-FindMemoryRecord(
+FindVideoMemoryRecord(
     gckOS Os,
+    gcsHAL_PRIVATE_DATA_PTR private,
     MEMORY_RECORD_PTR List,
     gcuVIDMEM_NODE_PTR Node
     )
@@ -5460,7 +5842,7 @@ FindMemoryRecord(
 
     while (mr != List)
     {
-        if (mr->node == Node)
+        if (mr->type == gcvVIDEO_MEMORY && mr->u.VideoMemory.node == Node)
         {
             MEMORY_UNLOCK(Os);
 
@@ -5478,6 +5860,7 @@ FindMemoryRecord(
 void
 FreeAllMemoryRecord(
     gckOS Os,
+	gcsHAL_PRIVATE_DATA_PTR private,
     MEMORY_RECORD_PTR List
     )
 {
@@ -5486,20 +5869,6 @@ FreeAllMemoryRecord(
 
     MEMORY_LOCK(Os);
 
-#if gcdkREPORT_VIDMEM_USAGE
-    for (; i < 12; i++) {
-        printk("AllocatedSurfaceTotal[%s]:\t %12lluK, AllocatedSurfaceMax[%s]:\t %12lluK\n",
-                pszSurfaceType[i], AllocatedSurfaceTotal[i]/1024,
-                pszSurfaceType[i], AllocatedSurfaceMax[i]/1024);
-
-        AllocatedSurfaceTotal[i] = 0;
-        AllocatedSurfaceMax[i] = 0;
-    }
-    printk("AllocatedSurfaceMax[unfreed]:\t %12lluK\n", AllocatedSurfaceMax[12]/1024);
-    printk("AllocatedSurfaceMax[total]:\t %12lluK\n", AllocatedSurfaceMax[13]/1024);
-    AllocatedSurfaceMax[12] = AllocatedSurfaceMax[13] = 0;
-    i = 0;
-#endif
 
     while (List->next != List)
     {
@@ -5512,29 +5881,63 @@ FreeAllMemoryRecord(
 
         MEMORY_UNLOCK(Os);
 
-        gcmkTRACE_ZONE(gcvLEVEL_ERROR,
-                gcvZONE_OS,
-                "Unfreed %s memory: node: %p",
-                (mr->node->VidMem.memory->object.type == gcvOBJ_VIDMEM)?
-                    "video" : (mr->node->Virtual.contiguous)?
-                        "contiguous" : "virtual",
-                mr->node);
-
-        while (gcvTRUE)
+        switch (mr->type)
         {
-            if (mr->node->VidMem.memory->object.type == gcvOBJ_VIDMEM)
+        case gcvNON_PAGED_MEMORY:
+            gcmkTRACE_ZONE(gcvLEVEL_ERROR,
+                    gcvZONE_OS,
+                    "Unfreed non-paged memory: physical: %p, logical: %p, bytes: %d",
+                    mr->u.Memory.physical, mr->u.Memory.logical, mr->u.Memory.bytes);
+
+            gckOS_FreeNonPagedMemory(Os,
+                                 mr->u.Memory.bytes,
+                                 mr->u.Memory.physical,
+                                 mr->u.Memory.logical);
+            break;
+
+        case gcvCONTIGUOUS_MEMORY:
+            gcmkTRACE_ZONE(gcvLEVEL_ERROR,
+                    gcvZONE_OS,
+                    "Unfreed contiguous memory: physical: %p, logical: %p, bytes: %d",
+                    mr->u.Memory.physical, mr->u.Memory.logical, mr->u.Memory.bytes);
+
+            gckOS_FreeContiguous(Os,
+                                 mr->u.Memory.physical,
+                                 mr->u.Memory.logical,
+                                 mr->u.Memory.bytes);
+            break;
+
+        case gcvVIDEO_MEMORY:
+            gcmkTRACE_ZONE(gcvLEVEL_ERROR,
+                    gcvZONE_OS,
+                    "Unfreed %s memory: node: %p",
+                    (mr->u.VideoMemory.node->VidMem.memory->object.type == gcvOBJ_VIDMEM)?
+                        "video" : (mr->u.VideoMemory.node->Virtual.contiguous)?
+                            "virtual-contiguous" : "virtual",
+                    mr->u.VideoMemory.node);
+
+            while (gcvTRUE)
             {
-                if (mr->node->VidMem.locked == 0) break;
-            }
-            else
-            {
-                if (mr->node->Virtual.locked == 0) break;
+                if (mr->u.VideoMemory.node->VidMem.memory->object.type == gcvOBJ_VIDMEM)
+                {
+                    if (mr->u.VideoMemory.node->VidMem.locked == 0) break;
+                }
+                else
+                {
+                    if (mr->u.VideoMemory.node->Virtual.locked == 0) break;
+                }
+
+                gckVIDMEM_Unlock(mr->u.VideoMemory.node, gcvSURF_TYPE_UNKNOWN, gcvNULL);
             }
 
-            gckVIDMEM_Unlock(mr->node, gcvSURF_TYPE_UNKNOWN, gcvNULL);
+            gckVIDMEM_Free(mr->u.VideoMemory.node);
+            break;
+
+        default:
+            gcmkASSERT(0);
+            break;
         }
 
-        gckVIDMEM_Free(mr->node);
 
         kfree(mr);
 
@@ -5547,7 +5950,7 @@ FreeAllMemoryRecord(
     {
         gcmkTRACE_ZONE(gcvLEVEL_ERROR,
                 gcvZONE_OS,
-                "======== Total %d unfreed video/contiguous/virtual memory ========", i);
+                "======== Total %d unfreed memory block(s) ========", i);
     }
 }
 #endif

@@ -76,7 +76,37 @@ gckOS_DestroyAllUserSignals(
 #ifdef gcdkUSE_MEMORY_RECORD
 MEMORY_RECORD_PTR
 CreateMemoryRecord(
+gckOS Os,
+    gcsHAL_PRIVATE_DATA_PTR private,
+    MEMORY_RECORD_PTR List,
+    gceMEMORY_TYPE Type,
+	gctSIZE_T Bytes,
+	gctPHYS_ADDR Physical,
+	gctPOINTER Logical
+    );
+
+void
+DestroyMemoryRecord(
+    gckOS Os,
+    gcsHAL_PRIVATE_DATA_PTR private,
+    MEMORY_RECORD_PTR Mr
+    );
+
+MEMORY_RECORD_PTR
+FindMemoryRecord(
+    gckOS Os,
+    gcsHAL_PRIVATE_DATA_PTR private,
+    MEMORY_RECORD_PTR List,
+    gceMEMORY_TYPE Type,
+	gctSIZE_T Bytes,
+	gctPHYS_ADDR Physical,
+	gctPOINTER Logical
+    );
+
+MEMORY_RECORD_PTR
+CreateVideoMemoryRecord(
 	gckOS Os,
+	gcsHAL_PRIVATE_DATA_PTR private,
 	MEMORY_RECORD_PTR List,
 	gcuVIDMEM_NODE_PTR Node,
 	gceSURF_TYPE Type,
@@ -84,14 +114,16 @@ CreateMemoryRecord(
 	);
 
 void
-DestoryMemoryRecord(
+DestroyVideoMemoryRecord(
 	gckOS Os,
+	gcsHAL_PRIVATE_DATA_PTR private,
 	MEMORY_RECORD_PTR Mr
 	);
 
 MEMORY_RECORD_PTR
-FindMemoryRecord(
+FindVideoMemoryRecord(
 	gckOS Os,
+	gcsHAL_PRIVATE_DATA_PTR private,
 	MEMORY_RECORD_PTR List,
 	gcuVIDMEM_NODE_PTR Node
 	);
@@ -99,6 +131,7 @@ FindMemoryRecord(
 void
 FreeAllMemoryRecord(
 	gckOS Os,
+	gcsHAL_PRIVATE_DATA_PTR private,
 	MEMORY_RECORD_PTR List
 	);
 #endif
