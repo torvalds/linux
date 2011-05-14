@@ -560,8 +560,8 @@ config SND_FM801_TEA575X_BOOL
 	depends on VIDEO_V4L2=y || VIDEO_V4L2=SND_FM801
 	help
 	  Say Y here to include support for soundcards based on the ForteMedia
-	  FM801 chip with a TEA5757 tuner connected to GPIO1-3 pins (Media
-	  Forte SF256-PCS-02) into the snd-fm801 driver.
+	  FM801 chip with a TEA5757 tuner (MediaForte SF256-PCS, SF256-PCP and
+	  SF64-PCR) into the snd-fm801 driver.
 
 config SND_TEA575X
 	tristate

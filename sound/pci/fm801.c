@@ -38,7 +38,6 @@
 
 #ifdef CONFIG_SND_FM801_TEA575X_BOOL
 #include <sound/tea575x-tuner.h>
-#define TEA575X_RADIO 1
 #endif
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
@@ -196,7 +195,7 @@ struct fm801 {
 	spinlock_t reg_lock;
 	struct snd_info_entry *proc_entry;
 
-#ifdef TEA575X_RADIO
+#ifdef CONFIG_SND_FM801_TEA575X_BOOL
 	struct snd_tea575x tea;
 #endif
 
@@ -715,7 +714,7 @@ static int __devinit snd_fm801_pcm(struct fm801 *chip, int device, struct snd_pc
  *  TEA5757 radio
  */
 
-#ifdef TEA575X_RADIO
+#ifdef CONFIG_SND_FM801_TEA575X_BOOL
 
 /* GPIO to TEA575x maps */
 struct snd_fm801_tea575x_gpio {
@@ -1150,7 +1149,7 @@ static int snd_fm801_free(struct fm801 *chip)
 	outw(cmdw, FM801_REG(chip, IRQ_MASK));
 
       __end_hw:
-#ifdef TEA575X_RADIO
+#ifdef CONFIG_SND_FM801_TEA575X_BOOL
 	snd_tea575x_exit(&chip->tea);
 #endif
 	if (chip->irq >= 0)
@@ -1229,7 +1228,7 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 
 	snd_card_set_dev(card, &pci->dev);
 
-#ifdef TEA575X_RADIO
+#ifdef CONFIG_SND_FM801_TEA575X_BOOL
 	chip->tea.private_data = chip;
 	chip->tea.ops = &snd_fm801_tea_ops;
 	sprintf(chip->tea.bus_info, "PCI:%s", pci_name(pci));
