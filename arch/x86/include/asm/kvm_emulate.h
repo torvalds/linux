@@ -373,6 +373,5 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt);
 int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 			 u16 tss_selector, int reason,
 			 bool has_error_code, u32 error_code);
-int emulate_int_real(struct x86_emulate_ctxt *ctxt,
-		     struct x86_emulate_ops *ops, int irq);
+int emulate_int_real(struct x86_emulate_ctxt *ctxt, int irq);
 #endif /* _ASM_X86_KVM_X86_EMULATE_H */
