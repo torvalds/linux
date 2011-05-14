@@ -203,7 +203,7 @@ static void i82443bxgx_init_csrows(struct mem_ctl_info *mci,
 		row_high_limit = ((u32) drbar << 23);
 		/* find the DRAM Chip Select Base address and mask */
 		debugf1("MC%d: %s: %s() Row=%d, "
-			"Boundry Address=%#0x, Last = %#0x\n",
+			"Boundary Address=%#0x, Last = %#0x\n",
 			mci->mc_idx, __FILE__, __func__, index, row_high_limit,
 			row_high_limit_last);
 
@@ -305,7 +305,7 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 	i82443bxgx_init_csrows(mci, pdev, edac_mode, mtype);
 
 	/* Many BIOSes don't clear error flags on boot, so do this
-	 * here, or we get "phantom" errors occuring at module-load
+	 * here, or we get "phantom" errors occurring at module-load
 	 * time. */
 	pci_write_bits32(pdev, I82443BXGX_EAP,
 			(I82443BXGX_EAP_OFFSET_SBE |

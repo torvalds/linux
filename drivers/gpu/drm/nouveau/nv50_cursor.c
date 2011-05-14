@@ -36,9 +36,9 @@
 static void
 nv50_cursor_show(struct nouveau_crtc *nv_crtc, bool update)
 {
-	struct drm_nouveau_private *dev_priv = nv_crtc->base.dev->dev_private;
-	struct nouveau_channel *evo = dev_priv->evo;
 	struct drm_device *dev = nv_crtc->base.dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_channel *evo = nv50_display(dev)->master;
 	int ret;
 
 	NV_DEBUG_KMS(dev, "\n");
@@ -71,9 +71,9 @@ nv50_cursor_show(struct nouveau_crtc *nv_crtc, bool update)
 static void
 nv50_cursor_hide(struct nouveau_crtc *nv_crtc, bool update)
 {
-	struct drm_nouveau_private *dev_priv = nv_crtc->base.dev->dev_private;
-	struct nouveau_channel *evo = dev_priv->evo;
 	struct drm_device *dev = nv_crtc->base.dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_channel *evo = nv50_display(dev)->master;
 	int ret;
 
 	NV_DEBUG_KMS(dev, "\n");

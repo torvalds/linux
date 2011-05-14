@@ -47,7 +47,7 @@ config FS_POSIX_ACL
 	def_bool n
 
 config EXPORTFS
-	tristate
+	bool
 
 config FILE_LOCKING
 	bool "Enable POSIX file locking API" if EXPERT
@@ -187,6 +187,7 @@ source "fs/omfs/Kconfig"
 source "fs/hpfs/Kconfig"
 source "fs/qnx4/Kconfig"
 source "fs/romfs/Kconfig"
+source "fs/pstore/Kconfig"
 source "fs/sysv/Kconfig"
 source "fs/ufs/Kconfig"
 source "fs/exofs/Kconfig"

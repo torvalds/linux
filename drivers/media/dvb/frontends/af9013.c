@@ -1323,13 +1323,11 @@ static struct dvb_frontend_ops af9013_ops;
 
 static int af9013_download_firmware(struct af9013_state *state)
 {
-	int i, len, packets, remainder, ret;
+	int i, len, remaining, ret;
 	const struct firmware *fw;
-	u16 addr = 0x5100; /* firmware start address */
 	u16 checksum = 0;
 	u8 val;
 	u8 fw_params[4];
-	u8 *data;
 	u8 *fw_file = AF9013_DEFAULT_FIRMWARE;
 
 	msleep(100);
@@ -1373,21 +1371,18 @@ static int af9013_download_firmware(struct af9013_state *state)
 	if (ret)
 		goto error_release;
 
-	#define FW_PACKET_MAX_DATA  16
+	#define FW_ADDR 0x5100 /* firmware start address */
+	#define LEN_MAX 16 /* max packet size */
+	for (remaining = fw->size; remaining > 0; remaining -= LEN_MAX) {
+		len = remaining;
+		if (len > LEN_MAX)
+			len = LEN_MAX;
 
-	packets = fw->size / FW_PACKET_MAX_DATA;
-	remainder = fw->size % FW_PACKET_MAX_DATA;
-	len = FW_PACKET_MAX_DATA;
-	for (i = 0; i <= packets; i++) {
-		if (i == packets)  /* set size of the last packet */
-			len = remainder;
-
-		data = (u8 *)(fw->data + i * FW_PACKET_MAX_DATA);
-		ret = af9013_write_ofsm_regs(state, addr, data, len);
-		addr += FW_PACKET_MAX_DATA;
-
+		ret = af9013_write_ofsm_regs(state,
+			FW_ADDR + fw->size - remaining,
+			(u8 *) &fw->data[fw->size - remaining], len);
 		if (ret) {
-			err("firmware download failed at %d with %d", i, ret);
+			err("firmware download failed:%d", ret);
 			goto error_release;
 		}
 	}
@@ -1466,20 +1461,6 @@ struct dvb_frontend *af9013_attach(const struct af9013_config *config,
 	state->i2c = i2c;
 	memcpy(&state->config, config, sizeof(struct af9013_config));
 
-	/* chip version */
-	ret = af9013_read_reg_bits(state, 0xd733, 4, 4, &buf[2]);
-	if (ret)
-		goto error;
-
-	/* ROM version */
-	for (i = 0; i < 2; i++) {
-		ret = af9013_read_reg(state, 0x116b + i, &buf[i]);
-		if (ret)
-			goto error;
-	}
-	deb_info("%s: chip version:%d ROM version:%d.%d\n", __func__,
-		buf[2], buf[0], buf[1]);
-
 	/* download firmware */
 	if (state->config.output_mode != AF9013_OUTPUT_MODE_USB) {
 		ret = af9013_download_firmware(state);
@@ -1494,6 +1475,20 @@ struct dvb_frontend *af9013_attach(const struct af9013_config *config,
 			goto error;
 	}
 	info("firmware version:%d.%d.%d.%d", buf[0], buf[1], buf[2], buf[3]);
+
+	/* chip version */
+	ret = af9013_read_reg_bits(state, 0xd733, 4, 4, &buf[2]);
+	if (ret)
+		goto error;
+
+	/* ROM version */
+	for (i = 0; i < 2; i++) {
+		ret = af9013_read_reg(state, 0x116b + i, &buf[i]);
+		if (ret)
+			goto error;
+	}
+	deb_info("%s: chip version:%d ROM version:%d.%d\n", __func__,
+		buf[2], buf[0], buf[1]);
 
 	/* settings for mp2if */
 	if (state->config.output_mode == AF9013_OUTPUT_MODE_USB) {

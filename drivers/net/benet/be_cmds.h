@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2010 ServerEngines
+ * Copyright (C) 2005 - 2011 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -8,11 +8,11 @@
  * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
- * linux-drivers@serverengines.com
+ * linux-drivers@emulex.com
  *
- * ServerEngines
- * 209 N. Fair Oaks Ave
- * Sunnyvale, CA 94085
+ * Emulex
+ * 3333 Susan Street
+ * Costa Mesa, CA 92626
  */
 
 /*
@@ -88,6 +88,7 @@ struct be_mcc_compl {
 #define ASYNC_EVENT_CODE_GRP_5		0x5
 #define ASYNC_EVENT_QOS_SPEED		0x1
 #define ASYNC_EVENT_COS_PRIORITY	0x2
+#define ASYNC_EVENT_PVID_STATE		0x3
 struct be_async_event_trailer {
 	u32 code;
 };
@@ -134,6 +135,18 @@ struct be_async_event_grp5_cos_priority {
 	struct be_async_event_trailer trailer;
 } __packed;
 
+/* When the event code of an async trailer is GRP5 and event type is
+ * PVID state, the mcc_compl must be interpreted as follows
+ */
+struct be_async_event_grp5_pvid_state {
+	u8 enabled;
+	u8 rsvd0;
+	u16 tag;
+	u32 event_tag;
+	u32 rsvd1;
+	struct be_async_event_trailer trailer;
+} __packed;
+
 struct be_mcc_mailbox {
 	struct be_mcc_wrb wrb;
 	struct be_mcc_compl compl;
@@ -156,6 +169,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_SET_QOS				28
 #define OPCODE_COMMON_MCC_CREATE_EXT			90
 #define OPCODE_COMMON_SEEPROM_READ			30
+#define OPCODE_COMMON_GET_CNTL_ATTRIBUTES               32
 #define OPCODE_COMMON_NTWK_RX_FILTER    		34
 #define OPCODE_COMMON_GET_FW_VERSION			35
 #define OPCODE_COMMON_SET_FLOW_CONTROL			36
@@ -176,6 +190,8 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_BEACON_STATE			70
 #define OPCODE_COMMON_READ_TRANSRECV_DATA		73
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
+#define OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP		103
+#define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
 
 #define OPCODE_ETH_RSS_CONFIG				1
 #define OPCODE_ETH_ACPI_CONFIG				2
@@ -415,7 +431,7 @@ struct be_cmd_resp_mcc_create {
 /* Pseudo amap definition in which each bit of the actual structure is defined
  * as a byte: used to calculate offset/shift/mask of each field */
 struct amap_tx_context {
-	u8 rsvd0[16];		/* dword 0 */
+	u8 if_id[16];		/* dword 0 */
 	u8 tx_ring_size[4];	/* dword 0 */
 	u8 rsvd1[26];		/* dword 0 */
 	u8 pci_func_id[8];	/* dword 1 */
@@ -503,7 +519,8 @@ enum be_if_flags {
 	BE_IF_FLAGS_VLAN = 0x100,
 	BE_IF_FLAGS_MCAST_PROMISCUOUS = 0x200,
 	BE_IF_FLAGS_PASS_L2_ERRORS = 0x400,
-	BE_IF_FLAGS_PASS_L3L4_ERRORS = 0x800
+	BE_IF_FLAGS_PASS_L3L4_ERRORS = 0x800,
+	BE_IF_FLAGS_MULTICAST = 0x1000
 };
 
 /* An RX interface is an object with one or more MAC addresses and
@@ -619,7 +636,10 @@ struct be_rxf_stats {
 	u32 rx_drops_invalid_ring;	/* dword 145*/
 	u32 forwarded_packets;	/* dword 146*/
 	u32 rx_drops_mtu;	/* dword 147*/
-	u32 rsvd0[15];
+	u32 rsvd0[7];
+	u32 port0_jabber_events;
+	u32 port1_jabber_events;
+	u32 rsvd1[6];
 };
 
 struct be_erx_stats {
@@ -630,11 +650,16 @@ struct be_erx_stats {
 	u32 debug_pmem_pbuf_dealloc;       /* dword 47*/
 };
 
+struct be_pmem_stats {
+	u32 eth_red_drops;
+	u32 rsvd[4];
+};
+
 struct be_hw_stats {
 	struct be_rxf_stats rxf;
 	u32 rsvd[48];
 	struct be_erx_stats erx;
-	u32 rsvd1[6];
+	struct be_pmem_stats pmem;
 };
 
 struct be_cmd_req_get_stats {
@@ -645,6 +670,20 @@ struct be_cmd_req_get_stats {
 struct be_cmd_resp_get_stats {
 	struct be_cmd_resp_hdr hdr;
 	struct be_hw_stats hw_stats;
+};
+
+struct be_cmd_req_get_cntl_addnl_attribs {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd[8];
+};
+
+struct be_cmd_resp_get_cntl_addnl_attribs {
+	struct be_cmd_resp_hdr hdr;
+	u16 ipl_file_number;
+	u8 ipl_file_version;
+	u8 rsvd0;
+	u8 on_die_temperature; /* in degrees centigrade*/
+	u8 rsvd1[3];
 };
 
 struct be_cmd_req_vlan_config {
@@ -994,17 +1033,47 @@ struct be_cmd_resp_set_qos {
 	u32 rsvd;
 };
 
+/*********************** Controller Attributes ***********************/
+struct be_cmd_req_cntl_attribs {
+	struct be_cmd_req_hdr hdr;
+};
+
+struct be_cmd_resp_cntl_attribs {
+	struct be_cmd_resp_hdr hdr;
+	struct mgmt_controller_attrib attribs;
+};
+
+/*********************** Set driver function ***********************/
+#define CAPABILITY_SW_TIMESTAMPS	2
+#define CAPABILITY_BE3_NATIVE_ERX_API	4
+
+struct be_cmd_req_set_func_cap {
+	struct be_cmd_req_hdr hdr;
+	u32 valid_cap_flags;
+	u32 cap_flags;
+	u8 rsvd[212];
+};
+
+struct be_cmd_resp_set_func_cap {
+	struct be_cmd_resp_hdr hdr;
+	u32 valid_cap_flags;
+	u32 cap_flags;
+	u8 rsvd[212];
+};
+
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 			u8 type, bool permanent, u32 if_handle);
 extern int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
-			u32 if_id, u32 *pmac_id);
-extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id, u32 pmac_id);
+			u32 if_id, u32 *pmac_id, u32 domain);
+extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id,
+			u32 pmac_id, u32 domain);
 extern int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags,
 			u32 en_flags, u8 *mac, bool pmac_invalid,
 			u32 *if_handle, u32 *pmac_id, u32 domain);
-extern int be_cmd_if_destroy(struct be_adapter *adapter, u32 if_handle);
+extern int be_cmd_if_destroy(struct be_adapter *adapter, u32 if_handle,
+			u32 domain);
 extern int be_cmd_eq_create(struct be_adapter *adapter,
 			struct be_queue_info *eq, int eq_delay);
 extern int be_cmd_cq_create(struct be_adapter *adapter,
@@ -1076,4 +1145,7 @@ extern int be_cmd_get_phy_info(struct be_adapter *adapter,
 		struct be_dma_mem *cmd);
 extern int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain);
 extern void be_detect_dump_ue(struct be_adapter *adapter);
+extern int be_cmd_get_die_temperature(struct be_adapter *adapter);
+extern int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
+extern int be_cmd_check_native_mode(struct be_adapter *adapter);
 

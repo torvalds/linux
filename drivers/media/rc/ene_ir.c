@@ -520,7 +520,7 @@ static void ene_rx_disable(struct ene_device *dev)
 	dev->rx_enabled = false;
 }
 
-/* This resets the receiver. Usefull to stop stream of spaces at end of
+/* This resets the receiver. Useful to stop stream of spaces at end of
  * transmission
  */
 static void ene_rx_reset(struct ene_device *dev)
@@ -1089,7 +1089,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	if (error < 0)
 		goto error;
 
-	ene_notice("driver has been succesfully loaded");
+	ene_notice("driver has been successfully loaded");
 	return 0;
 error:
 	if (dev && dev->irq >= 0)

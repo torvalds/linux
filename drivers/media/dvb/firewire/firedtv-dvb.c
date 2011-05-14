@@ -14,14 +14,9 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/slab.h>
-#include <linux/string.h>
 #include <linux/types.h>
-#include <linux/wait.h>
-#include <linux/workqueue.h>
 
 #include <dmxdev.h>
 #include <dvb_demux.h>
@@ -166,11 +161,11 @@ int fdtv_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-int fdtv_dvb_register(struct firedtv *fdtv)
+int fdtv_dvb_register(struct firedtv *fdtv, const char *name)
 {
 	int err;
 
-	err = dvb_register_adapter(&fdtv->adapter, fdtv_model_names[fdtv->type],
+	err = dvb_register_adapter(&fdtv->adapter, name,
 				   THIS_MODULE, fdtv->device, adapter_nr);
 	if (err < 0)
 		goto fail_log;
@@ -210,7 +205,7 @@ int fdtv_dvb_register(struct firedtv *fdtv)
 
 	dvb_net_init(&fdtv->adapter, &fdtv->dvbnet, &fdtv->demux.dmx);
 
-	fdtv_frontend_init(fdtv);
+	fdtv_frontend_init(fdtv, name);
 	err = dvb_register_frontend(&fdtv->adapter, &fdtv->fe);
 	if (err)
 		goto fail_net_release;
@@ -248,127 +243,3 @@ void fdtv_dvb_unregister(struct firedtv *fdtv)
 	dvb_dmx_release(&fdtv->demux);
 	dvb_unregister_adapter(&fdtv->adapter);
 }
-
-const char *fdtv_model_names[] = {
-	[FIREDTV_UNKNOWN] = "unknown type",
-	[FIREDTV_DVB_S]   = "FireDTV S/CI",
-	[FIREDTV_DVB_C]   = "FireDTV C/CI",
-	[FIREDTV_DVB_T]   = "FireDTV T/CI",
-	[FIREDTV_DVB_S2]  = "FireDTV S2  ",
-};
-
-struct firedtv *fdtv_alloc(struct device *dev,
-			   const struct firedtv_backend *backend,
-			   const char *name, size_t name_len)
-{
-	struct firedtv *fdtv;
-	int i;
-
-	fdtv = kzalloc(sizeof(*fdtv), GFP_KERNEL);
-	if (!fdtv)
-		return NULL;
-
-	dev_set_drvdata(dev, fdtv);
-	fdtv->device		= dev;
-	fdtv->isochannel	= -1;
-	fdtv->voltage		= 0xff;
-	fdtv->tone		= 0xff;
-	fdtv->backend		= backend;
-
-	mutex_init(&fdtv->avc_mutex);
-	init_waitqueue_head(&fdtv->avc_wait);
-	mutex_init(&fdtv->demux_mutex);
-	INIT_WORK(&fdtv->remote_ctrl_work, avc_remote_ctrl_work);
-
-	for (i = ARRAY_SIZE(fdtv_model_names); --i; )
-		if (strlen(fdtv_model_names[i]) <= name_len &&
-		    strncmp(name, fdtv_model_names[i], name_len) == 0)
-			break;
-	fdtv->type = i;
-
-	return fdtv;
-}
-
-#define MATCH_FLAGS (IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID | \
-		     IEEE1394_MATCH_SPECIFIER_ID | IEEE1394_MATCH_VERSION)
-
-#define DIGITAL_EVERYWHERE_OUI	0x001287
-#define AVC_UNIT_SPEC_ID_ENTRY	0x00a02d
-#define AVC_SW_VERSION_ENTRY	0x010001
-
-const struct ieee1394_device_id fdtv_id_table[] = {
-	{
-		/* FloppyDTV S/CI and FloppyDTV S2 */
-		.match_flags	= MATCH_FLAGS,
-		.vendor_id	= DIGITAL_EVERYWHERE_OUI,
-		.model_id	= 0x000024,
-		.specifier_id	= AVC_UNIT_SPEC_ID_ENTRY,
-		.version	= AVC_SW_VERSION_ENTRY,
-	}, {
-		/* FloppyDTV T/CI */
-		.match_flags	= MATCH_FLAGS,
-		.vendor_id	= DIGITAL_EVERYWHERE_OUI,
-		.model_id	= 0x000025,
-		.specifier_id	= AVC_UNIT_SPEC_ID_ENTRY,
-		.version	= AVC_SW_VERSION_ENTRY,
-	}, {
-		/* FloppyDTV C/CI */
-		.match_flags	= MATCH_FLAGS,
-		.vendor_id	= DIGITAL_EVERYWHERE_OUI,
-		.model_id	= 0x000026,
-		.specifier_id	= AVC_UNIT_SPEC_ID_ENTRY,
-		.version	= AVC_SW_VERSION_ENTRY,
-	}, {
-		/* FireDTV S/CI and FloppyDTV S2 */
-		.match_flags	= MATCH_FLAGS,
-		.vendor_id	= DIGITAL_EVERYWHERE_OUI,
-		.model_id	= 0x000034,
-		.specifier_id	= AVC_UNIT_SPEC_ID_ENTRY,
-		.version	= AVC_SW_VERSION_ENTRY,
-	}, {
-		/* FireDTV T/CI */
-		.match_flags	= MATCH_FLAGS,
-		.vendor_id	= DIGITAL_EVERYWHERE_OUI,
-		.model_id	= 0x000035,
-		.specifier_id	= AVC_UNIT_SPEC_ID_ENTRY,
-		.version	= AVC_SW_VERSION_ENTRY,
-	}, {
-		/* FireDTV C/CI */
-		.match_flags	= MATCH_FLAGS,
-		.vendor_id	= DIGITAL_EVERYWHERE_OUI,
-		.model_id	= 0x000036,
-		.specifier_id	= AVC_UNIT_SPEC_ID_ENTRY,
-		.version	= AVC_SW_VERSION_ENTRY,
-	}, {}
-};
-MODULE_DEVICE_TABLE(ieee1394, fdtv_id_table);
-
-static int __init fdtv_init(void)
-{
-	int ret;
-
-	ret = fdtv_fw_init();
-	if (ret < 0)
-		return ret;
-
-	ret = fdtv_1394_init();
-	if (ret < 0)
-		fdtv_fw_exit();
-
-	return ret;
-}
-
-static void __exit fdtv_exit(void)
-{
-	fdtv_1394_exit();
-	fdtv_fw_exit();
-}
-
-module_init(fdtv_init);
-module_exit(fdtv_exit);
-
-MODULE_AUTHOR("Andreas Monitzer <andy@monitzer.com>");
-MODULE_AUTHOR("Ben Backx <ben@bbackx.com>");
-MODULE_DESCRIPTION("FireDTV DVB Driver");
-MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("FireDTV DVB");

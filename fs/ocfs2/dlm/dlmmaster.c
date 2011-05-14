@@ -426,8 +426,6 @@ static void dlm_mle_release(struct kref *kref)
 	struct dlm_master_list_entry *mle;
 	struct dlm_ctxt *dlm;
 
-	mlog_entry_void();
-
 	mle = container_of(kref, struct dlm_master_list_entry, mle_refs);
 	dlm = mle->dlm;
 
@@ -810,7 +808,7 @@ lookup:
 				dlm_mle_detach_hb_events(dlm, mle);
 			dlm_put_mle(mle);
 			mle = NULL;
-			/* this is lame, but we cant wait on either
+			/* this is lame, but we can't wait on either
 			 * the mle or lockres waitqueue here */
 			if (mig)
 				msleep(100);
@@ -845,7 +843,7 @@ lookup:
 
 	/* finally add the lockres to its hash bucket */
 	__dlm_insert_lockres(dlm, res);
-	/* since this lockres is new it doesnt not require the spinlock */
+	/* since this lockres is new it doesn't not require the spinlock */
 	dlm_lockres_grab_inflight_ref_new(dlm, res);
 
 	/* if this node does not become the master make sure to drop
@@ -3120,8 +3118,6 @@ static int dlm_add_migration_mle(struct dlm_ctxt *dlm,
 
 	*oldmle = NULL;
 
-	mlog_entry_void();
-
 	assert_spin_locked(&dlm->spinlock);
 	assert_spin_locked(&dlm->master_lock);
 
@@ -3261,7 +3257,7 @@ void dlm_clean_master_list(struct dlm_ctxt *dlm, u8 dead_node)
 	struct hlist_node *list;
 	unsigned int i;
 
-	mlog_entry("dlm=%s, dead node=%u\n", dlm->name, dead_node);
+	mlog(0, "dlm=%s, dead node=%u\n", dlm->name, dead_node);
 top:
 	assert_spin_locked(&dlm->spinlock);
 

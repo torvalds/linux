@@ -21,6 +21,12 @@
 #define ARM_CPU_KEEP(x)
 #endif
 
+#if defined(CONFIG_SMP_ON_UP) && !defined(CONFIG_DEBUG_SPINLOCK)
+#define ARM_EXIT_KEEP(x)	x
+#else
+#define ARM_EXIT_KEEP(x)
+#endif
+
 OUTPUT_ARCH(arm)
 ENTRY(stext)
 
@@ -43,6 +49,7 @@ SECTIONS
 		_sinittext = .;
 			HEAD_TEXT
 			INIT_TEXT
+			ARM_EXIT_KEEP(EXIT_TEXT)
 		_einittext = .;
 		ARM_CPU_DISCARD(PROC_INFO)
 		__arch_info_begin = .;
@@ -57,6 +64,10 @@ SECTIONS
 		__smpalt_end = .;
 #endif
 
+		__pv_table_begin = .;
+			*(.pv_table)
+		__pv_table_end = .;
+
 		INIT_SETUP(16)
 
 		INIT_CALLS
@@ -67,10 +78,11 @@ SECTIONS
 #ifndef CONFIG_XIP_KERNEL
 		__init_begin = _stext;
 		INIT_DATA
+		ARM_EXIT_KEEP(EXIT_DATA)
 #endif
 	}
 
-	PERCPU(PAGE_SIZE)
+	PERCPU(32, PAGE_SIZE)
 
 #ifndef CONFIG_XIP_KERNEL
 	. = ALIGN(PAGE_SIZE);
@@ -162,6 +174,7 @@ SECTIONS
 		. = ALIGN(PAGE_SIZE);
 		__init_begin = .;
 		INIT_DATA
+		ARM_EXIT_KEEP(EXIT_DATA)
 		. = ALIGN(PAGE_SIZE);
 		__init_end = .;
 #endif
@@ -246,6 +259,8 @@ SECTIONS
 		__tcm_end = .;
 	}
 #endif
+
+	NOTES
 
 	BSS_SECTION(0, 0, 0)
 	_end = .;

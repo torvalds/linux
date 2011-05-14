@@ -18,7 +18,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/smp_lock.h>
 #include <linux/file.h>
 #include <linux/tcp.h>
 #include <linux/in.h>
@@ -334,10 +333,11 @@ void usbip_dump_header(struct usbip_header *pdu)
 		usbip_udbg("CMD_UNLINK: seq %u\n", pdu->u.cmd_unlink.seqnum);
 		break;
 	case USBIP_RET_SUBMIT:
-		usbip_udbg("RET_SUBMIT: st %d al %u sf %d ec %d\n",
+		usbip_udbg("RET_SUBMIT: st %d al %u sf %d #p %d ec %d\n",
 				pdu->u.ret_submit.status,
 				pdu->u.ret_submit.actual_length,
 				pdu->u.ret_submit.start_frame,
+				pdu->u.ret_submit.number_of_packets,
 				pdu->u.ret_submit.error_count);
 	case USBIP_RET_UNLINK:
 		usbip_udbg("RET_UNLINK: status %d\n", pdu->u.ret_unlink.status);
@@ -348,110 +348,6 @@ void usbip_dump_header(struct usbip_header *pdu)
 	}
 }
 EXPORT_SYMBOL_GPL(usbip_dump_header);
-
-
-/*-------------------------------------------------------------------------*/
-/* thread routines */
-
-int usbip_thread(void *param)
-{
-	struct usbip_task *ut = param;
-
-	if (!ut)
-		return -EINVAL;
-
-	lock_kernel();
-	daemonize(ut->name);
-	allow_signal(SIGKILL);
-	ut->thread = current;
-	unlock_kernel();
-
-	/* srv.rb must wait for rx_thread starting */
-	complete(&ut->thread_done);
-
-	/* start of while loop */
-	ut->loop_ops(ut);
-
-	/* end of loop */
-	ut->thread = NULL;
-
-	complete_and_exit(&ut->thread_done, 0);
-}
-
-static void stop_rx_thread(struct usbip_device *ud)
-{
-	if (ud->tcp_rx.thread != NULL) {
-		send_sig(SIGKILL, ud->tcp_rx.thread, 1);
-		wait_for_completion(&ud->tcp_rx.thread_done);
-		usbip_udbg("rx_thread for ud %p has finished\n", ud);
-	}
-}
-
-static void stop_tx_thread(struct usbip_device *ud)
-{
-	if (ud->tcp_tx.thread != NULL) {
-		send_sig(SIGKILL, ud->tcp_tx.thread, 1);
-		wait_for_completion(&ud->tcp_tx.thread_done);
-		usbip_udbg("tx_thread for ud %p has finished\n", ud);
-	}
-}
-
-int usbip_start_threads(struct usbip_device *ud)
-{
-	/*
-	 * threads are invoked per one device (per one connection).
-	 */
-	struct task_struct *th;
-	int err = 0;
-
-	th = kthread_run(usbip_thread, (void *)&ud->tcp_rx, "usbip");
-	if (IS_ERR(th)) {
-		printk(KERN_WARNING
-			"Unable to start control thread\n");
-		err = PTR_ERR(th);
-		goto ust_exit;
-	}
-
-	th = kthread_run(usbip_thread, (void *)&ud->tcp_tx, "usbip");
-	if (IS_ERR(th)) {
-		printk(KERN_WARNING
-			"Unable to start control thread\n");
-		err = PTR_ERR(th);
-		goto tx_thread_err;
-	}
-
-	/* confirm threads are starting */
-	wait_for_completion(&ud->tcp_rx.thread_done);
-	wait_for_completion(&ud->tcp_tx.thread_done);
-
-	return 0;
-
-tx_thread_err:
-	stop_rx_thread(ud);
-
-ust_exit:
-	return err;
-}
-EXPORT_SYMBOL_GPL(usbip_start_threads);
-
-void usbip_stop_threads(struct usbip_device *ud)
-{
-	/* kill threads related to this sdev, if v.c. exists */
-	stop_rx_thread(ud);
-	stop_tx_thread(ud);
-}
-EXPORT_SYMBOL_GPL(usbip_stop_threads);
-
-void usbip_task_init(struct usbip_task *ut, char *name,
-		void (*loop_ops)(struct usbip_task *))
-{
-	ut->thread = NULL;
-	init_completion(&ut->thread_done);
-	ut->name = name;
-	ut->loop_ops = loop_ops;
-}
-EXPORT_SYMBOL_GPL(usbip_task_init);
-
 
 /*-------------------------------------------------------------------------*/
 /* socket routines */
@@ -625,6 +521,7 @@ static void usbip_pack_ret_submit(struct usbip_header *pdu, struct urb *urb,
 		rpdu->status		= urb->status;
 		rpdu->actual_length	= urb->actual_length;
 		rpdu->start_frame	= urb->start_frame;
+		rpdu->number_of_packets = urb->number_of_packets;
 		rpdu->error_count	= urb->error_count;
 	} else {
 		/* vhci_rx.c */
@@ -632,6 +529,7 @@ static void usbip_pack_ret_submit(struct usbip_header *pdu, struct urb *urb,
 		urb->status		= rpdu->status;
 		urb->actual_length	= rpdu->actual_length;
 		urb->start_frame	= rpdu->start_frame;
+		urb->number_of_packets = rpdu->number_of_packets;
 		urb->error_count	= rpdu->error_count;
 	}
 }
@@ -700,11 +598,13 @@ static void correct_endian_ret_submit(struct usbip_header_ret_submit *pdu,
 		cpu_to_be32s(&pdu->status);
 		cpu_to_be32s(&pdu->actual_length);
 		cpu_to_be32s(&pdu->start_frame);
+		cpu_to_be32s(&pdu->number_of_packets);
 		cpu_to_be32s(&pdu->error_count);
 	} else {
 		be32_to_cpus(&pdu->status);
 		be32_to_cpus(&pdu->actual_length);
 		be32_to_cpus(&pdu->start_frame);
+		cpu_to_be32s(&pdu->number_of_packets);
 		be32_to_cpus(&pdu->error_count);
 	}
 }
@@ -830,6 +730,7 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 	int size = np * sizeof(*iso);
 	int i;
 	int ret;
+	int total_length = 0;
 
 	if (!usb_pipeisoc(urb->pipe))
 		return 0;
@@ -859,19 +760,75 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 		return -EPIPE;
 	}
 
+
 	for (i = 0; i < np; i++) {
 		iso = buff + (i * sizeof(*iso));
 
 		usbip_iso_pakcet_correct_endian(iso, 0);
 		usbip_pack_iso(iso, &urb->iso_frame_desc[i], 0);
+		total_length += urb->iso_frame_desc[i].actual_length;
 	}
 
 	kfree(buff);
+
+	if (total_length != urb->actual_length) {
+		dev_err(&urb->dev->dev,
+		  "total length of iso packets (%d) not equal to actual length of buffer (%d)\n",
+		  total_length, urb->actual_length);
+
+		if (ud->side == USBIP_STUB)
+			usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
+		else
+			usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
+
+		return -EPIPE;
+	}
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(usbip_recv_iso);
 
+/*
+ * This functions restores the padding which was removed for optimizing
+ * the bandwidth during transfer over tcp/ip
+ *
+ * buffer and iso packets need to be stored and be in propeper endian in urb
+ * before calling this function
+ */
+int usbip_pad_iso(struct usbip_device *ud, struct urb *urb)
+{
+	int np = urb->number_of_packets;
+	int i;
+	int ret;
+	int actualoffset = urb->actual_length;
+
+	if (!usb_pipeisoc(urb->pipe))
+		return 0;
+
+	/* if no packets or length of data is 0, then nothing to unpack */
+	if (np == 0 || urb->actual_length == 0)
+		return 0;
+
+	/*
+	 * if actual_length is transfer_buffer_length then no padding is
+	 * present.
+	*/
+	if (urb->actual_length == urb->transfer_buffer_length)
+		return 0;
+
+	/*
+	 * loop over all packets from last to first (to prevent overwritting
+	 * memory when padding) and move them into the proper place
+	 */
+	for (i = np-1; i > 0; i--) {
+		actualoffset -= urb->iso_frame_desc[i].actual_length;
+		memmove(urb->transfer_buffer + urb->iso_frame_desc[i].offset,
+				  urb->transfer_buffer + actualoffset,
+				  urb->iso_frame_desc[i].actual_length);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(usbip_pad_iso);
 
 /* some members of urb must be substituted before. */
 int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb)

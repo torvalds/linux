@@ -213,6 +213,7 @@ enum {
 	 IWL_CCK_BASIC_RATES_MASK)
 
 #define IWL_RATES_MASK ((1 << IWL_RATE_COUNT) - 1)
+#define IWL_RATES_MASK_3945 ((1 << IWL_RATE_COUNT_3945) - 1)
 
 #define IWL_INVALID_VALUE    -1
 

@@ -151,6 +151,12 @@ static struct clk init_clocks_off[] = {
 		.enable		= s3c64xx_pclk_ctrl,
 		.ctrlbit	= S3C_CLKCON_PCLK_IIC,
 	}, {
+		.name		= "i2c",
+		.id		= 1,
+		.parent		= &clk_p,
+		.enable		= s3c64xx_pclk_ctrl,
+		.ctrlbit	= S3C6410_CLKCON_PCLK_I2C1,
+	}, {
 		.name		= "iis",
 		.id		= 0,
 		.parent		= &clk_p,

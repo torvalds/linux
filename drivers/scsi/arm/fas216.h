@@ -203,11 +203,11 @@ typedef enum {
 } fasdmatype_t;
 
 typedef enum {
-	neg_wait,					/* Negociate with device		*/
-	neg_inprogress,					/* Negociation sent			*/
-	neg_complete,					/* Negociation complete			*/
-	neg_targcomplete,				/* Target completed negociation		*/
-	neg_invalid					/* Negociation not supported		*/
+	neg_wait,					/* Negotiate with device		*/
+	neg_inprogress,					/* Negotiation sent			*/
+	neg_complete,					/* Negotiation complete			*/
+	neg_targcomplete,				/* Target completed negotiation		*/
+	neg_invalid					/* Negotiation not supported		*/
 } neg_t;
 
 #define MAGIC	0x441296bdUL

@@ -253,7 +253,6 @@ static int ep93xx_ac97_trigger(struct snd_pcm_substream *substream,
 	struct ep93xx_ac97_info *info = snd_soc_dai_get_drvdata(dai);
 	unsigned v = 0;
 
-
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:

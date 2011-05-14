@@ -299,6 +299,14 @@ nvc0_graph_takedown(struct drm_device *dev)
 }
 
 static int
+nvc0_graph_mthd_page_flip(struct nouveau_channel *chan,
+			  u32 class, u32 mthd, u32 data)
+{
+	nouveau_finish_page_flip(chan, NULL);
+	return 0;
+}
+
+static int
 nvc0_graph_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -395,6 +403,7 @@ nvc0_graph_create(struct drm_device *dev)
 	nouveau_irq_register(dev, 25, nvc0_runk140_isr);
 	NVOBJ_CLASS(dev, 0x902d, GR); /* 2D */
 	NVOBJ_CLASS(dev, 0x9039, GR); /* M2MF */
+	NVOBJ_MTHD (dev, 0x9039, 0x0500, nvc0_graph_mthd_page_flip);
 	NVOBJ_CLASS(dev, 0x9097, GR); /* 3D */
 	NVOBJ_CLASS(dev, 0x90c0, GR); /* COMPUTE */
 	return 0;
@@ -640,7 +649,6 @@ nvc0_graph_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct nvc0_graph_priv *priv;
 	int ret;
 
 	dev_priv->engine.graph.accel_blocked = true;
@@ -665,7 +673,6 @@ nvc0_graph_init(struct drm_device *dev)
 		if (ret)
 			return ret;
 	}
-	priv = pgraph->priv;
 
 	nvc0_graph_init_obj418880(dev);
 	nvc0_graph_init_regs(dev);
@@ -730,9 +737,12 @@ nvc0_graph_isr(struct drm_device *dev)
 	u32 class = nv_rd32(dev, 0x404200 + (subc * 4));
 
 	if (stat & 0x00000010) {
-		NV_INFO(dev, "PGRAPH: ILLEGAL_MTHD ch %d [0x%010llx] subc %d "
-			     "class 0x%04x mthd 0x%04x data 0x%08x\n",
-			chid, inst, subc, class, mthd, data);
+		if (nouveau_gpuobj_mthd_call2(dev, chid, class, mthd, data)) {
+			NV_INFO(dev, "PGRAPH: ILLEGAL_MTHD ch %d [0x%010llx] "
+				     "subc %d class 0x%04x mthd 0x%04x "
+				     "data 0x%08x\n",
+				chid, inst, subc, class, mthd, data);
+		}
 		nv_wr32(dev, 0x400100, 0x00000010);
 		stat &= ~0x00000010;
 	}

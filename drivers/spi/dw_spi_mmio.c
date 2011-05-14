@@ -13,8 +13,10 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/spi/dw_spi.h>
 #include <linux/spi/spi.h>
+#include <linux/scatterlist.h>
+
+#include "dw_spi.h"
 
 #define DRIVER_NAME "dw_spi_mmio"
 

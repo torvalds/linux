@@ -393,6 +393,7 @@ static const struct i2c_device_id ds278x_id[] = {
 	{"ds2786", DS2786},
 	{},
 };
+MODULE_DEVICE_TABLE(i2c, ds278x_id);
 
 static struct i2c_driver ds278x_battery_driver = {
 	.driver 	= {

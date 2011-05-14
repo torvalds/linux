@@ -15,3 +15,11 @@ config MINIX_FS
 	  module will be called minix.  Note that the file system of your root
 	  partition (the one containing the directory /) cannot be compiled as
 	  a module.
+
+config MINIX_FS_NATIVE_ENDIAN
+	def_bool MINIX_FS
+	depends on H8300 || M32R || MICROBLAZE || MIPS || S390 || SUPERH || SPARC || XTENSA || (M68K && !MMU)
+
+config MINIX_FS_BIG_ENDIAN_16BIT_INDEXED
+	def_bool MINIX_FS
+	depends on M68K && MMU

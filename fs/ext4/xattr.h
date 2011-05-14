@@ -145,10 +145,10 @@ ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 
 #ifdef CONFIG_EXT4_FS_SECURITY
 extern int ext4_init_security(handle_t *handle, struct inode *inode,
-				struct inode *dir);
+			      struct inode *dir, const struct qstr *qstr);
 #else
 static inline int ext4_init_security(handle_t *handle, struct inode *inode,
-				struct inode *dir)
+				     struct inode *dir, const struct qstr *qstr)
 {
 	return 0;
 }

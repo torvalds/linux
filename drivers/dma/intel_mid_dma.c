@@ -911,8 +911,8 @@ static int intel_mid_dma_alloc_chan_resources(struct dma_chan *chan)
 
 /**
  * midc_handle_error -	Handle DMA txn error
- * @mid: controller where error occured
- * @midc: chan where error occured
+ * @mid: controller where error occurred
+ * @midc: chan where error occurred
  *
  * Scan the descriptor for error
  */
@@ -1099,7 +1099,7 @@ static int mid_setup_dma(struct pci_dev *pdev)
 		dma->mask_reg = ioremap(LNW_PERIPHRAL_MASK_BASE,
 					LNW_PERIPHRAL_MASK_SIZE);
 		if (dma->mask_reg == NULL) {
-			pr_err("ERR_MDMA:Cant map periphral intr space !!\n");
+			pr_err("ERR_MDMA:Can't map periphral intr space !!\n");
 			return -ENOMEM;
 		}
 	} else
@@ -1373,7 +1373,7 @@ int dma_resume(struct pci_dev *pci)
 	pci_restore_state(pci);
 	ret = pci_enable_device(pci);
 	if (ret) {
-		pr_err("MDMA: device cant be enabled for %x\n", pci->device);
+		pr_err("MDMA: device can't be enabled for %x\n", pci->device);
 		return ret;
 	}
 	device->state = RUNNING;

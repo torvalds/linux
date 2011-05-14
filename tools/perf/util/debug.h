@@ -9,7 +9,7 @@ extern int verbose;
 extern bool quiet, dump_trace;
 
 int dump_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
-void trace_event(event_t *event);
+void trace_event(union perf_event *event);
 
 struct ui_progress;
 
@@ -36,5 +36,6 @@ int ui_helpline__show_help(const char *format, va_list ap);
 #endif
 
 void ui__warning(const char *format, ...) __attribute__((format(printf, 1, 2)));
+void ui__warning_paranoid(void);
 
 #endif	/* __PERF_DEBUG_H */

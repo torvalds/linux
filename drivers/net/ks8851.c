@@ -141,7 +141,7 @@ static int msg_enable;
  *
  * All these calls issue SPI transactions to access the chip's registers. They
  * all require that the necessary lock is held to prevent accesses when the
- * chip is busy transfering packet data (RX/TX FIFO accesses).
+ * chip is busy transferring packet data (RX/TX FIFO accesses).
  */
 
 /**
@@ -483,7 +483,7 @@ static void ks8851_rx_pkts(struct ks8851_net *ks)
 	 *
 	 * This form of operation would require us to hold the SPI bus'
 	 * chipselect low during the entie transaction to avoid any
-	 * reset to the data stream comming from the chip.
+	 * reset to the data stream coming from the chip.
 	 */
 
 	for (; rxfc != 0; rxfc--) {
@@ -634,7 +634,7 @@ static void ks8851_irq_work(struct work_struct *work)
 
 /**
  * calc_txlen - calculate size of message to send packet
- * @len: Lenght of data
+ * @len: Length of data
  *
  * Returns the size of the TXFIFO message needed to send
  * this packet.
@@ -1472,7 +1472,7 @@ static int ks8851_phy_reg(int reg)
  * @reg: The register to read.
  *
  * This call reads data from the PHY register specified in @reg. Since the
- * device does not support all the MII registers, the non-existant values
+ * device does not support all the MII registers, the non-existent values
  * are always returned as zero.
  *
  * We return zero for unsupported registers as the MII code does not check

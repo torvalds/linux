@@ -294,9 +294,11 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			return -EINVAL;
 		if (get_user(n, (int __user *) arg))
 			return -EFAULT;
-		if (!(mode & FMODE_EXCL) &&
-		    blkdev_get(bdev, mode | FMODE_EXCL, &bdev) < 0)
-			return -EBUSY;
+		if (!(mode & FMODE_EXCL)) {
+			bdgrab(bdev);
+			if (blkdev_get(bdev, mode | FMODE_EXCL, &bdev) < 0)
+				return -EBUSY;
+		}
 		ret = set_blocksize(bdev, n);
 		if (!(mode & FMODE_EXCL))
 			blkdev_put(bdev, mode | FMODE_EXCL);

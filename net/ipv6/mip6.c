@@ -203,18 +203,20 @@ static inline int mip6_report_rl_allow(struct timeval *stamp,
 	return allow;
 }
 
-static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb, struct flowi *fl)
+static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb,
+			       const struct flowi *fl)
 {
 	struct net *net = xs_net(x);
 	struct inet6_skb_parm *opt = (struct inet6_skb_parm *)skb->cb;
+	const struct flowi6 *fl6 = &fl->u.ip6;
 	struct ipv6_destopt_hao *hao = NULL;
 	struct xfrm_selector sel;
 	int offset;
 	struct timeval stamp;
 	int err = 0;
 
-	if (unlikely(fl->proto == IPPROTO_MH &&
-		     fl->fl_mh_type <= IP6_MH_TYPE_MAX))
+	if (unlikely(fl6->flowi6_proto == IPPROTO_MH &&
+		     fl6->fl6_mh_type <= IP6_MH_TYPE_MAX))
 		goto out;
 
 	if (likely(opt->dsthao)) {
@@ -239,14 +241,14 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb, struct
 	       sizeof(sel.saddr));
 	sel.prefixlen_s = 128;
 	sel.family = AF_INET6;
-	sel.proto = fl->proto;
-	sel.dport = xfrm_flowi_dport(fl);
+	sel.proto = fl6->flowi6_proto;
+	sel.dport = xfrm_flowi_dport(fl, &fl6->uli);
 	if (sel.dport)
 		sel.dport_mask = htons(~0);
-	sel.sport = xfrm_flowi_sport(fl);
+	sel.sport = xfrm_flowi_sport(fl, &fl6->uli);
 	if (sel.sport)
 		sel.sport_mask = htons(~0);
-	sel.ifindex = fl->oif;
+	sel.ifindex = fl6->flowi6_oif;
 
 	err = km_report(net, IPPROTO_DSTOPTS, &sel,
 			(hao ? (xfrm_address_t *)&hao->addr : NULL));

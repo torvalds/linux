@@ -2029,11 +2029,11 @@ static sctp_ierror_t sctp_process_unk_param(const struct sctp_association *asoc,
 			*errp = sctp_make_op_error_fixed(asoc, chunk);
 
 		if (*errp) {
-			sctp_init_cause_fixed(*errp, SCTP_ERROR_UNKNOWN_PARAM,
-					WORD_ROUND(ntohs(param.p->length)));
-			sctp_addto_chunk_fixed(*errp,
-					WORD_ROUND(ntohs(param.p->length)),
-					param.v);
+			if (!sctp_init_cause_fixed(*errp, SCTP_ERROR_UNKNOWN_PARAM,
+					WORD_ROUND(ntohs(param.p->length))))
+				sctp_addto_chunk_fixed(*errp,
+						WORD_ROUND(ntohs(param.p->length)),
+						param.v);
 		} else {
 			/* If there is no memory for generating the ERROR
 			 * report as specified, an ABORT will be triggered
@@ -3106,10 +3106,10 @@ struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 
 	/* create an ASCONF_ACK chunk.
 	 * Based on the definitions of parameters, we know that the size of
-	 * ASCONF_ACK parameters are less than or equal to the twice of ASCONF
+	 * ASCONF_ACK parameters are less than or equal to the fourfold of ASCONF
 	 * parameters.
 	 */
-	asconf_ack = sctp_make_asconf_ack(asoc, serial, chunk_len * 2);
+	asconf_ack = sctp_make_asconf_ack(asoc, serial, chunk_len * 4);
 	if (!asconf_ack)
 		goto done;
 
@@ -3375,7 +3375,6 @@ struct sctp_chunk *sctp_make_fwdtsn(const struct sctp_association *asoc,
 				    struct sctp_fwdtsn_skip *skiplist)
 {
 	struct sctp_chunk *retval = NULL;
-	struct sctp_fwdtsn_chunk *ftsn_chunk;
 	struct sctp_fwdtsn_hdr ftsn_hdr;
 	struct sctp_fwdtsn_skip skip;
 	size_t hint;
@@ -3387,8 +3386,6 @@ struct sctp_chunk *sctp_make_fwdtsn(const struct sctp_association *asoc,
 
 	if (!retval)
 		return NULL;
-
-	ftsn_chunk = (struct sctp_fwdtsn_chunk *)retval->subh.fwdtsn_hdr;
 
 	ftsn_hdr.new_cum_tsn = htonl(new_cum_tsn);
 	retval->subh.fwdtsn_hdr =

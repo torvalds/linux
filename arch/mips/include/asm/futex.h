@@ -75,7 +75,7 @@
 }
 
 static inline int
-futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
+futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 {
 	int op = (encoded_op >> 28) & 7;
 	int cmp = (encoded_op >> 24) & 15;
@@ -85,7 +85,7 @@ futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
 		oparg = 1 << oparg;
 
-	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(int)))
+	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	pagefault_disable();
@@ -132,11 +132,13 @@ futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 }
 
 static inline int
-futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
+futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
+			      u32 oldval, u32 newval)
 {
-	int retval;
+	int ret = 0;
+	u32 val;
 
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
@@ -145,25 +147,25 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 		"	.set	push					\n"
 		"	.set	noat					\n"
 		"	.set	mips3					\n"
-		"1:	ll	%0, %2					\n"
-		"	bne	%0, %z3, 3f				\n"
+		"1:	ll	%1, %3					\n"
+		"	bne	%1, %z4, 3f				\n"
 		"	.set	mips0					\n"
-		"	move	$1, %z4					\n"
+		"	move	$1, %z5					\n"
 		"	.set	mips3					\n"
-		"2:	sc	$1, %1					\n"
+		"2:	sc	$1, %2					\n"
 		"	beqzl	$1, 1b					\n"
 		__WEAK_LLSC_MB
 		"3:							\n"
 		"	.set	pop					\n"
 		"	.section .fixup,\"ax\"				\n"
-		"4:	li	%0, %5					\n"
+		"4:	li	%0, %6					\n"
 		"	j	3b					\n"
 		"	.previous					\n"
 		"	.section __ex_table,\"a\"			\n"
 		"	"__UA_ADDR "\t1b, 4b				\n"
 		"	"__UA_ADDR "\t2b, 4b				\n"
 		"	.previous					\n"
-		: "=&r" (retval), "=R" (*uaddr)
+		: "+r" (ret), "=&r" (val), "=R" (*uaddr)
 		: "R" (*uaddr), "Jr" (oldval), "Jr" (newval), "i" (-EFAULT)
 		: "memory");
 	} else if (cpu_has_llsc) {
@@ -172,31 +174,32 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 		"	.set	push					\n"
 		"	.set	noat					\n"
 		"	.set	mips3					\n"
-		"1:	ll	%0, %2					\n"
-		"	bne	%0, %z3, 3f				\n"
+		"1:	ll	%1, %3					\n"
+		"	bne	%1, %z4, 3f				\n"
 		"	.set	mips0					\n"
-		"	move	$1, %z4					\n"
+		"	move	$1, %z5					\n"
 		"	.set	mips3					\n"
-		"2:	sc	$1, %1					\n"
+		"2:	sc	$1, %2					\n"
 		"	beqz	$1, 1b					\n"
 		__WEAK_LLSC_MB
 		"3:							\n"
 		"	.set	pop					\n"
 		"	.section .fixup,\"ax\"				\n"
-		"4:	li	%0, %5					\n"
+		"4:	li	%0, %6					\n"
 		"	j	3b					\n"
 		"	.previous					\n"
 		"	.section __ex_table,\"a\"			\n"
 		"	"__UA_ADDR "\t1b, 4b				\n"
 		"	"__UA_ADDR "\t2b, 4b				\n"
 		"	.previous					\n"
-		: "=&r" (retval), "=R" (*uaddr)
+		: "+r" (ret), "=&r" (val), "=R" (*uaddr)
 		: "R" (*uaddr), "Jr" (oldval), "Jr" (newval), "i" (-EFAULT)
 		: "memory");
 	} else
 		return -ENOSYS;
 
-	return retval;
+	*uval = val;
+	return ret;
 }
 
 #endif

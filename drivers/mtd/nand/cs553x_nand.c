@@ -241,7 +241,7 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	/* Enable the following for a flash based bad block table */
 	this->options = NAND_USE_FLASH_BBT | NAND_NO_AUTOINCR;
 
-	/* Scan to find existance of the device */
+	/* Scan to find existence of the device */
 	if (nand_scan(new_mtd, 1)) {
 		err = -ENXIO;
 		goto out_ior;

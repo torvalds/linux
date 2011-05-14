@@ -105,7 +105,7 @@ static struct iscsi_transport cxgb3i_iscsi_transport = {
 	/* owner and name should be set already */
 	.caps		= CAP_RECOVERY_L0 | CAP_MULTI_R2T | CAP_HDRDGST
 				| CAP_DATADGST | CAP_DIGEST_OFFLOAD |
-				CAP_PADDING_OFFLOAD,
+				CAP_PADDING_OFFLOAD | CAP_TEXT_NEGO,
 	.param_mask	= ISCSI_MAX_RECV_DLENGTH | ISCSI_MAX_XMIT_DLENGTH |
 				ISCSI_HDRDGST_EN | ISCSI_DATADGST_EN |
 				ISCSI_INITIAL_R2T_EN | ISCSI_MAX_R2T |
@@ -137,7 +137,7 @@ static struct iscsi_transport cxgb3i_iscsi_transport = {
 	.destroy_conn	= iscsi_tcp_conn_teardown,
 	.start_conn	= iscsi_conn_start,
 	.stop_conn	= iscsi_conn_stop,
-	.get_conn_param	= cxgbi_get_conn_param,
+	.get_conn_param	= iscsi_conn_get_param,
 	.set_param	= cxgbi_set_conn_param,
 	.get_stats	= cxgbi_get_conn_stats,
 	/* pdu xmit req from user space */
@@ -152,6 +152,7 @@ static struct iscsi_transport cxgb3i_iscsi_transport = {
 	.xmit_pdu	= cxgbi_conn_xmit_pdu,
 	.parse_pdu_itt	= cxgbi_parse_pdu_itt,
 	/* TCP connect/disconnect */
+	.get_ep_param	= cxgbi_get_ep_param,
 	.ep_connect	= cxgbi_ep_connect,
 	.ep_poll	= cxgbi_ep_poll,
 	.ep_disconnect	= cxgbi_ep_disconnect,
@@ -1108,10 +1109,11 @@ static int ddp_set_map(struct cxgbi_sock *csk, struct cxgbi_pagepod_hdr *hdr,
 		csk, idx, npods, gl);
 
 	for (i = 0; i < npods; i++, idx++, pm_addr += PPOD_SIZE) {
-		struct sk_buff *skb = ddp->gl_skb[idx];
+		struct sk_buff *skb = alloc_wr(sizeof(struct ulp_mem_io) +
+						PPOD_SIZE, 0, GFP_ATOMIC);
 
-		/* hold on to the skb until we clear the ddp mapping */
-		skb_get(skb);
+		if (!skb)
+			return -ENOMEM;
 
 		ulp_mem_io_set_hdr(skb, pm_addr);
 		cxgbi_ddp_ppod_set((struct cxgbi_pagepod *)(skb->head +
@@ -1136,54 +1138,18 @@ static void ddp_clear_map(struct cxgbi_hba *chba, unsigned int tag,
 		cdev, idx, npods, tag);
 
 	for (i = 0; i < npods; i++, idx++, pm_addr += PPOD_SIZE) {
-		struct sk_buff *skb = ddp->gl_skb[idx];
+		struct sk_buff *skb = alloc_wr(sizeof(struct ulp_mem_io) +
+						PPOD_SIZE, 0, GFP_ATOMIC);
 
 		if (!skb) {
-			pr_err("tag 0x%x, 0x%x, %d/%u, skb NULL.\n",
+			pr_err("tag 0x%x, 0x%x, %d/%u, skb OOM.\n",
 				tag, idx, i, npods);
 			continue;
 		}
-		ddp->gl_skb[idx] = NULL;
-		memset(skb->head + sizeof(struct ulp_mem_io), 0, PPOD_SIZE);
 		ulp_mem_io_set_hdr(skb, pm_addr);
 		skb->priority = CPL_PRIORITY_CONTROL;
 		cxgb3_ofld_send(cdev->lldev, skb);
 	}
-}
-
-static void ddp_free_gl_skb(struct cxgbi_ddp_info *ddp, int idx, int cnt)
-{
-	int i;
-
-	log_debug(1 << CXGBI_DBG_DDP,
-		"ddp 0x%p, idx %d, cnt %d.\n", ddp, idx, cnt);
-
-	for (i = 0; i < cnt; i++, idx++)
-		if (ddp->gl_skb[idx]) {
-			kfree_skb(ddp->gl_skb[idx]);
-			ddp->gl_skb[idx] = NULL;
-		}
-}
-
-static int ddp_alloc_gl_skb(struct cxgbi_ddp_info *ddp, int idx,
-				   int cnt, gfp_t gfp)
-{
-	int i;
-
-	log_debug(1 << CXGBI_DBG_DDP,
-		"ddp 0x%p, idx %d, cnt %d.\n", ddp, idx, cnt);
-
-	for (i = 0; i < cnt; i++) {
-		struct sk_buff *skb = alloc_wr(sizeof(struct ulp_mem_io) +
-						PPOD_SIZE, 0, gfp);
-		if (skb)
-			ddp->gl_skb[idx + i] = skb;
-		else {
-			ddp_free_gl_skb(ddp, idx, i);
-			return -ENOMEM;
-		}
-	}
-	return 0;
 }
 
 static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk,
@@ -1316,8 +1282,6 @@ static int cxgb3i_ddp_init(struct cxgbi_device *cdev)
 	}
 	tdev->ulp_iscsi = ddp;
 
-	cdev->csk_ddp_free_gl_skb = ddp_free_gl_skb;
-	cdev->csk_ddp_alloc_gl_skb = ddp_alloc_gl_skb;
 	cdev->csk_ddp_setup_digest = ddp_setup_conn_digest;
 	cdev->csk_ddp_setup_pgidx = ddp_setup_conn_pgidx;
 	cdev->csk_ddp_set = ddp_set_map;

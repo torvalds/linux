@@ -89,7 +89,8 @@ struct ath_interrupt_stats {
  * @queued: Total MPDUs (non-aggr) queued
  * @completed: Total MPDUs (non-aggr) completed
  * @a_aggr: Total no. of aggregates queued
- * @a_queued: Total AMPDUs queued
+ * @a_queued_hw: Total AMPDUs queued to hardware
+ * @a_queued_sw: Total AMPDUs queued to software queues
  * @a_completed: Total AMPDUs completed
  * @a_retries: No. of AMPDUs retried (SW)
  * @a_xretries: No. of AMPDUs dropped due to xretries
@@ -102,6 +103,9 @@ struct ath_interrupt_stats {
  * @desc_cfg_err: Descriptor configuration errors
  * @data_urn: TX data underrun errors
  * @delim_urn: TX delimiter underrun errors
+ * @puttxbuf: Number of times hardware was given txbuf to write.
+ * @txstart:  Number of times hardware was told to start tx.
+ * @txprocdesc:  Number of times tx descriptor was processed
  */
 struct ath_tx_stats {
 	u32 tx_pkts_all;
@@ -109,7 +113,8 @@ struct ath_tx_stats {
 	u32 queued;
 	u32 completed;
 	u32 a_aggr;
-	u32 a_queued;
+	u32 a_queued_hw;
+	u32 a_queued_sw;
 	u32 a_completed;
 	u32 a_retries;
 	u32 a_xretries;
@@ -119,6 +124,9 @@ struct ath_tx_stats {
 	u32 desc_cfg_err;
 	u32 data_underrun;
 	u32 delim_underrun;
+	u32 puttxbuf;
+	u32 txstart;
+	u32 txprocdesc;
 };
 
 /**
@@ -167,7 +175,7 @@ int ath9k_init_debug(struct ath_hw *ah);
 
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
-		       struct ath_tx_status *ts);
+		       struct ath_tx_status *ts, struct ath_txq *txq);
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
 
 #else
@@ -184,7 +192,8 @@ static inline void ath_debug_stat_interrupt(struct ath_softc *sc,
 
 static inline void ath_debug_stat_tx(struct ath_softc *sc,
 				     struct ath_buf *bf,
-				     struct ath_tx_status *ts)
+				     struct ath_tx_status *ts,
+				     struct ath_txq *txq)
 {
 }
 

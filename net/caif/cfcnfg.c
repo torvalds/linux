@@ -23,10 +23,8 @@
 #include <asm/atomic.h>
 
 #define MAX_PHY_LAYERS 7
-#define PHY_NAME_LEN 20
 
 #define container_obj(layr) container_of(layr, struct cfcnfg, layer)
-#define RFM_FRAGMENT_SIZE 4030
 
 /* Information about CAIF physical interfaces held by Config Module in order
  * to manage physical interfaces

@@ -1,9 +1,5 @@
-ifeq ($(CONFIG_DMADEVICES_DEBUG),y)
-	ccflags-y	+= -DDEBUG
-endif
-ifeq ($(CONFIG_DMADEVICES_VDEBUG),y)
-	ccflags-y	+= -DVERBOSE_DEBUG
-endif
+ccflags-$(CONFIG_DMADEVICES_DEBUG)  := -DDEBUG
+ccflags-$(CONFIG_DMADEVICES_VDEBUG) += -DVERBOSE_DEBUG
 
 obj-$(CONFIG_DMA_ENGINE) += dmaengine.o
 obj-$(CONFIG_NET_DMA) += iovlock.o
@@ -23,6 +19,7 @@ obj-$(CONFIG_COH901318) += coh901318.o coh901318_lli.o
 obj-$(CONFIG_AMCC_PPC440SPE_ADMA) += ppc4xx/
 obj-$(CONFIG_IMX_SDMA) += imx-sdma.o
 obj-$(CONFIG_IMX_DMA) += imx-dma.o
+obj-$(CONFIG_MXS_DMA) += mxs-dma.o
 obj-$(CONFIG_TIMB_DMA) += timb_dma.o
 obj-$(CONFIG_STE_DMA40) += ste_dma40.o ste_dma40_ll.o
 obj-$(CONFIG_PL330_DMA) += pl330.o

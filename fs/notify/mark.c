@@ -24,7 +24,7 @@
  * referencing this object.  The object typically will live inside the kernel
  * with a refcnt of 2, one for each list it is on (i_list, g_list).  Any task
  * which can find this object holding the appropriete locks, can take a reference
- * and the object itself is guarenteed to survive until the reference is dropped.
+ * and the object itself is guaranteed to survive until the reference is dropped.
  *
  * LOCKING:
  * There are 3 spinlocks involved with fsnotify inode marks and they MUST
@@ -91,7 +91,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/srcu.h>
-#include <linux/writeback.h> /* for inode_lock */
 
 #include <asm/atomic.h>
 

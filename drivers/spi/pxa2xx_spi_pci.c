@@ -89,9 +89,7 @@ static int __devinit ce4100_spi_probe(struct pci_dev *dev,
 		goto err_nomem;
 
 	pdev->dev.parent = &dev->dev;
-#ifdef CONFIG_OF
 	pdev->dev.of_node = dev->dev.of_node;
-#endif
 	ssp = &spi_info->ssp;
 	ssp->phys_base = pci_resource_start(dev, 0);
 	ssp->mmio_base = ioremap(phys_beg, phys_len);

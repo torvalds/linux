@@ -35,6 +35,17 @@ Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
 
 ---------------------------
 
+What:	AR9170USB
+When:	2.6.40
+
+Why:	This driver is deprecated and the firmware is no longer
+	maintained. The replacement driver "carl9170" has been
+	around for a while, so the devices are still supported.
+
+Who:	Christian Lamparter <chunkeey@googlemail.com>
+
+---------------------------
+
 What:	IRQF_SAMPLE_RANDOM
 Check:	IRQF_SAMPLE_RANDOM
 When:	July 2009
@@ -94,42 +105,6 @@ Why:	Broken design for runtime control over driver power states, confusing
 	use it were broken.  Drivers should instead be exposing domain-specific
 	interfaces either to kernel or to userspace.
 Who:	Pavel Machek <pavel@ucw.cz>
-
----------------------------
-
-What:	Video4Linux obsolete drivers using V4L1 API
-When:	kernel 2.6.39
-Files:	drivers/staging/se401/* drivers/staging/usbvideo/*
-Check:	drivers/staging/se401/se401.c drivers/staging/usbvideo/usbvideo.c
-Why:	There are some drivers still using V4L1 API, despite all efforts we've done
-	to migrate. Those drivers are for obsolete hardware that the old maintainer
-	didn't care (or not have the hardware anymore), and that no other developer
-	could find any hardware to buy. They probably have no practical usage today,
-	and people with such old hardware could probably keep using an older version
-	of the kernel. Those drivers will be moved to staging on 2.6.38 and, if nobody
-	cares enough to port and test them with V4L2 API, they'll be removed on 2.6.39.
-Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
-
----------------------------
-
-What:	Video4Linux: Remove obsolete ioctl's
-When:	kernel 2.6.39
-Files:	include/media/videodev2.h
-Why:	Some ioctl's were defined wrong on 2.6.2 and 2.6.6, using the wrong
-	type of R/W arguments. They were fixed, but the old ioctl names are
-	still there, maintained to avoid breaking binary compatibility:
-	  #define VIDIOC_OVERLAY_OLD   	_IOWR('V', 14, int)
-	  #define VIDIOC_S_PARM_OLD	_IOW('V', 22, struct v4l2_streamparm)
-	  #define VIDIOC_S_CTRL_OLD	_IOW('V', 28, struct v4l2_control)
-	  #define VIDIOC_G_AUDIO_OLD	_IOWR('V', 33, struct v4l2_audio)
-	  #define VIDIOC_G_AUDOUT_OLD	_IOWR('V', 49, struct v4l2_audioout)
-	  #define VIDIOC_CROPCAP_OLD	_IOR('V', 58, struct v4l2_cropcap)
-	There's no sense on preserving those forever, as it is very doubtful
-	that someone would try to use a such old binary with a modern kernel.
-	Removing them will allow us to remove some magic done at the V4L ioctl
-	handler.
-
-Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
 
 ---------------------------
 
@@ -256,14 +231,6 @@ Why:	sysfs I/F for ACPI power devices, including AC and Battery,
 	disabled by default.
 	Remove this option and the ACPI power procfs interface in 2.6.39.
 Who:	Zhang Rui <rui.zhang@intel.com>
-
----------------------------
-
-What:	/proc/acpi/button
-When:	August 2007
-Why:	/proc/acpi/button has been replaced by events to the input layer
-	since 2.6.20.
-Who:	Len Brown <len.brown@intel.com>
 
 ---------------------------
 
@@ -420,26 +387,6 @@ Who:	Tejun Heo <tj@kernel.org>
 
 ----------------------------
 
-What:	Support for lcd_switch and display_get in asus-laptop driver
-When:	March 2010
-Why:	These two features use non-standard interfaces. There are the
-	only features that really need multiple path to guess what's
-	the right method name on a specific laptop.
-
-	Removing them will allow to remove a lot of code an significantly
-	clean the drivers.
-
-	This will affect the backlight code which won't be able to know
-	if the backlight is on or off. The platform display file will also be
-	write only (like the one in eeepc-laptop).
-
-	This should'nt affect a lot of user because they usually know
-	when their display is on or off.
-
-Who:	Corentin Chary <corentin.chary@gmail.com>
-
-----------------------------
-
 What:	sysfs-class-rfkill state file
 When:	Feb 2014
 Files:	net/rfkill/core.c
@@ -574,16 +521,6 @@ Who:    NeilBrown <neilb@suse.de>
 
 ----------------------------
 
-What:	i2c_adapter.id
-When:	June 2011
-Why:	This field is deprecated. I2C device drivers shouldn't change their
-	behavior based on the underlying I2C adapter. Instead, the I2C
-	adapter driver should instantiate the I2C devices and provide the
-	needed platform-specific information.
-Who:	Jean Delvare <khali@linux-fr.org>
-
-----------------------------
-
 What:	cancel_rearming_delayed_work[queue]()
 When:	2.6.39
 
@@ -604,6 +541,13 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------
 
+What:	xt_connlimit rev 0
+When:	2012
+Who:	Jan Engelhardt <jengelh@medozas.de>
+Files:	net/netfilter/xt_connlimit.c
+
+----------------------------
+
 What:	noswapaccount kernel command line parameter
 When:	2.6.40
 Why:	The original implementation of memsw feature enabled by
@@ -617,5 +561,22 @@ Why:	The original implementation of memsw feature enabled by
 	less command line parameters with the same functionality and we
 	can also cleanup the parameter handling a bit ().
 Who:	Michal Hocko <mhocko@suse.cz>
+
+----------------------------
+
+What:	ipt_addrtype match include file
+When:	2012
+Why:	superseded by xt_addrtype
+Who:	Florian Westphal <fw@strlen.de>
+Files:	include/linux/netfilter_ipv4/ipt_addrtype.h
+
+----------------------------
+
+What:	i2c_driver.attach_adapter
+	i2c_driver.detach_adapter
+When:	September 2011
+Why:	These legacy callbacks should no longer be used as i2c-core offers
+	a variety of preferable alternative ways to instantiate I2C devices.
+Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------

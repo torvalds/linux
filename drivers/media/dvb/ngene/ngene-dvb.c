@@ -47,6 +47,64 @@
 /* COMMAND API interface ****************************************************/
 /****************************************************************************/
 
+static ssize_t ts_write(struct file *file, const char *buf,
+			size_t count, loff_t *ppos)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct ngene_channel *chan = dvbdev->priv;
+	struct ngene *dev = chan->dev;
+
+	if (wait_event_interruptible(dev->tsout_rbuf.queue,
+				     dvb_ringbuffer_free
+				     (&dev->tsout_rbuf) >= count) < 0)
+		return 0;
+
+	dvb_ringbuffer_write(&dev->tsout_rbuf, buf, count);
+
+	return count;
+}
+
+static ssize_t ts_read(struct file *file, char *buf,
+		       size_t count, loff_t *ppos)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct ngene_channel *chan = dvbdev->priv;
+	struct ngene *dev = chan->dev;
+	int left, avail;
+
+	left = count;
+	while (left) {
+		if (wait_event_interruptible(
+			    dev->tsin_rbuf.queue,
+			    dvb_ringbuffer_avail(&dev->tsin_rbuf) > 0) < 0)
+			return -EAGAIN;
+		avail = dvb_ringbuffer_avail(&dev->tsin_rbuf);
+		if (avail > left)
+			avail = left;
+		dvb_ringbuffer_read_user(&dev->tsin_rbuf, buf, avail);
+		left -= avail;
+		buf += avail;
+	}
+	return count;
+}
+
+static const struct file_operations ci_fops = {
+	.owner   = THIS_MODULE,
+	.read    = ts_read,
+	.write   = ts_write,
+	.open    = dvb_generic_open,
+	.release = dvb_generic_release,
+};
+
+struct dvb_device ngene_dvbdev_ci = {
+	.priv    = 0,
+	.readers = -1,
+	.writers = -1,
+	.users   = -1,
+	.fops    = &ci_fops,
+};
+
+
 /****************************************************************************/
 /* DVB functions and API interface ******************************************/
 /****************************************************************************/
@@ -63,10 +121,21 @@ static void swap_buffer(u32 *p, u32 len)
 void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 {
 	struct ngene_channel *chan = priv;
+	struct ngene *dev = chan->dev;
 
 
-	if (chan->users > 0)
+	if (flags & DF_SWAP32)
+		swap_buffer(buf, len);
+	if (dev->ci.en && chan->number == 2) {
+		if (dvb_ringbuffer_free(&dev->tsin_rbuf) > len) {
+			dvb_ringbuffer_write(&dev->tsin_rbuf, buf, len);
+			wake_up_interruptible(&dev->tsin_rbuf.queue);
+		}
+		return 0;
+	}
+	if (chan->users > 0) {
 		dvb_dmx_swfilter(&chan->demux, buf, len);
+	}
 	return NULL;
 }
 

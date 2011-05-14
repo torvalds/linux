@@ -21,13 +21,7 @@ typedef union   _X86_REGS    {
     struct  BYTEREGS h;
 } X86_REGS, *PX86_REGS;
 
-extern   void     XGI_XG21Fun14(struct xgi_hw_device_info *pXGIHWDE, PX86_REGS pBiosArguments);
-extern void XGISetDPMS(struct xgi_hw_device_info *pXGIHWDE,
-		       unsigned long VESA_POWER_STATE);
 extern   void     XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo);
-extern   void     XGINew_SetModeScratch(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo) ;
-extern void ReadVBIOSTablData(unsigned char ChipType,
-			      struct vb_device_info *pVBInfo);
 extern unsigned short XGINew_SenseLCD(struct xgi_hw_device_info *,
 				      struct vb_device_info *pVBInfo);
 

@@ -18,7 +18,13 @@
 #define PWR_
 
 #include <dspbridge/dbdefs.h>
-#include <dspbridge/pwr_sh.h>
+#include <dspbridge/mbx_sh.h>
+
+/* valid sleep command codes that can be sent by GPP via mailbox: */
+#define PWR_DEEPSLEEP           MBX_PM_DSPIDLE
+#define PWR_EMERGENCYDEEPSLEEP  MBX_PM_EMERGENCYSLEEP
+#define PWR_WAKEUP              MBX_PM_DSPWAKEUP
+
 
 /*
  *  ======== pwr_sleep_dsp ========
@@ -40,7 +46,7 @@
  *      0:            Success.
  *      0: Success, but the DSP was already asleep.
  *      -EINVAL:    The specified sleep_code is not supported.
- *      -ETIME:       A timeout occured while waiting for DSP sleep
+ *      -ETIME:       A timeout occurred while waiting for DSP sleep
  *                          confirmation.
  *      -EPERM:          General failure, unable to send sleep command to
  *                          the DSP.
@@ -61,7 +67,7 @@ extern int pwr_sleep_dsp(const u32 sleep_code, const u32 timeout);
  *  Returns:
  *      0:            Success.
  *      0:  Success, but the DSP was already awake.
- *      -ETIME:       A timeout occured while waiting for wake
+ *      -ETIME:       A timeout occurred while waiting for wake
  *                          confirmation.
  *      -EPERM:          General failure, unable to send wake command to
  *                          the DSP.
@@ -79,7 +85,7 @@ extern int pwr_wake_dsp(const u32 timeout);
  *  Returns:
  *      0:            Success.
  *      0:  Success, but the DSP was already awake.
- *      -ETIME:       A timeout occured while waiting for wake
+ *      -ETIME:       A timeout occurred while waiting for wake
  *                          confirmation.
  *      -EPERM:          General failure, unable to send wake command to
  *                          the DSP.
@@ -97,7 +103,7 @@ extern int pwr_pm_pre_scale(u16 voltage_domain, u32 level);
  *  Returns:
  *      0:            Success.
  *      0:  Success, but the DSP was already awake.
- *      -ETIME:       A timeout occured while waiting for wake
+ *      -ETIME:       A timeout occurred while waiting for wake
  *                          confirmation.
  *      -EPERM:          General failure, unable to send wake command to
  *                          the DSP.

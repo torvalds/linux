@@ -6,16 +6,15 @@
  *  directory VFS functions
  */
 
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include "hpfs_fn.h"
 
 static int hpfs_dir_release(struct inode *inode, struct file *filp)
 {
-	lock_kernel();
+	hpfs_lock(inode->i_sb);
 	hpfs_del_pos(inode, &filp->f_pos);
 	/*hpfs_write_if_changed(inode);*/
-	unlock_kernel();
+	hpfs_unlock(inode->i_sb);
 	return 0;
 }
 
@@ -30,7 +29,7 @@ static loff_t hpfs_dir_lseek(struct file *filp, loff_t off, int whence)
 	struct hpfs_inode_info *hpfs_inode = hpfs_i(i);
 	struct super_block *s = i->i_sb;
 
-	lock_kernel();
+	hpfs_lock(s);
 
 	/*printk("dir lseek\n");*/
 	if (new_off == 0 || new_off == 1 || new_off == 11 || new_off == 12 || new_off == 13) goto ok;
@@ -43,12 +42,12 @@ static loff_t hpfs_dir_lseek(struct file *filp, loff_t off, int whence)
 	}
 	mutex_unlock(&i->i_mutex);
 ok:
-	unlock_kernel();
+	hpfs_unlock(s);
 	return filp->f_pos = new_off;
 fail:
 	mutex_unlock(&i->i_mutex);
 	/*printk("illegal lseek: %016llx\n", new_off);*/
-	unlock_kernel();
+	hpfs_unlock(s);
 	return -ESPIPE;
 }
 
@@ -64,7 +63,7 @@ static int hpfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	int c1, c2 = 0;
 	int ret = 0;
 
-	lock_kernel();
+	hpfs_lock(inode->i_sb);
 
 	if (hpfs_sb(inode->i_sb)->sb_chk) {
 		if (hpfs_chk_sectors(inode->i_sb, inode->i_ino, 1, "dir_fnode")) {
@@ -167,7 +166,7 @@ static int hpfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		hpfs_brelse4(&qbh);
 	}
 out:
-	unlock_kernel();
+	hpfs_unlock(inode->i_sb);
 	return ret;
 }
 
@@ -197,10 +196,10 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, struct name
 	struct inode *result = NULL;
 	struct hpfs_inode_info *hpfs_result;
 
-	lock_kernel();
+	hpfs_lock(dir->i_sb);
 	if ((err = hpfs_chk_name(name, &len))) {
 		if (err == -ENAMETOOLONG) {
-			unlock_kernel();
+			hpfs_unlock(dir->i_sb);
 			return ERR_PTR(-ENAMETOOLONG);
 		}
 		goto end_add;
@@ -298,7 +297,7 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, struct name
 
 	end:
 	end_add:
-	unlock_kernel();
+	hpfs_unlock(dir->i_sb);
 	d_add(dentry, result);
 	return NULL;
 
@@ -311,7 +310,7 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, struct name
 	
 	/*bail:*/
 
-	unlock_kernel();
+	hpfs_unlock(dir->i_sb);
 	return ERR_PTR(-ENOENT);
 }
 

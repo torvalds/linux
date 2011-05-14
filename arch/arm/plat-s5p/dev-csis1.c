@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Samsung Electronics
+ * Copyright (C) 2010-2011 Samsung Electronics Co., Ltd.
  *
  * S5P series device definition for MIPI-CSIS channel 1
  *

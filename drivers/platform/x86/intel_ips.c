@@ -1111,7 +1111,7 @@ static int ips_monitor(void *data)
 		last_msecs = jiffies_to_msecs(jiffies);
 		expire = jiffies + msecs_to_jiffies(IPS_SAMPLE_PERIOD);
 
-		__set_current_state(TASK_UNINTERRUPTIBLE);
+		__set_current_state(TASK_INTERRUPTIBLE);
 		mod_timer(&timer, expire);
 		schedule();
 

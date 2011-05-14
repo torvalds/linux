@@ -21,7 +21,7 @@
 #include "pch_gbe_api.h"
 
 /**
- * pch_gbe_stats - Stats item infomation
+ * pch_gbe_stats - Stats item information
  */
 struct pch_gbe_stats {
 	char string[ETH_GSTRING_LEN];

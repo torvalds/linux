@@ -406,8 +406,8 @@ static int s3c_adc_bat_resume(struct platform_device *pdev)
 	return 0;
 }
 #else
-#define s3c_adc_battery_suspend NULL
-#define s3c_adc_battery_resume NULL
+#define s3c_adc_bat_suspend NULL
+#define s3c_adc_bat_resume NULL
 #endif
 
 static struct platform_driver s3c_adc_bat_driver = {

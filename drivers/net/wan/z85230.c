@@ -542,7 +542,7 @@ static void z8530_dma_tx(struct z8530_channel *chan)
 		z8530_tx(chan);
 		return;
 	}
-	/* This shouldnt occur in DMA mode */
+	/* This shouldn't occur in DMA mode */
 	printk(KERN_ERR "DMA tx - bogus event!\n");
 	z8530_tx(chan);
 }
@@ -1219,7 +1219,7 @@ static const char *z8530_type_name[]={
  *	@io: the port value in question
  *
  *	Describe a Z8530 in a standard format. We must pass the I/O as
- *	the port offset isnt predictable. The main reason for this function
+ *	the port offset isn't predictable. The main reason for this function
  *	is to try and get a common format of report.
  */
 
@@ -1588,7 +1588,7 @@ static void z8530_rx_done(struct z8530_channel *c)
 		unsigned long flags;
 		
 		/*
-		 *	Complete this DMA. Neccessary to find the length
+		 *	Complete this DMA. Necessary to find the length
 		 */		
 		 
 		flags=claim_dma_lock();
@@ -1657,7 +1657,7 @@ static void z8530_rx_done(struct z8530_channel *c)
 		 *	fifo length for this. Thus we want to flip to the new
 		 *	buffer and then mess around copying and allocating
 		 *	things. For the current case it doesn't matter but
-		 *	if you build a system where the sync irq isnt blocked
+		 *	if you build a system where the sync irq isn't blocked
 		 *	by the kernel IRQ disable then you need only block the
 		 *	sync IRQ for the RT_LOCK area.
 		 *

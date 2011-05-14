@@ -156,7 +156,7 @@
 #define DAC_READ		FBIINIT2	/* in remap mode */
 #define FBIINIT3		0x021c		/* fbi controls */
 #  define DISABLE_TEXTURE	  BIT(6)
-#  define Y_SWAP_ORIGIN_SHIFT	  22		/* Y swap substraction value */
+#  define Y_SWAP_ORIGIN_SHIFT	  22		/* Y swap subtraction value */
 #define HSYNC			0x0220
 #define VSYNC			0x0224
 #define DAC_DATA		0x022c
@@ -212,9 +212,9 @@
 #  define DACREG_CR0_24BPP	  0x50		/* mode 5 */
 #define	DACREG_CR1_I		0x05
 #define DACREG_CC_I		0x06
-#  define DACREG_CC_CLKA	  BIT(7)	/* clk A controled by regs */
+#  define DACREG_CC_CLKA	  BIT(7)	/* clk A controlled by regs */
 #  define DACREG_CC_CLKA_C	  (2<<4)	/* clk A uses reg C */
-#  define DACREG_CC_CLKB	  BIT(3)	/* clk B controled by regs */
+#  define DACREG_CC_CLKB	  BIT(3)	/* clk B controlled by regs */
 #  define DACREG_CC_CLKB_D	  3		/* clkB uses reg D */
 #define DACREG_AC0_I		0x48		/* clock A reg C */
 #define DACREG_AC1_I		0x49

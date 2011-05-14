@@ -9,6 +9,7 @@
 
 #include "util/util.h"
 
+#include "util/annotate.h"
 #include "util/color.h"
 #include <linux/list.h>
 #include "util/cache.h"
@@ -20,6 +21,8 @@
 
 #include "perf.h"
 #include "util/debug.h"
+#include "util/evlist.h"
+#include "util/evsel.h"
 #include "util/header.h"
 #include "util/session.h"
 
@@ -43,120 +46,68 @@ static const char	default_pretty_printing_style[] = "normal";
 static const char	*pretty_printing_style = default_pretty_printing_style;
 
 static char		callchain_default_opt[] = "fractal,0.5";
+static symbol_filter_t	annotate_init;
 
-static struct hists *perf_session__hists_findnew(struct perf_session *self,
-						 u64 event_stream, u32 type,
-						 u64 config)
-{
-	struct rb_node **p = &self->hists_tree.rb_node;
-	struct rb_node *parent = NULL;
-	struct hists *iter, *new;
-
-	while (*p != NULL) {
-		parent = *p;
-		iter = rb_entry(parent, struct hists, rb_node);
-		if (iter->config == config)
-			return iter;
-
-
-		if (config > iter->config)
-			p = &(*p)->rb_right;
-		else
-			p = &(*p)->rb_left;
-	}
-
-	new = malloc(sizeof(struct hists));
-	if (new == NULL)
-		return NULL;
-	memset(new, 0, sizeof(struct hists));
-	new->event_stream = event_stream;
-	new->config = config;
-	new->type = type;
-	rb_link_node(&new->rb_node, parent, p);
-	rb_insert_color(&new->rb_node, &self->hists_tree);
-	return new;
-}
-
-static int perf_session__add_hist_entry(struct perf_session *self,
+static int perf_session__add_hist_entry(struct perf_session *session,
 					struct addr_location *al,
-					struct sample_data *data)
+					struct perf_sample *sample,
+					struct perf_evsel *evsel)
 {
-	struct map_symbol *syms = NULL;
 	struct symbol *parent = NULL;
-	int err = -ENOMEM;
+	int err = 0;
 	struct hist_entry *he;
-	struct hists *hists;
-	struct perf_event_attr *attr;
 
-	if ((sort__has_parent || symbol_conf.use_callchain) && data->callchain) {
-		syms = perf_session__resolve_callchain(self, al->thread,
-						       data->callchain, &parent);
-		if (syms == NULL)
-			return -ENOMEM;
+	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
+		err = perf_session__resolve_callchain(session, al->thread,
+						      sample->callchain, &parent);
+		if (err)
+			return err;
 	}
 
-	attr = perf_header__find_attr(data->id, &self->header);
-	if (attr)
-		hists = perf_session__hists_findnew(self, data->id, attr->type, attr->config);
-	else
-		hists = perf_session__hists_findnew(self, data->id, 0, 0);
-	if (hists == NULL)
-		goto out_free_syms;
-	he = __hists__add_entry(hists, al, parent, data->period);
+	he = __hists__add_entry(&evsel->hists, al, parent, sample->period);
 	if (he == NULL)
-		goto out_free_syms;
-	err = 0;
+		return -ENOMEM;
+
 	if (symbol_conf.use_callchain) {
-		err = callchain_append(he->callchain, data->callchain, syms,
-				       data->period);
+		err = callchain_append(he->callchain, &session->callchain_cursor,
+				       sample->period);
 		if (err)
-			goto out_free_syms;
+			return err;
 	}
 	/*
 	 * Only in the newt browser we are doing integrated annotation,
 	 * so we don't allocated the extra space needed because the stdio
 	 * code will not use it.
 	 */
-	if (use_browser > 0)
-		err = hist_entry__inc_addr_samples(he, al->addr);
-out_free_syms:
-	free(syms);
+	if (al->sym != NULL && use_browser > 0) {
+		struct annotation *notes = symbol__annotation(he->ms.sym);
+
+		assert(evsel != NULL);
+
+		err = -ENOMEM;
+		if (notes->src == NULL &&
+		    symbol__alloc_hist(he->ms.sym, session->evlist->nr_entries) < 0)
+			goto out;
+
+		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+	}
+
+	evsel->hists.stats.total_period += sample->period;
+	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
+out:
 	return err;
 }
 
-static int add_event_total(struct perf_session *session,
-			   struct sample_data *data,
-			   struct perf_event_attr *attr)
-{
-	struct hists *hists;
 
-	if (attr)
-		hists = perf_session__hists_findnew(session, data->id,
-						    attr->type, attr->config);
-	else
-		hists = perf_session__hists_findnew(session, data->id, 0, 0);
-
-	if (!hists)
-		return -ENOMEM;
-
-	hists->stats.total_period += data->period;
-	/*
-	 * FIXME: add_event_total should be moved from here to
-	 * perf_session__process_event so that the proper hist is passed to
-	 * the event_op methods.
-	 */
-	hists__inc_nr_events(hists, PERF_RECORD_SAMPLE);
-	session->hists.stats.total_period += data->period;
-	return 0;
-}
-
-static int process_sample_event(event_t *event, struct sample_data *sample,
+static int process_sample_event(union perf_event *event,
+				struct perf_sample *sample,
+				struct perf_evsel *evsel,
 				struct perf_session *session)
 {
 	struct addr_location al;
-	struct perf_event_attr *attr;
 
-	if (event__preprocess_sample(event, session, &al, sample, NULL) < 0) {
+	if (perf_event__preprocess_sample(event, session, &al, sample,
+					  annotate_init) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
@@ -165,31 +116,22 @@ static int process_sample_event(event_t *event, struct sample_data *sample,
 	if (al.filtered || (hide_unresolved && al.sym == NULL))
 		return 0;
 
-	if (perf_session__add_hist_entry(session, &al, sample)) {
+	if (perf_session__add_hist_entry(session, &al, sample, evsel)) {
 		pr_debug("problem incrementing symbol period, skipping event\n");
-		return -1;
-	}
-
-	attr = perf_header__find_attr(sample->id, &session->header);
-
-	if (add_event_total(session, sample, attr)) {
-		pr_debug("problem adding event period\n");
 		return -1;
 	}
 
 	return 0;
 }
 
-static int process_read_event(event_t *event, struct sample_data *sample __used,
-			      struct perf_session *session __used)
+static int process_read_event(union perf_event *event,
+			      struct perf_sample *sample __used,
+			      struct perf_session *session)
 {
-	struct perf_event_attr *attr;
-
-	attr = perf_header__find_attr(event->read.id, &session->header);
-
+	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist,
+							 event->read.id);
 	if (show_threads) {
-		const char *name = attr ? __event_name(attr->type, attr->config)
-				   : "unknown";
+		const char *name = evsel ? event_name(evsel) : "unknown";
 		perf_read_values_add_value(&show_threads_values,
 					   event->read.pid, event->read.tid,
 					   event->read.id,
@@ -198,7 +140,7 @@ static int process_read_event(event_t *event, struct sample_data *sample __used,
 	}
 
 	dump_printf(": %d %d %s %" PRIu64 "\n", event->read.pid, event->read.tid,
-		    attr ? __event_name(attr->type, attr->config) : "FAIL",
+		    evsel ? event_name(evsel) : "FAIL",
 		    event->read.value);
 
 	return 0;
@@ -222,7 +164,7 @@ static int perf_session__setup_sample_type(struct perf_session *self)
 	} else if (!dont_use_callchains && callchain_param.mode != CHAIN_NONE &&
 		   !symbol_conf.use_callchain) {
 			symbol_conf.use_callchain = true;
-			if (register_callchain_param(&callchain_param) < 0) {
+			if (callchain_register_param(&callchain_param) < 0) {
 				fprintf(stderr, "Can't register callchain"
 						" params\n");
 				return -EINVAL;
@@ -233,17 +175,17 @@ static int perf_session__setup_sample_type(struct perf_session *self)
 }
 
 static struct perf_event_ops event_ops = {
-	.sample	= process_sample_event,
-	.mmap	= event__process_mmap,
-	.comm	= event__process_comm,
-	.exit	= event__process_task,
-	.fork	= event__process_task,
-	.lost	= event__process_lost,
-	.read	= process_read_event,
-	.attr	= event__process_attr,
-	.event_type = event__process_event_type,
-	.tracing_data = event__process_tracing_data,
-	.build_id = event__process_build_id,
+	.sample		 = process_sample_event,
+	.mmap		 = perf_event__process_mmap,
+	.comm		 = perf_event__process_comm,
+	.exit		 = perf_event__process_task,
+	.fork		 = perf_event__process_task,
+	.lost		 = perf_event__process_lost,
+	.read		 = process_read_event,
+	.attr		 = perf_event__process_attr,
+	.event_type	 = perf_event__process_event_type,
+	.tracing_data	 = perf_event__process_tracing_data,
+	.build_id	 = perf_event__process_build_id,
 	.ordered_samples = true,
 	.ordering_requires_timestamps = true,
 };
@@ -269,21 +211,21 @@ static size_t hists__fprintf_nr_sample_events(struct hists *self,
 	return ret + fprintf(fp, "\n#\n");
 }
 
-static int hists__tty_browse_tree(struct rb_root *tree, const char *help)
+static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
+					 const char *help)
 {
-	struct rb_node *next = rb_first(tree);
+	struct perf_evsel *pos;
 
-	while (next) {
-		struct hists *hists = rb_entry(next, struct hists, rb_node);
+	list_for_each_entry(pos, &evlist->entries, node) {
+		struct hists *hists = &pos->hists;
 		const char *evname = NULL;
 
 		if (rb_first(&hists->entries) != rb_last(&hists->entries))
-			evname = __event_name(hists->type, hists->config);
+			evname = event_name(pos);
 
 		hists__fprintf_nr_sample_events(hists, evname, stdout);
 		hists__fprintf(hists, NULL, false, stdout);
 		fprintf(stdout, "\n\n");
-		next = rb_next(&hists->rb_node);
 	}
 
 	if (sort_order == default_sort_order &&
@@ -304,8 +246,9 @@ static int hists__tty_browse_tree(struct rb_root *tree, const char *help)
 static int __cmd_report(void)
 {
 	int ret = -EINVAL;
+	u64 nr_samples;
 	struct perf_session *session;
-	struct rb_node *next;
+	struct perf_evsel *pos;
 	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
 
 	signal(SIGINT, sig_handler);
@@ -336,20 +279,24 @@ static int __cmd_report(void)
 	if (verbose > 2)
 		perf_session__fprintf_dsos(session, stdout);
 
-	next = rb_first(&session->hists_tree);
-	while (next) {
-		struct hists *hists;
+	nr_samples = 0;
+	list_for_each_entry(pos, &session->evlist->entries, node) {
+		struct hists *hists = &pos->hists;
 
-		hists = rb_entry(next, struct hists, rb_node);
 		hists__collapse_resort(hists);
 		hists__output_resort(hists);
-		next = rb_next(&hists->rb_node);
+		nr_samples += hists->stats.nr_events[PERF_RECORD_SAMPLE];
+	}
+
+	if (nr_samples == 0) {
+		ui__warning("The %s file has no samples!\n", input_name);
+		goto out_delete;
 	}
 
 	if (use_browser > 0)
-		hists__tui_browse_tree(&session->hists_tree, help);
+		perf_evlist__tui_browse_hists(session->evlist, help);
 	else
-		hists__tty_browse_tree(&session->hists_tree, help);
+		perf_evlist__tty_browse_hists(session->evlist, help);
 
 out_delete:
 	/*
@@ -424,7 +371,7 @@ parse_callchain_opt(const struct option *opt __used, const char *arg,
 	if (tok2)
 		callchain_param.print_limit = strtod(tok2, &endptr);
 setup:
-	if (register_callchain_param(&callchain_param) < 0) {
+	if (callchain_register_param(&callchain_param) < 0) {
 		fprintf(stderr, "Can't register callchain params\n");
 		return -1;
 	}
@@ -498,7 +445,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 		use_browser = 1;
 
 	if (strcmp(input_name, "-") != 0)
-		setup_browser();
+		setup_browser(true);
 	else
 		use_browser = 0;
 	/*
@@ -507,7 +454,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	 * implementation.
 	 */
 	if (use_browser > 0) {
-		symbol_conf.priv_size = sizeof(struct sym_priv);
+		symbol_conf.priv_size = sizeof(struct annotation);
+		annotate_init	      = symbol__annotate_init;
 		/*
  		 * For searching by name on the "Browse map details".
  		 * providing it only in verbose mode not to bloat too

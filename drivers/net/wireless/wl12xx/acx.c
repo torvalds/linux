@@ -751,10 +751,10 @@ int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats)
 	return 0;
 }
 
-int wl1271_acx_rate_policies(struct wl1271 *wl)
+int wl1271_acx_sta_rate_policies(struct wl1271 *wl)
 {
-	struct acx_rate_policy *acx;
-	struct conf_tx_rate_class *c = &wl->conf.tx.rc_conf;
+	struct acx_sta_rate_policy *acx;
+	struct conf_tx_rate_class *c = &wl->conf.tx.sta_rc_conf;
 	int idx = 0;
 	int ret = 0;
 
@@ -783,9 +783,45 @@ int wl1271_acx_rate_policies(struct wl1271 *wl)
 
 	acx->rate_class_cnt = cpu_to_le32(ACX_TX_RATE_POLICY_CNT);
 
+	wl1271_debug(DEBUG_ACX, "basic_rate: 0x%x, full_rate: 0x%x",
+		acx->rate_class[ACX_TX_BASIC_RATE].enabled_rates,
+		acx->rate_class[ACX_TX_AP_FULL_RATE].enabled_rates);
+
 	ret = wl1271_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("Setting of rate policies failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_ap_rate_policy(struct wl1271 *wl, struct conf_tx_rate_class *c,
+		      u8 idx)
+{
+	struct acx_ap_rate_policy *acx;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx ap rate policy");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->rate_policy.enabled_rates = cpu_to_le32(c->enabled_rates);
+	acx->rate_policy.short_retry_limit = c->short_retry_limit;
+	acx->rate_policy.long_retry_limit = c->long_retry_limit;
+	acx->rate_policy.aflags = c->aflags;
+
+	acx->rate_policy_idx = cpu_to_le32(idx);
+
+	ret = wl1271_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("Setting of ap rate policy failed: %d", ret);
 		goto out;
 	}
 
@@ -915,9 +951,9 @@ out:
 	return ret;
 }
 
-int wl1271_acx_mem_cfg(struct wl1271 *wl)
+int wl1271_acx_ap_mem_cfg(struct wl1271 *wl)
 {
-	struct wl1271_acx_config_memory *mem_conf;
+	struct wl1271_acx_ap_config_memory *mem_conf;
 	int ret;
 
 	wl1271_debug(DEBUG_ACX, "wl1271 mem cfg");
@@ -929,11 +965,47 @@ int wl1271_acx_mem_cfg(struct wl1271 *wl)
 	}
 
 	/* memory config */
-	mem_conf->num_stations = DEFAULT_NUM_STATIONS;
-	mem_conf->rx_mem_block_num = ACX_RX_MEM_BLOCKS;
-	mem_conf->tx_min_mem_block_num = ACX_TX_MIN_MEM_BLOCKS;
-	mem_conf->num_ssid_profiles = ACX_NUM_SSID_PROFILES;
+	mem_conf->num_stations = wl->conf.mem.num_stations;
+	mem_conf->rx_mem_block_num = wl->conf.mem.rx_block_num;
+	mem_conf->tx_min_mem_block_num = wl->conf.mem.tx_min_block_num;
+	mem_conf->num_ssid_profiles = wl->conf.mem.ssid_profiles;
 	mem_conf->total_tx_descriptors = cpu_to_le32(ACX_TX_DESCRIPTORS);
+
+	ret = wl1271_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
+				   sizeof(*mem_conf));
+	if (ret < 0) {
+		wl1271_warning("wl1271 mem config failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(mem_conf);
+	return ret;
+}
+
+int wl1271_acx_sta_mem_cfg(struct wl1271 *wl)
+{
+	struct wl1271_acx_sta_config_memory *mem_conf;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "wl1271 mem cfg");
+
+	mem_conf = kzalloc(sizeof(*mem_conf), GFP_KERNEL);
+	if (!mem_conf) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* memory config */
+	mem_conf->num_stations = wl->conf.mem.num_stations;
+	mem_conf->rx_mem_block_num = wl->conf.mem.rx_block_num;
+	mem_conf->tx_min_mem_block_num = wl->conf.mem.tx_min_block_num;
+	mem_conf->num_ssid_profiles = wl->conf.mem.ssid_profiles;
+	mem_conf->total_tx_descriptors = cpu_to_le32(ACX_TX_DESCRIPTORS);
+	mem_conf->dyn_mem_enable = wl->conf.mem.dynamic_memory;
+	mem_conf->tx_free_req = wl->conf.mem.min_req_tx_blocks;
+	mem_conf->rx_free_req = wl->conf.mem.min_req_rx_blocks;
+	mem_conf->tx_min = wl->conf.mem.tx_min;
 
 	ret = wl1271_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
 				   sizeof(*mem_conf));
@@ -950,10 +1022,6 @@ out:
 int wl1271_acx_init_mem_config(struct wl1271 *wl)
 {
 	int ret;
-
-	ret = wl1271_acx_mem_cfg(wl);
-	if (ret < 0)
-		return ret;
 
 	wl->target_mem_map = kzalloc(sizeof(struct wl1271_acx_mem_map),
 				     GFP_KERNEL);
@@ -1233,6 +1301,7 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 	struct wl1271_acx_ht_capabilities *acx;
 	u8 mac_address[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	int ret = 0;
+	u32 ht_capabilites = 0;
 
 	wl1271_debug(DEBUG_ACX, "acx ht capabilities setting");
 
@@ -1244,26 +1313,25 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 
 	/* Allow HT Operation ? */
 	if (allow_ht_operation) {
-		acx->ht_capabilites =
+		ht_capabilites =
 			WL1271_ACX_FW_CAP_HT_OPERATION;
 		if (ht_cap->cap & IEEE80211_HT_CAP_GRN_FLD)
-			acx->ht_capabilites |=
+			ht_capabilites |=
 				WL1271_ACX_FW_CAP_GREENFIELD_FRAME_FORMAT;
 		if (ht_cap->cap & IEEE80211_HT_CAP_SGI_20)
-			acx->ht_capabilites |=
+			ht_capabilites |=
 				WL1271_ACX_FW_CAP_SHORT_GI_FOR_20MHZ_PACKETS;
 		if (ht_cap->cap & IEEE80211_HT_CAP_LSIG_TXOP_PROT)
-			acx->ht_capabilites |=
+			ht_capabilites |=
 				WL1271_ACX_FW_CAP_LSIG_TXOP_PROTECTION;
 
 		/* get data from A-MPDU parameters field */
 		acx->ampdu_max_length = ht_cap->ampdu_factor;
 		acx->ampdu_min_spacing = ht_cap->ampdu_density;
-
-		memcpy(acx->mac_address, mac_address, ETH_ALEN);
-	} else { /* HT operations are not allowed */
-		acx->ht_capabilites = 0;
 	}
+
+	memcpy(acx->mac_address, mac_address, ETH_ALEN);
+	acx->ht_capabilites = cpu_to_le32(ht_capabilites);
 
 	ret = wl1271_cmd_configure(wl, ACX_PEER_HT_CAP, acx, sizeof(*acx));
 	if (ret < 0) {
@@ -1293,7 +1361,8 @@ int wl1271_acx_set_ht_information(struct wl1271 *wl,
 	acx->ht_protection =
 		(u8)(ht_operation_mode & IEEE80211_HT_OP_MODE_PROTECTION);
 	acx->rifs_mode = 0;
-	acx->gf_protection = 0;
+	acx->gf_protection =
+		!!(ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 	acx->ht_tx_burst_limit = 0;
 	acx->dual_cts_protection = 0;
 
@@ -1301,6 +1370,91 @@ int wl1271_acx_set_ht_information(struct wl1271 *wl,
 
 	if (ret < 0) {
 		wl1271_warning("acx ht information setting failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+/* Configure BA session initiator/receiver parameters setting in the FW. */
+int wl1271_acx_set_ba_session(struct wl1271 *wl,
+			       enum ieee80211_back_parties direction,
+			       u8 tid_index, u8 policy)
+{
+	struct wl1271_acx_ba_session_policy *acx;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx ba session setting");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* ANY role */
+	acx->role_id = 0xff;
+	acx->tid = tid_index;
+	acx->enable = policy;
+	acx->ba_direction = direction;
+
+	switch (direction) {
+	case WLAN_BACK_INITIATOR:
+		acx->win_size = wl->conf.ht.tx_ba_win_size;
+		acx->inactivity_timeout = wl->conf.ht.inactivity_timeout;
+		break;
+	case WLAN_BACK_RECIPIENT:
+		acx->win_size = RX_BA_WIN_SIZE;
+		acx->inactivity_timeout = 0;
+		break;
+	default:
+		wl1271_error("Incorrect acx command id=%x\n", direction);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = wl1271_cmd_configure(wl,
+				   ACX_BA_SESSION_POLICY_CFG,
+				   acx,
+				   sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx ba session setting failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+/* setup BA session receiver setting in the FW. */
+int wl1271_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index, u16 ssn,
+					bool enable)
+{
+	struct wl1271_acx_ba_receiver_setup *acx;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx ba receiver session setting");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* Single link for now */
+	acx->link_id = 1;
+	acx->tid = tid_index;
+	acx->enable = enable;
+	acx->win_size = 0;
+	acx->ssn = ssn;
+
+	ret = wl1271_cmd_configure(wl, ACX_BA_SESSION_RX_SETUP, acx,
+				   sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx ba receiver session failed: %d", ret);
 		goto out;
 	}
 
@@ -1332,5 +1486,84 @@ int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime)
 
 out:
 	kfree(tsf_info);
+	return ret;
+}
+
+int wl1271_acx_max_tx_retry(struct wl1271 *wl)
+{
+	struct wl1271_acx_max_tx_retry *acx = NULL;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx max tx retry");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx)
+		return -ENOMEM;
+
+	acx->max_tx_retry = cpu_to_le16(wl->conf.tx.ap_max_tx_retries);
+
+	ret = wl1271_cmd_configure(wl, ACX_MAX_TX_FAILURE, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx max tx retry failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_config_ps(struct wl1271 *wl)
+{
+	struct wl1271_acx_config_ps *config_ps;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx config ps");
+
+	config_ps = kzalloc(sizeof(*config_ps), GFP_KERNEL);
+	if (!config_ps) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	config_ps->exit_retries = wl->conf.conn.psm_exit_retries;
+	config_ps->enter_retries = wl->conf.conn.psm_entry_retries;
+	config_ps->null_data_rate = cpu_to_le32(wl->basic_rate);
+
+	ret = wl1271_cmd_configure(wl, ACX_CONFIG_PS, config_ps,
+				   sizeof(*config_ps));
+
+	if (ret < 0) {
+		wl1271_warning("acx config ps failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(config_ps);
+	return ret;
+}
+
+int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr)
+{
+	struct wl1271_acx_inconnection_sta *acx = NULL;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx set inconnaction sta %pM", addr);
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx)
+		return -ENOMEM;
+
+	memcpy(acx->addr, addr, ETH_ALEN);
+
+	ret = wl1271_cmd_configure(wl, ACX_UPDATE_INCONNECTION_STA_LIST,
+				   acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx set inconnaction sta failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
 	return ret;
 }

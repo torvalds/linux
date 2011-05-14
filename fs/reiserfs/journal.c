@@ -1,7 +1,7 @@
 /*
 ** Write ahead logging implementation copyright Chris Mason 2000
 **
-** The background commits make this code very interelated, and
+** The background commits make this code very interrelated, and
 ** overly complex.  I need to rethink things a bit....The major players:
 **
 ** journal_begin -- call with the number of blocks you expect to log.
@@ -2725,7 +2725,7 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 						 REISERFS_DISK_OFFSET_IN_BYTES /
 						 sb->s_blocksize + 2);
 
-	/* Sanity check to see is the standard journal fitting withing first bitmap
+	/* Sanity check to see is the standard journal fitting within first bitmap
 	   (actual for small blocksizes) */
 	if (!SB_ONDISK_JOURNAL_DEVICE(sb) &&
 	    (SB_JOURNAL_1st_RESERVED_BLOCK(sb) +
@@ -2876,7 +2876,7 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 	reiserfs_mounted_fs_count++;
 	if (reiserfs_mounted_fs_count <= 1) {
 		reiserfs_write_unlock(sb);
-		commit_wq = create_workqueue("reiserfs");
+		commit_wq = alloc_workqueue("reiserfs", WQ_MEM_RECLAIM, 0);
 		reiserfs_write_lock(sb);
 	}
 

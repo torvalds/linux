@@ -43,18 +43,22 @@ struct amba_id {
 
 struct amba_driver {
 	struct device_driver	drv;
-	int			(*probe)(struct amba_device *, struct amba_id *);
+	int			(*probe)(struct amba_device *, const struct amba_id *);
 	int			(*remove)(struct amba_device *);
 	void			(*shutdown)(struct amba_device *);
 	int			(*suspend)(struct amba_device *, pm_message_t);
 	int			(*resume)(struct amba_device *);
-	struct amba_id		*id_table;
+	const struct amba_id	*id_table;
 };
 
 enum amba_vendor {
 	AMBA_VENDOR_ARM = 0x41,
 	AMBA_VENDOR_ST = 0x80,
 };
+
+extern struct bus_type amba_bustype;
+
+#define to_amba_device(d)	container_of(d, struct amba_device, dev)
 
 #define amba_get_drvdata(d)	dev_get_drvdata(&d->dev)
 #define amba_set_drvdata(d,p)	dev_set_drvdata(&d->dev, p)

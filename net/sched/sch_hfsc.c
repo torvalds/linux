@@ -81,8 +81,7 @@
  *   that are expensive on 32-bit architectures.
  */
 
-struct internal_sc
-{
+struct internal_sc {
 	u64	sm1;	/* scaled slope of the 1st segment */
 	u64	ism1;	/* scaled inverse-slope of the 1st segment */
 	u64	dx;	/* the x-projection of the 1st segment */
@@ -92,8 +91,7 @@ struct internal_sc
 };
 
 /* runtime service curve */
-struct runtime_sc
-{
+struct runtime_sc {
 	u64	x;	/* current starting position on x-axis */
 	u64	y;	/* current starting position on y-axis */
 	u64	sm1;	/* scaled slope of the 1st segment */
@@ -104,15 +102,13 @@ struct runtime_sc
 	u64	ism2;	/* scaled inverse-slope of the 2nd segment */
 };
 
-enum hfsc_class_flags
-{
+enum hfsc_class_flags {
 	HFSC_RSC = 0x1,
 	HFSC_FSC = 0x2,
 	HFSC_USC = 0x4
 };
 
-struct hfsc_class
-{
+struct hfsc_class {
 	struct Qdisc_class_common cl_common;
 	unsigned int	refcnt;		/* usage count */
 
@@ -140,8 +136,8 @@ struct hfsc_class
 	u64	cl_cumul;		/* cumulative work in bytes done by
 					   real-time criteria */
 
-	u64 	cl_d;			/* deadline*/
-	u64 	cl_e;			/* eligible time */
+	u64	cl_d;			/* deadline*/
+	u64	cl_e;			/* eligible time */
 	u64	cl_vt;			/* virtual time */
 	u64	cl_f;			/* time when this class will fit for
 					   link-sharing, max(myf, cfmin) */
@@ -176,8 +172,7 @@ struct hfsc_class
 	unsigned long	cl_nactive;	/* number of active children */
 };
 
-struct hfsc_sched
-{
+struct hfsc_sched {
 	u16	defcls;				/* default class id */
 	struct hfsc_class root;			/* root class */
 	struct Qdisc_class_hash clhash;		/* class hash */
@@ -693,7 +688,7 @@ init_vf(struct hfsc_class *cl, unsigned int len)
 		if (go_active) {
 			n = rb_last(&cl->cl_parent->vt_tree);
 			if (n != NULL) {
-				max_cl = rb_entry(n, struct hfsc_class,vt_node);
+				max_cl = rb_entry(n, struct hfsc_class, vt_node);
 				/*
 				 * set vt to the average of the min and max
 				 * classes.  if the parent's period didn't
@@ -1177,8 +1172,10 @@ hfsc_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 			return NULL;
 		}
 #endif
-		if ((cl = (struct hfsc_class *)res.class) == NULL) {
-			if ((cl = hfsc_find_class(res.classid, sch)) == NULL)
+		cl = (struct hfsc_class *)res.class;
+		if (!cl) {
+			cl = hfsc_find_class(res.classid, sch);
+			if (!cl)
 				break; /* filter selected invalid classid */
 			if (cl->level >= head->level)
 				break; /* filter may only point downwards */
@@ -1316,7 +1313,7 @@ hfsc_dump_sc(struct sk_buff *skb, int attr, struct internal_sc *sc)
 	return -1;
 }
 
-static inline int
+static int
 hfsc_dump_curves(struct sk_buff *skb, struct hfsc_class *cl)
 {
 	if ((cl->cl_flags & HFSC_RSC) &&
@@ -1420,7 +1417,8 @@ hfsc_schedule_watchdog(struct Qdisc *sch)
 	struct hfsc_class *cl;
 	u64 next_time = 0;
 
-	if ((cl = eltree_get_minel(q)) != NULL)
+	cl = eltree_get_minel(q);
+	if (cl)
 		next_time = cl->cl_e;
 	if (q->root.cl_cfmin != 0) {
 		if (next_time == 0 || next_time > q->root.cl_cfmin)
@@ -1625,7 +1623,8 @@ hfsc_dequeue(struct Qdisc *sch)
 	 * find the class with the minimum deadline among
 	 * the eligible classes.
 	 */
-	if ((cl = eltree_get_mindl(q, cur_time)) != NULL) {
+	cl = eltree_get_mindl(q, cur_time);
+	if (cl) {
 		realtime = 1;
 	} else {
 		/*
@@ -1664,7 +1663,7 @@ hfsc_dequeue(struct Qdisc *sch)
 		set_passive(cl);
 	}
 
-	sch->flags &= ~TCQ_F_THROTTLED;
+	qdisc_unthrottled(sch);
 	qdisc_bstats_update(sch, skb);
 	sch->q.qlen--;
 

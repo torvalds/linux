@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -30,11 +30,10 @@
 #include "translation-table.h"
 #include "hard-interface.h"
 #include "gateway_client.h"
-#include "types.h"
 #include "vis.h"
 #include "hash.h"
 
-struct list_head if_list;
+struct list_head hardif_list;
 
 unsigned char broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -42,7 +41,7 @@ struct workqueue_struct *bat_event_workqueue;
 
 static int __init batman_init(void)
 {
-	INIT_LIST_HEAD(&if_list);
+	INIT_LIST_HEAD(&hardif_list);
 
 	/* the name should not be longer than 10 chars - see
 	 * http://lwn.net/Articles/23634/ */
@@ -80,7 +79,6 @@ int mesh_init(struct net_device *soft_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 
-	spin_lock_init(&bat_priv->orig_hash_lock);
 	spin_lock_init(&bat_priv->forw_bat_list_lock);
 	spin_lock_init(&bat_priv->forw_bcast_list_lock);
 	spin_lock_init(&bat_priv->hna_lhash_lock);
@@ -155,14 +153,14 @@ void dec_module_count(void)
 
 int is_my_mac(uint8_t *addr)
 {
-	struct batman_if *batman_if;
+	struct hard_iface *hard_iface;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if, &if_list, list) {
-		if (batman_if->if_status != IF_ACTIVE)
+	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+		if (hard_iface->if_status != IF_ACTIVE)
 			continue;
 
-		if (compare_orig(batman_if->net_dev->dev_addr, addr)) {
+		if (compare_eth(hard_iface->net_dev->dev_addr, addr)) {
 			rcu_read_unlock();
 			return 1;
 		}

@@ -23,11 +23,10 @@
 
 #include <dspbridge/devdefs.h>
 
-#include <dspbridge/drvdefs.h>
 #include <linux/idr.h>
 
-#define DRV_ASSIGN     1
-#define DRV_RELEASE    0
+/* Bridge Driver Object */
+struct drv_object;
 
 /* Provide the DSP Internal memory windows that can be accessed from L3 address
  * space */
@@ -38,23 +37,14 @@
 /* MEM1 is L2 RAM + L2 Cache space */
 #define OMAP_DSP_MEM1_BASE 0x5C7F8000
 #define OMAP_DSP_MEM1_SIZE 0x18000
-#define OMAP_DSP_GEM1_BASE 0x107F8000
 
 /* MEM2 is L1P RAM/CACHE space */
 #define OMAP_DSP_MEM2_BASE 0x5CE00000
 #define OMAP_DSP_MEM2_SIZE 0x8000
-#define OMAP_DSP_GEM2_BASE 0x10E00000
 
 /* MEM3 is L1D RAM/CACHE space */
 #define OMAP_DSP_MEM3_BASE 0x5CF04000
 #define OMAP_DSP_MEM3_SIZE 0x14000
-#define OMAP_DSP_GEM3_BASE 0x10F04000
-
-#define OMAP_IVA2_PRM_BASE 0x48306000
-#define OMAP_IVA2_PRM_SIZE 0x1000
-
-#define OMAP_IVA2_CM_BASE 0x48004000
-#define OMAP_IVA2_CM_SIZE 0x1000
 
 #define OMAP_PER_CM_BASE 0x48005000
 #define OMAP_PER_CM_SIZE 0x1000
@@ -65,20 +55,14 @@
 #define OMAP_CORE_PRM_BASE 0x48306A00
 #define OMAP_CORE_PRM_SIZE 0x1000
 
-#define OMAP_SYSC_BASE 0x48002000
-#define OMAP_SYSC_SIZE 0x1000
-
 #define OMAP_DMMU_BASE 0x5D000000
 #define OMAP_DMMU_SIZE 0x1000
-
-#define OMAP_PRCM_VDD1_DOMAIN 1
-#define OMAP_PRCM_VDD2_DOMAIN 2
 
 /* GPP PROCESS CLEANUP Data structures */
 
 /* New structure (member of process context) abstracts NODE resource info */
 struct node_res_object {
-	void *hnode;
+	void *node;
 	s32 node_allocated;	/* Node status */
 	s32 heap_allocated;	/* Heap status */
 	s32 streams_allocated;	/* Streams status */
@@ -114,21 +98,10 @@ struct dmm_rsv_object {
 	u32 dsp_reserved_addr;
 };
 
-/* New structure (member of process context) abstracts DMM resource info */
-struct dspheap_res_object {
-	s32 heap_allocated;	/* DMM status */
-	u32 ul_mpu_addr;
-	u32 ul_dsp_addr;
-	u32 ul_dsp_res_addr;
-	u32 heap_size;
-	void *hprocessor;
-	struct dspheap_res_object *next;
-};
-
 /* New structure (member of process context) abstracts stream resource info */
 struct strm_res_object {
 	s32 stream_allocated;	/* Stream status */
-	void *hstream;
+	void *stream;
 	u32 num_bufs;
 	u32 dir;
 	int id;
@@ -156,7 +129,7 @@ struct process_context {
 	enum gpp_proc_res_state res_state;
 
 	/* Handle to Processor */
-	void *hprocessor;
+	void *processor;
 
 	/* DSP Node resources */
 	struct idr *node_id;
@@ -168,9 +141,6 @@ struct process_context {
 	/* DMM reserved memory resources */
 	struct list_head dmm_rsv_list;
 	spinlock_t dmm_rsv_lock;
-
-	/* DSP Heap resources */
-	struct dspheap_res_object *pdspheap_list;
 
 	/* Stream resources */
 	struct idr *stream_id;
@@ -184,7 +154,7 @@ struct process_context {
  *  Parameters:
  *      drv_obj:        Location to store created DRV Object handle.
  *  Returns:
- *      0:        Sucess
+ *      0:        Success
  *      -ENOMEM:    Failed in Memory allocation
  *      -EPERM:      General Failure
  *  Requires:
@@ -200,7 +170,7 @@ struct process_context {
  *      There is one Driver Object for the Driver representing
  *      the driver itself. It contains the list of device
  *      Objects and the list of Device Extensions in the system.
- *      Also it can hold other neccessary
+ *      Also it can hold other necessary
  *      information in its storage area.
  */
 extern int drv_create(struct drv_object **drv_obj);
@@ -210,7 +180,7 @@ extern int drv_create(struct drv_object **drv_obj);
  *  Purpose:
  *      destroys the Dev Object list, DrvExt list
  *      and destroy the DRV object
- *      Called upon driver unLoading.or unsuccesful loading of the driver.
+ *      Called upon driver unLoading.or unsuccessful loading of the driver.
  *  Parameters:
  *      driver_obj:     Handle to Driver object .
  *  Returns:
@@ -425,7 +395,7 @@ void bridge_recover_schedule(void);
 /*
  *  ======== mem_ext_phys_pool_init ========
  *  Purpose:
- *      Uses the physical memory chunk passed for internal consitent memory
+ *      Uses the physical memory chunk passed for internal consistent memory
  *      allocations.
  *      physical address based on the page frame address.
  *  Parameters:

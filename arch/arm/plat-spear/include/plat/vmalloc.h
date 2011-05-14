@@ -14,6 +14,6 @@
 #ifndef __PLAT_VMALLOC_H
 #define __PLAT_VMALLOC_H
 
-#define VMALLOC_END		0xF0000000
+#define VMALLOC_END		0xF0000000UL
 
 #endif /* __PLAT_VMALLOC_H */

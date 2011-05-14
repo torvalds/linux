@@ -2,7 +2,7 @@
  * OMAP3517/3505-specific clock framework functions
  *
  * Copyright (C) 2010 Texas Instruments, Inc.
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2011 Nokia Corporation
  *
  * Ranjith Lohithakshan
  * Paul Walmsley
@@ -119,6 +119,8 @@ const struct clkops clkops_am35xx_ipss_wait = {
 	.disable	= omap2_dflt_clk_disable,
 	.find_idlest	= am35xx_clk_ipss_find_idlest,
 	.find_companion	= omap2_clk_dflt_find_companion,
+	.allow_idle	= omap2_clkt_iclk_allow_idle,
+	.deny_idle	= omap2_clkt_iclk_deny_idle,
 };
 
 

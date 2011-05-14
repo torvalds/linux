@@ -6,6 +6,8 @@
 #include "../../../include/linux/perf_event.h"
 #include "types.h"
 #include "xyarray.h"
+#include "cgroup.h"
+#include "hist.h"
  
 struct perf_counts_values {
 	union {
@@ -24,31 +26,66 @@ struct perf_counts {
 	struct perf_counts_values cpu[];
 };
 
+struct perf_evsel;
+
+/*
+ * Per fd, to map back from PERF_SAMPLE_ID to evsel, only used when there are
+ * more than one entry in the evlist.
+ */
+struct perf_sample_id {
+	struct hlist_node 	node;
+	u64		 	id;
+	struct perf_evsel	*evsel;
+};
+
+/** struct perf_evsel - event selector
+ *
+ * @name - Can be set to retain the original event name passed by the user,
+ *         so that when showing results in tools such as 'perf stat', we
+ *         show the name used, not some alias.
+ */
 struct perf_evsel {
 	struct list_head	node;
 	struct perf_event_attr	attr;
 	char			*filter;
 	struct xyarray		*fd;
+	struct xyarray		*sample_id;
+	u64			*id;
 	struct perf_counts	*counts;
 	int			idx;
-	void			*priv;
+	int			ids;
+	struct hists		hists;
+	char			*name;
+	union {
+		void		*priv;
+		off_t		id_offset;
+	};
+	struct cgroup_sel	*cgrp;
 };
 
 struct cpu_map;
 struct thread_map;
+struct perf_evlist;
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx);
+void perf_evsel__init(struct perf_evsel *evsel,
+		      struct perf_event_attr *attr, int idx);
+void perf_evsel__exit(struct perf_evsel *evsel);
 void perf_evsel__delete(struct perf_evsel *evsel);
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
+int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads);
 int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus);
 void perf_evsel__free_fd(struct perf_evsel *evsel);
+void perf_evsel__free_id(struct perf_evsel *evsel);
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 
-int perf_evsel__open_per_cpu(struct perf_evsel *evsel, struct cpu_map *cpus);
-int perf_evsel__open_per_thread(struct perf_evsel *evsel, struct thread_map *threads);
-int perf_evsel__open(struct perf_evsel *evsel, 
-		     struct cpu_map *cpus, struct thread_map *threads);
+int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
+			     struct cpu_map *cpus, bool group);
+int perf_evsel__open_per_thread(struct perf_evsel *evsel,
+				struct thread_map *threads, bool group);
+int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
+		     struct thread_map *threads, bool group);
 
 #define perf_evsel__match(evsel, t, c)		\
 	(evsel->attr.type == PERF_TYPE_##t &&	\

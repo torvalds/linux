@@ -449,7 +449,7 @@ int netup_ci_init(struct cx23885_tsport *port)
 		0x04, /* ack active low */
 		0x00, /* LOCK = 0 */
 		0x33, /* serial mode, rising in, rising out, MSB first*/
-		0x31, /* syncronization */
+		0x31, /* synchronization */
 	};
 	int ret;
 

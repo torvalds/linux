@@ -52,9 +52,13 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 			      struct iwl_rxon_context *ctx,
 			      struct iwl_rxon_cmd *send)
 {
+	struct iwl_notification_wait disable_wait;
 	__le32 old_filter = send->filter_flags;
 	u8 old_dev_type = send->dev_type;
 	int ret;
+
+	iwlagn_init_notification_wait(priv, &disable_wait, NULL,
+				      REPLY_WIPAN_DEACTIVATION_COMPLETE);
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	send->dev_type = RXON_DEV_TYPE_P2P;
@@ -63,11 +67,18 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	send->filter_flags = old_filter;
 	send->dev_type = old_dev_type;
 
-	if (ret)
+	if (ret) {
 		IWL_ERR(priv, "Error disabling PAN (%d)\n", ret);
+		iwlagn_remove_notification(priv, &disable_wait);
+	} else {
+		signed long wait_res;
 
-	/* FIXME: WAIT FOR PAN DISABLE */
-	msleep(300);
+		wait_res = iwlagn_wait_notification(priv, &disable_wait, HZ);
+		if (wait_res == 0) {
+			IWL_ERR(priv, "Timed out waiting for PAN disable\n");
+			ret = -EIO;
+		}
+	}
 
 	return ret;
 }
@@ -144,6 +155,23 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	/* always get timestamp with Rx frame */
 	ctx->staging.flags |= RXON_FLG_TSF2HOST_MSK;
+
+	if (ctx->ctxid == IWL_RXON_CTX_PAN && priv->_agn.hw_roc_channel) {
+		struct ieee80211_channel *chan = priv->_agn.hw_roc_channel;
+
+		iwl_set_rxon_channel(priv, chan, ctx);
+		iwl_set_flags_for_band(priv, ctx, chan->band, NULL);
+		ctx->staging.filter_flags |=
+			RXON_FILTER_ASSOC_MSK |
+			RXON_FILTER_PROMISC_MSK |
+			RXON_FILTER_CTL2HOST_MSK;
+		ctx->staging.dev_type = RXON_DEV_TYPE_P2P;
+		new_assoc = true;
+
+		if (memcmp(&ctx->staging, &ctx->active,
+			   sizeof(ctx->staging)) == 0)
+			return 0;
+	}
 
 	if ((ctx->vif && ctx->vif->bss_conf.use_short_slot) ||
 	    !(ctx->staging.flags & RXON_FLG_BAND_24G_MSK))
@@ -288,10 +316,9 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	 * If we issue a new RXON command which required a tune then we must
 	 * send a new TXPOWER command or we won't be able to Tx any frames.
 	 *
-	 * FIXME: which RXON requires a tune? Can we optimise this out in
-	 *        some cases?
+	 * It's expected we set power here if channel is changing.
 	 */
-	ret = iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
+	ret = iwl_set_tx_power(priv, priv->tx_power_next, true);
 	if (ret) {
 		IWL_ERR(priv, "Error sending TX power (%d)\n", ret);
 		return ret;
@@ -308,7 +335,6 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	struct ieee80211_channel *channel = conf->channel;
 	const struct iwl_channel_info *ch_info;
 	int ret = 0;
-	bool ht_changed[NUM_IWL_RXON_CTX] = {};
 
 	IWL_DEBUG_MAC80211(priv, "changed %#x", changed);
 
@@ -356,10 +382,8 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 		for_each_context(priv, ctx) {
 			/* Configure HT40 channels */
-			if (ctx->ht.enabled != conf_is_ht(conf)) {
+			if (ctx->ht.enabled != conf_is_ht(conf))
 				ctx->ht.enabled = conf_is_ht(conf);
-				ht_changed[ctx->ctxid] = true;
-			}
 
 			if (ctx->ht.enabled) {
 				if (conf_is_ht40_minus(conf)) {
@@ -428,8 +452,6 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 		if (!memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
 			continue;
 		iwlagn_commit_rxon(priv, ctx);
-		if (ht_changed[ctx->ctxid])
-			iwlagn_update_qos(priv, ctx);
 	}
  out:
 	mutex_unlock(&priv->mutex);
@@ -444,6 +466,7 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 	struct iwl_rxon_context *tmp;
 	struct ieee80211_sta *sta;
 	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
+	struct ieee80211_sta_ht_cap *ht_cap;
 	bool need_multiple;
 
 	lockdep_assert_held(&priv->mutex);
@@ -452,23 +475,7 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 	case NL80211_IFTYPE_STATION:
 		rcu_read_lock();
 		sta = ieee80211_find_sta(vif, bss_conf->bssid);
-		if (sta) {
-			struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
-			int maxstreams;
-
-			maxstreams = (ht_cap->mcs.tx_params &
-				      IEEE80211_HT_MCS_TX_MAX_STREAMS_MASK)
-					>> IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT;
-			maxstreams += 1;
-
-			need_multiple = true;
-
-			if ((ht_cap->mcs.rx_mask[1] == 0) &&
-			    (ht_cap->mcs.rx_mask[2] == 0))
-				need_multiple = false;
-			if (maxstreams <= 1)
-				need_multiple = false;
-		} else {
+		if (!sta) {
 			/*
 			 * If at all, this can only happen through a race
 			 * when the AP disconnects us while we're still
@@ -476,7 +483,46 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 			 * will soon tell us about that.
 			 */
 			need_multiple = false;
+			rcu_read_unlock();
+			break;
 		}
+
+		ht_cap = &sta->ht_cap;
+
+		need_multiple = true;
+
+		/*
+		 * If the peer advertises no support for receiving 2 and 3
+		 * stream MCS rates, it can't be transmitting them either.
+		 */
+		if (ht_cap->mcs.rx_mask[1] == 0 &&
+		    ht_cap->mcs.rx_mask[2] == 0) {
+			need_multiple = false;
+		} else if (!(ht_cap->mcs.tx_params &
+						IEEE80211_HT_MCS_TX_DEFINED)) {
+			/* If it can't TX MCS at all ... */
+			need_multiple = false;
+		} else if (ht_cap->mcs.tx_params &
+						IEEE80211_HT_MCS_TX_RX_DIFF) {
+			int maxstreams;
+
+			/*
+			 * But if it can receive them, it might still not
+			 * be able to transmit them, which is what we need
+			 * to check here -- so check the number of streams
+			 * it advertises for TX (if different from RX).
+			 */
+
+			maxstreams = (ht_cap->mcs.tx_params &
+				 IEEE80211_HT_MCS_TX_MAX_STREAMS_MASK);
+			maxstreams >>=
+				IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT;
+			maxstreams += 1;
+
+			if (maxstreams <= 1)
+				need_multiple = false;
+		}
+
 		rcu_read_unlock();
 		break;
 	case NL80211_IFTYPE_ADHOC:
@@ -546,12 +592,10 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changes & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
-			iwl_led_associate(priv);
 			priv->timestamp = bss_conf->timestamp;
 			ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		} else {
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-			iwl_led_disassociate(priv);
 		}
 	}
 

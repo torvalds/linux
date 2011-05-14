@@ -486,14 +486,14 @@ static int ipg_config_autoneg(struct net_device *dev)
 	phyctrl = ipg_r8(PHY_CTRL);
 	mac_ctrl_val = ipg_r32(MAC_CTRL);
 
-	/* Set flags for use in resolving auto-negotation, assuming
+	/* Set flags for use in resolving auto-negotiation, assuming
 	 * non-1000Mbps, half duplex, no flow control.
 	 */
 	fullduplex = 0;
 	txflowcontrol = 0;
 	rxflowcontrol = 0;
 
-	/* To accomodate a problem in 10Mbps operation,
+	/* To accommodate a problem in 10Mbps operation,
 	 * set a global flag if PHY running in 10Mbps mode.
 	 */
 	sp->tenmbpsmode = 0;
@@ -846,7 +846,7 @@ static void init_tfdlist(struct net_device *dev)
 }
 
 /*
- * Free all transmit buffers which have already been transfered
+ * Free all transmit buffers which have already been transferred
  * via DMA to the IPG.
  */
 static void ipg_nic_txfree(struct net_device *dev)
@@ -920,7 +920,7 @@ static void ipg_tx_timeout(struct net_device *dev)
 
 /*
  * For TxComplete interrupts, free all transmit
- * buffers which have already been transfered via DMA
+ * buffers which have already been transferred via DMA
  * to the IPG.
  */
 static void ipg_nic_txcleanup(struct net_device *dev)
@@ -1141,13 +1141,13 @@ static int ipg_nic_rx_check_error(struct net_device *dev)
 
 		/* Increment detailed receive error statistics. */
 		if (le64_to_cpu(rxfd->rfs) & IPG_RFS_RXFIFOOVERRUN) {
-			IPG_DEBUG_MSG("RX FIFO overrun occured.\n");
+			IPG_DEBUG_MSG("RX FIFO overrun occurred.\n");
 
 			sp->stats.rx_fifo_errors++;
 		}
 
 		if (le64_to_cpu(rxfd->rfs) & IPG_RFS_RXRUNTFRAME) {
-			IPG_DEBUG_MSG("RX runt occured.\n");
+			IPG_DEBUG_MSG("RX runt occurred.\n");
 			sp->stats.rx_length_errors++;
 		}
 
@@ -1156,7 +1156,7 @@ static int ipg_nic_rx_check_error(struct net_device *dev)
 		 */
 
 		if (le64_to_cpu(rxfd->rfs) & IPG_RFS_RXALIGNMENTERROR) {
-			IPG_DEBUG_MSG("RX alignment error occured.\n");
+			IPG_DEBUG_MSG("RX alignment error occurred.\n");
 			sp->stats.rx_frame_errors++;
 		}
 
@@ -1421,12 +1421,12 @@ static int ipg_nic_rx(struct net_device *dev)
 
 			/* Increment detailed receive error statistics. */
 			if (le64_to_cpu(rxfd->rfs) & IPG_RFS_RXFIFOOVERRUN) {
-				IPG_DEBUG_MSG("RX FIFO overrun occured.\n");
+				IPG_DEBUG_MSG("RX FIFO overrun occurred.\n");
 				sp->stats.rx_fifo_errors++;
 			}
 
 			if (le64_to_cpu(rxfd->rfs) & IPG_RFS_RXRUNTFRAME) {
-				IPG_DEBUG_MSG("RX runt occured.\n");
+				IPG_DEBUG_MSG("RX runt occurred.\n");
 				sp->stats.rx_length_errors++;
 			}
 
@@ -1436,7 +1436,7 @@ static int ipg_nic_rx(struct net_device *dev)
 			 */
 
 			if (le64_to_cpu(rxfd->rfs) & IPG_RFS_RXALIGNMENTERROR) {
-				IPG_DEBUG_MSG("RX alignment error occured.\n");
+				IPG_DEBUG_MSG("RX alignment error occurred.\n");
 				sp->stats.rx_frame_errors++;
 			}
 
@@ -1460,7 +1460,7 @@ static int ipg_nic_rx(struct net_device *dev)
 			}
 		} else {
 
-			/* Adjust the new buffer length to accomodate the size
+			/* Adjust the new buffer length to accommodate the size
 			 * of the received frame.
 			 */
 			skb_put(skb, framelen);
@@ -1488,7 +1488,7 @@ static int ipg_nic_rx(struct net_device *dev)
 	}
 
 	/*
-	 * If there are more RFDs to proces and the allocated amount of RFD
+	 * If there are more RFDs to process and the allocated amount of RFD
 	 * processing time has expired, assert Interrupt Requested to make
 	 * sure we come back to process the remaining RFDs.
 	 */
@@ -1886,7 +1886,7 @@ static netdev_tx_t ipg_nic_hard_start_xmit(struct sk_buff *skb,
 	/* Request TxComplete interrupts at an interval defined
 	 * by the constant IPG_FRAMESBETWEENTXCOMPLETES.
 	 * Request TxComplete interrupt for every frame
-	 * if in 10Mbps mode to accomodate problem with 10Mbps
+	 * if in 10Mbps mode to accommodate problem with 10Mbps
 	 * processing.
 	 */
 	if (sp->tenmbpsmode)
@@ -2025,7 +2025,6 @@ static void ipg_init_mii(struct net_device *dev)
 
 	if (phyaddr != 0x1f) {
 		u16 mii_phyctrl, mii_1000cr;
-		u8 revisionid = 0;
 
 		mii_1000cr  = mdio_read(dev, phyaddr, MII_CTRL1000);
 		mii_1000cr |= ADVERTISE_1000FULL | ADVERTISE_1000HALF |
@@ -2035,8 +2034,7 @@ static void ipg_init_mii(struct net_device *dev)
 		mii_phyctrl = mdio_read(dev, phyaddr, MII_BMCR);
 
 		/* Set default phyparam */
-		pci_read_config_byte(sp->pdev, PCI_REVISION_ID, &revisionid);
-		ipg_set_phy_default_param(revisionid, dev, phyaddr);
+		ipg_set_phy_default_param(sp->pdev->revision, dev, phyaddr);
 
 		/* Reset PHY */
 		mii_phyctrl |= BMCR_RESET | BMCR_ANRESTART;
@@ -2100,7 +2098,7 @@ static int ipg_nic_change_mtu(struct net_device *dev, int new_mtu)
 	struct ipg_nic_private *sp = netdev_priv(dev);
 	int err;
 
-	/* Function to accomodate changes to Maximum Transfer Unit
+	/* Function to accommodate changes to Maximum Transfer Unit
 	 * (or MTU) of IPG NIC. Cannot use default function since
 	 * the default will not allow for MTU > 1500 bytes.
 	 */

@@ -3,6 +3,12 @@
  *
  * OMAP Dual-Mode Timers
  *
+ * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
+ * Tarun Kanti DebBarma <tarun.kanti@ti.com>
+ * Thara Gopinath <thara@ti.com>
+ *
+ * Platform device conversion and hwmod support.
+ *
  * Copyright (C) 2005 Nokia Corporation
  * Author: Lauri Leukkunen <lauri.leukkunen@nokia.com>
  * PWM and clock framwork support by Timo Teras.
@@ -44,6 +50,11 @@
 #define OMAP_TIMER_TRIGGER_OVERFLOW		0x01
 #define OMAP_TIMER_TRIGGER_OVERFLOW_AND_COMPARE	0x02
 
+/*
+ * IP revision identifier so that Highlander IP
+ * in OMAP4 can be distinguished.
+ */
+#define OMAP_TIMER_IP_VERSION_1                        0x1
 struct omap_dm_timer;
 extern struct omap_dm_timer *gptimer_wakeup;
 extern struct sys_timer omap_timer;

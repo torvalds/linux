@@ -51,7 +51,7 @@
 static int mf_initialized;
 
 /*
- * This is the structure layout for the Machine Facilites LPAR event
+ * This is the structure layout for the Machine Facilities LPAR event
  * flows.
  */
 struct vsp_cmd_data {

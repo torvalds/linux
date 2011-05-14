@@ -29,7 +29,7 @@ static inline unsigned long arch_local_save_flags(void)
 
 static inline unsigned long arch_local_irq_save(void)
 {
-	unsigned long flags
+	unsigned long flags;
 
 	asm volatile(
 		"	mfcr	r8, cr0		\n"

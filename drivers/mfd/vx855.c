@@ -122,6 +122,7 @@ static struct pci_device_id vx855_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VX855) },
 	{ 0, }
 };
+MODULE_DEVICE_TABLE(pci, vx855_pci_tbl);
 
 static struct pci_driver vx855_pci_driver = {
 	.name		= "vx855",

@@ -4,9 +4,20 @@
 # create a compressed vmlinuz image from the original vmlinux
 #
 
+OBJS		=
+
+# Ensure that mmcif loader code appears early in the image
+# to minimise that number of bocks that have to be read in
+# order to load it.
+ifeq ($(CONFIG_ZBOOT_ROM_MMCIF),y)
+ifeq ($(CONFIG_ARCH_SH7372),y)
+OBJS		+= mmcif-sh7372.o
+endif
+endif
+
 AFLAGS_head.o += -DTEXT_OFFSET=$(TEXT_OFFSET)
 HEAD	= head.o
-OBJS	= misc.o decompress.o
+OBJS	+= misc.o decompress.o
 FONTC	= $(srctree)/drivers/video/console/font_acorn_8x8.c
 
 #
@@ -27,6 +38,10 @@ endif
 
 ifeq ($(CONFIG_ARCH_SA1100),y)
 OBJS		+= head-sa1100.o
+endif
+
+ifeq ($(CONFIG_ARCH_VT8500),y)
+OBJS		+= head-vt8500.o
 endif
 
 ifeq ($(CONFIG_CPU_XSCALE),y)
@@ -80,12 +95,14 @@ ORIG_CFLAGS := $(KBUILD_CFLAGS)
 KBUILD_CFLAGS = $(subst -pg, , $(ORIG_CFLAGS))
 endif
 
-EXTRA_CFLAGS  := -fpic -fno-builtin
-EXTRA_AFLAGS  := -Wa,-march=all
+ccflags-y := -fpic -fno-builtin
+asflags-y := -Wa,-march=all
 
+# Provide size of uncompressed kernel to the decompressor via a linker symbol.
+LDFLAGS_vmlinux = --defsym _image_size=$(shell stat -c "%s" $(obj)/../Image)
 # Supply ZRELADDR to the decompressor via a linker symbol.
 ifneq ($(CONFIG_AUTO_ZRELADDR),y)
-LDFLAGS_vmlinux := --defsym zreladdr=$(ZRELADDR)
+LDFLAGS_vmlinux += --defsym zreladdr=$(ZRELADDR)
 endif
 ifeq ($(CONFIG_CPU_ENDIAN_BE8),y)
 LDFLAGS_vmlinux += --be8

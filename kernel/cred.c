@@ -35,7 +35,7 @@ static struct kmem_cache *cred_jar;
 static struct thread_group_cred init_tgcred = {
 	.usage	= ATOMIC_INIT(2),
 	.tgid	= 0,
-	.lock	= SPIN_LOCK_UNLOCKED,
+	.lock	= __SPIN_LOCK_UNLOCKED(init_cred.tgcred.lock),
 };
 #endif
 
@@ -740,6 +740,12 @@ int set_create_files_as(struct cred *new, struct inode *inode)
 	return security_kernel_create_files_as(new, inode);
 }
 EXPORT_SYMBOL(set_create_files_as);
+
+struct user_namespace *current_user_ns(void)
+{
+	return _current_user_ns();
+}
+EXPORT_SYMBOL(current_user_ns);
 
 #ifdef CONFIG_DEBUG_CREDENTIALS
 

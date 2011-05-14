@@ -31,6 +31,21 @@ config MTD_NAND_VERIFY_WRITE
 	  device thinks the write was successful, a bit could have been
 	  flipped accidentally due to device wear or something else.
 
+config MTD_NAND_BCH
+	tristate
+	select BCH
+	depends on MTD_NAND_ECC_BCH
+	default MTD_NAND
+
+config MTD_NAND_ECC_BCH
+	bool "Support software BCH ECC"
+	default n
+	help
+	  This enables support for software BCH error correction. Binary BCH
+	  codes are more powerful and cpu intensive than traditional Hamming
+	  ECC codes. They are used with NAND devices requiring more than 1 bit
+	  of error correction.
+
 config MTD_SM_COMMON
 	tristate
 	default n
@@ -105,23 +120,6 @@ config MTD_NAND_OMAP2
 	depends on ARM && (ARCH_OMAP2 || ARCH_OMAP3)
 	help
           Support for NAND flash on Texas Instruments OMAP2 and OMAP3 platforms.
-
-config MTD_NAND_OMAP_PREFETCH
-	bool "GPMC prefetch support for NAND Flash device"
-	depends on MTD_NAND_OMAP2
-	default y
-	help
-	 The NAND device can be accessed for Read/Write using GPMC PREFETCH engine
-	 to improve the performance.
-
-config MTD_NAND_OMAP_PREFETCH_DMA
-	depends on MTD_NAND_OMAP_PREFETCH
-	bool "DMA mode"
-	default n
-	help
-	 The GPMC PREFETCH engine can be configured eigther in MPU interrupt mode
-	 or in DMA interrupt mode.
-	 Say y for DMA mode or MPU mode will be used
 
 config MTD_NAND_IDS
 	tristate
@@ -241,7 +239,7 @@ config MTD_NAND_BCM_UMI
 	help
 	  This enables the NAND flash controller on the BCM UMI block.
 
-	  No board specfic support is done by this driver, each board
+	  No board specific support is done by this driver, each board
 	  must advertise a platform_device for the driver to attach.
 
 config MTD_NAND_BCM_UMI_HWCS
@@ -476,7 +474,7 @@ config MTD_NAND_MPC5121_NFC
 
 config MTD_NAND_MXC
 	tristate "MXC NAND support"
-	depends on ARCH_MX2 || ARCH_MX25 || ARCH_MX3 || ARCH_MX51
+	depends on IMX_HAVE_PLATFORM_MXC_NAND
 	help
 	  This enables the driver for the NAND flash controller on the
 	  MXC processors.

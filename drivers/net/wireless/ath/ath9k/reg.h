@@ -789,6 +789,7 @@
 #define AR_SREV_REVISION_9300_20	2 /* 2.0 and 2.1 */
 #define AR_SREV_VERSION_9485		0x240
 #define AR_SREV_REVISION_9485_10	0
+#define AR_SREV_REVISION_9485_11        1
 
 #define AR_SREV_5416(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_5416_PCI) || \
@@ -866,6 +867,9 @@
 #define AR_SREV_9485_10(_ah) \
 	(AR_SREV_9485(_ah) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9485_10))
+#define AR_SREV_9485_11(_ah) \
+	(AR_SREV_9485(_ah) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9485_11))
 
 #define AR_SREV_9285E_20(_ah) \
     (AR_SREV_9285_12_OR_LATER(_ah) && \
@@ -874,6 +878,7 @@
 enum ath_usb_dev {
 	AR9280_USB = 1, /* AR7010 + AR9280, UB94 */
 	AR9287_USB = 2, /* AR7010 + AR9287, UB95 */
+	STORAGE_DEVICE = 3,
 };
 
 #define AR_DEVID_7010(_ah) \
@@ -1083,6 +1088,17 @@ enum {
 #define AR_ENT_OTP		  0x40d8
 #define AR_ENT_OTP_CHAIN2_DISABLE               0x00020000
 #define AR_ENT_OTP_MPSD		0x00800000
+#define AR_CH0_BB_DPLL2          0x16184
+#define AR_CH0_BB_DPLL3          0x16188
+#define AR_CH0_DDR_DPLL2         0x16244
+#define AR_CH0_DDR_DPLL3         0x16248
+#define AR_CH0_DPLL2_KD              0x03F80000
+#define AR_CH0_DPLL2_KD_S            19
+#define AR_CH0_DPLL2_KI              0x3C000000
+#define AR_CH0_DPLL2_KI_S            26
+#define AR_CH0_DPLL3_PHASE_SHIFT     0x3F800000
+#define AR_CH0_DPLL3_PHASE_SHIFT_S   23
+#define AR_PHY_CCA_NOM_VAL_2GHZ      -118
 
 #define AR_RTC_9300_PLL_DIV          0x000003ff
 #define AR_RTC_9300_PLL_DIV_S        0
@@ -1128,6 +1144,12 @@ enum {
 #define AR_RTC_PLL_REFDIV_5     0x000000c0
 #define AR_RTC_PLL_CLKSEL       0x00000300
 #define AR_RTC_PLL_CLKSEL_S     8
+
+#define PLL3 0x16188
+#define PLL3_DO_MEAS_MASK 0x40000000
+#define PLL4 0x1618c
+#define PLL4_MEAS_DONE    0x8
+#define SQSUM_DVC_MASK 0x007ffff8
 
 #define AR_RTC_RESET \
 	((AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0040) : 0x7040)

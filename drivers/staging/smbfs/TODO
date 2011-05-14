@@ -1,8 +1,0 @@
-smbfs is on its way out of the kernel, it has been replaced
-by cifs several years ago.
-
-The smbfs code uses the big kernel lock which
-is getting deprecated.
-
-Users that find smbfs to work but not cifs should contact
-the CIFS developers on linux-cifs@vger.kernel.org.

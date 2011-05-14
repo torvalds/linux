@@ -93,11 +93,11 @@ static void vic_init(void __iomem *base, struct irq_chip *chip,
 	unsigned int i;
 	for (i = 0; i < 32; i++) {
 		unsigned int irq = irq_start + i;
-		set_irq_chip(irq, chip);
-		set_irq_chip_data(irq, base);
+		irq_set_chip(irq, chip);
+		irq_set_chip_data(irq, base);
 
 		if (vic_sources & (1 << i)) {
-			set_irq_handler(irq, handle_level_irq);
+			irq_set_handler(irq, handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
 	}
@@ -119,9 +119,9 @@ void __init bcmring_init_irq(void)
 
 	/* special cases */
 	if (INTCHW_INTC1_GPIO0 & IRQ_INTC1_VALID_MASK) {
-		set_irq_handler(IRQ_GPIO0, handle_simple_irq);
+		irq_set_handler(IRQ_GPIO0, handle_simple_irq);
 	}
 	if (INTCHW_INTC1_GPIO1 & IRQ_INTC1_VALID_MASK) {
-		set_irq_handler(IRQ_GPIO1, handle_simple_irq);
+		irq_set_handler(IRQ_GPIO1, handle_simple_irq);
 	}
 }

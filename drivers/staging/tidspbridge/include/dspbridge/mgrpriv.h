@@ -28,8 +28,8 @@
 struct mgr_object;
 
 struct mgr_tlbentry {
-	u32 ul_dsp_virt;	/* DSP virtual address */
-	u32 ul_gpp_phys;	/* GPP physical address */
+	u32 dsp_virt;	/* DSP virtual address */
+	u32 gpp_phys;	/* GPP physical address */
 };
 
 /*

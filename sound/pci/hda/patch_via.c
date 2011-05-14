@@ -159,6 +159,7 @@ struct via_spec {
 #endif
 };
 
+static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec);
 static struct via_spec * via_new_spec(struct hda_codec *codec)
 {
 	struct via_spec *spec;
@@ -169,6 +170,10 @@ static struct via_spec * via_new_spec(struct hda_codec *codec)
 
 	codec->spec = spec;
 	spec->codec = codec;
+	spec->codec_type = get_codec_type(codec);
+	/* VT1708BCE & VT1708S are almost same */
+	if (spec->codec_type == VT1708BCE)
+		spec->codec_type = VT1708S;
 	return spec;
 }
 
@@ -567,7 +572,7 @@ static void via_auto_init_analog_input(struct hda_codec *codec)
 		hda_nid_t nid = cfg->inputs[i].pin;
 		if (spec->smart51_enabled && is_smart51_pins(spec, nid))
 			ctl = PIN_OUT;
-		else if (i == AUTO_PIN_MIC)
+		else if (cfg->inputs[i].type == AUTO_PIN_MIC)
 			ctl = PIN_VREF50;
 		else
 			ctl = PIN_IN;
@@ -1101,6 +1106,7 @@ static int via_mux_enum_put(struct snd_kcontrol *kcontrol,
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct via_spec *spec = codec->spec;
 	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	int ret;
 
 	if (!spec->mux_nids[adc_idx])
 		return -EINVAL;
@@ -1109,12 +1115,14 @@ static int via_mux_enum_put(struct snd_kcontrol *kcontrol,
 			       AC_VERB_GET_POWER_STATE, 0x00) != AC_PWRST_D0)
 		snd_hda_codec_write(codec, spec->mux_nids[adc_idx], 0,
 				    AC_VERB_SET_POWER_STATE, AC_PWRST_D0);
+
+	ret = snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
+				     spec->mux_nids[adc_idx],
+				     &spec->cur_mux[adc_idx]);
 	/* update jack power state */
 	set_jack_power_state(codec);
 
-	return snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
-				     spec->mux_nids[adc_idx],
-				     &spec->cur_mux[adc_idx]);
+	return ret;
 }
 
 static int via_independent_hp_info(struct snd_kcontrol *kcontrol,
@@ -1188,8 +1196,16 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 	/* Get Independent Mode index of headphone pin widget */
 	spec->hp_independent_mode = spec->hp_independent_mode_index == pinsel
 		? 1 : 0;
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, pinsel);
+	if (spec->codec_type == VT1718S)
+		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_CONNECT_SEL, pinsel ? 2 : 0);
+	else
+		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_CONNECT_SEL, pinsel);
 
+	if (spec->codec_type == VT1812)
+		snd_hda_codec_write(codec, 0x35, 0,
+				    AC_VERB_SET_CONNECT_SEL, pinsel);
 	if (spec->multiout.hp_nid && spec->multiout.hp_nid
 	    != spec->multiout.dac_nids[HDA_FRONT])
 		snd_hda_codec_setup_stream(codec, spec->multiout.hp_nid,
@@ -1208,6 +1224,8 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 		activate_ctl(codec, "Headphone Playback Switch",
 			     spec->hp_independent_mode);
 	}
+	/* update jack power state */
+	set_jack_power_state(codec);
 	return 0;
 }
 
@@ -1248,9 +1266,12 @@ static int via_hp_build(struct hda_codec *codec)
 		break;
 	}
 
-	nums = snd_hda_get_connections(codec, nid, conn, HDA_MAX_CONNECTIONS);
-	if (nums <= 1)
-		return 0;
+	if (spec->codec_type != VT1708) {
+		nums = snd_hda_get_connections(codec, nid,
+					       conn, HDA_MAX_CONNECTIONS);
+		if (nums <= 1)
+			return 0;
+	}
 
 	knew = via_clone_control(spec, &via_hp_mixer[0]);
 	if (knew == NULL)
@@ -1271,14 +1292,18 @@ static void notify_aa_path_ctls(struct hda_codec *codec)
 {
 	int i;
 	struct snd_ctl_elem_id id;
-	const char *labels[] = {"Mic", "Front Mic", "Line"};
+	const char *labels[] = {"Mic", "Front Mic", "Line", "Rear Mic"};
+	struct snd_kcontrol *ctl;
 
 	memset(&id, 0, sizeof(id));
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	for (i = 0; i < ARRAY_SIZE(labels); i++) {
 		sprintf(id.name, "%s Playback Volume", labels[i]);
-		snd_ctl_notify(codec->bus->card, SNDRV_CTL_EVENT_MASK_VALUE,
-			       &id);
+		ctl = snd_hda_find_mixer_ctl(codec, id.name);
+		if (ctl)
+			snd_ctl_notify(codec->bus->card,
+					SNDRV_CTL_EVENT_MASK_VALUE,
+					&ctl->id);
 	}
 }
 
@@ -1309,6 +1334,11 @@ static void mute_aa_path(struct hda_codec *codec, int mute)
 		nid_mixer = 0x16;
 		start_idx = 2;
 		end_idx = 4;
+		break;
+	case VT1718S:
+		nid_mixer = 0x21;
+		start_idx = 1;
+		end_idx = 3;
 		break;
 	default:
 		return;
@@ -2185,10 +2215,6 @@ static int via_init(struct hda_codec *codec)
 	for (i = 0; i < spec->num_iverbs; i++)
 		snd_hda_sequence_write(codec, spec->init_verbs[i]);
 
-	spec->codec_type = get_codec_type(codec);
-	if (spec->codec_type == VT1708BCE)
-		spec->codec_type = VT1708S; /* VT1708BCE & VT1708S are almost
-					       same */
 	/* Lydia Add for EAPD enable */
 	if (!spec->dig_in_nid) { /* No Digital In connection */
 		if (spec->dig_in_pin) {
@@ -2438,7 +2464,14 @@ static int vt_auto_create_analog_input_ctls(struct hda_codec *codec,
 		else
 			type_idx = 0;
 		label = hda_get_autocfg_input_label(codec, cfg, i);
-		err = via_new_analog_input(spec, label, type_idx, idx, cap_nid);
+		if (spec->codec_type == VT1708S ||
+		    spec->codec_type == VT1702 ||
+		    spec->codec_type == VT1716S)
+			err = via_new_analog_input(spec, label, type_idx,
+						   idx+1, cap_nid);
+		else
+			err = via_new_analog_input(spec, label, type_idx,
+						   idx, cap_nid);
 		if (err < 0)
 			return err;
 		snd_hda_add_imux_item(imux, label, idx, NULL);
@@ -4146,6 +4179,11 @@ static int patch_vt1708S(struct hda_codec *codec)
 			 "%s %s", codec->vendor_name, codec->chip_name);
 		spec->stream_name_analog = "VT1708BCE Analog";
 		spec->stream_name_digital = "VT1708BCE Digital";
+	}
+	/* correct names for VT1818S */
+	if (codec->vendor_id == 0x11060440) {
+		spec->stream_name_analog = "VT1818S Analog";
+		spec->stream_name_digital = "VT1818S Digital";
 	}
 	return 0;
 }

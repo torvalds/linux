@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -135,22 +135,19 @@ out_ddp_put:
 	return len;
 }
 
+
 /**
- * ixgbe_fcoe_ddp_get - called to set up ddp context
+ * ixgbe_fcoe_ddp_setup - called to set up ddp context
  * @netdev: the corresponding net_device
  * @xid: the exchange id requesting ddp
  * @sgl: the scatter-gather list for this request
  * @sgc: the number of scatter-gather items
  *
- * This is the implementation of net_device_ops.ndo_fcoe_ddp_setup
- * and is expected to be called from ULD, e.g., FCP layer of libfc
- * to set up ddp for the corresponding xid of the given sglist for
- * the corresponding I/O.
- *
  * Returns : 1 for success and 0 for no ddp
  */
-int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
-		       struct scatterlist *sgl, unsigned int sgc)
+static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
+				struct scatterlist *sgl, unsigned int sgc,
+				int target_mode)
 {
 	struct ixgbe_adapter *adapter;
 	struct ixgbe_hw *hw;
@@ -164,7 +161,7 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 	unsigned int lastsize;
 	unsigned int thisoff = 0;
 	unsigned int thislen = 0;
-	u32 fcbuff, fcdmarw, fcfltrw;
+	u32 fcbuff, fcdmarw, fcfltrw, fcrxctl;
 	dma_addr_t addr = 0;
 
 	if (!netdev || !sgl)
@@ -275,6 +272,9 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 	fcbuff = (IXGBE_FCBUFF_4KB << IXGBE_FCBUFF_BUFFSIZE_SHIFT);
 	fcbuff |= ((j & 0xff) << IXGBE_FCBUFF_BUFFCNT_SHIFT);
 	fcbuff |= (firstoff << IXGBE_FCBUFF_OFFSET_SHIFT);
+	/* Set WRCONTX bit to allow DDP for target */
+	if (target_mode)
+		fcbuff |= (IXGBE_FCBUFF_WRCONTX);
 	fcbuff |= (IXGBE_FCBUFF_VALID);
 
 	fcdmarw = xid;
@@ -287,6 +287,16 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 	/* program DMA context */
 	hw = &adapter->hw;
 	spin_lock_bh(&fcoe->lock);
+
+	/* turn on last frame indication for target mode as FCP_RSPtarget is
+	 * supposed to send FCP_RSP when it is done. */
+	if (target_mode && !test_bit(__IXGBE_FCOE_TARGET, &fcoe->mode)) {
+		set_bit(__IXGBE_FCOE_TARGET, &fcoe->mode);
+		fcrxctl = IXGBE_READ_REG(hw, IXGBE_FCRXCTRL);
+		fcrxctl |= IXGBE_FCRXCTRL_LASTSEQH;
+		IXGBE_WRITE_REG(hw, IXGBE_FCRXCTRL, fcrxctl);
+	}
+
 	IXGBE_WRITE_REG(hw, IXGBE_FCPTRL, ddp->udp & DMA_BIT_MASK(32));
 	IXGBE_WRITE_REG(hw, IXGBE_FCPTRH, (u64)ddp->udp >> 32);
 	IXGBE_WRITE_REG(hw, IXGBE_FCBUFF, fcbuff);
@@ -295,6 +305,7 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 	IXGBE_WRITE_REG(hw, IXGBE_FCPARAM, 0);
 	IXGBE_WRITE_REG(hw, IXGBE_FCFLT, IXGBE_FCFLT_VALID);
 	IXGBE_WRITE_REG(hw, IXGBE_FCFLTRW, fcfltrw);
+
 	spin_unlock_bh(&fcoe->lock);
 
 	return 1;
@@ -306,6 +317,47 @@ out_noddp_free:
 out_noddp_unmap:
 	pci_unmap_sg(adapter->pdev, sgl, sgc, DMA_FROM_DEVICE);
 	return 0;
+}
+
+/**
+ * ixgbe_fcoe_ddp_get - called to set up ddp context in initiator mode
+ * @netdev: the corresponding net_device
+ * @xid: the exchange id requesting ddp
+ * @sgl: the scatter-gather list for this request
+ * @sgc: the number of scatter-gather items
+ *
+ * This is the implementation of net_device_ops.ndo_fcoe_ddp_setup
+ * and is expected to be called from ULD, e.g., FCP layer of libfc
+ * to set up ddp for the corresponding xid of the given sglist for
+ * the corresponding I/O.
+ *
+ * Returns : 1 for success and 0 for no ddp
+ */
+int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
+		       struct scatterlist *sgl, unsigned int sgc)
+{
+	return ixgbe_fcoe_ddp_setup(netdev, xid, sgl, sgc, 0);
+}
+
+/**
+ * ixgbe_fcoe_ddp_target - called to set up ddp context in target mode
+ * @netdev: the corresponding net_device
+ * @xid: the exchange id requesting ddp
+ * @sgl: the scatter-gather list for this request
+ * @sgc: the number of scatter-gather items
+ *
+ * This is the implementation of net_device_ops.ndo_fcoe_ddp_target
+ * and is expected to be called from ULD, e.g., FCP layer of libfc
+ * to set up ddp for the corresponding xid of the given sglist for
+ * the corresponding I/O. The DDP in target mode is a write I/O request
+ * from the initiator.
+ *
+ * Returns : 1 for success and 0 for no ddp
+ */
+int ixgbe_fcoe_ddp_target(struct net_device *netdev, u16 xid,
+			    struct scatterlist *sgl, unsigned int sgc)
+{
+	return ixgbe_fcoe_ddp_setup(netdev, xid, sgl, sgc, 1);
 }
 
 /**
@@ -331,6 +383,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	struct ixgbe_fcoe *fcoe;
 	struct ixgbe_fcoe_ddp *ddp;
 	struct fc_frame_header *fh;
+	struct fcoe_crc_eof *crc;
 
 	if (!ixgbe_rx_is_fcoe(rx_desc))
 		goto ddp_out;
@@ -384,7 +437,18 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		else if (ddp->len)
 			rc = ddp->len;
 	}
-
+	/* In target mode, check the last data frame of the sequence.
+	 * For DDP in target mode, data is already DDPed but the header
+	 * indication of the last data frame ould allow is to tell if we
+	 * got all the data and the ULP can send FCP_RSP back, as this is
+	 * not a full fcoe frame, we fill the trailer here so it won't be
+	 * dropped by the ULP stack.
+	 */
+	if ((fh->fh_r_ctl == FC_RCTL_DD_SOL_DATA) &&
+	    (fctl & FC_FC_END_SEQ)) {
+		crc = (struct fcoe_crc_eof *)skb_put(skb, sizeof(*crc));
+		crc->fcoe_eof = FC_EOF_T;
+	}
 ddp_out:
 	return rc;
 }
@@ -749,21 +813,6 @@ out_disable:
 
 #ifdef CONFIG_IXGBE_DCB
 /**
- * ixgbe_fcoe_getapp - retrieves current user priority bitmap for FCoE
- * @adapter : ixgbe adapter
- *
- * Finds out the corresponding user priority bitmap from the current
- * traffic class that FCoE belongs to. Returns 0 as the invalid user
- * priority bitmap to indicate an error.
- *
- * Returns : 802.1p user priority bitmap for FCoE
- */
-u8 ixgbe_fcoe_getapp(struct ixgbe_adapter *adapter)
-{
-	return 1 << adapter->fcoe.up;
-}
-
-/**
  * ixgbe_fcoe_setapp - sets the user priority bitmap for FCoE
  * @adapter : ixgbe adapter
  * @up : 802.1p user priority bitmap
@@ -840,5 +889,3 @@ int ixgbe_fcoe_get_wwn(struct net_device *netdev, u64 *wwn, int type)
 	}
 	return rc;
 }
-
-

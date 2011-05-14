@@ -267,7 +267,7 @@ const struct dev_pm_ops name = { \
  * callbacks provided by device drivers supporting both the system sleep PM and
  * runtime PM, make the pm member point to generic_subsys_pm_ops.
  */
-#ifdef CONFIG_PM_OPS
+#ifdef CONFIG_PM
 extern struct dev_pm_ops generic_subsys_pm_ops;
 #define GENERIC_SUBSYS_PM_OPS	(&generic_subsys_pm_ops)
 #else
@@ -431,6 +431,8 @@ struct dev_pm_info {
 	struct list_head	entry;
 	struct completion	completion;
 	struct wakeup_source	*wakeup;
+#else
+	unsigned int		should_wakeup:1;
 #endif
 #ifdef CONFIG_PM_RUNTIME
 	struct timer_list	suspend_timer;
@@ -463,6 +465,14 @@ struct dev_pm_info {
 
 extern void update_pm_runtime_accounting(struct device *dev);
 
+/*
+ * Power domains provide callbacks that are executed during system suspend,
+ * hibernation, system resume and during runtime PM transitions along with
+ * subsystem-level and driver-level callbacks.
+ */
+struct dev_power_domain {
+	struct dev_pm_ops	ops;
+};
 
 /*
  * The PM_EVENT_ messages are also used by drivers implementing the legacy
@@ -519,13 +529,19 @@ extern void update_pm_runtime_accounting(struct device *dev);
  */
 
 #ifdef CONFIG_PM_SLEEP
-extern void device_pm_lock(void);
+#ifndef CONFIG_ARCH_NO_SYSDEV_OPS
+extern int sysdev_suspend(pm_message_t state);
 extern int sysdev_resume(void);
+#else
+static inline int sysdev_suspend(pm_message_t state) { return 0; }
+static inline int sysdev_resume(void) { return 0; }
+#endif
+
+extern void device_pm_lock(void);
 extern void dpm_resume_noirq(pm_message_t state);
 extern void dpm_resume_end(pm_message_t state);
 
 extern void device_pm_unlock(void);
-extern int sysdev_suspend(pm_message_t state);
 extern int dpm_suspend_noirq(pm_message_t state);
 extern int dpm_suspend_start(pm_message_t state);
 
@@ -562,15 +578,6 @@ enum dpm_order {
 	DPM_ORDER_PARENT_BEFORE_DEV,
 	DPM_ORDER_DEV_LAST,
 };
-
-/*
- * Global Power Management flags
- * Used to keep APM and ACPI from both being active
- */
-extern unsigned int	pm_flags;
-
-#define PM_APM	1
-#define PM_ACPI	2
 
 extern int pm_generic_suspend(struct device *dev);
 extern int pm_generic_resume(struct device *dev);

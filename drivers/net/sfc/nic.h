@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2009 Solarflare Communications Inc.
+ * Copyright 2006-2011 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -142,19 +142,13 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
 
 /**
  * struct siena_nic_data - Siena NIC state
- * @fw_version: Management controller firmware version
- * @fw_build: Firmware build number
  * @mcdi: Management-Controller-to-Driver Interface
  * @wol_filter_id: Wake-on-LAN packet filter id
  */
 struct siena_nic_data {
-	u64 fw_version;
-	u32 fw_build;
 	struct efx_mcdi_iface mcdi;
 	int wol_filter_id;
 };
-
-extern void siena_print_fwver(struct efx_nic *efx, char *buf, size_t len);
 
 extern struct efx_nic_type falcon_a1_nic_type;
 extern struct efx_nic_type falcon_b0_nic_type;
@@ -190,11 +184,11 @@ extern void efx_nic_fini_eventq(struct efx_channel *channel);
 extern void efx_nic_remove_eventq(struct efx_channel *channel);
 extern int efx_nic_process_eventq(struct efx_channel *channel, int rx_quota);
 extern void efx_nic_eventq_read_ack(struct efx_channel *channel);
+extern bool efx_nic_event_present(struct efx_channel *channel);
 
 /* MAC/PHY */
 extern void falcon_drain_tx_fifo(struct efx_nic *efx);
 extern void falcon_reconfigure_mac_wrapper(struct efx_nic *efx);
-extern int efx_nic_rx_xoff_thresh, efx_nic_rx_xon_thresh;
 
 /* Interrupts and test events */
 extern int efx_nic_init_interrupt(struct efx_nic *efx);

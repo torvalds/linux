@@ -175,9 +175,9 @@
    the initial credit value; read returns the current value of the credit
    counter. Must be initialized to 1 at start-up. */
 #define CCM_REG_CFC_INIT_CRD					 0xd0204
-/* [RW 2] Auxillary counter flag Q number 1. */
+/* [RW 2] Auxiliary counter flag Q number 1. */
 #define CCM_REG_CNT_AUX1_Q					 0xd00c8
-/* [RW 2] Auxillary counter flag Q number 2. */
+/* [RW 2] Auxiliary counter flag Q number 2. */
 #define CCM_REG_CNT_AUX2_Q					 0xd00cc
 /* [RW 28] The CM header value for QM request (primary). */
 #define CCM_REG_CQM_CCM_HDR_P					 0xd008c
@@ -457,13 +457,13 @@
 #define CSDM_REG_AGG_INT_MODE_9 				 0xc21dc
 /* [RW 13] The start address in the internal RAM for the cfc_rsp lcid */
 #define CSDM_REG_CFC_RSP_START_ADDR				 0xc2008
-/* [RW 16] The maximum value of the competion counter #0 */
+/* [RW 16] The maximum value of the completion counter #0 */
 #define CSDM_REG_CMP_COUNTER_MAX0				 0xc201c
-/* [RW 16] The maximum value of the competion counter #1 */
+/* [RW 16] The maximum value of the completion counter #1 */
 #define CSDM_REG_CMP_COUNTER_MAX1				 0xc2020
-/* [RW 16] The maximum value of the competion counter #2 */
+/* [RW 16] The maximum value of the completion counter #2 */
 #define CSDM_REG_CMP_COUNTER_MAX2				 0xc2024
-/* [RW 16] The maximum value of the competion counter #3 */
+/* [RW 16] The maximum value of the completion counter #3 */
 #define CSDM_REG_CMP_COUNTER_MAX3				 0xc2028
 /* [RW 13] The start address in the internal RAM for the completion
    counters. */
@@ -851,7 +851,7 @@
 #define IGU_REG_ATTN_MSG_ADDR_L				 0x130120
 /* [R 4] Debug: [3] - attention write done message is pending (0-no pending;
  * 1-pending). [2:0] = PFID. Pending means attention message was sent; but
- * write done didnt receive. */
+ * write done didn't receive. */
 #define IGU_REG_ATTN_WRITE_DONE_PENDING			 0x130030
 #define IGU_REG_BLOCK_CONFIGURATION				 0x130000
 #define IGU_REG_COMMAND_REG_32LSB_DATA				 0x130124
@@ -862,7 +862,7 @@
 #define IGU_REG_CSTORM_TYPE_0_SB_CLEANUP			 0x130200
 /* [R 5] Debug: ctrl_fsm */
 #define IGU_REG_CTRL_FSM					 0x130064
-/* [R 1] data availble for error memory. If this bit is clear do not red
+/* [R 1] data available for error memory. If this bit is clear do not red
  * from error_handling_memory. */
 #define IGU_REG_ERROR_HANDLING_DATA_VALID			 0x130130
 /* [RW 11] Parity mask register #0 read/write */
@@ -3015,7 +3015,7 @@
    block. Should be used for close the gates. */
 #define PXP_REG_HST_DISCARD_DOORBELLS				 0x1030a4
 /* [R 1] debug only: '1' means this PSWHST is discarding doorbells. This bit
-   should update accoring to 'hst_discard_doorbells' register when the state
+   should update according to 'hst_discard_doorbells' register when the state
    machine is idle */
 #define PXP_REG_HST_DISCARD_DOORBELLS_STATUS			 0x1030a0
 /* [RW 1] When 1; new internal writes arriving to the block are discarded.
@@ -3023,7 +3023,7 @@
 #define PXP_REG_HST_DISCARD_INTERNAL_WRITES			 0x1030a8
 /* [R 6] debug only: A bit mask for all PSWHST internal write clients. '1'
    means this PSWHST is discarding inputs from this client. Each bit should
-   update accoring to 'hst_discard_internal_writes' register when the state
+   update according to 'hst_discard_internal_writes' register when the state
    machine is idle. */
 #define PXP_REG_HST_DISCARD_INTERNAL_WRITES_STATUS		 0x10309c
 /* [WB 160] Used for initialization of the inbound interrupts memory */
@@ -3822,13 +3822,13 @@
 #define TSDM_REG_AGG_INT_T_1					 0x420bc
 /* [RW 13] The start address in the internal RAM for the cfc_rsp lcid */
 #define TSDM_REG_CFC_RSP_START_ADDR				 0x42008
-/* [RW 16] The maximum value of the competion counter #0 */
+/* [RW 16] The maximum value of the completion counter #0 */
 #define TSDM_REG_CMP_COUNTER_MAX0				 0x4201c
-/* [RW 16] The maximum value of the competion counter #1 */
+/* [RW 16] The maximum value of the completion counter #1 */
 #define TSDM_REG_CMP_COUNTER_MAX1				 0x42020
-/* [RW 16] The maximum value of the competion counter #2 */
+/* [RW 16] The maximum value of the completion counter #2 */
 #define TSDM_REG_CMP_COUNTER_MAX2				 0x42024
-/* [RW 16] The maximum value of the competion counter #3 */
+/* [RW 16] The maximum value of the completion counter #3 */
 #define TSDM_REG_CMP_COUNTER_MAX3				 0x42028
 /* [RW 13] The start address in the internal RAM for the completion
    counters. */
@@ -4284,13 +4284,13 @@
 #define USDM_REG_AGG_INT_T_6					 0xc40d0
 /* [RW 13] The start address in the internal RAM for the cfc_rsp lcid */
 #define USDM_REG_CFC_RSP_START_ADDR				 0xc4008
-/* [RW 16] The maximum value of the competion counter #0 */
+/* [RW 16] The maximum value of the completion counter #0 */
 #define USDM_REG_CMP_COUNTER_MAX0				 0xc401c
-/* [RW 16] The maximum value of the competion counter #1 */
+/* [RW 16] The maximum value of the completion counter #1 */
 #define USDM_REG_CMP_COUNTER_MAX1				 0xc4020
-/* [RW 16] The maximum value of the competion counter #2 */
+/* [RW 16] The maximum value of the completion counter #2 */
 #define USDM_REG_CMP_COUNTER_MAX2				 0xc4024
-/* [RW 16] The maximum value of the competion counter #3 */
+/* [RW 16] The maximum value of the completion counter #3 */
 #define USDM_REG_CMP_COUNTER_MAX3				 0xc4028
 /* [RW 13] The start address in the internal RAM for the completion
    counters. */
@@ -4798,13 +4798,13 @@
 #define XSDM_REG_AGG_INT_MODE_1 				 0x1661bc
 /* [RW 13] The start address in the internal RAM for the cfc_rsp lcid */
 #define XSDM_REG_CFC_RSP_START_ADDR				 0x166008
-/* [RW 16] The maximum value of the competion counter #0 */
+/* [RW 16] The maximum value of the completion counter #0 */
 #define XSDM_REG_CMP_COUNTER_MAX0				 0x16601c
-/* [RW 16] The maximum value of the competion counter #1 */
+/* [RW 16] The maximum value of the completion counter #1 */
 #define XSDM_REG_CMP_COUNTER_MAX1				 0x166020
-/* [RW 16] The maximum value of the competion counter #2 */
+/* [RW 16] The maximum value of the completion counter #2 */
 #define XSDM_REG_CMP_COUNTER_MAX2				 0x166024
-/* [RW 16] The maximum value of the competion counter #3 */
+/* [RW 16] The maximum value of the completion counter #3 */
 #define XSDM_REG_CMP_COUNTER_MAX3				 0x166028
 /* [RW 13] The start address in the internal RAM for the completion
    counters. */
@@ -6083,6 +6083,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_8727_PCS_OPT_CTRL		0xc808
 #define MDIO_PMA_REG_8727_GPIO_CTRL		0xc80e
 #define MDIO_PMA_REG_8727_PCS_GP		0xc842
+#define MDIO_PMA_REG_8727_OPT_CFG_REG		0xc8e4
 
 #define MDIO_AN_REG_8727_MISC_CTRL		0x8309
 

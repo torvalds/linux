@@ -391,7 +391,7 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	if (do_QDIO(cdev, QDIO_FLAG_SYNC_INPUT, 0, 0, QDIO_MAX_BUFFERS_PER_Q))
 		goto failed_qdio;
 
-	/* set index of first avalable SBALS / number of available SBALS */
+	/* set index of first available SBALS / number of available SBALS */
 	qdio->req_q_idx = 0;
 	atomic_set(&qdio->req_q_free, QDIO_MAX_BUFFERS_PER_Q);
 	atomic_set_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &qdio->adapter->status);

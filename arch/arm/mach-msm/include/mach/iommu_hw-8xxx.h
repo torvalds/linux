@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -68,6 +68,7 @@ do { \
 #define FL_CACHEABLE		(1 << 3)
 #define FL_TEX0			(1 << 12)
 #define FL_OFFSET(va)		(((va) & 0xFFF00000) >> 20)
+#define FL_NG			(1 << 17)
 
 /* Second-level page table bits */
 #define SL_BASE_MASK_LARGE	0xFFFF0000
@@ -81,6 +82,7 @@ do { \
 #define SL_CACHEABLE		(1 << 3)
 #define SL_TEX0			(1 << 6)
 #define SL_OFFSET(va)		(((va) & 0xFF000) >> 12)
+#define SL_NG			(1 << 11)
 
 /* Memory type and cache policy attributes */
 #define MT_SO			0
@@ -623,20 +625,6 @@ do { \
 #define SET_INDEX(b, c, v)	 SET_CONTEXT_FIELD(b, c, V2PSR, INDEX, v)
 
 
-/* V2Pxx UW UR PW PR */
-#define SET_V2PUW_INDEX(b, c, v) SET_CONTEXT_FIELD(b, c, V2PUW, V2Pxx_INDEX, v)
-#define SET_V2PUW_VA(b, c, v)	 SET_CONTEXT_FIELD(b, c, V2PUW, V2Pxx_VA, v)
-
-#define SET_V2PUR_INDEX(b, c, v) SET_CONTEXT_FIELD(b, c, V2PUR, V2Pxx_INDEX, v)
-#define SET_V2PUR_VA(b, c, v)	 SET_CONTEXT_FIELD(b, c, V2PUR, V2Pxx_VA, v)
-
-#define SET_V2PPW_INDEX(b, c, v) SET_CONTEXT_FIELD(b, c, V2PPW, V2Pxx_INDEX, v)
-#define SET_V2PPW_VA(b, c, v)	 SET_CONTEXT_FIELD(b, c, V2PPW, V2Pxx_VA, v)
-
-#define SET_V2PPR_INDEX(b, c, v) SET_CONTEXT_FIELD(b, c, V2PPR, V2Pxx_INDEX, v)
-#define SET_V2PPR_VA(b, c, v)	 SET_CONTEXT_FIELD(b, c, V2PPR, V2Pxx_VA, v)
-
-
 /* Context Register getters */
 /* ACTLR */
 #define GET_CFERE(b, c)	        GET_CONTEXT_FIELD(b, c, ACTLR, CFERE)
@@ -822,20 +810,6 @@ do { \
 /* V2PSR */
 #define GET_HIT(b, c)		GET_CONTEXT_FIELD(b, c, V2PSR, HIT)
 #define GET_INDEX(b, c)		GET_CONTEXT_FIELD(b, c, V2PSR, INDEX)
-
-
-/* V2Pxx UW UR PW PR */
-#define GET_V2PUW_INDEX(b, c)	GET_CONTEXT_FIELD(b, c, V2PUW, V2Pxx_INDEX)
-#define GET_V2PUW_VA(b, c)	GET_CONTEXT_FIELD(b, c, V2PUW, V2Pxx_VA)
-
-#define GET_V2PUR_INDEX(b, c)	GET_CONTEXT_FIELD(b, c, V2PUR, V2Pxx_INDEX)
-#define GET_V2PUR_VA(b, c)	GET_CONTEXT_FIELD(b, c, V2PUR, V2Pxx_VA)
-
-#define GET_V2PPW_INDEX(b, c)	GET_CONTEXT_FIELD(b, c, V2PPW, V2Pxx_INDEX)
-#define GET_V2PPW_VA(b, c)	GET_CONTEXT_FIELD(b, c, V2PPW, V2Pxx_VA)
-
-#define GET_V2PPR_INDEX(b, c)	GET_CONTEXT_FIELD(b, c, V2PPR, V2Pxx_INDEX)
-#define GET_V2PPR_VA(b, c)	GET_CONTEXT_FIELD(b, c, V2PPR, V2Pxx_VA)
 
 
 /* Global Registers */

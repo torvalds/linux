@@ -251,7 +251,7 @@ struct mdp_superblock_1 {
 	__le64	utime;		/* 40 bits second, 24 btes microseconds */
 	__le64	events;		/* incremented when superblock updated */
 	__le64	resync_offset;	/* data before this offset (from data_offset) known to be in sync */
-	__le32	sb_csum;	/* checksum upto devs[max_dev] */
+	__le32	sb_csum;	/* checksum up to devs[max_dev] */
 	__le32	max_dev;	/* size of devs[] array to consider */
 	__u8	pad3[64-32];	/* set to 0 when writing */
 

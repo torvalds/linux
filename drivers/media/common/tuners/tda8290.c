@@ -658,13 +658,13 @@ static int tda8290_probe(struct tuner_i2c_props *i2c_props)
 #define TDA8290_ID 0x89
 	u8 reg = 0x1f, id;
 	struct i2c_msg msg_read[] = {
-		{ .addr = 0x4b, .flags = 0, .len = 1, .buf = &reg },
-		{ .addr = 0x4b, .flags = I2C_M_RD, .len = 1, .buf = &id },
+		{ .addr = i2c_props->addr, .flags = 0, .len = 1, .buf = &reg },
+		{ .addr = i2c_props->addr, .flags = I2C_M_RD, .len = 1, .buf = &id },
 	};
 
 	/* detect tda8290 */
 	if (i2c_transfer(i2c_props->adap, msg_read, 2) != 2) {
-		printk(KERN_WARNING "%s: tda8290 couldn't read register 0x%02x\n",
+		printk(KERN_WARNING "%s: couldn't read register 0x%02x\n",
 			       __func__, reg);
 		return -ENODEV;
 	}
@@ -685,13 +685,13 @@ static int tda8295_probe(struct tuner_i2c_props *i2c_props)
 #define TDA8295C2_ID 0x8b
 	u8 reg = 0x2f, id;
 	struct i2c_msg msg_read[] = {
-		{ .addr = 0x4b, .flags = 0, .len = 1, .buf = &reg },
-		{ .addr = 0x4b, .flags = I2C_M_RD, .len = 1, .buf = &id },
+		{ .addr = i2c_props->addr, .flags = 0, .len = 1, .buf = &reg },
+		{ .addr = i2c_props->addr, .flags = I2C_M_RD, .len = 1, .buf = &id },
 	};
 
-	/* detect tda8290 */
+	/* detect tda8295 */
 	if (i2c_transfer(i2c_props->adap, msg_read, 2) != 2) {
-		printk(KERN_WARNING "%s: tda8290 couldn't read register 0x%02x\n",
+		printk(KERN_WARNING "%s: couldn't read register 0x%02x\n",
 			       __func__, reg);
 		return -ENODEV;
 	}

@@ -43,8 +43,14 @@ module_param_named(modeset, i915_modeset, int, 0400);
 unsigned int i915_fbpercrtc = 0;
 module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 
+int i915_panel_ignore_lid = 0;
+module_param_named(panel_ignore_lid, i915_panel_ignore_lid, int, 0600);
+
 unsigned int i915_powersave = 1;
 module_param_named(powersave, i915_powersave, int, 0600);
+
+unsigned int i915_semaphores = 1;
+module_param_named(semaphores, i915_semaphores, int, 0600);
 
 unsigned int i915_enable_rc6 = 0;
 module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0600);
@@ -55,7 +61,10 @@ module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
 unsigned int i915_panel_use_ssc = 1;
 module_param_named(lvds_use_ssc, i915_panel_use_ssc, int, 0600);
 
-bool i915_try_reset = true;
+int i915_vbt_sdvo_panel_type = -1;
+module_param_named(vbt_sdvo_panel_type, i915_vbt_sdvo_panel_type, int, 0600);
+
+static bool i915_try_reset = true;
 module_param_named(reset, i915_try_reset, bool, 0600);
 
 static struct drm_driver driver;
@@ -254,7 +263,7 @@ void intel_detect_pch (struct drm_device *dev)
 	}
 }
 
-void __gen6_force_wake_get(struct drm_i915_private *dev_priv)
+void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 {
 	int count;
 
@@ -270,10 +279,20 @@ void __gen6_force_wake_get(struct drm_i915_private *dev_priv)
 		udelay(10);
 }
 
-void __gen6_force_wake_put(struct drm_i915_private *dev_priv)
+void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE, 0);
 	POSTING_READ(FORCEWAKE);
+}
+
+void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
+{
+	int loop = 500;
+	u32 fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+	while (fifo < 20 && loop--) {
+		udelay(10);
+		fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+	}
 }
 
 static int i915_drm_freeze(struct drm_device *dev)
@@ -703,6 +722,9 @@ static struct drm_driver driver = {
 	.gem_init_object = i915_gem_init_object,
 	.gem_free_object = i915_gem_free_object,
 	.gem_vm_ops = &i915_gem_vm_ops,
+	.dumb_create = i915_gem_dumb_create,
+	.dumb_map_offset = i915_gem_mmap_gtt,
+	.dumb_destroy = i915_gem_dumb_destroy,
 	.ioctls = i915_ioctls,
 	.fops = {
 		 .owner = THIS_MODULE,
@@ -719,20 +741,20 @@ static struct drm_driver driver = {
 		 .llseek = noop_llseek,
 	},
 
-	.pci_driver = {
-		 .name = DRIVER_NAME,
-		 .id_table = pciidlist,
-		 .probe = i915_pci_probe,
-		 .remove = i915_pci_remove,
-		 .driver.pm = &i915_pm_ops,
-	},
-
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
+};
+
+static struct pci_driver i915_pci_driver = {
+	.name = DRIVER_NAME,
+	.id_table = pciidlist,
+	.probe = i915_pci_probe,
+	.remove = i915_pci_remove,
+	.driver.pm = &i915_pm_ops,
 };
 
 static int __init i915_init(void)
@@ -768,12 +790,12 @@ static int __init i915_init(void)
 	if (!(driver.driver_features & DRIVER_MODESET))
 		driver.get_vblank_timestamp = NULL;
 
-	return drm_init(&driver);
+	return drm_pci_init(&driver, &i915_pci_driver);
 }
 
 static void __exit i915_exit(void)
 {
-	drm_exit(&driver);
+	drm_pci_exit(&driver, &i915_pci_driver);
 }
 
 module_init(i915_init);

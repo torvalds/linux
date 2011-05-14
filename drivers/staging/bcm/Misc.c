@@ -498,13 +498,12 @@ VOID LinkMessage(PMINI_ADAPTER Adapter)
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "=====>");
 	if(Adapter->LinkStatus == SYNC_UP_REQUEST && Adapter->AutoSyncup)
 	{
-		pstLinkRequest=kmalloc(sizeof(LINK_REQUEST), GFP_ATOMIC);
+		pstLinkRequest = kzalloc(sizeof(LINK_REQUEST), GFP_ATOMIC);
 		if(!pstLinkRequest)
 		{
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "Can not allocate memory for Link request!");
 			return;
 		}
-		memset(pstLinkRequest,0,sizeof(LINK_REQUEST));
 		//sync up request...
 		Adapter->LinkStatus = WAIT_FOR_SYNC;// current link status
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "Requesting For SyncUp...");
@@ -516,13 +515,12 @@ VOID LinkMessage(PMINI_ADAPTER Adapter)
 	}
 	else if(Adapter->LinkStatus == PHY_SYNC_ACHIVED && Adapter->AutoLinkUp)
 	{
-		pstLinkRequest=kmalloc(sizeof(LINK_REQUEST), GFP_ATOMIC);
+		pstLinkRequest = kzalloc(sizeof(LINK_REQUEST), GFP_ATOMIC);
 		if(!pstLinkRequest)
 		{
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "Can not allocate memory for Link request!");
 			return;
 		}
-		memset(pstLinkRequest,0,sizeof(LINK_REQUEST));
 		//LINK_UP_REQUEST
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "Requesting For LinkUp...");
 		pstLinkRequest->szData[0]=LINK_UP_REQ_PAYLOAD;
@@ -604,7 +602,7 @@ VOID LinkControlResponseMessage(PMINI_ADAPTER Adapter,PUCHAR pucBuffer)
 				Adapter->LinkStatus=LINKUP_DONE;
 				Adapter->bPHSEnabled = *(pucBuffer+3);
                	Adapter->bETHCSEnabled = *(pucBuffer+4) & ETH_CS_MASK;
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "PHS Support Status Recieved In LinkUp Ack : %x \n",Adapter->bPHSEnabled);
+				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "PHS Support Status Received In LinkUp Ack : %x \n",Adapter->bPHSEnabled);
 				if((FALSE == Adapter->bShutStatus)&&
 					(FALSE == Adapter->IdleMode))
 				{
@@ -1155,7 +1153,7 @@ int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
 
 	/*
      * 1. If the LED Settings fails, do not stop and do the Firmware download.
-     * 2. This init would happend only if the cfg file is present, else
+     * 2. This init would happened only if the cfg file is present, else
      *    call from the ioctl context.
      */
 
@@ -1187,7 +1185,7 @@ int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
 		status = PropagateCalParamsFromFlashToMemory(ps_adapter);
 		if(status)
 		{
-			BCM_DEBUG_PRINT(ps_adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL," Propogation of Cal param failed .." );
+			BCM_DEBUG_PRINT(ps_adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL," Propagation of Cal param failed .." );
 			goto OUT;
 		}
 	}

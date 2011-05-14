@@ -42,7 +42,7 @@
 static struct usb_composite_driver *composite;
 static int (*composite_gadget_bind)(struct usb_composite_dev *cdev);
 
-/* Some systems will need runtime overrides for the  product identifers
+/* Some systems will need runtime overrides for the  product identifiers
  * published in the device descriptor, either numbers or strings or both.
  * String parameters are in UTF-8 (superset of ASCII's 7 bit characters).
  */
@@ -205,14 +205,14 @@ int usb_function_activate(struct usb_function *function)
  * usb_interface_id() is called from usb_function.bind() callbacks to
  * allocate new interface IDs.  The function driver will then store that
  * ID in interface, association, CDC union, and other descriptors.  It
- * will also handle any control requests targetted at that interface,
+ * will also handle any control requests targeted at that interface,
  * particularly changing its altsetting via set_alt().  There may
  * also be class-specific or vendor-specific requests to handle.
  *
  * All interface identifier should be allocated using this routine, to
  * ensure that for example different functions don't wrongly assign
  * different meanings to the same identifier.  Note that since interface
- * identifers are configuration-specific, functions used in more than
+ * identifiers are configuration-specific, functions used in more than
  * one configuration (or more than once in a given configuration) need
  * multiple versions of the relevant descriptors.
  *
@@ -813,7 +813,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	 */
 	req->zero = 0;
 	req->complete = composite_setup_complete;
-	req->length = USB_BUFSIZ;
+	req->length = 0;
 	gadget->ep0->driver_data = cdev;
 
 	switch (ctrl->bRequest) {
@@ -887,7 +887,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	case USB_REQ_SET_INTERFACE:
 		if (ctrl->bRequestType != USB_RECIP_INTERFACE)
 			goto unknown;
-		if (!cdev->config || w_index >= MAX_CONFIG_INTERFACES)
+		if (!cdev->config || intf >= MAX_CONFIG_INTERFACES)
 			break;
 		f = cdev->config->interface[intf];
 		if (!f)
@@ -899,7 +899,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	case USB_REQ_GET_INTERFACE:
 		if (ctrl->bRequestType != (USB_DIR_IN|USB_RECIP_INTERFACE))
 			goto unknown;
-		if (!cdev->config || w_index >= MAX_CONFIG_INTERFACES)
+		if (!cdev->config || intf >= MAX_CONFIG_INTERFACES)
 			break;
 		f = cdev->config->interface[intf];
 		if (!f)
@@ -928,7 +928,7 @@ unknown:
 		 */
 		switch (ctrl->bRequestType & USB_RECIP_MASK) {
 		case USB_RECIP_INTERFACE:
-			if (!cdev->config || w_index >= MAX_CONFIG_INTERFACES)
+			if (!cdev->config || intf >= MAX_CONFIG_INTERFACES)
 				break;
 			f = cdev->config->interface[intf];
 			break;
@@ -1258,16 +1258,16 @@ static struct usb_gadget_driver composite_driver = {
  * while it was binding.  That would usually be done in order to wait for
  * some userspace participation.
  */
-extern int usb_composite_probe(struct usb_composite_driver *driver,
+int usb_composite_probe(struct usb_composite_driver *driver,
 			       int (*bind)(struct usb_composite_dev *cdev))
 {
 	if (!driver || !driver->dev || !bind || composite)
 		return -EINVAL;
 
-	if (!driver->iProduct)
-		driver->iProduct = driver->name;
 	if (!driver->name)
 		driver->name = "composite";
+	if (!driver->iProduct)
+		driver->iProduct = driver->name;
 	composite_driver.function =  (char *) driver->name;
 	composite_driver.driver.name = driver->name;
 	composite = driver;

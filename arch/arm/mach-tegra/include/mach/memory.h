@@ -22,7 +22,7 @@
 #define __MACH_TEGRA_MEMORY_H
 
 /* physical offset of RAM */
-#define PHYS_OFFSET		UL(0)
+#define PLAT_PHYS_OFFSET		UL(0)
 
 #endif
 

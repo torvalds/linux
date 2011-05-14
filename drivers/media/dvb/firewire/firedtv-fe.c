@@ -36,14 +36,14 @@ static int fdtv_dvb_init(struct dvb_frontend *fe)
 		return err;
 	}
 
-	return fdtv->backend->start_iso(fdtv);
+	return fdtv_start_iso(fdtv);
 }
 
 static int fdtv_sleep(struct dvb_frontend *fe)
 {
 	struct firedtv *fdtv = fe->sec_priv;
 
-	fdtv->backend->stop_iso(fdtv);
+	fdtv_stop_iso(fdtv);
 	cmp_break_pp_connection(fdtv, fdtv->subunit, fdtv->isochannel);
 	fdtv->isochannel = -1;
 	return 0;
@@ -165,7 +165,7 @@ static int fdtv_set_property(struct dvb_frontend *fe, struct dtv_property *tvp)
 	return 0;
 }
 
-void fdtv_frontend_init(struct firedtv *fdtv)
+void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 {
 	struct dvb_frontend_ops *ops = &fdtv->fe.ops;
 	struct dvb_frontend_info *fi = &ops->info;
@@ -266,7 +266,7 @@ void fdtv_frontend_init(struct firedtv *fdtv)
 		dev_err(fdtv->device, "no frontend for model type %d\n",
 			fdtv->type);
 	}
-	strcpy(fi->name, fdtv_model_names[fdtv->type]);
+	strcpy(fi->name, name);
 
 	fdtv->fe.dvb = &fdtv->adapter;
 	fdtv->fe.sec_priv = fdtv;

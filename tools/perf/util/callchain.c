@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2010, Frederic Weisbecker <fweisbec@gmail.com>
+ * Copyright (C) 2009-2011, Frederic Weisbecker <fweisbec@gmail.com>
  *
  * Handle the callchains from the stream in an ad-hoc radix tree and then
  * sort them in an rbtree.
@@ -18,7 +18,8 @@
 #include "util.h"
 #include "callchain.h"
 
-bool ip_callchain__valid(struct ip_callchain *chain, const event_t *event)
+bool ip_callchain__valid(struct ip_callchain *chain,
+			 const union perf_event *event)
 {
 	unsigned int chain_size = event->header.size;
 	chain_size -= (unsigned long)&event->ip.__more_data - (unsigned long)event;
@@ -26,10 +27,10 @@ bool ip_callchain__valid(struct ip_callchain *chain, const event_t *event)
 }
 
 #define chain_for_each_child(child, parent)	\
-	list_for_each_entry(child, &parent->children, brothers)
+	list_for_each_entry(child, &parent->children, siblings)
 
 #define chain_for_each_child_safe(child, next, parent)	\
-	list_for_each_entry_safe(child, next, &parent->children, brothers)
+	list_for_each_entry_safe(child, next, &parent->children, siblings)
 
 static void
 rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
@@ -38,14 +39,14 @@ rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
 	struct callchain_node *rnode;
-	u64 chain_cumul = cumul_hits(chain);
+	u64 chain_cumul = callchain_cumul_hits(chain);
 
 	while (*p) {
 		u64 rnode_cumul;
 
 		parent = *p;
 		rnode = rb_entry(parent, struct callchain_node, rb_node);
-		rnode_cumul = cumul_hits(rnode);
+		rnode_cumul = callchain_cumul_hits(rnode);
 
 		switch (mode) {
 		case CHAIN_FLAT:
@@ -104,7 +105,7 @@ static void __sort_chain_graph_abs(struct callchain_node *node,
 
 	chain_for_each_child(child, node) {
 		__sort_chain_graph_abs(child, min_hit);
-		if (cumul_hits(child) >= min_hit)
+		if (callchain_cumul_hits(child) >= min_hit)
 			rb_insert_callchain(&node->rb_root, child,
 					    CHAIN_GRAPH_ABS);
 	}
@@ -129,7 +130,7 @@ static void __sort_chain_graph_rel(struct callchain_node *node,
 
 	chain_for_each_child(child, node) {
 		__sort_chain_graph_rel(child, min_percent);
-		if (cumul_hits(child) >= min_hit)
+		if (callchain_cumul_hits(child) >= min_hit)
 			rb_insert_callchain(&node->rb_root, child,
 					    CHAIN_GRAPH_REL);
 	}
@@ -143,7 +144,7 @@ sort_chain_graph_rel(struct rb_root *rb_root, struct callchain_root *chain_root,
 	rb_root->rb_node = chain_root->node.rb_root.rb_node;
 }
 
-int register_callchain_param(struct callchain_param *param)
+int callchain_register_param(struct callchain_param *param)
 {
 	switch (param->mode) {
 	case CHAIN_GRAPH_ABS:
@@ -189,32 +190,27 @@ create_child(struct callchain_node *parent, bool inherit_children)
 		chain_for_each_child(next, new)
 			next->parent = new;
 	}
-	list_add_tail(&new->brothers, &parent->children);
+	list_add_tail(&new->siblings, &parent->children);
 
 	return new;
 }
-
-
-struct resolved_ip {
-	u64		  ip;
-	struct map_symbol ms;
-};
-
-struct resolved_chain {
-	u64			nr;
-	struct resolved_ip	ips[0];
-};
 
 
 /*
  * Fill the node with callchain values
  */
 static void
-fill_node(struct callchain_node *node, struct resolved_chain *chain, int start)
+fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 {
-	unsigned int i;
+	struct callchain_cursor_node *cursor_node;
 
-	for (i = start; i < chain->nr; i++) {
+	node->val_nr = cursor->nr - cursor->pos;
+	if (!node->val_nr)
+		pr_warning("Warning: empty node in callchain tree\n");
+
+	cursor_node = callchain_cursor_current(cursor);
+
+	while (cursor_node) {
 		struct callchain_list *call;
 
 		call = zalloc(sizeof(*call));
@@ -222,23 +218,25 @@ fill_node(struct callchain_node *node, struct resolved_chain *chain, int start)
 			perror("not enough memory for the code path tree");
 			return;
 		}
-		call->ip = chain->ips[i].ip;
-		call->ms = chain->ips[i].ms;
+		call->ip = cursor_node->ip;
+		call->ms.sym = cursor_node->sym;
+		call->ms.map = cursor_node->map;
 		list_add_tail(&call->list, &node->val);
+
+		callchain_cursor_advance(cursor);
+		cursor_node = callchain_cursor_current(cursor);
 	}
-	node->val_nr = chain->nr - start;
-	if (!node->val_nr)
-		pr_warning("Warning: empty node in callchain tree\n");
 }
 
 static void
-add_child(struct callchain_node *parent, struct resolved_chain *chain,
-	  int start, u64 period)
+add_child(struct callchain_node *parent,
+	  struct callchain_cursor *cursor,
+	  u64 period)
 {
 	struct callchain_node *new;
 
 	new = create_child(parent, false);
-	fill_node(new, chain, start);
+	fill_node(new, cursor);
 
 	new->children_hit = 0;
 	new->hit = period;
@@ -250,9 +248,10 @@ add_child(struct callchain_node *parent, struct resolved_chain *chain,
  * Then create another child to host the given callchain of new branch
  */
 static void
-split_add_child(struct callchain_node *parent, struct resolved_chain *chain,
-		struct callchain_list *to_split, int idx_parents, int idx_local,
-		u64 period)
+split_add_child(struct callchain_node *parent,
+		struct callchain_cursor *cursor,
+		struct callchain_list *to_split,
+		u64 idx_parents, u64 idx_local, u64 period)
 {
 	struct callchain_node *new;
 	struct list_head *old_tail;
@@ -272,14 +271,14 @@ split_add_child(struct callchain_node *parent, struct resolved_chain *chain,
 	/* split the hits */
 	new->hit = parent->hit;
 	new->children_hit = parent->children_hit;
-	parent->children_hit = cumul_hits(new);
+	parent->children_hit = callchain_cumul_hits(new);
 	new->val_nr = parent->val_nr - idx_local;
 	parent->val_nr = idx_local;
 
 	/* create a new child for the new branch if any */
-	if (idx_total < chain->nr) {
+	if (idx_total < cursor->nr) {
 		parent->hit = 0;
-		add_child(parent, chain, idx_total, period);
+		add_child(parent, cursor, period);
 		parent->children_hit += period;
 	} else {
 		parent->hit = period;
@@ -287,36 +286,41 @@ split_add_child(struct callchain_node *parent, struct resolved_chain *chain,
 }
 
 static int
-append_chain(struct callchain_node *root, struct resolved_chain *chain,
-	     unsigned int start, u64 period);
+append_chain(struct callchain_node *root,
+	     struct callchain_cursor *cursor,
+	     u64 period);
 
 static void
-append_chain_children(struct callchain_node *root, struct resolved_chain *chain,
-		      unsigned int start, u64 period)
+append_chain_children(struct callchain_node *root,
+		      struct callchain_cursor *cursor,
+		      u64 period)
 {
 	struct callchain_node *rnode;
 
 	/* lookup in childrens */
 	chain_for_each_child(rnode, root) {
-		unsigned int ret = append_chain(rnode, chain, start, period);
+		unsigned int ret = append_chain(rnode, cursor, period);
 
 		if (!ret)
 			goto inc_children_hit;
 	}
 	/* nothing in children, add to the current node */
-	add_child(root, chain, start, period);
+	add_child(root, cursor, period);
 
 inc_children_hit:
 	root->children_hit += period;
 }
 
 static int
-append_chain(struct callchain_node *root, struct resolved_chain *chain,
-	     unsigned int start, u64 period)
+append_chain(struct callchain_node *root,
+	     struct callchain_cursor *cursor,
+	     u64 period)
 {
+	struct callchain_cursor_node *curr_snap = cursor->curr;
 	struct callchain_list *cnode;
-	unsigned int i = start;
+	u64 start = cursor->pos;
 	bool found = false;
+	u64 matches;
 
 	/*
 	 * Lookup in the current node
@@ -324,141 +328,134 @@ append_chain(struct callchain_node *root, struct resolved_chain *chain,
 	 * anywhere inside a function.
 	 */
 	list_for_each_entry(cnode, &root->val, list) {
+		struct callchain_cursor_node *node;
 		struct symbol *sym;
 
-		if (i == chain->nr)
+		node = callchain_cursor_current(cursor);
+		if (!node)
 			break;
 
-		sym = chain->ips[i].ms.sym;
+		sym = node->sym;
 
 		if (cnode->ms.sym && sym) {
 			if (cnode->ms.sym->start != sym->start)
 				break;
-		} else if (cnode->ip != chain->ips[i].ip)
+		} else if (cnode->ip != node->ip)
 			break;
 
 		if (!found)
 			found = true;
-		i++;
+
+		callchain_cursor_advance(cursor);
 	}
 
 	/* matches not, relay on the parent */
-	if (!found)
+	if (!found) {
+		cursor->curr = curr_snap;
+		cursor->pos = start;
 		return -1;
+	}
+
+	matches = cursor->pos - start;
 
 	/* we match only a part of the node. Split it and add the new chain */
-	if (i - start < root->val_nr) {
-		split_add_child(root, chain, cnode, start, i - start, period);
+	if (matches < root->val_nr) {
+		split_add_child(root, cursor, cnode, start, matches, period);
 		return 0;
 	}
 
 	/* we match 100% of the path, increment the hit */
-	if (i - start == root->val_nr && i == chain->nr) {
+	if (matches == root->val_nr && cursor->pos == cursor->nr) {
 		root->hit += period;
 		return 0;
 	}
 
 	/* We match the node and still have a part remaining */
-	append_chain_children(root, chain, i, period);
+	append_chain_children(root, cursor, period);
 
 	return 0;
 }
 
-static void filter_context(struct ip_callchain *old, struct resolved_chain *new,
-			   struct map_symbol *syms)
+int callchain_append(struct callchain_root *root,
+		     struct callchain_cursor *cursor,
+		     u64 period)
 {
-	int i, j = 0;
-
-	for (i = 0; i < (int)old->nr; i++) {
-		if (old->ips[i] >= PERF_CONTEXT_MAX)
-			continue;
-
-		new->ips[j].ip = old->ips[i];
-		new->ips[j].ms = syms[i];
-		j++;
-	}
-
-	new->nr = j;
-}
-
-
-int callchain_append(struct callchain_root *root, struct ip_callchain *chain,
-		     struct map_symbol *syms, u64 period)
-{
-	struct resolved_chain *filtered;
-
-	if (!chain->nr)
+	if (!cursor->nr)
 		return 0;
 
-	filtered = zalloc(sizeof(*filtered) +
-			  chain->nr * sizeof(struct resolved_ip));
-	if (!filtered)
-		return -ENOMEM;
+	callchain_cursor_commit(cursor);
 
-	filter_context(chain, filtered, syms);
+	append_chain_children(&root->node, cursor, period);
 
-	if (!filtered->nr)
-		goto end;
-
-	append_chain_children(&root->node, filtered, 0, period);
-
-	if (filtered->nr > root->max_depth)
-		root->max_depth = filtered->nr;
-end:
-	free(filtered);
+	if (cursor->nr > root->max_depth)
+		root->max_depth = cursor->nr;
 
 	return 0;
 }
 
 static int
-merge_chain_branch(struct callchain_node *dst, struct callchain_node *src,
-		   struct resolved_chain *chain)
+merge_chain_branch(struct callchain_cursor *cursor,
+		   struct callchain_node *dst, struct callchain_node *src)
 {
+	struct callchain_cursor_node **old_last = cursor->last;
 	struct callchain_node *child, *next_child;
 	struct callchain_list *list, *next_list;
-	int old_pos = chain->nr;
+	int old_pos = cursor->nr;
 	int err = 0;
 
 	list_for_each_entry_safe(list, next_list, &src->val, list) {
-		chain->ips[chain->nr].ip = list->ip;
-		chain->ips[chain->nr].ms = list->ms;
-		chain->nr++;
+		callchain_cursor_append(cursor, list->ip,
+					list->ms.map, list->ms.sym);
 		list_del(&list->list);
 		free(list);
 	}
 
-	if (src->hit)
-		append_chain_children(dst, chain, 0, src->hit);
+	if (src->hit) {
+		callchain_cursor_commit(cursor);
+		append_chain_children(dst, cursor, src->hit);
+	}
 
 	chain_for_each_child_safe(child, next_child, src) {
-		err = merge_chain_branch(dst, child, chain);
+		err = merge_chain_branch(cursor, dst, child);
 		if (err)
 			break;
 
-		list_del(&child->brothers);
+		list_del(&child->siblings);
 		free(child);
 	}
 
-	chain->nr = old_pos;
+	cursor->nr = old_pos;
+	cursor->last = old_last;
 
 	return err;
 }
 
-int callchain_merge(struct callchain_root *dst, struct callchain_root *src)
+int callchain_merge(struct callchain_cursor *cursor,
+		    struct callchain_root *dst, struct callchain_root *src)
 {
-	struct resolved_chain *chain;
-	int err;
+	return merge_chain_branch(cursor, &dst->node, &src->node);
+}
 
-	chain = malloc(sizeof(*chain) +
-		       src->max_depth * sizeof(struct resolved_ip));
-	if (!chain)
-		return -ENOMEM;
+int callchain_cursor_append(struct callchain_cursor *cursor,
+			    u64 ip, struct map *map, struct symbol *sym)
+{
+	struct callchain_cursor_node *node = *cursor->last;
 
-	chain->nr = 0;
+	if (!node) {
+		node = calloc(sizeof(*node), 1);
+		if (!node)
+			return -ENOMEM;
 
-	err = merge_chain_branch(&dst->node, &src->node, chain);
+		*cursor->last = node;
+	}
 
-	free(chain);
+	node->ip = ip;
+	node->map = map;
+	node->sym = sym;
 
-	return err;
+	cursor->nr++;
+
+	cursor->last = &node->next;
+
+	return 0;
 }

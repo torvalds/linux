@@ -17,12 +17,12 @@
 #include <linux/mtd/partitions.h>
 #include <linux/sm501.h>
 #include <linux/smsc911x.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/csb726.h>
 #include <mach/mfp-pxa27x.h>
-#include <plat/i2c.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
 #include <mach/pxa2xx-regs.h>

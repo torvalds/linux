@@ -62,6 +62,18 @@ static int ecryptfs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	int rc;
 
+	/*
+	 * Refuse to write the page out if we are called from reclaim context
+	 * since our writepage() path may potentially allocate memory when
+	 * calling into the lower fs vfs_write() which may in turn invoke
+	 * us again.
+	 */
+	if (current->flags & PF_MEMALLOC) {
+		redirty_page_for_writepage(wbc, page);
+		rc = 0;
+		goto out;
+	}
+
 	rc = ecryptfs_encrypt_page(page);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "Error encrypting "
@@ -70,8 +82,8 @@ static int ecryptfs_writepage(struct page *page, struct writeback_control *wbc)
 		goto out;
 	}
 	SetPageUptodate(page);
-	unlock_page(page);
 out:
+	unlock_page(page);
 	return rc;
 }
 
@@ -193,11 +205,7 @@ static int ecryptfs_readpage(struct file *file, struct page *page)
 		&ecryptfs_inode_to_private(page->mapping->host)->crypt_stat;
 	int rc = 0;
 
-	if (!crypt_stat
-	    || !(crypt_stat->flags & ECRYPTFS_ENCRYPTED)
-	    || (crypt_stat->flags & ECRYPTFS_NEW_FILE)) {
-		ecryptfs_printk(KERN_DEBUG,
-				"Passing through unencrypted page\n");
+	if (!crypt_stat || !(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
 		rc = ecryptfs_read_lower_page_segment(page, page->index, 0,
 						      PAGE_CACHE_SIZE,
 						      page->mapping->host);
@@ -295,8 +303,7 @@ static int ecryptfs_write_begin(struct file *file,
 		struct ecryptfs_crypt_stat *crypt_stat =
 			&ecryptfs_inode_to_private(mapping->host)->crypt_stat;
 
-		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)
-		    || (crypt_stat->flags & ECRYPTFS_NEW_FILE)) {
+		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
 			rc = ecryptfs_read_lower_page_segment(
 				page, index, 0, PAGE_CACHE_SIZE, mapping->host);
 			if (rc) {
@@ -374,6 +381,11 @@ static int ecryptfs_write_begin(struct file *file,
 	    && (pos != 0))
 		zero_user(page, 0, PAGE_CACHE_SIZE);
 out:
+	if (unlikely(rc)) {
+		unlock_page(page);
+		page_cache_release(page);
+		*pagep = NULL;
+	}
 	return rc;
 }
 
@@ -486,13 +498,8 @@ static int ecryptfs_write_end(struct file *file,
 	struct ecryptfs_crypt_stat *crypt_stat =
 		&ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
 	int rc;
+	int need_unlock_page = 1;
 
-	if (crypt_stat->flags & ECRYPTFS_NEW_FILE) {
-		ecryptfs_printk(KERN_DEBUG, "ECRYPTFS_NEW_FILE flag set in "
-			"crypt_stat at memory location [%p]\n", crypt_stat);
-		crypt_stat->flags &= ~(ECRYPTFS_NEW_FILE);
-	} else
-		ecryptfs_printk(KERN_DEBUG, "Not a new file\n");
 	ecryptfs_printk(KERN_DEBUG, "Calling fill_zeros_to_end_of_page"
 			"(page w/ index = [0x%.16lx], to = [%d])\n", index, to);
 	if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
@@ -512,26 +519,26 @@ static int ecryptfs_write_end(struct file *file,
 			"zeros in page with index = [0x%.16lx]\n", index);
 		goto out;
 	}
-	rc = ecryptfs_encrypt_page(page);
-	if (rc) {
-		ecryptfs_printk(KERN_WARNING, "Error encrypting page (upper "
-				"index [0x%.16lx])\n", index);
-		goto out;
-	}
+	set_page_dirty(page);
+	unlock_page(page);
+	need_unlock_page = 0;
 	if (pos + copied > i_size_read(ecryptfs_inode)) {
 		i_size_write(ecryptfs_inode, pos + copied);
 		ecryptfs_printk(KERN_DEBUG, "Expanded file size to "
 			"[0x%.16llx]\n",
 			(unsigned long long)i_size_read(ecryptfs_inode));
+		balance_dirty_pages_ratelimited(mapping);
+		rc = ecryptfs_write_inode_size_to_metadata(ecryptfs_inode);
+		if (rc) {
+			printk(KERN_ERR "Error writing inode size to metadata; "
+			       "rc = [%d]\n", rc);
+			goto out;
+		}
 	}
-	rc = ecryptfs_write_inode_size_to_metadata(ecryptfs_inode);
-	if (rc)
-		printk(KERN_ERR "Error writing inode size to metadata; "
-		       "rc = [%d]\n", rc);
-	else
-		rc = copied;
+	rc = copied;
 out:
-	unlock_page(page);
+	if (need_unlock_page)
+		unlock_page(page);
 	page_cache_release(page);
 	return rc;
 }

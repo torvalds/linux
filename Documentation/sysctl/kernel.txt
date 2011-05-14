@@ -367,7 +367,7 @@ the different loglevels.
 
 - console_loglevel: messages with a higher priority than
   this will be printed to the console
-- default_message_level: messages without an explicit priority
+- default_message_loglevel: messages without an explicit priority
   will be printed with this priority
 - minimum_console_loglevel: minimum (highest) value to which
   console_loglevel can be set

@@ -280,6 +280,14 @@ tape_do_io_free(struct tape_device *device, struct tape_request *request)
 	return rc;
 }
 
+static inline void
+tape_do_io_async_free(struct tape_device *device, struct tape_request *request)
+{
+	request->callback = (void *) tape_free_request;
+	request->callback_data = NULL;
+	tape_do_io_async(device, request);
+}
+
 extern int tape_oper_handler(int irq, int status);
 extern void tape_noper_handler(int irq, int status);
 extern int tape_open(struct tape_device *);

@@ -158,7 +158,7 @@ static int __devinit ds1390_probe(struct spi_device *spi)
 
 static int __devexit ds1390_remove(struct spi_device *spi)
 {
-	struct ds1390 *chip = platform_get_drvdata(spi);
+	struct ds1390 *chip = spi_get_drvdata(spi);
 
 	rtc_device_unregister(chip->rtc);
 	kfree(chip);

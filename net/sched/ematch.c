@@ -93,7 +93,7 @@
 static LIST_HEAD(ematch_ops);
 static DEFINE_RWLOCK(ematch_mod_lock);
 
-static inline struct tcf_ematch_ops * tcf_em_lookup(u16 kind)
+static struct tcf_ematch_ops *tcf_em_lookup(u16 kind)
 {
 	struct tcf_ematch_ops *e = NULL;
 
@@ -163,8 +163,8 @@ void tcf_em_unregister(struct tcf_ematch_ops *ops)
 }
 EXPORT_SYMBOL(tcf_em_unregister);
 
-static inline struct tcf_ematch * tcf_em_get_match(struct tcf_ematch_tree *tree,
-						   int index)
+static inline struct tcf_ematch *tcf_em_get_match(struct tcf_ematch_tree *tree,
+						  int index)
 {
 	return &tree->matches[index];
 }
@@ -184,7 +184,8 @@ static int tcf_em_validate(struct tcf_proto *tp,
 
 	if (em_hdr->kind == TCF_EM_CONTAINER) {
 		/* Special ematch called "container", carries an index
-		 * referencing an external ematch sequence. */
+		 * referencing an external ematch sequence.
+		 */
 		u32 ref;
 
 		if (data_len < sizeof(ref))
@@ -195,7 +196,8 @@ static int tcf_em_validate(struct tcf_proto *tp,
 			goto errout;
 
 		/* We do not allow backward jumps to avoid loops and jumps
-		 * to our own position are of course illegal. */
+		 * to our own position are of course illegal.
+		 */
 		if (ref <= idx)
 			goto errout;
 
@@ -208,7 +210,8 @@ static int tcf_em_validate(struct tcf_proto *tp,
 		 * which automatically releases the reference again, therefore
 		 * the module MUST not be given back under any circumstances
 		 * here. Be aware, the destroy function assumes that the
-		 * module is held if the ops field is non zero. */
+		 * module is held if the ops field is non zero.
+		 */
 		em->ops = tcf_em_lookup(em_hdr->kind);
 
 		if (em->ops == NULL) {
@@ -221,7 +224,8 @@ static int tcf_em_validate(struct tcf_proto *tp,
 			if (em->ops) {
 				/* We dropped the RTNL mutex in order to
 				 * perform the module load. Tell the caller
-				 * to replay the request. */
+				 * to replay the request.
+				 */
 				module_put(em->ops->owner);
 				err = -EAGAIN;
 			}
@@ -230,7 +234,8 @@ static int tcf_em_validate(struct tcf_proto *tp,
 		}
 
 		/* ematch module provides expected length of data, so we
-		 * can do a basic sanity check. */
+		 * can do a basic sanity check.
+		 */
 		if (em->ops->datalen && data_len < em->ops->datalen)
 			goto errout;
 
@@ -246,7 +251,8 @@ static int tcf_em_validate(struct tcf_proto *tp,
 			 * TCF_EM_SIMPLE may be specified stating that the
 			 * data only consists of a u32 integer and the module
 			 * does not expected a memory reference but rather
-			 * the value carried. */
+			 * the value carried.
+			 */
 			if (em_hdr->flags & TCF_EM_SIMPLE) {
 				if (data_len < sizeof(u32))
 					goto errout;
@@ -334,7 +340,8 @@ int tcf_em_tree_validate(struct tcf_proto *tp, struct nlattr *nla,
 	 * The array of rt attributes is parsed in the order as they are
 	 * provided, their type must be incremental from 1 to n. Even
 	 * if it does not serve any real purpose, a failure of sticking
-	 * to this policy will result in parsing failure. */
+	 * to this policy will result in parsing failure.
+	 */
 	for (idx = 0; nla_ok(rt_match, list_len); idx++) {
 		err = -EINVAL;
 
@@ -359,7 +366,8 @@ int tcf_em_tree_validate(struct tcf_proto *tp, struct nlattr *nla,
 	/* Check if the number of matches provided by userspace actually
 	 * complies with the array of matches. The number was used for
 	 * the validation of references and a mismatch could lead to
-	 * undefined references during the matching process. */
+	 * undefined references during the matching process.
+	 */
 	if (idx != tree_hdr->nmatches) {
 		err = -EINVAL;
 		goto errout_abort;
@@ -449,7 +457,7 @@ int tcf_em_tree_dump(struct sk_buff *skb, struct tcf_ematch_tree *tree, int tlv)
 			.flags = em->flags
 		};
 
-		NLA_PUT(skb, i+1, sizeof(em_hdr), &em_hdr);
+		NLA_PUT(skb, i + 1, sizeof(em_hdr), &em_hdr);
 
 		if (em->ops && em->ops->dump) {
 			if (em->ops->dump(skb, em) < 0)
@@ -478,6 +486,7 @@ static inline int tcf_em_match(struct sk_buff *skb, struct tcf_ematch *em,
 			       struct tcf_pkt_info *info)
 {
 	int r = em->ops->match(skb, em, info);
+
 	return tcf_em_is_inverted(em) ? !r : r;
 }
 
@@ -527,8 +536,8 @@ pop_stack:
 
 stack_overflow:
 	if (net_ratelimit())
-		printk(KERN_WARNING "tc ematch: local stack overflow,"
-			" increase NET_EMATCH_STACK\n");
+		pr_warning("tc ematch: local stack overflow,"
+			   " increase NET_EMATCH_STACK\n");
 	return -1;
 }
 EXPORT_SYMBOL(__tcf_em_tree_match);

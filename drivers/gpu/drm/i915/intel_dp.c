@@ -49,6 +49,7 @@ struct intel_dp {
 	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
 	bool has_audio;
 	int force_audio;
+	uint32_t color_range;
 	int dpms_mode;
 	uint8_t link_bw;
 	uint8_t lane_count;
@@ -212,7 +213,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 			return MODE_PANEL;
 	}
 
-	/* only refuse the mode on non eDP since we have seen some wierd eDP panels
+	/* only refuse the mode on non eDP since we have seen some weird eDP panels
 	   which are outside spec tolerances but somehow work by magic */
 	if (!is_edp(intel_dp) &&
 	    (intel_dp_link_required(connector->dev, intel_dp, mode->clock)
@@ -685,6 +686,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int lane_count = 4, bpp = 24;
 	struct intel_dp_m_n m_n;
+	int pipe = intel_crtc->pipe;
 
 	/*
 	 * Find the lane count in the intel_encoder private
@@ -715,39 +717,19 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			     mode->clock, adjusted_mode->clock, &m_n);
 
 	if (HAS_PCH_SPLIT(dev)) {
-		if (intel_crtc->pipe == 0) {
-			I915_WRITE(TRANSA_DATA_M1,
-				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
-				   m_n.gmch_m);
-			I915_WRITE(TRANSA_DATA_N1, m_n.gmch_n);
-			I915_WRITE(TRANSA_DP_LINK_M1, m_n.link_m);
-			I915_WRITE(TRANSA_DP_LINK_N1, m_n.link_n);
-		} else {
-			I915_WRITE(TRANSB_DATA_M1,
-				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
-				   m_n.gmch_m);
-			I915_WRITE(TRANSB_DATA_N1, m_n.gmch_n);
-			I915_WRITE(TRANSB_DP_LINK_M1, m_n.link_m);
-			I915_WRITE(TRANSB_DP_LINK_N1, m_n.link_n);
-		}
+		I915_WRITE(TRANSDATA_M1(pipe),
+			   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
+			   m_n.gmch_m);
+		I915_WRITE(TRANSDATA_N1(pipe), m_n.gmch_n);
+		I915_WRITE(TRANSDPLINK_M1(pipe), m_n.link_m);
+		I915_WRITE(TRANSDPLINK_N1(pipe), m_n.link_n);
 	} else {
-		if (intel_crtc->pipe == 0) {
-			I915_WRITE(PIPEA_GMCH_DATA_M,
-				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
-				   m_n.gmch_m);
-			I915_WRITE(PIPEA_GMCH_DATA_N,
-				   m_n.gmch_n);
-			I915_WRITE(PIPEA_DP_LINK_M, m_n.link_m);
-			I915_WRITE(PIPEA_DP_LINK_N, m_n.link_n);
-		} else {
-			I915_WRITE(PIPEB_GMCH_DATA_M,
-				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
-				   m_n.gmch_m);
-			I915_WRITE(PIPEB_GMCH_DATA_N,
-					m_n.gmch_n);
-			I915_WRITE(PIPEB_DP_LINK_M, m_n.link_m);
-			I915_WRITE(PIPEB_DP_LINK_N, m_n.link_n);
-		}
+		I915_WRITE(PIPE_GMCH_DATA_M(pipe),
+			   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
+			   m_n.gmch_m);
+		I915_WRITE(PIPE_GMCH_DATA_N(pipe), m_n.gmch_n);
+		I915_WRITE(PIPE_DP_LINK_M(pipe), m_n.link_m);
+		I915_WRITE(PIPE_DP_LINK_N(pipe), m_n.link_n);
 	}
 }
 
@@ -760,8 +742,8 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	struct drm_crtc *crtc = intel_dp->base.base.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	intel_dp->DP = (DP_VOLTAGE_0_4 |
-		       DP_PRE_EMPHASIS_0);
+	intel_dp->DP = DP_VOLTAGE_0_4 | DP_PRE_EMPHASIS_0;
+	intel_dp->DP |= intel_dp->color_range;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		intel_dp->DP |= DP_SYNC_HS_HIGH;
@@ -813,6 +795,40 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	}
 }
 
+static void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp;
+
+	/*
+	 * If the panel wasn't on, make sure there's not a currently
+	 * active PP sequence before enabling AUX VDD.
+	 */
+	if (!(I915_READ(PCH_PP_STATUS) & PP_ON))
+		msleep(dev_priv->panel_t3);
+
+	pp = I915_READ(PCH_PP_CONTROL);
+	pp |= EDP_FORCE_VDD;
+	I915_WRITE(PCH_PP_CONTROL, pp);
+	POSTING_READ(PCH_PP_CONTROL);
+}
+
+static void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp;
+
+	pp = I915_READ(PCH_PP_CONTROL);
+	pp &= ~EDP_FORCE_VDD;
+	I915_WRITE(PCH_PP_CONTROL, pp);
+	POSTING_READ(PCH_PP_CONTROL);
+
+	/* Make sure sequencer is idle before allowing subsequent activity */
+	msleep(dev_priv->panel_t12);
+}
+
 /* Returns true if the panel was already on when called */
 static bool ironlake_edp_panel_on (struct intel_dp *intel_dp)
 {
@@ -833,11 +849,6 @@ static bool ironlake_edp_panel_on (struct intel_dp *intel_dp)
 	pp |= PANEL_UNLOCK_REGS | POWER_TARGET_ON;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
-
-	/* Ouch. We need to wait here for some panels, like Dell e6510
-	 * https://bugs.freedesktop.org/show_bug.cgi?id=29278i
-	 */
-	msleep(300);
 
 	if (wait_for((I915_READ(PCH_PP_STATUS) & idle_on_mask) == idle_on_mask,
 		     5000))
@@ -875,11 +886,6 @@ static void ironlake_edp_panel_off (struct drm_device *dev)
 	pp |= PANEL_POWER_RESET; /* restore panel reset bit */
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
-
-	/* Ouch. We need to wait here for some panels, like Dell e6510
-	 * https://bugs.freedesktop.org/show_bug.cgi?id=29278i
-	 */
-	msleep(300);
 }
 
 static void ironlake_edp_backlight_on (struct drm_device *dev)
@@ -945,7 +951,7 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 
 	if (is_edp(intel_dp)) {
 		ironlake_edp_backlight_off(dev);
-		ironlake_edp_panel_on(intel_dp);
+		ironlake_edp_panel_off(dev);
 		if (!is_pch_edp(intel_dp))
 			ironlake_edp_pll_on(encoder);
 		else
@@ -959,10 +965,15 @@ static void intel_dp_commit(struct drm_encoder *encoder)
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct drm_device *dev = encoder->dev;
 
+	if (is_edp(intel_dp))
+		ironlake_edp_panel_vdd_on(intel_dp);
+
 	intel_dp_start_link_train(intel_dp);
 
-	if (is_edp(intel_dp))
+	if (is_edp(intel_dp)) {
 		ironlake_edp_panel_on(intel_dp);
+		ironlake_edp_panel_vdd_off(intel_dp);
+	}
 
 	intel_dp_complete_link_train(intel_dp);
 
@@ -988,9 +999,13 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 			ironlake_edp_pll_off(encoder);
 	} else {
 		if (is_edp(intel_dp))
-			ironlake_edp_panel_on(intel_dp);
+			ironlake_edp_panel_vdd_on(intel_dp);
 		if (!(dp_reg & DP_PORT_EN)) {
 			intel_dp_start_link_train(intel_dp);
+			if (is_edp(intel_dp)) {
+				ironlake_edp_panel_on(intel_dp);
+				ironlake_edp_panel_vdd_off(intel_dp);
+			}
 			intel_dp_complete_link_train(intel_dp);
 		}
 		if (is_edp(intel_dp))
@@ -1508,9 +1523,13 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 {
 	enum drm_connector_status status;
 
-	/* Can't disconnect eDP */
-	if (is_edp(intel_dp))
-		return connector_status_connected;
+	/* Can't disconnect eDP, but you can close the lid... */
+	if (is_edp(intel_dp)) {
+		status = intel_panel_detect(intel_dp->base.base.dev);
+		if (status == connector_status_unknown)
+			status = connector_status_connected;
+		return status;
+	}
 
 	status = connector_status_disconnected;
 	if (intel_dp_aux_native_read(intel_dp,
@@ -1662,6 +1681,7 @@ intel_dp_set_property(struct drm_connector *connector,
 		      struct drm_property *property,
 		      uint64_t val)
 {
+	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	int ret;
 
@@ -1687,6 +1707,14 @@ intel_dp_set_property(struct drm_connector *connector,
 			return 0;
 
 		intel_dp->has_audio = has_audio;
+		goto done;
+	}
+
+	if (property == dev_priv->broadcast_rgb_property) {
+		if (val == !!intel_dp->color_range)
+			return 0;
+
+		intel_dp->color_range = val ? DP_COLOR_RANGE_16_235 : 0;
 		goto done;
 	}
 
@@ -1809,6 +1837,8 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 		intel_dp->force_audio_property->values[1] = 1;
 		drm_connector_attach_property(connector, intel_dp->force_audio_property, 0);
 	}
+
+	intel_attach_broadcast_rgb_property(connector);
 }
 
 void
@@ -1825,6 +1855,9 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	intel_dp = kzalloc(sizeof(struct intel_dp), GFP_KERNEL);
 	if (!intel_dp)
 		return;
+
+	intel_dp->output_reg = output_reg;
+	intel_dp->dpms_mode = -1;
 
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
@@ -1865,10 +1898,6 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
-	intel_dp->output_reg = output_reg;
-	intel_dp->has_audio = false;
-	intel_dp->dpms_mode = DRM_MODE_DPMS_ON;
-
 	drm_encoder_init(dev, &intel_encoder->base, &intel_dp_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(&intel_encoder->base, &intel_dp_helper_funcs);
@@ -1906,21 +1935,33 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	/* Cache some DPCD data in the eDP case */
 	if (is_edp(intel_dp)) {
 		int ret;
-		bool was_on;
+		u32 pp_on, pp_div;
 
-		was_on = ironlake_edp_panel_on(intel_dp);
+		pp_on = I915_READ(PCH_PP_ON_DELAYS);
+		pp_div = I915_READ(PCH_PP_DIVISOR);
+
+		/* Get T3 & T12 values (note: VESA not bspec terminology) */
+		dev_priv->panel_t3 = (pp_on & 0x1fff0000) >> 16;
+		dev_priv->panel_t3 /= 10; /* t3 in 100us units */
+		dev_priv->panel_t12 = pp_div & 0xf;
+		dev_priv->panel_t12 *= 100; /* t12 in 100ms units */
+
+		ironlake_edp_panel_vdd_on(intel_dp);
 		ret = intel_dp_aux_native_read(intel_dp, DP_DPCD_REV,
 					       intel_dp->dpcd,
 					       sizeof(intel_dp->dpcd));
+		ironlake_edp_panel_vdd_off(intel_dp);
 		if (ret == sizeof(intel_dp->dpcd)) {
 			if (intel_dp->dpcd[0] >= 0x11)
 				dev_priv->no_aux_handshake = intel_dp->dpcd[3] &
 					DP_NO_AUX_HANDSHAKE_LINK_TRAINING;
 		} else {
-			DRM_ERROR("failed to retrieve link info\n");
+			/* if this fails, presume the device is a ghost */
+			DRM_INFO("failed to retrieve link info, disabling eDP\n");
+			intel_dp_encoder_destroy(&intel_dp->base.base);
+			intel_dp_destroy(&intel_connector->base);
+			return;
 		}
-		if (!was_on)
-			ironlake_edp_panel_off(dev);
 	}
 
 	intel_encoder->hot_plug = intel_dp_hot_plug;

@@ -255,7 +255,7 @@ static int hvc_iucv_write(struct hvc_iucv_private *priv,
 		default:
 			written = -EIO;
 		}
-		/* remove buffer if an error has occured or received data
+		/* remove buffer if an error has occurred or received data
 		 * is not correct */
 		if (rc || (rb->mbuf->version != MSG_VERSION) ||
 			  (rb->msg.length    != MSG_SIZE(rb->mbuf->datalen)))
@@ -620,7 +620,7 @@ static void hvc_iucv_hangup(struct hvc_iucv_private *priv)
  *		the index of an struct hvc_iucv_private instance.
  *
  * This routine notifies the HVC back-end that a tty hangup (carrier loss,
- * virtual or otherwise) has occured.
+ * virtual or otherwise) has occurred.
  * The z/VM IUCV HVC device driver ignores virtual hangups (vhangup())
  * to keep an existing IUCV communication path established.
  * (Background: vhangup() is called from user space (by getty or login) to

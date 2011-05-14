@@ -700,7 +700,7 @@ static void int_transfer_complete(struct driver_data *drv_data)
 	if (!pxa25x_ssp_comp(drv_data))
 		write_SSTO(0, reg);
 
-	/* Update total byte transfered return count actual bytes read */
+	/* Update total byte transferred return count actual bytes read */
 	drv_data->cur_msg->actual_length += drv_data->len -
 				(drv_data->rx_end - drv_data->rx);
 
@@ -759,7 +759,7 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 
 		/*
 		 * PXA25x_SSP has no timeout, set up rx threshould for the
-		 * remaing RX bytes.
+		 * remaining RX bytes.
 		 */
 		if (pxa25x_ssp_comp(drv_data)) {
 
@@ -1493,7 +1493,7 @@ static int stop_queue(struct driver_data *drv_data)
 	 * execution path (pump_messages) would be required to call wake_up or
 	 * friends on every SPI message. Do this instead */
 	drv_data->run = QUEUE_STOPPED;
-	while (!list_empty(&drv_data->queue) && drv_data->busy && limit--) {
+	while ((!list_empty(&drv_data->queue) || drv_data->busy) && limit--) {
 		spin_unlock_irqrestore(&drv_data->lock, flags);
 		msleep(10);
 		spin_lock_irqsave(&drv_data->lock, flags);
@@ -1557,9 +1557,7 @@ static int __devinit pxa2xx_spi_probe(struct platform_device *pdev)
 	drv_data->ssp = ssp;
 
 	master->dev.parent = &pdev->dev;
-#ifdef CONFIG_OF
 	master->dev.of_node = pdev->dev.of_node;
-#endif
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 

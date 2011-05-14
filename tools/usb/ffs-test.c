@@ -37,7 +37,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <linux/usb/functionfs.h>
+#include "../../include/linux/usb/functionfs.h"
 
 
 /******************** Little Endian Handling ********************************/
@@ -450,7 +450,7 @@ invalid:
 		    len, expected, *p);
 		for (p = buf, len = 0; len < nbytes; ++p, ++len) {
 			if (0 == (len % 32))
-				fprintf(stderr, "%4d:", len);
+				fprintf(stderr, "%4zd:", len);
 			fprintf(stderr, " %02x", *p);
 			if (31 == (len % 32))
 				fprintf(stderr, "\n");

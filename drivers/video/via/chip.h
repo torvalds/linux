@@ -110,16 +110,13 @@
 struct tmds_chip_information {
 	int tmds_chip_name;
 	int tmds_chip_slave_addr;
-	int data_mode;
 	int output_interface;
 	int i2c_port;
-	int device_type;
 };
 
 struct lvds_chip_information {
 	int lvds_chip_name;
 	int lvds_chip_slave_addr;
-	int data_mode;
 	int output_interface;
 	int i2c_port;
 };
@@ -142,10 +139,6 @@ struct chip_information {
 
 struct crt_setting_information {
 	int iga_path;
-	int h_active;
-	int v_active;
-	int bpp;
-	int refresh_rate;
 };
 
 struct tmds_setting_information {
@@ -162,8 +155,6 @@ struct lvds_setting_information {
 	int h_active;
 	int v_active;
 	int bpp;
-	int refresh_rate;
-	int lcd_panel_id;
 	int lcd_panel_hres;
 	int lcd_panel_vres;
 	int display_method;
@@ -188,7 +179,6 @@ struct GFX_DPA_SETTING {
 };
 
 struct VT1636_DPA_SETTING {
-	int PanelSizeID;
 	u8 CLK_SEL_ST1;
 	u8 CLK_SEL_ST2;
 };

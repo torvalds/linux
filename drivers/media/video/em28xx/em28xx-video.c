@@ -377,7 +377,7 @@ static inline void get_next_buf(struct em28xx_dmaqueue *dma_q,
 	/* Get the next buffer */
 	*buf = list_entry(dma_q->active.next, struct em28xx_buffer, vb.queue);
 
-	/* Cleans up buffer - Usefull for testing for frame/URB loss */
+	/* Cleans up buffer - Useful for testing for frame/URB loss */
 	outp = videobuf_to_vmalloc(&(*buf)->vb);
 	memset(outp, 0, (*buf)->vb.size);
 
@@ -404,7 +404,7 @@ static inline void vbi_get_next_buf(struct em28xx_dmaqueue *dma_q,
 
 	/* Get the next buffer */
 	*buf = list_entry(dma_q->active.next, struct em28xx_buffer, vb.queue);
-	/* Cleans up buffer - Usefull for testing for frame/URB loss */
+	/* Cleans up buffer - Useful for testing for frame/URB loss */
 	outp = videobuf_to_vmalloc(&(*buf)->vb);
 	memset(outp, 0x00, (*buf)->vb.size);
 
@@ -1387,6 +1387,27 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 		return -EINVAL;
 }
 
+/*
+ * FIXME: This is an indirect way to check if a control exists at a
+ * subdev. Instead of that hack, maybe the better would be to change all
+ * subdevs to return -ENOIOCTLCMD, if an ioctl is not supported.
+ */
+static int check_subdev_ctrl(struct em28xx *dev, int id)
+{
+	struct v4l2_queryctrl qc;
+
+	memset(&qc, 0, sizeof(qc));
+	qc.id = id;
+
+	/* enumerate V4L2 device controls */
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, queryctrl, &qc);
+
+	if (qc.type)
+		return 0;
+	else
+		return -EINVAL;
+}
+
 static int vidioc_g_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
@@ -1399,7 +1420,6 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 		return rc;
 	rc = 0;
 
-
 	/* Set an AC97 control */
 	if (dev->audio_mode.ac97 != EM28XX_NO_AC97)
 		rc = ac97_get_ctrl(dev, ctrl);
@@ -1408,6 +1428,9 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 
 	/* It were not an AC97 control. Sends it to the v4l2 dev interface */
 	if (rc == 1) {
+		if (check_subdev_ctrl(dev, ctrl->id))
+			return -EINVAL;
+
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_ctrl, ctrl);
 		rc = 0;
 	}
@@ -1434,8 +1457,10 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 
 	/* It isn't an AC97 control. Sends it to the v4l2 dev interface */
 	if (rc == 1) {
-		rc = v4l2_device_call_until_err(&dev->v4l2_dev, 0, core, s_ctrl, ctrl);
-
+		rc = check_subdev_ctrl(dev, ctrl->id);
+		if (!rc)
+			v4l2_device_call_all(&dev->v4l2_dev, 0,
+					     core, s_ctrl, ctrl);
 		/*
 		 * In the case of non-AC97 volume controls, we still need
 		 * to do some setups at em28xx, in order to mute/unmute
@@ -1452,7 +1477,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 			rc = em28xx_audio_analog_set(dev);
 		}
 	}
-	return rc;
+	return (rc < 0) ? rc : 0;
 }
 
 static int vidioc_g_tuner(struct file *file, void *priv,

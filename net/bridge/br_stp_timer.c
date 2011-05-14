@@ -94,6 +94,7 @@ static void br_forward_delay_timer_expired(unsigned long arg)
 		p->state = BR_STATE_FORWARDING;
 		if (br_is_designated_for_some_port(br))
 			br_topology_change_detection(br);
+		netif_carrier_on(br->dev);
 	}
 	br_log_state(p);
 	spin_unlock(&br->lock);

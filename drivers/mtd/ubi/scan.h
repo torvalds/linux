@@ -109,6 +109,7 @@ struct ubi_scan_volume {
  * @mean_ec: mean erase counter value
  * @ec_sum: a temporary variable used when calculating @mean_ec
  * @ec_count: a temporary variable used when calculating @mean_ec
+ * @scan_leb_slab: slab cache for &struct ubi_scan_leb objects
  *
  * This data structure contains the result of scanning and may be used by other
  * UBI sub-systems to build final UBI data structures, further error-recovery
@@ -134,6 +135,7 @@ struct ubi_scan_info {
 	int mean_ec;
 	uint64_t ec_sum;
 	int ec_count;
+	struct kmem_cache *scan_leb_slab;
 };
 
 struct ubi_device;

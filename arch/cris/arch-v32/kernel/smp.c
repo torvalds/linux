@@ -26,7 +26,9 @@
 #define FLUSH_ALL (void*)0xffffffff
 
 /* Vector of locks used for various atomic operations */
-spinlock_t cris_atomic_locks[] = { [0 ... LOCK_COUNT - 1] = SPIN_LOCK_UNLOCKED};
+spinlock_t cris_atomic_locks[] = {
+	[0 ... LOCK_COUNT - 1] = __SPIN_LOCK_UNLOCKED(cris_atomic_locks)
+};
 
 /* CPU masks */
 cpumask_t phys_cpu_present_map = CPU_MASK_NONE;

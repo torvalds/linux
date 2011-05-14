@@ -890,6 +890,15 @@ __secondary_start:
 	mtspr	SPRN_SRR1,r4
 	SYNC
 	RFI
+
+_GLOBAL(start_secondary_resume)
+	/* Reset stack */
+	rlwinm	r1,r1,0,0,(31-THREAD_SHIFT)	/* current_thread_info() */
+	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD
+	li	r3,0
+	std	r3,0(r1)		/* Zero the stack frame pointer	*/
+	bl	start_secondary
+	b	.
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_KVM_BOOK3S_HANDLER

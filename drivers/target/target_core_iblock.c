@@ -35,7 +35,6 @@
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/bio.h>
 #include <linux/genhd.h>
 #include <linux/file.h>
@@ -130,10 +129,11 @@ static struct se_device *iblock_create_virtdevice(
 	struct request_queue *q;
 	struct queue_limits *limits;
 	u32 dev_flags = 0;
+	int ret = -EINVAL;
 
 	if (!(ib_dev)) {
 		printk(KERN_ERR "Unable to locate struct iblock_dev parameter\n");
-		return 0;
+		return ERR_PTR(ret);
 	}
 	memset(&dev_limits, 0, sizeof(struct se_dev_limits));
 	/*
@@ -142,7 +142,7 @@ static struct se_device *iblock_create_virtdevice(
 	ib_dev->ibd_bio_set = bioset_create(32, 64);
 	if (!(ib_dev->ibd_bio_set)) {
 		printk(KERN_ERR "IBLOCK: Unable to create bioset()\n");
-		return 0;
+		return ERR_PTR(-ENOMEM);
 	}
 	printk(KERN_INFO "IBLOCK: Created bio_set()\n");
 	/*
@@ -154,8 +154,10 @@ static struct se_device *iblock_create_virtdevice(
 
 	bd = blkdev_get_by_path(ib_dev->ibd_udev_path,
 				FMODE_WRITE|FMODE_READ|FMODE_EXCL, ib_dev);
-	if (IS_ERR(bd))
+	if (IS_ERR(bd)) {
+		ret = PTR_ERR(bd);
 		goto failed;
+	}
 	/*
 	 * Setup the local scope queue_limits from struct request_queue->limits
 	 * to pass into transport_add_device_to_core_hba() as struct se_dev_limits.
@@ -185,9 +187,7 @@ static struct se_device *iblock_create_virtdevice(
 	 * the QUEUE_FLAG_DISCARD bit for UNMAP/WRITE_SAME in SCSI + TRIM
 	 * in ATA and we need to set TPE=1
 	 */
-	if (blk_queue_discard(bdev_get_queue(bd))) {
-		struct request_queue *q = bdev_get_queue(bd);
-
+	if (blk_queue_discard(q)) {
 		DEV_ATTRIB(dev)->max_unmap_lba_count =
 				q->limits.max_discard_sectors;
 		/*
@@ -213,7 +213,7 @@ failed:
 	ib_dev->ibd_bd = NULL;
 	ib_dev->ibd_major = 0;
 	ib_dev->ibd_minor = 0;
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 static void iblock_free_device(void *p)
@@ -392,9 +392,8 @@ static int iblock_do_task(struct se_task *task)
 {
 	struct se_device *dev = task->task_se_cmd->se_dev;
 	struct iblock_req *req = IBLOCK_REQ(task);
-	struct iblock_dev *ibd = (struct iblock_dev *)req->ib_dev;
-	struct request_queue *q = bdev_get_queue(ibd->ibd_bd);
 	struct bio *bio = req->ib_bio, *nbio = NULL;
+	struct blk_plug plug;
 	int rw;
 
 	if (task->task_data_direction == DMA_TO_DEVICE) {
@@ -412,6 +411,7 @@ static int iblock_do_task(struct se_task *task)
 		rw = READ;
 	}
 
+	blk_start_plug(&plug);
 	while (bio) {
 		nbio = bio->bi_next;
 		bio->bi_next = NULL;
@@ -421,9 +421,8 @@ static int iblock_do_task(struct se_task *task)
 		submit_bio(rw, bio);
 		bio = nbio;
 	}
+	blk_finish_plug(&plug);
 
-	if (q->unplug_fn)
-		q->unplug_fn(q);
 	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 }
 
@@ -469,7 +468,7 @@ static ssize_t iblock_set_configfs_dev_params(struct se_hba *hba,
 					       const char *page, ssize_t count)
 {
 	struct iblock_dev *ib_dev = se_dev->se_dev_su_ptr;
-	char *orig, *ptr, *opts;
+	char *orig, *ptr, *arg_p, *opts;
 	substring_t args[MAX_OPT_ARGS];
 	int ret = 0, arg, token;
 
@@ -492,9 +491,14 @@ static ssize_t iblock_set_configfs_dev_params(struct se_hba *hba,
 				ret = -EEXIST;
 				goto out;
 			}
-
-			ret = snprintf(ib_dev->ibd_udev_path, SE_UDEV_PATH_LEN,
-				"%s", match_strdup(&args[0]));
+			arg_p = match_strdup(&args[0]);
+			if (!arg_p) {
+				ret = -ENOMEM;
+				break;
+			}
+			snprintf(ib_dev->ibd_udev_path, SE_UDEV_PATH_LEN,
+					"%s", arg_p);
+			kfree(arg_p);
 			printk(KERN_INFO "IBLOCK: Referencing UDEV path: %s\n",
 					ib_dev->ibd_udev_path);
 			ib_dev->ibd_flags |= IBDF_HAS_UDEV_PATH;

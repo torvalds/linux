@@ -167,7 +167,7 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 #endif
 
 /*
- * Mask of bits that are to be preserved accross pgprot changes.
+ * Mask of bits that are to be preserved across pgprot changes.
  */
 #define _PAGE_CHG_MASK \
 	(PTE_MASK | _PAGE_ACCESSED | _PAGE_CACHABLE | \

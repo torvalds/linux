@@ -417,7 +417,7 @@ static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 		gss_msg->msg.len += len;
 	}
 	if (mech->gm_upcall_enctypes) {
-		len = sprintf(p, mech->gm_upcall_enctypes);
+		len = sprintf(p, "enctypes=%s ", mech->gm_upcall_enctypes);
 		p += len;
 		gss_msg->msg.len += len;
 	}
@@ -520,7 +520,7 @@ gss_refresh_upcall(struct rpc_task *task)
 		warn_gssd();
 		task->tk_timeout = 15*HZ;
 		rpc_sleep_on(&pipe_version_rpc_waitqueue, task, NULL);
-		return 0;
+		return -EAGAIN;
 	}
 	if (IS_ERR(gss_msg)) {
 		err = PTR_ERR(gss_msg);
@@ -563,10 +563,12 @@ retry:
 	if (PTR_ERR(gss_msg) == -EAGAIN) {
 		err = wait_event_interruptible_timeout(pipe_version_waitqueue,
 				pipe_version >= 0, 15*HZ);
+		if (pipe_version < 0) {
+			warn_gssd();
+			err = -EACCES;
+		}
 		if (err)
 			goto out;
-		if (pipe_version < 0)
-			warn_gssd();
 		goto retry;
 	}
 	if (IS_ERR(gss_msg)) {

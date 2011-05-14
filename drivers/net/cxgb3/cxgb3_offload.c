@@ -186,9 +186,10 @@ static struct net_device *get_iff_from_mac(struct adapter *adapter,
 				dev = NULL;
 				if (grp)
 					dev = vlan_group_get_device(grp, vlan);
-			} else
+			} else if (netif_is_bond_slave(dev)) {
 				while (dev->master)
 					dev = dev->master;
+			}
 			return dev;
 		}
 	}
@@ -967,8 +968,6 @@ static int nb_callback(struct notifier_block *self, unsigned long event,
 		cxgb_neigh_update((struct neighbour *)ctx);
 		break;
 	}
-	case (NETEVENT_PMTU_UPDATE):
-		break;
 	case (NETEVENT_REDIRECT):{
 		struct netevent_redirect *nr = ctx;
 		cxgb_redirect(nr->old, nr->new);

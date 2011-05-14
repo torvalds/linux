@@ -290,7 +290,7 @@ static int handle_page_fault(struct pt_regs *regs,
 	/*
 	 * Early on, we need to check for migrating PTE entries;
 	 * see homecache.c.  If we find a migrating PTE, we wait until
-	 * the backing page claims to be done migrating, then we procede.
+	 * the backing page claims to be done migrating, then we proceed.
 	 * For kernel PTEs, we rewrite the PTE and return and retry.
 	 * Otherwise, we treat the fault like a normal "no PTE" fault,
 	 * rather than trying to patch up the existing PTE.
@@ -653,14 +653,6 @@ struct intvec_state do_page_fault_ics(struct pt_regs *regs, int fault_num,
 		regs->pc = fixup->fixup;
 		regs->ex1 = PL_ICS_EX1(KERNEL_PL, 0);
 	}
-
-	/*
-	 * NOTE: the one other type of access that might bring us here
-	 * are the memory ops in __tns_atomic_acquire/__tns_atomic_release,
-	 * but we don't have to check specially for them since we can
-	 * always safely return to the address of the fault and retry,
-	 * since no separate atomic locks are involved.
-	 */
 
 	/*
 	 * Now that we have released the atomic lock (if necessary),

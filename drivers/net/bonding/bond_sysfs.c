@@ -118,7 +118,10 @@ static ssize_t bonding_store_bonds(struct class *cls,
 		pr_info("%s is being created...\n", ifname);
 		rv = bond_create(net, ifname);
 		if (rv) {
-			pr_info("Bond creation failed.\n");
+			if (rv == -EEXIST)
+				pr_info("%s already exists.\n", ifname);
+			else
+				pr_info("%s creation failed.\n", ifname);
 			res = rv;
 		}
 	} else if (command[0] == '-') {
@@ -322,11 +325,6 @@ static ssize_t bonding_store_mode(struct device *d,
 		ret = -EINVAL;
 		goto out;
 	}
-	if (bond->params.mode == BOND_MODE_8023AD)
-		bond_unset_master_3ad_flags(bond);
-
-	if (bond->params.mode == BOND_MODE_ALB)
-		bond_unset_master_alb_flags(bond);
 
 	bond->params.mode = new_value;
 	bond_set_mode_ops(bond, bond->params.mode);
@@ -527,8 +525,6 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 	pr_info("%s: Setting ARP monitoring interval to %d.\n",
 		bond->dev->name, new_value);
 	bond->params.arp_interval = new_value;
-	if (bond->params.arp_interval)
-		bond->dev->priv_flags |= IFF_MASTER_ARPMON;
 	if (bond->params.miimon) {
 		pr_info("%s: ARP monitoring cannot be used with MII monitoring. %s Disabling MII monitoring.\n",
 			bond->dev->name, bond->dev->name);
@@ -1004,7 +1000,6 @@ static ssize_t bonding_store_miimon(struct device *d,
 			pr_info("%s: MII monitoring cannot be used with ARP monitoring. Disabling ARP monitoring...\n",
 				bond->dev->name);
 			bond->params.arp_interval = 0;
-			bond->dev->priv_flags &= ~IFF_MASTER_ARPMON;
 			if (bond->params.arp_validate) {
 				bond_unregister_arp(bond);
 				bond->params.arp_validate =
@@ -1198,7 +1193,7 @@ static ssize_t bonding_store_carrier(struct device *d,
 			bond->dev->name, new_value);
 	}
 out:
-	return count;
+	return ret;
 }
 static DEVICE_ATTR(use_carrier, S_IRUGO | S_IWUSR,
 		   bonding_show_carrier, bonding_store_carrier);
@@ -1587,15 +1582,15 @@ static ssize_t bonding_store_slaves_active(struct device *d,
 	}
 
 	bond_for_each_slave(bond, slave, i) {
-		if (slave->state == BOND_STATE_BACKUP) {
+		if (!bond_is_active_slave(slave)) {
 			if (new_value)
-				slave->dev->priv_flags &= ~IFF_SLAVE_INACTIVE;
+				slave->inactive = 0;
 			else
-				slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
+				slave->inactive = 1;
 		}
 	}
 out:
-	return count;
+	return ret;
 }
 static DEVICE_ATTR(all_slaves_active, S_IRUGO | S_IWUSR,
 		   bonding_show_slaves_active, bonding_store_slaves_active);

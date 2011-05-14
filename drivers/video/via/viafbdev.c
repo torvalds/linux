@@ -43,11 +43,11 @@ static int viafb_second_size;
 static int viafb_accel = 1;
 
 /* Added for specifying active devices.*/
-char *viafb_active_dev;
+static char *viafb_active_dev;
 
 /*Added for specify lcd output port*/
-char *viafb_lcd_port = "";
-char *viafb_dvi_port = "";
+static char *viafb_lcd_port = "";
+static char *viafb_dvi_port = "";
 
 static void retrieve_device_setting(struct viafb_ioctl_setting
 	*setting_info);
@@ -182,13 +182,24 @@ static int viafb_release(struct fb_info *info, int user)
 	return 0;
 }
 
+static inline int get_var_refresh(struct fb_var_screeninfo *var)
+{
+	u32 htotal, vtotal;
+
+	htotal = var->left_margin + var->xres + var->right_margin
+		+ var->hsync_len;
+	vtotal = var->upper_margin + var->yres + var->lower_margin
+		+ var->vsync_len;
+	return PICOS2KHZ(var->pixclock) * 1000 / (htotal * vtotal);
+}
+
 static int viafb_check_var(struct fb_var_screeninfo *var,
 	struct fb_info *info)
 {
-	int htotal, vtotal, depth;
+	int depth, refresh;
 	struct VideoModeTable *vmode_entry;
 	struct viafb_par *ppar = info->par;
-	u32 long_refresh, line;
+	u32 line;
 
 	DEBUG_MSG(KERN_INFO "viafb_check_var!\n");
 	/* Sanity check */
@@ -231,17 +242,11 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 	/* Based on var passed in to calculate the refresh,
 	 * because our driver use some modes special.
 	 */
-	htotal = var->xres + var->left_margin +
-	var->right_margin + var->hsync_len;
-	vtotal = var->yres + var->upper_margin +
-		var->lower_margin + var->vsync_len;
-	long_refresh = 1000000000UL / var->pixclock * 1000;
-	long_refresh /= (htotal * vtotal);
-
-	viafb_refresh = viafb_get_refresh(var->xres, var->yres, long_refresh);
+	refresh = viafb_get_refresh(var->xres, var->yres,
+		get_var_refresh(var));
 
 	/* Adjust var according to our driver's own table */
-	viafb_fill_var_timing_info(var, viafb_refresh, vmode_entry);
+	viafb_fill_var_timing_info(var, refresh, vmode_entry);
 	if (var->accel_flags & FB_ACCELF_TEXT &&
 		!ppar->shared->vdev->engine_mmio)
 		var->accel_flags = 0;
@@ -253,12 +258,13 @@ static int viafb_set_par(struct fb_info *info)
 {
 	struct viafb_par *viapar = info->par;
 	struct VideoModeTable *vmode_entry, *vmode_entry1 = NULL;
+	int refresh;
 	DEBUG_MSG(KERN_INFO "viafb_set_par!\n");
 
 	viafb_update_fix(info);
 	viapar->depth = fb_get_color_depth(&info->var, &info->fix);
 	viafb_update_device_setting(viafbinfo->var.xres, viafbinfo->var.yres,
-		viafbinfo->var.bits_per_pixel, viafb_refresh, 0);
+		viafbinfo->var.bits_per_pixel, 0);
 
 	vmode_entry = viafb_get_mode(viafbinfo->var.xres, viafbinfo->var.yres);
 	if (viafb_dual_fb) {
@@ -266,7 +272,7 @@ static int viafb_set_par(struct fb_info *info)
 			viafbinfo1->var.yres);
 		viafb_update_device_setting(viafbinfo1->var.xres,
 			viafbinfo1->var.yres, viafbinfo1->var.bits_per_pixel,
-			viafb_refresh1, 1);
+			1);
 	} else if (viafb_SAMM_ON == 1) {
 		DEBUG_MSG(KERN_INFO
 		"viafb_second_xres = %d, viafb_second_yres = %d, bpp = %d\n",
@@ -275,14 +281,19 @@ static int viafb_set_par(struct fb_info *info)
 			viafb_second_yres);
 
 		viafb_update_device_setting(viafb_second_xres,
-			viafb_second_yres, viafb_bpp1, viafb_refresh1, 1);
+			viafb_second_yres, viafb_bpp1, 1);
 	}
 
+	refresh = viafb_get_refresh(info->var.xres, info->var.yres,
+		get_var_refresh(&info->var));
 	if (vmode_entry) {
-		if (viafb_dual_fb && viapar->iga_path == IGA2)
+		if (viafb_dual_fb && viapar->iga_path == IGA2) {
 			viafb_bpp1 = info->var.bits_per_pixel;
-		else
+			viafb_refresh1 = refresh;
+		} else {
 			viafb_bpp = info->var.bits_per_pixel;
+			viafb_refresh = refresh;
+		}
 
 		if (info->var.accel_flags & FB_ACCELF_TEXT)
 			info->flags &= ~FBINFO_HWACCEL_DISABLED;
@@ -1795,14 +1806,9 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 	default_var.xres_virtual = default_xres;
 	default_var.yres_virtual = default_yres;
 	default_var.bits_per_pixel = viafb_bpp;
-	default_var.pixclock =
-	    viafb_get_pixclock(default_xres, default_yres, viafb_refresh);
-	default_var.left_margin = (default_xres >> 3) & 0xf8;
-	default_var.right_margin = 32;
-	default_var.upper_margin = 16;
-	default_var.lower_margin = 4;
-	default_var.hsync_len = default_var.left_margin;
-	default_var.vsync_len = 4;
+	viafb_fill_var_timing_info(&default_var, viafb_get_refresh(
+		default_var.xres, default_var.yres, viafb_refresh),
+		viafb_get_mode(default_var.xres, default_var.yres));
 	viafb_setup_fixinfo(&viafbinfo->fix, viaparinfo);
 	viafbinfo->var = default_var;
 
@@ -1841,15 +1847,9 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 		default_var.xres_virtual = viafb_second_virtual_xres;
 		default_var.yres_virtual = viafb_second_virtual_yres;
 		default_var.bits_per_pixel = viafb_bpp1;
-		default_var.pixclock =
-		    viafb_get_pixclock(viafb_second_xres, viafb_second_yres,
-		    viafb_refresh);
-		default_var.left_margin = (viafb_second_xres >> 3) & 0xf8;
-		default_var.right_margin = 32;
-		default_var.upper_margin = 16;
-		default_var.lower_margin = 4;
-		default_var.hsync_len = default_var.left_margin;
-		default_var.vsync_len = 4;
+		viafb_fill_var_timing_info(&default_var, viafb_get_refresh(
+			default_var.xres, default_var.yres, viafb_refresh1),
+			viafb_get_mode(default_var.xres, default_var.yres));
 
 		viafb_setup_fixinfo(&viafbinfo1->fix, viaparinfo1);
 		viafb_check_var(&default_var, viafbinfo1);
@@ -2004,22 +2004,24 @@ static int __init viafb_setup(char *options)
  */
 int __init viafb_init(void)
 {
-	u32 dummy;
+	u32 dummy_x, dummy_y;
 #ifndef MODULE
 	char *option = NULL;
 	if (fb_get_options("viafb", &option))
 		return -ENODEV;
 	viafb_setup(option);
 #endif
-	if (parse_mode(viafb_mode, &dummy, &dummy)
-		|| parse_mode(viafb_mode1, &dummy, &dummy)
+	if (parse_mode(viafb_mode, &dummy_x, &dummy_y)
+		|| !viafb_get_mode(dummy_x, dummy_y)
+		|| parse_mode(viafb_mode1, &dummy_x, &dummy_y)
+		|| !viafb_get_mode(dummy_x, dummy_y)
 		|| viafb_bpp < 0 || viafb_bpp > 32
 		|| viafb_bpp1 < 0 || viafb_bpp1 > 32
 		|| parse_active_dev())
 		return -EINVAL;
 
 	printk(KERN_INFO
-       "VIA Graphics Intergration Chipset framebuffer %d.%d initializing\n",
+       "VIA Graphics Integration Chipset framebuffer %d.%d initializing\n",
 	       VERSION_MAJOR, VERSION_MINOR);
 	return 0;
 }

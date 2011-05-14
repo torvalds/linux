@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2007 Google, Inc.
  * Author: Robert Love <rlove@google.com>
+ * Copyright (c) 2011, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -54,6 +55,7 @@
 #define UART_CSR_300	0x22
 
 #define UART_TF		0x000C
+#define UARTDM_TF	0x0070
 
 #define UART_CR				0x0010
 #define UART_CR_CMD_NULL		(0 << 4)
@@ -64,14 +66,17 @@
 #define UART_CR_CMD_START_BREAK		(5 << 4)
 #define UART_CR_CMD_STOP_BREAK		(6 << 4)
 #define UART_CR_CMD_RESET_CTS		(7 << 4)
+#define UART_CR_CMD_RESET_STALE_INT	(8 << 4)
 #define UART_CR_CMD_PACKET_MODE		(9 << 4)
 #define UART_CR_CMD_MODE_RESET		(12 << 4)
 #define UART_CR_CMD_SET_RFR		(13 << 4)
 #define UART_CR_CMD_RESET_RFR		(14 << 4)
+#define UART_CR_CMD_PROTECTION_EN	(16 << 4)
+#define UART_CR_CMD_STALE_EVENT_ENABLE	(80 << 4)
 #define UART_CR_TX_DISABLE		(1 << 3)
-#define UART_CR_TX_ENABLE		(1 << 3)
-#define UART_CR_RX_DISABLE		(1 << 3)
-#define UART_CR_RX_ENABLE		(1 << 3)
+#define UART_CR_TX_ENABLE		(1 << 2)
+#define UART_CR_RX_DISABLE		(1 << 1)
+#define UART_CR_RX_ENABLE		(1 << 0)
 
 #define UART_IMR		0x0014
 #define UART_IMR_TXLEV		(1 << 0)
@@ -110,9 +115,20 @@
 #define UART_SR_RX_FULL		(1 << 1)
 #define UART_SR_RX_READY	(1 << 0)
 
-#define UART_RF		0x000C
-#define UART_MISR	0x0010
-#define UART_ISR	0x0014
+#define UART_RF			0x000C
+#define UARTDM_RF		0x0070
+#define UART_MISR		0x0010
+#define UART_ISR		0x0014
+#define UART_ISR_TX_READY	(1 << 7)
+
+#define GSBI_CONTROL		0x0
+#define GSBI_PROTOCOL_CODE	0x30
+#define GSBI_PROTOCOL_UART	0x40
+#define GSBI_PROTOCOL_IDLE	0x0
+
+#define UARTDM_DMRX		0x34
+#define UARTDM_NCF_TX		0x40
+#define UARTDM_RX_TOTAL_SNAP	0x38
 
 #define UART_TO_MSM(uart_port)	((struct msm_port *) uart_port)
 

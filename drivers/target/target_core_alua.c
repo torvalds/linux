@@ -496,8 +496,8 @@ static int core_alua_state_check(
 	nonop_delay_msecs = tg_pt_gp->tg_pt_gp_nonop_delay_msecs;
 	spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
 	/*
-	 * Process ALUA_ACCESS_STATE_ACTIVE_OPTMIZED in a seperate conditional
-	 * statement so the complier knows explictly to check this case first.
+	 * Process ALUA_ACCESS_STATE_ACTIVE_OPTMIZED in a separate conditional
+	 * statement so the compiler knows explicitly to check this case first.
 	 * For the Optimized ALUA access state case, we want to process the
 	 * incoming fabric cmd ASAP..
 	 */
@@ -1157,7 +1157,7 @@ void core_alua_free_lu_gp(struct t10_alua_lu_gp *lu_gp)
 		spin_unlock(&lu_gp->lu_gp_lock);
 		/*
 		 *
-		 * lu_gp_mem is assoicated with a single
+		 * lu_gp_mem is associated with a single
 		 * struct se_device->dev_alua_lu_gp_mem, and is released when
 		 * struct se_device is released via core_alua_free_lu_gp_mem().
 		 *
@@ -1429,7 +1429,7 @@ void core_alua_free_tg_pt_gp(
 		}
 		spin_unlock(&tg_pt_gp->tg_pt_gp_lock);
 		/*
-		 * tg_pt_gp_mem is assoicated with a single
+		 * tg_pt_gp_mem is associated with a single
 		 * se_port->sep_alua_tg_pt_gp_mem, and is released via
 		 * core_alua_free_tg_pt_gp_mem().
 		 *
@@ -1963,7 +1963,7 @@ int core_setup_alua(struct se_device *dev, int force_pt)
 		printk(KERN_INFO "%s: Enabling ALUA Emulation for SPC-3"
 			" device\n", TRANSPORT(dev)->name);
 		/*
-		 * Assoicate this struct se_device with the default ALUA
+		 * Associate this struct se_device with the default ALUA
 		 * LUN Group.
 		 */
 		lu_gp_mem = core_alua_allocate_lu_gp_mem(dev);

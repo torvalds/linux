@@ -166,8 +166,8 @@ static struct snd_soc_dai_link zylonite_dai[] = {
 	.stream_name = "AC97 HiFi",
 	.codec_name = "wm9713-codec",
 	.platform_name = "pxa-pcm-audio",
-	.cpu_dai_name = "pxa-ac97.0",
-	.codec_name = "wm9713-hifi",
+	.cpu_dai_name = "pxa2xx-ac97",
+	.codec_dai_name = "wm9713-hifi",
 	.init = zylonite_wm9713_init,
 },
 {
@@ -175,8 +175,8 @@ static struct snd_soc_dai_link zylonite_dai[] = {
 	.stream_name = "AC97 Aux",
 	.codec_name = "wm9713-codec",
 	.platform_name = "pxa-pcm-audio",
-	.cpu_dai_name = "pxa-ac97.1",
-	.codec_name = "wm9713-aux",
+	.cpu_dai_name = "pxa2xx-ac97-aux",
+	.codec_dai_name = "wm9713-aux",
 },
 {
 	.name = "WM9713 Voice",
@@ -184,12 +184,12 @@ static struct snd_soc_dai_link zylonite_dai[] = {
 	.codec_name = "wm9713-codec",
 	.platform_name = "pxa-pcm-audio",
 	.cpu_dai_name = "pxa-ssp-dai.2",
-	.codec_name = "wm9713-voice",
+	.codec_dai_name = "wm9713-voice",
 	.ops = &zylonite_voice_ops,
 },
 };
 
-static int zylonite_probe(struct platform_device *pdev)
+static int zylonite_probe(struct snd_soc_card *card)
 {
 	int ret;
 
@@ -216,7 +216,7 @@ static int zylonite_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int zylonite_remove(struct platform_device *pdev)
+static int zylonite_remove(struct snd_soc_card *card)
 {
 	if (clk_pout) {
 		clk_disable(pout);
@@ -226,8 +226,7 @@ static int zylonite_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int zylonite_suspend_post(struct platform_device *pdev,
-				 pm_message_t state)
+static int zylonite_suspend_post(struct snd_soc_card *card)
 {
 	if (clk_pout)
 		clk_disable(pout);
@@ -235,7 +234,7 @@ static int zylonite_suspend_post(struct platform_device *pdev,
 	return 0;
 }
 
-static int zylonite_resume_pre(struct platform_device *pdev)
+static int zylonite_resume_pre(struct snd_soc_card *card)
 {
 	int ret = 0;
 

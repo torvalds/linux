@@ -14,39 +14,35 @@
 
 
 /*
- *	Define master clock frequency. This is essentially done at config
- *	time now. No point enumerating dozens of possible clock options
- *	here. Also the peripheral clock (bus clock) divide ratio is set
- *	at config time too.
+ *	Define master clock frequency. This is done at config time now.
+ *	No point enumerating dozens of possible clock options here. And
+ *	in any case new boards come along from time to time that have yet
+ *	another different clocking frequency.
  */
 #ifdef CONFIG_CLOCK_SET
 #define	MCF_CLK		CONFIG_CLOCK_FREQ
-#define	MCF_BUSCLK	(CONFIG_CLOCK_FREQ / CONFIG_CLOCK_DIV)
 #else
 #error "Don't know what your ColdFire CPU clock frequency is??"
 #endif
 
 /*
- *	Define the processor support peripherals base address.
- *	This is generally setup by the boards start up code.
+ *	Define the processor internal peripherals base address.
+ *
+ *	The majority of ColdFire parts use an MBAR register to set
+ *	the base address. Some have an IPSBAR register instead, and it
+ *	has slightly different rules on its size and alignment. Some
+ *	parts have fixed addresses and the internal peripherals cannot
+ *	be relocated in the CPU address space.
+ *
+ *	The value of MBAR or IPSBAR is config time selectable, we no
+ *	longer hard define it here. No MBAR or IPSBAR will be defined if
+ *	this part has a fixed peripheral address map.
  */
-#define	MCF_MBAR	0x10000000
-#define	MCF_MBAR2	0x80000000
-#if defined(CONFIG_M54xx)
-#define	MCF_IPSBAR	MCF_MBAR
-#elif defined(CONFIG_M520x)
-#define	MCF_IPSBAR	0xFC000000
-#else
-#define	MCF_IPSBAR	0x40000000
+#ifdef CONFIG_MBAR
+#define	MCF_MBAR	CONFIG_MBAR
 #endif
-
-#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x)
-#undef MCF_MBAR
-#define	MCF_MBAR	MCF_IPSBAR
-#elif defined(CONFIG_M532x)
-#undef MCF_MBAR
-#define MCF_MBAR	0x00000000
+#ifdef CONFIG_IPSBAR
+#define	MCF_IPSBAR	CONFIG_IPSBAR
 #endif
 
 /****************************************************************************/

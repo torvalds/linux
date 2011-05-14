@@ -1149,7 +1149,7 @@ bfa_fcs_lport_fdmi_sm_offline(struct bfa_fcs_lport_fdmi_s *fdmi,
 		} else {
 			/*
 			 * For a base port, we should first register the HBA
-			 * atribute. The HBA attribute also contains the base
+			 * attribute. The HBA attribute also contains the base
 			 *  port registration.
 			 */
 			bfa_sm_set_state(fdmi,

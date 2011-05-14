@@ -123,7 +123,7 @@ nouveau_mm_get(struct nouveau_mm *rmm, int type, u32 size, u32 size_nc,
 		return 0;
 	}
 
-	return -ENOMEM;
+	return -ENOSPC;
 }
 
 int

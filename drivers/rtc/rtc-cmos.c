@@ -37,6 +37,8 @@
 #include <linux/mod_devicetable.h>
 #include <linux/log2.h>
 #include <linux/pm.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 
 /* this is for "generic access to PC-style RTC" using CMOS_READ/CMOS_WRITE */
 #include <asm-generic/rtc.h>
@@ -375,50 +377,6 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	return 0;
 }
 
-static int cmos_irq_set_freq(struct device *dev, int freq)
-{
-	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
-	int		f;
-	unsigned long	flags;
-
-	if (!is_valid_irq(cmos->irq))
-		return -ENXIO;
-
-	if (!is_power_of_2(freq))
-		return -EINVAL;
-	/* 0 = no irqs; 1 = 2^15 Hz ... 15 = 2^0 Hz */
-	f = ffs(freq);
-	if (f-- > 16)
-		return -EINVAL;
-	f = 16 - f;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-	hpet_set_periodic_freq(freq);
-	CMOS_WRITE(RTC_REF_CLCK_32KHZ | f, RTC_FREQ_SELECT);
-	spin_unlock_irqrestore(&rtc_lock, flags);
-
-	return 0;
-}
-
-static int cmos_irq_set_state(struct device *dev, int enabled)
-{
-	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
-	unsigned long	flags;
-
-	if (!is_valid_irq(cmos->irq))
-		return -ENXIO;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-
-	if (enabled)
-		cmos_irq_enable(cmos, RTC_PIE);
-	else
-		cmos_irq_disable(cmos, RTC_PIE);
-
-	spin_unlock_irqrestore(&rtc_lock, flags);
-	return 0;
-}
-
 static int cmos_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
@@ -433,25 +391,6 @@ static int cmos_alarm_irq_enable(struct device *dev, unsigned int enabled)
 		cmos_irq_enable(cmos, RTC_AIE);
 	else
 		cmos_irq_disable(cmos, RTC_AIE);
-
-	spin_unlock_irqrestore(&rtc_lock, flags);
-	return 0;
-}
-
-static int cmos_update_irq_enable(struct device *dev, unsigned int enabled)
-{
-	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
-	unsigned long	flags;
-
-	if (!is_valid_irq(cmos->irq))
-		return -EINVAL;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-
-	if (enabled)
-		cmos_irq_enable(cmos, RTC_UIE);
-	else
-		cmos_irq_disable(cmos, RTC_UIE);
 
 	spin_unlock_irqrestore(&rtc_lock, flags);
 	return 0;
@@ -501,10 +440,7 @@ static const struct rtc_class_ops cmos_rtc_ops = {
 	.read_alarm		= cmos_read_alarm,
 	.set_alarm		= cmos_set_alarm,
 	.proc			= cmos_procfs,
-	.irq_set_freq		= cmos_irq_set_freq,
-	.irq_set_state		= cmos_irq_set_state,
 	.alarm_irq_enable	= cmos_alarm_irq_enable,
-	.update_irq_enable	= cmos_update_irq_enable,
 };
 
 /*----------------------------------------------------------------*/
@@ -1123,6 +1059,47 @@ static struct pnp_driver cmos_pnp_driver = {
 
 #endif	/* CONFIG_PNP */
 
+#ifdef CONFIG_OF
+static const struct of_device_id of_cmos_match[] = {
+	{
+		.compatible = "motorola,mc146818",
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, of_cmos_match);
+
+static __init void cmos_of_init(struct platform_device *pdev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	struct rtc_time time;
+	int ret;
+	const __be32 *val;
+
+	if (!node)
+		return;
+
+	val = of_get_property(node, "ctrl-reg", NULL);
+	if (val)
+		CMOS_WRITE(be32_to_cpup(val), RTC_CONTROL);
+
+	val = of_get_property(node, "freq-reg", NULL);
+	if (val)
+		CMOS_WRITE(be32_to_cpup(val), RTC_FREQ_SELECT);
+
+	get_rtc_time(&time);
+	ret = rtc_valid_tm(&time);
+	if (ret) {
+		struct rtc_time def_time = {
+			.tm_year = 1,
+			.tm_mday = 1,
+		};
+		set_rtc_time(&def_time);
+	}
+}
+#else
+static inline void cmos_of_init(struct platform_device *pdev) {}
+#define of_cmos_match NULL
+#endif
 /*----------------------------------------------------------------*/
 
 /* Platform setup should have set up an RTC device, when PNP is
@@ -1131,6 +1108,7 @@ static struct pnp_driver cmos_pnp_driver = {
 
 static int __init cmos_platform_probe(struct platform_device *pdev)
 {
+	cmos_of_init(pdev);
 	cmos_wake_setup(&pdev->dev);
 	return cmos_do_probe(&pdev->dev,
 			platform_get_resource(pdev, IORESOURCE_IO, 0),
@@ -1162,6 +1140,7 @@ static struct platform_driver cmos_platform_driver = {
 #ifdef CONFIG_PM
 		.pm		= &cmos_pm_ops,
 #endif
+		.of_match_table = of_cmos_match,
 	}
 };
 

@@ -1052,9 +1052,12 @@ static void azx_init_pci(struct azx *chip)
 	/* Clear bits 0-2 of PCI register TCSEL (at offset 0x44)
 	 * TCSEL == Traffic Class Select Register, which sets PCI express QOS
 	 * Ensuring these bits are 0 clears playback static on some HD Audio
-	 * codecs
+	 * codecs.
+	 * The PCI register TCSEL is defined in the Intel manuals.
 	 */
-	update_pci_byte(chip->pci, ICH6_PCIREG_TCSEL, 0x07, 0);
+	if (chip->driver_type != AZX_DRIVER_ATI &&
+	    chip->driver_type != AZX_DRIVER_ATIHDMI)
+		update_pci_byte(chip->pci, ICH6_PCIREG_TCSEL, 0x07, 0);
 
 	switch (chip->driver_type) {
 	case AZX_DRIVER_ATI:

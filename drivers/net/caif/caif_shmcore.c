@@ -591,7 +591,7 @@ int caif_shmcore_probe(struct shmdev_layer *pshm_dev)
 			(NR_TX_BUF * TX_BUF_SZ + NR_RX_BUF * RX_BUF_SZ)) {
 
 		pr_warn("ERROR, Amount of available"
-				" Phys. SHM cannot accomodate current SHM "
+				" Phys. SHM cannot accommodate current SHM "
 				"driver configuration, Bailing out ...\n");
 		free_netdev(pshm_dev->pshm_netdev);
 		return -ENOMEM;

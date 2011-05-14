@@ -267,9 +267,12 @@ int cfg80211_wext_freq(struct wiphy *wiphy, struct iw_freq *freq)
 	 * -EINVAL for impossible things.
 	 */
 	if (freq->e == 0) {
+		enum ieee80211_band band = IEEE80211_BAND_2GHZ;
 		if (freq->m < 0)
 			return 0;
-		return ieee80211_channel_to_frequency(freq->m);
+		if (freq->m > 14)
+			band = IEEE80211_BAND_5GHZ;
+		return ieee80211_channel_to_frequency(freq->m, band);
 	} else {
 		int i, div = 1000000;
 		for (i = 0; i < freq->e; i++)
@@ -802,11 +805,11 @@ int cfg80211_wext_siwfreq(struct net_device *dev,
 			return freq;
 		if (freq == 0)
 			return -EINVAL;
-		wdev_lock(wdev);
 		mutex_lock(&rdev->devlist_mtx);
+		wdev_lock(wdev);
 		err = cfg80211_set_freq(rdev, wdev, freq, NL80211_CHAN_NO_HT);
-		mutex_unlock(&rdev->devlist_mtx);
 		wdev_unlock(wdev);
+		mutex_unlock(&rdev->devlist_mtx);
 		return err;
 	default:
 		return -EOPNOTSUPP;

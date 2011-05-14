@@ -645,7 +645,7 @@ static int validate_simple_test(char *put_str)
 
 	while (*chk_str != '\0' && *put_str != '\0') {
 		/* If someone does a * to match the rest of the string, allow
-		 * it, or stop if the recieved string is complete.
+		 * it, or stop if the received string is complete.
 		 */
 		if (*put_str == '#' || *chk_str == '*')
 			return 0;
@@ -988,7 +988,7 @@ static void kgdbts_run_tests(void)
 
 static int kgdbts_option_setup(char *opt)
 {
-	if (strlen(opt) > MAX_CONFIG_LEN) {
+	if (strlen(opt) >= MAX_CONFIG_LEN) {
 		printk(KERN_ERR "kgdbts: config string too long\n");
 		return -ENOSPC;
 	}

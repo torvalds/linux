@@ -557,7 +557,7 @@ s3c2410_dma_lastxfer(struct s3c2410_dma_chan *chan)
 		break;
 
 	case S3C2410_DMALOAD_1LOADED_1RUNNING:
-		/* I belive in this case we do not have anything to do
+		/* I believe in this case we do not have anything to do
 		 * until the next buffer comes along, and we turn off the
 		 * reload */
 		return;

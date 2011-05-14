@@ -283,7 +283,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	case CX88_BOARD_PCHDTV_HD3000:
 	case CX88_BOARD_PCHDTV_HD5500:
 	case CX88_BOARD_HAUPPAUGE_IRONLY:
-		ir_codes = RC_MAP_HAUPPAUGE_NEW;
+		ir_codes = RC_MAP_HAUPPAUGE;
 		ir->sampling = 1;
 		break;
 	case CX88_BOARD_WINFAST_DTV2000H:
@@ -373,6 +373,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir_codes = RC_MAP_TBS_NEC;
 		ir->sampling = 0xff00; /* address */
 		break;
+	case CX88_BOARD_TEVII_S464:
 	case CX88_BOARD_TEVII_S460:
 	case CX88_BOARD_TEVII_S420:
 		ir_codes = RC_MAP_TEVII_NEC;
@@ -603,7 +604,7 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 		if (*addrp == 0x71) {
 			/* Hauppauge XVR */
 			core->init_data.name = "cx88 Hauppauge XVR remote";
-			core->init_data.ir_codes = RC_MAP_HAUPPAUGE_NEW;
+			core->init_data.ir_codes = RC_MAP_HAUPPAUGE;
 			core->init_data.type = RC_TYPE_RC5;
 			core->init_data.internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
 

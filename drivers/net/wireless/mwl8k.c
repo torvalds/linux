@@ -137,6 +137,7 @@ struct mwl8k_tx_queue {
 struct mwl8k_priv {
 	struct ieee80211_hw *hw;
 	struct pci_dev *pdev;
+	int irq;
 
 	struct mwl8k_device_info *device_info;
 
@@ -232,6 +233,9 @@ struct mwl8k_priv {
 	struct completion firmware_loading_complete;
 };
 
+#define MAX_WEP_KEY_LEN         13
+#define NUM_WEP_KEYS            4
+
 /* Per interface specific private data */
 struct mwl8k_vif {
 	struct list_head list;
@@ -242,8 +246,21 @@ struct mwl8k_vif {
 
 	/* Non AMPDU sequence number assigned by driver.  */
 	u16 seqno;
+
+	/* Saved WEP keys */
+	struct {
+		u8 enabled;
+		u8 key[sizeof(struct ieee80211_key_conf) + MAX_WEP_KEY_LEN];
+	} wep_key_conf[NUM_WEP_KEYS];
+
+	/* BSSID */
+	u8 bssid[ETH_ALEN];
+
+	/* A flag to indicate is HW crypto is enabled for this bssid */
+	bool is_hw_crypto_enabled;
 };
 #define MWL8K_VIF(_vif) ((struct mwl8k_vif *)&((_vif)->drv_priv))
+#define IEEE80211_KEY_CONF(_u8) ((struct ieee80211_key_conf *)(_u8))
 
 struct mwl8k_sta {
 	/* Index into station database. Returned by UPDATE_STADB.  */
@@ -337,6 +354,7 @@ static const struct ieee80211_rate mwl8k_rates_50[] = {
 #define MWL8K_CMD_SET_RATEADAPT_MODE	0x0203
 #define MWL8K_CMD_BSS_START		0x1100		/* per-vif */
 #define MWL8K_CMD_SET_NEW_STN		0x1111		/* per-vif */
+#define MWL8K_CMD_UPDATE_ENCRYPTION	0x1122		/* per-vif */
 #define MWL8K_CMD_UPDATE_STADB		0x1123
 
 static const char *mwl8k_cmd_name(__le16 cmd, char *buf, int bufsize)
@@ -375,6 +393,7 @@ static const char *mwl8k_cmd_name(__le16 cmd, char *buf, int bufsize)
 		MWL8K_CMDNAME(SET_RATEADAPT_MODE);
 		MWL8K_CMDNAME(BSS_START);
 		MWL8K_CMDNAME(SET_NEW_STN);
+		MWL8K_CMDNAME(UPDATE_ENCRYPTION);
 		MWL8K_CMDNAME(UPDATE_STADB);
 	default:
 		snprintf(buf, bufsize, "0x%x", cmd);
@@ -715,10 +734,12 @@ static inline void mwl8k_remove_dma_header(struct sk_buff *skb, __le16 qos)
 		skb_pull(skb, sizeof(*tr) - hdrlen);
 }
 
-static inline void mwl8k_add_dma_header(struct sk_buff *skb)
+static void
+mwl8k_add_dma_header(struct sk_buff *skb, int tail_pad)
 {
 	struct ieee80211_hdr *wh;
 	int hdrlen;
+	int reqd_hdrlen;
 	struct mwl8k_dma_data *tr;
 
 	/*
@@ -730,11 +751,13 @@ static inline void mwl8k_add_dma_header(struct sk_buff *skb)
 	wh = (struct ieee80211_hdr *)skb->data;
 
 	hdrlen = ieee80211_hdrlen(wh->frame_control);
-	if (hdrlen != sizeof(*tr))
-		skb_push(skb, sizeof(*tr) - hdrlen);
+	reqd_hdrlen = sizeof(*tr);
+
+	if (hdrlen != reqd_hdrlen)
+		skb_push(skb, reqd_hdrlen - hdrlen);
 
 	if (ieee80211_is_data_qos(wh->frame_control))
-		hdrlen -= 2;
+		hdrlen -= IEEE80211_QOS_CTL_LEN;
 
 	tr = (struct mwl8k_dma_data *)skb->data;
 	if (wh != &tr->wh)
@@ -747,9 +770,52 @@ static inline void mwl8k_add_dma_header(struct sk_buff *skb)
 	 * payload".  That is, everything except for the 802.11 header.
 	 * This includes all crypto material including the MIC.
 	 */
-	tr->fwlen = cpu_to_le16(skb->len - sizeof(*tr));
+	tr->fwlen = cpu_to_le16(skb->len - sizeof(*tr) + tail_pad);
 }
 
+static void mwl8k_encapsulate_tx_frame(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *wh;
+	struct ieee80211_tx_info *tx_info;
+	struct ieee80211_key_conf *key_conf;
+	int data_pad;
+
+	wh = (struct ieee80211_hdr *)skb->data;
+
+	tx_info = IEEE80211_SKB_CB(skb);
+
+	key_conf = NULL;
+	if (ieee80211_is_data(wh->frame_control))
+		key_conf = tx_info->control.hw_key;
+
+	/*
+	 * Make sure the packet header is in the DMA header format (4-address
+	 * without QoS), the necessary crypto padding between the header and the
+	 * payload has already been provided by mac80211, but it doesn't add tail
+	 * padding when HW crypto is enabled.
+	 *
+	 * We have the following trailer padding requirements:
+	 * - WEP: 4 trailer bytes (ICV)
+	 * - TKIP: 12 trailer bytes (8 MIC + 4 ICV)
+	 * - CCMP: 8 trailer bytes (MIC)
+	 */
+	data_pad = 0;
+	if (key_conf != NULL) {
+		switch (key_conf->cipher) {
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+			data_pad = 4;
+			break;
+		case WLAN_CIPHER_SUITE_TKIP:
+			data_pad = 12;
+			break;
+		case WLAN_CIPHER_SUITE_CCMP:
+			data_pad = 8;
+			break;
+		}
+	}
+	mwl8k_add_dma_header(skb, data_pad);
+}
 
 /*
  * Packet reception for 88w8366 AP firmware.
@@ -777,6 +843,13 @@ struct mwl8k_rxd_8366_ap {
 #define MWL8K_8366_AP_RATE_INFO_RATEID(x)	((x) & 0x3f)
 
 #define MWL8K_8366_AP_RX_CTRL_OWNED_BY_HOST	0x80
+
+/* 8366 AP rx_status bits */
+#define MWL8K_8366_AP_RXSTAT_DECRYPT_ERR_MASK		0x80
+#define MWL8K_8366_AP_RXSTAT_GENERAL_DECRYPT_ERR	0xFF
+#define MWL8K_8366_AP_RXSTAT_TKIP_DECRYPT_MIC_ERR	0x02
+#define MWL8K_8366_AP_RXSTAT_WEP_DECRYPT_ICV_ERR	0x04
+#define MWL8K_8366_AP_RXSTAT_TKIP_DECRYPT_ICV_ERR	0x08
 
 static void mwl8k_rxd_8366_ap_init(void *_rxd, dma_addr_t next_dma_addr)
 {
@@ -834,9 +907,15 @@ mwl8k_rxd_8366_ap_process(void *_rxd, struct ieee80211_rx_status *status,
 	} else {
 		status->band = IEEE80211_BAND_2GHZ;
 	}
-	status->freq = ieee80211_channel_to_frequency(rxd->channel);
+	status->freq = ieee80211_channel_to_frequency(rxd->channel,
+						      status->band);
 
 	*qos = rxd->qos_control;
+
+	if ((rxd->rx_status != MWL8K_8366_AP_RXSTAT_GENERAL_DECRYPT_ERR) &&
+	    (rxd->rx_status & MWL8K_8366_AP_RXSTAT_DECRYPT_ERR_MASK) &&
+	    (rxd->rx_status & MWL8K_8366_AP_RXSTAT_TKIP_DECRYPT_MIC_ERR))
+		status->flag |= RX_FLAG_MMIC_ERROR;
 
 	return le16_to_cpu(rxd->pkt_len);
 }
@@ -876,6 +955,11 @@ struct mwl8k_rxd_sta {
 #define MWL8K_STA_RATE_INFO_MCS_FORMAT		0x0001
 
 #define MWL8K_STA_RX_CTRL_OWNED_BY_HOST		0x02
+#define MWL8K_STA_RX_CTRL_DECRYPT_ERROR		0x04
+/* ICV=0 or MIC=1 */
+#define MWL8K_STA_RX_CTRL_DEC_ERR_TYPE		0x08
+/* Key is uploaded only in failure case */
+#define MWL8K_STA_RX_CTRL_KEY_INDEX			0x30
 
 static void mwl8k_rxd_sta_init(void *_rxd, dma_addr_t next_dma_addr)
 {
@@ -931,9 +1015,13 @@ mwl8k_rxd_sta_process(void *_rxd, struct ieee80211_rx_status *status,
 	} else {
 		status->band = IEEE80211_BAND_2GHZ;
 	}
-	status->freq = ieee80211_channel_to_frequency(rxd->channel);
+	status->freq = ieee80211_channel_to_frequency(rxd->channel,
+						      status->band);
 
 	*qos = rxd->qos_control;
+	if ((rxd->rx_ctrl & MWL8K_STA_RX_CTRL_DECRYPT_ERROR) &&
+	    (rxd->rx_ctrl & MWL8K_STA_RX_CTRL_DEC_ERR_TYPE))
+		status->flag |= RX_FLAG_MMIC_ERROR;
 
 	return le16_to_cpu(rxd->pkt_len);
 }
@@ -969,13 +1057,12 @@ static int mwl8k_rxq_init(struct ieee80211_hw *hw, int index)
 	}
 	memset(rxq->rxd, 0, size);
 
-	rxq->buf = kmalloc(MWL8K_RX_DESCS * sizeof(*rxq->buf), GFP_KERNEL);
+	rxq->buf = kcalloc(MWL8K_RX_DESCS, sizeof(*rxq->buf), GFP_KERNEL);
 	if (rxq->buf == NULL) {
 		wiphy_err(hw->wiphy, "failed to alloc RX skbuff list\n");
 		pci_free_consistent(priv->pdev, size, rxq->rxd, rxq->rxd_dma);
 		return -ENOMEM;
 	}
-	memset(rxq->buf, 0, MWL8K_RX_DESCS * sizeof(*rxq->buf));
 
 	for (i = 0; i < MWL8K_RX_DESCS; i++) {
 		int desc_size;
@@ -1092,9 +1179,25 @@ static inline void mwl8k_save_beacon(struct ieee80211_hw *hw,
 		ieee80211_queue_work(hw, &priv->finalize_join_worker);
 }
 
+static inline struct mwl8k_vif *mwl8k_find_vif_bss(struct list_head *vif_list,
+						   u8 *bssid)
+{
+	struct mwl8k_vif *mwl8k_vif;
+
+	list_for_each_entry(mwl8k_vif,
+			    vif_list, list) {
+		if (memcmp(bssid, mwl8k_vif->bssid,
+			   ETH_ALEN) == 0)
+			return mwl8k_vif;
+	}
+
+	return NULL;
+}
+
 static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 {
 	struct mwl8k_priv *priv = hw->priv;
+	struct mwl8k_vif *mwl8k_vif = NULL;
 	struct mwl8k_rx_queue *rxq = priv->rxq + index;
 	int processed;
 
@@ -1104,6 +1207,7 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 		void *rxd;
 		int pkt_len;
 		struct ieee80211_rx_status status;
+		struct ieee80211_hdr *wh;
 		__le16 qos;
 
 		skb = rxq->buf[rxq->head].skb;
@@ -1130,8 +1234,7 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 
 		rxq->rxd_count--;
 
-		skb_put(skb, pkt_len);
-		mwl8k_remove_dma_header(skb, qos);
+		wh = &((struct mwl8k_dma_data *)skb->data)->wh;
 
 		/*
 		 * Check for a pending join operation.  Save a
@@ -1141,6 +1244,46 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 		if (mwl8k_capture_bssid(priv, (void *)skb->data))
 			mwl8k_save_beacon(hw, skb);
 
+		if (ieee80211_has_protected(wh->frame_control)) {
+
+			/* Check if hw crypto has been enabled for
+			 * this bss. If yes, set the status flags
+			 * accordingly
+			 */
+			mwl8k_vif = mwl8k_find_vif_bss(&priv->vif_list,
+								wh->addr1);
+
+			if (mwl8k_vif != NULL &&
+			    mwl8k_vif->is_hw_crypto_enabled == true) {
+				/*
+				 * When MMIC ERROR is encountered
+				 * by the firmware, payload is
+				 * dropped and only 32 bytes of
+				 * mwl8k Firmware header is sent
+				 * to the host.
+				 *
+				 * We need to add four bytes of
+				 * key information.  In it
+				 * MAC80211 expects keyidx set to
+				 * 0 for triggering Counter
+				 * Measure of MMIC failure.
+				 */
+				if (status.flag & RX_FLAG_MMIC_ERROR) {
+					struct mwl8k_dma_data *tr;
+					tr = (struct mwl8k_dma_data *)skb->data;
+					memset((void *)&(tr->data), 0, 4);
+					pkt_len += 4;
+				}
+
+				if (!ieee80211_is_auth(wh->frame_control))
+					status.flag |= RX_FLAG_IV_STRIPPED |
+						       RX_FLAG_DECRYPTED |
+						       RX_FLAG_MMIC_STRIPPED;
+			}
+		}
+
+		skb_put(skb, pkt_len);
+		mwl8k_remove_dma_header(skb, qos);
 		memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
 		ieee80211_rx_irqsafe(hw, skb);
 
@@ -1204,13 +1347,12 @@ static int mwl8k_txq_init(struct ieee80211_hw *hw, int index)
 	}
 	memset(txq->txd, 0, size);
 
-	txq->skb = kmalloc(MWL8K_TX_DESCS * sizeof(*txq->skb), GFP_KERNEL);
+	txq->skb = kcalloc(MWL8K_TX_DESCS, sizeof(*txq->skb), GFP_KERNEL);
 	if (txq->skb == NULL) {
 		wiphy_err(hw->wiphy, "failed to alloc TX skbuff list\n");
 		pci_free_consistent(priv->pdev, size, txq->txd, txq->txd_dma);
 		return -ENOMEM;
 	}
-	memset(txq->skb, 0, MWL8K_TX_DESCS * sizeof(*txq->skb));
 
 	for (i = 0; i < MWL8K_TX_DESCS; i++) {
 		struct mwl8k_tx_desc *tx_desc;
@@ -1392,6 +1534,13 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 
 		info = IEEE80211_SKB_CB(skb);
 		ieee80211_tx_info_clear_status(info);
+
+		/* Rate control is happening in the firmware.
+		 * Ensure no tx rate is being reported.
+		 */
+                info->status.rates[0].idx = -1;
+                info->status.rates[0].count = 1;
+
 		if (MWL8K_TXD_SUCCESS(status))
 			info->flags |= IEEE80211_TX_STAT_ACK;
 
@@ -1423,7 +1572,7 @@ static void mwl8k_txq_deinit(struct ieee80211_hw *hw, int index)
 	txq->txd = NULL;
 }
 
-static int
+static void
 mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 {
 	struct mwl8k_priv *priv = hw->priv;
@@ -1443,7 +1592,11 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	else
 		qos = 0;
 
-	mwl8k_add_dma_header(skb);
+	if (priv->ap_fw)
+		mwl8k_encapsulate_tx_frame(skb);
+	else
+		mwl8k_add_dma_header(skb, 0);
+
 	wh = &((struct mwl8k_dma_data *)skb->data)->wh;
 
 	tx_info = IEEE80211_SKB_CB(skb);
@@ -1481,7 +1634,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 		wiphy_debug(hw->wiphy,
 			    "failed to dma map skb, dropping TX frame.\n");
 		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
+		return;
 	}
 
 	spin_lock_bh(&priv->tx_lock);
@@ -1518,8 +1671,6 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	mwl8k_tx_start(priv);
 
 	spin_unlock_bh(&priv->tx_lock);
-
-	return NETDEV_TX_OK;
 }
 
 
@@ -1974,8 +2125,18 @@ static int mwl8k_cmd_set_hw_spec(struct ieee80211_hw *hw)
 	cmd->ps_cookie = cpu_to_le32(priv->cookie_dma);
 	cmd->rx_queue_ptr = cpu_to_le32(priv->rxq[0].rxd_dma);
 	cmd->num_tx_queues = cpu_to_le32(MWL8K_TX_QUEUES);
-	for (i = 0; i < MWL8K_TX_QUEUES; i++)
-		cmd->tx_queue_ptrs[i] = cpu_to_le32(priv->txq[i].txd_dma);
+
+	/*
+	 * Mac80211 stack has Q0 as highest priority and Q3 as lowest in
+	 * that order. Firmware has Q3 as highest priority and Q0 as lowest
+	 * in that order. Map Q3 of mac80211 to Q0 of firmware so that the
+	 * priority is interpreted the right way in firmware.
+	 */
+	for (i = 0; i < MWL8K_TX_QUEUES; i++) {
+		int j = MWL8K_TX_QUEUES - 1 - i;
+		cmd->tx_queue_ptrs[i] = cpu_to_le32(priv->txq[j].txd_dma);
+	}
+
 	cmd->flags = cpu_to_le32(MWL8K_SET_HW_SPEC_FLAG_HOST_DECR_MGMT |
 				 MWL8K_SET_HW_SPEC_FLAG_HOSTFORM_PROBERESP |
 				 MWL8K_SET_HW_SPEC_FLAG_HOSTFORM_BEACON);
@@ -3099,6 +3260,274 @@ static int mwl8k_cmd_set_new_stn_del(struct ieee80211_hw *hw,
 }
 
 /*
+ * CMD_UPDATE_ENCRYPTION.
+ */
+
+#define MAX_ENCR_KEY_LENGTH	16
+#define MIC_KEY_LENGTH		8
+
+struct mwl8k_cmd_update_encryption {
+	struct mwl8k_cmd_pkt header;
+
+	__le32 action;
+	__le32 reserved;
+	__u8 mac_addr[6];
+	__u8 encr_type;
+
+} __attribute__((packed));
+
+struct mwl8k_cmd_set_key {
+	struct mwl8k_cmd_pkt header;
+
+	__le32 action;
+	__le32 reserved;
+	__le16 length;
+	__le16 key_type_id;
+	__le32 key_info;
+	__le32 key_id;
+	__le16 key_len;
+	__u8 key_material[MAX_ENCR_KEY_LENGTH];
+	__u8 tkip_tx_mic_key[MIC_KEY_LENGTH];
+	__u8 tkip_rx_mic_key[MIC_KEY_LENGTH];
+	__le16 tkip_rsc_low;
+	__le32 tkip_rsc_high;
+	__le16 tkip_tsc_low;
+	__le32 tkip_tsc_high;
+	__u8 mac_addr[6];
+} __attribute__((packed));
+
+enum {
+	MWL8K_ENCR_ENABLE,
+	MWL8K_ENCR_SET_KEY,
+	MWL8K_ENCR_REMOVE_KEY,
+	MWL8K_ENCR_SET_GROUP_KEY,
+};
+
+#define MWL8K_UPDATE_ENCRYPTION_TYPE_WEP	0
+#define MWL8K_UPDATE_ENCRYPTION_TYPE_DISABLE	1
+#define MWL8K_UPDATE_ENCRYPTION_TYPE_TKIP	4
+#define MWL8K_UPDATE_ENCRYPTION_TYPE_MIXED	7
+#define MWL8K_UPDATE_ENCRYPTION_TYPE_AES	8
+
+enum {
+	MWL8K_ALG_WEP,
+	MWL8K_ALG_TKIP,
+	MWL8K_ALG_CCMP,
+};
+
+#define MWL8K_KEY_FLAG_TXGROUPKEY	0x00000004
+#define MWL8K_KEY_FLAG_PAIRWISE		0x00000008
+#define MWL8K_KEY_FLAG_TSC_VALID	0x00000040
+#define MWL8K_KEY_FLAG_WEP_TXKEY	0x01000000
+#define MWL8K_KEY_FLAG_MICKEY_VALID	0x02000000
+
+static int mwl8k_cmd_update_encryption_enable(struct ieee80211_hw *hw,
+					      struct ieee80211_vif *vif,
+					      u8 *addr,
+					      u8 encr_type)
+{
+	struct mwl8k_cmd_update_encryption *cmd;
+	int rc;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENOMEM;
+
+	cmd->header.code = cpu_to_le16(MWL8K_CMD_UPDATE_ENCRYPTION);
+	cmd->header.length = cpu_to_le16(sizeof(*cmd));
+	cmd->action = cpu_to_le32(MWL8K_ENCR_ENABLE);
+	memcpy(cmd->mac_addr, addr, ETH_ALEN);
+	cmd->encr_type = encr_type;
+
+	rc = mwl8k_post_pervif_cmd(hw, vif, &cmd->header);
+	kfree(cmd);
+
+	return rc;
+}
+
+static int mwl8k_encryption_set_cmd_info(struct mwl8k_cmd_set_key *cmd,
+						u8 *addr,
+						struct ieee80211_key_conf *key)
+{
+	cmd->header.code = cpu_to_le16(MWL8K_CMD_UPDATE_ENCRYPTION);
+	cmd->header.length = cpu_to_le16(sizeof(*cmd));
+	cmd->length = cpu_to_le16(sizeof(*cmd) -
+				offsetof(struct mwl8k_cmd_set_key, length));
+	cmd->key_id = cpu_to_le32(key->keyidx);
+	cmd->key_len = cpu_to_le16(key->keylen);
+	memcpy(cmd->mac_addr, addr, ETH_ALEN);
+
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+		cmd->key_type_id = cpu_to_le16(MWL8K_ALG_WEP);
+		if (key->keyidx == 0)
+			cmd->key_info =	cpu_to_le32(MWL8K_KEY_FLAG_WEP_TXKEY);
+
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		cmd->key_type_id = cpu_to_le16(MWL8K_ALG_TKIP);
+		cmd->key_info =	(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+			? cpu_to_le32(MWL8K_KEY_FLAG_PAIRWISE)
+			: cpu_to_le32(MWL8K_KEY_FLAG_TXGROUPKEY);
+		cmd->key_info |= cpu_to_le32(MWL8K_KEY_FLAG_MICKEY_VALID
+						| MWL8K_KEY_FLAG_TSC_VALID);
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		cmd->key_type_id = cpu_to_le16(MWL8K_ALG_CCMP);
+		cmd->key_info =	(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+			? cpu_to_le32(MWL8K_KEY_FLAG_PAIRWISE)
+			: cpu_to_le32(MWL8K_KEY_FLAG_TXGROUPKEY);
+		break;
+	default:
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
+static int mwl8k_cmd_encryption_set_key(struct ieee80211_hw *hw,
+						struct ieee80211_vif *vif,
+						u8 *addr,
+						struct ieee80211_key_conf *key)
+{
+	struct mwl8k_cmd_set_key *cmd;
+	int rc;
+	int keymlen;
+	u32 action;
+	u8 idx;
+	struct mwl8k_vif *mwl8k_vif = MWL8K_VIF(vif);
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENOMEM;
+
+	rc = mwl8k_encryption_set_cmd_info(cmd, addr, key);
+	if (rc < 0)
+		goto done;
+
+	idx = key->keyidx;
+
+	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+		action = MWL8K_ENCR_SET_KEY;
+	else
+		action = MWL8K_ENCR_SET_GROUP_KEY;
+
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+		if (!mwl8k_vif->wep_key_conf[idx].enabled) {
+			memcpy(mwl8k_vif->wep_key_conf[idx].key, key,
+						sizeof(*key) + key->keylen);
+			mwl8k_vif->wep_key_conf[idx].enabled = 1;
+		}
+
+		keymlen = 0;
+		action = MWL8K_ENCR_SET_KEY;
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		keymlen = MAX_ENCR_KEY_LENGTH + 2 * MIC_KEY_LENGTH;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		keymlen = key->keylen;
+		break;
+	default:
+		rc = -ENOTSUPP;
+		goto done;
+	}
+
+	memcpy(cmd->key_material, key->key, keymlen);
+	cmd->action = cpu_to_le32(action);
+
+	rc = mwl8k_post_pervif_cmd(hw, vif, &cmd->header);
+done:
+	kfree(cmd);
+
+	return rc;
+}
+
+static int mwl8k_cmd_encryption_remove_key(struct ieee80211_hw *hw,
+						struct ieee80211_vif *vif,
+						u8 *addr,
+						struct ieee80211_key_conf *key)
+{
+	struct mwl8k_cmd_set_key *cmd;
+	int rc;
+	struct mwl8k_vif *mwl8k_vif = MWL8K_VIF(vif);
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENOMEM;
+
+	rc = mwl8k_encryption_set_cmd_info(cmd, addr, key);
+	if (rc < 0)
+		goto done;
+
+	if (key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+			WLAN_CIPHER_SUITE_WEP104)
+		mwl8k_vif->wep_key_conf[key->keyidx].enabled = 0;
+
+	cmd->action = cpu_to_le32(MWL8K_ENCR_REMOVE_KEY);
+
+	rc = mwl8k_post_pervif_cmd(hw, vif, &cmd->header);
+done:
+	kfree(cmd);
+
+	return rc;
+}
+
+static int mwl8k_set_key(struct ieee80211_hw *hw,
+			 enum set_key_cmd cmd_param,
+			 struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta,
+			 struct ieee80211_key_conf *key)
+{
+	int rc = 0;
+	u8 encr_type;
+	u8 *addr;
+	struct mwl8k_vif *mwl8k_vif = MWL8K_VIF(vif);
+
+	if (vif->type == NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
+
+	if (sta == NULL)
+		addr = hw->wiphy->perm_addr;
+	else
+		addr = sta->addr;
+
+	if (cmd_param == SET_KEY) {
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
+		rc = mwl8k_cmd_encryption_set_key(hw, vif, addr, key);
+		if (rc)
+			goto out;
+
+		if ((key->cipher == WLAN_CIPHER_SUITE_WEP40)
+				|| (key->cipher == WLAN_CIPHER_SUITE_WEP104))
+			encr_type = MWL8K_UPDATE_ENCRYPTION_TYPE_WEP;
+		else
+			encr_type = MWL8K_UPDATE_ENCRYPTION_TYPE_MIXED;
+
+		rc = mwl8k_cmd_update_encryption_enable(hw, vif, addr,
+								encr_type);
+		if (rc)
+			goto out;
+
+		mwl8k_vif->is_hw_crypto_enabled = true;
+
+	} else {
+		rc = mwl8k_cmd_encryption_remove_key(hw, vif, addr, key);
+
+		if (rc)
+			goto out;
+
+		mwl8k_vif->is_hw_crypto_enabled = false;
+
+	}
+out:
+	return rc;
+}
+
+/*
  * CMD_UPDATE_STADB.
  */
 struct ewc_ht_info {
@@ -3310,22 +3739,19 @@ static void mwl8k_rx_poll(unsigned long data)
 /*
  * Core driver operations.
  */
-static int mwl8k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void mwl8k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	int index = skb_get_queue_mapping(skb);
-	int rc;
 
 	if (!priv->radio_on) {
 		wiphy_debug(hw->wiphy,
 			    "dropped TX frame since radio disabled\n");
 		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
+		return;
 	}
 
-	rc = mwl8k_txq_xmit(hw, index, skb);
-
-	return rc;
+	mwl8k_txq_xmit(hw, index, skb);
 }
 
 static int mwl8k_start(struct ieee80211_hw *hw)
@@ -3336,9 +3762,11 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
 			 IRQF_SHARED, MWL8K_NAME, hw);
 	if (rc) {
+		priv->irq = -1;
 		wiphy_err(hw->wiphy, "failed to register IRQ handler\n");
 		return -EIO;
 	}
+	priv->irq = priv->pdev->irq;
 
 	/* Enable TX reclaim and RX tasklets.  */
 	tasklet_enable(&priv->poll_tx_task);
@@ -3375,6 +3803,7 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	if (rc) {
 		iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
 		free_irq(priv->pdev->irq, hw);
+		priv->irq = -1;
 		tasklet_disable(&priv->poll_tx_task);
 		tasklet_disable(&priv->poll_rx_task);
 	}
@@ -3393,7 +3822,10 @@ static void mwl8k_stop(struct ieee80211_hw *hw)
 
 	/* Disable interrupts */
 	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
-	free_irq(priv->pdev->irq, hw);
+	if (priv->irq != -1) {
+		free_irq(priv->pdev->irq, hw);
+		priv->irq = -1;
+	}
 
 	/* Stop finalize join worker */
 	cancel_work_sync(&priv->finalize_join_worker);
@@ -3469,6 +3901,8 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 	mwl8k_vif->vif = vif;
 	mwl8k_vif->macid = macid;
 	mwl8k_vif->seqno = 0;
+	memcpy(mwl8k_vif->bssid, vif->addr, ETH_ALEN);
+	mwl8k_vif->is_hw_crypto_enabled = false;
 
 	/* Set the mac address.  */
 	mwl8k_cmd_set_mac_addr(hw, vif, vif->addr);
@@ -3528,9 +3962,13 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 		if (rc)
 			goto out;
 
-		rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_RX, 0x7);
-		if (!rc)
-			rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_TX, 0x7);
+		rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_RX, 0x3);
+		if (rc)
+			wiphy_warn(hw->wiphy, "failed to set # of RX antennas");
+		rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_TX, 0x7);
+		if (rc)
+			wiphy_warn(hw->wiphy, "failed to set # of TX antennas");
+
 	} else {
 		rc = mwl8k_cmd_rf_tx_power(hw, conf->power_level);
 		if (rc)
@@ -3866,18 +4304,27 @@ static int mwl8k_sta_add(struct ieee80211_hw *hw,
 {
 	struct mwl8k_priv *priv = hw->priv;
 	int ret;
+	int i;
+	struct mwl8k_vif *mwl8k_vif = MWL8K_VIF(vif);
+	struct ieee80211_key_conf *key;
 
 	if (!priv->ap_fw) {
 		ret = mwl8k_cmd_update_stadb_add(hw, vif, sta);
 		if (ret >= 0) {
 			MWL8K_STA(sta)->peer_id = ret;
-			return 0;
+			ret = 0;
 		}
 
-		return ret;
+	} else {
+		ret = mwl8k_cmd_set_new_stn_add(hw, vif, sta);
 	}
 
-	return mwl8k_cmd_set_new_stn_add(hw, vif, sta);
+	for (i = 0; i < NUM_WEP_KEYS; i++) {
+		key = IEEE80211_KEY_CONF(mwl8k_vif->wep_key_conf[i].key);
+		if (mwl8k_vif->wep_key_conf[i].enabled)
+			mwl8k_set_key(hw, SET_KEY, vif, sta, key);
+	}
+	return ret;
 }
 
 static int mwl8k_conf_tx(struct ieee80211_hw *hw, u16 queue,
@@ -3894,12 +4341,14 @@ static int mwl8k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		if (!priv->wmm_enabled)
 			rc = mwl8k_cmd_set_wmm_mode(hw, 1);
 
-		if (!rc)
-			rc = mwl8k_cmd_set_edca_params(hw, queue,
+		if (!rc) {
+			int q = MWL8K_TX_QUEUES - 1 - queue;
+			rc = mwl8k_cmd_set_edca_params(hw, q,
 						       params->cw_min,
 						       params->cw_max,
 						       params->aifs,
 						       params->txop);
+		}
 
 		mwl8k_fw_unlock(hw);
 	}
@@ -3932,7 +4381,8 @@ static int mwl8k_get_survey(struct ieee80211_hw *hw, int idx,
 static int
 mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   enum ieee80211_ampdu_mlme_action action,
-		   struct ieee80211_sta *sta, u16 tid, u16 *ssn)
+		   struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+		   u8 buf_size)
 {
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
@@ -3955,6 +4405,7 @@ static const struct ieee80211_ops mwl8k_ops = {
 	.bss_info_changed	= mwl8k_bss_info_changed,
 	.prepare_multicast	= mwl8k_prepare_multicast,
 	.configure_filter	= mwl8k_configure_filter,
+	.set_key                = mwl8k_set_key,
 	.set_rts_threshold	= mwl8k_set_rts_threshold,
 	.sta_add		= mwl8k_sta_add,
 	.sta_remove		= mwl8k_sta_remove,
@@ -4332,7 +4783,7 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 	hw->queues = MWL8K_TX_QUEUES;
 
 	/* Set rssi values to dBm */
-	hw->flags |= IEEE80211_HW_SIGNAL_DBM;
+	hw->flags |= IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_HAS_RATE_CONTROL;
 	hw->vif_data_size = sizeof(struct mwl8k_vif);
 	hw->sta_data_size = sizeof(struct mwl8k_sta);
 

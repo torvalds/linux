@@ -447,48 +447,59 @@ EXPORT_SYMBOL(md_flush_request);
 
 /* Support for plugging.
  * This mirrors the plugging support in request_queue, but does not
- * require having a whole queue
+ * require having a whole queue or request structures.
+ * We allocate an md_plug_cb for each md device and each thread it gets
+ * plugged on.  This links tot the private plug_handle structure in the
+ * personality data where we keep a count of the number of outstanding
+ * plugs so other code can see if a plug is active.
  */
-static void plugger_work(struct work_struct *work)
-{
-	struct plug_handle *plug =
-		container_of(work, struct plug_handle, unplug_work);
-	plug->unplug_fn(plug);
-}
-static void plugger_timeout(unsigned long data)
-{
-	struct plug_handle *plug = (void *)data;
-	kblockd_schedule_work(NULL, &plug->unplug_work);
-}
-void plugger_init(struct plug_handle *plug,
-		  void (*unplug_fn)(struct plug_handle *))
-{
-	plug->unplug_flag = 0;
-	plug->unplug_fn = unplug_fn;
-	init_timer(&plug->unplug_timer);
-	plug->unplug_timer.function = plugger_timeout;
-	plug->unplug_timer.data = (unsigned long)plug;
-	INIT_WORK(&plug->unplug_work, plugger_work);
-}
-EXPORT_SYMBOL_GPL(plugger_init);
+struct md_plug_cb {
+	struct blk_plug_cb cb;
+	mddev_t *mddev;
+};
 
-void plugger_set_plug(struct plug_handle *plug)
+static void plugger_unplug(struct blk_plug_cb *cb)
 {
-	if (!test_and_set_bit(PLUGGED_FLAG, &plug->unplug_flag))
-		mod_timer(&plug->unplug_timer, jiffies + msecs_to_jiffies(3)+1);
+	struct md_plug_cb *mdcb = container_of(cb, struct md_plug_cb, cb);
+	if (atomic_dec_and_test(&mdcb->mddev->plug_cnt))
+		md_wakeup_thread(mdcb->mddev->thread);
+	kfree(mdcb);
 }
-EXPORT_SYMBOL_GPL(plugger_set_plug);
 
-int plugger_remove_plug(struct plug_handle *plug)
+/* Check that an unplug wakeup will come shortly.
+ * If not, wakeup the md thread immediately
+ */
+int mddev_check_plugged(mddev_t *mddev)
 {
-	if (test_and_clear_bit(PLUGGED_FLAG, &plug->unplug_flag)) {
-		del_timer(&plug->unplug_timer);
-		return 1;
-	} else
+	struct blk_plug *plug = current->plug;
+	struct md_plug_cb *mdcb;
+
+	if (!plug)
 		return 0;
-}
-EXPORT_SYMBOL_GPL(plugger_remove_plug);
 
+	list_for_each_entry(mdcb, &plug->cb_list, cb.list) {
+		if (mdcb->cb.callback == plugger_unplug &&
+		    mdcb->mddev == mddev) {
+			/* Already on the list, move to top */
+			if (mdcb != list_first_entry(&plug->cb_list,
+						    struct md_plug_cb,
+						    cb.list))
+				list_move(&mdcb->cb.list, &plug->cb_list);
+			return 1;
+		}
+	}
+	/* Not currently on the callback list */
+	mdcb = kmalloc(sizeof(*mdcb), GFP_ATOMIC);
+	if (!mdcb)
+		return 0;
+
+	mdcb->mddev = mddev;
+	mdcb->cb.callback = plugger_unplug;
+	atomic_inc(&mddev->plug_cnt);
+	list_add(&mdcb->cb.list, &plug->cb_list);
+	return 1;
+}
+EXPORT_SYMBOL_GPL(mddev_check_plugged);
 
 static inline mddev_t *mddev_get(mddev_t *mddev)
 {
@@ -538,6 +549,7 @@ void mddev_init(mddev_t *mddev)
 	atomic_set(&mddev->active, 1);
 	atomic_set(&mddev->openers, 0);
 	atomic_set(&mddev->active_io, 0);
+	atomic_set(&mddev->plug_cnt, 0);
 	spin_lock_init(&mddev->write_lock);
 	atomic_set(&mddev->flush_pending, 0);
 	init_waitqueue_head(&mddev->sb_wait);
@@ -552,6 +564,9 @@ EXPORT_SYMBOL_GPL(mddev_init);
 static mddev_t * mddev_find(dev_t unit)
 {
 	mddev_t *mddev, *new = NULL;
+
+	if (unit && MAJOR(unit) != MD_MAJOR)
+		unit &= ~((1<<MdpMinorShift)-1);
 
  retry:
 	spin_lock(&all_mddevs_lock);
@@ -777,8 +792,7 @@ void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 	bio->bi_end_io = super_written;
 
 	atomic_inc(&mddev->pending_writes);
-	submit_bio(REQ_WRITE | REQ_SYNC | REQ_UNPLUG | REQ_FLUSH | REQ_FUA,
-		   bio);
+	submit_bio(REQ_WRITE | REQ_SYNC | REQ_FLUSH | REQ_FUA, bio);
 }
 
 void md_super_wait(mddev_t *mddev)
@@ -806,7 +820,7 @@ int sync_page_io(mdk_rdev_t *rdev, sector_t sector, int size,
 	struct completion event;
 	int ret;
 
-	rw |= REQ_SYNC | REQ_UNPLUG;
+	rw |= REQ_SYNC;
 
 	bio->bi_bdev = (metadata_op && rdev->meta_bdev) ?
 		rdev->meta_bdev : rdev->bdev;
@@ -1775,12 +1789,6 @@ int md_integrity_register(mddev_t *mddev)
 			continue;
 		if (rdev->raid_disk < 0)
 			continue;
-		/*
-		 * If at least one rdev is not integrity capable, we can not
-		 * enable data integrity for the md device.
-		 */
-		if (!bdev_get_integrity(rdev->bdev))
-			return -EINVAL;
 		if (!reference) {
 			/* Use the first rdev as the reference */
 			reference = rdev;
@@ -1791,6 +1799,8 @@ int md_integrity_register(mddev_t *mddev)
 				rdev->bdev->bd_disk) < 0)
 			return -EINVAL;
 	}
+	if (!reference || !bdev_get_integrity(reference->bdev))
+		return 0;
 	/*
 	 * All component devices are integrity capable and have matching
 	 * profiles, register the common profile for the md device.
@@ -1801,8 +1811,12 @@ int md_integrity_register(mddev_t *mddev)
 			mdname(mddev));
 		return -EINVAL;
 	}
-	printk(KERN_NOTICE "md: data integrity on %s enabled\n",
-		mdname(mddev));
+	printk(KERN_NOTICE "md: data integrity enabled on %s\n", mdname(mddev));
+	if (bioset_integrity_create(mddev->bio_set, BIO_POOL_SIZE)) {
+		printk(KERN_ERR "md: failed to create integrity pool for %s\n",
+		       mdname(mddev));
+		return -EINVAL;
+	}
 	return 0;
 }
 EXPORT_SYMBOL(md_integrity_register);
@@ -3156,6 +3170,7 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 	mddev->layout = mddev->new_layout;
 	mddev->chunk_sectors = mddev->new_chunk_sectors;
 	mddev->delta_disks = 0;
+	mddev->degraded = 0;
 	if (mddev->pers->sync_request == NULL) {
 		/* this is now an array without redundancy, so
 		 * it must always be in_sync
@@ -4138,10 +4153,10 @@ array_size_store(mddev_t *mddev, const char *buf, size_t len)
 	}
 
 	mddev->array_sectors = sectors;
-	set_capacity(mddev->gendisk, mddev->array_sectors);
-	if (mddev->pers)
+	if (mddev->pers) {
+		set_capacity(mddev->gendisk, mddev->array_sectors);
 		revalidate_disk(mddev->gendisk);
-
+	}
 	return len;
 }
 
@@ -4624,6 +4639,7 @@ static int do_md_run(mddev_t *mddev)
 	}
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	revalidate_disk(mddev->gendisk);
+	mddev->changed = 1;
 	kobject_uevent(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE);
 out:
 	return err;
@@ -4712,6 +4728,7 @@ static void md_clean(mddev_t *mddev)
 	mddev->sync_speed_min = mddev->sync_speed_max = 0;
 	mddev->recovery = 0;
 	mddev->in_sync = 0;
+	mddev->changed = 0;
 	mddev->degraded = 0;
 	mddev->safemode = 0;
 	mddev->bitmap_info.offset = 0;
@@ -4719,7 +4736,6 @@ static void md_clean(mddev_t *mddev)
 	mddev->bitmap_info.chunksize = 0;
 	mddev->bitmap_info.daemon_sleep = 0;
 	mddev->bitmap_info.max_write_behind = 0;
-	mddev->plug = NULL;
 }
 
 static void __md_stop_writes(mddev_t *mddev)
@@ -4812,7 +4828,6 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		__md_stop_writes(mddev);
 		md_stop(mddev);
 		mddev->queue->merge_bvec_fn = NULL;
-		mddev->queue->unplug_fn = NULL;
 		mddev->queue->backing_dev_info.congested_fn = NULL;
 
 		/* tell userspace to handle 'inactive' */
@@ -4827,6 +4842,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 
 		set_capacity(disk, 0);
 		mutex_unlock(&mddev->open_mutex);
+		mddev->changed = 1;
 		revalidate_disk(disk);
 
 		if (mddev->ro)
@@ -6011,7 +6027,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 	atomic_inc(&mddev->openers);
 	mutex_unlock(&mddev->open_mutex);
 
-	check_disk_size_change(mddev->gendisk, bdev);
+	check_disk_change(bdev);
  out:
 	return err;
 }
@@ -6026,6 +6042,21 @@ static int md_release(struct gendisk *disk, fmode_t mode)
 
 	return 0;
 }
+
+static int md_media_changed(struct gendisk *disk)
+{
+	mddev_t *mddev = disk->private_data;
+
+	return mddev->changed;
+}
+
+static int md_revalidate(struct gendisk *disk)
+{
+	mddev_t *mddev = disk->private_data;
+
+	mddev->changed = 0;
+	return 0;
+}
 static const struct block_device_operations md_fops =
 {
 	.owner		= THIS_MODULE,
@@ -6036,6 +6067,8 @@ static const struct block_device_operations md_fops =
 	.compat_ioctl	= md_compat_ioctl,
 #endif
 	.getgeo		= md_getgeo,
+	.media_changed  = md_media_changed,
+	.revalidate_disk= md_revalidate,
 };
 
 static int md_thread(void * arg)
@@ -6245,7 +6278,7 @@ static void status_resync(struct seq_file *seq, mddev_t * mddev)
 	 * rt is a sector_t, so could be 32bit or 64bit.
 	 * So we divide before multiply in case it is 32bit and close
 	 * to the limit.
-	 * We scale the divisor (db) by 32 to avoid loosing precision
+	 * We scale the divisor (db) by 32 to avoid losing precision
 	 * near the end of resync when the number of remaining sectors
 	 * is close to 'db'.
 	 * We then divide rt by 32 after multiplying by db to compensate.
@@ -6667,14 +6700,6 @@ int md_allow_write(mddev_t *mddev)
 }
 EXPORT_SYMBOL_GPL(md_allow_write);
 
-void md_unplug(mddev_t *mddev)
-{
-	if (mddev->queue)
-		blk_unplug(mddev->queue);
-	if (mddev->plug)
-		mddev->plug->unplug_fn(mddev->plug);
-}
-
 #define SYNC_MARKS	10
 #define	SYNC_MARK_STEP	(3*HZ)
 void md_do_sync(mddev_t *mddev)
@@ -6853,7 +6878,6 @@ void md_do_sync(mddev_t *mddev)
 		     >= mddev->resync_max - mddev->curr_resync_completed
 			    )) {
 			/* time to update curr_resync_completed */
-			md_unplug(mddev);
 			wait_event(mddev->recovery_wait,
 				   atomic_read(&mddev->recovery_active) == 0);
 			mddev->curr_resync_completed = j;
@@ -6929,7 +6953,6 @@ void md_do_sync(mddev_t *mddev)
 		 * about not overloading the IO subsystem. (things like an
 		 * e2fsck being done on the RAID array should execute fast)
 		 */
-		md_unplug(mddev);
 		cond_resched();
 
 		currspeed = ((unsigned long)(io_sectors-mddev->resync_mark_cnt))/2
@@ -6948,8 +6971,6 @@ void md_do_sync(mddev_t *mddev)
 	 * this also signals 'finished resyncing' to md_stop
 	 */
  out:
-	md_unplug(mddev);
-
 	wait_event(mddev->recovery_wait, !atomic_read(&mddev->recovery_active));
 
 	/* tell personality that we are finished */
@@ -7338,7 +7359,7 @@ static int __init md_init(void)
 {
 	int ret = -ENOMEM;
 
-	md_wq = alloc_workqueue("md", WQ_RESCUER, 0);
+	md_wq = alloc_workqueue("md", WQ_MEM_RECLAIM, 0);
 	if (!md_wq)
 		goto err_wq;
 

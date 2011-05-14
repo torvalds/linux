@@ -82,7 +82,8 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec, unsigned int op)
 	} while (reg & op && count < 400);
 
 	if (reg & op)
-		dev_err(codec->dev, "Timed out waiting for DC Servo\n");
+		dev_err(codec->dev, "Timed out waiting for DC Servo %x\n",
+			op);
 }
 
 /*
@@ -674,6 +675,9 @@ SND_SOC_DAPM_OUTPUT("LINEOUT2N"),
 };
 
 static const struct snd_soc_dapm_route analogue_routes[] = {
+	{ "MICBIAS1", NULL, "CLK_SYS" },
+	{ "MICBIAS2", NULL, "CLK_SYS" },
+
 	{ "IN1L PGA", "IN1LP Switch", "IN1LP" },
 	{ "IN1L PGA", "IN1LN Switch", "IN1LN" },
 
@@ -736,12 +740,12 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 
 	{ "SPKL", "Input Switch", "MIXINL" },
 	{ "SPKL", "IN1LP Switch", "IN1LP" },
-	{ "SPKL", "Output Switch", "Left Output Mixer" },
+	{ "SPKL", "Output Switch", "Left Output PGA" },
 	{ "SPKL", NULL, "TOCLK" },
 
 	{ "SPKR", "Input Switch", "MIXINR" },
 	{ "SPKR", "IN1RP Switch", "IN1RP" },
-	{ "SPKR", "Output Switch", "Right Output Mixer" },
+	{ "SPKR", "Output Switch", "Right Output PGA" },
 	{ "SPKR", NULL, "TOCLK" },
 
 	{ "SPKL Boost", "Direct Voice Switch", "Direct Voice" },
@@ -763,8 +767,8 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "SPKOUTRP", NULL, "SPKR Driver" },
 	{ "SPKOUTRN", NULL, "SPKR Driver" },
 
-	{ "Left Headphone Mux", "Mixer", "Left Output Mixer" },
-	{ "Right Headphone Mux", "Mixer", "Right Output Mixer" },
+	{ "Left Headphone Mux", "Mixer", "Left Output PGA" },
+	{ "Right Headphone Mux", "Mixer", "Right Output PGA" },
 
 	{ "Headphone PGA", NULL, "Left Headphone Mux" },
 	{ "Headphone PGA", NULL, "Right Headphone Mux" },

@@ -592,7 +592,7 @@ struct drm_vmw_stream_arg {
 /**
  * DRM_VMW_UPDATE_LAYOUT - Update layout
  *
- * Updates the prefered modes and connection status for connectors. The
+ * Updates the preferred modes and connection status for connectors. The
  * command conisits of one drm_vmw_update_layout_arg pointing out a array
  * of num_outputs drm_vmw_rect's.
  */

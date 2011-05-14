@@ -36,8 +36,8 @@
 
 static void xxs1500_reset(char *c)
 {
-	/* Hit BCSR.SYSTEM_CONTROL[SW_RST] */
-	au_writel(0x00000000, 0xAE00001C);
+	/* Jump to the reset vector */
+	__asm__ __volatile__("jr\t%0"::"r"(0xbfc00000));
 }
 
 static void xxs1500_power_off(void)
@@ -85,19 +85,19 @@ void __init board_setup(void)
 
 static int __init xxs1500_init_irq(void)
 {
-	set_irq_type(AU1500_GPIO204_INT, IRQF_TRIGGER_HIGH);
-	set_irq_type(AU1500_GPIO201_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO202_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO203_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO205_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO207_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO204_INT, IRQF_TRIGGER_HIGH);
+	irq_set_irq_type(AU1500_GPIO201_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO202_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO203_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO205_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO207_INT, IRQF_TRIGGER_LOW);
 
-	set_irq_type(AU1500_GPIO0_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO1_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO2_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO3_INT, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO4_INT, IRQF_TRIGGER_LOW); /* CF irq */
-	set_irq_type(AU1500_GPIO5_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO0_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO1_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO2_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO3_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1500_GPIO4_INT, IRQF_TRIGGER_LOW); /* CF irq */
+	irq_set_irq_type(AU1500_GPIO5_INT, IRQF_TRIGGER_LOW);
 
 	return 0;
 }

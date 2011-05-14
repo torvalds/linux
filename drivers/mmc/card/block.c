@@ -621,6 +621,7 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	md->disk->private_data = md;
 	md->disk->queue = md->queue.queue;
 	md->disk->driverfs_dev = &card->dev;
+	set_disk_ro(md->disk, md->read_only);
 
 	/*
 	 * As discussed on lkml, GENHD_FL_REMOVABLE should:

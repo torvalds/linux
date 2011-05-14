@@ -188,19 +188,10 @@ timer_interrupt (int irq, void *dev_id)
 
 		new_itm += local_cpu_data->itm_delta;
 
-		if (smp_processor_id() == time_keeper_id) {
-			/*
-			 * Here we are in the timer irq handler. We have irqs locally
-			 * disabled, but we don't know if the timer_bh is running on
-			 * another CPU. We need to avoid to SMP race by acquiring the
-			 * xtime_lock.
-			 */
-			write_seqlock(&xtime_lock);
-			do_timer(1);
-			local_cpu_data->itm_next = new_itm;
-			write_sequnlock(&xtime_lock);
-		} else
-			local_cpu_data->itm_next = new_itm;
+		if (smp_processor_id() == time_keeper_id)
+			xtime_update(1);
+
+		local_cpu_data->itm_next = new_itm;
 
 		if (time_after(new_itm, ia64_get_itc()))
 			break;
@@ -220,7 +211,7 @@ skip_process_time_accounting:
 		 * comfort, we increase the safety margin by
 		 * intentionally dropping the next tick(s).  We do NOT
 		 * update itm.next because that would force us to call
-		 * do_timer() which in turn would let our clock run
+		 * xtime_update() which in turn would let our clock run
 		 * too fast (with the potentially devastating effect
 		 * of losing monotony of time).
 		 */

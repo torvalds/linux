@@ -42,7 +42,7 @@
 /**
  * Start/stop scanning in a radio controller
  *
- * @rc:      UWB Radio Controlller
+ * @rc:      UWB Radio Controller
  * @channel: Channel to scan; encodings in WUSB1.0[Table 5.12]
  * @type:    Type of scanning to do.
  * @bpst_offset: value at which to start scanning (if type ==

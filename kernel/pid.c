@@ -217,10 +217,13 @@ static int alloc_pidmap(struct pid_namespace *pid_ns)
 	return -1;
 }
 
-int next_pidmap(struct pid_namespace *pid_ns, int last)
+int next_pidmap(struct pid_namespace *pid_ns, unsigned int last)
 {
 	int offset;
 	struct pidmap *map, *end;
+
+	if (last >= PID_MAX_LIMIT)
+		return -1;
 
 	offset = (last + 1) & BITS_PER_PAGE_MASK;
 	map = &pid_ns->pidmap[(last + 1)/BITS_PER_PAGE];
@@ -435,6 +438,7 @@ struct pid *get_task_pid(struct task_struct *task, enum pid_type type)
 	rcu_read_unlock();
 	return pid;
 }
+EXPORT_SYMBOL_GPL(get_task_pid);
 
 struct task_struct *get_pid_task(struct pid *pid, enum pid_type type)
 {
@@ -446,6 +450,7 @@ struct task_struct *get_pid_task(struct pid *pid, enum pid_type type)
 	rcu_read_unlock();
 	return result;
 }
+EXPORT_SYMBOL_GPL(get_pid_task);
 
 struct pid *find_get_pid(pid_t nr)
 {

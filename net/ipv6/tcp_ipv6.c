@@ -131,7 +131,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct in6_addr *saddr = NULL, *final_p, final;
 	struct rt6_info *rt;
-	struct flowi fl;
+	struct flowi6 fl6;
 	struct dst_entry *dst;
 	int addr_type;
 	int err;
@@ -142,14 +142,14 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (usin->sin6_family != AF_INET6)
 		return -EAFNOSUPPORT;
 
-	memset(&fl, 0, sizeof(fl));
+	memset(&fl6, 0, sizeof(fl6));
 
 	if (np->sndflow) {
-		fl.fl6_flowlabel = usin->sin6_flowinfo&IPV6_FLOWINFO_MASK;
-		IP6_ECN_flow_init(fl.fl6_flowlabel);
-		if (fl.fl6_flowlabel&IPV6_FLOWLABEL_MASK) {
+		fl6.flowlabel = usin->sin6_flowinfo&IPV6_FLOWINFO_MASK;
+		IP6_ECN_flow_init(fl6.flowlabel);
+		if (fl6.flowlabel&IPV6_FLOWLABEL_MASK) {
 			struct ip6_flowlabel *flowlabel;
-			flowlabel = fl6_sock_lookup(sk, fl.fl6_flowlabel);
+			flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
 			if (flowlabel == NULL)
 				return -EINVAL;
 			ipv6_addr_copy(&usin->sin6_addr, &flowlabel->dst);
@@ -195,7 +195,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	}
 
 	ipv6_addr_copy(&np->daddr, &usin->sin6_addr);
-	np->flow_label = fl.fl6_flowlabel;
+	np->flow_label = fl6.flowlabel;
 
 	/*
 	 *	TCP over IPv4
@@ -242,35 +242,27 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (!ipv6_addr_any(&np->rcv_saddr))
 		saddr = &np->rcv_saddr;
 
-	fl.proto = IPPROTO_TCP;
-	ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
-	ipv6_addr_copy(&fl.fl6_src,
+	fl6.flowi6_proto = IPPROTO_TCP;
+	ipv6_addr_copy(&fl6.daddr, &np->daddr);
+	ipv6_addr_copy(&fl6.saddr,
 		       (saddr ? saddr : &np->saddr));
-	fl.oif = sk->sk_bound_dev_if;
-	fl.mark = sk->sk_mark;
-	fl.fl_ip_dport = usin->sin6_port;
-	fl.fl_ip_sport = inet->inet_sport;
+	fl6.flowi6_oif = sk->sk_bound_dev_if;
+	fl6.flowi6_mark = sk->sk_mark;
+	fl6.fl6_dport = usin->sin6_port;
+	fl6.fl6_sport = inet->inet_sport;
 
-	final_p = fl6_update_dst(&fl, np->opt, &final);
+	final_p = fl6_update_dst(&fl6, np->opt, &final);
 
-	security_sk_classify_flow(sk, &fl);
+	security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
 
-	err = ip6_dst_lookup(sk, &dst, &fl);
-	if (err)
+	dst = ip6_dst_lookup_flow(sk, &fl6, final_p, true);
+	if (IS_ERR(dst)) {
+		err = PTR_ERR(dst);
 		goto failure;
-	if (final_p)
-		ipv6_addr_copy(&fl.fl6_dst, final_p);
-
-	err = __xfrm_lookup(sock_net(sk), &dst, &fl, sk, XFRM_LOOKUP_WAIT);
-	if (err < 0) {
-		if (err == -EREMOTE)
-			err = ip6_dst_blackhole(sk, &dst, &fl);
-		if (err < 0)
-			goto failure;
 	}
 
 	if (saddr == NULL) {
-		saddr = &fl.fl6_src;
+		saddr = &fl6.saddr;
 		ipv6_addr_copy(&np->rcv_saddr, saddr);
 	}
 
@@ -385,7 +377,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	np = inet6_sk(sk);
 
 	if (type == ICMPV6_PKT_TOOBIG) {
-		struct dst_entry *dst = NULL;
+		struct dst_entry *dst;
 
 		if (sock_owned_by_user(sk))
 			goto out;
@@ -397,29 +389,25 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 		if (dst == NULL) {
 			struct inet_sock *inet = inet_sk(sk);
-			struct flowi fl;
+			struct flowi6 fl6;
 
 			/* BUGGG_FUTURE: Again, it is not clear how
 			   to handle rthdr case. Ignore this complexity
 			   for now.
 			 */
-			memset(&fl, 0, sizeof(fl));
-			fl.proto = IPPROTO_TCP;
-			ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
-			ipv6_addr_copy(&fl.fl6_src, &np->saddr);
-			fl.oif = sk->sk_bound_dev_if;
-			fl.mark = sk->sk_mark;
-			fl.fl_ip_dport = inet->inet_dport;
-			fl.fl_ip_sport = inet->inet_sport;
-			security_skb_classify_flow(skb, &fl);
+			memset(&fl6, 0, sizeof(fl6));
+			fl6.flowi6_proto = IPPROTO_TCP;
+			ipv6_addr_copy(&fl6.daddr, &np->daddr);
+			ipv6_addr_copy(&fl6.saddr, &np->saddr);
+			fl6.flowi6_oif = sk->sk_bound_dev_if;
+			fl6.flowi6_mark = sk->sk_mark;
+			fl6.fl6_dport = inet->inet_dport;
+			fl6.fl6_sport = inet->inet_sport;
+			security_skb_classify_flow(skb, flowi6_to_flowi(&fl6));
 
-			if ((err = ip6_dst_lookup(sk, &dst, &fl))) {
-				sk->sk_err_soft = -err;
-				goto out;
-			}
-
-			if ((err = xfrm_lookup(net, &dst, &fl, sk, 0)) < 0) {
-				sk->sk_err_soft = -err;
+			dst = ip6_dst_lookup_flow(sk, &fl6, NULL, false);
+			if (IS_ERR(dst)) {
+				sk->sk_err_soft = -PTR_ERR(dst);
 				goto out;
 			}
 
@@ -494,38 +482,37 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	struct sk_buff * skb;
 	struct ipv6_txoptions *opt = NULL;
 	struct in6_addr * final_p, final;
-	struct flowi fl;
+	struct flowi6 fl6;
 	struct dst_entry *dst;
-	int err = -1;
+	int err;
 
-	memset(&fl, 0, sizeof(fl));
-	fl.proto = IPPROTO_TCP;
-	ipv6_addr_copy(&fl.fl6_dst, &treq->rmt_addr);
-	ipv6_addr_copy(&fl.fl6_src, &treq->loc_addr);
-	fl.fl6_flowlabel = 0;
-	fl.oif = treq->iif;
-	fl.mark = sk->sk_mark;
-	fl.fl_ip_dport = inet_rsk(req)->rmt_port;
-	fl.fl_ip_sport = inet_rsk(req)->loc_port;
-	security_req_classify_flow(req, &fl);
+	memset(&fl6, 0, sizeof(fl6));
+	fl6.flowi6_proto = IPPROTO_TCP;
+	ipv6_addr_copy(&fl6.daddr, &treq->rmt_addr);
+	ipv6_addr_copy(&fl6.saddr, &treq->loc_addr);
+	fl6.flowlabel = 0;
+	fl6.flowi6_oif = treq->iif;
+	fl6.flowi6_mark = sk->sk_mark;
+	fl6.fl6_dport = inet_rsk(req)->rmt_port;
+	fl6.fl6_sport = inet_rsk(req)->loc_port;
+	security_req_classify_flow(req, flowi6_to_flowi(&fl6));
 
 	opt = np->opt;
-	final_p = fl6_update_dst(&fl, opt, &final);
+	final_p = fl6_update_dst(&fl6, opt, &final);
 
-	err = ip6_dst_lookup(sk, &dst, &fl);
-	if (err)
+	dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
+	if (IS_ERR(dst)) {
+		err = PTR_ERR(dst);
+		dst = NULL;
 		goto done;
-	if (final_p)
-		ipv6_addr_copy(&fl.fl6_dst, final_p);
-	if ((err = xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0)
-		goto done;
-
+	}
 	skb = tcp_make_synack(sk, dst, req, rvp);
+	err = -ENOMEM;
 	if (skb) {
 		__tcp_v6_send_check(skb, &treq->loc_addr, &treq->rmt_addr);
 
-		ipv6_addr_copy(&fl.fl6_dst, &treq->rmt_addr);
-		err = ip6_xmit(sk, skb, &fl, opt);
+		ipv6_addr_copy(&fl6.daddr, &treq->rmt_addr);
+		err = ip6_xmit(sk, skb, &fl6, opt);
 		err = net_xmit_eval(err);
 	}
 
@@ -1006,7 +993,7 @@ static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 {
 	struct tcphdr *th = tcp_hdr(skb), *t1;
 	struct sk_buff *buff;
-	struct flowi fl;
+	struct flowi6 fl6;
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	struct sock *ctl_sk = net->ipv6.tcp_sk;
 	unsigned int tot_len = sizeof(struct tcphdr);
@@ -1060,34 +1047,33 @@ static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 	}
 #endif
 
-	memset(&fl, 0, sizeof(fl));
-	ipv6_addr_copy(&fl.fl6_dst, &ipv6_hdr(skb)->saddr);
-	ipv6_addr_copy(&fl.fl6_src, &ipv6_hdr(skb)->daddr);
+	memset(&fl6, 0, sizeof(fl6));
+	ipv6_addr_copy(&fl6.daddr, &ipv6_hdr(skb)->saddr);
+	ipv6_addr_copy(&fl6.saddr, &ipv6_hdr(skb)->daddr);
 
 	buff->ip_summed = CHECKSUM_PARTIAL;
 	buff->csum = 0;
 
-	__tcp_v6_send_check(buff, &fl.fl6_src, &fl.fl6_dst);
+	__tcp_v6_send_check(buff, &fl6.saddr, &fl6.daddr);
 
-	fl.proto = IPPROTO_TCP;
-	fl.oif = inet6_iif(skb);
-	fl.fl_ip_dport = t1->dest;
-	fl.fl_ip_sport = t1->source;
-	security_skb_classify_flow(skb, &fl);
+	fl6.flowi6_proto = IPPROTO_TCP;
+	fl6.flowi6_oif = inet6_iif(skb);
+	fl6.fl6_dport = t1->dest;
+	fl6.fl6_sport = t1->source;
+	security_skb_classify_flow(skb, flowi6_to_flowi(&fl6));
 
 	/* Pass a socket to ip6_dst_lookup either it is for RST
 	 * Underlying function will use this to retrieve the network
 	 * namespace
 	 */
-	if (!ip6_dst_lookup(ctl_sk, &dst, &fl)) {
-		if (xfrm_lookup(net, &dst, &fl, NULL, 0) >= 0) {
-			skb_dst_set(buff, dst);
-			ip6_xmit(ctl_sk, buff, &fl, NULL);
-			TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
-			if (rst)
-				TCP_INC_STATS_BH(net, TCP_MIB_OUTRSTS);
-			return;
-		}
+	dst = ip6_dst_lookup_flow(ctl_sk, &fl6, NULL, false);
+	if (!IS_ERR(dst)) {
+		skb_dst_set(buff, dst);
+		ip6_xmit(ctl_sk, buff, &fl6, NULL);
+		TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
+		if (rst)
+			TCP_INC_STATS_BH(net, TCP_MIB_OUTRSTS);
+		return;
 	}
 
 	kfree_skb(buff);
@@ -1323,7 +1309,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 		    tcp_death_row.sysctl_tw_recycle &&
 		    (dst = inet6_csk_route_req(sk, req)) != NULL &&
 		    (peer = rt6_get_peer((struct rt6_info *)dst)) != NULL &&
-		    ipv6_addr_equal((struct in6_addr *)peer->daddr.a6,
+		    ipv6_addr_equal((struct in6_addr *)peer->daddr.addr.a6,
 				    &treq->rmt_addr)) {
 			inet_peer_refcheck(peer);
 			if ((u32)get_seconds() - peer->tcp_ts_stamp < TCP_PAWS_MSL &&
@@ -1636,10 +1622,9 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 		opt_skb = skb_clone(skb, GFP_ATOMIC);
 
 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
-		TCP_CHECK_TIMER(sk);
+		sock_rps_save_rxhash(sk, skb->rxhash);
 		if (tcp_rcv_established(sk, skb, tcp_hdr(skb), skb->len))
 			goto reset;
-		TCP_CHECK_TIMER(sk);
 		if (opt_skb)
 			goto ipv6_pktoptions;
 		return 0;
@@ -1665,12 +1650,11 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 				__kfree_skb(opt_skb);
 			return 0;
 		}
-	}
+	} else
+		sock_rps_save_rxhash(sk, skb->rxhash);
 
-	TCP_CHECK_TIMER(sk);
 	if (tcp_rcv_state_process(sk, skb, tcp_hdr(skb), skb->len))
 		goto reset;
-	TCP_CHECK_TIMER(sk);
 	if (opt_skb)
 		goto ipv6_pktoptions;
 	return 0;

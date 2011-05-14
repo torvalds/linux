@@ -56,7 +56,7 @@
  * IV. Notes
  * The current error (XDU, RFO) recovery code is untested.
  * So far, RDO takes his RX channel down and the right sequence to enable it
- * again is still a mistery. If RDO happens, plan a reboot. More details
+ * again is still a mystery. If RDO happens, plan a reboot. More details
  * in the code (NB: as this happens, TX still works).
  * Don't mess the cables during operation, especially on DTE ports. I don't
  * suggest it for DCE either but at least one can get some messages instead
@@ -1065,7 +1065,7 @@ static int dscc4_open(struct net_device *dev)
 
 	/*
 	 * Due to various bugs, there is no way to reliably reset a
-	 * specific port (manufacturer's dependant special PCI #RST wiring
+	 * specific port (manufacturer's dependent special PCI #RST wiring
 	 * apart: it affects all ports). Thus the device goes in the best
 	 * silent mode possible at dscc4_close() time and simply claims to
 	 * be up if it's opened again. It still isn't possible to change
@@ -1230,9 +1230,9 @@ static inline int dscc4_check_clock_ability(int port)
  *   scaling. Of course some rounding may take place.
  * - no high speed mode (40Mb/s). May be trivial to do but I don't have an
  *   appropriate external clocking device for testing.
- * - no time-slot/clock mode 5: shameless lazyness.
+ * - no time-slot/clock mode 5: shameless laziness.
  *
- * The clock signals wiring can be (is ?) manufacturer dependant. Good luck.
+ * The clock signals wiring can be (is ?) manufacturer dependent. Good luck.
  *
  * BIG FAT WARNING: if the device isn't provided enough clocking signal, it
  * won't pass the init sequence. For example, straight back-to-back DTE without

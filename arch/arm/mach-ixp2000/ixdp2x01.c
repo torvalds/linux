@@ -115,8 +115,8 @@ void __init ixdp2x01_init_irq(void)
 
 	for (irq = NR_IXP2000_IRQS; irq < NR_IXDP2X01_IRQS; irq++) {
 		if (irq & valid_irq_mask) {
-			set_irq_chip(irq, &ixdp2x01_irq_chip);
-			set_irq_handler(irq, handle_level_irq);
+			irq_set_chip_and_handler(irq, &ixdp2x01_irq_chip,
+						 handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID);
 		} else {
 			set_irq_flags(irq, 0);
@@ -124,7 +124,7 @@ void __init ixdp2x01_init_irq(void)
 	}
 
 	/* Hook into PCI interrupts */
-	set_irq_chained_handler(IRQ_IXP2000_PCIB, ixdp2x01_irq_handler);
+	irq_set_chained_handler(IRQ_IXP2000_PCIB, ixdp2x01_irq_handler);
 }
 
 

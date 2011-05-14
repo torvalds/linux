@@ -43,7 +43,7 @@ static int vfat_revalidate_shortname(struct dentry *dentry)
 
 static int vfat_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	if (nd->flags & LOOKUP_RCU)
+	if (nd && nd->flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	/* This is not negative dentry. Always valid. */
@@ -54,7 +54,7 @@ static int vfat_revalidate(struct dentry *dentry, struct nameidata *nd)
 
 static int vfat_revalidate_ci(struct dentry *dentry, struct nameidata *nd)
 {
-	if (nd->flags & LOOKUP_RCU)
+	if (nd && nd->flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	/*

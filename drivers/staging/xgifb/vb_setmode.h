@@ -17,9 +17,6 @@ extern   void     XGI_SenseCRT1(struct vb_device_info *);
 extern   void     XGI_GetVGAType(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *);
 extern   void     XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex, struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *);
 extern   void     XGI_GetTVInfo(unsigned short ModeNo, unsigned short ModeIdIndex, struct vb_device_info *);
-extern   void     XGI_SetCRT1Offset(unsigned short ModeNo, unsigned short ModeIdIndex, unsigned short RefreshRateTableIndex, struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *);
-extern   void     XGI_SetLCDAGroup(unsigned short ModeNo, unsigned short ModeIdIndex, struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *);
-extern   void     XGI_WaitDisply(struct vb_device_info *);
 extern   unsigned short   XGI_GetResInfo(unsigned short ModeNo, unsigned short ModeIdIndex, struct vb_device_info *pVBInfo);
 
 extern   unsigned char  XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension, unsigned short ModeNo) ;
@@ -36,7 +33,6 @@ extern   void     XGI_XG21BLSignalVDD(unsigned short tempbh, unsigned short temp
 extern   void     XGI_XG27BLSignalVDD(unsigned short tempbh, unsigned short tempbl, struct vb_device_info *pVBInfo);
 extern   void     XGI_XG21SetPanelDelay(unsigned short tempbl, struct vb_device_info *pVBInfo);
 extern   unsigned char  XGI_XG21CheckLVDSMode(unsigned short ModeNo, unsigned short ModeIdIndex, struct vb_device_info *pVBInfo);
-extern   void     XGI_SetXG21LVDSPara(unsigned short ModeNo, unsigned short ModeIdIndex, struct vb_device_info *pVBInfo);
 extern   unsigned short XGI_GetLVDSOEMTableIndex(struct vb_device_info *pVBInfo);
 
 #endif

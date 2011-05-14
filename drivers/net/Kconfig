@@ -238,8 +238,8 @@ source "drivers/net/arm/Kconfig"
 config AX88796
 	tristate "ASIX AX88796 NE2000 clone support"
 	depends on ARM || MIPS || SUPERH
-	select CRC32
-	select MII
+	select PHYLIB
+	select MDIO_BITBANG
 	help
 	  AX88796 driver, using platform bus to provide
 	  chip detection and resources
@@ -1498,7 +1498,7 @@ config FORCEDETH
 config CS89x0
 	tristate "CS89x0 support"
 	depends on NET_ETHERNET && (ISA || EISA || MACH_IXDP2351 \
-		|| ARCH_IXDP2X01 || MACH_MX31ADS)
+		|| ARCH_IXDP2X01 || MACH_MX31ADS || MACH_QQ2440)
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the
@@ -1512,7 +1512,7 @@ config CS89x0
 config CS89x0_NONISA_IRQ
 	def_bool y
 	depends on CS89x0 != n
-	depends on MACH_IXDP2351 || ARCH_IXDP2X01 || MACH_MX31ADS
+	depends on MACH_IXDP2351 || ARCH_IXDP2X01 || MACH_MX31ADS || MACH_QQ2440
 
 config TC35815
 	tristate "TOSHIBA TC35815 Ethernet support"
@@ -1944,7 +1944,8 @@ config 68360_ENET
 config FEC
 	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
 	depends on M523x || M527x || M5272 || M528x || M520x || M532x || \
-		MACH_MX27 || ARCH_MX35 || ARCH_MX25 || ARCH_MX5 || SOC_IMX28
+		IMX_HAVE_PLATFORM_FEC || MXS_HAVE_PLATFORM_FEC
+	default IMX_HAVE_PLATFORM_FEC || MXS_HAVE_PLATFORM_FEC if ARM
 	select PHYLIB
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
@@ -2006,6 +2007,15 @@ config BCM63XX_ENET
 	help
 	  This driver supports the ethernet MACs in the Broadcom 63xx
 	  MIPS chipset family (BCM63XX).
+
+config FTMAC100
+	tristate "Faraday FTMAC100 10/100 Ethernet support"
+	depends on ARM
+	select MII
+	help
+	  This driver supports the FTMAC100 10/100 Ethernet controller
+	  from Faraday. It is used on Faraday A320, Andes AG101 and some
+	  other ARM/NDS32 SoC's.
 
 source "drivers/net/fs_enet/Kconfig"
 
@@ -2098,7 +2108,9 @@ config E1000
 
 config E1000E
 	tristate "Intel(R) PRO/1000 PCI-Express Gigabit Ethernet support"
+	select CRC32
 	depends on PCI && (!SPARC32 || BROKEN)
+	select CRC32
 	---help---
 	  This driver supports the PCI-Express Intel(R) PRO/1000 gigabit
 	  ethernet family of adapters. For PCI or PCI-X e1000 adapters,
@@ -2234,15 +2246,6 @@ config R8169
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called r8169.  This is recommended.
-
-config R8169_VLAN
-	bool "VLAN support"
-	depends on R8169 && VLAN_8021Q
-	---help---
-	  Say Y here for the r8169 driver to support the functions required
-	  by the kernel 802.1Q code.
-
-	  If in doubt, say Y.
 
 config SB1250_MAC
 	tristate "SB1250 Gigabit Ethernet support"
@@ -2594,14 +2597,9 @@ config CHELSIO_T1_1G
 	  Enables support for Chelsio's gigabit Ethernet PCI cards.  If you
 	  are using only 10G cards say 'N' here.
 
-config CHELSIO_T3_DEPENDS
-	tristate
-	depends on PCI && INET
-	default y
-
 config CHELSIO_T3
 	tristate "Chelsio Communications T3 10Gb Ethernet support"
-	depends on CHELSIO_T3_DEPENDS
+	depends on PCI && INET
 	select FW_LOADER
 	select MDIO
 	help
@@ -2619,14 +2617,9 @@ config CHELSIO_T3
 	  To compile this driver as a module, choose M here: the module
 	  will be called cxgb3.
 
-config CHELSIO_T4_DEPENDS
-	tristate
-	depends on PCI && INET
-	default y
-
 config CHELSIO_T4
 	tristate "Chelsio Communications T4 Ethernet support"
-	depends on CHELSIO_T4_DEPENDS
+	depends on PCI
 	select FW_LOADER
 	select MDIO
 	help
@@ -2644,14 +2637,9 @@ config CHELSIO_T4
 	  To compile this driver as a module choose M here; the module
 	  will be called cxgb4.
 
-config CHELSIO_T4VF_DEPENDS
-	tristate
-	depends on PCI && INET
-	default y
-
 config CHELSIO_T4VF
 	tristate "Chelsio Communications T4 Virtual Function Ethernet support"
-	depends on CHELSIO_T4VF_DEPENDS
+	depends on PCI
 	help
 	  This driver supports Chelsio T4-based gigabit and 10Gb Ethernet
 	  adapters with PCI-E SR-IOV Virtual Functions.
@@ -2966,12 +2954,38 @@ config XEN_NETDEV_FRONTEND
 	select XEN_XENBUS_FRONTEND
 	default y
 	help
-	  The network device frontend driver allows the kernel to
-	  access network devices exported exported by a virtual
-	  machine containing a physical network device driver. The
-	  frontend driver is intended for unprivileged guest domains;
-	  if you are compiling a kernel for a Xen guest, you almost
-	  certainly want to enable this.
+	  This driver provides support for Xen paravirtual network
+	  devices exported by a Xen network driver domain (often
+	  domain 0).
+
+	  The corresponding Linux backend driver is enabled by the
+	  CONFIG_XEN_NETDEV_BACKEND option.
+
+	  If you are compiling a kernel for use as Xen guest, you
+	  should say Y here. To compile this driver as a module, chose
+	  M here: the module will be called xen-netfront.
+
+config XEN_NETDEV_BACKEND
+	tristate "Xen backend network device"
+	depends on XEN_BACKEND
+	help
+	  This driver allows the kernel to act as a Xen network driver
+	  domain which exports paravirtual network devices to other
+	  Xen domains. These devices can be accessed by any operating
+	  system that implements a compatible front end.
+
+	  The corresponding Linux frontend driver is enabled by the
+	  CONFIG_XEN_NETDEV_FRONTEND configuration option.
+
+	  The backend driver presents a standard network device
+	  endpoint for each paravirtual network device to the driver
+	  domain network stack. These can then be bridged or routed
+	  etc in order to provide full network connectivity.
+
+	  If you are compiling a kernel to run in a Xen network driver
+	  domain (often this is domain 0) you should say Y here. To
+	  compile this driver as a module, chose M here: the module
+	  will be called xen-netback.
 
 config ISERIES_VETH
 	tristate "iSeries Virtual Ethernet driver support"

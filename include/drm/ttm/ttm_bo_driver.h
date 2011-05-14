@@ -50,13 +50,15 @@ struct ttm_backend_func {
 	 * @pages: Array of pointers to ttm pages.
 	 * @dummy_read_page: Page to be used instead of NULL pages in the
 	 * array @pages.
+	 * @dma_addrs: Array of DMA (bus) address of the ttm pages.
 	 *
 	 * Populate the backend with ttm pages. Depending on the backend,
 	 * it may or may not copy the @pages array.
 	 */
 	int (*populate) (struct ttm_backend *backend,
 			 unsigned long num_pages, struct page **pages,
-			 struct page *dummy_read_page);
+			 struct page *dummy_read_page,
+			 dma_addr_t *dma_addrs);
 	/**
 	 * struct ttm_backend_func member clear
 	 *
@@ -120,7 +122,7 @@ struct ttm_backend {
 #define TTM_PAGE_FLAG_USER_DIRTY      (1 << 2)
 #define TTM_PAGE_FLAG_WRITE           (1 << 3)
 #define TTM_PAGE_FLAG_SWAPPED         (1 << 4)
-#define TTM_PAGE_FLAG_PERSISTANT_SWAP (1 << 5)
+#define TTM_PAGE_FLAG_PERSISTENT_SWAP (1 << 5)
 #define TTM_PAGE_FLAG_ZERO_ALLOC      (1 << 6)
 #define TTM_PAGE_FLAG_DMA32           (1 << 7)
 
@@ -149,6 +151,7 @@ enum ttm_caching_state {
  * @swap_storage: Pointer to shmem struct file for swap storage.
  * @caching_state: The current caching state of the pages.
  * @state: The current binding state of the pages.
+ * @dma_address: The DMA (bus) addresses of the pages (if TTM_PAGE_FLAG_DMA32)
  *
  * This is a structure holding the pages, caching- and aperture binding
  * status for a buffer object that isn't backed by fixed (VRAM / AGP)
@@ -173,6 +176,7 @@ struct ttm_tt {
 		tt_unbound,
 		tt_unpopulated,
 	} state;
+	dma_addr_t *dma_address;
 };
 
 #define TTM_MEMTYPE_FLAG_FIXED         (1 << 0)	/* Fixed (on-card) PCI memory */
@@ -219,9 +223,9 @@ struct ttm_mem_type_manager_func {
 	 * @mem::mm_node should be set to a non-null value, and
 	 * @mem::start should be set to a value identifying the beginning
 	 * of the range allocated, and the function should return zero.
-	 * If the memory region accomodate the buffer object, @mem::mm_node
+	 * If the memory region accommodate the buffer object, @mem::mm_node
 	 * should be set to NULL, and the function should return 0.
-	 * If a system error occured, preventing the request to be fulfilled,
+	 * If a system error occurred, preventing the request to be fulfilled,
 	 * the function should return a negative error code.
 	 *
 	 * Note that @mem::mm_node will only be dereferenced by
@@ -710,7 +714,7 @@ extern void ttm_tt_cache_flush(struct page *pages[], unsigned long num_pages);
  */
 extern int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement);
 extern int ttm_tt_swapout(struct ttm_tt *ttm,
-			  struct file *persistant_swap_storage);
+			  struct file *persistent_swap_storage);
 
 /*
  * ttm_bo.c
@@ -837,7 +841,7 @@ extern void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
  * different order, either by will or as a result of a buffer being evicted
  * to make room for a buffer already reserved. (Buffers are reserved before
  * they are evicted). The following algorithm prevents such deadlocks from
- * occuring:
+ * occurring:
  * 1) Buffers are reserved with the lru spinlock held. Upon successful
  * reservation they are removed from the lru list. This stops a reserved buffer
  * from being evicted. However the lru spinlock is released between the time

@@ -231,6 +231,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
 	struct drm_encoder *tmp_encoder;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
+	int pipe;
 
 	/* Should never happen!! */
 	if (INTEL_INFO(dev)->gen < 4 && intel_crtc->pipe == 0) {
@@ -277,8 +278,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	 * to register description and PRM.
 	 * Change the value here to see the borders for debugging
 	 */
-	I915_WRITE(BCLRPAT_A, 0);
-	I915_WRITE(BCLRPAT_B, 0);
+	for_each_pipe(pipe)
+		I915_WRITE(BCLRPAT(pipe), 0);
 
 	switch (intel_lvds->fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:
@@ -472,15 +473,13 @@ static enum drm_connector_status
 intel_lvds_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
-	enum drm_connector_status status = connector_status_connected;
+	enum drm_connector_status status;
 
-	/* ACPI lid methods were generally unreliable in this generation, so
-	 * don't even bother.
-	 */
-	if (IS_GEN2(dev) || IS_GEN3(dev))
-		return connector_status_connected;
+	status = intel_panel_detect(dev);
+	if (status != connector_status_unknown)
+		return status;
 
-	return status;
+	return connector_status_connected;
 }
 
 /**
@@ -496,7 +495,7 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 		return drm_add_edid_modes(connector, intel_lvds->edid);
 
 	mode = drm_mode_duplicate(dev, intel_lvds->fixed_mode);
-	if (mode == 0)
+	if (mode == NULL)
 		return 0;
 
 	drm_mode_probed_add(connector, mode);
@@ -830,25 +829,6 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 	return false;
 }
 
-static bool intel_lvds_ddc_probe(struct drm_device *dev, u8 pin)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u8 buf = 0;
-	struct i2c_msg msgs[] = {
-		{
-			.addr = 0xA0,
-			.flags = 0,
-			.len = 1,
-			.buf = &buf,
-		},
-	};
-	struct i2c_adapter *i2c = &dev_priv->gmbus[pin].adapter;
-	/* XXX this only appears to work when using GMBUS */
-	if (intel_gmbus_is_forced_bit(i2c))
-		return true;
-	return i2c_transfer(i2c, msgs, 1) == 1;
-}
-
 /**
  * intel_lvds_init - setup LVDS connectors on this device
  * @dev: drm device
@@ -887,11 +867,6 @@ bool intel_lvds_init(struct drm_device *dev)
 			DRM_DEBUG_KMS("disable LVDS for eDP support\n");
 			return false;
 		}
-	}
-
-	if (!intel_lvds_ddc_probe(dev, pin)) {
-		DRM_DEBUG_KMS("LVDS did not respond to DDC probe\n");
-		return false;
 	}
 
 	intel_lvds = kzalloc(sizeof(struct intel_lvds), GFP_KERNEL);

@@ -128,8 +128,8 @@ static enum dlm_status __dlmconvert_master(struct dlm_ctxt *dlm,
 
 	assert_spin_locked(&res->spinlock);
 
-	mlog_entry("type=%d, convert_type=%d, new convert_type=%d\n",
-		   lock->ml.type, lock->ml.convert_type, type);
+	mlog(0, "type=%d, convert_type=%d, new convert_type=%d\n",
+	     lock->ml.type, lock->ml.convert_type, type);
 
 	spin_lock(&lock->spinlock);
 
@@ -353,7 +353,7 @@ static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
 	struct kvec vec[2];
 	size_t veclen = 1;
 
-	mlog_entry("%.*s\n", res->lockname.len, res->lockname.name);
+	mlog(0, "%.*s\n", res->lockname.len, res->lockname.name);
 
 	memset(&convert, 0, sizeof(struct dlm_convert_lock));
 	convert.node_idx = dlm->node_num;

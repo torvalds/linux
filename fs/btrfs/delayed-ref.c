@@ -483,6 +483,8 @@ static noinline int add_delayed_ref_head(struct btrfs_trans_handle *trans,
 	INIT_LIST_HEAD(&head_ref->cluster);
 	mutex_init(&head_ref->mutex);
 
+	trace_btrfs_delayed_ref_head(ref, head_ref, action);
+
 	existing = tree_insert(&delayed_refs->root, &ref->rb_node);
 
 	if (existing) {
@@ -537,6 +539,8 @@ static noinline int add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	}
 	full_ref->level = level;
 
+	trace_btrfs_delayed_tree_ref(ref, full_ref, action);
+
 	existing = tree_insert(&delayed_refs->root, &ref->rb_node);
 
 	if (existing) {
@@ -590,6 +594,8 @@ static noinline int add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	}
 	full_ref->objectid = owner;
 	full_ref->offset = offset;
+
+	trace_btrfs_delayed_data_ref(ref, full_ref, action);
 
 	existing = tree_insert(&delayed_refs->root, &ref->rb_node);
 

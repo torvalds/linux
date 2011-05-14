@@ -635,8 +635,8 @@ int acpi_processor_device_add(acpi_handle handle, struct acpi_device **device)
 	return 0;
 }
 
-static void __ref acpi_processor_hotplug_notify(acpi_handle handle,
-						u32 event, void *data)
+static void acpi_processor_hotplug_notify(acpi_handle handle,
+					  u32 event, void *data)
 {
 	struct acpi_processor *pr;
 	struct acpi_device *device = NULL;

@@ -396,7 +396,7 @@ static struct page *reiserfs_get_page(struct inode *dir, size_t n)
 	struct address_space *mapping = dir->i_mapping;
 	struct page *page;
 	/* We can deadlock if we try to free dentries,
-	   and an unlink/rmdir has just occured - GFP_NOFS avoids this */
+	   and an unlink/rmdir has just occurred - GFP_NOFS avoids this */
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
 	page = read_mapping_page(mapping, n >> PAGE_CACHE_SHIFT, NULL);
 	if (!IS_ERR(page)) {
@@ -978,8 +978,6 @@ int reiserfs_permission(struct inode *inode, int mask, unsigned int flags)
 
 static int xattr_hide_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	if (nd->flags & LOOKUP_RCU)
-		return -ECHILD;
 	return -EPERM;
 }
 

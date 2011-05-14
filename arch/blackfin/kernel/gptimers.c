@@ -268,7 +268,7 @@ void disable_gptimers(uint16_t mask)
 	_disable_gptimers(mask);
 	for (i = 0; i < MAX_BLACKFIN_GPTIMERS; ++i)
 		if (mask & (1 << i))
-			group_regs[BFIN_TIMER_OCTET(i)]->status |= trun_mask[i];
+			group_regs[BFIN_TIMER_OCTET(i)]->status = trun_mask[i];
 	SSYNC();
 }
 EXPORT_SYMBOL(disable_gptimers);

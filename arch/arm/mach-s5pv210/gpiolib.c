@@ -281,6 +281,7 @@ static __init int s5pv210_gpiolib_init(void)
 	}
 
 	samsung_gpiolib_add_4bit_chips(s5pv210_gpio_4bit, nr_chips);
+	s5p_register_gpioint_bank(IRQ_GPIOINT, 0, S5P_GPIOINT_GROUP_MAXNR);
 
 	return 0;
 }

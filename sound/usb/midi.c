@@ -54,6 +54,7 @@
 #include <sound/asequencer.h>
 #include "usbaudio.h"
 #include "midi.h"
+#include "power.h"
 #include "helper.h"
 
 /*
@@ -1044,6 +1045,7 @@ static int snd_usbmidi_output_open(struct snd_rawmidi_substream *substream)
 	struct snd_usb_midi* umidi = substream->rmidi->private_data;
 	struct usbmidi_out_port* port = NULL;
 	int i, j;
+	int err;
 
 	for (i = 0; i < MIDI_MAX_ENDPOINTS; ++i)
 		if (umidi->endpoints[i].out)
@@ -1056,6 +1058,9 @@ static int snd_usbmidi_output_open(struct snd_rawmidi_substream *substream)
 		snd_BUG();
 		return -ENXIO;
 	}
+	err = usb_autopm_get_interface(umidi->iface);
+	if (err < 0)
+		return -EIO;
 	substream->runtime->private_data = port;
 	port->state = STATE_UNKNOWN;
 	substream_open(substream, 1);
@@ -1064,7 +1069,10 @@ static int snd_usbmidi_output_open(struct snd_rawmidi_substream *substream)
 
 static int snd_usbmidi_output_close(struct snd_rawmidi_substream *substream)
 {
+	struct snd_usb_midi* umidi = substream->rmidi->private_data;
+
 	substream_open(substream, 0);
+	usb_autopm_put_interface(umidi->iface);
 	return 0;
 }
 
@@ -1293,6 +1301,7 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi* umidi,
 	case USB_ID(0x15ca, 0x0101): /* Textech USB Midi Cable */
 	case USB_ID(0x15ca, 0x1806): /* Textech USB Midi Cable */
 	case USB_ID(0x1a86, 0x752d): /* QinHeng CH345 "USB2.0-MIDI" */
+	case USB_ID(0xfc08, 0x0101): /* Unknown vendor Cable */
 		ep->max_transfer = 4;
 		break;
 		/*

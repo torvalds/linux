@@ -226,7 +226,7 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 		y += crtc->y;
 		DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
 
-		/* avivo cursor image can't end on 128 pixel boundry or
+		/* avivo cursor image can't end on 128 pixel boundary or
 		 * go past the end of the frame if both crtcs are enabled
 		 */
 		list_for_each_entry(crtc_p, &crtc->dev->mode_config.crtc_list, head) {

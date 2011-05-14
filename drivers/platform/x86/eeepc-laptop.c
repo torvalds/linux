@@ -1147,6 +1147,7 @@ static int eeepc_backlight_init(struct eeepc_laptop *eeepc)
 	struct backlight_device *bd;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = 15;
 	bd = backlight_device_register(EEEPC_LAPTOP_FILE,
 				       &eeepc->platform_device->dev, eeepc,
@@ -1321,7 +1322,7 @@ static void cmsg_quirk(struct eeepc_laptop *eeepc, int cm, const char *name)
 {
 	int dummy;
 
-	/* Some BIOSes do not report cm although it is avaliable.
+	/* Some BIOSes do not report cm although it is available.
 	   Check if cm_getv[cm] works and, if yes, assume cm should be set. */
 	if (!(eeepc->cm_supported & (1 << cm))
 	    && !read_acpi_int(eeepc->handle, cm_getv[cm], &dummy)) {

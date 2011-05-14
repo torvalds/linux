@@ -127,8 +127,8 @@ static int gpio_set_irq_type(struct irq_data *d, unsigned int type)
 
 static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
+	unsigned int port = (unsigned int)irq_desc_get_handler_data(desc);
 	unsigned int gpio_irq_no, irq_stat;
-	unsigned int port = (unsigned int)get_irq_data(irq);
 
 	irq_stat = __raw_readl(GPIO_BASE(port) + GPIO_INT_STAT);
 
@@ -138,9 +138,7 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 		if ((irq_stat & 1) == 0)
 			continue;
 
-		BUG_ON(!(irq_desc[gpio_irq_no].handle_irq));
-		irq_desc[gpio_irq_no].handle_irq(gpio_irq_no,
-				&irq_desc[gpio_irq_no]);
+		generic_handle_irq(gpio_irq_no);
 	}
 }
 
@@ -219,13 +217,13 @@ void __init gemini_gpio_init(void)
 
 		for (j = GPIO_IRQ_BASE + i * 32;
 		     j < GPIO_IRQ_BASE + (i + 1) * 32; j++) {
-			set_irq_chip(j, &gpio_irq_chip);
-			set_irq_handler(j, handle_edge_irq);
+			irq_set_chip_and_handler(j, &gpio_irq_chip,
+						 handle_edge_irq);
 			set_irq_flags(j, IRQF_VALID);
 		}
 
-		set_irq_chained_handler(IRQ_GPIO(i), gpio_irq_handler);
-		set_irq_data(IRQ_GPIO(i), (void *)i);
+		irq_set_chained_handler(IRQ_GPIO(i), gpio_irq_handler);
+		irq_set_handler_data(IRQ_GPIO(i), (void *)i);
 	}
 
 	BUG_ON(gpiochip_add(&gemini_gpio_chip));

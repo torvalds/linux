@@ -35,7 +35,10 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#include "devices-mx50.h"
+#include "devices-imx50.h"
+
+#define FEC_EN		IMX_GPIO_NR(6, 23)
+#define FEC_RESET_B	IMX_GPIO_NR(4, 12)
 
 static iomux_v3_cfg_t mx50_rdp_pads[] __initdata = {
 	/* SD1 */
@@ -102,7 +105,7 @@ static iomux_v3_cfg_t mx50_rdp_pads[] __initdata = {
 	MX50_PAD_I2C3_SCL__USBOTG_OC,
 
 	MX50_PAD_SSI_RXC__FEC_MDIO,
-	MX50_PAD_SSI_RXC__FEC_MDIO,
+	MX50_PAD_SSI_RXFS__FEC_MDC,
 	MX50_PAD_DISP_D0__FEC_TXCLK,
 	MX50_PAD_DISP_D1__FEC_RX_ER,
 	MX50_PAD_DISP_D2__FEC_RX_DV,
@@ -111,7 +114,6 @@ static iomux_v3_cfg_t mx50_rdp_pads[] __initdata = {
 	MX50_PAD_DISP_D5__FEC_TX_EN,
 	MX50_PAD_DISP_D6__FEC_TXD1,
 	MX50_PAD_DISP_D7__FEC_TXD0,
-	MX50_PAD_SSI_RXFS__FEC_MDC,
 	MX50_PAD_I2C3_SDA__GPIO_6_23,
 	MX50_PAD_ECSPI1_SCLK__GPIO_4_12,
 
@@ -168,6 +170,24 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
+static const struct fec_platform_data fec_data __initconst = {
+	.phy = PHY_INTERFACE_MODE_RMII,
+};
+
+static inline void mx50_rdp_fec_reset(void)
+{
+	gpio_request(FEC_EN, "fec-en");
+	gpio_direction_output(FEC_EN, 0);
+	gpio_request(FEC_RESET_B, "fec-reset_b");
+	gpio_direction_output(FEC_RESET_B, 0);
+	msleep(1);
+	gpio_set_value(FEC_RESET_B, 1);
+}
+
+static const struct imxi2c_platform_data i2c_data __initconst = {
+	.bitrate = 100000,
+};
+
 /*
  * Board specific initialization.
  */
@@ -178,6 +198,11 @@ static void __init mx50_rdp_board_init(void)
 
 	imx50_add_imx_uart(0, &uart_pdata);
 	imx50_add_imx_uart(1, &uart_pdata);
+	mx50_rdp_fec_reset();
+	imx50_add_fec(&fec_data);
+	imx50_add_imx_i2c(0, &i2c_data);
+	imx50_add_imx_i2c(1, &i2c_data);
+	imx50_add_imx_i2c(2, &i2c_data);
 }
 
 static void __init mx50_rdp_timer_init(void)
@@ -191,7 +216,8 @@ static struct sys_timer mx50_rdp_timer = {
 
 MACHINE_START(MX50_RDP, "Freescale MX50 Reference Design Platform")
 	.map_io = mx50_map_io,
+	.init_early = imx50_init_early,
 	.init_irq = mx50_init_irq,
-	.init_machine = mx50_rdp_board_init,
 	.timer = &mx50_rdp_timer,
+	.init_machine = mx50_rdp_board_init,
 MACHINE_END

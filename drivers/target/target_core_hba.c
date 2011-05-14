@@ -31,13 +31,11 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/in.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
 #include <target/target_core_device.h>
 #include <target/target_core_tpg.h>
 #include <target/target_core_transport.h>
@@ -153,19 +151,8 @@ out_free_hba:
 int
 core_delete_hba(struct se_hba *hba)
 {
-	struct se_device *dev, *dev_tmp;
-
-	spin_lock(&hba->device_lock);
-	list_for_each_entry_safe(dev, dev_tmp, &hba->hba_dev_list, dev_list) {
-
-		se_clear_dev_ports(dev);
-		spin_unlock(&hba->device_lock);
-
-		se_release_device_for_hba(dev);
-
-		spin_lock(&hba->device_lock);
-	}
-	spin_unlock(&hba->device_lock);
+	if (!list_empty(&hba->hba_dev_list))
+		dump_stack();
 
 	hba->transport->detach_hba(hba);
 

@@ -139,7 +139,7 @@ consistently to the DiSEqC commands as described in the DiSEqC spec.</para>
 <section id="frontend_sec_tone">
 <title>SEC continuous tone</title>
 
-<para>The continous 22KHz tone is usually used with non-DiSEqC capable LNBs to switch the
+<para>The continuous 22KHz tone is usually used with non-DiSEqC capable LNBs to switch the
 high/low band of a dual-band LNB. When using DiSEqC epuipment this voltage has to
 be switched consistently to the DiSEqC commands as described in the DiSEqC
 spec.</para>

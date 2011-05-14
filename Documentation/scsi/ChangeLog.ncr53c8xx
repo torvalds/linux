@@ -200,7 +200,7 @@ Sun Feb  14:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	  By default the driver uses both IRQF_SHARED and IRQF_DISABLED.
 	  Option 'ncr53c8xx=irqm:0x20' may be used when an IRQ is shared by 
 	  a 53C8XX adapter and a network board.
-	- Tiny mispelling fixed (ABORT instead of ABRT). Was fortunately 
+	- Tiny misspelling fixed (ABORT instead of ABRT). Was fortunately 
 	  harmless.
 	- Negotiate SYNC data transfers with CCS devices.
 

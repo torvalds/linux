@@ -178,7 +178,6 @@ enum {
 	REPLY_BT_COEX_PRIO_TABLE = 0xcc,
 	REPLY_BT_COEX_PROT_ENV = 0xcd,
 	REPLY_BT_COEX_PROFILE_NOTIF = 0xce,
-	REPLY_BT_COEX_SCO = 0xcf,
 
 	/* PAN commands */
 	REPLY_WIPAN_PARAMS = 0xb2,
@@ -189,6 +188,7 @@ enum {
 	REPLY_WIPAN_WEPKEY = 0xb8,	/* use REPLY_WEPKEY structure */
 	REPLY_WIPAN_P2P_CHANNEL_SWITCH = 0xb9,
 	REPLY_WIPAN_NOA_NOTIFICATION = 0xbc,
+	REPLY_WIPAN_DEACTIVATION_COMPLETE = 0xbd,
 
 	REPLY_MAX = 0xff
 };
@@ -2477,7 +2477,7 @@ struct iwl_bt_cmd {
 					IWLAGN_BT_VALID_BT4_TIMES | \
 					IWLAGN_BT_VALID_3W_LUT)
 
-struct iwlagn_bt_cmd {
+struct iwl_basic_bt_cmd {
 	u8 flags;
 	u8 ledtime; /* unused */
 	u8 max_kill;
@@ -2490,11 +2490,27 @@ struct iwlagn_bt_cmd {
 	__le32 bt3_lookup_table[12];
 	__le16 bt4_decision_time; /* unused */
 	__le16 valid;
+};
+
+struct iwl6000_bt_cmd {
+	struct iwl_basic_bt_cmd basic;
 	u8 prio_boost;
 	/*
 	 * set IWLAGN_BT_VALID_BOOST to "1" in "valid" bitmask
 	 * if configure the following patterns
 	 */
+	u8 tx_prio_boost;	/* SW boost of WiFi tx priority */
+	__le16 rx_prio_boost;	/* SW boost of WiFi rx priority */
+};
+
+struct iwl2000_bt_cmd {
+	struct iwl_basic_bt_cmd basic;
+	__le32 prio_boost;
+	/*
+	 * set IWLAGN_BT_VALID_BOOST to "1" in "valid" bitmask
+	 * if configure the following patterns
+	 */
+	u8 reserved;
 	u8 tx_prio_boost;	/* SW boost of WiFi tx priority */
 	__le16 rx_prio_boost;	/* SW boost of WiFi rx priority */
 };
@@ -2948,9 +2964,15 @@ struct iwl3945_scan_cmd {
 	u8 data[0];
 } __packed;
 
+enum iwl_scan_flags {
+	/* BIT(0) currently unused */
+	IWL_SCAN_FLAGS_ACTION_FRAME_TX	= BIT(1),
+	/* bits 2-7 reserved */
+};
+
 struct iwl_scan_cmd {
 	__le16 len;
-	u8 reserved0;
+	u8 scan_flags;		/* scan flags: see enum iwl_scan_flags */
 	u8 channel_count;	/* # channels in channel list */
 	__le16 quiet_time;	/* dwell only this # millisecs on quiet channel
 				 * (only for active scan) */
@@ -3077,6 +3099,13 @@ struct iwl3945_beacon_notif {
 
 struct iwl4965_beacon_notif {
 	struct iwl4965_tx_resp beacon_notify_hdr;
+	__le32 low_tsf;
+	__le32 high_tsf;
+	__le32 ibss_mgr_status;
+} __packed;
+
+struct iwlagn_beacon_notif {
+	struct iwlagn_tx_resp beacon_notify_hdr;
 	__le32 low_tsf;
 	__le32 high_tsf;
 	__le32 ibss_mgr_status;
@@ -4143,6 +4172,10 @@ enum iwl_bt_coex_profile_traffic_load {
  */
 };
 
+#define BT_SESSION_ACTIVITY_1_UART_MSG		0x1
+#define BT_SESSION_ACTIVITY_2_UART_MSG		0x2
+
+/* BT UART message - Share Part (BT -> WiFi) */
 #define BT_UART_MSG_FRAME1MSGTYPE_POS		(0)
 #define BT_UART_MSG_FRAME1MSGTYPE_MSK		\
 		(0x7 << BT_UART_MSG_FRAME1MSGTYPE_POS)
@@ -4227,15 +4260,95 @@ enum iwl_bt_coex_profile_traffic_load {
 #define BT_UART_MSG_FRAME7SNIFFACTIVITY_POS	(0)
 #define BT_UART_MSG_FRAME7SNIFFACTIVITY_MSK	\
 		(0x7 << BT_UART_MSG_FRAME7SNIFFACTIVITY_POS)
-#define BT_UART_MSG_FRAME7INQUIRYPAGESRMODE_POS	(3)
-#define BT_UART_MSG_FRAME7INQUIRYPAGESRMODE_MSK	\
-		(0x3 << BT_UART_MSG_FRAME7INQUIRYPAGESRMODE_POS)
+#define BT_UART_MSG_FRAME7PAGE_POS		(3)
+#define BT_UART_MSG_FRAME7PAGE_MSK		\
+		(0x1 << BT_UART_MSG_FRAME7PAGE_POS)
+#define BT_UART_MSG_FRAME7INQUIRY_POS		(4)
+#define BT_UART_MSG_FRAME7INQUIRY_MSK		\
+		(0x1 << BT_UART_MSG_FRAME7INQUIRY_POS)
 #define BT_UART_MSG_FRAME7CONNECTABLE_POS	(5)
 #define BT_UART_MSG_FRAME7CONNECTABLE_MSK	\
 		(0x1 << BT_UART_MSG_FRAME7CONNECTABLE_POS)
 #define BT_UART_MSG_FRAME7RESERVED_POS		(6)
 #define BT_UART_MSG_FRAME7RESERVED_MSK		\
 		(0x3 << BT_UART_MSG_FRAME7RESERVED_POS)
+
+/* BT Session Activity 2 UART message (BT -> WiFi) */
+#define BT_UART_MSG_2_FRAME1RESERVED1_POS	(5)
+#define BT_UART_MSG_2_FRAME1RESERVED1_MSK	\
+		(0x1<<BT_UART_MSG_2_FRAME1RESERVED1_POS)
+#define BT_UART_MSG_2_FRAME1RESERVED2_POS	(6)
+#define BT_UART_MSG_2_FRAME1RESERVED2_MSK	\
+		(0x3<<BT_UART_MSG_2_FRAME1RESERVED2_POS)
+
+#define BT_UART_MSG_2_FRAME2AGGTRAFFICLOAD_POS	(0)
+#define BT_UART_MSG_2_FRAME2AGGTRAFFICLOAD_MSK	\
+		(0x3F<<BT_UART_MSG_2_FRAME2AGGTRAFFICLOAD_POS)
+#define BT_UART_MSG_2_FRAME2RESERVED_POS	(6)
+#define BT_UART_MSG_2_FRAME2RESERVED_MSK	\
+		(0x3<<BT_UART_MSG_2_FRAME2RESERVED_POS)
+
+#define BT_UART_MSG_2_FRAME3BRLASTTXPOWER_POS	(0)
+#define BT_UART_MSG_2_FRAME3BRLASTTXPOWER_MSK	\
+		(0xF<<BT_UART_MSG_2_FRAME3BRLASTTXPOWER_POS)
+#define BT_UART_MSG_2_FRAME3INQPAGESRMODE_POS	(4)
+#define BT_UART_MSG_2_FRAME3INQPAGESRMODE_MSK	\
+		(0x1<<BT_UART_MSG_2_FRAME3INQPAGESRMODE_POS)
+#define BT_UART_MSG_2_FRAME3LEMASTER_POS	(5)
+#define BT_UART_MSG_2_FRAME3LEMASTER_MSK	\
+		(0x1<<BT_UART_MSG_2_FRAME3LEMASTER_POS)
+#define BT_UART_MSG_2_FRAME3RESERVED_POS	(6)
+#define BT_UART_MSG_2_FRAME3RESERVED_MSK	\
+		(0x3<<BT_UART_MSG_2_FRAME3RESERVED_POS)
+
+#define BT_UART_MSG_2_FRAME4LELASTTXPOWER_POS	(0)
+#define BT_UART_MSG_2_FRAME4LELASTTXPOWER_MSK	\
+		(0xF<<BT_UART_MSG_2_FRAME4LELASTTXPOWER_POS)
+#define BT_UART_MSG_2_FRAME4NUMLECONN_POS	(4)
+#define BT_UART_MSG_2_FRAME4NUMLECONN_MSK	\
+		(0x3<<BT_UART_MSG_2_FRAME4NUMLECONN_POS)
+#define BT_UART_MSG_2_FRAME4RESERVED_POS	(6)
+#define BT_UART_MSG_2_FRAME4RESERVED_MSK	\
+		(0x3<<BT_UART_MSG_2_FRAME4RESERVED_POS)
+
+#define BT_UART_MSG_2_FRAME5BTMINRSSI_POS	(0)
+#define BT_UART_MSG_2_FRAME5BTMINRSSI_MSK	\
+		(0xF<<BT_UART_MSG_2_FRAME5BTMINRSSI_POS)
+#define BT_UART_MSG_2_FRAME5LESCANINITMODE_POS	(4)
+#define BT_UART_MSG_2_FRAME5LESCANINITMODE_MSK	\
+		(0x1<<BT_UART_MSG_2_FRAME5LESCANINITMODE_POS)
+#define BT_UART_MSG_2_FRAME5LEADVERMODE_POS	(5)
+#define BT_UART_MSG_2_FRAME5LEADVERMODE_MSK	\
+		(0x1<<BT_UART_MSG_2_FRAME5LEADVERMODE_POS)
+#define BT_UART_MSG_2_FRAME5RESERVED_POS	(6)
+#define BT_UART_MSG_2_FRAME5RESERVED_MSK	\
+		(0x3<<BT_UART_MSG_2_FRAME5RESERVED_POS)
+
+#define BT_UART_MSG_2_FRAME6LECONNINTERVAL_POS	(0)
+#define BT_UART_MSG_2_FRAME6LECONNINTERVAL_MSK	\
+		(0x1F<<BT_UART_MSG_2_FRAME6LECONNINTERVAL_POS)
+#define BT_UART_MSG_2_FRAME6RFU_POS		(5)
+#define BT_UART_MSG_2_FRAME6RFU_MSK		\
+		(0x1<<BT_UART_MSG_2_FRAME6RFU_POS)
+#define BT_UART_MSG_2_FRAME6RESERVED_POS	(6)
+#define BT_UART_MSG_2_FRAME6RESERVED_MSK	\
+		(0x3<<BT_UART_MSG_2_FRAME6RESERVED_POS)
+
+#define BT_UART_MSG_2_FRAME7LECONNSLAVELAT_POS	(0)
+#define BT_UART_MSG_2_FRAME7LECONNSLAVELAT_MSK	\
+		(0x7<<BT_UART_MSG_2_FRAME7LECONNSLAVELAT_POS)
+#define BT_UART_MSG_2_FRAME7LEPROFILE1_POS	(3)
+#define BT_UART_MSG_2_FRAME7LEPROFILE1_MSK	\
+		(0x1<<BT_UART_MSG_2_FRAME7LEPROFILE1_POS)
+#define BT_UART_MSG_2_FRAME7LEPROFILE2_POS	(4)
+#define BT_UART_MSG_2_FRAME7LEPROFILE2_MSK	\
+		(0x1<<BT_UART_MSG_2_FRAME7LEPROFILE2_POS)
+#define BT_UART_MSG_2_FRAME7LEPROFILEOTHER_POS	(5)
+#define BT_UART_MSG_2_FRAME7LEPROFILEOTHER_MSK	\
+		(0x1<<BT_UART_MSG_2_FRAME7LEPROFILEOTHER_POS)
+#define BT_UART_MSG_2_FRAME7RESERVED_POS	(6)
+#define BT_UART_MSG_2_FRAME7RESERVED_MSK	\
+		(0x3<<BT_UART_MSG_2_FRAME7RESERVED_POS)
 
 
 struct iwl_bt_uart_msg {
@@ -4368,6 +4481,11 @@ int iwl_agn_check_rxon_cmd(struct iwl_priv *priv);
 /*
  * REPLY_WIPAN_PARAMS = 0xb2 (Commands and Notification)
  */
+
+/*
+ * Minimum slot time in TU
+ */
+#define IWL_MIN_SLOT_TIME	20
 
 /**
  * struct iwl_wipan_slot

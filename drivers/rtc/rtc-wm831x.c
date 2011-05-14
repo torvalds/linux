@@ -315,21 +315,6 @@ static int wm831x_rtc_alarm_irq_enable(struct device *dev,
 		return wm831x_rtc_stop_alarm(wm831x_rtc);
 }
 
-static int wm831x_rtc_update_irq_enable(struct device *dev,
-					unsigned int enabled)
-{
-	struct wm831x_rtc *wm831x_rtc = dev_get_drvdata(dev);
-	int val;
-
-	if (enabled)
-		val = 1 << WM831X_RTC_PINT_FREQ_SHIFT;
-	else
-		val = 0;
-
-	return wm831x_set_bits(wm831x_rtc->wm831x, WM831X_RTC_CONTROL,
-			       WM831X_RTC_PINT_FREQ_MASK, val);
-}
-
 static irqreturn_t wm831x_alm_irq(int irq, void *data)
 {
 	struct wm831x_rtc *wm831x_rtc = data;
@@ -354,7 +339,6 @@ static const struct rtc_class_ops wm831x_rtc_ops = {
 	.read_alarm = wm831x_rtc_readalarm,
 	.set_alarm = wm831x_rtc_setalarm,
 	.alarm_irq_enable = wm831x_rtc_alarm_irq_enable,
-	.update_irq_enable = wm831x_rtc_update_irq_enable,
 };
 
 #ifdef CONFIG_PM

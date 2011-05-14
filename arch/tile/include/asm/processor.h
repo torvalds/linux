@@ -269,7 +269,6 @@ extern char chip_model[64];
 /* Data on which physical memory controller corresponds to which NUMA node. */
 extern int node_controller[];
 
-
 /* Do we dump information to the console when a user application crashes? */
 extern int show_crashinfo;
 

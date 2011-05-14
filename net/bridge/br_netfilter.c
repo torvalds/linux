@@ -249,11 +249,9 @@ static int br_parse_ip_options(struct sk_buff *skb)
 		goto drop;
 	}
 
-	/* Zero out the CB buffer if no options present */
-	if (iph->ihl == 5) {
-		memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+	memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+	if (iph->ihl == 5)
 		return 0;
-	}
 
 	opt->optlen = iph->ihl*4 - sizeof(struct iphdr);
 	if (ip_options_compile(dev_net(dev), opt, skb))
@@ -412,10 +410,6 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 	nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
 	if (dnat_took_place(skb)) {
 		if ((err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))) {
-			struct flowi fl = {
-				.fl4_dst = iph->daddr,
-				.fl4_tos = RT_TOS(iph->tos),
-			};
 			struct in_device *in_dev = __in_dev_get_rcu(dev);
 
 			/* If err equals -EHOSTUNREACH the error is due to a
@@ -428,14 +422,16 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 			if (err != -EHOSTUNREACH || !in_dev || IN_DEV_FORWARD(in_dev))
 				goto free_skb;
 
-			if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
+			rt = ip_route_output(dev_net(dev), iph->daddr, 0,
+					     RT_TOS(iph->tos), 0);
+			if (!IS_ERR(rt)) {
 				/* - Bridged-and-DNAT'ed traffic doesn't
 				 *   require ip_forwarding. */
-				if (((struct dst_entry *)rt)->dev == dev) {
-					skb_dst_set(skb, (struct dst_entry *)rt);
+				if (rt->dst.dev == dev) {
+					skb_dst_set(skb, &rt->dst);
 					goto bridged_dnat;
 				}
-				dst_release((struct dst_entry *)rt);
+				ip_rt_put(rt);
 			}
 free_skb:
 			kfree_skb(skb);
@@ -740,6 +736,9 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 		skb->pkt_type = PACKET_HOST;
 		nf_bridge->mask |= BRNF_PKT_TYPE;
 	}
+
+	if (br_parse_ip_options(skb))
+		return NF_DROP;
 
 	/* The physdev module checks on this */
 	nf_bridge->mask |= BRNF_BRIDGED;

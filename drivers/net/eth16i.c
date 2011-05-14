@@ -13,7 +13,7 @@
    This driver supports following cards :
 	- ICL EtherTeam 16i
 	- ICL EtherTeam 32 EISA
-	  (Uses true 32 bit transfers rather than 16i compability mode)
+	  (Uses true 32 bit transfers rather than 16i compatibility mode)
 
    Example Module usage:
         insmod eth16i.o io=0x2a0 mediatype=bnc

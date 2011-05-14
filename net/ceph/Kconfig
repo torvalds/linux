@@ -4,6 +4,7 @@ config CEPH_LIB
 	select LIBCRC32C
 	select CRYPTO_AES
 	select CRYPTO
+	select KEYS
 	default n
 	help
 	  Choose Y or M here to include cephlib, which provides the

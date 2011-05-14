@@ -1011,7 +1011,7 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 	tmp_skb->len = skb->len;
 	memcpy(&tmp_skb->data[ETH_HLEN + 2], &skb->data[ETH_HLEN],
 	       (skb->len - ETH_HLEN));
-	/*-- Set Buffer infomation --*/
+	/*-- Set Buffer information --*/
 	buffer_info->length = tmp_skb->len;
 	buffer_info->dma = dma_map_single(&adapter->pdev->dev, tmp_skb->data,
 					  buffer_info->length,
@@ -1540,7 +1540,7 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
 	size = (int)sizeof(struct pch_gbe_buffer) * tx_ring->count;
 	tx_ring->buffer_info = vzalloc(size);
 	if (!tx_ring->buffer_info) {
-		pr_err("Unable to allocate memory for the buffer infomation\n");
+		pr_err("Unable to allocate memory for the buffer information\n");
 		return -ENOMEM;
 	}
 
@@ -2441,12 +2441,12 @@ static struct pci_error_handlers pch_gbe_err_handler = {
 	.resume = pch_gbe_io_resume
 };
 
-static struct pci_driver pch_gbe_pcidev = {
+static struct pci_driver pch_gbe_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = pch_gbe_pcidev_id,
 	.probe = pch_gbe_probe,
 	.remove = pch_gbe_remove,
-#ifdef CONFIG_PM_OPS
+#ifdef CONFIG_PM
 	.driver.pm = &pch_gbe_pm_ops,
 #endif
 	.shutdown = pch_gbe_shutdown,
@@ -2458,7 +2458,7 @@ static int __init pch_gbe_init_module(void)
 {
 	int ret;
 
-	ret = pci_register_driver(&pch_gbe_pcidev);
+	ret = pci_register_driver(&pch_gbe_driver);
 	if (copybreak != PCH_GBE_COPYBREAK_DEFAULT) {
 		if (copybreak == 0) {
 			pr_info("copybreak disabled\n");
@@ -2472,7 +2472,7 @@ static int __init pch_gbe_init_module(void)
 
 static void __exit pch_gbe_exit_module(void)
 {
-	pci_unregister_driver(&pch_gbe_pcidev);
+	pci_unregister_driver(&pch_gbe_driver);
 }
 
 module_init(pch_gbe_init_module);

@@ -321,14 +321,12 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 	}
 	igmp_skb_size(skb) = size;
 
-	{
-		struct flowi fl = { .oif = dev->ifindex,
-				    .fl4_dst = IGMPV3_ALL_MCR,
-				    .proto = IPPROTO_IGMP };
-		if (ip_route_output_key(net, &rt, &fl)) {
-			kfree_skb(skb);
-			return NULL;
-		}
+	rt = ip_route_output_ports(net, NULL, IGMPV3_ALL_MCR, 0,
+				   0, 0,
+				   IPPROTO_IGMP, 0, dev->ifindex);
+	if (IS_ERR(rt)) {
+		kfree_skb(skb);
+		return NULL;
 	}
 	if (rt->rt_src == 0) {
 		kfree_skb(skb);
@@ -666,13 +664,12 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 	else
 		dst = group;
 
-	{
-		struct flowi fl = { .oif = dev->ifindex,
-				    .fl4_dst = dst,
-				    .proto = IPPROTO_IGMP };
-		if (ip_route_output_key(net, &rt, &fl))
-			return -1;
-	}
+	rt = ip_route_output_ports(net, NULL, dst, 0,
+				   0, 0,
+				   IPPROTO_IGMP, 0, dev->ifindex);
+	if (IS_ERR(rt))
+		return -1;
+
 	if (rt->rt_src == 0) {
 		ip_rt_put(rt);
 		return -1;
@@ -1439,8 +1436,6 @@ void ip_mc_destroy_dev(struct in_device *in_dev)
 /* RTNL is locked */
 static struct in_device *ip_mc_find_dev(struct net *net, struct ip_mreqn *imr)
 {
-	struct flowi fl = { .fl4_dst = imr->imr_multiaddr.s_addr };
-	struct rtable *rt;
 	struct net_device *dev = NULL;
 	struct in_device *idev = NULL;
 
@@ -1454,9 +1449,14 @@ static struct in_device *ip_mc_find_dev(struct net *net, struct ip_mreqn *imr)
 			return NULL;
 	}
 
-	if (!dev && !ip_route_output_key(net, &rt, &fl)) {
-		dev = rt->dst.dev;
-		ip_rt_put(rt);
+	if (!dev) {
+		struct rtable *rt = ip_route_output(net,
+						    imr->imr_multiaddr.s_addr,
+						    0, 0, 0);
+		if (!IS_ERR(rt)) {
+			dev = rt->dst.dev;
+			ip_rt_put(rt);
+		}
 	}
 	if (dev) {
 		imr->imr_ifindex = dev->ifindex;
@@ -2329,13 +2329,13 @@ void ip_mc_drop_socket(struct sock *sk)
 	rtnl_unlock();
 }
 
-int ip_check_mc(struct in_device *in_dev, __be32 mc_addr, __be32 src_addr, u16 proto)
+/* called with rcu_read_lock() */
+int ip_check_mc_rcu(struct in_device *in_dev, __be32 mc_addr, __be32 src_addr, u16 proto)
 {
 	struct ip_mc_list *im;
 	struct ip_sf_list *psf;
 	int rv = 0;
 
-	rcu_read_lock();
 	for_each_pmc_rcu(in_dev, im) {
 		if (im->multiaddr == mc_addr)
 			break;
@@ -2357,7 +2357,6 @@ int ip_check_mc(struct in_device *in_dev, __be32 mc_addr, __be32 src_addr, u16 p
 		} else
 			rv = 1; /* unspecified source; tentatively allow */
 	}
-	rcu_read_unlock();
 	return rv;
 }
 

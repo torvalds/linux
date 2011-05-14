@@ -616,7 +616,7 @@ static void it821x_display_disk(int n, u8 *buf)
 	if (buf[52] > 4)	/* No Disk */
 		return;
 
-	ata_id_c_string((u16 *)buf, id, 0, 41); 
+	ata_id_c_string((u16 *)buf, id, 0, 41);
 
 	if (buf[51]) {
 		mode = ffs(buf[51]);
@@ -910,7 +910,7 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
-		
+
 	if (pdev->vendor == PCI_VENDOR_ID_RDC) {
 		/* Deal with Vortex86SX */
 		if (pdev->revision == 0x11)

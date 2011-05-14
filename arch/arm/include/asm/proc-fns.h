@@ -13,249 +13,85 @@
 
 #ifdef __KERNEL__
 
-
-/*
- * Work out if we need multiple CPU support
- */
-#undef MULTI_CPU
-#undef CPU_NAME
-
-/*
- * CPU_NAME - the prefix for CPU related functions
- */
-
-#ifdef CONFIG_CPU_ARM610
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm6
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM7TDMI
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm7tdmi
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM710
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm7
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM720T
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm720
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM740T
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm740
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM9TDMI
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm9tdmi
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM920T
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm920
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM922T
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm922
-# endif
-#endif
-
-#ifdef CONFIG_CPU_FA526
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_fa526
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM925T
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm925
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM926T
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm926
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM940T
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm940
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM946E
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm946
-# endif
-#endif
-
-#ifdef CONFIG_CPU_SA110
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_sa110
-# endif
-#endif
-
-#ifdef CONFIG_CPU_SA1100
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_sa1100
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM1020
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm1020
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM1020E
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm1020e
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM1022
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm1022
-# endif
-#endif
-
-#ifdef CONFIG_CPU_ARM1026
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_arm1026
-# endif
-#endif
-
-#ifdef CONFIG_CPU_XSCALE
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_xscale
-# endif
-#endif
-
-#ifdef CONFIG_CPU_XSC3
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_xsc3
-# endif
-#endif
-
-#ifdef CONFIG_CPU_MOHAWK
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_mohawk
-# endif
-#endif
-
-#ifdef CONFIG_CPU_FEROCEON
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_feroceon
-# endif
-#endif
-
-#ifdef CONFIG_CPU_V6
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_v6
-# endif
-#endif
-
-#ifdef CONFIG_CPU_V7
-# ifdef CPU_NAME
-#  undef  MULTI_CPU
-#  define MULTI_CPU
-# else
-#  define CPU_NAME cpu_v7
-# endif
-#endif
+#include <asm/glue-proc.h>
+#include <asm/page.h>
 
 #ifndef __ASSEMBLY__
 
+struct mm_struct;
+
+/*
+ * Don't change this structure - ASM code relies on it.
+ */
+extern struct processor {
+	/* MISC
+	 * get data abort address/flags
+	 */
+	void (*_data_abort)(unsigned long pc);
+	/*
+	 * Retrieve prefetch fault address
+	 */
+	unsigned long (*_prefetch_abort)(unsigned long lr);
+	/*
+	 * Set up any processor specifics
+	 */
+	void (*_proc_init)(void);
+	/*
+	 * Disable any processor specifics
+	 */
+	void (*_proc_fin)(void);
+	/*
+	 * Special stuff for a reset
+	 */
+	void (*reset)(unsigned long addr) __attribute__((noreturn));
+	/*
+	 * Idle the processor
+	 */
+	int (*_do_idle)(void);
+	/*
+	 * Processor architecture specific
+	 */
+	/*
+	 * clean a virtual address range from the
+	 * D-cache without flushing the cache.
+	 */
+	void (*dcache_clean_area)(void *addr, int size);
+
+	/*
+	 * Set the page table
+	 */
+	void (*switch_mm)(unsigned long pgd_phys, struct mm_struct *mm);
+	/*
+	 * Set a possibly extended PTE.  Non-extended PTEs should
+	 * ignore 'ext'.
+	 */
+	void (*set_pte_ext)(pte_t *ptep, pte_t pte, unsigned int ext);
+
+	/* Suspend/resume */
+	unsigned int suspend_size;
+	void (*do_suspend)(void *);
+	void (*do_resume)(void *);
+} processor;
+
 #ifndef MULTI_CPU
-#include <asm/cpu-single.h>
+extern void cpu_proc_init(void);
+extern void cpu_proc_fin(void);
+extern int cpu_do_idle(void);
+extern void cpu_dcache_clean_area(void *, int);
+extern void cpu_do_switch_mm(unsigned long pgd_phys, struct mm_struct *mm);
+extern void cpu_set_pte_ext(pte_t *ptep, pte_t pte, unsigned int ext);
+extern void cpu_reset(unsigned long addr) __attribute__((noreturn));
 #else
-#include <asm/cpu-multi32.h>
+#define cpu_proc_init()			processor._proc_init()
+#define cpu_proc_fin()			processor._proc_fin()
+#define cpu_reset(addr)			processor.reset(addr)
+#define cpu_do_idle()			processor._do_idle()
+#define cpu_dcache_clean_area(addr,sz)	processor.dcache_clean_area(addr,sz)
+#define cpu_set_pte_ext(ptep,pte,ext)	processor.set_pte_ext(ptep,pte,ext)
+#define cpu_do_switch_mm(pgd,mm)	processor.switch_mm(pgd,mm)
 #endif
+
+extern void cpu_resume(void);
 
 #include <asm/memory.h>
 

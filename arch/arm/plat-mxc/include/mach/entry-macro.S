@@ -33,9 +33,9 @@
 	.macro  arch_ret_to_user, tmp1, tmp2
 	.endm
 
-	@ this macro checks which interrupt occured
+	@ this macro checks which interrupt occurred
 	@ and returns its number in irqnr
-	@ and returns if an interrupt occured in irqstat
+	@ and returns if an interrupt occurred in irqstat
 	.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
 #ifndef CONFIG_MXC_TZIC
 	@ Load offset & priority of the highest priority

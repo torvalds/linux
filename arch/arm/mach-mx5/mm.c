@@ -47,18 +47,26 @@ static struct map_desc mx53_io_desc[] __initdata = {
  */
 void __init mx51_map_io(void)
 {
+	iotable_init(mx51_io_desc, ARRAY_SIZE(mx51_io_desc));
+}
+
+void __init imx51_init_early(void)
+{
 	mxc_set_cpu_type(MXC_CPU_MX51);
 	mxc_iomux_v3_init(MX51_IO_ADDRESS(MX51_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX51_IO_ADDRESS(MX51_WDOG1_BASE_ADDR));
-	iotable_init(mx51_io_desc, ARRAY_SIZE(mx51_io_desc));
 }
 
 void __init mx53_map_io(void)
 {
+	iotable_init(mx53_io_desc, ARRAY_SIZE(mx53_io_desc));
+}
+
+void __init imx53_init_early(void)
+{
 	mxc_set_cpu_type(MXC_CPU_MX53);
 	mxc_iomux_v3_init(MX53_IO_ADDRESS(MX53_IOMUXC_BASE_ADDR));
-	mxc_arch_reset_init(MX53_IO_ADDRESS(MX53_WDOG_BASE_ADDR));
-	iotable_init(mx53_io_desc, ARRAY_SIZE(mx53_io_desc));
+	mxc_arch_reset_init(MX53_IO_ADDRESS(MX53_WDOG1_BASE_ADDR));
 }
 
 int imx51_register_gpios(void);

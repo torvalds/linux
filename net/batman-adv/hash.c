@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2006-2011 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -27,13 +27,16 @@ static void hash_init(struct hashtable_t *hash)
 {
 	int i;
 
-	for (i = 0 ; i < hash->size; i++)
+	for (i = 0 ; i < hash->size; i++) {
 		INIT_HLIST_HEAD(&hash->table[i]);
+		spin_lock_init(&hash->list_locks[i]);
+	}
 }
 
 /* free only the hashtable and the hash itself. */
 void hash_destroy(struct hashtable_t *hash)
 {
+	kfree(hash->list_locks);
 	kfree(hash->table);
 	kfree(hash);
 }
@@ -43,20 +46,25 @@ struct hashtable_t *hash_new(int size)
 {
 	struct hashtable_t *hash;
 
-	hash = kmalloc(sizeof(struct hashtable_t) , GFP_ATOMIC);
-
+	hash = kmalloc(sizeof(struct hashtable_t), GFP_ATOMIC);
 	if (!hash)
 		return NULL;
 
-	hash->size = size;
 	hash->table = kmalloc(sizeof(struct element_t *) * size, GFP_ATOMIC);
+	if (!hash->table)
+		goto free_hash;
 
-	if (!hash->table) {
-		kfree(hash);
-		return NULL;
-	}
+	hash->list_locks = kmalloc(sizeof(spinlock_t) * size, GFP_ATOMIC);
+	if (!hash->list_locks)
+		goto free_table;
 
+	hash->size = size;
 	hash_init(hash);
-
 	return hash;
+
+free_table:
+	kfree(hash->table);
+free_hash:
+	kfree(hash);
+	return NULL;
 }

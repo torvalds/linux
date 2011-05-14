@@ -383,7 +383,7 @@ static int cafe_smbus_write_data(struct cafe_camera *cam,
 	 * causes the device to die.
 	 * Use a busy-wait because we often send a large quantity of small
 	 * commands at-once; using msleep() would cause a lot of context
-	 * switches which take longer than 2ms, resulting in a noticable
+	 * switches which take longer than 2ms, resulting in a noticeable
 	 * boot-time and capture-start delays.
 	 */
 	mdelay(2);

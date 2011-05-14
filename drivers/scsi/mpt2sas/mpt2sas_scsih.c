@@ -397,7 +397,7 @@ _scsih_get_sas_address(struct MPT2SAS_ADAPTER *ioc, u16 handle,
  * @is_raid: [flag] 1 = raid object, 0 = sas object
  *
  * Determines whether this device should be first reported device to
- * to scsi-ml or sas transport, this purpose is for persistant boot device.
+ * to scsi-ml or sas transport, this purpose is for persistent boot device.
  * There are primary, alternate, and current entries in bios page 2. The order
  * priority is primary, alternate, then current.  This routine saves
  * the corresponding device object and is_raid flag in the ioc object.
@@ -2671,10 +2671,10 @@ _scsih_block_io_to_children_attached_directly(struct MPT2SAS_ADAPTER *ioc,
  * @handle: device handle
  * Context: interrupt time.
  *
- * This code is to initiate the device removal handshake protocal
+ * This code is to initiate the device removal handshake protocol
  * with controller firmware.  This function will issue target reset
  * using high priority request queue.  It will send a sas iounit
- * controll request (MPI2_SAS_OP_REMOVE_DEVICE) from this completion.
+ * control request (MPI2_SAS_OP_REMOVE_DEVICE) from this completion.
  *
  * This is designed to send muliple task management request at the same
  * time to the fifo. If the fifo is full, we will append the request,
@@ -2749,9 +2749,9 @@ _scsih_tm_tr_send(struct MPT2SAS_ADAPTER *ioc, u16 handle)
  * @reply: reply message frame(lower 32bit addr)
  * Context: interrupt time.
  *
- * This is the sas iounit controll completion routine.
+ * This is the sas iounit control completion routine.
  * This code is part of the code to initiate the device removal
- * handshake protocal with controller firmware.
+ * handshake protocol with controller firmware.
  *
  * Return 1 meaning mf should be freed from _base_interrupt
  *        0 means the mf is freed from this function.
@@ -2878,8 +2878,8 @@ _scsih_tm_volume_tr_complete(struct MPT2SAS_ADAPTER *ioc, u16 smid,
  *
  * This is the target reset completion routine.
  * This code is part of the code to initiate the device removal
- * handshake protocal with controller firmware.
- * It will send a sas iounit controll request (MPI2_SAS_OP_REMOVE_DEVICE)
+ * handshake protocol with controller firmware.
+ * It will send a sas iounit control request (MPI2_SAS_OP_REMOVE_DEVICE)
  *
  * Return 1 meaning mf should be freed from _base_interrupt
  *        0 means the mf is freed from this function.
@@ -2984,7 +2984,7 @@ _scsih_check_for_pending_tm(struct MPT2SAS_ADAPTER *ioc, u16 smid)
  *
  * This routine added to better handle cable breaker.
  *
- * This handles the case where driver recieves multiple expander
+ * This handles the case where driver receives multiple expander
  * add and delete events in a single shot.  When there is a delete event
  * the routine will void any pending add events waiting in the event queue.
  *
@@ -3511,7 +3511,7 @@ _scsih_normalize_sense(char *sense_buffer, struct sense_info *data)
 
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 /**
- * _scsih_scsi_ioc_info - translated non-successfull SCSI_IO request
+ * _scsih_scsi_ioc_info - translated non-successful SCSI_IO request
  * @ioc: per adapter object
  * @scmd: pointer to scsi command object
  * @mpi_reply: reply mf payload returned from firmware
@@ -5138,7 +5138,7 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 	unsigned long flags;
 	int r;
 
-	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "broadcast primative: "
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "broadcast primitive: "
 	    "phy number(%d), width(%d)\n", ioc->name, event_data->PhyNum,
 	    event_data->PortWidth));
 	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter\n", ioc->name,
@@ -6975,7 +6975,6 @@ _scsih_suspend(struct pci_dev *pdev, pm_message_t state)
 	u32 device_state;
 
 	mpt2sas_base_stop_watchdog(ioc);
-	flush_scheduled_work();
 	scsi_block_requests(shost);
 	device_state = pci_choose_state(pdev, state);
 	printk(MPT2SAS_INFO_FMT "pdev=0x%p, slot=%s, entering "

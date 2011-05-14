@@ -6,7 +6,7 @@ This document describes how to use the dynamic debug (ddebug) feature.
 
 Dynamic debug is designed to allow you to dynamically enable/disable kernel
 code to obtain additional kernel information. Currently, if
-CONFIG_DYNAMIC_DEBUG is set, then all pr_debug()/dev_debug() calls can be
+CONFIG_DYNAMIC_DEBUG is set, then all pr_debug()/dev_dbg() calls can be
 dynamically enabled per-callsite.
 
 Dynamic debug has even more useful features:
@@ -26,7 +26,7 @@ Dynamic debug has even more useful features:
 Controlling dynamic debug Behaviour
 ===================================
 
-The behaviour of pr_debug()/dev_debug()s are controlled via writing to a
+The behaviour of pr_debug()/dev_dbg()s are controlled via writing to a
 control file in the 'debugfs' filesystem. Thus, you must first mount the debugfs
 filesystem, in order to make use of this feature. Subsequently, we refer to the
 control file as: <debugfs>/dynamic_debug/control. For example, if you want to
@@ -205,12 +205,20 @@ of the characters:
 
 The flags are:
 
+f
+    Include the function name in the printed message
+l
+    Include line number in the printed message
+m
+    Include module name in the printed message
 p
     Causes a printk() message to be emitted to dmesg
+t
+    Include thread ID in messages not generated from interrupt context
 
-Note the regexp ^[-+=][scp]+$ matches a flags specification.
+Note the regexp ^[-+=][flmpt]+$ matches a flags specification.
 Note also that there is no convenient syntax to remove all
-the flags at once, you need to use "-psc".
+the flags at once, you need to use "-flmpt".
 
 
 Debug messages during boot process

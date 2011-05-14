@@ -15,7 +15,7 @@
  *	HEAD_TEXT_SECTION
  *	INIT_TEXT_SECTION(PAGE_SIZE)
  *	INIT_DATA_SECTION(...)
- *	PERCPU(PAGE_SIZE)
+ *	PERCPU(CACHELINE_SIZE, PAGE_SIZE)
  *	__init_end = .;
  *
  *	_stext = .;
@@ -424,6 +424,12 @@
 		*(.kprobes.text)					\
 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
 
+#define ENTRY_TEXT							\
+		ALIGN_FUNCTION();					\
+		VMLINUX_SYMBOL(__entry_text_start) = .;			\
+		*(.entry.text)						\
+		VMLINUX_SYMBOL(__entry_text_end) = .;
+
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 #define IRQENTRY_TEXT							\
 		ALIGN_FUNCTION();					\
@@ -683,13 +689,18 @@
 
 /**
  * PERCPU_VADDR - define output section for percpu area
+ * @cacheline: cacheline size
  * @vaddr: explicit base address (optional)
  * @phdr: destination PHDR (optional)
  *
- * Macro which expands to output section for percpu area.  If @vaddr
- * is not blank, it specifies explicit base address and all percpu
- * symbols will be offset from the given address.  If blank, @vaddr
- * always equals @laddr + LOAD_OFFSET.
+ * Macro which expands to output section for percpu area.
+ *
+ * @cacheline is used to align subsections to avoid false cacheline
+ * sharing between subsections for different purposes.
+ *
+ * If @vaddr is not blank, it specifies explicit base address and all
+ * percpu symbols will be offset from the given address.  If blank,
+ * @vaddr always equals @laddr + LOAD_OFFSET.
  *
  * @phdr defines the output PHDR to use if not blank.  Be warned that
  * output PHDR is sticky.  If @phdr is specified, the next output
@@ -700,7 +711,7 @@
  * If there is no need to put the percpu section at a predetermined
  * address, use PERCPU().
  */
-#define PERCPU_VADDR(vaddr, phdr)					\
+#define PERCPU_VADDR(cacheline, vaddr, phdr)				\
 	VMLINUX_SYMBOL(__per_cpu_load) = .;				\
 	.data..percpu vaddr : AT(VMLINUX_SYMBOL(__per_cpu_load)		\
 				- LOAD_OFFSET) {			\
@@ -708,7 +719,9 @@
 		*(.data..percpu..first)					\
 		. = ALIGN(PAGE_SIZE);					\
 		*(.data..percpu..page_aligned)				\
+		. = ALIGN(cacheline);					\
 		*(.data..percpu..readmostly)				\
+		. = ALIGN(cacheline);					\
 		*(.data..percpu)					\
 		*(.data..percpu..shared_aligned)			\
 		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
@@ -717,18 +730,18 @@
 
 /**
  * PERCPU - define output section for percpu area, simple version
+ * @cacheline: cacheline size
  * @align: required alignment
  *
- * Align to @align and outputs output section for percpu area.  This
- * macro doesn't maniuplate @vaddr or @phdr and __per_cpu_load and
+ * Align to @align and outputs output section for percpu area.  This macro
+ * doesn't manipulate @vaddr or @phdr and __per_cpu_load and
  * __per_cpu_start will be identical.
  *
- * This macro is equivalent to ALIGN(align); PERCPU_VADDR( , ) except
- * that __per_cpu_load is defined as a relative symbol against
- * .data..percpu which is required for relocatable x86_32
- * configuration.
+ * This macro is equivalent to ALIGN(@align); PERCPU_VADDR(@cacheline,,)
+ * except that __per_cpu_load is defined as a relative symbol against
+ * .data..percpu which is required for relocatable x86_32 configuration.
  */
-#define PERCPU(align)							\
+#define PERCPU(cacheline, align)					\
 	. = ALIGN(align);						\
 	.data..percpu	: AT(ADDR(.data..percpu) - LOAD_OFFSET) {	\
 		VMLINUX_SYMBOL(__per_cpu_load) = .;			\
@@ -736,7 +749,9 @@
 		*(.data..percpu..first)					\
 		. = ALIGN(PAGE_SIZE);					\
 		*(.data..percpu..page_aligned)				\
+		. = ALIGN(cacheline);					\
 		*(.data..percpu..readmostly)				\
+		. = ALIGN(cacheline);					\
 		*(.data..percpu)					\
 		*(.data..percpu..shared_aligned)			\
 		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
@@ -758,7 +773,7 @@
  * the sections that has this restriction (or similar)
  * is located before the ones requiring PAGE_SIZE alignment.
  * NOSAVE_DATA starts and ends with a PAGE_SIZE alignment which
- * matches the requirment of PAGE_ALIGNED_DATA.
+ * matches the requirement of PAGE_ALIGNED_DATA.
  *
  * use 0 as page_align if page_aligned data is not used */
 #define RW_DATA_SECTION(cacheline, pagealigned, inittask)		\

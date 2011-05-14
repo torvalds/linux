@@ -258,7 +258,7 @@ static int ccdc_update_raw_params(struct ccdc_config_params_raw *raw_params)
 	/*
 	 * Allocate memory for FPC table if current
 	 * FPC table buffer is not big enough to
-	 * accomodate FPC Number requested
+	 * accommodate FPC Number requested
 	 */
 	if (raw_params->fault_pxl.fp_num != config_params->fault_pxl.fp_num) {
 		if (fpc_physaddr != NULL) {
@@ -436,7 +436,7 @@ void ccdc_config_ycbcr(void)
 
 	/*
 	 * configure the horizontal line offset. This should be a
-	 * on 32 byte bondary. So clear LSB 5 bits
+	 * on 32 byte boundary. So clear LSB 5 bits
 	 */
 	regw(((params->win.width * 2  + 31) & ~0x1f), CCDC_HSIZE_OFF);
 

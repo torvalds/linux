@@ -85,7 +85,7 @@ int unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
 	int rc = -ENOENT;
 
 	write_lock(&cls_mod_lock);
-	for (tp = &tcf_proto_base; (t=*tp) != NULL; tp = &t->next)
+	for (tp = &tcf_proto_base; (t = *tp) != NULL; tp = &t->next)
 		if (t == ops)
 			break;
 
@@ -111,7 +111,7 @@ static inline u32 tcf_auto_prio(struct tcf_proto *tp)
 	u32 first = TC_H_MAKE(0xC0000000U, 0U);
 
 	if (tp)
-		first = tp->prio-1;
+		first = tp->prio - 1;
 
 	return first;
 }
@@ -149,7 +149,8 @@ replay:
 
 	if (prio == 0) {
 		/* If no priority is given, user wants we allocated it. */
-		if (n->nlmsg_type != RTM_NEWTFILTER || !(n->nlmsg_flags&NLM_F_CREATE))
+		if (n->nlmsg_type != RTM_NEWTFILTER ||
+		    !(n->nlmsg_flags & NLM_F_CREATE))
 			return -ENOENT;
 		prio = TC_H_MAKE(0x80000000U, 0U);
 	}
@@ -176,7 +177,8 @@ replay:
 	}
 
 	/* Is it classful? */
-	if ((cops = q->ops->cl_ops) == NULL)
+	cops = q->ops->cl_ops;
+	if (!cops)
 		return -EINVAL;
 
 	if (cops->tcf_chain == NULL)
@@ -196,10 +198,11 @@ replay:
 		goto errout;
 
 	/* Check the chain for existence of proto-tcf with this priority */
-	for (back = chain; (tp=*back) != NULL; back = &tp->next) {
+	for (back = chain; (tp = *back) != NULL; back = &tp->next) {
 		if (tp->prio >= prio) {
 			if (tp->prio == prio) {
-				if (!nprio || (tp->protocol != protocol && protocol))
+				if (!nprio ||
+				    (tp->protocol != protocol && protocol))
 					goto errout;
 			} else
 				tp = NULL;
@@ -216,7 +219,8 @@ replay:
 			goto errout;
 
 		err = -ENOENT;
-		if (n->nlmsg_type != RTM_NEWTFILTER || !(n->nlmsg_flags&NLM_F_CREATE))
+		if (n->nlmsg_type != RTM_NEWTFILTER ||
+		    !(n->nlmsg_flags & NLM_F_CREATE))
 			goto errout;
 
 
@@ -420,7 +424,8 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 
 	if (cb->nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*tcm)))
 		return skb->len;
-	if ((dev = __dev_get_by_index(net, tcm->tcm_ifindex)) == NULL)
+	dev = __dev_get_by_index(net, tcm->tcm_ifindex);
+	if (!dev)
 		return skb->len;
 
 	if (!tcm->tcm_parent)
@@ -429,7 +434,8 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 		q = qdisc_lookup(dev, TC_H_MAJ(tcm->tcm_parent));
 	if (!q)
 		goto out;
-	if ((cops = q->ops->cl_ops) == NULL)
+	cops = q->ops->cl_ops;
+	if (!cops)
 		goto errout;
 	if (cops->tcf_chain == NULL)
 		goto errout;
@@ -444,8 +450,9 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 
 	s_t = cb->args[0];
 
-	for (tp=*chain, t=0; tp; tp = tp->next, t++) {
-		if (t < s_t) continue;
+	for (tp = *chain, t = 0; tp; tp = tp->next, t++) {
+		if (t < s_t)
+			continue;
 		if (TC_H_MAJ(tcm->tcm_info) &&
 		    TC_H_MAJ(tcm->tcm_info) != tp->prio)
 			continue;
@@ -468,10 +475,10 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 		arg.skb = skb;
 		arg.cb = cb;
 		arg.w.stop = 0;
-		arg.w.skip = cb->args[1]-1;
+		arg.w.skip = cb->args[1] - 1;
 		arg.w.count = 0;
 		tp->ops->walk(tp, &arg.w);
-		cb->args[1] = arg.w.count+1;
+		cb->args[1] = arg.w.count + 1;
 		if (arg.w.stop)
 			break;
 	}

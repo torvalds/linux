@@ -115,6 +115,8 @@ int snd_ctl_add(struct snd_card * card, struct snd_kcontrol * kcontrol);
 int snd_ctl_remove(struct snd_card * card, struct snd_kcontrol * kcontrol);
 int snd_ctl_remove_id(struct snd_card * card, struct snd_ctl_elem_id *id);
 int snd_ctl_rename_id(struct snd_card * card, struct snd_ctl_elem_id *src_id, struct snd_ctl_elem_id *dst_id);
+int snd_ctl_activate_id(struct snd_card *card, struct snd_ctl_elem_id *id,
+			int active);
 struct snd_kcontrol *snd_ctl_find_numid(struct snd_card * card, unsigned int numid);
 struct snd_kcontrol *snd_ctl_find_id(struct snd_card * card, struct snd_ctl_elem_id *id);
 
@@ -189,7 +191,7 @@ int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
  * Returns zero if successful or a negative error code.
  *
  * All slaves must be the same type (returning the same information
- * via info callback).  The fucntion doesn't check it, so it's your
+ * via info callback).  The function doesn't check it, so it's your
  * responsibility.
  *
  * Also, some additional limitations:

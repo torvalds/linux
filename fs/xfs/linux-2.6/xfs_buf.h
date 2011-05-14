@@ -61,29 +61,10 @@ typedef enum {
 #define XBF_DONT_BLOCK	(1 << 16)/* do not block in current thread */
 
 /* flags used only internally */
-#define _XBF_PAGE_CACHE	(1 << 17)/* backed by pagecache */
 #define _XBF_PAGES	(1 << 18)/* backed by refcounted pages */
 #define	_XBF_RUN_QUEUES	(1 << 19)/* run block device task queue	*/
+#define	_XBF_KMEM	(1 << 20)/* backed by heap memory */
 #define _XBF_DELWRI_Q	(1 << 21)/* buffer on delwri queue */
-
-/*
- * Special flag for supporting metadata blocks smaller than a FSB.
- *
- * In this case we can have multiple xfs_buf_t on a single page and
- * need to lock out concurrent xfs_buf_t readers as they only
- * serialise access to the buffer.
- *
- * If the FSB size >= PAGE_CACHE_SIZE case, we have no serialisation
- * between reads of the page. Hence we can have one thread read the
- * page and modify it, but then race with another thread that thinks
- * the page is not up-to-date and hence reads it again.
- *
- * The result is that the first modifcation to the page is lost.
- * This sort of AGF/AGI reading race can happen when unlinking inodes
- * that require truncation and results in the AGI unlinked list
- * modifications being lost.
- */
-#define _XBF_PAGE_LOCKED	(1 << 22)
 
 typedef unsigned int xfs_buf_flags_t;
 
@@ -100,12 +81,10 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_LOCK,		"LOCK" },  	/* should never be set */\
 	{ XBF_TRYLOCK,		"TRYLOCK" }, 	/* ditto */\
 	{ XBF_DONT_BLOCK,	"DONT_BLOCK" },	/* ditto */\
-	{ _XBF_PAGE_CACHE,	"PAGE_CACHE" }, \
 	{ _XBF_PAGES,		"PAGES" }, \
 	{ _XBF_RUN_QUEUES,	"RUN_QUEUES" }, \
-	{ _XBF_DELWRI_Q,	"DELWRI_Q" }, \
-	{ _XBF_PAGE_LOCKED,	"PAGE_LOCKED" }
-
+	{ _XBF_KMEM,		"KMEM" }, \
+	{ _XBF_DELWRI_Q,	"DELWRI_Q" }
 
 typedef enum {
 	XBT_FORCE_SLEEP = 0,
@@ -120,7 +99,7 @@ typedef struct xfs_bufhash {
 typedef struct xfs_buftarg {
 	dev_t			bt_dev;
 	struct block_device	*bt_bdev;
-	struct address_space	*bt_mapping;
+	struct backing_dev_info	*bt_bdi;
 	struct xfs_mount	*bt_mount;
 	unsigned int		bt_bsize;
 	unsigned int		bt_sshift;
@@ -138,17 +117,6 @@ typedef struct xfs_buftarg {
 	spinlock_t		bt_lru_lock;
 	unsigned int		bt_lru_nr;
 } xfs_buftarg_t;
-
-/*
- *	xfs_buf_t:  Buffer structure for pagecache-based buffers
- *
- * This buffer structure is used by the pagecache buffer management routines
- * to refer to an assembly of pages forming a logical buffer.
- *
- * The buffer structure is used on a temporary basis only, and discarded when
- * released.  The real data storage is recorded in the pagecache. Buffers are
- * hashed to the block device on which the file system resides.
- */
 
 struct xfs_buf;
 typedef void (*xfs_buf_iodone_t)(struct xfs_buf *);

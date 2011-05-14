@@ -1149,7 +1149,7 @@ typedef struct {
 	unsigned int firstring:1; /* First ring cadence is complete */
 	unsigned int pstncheck:1;	/* Currently checking the PSTN Line */
 	unsigned int pstn_rmr:1;
-	unsigned int x:3;	/* unsed bits */
+	unsigned int x:3;	/* unused bits */
 
 } IXJ_FLAGS;
 

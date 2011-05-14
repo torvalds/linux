@@ -263,7 +263,7 @@ typedef enum opcode {
 } opcode_t;
 
 
-/* virtual path / virtual channel identifers */
+/* virtual path / virtual channel identifiers */
 
 typedef struct vpvc {
     BITFIELD3(
@@ -926,7 +926,7 @@ typedef struct fore200e_vcc {
 
 #define PCA200E_PCI_LATENCY      0x40    /* maximum slave latenty            */
 #define PCA200E_PCI_MASTER_CTRL  0x41    /* master control                   */
-#define PCA200E_PCI_THRESHOLD    0x42    /* burst / continous req threshold  */
+#define PCA200E_PCI_THRESHOLD    0x42    /* burst / continuous req threshold  */
 
 /* PBI master control register */
 

@@ -25,9 +25,7 @@ struct clk;
 void tegra_periph_reset_deassert(struct clk *c);
 void tegra_periph_reset_assert(struct clk *c);
 
-int clk_enable_cansleep(struct clk *clk);
-void clk_disable_cansleep(struct clk *clk);
-int clk_set_rate_cansleep(struct clk *clk, unsigned long rate);
-int clk_set_parent_cansleep(struct clk *clk, struct clk *parent);
+unsigned long clk_get_rate_all_locked(struct clk *c);
+void tegra_sdmmc_tap_delay(struct clk *c, int delay);
 
 #endif

@@ -539,7 +539,14 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	unsigned long flags;
 	bool is_agg = false;
 
-	if (info->control.vif)
+	/*
+	 * If the frame needs to go out off-channel, then
+	 * we'll have put the PAN context to that channel,
+	 * so make the frame go out there.
+	 */
+	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
+		ctx = &priv->contexts[IWL_RXON_CTX_PAN];
+	else if (info->control.vif)
 		ctx = iwl_rxon_ctx_from_vif(info->control.vif);
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -561,12 +568,17 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	hdr_len = ieee80211_hdrlen(fc);
 
-	/* Find index into station table for destination station */
-	sta_id = iwl_sta_id_or_broadcast(priv, ctx, info->control.sta);
-	if (sta_id == IWL_INVALID_STATION) {
-		IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
-			       hdr->addr1);
-		goto drop_unlock;
+	/* For management frames use broadcast id to do not break aggregation */
+	if (!ieee80211_is_data(fc))
+		sta_id = ctx->bcast_sta_id;
+	else {
+		/* Find index into station table for destination station */
+		sta_id = iwl_sta_id_or_broadcast(priv, ctx, info->control.sta);
+		if (sta_id == IWL_INVALID_STATION) {
+			IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
+				       hdr->addr1);
+			goto drop_unlock;
+		}
 	}
 
 	IWL_DEBUG_TX(priv, "station Id %d\n", sta_id);
@@ -940,7 +952,7 @@ void iwlagn_txq_ctx_reset(struct iwl_priv *priv)
  */
 void iwlagn_txq_ctx_stop(struct iwl_priv *priv)
 {
-	int ch;
+	int ch, txq_id;
 	unsigned long flags;
 
 	/* Turn off all Tx DMA fifos */
@@ -959,6 +971,16 @@ void iwlagn_txq_ctx_stop(struct iwl_priv *priv)
 			    iwl_read_direct32(priv, FH_TSSR_TX_STATUS_REG));
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (!priv->txq)
+		return;
+
+	/* Unmap DMA from host system and free skb's */
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
+		if (txq_id == priv->cmd_queue)
+			iwl_cmd_queue_unmap(priv);
+		else
+			iwl_tx_queue_unmap(priv, txq_id);
 }
 
 /*
@@ -1207,12 +1229,16 @@ int iwlagn_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		tx_info = &txq->txb[txq->q.read_ptr];
-		iwlagn_tx_status(priv, tx_info,
-				 txq_id >= IWLAGN_FIRST_AMPDU_QUEUE);
+
+		if (WARN_ON_ONCE(tx_info->skb == NULL))
+			continue;
 
 		hdr = (struct ieee80211_hdr *)tx_info->skb->data;
-		if (hdr && ieee80211_is_data_qos(hdr->frame_control))
+		if (ieee80211_is_data_qos(hdr->frame_control))
 			nfreed++;
+
+		iwlagn_tx_status(priv, tx_info,
+				 txq_id >= IWLAGN_FIRST_AMPDU_QUEUE);
 		tx_info->skb = NULL;
 
 		if (priv->cfg->ops->lib->txq_inval_byte_cnt_tbl)

@@ -44,7 +44,7 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 	int error;
 	int had_lock = 0;
 
-	if (nd->flags & LOOKUP_RCU)
+	if (nd && nd->flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	parent = dget_parent(dentry);

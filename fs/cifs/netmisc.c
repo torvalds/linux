@@ -170,7 +170,7 @@ cifs_convert_address(struct sockaddr *dst, const char *src, int len)
 {
 	int rc, alen, slen;
 	const char *pct;
-	char *endp, scope_id[13];
+	char scope_id[13];
 	struct sockaddr_in *s4 = (struct sockaddr_in *) dst;
 	struct sockaddr_in6 *s6 = (struct sockaddr_in6 *) dst;
 
@@ -197,9 +197,9 @@ cifs_convert_address(struct sockaddr *dst, const char *src, int len)
 		memcpy(scope_id, pct + 1, slen);
 		scope_id[slen] = '\0';
 
-		s6->sin6_scope_id = (u32) simple_strtoul(pct, &endp, 0);
-		if (endp != scope_id + slen)
-			return 0;
+		rc = strict_strtoul(scope_id, 0,
+					(unsigned long *)&s6->sin6_scope_id);
+		rc = (rc == 0) ? 1 : 0;
 	}
 
 	return rc;

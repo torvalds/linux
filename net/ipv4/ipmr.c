@@ -148,14 +148,15 @@ static struct mr_table *ipmr_get_table(struct net *net, u32 id)
 	return NULL;
 }
 
-static int ipmr_fib_lookup(struct net *net, struct flowi *flp,
+static int ipmr_fib_lookup(struct net *net, struct flowi4 *flp4,
 			   struct mr_table **mrt)
 {
 	struct ipmr_result res;
 	struct fib_lookup_arg arg = { .result = &res, };
 	int err;
 
-	err = fib_rules_lookup(net->ipv4.mr_rules_ops, flp, 0, &arg);
+	err = fib_rules_lookup(net->ipv4.mr_rules_ops,
+			       flowi4_to_flowi(flp4), 0, &arg);
 	if (err < 0)
 		return err;
 	*mrt = res.mrt;
@@ -283,7 +284,7 @@ static struct mr_table *ipmr_get_table(struct net *net, u32 id)
 	return net->ipv4.mrt;
 }
 
-static int ipmr_fib_lookup(struct net *net, struct flowi *flp,
+static int ipmr_fib_lookup(struct net *net, struct flowi4 *flp4,
 			   struct mr_table **mrt)
 {
 	*mrt = net->ipv4.mrt;
@@ -435,14 +436,14 @@ static netdev_tx_t reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net *net = dev_net(dev);
 	struct mr_table *mrt;
-	struct flowi fl = {
-		.oif		= dev->ifindex,
-		.iif		= skb->skb_iif,
-		.mark		= skb->mark,
+	struct flowi4 fl4 = {
+		.flowi4_oif	= dev->ifindex,
+		.flowi4_iif	= skb->skb_iif,
+		.flowi4_mark	= skb->mark,
 	};
 	int err;
 
-	err = ipmr_fib_lookup(net, &fl, &mrt);
+	err = ipmr_fib_lookup(net, &fl4, &mrt);
 	if (err < 0) {
 		kfree_skb(skb);
 		return err;
@@ -1611,26 +1612,20 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 #endif
 
 	if (vif->flags & VIFF_TUNNEL) {
-		struct flowi fl = {
-			.oif = vif->link,
-			.fl4_dst = vif->remote,
-			.fl4_src = vif->local,
-			.fl4_tos = RT_TOS(iph->tos),
-			.proto = IPPROTO_IPIP
-		};
-
-		if (ip_route_output_key(net, &rt, &fl))
+		rt = ip_route_output_ports(net, NULL,
+					   vif->remote, vif->local,
+					   0, 0,
+					   IPPROTO_IPIP,
+					   RT_TOS(iph->tos), vif->link);
+		if (IS_ERR(rt))
 			goto out_free;
 		encap = sizeof(struct iphdr);
 	} else {
-		struct flowi fl = {
-			.oif = vif->link,
-			.fl4_dst = iph->daddr,
-			.fl4_tos = RT_TOS(iph->tos),
-			.proto = IPPROTO_IPIP
-		};
-
-		if (ip_route_output_key(net, &rt, &fl))
+		rt = ip_route_output_ports(net, NULL, iph->daddr, 0,
+					   0, 0,
+					   IPPROTO_IPIP,
+					   RT_TOS(iph->tos), vif->link);
+		if (IS_ERR(rt))
 			goto out_free;
 	}
 
@@ -1793,6 +1788,24 @@ dont_forward:
 	return 0;
 }
 
+static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct rtable *rt)
+{
+	struct flowi4 fl4 = {
+		.daddr = rt->rt_key_dst,
+		.saddr = rt->rt_key_src,
+		.flowi4_tos = rt->rt_tos,
+		.flowi4_oif = rt->rt_oif,
+		.flowi4_iif = rt->rt_iif,
+		.flowi4_mark = rt->rt_mark,
+	};
+	struct mr_table *mrt;
+	int err;
+
+	err = ipmr_fib_lookup(net, &fl4, &mrt);
+	if (err)
+		return ERR_PTR(err);
+	return mrt;
+}
 
 /*
  *	Multicast packets for forwarding arrive here
@@ -1805,7 +1818,6 @@ int ip_mr_input(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	int local = skb_rtable(skb)->rt_flags & RTCF_LOCAL;
 	struct mr_table *mrt;
-	int err;
 
 	/* Packet is looped back after forward, it should not be
 	 * forwarded second time, but still can be delivered locally.
@@ -1813,12 +1825,11 @@ int ip_mr_input(struct sk_buff *skb)
 	if (IPCB(skb)->flags & IPSKB_FORWARDED)
 		goto dont_forward;
 
-	err = ipmr_fib_lookup(net, &skb_rtable(skb)->fl, &mrt);
-	if (err < 0) {
+	mrt = ipmr_rt_fib_lookup(net, skb_rtable(skb));
+	if (IS_ERR(mrt)) {
 		kfree_skb(skb);
-		return err;
+		return PTR_ERR(mrt);
 	}
-
 	if (!local) {
 		if (IPCB(skb)->opt.router_alert) {
 			if (ip_call_ra_chain(skb))
@@ -1946,9 +1957,9 @@ int pim_rcv_v1(struct sk_buff *skb)
 
 	pim = igmp_hdr(skb);
 
-	if (ipmr_fib_lookup(net, &skb_rtable(skb)->fl, &mrt) < 0)
+	mrt = ipmr_rt_fib_lookup(net, skb_rtable(skb));
+	if (IS_ERR(mrt))
 		goto drop;
-
 	if (!mrt->mroute_do_pim ||
 	    pim->group != PIM_V1_VERSION || pim->code != PIM_V1_REGISTER)
 		goto drop;
@@ -1978,9 +1989,9 @@ static int pim_rcv(struct sk_buff *skb)
 	     csum_fold(skb_checksum(skb, 0, skb->len, 0))))
 		goto drop;
 
-	if (ipmr_fib_lookup(net, &skb_rtable(skb)->fl, &mrt) < 0)
+	mrt = ipmr_rt_fib_lookup(net, skb_rtable(skb));
+	if (IS_ERR(mrt))
 		goto drop;
-
 	if (__pim_rcv(mrt, skb, sizeof(*pim))) {
 drop:
 		kfree_skb(skb);

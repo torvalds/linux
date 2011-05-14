@@ -32,6 +32,7 @@ enum {
 	MDP_Y_CBCR_H2V1,	/* Y and CrCb, pseduo planar w/ Cr is in MSB */
 	MDP_RGBA_8888,		/* ARGB 888 */
 	MDP_BGRA_8888,		/* ABGR 888 */
+	MDP_RGBX_8888,		/* RGBX 888 */
 	MDP_IMGTYPE_LIMIT	/* Non valid image type after this enum */
 };
 

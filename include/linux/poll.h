@@ -82,7 +82,7 @@ static inline int poll_schedule(struct poll_wqueues *pwq, int state)
 }
 
 /*
- * Scaleable version of the fd_set.
+ * Scalable version of the fd_set.
  */
 
 typedef struct {

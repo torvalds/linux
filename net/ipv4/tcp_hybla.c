@@ -162,7 +162,7 @@ static void hybla_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 	tp->snd_cwnd = min_t(u32, tp->snd_cwnd, tp->snd_cwnd_clamp);
 }
 
-static struct tcp_congestion_ops tcp_hybla = {
+static struct tcp_congestion_ops tcp_hybla __read_mostly = {
 	.init		= hybla_init,
 	.ssthresh	= tcp_reno_ssthresh,
 	.min_cwnd	= tcp_reno_min_cwnd,

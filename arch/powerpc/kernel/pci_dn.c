@@ -161,7 +161,7 @@ static void *is_devfn_node(struct device_node *dn, void *data)
 /*
  * This is the "slow" path for looking up a device_node from a
  * pci_dev.  It will hunt for the device under its parent's
- * phb and then update sysdata for a future fastpath.
+ * phb and then update of_node pointer.
  *
  * It may also do fixups on the actual device since this happens
  * on the first read/write.
@@ -170,16 +170,22 @@ static void *is_devfn_node(struct device_node *dn, void *data)
  * In this case it may probe for real hardware ("just in case")
  * and add a device_node to the device tree if necessary.
  *
+ * Is this function necessary anymore now that dev->dev.of_node is
+ * used to store the node pointer?
+ *
  */
 struct device_node *fetch_dev_dn(struct pci_dev *dev)
 {
-	struct device_node *orig_dn = dev->sysdata;
+	struct pci_controller *phb = dev->sysdata;
 	struct device_node *dn;
 	unsigned long searchval = (dev->bus->number << 8) | dev->devfn;
 
-	dn = traverse_pci_devices(orig_dn, is_devfn_node, (void *)searchval);
+	if (WARN_ON(!phb))
+		return NULL;
+
+	dn = traverse_pci_devices(phb->dn, is_devfn_node, (void *)searchval);
 	if (dn)
-		dev->sysdata = dn;
+		dev->dev.of_node = dn;
 	return dn;
 }
 EXPORT_SYMBOL(fetch_dev_dn);

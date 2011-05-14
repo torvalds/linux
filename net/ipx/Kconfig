@@ -3,7 +3,6 @@
 #
 config IPX
 	tristate "The IPX protocol"
-	depends on BKL # should be fixable
 	select LLC
 	---help---
 	  This is support for the Novell networking protocol, IPX, commonly

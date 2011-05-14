@@ -73,8 +73,6 @@ static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	struct ad799x_state *st = indio_dev->dev_data;
-	size_t d_size;
-	unsigned long numvals;
 
 	/*
 	 * Need to figure out the current mode based upon the requested
@@ -84,14 +82,18 @@ static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 	if (st->id == ad7997 || st->id == ad7998)
 		ad799x_set_scan_mode(st, ring->scan_mask);
 
-	numvals = ring->scan_count;
+	st->d_size = ring->scan_count * 2;
 
-	if (ring->access.set_bytes_per_datum) {
-		d_size = numvals*2 + sizeof(s64);
-		if (d_size % 8)
-			d_size += 8 - (d_size % 8);
-		ring->access.set_bytes_per_datum(ring, d_size);
+	if (ring->scan_timestamp) {
+		st->d_size += sizeof(s64);
+
+		if (st->d_size % sizeof(s64))
+			st->d_size += sizeof(s64) - (st->d_size % sizeof(s64));
 	}
+
+	if (indio_dev->ring->access.set_bytes_per_datum)
+		indio_dev->ring->access.set_bytes_per_datum(indio_dev->ring,
+							    st->d_size);
 
 	return 0;
 }
@@ -99,7 +101,7 @@ static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 /**
  * ad799x_poll_func_th() th of trigger launched polling to ring buffer
  *
- * As sampling only occurs on i2c comms occuring, leave timestamping until
+ * As sampling only occurs on i2c comms occurring, leave timestamping until
  * then.  Some triggers will generate their own time stamp.  Currently
  * there is no way of notifying them when no one cares.
  **/
@@ -130,29 +132,13 @@ static void ad799x_poll_bh_to_ring(struct work_struct *work_s)
 	s64 time_ns;
 	__u8 *rxbuf;
 	int b_sent;
-	size_t d_size;
 	u8 cmd;
-
-	unsigned long numvals = ring->scan_count;
-
-	/* Ensure the timestamp is 8 byte aligned */
-	d_size = numvals*2 + sizeof(s64);
-
-	if (d_size % sizeof(s64))
-		d_size += sizeof(s64) - (d_size % sizeof(s64));
 
 	/* Ensure only one copy of this function running at a time */
 	if (atomic_inc_return(&st->protect_ring) > 1)
 		return;
 
-	/* Monitor mode prevents reading. Whilst not currently implemented
-	 * might as well have this test in here in the meantime as it does
-	 * no harm.
-	 */
-	if (numvals == 0)
-		return;
-
-	rxbuf = kmalloc(d_size,	GFP_KERNEL);
+	rxbuf = kmalloc(st->d_size, GFP_KERNEL);
 	if (rxbuf == NULL)
 		return;
 
@@ -177,13 +163,15 @@ static void ad799x_poll_bh_to_ring(struct work_struct *work_s)
 	}
 
 	b_sent = i2c_smbus_read_i2c_block_data(st->client,
-			cmd, numvals*2, rxbuf);
+			cmd, ring->scan_count * 2, rxbuf);
 	if (b_sent < 0)
 		goto done;
 
 	time_ns = iio_get_time_ns();
 
-	memcpy(rxbuf + d_size - sizeof(s64), &time_ns, sizeof(time_ns));
+	if (ring->scan_timestamp)
+		memcpy(rxbuf + st->d_size - sizeof(s64),
+			&time_ns, sizeof(time_ns));
 
 	ring->access.store_to(&ring_sw->buf, rxbuf, time_ns);
 done:
@@ -213,6 +201,7 @@ int ad799x_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->ring->preenable = &ad799x_ring_preenable;
 	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
 	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
+	indio_dev->ring->scan_timestamp = true;
 
 	INIT_WORK(&st->poll_work, &ad799x_poll_bh_to_ring);
 

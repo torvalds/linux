@@ -149,7 +149,7 @@ typedef struct cdkhdr {
 /*
  *	Define the memory mapping structure. This structure is pointed to by
  *	the memp field in the stlcdkhdr struct. As many as these structures
- *	as required are layed out in shared memory to define how the rest of
+ *	as required are laid out in shared memory to define how the rest of
  *	shared memory is divided up. There will be one for each port.
  */
 typedef struct cdkmem {

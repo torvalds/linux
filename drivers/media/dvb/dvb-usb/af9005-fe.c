@@ -580,7 +580,7 @@ static int af9005_fe_program_cfoe(struct dvb_usb_device *d, fe_bandwidth_t bw)
 		NS_coeff2_8k = 0x724925;
 		break;
 	default:
-		err("Invalid bandwith %d.", bw);
+		err("Invalid bandwidth %d.", bw);
 		return -EINVAL;
 	}
 
@@ -789,7 +789,7 @@ static int af9005_fe_select_bw(struct dvb_usb_device *d, fe_bandwidth_t bw)
 		temp = 2;
 		break;
 	default:
-		err("Invalid bandwith %d.", bw);
+		err("Invalid bandwidth %d.", bw);
 		return -EINVAL;
 	}
 	return af9005_write_register_bits(d, xd_g_reg_bw, reg_bw_pos,
@@ -930,7 +930,7 @@ static int af9005_fe_init(struct dvb_frontend *fe)
 	if (ret)
 		return ret;
 
-	/* init other parameters: program cfoe and select bandwith */
+	/* init other parameters: program cfoe and select bandwidth */
 	deb_info("program cfoe\n");
 	if ((ret = af9005_fe_program_cfoe(state->d, BANDWIDTH_6_MHZ)))
 		return ret;
@@ -1167,7 +1167,7 @@ static int af9005_fe_set_frontend(struct dvb_frontend *fe,
 	if (ret)
 		return ret;
 
-	/* select bandwith */
+	/* select bandwidth */
 	deb_info("select bandwidth");
 	ret = af9005_fe_select_bw(state->d, fep->u.ofdm.bandwidth);
 	if (ret)

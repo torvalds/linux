@@ -140,7 +140,7 @@ stop_watchdog(void)
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
- * as well as call the "do_timer()" routine every clocktick
+ * as well as call the "xtime_update()" routine every clocktick
  */
 
 //static unsigned short myjiff; /* used by our debug routine print_timestamp */
@@ -176,7 +176,7 @@ timer_interrupt(int irq, void *dev_id)
 
 	/* call the real timer interrupt handler */
 
-	do_timer(1);
+	xtime_update(1);
 	
         cris_do_profile(regs); /* Save profiling information */
         return IRQ_HANDLED;

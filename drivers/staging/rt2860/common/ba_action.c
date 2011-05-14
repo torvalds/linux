@@ -28,7 +28,7 @@
 #include "../rt_config.h"
 #include <linux/kernel.h>
 
-#define BA_ORI_INIT_SEQ		(pEntry->TxSeq[TID])	/*1                        // inital sequence number of BA session */
+#define BA_ORI_INIT_SEQ		(pEntry->TxSeq[TID])	/*1                        // initial sequence number of BA session */
 
 #define ORI_SESSION_MAX_RETRY	8
 #define ORI_BA_SESSION_TIMEOUT	(2000)	/* ms */
@@ -107,7 +107,7 @@ void Announce_Reordering_Packet(struct rt_rtmp_adapter *pAd,
 
 	if (mpdu->bAMSDU) {
 		ASSERT(0);
-		BA_Reorder_AMSDU_Annnounce(pAd, pPacket);
+		BA_Reorder_AMSDU_Announce(pAd, pPacket);
 	} else {
 		/* */
 		/* pass this 802.3 packet to upper layer or forward this packet to WM directly */
@@ -1487,7 +1487,7 @@ static void ba_enqueue_reordering_packet(struct rt_rtmp_adapter *pAd,
 
 		/*
 		 * flush all pending reordering mpdus
-		 * and receving mpdu to upper layer
+		 * and receiving mpdu to upper layer
 		 * make tcp/ip to take care reordering mechanism
 		 */
 		/*ba_refresh_reordering_mpdus(pAd, pBAEntry); */

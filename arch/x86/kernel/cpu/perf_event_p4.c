@@ -1,5 +1,5 @@
 /*
- * Netburst Perfomance Events (P4, old Xeon)
+ * Netburst Performance Events (P4, old Xeon)
  *
  *  Copyright (C) 2010 Parallels, Inc., Cyrill Gorcunov <gorcunov@openvz.org>
  *  Copyright (C) 2010 Intel Corporation, Lin Ming <ming.m.lin@intel.com>
@@ -679,7 +679,7 @@ static int p4_validate_raw_event(struct perf_event *event)
 	 */
 
 	/*
-	 * if an event is shared accross the logical threads
+	 * if an event is shared across the logical threads
 	 * the user needs special permissions to be able to use it
 	 */
 	if (p4_ht_active() && p4_event_bind_map[v].shared) {
@@ -764,15 +764,21 @@ static inline int p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
 	u64 v;
 
 	/* an official way for overflow indication */
-	rdmsrl(hwc->config_base + hwc->idx, v);
+	rdmsrl(hwc->config_base, v);
 	if (v & P4_CCCR_OVF) {
-		wrmsrl(hwc->config_base + hwc->idx, v & ~P4_CCCR_OVF);
+		wrmsrl(hwc->config_base, v & ~P4_CCCR_OVF);
 		return 1;
 	}
 
-	/* it might be unflagged overflow */
-	rdmsrl(hwc->event_base + hwc->idx, v);
-	if (!(v & ARCH_P4_CNTRVAL_MASK))
+	/*
+	 * In some circumstances the overflow might issue an NMI but did
+	 * not set P4_CCCR_OVF bit. Because a counter holds a negative value
+	 * we simply check for high bit being set, if it's cleared it means
+	 * the counter has reached zero value and continued counting before
+	 * real NMI signal was received:
+	 */
+	rdmsrl(hwc->event_base, v);
+	if (!(v & ARCH_P4_UNFLAGGED_BIT))
 		return 1;
 
 	return 0;
@@ -785,13 +791,13 @@ static void p4_pmu_disable_pebs(void)
 	 *
 	 * It's still allowed that two threads setup same cache
 	 * events so we can't simply clear metrics until we knew
-	 * noone is depending on us, so we need kind of counter
+	 * no one is depending on us, so we need kind of counter
 	 * for "ReplayEvent" users.
 	 *
 	 * What is more complex -- RAW events, if user (for some
 	 * reason) will pass some cache event metric with improper
 	 * event opcode -- it's fine from hardware point of view
-	 * but completely nonsence from "meaning" of such action.
+	 * but completely nonsense from "meaning" of such action.
 	 *
 	 * So at moment let leave metrics turned on forever -- it's
 	 * ok for now but need to be revisited!
@@ -810,7 +816,7 @@ static inline void p4_pmu_disable_event(struct perf_event *event)
 	 * state we need to clear P4_CCCR_OVF, otherwise interrupt get
 	 * asserted again and again
 	 */
-	(void)checking_wrmsrl(hwc->config_base + hwc->idx,
+	(void)checking_wrmsrl(hwc->config_base,
 		(u64)(p4_config_unpack_cccr(hwc->config)) &
 			~P4_CCCR_ENABLE & ~P4_CCCR_OVF & ~P4_CCCR_RESERVED);
 }
@@ -880,7 +886,7 @@ static void p4_pmu_enable_event(struct perf_event *event)
 	p4_pmu_enable_pebs(hwc->config);
 
 	(void)checking_wrmsrl(escr_addr, escr_conf);
-	(void)checking_wrmsrl(hwc->config_base + hwc->idx,
+	(void)checking_wrmsrl(hwc->config_base,
 				(cccr & ~P4_CCCR_RESERVED) | P4_CCCR_ENABLE);
 }
 
@@ -941,14 +947,23 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 		if (!x86_perf_event_set_period(event))
 			continue;
 		if (perf_event_overflow(event, 1, &data, regs))
-			p4_pmu_disable_event(event);
+			x86_pmu_stop(event, 0);
 	}
 
-	if (handled) {
-		/* p4 quirk: unmask it again */
-		apic_write(APIC_LVTPC, apic_read(APIC_LVTPC) & ~APIC_LVT_MASKED);
+	if (handled)
 		inc_irq_stat(apic_perf_irqs);
-	}
+
+	/*
+	 * When dealing with the unmasking of the LVTPC on P4 perf hw, it has
+	 * been observed that the OVF bit flag has to be cleared first _before_
+	 * the LVTPC can be unmasked.
+	 *
+	 * The reason is the NMI line will continue to be asserted while the OVF
+	 * bit is set.  This causes a second NMI to generate if the LVTPC is
+	 * unmasked before the OVF bit is cleared, leading to unknown NMI
+	 * messages.
+	 */
+	apic_write(APIC_LVTPC, APIC_DM_NMI);
 
 	return handled;
 }

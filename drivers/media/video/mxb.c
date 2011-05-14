@@ -643,7 +643,8 @@ static int vidioc_s_register(struct file *file, void *fh, struct v4l2_dbg_regist
 }
 #endif
 
-static long vidioc_default(struct file *file, void *fh, int cmd, void *arg)
+static long vidioc_default(struct file *file, void *fh, bool valid_prio,
+							int cmd, void *arg)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;

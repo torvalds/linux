@@ -29,13 +29,13 @@
 
 #if defined(AR6002_REV2)
 #define AR6K_RAM_START 0x00500000
-#define TARG_RAM_OFFSET(vaddr) ((A_UINT32)(vaddr) & 0xfffff)
+#define TARG_RAM_OFFSET(vaddr) ((u32)(vaddr) & 0xfffff)
 #define TARG_RAM_SZ (184*1024)
 #define TARG_ROM_SZ (80*1024)
 #endif
 #if defined(AR6002_REV4) || defined(AR6003)
 #define AR6K_RAM_START 0x00540000
-#define TARG_RAM_OFFSET(vaddr) (((A_UINT32)(vaddr) & 0xfffff) - 0x40000)
+#define TARG_RAM_OFFSET(vaddr) (((u32)(vaddr) & 0xfffff) - 0x40000)
 #define TARG_RAM_SZ (256*1024)
 #define TARG_ROM_SZ (256*1024)
 #endif
@@ -49,7 +49,7 @@
 #define TARG_RAM_ADDRS(byte_offset) AR6K_RAM_ADDR(byte_offset)
 
 #define AR6K_ROM_START 0x004e0000
-#define TARG_ROM_OFFSET(vaddr) (((A_UINT32)(vaddr) & 0x1fffff) - 0xe0000)
+#define TARG_ROM_OFFSET(vaddr) (((u32)(vaddr) & 0x1fffff) - 0xe0000)
 #define AR6K_ROM_ADDR(byte_offset) (AR6K_ROM_START+(byte_offset))
 #define TARG_ROM_ADDRS(byte_offset) AR6K_ROM_ADDR(byte_offset)
 

@@ -7,7 +7,7 @@ config ARM
 	select HAVE_MEMBLOCK
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
-	select GENERIC_ATOMIC64 if (!CPU_32v6K || !AEABI)
+	select GENERIC_ATOMIC64 if (CPU_V6 || !CPU_32v6K || !AEABI)
 	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
 	select HAVE_ARCH_KGDB
 	select HAVE_KPROBES if (!XIP_KERNEL && !THUMB2_KERNEL)
@@ -24,10 +24,11 @@ config ARM
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_HW_BREAKPOINT if (PERF_EVENTS && (CPU_V6 || CPU_V7))
+	select HAVE_HW_BREAKPOINT if (PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7))
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_SPARSE_IRQ
+	select GENERIC_IRQ_SHOW
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -62,6 +63,10 @@ config GENERIC_CLOCKEVENTS_BROADCAST
 	bool
 	depends on GENERIC_CLOCKEVENTS
 	default y if SMP
+
+config KTIME_SCALAR
+	bool
+	default y
 
 config HAVE_TCM
 	bool
@@ -178,11 +183,6 @@ config FIQ
 config ARCH_MTD_XIP
 	bool
 
-config ARM_L1_CACHE_SHIFT_6
-	bool
-	help
-	  Setting ARM L1 cache line size to 64 Bytes.
-
 config VECTORS_BASE
 	hex
 	default 0xffff0000 if MMU || CPU_HIGH_VECTOR
@@ -190,6 +190,22 @@ config VECTORS_BASE
 	default 0x00000000
 	help
 	  The base address of exception vectors.
+
+config ARM_PATCH_PHYS_VIRT
+	bool "Patch physical to virtual translations at runtime (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on !XIP_KERNEL && MMU
+	depends on !ARCH_REALVIEW || !SPARSEMEM
+	help
+	  Patch phys-to-virt translation functions at runtime according to
+	  the position of the kernel in system memory.
+
+	  This can only be used with non-XIP with MMU kernels where
+	  the base of physical memory is at a 16MB boundary.
+
+config ARM_PATCH_PHYS_VIRT_16BIT
+	def_bool y
+	depends on ARM_PATCH_PHYS_VIRT && ARCH_MSM
 
 source "init/Kconfig"
 
@@ -212,15 +228,6 @@ choice
 	prompt "ARM system type"
 	default ARCH_VERSATILE
 
-config ARCH_AAEC2000
-	bool "Agilent AAEC-2000 based"
-	select CPU_ARM920T
-	select ARM_AMBA
-	select HAVE_CLK
-	select ARCH_USES_GETTIMEOFFSET
-	help
-	  This enables support for systems based on the Agilent AAEC-2000
-
 config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
@@ -229,6 +236,7 @@ config ARCH_INTEGRATOR
 	select ICST
 	select GENERIC_CLOCKEVENTS
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_FPGA_IRQ
 	help
 	  Support for ARM's Integrator platform.
 
@@ -236,11 +244,11 @@ config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARM_AMBA
 	select CLKDEV_LOOKUP
-	select HAVE_SCHED_CLOCK
 	select ICST
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLCD
 	select ARM_TIMER_SP804
 	select GPIO_PL061 if GPIOLIB
 	help
@@ -251,11 +259,12 @@ config ARCH_VERSATILE
 	select ARM_AMBA
 	select ARM_VIC
 	select CLKDEV_LOOKUP
-	select HAVE_SCHED_CLOCK
 	select ICST
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLCD
+	select PLAT_VERSATILE_FPGA_IRQ
 	select ARM_TIMER_SP804
 	help
 	  This enables support for ARM Ltd Versatile board.
@@ -268,9 +277,10 @@ config ARCH_VEXPRESS
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
-	select HAVE_SCHED_CLOCK
+	select HAVE_PATA_PLATFORM
 	select ICST
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLCD
 	help
 	  This enables support for the ARM Ltd Versatile Express boards.
 
@@ -346,7 +356,7 @@ config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	select CPU_SA110
 	select FOOTBRIDGE
-	select ARCH_USES_GETTIMEOFFSET
+	select GENERIC_CLOCKEVENTS
 	help
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
@@ -356,6 +366,7 @@ config ARCH_MXC
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
+	select HAVE_SCHED_CLOCK
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
@@ -457,6 +468,7 @@ config ARCH_IXP4XX
 
 config ARCH_DOVE
 	bool "Marvell Dove"
+	select CPU_V6K
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
@@ -619,6 +631,7 @@ config ARCH_MSM
 	select HAVE_CLK
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
 	help
 	  Support for Qualcomm MSM/QSD based systems.  This runs on the
 	  apps processor of the MSM/QSD and depends on a shared memory
@@ -681,7 +694,7 @@ config ARCH_S3C2410
 	  the Samsung SMDK2410 development board (and derivatives).
 
 	  Note, the S3C2416 and the S3C2450 are so close that they even share
-	  the same SoC ID code. This means that there is no seperate machine
+	  the same SoC ID code. This means that there is no separate machine
 	  directory (no arch/arm/mach-s3c2450) as the S3C2416 was first.
 
 config ARCH_S3C64XX
@@ -715,7 +728,8 @@ config ARCH_S5P64X0
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
-	select ARCH_USES_GETTIMEOFFSET
+	select GENERIC_CLOCKEVENTS
+	select HAVE_SCHED_CLOCK
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C_RTC if RTC_CLASS
 	help
@@ -753,15 +767,16 @@ config ARCH_S5PV210
 	select HAVE_CLK
 	select ARM_L1_CACHE_SHIFT_6
 	select ARCH_HAS_CPUFREQ
-	select ARCH_USES_GETTIMEOFFSET
+	select GENERIC_CLOCKEVENTS
+	select HAVE_SCHED_CLOCK
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C_RTC if RTC_CLASS
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	help
 	  Samsung S5PV210/S5PC110 series based systems
 
-config ARCH_S5PV310
-	bool "Samsung S5PV310/S5PC210"
+config ARCH_EXYNOS4
+	bool "Samsung EXYNOS4"
 	select CPU_V7
 	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_GPIO
@@ -772,7 +787,7 @@ config ARCH_S5PV310
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	help
-	  Samsung S5PV310 series based systems
+	  Samsung EXYNOS4 series based systems
 
 config ARCH_SHARK
 	bool "Shark"
@@ -794,17 +809,6 @@ config ARCH_TCC_926
 	select GENERIC_CLOCKEVENTS
 	help
 	  Support for Telechips TCC ARM926-based systems.
-
-config ARCH_LH7A40X
-	bool "Sharp LH7A40X"
-	select CPU_ARM922T
-	select ARCH_SPARSEMEM_ENABLE if !LH7A40X_CONTIGMEM
-	select ARCH_USES_GETTIMEOFFSET
-	help
-	  Say Y here for systems based on one of the Sharp LH7A40X
-	  System on a Chip processors.  These CPUs include an ARM922T
-	  core with a wide array of integrated devices for
-	  hand-held and low-power applications.
 
 config ARCH_U300
 	bool "ST-Ericsson U300 Series"
@@ -875,6 +879,16 @@ config PLAT_SPEAR
 	help
 	  Support for ST's SPEAr platform (SPEAr3xx, SPEAr6xx and SPEAr13xx).
 
+config ARCH_VT8500
+	bool "VIA/WonderMedia 85xx"
+	select CPU_ARM926T
+	select GENERIC_GPIO
+	select ARCH_HAS_CPUFREQ
+	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_PWM
+	help
+	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.
 endchoice
 
 #
@@ -882,8 +896,6 @@ endchoice
 # Kconfigs may be included either alphabetically (according to the
 # plat- suffix) or along side the corresponding mach-* source.
 #
-source "arch/arm/mach-aaec2000/Kconfig"
-
 source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/mach-bcmring/Kconfig"
@@ -921,8 +933,6 @@ source "arch/arm/mach-ixp23xx/Kconfig"
 source "arch/arm/mach-kirkwood/Kconfig"
 
 source "arch/arm/mach-ks8695/Kconfig"
-
-source "arch/arm/mach-lh7a40x/Kconfig"
 
 source "arch/arm/mach-loki/Kconfig"
 
@@ -991,7 +1001,7 @@ source "arch/arm/mach-s5pc100/Kconfig"
 
 source "arch/arm/mach-s5pv210/Kconfig"
 
-source "arch/arm/mach-s5pv310/Kconfig"
+source "arch/arm/mach-exynos4/Kconfig"
 
 source "arch/arm/mach-shmobile/Kconfig"
 
@@ -1006,6 +1016,9 @@ source "arch/arm/mach-ux500/Kconfig"
 source "arch/arm/mach-versatile/Kconfig"
 
 source "arch/arm/mach-vexpress/Kconfig"
+source "arch/arm/plat-versatile/Kconfig"
+
+source "arch/arm/mach-vt8500/Kconfig"
 
 source "arch/arm/mach-w90x900/Kconfig"
 
@@ -1048,7 +1061,7 @@ config XSCALE_PMU
 	default y
 
 config CPU_HAS_PMU
-	depends on (CPU_V6 || CPU_V7 || XSCALE_PMU) && \
+	depends on (CPU_V6 || CPU_V6K || CPU_V7 || XSCALE_PMU) && \
 		   (!ARCH_OMAP3 || OMAP3_EMU)
 	default y
 	bool
@@ -1064,7 +1077,7 @@ endif
 
 config ARM_ERRATA_411920
 	bool "ARM errata: Invalidation of the Instruction Cache operation can fail"
-	depends on CPU_V6
+	depends on CPU_V6 || CPU_V6K
 	help
 	  Invalidation of the Instruction Cache operation can
 	  fail. This erratum is present in 1136 (before r1p4), 1156 and 1176.
@@ -1140,7 +1153,7 @@ config ARM_ERRATA_742231
 
 config PL310_ERRATA_588369
 	bool "Clean & Invalidate maintenance operations do not invalidate clean lines"
-	depends on CACHE_L2X0 && ARCH_OMAP4
+	depends on CACHE_L2X0
 	help
 	   The PL310 L2 cache controller implements three types of Clean &
 	   Invalidate maintenance operations: by Physical Address
@@ -1149,8 +1162,7 @@ config PL310_ERRATA_588369
 	   clean operation followed immediately by an invalidate operation,
 	   both performing to the same memory location. This functionality
 	   is not correctly implemented in PL310 as clean lines are not
-	   invalidated as a result of these operations. Note that this errata
-	   uses Texas Instrument's secure monitor api.
+	   invalidated as a result of these operations.
 
 config ARM_ERRATA_720789
 	bool "ARM errata: TLBIASIDIS and TLBIMVAIS operations can broadcast a faulty ASID"
@@ -1164,6 +1176,17 @@ config ARM_ERRATA_720789
 	  tables. The workaround changes the TLB flushing routines to invalidate
 	  entries regardless of the ASID.
 
+config PL310_ERRATA_727915
+	bool "Background Clean & Invalidate by Way operation can cause data corruption"
+	depends on CACHE_L2X0
+	help
+	  PL310 implements the Clean & Invalidate by Way L2 cache maintenance
+	  operation (offset 0x7FC). This operation runs in background so that
+	  PL310 can handle normal accesses while it is in progress. Under very
+	  rare circumstances, due to this erratum, write data can be lost when
+	  PL310 treats a cacheable write transaction during a Clean &
+	  Invalidate by Way operation.
+
 config ARM_ERRATA_743622
 	bool "ARM errata: Faulty hazard checking in the Store Buffer may lead to data corruption"
 	depends on CPU_V7
@@ -1176,6 +1199,53 @@ config ARM_ERRATA_743622
 	  optimisation, preventing the defect from occurring. This has no
 	  visible impact on the overall performance or power consumption of the
 	  processor.
+
+config ARM_ERRATA_751472
+	bool "ARM errata: Interrupted ICIALLUIS may prevent completion of broadcasted operation"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 751472 Cortex-A9 (prior
+	  to r3p0) erratum. An interrupted ICIALLUIS operation may prevent the
+	  completion of a following broadcasted operation if the second
+	  operation is received by a CPU before the ICIALLUIS has completed,
+	  potentially leading to corrupted entries in the cache or TLB.
+
+config ARM_ERRATA_753970
+	bool "ARM errata: cache sync operation may be faulty"
+	depends on CACHE_PL310
+	help
+	  This option enables the workaround for the 753970 PL310 (r3p0) erratum.
+
+	  Under some condition the effect of cache sync operation on
+	  the store buffer still remains when the operation completes.
+	  This means that the store buffer is always asked to drain and
+	  this prevents it from merging any further writes. The workaround
+	  is to replace the normal offset of cache sync operation (0x730)
+	  by another offset targeting an unmapped PL310 register 0x740.
+	  This has the same effect as the cache sync operation: store buffer
+	  drain and waiting for all buffers empty.
+
+config ARM_ERRATA_754322
+	bool "ARM errata: possible faulty MMU translations following an ASID switch"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 754322 Cortex-A9 (r2p*,
+	  r3p*) erratum. A speculative memory access may cause a page table walk
+	  which starts prior to an ASID switch but completes afterwards. This
+	  can populate the micro-TLB with a stale entry which may be hit with
+	  the new ASID. This workaround places two dsb instructions in the mm
+	  switching code so that no page table walks can cross the ASID switch.
+
+config ARM_ERRATA_754327
+	bool "ARM errata: no automatic Store Buffer drain"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 754327 Cortex-A9 (prior to
+	  r2p0) erratum. The Store Buffer does not have any automatic draining
+	  mechanism and therefore a livelock may occur if an external agent
+	  continuously polls a memory location waiting to observe an update.
+	  This workaround defines cpu_relax() as smp_mb(), preventing correctly
+	  written polling loops from denying visibility of updates to memory.
 
 endmenu
 
@@ -1250,10 +1320,11 @@ source "kernel/time/Kconfig"
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
+	depends on CPU_V6K || CPU_V7
 	depends on GENERIC_CLOCKEVENTS
 	depends on REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP || \
 		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || \
-		 ARCH_S5PV310 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || \
+		 ARCH_EXYNOS4 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || \
 		 ARCH_MSM_SCORPIONMP || ARCH_SHMOBILE
 	select USE_GENERIC_SMP_HELPERS
 	select HAVE_ARM_SCU if !ARCH_MSM_SCORPIONMP
@@ -1341,7 +1412,7 @@ config LOCAL_TIMERS
 	bool "Use local timer interrupts"
 	depends on SMP
 	default y
-	select HAVE_ARM_TWD if !ARCH_MSM_SCORPIONMP
+	select HAVE_ARM_TWD if (!ARCH_MSM_SCORPIONMP && !EXYNOS4_MCT)
 	help
 	  Enable support for local timers on SMP platforms, rather then the
 	  legacy IPI broadcast method.  Local timers allows the system
@@ -1353,7 +1424,7 @@ source kernel/Kconfig.preempt
 config HZ
 	int
 	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P64X0 || \
-		ARCH_S5P6442 || ARCH_S5PV210 || ARCH_S5PV310
+		ARCH_S5P6442 || ARCH_S5PV210 || ARCH_EXYNOS4
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
 	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
@@ -1361,7 +1432,7 @@ config HZ
 
 config THUMB2_KERNEL
 	bool "Compile the kernel in Thumb-2 mode (EXPERIMENTAL)"
-	depends on CPU_V7 && !CPU_V6 && EXPERIMENTAL
+	depends on CPU_V7 && !CPU_V6 && !CPU_V6K && EXPERIMENTAL
 	select AEABI
 	select ARM_ASM_UNIFIED
 	help
@@ -1370,6 +1441,37 @@ config THUMB2_KERNEL
 	  ARM-Thumb syntax is needed.
 
 	  If unsure, say N.
+
+config THUMB2_AVOID_R_ARM_THM_JUMP11
+	bool "Work around buggy Thumb-2 short branch relocations in gas"
+	depends on THUMB2_KERNEL && MODULES
+	default y
+	help
+	  Various binutils versions can resolve Thumb-2 branches to
+	  locally-defined, preemptible global symbols as short-range "b.n"
+	  branch instructions.
+
+	  This is a problem, because there's no guarantee the final
+	  destination of the symbol, or any candidate locations for a
+	  trampoline, are within range of the branch.  For this reason, the
+	  kernel does not support fixing up the R_ARM_THM_JUMP11 (102)
+	  relocation in modules at all, and it makes little sense to add
+	  support.
+
+	  The symptom is that the kernel fails with an "unsupported
+	  relocation" error when loading some modules.
+
+	  Until fixed tools are available, passing
+	  -fno-optimize-sibling-calls to gcc should prevent gcc generating
+	  code which hits this problem, at the cost of a bit of extra runtime
+	  stack usage in some cases.
+
+	  The problem is described in more detail at:
+	      https://bugs.launchpad.net/binutils-linaro/+bug/725126
+
+	  Only Thumb-2 kernels are affected.
+
+	  Unless you are sure your tools don't have this problem, say Y.
 
 config ARM_ASM_UNIFIED
 	bool
@@ -1438,7 +1540,6 @@ config HIGHMEM
 config HIGHPTE
 	bool "Allocate 2nd-level pagetables from highmem"
 	depends on HIGHMEM
-	depends on !OUTER_CACHE
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
@@ -1618,6 +1719,18 @@ config ZBOOT_ROM
 	help
 	  Say Y here if you intend to execute your compressed kernel image
 	  (zImage) directly from ROM or flash.  If unsure, say N.
+
+config ZBOOT_ROM_MMCIF
+	bool "Include MMCIF loader in zImage (EXPERIMENTAL)"
+	depends on ZBOOT_ROM && ARCH_SH7372 && EXPERIMENTAL
+	help
+	  Say Y here to include experimental MMCIF loading code in the
+	  ROM-able zImage. With this enabled it is possible to write the
+	  the ROM-able zImage kernel image to an MMC card and boot the
+	  kernel straight from the reset vector. At reset the processor
+	  Mask ROM will load the first part of the the ROM-able zImage
+	  which in turn loads the rest the kernel image to RAM using the
+	  MMCIF hardware block.
 
 config CMDLINE
 	string "Default kernel command string"
@@ -1852,7 +1965,7 @@ config FPE_FASTFPE
 
 config VFP
 	bool "VFP-format floating point maths"
-	depends on CPU_V6 || CPU_ARM926T || CPU_V7 || CPU_FEROCEON
+	depends on CPU_V6 || CPU_V6K || CPU_ARM926T || CPU_V7 || CPU_FEROCEON
 	help
 	  Say Y to include VFP support code in the kernel. This is needed
 	  if your hardware includes a VFP unit.
@@ -1897,6 +2010,9 @@ menu "Power management options"
 source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
+	depends on !ARCH_S5P64X0 && !ARCH_S5P6442
+	depends on CPU_ARM920T || CPU_ARM926T || CPU_SA1100 || \
+		CPU_V6 || CPU_V6K || CPU_V7 || CPU_XSC3 || CPU_XSCALE
 	def_bool y
 
 endmenu

@@ -32,10 +32,10 @@
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
-#include <linux/mfd/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -295,6 +295,18 @@ static struct fb_videomode mackerel_lcdc_modes[] = {
 	},
 };
 
+static int mackerel_set_brightness(void *board_data, int brightness)
+{
+	gpio_set_value(GPIO_PORT31, brightness);
+
+	return 0;
+}
+
+static int mackerel_get_brightness(void *board_data)
+{
+	return gpio_get_value(GPIO_PORT31);
+}
+
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.clock_source = LCDC_CLK_BUS,
 	.ch[0] = {
@@ -303,10 +315,18 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.lcd_cfg = mackerel_lcdc_modes,
 		.num_cfg = ARRAY_SIZE(mackerel_lcdc_modes),
 		.interface_type		= RGB24,
-		.clock_divider		= 2,
+		.clock_divider		= 3,
 		.flags			= 0,
 		.lcd_size_cfg.width	= 152,
 		.lcd_size_cfg.height	= 91,
+		.board_cfg = {
+			.set_brightness = mackerel_set_brightness,
+			.get_brightness = mackerel_get_brightness,
+		},
+		.bl_info = {
+			.name = "sh_mobile_lcdc_bl",
+			.max_brightness = 1,
+		},
 	}
 };
 
@@ -399,7 +419,11 @@ static struct platform_device hdmi_device = {
 	},
 };
 
-static int __init hdmi_init_pm_clock(void)
+static struct platform_device fsi_hdmi_device = {
+	.name		= "sh_fsi2_b_hdmi",
+};
+
+static void __init hdmi_init_pm_clock(void)
 {
 	struct clk *hdmi_ick = clk_get(&hdmi_device.dev, "ick");
 	int ret;
@@ -443,17 +467,13 @@ static int __init hdmi_init_pm_clock(void)
 	pr_debug("PLLC2 set frequency %lu\n", rate);
 
 	ret = clk_set_parent(hdmi_ick, &sh7372_pllc2_clk);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_err("Cannot set HDMI parent: %d\n", ret);
-		goto out;
-	}
 
 out:
 	if (!IS_ERR(hdmi_ick))
 		clk_put(hdmi_ick);
-	return ret;
 }
-device_initcall(hdmi_init_pm_clock);
 
 /* USB1 (Host) */
 static void usb1_host_port_power(int port, int power)
@@ -609,16 +629,12 @@ fsi_set_rate_end:
 }
 
 static struct sh_fsi_platform_info fsi_info = {
-	.porta_flags =	SH_FSI_BRS_INV		|
-			SH_FSI_OUT_SLAVE_MODE	|
-			SH_FSI_IN_SLAVE_MODE	|
-			SH_FSI_OFMT(PCM)	|
-			SH_FSI_IFMT(PCM),
+	.porta_flags =	SH_FSI_BRS_INV,
 
 	.portb_flags =	SH_FSI_BRS_INV	|
 			SH_FSI_BRM_INV	|
 			SH_FSI_LRS_INV	|
-			SH_FSI_OFMT(SPDIF),
+			SH_FSI_FMT_SPDIF,
 
 	.set_rate = fsi_set_rate,
 };
@@ -670,7 +686,7 @@ static struct resource sdhi0_resources[] = {
 	[0] = {
 		.name	= "SDHI0",
 		.start	= 0xe6850000,
-		.end	= 0xe68501ff,
+		.end	= 0xe68500ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -705,7 +721,7 @@ static struct resource sdhi1_resources[] = {
 	[0] = {
 		.name	= "SDHI1",
 		.start	= 0xe6860000,
-		.end	= 0xe68601ff,
+		.end	= 0xe68600ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -748,7 +764,7 @@ static struct resource sdhi2_resources[] = {
 	[0] = {
 		.name	= "SDHI2",
 		.start	= 0xe6870000,
-		.end	= 0xe68701ff,
+		.end	= 0xe68700ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -901,7 +917,8 @@ static struct platform_device ceu_device = {
 	.num_resources	= ARRAY_SIZE(ceu_resources),
 	.resource	= ceu_resources,
 	.dev		= {
-		.platform_data	= &sh_mobile_ceu_info,
+		.platform_data		= &sh_mobile_ceu_info,
+		.coherent_dma_mask	= 0xffffffff,
 	},
 };
 
@@ -921,6 +938,7 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&leds_device,
 	&fsi_device,
 	&fsi_ak4643_device,
+	&fsi_hdmi_device,
 	&sdhi0_device,
 #if !defined(CONFIG_MMC_SH_MMCIF)
 	&sdhi1_device,
@@ -1058,7 +1076,7 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_LCDDCK,   NULL);
 
 	gpio_request(GPIO_PORT31, NULL); /* backlight */
-	gpio_direction_output(GPIO_PORT31, 1);
+	gpio_direction_output(GPIO_PORT31, 0); /* off by default */
 
 	gpio_request(GPIO_PORT151, NULL); /* LCDDON */
 	gpio_direction_output(GPIO_PORT151, 1);
@@ -1102,15 +1120,15 @@ static void __init mackerel_init(void)
 
 	/* enable Keypad */
 	gpio_request(GPIO_FN_IRQ9_42,	NULL);
-	set_irq_type(IRQ9, IRQ_TYPE_LEVEL_HIGH);
+	irq_set_irq_type(IRQ9, IRQ_TYPE_LEVEL_HIGH);
 
 	/* enable Touchscreen */
 	gpio_request(GPIO_FN_IRQ7_40,	NULL);
-	set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
 
 	/* enable Accelerometer */
 	gpio_request(GPIO_FN_IRQ21,	NULL);
-	set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
+	irq_set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
 
 	/* enable SDHI0 */
 	gpio_request(GPIO_FN_SDHICD0, NULL);
@@ -1196,6 +1214,8 @@ static void __init mackerel_init(void)
 	sh7372_add_standard_devices();
 
 	platform_add_devices(mackerel_devices, ARRAY_SIZE(mackerel_devices));
+
+	hdmi_init_pm_clock();
 }
 
 static void __init mackerel_timer_init(void)

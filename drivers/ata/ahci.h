@@ -213,10 +213,8 @@ enum {
 
 	/* ap->flags bits */
 
-	AHCI_FLAG_COMMON		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-					  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
-					  ATA_FLAG_ACPI_SATA | ATA_FLAG_AN |
-					  ATA_FLAG_LPM,
+	AHCI_FLAG_COMMON		= ATA_FLAG_SATA | ATA_FLAG_PIO_DMA |
+					  ATA_FLAG_ACPI_SATA | ATA_FLAG_AN,
 
 	ICH_MAP				= 0x90, /* ICH MAP register */
 
@@ -227,10 +225,14 @@ enum {
 	/* em_ctl bits */
 	EM_CTL_RST		= (1 << 9), /* Reset */
 	EM_CTL_TM		= (1 << 8), /* Transmit Message */
-	EM_CTL_MR		= (1 << 0), /* Message Recieved */
+	EM_CTL_MR		= (1 << 0), /* Message Received */
 	EM_CTL_ALHD		= (1 << 26), /* Activity LED */
 	EM_CTL_XMT		= (1 << 25), /* Transmit Only */
 	EM_CTL_SMB		= (1 << 24), /* Single Message Buffer */
+	EM_CTL_SGPIO		= (1 << 19), /* SGPIO messages supported */
+	EM_CTL_SES		= (1 << 18), /* SES-2 messages supported */
+	EM_CTL_SAFTE		= (1 << 17), /* SAF-TE messages supported */
+	EM_CTL_LED		= (1 << 16), /* LED messages supported */
 
 	/* em message type */
 	EM_MSG_TYPE_LED		= (1 << 0), /* LED */
@@ -283,7 +285,7 @@ struct ahci_port_priv {
 };
 
 struct ahci_host_priv {
-	void __iomem *		mmio;		/* bus-independant mem map */
+	void __iomem *		mmio;		/* bus-independent mem map */
 	unsigned int		flags;		/* AHCI_HFLAG_* */
 	u32			cap;		/* cap to use */
 	u32			cap2;		/* cap2 to use */

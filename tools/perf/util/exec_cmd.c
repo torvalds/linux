@@ -11,30 +11,11 @@ static const char *argv0_path;
 
 const char *system_path(const char *path)
 {
-#ifdef RUNTIME_PREFIX
-	static const char *prefix;
-#else
 	static const char *prefix = PREFIX;
-#endif
 	struct strbuf d = STRBUF_INIT;
 
 	if (is_absolute_path(path))
 		return path;
-
-#ifdef RUNTIME_PREFIX
-	assert(argv0_path);
-	assert(is_absolute_path(argv0_path));
-
-	if (!prefix &&
-	    !(prefix = strip_path_suffix(argv0_path, PERF_EXEC_PATH)) &&
-	    !(prefix = strip_path_suffix(argv0_path, BINDIR)) &&
-	    !(prefix = strip_path_suffix(argv0_path, "perf"))) {
-		prefix = PREFIX;
-		fprintf(stderr, "RUNTIME_PREFIX requested, "
-				"but prefix computation failed.  "
-				"Using static fallback '%s'.\n", prefix);
-	}
-#endif
 
 	strbuf_addf(&d, "%s/%s", prefix, path);
 	path = strbuf_detach(&d, NULL);

@@ -636,7 +636,7 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 	 * the inode of the page and available to all anonymous
 	 * transactions until txCommit() time at which point
 	 * they are transferred to the transaction tlock list of
-	 * the commiting transaction of the inode)
+	 * the committing transaction of the inode)
 	 */
 	if (xtid == 0) {
 		tlck->tid = tid;

@@ -379,7 +379,7 @@ static ssize_t vfd_write(struct file *file, const char *buf,
 	struct imon_context *context;
 	const unsigned char vfd_packet6[] = {
 		0x01, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
-	int *data_buf;
+	int *data_buf = NULL;
 
 	context = file->private_data;
 	if (!context) {

@@ -45,6 +45,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 
 
 struct nf_ct_frag6_skb_cb
@@ -73,7 +74,7 @@ static struct inet_frags nf_frags;
 static struct netns_frags nf_init_frags;
 
 #ifdef CONFIG_SYSCTL
-struct ctl_table nf_ct_frag6_sysctl_table[] = {
+static struct ctl_table nf_ct_frag6_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_frag6_timeout",
 		.data		= &nf_init_frags.timeout,

@@ -810,7 +810,7 @@ static int tcp_accept_from_sock(struct connection *con)
 
 	/*
 	 * Add it to the active queue in case we got data
-	 * beween processing the accept adding the socket
+	 * between processing the accept adding the socket
 	 * to the read_sockets list
 	 */
 	if (!test_and_set_bit(CF_READ_PENDING, &addcon->flags))
@@ -1468,13 +1468,15 @@ static void work_stop(void)
 
 static int work_start(void)
 {
-	recv_workqueue = create_singlethread_workqueue("dlm_recv");
+	recv_workqueue = alloc_workqueue("dlm_recv",
+					 WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
 	if (!recv_workqueue) {
 		log_print("can't start dlm_recv");
 		return -ENOMEM;
 	}
 
-	send_workqueue = create_singlethread_workqueue("dlm_send");
+	send_workqueue = alloc_workqueue("dlm_send",
+					 WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
 	if (!send_workqueue) {
 		log_print("can't start dlm_send");
 		destroy_workqueue(recv_workqueue);

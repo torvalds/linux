@@ -128,8 +128,8 @@ static int am200_init_gpio_regs(struct metronomefb_par *par)
 	return 0;
 
 err_req_gpio:
-	while (i > 0)
-		gpio_free(gpios[i--]);
+	while (--i >= 0)
+		gpio_free(gpios[i]);
 
 	return err;
 }
@@ -194,7 +194,7 @@ static struct notifier_block am200_fb_notif = {
 };
 
 /* this gets called as part of our init. these steps must be done now so
- * that we can use set_pxa_fb_info */
+ * that we can use pxa_set_fb_info */
 static void __init am200_presetup_fb(void)
 {
 	int fw;
@@ -249,7 +249,7 @@ static void __init am200_presetup_fb(void)
 	/* we divide since we told the LCD controller we're 16bpp */
 	am200_fb_info.modes->xres /= 2;
 
-	set_pxa_fb_info(&am200_fb_info);
+	pxa_set_fb_info(NULL, &am200_fb_info);
 
 }
 

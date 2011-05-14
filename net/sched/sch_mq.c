@@ -61,7 +61,6 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt)
 						    TC_H_MIN(ntx + 1)));
 		if (qdisc == NULL)
 			goto err;
-		qdisc->flags |= TCQ_F_CAN_BYPASS;
 		priv->qdiscs[ntx] = qdisc;
 	}
 

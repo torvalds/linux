@@ -13,6 +13,7 @@
 #include <asm/leon_amba.h>
 
 #include "of_device_common.h"
+#include "irq.h"
 
 /*
  * PCI bus specific translator
@@ -355,7 +356,8 @@ static struct platform_device * __init scan_one_device(struct device_node *dp,
 	if (intr) {
 		op->archdata.num_irqs = len / sizeof(struct linux_prom_irqs);
 		for (i = 0; i < op->archdata.num_irqs; i++)
-			op->archdata.irqs[i] = intr[i].pri;
+			op->archdata.irqs[i] =
+			    sparc_irq_config.build_device_irq(op, intr[i].pri);
 	} else {
 		const unsigned int *irq =
 			of_get_property(dp, "interrupts", &len);
@@ -363,64 +365,13 @@ static struct platform_device * __init scan_one_device(struct device_node *dp,
 		if (irq) {
 			op->archdata.num_irqs = len / sizeof(unsigned int);
 			for (i = 0; i < op->archdata.num_irqs; i++)
-				op->archdata.irqs[i] = irq[i];
+				op->archdata.irqs[i] =
+				    sparc_irq_config.build_device_irq(op, irq[i]);
 		} else {
 			op->archdata.num_irqs = 0;
 		}
 	}
-	if (sparc_cpu_model == sun4d) {
-		static int pil_to_sbus[] = {
-			0, 0, 1, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 0,
-		};
-		struct device_node *io_unit, *sbi = dp->parent;
-		const struct linux_prom_registers *regs;
-		int board, slot;
 
-		while (sbi) {
-			if (!strcmp(sbi->name, "sbi"))
-				break;
-
-			sbi = sbi->parent;
-		}
-		if (!sbi)
-			goto build_resources;
-
-		regs = of_get_property(dp, "reg", NULL);
-		if (!regs)
-			goto build_resources;
-
-		slot = regs->which_io;
-
-		/* If SBI's parent is not io-unit or the io-unit lacks
-		 * a "board#" property, something is very wrong.
-		 */
-		if (!sbi->parent || strcmp(sbi->parent->name, "io-unit")) {
-			printk("%s: Error, parent is not io-unit.\n",
-			       sbi->full_name);
-			goto build_resources;
-		}
-		io_unit = sbi->parent;
-		board = of_getintprop_default(io_unit, "board#", -1);
-		if (board == -1) {
-			printk("%s: Error, lacks board# property.\n",
-			       io_unit->full_name);
-			goto build_resources;
-		}
-
-		for (i = 0; i < op->archdata.num_irqs; i++) {
-			int this_irq = op->archdata.irqs[i];
-			int sbusl = pil_to_sbus[this_irq];
-
-			if (sbusl)
-				this_irq = (((board + 1) << 5) +
-					    (sbusl << 2) +
-					    slot);
-
-			op->archdata.irqs[i] = this_irq;
-		}
-	}
-
-build_resources:
 	build_device_resources(op, parent);
 
 	op->dev.parent = parent;

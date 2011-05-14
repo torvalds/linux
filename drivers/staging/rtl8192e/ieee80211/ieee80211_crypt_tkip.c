@@ -324,18 +324,6 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 
-#if 0
-printk("@@ tkey\n");
-printk("%x|", ((u32*)tkey->key)[0]);
-printk("%x|", ((u32*)tkey->key)[1]);
-printk("%x|", ((u32*)tkey->key)[2]);
-printk("%x|", ((u32*)tkey->key)[3]);
-printk("%x|", ((u32*)tkey->key)[4]);
-printk("%x|", ((u32*)tkey->key)[5]);
-printk("%x|", ((u32*)tkey->key)[6]);
-printk("%x\n", ((u32*)tkey->key)[7]);
-#endif
-
 	if (!tcb_desc->bHwSec)
 	{
 		if (!tkey->tx_phase1_done) {
@@ -512,18 +500,6 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	skb_pull(skb, 8);
 	skb_trim(skb, skb->len - 4);
 
-//john's test
-#ifdef JOHN_DUMP
-if( ((u16*)skb->data)[0] & 0x4000){
-        printk("@@ rx decrypted skb->data");
-        int i;
-        for(i=0;i<skb->len;i++){
-                if( (i%24)==0 ) printk("\n");
-                printk("%2x ", ((u8*)skb->data)[i]);
-        }
-        printk("\n");
-}
-#endif /*JOHN_DUMP*/
 	return keyidx;
 }
 
@@ -829,7 +805,6 @@ void ieee80211_crypto_tkip_exit(void)
 
 void ieee80211_tkip_null(void)
 {
-//    printk("============>%s()\n", __FUNCTION__);
         return;
 }
 

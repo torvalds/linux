@@ -42,7 +42,7 @@ static int use_msi_x = 1;
 module_param(use_msi_x, int, 0444);
 MODULE_PARM_DESC(use_msi_x, "MSI-X interrupt (0=disabled, 1=enabled");
 
-static int auto_fw_reset = AUTO_FW_RESET_ENABLED;
+static int auto_fw_reset = 1;
 module_param(auto_fw_reset, int, 0644);
 MODULE_PARM_DESC(auto_fw_reset, "Auto firmware reset (0=disabled, 1=enabled");
 
@@ -2099,6 +2099,7 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct cmd_desc_type0 *hwdesc, *first_desc;
 	struct pci_dev *pdev;
 	struct ethhdr *phdr;
+	int delta = 0;
 	int i, k;
 
 	u32 producer;
@@ -2118,6 +2119,19 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
+	/* 14 frags supported for normal packet and
+	 * 32 frags supported for TSO packet
+	 */
+	if (!skb_is_gso(skb) && frag_count > QLCNIC_MAX_FRAGS_PER_TX) {
+
+		for (i = 0; i < (frag_count - QLCNIC_MAX_FRAGS_PER_TX); i++)
+			delta += skb_shinfo(skb)->frags[i].size;
+
+		if (!__pskb_pull_tail(skb, delta))
+			goto drop_packet;
+
+		frag_count = 1 + skb_shinfo(skb)->nr_frags;
+	}
 
 	/* 4 fragments per cmd des */
 	no_of_desc = (frag_count + 3) >> 2;
@@ -2959,8 +2973,7 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 		if (adapter->need_fw_reset)
 			goto detach;
 
-		if (adapter->reset_context &&
-		    auto_fw_reset == AUTO_FW_RESET_ENABLED) {
+		if (adapter->reset_context && auto_fw_reset) {
 			qlcnic_reset_hw_context(adapter);
 			adapter->netdev->trans_start = jiffies;
 		}
@@ -2973,7 +2986,7 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 
 	qlcnic_dev_request_reset(adapter);
 
-	if ((auto_fw_reset == AUTO_FW_RESET_ENABLED))
+	if (auto_fw_reset)
 		clear_bit(__QLCNIC_FW_ATTACHED, &adapter->state);
 
 	dev_info(&netdev->dev, "firmware hang detected\n");
@@ -2982,7 +2995,7 @@ detach:
 	adapter->dev_state = (state == QLCNIC_DEV_NEED_QUISCENT) ? state :
 		QLCNIC_DEV_NEED_RESET;
 
-	if ((auto_fw_reset == AUTO_FW_RESET_ENABLED) &&
+	if (auto_fw_reset &&
 		!test_and_set_bit(__QLCNIC_RESETTING, &adapter->state)) {
 
 		qlcnic_schedule_work(adapter, qlcnic_detach_work, 0);
@@ -3654,10 +3667,8 @@ validate_npar_config(struct qlcnic_adapter *adapter,
 		if (adapter->npars[pci_func].type != QLCNIC_TYPE_NIC)
 			return QL_STATUS_INVALID_PARAM;
 
-		if (!IS_VALID_BW(np_cfg[i].min_bw)
-				|| !IS_VALID_BW(np_cfg[i].max_bw)
-				|| !IS_VALID_RX_QUEUES(np_cfg[i].max_rx_queues)
-				|| !IS_VALID_TX_QUEUES(np_cfg[i].max_tx_queues))
+		if (!IS_VALID_BW(np_cfg[i].min_bw) ||
+		    !IS_VALID_BW(np_cfg[i].max_bw))
 			return QL_STATUS_INVALID_PARAM;
 	}
 	return 0;

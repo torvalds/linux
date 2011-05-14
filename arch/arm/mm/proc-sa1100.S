@@ -169,6 +169,42 @@ ENTRY(cpu_sa1100_set_pte_ext)
 #endif
 	mov	pc, lr
 
+.globl	cpu_sa1100_suspend_size
+.equ	cpu_sa1100_suspend_size, 4*4
+#ifdef CONFIG_PM_SLEEP
+ENTRY(cpu_sa1100_do_suspend)
+	stmfd	sp!, {r4 - r7, lr}
+	mrc	p15, 0, r4, c3, c0, 0		@ domain ID
+	mrc	p15, 0, r5, c2, c0, 0		@ translation table base addr
+	mrc	p15, 0, r6, c13, c0, 0		@ PID
+	mrc	p15, 0, r7, c1, c0, 0		@ control reg
+	stmia	r0, {r4 - r7}			@ store cp regs
+	ldmfd	sp!, {r4 - r7, pc}
+ENDPROC(cpu_sa1100_do_suspend)
+
+ENTRY(cpu_sa1100_do_resume)
+	ldmia	r0, {r4 - r7}			@ load cp regs
+	mov	r1, #0
+	mcr	p15, 0, r1, c8, c7, 0		@ flush I+D TLBs
+	mcr	p15, 0, r1, c7, c7, 0		@ flush I&D cache
+	mcr	p15, 0, r1, c9, c0, 0		@ invalidate RB
+	mcr	p15, 0, r1, c9, c0, 5		@ allow user space to use RB
+
+	mcr	p15, 0, r4, c3, c0, 0		@ domain ID
+	mcr	p15, 0, r5, c2, c0, 0		@ translation table base addr
+	mcr	p15, 0, r6, c13, c0, 0		@ PID
+	mov	r0, r7				@ control register
+	mov	r2, r5, lsr #14			@ get TTB0 base
+	mov	r2, r2, lsl #14
+	ldr	r3, =PMD_TYPE_SECT | PMD_SECT_BUFFERABLE | \
+		     PMD_SECT_CACHEABLE | PMD_SECT_AP_WRITE
+	b	cpu_resume_mmu
+ENDPROC(cpu_sa1100_do_resume)
+#else
+#define cpu_sa1100_do_suspend	0
+#define cpu_sa1100_do_resume	0
+#endif
+
 	__CPUINIT
 
 	.type	__sa1100_setup, #function
@@ -218,6 +254,9 @@ ENTRY(sa1100_processor_functions)
 	.word	cpu_sa1100_dcache_clean_area
 	.word	cpu_sa1100_switch_mm
 	.word	cpu_sa1100_set_pte_ext
+	.word	cpu_sa1100_suspend_size
+	.word	cpu_sa1100_do_suspend
+	.word	cpu_sa1100_do_resume
 	.size	sa1100_processor_functions, . - sa1100_processor_functions
 
 	.section ".rodata"

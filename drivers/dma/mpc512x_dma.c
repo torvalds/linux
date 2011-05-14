@@ -328,7 +328,7 @@ static irqreturn_t mpc_dma_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/* proccess completed descriptors */
+/* process completed descriptors */
 static void mpc_dma_process_completed(struct mpc_dma *mdma)
 {
 	dma_cookie_t last_cookie = 0;
@@ -649,8 +649,7 @@ mpc_dma_prep_memcpy(struct dma_chan *chan, dma_addr_t dst, dma_addr_t src,
 	return &mdesc->desc;
 }
 
-static int __devinit mpc_dma_probe(struct platform_device *op,
-					const struct of_device_id *match)
+static int __devinit mpc_dma_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct device *dev = &op->dev;
@@ -827,7 +826,7 @@ static struct of_device_id mpc_dma_match[] = {
 	{},
 };
 
-static struct of_platform_driver mpc_dma_driver = {
+static struct platform_driver mpc_dma_driver = {
 	.probe		= mpc_dma_probe,
 	.remove		= __devexit_p(mpc_dma_remove),
 	.driver = {
@@ -839,13 +838,13 @@ static struct of_platform_driver mpc_dma_driver = {
 
 static int __init mpc_dma_init(void)
 {
-	return of_register_platform_driver(&mpc_dma_driver);
+	return platform_driver_register(&mpc_dma_driver);
 }
 module_init(mpc_dma_init);
 
 static void __exit mpc_dma_exit(void)
 {
-	of_unregister_platform_driver(&mpc_dma_driver);
+	platform_driver_unregister(&mpc_dma_driver);
 }
 module_exit(mpc_dma_exit);
 

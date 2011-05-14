@@ -34,6 +34,7 @@
 #include <mach/mx25.h>
 #include <mach/imx-uart.h>
 #include <mach/audmux.h>
+#include <mach/esdhc.h>
 
 #include "devices-imx25.h"
 
@@ -242,6 +243,11 @@ struct imx_ssi_platform_data eukrea_mbimxsd_ssi_pdata __initconst = {
 	.flags = IMX_SSI_SYN | IMX_SSI_NET | IMX_SSI_USE_I2S_SLAVE,
 };
 
+static struct esdhc_platform_data sd1_pdata = {
+	.cd_gpio = GPIO_SD1CD,
+	.wp_gpio = -EINVAL,
+};
+
 /*
  * system init for baseboard usage. Will be called by cpuimx25 init.
  *
@@ -275,7 +281,7 @@ void __init eukrea_mbimxsd25_baseboard_init(void)
 	imx25_add_imx_ssi(0, &eukrea_mbimxsd_ssi_pdata);
 
 	imx25_add_flexcan1(NULL);
-	imx25_add_sdhci_esdhc_imx(0, NULL);
+	imx25_add_sdhci_esdhc_imx(0, &sd1_pdata);
 
 	gpio_request(GPIO_LED1, "LED1");
 	gpio_direction_output(GPIO_LED1, 1);

@@ -98,7 +98,7 @@
 #define VMI_RESERVED31_REG                  31
 
 /* PHY Register Mapping(MI) Management Interface Regs */
-typedef struct _MI_REGS_t {
+struct mi_regs {
 	u8 bmcr;	/* Basic mode control reg(Reg 0x00) */
 	u8 bmsr;	/* Basic mode status reg(Reg 0x01) */
 	u8 idr1;	/* Phy identifier reg 1(Reg 0x02) */
@@ -124,7 +124,7 @@ typedef struct _MI_REGS_t {
 	u8 lcr1;		/* LED Control 1 Reg(Reg 0x1B) */
 	u8 lcr2;		/* LED Control 2 Reg(Reg 0x1C) */
 	u8 mi_res4[3];	/* Future use by MI working group(Reg 0x1D - 0x1F) */
-} MI_REGS_t, *PMI_REGS_t;
+};
 
 /* MI Register 0: Basic mode control register */
 typedef union _MI_BMCR_t {
@@ -200,30 +200,6 @@ typedef union _MI_BMSR_t {
 	} bits;
 } MI_BMSR_t, *PMI_BMSR_t;
 
-/* MI Register 2: Physical Identifier 1 */
-typedef union _MI_IDR1_t {
-	u16 value;
-	struct {
-		u16 ieee_address:16;	/* 0x0282 default(bits 0-15) */
-	} bits;
-} MI_IDR1_t, *PMI_IDR1_t;
-
-/* MI Register 3: Physical Identifier 2 */
-typedef union _MI_IDR2_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 ieee_address:6;	/* 111100 default(bits 10-15) */
-		u16 model_no:6;		/* 000001 default(bits 4-9) */
-		u16 rev_no:4;		/* 0010   default(bits 0-3) */
-#else
-		u16 rev_no:4;		/* 0010   default(bits 0-3) */
-		u16 model_no:6;		/* 000001 default(bits 4-9) */
-		u16 ieee_address:6;	/* 111100 default(bits 10-15) */
-#endif
-	} bits;
-} MI_IDR2_t, *PMI_IDR2_t;
-
 /* MI Register 4: Auto-negotiation advertisement register */
 typedef union _MI_ANAR_t {
 	u16 value;
@@ -258,481 +234,194 @@ typedef union _MI_ANAR_t {
 	} bits;
 } MI_ANAR_t, *PMI_ANAR_t;
 
-/* MI Register 5: Auto-negotiation link partner advertisement register */
-typedef struct _MI_ANLPAR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 np_indication:1;	/* bit 15 */
-		u16 acknowledge:1;		/* bit 14 */
-		u16 remote_fault:1;	/* bit 13 */
-		u16 res1:1;		/* bit 12 */
-		u16 cap_asmpause:1;	/* bit 11 */
-		u16 cap_pause:1;		/* bit 10 */
-		u16 cap_100T4:1;		/* bit 9 */
-		u16 cap_100fdx:1;		/* bit 8 */
-		u16 cap_100hdx:1;		/* bit 7 */
-		u16 cap_10fdx:1;		/* bit 6 */
-		u16 cap_10hdx:1;		/* bit 5 */
-		u16 selector:5;		/* bits 0-4 */
-#else
-		u16 selector:5;		/* bits 0-4 */
-		u16 cap_10hdx:1;		/* bit 5 */
-		u16 cap_10fdx:1;		/* bit 6 */
-		u16 cap_100hdx:1;		/* bit 7 */
-		u16 cap_100fdx:1;		/* bit 8 */
-		u16 cap_100T4:1;		/* bit 9 */
-		u16 cap_pause:1;		/* bit 10 */
-		u16 cap_asmpause:1;	/* bit 11 */
-		u16 res1:1;		/* bit 12 */
-		u16 remote_fault:1;	/* bit 13 */
-		u16 acknowledge:1;		/* bit 14 */
-		u16 np_indication:1;	/* bit 15 */
-#endif
-	} bits;
-} MI_ANLPAR_t, *PMI_ANLPAR_t;
+/* MI Register 5: Auto-negotiation link partner advertisement register
+ *	15:	np_indication
+ *	14:	acknowledge
+ *	13:	remote_fault
+ *	12:	res1:1;		
+ *	11:	cap_asmpause
+ *	10:	cap_pause
+ *	9:	cap_100T4
+ *	8:	cap_100fdx
+ *	7:	cap_100hdx
+ *	6:	cap_10fdx
+ *	5:	cap_10hdx
+ *	4-0:	selector
+ */
 
-/* MI Register 6: Auto-negotiation expansion register */
-typedef union _MI_ANER_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 res:11;	/* bits 5-15 */
-		u16 pdf:1;		/* bit 4 */
-		u16 lp_np_able:1;	/* bit 3 */
-		u16 np_able:1;	/* bit 2 */
-		u16 page_rx:1;	/* bit 1 */
-		u16 lp_an_able:1;	/* bit 0 */
-#else
-		u16 lp_an_able:1;	/* bit 0 */
-		u16 page_rx:1;	/* bit 1 */
-		u16 np_able:1;	/* bit 2 */
-		u16 lp_np_able:1;	/* bit 3 */
-		u16 pdf:1;		/* bit 4 */
-		u16 res:11;	/* bits 5-15 */
-#endif
-	} bits;
-} MI_ANER_t, *PMI_ANER_t;
+/* MI Register 6: Auto-negotiation expansion register
+ *	15-5:	reserved
+ *	4:	pdf
+ *	3:	lp_np_able
+ *	2:	np_able
+ *	1:	page_rx
+ *	0:	lp_an_able
+ */
 
-/* MI Register 7: Auto-negotiation next page transmit reg(0x07) */
-typedef union _MI_ANNPTR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 np:1;		/* bit 15 */
-		u16 res1:1;	/* bit 14 */
-		u16 msg_page:1;	/* bit 13 */
-		u16 ack2:1;	/* bit 12 */
-		u16 toggle:1;	/* bit 11 */
-		u16 msg:11;	/* bits 0-10 */
-#else
-		u16 msg:11;	/* bits 0-10 */
-		u16 toggle:1;	/* bit 11 */
-		u16 ack2:1;	/* bit 12 */
-		u16 msg_page:1;	/* bit 13 */
-		u16 res1:1;	/* bit 14 */
-		u16 np:1;		/* bit 15 */
-#endif
-	} bits;
-} MI_ANNPTR_t, *PMI_ANNPTR_t;
+/* MI Register 7: Auto-negotiation next page transmit reg(0x07) 
+ *	15:	np
+ *	14:	reserved
+ *	13:	msg_page
+ *	12:	ack2
+ *	11:	toggle
+ *	10-0	msg
+ */
 
-/* MI Register 8: Link Partner Next Page Reg(0x08) */
-typedef union _MI_LPNPR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 np:1;		/* bit 15 */
-		u16 ack:1;		/* bit 14 */
-		u16 msg_page:1;	/* bit 13 */
-		u16 ack2:1;	/* bit 12 */
-		u16 toggle:1;	/* bit 11 */
-		u16 msg:11;	/* bits 0-10 */
-#else
-		u16 msg:11;	/* bits 0-10 */
-		u16 toggle:1;	/* bit 11 */
-		u16 ack2:1;	/* bit 12 */
-		u16 msg_page:1;	/* bit 13 */
-		u16 ack:1;		/* bit 14 */
-		u16 np:1;		/* bit 15 */
-#endif
-	} bits;
-} MI_LPNPR_t, *PMI_LPNPR_t;
+/* MI Register 8: Link Partner Next Page Reg(0x08) 
+ *	15:	np
+ *	14:	ack
+ *	13:	msg_page
+ *	12:	ack2
+ *	11:	toggle
+ *	10-0:	msg
+ */
 
-/* MI Register 9: 1000BaseT Control Reg(0x09) */
-typedef union _MI_GCR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 test_mode:3;		/* bits 13-15 */
-		u16 ms_config_en:1;	/* bit 12 */
-		u16 ms_value:1;		/* bit 11 */
-		u16 port_type:1;		/* bit 10 */
-		u16 link_1000fdx:1;	/* bit 9 */
-		u16 link_1000hdx:1;	/* bit 8 */
-		u16 res:8;			/* bit 0-7 */
-#else
-		u16 res:8;			/* bit 0-7 */
-		u16 link_1000hdx:1;	/* bit 8 */
-		u16 link_1000fdx:1;	/* bit 9 */
-		u16 port_type:1;		/* bit 10 */
-		u16 ms_value:1;		/* bit 11 */
-		u16 ms_config_en:1;	/* bit 12 */
-		u16 test_mode:3;		/* bits 13-15 */
-#endif
-	} bits;
-} MI_GCR_t, *PMI_GCR_t;
+/* MI Register 9: 1000BaseT Control Reg(0x09)
+ *	15-13:	test_mode
+ *	12:	ms_config_en
+ *	11:	ms_value
+ *	10:	port_type
+ *	9:	link_1000fdx
+ *	8:	link_1000hdx
+ *	7-0:	reserved
+ */
 
-/* MI Register 10: 1000BaseT Status Reg(0x0A) */
-typedef union _MI_GSR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 ms_config_fault:1;	/* bit 15 */
-		u16 ms_resolve:1;		/* bit 14 */
-		u16 local_rx_status:1;	/* bit 13 */
-		u16 remote_rx_status:1;	/* bit 12 */
-		u16 link_1000fdx:1;	/* bit 11 */
-		u16 link_1000hdx:1;	/* bit 10 */
-		u16 res:2;			/* bits 8-9 */
-		u16 idle_err_cnt:8;	/* bits 0-7 */
-#else
-		u16 idle_err_cnt:8;	/* bits 0-7 */
-		u16 res:2;			/* bits 8-9 */
-		u16 link_1000hdx:1;	/* bit 10 */
-		u16 link_1000fdx:1;	/* bit 11 */
-		u16 remote_rx_status:1;	/* bit 12 */
-		u16 local_rx_status:1;	/* bit 13 */
-		u16 ms_resolve:1;		/* bit 14 */
-		u16 ms_config_fault:1;	/* bit 15 */
-#endif
-	} bits;
-} MI_GSR_t, *PMI_GSR_t;
+/* MI Register 10: 1000BaseT Status Reg(0x0A)
+ *	15:	ms_config_fault
+ *	14:	ms_resolve
+ *	13:	local_rx_status
+ *	12:	remote_rx_status
+ *	11:	link_1000fdx
+ *	10:	link_1000hdx
+ *	9-8:	reserved
+ *	7-0:	idle_err_cnt
+ */
 
 /* MI Register 11 - 14: Reserved Regs(0x0B - 0x0E) */
-typedef union _MI_RES_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 res15:1;	/* bit 15 */
-		u16 res14:1;	/* bit 14 */
-		u16 res13:1;	/* bit 13 */
-		u16 res12:1;	/* bit 12 */
-		u16 res11:1;	/* bit 11 */
-		u16 res10:1;	/* bit 10 */
-		u16 res9:1;	/* bit 9 */
-		u16 res8:1;	/* bit 8 */
-		u16 res7:1;	/* bit 7 */
-		u16 res6:1;	/* bit 6 */
-		u16 res5:1;	/* bit 5 */
-		u16 res4:1;	/* bit 4 */
-		u16 res3:1;	/* bit 3 */
-		u16 res2:1;	/* bit 2 */
-		u16 res1:1;	/* bit 1 */
-		u16 res0:1;	/* bit 0 */
-#else
-		u16 res0:1;	/* bit 0 */
-		u16 res1:1;	/* bit 1 */
-		u16 res2:1;	/* bit 2 */
-		u16 res3:1;	/* bit 3 */
-		u16 res4:1;	/* bit 4 */
-		u16 res5:1;	/* bit 5 */
-		u16 res6:1;	/* bit 6 */
-		u16 res7:1;	/* bit 7 */
-		u16 res8:1;	/* bit 8 */
-		u16 res9:1;	/* bit 9 */
-		u16 res10:1;	/* bit 10 */
-		u16 res11:1;	/* bit 11 */
-		u16 res12:1;	/* bit 12 */
-		u16 res13:1;	/* bit 13 */
-		u16 res14:1;	/* bit 14 */
-		u16 res15:1;	/* bit 15 */
-#endif
-	} bits;
-} MI_RES_t, *PMI_RES_t;
 
-/* MI Register 15: Extended status Reg(0x0F) */
-typedef union _MI_ESR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 link_1000Xfdx:1;	/* bit 15 */
-		u16 link_1000Xhdx:1;	/* bit 14 */
-		u16 link_1000fdx:1;	/* bit 13 */
-		u16 link_1000hdx:1;	/* bit 12 */
-		u16 res:12;		/* bit 0-11 */
-#else
-		u16 res:12;		/* bit 0-11 */
-		u16 link_1000hdx:1;	/* bit 12 */
-		u16 link_1000fdx:1;	/* bit 13 */
-		u16 link_1000Xhdx:1;	/* bit 14 */
-		u16 link_1000Xfdx:1;	/* bit 15 */
-#endif
-	} bits;
-} MI_ESR_t, *PMI_ESR_t;
+/* MI Register 15: Extended status Reg(0x0F)
+ *	15:	link_1000Xfdx
+ *	14:	link_1000Xhdx
+ *	13:	link_1000fdx
+ *	12:	link_1000hdx
+ *	11-0:	reserved
+ */
 
 /* MI Register 16 - 18: Reserved Reg(0x10-0x12) */
 
-/* MI Register 19: Loopback Control Reg(0x13) */
-typedef union _MI_LCR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 mii_en:1;		/* bit 15 */
-		u16 pcs_en:1;		/* bit 14 */
-		u16 pmd_en:1;		/* bit 13 */
-		u16 all_digital_en:1;	/* bit 12 */
-		u16 replica_en:1;		/* bit 11 */
-		u16 line_driver_en:1;	/* bit 10 */
-		u16 res:10;		/* bit 0-9 */
-#else
-		u16 res:10;		/* bit 0-9 */
-		u16 line_driver_en:1;	/* bit 10 */
-		u16 replica_en:1;		/* bit 11 */
-		u16 all_digital_en:1;	/* bit 12 */
-		u16 pmd_en:1;		/* bit 13 */
-		u16 pcs_en:1;		/* bit 14 */
-		u16 mii_en:1;		/* bit 15 */
-#endif
-	} bits;
-} MI_LCR_t, *PMI_LCR_t;
+/* MI Register 19: Loopback Control Reg(0x13)
+ *	15:	mii_en
+ *	14:	pcs_en
+ *	13:	pmd_en
+ *	12:	all_digital_en
+ *	11:	replica_en
+ *	10:	line_driver_en
+ *	9-0:	reserved
+ */
 
 /* MI Register 20: Reserved Reg(0x14) */
 
-/* MI Register 21: Management Interface Control Reg(0x15) */
-typedef union _MI_MICR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 res1:5;		/* bits 11-15 */
-		u16 mi_error_count:7;	/* bits 4-10 */
-		u16 res2:1;		/* bit 3 */
-		u16 ignore_10g_fr:1;	/* bit 2 */
-		u16 res3:1;		/* bit 1 */
-		u16 preamble_supress_en:1;	/* bit 0 */
-#else
-		u16 preamble_supress_en:1;	/* bit 0 */
-		u16 res3:1;		/* bit 1 */
-		u16 ignore_10g_fr:1;	/* bit 2 */
-		u16 res2:1;		/* bit 3 */
-		u16 mi_error_count:7;	/* bits 4-10 */
-		u16 res1:5;		/* bits 11-15 */
-#endif
-	} bits;
-} MI_MICR_t, *PMI_MICR_t;
+/* MI Register 21: Management Interface Control Reg(0x15)
+ *	15-11:	reserved
+ *	10-4:	mi_error_count
+ *	3:	reserved
+ *	2:	ignore_10g_fr
+ *	1:	reserved
+ *	0:	preamble_supress_en
+ */
 
-/* MI Register 22: PHY Configuration Reg(0x16) */
-typedef union _MI_PHY_CONFIG_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 crs_tx_en:1;		/* bit 15 */
-		u16 res1:1;		/* bit 14 */
-		u16 tx_fifo_depth:2;	/* bits 12-13 */
-		u16 speed_downshift:2;	/* bits 10-11 */
-		u16 pbi_detect:1;		/* bit 9 */
-		u16 tbi_rate:1;		/* bit 8 */
-		u16 alternate_np:1;	/* bit 7 */
-		u16 group_mdio_en:1;	/* bit 6 */
-		u16 tx_clock_en:1;		/* bit 5 */
-		u16 sys_clock_en:1;	/* bit 4 */
-		u16 res2:1;		/* bit 3 */
-		u16 mac_if_mode:3;		/* bits 0-2 */
-#else
-		u16 mac_if_mode:3;		/* bits 0-2 */
-		u16 res2:1;		/* bit 3 */
-		u16 sys_clock_en:1;	/* bit 4 */
-		u16 tx_clock_en:1;		/* bit 5 */
-		u16 group_mdio_en:1;	/* bit 6 */
-		u16 alternate_np:1;	/* bit 7 */
-		u16 tbi_rate:1;		/* bit 8 */
-		u16 pbi_detect:1;		/* bit 9 */
-		u16 speed_downshift:2;	/* bits 10-11 */
-		u16 tx_fifo_depth:2;	/* bits 12-13 */
-		u16 res1:1;		/* bit 14 */
-		u16 crs_tx_en:1;		/* bit 15 */
-#endif
-	} bits;
-} MI_PHY_CONFIG_t, *PMI_PHY_CONFIG_t;
+/* MI Register 22: PHY Configuration Reg(0x16)
+ *	15:	crs_tx_en
+ *	14:	reserved
+ *	13-12:	tx_fifo_depth
+ *	11-10:	speed_downshift
+ *	9:	pbi_detect
+ *	8:	tbi_rate
+ *	7:	alternate_np
+ *	6:	group_mdio_en
+ *	5:	tx_clock_en
+ *	4:	sys_clock_en
+ *	3:	reserved
+ *	2-0:	mac_if_mode
+ */
 
-/* MI Register 23: PHY CONTROL Reg(0x17) */
-typedef union _MI_PHY_CONTROL_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 res1:1;		/* bit 15 */
-		u16 tdr_en:1;		/* bit 14 */
-		u16 res2:1;		/* bit 13 */
-		u16 downshift_attempts:2;	/* bits 11-12 */
-		u16 res3:5;		/* bit 6-10 */
-		u16 jabber_10baseT:1;	/* bit 5 */
-		u16 sqe_10baseT:1;		/* bit 4 */
-		u16 tp_loopback_10baseT:1;	/* bit 3 */
-		u16 preamble_gen_en:1;	/* bit 2 */
-		u16 res4:1;		/* bit 1 */
-		u16 force_int:1;		/* bit 0 */
-#else
-		u16 force_int:1;		/* bit 0 */
-		u16 res4:1;		/* bit 1 */
-		u16 preamble_gen_en:1;	/* bit 2 */
-		u16 tp_loopback_10baseT:1;	/* bit 3 */
-		u16 sqe_10baseT:1;		/* bit 4 */
-		u16 jabber_10baseT:1;	/* bit 5 */
-		u16 res3:5;		/* bit 6-10 */
-		u16 downshift_attempts:2;	/* bits 11-12 */
-		u16 res2:1;		/* bit 13 */
-		u16 tdr_en:1;		/* bit 14 */
-		u16 res1:1;		/* bit 15 */
-#endif
-	} bits;
-} MI_PHY_CONTROL_t, *PMI_PHY_CONTROL_t;
+/* MI Register 23: PHY CONTROL Reg(0x17)
+ *	15:	reserved
+ *	14:	tdr_en
+ *	13:	reserved
+ *	12-11:	downshift_attempts
+ *	10-6:	reserved
+ *	5:	jabber_10baseT
+ *	4:	sqe_10baseT
+ *	3:	tp_loopback_10baseT
+ *	2:	preamble_gen_en
+ *	1:	reserved
+ *	0:	force_int
+ */
 
-/* MI Register 24: Interrupt Mask Reg(0x18) */
-typedef union _MI_IMR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 res1:6;		/* bits 10-15 */
-		u16 mdio_sync_lost:1;	/* bit 9 */
-		u16 autoneg_status:1;	/* bit 8 */
-		u16 hi_bit_err:1;		/* bit 7 */
-		u16 np_rx:1;		/* bit 6 */
-		u16 err_counter_full:1;	/* bit 5 */
-		u16 fifo_over_underflow:1;	/* bit 4 */
-		u16 rx_status:1;		/* bit 3 */
-		u16 link_status:1;		/* bit 2 */
-		u16 automatic_speed:1;	/* bit 1 */
-		u16 int_en:1;		/* bit 0 */
-#else
-		u16 int_en:1;		/* bit 0 */
-		u16 automatic_speed:1;	/* bit 1 */
-		u16 link_status:1;		/* bit 2 */
-		u16 rx_status:1;		/* bit 3 */
-		u16 fifo_over_underflow:1;	/* bit 4 */
-		u16 err_counter_full:1;	/* bit 5 */
-		u16 np_rx:1;		/* bit 6 */
-		u16 hi_bit_err:1;		/* bit 7 */
-		u16 autoneg_status:1;	/* bit 8 */
-		u16 mdio_sync_lost:1;	/* bit 9 */
-		u16 res1:6;		/* bits 10-15 */
-#endif
-	} bits;
-} MI_IMR_t, *PMI_IMR_t;
+/* MI Register 24: Interrupt Mask Reg(0x18)
+ *	15-10:	reserved
+ *	9:	mdio_sync_lost
+ *	8:	autoneg_status
+ *	7:	hi_bit_err
+ *	6:	np_rx
+ *	5:	err_counter_full
+ *	4:	fifo_over_underflow
+ *	3:	rx_status
+ *	2:	link_status
+ *	1:	automatic_speed
+ *	0:	int_en
+ */
 
-/* MI Register 25: Interrupt Status Reg(0x19) */
-typedef union _MI_ISR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 res1:6;		/* bits 10-15 */
-		u16 mdio_sync_lost:1;	/* bit 9 */
-		u16 autoneg_status:1;	/* bit 8 */
-		u16 hi_bit_err:1;		/* bit 7 */
-		u16 np_rx:1;		/* bit 6 */
-		u16 err_counter_full:1;	/* bit 5 */
-		u16 fifo_over_underflow:1;	/* bit 4 */
-		u16 rx_status:1;		/* bit 3 */
-		u16 link_status:1;		/* bit 2 */
-		u16 automatic_speed:1;	/* bit 1 */
-		u16 int_en:1;		/* bit 0 */
-#else
-		u16 int_en:1;		/* bit 0 */
-		u16 automatic_speed:1;	/* bit 1 */
-		u16 link_status:1;		/* bit 2 */
-		u16 rx_status:1;		/* bit 3 */
-		u16 fifo_over_underflow:1;	/* bit 4 */
-		u16 err_counter_full:1;	/* bit 5 */
-		u16 np_rx:1;		/* bit 6 */
-		u16 hi_bit_err:1;		/* bit 7 */
-		u16 autoneg_status:1;	/* bit 8 */
-		u16 mdio_sync_lost:1;	/* bit 9 */
-		u16 res1:6;		/* bits 10-15 */
-#endif
-	} bits;
-} MI_ISR_t, *PMI_ISR_t;
 
-/* MI Register 26: PHY Status Reg(0x1A) */
-typedef union _MI_PSR_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 res1:1;		/* bit 15 */
-		u16 autoneg_fault:2;	/* bit 13-14 */
-		u16 autoneg_status:1;	/* bit 12 */
-		u16 mdi_x_status:1;	/* bit 11 */
-		u16 polarity_status:1;	/* bit 10 */
-		u16 speed_status:2;	/* bits 8-9 */
-		u16 duplex_status:1;	/* bit 7 */
-		u16 link_status:1;		/* bit 6 */
-		u16 tx_status:1;		/* bit 5 */
-		u16 rx_status:1;		/* bit 4 */
-		u16 collision_status:1;	/* bit 3 */
-		u16 autoneg_en:1;		/* bit 2 */
-		u16 pause_en:1;		/* bit 1 */
-		u16 asymmetric_dir:1;	/* bit 0 */
-#else
-		u16 asymmetric_dir:1;	/* bit 0 */
-		u16 pause_en:1;		/* bit 1 */
-		u16 autoneg_en:1;		/* bit 2 */
-		u16 collision_status:1;	/* bit 3 */
-		u16 rx_status:1;		/* bit 4 */
-		u16 tx_status:1;		/* bit 5 */
-		u16 link_status:1;		/* bit 6 */
-		u16 duplex_status:1;	/* bit 7 */
-		u16 speed_status:2;	/* bits 8-9 */
-		u16 polarity_status:1;	/* bit 10 */
-		u16 mdi_x_status:1;	/* bit 11 */
-		u16 autoneg_status:1;	/* bit 12 */
-		u16 autoneg_fault:2;	/* bit 13-14 */
-		u16 res1:1;		/* bit 15 */
-#endif
-	} bits;
-} MI_PSR_t, *PMI_PSR_t;
+/* MI Register 25: Interrupt Status Reg(0x19)
+ *	15-10:	reserved
+ *	9:	mdio_sync_lost
+ *	8:	autoneg_status
+ *	7:	hi_bit_err
+ *	6:	np_rx
+ *	5:	err_counter_full
+ *	4:	fifo_over_underflow
+ *	3:	rx_status
+ *	2:	link_status
+ *	1:	automatic_speed
+ *	0:	int_en
+ */
 
-/* MI Register 27: LED Control Reg 1(0x1B) */
-typedef union _MI_LCR1_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 res1:2;		/* bits 14-15 */
-		u16 led_dup_indicate:2;	/* bits 12-13 */
-		u16 led_10baseT:2;		/* bits 10-11 */
-		u16 led_collision:2;	/* bits 8-9 */
-		u16 res2:2;		/* bits 6-7 */
-		u16 res3:2;		/* bits 4-5 */
-		u16 pulse_dur:2;		/* bits 2-3 */
-		u16 pulse_stretch1:1;	/* bit 1 */
-		u16 pulse_stretch0:1;	/* bit 0 */
-#else
-		u16 pulse_stretch0:1;	/* bit 0 */
-		u16 pulse_stretch1:1;	/* bit 1 */
-		u16 pulse_dur:2;		/* bits 2-3 */
-		u16 res3:2;		/* bits 4-5 */
-		u16 res2:2;		/* bits 6-7 */
-		u16 led_collision:2;	/* bits 8-9 */
-		u16 led_10baseT:2;		/* bits 10-11 */
-		u16 led_dup_indicate:2;	/* bits 12-13 */
-		u16 res1:2;		/* bits 14-15 */
-#endif
-	} bits;
-} MI_LCR1_t, *PMI_LCR1_t;
+/* MI Register 26: PHY Status Reg(0x1A)
+ *	15:	reserved
+ *	14-13:	autoneg_fault
+ *	12:	autoneg_status
+ *	11:	mdi_x_status
+ *	10:	polarity_status
+ *	9-8:	speed_status
+ *	7:	duplex_status
+ *	6:	link_status
+ *	5:	tx_status
+ *	4:	rx_status
+ *	3:	collision_status
+ *	2:	autoneg_en
+ *	1:	pause_en
+ *	0:	asymmetric_dir
+ */
 
-/* MI Register 28: LED Control Reg 2(0x1C) */
-typedef union _MI_LCR2_t {
-	u16 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u16 led_link:4;		/* bits 12-15 */
-		u16 led_tx_rx:4;		/* bits 8-11 */
-		u16 led_100BaseTX:4;	/* bits 4-7 */
-		u16 led_1000BaseT:4;	/* bits 0-3 */
-#else
-		u16 led_1000BaseT:4;	/* bits 0-3 */
-		u16 led_100BaseTX:4;	/* bits 4-7 */
-		u16 led_tx_rx:4;		/* bits 8-11 */
-		u16 led_link:4;		/* bits 12-15 */
-#endif
-	} bits;
-} MI_LCR2_t, *PMI_LCR2_t;
+/* MI Register 27: LED Control Reg 1(0x1B)
+ *	15-14:	reserved
+ *	13-12:	led_dup_indicate
+ *	11-10:	led_10baseT
+ *	9-8:	led_collision
+ *	7-4:	reserved
+ *	3-2:	pulse_dur
+ *	1:	pulse_stretch1
+ *	0:	pulse_stretch0
+ */
+
+/* MI Register 28: LED Control Reg 2(0x1C)
+ *	15-12:	led_link
+ *	11-8:	led_tx_rx
+ *	7-4:	led_100BaseTX
+ *	3-0:	led_1000BaseT
+ */
 
 /* MI Register 29 - 31: Reserved Reg(0x1D - 0x1E) */
 
@@ -779,7 +468,7 @@ typedef union _MI_LCR2_t {
 #define TRUEPHY_ANEG_COMPLETE           1
 #define TRUEPHY_ANEG_DISABLED           2
 
-/* Define duplex advertisment flags */
+/* Define duplex advertisement flags */
 #define TRUEPHY_ADV_DUPLEX_NONE         0x00
 #define TRUEPHY_ADV_DUPLEX_FULL         0x01
 #define TRUEPHY_ADV_DUPLEX_HALF         0x02

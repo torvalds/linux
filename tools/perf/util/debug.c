@@ -57,7 +57,17 @@ void ui__warning(const char *format, ...)
 }
 #endif
 
-void trace_event(event_t *event)
+void ui__warning_paranoid(void)
+{
+	ui__warning("Permission error - are you root?\n"
+		    "Consider tweaking /proc/sys/kernel/perf_event_paranoid:\n"
+		    " -1 - Not paranoid at all\n"
+		    "  0 - Disallow raw tracepoint access for unpriv\n"
+		    "  1 - Disallow cpu events for unpriv\n"
+		    "  2 - Disallow kernel profiling for unpriv\n");
+}
+
+void trace_event(union perf_event *event)
 {
 	unsigned char *raw_event = (void *)event;
 	const char *color = PERF_COLOR_BLUE;

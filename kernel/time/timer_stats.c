@@ -236,7 +236,7 @@ void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
 			      unsigned int timer_flag)
 {
 	/*
-	 * It doesnt matter which lock we take:
+	 * It doesn't matter which lock we take:
 	 */
 	raw_spinlock_t *lock;
 	struct entry *entry, input;

@@ -29,64 +29,64 @@
 
 static DEFINE_RAW_SPINLOCK(gt641xx_irq_lock);
 
-static void ack_gt641xx_irq(unsigned int irq)
+static void ack_gt641xx_irq(struct irq_data *d)
 {
 	unsigned long flags;
 	u32 cause;
 
 	raw_spin_lock_irqsave(&gt641xx_irq_lock, flags);
 	cause = GT_READ(GT_INTRCAUSE_OFS);
-	cause &= ~GT641XX_IRQ_TO_BIT(irq);
+	cause &= ~GT641XX_IRQ_TO_BIT(d->irq);
 	GT_WRITE(GT_INTRCAUSE_OFS, cause);
 	raw_spin_unlock_irqrestore(&gt641xx_irq_lock, flags);
 }
 
-static void mask_gt641xx_irq(unsigned int irq)
+static void mask_gt641xx_irq(struct irq_data *d)
 {
 	unsigned long flags;
 	u32 mask;
 
 	raw_spin_lock_irqsave(&gt641xx_irq_lock, flags);
 	mask = GT_READ(GT_INTRMASK_OFS);
-	mask &= ~GT641XX_IRQ_TO_BIT(irq);
+	mask &= ~GT641XX_IRQ_TO_BIT(d->irq);
 	GT_WRITE(GT_INTRMASK_OFS, mask);
 	raw_spin_unlock_irqrestore(&gt641xx_irq_lock, flags);
 }
 
-static void mask_ack_gt641xx_irq(unsigned int irq)
+static void mask_ack_gt641xx_irq(struct irq_data *d)
 {
 	unsigned long flags;
 	u32 cause, mask;
 
 	raw_spin_lock_irqsave(&gt641xx_irq_lock, flags);
 	mask = GT_READ(GT_INTRMASK_OFS);
-	mask &= ~GT641XX_IRQ_TO_BIT(irq);
+	mask &= ~GT641XX_IRQ_TO_BIT(d->irq);
 	GT_WRITE(GT_INTRMASK_OFS, mask);
 
 	cause = GT_READ(GT_INTRCAUSE_OFS);
-	cause &= ~GT641XX_IRQ_TO_BIT(irq);
+	cause &= ~GT641XX_IRQ_TO_BIT(d->irq);
 	GT_WRITE(GT_INTRCAUSE_OFS, cause);
 	raw_spin_unlock_irqrestore(&gt641xx_irq_lock, flags);
 }
 
-static void unmask_gt641xx_irq(unsigned int irq)
+static void unmask_gt641xx_irq(struct irq_data *d)
 {
 	unsigned long flags;
 	u32 mask;
 
 	raw_spin_lock_irqsave(&gt641xx_irq_lock, flags);
 	mask = GT_READ(GT_INTRMASK_OFS);
-	mask |= GT641XX_IRQ_TO_BIT(irq);
+	mask |= GT641XX_IRQ_TO_BIT(d->irq);
 	GT_WRITE(GT_INTRMASK_OFS, mask);
 	raw_spin_unlock_irqrestore(&gt641xx_irq_lock, flags);
 }
 
 static struct irq_chip gt641xx_irq_chip = {
 	.name		= "GT641xx",
-	.ack		= ack_gt641xx_irq,
-	.mask		= mask_gt641xx_irq,
-	.mask_ack	= mask_ack_gt641xx_irq,
-	.unmask		= unmask_gt641xx_irq,
+	.irq_ack	= ack_gt641xx_irq,
+	.irq_mask	= mask_gt641xx_irq,
+	.irq_mask_ack	= mask_ack_gt641xx_irq,
+	.irq_unmask	= unmask_gt641xx_irq,
 };
 
 void gt641xx_irq_dispatch(void)
@@ -126,6 +126,6 @@ void __init gt641xx_irq_init(void)
 	 * bit31: logical or of bits[25:1].
 	 */
 	for (i = 1; i < 30; i++)
-		set_irq_chip_and_handler(GT641XX_IRQ_BASE + i,
-		                         &gt641xx_irq_chip, handle_level_irq);
+		irq_set_chip_and_handler(GT641XX_IRQ_BASE + i,
+					 &gt641xx_irq_chip, handle_level_irq);
 }

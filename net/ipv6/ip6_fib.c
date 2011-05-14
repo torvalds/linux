@@ -260,10 +260,10 @@ struct fib6_table *fib6_get_table(struct net *net, u32 id)
 	  return net->ipv6.fib6_main_tbl;
 }
 
-struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi *fl,
+struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 				   int flags, pol_lookup_t lookup)
 {
-	return (struct dst_entry *) lookup(net, net->ipv6.fib6_main_tbl, fl, flags);
+	return (struct dst_entry *) lookup(net, net->ipv6.fib6_main_tbl, fl6, flags);
 }
 
 static void __net_init fib6_tables_init(struct net *net)

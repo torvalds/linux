@@ -217,8 +217,7 @@ err:
 	return ret;
 }
 
-static int __devinit fun_probe(struct platform_device *ofdev,
-			       const struct of_device_id *ofid)
+static int __devinit fun_probe(struct platform_device *ofdev)
 {
 	struct fsl_upm_nand *fun;
 	struct resource io_res;
@@ -360,7 +359,7 @@ static const struct of_device_id of_fun_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_fun_match);
 
-static struct of_platform_driver of_fun_driver = {
+static struct platform_driver of_fun_driver = {
 	.driver = {
 		.name = "fsl,upm-nand",
 		.owner = THIS_MODULE,
@@ -372,13 +371,13 @@ static struct of_platform_driver of_fun_driver = {
 
 static int __init fun_module_init(void)
 {
-	return of_register_platform_driver(&of_fun_driver);
+	return platform_driver_register(&of_fun_driver);
 }
 module_init(fun_module_init);
 
 static void __exit fun_module_exit(void)
 {
-	of_unregister_platform_driver(&of_fun_driver);
+	platform_driver_unregister(&of_fun_driver);
 }
 module_exit(fun_module_exit);
 

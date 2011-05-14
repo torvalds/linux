@@ -292,7 +292,7 @@ enum iscsi_param {
 	ISCSI_PARAM_PERSISTENT_PORT,
 	ISCSI_PARAM_SESS_RECOVERY_TMO,
 
-	/* pased in through bind conn using transport_fd */
+	/* passed in through bind conn using transport_fd */
 	ISCSI_PARAM_CONN_PORT,
 	ISCSI_PARAM_CONN_ADDRESS,
 

@@ -29,6 +29,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/pci.h>
+#include <linux/delay.h>
 #include <linux/file.h>
 #include "intel_sst.h"
 #include "intelmid_snd_control.h"
@@ -84,9 +85,9 @@ enum reg_v3 {
 };
 
 /****
- * nc_init_card - initilize the sound card
+ * nc_init_card - initialize the sound card
  *
- * This initilizes the audio paths to know values in case of this sound card
+ * This initializes the audio paths to know values in case of this sound card
  */
 static int nc_init_card(void)
 {

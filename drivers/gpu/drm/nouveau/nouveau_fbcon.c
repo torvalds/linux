@@ -181,13 +181,13 @@ nouveau_fbcon_sync(struct fb_info *info)
 		OUT_RING  (chan, 0);
 	}
 
-	nouveau_bo_wr32(chan->notifier_bo, chan->m2mf_ntfy + 3, 0xffffffff);
+	nouveau_bo_wr32(chan->notifier_bo, chan->m2mf_ntfy/4 + 3, 0xffffffff);
 	FIRE_RING(chan);
 	mutex_unlock(&chan->mutex);
 
 	ret = -EBUSY;
 	for (i = 0; i < 100000; i++) {
-		if (!nouveau_bo_rd32(chan->notifier_bo, chan->m2mf_ntfy + 3)) {
+		if (!nouveau_bo_rd32(chan->notifier_bo, chan->m2mf_ntfy/4 + 3)) {
 			ret = 0;
 			break;
 		}
@@ -296,8 +296,8 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	size = mode_cmd.pitch * mode_cmd.height;
 	size = roundup(size, PAGE_SIZE);
 
-	ret = nouveau_gem_new(dev, dev_priv->channel, size, 0, TTM_PL_FLAG_VRAM,
-			      0, 0x0000, false, true, &nvbo);
+	ret = nouveau_gem_new(dev, dev_priv->channel, size, 0,
+			      NOUVEAU_GEM_DOMAIN_VRAM, 0, 0x0000, &nvbo);
 	if (ret) {
 		NV_ERROR(dev, "failed to allocate framebuffer\n");
 		goto out;

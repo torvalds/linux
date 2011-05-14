@@ -34,8 +34,6 @@
 #include <linux/security.h>
 #include <linux/eventfd.h>
 #include <linux/blkdev.h>
-#include <linux/mempool.h>
-#include <linux/hash.h>
 #include <linux/compat.h>
 
 #include <asm/kmap_types.h>
@@ -65,14 +63,6 @@ static DECLARE_WORK(fput_work, aio_fput_routine);
 static DEFINE_SPINLOCK(fput_lock);
 static LIST_HEAD(fput_head);
 
-#define AIO_BATCH_HASH_BITS	3 /* allocated on-stack, so don't go crazy */
-#define AIO_BATCH_HASH_SIZE	(1 << AIO_BATCH_HASH_BITS)
-struct aio_batch_entry {
-	struct hlist_node list;
-	struct address_space *mapping;
-};
-mempool_t *abe_pool;
-
 static void aio_kick_handler(struct work_struct *);
 static void aio_queue_work(struct kioctx *);
 
@@ -85,9 +75,8 @@ static int __init aio_setup(void)
 	kiocb_cachep = KMEM_CACHE(kiocb, SLAB_HWCACHE_ALIGN|SLAB_PANIC);
 	kioctx_cachep = KMEM_CACHE(kioctx,SLAB_HWCACHE_ALIGN|SLAB_PANIC);
 
-	aio_wq = create_workqueue("aio");
-	abe_pool = mempool_create_kmalloc_pool(1, sizeof(struct aio_batch_entry));
-	BUG_ON(!aio_wq || !abe_pool);
+	aio_wq = alloc_workqueue("aio", 0, 1);	/* used to limit concurrency */
+	BUG_ON(!aio_wq);
 
 	pr_debug("aio_setup: sizeof(struct page) = %d\n", (int)sizeof(struct page));
 
@@ -239,15 +228,23 @@ static void __put_ioctx(struct kioctx *ctx)
 	call_rcu(&ctx->rcu_head, ctx_rcu_free);
 }
 
-#define get_ioctx(kioctx) do {						\
-	BUG_ON(atomic_read(&(kioctx)->users) <= 0);			\
-	atomic_inc(&(kioctx)->users);					\
-} while (0)
-#define put_ioctx(kioctx) do {						\
-	BUG_ON(atomic_read(&(kioctx)->users) <= 0);			\
-	if (unlikely(atomic_dec_and_test(&(kioctx)->users))) 		\
-		__put_ioctx(kioctx);					\
-} while (0)
+static inline void get_ioctx(struct kioctx *kioctx)
+{
+	BUG_ON(atomic_read(&kioctx->users) <= 0);
+	atomic_inc(&kioctx->users);
+}
+
+static inline int try_get_ioctx(struct kioctx *kioctx)
+{
+	return atomic_inc_not_zero(&kioctx->users);
+}
+
+static inline void put_ioctx(struct kioctx *kioctx)
+{
+	BUG_ON(atomic_read(&kioctx->users) <= 0);
+	if (unlikely(atomic_dec_and_test(&kioctx->users)))
+		__put_ioctx(kioctx);
+}
 
 /* ioctx_alloc
  *	Allocates and initializes an ioctx.  Returns an ERR_PTR if it failed.
@@ -512,7 +509,7 @@ static inline void really_put_req(struct kioctx *ctx, struct kiocb *req)
 	ctx->reqs_active--;
 
 	if (unlikely(!ctx->reqs_active && ctx->dead))
-		wake_up(&ctx->wait);
+		wake_up_all(&ctx->wait);
 }
 
 static void aio_fput_routine(struct work_struct *data)
@@ -569,7 +566,7 @@ static int __aio_put_req(struct kioctx *ctx, struct kiocb *req)
 		spin_lock(&fput_lock);
 		list_add(&req->ki_list, &fput_head);
 		spin_unlock(&fput_lock);
-		queue_work(aio_wq, &fput_work);
+		schedule_work(&fput_work);
 	} else {
 		req->ki_filp = NULL;
 		really_put_req(ctx, req);
@@ -601,8 +598,13 @@ static struct kioctx *lookup_ioctx(unsigned long ctx_id)
 	rcu_read_lock();
 
 	hlist_for_each_entry_rcu(ctx, n, &mm->ioctx_list, list) {
-		if (ctx->user_id == ctx_id && !ctx->dead) {
-			get_ioctx(ctx);
+		/*
+		 * RCU protects us against accessing freed memory but
+		 * we have to be careful not to get a reference when the
+		 * reference count already dropped to 0 (ctx->dead test
+		 * is unreliable because of races).
+		 */
+		if (ctx->user_id == ctx_id && !ctx->dead && try_get_ioctx(ctx)){
 			ret = ctx;
 			break;
 		}
@@ -1216,7 +1218,7 @@ static void io_destroy(struct kioctx *ioctx)
 	 * by other CPUs at this point.  Right now, we rely on the
 	 * locking done by the above calls to ensure this consistency.
 	 */
-	wake_up(&ioctx->wait);
+	wake_up_all(&ioctx->wait);
 	put_ioctx(ioctx);	/* once for the lookup */
 }
 
@@ -1512,57 +1514,8 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb, bool compat)
 	return 0;
 }
 
-static void aio_batch_add(struct address_space *mapping,
-			  struct hlist_head *batch_hash)
-{
-	struct aio_batch_entry *abe;
-	struct hlist_node *pos;
-	unsigned bucket;
-
-	bucket = hash_ptr(mapping, AIO_BATCH_HASH_BITS);
-	hlist_for_each_entry(abe, pos, &batch_hash[bucket], list) {
-		if (abe->mapping == mapping)
-			return;
-	}
-
-	abe = mempool_alloc(abe_pool, GFP_KERNEL);
-
-	/*
-	 * we should be using igrab here, but
-	 * we don't want to hammer on the global
-	 * inode spinlock just to take an extra
-	 * reference on a file that we must already
-	 * have a reference to.
-	 *
-	 * When we're called, we always have a reference
-	 * on the file, so we must always have a reference
-	 * on the inode, so ihold() is safe here.
-	 */
-	ihold(mapping->host);
-	abe->mapping = mapping;
-	hlist_add_head(&abe->list, &batch_hash[bucket]);
-	return;
-}
-
-static void aio_batch_free(struct hlist_head *batch_hash)
-{
-	struct aio_batch_entry *abe;
-	struct hlist_node *pos, *n;
-	int i;
-
-	for (i = 0; i < AIO_BATCH_HASH_SIZE; i++) {
-		hlist_for_each_entry_safe(abe, pos, n, &batch_hash[i], list) {
-			blk_run_address_space(abe->mapping);
-			iput(abe->mapping->host);
-			hlist_del(&abe->list);
-			mempool_free(abe, abe_pool);
-		}
-	}
-}
-
 static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
-			 struct iocb *iocb, struct hlist_head *batch_hash,
-			 bool compat)
+			 struct iocb *iocb, bool compat)
 {
 	struct kiocb *req;
 	struct file *file;
@@ -1629,6 +1582,23 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 		goto out_put_req;
 
 	spin_lock_irq(&ctx->ctx_lock);
+	/*
+	 * We could have raced with io_destroy() and are currently holding a
+	 * reference to ctx which should be destroyed. We cannot submit IO
+	 * since ctx gets freed as soon as io_submit() puts its reference.  The
+	 * check here is reliable: io_destroy() sets ctx->dead before waiting
+	 * for outstanding IO and the barrier between these two is realized by
+	 * unlock of mm->ioctx_lock and lock of ctx->ctx_lock.  Analogously we
+	 * increment ctx->reqs_active before checking for ctx->dead and the
+	 * barrier is realized by unlock and lock of ctx->ctx_lock. Thus if we
+	 * don't see ctx->dead set here, io_destroy() waits for our IO to
+	 * finish.
+	 */
+	if (ctx->dead) {
+		spin_unlock_irq(&ctx->ctx_lock);
+		ret = -EINVAL;
+		goto out_put_req;
+	}
 	aio_run_iocb(req);
 	if (!list_empty(&ctx->run_list)) {
 		/* drain the run list */
@@ -1636,11 +1606,6 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 			;
 	}
 	spin_unlock_irq(&ctx->ctx_lock);
-	if (req->ki_opcode == IOCB_CMD_PREAD ||
-	    req->ki_opcode == IOCB_CMD_PREADV ||
-	    req->ki_opcode == IOCB_CMD_PWRITE ||
-	    req->ki_opcode == IOCB_CMD_PWRITEV)
-		aio_batch_add(file->f_mapping, batch_hash);
 
 	aio_put_req(req);	/* drop extra ref to req */
 	return 0;
@@ -1657,7 +1622,7 @@ long do_io_submit(aio_context_t ctx_id, long nr,
 	struct kioctx *ctx;
 	long ret = 0;
 	int i;
-	struct hlist_head batch_hash[AIO_BATCH_HASH_SIZE] = { { 0, }, };
+	struct blk_plug plug;
 
 	if (unlikely(nr < 0))
 		return -EINVAL;
@@ -1673,6 +1638,8 @@ long do_io_submit(aio_context_t ctx_id, long nr,
 		pr_debug("EINVAL: io_submit: invalid context id\n");
 		return -EINVAL;
 	}
+
+	blk_start_plug(&plug);
 
 	/*
 	 * AKPM: should this return a partial result if some of the IOs were
@@ -1692,11 +1659,11 @@ long do_io_submit(aio_context_t ctx_id, long nr,
 			break;
 		}
 
-		ret = io_submit_one(ctx, user_iocb, &tmp, batch_hash, compat);
+		ret = io_submit_one(ctx, user_iocb, &tmp, compat);
 		if (ret)
 			break;
 	}
-	aio_batch_free(batch_hash);
+	blk_finish_plug(&plug);
 
 	put_ioctx(ctx);
 	return i ? i : ret;

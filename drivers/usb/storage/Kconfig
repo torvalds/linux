@@ -31,6 +31,16 @@ config USB_STORAGE_DEBUG
 	  Say Y here in order to have the USB Mass Storage code generate
 	  verbose debugging messages.
 
+config USB_STORAGE_REALTEK
+	tristate "Realtek Card Reader support"
+	depends on USB_STORAGE
+	help
+	  Say Y here to include additional code to support the power-saving function
+	  for Realtek RTS51xx USB card readers.
+
+	  If this driver is compiled as a module, it will be named ums-realtek.
+
+
 config USB_STORAGE_DATAFAB
 	tristate "Datafab Compact Flash Reader support"
 	depends on USB_STORAGE
@@ -171,6 +181,21 @@ config USB_STORAGE_CYPRESS_ATACB
 	  mass storage class.
 
 	  If this driver is compiled as a module, it will be named ums-cypress.
+
+config USB_STORAGE_ENE_UB6250
+	tristate "USB ENE card reader support"
+	depends on USB && SCSI
+	depends on USB_STORAGE
+	---help---
+	  Say Y here if you wish to control a ENE SD Card reader.
+	  To use SM/MS card, please build driver/staging/keucr/keucr.ko
+
+	  This option depends on 'SCSI' support being enabled, but you
+	  probably also need 'SCSI device support: SCSI disk support'
+	  (BLK_DEV_SD) for most USB storage devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ums-eneub6250.
 
 config USB_UAS
 	tristate "USB Attached SCSI"

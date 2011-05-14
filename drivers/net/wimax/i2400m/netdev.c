@@ -166,7 +166,7 @@ void i2400m_wake_tx_work(struct work_struct *ws)
 	d_fnstart(3, dev, "(ws %p i2400m %p skb %p)\n", ws, i2400m, skb);
 	result = -EINVAL;
 	if (skb == NULL) {
-		dev_err(dev, "WAKE&TX: skb dissapeared!\n");
+		dev_err(dev, "WAKE&TX: skb disappeared!\n");
 		goto out_put;
 	}
 	/* If we have, somehow, lost the connection after this was

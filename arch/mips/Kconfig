@@ -4,6 +4,7 @@ config MIPS
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select HAVE_ARCH_KGDB
@@ -21,6 +22,7 @@ config MIPS
 	select HAVE_DMA_API_DEBUG
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_SHOW
 	select HAVE_ARCH_JUMP_LABEL
 
 menu "Machine selection"
@@ -208,6 +210,7 @@ config MACH_JZ4740
 	select ARCH_REQUIRE_GPIOLIB
 	select SYS_HAS_EARLY_PRINTK
 	select HAVE_PWM
+	select HAVE_CLK
 
 config LASAT
 	bool "LASAT Networks platforms"
@@ -333,6 +336,8 @@ config PNX8550_STB810
 config PMC_MSP
 	bool "PMC-Sierra MSP chipsets"
 	depends on EXPERIMENTAL
+	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select SWAP_IO_SPACE
 	select NO_EXCEPT_FILL
@@ -773,6 +778,10 @@ config GENERIC_FIND_NEXT_BIT
 	bool
 	default y
 
+config GENERIC_FIND_BIT_LE
+	bool
+	default y
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -853,6 +862,9 @@ config GPIO_TXX9
 
 config CFE
 	bool
+
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool (HIGHMEM && 64BIT_PHYS_ADDR) || 64BIT
 
 config DMA_COHERENT
 	bool
@@ -1123,7 +1135,7 @@ config CPU_LOONGSON2E
 	  The Loongson 2E processor implements the MIPS III instruction set
 	  with many extensions.
 
-	  It has an internal FPGA northbridge, which is compatiable to
+	  It has an internal FPGA northbridge, which is compatible to
 	  bonito64.
 
 config CPU_LOONGSON2F
@@ -2327,6 +2339,7 @@ config MMU
 
 config I8253
 	bool
+	select CLKSRC_I8253
 	select MIPS_EXTERNAL_TIMER
 
 config ZONE_DMA32
@@ -2335,6 +2348,16 @@ config ZONE_DMA32
 source "drivers/pcmcia/Kconfig"
 
 source "drivers/pci/hotplug/Kconfig"
+
+config RAPIDIO
+	bool "RapidIO support"
+	depends on PCI
+	default n
+	help
+	  If you say Y here, the kernel will include drivers and
+	  infrastructure code to support RapidIO interconnect devices.
+
+source "drivers/rapidio/Kconfig"
 
 endmenu
 

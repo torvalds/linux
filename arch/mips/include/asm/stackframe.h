@@ -346,7 +346,7 @@
 		 * we can't dispatch it directly without trashing
 		 * some registers, so we'll try to detect this unlikely
 		 * case and program a software interrupt in the VPE,
-		 * as would be done for a cross-VPE IPI.  To accomodate
+		 * as would be done for a cross-VPE IPI.  To accommodate
 		 * the handling of that case, we're doing a DVPE instead
 		 * of just a DMT here to protect against other threads.
 		 * This is a lot of cruft to cover a tiny window.

@@ -176,13 +176,13 @@ static const struct boardtype boardtypes[] = {
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
 
 static struct comedi_driver driver_icp_multi = {
-driver_name: "icp_multi",
-module : THIS_MODULE,
-attach : icp_multi_attach,
-detach : icp_multi_detach,
-num_names : n_boardtypes,
-board_name : &boardtypes[0].name,
-offset : sizeof(struct boardtype),
+	.driver_name = "icp_multi",
+	.module = THIS_MODULE,
+	.attach = icp_multi_attach,
+	.detach = icp_multi_detach,
+	.num_names = n_boardtypes,
+	.board_name = &boardtypes[0].name,
+	.offset = sizeof(struct boardtype),
 };
 
 static int __init driver_icp_multi_init_module(void)
@@ -715,7 +715,7 @@ Description:
 	is built correctly
 
 Parameters:
-	struct comedi_device *dev	Pointer to current sevice structure
+	struct comedi_device *dev	Pointer to current service structure
 	struct comedi_subdevice *s	Pointer to current subdevice structure
 	unsigned int *chanlist	Pointer to packed channel list
 	unsigned int n_chan	Number of channels to scan
@@ -772,7 +772,7 @@ Description:
 	Status register.
 
 Parameters:
-	struct comedi_device *dev	Pointer to current sevice structure
+	struct comedi_device *dev	Pointer to current service structure
 	struct comedi_subdevice *s	Pointer to current subdevice structure
 	unsigned int *chanlist	Pointer to packed channel list
 	unsigned int n_chan	Number of channels to scan
@@ -848,7 +848,7 @@ Description:
 	This function resets the icp multi device to a 'safe' state
 
 Parameters:
-	struct comedi_device *dev	Pointer to current sevice structure
+	struct comedi_device *dev	Pointer to current service structure
 
 Returns:int	0 = success
 

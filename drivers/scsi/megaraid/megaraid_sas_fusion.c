@@ -38,7 +38,6 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/smp_lock.h>
 #include <linux/uio.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
@@ -82,6 +81,10 @@ u16 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_FW_RAID_MAP_ALL *map);
 struct MR_LD_RAID *MR_LdRaidGet(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
 
 u16 MR_GetLDTgtId(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
+
+void
+megasas_check_and_restore_queue_depth(struct megasas_instance *instance);
+
 u8 MR_ValidateMapInfo(struct MR_FW_RAID_MAP_ALL *map,
 		      struct LD_LOAD_BALANCE_INFO *lbInfo);
 u16 get_updated_dev_handle(struct LD_LOAD_BALANCE_INFO *lbInfo,
@@ -984,13 +987,15 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 
 	return 0;
 
-fail_alloc_cmds:
-fail_alloc_mfi_cmds:
 fail_map_info:
 	if (i == 1)
 		dma_free_coherent(&instance->pdev->dev, fusion->map_sz,
 				  fusion->ld_map[0], fusion->ld_map_phys[0]);
 fail_ioc_init:
+	megasas_free_cmds_fusion(instance);
+fail_alloc_cmds:
+	megasas_free_cmds(instance);
+fail_alloc_mfi_cmds:
 	return 1;
 }
 
@@ -1432,8 +1437,7 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 	local_map_ptr = fusion->ld_map[(instance->map_id & 1)];
 
 	/* Check if this is a system PD I/O */
-	if ((instance->pd_list[pd_index].driveState == MR_PD_STATE_SYSTEM) &&
-	    (instance->pd_list[pd_index].driveType == TYPE_DISK)) {
+	if (instance->pd_list[pd_index].driveState == MR_PD_STATE_SYSTEM) {
 		io_request->Function = 0;
 		io_request->DevHandle =
 			local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
@@ -1456,7 +1460,7 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 			 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 	}
 	io_request->RaidContext.VirtualDiskTgtId = device_id;
-	io_request->LUN[0] = scmd->device->lun;
+	io_request->LUN[1] = scmd->device->lun;
 	io_request->DataLength = scsi_bufflen(scmd);
 }
 
@@ -1480,7 +1484,7 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	device_id = MEGASAS_DEV_INDEX(instance, scp);
 
 	/* Zero out some fields so they don't get reused */
-	io_request->LUN[0] = 0;
+	io_request->LUN[1] = 0;
 	io_request->CDB.EEDP32.PrimaryReferenceTag = 0;
 	io_request->CDB.EEDP32.PrimaryApplicationTagMask = 0;
 	io_request->EEDPFlags = 0;
@@ -1744,7 +1748,7 @@ complete_cmd_fusion(struct megasas_instance *instance)
 	wmb();
 	writel(fusion->last_reply_idx,
 	       &instance->reg_set->reply_post_host_index);
-
+	megasas_check_and_restore_queue_depth(instance);
 	return IRQ_HANDLED;
 }
 

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2010 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -460,7 +460,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_16G)
 		&& !(phba->lmt & LMT_16Gb))) {
 		/* Reset link speed to auto */
-		lpfc_printf_log(phba, KERN_WARNING, LOG_LINK_EVENT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 			"1302 Invalid speed for this board: "
 			"Reset link speed to auto: x%x\n",
 			phba->cfg_link_speed);
@@ -507,7 +507,10 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	phba->hba_flag &= ~HBA_ERATT_HANDLED;
 
 	/* Enable appropriate host interrupts */
-	status = readl(phba->HCregaddr);
+	if (lpfc_readl(phba->HCregaddr, &status)) {
+		spin_unlock_irq(&phba->hbalock);
+		return -EIO;
+	}
 	status |= HC_MBINT_ENA | HC_ERINT_ENA | HC_LAINT_ENA;
 	if (psli->num_rings > 0)
 		status |= HC_R0INT_ENA;
@@ -945,17 +948,13 @@ static void
 lpfc_rrq_timeout(unsigned long ptr)
 {
 	struct lpfc_hba *phba;
-	uint32_t tmo_posted;
 	unsigned long iflag;
 
 	phba = (struct lpfc_hba *)ptr;
 	spin_lock_irqsave(&phba->pport->work_port_lock, iflag);
-	tmo_posted = phba->hba_flag & HBA_RRQ_ACTIVE;
-	if (!tmo_posted)
-		phba->hba_flag |= HBA_RRQ_ACTIVE;
+	phba->hba_flag |= HBA_RRQ_ACTIVE;
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflag);
-	if (!tmo_posted)
-		lpfc_worker_wake_up(phba);
+	lpfc_worker_wake_up(phba);
 }
 
 /**
@@ -1226,7 +1225,10 @@ lpfc_handle_deferred_eratt(struct lpfc_hba *phba)
 	/* Wait for the ER1 bit to clear.*/
 	while (phba->work_hs & HS_FFER1) {
 		msleep(100);
-		phba->work_hs = readl(phba->HSregaddr);
+		if (lpfc_readl(phba->HSregaddr, &phba->work_hs)) {
+			phba->work_hs = UNPLUG_ERR ;
+			break;
+		}
 		/* If driver is unloading let the worker thread continue */
 		if (phba->pport->load_flag & FC_UNLOADING) {
 			phba->work_hs = 0;
@@ -2280,6 +2282,7 @@ lpfc_cleanup(struct lpfc_vport *vport)
 		/* Wait for any activity on ndlps to settle */
 		msleep(10);
 	}
+	lpfc_cleanup_vports_rrqs(vport, NULL);
 }
 
 /**
@@ -2295,6 +2298,7 @@ lpfc_stop_vport_timers(struct lpfc_vport *vport)
 {
 	del_timer_sync(&vport->els_tmofunc);
 	del_timer_sync(&vport->fc_fdmitmo);
+	del_timer_sync(&vport->delayed_disc_tmo);
 	lpfc_can_disctmo(vport);
 	return;
 }
@@ -2355,6 +2359,10 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
 	del_timer_sync(&phba->fabric_block_timer);
 	del_timer_sync(&phba->eratt_poll);
 	del_timer_sync(&phba->hb_tmofunc);
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		del_timer_sync(&phba->rrq_tmr);
+		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
+	}
 	phba->hb_outstanding = 0;
 
 	switch (phba->pci_dev_grp) {
@@ -2732,6 +2740,11 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	init_timer(&vport->els_tmofunc);
 	vport->els_tmofunc.function = lpfc_els_timeout;
 	vport->els_tmofunc.data = (unsigned long)vport;
+
+	init_timer(&vport->delayed_disc_tmo);
+	vport->delayed_disc_tmo.function = lpfc_delayed_disc_tmo;
+	vport->delayed_disc_tmo.data = (unsigned long)vport;
+
 	error = scsi_add_host_with_dma(shost, dev, &phba->pcidev->dev);
 	if (error)
 		goto out_put_shost;
@@ -4283,36 +4296,37 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_free_bsmbx;
 	}
 
-	/* Get the Supported Pages. It is always available. */
+	/* Get the Supported Pages if PORT_CAPABILITIES is supported by port. */
 	lpfc_supported_pages(mboxq);
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-	if (unlikely(rc)) {
-		rc = -EIO;
-		mempool_free(mboxq, phba->mbox_mem_pool);
-		goto out_free_bsmbx;
-	}
-
-	mqe = &mboxq->u.mqe;
-	memcpy(&pn_page[0], ((uint8_t *)&mqe->un.supp_pages.word3),
-	       LPFC_MAX_SUPPORTED_PAGES);
-	for (i = 0; i < LPFC_MAX_SUPPORTED_PAGES; i++) {
-		switch (pn_page[i]) {
-		case LPFC_SLI4_PARAMETERS:
-			phba->sli4_hba.pc_sli4_params.supported = 1;
-			break;
-		default:
-			break;
+	if (!rc) {
+		mqe = &mboxq->u.mqe;
+		memcpy(&pn_page[0], ((uint8_t *)&mqe->un.supp_pages.word3),
+		       LPFC_MAX_SUPPORTED_PAGES);
+		for (i = 0; i < LPFC_MAX_SUPPORTED_PAGES; i++) {
+			switch (pn_page[i]) {
+			case LPFC_SLI4_PARAMETERS:
+				phba->sli4_hba.pc_sli4_params.supported = 1;
+				break;
+			default:
+				break;
+			}
+		}
+		/* Read the port's SLI4 Parameters capabilities if supported. */
+		if (phba->sli4_hba.pc_sli4_params.supported)
+			rc = lpfc_pc_sli4_params_get(phba, mboxq);
+		if (rc) {
+			mempool_free(mboxq, phba->mbox_mem_pool);
+			rc = -EIO;
+			goto out_free_bsmbx;
 		}
 	}
-
-	/* Read the port's SLI4 Parameters capabilities if supported. */
-	if (phba->sli4_hba.pc_sli4_params.supported)
-		rc = lpfc_pc_sli4_params_get(phba, mboxq);
+	/*
+	 * Get sli4 parameters that override parameters from Port capabilities.
+	 * If this call fails it is not a critical error so continue loading.
+	 */
+	lpfc_get_sli4_parameters(phba, mboxq);
 	mempool_free(mboxq, phba->mbox_mem_pool);
-	if (rc) {
-		rc = -EIO;
-		goto out_free_bsmbx;
-	}
 	/* Create all the SLI4 queues */
 	rc = lpfc_sli4_queue_create(phba);
 	if (rc)
@@ -4452,7 +4466,7 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_init_api_table_setup - Set up init api fucntion jump table
+ * lpfc_init_api_table_setup - Set up init api function jump table
  * @phba: The hba struct for which this call is being executed.
  * @dev_grp: The HBA PCI-Device group number.
  *
@@ -4466,6 +4480,7 @@ lpfc_init_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 {
 	phba->lpfc_hba_init_link = lpfc_hba_init_link;
 	phba->lpfc_hba_down_link = lpfc_hba_down_link;
+	phba->lpfc_selective_reset = lpfc_selective_reset;
 	switch (dev_grp) {
 	case LPFC_PCI_DEV_LP:
 		phba->lpfc_hba_down_post = lpfc_hba_down_post_s3;
@@ -4835,7 +4850,7 @@ out_free_mem:
  *
  * Return codes
  * 	0 - successful
- * 	-ENOMEM - No availble memory
+ * 	-ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 int
@@ -5377,13 +5392,16 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 	int i, port_error = 0;
 	uint32_t if_type;
 
+	memset(&portsmphr_reg, 0, sizeof(portsmphr_reg));
+	memset(&reg_data, 0, sizeof(reg_data));
 	if (!phba->sli4_hba.PSMPHRregaddr)
 		return -ENODEV;
 
 	/* Wait up to 30 seconds for the SLI Port POST done and ready */
 	for (i = 0; i < 3000; i++) {
-		portsmphr_reg.word0 = readl(phba->sli4_hba.PSMPHRregaddr);
-		if (bf_get(lpfc_port_smphr_perr, &portsmphr_reg)) {
+		if (lpfc_readl(phba->sli4_hba.PSMPHRregaddr,
+			&portsmphr_reg.word0) ||
+			(bf_get(lpfc_port_smphr_perr, &portsmphr_reg))) {
 			/* Port has a fatal POST error, break out */
 			port_error = -ENODEV;
 			break;
@@ -5464,9 +5482,9 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 			break;
 		case LPFC_SLI_INTF_IF_TYPE_2:
 			/* Final checks.  The port status should be clean. */
-			reg_data.word0 =
-				readl(phba->sli4_hba.u.if_type2.STATUSregaddr);
-			if (bf_get(lpfc_sliport_status_err, &reg_data)) {
+			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+				&reg_data.word0) ||
+				bf_get(lpfc_sliport_status_err, &reg_data)) {
 				phba->work_status[0] =
 					readl(phba->sli4_hba.u.if_type2.
 					      ERR1regaddr);
@@ -5712,7 +5730,7 @@ lpfc_destroy_bootstrap_mbox(struct lpfc_hba *phba)
  *
  * Return codes
  * 	0 - successful
- * 	-ENOMEM - No availble memory
+ * 	-ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
@@ -5817,7 +5835,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
  *
  * Return codes
  * 	0 - successful
- * 	-ENOMEM - No availble memory
+ * 	-ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
@@ -5876,7 +5894,7 @@ lpfc_setup_endian_order(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
@@ -6171,7 +6189,7 @@ out_error:
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 static void
@@ -6235,7 +6253,7 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 int
@@ -6480,7 +6498,7 @@ out_error:
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 void
@@ -6525,7 +6543,7 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  **/
 static int
 lpfc_sli4_cq_event_pool_create(struct lpfc_hba *phba)
@@ -6686,7 +6704,7 @@ lpfc_sli4_cq_event_release_all(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 int
@@ -6752,9 +6770,11 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			 * the loop again.
 			 */
 			for (rdy_chk = 0; rdy_chk < 1000; rdy_chk++) {
-				reg_data.word0 =
-					readl(phba->sli4_hba.u.if_type2.
-					      STATUSregaddr);
+				if (lpfc_readl(phba->sli4_hba.u.if_type2.
+					      STATUSregaddr, &reg_data.word0)) {
+					rc = -ENODEV;
+					break;
+				}
 				if (bf_get(lpfc_sliport_status_rdy, &reg_data))
 					break;
 				if (bf_get(lpfc_sliport_status_rn, &reg_data)) {
@@ -6775,8 +6795,11 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			}
 
 			/* Detect any port errors. */
-			reg_data.word0 = readl(phba->sli4_hba.u.if_type2.
-					       STATUSregaddr);
+			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+				 &reg_data.word0)) {
+				rc = -ENODEV;
+				break;
+			}
 			if ((bf_get(lpfc_sliport_status_err, &reg_data)) ||
 			    (rdy_chk >= 1000)) {
 				phba->work_status[0] = readl(
@@ -7810,7 +7833,7 @@ lpfc_pc_sli4_params_get(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	mqe = &mboxq->u.mqe;
 
 	/* Read the port's SLI4 Parameters port capabilities */
-	lpfc_sli4_params(mboxq);
+	lpfc_pc_sli4_params(mboxq);
 	if (!phba->sli4_hba.intr_enable)
 		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 	else {
@@ -7851,6 +7874,66 @@ lpfc_pc_sli4_params_get(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	sli4_params->sgl_pages_max = bf_get(sgl_pages, &mqe->un.sli4_params);
 	sli4_params->sgl_pp_align = bf_get(sgl_pp_align, &mqe->un.sli4_params);
 	return rc;
+}
+
+/**
+ * lpfc_get_sli4_parameters - Get the SLI4 Config PARAMETERS.
+ * @phba: Pointer to HBA context object.
+ * @mboxq: Pointer to the mailboxq memory for the mailbox command response.
+ *
+ * This function is called in the SLI4 code path to read the port's
+ * sli4 capabilities.
+ *
+ * This function may be be called from any context that can block-wait
+ * for the completion.  The expectation is that this routine is called
+ * typically from probe_one or from the online routine.
+ **/
+int
+lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
+{
+	int rc;
+	struct lpfc_mqe *mqe = &mboxq->u.mqe;
+	struct lpfc_pc_sli4_params *sli4_params;
+	int length;
+	struct lpfc_sli4_parameters *mbx_sli4_parameters;
+
+	/* Read the port's SLI4 Config Parameters */
+	length = (sizeof(struct lpfc_mbx_get_sli4_parameters) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_GET_SLI4_PARAMETERS,
+			 length, LPFC_SLI4_MBX_EMBED);
+	if (!phba->sli4_hba.intr_enable)
+		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	else
+		rc = lpfc_sli_issue_mbox_wait(phba, mboxq,
+			lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG));
+	if (unlikely(rc))
+		return rc;
+	sli4_params = &phba->sli4_hba.pc_sli4_params;
+	mbx_sli4_parameters = &mqe->un.get_sli4_parameters.sli4_parameters;
+	sli4_params->if_type = bf_get(cfg_if_type, mbx_sli4_parameters);
+	sli4_params->sli_rev = bf_get(cfg_sli_rev, mbx_sli4_parameters);
+	sli4_params->sli_family = bf_get(cfg_sli_family, mbx_sli4_parameters);
+	sli4_params->featurelevel_1 = bf_get(cfg_sli_hint_1,
+					     mbx_sli4_parameters);
+	sli4_params->featurelevel_2 = bf_get(cfg_sli_hint_2,
+					     mbx_sli4_parameters);
+	if (bf_get(cfg_phwq, mbx_sli4_parameters))
+		phba->sli3_options |= LPFC_SLI4_PHWQ_ENABLED;
+	else
+		phba->sli3_options &= ~LPFC_SLI4_PHWQ_ENABLED;
+	sli4_params->sge_supp_len = mbx_sli4_parameters->sge_supp_len;
+	sli4_params->loopbk_scope = bf_get(loopbk_scope, mbx_sli4_parameters);
+	sli4_params->cqv = bf_get(cfg_cqv, mbx_sli4_parameters);
+	sli4_params->mqv = bf_get(cfg_mqv, mbx_sli4_parameters);
+	sli4_params->wqv = bf_get(cfg_wqv, mbx_sli4_parameters);
+	sli4_params->rqv = bf_get(cfg_rqv, mbx_sli4_parameters);
+	sli4_params->sgl_pages_max = bf_get(cfg_sgl_page_cnt,
+					    mbx_sli4_parameters);
+	sli4_params->sgl_pp_align = bf_get(cfg_sgl_pp_align,
+					   mbx_sli4_parameters);
+	return 0;
 }
 
 /**

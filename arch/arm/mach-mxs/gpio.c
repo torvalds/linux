@@ -68,29 +68,29 @@ static void set_gpio_irqenable(struct mxs_gpio_port *port, u32 index,
 	}
 }
 
-static void mxs_gpio_ack_irq(u32 irq)
+static void mxs_gpio_ack_irq(struct irq_data *d)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	clear_gpio_irqstatus(&mxs_gpio_ports[gpio / 32], gpio & 0x1f);
 }
 
-static void mxs_gpio_mask_irq(u32 irq)
+static void mxs_gpio_mask_irq(struct irq_data *d)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	set_gpio_irqenable(&mxs_gpio_ports[gpio / 32], gpio & 0x1f, 0);
 }
 
-static void mxs_gpio_unmask_irq(u32 irq)
+static void mxs_gpio_unmask_irq(struct irq_data *d)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	set_gpio_irqenable(&mxs_gpio_ports[gpio / 32], gpio & 0x1f, 1);
 }
 
 static int mxs_gpio_get(struct gpio_chip *chip, unsigned offset);
 
-static int mxs_gpio_set_irq_type(u32 irq, u32 type)
+static int mxs_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	u32 pin_mask = 1 << (gpio & 31);
 	struct mxs_gpio_port *port = &mxs_gpio_ports[gpio / 32];
 	void __iomem *pin_addr;
@@ -136,7 +136,7 @@ static int mxs_gpio_set_irq_type(u32 irq, u32 type)
 static void mxs_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 {
 	u32 irq_stat;
-	struct mxs_gpio_port *port = (struct mxs_gpio_port *)get_irq_data(irq);
+	struct mxs_gpio_port *port = (struct mxs_gpio_port *)irq_get_handler_data(irq);
 	u32 gpio_irq_no_base = port->virtual_irq_start;
 
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
@@ -160,9 +160,9 @@ static void mxs_gpio_irq_handler(u32 irq, struct irq_desc *desc)
  * @param  enable       enable as wake-up if equal to non-zero
  * @return       This function returns 0 on success.
  */
-static int mxs_gpio_set_wake_irq(u32 irq, u32 enable)
+static int mxs_gpio_set_wake_irq(struct irq_data *d, unsigned int enable)
 {
-	u32 gpio = irq_to_gpio(irq);
+	u32 gpio = irq_to_gpio(d->irq);
 	u32 gpio_idx = gpio & 0x1f;
 	struct mxs_gpio_port *port = &mxs_gpio_ports[gpio / 32];
 
@@ -182,11 +182,12 @@ static int mxs_gpio_set_wake_irq(u32 irq, u32 enable)
 }
 
 static struct irq_chip gpio_irq_chip = {
-	.ack = mxs_gpio_ack_irq,
-	.mask = mxs_gpio_mask_irq,
-	.unmask = mxs_gpio_unmask_irq,
-	.set_type = mxs_gpio_set_irq_type,
-	.set_wake = mxs_gpio_set_wake_irq,
+	.name = "mxs gpio",
+	.irq_ack = mxs_gpio_ack_irq,
+	.irq_mask = mxs_gpio_mask_irq,
+	.irq_unmask = mxs_gpio_unmask_irq,
+	.irq_set_type = mxs_gpio_set_irq_type,
+	.irq_set_wake = mxs_gpio_set_wake_irq,
 };
 
 static void mxs_set_gpio_direction(struct gpio_chip *chip, unsigned offset,
@@ -264,14 +265,14 @@ int __init mxs_gpio_init(struct mxs_gpio_port *port, int cnt)
 
 		for (j = port[i].virtual_irq_start;
 			j < port[i].virtual_irq_start + 32; j++) {
-			set_irq_chip(j, &gpio_irq_chip);
-			set_irq_handler(j, handle_level_irq);
+			irq_set_chip_and_handler(j, &gpio_irq_chip,
+						 handle_level_irq);
 			set_irq_flags(j, IRQF_VALID);
 		}
 
 		/* setup one handler for each entry */
-		set_irq_chained_handler(port[i].irq, mxs_gpio_irq_handler);
-		set_irq_data(port[i].irq, &port[i]);
+		irq_set_chained_handler(port[i].irq, mxs_gpio_irq_handler);
+		irq_set_handler_data(port[i].irq, &port[i]);
 
 		/* register gpio chip */
 		port[i].chip.direction_input = mxs_gpio_direction_input;
@@ -289,39 +290,42 @@ int __init mxs_gpio_init(struct mxs_gpio_port *port, int cnt)
 	return 0;
 }
 
-#define DEFINE_MXS_GPIO_PORT(soc, _id)					\
+#define MX23_GPIO_BASE	MX23_IO_ADDRESS(MX23_PINCTRL_BASE_ADDR)
+#define MX28_GPIO_BASE	MX28_IO_ADDRESS(MX28_PINCTRL_BASE_ADDR)
+
+#define DEFINE_MXS_GPIO_PORT(_base, _irq, _id)				\
 	{								\
 		.chip.label = "gpio-" #_id,				\
 		.id = _id,						\
-		.irq = soc ## _INT_GPIO ## _id,				\
-		.base = soc ## _IO_ADDRESS(				\
-				soc ## _PINCTRL ## _BASE_ADDR),		\
+		.irq = _irq,						\
+		.base = _base,						\
 		.virtual_irq_start = MXS_GPIO_IRQ_START + (_id) * 32,	\
 	}
 
-#define DEFINE_REGISTER_FUNCTION(prefix)				\
-int __init prefix ## _register_gpios(void)				\
-{									\
-	return mxs_gpio_init(prefix ## _gpio_ports,			\
-			ARRAY_SIZE(prefix ## _gpio_ports));		\
-}
-
 #ifdef CONFIG_SOC_IMX23
 static struct mxs_gpio_port mx23_gpio_ports[] = {
-	DEFINE_MXS_GPIO_PORT(MX23, 0),
-	DEFINE_MXS_GPIO_PORT(MX23, 1),
-	DEFINE_MXS_GPIO_PORT(MX23, 2),
+	DEFINE_MXS_GPIO_PORT(MX23_GPIO_BASE, MX23_INT_GPIO0, 0),
+	DEFINE_MXS_GPIO_PORT(MX23_GPIO_BASE, MX23_INT_GPIO1, 1),
+	DEFINE_MXS_GPIO_PORT(MX23_GPIO_BASE, MX23_INT_GPIO2, 2),
 };
-DEFINE_REGISTER_FUNCTION(mx23)
+
+int __init mx23_register_gpios(void)
+{
+	return mxs_gpio_init(mx23_gpio_ports, ARRAY_SIZE(mx23_gpio_ports));
+}
 #endif
 
 #ifdef CONFIG_SOC_IMX28
 static struct mxs_gpio_port mx28_gpio_ports[] = {
-	DEFINE_MXS_GPIO_PORT(MX28, 0),
-	DEFINE_MXS_GPIO_PORT(MX28, 1),
-	DEFINE_MXS_GPIO_PORT(MX28, 2),
-	DEFINE_MXS_GPIO_PORT(MX28, 3),
-	DEFINE_MXS_GPIO_PORT(MX28, 4),
+	DEFINE_MXS_GPIO_PORT(MX28_GPIO_BASE, MX28_INT_GPIO0, 0),
+	DEFINE_MXS_GPIO_PORT(MX28_GPIO_BASE, MX28_INT_GPIO1, 1),
+	DEFINE_MXS_GPIO_PORT(MX28_GPIO_BASE, MX28_INT_GPIO2, 2),
+	DEFINE_MXS_GPIO_PORT(MX28_GPIO_BASE, MX28_INT_GPIO3, 3),
+	DEFINE_MXS_GPIO_PORT(MX28_GPIO_BASE, MX28_INT_GPIO4, 4),
 };
-DEFINE_REGISTER_FUNCTION(mx28)
+
+int __init mx28_register_gpios(void)
+{
+	return mxs_gpio_init(mx28_gpio_ports, ARRAY_SIZE(mx28_gpio_ports));
+}
 #endif

@@ -17,11 +17,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/i2c/pca953x.h>
 #include <linux/gpio.h>
 
 #include <mach/pxa300.h>
-#include <plat/i2c.h>
 #include <mach/zylonite.h>
 
 #include "generic.h"

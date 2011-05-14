@@ -1,6 +1,7 @@
 config VIDEO_CX23885
 	tristate "Conexant cx23885 (2388x successor) support"
-	depends on DVB_CORE && VIDEO_DEV && PCI && I2C && INPUT
+	depends on DVB_CORE && VIDEO_DEV && PCI && I2C && INPUT && SND
+	select SND_PCM
 	select I2C_ALGOBIT
 	select VIDEO_BTCX
 	select VIDEO_TUNER
@@ -21,6 +22,7 @@ config VIDEO_CX23885
 	select DVB_CX24116 if !DVB_FE_CUSTOMISE
 	select DVB_STV0900 if !DVB_FE_CUSTOMISE
 	select DVB_DS3000 if !DVB_FE_CUSTOMISE
+	select DVB_STV0367 if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_MT2131 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_XC2028 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_TDA8290 if !MEDIA_TUNER_CUSTOMISE
@@ -33,3 +35,12 @@ config VIDEO_CX23885
 	  To compile this driver as a module, choose M here: the
 	  module will be called cx23885
 
+config MEDIA_ALTERA_CI
+	tristate "Altera FPGA based CI module"
+	depends on VIDEO_CX23885 && DVB_CORE
+	select STAPL_ALTERA
+	---help---
+	  An Altera FPGA CI module for NetUP Dual DVB-T/C RF CI card.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called altera-ci

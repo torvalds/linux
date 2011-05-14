@@ -108,7 +108,7 @@ extern int (*__pmax_close)(int);
 
 /*
  * On MIPS64 we have to call PROM functions via a helper
- * dispatcher to accomodate ABI incompatibilities.
+ * dispatcher to accommodate ABI incompatibilities.
  */
 #define __DEC_PROM_O32(fun, arg) fun arg __asm__(#fun); \
 				 __asm__(#fun " = call_o32")

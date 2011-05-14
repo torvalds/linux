@@ -55,11 +55,13 @@ EXPORT_SYMBOL(I_BDEV);
 static void bdev_inode_switch_bdi(struct inode *inode,
 			struct backing_dev_info *dst)
 {
-	spin_lock(&inode_lock);
+	spin_lock(&inode_wb_list_lock);
+	spin_lock(&inode->i_lock);
 	inode->i_data.backing_dev_info = dst;
 	if (inode->i_state & I_DIRTY)
 		list_move(&inode->i_wb_list, &dst->wb.b_dirty);
-	spin_unlock(&inode_lock);
+	spin_unlock(&inode->i_lock);
+	spin_unlock(&inode_wb_list_lock);
 }
 
 static sector_t max_block(struct block_device *bdev)
@@ -651,7 +653,7 @@ void bd_forget(struct inode *inode)
  * @whole: whole block device containing @bdev, may equal @bdev
  * @holder: holder trying to claim @bdev
  *
- * Test whther @bdev can be claimed by @holder.
+ * Test whether @bdev can be claimed by @holder.
  *
  * CONTEXT:
  * spin_lock(&bdev_lock).
@@ -873,6 +875,11 @@ int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 	ret = add_symlink(bdev->bd_part->holder_dir, &disk_to_dev(disk)->kobj);
 	if (ret)
 		goto out_del;
+	/*
+	 * bdev could be deleted beneath us which would implicitly destroy
+	 * the holder directory.  Hold on to it.
+	 */
+	kobject_get(bdev->bd_part->holder_dir);
 
 	list_add(&holder->list, &bdev->bd_holder_disks);
 	goto out_unlock;
@@ -909,6 +916,7 @@ void bd_unlink_disk_holder(struct block_device *bdev, struct gendisk *disk)
 		del_symlink(disk->slave_dir, &part_to_dev(bdev->bd_part)->kobj);
 		del_symlink(bdev->bd_part->holder_dir,
 			    &disk_to_dev(disk)->kobj);
+		kobject_put(bdev->bd_part->holder_dir);
 		list_del_init(&holder->list);
 		kfree(holder);
 	}
@@ -922,14 +930,15 @@ EXPORT_SYMBOL_GPL(bd_unlink_disk_holder);
  * flush_disk - invalidates all buffer-cache entries on a disk
  *
  * @bdev:      struct block device to be flushed
+ * @kill_dirty: flag to guide handling of dirty inodes
  *
  * Invalidates all buffer-cache entries on a disk. It should be called
  * when a disk has been changed -- either by a media change or online
  * resize.
  */
-static void flush_disk(struct block_device *bdev)
+static void flush_disk(struct block_device *bdev, bool kill_dirty)
 {
-	if (__invalidate_device(bdev)) {
+	if (__invalidate_device(bdev, kill_dirty)) {
 		char name[BDEVNAME_SIZE] = "";
 
 		if (bdev->bd_disk)
@@ -966,7 +975,7 @@ void check_disk_size_change(struct gendisk *disk, struct block_device *bdev)
 		       "%s: detected capacity change from %lld to %lld\n",
 		       name, bdev_size, disk_size);
 		i_size_write(bdev->bd_inode, disk_size);
-		flush_disk(bdev);
+		flush_disk(bdev, false);
 	}
 }
 EXPORT_SYMBOL(check_disk_size_change);
@@ -1019,7 +1028,7 @@ int check_disk_change(struct block_device *bdev)
 	if (!(events & DISK_EVENT_MEDIA_CHANGE))
 		return 0;
 
-	flush_disk(bdev);
+	flush_disk(bdev, true);
 	if (bdops->revalidate_disk)
 		bdops->revalidate_disk(bdev->bd_disk);
 	return 1;
@@ -1080,6 +1089,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	if (!disk)
 		goto out;
 
+	disk_block_events(disk);
 	mutex_lock_nested(&bdev->bd_mutex, for_part);
 	if (!bdev->bd_openers) {
 		bdev->bd_disk = disk;
@@ -1101,10 +1111,11 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 					 */
 					disk_put_part(bdev->bd_part);
 					bdev->bd_part = NULL;
-					module_put(disk->fops->owner);
-					put_disk(disk);
 					bdev->bd_disk = NULL;
 					mutex_unlock(&bdev->bd_mutex);
+					disk_unblock_events(disk);
+					module_put(disk->fops->owner);
+					put_disk(disk);
 					goto restart;
 				}
 				if (ret)
@@ -1141,9 +1152,6 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			bd_set_size(bdev, (loff_t)bdev->bd_part->nr_sects << 9);
 		}
 	} else {
-		module_put(disk->fops->owner);
-		put_disk(disk);
-		disk = NULL;
 		if (bdev->bd_contains == bdev) {
 			if (bdev->bd_disk->fops->open) {
 				ret = bdev->bd_disk->fops->open(bdev, mode);
@@ -1153,11 +1161,15 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			if (bdev->bd_invalidated)
 				rescan_partitions(bdev->bd_disk, bdev);
 		}
+		/* only one opener holds refs to the module and disk */
+		module_put(disk->fops->owner);
+		put_disk(disk);
 	}
 	bdev->bd_openers++;
 	if (for_part)
 		bdev->bd_part_count++;
 	mutex_unlock(&bdev->bd_mutex);
+	disk_unblock_events(disk);
 	return 0;
 
  out_clear:
@@ -1170,10 +1182,10 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	bdev->bd_contains = NULL;
  out_unlock_bdev:
 	mutex_unlock(&bdev->bd_mutex);
- out:
-	if (disk)
-		module_put(disk->fops->owner);
+	disk_unblock_events(disk);
+	module_put(disk->fops->owner);
 	put_disk(disk);
+ out:
 	bdput(bdev);
 
 	return ret;
@@ -1439,14 +1451,13 @@ int blkdev_put(struct block_device *bdev, fmode_t mode)
 		if (bdev_free) {
 			if (bdev->bd_write_holder) {
 				disk_unblock_events(bdev->bd_disk);
-				bdev->bd_write_holder = false;
-			} else
 				disk_check_events(bdev->bd_disk);
+				bdev->bd_write_holder = false;
+			}
 		}
 
 		mutex_unlock(&bdev->bd_mutex);
-	} else
-		disk_check_events(bdev->bd_disk);
+	}
 
 	return __blkdev_put(bdev, mode, 0);
 }
@@ -1520,7 +1531,6 @@ static int blkdev_releasepage(struct page *page, gfp_t wait)
 static const struct address_space_operations def_blk_aops = {
 	.readpage	= blkdev_readpage,
 	.writepage	= blkdev_writepage,
-	.sync_page	= block_sync_page,
 	.write_begin	= blkdev_write_begin,
 	.write_end	= blkdev_write_end,
 	.writepages	= generic_writepages,
@@ -1600,7 +1610,7 @@ fail:
 }
 EXPORT_SYMBOL(lookup_bdev);
 
-int __invalidate_device(struct block_device *bdev)
+int __invalidate_device(struct block_device *bdev, bool kill_dirty)
 {
 	struct super_block *sb = get_super(bdev);
 	int res = 0;
@@ -1613,7 +1623,7 @@ int __invalidate_device(struct block_device *bdev)
 		 * hold).
 		 */
 		shrink_dcache_sb(sb);
-		res = invalidate_inodes(sb);
+		res = invalidate_inodes(sb, kill_dirty);
 		drop_super(sb);
 	}
 	invalidate_bdev(bdev);

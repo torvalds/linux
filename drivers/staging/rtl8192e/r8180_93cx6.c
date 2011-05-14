@@ -20,49 +20,49 @@
 
 #include "r8180_93cx6.h"
 
-static void eprom_cs(struct net_device *dev, short bit)
+static void eprom_cs(struct r8192_priv *priv, short bit)
 {
 	if (bit)
-		write_nic_byte(dev, EPROM_CMD,
+		write_nic_byte(priv, EPROM_CMD,
 			       (1<<EPROM_CS_SHIFT) |
-			       read_nic_byte(dev, EPROM_CMD)); //enable EPROM
+			       read_nic_byte(priv, EPROM_CMD)); //enable EPROM
 	else
-		write_nic_byte(dev, EPROM_CMD, read_nic_byte(dev, EPROM_CMD)
+		write_nic_byte(priv, EPROM_CMD, read_nic_byte(priv, EPROM_CMD)
 			       &~(1<<EPROM_CS_SHIFT)); //disable EPROM
 
 	udelay(EPROM_DELAY);
 }
 
 
-static void eprom_ck_cycle(struct net_device *dev)
+static void eprom_ck_cycle(struct r8192_priv *priv)
 {
-	write_nic_byte(dev, EPROM_CMD,
-		       (1<<EPROM_CK_SHIFT) | read_nic_byte(dev, EPROM_CMD));
+	write_nic_byte(priv, EPROM_CMD,
+		       (1<<EPROM_CK_SHIFT) | read_nic_byte(priv, EPROM_CMD));
 	udelay(EPROM_DELAY);
-	write_nic_byte(dev, EPROM_CMD,
-		       read_nic_byte(dev, EPROM_CMD) & ~(1<<EPROM_CK_SHIFT));
+	write_nic_byte(priv, EPROM_CMD,
+		       read_nic_byte(priv, EPROM_CMD) & ~(1<<EPROM_CK_SHIFT));
 	udelay(EPROM_DELAY);
 }
 
 
-static void eprom_w(struct net_device *dev, short bit)
+static void eprom_w(struct r8192_priv *priv, short bit)
 {
 	if (bit)
-		write_nic_byte(dev, EPROM_CMD, (1<<EPROM_W_SHIFT) |
-			       read_nic_byte(dev, EPROM_CMD));
+		write_nic_byte(priv, EPROM_CMD, (1<<EPROM_W_SHIFT) |
+			       read_nic_byte(priv, EPROM_CMD));
 	else
-		write_nic_byte(dev, EPROM_CMD, read_nic_byte(dev, EPROM_CMD)
+		write_nic_byte(priv, EPROM_CMD, read_nic_byte(priv, EPROM_CMD)
 			       &~(1<<EPROM_W_SHIFT));
 
 	udelay(EPROM_DELAY);
 }
 
 
-static short eprom_r(struct net_device *dev)
+static short eprom_r(struct r8192_priv *priv)
 {
 	short bit;
 
-	bit = (read_nic_byte(dev, EPROM_CMD) & (1<<EPROM_R_SHIFT));
+	bit = (read_nic_byte(priv, EPROM_CMD) & (1<<EPROM_R_SHIFT));
 	udelay(EPROM_DELAY);
 
 	if (bit)
@@ -71,20 +71,19 @@ static short eprom_r(struct net_device *dev)
 }
 
 
-static void eprom_send_bits_string(struct net_device *dev, short b[], int len)
+static void eprom_send_bits_string(struct r8192_priv *priv, short b[], int len)
 {
 	int i;
 
 	for (i = 0; i < len; i++) {
-		eprom_w(dev, b[i]);
-		eprom_ck_cycle(dev);
+		eprom_w(priv, b[i]);
+		eprom_ck_cycle(priv);
 	}
 }
 
 
-u32 eprom_read(struct net_device *dev, u32 addr)
+u32 eprom_read(struct r8192_priv *priv, u32 addr)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	short read_cmd[] = {1, 1, 0};
 	short addr_str[8];
 	int i;
@@ -93,7 +92,7 @@ u32 eprom_read(struct net_device *dev, u32 addr)
 
 	ret = 0;
         //enable EPROM programming
-	write_nic_byte(dev, EPROM_CMD,
+	write_nic_byte(priv, EPROM_CMD,
 		       (EPROM_CMD_PROGRAM<<EPROM_CMD_OPERATING_MODE_SHIFT));
 	udelay(EPROM_DELAY);
 
@@ -116,27 +115,27 @@ u32 eprom_read(struct net_device *dev, u32 addr)
 		addr_str[0] = addr & (1<<5);
 		addr_len = 6;
 	}
-	eprom_cs(dev, 1);
-	eprom_ck_cycle(dev);
-	eprom_send_bits_string(dev, read_cmd, 3);
-	eprom_send_bits_string(dev, addr_str, addr_len);
+	eprom_cs(priv, 1);
+	eprom_ck_cycle(priv);
+	eprom_send_bits_string(priv, read_cmd, 3);
+	eprom_send_bits_string(priv, addr_str, addr_len);
 
 	//keep chip pin D to low state while reading.
 	//I'm unsure if it is necessary, but anyway shouldn't hurt
-	eprom_w(dev, 0);
+	eprom_w(priv, 0);
 
 	for (i = 0; i < 16; i++) {
 		//eeprom needs a clk cycle between writing opcode&adr
 		//and reading data. (eeprom outs a dummy 0)
-		eprom_ck_cycle(dev);
-		ret |= (eprom_r(dev)<<(15-i));
+		eprom_ck_cycle(priv);
+		ret |= (eprom_r(priv)<<(15-i));
 	}
 
-	eprom_cs(dev, 0);
-	eprom_ck_cycle(dev);
+	eprom_cs(priv, 0);
+	eprom_ck_cycle(priv);
 
 	//disable EPROM programming
-	write_nic_byte(dev, EPROM_CMD,
+	write_nic_byte(priv, EPROM_CMD,
 		       (EPROM_CMD_NORMAL<<EPROM_CMD_OPERATING_MODE_SHIFT));
 	return ret;
 }

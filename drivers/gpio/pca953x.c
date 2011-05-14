@@ -395,13 +395,13 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 		for (lvl = 0; lvl < chip->gpio_chip.ngpio; lvl++) {
 			int irq = lvl + chip->irq_base;
 
-			set_irq_chip_data(irq, chip);
-			set_irq_chip_and_handler(irq, &pca953x_irq_chip,
+			irq_set_chip_data(irq, chip);
+			irq_set_chip_and_handler(irq, &pca953x_irq_chip,
 						 handle_edge_irq);
 #ifdef CONFIG_ARM
 			set_irq_flags(irq, IRQF_VALID);
 #else
-			set_irq_noprobe(irq);
+			irq_set_noprobe(irq);
 #endif
 		}
 
@@ -462,7 +462,8 @@ pca953x_get_alt_pdata(struct i2c_client *client)
 {
 	struct pca953x_platform_data *pdata;
 	struct device_node *node;
-	const uint16_t *val;
+	const __be32 *val;
+	int size;
 
 	node = client->dev.of_node;
 	if (node == NULL)
@@ -475,13 +476,13 @@ pca953x_get_alt_pdata(struct i2c_client *client)
 	}
 
 	pdata->gpio_base = -1;
-	val = of_get_property(node, "linux,gpio-base", NULL);
+	val = of_get_property(node, "linux,gpio-base", &size);
 	if (val) {
-		if (*val < 0)
-			dev_warn(&client->dev,
-				 "invalid gpio-base in device tree\n");
+		if (size != sizeof(*val))
+			dev_warn(&client->dev, "%s: wrong linux,gpio-base\n",
+				 node->full_name);
 		else
-			pdata->gpio_base = *val;
+			pdata->gpio_base = be32_to_cpup(val);
 	}
 
 	val = of_get_property(node, "polarity", NULL);
@@ -557,7 +558,7 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 
 	ret = gpiochip_add(&chip->gpio_chip);
 	if (ret)
-		goto out_failed;
+		goto out_failed_irq;
 
 	if (pdata->setup) {
 		ret = pdata->setup(client, chip->gpio_chip.base,
@@ -569,8 +570,9 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, chip);
 	return 0;
 
-out_failed:
+out_failed_irq:
 	pca953x_irq_teardown(chip);
+out_failed:
 	kfree(chip->dyn_pdata);
 	kfree(chip);
 	return ret;

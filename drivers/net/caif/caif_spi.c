@@ -397,7 +397,7 @@ int cfspi_xmitlen(struct cfspi *cfspi)
 	int pkts = 0;
 
 	/*
-	 * Decommit previously commited frames.
+	 * Decommit previously committed frames.
 	 * skb_queue_splice_tail(&cfspi->chead,&cfspi->qhead)
 	 */
 	while (skb_peek(&cfspi->chead)) {

@@ -462,7 +462,7 @@ static u32 hash_function(unsigned char *mac_addr_orig)
  * pep - ETHERNET .
  * mac_addr - MAC address.
  * skip - if 1, skip this address.Used in case of deleting an entry which is a
- *	  part of chain in the hash table.We cant just delete the entry since
+ *	  part of chain in the hash table.We can't just delete the entry since
  *	  that will break the chain.We need to defragment the tables time to
  *	  time.
  * rd   - 0 Discard packet upon match.

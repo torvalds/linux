@@ -1630,7 +1630,7 @@ static enum dvbfe_search mb86a16_search(struct dvb_frontend *fe,
 	state->srate = p->u.qpsk.symbol_rate / 1000;
 
 	if (!mb86a16_set_fe(state)) {
-		dprintk(verbose, MB86A16_ERROR, 1, "Succesfully acquired LOCK");
+		dprintk(verbose, MB86A16_ERROR, 1, "Successfully acquired LOCK");
 		return DVBFE_ALGO_SEARCH_SUCCESS;
 	}
 

@@ -478,9 +478,7 @@ static void rt2500usb_config_intf(struct rt2x00_dev *rt2x00dev,
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR18, reg);
 
 		rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
-		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 1);
 		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_SYNC, conf->sync);
-		rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 1);
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 	}
 
@@ -1056,9 +1054,7 @@ static int rt2500usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt2500usb_disable_radio(rt2x00dev);
 		break;
 	case STATE_RADIO_IRQ_ON:
-	case STATE_RADIO_IRQ_ON_ISR:
 	case STATE_RADIO_IRQ_OFF:
-	case STATE_RADIO_IRQ_OFF_ISR:
 		/* No support, but no error either */
 		break;
 	case STATE_DEEP_SLEEP:
@@ -1104,7 +1100,7 @@ static void rt2500usb_write_tx_desc(struct queue_entry *entry,
 			   (txdesc->rate_mode == RATE_MODE_OFDM));
 	rt2x00_set_field32(&word, TXD_W0_NEW_SEQ,
 			   test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
+	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->u.plcp.ifs);
 	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, txdesc->length);
 	rt2x00_set_field32(&word, TXD_W0_CIPHER, !!txdesc->cipher);
 	rt2x00_set_field32(&word, TXD_W0_KEY_ID, txdesc->key_idx);
@@ -1118,10 +1114,12 @@ static void rt2500usb_write_tx_desc(struct queue_entry *entry,
 	rt2x00_desc_write(txd, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_SIGNAL, txdesc->signal);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_SERVICE, txdesc->service);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW, txdesc->length_low);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_HIGH, txdesc->length_high);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_SIGNAL, txdesc->u.plcp.signal);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_SERVICE, txdesc->u.plcp.service);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW,
+			   txdesc->u.plcp.length_low);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_HIGH,
+			   txdesc->u.plcp.length_high);
 	rt2x00_desc_write(txd, 2, word);
 
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags)) {
@@ -1799,6 +1797,7 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 		__set_bit(DRIVER_REQUIRE_COPY_IV, &rt2x00dev->flags);
 	}
 	__set_bit(DRIVER_SUPPORT_WATCHDOG, &rt2x00dev->flags);
+	__set_bit(DRIVER_REQUIRE_SW_SEQNO, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.

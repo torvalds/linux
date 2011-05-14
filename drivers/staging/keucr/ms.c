@@ -1,4 +1,6 @@
 #include <linux/slab.h>
+#include <asm/byteorder.h>
+
 #include "usb.h"
 #include "scsiglue.h"
 #include "transport.h"
@@ -166,8 +168,8 @@ int MS_CardInit(struct us_data *us)
 			continue;
 
 		if (((extdat.mngflg & MS_REG_MNG_SYSFLG) == MS_REG_MNG_SYSFLG_USER) ||
-			(BigEndianWORD(((MemStickBootBlockPage0 *)PageBuffer0)->header.wBlockID) != MS_BOOT_BLOCK_ID) ||
-			(BigEndianWORD(((MemStickBootBlockPage0 *)PageBuffer0)->header.wFormatVersion) != MS_BOOT_BLOCK_FORMAT_VERSION) ||
+			(be16_to_cpu(((MemStickBootBlockPage0 *)PageBuffer0)->header.wBlockID) != MS_BOOT_BLOCK_ID) ||
+			(be16_to_cpu(((MemStickBootBlockPage0 *)PageBuffer0)->header.wFormatVersion) != MS_BOOT_BLOCK_FORMAT_VERSION) ||
 			(((MemStickBootBlockPage0 *)PageBuffer0)->header.bNumberOfDataEntry != MS_BOOT_BLOCK_DATA_ENTRIES))
 				continue;
 
@@ -242,8 +244,8 @@ int MS_CardInit(struct us_data *us)
 	result = MS_STATUS_SUCCESS;
 
 exit:
-	if (PageBuffer1)		kfree(PageBuffer1);
-    	if (PageBuffer0)		kfree(PageBuffer0);
+	kfree(PageBuffer1);
+    	kfree(PageBuffer0);
 
 	printk("MS_CardInit end\n");
 	return result;
@@ -266,7 +268,7 @@ int MS_LibCheckDisableBlock(struct us_data *us, WORD PhyBlock)
 	MS_ReaderReadPage(us, PhyBlock, 1, (DWORD *)PageBuf, &extdat);
 	do
 	{
-		blk = BigEndianWORD(PageBuf[index]);
+		blk = be16_to_cpu(PageBuf[index]);
 		if (blk == MS_LB_NOT_USED)
 			break;
 		if (blk == us->MS_Lib.Log2PhyMap[0])
@@ -278,7 +280,7 @@ int MS_LibCheckDisableBlock(struct us_data *us, WORD PhyBlock)
 	} while(1);
 
 exit:
-	if (PageBuf)	kfree(PageBuf);
+	kfree(PageBuf);
 	return result;
 }
 
@@ -322,17 +324,11 @@ void MS_LibFreeWriteBuf(struct us_data *us)
 //----- MS_LibFreeLogicalMap() ---------------------------------------
 int MS_LibFreeLogicalMap(struct us_data *us)
 {
-	if (us->MS_Lib.Phy2LogMap)
-	{
-		kfree(us->MS_Lib.Phy2LogMap);
-		us->MS_Lib.Phy2LogMap = NULL;
-	}
+	kfree(us->MS_Lib.Phy2LogMap);
+	us->MS_Lib.Phy2LogMap = NULL;
 
-	if (us->MS_Lib.Log2PhyMap)
-	{
-		kfree(us->MS_Lib.Log2PhyMap);
-		us->MS_Lib.Log2PhyMap = NULL;
-	}
+	kfree(us->MS_Lib.Log2PhyMap);
+	us->MS_Lib.Log2PhyMap = NULL;
 
     return 0;
 }
@@ -355,7 +351,7 @@ int MS_LibProcessBootBlock(struct us_data *us, WORD PhyBlock, BYTE *PageData)
 	SysInfo= &(((MemStickBootBlockPage0 *)PageData)->sysinf);
 
 	if ((SysInfo->bMsClass != MS_SYSINF_MSCLASS_TYPE_1)                                   ||
-		(BigEndianWORD(SysInfo->wPageSize) != MS_SYSINF_PAGE_SIZE)                       ||
+		(be16_to_cpu(SysInfo->wPageSize) != MS_SYSINF_PAGE_SIZE)                       ||
 		((SysInfo->bSecuritySupport & MS_SYSINF_SECURITY) == MS_SYSINF_SECURITY_SUPPORT) ||
 		(SysInfo->bReserved1 != MS_SYSINF_RESERVED1)                                     ||
 		(SysInfo->bReserved2 != MS_SYSINF_RESERVED2)                                     ||
@@ -376,12 +372,12 @@ int MS_LibProcessBootBlock(struct us_data *us, WORD PhyBlock, BYTE *PageData)
 			goto exit;
 	}
 
-	us->MS_Lib.blockSize        = BigEndianWORD(SysInfo->wBlockSize);
-	us->MS_Lib.NumberOfPhyBlock = BigEndianWORD(SysInfo->wBlockNumber);
-	us->MS_Lib.NumberOfLogBlock = BigEndianWORD(SysInfo->wTotalBlockNumber)- 2;
+	us->MS_Lib.blockSize        = be16_to_cpu(SysInfo->wBlockSize);
+	us->MS_Lib.NumberOfPhyBlock = be16_to_cpu(SysInfo->wBlockNumber);
+	us->MS_Lib.NumberOfLogBlock = be16_to_cpu(SysInfo->wTotalBlockNumber) - 2;
 	us->MS_Lib.PagesPerBlock    = us->MS_Lib.blockSize * SIZE_OF_KIRO / MS_BYTES_PER_PAGE;
 	us->MS_Lib.NumberOfSegment  = us->MS_Lib.NumberOfPhyBlock / MS_PHYSICAL_BLOCKS_PER_SEGMENT;
-	us->MS_Model                = BigEndianWORD(SysInfo->wMemorySize);
+	us->MS_Model                = be16_to_cpu(SysInfo->wMemorySize);
 
 	if (MS_LibAllocLogicalMap(us))			//Allocate to all number of logicalblock and physicalblock
 		goto exit;
@@ -394,10 +390,10 @@ int MS_LibProcessBootBlock(struct us_data *us, WORD PhyBlock, BYTE *PageData)
 	{
 		DWORD  EntryOffset, EntrySize;
 
-		if ((EntryOffset = BigEndianDWORD(SysEntry->entry[i].dwStart)) == 0xffffff)
+		if ((EntryOffset = be32_to_cpu(SysEntry->entry[i].dwStart)) == 0xffffff)
 			continue;
 
-		if ((EntrySize = BigEndianDWORD(SysEntry->entry[i].dwSize)) == 0)
+		if ((EntrySize = be32_to_cpu(SysEntry->entry[i].dwSize)) == 0)
 			continue;
 
 		if (EntryOffset + MS_BYTES_PER_PAGE + EntrySize > us->MS_Lib.blockSize * (DWORD)SIZE_OF_KIRO)
@@ -429,7 +425,7 @@ int MS_LibProcessBootBlock(struct us_data *us, WORD PhyBlock, BYTE *PageData)
 					PrevPageNumber = PageNumber;
 				}
 
-				if ((phyblk = BigEndianWORD(*(WORD *)(PageBuffer + (EntryOffset % MS_BYTES_PER_PAGE)))) < 0x0fff)
+				if ((phyblk = be16_to_cpu(*(WORD *)(PageBuffer + (EntryOffset % MS_BYTES_PER_PAGE)))) < 0x0fff)
 					MS_LibSetInitialErrorBlock(us, phyblk);
 
 				EntryOffset += 2;
@@ -455,10 +451,10 @@ int MS_LibProcessBootBlock(struct us_data *us, WORD PhyBlock, BYTE *PageData)
 			}
 
 			idi = &((MemStickBootBlockCIS_IDI *)(PageBuffer + (EntryOffset % MS_BYTES_PER_PAGE)))->idi.idi;
-			if (LittleEndianWORD(idi->wIDIgeneralConfiguration) != MS_IDI_GENERAL_CONF)
+			if (le16_to_cpu(idi->wIDIgeneralConfiguration) != MS_IDI_GENERAL_CONF)
 				goto exit;
 
-			us->MS_Lib.BytesPerSector = LittleEndianWORD(idi->wIDIbytesPerSector);
+			us->MS_Lib.BytesPerSector = le16_to_cpu(idi->wIDIbytesPerSector);
 			if (us->MS_Lib.BytesPerSector != MS_BYTES_PER_PAGE)
 				goto exit;
 		}
@@ -468,7 +464,7 @@ int MS_LibProcessBootBlock(struct us_data *us, WORD PhyBlock, BYTE *PageData)
 
 exit:
 	if (result)		MS_LibFreeLogicalMap(us);
-	if (PageBuffer)	kfree(PageBuffer);
+	kfree(PageBuffer);
 
 	result = 0;
 	return result;

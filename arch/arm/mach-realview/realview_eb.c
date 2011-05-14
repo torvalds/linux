@@ -144,60 +144,39 @@ static struct pl022_ssp_controller ssp0_plat_data = {
  * These devices are connected via the core APB bridge
  */
 #define GPIO2_IRQ	{ IRQ_EB_GPIO2, NO_IRQ }
-#define GPIO2_DMA	{ 0, 0 }
 #define GPIO3_IRQ	{ IRQ_EB_GPIO3, NO_IRQ }
-#define GPIO3_DMA	{ 0, 0 }
 
 #define AACI_IRQ	{ IRQ_EB_AACI, NO_IRQ }
-#define AACI_DMA	{ 0x80, 0x81 }
 #define MMCI0_IRQ	{ IRQ_EB_MMCI0A, IRQ_EB_MMCI0B }
-#define MMCI0_DMA	{ 0x84, 0 }
 #define KMI0_IRQ	{ IRQ_EB_KMI0, NO_IRQ }
-#define KMI0_DMA	{ 0, 0 }
 #define KMI1_IRQ	{ IRQ_EB_KMI1, NO_IRQ }
-#define KMI1_DMA	{ 0, 0 }
 
 /*
  * These devices are connected directly to the multi-layer AHB switch
  */
 #define EB_SMC_IRQ	{ NO_IRQ, NO_IRQ }
-#define EB_SMC_DMA	{ 0, 0 }
 #define MPMC_IRQ	{ NO_IRQ, NO_IRQ }
-#define MPMC_DMA	{ 0, 0 }
 #define EB_CLCD_IRQ	{ IRQ_EB_CLCD, NO_IRQ }
-#define EB_CLCD_DMA	{ 0, 0 }
 #define DMAC_IRQ	{ IRQ_EB_DMA, NO_IRQ }
-#define DMAC_DMA	{ 0, 0 }
 
 /*
  * These devices are connected via the core APB bridge
  */
 #define SCTL_IRQ	{ NO_IRQ, NO_IRQ }
-#define SCTL_DMA	{ 0, 0 }
 #define EB_WATCHDOG_IRQ	{ IRQ_EB_WDOG, NO_IRQ }
-#define EB_WATCHDOG_DMA	{ 0, 0 }
 #define EB_GPIO0_IRQ	{ IRQ_EB_GPIO0, NO_IRQ }
-#define EB_GPIO0_DMA	{ 0, 0 }
 #define GPIO1_IRQ	{ IRQ_EB_GPIO1, NO_IRQ }
-#define GPIO1_DMA	{ 0, 0 }
 #define EB_RTC_IRQ	{ IRQ_EB_RTC, NO_IRQ }
-#define EB_RTC_DMA	{ 0, 0 }
 
 /*
  * These devices are connected via the DMA APB bridge
  */
 #define SCI_IRQ		{ IRQ_EB_SCI, NO_IRQ }
-#define SCI_DMA		{ 7, 6 }
 #define EB_UART0_IRQ	{ IRQ_EB_UART0, NO_IRQ }
-#define EB_UART0_DMA	{ 15, 14 }
 #define EB_UART1_IRQ	{ IRQ_EB_UART1, NO_IRQ }
-#define EB_UART1_DMA	{ 13, 12 }
 #define EB_UART2_IRQ	{ IRQ_EB_UART2, NO_IRQ }
-#define EB_UART2_DMA	{ 11, 10 }
 #define EB_UART3_IRQ	{ IRQ_EB_UART3, NO_IRQ }
-#define EB_UART3_DMA	{ 0x86, 0x87 }
 #define EB_SSP_IRQ	{ IRQ_EB_SSP, NO_IRQ }
-#define EB_SSP_DMA	{ 9, 8 }
 
 /* FPGA Primecells */
 AMBA_DEVICE(aaci,  "fpga:aaci",  AACI,     NULL);
@@ -369,7 +348,7 @@ static void __init gic_init_irq(void)
 
 #ifndef CONFIG_REALVIEW_EB_ARM11MP_REVB
 		/* board GIC, secondary */
-		gic_init(1, 64, __io_address(REALVIEW_EB_GIC_DIST_BASE),
+		gic_init(1, 96, __io_address(REALVIEW_EB_GIC_DIST_BASE),
 			 __io_address(REALVIEW_EB_GIC_CPU_BASE));
 		gic_cascade_irq(1, IRQ_EB11MP_EB_IRQ1);
 #endif
@@ -484,9 +463,10 @@ static void __init realview_eb_init(void)
 
 MACHINE_START(REALVIEW_EB, "ARM-RealView EB")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.boot_params	= PHYS_OFFSET + 0x00000100,
+	.boot_params	= PLAT_PHYS_OFFSET + 0x00000100,
 	.fixup		= realview_fixup,
 	.map_io		= realview_eb_map_io,
+	.init_early	= realview_init_early,
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_eb_timer,
 	.init_machine	= realview_eb_init,

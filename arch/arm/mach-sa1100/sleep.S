@@ -20,12 +20,7 @@
 #include <asm/assembler.h>
 #include <mach/hardware.h>
 
-
-
 		.text
-
-
-
 /*
  * sa1100_cpu_suspend()
  *
@@ -34,27 +29,10 @@
  */
 
 ENTRY(sa1100_cpu_suspend)
-
 	stmfd	sp!, {r4 - r12, lr}		@ save registers on stack
-
-	@ get coprocessor registers
-	mrc 	p15, 0, r4, c3, c0, 0		@ domain ID
-	mrc 	p15, 0, r5, c2, c0, 0		@ translation table base addr
-	mrc	p15, 0, r6, c13, c0, 0		@ PID
-	mrc 	p15, 0, r7, c1, c0, 0		@ control reg
-
-	@ store them plus current virtual stack ptr on stack
-	mov	r8, sp
-	stmfd	sp!, {r4 - r8}
-
-	@ preserve phys address of stack
-	mov	r0, sp
-	bl	sleep_phys_sp
-	ldr	r1, =sleep_save_sp
-	str	r0, [r1]
-
-	@ clean data cache and invalidate WB
-	bl	v4wb_flush_kern_cache_all
+	mov	r1, r0
+	ldr	r3, =sa1100_cpu_resume		@ return function
+	bl	cpu_suspend
 
 	@ disable clock switching
 	mcr	p15, 0, r1, c15, c2, 2
@@ -166,50 +144,8 @@ sa1110_sdram_controller_fix:
  * cpu_sa1100_resume()
  *
  * entry point from bootloader into kernel during resume
- *
- * Note: Yes, part of the following code is located into the .data section.
- *       This is to allow sleep_save_sp to be accessed with a relative load
- *       while we can't rely on any MMU translation.  We could have put
- *       sleep_save_sp in the .text section as well, but some setups might
- *       insist on it to be truly read-only.
  */
-
-	.data
 	.align 5
-ENTRY(sa1100_cpu_resume)
-	mov	r0, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
-	msr	cpsr_c, r0			@ set SVC, irqs off
-
-	ldr	r0, sleep_save_sp		@ stack phys addr
-	ldr	r2, =resume_after_mmu		@ its absolute virtual address
-	ldmfd	r0, {r4 - r7, sp}		@ CP regs + virt stack ptr
-
-	mov	r1, #0
-	mcr	p15, 0, r1, c8, c7, 0   	@ flush I+D TLBs
-	mcr	p15, 0, r1, c7, c7, 0		@ flush I&D cache
-	mcr	p15, 0, r1, c9, c0, 0		@ invalidate RB
-	mcr	p15, 0, r1, c9, c0, 5		@ allow user space to use RB
-
-	mcr	p15, 0, r4, c3, c0, 0		@ domain ID
-	mcr	p15, 0, r5, c2, c0, 0		@ translation table base addr
-	mcr	p15, 0, r6, c13, c0, 0		@ PID
-	b	resume_turn_on_mmu		@ cache align execution
-
-	.align 5
-resume_turn_on_mmu:
-	mcr 	p15, 0, r7, c1, c0, 0		@ turn on MMU, caches, etc.
-	nop
-	mov	pc, r2				@ jump to virtual addr
-	nop
-	nop
-	nop
-
-sleep_save_sp:
-	.word	0				@ preserve stack phys ptr here
-
-	.text
-resume_after_mmu:
+sa1100_cpu_resume:
 	mcr	p15, 0, r1, c15, c1, 2		@ enable clock switching
 	ldmfd	sp!, {r4 - r12, pc}		@ return to caller
-
-

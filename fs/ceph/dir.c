@@ -161,7 +161,7 @@ more:
 	filp->f_pos = di->offset;
 	err = filldir(dirent, dentry->d_name.name,
 		      dentry->d_name.len, di->offset,
-		      dentry->d_inode->i_ino,
+		      ceph_translate_ino(dentry->d_sb, dentry->d_inode->i_ino),
 		      dentry->d_inode->i_mode >> 12);
 
 	if (last) {
@@ -245,15 +245,17 @@ static int ceph_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 		dout("readdir off 0 -> '.'\n");
 		if (filldir(dirent, ".", 1, ceph_make_fpos(0, 0),
-			    inode->i_ino, inode->i_mode >> 12) < 0)
+			    ceph_translate_ino(inode->i_sb, inode->i_ino),
+			    inode->i_mode >> 12) < 0)
 			return 0;
 		filp->f_pos = 1;
 		off = 1;
 	}
 	if (filp->f_pos == 1) {
+		ino_t ino = filp->f_dentry->d_parent->d_inode->i_ino;
 		dout("readdir off 1 -> '..'\n");
 		if (filldir(dirent, "..", 2, ceph_make_fpos(0, 1),
-			    filp->f_dentry->d_parent->d_inode->i_ino,
+			    ceph_translate_ino(inode->i_sb, ino),
 			    inode->i_mode >> 12) < 0)
 			return 0;
 		filp->f_pos = 2;
@@ -377,7 +379,8 @@ more:
 		if (filldir(dirent,
 			    rinfo->dir_dname[off - fi->offset],
 			    rinfo->dir_dname_len[off - fi->offset],
-			    pos, ino, ftype) < 0) {
+			    pos,
+			    ceph_translate_ino(inode->i_sb, ino), ftype) < 0) {
 			dout("filldir stopping us...\n");
 			return 0;
 		}
@@ -409,7 +412,7 @@ more:
 	spin_lock(&inode->i_lock);
 	if (ci->i_release_count == fi->dir_release_count) {
 		dout(" marking %p complete\n", inode);
-		ci->i_ceph_flags |= CEPH_I_COMPLETE;
+		/* ci->i_ceph_flags |= CEPH_I_COMPLETE; */
 		ci->i_max_offset = filp->f_pos;
 	}
 	spin_unlock(&inode->i_lock);
@@ -496,6 +499,7 @@ struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
 
 	/* .snap dir? */
 	if (err == -ENOENT &&
+	    ceph_snap(parent) == CEPH_NOSNAP &&
 	    strcmp(dentry->d_name.name,
 		   fsc->mount_options->snapdir_name) == 0) {
 		struct inode *inode = ceph_get_snapdir(parent);
@@ -992,7 +996,7 @@ static int ceph_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	struct inode *dir;
 
-	if (nd->flags & LOOKUP_RCU)
+	if (nd && nd->flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	dir = dentry->d_parent->d_inode;
@@ -1023,34 +1027,13 @@ out_touch:
 }
 
 /*
- * When a dentry is released, clear the dir I_COMPLETE if it was part
- * of the current dir gen or if this is in the snapshot namespace.
+ * Release our ceph_dentry_info.
  */
-static void ceph_dentry_release(struct dentry *dentry)
+static void ceph_d_release(struct dentry *dentry)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
-	struct inode *parent_inode = NULL;
-	u64 snapid = CEPH_NOSNAP;
 
-	if (!IS_ROOT(dentry)) {
-		parent_inode = dentry->d_parent->d_inode;
-		if (parent_inode)
-			snapid = ceph_snap(parent_inode);
-	}
-	dout("dentry_release %p parent %p\n", dentry, parent_inode);
-	if (parent_inode && snapid != CEPH_SNAPDIR) {
-		struct ceph_inode_info *ci = ceph_inode(parent_inode);
-
-		spin_lock(&parent_inode->i_lock);
-		if (ci->i_shared_gen == di->lease_shared_gen ||
-		    snapid <= CEPH_MAXSNAP) {
-			dout(" clearing %p complete (d_release)\n",
-			     parent_inode);
-			ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
-			ci->i_release_count++;
-		}
-		spin_unlock(&parent_inode->i_lock);
-	}
+	dout("d_release %p\n", dentry);
 	if (di) {
 		ceph_dentry_lru_del(dentry);
 		if (di->lease_session)
@@ -1275,14 +1258,14 @@ const struct inode_operations ceph_dir_iops = {
 
 const struct dentry_operations ceph_dentry_ops = {
 	.d_revalidate = ceph_d_revalidate,
-	.d_release = ceph_dentry_release,
+	.d_release = ceph_d_release,
 };
 
 const struct dentry_operations ceph_snapdir_dentry_ops = {
 	.d_revalidate = ceph_snapdir_d_revalidate,
-	.d_release = ceph_dentry_release,
+	.d_release = ceph_d_release,
 };
 
 const struct dentry_operations ceph_snap_dentry_ops = {
-	.d_release = ceph_dentry_release,
+	.d_release = ceph_d_release,
 };

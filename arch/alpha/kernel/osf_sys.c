@@ -230,44 +230,24 @@ linux_to_osf_statfs(struct kstatfs *linux_stat, struct osf_statfs __user *osf_st
 	return copy_to_user(osf_stat, &tmp_stat, bufsiz) ? -EFAULT : 0;
 }
 
-static int
-do_osf_statfs(struct path *path, struct osf_statfs __user *buffer,
-	      unsigned long bufsiz)
+SYSCALL_DEFINE3(osf_statfs, const char __user *, pathname,
+		struct osf_statfs __user *, buffer, unsigned long, bufsiz)
 {
 	struct kstatfs linux_stat;
-	int error = vfs_statfs(path, &linux_stat);
+	int error = user_statfs(pathname, &linux_stat);
 	if (!error)
 		error = linux_to_osf_statfs(&linux_stat, buffer, bufsiz);
 	return error;	
 }
 
-SYSCALL_DEFINE3(osf_statfs, const char __user *, pathname,
-		struct osf_statfs __user *, buffer, unsigned long, bufsiz)
-{
-	struct path path;
-	int retval;
-
-	retval = user_path(pathname, &path);
-	if (!retval) {
-		retval = do_osf_statfs(&path, buffer, bufsiz);
-		path_put(&path);
-	}
-	return retval;
-}
-
 SYSCALL_DEFINE3(osf_fstatfs, unsigned long, fd,
 		struct osf_statfs __user *, buffer, unsigned long, bufsiz)
 {
-	struct file *file;
-	int retval;
-
-	retval = -EBADF;
-	file = fget(fd);
-	if (file) {
-		retval = do_osf_statfs(&file->f_path, buffer, bufsiz);
-		fput(file);
-	}
-	return retval;
+	struct kstatfs linux_stat;
+	int error = fd_statfs(fd, &linux_stat);
+	if (!error)
+		error = linux_to_osf_statfs(&linux_stat, buffer, bufsiz);
+	return error;
 }
 
 /*

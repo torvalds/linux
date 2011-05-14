@@ -151,6 +151,12 @@
  */
 #define WORST_COMPR_FACTOR 2
 
+/*
+ * How much memory is needed for a buffer where we comress a data node.
+ */
+#define COMPRESSED_DATA_NODE_BUF_SZ \
+	(UBIFS_DATA_NODE_SZ + UBIFS_BLOCK_SIZE * WORST_COMPR_FACTOR)
+
 /* Maximum expected tree height for use by bottom_up_buf */
 #define BOTTOM_UP_HEIGHT 64
 
@@ -646,6 +652,7 @@ typedef int (*ubifs_lpt_scan_callback)(struct ubifs_info *c,
  * @offs: write-buffer offset in this logical eraseblock
  * @avail: number of bytes available in the write-buffer
  * @used:  number of used bytes in the write-buffer
+ * @size: write-buffer size (in [@c->min_io_size, @c->max_write_size] range)
  * @dtype: type of data stored in this LEB (%UBI_LONGTERM, %UBI_SHORTTERM,
  * %UBI_UNKNOWN)
  * @jhead: journal head the mutex belongs to (note, needed only to shut lockdep
@@ -680,6 +687,7 @@ struct ubifs_wbuf {
 	int offs;
 	int avail;
 	int used;
+	int size;
 	int dtype;
 	int jhead;
 	int (*sync_callback)(struct ubifs_info *c, int lnum, int free, int pad);
@@ -1003,6 +1011,11 @@ struct ubifs_debug_info;
  * @bu_mutex: protects the pre-allocated bulk-read buffer and @c->bu
  * @bu: pre-allocated bulk-read information
  *
+ * @write_reserve_mutex: protects @write_reserve_buf
+ * @write_reserve_buf: on the write path we allocate memory, which might
+ *                     sometimes be unavailable, in which case we use this
+ *                     write reserve buffer
+ *
  * @log_lebs: number of logical eraseblocks in the log
  * @log_bytes: log size in bytes
  * @log_last: last LEB of the log
@@ -1024,7 +1037,12 @@ struct ubifs_debug_info;
  *
  * @min_io_size: minimal input/output unit size
  * @min_io_shift: number of bits in @min_io_size minus one
+ * @max_write_size: maximum amount of bytes the underlying flash can write at a
+ *                  time (MTD write buffer size)
+ * @max_write_shift: number of bits in @max_write_size minus one
  * @leb_size: logical eraseblock size in bytes
+ * @leb_start: starting offset of logical eraseblocks within physical
+ *             eraseblocks
  * @half_leb_size: half LEB size
  * @idx_leb_size: how many bytes of an LEB are effectively available when it is
  *                used to store indexing nodes (@leb_size - @max_idx_node_sz)
@@ -1166,22 +1184,21 @@ struct ubifs_debug_info;
  * @rp_uid: reserved pool user ID
  * @rp_gid: reserved pool group ID
  *
- * @empty: if the UBI device is empty
+ * @empty: %1 if the UBI device is empty
+ * @need_recovery: %1 if the file-system needs recovery
+ * @replaying: %1 during journal replay
+ * @mounting: %1 while mounting
+ * @remounting_rw: %1 while re-mounting from R/O mode to R/W mode
  * @replay_tree: temporary tree used during journal replay
  * @replay_list: temporary list used during journal replay
  * @replay_buds: list of buds to replay
  * @cs_sqnum: sequence number of first node in the log (commit start node)
  * @replay_sqnum: sequence number of node currently being replayed
- * @need_recovery: file-system needs recovery
- * @replaying: set to %1 during journal replay
  * @unclean_leb_list: LEBs to recover when re-mounting R/O mounted FS to R/W
  *                    mode
  * @rcvrd_mst_node: recovered master node to write when re-mounting R/O mounted
  *                  FS to R/W mode
  * @size_tree: inode size information for recovery
- * @remounting_rw: set while re-mounting from R/O mode to R/W mode
- * @always_chk_crc: always check CRCs (while mounting and remounting to R/W
- *                  mode)
  * @mount_opts: UBIFS-specific mount options
  *
  * @dbg: debugging-related information
@@ -1250,6 +1267,9 @@ struct ubifs_info {
 	struct mutex bu_mutex;
 	struct bu_info bu;
 
+	struct mutex write_reserve_mutex;
+	void *write_reserve_buf;
+
 	int log_lebs;
 	long long log_bytes;
 	int log_last;
@@ -1271,7 +1291,10 @@ struct ubifs_info {
 
 	int min_io_size;
 	int min_io_shift;
+	int max_write_size;
+	int max_write_shift;
 	int leb_size;
+	int leb_start;
 	int half_leb_size;
 	int idx_leb_size;
 	int leb_cnt;
@@ -1402,19 +1425,19 @@ struct ubifs_info {
 	gid_t rp_gid;
 
 	/* The below fields are used only during mounting and re-mounting */
-	int empty;
+	unsigned int empty:1;
+	unsigned int need_recovery:1;
+	unsigned int replaying:1;
+	unsigned int mounting:1;
+	unsigned int remounting_rw:1;
 	struct rb_root replay_tree;
 	struct list_head replay_list;
 	struct list_head replay_buds;
 	unsigned long long cs_sqnum;
 	unsigned long long replay_sqnum;
-	int need_recovery;
-	int replaying;
 	struct list_head unclean_leb_list;
 	struct ubifs_mst_node *rcvrd_mst_node;
 	struct rb_root size_tree;
-	int remounting_rw;
-	int always_chk_crc;
 	struct ubifs_mount_opts mount_opts;
 
 #ifdef CONFIG_UBIFS_FS_DEBUG

@@ -5,17 +5,52 @@
 #error SMP not supported on pre-ARMv6 CPUs
 #endif
 
+/*
+ * sev and wfe are ARMv6K extensions.  Uniprocessor ARMv6 may not have the K
+ * extensions, so when running on UP, we have to patch these instructions away.
+ */
+#define ALT_SMP(smp, up)					\
+	"9998:	" smp "\n"					\
+	"	.pushsection \".alt.smp.init\", \"a\"\n"	\
+	"	.long	9998b\n"				\
+	"	" up "\n"					\
+	"	.popsection\n"
+
+#ifdef CONFIG_THUMB2_KERNEL
+#define SEV		ALT_SMP("sev.w", "nop.w")
+/*
+ * For Thumb-2, special care is needed to ensure that the conditional WFE
+ * instruction really does assemble to exactly 4 bytes (as required by
+ * the SMP_ON_UP fixup code).   By itself "wfene" might cause the
+ * assembler to insert a extra (16-bit) IT instruction, depending on the
+ * presence or absence of neighbouring conditional instructions.
+ *
+ * To avoid this unpredictableness, an approprite IT is inserted explicitly:
+ * the assembler won't change IT instructions which are explicitly present
+ * in the input.
+ */
+#define WFE(cond)	ALT_SMP(		\
+	"it " cond "\n\t"			\
+	"wfe" cond ".n",			\
+						\
+	"nop.w"					\
+)
+#else
+#define SEV		ALT_SMP("sev", "nop")
+#define WFE(cond)	ALT_SMP("wfe" cond, "nop")
+#endif
+
 static inline void dsb_sev(void)
 {
 #if __LINUX_ARM_ARCH__ >= 7
 	__asm__ __volatile__ (
 		"dsb\n"
-		"sev"
+		SEV
 	);
-#elif defined(CONFIG_CPU_32v6K)
+#else
 	__asm__ __volatile__ (
 		"mcr p15, 0, %0, c7, c10, 4\n"
-		"sev"
+		SEV
 		: : "r" (0)
 	);
 #endif
@@ -46,9 +81,7 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
-#ifdef CONFIG_CPU_32v6K
-"	wfene\n"
-#endif
+	WFE("ne")
 "	strexeq	%0, %2, [%1]\n"
 "	teqeq	%0, #0\n"
 "	bne	1b"
@@ -107,9 +140,7 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
-#ifdef CONFIG_CPU_32v6K
-"	wfene\n"
-#endif
+	WFE("ne")
 "	strexeq	%0, %2, [%1]\n"
 "	teq	%0, #0\n"
 "	bne	1b"
@@ -176,9 +207,7 @@ static inline void arch_read_lock(arch_rwlock_t *rw)
 "1:	ldrex	%0, [%2]\n"
 "	adds	%0, %0, #1\n"
 "	strexpl	%1, %0, [%2]\n"
-#ifdef CONFIG_CPU_32v6K
-"	wfemi\n"
-#endif
+	WFE("mi")
 "	rsbpls	%0, %1, #0\n"
 "	bmi	1b"
 	: "=&r" (tmp), "=&r" (tmp2)

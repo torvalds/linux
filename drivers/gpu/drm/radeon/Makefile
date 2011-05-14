@@ -36,6 +36,9 @@ $(obj)/r600_reg_safe.h: $(src)/reg_srcs/r600 $(obj)/mkregtable
 $(obj)/evergreen_reg_safe.h: $(src)/reg_srcs/evergreen $(obj)/mkregtable
 	$(call if_changed,mkregtable)
 
+$(obj)/cayman_reg_safe.h: $(src)/reg_srcs/cayman $(obj)/mkregtable
+	$(call if_changed,mkregtable)
+
 $(obj)/r100.o: $(obj)/r100_reg_safe.h $(obj)/rn50_reg_safe.h
 
 $(obj)/r200.o: $(obj)/r200_reg_safe.h
@@ -50,7 +53,7 @@ $(obj)/rs600.o: $(obj)/rs600_reg_safe.h
 
 $(obj)/r600_cs.o: $(obj)/r600_reg_safe.h
 
-$(obj)/evergreen_cs.o: $(obj)/evergreen_reg_safe.h
+$(obj)/evergreen_cs.o: $(obj)/evergreen_reg_safe.h $(obj)/cayman_reg_safe.h
 
 radeon-y := radeon_drv.o radeon_cp.o radeon_state.o radeon_mem.o \
 	radeon_irq.o r300_cmdbuf.o r600_cp.o
@@ -66,7 +69,7 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	r200.o radeon_legacy_tv.o r600_cs.o r600_blit.o r600_blit_shaders.o \
 	r600_blit_kms.o radeon_pm.o atombios_dp.o r600_audio.o r600_hdmi.o \
 	evergreen.o evergreen_cs.o evergreen_blit_shaders.o evergreen_blit_kms.o \
-	radeon_trace_points.o ni.o
+	radeon_trace_points.o ni.o cayman_blit_shaders.o
 
 radeon-$(CONFIG_COMPAT) += radeon_ioc32.o
 radeon-$(CONFIG_VGA_SWITCHEROO) += radeon_atpx_handler.o

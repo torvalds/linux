@@ -291,7 +291,7 @@ Transport <-> LLDD Interfaces :
 Vport support by LLDD:
 
   The LLDD indicates support for vports by supplying a vport_create()
-  function in the transport template.  The presense of this function will
+  function in the transport template.  The presence of this function will
   cause the creation of the new attributes on the fc_host.  As part of
   the physical port completing its initialization relative to the
   transport, it should set the max_npiv_vports attribute to indicate the

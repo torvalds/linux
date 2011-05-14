@@ -123,6 +123,11 @@ static struct policydb_compat_info policydb_compat[] = {
 		.sym_num	= SYM_NUM,
 		.ocon_num	= OCON_NUM,
 	},
+	{
+		.version	= POLICYDB_VERSION_FILENAME_TRANS,
+		.sym_num	= SYM_NUM,
+		.ocon_num	= OCON_NUM,
+	},
 };
 
 static struct policydb_compat_info *policydb_lookup_compat(int version)
@@ -497,7 +502,7 @@ static int policydb_index(struct policydb *p)
 		goto out;
 
 	rc = flex_array_prealloc(p->type_val_to_struct_array, 0,
-				 p->p_types.nprim - 1, GFP_KERNEL | __GFP_ZERO);
+				 p->p_types.nprim, GFP_KERNEL | __GFP_ZERO);
 	if (rc)
 		goto out;
 
@@ -514,7 +519,7 @@ static int policydb_index(struct policydb *p)
 			goto out;
 
 		rc = flex_array_prealloc(p->sym_val_to_name[i],
-					 0, p->symtab[i].nprim - 1,
+					 0, p->symtab[i].nprim,
 					 GFP_KERNEL | __GFP_ZERO);
 		if (rc)
 			goto out;
@@ -704,6 +709,7 @@ void policydb_destroy(struct policydb *p)
 	int i;
 	struct role_allow *ra, *lra = NULL;
 	struct role_trans *tr, *ltr = NULL;
+	struct filename_trans *ft, *nft;
 
 	for (i = 0; i < SYM_NUM; i++) {
 		cond_resched();
@@ -781,6 +787,15 @@ void policydb_destroy(struct policydb *p)
 		}
 		flex_array_free(p->type_attr_map_array);
 	}
+
+	ft = p->filename_trans;
+	while (ft) {
+		nft = ft->next;
+		kfree(ft->name);
+		kfree(ft);
+		ft = nft;
+	}
+
 	ebitmap_destroy(&p->policycaps);
 	ebitmap_destroy(&p->permissive_map);
 
@@ -1788,6 +1803,76 @@ out:
 	return rc;
 }
 
+static int filename_trans_read(struct policydb *p, void *fp)
+{
+	struct filename_trans *ft, *last;
+	u32 nel, len;
+	char *name;
+	__le32 buf[4];
+	int rc, i;
+
+	if (p->policyvers < POLICYDB_VERSION_FILENAME_TRANS)
+		return 0;
+
+	rc = next_entry(buf, fp, sizeof(u32));
+	if (rc)
+		goto out;
+	nel = le32_to_cpu(buf[0]);
+
+	printk(KERN_ERR "%s: nel=%d\n", __func__, nel);
+
+	last = p->filename_trans;
+	while (last && last->next)
+		last = last->next;
+
+	for (i = 0; i < nel; i++) {
+		rc = -ENOMEM;
+		ft = kzalloc(sizeof(*ft), GFP_KERNEL);
+		if (!ft)
+			goto out;
+
+		/* add it to the tail of the list */
+		if (!last)
+			p->filename_trans = ft;
+		else
+			last->next = ft;
+		last = ft;
+
+		/* length of the path component string */
+		rc = next_entry(buf, fp, sizeof(u32));
+		if (rc)
+			goto out;
+		len = le32_to_cpu(buf[0]);
+
+		rc = -ENOMEM;
+		name = kmalloc(len + 1, GFP_KERNEL);
+		if (!name)
+			goto out;
+
+		ft->name = name;
+
+		/* path component string */
+		rc = next_entry(name, fp, len);
+		if (rc)
+			goto out;
+		name[len] = 0;
+
+		printk(KERN_ERR "%s: ft=%p ft->name=%p ft->name=%s\n", __func__, ft, ft->name, ft->name);
+
+		rc = next_entry(buf, fp, sizeof(u32) * 4);
+		if (rc)
+			goto out;
+
+		ft->stype = le32_to_cpu(buf[0]);
+		ft->ttype = le32_to_cpu(buf[1]);
+		ft->tclass = le32_to_cpu(buf[2]);
+		ft->otype = le32_to_cpu(buf[3]);
+	}
+	rc = 0;
+out:
+	return rc;
+}
+
 static int genfs_read(struct policydb *p, void *fp)
 {
 	int i, j, rc;
@@ -2251,6 +2336,10 @@ int policydb_read(struct policydb *p, void *fp)
 		lra = ra;
 	}
 
+	rc = filename_trans_read(p, fp);
+	if (rc)
+		goto bad;
+
 	rc = policydb_index(p);
 	if (rc)
 		goto bad;
@@ -2286,7 +2375,7 @@ int policydb_read(struct policydb *p, void *fp)
 		goto bad;
 
 	/* preallocate so we don't have to worry about the put ever failing */
-	rc = flex_array_prealloc(p->type_attr_map_array, 0, p->p_types.nprim - 1,
+	rc = flex_array_prealloc(p->type_attr_map_array, 0, p->p_types.nprim,
 				 GFP_KERNEL | __GFP_ZERO);
 	if (rc)
 		goto bad;
@@ -3025,6 +3114,43 @@ static int range_write(struct policydb *p, void *fp)
 	return 0;
 }
 
+static int filename_trans_write(struct policydb *p, void *fp)
+{
+	struct filename_trans *ft;
+	u32 len, nel = 0;
+	__le32 buf[4];
+	int rc;
+
+	for (ft = p->filename_trans; ft; ft = ft->next)
+		nel++;
+
+	buf[0] = cpu_to_le32(nel);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+
+	for (ft = p->filename_trans; ft; ft = ft->next) {
+		len = strlen(ft->name);
+		buf[0] = cpu_to_le32(len);
+		rc = put_entry(buf, sizeof(u32), 1, fp);
+		if (rc)
+			return rc;
+
+		rc = put_entry(ft->name, sizeof(char), len, fp);
+		if (rc)
+			return rc;
+
+		buf[0] = ft->stype;
+		buf[1] = ft->ttype;
+		buf[2] = ft->tclass;
+		buf[3] = ft->otype;
+
+		rc = put_entry(buf, sizeof(u32), 4, fp);
+		if (rc)
+			return rc;
+	}
+	return 0;
+}
 /*
  * Write the configuration data in a policy database
  * structure to a policy database binary representation
@@ -3132,6 +3258,10 @@ int policydb_write(struct policydb *p, void *fp)
 		return rc;
 
 	rc = role_allow_write(p->role_allow, fp);
+	if (rc)
+		return rc;
+
+	rc = filename_trans_write(p, fp);
 	if (rc)
 		return rc;
 

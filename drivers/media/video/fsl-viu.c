@@ -1445,8 +1445,7 @@ static struct video_device viu_template = {
 	.current_norm   = V4L2_STD_NTSC_M,
 };
 
-static int __devinit viu_of_probe(struct platform_device *op,
-				  const struct of_device_id *match)
+static int __devinit viu_of_probe(struct platform_device *op)
 {
 	struct viu_dev *viu_dev;
 	struct video_device *vdev;
@@ -1627,7 +1626,7 @@ static struct of_device_id mpc512x_viu_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mpc512x_viu_of_match);
 
-static struct of_platform_driver viu_of_platform_driver = {
+static struct platform_driver viu_of_platform_driver = {
 	.probe = viu_of_probe,
 	.remove = __devexit_p(viu_of_remove),
 #ifdef CONFIG_PM
@@ -1643,12 +1642,12 @@ static struct of_platform_driver viu_of_platform_driver = {
 
 static int __init viu_init(void)
 {
-	return of_register_platform_driver(&viu_of_platform_driver);
+	return platform_driver_register(&viu_of_platform_driver);
 }
 
 static void __exit viu_exit(void)
 {
-	of_unregister_platform_driver(&viu_of_platform_driver);
+	platform_driver_unregister(&viu_of_platform_driver);
 }
 
 module_init(viu_init);

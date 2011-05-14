@@ -1116,7 +1116,7 @@ int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c,
 
 /*
  * On NAND we try to mark this block bad. If the block was erased more
- * than MAX_ERASE_FAILURES we mark it finaly bad.
+ * than MAX_ERASE_FAILURES we mark it finally bad.
  * Don't care about failures. This block remains on the erase-pending
  * or badblock list as long as nobody manipulates the flash with
  * a bootloader or something like that.

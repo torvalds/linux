@@ -1174,7 +1174,7 @@ static int nilfs_btree_insert(struct nilfs_bmap *btree, __u64 key, __u64 ptr)
 	if (ret < 0)
 		goto out;
 	nilfs_btree_commit_insert(btree, path, level, key, ptr);
-	nilfs_bmap_add_blocks(btree, stats.bs_nblocks);
+	nilfs_inode_add_blocks(btree->b_inode, stats.bs_nblocks);
 
  out:
 	nilfs_btree_free_path(path);
@@ -1511,7 +1511,7 @@ static int nilfs_btree_delete(struct nilfs_bmap *btree, __u64 key)
 	if (ret < 0)
 		goto out;
 	nilfs_btree_commit_delete(btree, path, level, dat);
-	nilfs_bmap_sub_blocks(btree, stats.bs_nblocks);
+	nilfs_inode_sub_blocks(btree->b_inode, stats.bs_nblocks);
 
 out:
 	nilfs_btree_free_path(path);
@@ -1776,7 +1776,7 @@ int nilfs_btree_convert_and_insert(struct nilfs_bmap *btree,
 		return ret;
 	nilfs_btree_commit_convert_and_insert(btree, key, ptr, keys, ptrs, n,
 					      di, ni, bh);
-	nilfs_bmap_add_blocks(btree, stats.bs_nblocks);
+	nilfs_inode_add_blocks(btree->b_inode, stats.bs_nblocks);
 	return 0;
 }
 

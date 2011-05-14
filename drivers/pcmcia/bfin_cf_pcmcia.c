@@ -235,7 +235,7 @@ static int __devinit bfin_cf_probe(struct platform_device *pdev)
 	cf->irq = irq;
 	cf->socket.pci_irq = irq;
 
-	set_irq_type(irq, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(irq, IRQF_TRIGGER_LOW);
 
 	io_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	attr_mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);

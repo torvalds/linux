@@ -1,3 +1,4 @@
+#include "annotate.h"
 #include "util.h"
 #include "build-id.h"
 #include "hist.h"
@@ -49,6 +50,15 @@ static void hists__calc_col_len(struct hists *self, struct hist_entry *h)
 
 	if (h->ms.sym)
 		hists__new_col_len(self, HISTC_SYMBOL, h->ms.sym->namelen);
+	else {
+		const unsigned int unresolved_col_width = BITS_PER_LONG / 4;
+
+		if (hists__col_len(self, HISTC_DSO) < unresolved_col_width &&
+		    !symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
+		    !symbol_conf.dso_list)
+			hists__set_col_len(self, HISTC_DSO,
+					   unresolved_col_width);
+	}
 
 	len = thread__comm_len(h->thread);
 	if (hists__new_col_len(self, HISTC_COMM, len))
@@ -211,7 +221,9 @@ void hist_entry__free(struct hist_entry *he)
  * collapse the histogram
  */
 
-static bool collapse__insert_entry(struct rb_root *root, struct hist_entry *he)
+static bool hists__collapse_insert_entry(struct hists *self,
+					 struct rb_root *root,
+					 struct hist_entry *he)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
@@ -226,8 +238,11 @@ static bool collapse__insert_entry(struct rb_root *root, struct hist_entry *he)
 
 		if (!cmp) {
 			iter->period += he->period;
-			if (symbol_conf.use_callchain)
-				callchain_merge(iter->callchain, he->callchain);
+			if (symbol_conf.use_callchain) {
+				callchain_cursor_reset(&self->callchain_cursor);
+				callchain_merge(&self->callchain_cursor, iter->callchain,
+						he->callchain);
+			}
 			hist_entry__free(he);
 			return false;
 		}
@@ -262,7 +277,7 @@ void hists__collapse_resort(struct hists *self)
 		next = rb_next(&n->rb_node);
 
 		rb_erase(&n->rb_node, &self->entries);
-		if (collapse__insert_entry(&tmp, n))
+		if (hists__collapse_insert_entry(self, &tmp, n))
 			hists__inc_nr_entries(self, n);
 	}
 
@@ -425,7 +440,7 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 		u64 cumul;
 
 		child = rb_entry(node, struct callchain_node, rb_node);
-		cumul = cumul_hits(child);
+		cumul = callchain_cumul_hits(child);
 		remaining -= cumul;
 
 		/*
@@ -585,6 +600,7 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 {
 	struct sort_entry *se;
 	u64 period, total, period_sys, period_us, period_guest_sys, period_guest_us;
+	u64 nr_events;
 	const char *sep = symbol_conf.field_sep;
 	int ret;
 
@@ -593,6 +609,7 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 
 	if (pair_hists) {
 		period = self->pair ? self->pair->period : 0;
+		nr_events = self->pair ? self->pair->nr_events : 0;
 		total = pair_hists->stats.total_period;
 		period_sys = self->pair ? self->pair->period_sys : 0;
 		period_us = self->pair ? self->pair->period_us : 0;
@@ -600,6 +617,7 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 		period_guest_us = self->pair ? self->pair->period_guest_us : 0;
 	} else {
 		period = self->period;
+		nr_events = self->nr_events;
 		total = session_total;
 		period_sys = self->period_sys;
 		period_us = self->period_us;
@@ -640,9 +658,9 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 
 	if (symbol_conf.show_nr_samples) {
 		if (sep)
-			ret += snprintf(s + ret, size - ret, "%c%" PRIu64, *sep, period);
+			ret += snprintf(s + ret, size - ret, "%c%" PRIu64, *sep, nr_events);
 		else
-			ret += snprintf(s + ret, size - ret, "%11" PRIu64, period);
+			ret += snprintf(s + ret, size - ret, "%11" PRIu64, nr_events);
 	}
 
 	if (pair_hists) {
@@ -944,225 +962,14 @@ void hists__filter_by_thread(struct hists *self, const struct thread *thread)
 	}
 }
 
-static int symbol__alloc_hist(struct symbol *self)
+int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 ip)
 {
-	struct sym_priv *priv = symbol__priv(self);
-	const int size = (sizeof(*priv->hist) +
-			  (self->end - self->start) * sizeof(u64));
-
-	priv->hist = zalloc(size);
-	return priv->hist == NULL ? -1 : 0;
+	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, evidx, ip);
 }
 
-int hist_entry__inc_addr_samples(struct hist_entry *self, u64 ip)
+int hist_entry__annotate(struct hist_entry *he, size_t privsize)
 {
-	unsigned int sym_size, offset;
-	struct symbol *sym = self->ms.sym;
-	struct sym_priv *priv;
-	struct sym_hist *h;
-
-	if (!sym || !self->ms.map)
-		return 0;
-
-	priv = symbol__priv(sym);
-	if (priv->hist == NULL && symbol__alloc_hist(sym) < 0)
-		return -ENOMEM;
-
-	sym_size = sym->end - sym->start;
-	offset = ip - sym->start;
-
-	pr_debug3("%s: ip=%#" PRIx64 "\n", __func__, self->ms.map->unmap_ip(self->ms.map, ip));
-
-	if (offset >= sym_size)
-		return 0;
-
-	h = priv->hist;
-	h->sum++;
-	h->ip[offset]++;
-
-	pr_debug3("%#" PRIx64 " %s: period++ [ip: %#" PRIx64 ", %#" PRIx64
-		  "] => %" PRIu64 "\n", self->ms.sym->start, self->ms.sym->name,
-		  ip, ip - self->ms.sym->start, h->ip[offset]);
-	return 0;
-}
-
-static struct objdump_line *objdump_line__new(s64 offset, char *line, size_t privsize)
-{
-	struct objdump_line *self = malloc(sizeof(*self) + privsize);
-
-	if (self != NULL) {
-		self->offset = offset;
-		self->line = line;
-	}
-
-	return self;
-}
-
-void objdump_line__free(struct objdump_line *self)
-{
-	free(self->line);
-	free(self);
-}
-
-static void objdump__add_line(struct list_head *head, struct objdump_line *line)
-{
-	list_add_tail(&line->node, head);
-}
-
-struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
-					       struct objdump_line *pos)
-{
-	list_for_each_entry_continue(pos, head, node)
-		if (pos->offset >= 0)
-			return pos;
-
-	return NULL;
-}
-
-static int hist_entry__parse_objdump_line(struct hist_entry *self, FILE *file,
-					  struct list_head *head, size_t privsize)
-{
-	struct symbol *sym = self->ms.sym;
-	struct objdump_line *objdump_line;
-	char *line = NULL, *tmp, *tmp2, *c;
-	size_t line_len;
-	s64 line_ip, offset = -1;
-
-	if (getline(&line, &line_len, file) < 0)
-		return -1;
-
-	if (!line)
-		return -1;
-
-	while (line_len != 0 && isspace(line[line_len - 1]))
-		line[--line_len] = '\0';
-
-	c = strchr(line, '\n');
-	if (c)
-		*c = 0;
-
-	line_ip = -1;
-
-	/*
-	 * Strip leading spaces:
-	 */
-	tmp = line;
-	while (*tmp) {
-		if (*tmp != ' ')
-			break;
-		tmp++;
-	}
-
-	if (*tmp) {
-		/*
-		 * Parse hexa addresses followed by ':'
-		 */
-		line_ip = strtoull(tmp, &tmp2, 16);
-		if (*tmp2 != ':' || tmp == tmp2 || tmp2[1] == '\0')
-			line_ip = -1;
-	}
-
-	if (line_ip != -1) {
-		u64 start = map__rip_2objdump(self->ms.map, sym->start),
-		    end = map__rip_2objdump(self->ms.map, sym->end);
-
-		offset = line_ip - start;
-		if (offset < 0 || (u64)line_ip > end)
-			offset = -1;
-	}
-
-	objdump_line = objdump_line__new(offset, line, privsize);
-	if (objdump_line == NULL) {
-		free(line);
-		return -1;
-	}
-	objdump__add_line(head, objdump_line);
-
-	return 0;
-}
-
-int hist_entry__annotate(struct hist_entry *self, struct list_head *head,
-			 size_t privsize)
-{
-	struct symbol *sym = self->ms.sym;
-	struct map *map = self->ms.map;
-	struct dso *dso = map->dso;
-	char *filename = dso__build_id_filename(dso, NULL, 0);
-	bool free_filename = true;
-	char command[PATH_MAX * 2];
-	FILE *file;
-	int err = 0;
-	u64 len;
-	char symfs_filename[PATH_MAX];
-
-	if (filename) {
-		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
-			 symbol_conf.symfs, filename);
-	}
-
-	if (filename == NULL) {
-		if (dso->has_build_id) {
-			pr_err("Can't annotate %s: not enough memory\n",
-			       sym->name);
-			return -ENOMEM;
-		}
-		goto fallback;
-	} else if (readlink(symfs_filename, command, sizeof(command)) < 0 ||
-		   strstr(command, "[kernel.kallsyms]") ||
-		   access(symfs_filename, R_OK)) {
-		free(filename);
-fallback:
-		/*
-		 * If we don't have build-ids or the build-id file isn't in the
-		 * cache, or is just a kallsyms file, well, lets hope that this
-		 * DSO is the same as when 'perf record' ran.
-		 */
-		filename = dso->long_name;
-		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
-			 symbol_conf.symfs, filename);
-		free_filename = false;
-	}
-
-	if (dso->origin == DSO__ORIG_KERNEL) {
-		if (dso->annotate_warned)
-			goto out_free_filename;
-		err = -ENOENT;
-		dso->annotate_warned = 1;
-		pr_err("Can't annotate %s: No vmlinux file was found in the "
-		       "path\n", sym->name);
-		goto out_free_filename;
-	}
-
-	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
-		 filename, sym->name, map->unmap_ip(map, sym->start),
-		 map->unmap_ip(map, sym->end));
-
-	len = sym->end - sym->start;
-
-	pr_debug("annotating [%p] %30s : [%p] %30s\n",
-		 dso, dso->long_name, sym, sym->name);
-
-	snprintf(command, sizeof(command),
-		 "objdump --start-address=0x%016" PRIx64 " --stop-address=0x%016" PRIx64 " -dS -C %s|grep -v %s|expand",
-		 map__rip_2objdump(map, sym->start),
-		 map__rip_2objdump(map, sym->end),
-		 symfs_filename, filename);
-
-	pr_debug("Executing: %s\n", command);
-
-	file = popen(command, "r");
-	if (!file)
-		goto out_free_filename;
-
-	while (!feof(file))
-		if (hist_entry__parse_objdump_line(self, file, head, privsize) < 0)
-			break;
-
-	pclose(file);
-out_free_filename:
-	if (free_filename)
-		free(filename);
-	return err;
+	return symbol__annotate(he->ms.sym, he->ms.map, privsize);
 }
 
 void hists__inc_nr_events(struct hists *self, u32 type)
@@ -1177,8 +984,12 @@ size_t hists__fprintf_nr_events(struct hists *self, FILE *fp)
 	size_t ret = 0;
 
 	for (i = 0; i < PERF_RECORD_HEADER_MAX; ++i) {
-		const char *name = event__get_event_name(i);
+		const char *name;
 
+		if (self->stats.nr_events[i] == 0)
+			continue;
+
+		name = perf_event__name(i);
 		if (!strcmp(name, "UNKNOWN"))
 			continue;
 

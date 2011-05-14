@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -31,7 +31,6 @@
 
 #include "ixgbe.h"
 #include "ixgbe_phy.h"
-//#include "ixgbe_mbx.h"
 
 #define IXGBE_X540_MAX_TX_QUEUES 128
 #define IXGBE_X540_MAX_RX_QUEUES 128
@@ -110,12 +109,9 @@ static s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
 	 * access and verify no pending requests before reset
 	 */
-	status = ixgbe_disable_pcie_master(hw);
-	if (status != 0) {
-		status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
-		hw_dbg(hw, "PCI-E Master disable polling has failed.\n");
-	}
+	ixgbe_disable_pcie_master(hw);
 
+mac_reset_top:
 	/*
 	 * Issue global reset to the MAC.  Needs to be SW reset if link is up.
 	 * If link reset is used when link is up, it might reset the PHY when
@@ -146,6 +142,19 @@ static s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 	if (ctrl & reset_bit) {
 		status = IXGBE_ERR_RESET_FAILED;
 		hw_dbg(hw, "Reset polling failed to complete.\n");
+	}
+
+	/*
+	 * Double resets are required for recovery from certain error
+	 * conditions.  Between resets, it is necessary to stall to allow time
+	 * for any pending HW events to complete.  We use 1usec since that is
+	 * what is needed for ixgbe_disable_pcie_master().  The second reset
+	 * then clears out any effects of those events.
+	 */
+	if (hw->mac.flags & IXGBE_FLAGS_DOUBLE_RESET_REQUIRED) {
+		hw->mac.flags &= ~IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
+		udelay(1);
+		goto mac_reset_top;
 	}
 
 	/* Clear PF Reset Done bit so PF/VF Mail Ops can work */
@@ -191,7 +200,7 @@ static s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 	 * clear the multicast table.  Also reset num_rar_entries to 128,
 	 * since we modify this value when programming the SAN MAC address.
 	 */
-	hw->mac.num_rar_entries = 128;
+	hw->mac.num_rar_entries = IXGBE_X540_MAX_TX_QUEUES;
 	hw->mac.ops.init_rx_addrs(hw);
 
 	/* Store the permanent mac address */
@@ -242,8 +251,11 @@ static u32 ixgbe_get_supported_physical_layer_X540(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_init_eeprom_params_X540 - Initialize EEPROM params
- * @hw: pointer to hardware structure
+ *  ixgbe_init_eeprom_params_X540 - Initialize EEPROM params
+ *  @hw: pointer to hardware structure
+ *
+ *  Initializes the EEPROM parameters ixgbe_eeprom_info within the
+ *  ixgbe_hw struct in order to set up EEPROM access.
  **/
 static s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 {
@@ -262,7 +274,7 @@ static s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 		                          IXGBE_EEPROM_WORD_SIZE_SHIFT);
 
 		hw_dbg(hw, "Eeprom params: type = %d, size = %d\n",
-		        eeprom->type, eeprom->word_size);
+		       eeprom->type, eeprom->word_size);
 	}
 
 	return 0;
@@ -278,7 +290,7 @@ static s32 ixgbe_read_eerd_X540(struct ixgbe_hw *hw, u16 offset, u16 *data)
 {
 	s32 status;
 
-	if (ixgbe_acquire_swfw_sync_X540(hw, IXGBE_GSSR_EEP_SM) == 0)
+	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) == 0)
 		status = ixgbe_read_eerd_generic(hw, offset, data);
 	else
 		status = IXGBE_ERR_SWFW_SYNC;
@@ -311,7 +323,7 @@ static s32 ixgbe_write_eewr_X540(struct ixgbe_hw *hw, u16 offset, u16 data)
 	       (data << IXGBE_EEPROM_RW_REG_DATA) |
 	       IXGBE_EEPROM_RW_REG_START;
 
-	if (ixgbe_acquire_swfw_sync_X540(hw, IXGBE_GSSR_EEP_SM) == 0) {
+	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) == 0) {
 		status = ixgbe_poll_eerd_eewr_done(hw, IXGBE_NVM_POLL_WRITE);
 		if (status != 0) {
 			hw_dbg(hw, "Eeprom write EEWR timed out\n");
@@ -561,7 +573,7 @@ static s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask)
  * @hw: pointer to hardware structure
  * @mask: Mask to specify which semaphore to release
  *
- * Releases the SWFW semaphore throught the SW_FW_SYNC register
+ * Releases the SWFW semaphore through the SW_FW_SYNC register
  * for the specified function (CSR, PHY0, PHY1, EVM, Flash)
  **/
 static void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask)
@@ -676,7 +688,6 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.set_vmdq               = &ixgbe_set_vmdq_generic,
 	.clear_vmdq             = &ixgbe_clear_vmdq_generic,
 	.init_rx_addrs          = &ixgbe_init_rx_addrs_generic,
-	.update_uc_addr_list    = &ixgbe_update_uc_addr_list_generic,
 	.update_mc_addr_list    = &ixgbe_update_mc_addr_list_generic,
 	.enable_mc              = &ixgbe_enable_mc_generic,
 	.disable_mc             = &ixgbe_disable_mc_generic,
@@ -687,6 +698,8 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.setup_sfp              = NULL,
 	.set_mac_anti_spoofing  = &ixgbe_set_mac_anti_spoofing,
 	.set_vlan_anti_spoofing = &ixgbe_set_vlan_anti_spoofing,
+	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync_X540,
+	.release_swfw_sync      = &ixgbe_release_swfw_sync_X540,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_X540 = {
@@ -702,7 +715,7 @@ static struct ixgbe_phy_operations phy_ops_X540 = {
 	.identify               = &ixgbe_identify_phy_generic,
 	.identify_sfp           = &ixgbe_identify_sfp_module_generic,
 	.init			= NULL,
-	.reset                  = &ixgbe_reset_phy_generic,
+	.reset                  = NULL,
 	.read_reg               = &ixgbe_read_phy_reg_generic,
 	.write_reg              = &ixgbe_write_phy_reg_generic,
 	.setup_link             = &ixgbe_setup_phy_link_generic,

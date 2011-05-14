@@ -119,13 +119,6 @@ static struct platform_device keysc_device = {
 };
 
 /* FSI A */
-static struct sh_fsi_platform_info fsi_info = {
-	.porta_flags = SH_FSI_OUT_SLAVE_MODE	|
-		       SH_FSI_IN_SLAVE_MODE	|
-		       SH_FSI_OFMT(I2S)		|
-		       SH_FSI_IFMT(I2S),
-};
-
 static struct resource fsi_resources[] = {
 	[0] = {
 		.name	= "FSI",
@@ -144,9 +137,6 @@ static struct platform_device fsi_device = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(fsi_resources),
 	.resource	= fsi_resources,
-	.dev	= {
-		.platform_data	= &fsi_info,
-	},
 };
 
 static struct resource sh_mmcif_resources[] = {
@@ -454,6 +444,7 @@ static void __init ag5evm_init(void)
 	gpio_direction_output(GPIO_PORT217, 0);
 	mdelay(1);
 	gpio_set_value(GPIO_PORT217, 1);
+	mdelay(100);
 
 	/* LCD backlight controller */
 	gpio_request(GPIO_PORT235, NULL); /* RESET */

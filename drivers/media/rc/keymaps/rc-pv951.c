@@ -46,10 +46,10 @@ static struct rc_map_table pv951[] = {
 	{ 0x0c, KEY_SEARCH },		/* AUTOSCAN */
 
 	/* Not sure what to do with these ones! */
-	{ 0x0f, KEY_SELECT },		/* SOURCE */
+	{ 0x0f, KEY_VIDEO },		/* SOURCE */
 	{ 0x0a, KEY_KPPLUS },		/* +100 */
 	{ 0x14, KEY_EQUAL },		/* SYNC */
-	{ 0x1c, KEY_MEDIA },		/* PC/TV */
+	{ 0x1c, KEY_TV },		/* PC/TV */
 };
 
 static struct rc_map_list pv951_map = {

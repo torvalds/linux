@@ -156,7 +156,7 @@ struct mtd_info *__init crisv32_nand_flash_probe(void)
 	/* Enable the following for a flash based bad block table */
 	/* this->options = NAND_USE_FLASH_BBT; */
 
-	/* Scan to find existance of the device */
+	/* Scan to find existence of the device */
 	if (nand_scan(crisv32_mtd, 1)) {
 		err = -ENXIO;
 		goto out_ior;

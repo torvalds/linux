@@ -14,6 +14,7 @@
 
 #define	CPU_NAME		"COLDFIRE(m5272)"
 #define	CPU_INSTR_PER_JIFFY	3
+#define	MCF_BUSCLK		MCF_CLK
 
 #include <asm/m52xxacr.h>
 
@@ -79,6 +80,13 @@
 #define	MCFSIM_PCDDR		(MCF_MBAR + 0x94) /* Port C Direction (r/w) */
 #define	MCFSIM_PCDAT		(MCF_MBAR + 0x96) /* Port C Data (r/w) */
 #define	MCFSIM_PDCNT		(MCF_MBAR + 0x98) /* Port D Control (r/w) */
+
+#define	MCFDMA_BASE0		(MCF_MBAR + 0xe0) /* Base address DMA 0 */
+
+#define	MCFTIMER_BASE1		(MCF_MBAR + 0x200) /* Base address TIMER1 */
+#define	MCFTIMER_BASE2		(MCF_MBAR + 0x220) /* Base address TIMER2 */
+#define	MCFTIMER_BASE3		(MCF_MBAR + 0x240) /* Base address TIMER4 */
+#define	MCFTIMER_BASE4		(MCF_MBAR + 0x260) /* Base address TIMER3 */
 
 /*
  *	Define system peripheral IRQ usage.

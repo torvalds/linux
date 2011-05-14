@@ -25,7 +25,6 @@ struct cfserl {
 	spinlock_t sync;
 	bool usestx;
 };
-#define STXLEN(layr) (layr->usestx ? 1 : 0)
 
 static int cfserl_receive(struct cflayer *layr, struct cfpkt *pkt);
 static int cfserl_transmit(struct cflayer *layr, struct cfpkt *pkt);

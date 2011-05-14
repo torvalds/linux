@@ -1304,6 +1304,11 @@
 #define     V_038004_FMT_16_16_16_FLOAT                0x0000002E
 #define     V_038004_FMT_32_32_32                      0x0000002F
 #define     V_038004_FMT_32_32_32_FLOAT                0x00000030
+#define     V_038004_FMT_BC1                           0x00000031
+#define     V_038004_FMT_BC2                           0x00000032
+#define     V_038004_FMT_BC3                           0x00000033
+#define     V_038004_FMT_BC4                           0x00000034
+#define     V_038004_FMT_BC5                           0x00000035
 #define R_038010_SQ_TEX_RESOURCE_WORD4_0             0x038010
 #define   S_038010_FORMAT_COMP_X(x)                    (((x) & 0x3) << 0)
 #define   G_038010_FORMAT_COMP_X(x)                    (((x) >> 0) & 0x3)

@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2007-2009 Solarflare Communications Inc.
+ * Copyright 2007-2011 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -196,7 +196,7 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 		if (rc < 0)
 			return rc;
 
-		rc = efx_mdio_check_mmds(efx, TENXPRESS_REQUIRED_DEVS, 0);
+		rc = efx_mdio_check_mmds(efx, TENXPRESS_REQUIRED_DEVS);
 		if (rc < 0)
 			return rc;
 	}

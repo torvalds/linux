@@ -239,11 +239,9 @@ static bool
 probe_monitoring_device(struct nouveau_i2c_chan *i2c,
 			struct i2c_board_info *info)
 {
-	char modalias[16] = "i2c:";
 	struct i2c_client *client;
 
-	strlcat(modalias, info->type, sizeof(modalias));
-	request_module(modalias);
+	request_module("%s%s", I2C_MODULE_PREFIX, info->type);
 
 	client = i2c_new_device(&i2c->adapter, info);
 	if (!client)

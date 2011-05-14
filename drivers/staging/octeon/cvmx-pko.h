@@ -98,7 +98,7 @@ typedef enum {
 	/*
 	 * PKO doesn't do any locking. It is the responsibility of the
 	 * application to make sure that no other core is accessing
-	 * the same queue at the smae time
+	 * the same queue at the same time
 	 */
 	CVMX_PKO_LOCK_NONE = 0,
 	/*
@@ -324,7 +324,7 @@ static inline void cvmx_pko_doorbell(uint64_t port, uint64_t queue,
  * - CVMX_PKO_LOCK_NONE
  *      - PKO doesn't do any locking. It is the responsibility
  *          of the application to make sure that no other core
- *          is accessing the same queue at the smae time.
+ *          is accessing the same queue at the same time.
  * - CVMX_PKO_LOCK_ATOMIC_TAG
  *      - PKO performs an atomic tagswitch to insure exclusive
  *          access to the output queue. This will maintain

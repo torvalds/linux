@@ -197,7 +197,7 @@ int iwm_tx_credit_alloc(struct iwm_priv *iwm, int id, int nb)
 	spin_lock(&iwm->tx_credit.lock);
 
 	if (!iwm_tx_credit_ok(iwm, id, nb)) {
-		IWM_DBG_TX(iwm, DBG, "No credit avaliable for pool[%d]\n", id);
+		IWM_DBG_TX(iwm, DBG, "No credit available for pool[%d]\n", id);
 		ret = -ENOSPC;
 		goto out;
 	}

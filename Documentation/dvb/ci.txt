@@ -47,7 +47,7 @@ so on.
 
 * CI modules that are supported
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The CI module support is largely dependant upon the firmware on the cards
+The CI module support is largely dependent upon the firmware on the cards
 Some cards do support almost all of the available CI modules. There is
 nothing much that can be done in order to make additional CI modules
 working with these cards.

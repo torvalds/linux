@@ -24,8 +24,6 @@
 
 #include "sas_dump.h"
 
-#ifdef SAS_DEBUG
-
 static const char *sas_hae_str[] = {
 	[0] = "HAE_RESET",
 };
@@ -72,5 +70,3 @@ void sas_dump_port(struct asd_sas_port *port)
 	SAS_DPRINTK("port%d: oob_mode:0x%x\n", port->id, port->oob_mode);
 	SAS_DPRINTK("port%d: num_phys:%d\n", port->id, port->num_phys);
 }
-
-#endif /* SAS_DEBUG */

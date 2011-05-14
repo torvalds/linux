@@ -373,7 +373,7 @@ unsigned int mp_ioctl_xmit_packet_hdl(struct oid_par_priv *poid_par_priv);
 #ifdef _RTL871X_MP_IOCTL_C_ /* CAUTION!!! */
 /* This ifdef _MUST_ be left in!! */
 
-struct mp_ioctl_handler mp_ioctl_hdl[] = {
+static struct mp_ioctl_handler mp_ioctl_hdl[] = {
 	{sizeof(u32), oid_rt_pro_start_test_hdl,
 			     OID_RT_PRO_START_TEST},/*0*/
 	{sizeof(u32), oid_rt_pro_stop_test_hdl,

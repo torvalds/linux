@@ -335,7 +335,7 @@ static void wm97xx_pen_irq_worker(struct work_struct *work)
 	 */
 	if (!wm->mach_ops->acc_enabled || wm->mach_ops->acc_pen_down) {
 		if (wm->pen_is_down && !pen_was_down) {
-			/* Data is not availiable immediately on pen down */
+			/* Data is not available immediately on pen down */
 			queue_delayed_work(wm->ts_workq, &wm->ts_reader, 1);
 		}
 
@@ -354,7 +354,7 @@ static void wm97xx_pen_irq_worker(struct work_struct *work)
  * Codec PENDOWN irq handler
  *
  * We have to disable the codec interrupt in the handler because it
- * can take upto 1ms to clear the interrupt source. We schedule a task
+ * can take up to 1ms to clear the interrupt source. We schedule a task
  * in a work queue to do the actual interaction with the chip.  The
  * interrupt is then enabled again in the slow handler when the source
  * has been cleared.

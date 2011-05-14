@@ -223,7 +223,7 @@ int RT_CfgSetWepKey(struct rt_rtmp_adapter *pAd,
         pAdapter	Pointer to our adapter
         keyString	WPA pre-shared key string
         pHashStr	String used for password hash function
-        hashStrLen	Lenght of the hash string
+        hashStrLen	Length of the hash string
         pPMKBuf		Output buffer of WPAPSK key
 
     Return:

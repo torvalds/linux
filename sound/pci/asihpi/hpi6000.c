@@ -43,16 +43,17 @@
 #define HPI_HIF_ERROR_MASK      0x4000
 
 /* HPI6000 specific error codes */
+#define HPI6000_ERROR_BASE 900	/* not actually used anywhere */
 
-#define HPI6000_ERROR_BASE                              900
+/* operational/messaging errors */
 #define HPI6000_ERROR_MSG_RESP_IDLE_TIMEOUT             901
-#define HPI6000_ERROR_MSG_RESP_SEND_MSG_ACK             902
+
 #define HPI6000_ERROR_MSG_RESP_GET_RESP_ACK             903
 #define HPI6000_ERROR_MSG_GET_ADR                       904
 #define HPI6000_ERROR_RESP_GET_ADR                      905
 #define HPI6000_ERROR_MSG_RESP_BLOCKWRITE32             906
 #define HPI6000_ERROR_MSG_RESP_BLOCKREAD32              907
-#define HPI6000_ERROR_MSG_INVALID_DSP_INDEX             908
+
 #define HPI6000_ERROR_CONTROL_CACHE_PARAMS              909
 
 #define HPI6000_ERROR_SEND_DATA_IDLE_TIMEOUT            911
@@ -62,7 +63,6 @@
 #define HPI6000_ERROR_SEND_DATA_CMD                     915
 #define HPI6000_ERROR_SEND_DATA_WRITE                   916
 #define HPI6000_ERROR_SEND_DATA_IDLECMD                 917
-#define HPI6000_ERROR_SEND_DATA_VERIFY                  918
 
 #define HPI6000_ERROR_GET_DATA_IDLE_TIMEOUT             921
 #define HPI6000_ERROR_GET_DATA_ACK                      922
@@ -76,9 +76,8 @@
 
 #define HPI6000_ERROR_MSG_RESP_GETRESPCMD               961
 #define HPI6000_ERROR_MSG_RESP_IDLECMD                  962
-#define HPI6000_ERROR_MSG_RESP_BLOCKVERIFY32            963
 
-/* adapter init errors */
+/* Initialisation/bootload errors */
 #define HPI6000_ERROR_UNHANDLED_SUBSYS_ID               930
 
 /* can't access PCI2040 */
@@ -210,6 +209,8 @@ static void adapter_get_asserts(struct hpi_adapter_obj *pao,
 static short create_adapter_obj(struct hpi_adapter_obj *pao,
 	u32 *pos_error_code);
 
+static void delete_adapter_obj(struct hpi_adapter_obj *pao);
+
 /* local globals */
 
 static u16 gw_pci_read_asserts;	/* used to count PCI2040 errors */
@@ -217,17 +218,7 @@ static u16 gw_pci_write_asserts;	/* used to count PCI2040 errors */
 
 static void subsys_message(struct hpi_message *phm, struct hpi_response *phr)
 {
-
 	switch (phm->function) {
-	case HPI_SUBSYS_OPEN:
-	case HPI_SUBSYS_CLOSE:
-	case HPI_SUBSYS_GET_INFO:
-	case HPI_SUBSYS_DRIVER_UNLOAD:
-	case HPI_SUBSYS_DRIVER_LOAD:
-	case HPI_SUBSYS_FIND_ADAPTERS:
-		/* messages that should not get here */
-		phr->error = HPI_ERROR_UNIMPLEMENTED;
-		break;
 	case HPI_SUBSYS_CREATE_ADAPTER:
 		subsys_create_adapter(phm, phr);
 		break;
@@ -243,7 +234,6 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr)
 static void control_message(struct hpi_adapter_obj *pao,
 	struct hpi_message *phm, struct hpi_response *phr)
 {
-
 	switch (phm->function) {
 	case HPI_CONTROL_GET_STATE:
 		if (pao->has_control_cache) {
@@ -251,7 +241,13 @@ static void control_message(struct hpi_adapter_obj *pao,
 			err = hpi6000_update_control_cache(pao, phm);
 
 			if (err) {
-				phr->error = err;
+				if (err >= HPI_ERROR_BACKEND_BASE) {
+					phr->error =
+						HPI_ERROR_CONTROL_CACHING;
+					phr->specific_error = err;
+				} else {
+					phr->error = err;
+				}
 				break;
 			}
 
@@ -262,16 +258,15 @@ static void control_message(struct hpi_adapter_obj *pao,
 		}
 		hw_message(pao, phm, phr);
 		break;
-	case HPI_CONTROL_GET_INFO:
-		hw_message(pao, phm, phr);
-		break;
 	case HPI_CONTROL_SET_STATE:
 		hw_message(pao, phm, phr);
-		hpi_sync_control_cache(((struct hpi_hw_obj *)pao->priv)->
-			p_cache, phm, phr);
+		hpi_cmn_control_cache_sync_to_msg(((struct hpi_hw_obj *)pao->
+				priv)->p_cache, phm, phr);
 		break;
+
+	case HPI_CONTROL_GET_INFO:
 	default:
-		phr->error = HPI_ERROR_INVALID_FUNC;
+		hw_message(pao, phm, phr);
 		break;
 	}
 }
@@ -280,26 +275,12 @@ static void adapter_message(struct hpi_adapter_obj *pao,
 	struct hpi_message *phm, struct hpi_response *phr)
 {
 	switch (phm->function) {
-	case HPI_ADAPTER_GET_INFO:
-		hw_message(pao, phm, phr);
-		break;
 	case HPI_ADAPTER_GET_ASSERT:
 		adapter_get_asserts(pao, phm, phr);
 		break;
-	case HPI_ADAPTER_OPEN:
-	case HPI_ADAPTER_CLOSE:
-	case HPI_ADAPTER_TEST_ASSERT:
-	case HPI_ADAPTER_SELFTEST:
-	case HPI_ADAPTER_GET_MODE:
-	case HPI_ADAPTER_SET_MODE:
-	case HPI_ADAPTER_FIND_OBJECT:
-	case HPI_ADAPTER_GET_PROPERTY:
-	case HPI_ADAPTER_SET_PROPERTY:
-	case HPI_ADAPTER_ENUM_PROPERTY:
-		hw_message(pao, phm, phr);
-		break;
+
 	default:
-		phr->error = HPI_ERROR_INVALID_FUNC;
+		hw_message(pao, phm, phr);
 		break;
 	}
 }
@@ -311,7 +292,7 @@ static void outstream_message(struct hpi_adapter_obj *pao,
 	case HPI_OSTREAM_HOSTBUFFER_ALLOC:
 	case HPI_OSTREAM_HOSTBUFFER_FREE:
 		/* Don't let these messages go to the HW function because
-		 * they're called without allocating the spinlock.
+		 * they're called without locking the spinlock.
 		 * For the HPI6000 adapters the HW would return
 		 * HPI_ERROR_INVALID_FUNC anyway.
 		 */
@@ -331,7 +312,7 @@ static void instream_message(struct hpi_adapter_obj *pao,
 	case HPI_ISTREAM_HOSTBUFFER_ALLOC:
 	case HPI_ISTREAM_HOSTBUFFER_FREE:
 		/* Don't let these messages go to the HW function because
-		 * they're called without allocating the spinlock.
+		 * they're called without locking the spinlock.
 		 * For the HPI6000 adapters the HW would return
 		 * HPI_ERROR_INVALID_FUNC anyway.
 		 */
@@ -355,7 +336,7 @@ void HPI_6000(struct hpi_message *phm, struct hpi_response *phr)
 	/* subsytem messages get executed by every HPI. */
 	/* All other messages are ignored unless the adapter index matches */
 	/* an adapter in the HPI */
-	HPI_DEBUG_LOG(DEBUG, "O %d,F %x\n", phm->object, phm->function);
+	/*HPI_DEBUG_LOG(DEBUG, "O %d,F %x\n", phm->wObject, phm->wFunction); */
 
 	/* if Dsp has crashed then do not communicate with it any more */
 	if (phm->object != HPI_OBJ_SUBSYSTEM) {
@@ -433,39 +414,34 @@ static void subsys_create_adapter(struct hpi_message *phm,
 	struct hpi_adapter_obj ao;
 	struct hpi_adapter_obj *pao;
 	u32 os_error_code;
-	short error = 0;
+	u16 err = 0;
 	u32 dsp_index = 0;
 
 	HPI_DEBUG_LOG(VERBOSE, "subsys_create_adapter\n");
 
 	memset(&ao, 0, sizeof(ao));
 
-	/* this HPI only creates adapters for TI/PCI2040 based devices */
-	if (phm->u.s.resource.bus_type != HPI_BUS_PCI)
-		return;
-	if (phm->u.s.resource.r.pci->vendor_id != HPI_PCI_VENDOR_ID_TI)
-		return;
-	if (phm->u.s.resource.r.pci->device_id != HPI_PCI_DEV_ID_PCI2040)
-		return;
-
 	ao.priv = kzalloc(sizeof(struct hpi_hw_obj), GFP_KERNEL);
 	if (!ao.priv) {
-		HPI_DEBUG_LOG(ERROR, "cant get mem for adapter object\n");
+		HPI_DEBUG_LOG(ERROR, "can't get mem for adapter object\n");
 		phr->error = HPI_ERROR_MEMORY_ALLOC;
 		return;
 	}
 
 	/* create the adapter object based on the resource information */
-	/*? memcpy(&ao.Pci,&phm->u.s.Resource.r.Pci,sizeof(ao.Pci)); */
 	ao.pci = *phm->u.s.resource.r.pci;
 
-	error = create_adapter_obj(&ao, &os_error_code);
-	if (!error)
-		error = hpi_add_adapter(&ao);
-	if (error) {
+	err = create_adapter_obj(&ao, &os_error_code);
+	if (err) {
+		delete_adapter_obj(&ao);
+		if (err >= HPI_ERROR_BACKEND_BASE) {
+			phr->error = HPI_ERROR_DSP_BOOTLOAD;
+			phr->specific_error = err;
+		} else {
+			phr->error = err;
+		}
+
 		phr->u.s.data = os_error_code;
-		kfree(ao.priv);
-		phr->error = error;
 		return;
 	}
 	/* need to update paParentAdapter */
@@ -473,7 +449,7 @@ static void subsys_create_adapter(struct hpi_message *phm,
 	if (!pao) {
 		/* We just added this adapter, why can't we find it!? */
 		HPI_DEBUG_LOG(ERROR, "lost adapter after boot\n");
-		phr->error = 950;
+		phr->error = HPI_ERROR_BAD_ADAPTER;
 		return;
 	}
 
@@ -482,9 +458,8 @@ static void subsys_create_adapter(struct hpi_message *phm,
 		phw->ado[dsp_index].pa_parent_adapter = pao;
 	}
 
-	phr->u.s.aw_adapter_list[ao.index] = ao.adapter_type;
+	phr->u.s.adapter_type = ao.adapter_type;
 	phr->u.s.adapter_index = ao.index;
-	phr->u.s.num_adapters++;
 	phr->error = 0;
 }
 
@@ -492,20 +467,13 @@ static void subsys_delete_adapter(struct hpi_message *phm,
 	struct hpi_response *phr)
 {
 	struct hpi_adapter_obj *pao = NULL;
-	struct hpi_hw_obj *phw;
 
-	pao = hpi_find_adapter(phm->adapter_index);
+	pao = hpi_find_adapter(phm->obj_index);
 	if (!pao)
 		return;
 
-	phw = (struct hpi_hw_obj *)pao->priv;
-
-	if (pao->has_control_cache)
-		hpi_free_control_cache(phw->p_cache);
-
+	delete_adapter_obj(pao);
 	hpi_delete_adapter(pao);
-	kfree(phw);
-
 	phr->error = 0;
 }
 
@@ -518,9 +486,6 @@ static short create_adapter_obj(struct hpi_adapter_obj *pao,
 	u32 control_cache_size = 0;
 	u32 control_cache_count = 0;
 	struct hpi_hw_obj *phw = (struct hpi_hw_obj *)pao->priv;
-
-	/* init error reporting */
-	pao->dsp_crashed = 0;
 
 	/* The PCI2040 has the following address map */
 	/* BAR0 - 4K = HPI control and status registers on PCI2040 (HPI CSR) */
@@ -575,36 +540,36 @@ static short create_adapter_obj(struct hpi_adapter_obj *pao,
 	/* get info about the adapter by asking the adapter */
 	/* send a HPI_ADAPTER_GET_INFO message */
 	{
-		struct hpi_message hM;
-		struct hpi_response hR0;	/* response from DSP 0 */
-		struct hpi_response hR1;	/* response from DSP 1 */
+		struct hpi_message hm;
+		struct hpi_response hr0;	/* response from DSP 0 */
+		struct hpi_response hr1;	/* response from DSP 1 */
 		u16 error = 0;
 
 		HPI_DEBUG_LOG(VERBOSE, "send ADAPTER_GET_INFO\n");
-		memset(&hM, 0, sizeof(hM));
-		hM.type = HPI_TYPE_MESSAGE;
-		hM.size = sizeof(struct hpi_message);
-		hM.object = HPI_OBJ_ADAPTER;
-		hM.function = HPI_ADAPTER_GET_INFO;
-		hM.adapter_index = 0;
-		memset(&hR0, 0, sizeof(hR0));
-		memset(&hR1, 0, sizeof(hR1));
-		hR0.size = sizeof(hR0);
-		hR1.size = sizeof(hR1);
+		memset(&hm, 0, sizeof(hm));
+		hm.type = HPI_TYPE_MESSAGE;
+		hm.size = sizeof(struct hpi_message);
+		hm.object = HPI_OBJ_ADAPTER;
+		hm.function = HPI_ADAPTER_GET_INFO;
+		hm.adapter_index = 0;
+		memset(&hr0, 0, sizeof(hr0));
+		memset(&hr1, 0, sizeof(hr1));
+		hr0.size = sizeof(hr0);
+		hr1.size = sizeof(hr1);
 
-		error = hpi6000_message_response_sequence(pao, 0, &hM, &hR0);
-		if (hR0.error) {
-			HPI_DEBUG_LOG(DEBUG, "message error %d\n", hR0.error);
-			return hR0.error;
+		error = hpi6000_message_response_sequence(pao, 0, &hm, &hr0);
+		if (hr0.error) {
+			HPI_DEBUG_LOG(DEBUG, "message error %d\n", hr0.error);
+			return hr0.error;
 		}
 		if (phw->num_dsp == 2) {
-			error = hpi6000_message_response_sequence(pao, 1, &hM,
-				&hR1);
+			error = hpi6000_message_response_sequence(pao, 1, &hm,
+				&hr1);
 			if (error)
 				return error;
 		}
-		pao->adapter_type = hR0.u.a.adapter_type;
-		pao->index = hR0.u.a.adapter_index;
+		pao->adapter_type = hr0.u.ax.info.adapter_type;
+		pao->index = hr0.u.ax.info.adapter_index;
 	}
 
 	memset(&phw->control_cache[0], 0,
@@ -618,22 +583,37 @@ static short create_adapter_obj(struct hpi_adapter_obj *pao,
 		control_cache_count =
 			hpi_read_word(&phw->ado[0],
 			HPI_HIF_ADDR(control_cache_count));
-		pao->has_control_cache = 1;
 
 		phw->p_cache =
 			hpi_alloc_control_cache(control_cache_count,
-			control_cache_size, (struct hpi_control_cache_info *)
+			control_cache_size, (unsigned char *)
 			&phw->control_cache[0]
 			);
-		if (!phw->p_cache)
-			pao->has_control_cache = 0;
-	} else
-		pao->has_control_cache = 0;
+		if (phw->p_cache)
+			pao->has_control_cache = 1;
+	}
 
 	HPI_DEBUG_LOG(DEBUG, "get adapter info ASI%04X index %d\n",
 		pao->adapter_type, pao->index);
 	pao->open = 0;	/* upon creation the adapter is closed */
-	return 0;
+
+	if (phw->p_cache)
+		phw->p_cache->adap_idx = pao->index;
+
+	return hpi_add_adapter(pao);
+}
+
+static void delete_adapter_obj(struct hpi_adapter_obj *pao)
+{
+	struct hpi_hw_obj *phw = (struct hpi_hw_obj *)pao->priv;
+
+	if (pao->has_control_cache)
+		hpi_free_control_cache(phw->p_cache);
+
+	/* reset DSPs on adapter */
+	iowrite32(0x0003000F, phw->dw2040_HPICSR + HPI_RESET);
+
+	kfree(phw);
 }
 
 /************************************************************************/
@@ -645,11 +625,13 @@ static void adapter_get_asserts(struct hpi_adapter_obj *pao,
 #ifndef HIDE_PCI_ASSERTS
 	/* if we have PCI2040 asserts then collect them */
 	if ((gw_pci_read_asserts > 0) || (gw_pci_write_asserts > 0)) {
-		phr->u.a.serial_number =
+		phr->u.ax.assert.p1 =
 			gw_pci_read_asserts * 100 + gw_pci_write_asserts;
-		phr->u.a.adapter_index = 1;	/* assert count */
-		phr->u.a.adapter_type = -1;	/* "dsp index" */
-		strcpy(phr->u.a.sz_adapter_assert, "PCI2040 error");
+		phr->u.ax.assert.p2 = 0;
+		phr->u.ax.assert.count = 1;	/* assert count */
+		phr->u.ax.assert.dsp_index = -1;	/* "dsp index" */
+		strcpy(phr->u.ax.assert.sz_message, "PCI2040 error");
+		phr->u.ax.assert.dsp_msg_addr = 0;
 		gw_pci_read_asserts = 0;
 		gw_pci_write_asserts = 0;
 		phr->error = 0;
@@ -686,10 +668,10 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 
 	/* NOTE don't use wAdapterType in this routine. It is not setup yet */
 
-	switch (pao->pci.subsys_device_id) {
+	switch (pao->pci.pci_dev->subsystem_device) {
 	case 0x5100:
 	case 0x5110:	/* ASI5100 revB or higher with C6711D */
-	case 0x5200:	/* ASI5200 PC_ie version of ASI5100 */
+	case 0x5200:	/* ASI5200 PCIe version of ASI5100 */
 	case 0x6100:
 	case 0x6200:
 		boot_load_family = HPI_ADAPTER_FAMILY_ASI(0x6200);
@@ -709,8 +691,9 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 	 * note that bits 4..15 are read-only and so should always return zero,
 	 * even though we wrote 1 to them
 	 */
-	for (i = 0; i < 1000; i++)
-		delay = ioread32(phw->dw2040_HPICSR + HPI_RESET);
+	hpios_delay_micro_seconds(1000);
+	delay = ioread32(phw->dw2040_HPICSR + HPI_RESET);
+
 	if (delay != dw2040_reset) {
 		HPI_DEBUG_LOG(ERROR, "INIT_PCI2040 %x %x\n", dw2040_reset,
 			delay);
@@ -743,8 +726,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 	dw2040_reset = dw2040_reset & (~0x00000008);
 	iowrite32(dw2040_reset, phw->dw2040_HPICSR + HPI_RESET);
 	/*delay to allow DSP to get going */
-	for (i = 0; i < 100; i++)
-		delay = ioread32(phw->dw2040_HPICSR + HPI_RESET);
+	hpios_delay_micro_seconds(100);
 
 	/* loop through all DSPs, downloading DSP code */
 	for (dsp_index = 0; dsp_index < phw->num_dsp; dsp_index++) {
@@ -783,27 +765,27 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 			 */
 			/* bypass PLL */
 			hpi_write_word(pdo, 0x01B7C100, 0x0000);
-			for (i = 0; i < 100; i++)
-				delay = ioread32(phw->dw2040_HPICSR +
-					HPI_RESET);
+			hpios_delay_micro_seconds(100);
 
 			/*  ** use default of PLL  x7 ** */
 			/* EMIF = 225/3=75MHz */
 			hpi_write_word(pdo, 0x01B7C120, 0x8002);
+			hpios_delay_micro_seconds(100);
+
 			/* peri = 225/2 */
 			hpi_write_word(pdo, 0x01B7C11C, 0x8001);
+			hpios_delay_micro_seconds(100);
+
 			/* cpu  = 225/1 */
 			hpi_write_word(pdo, 0x01B7C118, 0x8000);
-			/* ~200us delay */
-			for (i = 0; i < 2000; i++)
-				delay = ioread32(phw->dw2040_HPICSR +
-					HPI_RESET);
+
+			/* ~2ms delay */
+			hpios_delay_micro_seconds(2000);
+
 			/* PLL not bypassed */
 			hpi_write_word(pdo, 0x01B7C100, 0x0001);
-			/* ~200us delay */
-			for (i = 0; i < 2000; i++)
-				delay = ioread32(phw->dw2040_HPICSR +
-					HPI_RESET);
+			/* ~2ms delay */
+			hpios_delay_micro_seconds(2000);
 		}
 
 		/* test r/w to internal DSP memory
@@ -927,9 +909,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 		}
 
 		/* delay a little to allow SDRAM and DSP to "get going" */
-
-		for (i = 0; i < 1000; i++)
-			delay = ioread32(phw->dw2040_HPICSR + HPI_RESET);
+		hpios_delay_micro_seconds(1000);
 
 		/* test access to SDRAM */
 		{
@@ -976,7 +956,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 
 		/* write the DSP code down into the DSPs memory */
 		/*HpiDspCode_Open(nBootLoadFamily,&DspCode,pdwOsErrorCode); */
-		dsp_code.ps_dev = pao->pci.p_os_data;
+		dsp_code.ps_dev = pao->pci.pci_dev;
 
 		error = hpi_dsp_code_open(boot_load_family, &dsp_code,
 			pos_error_code);
@@ -1073,8 +1053,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 
 		/* step 3. Start code by sending interrupt */
 		iowrite32(0x00030003, pdo->prHPI_control);
-		for (i = 0; i < 10000; i++)
-			delay = ioread32(phw->dw2040_HPICSR + HPI_RESET);
+		hpios_delay_micro_seconds(10000);
 
 		/* wait for a non-zero value in hostcmd -
 		 * indicating initialization is complete
@@ -1101,7 +1080,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 			 * locks up with a bluescreen (NOT GPF or pagefault).
 			 */
 			else
-				hpios_delay_micro_seconds(1000);
+				hpios_delay_micro_seconds(10000);
 		}
 		if (timeout == 0)
 			return HPI6000_ERROR_INIT_NOACK;
@@ -1132,14 +1111,14 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 				mask = 0xFFFFFF00L;
 				/* ASI5100 uses AX6 code, */
 				/* but has no PLD r/w register to test */
-				if (HPI_ADAPTER_FAMILY_ASI(pao->pci.
-						subsys_device_id) ==
+				if (HPI_ADAPTER_FAMILY_ASI(pao->pci.pci_dev->
+						subsystem_device) ==
 					HPI_ADAPTER_FAMILY_ASI(0x5100))
 					mask = 0x00000000L;
 				/* ASI5200 uses AX6 code, */
 				/* but has no PLD r/w register to test */
-				if (HPI_ADAPTER_FAMILY_ASI(pao->pci.
-						subsys_device_id) ==
+				if (HPI_ADAPTER_FAMILY_ASI(pao->pci.pci_dev->
+						subsystem_device) ==
 					HPI_ADAPTER_FAMILY_ASI(0x5200))
 					mask = 0x00000000L;
 				break;
@@ -1204,7 +1183,7 @@ static u32 hpi_read_word(struct dsp_obj *pdo, u32 address)
 	u32 data = 0;
 
 	if (hpi_set_address(pdo, address))
-		return 0;	/*? no way to return error */
+		return 0;	/*? No way to return error */
 
 	/* take care of errata in revB DSP (2.0.1) */
 	data = ioread32(pdo->prHPI_data);
@@ -1340,10 +1319,6 @@ static short hpi6000_message_response_sequence(struct hpi_adapter_obj *pao,
 	u32 *p_data;
 	u16 error = 0;
 
-	/* does the DSP we are referencing exist? */
-	if (dsp_index >= phw->num_dsp)
-		return HPI6000_ERROR_MSG_INVALID_DSP_INDEX;
-
 	ack = hpi6000_wait_dsp_ack(pao, dsp_index, HPI_HIF_IDLE);
 	if (ack & HPI_HIF_ERROR_MASK) {
 		pao->dsp_crashed++;
@@ -1351,9 +1326,7 @@ static short hpi6000_message_response_sequence(struct hpi_adapter_obj *pao,
 	}
 	pao->dsp_crashed = 0;
 
-	/* send the message */
-
-	/* get the address and size */
+	/* get the message address and size */
 	if (phw->message_buffer_address_on_dsp == 0) {
 		timeout = TIMEOUT;
 		do {
@@ -1368,10 +1341,9 @@ static short hpi6000_message_response_sequence(struct hpi_adapter_obj *pao,
 	} else
 		address = phw->message_buffer_address_on_dsp;
 
-	/*        dwLength = sizeof(struct hpi_message); */
 	length = phm->size;
 
-	/* send it */
+	/* send the message */
 	p_data = (u32 *)phm;
 	if (hpi6000_dsp_block_write32(pao, dsp_index, address, p_data,
 			(u16)length / 4))
@@ -1385,7 +1357,7 @@ static short hpi6000_message_response_sequence(struct hpi_adapter_obj *pao,
 	if (ack & HPI_HIF_ERROR_MASK)
 		return HPI6000_ERROR_MSG_RESP_GET_RESP_ACK;
 
-	/* get the address and size */
+	/* get the response address */
 	if (phw->response_buffer_address_on_dsp == 0) {
 		timeout = TIMEOUT;
 		do {
@@ -1409,7 +1381,7 @@ static short hpi6000_message_response_sequence(struct hpi_adapter_obj *pao,
 	if (!timeout)
 		length = sizeof(struct hpi_response);
 
-	/* get it */
+	/* get the response */
 	p_data = (u32 *)phr;
 	if (hpi6000_dsp_block_read32(pao, dsp_index, address, p_data,
 			(u16)length / 4))
@@ -1805,17 +1777,11 @@ static void hw_message(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 	hpios_dsplock_lock(pao);
 	error = hpi6000_message_response_sequence(pao, dsp_index, phm, phr);
 
-	/* maybe an error response */
-	if (error) {
-		/* something failed in the HPI/DSP interface */
-		phr->error = error;
-		/* just the header of the response is valid */
-		phr->size = sizeof(struct hpi_response_header);
+	if (error)	/* something failed in the HPI/DSP interface */
 		goto err;
-	}
 
-	if (phr->error != 0)	/* something failed in the DSP */
-		goto err;
+	if (phr->error)	/* something failed in the DSP */
+		goto out;
 
 	switch (phm->function) {
 	case HPI_OSTREAM_WRITE:
@@ -1827,21 +1793,30 @@ static void hw_message(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 		error = hpi6000_get_data(pao, dsp_index, phm, phr);
 		break;
 	case HPI_ADAPTER_GET_ASSERT:
-		phr->u.a.adapter_index = 0;	/* dsp 0 default */
+		phr->u.ax.assert.dsp_index = 0;	/* dsp 0 default */
 		if (num_dsp == 2) {
-			if (!phr->u.a.adapter_type) {
+			if (!phr->u.ax.assert.count) {
 				/* no assert from dsp 0, check dsp 1 */
 				error = hpi6000_message_response_sequence(pao,
 					1, phm, phr);
-				phr->u.a.adapter_index = 1;
+				phr->u.ax.assert.dsp_index = 1;
 			}
 		}
 	}
 
-	if (error)
-		phr->error = error;
-
 err:
+	if (error) {
+		if (error >= HPI_ERROR_BACKEND_BASE) {
+			phr->error = HPI_ERROR_DSP_COMMUNICATION;
+			phr->specific_error = error;
+		} else {
+			phr->error = error;
+		}
+
+		/* just the header of the response is valid */
+		phr->size = sizeof(struct hpi_response_header);
+	}
+out:
 	hpios_dsplock_unlock(pao);
 	return;
 }

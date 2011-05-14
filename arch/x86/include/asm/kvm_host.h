@@ -85,7 +85,7 @@
 
 #define ASYNC_PF_PER_VCPU 64
 
-extern spinlock_t kvm_lock;
+extern raw_spinlock_t kvm_lock;
 extern struct list_head vm_list;
 
 struct kvm_vcpu;
@@ -255,6 +255,8 @@ struct kvm_mmu {
 	int (*sync_page)(struct kvm_vcpu *vcpu,
 			 struct kvm_mmu_page *sp);
 	void (*invlpg)(struct kvm_vcpu *vcpu, gva_t gva);
+	void (*update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
+			u64 *spte, const void *pte, unsigned long mmu_seq);
 	hpa_t root_hpa;
 	int root_level;
 	int shadow_root_level;
@@ -334,12 +336,6 @@ struct kvm_vcpu_arch {
 	int   last_pt_write_count;
 	u64  *last_pte_updated;
 	gfn_t last_pte_gfn;
-
-	struct {
-		gfn_t gfn;	/* presumed gfn during guest pte update */
-		pfn_t pfn;	/* pfn corresponding to that gfn */
-		unsigned long mmu_seq;
-	} update_pte;
 
 	struct fpu guest_fpu;
 	u64 xcr0;
@@ -448,7 +444,7 @@ struct kvm_arch {
 
 	unsigned long irq_sources_bitmap;
 	s64 kvmclock_offset;
-	spinlock_t tsc_write_lock;
+	raw_spinlock_t tsc_write_lock;
 	u64 last_tsc_nsec;
 	u64 last_tsc_offset;
 	u64 last_tsc_write;

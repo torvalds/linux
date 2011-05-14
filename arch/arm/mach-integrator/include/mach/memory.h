@@ -23,7 +23,7 @@
 /*
  * Physical DRAM offset.
  */
-#define PHYS_OFFSET	UL(0x00000000)
+#define PLAT_PHYS_OFFSET	UL(0x00000000)
 
 #define BUS_OFFSET	UL(0x80000000)
 #define __virt_to_bus(x)	((x) - PAGE_OFFSET + BUS_OFFSET)

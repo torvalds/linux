@@ -224,14 +224,14 @@ int max8998_irq_init(struct max8998_dev *max8998)
 	/* register with genirq */
 	for (i = 0; i < MAX8998_IRQ_NR; i++) {
 		cur_irq = i + max8998->irq_base;
-		set_irq_chip_data(cur_irq, max8998);
-		set_irq_chip_and_handler(cur_irq, &max8998_irq_chip,
+		irq_set_chip_data(cur_irq, max8998);
+		irq_set_chip_and_handler(cur_irq, &max8998_irq_chip,
 					 handle_edge_irq);
-		set_irq_nested_thread(cur_irq, 1);
+		irq_set_nested_thread(cur_irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(cur_irq, IRQF_VALID);
 #else
-		set_irq_noprobe(cur_irq);
+		irq_set_noprobe(cur_irq);
 #endif
 	}
 

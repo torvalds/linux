@@ -28,6 +28,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/pci.h>
+#include <linux/delay.h>
 #include <linux/file.h>
 #include <asm/mrst.h>
 #include <sound/pcm.h>
@@ -72,9 +73,9 @@ enum _reg_v2 {
 
 };
 /**
- * mx_init_card - initilize the sound card
+ * mx_init_card - initialize the sound card
  *
- * This initilizes the audio paths to know values in case of this sound card
+ * This initializes the audio paths to know values in case of this sound card
  */
 static int mx_init_card(void)
 {

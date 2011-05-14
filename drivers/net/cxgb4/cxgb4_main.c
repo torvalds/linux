@@ -2471,7 +2471,6 @@ static int netevent_cb(struct notifier_block *nb, unsigned long event,
 	case NETEVENT_NEIGH_UPDATE:
 		check_neigh_update(data);
 		break;
-	case NETEVENT_PMTU_UPDATE:
 	case NETEVENT_REDIRECT:
 	default:
 		break;

@@ -502,7 +502,7 @@ struct txd_desc {
 #define  GMAC_RX_FILTER_ACRC  0x0010	/* accept crc error */
 #define  GMAC_RX_FILTER_AM    0x0008	/* accept multicast */
 #define  GMAC_RX_FILTER_AB    0x0004	/* accept broadcast */
-#define  GMAC_RX_FILTER_PRM   0x0001	/* [0:1] promiscous mode */
+#define  GMAC_RX_FILTER_PRM   0x0001	/* [0:1] promiscuous mode */
 
 #define  MAX_FRAME_AB_VAL       0x3fff	/* 13:0 */
 

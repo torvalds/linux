@@ -32,7 +32,7 @@ static void inject_mce(struct mce *m)
 {
 	struct mce *i = &per_cpu(injectm, m->extcpu);
 
-	/* Make sure noone reads partially written injectm */
+	/* Make sure no one reads partially written injectm */
 	i->finished = 0;
 	mb();
 	m->finished = 0;

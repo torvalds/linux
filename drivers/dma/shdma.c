@@ -750,7 +750,7 @@ static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan)
 		return;
 	}
 
-	/* Find the first not transferred desciptor */
+	/* Find the first not transferred descriptor */
 	list_for_each_entry(desc, &sh_chan->ld_queue, node)
 		if (desc->mark == DESC_SUBMITTED) {
 			dev_dbg(sh_chan->dev, "Queue #%d to %d: %u@%x -> %x\n",
@@ -865,7 +865,12 @@ static unsigned int sh_dmae_reset(struct sh_dmae_device *shdev)
 
 static irqreturn_t sh_dmae_err(int irq, void *data)
 {
-	return IRQ_RETVAL(sh_dmae_reset(data));
+	struct sh_dmae_device *shdev = data;
+
+	if (dmaor_read(shdev) & DMAOR_AE)
+		return IRQ_RETVAL(sh_dmae_reset(data));
+	else
+		return IRQ_NONE;
 }
 
 static void dmae_do_tasklet(unsigned long data)

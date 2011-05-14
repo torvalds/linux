@@ -89,7 +89,7 @@
 }
 
 /*	Given the value i in 0..255 as the byte overflow when a field element
-    in GHASH is multipled by x^8, this function will return the values that
+    in GHASH is multiplied by x^8, this function will return the values that
     are generated in the lo 16-bit word of the field value by applying the
     modular polynomial. The values lo_byte and hi_byte are returned via the
     macro xp_fun(lo_byte, hi_byte) so that the values can be assembled into

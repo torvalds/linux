@@ -29,16 +29,16 @@
 #include <linux/uaccess.h>
 #include <linux/errno.h>
 
-extern struct __get_user futex_set(int __user *v, int i);
-extern struct __get_user futex_add(int __user *v, int n);
-extern struct __get_user futex_or(int __user *v, int n);
-extern struct __get_user futex_andn(int __user *v, int n);
-extern struct __get_user futex_cmpxchg(int __user *v, int o, int n);
+extern struct __get_user futex_set(u32 __user *v, int i);
+extern struct __get_user futex_add(u32 __user *v, int n);
+extern struct __get_user futex_or(u32 __user *v, int n);
+extern struct __get_user futex_andn(u32 __user *v, int n);
+extern struct __get_user futex_cmpxchg(u32 __user *v, int o, int n);
 
 #ifndef __tilegx__
-extern struct __get_user futex_xor(int __user *v, int n);
+extern struct __get_user futex_xor(u32 __user *v, int n);
 #else
-static inline struct __get_user futex_xor(int __user *uaddr, int n)
+static inline struct __get_user futex_xor(u32 __user *uaddr, int n)
 {
 	struct __get_user asm_ret = __get_user_4(uaddr);
 	if (!asm_ret.err) {
@@ -53,7 +53,7 @@ static inline struct __get_user futex_xor(int __user *uaddr, int n)
 }
 #endif
 
-static inline int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
+static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 {
 	int op = (encoded_op >> 28) & 7;
 	int cmp = (encoded_op >> 24) & 15;
@@ -65,7 +65,7 @@ static inline int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
 		oparg = 1 << oparg;
 
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	pagefault_disable();
@@ -119,16 +119,17 @@ static inline int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 	return ret;
 }
 
-static inline int futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval,
-						int newval)
+static inline int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
+						u32 oldval, u32 newval)
 {
 	struct __get_user asm_ret;
 
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	asm_ret = futex_cmpxchg(uaddr, oldval, newval);
-	return asm_ret.err ? asm_ret.err : asm_ret.val;
+	*uval = asm_ret.val;
+	return asm_ret.err;
 }
 
 #ifndef __tilegx__

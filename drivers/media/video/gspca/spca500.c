@@ -607,7 +607,7 @@ static void spca500_reinit(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x00, 0x8880, 2);
 	/* family cam Quicksmart stuff */
 	reg_w(gspca_dev, 0x00, 0x800a, 0x00);
-	/* Set agc transfer: synced inbetween frames */
+	/* Set agc transfer: synced between frames */
 	reg_w(gspca_dev, 0x00, 0x820f, 0x01);
 	/* Init SDRAM - needed for SDRAM access */
 	reg_w(gspca_dev, 0x00, 0x870a, 0x04);
@@ -831,7 +831,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 		/* familycam Quicksmart pocketDV stuff */
 		reg_w(gspca_dev, 0x00, 0x800a, 0x00);
-		/* Set agc transfer: synced inbetween frames */
+		/* Set agc transfer: synced between frames */
 		reg_w(gspca_dev, 0x00, 0x820f, 0x01);
 		/* Init SDRAM - needed for SDRAM access */
 		reg_w(gspca_dev, 0x00, 0x870a, 0x04);

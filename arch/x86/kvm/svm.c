@@ -135,6 +135,8 @@ struct vcpu_svm {
 
 	u32 *msrpm;
 
+	ulong nmi_iret_rip;
+
 	struct nested_state nested;
 
 	bool nmi_singlestep;
@@ -1153,7 +1155,9 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 	wrmsrl(MSR_KERNEL_GS_BASE, current->thread.gs);
 	load_gs_index(svm->host.gs);
 #else
+#ifdef CONFIG_X86_32_LAZY_GS
 	loadsegment(gs, svm->host.gs);
+#endif
 #endif
 	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
 		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
@@ -2653,6 +2657,7 @@ static int iret_interception(struct vcpu_svm *svm)
 	++svm->vcpu.stat.nmi_window_exits;
 	clr_intercept(svm, INTERCEPT_IRET);
 	svm->vcpu.arch.hflags |= HF_IRET_MASK;
+	svm->nmi_iret_rip = kvm_rip_read(&svm->vcpu);
 	return 1;
 }
 
@@ -2776,6 +2781,8 @@ static int dr_interception(struct vcpu_svm *svm)
 		if (!err)
 			kvm_register_write(&svm->vcpu, reg, val);
 	}
+
+	skip_emulated_instruction(&svm->vcpu);
 
 	return 1;
 }
@@ -3472,7 +3479,12 @@ static void svm_complete_interrupts(struct vcpu_svm *svm)
 
 	svm->int3_injected = 0;
 
-	if (svm->vcpu.arch.hflags & HF_IRET_MASK) {
+	/*
+	 * If we've made progress since setting HF_IRET_MASK, we've
+	 * executed an IRET and can allow NMI injection.
+	 */
+	if ((svm->vcpu.arch.hflags & HF_IRET_MASK)
+	    && kvm_rip_read(&svm->vcpu) != svm->nmi_iret_rip) {
 		svm->vcpu.arch.hflags &= ~(HF_NMI_MASK | HF_IRET_MASK);
 		kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
 	}
@@ -3639,18 +3651,29 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	wrmsrl(MSR_GS_BASE, svm->host.gs_base);
 #else
 	loadsegment(fs, svm->host.fs);
+#ifndef CONFIG_X86_32_LAZY_GS
+	loadsegment(gs, svm->host.gs);
+#endif
 #endif
 
 	reload_tss(vcpu);
 
 	local_irq_disable();
 
-	stgi();
-
 	vcpu->arch.cr2 = svm->vmcb->save.cr2;
 	vcpu->arch.regs[VCPU_REGS_RAX] = svm->vmcb->save.rax;
 	vcpu->arch.regs[VCPU_REGS_RSP] = svm->vmcb->save.rsp;
 	vcpu->arch.regs[VCPU_REGS_RIP] = svm->vmcb->save.rip;
+
+	if (unlikely(svm->vmcb->control.exit_code == SVM_EXIT_NMI))
+		kvm_before_handle_nmi(&svm->vcpu);
+
+	stgi();
+
+	/* Any pending NMI will happen here */
+
+	if (unlikely(svm->vmcb->control.exit_code == SVM_EXIT_NMI))
+		kvm_after_handle_nmi(&svm->vcpu);
 
 	sync_cr8_to_lapic(vcpu);
 

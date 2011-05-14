@@ -58,6 +58,7 @@ struct omap3_processor_cx {
 	u32 core_state;
 	u32 threshold;
 	u32 flags;
+	const char *desc;
 };
 
 struct omap3_processor_cx omap3_power_states[OMAP3_MAX_STATES];
@@ -99,14 +100,14 @@ static int omap3_idle_bm_check(void)
 static int _cpuidle_allow_idle(struct powerdomain *pwrdm,
 				struct clockdomain *clkdm)
 {
-	omap2_clkdm_allow_idle(clkdm);
+	clkdm_allow_idle(clkdm);
 	return 0;
 }
 
 static int _cpuidle_deny_idle(struct powerdomain *pwrdm,
 				struct clockdomain *clkdm)
 {
-	omap2_clkdm_deny_idle(clkdm);
+	clkdm_deny_idle(clkdm);
 	return 0;
 }
 
@@ -296,8 +297,8 @@ DEFINE_PER_CPU(struct cpuidle_device, omap3_idle_dev);
 
 /**
  * omap3_cpuidle_update_states() - Update the cpuidle states
- * @mpu_deepest_state:	Enable states upto and including this for mpu domain
- * @core_deepest_state:	Enable states upto and including this for core domain
+ * @mpu_deepest_state:	Enable states up to and including this for mpu domain
+ * @core_deepest_state:	Enable states up to and including this for core domain
  *
  * This goes through the list of states available and enables and disables the
  * validity of C states based on deepest state that can be achieved for the
@@ -365,6 +366,7 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C1].mpu_state = PWRDM_POWER_ON;
 	omap3_power_states[OMAP3_STATE_C1].core_state = PWRDM_POWER_ON;
 	omap3_power_states[OMAP3_STATE_C1].flags = CPUIDLE_FLAG_TIME_VALID;
+	omap3_power_states[OMAP3_STATE_C1].desc = "MPU ON + CORE ON";
 
 	/* C2 . MPU WFI + Core inactive */
 	omap3_power_states[OMAP3_STATE_C2].valid =
@@ -380,6 +382,7 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C2].core_state = PWRDM_POWER_ON;
 	omap3_power_states[OMAP3_STATE_C2].flags = CPUIDLE_FLAG_TIME_VALID |
 				CPUIDLE_FLAG_CHECK_BM;
+	omap3_power_states[OMAP3_STATE_C2].desc = "MPU ON + CORE ON";
 
 	/* C3 . MPU CSWR + Core inactive */
 	omap3_power_states[OMAP3_STATE_C3].valid =
@@ -395,6 +398,7 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C3].core_state = PWRDM_POWER_ON;
 	omap3_power_states[OMAP3_STATE_C3].flags = CPUIDLE_FLAG_TIME_VALID |
 				CPUIDLE_FLAG_CHECK_BM;
+	omap3_power_states[OMAP3_STATE_C3].desc = "MPU RET + CORE ON";
 
 	/* C4 . MPU OFF + Core inactive */
 	omap3_power_states[OMAP3_STATE_C4].valid =
@@ -410,6 +414,7 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C4].core_state = PWRDM_POWER_ON;
 	omap3_power_states[OMAP3_STATE_C4].flags = CPUIDLE_FLAG_TIME_VALID |
 				CPUIDLE_FLAG_CHECK_BM;
+	omap3_power_states[OMAP3_STATE_C4].desc = "MPU OFF + CORE ON";
 
 	/* C5 . MPU CSWR + Core CSWR*/
 	omap3_power_states[OMAP3_STATE_C5].valid =
@@ -425,6 +430,7 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C5].core_state = PWRDM_POWER_RET;
 	omap3_power_states[OMAP3_STATE_C5].flags = CPUIDLE_FLAG_TIME_VALID |
 				CPUIDLE_FLAG_CHECK_BM;
+	omap3_power_states[OMAP3_STATE_C5].desc = "MPU RET + CORE RET";
 
 	/* C6 . MPU OFF + Core CSWR */
 	omap3_power_states[OMAP3_STATE_C6].valid =
@@ -440,6 +446,7 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C6].core_state = PWRDM_POWER_RET;
 	omap3_power_states[OMAP3_STATE_C6].flags = CPUIDLE_FLAG_TIME_VALID |
 				CPUIDLE_FLAG_CHECK_BM;
+	omap3_power_states[OMAP3_STATE_C6].desc = "MPU OFF + CORE RET";
 
 	/* C7 . MPU OFF + Core OFF */
 	omap3_power_states[OMAP3_STATE_C7].valid =
@@ -455,6 +462,7 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C7].core_state = PWRDM_POWER_OFF;
 	omap3_power_states[OMAP3_STATE_C7].flags = CPUIDLE_FLAG_TIME_VALID |
 				CPUIDLE_FLAG_CHECK_BM;
+	omap3_power_states[OMAP3_STATE_C7].desc = "MPU OFF + CORE OFF";
 
 	/*
 	 * Erratum i583: implementation for ES rev < Es1.2 on 3630. We cannot
@@ -464,7 +472,7 @@ void omap_init_power_states(void)
 	if (IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583)) {
 		omap3_power_states[OMAP3_STATE_C7].valid = 0;
 		cpuidle_params_table[OMAP3_STATE_C7].valid = 0;
-		WARN_ONCE(1, "%s: core off state C7 disabled due to i583\n",
+		pr_warn("%s: core off state C7 disabled due to i583\n",
 				__func__);
 	}
 }
@@ -512,6 +520,7 @@ int __init omap3_idle_init(void)
 		if (cx->type == OMAP3_STATE_C1)
 			dev->safe_state = state;
 		sprintf(state->name, "C%d", count+1);
+		strncpy(state->desc, cx->desc, CPUIDLE_DESC_LEN);
 		count++;
 	}
 

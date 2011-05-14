@@ -213,7 +213,6 @@ static void intel_overlay_unmap_regs(struct intel_overlay *overlay,
 
 static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 					 struct drm_i915_gem_request *request,
-					 bool interruptible,
 					 void (*tail)(struct intel_overlay *))
 {
 	struct drm_device *dev = overlay->dev;
@@ -221,16 +220,14 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 	int ret;
 
 	BUG_ON(overlay->last_flip_req);
-	ret = i915_add_request(dev, NULL, request, LP_RING(dev_priv));
+	ret = i915_add_request(LP_RING(dev_priv), NULL, request);
 	if (ret) {
 	    kfree(request);
 	    return ret;
 	}
 	overlay->last_flip_req = request->seqno;
 	overlay->flip_tail = tail;
-	ret = i915_do_wait_request(dev,
-				   overlay->last_flip_req, true,
-				   LP_RING(dev_priv));
+	ret = i915_wait_request(LP_RING(dev_priv), overlay->last_flip_req);
 	if (ret)
 		return ret;
 
@@ -256,7 +253,7 @@ i830_activate_pipe_a(struct drm_device *dev)
 		return 0;
 
 	/* most i8xx have pipe a forced on, so don't trust dpms mode */
-	if (I915_READ(PIPEACONF) & PIPECONF_ENABLE)
+	if (I915_READ(_PIPEACONF) & PIPECONF_ENABLE)
 		return 0;
 
 	crtc_funcs = crtc->base.helper_private;
@@ -322,7 +319,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	OUT_RING(MI_NOOP);
 	ADVANCE_LP_RING();
 
-	ret = intel_overlay_do_wait_request(overlay, request, true, NULL);
+	ret = intel_overlay_do_wait_request(overlay, request, NULL);
 out:
 	if (pipe_a_quirk)
 		i830_deactivate_pipe_a(dev);
@@ -364,7 +361,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	OUT_RING(flip_addr);
         ADVANCE_LP_RING();
 
-	ret = i915_add_request(dev, NULL, request, LP_RING(dev_priv));
+	ret = i915_add_request(LP_RING(dev_priv), NULL, request);
 	if (ret) {
 		kfree(request);
 		return ret;
@@ -401,8 +398,7 @@ static void intel_overlay_off_tail(struct intel_overlay *overlay)
 }
 
 /* overlay needs to be disabled in OCMD reg */
-static int intel_overlay_off(struct intel_overlay *overlay,
-			     bool interruptible)
+static int intel_overlay_off(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -437,14 +433,13 @@ static int intel_overlay_off(struct intel_overlay *overlay,
 	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
 	ADVANCE_LP_RING();
 
-	return intel_overlay_do_wait_request(overlay, request, interruptible,
+	return intel_overlay_do_wait_request(overlay, request,
 					     intel_overlay_off_tail);
 }
 
 /* recover from an interruption due to a signal
  * We have to be careful not to repeat work forever an make forward progess. */
-static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
-						bool interruptible)
+static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -453,8 +448,7 @@ static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 	if (overlay->last_flip_req == 0)
 		return 0;
 
-	ret = i915_do_wait_request(dev, overlay->last_flip_req,
-				   interruptible, LP_RING(dev_priv));
+	ret = i915_wait_request(LP_RING(dev_priv), overlay->last_flip_req);
 	if (ret)
 		return ret;
 
@@ -499,7 +493,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 		OUT_RING(MI_NOOP);
 		ADVANCE_LP_RING();
 
-		ret = intel_overlay_do_wait_request(overlay, request, true,
+		ret = intel_overlay_do_wait_request(overlay, request,
 						    intel_overlay_release_old_vid_tail);
 		if (ret)
 			return ret;
@@ -868,8 +862,7 @@ out_unpin:
 	return ret;
 }
 
-int intel_overlay_switch_off(struct intel_overlay *overlay,
-			     bool interruptible)
+int intel_overlay_switch_off(struct intel_overlay *overlay)
 {
 	struct overlay_registers *regs;
 	struct drm_device *dev = overlay->dev;
@@ -878,7 +871,7 @@ int intel_overlay_switch_off(struct intel_overlay *overlay,
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 	BUG_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
-	ret = intel_overlay_recover_from_interrupt(overlay, interruptible);
+	ret = intel_overlay_recover_from_interrupt(overlay);
 	if (ret != 0)
 		return ret;
 
@@ -893,7 +886,7 @@ int intel_overlay_switch_off(struct intel_overlay *overlay,
 	regs->OCMD = 0;
 	intel_overlay_unmap_regs(overlay, regs);
 
-	ret = intel_overlay_off(overlay, interruptible);
+	ret = intel_overlay_off(overlay);
 	if (ret != 0)
 		return ret;
 
@@ -1135,7 +1128,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		mutex_lock(&dev->mode_config.mutex);
 		mutex_lock(&dev->struct_mutex);
 
-		ret = intel_overlay_switch_off(overlay, true);
+		ret = intel_overlay_switch_off(overlay);
 
 		mutex_unlock(&dev->struct_mutex);
 		mutex_unlock(&dev->mode_config.mutex);
@@ -1157,7 +1150,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 
 	new_bo = to_intel_bo(drm_gem_object_lookup(dev, file_priv,
 						   put_image_rec->bo_handle));
-	if (!new_bo) {
+	if (&new_bo->base == NULL) {
 		ret = -ENOENT;
 		goto out_free;
 	}
@@ -1171,13 +1164,13 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	ret = intel_overlay_recover_from_interrupt(overlay, true);
+	ret = intel_overlay_recover_from_interrupt(overlay);
 	if (ret != 0)
 		goto out_unlock;
 
 	if (overlay->crtc != crtc) {
 		struct drm_display_mode *mode = &crtc->base.mode;
-		ret = intel_overlay_switch_off(overlay, true);
+		ret = intel_overlay_switch_off(overlay);
 		if (ret != 0)
 			goto out_unlock;
 

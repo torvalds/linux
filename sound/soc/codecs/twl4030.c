@@ -26,6 +26,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/core.h>
 #include <linux/i2c/twl.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -280,7 +281,7 @@ static inline void twl4030_check_defaults(struct snd_soc_codec *codec)
 				 i, val, twl4030_reg[i]);
 		}
 	}
-	dev_dbg(codec->dev, "Found %d non maching registers. %s\n",
+	dev_dbg(codec->dev, "Found %d non-matching registers. %s\n",
 		 difference, difference ? "Not OK" : "OK");
 }
 
@@ -732,7 +733,8 @@ static int aif_event(struct snd_soc_dapm_widget *w,
 
 static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 {
-	struct twl4030_codec_audio_data *pdata = codec->dev->platform_data;
+	struct twl4030_codec_audio_data *pdata =
+			mfd_get_data(to_platform_device(codec->dev));
 	unsigned char hs_gain, hs_pop;
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
 	/* Base values for ramp delay calculation: 2^19 - 2^26 */
@@ -2016,7 +2018,7 @@ static int twl4030_voice_startup(struct snd_pcm_substream *substream,
 	u8 mode;
 
 	/* If the system master clock is not 26MHz, the voice PCM interface is
-	 * not avilable.
+	 * not available.
 	 */
 	if (twl4030->sysclk != 26000) {
 		dev_err(codec->dev, "The board is configured for %u Hz, while"
@@ -2026,7 +2028,7 @@ static int twl4030_voice_startup(struct snd_pcm_substream *substream,
 	}
 
 	/* If the codec mode is not option2, the voice PCM interface is not
-	 * avilable.
+	 * available.
 	 */
 	mode = twl4030_read_reg_cache(codec, TWL4030_REG_CODEC_MODE)
 		& TWL4030_OPT_MODE;
@@ -2297,7 +2299,7 @@ static struct snd_soc_codec_driver soc_codec_dev_twl4030 = {
 
 static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 {
-	struct twl4030_codec_audio_data *pdata = pdev->dev.platform_data;
+	struct twl4030_codec_audio_data *pdata = mfd_get_data(pdev);
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "platform_data is missing\n");

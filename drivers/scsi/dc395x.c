@@ -235,7 +235,7 @@ struct ScsiReqBlk {
 
 	u8 sg_count;			/* No of HW sg entries for this request */
 	u8 sg_index;			/* Index of HW sg entry for this request */
-	size_t total_xfer_length;	/* Total number of bytes remaining to be transfered */
+	size_t total_xfer_length;	/* Total number of bytes remaining to be transferred */
 	size_t request_length;		/* Total number of bytes in this request */
 	/*
 	 * The sense buffer handling function, request_sense, uses
@@ -1774,7 +1774,7 @@ static void dc395x_handle_interrupt(struct AdapterCtlBlk *acb,
 		dc395x_statev(acb, srb, &scsi_status);
 
 		/* 
-		 * if there were any exception occured scsi_status
+		 * if there were any exception occurred scsi_status
 		 * will be modify to bus free phase new scsi_status
 		 * transfer out from ... previous dc395x_statev
 		 */
@@ -1954,11 +1954,11 @@ static void sg_verify_length(struct ScsiReqBlk *srb)
 static void sg_update_list(struct ScsiReqBlk *srb, u32 left)
 {
 	u8 idx;
-	u32 xferred = srb->total_xfer_length - left; /* bytes transfered */
+	u32 xferred = srb->total_xfer_length - left; /* bytes transferred */
 	struct SGentry *psge = srb->segment_x + srb->sg_index;
 
 	dprintkdbg(DBG_0,
-		"sg_update_list: Transfered %i of %i bytes, %i remain\n",
+		"sg_update_list: Transferred %i of %i bytes, %i remain\n",
 		xferred, srb->total_xfer_length, left);
 	if (xferred == 0) {
 		/* nothing to update since we did not transfer any data */
@@ -1990,7 +1990,7 @@ static void sg_update_list(struct ScsiReqBlk *srb, u32 left)
 
 
 /*
- * We have transfered a single byte (PIO mode?) and need to update
+ * We have transferred a single byte (PIO mode?) and need to update
  * the count of bytes remaining (total_xfer_length) and update the sg
  * entry to either point to next byte in the current sg entry, or of
  * already at the end to point to the start of the next sg entry
@@ -2029,7 +2029,7 @@ static void cleanup_after_transfer(struct AdapterCtlBlk *acb,
 
 
 /*
- * Those no of bytes will be transfered w/ PIO through the SCSI FIFO
+ * Those no of bytes will be transferred w/ PIO through the SCSI FIFO
  * Seems to be needed for unknown reasons; could be a hardware bug :-(
  */
 #define DC395x_LASTPIO 4
@@ -2256,7 +2256,7 @@ static void data_in_phase0(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
 			DC395x_read32(acb, TRM_S1040_DMA_CXCNT),
 			srb->total_xfer_length, d_left_counter);
 #if DC395x_LASTPIO
-		/* KG: Less than or equal to 4 bytes can not be transfered via DMA, it seems. */
+		/* KG: Less than or equal to 4 bytes can not be transferred via DMA, it seems. */
 		if (d_left_counter
 		    && srb->total_xfer_length <= DC395x_LASTPIO) {
 			size_t left_io = srb->total_xfer_length;

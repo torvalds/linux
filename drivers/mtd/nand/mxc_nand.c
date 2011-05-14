@@ -211,6 +211,31 @@ static struct nand_ecclayout nandv2_hw_eccoob_largepage = {
 	}
 };
 
+/* OOB description for 4096 byte pages with 128 byte OOB */
+static struct nand_ecclayout nandv2_hw_eccoob_4k = {
+	.eccbytes = 8 * 9,
+	.eccpos = {
+		7,  8,  9, 10, 11, 12, 13, 14, 15,
+		23, 24, 25, 26, 27, 28, 29, 30, 31,
+		39, 40, 41, 42, 43, 44, 45, 46, 47,
+		55, 56, 57, 58, 59, 60, 61, 62, 63,
+		71, 72, 73, 74, 75, 76, 77, 78, 79,
+		87, 88, 89, 90, 91, 92, 93, 94, 95,
+		103, 104, 105, 106, 107, 108, 109, 110, 111,
+		119, 120, 121, 122, 123, 124, 125, 126, 127,
+	},
+	.oobfree = {
+		{.offset = 2, .length = 4},
+		{.offset = 16, .length = 7},
+		{.offset = 32, .length = 7},
+		{.offset = 48, .length = 7},
+		{.offset = 64, .length = 7},
+		{.offset = 80, .length = 7},
+		{.offset = 96, .length = 7},
+		{.offset = 112, .length = 7},
+	}
+};
+
 #ifdef CONFIG_MTD_PARTITIONS
 static const char *part_probes[] = { "RedBoot", "cmdlinepart", NULL };
 #endif
@@ -641,9 +666,9 @@ static void mxc_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 
 	n = min(n, len);
 
-	memcpy(buf, host->data_buf + col, len);
+	memcpy(buf, host->data_buf + col, n);
 
-	host->buf_start += len;
+	host->buf_start += n;
 }
 
 /* Used by the upper layer to verify the data in NAND Flash
@@ -722,9 +747,8 @@ static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
 		/*
 		 * MXC NANDFC can only perform full page+spare or
 		 * spare-only read/write.  When the upper layers
-		 * layers perform a read/write buf operation,
-		 * we will used the saved column address to index into
-		 * the full page.
+		 * perform a read/write buf operation, the saved column
+		  * address is used to index into the full page.
 		 */
 		host->send_addr(host, 0, page_addr == -1);
 		if (mtd->writesize > 512)
@@ -1186,6 +1210,8 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 
 	if (mtd->writesize == 2048)
 		this->ecc.layout = oob_largepage;
+	if (nfc_is_v21() && mtd->writesize == 4096)
+		this->ecc.layout = &nandv2_hw_eccoob_4k;
 
 	/* second phase scan */
 	if (nand_scan_tail(mtd)) {

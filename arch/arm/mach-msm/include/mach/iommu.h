@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -19,6 +19,7 @@
 #define MSM_IOMMU_H
 
 #include <linux/interrupt.h>
+#include <linux/clk.h>
 
 /* Sharability attributes of MSM IOMMU mappings */
 #define MSM_IOMMU_ATTR_NON_SH		0x0
@@ -44,14 +45,11 @@
 /**
  * struct msm_iommu_dev - a single IOMMU hardware instance
  * name		Human-readable name given to this IOMMU HW instance
- * clk_rate	Rate to set for this IOMMU's clock, if applicable to this
- *		particular IOMMU. 0 means don't set a rate.
- *		-1 means it is an AXI clock with no valid rate
- *
+ * ncb		Number of context banks present on this IOMMU HW instance
  */
 struct msm_iommu_dev {
 	const char *name;
-	int clk_rate;
+	int ncb;
 };
 
 /**
@@ -73,14 +71,20 @@ struct msm_iommu_ctx_dev {
 /**
  * struct msm_iommu_drvdata - A single IOMMU hardware instance
  * @base:	IOMMU config port base address (VA)
+ * @ncb		The number of contexts on this IOMMU
  * @irq:	Interrupt number
-  *
+ * @clk:	The bus clock for this IOMMU hardware instance
+ * @pclk:	The clock for the IOMMU bus interconnect
+ *
  * A msm_iommu_drvdata holds the global driver data about a single piece
  * of an IOMMU hardware instance.
  */
 struct msm_iommu_drvdata {
 	void __iomem *base;
 	int irq;
+	int ncb;
+	struct clk *clk;
+	struct clk *pclk;
 };
 
 /**

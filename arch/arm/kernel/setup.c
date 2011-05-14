@@ -226,8 +226,8 @@ int cpu_architecture(void)
 		 * Register 0 and check for VMSAv7 or PMSAv7 */
 		asm("mrc	p15, 0, %0, c0, c1, 4"
 		    : "=r" (mmfr0));
-		if ((mmfr0 & 0x0000000f) == 0x00000003 ||
-		    (mmfr0 & 0x000000f0) == 0x00000030)
+		if ((mmfr0 & 0x0000000f) >= 0x00000003 ||
+		    (mmfr0 & 0x000000f0) >= 0x00000030)
 			cpu_arch = CPU_ARCH_ARMv7;
 		else if ((mmfr0 & 0x0000000f) == 0x00000002 ||
 			 (mmfr0 & 0x000000f0) == 0x00000020)
@@ -308,7 +308,22 @@ static void __init cacheid_init(void)
  * already provide the required functionality.
  */
 extern struct proc_info_list *lookup_processor_type(unsigned int);
-extern struct machine_desc *lookup_machine_type(unsigned int);
+
+static void __init early_print(const char *str, ...)
+{
+	extern void printascii(const char *);
+	char buf[256];
+	va_list ap;
+
+	va_start(ap, str);
+	vsnprintf(buf, sizeof(buf), str, ap);
+	va_end(ap);
+
+#ifdef CONFIG_DEBUG_LL
+	printascii(buf);
+#endif
+	printk("%s", buf);
+}
 
 static void __init feat_v6_fixup(void)
 {
@@ -426,30 +441,38 @@ void cpu_init(void)
 
 static struct machine_desc * __init setup_machine(unsigned int nr)
 {
-	struct machine_desc *list;
+	extern struct machine_desc __arch_info_begin[], __arch_info_end[];
+	struct machine_desc *p;
 
 	/*
 	 * locate machine in the list of supported machines.
 	 */
-	list = lookup_machine_type(nr);
-	if (!list) {
-		printk("Machine configuration botched (nr %d), unable "
-		       "to continue.\n", nr);
-		while (1);
-	}
+	for (p = __arch_info_begin; p < __arch_info_end; p++)
+		if (nr == p->nr) {
+			printk("Machine: %s\n", p->name);
+			return p;
+		}
 
-	printk("Machine: %s\n", list->name);
+	early_print("\n"
+		"Error: unrecognized/unsupported machine ID (r1 = 0x%08x).\n\n"
+		"Available machine support:\n\nID (hex)\tNAME\n", nr);
 
-	return list;
+	for (p = __arch_info_begin; p < __arch_info_end; p++)
+		early_print("%08x\t%s\n", p->nr, p->name);
+
+	early_print("\nPlease check your kernel config and/or bootloader.\n");
+
+	while (true)
+		/* can't use cpu_relax() here as it may require MMU setup */;
 }
 
-static int __init arm_add_memory(unsigned long start, unsigned long size)
+static int __init arm_add_memory(phys_addr_t start, unsigned long size)
 {
 	struct membank *bank = &meminfo.bank[meminfo.nr_banks];
 
 	if (meminfo.nr_banks >= NR_BANKS) {
 		printk(KERN_CRIT "NR_BANKS too low, "
-			"ignoring memory at %#lx\n", start);
+			"ignoring memory at 0x%08llx\n", (long long)start);
 		return -EINVAL;
 	}
 
@@ -479,7 +502,8 @@ static int __init arm_add_memory(unsigned long start, unsigned long size)
 static int __init early_mem(char *p)
 {
 	static int usermem __initdata = 0;
-	unsigned long size, start;
+	unsigned long size;
+	phys_addr_t start;
 	char *endp;
 
 	/*
@@ -703,7 +727,7 @@ static struct init_tags {
 	{ tag_size(tag_core), ATAG_CORE },
 	{ 1, PAGE_SIZE, 0xff },
 	{ tag_size(tag_mem32), ATAG_MEM },
-	{ MEM_SIZE, PHYS_OFFSET },
+	{ MEM_SIZE },
 	{ 0, ATAG_NONE }
 };
 
@@ -765,30 +789,6 @@ static void __init reserve_crashkernel(void)
 static inline void reserve_crashkernel(void) {}
 #endif /* CONFIG_KEXEC */
 
-/*
- * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by
- * is_kdump_kernel() to determine if we are booting after a panic. Hence
- * ifdef it under CONFIG_CRASH_DUMP and not CONFIG_PROC_VMCORE.
- */
-
-#ifdef CONFIG_CRASH_DUMP
-/*
- * elfcorehdr= specifies the location of elf core header stored by the crashed
- * kernel. This option will be passed by kexec loader to the capture kernel.
- */
-static int __init setup_elfcorehdr(char *arg)
-{
-	char *end;
-
-	if (!arg)
-		return -EINVAL;
-
-	elfcorehdr_addr = memparse(arg, &end);
-	return end > arg ? 0 : -EINVAL;
-}
-early_param("elfcorehdr", setup_elfcorehdr);
-#endif /* CONFIG_CRASH_DUMP */
-
 static void __init squash_mem_tags(struct tag *tag)
 {
 	for (; tag->hdr.size; tag = tag_next(tag))
@@ -802,6 +802,8 @@ void __init setup_arch(char **cmdline_p)
 	struct machine_desc *mdesc;
 	char *from = default_command_line;
 
+	init_tags.mem.start = PHYS_OFFSET;
+
 	unwind_init();
 
 	setup_processor();
@@ -814,8 +816,25 @@ void __init setup_arch(char **cmdline_p)
 
 	if (__atags_pointer)
 		tags = phys_to_virt(__atags_pointer);
-	else if (mdesc->boot_params)
-		tags = phys_to_virt(mdesc->boot_params);
+	else if (mdesc->boot_params) {
+#ifdef CONFIG_MMU
+		/*
+		 * We still are executing with a minimal MMU mapping created
+		 * with the presumption that the machine default for this
+		 * is located in the first MB of RAM.  Anything else will
+		 * fault and silently hang the kernel at this point.
+		 */
+		if (mdesc->boot_params < PHYS_OFFSET ||
+		    mdesc->boot_params >= PHYS_OFFSET + SZ_1M) {
+			printk(KERN_WARNING
+			       "Default boot params at physical 0x%08lx out of reach\n",
+			       mdesc->boot_params);
+		} else
+#endif
+		{
+			tags = phys_to_virt(mdesc->boot_params);
+		}
+	}
 
 #if defined(CONFIG_DEPRECATED_PARAM_STRUCT)
 	/*

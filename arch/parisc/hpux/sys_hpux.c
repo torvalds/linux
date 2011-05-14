@@ -185,26 +185,21 @@ struct hpux_statfs {
      int16_t f_pad;
 };
 
-static int do_statfs_hpux(struct path *path, struct hpux_statfs *buf)
+static int do_statfs_hpux(struct kstatfs *st, struct hpux_statfs __user *p)
 {
-	struct kstatfs st;
-	int retval;
-	
-	retval = vfs_statfs(path, &st);
-	if (retval)
-		return retval;
-
-	memset(buf, 0, sizeof(*buf));
-	buf->f_type = st.f_type;
-	buf->f_bsize = st.f_bsize;
-	buf->f_blocks = st.f_blocks;
-	buf->f_bfree = st.f_bfree;
-	buf->f_bavail = st.f_bavail;
-	buf->f_files = st.f_files;
-	buf->f_ffree = st.f_ffree;
-	buf->f_fsid[0] = st.f_fsid.val[0];
-	buf->f_fsid[1] = st.f_fsid.val[1];
-
+	struct hpux_statfs buf;
+	memset(&buf, 0, sizeof(buf));
+	buf.f_type = st->f_type;
+	buf.f_bsize = st->f_bsize;
+	buf.f_blocks = st->f_blocks;
+	buf.f_bfree = st->f_bfree;
+	buf.f_bavail = st->f_bavail;
+	buf.f_files = st->f_files;
+	buf.f_ffree = st->f_ffree;
+	buf.f_fsid[0] = st->f_fsid.val[0];
+	buf.f_fsid[1] = st->f_fsid.val[1];
+	if (copy_to_user(p, &buf, sizeof(buf)))
+		return -EFAULT;
 	return 0;
 }
 
@@ -212,35 +207,19 @@ static int do_statfs_hpux(struct path *path, struct hpux_statfs *buf)
 asmlinkage long hpux_statfs(const char __user *pathname,
 						struct hpux_statfs __user *buf)
 {
-	struct path path;
-	int error;
-
-	error = user_path(pathname, &path);
-	if (!error) {
-		struct hpux_statfs tmp;
-		error = do_statfs_hpux(&path, &tmp);
-		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
-			error = -EFAULT;
-		path_put(&path);
-	}
+	struct kstatfs st;
+	int error = user_statfs(pathname, &st);
+	if (!error)
+		error = do_statfs_hpux(&st, buf);
 	return error;
 }
 
 asmlinkage long hpux_fstatfs(unsigned int fd, struct hpux_statfs __user * buf)
 {
-	struct file *file;
-	struct hpux_statfs tmp;
-	int error;
-
-	error = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
-	error = do_statfs_hpux(&file->f_path, &tmp);
-	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
-		error = -EFAULT;
-	fput(file);
- out:
+	struct kstatfs st;
+	int error = fd_statfs(fd, &st);
+	if (!error)
+		error = do_statfs_hpux(&st, buf);
 	return error;
 }
 

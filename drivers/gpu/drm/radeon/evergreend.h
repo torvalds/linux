@@ -221,6 +221,11 @@
 #define	MC_VM_MD_L1_TLB0_CNTL				0x2654
 #define	MC_VM_MD_L1_TLB1_CNTL				0x2658
 #define	MC_VM_MD_L1_TLB2_CNTL				0x265C
+
+#define	FUS_MC_VM_MD_L1_TLB0_CNTL			0x265C
+#define	FUS_MC_VM_MD_L1_TLB1_CNTL			0x2660
+#define	FUS_MC_VM_MD_L1_TLB2_CNTL			0x2664
+
 #define	MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR		0x203C
 #define	MC_VM_SYSTEM_APERTURE_HIGH_ADDR			0x2038
 #define	MC_VM_SYSTEM_APERTURE_LOW_ADDR			0x2034
@@ -755,13 +760,21 @@
 
 #define SQ_CONST_MEM_BASE				0x8df8
 
+#define SQ_ESGS_RING_BASE				0x8c40
 #define SQ_ESGS_RING_SIZE				0x8c44
+#define SQ_GSVS_RING_BASE				0x8c48
 #define SQ_GSVS_RING_SIZE				0x8c4c
+#define SQ_ESTMP_RING_BASE				0x8c50
 #define SQ_ESTMP_RING_SIZE				0x8c54
+#define SQ_GSTMP_RING_BASE				0x8c58
 #define SQ_GSTMP_RING_SIZE				0x8c5c
+#define SQ_VSTMP_RING_BASE				0x8c60
 #define SQ_VSTMP_RING_SIZE				0x8c64
+#define SQ_PSTMP_RING_BASE				0x8c68
 #define SQ_PSTMP_RING_SIZE				0x8c6c
+#define SQ_LSTMP_RING_BASE				0x8e10
 #define SQ_LSTMP_RING_SIZE				0x8e14
+#define SQ_HSTMP_RING_BASE				0x8e18
 #define SQ_HSTMP_RING_SIZE				0x8e1c
 #define VGT_TF_RING_SIZE				0x8988
 
@@ -1093,5 +1106,14 @@
 #define SQ_TEX_RESOURCE_WORD6_0                         0x30018
 #define SQ_TEX_RESOURCE_WORD7_0                         0x3001c
 
+/* cayman 3D regs */
+#define CAYMAN_VGT_OFFCHIP_LDS_BASE			0x89B0
+#define CAYMAN_DB_EQAA					0x28804
+#define CAYMAN_DB_DEPTH_INFO				0x2803C
+#define CAYMAN_PA_SC_AA_CONFIG				0x28BE0
+#define         CAYMAN_MSAA_NUM_SAMPLES_SHIFT           0
+#define         CAYMAN_MSAA_NUM_SAMPLES_MASK            0x7
+/* cayman packet3 addition */
+#define	CAYMAN_PACKET3_DEALLOC_STATE			0x14
 
 #endif

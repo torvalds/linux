@@ -16,7 +16,8 @@
  */
 
 #include <asm/memory.h>
-#include <asm/glue.h>
+#include <asm/glue-df.h>
+#include <asm/glue-pf.h>
 #include <asm/vfpmacros.h>
 #include <mach/entry-macro.S>
 #include <asm/thread_notify.h>

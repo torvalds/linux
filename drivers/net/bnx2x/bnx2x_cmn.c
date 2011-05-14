@@ -232,7 +232,7 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 	/* move empty skb from pool to prod and map it */
 	prod_rx_buf->skb = fp->tpa_pool[queue].skb;
 	mapping = dma_map_single(&bp->pdev->dev, fp->tpa_pool[queue].skb->data,
-				 bp->rx_buf_size, DMA_FROM_DEVICE);
+				 fp->rx_buf_size, DMA_FROM_DEVICE);
 	dma_unmap_addr_set(prod_rx_buf, mapping, mapping);
 
 	/* move partial skb from cons to pool (don't unmap yet) */
@@ -259,10 +259,44 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 #endif
 }
 
+/* Timestamp option length allowed for TPA aggregation:
+ *
+ *		nop nop kind length echo val
+ */
+#define TPA_TSTAMP_OPT_LEN	12
+/**
+ * Calculate the approximate value of the MSS for this
+ * aggregation using the first packet of it.
+ *
+ * @param bp
+ * @param parsing_flags Parsing flags from the START CQE
+ * @param len_on_bd Total length of the first packet for the
+ *		     aggregation.
+ */
+static inline u16 bnx2x_set_lro_mss(struct bnx2x *bp, u16 parsing_flags,
+				    u16 len_on_bd)
+{
+	/* TPA arrgregation won't have an IP options and TCP options
+	 * other than timestamp.
+	 */
+	u16 hdrs_len = ETH_HLEN + sizeof(struct iphdr) + sizeof(struct tcphdr);
+
+
+	/* Check if there was a TCP timestamp, if there is it's will
+	 * always be 12 bytes length: nop nop kind length echo val.
+	 *
+	 * Otherwise FW would close the aggregation.
+	 */
+	if (parsing_flags & PARSING_FLAGS_TIME_STAMP_EXIST_FLAG)
+		hdrs_len += TPA_TSTAMP_OPT_LEN;
+
+	return len_on_bd - hdrs_len;
+}
+
 static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			       struct sk_buff *skb,
 			       struct eth_fast_path_rx_cqe *fp_cqe,
-			       u16 cqe_idx)
+			       u16 cqe_idx, u16 parsing_flags)
 {
 	struct sw_rx_page *rx_pg, old_rx_pg;
 	u16 len_on_bd = le16_to_cpu(fp_cqe->len_on_bd);
@@ -275,8 +309,8 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 	/* This is needed in order to enable forwarding support */
 	if (frag_size)
-		skb_shinfo(skb)->gso_size = min((u32)SGE_PAGE_SIZE,
-					       max(frag_size, (u32)len_on_bd));
+		skb_shinfo(skb)->gso_size = bnx2x_set_lro_mss(bp, parsing_flags,
+							      len_on_bd);
 
 #ifdef BNX2X_STOP_ON_ERROR
 	if (pages > min_t(u32, 8, MAX_SKB_FRAGS)*SGE_PAGE_SIZE*PAGES_PER_SGE) {
@@ -333,26 +367,28 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	struct sw_rx_bd *rx_buf = &fp->tpa_pool[queue];
 	struct sk_buff *skb = rx_buf->skb;
 	/* alloc new skb */
-	struct sk_buff *new_skb = netdev_alloc_skb(bp->dev, bp->rx_buf_size);
+	struct sk_buff *new_skb = netdev_alloc_skb(bp->dev, fp->rx_buf_size);
 
 	/* Unmap skb in the pool anyway, as we are going to change
 	   pool entry status to BNX2X_TPA_STOP even if new skb allocation
 	   fails. */
 	dma_unmap_single(&bp->pdev->dev, dma_unmap_addr(rx_buf, mapping),
-			 bp->rx_buf_size, DMA_FROM_DEVICE);
+			 fp->rx_buf_size, DMA_FROM_DEVICE);
 
 	if (likely(new_skb)) {
 		/* fix ip xsum and give it to the stack */
 		/* (no need to map the new skb) */
+		u16 parsing_flags =
+			le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags);
 
 		prefetch(skb);
 		prefetch(((char *)(skb)) + L1_CACHE_BYTES);
 
 #ifdef BNX2X_STOP_ON_ERROR
-		if (pad + len > bp->rx_buf_size) {
+		if (pad + len > fp->rx_buf_size) {
 			BNX2X_ERR("skb_put is about to fail...  "
 				  "pad %d  len %d  rx_buf_size %d\n",
-				  pad, len, bp->rx_buf_size);
+				  pad, len, fp->rx_buf_size);
 			bnx2x_panic();
 			return;
 		}
@@ -373,9 +409,9 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		}
 
 		if (!bnx2x_fill_frag_skb(bp, fp, skb,
-					 &cqe->fast_path_cqe, cqe_idx)) {
-			if ((le16_to_cpu(cqe->fast_path_cqe.
-			    pars_flags.flags) & PARSING_FLAGS_VLAN))
+					 &cqe->fast_path_cqe, cqe_idx,
+					 parsing_flags)) {
+			if (parsing_flags & PARSING_FLAGS_VLAN)
 				__vlan_hwaccel_put_tag(skb,
 						 le16_to_cpu(cqe->fast_path_cqe.
 							     vlan_tag));
@@ -582,7 +618,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 			if (likely(bnx2x_alloc_rx_skb(bp, fp, bd_prod) == 0)) {
 				dma_unmap_single(&bp->pdev->dev,
 					dma_unmap_addr(rx_buf, mapping),
-						 bp->rx_buf_size,
+						 fp->rx_buf_size,
 						 DMA_FROM_DEVICE);
 				skb_reserve(skb, pad);
 				skb_put(skb, len);
@@ -703,19 +739,20 @@ u16 bnx2x_get_mf_speed(struct bnx2x *bp)
 {
 	u16 line_speed = bp->link_vars.line_speed;
 	if (IS_MF(bp)) {
-		u16 maxCfg = (bp->mf_config[BP_VN(bp)] &
-						FUNC_MF_CFG_MAX_BW_MASK) >>
-						FUNC_MF_CFG_MAX_BW_SHIFT;
-		/* Calculate the current MAX line speed limit for the DCC
-		 * capable devices
+		u16 maxCfg = bnx2x_extract_max_cfg(bp,
+						   bp->mf_config[BP_VN(bp)]);
+
+		/* Calculate the current MAX line speed limit for the MF
+		 * devices
 		 */
-		if (IS_MF_SD(bp)) {
+		if (IS_MF_SI(bp))
+			line_speed = (line_speed * maxCfg) / 100;
+		else { /* SD mode */
 			u16 vn_max_rate = maxCfg * 100;
 
 			if (vn_max_rate < line_speed)
 				line_speed = vn_max_rate;
-		} else /* IS_MF_SI(bp)) */
-			line_speed = (line_speed * maxCfg) / 100;
+		}
 	}
 
 	return line_speed;
@@ -821,19 +858,16 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 	u16 ring_prod;
 	int i, j;
 
-	bp->rx_buf_size = bp->dev->mtu + ETH_OVREHEAD + BNX2X_RX_ALIGN +
-		IP_HEADER_ALIGNMENT_PADDING;
-
-	DP(NETIF_MSG_IFUP,
-	   "mtu %d  rx_buf_size %d\n", bp->dev->mtu, bp->rx_buf_size);
-
 	for_each_rx_queue(bp, j) {
 		struct bnx2x_fastpath *fp = &bp->fp[j];
+
+		DP(NETIF_MSG_IFUP,
+		   "mtu %d  rx_buf_size %d\n", bp->dev->mtu, fp->rx_buf_size);
 
 		if (!fp->disable_tpa) {
 			for (i = 0; i < max_agg_queues; i++) {
 				fp->tpa_pool[i].skb =
-				   netdev_alloc_skb(bp->dev, bp->rx_buf_size);
+				   netdev_alloc_skb(bp->dev, fp->rx_buf_size);
 				if (!fp->tpa_pool[i].skb) {
 					BNX2X_ERR("Failed to allocate TPA "
 						  "skb pool for queue[%d] - "
@@ -941,7 +975,7 @@ static void bnx2x_free_rx_skbs(struct bnx2x *bp)
 
 			dma_unmap_single(&bp->pdev->dev,
 					 dma_unmap_addr(rx_buf, mapping),
-					 bp->rx_buf_size, DMA_FROM_DEVICE);
+					 fp->rx_buf_size, DMA_FROM_DEVICE);
 
 			rx_buf->skb = NULL;
 			dev_kfree_skb(skb);
@@ -957,6 +991,23 @@ void bnx2x_free_skbs(struct bnx2x *bp)
 {
 	bnx2x_free_tx_skbs(bp);
 	bnx2x_free_rx_skbs(bp);
+}
+
+void bnx2x_update_max_mf_config(struct bnx2x *bp, u32 value)
+{
+	/* load old values */
+	u32 mf_cfg = bp->mf_config[BP_VN(bp)];
+
+	if (value != bnx2x_extract_max_cfg(bp, mf_cfg)) {
+		/* leave all but MAX value */
+		mf_cfg &= ~FUNC_MF_CFG_MAX_BW_MASK;
+
+		/* set new MAX value */
+		mf_cfg |= (value << FUNC_MF_CFG_MAX_BW_SHIFT)
+				& FUNC_MF_CFG_MAX_BW_MASK;
+
+		bnx2x_fw_command(bp, DRV_MSG_CODE_SET_MF_BW, mf_cfg);
+	}
 }
 
 static void bnx2x_free_msix_irqs(struct bnx2x *bp)
@@ -1249,6 +1300,31 @@ static inline int bnx2x_set_real_num_queues(struct bnx2x *bp)
 	return rc;
 }
 
+static inline void bnx2x_set_rx_buf_size(struct bnx2x *bp)
+{
+	int i;
+
+	for_each_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+
+		/* Always use a mini-jumbo MTU for the FCoE L2 ring */
+		if (IS_FCOE_IDX(i))
+			/*
+			 * Although there are no IP frames expected to arrive to
+			 * this ring we still want to add an
+			 * IP_HEADER_ALIGNMENT_PADDING to prevent a buffer
+			 * overrun attack.
+			 */
+			fp->rx_buf_size =
+				BNX2X_FCOE_MINI_JUMBO_MTU + ETH_OVREHEAD +
+				BNX2X_RX_ALIGN + IP_HEADER_ALIGNMENT_PADDING;
+		else
+			fp->rx_buf_size =
+				bp->dev->mtu + ETH_OVREHEAD + BNX2X_RX_ALIGN +
+				IP_HEADER_ALIGNMENT_PADDING;
+	}
+}
+
 /* must be called with rtnl_lock */
 int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 {
@@ -1271,6 +1347,9 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	/* must be called before memory allocation and HW init */
 	bnx2x_ilt_set_info(bp);
+
+	/* Set the receive queues buffer size */
+	bnx2x_set_rx_buf_size(bp);
 
 	if (bnx2x_alloc_mem(bp))
 		return -ENOMEM;
@@ -1427,8 +1506,25 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	bnx2x_set_eth_mac(bp, 1);
 
+	/* Clear MC configuration */
+	if (CHIP_IS_E1(bp))
+		bnx2x_invalidate_e1_mc_list(bp);
+	else
+		bnx2x_invalidate_e1h_mc_list(bp);
+
+	/* Clear UC lists configuration */
+	bnx2x_invalidate_uc_list(bp);
+
+	if (bp->pending_max) {
+		bnx2x_update_max_mf_config(bp, bp->pending_max);
+		bp->pending_max = 0;
+	}
+
 	if (bp->port.pmf)
 		bnx2x_initial_phy_init(bp, load_mode);
+
+	/* Initialize Rx filtering */
+	bnx2x_set_rx_mode(bp->dev);
 
 	/* Start fast path */
 	switch (load_mode) {
@@ -1436,19 +1532,14 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		/* Tx queue should be only reenabled */
 		netif_tx_wake_all_queues(bp->dev);
 		/* Initialize the receive filter. */
-		bnx2x_set_rx_mode(bp->dev);
 		break;
 
 	case LOAD_OPEN:
 		netif_tx_start_all_queues(bp->dev);
 		smp_mb__after_clear_bit();
-		/* Initialize the receive filter. */
-		bnx2x_set_rx_mode(bp->dev);
 		break;
 
 	case LOAD_DIAG:
-		/* Initialize the receive filter. */
-		bnx2x_set_rx_mode(bp->dev);
 		bp->state = BNX2X_STATE_DIAG;
 		break;
 
@@ -1928,15 +2019,23 @@ static inline void bnx2x_set_pbd_gso(struct sk_buff *skb,
 static inline  u8 bnx2x_set_pbd_csum_e2(struct bnx2x *bp, struct sk_buff *skb,
 	u32 *parsing_data, u32 xmit_type)
 {
-	*parsing_data |= ((tcp_hdrlen(skb)/4) <<
-		ETH_TX_PARSE_BD_E2_TCP_HDR_LENGTH_DW_SHIFT) &
-		ETH_TX_PARSE_BD_E2_TCP_HDR_LENGTH_DW;
+	*parsing_data |=
+			((((u8 *)skb_transport_header(skb) - skb->data) >> 1) <<
+			ETH_TX_PARSE_BD_E2_TCP_HDR_START_OFFSET_W_SHIFT) &
+			ETH_TX_PARSE_BD_E2_TCP_HDR_START_OFFSET_W;
 
-	*parsing_data |= ((((u8 *)tcp_hdr(skb) - skb->data) / 2) <<
-		ETH_TX_PARSE_BD_E2_TCP_HDR_START_OFFSET_W_SHIFT) &
-		ETH_TX_PARSE_BD_E2_TCP_HDR_START_OFFSET_W;
+	if (xmit_type & XMIT_CSUM_TCP) {
+		*parsing_data |= ((tcp_hdrlen(skb) / 4) <<
+			ETH_TX_PARSE_BD_E2_TCP_HDR_LENGTH_DW_SHIFT) &
+			ETH_TX_PARSE_BD_E2_TCP_HDR_LENGTH_DW;
 
-	return skb_transport_header(skb) + tcp_hdrlen(skb) - skb->data;
+		return skb_transport_header(skb) + tcp_hdrlen(skb) - skb->data;
+	} else
+		/* We support checksum offload for TCP and UDP only.
+		 * No need to pass the UDP header length - it's a constant.
+		 */
+		return skb_transport_header(skb) +
+				sizeof(struct udphdr) - skb->data;
 }
 
 /**
@@ -1952,7 +2051,7 @@ static inline u8 bnx2x_set_pbd_csum(struct bnx2x *bp, struct sk_buff *skb,
 	struct eth_tx_parse_bd_e1x *pbd,
 	u32 xmit_type)
 {
-	u8 hlen = (skb_network_header(skb) - skb->data) / 2;
+	u8 hlen = (skb_network_header(skb) - skb->data) >> 1;
 
 	/* for now NS flag is not used in Linux */
 	pbd->global_data =
@@ -1960,9 +2059,15 @@ static inline u8 bnx2x_set_pbd_csum(struct bnx2x *bp, struct sk_buff *skb,
 			 ETH_TX_PARSE_BD_E1X_LLC_SNAP_EN_SHIFT));
 
 	pbd->ip_hlen_w = (skb_transport_header(skb) -
-			skb_network_header(skb)) / 2;
+			skb_network_header(skb)) >> 1;
 
-	hlen += pbd->ip_hlen_w + tcp_hdrlen(skb) / 2;
+	hlen += pbd->ip_hlen_w;
+
+	/* We support checksum offload for TCP and UDP only */
+	if (xmit_type & XMIT_CSUM_TCP)
+		hlen += tcp_hdrlen(skb) / 2;
+	else
+		hlen += sizeof(struct udphdr) / 2;
 
 	pbd->total_hlen_w = cpu_to_le16(hlen);
 	hlen = hlen*2;

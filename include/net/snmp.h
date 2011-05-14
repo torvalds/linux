@@ -150,7 +150,7 @@ struct linux_xfrm_mib {
 #define SNMP_UPD_PO_STATS_BH(mib, basefield, addend)	\
 	do { \
 		__typeof__(*mib[0]) *ptr = \
-			__this_cpu_ptr((mib)[!in_softirq()]); \
+			__this_cpu_ptr((mib)[0]); \
 		ptr->mibs[basefield##PKTS]++; \
 		ptr->mibs[basefield##OCTETS] += addend;\
 	} while (0)
@@ -202,7 +202,7 @@ struct linux_xfrm_mib {
 #define SNMP_UPD_PO_STATS64_BH(mib, basefield, addend)			\
 	do {								\
 		__typeof__(*mib[0]) *ptr;				\
-		ptr = __this_cpu_ptr((mib)[!in_softirq()]);		\
+		ptr = __this_cpu_ptr((mib)[0]);				\
 		u64_stats_update_begin(&ptr->syncp);			\
 		ptr->mibs[basefield##PKTS]++;				\
 		ptr->mibs[basefield##OCTETS] += addend;			\

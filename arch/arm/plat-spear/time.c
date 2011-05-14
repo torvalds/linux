@@ -1,7 +1,7 @@
 /*
  * arch/arm/plat-spear/time.c
  *
- * Copyright (C) 2009 ST Microelectronics
+ * Copyright (C) 2010 ST Microelectronics
  * Shiraz Hashim<shiraz.hashim@st.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -20,10 +20,9 @@
 #include <linux/time.h>
 #include <linux/irq.h>
 #include <asm/mach/time.h>
-#include <mach/irqs.h>
-#include <mach/hardware.h>
-#include <mach/spear.h>
 #include <mach/generic.h>
+#include <mach/hardware.h>
+#include <mach/irqs.h>
 
 /*
  * We would use TIMER0 and TIMER1 as clockevent and clocksource.
@@ -211,7 +210,7 @@ static void __init spear_clockevent_init(void)
 
 void __init spear_setup_timer(void)
 {
-	struct clk *pll3_clk;
+	int ret;
 
 	if (!request_mem_region(SPEAR_GPT0_BASE, SZ_1K, "gpt0")) {
 		pr_err("%s:cannot get IO addr\n", __func__);
@@ -230,26 +229,21 @@ void __init spear_setup_timer(void)
 		goto err_iomap;
 	}
 
-	pll3_clk = clk_get(NULL, "pll3_48m_clk");
-	if (!pll3_clk) {
-		pr_err("%s:couldn't get PLL3 as parent for gpt\n", __func__);
-		goto err_iomap;
+	ret = clk_enable(gpt_clk);
+	if (ret < 0) {
+		pr_err("%s:couldn't enable gpt clock\n", __func__);
+		goto err_clk;
 	}
-
-	clk_set_parent(gpt_clk, pll3_clk);
 
 	spear_clockevent_init();
 	spear_clocksource_init();
 
 	return;
 
+err_clk:
+	clk_put(gpt_clk);
 err_iomap:
 	iounmap(gpt_base);
-
 err_mem:
 	release_mem_region(SPEAR_GPT0_BASE, SZ_1K);
 }
-
-struct sys_timer spear_sys_timer = {
-	.init = spear_setup_timer,
-};

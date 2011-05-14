@@ -74,23 +74,13 @@ int drm_irq_by_busid(struct drm_device *dev, void *data,
 {
 	struct drm_irq_busid *p = data;
 
-	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE))
+	if (!dev->driver->bus->irq_by_busid)
 		return -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EINVAL;
 
-	if ((p->busnum >> 8) != drm_get_pci_domain(dev) ||
-	    (p->busnum & 0xff) != dev->pdev->bus->number ||
-	    p->devnum != PCI_SLOT(dev->pdev->devfn) || p->funcnum != PCI_FUNC(dev->pdev->devfn))
-		return -EINVAL;
-
-	p->irq = dev->pdev->irq;
-
-	DRM_DEBUG("%d:%d:%d => IRQ %d\n", p->busnum, p->devnum, p->funcnum,
-		  p->irq);
-
-	return 0;
+	return dev->driver->bus->irq_by_busid(dev, p);
 }
 
 /*
@@ -164,8 +154,10 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	 * available. In that case we can't account for this and just
 	 * hope for the best.
 	 */
-	if ((vblrc > 0) && (abs(diff_ns) > 1000000))
+	if ((vblrc > 0) && (abs64(diff_ns) > 1000000)) {
 		atomic_inc(&dev->_vblank_count[crtc]);
+		smp_mb__after_atomic_inc();
+	}
 
 	/* Invalidate all timestamps while vblank irq's are off. */
 	clear_vblank_timestamps(dev, crtc);
@@ -491,6 +483,12 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc)
 	/* Dot clock in Hz: */
 	dotclock = (u64) crtc->hwmode.clock * 1000;
 
+	/* Fields of interlaced scanout modes are only halve a frame duration.
+	 * Double the dotclock to get halve the frame-/line-/pixelduration.
+	 */
+	if (crtc->hwmode.flags & DRM_MODE_FLAG_INTERLACE)
+		dotclock *= 2;
+
 	/* Valid dotclock? */
 	if (dotclock > 0) {
 		/* Convert scanline length in pixels and video dot clock to
@@ -601,14 +599,6 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 	if (vtotal <= 0 || vdisplay <= 0 || framedur_ns == 0) {
 		DRM_DEBUG("crtc %d: Noop due to uninitialized mode.\n", crtc);
 		return -EAGAIN;
-	}
-
-	/* Don't know yet how to handle interlaced or
-	 * double scan modes. Just no-op for now.
-	 */
-	if (mode->flags & (DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_DBLSCAN)) {
-		DRM_DEBUG("crtc %d: Noop due to unsupported mode.\n", crtc);
-		return -ENOTSUPP;
 	}
 
 	/* Get current scanout position with system timestamp.
@@ -858,10 +848,11 @@ static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 	if (rc) {
 		tslot = atomic_read(&dev->_vblank_count[crtc]) + diff;
 		vblanktimestamp(dev, crtc, tslot) = t_vblank;
-		smp_wmb();
 	}
 
+	smp_mb__before_atomic_inc();
 	atomic_add(diff, &dev->_vblank_count[crtc]);
+	smp_mb__after_atomic_inc();
 }
 
 /**
@@ -941,11 +932,34 @@ EXPORT_SYMBOL(drm_vblank_put);
 
 void drm_vblank_off(struct drm_device *dev, int crtc)
 {
+	struct drm_pending_vblank_event *e, *t;
+	struct timeval now;
 	unsigned long irqflags;
+	unsigned int seq;
 
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	vblank_disable_and_save(dev, crtc);
 	DRM_WAKEUP(&dev->vbl_queue[crtc]);
+
+	/* Send any queued vblank events, lest the natives grow disquiet */
+	seq = drm_vblank_count_and_time(dev, crtc, &now);
+	list_for_each_entry_safe(e, t, &dev->vblank_event_list, base.link) {
+		if (e->pipe != crtc)
+			continue;
+		DRM_DEBUG("Sending premature vblank event on disable: \
+			  wanted %d, current %d\n",
+			  e->event.sequence, seq);
+
+		e->event.sequence = seq;
+		e->event.tv_sec = now.tv_sec;
+		e->event.tv_usec = now.tv_usec;
+		drm_vblank_put(dev, e->pipe);
+		list_move_tail(&e->base.link, &e->base.file_priv->event_list);
+		wake_up_interruptible(&e->base.file_priv->event_wait);
+		trace_drm_vblank_event_delivered(e->base.pid, e->pipe,
+						 e->event.sequence);
+	}
+
 	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 }
 EXPORT_SYMBOL(drm_vblank_off);
@@ -1011,7 +1025,8 @@ int drm_modeset_ctl(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
 {
 	struct drm_modeset_ctl *modeset = data;
-	int crtc, ret = 0;
+	int ret = 0;
+	unsigned int crtc;
 
 	/* If drm_vblank_init() hasn't been called yet, just no-op */
 	if (!dev->num_crtcs)
@@ -1133,7 +1148,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 {
 	union drm_wait_vblank *vblwait = data;
 	int ret = 0;
-	unsigned int flags, seq, crtc;
+	unsigned int flags, seq, crtc, high_crtc;
 
 	if ((!drm_dev_to_irq(dev)) || (!dev->irq_enabled))
 		return -EINVAL;
@@ -1142,16 +1157,21 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	if (vblwait->request.type &
-	    ~(_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK)) {
+	    ~(_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK |
+	      _DRM_VBLANK_HIGH_CRTC_MASK)) {
 		DRM_ERROR("Unsupported type value 0x%x, supported mask 0x%x\n",
 			  vblwait->request.type,
-			  (_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK));
+			  (_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK |
+			   _DRM_VBLANK_HIGH_CRTC_MASK));
 		return -EINVAL;
 	}
 
 	flags = vblwait->request.type & _DRM_VBLANK_FLAGS_MASK;
-	crtc = flags & _DRM_VBLANK_SECONDARY ? 1 : 0;
-
+	high_crtc = (vblwait->request.type & _DRM_VBLANK_HIGH_CRTC_MASK);
+	if (high_crtc)
+		crtc = high_crtc >> _DRM_VBLANK_HIGH_CRTC_SHIFT;
+	else
+		crtc = flags & _DRM_VBLANK_SECONDARY ? 1 : 0;
 	if (crtc >= dev->num_crtcs)
 		return -EINVAL;
 
@@ -1293,15 +1313,16 @@ bool drm_handle_vblank(struct drm_device *dev, int crtc)
 	 * e.g., due to spurious vblank interrupts. We need to
 	 * ignore those for accounting.
 	 */
-	if (abs(diff_ns) > DRM_REDUNDANT_VBLIRQ_THRESH_NS) {
+	if (abs64(diff_ns) > DRM_REDUNDANT_VBLIRQ_THRESH_NS) {
 		/* Store new timestamp in ringbuffer. */
 		vblanktimestamp(dev, crtc, vblcount + 1) = tvblank;
-		smp_wmb();
 
 		/* Increment cooked vblank count. This also atomically commits
 		 * the timestamp computed above.
 		 */
+		smp_mb__before_atomic_inc();
 		atomic_inc(&dev->_vblank_count[crtc]);
+		smp_mb__after_atomic_inc();
 	} else {
 		DRM_DEBUG("crtc %d: Redundant vblirq ignored. diff_ns = %d\n",
 			  crtc, (int) diff_ns);

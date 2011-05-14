@@ -512,7 +512,8 @@ int mls_compute_sid(struct context *scontext,
 		    struct context *tcontext,
 		    u16 tclass,
 		    u32 specified,
-		    struct context *newcontext)
+		    struct context *newcontext,
+		    bool sock)
 {
 	struct range_trans rtr;
 	struct mls_range *r;
@@ -531,7 +532,7 @@ int mls_compute_sid(struct context *scontext,
 			return mls_range_set(newcontext, r);
 		/* Fallthrough */
 	case AVTAB_CHANGE:
-		if (tclass == policydb.process_class)
+		if ((tclass == policydb.process_class) || (sock == true))
 			/* Use the process MLS attributes. */
 			return mls_context_cpy(newcontext, scontext);
 		else

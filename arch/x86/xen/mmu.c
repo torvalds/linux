@@ -46,6 +46,7 @@
 #include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
+#include <linux/seq_file.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -78,8 +79,7 @@
 
 /*
  * Protects atomic reservation decrease/increase against concurrent increases.
- * Also protects non-atomic updates of current_pages and driver_pages, and
- * balloon lists.
+ * Also protects non-atomic updates of current_pages and balloon lists.
  */
 DEFINE_SPINLOCK(xen_reservation_lock);
 
@@ -416,8 +416,12 @@ static pteval_t pte_pfn_to_mfn(pteval_t val)
 	if (val & _PAGE_PRESENT) {
 		unsigned long pfn = (val & PTE_PFN_MASK) >> PAGE_SHIFT;
 		pteval_t flags = val & PTE_FLAGS_MASK;
-		unsigned long mfn = pfn_to_mfn(pfn);
+		unsigned long mfn;
 
+		if (!xen_feature(XENFEAT_auto_translated_physmap))
+			mfn = get_phys_to_machine(pfn);
+		else
+			mfn = pfn;
 		/*
 		 * If there's no mfn for the pfn, then just create an
 		 * empty non-present pte.  Unfortunately this loses
@@ -427,8 +431,18 @@ static pteval_t pte_pfn_to_mfn(pteval_t val)
 		if (unlikely(mfn == INVALID_P2M_ENTRY)) {
 			mfn = 0;
 			flags = 0;
+		} else {
+			/*
+			 * Paramount to do this test _after_ the
+			 * INVALID_P2M_ENTRY as INVALID_P2M_ENTRY &
+			 * IDENTITY_FRAME_BIT resolves to true.
+			 */
+			mfn &= ~FOREIGN_FRAME_BIT;
+			if (mfn & IDENTITY_FRAME_BIT) {
+				mfn &= ~IDENTITY_FRAME_BIT;
+				flags |= _PAGE_IOMAP;
+			}
 		}
-
 		val = ((pteval_t)mfn << PAGE_SHIFT) | flags;
 	}
 
@@ -531,6 +545,41 @@ pte_t xen_make_pte(pteval_t pte)
 	return native_make_pte(pte);
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pte);
+
+#ifdef CONFIG_XEN_DEBUG
+pte_t xen_make_pte_debug(pteval_t pte)
+{
+	phys_addr_t addr = (pte & PTE_PFN_MASK);
+	phys_addr_t other_addr;
+	bool io_page = false;
+	pte_t _pte;
+
+	if (pte & _PAGE_IOMAP)
+		io_page = true;
+
+	_pte = xen_make_pte(pte);
+
+	if (!addr)
+		return _pte;
+
+	if (io_page &&
+	    (xen_initial_domain() || addr >= ISA_END_ADDRESS)) {
+		other_addr = pfn_to_mfn(addr >> PAGE_SHIFT) << PAGE_SHIFT;
+		WARN_ONCE(addr != other_addr,
+			"0x%lx is using VM_IO, but it is 0x%lx!\n",
+			(unsigned long)addr, (unsigned long)other_addr);
+	} else {
+		pteval_t iomap_set = (_pte.pte & PTE_FLAGS_MASK) & _PAGE_IOMAP;
+		other_addr = (_pte.pte & PTE_PFN_MASK);
+		WARN_ONCE((addr == other_addr) && (!io_page) && (!iomap_set),
+			"0x%lx is missing VM_IO (and wasn't fixed)!\n",
+			(unsigned long)addr);
+	}
+
+	return _pte;
+}
+PV_CALLEE_SAVE_REGS_THUNK(xen_make_pte_debug);
+#endif
 
 pgd_t xen_make_pgd(pgdval_t pgd)
 {
@@ -986,10 +1035,9 @@ static void xen_pgd_pin(struct mm_struct *mm)
  */
 void xen_mm_pin_all(void)
 {
-	unsigned long flags;
 	struct page *page;
 
-	spin_lock_irqsave(&pgd_lock, flags);
+	spin_lock(&pgd_lock);
 
 	list_for_each_entry(page, &pgd_list, lru) {
 		if (!PagePinned(page)) {
@@ -998,7 +1046,7 @@ void xen_mm_pin_all(void)
 		}
 	}
 
-	spin_unlock_irqrestore(&pgd_lock, flags);
+	spin_unlock(&pgd_lock);
 }
 
 /*
@@ -1099,10 +1147,9 @@ static void xen_pgd_unpin(struct mm_struct *mm)
  */
 void xen_mm_unpin_all(void)
 {
-	unsigned long flags;
 	struct page *page;
 
-	spin_lock_irqsave(&pgd_lock, flags);
+	spin_lock(&pgd_lock);
 
 	list_for_each_entry(page, &pgd_list, lru) {
 		if (PageSavePinned(page)) {
@@ -1112,7 +1159,7 @@ void xen_mm_unpin_all(void)
 		}
 	}
 
-	spin_unlock_irqrestore(&pgd_lock, flags);
+	spin_unlock(&pgd_lock);
 }
 
 void xen_activate_mm(struct mm_struct *prev, struct mm_struct *next)
@@ -1416,6 +1463,119 @@ static int xen_pgd_alloc(struct mm_struct *mm)
 	return ret;
 }
 
+#ifdef CONFIG_X86_64
+static __initdata u64 __last_pgt_set_rw = 0;
+static __initdata u64 __pgt_buf_start = 0;
+static __initdata u64 __pgt_buf_end = 0;
+static __initdata u64 __pgt_buf_top = 0;
+/*
+ * As a consequence of the commit:
+ * 
+ * commit 4b239f458c229de044d6905c2b0f9fe16ed9e01e
+ * Author: Yinghai Lu <yinghai@kernel.org>
+ * Date:   Fri Dec 17 16:58:28 2010 -0800
+ * 
+ *     x86-64, mm: Put early page table high
+ * 
+ * at some point init_memory_mapping is going to reach the pagetable pages
+ * area and map those pages too (mapping them as normal memory that falls
+ * in the range of addresses passed to init_memory_mapping as argument).
+ * Some of those pages are already pagetable pages (they are in the range
+ * pgt_buf_start-pgt_buf_end) therefore they are going to be mapped RO and
+ * everything is fine.
+ * Some of these pages are not pagetable pages yet (they fall in the range
+ * pgt_buf_end-pgt_buf_top; for example the page at pgt_buf_end) so they
+ * are going to be mapped RW.  When these pages become pagetable pages and
+ * are hooked into the pagetable, xen will find that the guest has already
+ * a RW mapping of them somewhere and fail the operation.
+ * The reason Xen requires pagetables to be RO is that the hypervisor needs
+ * to verify that the pagetables are valid before using them. The validation
+ * operations are called "pinning".
+ * 
+ * In order to fix the issue we mark all the pages in the entire range
+ * pgt_buf_start-pgt_buf_top as RO, however when the pagetable allocation
+ * is completed only the range pgt_buf_start-pgt_buf_end is reserved by
+ * init_memory_mapping. Hence the kernel is going to crash as soon as one
+ * of the pages in the range pgt_buf_end-pgt_buf_top is reused (b/c those
+ * ranges are RO).
+ * 
+ * For this reason, 'mark_rw_past_pgt' is introduced which is called _after_
+ * the init_memory_mapping has completed (in a perfect world we would
+ * call this function from init_memory_mapping, but lets ignore that).
+ * 
+ * Because we are called _after_ init_memory_mapping the pgt_buf_[start,
+ * end,top] have all changed to new values (b/c init_memory_mapping
+ * is called and setting up another new page-table). Hence, the first time
+ * we enter this function, we save away the pgt_buf_start value and update
+ * the pgt_buf_[end,top].
+ * 
+ * When we detect that the "old" pgt_buf_start through pgt_buf_end
+ * PFNs have been reserved (so memblock_x86_reserve_range has been called),
+ * we immediately set out to RW the "old" pgt_buf_end through pgt_buf_top.
+ * 
+ * And then we update those "old" pgt_buf_[end|top] with the new ones
+ * so that we can redo this on the next pagetable.
+ */
+static __init void mark_rw_past_pgt(void) {
+
+	if (pgt_buf_end > pgt_buf_start) {
+		u64 addr, size;
+
+		/* Save it away. */
+		if (!__pgt_buf_start) {
+			__pgt_buf_start = pgt_buf_start;
+			__pgt_buf_end = pgt_buf_end;
+			__pgt_buf_top = pgt_buf_top;
+			return;
+		}
+		/* If we get the range that starts at __pgt_buf_end that means
+		 * the range is reserved, and that in 'init_memory_mapping'
+		 * the 'memblock_x86_reserve_range' has been called with the
+		 * outdated __pgt_buf_start, __pgt_buf_end (the "new"
+		 * pgt_buf_[start|end|top] refer now to a new pagetable.
+		 * Note: we are called _after_ the pgt_buf_[..] have been
+		 * updated.*/
+
+		addr = memblock_x86_find_in_range_size(PFN_PHYS(__pgt_buf_start),
+						       &size, PAGE_SIZE);
+
+		/* Still not reserved, meaning 'memblock_x86_reserve_range'
+		 * hasn't been called yet. Update the _end and _top.*/
+		if (addr == PFN_PHYS(__pgt_buf_start)) {
+			__pgt_buf_end = pgt_buf_end;
+			__pgt_buf_top = pgt_buf_top;
+			return;
+		}
+
+		/* OK, the area is reserved, meaning it is time for us to
+		 * set RW for the old end->top PFNs. */
+
+		/* ..unless we had already done this. */
+		if (__pgt_buf_end == __last_pgt_set_rw)
+			return;
+
+		addr = PFN_PHYS(__pgt_buf_end);
+		
+		/* set as RW the rest */
+		printk(KERN_DEBUG "xen: setting RW the range %llx - %llx\n",
+			PFN_PHYS(__pgt_buf_end), PFN_PHYS(__pgt_buf_top));
+		
+		while (addr < PFN_PHYS(__pgt_buf_top)) {
+			make_lowmem_page_readwrite(__va(addr));
+			addr += PAGE_SIZE;
+		}
+		/* And update everything so that we are ready for the next
+		 * pagetable (the one created for regions past 4GB) */
+		__last_pgt_set_rw = __pgt_buf_end;
+		__pgt_buf_start = pgt_buf_start;
+		__pgt_buf_end = pgt_buf_end;
+		__pgt_buf_top = pgt_buf_top;
+	}
+	return;
+}
+#else
+static __init void mark_rw_past_pgt(void) { }
+#endif
 static void xen_pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 #ifdef CONFIG_X86_64
@@ -1426,28 +1586,43 @@ static void xen_pgd_free(struct mm_struct *mm, pgd_t *pgd)
 #endif
 }
 
+#ifdef CONFIG_X86_32
 static __init pte_t mask_rw_pte(pte_t *ptep, pte_t pte)
 {
-	unsigned long pfn = pte_pfn(pte);
-
-#ifdef CONFIG_X86_32
 	/* If there's an existing pte, then don't allow _PAGE_RW to be set */
 	if (pte_val_ma(*ptep) & _PAGE_PRESENT)
 		pte = __pte_ma(((pte_val_ma(*ptep) & _PAGE_RW) | ~_PAGE_RW) &
 			       pte_val_ma(pte));
-#endif
 
+	return pte;
+}
+#else /* CONFIG_X86_64 */
+static __init pte_t mask_rw_pte(pte_t *ptep, pte_t pte)
+{
+	unsigned long pfn = pte_pfn(pte);
+
+	/*
+	 * A bit of optimization. We do not need to call the workaround
+	 * when xen_set_pte_init is called with a PTE with 0 as PFN.
+	 * That is b/c the pagetable at that point are just being populated
+	 * with empty values and we can save some cycles by not calling
+	 * the 'memblock' code.*/
+	if (pfn)
+		mark_rw_past_pgt();
 	/*
 	 * If the new pfn is within the range of the newly allocated
 	 * kernel pagetable, and it isn't being mapped into an
-	 * early_ioremap fixmap slot, make sure it is RO.
+	 * early_ioremap fixmap slot as a freshly allocated page, make sure
+	 * it is RO.
 	 */
-	if (!is_early_ioremap_ptep(ptep) &&
-	    pfn >= e820_table_start && pfn < e820_table_end)
+	if (((!is_early_ioremap_ptep(ptep) &&
+			pfn >= pgt_buf_start && pfn < pgt_buf_top)) ||
+			(is_early_ioremap_ptep(ptep) && pfn != (pgt_buf_end - 1)))
 		pte = pte_wrprotect(pte);
 
 	return pte;
 }
+#endif /* CONFIG_X86_64 */
 
 /* Init-time set_pte while constructing initial pagetables, which
    doesn't allow RO pagetable pages to be remapped RW */
@@ -1653,9 +1828,6 @@ static __init void xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 		for (pteidx = 0; pteidx < PTRS_PER_PTE; pteidx++, pfn++) {
 			pte_t pte;
 
-			if (pfn > max_pfn_mapped)
-				max_pfn_mapped = pfn;
-
 			if (!pte_none(pte_page[pteidx]))
 				continue;
 
@@ -1697,7 +1869,7 @@ static void convert_pfn_mfn(void *v)
 }
 
 /*
- * Set up the inital kernel pagetable.
+ * Set up the initial kernel pagetable.
  *
  * We can construct this by grafting the Xen provided pagetable into
  * head_64.S's preconstructed pagetables.  We copy the Xen L2's into
@@ -1712,6 +1884,12 @@ __init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd,
 {
 	pud_t *l3;
 	pmd_t *l2;
+
+	/* max_pfn_mapped is the last pfn mapped in the initial memory
+	 * mappings. Considering that on Xen after the kernel mappings we
+	 * have the mappings of some pages that don't exist in pfn space, we
+	 * set max_pfn_mapped to the last real pfn mapped. */
+	max_pfn_mapped = PFN_DOWN(__pa(xen_start_info->mfn_list));
 
 	/* Zap identity mapping */
 	init_level4_pgt[0] = __pgd(0);
@@ -1817,9 +1995,7 @@ __init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd,
 	initial_kernel_pmd =
 		extend_brk(sizeof(pmd_t) * PTRS_PER_PMD, PAGE_SIZE);
 
-	max_pfn_mapped = PFN_DOWN(__pa(xen_start_info->pt_base) +
-				  xen_start_info->nr_pt_frames * PAGE_SIZE +
-				  512*1024);
+	max_pfn_mapped = PFN_DOWN(__pa(xen_start_info->mfn_list));
 
 	kernel_pmd = m2v(pgd[KERNEL_PGD_BOUNDARY].pgd);
 	memcpy(initial_kernel_pmd, kernel_pmd, sizeof(pmd_t) * PTRS_PER_PMD);
@@ -1942,6 +2118,11 @@ __init void xen_ident_map_ISA(void)
 
 static __init void xen_post_allocator_init(void)
 {
+	mark_rw_past_pgt();
+
+#ifdef CONFIG_XEN_DEBUG
+	pv_mmu_ops.make_pte = PV_CALLEE_SAVE(xen_make_pte_debug);
+#endif
 	pv_mmu_ops.set_pte = xen_set_pte;
 	pv_mmu_ops.set_pmd = xen_set_pmd;
 	pv_mmu_ops.set_pud = xen_set_pud;
@@ -2074,7 +2255,7 @@ static void xen_zap_pfn_range(unsigned long vaddr, unsigned int order,
 			in_frames[i] = virt_to_mfn(vaddr);
 
 		MULTI_update_va_mapping(mcs.mc, vaddr, VOID_PTE, 0);
-		set_phys_to_machine(virt_to_pfn(vaddr), INVALID_P2M_ENTRY);
+		__set_phys_to_machine(virt_to_pfn(vaddr), INVALID_P2M_ENTRY);
 
 		if (out_frames)
 			out_frames[i] = virt_to_pfn(vaddr);
@@ -2353,6 +2534,18 @@ EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_range);
 
 #ifdef CONFIG_XEN_DEBUG_FS
 
+static int p2m_dump_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, p2m_dump_show, NULL);
+}
+
+static const struct file_operations p2m_dump_fops = {
+	.open		= p2m_dump_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static struct dentry *d_mmu_debug;
 
 static int __init xen_mmu_debugfs(void)
@@ -2408,6 +2601,7 @@ static int __init xen_mmu_debugfs(void)
 	debugfs_create_u32("prot_commit_batched", 0444, d_mmu_debug,
 			   &mmu_stats.prot_commit_batched);
 
+	debugfs_create_file("p2m", 0600, d_mmu_debug, NULL, &p2m_dump_fops);
 	return 0;
 }
 fs_initcall(xen_mmu_debugfs);

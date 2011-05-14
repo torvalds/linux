@@ -611,8 +611,9 @@ struct _compat_xt_align {
 extern void xt_compat_lock(u_int8_t af);
 extern void xt_compat_unlock(u_int8_t af);
 
-extern int xt_compat_add_offset(u_int8_t af, unsigned int offset, short delta);
+extern int xt_compat_add_offset(u_int8_t af, unsigned int offset, int delta);
 extern void xt_compat_flush_offsets(u_int8_t af);
+extern void xt_compat_init_offsets(u_int8_t af, unsigned int number);
 extern int xt_compat_calc_jump(u_int8_t af, unsigned int offset);
 
 extern int xt_compat_match_offset(const struct xt_match *match);

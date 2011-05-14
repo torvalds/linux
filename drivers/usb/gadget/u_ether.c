@@ -241,7 +241,7 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 	size -= size % out->maxpacket;
 
 	if (dev->port_usb->is_fixed)
-		size = max(size, dev->port_usb->fixed_out_len);
+		size = max_t(size_t, size, dev->port_usb->fixed_out_len);
 
 	skb = alloc_skb(size + NET_IP_ALIGN, gfp_flags);
 	if (skb == NULL) {
