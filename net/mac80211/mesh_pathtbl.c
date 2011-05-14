@@ -370,52 +370,52 @@ err_path_alloc:
 	return err;
 }
 
+static void mesh_table_free_rcu(struct rcu_head *rcu)
+{
+	struct mesh_table *tbl = container_of(rcu, struct mesh_table, rcu_head);
+
+	mesh_table_free(tbl, false);
+}
+
 void mesh_mpath_table_grow(void)
 {
 	struct mesh_table *oldtbl, *newtbl;
 
-	rcu_read_lock();
-	newtbl = mesh_table_alloc(rcu_dereference(mesh_paths)->size_order + 1);
-	if (!newtbl)
-		return;
 	write_lock_bh(&pathtbl_resize_lock);
+	newtbl = mesh_table_alloc(mesh_paths->size_order + 1);
+	if (!newtbl)
+		goto out;
 	oldtbl = mesh_paths;
 	if (mesh_table_grow(mesh_paths, newtbl) < 0) {
-		rcu_read_unlock();
 		__mesh_table_free(newtbl);
-		write_unlock_bh(&pathtbl_resize_lock);
-		return;
+		goto out;
 	}
-	rcu_read_unlock();
 	rcu_assign_pointer(mesh_paths, newtbl);
-	write_unlock_bh(&pathtbl_resize_lock);
 
-	synchronize_rcu();
-	mesh_table_free(oldtbl, false);
+	call_rcu(&oldtbl->rcu_head, mesh_table_free_rcu);
+
+ out:
+	write_unlock_bh(&pathtbl_resize_lock);
 }
 
 void mesh_mpp_table_grow(void)
 {
 	struct mesh_table *oldtbl, *newtbl;
 
-	rcu_read_lock();
-	newtbl = mesh_table_alloc(rcu_dereference(mpp_paths)->size_order + 1);
-	if (!newtbl)
-		return;
 	write_lock_bh(&pathtbl_resize_lock);
+	newtbl = mesh_table_alloc(mpp_paths->size_order + 1);
+	if (!newtbl)
+		goto out;
 	oldtbl = mpp_paths;
 	if (mesh_table_grow(mpp_paths, newtbl) < 0) {
-		rcu_read_unlock();
 		__mesh_table_free(newtbl);
-		write_unlock_bh(&pathtbl_resize_lock);
-		return;
+		goto out;
 	}
-	rcu_read_unlock();
 	rcu_assign_pointer(mpp_paths, newtbl);
-	write_unlock_bh(&pathtbl_resize_lock);
+	call_rcu(&oldtbl->rcu_head, mesh_table_free_rcu);
 
-	synchronize_rcu();
-	mesh_table_free(oldtbl, false);
+ out:
+	write_unlock_bh(&pathtbl_resize_lock);
 }
 
 int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)

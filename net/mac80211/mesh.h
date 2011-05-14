@@ -120,6 +120,7 @@ struct mesh_path {
  *	buckets
  * @mean_chain_len: maximum average length for the hash buckets' list, if it is
  *	reached, the table will grow
+ * rcu_head: RCU head to free the table
  */
 struct mesh_table {
 	/* Number of buckets will be 2^N */
@@ -132,6 +133,8 @@ struct mesh_table {
 	int (*copy_node) (struct hlist_node *p, struct mesh_table *newtbl);
 	int size_order;
 	int mean_chain_len;
+
+	struct rcu_head rcu_head;
 };
 
 /* Recent multicast cache */
