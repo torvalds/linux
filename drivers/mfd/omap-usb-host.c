@@ -281,6 +281,7 @@ static int omap_usbhs_alloc_children(struct platform_device *pdev)
 
 	if (!ehci) {
 		dev_err(dev, "omap_usbhs_alloc_child failed\n");
+		ret = -ENOMEM;
 		goto err_end;
 	}
 
@@ -304,13 +305,14 @@ static int omap_usbhs_alloc_children(struct platform_device *pdev)
 		sizeof(*ohci_data), dev);
 	if (!ohci) {
 		dev_err(dev, "omap_usbhs_alloc_child failed\n");
+		ret = -ENOMEM;
 		goto err_ehci;
 	}
 
 	return 0;
 
 err_ehci:
-	platform_device_put(ehci);
+	platform_device_unregister(ehci);
 
 err_end:
 	return ret;
