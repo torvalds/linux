@@ -1,5 +1,5 @@
 AM_CPPFLAGS := -I$(top_srcdir)/libsrc -DUSBIDS_FILE='"@USBIDS_DIR@/usb.ids"'
-AM_CFLAGS   := @EXTRA_CFLAGS@ -Wall -W -Wstrict-prototypes -std=gnu99 @PACKAGE_CFLAGS@
+AM_CFLAGS   := @EXTRA_CFLAGS@ @PACKAGE_CFLAGS@
 LDADD       := $(top_srcdir)/libsrc/libusbip.la @PACKAGE_LIBS@
 
 sbin_PROGRAMS := usbip usbipd usbip_bind_driver

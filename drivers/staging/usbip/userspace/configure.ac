@@ -18,7 +18,7 @@ LT_INIT
 # Silent build for automake >= 1.11
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
-AC_SUBST([EXTRA_CFLAGS])
+AC_SUBST([EXTRA_CFLAGS], ["-Wall -W -Wstrict-prototypes -std=gnu99"])
 
 # Checks for programs.
 AC_PROG_CC
