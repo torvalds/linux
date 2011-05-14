@@ -1573,14 +1573,14 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	struct fb_event event;
 	struct fb_videomode mode;
 
-	if (num_registered_fb == FB_MAX)
-		return -ENXIO;
-
 	if (fb_check_foreignness(fb_info))
 		return -ENOSYS;
 
 	do_remove_conflicting_framebuffers(fb_info->apertures, fb_info->fix.id,
 					 fb_is_primary_device(fb_info));
+
+	if (num_registered_fb == FB_MAX)
+		return -ENXIO;
 
 	num_registered_fb++;
 	for (i = 0 ; i < FB_MAX; i++)
@@ -1639,7 +1639,7 @@ static int do_unregister_framebuffer(struct fb_info *fb_info)
 	int i, ret = 0;
 
 	i = fb_info->node;
-	if (!registered_fb[i])
+	if (i < 0 || i >= FB_MAX || registered_fb[i] != fb_info)
 		return -EINVAL;
 
 	if (!lock_fb_info(fb_info))
