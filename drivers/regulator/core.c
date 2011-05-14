@@ -2097,15 +2097,25 @@ int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
 
 	mutex_lock(&rdev->mutex);
 
+	/*
+	 * first check to see if we can set modes at all, otherwise just
+	 * tell the consumer everything is OK.
+	 */
 	regulator->uA_load = uA_load;
 	ret = regulator_check_drms(rdev);
-	if (ret < 0)
+	if (ret < 0) {
+		ret = 0;
 		goto out;
-	ret = -EINVAL;
+	}
 
-	/* sanity check */
 	if (!rdev->desc->ops->get_optimum_mode)
 		goto out;
+
+	/*
+	 * we can actually do this so any errors are indicators of
+	 * potential real failure.
+	 */
+	ret = -EINVAL;
 
 	/* get output voltage */
 	output_uV = _regulator_get_voltage(rdev);
