@@ -1,5 +1,4 @@
 /*
- * $Id$
  *
  * Copyright (C) 2005-2007 Takahiro Hirofuchi
  */
@@ -17,8 +16,7 @@
 #include <fcntl.h>
 #include <glib.h>
 
-static const char version[] = PACKAGE_STRING
-	" ($Id$)";
+static const char version[] = PACKAGE_STRING;
 
 
 /* /sys/devices/platform/vhci_hcd/usb6/6-1/6-1:1.1  -> 1 */

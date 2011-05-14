@@ -1,5 +1,4 @@
 /*
- * $Id$
  *
  * Copyright (C) 2005-2007 Takahiro Hirofuchi
  */
@@ -31,8 +30,7 @@
 
 #include <glib.h>
 
-static const char version[] = PACKAGE_STRING
-	" ($Id$)";
+static const char version[] = PACKAGE_STRING;
 
 
 static int send_reply_devlist(int sockfd)
