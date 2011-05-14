@@ -34,8 +34,8 @@
 [Usage]
     server:# (Attach your USB device physically.)
 
-    server:# insmod usbip_common_mod.ko
-    server:# insmod usbip.ko
+    server:# insmod usbip-core.ko
+    server:# insmod usbip-host.ko
         - It was formerly named as stub.ko.
 
     server:# usbipd -D
@@ -45,13 +45,13 @@
         - List driver assignments for usb devices.
 
     server:# usbip_bind_driver --usbip 1-2
-        - Bind usbip.ko to the device of busid 1-2.
+        - Bind usbip-host.ko to the device of busid 1-2.
         - A usb device 1-2 is now exportable to other hosts!
         - Use 'usbip_bind_driver --other 1-2' when you want to shutdown exporting
           and use the device locally.
 
 
-    client:# insmod usbip_common_mod.ko
+    client:# insmod usbip-core.ko
     client:# insmod vhci-hcd.ko
         - It was formerly named as vhci.ko.
 
@@ -72,8 +72,8 @@
 --------------------------------------------------------------------------------------------------------
 - SERVER SIDE (physically attach your USB devices to this host) ----------------------------------------
 --------------------------------------------------------------------------------------------------------
-trois:# insmod (somewhere)/usbip_common_mod.ko
-trois:# insmod (somewhere)/usbip.ko
+trois:# insmod (somewhere)/usbip-core.ko
+trois:# insmod (somewhere)/usbip-host.ko
 trois:# usbipd -D
 
 --------------------------------------------------------------------------------------------------------
@@ -132,7 +132,7 @@ Iterate the above operation for other devices if you like.
 First, let's list available remote devices which are marked as exportable in
 the server host.
 
-   deux:# insmod (somewhere)/usbip_common_mod.ko
+   deux:# insmod (somewhere)/usbip-core.ko
    deux:# insmod (somewhere)/vhci_hcd.ko
 
    deux:# usbip --list 10.0.0.3
@@ -200,7 +200,7 @@ Detach the imported device.
 [Check List]
     - See Debug Tips in the project wiki.
         - http://usbip.wiki.sourceforge.net/how-to-debug-usbip
-    - usbip.ko must be bound to the target device.
+    - usbip-host.ko must be bound to the target device.
         - See /proc/bus/usb/devices and find "Driver=..." lines of the device.
     - Shutdown firewall.
         - usbip now uses TCP port 3240.

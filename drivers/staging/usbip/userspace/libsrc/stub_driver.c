@@ -34,7 +34,7 @@ static struct sysfs_driver *open_sysfs_stub_driver(void)
 
 	stub_driver = sysfs_open_driver_path(stub_driver_path);
 	if (!stub_driver) {
-		err("usbip_common_mod.ko and usbip.ko must be loaded");
+		err("usbip-core.ko and usbip-host.ko must be loaded");
 		return NULL;
 	}
 
@@ -199,7 +199,7 @@ static int refresh_exported_devices(void)
 
 	suinf_list = sysfs_get_driver_devices(stub_driver->sysfs_driver);
 	if (!suinf_list) {
-		printf("Bind usbip.ko to a usb device to be exportable!\n");
+		printf("Bind usbip-host.ko to a usb device to be exportable!\n");
 		goto bye;
 	}
 

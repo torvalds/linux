@@ -282,7 +282,7 @@ static int get_hc_busid(char *sysfs_mntpath, char *hc_busid)
         sdriver = sysfs_open_driver_path(sdriver_path);
         if (!sdriver) {
 		info("%s is not found", sdriver_path);
-                info("load usbip_common_mod.ko and vhci-hcd.ko !");
+                info("load usbip-core.ko and vhci-hcd.ko !");
                 return -1;
         }
 
