@@ -523,7 +523,7 @@ void hardif_remove_interfaces(void)
 static int hard_if_event(struct notifier_block *this,
 			 unsigned long event, void *ptr)
 {
-	struct net_device *net_dev = (struct net_device *)ptr;
+	struct net_device *net_dev = ptr;
 	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
 	struct hard_iface *primary_if = NULL;
 	struct bat_priv *bat_priv;

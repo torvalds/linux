@@ -313,7 +313,7 @@ out:
 
 static void _tt_local_del(struct hlist_node *node, void *arg)
 {
-	struct bat_priv *bat_priv = (struct bat_priv *)arg;
+	struct bat_priv *bat_priv = arg;
 	void *data = container_of(node, struct tt_local_entry, hash_entry);
 
 	kfree(data);

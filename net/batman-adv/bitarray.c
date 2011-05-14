@@ -130,7 +130,7 @@ static void bit_reset_window(unsigned long *seq_bits)
 char bit_get_packet(void *priv, unsigned long *seq_bits,
 		    int32_t seq_num_diff, int8_t set_mark)
 {
-	struct bat_priv *bat_priv = (struct bat_priv *)priv;
+	struct bat_priv *bat_priv = priv;
 
 	/* sequence number is slightly older. We already got a sequence number
 	 * higher than this one, so we just mark it. */
