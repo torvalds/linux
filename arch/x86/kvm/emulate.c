@@ -407,23 +407,6 @@ struct gprefix {
 		}							\
 	} while (0)
 
-/* Fetch next part of the instruction being emulated. */
-#define insn_fetch(_type, _size, _eip)                                  \
-({	unsigned long _x;						\
-	rc = do_insn_fetch(ctxt, ops, (_eip), &_x, (_size));		\
-	if (rc != X86EMUL_CONTINUE)					\
-		goto done;						\
-	(_eip) += (_size);						\
-	(_type)_x;							\
-})
-
-#define insn_fetch_arr(_arr, _size, _eip)				\
-({	rc = do_insn_fetch(ctxt, ops, (_eip), _arr, (_size));		\
-	if (rc != X86EMUL_CONTINUE)					\
-		goto done;						\
-	(_eip) += (_size);						\
-})
-
 static int emulator_check_intercept(struct x86_emulate_ctxt *ctxt,
 				    enum x86_intercept intercept,
 				    enum x86_intercept_stage stage)
@@ -671,7 +654,7 @@ static int segmented_read_std(struct x86_emulate_ctxt *ctxt,
 	return ctxt->ops->read_std(ctxt, linear, data, size, &ctxt->exception);
 }
 
-static int do_fetch_insn_byte(struct x86_emulate_ctxt *ctxt,
+static int do_insn_fetch_byte(struct x86_emulate_ctxt *ctxt,
 			      struct x86_emulate_ops *ops,
 			      unsigned long eip, u8 *dest)
 {
@@ -707,12 +690,29 @@ static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
 	if (eip + size - ctxt->eip > 15)
 		return X86EMUL_UNHANDLEABLE;
 	while (size--) {
-		rc = do_fetch_insn_byte(ctxt, ops, eip++, dest++);
+		rc = do_insn_fetch_byte(ctxt, ops, eip++, dest++);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 	}
 	return X86EMUL_CONTINUE;
 }
+
+/* Fetch next part of the instruction being emulated. */
+#define insn_fetch(_type, _size, _eip)					\
+({	unsigned long _x;						\
+	rc = do_insn_fetch(ctxt, ops, (_eip), &_x, (_size));		\
+	if (rc != X86EMUL_CONTINUE)					\
+		goto done;						\
+	(_eip) += (_size);						\
+	(_type)_x;							\
+})
+
+#define insn_fetch_arr(_arr, _size, _eip)				\
+({	rc = do_insn_fetch(ctxt, ops, (_eip), _arr, (_size));		\
+	if (rc != X86EMUL_CONTINUE)					\
+		goto done;						\
+	(_eip) += (_size);						\
+})
 
 /*
  * Given the 'reg' portion of a ModRM byte, and a register block, return a
