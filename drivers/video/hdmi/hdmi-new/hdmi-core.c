@@ -117,14 +117,19 @@ success:
 }
 void hdmi_unregister(struct hdmi *hdmi)
 {
+	int id;
+
+	if(!hdmi)
+		return;
+	id = hdmi->id;
 	flush_scheduled_work();
 	hdmi_remove_attrs(hdmi);
 	device_unregister(hdmi->dev);
 
 	kfree(hdmi);
 	hdmi = NULL;
-	ref_info[hdmi->id].ref = 0;
-	ref_info[hdmi->id].hdmi = NULL;
+	ref_info[id].ref = 0;
+	ref_info[id].hdmi = NULL;
 }
 struct hdmi *get_hdmi_struct(int nr)
 {

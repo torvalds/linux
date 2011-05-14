@@ -258,7 +258,7 @@ static int anx7150_i2c_probe(struct i2c_client *client,const struct i2c_device_i
     dev_info(&client->dev, "anx7150 i2c probe ok\n");
     return 0;
 err_free_irq:
-	free_irq(anx->irq, hdmi);
+	free_irq(anx->irq, NULL);
 err_gpio_free:
 	gpio_free(client->irq);
 err_hdmi_unregister:
@@ -272,7 +272,7 @@ static int __devexit anx7150_i2c_remove(struct i2c_client *client)
 	struct anx7150_pdata *anx = (struct anx7150_pdata *)i2c_get_clientdata(client);
 	struct hdmi *hdmi = anx->hdmi;
 
-	free_irq(anx->irq, anx);
+	free_irq(anx->irq, NULL);
 	gpio_free(client->irq);
 	hdmi_unregister(hdmi);
 	anx = NULL;

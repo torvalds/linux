@@ -484,8 +484,25 @@ static int rk29_xfer_msg(struct i2c_adapter *adap,
 		goto exit;
 	}
 	if(msg->flags & I2C_M_RD)
-	{	
-		if((ret = rk29_i2c_recv_msg(i2c, msg)) != 0)
+	{
+		if(msg->flags & I2C_M_REG8_DIRECT)
+		{
+			struct i2c_msg msg1 = *msg;
+			struct i2c_msg msg2 = *msg;
+			msg1.len = 1;
+			msg2.len = msg->len - 1;
+			msg2.buf = msg->buf + 1;
+
+			if((ret = rk29_i2c_send_msg(i2c, &msg1)) != 0)
+				i2c_err(i2c->dev, "<error>rk29_i2c_send_msg timeout\n");
+			if((ret = rk29_i2c_recv_msg(i2c, &msg2)) != 0)
+			{
+				i2c_err(i2c->dev, "<error>rk29_i2c_recv_msg timeout\n");
+				goto exit;
+			}
+			
+		}
+		else if((ret = rk29_i2c_recv_msg(i2c, msg)) != 0)
 		{
 			i2c_err(i2c->dev, "<error>rk29_i2c_recv_msg timeout\n");
 			goto exit;
