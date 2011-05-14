@@ -1,6 +1,7 @@
-SUBDIRS = lib cmd
+SUBDIRS = libsrc src
 includedir=@includedir@/usbip
-include_HEADERS = lib/usbip.h lib/usbip_common.h lib/vhci_driver.h lib/stub_driver.h
+include_HEADERS := $(addprefix libsrc/, \
+		     usbip.h usbip_common.h vhci_driver.h stub_driver.h)
 
 dist_man_MANS := $(addprefix doc/, usbip.8 usbipd.8 usbip_bind_driver.8)
 

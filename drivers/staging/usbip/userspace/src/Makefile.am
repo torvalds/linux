@@ -12,8 +12,8 @@ usbip_bind_driver_SOURCES = bind-driver.c \
 #usbip_bind_driver_LDADD = @PACKAGE_LIBS@
 
 #AM_CPPFLAGS = -I../include -Wall -std=gnu99
-INCLUDES = -I$(top_srcdir)/lib
-LDADD = ../lib/libusbip.la @PACKAGE_LIBS@
+INCLUDES = -I$(top_srcdir)/libsrc
+LDADD = ../libsrc/libusbip.la @PACKAGE_LIBS@
 EXTRA_CFLAGS = @EXTRA_CFLAGS@
 AM_CFLAGS = -Wall -W -Wstrict-prototypes -std=gnu99 $(EXTRA_CFLAGS) @PACKAGE_CFLAGS@ -DUSBIDS_FILE='"@USBIDS_DIR@/usb.ids"'
 
