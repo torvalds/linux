@@ -82,7 +82,7 @@ int debug_log(struct bat_priv *bat_priv, char *fmt, ...)
 
 	va_start(args, fmt);
 	vscnprintf(tmp_log_buf, sizeof(tmp_log_buf), fmt, args);
-	fdebug_log(bat_priv->debug_log, "[%10u] %s",
+	fdebug_log(bat_priv->debug_log, "[%10lu] %s",
 		   (jiffies / HZ), tmp_log_buf);
 	va_end(args);
 
