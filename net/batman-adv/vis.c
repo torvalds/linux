@@ -621,7 +621,7 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 	struct hlist_head *head;
 	struct orig_node *orig_node;
 	struct neigh_node *router;
-	struct vis_info *info = (struct vis_info *)bat_priv->my_vis_info;
+	struct vis_info *info = bat_priv->my_vis_info;
 	struct vis_packet *packet = (struct vis_packet *)info->skb_packet->data;
 	struct vis_info_entry *entry;
 	struct tt_local_entry *tt_local_entry;
