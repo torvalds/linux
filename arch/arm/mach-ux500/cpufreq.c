@@ -17,10 +17,9 @@
 #include <linux/kernel.h>
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
+#include <linux/mfd/db8500-prcmu.h>
 
 #include <mach/hardware.h>
-#include <mach/prcmu.h>
-#include <mach/prcmu-defs.h>
 
 #define DRIVER_NAME "cpufreq-u8500"
 #define CPUFREQ_NAME "u8500"

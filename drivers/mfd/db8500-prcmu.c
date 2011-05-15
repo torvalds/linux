@@ -20,10 +20,11 @@
 #include <linux/jiffies.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
+#include <linux/mfd/db8500-prcmu.h>
 
 #include <mach/hardware.h>
-#include <mach/prcmu-regs.h>
-#include <mach/prcmu-defs.h>
+
+#include "db8500-prcmu-regs.h"
 
 /* Global var to runtime determine TCDM base for v2 or v1 */
 static __iomem void *tcdm_base;
