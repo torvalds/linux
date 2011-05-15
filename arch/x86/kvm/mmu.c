@@ -1566,32 +1566,33 @@ static void validate_direct_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	}
 }
 
+static void mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
+			     u64 *spte)
+{
+	u64 pte;
+	struct kvm_mmu_page *child;
+
+	pte = *spte;
+	if (is_shadow_present_pte(pte)) {
+		if (is_last_spte(pte, sp->role.level))
+			drop_spte(kvm, spte, shadow_trap_nonpresent_pte);
+		else {
+			child = page_header(pte & PT64_BASE_ADDR_MASK);
+			mmu_page_remove_parent_pte(child, spte);
+		}
+	}
+	__set_spte(spte, shadow_trap_nonpresent_pte);
+	if (is_large_pte(pte))
+		--kvm->stat.lpages;
+}
+
 static void kvm_mmu_page_unlink_children(struct kvm *kvm,
 					 struct kvm_mmu_page *sp)
 {
 	unsigned i;
-	u64 *pt;
-	u64 ent;
 
-	pt = sp->spt;
-
-	for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
-		ent = pt[i];
-
-		if (is_shadow_present_pte(ent)) {
-			if (!is_last_spte(ent, sp->role.level)) {
-				ent &= PT64_BASE_ADDR_MASK;
-				mmu_page_remove_parent_pte(page_header(ent),
-							   &pt[i]);
-			} else {
-				if (is_large_pte(ent))
-					--kvm->stat.lpages;
-				drop_spte(kvm, &pt[i],
-					  shadow_trap_nonpresent_pte);
-			}
-		}
-		pt[i] = shadow_trap_nonpresent_pte;
-	}
+	for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
+		mmu_page_zap_pte(kvm, sp, sp->spt + i);
 }
 
 static void kvm_mmu_put_page(struct kvm_mmu_page *sp, u64 *parent_pte)
@@ -3069,27 +3070,6 @@ void kvm_mmu_unload(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_unload);
 
-static void mmu_pte_write_zap_pte(struct kvm_vcpu *vcpu,
-				  struct kvm_mmu_page *sp,
-				  u64 *spte)
-{
-	u64 pte;
-	struct kvm_mmu_page *child;
-
-	pte = *spte;
-	if (is_shadow_present_pte(pte)) {
-		if (is_last_spte(pte, sp->role.level))
-			drop_spte(vcpu->kvm, spte, shadow_trap_nonpresent_pte);
-		else {
-			child = page_header(pte & PT64_BASE_ADDR_MASK);
-			mmu_page_remove_parent_pte(child, spte);
-		}
-	}
-	__set_spte(spte, shadow_trap_nonpresent_pte);
-	if (is_large_pte(pte))
-		--vcpu->kvm->stat.lpages;
-}
-
 static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
 				  struct kvm_mmu_page *sp, u64 *spte,
 				  const void *new)
@@ -3271,7 +3251,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		spte = &sp->spt[page_offset / sizeof(*spte)];
 		while (npte--) {
 			entry = *spte;
-			mmu_pte_write_zap_pte(vcpu, sp, spte);
+			mmu_page_zap_pte(vcpu->kvm, sp, spte);
 			if (gentry &&
 			      !((sp->role.word ^ vcpu->arch.mmu.base_role.word)
 			      & mask.word))
