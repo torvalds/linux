@@ -31,9 +31,6 @@ void __init orion_mpp_conf(unsigned int *mpp_list, unsigned int variant_mask,
 	u32 mpp_ctrl[mpp_nr_regs];
 	int i;
 
-	if (!variant_mask)
-		return;
-
 	printk(KERN_DEBUG "initial MPP regs:");
 	for (i = 0; i < mpp_nr_regs; i++) {
 		mpp_ctrl[i] = readl(mpp_ctrl_addr(i, dev_bus));
@@ -51,7 +48,7 @@ void __init orion_mpp_conf(unsigned int *mpp_list, unsigned int variant_mask,
 					"number (%u)\n", num);
 			continue;
 		}
-		if (!(*mpp_list & variant_mask)) {
+		if (variant_mask & !(*mpp_list & variant_mask)) {
 			printk(KERN_WARNING
 			       "orion_mpp_conf: requested MPP%u config "
 			       "unavailable on this hardware\n", num);
