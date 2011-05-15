@@ -20,7 +20,6 @@
 #include <mach/mv78xx0.h>
 #include <mach/bridge-regs.h>
 #include <plat/cache-feroceon-l2.h>
-#include <plat/ehci-orion.h>
 #include <plat/orion_nand.h>
 #include <plat/time.h>
 #include <plat/common.h>
@@ -168,110 +167,30 @@ void __init mv78xx0_map_io(void)
 /*****************************************************************************
  * EHCI
  ****************************************************************************/
-static struct orion_ehci_data mv78xx0_ehci_data = {
-	.dram		= &mv78xx0_mbus_dram_info,
-	.phy_version	= EHCI_PHY_NA,
-};
-
-static u64 ehci_dmamask = DMA_BIT_MASK(32);
-
-
-/*****************************************************************************
- * EHCI0
- ****************************************************************************/
-static struct resource mv78xx0_ehci0_resources[] = {
-	{
-		.start	= USB0_PHYS_BASE,
-		.end	= USB0_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_MV78XX0_USB_0,
-		.end	= IRQ_MV78XX0_USB_0,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ehci0 = {
-	.name		= "orion-ehci",
-	.id		= 0,
-	.dev		= {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &mv78xx0_ehci_data,
-	},
-	.resource	= mv78xx0_ehci0_resources,
-	.num_resources	= ARRAY_SIZE(mv78xx0_ehci0_resources),
-};
-
 void __init mv78xx0_ehci0_init(void)
 {
-	platform_device_register(&mv78xx0_ehci0);
+	orion_ehci_init(&mv78xx0_mbus_dram_info,
+			USB0_PHYS_BASE, IRQ_MV78XX0_USB_0);
 }
 
 
 /*****************************************************************************
  * EHCI1
  ****************************************************************************/
-static struct resource mv78xx0_ehci1_resources[] = {
-	{
-		.start	= USB1_PHYS_BASE,
-		.end	= USB1_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_MV78XX0_USB_1,
-		.end	= IRQ_MV78XX0_USB_1,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ehci1 = {
-	.name		= "orion-ehci",
-	.id		= 1,
-	.dev		= {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &mv78xx0_ehci_data,
-	},
-	.resource	= mv78xx0_ehci1_resources,
-	.num_resources	= ARRAY_SIZE(mv78xx0_ehci1_resources),
-};
-
 void __init mv78xx0_ehci1_init(void)
 {
-	platform_device_register(&mv78xx0_ehci1);
+	orion_ehci_1_init(&mv78xx0_mbus_dram_info,
+			  USB1_PHYS_BASE, IRQ_MV78XX0_USB_1);
 }
 
 
 /*****************************************************************************
  * EHCI2
  ****************************************************************************/
-static struct resource mv78xx0_ehci2_resources[] = {
-	{
-		.start	= USB2_PHYS_BASE,
-		.end	= USB2_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_MV78XX0_USB_2,
-		.end	= IRQ_MV78XX0_USB_2,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ehci2 = {
-	.name		= "orion-ehci",
-	.id		= 2,
-	.dev		= {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &mv78xx0_ehci_data,
-	},
-	.resource	= mv78xx0_ehci2_resources,
-	.num_resources	= ARRAY_SIZE(mv78xx0_ehci2_resources),
-};
-
 void __init mv78xx0_ehci2_init(void)
 {
-	platform_device_register(&mv78xx0_ehci2);
+	orion_ehci_2_init(&mv78xx0_mbus_dram_info,
+			  USB2_PHYS_BASE, IRQ_MV78XX0_USB_2);
 }
 
 

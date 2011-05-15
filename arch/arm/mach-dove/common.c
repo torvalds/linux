@@ -30,7 +30,6 @@
 #include <mach/bridge-regs.h>
 #include <asm/mach/arch.h>
 #include <linux/irq.h>
-#include <plat/ehci-orion.h>
 #include <plat/time.h>
 #include <plat/common.h>
 #include "common.h"
@@ -70,77 +69,21 @@ void __init dove_map_io(void)
 }
 
 /*****************************************************************************
- * EHCI
- ****************************************************************************/
-static struct orion_ehci_data dove_ehci_data = {
-	.dram		= &dove_mbus_dram_info,
-	.phy_version	= EHCI_PHY_NA,
-};
-
-static u64 ehci_dmamask = DMA_BIT_MASK(32);
-
-/*****************************************************************************
  * EHCI0
  ****************************************************************************/
-static struct resource dove_ehci0_resources[] = {
-	{
-		.start	= DOVE_USB0_PHYS_BASE,
-		.end	= DOVE_USB0_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_DOVE_USB0,
-		.end	= IRQ_DOVE_USB0,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device dove_ehci0 = {
-	.name		= "orion-ehci",
-	.id		= 0,
-	.dev		= {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &dove_ehci_data,
-	},
-	.resource	= dove_ehci0_resources,
-	.num_resources	= ARRAY_SIZE(dove_ehci0_resources),
-};
-
 void __init dove_ehci0_init(void)
 {
-	platform_device_register(&dove_ehci0);
+	orion_ehci_init(&dove_mbus_dram_info,
+			DOVE_USB0_PHYS_BASE, IRQ_DOVE_USB0);
 }
 
 /*****************************************************************************
  * EHCI1
  ****************************************************************************/
-static struct resource dove_ehci1_resources[] = {
-	{
-		.start	= DOVE_USB1_PHYS_BASE,
-		.end	= DOVE_USB1_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_DOVE_USB1,
-		.end	= IRQ_DOVE_USB1,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device dove_ehci1 = {
-	.name		= "orion-ehci",
-	.id		= 1,
-	.dev		= {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &dove_ehci_data,
-	},
-	.resource	= dove_ehci1_resources,
-	.num_resources	= ARRAY_SIZE(dove_ehci1_resources),
-};
-
 void __init dove_ehci1_init(void)
 {
-	platform_device_register(&dove_ehci1);
+	orion_ehci_1_init(&dove_mbus_dram_info,
+			  DOVE_USB1_PHYS_BASE, IRQ_DOVE_USB1);
 }
 
 /*****************************************************************************

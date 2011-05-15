@@ -26,7 +26,6 @@
 #include <mach/bridge-regs.h>
 #include <plat/audio.h>
 #include <plat/cache-feroceon-l2.h>
-#include <plat/ehci-orion.h>
 #include <plat/mvsdio.h>
 #include <plat/orion_nand.h>
 #include <plat/common.h>
@@ -69,47 +68,13 @@ unsigned int kirkwood_clk_ctrl = CGC_DUNIT | CGC_RESERVED;
 
 
 /*****************************************************************************
- * EHCI
- ****************************************************************************/
-static struct orion_ehci_data kirkwood_ehci_data = {
-	.dram		= &kirkwood_mbus_dram_info,
-	.phy_version	= EHCI_PHY_NA,
-};
-
-static u64 ehci_dmamask = DMA_BIT_MASK(32);
-
-
-/*****************************************************************************
  * EHCI0
  ****************************************************************************/
-static struct resource kirkwood_ehci_resources[] = {
-	{
-		.start	= USB_PHYS_BASE,
-		.end	= USB_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_KIRKWOOD_USB,
-		.end	= IRQ_KIRKWOOD_USB,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device kirkwood_ehci = {
-	.name		= "orion-ehci",
-	.id		= 0,
-	.dev		= {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &kirkwood_ehci_data,
-	},
-	.resource	= kirkwood_ehci_resources,
-	.num_resources	= ARRAY_SIZE(kirkwood_ehci_resources),
-};
-
 void __init kirkwood_ehci_init(void)
 {
 	kirkwood_clk_ctrl |= CGC_USB0;
-	platform_device_register(&kirkwood_ehci);
+	orion_ehci_init(&kirkwood_mbus_dram_info,
+			USB_PHYS_BASE, IRQ_KIRKWOOD_USB);
 }
 
 

@@ -20,6 +20,7 @@
 #include <linux/spi/orion_spi.h>
 #include <plat/orion_wdt.h>
 #include <plat/mv_xor.h>
+#include <plat/ehci-orion.h>
 
 /* Fill in the resources structure and link it into the platform
    device structure. There is always a memory region, and nearly
@@ -799,4 +800,92 @@ void __init orion_xor1_init(unsigned long mapbase_low,
 
 	orion_xor_init_channels(&orion_xor10_data, &orion_xor10_channel,
 				&orion_xor11_data, &orion_xor11_channel);
+}
+
+/*****************************************************************************
+ * EHCI
+ ****************************************************************************/
+static struct orion_ehci_data orion_ehci_data = {
+	.phy_version	= EHCI_PHY_NA,
+};
+
+static u64 ehci_dmamask = DMA_BIT_MASK(32);
+
+
+/*****************************************************************************
+ * EHCI0
+ ****************************************************************************/
+static struct resource orion_ehci_resources[2];
+
+static struct platform_device orion_ehci = {
+	.name		= "orion-ehci",
+	.id		= 0,
+	.dev		= {
+		.dma_mask		= &ehci_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &orion_ehci_data,
+	},
+};
+
+void __init orion_ehci_init(struct mbus_dram_target_info *mbus_dram_info,
+			    unsigned long mapbase,
+			    unsigned long irq)
+{
+	orion_ehci_data.dram = mbus_dram_info;
+	fill_resources(&orion_ehci, orion_ehci_resources, mapbase, SZ_4K - 1,
+		       irq);
+
+	platform_device_register(&orion_ehci);
+}
+
+/*****************************************************************************
+ * EHCI1
+ ****************************************************************************/
+static struct resource orion_ehci_1_resources[2];
+
+static struct platform_device orion_ehci_1 = {
+	.name		= "orion-ehci",
+	.id		= 1,
+	.dev		= {
+		.dma_mask		= &ehci_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &orion_ehci_data,
+	},
+};
+
+void __init orion_ehci_1_init(struct mbus_dram_target_info *mbus_dram_info,
+			      unsigned long mapbase,
+			      unsigned long irq)
+{
+	orion_ehci_data.dram = mbus_dram_info;
+	fill_resources(&orion_ehci_1, orion_ehci_1_resources,
+		       mapbase, SZ_4K - 1, irq);
+
+	platform_device_register(&orion_ehci_1);
+}
+
+/*****************************************************************************
+ * EHCI2
+ ****************************************************************************/
+static struct resource orion_ehci_2_resources[2];
+
+static struct platform_device orion_ehci_2 = {
+	.name		= "orion-ehci",
+	.id		= 2,
+	.dev		= {
+		.dma_mask		= &ehci_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &orion_ehci_data,
+	},
+};
+
+void __init orion_ehci_2_init(struct mbus_dram_target_info *mbus_dram_info,
+			      unsigned long mapbase,
+			      unsigned long irq)
+{
+	orion_ehci_data.dram = mbus_dram_info;
+	fill_resources(&orion_ehci_2, orion_ehci_2_resources,
+		       mapbase, SZ_4K - 1, irq);
+
+	platform_device_register(&orion_ehci_2);
 }

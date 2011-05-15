@@ -28,7 +28,6 @@
 #include <mach/bridge-regs.h>
 #include <mach/hardware.h>
 #include <mach/orion5x.h>
-#include <plat/ehci-orion.h>
 #include <plat/orion_nand.h>
 #include <plat/time.h>
 #include <plat/common.h>
@@ -68,79 +67,22 @@ void __init orion5x_map_io(void)
 
 
 /*****************************************************************************
- * EHCI
- ****************************************************************************/
-static struct orion_ehci_data orion5x_ehci_data = {
-	.dram		= &orion5x_mbus_dram_info,
-	.phy_version	= EHCI_PHY_ORION,
-};
-
-static u64 ehci_dmamask = DMA_BIT_MASK(32);
-
-
-/*****************************************************************************
  * EHCI0
  ****************************************************************************/
-static struct resource orion5x_ehci0_resources[] = {
-	{
-		.start	= ORION5X_USB0_PHYS_BASE,
-		.end	= ORION5X_USB0_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_ORION5X_USB0_CTRL,
-		.end	= IRQ_ORION5X_USB0_CTRL,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_ehci0 = {
-	.name		= "orion-ehci",
-	.id		= 0,
-	.dev		= {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &orion5x_ehci_data,
-	},
-	.resource	= orion5x_ehci0_resources,
-	.num_resources	= ARRAY_SIZE(orion5x_ehci0_resources),
-};
-
 void __init orion5x_ehci0_init(void)
 {
-	platform_device_register(&orion5x_ehci0);
+	orion_ehci_init(&orion5x_mbus_dram_info,
+			ORION5X_USB0_PHYS_BASE, IRQ_ORION5X_USB0_CTRL);
 }
 
 
 /*****************************************************************************
  * EHCI1
  ****************************************************************************/
-static struct resource orion5x_ehci1_resources[] = {
-	{
-		.start	= ORION5X_USB1_PHYS_BASE,
-		.end	= ORION5X_USB1_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_ORION5X_USB1_CTRL,
-		.end	= IRQ_ORION5X_USB1_CTRL,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_ehci1 = {
-	.name		= "orion-ehci",
-	.id		= 1,
-	.dev		= {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &orion5x_ehci_data,
-	},
-	.resource	= orion5x_ehci1_resources,
-	.num_resources	= ARRAY_SIZE(orion5x_ehci1_resources),
-};
-
 void __init orion5x_ehci1_init(void)
 {
-	platform_device_register(&orion5x_ehci1);
+	orion_ehci_1_init(&orion5x_mbus_dram_info,
+			  ORION5X_USB1_PHYS_BASE, IRQ_ORION5X_USB1_CTRL);
 }
 
 
