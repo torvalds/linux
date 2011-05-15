@@ -498,6 +498,7 @@ static void account_shadowed(struct kvm *kvm, gfn_t gfn)
 		linfo = lpage_info_slot(gfn, slot, i);
 		linfo->write_count += 1;
 	}
+	kvm->arch.indirect_shadow_pages++;
 }
 
 static void unaccount_shadowed(struct kvm *kvm, gfn_t gfn)
@@ -513,6 +514,7 @@ static void unaccount_shadowed(struct kvm *kvm, gfn_t gfn)
 		linfo->write_count -= 1;
 		WARN_ON(linfo->write_count < 0);
 	}
+	kvm->arch.indirect_shadow_pages--;
 }
 
 static int has_wrprotected_page(struct kvm *kvm,
@@ -3232,6 +3234,13 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	unsigned pte_size, page_offset, misaligned, quadrant, offset;
 	int level, npte, invlpg_counter, r, flooded = 0;
 	bool remote_flush, local_flush, zap_page;
+
+	/*
+	 * If we don't have indirect shadow pages, it means no page is
+	 * write-protected, so we can exit simply.
+	 */
+	if (!ACCESS_ONCE(vcpu->kvm->arch.indirect_shadow_pages))
+		return;
 
 	zap_page = remote_flush = local_flush = false;
 	offset = offset_in_page(gpa);
