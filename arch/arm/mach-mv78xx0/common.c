@@ -173,7 +173,7 @@ static struct orion_ehci_data mv78xx0_ehci_data = {
 	.phy_version	= EHCI_PHY_NA,
 };
 
-static u64 ehci_dmamask = 0xffffffffUL;
+static u64 ehci_dmamask = DMA_BIT_MASK(32);
 
 
 /*****************************************************************************
@@ -182,7 +182,7 @@ static u64 ehci_dmamask = 0xffffffffUL;
 static struct resource mv78xx0_ehci0_resources[] = {
 	{
 		.start	= USB0_PHYS_BASE,
-		.end	= USB0_PHYS_BASE + 0x0fff,
+		.end	= USB0_PHYS_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_MV78XX0_USB_0,
@@ -196,7 +196,7 @@ static struct platform_device mv78xx0_ehci0 = {
 	.id		= 0,
 	.dev		= {
 		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &mv78xx0_ehci_data,
 	},
 	.resource	= mv78xx0_ehci0_resources,
@@ -215,7 +215,7 @@ void __init mv78xx0_ehci0_init(void)
 static struct resource mv78xx0_ehci1_resources[] = {
 	{
 		.start	= USB1_PHYS_BASE,
-		.end	= USB1_PHYS_BASE + 0x0fff,
+		.end	= USB1_PHYS_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_MV78XX0_USB_1,
@@ -229,7 +229,7 @@ static struct platform_device mv78xx0_ehci1 = {
 	.id		= 1,
 	.dev		= {
 		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &mv78xx0_ehci_data,
 	},
 	.resource	= mv78xx0_ehci1_resources,
@@ -248,7 +248,7 @@ void __init mv78xx0_ehci1_init(void)
 static struct resource mv78xx0_ehci2_resources[] = {
 	{
 		.start	= USB2_PHYS_BASE,
-		.end	= USB2_PHYS_BASE + 0x0fff,
+		.end	= USB2_PHYS_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_MV78XX0_USB_2,
@@ -262,7 +262,7 @@ static struct platform_device mv78xx0_ehci2 = {
 	.id		= 2,
 	.dev		= {
 		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &mv78xx0_ehci_data,
 	},
 	.resource	= mv78xx0_ehci2_resources,
@@ -287,7 +287,7 @@ static struct resource mv78xx0_ge00_shared_resources[] = {
 	{
 		.name	= "ge00 base",
 		.start	= GE00_PHYS_BASE + 0x2000,
-		.end	= GE00_PHYS_BASE + 0x3fff,
+		.end	= GE00_PHYS_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.name	= "ge err irq",
@@ -322,7 +322,7 @@ static struct platform_device mv78xx0_ge00 = {
 	.num_resources	= 1,
 	.resource	= mv78xx0_ge00_resources,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
@@ -349,7 +349,7 @@ static struct resource mv78xx0_ge01_shared_resources[] = {
 	{
 		.name	= "ge01 base",
 		.start	= GE01_PHYS_BASE + 0x2000,
-		.end	= GE01_PHYS_BASE + 0x3fff,
+		.end	= GE01_PHYS_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -379,7 +379,7 @@ static struct platform_device mv78xx0_ge01 = {
 	.num_resources	= 1,
 	.resource	= mv78xx0_ge01_resources,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
@@ -406,7 +406,7 @@ static struct resource mv78xx0_ge10_shared_resources[] = {
 	{
 		.name	= "ge10 base",
 		.start	= GE10_PHYS_BASE + 0x2000,
-		.end	= GE10_PHYS_BASE + 0x3fff,
+		.end	= GE10_PHYS_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -436,7 +436,7 @@ static struct platform_device mv78xx0_ge10 = {
 	.num_resources	= 1,
 	.resource	= mv78xx0_ge10_resources,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
@@ -476,7 +476,7 @@ static struct resource mv78xx0_ge11_shared_resources[] = {
 	{
 		.name	= "ge11 base",
 		.start	= GE11_PHYS_BASE + 0x2000,
-		.end	= GE11_PHYS_BASE + 0x3fff,
+		.end	= GE11_PHYS_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -506,7 +506,7 @@ static struct platform_device mv78xx0_ge11 = {
 	.num_resources	= 1,
 	.resource	= mv78xx0_ge11_resources,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
@@ -625,7 +625,7 @@ static struct platform_device mv78xx0_sata = {
 	.name		= "sata_mv",
 	.id		= 0,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(mv78xx0_sata_resources),
 	.resource	= mv78xx0_sata_resources,
@@ -669,7 +669,7 @@ static struct resource mv78xx0_uart0_resources[] = {
 
 static struct platform_device mv78xx0_uart0 = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= mv78xx0_uart0_data,
 	},
@@ -713,7 +713,7 @@ static struct resource mv78xx0_uart1_resources[] = {
 
 static struct platform_device mv78xx0_uart1 = {
 	.name			= "serial8250",
-	.id			= 1,
+	.id			= PLAT8250_DEV_PLATFORM1,
 	.dev			= {
 		.platform_data	= mv78xx0_uart1_data,
 	},
@@ -757,7 +757,7 @@ static struct resource mv78xx0_uart2_resources[] = {
 
 static struct platform_device mv78xx0_uart2 = {
 	.name			= "serial8250",
-	.id			= 2,
+	.id			= PLAT8250_DEV_PLATFORM2,
 	.dev			= {
 		.platform_data	= mv78xx0_uart2_data,
 	},

@@ -14,6 +14,7 @@
 #include <linux/serial_8250.h>
 #include <linux/mbus.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/dma-mapping.h>
 #include <asm/page.h>
 #include <asm/timex.h>
 #include <asm/mach/map.h>
@@ -54,7 +55,7 @@ static struct resource loki_ge0_shared_resources[] = {
 	{
 		.name	= "ge0 base",
 		.start	= GE0_PHYS_BASE + 0x2000,
-		.end	= GE0_PHYS_BASE + 0x3fff,
+		.end	= GE0_PHYS_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -84,7 +85,7 @@ static struct platform_device loki_ge0 = {
 	.num_resources	= 1,
 	.resource	= loki_ge0_resources,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
@@ -111,7 +112,7 @@ static struct resource loki_ge1_shared_resources[] = {
 	{
 		.name	= "ge1 base",
 		.start	= GE1_PHYS_BASE + 0x2000,
-		.end	= GE1_PHYS_BASE + 0x3fff,
+		.end	= GE1_PHYS_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -141,7 +142,7 @@ static struct platform_device loki_ge1 = {
 	.num_resources	= 1,
 	.resource	= loki_ge1_resources,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
@@ -187,7 +188,7 @@ static struct platform_device loki_sas = {
 	.name		= "mvsas",
 	.id		= 0,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(loki_sas_resources),
 	.resource	= loki_sas_resources,
@@ -230,7 +231,7 @@ static struct resource loki_uart0_resources[] = {
 
 static struct platform_device loki_uart0 = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= loki_uart0_data,
 	},
@@ -274,7 +275,7 @@ static struct resource loki_uart1_resources[] = {
 
 static struct platform_device loki_uart1 = {
 	.name			= "serial8250",
-	.id			= 1,
+	.id			= PLAT8250_DEV_PLATFORM1,
 	.dev			= {
 		.platform_data	= loki_uart1_data,
 	},

@@ -19,6 +19,7 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
+#include <linux/serial_8250.h>
 #include <linux/spi/orion_spi.h>
 #include <linux/gpio.h>
 #include <asm/page.h>
@@ -281,7 +282,7 @@ static struct resource dove_uart0_resources[] = {
 
 static struct platform_device dove_uart0 = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= dove_uart0_data,
 	},
@@ -324,7 +325,7 @@ static struct resource dove_uart1_resources[] = {
 
 static struct platform_device dove_uart1 = {
 	.name			= "serial8250",
-	.id			= 1,
+	.id			= PLAT8250_DEV_PLATFORM1,
 	.dev			= {
 		.platform_data	= dove_uart1_data,
 	},
@@ -367,7 +368,7 @@ static struct resource dove_uart2_resources[] = {
 
 static struct platform_device dove_uart2 = {
 	.name			= "serial8250",
-	.id			= 2,
+	.id			= PLAT8250_DEV_PLATFORM2,
 	.dev			= {
 		.platform_data	= dove_uart2_data,
 	},

@@ -77,7 +77,7 @@ static struct orion_ehci_data orion5x_ehci_data = {
 	.phy_version	= EHCI_PHY_ORION,
 };
 
-static u64 ehci_dmamask = 0xffffffffUL;
+static u64 ehci_dmamask = DMA_BIT_MASK(32);
 
 
 /*****************************************************************************
@@ -100,7 +100,7 @@ static struct platform_device orion5x_ehci0 = {
 	.id		= 0,
 	.dev		= {
 		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &orion5x_ehci_data,
 	},
 	.resource	= orion5x_ehci0_resources,
@@ -133,7 +133,7 @@ static struct platform_device orion5x_ehci1 = {
 	.id		= 1,
 	.dev		= {
 		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &orion5x_ehci_data,
 	},
 	.resource	= orion5x_ehci1_resources,
@@ -147,16 +147,16 @@ void __init orion5x_ehci1_init(void)
 
 
 /*****************************************************************************
- * GigE
+ * GE00
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion5x_eth_shared_data = {
+struct mv643xx_eth_shared_platform_data orion5x_ge00_shared_data = {
 	.dram		= &orion5x_mbus_dram_info,
 };
 
-static struct resource orion5x_eth_shared_resources[] = {
+static struct resource orion5x_ge00_shared_resources[] = {
 	{
 		.start	= ORION5X_ETH_PHYS_BASE + 0x2000,
-		.end	= ORION5X_ETH_PHYS_BASE + 0x3fff,
+		.end	= ORION5X_ETH_PHYS_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_ORION5X_ETH_ERR,
@@ -165,17 +165,17 @@ static struct resource orion5x_eth_shared_resources[] = {
 	},
 };
 
-static struct platform_device orion5x_eth_shared = {
+static struct platform_device orion5x_ge00_shared = {
 	.name		= MV643XX_ETH_SHARED_NAME,
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &orion5x_eth_shared_data,
+		.platform_data	= &orion5x_ge00_shared_data,
 	},
-	.num_resources	= ARRAY_SIZE(orion5x_eth_shared_resources),
-	.resource	= orion5x_eth_shared_resources,
+	.num_resources	= ARRAY_SIZE(orion5x_ge00_shared_resources),
+	.resource	= orion5x_ge00_shared_resources,
 };
 
-static struct resource orion5x_eth_resources[] = {
+static struct resource orion5x_ge00_resources[] = {
 	{
 		.name	= "eth irq",
 		.start	= IRQ_ORION5X_ETH_SUM,
@@ -188,18 +188,18 @@ static struct platform_device orion5x_eth = {
 	.name		= MV643XX_ETH_NAME,
 	.id		= 0,
 	.num_resources	= 1,
-	.resource	= orion5x_eth_resources,
+	.resource	= orion5x_ge00_resources,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
 void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	eth_data->shared = &orion5x_eth_shared;
+	eth_data->shared = &orion5x_ge00_shared;
 	orion5x_eth.dev.platform_data = eth_data;
 
-	platform_device_register(&orion5x_eth_shared);
+	platform_device_register(&orion5x_ge00_shared);
 	platform_device_register(&orion5x_eth);
 }
 
@@ -234,7 +234,7 @@ void __init orion5x_eth_switch_init(struct dsa_platform_data *d, int irq)
 
 	d->netdev = &orion5x_eth.dev;
 	for (i = 0; i < d->nr_chips; i++)
-		d->chip[i].mii_bus = &orion5x_eth_shared.dev;
+		d->chip[i].mii_bus = &orion5x_ge00_shared.dev;
 	orion5x_switch_device.dev.platform_data = d;
 
 	platform_device_register(&orion5x_switch_device);
@@ -299,7 +299,7 @@ static struct platform_device orion5x_sata = {
 	.name		= "sata_mv",
 	.id		= 0,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(orion5x_sata_resources),
 	.resource	= orion5x_sata_resources,
@@ -685,7 +685,7 @@ void __init orion5x_init(void)
 	orion5x_id(&dev, &rev, &dev_name);
 	printk(KERN_INFO "Orion ID: %s. TCLK=%d.\n", dev_name, orion5x_tclk);
 
-	orion5x_eth_shared_data.t_clk = orion5x_tclk;
+	orion5x_ge00_shared_data.t_clk = orion5x_tclk;
 	orion5x_spi_plat_data.tclk = orion5x_tclk;
 	orion5x_uart0_data[0].uartclk = orion5x_tclk;
 	orion5x_uart1_data[0].uartclk = orion5x_tclk;

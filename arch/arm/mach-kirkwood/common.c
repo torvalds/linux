@@ -79,7 +79,7 @@ static struct orion_ehci_data kirkwood_ehci_data = {
 	.phy_version	= EHCI_PHY_NA,
 };
 
-static u64 ehci_dmamask = 0xffffffffUL;
+static u64 ehci_dmamask = DMA_BIT_MASK(32);
 
 
 /*****************************************************************************
@@ -88,7 +88,7 @@ static u64 ehci_dmamask = 0xffffffffUL;
 static struct resource kirkwood_ehci_resources[] = {
 	{
 		.start	= USB_PHYS_BASE,
-		.end	= USB_PHYS_BASE + 0x0fff,
+		.end	= USB_PHYS_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_KIRKWOOD_USB,
@@ -102,7 +102,7 @@ static struct platform_device kirkwood_ehci = {
 	.id		= 0,
 	.dev		= {
 		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &kirkwood_ehci_data,
 	},
 	.resource	= kirkwood_ehci_resources,
@@ -127,7 +127,7 @@ static struct resource kirkwood_ge00_shared_resources[] = {
 	{
 		.name	= "ge00 base",
 		.start	= GE00_PHYS_BASE + 0x2000,
-		.end	= GE00_PHYS_BASE + 0x3fff,
+		.end	= GE00_PHYS_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.name	= "ge00 err irq",
@@ -162,7 +162,7 @@ static struct platform_device kirkwood_ge00 = {
 	.num_resources	= 1,
 	.resource	= kirkwood_ge00_resources,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
@@ -189,7 +189,7 @@ static struct resource kirkwood_ge01_shared_resources[] = {
 	{
 		.name	= "ge01 base",
 		.start	= GE01_PHYS_BASE + 0x2000,
-		.end	= GE01_PHYS_BASE + 0x3fff,
+		.end	= GE01_PHYS_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.name	= "ge01 err irq",
@@ -224,7 +224,7 @@ static struct platform_device kirkwood_ge01 = {
 	.num_resources	= 1,
 	.resource	= kirkwood_ge01_resources,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
@@ -358,7 +358,7 @@ static struct platform_device kirkwood_sata = {
 	.name		= "sata_mv",
 	.id		= 0,
 	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(kirkwood_sata_resources),
 	.resource	= kirkwood_sata_resources,
@@ -391,14 +391,14 @@ static struct resource mvsdio_resources[] = {
 	},
 };
 
-static u64 mvsdio_dmamask = 0xffffffffUL;
+static u64 mvsdio_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device kirkwood_sdio = {
 	.name		= "mvsdio",
 	.id		= -1,
 	.dev		= {
 		.dma_mask = &mvsdio_dmamask,
-		.coherent_dma_mask = 0xffffffff,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(mvsdio_resources),
 	.resource	= mvsdio_resources,
@@ -518,7 +518,7 @@ static struct resource kirkwood_uart0_resources[] = {
 
 static struct platform_device kirkwood_uart0 = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= kirkwood_uart0_data,
 	},
@@ -562,7 +562,7 @@ static struct resource kirkwood_uart1_resources[] = {
 
 static struct platform_device kirkwood_uart1 = {
 	.name			= "serial8250",
-	.id			= 1,
+	.id			= PLAT8250_DEV_PLATFORM1,
 	.dev			= {
 		.platform_data	= kirkwood_uart1_data,
 	},
@@ -620,8 +620,6 @@ static struct mv_xor_platform_shared_data kirkwood_xor_shared_data = {
 	.dram		= &kirkwood_mbus_dram_info,
 };
 
-static u64 kirkwood_xor_dmamask = DMA_BIT_MASK(32);
-
 
 /*****************************************************************************
  * XOR0
@@ -649,6 +647,8 @@ static struct platform_device kirkwood_xor0_shared = {
 	.num_resources	= ARRAY_SIZE(kirkwood_xor0_shared_resources),
 	.resource	= kirkwood_xor0_shared_resources,
 };
+
+static u64 kirkwood_xor_dmamask = DMA_BIT_MASK(32);
 
 static struct resource kirkwood_xor00_resources[] = {
 	[0] = {
