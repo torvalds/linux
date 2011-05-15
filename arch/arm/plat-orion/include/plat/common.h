@@ -81,4 +81,15 @@ void __init orion_spi_1_init(unsigned long mapbase,
 			     unsigned long tclk);
 
 void __init orion_wdt_init(unsigned long tclk);
+
+void __init orion_xor0_init(struct mbus_dram_target_info *mbus_dram_info,
+			    unsigned long mapbase_low,
+			    unsigned long mapbase_high,
+			    unsigned long irq_0,
+			    unsigned long irq_1);
+
+void __init orion_xor1_init(unsigned long mapbase_low,
+			    unsigned long mapbase_high,
+			    unsigned long irq_0,
+			    unsigned long irq_1);
 #endif

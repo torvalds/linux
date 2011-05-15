@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 #include <linux/serial_8250.h>
 #include <linux/mbus.h>
 #include <linux/mv643xx_i2c.h>
@@ -28,7 +29,6 @@
 #include <mach/hardware.h>
 #include <mach/orion5x.h>
 #include <plat/ehci-orion.h>
-#include <plat/mv_xor.h>
 #include <plat/orion_nand.h>
 #include <plat/time.h>
 #include <plat/common.h>
@@ -239,104 +239,12 @@ void __init orion5x_uart1_init(void)
 /*****************************************************************************
  * XOR engine
  ****************************************************************************/
-struct mv_xor_platform_shared_data orion5x_xor_shared_data = {
-	.dram		= &orion5x_mbus_dram_info,
-};
-
-static struct resource orion5x_xor_shared_resources[] = {
-	{
-		.name	= "xor low",
-		.start	= ORION5X_XOR_PHYS_BASE,
-		.end	= ORION5X_XOR_PHYS_BASE + 0xff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.name	= "xor high",
-		.start	= ORION5X_XOR_PHYS_BASE + 0x200,
-		.end	= ORION5X_XOR_PHYS_BASE + 0x2ff,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device orion5x_xor_shared = {
-	.name		= MV_XOR_SHARED_NAME,
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &orion5x_xor_shared_data,
-	},
-	.num_resources	= ARRAY_SIZE(orion5x_xor_shared_resources),
-	.resource	= orion5x_xor_shared_resources,
-};
-
-static u64 orion5x_xor_dmamask = DMA_BIT_MASK(32);
-
-static struct resource orion5x_xor0_resources[] = {
-	[0] = {
-		.start	= IRQ_ORION5X_XOR0,
-		.end	= IRQ_ORION5X_XOR0,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct mv_xor_platform_data orion5x_xor0_data = {
-	.shared		= &orion5x_xor_shared,
-	.hw_id		= 0,
-	.pool_size	= PAGE_SIZE,
-};
-
-static struct platform_device orion5x_xor0_channel = {
-	.name		= MV_XOR_NAME,
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(orion5x_xor0_resources),
-	.resource	= orion5x_xor0_resources,
-	.dev		= {
-		.dma_mask		= &orion5x_xor_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= &orion5x_xor0_data,
-	},
-};
-
-static struct resource orion5x_xor1_resources[] = {
-	[0] = {
-		.start	= IRQ_ORION5X_XOR1,
-		.end	= IRQ_ORION5X_XOR1,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct mv_xor_platform_data orion5x_xor1_data = {
-	.shared		= &orion5x_xor_shared,
-	.hw_id		= 1,
-	.pool_size	= PAGE_SIZE,
-};
-
-static struct platform_device orion5x_xor1_channel = {
-	.name		= MV_XOR_NAME,
-	.id		= 1,
-	.num_resources	= ARRAY_SIZE(orion5x_xor1_resources),
-	.resource	= orion5x_xor1_resources,
-	.dev		= {
-		.dma_mask		= &orion5x_xor_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= &orion5x_xor1_data,
-	},
-};
-
 void __init orion5x_xor_init(void)
 {
-	platform_device_register(&orion5x_xor_shared);
-
-	/*
-	 * two engines can't do memset simultaneously, this limitation
-	 * satisfied by removing memset support from one of the engines.
-	 */
-	dma_cap_set(DMA_MEMCPY, orion5x_xor0_data.cap_mask);
-	dma_cap_set(DMA_XOR, orion5x_xor0_data.cap_mask);
-	platform_device_register(&orion5x_xor0_channel);
-
-	dma_cap_set(DMA_MEMCPY, orion5x_xor1_data.cap_mask);
-	dma_cap_set(DMA_MEMSET, orion5x_xor1_data.cap_mask);
-	dma_cap_set(DMA_XOR, orion5x_xor1_data.cap_mask);
-	platform_device_register(&orion5x_xor1_channel);
+	orion_xor0_init(&orion5x_mbus_dram_info,
+			ORION5X_XOR_PHYS_BASE,
+			ORION5X_XOR_PHYS_BASE + 0x200,
+			IRQ_ORION5X_XOR0, IRQ_ORION5X_XOR1);
 }
 
 static struct resource orion5x_crypto_res[] = {

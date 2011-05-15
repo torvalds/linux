@@ -30,7 +30,6 @@
 #include <mach/bridge-regs.h>
 #include <asm/mach/arch.h>
 #include <linux/irq.h>
-#include <plat/mv_xor.h>
 #include <plat/ehci-orion.h>
 #include <plat/time.h>
 #include <plat/common.h>
@@ -278,208 +277,22 @@ struct sys_timer dove_timer = {
 };
 
 /*****************************************************************************
- * XOR
- ****************************************************************************/
-static struct mv_xor_platform_shared_data dove_xor_shared_data = {
-	.dram		= &dove_mbus_dram_info,
-};
-
-/*****************************************************************************
  * XOR 0
  ****************************************************************************/
-static u64 dove_xor0_dmamask = DMA_BIT_MASK(32);
-
-static struct resource dove_xor0_shared_resources[] = {
-	{
-		.name	= "xor 0 low",
-		.start	= DOVE_XOR0_PHYS_BASE,
-		.end	= DOVE_XOR0_PHYS_BASE + 0xff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.name	= "xor 0 high",
-		.start	= DOVE_XOR0_HIGH_PHYS_BASE,
-		.end	= DOVE_XOR0_HIGH_PHYS_BASE + 0xff,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device dove_xor0_shared = {
-	.name		= MV_XOR_SHARED_NAME,
-	.id		= 0,
-	.dev		= {
-		.platform_data = &dove_xor_shared_data,
-	},
-	.num_resources	= ARRAY_SIZE(dove_xor0_shared_resources),
-	.resource	= dove_xor0_shared_resources,
-};
-
-static struct resource dove_xor00_resources[] = {
-	[0] = {
-		.start	= IRQ_DOVE_XOR_00,
-		.end	= IRQ_DOVE_XOR_00,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct mv_xor_platform_data dove_xor00_data = {
-	.shared		= &dove_xor0_shared,
-	.hw_id		= 0,
-	.pool_size	= PAGE_SIZE,
-};
-
-static struct platform_device dove_xor00_channel = {
-	.name		= MV_XOR_NAME,
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(dove_xor00_resources),
-	.resource	= dove_xor00_resources,
-	.dev		= {
-		.dma_mask		= &dove_xor0_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= &dove_xor00_data,
-	},
-};
-
-static struct resource dove_xor01_resources[] = {
-	[0] = {
-		.start	= IRQ_DOVE_XOR_01,
-		.end	= IRQ_DOVE_XOR_01,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct mv_xor_platform_data dove_xor01_data = {
-	.shared		= &dove_xor0_shared,
-	.hw_id		= 1,
-	.pool_size	= PAGE_SIZE,
-};
-
-static struct platform_device dove_xor01_channel = {
-	.name		= MV_XOR_NAME,
-	.id		= 1,
-	.num_resources	= ARRAY_SIZE(dove_xor01_resources),
-	.resource	= dove_xor01_resources,
-	.dev		= {
-		.dma_mask		= &dove_xor0_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= &dove_xor01_data,
-	},
-};
-
 void __init dove_xor0_init(void)
 {
-	platform_device_register(&dove_xor0_shared);
-
-	/*
-	 * two engines can't do memset simultaneously, this limitation
-	 * satisfied by removing memset support from one of the engines.
-	 */
-	dma_cap_set(DMA_MEMCPY, dove_xor00_data.cap_mask);
-	dma_cap_set(DMA_XOR, dove_xor00_data.cap_mask);
-	platform_device_register(&dove_xor00_channel);
-
-	dma_cap_set(DMA_MEMCPY, dove_xor01_data.cap_mask);
-	dma_cap_set(DMA_MEMSET, dove_xor01_data.cap_mask);
-	dma_cap_set(DMA_XOR, dove_xor01_data.cap_mask);
-	platform_device_register(&dove_xor01_channel);
+	orion_xor0_init(&dove_mbus_dram_info,
+			DOVE_XOR0_PHYS_BASE, DOVE_XOR0_HIGH_PHYS_BASE,
+			IRQ_DOVE_XOR_00, IRQ_DOVE_XOR_01);
 }
 
 /*****************************************************************************
  * XOR 1
  ****************************************************************************/
-static u64 dove_xor1_dmamask = DMA_BIT_MASK(32);
-
-static struct resource dove_xor1_shared_resources[] = {
-	{
-		.name	= "xor 0 low",
-		.start	= DOVE_XOR1_PHYS_BASE,
-		.end	= DOVE_XOR1_PHYS_BASE + 0xff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.name	= "xor 0 high",
-		.start	= DOVE_XOR1_HIGH_PHYS_BASE,
-		.end	= DOVE_XOR1_HIGH_PHYS_BASE + 0xff,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device dove_xor1_shared = {
-	.name		= MV_XOR_SHARED_NAME,
-	.id		= 1,
-	.dev		= {
-		.platform_data = &dove_xor_shared_data,
-	},
-	.num_resources	= ARRAY_SIZE(dove_xor1_shared_resources),
-	.resource	= dove_xor1_shared_resources,
-};
-
-static struct resource dove_xor10_resources[] = {
-	[0] = {
-		.start	= IRQ_DOVE_XOR_10,
-		.end	= IRQ_DOVE_XOR_10,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct mv_xor_platform_data dove_xor10_data = {
-	.shared		= &dove_xor1_shared,
-	.hw_id		= 0,
-	.pool_size	= PAGE_SIZE,
-};
-
-static struct platform_device dove_xor10_channel = {
-	.name		= MV_XOR_NAME,
-	.id		= 2,
-	.num_resources	= ARRAY_SIZE(dove_xor10_resources),
-	.resource	= dove_xor10_resources,
-	.dev		= {
-		.dma_mask		= &dove_xor1_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= &dove_xor10_data,
-	},
-};
-
-static struct resource dove_xor11_resources[] = {
-	[0] = {
-		.start	= IRQ_DOVE_XOR_11,
-		.end	= IRQ_DOVE_XOR_11,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct mv_xor_platform_data dove_xor11_data = {
-	.shared		= &dove_xor1_shared,
-	.hw_id		= 1,
-	.pool_size	= PAGE_SIZE,
-};
-
-static struct platform_device dove_xor11_channel = {
-	.name		= MV_XOR_NAME,
-	.id		= 3,
-	.num_resources	= ARRAY_SIZE(dove_xor11_resources),
-	.resource	= dove_xor11_resources,
-	.dev		= {
-		.dma_mask		= &dove_xor1_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= &dove_xor11_data,
-	},
-};
-
 void __init dove_xor1_init(void)
 {
-	platform_device_register(&dove_xor1_shared);
-
-	/*
-	 * two engines can't do memset simultaneously, this limitation
-	 * satisfied by removing memset support from one of the engines.
-	 */
-	dma_cap_set(DMA_MEMCPY, dove_xor10_data.cap_mask);
-	dma_cap_set(DMA_XOR, dove_xor10_data.cap_mask);
-	platform_device_register(&dove_xor10_channel);
-
-	dma_cap_set(DMA_MEMCPY, dove_xor11_data.cap_mask);
-	dma_cap_set(DMA_MEMSET, dove_xor11_data.cap_mask);
-	dma_cap_set(DMA_XOR, dove_xor11_data.cap_mask);
-	platform_device_register(&dove_xor11_channel);
+	orion_xor1_init(DOVE_XOR1_PHYS_BASE, DOVE_XOR1_HIGH_PHYS_BASE,
+			IRQ_DOVE_XOR_10, IRQ_DOVE_XOR_11);
 }
 
 /*****************************************************************************

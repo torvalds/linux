@@ -19,6 +19,7 @@
 #include <net/dsa.h>
 #include <linux/spi/orion_spi.h>
 #include <plat/orion_wdt.h>
+#include <plat/mv_xor.h>
 
 /* Fill in the resources structure and link it into the platform
    device structure. There is always a memory region, and nearly
@@ -584,4 +585,218 @@ void __init orion_wdt_init(unsigned long tclk)
 {
 	orion_wdt_data.tclk = tclk;
 	platform_device_register(&orion_wdt_device);
+}
+
+/*****************************************************************************
+ * XOR
+ ****************************************************************************/
+static struct mv_xor_platform_shared_data orion_xor_shared_data;
+
+static u64 orion_xor_dmamask = DMA_BIT_MASK(32);
+
+void __init orion_xor_init_channels(
+	struct mv_xor_platform_data *orion_xor0_data,
+	struct platform_device *orion_xor0_channel,
+	struct mv_xor_platform_data *orion_xor1_data,
+	struct platform_device *orion_xor1_channel)
+{
+	/*
+	 * two engines can't do memset simultaneously, this limitation
+	 * satisfied by removing memset support from one of the engines.
+	 */
+	dma_cap_set(DMA_MEMCPY, orion_xor0_data->cap_mask);
+	dma_cap_set(DMA_XOR, orion_xor0_data->cap_mask);
+	platform_device_register(orion_xor0_channel);
+
+	dma_cap_set(DMA_MEMCPY, orion_xor1_data->cap_mask);
+	dma_cap_set(DMA_MEMSET, orion_xor1_data->cap_mask);
+	dma_cap_set(DMA_XOR, orion_xor1_data->cap_mask);
+	platform_device_register(orion_xor1_channel);
+}
+
+/*****************************************************************************
+ * XOR0
+ ****************************************************************************/
+static struct resource orion_xor0_shared_resources[] = {
+	{
+		.name	= "xor 0 low",
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "xor 0 high",
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device orion_xor0_shared = {
+	.name		= MV_XOR_SHARED_NAME,
+	.id		= 0,
+	.dev		= {
+		.platform_data = &orion_xor_shared_data,
+	},
+	.num_resources	= ARRAY_SIZE(orion_xor0_shared_resources),
+	.resource	= orion_xor0_shared_resources,
+};
+
+static struct resource orion_xor00_resources[] = {
+	[0] = {
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mv_xor_platform_data orion_xor00_data = {
+	.shared		= &orion_xor0_shared,
+	.hw_id		= 0,
+	.pool_size	= PAGE_SIZE,
+};
+
+static struct platform_device orion_xor00_channel = {
+	.name		= MV_XOR_NAME,
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(orion_xor00_resources),
+	.resource	= orion_xor00_resources,
+	.dev		= {
+		.dma_mask		= &orion_xor_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(64),
+		.platform_data		= &orion_xor00_data,
+	},
+};
+
+static struct resource orion_xor01_resources[] = {
+	[0] = {
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mv_xor_platform_data orion_xor01_data = {
+	.shared		= &orion_xor0_shared,
+	.hw_id		= 1,
+	.pool_size	= PAGE_SIZE,
+};
+
+static struct platform_device orion_xor01_channel = {
+	.name		= MV_XOR_NAME,
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(orion_xor01_resources),
+	.resource	= orion_xor01_resources,
+	.dev		= {
+		.dma_mask		= &orion_xor_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(64),
+		.platform_data		= &orion_xor01_data,
+	},
+};
+
+void __init orion_xor0_init(struct mbus_dram_target_info *mbus_dram_info,
+			    unsigned long mapbase_low,
+			    unsigned long mapbase_high,
+			    unsigned long irq_0,
+			    unsigned long irq_1)
+{
+	orion_xor_shared_data.dram = mbus_dram_info;
+
+	orion_xor0_shared_resources[0].start = mapbase_low;
+	orion_xor0_shared_resources[0].end = mapbase_low + 0xff;
+	orion_xor0_shared_resources[1].start = mapbase_high;
+	orion_xor0_shared_resources[1].end = mapbase_high + 0xff;
+
+	orion_xor00_resources[0].start = irq_0;
+	orion_xor00_resources[0].end = irq_0;
+	orion_xor01_resources[0].start = irq_1;
+	orion_xor01_resources[0].end = irq_1;
+
+	platform_device_register(&orion_xor0_shared);
+
+	orion_xor_init_channels(&orion_xor00_data, &orion_xor00_channel,
+				&orion_xor01_data, &orion_xor01_channel);
+}
+
+/*****************************************************************************
+ * XOR1
+ ****************************************************************************/
+static struct resource orion_xor1_shared_resources[] = {
+	{
+		.name	= "xor 1 low",
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "xor 1 high",
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device orion_xor1_shared = {
+	.name		= MV_XOR_SHARED_NAME,
+	.id		= 1,
+	.dev		= {
+		.platform_data = &orion_xor_shared_data,
+	},
+	.num_resources	= ARRAY_SIZE(orion_xor1_shared_resources),
+	.resource	= orion_xor1_shared_resources,
+};
+
+static struct resource orion_xor10_resources[] = {
+	[0] = {
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mv_xor_platform_data orion_xor10_data = {
+	.shared		= &orion_xor1_shared,
+	.hw_id		= 0,
+	.pool_size	= PAGE_SIZE,
+};
+
+static struct platform_device orion_xor10_channel = {
+	.name		= MV_XOR_NAME,
+	.id		= 2,
+	.num_resources	= ARRAY_SIZE(orion_xor10_resources),
+	.resource	= orion_xor10_resources,
+	.dev		= {
+		.dma_mask		= &orion_xor_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(64),
+		.platform_data		= &orion_xor10_data,
+	},
+};
+
+static struct resource orion_xor11_resources[] = {
+	[0] = {
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mv_xor_platform_data orion_xor11_data = {
+	.shared		= &orion_xor1_shared,
+	.hw_id		= 1,
+	.pool_size	= PAGE_SIZE,
+};
+
+static struct platform_device orion_xor11_channel = {
+	.name		= MV_XOR_NAME,
+	.id		= 3,
+	.num_resources	= ARRAY_SIZE(orion_xor11_resources),
+	.resource	= orion_xor11_resources,
+	.dev		= {
+		.dma_mask		= &orion_xor_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(64),
+		.platform_data		= &orion_xor11_data,
+	},
+};
+
+void __init orion_xor1_init(unsigned long mapbase_low,
+			    unsigned long mapbase_high,
+			    unsigned long irq_0,
+			    unsigned long irq_1)
+{
+	orion_xor1_shared_resources[0].start = mapbase_low;
+	orion_xor1_shared_resources[0].end = mapbase_low + 0xff;
+	orion_xor1_shared_resources[1].start = mapbase_high;
+	orion_xor1_shared_resources[1].end = mapbase_high + 0xff;
+
+	orion_xor10_resources[0].start = irq_0;
+	orion_xor10_resources[0].end = irq_0;
+	orion_xor11_resources[0].start = irq_1;
+	orion_xor11_resources[0].end = irq_1;
+
+	platform_device_register(&orion_xor1_shared);
+
+	orion_xor_init_channels(&orion_xor10_data, &orion_xor10_channel,
+				&orion_xor11_data, &orion_xor11_channel);
 }
