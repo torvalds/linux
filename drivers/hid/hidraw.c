@@ -395,12 +395,7 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 				}
 
 				if (_IOC_NR(cmd) == _IOC_NR(HIDIOCGRAWNAME(0))) {
-					int len;
-					if (!hid->name) {
-						ret = 0;
-						break;
-					}
-					len = strlen(hid->name) + 1;
+					int len = strlen(hid->name) + 1;
 					if (len > _IOC_SIZE(cmd))
 						len = _IOC_SIZE(cmd);
 					ret = copy_to_user(user_arg, hid->name, len) ?
@@ -409,12 +404,7 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 				}
 
 				if (_IOC_NR(cmd) == _IOC_NR(HIDIOCGRAWPHYS(0))) {
-					int len;
-					if (!hid->phys) {
-						ret = 0;
-						break;
-					}
-					len = strlen(hid->phys) + 1;
+					int len = strlen(hid->phys) + 1;
 					if (len > _IOC_SIZE(cmd))
 						len = _IOC_SIZE(cmd);
 					ret = copy_to_user(user_arg, hid->phys, len) ?
