@@ -44,8 +44,7 @@ static int caam_remove(struct platform_device *pdev)
 }
 
 /* Probe routine for CAAM top (controller) level */
-static int caam_probe(struct platform_device *pdev,
-		      const struct of_device_id *devmatch)
+static int caam_probe(struct platform_device *pdev)
 {
 	int d, ring, rspec;
 	struct device *dev;
@@ -242,7 +241,7 @@ static struct of_device_id caam_match[] = {
 };
 MODULE_DEVICE_TABLE(of, caam_match);
 
-static struct of_platform_driver caam_driver = {
+static struct platform_driver caam_driver = {
 	.driver = {
 		.name = "caam",
 		.owner = THIS_MODULE,
@@ -254,12 +253,12 @@ static struct of_platform_driver caam_driver = {
 
 static int __init caam_base_init(void)
 {
-	return of_register_platform_driver(&caam_driver);
+	return platform_driver_register(&caam_driver);
 }
 
 static void __exit caam_base_exit(void)
 {
-	return of_unregister_platform_driver(&caam_driver);
+	return platform_driver_unregister(&caam_driver);
 }
 
 module_init(caam_base_init);
