@@ -473,6 +473,65 @@ int ubifs_validate_entry(struct ubifs_info *c,
 }
 
 /**
+ * is_last_bud - check if the bud is the last in the journal head.
+ * @c: UBIFS file-system description object
+ * @bud: bud description object
+ *
+ * This function checks if bud @bud is the last bud in its journal head. This
+ * information is then used by 'replay_bud()' to decide whether the bud can
+ * have corruptions or not. Indeed, only last buds can be corrupted by power
+ * cuts. Returns %1 if this is the last bud, and %0 if not.
+ */
+static int is_last_bud(struct ubifs_info *c, struct ubifs_bud *bud)
+{
+	struct ubifs_jhead *jh = &c->jheads[bud->jhead];
+	struct ubifs_bud *next;
+	uint32_t data;
+	int err;
+
+	if (list_is_last(&bud->list, &jh->buds_list))
+		return 1;
+
+	/*
+	 * The following is a quirk to make sure we work correctly with UBIFS
+	 * images used with older UBIFS.
+	 *
+	 * Normally, the last bud will be the last in the journal head's list
+	 * of bud. However, there is one exception if the UBIFS image belongs
+	 * to older UBIFS. This is fairly unlikely: one would need to use old
+	 * UBIFS, then have a power cut exactly at the right point, and then
+	 * try to mount this image with new UBIFS.
+	 *
+	 * The exception is: it is possible to have 2 buds A and B, A goes
+	 * before B, and B is the last, bud B is contains no data, and bud A is
+	 * corrupted at the end. The reason is that in older versions when the
+	 * journal code switched the next bud (from A to B), it first added a
+	 * log reference node for the new bud (B), and only after this it
+	 * synchronized the write-buffer of current bud (A). But later this was
+	 * changed and UBIFS started to always synchronize the write-buffer of
+	 * the bud (A) before writing the log reference for the new bud (B).
+	 *
+	 * But because older UBIFS always synchronized A's write-buffer before
+	 * writing to B, we can recognize this exceptional situation but
+	 * checking the contents of bud B - if it is empty, then A can be
+	 * treated as the last and we can recover it.
+	 *
+	 * TODO: remove this piece of code in a couple of years (today it is
+	 * 16.05.2011).
+	 */
+	next = list_entry(bud->list.next, struct ubifs_bud, list);
+	if (!list_is_last(&next->list, &jh->buds_list))
+		return 0;
+
+	err = ubi_read(c->ubi, next->lnum, (char *)&data,
+		       next->start, 4);
+	if (err)
+		return 0;
+
+	return data == 0xFFFFFFFF;
+}
+
+/**
  * replay_bud - replay a bud logical eraseblock.
  * @c: UBIFS file-system description object
  * @b: bud entry which describes the bud
@@ -483,15 +542,23 @@ int ubifs_validate_entry(struct ubifs_info *c,
  */
 static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 {
+	int is_last = is_last_bud(c, b->bud);
 	int err = 0, used = 0, lnum = b->bud->lnum, offs = b->bud->start;
-	int jhead = b->bud->jhead;
 	struct ubifs_scan_leb *sleb;
 	struct ubifs_scan_node *snod;
 
-	dbg_mnt("replay bud LEB %d, head %d, offs %d", lnum, jhead, offs);
+	dbg_mnt("replay bud LEB %d, head %d, offs %d, is_last %d",
+		lnum, b->bud->jhead, offs, is_last);
 
-	if (c->need_recovery)
-		sleb = ubifs_recover_leb(c, lnum, offs, c->sbuf, jhead != GCHD);
+	if (c->need_recovery && is_last)
+		/*
+		 * Recover only last LEBs in the journal heads, because power
+		 * cuts may cause corruptions only in these LEBs, because only
+		 * these LEBs could possibly be written to at the power cut
+		 * time.
+		 */
+		sleb = ubifs_recover_leb(c, lnum, offs, c->sbuf,
+					 b->bud->jhead != GCHD);
 	else
 		sleb = ubifs_scan(c, lnum, offs, c->sbuf, 0);
 	if (IS_ERR(sleb))
