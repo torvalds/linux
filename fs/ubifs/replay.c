@@ -90,14 +90,16 @@ struct replay_entry {
  * struct bud_entry - entry in the list of buds to replay.
  * @list: next bud in the list
  * @bud: bud description object
- * @free: free bytes in the bud
  * @sqnum: reference node sequence number
+ * @free: free bytes in the bud
+ * @dirty: dirty bytes in the bud
  */
 struct bud_entry {
 	struct list_head list;
 	struct ubifs_bud *bud;
-	int free;
 	unsigned long long sqnum;
+	int free;
+	int dirty;
 };
 
 /**
@@ -720,6 +722,8 @@ static int replay_buds(struct ubifs_info *c)
 				 &free, &dirty);
 		if (err)
 			return err;
+		b->free = free;
+		b->dirty = dirty;
 		err = insert_ref_node(c, b->bud->lnum, b->bud->start, b->sqnum,
 				      free, dirty, b->bud->jhead);
 		if (err)
