@@ -13,7 +13,6 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/mbus.h>
-#include <linux/mv643xx_eth.h>
 #include <linux/dma-mapping.h>
 #include <asm/page.h>
 #include <asm/timex.h>
@@ -45,116 +44,28 @@ void __init loki_map_io(void)
 
 
 /*****************************************************************************
- * GE0
+ * GE00
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data loki_ge0_shared_data = {
-	.t_clk		= LOKI_TCLK,
-	.dram		= &loki_mbus_dram_info,
-};
-
-static struct resource loki_ge0_shared_resources[] = {
-	{
-		.name	= "ge0 base",
-		.start	= GE0_PHYS_BASE + 0x2000,
-		.end	= GE0_PHYS_BASE + SZ_16K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device loki_ge0_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &loki_ge0_shared_data,
-	},
-	.num_resources	= 1,
-	.resource	= loki_ge0_shared_resources,
-};
-
-static struct resource loki_ge0_resources[] = {
-	{
-		.name	= "ge0 irq",
-		.start	= IRQ_LOKI_GBE_A_INT,
-		.end	= IRQ_LOKI_GBE_A_INT,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device loki_ge0 = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 0,
-	.num_resources	= 1,
-	.resource	= loki_ge0_resources,
-	.dev		= {
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-
 void __init loki_ge0_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	eth_data->shared = &loki_ge0_shared;
-	loki_ge0.dev.platform_data = eth_data;
-
 	writel(0x00079220, GE0_VIRT_BASE + 0x20b0);
-	platform_device_register(&loki_ge0_shared);
-	platform_device_register(&loki_ge0);
+
+	orion_ge00_init(eth_data, &loki_mbus_dram_info,
+			GE0_PHYS_BASE, IRQ_LOKI_GBE_A_INT,
+			0, LOKI_TCLK);
 }
 
 
 /*****************************************************************************
- * GE1
+ * GE01
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data loki_ge1_shared_data = {
-	.t_clk		= LOKI_TCLK,
-	.dram		= &loki_mbus_dram_info,
-};
-
-static struct resource loki_ge1_shared_resources[] = {
-	{
-		.name	= "ge1 base",
-		.start	= GE1_PHYS_BASE + 0x2000,
-		.end	= GE1_PHYS_BASE + SZ_16K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device loki_ge1_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 1,
-	.dev		= {
-		.platform_data	= &loki_ge1_shared_data,
-	},
-	.num_resources	= 1,
-	.resource	= loki_ge1_shared_resources,
-};
-
-static struct resource loki_ge1_resources[] = {
-	{
-		.name	= "ge1 irq",
-		.start	= IRQ_LOKI_GBE_B_INT,
-		.end	= IRQ_LOKI_GBE_B_INT,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device loki_ge1 = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 1,
-	.num_resources	= 1,
-	.resource	= loki_ge1_resources,
-	.dev		= {
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-
 void __init loki_ge1_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	eth_data->shared = &loki_ge1_shared;
-	loki_ge1.dev.platform_data = eth_data;
-
 	writel(0x00079220, GE1_VIRT_BASE + 0x20b0);
-	platform_device_register(&loki_ge1_shared);
-	platform_device_register(&loki_ge1);
+
+	orion_ge01_init(eth_data, &loki_mbus_dram_info,
+			GE1_PHYS_BASE, IRQ_LOKI_GBE_B_INT,
+			0, LOKI_TCLK);
 }
 
 

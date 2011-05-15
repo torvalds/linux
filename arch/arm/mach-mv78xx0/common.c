@@ -13,7 +13,6 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/mbus.h>
-#include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
 #include <linux/ethtool.h>
@@ -280,174 +279,31 @@ void __init mv78xx0_ehci2_init(void)
 /*****************************************************************************
  * GE00
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data mv78xx0_ge00_shared_data = {
-	.t_clk		= 0,
-	.dram		= &mv78xx0_mbus_dram_info,
-};
-
-static struct resource mv78xx0_ge00_shared_resources[] = {
-	{
-		.name	= "ge00 base",
-		.start	= GE00_PHYS_BASE + 0x2000,
-		.end	= GE00_PHYS_BASE + SZ_16K - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.name	= "ge err irq",
-		.start	= IRQ_MV78XX0_GE_ERR,
-		.end	= IRQ_MV78XX0_GE_ERR,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ge00_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &mv78xx0_ge00_shared_data,
-	},
-	.num_resources	= ARRAY_SIZE(mv78xx0_ge00_shared_resources),
-	.resource	= mv78xx0_ge00_shared_resources,
-};
-
-static struct resource mv78xx0_ge00_resources[] = {
-	{
-		.name	= "ge00 irq",
-		.start	= IRQ_MV78XX0_GE00_SUM,
-		.end	= IRQ_MV78XX0_GE00_SUM,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ge00 = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 0,
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge00_resources,
-	.dev		= {
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-
 void __init mv78xx0_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	eth_data->shared = &mv78xx0_ge00_shared;
-	mv78xx0_ge00.dev.platform_data = eth_data;
-
-	platform_device_register(&mv78xx0_ge00_shared);
-	platform_device_register(&mv78xx0_ge00);
+	orion_ge00_init(eth_data, &mv78xx0_mbus_dram_info,
+			GE00_PHYS_BASE, IRQ_MV78XX0_GE00_SUM,
+			IRQ_MV78XX0_GE_ERR, get_tclk());
 }
 
 
 /*****************************************************************************
  * GE01
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data mv78xx0_ge01_shared_data = {
-	.t_clk		= 0,
-	.dram		= &mv78xx0_mbus_dram_info,
-	.shared_smi	= &mv78xx0_ge00_shared,
-};
-
-static struct resource mv78xx0_ge01_shared_resources[] = {
-	{
-		.name	= "ge01 base",
-		.start	= GE01_PHYS_BASE + 0x2000,
-		.end	= GE01_PHYS_BASE + SZ_16K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device mv78xx0_ge01_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 1,
-	.dev		= {
-		.platform_data	= &mv78xx0_ge01_shared_data,
-	},
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge01_shared_resources,
-};
-
-static struct resource mv78xx0_ge01_resources[] = {
-	{
-		.name	= "ge01 irq",
-		.start	= IRQ_MV78XX0_GE01_SUM,
-		.end	= IRQ_MV78XX0_GE01_SUM,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ge01 = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 1,
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge01_resources,
-	.dev		= {
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-
 void __init mv78xx0_ge01_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	eth_data->shared = &mv78xx0_ge01_shared;
-	mv78xx0_ge01.dev.platform_data = eth_data;
-
-	platform_device_register(&mv78xx0_ge01_shared);
-	platform_device_register(&mv78xx0_ge01);
+	orion_ge01_init(eth_data, &mv78xx0_mbus_dram_info,
+			GE01_PHYS_BASE, IRQ_MV78XX0_GE01_SUM,
+			NO_IRQ, get_tclk());
 }
 
 
 /*****************************************************************************
  * GE10
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data mv78xx0_ge10_shared_data = {
-	.t_clk		= 0,
-	.dram		= &mv78xx0_mbus_dram_info,
-	.shared_smi	= &mv78xx0_ge00_shared,
-};
-
-static struct resource mv78xx0_ge10_shared_resources[] = {
-	{
-		.name	= "ge10 base",
-		.start	= GE10_PHYS_BASE + 0x2000,
-		.end	= GE10_PHYS_BASE + SZ_16K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device mv78xx0_ge10_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 2,
-	.dev		= {
-		.platform_data	= &mv78xx0_ge10_shared_data,
-	},
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge10_shared_resources,
-};
-
-static struct resource mv78xx0_ge10_resources[] = {
-	{
-		.name	= "ge10 irq",
-		.start	= IRQ_MV78XX0_GE10_SUM,
-		.end	= IRQ_MV78XX0_GE10_SUM,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ge10 = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 2,
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge10_resources,
-	.dev		= {
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-
 void __init mv78xx0_ge10_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	u32 dev, rev;
-
-	eth_data->shared = &mv78xx0_ge10_shared;
-	mv78xx0_ge10.dev.platform_data = eth_data;
 
 	/*
 	 * On the Z0, ge10 and ge11 are internally connected back
@@ -460,64 +316,18 @@ void __init mv78xx0_ge10_init(struct mv643xx_eth_platform_data *eth_data)
 		eth_data->duplex = DUPLEX_FULL;
 	}
 
-	platform_device_register(&mv78xx0_ge10_shared);
-	platform_device_register(&mv78xx0_ge10);
+	orion_ge10_init(eth_data, &mv78xx0_mbus_dram_info,
+			GE10_PHYS_BASE, IRQ_MV78XX0_GE10_SUM,
+			NO_IRQ, get_tclk());
 }
 
 
 /*****************************************************************************
  * GE11
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data mv78xx0_ge11_shared_data = {
-	.t_clk		= 0,
-	.dram		= &mv78xx0_mbus_dram_info,
-	.shared_smi	= &mv78xx0_ge00_shared,
-};
-
-static struct resource mv78xx0_ge11_shared_resources[] = {
-	{
-		.name	= "ge11 base",
-		.start	= GE11_PHYS_BASE + 0x2000,
-		.end	= GE11_PHYS_BASE + SZ_16K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device mv78xx0_ge11_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 3,
-	.dev		= {
-		.platform_data	= &mv78xx0_ge11_shared_data,
-	},
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge11_shared_resources,
-};
-
-static struct resource mv78xx0_ge11_resources[] = {
-	{
-		.name	= "ge11 irq",
-		.start	= IRQ_MV78XX0_GE11_SUM,
-		.end	= IRQ_MV78XX0_GE11_SUM,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ge11 = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 3,
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge11_resources,
-	.dev		= {
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-
 void __init mv78xx0_ge11_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	u32 dev, rev;
-
-	eth_data->shared = &mv78xx0_ge11_shared;
-	mv78xx0_ge11.dev.platform_data = eth_data;
 
 	/*
 	 * On the Z0, ge10 and ge11 are internally connected back
@@ -530,8 +340,9 @@ void __init mv78xx0_ge11_init(struct mv643xx_eth_platform_data *eth_data)
 		eth_data->duplex = DUPLEX_FULL;
 	}
 
-	platform_device_register(&mv78xx0_ge11_shared);
-	platform_device_register(&mv78xx0_ge11);
+	orion_ge11_init(eth_data, &mv78xx0_mbus_dram_info,
+			GE11_PHYS_BASE, IRQ_MV78XX0_GE11_SUM,
+			NO_IRQ, get_tclk());
 }
 
 /*****************************************************************************
@@ -759,9 +570,4 @@ void __init mv78xx0_init(void)
 #ifdef CONFIG_CACHE_FEROCEON_L2
 	feroceon_l2_init(is_l2_writethrough());
 #endif
-
-	mv78xx0_ge00_shared_data.t_clk = tclk;
-	mv78xx0_ge01_shared_data.t_clk = tclk;
-	mv78xx0_ge10_shared_data.t_clk = tclk;
-	mv78xx0_ge11_shared_data.t_clk = tclk;
 }

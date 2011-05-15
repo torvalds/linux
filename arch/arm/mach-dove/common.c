@@ -16,7 +16,6 @@
 #include <linux/serial_8250.h>
 #include <linux/clk.h>
 #include <linux/mbus.h>
-#include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
 #include <linux/serial_8250.h>
@@ -150,56 +149,11 @@ void __init dove_ehci1_init(void)
 /*****************************************************************************
  * GE00
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data dove_ge00_shared_data = {
-	.t_clk		= 0,
-	.dram		= &dove_mbus_dram_info,
-};
-
-static struct resource dove_ge00_shared_resources[] = {
-	{
-		.name	= "ge00 base",
-		.start	= DOVE_GE00_PHYS_BASE + 0x2000,
-		.end	= DOVE_GE00_PHYS_BASE + SZ_16K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device dove_ge00_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &dove_ge00_shared_data,
-	},
-	.num_resources	= 1,
-	.resource	= dove_ge00_shared_resources,
-};
-
-static struct resource dove_ge00_resources[] = {
-	{
-		.name	= "ge00 irq",
-		.start	= IRQ_DOVE_GE00_SUM,
-		.end	= IRQ_DOVE_GE00_SUM,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device dove_ge00 = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 0,
-	.num_resources	= 1,
-	.resource	= dove_ge00_resources,
-	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
-	},
-};
-
 void __init dove_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	eth_data->shared = &dove_ge00_shared;
-	dove_ge00.dev.platform_data = eth_data;
-
-	platform_device_register(&dove_ge00_shared);
-	platform_device_register(&dove_ge00);
+	orion_ge00_init(eth_data, &dove_mbus_dram_info,
+			DOVE_GE00_PHYS_BASE, IRQ_DOVE_GE00_SUM,
+			0, get_tclk());
 }
 
 /*****************************************************************************
@@ -690,7 +644,6 @@ void __init dove_init(void)
 #endif
 	dove_setup_cpu_mbus();
 
-	dove_ge00_shared_data.t_clk = tclk;
 	dove_spi0_data.tclk = tclk;
 	dove_spi1_data.tclk = tclk;
 

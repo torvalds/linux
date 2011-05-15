@@ -11,7 +11,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 #include <linux/serial_8250.h>
+#include <linux/mbus.h>
+#include <linux/mv643xx_eth.h>
+#include <net/dsa.h>
 
 /* Fill in the resources structure and link it into the platform
    device structure. There is always a memory region, and nearly
@@ -186,4 +190,276 @@ void __init orion_rtc_init(unsigned long mapbase,
 	orion_rtc_resource[1].flags = IORESOURCE_IRQ;
 
 	platform_device_register_simple("rtc-mv", -1, orion_rtc_resource, 2);
+}
+
+/*****************************************************************************
+ * GE
+ ****************************************************************************/
+static __init void ge_complete(
+	struct mv643xx_eth_shared_platform_data *orion_ge_shared_data,
+	struct mbus_dram_target_info *mbus_dram_info, int tclk,
+	struct resource *orion_ge_resource, unsigned long irq,
+	struct platform_device *orion_ge_shared,
+	struct mv643xx_eth_platform_data *eth_data,
+	struct platform_device *orion_ge)
+{
+	orion_ge_shared_data->dram = mbus_dram_info;
+	orion_ge_shared_data->t_clk = tclk;
+	orion_ge_resource->start = irq;
+	orion_ge_resource->end = irq;
+	eth_data->shared = orion_ge_shared;
+	orion_ge->dev.platform_data = eth_data;
+
+	platform_device_register(orion_ge_shared);
+	platform_device_register(orion_ge);
+}
+
+/*****************************************************************************
+ * GE00
+ ****************************************************************************/
+struct mv643xx_eth_shared_platform_data orion_ge00_shared_data;
+
+static struct resource orion_ge00_shared_resources[] = {
+	{
+		.name	= "ge00 base",
+	}, {
+		.name	= "ge00 err irq",
+	},
+};
+
+static struct platform_device orion_ge00_shared = {
+	.name		= MV643XX_ETH_SHARED_NAME,
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &orion_ge00_shared_data,
+	},
+};
+
+static struct resource orion_ge00_resources[] = {
+	{
+		.name	= "ge00 irq",
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device orion_ge00 = {
+	.name		= MV643XX_ETH_NAME,
+	.id		= 0,
+	.num_resources	= 1,
+	.resource	= orion_ge00_resources,
+	.dev		= {
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+void __init orion_ge00_init(struct mv643xx_eth_platform_data *eth_data,
+			    struct mbus_dram_target_info *mbus_dram_info,
+			    unsigned long mapbase,
+			    unsigned long irq,
+			    unsigned long irq_err,
+			    int tclk)
+{
+	fill_resources(&orion_ge00_shared, orion_ge00_shared_resources,
+		       mapbase + 0x2000, SZ_16K - 1, irq_err);
+	ge_complete(&orion_ge00_shared_data, mbus_dram_info, tclk,
+		    orion_ge00_resources, irq, &orion_ge00_shared,
+		    eth_data, &orion_ge00);
+}
+
+/*****************************************************************************
+ * GE01
+ ****************************************************************************/
+struct mv643xx_eth_shared_platform_data orion_ge01_shared_data = {
+	.shared_smi	= &orion_ge00_shared,
+};
+
+static struct resource orion_ge01_shared_resources[] = {
+	{
+		.name	= "ge01 base",
+	}, {
+		.name	= "ge01 err irq",
+	},
+};
+
+static struct platform_device orion_ge01_shared = {
+	.name		= MV643XX_ETH_SHARED_NAME,
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &orion_ge01_shared_data,
+	},
+};
+
+static struct resource orion_ge01_resources[] = {
+	{
+		.name	= "ge01 irq",
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device orion_ge01 = {
+	.name		= MV643XX_ETH_NAME,
+	.id		= 1,
+	.num_resources	= 1,
+	.resource	= orion_ge01_resources,
+	.dev		= {
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+void __init orion_ge01_init(struct mv643xx_eth_platform_data *eth_data,
+			    struct mbus_dram_target_info *mbus_dram_info,
+			    unsigned long mapbase,
+			    unsigned long irq,
+			    unsigned long irq_err,
+			    int tclk)
+{
+	fill_resources(&orion_ge01_shared, orion_ge01_shared_resources,
+		       mapbase + 0x2000, SZ_16K - 1, irq_err);
+	ge_complete(&orion_ge01_shared_data, mbus_dram_info, tclk,
+		    orion_ge01_resources, irq, &orion_ge01_shared,
+		    eth_data, &orion_ge01);
+}
+
+/*****************************************************************************
+ * GE10
+ ****************************************************************************/
+struct mv643xx_eth_shared_platform_data orion_ge10_shared_data = {
+	.shared_smi	= &orion_ge00_shared,
+};
+
+static struct resource orion_ge10_shared_resources[] = {
+	{
+		.name	= "ge10 base",
+	}, {
+		.name	= "ge10 err irq",
+	},
+};
+
+static struct platform_device orion_ge10_shared = {
+	.name		= MV643XX_ETH_SHARED_NAME,
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &orion_ge10_shared_data,
+	},
+};
+
+static struct resource orion_ge10_resources[] = {
+	{
+		.name	= "ge10 irq",
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device orion_ge10 = {
+	.name		= MV643XX_ETH_NAME,
+	.id		= 1,
+	.num_resources	= 2,
+	.resource	= orion_ge10_resources,
+	.dev		= {
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+void __init orion_ge10_init(struct mv643xx_eth_platform_data *eth_data,
+			    struct mbus_dram_target_info *mbus_dram_info,
+			    unsigned long mapbase,
+			    unsigned long irq,
+			    unsigned long irq_err,
+			    int tclk)
+{
+	fill_resources(&orion_ge10_shared, orion_ge10_shared_resources,
+		       mapbase + 0x2000, SZ_16K - 1, irq_err);
+	ge_complete(&orion_ge10_shared_data, mbus_dram_info, tclk,
+		    orion_ge10_resources, irq, &orion_ge10_shared,
+		    eth_data, &orion_ge10);
+}
+
+/*****************************************************************************
+ * GE11
+ ****************************************************************************/
+struct mv643xx_eth_shared_platform_data orion_ge11_shared_data = {
+	.shared_smi	= &orion_ge00_shared,
+};
+
+static struct resource orion_ge11_shared_resources[] = {
+	{
+		.name	= "ge11 base",
+	}, {
+		.name	= "ge11 err irq",
+	},
+};
+
+static struct platform_device orion_ge11_shared = {
+	.name		= MV643XX_ETH_SHARED_NAME,
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &orion_ge11_shared_data,
+	},
+};
+
+static struct resource orion_ge11_resources[] = {
+	{
+		.name	= "ge11 irq",
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device orion_ge11 = {
+	.name		= MV643XX_ETH_NAME,
+	.id		= 1,
+	.num_resources	= 2,
+	.resource	= orion_ge11_resources,
+	.dev		= {
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
+			    struct mbus_dram_target_info *mbus_dram_info,
+			    unsigned long mapbase,
+			    unsigned long irq,
+			    unsigned long irq_err,
+			    int tclk)
+{
+	fill_resources(&orion_ge11_shared, orion_ge11_shared_resources,
+		       mapbase + 0x2000, SZ_16K - 1, irq_err);
+	ge_complete(&orion_ge11_shared_data, mbus_dram_info, tclk,
+		    orion_ge11_resources, irq, &orion_ge11_shared,
+		    eth_data, &orion_ge11);
+}
+
+/*****************************************************************************
+ * Ethernet switch
+ ****************************************************************************/
+static struct resource orion_switch_resources[] = {
+	{
+		.start	= 0,
+		.end	= 0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device orion_switch_device = {
+	.name		= "dsa",
+	.id		= 0,
+	.num_resources	= 0,
+	.resource	= orion_switch_resources,
+};
+
+void __init orion_ge00_switch_init(struct dsa_platform_data *d, int irq)
+{
+	int i;
+
+	if (irq != NO_IRQ) {
+		orion_switch_resources[0].start = irq;
+		orion_switch_resources[0].end = irq;
+		orion_switch_device.num_resources = 1;
+	}
+
+	d->netdev = &orion_ge00.dev;
+	for (i = 0; i < d->nr_chips; i++)
+		d->chip[i].mii_bus = &orion_ge00_shared.dev;
+	orion_switch_device.dev.platform_data = d;
+
+	platform_device_register(&orion_switch_device);
 }

@@ -15,7 +15,6 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/mbus.h>
-#include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
 #include <linux/spi/orion_spi.h>
@@ -150,95 +149,20 @@ void __init orion5x_ehci1_init(void)
 /*****************************************************************************
  * GE00
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion5x_ge00_shared_data = {
-	.dram		= &orion5x_mbus_dram_info,
-};
-
-static struct resource orion5x_ge00_shared_resources[] = {
-	{
-		.start	= ORION5X_ETH_PHYS_BASE + 0x2000,
-		.end	= ORION5X_ETH_PHYS_BASE + SZ_16K - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_ORION5X_ETH_ERR,
-		.end	= IRQ_ORION5X_ETH_ERR,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_ge00_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &orion5x_ge00_shared_data,
-	},
-	.num_resources	= ARRAY_SIZE(orion5x_ge00_shared_resources),
-	.resource	= orion5x_ge00_shared_resources,
-};
-
-static struct resource orion5x_ge00_resources[] = {
-	{
-		.name	= "eth irq",
-		.start	= IRQ_ORION5X_ETH_SUM,
-		.end	= IRQ_ORION5X_ETH_SUM,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_eth = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 0,
-	.num_resources	= 1,
-	.resource	= orion5x_ge00_resources,
-	.dev		= {
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-
 void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	eth_data->shared = &orion5x_ge00_shared;
-	orion5x_eth.dev.platform_data = eth_data;
-
-	platform_device_register(&orion5x_ge00_shared);
-	platform_device_register(&orion5x_eth);
+	orion_ge00_init(eth_data, &orion5x_mbus_dram_info,
+			ORION5X_ETH_PHYS_BASE, IRQ_ORION5X_ETH_SUM,
+			IRQ_ORION5X_ETH_ERR, orion5x_tclk);
 }
 
 
 /*****************************************************************************
  * Ethernet switch
  ****************************************************************************/
-static struct resource orion5x_switch_resources[] = {
-	{
-		.start	= 0,
-		.end	= 0,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_switch_device = {
-	.name		= "dsa",
-	.id		= 0,
-	.num_resources	= 0,
-	.resource	= orion5x_switch_resources,
-};
-
 void __init orion5x_eth_switch_init(struct dsa_platform_data *d, int irq)
 {
-	int i;
-
-	if (irq != NO_IRQ) {
-		orion5x_switch_resources[0].start = irq;
-		orion5x_switch_resources[0].end = irq;
-		orion5x_switch_device.num_resources = 1;
-	}
-
-	d->netdev = &orion5x_eth.dev;
-	for (i = 0; i < d->nr_chips; i++)
-		d->chip[i].mii_bus = &orion5x_ge00_shared.dev;
-	orion5x_switch_device.dev.platform_data = d;
-
-	platform_device_register(&orion5x_switch_device);
+	orion_ge00_switch_init(d, irq);
 }
 
 
@@ -616,7 +540,6 @@ void __init orion5x_init(void)
 	orion5x_id(&dev, &rev, &dev_name);
 	printk(KERN_INFO "Orion ID: %s. TCLK=%d.\n", dev_name, orion5x_tclk);
 
-	orion5x_ge00_shared_data.t_clk = orion5x_tclk;
 	orion5x_spi_plat_data.tclk = orion5x_tclk;
 
 	/*

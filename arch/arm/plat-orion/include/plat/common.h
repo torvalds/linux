@@ -9,7 +9,9 @@
  */
 
 #ifndef __PLAT_COMMON_H
+#include <linux/mv643xx_eth.h>
 
+struct dsa_platform_data;
 
 void __init orion_uart0_init(unsigned int membase,
 			     resource_size_t mapbase,
@@ -33,4 +35,36 @@ void __init orion_uart3_init(unsigned int membase,
 
 void __init orion_rtc_init(unsigned long mapbase,
 			   unsigned long irq);
+
+void __init orion_ge00_init(struct mv643xx_eth_platform_data *eth_data,
+			    struct mbus_dram_target_info *mbus_dram_info,
+			    unsigned long mapbase,
+			    unsigned long irq,
+			    unsigned long irq_err,
+			    int tclk);
+
+void __init orion_ge01_init(struct mv643xx_eth_platform_data *eth_data,
+			    struct mbus_dram_target_info *mbus_dram_info,
+			    unsigned long mapbase,
+			    unsigned long irq,
+			    unsigned long irq_err,
+			    int tclk);
+
+void __init orion_ge10_init(struct mv643xx_eth_platform_data *eth_data,
+			    struct mbus_dram_target_info *mbus_dram_info,
+			    unsigned long mapbase,
+			    unsigned long irq,
+			    unsigned long irq_err,
+			    int tclk);
+
+void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
+			    struct mbus_dram_target_info *mbus_dram_info,
+			    unsigned long mapbase,
+			    unsigned long irq,
+			    unsigned long irq_err,
+			    int tclk);
+
+void __init orion_ge00_switch_init(struct dsa_platform_data *d,
+				   int irq);
+
 #endif
