@@ -1084,6 +1084,13 @@ static void mmu_page_remove_parent_pte(struct kvm_mmu_page *sp,
 	pte_list_remove(parent_pte, &sp->parent_ptes);
 }
 
+static void drop_parent_pte(struct kvm_mmu_page *sp,
+			    u64 *parent_pte)
+{
+	mmu_page_remove_parent_pte(sp, parent_pte);
+	__set_spte(parent_pte, shadow_trap_nonpresent_pte);
+}
+
 static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 					       u64 *parent_pte, int direct)
 {
@@ -1560,8 +1567,7 @@ static void validate_direct_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		if (child->role.access == direct_access)
 			return;
 
-		mmu_page_remove_parent_pte(child, sptep);
-		__set_spte(sptep, shadow_trap_nonpresent_pte);
+		drop_parent_pte(child, sptep);
 		kvm_flush_remote_tlbs(vcpu->kvm);
 	}
 }
@@ -1578,7 +1584,7 @@ static void mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
 			drop_spte(kvm, spte, shadow_trap_nonpresent_pte);
 		else {
 			child = page_header(pte & PT64_BASE_ADDR_MASK);
-			mmu_page_remove_parent_pte(child, spte);
+			drop_parent_pte(child, spte);
 		}
 	}
 	__set_spte(spte, shadow_trap_nonpresent_pte);
@@ -1613,10 +1619,8 @@ static void kvm_mmu_unlink_parents(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	u64 *parent_pte;
 
-	while ((parent_pte = pte_list_next(&sp->parent_ptes, NULL))) {
-		kvm_mmu_put_page(sp, parent_pte);
-		__set_spte(parent_pte, shadow_trap_nonpresent_pte);
-	}
+	while ((parent_pte = pte_list_next(&sp->parent_ptes, NULL)))
+		drop_parent_pte(sp, parent_pte);
 }
 
 static int mmu_zap_unsync_children(struct kvm *kvm,
@@ -2046,8 +2050,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 			u64 pte = *sptep;
 
 			child = page_header(pte & PT64_BASE_ADDR_MASK);
-			mmu_page_remove_parent_pte(child, sptep);
-			__set_spte(sptep, shadow_trap_nonpresent_pte);
+			drop_parent_pte(child, sptep);
 			kvm_flush_remote_tlbs(vcpu->kvm);
 		} else if (pfn != spte_to_pfn(*sptep)) {
 			pgprintk("hfn old %llx new %llx\n",
