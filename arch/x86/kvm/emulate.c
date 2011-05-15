@@ -1996,7 +1996,7 @@ static int emulate_sysexit(struct x86_emulate_ctxt *ctxt)
 	struct desc_struct cs, ss;
 	u64 msr_data;
 	int usermode;
-	u16 cs_sel, ss_sel;
+	u16 cs_sel = 0, ss_sel = 0;
 
 	/* inject #GP if in real mode or Virtual 8086 mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL ||
