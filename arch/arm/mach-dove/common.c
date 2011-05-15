@@ -36,7 +36,10 @@
 #include <plat/mv_xor.h>
 #include <plat/ehci-orion.h>
 #include <plat/time.h>
+#include <plat/common.h>
 #include "common.h"
+
+static int get_tclk(void);
 
 /*****************************************************************************
  * I/O Address Mapping
@@ -255,173 +258,37 @@ void __init dove_sata_init(struct mv_sata_platform_data *sata_data)
 /*****************************************************************************
  * UART0
  ****************************************************************************/
-static struct plat_serial8250_port dove_uart0_data[] = {
-	{
-		.mapbase	= DOVE_UART0_PHYS_BASE,
-		.membase	= (char *)DOVE_UART0_VIRT_BASE,
-		.irq		= IRQ_DOVE_UART_0,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource dove_uart0_resources[] = {
-	{
-		.start		= DOVE_UART0_PHYS_BASE,
-		.end		= DOVE_UART0_PHYS_BASE + SZ_256 - 1,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_DOVE_UART_0,
-		.end		= IRQ_DOVE_UART_0,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device dove_uart0 = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM,
-	.dev			= {
-		.platform_data	= dove_uart0_data,
-	},
-	.resource		= dove_uart0_resources,
-	.num_resources		= ARRAY_SIZE(dove_uart0_resources),
-};
-
 void __init dove_uart0_init(void)
 {
-	platform_device_register(&dove_uart0);
+	orion_uart0_init(DOVE_UART0_VIRT_BASE, DOVE_UART0_PHYS_BASE,
+			 IRQ_DOVE_UART_0, get_tclk());
 }
 
 /*****************************************************************************
  * UART1
  ****************************************************************************/
-static struct plat_serial8250_port dove_uart1_data[] = {
-	{
-		.mapbase	= DOVE_UART1_PHYS_BASE,
-		.membase	= (char *)DOVE_UART1_VIRT_BASE,
-		.irq		= IRQ_DOVE_UART_1,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource dove_uart1_resources[] = {
-	{
-		.start		= DOVE_UART1_PHYS_BASE,
-		.end		= DOVE_UART1_PHYS_BASE + SZ_256 - 1,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_DOVE_UART_1,
-		.end		= IRQ_DOVE_UART_1,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device dove_uart1 = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM1,
-	.dev			= {
-		.platform_data	= dove_uart1_data,
-	},
-	.resource		= dove_uart1_resources,
-	.num_resources		= ARRAY_SIZE(dove_uart1_resources),
-};
-
 void __init dove_uart1_init(void)
 {
-	platform_device_register(&dove_uart1);
+	orion_uart1_init(DOVE_UART1_VIRT_BASE, DOVE_UART1_PHYS_BASE,
+			 IRQ_DOVE_UART_1, get_tclk());
 }
 
 /*****************************************************************************
  * UART2
  ****************************************************************************/
-static struct plat_serial8250_port dove_uart2_data[] = {
-	{
-		.mapbase	= DOVE_UART2_PHYS_BASE,
-		.membase	= (char *)DOVE_UART2_VIRT_BASE,
-		.irq		= IRQ_DOVE_UART_2,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource dove_uart2_resources[] = {
-	{
-		.start		= DOVE_UART2_PHYS_BASE,
-		.end		= DOVE_UART2_PHYS_BASE + SZ_256 - 1,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_DOVE_UART_2,
-		.end		= IRQ_DOVE_UART_2,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device dove_uart2 = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM2,
-	.dev			= {
-		.platform_data	= dove_uart2_data,
-	},
-	.resource		= dove_uart2_resources,
-	.num_resources		= ARRAY_SIZE(dove_uart2_resources),
-};
-
 void __init dove_uart2_init(void)
 {
-	platform_device_register(&dove_uart2);
+	orion_uart2_init(DOVE_UART2_VIRT_BASE, DOVE_UART2_PHYS_BASE,
+			 IRQ_DOVE_UART_2, get_tclk());
 }
 
 /*****************************************************************************
  * UART3
  ****************************************************************************/
-static struct plat_serial8250_port dove_uart3_data[] = {
-	{
-		.mapbase	= DOVE_UART3_PHYS_BASE,
-		.membase	= (char *)DOVE_UART3_VIRT_BASE,
-		.irq		= IRQ_DOVE_UART_3,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource dove_uart3_resources[] = {
-	{
-		.start		= DOVE_UART3_PHYS_BASE,
-		.end		= DOVE_UART3_PHYS_BASE + SZ_256 - 1,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_DOVE_UART_3,
-		.end		= IRQ_DOVE_UART_3,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device dove_uart3 = {
-	.name			= "serial8250",
-	.id			= 3,
-	.dev			= {
-		.platform_data	= dove_uart3_data,
-	},
-	.resource		= dove_uart3_resources,
-	.num_resources		= ARRAY_SIZE(dove_uart3_resources),
-};
-
 void __init dove_uart3_init(void)
 {
-	platform_device_register(&dove_uart3);
+	orion_uart3_init(DOVE_UART3_VIRT_BASE, DOVE_UART3_PHYS_BASE,
+			 IRQ_DOVE_UART_3, get_tclk());
 }
 
 /*****************************************************************************
@@ -835,10 +702,6 @@ void __init dove_init(void)
 	dove_setup_cpu_mbus();
 
 	dove_ge00_shared_data.t_clk = tclk;
-	dove_uart0_data[0].uartclk = tclk;
-	dove_uart1_data[0].uartclk = tclk;
-	dove_uart2_data[0].uartclk = tclk;
-	dove_uart3_data[0].uartclk = tclk;
 	dove_spi0_data.tclk = tclk;
 	dove_spi1_data.tclk = tclk;
 

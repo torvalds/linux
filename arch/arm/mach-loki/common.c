@@ -23,6 +23,7 @@
 #include <mach/loki.h>
 #include <plat/orion_nand.h>
 #include <plat/time.h>
+#include <plat/common.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -204,88 +205,19 @@ void __init loki_sas_init(void)
 /*****************************************************************************
  * UART0
  ****************************************************************************/
-static struct plat_serial8250_port loki_uart0_data[] = {
-	{
-		.mapbase	= UART0_PHYS_BASE,
-		.membase	= (char *)UART0_VIRT_BASE,
-		.irq		= IRQ_LOKI_UART0,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= LOKI_TCLK,
-	}, {
-	},
-};
-
-static struct resource loki_uart0_resources[] = {
-	{
-		.start		= UART0_PHYS_BASE,
-		.end		= UART0_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_LOKI_UART0,
-		.end		= IRQ_LOKI_UART0,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device loki_uart0 = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM,
-	.dev			= {
-		.platform_data	= loki_uart0_data,
-	},
-	.resource		= loki_uart0_resources,
-	.num_resources		= ARRAY_SIZE(loki_uart0_resources),
-};
-
 void __init loki_uart0_init(void)
 {
-	platform_device_register(&loki_uart0);
+	orion_uart0_init(UART0_VIRT_BASE, UART0_PHYS_BASE,
+			 IRQ_LOKI_UART0, LOKI_TCLK);
 }
-
 
 /*****************************************************************************
  * UART1
  ****************************************************************************/
-static struct plat_serial8250_port loki_uart1_data[] = {
-	{
-		.mapbase	= UART1_PHYS_BASE,
-		.membase	= (char *)UART1_VIRT_BASE,
-		.irq		= IRQ_LOKI_UART1,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= LOKI_TCLK,
-	}, {
-	},
-};
-
-static struct resource loki_uart1_resources[] = {
-	{
-		.start		= UART1_PHYS_BASE,
-		.end		= UART1_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_LOKI_UART1,
-		.end		= IRQ_LOKI_UART1,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device loki_uart1 = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM1,
-	.dev			= {
-		.platform_data	= loki_uart1_data,
-	},
-	.resource		= loki_uart1_resources,
-	.num_resources		= ARRAY_SIZE(loki_uart1_resources),
-};
-
 void __init loki_uart1_init(void)
 {
-	platform_device_register(&loki_uart1);
+	orion_uart1_init(UART1_VIRT_BASE, UART1_PHYS_BASE,
+			 IRQ_LOKI_UART1, LOKI_TCLK);
 }
 
 

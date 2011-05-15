@@ -33,6 +33,7 @@
 #include <plat/mv_xor.h>
 #include <plat/orion_nand.h>
 #include <plat/orion_wdt.h>
+#include <plat/common.h>
 #include <plat/time.h>
 #include "common.h"
 
@@ -491,90 +492,22 @@ void __init kirkwood_i2c_init(void)
 /*****************************************************************************
  * UART0
  ****************************************************************************/
-static struct plat_serial8250_port kirkwood_uart0_data[] = {
-	{
-		.mapbase	= UART0_PHYS_BASE,
-		.membase	= (char *)UART0_VIRT_BASE,
-		.irq		= IRQ_KIRKWOOD_UART_0,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource kirkwood_uart0_resources[] = {
-	{
-		.start		= UART0_PHYS_BASE,
-		.end		= UART0_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_KIRKWOOD_UART_0,
-		.end		= IRQ_KIRKWOOD_UART_0,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device kirkwood_uart0 = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM,
-	.dev			= {
-		.platform_data	= kirkwood_uart0_data,
-	},
-	.resource		= kirkwood_uart0_resources,
-	.num_resources		= ARRAY_SIZE(kirkwood_uart0_resources),
-};
 
 void __init kirkwood_uart0_init(void)
 {
-	platform_device_register(&kirkwood_uart0);
+	orion_uart0_init(UART0_VIRT_BASE, UART0_PHYS_BASE,
+			 IRQ_KIRKWOOD_UART_0, kirkwood_tclk);
 }
 
 
 /*****************************************************************************
  * UART1
  ****************************************************************************/
-static struct plat_serial8250_port kirkwood_uart1_data[] = {
-	{
-		.mapbase	= UART1_PHYS_BASE,
-		.membase	= (char *)UART1_VIRT_BASE,
-		.irq		= IRQ_KIRKWOOD_UART_1,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource kirkwood_uart1_resources[] = {
-	{
-		.start		= UART1_PHYS_BASE,
-		.end		= UART1_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_KIRKWOOD_UART_1,
-		.end		= IRQ_KIRKWOOD_UART_1,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device kirkwood_uart1 = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM1,
-	.dev			= {
-		.platform_data	= kirkwood_uart1_data,
-	},
-	.resource		= kirkwood_uart1_resources,
-	.num_resources		= ARRAY_SIZE(kirkwood_uart1_resources),
-};
-
 void __init kirkwood_uart1_init(void)
 {
-	platform_device_register(&kirkwood_uart1);
+	orion_uart1_init(UART1_VIRT_BASE, UART1_PHYS_BASE,
+			 IRQ_KIRKWOOD_UART_1, kirkwood_tclk);
 }
-
 
 /*****************************************************************************
  * Cryptographic Engines and Security Accelerator (CESA)
@@ -987,8 +920,6 @@ void __init kirkwood_init(void)
 	kirkwood_ge00_shared_data.t_clk = kirkwood_tclk;
 	kirkwood_ge01_shared_data.t_clk = kirkwood_tclk;
 	kirkwood_spi_plat_data.tclk = kirkwood_tclk;
-	kirkwood_uart0_data[0].uartclk = kirkwood_tclk;
-	kirkwood_uart1_data[0].uartclk = kirkwood_tclk;
 	kirkwood_i2s_data.tclk = kirkwood_tclk;
 
 	/*

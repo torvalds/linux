@@ -25,8 +25,10 @@
 #include <plat/ehci-orion.h>
 #include <plat/orion_nand.h>
 #include <plat/time.h>
+#include <plat/common.h>
 #include "common.h"
 
+static int get_tclk(void);
 
 /*****************************************************************************
  * Common bits
@@ -642,178 +644,40 @@ void __init mv78xx0_sata_init(struct mv_sata_platform_data *sata_data)
 /*****************************************************************************
  * UART0
  ****************************************************************************/
-static struct plat_serial8250_port mv78xx0_uart0_data[] = {
-	{
-		.mapbase	= UART0_PHYS_BASE,
-		.membase	= (char *)UART0_VIRT_BASE,
-		.irq		= IRQ_MV78XX0_UART_0,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource mv78xx0_uart0_resources[] = {
-	{
-		.start		= UART0_PHYS_BASE,
-		.end		= UART0_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_MV78XX0_UART_0,
-		.end		= IRQ_MV78XX0_UART_0,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_uart0 = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM,
-	.dev			= {
-		.platform_data	= mv78xx0_uart0_data,
-	},
-	.resource		= mv78xx0_uart0_resources,
-	.num_resources		= ARRAY_SIZE(mv78xx0_uart0_resources),
-};
-
 void __init mv78xx0_uart0_init(void)
 {
-	platform_device_register(&mv78xx0_uart0);
+	orion_uart0_init(UART0_VIRT_BASE, UART0_PHYS_BASE,
+			 IRQ_MV78XX0_UART_0, get_tclk());
 }
 
 
 /*****************************************************************************
  * UART1
  ****************************************************************************/
-static struct plat_serial8250_port mv78xx0_uart1_data[] = {
-	{
-		.mapbase	= UART1_PHYS_BASE,
-		.membase	= (char *)UART1_VIRT_BASE,
-		.irq		= IRQ_MV78XX0_UART_1,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource mv78xx0_uart1_resources[] = {
-	{
-		.start		= UART1_PHYS_BASE,
-		.end		= UART1_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_MV78XX0_UART_1,
-		.end		= IRQ_MV78XX0_UART_1,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_uart1 = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM1,
-	.dev			= {
-		.platform_data	= mv78xx0_uart1_data,
-	},
-	.resource		= mv78xx0_uart1_resources,
-	.num_resources		= ARRAY_SIZE(mv78xx0_uart1_resources),
-};
-
 void __init mv78xx0_uart1_init(void)
 {
-	platform_device_register(&mv78xx0_uart1);
+	orion_uart1_init(UART1_VIRT_BASE, UART1_PHYS_BASE,
+			 IRQ_MV78XX0_UART_1, get_tclk());
 }
 
 
 /*****************************************************************************
  * UART2
  ****************************************************************************/
-static struct plat_serial8250_port mv78xx0_uart2_data[] = {
-	{
-		.mapbase	= UART2_PHYS_BASE,
-		.membase	= (char *)UART2_VIRT_BASE,
-		.irq		= IRQ_MV78XX0_UART_2,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource mv78xx0_uart2_resources[] = {
-	{
-		.start		= UART2_PHYS_BASE,
-		.end		= UART2_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_MV78XX0_UART_2,
-		.end		= IRQ_MV78XX0_UART_2,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_uart2 = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM2,
-	.dev			= {
-		.platform_data	= mv78xx0_uart2_data,
-	},
-	.resource		= mv78xx0_uart2_resources,
-	.num_resources		= ARRAY_SIZE(mv78xx0_uart2_resources),
-};
-
 void __init mv78xx0_uart2_init(void)
 {
-	platform_device_register(&mv78xx0_uart2);
+	orion_uart2_init(UART2_VIRT_BASE, UART2_PHYS_BASE,
+			 IRQ_MV78XX0_UART_2, get_tclk());
 }
-
 
 /*****************************************************************************
  * UART3
  ****************************************************************************/
-static struct plat_serial8250_port mv78xx0_uart3_data[] = {
-	{
-		.mapbase	= UART3_PHYS_BASE,
-		.membase	= (char *)UART3_VIRT_BASE,
-		.irq		= IRQ_MV78XX0_UART_3,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource mv78xx0_uart3_resources[] = {
-	{
-		.start		= UART3_PHYS_BASE,
-		.end		= UART3_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_MV78XX0_UART_3,
-		.end		= IRQ_MV78XX0_UART_3,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_uart3 = {
-	.name			= "serial8250",
-	.id			= 3,
-	.dev			= {
-		.platform_data	= mv78xx0_uart3_data,
-	},
-	.resource		= mv78xx0_uart3_resources,
-	.num_resources		= ARRAY_SIZE(mv78xx0_uart3_resources),
-};
-
 void __init mv78xx0_uart3_init(void)
 {
-	platform_device_register(&mv78xx0_uart3);
+	orion_uart3_init(UART3_VIRT_BASE, UART3_PHYS_BASE,
+			 IRQ_MV78XX0_UART_3, get_tclk());
 }
-
 
 /*****************************************************************************
  * Time handling
@@ -900,8 +764,4 @@ void __init mv78xx0_init(void)
 	mv78xx0_ge01_shared_data.t_clk = tclk;
 	mv78xx0_ge10_shared_data.t_clk = tclk;
 	mv78xx0_ge11_shared_data.t_clk = tclk;
-	mv78xx0_uart0_data[0].uartclk = tclk;
-	mv78xx0_uart1_data[0].uartclk = tclk;
-	mv78xx0_uart2_data[0].uartclk = tclk;
-	mv78xx0_uart3_data[0].uartclk = tclk;
 }
