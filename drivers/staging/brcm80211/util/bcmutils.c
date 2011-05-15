@@ -231,7 +231,7 @@ EXPORT_SYMBOL(bcm_pktq_pdeq_tail);
 
 void
 bcm_pktq_pflush(struct pktq *pq, int prec, bool dir,
-	    ifpkt_cb_t fn, int arg)
+	    ifpkt_cb_t fn, void *arg)
 {
 	struct pktq_prec *q;
 	struct sk_buff *p, *prev = NULL;
@@ -263,7 +263,7 @@ bcm_pktq_pflush(struct pktq *pq, int prec, bool dir,
 EXPORT_SYMBOL(bcm_pktq_pflush);
 
 void bcm_pktq_flush(struct pktq *pq, bool dir,
-		ifpkt_cb_t fn, int arg)
+		ifpkt_cb_t fn, void *arg)
 {
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)

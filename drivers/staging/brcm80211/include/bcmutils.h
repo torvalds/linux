@@ -74,7 +74,7 @@
 #define PKTQ_PREC_ITER(pq, prec)        for (prec = (pq)->num_prec - 1; prec >= 0; prec--)
 
 /* fn(pkt, arg).  return true if pkt belongs to if */
-	typedef bool(*ifpkt_cb_t) (void *, int);
+	typedef bool(*ifpkt_cb_t) (void *, void *);
 
 /* operations on a specific precedence in packet queue */
 
@@ -100,7 +100,7 @@ extern void bcm_pkt_buf_free_skb(struct sk_buff *skb);
 
 /* Empty the queue at particular precedence level */
 extern void bcm_pktq_pflush(struct pktq *pq, int prec,
-	bool dir, ifpkt_cb_t fn, int arg);
+	bool dir, ifpkt_cb_t fn, void *arg);
 
 /* operations on a set of precedences in packet queue */
 
@@ -127,7 +127,7 @@ extern void bcm_pktq_init(struct pktq *pq, int num_prec, int max_len);
 /* prec_out may be NULL if caller is not interested in return value */
 extern struct sk_buff *bcm_pktq_peek_tail(struct pktq *pq, int *prec_out);
 extern void bcm_pktq_flush(struct pktq *pq, bool dir,
-	ifpkt_cb_t fn, int arg);
+	ifpkt_cb_t fn, void *arg);
 
 /* externs */
 /* packet */

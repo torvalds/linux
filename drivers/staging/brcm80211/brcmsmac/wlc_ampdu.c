@@ -1204,7 +1204,7 @@ void wlc_ampdu_shm_upd(struct ampdu_info *ampdu)
 /*
  * callback function that helps flushing ampdu packets from a priority queue
  */
-static bool cb_del_ampdu_pkt(void *p, int arg_a)
+static bool cb_del_ampdu_pkt(void *p, void *arg_a)
 {
 	struct sk_buff *mpdu = (struct sk_buff *)p;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(mpdu);
@@ -1248,7 +1248,7 @@ void wlc_ampdu_flush(struct wlc_info *wlc,
 	ampdu_pars.tid = tid;
 	for (prec = 0; prec < pq->num_prec; prec++) {
 		bcm_pktq_pflush(pq, prec, true, cb_del_ampdu_pkt,
-			    (int)&ampdu_pars);
+			    (void *)&ampdu_pars);
 	}
 	wlc_inval_dma_pkts(wlc->hw, sta, dma_cb_fn_ampdu);
 }

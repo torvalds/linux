@@ -2845,7 +2845,7 @@ void dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 	dhdsdio_clkctl(bus, CLK_SDONLY, false);
 
 	/* Clear the data packet queues */
-	bcm_pktq_flush(&bus->txq, true, NULL, 0);
+	bcm_pktq_flush(&bus->txq, true, NULL, NULL);
 
 	/* Clear any held glomming stuff */
 	if (bus->glomd)

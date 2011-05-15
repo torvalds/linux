@@ -2453,7 +2453,7 @@ uint wlc_down(struct wlc_info *wlc)
 
 	/* flush tx queues */
 	for (qi = wlc->tx_queues; qi != NULL; qi = qi->next) {
-		bcm_pktq_flush(&qi->q, true, NULL, 0);
+		bcm_pktq_flush(&qi->q, true, NULL, NULL);
 	}
 
 	callbacks += wlc_bmac_down_finish(wlc->hw);
@@ -7519,7 +7519,7 @@ void wlc_wait_for_tx_completion(struct wlc_info *wlc, bool drop)
 {
 	/* flush packet queue when requested */
 	if (drop)
-		bcm_pktq_flush(&wlc->pkt_queue->q, false, NULL, 0);
+		bcm_pktq_flush(&wlc->pkt_queue->q, false, NULL, NULL);
 
 	/* wait for queue and DMA fifos to run dry */
 	while (!pktq_empty(&wlc->pkt_queue->q) ||
