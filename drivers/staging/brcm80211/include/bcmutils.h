@@ -74,7 +74,7 @@
 #define PKTQ_PREC_ITER(pq, prec)        for (prec = (pq)->num_prec - 1; prec >= 0; prec--)
 
 /* fn(pkt, arg).  return true if pkt belongs to if */
-	typedef bool(*ifpkt_cb_t) (void *, void *);
+typedef bool(*ifpkt_cb_t) (struct sk_buff *, void *);
 
 /* operations on a specific precedence in packet queue */
 
