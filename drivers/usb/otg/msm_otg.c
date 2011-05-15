@@ -92,7 +92,7 @@ static int msm_hsusb_init_vddcx(struct msm_otg *motg, int init)
 		}
 	} else {
 		ret = regulator_set_voltage(hsusb_vddcx, 0,
-			USB_PHY_VDD_DIG_VOL_MIN);
+			USB_PHY_VDD_DIG_VOL_MAX);
 		if (ret) {
 			dev_err(motg->otg.dev, "unable to set the voltage "
 					"for hsusb vddcx\n");
