@@ -43,6 +43,8 @@
 #include "trace.h"
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
+#define __ex_clear(x, reg) \
+	____kvm_handle_fault_on_reboot(x, "xor " reg " , " reg)
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
@@ -587,10 +589,10 @@ static inline void ept_sync_individual_addr(u64 eptp, gpa_t gpa)
 
 static unsigned long vmcs_readl(unsigned long field)
 {
-	unsigned long value = 0;
+	unsigned long value;
 
-	asm volatile (__ex(ASM_VMX_VMREAD_RDX_RAX)
-		      : "+a"(value) : "d"(field) : "cc");
+	asm volatile (__ex_clear(ASM_VMX_VMREAD_RDX_RAX, "%0")
+		      : "=a"(value) : "d"(field) : "cc");
 	return value;
 }
 

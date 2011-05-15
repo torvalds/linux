@@ -830,11 +830,12 @@ enum {
 asmlinkage void kvm_spurious_fault(void);
 extern bool kvm_rebooting;
 
-#define __kvm_handle_fault_on_reboot(insn) \
+#define ____kvm_handle_fault_on_reboot(insn, cleanup_insn)	\
 	"666: " insn "\n\t" \
 	"668: \n\t"                           \
 	".pushsection .fixup, \"ax\" \n" \
 	"667: \n\t" \
+	cleanup_insn "\n\t"		      \
 	"cmpb $0, kvm_rebooting \n\t"	      \
 	"jne 668b \n\t"      		      \
 	__ASM_SIZE(push) " $666b \n\t"	      \
@@ -843,6 +844,9 @@ extern bool kvm_rebooting;
 	".pushsection __ex_table, \"a\" \n\t" \
 	_ASM_PTR " 666b, 667b \n\t" \
 	".popsection"
+
+#define __kvm_handle_fault_on_reboot(insn)		\
+	____kvm_handle_fault_on_reboot(insn, "")
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
 int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
