@@ -571,9 +571,27 @@ static int ipsec_esp(struct ipsec_esp_edesc *edesc, struct aead_request *areq,
 	/* copy iv from cipher/class1 input context to class2 infifo */
 	append_move(desc, MOVE_SRC_CLASS1CTX | MOVE_DEST_CLASS2INFIFO | ivsize);
 
-	/* start class 1 (cipher) operation */
-	append_operation(desc, ctx->class1_alg_type | OP_ALG_AS_INITFINAL |
-			 encrypt);
+	if (!encrypt) {
+		u32 *jump_cmd, *uncond_jump_cmd;
+
+		/* JUMP if shared */
+		jump_cmd = append_jump(desc, JUMP_TEST_ALL | JUMP_COND_SHRD);
+
+		/* start class 1 (cipher) operation, non-shared version */
+		append_operation(desc, ctx->class1_alg_type |
+				 OP_ALG_AS_INITFINAL);
+
+		uncond_jump_cmd = append_jump(desc, 0);
+
+		set_jump_tgt_here(desc, jump_cmd);
+
+		/* start class 1 (cipher) operation, shared version */
+		append_operation(desc, ctx->class1_alg_type |
+				 OP_ALG_AS_INITFINAL | OP_ALG_AAI_DK);
+		set_jump_tgt_here(desc, uncond_jump_cmd);
+	} else
+		append_operation(desc, ctx->class1_alg_type |
+				 OP_ALG_AS_INITFINAL | encrypt);
 
 	/* load payload & instruct to class2 to snoop class 1 if encrypting */
 	options = 0;
@@ -762,7 +780,7 @@ static int aead_authenc_decrypt(struct aead_request *req)
 	req->cryptlen -= ctx->authsize;
 
 	/* allocate extended descriptor */
-	edesc = ipsec_esp_edesc_alloc(req, 21 * sizeof(u32));
+	edesc = ipsec_esp_edesc_alloc(req, 24 * sizeof(u32));
 	if (IS_ERR(edesc))
 		return PTR_ERR(edesc);
 
