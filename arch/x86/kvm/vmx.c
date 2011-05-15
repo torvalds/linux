@@ -587,7 +587,7 @@ static inline void ept_sync_individual_addr(u64 eptp, gpa_t gpa)
 	}
 }
 
-static unsigned long vmcs_readl(unsigned long field)
+static __always_inline unsigned long vmcs_readl(unsigned long field)
 {
 	unsigned long value;
 
@@ -596,17 +596,17 @@ static unsigned long vmcs_readl(unsigned long field)
 	return value;
 }
 
-static u16 vmcs_read16(unsigned long field)
+static __always_inline u16 vmcs_read16(unsigned long field)
 {
 	return vmcs_readl(field);
 }
 
-static u32 vmcs_read32(unsigned long field)
+static __always_inline u32 vmcs_read32(unsigned long field)
 {
 	return vmcs_readl(field);
 }
 
-static u64 vmcs_read64(unsigned long field)
+static __always_inline u64 vmcs_read64(unsigned long field)
 {
 #ifdef CONFIG_X86_64
 	return vmcs_readl(field);
