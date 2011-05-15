@@ -16,7 +16,6 @@
 #include <linux/serial_8250.h>
 #include <linux/clk.h>
 #include <linux/mbus.h>
-#include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
 #include <linux/serial_8250.h>
 #include <linux/spi/orion_spi.h>
@@ -305,39 +304,9 @@ void __init dove_spi1_init(void)
 /*****************************************************************************
  * I2C
  ****************************************************************************/
-static struct mv64xxx_i2c_pdata dove_i2c_data = {
-	.freq_m		= 10, /* assumes 166 MHz TCLK gets 94.3kHz */
-	.freq_n		= 3,
-	.timeout	= 1000, /* Default timeout of 1 second */
-};
-
-static struct resource dove_i2c_resources[] = {
-	{
-		.name	= "i2c base",
-		.start	= DOVE_I2C_PHYS_BASE,
-		.end	= DOVE_I2C_PHYS_BASE + 0x20 - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.name	= "i2c irq",
-		.start	= IRQ_DOVE_I2C,
-		.end	= IRQ_DOVE_I2C,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device dove_i2c = {
-	.name		= MV64XXX_I2C_CTLR_NAME,
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(dove_i2c_resources),
-	.resource	= dove_i2c_resources,
-	.dev		= {
-		.platform_data = &dove_i2c_data,
-	},
-};
-
 void __init dove_i2c_init(void)
 {
-	platform_device_register(&dove_i2c);
+	orion_i2c_init(DOVE_I2C_PHYS_BASE, IRQ_DOVE_I2C, 10);
 }
 
 /*****************************************************************************

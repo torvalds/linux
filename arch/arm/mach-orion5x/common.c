@@ -169,37 +169,10 @@ void __init orion5x_eth_switch_init(struct dsa_platform_data *d, int irq)
 /*****************************************************************************
  * I2C
  ****************************************************************************/
-static struct mv64xxx_i2c_pdata orion5x_i2c_pdata = {
-	.freq_m		= 8, /* assumes 166 MHz TCLK */
-	.freq_n		= 3,
-	.timeout	= 1000, /* Default timeout of 1 second */
-};
-
-static struct resource orion5x_i2c_resources[] = {
-	{
-		.start	= I2C_PHYS_BASE,
-		.end	= I2C_PHYS_BASE + 0x1f,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_ORION5X_I2C,
-		.end	= IRQ_ORION5X_I2C,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_i2c = {
-	.name		= MV64XXX_I2C_CTLR_NAME,
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(orion5x_i2c_resources),
-	.resource	= orion5x_i2c_resources,
-	.dev		= {
-		.platform_data	= &orion5x_i2c_pdata,
-	},
-};
-
 void __init orion5x_i2c_init(void)
 {
-	platform_device_register(&orion5x_i2c);
+	orion_i2c_init(I2C_PHYS_BASE, IRQ_ORION5X_I2C, 8);
+
 }
 
 

@@ -15,6 +15,7 @@
 #include <linux/serial_8250.h>
 #include <linux/mbus.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/mv643xx_i2c.h>
 #include <net/dsa.h>
 
 /* Fill in the resources structure and link it into the platform
@@ -462,4 +463,57 @@ void __init orion_ge00_switch_init(struct dsa_platform_data *d, int irq)
 	orion_switch_device.dev.platform_data = d;
 
 	platform_device_register(&orion_switch_device);
+}
+
+/*****************************************************************************
+ * I2C
+ ****************************************************************************/
+static struct mv64xxx_i2c_pdata orion_i2c_pdata = {
+	.freq_n		= 3,
+	.timeout	= 1000, /* Default timeout of 1 second */
+};
+
+static struct resource orion_i2c_resources[2];
+
+static struct platform_device orion_i2c = {
+	.name		= MV64XXX_I2C_CTLR_NAME,
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &orion_i2c_pdata,
+	},
+};
+
+static struct mv64xxx_i2c_pdata orion_i2c_1_pdata = {
+	.freq_n		= 3,
+	.timeout	= 1000, /* Default timeout of 1 second */
+};
+
+static struct resource orion_i2c_1_resources[2];
+
+static struct platform_device orion_i2c_1 = {
+	.name		= MV64XXX_I2C_CTLR_NAME,
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &orion_i2c_1_pdata,
+	},
+};
+
+void __init orion_i2c_init(unsigned long mapbase,
+			   unsigned long irq,
+			   unsigned long freq_m)
+{
+	orion_i2c_pdata.freq_m = freq_m;
+	fill_resources(&orion_i2c, orion_i2c_resources, mapbase,
+		       SZ_32 - 1, irq);
+	platform_device_register(&orion_i2c);
+}
+
+void __init orion_i2c_1_init(unsigned long mapbase,
+			     unsigned long irq,
+			     unsigned long freq_m)
+{
+	orion_i2c_1_pdata.freq_m = freq_m;
+	fill_resources(&orion_i2c_1, orion_i2c_1_resources, mapbase,
+		       SZ_32 - 1, irq);
+	platform_device_register(&orion_i2c_1);
 }
