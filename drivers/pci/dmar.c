@@ -698,12 +698,7 @@ int __init detect_intel_iommu(void)
 	{
 #ifdef CONFIG_INTR_REMAP
 		struct acpi_table_dmar *dmar;
-		/*
-		 * for now we will disable dma-remapping when interrupt
-		 * remapping is enabled.
-		 * When support for queued invalidation for IOTLB invalidation
-		 * is added, we will not need this any more.
-		 */
+
 		dmar = (struct acpi_table_dmar *) dmar_tbl;
 		if (ret && cpu_has_x2apic && dmar->flags & 0x1)
 			printk(KERN_INFO
