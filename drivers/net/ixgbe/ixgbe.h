@@ -106,6 +106,7 @@
 #define IXGBE_MAX_VF_FUNCTIONS          64
 #define IXGBE_MAX_VFTA_ENTRIES          128
 #define MAX_EMULATION_MAC_ADDRS         16
+#define IXGBE_MAX_PF_MACVLANS           15
 #define VMDQ_P(p)   ((p) + adapter->num_vfs)
 
 struct vf_data_storage {
@@ -119,6 +120,15 @@ struct vf_data_storage {
 	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
 	u16 pf_qos;
 	u16 tx_rate;
+};
+
+struct vf_macvlans {
+	struct list_head l;
+	int vf;
+	int rar_entry;
+	bool free;
+	bool is_macvlan;
+	u8 vf_macvlan[ETH_ALEN];
 };
 
 /* wrapper around a pointer to a socket buffer,
@@ -331,10 +341,52 @@ struct ixgbe_q_vector {
 
 /* board specific private data structure */
 struct ixgbe_adapter {
-	struct timer_list watchdog_timer;
+	unsigned long state;
+
+	/* Some features need tri-state capability,
+	 * thus the additional *_CAPABLE flags.
+	 */
+	u32 flags;
+#define IXGBE_FLAG_RX_CSUM_ENABLED              (u32)(1)
+#define IXGBE_FLAG_MSI_CAPABLE                  (u32)(1 << 1)
+#define IXGBE_FLAG_MSI_ENABLED                  (u32)(1 << 2)
+#define IXGBE_FLAG_MSIX_CAPABLE                 (u32)(1 << 3)
+#define IXGBE_FLAG_MSIX_ENABLED                 (u32)(1 << 4)
+#define IXGBE_FLAG_RX_1BUF_CAPABLE              (u32)(1 << 6)
+#define IXGBE_FLAG_RX_PS_CAPABLE                (u32)(1 << 7)
+#define IXGBE_FLAG_RX_PS_ENABLED                (u32)(1 << 8)
+#define IXGBE_FLAG_IN_NETPOLL                   (u32)(1 << 9)
+#define IXGBE_FLAG_DCA_ENABLED                  (u32)(1 << 10)
+#define IXGBE_FLAG_DCA_CAPABLE                  (u32)(1 << 11)
+#define IXGBE_FLAG_IMIR_ENABLED                 (u32)(1 << 12)
+#define IXGBE_FLAG_MQ_CAPABLE                   (u32)(1 << 13)
+#define IXGBE_FLAG_DCB_ENABLED                  (u32)(1 << 14)
+#define IXGBE_FLAG_RSS_ENABLED                  (u32)(1 << 16)
+#define IXGBE_FLAG_RSS_CAPABLE                  (u32)(1 << 17)
+#define IXGBE_FLAG_VMDQ_CAPABLE                 (u32)(1 << 18)
+#define IXGBE_FLAG_VMDQ_ENABLED                 (u32)(1 << 19)
+#define IXGBE_FLAG_FAN_FAIL_CAPABLE             (u32)(1 << 20)
+#define IXGBE_FLAG_NEED_LINK_UPDATE             (u32)(1 << 22)
+#define IXGBE_FLAG_NEED_LINK_CONFIG             (u32)(1 << 23)
+#define IXGBE_FLAG_FDIR_HASH_CAPABLE            (u32)(1 << 24)
+#define IXGBE_FLAG_FDIR_PERFECT_CAPABLE         (u32)(1 << 25)
+#define IXGBE_FLAG_FCOE_CAPABLE                 (u32)(1 << 26)
+#define IXGBE_FLAG_FCOE_ENABLED                 (u32)(1 << 27)
+#define IXGBE_FLAG_SRIOV_CAPABLE                (u32)(1 << 28)
+#define IXGBE_FLAG_SRIOV_ENABLED                (u32)(1 << 29)
+
+	u32 flags2;
+#define IXGBE_FLAG2_RSC_CAPABLE                 (u32)(1)
+#define IXGBE_FLAG2_RSC_ENABLED                 (u32)(1 << 1)
+#define IXGBE_FLAG2_TEMP_SENSOR_CAPABLE         (u32)(1 << 2)
+#define IXGBE_FLAG2_TEMP_SENSOR_EVENT           (u32)(1 << 3)
+#define IXGBE_FLAG2_SEARCH_FOR_SFP              (u32)(1 << 4)
+#define IXGBE_FLAG2_SFP_NEEDS_RESET             (u32)(1 << 5)
+#define IXGBE_FLAG2_RESET_REQUESTED             (u32)(1 << 6)
+#define IXGBE_FLAG2_FDIR_REQUIRES_REINIT        (u32)(1 << 7)
+
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 bd_number;
-	struct work_struct reset_task;
 	struct ixgbe_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
 
 	/* DCB parameters */
@@ -377,43 +429,6 @@ struct ixgbe_adapter {
 	u32 alloc_rx_page_failed;
 	u32 alloc_rx_buff_failed;
 
-	/* Some features need tri-state capability,
-	 * thus the additional *_CAPABLE flags.
-	 */
-	u32 flags;
-#define IXGBE_FLAG_RX_CSUM_ENABLED              (u32)(1)
-#define IXGBE_FLAG_MSI_CAPABLE                  (u32)(1 << 1)
-#define IXGBE_FLAG_MSI_ENABLED                  (u32)(1 << 2)
-#define IXGBE_FLAG_MSIX_CAPABLE                 (u32)(1 << 3)
-#define IXGBE_FLAG_MSIX_ENABLED                 (u32)(1 << 4)
-#define IXGBE_FLAG_RX_1BUF_CAPABLE              (u32)(1 << 6)
-#define IXGBE_FLAG_RX_PS_CAPABLE                (u32)(1 << 7)
-#define IXGBE_FLAG_RX_PS_ENABLED                (u32)(1 << 8)
-#define IXGBE_FLAG_IN_NETPOLL                   (u32)(1 << 9)
-#define IXGBE_FLAG_DCA_ENABLED                  (u32)(1 << 10)
-#define IXGBE_FLAG_DCA_CAPABLE                  (u32)(1 << 11)
-#define IXGBE_FLAG_IMIR_ENABLED                 (u32)(1 << 12)
-#define IXGBE_FLAG_MQ_CAPABLE                   (u32)(1 << 13)
-#define IXGBE_FLAG_DCB_ENABLED                  (u32)(1 << 14)
-#define IXGBE_FLAG_RSS_ENABLED                  (u32)(1 << 16)
-#define IXGBE_FLAG_RSS_CAPABLE                  (u32)(1 << 17)
-#define IXGBE_FLAG_VMDQ_CAPABLE                 (u32)(1 << 18)
-#define IXGBE_FLAG_VMDQ_ENABLED                 (u32)(1 << 19)
-#define IXGBE_FLAG_FAN_FAIL_CAPABLE             (u32)(1 << 20)
-#define IXGBE_FLAG_NEED_LINK_UPDATE             (u32)(1 << 22)
-#define IXGBE_FLAG_IN_SFP_LINK_TASK             (u32)(1 << 23)
-#define IXGBE_FLAG_IN_SFP_MOD_TASK              (u32)(1 << 24)
-#define IXGBE_FLAG_FDIR_HASH_CAPABLE            (u32)(1 << 25)
-#define IXGBE_FLAG_FDIR_PERFECT_CAPABLE         (u32)(1 << 26)
-#define IXGBE_FLAG_FCOE_CAPABLE                 (u32)(1 << 27)
-#define IXGBE_FLAG_FCOE_ENABLED                 (u32)(1 << 28)
-#define IXGBE_FLAG_SRIOV_CAPABLE                (u32)(1 << 29)
-#define IXGBE_FLAG_SRIOV_ENABLED                (u32)(1 << 30)
-
-	u32 flags2;
-#define IXGBE_FLAG2_RSC_CAPABLE                 (u32)(1)
-#define IXGBE_FLAG2_RSC_ENABLED                 (u32)(1 << 1)
-#define IXGBE_FLAG2_TEMP_SENSOR_CAPABLE         (u32)(1 << 2)
 /* default to trying for four seconds */
 #define IXGBE_TRY_LINK_TIMEOUT (4 * HZ)
 
@@ -434,7 +449,6 @@ struct ixgbe_adapter {
 	u32 rx_eitr_param;
 	u32 tx_eitr_param;
 
-	unsigned long state;
 	u64 tx_busy;
 	unsigned int tx_ring_count;
 	unsigned int rx_ring_count;
@@ -443,15 +457,12 @@ struct ixgbe_adapter {
 	bool link_up;
 	unsigned long link_check_timeout;
 
-	struct work_struct watchdog_task;
-	struct work_struct sfp_task;
-	struct timer_list sfp_timer;
-	struct work_struct multispeed_fiber_task;
-	struct work_struct sfp_config_module_task;
+	struct work_struct service_task;
+	struct timer_list service_timer;
 	u32 fdir_pballoc;
 	u32 atr_sample_rate;
+	unsigned long fdir_overflow; /* number of times ATR was backed off */
 	spinlock_t fdir_perfect_lock;
-	struct work_struct fdir_reinit_task;
 #ifdef IXGBE_FCOE
 	struct ixgbe_fcoe fcoe;
 #endif /* IXGBE_FCOE */
@@ -462,7 +473,6 @@ struct ixgbe_adapter {
 
 	int node;
 	u32 led_reg;
-	struct work_struct check_overtemp_task;
 	u32 interrupt_event;
 	char lsc_int_name[IFNAMSIZ + 9];
 
@@ -471,13 +481,17 @@ struct ixgbe_adapter {
 	unsigned int num_vfs;
 	struct vf_data_storage *vfinfo;
 	int vf_rate_link_speed;
+	struct vf_macvlans vf_mvs;
+	struct vf_macvlans *mv_list;
+	bool antispoofing_enabled;
 };
 
 enum ixbge_state_t {
 	__IXGBE_TESTING,
 	__IXGBE_RESETTING,
 	__IXGBE_DOWN,
-	__IXGBE_SFP_MODULE_NOT_FOUND
+	__IXGBE_SERVICE_SCHED,
+	__IXGBE_IN_SFP_INIT,
 };
 
 struct ixgbe_rsc_cb {

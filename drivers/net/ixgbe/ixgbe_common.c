@@ -1189,6 +1189,28 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 		udelay(50);
 	}
 
+	if (i == timeout) {
+		hw_dbg(hw, "Driver can't access the Eeprom - SMBI Semaphore "
+		       "not granted.\n");
+		/*
+		 * this release is particularly important because our attempts
+		 * above to get the semaphore may have succeeded, and if there
+		 * was a timeout, we should unconditionally clear the semaphore
+		 * bits to free the driver to make progress
+		 */
+		ixgbe_release_eeprom_semaphore(hw);
+
+		udelay(50);
+		/*
+		 * one last try
+		 * If the SMBI bit is 0 when we read it, then the bit will be
+		 * set and we have the semaphore
+		 */
+		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM);
+		if (!(swsm & IXGBE_SWSM_SMBI))
+			status = 0;
+	}
+
 	/* Now get the semaphore between SW/FW through the SWESMBI bit */
 	if (status == 0) {
 		for (i = 0; i < timeout; i++) {

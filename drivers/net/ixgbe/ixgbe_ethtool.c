@@ -84,6 +84,7 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"hw_rsc_flushed", IXGBE_STAT(rsc_total_flush)},
 	{"fdir_match", IXGBE_STAT(stats.fdirmatch)},
 	{"fdir_miss", IXGBE_STAT(stats.fdirmiss)},
+	{"fdir_overflow", IXGBE_STAT(fdir_overflow)},
 	{"rx_fifo_errors", IXGBE_NETDEV_STAT(rx_fifo_errors)},
 	{"rx_missed_errors", IXGBE_NETDEV_STAT(rx_missed_errors)},
 	{"tx_aborted_errors", IXGBE_NETDEV_STAT(tx_aborted_errors)},
