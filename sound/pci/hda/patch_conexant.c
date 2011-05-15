@@ -110,6 +110,7 @@ struct conexant_spec {
 	struct hda_input_mux private_imux;
 	hda_nid_t imux_adcs[HDA_MAX_NUM_INPUTS];
 	hda_nid_t imux_pins[HDA_MAX_NUM_INPUTS];
+	hda_nid_t private_adc_nids[HDA_MAX_NUM_INPUTS];
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 	struct pin_dac_pair dac_info[8];
 	int dac_info_filled;
@@ -4034,6 +4035,28 @@ static int cx_auto_build_controls(struct hda_codec *codec)
 	return conexant_build_controls(codec);
 }
 
+static int cx_auto_search_adcs(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+	hda_nid_t nid, end_nid;
+
+	end_nid = codec->start_nid + codec->num_nodes;
+	for (nid = codec->start_nid; nid < end_nid; nid++) {
+		unsigned int caps = get_wcaps(codec, nid);
+		if (get_wcaps_type(caps) != AC_WID_AUD_IN)
+			continue;
+		if (caps & AC_WCAP_DIGITAL)
+			continue;
+		if (snd_BUG_ON(spec->num_adc_nids >=
+			       ARRAY_SIZE(spec->private_adc_nids)))
+			break;
+		spec->private_adc_nids[spec->num_adc_nids++] = nid;
+	}
+	spec->adc_nids = spec->private_adc_nids;
+	return 0;
+}
+
+
 static const struct hda_codec_ops cx_auto_patch_ops = {
 	.build_controls = cx_auto_build_controls,
 	.build_pcms = conexant_build_pcms,
@@ -4058,29 +4081,18 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
+	err = cx_auto_search_adcs(codec);
+	if (err < 0)
+		return err;
 	switch (codec->vendor_id) {
 	case 0x14f15051:
 		codec->pin_amp_workaround = 1;
-		spec->adc_nids = cxt5051_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(cxt5051_adc_nids);
-		spec->capsrc_nids = spec->adc_nids;
 		break;
 	case 0x14f15045:
 		codec->pin_amp_workaround = 1;
-		spec->adc_nids = cxt5045_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(cxt5045_adc_nids);
-		spec->capsrc_nids = spec->adc_nids;
 		break;
 	case 0x14f15047:
 		codec->pin_amp_workaround = 1;
-		spec->adc_nids = cxt5047_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(cxt5047_adc_nids);
-		spec->capsrc_nids = cxt5047_capsrc_nids;
-		break;
-	default:
-		spec->adc_nids = cx_auto_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(cx_auto_adc_nids);
-		spec->capsrc_nids = spec->adc_nids;
 		break;
 	}
 	err = cx_auto_parse_auto_config(codec);
