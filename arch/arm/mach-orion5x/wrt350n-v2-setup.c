@@ -101,28 +101,28 @@ static struct platform_device wrt350n_v2_button_device = {
 /*
  * General setup
  */
-static struct orion5x_mpp_mode wrt350n_v2_mpp_modes[] __initdata = {
-	{  0, MPP_GPIO },		/* Power LED green (0=on) */
-	{  1, MPP_GPIO },		/* Security LED (0=on) */
-	{  2, MPP_GPIO },		/* Internal Button (0=on) */
-	{  3, MPP_GPIO },		/* Reset Button (0=on) */
-	{  4, MPP_GPIO },		/* PCI int */
-	{  5, MPP_GPIO },		/* Power LED orange (0=on) */
-	{  6, MPP_GPIO },		/* USB LED (0=on) */
-	{  7, MPP_GPIO },		/* Wireless LED (0=on) */
-	{  8, MPP_UNUSED },		/* ??? */
-	{  9, MPP_GIGE },		/* GE_RXERR */
-	{ 10, MPP_UNUSED },		/* ??? */
-	{ 11, MPP_UNUSED },		/* ??? */
-	{ 12, MPP_GIGE },		/* GE_TXD[4] */
-	{ 13, MPP_GIGE },		/* GE_TXD[5] */
-	{ 14, MPP_GIGE },		/* GE_TXD[6] */
-	{ 15, MPP_GIGE },		/* GE_TXD[7] */
-	{ 16, MPP_GIGE },		/* GE_RXD[4] */
-	{ 17, MPP_GIGE },		/* GE_RXD[5] */
-	{ 18, MPP_GIGE },		/* GE_RXD[6] */
-	{ 19, MPP_GIGE },		/* GE_RXD[7] */
-	{ -1 },
+static unsigned int wrt350n_v2_mpp_modes[] __initdata = {
+	MPP0_GPIO,		/* Power LED green (0=on) */
+	MPP1_GPIO,		/* Security LED (0=on) */
+	MPP2_GPIO,		/* Internal Button (0=on) */
+	MPP3_GPIO,		/* Reset Button (0=on) */
+	MPP4_GPIO,		/* PCI int */
+	MPP5_GPIO,		/* Power LED orange (0=on) */
+	MPP6_GPIO,		/* USB LED (0=on) */
+	MPP7_GPIO,		/* Wireless LED (0=on) */
+	MPP8_UNUSED,		/* ??? */
+	MPP9_GIGE,		/* GE_RXERR */
+	MPP10_UNUSED,		/* ??? */
+	MPP11_UNUSED,		/* ??? */
+	MPP12_GIGE,		/* GE_TXD[4] */
+	MPP13_GIGE,		/* GE_TXD[5] */
+	MPP14_GIGE,		/* GE_TXD[6] */
+	MPP15_GIGE,		/* GE_TXD[7] */
+	MPP16_GIGE,		/* GE_RXD[4] */
+	MPP17_GIGE,		/* GE_RXD[5] */
+	MPP18_GIGE,		/* GE_RXD[6] */
+	MPP19_GIGE,		/* GE_RXD[7] */
+	0,
 };
 
 /*

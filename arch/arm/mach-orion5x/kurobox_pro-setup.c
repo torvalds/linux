@@ -315,28 +315,28 @@ static void kurobox_pro_power_off(void)
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
-static struct orion5x_mpp_mode kurobox_pro_mpp_modes[] __initdata = {
-	{  0, MPP_UNUSED },
-	{  1, MPP_UNUSED },
-	{  2, MPP_GPIO },		/* GPIO Micon */
-	{  3, MPP_GPIO },		/* GPIO Rtc */
-	{  4, MPP_UNUSED },
-	{  5, MPP_UNUSED },
-	{  6, MPP_NAND },		/* NAND Flash REn */
-	{  7, MPP_NAND },		/* NAND Flash WEn */
-	{  8, MPP_UNUSED },
-	{  9, MPP_UNUSED },
-	{ 10, MPP_UNUSED },
-	{ 11, MPP_UNUSED },
-	{ 12, MPP_SATA_LED },		/* SATA 0 presence */
-	{ 13, MPP_SATA_LED },		/* SATA 1 presence */
-	{ 14, MPP_SATA_LED },		/* SATA 0 active */
-	{ 15, MPP_SATA_LED },		/* SATA 1 active */
-	{ 16, MPP_UART },		/* UART1 RXD */
-	{ 17, MPP_UART },		/* UART1 TXD */
-	{ 18, MPP_UART },		/* UART1 CTSn */
-	{ 19, MPP_UART },		/* UART1 RTSn */
-	{ -1 },
+static unsigned int kurobox_pro_mpp_modes[] __initdata = {
+	MPP0_UNUSED,
+	MPP1_UNUSED,
+	MPP2_GPIO,		/* GPIO Micon */
+	MPP3_GPIO,		/* GPIO Rtc */
+	MPP4_UNUSED,
+	MPP5_UNUSED,
+	MPP6_NAND,		/* NAND Flash REn */
+	MPP7_NAND,		/* NAND Flash WEn */
+	MPP8_UNUSED,
+	MPP9_UNUSED,
+	MPP10_UNUSED,
+	MPP11_UNUSED,
+	MPP12_SATA_LED,		/* SATA 0 presence */
+	MPP13_SATA_LED,		/* SATA 1 presence */
+	MPP14_SATA_LED,		/* SATA 0 active */
+	MPP15_SATA_LED,		/* SATA 1 active */
+	MPP16_UART,		/* UART1 RXD */
+	MPP17_UART,		/* UART1 TXD */
+	MPP18_UART,		/* UART1 CTSn */
+	MPP19_UART,		/* UART1 RTSn */
+	0,
 };
 
 static void __init kurobox_pro_init(void)
