@@ -117,6 +117,13 @@ because another applications took over control of the device function
 this control belongs to.</para>
 	</listitem>
       </varlistentry>
+      <varlistentry>
+	<term><errorcode>EACCES</errorcode></term>
+	<listitem>
+	  <para>Attempt to set a read-only control or to get a
+	  write-only control.</para>
+	</listitem>
+      </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>

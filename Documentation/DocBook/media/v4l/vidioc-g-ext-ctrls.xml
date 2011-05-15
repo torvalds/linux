@@ -294,6 +294,13 @@ The field <structfield>size</structfield> is set to a value that is enough
 to store the payload and this error code is returned.</para>
 	</listitem>
       </varlistentry>
+      <varlistentry>
+	<term><errorcode>EACCES</errorcode></term>
+	<listitem>
+	  <para>Attempt to try or set a read-only control or to get a
+	  write-only control.</para>
+	</listitem>
+      </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>
