@@ -18,6 +18,7 @@
 #include <linux/mv643xx_i2c.h>
 #include <net/dsa.h>
 #include <linux/spi/orion_spi.h>
+#include <plat/orion_wdt.h>
 
 /* Fill in the resources structure and link it into the platform
    device structure. There is always a memory region, and nearly
@@ -563,4 +564,24 @@ void __init orion_spi_1_init(unsigned long mapbase,
 	fill_resources(&orion_spi_1, &orion_spi_1_resources,
 		       mapbase, SZ_512 - 1, NO_IRQ);
 	platform_device_register(&orion_spi_1);
+}
+
+/*****************************************************************************
+ * Watchdog
+ ****************************************************************************/
+static struct orion_wdt_platform_data orion_wdt_data;
+
+static struct platform_device orion_wdt_device = {
+	.name		= "orion_wdt",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &orion_wdt_data,
+	},
+	.num_resources	= 0,
+};
+
+void __init orion_wdt_init(unsigned long tclk)
+{
+	orion_wdt_data.tclk = tclk;
+	platform_device_register(&orion_wdt_device);
 }

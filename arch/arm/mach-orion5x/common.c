@@ -30,7 +30,6 @@
 #include <plat/ehci-orion.h>
 #include <plat/mv_xor.h>
 #include <plat/orion_nand.h>
-#include <plat/orion_wdt.h>
 #include <plat/time.h>
 #include <plat/common.h>
 #include "common.h"
@@ -380,23 +379,9 @@ static int __init orion5x_crypto_init(void)
 /*****************************************************************************
  * Watchdog
  ****************************************************************************/
-static struct orion_wdt_platform_data orion5x_wdt_data = {
-	.tclk			= 0,
-};
-
-static struct platform_device orion5x_wdt_device = {
-	.name		= "orion_wdt",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &orion5x_wdt_data,
-	},
-	.num_resources	= 0,
-};
-
 void __init orion5x_wdt_init(void)
 {
-	orion5x_wdt_data.tclk = orion5x_tclk;
-	platform_device_register(&orion5x_wdt_device);
+	orion_wdt_init(orion5x_tclk);
 }
 
 
