@@ -2066,7 +2066,7 @@ static const struct file_operations ip_vs_info_fops = {
 	.open    = ip_vs_info_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release_private,
+	.release = seq_release_net,
 };
 
 #endif
@@ -2109,7 +2109,7 @@ static const struct file_operations ip_vs_stats_fops = {
 	.open = ip_vs_stats_seq_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = single_release,
+	.release = single_release_net,
 };
 
 static int ip_vs_stats_percpu_show(struct seq_file *seq, void *v)
@@ -2178,7 +2178,7 @@ static const struct file_operations ip_vs_stats_percpu_fops = {
 	.open = ip_vs_stats_percpu_seq_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = single_release,
+	.release = single_release_net,
 };
 #endif
 
