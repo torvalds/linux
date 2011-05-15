@@ -487,7 +487,6 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 	int jhead = b->bud->jhead;
 	struct ubifs_scan_leb *sleb;
 	struct ubifs_scan_node *snod;
-	struct ubifs_bud *bud;
 
 	dbg_mnt("replay bud LEB %d, head %d, offs %d", lnum, jhead, offs);
 
@@ -608,10 +607,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 			goto out;
 	}
 
-	bud = ubifs_search_bud(c, lnum);
-	if (!bud)
-		BUG();
-
+	ubifs_assert(ubifs_search_bud(c, lnum));
 	ubifs_assert(sleb->endpt - offs >= used);
 	ubifs_assert(sleb->endpt % c->min_io_size == 0);
 
