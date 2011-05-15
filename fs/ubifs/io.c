@@ -452,8 +452,8 @@ int ubifs_wbuf_sync_nolock(struct ubifs_wbuf *wbuf)
  * @dtype: data type
  *
  * This function targets the write-buffer to logical eraseblock @lnum:@offs.
- * The write-buffer is synchronized if it is not empty. Returns zero in case of
- * success and a negative error code in case of failure.
+ * The write-buffer has to be empty. Returns zero in case of success and a
+ * negative error code in case of failure.
  */
 int ubifs_wbuf_seek_nolock(struct ubifs_wbuf *wbuf, int lnum, int offs,
 			   int dtype)
@@ -465,13 +465,7 @@ int ubifs_wbuf_seek_nolock(struct ubifs_wbuf *wbuf, int lnum, int offs,
 	ubifs_assert(offs >= 0 && offs <= c->leb_size);
 	ubifs_assert(offs % c->min_io_size == 0 && !(offs & 7));
 	ubifs_assert(lnum != wbuf->lnum);
-
-	if (wbuf->used > 0) {
-		int err = ubifs_wbuf_sync_nolock(wbuf);
-
-		if (err)
-			return err;
-	}
+	ubifs_assert(wbuf->used == 0);
 
 	spin_lock(&wbuf->lock);
 	wbuf->lnum = lnum;

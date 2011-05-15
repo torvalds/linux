@@ -100,6 +100,10 @@ static int switch_gc_head(struct ubifs_info *c)
 	if (err)
 		return err;
 
+	err = ubifs_wbuf_sync_nolock(wbuf);
+	if (err)
+		return err;
+
 	err = ubifs_add_bud_to_log(c, GCHD, gc_lnum, 0);
 	if (err)
 		return err;
