@@ -83,7 +83,6 @@ struct caam_ctx {
 	u8 *key;
 	dma_addr_t key_phys;
 	unsigned int enckeylen;
-	unsigned int authkeylen;
 	unsigned int split_key_len;
 	unsigned int split_key_pad_len;
 	unsigned int authsize;
@@ -330,7 +329,6 @@ static int aead_authenc_setkey(struct crypto_aead *aead,
 #endif
 
 	ctx->enckeylen = enckeylen;
-	ctx->authkeylen = authkeylen;
 
 	ret = build_sh_desc_ipsec(ctx);
 	if (ret) {
