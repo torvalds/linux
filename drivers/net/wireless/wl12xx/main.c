@@ -362,6 +362,11 @@ static struct conf_drv_settings default_conf = {
 		.fm_disturbed_band_margin     = 0xff,       /* default */
 		.swallow_clk_diff             = 0xff,       /* default */
 	},
+	.rx_streaming = {
+		.duration                      = 150,
+		.queues                        = 0x1,
+		.interval                      = 20,
+	},
 	.hci_io_ds = HCI_IO_DS_6MA,
 };
 

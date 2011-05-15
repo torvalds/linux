@@ -1577,6 +1577,53 @@ out:
 	return ret;
 }
 
+int wl1271_acx_ps_rx_streaming(struct wl1271 *wl, bool enable)
+{
+	struct wl1271_acx_ps_rx_streaming *rx_streaming;
+	u32 conf_queues, enable_queues;
+	int i, ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx ps rx streaming");
+
+	rx_streaming = kzalloc(sizeof(*rx_streaming), GFP_KERNEL);
+	if (!rx_streaming) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	conf_queues = wl->conf.rx_streaming.queues;
+	if (enable)
+		enable_queues = conf_queues;
+	else
+		enable_queues = 0;
+
+	for (i = 0; i < 8; i++) {
+		/*
+		 * Skip non-changed queues, to avoid redundant acxs.
+		 * this check assumes conf.rx_streaming.queues can't
+		 * be changed while rx_streaming is enabled.
+		 */
+		if (!(conf_queues & BIT(i)))
+			continue;
+
+		rx_streaming->tid = i;
+		rx_streaming->enable = enable_queues & BIT(i);
+		rx_streaming->period = wl->conf.rx_streaming.interval;
+		rx_streaming->timeout = wl->conf.rx_streaming.interval;
+
+		ret = wl1271_cmd_configure(wl, ACX_PS_RX_STREAMING,
+					   rx_streaming,
+					   sizeof(*rx_streaming));
+		if (ret < 0) {
+			wl1271_warning("acx ps rx streaming failed: %d", ret);
+			goto out;
+		}
+	}
+out:
+	kfree(rx_streaming);
+	return ret;
+}
+
 int wl1271_acx_max_tx_retry(struct wl1271 *wl)
 {
 	struct wl1271_acx_max_tx_retry *acx = NULL;

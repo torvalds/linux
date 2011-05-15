@@ -1248,6 +1248,30 @@ struct conf_fm_coex {
 	u8 swallow_clk_diff;
 };
 
+struct conf_rx_streaming_settings {
+	/*
+	 * RX Streaming duration (in msec) from last tx/rx
+	 *
+	 * Range: u32
+	 */
+	u32 duration;
+
+	/*
+	 * Bitmap of tids to be polled during RX streaming.
+	 * (Note: it doesn't look like it really matters)
+	 *
+	 * Range: 0x1-0xff
+	 */
+	u8 queues;
+
+	/*
+	 * RX Streaming interval.
+	 * (Note:this value is also used as the rx streaming timeout)
+	 * Range: 0 (disabled), 10 - 100
+	 */
+	u8 interval;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -1263,6 +1287,7 @@ struct conf_drv_settings {
 	struct conf_memory_settings mem_wl127x;
 	struct conf_memory_settings mem_wl128x;
 	struct conf_fm_coex fm_coex;
+	struct conf_rx_streaming_settings rx_streaming;
 	u8 hci_io_ds;
 };
 
