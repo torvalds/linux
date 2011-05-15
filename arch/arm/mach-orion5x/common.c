@@ -164,41 +164,19 @@ void __init orion5x_xor_init(void)
 			IRQ_ORION5X_XOR0, IRQ_ORION5X_XOR1);
 }
 
-static struct resource orion5x_crypto_res[] = {
-	{
-		.name   = "regs",
-		.start  = ORION5X_CRYPTO_PHYS_BASE,
-		.end    = ORION5X_CRYPTO_PHYS_BASE + 0xffff,
-		.flags  = IORESOURCE_MEM,
-	}, {
-		.name   = "sram",
-		.start  = ORION5X_SRAM_PHYS_BASE,
-		.end    = ORION5X_SRAM_PHYS_BASE + SZ_8K - 1,
-		.flags  = IORESOURCE_MEM,
-	}, {
-		.name   = "crypto interrupt",
-		.start  = IRQ_ORION5X_CESA,
-		.end    = IRQ_ORION5X_CESA,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_crypto_device = {
-	.name           = "mv_crypto",
-	.id             = -1,
-	.num_resources  = ARRAY_SIZE(orion5x_crypto_res),
-	.resource       = orion5x_crypto_res,
-};
-
-static int __init orion5x_crypto_init(void)
+/*****************************************************************************
+ * Cryptographic Engines and Security Accelerator (CESA)
+ ****************************************************************************/
+static void __init orion5x_crypto_init(void)
 {
 	int ret;
 
 	ret = orion5x_setup_sram_win();
 	if (ret)
-		return ret;
+		return;
 
-	return platform_device_register(&orion5x_crypto_device);
+	orion_crypto_init(ORION5X_CRYPTO_PHYS_BASE, ORION5X_SRAM_PHYS_BASE,
+			  SZ_8K, IRQ_ORION5X_CESA);
 }
 
 /*****************************************************************************

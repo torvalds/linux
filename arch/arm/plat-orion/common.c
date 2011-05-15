@@ -923,4 +923,35 @@ void __init orion_sata_init(struct mv_sata_platform_data *sata_data,
 	platform_device_register(&orion_sata);
 }
 
+/*****************************************************************************
+ * Cryptographic Engines and Security Accelerator (CESA)
+ ****************************************************************************/
+static struct resource orion_crypto_resources[] = {
+	{
+		.name   = "regs",
+	}, {
+		.name   = "crypto interrupt",
+	}, {
+		.name   = "sram",
+		.flags  = IORESOURCE_MEM,
+	},
+};
 
+static struct platform_device orion_crypto = {
+	.name           = "mv_crypto",
+	.id             = -1,
+};
+
+void __init orion_crypto_init(unsigned long mapbase,
+			      unsigned long srambase,
+			      unsigned long sram_size,
+			      unsigned long irq)
+{
+	fill_resources(&orion_crypto, orion_crypto_resources,
+		       mapbase, 0xffff, irq);
+	orion_crypto.num_resources = 3;
+	orion_crypto_resources[2].start = srambase;
+	orion_crypto_resources[2].end = srambase + sram_size - 1;
+
+	platform_device_register(&orion_crypto);
+}

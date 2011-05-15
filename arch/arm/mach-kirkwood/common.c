@@ -270,37 +270,11 @@ void __init kirkwood_uart1_init(void)
 /*****************************************************************************
  * Cryptographic Engines and Security Accelerator (CESA)
  ****************************************************************************/
-
-static struct resource kirkwood_crypto_res[] = {
-	{
-		.name   = "regs",
-		.start  = CRYPTO_PHYS_BASE,
-		.end    = CRYPTO_PHYS_BASE + 0xffff,
-		.flags  = IORESOURCE_MEM,
-	}, {
-		.name   = "sram",
-		.start  = KIRKWOOD_SRAM_PHYS_BASE,
-		.end    = KIRKWOOD_SRAM_PHYS_BASE + KIRKWOOD_SRAM_SIZE - 1,
-		.flags  = IORESOURCE_MEM,
-	}, {
-		.name   = "crypto interrupt",
-		.start  = IRQ_KIRKWOOD_CRYPTO,
-		.end    = IRQ_KIRKWOOD_CRYPTO,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device kirkwood_crypto_device = {
-	.name           = "mv_crypto",
-	.id             = -1,
-	.num_resources  = ARRAY_SIZE(kirkwood_crypto_res),
-	.resource       = kirkwood_crypto_res,
-};
-
 void __init kirkwood_crypto_init(void)
 {
 	kirkwood_clk_ctrl |= CGC_CRYPTO;
-	platform_device_register(&kirkwood_crypto_device);
+	orion_crypto_init(CRYPTO_PHYS_BASE, KIRKWOOD_SRAM_PHYS_BASE,
+			  KIRKWOOD_SRAM_SIZE, IRQ_KIRKWOOD_CRYPTO);
 }
 
 

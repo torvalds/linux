@@ -109,4 +109,9 @@ void __init orion_sata_init(struct mv_sata_platform_data *sata_data,
 			    struct mbus_dram_target_info *mbus_dram_info,
 			    unsigned long mapbase,
 			    unsigned long irq);
+
+void __init orion_crypto_init(unsigned long mapbase,
+			      unsigned long srambase,
+			      unsigned long sram_size,
+			      unsigned long irq);
 #endif
