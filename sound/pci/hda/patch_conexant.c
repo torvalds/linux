@@ -1104,8 +1104,10 @@ static int patch_cxt5045(struct hda_codec *codec)
 	board_config = snd_hda_check_board_config(codec, CXT5045_MODELS,
 						  cxt5045_models,
 						  cxt5045_cfg_tbl);
+#if 0 /* use the old method just for safety */
 	if (board_config < 0)
 		board_config = CXT5045_AUTO;
+#endif
 	if (board_config == CXT5045_AUTO)
 		return patch_conexant_auto(codec);
 
@@ -1972,8 +1974,10 @@ static int patch_cxt5051(struct hda_codec *codec)
 	board_config = snd_hda_check_board_config(codec, CXT5051_MODELS,
 						  cxt5051_models,
 						  cxt5051_cfg_tbl);
+#if 0 /* use the old method just for safety */
 	if (board_config < 0)
 		board_config = CXT5051_AUTO;
+#endif
 	if (board_config == CXT5051_AUTO)
 		return patch_conexant_auto(codec);
 
