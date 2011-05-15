@@ -227,14 +227,10 @@ struct kvm_mmu_page {
 	 * in this shadow page.
 	 */
 	DECLARE_BITMAP(slot_bitmap, KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS);
-	bool multimapped;         /* More than one parent_pte? */
 	bool unsync;
 	int root_count;          /* Currently serving as active root */
 	unsigned int unsync_children;
-	union {
-		u64 *parent_pte;               /* !multimapped */
-		struct hlist_head parent_ptes; /* multimapped, kvm_pte_chain */
-	};
+	unsigned long parent_ptes;	/* Reverse mapping for parent_pte */
 	DECLARE_BITMAP(unsync_child_bitmap, 512);
 };
 
@@ -346,7 +342,6 @@ struct kvm_vcpu_arch {
 	 * put it here to avoid allocation */
 	struct kvm_pv_mmu_op_buffer mmu_op_buffer;
 
-	struct kvm_mmu_memory_cache mmu_pte_chain_cache;
 	struct kvm_mmu_memory_cache mmu_pte_list_desc_cache;
 	struct kvm_mmu_memory_cache mmu_page_cache;
 	struct kvm_mmu_memory_cache mmu_page_header_cache;
