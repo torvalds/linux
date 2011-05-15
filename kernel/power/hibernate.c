@@ -982,10 +982,33 @@ static ssize_t image_size_store(struct kobject *kobj, struct kobj_attribute *att
 
 power_attr(image_size);
 
+static ssize_t reserved_size_show(struct kobject *kobj,
+				  struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n", reserved_size);
+}
+
+static ssize_t reserved_size_store(struct kobject *kobj,
+				   struct kobj_attribute *attr,
+				   const char *buf, size_t n)
+{
+	unsigned long size;
+
+	if (sscanf(buf, "%lu", &size) == 1) {
+		reserved_size = size;
+		return n;
+	}
+
+	return -EINVAL;
+}
+
+power_attr(reserved_size);
+
 static struct attribute * g[] = {
 	&disk_attr.attr,
 	&resume_attr.attr,
 	&image_size_attr.attr,
+	&reserved_size_attr.attr,
 	NULL,
 };
 
