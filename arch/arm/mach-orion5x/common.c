@@ -119,35 +119,10 @@ void __init orion5x_i2c_init(void)
 /*****************************************************************************
  * SATA
  ****************************************************************************/
-static struct resource orion5x_sata_resources[] = {
-	{
-		.name	= "sata base",
-		.start	= ORION5X_SATA_PHYS_BASE,
-		.end	= ORION5X_SATA_PHYS_BASE + 0x5000 - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.name	= "sata irq",
-		.start	= IRQ_ORION5X_SATA,
-		.end	= IRQ_ORION5X_SATA,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_sata = {
-	.name		= "sata_mv",
-	.id		= 0,
-	.dev		= {
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-	.num_resources	= ARRAY_SIZE(orion5x_sata_resources),
-	.resource	= orion5x_sata_resources,
-};
-
 void __init orion5x_sata_init(struct mv_sata_platform_data *sata_data)
 {
-	sata_data->dram = &orion5x_mbus_dram_info;
-	orion5x_sata.dev.platform_data = sata_data;
-	platform_device_register(&orion5x_sata);
+	orion_sata_init(sata_data, &orion5x_mbus_dram_info,
+			ORION5X_SATA_PHYS_BASE, IRQ_ORION5X_SATA);
 }
 
 

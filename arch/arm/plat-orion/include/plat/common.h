@@ -104,4 +104,9 @@ void __init orion_ehci_1_init(struct mbus_dram_target_info *mbus_dram_info,
 void __init orion_ehci_2_init(struct mbus_dram_target_info *mbus_dram_info,
 			      unsigned long mapbase,
 			      unsigned long irq);
+
+void __init orion_sata_init(struct mv_sata_platform_data *sata_data,
+			    struct mbus_dram_target_info *mbus_dram_info,
+			    unsigned long mapbase,
+			    unsigned long irq);
 #endif

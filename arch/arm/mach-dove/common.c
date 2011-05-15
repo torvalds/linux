@@ -107,35 +107,11 @@ void __init dove_rtc_init(void)
 /*****************************************************************************
  * SATA
  ****************************************************************************/
-static struct resource dove_sata_resources[] = {
-	{
-		.name	= "sata base",
-		.start	= DOVE_SATA_PHYS_BASE,
-		.end	= DOVE_SATA_PHYS_BASE + 0x5000 - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.name	= "sata irq",
-		.start	= IRQ_DOVE_SATA,
-		.end	= IRQ_DOVE_SATA,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device dove_sata = {
-	.name		= "sata_mv",
-	.id		= 0,
-	.dev		= {
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-	.num_resources	= ARRAY_SIZE(dove_sata_resources),
-	.resource	= dove_sata_resources,
-};
-
 void __init dove_sata_init(struct mv_sata_platform_data *sata_data)
 {
-	sata_data->dram = &dove_mbus_dram_info;
-	dove_sata.dev.platform_data = sata_data;
-	platform_device_register(&dove_sata);
+	orion_sata_init(sata_data, &dove_mbus_dram_info,
+			DOVE_SATA_PHYS_BASE, IRQ_DOVE_SATA);
+
 }
 
 /*****************************************************************************

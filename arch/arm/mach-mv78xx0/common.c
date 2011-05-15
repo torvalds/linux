@@ -275,35 +275,10 @@ void __init mv78xx0_i2c_init(void)
 /*****************************************************************************
  * SATA
  ****************************************************************************/
-static struct resource mv78xx0_sata_resources[] = {
-	{
-		.name	= "sata base",
-		.start	= SATA_PHYS_BASE,
-		.end	= SATA_PHYS_BASE + 0x5000 - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.name	= "sata irq",
-		.start	= IRQ_MV78XX0_SATA,
-		.end	= IRQ_MV78XX0_SATA,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_sata = {
-	.name		= "sata_mv",
-	.id		= 0,
-	.dev		= {
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-	.num_resources	= ARRAY_SIZE(mv78xx0_sata_resources),
-	.resource	= mv78xx0_sata_resources,
-};
-
 void __init mv78xx0_sata_init(struct mv_sata_platform_data *sata_data)
 {
-	sata_data->dram = &mv78xx0_mbus_dram_info;
-	mv78xx0_sata.dev.platform_data = sata_data;
-	platform_device_register(&mv78xx0_sata);
+	orion_sata_init(sata_data, &mv78xx0_mbus_dram_info,
+			SATA_PHYS_BASE, IRQ_MV78XX0_SATA);
 }
 
 

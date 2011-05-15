@@ -14,6 +14,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/serial_8250.h>
 #include <linux/mbus.h>
+#include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
 #include <net/dsa.h>
@@ -889,3 +890,37 @@ void __init orion_ehci_2_init(struct mbus_dram_target_info *mbus_dram_info,
 
 	platform_device_register(&orion_ehci_2);
 }
+
+/*****************************************************************************
+ * SATA
+ ****************************************************************************/
+static struct resource orion_sata_resources[2] = {
+	{
+		.name	= "sata base",
+	}, {
+		.name	= "sata irq",
+	},
+};
+
+static struct platform_device orion_sata = {
+	.name		= "sata_mv",
+	.id		= 0,
+	.dev		= {
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+void __init orion_sata_init(struct mv_sata_platform_data *sata_data,
+			    struct mbus_dram_target_info *mbus_dram_info,
+			    unsigned long mapbase,
+			    unsigned long irq)
+{
+	sata_data->dram = mbus_dram_info;
+	orion_sata.dev.platform_data = sata_data;
+	fill_resources(&orion_sata, orion_sata_resources,
+		       mapbase, 0x5000 - 1, irq);
+
+	platform_device_register(&orion_sata);
+}
+
+
