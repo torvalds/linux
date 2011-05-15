@@ -359,6 +359,8 @@ enum wl12xx_flags {
 	WL1271_FLAG_DUMMY_PACKET_PENDING,
 	WL1271_FLAG_SUSPENDED,
 	WL1271_FLAG_PENDING_WORK,
+	WL1271_FLAG_SOFT_GEMINI,
+	WL1271_FLAG_RX_STREAMING_STARTED,
 };
 
 struct wl1271_link {
@@ -508,6 +510,11 @@ struct wl1271 {
 	/* Default key (for WEP) */
 	u32 default_key;
 
+	/* Rx Streaming */
+	struct work_struct rx_streaming_enable_work;
+	struct work_struct rx_streaming_disable_work;
+	struct timer_list rx_streaming_timer;
+
 	unsigned int filters;
 	unsigned int rx_config;
 	unsigned int rx_filter;
@@ -602,6 +609,7 @@ struct wl1271_station {
 
 int wl1271_plt_start(struct wl1271 *wl);
 int wl1271_plt_stop(struct wl1271 *wl);
+int wl1271_recalc_rx_streaming(struct wl1271 *wl);
 
 #define JOIN_TIMEOUT 5000 /* 5000 milliseconds to join */
 

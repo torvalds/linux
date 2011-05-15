@@ -562,17 +562,29 @@ static void wl1271_skb_queue_head(struct wl1271 *wl, struct sk_buff *skb)
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 }
 
+static bool wl1271_tx_is_data_present(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
+
+	return ieee80211_is_data_present(hdr->frame_control);
+}
+
 void wl1271_tx_work_locked(struct wl1271 *wl)
 {
 	struct sk_buff *skb;
 	u32 buf_offset = 0;
 	bool sent_packets = false;
+	bool had_data = false;
+	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
 	int ret;
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		return;
 
 	while ((skb = wl1271_skb_dequeue(wl))) {
+		if (wl1271_tx_is_data_present(skb))
+			had_data = true;
+
 		ret = wl1271_prepare_tx_frame(wl, skb, buf_offset);
 		if (ret == -EAGAIN) {
 			/*
@@ -618,6 +630,19 @@ out_ack:
 				       wl->tx_packets_count);
 
 		wl1271_handle_tx_low_watermark(wl);
+	}
+	if (!is_ap && wl->conf.rx_streaming.interval && had_data &&
+	    (wl->conf.rx_streaming.always ||
+	     test_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags))) {
+		u32 timeout = wl->conf.rx_streaming.duration;
+
+		/* enable rx streaming */
+		if (!test_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags))
+			ieee80211_queue_work(wl->hw,
+					     &wl->rx_streaming_enable_work);
+
+		mod_timer(&wl->rx_streaming_timer,
+			  jiffies + msecs_to_jiffies(timeout));
 	}
 }
 

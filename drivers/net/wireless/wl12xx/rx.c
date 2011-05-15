@@ -95,6 +95,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 	struct ieee80211_hdr *hdr;
 	u8 *buf;
 	u8 beacon = 0;
+	u8 is_data = 0;
 
 	/*
 	 * In PLT mode we seem to get frames and mac80211 warns about them,
@@ -137,6 +138,8 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 	hdr = (struct ieee80211_hdr *)skb->data;
 	if (ieee80211_is_beacon(hdr->frame_control))
 		beacon = 1;
+	if (ieee80211_is_data_present(hdr->frame_control))
+		is_data = 1;
 
 	wl1271_rx_status(wl, desc, IEEE80211_SKB_RXCB(skb), beacon);
 
@@ -149,7 +152,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 	skb_queue_tail(&wl->deferred_rx_queue, skb);
 	ieee80211_queue_work(wl->hw, &wl->netstack_work);
 
-	return 0;
+	return is_data;
 }
 
 void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_common_status *status)
@@ -162,6 +165,8 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_common_status *status)
 	u32 mem_block;
 	u32 pkt_length;
 	u32 pkt_offset;
+	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
+	bool had_data = false;
 
 	while (drv_rx_counter != fw_rx_counter) {
 		buf_size = 0;
@@ -214,9 +219,11 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_common_status *status)
 			 * conditions, in that case the received frame will just
 			 * be dropped.
 			 */
-			wl1271_rx_handle_data(wl,
-					      wl->aggr_buf + pkt_offset,
-					      pkt_length);
+			if (wl1271_rx_handle_data(wl,
+						  wl->aggr_buf + pkt_offset,
+						  pkt_length) == 1)
+				had_data = true;
+
 			wl->rx_counter++;
 			drv_rx_counter++;
 			drv_rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
@@ -230,6 +237,20 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_common_status *status)
 	 */
 	if (wl->quirks & WL12XX_QUIRK_END_OF_TRANSACTION)
 		wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
+
+	if (!is_ap && wl->conf.rx_streaming.interval && had_data &&
+	    (wl->conf.rx_streaming.always ||
+	     test_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags))) {
+		u32 timeout = wl->conf.rx_streaming.duration;
+
+		/* restart rx streaming */
+		if (!test_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags))
+			ieee80211_queue_work(wl->hw,
+					     &wl->rx_streaming_enable_work);
+
+		mod_timer(&wl->rx_streaming_timer,
+			  jiffies + msecs_to_jiffies(timeout));
+	}
 }
 
 void wl1271_set_default_filters(struct wl1271 *wl)
