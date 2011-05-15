@@ -4081,20 +4081,10 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
+	codec->pin_amp_workaround = 1;
 	err = cx_auto_search_adcs(codec);
 	if (err < 0)
 		return err;
-	switch (codec->vendor_id) {
-	case 0x14f15051:
-		codec->pin_amp_workaround = 1;
-		break;
-	case 0x14f15045:
-		codec->pin_amp_workaround = 1;
-		break;
-	case 0x14f15047:
-		codec->pin_amp_workaround = 1;
-		break;
-	}
 	err = cx_auto_parse_auto_config(codec);
 	if (err < 0) {
 		kfree(codec->spec);
