@@ -549,7 +549,7 @@ static int test__basic_mmap(void)
 			++foo;
 		}
 
-	while ((event = perf_evlist__read_on_cpu(evlist, 0)) != NULL) {
+	while ((event = perf_evlist__mmap_read(evlist, 0)) != NULL) {
 		struct perf_sample sample;
 
 		if (event->header.type != PERF_RECORD_SAMPLE) {
