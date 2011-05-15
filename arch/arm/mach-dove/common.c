@@ -18,7 +18,6 @@
 #include <linux/mbus.h>
 #include <linux/ata_platform.h>
 #include <linux/serial_8250.h>
-#include <linux/spi/orion_spi.h>
 #include <linux/gpio.h>
 #include <asm/page.h>
 #include <asm/setup.h>
@@ -234,71 +233,16 @@ void __init dove_uart3_init(void)
 }
 
 /*****************************************************************************
- * SPI0
+ * SPI
  ****************************************************************************/
-static struct orion_spi_info dove_spi0_data = {
-	.tclk		= 0,
-};
-
-static struct resource dove_spi0_resources[] = {
-	{
-		.start	= DOVE_SPI0_PHYS_BASE,
-		.end	= DOVE_SPI0_PHYS_BASE + SZ_512 - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_DOVE_SPI0,
-		.end	= IRQ_DOVE_SPI0,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device dove_spi0 = {
-	.name		= "orion_spi",
-	.id		= 0,
-	.resource	= dove_spi0_resources,
-	.dev		= {
-		.platform_data	= &dove_spi0_data,
-	},
-	.num_resources	= ARRAY_SIZE(dove_spi0_resources),
-};
-
 void __init dove_spi0_init(void)
 {
-	platform_device_register(&dove_spi0);
+	orion_spi_init(DOVE_SPI0_PHYS_BASE, get_tclk());
 }
-
-/*****************************************************************************
- * SPI1
- ****************************************************************************/
-static struct orion_spi_info dove_spi1_data = {
-	.tclk		= 0,
-};
-
-static struct resource dove_spi1_resources[] = {
-	{
-		.start	= DOVE_SPI1_PHYS_BASE,
-		.end	= DOVE_SPI1_PHYS_BASE + SZ_512 - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_DOVE_SPI1,
-		.end	= IRQ_DOVE_SPI1,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device dove_spi1 = {
-	.name		= "orion_spi",
-	.id		= 1,
-	.resource	= dove_spi1_resources,
-	.dev		= {
-		.platform_data	= &dove_spi1_data,
-	},
-	.num_resources	= ARRAY_SIZE(dove_spi1_resources),
-};
 
 void __init dove_spi1_init(void)
 {
-	platform_device_register(&dove_spi1);
+	orion_spi_init(DOVE_SPI1_PHYS_BASE, get_tclk());
 }
 
 /*****************************************************************************
@@ -612,9 +556,6 @@ void __init dove_init(void)
 	tauros2_init();
 #endif
 	dove_setup_cpu_mbus();
-
-	dove_spi0_data.tclk = tclk;
-	dove_spi1_data.tclk = tclk;
 
 	/* internal devices that every board has */
 	dove_rtc_init();

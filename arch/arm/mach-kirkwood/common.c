@@ -15,7 +15,6 @@
 #include <linux/mbus.h>
 #include <linux/ata_platform.h>
 #include <linux/mtd/nand.h>
-#include <linux/spi/orion_spi.h>
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/timex.h>
@@ -292,31 +291,10 @@ void __init kirkwood_sdio_init(struct mvsdio_platform_data *mvsdio_data)
 /*****************************************************************************
  * SPI
  ****************************************************************************/
-static struct orion_spi_info kirkwood_spi_plat_data = {
-};
-
-static struct resource kirkwood_spi_resources[] = {
-	{
-		.start	= SPI_PHYS_BASE,
-		.end	= SPI_PHYS_BASE + SZ_512 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device kirkwood_spi = {
-	.name		= "orion_spi",
-	.id		= 0,
-	.resource	= kirkwood_spi_resources,
-	.dev		= {
-		.platform_data	= &kirkwood_spi_plat_data,
-	},
-	.num_resources	= ARRAY_SIZE(kirkwood_spi_resources),
-};
-
 void __init kirkwood_spi_init()
 {
 	kirkwood_clk_ctrl |= CGC_RUNIT;
-	platform_device_register(&kirkwood_spi);
+	orion_spi_init(SPI_PHYS_BASE, kirkwood_tclk);
 }
 
 
@@ -757,7 +735,6 @@ void __init kirkwood_init(void)
 {
 	printk(KERN_INFO "Kirkwood: %s, TCLK=%d.\n",
 		kirkwood_id(), kirkwood_tclk);
-	kirkwood_spi_plat_data.tclk = kirkwood_tclk;
 	kirkwood_i2s_data.tclk = kirkwood_tclk;
 
 	/*

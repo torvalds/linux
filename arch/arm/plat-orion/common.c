@@ -17,6 +17,7 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
 #include <net/dsa.h>
+#include <linux/spi/orion_spi.h>
 
 /* Fill in the resources structure and link it into the platform
    device structure. There is always a memory region, and nearly
@@ -516,4 +517,50 @@ void __init orion_i2c_1_init(unsigned long mapbase,
 	fill_resources(&orion_i2c_1, orion_i2c_1_resources, mapbase,
 		       SZ_32 - 1, irq);
 	platform_device_register(&orion_i2c_1);
+}
+
+/*****************************************************************************
+ * SPI
+ ****************************************************************************/
+static struct orion_spi_info orion_spi_plat_data;
+static struct resource orion_spi_resources;
+
+static struct platform_device orion_spi = {
+	.name		= "orion_spi",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &orion_spi_plat_data,
+	},
+};
+
+static struct orion_spi_info orion_spi_1_plat_data;
+static struct resource orion_spi_1_resources;
+
+static struct platform_device orion_spi_1 = {
+	.name		= "orion_spi",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &orion_spi_1_plat_data,
+	},
+};
+
+/* Note: The SPI silicon core does have interrupts. However the
+ * current Linux software driver does not use interrupts. */
+
+void __init orion_spi_init(unsigned long mapbase,
+			   unsigned long tclk)
+{
+	orion_spi_plat_data.tclk = tclk;
+	fill_resources(&orion_spi, &orion_spi_resources,
+		       mapbase, SZ_512 - 1, NO_IRQ);
+	platform_device_register(&orion_spi);
+}
+
+void __init orion_spi_1_init(unsigned long mapbase,
+			     unsigned long tclk)
+{
+	orion_spi_1_plat_data.tclk = tclk;
+	fill_resources(&orion_spi_1, &orion_spi_1_resources,
+		       mapbase, SZ_512 - 1, NO_IRQ);
+	platform_device_register(&orion_spi_1);
 }

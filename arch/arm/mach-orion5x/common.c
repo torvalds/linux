@@ -17,7 +17,6 @@
 #include <linux/mbus.h>
 #include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
-#include <linux/spi/orion_spi.h>
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/setup.h>
@@ -214,33 +213,9 @@ void __init orion5x_sata_init(struct mv_sata_platform_data *sata_data)
 /*****************************************************************************
  * SPI
  ****************************************************************************/
-static struct orion_spi_info orion5x_spi_plat_data = {
-	.tclk			= 0,
-	.enable_clock_fix	= 1,
-};
-
-static struct resource orion5x_spi_resources[] = {
-	{
-		.name	= "spi base",
-		.start	= SPI_PHYS_BASE,
-		.end	= SPI_PHYS_BASE + 0x1f,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device orion5x_spi = {
-	.name		= "orion_spi",
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &orion5x_spi_plat_data,
-	},
-	.num_resources	= ARRAY_SIZE(orion5x_spi_resources),
-	.resource	= orion5x_spi_resources,
-};
-
 void __init orion5x_spi_init()
 {
-	platform_device_register(&orion5x_spi);
+	orion_spi_init(SPI_PHYS_BASE, orion5x_tclk);
 }
 
 
@@ -512,8 +487,6 @@ void __init orion5x_init(void)
 
 	orion5x_id(&dev, &rev, &dev_name);
 	printk(KERN_INFO "Orion ID: %s. TCLK=%d.\n", dev_name, orion5x_tclk);
-
-	orion5x_spi_plat_data.tclk = orion5x_tclk;
 
 	/*
 	 * Setup Orion address map

@@ -73,4 +73,10 @@ void __init orion_i2c_init(unsigned long mapbase,
 void __init orion_i2c_1_init(unsigned long mapbase,
 			     unsigned long irq,
 			     unsigned long freq_m);
+
+void __init orion_spi_init(unsigned long mapbase,
+			   unsigned long tclk);
+
+void __init orion_spi_1_init(unsigned long mapbase,
+			     unsigned long tclk);
 #endif
