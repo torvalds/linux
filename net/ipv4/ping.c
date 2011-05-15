@@ -22,7 +22,6 @@
 
 #include <asm/system.h>
 #include <linux/uaccess.h>
-#include <asm/ioctls.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/socket.h>
@@ -609,23 +608,6 @@ do_confirm:
 	goto out;
 }
 
-/*
- *	IOCTL requests applicable to the UDP^H^H^HICMP protocol
- */
-
-int ping_ioctl(struct sock *sk, int cmd, unsigned long arg)
-{
-	pr_debug("ping_ioctl(sk=%p,sk->num=%u,cmd=%d,arg=%lu)\n",
-		inet_sk(sk), inet_sk(sk)->inet_num, cmd, arg);
-	switch (cmd) {
-	case SIOCOUTQ:
-	case SIOCINQ:
-		return udp_ioctl(sk, cmd, arg);
-	default:
-		return -ENOIOCTLCMD;
-	}
-}
-
 int ping_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		 size_t len, int noblock, int flags, int *addr_len)
 {
@@ -735,7 +717,6 @@ struct proto ping_prot = {
 	.close =	ping_close,
 	.connect =	ip4_datagram_connect,
 	.disconnect =	udp_disconnect,
-	.ioctl =	ping_ioctl,
 	.setsockopt =	ip_setsockopt,
 	.getsockopt =	ip_getsockopt,
 	.sendmsg =	ping_sendmsg,
