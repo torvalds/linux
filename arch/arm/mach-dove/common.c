@@ -205,20 +205,9 @@ void __init dove_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 /*****************************************************************************
  * SoC RTC
  ****************************************************************************/
-static struct resource dove_rtc_resource[] = {
-	{
-		.start	= DOVE_RTC_PHYS_BASE,
-		.end	= DOVE_RTC_PHYS_BASE + 32 - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_DOVE_RTC,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
 void __init dove_rtc_init(void)
 {
-	platform_device_register_simple("rtc-mv", -1, dove_rtc_resource, 2);
+	orion_rtc_init(DOVE_RTC_PHYS_BASE, IRQ_DOVE_RTC);
 }
 
 /*****************************************************************************

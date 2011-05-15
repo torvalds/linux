@@ -326,15 +326,9 @@ void __init kirkwood_nand_init_rnb(struct mtd_partition *parts, int nr_parts,
 /*****************************************************************************
  * SoC RTC
  ****************************************************************************/
-static struct resource kirkwood_rtc_resource = {
-	.start	= RTC_PHYS_BASE,
-	.end	= RTC_PHYS_BASE + SZ_16 - 1,
-	.flags	= IORESOURCE_MEM,
-};
-
 static void __init kirkwood_rtc_init(void)
 {
-	platform_device_register_simple("rtc-mv", -1, &kirkwood_rtc_resource, 1);
+	orion_rtc_init(RTC_PHYS_BASE, NO_IRQ);
 }
 
 

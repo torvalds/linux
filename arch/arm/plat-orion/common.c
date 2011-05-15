@@ -169,3 +169,21 @@ void __init orion_uart3_init(unsigned int membase,
 	uart_complete(&orion_uart3, orion_uart3_data, orion_uart3_resources,
 		      membase, mapbase, irq, uartclk);
 }
+
+/*****************************************************************************
+ * SoC RTC
+ ****************************************************************************/
+static struct resource orion_rtc_resource[2];
+
+void __init orion_rtc_init(unsigned long mapbase,
+			   unsigned long irq)
+{
+	orion_rtc_resource[0].start = mapbase;
+	orion_rtc_resource[0].end = mapbase + SZ_32 - 1;
+	orion_rtc_resource[0].flags = IORESOURCE_MEM;
+	orion_rtc_resource[1].start = irq;
+	orion_rtc_resource[1].end = irq;
+	orion_rtc_resource[1].flags = IORESOURCE_IRQ;
+
+	platform_device_register_simple("rtc-mv", -1, orion_rtc_resource, 2);
+}
