@@ -475,25 +475,22 @@ int ubifs_validate_entry(struct ubifs_info *c,
 /**
  * replay_bud - replay a bud logical eraseblock.
  * @c: UBIFS file-system description object
- * @lnum: bud logical eraseblock number to replay
- * @offs: bud start offset
- * @jhead: journal head to which this bud belongs
- * @free: amount of free space in the bud is returned here
- * @dirty: amount of dirty space from padding and deletion nodes is returned
- * here
+ * @b: bud entry which describes the bud
  *
- * This function returns zero in case of success and a negative error code in
- * case of failure.
+ * This function replays bud @bud, recovers it if needed, and adds all nodes
+ * from this bud to the replay list. Returns zero in case of success and a
+ * negative error code in case of failure.
  */
-static int replay_bud(struct ubifs_info *c, int lnum, int offs, int jhead,
-		      int *free, int *dirty)
+static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 {
-	int err = 0, used = 0;
+	int err = 0, used = 0, lnum = b->bud->lnum, offs = b->bud->start;
+	int jhead = b->bud->jhead;
 	struct ubifs_scan_leb *sleb;
 	struct ubifs_scan_node *snod;
 	struct ubifs_bud *bud;
 
 	dbg_mnt("replay bud LEB %d, head %d, offs %d", lnum, jhead, offs);
+
 	if (c->need_recovery)
 		sleb = ubifs_recover_leb(c, lnum, offs, c->sbuf, jhead != GCHD);
 	else
@@ -618,9 +615,9 @@ static int replay_bud(struct ubifs_info *c, int lnum, int offs, int jhead,
 	ubifs_assert(sleb->endpt - offs >= used);
 	ubifs_assert(sleb->endpt % c->min_io_size == 0);
 
-	*dirty = sleb->endpt - offs - used;
-	*free = c->leb_size - sleb->endpt;
-	dbg_mnt("bud LEB %d replied: dirty %d, free %d", lnum, *dirty, *free);
+	b->dirty = sleb->endpt - offs - used;
+	b->free = c->leb_size - sleb->endpt;
+	dbg_mnt("bud LEB %d replied: dirty %d, free %d", lnum, b->dirty, b->free);
 
 out:
 	ubifs_scan_destroy(sleb);
@@ -647,8 +644,7 @@ static int replay_buds(struct ubifs_info *c)
 	unsigned long long prev_sqnum = 0;
 
 	list_for_each_entry(b, &c->replay_buds, list) {
-		err = replay_bud(c, b->bud->lnum, b->bud->start, b->bud->jhead,
-				 &b->free, &b->dirty);
+		err = replay_bud(c, b);
 		if (err)
 			return err;
 
