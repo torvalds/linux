@@ -297,6 +297,7 @@ struct asic3_platform_data {
  *
  *****************************************************************************/
 #define ASIC3_SD_CONFIG_BASE	0x0400 /* Assumes 32 bit addressing */
+#define ASIC3_SD_CONFIG_SIZE	0x0200 /* Assumes 32 bit addressing */
 #define ASIC3_SD_CTRL_BASE	0x1000
 #define ASIC3_SDIO_CTRL_BASE	0x1200
 

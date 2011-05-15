@@ -856,7 +856,8 @@ static int __init asic3_mfd_probe(struct platform_device *pdev,
 
 	/* MMC */
 	asic->tmio_cnf = ioremap((ASIC3_SD_CONFIG_BASE >> asic->bus_shift) +
-				 mem_sdio->start, 0x400 >> asic->bus_shift);
+				 mem_sdio->start,
+				 ASIC3_SD_CONFIG_SIZE >> asic->bus_shift);
 	if (!asic->tmio_cnf) {
 		ret = -ENOMEM;
 		dev_dbg(asic->dev, "Couldn't ioremap SD_CONFIG\n");
