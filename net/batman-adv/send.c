@@ -377,6 +377,8 @@ static void forw_packet_free(struct forw_packet *forw_packet)
 {
 	if (forw_packet->skb)
 		kfree_skb(forw_packet->skb);
+	if (forw_packet->if_incoming)
+		hardif_free_ref(forw_packet->if_incoming);
 	kfree(forw_packet);
 }
 
@@ -419,7 +421,7 @@ int add_bcast_packet_to_list(struct bat_priv *bat_priv, struct sk_buff *skb)
 
 	primary_if = primary_if_get_selected(bat_priv);
 	if (!primary_if)
-		goto out;
+		goto out_and_inc;
 
 	forw_packet = kmalloc(sizeof(struct forw_packet), GFP_ATOMIC);
 
@@ -539,6 +541,7 @@ void purge_outstanding_packets(struct bat_priv *bat_priv,
 {
 	struct forw_packet *forw_packet;
 	struct hlist_node *tmp_node, *safe_tmp_node;
+	bool pending;
 
 	if (hard_iface)
 		bat_dbg(DBG_BATMAN, bat_priv,
@@ -567,8 +570,13 @@ void purge_outstanding_packets(struct bat_priv *bat_priv,
 		 * send_outstanding_bcast_packet() will lock the list to
 		 * delete the item from the list
 		 */
-		cancel_delayed_work_sync(&forw_packet->delayed_work);
+		pending = cancel_delayed_work_sync(&forw_packet->delayed_work);
 		spin_lock_bh(&bat_priv->forw_bcast_list_lock);
+
+		if (pending) {
+			hlist_del(&forw_packet->list);
+			forw_packet_free(forw_packet);
+		}
 	}
 	spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
 
@@ -591,8 +599,13 @@ void purge_outstanding_packets(struct bat_priv *bat_priv,
 		 * send_outstanding_bat_packet() will lock the list to
 		 * delete the item from the list
 		 */
-		cancel_delayed_work_sync(&forw_packet->delayed_work);
+		pending = cancel_delayed_work_sync(&forw_packet->delayed_work);
 		spin_lock_bh(&bat_priv->forw_bat_list_lock);
+
+		if (pending) {
+			hlist_del(&forw_packet->list);
+			forw_packet_free(forw_packet);
+		}
 	}
 	spin_unlock_bh(&bat_priv->forw_bat_list_lock);
 }

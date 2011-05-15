@@ -23,6 +23,7 @@
 #include "aggregation.h"
 #include "send.h"
 #include "routing.h"
+#include "hard-interface.h"
 
 /* calculate the size of the tt information for a given packet */
 static int tt_len(struct batman_packet *batman_packet)
@@ -105,12 +106,15 @@ static void new_aggregated_packet(unsigned char *packet_buff, int packet_len,
 	struct forw_packet *forw_packet_aggr;
 	unsigned char *skb_buff;
 
+	if (!atomic_inc_not_zero(&if_incoming->refcount))
+		return;
+
 	/* own packet should always be scheduled */
 	if (!own_packet) {
 		if (!atomic_dec_not_zero(&bat_priv->batman_queue_left)) {
 			bat_dbg(DBG_BATMAN, bat_priv,
 				"batman packet queue full\n");
-			return;
+			goto out;
 		}
 	}
 
@@ -118,7 +122,7 @@ static void new_aggregated_packet(unsigned char *packet_buff, int packet_len,
 	if (!forw_packet_aggr) {
 		if (!own_packet)
 			atomic_inc(&bat_priv->batman_queue_left);
-		return;
+		goto out;
 	}
 
 	if ((atomic_read(&bat_priv->aggregated_ogms)) &&
@@ -133,7 +137,7 @@ static void new_aggregated_packet(unsigned char *packet_buff, int packet_len,
 		if (!own_packet)
 			atomic_inc(&bat_priv->batman_queue_left);
 		kfree(forw_packet_aggr);
-		return;
+		goto out;
 	}
 	skb_reserve(forw_packet_aggr->skb, sizeof(struct ethhdr));
 
@@ -164,6 +168,10 @@ static void new_aggregated_packet(unsigned char *packet_buff, int packet_len,
 	queue_delayed_work(bat_event_workqueue,
 			   &forw_packet_aggr->delayed_work,
 			   send_time - jiffies);
+
+	return;
+out:
+	hardif_free_ref(if_incoming);
 }
 
 /* aggregate a new packet into the existing aggregation */
