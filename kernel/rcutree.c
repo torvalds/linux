@@ -324,8 +324,8 @@ void rcu_enter_nohz(void)
 	smp_mb(); /* CPUs seeing ++ must see prior RCU read-side crit sects */
 	local_irq_save(flags);
 	rdtp = &__get_cpu_var(rcu_dynticks);
-	rdtp->dynticks++;
-	rdtp->dynticks_nesting--;
+	if (--rdtp->dynticks_nesting == 0)
+		rdtp->dynticks++;
 	WARN_ON_ONCE(rdtp->dynticks & 0x1);
 	local_irq_restore(flags);
 }
