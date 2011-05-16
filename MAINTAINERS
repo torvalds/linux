@@ -2029,7 +2029,7 @@ M:	Giuseppe Cavallaro <peppe.cavallaro@st.com>
 L:	netdev@vger.kernel.org
 W:	http://www.stlinux.com
 S:	Supported
-F:	drivers/net/stmmac/
+F:	drivers/net/ethernet/stmicro/stmmac/
 
 CYBERPRO FB DRIVER
 M:	Russell King <linux@arm.linux.org.uk>
