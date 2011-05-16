@@ -532,6 +532,11 @@ struct vmbus_channel {
 	struct work_struct work;
 
 	enum vmbus_channel_state state;
+	/*
+	 * For util channels, stash the
+	 * the service index for easy access.
+	 */
+	s8 util_index;
 
 	struct vmbus_channel_offer_channel offermsg;
 	/*

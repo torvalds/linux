@@ -419,6 +419,7 @@ static void vmbus_process_offer(struct work_struct *work)
 		 * can cleanup properly
 		 */
 		newchannel->state = CHANNEL_OPEN_STATE;
+		newchannel->util_index = -1; /* Invalid index */
 
 		/* Open IC channels */
 		for (cnt = 0; cnt < MAX_MSG_TYPES; cnt++) {
@@ -430,6 +431,7 @@ static void vmbus_process_offer(struct work_struct *work)
 						 hv_cb_utils[cnt].callback,
 						 newchannel) == 0) {
 				hv_cb_utils[cnt].channel = newchannel;
+				newchannel->util_index = cnt;
 
 				pr_info("%s\n", hv_cb_utils[cnt].log_msg);
 
