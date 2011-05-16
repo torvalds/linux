@@ -20,6 +20,7 @@ obj-$(CONFIG_GPIO_MAX732X)	+= max732x.o
 obj-$(CONFIG_GPIO_MC33880)	+= mc33880.o
 obj-$(CONFIG_GPIO_MCP23S08)	+= mcp23s08.o
 obj-$(CONFIG_GPIO_MSM_V1)	+= gpio-msm-v1.o
+obj-$(CONFIG_GPIO_MSM_V2)	+= gpio-msm-v2.o
 obj-$(CONFIG_GPIO_74X164)	+= 74x164.o
 obj-$(CONFIG_ARCH_OMAP)         += gpio-omap.o
 obj-$(CONFIG_GPIO_PCA953X)	+= pca953x.o

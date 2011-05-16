@@ -98,6 +98,14 @@ config GPIO_MSM_V1
 	  Qualcomm MSM chips.  Most of the pins on the MSM can be
 	  selected for GPIO, and are controlled by this driver.
 
+config GPIO_MSM_V2
+	tristate "Qualcomm MSM GPIO v2"
+	depends on GPIOLIB && ARCH_MSM
+	help
+	  Say yes here to support the GPIO interface on ARM v7 based
+	  Qualcomm MSM chips.  Most of the pins on the MSM can be
+	  selected for GPIO, and are controlled by this driver.
+
 config GPIO_PLAT_SAMSUNG
 	def_bool y
 	depends on SAMSUNG_GPIOLIB_4BIT
