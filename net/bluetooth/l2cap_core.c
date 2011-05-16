@@ -847,13 +847,7 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	if (!sk)
 		goto clean;
 
-	chan = l2cap_chan_create(sk);
-	if (!chan) {
-		l2cap_sock_kill(sk);
-		goto clean;
-	}
-
-	l2cap_pi(sk)->chan = chan;
+	chan = l2cap_pi(sk)->chan;
 
 	write_lock_bh(&conn->chan_lock);
 
@@ -2340,14 +2334,6 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	if (!sk)
 		goto response;
 
-	chan = l2cap_chan_create(sk);
-	if (!chan) {
-		l2cap_sock_kill(sk);
-		goto response;
-	}
-
-	l2cap_pi(sk)->chan = chan;
-
 	write_lock_bh(&conn->chan_lock);
 
 	/* Check if we already have channel with that dcid */
@@ -2359,6 +2345,8 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	}
 
 	hci_conn_hold(conn->hcon);
+
+	chan = l2cap_pi(sk)->chan;
 
 	l2cap_sock_init(sk, parent);
 	bacpy(&bt_sk(sk)->src, conn->src);
