@@ -17,6 +17,14 @@
 #ifndef __LINUX_MFD_TPS65910_H
 #define __LINUX_MFD_TPS65910_H
 
+/* TPS chip id list */
+#define TPS65910			0
+#define TPS65911			1
+
+/* TPS regulator type list */
+#define REGULATOR_LDO			0
+#define REGULATOR_DCDC			1
+
 /*
  * List of registers for component TPS65910
  *
@@ -95,6 +103,21 @@
 #define TPS65910_GPIO5					0x65
 #define TPS65910_JTAGVERNUM				0x80
 #define TPS65910_MAX_REGISTER				0x80
+
+/*
+ * List of registers specific to TPS65911
+ */
+#define TPS65911_VDDCTRL				0x27
+#define TPS65911_VDDCTRL_OP				0x28
+#define TPS65911_VDDCTRL_SR				0x29
+#define TPS65911_LDO1					0x30
+#define TPS65911_LDO2					0x31
+#define TPS65911_LDO5					0x32
+#define TPS65911_LDO8					0x33
+#define TPS65911_LDO7					0x34
+#define TPS65911_LDO6					0x35
+#define TPS65911_LDO4					0x36
+#define TPS65911_LDO3					0x37
 
 /*
  * List of register bitfields for component TPS65910
@@ -702,6 +725,23 @@
 #define JTAGVERNUM_VERNUM_SHIFT				0
 
 
+/* Register VDDCTRL (0x27) bit definitions */
+#define VDDCTRL_ST_MASK                                  0x03
+#define VDDCTRL_ST_SHIFT                                 0
+
+
+/*Register VDDCTRL_OP  (0x28) bit definitios */
+#define VDDCTRL_OP_CMD_MASK                              0x80
+#define VDDCTRL_OP_CMD_SHIFT                             7
+#define VDDCTRL_OP_SEL_MASK                              0x7F
+#define VDDCTRL_OP_SEL_SHIFT                             0
+
+
+/*Register VDDCTRL_SR  (0x29) bit definitions */
+#define VDDCTRL_SR_SEL_MASK                              0x7F
+#define VDDCTRL_SR_SEL_SHIFT                             0
+
+
 /* IRQ Definitions */
 #define TPS65910_IRQ_VBAT_VMBDCH			0
 #define TPS65910_IRQ_VBAT_VMHI				1
@@ -742,6 +782,7 @@ struct tps65910 {
 	struct device *dev;
 	struct i2c_client *i2c_client;
 	struct mutex io_mutex;
+	unsigned int id;
 	int (*read)(struct tps65910 *tps65910, u8 reg, int size, void *dest);
 	int (*write)(struct tps65910 *tps65910, u8 reg, int size, void *src);
 
@@ -770,5 +811,10 @@ int tps65910_clear_bits(struct tps65910 *tps65910, u8 reg, u8 mask);
 void tps65910_gpio_init(struct tps65910 *tps65910, int gpio_base);
 int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 		struct tps65910_platform_data *pdata);
+
+static inline int tps65910_chip_id(struct tps65910 *tps65910)
+{
+	return tps65910->id;
+}
 
 #endif /*  __LINUX_MFD_TPS65910_H */

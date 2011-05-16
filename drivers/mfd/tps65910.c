@@ -157,6 +157,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, tps65910);
 	tps65910->dev = &i2c->dev;
 	tps65910->i2c_client = i2c;
+	tps65910->id = id->driver_data;
 	tps65910->read = tps65910_i2c_read;
 	tps65910->write = tps65910_i2c_write;
 	mutex_init(&tps65910->io_mutex);
@@ -192,7 +193,8 @@ static int tps65910_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id tps65910_i2c_id[] = {
-       { "tps65910", 0 },
+       { "tps65910", TPS65910 },
+       { "tps65911", TPS65911 },
        { }
 };
 MODULE_DEVICE_TABLE(i2c, tps65910_i2c_id);
