@@ -1457,12 +1457,6 @@ if NETDEV_10000
 config MDIO
 	tristate
 
-config TEHUTI
-	tristate "Tehuti Networks 10G Ethernet"
-	depends on PCI
-	help
-	  Tehuti Networks 10G Ethernet NIC
-
 endif # NETDEV_10000
 
 source "drivers/net/tokenring/Kconfig"
