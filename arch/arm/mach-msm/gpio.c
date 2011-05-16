@@ -21,8 +21,8 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <mach/cpu.h>
+#include <mach/msm_gpiomux.h>
 #include "gpio_hw.h"
-#include "gpiomux.h"
 
 #define FIRST_GPIO_IRQ MSM_GPIO_TO_INT(0)
 
