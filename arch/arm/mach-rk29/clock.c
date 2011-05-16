@@ -2476,7 +2476,6 @@ static void __init clk_enable_init_clocks(void)
 	clk_enable_nolock(&clk_intmem);
 	clk_enable_nolock(&clk_ddr);
 	clk_enable_nolock(&clk_debug);
-	clk_enable_nolock(&clk_tpiu);
 	clk_enable_nolock(&clk_jtag);
 	clk_enable_nolock(&clk_uart1);
 }
