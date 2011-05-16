@@ -763,6 +763,35 @@
 #define TPS65910_IRQ_GPIO_F				9
 #define TPS65910_NUM_IRQ				10
 
+#define TPS65911_IRQ_VBAT_VMBDCH			0
+#define TPS65911_IRQ_VBAT_VMBDCH2L			1
+#define TPS65911_IRQ_VBAT_VMBDCH2H			2
+#define TPS65911_IRQ_VBAT_VMHI				3
+#define TPS65911_IRQ_PWRON				4
+#define TPS65911_IRQ_PWRON_LP				5
+#define TPS65911_IRQ_PWRHOLD_F				6
+#define TPS65911_IRQ_PWRHOLD_R				7
+#define TPS65911_IRQ_HOTDIE				8
+#define TPS65911_IRQ_RTC_ALARM				9
+#define TPS65911_IRQ_RTC_PERIOD				10
+#define TPS65911_IRQ_GPIO0_R				11
+#define TPS65911_IRQ_GPIO0_F				12
+#define TPS65911_IRQ_GPIO1_R				13
+#define TPS65911_IRQ_GPIO1_F				14
+#define TPS65911_IRQ_GPIO2_R				15
+#define TPS65911_IRQ_GPIO2_F				16
+#define TPS65911_IRQ_GPIO3_R				17
+#define TPS65911_IRQ_GPIO3_F				18
+#define TPS65911_IRQ_GPIO4_R				19
+#define TPS65911_IRQ_GPIO4_F				20
+#define TPS65911_IRQ_GPIO5_R				21
+#define TPS65911_IRQ_GPIO5_F				22
+#define TPS65911_IRQ_WTCHDG				23
+#define TPS65911_IRQ_PWRDN				24
+
+#define TPS65911_NUM_IRQ				25
+
+
 /* GPIO Register Definitions */
 #define TPS65910_GPIO_DEB				BIT(2)
 #define TPS65910_GPIO_PUEN				BIT(3)
@@ -806,7 +835,8 @@ struct tps65910 {
 	struct mutex irq_lock;
 	int chip_irq;
 	int irq_base;
-	u16 irq_mask;
+	int irq_num;
+	u32 irq_mask;
 };
 
 struct tps65910_platform_data {
