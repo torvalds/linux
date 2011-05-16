@@ -75,7 +75,8 @@ endif
 
 boot			:= arch/unicore32/boot
 
-# Default target when executing plain make
+# Default defconfig and target when executing plain make
+KBUILD_DEFCONFIG	:= $(ARCH)_defconfig
 KBUILD_IMAGE		:= zImage
 
 all:	$(KBUILD_IMAGE)
