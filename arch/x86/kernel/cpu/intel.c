@@ -400,12 +400,10 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 
 		switch (c->x86_model) {
 		case 5:
-			if (c->x86_mask == 0) {
-				if (l2 == 0)
-					p = "Celeron (Covington)";
-				else if (l2 == 256)
-					p = "Mobile Pentium II (Dixon)";
-			}
+			if (l2 == 0)
+				p = "Celeron (Covington)";
+			else if (l2 == 256)
+				p = "Mobile Pentium II (Dixon)";
 			break;
 
 		case 6:
