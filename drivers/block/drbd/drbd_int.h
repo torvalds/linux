@@ -225,6 +225,7 @@ enum drbd_packet {
 	P_CONN_ST_CHG_REQ     = 0x2a, /* data sock: Connection wide state request */
 	P_CONN_ST_CHG_REPLY   = 0x2b, /* meta sock: Connection side state req reply */
 	P_RETRY_WRITE	      = 0x2c, /* Protocol C: retry conflicting write request */
+	P_PROTOCOL_UPDATE     = 0x2d, /* data sock: is used in established connections */
 
 	P_MAY_IGNORE	      = 0x100, /* Flag to test if (cmd > P_MAY_IGNORE) ... */
 	P_MAX_OPT_CMD	      = 0x101,
@@ -849,7 +850,7 @@ struct drbd_tconn {			/* is a resource from the config file */
 
 	struct crypto_hash *cram_hmac_tfm;
 	struct crypto_hash *integrity_tfm;  /* checksums we compute, updates protected by tconn->data->mutex */
-	struct crypto_hash *peer_integrity_tfm;  /* checksums we verify */
+	struct crypto_hash *peer_integrity_tfm;  /* checksums we verify, only accessed from receiver thread  */
 	struct crypto_hash *csums_tfm;
 	struct crypto_hash *verify_tfm;
 	void *int_dig_in;
