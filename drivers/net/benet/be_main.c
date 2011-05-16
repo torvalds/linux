@@ -351,14 +351,73 @@ static void populate_be3_stats(struct be_adapter *adapter)
 	adapter->drv_stats.eth_red_drops = pmem_sts->eth_red_drops;
 }
 
+static void populate_lancer_stats(struct be_adapter *adapter)
+{
 
+	struct be_drv_stats *drvs = &adapter->drv_stats;
+	struct lancer_cmd_pport_stats *pport_stats = pport_stats_from_cmd
+						(adapter);
+	drvs->rx_priority_pause_frames = 0;
+	drvs->pmem_fifo_overflow_drop = 0;
+	drvs->rx_pause_frames =
+		make_64bit_val(pport_stats->rx_pause_frames_lo,
+				 pport_stats->rx_pause_frames_hi);
+	drvs->rx_crc_errors = make_64bit_val(pport_stats->rx_crc_errors_hi,
+						pport_stats->rx_crc_errors_lo);
+	drvs->rx_control_frames =
+			make_64bit_val(pport_stats->rx_control_frames_hi,
+			pport_stats->rx_control_frames_lo);
+	drvs->rx_in_range_errors = pport_stats->rx_in_range_errors;
+	drvs->rx_frame_too_long =
+		make_64bit_val(pport_stats->rx_internal_mac_errors_hi,
+					pport_stats->rx_frames_too_long_lo);
+	drvs->rx_dropped_runt = pport_stats->rx_dropped_runt;
+	drvs->rx_ip_checksum_errs = pport_stats->rx_ip_checksum_errors;
+	drvs->rx_tcp_checksum_errs = pport_stats->rx_tcp_checksum_errors;
+	drvs->rx_udp_checksum_errs = pport_stats->rx_udp_checksum_errors;
+	drvs->rx_dropped_tcp_length =
+				pport_stats->rx_dropped_invalid_tcp_length;
+	drvs->rx_dropped_too_small = pport_stats->rx_dropped_too_small;
+	drvs->rx_dropped_too_short = pport_stats->rx_dropped_too_short;
+	drvs->rx_out_range_errors = pport_stats->rx_out_of_range_errors;
+	drvs->rx_dropped_header_too_small =
+				pport_stats->rx_dropped_header_too_small;
+	drvs->rx_input_fifo_overflow_drop = pport_stats->rx_fifo_overflow;
+	drvs->rx_address_match_errors = pport_stats->rx_address_match_errors;
+	drvs->rx_alignment_symbol_errors =
+		make_64bit_val(pport_stats->rx_symbol_errors_hi,
+				pport_stats->rx_symbol_errors_lo);
+	drvs->rxpp_fifo_overflow_drop = pport_stats->rx_fifo_overflow;
+	drvs->tx_pauseframes = make_64bit_val(pport_stats->tx_pause_frames_hi,
+					pport_stats->tx_pause_frames_lo);
+	drvs->tx_controlframes =
+		make_64bit_val(pport_stats->tx_control_frames_hi,
+				pport_stats->tx_control_frames_lo);
+	drvs->jabber_events = pport_stats->rx_jabbers;
+	drvs->rx_drops_no_pbuf = 0;
+	drvs->rx_drops_no_txpb = 0;
+	drvs->rx_drops_no_erx_descr = 0;
+	drvs->rx_drops_invalid_ring = pport_stats->rx_drops_invalid_queue;
+	drvs->forwarded_packets = make_64bit_val(pport_stats->num_forwards_hi,
+						pport_stats->num_forwards_lo);
+	drvs->rx_drops_mtu = make_64bit_val(pport_stats->rx_drops_mtu_hi,
+						pport_stats->rx_drops_mtu_lo);
+	drvs->rx_drops_no_tpre_descr = 0;
+	drvs->rx_drops_too_many_frags =
+		make_64bit_val(pport_stats->rx_drops_too_many_frags_hi,
+				pport_stats->rx_drops_too_many_frags_lo);
+}
 
 void be_parse_stats(struct be_adapter *adapter)
 {
-	if (adapter->generation == BE_GEN3)
-		populate_be3_stats(adapter);
-	else
+	if (adapter->generation == BE_GEN3) {
+		if (lancer_chip(adapter))
+			populate_lancer_stats(adapter);
+		 else
+			populate_be3_stats(adapter);
+	} else {
 		populate_be2_stats(adapter);
+	}
 }
 
 void netdev_stats_update(struct be_adapter *adapter)
@@ -375,10 +434,12 @@ void netdev_stats_update(struct be_adapter *adapter)
 		dev_stats->multicast += rx_stats(rxo)->rx_mcast_pkts;
 		/*  no space in linux buffers: best possible approximation */
 		if (adapter->generation == BE_GEN3) {
-			struct be_erx_stats_v1 *erx_stats =
+			if (!(lancer_chip(adapter))) {
+				struct be_erx_stats_v1 *erx_stats =
 					be_erx_stats_from_cmd(adapter);
-			dev_stats->rx_dropped +=
+				dev_stats->rx_dropped +=
 				erx_stats->rx_drops_no_fragments[rxo->q.id];
+			}
 		} else {
 			struct be_erx_stats_v0 *erx_stats =
 					be_erx_stats_from_cmd(adapter);
@@ -2022,9 +2083,13 @@ static void be_worker(struct work_struct *work)
 		goto reschedule;
 	}
 
-	if (!adapter->stats_cmd_sent)
-		be_cmd_get_stats(adapter, &adapter->stats_cmd);
-
+	if (!adapter->stats_cmd_sent) {
+		if (lancer_chip(adapter))
+			lancer_cmd_get_pport_stats(adapter,
+						&adapter->stats_cmd);
+		else
+			be_cmd_get_stats(adapter, &adapter->stats_cmd);
+	}
 	be_tx_rate_update(adapter);
 
 	for_all_rx_queues(adapter, rxo, i) {
@@ -2944,10 +3009,14 @@ static int be_stats_init(struct be_adapter *adapter)
 {
 	struct be_dma_mem *cmd = &adapter->stats_cmd;
 
-	if (adapter->generation == BE_GEN2)
+	if (adapter->generation == BE_GEN2) {
 		cmd->size = sizeof(struct be_cmd_req_get_stats_v0);
-	else
-		cmd->size = sizeof(struct be_cmd_req_get_stats_v1);
+	} else {
+		if (lancer_chip(adapter))
+			cmd->size = sizeof(struct lancer_cmd_req_pport_stats);
+		else
+			cmd->size = sizeof(struct be_cmd_req_get_stats_v1);
+	}
 	cmd->va = dma_alloc_coherent(&adapter->pdev->dev, cmd->size, &cmd->dma,
 				     GFP_KERNEL);
 	if (cmd->va == NULL)

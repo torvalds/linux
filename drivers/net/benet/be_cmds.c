@@ -78,14 +78,22 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 	}
 
 	if (compl_status == MCC_STATUS_SUCCESS) {
-		if ((compl->tag0 == OPCODE_ETH_GET_STATISTICS) &&
+		if (((compl->tag0 == OPCODE_ETH_GET_STATISTICS) ||
+			 (compl->tag0 == OPCODE_ETH_GET_PPORT_STATS)) &&
 			(compl->tag1 == CMD_SUBSYSTEM_ETH)) {
 			if (adapter->generation == BE_GEN3) {
-				struct be_cmd_resp_get_stats_v1 *resp =
+				if (lancer_chip(adapter)) {
+					struct lancer_cmd_resp_pport_stats
+						*resp = adapter->stats_cmd.va;
+					be_dws_le_to_cpu(&resp->pport_stats,
+						sizeof(resp->pport_stats));
+				} else {
+					struct be_cmd_resp_get_stats_v1 *resp =
 							adapter->stats_cmd.va;
 
 				be_dws_le_to_cpu(&resp->hw_stats,
 							sizeof(resp->hw_stats));
+				}
 			} else {
 				struct be_cmd_resp_get_stats_v0 *resp =
 							adapter->stats_cmd.va;
@@ -1110,6 +1118,49 @@ int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 
 	if (adapter->generation == BE_GEN3)
 		hdr->version = 1;
+
+	wrb->tag1 = CMD_SUBSYSTEM_ETH;
+	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
+	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(nonemb_cmd->size);
+
+	be_mcc_notify(adapter);
+	adapter->stats_cmd_sent = true;
+
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+/* Lancer Stats */
+int lancer_cmd_get_pport_stats(struct be_adapter *adapter,
+				struct be_dma_mem *nonemb_cmd)
+{
+
+	struct be_mcc_wrb *wrb;
+	struct lancer_cmd_req_pport_stats *req;
+	struct be_sge *sge;
+	int status = 0;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+	req = nonemb_cmd->va;
+	sge = nonembedded_sgl(wrb);
+
+	be_wrb_hdr_prepare(wrb, nonemb_cmd->size, false, 1,
+			OPCODE_ETH_GET_PPORT_STATS);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH,
+			OPCODE_ETH_GET_PPORT_STATS, nonemb_cmd->size);
+
+
+	req->cmd_params.params.pport_num = cpu_to_le16(adapter->port_num);
+	req->cmd_params.params.reset_stats = 0;
 
 	wrb->tag1 = CMD_SUBSYSTEM_ETH;
 	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));

@@ -203,6 +203,7 @@ struct be_mcc_mailbox {
 #define OPCODE_ETH_TX_DESTROY           		9
 #define OPCODE_ETH_RX_DESTROY           		10
 #define OPCODE_ETH_ACPI_WOL_MAGIC_CONFIG		12
+#define OPCODE_ETH_GET_PPORT_STATS			18
 
 #define OPCODE_LOWLEVEL_HOST_DDR_DMA                    17
 #define OPCODE_LOWLEVEL_LOOPBACK_TEST                   18
@@ -687,6 +688,200 @@ struct be_cmd_resp_get_stats_v0 {
 	struct be_cmd_resp_hdr hdr;
 	struct be_hw_stats_v0 hw_stats;
 };
+
+#define make_64bit_val(hi_32, lo_32)	(((u64)hi_32<<32) | lo_32)
+struct lancer_cmd_pport_stats {
+	u32 tx_packets_lo;
+	u32 tx_packets_hi;
+	u32 tx_unicast_packets_lo;
+	u32 tx_unicast_packets_hi;
+	u32 tx_multicast_packets_lo;
+	u32 tx_multicast_packets_hi;
+	u32 tx_broadcast_packets_lo;
+	u32 tx_broadcast_packets_hi;
+	u32 tx_bytes_lo;
+	u32 tx_bytes_hi;
+	u32 tx_unicast_bytes_lo;
+	u32 tx_unicast_bytes_hi;
+	u32 tx_multicast_bytes_lo;
+	u32 tx_multicast_bytes_hi;
+	u32 tx_broadcast_bytes_lo;
+	u32 tx_broadcast_bytes_hi;
+	u32 tx_discards_lo;
+	u32 tx_discards_hi;
+	u32 tx_errors_lo;
+	u32 tx_errors_hi;
+	u32 tx_pause_frames_lo;
+	u32 tx_pause_frames_hi;
+	u32 tx_pause_on_frames_lo;
+	u32 tx_pause_on_frames_hi;
+	u32 tx_pause_off_frames_lo;
+	u32 tx_pause_off_frames_hi;
+	u32 tx_internal_mac_errors_lo;
+	u32 tx_internal_mac_errors_hi;
+	u32 tx_control_frames_lo;
+	u32 tx_control_frames_hi;
+	u32 tx_packets_64_bytes_lo;
+	u32 tx_packets_64_bytes_hi;
+	u32 tx_packets_65_to_127_bytes_lo;
+	u32 tx_packets_65_to_127_bytes_hi;
+	u32 tx_packets_128_to_255_bytes_lo;
+	u32 tx_packets_128_to_255_bytes_hi;
+	u32 tx_packets_256_to_511_bytes_lo;
+	u32 tx_packets_256_to_511_bytes_hi;
+	u32 tx_packets_512_to_1023_bytes_lo;
+	u32 tx_packets_512_to_1023_bytes_hi;
+	u32 tx_packets_1024_to_1518_bytes_lo;
+	u32 tx_packets_1024_to_1518_bytes_hi;
+	u32 tx_packets_1519_to_2047_bytes_lo;
+	u32 tx_packets_1519_to_2047_bytes_hi;
+	u32 tx_packets_2048_to_4095_bytes_lo;
+	u32 tx_packets_2048_to_4095_bytes_hi;
+	u32 tx_packets_4096_to_8191_bytes_lo;
+	u32 tx_packets_4096_to_8191_bytes_hi;
+	u32 tx_packets_8192_to_9216_bytes_lo;
+	u32 tx_packets_8192_to_9216_bytes_hi;
+	u32 tx_lso_packets_lo;
+	u32 tx_lso_packets_hi;
+	u32 rx_packets_lo;
+	u32 rx_packets_hi;
+	u32 rx_unicast_packets_lo;
+	u32 rx_unicast_packets_hi;
+	u32 rx_multicast_packets_lo;
+	u32 rx_multicast_packets_hi;
+	u32 rx_broadcast_packets_lo;
+	u32 rx_broadcast_packets_hi;
+	u32 rx_bytes_lo;
+	u32 rx_bytes_hi;
+	u32 rx_unicast_bytes_lo;
+	u32 rx_unicast_bytes_hi;
+	u32 rx_multicast_bytes_lo;
+	u32 rx_multicast_bytes_hi;
+	u32 rx_broadcast_bytes_lo;
+	u32 rx_broadcast_bytes_hi;
+	u32 rx_unknown_protos;
+	u32 rsvd_69; /* Word 69 is reserved */
+	u32 rx_discards_lo;
+	u32 rx_discards_hi;
+	u32 rx_errors_lo;
+	u32 rx_errors_hi;
+	u32 rx_crc_errors_lo;
+	u32 rx_crc_errors_hi;
+	u32 rx_alignment_errors_lo;
+	u32 rx_alignment_errors_hi;
+	u32 rx_symbol_errors_lo;
+	u32 rx_symbol_errors_hi;
+	u32 rx_pause_frames_lo;
+	u32 rx_pause_frames_hi;
+	u32 rx_pause_on_frames_lo;
+	u32 rx_pause_on_frames_hi;
+	u32 rx_pause_off_frames_lo;
+	u32 rx_pause_off_frames_hi;
+	u32 rx_frames_too_long_lo;
+	u32 rx_frames_too_long_hi;
+	u32 rx_internal_mac_errors_lo;
+	u32 rx_internal_mac_errors_hi;
+	u32 rx_undersize_packets;
+	u32 rx_oversize_packets;
+	u32 rx_fragment_packets;
+	u32 rx_jabbers;
+	u32 rx_control_frames_lo;
+	u32 rx_control_frames_hi;
+	u32 rx_control_frames_unknown_opcode_lo;
+	u32 rx_control_frames_unknown_opcode_hi;
+	u32 rx_in_range_errors;
+	u32 rx_out_of_range_errors;
+	u32 rx_address_match_errors;
+	u32 rx_vlan_mismatch_errors;
+	u32 rx_dropped_too_small;
+	u32 rx_dropped_too_short;
+	u32 rx_dropped_header_too_small;
+	u32 rx_dropped_invalid_tcp_length;
+	u32 rx_dropped_runt;
+	u32 rx_ip_checksum_errors;
+	u32 rx_tcp_checksum_errors;
+	u32 rx_udp_checksum_errors;
+	u32 rx_non_rss_packets;
+	u32 rsvd_111;
+	u32 rx_ipv4_packets_lo;
+	u32 rx_ipv4_packets_hi;
+	u32 rx_ipv6_packets_lo;
+	u32 rx_ipv6_packets_hi;
+	u32 rx_ipv4_bytes_lo;
+	u32 rx_ipv4_bytes_hi;
+	u32 rx_ipv6_bytes_lo;
+	u32 rx_ipv6_bytes_hi;
+	u32 rx_nic_packets_lo;
+	u32 rx_nic_packets_hi;
+	u32 rx_tcp_packets_lo;
+	u32 rx_tcp_packets_hi;
+	u32 rx_iscsi_packets_lo;
+	u32 rx_iscsi_packets_hi;
+	u32 rx_management_packets_lo;
+	u32 rx_management_packets_hi;
+	u32 rx_switched_unicast_packets_lo;
+	u32 rx_switched_unicast_packets_hi;
+	u32 rx_switched_multicast_packets_lo;
+	u32 rx_switched_multicast_packets_hi;
+	u32 rx_switched_broadcast_packets_lo;
+	u32 rx_switched_broadcast_packets_hi;
+	u32 num_forwards_lo;
+	u32 num_forwards_hi;
+	u32 rx_fifo_overflow;
+	u32 rx_input_fifo_overflow;
+	u32 rx_drops_too_many_frags_lo;
+	u32 rx_drops_too_many_frags_hi;
+	u32 rx_drops_invalid_queue;
+	u32 rsvd_141;
+	u32 rx_drops_mtu_lo;
+	u32 rx_drops_mtu_hi;
+	u32 rx_packets_64_bytes_lo;
+	u32 rx_packets_64_bytes_hi;
+	u32 rx_packets_65_to_127_bytes_lo;
+	u32 rx_packets_65_to_127_bytes_hi;
+	u32 rx_packets_128_to_255_bytes_lo;
+	u32 rx_packets_128_to_255_bytes_hi;
+	u32 rx_packets_256_to_511_bytes_lo;
+	u32 rx_packets_256_to_511_bytes_hi;
+	u32 rx_packets_512_to_1023_bytes_lo;
+	u32 rx_packets_512_to_1023_bytes_hi;
+	u32 rx_packets_1024_to_1518_bytes_lo;
+	u32 rx_packets_1024_to_1518_bytes_hi;
+	u32 rx_packets_1519_to_2047_bytes_lo;
+	u32 rx_packets_1519_to_2047_bytes_hi;
+	u32 rx_packets_2048_to_4095_bytes_lo;
+	u32 rx_packets_2048_to_4095_bytes_hi;
+	u32 rx_packets_4096_to_8191_bytes_lo;
+	u32 rx_packets_4096_to_8191_bytes_hi;
+	u32 rx_packets_8192_to_9216_bytes_lo;
+	u32 rx_packets_8192_to_9216_bytes_hi;
+};
+
+struct pport_stats_params {
+	u16 pport_num;
+	u8 rsvd;
+	u8 reset_stats;
+};
+
+struct lancer_cmd_req_pport_stats {
+	struct be_cmd_req_hdr hdr;
+	union {
+		struct pport_stats_params params;
+		u8 rsvd[sizeof(struct lancer_cmd_pport_stats)];
+	} cmd_params;
+};
+
+struct lancer_cmd_resp_pport_stats {
+	struct be_cmd_resp_hdr hdr;
+	struct lancer_cmd_pport_stats pport_stats;
+};
+
+static inline  struct lancer_cmd_pport_stats*
+	pport_stats_from_cmd(struct be_adapter *adapter)
+{
+	struct lancer_cmd_resp_pport_stats *cmd = adapter->stats_cmd.va;
+	return &cmd->pport_stats;
+}
 
 struct be_cmd_req_get_cntl_addnl_attribs {
 	struct be_cmd_req_hdr hdr;
@@ -1257,6 +1452,8 @@ extern int be_cmd_link_status_query(struct be_adapter *adapter,
 			bool *link_up, u8 *mac_speed, u16 *link_speed, u32 dom);
 extern int be_cmd_reset(struct be_adapter *adapter);
 extern int be_cmd_get_stats(struct be_adapter *adapter,
+			struct be_dma_mem *nonemb_cmd);
+extern int lancer_cmd_get_pport_stats(struct be_adapter *adapter,
 			struct be_dma_mem *nonemb_cmd);
 extern int be_cmd_get_fw_ver(struct be_adapter *adapter, char *fw_ver);
 
