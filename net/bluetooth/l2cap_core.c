@@ -254,7 +254,7 @@ static void l2cap_chan_timeout(unsigned long arg)
 
 	bh_unlock_sock(sk);
 
-	l2cap_sock_kill(sk);
+	chan->ops->close(chan->data);
 	sock_put(sk);
 }
 
@@ -391,11 +391,12 @@ static void l2cap_chan_cleanup_listen(struct sock *parent)
 
 	/* Close not yet accepted channels */
 	while ((sk = bt_accept_dequeue(parent, NULL))) {
-		l2cap_chan_clear_timer(l2cap_pi(sk)->chan);
+		struct l2cap_chan *chan = l2cap_pi(sk)->chan;
+		l2cap_chan_clear_timer(chan);
 		lock_sock(sk);
-		l2cap_chan_close(l2cap_pi(sk)->chan, ECONNRESET);
+		l2cap_chan_close(chan, ECONNRESET);
 		release_sock(sk);
-		l2cap_sock_kill(sk);
+		chan->ops->close(chan->data);
 	}
 
 	parent->sk_state = BT_CLOSED;
@@ -994,7 +995,7 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 		bh_lock_sock(sk);
 		l2cap_chan_del(chan, err);
 		bh_unlock_sock(sk);
-		l2cap_sock_kill(sk);
+		chan->ops->close(chan->data);
 	}
 
 	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT)
@@ -2340,7 +2341,7 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	if (__l2cap_get_chan_by_dcid(conn, scid)) {
 		write_unlock_bh(&conn->chan_lock);
 		sock_set_flag(sk, SOCK_ZAPPED);
-		l2cap_sock_kill(sk);
+		chan->ops->close(chan->data);
 		goto response;
 	}
 
@@ -2713,7 +2714,7 @@ static inline int l2cap_disconnect_req(struct l2cap_conn *conn, struct l2cap_cmd
 	l2cap_chan_del(chan, ECONNRESET);
 	bh_unlock_sock(sk);
 
-	l2cap_sock_kill(sk);
+	chan->ops->close(chan->data);
 	return 0;
 }
 
@@ -2747,7 +2748,7 @@ static inline int l2cap_disconnect_rsp(struct l2cap_conn *conn, struct l2cap_cmd
 	l2cap_chan_del(chan, 0);
 	bh_unlock_sock(sk);
 
-	l2cap_sock_kill(sk);
+	chan->ops->close(chan->data);
 	return 0;
 }
 

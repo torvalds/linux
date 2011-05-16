@@ -364,6 +364,7 @@ struct l2cap_ops {
 
 	struct l2cap_chan	*(*new_connection) (void *data);
 	int			(*recv) (void *data, struct sk_buff *skb);
+	void			(*close) (void *data);
 };
 
 struct l2cap_conn {
@@ -468,8 +469,6 @@ int __l2cap_wait_ack(struct sock *sk);
 
 int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm);
 int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);
-
-void l2cap_sock_kill(struct sock *sk);
 
 struct l2cap_chan *l2cap_chan_create(struct sock *sk);
 void l2cap_chan_close(struct l2cap_chan *chan, int reason);
