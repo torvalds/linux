@@ -294,8 +294,6 @@ struct dsi_data {
 	bool te_enabled;
 	bool ulps_enabled;
 
-	struct workqueue_struct *workqueue;
-
 	void (*framedone_callback)(int, void *);
 	void *framedone_data;
 
@@ -3753,8 +3751,8 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 
 	dsi_perf_mark_start(dsidev);
 
-	r = queue_delayed_work(dsi->workqueue, &dsi->framedone_timeout_work,
-			msecs_to_jiffies(250));
+	r = schedule_delayed_work(&dsi->framedone_timeout_work,
+		msecs_to_jiffies(250));
 	BUG_ON(r == 0);
 
 	dss_start_update(dssdev);
@@ -4369,12 +4367,6 @@ static int dsi_init(struct platform_device *dsidev)
 	mutex_init(&dsi->lock);
 	sema_init(&dsi->bus_lock, 1);
 
-	dsi->workqueue = create_singlethread_workqueue(dev_name(&dsidev->dev));
-	if (dsi->workqueue == NULL) {
-		r = -ENOMEM;
-		goto err1;
-	}
-
 	INIT_DELAYED_WORK_DEFERRABLE(&dsi->framedone_timeout_work,
 			dsi_framedone_timeout_work_callback);
 
@@ -4387,26 +4379,26 @@ static int dsi_init(struct platform_device *dsidev)
 	if (!dsi_mem) {
 		DSSERR("can't get IORESOURCE_MEM DSI\n");
 		r = -EINVAL;
-		goto err2;
+		goto err1;
 	}
 	dsi->base = ioremap(dsi_mem->start, resource_size(dsi_mem));
 	if (!dsi->base) {
 		DSSERR("can't ioremap DSI\n");
 		r = -ENOMEM;
-		goto err2;
+		goto err1;
 	}
 	dsi->irq = platform_get_irq(dsi->pdev, 0);
 	if (dsi->irq < 0) {
 		DSSERR("platform_get_irq failed\n");
 		r = -ENODEV;
-		goto err3;
+		goto err2;
 	}
 
 	r = request_irq(dsi->irq, omap_dsi_irq_handler, IRQF_SHARED,
 		dev_name(&dsidev->dev), dsi->pdev);
 	if (r < 0) {
 		DSSERR("request_irq failed\n");
-		goto err3;
+		goto err2;
 	}
 
 	/* DSI VCs initialization */
@@ -4427,10 +4419,8 @@ static int dsi_init(struct platform_device *dsidev)
 	enable_clocks(0);
 
 	return 0;
-err3:
-	iounmap(dsi->base);
 err2:
-	destroy_workqueue(dsi->workqueue);
+	iounmap(dsi->base);
 err1:
 	kfree(dsi);
 err0:
@@ -4454,7 +4444,6 @@ static void dsi_exit(struct platform_device *dsidev)
 	free_irq(dsi->irq, dsi->pdev);
 	iounmap(dsi->base);
 
-	destroy_workqueue(dsi->workqueue);
 	kfree(dsi);
 
 	DSSDBG("omap_dsi_exit\n");
