@@ -420,6 +420,10 @@ struct omap_dss_device {
 			u8 data1_pol;
 			u8 data2_lane;
 			u8 data2_pol;
+			u8 data3_lane;
+			u8 data3_pol;
+			u8 data4_lane;
+			u8 data4_pol;
 
 			int module;
 

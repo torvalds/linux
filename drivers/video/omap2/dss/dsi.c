@@ -59,6 +59,7 @@ struct dsi_reg { u16 idx; };
 #define DSI_IRQSTATUS			DSI_REG(0x0018)
 #define DSI_IRQENABLE			DSI_REG(0x001C)
 #define DSI_CTRL			DSI_REG(0x0040)
+#define DSI_GNQ				DSI_REG(0x0044)
 #define DSI_COMPLEXIO_CFG1		DSI_REG(0x0048)
 #define DSI_COMPLEXIO_IRQ_STATUS	DSI_REG(0x004C)
 #define DSI_COMPLEXIO_IRQ_ENABLE	DSI_REG(0x0050)
@@ -238,6 +239,10 @@ enum dsi_lane {
 	DSI_DATA1_N	= 1 << 3,
 	DSI_DATA2_P	= 1 << 4,
 	DSI_DATA2_N	= 1 << 5,
+	DSI_DATA3_P	= 1 << 6,
+	DSI_DATA3_N	= 1 << 7,
+	DSI_DATA4_P	= 1 << 8,
+	DSI_DATA4_N	= 1 << 9,
 };
 
 struct dsi_update_region {
@@ -325,6 +330,8 @@ struct dsi_data {
 	unsigned long  regm_dispc_max, regm_dsi_max;
 	unsigned long  fint_min, fint_max;
 	unsigned long lpdiv_max;
+
+	int num_data_lanes;
 
 	unsigned scp_clk_refcount;
 };
@@ -2001,10 +2008,39 @@ static int dsi_cio_power(struct platform_device *dsidev,
 	return 0;
 }
 
+/* Number of data lanes present on DSI interface */
+static inline int dsi_get_num_data_lanes(struct platform_device *dsidev)
+{
+	/* DSI on OMAP3 doesn't have register DSI_GNQ, set number
+	 * of data lanes as 2 by default */
+	if (dss_has_feature(FEAT_DSI_GNQ))
+		return REG_GET(dsidev, DSI_GNQ, 11, 9);	/* NB_DATA_LANES */
+	else
+		return 2;
+}
+
+/* Number of data lanes used by the dss device */
+static inline int dsi_get_num_data_lanes_dssdev(struct omap_dss_device *dssdev)
+{
+	int num_data_lanes = 0;
+
+	if (dssdev->phy.dsi.data1_lane != 0)
+		num_data_lanes++;
+	if (dssdev->phy.dsi.data2_lane != 0)
+		num_data_lanes++;
+	if (dssdev->phy.dsi.data3_lane != 0)
+		num_data_lanes++;
+	if (dssdev->phy.dsi.data4_lane != 0)
+		num_data_lanes++;
+
+	return num_data_lanes;
+}
+
 static void dsi_set_lane_config(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	u32 r;
+	int num_data_lanes_dssdev = dsi_get_num_data_lanes_dssdev(dssdev);
 
 	int clk_lane   = dssdev->phy.dsi.clk_lane;
 	int data1_lane = dssdev->phy.dsi.data1_lane;
@@ -2020,6 +2056,20 @@ static void dsi_set_lane_config(struct omap_dss_device *dssdev)
 	r = FLD_MOD(r, data1_pol, 7, 7);
 	r = FLD_MOD(r, data2_lane, 10, 8);
 	r = FLD_MOD(r, data2_pol, 11, 11);
+	if (num_data_lanes_dssdev > 2) {
+		int data3_lane  = dssdev->phy.dsi.data3_lane;
+		int data3_pol  = dssdev->phy.dsi.data3_pol;
+
+		r = FLD_MOD(r, data3_lane, 14, 12);
+		r = FLD_MOD(r, data3_pol, 15, 15);
+	}
+	if (num_data_lanes_dssdev > 3) {
+		int data4_lane  = dssdev->phy.dsi.data4_lane;
+		int data4_pol  = dssdev->phy.dsi.data4_pol;
+
+		r = FLD_MOD(r, data4_lane, 18, 16);
+		r = FLD_MOD(r, data4_pol, 19, 19);
+	}
 	dsi_write_reg(dsidev, DSI_COMPLEXIO_CFG1, r);
 
 	/* The configuration of the DSI complex I/O (number of data lanes,
@@ -2132,14 +2182,20 @@ static void dsi_cio_enable_lane_override(struct omap_dss_device *dssdev,
 		enum dsi_lane lanes)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int clk_lane   = dssdev->phy.dsi.clk_lane;
 	int data1_lane = dssdev->phy.dsi.data1_lane;
 	int data2_lane = dssdev->phy.dsi.data2_lane;
+	int data3_lane = dssdev->phy.dsi.data3_lane;
+	int data4_lane = dssdev->phy.dsi.data4_lane;
 	int clk_pol    = dssdev->phy.dsi.clk_pol;
 	int data1_pol  = dssdev->phy.dsi.data1_pol;
 	int data2_pol  = dssdev->phy.dsi.data2_pol;
+	int data3_pol  = dssdev->phy.dsi.data3_pol;
+	int data4_pol  = dssdev->phy.dsi.data4_pol;
 
 	u32 l = 0;
+	u8 lptxscp_start = dsi->num_data_lanes == 2 ? 22 : 26;
 
 	if (lanes & DSI_CLK_P)
 		l |= 1 << ((clk_lane - 1) * 2 + (clk_pol ? 0 : 1));
@@ -2156,17 +2212,28 @@ static void dsi_cio_enable_lane_override(struct omap_dss_device *dssdev,
 	if (lanes & DSI_DATA2_N)
 		l |= 1 << ((data2_lane - 1) * 2 + (data2_pol ? 1 : 0));
 
+	if (lanes & DSI_DATA3_P)
+		l |= 1 << ((data3_lane - 1) * 2 + (data3_pol ? 0 : 1));
+	if (lanes & DSI_DATA3_N)
+		l |= 1 << ((data3_lane - 1) * 2 + (data3_pol ? 1 : 0));
+
+	if (lanes & DSI_DATA4_P)
+		l |= 1 << ((data4_lane - 1) * 2 + (data4_pol ? 0 : 1));
+	if (lanes & DSI_DATA4_N)
+		l |= 1 << ((data4_lane - 1) * 2 + (data4_pol ? 1 : 0));
 	/*
 	 * Bits in REGLPTXSCPDAT4TO0DXDY:
 	 * 17: DY0 18: DX0
 	 * 19: DY1 20: DX1
 	 * 21: DY2 22: DX2
+	 * 23: DY3 24: DX3
+	 * 25: DY4 26: DX4
 	 */
 
 	/* Set the lane override configuration */
 
 	/* REGLPTXSCPDAT4TO0DXDY */
-	REG_FLD_MOD(dsidev, DSI_DSIPHY_CFG10, l, 22, 17);
+	REG_FLD_MOD(dsidev, DSI_DSIPHY_CFG10, l, lptxscp_start, 17);
 
 	/* Enable lane override */
 
@@ -2248,6 +2315,7 @@ static int dsi_cio_init(struct omap_dss_device *dssdev)
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int r;
+	int num_data_lanes_dssdev = dsi_get_num_data_lanes_dssdev(dssdev);
 	u32 l;
 
 	DSSDBGF();
@@ -2279,6 +2347,8 @@ static int dsi_cio_init(struct omap_dss_device *dssdev)
 	dsi_write_reg(dsidev, DSI_TIMING1, l);
 
 	if (dsi->ulps_enabled) {
+		u32 lane_mask = DSI_CLK_P | DSI_DATA1_P | DSI_DATA2_P;
+
 		DSSDBG("manual ulps exit\n");
 
 		/* ULPS is exited by Mark-1 state for 1ms, followed by
@@ -2289,8 +2359,13 @@ static int dsi_cio_init(struct omap_dss_device *dssdev)
 		 * manually.
 		 */
 
-		dsi_cio_enable_lane_override(dssdev,
-				DSI_CLK_P | DSI_DATA1_P | DSI_DATA2_P);
+		if (num_data_lanes_dssdev > 2)
+			lane_mask |= DSI_DATA3_P;
+
+		if (num_data_lanes_dssdev > 3)
+			lane_mask |= DSI_DATA4_P;
+
+		dsi_cio_enable_lane_override(dssdev, lane_mask);
 	}
 
 	r = dsi_cio_power(dsidev, DSI_COMPLEXIO_POWER_ON);
@@ -3495,12 +3570,7 @@ static void dsi_proto_timings(struct omap_dss_device *dssdev)
 	/* min 60ns + 52*UI */
 	tclk_post = ns2ddr(dsidev, 60) + 26;
 
-	/* ths_eot is 2 for 2 datalanes and 4 for 1 datalane */
-	if (dssdev->phy.dsi.data1_lane != 0 &&
-			dssdev->phy.dsi.data2_lane != 0)
-		ths_eot = 2;
-	else
-		ths_eot = 4;
+	ths_eot = DIV_ROUND_UP(4, dsi_get_num_data_lanes_dssdev(dssdev));
 
 	ddr_clk_pre = DIV_ROUND_UP(tclk_pre + tlpx + tclk_zero + tclk_prepare,
 			4);
@@ -4220,6 +4290,7 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	int dsi_module = dsi_get_dsidev_id(dsidev);
 
 	DSSDBG("DSI init\n");
 
@@ -4238,6 +4309,12 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 		}
 
 		dsi->vdds_dsi_reg = vdds_dsi;
+	}
+
+	if (dsi_get_num_data_lanes_dssdev(dssdev) > dsi->num_data_lanes) {
+		DSSERR("DSI%d can't support more than %d data lanes\n",
+			dsi_module + 1, dsi->num_data_lanes);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -4415,6 +4492,8 @@ static int dsi_init(struct platform_device *dsidev)
 	rev = dsi_read_reg(dsidev, DSI_REVISION);
 	dev_dbg(&dsidev->dev, "OMAP DSI rev %d.%d\n",
 	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
+
+	dsi->num_data_lanes = dsi_get_num_data_lanes(dsidev);
 
 	enable_clocks(0);
 
