@@ -1006,7 +1006,14 @@ skip:
 	}
 
 	len = erst_read(record_id, &rcd->hdr, sizeof(*rcd) +
-			  erst_erange.size);
+			erst_info.bufsize);
+	/* The record may be cleared by others, try read next record */
+	if (len == -ENOENT)
+		goto skip;
+	else if (len < 0) {
+		rc = -1;
+		goto out;
+	}
 	if (uuid_le_cmp(rcd->hdr.creator_id, CPER_CREATOR_PSTORE) != 0)
 		goto skip;
 
