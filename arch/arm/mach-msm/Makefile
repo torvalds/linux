@@ -34,6 +34,4 @@ ifndef CONFIG_ARCH_MSM8960
 # TODO: TLMM Mapping issues need to be resolved
 obj-y	+= gpio-v2.o
 endif
-else
-obj-y	+= gpio.o
 endif
