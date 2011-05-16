@@ -140,6 +140,9 @@ asmlinkage void aesni_gcm_dec(void *ctx, u8 *out,
 			u8 *hash_subkey, const u8 *aad, unsigned long aad_len,
 			u8 *auth_tag, unsigned long auth_tag_len);
 
+int crypto_fpu_init(void);
+void crypto_fpu_exit(void);
+
 static inline struct
 aesni_rfc4106_gcm_ctx *aesni_rfc4106_gcm_ctx_get(struct crypto_aead *tfm)
 {
@@ -1257,6 +1260,8 @@ static int __init aesni_init(void)
 		return -ENODEV;
 	}
 
+	if ((err = crypto_fpu_init()))
+		goto fpu_err;
 	if ((err = crypto_register_alg(&aesni_alg)))
 		goto aes_err;
 	if ((err = crypto_register_alg(&__aesni_alg)))
@@ -1334,6 +1339,7 @@ blk_ecb_err:
 __aes_err:
 	crypto_unregister_alg(&aesni_alg);
 aes_err:
+fpu_err:
 	return err;
 }
 
@@ -1363,6 +1369,8 @@ static void __exit aesni_exit(void)
 	crypto_unregister_alg(&blk_ecb_alg);
 	crypto_unregister_alg(&__aesni_alg);
 	crypto_unregister_alg(&aesni_alg);
+
+	crypto_fpu_exit();
 }
 
 module_init(aesni_init);
