@@ -4681,6 +4681,9 @@ static int ext4_quota_off(struct super_block *sb, int type)
 	if (test_opt(sb, DELALLOC))
 		sync_filesystem(sb);
 
+	if (!inode)
+		goto out;
+
 	/* Update modification times of quota files when userspace can
 	 * start looking at them */
 	handle = ext4_journal_start(inode, 1);
