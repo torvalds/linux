@@ -232,7 +232,6 @@
 #define VDD2_OP_SEL_MASK				0x7F
 #define VDD2_OP_SEL_SHIFT				0
 
-
 /*Register VDD2_SR  (0x80) register.RegisterDescription */
 #define VDD2_SR_SEL_MASK				0x7F
 #define VDD2_SR_SEL_SHIFT				0
@@ -249,6 +248,8 @@
 #define VDD3_CKINEN_SHIFT				2
 #define VDD3_ST_MASK					0x03
 #define VDD3_ST_SHIFT					0
+#define VDDCTRL_MIN_VOLT				6000
+#define VDDCTRL_OFFSET					125
 
 /*Registers VDIG (0x80) to VDAC register.RegisterDescription */
 #define LDO_SEL_MASK					0x0C
@@ -257,6 +258,13 @@
 #define LDO_ST_SHIFT					0
 #define LDO_ST_ON_BIT					0x01
 #define LDO_ST_MODE_BIT					0x02	
+
+
+/* Registers LDO1 to LDO8 in tps65910 */
+#define LDO1_SEL_MASK					0xFC
+#define LDO3_SEL_MASK					0x7C
+#define LDO_MIN_VOLT					1000
+#define LDO_MAX_VOLT					3300;
 
 
 /*Register VDIG1  (0x80) register.RegisterDescription */
