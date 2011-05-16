@@ -205,6 +205,14 @@ static inline struct exofs_i_info *exofs_i(struct inode *inode)
  */
 unsigned exofs_layout_od_id(struct exofs_layout *layout,
 			    osd_id obj_no, unsigned layout_index);
+
+static inline struct osd_dev *exofs_ios_od(struct exofs_io_state *ios,
+					   unsigned layout_index)
+{
+	return ios->layout->s_ods[
+		exofs_layout_od_id(ios->layout, ios->obj.id, layout_index)];
+}
+
 /*
  * Maximum count of links to a file
  */
@@ -215,11 +223,6 @@ unsigned exofs_layout_od_id(struct exofs_layout *layout,
  *************************/
 
 /* ios.c */
-void exofs_make_credential(u8 cred_a[OSD_CAP_LEN],
-			   const struct osd_obj_id *obj);
-int exofs_read_kern(struct osd_dev *od, u8 *cred, struct osd_obj_id *obj,
-		    u64 offset, void *p, unsigned length);
-
 int  exofs_get_rw_state(struct exofs_layout *layout, bool is_reading,
 			u64 offset, u64 length, struct exofs_io_state **ios);
 int  exofs_get_io_state(struct exofs_layout *layout,
@@ -234,6 +237,7 @@ int exofs_sbi_write(struct exofs_io_state *ios);
 int exofs_sbi_read(struct exofs_io_state *ios);
 
 int extract_attr_from_ios(struct exofs_io_state *ios, struct osd_attr *attr);
+extern const struct osd_attr g_attr_logical_length;
 
 int exofs_oi_truncate(struct exofs_i_info *oi, u64 new_len);
 static inline int exofs_oi_write(struct exofs_i_info *oi,
@@ -278,6 +282,8 @@ int exofs_set_link(struct inode *, struct exofs_dir_entry *, struct page *,
 		    struct inode *);
 
 /* super.c               */
+void exofs_make_credential(u8 cred_a[OSD_CAP_LEN],
+			   const struct osd_obj_id *obj);
 int exofs_sbi_write_stats(struct exofs_sb_info *sbi);
 
 /*********************
@@ -292,7 +298,6 @@ extern const struct file_operations exofs_file_operations;
 
 /* inode.c           */
 extern const struct address_space_operations exofs_aops;
-extern const struct osd_attr g_attr_logical_length;
 
 /* namei.c           */
 extern const struct inode_operations exofs_dir_inode_operations;

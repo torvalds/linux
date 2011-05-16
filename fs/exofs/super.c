@@ -40,6 +40,8 @@
 
 #include "exofs.h"
 
+#define EXOFS_DBGMSG2(M...) do {} while (0)
+
 /******************************************************************************
  * MOUNT OPTIONS
  *****************************************************************************/
@@ -208,10 +210,64 @@ static void destroy_inodecache(void)
 }
 
 /******************************************************************************
- * SUPERBLOCK FUNCTIONS
+ * Some osd helpers
  *****************************************************************************/
-static const struct super_operations exofs_sops;
-static const struct export_operations exofs_export_ops;
+void exofs_make_credential(u8 cred_a[OSD_CAP_LEN], const struct osd_obj_id *obj)
+{
+	osd_sec_init_nosec_doall_caps(cred_a, obj, false, true);
+}
+
+static int exofs_read_kern(struct osd_dev *od, u8 *cred, struct osd_obj_id *obj,
+		    u64 offset, void *p, unsigned length)
+{
+	struct osd_request *or = osd_start_request(od, GFP_KERNEL);
+/*	struct osd_sense_info osi = {.key = 0};*/
+	int ret;
+
+	if (unlikely(!or)) {
+		EXOFS_DBGMSG("%s: osd_start_request failed.\n", __func__);
+		return -ENOMEM;
+	}
+	ret = osd_req_read_kern(or, obj, offset, p, length);
+	if (unlikely(ret)) {
+		EXOFS_DBGMSG("%s: osd_req_read_kern failed.\n", __func__);
+		goto out;
+	}
+
+	ret = osd_finalize_request(or, 0, cred, NULL);
+	if (unlikely(ret)) {
+		EXOFS_DBGMSG("Failed to osd_finalize_request() => %d\n", ret);
+		goto out;
+	}
+
+	ret = osd_execute_request(or);
+	if (unlikely(ret))
+		EXOFS_DBGMSG("osd_execute_request() => %d\n", ret);
+	/* osd_req_decode_sense(or, ret); */
+
+out:
+	osd_end_request(or);
+	EXOFS_DBGMSG2("read_kern(0x%llx) offset=0x%llx "
+		      "length=0x%llx dev=%p ret=>%d\n",
+		      _LLU(obj->id), _LLU(offset), _LLU(length), od, ret);
+	return ret;
+}
+
+unsigned exofs_layout_od_id(struct exofs_layout *layout,
+			    osd_id obj_no, unsigned layout_index)
+{
+/*	switch (layout->lay_func) {
+	case LAYOUT_MOVING_WINDOW:
+	{*/
+		unsigned dev_mod = obj_no;
+
+		return (layout_index + dev_mod * layout->mirrors_p1) %
+							      layout->s_numdevs;
+/*	}
+	case LAYOUT_FUNC_IMPLICT:
+		return layout->devs[layout_index];
+	}*/
+}
 
 static const struct osd_attr g_attr_sb_stats = ATTR_DEF(
 	EXOFS_APAGE_SB_DATA,
@@ -307,6 +363,12 @@ int exofs_sbi_write_stats(struct exofs_sb_info *sbi)
 
 	return ret;
 }
+
+/******************************************************************************
+ * SUPERBLOCK FUNCTIONS
+ *****************************************************************************/
+static const struct super_operations exofs_sops;
+static const struct export_operations exofs_export_ops;
 
 /*
  * Write the superblock to the OSD

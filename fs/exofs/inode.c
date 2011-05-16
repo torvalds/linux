@@ -852,9 +852,6 @@ static inline int exofs_inode_is_fast_symlink(struct inode *inode)
 	return S_ISLNK(inode->i_mode) && (oi->i_data[0] != 0);
 }
 
-const struct osd_attr g_attr_logical_length = ATTR_DEF(
-	OSD_APAGE_OBJECT_INFORMATION, OSD_ATTR_OI_LOGICAL_LENGTH, 8);
-
 static int _do_truncate(struct inode *inode, loff_t newsize)
 {
 	struct exofs_i_info *oi = exofs_i(inode);
