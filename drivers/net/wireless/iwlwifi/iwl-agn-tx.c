@@ -750,12 +750,10 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	spin_unlock(&priv->sta_lock);
 
 	/* Attach buffers to TFD */
-	priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
-						   txcmd_phys, firstlen, 1, 0);
+	iwlagn_txq_attach_buf_to_tfd(priv, txq, txcmd_phys, firstlen, 1);
 	if (secondlen > 0)
-		priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
-							   phys_addr, secondlen,
-							   0, 0);
+		iwlagn_txq_attach_buf_to_tfd(priv, txq, phys_addr,
+					     secondlen, 0);
 
 	scratch_phys = txcmd_phys + sizeof(struct iwl_cmd_header) +
 				offsetof(struct iwl_tx_cmd, scratch);
@@ -911,7 +909,7 @@ int iwlagn_txq_ctx_alloc(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Turn off all Tx DMA fifos */
-	priv->cfg->ops->lib->txq_set_sched(priv, 0);
+	iwlagn_txq_set_sched(priv, 0);
 
 	/* Tell NIC where to find the "keep warm" buffer */
 	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG, priv->kw.dma >> 4);
@@ -949,7 +947,7 @@ void iwlagn_txq_ctx_reset(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Turn off all Tx DMA fifos */
-	priv->cfg->ops->lib->txq_set_sched(priv, 0);
+	iwlagn_txq_set_sched(priv, 0);
 
 	/* Tell NIC where to find the "keep warm" buffer */
 	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG, priv->kw.dma >> 4);
@@ -975,7 +973,7 @@ void iwlagn_txq_ctx_stop(struct iwl_priv *priv)
 	/* Turn off all Tx DMA fifos */
 	spin_lock_irqsave(&priv->lock, flags);
 
-	priv->cfg->ops->lib->txq_set_sched(priv, 0);
+	iwlagn_txq_set_sched(priv, 0);
 
 	/* Stop each Tx DMA channel, and wait for it to be idle */
 	for (ch = 0; ch < priv->hw_params.dma_chnl_num; ch++) {
@@ -1258,7 +1256,7 @@ int iwlagn_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 
 		iwlagn_txq_inval_byte_cnt_tbl(priv, txq);
 
-		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
+		iwlagn_txq_free_tfd(priv, txq);
 	}
 	return nfreed;
 }
