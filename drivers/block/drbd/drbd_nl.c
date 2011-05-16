@@ -1722,10 +1722,24 @@ _check_net_options(struct drbd_tconn *tconn, struct net_conf *old_conf, struct n
 	struct drbd_conf *mdev;
 	int i;
 
-	if (old_conf && tconn->agreed_pro_version < 100 &&
-	    tconn->cstate == C_WF_REPORT_PARAMS &&
-	    new_conf->wire_protocol != old_conf->wire_protocol)
-		return ERR_NEED_APV_100;
+	if (old_conf && tconn->cstate == C_WF_REPORT_PARAMS && tconn->agreed_pro_version < 100) {
+		if (new_conf->wire_protocol != old_conf->wire_protocol)
+			return ERR_NEED_APV_100;
+
+		if (new_conf->two_primaries != old_conf->two_primaries)
+			return ERR_NEED_APV_100;
+
+		if (!new_conf->integrity_alg != !old_conf->integrity_alg)
+			return ERR_NEED_APV_100;
+
+		if (strcmp(new_conf->integrity_alg, old_conf->integrity_alg))
+			return ERR_NEED_APV_100;
+	}
+
+	if (!new_conf->two_primaries &&
+	    conn_highest_role(tconn) == R_PRIMARY &&
+	    conn_highest_peer(tconn) == R_PRIMARY)
+		return ERR_NEED_ALLOW_TWO_PRI;
 
 	if (new_conf->two_primaries &&
 	    (new_conf->wire_protocol != DRBD_PROT_C))
