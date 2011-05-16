@@ -326,6 +326,7 @@ static inline int oo_objects(struct kmem_cache_order_objects x)
 	return x.x & OO_MASK;
 }
 
+#ifdef CONFIG_SLUB_DEBUG
 /*
  * Determine a map of object in use on a page.
  *
@@ -341,7 +342,6 @@ static void get_map(struct kmem_cache *s, struct page *page, unsigned long *map)
 		set_bit(slab_index(p, s, addr), map);
 }
 
-#ifdef CONFIG_SLUB_DEBUG
 /*
  * Debug settings:
  */
