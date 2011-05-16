@@ -721,8 +721,9 @@ config MFD_PM8XXX_IRQ
 
 config MFD_TPS65910
 	bool "TPS65910 Power Management chip"
-	depends on I2C=y && GPIOLIB
+	depends on I2C=y
 	select MFD_CORE
+	select GPIO_TPS65910
 	help
 	  if you say yes here you get support for the TPS65910 series of
 	  Power Management chips.
