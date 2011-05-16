@@ -1698,7 +1698,7 @@ static void l2cap_raw_recv(struct l2cap_conn *conn, struct sk_buff *skb)
 		if (!nskb)
 			continue;
 
-		if (sock_queue_rcv_skb(sk, nskb))
+		if (chan->ops->recv(chan->data, nskb))
 			kfree_skb(nskb);
 	}
 	read_unlock(&conn->chan_lock);
@@ -3124,7 +3124,7 @@ static int l2cap_ertm_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *sk
 		if (chan->conn_state & L2CAP_CONN_SAR_SDU)
 			goto drop;
 
-		return sock_queue_rcv_skb(chan->sk, skb);
+		return chan->ops->recv(chan->data, skb);
 
 	case L2CAP_SDU_START:
 		if (chan->conn_state & L2CAP_CONN_SAR_SDU)
@@ -3190,7 +3190,7 @@ static int l2cap_ertm_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *sk
 			return -ENOMEM;
 		}
 
-		err = sock_queue_rcv_skb(chan->sk, _skb);
+		err = chan->ops->recv(chan->data, _skb);
 		if (err < 0) {
 			kfree_skb(_skb);
 			chan->conn_state |= L2CAP_CONN_SAR_RETRY;
@@ -3358,7 +3358,7 @@ static int l2cap_streaming_reassembly_sdu(struct l2cap_chan *chan, struct sk_buf
 			break;
 		}
 
-		err = sock_queue_rcv_skb(chan->sk, skb);
+		err = chan->ops->recv(chan->data, skb);
 		if (!err)
 			return 0;
 
@@ -3419,7 +3419,7 @@ static int l2cap_streaming_reassembly_sdu(struct l2cap_chan *chan, struct sk_buf
 
 		if (chan->partial_sdu_len == chan->sdu_len) {
 			_skb = skb_clone(chan->sdu, GFP_ATOMIC);
-			err = sock_queue_rcv_skb(chan->sk, _skb);
+			err = chan->ops->recv(chan->data, _skb);
 			if (err < 0)
 				kfree_skb(_skb);
 		}
@@ -3886,7 +3886,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		if (chan->imtu < skb->len)
 			goto drop;
 
-		if (!sock_queue_rcv_skb(sk, skb))
+		if (!chan->ops->recv(chan->data, skb))
 			goto done;
 		break;
 
@@ -3964,7 +3964,7 @@ static inline int l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm, str
 	if (l2cap_pi(sk)->chan->imtu < skb->len)
 		goto drop;
 
-	if (!sock_queue_rcv_skb(sk, skb))
+	if (!chan->ops->recv(chan->data, skb))
 		goto done;
 
 drop:
@@ -3997,7 +3997,7 @@ static inline int l2cap_att_channel(struct l2cap_conn *conn, __le16 cid, struct 
 	if (l2cap_pi(sk)->chan->imtu < skb->len)
 		goto drop;
 
-	if (!sock_queue_rcv_skb(sk, skb))
+	if (!chan->ops->recv(chan->data, skb))
 		goto done;
 
 drop:
