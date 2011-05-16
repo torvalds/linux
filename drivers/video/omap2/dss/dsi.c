@@ -2036,6 +2036,37 @@ static inline int dsi_get_num_data_lanes_dssdev(struct omap_dss_device *dssdev)
 	return num_data_lanes;
 }
 
+static unsigned dsi_get_line_buf_size(struct platform_device *dsidev)
+{
+	int val;
+
+	/* line buffer on OMAP3 is 1024 x 24bits */
+	/* XXX: for some reason using full buffer size causes
+	 * considerable TX slowdown with update sizes that fill the
+	 * whole buffer */
+	if (!dss_has_feature(FEAT_DSI_GNQ))
+		return 1023 * 3;
+
+	val = REG_GET(dsidev, DSI_GNQ, 14, 12); /* VP1_LINE_BUFFER_SIZE */
+
+	switch (val) {
+	case 1:
+		return 512 * 3;		/* 512x24 bits */
+	case 2:
+		return 682 * 3;		/* 682x24 bits */
+	case 3:
+		return 853 * 3;		/* 853x24 bits */
+	case 4:
+		return 1024 * 3;	/* 1024x24 bits */
+	case 5:
+		return 1194 * 3;	/* 1194x24 bits */
+	case 6:
+		return 1365 * 3;	/* 1365x24 bits */
+	default:
+		BUG();
+	}
+}
+
 static void dsi_set_lane_config(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
@@ -3771,10 +3802,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	u32 l;
 	int r;
 	const unsigned channel = dsi->update_channel;
-	/* line buffer is 1024 x 24bits */
-	/* XXX: for some reason using full buffer size causes considerable TX
-	 * slowdown with update sizes that fill the whole buffer */
-	const unsigned line_buf_size = 1023 * 3;
+	const unsigned line_buf_size = dsi_get_line_buf_size(dsidev);
 
 	DSSDBG("dsi_update_screen_dispc(%d,%d %dx%d)\n",
 			x, y, w, h);
