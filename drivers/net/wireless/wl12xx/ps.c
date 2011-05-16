@@ -169,9 +169,11 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 		wl1271_debug(DEBUG_PSM, "leaving psm");
 
 		/* disable beacon early termination */
-		ret = wl1271_acx_bet_enable(wl, false);
-		if (ret < 0)
-			return ret;
+		if (wl->band == IEEE80211_BAND_2GHZ) {
+			ret = wl1271_acx_bet_enable(wl, false);
+			if (ret < 0)
+				return ret;
+		}
 
 		/* disable beacon filtering */
 		ret = wl1271_acx_beacon_filter_opt(wl, false);
