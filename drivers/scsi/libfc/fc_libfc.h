@@ -108,6 +108,7 @@ extern struct fc4_prov fc_rport_fcp_init;	/* FCP initiator provider */
  * Set up direct-data placement for this I/O request
  */
 void fc_fcp_ddp_setup(struct fc_fcp_pkt *fsp, u16 xid);
+void fc_fcp_ddp_done(struct fc_fcp_pkt *fsp);
 
 /*
  * Module setup functions

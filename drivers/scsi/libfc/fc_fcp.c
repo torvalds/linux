@@ -312,7 +312,7 @@ void fc_fcp_ddp_setup(struct fc_fcp_pkt *fsp, u16 xid)
  *		       DDP related resources for a fcp_pkt
  * @fsp: The FCP packet that DDP had been used on
  */
-static void fc_fcp_ddp_done(struct fc_fcp_pkt *fsp)
+void fc_fcp_ddp_done(struct fc_fcp_pkt *fsp)
 {
 	struct fc_lport *lport;
 
