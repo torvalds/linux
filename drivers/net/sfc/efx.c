@@ -1319,8 +1319,20 @@ static void efx_remove_interrupts(struct efx_nic *efx)
 
 static void efx_set_channels(struct efx_nic *efx)
 {
+	struct efx_channel *channel;
+	struct efx_tx_queue *tx_queue;
+
 	efx->tx_channel_offset =
 		separate_tx_channels ? efx->n_channels - efx->n_tx_channels : 0;
+
+	/* We need to adjust the TX queue numbers if we have separate
+	 * RX-only and TX-only channels.
+	 */
+	efx_for_each_channel(channel, efx) {
+		efx_for_each_channel_tx_queue(tx_queue, channel)
+			tx_queue->queue -= (efx->tx_channel_offset *
+					    EFX_TXQ_TYPES);
+	}
 }
 
 static int efx_probe_nic(struct efx_nic *efx)
