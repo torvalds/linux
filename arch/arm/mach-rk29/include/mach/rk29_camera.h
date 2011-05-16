@@ -22,7 +22,6 @@
 #ifndef __ASM_ARCH_CAMERA_H_
 #define __ASM_ARCH_CAMERA_H_
 
-
 #define RK29_CAM_DRV_NAME "rk29xx-camera"
 #define RK29_CAM_PLATFORM_DEV_ID 33
 
@@ -32,6 +31,7 @@
 #define RK29_CAM_EIO_INVALID -1
 #define RK29_CAM_EIO_REQUESTFAIL -2
 
+/*---------------- Camera Sensor Must Define Macro Begin  ------------------------*/
 #define RK29_CAM_SENSOR_OV7675 ov7675
 #define RK29_CAM_SENSOR_OV9650 ov9650
 #define RK29_CAM_SENSOR_OV2640 ov2640
@@ -76,6 +76,30 @@
 #define RK29_CAM_SENSOR_NAME_HI704  "hi704"
 #define RK29_CAM_SENSOR_NAME_NT99250 "nt99250"
 
+#define ov7675_FULL_RESOLUTION     0x30000            // 0.3 megapixel
+#define ov9650_FULL_RESOLUTION     0x130000           // 1.3 megapixel   
+#define ov2640_FULL_RESOLUTION     0x200000           // 2 megapixel
+#define ov2655_FULL_RESOLUTION     0x200000           // 2 megapixel
+#define ov2659_FULL_RESOLUTION     0x200000           // 2 megapixel
+#define ov3640_FULL_RESOLUTION     0x300000           // 3 megapixel
+#define ov5640_FULL_RESOLUTION     0x500000           // 5 megapixel
+#define ov5642_FULL_RESOLUTION     0x500000           // 5 megapixel
+#define s5k6aa_FULL_RESOLUTION     0x130000           // 1.3 megapixel
+#define mt9d112_FULL_RESOLUTION    0x200000           // 2 megapixel
+#define mt9d113_FULL_RESOLUTION    0x200000           // 2 megapixel
+#define mt9p111_FULL_RESOLUTION    0x500000           // 5 megapixel
+#define gt2005_FULL_RESOLUTION     0x200000           // 2 megapixel
+#define gc0308_FULL_RESOLUTION     0x30000            // 0.3 megapixel
+#define gc0309_FULL_RESOLUTION     0x30000            // 0.3 megapixel
+#define gc2015_FULL_RESOLUTION     0x200000           // 2 megapixel
+#define siv120b_FULL_RESOLUTION     0x30000            // 0.3 megapixel
+#define sid130B_FULL_RESOLUTION     0x200000           // 2 megapixel    
+#define hi253_FULL_RESOLUTION       0x200000           // 2 megapixel
+#define hi704_FULL_RESOLUTION       0x30000            // 0.3 megapixel
+#define nt99250_FULL_RESOLUTION     0x200000           // 2 megapixel
+/*---------------- Camera Sensor Must Define Macro End  ------------------------*/
+
+
 #define RK29_CAM_POWERACTIVE_BITPOS	0x00
 #define RK29_CAM_POWERACTIVE_MASK	(1<<RK29_CAM_POWERACTIVE_BITPOS)
 #define RK29_CAM_POWERACTIVE_H	(0x01<<RK29_CAM_POWERACTIVE_BITPOS)
@@ -100,6 +124,7 @@
 #define RK29_CAM_SUBDEV_ACTIVATE            0x00
 #define RK29_CAM_SUBDEV_DEACTIVATE          0x01
 #define RK29_CAM_SUBDEV_IOREQUEST			0x02
+
 
 enum rk29camera_ioctrl_cmd
 {
