@@ -351,9 +351,7 @@ void ath_beacon_tasklet(unsigned long data)
 	struct ath_buf *bf = NULL;
 	struct ieee80211_vif *vif;
 	int slot;
-	u32 bfaddr, bc = 0, tsftu;
-	u64 tsf;
-	u16 intval;
+	u32 bfaddr, bc = 0;
 
 	/*
 	 * Check if the previous beacon has gone out.  If
@@ -388,17 +386,27 @@ void ath_beacon_tasklet(unsigned long data)
 	 * on the tsf to safeguard against missing an swba.
 	 */
 
-	intval = cur_conf->beacon_interval ? : ATH_DEFAULT_BINTVAL;
 
-	tsf = ath9k_hw_gettsf64(ah);
-	tsf += TU_TO_USEC(ah->config.sw_beacon_response_time);
-	tsftu = TSF_TO_TU((tsf * ATH_BCBUF) >>32, tsf * ATH_BCBUF);
-	slot = (tsftu % (intval * ATH_BCBUF)) / intval;
-	vif = sc->beacon.bslot[slot];
+	if (ah->opmode == NL80211_IFTYPE_AP) {
+		u16 intval;
+		u32 tsftu;
+		u64 tsf;
 
-	ath_dbg(common, ATH_DBG_BEACON,
-		"slot %d [tsf %llu tsftu %u intval %u] vif %p\n",
-		slot, tsf, tsftu / ATH_BCBUF, intval, vif);
+		intval = cur_conf->beacon_interval ? : ATH_DEFAULT_BINTVAL;
+		tsf = ath9k_hw_gettsf64(ah);
+		tsf += TU_TO_USEC(ah->config.sw_beacon_response_time);
+		tsftu = TSF_TO_TU((tsf * ATH_BCBUF) >>32, tsf * ATH_BCBUF);
+		slot = (tsftu % (intval * ATH_BCBUF)) / intval;
+		vif = sc->beacon.bslot[slot];
+
+		ath_dbg(common, ATH_DBG_BEACON,
+			"slot %d [tsf %llu tsftu %u intval %u] vif %p\n",
+			slot, tsf, tsftu / ATH_BCBUF, intval, vif);
+	} else {
+		slot = 0;
+		vif = sc->beacon.bslot[slot];
+	}
+
 
 	bfaddr = 0;
 	if (vif) {
