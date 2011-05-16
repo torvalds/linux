@@ -508,6 +508,9 @@ static int wm8958_mbc_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
+	if (wm8994->mbc_ena[mbc] == ucontrol->value.integer.value[0])
+		return 0;
+
 	if (ucontrol->value.integer.value[0] > 1)
 		return -EINVAL;
 
@@ -628,6 +631,9 @@ static int wm8958_vss_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
+	if (wm8994->vss_ena[vss] == ucontrol->value.integer.value[0])
+		return 0;
+
 	if (ucontrol->value.integer.value[0] > 1)
 		return -EINVAL;
 
@@ -688,6 +694,16 @@ static int wm8958_hpf_put(struct snd_kcontrol *kcontrol,
 	int hpf = kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+
+	if (hpf < 3) {
+		if (wm8994->hpf1_ena[hpf % 3] ==
+		    ucontrol->value.integer.value[0])
+			return 0;
+	} else {
+		if (wm8994->hpf2_ena[hpf % 3] ==
+		    ucontrol->value.integer.value[0])
+			return 0;
+	}
 
 	if (ucontrol->value.integer.value[0] > 1)
 		return -EINVAL;
@@ -781,6 +797,9 @@ static int wm8958_enh_eq_put(struct snd_kcontrol *kcontrol,
 	int eq = kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+
+	if (wm8994->enh_eq_ena[eq] == ucontrol->value.integer.value[0])
+		return 0;
 
 	if (ucontrol->value.integer.value[0] > 1)
 		return -EINVAL;
