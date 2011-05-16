@@ -2482,7 +2482,7 @@ find_delegation_file(struct nfs4_file *fp, stateid_t *stid)
 	return NULL;
 }
 
-int share_access_to_flags(u32 share_access)
+static int share_access_to_flags(u32 share_access)
 {
 	share_access &= ~NFS4_SHARE_WANT_MASK;
 
@@ -2902,7 +2902,7 @@ out:
 	return status;
 }
 
-struct lock_manager nfsd4_manager = {
+static struct lock_manager nfsd4_manager = {
 };
 
 static void

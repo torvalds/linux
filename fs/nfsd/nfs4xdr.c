@@ -3115,7 +3115,7 @@ nfsd4_encode_destroy_session(struct nfsd4_compoundres *resp, int nfserr,
 	return nfserr;
 }
 
-__be32
+static __be32
 nfsd4_encode_sequence(struct nfsd4_compoundres *resp, int nfserr,
 		      struct nfsd4_sequence *seq)
 {
