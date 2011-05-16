@@ -911,7 +911,7 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
 	return drbd_send_command(mdev, sock, cmd, size, NULL, 0);
 }
 
-int __drbd_send_protocol(struct drbd_tconn *tconn)
+int __drbd_send_protocol(struct drbd_tconn *tconn, enum drbd_packet cmd)
 {
 	struct drbd_socket *sock;
 	struct p_protocol *p;
@@ -953,7 +953,7 @@ int __drbd_send_protocol(struct drbd_tconn *tconn)
 		strcpy(p->integrity_alg, nc->integrity_alg);
 	rcu_read_unlock();
 
-	return __conn_send_command(tconn, sock, P_PROTOCOL, size, NULL, 0);
+	return __conn_send_command(tconn, sock, cmd, size, NULL, 0);
 }
 
 int drbd_send_protocol(struct drbd_tconn *tconn)
@@ -961,7 +961,7 @@ int drbd_send_protocol(struct drbd_tconn *tconn)
 	int err;
 
 	mutex_lock(&tconn->data.mutex);
-	err = __drbd_send_protocol(tconn);
+	err = __drbd_send_protocol(tconn, P_PROTOCOL);
 	mutex_unlock(&tconn->data.mutex);
 
 	return err;

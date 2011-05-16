@@ -1051,7 +1051,7 @@ extern int drbd_send(struct drbd_tconn *tconn, struct socket *sock,
 extern int drbd_send_all(struct drbd_tconn *, struct socket *, void *, size_t,
 			 unsigned);
 
-extern int __drbd_send_protocol(struct drbd_tconn *tconn);
+extern int __drbd_send_protocol(struct drbd_tconn *tconn, enum drbd_packet cmd);
 extern int drbd_send_protocol(struct drbd_tconn *tconn);
 extern int drbd_send_uuids(struct drbd_conf *mdev);
 extern int drbd_send_uuids_skip_initial_sync(struct drbd_conf *mdev);
