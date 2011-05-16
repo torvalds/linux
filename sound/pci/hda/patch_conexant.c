@@ -3040,6 +3040,7 @@ enum {
 	CXT5066_THINKPAD,	/* Lenovo ThinkPad T410s, others? */
 	CXT5066_ASUS,		/* Asus K52JU, Lenovo G560 - Int mic at 0x1a and Ext mic at 0x1b */
 	CXT5066_HP_LAPTOP,      /* HP Laptop */
+	CXT5066_AUTO,		/* BIOS auto-parser */
 	CXT5066_MODELS
 };
 
@@ -3052,6 +3053,7 @@ static const char * const cxt5066_models[CXT5066_MODELS] = {
 	[CXT5066_THINKPAD]	= "thinkpad",
 	[CXT5066_ASUS]		= "asus",
 	[CXT5066_HP_LAPTOP]	= "hp-laptop",
+	[CXT5066_AUTO]		= "auto",
 };
 
 static const struct snd_pci_quirk cxt5066_cfg_tbl[] = {
@@ -3089,6 +3091,15 @@ static int patch_cxt5066(struct hda_codec *codec)
 	struct conexant_spec *spec;
 	int board_config;
 
+	board_config = snd_hda_check_board_config(codec, CXT5066_MODELS,
+						  cxt5066_models, cxt5066_cfg_tbl);
+#if 0 /* use the old method just for safety */
+	if (board_config < 0)
+		board_config = CXT5066_AUTO;
+#endif
+	if (board_config == CXT5066_AUTO)
+		return patch_conexant_auto(codec);
+
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
@@ -3119,8 +3130,6 @@ static int patch_cxt5066(struct hda_codec *codec)
 
 	set_beep_amp(spec, 0x13, 0, HDA_OUTPUT);
 
-	board_config = snd_hda_check_board_config(codec, CXT5066_MODELS,
-						  cxt5066_models, cxt5066_cfg_tbl);
 	switch (board_config) {
 	default:
 	case CXT5066_LAPTOP:
