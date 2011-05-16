@@ -104,7 +104,7 @@ void __cpuinit smp4d_callin(void)
 
 	local_irq_enable();	/* We don't allow PIL 14 yet */
 
-	while (!cpu_isset(cpuid, smp_commenced_mask))
+	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))
 		barrier();
 
 	spin_lock_irqsave(&sun4d_imsk_lock, flags);
@@ -313,10 +313,10 @@ static void smp4d_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 		{
 			register int i;
 
-			cpu_clear(smp_processor_id(), mask);
-			cpus_and(mask, cpu_online_map, mask);
+			cpumask_clear_cpu(smp_processor_id(), &mask);
+			cpumask_and(&mask, cpu_online_mask, &mask);
 			for (i = 0; i <= high; i++) {
-				if (cpu_isset(i, mask)) {
+				if (cpumask_test_cpu(i, &mask)) {
 					ccall_info.processors_in[i] = 0;
 					ccall_info.processors_out[i] = 0;
 					sun4d_send_ipi(i, IRQ_CROSS_CALL);
@@ -329,7 +329,7 @@ static void smp4d_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 
 			i = 0;
 			do {
-				if (!cpu_isset(i, mask))
+				if (!cpumask_test_cpu(i, &mask))
 					continue;
 				while (!ccall_info.processors_in[i])
 					barrier();
@@ -337,7 +337,7 @@ static void smp4d_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 
 			i = 0;
 			do {
-				if (!cpu_isset(i, mask))
+				if (!cpumask_test_cpu(i, &mask))
 					continue;
 				while (!ccall_info.processors_out[i])
 					barrier();

@@ -107,11 +107,11 @@ void __cpuinit leon_callin(void)
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
 
-	while (!cpu_isset(cpuid, smp_commenced_mask))
+	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))
 		mb();
 
 	local_irq_enable();
-	cpu_set(cpuid, cpu_online_map);
+	set_cpu_online(cpuid, true);
 }
 
 /*
@@ -272,21 +272,21 @@ void __init leon_smp_done(void)
 	local_flush_cache_all();
 
 	/* Free unneeded trap tables */
-	if (!cpu_isset(1, cpu_present_map)) {
+	if (!cpu_present(1)) {
 		ClearPageReserved(virt_to_page(&trapbase_cpu1));
 		init_page_count(virt_to_page(&trapbase_cpu1));
 		free_page((unsigned long)&trapbase_cpu1);
 		totalram_pages++;
 		num_physpages++;
 	}
-	if (!cpu_isset(2, cpu_present_map)) {
+	if (!cpu_present(2)) {
 		ClearPageReserved(virt_to_page(&trapbase_cpu2));
 		init_page_count(virt_to_page(&trapbase_cpu2));
 		free_page((unsigned long)&trapbase_cpu2);
 		totalram_pages++;
 		num_physpages++;
 	}
-	if (!cpu_isset(3, cpu_present_map)) {
+	if (!cpu_present(3)) {
 		ClearPageReserved(virt_to_page(&trapbase_cpu3));
 		init_page_count(virt_to_page(&trapbase_cpu3));
 		free_page((unsigned long)&trapbase_cpu3);
@@ -440,10 +440,10 @@ static void leon_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 		{
 			register int i;
 
-			cpu_clear(smp_processor_id(), mask);
-			cpus_and(mask, cpu_online_map, mask);
+			cpumask_clear_cpu(smp_processor_id(), &mask);
+			cpumask_and(&mask, cpu_online_mask, &mask);
 			for (i = 0; i <= high; i++) {
-				if (cpu_isset(i, mask)) {
+				if (cpumask_test_cpu(i, &mask)) {
 					ccall_info.processors_in[i] = 0;
 					ccall_info.processors_out[i] = 0;
 					set_cpu_int(i, LEON3_IRQ_CROSS_CALL);
@@ -457,7 +457,7 @@ static void leon_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 
 			i = 0;
 			do {
-				if (!cpu_isset(i, mask))
+				if (!cpumask_test_cpu(i, &mask))
 					continue;
 
 				while (!ccall_info.processors_in[i])
@@ -466,7 +466,7 @@ static void leon_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 
 			i = 0;
 			do {
-				if (!cpu_isset(i, mask))
+				if (!cpumask_test_cpu(i, &mask))
 					continue;
 
 				while (!ccall_info.processors_out[i])

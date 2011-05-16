@@ -68,17 +68,17 @@ BTFIXUPDEF_BLACKBOX(load_current)
 
 #define smp_cross_call(func,mask,arg1,arg2,arg3,arg4) BTFIXUP_CALL(smp_cross_call)(func,mask,arg1,arg2,arg3,arg4)
 
-static inline void xc0(smpfunc_t func) { smp_cross_call(func, cpu_online_map, 0, 0, 0, 0); }
+static inline void xc0(smpfunc_t func) { smp_cross_call(func, *cpu_online_mask, 0, 0, 0, 0); }
 static inline void xc1(smpfunc_t func, unsigned long arg1)
-{ smp_cross_call(func, cpu_online_map, arg1, 0, 0, 0); }
+{ smp_cross_call(func, *cpu_online_mask, arg1, 0, 0, 0); }
 static inline void xc2(smpfunc_t func, unsigned long arg1, unsigned long arg2)
-{ smp_cross_call(func, cpu_online_map, arg1, arg2, 0, 0); }
+{ smp_cross_call(func, *cpu_online_mask, arg1, arg2, 0, 0); }
 static inline void xc3(smpfunc_t func, unsigned long arg1, unsigned long arg2,
 			   unsigned long arg3)
-{ smp_cross_call(func, cpu_online_map, arg1, arg2, arg3, 0); }
+{ smp_cross_call(func, *cpu_online_mask, arg1, arg2, arg3, 0); }
 static inline void xc4(smpfunc_t func, unsigned long arg1, unsigned long arg2,
 			   unsigned long arg3, unsigned long arg4)
-{ smp_cross_call(func, cpu_online_map, arg1, arg2, arg3, arg4); }
+{ smp_cross_call(func, *cpu_online_mask, arg1, arg2, arg3, arg4); }
 
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
