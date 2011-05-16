@@ -327,22 +327,6 @@ void free_channel(struct vmbus_channel *channel)
 }
 
 
-DECLARE_COMPLETION(hv_channel_ready);
-
-/*
- * Count initialized channels, and ensure all channels are ready when hv_vmbus
- * module loading completes.
- */
-static void count_hv_channel(void)
-{
-	static int counter;
-	unsigned long flags;
-
-	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
-	if (++counter == MAX_MSG_TYPES)
-		complete(&hv_channel_ready);
-	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
-}
 
 /*
  * vmbus_process_rescind_offer -
@@ -449,7 +433,6 @@ static void vmbus_process_offer(struct work_struct *work)
 
 				pr_info("%s\n", hv_cb_utils[cnt].log_msg);
 
-				count_hv_channel();
 			}
 		}
 	}

@@ -582,7 +582,6 @@ static int vmbus_bus_init(struct pci_dev *pdev)
 
 
 	vmbus_request_offers();
-	wait_for_completion(&hv_channel_ready);
 
 cleanup:
 	return ret;

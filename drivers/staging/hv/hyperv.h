@@ -844,8 +844,6 @@ static inline struct hv_driver *drv_to_hv_drv(struct device_driver *d)
 int vmbus_child_driver_register(struct device_driver *drv);
 void vmbus_child_driver_unregister(struct device_driver *drv);
 
-extern struct completion hv_channel_ready;
-
 /*
  * Common header for Hyper-V ICs
  */
