@@ -473,6 +473,7 @@ void __init xen_setup_pirqs(void)
 }
 #endif
 
+#ifdef CONFIG_XEN_DOM0
 struct xen_device_domain_owner {
 	domid_t domain;
 	struct pci_dev *dev;
@@ -545,3 +546,4 @@ int xen_unregister_device_domain_owner(struct pci_dev *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xen_unregister_device_domain_owner);
+#endif
