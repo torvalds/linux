@@ -2818,8 +2818,8 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		    (EXT4_EXT_MAY_ZEROOUT & split_flag)) {
 			/* case 3 */
 			zero_ex.ee_block =
-					 cpu_to_le32(map->m_lblk + map->m_len);
-			zero_ex.ee_len = cpu_to_le16(allocated - map->m_len);
+					 cpu_to_le32(map->m_lblk);
+			zero_ex.ee_len = cpu_to_le16(allocated);
 			ext4_ext_store_pblock(&zero_ex,
 				ext4_ext_pblock(ex) + map->m_lblk - ee_block);
 			err = ext4_ext_zeroout(inode, &zero_ex);
@@ -2842,10 +2842,9 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 					goto out;
 			}
 
-			allocated = map->m_lblk - ee_block + map->m_len;
-
 			split_map.m_lblk = ee_block;
-			split_map.m_len = allocated;
+			split_map.m_len = map->m_lblk - ee_block + map->m_len;
+			allocated = map->m_len;
 		}
 	}
 
