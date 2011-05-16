@@ -1726,11 +1726,6 @@ static void dsi_dump_dsidev_clocks(struct platform_device *dsidev,
 
 	seq_printf(s,	"LP_CLK\t\t%lu\n", cinfo->lp_clk);
 
-	seq_printf(s,	"VP_CLK\t\t%lu\n"
-			"VP_PCLK\t\t%lu\n",
-			dispc_lclk_rate(OMAP_DSS_CHANNEL_LCD),
-			dispc_pclk_rate(OMAP_DSS_CHANNEL_LCD));
-
 	enable_clocks(0);
 }
 
