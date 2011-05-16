@@ -1516,17 +1516,33 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 }
 EXPORT_SYMBOL(drm_fb_helper_initial_config);
 
-bool drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
+/**
+ * drm_fb_helper_hotplug_event - respond to a hotplug notification by
+ *                               probing all the outputs attached to the fb.
+ * @fb_helper: the drm_fb_helper
+ *
+ * LOCKING:
+ * Called at runtime, must take mode config lock.
+ *
+ * Scan the connectors attached to the fb_helper and try to put together a
+ * setup after *notification of a change in output configuration.
+ *
+ * RETURNS:
+ * 0 on success and a non-zero error code otherwise.
+ */
+int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 {
+	struct drm_device *dev = fb_helper->dev;
 	int count = 0;
 	u32 max_width, max_height, bpp_sel;
 	bool bound = false, crtcs_bound = false;
 	struct drm_crtc *crtc;
 
 	if (!fb_helper->fb)
-		return false;
+		return 0;
 
-	list_for_each_entry(crtc, &fb_helper->dev->mode_config.crtc_list, head) {
+	mutex_lock(&dev->mode_config.mutex);
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (crtc->fb)
 			crtcs_bound = true;
 		if (crtc->fb == fb_helper->fb)
@@ -1535,7 +1551,8 @@ bool drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 
 	if (!bound && crtcs_bound) {
 		fb_helper->delayed_hotplug = true;
-		return false;
+		mutex_unlock(&dev->mode_config.mutex);
+		return 0;
 	}
 	DRM_DEBUG_KMS("\n");
 
@@ -1546,6 +1563,7 @@ bool drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	count = drm_fb_helper_probe_connector_modes(fb_helper, max_width,
 						    max_height);
 	drm_setup_crtcs(fb_helper);
+	mutex_unlock(&dev->mode_config.mutex);
 
 	return drm_fb_helper_single_fb_probe(fb_helper, bpp_sel);
 }

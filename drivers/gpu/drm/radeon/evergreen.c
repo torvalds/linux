@@ -1780,7 +1780,10 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 
 
 	mc_shared_chmap = RREG32(MC_SHARED_CHMAP);
-	mc_arb_ramcfg = RREG32(MC_ARB_RAMCFG);
+	if (rdev->flags & RADEON_IS_IGP)
+		mc_arb_ramcfg = RREG32(FUS_MC_ARB_RAMCFG);
+	else
+		mc_arb_ramcfg = RREG32(MC_ARB_RAMCFG);
 
 	switch (rdev->config.evergreen.max_tile_pipes) {
 	case 1:
