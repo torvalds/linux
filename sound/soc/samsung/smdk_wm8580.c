@@ -249,7 +249,7 @@ static int __init smdk_audio_init(void)
 	int ret;
 	char *str;
 
-	if (machine_is_smdkc100() || machine_is_smdk6442()
+	if (machine_is_smdkc100()
 			|| machine_is_smdkv210() || machine_is_smdkc110()) {
 		smdk.num_links = 3;
 		/* Secondary is at offset SAMSUNG_I2S_SECOFF from Primary */

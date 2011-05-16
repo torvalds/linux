@@ -86,7 +86,7 @@ static inline bool drm_mm_initialized(struct drm_mm *mm)
 }
 #define drm_mm_for_each_node(entry, mm) list_for_each_entry(entry, \
 						&(mm)->head_node.node_list, \
-						node_list);
+						node_list)
 #define drm_mm_for_each_scanned_node_reverse(entry, n, mm) \
 	for (entry = (mm)->prev_scanned_node, \
 		next = entry ? list_entry(entry->node_list.next, \

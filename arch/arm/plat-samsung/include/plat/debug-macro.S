@@ -11,7 +11,7 @@
 
 #include <plat/regs-serial.h>
 
-/* The S5PV210/S5PC110 and S5P6442 implementations are as belows. */
+/* The S5PV210/S5PC110 implementations are as belows. */
 
 	.macro fifo_level_s5pv210 rd, rx
 		ldr	\rd, [ \rx, # S3C2410_UFSTAT ]

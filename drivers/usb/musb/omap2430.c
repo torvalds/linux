@@ -270,7 +270,7 @@ static int musb_otg_notifications(struct notifier_block *nb,
 		DBG(4, "VBUS Disconnect\n");
 
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
-		if (is_otg_enabled(musb))
+		if (is_otg_enabled(musb) || is_peripheral_enabled(musb))
 			if (musb->gadget_driver)
 #endif
 			{

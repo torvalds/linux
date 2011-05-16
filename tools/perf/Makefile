@@ -35,15 +35,21 @@ ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 				  -e s/ppc.*/powerpc/ -e s/mips.*/mips/ \
 				  -e s/sh[234].*/sh/ )
 
+CC = $(CROSS_COMPILE)gcc
+AR = $(CROSS_COMPILE)ar
+
 # Additional ARCH settings for x86
 ifeq ($(ARCH),i386)
         ARCH := x86
 endif
 ifeq ($(ARCH),x86_64)
-	RAW_ARCH := x86_64
-        ARCH := x86
-	ARCH_CFLAGS := -DARCH_X86_64
-	ARCH_INCLUDE = ../../arch/x86/lib/memcpy_64.S
+	ARCH := x86
+	IS_X86_64 := $(shell echo __x86_64__ | ${CC} -E -xc - | tail -n 1)
+	ifeq (${IS_X86_64}, 1)
+		RAW_ARCH := x86_64
+		ARCH_CFLAGS := -DARCH_X86_64
+		ARCH_INCLUDE = ../../arch/x86/lib/memcpy_64.S
+	endif
 endif
 
 #
@@ -119,8 +125,6 @@ lib = lib
 
 export prefix bindir sharedir sysconfdir
 
-CC = $(CROSS_COMPILE)gcc
-AR = $(CROSS_COMPILE)ar
 RM = rm -f
 MKDIR = mkdir
 FIND = find

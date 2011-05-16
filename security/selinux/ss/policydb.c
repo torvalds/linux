@@ -502,7 +502,7 @@ static int policydb_index(struct policydb *p)
 		goto out;
 
 	rc = flex_array_prealloc(p->type_val_to_struct_array, 0,
-				 p->p_types.nprim - 1, GFP_KERNEL | __GFP_ZERO);
+				 p->p_types.nprim, GFP_KERNEL | __GFP_ZERO);
 	if (rc)
 		goto out;
 
@@ -519,7 +519,7 @@ static int policydb_index(struct policydb *p)
 			goto out;
 
 		rc = flex_array_prealloc(p->sym_val_to_name[i],
-					 0, p->symtab[i].nprim - 1,
+					 0, p->symtab[i].nprim,
 					 GFP_KERNEL | __GFP_ZERO);
 		if (rc)
 			goto out;
@@ -2375,7 +2375,7 @@ int policydb_read(struct policydb *p, void *fp)
 		goto bad;
 
 	/* preallocate so we don't have to worry about the put ever failing */
-	rc = flex_array_prealloc(p->type_attr_map_array, 0, p->p_types.nprim - 1,
+	rc = flex_array_prealloc(p->type_attr_map_array, 0, p->p_types.nprim,
 				 GFP_KERNEL | __GFP_ZERO);
 	if (rc)
 		goto bad;

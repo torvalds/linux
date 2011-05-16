@@ -1940,7 +1940,7 @@ redo:
 		 * Since this is without lock semantics the protection is only against
 		 * code executing on this cpu *not* from access by other cpus.
 		 */
-		if (unlikely(!this_cpu_cmpxchg_double(
+		if (unlikely(!irqsafe_cpu_cmpxchg_double(
 				s->cpu_slab->freelist, s->cpu_slab->tid,
 				object, tid,
 				get_freepointer(s, object), next_tid(tid)))) {
@@ -2145,7 +2145,7 @@ redo:
 		set_freepointer(s, object, c->freelist);
 
 #ifdef CONFIG_CMPXCHG_LOCAL
-		if (unlikely(!this_cpu_cmpxchg_double(
+		if (unlikely(!irqsafe_cpu_cmpxchg_double(
 				s->cpu_slab->freelist, s->cpu_slab->tid,
 				c->freelist, tid,
 				object, next_tid(tid)))) {
