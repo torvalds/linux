@@ -236,6 +236,7 @@ CONFIG_DDR_SDRAM_FREQ=400
 #
 CONFIG_RK29_VPU=y
 # CONFIG_RK29_VPU_DEBUG is not set
+# CONFIG_RK29_JTAG is not set
 
 #
 # Processor Type
