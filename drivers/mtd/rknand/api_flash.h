@@ -198,5 +198,5 @@ extern int NandDeInit(void) ;
 extern int NandForceDeInit(void);
 extern unsigned int NandGetCapacity(void); 
 extern void NandSetSysProtAddr(unsigned int SysImageWriteEndAdd);
-
+extern void FtlDelayWriteCacheEn(unsigned int en);
 #endif

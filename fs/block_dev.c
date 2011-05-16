@@ -1475,11 +1475,19 @@ ssize_t mydo_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *
     {
         struct mtd_blktrans_dev *dev;
         struct mtd_blktrans_ops *tr;
+        struct mtd_info *mtd;
+        
         dev = (filp->f_mapping->host->i_bdev->bd_disk->private_data);
+        mtd = dev->mtd;
+        if((buf_addr < 0xc0000000)&&(mtd->name[0]=='u' &&mtd->name[3]=='r' && mtd->name[4]==0)) // user part 
+        {
+            return(do_sync_read(filp, buf,len,ppos));
+        }
         tr = dev->tr;
-
 		if (!tr->readsect)
-			return 0;
+		{
+			return(do_sync_read(filp, buf,len,ppos));
+	    }
         //printk("mydo_sync_read buf = 0x%lx LBA = 0x%lx len = 0x%x \n",buf, (unsigned long)(*ppos>>9),len);
         if(tr->readsect(dev, (unsigned long)(*ppos>>9), len>>9, buf))
         {
@@ -1502,7 +1510,16 @@ ssize_t mydo_sync_write(struct file *filp, const char __user *buf, size_t len, l
     {
         struct mtd_blktrans_dev *dev;
         struct mtd_blktrans_ops *tr;
+        struct mtd_info *mtd;
+        
         dev = (filp->f_mapping->host->i_bdev->bd_disk->private_data);
+        
+        mtd = dev->mtd;
+        if((buf_addr < 0xc0000000)&&(mtd->name[0]=='u' &&mtd->name[3]=='r' && mtd->name[4]==0))
+        {
+            return(do_sync_write(filp, buf,len,ppos));
+        }
+
         tr = dev->tr;
 
 		if (!tr->writesect)

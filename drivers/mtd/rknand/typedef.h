@@ -8,6 +8,9 @@ typedef volatile unsigned char  	REG8;
 
 typedef int BOOLEAN;
 typedef BOOLEAN BOOL;
+typedef     void (*pFunc)(void);	        //定义函数指针, 用于调用绝对地址
+typedef     void (*pFunc1)(unsigned int);	        //定义函数指针, 用于调用绝对地址
+typedef     void (*pFunc2)(unsigned int,pFunc);	        //定义函数指针, 用于调用绝对地址
 
 
 #define	FALSE	0
@@ -44,7 +47,7 @@ typedef unsigned char	BYTE;
 //typedef volatile unsigned int  data_t;
 //typedef volatile unsigned int* addr_t;
 
-typedef 	void (*pFunc)(void);	//定义函数指针, 用于调用绝对地址
+//typedef 	void (*pFunc)(void);	//定义函数指针, 用于调用绝对地址
 
 typedef		unsigned char		uint8;
 typedef		signed char		    int8;
