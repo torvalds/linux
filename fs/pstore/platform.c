@@ -156,17 +156,23 @@ void pstore_get_records(void)
 	u64			id;
 	enum pstore_type_id	type;
 	struct timespec		time;
-	int			failed = 0;
+	int			failed = 0, rc;
 
 	if (!psi)
 		return;
 
 	mutex_lock(&psinfo->buf_mutex);
+	rc = psi->open(psi);
+	if (rc)
+		goto out;
+
 	while ((size = psi->read(&id, &type, &time)) > 0) {
 		if (pstore_mkfile(type, psi->name, id, psi->buf, (size_t)size,
 				  time, psi->erase))
 			failed++;
 	}
+	psi->close(psi);
+out:
 	mutex_unlock(&psinfo->buf_mutex);
 
 	if (failed)

@@ -35,6 +35,8 @@ struct pstore_info {
 	struct mutex	buf_mutex;	/* serialize access to 'buf' */
 	char		*buf;
 	size_t		bufsize;
+	int		(*open)(struct pstore_info *psi);
+	int		(*close)(struct pstore_info *psi);
 	ssize_t		(*read)(u64 *id, enum pstore_type_id *type,
 			struct timespec *time);
 	u64		(*write)(enum pstore_type_id type, size_t size);

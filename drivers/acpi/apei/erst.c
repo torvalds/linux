@@ -929,6 +929,8 @@ static int erst_check_table(struct acpi_table_erst *erst_tab)
 	return 0;
 }
 
+static int erst_open_pstore(struct pstore_info *psi);
+static int erst_close_pstore(struct pstore_info *psi);
 static ssize_t erst_reader(u64 *id, enum pstore_type_id *type,
 		       struct timespec *time);
 static u64 erst_writer(enum pstore_type_id type, size_t size);
@@ -936,6 +938,8 @@ static u64 erst_writer(enum pstore_type_id type, size_t size);
 static struct pstore_info erst_info = {
 	.owner		= THIS_MODULE,
 	.name		= "erst",
+	.open		= erst_open_pstore,
+	.close		= erst_close_pstore,
 	.read		= erst_reader,
 	.write		= erst_writer,
 	.erase		= erst_clear
@@ -957,12 +961,32 @@ struct cper_pstore_record {
 	char data[];
 } __packed;
 
+static int reader_pos;
+
+static int erst_open_pstore(struct pstore_info *psi)
+{
+	int rc;
+
+	if (erst_disable)
+		return -ENODEV;
+
+	rc = erst_get_record_id_begin(&reader_pos);
+
+	return rc;
+}
+
+static int erst_close_pstore(struct pstore_info *psi)
+{
+	erst_get_record_id_end();
+
+	return 0;
+}
+
 static ssize_t erst_reader(u64 *id, enum pstore_type_id *type,
 		       struct timespec *time)
 {
 	int rc;
-	ssize_t len;
-	unsigned long flags;
+	ssize_t len = 0;
 	u64 record_id;
 	struct cper_pstore_record *rcd = (struct cper_pstore_record *)
 					(erst_info.buf - sizeof(*rcd));
@@ -970,24 +994,21 @@ static ssize_t erst_reader(u64 *id, enum pstore_type_id *type,
 	if (erst_disable)
 		return -ENODEV;
 
-	raw_spin_lock_irqsave(&erst_lock, flags);
 skip:
-	rc = __erst_get_next_record_id(&record_id);
-	if (rc) {
-		raw_spin_unlock_irqrestore(&erst_lock, flags);
-		return rc;
-	}
+	rc = erst_get_record_id_next(&reader_pos, &record_id);
+	if (rc)
+		goto out;
+
 	/* no more record */
 	if (record_id == APEI_ERST_INVALID_RECORD_ID) {
-		raw_spin_unlock_irqrestore(&erst_lock, flags);
-		return 0;
+		rc = -1;
+		goto out;
 	}
 
-	len = __erst_read(record_id, &rcd->hdr, sizeof(*rcd) +
+	len = erst_read(record_id, &rcd->hdr, sizeof(*rcd) +
 			  erst_erange.size);
 	if (uuid_le_cmp(rcd->hdr.creator_id, CPER_CREATOR_PSTORE) != 0)
 		goto skip;
-	raw_spin_unlock_irqrestore(&erst_lock, flags);
 
 	*id = record_id;
 	if (uuid_le_cmp(rcd->sec_hdr.section_type,
@@ -1005,7 +1026,8 @@ skip:
 		time->tv_sec = 0;
 	time->tv_nsec = 0;
 
-	return len - sizeof(*rcd);
+out:
+	return (rc < 0) ? rc : (len - sizeof(*rcd));
 }
 
 static u64 erst_writer(enum pstore_type_id type, size_t size)
