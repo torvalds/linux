@@ -193,6 +193,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
 #define OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP		103
 #define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
+#define OPCODE_COMMON_WRITE_OBJECT			172
 
 #define OPCODE_ETH_RSS_CONFIG				1
 #define OPCODE_ETH_ACPI_CONFIG				2
@@ -1131,6 +1132,36 @@ struct be_cmd_write_flashrom {
 	struct flashrom_params params;
 };
 
+/**************** Lancer Firmware Flash ************/
+struct amap_lancer_write_obj_context {
+	u8 write_length[24];
+	u8 reserved1[7];
+	u8 eof;
+} __packed;
+
+struct lancer_cmd_req_write_object {
+	struct be_cmd_req_hdr hdr;
+	u8 context[sizeof(struct amap_lancer_write_obj_context) / 8];
+	u32 write_offset;
+	u8 object_name[104];
+	u32 descriptor_count;
+	u32 buf_len;
+	u32 addr_low;
+	u32 addr_high;
+};
+
+struct lancer_cmd_resp_write_object {
+	u8 opcode;
+	u8 subsystem;
+	u8 rsvd1[2];
+	u8 status;
+	u8 additional_status;
+	u8 rsvd2[2];
+	u32 resp_len;
+	u32 actual_resp_len;
+	u32 actual_write_len;
+};
+
 /************************ WOL *******************************/
 struct be_cmd_req_acpi_wol_magic_config{
 	struct be_cmd_req_hdr hdr;
@@ -1481,6 +1512,11 @@ extern int be_cmd_get_beacon_state(struct be_adapter *adapter,
 extern int be_cmd_write_flashrom(struct be_adapter *adapter,
 			struct be_dma_mem *cmd, u32 flash_oper,
 			u32 flash_opcode, u32 buf_size);
+extern int lancer_cmd_write_object(struct be_adapter *adapter,
+				struct be_dma_mem *cmd,
+				u32 data_size, u32 data_offset,
+				const char *obj_name,
+				u32 *data_written, u8 *addn_status);
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 				int offset);
 extern int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,

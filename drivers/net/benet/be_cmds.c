@@ -71,7 +71,8 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 	compl_status = (compl->status >> CQE_STATUS_COMPL_SHIFT) &
 				CQE_STATUS_COMPL_MASK;
 
-	if ((compl->tag0 == OPCODE_COMMON_WRITE_FLASHROM) &&
+	if (((compl->tag0 == OPCODE_COMMON_WRITE_FLASHROM) ||
+		(compl->tag0 == OPCODE_COMMON_WRITE_OBJECT)) &&
 		(compl->tag1 == CMD_SUBSYSTEM_COMMON)) {
 		adapter->flash_status = compl_status;
 		complete(&adapter->flash_compl);
@@ -1797,6 +1798,81 @@ int be_cmd_get_beacon_state(struct be_adapter *adapter, u8 port_num, u32 *state)
 	}
 
 err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
+			u32 data_size, u32 data_offset, const char *obj_name,
+			u32 *data_written, u8 *addn_status)
+{
+	struct be_mcc_wrb *wrb;
+	struct lancer_cmd_req_write_object *req;
+	struct lancer_cmd_resp_write_object *resp;
+	void *ctxt = NULL;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+	adapter->flash_status = 0;
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err_unlock;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(struct lancer_cmd_req_write_object),
+			true, 1, OPCODE_COMMON_WRITE_OBJECT);
+	wrb->tag1 = CMD_SUBSYSTEM_COMMON;
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+				OPCODE_COMMON_WRITE_OBJECT,
+				sizeof(struct lancer_cmd_req_write_object));
+
+	ctxt = &req->context;
+	AMAP_SET_BITS(struct amap_lancer_write_obj_context,
+			write_length, ctxt, data_size);
+
+	if (data_size == 0)
+		AMAP_SET_BITS(struct amap_lancer_write_obj_context,
+				eof, ctxt, 1);
+	else
+		AMAP_SET_BITS(struct amap_lancer_write_obj_context,
+				eof, ctxt, 0);
+
+	be_dws_cpu_to_le(ctxt, sizeof(req->context));
+	req->write_offset = cpu_to_le32(data_offset);
+	strcpy(req->object_name, obj_name);
+	req->descriptor_count = cpu_to_le32(1);
+	req->buf_len = cpu_to_le32(data_size);
+	req->addr_low = cpu_to_le32((cmd->dma +
+				sizeof(struct lancer_cmd_req_write_object))
+				& 0xFFFFFFFF);
+	req->addr_high = cpu_to_le32(upper_32_bits(cmd->dma +
+				sizeof(struct lancer_cmd_req_write_object)));
+
+	be_mcc_notify(adapter);
+	spin_unlock_bh(&adapter->mcc_lock);
+
+	if (!wait_for_completion_timeout(&adapter->flash_compl,
+			msecs_to_jiffies(12000)))
+		status = -1;
+	else
+		status = adapter->flash_status;
+
+	resp = embedded_payload(wrb);
+	if (!status) {
+		*data_written = le32_to_cpu(resp->actual_write_len);
+	} else {
+		*addn_status = resp->additional_status;
+		status = resp->status;
+	}
+
+	return status;
+
+err_unlock:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
