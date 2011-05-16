@@ -2984,25 +2984,18 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 	return rv;
 }
 
-/* returns 1 if invalid */
-static int cmp_after_sb(enum drbd_after_sb_p peer, enum drbd_after_sb_p self)
+static enum drbd_after_sb_p convert_after_sb(enum drbd_after_sb_p peer)
 {
 	/* ASB_DISCARD_REMOTE - ASB_DISCARD_LOCAL is valid */
-	if ((peer == ASB_DISCARD_REMOTE && self == ASB_DISCARD_LOCAL) ||
-	    (self == ASB_DISCARD_REMOTE && peer == ASB_DISCARD_LOCAL))
-		return 0;
+	if (peer == ASB_DISCARD_REMOTE)
+		return ASB_DISCARD_LOCAL;
 
 	/* any other things with ASB_DISCARD_REMOTE or ASB_DISCARD_LOCAL are invalid */
-	if (peer == ASB_DISCARD_REMOTE || peer == ASB_DISCARD_LOCAL ||
-	    self == ASB_DISCARD_REMOTE || self == ASB_DISCARD_LOCAL)
-		return 1;
+	if (peer == ASB_DISCARD_LOCAL)
+		return ASB_DISCARD_REMOTE;
 
 	/* everything else is valid if they are equal on both sides. */
-	if (peer == self)
-		return 0;
-
-	/* everything es is invalid. */
-	return 1;
+	return peer;
 }
 
 static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
@@ -3060,17 +3053,17 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 		goto disconnect_rcu_unlock;
 	}
 
-	if (cmp_after_sb(p_after_sb_0p, nc->after_sb_0p)) {
+	if (convert_after_sb(p_after_sb_0p) != nc->after_sb_0p) {
 		conn_err(tconn, "incompatible after-sb-0pri settings\n");
 		goto disconnect_rcu_unlock;
 	}
 
-	if (cmp_after_sb(p_after_sb_1p, nc->after_sb_1p)) {
+	if (convert_after_sb(p_after_sb_1p) != nc->after_sb_1p) {
 		conn_err(tconn, "incompatible after-sb-1pri settings\n");
 		goto disconnect_rcu_unlock;
 	}
 
-	if (cmp_after_sb(p_after_sb_2p, nc->after_sb_2p)) {
+	if (convert_after_sb(p_after_sb_2p) != nc->after_sb_2p) {
 		conn_err(tconn, "incompatible after-sb-2pri settings\n");
 		goto disconnect_rcu_unlock;
 	}
