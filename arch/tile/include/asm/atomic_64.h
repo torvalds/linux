@@ -148,21 +148,8 @@ static inline long atomic64_add_unless(atomic64_t *v, long a, long u)
 #define smp_mb__before_atomic_inc()	smp_mb()
 #define smp_mb__after_atomic_inc()	smp_mb()
 
-#define xchg(ptr, x)							\
-	((typeof(*(ptr)))						\
-	 ((sizeof(*(ptr)) == sizeof(atomic_t)) ?			\
-	  atomic_xchg((atomic_t *)(ptr), (long)(x)) :			\
-	  (sizeof(*(ptr)) == sizeof(atomic_long_t)) ?			\
-	  atomic_long_xchg((atomic_long_t *)(ptr), (long)(x)) :		\
-	  __xchg_called_with_bad_pointer()))
-
-#define cmpxchg(ptr, o, n)						\
-	((typeof(*(ptr)))						\
-	 ((sizeof(*(ptr)) == sizeof(atomic_t)) ?			\
-	  atomic_cmpxchg((atomic_t *)(ptr), (long)(o), (long)(n)) :	\
-	  (sizeof(*(ptr)) == sizeof(atomic_long_t)) ?			\
-	  atomic_long_cmpxchg((atomic_long_t *)(ptr), (long)(o), (long)(n)) : \
-	  __cmpxchg_called_with_bad_pointer()))
+/* Define this to indicate that cmpxchg is an efficient operation. */
+#define __HAVE_ARCH_CMPXCHG
 
 #endif /* !__ASSEMBLY__ */
 
