@@ -102,6 +102,16 @@ config IWLWIFI_DEVICE_TRACING
 	  occur.
 endmenu
 
+config IWLWIFI_DEVICE_SVTOOL
+	bool "iwlwifi device svtool support"
+	depends on IWLAGN
+	select NL80211_TESTMODE
+	help
+	  This option enables the svtool support for iwlwifi device through
+	  NL80211_TESTMODE. svtool is a software validation tool that runs in
+	  the user space and interacts with the device in the kernel space
+	  through the generic netlink message via NL80211_TESTMODE channel.
+
 config IWL_P2P
 	bool "iwlwifi experimental P2P support"
 	depends on IWLAGN

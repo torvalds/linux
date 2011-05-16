@@ -41,7 +41,7 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 	if (!bss_prio) {
 		dev_err(adapter->dev, "%s: failed to alloc bss_prio\n",
 						__func__);
-		return -1;
+		return -ENOMEM;
 	}
 
 	bss_prio->priv = priv;
@@ -151,7 +151,7 @@ static int mwifiex_init_priv(struct mwifiex_private *priv)
  */
 static int mwifiex_allocate_adapter(struct mwifiex_adapter *adapter)
 {
-	int ret = 0;
+	int ret;
 	u32 buf_size;
 	struct mwifiex_bssdescriptor *temp_scan_table;
 
@@ -161,7 +161,7 @@ static int mwifiex_allocate_adapter(struct mwifiex_adapter *adapter)
 	if (!temp_scan_table) {
 		dev_err(adapter->dev, "%s: failed to alloc temp_scan_table\n",
 		       __func__);
-		return -1;
+		return -ENOMEM;
 	}
 
 	adapter->scan_table = temp_scan_table;
@@ -175,7 +175,7 @@ static int mwifiex_allocate_adapter(struct mwifiex_adapter *adapter)
 	}
 
 	adapter->sleep_cfm =
-		dev_alloc_skb(sizeof(struct mwifiex_opt_sleep_confirm_buffer)
+		dev_alloc_skb(sizeof(struct mwifiex_opt_sleep_confirm)
 				+ INTF_HEADER_LEN);
 
 	if (!adapter->sleep_cfm) {
@@ -197,10 +197,10 @@ static int mwifiex_allocate_adapter(struct mwifiex_adapter *adapter)
  */
 static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 {
-	struct mwifiex_opt_sleep_confirm_buffer *sleep_cfm_buf = NULL;
+	struct mwifiex_opt_sleep_confirm *sleep_cfm_buf = NULL;
 
-	skb_put(adapter->sleep_cfm, sizeof(sleep_cfm_buf->ps_cfm_sleep));
-	sleep_cfm_buf = (struct mwifiex_opt_sleep_confirm_buffer *)
+	skb_put(adapter->sleep_cfm, sizeof(struct mwifiex_opt_sleep_confirm));
+	sleep_cfm_buf = (struct mwifiex_opt_sleep_confirm *)
 						(adapter->sleep_cfm->data);
 
 	adapter->cmd_sent = false;
@@ -268,16 +268,14 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	mwifiex_wmm_init(adapter);
 
 	if (adapter->sleep_cfm) {
-		memset(&sleep_cfm_buf->ps_cfm_sleep, 0,
-			adapter->sleep_cfm->len);
-		sleep_cfm_buf->ps_cfm_sleep.command =
-			cpu_to_le16(HostCmd_CMD_802_11_PS_MODE_ENH);
-		sleep_cfm_buf->ps_cfm_sleep.size =
-			cpu_to_le16(adapter->sleep_cfm->len);
-		sleep_cfm_buf->ps_cfm_sleep.result = 0;
-		sleep_cfm_buf->ps_cfm_sleep.action = cpu_to_le16(SLEEP_CONFIRM);
-		sleep_cfm_buf->ps_cfm_sleep.resp_ctrl =
-			cpu_to_le16(RESP_NEEDED);
+		memset(sleep_cfm_buf, 0, adapter->sleep_cfm->len);
+		sleep_cfm_buf->command =
+				cpu_to_le16(HostCmd_CMD_802_11_PS_MODE_ENH);
+		sleep_cfm_buf->size =
+				cpu_to_le16(adapter->sleep_cfm->len);
+		sleep_cfm_buf->result = 0;
+		sleep_cfm_buf->action = cpu_to_le16(SLEEP_CONFIRM);
+		sleep_cfm_buf->resp_ctrl = cpu_to_le16(RESP_NEEDED);
 	}
 	memset(&adapter->sleep_params, 0, sizeof(adapter->sleep_params));
 	memset(&adapter->sleep_period, 0, sizeof(adapter->sleep_period));
@@ -342,9 +340,8 @@ mwifiex_free_adapter(struct mwifiex_adapter *adapter)
  */
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 {
-	struct mwifiex_private   *priv = NULL;
-	s32           i = 0;
-	u32           j = 0;
+	struct mwifiex_private *priv;
+	s32 i, j;
 
 	spin_lock_init(&adapter->mwifiex_lock);
 	spin_lock_init(&adapter->int_lock);
@@ -400,9 +397,8 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
  */
 void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
 {
-	struct mwifiex_private *priv = NULL;
-	s32           i = 0;
-	s32           j = 0;
+	struct mwifiex_private *priv;
+	s32 i, j;
 
 	/* Free lists */
 	list_del(&adapter->cmd_free_q);
@@ -436,10 +432,9 @@ void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
  */
 int mwifiex_init_fw(struct mwifiex_adapter *adapter)
 {
-	int ret = 0;
-	struct mwifiex_private *priv = NULL;
-	u8 i = 0;
-	u8 first_sta = true;
+	int ret;
+	struct mwifiex_private *priv;
+	u8 i, first_sta = true;
 	int is_cmd_pend_q_empty;
 	unsigned long flags;
 
@@ -497,8 +492,7 @@ static void mwifiex_delete_bss_prio_tbl(struct mwifiex_private *priv)
 {
 	int i;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct mwifiex_bss_prio_node *bssprio_node = NULL, *tmp_node = NULL,
-								**cur = NULL;
+	struct mwifiex_bss_prio_node *bssprio_node, *tmp_node, **cur;
 	struct list_head *head;
 	spinlock_t *lock;
 	unsigned long flags;
@@ -552,8 +546,8 @@ int
 mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 {
 	int ret = -EINPROGRESS;
-	struct mwifiex_private *priv = NULL;
-	s32 i = 0;
+	struct mwifiex_private *priv;
+	s32 i;
 	unsigned long flags;
 
 	/* mwifiex already shutdown */
@@ -608,9 +602,8 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 		    struct mwifiex_fw_image *pmfw)
 {
-	int ret = 0;
+	int ret, winner;
 	u32 poll_num = 1;
-	int winner;
 
 	/* Check if firmware is already running */
 	ret = adapter->if_ops.check_fw_status(adapter, poll_num, &winner);

@@ -117,8 +117,8 @@ mwifiex_search_oui_in_ie(struct ie_body *iebody, u8 *oui)
 static u8
 mwifiex_is_rsn_oui_present(struct mwifiex_bssdescriptor *bss_desc, u32 cipher)
 {
-	u8 *oui = NULL;
-	struct ie_body *iebody = NULL;
+	u8 *oui;
+	struct ie_body *iebody;
 	u8 ret = MWIFIEX_OUI_NOT_PRESENT;
 
 	if (((bss_desc->bcn_rsn_ie) && ((*(bss_desc->bcn_rsn_ie)).
@@ -144,8 +144,8 @@ mwifiex_is_rsn_oui_present(struct mwifiex_bssdescriptor *bss_desc, u32 cipher)
 static u8
 mwifiex_is_wpa_oui_present(struct mwifiex_bssdescriptor *bss_desc, u32 cipher)
 {
-	u8 *oui = NULL;
-	struct ie_body *iebody = NULL;
+	u8 *oui;
+	struct ie_body *iebody;
 	u8 ret = MWIFIEX_OUI_NOT_PRESENT;
 
 	if (((bss_desc->bcn_wpa_ie) && ((*(bss_desc->bcn_wpa_ie)).
@@ -181,7 +181,7 @@ int mwifiex_find_best_bss(struct mwifiex_private *priv,
 			  struct mwifiex_ssid_bssid *ssid_bssid)
 {
 	struct mwifiex_ssid_bssid tmp_ssid_bssid;
-	u8 *mac = NULL;
+	u8 *mac;
 
 	if (!ssid_bssid)
 		return -1;
@@ -213,7 +213,7 @@ int mwifiex_find_best_bss(struct mwifiex_private *priv,
 int mwifiex_set_user_scan_ioctl(struct mwifiex_private *priv,
 				struct mwifiex_user_scan_cfg *scan_req)
 {
-	int status = 0;
+	int status;
 
 	priv->adapter->cmd_wait_q.condition = false;
 
@@ -2253,8 +2253,8 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 {
 	int ret = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct cmd_ctrl_node *cmd_node = NULL;
-	union mwifiex_scan_cmd_config_tlv *scan_cfg_out = NULL;
+	struct cmd_ctrl_node *cmd_node;
+	union mwifiex_scan_cmd_config_tlv *scan_cfg_out;
 	struct mwifiex_ie_types_chan_list_param_set *chan_list_out;
 	u32 buf_size;
 	struct mwifiex_chan_scan_param_set *scan_chan_list;
@@ -2283,7 +2283,7 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 					GFP_KERNEL);
 	if (!scan_cfg_out) {
 		dev_err(adapter->dev, "failed to alloc scan_cfg_out\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	buf_size = sizeof(struct mwifiex_chan_scan_param_set) *
@@ -2292,7 +2292,7 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 	if (!scan_chan_list) {
 		dev_err(adapter->dev, "failed to alloc scan_chan_list\n");
 		kfree(scan_cfg_out);
-		return -1;
+		return -ENOMEM;
 	}
 
 	keep_previous_scan = false;
@@ -2404,8 +2404,8 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 {
 	int ret = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct cmd_ctrl_node *cmd_node = NULL;
-	struct host_cmd_ds_802_11_scan_rsp *scan_rsp = NULL;
+	struct cmd_ctrl_node *cmd_node;
+	struct host_cmd_ds_802_11_scan_rsp *scan_rsp;
 	struct mwifiex_bssdescriptor *bss_new_entry = NULL;
 	struct mwifiex_ie_types_data *tlv_data;
 	struct mwifiex_ie_types_tsf_timestamp *tsf_tlv;
@@ -2491,7 +2491,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 				GFP_KERNEL);
 	if (!bss_new_entry) {
 		dev_err(adapter->dev, " failed to alloc bss_new_entry\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	for (idx = 0; idx < scan_rsp->number_of_sets && bytes_left; idx++) {
@@ -2881,7 +2881,7 @@ static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
 	scan_cfg = kzalloc(sizeof(struct mwifiex_user_scan_cfg), GFP_KERNEL);
 	if (!scan_cfg) {
 		dev_err(adapter->dev, "failed to alloc scan_cfg\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	memcpy(scan_cfg->ssid_list[0].ssid, req_ssid->ssid,
@@ -2906,7 +2906,7 @@ static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
 int mwifiex_request_scan(struct mwifiex_private *priv,
 			 struct mwifiex_802_11_ssid *req_ssid)
 {
-	int ret = 0;
+	int ret;
 
 	if (down_interruptible(&priv->async_sem)) {
 		dev_err(priv->adapter->dev, "%s: acquire semaphore\n",

@@ -6,6 +6,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
@@ -1322,8 +1324,8 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 		sme->ssid, sme->ssid_len,
 		WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
 	if (!bss) {
-		lbs_pr_err("assoc: bss %pM not in scan results\n",
-			   sme->bssid);
+		wiphy_err(wiphy, "assoc: bss %pM not in scan results\n",
+			  sme->bssid);
 		ret = -ENOENT;
 		goto done;
 	}
@@ -1380,8 +1382,8 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 		lbs_enable_rsn(priv, sme->crypto.cipher_group != 0);
 		break;
 	default:
-		lbs_pr_err("unsupported cipher group 0x%x\n",
-			   sme->crypto.cipher_group);
+		wiphy_err(wiphy, "unsupported cipher group 0x%x\n",
+			  sme->crypto.cipher_group);
 		ret = -ENOTSUPP;
 		goto done;
 	}
@@ -1499,7 +1501,7 @@ static int lbs_cfg_add_key(struct wiphy *wiphy, struct net_device *netdev,
 				     params->key, params->key_len);
 		break;
 	default:
-		lbs_pr_err("unhandled cipher 0x%x\n", params->cipher);
+		wiphy_err(wiphy, "unhandled cipher 0x%x\n", params->cipher);
 		ret = -ENOTSUPP;
 		break;
 	}
@@ -2127,13 +2129,13 @@ int lbs_cfg_register(struct lbs_private *priv)
 
 	ret = wiphy_register(wdev->wiphy);
 	if (ret < 0)
-		lbs_pr_err("cannot register wiphy device\n");
+		pr_err("cannot register wiphy device\n");
 
 	priv->wiphy_registered = true;
 
 	ret = register_netdev(priv->dev);
 	if (ret)
-		lbs_pr_err("cannot register network device\n");
+		pr_err("cannot register network device\n");
 
 	INIT_DELAYED_WORK(&priv->scan_work, lbs_scan_worker);
 

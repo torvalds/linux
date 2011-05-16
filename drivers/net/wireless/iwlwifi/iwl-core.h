@@ -99,7 +99,6 @@ struct iwl_hcmd_ops {
 };
 
 struct iwl_hcmd_utils_ops {
-	u16 (*get_hcmd_size)(u8 cmd_id, u16 len);
 	u16 (*build_addsta_hcmd)(const struct iwl_addsta_cmd *cmd, u8 *data);
 	void (*gain_computation)(struct iwl_priv *priv,
 			u32 *average_noise,
@@ -129,11 +128,6 @@ struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
 	/* Handling TX */
-	void (*txq_update_byte_cnt_tbl)(struct iwl_priv *priv,
-					struct iwl_tx_queue *txq,
-					u16 byte_cnt);
-	void (*txq_inval_byte_cnt_tbl)(struct iwl_priv *priv,
-				       struct iwl_tx_queue *txq);
 	void (*txq_set_sched)(struct iwl_priv *priv, u32 mask);
 	int (*txq_attach_buf_to_tfd)(struct iwl_priv *priv,
 				     struct iwl_tx_queue *txq,

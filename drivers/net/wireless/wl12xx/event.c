@@ -135,6 +135,13 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 
 		/* enable beacon early termination */
 		ret = wl1271_acx_bet_enable(wl, true);
+		if (ret < 0)
+			break;
+
+		if (wl->ps_compl) {
+			complete(wl->ps_compl);
+			wl->ps_compl = NULL;
+		}
 		break;
 	default:
 		break;
@@ -174,8 +181,6 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	u32 vector;
 	bool beacon_loss = false;
 	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
-	bool disconnect_sta = false;
-	unsigned long sta_bitmap = 0;
 
 	wl1271_event_mbox_dump(mbox);
 
@@ -188,6 +193,22 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 			     mbox->scheduled_scan_status);
 
 		wl1271_scan_stm(wl);
+	}
+
+	if (vector & PERIODIC_SCAN_REPORT_EVENT_ID) {
+		wl1271_debug(DEBUG_EVENT, "PERIODIC_SCAN_REPORT_EVENT "
+			     "(status 0x%0x)", mbox->scheduled_scan_status);
+
+		wl1271_scan_sched_scan_results(wl);
+	}
+
+	if (vector & PERIODIC_SCAN_COMPLETE_EVENT_ID) {
+		wl1271_debug(DEBUG_EVENT, "PERIODIC_SCAN_COMPLETE_EVENT "
+			     "(status 0x%0x)", mbox->scheduled_scan_status);
+		if (wl->sched_scanning) {
+			wl1271_scan_sched_scan_stop(wl);
+			ieee80211_sched_scan_stopped(wl->hw);
+		}
 	}
 
 	/* disable dynamic PS when requested by the firmware */
@@ -237,53 +258,8 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 			wl1271_tx_dummy_packet(wl);
 	}
 
-	/*
-	 * "TX retries exceeded" has a different meaning according to mode.
-	 * In AP mode the offending station is disconnected. In STA mode we
-	 * report connection loss.
-	 */
-	if (vector & MAX_TX_RETRY_EVENT_ID) {
-		wl1271_debug(DEBUG_EVENT, "MAX_TX_RETRY_EVENT_ID");
-		if (is_ap) {
-			sta_bitmap |= le16_to_cpu(mbox->sta_tx_retry_exceeded);
-			disconnect_sta = true;
-		} else {
-			beacon_loss = true;
-		}
-	}
-
-	if ((vector & INACTIVE_STA_EVENT_ID) && is_ap) {
-		wl1271_debug(DEBUG_EVENT, "INACTIVE_STA_EVENT_ID");
-		sta_bitmap |= le16_to_cpu(mbox->sta_aging_status);
-		disconnect_sta = true;
-	}
-
 	if (wl->vif && beacon_loss)
 		ieee80211_connection_loss(wl->vif);
-
-	if (is_ap && disconnect_sta) {
-		u32 num_packets = wl->conf.tx.max_tx_retries;
-		struct ieee80211_sta *sta;
-		const u8 *addr;
-		int h;
-
-		for (h = find_first_bit(&sta_bitmap, AP_MAX_LINKS);
-		     h < AP_MAX_LINKS;
-		     h = find_next_bit(&sta_bitmap, AP_MAX_LINKS, h+1)) {
-			if (!wl1271_is_active_sta(wl, h))
-				continue;
-
-			addr = wl->links[h].addr;
-
-			rcu_read_lock();
-			sta = ieee80211_find_sta(wl->vif, addr);
-			if (sta) {
-				wl1271_debug(DEBUG_EVENT, "remove sta %d", h);
-				ieee80211_report_low_ack(sta, num_packets);
-			}
-			rcu_read_unlock();
-		}
-	}
 
 	return 0;
 }

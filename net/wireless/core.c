@@ -370,7 +370,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	spin_lock_init(&rdev->bss_lock);
 	INIT_LIST_HEAD(&rdev->bss_list);
 	INIT_WORK(&rdev->scan_done_wk, __cfg80211_scan_done);
-
+	INIT_WORK(&rdev->sched_scan_results_wk, __cfg80211_sched_scan_results);
 #ifdef CONFIG_CFG80211_WEXT
 	rdev->wiphy.wext = &cfg80211_wext_handler;
 #endif
@@ -416,6 +416,67 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 }
 EXPORT_SYMBOL(wiphy_new);
 
+static int wiphy_verify_combinations(struct wiphy *wiphy)
+{
+	const struct ieee80211_iface_combination *c;
+	int i, j;
+
+	/* If we have combinations enforce them */
+	if (wiphy->n_iface_combinations)
+		wiphy->flags |= WIPHY_FLAG_ENFORCE_COMBINATIONS;
+
+	for (i = 0; i < wiphy->n_iface_combinations; i++) {
+		u32 cnt = 0;
+		u16 all_iftypes = 0;
+
+		c = &wiphy->iface_combinations[i];
+
+		/* Combinations with just one interface aren't real */
+		if (WARN_ON(c->max_interfaces < 2))
+			return -EINVAL;
+
+		/* Need at least one channel */
+		if (WARN_ON(!c->num_different_channels))
+			return -EINVAL;
+
+		if (WARN_ON(!c->n_limits))
+			return -EINVAL;
+
+		for (j = 0; j < c->n_limits; j++) {
+			u16 types = c->limits[j].types;
+
+			/*
+			 * interface types shouldn't overlap, this is
+			 * used in cfg80211_can_change_interface()
+			 */
+			if (WARN_ON(types & all_iftypes))
+				return -EINVAL;
+			all_iftypes |= types;
+
+			if (WARN_ON(!c->limits[j].max))
+				return -EINVAL;
+
+			/* Shouldn't list software iftypes in combinations! */
+			if (WARN_ON(wiphy->software_iftypes & types))
+				return -EINVAL;
+
+			cnt += c->limits[j].max;
+			/*
+			 * Don't advertise an unsupported type
+			 * in a combination.
+			 */
+			if (WARN_ON((wiphy->interface_modes & types) != types))
+				return -EINVAL;
+		}
+
+		/* You can't even choose that many! */
+		if (WARN_ON(cnt < c->max_interfaces))
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 int wiphy_register(struct wiphy *wiphy)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
@@ -443,6 +504,10 @@ int wiphy_register(struct wiphy *wiphy)
 	ifmodes &= ((1 << NUM_NL80211_IFTYPES) - 1) & ~1;
 	if (WARN_ON(ifmodes != wiphy->interface_modes))
 		wiphy->interface_modes = ifmodes;
+
+	res = wiphy_verify_combinations(wiphy);
+	if (res)
+		return res;
 
 	/* sanity check supported bands/channels */
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
@@ -491,6 +556,13 @@ int wiphy_register(struct wiphy *wiphy)
 	if (!have_band) {
 		WARN_ON(1);
 		return -EINVAL;
+	}
+
+	if (rdev->wiphy.wowlan.n_patterns) {
+		if (WARN_ON(!rdev->wiphy.wowlan.pattern_min_len ||
+			    rdev->wiphy.wowlan.pattern_min_len >
+			    rdev->wiphy.wowlan.pattern_max_len))
+			return -EINVAL;
 	}
 
 	/* check and set up bitrates */
@@ -631,6 +703,7 @@ void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 	mutex_destroy(&rdev->devlist_mtx);
 	list_for_each_entry_safe(scan, tmp, &rdev->bss_list, list)
 		cfg80211_put_bss(&scan->pub);
+	cfg80211_rdev_free_wowlan(rdev);
 	kfree(rdev);
 }
 
@@ -664,6 +737,11 @@ static void wdev_cleanup_work(struct work_struct *work)
 		___cfg80211_scan_done(rdev, true);
 	}
 
+	if (WARN_ON(rdev->sched_scan_req &&
+		    rdev->sched_scan_req->dev == wdev->netdev)) {
+		__cfg80211_stop_sched_scan(rdev, false);
+	}
+
 	cfg80211_unlock_rdev(rdev);
 
 	mutex_lock(&rdev->devlist_mtx);
@@ -685,6 +763,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 	struct net_device *dev = ndev;
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev;
+	int ret;
 
 	if (!wdev)
 		return NOTIFY_DONE;
@@ -751,6 +830,10 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			break;
 		case NL80211_IFTYPE_P2P_CLIENT:
 		case NL80211_IFTYPE_STATION:
+			cfg80211_lock_rdev(rdev);
+			__cfg80211_stop_sched_scan(rdev, false);
+			cfg80211_unlock_rdev(rdev);
+
 			wdev_lock(wdev);
 #ifdef CONFIG_CFG80211_WEXT
 			kfree(wdev->wext.ie);
@@ -769,6 +852,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		default:
 			break;
 		}
+		wdev->beacon_interval = 0;
 		break;
 	case NETDEV_DOWN:
 		dev_hold(dev);
@@ -875,6 +959,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			return notifier_from_errno(-EOPNOTSUPP);
 		if (rfkill_blocked(rdev->rfkill))
 			return notifier_from_errno(-ERFKILL);
+		ret = cfg80211_can_add_interface(rdev, wdev->iftype);
+		if (ret)
+			return notifier_from_errno(ret);
 		break;
 	}
 

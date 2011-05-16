@@ -1,6 +1,9 @@
 /*
  * This file contains the handling of RX in wlan driver.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -191,7 +194,7 @@ static u8 convert_mv_rate_to_radiotap(u8 rate)
 	case 12:		/*  54 Mbps */
 		return 108;
 	}
-	lbs_pr_alert("Invalid Marvell WLAN rate %i\n", rate);
+	pr_alert("Invalid Marvell WLAN rate %i\n", rate);
 	return 0;
 }
 
@@ -248,7 +251,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	/* add space for the new radio header */
 	if ((skb_headroom(skb) < sizeof(struct rx_radiotap_hdr)) &&
 	    pskb_expand_head(skb, sizeof(struct rx_radiotap_hdr), 0, GFP_ATOMIC)) {
-		lbs_pr_alert("%s: couldn't pskb_expand_head\n", __func__);
+		netdev_alert(dev, "%s: couldn't pskb_expand_head\n", __func__);
 		ret = -ENOMEM;
 		kfree_skb(skb);
 		goto done;

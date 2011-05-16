@@ -149,7 +149,7 @@ int mwifiex_request_set_multicast_list(struct mwifiex_private *priv,
 int mwifiex_bss_start(struct mwifiex_private *priv,
 		      struct mwifiex_ssid_bssid *ssid_bssid)
 {
-	int ret = 0;
+	int ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	s32 i = -1;
 
@@ -376,7 +376,7 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_bssdescriptor *bss_desc;
-	s32 tbl_idx = 0;
+	s32 tbl_idx;
 
 	if (!info)
 		return -1;
@@ -436,9 +436,8 @@ int mwifiex_set_radio_band_cfg(struct mwifiex_private *priv,
 			       struct mwifiex_ds_band_cfg *radio_cfg)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
-	u8 infra_band = 0;
-	u8 adhoc_band = 0;
-	u32 adhoc_channel = 0;
+	u8 infra_band, adhoc_band;
+	u32 adhoc_channel;
 
 	infra_band = (u8) radio_cfg->config_bands;
 	adhoc_band = (u8) radio_cfg->adhoc_start_band;
@@ -636,7 +635,7 @@ int mwifiex_bss_ioctl_find_bss(struct mwifiex_private *priv,
 int
 mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
 {
-	int ret = 0;
+	int ret;
 	struct mwifiex_bss_info bss_info;
 	struct mwifiex_ssid_bssid ssid_bssid;
 	u16 curr_chan = 0;
@@ -755,11 +754,10 @@ static int mwifiex_rate_ioctl_set_rate_value(struct mwifiex_private *priv,
 					     struct mwifiex_rate_cfg *rate_cfg)
 {
 	u8 rates[MWIFIEX_SUPPORTED_RATES];
-	u8 *rate = NULL;
-	int rate_index = 0;
+	u8 *rate;
+	int rate_index, ret;
 	u16 bitmap_rates[MAX_BITMAP_RATES_SIZE];
-	u32 i = 0;
-	int ret = 0;
+	u32 i;
 	struct mwifiex_adapter *adapter = priv->adapter;
 
 	if (rate_cfg->is_rate_auto) {
@@ -819,7 +817,7 @@ static int mwifiex_rate_ioctl_set_rate_value(struct mwifiex_private *priv,
 static int mwifiex_rate_ioctl_cfg(struct mwifiex_private *priv,
 				  struct mwifiex_rate_cfg *rate_cfg)
 {
-	int status = 0;
+	int status;
 
 	if (!rate_cfg)
 		return -1;
@@ -841,7 +839,7 @@ static int mwifiex_rate_ioctl_cfg(struct mwifiex_private *priv,
 int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,
 			      struct mwifiex_rate_cfg *rate)
 {
-	int ret = 0;
+	int ret;
 
 	memset(rate, 0, sizeof(struct mwifiex_rate_cfg));
 	rate->action = HostCmd_ACT_GEN_GET;
@@ -875,11 +873,11 @@ int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,
 int mwifiex_set_tx_power(struct mwifiex_private *priv,
 			 struct mwifiex_power_cfg *power_cfg)
 {
-	int ret = 0;
-	struct host_cmd_ds_txpwr_cfg *txp_cfg = NULL;
-	struct mwifiex_types_power_group *pg_tlv = NULL;
-	struct mwifiex_power_group *pg = NULL;
-	u8 *buf = NULL;
+	int ret;
+	struct host_cmd_ds_txpwr_cfg *txp_cfg;
+	struct mwifiex_types_power_group *pg_tlv;
+	struct mwifiex_power_group *pg;
+	u8 *buf;
 	u16 dbm = 0;
 
 	if (!power_cfg->is_power_auto) {
@@ -897,7 +895,7 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 	if (!buf) {
 		dev_err(priv->adapter->dev, "%s: failed to alloc cmd buffer\n",
 				__func__);
-		return -1;
+		return -ENOMEM;
 	}
 
 	txp_cfg = (struct host_cmd_ds_txpwr_cfg *) buf;
@@ -960,7 +958,7 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
  */
 int mwifiex_drv_set_power(struct mwifiex_private *priv, u32 *ps_mode)
 {
-	int ret = 0;
+	int ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	u16 sub_cmd;
 
@@ -1078,8 +1076,8 @@ static int mwifiex_sec_ioctl_set_wapi_key(struct mwifiex_private *priv,
 static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 			      struct mwifiex_ds_encrypt_key *encrypt_key)
 {
-	int ret = 0;
-	struct mwifiex_wep_key *wep_key = NULL;
+	int ret;
+	struct mwifiex_wep_key *wep_key;
 	int index;
 
 	if (priv->wep_key_curr_index >= NUM_WEP_KEYS)
@@ -1142,7 +1140,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 static int mwifiex_sec_ioctl_set_wpa_key(struct mwifiex_private *priv,
 			      struct mwifiex_ds_encrypt_key *encrypt_key)
 {
-	int ret = 0;
+	int ret;
 	u8 remove_key = false;
 	struct host_cmd_ds_802_11_key_material *ibss_key;
 
@@ -1209,7 +1207,7 @@ static int
 mwifiex_sec_ioctl_encrypt_key(struct mwifiex_private *priv,
 			      struct mwifiex_ds_encrypt_key *encrypt_key)
 {
-	int status = 0;
+	int status;
 
 	if (encrypt_key->is_wapi_key)
 		status = mwifiex_sec_ioctl_set_wapi_key(priv, encrypt_key);
@@ -1252,11 +1250,9 @@ mwifiex_drv_get_driver_version(struct mwifiex_adapter *adapter, char *version,
 int mwifiex_get_signal_info(struct mwifiex_private *priv,
 			    struct mwifiex_ds_get_signal *signal)
 {
-	struct mwifiex_ds_get_signal info;
-	int status = 0;
+	int status;
 
-	memset(&info, 0, sizeof(struct mwifiex_ds_get_signal));
-	info.selector = ALL_RSSI_INFO_MASK;
+	signal->selector = ALL_RSSI_INFO_MASK;
 
 	/* Signal info can be obtained only if connected */
 	if (!priv->media_connected) {
@@ -1269,13 +1265,10 @@ int mwifiex_get_signal_info(struct mwifiex_private *priv,
 				       HostCmd_ACT_GEN_GET, 0, signal);
 
 	if (!status) {
-		if (signal)
-			memcpy(signal, &info,
-			       sizeof(struct mwifiex_ds_get_signal));
-		if (info.selector & BCN_RSSI_AVG_MASK)
-			priv->w_stats.qual.level = info.bcn_rssi_avg;
-		if (info.selector & BCN_NF_AVG_MASK)
-			priv->w_stats.qual.noise = info.bcn_nf_avg;
+		if (signal->selector & BCN_RSSI_AVG_MASK)
+			priv->w_stats.qual.level = signal->bcn_rssi_avg;
+		if (signal->selector & BCN_NF_AVG_MASK)
+			priv->w_stats.qual.noise = signal->bcn_nf_avg;
 	}
 
 	return status;
@@ -1334,20 +1327,15 @@ int
 mwifiex_get_stats_info(struct mwifiex_private *priv,
 		       struct mwifiex_ds_get_stats *log)
 {
-	int ret = 0;
-	struct mwifiex_ds_get_stats get_log;
+	int ret;
 
-	memset(&get_log, 0, sizeof(struct mwifiex_ds_get_stats));
 	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_GET_LOG,
-				    HostCmd_ACT_GEN_GET, 0, &get_log);
+				    HostCmd_ACT_GEN_GET, 0, log);
 
 	if (!ret) {
-		if (log)
-			memcpy(log, &get_log, sizeof(struct
-					mwifiex_ds_get_stats));
-		priv->w_stats.discard.fragment = get_log.fcs_error;
-		priv->w_stats.discard.retries = get_log.retry;
-		priv->w_stats.discard.misc = get_log.ack_failure;
+		priv->w_stats.discard.fragment = log->fcs_error;
+		priv->w_stats.discard.retries = log->retry;
+		priv->w_stats.discard.misc = log->ack_failure;
 	}
 
 	return ret;
@@ -1425,7 +1413,7 @@ int
 mwifiex_reg_read(struct mwifiex_private *priv, u32 reg_type,
 		 u32 reg_offset, u32 *value)
 {
-	int ret = 0;
+	int ret;
 	struct mwifiex_ds_reg_rw reg_rw;
 
 	reg_rw.type = cpu_to_le32(reg_type);
@@ -1451,7 +1439,7 @@ int
 mwifiex_eeprom_read(struct mwifiex_private *priv, u16 offset, u16 bytes,
 		    u8 *value)
 {
-	int ret = 0;
+	int ret;
 	struct mwifiex_ds_read_eeprom rd_eeprom;
 
 	rd_eeprom.offset = cpu_to_le16((u16) offset);

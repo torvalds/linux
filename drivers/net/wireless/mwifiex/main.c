@@ -69,7 +69,7 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 
 	adapter = kzalloc(sizeof(struct mwifiex_adapter), GFP_KERNEL);
 	if (!adapter)
-		return -1;
+		return -ENOMEM;
 
 	g_adapter = adapter;
 	adapter->card = card;
@@ -150,7 +150,7 @@ error:
  */
 static int mwifiex_unregister(struct mwifiex_adapter *adapter)
 {
-	s32 i = 0;
+	s32 i;
 
 	del_timer(&adapter->cmd_timer);
 
@@ -379,8 +379,7 @@ static void mwifiex_free_adapter(struct mwifiex_adapter *adapter)
  */
 static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter)
 {
-	int ret = 0;
-	int err;
+	int ret, err;
 	struct mwifiex_fw_image fw;
 
 	memset(&fw, 0, sizeof(struct mwifiex_fw_image));
@@ -449,7 +448,7 @@ done:
 static void
 mwifiex_fill_buffer(struct sk_buff *skb)
 {
-	struct ethhdr *eth = NULL;
+	struct ethhdr *eth;
 	struct iphdr *iph;
 	struct timeval tv;
 	u8 tid = 0;
@@ -510,20 +509,20 @@ static int
 mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	struct sk_buff *new_skb = NULL;
+	struct sk_buff *new_skb;
 	struct mwifiex_txinfo *tx_info;
 
 	dev_dbg(priv->adapter->dev, "data: %lu BSS(%d): Data <= kernel\n",
 				jiffies, priv->bss_index);
 
 	if (priv->adapter->surprise_removed) {
-		kfree(skb);
+		kfree_skb(skb);
 		priv->stats.tx_dropped++;
 		return 0;
 	}
 	if (!skb->len || (skb->len > ETH_FRAME_LEN)) {
 		dev_err(priv->adapter->dev, "Tx: bad skb len %d\n", skb->len);
-		kfree(skb);
+		kfree_skb(skb);
 		priv->stats.tx_dropped++;
 		return 0;
 	}
@@ -536,7 +535,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_realloc_headroom(skb, MWIFIEX_MIN_DATA_HEADER_LEN);
 		if (unlikely(!new_skb)) {
 			dev_err(priv->adapter->dev, "Tx: cannot alloca new_skb\n");
-			kfree(skb);
+			kfree_skb(skb);
 			priv->stats.tx_dropped++;
 			return 0;
 		}
@@ -571,7 +570,7 @@ mwifiex_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct sockaddr *hw_addr = (struct sockaddr *) addr;
-	int ret = 0;
+	int ret;
 
 	memcpy(priv->curr_addr, hw_addr->sa_data, ETH_ALEN);
 
@@ -696,9 +695,9 @@ static struct mwifiex_private *mwifiex_add_interface(
 			struct mwifiex_adapter *adapter,
 			u8 bss_index, u8 bss_type)
 {
-	struct net_device *dev = NULL;
-	struct mwifiex_private *priv = NULL;
-	void *mdev_priv = NULL;
+	struct net_device *dev;
+	struct mwifiex_private *priv;
+	void *mdev_priv;
 
 	dev = alloc_netdev_mq(sizeof(struct mwifiex_private *), "mlan%d",
 			      ether_setup, 1);
@@ -759,7 +758,7 @@ error:
 static void
 mwifiex_remove_interface(struct mwifiex_adapter *adapter, u8 bss_index)
 {
-	struct net_device *dev = NULL;
+	struct net_device *dev;
 	struct mwifiex_private *priv = adapter->priv[bss_index];
 
 	if (!priv)

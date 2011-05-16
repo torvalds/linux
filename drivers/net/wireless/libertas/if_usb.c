@@ -1,6 +1,9 @@
 /*
  * This file contains functions used in USB interface module.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
@@ -153,7 +156,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 			lbs_host_to_card_done(priv);
 	} else {
 		/* print the failure status number for debug */
-		lbs_pr_info("URB in failure status: %d\n", urb->status);
+		pr_info("URB in failure status: %d\n", urb->status);
 	}
 }
 
@@ -203,7 +206,7 @@ static void if_usb_setup_firmware(struct lbs_private *priv)
 	wake_method.hdr.size = cpu_to_le16(sizeof(wake_method));
 	wake_method.action = cpu_to_le16(CMD_ACT_GET);
 	if (lbs_cmd_with_response(priv, CMD_802_11_FW_WAKE_METHOD, &wake_method)) {
-		lbs_pr_info("Firmware does not seem to support PS mode\n");
+		netdev_info(priv->dev, "Firmware does not seem to support PS mode\n");
 		priv->fwcapinfo &= ~FW_CAPINFO_PS;
 	} else {
 		if (le16_to_cpu(wake_method.method) == CMD_WAKE_METHOD_COMMAND_INT) {
@@ -212,7 +215,8 @@ static void if_usb_setup_firmware(struct lbs_private *priv)
 			/* The versions which boot up this way don't seem to
 			   work even if we set it to the command interrupt */
 			priv->fwcapinfo &= ~FW_CAPINFO_PS;
-			lbs_pr_info("Firmware doesn't wake via command interrupt; disabling PS mode\n");
+			netdev_info(priv->dev,
+				    "Firmware doesn't wake via command interrupt; disabling PS mode\n");
 		}
 	}
 }
@@ -224,7 +228,7 @@ static void if_usb_fw_timeo(unsigned long priv)
 	if (cardp->fwdnldover) {
 		lbs_deb_usb("Download complete, no event. Assuming success\n");
 	} else {
-		lbs_pr_err("Download timed out\n");
+		pr_err("Download timed out\n");
 		cardp->surprise_removed = 1;
 	}
 	wake_up(&cardp->fw_wq);
@@ -258,7 +262,7 @@ static int if_usb_probe(struct usb_interface *intf,
 
 	cardp = kzalloc(sizeof(struct if_usb_card), GFP_KERNEL);
 	if (!cardp) {
-		lbs_pr_err("Out of memory allocating private data.\n");
+		pr_err("Out of memory allocating private data\n");
 		goto error;
 	}
 
@@ -348,10 +352,12 @@ static int if_usb_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, cardp);
 
 	if (device_create_file(&priv->dev->dev, &dev_attr_lbs_flash_fw))
-		lbs_pr_err("cannot register lbs_flash_fw attribute\n");
+		netdev_err(priv->dev,
+			   "cannot register lbs_flash_fw attribute\n");
 
 	if (device_create_file(&priv->dev->dev, &dev_attr_lbs_flash_boot2))
-		lbs_pr_err("cannot register lbs_flash_boot2 attribute\n");
+		netdev_err(priv->dev,
+			   "cannot register lbs_flash_boot2 attribute\n");
 
 	/*
 	 * EHS_REMOVE_WAKEUP is not supported on all versions of the firmware.
@@ -536,7 +542,7 @@ static int __if_usb_submit_rx_urb(struct if_usb_card *cardp,
 	int ret = -1;
 
 	if (!(skb = dev_alloc_skb(MRVDRV_ETH_RX_PACKET_BUFFER_SIZE))) {
-		lbs_pr_err("No free skb\n");
+		pr_err("No free skb\n");
 		goto rx_ret;
 	}
 
@@ -595,7 +601,7 @@ static void if_usb_receive_fwload(struct urb *urb)
 
 		if (tmp[0] == cpu_to_le32(CMD_TYPE_INDICATION) &&
 		    tmp[1] == cpu_to_le32(MACREG_INT_CODE_FIRMWARE_READY)) {
-			lbs_pr_info("Firmware ready event received\n");
+			pr_info("Firmware ready event received\n");
 			wake_up(&cardp->fw_wq);
 		} else {
 			lbs_deb_usb("Waiting for confirmation; got %x %x\n",
@@ -622,20 +628,20 @@ static void if_usb_receive_fwload(struct urb *urb)
 			    bootcmdresp.magic == cpu_to_le32(CMD_TYPE_DATA) ||
 			    bootcmdresp.magic == cpu_to_le32(CMD_TYPE_INDICATION)) {
 				if (!cardp->bootcmdresp)
-					lbs_pr_info("Firmware already seems alive; resetting\n");
+					pr_info("Firmware already seems alive; resetting\n");
 				cardp->bootcmdresp = -1;
 			} else {
-				lbs_pr_info("boot cmd response wrong magic number (0x%x)\n",
+				pr_info("boot cmd response wrong magic number (0x%x)\n",
 					    le32_to_cpu(bootcmdresp.magic));
 			}
 		} else if ((bootcmdresp.cmd != BOOT_CMD_FW_BY_USB) &&
 			   (bootcmdresp.cmd != BOOT_CMD_UPDATE_FW) &&
 			   (bootcmdresp.cmd != BOOT_CMD_UPDATE_BOOT2)) {
-			lbs_pr_info("boot cmd response cmd_tag error (%d)\n",
-				    bootcmdresp.cmd);
+			pr_info("boot cmd response cmd_tag error (%d)\n",
+				bootcmdresp.cmd);
 		} else if (bootcmdresp.result != BOOT_CMD_RESP_OK) {
-			lbs_pr_info("boot cmd response result error (%d)\n",
-				    bootcmdresp.result);
+			pr_info("boot cmd response result error (%d)\n",
+				bootcmdresp.result);
 		} else {
 			cardp->bootcmdresp = 1;
 			lbs_deb_usbd(&cardp->udev->dev,
@@ -901,7 +907,7 @@ static int check_fwfile_format(const uint8_t *data, uint32_t totlen)
 	} while (!exit);
 
 	if (ret)
-		lbs_pr_err("firmware file format check FAIL\n");
+		pr_err("firmware file format check FAIL\n");
 	else
 		lbs_deb_fw("firmware file format check PASS\n");
 
@@ -998,7 +1004,7 @@ static int __if_usb_prog_firmware(struct if_usb_card *cardp,
 
 	ret = get_fw(cardp, fwname);
 	if (ret) {
-		lbs_pr_err("failed to find firmware (%d)\n", ret);
+		pr_err("failed to find firmware (%d)\n", ret);
 		goto done;
 	}
 
@@ -1073,13 +1079,13 @@ restart:
 	usb_kill_urb(cardp->rx_urb);
 
 	if (!cardp->fwdnldover) {
-		lbs_pr_info("failed to load fw, resetting device!\n");
+		pr_info("failed to load fw, resetting device!\n");
 		if (--reset_count >= 0) {
 			if_usb_reset_device(cardp);
 			goto restart;
 		}
 
-		lbs_pr_info("FW download failure, time = %d ms\n", i * 100);
+		pr_info("FW download failure, time = %d ms\n", i * 100);
 		ret = -EIO;
 		goto release_fw;
 	}

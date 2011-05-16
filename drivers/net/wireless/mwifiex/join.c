@@ -143,9 +143,8 @@ mwifiex_cmd_append_tsf_tlv(struct mwifiex_private *priv, u8 **buffer,
 static int mwifiex_get_common_rates(struct mwifiex_private *priv, u8 *rate1,
 				    u32 rate1_size, u8 *rate2, u32 rate2_size)
 {
-	int ret = 0;
-	u8 *ptr = rate1;
-	u8 *tmp = NULL;
+	int ret;
+	u8 *ptr = rate1, *tmp;
 	u32 i, j;
 
 	tmp = kmalloc(rate1_size, GFP_KERNEL);
@@ -203,7 +202,7 @@ mwifiex_setup_rates_from_bssdesc(struct mwifiex_private *priv,
 				 u8 *out_rates, u32 *out_rates_size)
 {
 	u8 card_rates[MWIFIEX_SUPPORTED_RATES];
-	u32 card_rates_size = 0;
+	u32 card_rates_size;
 
 	/* Copy AP supported rates */
 	memcpy(out_rates, bss_desc->supported_rates, MWIFIEX_SUPPORTED_RATES);
@@ -1359,7 +1358,7 @@ int mwifiex_adhoc_join(struct mwifiex_private *priv,
 static int mwifiex_deauthenticate_infra(struct mwifiex_private *priv, u8 *mac)
 {
 	u8 mac_address[ETH_ALEN];
-	int ret = 0;
+	int ret;
 	u8 zero_mac[ETH_ALEN] = { 0, 0, 0, 0, 0, 0 };
 
 	if (mac) {

@@ -58,16 +58,13 @@ enum {
 	CHANNEL_SWITCH_COMPLETE_EVENT_ID	 = BIT(17),
 	BSS_LOSE_EVENT_ID			 = BIT(18),
 	REGAINED_BSS_EVENT_ID			 = BIT(19),
-	MAX_TX_RETRY_EVENT_ID			 = BIT(20),
+	ROAMING_TRIGGER_MAX_TX_RETRY_EVENT_ID	 = BIT(20),
 	/* STA: dummy paket for dynamic mem blocks */
 	DUMMY_PACKET_EVENT_ID                    = BIT(21),
 	/* AP: STA remove complete */
 	STA_REMOVE_COMPLETE_EVENT_ID             = BIT(21),
 	SOFT_GEMINI_SENSE_EVENT_ID		 = BIT(22),
-	/* STA: SG prediction */
 	SOFT_GEMINI_PREDICTION_EVENT_ID		 = BIT(23),
-	/* AP: Inactive STA */
-	INACTIVE_STA_EVENT_ID			 = BIT(23),
 	SOFT_GEMINI_AVALANCHE_EVENT_ID		 = BIT(24),
 	PLT_RX_CALIBRATION_COMPLETE_EVENT_ID	 = BIT(25),
 	DBG_EVENT_ID				 = BIT(26),
@@ -122,11 +119,7 @@ struct event_mailbox {
 
 	/* AP FW only */
 	u8 hlid_removed;
-
-	/* a bitmap of hlids for stations that have been inactive too long */
 	__le16 sta_aging_status;
-
-	/* a bitmap of hlids for stations which didn't respond to TX */
 	__le16 sta_tx_retry_exceeded;
 
 	u8 reserved_5[24];
@@ -136,8 +129,5 @@ int wl1271_event_unmask(struct wl1271 *wl);
 void wl1271_event_mbox_config(struct wl1271 *wl);
 int wl1271_event_handle(struct wl1271 *wl, u8 mbox);
 void wl1271_pspoll_work(struct work_struct *work);
-
-/* Functions from main.c */
-bool wl1271_is_active_sta(struct wl1271 *wl, u8 hlid);
 
 #endif

@@ -1000,6 +1000,14 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	/* Zinwell */
 	{ USB_DEVICE(0x5a57, 0x0284) },
 #endif
+#ifdef CONFIG_RT2800USB_RT53XX
+	/* Azurewave */
+	{ USB_DEVICE(0x13d3, 0x3329) },
+	{ USB_DEVICE(0x13d3, 0x3365) },
+	/* Ralink */
+	{ USB_DEVICE(0x148f, 0x5370) },
+	{ USB_DEVICE(0x148f, 0x5372) },
+#endif
 #ifdef CONFIG_RT2800USB_UNKNOWN
 	/*
 	 * Unclear what kind of devices these are (they aren't supported by the

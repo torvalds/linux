@@ -2394,7 +2394,7 @@ ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 	spin_lock_init(&sc->rxbuflock);
 	spin_lock_init(&sc->txbuflock);
 	spin_lock_init(&sc->block);
-
+	spin_lock_init(&sc->irqlock);
 
 	/* Setup interrupt handler */
 	ret = request_irq(sc->irq, ath5k_intr, IRQF_SHARED, "ath", sc);

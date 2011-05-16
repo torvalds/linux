@@ -62,7 +62,6 @@ struct ath_node;
 #define	ATH_TXQ_SETUP(sc, i)        ((sc)->tx.txqsetup & (1<<i))
 
 struct ath_config {
-	u32 ath_aggr_prot;
 	u16 txpowlimit;
 	u8 cabqReadytime;
 };
@@ -484,7 +483,6 @@ static inline void ath_deinit_leds(struct ath_softc *sc)
 #define ATH_ANT_DIV_COMB_ALT_ANT_RATIO 30
 #define ATH_ANT_DIV_COMB_ALT_ANT_RATIO2 20
 
-#define ATH_ANT_DIV_COMB_LNA1_LNA2_DELTA -3
 #define ATH_ANT_DIV_COMB_LNA1_LNA2_SWITCH_DELTA -1
 #define ATH_ANT_DIV_COMB_LNA1_DELTA_HI -4
 #define ATH_ANT_DIV_COMB_LNA1_DELTA_MID -2
@@ -565,6 +563,7 @@ struct ath_ant_comb {
 #define PS_WAIT_FOR_PSPOLL_DATA   BIT(2)
 #define PS_WAIT_FOR_TX_ACK        BIT(3)
 #define PS_BEACON_SYNC            BIT(4)
+#define PS_TSFOOR_SYNC            BIT(5)
 
 struct ath_rate_table;
 
