@@ -629,7 +629,6 @@ static void ar_context_link_page(struct ar_context *ctx, unsigned int index)
 	ctx->last_buffer_index = index;
 
 	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
-	flush_writes(ctx->ohci);
 }
 
 static void ar_context_release(struct ar_context *ctx)
@@ -1001,7 +1000,6 @@ static void ar_context_run(struct ar_context *ctx)
 
 	reg_write(ctx->ohci, COMMAND_PTR(ctx->regs), ctx->descriptors_bus | 1);
 	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_RUN);
-	flush_writes(ctx->ohci);
 }
 
 static struct descriptor *find_branch_descriptor(struct descriptor *d, int z)
@@ -1201,7 +1199,6 @@ static void context_stop(struct context *ctx)
 
 	reg_write(ctx->ohci, CONTROL_CLEAR(ctx->regs), CONTEXT_RUN);
 	ctx->running = false;
-	flush_writes(ctx->ohci);
 
 	for (i = 0; i < 10; i++) {
 		reg = reg_read(ctx->ohci, CONTROL_SET(ctx->regs));
@@ -1345,12 +1342,10 @@ static int at_context_queue_packet(struct context *ctx,
 
 	context_append(ctx, d, z, 4 - z);
 
-	if (ctx->running) {
+	if (ctx->running)
 		reg_write(ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
-		flush_writes(ohci);
-	} else {
+	else
 		context_run(ctx, 0);
-	}
 
 	return 0;
 }
@@ -2196,7 +2191,9 @@ static int ohci_enable(struct fw_card *card,
 		  OHCI1394_LinkControl_rcvPhyPkt);
 
 	ar_context_run(&ohci->ar_request_ctx);
-	ar_context_run(&ohci->ar_response_ctx); /* also flushes writes */
+	ar_context_run(&ohci->ar_response_ctx);
+
+	flush_writes(ohci);
 
 	/* We are ready to go, reset bus to finish initialization. */
 	fw_schedule_bus_reset(&ohci->card, false, true);
@@ -3128,7 +3125,6 @@ static void ohci_flush_queue_iso(struct fw_iso_context *base)
 			&container_of(base, struct iso_context, base)->context;
 
 	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
-	flush_writes(ctx->ohci);
 }
 
 static const struct fw_card_driver ohci_driver = {
