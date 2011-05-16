@@ -4785,7 +4785,7 @@ PA SEMI ETHERNET DRIVER
 M:	Olof Johansson <olof@lixom.net>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/pasemi_mac.*
+F:	drivers/net/ethernet/pasemi/*
 
 PA SEMI SMBUS DRIVER
 M:	Olof Johansson <olof@lixom.net>

@@ -1457,15 +1457,6 @@ if NETDEV_10000
 config MDIO
 	tristate
 
-config PASEMI_MAC
-	tristate "PA Semi 1/10Gbit MAC"
-	depends on PPC_PASEMI && PCI && INET
-	select PHYLIB
-	select INET_LRO
-	help
-	  This driver supports the on-chip 1/10Gbit Ethernet controller on
-	  PA Semi's PWRficient line of chips.
-
 config TEHUTI
 	tristate "Tehuti Networks 10G Ethernet"
 	depends on PCI
