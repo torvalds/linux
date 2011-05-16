@@ -1208,6 +1208,9 @@ static int bnx2i_task_xmit(struct iscsi_task *task)
 	struct bnx2i_cmd *cmd = task->dd_data;
 	struct iscsi_cmd *hdr = (struct iscsi_cmd *) task->hdr;
 
+	if (bnx2i_conn->ep->num_active_cmds + 1 > hba->max_sqes)
+		return -ENOMEM;
+
 	/*
 	 * If there is no scsi_cmnd this must be a mgmt task
 	 */
