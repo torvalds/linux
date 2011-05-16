@@ -197,6 +197,8 @@ ifneq ($(KBUILD_NOCMDDEP),1)
 # User may override this check using make KBUILD_NOCMDDEP=1
 arg-check = $(strip $(filter-out $(cmd_$(1)), $(cmd_$@)) \
                     $(filter-out $(cmd_$@),   $(cmd_$(1))) )
+else
+arg-check = $(if $(strip $(cmd_$@)),,1)
 endif
 
 # >'< substitution is for echo to work,
