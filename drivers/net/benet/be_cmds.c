@@ -80,10 +80,20 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 	if (compl_status == MCC_STATUS_SUCCESS) {
 		if ((compl->tag0 == OPCODE_ETH_GET_STATISTICS) &&
 			(compl->tag1 == CMD_SUBSYSTEM_ETH)) {
-			struct be_cmd_resp_get_stats *resp =
-						adapter->stats_cmd.va;
-			be_dws_le_to_cpu(&resp->hw_stats,
-						sizeof(resp->hw_stats));
+			if (adapter->generation == BE_GEN3) {
+				struct be_cmd_resp_get_stats_v1 *resp =
+							adapter->stats_cmd.va;
+
+				be_dws_le_to_cpu(&resp->hw_stats,
+							sizeof(resp->hw_stats));
+			} else {
+				struct be_cmd_resp_get_stats_v0 *resp =
+							adapter->stats_cmd.va;
+
+				be_dws_le_to_cpu(&resp->hw_stats,
+							sizeof(resp->hw_stats));
+			}
+			be_parse_stats(adapter);
 			netdev_stats_update(adapter);
 			adapter->stats_cmd_sent = false;
 		}
@@ -1075,7 +1085,7 @@ int be_cmd_if_destroy(struct be_adapter *adapter, u32 interface_id, u32 domain)
 int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 {
 	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_get_stats *req;
+	struct be_cmd_req_hdr *hdr;
 	struct be_sge *sge;
 	int status = 0;
 
@@ -1089,14 +1099,18 @@ int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 		status = -EBUSY;
 		goto err;
 	}
-	req = nonemb_cmd->va;
+	hdr = nonemb_cmd->va;
 	sge = nonembedded_sgl(wrb);
 
-	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1,
+	be_wrb_hdr_prepare(wrb, nonemb_cmd->size, false, 1,
 			OPCODE_ETH_GET_STATISTICS);
 
-	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH,
-		OPCODE_ETH_GET_STATISTICS, sizeof(*req));
+	be_cmd_hdr_prepare(hdr, CMD_SUBSYSTEM_ETH,
+		OPCODE_ETH_GET_STATISTICS, nonemb_cmd->size);
+
+	if (adapter->generation == BE_GEN3)
+		hdr->version = 1;
+
 	wrb->tag1 = CMD_SUBSYSTEM_ETH;
 	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
 	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);

@@ -245,14 +245,126 @@ netdev_addr:
 	return status;
 }
 
+static void populate_be2_stats(struct be_adapter *adapter)
+{
+
+	struct be_drv_stats *drvs = &adapter->drv_stats;
+	struct be_pmem_stats *pmem_sts = be_pmem_stats_from_cmd(adapter);
+	struct be_port_rxf_stats_v0 *port_stats =
+		be_port_rxf_stats_from_cmd(adapter);
+	struct be_rxf_stats_v0 *rxf_stats =
+		be_rxf_stats_from_cmd(adapter);
+
+	drvs->rx_pause_frames = port_stats->rx_pause_frames;
+	drvs->rx_crc_errors = port_stats->rx_crc_errors;
+	drvs->rx_control_frames = port_stats->rx_control_frames;
+	drvs->rx_in_range_errors = port_stats->rx_in_range_errors;
+	drvs->rx_frame_too_long = port_stats->rx_frame_too_long;
+	drvs->rx_dropped_runt = port_stats->rx_dropped_runt;
+	drvs->rx_ip_checksum_errs = port_stats->rx_ip_checksum_errs;
+	drvs->rx_tcp_checksum_errs = port_stats->rx_tcp_checksum_errs;
+	drvs->rx_udp_checksum_errs = port_stats->rx_udp_checksum_errs;
+	drvs->rxpp_fifo_overflow_drop = port_stats->rx_fifo_overflow;
+	drvs->rx_dropped_tcp_length = port_stats->rx_dropped_tcp_length;
+	drvs->rx_dropped_too_small = port_stats->rx_dropped_too_small;
+	drvs->rx_dropped_too_short = port_stats->rx_dropped_too_short;
+	drvs->rx_out_range_errors = port_stats->rx_out_range_errors;
+	drvs->rx_input_fifo_overflow_drop =
+		port_stats->rx_input_fifo_overflow;
+	drvs->rx_dropped_header_too_small =
+		port_stats->rx_dropped_header_too_small;
+	drvs->rx_address_match_errors =
+		port_stats->rx_address_match_errors;
+	drvs->rx_alignment_symbol_errors =
+		port_stats->rx_alignment_symbol_errors;
+
+	drvs->tx_pauseframes = port_stats->tx_pauseframes;
+	drvs->tx_controlframes = port_stats->tx_controlframes;
+
+	if (adapter->port_num)
+		drvs->jabber_events =
+			rxf_stats->port1_jabber_events;
+	else
+		drvs->jabber_events =
+			rxf_stats->port0_jabber_events;
+	drvs->rx_drops_no_pbuf = rxf_stats->rx_drops_no_pbuf;
+	drvs->rx_drops_no_txpb = rxf_stats->rx_drops_no_txpb;
+	drvs->rx_drops_no_erx_descr = rxf_stats->rx_drops_no_erx_descr;
+	drvs->rx_drops_invalid_ring = rxf_stats->rx_drops_invalid_ring;
+	drvs->forwarded_packets = rxf_stats->forwarded_packets;
+	drvs->rx_drops_mtu = rxf_stats->rx_drops_mtu;
+	drvs->rx_drops_no_tpre_descr =
+		rxf_stats->rx_drops_no_tpre_descr;
+	drvs->rx_drops_too_many_frags =
+		rxf_stats->rx_drops_too_many_frags;
+	adapter->drv_stats.eth_red_drops = pmem_sts->eth_red_drops;
+}
+
+static void populate_be3_stats(struct be_adapter *adapter)
+{
+	struct be_drv_stats *drvs = &adapter->drv_stats;
+	struct be_pmem_stats *pmem_sts = be_pmem_stats_from_cmd(adapter);
+
+	struct be_rxf_stats_v1 *rxf_stats =
+		be_rxf_stats_from_cmd(adapter);
+	struct be_port_rxf_stats_v1 *port_stats =
+		be_port_rxf_stats_from_cmd(adapter);
+
+	drvs->rx_priority_pause_frames = 0;
+	drvs->pmem_fifo_overflow_drop = 0;
+	drvs->rx_pause_frames = port_stats->rx_pause_frames;
+	drvs->rx_crc_errors = port_stats->rx_crc_errors;
+	drvs->rx_control_frames = port_stats->rx_control_frames;
+	drvs->rx_in_range_errors = port_stats->rx_in_range_errors;
+	drvs->rx_frame_too_long = port_stats->rx_frame_too_long;
+	drvs->rx_dropped_runt = port_stats->rx_dropped_runt;
+	drvs->rx_ip_checksum_errs = port_stats->rx_ip_checksum_errs;
+	drvs->rx_tcp_checksum_errs = port_stats->rx_tcp_checksum_errs;
+	drvs->rx_udp_checksum_errs = port_stats->rx_udp_checksum_errs;
+	drvs->rx_dropped_tcp_length = port_stats->rx_dropped_tcp_length;
+	drvs->rx_dropped_too_small = port_stats->rx_dropped_too_small;
+	drvs->rx_dropped_too_short = port_stats->rx_dropped_too_short;
+	drvs->rx_out_range_errors = port_stats->rx_out_range_errors;
+	drvs->rx_dropped_header_too_small =
+		port_stats->rx_dropped_header_too_small;
+	drvs->rx_input_fifo_overflow_drop =
+		port_stats->rx_input_fifo_overflow_drop;
+	drvs->rx_address_match_errors =
+		port_stats->rx_address_match_errors;
+	drvs->rx_alignment_symbol_errors =
+		port_stats->rx_alignment_symbol_errors;
+	drvs->rxpp_fifo_overflow_drop =
+		port_stats->rxpp_fifo_overflow_drop;
+	drvs->tx_pauseframes = port_stats->tx_pauseframes;
+	drvs->tx_controlframes = port_stats->tx_controlframes;
+	drvs->jabber_events = port_stats->jabber_events;
+	drvs->rx_drops_no_pbuf = rxf_stats->rx_drops_no_pbuf;
+	drvs->rx_drops_no_txpb = rxf_stats->rx_drops_no_txpb;
+	drvs->rx_drops_no_erx_descr = rxf_stats->rx_drops_no_erx_descr;
+	drvs->rx_drops_invalid_ring = rxf_stats->rx_drops_invalid_ring;
+	drvs->forwarded_packets = rxf_stats->forwarded_packets;
+	drvs->rx_drops_mtu = rxf_stats->rx_drops_mtu;
+	drvs->rx_drops_no_tpre_descr =
+		rxf_stats->rx_drops_no_tpre_descr;
+	drvs->rx_drops_too_many_frags =
+		rxf_stats->rx_drops_too_many_frags;
+	adapter->drv_stats.eth_red_drops = pmem_sts->eth_red_drops;
+}
+
+
+
+void be_parse_stats(struct be_adapter *adapter)
+{
+	if (adapter->generation == BE_GEN3)
+		populate_be3_stats(adapter);
+	else
+		populate_be2_stats(adapter);
+}
+
 void netdev_stats_update(struct be_adapter *adapter)
 {
-	struct be_hw_stats *hw_stats = hw_stats_from_cmd(adapter->stats_cmd.va);
-	struct be_rxf_stats *rxf_stats = &hw_stats->rxf;
-	struct be_port_rxf_stats *port_stats =
-			&rxf_stats->port[adapter->port_num];
+	struct be_drv_stats *drvs = &adapter->drv_stats;
 	struct net_device_stats *dev_stats = &adapter->netdev->stats;
-	struct be_erx_stats *erx_stats = &hw_stats->erx;
 	struct be_rx_obj *rxo;
 	int i;
 
@@ -262,43 +374,52 @@ void netdev_stats_update(struct be_adapter *adapter)
 		dev_stats->rx_bytes += rx_stats(rxo)->rx_bytes;
 		dev_stats->multicast += rx_stats(rxo)->rx_mcast_pkts;
 		/*  no space in linux buffers: best possible approximation */
-		dev_stats->rx_dropped +=
-			erx_stats->rx_drops_no_fragments[rxo->q.id];
+		if (adapter->generation == BE_GEN3) {
+			struct be_erx_stats_v1 *erx_stats =
+					be_erx_stats_from_cmd(adapter);
+			dev_stats->rx_dropped +=
+				erx_stats->rx_drops_no_fragments[rxo->q.id];
+		} else {
+			struct be_erx_stats_v0 *erx_stats =
+					be_erx_stats_from_cmd(adapter);
+			dev_stats->rx_dropped +=
+				erx_stats->rx_drops_no_fragments[rxo->q.id];
+		}
 	}
 
 	dev_stats->tx_packets = tx_stats(adapter)->be_tx_pkts;
 	dev_stats->tx_bytes = tx_stats(adapter)->be_tx_bytes;
 
 	/* bad pkts received */
-	dev_stats->rx_errors = port_stats->rx_crc_errors +
-		port_stats->rx_alignment_symbol_errors +
-		port_stats->rx_in_range_errors +
-		port_stats->rx_out_range_errors +
-		port_stats->rx_frame_too_long +
-		port_stats->rx_dropped_too_small +
-		port_stats->rx_dropped_too_short +
-		port_stats->rx_dropped_header_too_small +
-		port_stats->rx_dropped_tcp_length +
-		port_stats->rx_dropped_runt +
-		port_stats->rx_tcp_checksum_errs +
-		port_stats->rx_ip_checksum_errs +
-		port_stats->rx_udp_checksum_errs;
+	dev_stats->rx_errors = drvs->rx_crc_errors +
+		drvs->rx_alignment_symbol_errors +
+		drvs->rx_in_range_errors +
+		drvs->rx_out_range_errors +
+		drvs->rx_frame_too_long +
+		drvs->rx_dropped_too_small +
+		drvs->rx_dropped_too_short +
+		drvs->rx_dropped_header_too_small +
+		drvs->rx_dropped_tcp_length +
+		drvs->rx_dropped_runt +
+		drvs->rx_tcp_checksum_errs +
+		drvs->rx_ip_checksum_errs +
+		drvs->rx_udp_checksum_errs;
 
 	/* detailed rx errors */
-	dev_stats->rx_length_errors = port_stats->rx_in_range_errors +
-		port_stats->rx_out_range_errors +
-		port_stats->rx_frame_too_long;
+	dev_stats->rx_length_errors = drvs->rx_in_range_errors +
+		drvs->rx_out_range_errors +
+		drvs->rx_frame_too_long;
 
-	dev_stats->rx_crc_errors = port_stats->rx_crc_errors;
+	dev_stats->rx_crc_errors = drvs->rx_crc_errors;
 
 	/* frame alignment errors */
-	dev_stats->rx_frame_errors = port_stats->rx_alignment_symbol_errors;
+	dev_stats->rx_frame_errors = drvs->rx_alignment_symbol_errors;
 
 	/* receiver fifo overrun */
 	/* drops_no_pbuf is no per i/f, it's per BE card */
-	dev_stats->rx_fifo_errors = port_stats->rx_fifo_overflow +
-					port_stats->rx_input_fifo_overflow +
-					rxf_stats->rx_drops_no_pbuf;
+	dev_stats->rx_fifo_errors = drvs->rxpp_fifo_overflow_drop +
+				drvs->rx_input_fifo_overflow_drop +
+				drvs->rx_drops_no_pbuf;
 }
 
 void be_link_status_update(struct be_adapter *adapter, bool link_up)
@@ -2823,7 +2944,10 @@ static int be_stats_init(struct be_adapter *adapter)
 {
 	struct be_dma_mem *cmd = &adapter->stats_cmd;
 
-	cmd->size = sizeof(struct be_cmd_req_get_stats);
+	if (adapter->generation == BE_GEN2)
+		cmd->size = sizeof(struct be_cmd_req_get_stats_v0);
+	else
+		cmd->size = sizeof(struct be_cmd_req_get_stats_v1);
 	cmd->va = dma_alloc_coherent(&adapter->pdev->dev, cmd->size, &cmd->dma,
 				     GFP_KERNEL);
 	if (cmd->va == NULL)

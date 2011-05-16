@@ -26,8 +26,8 @@ struct be_ethtool_stat {
 	int offset;
 };
 
-enum {NETSTAT, PORTSTAT, MISCSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT,
-			PMEMSTAT, DRVSTAT};
+enum {NETSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT,
+			DRVSTAT};
 #define FIELDINFO(_struct, field) FIELD_SIZEOF(_struct, field), \
 					offsetof(_struct, field)
 #define NETSTAT_INFO(field) 	#field, NETSTAT,\
@@ -37,15 +37,8 @@ enum {NETSTAT, PORTSTAT, MISCSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT,
 					FIELDINFO(struct be_tx_stats, field)
 #define DRVSTAT_RX_INFO(field)	#field, DRVSTAT_RX,\
 					FIELDINFO(struct be_rx_stats, field)
-#define MISCSTAT_INFO(field) 	#field, MISCSTAT,\
-					FIELDINFO(struct be_rxf_stats, field)
-#define PORTSTAT_INFO(field) 	#field, PORTSTAT,\
-					FIELDINFO(struct be_port_rxf_stats, \
-						field)
-#define ERXSTAT_INFO(field) 	#field, ERXSTAT,\
-					FIELDINFO(struct be_erx_stats, field)
-#define PMEMSTAT_INFO(field) 	#field, PMEMSTAT,\
-					FIELDINFO(struct be_pmem_stats, field)
+#define ERXSTAT_INFO(field)	#field, ERXSTAT,\
+					FIELDINFO(struct be_erx_stats_v1, field)
 #define	DRVSTAT_INFO(field)	#field, DRVSTAT,\
 					FIELDINFO(struct be_drv_stats, \
 						field)
@@ -65,50 +58,41 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_TX_INFO(be_tx_stops)},
 	{DRVSTAT_TX_INFO(be_tx_events)},
 	{DRVSTAT_TX_INFO(be_tx_compl)},
-	{PORTSTAT_INFO(rx_unicast_frames)},
-	{PORTSTAT_INFO(rx_multicast_frames)},
-	{PORTSTAT_INFO(rx_broadcast_frames)},
-	{PORTSTAT_INFO(rx_crc_errors)},
-	{PORTSTAT_INFO(rx_alignment_symbol_errors)},
-	{PORTSTAT_INFO(rx_pause_frames)},
-	{PORTSTAT_INFO(rx_control_frames)},
-	{PORTSTAT_INFO(rx_in_range_errors)},
-	{PORTSTAT_INFO(rx_out_range_errors)},
-	{PORTSTAT_INFO(rx_frame_too_long)},
-	{PORTSTAT_INFO(rx_address_match_errors)},
-	{PORTSTAT_INFO(rx_vlan_mismatch)},
-	{PORTSTAT_INFO(rx_dropped_too_small)},
-	{PORTSTAT_INFO(rx_dropped_too_short)},
-	{PORTSTAT_INFO(rx_dropped_header_too_small)},
-	{PORTSTAT_INFO(rx_dropped_tcp_length)},
-	{PORTSTAT_INFO(rx_dropped_runt)},
-	{PORTSTAT_INFO(rx_fifo_overflow)},
-	{PORTSTAT_INFO(rx_input_fifo_overflow)},
-	{PORTSTAT_INFO(rx_ip_checksum_errs)},
-	{PORTSTAT_INFO(rx_tcp_checksum_errs)},
-	{PORTSTAT_INFO(rx_udp_checksum_errs)},
-	{PORTSTAT_INFO(rx_non_rss_packets)},
-	{PORTSTAT_INFO(rx_ipv4_packets)},
-	{PORTSTAT_INFO(rx_ipv6_packets)},
-	{PORTSTAT_INFO(rx_switched_unicast_packets)},
-	{PORTSTAT_INFO(rx_switched_multicast_packets)},
-	{PORTSTAT_INFO(rx_switched_broadcast_packets)},
-	{PORTSTAT_INFO(tx_unicastframes)},
-	{PORTSTAT_INFO(tx_multicastframes)},
-	{PORTSTAT_INFO(tx_broadcastframes)},
-	{PORTSTAT_INFO(tx_pauseframes)},
-	{PORTSTAT_INFO(tx_controlframes)},
-	{MISCSTAT_INFO(rx_drops_no_pbuf)},
-	{MISCSTAT_INFO(rx_drops_no_txpb)},
-	{MISCSTAT_INFO(rx_drops_no_erx_descr)},
-	{MISCSTAT_INFO(rx_drops_no_tpre_descr)},
-	{MISCSTAT_INFO(rx_drops_too_many_frags)},
-	{MISCSTAT_INFO(rx_drops_invalid_ring)},
-	{MISCSTAT_INFO(forwarded_packets)},
-	{MISCSTAT_INFO(rx_drops_mtu)},
-	{MISCSTAT_INFO(port0_jabber_events)},
-	{MISCSTAT_INFO(port1_jabber_events)},
-	{PMEMSTAT_INFO(eth_red_drops)},
+	{DRVSTAT_INFO(rx_crc_errors)},
+	{DRVSTAT_INFO(rx_alignment_symbol_errors)},
+	{DRVSTAT_INFO(rx_pause_frames)},
+	{DRVSTAT_INFO(rx_control_frames)},
+	{DRVSTAT_INFO(rx_in_range_errors)},
+	{DRVSTAT_INFO(rx_out_range_errors)},
+	{DRVSTAT_INFO(rx_frame_too_long)},
+	{DRVSTAT_INFO(rx_address_match_errors)},
+	{DRVSTAT_INFO(rx_dropped_too_small)},
+	{DRVSTAT_INFO(rx_dropped_too_short)},
+	{DRVSTAT_INFO(rx_dropped_header_too_small)},
+	{DRVSTAT_INFO(rx_dropped_tcp_length)},
+	{DRVSTAT_INFO(rx_dropped_runt)},
+	{DRVSTAT_INFO(rxpp_fifo_overflow_drop)},
+	{DRVSTAT_INFO(rx_input_fifo_overflow_drop)},
+	{DRVSTAT_INFO(rx_ip_checksum_errs)},
+	{DRVSTAT_INFO(rx_tcp_checksum_errs)},
+	{DRVSTAT_INFO(rx_udp_checksum_errs)},
+	{DRVSTAT_INFO(rx_switched_unicast_packets)},
+	{DRVSTAT_INFO(rx_switched_multicast_packets)},
+	{DRVSTAT_INFO(rx_switched_broadcast_packets)},
+	{DRVSTAT_INFO(tx_pauseframes)},
+	{DRVSTAT_INFO(tx_controlframes)},
+	{DRVSTAT_INFO(rx_priority_pause_frames)},
+	{DRVSTAT_INFO(pmem_fifo_overflow_drop)},
+	{DRVSTAT_INFO(jabber_events)},
+	{DRVSTAT_INFO(rx_drops_no_pbuf)},
+	{DRVSTAT_INFO(rx_drops_no_txpb)},
+	{DRVSTAT_INFO(rx_drops_no_erx_descr)},
+	{DRVSTAT_INFO(rx_drops_no_tpre_descr)},
+	{DRVSTAT_INFO(rx_drops_too_many_frags)},
+	{DRVSTAT_INFO(rx_drops_invalid_ring)},
+	{DRVSTAT_INFO(forwarded_packets)},
+	{DRVSTAT_INFO(rx_drops_mtu)},
+	{DRVSTAT_INFO(eth_red_drops)},
 	{DRVSTAT_INFO(be_on_die_temperature)}
 };
 #define ETHTOOL_STATS_NUM ARRAY_SIZE(et_stats)
@@ -268,8 +252,6 @@ be_get_ethtool_stats(struct net_device *netdev,
 		struct ethtool_stats *stats, uint64_t *data)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_hw_stats *hw_stats = hw_stats_from_cmd(adapter->stats_cmd.va);
-	struct be_erx_stats *erx_stats = &hw_stats->erx;
 	struct be_rx_obj *rxo;
 	void *p = NULL;
 	int i, j;
@@ -281,15 +263,6 @@ be_get_ethtool_stats(struct net_device *netdev,
 			break;
 		case DRVSTAT_TX:
 			p = &adapter->tx_stats;
-			break;
-		case PORTSTAT:
-			p = &hw_stats->rxf.port[adapter->port_num];
-			break;
-		case MISCSTAT:
-			p = &hw_stats->rxf;
-			break;
-		case PMEMSTAT:
-			p = &hw_stats->pmem;
 			break;
 		case DRVSTAT:
 			p = &adapter->drv_stats;
@@ -308,7 +281,8 @@ be_get_ethtool_stats(struct net_device *netdev,
 				p = (u8 *)&rxo->stats + et_rx_stats[i].offset;
 				break;
 			case ERXSTAT:
-				p = (u32 *)erx_stats + rxo->q.id;
+				p = (u32 *)be_erx_stats_from_cmd(adapter) +
+								rxo->q.id;
 				break;
 			}
 			data[ETHTOOL_STATS_NUM + j * ETHTOOL_RXSTATS_NUM + i] =

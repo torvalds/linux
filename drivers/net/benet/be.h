@@ -244,6 +244,43 @@ struct be_rx_obj {
 
 struct be_drv_stats {
 	u8 be_on_die_temperature;
+	u32 be_tx_events;
+	u32 eth_red_drops;
+	u32 rx_drops_no_pbuf;
+	u32 rx_drops_no_txpb;
+	u32 rx_drops_no_erx_descr;
+	u32 rx_drops_no_tpre_descr;
+	u32 rx_drops_too_many_frags;
+	u32 rx_drops_invalid_ring;
+	u32 forwarded_packets;
+	u32 rx_drops_mtu;
+	u32 rx_crc_errors;
+	u32 rx_alignment_symbol_errors;
+	u32 rx_pause_frames;
+	u32 rx_priority_pause_frames;
+	u32 rx_control_frames;
+	u32 rx_in_range_errors;
+	u32 rx_out_range_errors;
+	u32 rx_frame_too_long;
+	u32 rx_address_match_errors;
+	u32 rx_dropped_too_small;
+	u32 rx_dropped_too_short;
+	u32 rx_dropped_header_too_small;
+	u32 rx_dropped_tcp_length;
+	u32 rx_dropped_runt;
+	u32 rx_ip_checksum_errs;
+	u32 rx_tcp_checksum_errs;
+	u32 rx_udp_checksum_errs;
+	u32 rx_switched_unicast_packets;
+	u32 rx_switched_multicast_packets;
+	u32 rx_switched_broadcast_packets;
+	u32 tx_pauseframes;
+	u32 tx_priority_pauseframes;
+	u32 tx_controlframes;
+	u32 rxpp_fifo_overflow_drop;
+	u32 rx_input_fifo_overflow_drop;
+	u32 pmem_fifo_overflow_drop;
+	u32 jabber_events;
 };
 
 struct be_vf_cfg {
@@ -483,5 +520,6 @@ extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
 extern void be_link_status_update(struct be_adapter *adapter, bool link_up);
 extern void netdev_stats_update(struct be_adapter *adapter);
+extern void be_parse_stats(struct be_adapter *adapter);
 extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 #endif				/* BE_H */

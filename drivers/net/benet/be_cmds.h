@@ -568,7 +568,7 @@ struct be_cmd_req_if_destroy {
 };
 
 /*************** HW Stats Get **********************************/
-struct be_port_rxf_stats {
+struct be_port_rxf_stats_v0 {
 	u32 rx_bytes_lsd;	/* dword 0*/
 	u32 rx_bytes_msd;	/* dword 1*/
 	u32 rx_total_frames;	/* dword 2*/
@@ -637,8 +637,8 @@ struct be_port_rxf_stats {
 	u32 rx_input_fifo_overflow;	/* dword 65*/
 };
 
-struct be_rxf_stats {
-	struct be_port_rxf_stats port[2];
+struct be_rxf_stats_v0 {
+	struct be_port_rxf_stats_v0 port[2];
 	u32 rx_drops_no_pbuf;	/* dword 132*/
 	u32 rx_drops_no_txpb;	/* dword 133*/
 	u32 rx_drops_no_erx_descr;	/* dword 134*/
@@ -661,34 +661,31 @@ struct be_rxf_stats {
 	u32 rsvd1[6];
 };
 
-struct be_erx_stats {
+struct be_erx_stats_v0 {
 	u32 rx_drops_no_fragments[44];     /* dwordS 0 to 43*/
-	u32 debug_wdma_sent_hold;          /* dword 44*/
-	u32 debug_wdma_pbfree_sent_hold;   /* dword 45*/
-	u32 debug_wdma_zerobyte_pbfree_sent_hold; /* dword 46*/
-	u32 debug_pmem_pbuf_dealloc;       /* dword 47*/
+	u32 rsvd[4];
 };
 
 struct be_pmem_stats {
 	u32 eth_red_drops;
-	u32 rsvd[4];
+	u32 rsvd[5];
 };
 
-struct be_hw_stats {
-	struct be_rxf_stats rxf;
+struct be_hw_stats_v0 {
+	struct be_rxf_stats_v0 rxf;
 	u32 rsvd[48];
-	struct be_erx_stats erx;
+	struct be_erx_stats_v0 erx;
 	struct be_pmem_stats pmem;
 };
 
-struct be_cmd_req_get_stats {
+struct be_cmd_req_get_stats_v0 {
 	struct be_cmd_req_hdr hdr;
-	u8 rsvd[sizeof(struct be_hw_stats)];
+	u8 rsvd[sizeof(struct be_hw_stats_v0)];
 };
 
-struct be_cmd_resp_get_stats {
+struct be_cmd_resp_get_stats_v0 {
 	struct be_cmd_resp_hdr hdr;
-	struct be_hw_stats hw_stats;
+	struct be_hw_stats_v0 hw_stats;
 };
 
 struct be_cmd_req_get_cntl_addnl_attribs {
@@ -727,13 +724,6 @@ struct be_cmd_req_mcast_mac_config {
 	u8 interface_id;
 	struct macaddr mac[BE_MAX_MC];
 } __packed;
-
-static inline struct be_hw_stats *
-hw_stats_from_cmd(struct be_cmd_resp_get_stats *cmd)
-{
-	return &cmd->hw_stats;
-}
-
 
 /******************* RX FILTER ******************************/
 struct be_cmd_req_rx_filter {
@@ -1086,6 +1076,151 @@ struct be_cmd_resp_set_func_cap {
 	u32 cap_flags;
 	u8 rsvd[212];
 };
+
+/*************** HW Stats Get v1 **********************************/
+#define BE_TXP_SW_SZ			48
+struct be_port_rxf_stats_v1 {
+	u32 rsvd0[12];
+	u32 rx_crc_errors;
+	u32 rx_alignment_symbol_errors;
+	u32 rx_pause_frames;
+	u32 rx_priority_pause_frames;
+	u32 rx_control_frames;
+	u32 rx_in_range_errors;
+	u32 rx_out_range_errors;
+	u32 rx_frame_too_long;
+	u32 rx_address_match_errors;
+	u32 rx_dropped_too_small;
+	u32 rx_dropped_too_short;
+	u32 rx_dropped_header_too_small;
+	u32 rx_dropped_tcp_length;
+	u32 rx_dropped_runt;
+	u32 rsvd1[10];
+	u32 rx_ip_checksum_errs;
+	u32 rx_tcp_checksum_errs;
+	u32 rx_udp_checksum_errs;
+	u32 rsvd2[7];
+	u32 rx_switched_unicast_packets;
+	u32 rx_switched_multicast_packets;
+	u32 rx_switched_broadcast_packets;
+	u32 rsvd3[3];
+	u32 tx_pauseframes;
+	u32 tx_priority_pauseframes;
+	u32 tx_controlframes;
+	u32 rsvd4[10];
+	u32 rxpp_fifo_overflow_drop;
+	u32 rx_input_fifo_overflow_drop;
+	u32 pmem_fifo_overflow_drop;
+	u32 jabber_events;
+	u32 rsvd5[3];
+};
+
+
+struct be_rxf_stats_v1 {
+	struct be_port_rxf_stats_v1 port[4];
+	u32 rsvd0[2];
+	u32 rx_drops_no_pbuf;
+	u32 rx_drops_no_txpb;
+	u32 rx_drops_no_erx_descr;
+	u32 rx_drops_no_tpre_descr;
+	u32 rsvd1[6];
+	u32 rx_drops_too_many_frags;
+	u32 rx_drops_invalid_ring;
+	u32 forwarded_packets;
+	u32 rx_drops_mtu;
+	u32 rsvd2[14];
+};
+
+struct be_erx_stats_v1 {
+	u32 rx_drops_no_fragments[68];     /* dwordS 0 to 67*/
+	u32 rsvd[4];
+};
+
+struct be_hw_stats_v1 {
+	struct be_rxf_stats_v1 rxf;
+	u32 rsvd0[BE_TXP_SW_SZ];
+	struct be_erx_stats_v1 erx;
+	struct be_pmem_stats pmem;
+	u32 rsvd1[3];
+};
+
+struct be_cmd_req_get_stats_v1 {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd[sizeof(struct be_hw_stats_v1)];
+};
+
+struct be_cmd_resp_get_stats_v1 {
+	struct be_cmd_resp_hdr hdr;
+	struct be_hw_stats_v1 hw_stats;
+};
+
+static inline void *
+hw_stats_from_cmd(struct be_adapter *adapter)
+{
+	if (adapter->generation == BE_GEN3) {
+		struct be_cmd_resp_get_stats_v1 *cmd = adapter->stats_cmd.va;
+
+		return &cmd->hw_stats;
+	} else {
+		struct be_cmd_resp_get_stats_v0 *cmd = adapter->stats_cmd.va;
+
+		return &cmd->hw_stats;
+	}
+}
+
+static inline void *be_port_rxf_stats_from_cmd(struct be_adapter *adapter)
+{
+	if (adapter->generation == BE_GEN3) {
+		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
+		struct be_rxf_stats_v1 *rxf_stats = &hw_stats->rxf;
+
+		return &rxf_stats->port[adapter->port_num];
+	} else {
+		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
+		struct be_rxf_stats_v0 *rxf_stats = &hw_stats->rxf;
+
+		return &rxf_stats->port[adapter->port_num];
+	}
+}
+
+static inline void *be_rxf_stats_from_cmd(struct be_adapter *adapter)
+{
+	if (adapter->generation == BE_GEN3) {
+		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->rxf;
+	} else {
+		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->rxf;
+	}
+}
+
+static inline void *be_erx_stats_from_cmd(struct be_adapter *adapter)
+{
+	if (adapter->generation == BE_GEN3) {
+		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->erx;
+	} else {
+		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->erx;
+	}
+}
+
+static inline void *be_pmem_stats_from_cmd(struct be_adapter *adapter)
+{
+	if (adapter->generation == BE_GEN3) {
+		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->pmem;
+	} else {
+		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->pmem;
+	}
+}
 
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
