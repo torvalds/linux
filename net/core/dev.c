@@ -5258,7 +5258,7 @@ void netdev_update_features(struct net_device *dev)
 	if (dev->features == features)
 		return;
 
-	netdev_info(dev, "Features changed: 0x%08x -> 0x%08x\n",
+	netdev_dbg(dev, "Features changed: 0x%08x -> 0x%08x\n",
 		dev->features, features);
 
 	if (dev->netdev_ops->ndo_set_features)
