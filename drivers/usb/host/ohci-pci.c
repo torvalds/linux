@@ -207,10 +207,18 @@ static int ohci_quirk_amd700(struct usb_hcd *hcd)
  */
 static int ohci_quirk_nvidia_shutdown(struct usb_hcd *hcd)
 {
+	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
 	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
 
-	ohci->flags |= OHCI_QUIRK_SHUTDOWN;
-	ohci_dbg(ohci, "enabled nVidia shutdown quirk\n");
+	/* Evidently nVidia fixed their later hardware; this is a guess at
+	 * the changeover point.
+	 */
+#define PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_USB		0x026d
+
+	if (pdev->device < PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_USB) {
+		ohci->flags |= OHCI_QUIRK_SHUTDOWN;
+		ohci_dbg(ohci, "enabled nVidia shutdown quirk\n");
+	}
 
 	return 0;
 }
