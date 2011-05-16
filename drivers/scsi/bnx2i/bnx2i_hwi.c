@@ -138,7 +138,6 @@ void bnx2i_arm_cq_event_coalescing(struct bnx2i_endpoint *ep, u8 action)
 	u16 next_index;
 	u32 num_active_cmds;
 
-
 	/* Coalesce CQ entries only on 10G devices */
 	if (!test_bit(BNX2I_NX2_DEV_57710, &ep->hba->cnic_dev_type))
 		return;
@@ -148,16 +147,19 @@ void bnx2i_arm_cq_event_coalescing(struct bnx2i_endpoint *ep, u8 action)
 	 * interrupts and other unwanted results
 	 */
 	cq_db = (struct bnx2i_5771x_cq_db *) ep->qp.cq_pgtbl_virt;
-	if (cq_db->sqn[0] && cq_db->sqn[0] != 0xFFFF)
-		return;
 
-	if (action == CNIC_ARM_CQE) {
+	if (action != CNIC_ARM_CQE_FP)
+		if (cq_db->sqn[0] && cq_db->sqn[0] != 0xFFFF)
+			return;
+
+	if (action == CNIC_ARM_CQE || action == CNIC_ARM_CQE_FP) {
 		num_active_cmds = ep->num_active_cmds;
 		if (num_active_cmds <= event_coal_min)
 			next_index = 1;
 		else
 			next_index = event_coal_min +
-				(num_active_cmds - event_coal_min) / event_coal_div;
+				     ((num_active_cmds - event_coal_min) >>
+				     ep->ec_shift);
 		if (!next_index)
 			next_index = 1;
 		cq_index = ep->qp.cqe_exp_seq_sn + next_index - 1;
@@ -1935,7 +1937,6 @@ cqe_out:
 			qp->cq_cons_idx++;
 		}
 	}
-	bnx2i_arm_cq_event_coalescing(bnx2i_conn->ep, CNIC_ARM_CQE);
 }
 
 /**
@@ -1949,22 +1950,23 @@ cqe_out:
 static void bnx2i_fastpath_notification(struct bnx2i_hba *hba,
 					struct iscsi_kcqe *new_cqe_kcqe)
 {
-	struct bnx2i_conn *conn;
+	struct bnx2i_conn *bnx2i_conn;
 	u32 iscsi_cid;
 
 	iscsi_cid = new_cqe_kcqe->iscsi_conn_id;
-	conn = bnx2i_get_conn_from_id(hba, iscsi_cid);
+	bnx2i_conn = bnx2i_get_conn_from_id(hba, iscsi_cid);
 
-	if (!conn) {
+	if (!bnx2i_conn) {
 		printk(KERN_ALERT "cid #%x not valid\n", iscsi_cid);
 		return;
 	}
-	if (!conn->ep) {
+	if (!bnx2i_conn->ep) {
 		printk(KERN_ALERT "cid #%x - ep not bound\n", iscsi_cid);
 		return;
 	}
-
-	bnx2i_process_new_cqes(conn);
+	bnx2i_process_new_cqes(bnx2i_conn);
+	bnx2i_arm_cq_event_coalescing(bnx2i_conn->ep, CNIC_ARM_CQE_FP);
+	bnx2i_process_new_cqes(bnx2i_conn);
 }
 
 

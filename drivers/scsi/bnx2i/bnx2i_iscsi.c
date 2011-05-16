@@ -379,6 +379,7 @@ static struct iscsi_endpoint *bnx2i_alloc_ep(struct bnx2i_hba *hba)
 {
 	struct iscsi_endpoint *ep;
 	struct bnx2i_endpoint *bnx2i_ep;
+	u32 ec_div;
 
 	ep = iscsi_create_endpoint(sizeof(*bnx2i_ep));
 	if (!ep) {
@@ -393,6 +394,11 @@ static struct iscsi_endpoint *bnx2i_alloc_ep(struct bnx2i_hba *hba)
 	bnx2i_ep->ep_iscsi_cid = (u16) -1;
 	bnx2i_ep->hba = hba;
 	bnx2i_ep->hba_age = hba->age;
+
+	ec_div = event_coal_div;
+	while (ec_div >>= 1)
+		bnx2i_ep->ec_shift += 1;
+
 	hba->ofld_conns_active++;
 	init_waitqueue_head(&bnx2i_ep->ofld_wait);
 	return ep;
@@ -2159,7 +2165,7 @@ static struct scsi_host_template bnx2i_host_template = {
 	.change_queue_depth	= iscsi_change_queue_depth,
 	.can_queue		= 1024,
 	.max_sectors		= 127,
-	.cmd_per_lun		= 32,
+	.cmd_per_lun		= 24,
 	.this_id		= -1,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.sg_tablesize		= ISCSI_MAX_BDS_PER_CMD,
