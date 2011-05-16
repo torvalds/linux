@@ -1599,9 +1599,10 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 							memcpy((u8 *)edid, (u8 *)&fake_edid_record->ucFakeEDIDString[0],
 							       fake_edid_record->ucFakeEDIDLength);
 
-							if (drm_edid_is_valid(edid))
+							if (drm_edid_is_valid(edid)) {
 								rdev->mode_info.bios_hardcoded_edid = edid;
-							else
+								rdev->mode_info.bios_hardcoded_edid_size = edid_size;
+							} else
 								kfree(edid);
 						}
 					}

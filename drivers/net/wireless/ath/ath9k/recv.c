@@ -506,7 +506,7 @@ bool ath_stoprecv(struct ath_softc *sc)
 			"confusing the DMA engine when we start RX up\n");
 		ATH_DBG_WARN_ON_ONCE(!stopped);
 	}
-	return stopped || reset;
+	return stopped && !reset;
 }
 
 void ath_flushrecv(struct ath_softc *sc)

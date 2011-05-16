@@ -362,7 +362,7 @@ config DVB_USB_LME2510
 config DVB_USB_TECHNISAT_USB2
 	tristate "Technisat DVB-S/S2 USB2.0 support"
 	depends on DVB_USB
-	select DVB_STB0899 if !DVB_FE_CUSTOMISE
-	select DVB_STB6100 if !DVB_FE_CUSTOMISE
+	select DVB_STV090x if !DVB_FE_CUSTOMISE
+	select DVB_STV6110x if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Technisat USB2 DVB-S/S2 device

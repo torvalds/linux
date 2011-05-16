@@ -746,7 +746,8 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 
 	tail = (struct frame_tail __user *)regs->ARM_fp - 1;
 
-	while (tail && !((unsigned long)tail & 0x3))
+	while ((entry->nr < PERF_MAX_STACK_DEPTH) &&
+	       tail && !((unsigned long)tail & 0x3))
 		tail = user_backtrace(tail, entry);
 }
 

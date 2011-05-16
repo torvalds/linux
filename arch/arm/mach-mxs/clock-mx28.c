@@ -295,11 +295,11 @@ static int name##_set_rate(struct clk *clk, unsigned long rate)		\
 	unsigned long diff, parent_rate, calc_rate;			\
 	int i;								\
 									\
-	parent_rate = clk_get_rate(clk->parent);			\
 	div_max = BM_CLKCTRL_##dr##_DIV >> BP_CLKCTRL_##dr##_DIV;	\
 	bm_busy = BM_CLKCTRL_##dr##_BUSY;				\
 									\
 	if (clk->parent == &ref_xtal_clk) {				\
+		parent_rate = clk_get_rate(clk->parent);		\
 		div = DIV_ROUND_UP(parent_rate, rate);			\
 		if (clk == &cpu_clk) {					\
 			div_max = BM_CLKCTRL_CPU_DIV_XTAL >>		\
@@ -309,6 +309,11 @@ static int name##_set_rate(struct clk *clk, unsigned long rate)		\
 		if (div == 0 || div > div_max)				\
 			return -EINVAL;					\
 	} else {							\
+		/*							\
+		 * hack alert: this block modifies clk->parent, too,	\
+		 * so the base to use it the grand parent.		\
+		 */							\
+		parent_rate = clk_get_rate(clk->parent->parent);	\
 		rate >>= PARENT_RATE_SHIFT;				\
 		parent_rate >>= PARENT_RATE_SHIFT;			\
 		diff = parent_rate;					\

@@ -188,6 +188,21 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 	.has_blt_ring = 1,
 };
 
+static const struct intel_device_info intel_ivybridge_d_info = {
+	.is_ivybridge = 1, .gen = 7,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_bsd_ring = 1,
+	.has_blt_ring = 1,
+};
+
+static const struct intel_device_info intel_ivybridge_m_info = {
+	.is_ivybridge = 1, .gen = 7, .is_mobile = 1,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_fbc = 0,	/* FBC is not enabled on Ivybridge mobile yet */
+	.has_bsd_ring = 1,
+	.has_blt_ring = 1,
+};
+
 static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_VGA_DEVICE(0x3577, &intel_i830_info),		/* I830_M */
 	INTEL_VGA_DEVICE(0x2562, &intel_845g_info),		/* 845_G */
@@ -227,6 +242,11 @@ static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_VGA_DEVICE(0x0116, &intel_sandybridge_m_info),
 	INTEL_VGA_DEVICE(0x0126, &intel_sandybridge_m_info),
 	INTEL_VGA_DEVICE(0x010A, &intel_sandybridge_d_info),
+	INTEL_VGA_DEVICE(0x0156, &intel_ivybridge_m_info), /* GT1 mobile */
+	INTEL_VGA_DEVICE(0x0166, &intel_ivybridge_m_info), /* GT2 mobile */
+	INTEL_VGA_DEVICE(0x0152, &intel_ivybridge_d_info), /* GT1 desktop */
+	INTEL_VGA_DEVICE(0x0162, &intel_ivybridge_d_info), /* GT2 desktop */
+	INTEL_VGA_DEVICE(0x015a, &intel_ivybridge_d_info), /* GT1 server */
 	{0, 0, 0}
 };
 
@@ -235,7 +255,9 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #endif
 
 #define INTEL_PCH_DEVICE_ID_MASK	0xff00
+#define INTEL_PCH_IBX_DEVICE_ID_TYPE	0x3b00
 #define INTEL_PCH_CPT_DEVICE_ID_TYPE	0x1c00
+#define INTEL_PCH_PPT_DEVICE_ID_TYPE	0x1e00
 
 void intel_detect_pch (struct drm_device *dev)
 {
@@ -254,16 +276,23 @@ void intel_detect_pch (struct drm_device *dev)
 			int id;
 			id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
 
-			if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
+			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
+				dev_priv->pch_type = PCH_IBX;
+				DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
+			} else if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
+			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
+				/* PantherPoint is CPT compatible */
+				dev_priv->pch_type = PCH_CPT;
+				DRM_DEBUG_KMS("Found PatherPoint PCH\n");
 			}
 		}
 		pci_dev_put(pch);
 	}
 }
 
-void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
+static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 {
 	int count;
 
@@ -279,10 +308,36 @@ void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 		udelay(10);
 }
 
-void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
+/*
+ * Generally this is called implicitly by the register read function. However,
+ * if some sequence requires the GT to not power down then this function should
+ * be called at the beginning of the sequence followed by a call to
+ * gen6_gt_force_wake_put() at the end of the sequence.
+ */
+void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
+{
+	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+
+	/* Forcewake is atomic in case we get in here without the lock */
+	if (atomic_add_return(1, &dev_priv->forcewake_count) == 1)
+		__gen6_gt_force_wake_get(dev_priv);
+}
+
+static void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE, 0);
 	POSTING_READ(FORCEWAKE);
+}
+
+/*
+ * see gen6_gt_force_wake_get()
+ */
+void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
+{
+	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+
+	if (atomic_dec_and_test(&dev_priv->forcewake_count))
+		__gen6_gt_force_wake_put(dev_priv);
 }
 
 void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
