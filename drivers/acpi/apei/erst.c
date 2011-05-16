@@ -929,7 +929,7 @@ static int erst_check_table(struct acpi_table_erst *erst_tab)
 	return 0;
 }
 
-static size_t erst_reader(u64 *id, enum pstore_type_id *type,
+static ssize_t erst_reader(u64 *id, enum pstore_type_id *type,
 		       struct timespec *time);
 static u64 erst_writer(enum pstore_type_id type, size_t size);
 
@@ -957,7 +957,7 @@ struct cper_pstore_record {
 	char data[];
 } __packed;
 
-static size_t erst_reader(u64 *id, enum pstore_type_id *type,
+static ssize_t erst_reader(u64 *id, enum pstore_type_id *type,
 		       struct timespec *time)
 {
 	int rc;
