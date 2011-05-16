@@ -1673,7 +1673,8 @@ static void fc_fcp_srr(struct fc_fcp_pkt *fsp, enum fc_rctl r_ctl, u32 offset)
 		       FC_FCTL_REQ, 0);
 
 	rec_tov = get_fsp_rec_tov(fsp);
-	seq = lport->tt.exch_seq_send(lport, fp, fc_fcp_srr_resp, NULL,
+	seq = lport->tt.exch_seq_send(lport, fp, fc_fcp_srr_resp,
+				      fc_fcp_pkt_destroy,
 				      fsp, jiffies_to_msecs(rec_tov));
 	if (!seq)
 		goto retry;
@@ -1720,7 +1721,6 @@ static void fc_fcp_srr_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 		return;
 	}
 
-	fsp->recov_seq = NULL;
 	switch (fc_frame_payload_op(fp)) {
 	case ELS_LS_ACC:
 		fsp->recov_retry = 0;
@@ -1732,10 +1732,9 @@ static void fc_fcp_srr_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 		break;
 	}
 	fc_fcp_unlock_pkt(fsp);
-	fsp->lp->tt.exch_done(seq);
 out:
+	fsp->lp->tt.exch_done(seq);
 	fc_frame_free(fp);
-	fc_fcp_pkt_release(fsp);	/* drop hold for outstanding SRR */
 }
 
 /**
@@ -1747,8 +1746,6 @@ static void fc_fcp_srr_error(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 {
 	if (fc_fcp_lock_pkt(fsp))
 		goto out;
-	fsp->lp->tt.exch_done(fsp->recov_seq);
-	fsp->recov_seq = NULL;
 	switch (PTR_ERR(fp)) {
 	case -FC_EX_TIMEOUT:
 		if (fsp->recov_retry++ < FC_MAX_RECOV_RETRY)
@@ -1764,7 +1761,7 @@ static void fc_fcp_srr_error(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 	}
 	fc_fcp_unlock_pkt(fsp);
 out:
-	fc_fcp_pkt_release(fsp);	/* drop hold for outstanding SRR */
+	fsp->lp->tt.exch_done(fsp->recov_seq);
 }
 
 /**
