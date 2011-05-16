@@ -121,6 +121,8 @@
 #define TPS65911_LDO6					0x35
 #define TPS65911_LDO4					0x36
 #define TPS65911_LDO3					0x37
+#define TPS65911_VMBCH					0x6A
+#define TPS65911_VMBCH2					0x6B
 
 /*
  * List of register bitfields for component TPS65910
@@ -746,6 +748,8 @@ struct tps65910_board {
 	int gpio_base;
 	int irq;
 	int irq_base;
+	int vmbch_threshold;
+	int vmbch2_threshold;
 	struct regulator_init_data *tps65910_pmic_init_data;
 };
 
