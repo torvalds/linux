@@ -1720,11 +1720,11 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	int dgs;
 	int err;
 
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
 	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_tfm) ?
 		crypto_hash_digestsize(mdev->tconn->integrity_tfm) : 0;
 
-	sock = &mdev->tconn->data;
-	p = drbd_prepare_command(mdev, sock);
 	if (!p)
 		return -EIO;
 	p->sector = cpu_to_be64(req->i.sector);
@@ -1793,11 +1793,12 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
 	int err;
 	int dgs;
 
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+
 	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_tfm) ?
 		crypto_hash_digestsize(mdev->tconn->integrity_tfm) : 0;
 
-	sock = &mdev->tconn->data;
-	p = drbd_prepare_command(mdev, sock);
 	if (!p)
 		return -EIO;
 	p->sector = cpu_to_be64(peer_req->i.sector);
