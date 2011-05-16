@@ -244,7 +244,7 @@ void bnx2i_stop(void *handle)
 	wait_event_interruptible_timeout(hba->eh_wait,
 					 (list_empty(&hba->ep_ofld_list) &&
 					 list_empty(&hba->ep_destroy_list)),
-					 10 * HZ);
+					 2 * HZ);
 	/* Wait for all endpoints to be torn down, Chip will be reset once
 	 *  control returns to network driver. So it is required to cleanup and
 	 * release all connection resources before returning from this routine.
