@@ -964,7 +964,7 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 		} else
 			pos = map_len = alloc_len = 0;
 
-		need_set = cpu_isset(cpu, *mask) && cpu_online(cpu);
+		need_set = cpumask_test_cpu(cpu, mask) && cpu_online(cpu);
 #ifdef CONFIG_NUMA
 		if (need_set) {
 			if (numa_node == -2)
