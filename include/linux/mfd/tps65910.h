@@ -101,6 +101,9 @@
 #define TPS65910_GPIO3					0x63
 #define TPS65910_GPIO4					0x64
 #define TPS65910_GPIO5					0x65
+#define TPS65910_GPIO6					0x66
+#define TPS65910_GPIO7					0x67
+#define TPS65910_GPIO8					0x68
 #define TPS65910_JTAGVERNUM				0x80
 #define TPS65910_MAX_REGISTER				0x80
 
@@ -650,82 +653,17 @@
 #define INT_MSK3_GPIO4_R_IT_MSK_SHIFT			0
 
 
-/*Register GPIO0  (0x80) register.RegisterDescription */
-#define GPIO0_GPIO_DEB_MASK				0x10
-#define GPIO0_GPIO_DEB_SHIFT				4
-#define GPIO0_GPIO_PUEN_MASK				0x08
-#define GPIO0_GPIO_PUEN_SHIFT				3
-#define GPIO0_GPIO_CFG_MASK				0x04
-#define GPIO0_GPIO_CFG_SHIFT				2
-#define GPIO0_GPIO_STS_MASK				0x02
-#define GPIO0_GPIO_STS_SHIFT				1
-#define GPIO0_GPIO_SET_MASK				0x01
-#define GPIO0_GPIO_SET_SHIFT				0
-
-
-/*Register GPIO1  (0x80) register.RegisterDescription */
-#define GPIO1_GPIO_DEB_MASK				0x10
-#define GPIO1_GPIO_DEB_SHIFT				4
-#define GPIO1_GPIO_PUEN_MASK				0x08
-#define GPIO1_GPIO_PUEN_SHIFT				3
-#define GPIO1_GPIO_CFG_MASK				0x04
-#define GPIO1_GPIO_CFG_SHIFT				2
-#define GPIO1_GPIO_STS_MASK				0x02
-#define GPIO1_GPIO_STS_SHIFT				1
-#define GPIO1_GPIO_SET_MASK				0x01
-#define GPIO1_GPIO_SET_SHIFT				0
-
-
-/*Register GPIO2  (0x80) register.RegisterDescription */
-#define GPIO2_GPIO_DEB_MASK				0x10
-#define GPIO2_GPIO_DEB_SHIFT				4
-#define GPIO2_GPIO_PUEN_MASK			 	0x08
-#define GPIO2_GPIO_PUEN_SHIFT				3
-#define GPIO2_GPIO_CFG_MASK				0x04
-#define GPIO2_GPIO_CFG_SHIFT				2
-#define GPIO2_GPIO_STS_MASK				0x02
-#define GPIO2_GPIO_STS_SHIFT				1
-#define GPIO2_GPIO_SET_MASK				0x01
-#define GPIO2_GPIO_SET_SHIFT				0
-
-
-/*Register GPIO3  (0x80) register.RegisterDescription */
-#define GPIO3_GPIO_DEB_MASK				0x10
-#define GPIO3_GPIO_DEB_SHIFT				4
-#define GPIO3_GPIO_PUEN_MASK				0x08
-#define GPIO3_GPIO_PUEN_SHIFT				3
-#define GPIO3_GPIO_CFG_MASK				0x04
-#define GPIO3_GPIO_CFG_SHIFT				2
-#define GPIO3_GPIO_STS_MASK			 	0x02
-#define GPIO3_GPIO_STS_SHIFT				1
-#define GPIO3_GPIO_SET_MASK				0x01
-#define GPIO3_GPIO_SET_SHIFT				0
-
-
-/*Register GPIO4  (0x80) register.RegisterDescription */
-#define GPIO4_GPIO_DEB_MASK				0x10
-#define GPIO4_GPIO_DEB_SHIFT				4
-#define GPIO4_GPIO_PUEN_MASK				0x08
-#define GPIO4_GPIO_PUEN_SHIFT				3
-#define GPIO4_GPIO_CFG_MASK				0x04
-#define GPIO4_GPIO_CFG_SHIFT				2
-#define GPIO4_GPIO_STS_MASK				0x02
-#define GPIO4_GPIO_STS_SHIFT				1
-#define GPIO4_GPIO_SET_MASK				0x01
-#define GPIO4_GPIO_SET_SHIFT				0
-
-
-/*Register GPIO5  (0x80) register.RegisterDescription */
-#define GPIO5_GPIO_DEB_MASK				0x10
-#define GPIO5_GPIO_DEB_SHIFT				4
-#define GPIO5_GPIO_PUEN_MASK				0x08
-#define GPIO5_GPIO_PUEN_SHIFT				3
-#define GPIO5_GPIO_CFG_MASK				0x04
-#define GPIO5_GPIO_CFG_SHIFT				2
-#define GPIO5_GPIO_STS_MASK				0x02
-#define GPIO5_GPIO_STS_SHIFT				1
-#define GPIO5_GPIO_SET_MASK				0x01
-#define GPIO5_GPIO_SET_SHIFT				0
+/*Register GPIO  (0x80) register.RegisterDescription */
+#define GPIO_DEB_MASK                           0x10
+#define GPIO_DEB_SHIFT                          4
+#define GPIO_PUEN_MASK                          0x08
+#define GPIO_PUEN_SHIFT                         3
+#define GPIO_CFG_MASK                           0x04
+#define GPIO_CFG_SHIFT                          2
+#define GPIO_STS_MASK                           0x02
+#define GPIO_STS_SHIFT                          1
+#define GPIO_SET_MASK                           0x01
+#define GPIO_SET_SHIFT                          0
 
 
 /*Register JTAGVERNUM  (0x80) register.RegisterDescription */

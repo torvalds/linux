@@ -25,9 +25,9 @@ static int tps65910_gpio_get(struct gpio_chip *gc, unsigned offset)
 	struct tps65910 *tps65910 = container_of(gc, struct tps65910, gpio);
 	uint8_t val;
 
-	tps65910->read(tps65910, TPS65910_GPIO0, 1, &val);
+	tps65910->read(tps65910, TPS65910_GPIO0 + offset, 1, &val);
 
-	if (val & GPIO0_GPIO_STS_MASK)
+	if (val & GPIO_STS_MASK)
 		return 1;
 
 	return 0;
@@ -39,11 +39,11 @@ static void tps65910_gpio_set(struct gpio_chip *gc, unsigned offset,
 	struct tps65910 *tps65910 = container_of(gc, struct tps65910, gpio);
 
 	if (value)
-		tps65910_set_bits(tps65910, TPS65910_GPIO0,
-					GPIO0_GPIO_SET_MASK);
+		tps65910_set_bits(tps65910, TPS65910_GPIO0 + offset,
+						GPIO_SET_MASK);
 	else
-		tps65910_clear_bits(tps65910, TPS65910_GPIO0,
-					GPIO0_GPIO_SET_MASK);
+		tps65910_clear_bits(tps65910, TPS65910_GPIO0 + offset,
+						GPIO_SET_MASK);
 }
 
 static int tps65910_gpio_output(struct gpio_chip *gc, unsigned offset,
@@ -54,15 +54,16 @@ static int tps65910_gpio_output(struct gpio_chip *gc, unsigned offset,
 	/* Set the initial value */
 	tps65910_gpio_set(gc, 0, value);
 
-	return tps65910_set_bits(tps65910, TPS65910_GPIO0, GPIO0_GPIO_CFG_MASK);
+	return tps65910_set_bits(tps65910, TPS65910_GPIO0 + offset,
+						GPIO_CFG_MASK);
 }
 
 static int tps65910_gpio_input(struct gpio_chip *gc, unsigned offset)
 {
 	struct tps65910 *tps65910 = container_of(gc, struct tps65910, gpio);
 
-	return tps65910_clear_bits(tps65910, TPS65910_GPIO0,
-					GPIO0_GPIO_CFG_MASK);
+	return tps65910_clear_bits(tps65910, TPS65910_GPIO0 + offset,
+						GPIO_CFG_MASK);
 }
 
 void tps65910_gpio_init(struct tps65910 *tps65910, int gpio_base)
@@ -76,7 +77,15 @@ void tps65910_gpio_init(struct tps65910 *tps65910, int gpio_base)
 	tps65910->gpio.label		= tps65910->i2c_client->name;
 	tps65910->gpio.dev		= tps65910->dev;
 	tps65910->gpio.base		= gpio_base;
-	tps65910->gpio.ngpio		= 1;
+
+	switch(tps65910_chip_id(tps65910)) {
+	case TPS65910:
+		tps65910->gpio.ngpio	= 6;
+	case TPS65911:
+		tps65910->gpio.ngpio	= 9;
+	default:
+		return;
+	}
 	tps65910->gpio.can_sleep	= 1;
 
 	tps65910->gpio.direction_input	= tps65910_gpio_input;
