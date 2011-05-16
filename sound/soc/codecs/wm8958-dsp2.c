@@ -362,6 +362,10 @@ static void wm8958_dsp_apply(struct snd_soc_codec *codec, int path, int start)
 		path, wm8994->dsp_active, start, pwr_reg, reg);
 
 	if (start && ena) {
+		/* If the DSP is already running then noop */
+		if (reg & WM8958_DSP2_ENA)
+			return;
+
 		/* If either AIFnCLK is not yet enabled postpone */
 		if (!(snd_soc_read(codec, WM8994_AIF1_CLOCKING_1)
 		      & WM8994_AIF1CLK_ENA_MASK) &&
