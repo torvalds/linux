@@ -789,9 +789,17 @@ static struct l2cap_chan *l2cap_sock_new_connection_cb(void *data)
 	return l2cap_pi(sk)->chan;
 }
 
+static int l2cap_sock_recv_cb(void *data, struct sk_buff *skb)
+{
+	struct sock *sk = data;
+
+	return sock_queue_rcv_skb(sk, skb);
+}
+
 static struct l2cap_ops l2cap_chan_ops = {
 	.name		= "L2CAP Socket Interface",
 	.new_connection	= l2cap_sock_new_connection_cb,
+	.recv		= l2cap_sock_recv_cb,
 };
 
 static void l2cap_sock_destruct(struct sock *sk)

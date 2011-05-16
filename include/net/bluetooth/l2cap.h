@@ -363,6 +363,7 @@ struct l2cap_ops {
 	char		*name;
 
 	struct l2cap_chan	*(*new_connection) (void *data);
+	int			(*recv) (void *data, struct sk_buff *skb);
 };
 
 struct l2cap_conn {
