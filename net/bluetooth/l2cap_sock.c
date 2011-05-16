@@ -31,6 +31,8 @@
 #include <net/bluetooth/l2cap.h>
 
 static const struct proto_ops l2cap_sock_ops;
+static void l2cap_sock_init(struct sock *sk, struct sock *parent);
+static struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int proto, gfp_t prio);
 
 static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 {
@@ -773,6 +775,25 @@ static int l2cap_sock_release(struct socket *sock)
 	return err;
 }
 
+static struct l2cap_chan *l2cap_sock_new_connection_cb(void *data)
+{
+	struct sock *sk, *parent = data;
+
+	sk = l2cap_sock_alloc(sock_net(parent), NULL, BTPROTO_L2CAP,
+								GFP_ATOMIC);
+	if (!sk)
+		return NULL;
+
+	l2cap_sock_init(sk, parent);
+
+	return l2cap_pi(sk)->chan;
+}
+
+static struct l2cap_ops l2cap_chan_ops = {
+	.name		= "L2CAP Socket Interface",
+	.new_connection	= l2cap_sock_new_connection_cb,
+};
+
 static void l2cap_sock_destruct(struct sock *sk)
 {
 	BT_DBG("sk %p", sk);
@@ -781,7 +802,7 @@ static void l2cap_sock_destruct(struct sock *sk)
 	skb_queue_purge(&sk->sk_write_queue);
 }
 
-void l2cap_sock_init(struct sock *sk, struct sock *parent)
+static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	struct l2cap_chan *chan = pi->chan;
@@ -838,10 +859,14 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->force_reliable = 0;
 		chan->flushable = BT_FLUSHABLE_OFF;
 		chan->force_active = BT_POWER_FORCE_ACTIVE_ON;
+
 	}
 
 	/* Default config options */
 	chan->flush_to = L2CAP_DEFAULT_FLUSH_TO;
+
+	chan->data = sk;
+	chan->ops = &l2cap_chan_ops;
 }
 
 static struct proto l2cap_proto = {
@@ -850,7 +875,7 @@ static struct proto l2cap_proto = {
 	.obj_size	= sizeof(struct l2cap_pinfo)
 };
 
-struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int proto, gfp_t prio)
+static struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int proto, gfp_t prio)
 {
 	struct sock *sk;
 	struct l2cap_chan *chan;

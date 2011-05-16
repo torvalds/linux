@@ -354,6 +354,15 @@ struct l2cap_chan {
 
 	struct list_head list;
 	struct list_head global_l;
+
+	void		*data;
+	struct l2cap_ops *ops;
+};
+
+struct l2cap_ops {
+	char		*name;
+
+	struct l2cap_chan	*(*new_connection) (void *data);
 };
 
 struct l2cap_conn {
@@ -460,9 +469,6 @@ int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm);
 int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);
 
 void l2cap_sock_kill(struct sock *sk);
-void l2cap_sock_init(struct sock *sk, struct sock *parent);
-struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
-							int proto, gfp_t prio);
 
 struct l2cap_chan *l2cap_chan_create(struct sock *sk);
 void l2cap_chan_close(struct l2cap_chan *chan, int reason);
