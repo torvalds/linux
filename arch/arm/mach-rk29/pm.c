@@ -285,6 +285,7 @@ static void __sramfunc rk29_sram_suspend(void)
 	cru_writel(clksel0 | 0x1F, CRU_CLKSEL0_CON);
 
 	printch('8');
+	dsb();
 	asm("wfi");
 	printch('8');
 
@@ -416,6 +417,13 @@ static int rk29_pm_enter(suspend_state_t state)
 		   | (1 << CLK_GATE_GPIO0)
 		   | (1 << CLK_GATE_RTC)
 		   | (1 << CLK_GATE_GRF)
+#ifdef CONFIG_RK29_JTAG
+		   | (1 << CLK_GATE_PCLK_CORE)
+		   | (1 << CLK_GATE_ATCLK_CORE)
+		   | (1 << CLK_GATE_ATCLK_CPU)
+		   | (1 << CLK_GATE_DEBUG)
+		   | (1 << CLK_GATE_TPIU)
+#endif
 		   ) | clkgate[0], CRU_CLKGATE0_CON);
 	cru_writel(~0, CRU_CLKGATE1_CON);
 	cru_writel(~((1 << CLK_GATE_GPIO1 % 32)
@@ -425,6 +433,9 @@ static int rk29_pm_enter(suspend_state_t state)
 		   | (1 << CLK_GATE_GPIO5 % 32)
 		   | (1 << CLK_GATE_GPIO6 % 32)
 		   | (1 << CLK_GATE_PWM % 32)
+#ifdef CONFIG_RK29_JTAG
+		   | (1 << CLK_GATE_JTAG % 32)
+#endif
 		   ) | clkgate[2], CRU_CLKGATE2_CON);
 	cru_writel(~0, CRU_CLKGATE3_CON);
 	printch('1');

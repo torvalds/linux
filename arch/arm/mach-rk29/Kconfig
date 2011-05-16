@@ -161,4 +161,10 @@ config RK29_VPU_DEBUG
 
 endmenu
 
+config RK29_JTAG
+	bool "Enable JTAG support (debug only)"
+	help
+	  This is an option for SDK board. Always enable JTAG clock,
+	  but consumes more power.
+
 endif
