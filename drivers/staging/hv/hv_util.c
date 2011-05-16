@@ -256,22 +256,13 @@ static int __init init_hyperv_utils(void)
 		return -ENOMEM;
 	}
 
-	hv_cb_utils[HV_SHUTDOWN_MSG].channel->onchannel_callback =
-		&shutdown_onchannelcallback;
 	hv_cb_utils[HV_SHUTDOWN_MSG].callback = &shutdown_onchannelcallback;
 
-	hv_cb_utils[HV_TIMESYNC_MSG].channel->onchannel_callback =
-		&timesync_onchannelcallback;
 	hv_cb_utils[HV_TIMESYNC_MSG].callback = &timesync_onchannelcallback;
 
-	hv_cb_utils[HV_HEARTBEAT_MSG].channel->onchannel_callback =
-		&heartbeat_onchannelcallback;
 	hv_cb_utils[HV_HEARTBEAT_MSG].callback = &heartbeat_onchannelcallback;
 
-	hv_cb_utils[HV_KVP_MSG].channel->onchannel_callback =
-		&hv_kvp_onchannelcallback;
-
-
+	hv_cb_utils[HV_KVP_MSG].callback = &hv_kvp_onchannelcallback;
 
 	return 0;
 }
@@ -280,20 +271,26 @@ static void exit_hyperv_utils(void)
 {
 	pr_info("De-Registered HyperV Utility Driver\n");
 
-	hv_cb_utils[HV_SHUTDOWN_MSG].channel->onchannel_callback =
-		&chn_cb_negotiate;
-	hv_cb_utils[HV_SHUTDOWN_MSG].callback = &chn_cb_negotiate;
+	if (hv_cb_utils[HV_SHUTDOWN_MSG].channel != NULL)
+		hv_cb_utils[HV_SHUTDOWN_MSG].channel->onchannel_callback =
+			&chn_cb_negotiate;
+	hv_cb_utils[HV_SHUTDOWN_MSG].callback = NULL;
 
-	hv_cb_utils[HV_TIMESYNC_MSG].channel->onchannel_callback =
-		&chn_cb_negotiate;
-	hv_cb_utils[HV_TIMESYNC_MSG].callback = &chn_cb_negotiate;
+	if (hv_cb_utils[HV_TIMESYNC_MSG].channel != NULL)
+		hv_cb_utils[HV_TIMESYNC_MSG].channel->onchannel_callback =
+			&chn_cb_negotiate;
+	hv_cb_utils[HV_TIMESYNC_MSG].callback = NULL;
 
-	hv_cb_utils[HV_HEARTBEAT_MSG].channel->onchannel_callback =
-		&chn_cb_negotiate;
-	hv_cb_utils[HV_HEARTBEAT_MSG].callback = &chn_cb_negotiate;
+	if (hv_cb_utils[HV_HEARTBEAT_MSG].channel != NULL)
+		hv_cb_utils[HV_HEARTBEAT_MSG].channel->onchannel_callback =
+			&chn_cb_negotiate;
+	hv_cb_utils[HV_HEARTBEAT_MSG].callback = NULL;
 
-	hv_cb_utils[HV_KVP_MSG].channel->onchannel_callback =
-		&chn_cb_negotiate;
+	if (hv_cb_utils[HV_KVP_MSG].channel != NULL)
+		hv_cb_utils[HV_KVP_MSG].channel->onchannel_callback =
+			&chn_cb_negotiate;
+	hv_cb_utils[HV_KVP_MSG].callback = NULL;
+
 	hv_kvp_deinit();
 
 	kfree(shut_txf_buf);

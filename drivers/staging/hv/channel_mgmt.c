@@ -181,6 +181,24 @@ void chn_cb_negotiate(void *context)
 	struct icmsg_hdr *icmsghdrp;
 	struct icmsg_negotiate *negop = NULL;
 
+	if (channel->util_index >= 0) {
+		/*
+		 * This is a properly initialized util channel.
+		 * Route this callback appropriately and setup state
+		 * so that we don't need to reroute again.
+		 */
+		if (hv_cb_utils[channel->util_index].callback != NULL) {
+			/*
+			 * The util driver has established a handler for
+			 * this service; do the magic.
+			 */
+			channel->onchannel_callback =
+			hv_cb_utils[channel->util_index].callback;
+			(hv_cb_utils[channel->util_index].callback)(channel);
+			return;
+		}
+	}
+
 	buflen = PAGE_SIZE;
 	buf = kmalloc(buflen, GFP_ATOMIC);
 
@@ -217,7 +235,6 @@ struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
 			0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
 			0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB
 		},
-		.callback = chn_cb_negotiate,
 		.log_msg = "Shutdown channel functionality initialized"
 	},
 
@@ -229,7 +246,6 @@ struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
 			0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
 			0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf
 		},
-		.callback = chn_cb_negotiate,
 		.log_msg = "Timesync channel functionality initialized"
 	},
 	/* {57164f39-9115-4e78-ab55-382f3bd5422d} */
@@ -240,7 +256,6 @@ struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
 			0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
 			0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d
 		},
-		.callback = chn_cb_negotiate,
 		.log_msg = "Heartbeat channel functionality initialized"
 	},
 	/* {A9A0F4E7-5A45-4d96-B827-8A841E8C03E6} */
@@ -250,7 +265,6 @@ struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
 			0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
 			0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6
 		},
-		.callback = chn_cb_negotiate,
 		.log_msg = "KVP channel functionality initialized"
 	},
 };
@@ -428,7 +442,7 @@ static void vmbus_process_offer(struct work_struct *work)
 				   sizeof(struct hv_guid)) == 0 &&
 				vmbus_open(newchannel, 2 * PAGE_SIZE,
 						 2 * PAGE_SIZE, NULL, 0,
-						 hv_cb_utils[cnt].callback,
+						 chn_cb_negotiate,
 						 newchannel) == 0) {
 				hv_cb_utils[cnt].channel = newchannel;
 				newchannel->util_index = cnt;
