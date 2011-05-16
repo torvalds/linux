@@ -1033,7 +1033,7 @@ fail_conflicting:
 	err = 0;
 
 fail_free_complete:
-	if (rw == WRITE && local)
+	if (req->rq_state & RQ_IN_ACT_LOG)
 		drbd_al_complete_io(mdev, sector);
 fail_and_free_req:
 	if (local) {
