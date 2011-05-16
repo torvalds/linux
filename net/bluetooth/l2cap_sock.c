@@ -713,7 +713,7 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 /* Kill socket (only if zapped and orphan)
  * Must be called on unlocked socket.
  */
-void l2cap_sock_kill(struct sock *sk)
+static void l2cap_sock_kill(struct sock *sk)
 {
 	if (!sock_flag(sk, SOCK_ZAPPED) || sk->sk_socket)
 		return;
@@ -796,10 +796,18 @@ static int l2cap_sock_recv_cb(void *data, struct sk_buff *skb)
 	return sock_queue_rcv_skb(sk, skb);
 }
 
+static void l2cap_sock_close_cb(void *data)
+{
+	struct sock *sk = data;
+
+	l2cap_sock_kill(sk);
+}
+
 static struct l2cap_ops l2cap_chan_ops = {
 	.name		= "L2CAP Socket Interface",
 	.new_connection	= l2cap_sock_new_connection_cb,
 	.recv		= l2cap_sock_recv_cb,
+	.close		= l2cap_sock_close_cb,
 };
 
 static void l2cap_sock_destruct(struct sock *sk)
