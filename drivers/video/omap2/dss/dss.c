@@ -664,79 +664,6 @@ void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select hdmi)
 	REG_FLD_MOD(DSS_CONTROL, hdmi, 15, 15);	/* VENC_HDMI_SWITCH */
 }
 
-static int dss_init(void)
-{
-	int r;
-	u32 rev;
-	struct resource *dss_mem;
-
-	dss_mem = platform_get_resource(dss.pdev, IORESOURCE_MEM, 0);
-	if (!dss_mem) {
-		DSSERR("can't get IORESOURCE_MEM DSS\n");
-		r = -EINVAL;
-		goto fail0;
-	}
-	dss.base = ioremap(dss_mem->start, resource_size(dss_mem));
-	if (!dss.base) {
-		DSSERR("can't ioremap DSS\n");
-		r = -ENOMEM;
-		goto fail0;
-	}
-
-	/* disable LCD and DIGIT output. This seems to fix the synclost
-	 * problem that we get, if the bootloader starts the DSS and
-	 * the kernel resets it */
-	omap_writel(omap_readl(0x48050440) & ~0x3, 0x48050440);
-
-#ifdef CONFIG_OMAP2_DSS_SLEEP_BEFORE_RESET
-	/* We need to wait here a bit, otherwise we sometimes start to
-	 * get synclost errors, and after that only power cycle will
-	 * restore DSS functionality. I have no idea why this happens.
-	 * And we have to wait _before_ resetting the DSS, but after
-	 * enabling clocks.
-	 *
-	 * This bug was at least present on OMAP3430. It's unknown
-	 * if it happens on OMAP2 or OMAP3630.
-	 */
-	msleep(50);
-#endif
-
-	_omap_dss_reset();
-
-	/* autoidle */
-	REG_FLD_MOD(DSS_SYSCONFIG, 1, 0, 0);
-
-	/* Select DPLL */
-	REG_FLD_MOD(DSS_CONTROL, 0, 0, 0);
-
-#ifdef CONFIG_OMAP2_DSS_VENC
-	REG_FLD_MOD(DSS_CONTROL, 1, 4, 4);	/* venc dac demen */
-	REG_FLD_MOD(DSS_CONTROL, 1, 3, 3);	/* venc clock 4x enable */
-	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */
-#endif
-	dss.dsi_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
-	dss.dsi_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
-	dss.dispc_clk_source = OMAP_DSS_CLK_SRC_FCK;
-	dss.lcd_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
-	dss.lcd_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
-
-	dss_save_context();
-
-	rev = dss_read_reg(DSS_REVISION);
-	printk(KERN_INFO "OMAP DSS rev %d.%d\n",
-			FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
-
-	return 0;
-
-fail0:
-	return r;
-}
-
-static void dss_exit(void)
-{
-	iounmap(dss.base);
-}
-
 /* CONTEXT */
 static int dss_get_ctx_id(void)
 {
@@ -1094,9 +1021,24 @@ void dss_debug_dump_clocks(struct seq_file *s)
 /* DSS HW IP initialisation */
 static int omap_dsshw_probe(struct platform_device *pdev)
 {
+	struct resource *dss_mem;
+	u32 rev;
 	int r;
 
 	dss.pdev = pdev;
+
+	dss_mem = platform_get_resource(dss.pdev, IORESOURCE_MEM, 0);
+	if (!dss_mem) {
+		DSSERR("can't get IORESOURCE_MEM DSS\n");
+		r = -EINVAL;
+		goto err_ioremap;
+	}
+	dss.base = ioremap(dss_mem->start, resource_size(dss_mem));
+	if (!dss.base) {
+		DSSERR("can't ioremap DSS\n");
+		r = -ENOMEM;
+		goto err_ioremap;
+	}
 
 	r = dss_get_clocks();
 	if (r)
@@ -1107,11 +1049,42 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 	dss.ctx_id = dss_get_ctx_id();
 	DSSDBG("initial ctx id %u\n", dss.ctx_id);
 
-	r = dss_init();
-	if (r) {
-		DSSERR("Failed to initialize DSS\n");
-		goto err_dss;
-	}
+	/* disable LCD and DIGIT output. This seems to fix the synclost
+	 * problem that we get, if the bootloader starts the DSS and
+	 * the kernel resets it */
+	omap_writel(omap_readl(0x48050440) & ~0x3, 0x48050440);
+
+#ifdef CONFIG_OMAP2_DSS_SLEEP_BEFORE_RESET
+	/* We need to wait here a bit, otherwise we sometimes start to
+	 * get synclost errors, and after that only power cycle will
+	 * restore DSS functionality. I have no idea why this happens.
+	 * And we have to wait _before_ resetting the DSS, but after
+	 * enabling clocks.
+	 *
+	 * This bug was at least present on OMAP3430. It's unknown
+	 * if it happens on OMAP2 or OMAP3630.
+	 */
+	msleep(50);
+#endif
+
+	_omap_dss_reset();
+
+	/* autoidle */
+	REG_FLD_MOD(DSS_SYSCONFIG, 1, 0, 0);
+
+	/* Select DPLL */
+	REG_FLD_MOD(DSS_CONTROL, 0, 0, 0);
+
+#ifdef CONFIG_OMAP2_DSS_VENC
+	REG_FLD_MOD(DSS_CONTROL, 1, 4, 4);	/* venc dac demen */
+	REG_FLD_MOD(DSS_CONTROL, 1, 3, 3);	/* venc clock 4x enable */
+	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */
+#endif
+	dss.dsi_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
+	dss.dsi_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
+	dss.dispc_clk_source = OMAP_DSS_CLK_SRC_FCK;
+	dss.lcd_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
+	dss.lcd_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
 
 	r = dpi_init();
 	if (r) {
@@ -1125,23 +1098,32 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 		goto err_sdi;
 	}
 
+	dss_save_context();
+
+	rev = dss_read_reg(DSS_REVISION);
+	printk(KERN_INFO "OMAP DSS rev %d.%d\n",
+			FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
+
 	dss_clk_disable_all_no_ctx();
+
 	return 0;
 err_sdi:
 	dpi_exit();
 err_dpi:
-	dss_exit();
-err_dss:
 	dss_clk_disable_all_no_ctx();
 	dss_put_clocks();
 err_clocks:
+	iounmap(dss.base);
+err_ioremap:
 	return r;
 }
 
 static int omap_dsshw_remove(struct platform_device *pdev)
 {
+	dpi_exit();
+	sdi_exit();
 
-	dss_exit();
+	iounmap(dss.base);
 
 	/*
 	 * As part of hwmod changes, DSS is not the only controller of dss
@@ -1152,6 +1134,7 @@ static int omap_dsshw_remove(struct platform_device *pdev)
 	WARN_ON(dss.num_clks_enabled > 0);
 
 	dss_put_clocks();
+
 	return 0;
 }
 

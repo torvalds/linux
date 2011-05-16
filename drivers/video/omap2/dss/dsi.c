@@ -4450,7 +4450,8 @@ static void dsi_calc_clock_param_ranges(struct platform_device *dsidev)
 	dsi->lpdiv_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_LPDIV);
 }
 
-static int dsi_init(struct platform_device *dsidev)
+/* DSI1 HW IP initialisation */
+static int omap_dsi1hw_probe(struct platform_device *dsidev)
 {
 	struct omap_display_platform_data *dss_plat_data;
 	struct omap_dss_board_info *board_info;
@@ -4547,9 +4548,11 @@ err0:
 	return r;
 }
 
-static void dsi_exit(struct platform_device *dsidev)
+static int omap_dsi1hw_remove(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+
+	WARN_ON(dsi->scp_clk_refcount > 0);
 
 	if (dsi->vdds_dsi_reg != NULL) {
 		if (dsi->vdds_dsi_enabled) {
@@ -4566,29 +4569,6 @@ static void dsi_exit(struct platform_device *dsidev)
 
 	kfree(dsi);
 
-	DSSDBG("omap_dsi_exit\n");
-}
-
-/* DSI1 HW IP initialisation */
-static int omap_dsi1hw_probe(struct platform_device *dsidev)
-{
-	int r;
-
-	r = dsi_init(dsidev);
-	if (r) {
-		DSSERR("Failed to initialize DSI\n");
-		goto err_dsi;
-	}
-err_dsi:
-	return r;
-}
-
-static int omap_dsi1hw_remove(struct platform_device *dsidev)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	dsi_exit(dsidev);
-	WARN_ON(dsi->scp_clk_refcount > 0);
 	return 0;
 }
 
