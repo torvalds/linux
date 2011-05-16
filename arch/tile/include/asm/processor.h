@@ -257,10 +257,6 @@ static inline void cpu_relax(void)
 	barrier();
 }
 
-struct siginfo;
-extern void arch_coredump_signal(struct siginfo *, struct pt_regs *);
-#define arch_coredump_signal arch_coredump_signal
-
 /* Info on this processor (see fs/proc/cpuinfo.c) */
 struct seq_operations;
 extern const struct seq_operations cpuinfo_op;
@@ -270,9 +266,6 @@ extern char chip_model[64];
 
 /* Data on which physical memory controller corresponds to which NUMA node. */
 extern int node_controller[];
-
-/* Do we dump information to the console when a user application crashes? */
-extern int show_crashinfo;
 
 #if CHIP_HAS_CBOX_HOME_MAP()
 /* Does the heap allocator return hash-for-home pages by default? */
