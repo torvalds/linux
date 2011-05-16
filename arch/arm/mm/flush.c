@@ -275,7 +275,8 @@ void __sync_icache_dcache(pte_t pteval)
  *  kernel cache lines for later.  Otherwise, we assume we have
  *  aliasing mappings.
  *
- * Note that we disable the lazy flush for SMP.
+ * Note that we disable the lazy flush for SMP configurations where
+ * the cache maintenance operations are not automatically broadcasted.
  */
 void flush_dcache_page(struct page *page)
 {
