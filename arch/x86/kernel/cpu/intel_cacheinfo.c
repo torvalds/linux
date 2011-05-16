@@ -453,27 +453,16 @@ int amd_set_l3_disable_slot(struct amd_l3_cache *l3, int cpu, unsigned slot,
 {
 	int ret = 0;
 
-#define SUBCACHE_MASK	(3UL << 20)
-#define SUBCACHE_INDEX	0xfff
-
-	/*
-	 * check whether this slot is already used or
-	 * the index is already disabled
-	 */
+	/*  check if @slot is already used or the index is already disabled */
 	ret = amd_get_l3_disable_slot(l3, slot);
 	if (ret >= 0)
 		return -EINVAL;
 
-	/*
-	 * check whether the other slot has disabled the
-	 * same index already
-	 */
-	if (index == amd_get_l3_disable_slot(l3, !slot))
+	if (index > l3->indices)
 		return -EINVAL;
 
-	/* do not allow writes outside of allowed bits */
-	if ((index & ~(SUBCACHE_MASK | SUBCACHE_INDEX)) ||
-	    ((index & SUBCACHE_INDEX) > l3->indices))
+	/* check whether the other slot has disabled the same index already */
+	if (index == amd_get_l3_disable_slot(l3, !slot))
 		return -EINVAL;
 
 	amd_l3_disable_index(l3, cpu, slot, index);
