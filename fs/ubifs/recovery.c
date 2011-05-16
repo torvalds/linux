@@ -662,19 +662,13 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 	}
 
 	if (ret == SCANNED_GARBAGE || ret == SCANNED_A_BAD_PAD_NODE) {
-		if (is_last_write(c, buf, offs))
-			clean_buf(c, &buf, lnum, &offs, &len);
-		else
+		if (!is_last_write(c, buf, offs))
 			goto corrupted_rescan;
 	} else if (ret == SCANNED_A_CORRUPT_NODE) {
-		if (no_more_nodes(c, buf, len, lnum, offs))
-			clean_buf(c, &buf, lnum, &offs, &len);
-		else
+		if (!no_more_nodes(c, buf, len, lnum, offs))
 			goto corrupted_rescan;
 	} else if (!is_empty(buf, len)) {
-		if (is_last_write(c, buf, offs)) {
-			clean_buf(c, &buf, lnum, &offs, &len);
-		} else {
+		if (!is_last_write(c, buf, offs)) {
 			int corruption = first_non_ff(buf, len);
 
 			/*
@@ -694,12 +688,9 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 	if (grouped && drop_incomplete_group(sleb, &offs)) {
 		buf = sbuf + offs;
 		len = c->leb_size - offs;
-		clean_buf(c, &buf, lnum, &offs, &len);
 	}
 
-	if (offs % c->min_io_size)
-		clean_buf(c, &buf, lnum, &offs, &len);
-
+	clean_buf(c, &buf, lnum, &offs, &len);
 	ubifs_end_scan(c, sleb, lnum, offs);
 
 	err = fix_unclean_leb(c, sleb, start);
