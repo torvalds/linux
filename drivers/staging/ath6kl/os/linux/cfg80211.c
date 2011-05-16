@@ -545,6 +545,7 @@ ar6k_cfg80211_connect_event(struct ar6_softc *ar, u16 channel,
     if(!ieeemgmtbuf) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                             ("%s: ieeeMgmtbuf alloc error\n", __func__));
+	    cfg80211_put_bss(bss);
             return;
     }
 
