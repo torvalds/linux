@@ -798,11 +798,6 @@ void efx_link_status_changed(struct efx_nic *efx)
 	if (!netif_running(efx->net_dev))
 		return;
 
-	if (efx->port_inhibited) {
-		netif_carrier_off(efx->net_dev);
-		return;
-	}
-
 	if (link_state->up != netif_carrier_ok(efx->net_dev)) {
 		efx->n_link_state_changes++;
 
@@ -1450,7 +1445,7 @@ static void efx_start_all(struct efx_nic *efx)
 	 * restart the transmit interface early so the watchdog timer stops */
 	efx_start_port(efx);
 
-	if (efx_dev_registered(efx) && !efx->port_inhibited)
+	if (efx_dev_registered(efx) && netif_device_present(efx->net_dev))
 		netif_tx_wake_all_queues(efx->net_dev);
 
 	efx_for_each_channel(channel, efx)
@@ -2114,6 +2109,7 @@ int efx_reset(struct efx_nic *efx, enum reset_type method)
 	netif_info(efx, drv, efx->net_dev, "resetting (%s)\n",
 		   RESET_TYPE(method));
 
+	netif_device_detach(efx->net_dev);
 	efx_reset_down(efx, method);
 
 	rc = efx->type->reset(efx, method);
@@ -2147,6 +2143,7 @@ out:
 		efx->state = STATE_DISABLED;
 	} else {
 		netif_dbg(efx, drv, efx->net_dev, "reset complete\n");
+		netif_device_attach(efx->net_dev);
 	}
 	return rc;
 }
