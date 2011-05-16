@@ -106,8 +106,8 @@ struct xenvif {
 	wait_queue_head_t waiting_to_free;
 };
 
-#define XEN_NETIF_TX_RING_SIZE __RING_SIZE((struct xen_netif_tx_sring *)0, PAGE_SIZE)
-#define XEN_NETIF_RX_RING_SIZE __RING_SIZE((struct xen_netif_rx_sring *)0, PAGE_SIZE)
+#define XEN_NETIF_TX_RING_SIZE __CONST_RING_SIZE(xen_netif_tx, PAGE_SIZE)
+#define XEN_NETIF_RX_RING_SIZE __CONST_RING_SIZE(xen_netif_rx, PAGE_SIZE)
 
 struct xenvif *xenvif_alloc(struct device *parent,
 			    domid_t domid,
