@@ -681,8 +681,7 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 		error = lport->tt.seq_send(lport, seq, fp);
 		if (error) {
 			WARN_ON(1);		/* send error should be rare */
-			fc_fcp_retry_cmd(fsp);
-			return 0;
+			return error;
 		}
 		fp = NULL;
 	}
