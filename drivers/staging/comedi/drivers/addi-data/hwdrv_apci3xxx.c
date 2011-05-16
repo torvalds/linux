@@ -141,8 +141,7 @@ static int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device *dev,
 		/* Test the time base */
 	   /**********************/
 
-		if ((devpriv->ps_BoardInfo->
-				b_AvailableConvertUnit & (1 << b_TimeBase)) !=
+		if ((this_board->b_AvailableConvertUnit & (1 << b_TimeBase)) !=
 			0) {
 	      /*******************************/
 			/* Test the convert time value */
@@ -173,7 +172,7 @@ static int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device *dev,
 						if (((b_SingleDiff == APCI3XXX_SINGLE)
 						        && (devpriv->s_EeParameters.i_NbrAiChannel == 0))
 						    || ((b_SingleDiff == APCI3XXX_DIFF)
-							&& (devpriv->ps_BoardInfo->i_NbrAiChannelDiff == 0))
+							&& (this_board->i_NbrAiChannelDiff == 0))
 						    ) {
 			   /*******************************/
 							/* Single/Diff selection error */
@@ -378,8 +377,7 @@ static int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 
 		if (((b_Channel < devpriv->s_EeParameters.i_NbrAiChannel)
 				&& (devpriv->b_SingelDiff == APCI3XXX_SINGLE))
-			|| ((b_Channel < devpriv->ps_BoardInfo->
-					i_NbrAiChannelDiff)
+			|| ((b_Channel < this_board->i_NbrAiChannelDiff)
 				&& (devpriv->b_SingelDiff == APCI3XXX_DIFF))) {
 	      /**********************************/
 			/* Test the channel configuration */

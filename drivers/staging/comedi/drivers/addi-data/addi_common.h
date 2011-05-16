@@ -406,7 +406,6 @@ struct addi_private {
 
 	/* Pointer to the current process */
 	struct task_struct *tsk_Current;
-	const struct addi_board *ps_BoardInfo;
 
 	/* Hardware board infos for 1710 */
 	struct {
