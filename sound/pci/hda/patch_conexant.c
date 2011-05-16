@@ -109,6 +109,7 @@ struct conexant_spec {
 	struct auto_pin_cfg autocfg;
 	struct hda_input_mux private_imux;
 	int imux_cfg_idx[HDA_MAX_NUM_INPUTS]; /* corresponding autocfg.input */
+	hda_nid_t imux_boost_nid[HDA_MAX_NUM_INPUTS]; /* boost widget */
 	hda_nid_t imux_adcs[HDA_MAX_NUM_INPUTS];
 	hda_nid_t imux_pins[HDA_MAX_NUM_INPUTS];
 	hda_nid_t private_adc_nids[HDA_MAX_NUM_INPUTS];
@@ -3651,6 +3652,7 @@ static void cx_auto_parse_input(struct hda_codec *codec)
 				const char *label;
 				label = hda_get_autocfg_input_label(codec, cfg, i);
 				spec->imux_cfg_idx[imux->num_items] = i;
+				spec->imux_boost_nid[imux->num_items] = 0;
 				spec->imux_adcs[imux->num_items] = adc;
 				spec->imux_pins[imux->num_items] =
 					cfg->inputs[i].pin;
@@ -3997,7 +3999,7 @@ static int cx_auto_add_boost_volume(struct hda_codec *codec, int idx,
 {
 	struct conexant_spec *spec = codec->spec;
 	hda_nid_t mux, nid;
-	int con;
+	int i, con;
 
 	nid = spec->imux_pins[idx];
 	if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP)
@@ -4007,9 +4009,16 @@ static int cx_auto_add_boost_volume(struct hda_codec *codec, int idx,
 					false, 0);
 	if (con < 0)
 		return 0;
-	if (get_wcaps(codec, mux) & AC_WCAP_OUT_AMP)
+	for (i = 0; i < idx; i++) {
+		if (spec->imux_boost_nid[i] == mux)
+			return 0; /* already present */
+	}
+
+	if (get_wcaps(codec, mux) & AC_WCAP_OUT_AMP) {
+		spec->imux_boost_nid[idx] = mux;
 		return cx_auto_add_volume(codec, label, " Boost", 0,
 					  mux, HDA_OUTPUT);
+	}
 	return 0;
 }
 
@@ -4050,6 +4059,8 @@ static int cx_auto_build_input_controls(struct hda_codec *codec)
 			return err;
 
 		if (!multi_connection) {
+			if (i > 0)
+				continue;
 			err = cx_auto_add_capture_volume(codec, nid,
 							 "Capture", "", cidx);
 		} else {
