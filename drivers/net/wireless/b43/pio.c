@@ -339,7 +339,7 @@ static u16 tx_write_2byte_queue(struct b43_pio_txqueue *q,
 	ctl |= B43_PIO_TXCTL_WRITELO | B43_PIO_TXCTL_WRITEHI;
 	b43_piotx_write16(q, B43_PIO_TXCTL, ctl);
 
-	ssb_block_write(dev->sdev, data, (data_len & ~1),
+	b43_block_write(dev, data, (data_len & ~1),
 			q->mmio_base + B43_PIO_TXDATA,
 			sizeof(u16));
 	if (data_len & 1) {
@@ -351,7 +351,7 @@ static u16 tx_write_2byte_queue(struct b43_pio_txqueue *q,
 		b43_piotx_write16(q, B43_PIO_TXCTL, ctl);
 		tail[0] = data[data_len - 1];
 		tail[1] = 0;
-		ssb_block_write(dev->sdev, tail, 2,
+		b43_block_write(dev, tail, 2,
 				q->mmio_base + B43_PIO_TXDATA,
 				sizeof(u16));
 	}
@@ -393,7 +393,7 @@ static u32 tx_write_4byte_queue(struct b43_pio_txqueue *q,
 	       B43_PIO8_TXCTL_16_23 | B43_PIO8_TXCTL_24_31;
 	b43_piotx_write32(q, B43_PIO8_TXCTL, ctl);
 
-	ssb_block_write(dev->sdev, data, (data_len & ~3),
+	b43_block_write(dev, data, (data_len & ~3),
 			q->mmio_base + B43_PIO8_TXDATA,
 			sizeof(u32));
 	if (data_len & 3) {
@@ -421,7 +421,7 @@ static u32 tx_write_4byte_queue(struct b43_pio_txqueue *q,
 			break;
 		}
 		b43_piotx_write32(q, B43_PIO8_TXCTL, ctl);
-		ssb_block_write(dev->sdev, tail, 4,
+		b43_block_write(dev, tail, 4,
 				q->mmio_base + B43_PIO8_TXDATA,
 				sizeof(u32));
 	}
@@ -657,11 +657,11 @@ data_ready:
 
 	/* Get the preamble (RX header) */
 	if (q->rev >= 8) {
-		ssb_block_read(dev->sdev, rxhdr, sizeof(*rxhdr),
+		b43_block_read(dev, rxhdr, sizeof(*rxhdr),
 			       q->mmio_base + B43_PIO8_RXDATA,
 			       sizeof(u32));
 	} else {
-		ssb_block_read(dev->sdev, rxhdr, sizeof(*rxhdr),
+		b43_block_read(dev, rxhdr, sizeof(*rxhdr),
 			       q->mmio_base + B43_PIO_RXDATA,
 			       sizeof(u16));
 	}
@@ -697,7 +697,7 @@ data_ready:
 	skb_reserve(skb, 2);
 	skb_put(skb, len + padding);
 	if (q->rev >= 8) {
-		ssb_block_read(dev->sdev, skb->data + padding, (len & ~3),
+		b43_block_read(dev, skb->data + padding, (len & ~3),
 			       q->mmio_base + B43_PIO8_RXDATA,
 			       sizeof(u32));
 		if (len & 3) {
@@ -705,7 +705,7 @@ data_ready:
 			BUILD_BUG_ON(sizeof(wl->pio_tailspace) < 4);
 
 			/* Read the last few bytes. */
-			ssb_block_read(dev->sdev, tail, 4,
+			b43_block_read(dev, tail, 4,
 				       q->mmio_base + B43_PIO8_RXDATA,
 				       sizeof(u32));
 			switch (len & 3) {
@@ -724,7 +724,7 @@ data_ready:
 			}
 		}
 	} else {
-		ssb_block_read(dev->sdev, skb->data + padding, (len & ~1),
+		b43_block_read(dev, skb->data + padding, (len & ~1),
 			       q->mmio_base + B43_PIO_RXDATA,
 			       sizeof(u16));
 		if (len & 1) {
@@ -732,7 +732,7 @@ data_ready:
 			BUILD_BUG_ON(sizeof(wl->pio_tailspace) < 2);
 
 			/* Read the last byte. */
-			ssb_block_read(dev->sdev, tail, 2,
+			b43_block_read(dev, tail, 2,
 				       q->mmio_base + B43_PIO_RXDATA,
 				       sizeof(u16));
 			skb->data[len + padding - 1] = tail[0];

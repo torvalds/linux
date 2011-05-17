@@ -897,6 +897,18 @@ static inline void b43_write32(struct b43_wldev *dev, u16 offset, u32 value)
 	ssb_write32(dev->sdev, offset, value);
 }
 
+static inline void b43_block_read(struct b43_wldev *dev, void *buffer,
+				 size_t count, u16 offset, u8 reg_width)
+{
+	ssb_block_read(dev->sdev, buffer, count, offset, reg_width);
+}
+
+static inline void b43_block_write(struct b43_wldev *dev, const void *buffer,
+				   size_t count, u16 offset, u8 reg_width)
+{
+	ssb_block_write(dev->sdev, buffer, count, offset, reg_width);
+}
+
 static inline bool b43_using_pio_transfers(struct b43_wldev *dev)
 {
 	return dev->__using_pio_transfers;
