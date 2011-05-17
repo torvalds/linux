@@ -389,9 +389,9 @@ static void l2cap_chan_del(struct l2cap_chan *chan, int err)
 	if (chan->mode == L2CAP_MODE_ERTM) {
 		struct srej_list *l, *tmp;
 
-		del_timer(&chan->retrans_timer);
-		del_timer(&chan->monitor_timer);
-		del_timer(&chan->ack_timer);
+		__clear_retrans_timer(chan);
+		__clear_monitor_timer(chan);
+		__clear_ack_timer(chan);
 
 		skb_queue_purge(&chan->srej_q);
 		skb_queue_purge(&chan->busy_q);
@@ -697,9 +697,9 @@ static void l2cap_send_disconn_req(struct l2cap_conn *conn, struct l2cap_chan *c
 	sk = chan->sk;
 
 	if (chan->mode == L2CAP_MODE_ERTM) {
-		del_timer(&chan->retrans_timer);
-		del_timer(&chan->monitor_timer);
-		del_timer(&chan->ack_timer);
+		__clear_retrans_timer(chan);
+		__clear_monitor_timer(chan);
+		__clear_ack_timer(chan);
 	}
 
 	req.dcid = cpu_to_le16(chan->dcid);
@@ -1177,7 +1177,7 @@ static void l2cap_monitor_timeout(unsigned long arg)
 	}
 
 	chan->retry_count++;
-	__mod_monitor_timer();
+	__set_monitor_timer(chan);
 
 	l2cap_send_rr_or_rnr(chan, L2CAP_CTRL_POLL);
 	bh_unlock_sock(sk);
@@ -1192,7 +1192,7 @@ static void l2cap_retrans_timeout(unsigned long arg)
 
 	bh_lock_sock(sk);
 	chan->retry_count = 1;
-	__mod_monitor_timer();
+	__set_monitor_timer(chan);
 
 	chan->conn_state |= L2CAP_CONN_WAIT_F;
 
@@ -1216,7 +1216,7 @@ static void l2cap_drop_acked_frames(struct l2cap_chan *chan)
 	}
 
 	if (!chan->unacked_frames)
-		del_timer(&chan->retrans_timer);
+		__clear_retrans_timer(chan);
 }
 
 void l2cap_do_send(struct l2cap_chan *chan, struct sk_buff *skb)
@@ -1343,7 +1343,7 @@ int l2cap_ertm_send(struct l2cap_chan *chan)
 
 		l2cap_do_send(chan, tx_skb);
 
-		__mod_retrans_timer();
+		__set_retrans_timer(chan);
 
 		bt_cb(skb)->tx_seq = chan->next_tx_seq;
 		chan->next_tx_seq = (chan->next_tx_seq + 1) % 64;
@@ -3260,8 +3260,8 @@ static int l2cap_try_push_rx_skb(struct l2cap_chan *chan)
 	l2cap_send_sframe(chan, control);
 	chan->retry_count = 1;
 
-	del_timer(&chan->retrans_timer);
-	__mod_monitor_timer();
+	__clear_retrans_timer(chan);
+	__set_monitor_timer(chan);
 
 	chan->conn_state |= L2CAP_CONN_WAIT_F;
 
@@ -3352,7 +3352,7 @@ static int l2cap_push_rx_skb(struct l2cap_chan *chan, struct sk_buff *skb, u16 c
 
 	chan->conn_state |= L2CAP_CONN_RNR_SENT;
 
-	del_timer(&chan->ack_timer);
+	__clear_ack_timer(chan);
 
 	queue_work(_busy_wq, &chan->busy_work);
 
@@ -3521,9 +3521,9 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 
 	if (L2CAP_CTRL_FINAL & rx_control &&
 			chan->conn_state & L2CAP_CONN_WAIT_F) {
-		del_timer(&chan->monitor_timer);
+		__clear_monitor_timer(chan);
 		if (chan->unacked_frames > 0)
-			__mod_retrans_timer();
+			__set_retrans_timer(chan);
 		chan->conn_state &= ~L2CAP_CONN_WAIT_F;
 	}
 
@@ -3604,7 +3604,7 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 
 		l2cap_send_srejframe(chan, tx_seq);
 
-		del_timer(&chan->ack_timer);
+		__clear_ack_timer(chan);
 	}
 	return 0;
 
@@ -3629,7 +3629,7 @@ expected:
 			l2cap_retransmit_frames(chan);
 	}
 
-	__mod_ack_timer();
+	__set_ack_timer(chan);
 
 	chan->num_acked = (chan->num_acked + 1) % num_to_ack;
 	if (chan->num_acked == num_to_ack - 1)
@@ -3655,7 +3655,7 @@ static inline void l2cap_data_channel_rrframe(struct l2cap_chan *chan, u16 rx_co
 		if (chan->conn_state & L2CAP_CONN_SREJ_SENT) {
 			if ((chan->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
 					(chan->unacked_frames > 0))
-				__mod_retrans_timer();
+				__set_retrans_timer(chan);
 
 			chan->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
 			l2cap_send_srejtail(chan);
@@ -3674,7 +3674,7 @@ static inline void l2cap_data_channel_rrframe(struct l2cap_chan *chan, u16 rx_co
 	} else {
 		if ((chan->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
 				(chan->unacked_frames > 0))
-			__mod_retrans_timer();
+			__set_retrans_timer(chan);
 
 		chan->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
 		if (chan->conn_state & L2CAP_CONN_SREJ_SENT)
@@ -3757,7 +3757,7 @@ static inline void l2cap_data_channel_rnrframe(struct l2cap_chan *chan, u16 rx_c
 		chan->conn_state |= L2CAP_CONN_SEND_FBIT;
 
 	if (!(chan->conn_state & L2CAP_CONN_SREJ_SENT)) {
-		del_timer(&chan->retrans_timer);
+		__clear_retrans_timer(chan);
 		if (rx_control & L2CAP_CTRL_POLL)
 			l2cap_send_rr_or_rnr(chan, L2CAP_CTRL_FINAL);
 		return;
@@ -3775,9 +3775,9 @@ static inline int l2cap_data_channel_sframe(struct l2cap_chan *chan, u16 rx_cont
 
 	if (L2CAP_CTRL_FINAL & rx_control &&
 			chan->conn_state & L2CAP_CONN_WAIT_F) {
-		del_timer(&chan->monitor_timer);
+		__clear_monitor_timer(chan);
 		if (chan->unacked_frames > 0)
-			__mod_retrans_timer();
+			__set_retrans_timer(chan);
 		chan->conn_state &= ~L2CAP_CONN_WAIT_F;
 	}
 
