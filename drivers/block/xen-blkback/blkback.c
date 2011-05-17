@@ -175,8 +175,14 @@ static int xen_vbd_translate(struct phys_req *req, struct xen_blkif *blkif,
 	if ((operation != READ) && vbd->readonly)
 		goto out;
 
-	if (unlikely((req->sector_number + req->nr_sects) > vbd_sz(vbd)))
-		goto out;
+	if (likely(req->nr_sects)) {
+		blkif_sector_t end = req->sector_number + req->nr_sects;
+
+		if (unlikely(end < req->sector_number))
+			goto out;
+		if (unlikely(end > vbd_sz(vbd)))
+			goto out;
+	}
 
 	req->dev  = vbd->pdevice;
 	req->bdev = vbd->bdev;
@@ -538,11 +544,6 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	case BLKIF_OP_FLUSH_DISKCACHE:
 		blkif->st_f_req++;
 		operation = WRITE_FLUSH;
-		/*
-		 * The frontend likes to set this to -1, which xen_vbd_translate
-		 * is alergic too.
-		 */
-		req->u.rw.sector_number = 0;
 		break;
 	case BLKIF_OP_WRITE_BARRIER:
 	default:
