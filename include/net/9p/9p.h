@@ -714,7 +714,7 @@ struct p9_fcall {
 	size_t pbuf_size;
 	void *private;
 
-	uint8_t *sdata;
+	u8 *sdata;
 };
 
 struct p9_idpool;
@@ -728,7 +728,6 @@ void p9_idpool_put(int id, struct p9_idpool *p);
 int p9_idpool_check(int id, struct p9_idpool *p);
 
 int p9_error_init(void);
-int p9_errstr2errno(char *, int);
 int p9_trans_fd_init(void);
 void p9_trans_fd_exit(void);
 #endif /* NET_9P_H */
