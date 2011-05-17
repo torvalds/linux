@@ -946,6 +946,12 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 				} while (ptr != head);
 			}
 
+			/* No packet at any TID for this priv. Mark as such
+			 * to skip checking TIDs for this priv (until pkt is
+			 * added).
+			 */
+			atomic_set(hqp, NO_PKT_PRIO_TID);
+
 			/* Get next bss priority node */
 			bssprio_node = list_first_entry(&bssprio_node->list,
 						struct mwifiex_bss_prio_node,
