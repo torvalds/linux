@@ -433,7 +433,7 @@ armv6pmu_enable_event(struct hw_perf_event *hwc,
 		      int idx)
 {
 	unsigned long val, mask, evt, flags;
-	struct cpu_hw_events *events = armpmu->get_hw_events();
+	struct pmu_hw_events *events = cpu_pmu->get_hw_events();
 
 	if (ARMV6_CYCLE_COUNTER == idx) {
 		mask	= 0;
@@ -486,7 +486,7 @@ armv6pmu_handle_irq(int irq_num,
 {
 	unsigned long pmcr = armv6_pmcr_read();
 	struct perf_sample_data data;
-	struct cpu_hw_events *cpuc;
+	struct pmu_hw_events *cpuc;
 	struct pt_regs *regs;
 	int idx;
 
@@ -505,7 +505,7 @@ armv6pmu_handle_irq(int irq_num,
 	perf_sample_data_init(&data, 0);
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
-	for (idx = 0; idx < armpmu->num_events; ++idx) {
+	for (idx = 0; idx < cpu_pmu->num_events; ++idx) {
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
@@ -526,7 +526,7 @@ armv6pmu_handle_irq(int irq_num,
 			continue;
 
 		if (perf_event_overflow(event, &data, regs))
-			armpmu->disable(hwc, idx);
+			cpu_pmu->disable(hwc, idx);
 	}
 
 	/*
@@ -545,7 +545,7 @@ static void
 armv6pmu_start(void)
 {
 	unsigned long flags, val;
-	struct cpu_hw_events *events = armpmu->get_hw_events();
+	struct pmu_hw_events *events = cpu_pmu->get_hw_events();
 
 	raw_spin_lock_irqsave(&events->pmu_lock, flags);
 	val = armv6_pmcr_read();
@@ -558,7 +558,7 @@ static void
 armv6pmu_stop(void)
 {
 	unsigned long flags, val;
-	struct cpu_hw_events *events = armpmu->get_hw_events();
+	struct pmu_hw_events *events = cpu_pmu->get_hw_events();
 
 	raw_spin_lock_irqsave(&events->pmu_lock, flags);
 	val = armv6_pmcr_read();
@@ -568,7 +568,7 @@ armv6pmu_stop(void)
 }
 
 static int
-armv6pmu_get_event_idx(struct cpu_hw_events *cpuc,
+armv6pmu_get_event_idx(struct pmu_hw_events *cpuc,
 		       struct hw_perf_event *event)
 {
 	/* Always place a cycle counter into the cycle counter. */
@@ -598,7 +598,7 @@ armv6pmu_disable_event(struct hw_perf_event *hwc,
 		       int idx)
 {
 	unsigned long val, mask, evt, flags;
-	struct cpu_hw_events *events = armpmu->get_hw_events();
+	struct pmu_hw_events *events = cpu_pmu->get_hw_events();
 
 	if (ARMV6_CYCLE_COUNTER == idx) {
 		mask	= ARMV6_PMCR_CCOUNT_IEN;
@@ -632,7 +632,7 @@ armv6mpcore_pmu_disable_event(struct hw_perf_event *hwc,
 			      int idx)
 {
 	unsigned long val, mask, flags, evt = 0;
-	struct cpu_hw_events *events = armpmu->get_hw_events();
+	struct pmu_hw_events *events = cpu_pmu->get_hw_events();
 
 	if (ARMV6_CYCLE_COUNTER == idx) {
 		mask	= ARMV6_PMCR_CCOUNT_IEN;
