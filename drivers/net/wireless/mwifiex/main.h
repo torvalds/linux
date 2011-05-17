@@ -213,7 +213,8 @@ struct mwifiex_wmm_desc {
 	u32 drv_pkt_delay_max;
 	u8 queue_priority[IEEE80211_MAX_QUEUES];
 	u32 user_pri_pkt_tx_ctrl[WMM_HIGHEST_PRIORITY + 1];	/* UP: 0 to 7 */
-
+	/* Number of transmit packets queued */
+	atomic_t tx_pkts_queued;
 };
 
 struct mwifiex_802_11_security {

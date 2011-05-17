@@ -399,6 +399,8 @@ mwifiex_wmm_init(struct mwifiex_adapter *adapter)
 		priv->add_ba_param.timeout = MWIFIEX_DEFAULT_BLOCK_ACK_TIMEOUT;
 		priv->add_ba_param.tx_win_size = MWIFIEX_AMPDU_DEF_TXWINSIZE;
 		priv->add_ba_param.rx_win_size = MWIFIEX_AMPDU_DEF_RXWINSIZE;
+
+		atomic_set(&priv->wmm.tx_pkts_queued, 0);
 	}
 }
 
@@ -408,17 +410,13 @@ mwifiex_wmm_init(struct mwifiex_adapter *adapter)
 int
 mwifiex_wmm_lists_empty(struct mwifiex_adapter *adapter)
 {
-	int i, j;
+	int i;
 	struct mwifiex_private *priv;
 
-	for (j = 0; j < adapter->priv_num; ++j) {
-		priv = adapter->priv[j];
-		if (priv) {
-			for (i = 0; i < MAX_NUM_TID; i++)
-				if (!mwifiex_wmm_is_ra_list_empty(
-					     &priv->wmm.tid_tbl_ptr[i].ra_list))
-					return false;
-		}
+	for (i = 0; i < adapter->priv_num; ++i) {
+		priv = adapter->priv[i];
+		if (priv && atomic_read(&priv->wmm.tx_pkts_queued))
+				return false;
 	}
 
 	return true;
@@ -468,6 +466,8 @@ static void mwifiex_wmm_cleanup_queues(struct mwifiex_private *priv)
 	for (i = 0; i < MAX_NUM_TID; i++)
 		mwifiex_wmm_del_pkts_in_ralist(priv, &priv->wmm.tid_tbl_ptr[i].
 						     ra_list);
+
+	atomic_set(&priv->wmm.tx_pkts_queued, 0);
 }
 
 /*
@@ -637,6 +637,8 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_adapter *adapter,
 	skb_queue_tail(&ra_list->skb_head, skb);
 
 	ra_list->total_pkts_size += skb->len;
+
+	atomic_inc(&priv->wmm.tx_pkts_queued);
 
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
 }
@@ -1028,6 +1030,7 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 				.bss_prio_cur->list,
 				struct mwifiex_bss_prio_node,
 				list);
+		atomic_dec(&priv->wmm.tx_pkts_queued);
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
 	}
@@ -1134,6 +1137,7 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 				.bss_prio_cur->list,
 				struct mwifiex_bss_prio_node,
 				list);
+		atomic_dec(&priv->wmm.tx_pkts_queued);
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
 	}
