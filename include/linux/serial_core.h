@@ -45,7 +45,8 @@
 #define PORT_OCTEON	17	/* Cavium OCTEON internal UART */
 #define PORT_AR7	18	/* Texas Instruments AR7 internal UART */
 #define PORT_U6_16550A	19	/* ST-Ericsson U6xxx internal UART */
-#define PORT_MAX_8250	19	/* max port ID */
+#define PORT_TEGRA	20	/* NVIDIA Tegra internal UART */
+#define PORT_MAX_8250	20	/* max port ID */
 
 /*
  * ARM specific type numbers.  These are not currently guaranteed
