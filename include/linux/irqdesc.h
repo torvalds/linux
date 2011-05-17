@@ -16,16 +16,18 @@ struct timer_rand_state;
  * @irq_data:		per irq and chip data passed down to chip functions
  * @timer_rand_state:	pointer to timer rand state struct
  * @kstat_irqs:		irq stats per cpu
- * @handle_irq:		highlevel irq-events handler [if NULL, __do_IRQ()]
+ * @handle_irq:		highlevel irq-events handler
+ * @preflow_handler:	handler called before the flow handler (currently used by sparc)
  * @action:		the irq action chain
  * @status:		status information
  * @core_internal_state__do_not_mess_with_it: core internal status information
  * @depth:		disable-depth, for nested irq_disable() calls
- * @wake_depth:		enable depth, for multiple set_irq_wake() callers
+ * @wake_depth:		enable depth, for multiple irq_set_irq_wake() callers
  * @irq_count:		stats field to detect stalled irqs
  * @last_unhandled:	aging timer for unhandled count
  * @irqs_unhandled:	stats field for spurious unhandled interrupts
  * @lock:		locking for SMP
+ * @affinity_hint:	hint to user space for preferred irq affinity
  * @affinity_notify:	context for notification of affinity changes
  * @pending_mask:	pending rebalanced interrupts
  * @threads_oneshot:	bitfield to handle shared oneshot threads

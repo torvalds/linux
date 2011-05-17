@@ -202,6 +202,7 @@ static inline void __init apollon_init_smc91x(void)
 	unsigned int rate;
 	struct clk *gpmc_fck;
 	int eth_cs;
+	int err;
 
 	gpmc_fck = clk_get(NULL, "gpmc_fck");	/* Always on ENABLE_ON_INIT */
 	if (IS_ERR(gpmc_fck)) {
@@ -245,15 +246,13 @@ static inline void __init apollon_init_smc91x(void)
 	apollon_smc91x_resources[0].end   = base + 0x30f;
 	udelay(100);
 
-	omap_mux_init_gpio(74, 0);
-	if (gpio_request(APOLLON_ETHR_GPIO_IRQ, "SMC91x irq") < 0) {
+	omap_mux_init_gpio(APOLLON_ETHR_GPIO_IRQ, 0);
+	err = gpio_request_one(APOLLON_ETHR_GPIO_IRQ, GPIOF_IN, "SMC91x irq");
+	if (err) {
 		printk(KERN_ERR "Failed to request GPIO%d for smc91x IRQ\n",
 			APOLLON_ETHR_GPIO_IRQ);
 		gpmc_cs_free(APOLLON_ETH_CS);
-		goto out;
 	}
-	gpio_direction_input(APOLLON_ETHR_GPIO_IRQ);
-
 out:
 	clk_disable(gpmc_fck);
 	clk_put(gpmc_fck);
@@ -280,20 +279,19 @@ static void __init omap_apollon_init_early(void)
 	omap2_init_common_devices(NULL, NULL);
 }
 
+static struct gpio apollon_gpio_leds[] __initdata = {
+	{ LED0_GPIO13, GPIOF_OUT_INIT_LOW, "LED0" }, /* LED0 - AA10 */
+	{ LED1_GPIO14, GPIOF_OUT_INIT_LOW, "LED1" }, /* LED1 - AA6  */
+	{ LED2_GPIO15, GPIOF_OUT_INIT_LOW, "LED2" }, /* LED2 - AA4  */
+};
+
 static void __init apollon_led_init(void)
 {
-	/* LED0 - AA10 */
 	omap_mux_init_signal("vlynq_clk.gpio_13", 0);
-	gpio_request(LED0_GPIO13, "LED0");
-	gpio_direction_output(LED0_GPIO13, 0);
-	/* LED1  - AA6 */
 	omap_mux_init_signal("vlynq_rx1.gpio_14", 0);
-	gpio_request(LED1_GPIO14, "LED1");
-	gpio_direction_output(LED1_GPIO14, 0);
-	/* LED2  - AA4 */
 	omap_mux_init_signal("vlynq_rx0.gpio_15", 0);
-	gpio_request(LED2_GPIO15, "LED2");
-	gpio_direction_output(LED2_GPIO15, 0);
+
+	gpio_request_array(apollon_gpio_leds, ARRAY_SIZE(apollon_gpio_leds));
 }
 
 static void __init apollon_usb_init(void)
@@ -301,8 +299,7 @@ static void __init apollon_usb_init(void)
 	/* USB device */
 	/* DEVICE_SUSPEND */
 	omap_mux_init_signal("mcbsp2_clkx.gpio_12", 0);
-	gpio_request(12, "USB suspend");
-	gpio_direction_output(12, 0);
+	gpio_request_one(12, GPIOF_OUT_INIT_LOW, "USB suspend");
 	omap2_usbfs_init(&apollon_usb_config);
 }
 

@@ -174,19 +174,14 @@ static void __init am3517_evm_rtc_init(void)
 	int r;
 
 	omap_mux_init_gpio(GPIO_RTCS35390A_IRQ, OMAP_PIN_INPUT_PULLUP);
-	r = gpio_request(GPIO_RTCS35390A_IRQ, "rtcs35390a-irq");
+
+	r = gpio_request_one(GPIO_RTCS35390A_IRQ, GPIOF_IN, "rtcs35390a-irq");
 	if (r < 0) {
 		printk(KERN_WARNING "failed to request GPIO#%d\n",
 				GPIO_RTCS35390A_IRQ);
 		return;
 	}
-	r = gpio_direction_input(GPIO_RTCS35390A_IRQ);
-	if (r < 0) {
-		printk(KERN_WARNING "GPIO#%d cannot be configured as input\n",
-				GPIO_RTCS35390A_IRQ);
-		gpio_free(GPIO_RTCS35390A_IRQ);
-		return;
-	}
+
 	am3517evm_i2c1_boardinfo[0].irq = gpio_to_irq(GPIO_RTCS35390A_IRQ);
 }
 
@@ -242,6 +237,15 @@ static int dvi_enabled;
 
 #if defined(CONFIG_PANEL_SHARP_LQ043T1DG01) || \
 		defined(CONFIG_PANEL_SHARP_LQ043T1DG01_MODULE)
+static struct gpio am3517_evm_dss_gpios[] __initdata = {
+	/* GPIO 182 = LCD Backlight Power */
+	{ LCD_PANEL_BKLIGHT_PWR, GPIOF_OUT_INIT_HIGH, "lcd_backlight_pwr" },
+	/* GPIO 181 = LCD Panel PWM */
+	{ LCD_PANEL_PWM,	 GPIOF_OUT_INIT_HIGH, "lcd bl enable"	  },
+	/* GPIO 176 = LCD Panel Power enable pin */
+	{ LCD_PANEL_PWR,	 GPIOF_OUT_INIT_HIGH, "dvi enable"	  },
+};
+
 static void __init am3517_evm_display_init(void)
 {
 	int r;
@@ -249,41 +253,15 @@ static void __init am3517_evm_display_init(void)
 	omap_mux_init_gpio(LCD_PANEL_PWR, OMAP_PIN_INPUT_PULLUP);
 	omap_mux_init_gpio(LCD_PANEL_BKLIGHT_PWR, OMAP_PIN_INPUT_PULLDOWN);
 	omap_mux_init_gpio(LCD_PANEL_PWM, OMAP_PIN_INPUT_PULLDOWN);
-	/*
-	 * Enable GPIO 182 = LCD Backlight Power
-	 */
-	r = gpio_request(LCD_PANEL_BKLIGHT_PWR, "lcd_backlight_pwr");
+
+	r = gpio_request_array(am3517_evm_dss_gpios,
+			       ARRAY_SIZE(am3517_evm_dss_gpios));
 	if (r) {
-		printk(KERN_ERR "failed to get lcd_backlight_pwr\n");
+		printk(KERN_ERR "failed to get DSS panel control GPIOs\n");
 		return;
 	}
-	gpio_direction_output(LCD_PANEL_BKLIGHT_PWR, 1);
-	/*
-	 * Enable GPIO 181 = LCD Panel PWM
-	 */
-	r = gpio_request(LCD_PANEL_PWM, "lcd_pwm");
-	if (r) {
-		printk(KERN_ERR "failed to get lcd_pwm\n");
-		goto err_1;
-	}
-	gpio_direction_output(LCD_PANEL_PWM, 1);
-	/*
-	 * Enable GPIO 176 = LCD Panel Power enable pin
-	 */
-	r = gpio_request(LCD_PANEL_PWR, "lcd_panel_pwr");
-	if (r) {
-		printk(KERN_ERR "failed to get lcd_panel_pwr\n");
-		goto err_2;
-	}
-	gpio_direction_output(LCD_PANEL_PWR, 1);
 
 	printk(KERN_INFO "Display initialized successfully\n");
-	return;
-
-err_2:
-	gpio_free(LCD_PANEL_PWM);
-err_1:
-	gpio_free(LCD_PANEL_BKLIGHT_PWR);
 }
 #else
 static void __init am3517_evm_display_init(void) {}

@@ -54,6 +54,7 @@
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
+#include "common-board-devices.h"
 
 #define CM_T35_GPIO_PENDOWN	57
 
@@ -66,86 +67,28 @@
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 #include <linux/smsc911x.h>
+#include <plat/gpmc-smsc911x.h>
 
-static struct smsc911x_platform_config cm_t35_smsc911x_config = {
-	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
-	.flags		= SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS,
-	.phy_interface	= PHY_INTERFACE_MODE_MII,
-};
-
-static struct resource cm_t35_smsc911x_resources[] = {
-	{
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= OMAP_GPIO_IRQ(CM_T35_SMSC911X_GPIO),
-		.end	= OMAP_GPIO_IRQ(CM_T35_SMSC911X_GPIO),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},
-};
-
-static struct platform_device cm_t35_smsc911x_device = {
-	.name		= "smsc911x",
+static struct omap_smsc911x_platform_data cm_t35_smsc911x_cfg = {
 	.id		= 0,
-	.num_resources	= ARRAY_SIZE(cm_t35_smsc911x_resources),
-	.resource	= cm_t35_smsc911x_resources,
-	.dev		= {
-		.platform_data = &cm_t35_smsc911x_config,
-	},
+	.cs             = CM_T35_SMSC911X_CS,
+	.gpio_irq       = CM_T35_SMSC911X_GPIO,
+	.gpio_reset     = -EINVAL,
+	.flags		= SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS,
 };
 
-static struct resource sb_t35_smsc911x_resources[] = {
-	{
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= OMAP_GPIO_IRQ(SB_T35_SMSC911X_GPIO),
-		.end	= OMAP_GPIO_IRQ(SB_T35_SMSC911X_GPIO),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},
-};
-
-static struct platform_device sb_t35_smsc911x_device = {
-	.name		= "smsc911x",
+static struct omap_smsc911x_platform_data sb_t35_smsc911x_cfg = {
 	.id		= 1,
-	.num_resources	= ARRAY_SIZE(sb_t35_smsc911x_resources),
-	.resource	= sb_t35_smsc911x_resources,
-	.dev		= {
-		.platform_data = &cm_t35_smsc911x_config,
-	},
+	.cs             = SB_T35_SMSC911X_CS,
+	.gpio_irq       = SB_T35_SMSC911X_GPIO,
+	.gpio_reset     = -EINVAL,
+	.flags		= SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS,
 };
-
-static void __init cm_t35_init_smsc911x(struct platform_device *dev,
-					int cs, int irq_gpio)
-{
-	unsigned long cs_mem_base;
-
-	if (gpmc_cs_request(cs, SZ_16M, &cs_mem_base) < 0) {
-		pr_err("CM-T35: Failed request for GPMC mem for smsc911x\n");
-		return;
-	}
-
-	dev->resource[0].start = cs_mem_base + 0x0;
-	dev->resource[0].end   = cs_mem_base + 0xff;
-
-	if ((gpio_request(irq_gpio, "ETH IRQ") == 0) &&
-	    (gpio_direction_input(irq_gpio) == 0)) {
-		gpio_export(irq_gpio, 0);
-	} else {
-		pr_err("CM-T35: could not obtain gpio for SMSC911X IRQ\n");
-		return;
-	}
-
-	platform_device_register(dev);
-}
 
 static void __init cm_t35_init_ethernet(void)
 {
-	cm_t35_init_smsc911x(&cm_t35_smsc911x_device,
-			     CM_T35_SMSC911X_CS, CM_T35_SMSC911X_GPIO);
-	cm_t35_init_smsc911x(&sb_t35_smsc911x_device,
-			     SB_T35_SMSC911X_CS, SB_T35_SMSC911X_GPIO);
+	gpmc_smsc911x_init(&cm_t35_smsc911x_cfg);
+	gpmc_smsc911x_init(&sb_t35_smsc911x_cfg);
 }
 #else
 static inline void __init cm_t35_init_ethernet(void) { return; }
@@ -235,68 +178,9 @@ static void __init cm_t35_init_nand(void)
 static inline void cm_t35_init_nand(void) {}
 #endif
 
-#if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
-	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
-#include <linux/spi/ads7846.h>
-
-static struct omap2_mcspi_device_config ads7846_mcspi_config = {
-	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
-};
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(CM_T35_GPIO_PENDOWN);
-}
-
-static struct ads7846_platform_data ads7846_config = {
-	.x_max			= 0x0fff,
-	.y_max			= 0x0fff,
-	.x_plate_ohms		= 180,
-	.pressure_max		= 255,
-	.debounce_max		= 10,
-	.debounce_tol		= 3,
-	.debounce_rep		= 1,
-	.get_pendown_state	= ads7846_get_pendown_state,
-	.keep_vref_on		= 1,
-};
-
-static struct spi_board_info cm_t35_spi_board_info[] __initdata = {
-	{
-		.modalias		= "ads7846",
-		.bus_num		= 1,
-		.chip_select		= 0,
-		.max_speed_hz		= 1500000,
-		.controller_data	= &ads7846_mcspi_config,
-		.irq			= OMAP_GPIO_IRQ(CM_T35_GPIO_PENDOWN),
-		.platform_data		= &ads7846_config,
-	},
-};
-
-static void __init cm_t35_init_ads7846(void)
-{
-	if ((gpio_request(CM_T35_GPIO_PENDOWN, "ADS7846_PENDOWN") == 0) &&
-	    (gpio_direction_input(CM_T35_GPIO_PENDOWN) == 0)) {
-		gpio_export(CM_T35_GPIO_PENDOWN, 0);
-	} else {
-		pr_err("CM-T35: could not obtain gpio for ADS7846_PENDOWN\n");
-		return;
-	}
-
-	spi_register_board_info(cm_t35_spi_board_info,
-				ARRAY_SIZE(cm_t35_spi_board_info));
-}
-#else
-static inline void cm_t35_init_ads7846(void) {}
-#endif
-
 #define CM_T35_LCD_EN_GPIO 157
 #define CM_T35_LCD_BL_GPIO 58
 #define CM_T35_DVI_EN_GPIO 54
-
-static int lcd_bl_gpio;
-static int lcd_en_gpio;
-static int dvi_en_gpio;
 
 static int lcd_enabled;
 static int dvi_enabled;
@@ -308,8 +192,8 @@ static int cm_t35_panel_enable_lcd(struct omap_dss_device *dssdev)
 		return -EINVAL;
 	}
 
-	gpio_set_value(lcd_en_gpio, 1);
-	gpio_set_value(lcd_bl_gpio, 1);
+	gpio_set_value(CM_T35_LCD_EN_GPIO, 1);
+	gpio_set_value(CM_T35_LCD_BL_GPIO, 1);
 
 	lcd_enabled = 1;
 
@@ -320,8 +204,8 @@ static void cm_t35_panel_disable_lcd(struct omap_dss_device *dssdev)
 {
 	lcd_enabled = 0;
 
-	gpio_set_value(lcd_bl_gpio, 0);
-	gpio_set_value(lcd_en_gpio, 0);
+	gpio_set_value(CM_T35_LCD_BL_GPIO, 0);
+	gpio_set_value(CM_T35_LCD_EN_GPIO, 0);
 }
 
 static int cm_t35_panel_enable_dvi(struct omap_dss_device *dssdev)
@@ -331,7 +215,7 @@ static int cm_t35_panel_enable_dvi(struct omap_dss_device *dssdev)
 		return -EINVAL;
 	}
 
-	gpio_set_value(dvi_en_gpio, 0);
+	gpio_set_value(CM_T35_DVI_EN_GPIO, 0);
 	dvi_enabled = 1;
 
 	return 0;
@@ -339,7 +223,7 @@ static int cm_t35_panel_enable_dvi(struct omap_dss_device *dssdev)
 
 static void cm_t35_panel_disable_dvi(struct omap_dss_device *dssdev)
 {
-	gpio_set_value(dvi_en_gpio, 1);
+	gpio_set_value(CM_T35_DVI_EN_GPIO, 1);
 	dvi_enabled = 0;
 }
 
@@ -421,62 +305,38 @@ static struct spi_board_info cm_t35_lcd_spi_board_info[] __initdata = {
 	},
 };
 
+static struct gpio cm_t35_dss_gpios[] __initdata = {
+	{ CM_T35_LCD_EN_GPIO, GPIOF_OUT_INIT_LOW,  "lcd enable"    },
+	{ CM_T35_LCD_BL_GPIO, GPIOF_OUT_INIT_LOW,  "lcd bl enable" },
+	{ CM_T35_DVI_EN_GPIO, GPIOF_OUT_INIT_HIGH, "dvi enable"    },
+};
+
 static void __init cm_t35_init_display(void)
 {
 	int err;
 
-	lcd_en_gpio = CM_T35_LCD_EN_GPIO;
-	lcd_bl_gpio = CM_T35_LCD_BL_GPIO;
-	dvi_en_gpio = CM_T35_DVI_EN_GPIO;
-
 	spi_register_board_info(cm_t35_lcd_spi_board_info,
 				ARRAY_SIZE(cm_t35_lcd_spi_board_info));
 
-	err = gpio_request(lcd_en_gpio, "LCD RST");
+	err = gpio_request_array(cm_t35_dss_gpios,
+				 ARRAY_SIZE(cm_t35_dss_gpios));
 	if (err) {
-		pr_err("CM-T35: failed to get LCD reset GPIO\n");
-		goto out;
+		pr_err("CM-T35: failed to request DSS control GPIOs\n");
+		return;
 	}
 
-	err = gpio_request(lcd_bl_gpio, "LCD BL");
-	if (err) {
-		pr_err("CM-T35: failed to get LCD backlight control GPIO\n");
-		goto err_lcd_bl;
-	}
-
-	err = gpio_request(dvi_en_gpio, "DVI EN");
-	if (err) {
-		pr_err("CM-T35: failed to get DVI reset GPIO\n");
-		goto err_dvi_en;
-	}
-
-	gpio_export(lcd_en_gpio, 0);
-	gpio_export(lcd_bl_gpio, 0);
-	gpio_export(dvi_en_gpio, 0);
-	gpio_direction_output(lcd_en_gpio, 0);
-	gpio_direction_output(lcd_bl_gpio, 0);
-	gpio_direction_output(dvi_en_gpio, 1);
+	gpio_export(CM_T35_LCD_EN_GPIO, 0);
+	gpio_export(CM_T35_LCD_BL_GPIO, 0);
+	gpio_export(CM_T35_DVI_EN_GPIO, 0);
 
 	msleep(50);
-	gpio_set_value(lcd_en_gpio, 1);
+	gpio_set_value(CM_T35_LCD_EN_GPIO, 1);
 
 	err = omap_display_init(&cm_t35_dss_data);
 	if (err) {
 		pr_err("CM-T35: failed to register DSS device\n");
-		goto err_dev_reg;
+		gpio_free_array(cm_t35_dss_gpios, ARRAY_SIZE(cm_t35_dss_gpios));
 	}
-
-	return;
-
-err_dev_reg:
-	gpio_free(dvi_en_gpio);
-err_dvi_en:
-	gpio_free(lcd_bl_gpio);
-err_lcd_bl:
-	gpio_free(lcd_en_gpio);
-out:
-
-	return;
 }
 
 static struct regulator_consumer_supply cm_t35_vmmc1_supply = {
@@ -609,10 +469,8 @@ static int cm_t35_twl_gpio_setup(struct device *dev, unsigned gpio,
 {
 	int wlan_rst = gpio + 2;
 
-	if ((gpio_request(wlan_rst, "WLAN RST") == 0) &&
-	    (gpio_direction_output(wlan_rst, 1) == 0)) {
+	if (gpio_request_one(wlan_rst, GPIOF_OUT_INIT_HIGH, "WLAN RST") == 0) {
 		gpio_export(wlan_rst, 0);
-
 		udelay(10);
 		gpio_set_value(wlan_rst, 0);
 		udelay(10);
@@ -653,19 +511,9 @@ static struct twl4030_platform_data cm_t35_twldata = {
 	.vpll2		= &cm_t35_vpll2,
 };
 
-static struct i2c_board_info __initdata cm_t35_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("tps65930", 0x48),
-		.flags		= I2C_CLIENT_WAKE,
-		.irq		= INT_34XX_SYS_NIRQ,
-		.platform_data	= &cm_t35_twldata,
-	},
-};
-
 static void __init cm_t35_init_i2c(void)
 {
-	omap_register_i2c_bus(1, 2600, cm_t35_i2c_boardinfo,
-			      ARRAY_SIZE(cm_t35_i2c_boardinfo));
+	omap3_pmic_init("tps65930", &cm_t35_twldata);
 }
 
 static void __init cm_t35_init_early(void)
@@ -775,12 +623,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static struct omap_musb_board_data musb_board_data = {
-	.interface_type		= MUSB_INTERFACE_ULPI,
-	.mode			= MUSB_OTG,
-	.power			= 100,
-};
-
 static struct omap_board_config_kernel cm_t35_config[] __initdata = {
 };
 
@@ -792,12 +634,12 @@ static void __init cm_t35_init(void)
 	omap_serial_init();
 	cm_t35_init_i2c();
 	cm_t35_init_nand();
-	cm_t35_init_ads7846();
+	omap_ads7846_init(1, CM_T35_GPIO_PENDOWN, 0, NULL);
 	cm_t35_init_ethernet();
 	cm_t35_init_led();
 	cm_t35_init_display();
 
-	usb_musb_init(&musb_board_data);
+	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
 }
 

@@ -43,6 +43,7 @@
 
 #include "mux.h"
 #include "hsmmc.h"
+#include "common-board-devices.h"
 
 #define SYSTEM_REV_B_USES_VAUX3	0x1699
 #define SYSTEM_REV_S_USES_VAUX3 0x8
@@ -557,10 +558,8 @@ static __init void rx51_init_si4713(void)
 static int rx51_twlgpio_setup(struct device *dev, unsigned gpio, unsigned n)
 {
 	/* FIXME this gpio setup is just a placeholder for now */
-	gpio_request(gpio + 6, "backlight_pwm");
-	gpio_direction_output(gpio + 6, 0);
-	gpio_request(gpio + 7, "speaker_en");
-	gpio_direction_output(gpio + 7, 1);
+	gpio_request_one(gpio + 6, GPIOF_OUT_INIT_LOW, "backlight_pwm");
+	gpio_request_one(gpio + 7, GPIOF_OUT_INIT_HIGH, "speaker_en");
 
 	return 0;
 }
@@ -777,15 +776,6 @@ static struct tpa6130a2_platform_data rx51_tpa6130a2_data __initdata_or_module =
 	.power_gpio		= 98,
 };
 
-static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_1[] = {
-	{
-		I2C_BOARD_INFO("twl5030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &rx51_twldata,
-	},
-};
-
 /* Audio setup data */
 static struct aic3x_setup_data rx51_aic34_setup = {
 	.gpio_func[0] = AIC3X_GPIO1_FUNC_DISABLED,
@@ -833,8 +823,7 @@ static int __init rx51_i2c_init(void)
 		rx51_twldata.vaux3 = &rx51_vaux3_cam;
 	}
 	rx51_twldata.vmmc2 = &rx51_vmmc2;
-	omap_register_i2c_bus(1, 2200, rx51_peripherals_i2c_board_info_1,
-			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_1));
+	omap_pmic_init(1, 2200, "twl5030", INT_34XX_SYS_NIRQ, &rx51_twldata);
 	omap_register_i2c_bus(2, 100, rx51_peripherals_i2c_board_info_2,
 			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_2));
 	omap_register_i2c_bus(3, 400, NULL, 0);
@@ -921,25 +910,19 @@ static void rx51_wl1251_set_power(bool enable)
 	gpio_set_value(RX51_WL1251_POWER_GPIO, enable);
 }
 
+static struct gpio rx51_wl1251_gpios[] __initdata = {
+	{ RX51_WL1251_POWER_GPIO, GPIOF_OUT_INIT_LOW,	"wl1251 power"	},
+	{ RX51_WL1251_IRQ_GPIO,	  GPIOF_IN,		"wl1251 irq"	},
+};
+
 static void __init rx51_init_wl1251(void)
 {
 	int irq, ret;
 
-	ret = gpio_request(RX51_WL1251_POWER_GPIO, "wl1251 power");
+	ret = gpio_request_array(rx51_wl1251_gpios,
+				 ARRAY_SIZE(rx51_wl1251_gpios));
 	if (ret < 0)
 		goto error;
-
-	ret = gpio_direction_output(RX51_WL1251_POWER_GPIO, 0);
-	if (ret < 0)
-		goto err_power;
-
-	ret = gpio_request(RX51_WL1251_IRQ_GPIO, "wl1251 irq");
-	if (ret < 0)
-		goto err_power;
-
-	ret = gpio_direction_input(RX51_WL1251_IRQ_GPIO);
-	if (ret < 0)
-		goto err_irq;
 
 	irq = gpio_to_irq(RX51_WL1251_IRQ_GPIO);
 	if (irq < 0)
@@ -952,10 +935,7 @@ static void __init rx51_init_wl1251(void)
 
 err_irq:
 	gpio_free(RX51_WL1251_IRQ_GPIO);
-
-err_power:
 	gpio_free(RX51_WL1251_POWER_GPIO);
-
 error:
 	printk(KERN_ERR "wl1251 board initialisation failed\n");
 	wl1251_pdata.set_power = NULL;
