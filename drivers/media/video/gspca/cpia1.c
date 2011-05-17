@@ -1770,9 +1770,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-#ifdef GSPCA_DEBUG
 	struct sd *sd = (struct sd *) gspca_dev;
-#endif
 	int ret;
 
 	/* Start / Stop the camera to make sure we are talking to
