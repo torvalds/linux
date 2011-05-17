@@ -30,6 +30,13 @@ config PANEL_NEC_NL8048HL11_01B
 		This NEC NL8048HL11-01B panel is TFT LCD
 		used in the Zoom2/3/3630 sdp boards.
 
+config PANEL_PICODLP
+	tristate "TI PICO DLP mini-projector"
+	depends on OMAP2_DSS && I2C
+	help
+		A mini-projector used in TI's SDP4430 and EVM boards
+		For more info please visit http://www.dlp.com/projector/
+
 config PANEL_TAAL
         tristate "Taal DSI Panel"
         depends on OMAP2_DSS_DSI
