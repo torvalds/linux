@@ -51,7 +51,7 @@ static void __init omap_nokia770_init_irq(void)
 	omap_writew((omap_readw(0xfffb5004) & ~2), 0xfffb5004);
 
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 static const unsigned int nokia770_keymap[] = {

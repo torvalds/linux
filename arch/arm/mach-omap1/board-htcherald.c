@@ -605,7 +605,7 @@ static void __init htcherald_init_irq(void)
 {
 	printk(KERN_INFO "htcherald_init_irq.\n");
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 MACHINE_START(HERALD, "HTC Herald")

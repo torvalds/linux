@@ -138,7 +138,7 @@ void ams_delta_latch2_write(u16 mask, u16 value)
 static void __init ams_delta_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 static struct map_desc ams_delta_io_desc[] __initdata = {

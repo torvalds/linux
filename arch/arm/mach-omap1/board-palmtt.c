@@ -266,7 +266,7 @@ static struct spi_board_info __initdata palmtt_boardinfo[] = {
 static void __init omap_palmtt_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 static struct omap_usb_config palmtt_usb_config __initdata = {

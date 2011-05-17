@@ -371,7 +371,7 @@ static void __init omap3_touchbook_init_early(void)
 
 static void __init omap3_touchbook_init_irq(void)
 {
-	omap_init_irq();
+	omap3_init_irq();
 #ifdef CONFIG_OMAP_32K_TIMER
 	omap2_gp_clockevent_set_gptimer(12);
 #endif

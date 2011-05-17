@@ -298,7 +298,7 @@ static void __init omap_h4_init_early(void)
 
 static void __init omap_h4_init_irq(void)
 {
-	omap_init_irq();
+	omap2_init_irq();
 }
 
 static struct at24_platform_data m24c01 = {

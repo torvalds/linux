@@ -292,7 +292,7 @@ static void __init innovator_init_smc91x(void)
 static void __init innovator_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 #ifdef CONFIG_ARCH_OMAP15XX

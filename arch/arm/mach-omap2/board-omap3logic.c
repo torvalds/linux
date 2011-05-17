@@ -215,7 +215,7 @@ MACHINE_START(OMAP3_TORPEDO, "Logic OMAP3 Torpedo board")
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
 	.init_early	= omap3logic_init_early,
-	.init_irq	= omap_init_irq,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= omap3logic_init,
 	.timer		= &omap_timer,
 MACHINE_END
@@ -224,7 +224,7 @@ MACHINE_START(OMAP3530_LV_SOM, "OMAP Logic 3530 LV SOM board")
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
 	.init_early	= omap3logic_init_early,
-	.init_irq	= omap_init_irq,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= omap3logic_init,
 	.timer		= &omap_timer,
 MACHINE_END

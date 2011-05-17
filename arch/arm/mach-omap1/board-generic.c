@@ -31,7 +31,7 @@
 static void __init omap_generic_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 /* assume no Mini-AB port */

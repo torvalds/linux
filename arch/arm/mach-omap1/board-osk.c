@@ -282,7 +282,7 @@ static void __init osk_init_cf(void)
 static void __init osk_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 static struct omap_usb_config osk_usb_config __initdata = {

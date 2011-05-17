@@ -376,7 +376,7 @@ static struct i2c_board_info __initdata h2_i2c_board_info[] = {
 static void __init h2_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 static struct omap_usb_config h2_usb_config __initdata = {

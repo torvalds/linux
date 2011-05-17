@@ -411,7 +411,7 @@ static void __init omap_sx1_init(void)
 static void __init omap_sx1_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 /*----------------------------------------*/
 
