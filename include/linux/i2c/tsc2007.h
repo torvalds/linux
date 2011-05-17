@@ -10,6 +10,9 @@ struct tsc2007_platform_data {
 	unsigned long poll_delay; /* delay (in ms) after pen-down event
 				     before polling starts */
 	unsigned long poll_period; /* time (in ms) between samples */
+	int	fuzzx; /* fuzz factor for X, Y and pressure axes */
+	int	fuzzy;
+	int	fuzzz;
 
 	int	(*get_pendown_state)(void);
 	void	(*clear_penirq)(void);		/* If needed, clear 2nd level
