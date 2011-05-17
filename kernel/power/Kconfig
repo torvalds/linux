@@ -229,3 +229,7 @@ config PM_OPP
 	  representing individual voltage domains and provides SOC
 	  implementations a ready to use framework to manage OPPs.
 	  For more information, read <file:Documentation/power/opp.txt>
+
+config PM_RUNTIME_CLK
+	def_bool y
+	depends on PM_RUNTIME && HAVE_CLK
