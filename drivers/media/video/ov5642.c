@@ -3652,8 +3652,6 @@ static int sensor_af_single(struct i2c_client *client)
 		ret = -1;
 		goto sensor_af_single_end;
     }
-
-	sensor_af_cmdset(client, ReturnIdle_Cmd, NULL);
 sensor_af_single_end:
 	return ret;
 }
@@ -4437,16 +4435,26 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 				sensor_set_whiteBalance(icd, qctrl,sensor->info_priv.whiteBalance);
 			}
 			#if CONFIG_SENSOR_Focus
-			sensor_af_zoneupdate(client);
-			if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS) {
-					sensor_af_const(client);
-			}
-		    #endif
+    		sensor_af_zoneupdate(client);        
+    		if ((sensor->info_priv.auto_focus == SENSOR_AF_MODE_AUTO) || 
+    		    (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS)) {
+    		    msleep(80);
+                sensor_af_single(client);
+    		}
+    	    #endif
 			sensor->info_priv.snap2preview = true;
 		} else if (sensor_fmt_videochk(sd,f) == true) {			/* ddl@rock-chips.com : Video */
 			qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_EFFECT);
 			sensor_set_effect(icd, qctrl,sensor->info_priv.effect);
-
+            #if CONFIG_SENSOR_Focus
+    		sensor_af_zoneupdate(client);        
+    		if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS) {
+                sensor_af_const(client);
+    		} else if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_AUTO) {
+    		    msleep(80);
+                sensor_af_single(client);
+    		}
+    	    #endif
 			sensor->info_priv.video2preview = true;
 		} else if ((sensor->info_priv.snap2preview == true) || (sensor->info_priv.video2preview == true)) {
 			qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_EFFECT);
@@ -4454,15 +4462,21 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 			if (sensor->info_priv.snap2preview == true) {
 				qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_DO_WHITE_BALANCE);
 				sensor_set_whiteBalance(icd, qctrl,sensor->info_priv.whiteBalance);
-
-                #if CONFIG_SENSOR_Focus
-    			if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS)
-    				sensor_af_const(client);
-    		    #endif
 			}
+            #if CONFIG_SENSOR_Focus
+    		sensor_af_zoneupdate(client);        
+    		if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_CONTINUOUS) {
+                sensor_af_const(client);
+    		} else if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_AUTO) {
+    		    msleep(80);
+                sensor_af_single(client);
+    		}
+    	    #endif
 			sensor->info_priv.video2preview = false;
 			sensor->info_priv.snap2preview = false;
 		}
+
+        
 		
         SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,set_w,set_h);
     }
@@ -4794,7 +4808,6 @@ static int sensor_set_focus_absolute(struct soc_camera_device *icd, const struct
 			cmdinfo.cmd_para[0] = value;
 			cmdinfo.validate_bit = 0x81;
 			ret = sensor_af_cmdset(client, StepMode_Cmd, &cmdinfo);
-			//ret |= sensor_af_cmdset(client, ReturnIdle_Cmd, NULL);
 			SENSOR_DG("%s..%s : %d  ret:0x%x\n",SENSOR_NAME_STRING(),__FUNCTION__, value,ret);
 		} else {
 			ret = -EINVAL;
