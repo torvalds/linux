@@ -1092,7 +1092,13 @@ static void azx_init_pci(struct azx *chip)
 				? "Failed" : "OK");
 		}
 		break;
-
+	default:
+		/* AMD Hudson needs the similar snoop, as it seems... */
+		if (chip->pci->vendor == PCI_VENDOR_ID_AMD)
+			update_pci_byte(chip->pci,
+				ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR,
+				0x07, ATI_SB450_HDAUDIO_ENABLE_SNOOP);
+		break;
         }
 }
 
@@ -2566,6 +2572,13 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 				gcap &= ~ICH6_GCAP_64OK;
 			pci_dev_put(p_smbus);
 		}
+	} else {
+		/* FIXME: not sure whether this is really needed, but
+		 * Hudson isn't stable enough for allowing everything...
+		 * let's check later again.
+		 */
+		if (chip->pci->vendor == PCI_VENDOR_ID_AMD)
+			gcap &= ~ICH6_GCAP_64OK;
 	}
 
 	/* disable 64bit DMA address for Teradici */
