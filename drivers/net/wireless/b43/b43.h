@@ -567,6 +567,8 @@ struct b43_dma {
 	struct b43_dmaring *tx_ring_mcast; /* Multicast */
 
 	struct b43_dmaring *rx_ring;
+
+	u32 translation; /* Routing bits */
 };
 
 struct b43_pio_txqueue;

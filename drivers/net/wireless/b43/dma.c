@@ -80,7 +80,7 @@ static void op32_fill_descriptor(struct b43_dmaring *ring,
 	addr = (u32) (dmaaddr & ~SSB_DMA_TRANSLATION_MASK);
 	addrext = (u32) (dmaaddr & SSB_DMA_TRANSLATION_MASK)
 	    >> SSB_DMA_TRANSLATION_SHIFT;
-	addr |= ssb_dma_translation(ring->dev->sdev);
+	addr |= ring->dev->dma.translation;
 	ctl = bufsize & B43_DMA32_DCTL_BYTECNT;
 	if (slot == ring->nr_slots - 1)
 		ctl |= B43_DMA32_DCTL_DTABLEEND;
@@ -174,7 +174,7 @@ static void op64_fill_descriptor(struct b43_dmaring *ring,
 	addrhi = (((u64) dmaaddr >> 32) & ~SSB_DMA_TRANSLATION_MASK);
 	addrext = (((u64) dmaaddr >> 32) & SSB_DMA_TRANSLATION_MASK)
 	    >> SSB_DMA_TRANSLATION_SHIFT;
-	addrhi |= (ssb_dma_translation(ring->dev->sdev) << 1);
+	addrhi |= (ring->dev->dma.translation << 1);
 	if (slot == ring->nr_slots - 1)
 		ctl0 |= B43_DMA64_DCTL0_DTABLEEND;
 	if (start)
@@ -658,7 +658,7 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 	int err = 0;
 	u32 value;
 	u32 addrext;
-	u32 trans = ssb_dma_translation(ring->dev->sdev);
+	u32 trans = ring->dev->dma.translation;
 
 	if (ring->tx) {
 		if (ring->type == B43_DMA_64BIT) {
@@ -1055,6 +1055,7 @@ int b43_dma_init(struct b43_wldev *dev)
 	err = b43_dma_set_mask(dev, dmamask);
 	if (err)
 		return err;
+	dma->translation = ssb_dma_translation(dev->sdev);
 
 	err = -ENOMEM;
 	/* setup TX DMA channels. */
