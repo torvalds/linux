@@ -502,9 +502,6 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 		tsta.maxampdu = cpu_to_be16(maxampdu);
 	}
 
-	if (sta && sta->ht_cap.ht_supported)
-		tsta.flags = cpu_to_be16(ATH_HTC_STA_HT);
-
 	WMI_CMD_BUF(WMI_NODE_CREATE_CMDID, &tsta);
 	if (ret) {
 		if (sta)

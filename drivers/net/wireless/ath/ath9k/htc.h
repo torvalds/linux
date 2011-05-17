@@ -116,18 +116,13 @@ struct ath9k_htc_target_vif {
 	u8 pad;
 } __packed;
 
-#define ATH_HTC_STA_AUTH  0x0001
-#define ATH_HTC_STA_QOS   0x0002
-#define ATH_HTC_STA_ERP   0x0004
-#define ATH_HTC_STA_HT    0x0008
-
 struct ath9k_htc_target_sta {
 	u8 macaddr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	u8 sta_index;
 	u8 vif_index;
 	u8 is_vif_sta;
-	__be16 flags; /* ATH_HTC_STA_* */
+	__be16 flags;
 	__be16 htcap;
 	__be16 maxampdu;
 	u8 pad;
