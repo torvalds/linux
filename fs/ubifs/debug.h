@@ -56,11 +56,11 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
  * @saved_free: saved amount of free space
  * @saved_idx_gc_cnt: saved value of @c->idx_gc_cnt
  *
- * dfs_dir_name: name of debugfs directory containing this file-system's files
- * dfs_dir: direntry object of the file-system debugfs directory
- * dfs_dump_lprops: "dump lprops" debugfs knob
- * dfs_dump_budg: "dump budgeting information" debugfs knob
- * dfs_dump_tnc: "dump TNC" debugfs knob
+ * @dfs_dir_name: name of debugfs directory containing this file-system's files
+ * @dfs_dir: direntry object of the file-system debugfs directory
+ * @dfs_dump_lprops: "dump lprops" debugfs knob
+ * @dfs_dump_budg: "dump budgeting information" debugfs knob
+ * @dfs_dump_tnc: "dump TNC" debugfs knob
  */
 struct ubifs_debug_info {
 	struct ubifs_zbranch old_zroot;
