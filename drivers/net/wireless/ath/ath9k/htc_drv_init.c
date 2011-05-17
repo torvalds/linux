@@ -769,11 +769,6 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 	hw->channel_change_time = 5000;
 	hw->max_listen_interval = 10;
 
-	if (AR_SREV_9271(priv->ah))
-		hw->max_tx_aggregation_subframes = MAX_TX_AMPDU_SUBFRAMES_9271;
-	else
-		hw->max_tx_aggregation_subframes = MAX_TX_AMPDU_SUBFRAMES_7010;
-
 	hw->vif_data_size = sizeof(struct ath9k_htc_vif);
 	hw->sta_data_size = sizeof(struct ath9k_htc_sta);
 

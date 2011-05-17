@@ -581,7 +581,7 @@ int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv,
 	memset(&tcap, 0, sizeof(struct ath9k_htc_cap_target));
 
 	tcap.ampdu_limit = cpu_to_be32(0xffff);
-	tcap.ampdu_subframes = priv->hw->max_tx_aggregation_subframes;
+	tcap.ampdu_subframes = 0xff;
 	tcap.enable_coex = enable_coex;
 	tcap.tx_chainmask = priv->ah->caps.tx_chainmask;
 
