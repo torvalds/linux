@@ -332,7 +332,7 @@ static const char netdev_features_strings[ETHTOOL_DEV_FEATURE_WORDS * 32][ETH_GS
 	/* NETIF_F_IP_CSUM */         "tx-checksum-ipv4",
 	/* NETIF_F_NO_CSUM */         "tx-checksum-unneeded",
 	/* NETIF_F_HW_CSUM */         "tx-checksum-ip-generic",
-	/* NETIF_F_IPV6_CSUM */       "tx_checksum-ipv6",
+	/* NETIF_F_IPV6_CSUM */       "tx-checksum-ipv6",
 	/* NETIF_F_HIGHDMA */         "highdma",
 	/* NETIF_F_FRAGLIST */        "tx-scatter-gather-fraglist",
 	/* NETIF_F_HW_VLAN_TX */      "tx-vlan-hw-insert",

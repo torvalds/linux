@@ -1046,7 +1046,7 @@ static const struct file_operations ip_vs_conn_fops = {
 	.open    = ip_vs_conn_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_net,
 };
 
 static const char *ip_vs_origin_name(unsigned flags)
@@ -1114,7 +1114,7 @@ static const struct file_operations ip_vs_conn_sync_fops = {
 	.open    = ip_vs_conn_sync_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_net,
 };
 
 #endif
