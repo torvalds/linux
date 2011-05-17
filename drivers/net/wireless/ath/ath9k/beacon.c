@@ -654,7 +654,7 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 			delta = (tsf - sc->beacon.bc_tstamp);
 		else
 			delta = (tsf + 1 + (~0U - sc->beacon.bc_tstamp));
-		nexttbtt = tsf + roundup(delta, intval);
+		nexttbtt = tsf + intval - (delta % intval);
 	}
 
 	ath_dbg(common, ATH_DBG_BEACON,
