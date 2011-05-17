@@ -2556,10 +2556,20 @@ out:
 /* Initialize the GPIOs
  * http://bcm-specs.sipsolutions.net/GPIO
  */
-static int b43_gpio_init(struct b43_wldev *dev)
+static struct ssb_device *b43_ssb_gpio_dev(struct b43_wldev *dev)
 {
 	struct ssb_bus *bus = dev->sdev->bus;
-	struct ssb_device *gpiodev, *pcidev = NULL;
+
+#ifdef CONFIG_SSB_DRIVER_PCICORE
+	return (bus->chipco.dev ? bus->chipco.dev : bus->pcicore.dev);
+#else
+	return bus->chipco.dev;
+#endif
+}
+
+static int b43_gpio_init(struct b43_wldev *dev)
+{
+	struct ssb_device *gpiodev;
 	u32 mask, set;
 
 	b43_write32(dev, B43_MMIO_MACCTL, b43_read32(dev, B43_MMIO_MACCTL)
@@ -2591,15 +2601,11 @@ static int b43_gpio_init(struct b43_wldev *dev)
 	if (dev->sdev->id.revision >= 2)
 		mask |= 0x0010;	/* FIXME: This is redundant. */
 
-#ifdef CONFIG_SSB_DRIVER_PCICORE
-	pcidev = bus->pcicore.dev;
-#endif
-	gpiodev = bus->chipco.dev ? : pcidev;
-	if (!gpiodev)
-		return 0;
-	ssb_write32(gpiodev, B43_GPIO_CONTROL,
-		    (ssb_read32(gpiodev, B43_GPIO_CONTROL)
-		     & mask) | set);
+	gpiodev = b43_ssb_gpio_dev(dev);
+	if (gpiodev)
+		ssb_write32(gpiodev, B43_GPIO_CONTROL,
+			    (ssb_read32(gpiodev, B43_GPIO_CONTROL)
+			     & mask) | set);
 
 	return 0;
 }
@@ -2607,16 +2613,11 @@ static int b43_gpio_init(struct b43_wldev *dev)
 /* Turn off all GPIO stuff. Call this on module unload, for example. */
 static void b43_gpio_cleanup(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
-	struct ssb_device *gpiodev, *pcidev = NULL;
+	struct ssb_device *gpiodev;
 
-#ifdef CONFIG_SSB_DRIVER_PCICORE
-	pcidev = bus->pcicore.dev;
-#endif
-	gpiodev = bus->chipco.dev ? : pcidev;
-	if (!gpiodev)
-		return;
-	ssb_write32(gpiodev, B43_GPIO_CONTROL, 0);
+	gpiodev = b43_ssb_gpio_dev(dev);
+	if (gpiodev)
+		ssb_write32(gpiodev, B43_GPIO_CONTROL, 0);
 }
 
 /* http://bcm-specs.sipsolutions.net/EnableMac */
