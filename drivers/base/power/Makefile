@@ -6,4 +6,3 @@ obj-$(CONFIG_PM_OPP)	+= opp.o
 obj-$(CONFIG_HAVE_CLK)	+= clock_ops.o
 
 ccflags-$(CONFIG_DEBUG_DRIVER) := -DDEBUG
-ccflags-$(CONFIG_PM_VERBOSE)   += -DDEBUG
