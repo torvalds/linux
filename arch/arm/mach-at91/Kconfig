@@ -82,11 +82,6 @@ config ARCH_AT91CAP9
 	select HAVE_FB_ATMEL
 	select HAVE_NET_MACB
 
-config ARCH_AT572D940HF
-	bool "AT572D940HF"
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-
 config ARCH_AT91X40
 	bool "AT91x40"
 	select ARCH_USES_GETTIMEOFFSET
@@ -426,22 +421,6 @@ config MACH_AT91CAP9ADK
 	help
 	  Select this if you are using Atmel's AT91CAP9A-DK Evaluation Kit.
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4138>
-
-endif
-
-# ----------------------------------------------------------
-
-if ARCH_AT572D940HF
-
-comment "AT572D940HF Board Type"
-
-config MACH_AT572D940HFEB
-	bool "AT572D940HF-EK"
-	depends on ARCH_AT572D940HF
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using Atmel's AT572D940HF-EK evaluation kit.
-	  <http://www.atmel.com/products/diopsis/default.asp>
 
 endif
 

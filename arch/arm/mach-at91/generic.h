@@ -19,7 +19,6 @@ extern void __init at91sam9rl_map_io(void);
 extern void __init at91sam9g45_map_io(void);
 extern void __init at91x40_map_io(void);
 extern void __init at91cap9_map_io(void);
-extern void __init at572d940hf_map_io(void);
 
  /* Processors */
 extern void __init at91rm9200_set_type(int type);
@@ -31,7 +30,6 @@ extern void __init at91sam9rl_initialize(unsigned long main_clock);
 extern void __init at91sam9g45_initialize(unsigned long main_clock);
 extern void __init at91x40_initialize(unsigned long main_clock);
 extern void __init at91cap9_initialize(unsigned long main_clock);
-extern void __init at572d940hf_initialize(unsigned long main_clock);
 
  /* Interrupts */
 extern void __init at91rm9200_init_interrupts(unsigned int priority[]);
@@ -42,7 +40,6 @@ extern void __init at91sam9rl_init_interrupts(unsigned int priority[]);
 extern void __init at91sam9g45_init_interrupts(unsigned int priority[]);
 extern void __init at91x40_init_interrupts(unsigned int priority[]);
 extern void __init at91cap9_init_interrupts(unsigned int priority[]);
-extern void __init at572d940hf_init_interrupts(unsigned int priority[]);
 extern void __init at91_aic_init(unsigned int priority[]);
 
  /* Timer */
@@ -65,7 +62,6 @@ extern void __init at91sam9263_set_console_clock(int id);
 extern void __init at91sam9rl_set_console_clock(int id);
 extern void __init at91sam9g45_set_console_clock(int id);
 extern void __init at91cap9_set_console_clock(int id);
-extern void __init at572d940hf_set_console_clock(int id);
 struct device;
 
  /* Power Management */
