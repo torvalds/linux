@@ -499,21 +499,8 @@ MODULE_DEVICE_TABLE(usb, device_table);
 static int sd_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
-	struct gspca_dev *gspca_dev;
-	s32 ret;
-
-	ret = gspca_dev_probe(intf, id,
+	return gspca_dev_probe(intf, id,
 			&sd_desc_mi1320, sizeof(struct sd), THIS_MODULE);
-
-	if (ret >= 0) {
-		gspca_dev = usb_get_intfdata(intf);
-
-		PDEBUG(D_PROBE,
-			"Camera is now controlling video device %s",
-			video_device_node_name(&gspca_dev->vdev));
-	}
-
-	return ret;
 }
 
 static void sd_disconnect(struct usb_interface *intf)
