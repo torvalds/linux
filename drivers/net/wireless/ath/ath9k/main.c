@@ -2324,6 +2324,45 @@ static bool ath9k_tx_frames_pending(struct ieee80211_hw *hw)
 	return false;
 }
 
+int ath9k_tx_last_beacon(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ieee80211_vif *vif;
+	struct ath_vif *avp;
+	struct ath_buf *bf;
+	struct ath_tx_status ts;
+	int status;
+
+	vif = sc->beacon.bslot[0];
+	if (!vif)
+		return 0;
+
+	avp = (void *)vif->drv_priv;
+	if (!avp->is_bslot_active)
+		return 0;
+
+	if (!sc->beacon.tx_processed) {
+		tasklet_disable(&sc->bcon_tasklet);
+
+		bf = avp->av_bcbuf;
+		if (!bf || !bf->bf_mpdu)
+			goto skip;
+
+		status = ath9k_hw_txprocdesc(ah, bf->bf_desc, &ts);
+		if (status == -EINPROGRESS)
+			goto skip;
+
+		sc->beacon.tx_processed = true;
+		sc->beacon.tx_last = !(ts.ts_status & ATH9K_TXERR_MASK);
+
+skip:
+		tasklet_enable(&sc->bcon_tasklet);
+	}
+
+	return sc->beacon.tx_last;
+}
+
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
 	.start 		    = ath9k_start,
@@ -2348,4 +2387,5 @@ struct ieee80211_ops ath9k_ops = {
 	.set_coverage_class = ath9k_set_coverage_class,
 	.flush		    = ath9k_flush,
 	.tx_frames_pending  = ath9k_tx_frames_pending,
+	.tx_last_beacon = ath9k_tx_last_beacon,
 };

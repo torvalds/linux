@@ -18,6 +18,12 @@
 
 #define FUDGE 2
 
+static void ath9k_reset_beacon_status(struct ath_softc *sc)
+{
+	sc->beacon.tx_processed = false;
+	sc->beacon.tx_last = false;
+}
+
 /*
  *  This function will modify certain transmit queue properties depending on
  *  the operating mode of the station (AP or AdHoc).  Parameters are AIFS
@@ -71,6 +77,8 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 	int flags, ctsrate = 0, ctsduration = 0;
 	struct ieee80211_supported_band *sband;
 	u8 rate = 0;
+
+	ath9k_reset_beacon_status(sc);
 
 	ds = bf->bf_desc;
 	flags = ATH9K_TXDESC_NOACK;
@@ -133,6 +141,8 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 	struct ath_txq *cabq;
 	struct ieee80211_tx_info *info;
 	int cabq_depth;
+
+	ath9k_reset_beacon_status(sc);
 
 	avp = (void *)vif->drv_priv;
 	cabq = sc->beacon.cabq;
@@ -643,6 +653,8 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 tsf, delta, intval, nexttbtt;
+
+	ath9k_reset_beacon_status(sc);
 
 	tsf = ath9k_hw_gettsf32(ah) + TU_TO_USEC(FUDGE);
 	intval = TU_TO_USEC(conf->beacon_interval & ATH9K_BEACON_PERIOD);

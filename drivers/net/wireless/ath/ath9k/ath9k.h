@@ -397,6 +397,9 @@ struct ath_beacon {
 	struct ath_descdma bdma;
 	struct ath_txq *cabq;
 	struct list_head bbuf;
+
+	bool tx_processed;
+	bool tx_last;
 };
 
 void ath_beacon_tasklet(unsigned long data);
