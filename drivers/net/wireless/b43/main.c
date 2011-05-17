@@ -1143,10 +1143,9 @@ void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags)
 	}
 }
 
-void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
+static void b43_ssb_wireless_core_reset(struct b43_wldev *dev, u32 flags)
 {
 	u32 tmslow;
-	u32 macctl;
 
 	flags |= B43_TMSLOW_PHYCLKEN;
 	flags |= B43_TMSLOW_PHYRESET;
@@ -1166,6 +1165,13 @@ void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
 	ssb_write32(dev->sdev, SSB_TMSLOW, tmslow);
 	ssb_read32(dev->sdev, SSB_TMSLOW);	/* flush */
 	msleep(1);
+}
+
+void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
+{
+	u32 macctl;
+
+	b43_ssb_wireless_core_reset(dev, flags);
 
 	/* Turn Analog ON, but only if we already know the PHY-type.
 	 * This protects against very early setup where we don't know the
