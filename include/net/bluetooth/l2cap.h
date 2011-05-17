@@ -441,12 +441,15 @@ struct l2cap_pinfo {
 
 #define __set_chan_timer(c, t) l2cap_set_timer(c, &c->chan_timer, (t))
 #define __clear_chan_timer(c) l2cap_clear_timer(c, &c->chan_timer)
-#define __mod_retrans_timer() mod_timer(&chan->retrans_timer, \
-		jiffies +  msecs_to_jiffies(L2CAP_DEFAULT_RETRANS_TO));
-#define __mod_monitor_timer() mod_timer(&chan->monitor_timer, \
-		jiffies + msecs_to_jiffies(L2CAP_DEFAULT_MONITOR_TO));
-#define __mod_ack_timer() mod_timer(&chan->ack_timer, \
-		jiffies + msecs_to_jiffies(L2CAP_DEFAULT_ACK_TO));
+#define __set_retrans_timer(c) l2cap_set_timer(c, &c->retrans_timer, \
+		L2CAP_DEFAULT_RETRANS_TO);
+#define __clear_retrans_timer(c) l2cap_clear_timer(c, &c->retrans_timer)
+#define __set_monitor_timer(c) l2cap_set_timer(c, &c->monitor_timer, \
+		L2CAP_DEFAULT_MONITOR_TO);
+#define __clear_monitor_timer(c) l2cap_clear_timer(c, &c->monitor_timer)
+#define __set_ack_timer(c) l2cap_set_timer(c, &chan->ack_timer, \
+		L2CAP_DEFAULT_ACK_TO);
+#define __clear_ack_timer(c) l2cap_clear_timer(c, &c->ack_timer)
 
 static inline int l2cap_tx_window_full(struct l2cap_chan *ch)
 {
