@@ -3520,14 +3520,18 @@ static int check_mic_pin(struct hda_codec *codec, hda_nid_t nid,
 			 hda_nid_t *fixed, hda_nid_t *ext, hda_nid_t *dock)
 {
 	unsigned int cfg;
+	unsigned int type;
 
 	if (!nid)
 		return 0;
 	cfg = snd_hda_codec_get_pincfg(codec, nid);
+	type = get_defcfg_device(cfg);
 	switch (snd_hda_get_input_pin_attr(cfg)) {
 	case INPUT_PIN_ATTR_INT:
 		if (*fixed)
 			return 1; /* already occupied */
+		if (type != AC_JACK_MIC_IN)
+			return 1; /* invalid type */
 		*fixed = nid;
 		break;
 	case INPUT_PIN_ATTR_UNUSED:
@@ -3535,11 +3539,15 @@ static int check_mic_pin(struct hda_codec *codec, hda_nid_t nid,
 	case INPUT_PIN_ATTR_DOCK:
 		if (*dock)
 			return 1; /* already occupied */
+		if (type != AC_JACK_MIC_IN && type != AC_JACK_LINE_IN)
+			return 1; /* invalid type */
 		*dock = nid;
 		break;
 	default:
 		if (*ext)
 			return 1; /* already occupied */
+		if (type != AC_JACK_MIC_IN)
+			return 1; /* invalid type */
 		*ext = nid;
 		break;
 	}
@@ -3595,10 +3603,6 @@ static int stac_check_auto_mic(struct hda_codec *codec)
 	hda_nid_t fixed, ext, dock;
 	int i;
 
-	for (i = 0; i < cfg->num_inputs; i++) {
-		if (cfg->inputs[i].type >= AUTO_PIN_LINE_IN)
-			return 0; /* must be exclusively mics */
-	}
 	fixed = ext = dock = 0;
 	for (i = 0; i < cfg->num_inputs; i++)
 		if (check_mic_pin(codec, cfg->inputs[i].pin,
