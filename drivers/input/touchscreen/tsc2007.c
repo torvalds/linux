@@ -156,6 +156,7 @@ static void tsc2007_work(struct work_struct *work)
 {
 	struct tsc2007 *ts =
 		container_of(to_delayed_work(work), struct tsc2007, work);
+	bool debounced = false;
 	struct ts_event tc;
 	u32 rt;
 
@@ -191,6 +192,7 @@ static void tsc2007_work(struct work_struct *work)
 		 * repeat at least once more the measurement.
 		 */
 		dev_dbg(&ts->client->dev, "ignored pressure %d\n", rt);
+		debounced = true;
 		goto out;
 
 	}
@@ -225,7 +227,7 @@ static void tsc2007_work(struct work_struct *work)
 	}
 
  out:
-	if (ts->pendown)
+	if (ts->pendown || debounced)
 		schedule_delayed_work(&ts->work,
 				      msecs_to_jiffies(TS_POLL_PERIOD));
 	else
