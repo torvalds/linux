@@ -695,12 +695,12 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	/* Offline (i.e. disruptive) testing
 	 * This checks MAC and PHY loopback on the specified port. */
 
-	/* force the carrier state off so the kernel doesn't transmit during
-	 * the loopback test, and the watchdog timeout doesn't fire. Also put
-	 * falcon into loopback for the register test.
+	/* Detach the device so the kernel doesn't transmit during the
+	 * loopback test and the watchdog timeout doesn't fire.
 	 */
+	netif_device_detach(efx->net_dev);
+
 	mutex_lock(&efx->mac_lock);
-	efx->port_inhibited = true;
 	if (efx->loopback_modes) {
 		/* We need the 312 clock from the PHY to test the XMAC
 		 * registers, so move into XGMII loopback if available */
@@ -750,12 +750,11 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	/* restore the PHY to the previous state */
 	mutex_lock(&efx->mac_lock);
 	efx->phy_mode = phy_mode;
-	efx->port_inhibited = false;
 	efx->loopback_mode = loopback_mode;
 	__efx_reconfigure_port(efx);
 	mutex_unlock(&efx->mac_lock);
 
-	netif_tx_wake_all_queues(efx->net_dev);
+	netif_device_attach(efx->net_dev);
 
 	return rc_test;
 }
