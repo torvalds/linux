@@ -471,8 +471,10 @@ static int enable_periodic (struct ehci_hcd *ehci)
 	 */
 	status = handshake_on_error_set_halt(ehci, &ehci->regs->status,
 					     STS_PSS, 0, 9 * 125);
-	if (status)
+	if (status) {
+		usb_hc_died(ehci_to_hcd(ehci));
 		return status;
+	}
 
 	cmd = ehci_readl(ehci, &ehci->regs->command) | CMD_PSE;
 	ehci_writel(ehci, cmd, &ehci->regs->command);
@@ -510,8 +512,10 @@ static int disable_periodic (struct ehci_hcd *ehci)
 	 */
 	status = handshake_on_error_set_halt(ehci, &ehci->regs->status,
 					     STS_PSS, STS_PSS, 9 * 125);
-	if (status)
+	if (status) {
+		usb_hc_died(ehci_to_hcd(ehci));
 		return status;
+	}
 
 	cmd = ehci_readl(ehci, &ehci->regs->command) & ~CMD_PSE;
 	ehci_writel(ehci, cmd, &ehci->regs->command);
