@@ -1584,7 +1584,7 @@ static void alc_init_auto_hp(struct hda_codec *codec)
 					AC_USRSP_EN | ALC880_FRONT_EVENT);
 			spec->detect_line = 1;
 		}
-		spec->automute_lines = 1;
+		spec->automute_lines = spec->detect_line;
 	}
 
 	if (spec->automute) {
