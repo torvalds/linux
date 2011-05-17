@@ -184,14 +184,31 @@ static inline int ubi_dbg_is_erase_failure(void)
 
 #else
 
-#define ubi_assert(expr)                 ({})
-#define dbg_err(fmt, ...)                ({})
-#define dbg_msg(fmt, ...)                ({})
-#define dbg_gen(fmt, ...)                ({})
-#define dbg_eba(fmt, ...)                ({})
-#define dbg_wl(fmt, ...)                 ({})
-#define dbg_io(fmt, ...)                 ({})
-#define dbg_bld(fmt, ...)                ({})
+/* Use "if (0)" to make compiler check arguments even if debugging is off */
+#define ubi_assert(expr)  do {                                               \
+	if (0) {                                                             \
+		printk(KERN_CRIT "UBI assert failed in %s at %u (pid %d)\n", \
+		       __func__, __LINE__, current->pid);                    \
+	}                                                                    \
+} while (0)
+
+#define dbg_err(fmt, ...) do {                                               \
+	if (0)                                                               \
+		ubi_err(fmt, ##__VA_ARGS__);                                 \
+} while (0)
+
+#define dbg_msg(fmt, ...) do {                                               \
+	if (0)                                                               \
+		printk(KERN_DEBUG "UBI DBG (pid %d): %s: " fmt "\n",         \
+		       current->pid, __func__, ##__VA_ARGS__);               \
+} while (0)
+
+#define dbg_gen(fmt, ...)  dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_eba(fmt, ...)  dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_wl(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_io(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_bld(fmt, ...)  dbg_msg(fmt, ##__VA_ARGS__)
+
 #define ubi_dbg_dump_stack()             ({})
 #define ubi_dbg_dump_ec_hdr(ec_hdr)      ({})
 #define ubi_dbg_dump_vid_hdr(vid_hdr)    ({})
