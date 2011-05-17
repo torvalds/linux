@@ -6,6 +6,7 @@
 struct tsc2007_platform_data {
 	u16	model;				/* 2007. */
 	u16	x_plate_ohms;
+	u16	max_rt; /* max. resistance above which samples are ignored */
 
 	int	(*get_pendown_state)(void);
 	void	(*clear_penirq)(void);		/* If needed, clear 2nd level

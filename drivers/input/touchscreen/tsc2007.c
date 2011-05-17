@@ -75,6 +75,7 @@ struct tsc2007 {
 
 	u16			model;
 	u16			x_plate_ohms;
+	u16			max_rt;
 
 	bool			pendown;
 	int			irq;
@@ -185,7 +186,7 @@ static void tsc2007_work(struct work_struct *work)
 	tsc2007_read_values(ts, &tc);
 
 	rt = tsc2007_calculate_pressure(ts, &tc);
-	if (rt > MAX_12BIT) {
+	if (rt > ts->max_rt) {
 		/*
 		 * Sample found inconsistent by debouncing or pressure is
 		 * beyond the maximum. Don't report it to user space,
@@ -294,6 +295,7 @@ static int __devinit tsc2007_probe(struct i2c_client *client,
 
 	ts->model             = pdata->model;
 	ts->x_plate_ohms      = pdata->x_plate_ohms;
+	ts->max_rt            = pdata->max_rt ? : MAX_12BIT;
 	ts->get_pendown_state = pdata->get_pendown_state;
 	ts->clear_penirq      = pdata->clear_penirq;
 
