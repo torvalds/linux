@@ -439,6 +439,8 @@ struct l2cap_pinfo {
 #define L2CAP_CONN_RNR_SENT        0x0200
 #define L2CAP_CONN_SAR_RETRY       0x0400
 
+#define __set_chan_timer(c, t) l2cap_set_timer(c, &c->chan_timer, (t))
+#define __clear_chan_timer(c) l2cap_clear_timer(c, &c->chan_timer)
 #define __mod_retrans_timer() mod_timer(&chan->retrans_timer, \
 		jiffies +  msecs_to_jiffies(L2CAP_DEFAULT_RETRANS_TO));
 #define __mod_monitor_timer() mod_timer(&chan->monitor_timer, \
