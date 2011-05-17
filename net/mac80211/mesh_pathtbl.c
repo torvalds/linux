@@ -76,12 +76,12 @@ static struct mesh_table *mesh_table_alloc(int size_order)
 	int i;
 	struct mesh_table *newtbl;
 
-	newtbl = kmalloc(sizeof(struct mesh_table), GFP_KERNEL);
+	newtbl = kmalloc(sizeof(struct mesh_table), GFP_ATOMIC);
 	if (!newtbl)
 		return NULL;
 
 	newtbl->hash_buckets = kzalloc(sizeof(struct hlist_head) *
-			(1 << size_order), GFP_KERNEL);
+			(1 << size_order), GFP_ATOMIC);
 
 	if (!newtbl->hash_buckets) {
 		kfree(newtbl);
@@ -89,7 +89,7 @@ static struct mesh_table *mesh_table_alloc(int size_order)
 	}
 
 	newtbl->hashwlock = kmalloc(sizeof(spinlock_t) *
-			(1 << size_order), GFP_KERNEL);
+			(1 << size_order), GFP_ATOMIC);
 	if (!newtbl->hashwlock) {
 		kfree(newtbl->hash_buckets);
 		kfree(newtbl);
