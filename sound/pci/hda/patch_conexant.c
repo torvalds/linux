@@ -55,6 +55,13 @@ struct pin_dac_pair {
 	int type;
 };
 
+struct imux_info {
+	hda_nid_t pin;		/* input pin NID */
+	hda_nid_t adc;		/* connected ADC NID */	
+	hda_nid_t boost;	/* optional boost volume NID */
+	int index;		/* corresponding to autocfg.input */
+};
+
 struct conexant_spec {
 
 	const struct snd_kcontrol_new *mixers[5];
@@ -108,10 +115,7 @@ struct conexant_spec {
 	/* dynamic controls, init_verbs and input_mux */
 	struct auto_pin_cfg autocfg;
 	struct hda_input_mux private_imux;
-	int imux_cfg_idx[HDA_MAX_NUM_INPUTS]; /* corresponding autocfg.input */
-	hda_nid_t imux_boost_nid[HDA_MAX_NUM_INPUTS]; /* boost widget */
-	hda_nid_t imux_adcs[HDA_MAX_NUM_INPUTS];
-	hda_nid_t imux_pins[HDA_MAX_NUM_INPUTS];
+	struct imux_info imux_info[HDA_MAX_NUM_INPUTS];
 	hda_nid_t private_adc_nids[HDA_MAX_NUM_INPUTS];
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 	struct pin_dac_pair dac_info[8];
@@ -3254,7 +3258,7 @@ static int cx_auto_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 				       struct snd_pcm_substream *substream)
 {
 	struct conexant_spec *spec = codec->spec;
-	hda_nid_t adc = spec->imux_adcs[spec->cur_mux[0]];
+	hda_nid_t adc = spec->imux_info[spec->cur_mux[0]].adc;
 	if (spec->adc_switching) {
 		spec->cur_adc = adc;
 		spec->cur_adc_stream_tag = stream_tag;
@@ -3541,9 +3545,9 @@ static int cx_auto_mux_enum_update(struct hda_codec *codec,
 		idx = imux->num_items - 1;
 	if (spec->cur_mux[0] == idx)
 		return 0;
-	adc = spec->imux_adcs[idx];
-	select_input_connection(codec, spec->imux_adcs[idx],
-				spec->imux_pins[idx]);
+	adc = spec->imux_info[idx].adc;
+	select_input_connection(codec, spec->imux_info[idx].adc,
+				spec->imux_info[idx].pin);
 	if (spec->cur_adc && spec->cur_adc != adc) {
 		/* stream is running, let's swap the current ADC */
 		__snd_hda_codec_cleanup_stream(codec, spec->cur_adc, 1);
@@ -3585,7 +3589,7 @@ static void cx_auto_automic(struct hda_codec *codec)
 
 	if (!spec->auto_mic)
 		return;
-	if (snd_hda_jack_detect(codec, spec->imux_pins[ext_idx]))
+	if (snd_hda_jack_detect(codec, spec->imux_info[ext_idx].pin))
 		cx_auto_mux_enum_update(codec, &spec->private_imux, ext_idx);
 	else
 		cx_auto_mux_enum_update(codec, &spec->private_imux, !ext_idx);
@@ -3630,14 +3634,14 @@ static void cx_auto_check_auto_mic(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
 
-	if (is_ext_mic(codec, spec->imux_pins[0]) &&
-	    is_int_mic(codec, spec->imux_pins[1])) {
+	if (is_ext_mic(codec, spec->imux_info[0].pin) &&
+	    is_int_mic(codec, spec->imux_info[1].pin)) {
 		spec->auto_mic = 1;
 		spec->auto_mic_ext = 0;
 		return;
 	}
-	if (is_int_mic(codec, spec->imux_pins[0]) &&
-	    is_ext_mic(codec, spec->imux_pins[1])) {
+	if (is_int_mic(codec, spec->imux_info[0].pin) &&
+	    is_ext_mic(codec, spec->imux_info[1].pin)) {
 		spec->auto_mic = 1;
 		spec->auto_mic_ext = 1;
 		return;
@@ -3660,10 +3664,10 @@ static void cx_auto_parse_input(struct hda_codec *codec)
 			if (idx >= 0) {
 				const char *label;
 				label = hda_get_autocfg_input_label(codec, cfg, i);
-				spec->imux_cfg_idx[imux->num_items] = i;
-				spec->imux_boost_nid[imux->num_items] = 0;
-				spec->imux_adcs[imux->num_items] = adc;
-				spec->imux_pins[imux->num_items] =
+				spec->imux_info[imux->num_items].index = i;
+				spec->imux_info[imux->num_items].boost = 0;
+				spec->imux_info[imux->num_items].adc = adc;
+				spec->imux_info[imux->num_items].pin =
 					cfg->inputs[i].pin;
 				snd_hda_add_imux_item(imux, label, idx, NULL);
 				break;
@@ -3674,7 +3678,7 @@ static void cx_auto_parse_input(struct hda_codec *codec)
 		cx_auto_check_auto_mic(codec);
 	if (imux->num_items > 1 && !spec->auto_mic) {
 		for (i = 1; i < imux->num_items; i++) {
-			if (spec->imux_adcs[i] != spec->imux_adcs[0]) {
+			if (spec->imux_info[i].adc != spec->imux_info[0].adc) {
 				spec->adc_switching = 1;
 				break;
 			}
@@ -3864,8 +3868,8 @@ static void cx_auto_init_input(struct hda_codec *codec)
 				    AC_USRSP_EN | CONEXANT_MIC_EVENT);
 		cx_auto_automic(codec);
 	} else {
-		select_input_connection(codec, spec->imux_adcs[0],
-					spec->imux_pins[0]);
+		select_input_connection(codec, spec->imux_info[0].adc,
+					spec->imux_info[0].pin);
 	}
 }
 
@@ -4010,21 +4014,21 @@ static int cx_auto_add_boost_volume(struct hda_codec *codec, int idx,
 	hda_nid_t mux, nid;
 	int i, con;
 
-	nid = spec->imux_pins[idx];
+	nid = spec->imux_info[idx].pin;
 	if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP)
 		return cx_auto_add_volume(codec, label, " Boost", cidx,
 					  nid, HDA_INPUT);
-	con = __select_input_connection(codec, spec->imux_adcs[idx], nid, &mux,
-					false, 0);
+	con = __select_input_connection(codec, spec->imux_info[idx].adc, nid,
+					&mux, false, 0);
 	if (con < 0)
 		return 0;
 	for (i = 0; i < idx; i++) {
-		if (spec->imux_boost_nid[i] == mux)
+		if (spec->imux_info[i].boost == mux)
 			return 0; /* already present */
 	}
 
 	if (get_wcaps(codec, mux) & AC_WCAP_OUT_AMP) {
-		spec->imux_boost_nid[idx] = mux;
+		spec->imux_info[idx].boost = mux;
 		return cx_auto_add_volume(codec, label, " Boost", 0,
 					  mux, HDA_OUTPUT);
 	}
@@ -4042,9 +4046,9 @@ static int cx_auto_build_input_controls(struct hda_codec *codec)
 
 	multi_connection = 0;
 	for (i = 0; i < imux->num_items; i++) {
-		cidx = get_input_connection(codec, spec->imux_adcs[i],
-					    spec->imux_pins[i]);
-		input_conn[i] = (spec->imux_adcs[i] << 8) | cidx;
+		cidx = get_input_connection(codec, spec->imux_info[i].adc,
+					    spec->imux_info[i].pin);
+		input_conn[i] = (spec->imux_info[i].adc << 8) | cidx;
 		if (i > 0 && input_conn[i] != input_conn[0])
 			multi_connection = 1;
 	}
@@ -4052,11 +4056,11 @@ static int cx_auto_build_input_controls(struct hda_codec *codec)
 	prev_label = NULL;
 	cidx = 0;
 	for (i = 0; i < imux->num_items; i++) {
-		hda_nid_t nid = spec->imux_pins[i];
+		hda_nid_t nid = spec->imux_info[i].pin;
 		const char *label;
 
 		label = hda_get_autocfg_input_label(codec, &spec->autocfg,
-						    spec->imux_cfg_idx[i]);
+						    spec->imux_info[i].index);
 		if (label == prev_label)
 			cidx++;
 		else
