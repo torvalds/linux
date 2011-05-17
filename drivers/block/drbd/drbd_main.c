@@ -745,6 +745,9 @@ is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
 		  mdev->agreed_pro_version < 88)
 		rv = SS_NOT_SUPPORTED;
 
+	else if (ns.conn >= C_CONNECTED && ns.pdsk == D_UNKNOWN)
+		rv = SS_CONNECTED_OUTDATES;
+
 	return rv;
 }
 
