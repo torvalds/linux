@@ -4925,19 +4925,16 @@ static void b43_wireless_exit(struct ssb_device *dev, struct b43_wl *wl)
 	ieee80211_free_hw(hw);
 }
 
-static int b43_wireless_init(struct ssb_device *dev)
+static struct b43_wl *b43_wireless_init(struct ssb_device *dev)
 {
 	struct ssb_sprom *sprom = &dev->bus->sprom;
 	struct ieee80211_hw *hw;
 	struct b43_wl *wl;
-	int err = -ENOMEM;
-
-	b43_sprom_fixup(dev->bus);
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &b43_hw_ops);
 	if (!hw) {
 		b43err(NULL, "Could not allocate ieee80211 device\n");
-		goto out;
+		return ERR_PTR(-ENOMEM);
 	}
 	wl = hw_to_b43_wl(hw);
 
@@ -4971,12 +4968,9 @@ static int b43_wireless_init(struct ssb_device *dev)
 	INIT_WORK(&wl->tx_work, b43_tx_work);
 	skb_queue_head_init(&wl->tx_queue);
 
-	ssb_set_devtypedata(dev, wl);
 	b43info(wl, "Broadcom %04X WLAN found (core revision %u)\n",
 		dev->bus->chip_id, dev->id.revision);
-	err = 0;
-out:
-	return err;
+	return wl;
 }
 
 static int b43_ssb_probe(struct ssb_device *dev, const struct ssb_device_id *id)
@@ -4989,11 +4983,14 @@ static int b43_ssb_probe(struct ssb_device *dev, const struct ssb_device_id *id)
 	if (!wl) {
 		/* Probing the first core. Must setup common struct b43_wl */
 		first = 1;
-		err = b43_wireless_init(dev);
-		if (err)
+		b43_sprom_fixup(dev->bus);
+		wl = b43_wireless_init(dev);
+		if (IS_ERR(wl)) {
+			err = PTR_ERR(wl);
 			goto out;
-		wl = ssb_get_devtypedata(dev);
-		B43_WARN_ON(!wl);
+		}
+		ssb_set_devtypedata(dev, wl);
+		B43_WARN_ON(ssb_get_devtypedata(dev) != wl);
 	}
 	err = b43_one_core_attach(dev, wl);
 	if (err)
