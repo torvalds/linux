@@ -3004,6 +3004,7 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 	int p_proto, p_after_sb_0p, p_after_sb_1p, p_after_sb_2p;
 	int p_discard_my_data, p_two_primaries, cf;
 	struct net_conf *nc;
+	void *int_dig_in = NULL, *int_dig_vv = NULL;
 
 	p_proto		= be32_to_cpu(p->protocol);
 	p_after_sb_0p	= be32_to_cpu(p->after_sb_0p);
@@ -3026,6 +3027,8 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 		integrity_alg[SHARED_SECRET_MAX-1] = 0;
 
 		if (integrity_alg[0]) {
+			int hash_size;
+
 			tfm = crypto_alloc_hash(integrity_alg, 0, CRYPTO_ALG_ASYNC);
 			if (!tfm) {
 				conn_err(tconn, "peer data-integrity-alg %s not supported\n",
@@ -3033,11 +3036,23 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 				goto disconnect;
 			}
 			conn_info(tconn, "peer data-integrity-alg: %s\n", integrity_alg);
+
+			hash_size = crypto_hash_digestsize(tfm);
+			int_dig_in = kmalloc(hash_size, GFP_KERNEL);
+			int_dig_vv = kmalloc(hash_size, GFP_KERNEL);
+			if (!(int_dig_in && int_dig_vv)) {
+				crypto_free_hash(tfm);
+				goto disconnect;
+			}
 		}
 
 		if (tconn->peer_integrity_tfm)
 			crypto_free_hash(tconn->peer_integrity_tfm);
 		tconn->peer_integrity_tfm = tfm;
+		kfree(tconn->int_dig_in);
+		kfree(tconn->int_dig_vv);
+		tconn->int_dig_in = int_dig_in;
+		tconn->int_dig_vv = int_dig_vv;
 	}
 
 	clear_bit(CONN_DRY_RUN, &tconn->flags);
