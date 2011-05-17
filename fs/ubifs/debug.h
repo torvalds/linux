@@ -109,19 +109,6 @@ struct ubifs_debug_info {
 
 #define dbg_dump_stack() dump_stack()
 
-/* Generic debugging messages */
-#define dbg_msg(fmt, ...) do {                                                 \
-	spin_lock(&dbg_lock);                                                  \
-	printk(KERN_DEBUG "UBIFS DBG (pid %d): %s: " fmt "\n", current->pid,   \
-	       __func__, ##__VA_ARGS__);                                       \
-	spin_unlock(&dbg_lock);                                                \
-} while (0)
-
-#define dbg_do_msg(typ, fmt, ...) do {                                         \
-	if (ubifs_msg_flags & typ)                                             \
-		dbg_msg(fmt, ##__VA_ARGS__);                                   \
-} while (0)
-
 #define dbg_err(fmt, ...) do {                                                 \
 	spin_lock(&dbg_lock);                                                  \
 	ubifs_err(fmt, ##__VA_ARGS__);                                         \
@@ -140,77 +127,40 @@ const char *dbg_key_str1(const struct ubifs_info *c,
 #define DBGKEY(key) dbg_key_str0(c, (key))
 #define DBGKEY1(key) dbg_key_str1(c, (key))
 
+#define ubifs_dbg_msg(type, fmt, ...) do {                        \
+	spin_lock(&dbg_lock);                                     \
+	pr_debug("UBIFS DBG " type ": " fmt "\n", ##__VA_ARGS__); \
+	spin_unlock(&dbg_lock);                                   \
+} while (0)
+
+/* Just a debugging messages not related to any specific UBIFS subsystem */
+#define dbg_msg(fmt, ...)   ubifs_dbg_msg("msg", fmt, ##__VA_ARGS__)
 /* General messages */
-#define dbg_gen(fmt, ...)   dbg_do_msg(UBIFS_MSG_GEN, fmt, ##__VA_ARGS__)
-
+#define dbg_gen(fmt, ...)   ubifs_dbg_msg("gen", fmt, ##__VA_ARGS__)
 /* Additional journal messages */
-#define dbg_jnl(fmt, ...)   dbg_do_msg(UBIFS_MSG_JNL, fmt, ##__VA_ARGS__)
-
+#define dbg_jnl(fmt, ...)   ubifs_dbg_msg("jnl", fmt, ##__VA_ARGS__)
 /* Additional TNC messages */
-#define dbg_tnc(fmt, ...)   dbg_do_msg(UBIFS_MSG_TNC, fmt, ##__VA_ARGS__)
-
+#define dbg_tnc(fmt, ...)   ubifs_dbg_msg("tnc", fmt, ##__VA_ARGS__)
 /* Additional lprops messages */
-#define dbg_lp(fmt, ...)    dbg_do_msg(UBIFS_MSG_LP, fmt, ##__VA_ARGS__)
-
+#define dbg_lp(fmt, ...)    ubifs_dbg_msg("lp", fmt, ##__VA_ARGS__)
 /* Additional LEB find messages */
-#define dbg_find(fmt, ...)  dbg_do_msg(UBIFS_MSG_FIND, fmt, ##__VA_ARGS__)
-
+#define dbg_find(fmt, ...)  ubifs_dbg_msg("find", fmt, ##__VA_ARGS__)
 /* Additional mount messages */
-#define dbg_mnt(fmt, ...)   dbg_do_msg(UBIFS_MSG_MNT, fmt, ##__VA_ARGS__)
-
+#define dbg_mnt(fmt, ...)   ubifs_dbg_msg("mnt", fmt, ##__VA_ARGS__)
 /* Additional I/O messages */
-#define dbg_io(fmt, ...)    dbg_do_msg(UBIFS_MSG_IO, fmt, ##__VA_ARGS__)
-
+#define dbg_io(fmt, ...)    ubifs_dbg_msg("io", fmt, ##__VA_ARGS__)
 /* Additional commit messages */
-#define dbg_cmt(fmt, ...)   dbg_do_msg(UBIFS_MSG_CMT, fmt, ##__VA_ARGS__)
-
+#define dbg_cmt(fmt, ...)   ubifs_dbg_msg("cmt", fmt, ##__VA_ARGS__)
 /* Additional budgeting messages */
-#define dbg_budg(fmt, ...)  dbg_do_msg(UBIFS_MSG_BUDG, fmt, ##__VA_ARGS__)
-
+#define dbg_budg(fmt, ...)  ubifs_dbg_msg("budg", fmt, ##__VA_ARGS__)
 /* Additional log messages */
-#define dbg_log(fmt, ...)   dbg_do_msg(UBIFS_MSG_LOG, fmt, ##__VA_ARGS__)
-
+#define dbg_log(fmt, ...)   ubifs_dbg_msg("log", fmt, ##__VA_ARGS__)
 /* Additional gc messages */
-#define dbg_gc(fmt, ...)    dbg_do_msg(UBIFS_MSG_GC, fmt, ##__VA_ARGS__)
-
+#define dbg_gc(fmt, ...)    ubifs_dbg_msg("gc", fmt, ##__VA_ARGS__)
 /* Additional scan messages */
-#define dbg_scan(fmt, ...)  dbg_do_msg(UBIFS_MSG_SCAN, fmt, ##__VA_ARGS__)
-
+#define dbg_scan(fmt, ...)  ubifs_dbg_msg("scan", fmt, ##__VA_ARGS__)
 /* Additional recovery messages */
-#define dbg_rcvry(fmt, ...) dbg_do_msg(UBIFS_MSG_RCVRY, fmt, ##__VA_ARGS__)
-
-/*
- * Debugging message type flags.
- *
- * UBIFS_MSG_GEN: general messages
- * UBIFS_MSG_JNL: journal messages
- * UBIFS_MSG_MNT: mount messages
- * UBIFS_MSG_CMT: commit messages
- * UBIFS_MSG_FIND: LEB find messages
- * UBIFS_MSG_BUDG: budgeting messages
- * UBIFS_MSG_GC: garbage collection messages
- * UBIFS_MSG_TNC: TNC messages
- * UBIFS_MSG_LP: lprops messages
- * UBIFS_MSG_IO: I/O messages
- * UBIFS_MSG_LOG: log messages
- * UBIFS_MSG_SCAN: scan messages
- * UBIFS_MSG_RCVRY: recovery messages
- */
-enum {
-	UBIFS_MSG_GEN   = 0x1,
-	UBIFS_MSG_JNL   = 0x2,
-	UBIFS_MSG_MNT   = 0x4,
-	UBIFS_MSG_CMT   = 0x8,
-	UBIFS_MSG_FIND  = 0x10,
-	UBIFS_MSG_BUDG  = 0x20,
-	UBIFS_MSG_GC    = 0x40,
-	UBIFS_MSG_TNC   = 0x80,
-	UBIFS_MSG_LP    = 0x100,
-	UBIFS_MSG_IO    = 0x200,
-	UBIFS_MSG_LOG   = 0x400,
-	UBIFS_MSG_SCAN  = 0x800,
-	UBIFS_MSG_RCVRY = 0x1000,
-};
+#define dbg_rcvry(fmt, ...) ubifs_dbg_msg("rcvry", fmt, ##__VA_ARGS__)
 
 /*
  * Debugging check flags.
@@ -368,33 +318,33 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c);
 		       __func__, __LINE__, current->pid);                      \
 } while (0)
 
-#define dbg_err(fmt, ...)   do {                                               \
-	if (0)                                                                 \
-		ubifs_err(fmt, ##__VA_ARGS__);                                 \
+#define dbg_err(fmt, ...)   do {                   \
+	if (0)                                     \
+		ubifs_err(fmt, ##__VA_ARGS__);     \
 } while (0)
 
-#define dbg_msg(fmt, ...) do {                                                 \
-	if (0)                                                                 \
-		printk(KERN_DEBUG "UBIFS DBG (pid %d): %s: " fmt "\n",         \
-		       current->pid, __func__, ##__VA_ARGS__);                 \
+#define ubifs_dbg_msg(fmt, ...) do {               \
+	if (0)                                     \
+		pr_debug(fmt "\n", ##__VA_ARGS__); \
 } while (0)
 
 #define dbg_dump_stack()
 #define ubifs_assert_cmt_locked(c)
 
-#define dbg_gen(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_jnl(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_tnc(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_lp(fmt, ...)    dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_find(fmt, ...)  dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_mnt(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_io(fmt, ...)    dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_cmt(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_budg(fmt, ...)  dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_log(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_gc(fmt, ...)    dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_scan(fmt, ...)  dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_rcvry(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_msg(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_gen(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_jnl(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_tnc(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_lp(fmt, ...)    ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_find(fmt, ...)  ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_mnt(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_io(fmt, ...)    ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_cmt(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_budg(fmt, ...)  ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_log(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_gc(fmt, ...)    ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_scan(fmt, ...)  ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_rcvry(fmt, ...) ubifs_dbg_msg(fmt, ##__VA_ARGS__)
 
 #define DBGKEY(key)  ((char *)(key))
 #define DBGKEY1(key) ((char *)(key))

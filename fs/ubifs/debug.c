@@ -42,15 +42,12 @@ DEFINE_SPINLOCK(dbg_lock);
 static char dbg_key_buf0[128];
 static char dbg_key_buf1[128];
 
-unsigned int ubifs_msg_flags;
 unsigned int ubifs_chk_flags;
 unsigned int ubifs_tst_flags;
 
-module_param_named(debug_msgs, ubifs_msg_flags, uint, S_IRUGO | S_IWUSR);
 module_param_named(debug_chks, ubifs_chk_flags, uint, S_IRUGO | S_IWUSR);
 module_param_named(debug_tsts, ubifs_tst_flags, uint, S_IRUGO | S_IWUSR);
 
-MODULE_PARM_DESC(debug_msgs, "Debug message type flags");
 MODULE_PARM_DESC(debug_chks, "Debug check flags");
 MODULE_PARM_DESC(debug_tsts, "Debug special test flags");
 

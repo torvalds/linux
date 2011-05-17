@@ -115,28 +115,8 @@ ubi.mtd=0 root=ubi0:rootfs rootfstype=ubifs
 Module Parameters for Debugging
 ===============================
 
-When UBIFS has been compiled with debugging enabled, there are 3 module
+When UBIFS has been compiled with debugging enabled, there are 2 module
 parameters that are available to control aspects of testing and debugging.
-The parameters are unsigned integers where each bit controls an option.
-The parameters are:
-
-debug_msgs	Selects which debug messages to display, as follows:
-
-		Message Type				Flag value
-
-		General messages			1
-		Journal messages			2
-		Mount messages				4
-		Commit messages				8
-		LEB search messages			16
-		Budgeting messages			32
-		Garbage collection messages		64
-		Tree Node Cache (TNC) messages		128
-		LEB properties (lprops) messages	256
-		Input/output messages			512
-		Log messages				1024
-		Scan messages				2048
-		Recovery messages			4096
 
 debug_chks	Selects extra checks that UBIFS can do while running:
 
@@ -156,8 +136,7 @@ debug_tsts	Selects a mode of testing, as follows:
 
 		Failure mode for recovery testing	4
 
-For example, set debug_msgs to 5 to display General messages and Mount
-messages.
+For example, set debug_chks to 3 to enable general and TNC checks.
 
 
 References
