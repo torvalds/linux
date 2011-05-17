@@ -479,6 +479,10 @@ struct ath_hw_antcomb_conf {
 	u8 main_lna_conf;
 	u8 alt_lna_conf;
 	u8 fast_div_bias;
+	u8 main_gaintb;
+	u8 alt_gaintb;
+	int lna1_lna2_delta;
+	u8 div_group;
 };
 
 /**
@@ -628,9 +632,12 @@ struct ath_hw_ops {
 				   u32 numDelims);
 	void (*set11n_aggr_last)(struct ath_hw *ah, void *ds);
 	void (*clr11n_aggr)(struct ath_hw *ah, void *ds);
-	void (*set11n_burstduration)(struct ath_hw *ah, void *ds,
-				     u32 burstDuration);
 	void (*set_clrdmask)(struct ath_hw *ah, void *ds, bool val);
+	void (*antdiv_comb_conf_get)(struct ath_hw *ah,
+			struct ath_hw_antcomb_conf *antconf);
+	void (*antdiv_comb_conf_set)(struct ath_hw *ah,
+			struct ath_hw_antcomb_conf *antconf);
+
 };
 
 struct ath_nf_limits {
@@ -906,10 +913,6 @@ void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val);
 u32 ath9k_hw_getdefantenna(struct ath_hw *ah);
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
-void ath9k_hw_antdiv_comb_conf_get(struct ath_hw *ah,
-				   struct ath_hw_antcomb_conf *antconf);
-void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
-				   struct ath_hw_antcomb_conf *antconf);
 
 /* General Operation */
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);

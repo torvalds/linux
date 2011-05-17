@@ -152,8 +152,8 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
  */
 int mwifiex_recv_packet(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 {
-	struct mwifiex_rxinfo *rx_info = NULL;
-	struct mwifiex_private *priv = NULL;
+	struct mwifiex_rxinfo *rx_info;
+	struct mwifiex_private *priv;
 
 	if (!skb)
 		return -1;
@@ -172,31 +172,6 @@ int mwifiex_recv_packet(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 		netif_rx(skb);
 	else
 		netif_rx_ni(skb);
-
-	return 0;
-}
-
-/*
- * Receive packet completion callback handler.
- *
- * This function updates the statistics and frees the buffer SKB.
- */
-int mwifiex_recv_complete(struct mwifiex_adapter *adapter,
-			  struct sk_buff *skb, int status)
-{
-	struct mwifiex_private *priv = NULL;
-	struct mwifiex_rxinfo *rx_info = NULL;
-
-	if (!skb)
-		return 0;
-
-	rx_info = MWIFIEX_SKB_RXCB(skb);
-	priv = mwifiex_bss_index_to_priv(adapter, rx_info->bss_index);
-
-	if (priv && (status == -1))
-		priv->stats.rx_dropped++;
-
-	dev_kfree_skb_any(skb);
 
 	return 0;
 }

@@ -21,8 +21,6 @@ static u16 ssb_pcie_mdio_read(struct ssb_pcicore *pc, u8 device, u8 address);
 static void ssb_pcie_mdio_write(struct ssb_pcicore *pc, u8 device,
 				u8 address, u16 data);
 
-static void ssb_commit_settings(struct ssb_bus *bus);
-
 static inline
 u32 pcicore_read32(struct ssb_pcicore *pc, u16 offset)
 {
@@ -657,30 +655,6 @@ static void ssb_pcie_mdio_write(struct ssb_pcicore *pc, u8 device,
 		msleep(1);
 	}
 	pcicore_write32(pc, mdio_control, 0);
-}
-
-static void ssb_broadcast_value(struct ssb_device *dev,
-				u32 address, u32 data)
-{
-	/* This is used for both, PCI and ChipCommon core, so be careful. */
-	BUILD_BUG_ON(SSB_PCICORE_BCAST_ADDR != SSB_CHIPCO_BCAST_ADDR);
-	BUILD_BUG_ON(SSB_PCICORE_BCAST_DATA != SSB_CHIPCO_BCAST_DATA);
-
-	ssb_write32(dev, SSB_PCICORE_BCAST_ADDR, address);
-	ssb_read32(dev, SSB_PCICORE_BCAST_ADDR); /* flush */
-	ssb_write32(dev, SSB_PCICORE_BCAST_DATA, data);
-	ssb_read32(dev, SSB_PCICORE_BCAST_DATA); /* flush */
-}
-
-static void ssb_commit_settings(struct ssb_bus *bus)
-{
-	struct ssb_device *dev;
-
-	dev = bus->chipco.dev ? bus->chipco.dev : bus->pcicore.dev;
-	if (WARN_ON(!dev))
-		return;
-	/* This forces an update of the cached registers. */
-	ssb_broadcast_value(dev, 0xFD8, 0);
 }
 
 int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,

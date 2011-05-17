@@ -1033,6 +1033,9 @@ static int disconnect(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	}
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
+	if (!conn)
+		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &cp->bdaddr);
+
 	if (!conn) {
 		err = cmd_status(sk, index, MGMT_OP_DISCONNECT, ENOTCONN);
 		goto failed;

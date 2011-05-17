@@ -187,7 +187,7 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
  */
 int mwifiex_ret_11n_cfg(struct host_cmd_ds_command *resp, void *data_buf)
 {
-	struct mwifiex_ds_11n_tx_cfg *tx_cfg = NULL;
+	struct mwifiex_ds_11n_tx_cfg *tx_cfg;
 	struct host_cmd_ds_11n_cfg *htcfg = &resp->params.htcfg;
 
 	if (data_buf) {
@@ -274,7 +274,7 @@ int mwifiex_cmd_amsdu_aggr_ctrl(struct host_cmd_ds_command *cmd,
 int mwifiex_ret_amsdu_aggr_ctrl(struct host_cmd_ds_command *resp,
 				void *data_buf)
 {
-	struct mwifiex_ds_11n_amsdu_aggr_ctrl *amsdu_aggr_ctrl = NULL;
+	struct mwifiex_ds_11n_amsdu_aggr_ctrl *amsdu_aggr_ctrl;
 	struct host_cmd_ds_amsdu_aggr_ctrl *amsdu_ctrl =
 		&resp->params.amsdu_aggr_ctrl;
 
@@ -461,8 +461,7 @@ mwifiex_cfg_tx_buf(struct mwifiex_private *priv,
 		   struct mwifiex_bssdescriptor *bss_desc)
 {
 	u16 max_amsdu = MWIFIEX_TX_DATA_BUF_SIZE_2K;
-	u16 tx_buf = 0;
-	u16 curr_tx_buf_size = 0;
+	u16 tx_buf, curr_tx_buf_size = 0;
 
 	if (bss_desc->bcn_ht_cap) {
 		if (le16_to_cpu(bss_desc->bcn_ht_cap->cap_info) &

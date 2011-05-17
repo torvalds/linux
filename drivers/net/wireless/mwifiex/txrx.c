@@ -68,7 +68,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 {
 	int ret = -1;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	u8 *head_ptr = NULL;
+	u8 *head_ptr;
 	struct txpd *local_tx_pd = NULL;
 
 	head_ptr = (u8 *) mwifiex_process_sta_txpd(priv, skb);
@@ -121,8 +121,8 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 				struct sk_buff *skb, int status)
 {
-	struct mwifiex_private *priv = NULL, *tpriv = NULL;
-	struct mwifiex_txinfo *tx_info = NULL;
+	struct mwifiex_private *priv, *tpriv;
+	struct mwifiex_txinfo *tx_info;
 	int i;
 
 	if (!skb)
@@ -169,9 +169,9 @@ int mwifiex_recv_packet_complete(struct mwifiex_adapter *adapter,
 				 struct sk_buff *skb, int status)
 {
 	struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
-	struct mwifiex_rxinfo *rx_info_parent = NULL;
+	struct mwifiex_rxinfo *rx_info_parent;
 	struct mwifiex_private *priv;
-	struct sk_buff *skb_parent = NULL;
+	struct sk_buff *skb_parent;
 	unsigned long flags;
 
 	priv = adapter->priv[rx_info->bss_index];

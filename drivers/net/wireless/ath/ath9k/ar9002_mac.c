@@ -415,15 +415,6 @@ static void ar9002_hw_clr11n_aggr(struct ath_hw *ah, void *ds)
 	ads->ds_ctl1 &= (~AR_IsAggr & ~AR_MoreAggr);
 }
 
-static void ar9002_hw_set11n_burstduration(struct ath_hw *ah, void *ds,
-					   u32 burstDuration)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_ctl2 &= ~AR_BurstDur;
-	ads->ds_ctl2 |= SM(burstDuration, AR_BurstDur);
-}
-
 void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			  u32 size, u32 flags)
 {
@@ -456,6 +447,5 @@ void ar9002_hw_attach_mac_ops(struct ath_hw *ah)
 	ops->set11n_aggr_middle = ar9002_hw_set11n_aggr_middle;
 	ops->set11n_aggr_last = ar9002_hw_set11n_aggr_last;
 	ops->clr11n_aggr = ar9002_hw_clr11n_aggr;
-	ops->set11n_burstduration = ar9002_hw_set11n_burstduration;
 	ops->set_clrdmask = ar9002_hw_set_clrdmask;
 }

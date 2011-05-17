@@ -91,7 +91,7 @@ mwifiex_clean_cmd_node(struct mwifiex_adapter *adapter,
 	cmd_node->wait_q_enabled = false;
 
 	if (cmd_node->resp_skb) {
-		mwifiex_recv_complete(adapter, cmd_node->resp_skb, 0);
+		dev_kfree_skb_any(cmd_node->resp_skb);
 		cmd_node->resp_skb = NULL;
 	}
 }
@@ -128,7 +128,7 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 {
 
 	struct mwifiex_adapter *adapter = priv->adapter;
-	int ret = 0;
+	int ret;
 	struct host_cmd_ds_command *host_cmd;
 	uint16_t cmd_code;
 	uint16_t cmd_size;
@@ -222,25 +222,24 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
  */
 static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 {
-	int ret = 0;
-	u16 cmd_len = 0;
+	int ret;
 	struct mwifiex_private *priv;
-	struct mwifiex_opt_sleep_confirm_buffer *sleep_cfm_buf =
-				(struct mwifiex_opt_sleep_confirm_buffer *)
+	struct mwifiex_opt_sleep_confirm *sleep_cfm_buf =
+				(struct mwifiex_opt_sleep_confirm *)
 				adapter->sleep_cfm->data;
-	cmd_len = sizeof(struct mwifiex_opt_sleep_confirm);
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
-	sleep_cfm_buf->ps_cfm_sleep.seq_num =
+	sleep_cfm_buf->seq_num =
 		cpu_to_le16((HostCmd_SET_SEQ_NO_BSS_INFO
 					(adapter->seq_num, priv->bss_num,
 					 priv->bss_type)));
 	adapter->seq_num++;
 
+	skb_push(adapter->sleep_cfm, INTF_HEADER_LEN);
 	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_CMD,
 					     adapter->sleep_cfm->data,
-					     adapter->sleep_cfm->len +
-					     INTF_HEADER_LEN, NULL);
+					     adapter->sleep_cfm->len, NULL);
+	skb_pull(adapter->sleep_cfm, INTF_HEADER_LEN);
 
 	if (ret == -1) {
 		dev_err(adapter->dev, "SLEEP_CFM: failed\n");
@@ -249,14 +248,14 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 	}
 	if (GET_BSS_ROLE(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY))
 			== MWIFIEX_BSS_ROLE_STA) {
-		if (!sleep_cfm_buf->ps_cfm_sleep.resp_ctrl)
+		if (!sleep_cfm_buf->resp_ctrl)
 			/* Response is not needed for sleep
 			   confirm command */
 			adapter->ps_state = PS_STATE_SLEEP;
 		else
 			adapter->ps_state = PS_STATE_SLEEP_CFM;
 
-		if (!sleep_cfm_buf->ps_cfm_sleep.resp_ctrl
+		if (!sleep_cfm_buf->resp_ctrl
 				&& (adapter->is_hs_configured
 					&& !adapter->sleep_period.period)) {
 			adapter->pm_wakeup_card_req = true;
@@ -292,7 +291,7 @@ int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter)
 	if (!cmd_array) {
 		dev_err(adapter->dev, "%s: failed to alloc cmd_array\n",
 				__func__);
-		return -1;
+		return -ENOMEM;
 	}
 
 	adapter->cmd_pool = cmd_array;
@@ -340,7 +339,7 @@ int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
 		}
 		if (!cmd_array[i].resp_skb)
 			continue;
-		mwifiex_recv_complete(adapter, cmd_array[i].resp_skb, 0);
+		dev_kfree_skb_any(cmd_array[i].resp_skb);
 	}
 	/* Release struct cmd_ctrl_node */
 	if (adapter->cmd_pool) {
@@ -364,13 +363,13 @@ int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
  */
 int mwifiex_process_event(struct mwifiex_adapter *adapter)
 {
-	int ret = 0;
+	int ret;
 	struct mwifiex_private *priv =
 		mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	struct sk_buff *skb = adapter->event_skb;
 	u32 eventcause = adapter->event_cause;
 	struct timeval tstamp;
-	struct mwifiex_rxinfo *rx_info = NULL;
+	struct mwifiex_rxinfo *rx_info;
 
 	/* Save the last event to debug log */
 	adapter->dbg.last_event_index =
@@ -403,7 +402,7 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 	adapter->event_cause = 0;
 	adapter->event_skb = NULL;
 
-	mwifiex_recv_complete(adapter, skb, 0);
+	dev_kfree_skb_any(skb);
 
 	return ret;
 }
@@ -446,10 +445,10 @@ int mwifiex_send_cmd_sync(struct mwifiex_private *priv, uint16_t cmd_no,
 int mwifiex_send_cmd_async(struct mwifiex_private *priv, uint16_t cmd_no,
 			   u16 cmd_action, u32 cmd_oid, void *data_buf)
 {
-	int ret = 0;
+	int ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct cmd_ctrl_node *cmd_node = NULL;
-	struct host_cmd_ds_command *cmd_ptr = NULL;
+	struct cmd_ctrl_node *cmd_node;
+	struct host_cmd_ds_command *cmd_ptr;
 
 	if (!adapter) {
 		pr_err("PREP_CMD: adapter is NULL\n");
@@ -605,8 +604,8 @@ mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
  */
 int mwifiex_exec_next_cmd(struct mwifiex_adapter *adapter)
 {
-	struct mwifiex_private *priv = NULL;
-	struct cmd_ctrl_node *cmd_node = NULL;
+	struct mwifiex_private *priv;
+	struct cmd_ctrl_node *cmd_node;
 	int ret = 0;
 	struct host_cmd_ds_command *host_cmd;
 	unsigned long cmd_flags;
@@ -673,7 +672,7 @@ int mwifiex_exec_next_cmd(struct mwifiex_adapter *adapter)
  */
 int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 {
-	struct host_cmd_ds_command *resp = NULL;
+	struct host_cmd_ds_command *resp;
 	struct mwifiex_private *priv =
 		mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	int ret = 0;
@@ -805,7 +804,7 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 {
 	struct mwifiex_adapter *adapter =
 		(struct mwifiex_adapter *) function_context;
-	struct cmd_ctrl_node *cmd_node = NULL;
+	struct cmd_ctrl_node *cmd_node;
 	struct timeval tstamp;
 
 	adapter->num_cmd_timeout++;
@@ -877,7 +876,7 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 void
 mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
 {
-	struct cmd_ctrl_node *cmd_node = NULL, *tmp_node = NULL;
+	struct cmd_ctrl_node *cmd_node = NULL, *tmp_node;
 	unsigned long flags;
 
 	/* Cancel current cmd */
@@ -1160,7 +1159,7 @@ int mwifiex_cmd_enh_power_mode(struct mwifiex_private *priv,
 {
 	struct host_cmd_ds_802_11_ps_mode_enh *psmode_enh =
 		&cmd->params.psmode_enh;
-	u8 *tlv = NULL;
+	u8 *tlv;
 	u16 cmd_size = 0;
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_802_11_PS_MODE_ENH);

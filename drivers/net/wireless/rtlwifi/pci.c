@@ -1611,6 +1611,7 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 	u16 irqline;
 	u8 tmp;
 
+	pcipriv->ndis_adapter.pcibridge_vendor = PCI_BRIDGE_VENDOR_UNKNOWN;
 	venderid = pdev->vendor;
 	deviceid = pdev->device;
 	pci_read_config_byte(pdev, 0x8, &revisionid);

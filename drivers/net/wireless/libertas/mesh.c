@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
@@ -267,7 +269,7 @@ int lbs_init_mesh(struct lbs_private *priv)
 		lbs_add_mesh(priv);
 
 		if (device_create_file(&dev->dev, &dev_attr_lbs_mesh))
-			lbs_pr_err("cannot register lbs_mesh attribute\n");
+			netdev_err(dev, "cannot register lbs_mesh attribute\n");
 
 		ret = 1;
 	}
@@ -395,7 +397,7 @@ int lbs_add_mesh(struct lbs_private *priv)
 	/* Register virtual mesh interface */
 	ret = register_netdev(mesh_dev);
 	if (ret) {
-		lbs_pr_err("cannot register mshX virtual interface\n");
+		pr_err("cannot register mshX virtual interface\n");
 		goto err_free;
 	}
 
@@ -973,7 +975,7 @@ static ssize_t mesh_id_get(struct device *dev, struct device_attribute *attr,
 		return ret;
 
 	if (defs.meshie.val.mesh_id_len > IEEE80211_MAX_SSID_LEN) {
-		lbs_pr_err("inconsistent mesh ID length");
+		dev_err(dev, "inconsistent mesh ID length\n");
 		defs.meshie.val.mesh_id_len = IEEE80211_MAX_SSID_LEN;
 	}
 

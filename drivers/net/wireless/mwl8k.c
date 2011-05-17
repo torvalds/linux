@@ -784,7 +784,8 @@ static inline void mwl8k_remove_dma_header(struct sk_buff *skb, __le16 qos)
 #define REDUCED_TX_HEADROOM	8
 
 static void
-mwl8k_add_dma_header(struct mwl8k_priv *priv, struct sk_buff *skb, int tail_pad)
+mwl8k_add_dma_header(struct mwl8k_priv *priv, struct sk_buff *skb,
+						int head_pad, int tail_pad)
 {
 	struct ieee80211_hdr *wh;
 	int hdrlen;
@@ -816,7 +817,7 @@ mwl8k_add_dma_header(struct mwl8k_priv *priv, struct sk_buff *skb, int tail_pad)
 		skb->truesize += REDUCED_TX_HEADROOM;
 	}
 
-	reqd_hdrlen = sizeof(*tr);
+	reqd_hdrlen = sizeof(*tr) + head_pad;
 
 	if (hdrlen != reqd_hdrlen)
 		skb_push(skb, reqd_hdrlen - hdrlen);
@@ -845,6 +846,7 @@ static void mwl8k_encapsulate_tx_frame(struct mwl8k_priv *priv,
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_key_conf *key_conf;
 	int data_pad;
+	int head_pad = 0;
 
 	wh = (struct ieee80211_hdr *)skb->data;
 
@@ -856,9 +858,7 @@ static void mwl8k_encapsulate_tx_frame(struct mwl8k_priv *priv,
 
 	/*
 	 * Make sure the packet header is in the DMA header format (4-address
-	 * without QoS), the necessary crypto padding between the header and the
-	 * payload has already been provided by mac80211, but it doesn't add
-	 * tail padding when HW crypto is enabled.
+	 * without QoS), and add head & tail padding when HW crypto is enabled.
 	 *
 	 * We have the following trailer padding requirements:
 	 * - WEP: 4 trailer bytes (ICV)
@@ -867,6 +867,7 @@ static void mwl8k_encapsulate_tx_frame(struct mwl8k_priv *priv,
 	 */
 	data_pad = 0;
 	if (key_conf != NULL) {
+		head_pad = key_conf->iv_len;
 		switch (key_conf->cipher) {
 		case WLAN_CIPHER_SUITE_WEP40:
 		case WLAN_CIPHER_SUITE_WEP104:
@@ -880,7 +881,7 @@ static void mwl8k_encapsulate_tx_frame(struct mwl8k_priv *priv,
 			break;
 		}
 	}
-	mwl8k_add_dma_header(priv, skb, data_pad);
+	mwl8k_add_dma_header(priv, skb, head_pad, data_pad);
 }
 
 /*
@@ -1837,7 +1838,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	if (priv->ap_fw)
 		mwl8k_encapsulate_tx_frame(priv, skb);
 	else
-		mwl8k_add_dma_header(priv, skb, 0);
+		mwl8k_add_dma_header(priv, skb, 0, 0);
 
 	wh = &((struct mwl8k_dma_data *)skb->data)->wh;
 
@@ -3997,7 +3998,7 @@ static int mwl8k_cmd_encryption_set_key(struct ieee80211_hw *hw,
 			mwl8k_vif->wep_key_conf[idx].enabled = 1;
 		}
 
-		keymlen = 0;
+		keymlen = key->keylen;
 		action = MWL8K_ENCR_SET_KEY;
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
@@ -4071,7 +4072,6 @@ static int mwl8k_set_key(struct ieee80211_hw *hw,
 		addr = sta->addr;
 
 	if (cmd_param == SET_KEY) {
-		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 		rc = mwl8k_cmd_encryption_set_key(hw, vif, addr, key);
 		if (rc)
 			goto out;

@@ -274,8 +274,8 @@ static int mwifiex_cmd_tx_rate_cfg(struct mwifiex_private *priv,
 static int mwifiex_cmd_tx_power_cfg(struct host_cmd_ds_command *cmd,
 				    u16 cmd_action, void *data_buf)
 {
-	struct mwifiex_types_power_group *pg_tlv = NULL;
-	struct host_cmd_ds_txpwr_cfg *txp = NULL;
+	struct mwifiex_types_power_group *pg_tlv;
+	struct host_cmd_ds_txpwr_cfg *txp;
 	struct host_cmd_ds_txpwr_cfg *cmd_txp_cfg = &cmd->params.txp_cfg;
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_TXPWR_CFG);
@@ -478,7 +478,7 @@ mwifiex_set_keyparamset_wep(struct mwifiex_private *priv,
 			    struct mwifiex_ie_type_key_param_set *key_param_set,
 			    u16 *key_param_len)
 {
-	int cur_key_param_len = 0;
+	int cur_key_param_len;
 	u8 i;
 
 	/* Multi-key_param_set TLV is supported */
@@ -1121,7 +1121,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
  */
 int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 {
-	int ret = 0;
+	int ret;
 	u16 enable = true;
 	struct mwifiex_ds_11n_amsdu_aggr_ctrl amsdu_aggr_ctrl;
 	struct mwifiex_ds_auto_ds auto_ds;

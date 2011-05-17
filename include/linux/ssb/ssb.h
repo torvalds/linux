@@ -518,6 +518,7 @@ extern int ssb_bus_may_powerdown(struct ssb_bus *bus);
  * Otherwise static always-on powercontrol will be used. */
 extern int ssb_bus_powerup(struct ssb_bus *bus, bool dynamic_pctl);
 
+extern void ssb_commit_settings(struct ssb_bus *bus);
 
 /* Various helper functions */
 extern u32 ssb_admatch_base(u32 adm);

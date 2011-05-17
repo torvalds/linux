@@ -689,6 +689,17 @@ void ath9k_tasklet(unsigned long data)
 	    !ath9k_hw_check_alive(ah))
 		ieee80211_queue_work(sc->hw, &sc->hw_check_work);
 
+	if ((status & ATH9K_INT_TSFOOR) && sc->ps_enabled) {
+		/*
+		 * TSF sync does not look correct; remain awake to sync with
+		 * the next Beacon.
+		 */
+		ath_dbg(common, ATH_DBG_PS,
+			"TSFOOR - Sync with next Beacon\n");
+		sc->ps_flags |= PS_WAIT_FOR_BEACON | PS_BEACON_SYNC |
+				PS_TSFOOR_SYNC;
+	}
+
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
 		rxmask = (ATH9K_INT_RXHP | ATH9K_INT_RXLP | ATH9K_INT_RXEOL |
 			  ATH9K_INT_RXORN);
@@ -709,16 +720,6 @@ void ath9k_tasklet(unsigned long data)
 			ath_tx_edma_tasklet(sc);
 		else
 			ath_tx_tasklet(sc);
-	}
-
-	if ((status & ATH9K_INT_TSFOOR) && sc->ps_enabled) {
-		/*
-		 * TSF sync does not look correct; remain awake to sync with
-		 * the next Beacon.
-		 */
-		ath_dbg(common, ATH_DBG_PS,
-			"TSFOOR - Sync with next Beacon\n");
-		sc->ps_flags |= PS_WAIT_FOR_BEACON | PS_BEACON_SYNC;
 	}
 
 	if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
@@ -1384,7 +1385,9 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 		ath9k_hw_set_tsfadjust(ah, 0);
 		sc->sc_flags &= ~SC_OP_TSF_RESET;
 
-		if (iter_data.nwds + iter_data.nmeshes)
+		if (iter_data.nmeshes)
+			ah->opmode = NL80211_IFTYPE_MESH_POINT;
+		else if (iter_data.nwds)
 			ah->opmode = NL80211_IFTYPE_AP;
 		else if (iter_data.nadhocs)
 			ah->opmode = NL80211_IFTYPE_ADHOC;
@@ -1408,6 +1411,7 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 
 	/* Set up ANI */
 	if ((iter_data.naps + iter_data.nadhocs) > 0) {
+		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 		sc->sc_flags |= SC_OP_ANI_RUN;
 		ath_start_ani(common);
 	} else {
@@ -1778,6 +1782,11 @@ static int ath9k_sta_add(struct ieee80211_hw *hw,
 	struct ieee80211_key_conf ps_key = { };
 
 	ath_node_attach(sc, sta);
+
+	if (vif->type != NL80211_IFTYPE_AP &&
+	    vif->type != NL80211_IFTYPE_AP_VLAN)
+		return 0;
+
 	an->ps_key = ath_key_config(common, vif, sta, &ps_key);
 
 	return 0;
@@ -2039,9 +2048,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID) {
 		ath9k_config_bss(sc, vif);
 
-		/* Set aggregation protection mode parameters */
-		sc->config.ath_aggr_prot = 0;
-
 		ath_dbg(common, ATH_DBG_CONFIG, "BSSID: %pM aid: 0x%x\n",
 			common->curbssid, common->curaid);
 	}
@@ -2261,6 +2267,7 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 	struct ath_softc *sc = hw->priv;
 	int timeout = 200; /* ms */
 	int i, j;
+	bool drain_txq;
 
 	mutex_lock(&sc->mutex);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
@@ -2269,7 +2276,7 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 		timeout = 1;
 
 	for (j = 0; j < timeout; j++) {
-		int npend = 0;
+		bool npend = false;
 
 		if (j)
 			usleep_range(1000, 2000);
@@ -2278,7 +2285,10 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 			if (!ATH_TXQ_SETUP(sc, i))
 				continue;
 
-			npend += ath9k_has_pending_frames(sc, &sc->tx.txq[i]);
+			npend = ath9k_has_pending_frames(sc, &sc->tx.txq[i]);
+
+			if (npend)
+				break;
 		}
 
 		if (!npend)
@@ -2286,7 +2296,10 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 	}
 
 	ath9k_ps_wakeup(sc);
-	if (!ath_drain_all_txq(sc, false))
+	spin_lock_bh(&sc->sc_pcu_lock);
+	drain_txq = ath_drain_all_txq(sc, false);
+	spin_unlock_bh(&sc->sc_pcu_lock);
+	if (!drain_txq)
 		ath_reset(sc, false);
 	ath9k_ps_restore(sc);
 	ieee80211_wake_queues(hw);

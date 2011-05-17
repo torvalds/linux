@@ -92,7 +92,7 @@ struct mesh_path {
 	u8 dst[ETH_ALEN];
 	u8 mpp[ETH_ALEN];	/* used for MPP or MAP */
 	struct ieee80211_sub_if_data *sdata;
-	struct sta_info *next_hop;
+	struct sta_info __rcu *next_hop;
 	struct timer_list timer;
 	struct sk_buff_head frame_queue;
 	struct rcu_head rcu;
@@ -240,12 +240,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 
 /* Private interfaces */
 /* Mesh tables */
-struct mesh_table *mesh_table_alloc(int size_order);
-void mesh_table_free(struct mesh_table *tbl, bool free_leafs);
 void mesh_mpath_table_grow(void);
 void mesh_mpp_table_grow(void);
-u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata,
-		struct mesh_table *tbl);
 /* Mesh paths */
 int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn, __le16 target_rcode,
 		       const u8 *ra, struct ieee80211_sub_if_data *sdata);

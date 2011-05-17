@@ -43,7 +43,7 @@ static void
 mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp)
 {
-	struct cmd_ctrl_node *cmd_node = NULL, *tmp_node = NULL;
+	struct cmd_ctrl_node *cmd_node = NULL, *tmp_node;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct host_cmd_ds_802_11_ps_mode_enh *pm;
 	unsigned long flags;
@@ -124,7 +124,7 @@ static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
 {
 	struct host_cmd_ds_802_11_rssi_info_rsp *rssi_info_rsp =
 		&resp->params.rssi_info_rsp;
-	struct mwifiex_ds_get_signal *signal = NULL;
+	struct mwifiex_ds_get_signal *signal;
 
 	priv->data_rssi_last = le16_to_cpu(rssi_info_rsp->data_rssi_last);
 	priv->data_nf_last = le16_to_cpu(rssi_info_rsp->data_nf_last);
@@ -232,7 +232,7 @@ static int mwifiex_ret_get_log(struct mwifiex_private *priv,
 {
 	struct host_cmd_ds_802_11_get_log *get_log =
 		(struct host_cmd_ds_802_11_get_log *) &resp->params.get_log;
-	struct mwifiex_ds_get_stats *stats = NULL;
+	struct mwifiex_ds_get_stats *stats;
 
 	if (data_buf) {
 		stats = (struct mwifiex_ds_get_stats *) data_buf;
@@ -280,10 +280,10 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 				   struct host_cmd_ds_command *resp,
 				   void *data_buf)
 {
-	struct mwifiex_rate_cfg *ds_rate = NULL;
+	struct mwifiex_rate_cfg *ds_rate;
 	struct host_cmd_ds_tx_rate_cfg *rate_cfg = &resp->params.tx_rate_cfg;
 	struct mwifiex_rate_scope *rate_scope;
-	struct mwifiex_ie_types_header *head = NULL;
+	struct mwifiex_ie_types_header *head;
 	u16 tlv, tlv_buf_len;
 	u8 *tlv_buf;
 	u32 i;
@@ -368,9 +368,9 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
  */
 static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
 {
-	int length = -1, max_power = -1, min_power = -1;
-	struct mwifiex_types_power_group *pg_tlv_hdr = NULL;
-	struct mwifiex_power_group *pg = NULL;
+	int length, max_power = -1, min_power = -1;
+	struct mwifiex_types_power_group *pg_tlv_hdr;
+	struct mwifiex_power_group *pg;
 
 	if (data_buf) {
 		pg_tlv_hdr =
@@ -418,8 +418,8 @@ static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct host_cmd_ds_txpwr_cfg *txp_cfg = &resp->params.txp_cfg;
-	struct mwifiex_types_power_group *pg_tlv_hdr = NULL;
-	struct mwifiex_power_group *pg = NULL;
+	struct mwifiex_types_power_group *pg_tlv_hdr;
+	struct mwifiex_power_group *pg;
 	u16 action = le16_to_cpu(txp_cfg->action);
 
 	switch (action) {
@@ -593,7 +593,7 @@ static int mwifiex_ret_802_11d_domain_info(struct mwifiex_private *priv,
 		&resp->params.domain_info_resp;
 	struct mwifiex_ietypes_domain_param_set *domain = &domain_info->domain;
 	u16 action = le16_to_cpu(domain_info->action);
-	u8 no_of_triplet = 0;
+	u8 no_of_triplet;
 
 	no_of_triplet = (u8) ((le16_to_cpu(domain->header.len) -
 					IEEE80211_COUNTRY_STRING_LEN) /
@@ -661,7 +661,7 @@ static int mwifiex_ret_ver_ext(struct mwifiex_private *priv,
 			       void *data_buf)
 {
 	struct host_cmd_ds_version_ext *ver_ext = &resp->params.verext;
-	struct host_cmd_ds_version_ext *version_ext = NULL;
+	struct host_cmd_ds_version_ext *version_ext;
 
 	if (data_buf) {
 		version_ext = (struct host_cmd_ds_version_ext *)data_buf;
@@ -682,8 +682,8 @@ static int mwifiex_ret_ver_ext(struct mwifiex_private *priv,
 static int mwifiex_ret_reg_access(u16 type, struct host_cmd_ds_command *resp,
 				  void *data_buf)
 {
-	struct mwifiex_ds_reg_rw *reg_rw = NULL;
-	struct mwifiex_ds_read_eeprom *eeprom = NULL;
+	struct mwifiex_ds_reg_rw *reg_rw;
+	struct mwifiex_ds_read_eeprom *eeprom;
 
 	if (data_buf) {
 		reg_rw = (struct mwifiex_ds_reg_rw *) data_buf;

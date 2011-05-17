@@ -116,15 +116,21 @@ static inline void ath9k_hw_clr11n_aggr(struct ath_hw *ah, void *ds)
 	ath9k_hw_ops(ah)->clr11n_aggr(ah, ds);
 }
 
-static inline void ath9k_hw_set11n_burstduration(struct ath_hw *ah, void *ds,
-						 u32 burstDuration)
-{
-	ath9k_hw_ops(ah)->set11n_burstduration(ah, ds, burstDuration);
-}
-
 static inline void ath9k_hw_set_clrdmask(struct ath_hw *ah, void *ds, bool val)
 {
 	ath9k_hw_ops(ah)->set_clrdmask(ah, ds, val);
+}
+
+static inline void ath9k_hw_antdiv_comb_conf_get(struct ath_hw *ah,
+		struct ath_hw_antcomb_conf *antconf)
+{
+	ath9k_hw_ops(ah)->antdiv_comb_conf_get(ah, antconf);
+}
+
+static inline void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
+		struct ath_hw_antcomb_conf *antconf)
+{
+	ath9k_hw_ops(ah)->antdiv_comb_conf_set(ah, antconf);
 }
 
 /* Private hardware call ops */

@@ -54,12 +54,6 @@ int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 	}
 }
 
-/* Currently this is the superset of everything */
-static u16 iwlagn_get_hcmd_size(u8 cmd_id, u16 len)
-{
-	return len;
-}
-
 static u16 iwlagn_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 {
 	u16 size = (u16)sizeof(struct iwl_addsta_cmd);
@@ -332,7 +326,6 @@ struct iwl_hcmd_ops iwlagn_bt_hcmd = {
 };
 
 struct iwl_hcmd_utils_ops iwlagn_hcmd_utils = {
-	.get_hcmd_size = iwlagn_get_hcmd_size,
 	.build_addsta_hcmd = iwlagn_build_addsta_hcmd,
 	.gain_computation = iwlagn_gain_computation,
 	.chain_noise_reset = iwlagn_chain_noise_reset,

@@ -750,6 +750,8 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 			     dynamic_ps_enable_work);
 	struct ieee80211_sub_if_data *sdata = local->ps_sdata;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	unsigned long flags;
+	int q;
 
 	/* can only happen when PS was just disabled anyway */
 	if (!sdata)
@@ -757,6 +759,24 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 
 	if (local->hw.conf.flags & IEEE80211_CONF_PS)
 		return;
+
+	/*
+	 * transmission can be stopped by others which leads to
+	 * dynamic_ps_timer expiry. Postpond the ps timer if it
+	 * is not the actual idle state.
+	 */
+	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+	for (q = 0; q < local->hw.queues; q++) {
+		if (local->queue_stop_reasons[q]) {
+			spin_unlock_irqrestore(&local->queue_stop_reason_lock,
+					       flags);
+			mod_timer(&local->dynamic_ps_timer, jiffies +
+				  msecs_to_jiffies(
+				  local->hw.conf.dynamic_ps_timeout));
+			return;
+		}
+	}
+	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
 	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
 	    (!(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED))) {
@@ -781,7 +801,7 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
 
-	netif_tx_start_all_queues(sdata->dev);
+	netif_tx_wake_all_queues(sdata->dev);
 }
 
 void ieee80211_dynamic_ps_timer(unsigned long data)

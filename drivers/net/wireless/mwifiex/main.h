@@ -479,9 +479,9 @@ struct mwifiex_private {
 	u8 report_scan_result;
 	struct cfg80211_scan_request *scan_request;
 	int scan_result_status;
-	bool assoc_request;
+	int assoc_request;
 	u16 assoc_result;
-	bool ibss_join_request;
+	int ibss_join_request;
 	u16 ibss_join_result;
 	bool disconnect;
 	u8 cfg_bssid[6];
@@ -691,10 +691,6 @@ int mwifiex_shutdown_drv(struct mwifiex_adapter *adapter);
 int mwifiex_shutdown_fw_complete(struct mwifiex_adapter *adapter);
 
 int mwifiex_dnld_fw(struct mwifiex_adapter *, struct mwifiex_fw_image *);
-
-int mwifiex_recv_complete(struct mwifiex_adapter *,
-			  struct sk_buff *skb,
-			  int status);
 
 int mwifiex_recv_packet(struct mwifiex_adapter *, struct sk_buff *skb);
 

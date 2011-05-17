@@ -883,7 +883,7 @@ static void carl9170_op_configure_filter(struct ieee80211_hw *hw,
 	 * then checking the error flags, later.
 	 */
 
-	if (changed_flags & FIF_ALLMULTI && *new_flags & FIF_ALLMULTI)
+	if (*new_flags & FIF_ALLMULTI)
 		multicast = ~0ULL;
 
 	if (multicast != ar->cur_mc_hash)

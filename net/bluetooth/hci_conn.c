@@ -623,6 +623,23 @@ encrypt:
 }
 EXPORT_SYMBOL(hci_conn_security);
 
+/* Check secure link requirement */
+int hci_conn_check_secure(struct hci_conn *conn, __u8 sec_level)
+{
+	BT_DBG("conn %p", conn);
+
+	if (sec_level != BT_SECURITY_HIGH)
+		return 1; /* Accept if non-secure is required */
+
+	if (conn->key_type == HCI_LK_AUTH_COMBINATION ||
+			(conn->key_type == HCI_LK_COMBINATION &&
+			conn->pin_length == 16))
+		return 1;
+
+	return 0; /* Reject not secure link */
+}
+EXPORT_SYMBOL(hci_conn_check_secure);
+
 /* Change link key */
 int hci_conn_change_link_key(struct hci_conn *conn)
 {

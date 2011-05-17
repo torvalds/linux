@@ -39,7 +39,7 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
 					 *rx_reor_tbl_ptr, int start_win)
 {
 	int no_pkt_to_send, i;
-	void *rx_tmp_ptr = NULL;
+	void *rx_tmp_ptr;
 	unsigned long flags;
 
 	no_pkt_to_send = (start_win > rx_reor_tbl_ptr->start_win) ?
@@ -88,7 +88,7 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 			      struct mwifiex_rx_reorder_tbl *rx_reor_tbl_ptr)
 {
 	int i, j, xchg;
-	void *rx_tmp_ptr = NULL;
+	void *rx_tmp_ptr;
 	unsigned long flags;
 
 	for (i = 0; i < rx_reor_tbl_ptr->win_size; ++i) {
@@ -335,8 +335,8 @@ int mwifiex_cmd_11n_addba_rsp_gen(struct mwifiex_private *priv,
 		&cmd->params.add_ba_rsp;
 	struct host_cmd_ds_11n_addba_req *cmd_addba_req =
 		(struct host_cmd_ds_11n_addba_req *) data_buf;
-	u8 tid = 0;
-	int win_size = 0;
+	u8 tid;
+	int win_size;
 	uint16_t block_ack_param_set;
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_11N_ADDBA_RSP);
@@ -406,9 +406,8 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 				u8 *ta, u8 pkt_type, void *payload)
 {
 	struct mwifiex_rx_reorder_tbl *rx_reor_tbl_ptr;
-	int start_win, end_win, win_size;
-	int ret = 0;
-	u16 pkt_index = 0;
+	int start_win, end_win, win_size, ret;
+	u16 pkt_index;
 
 	rx_reor_tbl_ptr =
 		mwifiex_11n_get_rx_reorder_tbl((struct mwifiex_private *) priv,
@@ -540,7 +539,7 @@ int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 		(struct host_cmd_ds_11n_addba_rsp *)
 		&resp->params.add_ba_rsp;
 	int tid, win_size;
-	struct mwifiex_rx_reorder_tbl *rx_reor_tbl_ptr = NULL;
+	struct mwifiex_rx_reorder_tbl *rx_reor_tbl_ptr;
 	uint16_t block_ack_param_set;
 
 	block_ack_param_set = le16_to_cpu(add_ba_rsp->block_ack_param_set);

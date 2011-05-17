@@ -76,7 +76,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		if (time_after(jiffies, timeout)) {
 			wl1271_error("command complete timeout");
 			ret = -ETIMEDOUT;
-			goto out;
+			goto fail;
 		}
 
 		poll_count++;
@@ -96,14 +96,17 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 	status = le16_to_cpu(cmd->status);
 	if (status != CMD_STATUS_SUCCESS) {
 		wl1271_error("command execute failure %d", status);
-		ieee80211_queue_work(wl->hw, &wl->recovery_work);
 		ret = -EIO;
+		goto fail;
 	}
 
 	wl1271_write32(wl, ACX_REG_INTERRUPT_ACK,
 		       WL1271_ACX_INTR_CMD_COMPLETE);
+	return 0;
 
-out:
+fail:
+	WARN_ON(1);
+	ieee80211_queue_work(wl->hw, &wl->recovery_work);
 	return ret;
 }
 
@@ -128,6 +131,9 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 
 	if (gp->tx_bip_fem_auto_detect)
 		answer = true;
+
+	/* Override the REF CLK from the NVS with the one from platform data */
+	gen_parms->general_params.ref_clock = wl->ref_clock;
 
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), answer);
 	if (ret < 0) {
@@ -167,6 +173,10 @@ int wl128x_cmd_general_parms(struct wl1271 *wl)
 
 	if (gp->tx_bip_fem_auto_detect)
 		answer = true;
+
+	/* Replace REF and TCXO CLKs with the ones from platform data */
+	gen_parms->general_params.ref_clock = wl->ref_clock;
+	gen_parms->general_params.tcxo_ref_clock = wl->tcxo_clock;
 
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), answer);
 	if (ret < 0) {
@@ -1070,7 +1080,7 @@ int wl1271_cmd_start_bss(struct wl1271 *wl)
 
 	memcpy(cmd->bssid, bss_conf->bssid, ETH_ALEN);
 
-	cmd->aging_period = cpu_to_le16(wl->conf.tx.ap_aging_period);
+	cmd->aging_period = cpu_to_le16(WL1271_AP_DEF_INACTIV_SEC);
 	cmd->bss_index = WL1271_AP_BSS_INDEX;
 	cmd->global_hlid = WL1271_AP_GLOBAL_HLID;
 	cmd->broadcast_hlid = WL1271_AP_BROADCAST_HLID;
