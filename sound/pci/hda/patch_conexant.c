@@ -3794,17 +3794,19 @@ static void cx_auto_check_auto_mic(struct hda_codec *codec)
 	for (i = 0; i < spec->private_imux.num_items; i++) {
 		hda_nid_t pin = spec->imux_info[i].pin;
 		unsigned int def_conf = snd_hda_codec_get_pincfg(codec, pin);
-		int attr;
-		if (get_defcfg_device(def_conf) != AC_JACK_MIC_IN)
-			return; /* no-mic input */
+		int type, attr;
 		attr = snd_hda_get_input_pin_attr(def_conf);
 		if (attr == INPUT_PIN_ATTR_UNUSED)
-			continue;
+			return; /* invalid entry */
 		if (attr > INPUT_PIN_ATTR_NORMAL)
 			attr = INPUT_PIN_ATTR_NORMAL;
 		if (attr != INPUT_PIN_ATTR_INT &&
 		    !is_jack_detectable(codec, pin))
-			continue;
+			return; /* non-detectable pin */
+		type = get_defcfg_device(def_conf);
+		if (type != AC_JACK_MIC_IN &&
+		    (attr != INPUT_PIN_ATTR_DOCK || type != AC_JACK_LINE_IN))
+			return; /* no valid input type */
 		if (pset[attr] >= 0)
 			return; /* already occupied */
 		pset[attr] = i;
