@@ -72,6 +72,14 @@ OPTIONS
 	CPUs are specified with -: 0-2. Default is to report samples on all
 	CPUs.
 
+--asm-raw::
+	Show raw instruction encoding of assembly instructions. They
+	are displayed by default, disable with --no-asm-raw.
+
+--source::
+	Interleave source code with assembly code. Enabled by default,
+	disable with --no-source.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1]
