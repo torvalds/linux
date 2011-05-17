@@ -9,6 +9,7 @@ struct tsc2007_platform_data {
 	u16	max_rt; /* max. resistance above which samples are ignored */
 	unsigned long poll_delay; /* delay (in ms) after pen-down event
 				     before polling starts */
+	unsigned long poll_period; /* time (in ms) between samples */
 
 	int	(*get_pendown_state)(void);
 	void	(*clear_penirq)(void);		/* If needed, clear 2nd level

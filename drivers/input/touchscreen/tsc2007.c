@@ -27,8 +27,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c/tsc2007.h>
 
-#define TS_POLL_PERIOD			1 /* ms delay between samples */
-
 #define TSC2007_MEASURE_TEMP0		(0x0 << 4)
 #define TSC2007_MEASURE_AUX		(0x2 << 4)
 #define TSC2007_MEASURE_TEMP1		(0x4 << 4)
@@ -76,6 +74,7 @@ struct tsc2007 {
 	u16			x_plate_ohms;
 	u16			max_rt;
 	unsigned long		poll_delay;
+	unsigned long		poll_period;
 
 	bool			pendown;
 	int			irq;
@@ -230,7 +229,7 @@ static void tsc2007_work(struct work_struct *work)
  out:
 	if (ts->pendown || debounced)
 		schedule_delayed_work(&ts->work,
-				      msecs_to_jiffies(TS_POLL_PERIOD));
+				      msecs_to_jiffies(ts->poll_period));
 	else
 		enable_irq(ts->irq);
 }
@@ -297,6 +296,7 @@ static int __devinit tsc2007_probe(struct i2c_client *client,
 	ts->x_plate_ohms      = pdata->x_plate_ohms;
 	ts->max_rt            = pdata->max_rt ? : MAX_12BIT;
 	ts->poll_delay        = pdata->poll_delay ? : 1;
+	ts->poll_period       = pdata->poll_period ? : 1;
 	ts->get_pendown_state = pdata->get_pendown_state;
 	ts->clear_penirq      = pdata->clear_penirq;
 
