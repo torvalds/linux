@@ -2493,6 +2493,7 @@ static void btrfs_read_locked_inode(struct inode *inode)
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
+	path->leave_spinning = 1;
 	memcpy(&location, &BTRFS_I(inode)->location, sizeof(location));
 
 	ret = btrfs_lookup_inode(NULL, root, path, &location, 0);
@@ -2502,6 +2503,12 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	leaf = path->nodes[0];
 	inode_item = btrfs_item_ptr(leaf, path->slots[0],
 				    struct btrfs_inode_item);
+	if (!leaf->map_token)
+		map_private_extent_buffer(leaf, (unsigned long)inode_item,
+					  sizeof(struct btrfs_inode_item),
+					  &leaf->map_token, &leaf->kaddr,
+					  &leaf->map_start, &leaf->map_len,
+					  KM_USER1);
 
 	inode->i_mode = btrfs_inode_mode(leaf, inode_item);
 	inode->i_nlink = btrfs_inode_nlink(leaf, inode_item);
@@ -2538,6 +2545,11 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	maybe_acls = acls_after_inode_item(leaf, path->slots[0], inode->i_ino);
 	if (!maybe_acls)
 		cache_no_acl(inode);
+
+	if (leaf->map_token) {
+		unmap_extent_buffer(leaf, leaf->map_token, KM_USER1);
+		leaf->map_token = NULL;
+	}
 
 	btrfs_free_path(path);
 	inode_item = NULL;
