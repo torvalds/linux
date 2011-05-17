@@ -46,15 +46,8 @@ extern struct ieee80211_ops ath9k_htc_ops;
 extern int htc_modparam_nohwcrypt;
 
 enum htc_phymode {
-	HTC_MODE_AUTO		= 0,
-	HTC_MODE_11A		= 1,
-	HTC_MODE_11B		= 2,
-	HTC_MODE_11G		= 3,
-	HTC_MODE_FH		= 4,
-	HTC_MODE_TURBO_A	= 5,
-	HTC_MODE_TURBO_G	= 6,
-	HTC_MODE_11NA		= 7,
-	HTC_MODE_11NG		= 8
+	HTC_MODE_11NA		= 0,
+	HTC_MODE_11NG		= 1
 };
 
 enum htc_opmode {

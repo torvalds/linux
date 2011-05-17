@@ -26,7 +26,7 @@ static enum htc_phymode ath9k_htc_get_curmode(struct ath9k_htc_priv *priv,
 {
 	enum htc_phymode mode;
 
-	mode = HTC_MODE_AUTO;
+	mode = -EINVAL;
 
 	switch (ichan->chanmode) {
 	case CHANNEL_G:
@@ -44,6 +44,8 @@ static enum htc_phymode ath9k_htc_get_curmode(struct ath9k_htc_priv *priv,
 	default:
 		break;
 	}
+
+	WARN_ON(mode < 0);
 
 	return mode;
 }
