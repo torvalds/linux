@@ -79,20 +79,13 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 {
 	struct vm_area_struct * vmm;
 	int do_color_align;
-	unsigned long task_size;
 
-#ifdef CONFIG_32BIT
-	task_size = TASK_SIZE;
-#else /* Must be CONFIG_64BIT*/
-	task_size = test_thread_flag(TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE;
-#endif
-
-	if (len > task_size)
+	if (len > TASK_SIZE)
 		return -ENOMEM;
 
 	if (flags & MAP_FIXED) {
-		/* Even MAP_FIXED mappings must reside within task_size.  */
-		if (task_size - len < addr)
+		/* Even MAP_FIXED mappings must reside within TASK_SIZE.  */
+		if (TASK_SIZE - len < addr)
 			return -EINVAL;
 
 		/*
@@ -114,7 +107,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		else
 			addr = PAGE_ALIGN(addr);
 		vmm = find_vma(current->mm, addr);
-		if (task_size - len >= addr &&
+		if (TASK_SIZE - len >= addr &&
 		    (!vmm || addr + len <= vmm->vm_start))
 			return addr;
 	}
@@ -126,7 +119,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 
 	for (vmm = find_vma(current->mm, addr); ; vmm = vmm->vm_next) {
 		/* At this point:  (!vmm || addr < vmm->vm_end). */
-		if (task_size - len < addr)
+		if (TASK_SIZE - len < addr)
 			return -ENOMEM;
 		if (!vmm || addr + len <= vmm->vm_start)
 			return addr;
