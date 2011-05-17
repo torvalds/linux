@@ -1164,6 +1164,8 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 
 	ath9k_htc_set_opmode(priv);
 
+	ath9k_htc_set_bssid_mask(priv, vif);
+
 	/*
 	 * Stop ANI only if there are no associated station interfaces.
 	 */
