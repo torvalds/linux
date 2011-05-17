@@ -85,6 +85,8 @@ struct conexant_spec {
 	unsigned int line_present;
 	unsigned int auto_mic;
 	int auto_mic_ext;		/* imux_pins[] index for ext mic */
+	int auto_mic_dock;		/* imux_pins[] index for dock mic */
+	int auto_mic_int;		/* imux_pins[] index for int mic */
 	unsigned int need_dac_fix;
 	hda_nid_t slave_dig_outs[2];
 
@@ -3737,18 +3739,27 @@ static const struct snd_kcontrol_new cx_auto_capture_mixers[] = {
 	{}
 };
 
+static bool select_automic(struct hda_codec *codec, int idx, bool detect)
+{
+	struct conexant_spec *spec = codec->spec;
+	if (idx < 0)
+		return false;
+	if (detect && !snd_hda_jack_detect(codec, spec->imux_info[idx].pin))
+		return false;
+	cx_auto_mux_enum_update(codec, &spec->private_imux, idx);
+	return true;
+}
+
 /* automatic switch internal and external mic */
 static void cx_auto_automic(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	int ext_idx = spec->auto_mic_ext;
 
 	if (!spec->auto_mic)
 		return;
-	if (snd_hda_jack_detect(codec, spec->imux_info[ext_idx].pin))
-		cx_auto_mux_enum_update(codec, &spec->private_imux, ext_idx);
-	else
-		cx_auto_mux_enum_update(codec, &spec->private_imux, !ext_idx);
+	if (!select_automic(codec, spec->auto_mic_ext, true))
+		if (!select_automic(codec, spec->auto_mic_dock, true))
+			select_automic(codec, spec->auto_mic_int, false);
 }
 
 static void cx_auto_unsol_event(struct hda_codec *codec, unsigned int res)
@@ -3768,42 +3779,43 @@ static void cx_auto_unsol_event(struct hda_codec *codec, unsigned int res)
 	}
 }
 
-/* return true if it's an internal-mic pin */
-static int is_int_mic(struct hda_codec *codec, hda_nid_t pin)
-{
-	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, pin);
-	return get_defcfg_device(def_conf) == AC_JACK_MIC_IN &&
-		snd_hda_get_input_pin_attr(def_conf) == INPUT_PIN_ATTR_INT;
-}
-
-/* return true if it's an external-mic pin */
-static int is_ext_mic(struct hda_codec *codec, hda_nid_t pin)
-{
-	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, pin);
-	return get_defcfg_device(def_conf) == AC_JACK_MIC_IN &&
-		snd_hda_get_input_pin_attr(def_conf) >= INPUT_PIN_ATTR_NORMAL &&
-		is_jack_detectable(codec, pin);
-}
-
 /* check whether the pin config is suitable for auto-mic switching;
- * auto-mic is enabled only when one int-mic and one-ext mic exist
+ * auto-mic is enabled only when one int-mic and one ext- and/or
+ * one dock-mic exist
  */
 static void cx_auto_check_auto_mic(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
+	int pset[INPUT_PIN_ATTR_NORMAL + 1];
+	int i;
 
-	if (is_ext_mic(codec, spec->imux_info[0].pin) &&
-	    is_int_mic(codec, spec->imux_info[1].pin)) {
-		spec->auto_mic = 1;
-		spec->auto_mic_ext = 0;
-		return;
+	for (i = 0; i < INPUT_PIN_ATTR_NORMAL; i++)
+		pset[i] = -1;
+	for (i = 0; i < spec->private_imux.num_items; i++) {
+		hda_nid_t pin = spec->imux_info[i].pin;
+		unsigned int def_conf = snd_hda_codec_get_pincfg(codec, pin);
+		int attr;
+		if (get_defcfg_device(def_conf) != AC_JACK_MIC_IN)
+			return; /* no-mic input */
+		attr = snd_hda_get_input_pin_attr(def_conf);
+		if (attr == INPUT_PIN_ATTR_UNUSED)
+			continue;
+		if (attr > INPUT_PIN_ATTR_NORMAL)
+			attr = INPUT_PIN_ATTR_NORMAL;
+		if (attr != INPUT_PIN_ATTR_INT &&
+		    !is_jack_detectable(codec, pin))
+			continue;
+		if (pset[attr] >= 0)
+			return; /* already occupied */
+		pset[attr] = i;
 	}
-	if (is_int_mic(codec, spec->imux_info[0].pin) &&
-	    is_ext_mic(codec, spec->imux_info[1].pin)) {
-		spec->auto_mic = 1;
-		spec->auto_mic_ext = 1;
-		return;
-	}
+	if (pset[INPUT_PIN_ATTR_INT] < 0 ||
+	    (pset[INPUT_PIN_ATTR_NORMAL] < 0 && pset[INPUT_PIN_ATTR_DOCK]))
+		return; /* no input to switch*/
+	spec->auto_mic = 1;
+	spec->auto_mic_ext = pset[INPUT_PIN_ATTR_NORMAL];
+	spec->auto_mic_dock = pset[INPUT_PIN_ATTR_DOCK];
+	spec->auto_mic_int = pset[INPUT_PIN_ATTR_INT];
 }
 
 static void cx_auto_parse_input(struct hda_codec *codec)
@@ -3832,7 +3844,7 @@ static void cx_auto_parse_input(struct hda_codec *codec)
 			}
 		}
 	}
-	if (imux->num_items == 2 && cfg->num_inputs == 2)
+	if (imux->num_items >= 2 && cfg->num_inputs == imux->num_items)
 		cx_auto_check_auto_mic(codec);
 	if (imux->num_items > 1 && !spec->auto_mic) {
 		for (i = 1; i < imux->num_items; i++) {
@@ -4022,10 +4034,18 @@ static void cx_auto_init_input(struct hda_codec *codec)
 	}
 
 	if (spec->auto_mic) {
-		int ext_idx = spec->auto_mic_ext;
-		snd_hda_codec_write(codec, cfg->inputs[ext_idx].pin, 0,
-				    AC_VERB_SET_UNSOLICITED_ENABLE,
-				    AC_USRSP_EN | CONEXANT_MIC_EVENT);
+		if (spec->auto_mic_ext >= 0) {
+			snd_hda_codec_write(codec,
+				cfg->inputs[spec->auto_mic_ext].pin, 0,
+				AC_VERB_SET_UNSOLICITED_ENABLE,
+				AC_USRSP_EN | CONEXANT_MIC_EVENT);
+		}
+		if (spec->auto_mic_dock >= 0) {
+			snd_hda_codec_write(codec,
+				cfg->inputs[spec->auto_mic_dock].pin, 0,
+				AC_VERB_SET_UNSOLICITED_ENABLE,
+				AC_USRSP_EN | CONEXANT_MIC_EVENT);
+		}
 		cx_auto_automic(codec);
 	} else {
 		select_input_connection(codec, spec->imux_info[0].adc,
