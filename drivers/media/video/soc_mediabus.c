@@ -169,6 +169,150 @@ static const struct soc_mbus_lookup mbus_fmt[] = {
 		.packing                = SOC_MBUS_PACKING_VARIABLE,
 		.order                  = SOC_MBUS_ORDER_LE,
 	},
+}, {
+	.code = V4L2_MBUS_FMT_RGB444_2X8_PADHI_BE,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_RGB444,
+		.name			= "RGB444",
+		.bits_per_sample	= 8,
+		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
+		.order			= SOC_MBUS_ORDER_BE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_YUYV8_1_5X8,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_YUV420,
+		.name			= "YUYV 4:2:0",
+		.bits_per_sample	= 8,
+		.packing		= SOC_MBUS_PACKING_1_5X8,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_YVYU8_1_5X8,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_YVU420,
+		.name			= "YVYU 4:2:0",
+		.bits_per_sample	= 8,
+		.packing		= SOC_MBUS_PACKING_1_5X8,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_UYVY8_1X16,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_UYVY,
+		.name			= "UYVY 16bit",
+		.bits_per_sample	= 16,
+		.packing		= SOC_MBUS_PACKING_EXTEND16,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_VYUY8_1X16,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_VYUY,
+		.name			= "VYUY 16bit",
+		.bits_per_sample	= 16,
+		.packing		= SOC_MBUS_PACKING_EXTEND16,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_YUYV8_1X16,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_YUYV,
+		.name			= "YUYV 16bit",
+		.bits_per_sample	= 16,
+		.packing		= SOC_MBUS_PACKING_EXTEND16,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_YVYU8_1X16,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_YVYU,
+		.name			= "YVYU 16bit",
+		.bits_per_sample	= 16,
+		.packing		= SOC_MBUS_PACKING_EXTEND16,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_SGRBG8_1X8,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_SGRBG8,
+		.name			= "Bayer 8 GRBG",
+		.bits_per_sample	= 8,
+		.packing		= SOC_MBUS_PACKING_NONE,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_SGRBG10DPCM8,
+		.name			= "Bayer 10 BGGR DPCM 8",
+		.bits_per_sample	= 8,
+		.packing		= SOC_MBUS_PACKING_NONE,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_SGBRG10_1X10,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_SGBRG10,
+		.name			= "Bayer 10 GBRG",
+		.bits_per_sample	= 10,
+		.packing		= SOC_MBUS_PACKING_EXTEND16,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_SGRBG10_1X10,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_SGRBG10,
+		.name			= "Bayer 10 GRBG",
+		.bits_per_sample	= 10,
+		.packing		= SOC_MBUS_PACKING_EXTEND16,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_SRGGB10_1X10,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_SRGGB10,
+		.name			= "Bayer 10 RGGB",
+		.bits_per_sample	= 10,
+		.packing		= SOC_MBUS_PACKING_EXTEND16,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_SBGGR12_1X12,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_SBGGR12,
+		.name			= "Bayer 12 BGGR",
+		.bits_per_sample	= 12,
+		.packing		= SOC_MBUS_PACKING_EXTEND16,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_SGBRG12_1X12,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_SGBRG12,
+		.name			= "Bayer 12 GBRG",
+		.bits_per_sample	= 12,
+		.packing		= SOC_MBUS_PACKING_EXTEND16,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_SGRBG12_1X12,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_SGRBG12,
+		.name			= "Bayer 12 GRBG",
+		.bits_per_sample	= 12,
+		.packing		= SOC_MBUS_PACKING_EXTEND16,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
+}, {
+	.code = V4L2_MBUS_FMT_SRGGB12_1X12,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_SRGGB12,
+		.name			= "Bayer 12 RGGB",
+		.bits_per_sample	= 12,
+		.packing		= SOC_MBUS_PACKING_EXTEND16,
+		.order			= SOC_MBUS_ORDER_LE,
+	},
 },
 };
 
