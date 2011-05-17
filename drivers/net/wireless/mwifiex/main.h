@@ -215,6 +215,8 @@ struct mwifiex_wmm_desc {
 	u32 user_pri_pkt_tx_ctrl[WMM_HIGHEST_PRIORITY + 1];	/* UP: 0 to 7 */
 	/* Number of transmit packets queued */
 	atomic_t tx_pkts_queued;
+	/* Tracks highest priority with a packet queued */
+	atomic_t highest_queued_prio;
 };
 
 struct mwifiex_802_11_security {

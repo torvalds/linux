@@ -177,14 +177,20 @@ static void mwifiex_wmm_default_queue_priorities(struct mwifiex_private *priv)
  * This function map ACs to TIDs.
  */
 static void
-mwifiex_wmm_queue_priorities_tid(u8 queue_priority[])
+mwifiex_wmm_queue_priorities_tid(struct mwifiex_wmm_desc *wmm)
 {
+	u8 *queue_priority = wmm->queue_priority;
 	int i;
 
 	for (i = 0; i < 4; ++i) {
 		tos_to_tid[7 - (i * 2)] = ac_to_tid[queue_priority[i]][1];
 		tos_to_tid[6 - (i * 2)] = ac_to_tid[queue_priority[i]][0];
 	}
+
+	for (i = 0; i < MAX_NUM_TID; ++i)
+		tos_to_tid_inv[tos_to_tid[i]] = (u8)i;
+
+	atomic_set(&wmm->highest_queued_prio, HIGH_PRIO_TID);
 }
 
 /*
@@ -246,7 +252,7 @@ mwifiex_wmm_setup_queue_priorities(struct mwifiex_private *priv,
 		}
 	}
 
-	mwifiex_wmm_queue_priorities_tid(priv->wmm.queue_priority);
+	mwifiex_wmm_queue_priorities_tid(&priv->wmm);
 }
 
 /*
@@ -401,6 +407,7 @@ mwifiex_wmm_init(struct mwifiex_adapter *adapter)
 		priv->add_ba_param.rx_win_size = MWIFIEX_AMPDU_DEF_RXWINSIZE;
 
 		atomic_set(&priv->wmm.tx_pkts_queued, 0);
+		atomic_set(&priv->wmm.highest_queued_prio, HIGH_PRIO_TID);
 	}
 }
 
@@ -468,6 +475,7 @@ static void mwifiex_wmm_cleanup_queues(struct mwifiex_private *priv)
 						     ra_list);
 
 	atomic_set(&priv->wmm.tx_pkts_queued, 0);
+	atomic_set(&priv->wmm.highest_queued_prio, HIGH_PRIO_TID);
 }
 
 /*
@@ -639,6 +647,11 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_adapter *adapter,
 	ra_list->total_pkts_size += skb->len;
 
 	atomic_inc(&priv->wmm.tx_pkts_queued);
+
+	if (atomic_read(&priv->wmm.highest_queued_prio) <
+						tos_to_tid_inv[tid_down])
+		atomic_set(&priv->wmm.highest_queued_prio,
+						tos_to_tid_inv[tid_down]);
 
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
 }
@@ -865,9 +878,14 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 		}
 
 		do {
-			priv_tmp = bssprio_node->priv;
+			atomic_t *hqp;
+			spinlock_t *lock;
 
-			for (i = HIGH_PRIO_TID; i >= LOW_PRIO_TID; --i) {
+			priv_tmp = bssprio_node->priv;
+			hqp = &priv_tmp->wmm.highest_queued_prio;
+			lock = &priv_tmp->wmm.ra_list_spinlock;
+
+			for (i = atomic_read(hqp); i >= LOW_PRIO_TID; --i) {
 
 				tid_ptr = &(priv_tmp)->wmm.
 					tid_tbl_ptr[tos_to_tid[i]];
@@ -905,6 +923,11 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 					is_list_empty =
 						skb_queue_empty(&ptr->skb_head);
 					if (!is_list_empty) {
+						spin_lock_irqsave(lock, flags);
+						if (atomic_read(hqp) > i)
+							atomic_set(hqp, i);
+						spin_unlock_irqrestore(lock,
+									flags);
 						*priv = priv_tmp;
 						*tid = tos_to_tid[i];
 						return ptr;
