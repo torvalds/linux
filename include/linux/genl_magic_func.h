@@ -78,12 +78,13 @@ static struct nla_policy s_name ## _nl_policy[] __read_mostly =		\
 { s_fields };
 
 #undef __field
-#define __field(attr_nr, attr_flag, name, nla_type, _type, __get, __put) \
+#define __field(attr_nr, attr_flag, name, nla_type, _type, __get,	\
+		 __put, __is_signed)					\
 	[__nla_type(attr_nr)] = { .type = nla_type },
 
 #undef __array
 #define __array(attr_nr, attr_flag, name, nla_type, _type, maxlen,	\
-		__get, __put)						\
+		__get, __put, __is_signed)				\
 	[__nla_type(attr_nr)] = { .type = nla_type,			\
 		.len = maxlen - (nla_type == NLA_NUL_STRING) },
 
@@ -241,7 +242,8 @@ static int s_name ## _from_attrs_for_change(struct s_name *s,		\
 		}
 
 #undef __field
-#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put)	\
+#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put,	\
+		__is_signed)						\
 	__assign(attr_nr, attr_flag, name, nla_type, type,		\
 			if (s)						\
 				s->name = __get(nla);			\
@@ -249,7 +251,8 @@ static int s_name ## _from_attrs_for_change(struct s_name *s,		\
 
 /* validate_nla() already checked nla_len <= maxlen appropriately. */
 #undef __array
-#define __array(attr_nr, attr_flag, name, nla_type, type, maxlen, __get, __put) \
+#define __array(attr_nr, attr_flag, name, nla_type, type, maxlen,	\
+		__get, __put, __is_signed)				\
 	__assign(attr_nr, attr_flag, name, nla_type, type,		\
 			if (s)						\
 				s->name ## _len =			\
@@ -410,14 +413,16 @@ static inline int s_name ## _to_unpriv_skb(struct sk_buff *skb,		\
 
 
 #undef __field
-#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put)	\
+#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put,	\
+		__is_signed)						\
 	if (!exclude_sensitive || !((attr_flag) & GENLA_F_SENSITIVE)) {	\
 		DPRINT_FIELD(">>", nla_type, name, s, NULL);		\
 		__put(skb, attr_nr, s->name);				\
 	}
 
 #undef __array
-#define __array(attr_nr, attr_flag, name, nla_type, type, maxlen, __get, __put) \
+#define __array(attr_nr, attr_flag, name, nla_type, type, maxlen,	\
+		__get, __put, __is_signed)				\
 	if (!exclude_sensitive || !((attr_flag) & GENLA_F_SENSITIVE)) {	\
 		DPRINT_ARRAY(">>",nla_type, name, s, NULL);		\
 		__put(skb, attr_nr, min_t(int, maxlen,			\
@@ -431,9 +436,11 @@ static inline int s_name ## _to_unpriv_skb(struct sk_buff *skb,		\
 /* Functions for initializing structs to default values.  */
 
 #undef __field
-#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put)
+#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put,	\
+		__is_signed)
 #undef __array
-#define __array(attr_nr, attr_flag, name, nla_type, type, maxlen, __get, __put)
+#define __array(attr_nr, attr_flag, name, nla_type, type, maxlen,	\
+		__get, __put, __is_signed)
 #undef __u32_field_def
 #define __u32_field_def(attr_nr, attr_flag, name, default)		\
 	x->name = default;

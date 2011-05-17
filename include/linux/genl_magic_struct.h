@@ -87,28 +87,28 @@ enum {
 /* possible field types */
 #define __flg_field(attr_nr, attr_flag, name) \
 	__field(attr_nr, attr_flag, name, NLA_U8, char, \
-			nla_get_u8, NLA_PUT_U8)
+			nla_get_u8, NLA_PUT_U8, false)
 #define __u8_field(attr_nr, attr_flag, name)	\
 	__field(attr_nr, attr_flag, name, NLA_U8, unsigned char, \
-			nla_get_u8, NLA_PUT_U8)
+			nla_get_u8, NLA_PUT_U8, false)
 #define __u16_field(attr_nr, attr_flag, name)	\
 	__field(attr_nr, attr_flag, name, NLA_U16, __u16, \
-			nla_get_u16, NLA_PUT_U16)
+			nla_get_u16, NLA_PUT_U16, false)
 #define __u32_field(attr_nr, attr_flag, name)	\
 	__field(attr_nr, attr_flag, name, NLA_U32, __u32, \
-			nla_get_u32, NLA_PUT_U32)
+			nla_get_u32, NLA_PUT_U32, false)
 #define __s32_field(attr_nr, attr_flag, name)	\
 	__field(attr_nr, attr_flag, name, NLA_U32, __s32, \
-			nla_get_u32, NLA_PUT_U32)
+			nla_get_u32, NLA_PUT_U32, true)
 #define __u64_field(attr_nr, attr_flag, name)	\
 	__field(attr_nr, attr_flag, name, NLA_U64, __u64, \
-			nla_get_u64, NLA_PUT_U64)
+			nla_get_u64, NLA_PUT_U64, false)
 #define __str_field(attr_nr, attr_flag, name, maxlen) \
 	__array(attr_nr, attr_flag, name, NLA_NUL_STRING, char, maxlen, \
-			nla_strlcpy, NLA_PUT)
+			nla_strlcpy, NLA_PUT, false)
 #define __bin_field(attr_nr, attr_flag, name, maxlen) \
 	__array(attr_nr, attr_flag, name, NLA_BINARY, char, maxlen, \
-			nla_memcpy, NLA_PUT)
+			nla_memcpy, NLA_PUT, false)
 
 /* fields with default values */
 #define __flg_field_def(attr_nr, attr_flag, name, default) \
@@ -174,11 +174,13 @@ enum {								\
 };
 
 #undef __field
-#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put)	\
+#define __field(attr_nr, attr_flag, name, nla_type, type,	\
+		__get, __put, __is_signed)			\
 	T_ ## name = (__u16)(attr_nr | attr_flag),
 
 #undef __array
-#define __array(attr_nr, attr_flag, name, nla_type, type, maxlen, __get, __put) \
+#define __array(attr_nr, attr_flag, name, nla_type, type,	\
+		maxlen, __get, __put, __is_signed)		\
 	T_ ## name = (__u16)(attr_nr | attr_flag),
 
 #include GENL_MAGIC_INCLUDE_FILE
@@ -238,11 +240,13 @@ static inline void ct_assert_unique_ ## s_name ## _attributes(void)	\
 }
 
 #undef __field
-#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put)	\
+#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put,	\
+		__is_signed)						\
 	case attr_nr:
 
 #undef __array
-#define __array(attr_nr, attr_flag, name, nla_type, type, maxlen, __get, __put) \
+#define __array(attr_nr, attr_flag, name, nla_type, type, maxlen,	\
+		__get, __put, __is_signed)				\
 	case attr_nr:
 
 #include GENL_MAGIC_INCLUDE_FILE
@@ -260,13 +264,33 @@ static inline void ct_assert_unique_ ## s_name ## _attributes(void)	\
 struct s_name { s_fields };
 
 #undef __field
-#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put) \
+#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put,	\
+		__is_signed)						\
 	type name;
 
 #undef __array
-#define __array(attr_nr, attr_flag, name, nla_type, type, maxlen, __get, __put) \
+#define __array(attr_nr, attr_flag, name, nla_type, type, maxlen,	\
+		__get, __put, __is_signed)				\
 	type name[maxlen];	\
 	__u32 name ## _len;
+
+#include GENL_MAGIC_INCLUDE_FILE
+
+#undef GENL_struct
+#define GENL_struct(tag_name, tag_number, s_name, s_fields)		\
+enum {									\
+	s_fields							\
+};
+
+#undef __field
+#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put,	\
+		is_signed)						\
+	F_ ## name ## _IS_SIGNED = is_signed,
+
+#undef __array
+#define __array(attr_nr, attr_flag, name, nla_type, type, maxlen,	\
+		__get, __put, is_signed)				\
+	F_ ## name ## _IS_SIGNED = is_signed,
 
 #include GENL_MAGIC_INCLUDE_FILE
 
