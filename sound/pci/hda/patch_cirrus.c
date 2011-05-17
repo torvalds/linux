@@ -922,7 +922,7 @@ static void init_output(struct hda_codec *codec)
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
 		if (!cfg->speaker_outs)
 			continue;
-		if (get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP) {
+		if (is_jack_detectable(codec, nid)) {
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_UNSOLICITED_ENABLE,
 					    AC_USRSP_EN | HP_EVENT);

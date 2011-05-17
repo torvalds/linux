@@ -3114,8 +3114,7 @@ static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
 
 	for (i = 0; i < num_outs && i < ARRAY_SIZE(chname); i++) {
 		if (type == AUTO_PIN_HP_OUT && !spec->hp_detect) {
-			wid_caps = get_wcaps(codec, pins[i]);
-			if (wid_caps & AC_WCAP_UNSOL_CAP)
+			if (is_jack_detectable(codec, pins[i]))
 				spec->hp_detect = 1;
 		}
 		nid = dac_nids[i];
@@ -3611,7 +3610,7 @@ static int stac_check_auto_mic(struct hda_codec *codec)
 			return 0;
 	if (!fixed || (!ext && !dock))
 		return 0; /* no input to switch */
-	if (!(get_wcaps(codec, ext) & AC_WCAP_UNSOL_CAP))
+	if (!is_jack_detectable(codec, ext))
 		return 0; /* no unsol support */
 	if (set_mic_route(codec, &spec->ext_mic, ext) ||
 	    set_mic_route(codec, &spec->int_mic, fixed) ||
@@ -3926,13 +3925,11 @@ static int stac9200_auto_create_hp_ctls(struct hda_codec *codec,
 {
 	struct sigmatel_spec *spec = codec->spec;
 	hda_nid_t pin = cfg->hp_pins[0];
-	unsigned int wid_caps;
 
 	if (! pin)
 		return 0;
 
-	wid_caps = get_wcaps(codec, pin);
-	if (wid_caps & AC_WCAP_UNSOL_CAP)
+	if (is_jack_detectable(codec, pin))
 		spec->hp_detect = 1;
 
 	return 0;
@@ -4143,7 +4140,7 @@ static int enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
 	struct sigmatel_event *event;
 	int tag;
 
-	if (!(get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP))
+	if (!is_jack_detectable(codec, nid))
 		return 0;
 	event = stac_get_event(codec, nid);
 	if (event) {

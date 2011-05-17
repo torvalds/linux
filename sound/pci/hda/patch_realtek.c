@@ -1628,7 +1628,7 @@ static void alc_init_auto_mic(struct hda_codec *codec)
 	}
 	if (!ext || !fixed)
 		return;
-	if (!(get_wcaps(codec, ext) & AC_WCAP_UNSOL_CAP))
+	if (!is_jack_detectable(codec, ext))
 		return; /* no unsol support */
 	snd_printdd("realtek: Enable auto-mic switch on NID 0x%x/0x%x\n",
 		    ext, fixed);
