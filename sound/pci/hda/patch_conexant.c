@@ -475,12 +475,18 @@ static const struct snd_kcontrol_new cxt_beep_mixer[] = {
 static const char * const slave_vols[] = {
 	"Headphone Playback Volume",
 	"Speaker Playback Volume",
+	"Front Playback Volume",
+	"Surround Playback Volume",
+	"CLFE Playback Volume",
 	NULL
 };
 
 static const char * const slave_sws[] = {
 	"Headphone Playback Switch",
 	"Speaker Playback Switch",
+	"Front Playback Switch",
+	"Surround Playback Switch",
+	"CLFE Playback Switch",
 	NULL
 };
 
