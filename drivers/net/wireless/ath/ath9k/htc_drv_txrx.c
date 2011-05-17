@@ -875,6 +875,7 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 		rfilt |= ATH9K_RX_FILTER_CONTROL;
 
 	if ((ah->opmode == NL80211_IFTYPE_STATION) &&
+	    (priv->nvifs <= 1) &&
 	    !(priv->rxfilter & FIF_BCN_PRBRESP_PROMISC))
 		rfilt |= ATH9K_RX_FILTER_MYBEACON;
 	else
@@ -887,6 +888,9 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 
 	if (priv->rxfilter & FIF_PSPOLL)
 		rfilt |= ATH9K_RX_FILTER_PSPOLL;
+
+	if (priv->nvifs > 1)
+		rfilt |= ATH9K_RX_FILTER_MCAST_BCAST_ALL;
 
 	return rfilt;
 
