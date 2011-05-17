@@ -2118,7 +2118,6 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 	int err;
 
 	/* Get microcode */
-	tmshigh = ssb_read32(dev->sdev, SSB_TMSHIGH);
 	if ((rev >= 5) && (rev <= 10))
 		filename = "ucode5";
 	else if ((rev >= 11) && (rev <= 12))
@@ -2157,6 +2156,7 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 	switch (dev->phy.type) {
 	case B43_PHYTYPE_A:
 		if ((rev >= 5) && (rev <= 10)) {
+			tmshigh = ssb_read32(dev->sdev, SSB_TMSHIGH);
 			if (tmshigh & B43_TMSHIGH_HAVE_2GHZ_PHY)
 				filename = "a0g1initvals5";
 			else
@@ -2201,6 +2201,7 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 	switch (dev->phy.type) {
 	case B43_PHYTYPE_A:
 		if ((rev >= 5) && (rev <= 10)) {
+			tmshigh = ssb_read32(dev->sdev, SSB_TMSHIGH);
 			if (tmshigh & B43_TMSHIGH_HAVE_2GHZ_PHY)
 				filename = "a0g1bsinitvals5";
 			else
