@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -243,6 +244,9 @@ static struct sys_device s3c2412_sysdev = {
 int __init s3c2412_init(void)
 {
 	printk("S3C2412: Initialising architecture\n");
+
+	register_syscore_ops(&s3c2412_pm_syscore_ops);
+	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 
 	return sysdev_register(&s3c2412_sysdev);
 }
