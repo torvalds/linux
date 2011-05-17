@@ -1809,6 +1809,15 @@ int wm831x_device_shutdown(struct wm831x *wm831x)
 
 EXPORT_SYMBOL_GPL(wm831x_device_shutdown);
 
+
+int wm831x_device_restart(struct wm831x *wm831x)
+{
+	wm831x_reg_write(wm831x,WM831X_RESET_ID, 0xffff); 
+
+	return 0;
+}
+
+
 MODULE_DESCRIPTION("Core support for the WM831X AudioPlus PMIC");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mark Brown");

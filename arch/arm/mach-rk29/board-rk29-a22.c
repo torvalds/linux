@@ -3093,14 +3093,23 @@ static void __init machine_rk29_init_irq(void)
 }
 
 #define POWER_ON_PIN RK29_PIN4_PA4
-extern void wm831x_power_off(void);
 static void rk29_pm_power_off(void)
 {
 	printk(KERN_ERR "rk29_pm_power_off start...\n");
+	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
 #if defined(CONFIG_MFD_WM831X)
 	wm831x_device_shutdown(gWm831x);
 #endif
 	while (1);
+}
+static void rk29_pm_power_restart(void)
+{
+	printk("%s\n",__FUNCTION__);
+	mdelay(2);
+#if defined(CONFIG_MFD_WM831X)
+	wm831x_device_restart(gWm831x);
+#endif
+
 }
 
 static void __init machine_rk29_board_init(void)
@@ -3111,6 +3120,7 @@ static void __init machine_rk29_board_init(void)
 	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 	pm_power_off = rk29_pm_power_off;
+	arm_pm_restart = rk29_pm_power_restart;
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
