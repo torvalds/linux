@@ -69,7 +69,8 @@ struct mwifiex_drv_mode {
 #define MWIFIEX_TIMER_10S			10000
 #define MWIFIEX_TIMER_1S			1000
 
-#define MAX_TX_PENDING      60
+#define MAX_TX_PENDING      100
+#define LOW_TX_PENDING      80
 
 #define MWIFIEX_UPLD_SIZE               (2312)
 
