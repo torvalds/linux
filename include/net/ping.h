@@ -44,8 +44,6 @@ extern struct proto ping_prot;
 extern void ping_rcv(struct sk_buff *);
 extern void ping_err(struct sk_buff *, u32 info);
 
-extern void inet_get_ping_group_range_net(struct net *net, unsigned int *low, unsigned int *high);
-
 #ifdef CONFIG_PROC_FS
 extern int __init ping_proc_init(void);
 extern void ping_proc_exit(void);
