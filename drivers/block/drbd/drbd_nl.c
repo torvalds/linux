@@ -272,9 +272,22 @@ static int _try_outdate_peer_async(void *data)
 {
 	struct drbd_conf *mdev = (struct drbd_conf *)data;
 	enum drbd_disk_state nps;
+	union drbd_state ns;
 
 	nps = drbd_try_outdate_peer(mdev);
-	drbd_request_state(mdev, NS(pdsk, nps));
+
+	/* Not using
+	   drbd_request_state(mdev, NS(pdsk, nps));
+	   here, because we might were able to re-establish the connection in the
+	   meantime.
+	*/
+	spin_lock_irq(&mdev->req_lock);
+	ns = mdev->state;
+	if (ns.conn < C_WF_REPORT_PARAMS) {
+		ns.pdsk = nps;
+		_drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
+	}
+	spin_unlock_irq(&mdev->req_lock);
 
 	return 0;
 }
