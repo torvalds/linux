@@ -258,7 +258,7 @@ static int ath9k_init_htc_services(struct ath9k_htc_priv *priv, u16 devid,
 	 */
 
 	if (IS_AR7010_DEVICE(drv_info))
-		priv->htc->credits = 48;
+		priv->htc->credits = 45;
 	else
 		priv->htc->credits = 33;
 
