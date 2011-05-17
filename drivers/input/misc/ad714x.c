@@ -1257,7 +1257,9 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 	}
 
 	error = request_threaded_irq(ad714x->irq, NULL, ad714x_interrupt_thread,
-			IRQF_TRIGGER_FALLING, "ad714x_captouch", ad714x);
+				plat_data->irqflags ?
+					plat_data->irqflags : IRQF_TRIGGER_FALLING,
+				"ad714x_captouch", ad714x);
 	if (error) {
 		dev_err(dev, "can't allocate irq %d\n", ad714x->irq);
 		goto err_unreg_dev;
