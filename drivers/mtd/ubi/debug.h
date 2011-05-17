@@ -32,8 +32,6 @@ struct ubi_mkvol_req;
 #ifdef CONFIG_MTD_UBI_DEBUG
 #include <linux/random.h>
 
-#define dbg_err(fmt, ...) ubi_err(fmt, ##__VA_ARGS__)
-
 #define ubi_assert(expr)  do {                                               \
 	if (unlikely(!(expr))) {                                             \
 		printk(KERN_CRIT "UBI assert failed in %s at %u (pid %d)\n", \
@@ -42,16 +40,28 @@ struct ubi_mkvol_req;
 	}                                                                    \
 } while (0)
 
-#define dbg_msg(fmt, ...)                                    \
-	printk(KERN_DEBUG "UBI DBG (pid %d): %s: " fmt "\n", \
-	       current->pid, __func__, ##__VA_ARGS__)
-
-#define dbg_do_msg(typ, fmt, ...) do {                       \
-	if (ubi_msg_flags & typ)                             \
-		dbg_msg(fmt, ##__VA_ARGS__);                 \
-} while (0)
+#define dbg_err(fmt, ...) ubi_err(fmt, ##__VA_ARGS__)
 
 #define ubi_dbg_dump_stack() dump_stack()
+
+#define ubi_dbg_print_hex_dump(l, ps, pt, r, g, b, len, a)  \
+		print_hex_dump(l, ps, pt, r, g, b, len, a)
+
+#define ubi_dbg_msg(type, fmt, ...) \
+	pr_debug("UBI DBG " type ": " fmt "\n", ##__VA_ARGS__)
+
+/* Just a debugging messages not related to any specific UBI subsystem */
+#define dbg_msg(fmt, ...) ubi_dbg_msg("msg", fmt, ##__VA_ARGS__)
+/* General debugging messages */
+#define dbg_gen(fmt, ...) ubi_dbg_msg("gen", fmt, ##__VA_ARGS__)
+/* Messages from the eraseblock association sub-system */
+#define dbg_eba(fmt, ...) ubi_dbg_msg("eba", fmt, ##__VA_ARGS__)
+/* Messages from the wear-leveling sub-system */
+#define dbg_wl(fmt, ...)  ubi_dbg_msg("wl", fmt, ##__VA_ARGS__)
+/* Messages from the input/output sub-system */
+#define dbg_io(fmt, ...)  ubi_dbg_msg("io", fmt, ##__VA_ARGS__)
+/* Initialization and build messages */
+#define dbg_bld(fmt, ...) ubi_dbg_msg("bld", fmt, ##__VA_ARGS__)
 
 void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr);
 void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
@@ -61,43 +71,6 @@ void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv);
 void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type);
 void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
 void ubi_dbg_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len);
-
-extern unsigned int ubi_msg_flags;
-
-/*
- * Debugging message type flags (must match msg_type_names in debug.c).
- *
- * UBI_MSG_GEN: general messages
- * UBI_MSG_EBA: journal messages
- * UBI_MSG_WL: mount messages
- * UBI_MSG_IO: commit messages
- * UBI_MSG_BLD: LEB find messages
- */
-enum {
-	UBI_MSG_GEN  = 0x1,
-	UBI_MSG_EBA  = 0x2,
-	UBI_MSG_WL   = 0x4,
-	UBI_MSG_IO   = 0x8,
-	UBI_MSG_BLD  = 0x10,
-};
-
-#define ubi_dbg_print_hex_dump(l, ps, pt, r, g, b, len, a)  \
-		print_hex_dump(l, ps, pt, r, g, b, len, a)
-
-/* General debugging messages */
-#define dbg_gen(fmt, ...) dbg_do_msg(UBI_MSG_GEN, fmt, ##__VA_ARGS__)
-
-/* Messages from the eraseblock association sub-system */
-#define dbg_eba(fmt, ...) dbg_do_msg(UBI_MSG_EBA, fmt, ##__VA_ARGS__)
-
-/* Messages from the wear-leveling sub-system */
-#define dbg_wl(fmt, ...) dbg_do_msg(UBI_MSG_WL, fmt, ##__VA_ARGS__)
-
-/* Messages from the input/output sub-system */
-#define dbg_io(fmt, ...) dbg_do_msg(UBI_MSG_IO, fmt, ##__VA_ARGS__)
-
-/* Initialization and build messages */
-#define dbg_bld(fmt, ...) dbg_do_msg(UBI_MSG_BLD, fmt, ##__VA_ARGS__)
 
 extern unsigned int ubi_chk_flags;
 
@@ -197,17 +170,17 @@ static inline int ubi_dbg_is_erase_failure(void)
 		ubi_err(fmt, ##__VA_ARGS__);                                 \
 } while (0)
 
-#define dbg_msg(fmt, ...) do {                                               \
+#define ubi_dbg_msg(fmt, ...) do {                                           \
 	if (0)                                                               \
-		printk(KERN_DEBUG "UBI DBG (pid %d): %s: " fmt "\n",         \
-		       current->pid, __func__, ##__VA_ARGS__);               \
+		pr_debug(fmt "\n", ##__VA_ARGS__);                           \
 } while (0)
 
-#define dbg_gen(fmt, ...)  dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_eba(fmt, ...)  dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_wl(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_io(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_bld(fmt, ...)  dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_msg(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_gen(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_eba(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_wl(fmt, ...)   ubi_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_io(fmt, ...)   ubi_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_bld(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
 
 static inline void ubi_dbg_dump_stack(void)                          { return; }
 static inline void
