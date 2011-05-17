@@ -533,7 +533,6 @@ int __get_mtd_device(struct mtd_info *mtd)
 		return -ENODEV;
 
 	if (mtd->get_device) {
-
 		err = mtd->get_device(mtd);
 
 		if (err) {
@@ -571,21 +570,13 @@ struct mtd_info *get_mtd_device_nm(const char *name)
 	if (!mtd)
 		goto out_unlock;
 
-	if (!try_module_get(mtd->owner))
+	err = __get_mtd_device(mtd);
+	if (err)
 		goto out_unlock;
 
-	if (mtd->get_device) {
-		err = mtd->get_device(mtd);
-		if (err)
-			goto out_put;
-	}
-
-	mtd->usecount++;
 	mutex_unlock(&mtd_table_mutex);
 	return mtd;
 
-out_put:
-	module_put(mtd->owner);
 out_unlock:
 	mutex_unlock(&mtd_table_mutex);
 	return ERR_PTR(err);
