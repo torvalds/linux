@@ -1560,8 +1560,7 @@ static void alc_init_auto_hp(struct hda_codec *codec)
 
 	for (i = 0; i < cfg->hp_outs; i++) {
 		hda_nid_t nid = cfg->hp_pins[i];
-		if (!(snd_hda_query_pin_caps(codec, nid) &
-		      AC_PINCAP_PRES_DETECT))
+		if (!is_jack_detectable(codec, nid))
 			continue;
 		snd_printdd("realtek: Enable HP auto-muting on NID 0x%x\n",
 			    nid);
@@ -1576,8 +1575,7 @@ static void alc_init_auto_hp(struct hda_codec *codec)
 	    cfg->line_out_pins[0] != cfg->speaker_pins[0]) {
 		for (i = 0; i < cfg->line_outs; i++) {
 			hda_nid_t nid = cfg->line_out_pins[i];
-			if (!(snd_hda_query_pin_caps(codec, nid) &
-			      AC_PINCAP_PRES_DETECT))
+			if (!is_jack_detectable(codec, nid))
 				continue;
 			snd_printdd("realtek: Enable Line-Out auto-muting "
 				    "on NID 0x%x\n", nid);
@@ -19596,8 +19594,7 @@ static void alc680_rec_autoswitch(struct hda_codec *codec)
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		nid = cfg->inputs[i].pin;
-		if (!(snd_hda_query_pin_caps(codec, nid) &
-		      AC_PINCAP_PRES_DETECT))
+		if (!is_jack_detectable(codec, nid))
 			continue;
 		if (snd_hda_jack_detect(codec, nid)) {
 			if (cfg->inputs[i].type < type_found) {
