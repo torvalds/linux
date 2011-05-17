@@ -81,12 +81,10 @@ struct ipq {
  * We want to check ECN values of all fragments, do detect invalid combinations.
  * In ipq->ecn, we store the OR value of each ip4_frag_ecn() fragment value.
  */
-enum {
-	IPFRAG_ECN_NOT_ECT	= 0x01, /* one frag had ECN_NOT_ECT */
-	IPFRAG_ECN_ECT_1	= 0x02, /* one frag had ECN_ECT_1 */
-	IPFRAG_ECN_ECT_0	= 0x04, /* one frag had ECN_ECT_0 */
-	IPFRAG_ECN_CE		= 0x08, /* one frag had ECN_CE */
-};
+#define	IPFRAG_ECN_NOT_ECT	0x01 /* one frag had ECN_NOT_ECT */
+#define	IPFRAG_ECN_ECT_1	0x02 /* one frag had ECN_ECT_1 */
+#define	IPFRAG_ECN_ECT_0	0x04 /* one frag had ECN_ECT_0 */
+#define	IPFRAG_ECN_CE		0x08 /* one frag had ECN_CE */
 
 static inline u8 ip4_frag_ecn(u8 tos)
 {
