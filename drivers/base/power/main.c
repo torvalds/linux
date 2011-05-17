@@ -579,10 +579,12 @@ static bool is_async(struct device *dev)
  * Execute the appropriate "resume" callback for all devices whose status
  * indicates that they are suspended.
  */
-static void dpm_resume(pm_message_t state)
+void dpm_resume(pm_message_t state)
 {
 	struct device *dev;
 	ktime_t starttime = ktime_get();
+
+	might_sleep();
 
 	mutex_lock(&dpm_list_mtx);
 	pm_transition = state;
@@ -656,9 +658,11 @@ static void device_complete(struct device *dev, pm_message_t state)
  * Execute the ->complete() callbacks for all devices whose PM status is not
  * DPM_ON (this allows new devices to be registered).
  */
-static void dpm_complete(pm_message_t state)
+void dpm_complete(pm_message_t state)
 {
 	struct list_head list;
+
+	might_sleep();
 
 	INIT_LIST_HEAD(&list);
 	mutex_lock(&dpm_list_mtx);
@@ -688,7 +692,6 @@ static void dpm_complete(pm_message_t state)
  */
 void dpm_resume_end(pm_message_t state)
 {
-	might_sleep();
 	dpm_resume(state);
 	dpm_complete(state);
 }
@@ -912,10 +915,12 @@ static int device_suspend(struct device *dev)
  * dpm_suspend - Execute "suspend" callbacks for all non-sysdev devices.
  * @state: PM transition of the system being carried out.
  */
-static int dpm_suspend(pm_message_t state)
+int dpm_suspend(pm_message_t state)
 {
 	ktime_t starttime = ktime_get();
 	int error = 0;
+
+	might_sleep();
 
 	mutex_lock(&dpm_list_mtx);
 	pm_transition = state;
@@ -1003,9 +1008,11 @@ static int device_prepare(struct device *dev, pm_message_t state)
  *
  * Execute the ->prepare() callback(s) for all devices.
  */
-static int dpm_prepare(pm_message_t state)
+int dpm_prepare(pm_message_t state)
 {
 	int error = 0;
+
+	might_sleep();
 
 	mutex_lock(&dpm_list_mtx);
 	while (!list_empty(&dpm_list)) {
@@ -1055,7 +1062,6 @@ int dpm_suspend_start(pm_message_t state)
 {
 	int error;
 
-	might_sleep();
 	error = dpm_prepare(state);
 	if (!error)
 		error = dpm_suspend(state);

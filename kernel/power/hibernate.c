@@ -327,20 +327,25 @@ static int create_image(int platform_mode)
 
 int hibernation_snapshot(int platform_mode)
 {
+	pm_message_t msg = PMSG_RECOVER;
 	int error;
 
 	error = platform_begin(platform_mode);
 	if (error)
 		goto Close;
 
+	error = dpm_prepare(PMSG_FREEZE);
+	if (error)
+		goto Complete_devices;
+
 	/* Preallocate image memory before shutting down devices. */
 	error = hibernate_preallocate_memory();
 	if (error)
-		goto Close;
+		goto Complete_devices;
 
 	suspend_console();
 	pm_restrict_gfp_mask();
-	error = dpm_suspend_start(PMSG_FREEZE);
+	error = dpm_suspend(PMSG_FREEZE);
 	if (error)
 		goto Recover_platform;
 
@@ -358,13 +363,17 @@ int hibernation_snapshot(int platform_mode)
 	if (error || !in_suspend)
 		swsusp_free();
 
-	dpm_resume_end(in_suspend ?
-		(error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE);
+	msg = in_suspend ? (error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE;
+	dpm_resume(msg);
 
 	if (error || !in_suspend)
 		pm_restore_gfp_mask();
 
 	resume_console();
+
+ Complete_devices:
+	dpm_complete(msg);
+
  Close:
 	platform_end(platform_mode);
 	return error;
