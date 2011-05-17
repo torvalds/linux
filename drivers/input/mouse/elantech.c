@@ -248,9 +248,10 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
  */
 static void elantech_report_absolute_v2(struct psmouse *psmouse)
 {
+	struct elantech_data *etd = psmouse->private;
 	struct input_dev *dev = psmouse->dev;
 	unsigned char *packet = psmouse->packet;
-	int fingers, x1, y1, x2, y2;
+	int fingers, x1, y1, x2, y2, width = 0, pres = 0;
 
 	/* byte 0: n1  n0   .   .   .   .   R   L */
 	fingers = (packet[0] & 0xc0) >> 6;
@@ -278,6 +279,8 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 		 */
 		input_report_abs(dev, ABS_Y,
 			ETP_YMAX_V2 - (((packet[4] & 0x03) << 8) | packet[5]));
+		pres = (packet[1] & 0xf0) | ((packet[4] & 0xf0) >> 4);
+		width = ((packet[0] & 0x30) >> 2) | ((packet[3] & 0x30) >> 4);
 		break;
 
 	case 2:
@@ -311,6 +314,10 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 		input_report_abs(dev, ABS_HAT0Y, y1);
 		input_report_abs(dev, ABS_HAT1X, x2);
 		input_report_abs(dev, ABS_HAT1Y, y2);
+
+		/* Unknown so just report sensible values */
+		pres = 127;
+		width = 7;
 		break;
 	}
 
@@ -320,6 +327,10 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 	input_report_key(dev, BTN_TOOL_QUADTAP, fingers == 4);
 	input_report_key(dev, BTN_LEFT, packet[0] & 0x01);
 	input_report_key(dev, BTN_RIGHT, packet[0] & 0x02);
+	if (etd->reports_pressure) {
+		input_report_abs(dev, ABS_PRESSURE, pres);
+		input_report_abs(dev, ABS_TOOL_WIDTH, width);
+	}
 
 	input_sync(dev);
 }
@@ -478,6 +489,12 @@ static void elantech_set_input_params(struct psmouse *psmouse)
 		__set_bit(BTN_TOOL_QUADTAP, dev->keybit);
 		input_set_abs_params(dev, ABS_X, ETP_XMIN_V2, ETP_XMAX_V2, 0, 0);
 		input_set_abs_params(dev, ABS_Y, ETP_YMIN_V2, ETP_YMAX_V2, 0, 0);
+		if (etd->reports_pressure) {
+			input_set_abs_params(dev, ABS_PRESSURE, ETP_PMIN_V2,
+					     ETP_PMAX_V2, 0, 0);
+			input_set_abs_params(dev, ABS_TOOL_WIDTH, ETP_WMIN_V2,
+					     ETP_WMAX_V2, 0, 0);
+		}
 		input_set_abs_params(dev, ABS_HAT0X, ETP_2FT_XMIN, ETP_2FT_XMAX, 0, 0);
 		input_set_abs_params(dev, ABS_HAT0Y, ETP_2FT_YMIN, ETP_2FT_YMAX, 0, 0);
 		input_set_abs_params(dev, ABS_HAT1X, ETP_2FT_XMIN, ETP_2FT_XMAX, 0, 0);
@@ -725,6 +742,10 @@ int elantech_init(struct psmouse *psmouse)
 		etd->debug = 1;
 		/* Don't know how to do parity checking for version 2 */
 		etd->paritycheck = 0;
+
+		if (etd->fw_version >= 0x020800)
+			etd->reports_pressure = true;
+
 	} else {
 		etd->hw_version = 1;
 		etd->paritycheck = 1;
