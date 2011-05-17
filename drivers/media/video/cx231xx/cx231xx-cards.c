@@ -507,6 +507,31 @@ struct cx231xx_board cx231xx_boards[] = {
 			}
 		},
 	},
+
+	[CX231XX_BOARD_ICONBIT_U100] = {
+		.name = "Iconbit Analog Stick U100 FM",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x1C,
+		.gpio_pin_status_mask = 0x4001000,
+
+		.input = {{
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
@@ -540,6 +565,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_PV_XCAPTURE_USB},
 	{USB_DEVICE(0x1b80, 0xe424),
 	 .driver_info = CX231XX_BOARD_KWORLD_UB430_USB_HYBRID},
+	{USB_DEVICE(0x1f4d, 0x0237),
+	 .driver_info = CX231XX_BOARD_ICONBIT_U100},
 	{},
 };
 
