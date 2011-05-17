@@ -698,7 +698,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 				      struct ethtool_pauseparam *pause)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	enum efx_fc_type wanted_fc, old_fc;
+	u8 wanted_fc, old_fc;
 	u32 old_adv;
 	bool reset;
 	int rc = 0;

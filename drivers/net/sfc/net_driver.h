@@ -449,11 +449,9 @@ enum nic_state {
 struct efx_nic;
 
 /* Pseudo bit-mask flow control field */
-enum efx_fc_type {
-	EFX_FC_RX = FLOW_CTRL_RX,
-	EFX_FC_TX = FLOW_CTRL_TX,
-	EFX_FC_AUTO = 4,
-};
+#define EFX_FC_RX	FLOW_CTRL_RX
+#define EFX_FC_TX	FLOW_CTRL_TX
+#define EFX_FC_AUTO	4
 
 /**
  * struct efx_link_state - Current state of the link
@@ -465,7 +463,7 @@ enum efx_fc_type {
 struct efx_link_state {
 	bool up;
 	bool fd;
-	enum efx_fc_type fc;
+	u8 fc;
 	unsigned int speed;
 };
 
@@ -784,7 +782,7 @@ struct efx_nic {
 
 	bool promiscuous;
 	union efx_multicast_hash multicast_hash;
-	enum efx_fc_type wanted_fc;
+	u8 wanted_fc;
 
 	atomic_t rx_reset;
 	enum efx_loopback_mode loopback_mode;

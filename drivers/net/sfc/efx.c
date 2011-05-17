@@ -833,7 +833,7 @@ void efx_link_set_advertising(struct efx_nic *efx, u32 advertising)
 	}
 }
 
-void efx_link_set_wanted_fc(struct efx_nic *efx, enum efx_fc_type wanted_fc)
+void efx_link_set_wanted_fc(struct efx_nic *efx, u8 wanted_fc)
 {
 	efx->wanted_fc = wanted_fc;
 	if (efx->link_advertising) {
