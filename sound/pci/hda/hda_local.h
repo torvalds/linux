@@ -493,6 +493,11 @@ u32 snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid);
 u32 snd_hda_pin_sense(struct hda_codec *codec, hda_nid_t nid);
 int snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid);
 
+static inline bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid)
+{
+	return !!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_PRES_DETECT);
+}
+
 /* flags for hda_nid_item */
 #define HDA_NID_ITEM_AMP	(1<<0)
 

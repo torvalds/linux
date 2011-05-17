@@ -39,6 +39,7 @@
 
 #define CONEXANT_HP_EVENT	0x37
 #define CONEXANT_MIC_EVENT	0x38
+#define CONEXANT_LINE_EVENT	0x39
 
 /* Conexant 5051 specific */
 
@@ -81,6 +82,7 @@ struct conexant_spec {
 					 */
 	unsigned int cur_eapd;
 	unsigned int hp_present;
+	unsigned int line_present;
 	unsigned int auto_mic;
 	int auto_mic_ext;		/* imux_pins[] index for ext mic */
 	unsigned int need_dac_fix;
@@ -123,6 +125,9 @@ struct conexant_spec {
 
 	unsigned int port_d_mode;
 	unsigned int auto_mute:1;	/* used in auto-parser */
+	unsigned int detect_line:1;	/* Line-out detection enabled */
+	unsigned int automute_lines:1;	/* automute line-out as well */
+	unsigned int automute_hp_lo:1;	/* both HP and LO available */
 	unsigned int dell_automute:1;
 	unsigned int dell_vostro:1;
 	unsigned int ideapad:1;
@@ -3420,47 +3425,192 @@ static void cx_auto_parse_output(struct hda_codec *codec)
 	spec->multiout.dac_nids = spec->private_dac_nids;
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (cfg->hp_outs > 0)
-		spec->auto_mute = 1;
+	for (i = 0; i < cfg->hp_outs; i++) {
+		if (is_jack_detectable(codec, cfg->hp_pins[i])) {
+			spec->auto_mute = 1;
+			break;
+		}
+	}
+	if (spec->auto_mute && cfg->line_out_pins[0] &&
+	    cfg->line_out_pins[0] != cfg->hp_pins[0] &&
+	    cfg->line_out_pins[0] != cfg->speaker_pins[0]) {
+		for (i = 0; i < cfg->line_outs; i++) {
+			if (is_jack_detectable(codec, cfg->line_out_pins[i])) {
+				spec->detect_line = 1;
+				break;
+			}
+		}
+		spec->automute_lines = spec->detect_line;
+	}
+
 	spec->vmaster_nid = spec->private_dac_nids[0];
 }
 
 static void cx_auto_turn_eapd(struct hda_codec *codec, int num_pins,
 			      hda_nid_t *pins, bool on);
 
+static void do_automute(struct hda_codec *codec, int num_pins,
+			hda_nid_t *pins, bool on)
+{
+	int i;
+	for (i = 0; i < num_pins; i++)
+		snd_hda_codec_write(codec, pins[i], 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    on ? PIN_OUT : 0);
+	cx_auto_turn_eapd(codec, num_pins, pins, on);
+}
+
+static int detect_jacks(struct hda_codec *codec, int num_pins, hda_nid_t *pins)
+{
+	int i, present = 0;
+
+	for (i = 0; i < num_pins; i++) {
+		hda_nid_t nid = pins[i];
+		if (!nid || !is_jack_detectable(codec, nid))
+			break;
+		snd_hda_input_jack_report(codec, nid);
+		present |= snd_hda_jack_detect(codec, nid);
+	}
+	return present;
+}
+
 /* auto-mute/unmute speaker and line outs according to headphone jack */
+static void cx_auto_update_speakers(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int on;
+
+	if (!spec->auto_mute)
+		on = 0;
+	else
+		on = spec->hp_present | spec->line_present;
+	cx_auto_turn_eapd(codec, cfg->hp_outs, cfg->hp_pins, on);
+	do_automute(codec, cfg->speaker_outs, cfg->speaker_pins, !on);
+
+	/* toggle line-out mutes if needed, too */
+	/* if LO is a copy of either HP or Speaker, don't need to handle it */
+	if (cfg->line_out_pins[0] == cfg->hp_pins[0] ||
+	    cfg->line_out_pins[0] == cfg->speaker_pins[0])
+		return;
+	if (!spec->automute_lines || !spec->auto_mute)
+		on = 0;
+	else
+		on = spec->hp_present;
+	do_automute(codec, cfg->line_outs, cfg->line_out_pins, !on);
+}
+
 static void cx_auto_hp_automute(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i, present;
 
 	if (!spec->auto_mute)
 		return;
-	present = 0;
-	for (i = 0; i < cfg->hp_outs; i++) {
-		if (snd_hda_jack_detect(codec, cfg->hp_pins[i])) {
-			present = 1;
-			break;
-		}
-	}
-	cx_auto_turn_eapd(codec, cfg->hp_outs, cfg->hp_pins, present);
-	for (i = 0; i < cfg->line_outs; i++) {
-		snd_hda_codec_write(codec, cfg->line_out_pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    present ? 0 : PIN_OUT);
-	}
-	cx_auto_turn_eapd(codec, cfg->line_outs, cfg->line_out_pins, !present);
-	for (i = 0; !present && i < cfg->line_outs; i++)
-		if (snd_hda_jack_detect(codec, cfg->line_out_pins[i]))
-			present = 1;
-	for (i = 0; i < cfg->speaker_outs; i++) {
-		snd_hda_codec_write(codec, cfg->speaker_pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    present ? 0 : PIN_OUT);
-	}
-	cx_auto_turn_eapd(codec, cfg->speaker_outs, cfg->speaker_pins, !present);
+	spec->hp_present = detect_jacks(codec, cfg->hp_outs, cfg->hp_pins);
+	cx_auto_update_speakers(codec);
 }
+
+static void cx_auto_line_automute(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+
+	if (!spec->auto_mute || !spec->detect_line)
+		return;
+	spec->line_present = detect_jacks(codec, cfg->line_outs,
+					  cfg->line_out_pins);
+	cx_auto_update_speakers(codec);
+}
+
+static int cx_automute_mode_info(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct conexant_spec *spec = codec->spec;
+	static const char * const texts2[] = {
+		"Disabled", "Enabled"
+	};
+	static const char * const texts3[] = {
+		"Disabled", "Speaker Only", "Line-Out+Speaker"
+	};
+	const char * const *texts;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	if (spec->automute_hp_lo) {
+		uinfo->value.enumerated.items = 3;
+		texts = texts3;
+	} else {
+		uinfo->value.enumerated.items = 2;
+		texts = texts2;
+	}
+	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
+		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
+	strcpy(uinfo->value.enumerated.name,
+	       texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int cx_automute_mode_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct conexant_spec *spec = codec->spec;
+	unsigned int val;
+	if (!spec->auto_mute)
+		val = 0;
+	else if (!spec->automute_lines)
+		val = 1;
+	else
+		val = 2;
+	ucontrol->value.enumerated.item[0] = val;
+	return 0;
+}
+
+static int cx_automute_mode_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct conexant_spec *spec = codec->spec;
+
+	switch (ucontrol->value.enumerated.item[0]) {
+	case 0:
+		if (!spec->auto_mute)
+			return 0;
+		spec->auto_mute = 0;
+		break;
+	case 1:
+		if (spec->auto_mute && !spec->automute_lines)
+			return 0;
+		spec->auto_mute = 1;
+		spec->automute_lines = 0;
+		break;
+	case 2:
+		if (!spec->automute_hp_lo)
+			return -EINVAL;
+		if (spec->auto_mute && spec->automute_lines)
+			return 0;
+		spec->auto_mute = 1;
+		spec->automute_lines = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+	cx_auto_update_speakers(codec);
+	return 1;
+}
+
+static const struct snd_kcontrol_new cx_automute_mode_enum[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Auto-Mute Mode",
+		.info = cx_automute_mode_info,
+		.get = cx_automute_mode_get,
+		.put = cx_automute_mode_put,
+	},
+	{ }
+};
 
 static int cx_auto_mux_enum_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
@@ -3607,7 +3757,9 @@ static void cx_auto_unsol_event(struct hda_codec *codec, unsigned int res)
 	switch (res >> 26) {
 	case CONEXANT_HP_EVENT:
 		cx_auto_hp_automute(codec);
-		snd_hda_input_jack_report(codec, nid);
+		break;
+	case CONEXANT_LINE_EVENT:
+		cx_auto_line_automute(codec);
 		break;
 	case CONEXANT_MIC_EVENT:
 		cx_auto_automic(codec);
@@ -3630,7 +3782,7 @@ static int is_ext_mic(struct hda_codec *codec, hda_nid_t pin)
 	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, pin);
 	return get_defcfg_device(def_conf) == AC_JACK_MIC_IN &&
 		snd_hda_get_input_pin_attr(def_conf) >= INPUT_PIN_ATTR_NORMAL &&
-		(snd_hda_query_pin_caps(codec, pin) & AC_PINCAP_PRES_DETECT);
+		is_jack_detectable(codec, pin);
 }
 
 /* check whether the pin config is suitable for auto-mic switching;
@@ -3794,6 +3946,16 @@ static void mute_outputs(struct hda_codec *codec, int num_nids,
 	}
 }
 
+static void enable_unsol_pins(struct hda_codec *codec, int num_pins,
+			      hda_nid_t *pins, unsigned int tag)
+{
+	int i;
+	for (i = 0; i < num_pins; i++)
+		snd_hda_codec_write(codec, pins[i], 0,
+				    AC_VERB_SET_UNSOLICITED_ENABLE,
+				    AC_USRSP_EN | tag);
+}
+
 static void cx_auto_init_output(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -3808,35 +3970,27 @@ static void cx_auto_init_output(struct hda_codec *codec)
 	mute_outputs(codec, cfg->hp_outs, cfg->hp_pins);
 	mute_outputs(codec, cfg->line_outs, cfg->line_out_pins);
 	mute_outputs(codec, cfg->speaker_outs, cfg->speaker_pins);
-	if (spec->auto_mute) {
-		for (i = 0; i < cfg->hp_outs; i++) {
-			snd_hda_codec_write(codec, cfg->hp_pins[i], 0,
-				    AC_VERB_SET_UNSOLICITED_ENABLE,
-				    AC_USRSP_EN | CONEXANT_HP_EVENT);
-		}
-		cx_auto_hp_automute(codec);
-	} else {
-		for (i = 0; i < cfg->line_outs; i++)
-			snd_hda_codec_write(codec, cfg->line_out_pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
-		for (i = 0; i < cfg->speaker_outs; i++)
-			snd_hda_codec_write(codec, cfg->speaker_pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
-		/* turn on EAPD */
-		cx_auto_turn_eapd(codec, cfg->line_outs, cfg->line_out_pins,
-				  true);
-		cx_auto_turn_eapd(codec, cfg->hp_outs, cfg->hp_pins,
-				  true);
-		cx_auto_turn_eapd(codec, cfg->speaker_outs, cfg->speaker_pins,
-				  true);
-	}
-
 	for (i = 0; i < spec->dac_info_filled; i++) {
 		nid = spec->dac_info[i].dac;
 		if (!nid)
 			nid = spec->multiout.dac_nids[0];
 		select_connection(codec, spec->dac_info[i].pin, nid);
 	}
+	if (spec->auto_mute) {
+		enable_unsol_pins(codec, cfg->hp_outs, cfg->hp_pins,
+				  CONEXANT_HP_EVENT);
+		spec->hp_present = detect_jacks(codec, cfg->hp_outs,
+						cfg->hp_pins);
+		if (spec->detect_line) {
+			enable_unsol_pins(codec, cfg->line_outs,
+					  cfg->line_out_pins,
+					  CONEXANT_LINE_EVENT);
+			spec->line_present =
+				detect_jacks(codec, cfg->line_outs,
+					     cfg->line_out_pins);
+		}
+	}
+	cx_auto_update_speakers(codec);
 }
 
 static void cx_auto_init_input(struct hda_codec *codec)
@@ -3992,6 +4146,13 @@ static int cx_auto_build_output_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
+
+	if (spec->auto_mute) {
+		err = snd_hda_add_new_ctls(codec, cx_automute_mode_enum);
+		if (err < 0)
+			return err;
+	}
+	
 	return 0;
 }
 
