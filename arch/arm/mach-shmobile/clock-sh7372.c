@@ -44,6 +44,11 @@
 #define DSI1PCKCR	0xe6150098
 #define PLLC01CR	0xe6150028
 #define PLLC2CR		0xe615002c
+#define RMSTPCR0	0xe6150110
+#define RMSTPCR1	0xe6150114
+#define RMSTPCR2	0xe6150118
+#define RMSTPCR3	0xe615011c
+#define RMSTPCR4	0xe6150120
 #define SMSTPCR0	0xe6150130
 #define SMSTPCR1	0xe6150134
 #define SMSTPCR2	0xe6150138
@@ -653,6 +658,13 @@ static struct clk_lookup lookups[] = {
 void __init sh7372_clock_init(void)
 {
 	int k, ret = 0;
+
+	/* make sure MSTP bits on the RT/SH4AL-DSP side are off */
+	__raw_writel(0xe4ef8087, RMSTPCR0);
+	__raw_writel(0xffffffff, RMSTPCR1);
+	__raw_writel(0x37c7f7ff, RMSTPCR2);
+	__raw_writel(0xffffffff, RMSTPCR3);
+	__raw_writel(0xffe0fffd, RMSTPCR4);
 
 	for (k = 0; !ret && (k < ARRAY_SIZE(main_clks)); k++)
 		ret = clk_register(main_clks[k]);
