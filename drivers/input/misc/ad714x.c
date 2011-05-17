@@ -158,10 +158,10 @@ static void ad714x_use_com_int(struct ad714x_chip *ad714x,
 	unsigned short data;
 	unsigned short mask;
 
-	mask = ((1 << (end_stage + 1)) - 1) - (1 << start_stage);
+	mask = ((1 << (end_stage + 1)) - 1) - ((1 << start_stage) - 1);
 
 	ad714x->read(ad714x->dev, STG_COM_INT_EN_REG, &data);
-	data |= 1 << start_stage;
+	data |= 1 << end_stage;
 	ad714x->write(ad714x->dev, STG_COM_INT_EN_REG, data);
 
 	ad714x->read(ad714x->dev, STG_HIGH_INT_EN_REG, &data);
@@ -175,10 +175,10 @@ static void ad714x_use_thr_int(struct ad714x_chip *ad714x,
 	unsigned short data;
 	unsigned short mask;
 
-	mask = ((1 << (end_stage + 1)) - 1) - (1 << start_stage);
+	mask = ((1 << (end_stage + 1)) - 1) - ((1 << start_stage) - 1);
 
 	ad714x->read(ad714x->dev, STG_COM_INT_EN_REG, &data);
-	data &= ~(1 << start_stage);
+	data &= ~(1 << end_stage);
 	ad714x->write(ad714x->dev, STG_COM_INT_EN_REG, data);
 
 	ad714x->read(ad714x->dev, STG_HIGH_INT_EN_REG, &data);
