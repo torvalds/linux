@@ -267,15 +267,13 @@ static inline u16 omap_i2c_read_reg(struct omap_i2c_dev *i2c_dev, int reg)
 
 static void omap_i2c_unidle(struct omap_i2c_dev *dev)
 {
-	struct platform_device *pdev;
 	struct omap_i2c_bus_platform_data *pdata;
 
 	WARN_ON(!dev->idle);
 
-	pdev = to_platform_device(dev->dev);
-	pdata = pdev->dev.platform_data;
+	pdata = dev->dev->platform_data;
 
-	pm_runtime_get_sync(&pdev->dev);
+	pm_runtime_get_sync(dev->dev);
 
 	if (pdata->flags & OMAP_I2C_FLAG_RESET_REGS_POSTIDLE) {
 		omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, 0);
@@ -299,14 +297,12 @@ static void omap_i2c_unidle(struct omap_i2c_dev *dev)
 
 static void omap_i2c_idle(struct omap_i2c_dev *dev)
 {
-	struct platform_device *pdev;
 	struct omap_i2c_bus_platform_data *pdata;
 	u16 iv;
 
 	WARN_ON(dev->idle);
 
-	pdev = to_platform_device(dev->dev);
-	pdata = pdev->dev.platform_data;
+	pdata = dev->dev->platform_data;
 
 	dev->iestate = omap_i2c_read_reg(dev, OMAP_I2C_IE_REG);
 	if (pdata->rev == OMAP_I2C_IP_VERSION_2)
@@ -324,7 +320,7 @@ static void omap_i2c_idle(struct omap_i2c_dev *dev)
 	}
 	dev->idle = 1;
 
-	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_put_sync(dev->dev);
 }
 
 static int omap_i2c_init(struct omap_i2c_dev *dev)
@@ -335,11 +331,9 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 	unsigned long timeout;
 	unsigned long internal_clk = 0;
 	struct clk *fclk;
-	struct platform_device *pdev;
 	struct omap_i2c_bus_platform_data *pdata;
 
-	pdev = to_platform_device(dev->dev);
-	pdata = pdev->dev.platform_data;
+	pdata = dev->dev->platform_data;
 
 	if (dev->rev >= OMAP_I2C_OMAP1_REV_2) {
 		/* Disable I2C controller before soft reset */
@@ -821,11 +815,9 @@ omap_i2c_isr(int this_irq, void *dev_id)
 	u16 bits;
 	u16 stat, w;
 	int err, count = 0;
-	struct platform_device *pdev;
 	struct omap_i2c_bus_platform_data *pdata;
 
-	pdev = to_platform_device(dev->dev);
-	pdata = pdev->dev.platform_data;
+	pdata = dev->dev->platform_data;
 
 	if (dev->idle)
 		return IRQ_NONE;
@@ -1047,7 +1039,7 @@ omap_i2c_probe(struct platform_device *pdev)
 	else
 		dev->regs = (u8 *)reg_map_ip_v1;
 
-	pm_runtime_enable(&pdev->dev);
+	pm_runtime_enable(dev->dev);
 	omap_i2c_unidle(dev);
 
 	dev->rev = omap_i2c_read_reg(dev, OMAP_I2C_REV_REG) & 0xff;
