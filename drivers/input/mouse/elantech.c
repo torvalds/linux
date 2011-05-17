@@ -330,14 +330,6 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 		 */
 		input_report_abs(dev, ABS_X, x1 << 2);
 		input_report_abs(dev, ABS_Y, y1 << 2);
-		/*
-		 * For compatibility with the proprietary X Elantech driver
-		 * report both coordinates as hat coordinates
-		 */
-		input_report_abs(dev, ABS_HAT0X, x1);
-		input_report_abs(dev, ABS_HAT0Y, y1);
-		input_report_abs(dev, ABS_HAT1X, x2);
-		input_report_abs(dev, ABS_HAT1Y, y2);
 
 		/* Unknown so just report sensible values */
 		pres = 127;
@@ -524,10 +516,6 @@ static void elantech_set_input_params(struct psmouse *psmouse)
 		input_mt_init_slots(dev, 2);
 		input_set_abs_params(dev, ABS_MT_POSITION_X, ETP_XMIN_V2, ETP_XMAX_V2, 0, 0);
 		input_set_abs_params(dev, ABS_MT_POSITION_Y, ETP_YMIN_V2, ETP_YMAX_V2, 0, 0);
-		input_set_abs_params(dev, ABS_HAT0X, ETP_2FT_XMIN, ETP_2FT_XMAX, 0, 0);
-		input_set_abs_params(dev, ABS_HAT0Y, ETP_2FT_YMIN, ETP_2FT_YMAX, 0, 0);
-		input_set_abs_params(dev, ABS_HAT1X, ETP_2FT_XMIN, ETP_2FT_XMAX, 0, 0);
-		input_set_abs_params(dev, ABS_HAT1Y, ETP_2FT_YMIN, ETP_2FT_YMAX, 0, 0);
 		break;
 	}
 }
