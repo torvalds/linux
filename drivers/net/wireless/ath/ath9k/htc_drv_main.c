@@ -1436,6 +1436,37 @@ static int ath9k_htc_set_key(struct ieee80211_hw *hw,
 	return ret;
 }
 
+static void ath9k_htc_set_bssid(struct ath9k_htc_priv *priv)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+
+	ath9k_hw_write_associd(priv->ah);
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"BSSID: %pM aid: 0x%x\n",
+		common->curbssid, common->curaid);
+}
+
+static void ath9k_htc_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+
+	if ((vif->type == NL80211_IFTYPE_STATION) && bss_conf->assoc) {
+		common->curaid = bss_conf->aid;
+		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
+	}
+}
+
+static void ath9k_htc_choose_set_bssid(struct ath9k_htc_priv *priv)
+{
+	if (priv->num_sta_assoc_vif == 1) {
+		ieee80211_iterate_active_interfaces_atomic(priv->hw,
+							   ath9k_htc_bss_iter, priv);
+		ath9k_htc_set_bssid(priv);
+	}
+}
+
 static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_bss_conf *bss_conf,
@@ -1444,43 +1475,32 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	bool set_assoc;
 
 	mutex_lock(&priv->mutex);
 	ath9k_htc_ps_wakeup(priv);
 
-	/*
-	 * Set the HW AID/BSSID only for the first station interface
-	 * or in IBSS mode.
-	 */
-	set_assoc = !!((priv->ah->opmode == NL80211_IFTYPE_ADHOC) ||
-		       ((priv->ah->opmode == NL80211_IFTYPE_STATION) &&
-			(priv->num_sta_vif == 1)));
-
-
 	if (changed & BSS_CHANGED_ASSOC) {
-		if (set_assoc) {
-			ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
-				bss_conf->assoc);
+		ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
+			bss_conf->assoc);
 
-			common->curaid = bss_conf->assoc ?
-				bss_conf->aid : 0;
+		bss_conf->assoc ?
+			priv->num_sta_assoc_vif++ : priv->num_sta_assoc_vif--;
 
-			if (bss_conf->assoc)
+		if (priv->ah->opmode == NL80211_IFTYPE_STATION) {
+			if (bss_conf->assoc && (priv->num_sta_assoc_vif == 1))
 				ath9k_htc_start_ani(priv);
-			else
+			else if (priv->num_sta_assoc_vif == 0)
 				ath9k_htc_stop_ani(priv);
 		}
 	}
 
 	if (changed & BSS_CHANGED_BSSID) {
-		if (set_assoc) {
+		if (priv->ah->opmode == NL80211_IFTYPE_ADHOC) {
+			common->curaid = bss_conf->aid;
 			memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
-			ath9k_hw_write_associd(ah);
-
-			ath_dbg(common, ATH_DBG_CONFIG,
-				"BSSID: %pM aid: 0x%x\n",
-				common->curbssid, common->curaid);
+			ath9k_htc_set_bssid(priv);
+		} else if (priv->ah->opmode == NL80211_IFTYPE_STATION) {
+			ath9k_htc_choose_set_bssid(priv);
 		}
 	}
 

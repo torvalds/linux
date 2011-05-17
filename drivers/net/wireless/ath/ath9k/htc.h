@@ -438,6 +438,7 @@ struct ath9k_htc_priv {
 	u8 vif_sta_pos[ATH9K_HTC_MAX_VIF];
 	u8 num_ibss_vif;
 	u8 num_sta_vif;
+	u8 num_sta_assoc_vif;
 	u8 num_ap_vif;
 
 	u16 op_flags;
