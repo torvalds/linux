@@ -40,11 +40,6 @@ extern void CONCAT_(GENL_MAGIC_FAMILY, _genl_unregister)(void);
  * yet implemented features, if newer userland tries to use them even though
  * the genl_family version clearly indicates they are not available.
  *
- * @GENLA_F_MAY_IGNORE: To clearly document the fact, for good measure.
- * To be used for API extensions for things that have sane defaults,
- * so newer userland can still talk to older kernel, knowing it will
- * silently ignore these attributes if not yet known.
- *
  * NOTE: These flags overload
  *   NLA_F_NESTED		(1 << 15)
  *   NLA_F_NET_BYTEORDER	(1 << 14)
@@ -55,7 +50,6 @@ extern void CONCAT_(GENL_MAGIC_FAMILY, _genl_unregister)(void);
  * See also: nla_type()
  */
 enum {
-	GENLA_F_MAY_IGNORE	= 0,
 	GENLA_F_MANDATORY	= 1 << 14,
 	GENLA_F_REQUIRED	= 1 << 15,
 
