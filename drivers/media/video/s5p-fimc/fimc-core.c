@@ -42,7 +42,6 @@ static struct fimc_fmt fimc_formats[] = {
 		.color		= S5P_FIMC_RGB565,
 		.memplanes	= 1,
 		.colplanes	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_RGB565_2X8_BE,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
 		.name		= "BGR666",
