@@ -22,7 +22,7 @@
  */
 static struct lock_class_key irq_desc_lock_class;
 
-#if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_HARDIRQS)
+#if defined(CONFIG_SMP)
 static void __init init_irq_default_affinity(void)
 {
 	alloc_cpumask_var(&irq_default_affinity, GFP_NOWAIT);
@@ -430,7 +430,6 @@ unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 			*per_cpu_ptr(desc->kstat_irqs, cpu) : 0;
 }
 
-#ifdef CONFIG_GENERIC_HARDIRQS
 unsigned int kstat_irqs(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
@@ -443,4 +442,3 @@ unsigned int kstat_irqs(unsigned int irq)
 		sum += *per_cpu_ptr(desc->kstat_irqs, cpu);
 	return sum;
 }
-#endif /* CONFIG_GENERIC_HARDIRQS */
