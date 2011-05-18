@@ -418,11 +418,13 @@ config USB_UHCI_SUPPORT_NON_PCI_HC
 
 config USB_UHCI_BIG_ENDIAN_MMIO
 	bool
-	depends on USB_UHCI_SUPPORT_NON_PCI_HC
+	depends on USB_UHCI_SUPPORT_NON_PCI_HC && SPARC_LEON
+	default y
 
 config USB_UHCI_BIG_ENDIAN_DESC
 	bool
-	depends on USB_UHCI_SUPPORT_NON_PCI_HC
+	depends on USB_UHCI_SUPPORT_NON_PCI_HC && SPARC_LEON
+	default y
 
 config USB_FHCI_HCD
 	tristate "Freescale QE USB Host Controller support"

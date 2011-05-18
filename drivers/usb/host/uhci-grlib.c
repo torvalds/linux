@@ -25,6 +25,20 @@ static int uhci_grlib_init(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
+	/*
+	 * Probe to determine the endianness of the controller.
+	 * We know that bit 7 of the PORTSC1 register is always set
+	 * and bit 15 is always clear.  If uhci_readw() yields a value
+	 * with bit 7 (0x80) turned on then the current little-endian
+	 * setting is correct.  Otherwise we assume the value was
+	 * byte-swapped; hence the register interface and presumably
+	 * also the descriptors are big-endian.
+	 */
+	if (!(uhci_readw(uhci, USBPORTSC1) & 0x80)) {
+		uhci->big_endian_mmio = 1;
+		uhci->big_endian_desc = 1;
+	}
+
 	uhci->rh_numports = uhci_count_ports(hcd);
 
 	/* Set up pointers to to generic functions */
