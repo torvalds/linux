@@ -93,7 +93,6 @@ static struct clock_event_device pit_ce = {
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode	= init_pit_timer,
 	.set_next_event = pit_next_event,
-	.shift		= 32,
 	.irq		= 0,
 };
 
@@ -108,11 +107,8 @@ void __init setup_pit_timer(void)
 	 * IO_APIC has been initialized.
 	 */
 	pit_ce.cpumask = cpumask_of(smp_processor_id());
-	pit_ce.mult = div_sc(CLOCK_TICK_RATE, NSEC_PER_SEC, pit_ce.shift);
-	pit_ce.max_delta_ns = clockevent_delta2ns(0x7FFF, &pit_ce);
-	pit_ce.min_delta_ns = clockevent_delta2ns(0xF, &pit_ce);
 
-	clockevents_register_device(&pit_ce);
+	clockevents_config_and_register(&pit_ce, CLOCK_TICK_RATE, 0xF, 0x7FFF);
 	global_clock_event = &pit_ce;
 }
 
