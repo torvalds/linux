@@ -47,6 +47,7 @@
 #define BQ27510_SPEED 			300 * 1000
 int  virtual_battery_enable = 0;
 extern int dwc_vbus_status(void);
+static void bq27510_set(void);
 
 #if 0
 #define DBG(x...) printk(KERN_INFO x)
@@ -70,6 +71,7 @@ struct bq27510_device_info {
 	unsigned int bat_num;
 };
 
+static struct bq27510_device_info *bq27510_di;
 static enum power_supply_property bq27510_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
@@ -106,6 +108,10 @@ static ssize_t battery_proc_write(struct file *file,const char __user *buffer,
 		virtual_battery_enable = 2;
 	else if(c == '3')
 		virtual_battery_enable = 3;
+	else if(c == '9'){
+		printk("%s:%d>>bq27510 set\n",__FUNCTION__,__LINE__);
+		bq27510_set();
+	}
 	else 
 		virtual_battery_enable = 0;
 	printk("%s,count(%d),virtual_battery_enable(%d)\n",__FUNCTION__,(int)count,virtual_battery_enable);
@@ -126,14 +132,14 @@ static int bq27510_read(struct i2c_client *client, u8 reg, u8 buf[], unsigned le
 	ret = i2c_master_reg8_recv(client, reg, buf, len, BQ27510_SPEED);
 	return ret; 
 }
-#ifdef CONFIG_CHECK_BATT_CAPACITY
+
 static int bq27510_write(struct i2c_client *client, u8 reg, u8 const buf[], unsigned len)
 {
 	int ret; 
 	ret = i2c_master_reg8_send(client, reg, buf, (int)len, BQ27510_SPEED);
 	return ret;
 }
-#endif
+
 /*
  * Return the battery temperature in tenths of degree Celsius
  * Or < 0 if something fails.
@@ -144,7 +150,7 @@ static int bq27510_battery_temperature(struct bq27510_device_info *di)
 	int temp = 0;
 	u8 buf[2];
 
-	#if CONFIG_NO_BATTERY_IC
+	#if defined (CONFIG_NO_BATTERY_IC)
 	return 258;
 	#endif
 
@@ -171,8 +177,8 @@ static int bq27510_battery_voltage(struct bq27510_device_info *di)
 	u8 buf[2];
 	int volt = 0;
 
-	#if CONFIG_NO_BATTERY_IC
-	return 4000000;
+	#if defined (CONFIG_NO_BATTERY_IC)
+		return 4000000;
 	#endif
 	if(virtual_battery_enable == 1)
 		return 2000000/*4000000*/;
@@ -206,11 +212,11 @@ static int bq27510_battery_current(struct bq27510_device_info *di)
 	int curr = 0;
 	u8 buf[2];
 
-	#if CONFIG_NO_BATTERY_IC
-	return 22000;
+	#if defined (CONFIG_NO_BATTERY_IC)
+		return 22000;
 	#endif
 	if(virtual_battery_enable == 1)
-	return 11000/*22000*/;
+		return 11000/*22000*/;
 	ret = bq27510_read(di->client,BQ27x00_REG_AI,buf,2);
 	if (ret<0) {
 		dev_err(di->dev, "error reading current\n");
@@ -218,6 +224,7 @@ static int bq27510_battery_current(struct bq27510_device_info *di)
 	}
 
 	curr = get_unaligned_le16(buf);
+	DBG("curr = %x \n",curr);
 	if(curr>0x8000){
 		curr = 0xFFFF^(curr-1);
 	}
@@ -236,14 +243,16 @@ static int bq27510_battery_rsoc(struct bq27510_device_info *di)
 	int rsoc = 0;
 	#if 0
 	int nvcap = 0,facap = 0,remcap=0,fccap=0,full=0,cnt=0;
+	int art = 0, artte = 0, ai = 0, tte = 0, ttf = 0, si = 0;
+	int stte = 0, mli = 0, mltte = 0, ae = 0, ap = 0, ttecp = 0, cc = 0;
 	#endif
 	u8 buf[2];
 
-	#if CONFIG_NO_BATTERY_IC
-	return 100;
+	#if defined (CONFIG_NO_BATTERY_IC)
+		return 100;
 	#endif
 	if(virtual_battery_enable == 1)
-	return 50/*100*/;
+		return 50/*100*/;
 	
 	ret = bq27510_read(di->client,BQ27500_REG_SOC,buf,2); 
 	if (ret<0) {
@@ -253,28 +262,72 @@ static int bq27510_battery_rsoc(struct bq27510_device_info *di)
 	rsoc = get_unaligned_le16(buf);
 	DBG("Enter:%s %d--rsoc = %d\n",__FUNCTION__,__LINE__,rsoc);
 
-	#if CONFIG_NO_BATTERY_IC
+	#if defined (CONFIG_NO_BATTERY_IC)
 	rsoc = 100;
 	#endif
-	#if 0
-	ret = bq27510_read(di->client,0x0c,buf,2);
+	#if 0     //other register information, for debug use
+	ret = bq27510_read(di->client,0x0c,buf,2);		//NominalAvailableCapacity
 	nvcap = get_unaligned_le16(buf);
-	DBG("Enter:%s %d--nvcap = %d\n",__FUNCTION__,__LINE__,nvcap);
-	ret = bq27510_read(di->client,0x0e,buf,2);
+	DBG("\nEnter:%s %d--nvcap = %d\n",__FUNCTION__,__LINE__,nvcap);
+	ret = bq27510_read(di->client,0x0e,buf,2);		//FullAvailableCapacity
 	facap = get_unaligned_le16(buf);
 	DBG("Enter:%s %d--facap = %d\n",__FUNCTION__,__LINE__,facap);
-	ret = bq27510_read(di->client,0x10,buf,2);
+	ret = bq27510_read(di->client,0x10,buf,2);		//RemainingCapacity
 	remcap = get_unaligned_le16(buf);
 	DBG("Enter:%s %d--remcap = %d\n",__FUNCTION__,__LINE__,remcap);
-	ret = bq27510_read(di->client,0x12,buf,2);
+	ret = bq27510_read(di->client,0x12,buf,2);		//FullChargeCapacity
 	fccap = get_unaligned_le16(buf);
 	DBG("Enter:%s %d--fccap = %d\n",__FUNCTION__,__LINE__,fccap);
-	ret = bq27510_read(di->client,0x3c,buf,2);
+	ret = bq27510_read(di->client,0x3c,buf,2);		//DesignCapacity
 	full = get_unaligned_le16(buf);
-	DBG("Enter:%s %d--full = %d\n",__FUNCTION__,__LINE__,full);
+	DBG("Enter:%s %d--DesignCapacity = %d\n",__FUNCTION__,__LINE__,full);
+	
+	buf[0] = 0x00;						//CONTROL_STATUS
+	buf[1] = 0x00;
+	bq27510_write(di->client,0x00,buf,2);
 	ret = bq27510_read(di->client,0x00,buf,2);
 	cnt = get_unaligned_le16(buf);
-	DBG("Enter:%s %d--full = %d\n",__FUNCTION__,__LINE__,cnt);
+	DBG("Enter:%s %d--Control status = %x\n",__FUNCTION__,__LINE__,cnt);
+
+	ret = bq27510_read(di->client,0x02,buf,2);		//AtRate
+	art = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--AtRate = %d\n",__FUNCTION__,__LINE__,art);
+	ret = bq27510_read(di->client,0x04,buf,2);		//AtRateTimeToEmpty
+	artte = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--AtRateTimeToEmpty = %d\n",__FUNCTION__,__LINE__,artte);
+	ret = bq27510_read(di->client,0x14,buf,2);		//AverageCurrent
+	ai = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--AverageCurrent = %d\n",__FUNCTION__,__LINE__,ai);
+	ret = bq27510_read(di->client,0x16,buf,2);		//TimeToEmpty
+	tte = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--TimeToEmpty = %d\n",__FUNCTION__,__LINE__,tte);
+	ret = bq27510_read(di->client,0x18,buf,2);		//TimeToFull
+	ttf = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--TimeToFull = %d\n",__FUNCTION__,__LINE__,ttf);
+	ret = bq27510_read(di->client,0x1a,buf,2);		//StandbyCurrent
+	si = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--StandbyCurrent = %d\n",__FUNCTION__,__LINE__,si);
+	ret = bq27510_read(di->client,0x1c,buf,2);		//StandbyTimeToEmpty
+	stte = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--StandbyTimeToEmpty = %d\n",__FUNCTION__,__LINE__,stte);
+	ret = bq27510_read(di->client,0x1e,buf,2);		//MaxLoadCurrent
+	mli = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--MaxLoadCurrent = %d\n",__FUNCTION__,__LINE__,mli);
+	ret = bq27510_read(di->client,0x20,buf,2);		//MaxLoadTimeToEmpty
+	mltte = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--MaxLoadTimeToEmpty = %d\n",__FUNCTION__,__LINE__,mltte);
+	ret = bq27510_read(di->client,0x22,buf,2);		//AvailableEnergy
+	ae = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--AvailableEnergy = %d\n",__FUNCTION__,__LINE__,ae);
+	ret = bq27510_read(di->client,0x24,buf,2);		//AveragePower
+	ap = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--AveragePower = %d\n",__FUNCTION__,__LINE__,ap);
+	ret = bq27510_read(di->client,0x26,buf,2);		//TTEatConstantPower
+	ttecp = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--TTEatConstantPower = %d\n",__FUNCTION__,__LINE__,ttecp);
+	ret = bq27510_read(di->client,0x2a,buf,2);		//CycleCount
+	cc = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--CycleCount = %d\n",__FUNCTION__,__LINE__,cc);
 	#endif
 	return rsoc;
 }
@@ -287,8 +340,8 @@ static int bq27510_battery_status(struct bq27510_device_info *di,
 	int status;
 	int ret;
 
-	#if CONFIG_NO_BATTERY_IC
-	val->intval = POWER_SUPPLY_STATUS_FULL;
+	#if defined (CONFIG_NO_BATTERY_IC)
+		val->intval = POWER_SUPPLY_STATUS_FULL;
 	return 0;
 	#endif
 
@@ -323,8 +376,8 @@ static int bq27510_health_status(struct bq27510_device_info *di,
 	int status;
 	int ret;
 	
-	#if CONFIG_NO_BATTERY_IC
-	val->intval = POWER_SUPPLY_HEALTH_GOOD;
+	#if defined (CONFIG_NO_BATTERY_IC)
+		val->intval = POWER_SUPPLY_HEALTH_GOOD;
 	return 0;
 	#endif
 
@@ -482,6 +535,51 @@ static void bq27510_battery_work(struct work_struct *work)
 	schedule_delayed_work(&di->work, di->interval);
 }
 
+static void bq27510_set(void)
+{
+	struct bq27510_device_info *di;
+        int i = 0;
+	u8 buf[2];
+
+	di = bq27510_di;
+        printk("enter 0x41\n");
+	buf[0] = 0x41;
+	buf[1] = 0x00;
+	bq27510_write(di->client,0x00,buf,2);
+	
+        msleep(1500);
+		
+        printk("enter 0x21\n");
+	buf[0] = 0x21;
+	buf[1] = 0x00;
+	bq27510_write(di->client,0x00,buf,2);
+
+	buf[0] = 0;
+	buf[1] = 0;
+	bq27510_read(di->client,0x00,buf,2);
+
+      	// printk("%s: Enter:BUF[0]= 0X%x   BUF[1] = 0X%x\n",__FUNCTION__,buf[0],buf[1]);
+
+      	while((buf[0] & 0x04)&&(i<5))	
+       	{
+        	printk("enter more 0x21 times i = %d\n",i);
+              	mdelay(1000);
+       		buf[0] = 0x21;
+		buf[1] = 0x00;
+		bq27510_write(di->client,0x00,buf,2);
+
+		buf[0] = 0;
+		buf[1] = 0;
+		bq27510_read(di->client,0x00,buf,2);
+		i++;
+       	}
+
+      	if(i>5)
+	   	printk("write 0x21 error\n");
+	else
+		printk("bq27510 write 0x21 success\n");
+}
+
 static int bq27510_battery_probe(struct i2c_client *client,
 				 const struct i2c_device_id *id)
 {
@@ -489,10 +587,6 @@ static int bq27510_battery_probe(struct i2c_client *client,
 	int retval = 0;
 	struct bq27510_platform_data *pdata;
 	
-	#ifdef CONFIG_CHECK_BATT_CAPACITY
-	u8 buf[2];
-	#endif
-
 	pdata = client->dev.platform_data;
 	
 	di = kzalloc(sizeof(*di), GFP_KERNEL);
@@ -515,25 +609,18 @@ static int bq27510_battery_probe(struct i2c_client *client,
 		pdata->init_dc_check_pin( );
 	
 	bq27510_powersupply_init(di);
-	#ifdef CONFIG_CHECK_BATT_CAPACITY
-	buf[0] = 0x41;
-	buf[1] = 0x00;
-	bq27510_write(di->client,0x00,buf,2);
-	buf[0] = 0x21;
-	buf[1] = 0x00;
-	bq27510_write(di->client,0x00,buf,2);
-	#endif
+	
 	retval = power_supply_register(&client->dev, &di->bat);
 	if (retval) {
 		dev_err(&client->dev, "failed to register battery\n");
 		goto batt_failed_4;
 	}
+	bq27510_di = di;
 	retval = power_supply_register(&client->dev, &di->ac);
 	if (retval) {
 		dev_err(&client->dev, "failed to register ac\n");
 		goto batt_failed_4;
 	}
-	
 	INIT_DELAYED_WORK(&di->work, bq27510_battery_work);
 	schedule_delayed_work(&di->work, di->interval);
 	dev_info(&client->dev, "support ver. %s enabled\n", DRIVER_VERSION);
