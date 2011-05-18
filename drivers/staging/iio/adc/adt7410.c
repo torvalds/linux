@@ -355,14 +355,6 @@ static const struct attribute_group adt7410_attribute_group = {
 	.attrs = adt7410_attributes,
 };
 
-/*
- * temperature bound events
- */
-
-#define IIO_EVENT_CODE_ADT7410_ABOVE_ALARM    IIO_BUFFER_EVENT_CODE(0)
-#define IIO_EVENT_CODE_ADT7410_BELLOW_ALARM   IIO_BUFFER_EVENT_CODE(1)
-#define IIO_EVENT_CODE_ADT7410_ABOVE_CRIT     IIO_BUFFER_EVENT_CODE(2)
-
 static irqreturn_t adt7410_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
@@ -375,16 +367,22 @@ static irqreturn_t adt7410_event_handler(int irq, void *private)
 
 	if (status & ADT7410_STAT_T_HIGH)
 		iio_push_event(indio_dev, 0,
-			IIO_EVENT_CODE_ADT7410_ABOVE_ALARM,
-			timestamp);
+			       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
+						    IIO_EV_TYPE_THRESH,
+						    IIO_EV_DIR_RISING),
+			       timestamp);
 	if (status & ADT7410_STAT_T_LOW)
 		iio_push_event(indio_dev, 0,
-			IIO_EVENT_CODE_ADT7410_BELLOW_ALARM,
-			timestamp);
+			       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
+						    IIO_EV_TYPE_THRESH,
+						    IIO_EV_DIR_FALLING),
+			       timestamp);
 	if (status & ADT7410_STAT_T_CRIT)
 		iio_push_event(indio_dev, 0,
-			IIO_EVENT_CODE_ADT7410_ABOVE_CRIT,
-			timestamp);
+			       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
+						    IIO_EV_TYPE_THRESH,
+						    IIO_EV_DIR_RISING),
+			       timestamp);
 
 	return IRQ_HANDLED;
 }
