@@ -324,8 +324,8 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_8, B43_LPPHY_TR_LOOKUP_4);
 	}
 	if ((sprom->boardflags_hi & B43_BFH_FEM_BT) &&
-	    (bus->chip_id == 0x5354) &&
-	    (bus->chip_package == SSB_CHIPPACK_BCM4712S)) {
+	    (dev->dev->chip_id == 0x5354) &&
+	    (dev->dev->chip_pkg == SSB_CHIPPACK_BCM4712S)) {
 		b43_phy_set(dev, B43_LPPHY_CRSGAIN_CTL, 0x0006);
 		b43_phy_write(dev, B43_LPPHY_GPIO_SELECT, 0x0005);
 		b43_phy_write(dev, B43_LPPHY_GPIO_OUTEN, 0xFFFF);
@@ -450,7 +450,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0xFC1F, 0xA0);
 	b43_phy_maskset(dev, B43_LPPHY_GAINDIRECTMISMATCH, 0xE0FF, 0x300);
 	b43_phy_maskset(dev, B43_LPPHY_HIGAINDB, 0x00FF, 0x2A00);
-	if ((bus->chip_id == 0x4325) && (bus->chip_rev == 0)) {
+	if ((dev->dev->chip_id == 0x4325) && (dev->dev->chip_rev == 0)) {
 		b43_phy_maskset(dev, B43_LPPHY_LOWGAINDB, 0x00FF, 0x2100);
 		b43_phy_maskset(dev, B43_LPPHY_VERYLOWGAINDB, 0xFF00, 0xA);
 	} else {
@@ -468,7 +468,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0xFFE0, 0x12);
 	b43_phy_maskset(dev, B43_LPPHY_GAINMISMATCH, 0x0FFF, 0x9000);
 
-	if ((bus->chip_id == 0x4325) && (bus->chip_rev == 0)) {
+	if ((dev->dev->chip_id == 0x4325) && (dev->dev->chip_rev == 0)) {
 		b43_lptab_write(dev, B43_LPTAB16(0x08, 0x14), 0);
 		b43_lptab_write(dev, B43_LPTAB16(0x08, 0x12), 0x40);
 	}
@@ -493,7 +493,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 		      0x2000 | ((u16)lpphy->rssi_gs << 10) |
 		      ((u16)lpphy->rssi_vc << 4) | lpphy->rssi_vf);
 
-	if ((bus->chip_id == 0x4325) && (bus->chip_rev == 0)) {
+	if ((dev->dev->chip_id == 0x4325) && (dev->dev->chip_rev == 0)) {
 		b43_phy_set(dev, B43_LPPHY_AFE_ADC_CTL_0, 0x1C);
 		b43_phy_maskset(dev, B43_LPPHY_AFE_CTL, 0x00FF, 0x8800);
 		b43_phy_maskset(dev, B43_LPPHY_AFE_ADC_CTL_1, 0xFC3C, 0x0400);
@@ -698,7 +698,7 @@ static void lpphy_radio_init(struct b43_wldev *dev)
 		lpphy_sync_stx(dev);
 		b43_phy_write(dev, B43_PHY_OFDM(0xF0), 0x5F80);
 		b43_phy_write(dev, B43_PHY_OFDM(0xF1), 0);
-		if (dev->sdev->bus->chip_id == 0x4325) {
+		if (dev->dev->chip_id == 0x4325) {
 			// TODO SSB PMU recalibration
 		}
 	}
@@ -1841,7 +1841,6 @@ static void lpphy_papd_cal(struct b43_wldev *dev, struct lpphy_tx_gains gains,
 static void lpphy_papd_cal_txpwr(struct b43_wldev *dev)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct ssb_bus *bus = dev->sdev->bus;
 	struct lpphy_tx_gains gains, oldgains;
 	int old_txpctl, old_afe_ovr, old_rf, old_bbmult;
 
@@ -1855,7 +1854,7 @@ static void lpphy_papd_cal_txpwr(struct b43_wldev *dev)
 
 	lpphy_set_tx_power_control(dev, B43_LPPHY_TXPCTL_OFF);
 
-	if (bus->chip_id == 0x4325 && bus->chip_rev == 0)
+	if (dev->dev->chip_id == 0x4325 && dev->dev->chip_rev == 0)
 		lpphy_papd_cal(dev, gains, 0, 1, 30);
 	else
 		lpphy_papd_cal(dev, gains, 0, 1, 65);
@@ -1871,7 +1870,6 @@ static int lpphy_rx_iq_cal(struct b43_wldev *dev, bool noise, bool tx,
 			    bool rx, bool pa, struct lpphy_tx_gains *gains)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct ssb_bus *bus = dev->sdev->bus;
 	const struct lpphy_rx_iq_comp *iqcomp = NULL;
 	struct lpphy_tx_gains nogains, oldgains;
 	u16 tmp;
@@ -1880,7 +1878,7 @@ static int lpphy_rx_iq_cal(struct b43_wldev *dev, bool noise, bool tx,
 	memset(&nogains, 0, sizeof(nogains));
 	memset(&oldgains, 0, sizeof(oldgains));
 
-	if (bus->chip_id == 0x5354) {
+	if (dev->dev->chip_id == 0x5354) {
 		for (i = 0; i < ARRAY_SIZE(lpphy_5354_iq_table); i++) {
 			if (lpphy_5354_iq_table[i].chan == lpphy->channel) {
 				iqcomp = &lpphy_5354_iq_table[i];
@@ -2409,11 +2407,9 @@ static const struct b206x_channel b2063_chantbl[] = {
 
 static void lpphy_b2062_reset_pll_bias(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
-
 	b43_radio_write(dev, B2062_S_RFPLL_CTL2, 0xFF);
 	udelay(20);
-	if (bus->chip_id == 0x5354) {
+	if (dev->dev->chip_id == 0x5354) {
 		b43_radio_write(dev, B2062_N_COMM1, 4);
 		b43_radio_write(dev, B2062_S_RFPLL_CTL2, 4);
 	} else {

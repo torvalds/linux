@@ -2088,8 +2088,8 @@ static void b43_phy_initg(struct b43_wldev *dev)
 	/* FIXME: The spec says in the following if, the 0 should be replaced
 	   'if OFDM may not be used in the current locale'
 	   but OFDM is legal everywhere */
-	if ((dev->sdev->bus->chip_id == 0x4306
-	     && dev->sdev->bus->chip_package == 2) || 0) {
+	if ((dev->dev->chip_id == 0x4306
+	     && dev->dev->chip_pkg == 2) || 0) {
 		b43_phy_mask(dev, B43_PHY_CRS0, 0xBFFF);
 		b43_phy_mask(dev, B43_PHY_OFDM(0xC3), 0x7FFF);
 	}
@@ -2203,7 +2203,7 @@ static void default_radio_attenuation(struct b43_wldev *dev,
 					 && bus->boardinfo.type ==
 					 SSB_BOARD_BU4306)
 					rf->att = 5;
-				else if (bus->chip_id == 0x4320)
+				else if (dev->dev->chip_id == 0x4320)
 					rf->att = 4;
 				else
 					rf->att = 3;
@@ -2388,7 +2388,7 @@ static int b43_gphy_init_tssi2dbm_table(struct b43_wldev *dev)
 	pab1 = (s16) (dev->dev->bus_sprom->pa0b1);
 	pab2 = (s16) (dev->dev->bus_sprom->pa0b2);
 
-	B43_WARN_ON((dev->sdev->bus->chip_id == 0x4301) &&
+	B43_WARN_ON((dev->dev->chip_id == 0x4301) &&
 		    (phy->radio_ver != 0x2050)); /* Not supported anymore */
 
 	gphy->dyn_tssi_tbl = 0;

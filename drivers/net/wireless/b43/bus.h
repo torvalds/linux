@@ -24,6 +24,10 @@ struct b43_bus_dev {
 	struct device *dma_dev;
 	unsigned int irq;
 
+	u16 chip_id;
+	u8 chip_rev;
+	u8 chip_pkg;
+
 	struct ssb_sprom *bus_sprom;
 
 	u16 core_id;

@@ -2304,7 +2304,6 @@ void lpphy_rev0_1_table_init(struct b43_wldev *dev)
 
 void lpphy_rev2plus_table_init(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
 	int i;
 
 	B43_WARN_ON(dev->phy.rev < 2);
@@ -2341,7 +2340,7 @@ void lpphy_rev2plus_table_init(struct b43_wldev *dev)
 	b43_lptab_write_bulk(dev, B43_LPTAB32(10, 0),
 		ARRAY_SIZE(lpphy_papd_mult_table), lpphy_papd_mult_table);
 
-	if ((bus->chip_id == 0x4325) && (bus->chip_rev == 0)) {
+	if ((dev->dev->chip_id == 0x4325) && (dev->dev->chip_rev == 0)) {
 		b43_lptab_write_bulk(dev, B43_LPTAB32(13, 0),
 			ARRAY_SIZE(lpphy_a0_gain_idx_table), lpphy_a0_gain_idx_table);
 		b43_lptab_write_bulk(dev, B43_LPTAB16(14, 0),

@@ -2588,7 +2588,7 @@ static int b43_gpio_init(struct b43_wldev *dev)
 
 	mask = 0x0000001F;
 	set = 0x0000000F;
-	if (dev->sdev->bus->chip_id == 0x4301) {
+	if (dev->dev->chip_id == 0x4301) {
 		mask |= 0x0060;
 		set |= 0x0060;
 	}
@@ -2748,8 +2748,8 @@ static void b43_adjust_opmode(struct b43_wldev *dev)
 
 	cfp_pretbtt = 2;
 	if ((ctl & B43_MACCTL_INFRA) && !(ctl & B43_MACCTL_AP)) {
-		if (dev->sdev->bus->chip_id == 0x4306 &&
-		    dev->sdev->bus->chip_rev == 3)
+		if (dev->dev->chip_id == 0x4306 &&
+		    dev->dev->chip_rev == 3)
 			cfp_pretbtt = 100;
 		else
 			cfp_pretbtt = 50;
@@ -4096,10 +4096,10 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 	       analog_type, phy_type, phy_rev);
 
 	/* Get RADIO versioning */
-	if (dev->sdev->bus->chip_id == 0x4317) {
-		if (dev->sdev->bus->chip_rev == 0)
+	if (dev->dev->chip_id == 0x4317) {
+		if (dev->dev->chip_rev == 0)
 			tmp = 0x3205017F;
-		else if (dev->sdev->bus->chip_rev == 1)
+		else if (dev->dev->chip_rev == 1)
 			tmp = 0x4205017F;
 		else
 			tmp = 0x5205017F;
