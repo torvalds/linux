@@ -181,6 +181,19 @@ irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private)
 }
 EXPORT_SYMBOL(iio_trigger_generic_data_rdy_poll);
 
+void iio_trigger_poll_chained(struct iio_trigger *trig, s64 time)
+{
+	int i;
+	if (!trig->use_count) {
+		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++)
+			if (trig->subirqs[i].enabled) {
+				trig->use_count++;
+				handle_nested_irq(trig->subirq_base + i);
+			}
+	}
+}
+EXPORT_SYMBOL(iio_trigger_poll_chained);
+
 void iio_trigger_notify_done(struct iio_trigger *trig)
 {
 	trig->use_count--;
