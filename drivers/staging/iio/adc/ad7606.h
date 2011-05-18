@@ -43,10 +43,9 @@ struct ad7606_platform_data {
 /**
  * struct ad7606_chip_info - chip specifc information
  * @name:		indentification string for chip
- * @bits:		accuracy of the adc in bits
- * @bits:		output coding [s]igned or [u]nsigned
  * @int_vref_mv:	the internal reference voltage
- * @num_channels:	number of physical inputs on chip
+ * @channels:		channel specification
+ * @num_channels:	number of channels
  */
 
 struct ad7606_chip_info {
@@ -54,6 +53,7 @@ struct ad7606_chip_info {
 	u8				bits;
 	char				sign;
 	u16				int_vref_mv;
+	struct iio_chan_spec		*channels;
 	unsigned			num_channels;
 };
 
@@ -69,7 +69,6 @@ struct ad7606_state {
 	struct regulator		*reg;
 	struct work_struct		poll_work;
 	wait_queue_head_t		wq_data_avail;
-	atomic_t			protect_ring;
 	size_t				d_size;
 	const struct ad7606_bus_ops	*bops;
 	int				irq;

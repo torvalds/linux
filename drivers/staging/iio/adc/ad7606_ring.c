@@ -21,87 +21,6 @@
 
 #include "ad7606.h"
 
-static IIO_SCAN_EL_C(in0, 0, 0, NULL);
-static IIO_SCAN_EL_C(in1, 1, 0, NULL);
-static IIO_SCAN_EL_C(in2, 2, 0, NULL);
-static IIO_SCAN_EL_C(in3, 3, 0, NULL);
-static IIO_SCAN_EL_C(in4, 4, 0, NULL);
-static IIO_SCAN_EL_C(in5, 5, 0, NULL);
-static IIO_SCAN_EL_C(in6, 6, 0, NULL);
-static IIO_SCAN_EL_C(in7, 7, 0, NULL);
-
-static IIO_SCAN_EL_TIMESTAMP(8);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
-
-static ssize_t ad7606_show_type(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
-{
-	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
-	struct iio_dev *indio_dev = ring->indio_dev;
-	struct ad7606_state *st = indio_dev->dev_data;
-
-	return sprintf(buf, "%c%d/%d\n", st->chip_info->sign,
-		       st->chip_info->bits, st->chip_info->bits);
-}
-static IIO_DEVICE_ATTR(in_type, S_IRUGO, ad7606_show_type, NULL, 0);
-
-static struct attribute *ad7606_scan_el_attrs[] = {
-	&iio_scan_el_in0.dev_attr.attr,
-	&iio_const_attr_in0_index.dev_attr.attr,
-	&iio_scan_el_in1.dev_attr.attr,
-	&iio_const_attr_in1_index.dev_attr.attr,
-	&iio_scan_el_in2.dev_attr.attr,
-	&iio_const_attr_in2_index.dev_attr.attr,
-	&iio_scan_el_in3.dev_attr.attr,
-	&iio_const_attr_in3_index.dev_attr.attr,
-	&iio_scan_el_in4.dev_attr.attr,
-	&iio_const_attr_in4_index.dev_attr.attr,
-	&iio_scan_el_in5.dev_attr.attr,
-	&iio_const_attr_in5_index.dev_attr.attr,
-	&iio_scan_el_in6.dev_attr.attr,
-	&iio_const_attr_in6_index.dev_attr.attr,
-	&iio_scan_el_in7.dev_attr.attr,
-	&iio_const_attr_in7_index.dev_attr.attr,
-	&iio_const_attr_timestamp_index.dev_attr.attr,
-	&iio_scan_el_timestamp.dev_attr.attr,
-	&iio_const_attr_timestamp_type.dev_attr.attr,
-	&iio_dev_attr_in_type.dev_attr.attr,
-	NULL,
-};
-
-static mode_t ad7606_scan_el_attr_is_visible(struct kobject *kobj,
-				     struct attribute *attr, int n)
-{
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
-	struct iio_dev *indio_dev = ring->indio_dev;
-	struct ad7606_state *st = indio_dev->dev_data;
-
-	mode_t mode = attr->mode;
-
-	if (st->chip_info->num_channels <= 6 &&
-		(attr == &iio_scan_el_in7.dev_attr.attr ||
-		attr == &iio_const_attr_in7_index.dev_attr.attr ||
-		attr == &iio_scan_el_in6.dev_attr.attr ||
-		attr == &iio_const_attr_in6_index.dev_attr.attr))
-		mode = 0;
-	else if (st->chip_info->num_channels <= 4 &&
-		(attr == &iio_scan_el_in5.dev_attr.attr ||
-		attr == &iio_const_attr_in5_index.dev_attr.attr ||
-		attr == &iio_scan_el_in4.dev_attr.attr ||
-		attr == &iio_const_attr_in4_index.dev_attr.attr))
-		mode = 0;
-
-	return mode;
-}
-
-static struct attribute_group ad7606_scan_el_group = {
-	.name = "scan_elements",
-	.attrs = ad7606_scan_el_attrs,
-	.is_visible = ad7606_scan_el_attr_is_visible,
-};
-
 int ad7606_scan_from_ring(struct ad7606_state *st, unsigned ch)
 {
 	struct iio_ring_buffer *ring = st->indio_dev->ring;
@@ -139,7 +58,7 @@ static int ad7606_ring_preenable(struct iio_dev *indio_dev)
 	size_t d_size;
 
 	d_size = st->chip_info->num_channels *
-		 st->chip_info->bits / 8;
+		 st->chip_info->channels[0].scan_type.storagebits / 8;
 
 	if (ring->scan_timestamp) {
 		d_size += sizeof(s64);
@@ -157,14 +76,15 @@ static int ad7606_ring_preenable(struct iio_dev *indio_dev)
 }
 
 /**
- * ad7606_trigger_handler_th() th of trigger launched polling to ring buffer
+ * ad7606_trigger_handler_th() th/bh of trigger launched polling to ring buffer
  *
  **/
-static irqreturn_t ad7606_trigger_handler_th(int irq, void *p)
+static irqreturn_t ad7606_trigger_handler_th_bh(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->private_data;
 	struct ad7606_state *st = indio_dev->dev_data;
+
 	gpio_set_value(st->pdata->gpio_convst, 1);
 
 	return IRQ_HANDLED;
@@ -189,10 +109,6 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 	s64 time_ns;
 	__u8 *buf;
 	int ret;
-
-	/* Ensure only one copy of this function running at a time */
-	if (atomic_inc_return(&st->protect_ring) > 1)
-		return;
 
 	buf = kzalloc(st->d_size, GFP_KERNEL);
 	if (buf == NULL)
@@ -231,8 +147,8 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 	ring->access.store_to(&sw_ring->buf, buf, time_ns);
 done:
 	gpio_set_value(st->pdata->gpio_convst, 0);
+	iio_trigger_notify_done(indio_dev->trig);
 	kfree(buf);
-	atomic_dec(&st->protect_ring);
 }
 
 int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
@@ -253,8 +169,10 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		ret = -ENOMEM;
 		goto error_deallocate_sw_rb;
 	}
+
 	indio_dev->pollfunc->private_data = indio_dev;
-	indio_dev->pollfunc->h = &ad7606_trigger_handler_th;
+	indio_dev->pollfunc->h = &ad7606_trigger_handler_th_bh;
+	indio_dev->pollfunc->thread = &ad7606_trigger_handler_th_bh;
 	indio_dev->pollfunc->name =
 		kasprintf(GFP_KERNEL, "%s_consumer%d", indio_dev->name,
 			  indio_dev->id);
@@ -267,7 +185,6 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->ring->preenable = &ad7606_ring_preenable;
 	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
 	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
-	indio_dev->ring->scan_el_attrs = &ad7606_scan_el_group;
 	indio_dev->ring->scan_timestamp = true ;
 
 	INIT_WORK(&st->poll_work, &ad7606_poll_bh_to_ring);
