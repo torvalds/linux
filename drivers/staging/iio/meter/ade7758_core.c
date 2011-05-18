@@ -20,10 +20,11 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
+#include "../ring_generic.h"
 #include "meter.h"
 #include "ade7758.h"
 
-static int ade7758_spi_write_reg_8(struct device *dev,
+int ade7758_spi_write_reg_8(struct device *dev,
 		u8 reg_address,
 		u8 val)
 {
@@ -490,7 +491,7 @@ static int ade7758_initial_setup(struct ade7758_state *st)
 	struct device *dev = &st->indio_dev->dev;
 
 	/* use low spi speed for init */
-	st->us->mode = SPI_MODE_3;
+	st->us->mode = SPI_MODE_1;
 	spi_setup(st->us);
 
 	/* Disable IRQ */
@@ -580,63 +581,6 @@ out:
 	return ret ? ret : len;
 }
 
-static ssize_t ade7758_read_waveform_type(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	int ret, len = 0;
-	u8 t;
-	ret = ade7758_spi_read_reg_8(dev,
-			ADE7758_WAVMODE,
-			&t);
-	if (ret)
-		return ret;
-
-	t = (t >> 2) & 0x7;
-
-	len = sprintf(buf, "%d\n", t);
-
-	return len;
-}
-
-static ssize_t ade7758_write_waveform_type(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	unsigned long val;
-	int ret;
-	u8 reg;
-
-	ret = strict_strtol(buf, 10, &val);
-	if (ret)
-		return ret;
-
-	if (val > 4)
-		return -EINVAL;
-
-	mutex_lock(&indio_dev->mlock);
-
-	ret = ade7758_spi_read_reg_8(dev,
-			ADE7758_WAVMODE,
-			&reg);
-	if (ret)
-		goto out;
-
-	reg &= ~(7 << 2);
-	reg |= val << 2;
-
-	ret = ade7758_spi_write_reg_8(dev,
-			ADE7758_WAVMODE,
-			reg);
-
-out:
-	mutex_unlock(&indio_dev->mlock);
-
-	return ret ? ret : len;
-}
-
 static IIO_DEV_ATTR_TEMP_RAW(ade7758_read_8bit);
 static IIO_CONST_ATTR(temp_offset, "129 C");
 static IIO_CONST_ATTR(temp_scale, "4 C");
@@ -664,19 +608,6 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		ade7758_read_frequency,
 		ade7758_write_frequency);
 
-/**
- * IIO_DEV_ATTR_WAVEFORM_TYPE - set the type of waveform.
- * @_mode: sysfs file mode/permissions
- * @_show: output method for the attribute
- * @_store: input method for the attribute
- **/
-#define IIO_DEV_ATTR_WAVEFORM_TYPE(_mode, _show, _store)			\
-	IIO_DEVICE_ATTR(waveform_type, _mode, _show, _store, 0)
-
-static IIO_DEV_ATTR_WAVEFORM_TYPE(S_IWUSR | S_IRUGO,
-		ade7758_read_waveform_type,
-		ade7758_write_waveform_type);
-
 static IIO_DEV_ATTR_RESET(ade7758_write_reset);
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("26040 13020 6510 3255");
@@ -686,7 +617,6 @@ static struct attribute *ade7758_attributes[] = {
 	&iio_const_attr_temp_offset.dev_attr.attr,
 	&iio_const_attr_temp_scale.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
-	&iio_dev_attr_waveform_type.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_awatthr.dev_attr.attr,
@@ -730,11 +660,73 @@ static const struct attribute_group ade7758_attribute_group = {
 	.attrs = ade7758_attributes,
 };
 
-
+static struct iio_chan_spec ade7758_channels[] = {
+	IIO_CHAN(IIO_IN, 0, 1, 0, "raw", 0, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_A, AD7758_VOLTAGE),
+		0, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_CURRENT, 0, 1, 0, "raw", 0, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_A, AD7758_CURRENT),
+		1, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_POWER, 0, 1, 0, "apparent_raw", 0, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_A, AD7758_APP_PWR),
+		2, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_POWER, 0, 1, 0, "active_raw", 0, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_A, AD7758_ACT_PWR),
+		3, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_POWER, 0, 1, 0, "reactive_raw", 0, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_A, AD7758_REACT_PWR),
+		4, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, "raw", 1, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_B, AD7758_VOLTAGE),
+		5, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_CURRENT, 0, 1, 0, "raw", 1, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_B, AD7758_CURRENT),
+		6, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_POWER, 0, 1, 0, "apparent_raw", 1, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_B, AD7758_APP_PWR),
+		7, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_POWER, 0, 1, 0, "active_raw", 1, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_B, AD7758_ACT_PWR),
+		8, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_POWER, 0, 1, 0, "reactive_raw", 1, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_B, AD7758_REACT_PWR),
+		9, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, "raw", 2, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_C, AD7758_VOLTAGE),
+		10, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_CURRENT, 0, 1, 0, "raw", 2, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_C, AD7758_CURRENT),
+		11, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_POWER, 0, 1, 0, "apparent_raw", 2, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_C, AD7758_APP_PWR),
+		12, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_POWER, 0, 1, 0, "active_raw", 2, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_C, AD7758_ACT_PWR),
+		13, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN(IIO_POWER, 0, 1, 0, "reactive_raw", 2, 0,
+		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		AD7758_WT(AD7758_PHASE_C, AD7758_REACT_PWR),
+		14, IIO_ST('s', 24, 32, 0), 0),
+	IIO_CHAN_SOFT_TIMESTAMP(15),
+};
 
 static int __devinit ade7758_probe(struct spi_device *spi)
 {
-	int ret, regdone = 0;
+	int i, ret, regdone = 0;
 	struct ade7758_state *st = kzalloc(sizeof *st, GFP_KERNEL);
 	if (!st) {
 		ret =  -ENOMEM;
@@ -755,6 +747,7 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 		goto error_free_rx;
 	}
 	st->us = spi;
+	st->ade7758_ring_channels = &ade7758_channels[0];
 	mutex_init(&st->buf_lock);
 	/* setup the industrialio driver allocated elements */
 	st->indio_dev = iio_allocate_device(0);
@@ -770,6 +763,11 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
+	for (i = 0; i < AD7758_NUM_WAVESRC; i++)
+		st->available_scan_masks[i] = 1 << i;
+
+	st->indio_dev->available_scan_masks = st->available_scan_masks;
+
 	ret = ade7758_configure_ring(st->indio_dev);
 	if (ret)
 		goto error_free_dev;
@@ -779,22 +777,25 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 		goto error_unreg_ring_funcs;
 	regdone = 1;
 
-	ret = ade7758_initialize_ring(st->indio_dev->ring);
+	ret = iio_ring_buffer_register_ex(st->indio_dev->ring, 0,
+					  &ade7758_channels[0],
+					  ARRAY_SIZE(ade7758_channels));
 	if (ret) {
-		printk(KERN_ERR "failed to initialize the ring\n");
+		dev_err(&spi->dev, "failed to initialize the ring\n");
 		goto error_unreg_ring_funcs;
-	}
-
-	if (spi->irq) {
-		ret = ade7758_probe_trigger(st->indio_dev);
-		if (ret)
-			goto error_uninitialize_ring;
 	}
 
 	/* Get the device into a sane initial state */
 	ret = ade7758_initial_setup(st);
 	if (ret)
-		goto error_remove_trigger;
+		goto error_uninitialize_ring;
+
+	if (spi->irq) {
+		ret = ade7758_probe_trigger(st->indio_dev);
+		if (ret)
+			goto error_remove_trigger;
+	}
+
 	return 0;
 
 error_remove_trigger:
@@ -829,8 +830,6 @@ static int ade7758_remove(struct spi_device *spi)
 	if (ret)
 		goto err_ret;
 
-	flush_scheduled_work();
-
 	ade7758_remove_trigger(indio_dev);
 	ade7758_uninitialize_ring(indio_dev->ring);
 	iio_device_unregister(indio_dev);
@@ -845,6 +844,11 @@ err_ret:
 	return ret;
 }
 
+static const struct spi_device_id ade7758_id[] = {
+	{"ade7758", 0},
+	{}
+};
+
 static struct spi_driver ade7758_driver = {
 	.driver = {
 		.name = "ade7758",
@@ -852,6 +856,7 @@ static struct spi_driver ade7758_driver = {
 	},
 	.probe = ade7758_probe,
 	.remove = __devexit_p(ade7758_remove),
+	.id_table = ade7758_id,
 };
 
 static __init int ade7758_init(void)
