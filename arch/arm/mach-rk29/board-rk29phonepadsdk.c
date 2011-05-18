@@ -567,6 +567,15 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
                 .flags                  = 0,
         },
 #endif
+
+#if defined (CONFIG_SND_SOC_RT5625)
+	{
+		.type			= "rt5625",
+		.addr			= 0x1e,		//need check A1 pin,A1 pin is low,addr=0x1e,A1 pin is high,addr=0x1f.
+		.flags			= 0,
+	},
+#endif
+
 #if defined (CONFIG_SND_SOC_RK1000)
 	{
 		.type    		= "rk1000_i2c_codec",
