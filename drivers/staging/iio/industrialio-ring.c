@@ -71,12 +71,12 @@ static ssize_t iio_ring_read_first_n_outer(struct file *filp, char __user *buf,
 				  size_t n, loff_t *f_ps)
 {
 	struct iio_ring_buffer *rb = filp->private_data;
-	int ret, dead_offset;
+	int ret;
 
 	/* rip lots must exist. */
 	if (!rb->access.read_first_n)
 		return -EINVAL;
-	ret = rb->access.read_first_n(rb, n, buf, &dead_offset);
+	ret = rb->access.read_first_n(rb, n, buf);
 
 	return ret;
 }

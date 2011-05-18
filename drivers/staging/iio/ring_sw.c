@@ -139,14 +139,13 @@ static int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 }
 
 int iio_read_first_n_sw_rb(struct iio_ring_buffer *r,
-			   size_t n, char __user *buf, int *dead_offset)
+			   size_t n, char __user *buf)
 {
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
 
 	u8 *initial_read_p, *initial_write_p, *current_read_p, *end_read_p;
 	u8 *data;
-	int ret, max_copied;
-	int bytes_to_rip;
+	int ret, max_copied, bytes_to_rip, dead_offset;
 
 	/* A userspace program has probably made an error if it tries to
 	 *  read something that is not a whole number of bpds.
@@ -227,9 +226,9 @@ int iio_read_first_n_sw_rb(struct iio_ring_buffer *r,
 	current_read_p = ring->read_p;
 
 	if (initial_read_p <= current_read_p)
-		*dead_offset = current_read_p - initial_read_p;
+		dead_offset = current_read_p - initial_read_p;
 	else
-		*dead_offset = ring->buf.length*ring->buf.bytes_per_datum
+		dead_offset = ring->buf.length*ring->buf.bytes_per_datum
 			- (initial_read_p - current_read_p);
 
 	/* possible issue if the initial write has been lapped or indeed
@@ -237,7 +236,7 @@ int iio_read_first_n_sw_rb(struct iio_ring_buffer *r,
 	/* No valid data read.
 	 * In this case the read pointer is already correct having been
 	 * pushed further than we would look. */
-	if (max_copied - *dead_offset < 0) {
+	if (max_copied - dead_offset < 0) {
 		ret = 0;
 		goto error_free_data_cpy;
 	}
@@ -253,9 +252,9 @@ int iio_read_first_n_sw_rb(struct iio_ring_buffer *r,
 	while (ring->read_p != end_read_p)
 		ring->read_p = end_read_p;
 
-	ret = max_copied - *dead_offset;
+	ret = max_copied - dead_offset;
 
-	if (copy_to_user(buf, data + *dead_offset, ret))  {
+	if (copy_to_user(buf, data + dead_offset, ret))  {
 		ret =  -EFAULT;
 		goto error_free_data_cpy;
 	}

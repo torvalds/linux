@@ -79,16 +79,13 @@ error_ret:
  * @r:			the ring
  * @count:		number of samples to try and pull
  * @data:		output the actual samples pulled from the hw ring
- * @dead_offset:	cheating a bit here: Set to 1 so as to allow for the
- *			leading byte used in bus comms.
  *
  * Currently does not provide timestamps.  As the hardware doesn't add them they
  * can only be inferred approximately from ring buffer events such as 50% full
  * and knowledge of when buffer was last emptied.  This is left to userspace.
  **/
 static int sca3000_read_first_n_hw_rb(struct iio_ring_buffer *r,
-				      size_t count, char __user *buf,
-				      int *dead_offset)
+				      size_t count, char __user *buf)
 {
 	struct iio_hw_ring_buffer *hw_ring = iio_to_hw_ring_buf(r);
 	struct iio_dev *indio_dev = hw_ring->private;

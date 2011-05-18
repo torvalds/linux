@@ -50,8 +50,7 @@ struct iio_ring_access_funcs {
 	int (*read_last)(struct iio_ring_buffer *ring, u8 *data);
 	int (*read_first_n)(struct iio_ring_buffer *ring,
 			    size_t n,
-			    char __user *buf,
-			    int *dead_offset);
+			    char __user *buf);
 
 	int (*mark_param_change)(struct iio_ring_buffer *ring);
 	int (*request_update)(struct iio_ring_buffer *ring);
