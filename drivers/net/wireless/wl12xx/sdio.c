@@ -23,7 +23,6 @@
 
 #include <linux/irq.h>
 #include <linux/module.h>
-#include <linux/crc7.h>
 #include <linux/vmalloc.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
