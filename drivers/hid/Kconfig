@@ -308,6 +308,7 @@ config HID_MULTITOUCH
 	  - Hanvon dual touch panels
 	  - Ilitek dual touch panel
 	  - IrTouch Infrared USB panels
+	  - Lumio CrystalTouch panels
 	  - MosArt dual-touch panels
 	  - PenMount dual touch panels
 	  - Pixcir dual touch panels
