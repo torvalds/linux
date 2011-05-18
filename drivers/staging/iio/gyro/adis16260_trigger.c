@@ -33,7 +33,7 @@ static int adis16260_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	struct iio_dev *indio_dev = st->indio_dev;
 
 	dev_dbg(&indio_dev->dev, "%s (%d)\n", __func__, state);
-	return adis16260_set_irq(&st->indio_dev->dev, state);
+	return adis16260_set_irq(indio_dev, state);
 }
 
 int adis16260_probe_trigger(struct iio_dev *indio_dev)

@@ -102,7 +102,7 @@ struct adis16260_state {
 	unsigned			negate:1;
 };
 
-int adis16260_set_irq(struct device *dev, bool enable);
+int adis16260_set_irq(struct iio_dev *indio_dev, bool enable);
 
 #ifdef CONFIG_IIO_RING_BUFFER
 /* At the moment triggers are only used for ring buffer

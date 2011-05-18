@@ -17,46 +17,6 @@
 #include "../trigger.h"
 #include "adis16260.h"
 
-static IIO_SCAN_EL_C(in_supply, ADIS16260_SCAN_SUPPLY,
-		ADIS16260_SUPPLY_OUT, NULL);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(in_supply, u, 12, 16);
-static IIO_SCAN_EL_C(gyro, ADIS16260_SCAN_GYRO, ADIS16260_GYRO_OUT, NULL);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(gyro, s, 14, 16);
-static IIO_SCAN_EL_C(in0, ADIS16260_SCAN_AUX_ADC, ADIS16260_AUX_ADC, NULL);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(in0, u, 12, 16);
-static IIO_SCAN_EL_C(temp, ADIS16260_SCAN_TEMP, ADIS16260_TEMP_OUT, NULL);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(temp, u, 12, 16);
-static IIO_SCAN_EL_C(angl, ADIS16260_SCAN_ANGL, ADIS16260_ANGL_OUT, NULL);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(angl, u, 14, 16);
-static IIO_SCAN_EL_TIMESTAMP(5);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
-
-static struct attribute *adis16260_scan_el_attrs[] = {
-	&iio_scan_el_in_supply.dev_attr.attr,
-	&iio_const_attr_in_supply_index.dev_attr.attr,
-	&iio_const_attr_in_supply_type.dev_attr.attr,
-	&iio_scan_el_gyro.dev_attr.attr,
-	&iio_const_attr_gyro_index.dev_attr.attr,
-	&iio_const_attr_gyro_type.dev_attr.attr,
-	&iio_scan_el_in0.dev_attr.attr,
-	&iio_const_attr_in0_index.dev_attr.attr,
-	&iio_const_attr_in0_type.dev_attr.attr,
-	&iio_scan_el_temp.dev_attr.attr,
-	&iio_const_attr_temp_index.dev_attr.attr,
-	&iio_const_attr_temp_type.dev_attr.attr,
-	&iio_scan_el_angl.dev_attr.attr,
-	&iio_const_attr_angl_index.dev_attr.attr,
-	&iio_const_attr_angl_type.dev_attr.attr,
-	&iio_scan_el_timestamp.dev_attr.attr,
-	&iio_const_attr_timestamp_index.dev_attr.attr,
-	&iio_const_attr_timestamp_type.dev_attr.attr,
-	NULL,
-};
-
-static struct attribute_group adis16260_scan_el_group = {
-	.attrs = adis16260_scan_el_attrs,
-	.name = "scan_elements",
-};
 
 /**
  * adis16260_read_ring_data() read data registers which will be placed into ring
@@ -160,7 +120,6 @@ int adis16260_configure_ring(struct iio_dev *indio_dev)
 	/* Effectively select the ring buffer implementation */
 	iio_ring_sw_register_funcs(&ring->access);
 	ring->bpe = 2;
-	ring->scan_el_attrs = &adis16260_scan_el_group;
 	ring->scan_timestamp = true;
 	ring->preenable = &iio_sw_ring_preenable;
 	ring->postenable = &iio_triggered_ring_postenable;
@@ -168,11 +127,11 @@ int adis16260_configure_ring(struct iio_dev *indio_dev)
 	ring->owner = THIS_MODULE;
 
 	/* Set default scan mode */
-	iio_scan_mask_set(ring, iio_scan_el_in_supply.number);
-	iio_scan_mask_set(ring, iio_scan_el_gyro.number);
-	iio_scan_mask_set(ring, iio_scan_el_in0.number);
-	iio_scan_mask_set(ring, iio_scan_el_temp.number);
-	iio_scan_mask_set(ring, iio_scan_el_angl.number);
+	iio_scan_mask_set(ring, ADIS16260_SCAN_SUPPLY);
+	iio_scan_mask_set(ring, ADIS16260_SCAN_GYRO);
+	iio_scan_mask_set(ring, ADIS16260_SCAN_AUX_ADC);
+	iio_scan_mask_set(ring, ADIS16260_SCAN_TEMP);
+	iio_scan_mask_set(ring, ADIS16260_SCAN_ANGL);
 
 	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
 	if (indio_dev->pollfunc == NULL) {
