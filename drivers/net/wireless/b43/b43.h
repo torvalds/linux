@@ -881,6 +881,29 @@ static inline enum ieee80211_band b43_current_band(struct b43_wl *wl)
 	return wl->hw->conf.channel->band;
 }
 
+static inline int b43_bus_may_powerdown(struct b43_wldev *wldev)
+{
+	return wldev->dev->bus_may_powerdown(wldev->dev);
+}
+static inline int b43_bus_powerup(struct b43_wldev *wldev, bool dynamic_pctl)
+{
+	return wldev->dev->bus_powerup(wldev->dev, dynamic_pctl);
+}
+static inline int b43_device_is_enabled(struct b43_wldev *wldev)
+{
+	return wldev->dev->device_is_enabled(wldev->dev);
+}
+static inline void b43_device_enable(struct b43_wldev *wldev,
+				     u32 core_specific_flags)
+{
+	wldev->dev->device_enable(wldev->dev, core_specific_flags);
+}
+static inline void b43_device_disable(struct b43_wldev *wldev,
+				      u32 core_specific_flags)
+{
+	wldev->dev->device_disable(wldev->dev, core_specific_flags);
+}
+
 static inline u16 b43_read16(struct b43_wldev *dev, u16 offset)
 {
 	return dev->dev->read16(dev->dev, offset);

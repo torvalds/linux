@@ -1152,7 +1152,7 @@ static void b43_ssb_wireless_core_reset(struct b43_wldev *dev, u32 flags)
 	flags |= B43_TMSLOW_PHYRESET;
 	if (dev->phy.type == B43_PHYTYPE_N)
 		flags |= B43_TMSLOW_PHY_BANDWIDTH_20MHZ; /* Make 20 MHz def */
-	ssb_device_enable(dev->sdev, flags);
+	b43_device_enable(dev, flags);
 	msleep(2);		/* Wait for the PLL to turn on. */
 
 	/* Now take the PHY out of Reset again */
@@ -4310,8 +4310,8 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 		dev->wl->current_beacon = NULL;
 	}
 
-	ssb_device_disable(dev->sdev, 0);
-	ssb_bus_may_powerdown(dev->sdev->bus);
+	b43_device_disable(dev, 0);
+	b43_bus_may_powerdown(dev);
 }
 
 /* Initialize a wireless core */
@@ -4326,10 +4326,10 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 
 	B43_WARN_ON(b43_status(dev) != B43_STAT_UNINIT);
 
-	err = ssb_bus_powerup(bus, 0);
+	err = b43_bus_powerup(dev, 0);
 	if (err)
 		goto out;
-	if (!ssb_device_is_enabled(dev->sdev)) {
+	if (!b43_device_is_enabled(dev)) {
 		tmp = phy->gmode ? B43_TMSLOW_GMODE : 0;
 		b43_wireless_core_reset(dev, tmp);
 	}
@@ -4414,7 +4414,7 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	b43_set_synth_pu_delay(dev, 1);
 	b43_bluetooth_coext_enable(dev);
 
-	ssb_bus_powerup(bus, !(sprom->boardflags_lo & B43_BFL_XTAL_NOSLOW));
+	b43_bus_powerup(dev, !(sprom->boardflags_lo & B43_BFL_XTAL_NOSLOW));
 	b43_upload_card_macaddress(dev);
 	b43_security_init(dev);
 
@@ -4431,7 +4431,7 @@ out:
 err_chip_exit:
 	b43_chip_exit(dev);
 err_busdown:
-	ssb_bus_may_powerdown(bus);
+	b43_bus_may_powerdown(dev);
 	B43_WARN_ON(b43_status(dev) != B43_STAT_UNINIT);
 	return err;
 }
@@ -4750,7 +4750,7 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	 * that in core_init(), too.
 	 */
 
-	err = ssb_bus_powerup(bus, 0);
+	err = b43_bus_powerup(dev, 0);
 	if (err) {
 		b43err(wl, "Bus powerup failed\n");
 		goto out;
@@ -4832,8 +4832,8 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	INIT_WORK(&dev->restart_work, b43_chip_reset);
 
 	dev->phy.ops->switch_analog(dev, 0);
-	ssb_device_disable(dev->sdev, 0);
-	ssb_bus_may_powerdown(bus);
+	b43_device_disable(dev, 0);
+	b43_bus_may_powerdown(dev);
 
 out:
 	return err;
@@ -4841,7 +4841,7 @@ out:
 err_phy_free:
 	b43_phy_free(dev);
 err_powerdown:
-	ssb_bus_may_powerdown(bus);
+	b43_bus_may_powerdown(dev);
 	return err;
 }
 

@@ -25,6 +25,31 @@
 
 
 /* SSB */
+
+static inline int b43_bus_ssb_bus_may_powerdown(struct b43_bus_dev *dev)
+{
+	return ssb_bus_may_powerdown(dev->sdev->bus);
+}
+static inline int b43_bus_ssb_bus_powerup(struct b43_bus_dev *dev,
+					  bool dynamic_pctl)
+{
+	return ssb_bus_powerup(dev->sdev->bus, dynamic_pctl);
+}
+static inline int b43_bus_ssb_device_is_enabled(struct b43_bus_dev *dev)
+{
+	return ssb_device_is_enabled(dev->sdev);
+}
+static inline void b43_bus_ssb_device_enable(struct b43_bus_dev *dev,
+					     u32 core_specific_flags)
+{
+	ssb_device_enable(dev->sdev, core_specific_flags);
+}
+static inline void b43_bus_ssb_device_disable(struct b43_bus_dev *dev,
+					      u32 core_specific_flags)
+{
+	ssb_device_disable(dev->sdev, core_specific_flags);
+}
+
 static inline u16 b43_bus_ssb_read16(struct b43_bus_dev *dev, u16 offset)
 {
 	return ssb_read16(dev->sdev, offset);
@@ -62,6 +87,12 @@ struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev)
 
 	dev->bus_type = B43_BUS_SSB;
 	dev->sdev = sdev;
+
+	dev->bus_may_powerdown = b43_bus_ssb_bus_may_powerdown;
+	dev->bus_powerup = b43_bus_ssb_bus_powerup;
+	dev->device_is_enabled = b43_bus_ssb_device_is_enabled;
+	dev->device_enable = b43_bus_ssb_device_enable;
+	dev->device_disable = b43_bus_ssb_device_disable;
 
 	dev->read16 = b43_bus_ssb_read16;
 	dev->read32 = b43_bus_ssb_read32;

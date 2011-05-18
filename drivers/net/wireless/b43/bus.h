@@ -11,6 +11,14 @@ struct b43_bus_dev {
 		struct ssb_device *sdev;
 	};
 
+	int (*bus_may_powerdown)(struct b43_bus_dev *dev);
+	int (*bus_powerup)(struct b43_bus_dev *dev, bool dynamic_pctl);
+	int (*device_is_enabled)(struct b43_bus_dev *dev);
+	void (*device_enable)(struct b43_bus_dev *dev,
+			      u32 core_specific_flags);
+	void (*device_disable)(struct b43_bus_dev *dev,
+			       u32 core_specific_flags);
+
 	u16 (*read16)(struct b43_bus_dev *dev, u16 offset);
 	u32 (*read32)(struct b43_bus_dev *dev, u16 offset);
 	void (*write16)(struct b43_bus_dev *dev, u16 offset, u16 value);
