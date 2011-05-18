@@ -263,7 +263,7 @@ static void ap_flash_exit(struct platform_device *dev)
 	}
 }
 
-static void ap_flash_set_vpp(struct map_info *map, int on)
+static void ap_flash_set_vpp(struct platform_device *pdev, int on)
 {
 	void __iomem *reg = on ? SC_CTRLS : SC_CTRLC;
 

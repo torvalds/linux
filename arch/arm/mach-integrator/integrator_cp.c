@@ -259,7 +259,7 @@ static void intcp_flash_exit(struct platform_device *dev)
 	writel(val, INTCP_VA_CTRL_BASE + INTCP_FLASHPROG);
 }
 
-static void intcp_flash_set_vpp(struct map_info *map, int on)
+static void intcp_flash_set_vpp(struct platform_device *pdev, int on)
 {
 	u32 val;
 

@@ -74,6 +74,18 @@ static int physmap_flash_remove(struct platform_device *dev)
 	return 0;
 }
 
+static void physmap_set_vpp(struct map_info *map, int state)
+{
+	struct platform_device *pdev;
+	struct physmap_flash_data *physmap_data;
+
+	pdev = (struct platform_device *)map->map_priv_1;
+	physmap_data = pdev->dev.platform_data;
+
+	if (physmap_data->set_vpp)
+		physmap_data->set_vpp(pdev, state);
+}
+
 static const char *rom_probe_types[] = {
 					"cfi_probe",
 					"jedec_probe",
@@ -81,10 +93,7 @@ static const char *rom_probe_types[] = {
 					"map_rom",
 					NULL };
 #ifdef CONFIG_MTD_PARTITIONS
-static const char *part_probe_types[] = { "cmdlinepart", "RedBoot",
-#ifdef CONFIG_MTD_AFS_PARTS
-					  "afs",
-#endif
+static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", "afs",
 					  NULL };
 #endif
 
@@ -134,8 +143,9 @@ static int physmap_flash_probe(struct platform_device *dev)
 		info->map[i].phys = dev->resource[i].start;
 		info->map[i].size = resource_size(&dev->resource[i]);
 		info->map[i].bankwidth = physmap_data->width;
-		info->map[i].set_vpp = physmap_data->set_vpp;
+		info->map[i].set_vpp = physmap_set_vpp;
 		info->map[i].pfow_base = physmap_data->pfow_base;
+		info->map[i].map_priv_1 = (unsigned long)dev;
 
 		info->map[i].virt = devm_ioremap(&dev->dev, info->map[i].phys,
 						 info->map[i].size);

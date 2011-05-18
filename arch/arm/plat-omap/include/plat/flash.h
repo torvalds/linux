@@ -11,6 +11,6 @@
 
 #include <linux/mtd/map.h>
 
-extern void omap1_set_vpp(struct map_info *map, int enable);
+extern void omap1_set_vpp(struct platform_device *pdev, int enable);
 
 #endif

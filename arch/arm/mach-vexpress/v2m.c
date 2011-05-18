@@ -206,7 +206,7 @@ static struct platform_device v2m_usb_device = {
 	.dev.platform_data = &v2m_usb_config,
 };
 
-static void v2m_flash_set_vpp(struct map_info *map, int on)
+static void v2m_flash_set_vpp(struct platform_device *pdev, int on)
 {
 	writel(on != 0, MMIO_P2V(V2M_SYS_FLASH));
 }

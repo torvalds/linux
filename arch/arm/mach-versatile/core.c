@@ -190,7 +190,7 @@ void __init versatile_map_io(void)
 
 #define VERSATILE_FLASHCTRL    (__io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_FLASH_OFFSET)
 
-static void versatile_flash_set_vpp(struct map_info *map, int on)
+static void versatile_flash_set_vpp(struct platform_device *pdev, int on)
 {
 	u32 val;
 

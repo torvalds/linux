@@ -24,7 +24,7 @@ struct physmap_flash_data {
 	unsigned int		width;
 	int			(*init)(struct platform_device *);
 	void			(*exit)(struct platform_device *);
-	void			(*set_vpp)(struct map_info *, int);
+	void			(*set_vpp)(struct platform_device *, int);
 	unsigned int		nr_parts;
 	unsigned int		pfow_base;
 	char                    *probe_type;

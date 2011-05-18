@@ -77,7 +77,7 @@ void __init realview_adjust_zones(unsigned long *size, unsigned long *hole)
 
 #define REALVIEW_FLASHCTRL    (__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_FLASH_OFFSET)
 
-static void realview_flash_set_vpp(struct map_info *map, int on)
+static void realview_flash_set_vpp(struct platform_device *pdev, int on)
 {
 	u32 val;
 
