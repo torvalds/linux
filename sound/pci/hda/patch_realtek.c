@@ -19610,6 +19610,15 @@ static int patch_alc888(struct hda_codec *codec)
 	return patch_alc882(codec);
 }
 
+static int patch_alc899(struct hda_codec *codec)
+{
+	if ((alc_read_coef_idx(codec, 0) & 0x2000) != 0x2000) {
+		kfree(codec->chip_name);
+		codec->chip_name = kstrdup("ALC898", GFP_KERNEL);
+	}
+	return patch_alc882(codec);
+}
+
 /*
  * ALC680 support
  */
@@ -20097,6 +20106,7 @@ static const struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0888, .name = "ALC888", .patch = patch_alc888 },
 	{ .id = 0x10ec0889, .name = "ALC889", .patch = patch_alc882 },
 	{ .id = 0x10ec0892, .name = "ALC892", .patch = patch_alc662 },
+	{ .id = 0x10ec0899, .name = "ALC899", .patch = patch_alc899 },
 	{} /* terminator */
 };
 
