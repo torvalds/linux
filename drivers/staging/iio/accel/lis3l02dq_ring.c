@@ -29,86 +29,6 @@ static inline u16 combine_8_to_16(u8 lower, u8 upper)
 }
 
 /**
- * lis3l02dq_scan_el_set_state() set whether a scan contains a given channel
- * @scan_el:	associtate iio scan element attribute
- * @indio_dev:	the device structure
- * @bool:	desired state
- *
- * mlock already held when this is called.
- **/
-static int lis3l02dq_scan_el_set_state(struct iio_scan_el *scan_el,
-				       struct iio_dev *indio_dev,
-				       bool state)
-{
-	u8 t, mask;
-	int ret;
-
-	ret = lis3l02dq_spi_read_reg_8(&indio_dev->dev,
-				       LIS3L02DQ_REG_CTRL_1_ADDR,
-				       &t);
-	if (ret)
-		goto error_ret;
-	switch (scan_el->label) {
-	case LIS3L02DQ_REG_OUT_X_L_ADDR:
-		mask = LIS3L02DQ_REG_CTRL_1_AXES_X_ENABLE;
-		break;
-	case LIS3L02DQ_REG_OUT_Y_L_ADDR:
-		mask = LIS3L02DQ_REG_CTRL_1_AXES_Y_ENABLE;
-		break;
-	case LIS3L02DQ_REG_OUT_Z_L_ADDR:
-		mask = LIS3L02DQ_REG_CTRL_1_AXES_Z_ENABLE;
-		break;
-	default:
-		ret = -EINVAL;
-		goto error_ret;
-	}
-
-	if (!(mask & t) == state) {
-		if (state)
-			t |= mask;
-		else
-			t &= ~mask;
-		ret = lis3l02dq_spi_write_reg_8(&indio_dev->dev,
-						LIS3L02DQ_REG_CTRL_1_ADDR,
-						&t);
-	}
-error_ret:
-	return ret;
-
-}
-static IIO_SCAN_EL_C(accel_x, 0,
-		     LIS3L02DQ_REG_OUT_X_L_ADDR,
-		     &lis3l02dq_scan_el_set_state);
-static IIO_SCAN_EL_C(accel_y, 1,
-		     LIS3L02DQ_REG_OUT_Y_L_ADDR,
-		     &lis3l02dq_scan_el_set_state);
-static IIO_SCAN_EL_C(accel_z, 2,
-		     LIS3L02DQ_REG_OUT_Z_L_ADDR,
-		     &lis3l02dq_scan_el_set_state);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(accel, s, 12, 16);
-static IIO_SCAN_EL_TIMESTAMP(3);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
-
-static struct attribute *lis3l02dq_scan_el_attrs[] = {
-	&iio_scan_el_accel_x.dev_attr.attr,
-	&iio_const_attr_accel_x_index.dev_attr.attr,
-	&iio_scan_el_accel_y.dev_attr.attr,
-	&iio_const_attr_accel_y_index.dev_attr.attr,
-	&iio_scan_el_accel_z.dev_attr.attr,
-	&iio_const_attr_accel_z_index.dev_attr.attr,
-	&iio_const_attr_accel_type.dev_attr.attr,
-	&iio_scan_el_timestamp.dev_attr.attr,
-	&iio_const_attr_timestamp_index.dev_attr.attr,
-	&iio_const_attr_timestamp_type.dev_attr.attr,
-	NULL,
-};
-
-static struct attribute_group lis3l02dq_scan_el_group = {
-	.attrs = lis3l02dq_scan_el_attrs,
-	.name = "scan_elements",
-};
-
-/**
  * lis3l02dq_poll_func_th() top half interrupt handler called by trigger
  * @private_data:	iio_dev
  **/
@@ -151,58 +71,27 @@ IIO_EVENT_SH(data_rdy_trig, &lis3l02dq_data_rdy_trig_poll);
 /**
  * lis3l02dq_read_accel_from_ring() individual acceleration read from ring
  **/
-ssize_t lis3l02dq_read_accel_from_ring(struct device *dev,
-				       struct device_attribute *attr,
-				       char *buf)
+ssize_t lis3l02dq_read_accel_from_ring(struct iio_ring_buffer *ring,
+				       int index,
+				       int *val)
 {
-	struct iio_scan_el *el = NULL;
-	int ret, len = 0, i = 0;
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct iio_ring_buffer *ring = dev_info->ring;
-	struct attribute_group *scan_el_attrs = ring->scan_el_attrs;
+	int ret;
 	s16 *data;
+	if (!iio_scan_mask_query(ring, index))
+		return -EINVAL;
 
-	while (scan_el_attrs->attrs[i]) {
-		el = to_iio_scan_el((struct device_attribute *)
-				    (scan_el_attrs->attrs[i]));
-		/* label is in fact the address */
-		if (el->label == this_attr->address)
-			break;
-		i++;
-	}
-	if (!scan_el_attrs->attrs[i]) {
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	/* If this element is in the scan mask */
-	ret = iio_scan_mask_query(ring, el->number);
-	if (ret < 0)
-		goto error_ret;
-	if (ret) {
-		data = kmalloc(ring->access.get_bytes_per_datum(ring),
-			       GFP_KERNEL);
-		if (data == NULL)
-			return -ENOMEM;
-		ret = ring->access.read_last(ring,
-					(u8 *)data);
-		if (ret)
-			goto error_free_data;
-	} else {
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	len = iio_scan_mask_count_to_right(ring, el->number);
-	if (len < 0) {
-		ret = len;
+	data = kmalloc(ring->access.get_bytes_per_datum(ring),
+		       GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	ret = ring->access.read_last(ring, (u8 *)data);
+	if (ret)
 		goto error_free_data;
-	}
-	len = sprintf(buf, "ring %d\n", data[len]);
+	*val = data[iio_scan_mask_count_to_right(ring, index)];
 error_free_data:
 	kfree(data);
-error_ret:
-	return ret ? ret : len;
-
+	return ret;
 }
 
 static const u8 read_all_tx_array[] = {
@@ -234,7 +123,7 @@ static int lis3l02dq_read_all(struct lis3l02dq_state *st, u8 *rx_array)
 
 	mutex_lock(&st->buf_lock);
 
-	for (i = 0; i < ARRAY_SIZE(read_all_tx_array)/4; i++) {
+	for (i = 0; i < ARRAY_SIZE(read_all_tx_array)/4; i++)
 		if (ring->scan_mask & (1 << i)) {
 			/* lower byte */
 			xfers[j].tx_buf = st->tx + 2*j;
@@ -258,7 +147,7 @@ static int lis3l02dq_read_all(struct lis3l02dq_state *st, u8 *rx_array)
 			xfers[j].cs_change = 1;
 			j++;
 		}
-	}
+
 	/* After these are transmitted, the rx_buff should have
 	 * values in alternate bytes
 	 */
@@ -488,6 +377,76 @@ void lis3l02dq_unconfigure_ring(struct iio_dev *indio_dev)
 	lis3l02dq_free_buf(indio_dev->ring);
 }
 
+static int lis3l02dq_ring_postenable(struct iio_dev *indio_dev)
+{
+	/* Disable unwanted channels otherwise the interrupt will not clear */
+	u8 t;
+	int ret;
+	bool oneenabled = false;
+
+	ret = lis3l02dq_spi_read_reg_8(&indio_dev->dev,
+				       LIS3L02DQ_REG_CTRL_1_ADDR,
+				       &t);
+	if (ret)
+		goto error_ret;
+
+	if (iio_scan_mask_query(indio_dev->ring, 0)) {
+		t |= LIS3L02DQ_REG_CTRL_1_AXES_X_ENABLE;
+		oneenabled = true;
+	} else
+		t &= ~LIS3L02DQ_REG_CTRL_1_AXES_X_ENABLE;
+	if (iio_scan_mask_query(indio_dev->ring, 1)) {
+		t |= LIS3L02DQ_REG_CTRL_1_AXES_Y_ENABLE;
+		oneenabled = true;
+	} else
+		t &= ~LIS3L02DQ_REG_CTRL_1_AXES_Y_ENABLE;
+	if (iio_scan_mask_query(indio_dev->ring, 2)) {
+		t |= LIS3L02DQ_REG_CTRL_1_AXES_Z_ENABLE;
+		oneenabled = true;
+	} else
+		t &= ~LIS3L02DQ_REG_CTRL_1_AXES_Z_ENABLE;
+
+	if (!oneenabled) /* what happens in this case is unknown */
+		return -EINVAL;
+	ret = lis3l02dq_spi_write_reg_8(&indio_dev->dev,
+					LIS3L02DQ_REG_CTRL_1_ADDR,
+					&t);
+	if (ret)
+		goto error_ret;
+
+	return iio_triggered_ring_postenable(indio_dev);
+error_ret:
+	return ret;
+}
+
+/* Turn all channels on again */
+static int lis3l02dq_ring_predisable(struct iio_dev *indio_dev)
+{
+	u8 t;
+	int ret;
+
+	ret = iio_triggered_ring_predisable(indio_dev);
+	if (ret)
+		goto error_ret;
+
+	ret = lis3l02dq_spi_read_reg_8(&indio_dev->dev,
+				       LIS3L02DQ_REG_CTRL_1_ADDR,
+				       &t);
+	if (ret)
+		goto error_ret;
+	t |= LIS3L02DQ_REG_CTRL_1_AXES_X_ENABLE |
+		LIS3L02DQ_REG_CTRL_1_AXES_Y_ENABLE |
+		LIS3L02DQ_REG_CTRL_1_AXES_Z_ENABLE;
+
+	ret = lis3l02dq_spi_write_reg_8(&indio_dev->dev,
+					LIS3L02DQ_REG_CTRL_1_ADDR,
+					&t);
+
+error_ret:
+	return ret;
+}
+
+
 int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 {
 	int ret;
@@ -504,17 +463,17 @@ int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 	/* Effectively select the ring buffer implementation */
 	lis3l02dq_register_buf_funcs(&ring->access);
 	ring->bpe = 2;
-	ring->scan_el_attrs = &lis3l02dq_scan_el_group;
+
 	ring->scan_timestamp = true;
 	ring->preenable = &iio_sw_ring_preenable;
-	ring->postenable = &iio_triggered_ring_postenable;
-	ring->predisable = &iio_triggered_ring_predisable;
+	ring->postenable = &lis3l02dq_ring_postenable;
+	ring->predisable = &lis3l02dq_ring_predisable;
 	ring->owner = THIS_MODULE;
 
 	/* Set default scan mode */
-	iio_scan_mask_set(ring, iio_scan_el_accel_x.number);
-	iio_scan_mask_set(ring, iio_scan_el_accel_y.number);
-	iio_scan_mask_set(ring, iio_scan_el_accel_z.number);
+	iio_scan_mask_set(ring, 0);
+	iio_scan_mask_set(ring, 1);
+	iio_scan_mask_set(ring, 2);
 
 	ret = iio_alloc_pollfunc(indio_dev, NULL, &lis3l02dq_poll_func_th);
 	if (ret)

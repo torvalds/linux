@@ -188,9 +188,9 @@ int lis3l02dq_spi_write_reg_8(struct device *dev,
 void lis3l02dq_remove_trigger(struct iio_dev *indio_dev);
 int lis3l02dq_probe_trigger(struct iio_dev *indio_dev);
 
-ssize_t lis3l02dq_read_accel_from_ring(struct device *dev,
-				       struct device_attribute *attr,
-				       char *buf);
+ssize_t lis3l02dq_read_accel_from_ring(struct iio_ring_buffer *ring,
+				       int index,
+				       int *val);
 
 
 int lis3l02dq_configure_ring(struct iio_dev *indio_dev);
@@ -215,11 +215,10 @@ static inline int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 {
 	return 0;
 }
-
 static inline ssize_t
-lis3l02dq_read_accel_from_ring(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+lis3l02dq_read_accel_from_ring(struct iio_ring_buffer *ring,
+			       int index,
+			       int *val)
 {
 	return 0;
 }
