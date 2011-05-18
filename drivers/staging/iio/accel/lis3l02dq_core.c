@@ -15,15 +15,12 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
-#include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-
 #include <linux/sysfs.h>
-#include <linux/list.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -724,7 +721,6 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	}
 
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
-		st->inter = 0;
 		ret = lis3l02dq_probe_trigger(st->help.indio_dev);
 		if (ret)
 			goto error_uninitialize_ring;
@@ -799,8 +795,6 @@ static int lis3l02dq_remove(struct spi_device *spi)
 	ret = lis3l02dq_stop_device(indio_dev);
 	if (ret)
 		goto err_ret;
-
-	flush_scheduled_work();
 
 	lis3l02dq_remove_trigger(indio_dev);
 	iio_ring_buffer_unregister(indio_dev->ring);

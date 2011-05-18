@@ -150,7 +150,6 @@ Form of high byte dependent on justification set in ctrl reg */
  * struct lis3l02dq_state - device instance specific data
  * @helper:		data and func pointer allowing generic functions
  * @us:			actual spi_device
- * @inter:		used to check if new interrupt has been triggered
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
  * @rx:			receive buffer
@@ -159,7 +158,6 @@ Form of high byte dependent on justification set in ctrl reg */
 struct lis3l02dq_state {
 	struct iio_sw_ring_helper_state	help;
 	struct spi_device		*us;
-	bool				inter;
 	struct iio_trigger		*trig;
 	u8				*tx;
 	u8				*rx;
