@@ -304,6 +304,7 @@ int generic_handle_irq(unsigned int irq)
 	generic_handle_irq_desc(irq, desc);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(generic_handle_irq);
 
 /* Dynamic interrupt handling */
 
@@ -326,6 +327,7 @@ void irq_free_descs(unsigned int from, unsigned int cnt)
 	bitmap_clear(allocated_irqs, from, cnt);
 	mutex_unlock(&sparse_irq_lock);
 }
+EXPORT_SYMBOL_GPL(irq_free_descs);
 
 /**
  * irq_alloc_descs - allocate and initialize a range of irq descriptors
@@ -366,6 +368,7 @@ err:
 	mutex_unlock(&sparse_irq_lock);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(irq_alloc_descs);
 
 /**
  * irq_reserve_irqs - mark irqs allocated
