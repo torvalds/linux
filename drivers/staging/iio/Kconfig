@@ -5,17 +5,17 @@
 menuconfig IIO
 	tristate "Industrial I/O support"
 	depends on !S390
-	---help---
+	help
 	  The industrial I/O subsystem provides a unified framework for
 	  drivers for many different types of embedded sensors using a
 	  number of different physical interfaces (i2c, spi, etc). See
-	  Documentation/industrialio for more information.
+	  drivers/staging/iio/Documentation for more information.
 if IIO
 
 config IIO_RING_BUFFER
-	bool "Enable ring buffer support within IIO"
+	bool "Enable buffer support within IIO"
 	help
-	  Provide core support for various ring buffer based data
+	  Provide core support for various buffer based data
 	  acquisition methods.
 
 if IIO_RING_BUFFER
