@@ -968,10 +968,6 @@ static int rt_garbage_collect(struct dst_ops *ops)
 			break;
 
 		expire >>= 1;
-#if RT_CACHE_DEBUG >= 2
-		printk(KERN_DEBUG "expire>> %u %d %d %d\n", expire,
-				dst_entries_get_fast(&ipv4_dst_ops), goal, i);
-#endif
 
 		if (dst_entries_get_fast(&ipv4_dst_ops) < ip_rt_max_size)
 			goto out;
@@ -992,10 +988,6 @@ work_done:
 	    dst_entries_get_fast(&ipv4_dst_ops) < ipv4_dst_ops.gc_thresh ||
 	    dst_entries_get_slow(&ipv4_dst_ops) < ipv4_dst_ops.gc_thresh)
 		expire = ip_rt_gc_timeout;
-#if RT_CACHE_DEBUG >= 2
-	printk(KERN_DEBUG "expire++ %u %d %d %d\n", expire,
-			dst_entries_get_fast(&ipv4_dst_ops), goal, rover);
-#endif
 out:	return 0;
 }
 
@@ -1179,16 +1171,6 @@ restart:
 
 	rt->dst.rt_next = rt_hash_table[hash].chain;
 
-#if RT_CACHE_DEBUG >= 2
-	if (rt->dst.rt_next) {
-		struct rtable *trt;
-		printk(KERN_DEBUG "rt_cache @%02x: %pI4",
-		       hash, &rt->rt_dst);
-		for (trt = rt->dst.rt_next; trt; trt = trt->dst.rt_next)
-			printk(" . %pI4", &trt->rt_dst);
-		printk("\n");
-	}
-#endif
 	/*
 	 * Since lookup is lockfree, we must make sure
 	 * previous writes to rt are committed to memory
@@ -1347,10 +1329,6 @@ static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst)
 			unsigned hash = rt_hash(rt->rt_key_dst, rt->rt_key_src,
 						rt->rt_oif,
 						rt_genid(dev_net(dst->dev)));
-#if RT_CACHE_DEBUG >= 1
-			printk(KERN_DEBUG "ipv4_negative_advice: redirect to %pI4/%02x dropped\n",
-				&rt->rt_dst, rt->rt_key_tos);
-#endif
 			rt_del(hash, rt);
 			ret = NULL;
 		} else if (rt->peer &&

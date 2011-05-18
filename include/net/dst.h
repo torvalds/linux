@@ -16,13 +16,6 @@
 #include <net/neighbour.h>
 #include <asm/processor.h>
 
-/*
- * 0 - no debugging messages
- * 1 - rare events and bugs (default)
- * 2 - trace mode.
- */
-#define RT_CACHE_DEBUG		0
-
 #define DST_GC_MIN	(HZ/10)
 #define DST_GC_INC	(HZ/2)
 #define DST_GC_MAX	(120*HZ)
