@@ -581,7 +581,7 @@ static int s5pcsis_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct csis_state *state = sd_to_csis_state(sd);
-	int ret;
+	int ret = 0;
 
 	v4l2_dbg(1, debug, sd, "%s: flags: 0x%x\n",
 		 __func__, state->flags);
@@ -630,7 +630,7 @@ static int s5pcsis_resume(struct device *dev)
 		ret = pdata->phy_enable(state->pdev, true);
 		if (!ret) {
 			state->flags |= ST_POWERED;
-		} else {
+		} else if (state->supply) {
 			regulator_disable(state->supply);
 			goto unlock;
 		}
