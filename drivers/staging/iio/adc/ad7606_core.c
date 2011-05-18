@@ -458,6 +458,7 @@ struct ad7606_state *ad7606_probe(struct device *dev, int irq,
 	st->indio_dev->dev_data = (void *)(st);
 	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
+	st->indio_dev->name = st->chip_info->name;
 
 	init_waitqueue_head(&st->wq_data_avail);
 

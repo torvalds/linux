@@ -50,7 +50,7 @@ struct ad7606_platform_data {
  */
 
 struct ad7606_chip_info {
-	char				name[10];
+	const char			*name;
 	u8				bits;
 	char				sign;
 	u16				int_vref_mv;
