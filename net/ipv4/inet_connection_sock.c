@@ -350,24 +350,24 @@ void inet_csk_reset_keepalive_timer(struct sock *sk, unsigned long len)
 EXPORT_SYMBOL(inet_csk_reset_keepalive_timer);
 
 struct dst_entry *inet_csk_route_req(struct sock *sk,
+				     struct flowi4 *fl4,
 				     const struct request_sock *req)
 {
 	struct rtable *rt;
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct ip_options_rcu *opt = inet_rsk(req)->opt;
 	struct net *net = sock_net(sk);
-	struct flowi4 fl4;
 
-	flowi4_init_output(&fl4, sk->sk_bound_dev_if, sk->sk_mark,
+	flowi4_init_output(fl4, sk->sk_bound_dev_if, sk->sk_mark,
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
 			   sk->sk_protocol, inet_sk_flowi_flags(sk),
 			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->rmt_addr,
 			   ireq->loc_addr, ireq->rmt_port, inet_sk(sk)->inet_sport);
-	security_req_classify_flow(req, flowi4_to_flowi(&fl4));
-	rt = ip_route_output_flow(net, &fl4, sk);
+	security_req_classify_flow(req, flowi4_to_flowi(fl4));
+	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
 		goto no_route;
-	if (opt && opt->opt.is_strictroute && fl4.daddr != rt->rt_gateway)
+	if (opt && opt->opt.is_strictroute && fl4->daddr != rt->rt_gateway)
 		goto route_err;
 	return &rt->dst;
 

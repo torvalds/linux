@@ -497,8 +497,9 @@ static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,
 	int err = -1;
 	struct sk_buff *skb;
 	struct dst_entry *dst;
+	struct flowi4 fl4;
 
-	dst = inet_csk_route_req(sk, req);
+	dst = inet_csk_route_req(sk, &fl4, req);
 	if (dst == NULL)
 		goto out;
 
