@@ -583,6 +583,14 @@ struct scsi_qla_host {
 	uint32_t nx_reset_timeout;
 
 	struct completion mbx_intr_comp;
+
+	/* --- From About Firmware --- */
+	uint16_t iscsi_major;
+	uint16_t iscsi_minor;
+	uint16_t bootload_major;
+	uint16_t bootload_minor;
+	uint16_t bootload_patch;
+	uint16_t bootload_build;
 };
 
 static inline int is_ipv4_enabled(struct scsi_qla_host *ha)

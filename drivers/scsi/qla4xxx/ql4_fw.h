@@ -690,6 +690,29 @@ struct mbx_sys_info {
 	uint8_t reserved[12];		  /* 34-3f */
 };
 
+struct about_fw_info {
+	uint16_t fw_major;		/* 00 - 01 */
+	uint16_t fw_minor;		/* 02 - 03 */
+	uint16_t fw_patch;		/* 04 - 05 */
+	uint16_t fw_build;		/* 06 - 07 */
+	uint8_t fw_build_date[16];	/* 08 - 17 ASCII String */
+	uint8_t fw_build_time[16];	/* 18 - 27 ASCII String */
+	uint8_t fw_build_user[16];	/* 28 - 37 ASCII String */
+	uint16_t fw_load_source;	/* 38 - 39 */
+					/* 1 = Flash Primary,
+					   2 = Flash Secondary,
+					   3 = Host Download
+					*/
+	uint8_t reserved1[6];		/* 3A - 3F */
+	uint16_t iscsi_major;		/* 40 - 41 */
+	uint16_t iscsi_minor;		/* 42 - 43 */
+	uint16_t bootload_major;	/* 44 - 45 */
+	uint16_t bootload_minor;	/* 46 - 47 */
+	uint16_t bootload_patch;	/* 48 - 49 */
+	uint16_t bootload_build;	/* 4A - 4B */
+	uint8_t reserved2[180];		/* 4C - FF */
+};
+
 struct crash_record {
 	uint16_t fw_major_version;	/* 00 - 01 */
 	uint16_t fw_minor_version;	/* 02 - 03 */
