@@ -148,7 +148,6 @@ Form of high byte dependent on justification set in ctrl reg */
 #define LIS3L02DQ_MAX_RX 12
 /**
  * struct lis3l02dq_state - device instance specific data
- * @helper:		data and func pointer allowing generic functions
  * @us:			actual spi_device
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
@@ -156,17 +155,14 @@ Form of high byte dependent on justification set in ctrl reg */
  * @buf_lock:		mutex to protect tx and rx
  **/
 struct lis3l02dq_state {
-	struct iio_sw_ring_helper_state	help;
 	struct spi_device		*us;
 	struct iio_trigger		*trig;
-	u8				*tx;
-	u8				*rx;
 	struct mutex			buf_lock;
 	bool				trigger_on;
-};
 
-#define lis3l02dq_h_to_s(_h)				\
-	container_of(_h, struct lis3l02dq_state, help)
+	u8	tx[LIS3L02DQ_MAX_RX] ____cacheline_aligned;
+	u8	rx[LIS3L02DQ_MAX_RX] ____cacheline_aligned;
+};
 
 int lis3l02dq_spi_read_reg_8(struct iio_dev *indio_dev,
 			     u8 reg_address,

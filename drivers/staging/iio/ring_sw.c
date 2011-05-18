@@ -452,55 +452,6 @@ void iio_sw_rb_free(struct iio_ring_buffer *r)
 }
 EXPORT_SYMBOL(iio_sw_rb_free);
 
-void iio_sw_trigger_to_ring(struct iio_sw_ring_helper_state *st)
-{
-	struct iio_ring_buffer *ring = st->indio_dev->ring;
-	int len = 0;
-	size_t datasize = ring->access->get_bytes_per_datum(ring);
-	char *data = kmalloc(datasize, GFP_KERNEL);
-
-	if (data == NULL) {
-		dev_err(st->indio_dev->dev.parent,
-			"memory alloc failed in ring bh");
-		return;
-	}
-
-	if (ring->scan_count)
-		len = st->get_ring_element(st, data);
-
-	  /* Guaranteed to be aligned with 8 byte boundary */
-	if (ring->scan_timestamp)
-		*(s64 *)(((phys_addr_t)data + len
-				+ sizeof(s64) - 1) & ~(sizeof(s64) - 1))
-			= st->last_timestamp;
-	ring->access->store_to(ring,
-			(u8 *)data,
-			st->last_timestamp);
-
-	iio_trigger_notify_done(st->indio_dev->trig);
-	kfree(data);
-
-	return;
-}
-EXPORT_SYMBOL(iio_sw_trigger_to_ring);
-
-void iio_sw_trigger_bh_to_ring(struct work_struct *work_s)
-{
-	struct iio_sw_ring_helper_state *st
-		= container_of(work_s, struct iio_sw_ring_helper_state,
-			work_trigger_to_ring);
-	iio_sw_trigger_to_ring(st);
-}
-EXPORT_SYMBOL(iio_sw_trigger_bh_to_ring);
-
-void iio_sw_poll_func_th(struct iio_dev *indio_dev, s64 time)
-{	struct iio_sw_ring_helper_state *h
-		= iio_dev_get_devdata(indio_dev);
-	h->last_timestamp = time;
-	schedule_work(&h->work_trigger_to_ring);
-}
-EXPORT_SYMBOL(iio_sw_poll_func_th);
-
 const struct iio_ring_access_funcs ring_sw_access_funcs = {
 	.mark_in_use = &iio_mark_sw_rb_in_use,
 	.unmark_in_use = &iio_unmark_sw_rb_in_use,

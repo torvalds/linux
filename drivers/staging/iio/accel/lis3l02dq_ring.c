@@ -32,8 +32,7 @@ static inline u16 combine_8_to_16(u8 lower, u8 upper)
 irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
-	struct iio_sw_ring_helper_state *h =  iio_dev_get_devdata(indio_dev);
-	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
+	struct lis3l02dq_state *st = iio_priv(indio_dev);
 
 	if (st->trigger_on) {
 		iio_trigger_poll(st->trig, iio_get_time_ns());
@@ -83,9 +82,10 @@ static const u8 read_all_tx_array[] = {
  * @rx_array:	(dma capable) receive array, must be at least
  *		4*number of channels
  **/
-static int lis3l02dq_read_all(struct lis3l02dq_state *st, u8 *rx_array)
+static int lis3l02dq_read_all(struct iio_dev *indio_dev, u8 *rx_array)
 {
-	struct iio_ring_buffer *ring = st->help.indio_dev->ring;
+	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct lis3l02dq_state *st = iio_priv(indio_dev);
 	struct spi_transfer *xfers;
 	struct spi_message msg;
 	int ret, i, j = 0;
@@ -136,37 +136,55 @@ static int lis3l02dq_read_all(struct lis3l02dq_state *st, u8 *rx_array)
 	return ret;
 }
 
-static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
-{
-	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
-	struct iio_sw_ring_helper_state *h = iio_dev_get_devdata(indio_dev);
-
-	h->last_timestamp = pf->timestamp;
-	iio_sw_trigger_to_ring(h);
-
-	return IRQ_HANDLED;
-}
-
-static int lis3l02dq_get_ring_element(struct iio_sw_ring_helper_state *h,
+static int lis3l02dq_get_ring_element(struct iio_dev *indio_dev,
 				u8 *buf)
 {
 	int ret, i;
 	u8 *rx_array ;
 	s16 *data = (s16 *)buf;
 
-	rx_array = kzalloc(4 * (h->indio_dev->ring->scan_count), GFP_KERNEL);
+	rx_array = kzalloc(4 * (indio_dev->ring->scan_count), GFP_KERNEL);
 	if (rx_array == NULL)
 		return -ENOMEM;
-	ret = lis3l02dq_read_all(lis3l02dq_h_to_s(h), rx_array);
+	ret = lis3l02dq_read_all(indio_dev, rx_array);
 	if (ret < 0)
 		return ret;
-	for (i = 0; i < h->indio_dev->ring->scan_count; i++)
+	for (i = 0; i < indio_dev->ring->scan_count; i++)
 		data[i] = combine_8_to_16(rx_array[i*4+1],
 					rx_array[i*4+3]);
 	kfree(rx_array);
 
 	return i*sizeof(data[0]);
+}
+
+static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_ring_buffer *ring = indio_dev->ring;
+	int len = 0;
+	size_t datasize = ring->access->get_bytes_per_datum(ring);
+	char *data = kmalloc(datasize, GFP_KERNEL);
+
+	if (data == NULL) {
+		dev_err(indio_dev->dev.parent,
+			"memory alloc failed in ring bh");
+		return -ENOMEM;
+	}
+
+	if (ring->scan_count)
+		len = lis3l02dq_get_ring_element(indio_dev, data);
+
+	  /* Guaranteed to be aligned with 8 byte boundary */
+	if (ring->scan_timestamp)
+		*(s64 *)(((phys_addr_t)data + len
+				+ sizeof(s64) - 1) & ~(sizeof(s64) - 1))
+			= pf->timestamp;
+	ring->access->store_to(ring, (u8 *)data, pf->timestamp);
+
+	iio_trigger_notify_done(indio_dev->trig);
+	kfree(data);
+	return IRQ_HANDLED;
 }
 
 /* Caller responsible for locking as necessary. */
@@ -177,9 +195,7 @@ __lis3l02dq_write_data_ready_config(struct device *dev, bool state)
 	u8 valold;
 	bool currentlyset;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct iio_sw_ring_helper_state *h
-				= iio_dev_get_devdata(indio_dev);
-	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
+	struct lis3l02dq_state *st = iio_priv(indio_dev);
 
 /* Get the current event mask register */
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
@@ -242,19 +258,19 @@ error_ret:
 static int lis3l02dq_data_rdy_trigger_set_state(struct iio_trigger *trig,
 						bool state)
 {
-	struct lis3l02dq_state *st = trig->private_data;
+	struct iio_dev *indio_dev = trig->private_data;
 	int ret = 0;
 	u8 t;
 
-	__lis3l02dq_write_data_ready_config(&st->help.indio_dev->dev, state);
+	__lis3l02dq_write_data_ready_config(&indio_dev->dev, state);
 	if (state == false) {
 		/*
 		 * A possible quirk with teh handler is currently worked around
 		 *  by ensuring outstanding read events are cleared.
 		 */
-		ret = lis3l02dq_read_all(st, NULL);
+		ret = lis3l02dq_read_all(indio_dev, NULL);
 	}
-	lis3l02dq_spi_read_reg_8(st->help.indio_dev,
+	lis3l02dq_spi_read_reg_8(indio_dev,
 				 LIS3L02DQ_REG_WAKE_UP_SRC_ADDR,
 				 &t);
 	return ret;
@@ -266,14 +282,15 @@ static int lis3l02dq_data_rdy_trigger_set_state(struct iio_trigger *trig,
  */
 static int lis3l02dq_trig_try_reen(struct iio_trigger *trig)
 {
-	struct lis3l02dq_state *st = trig->private_data;
+	struct iio_dev *indio_dev = trig->private_data;
+	struct lis3l02dq_state *st = iio_priv(indio_dev);
 	int i;
 
 	/* If gpio still high (or high again) */
 	/* In theory possible we will need to do this several times */
 	for (i = 0; i < 5; i++)
 		if (gpio_get_value(irq_to_gpio(st->us->irq)))
-			lis3l02dq_read_all(st, NULL);
+			lis3l02dq_read_all(indio_dev, NULL);
 		else
 			break;
 	if (i == 5)
@@ -287,9 +304,7 @@ static int lis3l02dq_trig_try_reen(struct iio_trigger *trig)
 int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 {
 	int ret;
-	struct iio_sw_ring_helper_state *h
-		= iio_dev_get_devdata(indio_dev);
-	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
+	struct lis3l02dq_state *st = iio_priv(indio_dev);
 
 	st->trig = iio_allocate_trigger("lis3l02dq-dev%d", indio_dev->id);
 	if (!st->trig) {
@@ -299,7 +314,7 @@ int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 
 	st->trig->dev.parent = &st->us->dev;
 	st->trig->owner = THIS_MODULE;
-	st->trig->private_data = st;
+	st->trig->private_data = indio_dev;
 	st->trig->set_trigger_state = &lis3l02dq_data_rdy_trigger_set_state;
 	st->trig->try_reenable = &lis3l02dq_trig_try_reen;
 	ret = iio_trigger_register(st->trig);
@@ -316,9 +331,7 @@ error_ret:
 
 void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 {
-	struct iio_sw_ring_helper_state *h
-		= iio_dev_get_devdata(indio_dev);
-	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
+	struct lis3l02dq_state *st = iio_priv(indio_dev);
 
 	iio_trigger_unregister(st->trig);
 	iio_free_trigger(st->trig);
@@ -409,10 +422,7 @@ static const struct iio_ring_setup_ops lis3l02dq_ring_setup_ops = {
 int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 {
 	int ret;
-	struct iio_sw_ring_helper_state *h = iio_dev_get_devdata(indio_dev);
 	struct iio_ring_buffer *ring;
-
-	h->get_ring_element = &lis3l02dq_get_ring_element;
 
 	ring = lis3l02dq_alloc_buf(indio_dev);
 	if (!ring)
