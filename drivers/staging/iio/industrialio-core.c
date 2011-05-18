@@ -80,6 +80,8 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_OFFSET_SHARED/2] = "offset",
 	[IIO_CHAN_INFO_CALIBSCALE_SHARED/2] = "calibscale",
 	[IIO_CHAN_INFO_CALIBBIAS_SHARED/2] = "calibbias",
+	[IIO_CHAN_INFO_PEAK_SHARED/2] = "peak_raw",
+	[IIO_CHAN_INFO_PEAK_SCALE_SHARED/2] = "peak_scale",
 };
 
 int iio_push_event(struct iio_dev *dev_info,
