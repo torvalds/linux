@@ -265,7 +265,6 @@ static void hardware_pctl_init_aphy(struct b43_wldev *dev)
 
 void b43_phy_inita(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
 	struct b43_phy *phy = &dev->phy;
 
 	/* This lowlevel A-PHY init is also called from G-PHY init.
@@ -296,9 +295,9 @@ void b43_phy_inita(struct b43_wldev *dev)
 
 		b43_radio_init2060(dev);
 
-		if ((bus->boardinfo.vendor == SSB_BOARDVENDOR_BCM) &&
-		    ((bus->boardinfo.type == SSB_BOARD_BU4306) ||
-		     (bus->boardinfo.type == SSB_BOARD_BU4309))) {
+		if ((dev->dev->board_vendor == SSB_BOARDVENDOR_BCM) &&
+		    ((dev->dev->board_type == SSB_BOARD_BU4306) ||
+		     (dev->dev->board_type == SSB_BOARD_BU4309))) {
 			; //TODO: A PHY LO
 		}
 

@@ -215,7 +215,6 @@ static void b43_led_get_sprominfo(struct b43_wldev *dev,
 				  enum b43_led_behaviour *behaviour,
 				  bool *activelow)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
 	u8 sprom[4];
 
 	sprom[0] = dev->dev->bus_sprom->gpio0;
@@ -231,12 +230,12 @@ static void b43_led_get_sprominfo(struct b43_wldev *dev,
 		case 0:
 			*behaviour = B43_LED_ACTIVITY;
 			*activelow = 1;
-			if (bus->boardinfo.vendor == PCI_VENDOR_ID_COMPAQ)
+			if (dev->dev->board_vendor == PCI_VENDOR_ID_COMPAQ)
 				*behaviour = B43_LED_RADIO_ALL;
 			break;
 		case 1:
 			*behaviour = B43_LED_RADIO_B;
-			if (bus->boardinfo.vendor == PCI_VENDOR_ID_ASUSTEK)
+			if (dev->dev->board_vendor == PCI_VENDOR_ID_ASUSTEK)
 				*behaviour = B43_LED_ASSOC;
 			break;
 		case 2:

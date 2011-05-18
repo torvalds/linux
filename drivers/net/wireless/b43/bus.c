@@ -74,6 +74,10 @@ struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev)
 	dev->dma_dev = sdev->dma_dev;
 	dev->irq = sdev->irq;
 
+	dev->board_vendor = sdev->bus->boardinfo.vendor;
+	dev->board_type = sdev->bus->boardinfo.type;
+	dev->board_rev = sdev->bus->boardinfo.rev;
+
 	dev->chip_id = sdev->bus->chip_id;
 	dev->chip_rev = sdev->bus->chip_rev;
 	dev->chip_pkg = sdev->bus->chip_package;

@@ -368,8 +368,8 @@ void b43_phy_txpower_check(struct b43_wldev *dev, unsigned int flags)
 	/* The next check will be needed in two seconds, or later. */
 	phy->next_txpwr_check_time = round_jiffies(now + (HZ * 2));
 
-	if ((dev->sdev->bus->boardinfo.vendor == SSB_BOARDVENDOR_BCM) &&
-	    (dev->sdev->bus->boardinfo.type == SSB_BOARD_BU4306))
+	if ((dev->dev->board_vendor == SSB_BOARDVENDOR_BCM) &&
+	    (dev->dev->board_type == SSB_BOARD_BU4306))
 		return; /* No software txpower adjustment needed */
 
 	result = phy->ops->recalc_txpower(dev, !!(flags & B43_TXPWR_IGNORE_TSSI));

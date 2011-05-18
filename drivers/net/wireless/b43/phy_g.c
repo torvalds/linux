@@ -1491,7 +1491,6 @@ static u16 b43_radio_init2050(struct b43_wldev *dev)
 
 static void b43_phy_initb5(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;
 	u16 offset, value;
@@ -1500,8 +1499,8 @@ static void b43_phy_initb5(struct b43_wldev *dev)
 	if (phy->analog == 1) {
 		b43_radio_set(dev, 0x007A, 0x0050);
 	}
-	if ((bus->boardinfo.vendor != SSB_BOARDVENDOR_BCM) &&
-	    (bus->boardinfo.type != SSB_BOARD_BU4306)) {
+	if ((dev->dev->board_vendor != SSB_BOARDVENDOR_BCM) &&
+	    (dev->dev->board_type != SSB_BOARD_BU4306)) {
 		value = 0x2120;
 		for (offset = 0x00A8; offset < 0x00C7; offset++) {
 			b43_phy_write(dev, offset, value);
@@ -1922,7 +1921,6 @@ static void b43_hardware_pctl_init_gphy(struct b43_wldev *dev)
 /* Initialize B/G PHY power control */
 static void b43_phy_init_pctl(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;
 	struct b43_rfatt old_rfatt;
@@ -1931,8 +1929,8 @@ static void b43_phy_init_pctl(struct b43_wldev *dev)
 
 	B43_WARN_ON(phy->type != B43_PHYTYPE_G);
 
-	if ((bus->boardinfo.vendor == SSB_BOARDVENDOR_BCM) &&
-	    (bus->boardinfo.type == SSB_BOARD_BU4306))
+	if ((dev->dev->board_vendor == SSB_BOARDVENDOR_BCM) &&
+	    (dev->dev->board_type == SSB_BOARD_BU4306))
 		return;
 
 	b43_phy_write(dev, 0x0028, 0x8018);
@@ -2136,17 +2134,17 @@ static void default_baseband_attenuation(struct b43_wldev *dev,
 static void default_radio_attenuation(struct b43_wldev *dev,
 				      struct b43_rfatt *rf)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
+	struct b43_bus_dev *bdev = dev->dev;
 	struct b43_phy *phy = &dev->phy;
 
 	rf->with_padmix = 0;
 
-	if (bus->boardinfo.vendor == SSB_BOARDVENDOR_BCM &&
-	    bus->boardinfo.type == SSB_BOARD_BCM4309G) {
-		if (bus->boardinfo.rev < 0x43) {
+	if (dev->dev->board_vendor == SSB_BOARDVENDOR_BCM &&
+	    dev->dev->board_type == SSB_BOARD_BCM4309G) {
+		if (dev->dev->board_rev < 0x43) {
 			rf->att = 2;
 			return;
-		} else if (bus->boardinfo.rev < 0x51) {
+		} else if (dev->dev->board_rev < 0x51) {
 			rf->att = 3;
 			return;
 		}
@@ -2172,21 +2170,21 @@ static void default_radio_attenuation(struct b43_wldev *dev,
 			return;
 		case 1:
 			if (phy->type == B43_PHYTYPE_G) {
-				if (bus->boardinfo.vendor == SSB_BOARDVENDOR_BCM
-				    && bus->boardinfo.type == SSB_BOARD_BCM4309G
-				    && bus->boardinfo.rev >= 30)
+				if (bdev->board_vendor == SSB_BOARDVENDOR_BCM
+				    && bdev->board_type == SSB_BOARD_BCM4309G
+				    && bdev->board_rev >= 30)
 					rf->att = 3;
-				else if (bus->boardinfo.vendor ==
+				else if (bdev->board_vendor ==
 					 SSB_BOARDVENDOR_BCM
-					 && bus->boardinfo.type ==
+					 && bdev->board_type ==
 					 SSB_BOARD_BU4306)
 					rf->att = 3;
 				else
 					rf->att = 1;
 			} else {
-				if (bus->boardinfo.vendor == SSB_BOARDVENDOR_BCM
-				    && bus->boardinfo.type == SSB_BOARD_BCM4309G
-				    && bus->boardinfo.rev >= 30)
+				if (bdev->board_vendor == SSB_BOARDVENDOR_BCM
+				    && bdev->board_type == SSB_BOARD_BCM4309G
+				    && bdev->board_rev >= 30)
 					rf->att = 7;
 				else
 					rf->att = 6;
@@ -2194,16 +2192,16 @@ static void default_radio_attenuation(struct b43_wldev *dev,
 			return;
 		case 2:
 			if (phy->type == B43_PHYTYPE_G) {
-				if (bus->boardinfo.vendor == SSB_BOARDVENDOR_BCM
-				    && bus->boardinfo.type == SSB_BOARD_BCM4309G
-				    && bus->boardinfo.rev >= 30)
+				if (bdev->board_vendor == SSB_BOARDVENDOR_BCM
+				    && bdev->board_type == SSB_BOARD_BCM4309G
+				    && bdev->board_rev >= 30)
 					rf->att = 3;
-				else if (bus->boardinfo.vendor ==
+				else if (bdev->board_vendor ==
 					 SSB_BOARDVENDOR_BCM
-					 && bus->boardinfo.type ==
+					 && bdev->board_type ==
 					 SSB_BOARD_BU4306)
 					rf->att = 5;
-				else if (dev->dev->chip_id == 0x4320)
+				else if (bdev->chip_id == 0x4320)
 					rf->att = 4;
 				else
 					rf->att = 3;

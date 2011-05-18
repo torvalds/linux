@@ -424,15 +424,14 @@ static void b43_radio_init2055_post(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
 	struct ssb_sprom *sprom = dev->dev->bus_sprom;
-	struct ssb_boardinfo *binfo = &(dev->sdev->bus->boardinfo);
 	int i;
 	u16 val;
 	bool workaround = false;
 
 	if (sprom->revision < 4)
-		workaround = (binfo->vendor != PCI_VENDOR_ID_BROADCOM &&
-				binfo->type == 0x46D &&
-				binfo->rev >= 0x41);
+		workaround = (dev->dev->board_vendor != PCI_VENDOR_ID_BROADCOM
+			      && dev->dev->board_type == 0x46D
+			      && dev->dev->board_rev >= 0x41);
 	else
 		workaround =
 			!(sprom->boardflags2_lo & B43_BFL2_RXBB_INT_REG_DIS);
@@ -1373,7 +1372,6 @@ static void b43_nphy_gain_ctrl_workarounds(struct b43_wldev *dev)
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/Workarounds */
 static void b43_nphy_workarounds(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
 	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_n *nphy = phy->n;
@@ -1505,7 +1503,7 @@ static void b43_nphy_workarounds(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_UP2, 0x301);
 
 		if (sprom->boardflags2_lo & 0x100 &&
-		    bus->boardinfo.type == 0x8B) {
+		    dev->dev->board_type == 0x8B) {
 			delays1[0] = 0x1;
 			delays1[5] = 0x14;
 		}
@@ -3587,7 +3585,6 @@ static void b43_nphy_set_rx_core_state(struct b43_wldev *dev, u8 mask)
  */
 int b43_phy_initn(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
 	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_n *nphy = phy->n;
@@ -3642,8 +3639,8 @@ int b43_phy_initn(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_NPHY_AFESEQ_TX2RX_PUD_40M, 0x20);
 
 	if (sprom->boardflags2_lo & 0x100 ||
-	    (bus->boardinfo.vendor == PCI_VENDOR_ID_APPLE &&
-	     bus->boardinfo.type == 0x8B))
+	    (dev->dev->board_vendor == PCI_VENDOR_ID_APPLE &&
+	     dev->dev->board_type == 0x8B))
 		b43_phy_write(dev, B43_NPHY_TXREALFD, 0xA0);
 	else
 		b43_phy_write(dev, B43_NPHY_TXREALFD, 0xB8);

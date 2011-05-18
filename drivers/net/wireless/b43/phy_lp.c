@@ -287,7 +287,7 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_8, 0xFFC0, 0x000A);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_8, 0xC0FF, 0x0B00);
 	} else if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ ||
-		  (bus->boardinfo.type == 0x048A) || ((dev->phy.rev == 0) &&
+		  (dev->dev->board_type == 0x048A) || ((dev->phy.rev == 0) &&
 		  (sprom->boardflags_lo & B43_BFL_FEM))) {
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x0001);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xC0FF, 0x0400);
@@ -413,7 +413,6 @@ static void lpphy_restore_dig_flt_state(struct b43_wldev *dev)
 
 static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
 	struct b43_phy_lp *lpphy = dev->phy.lp;
 
 	b43_phy_write(dev, B43_LPPHY_AFE_DAC_CTL, 0x50);
@@ -433,7 +432,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 	b43_phy_mask(dev, B43_LPPHY_CRSGAIN_CTL, ~0x4000);
 	b43_phy_mask(dev, B43_LPPHY_CRSGAIN_CTL, ~0x2000);
 	b43_phy_set(dev, B43_PHY_OFDM(0x10A), 0x1);
-	if (bus->boardinfo.rev >= 0x18) {
+	if (dev->dev->board_rev >= 0x18) {
 		b43_lptab_write(dev, B43_LPTAB32(17, 65), 0xEC);
 		b43_phy_maskset(dev, B43_PHY_OFDM(0x10A), 0xFF01, 0x14);
 	} else {
