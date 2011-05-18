@@ -290,6 +290,21 @@ static int irq_expand_nr_irqs(unsigned int nr)
 
 #endif /* !CONFIG_SPARSE_IRQ */
 
+/**
+ * generic_handle_irq - Invoke the handler for a particular irq
+ * @irq:	The irq number to handle
+ *
+ */
+int generic_handle_irq(unsigned int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if (!desc)
+		return -EINVAL;
+	generic_handle_irq_desc(irq, desc);
+	return 0;
+}
+
 /* Dynamic interrupt handling */
 
 /**

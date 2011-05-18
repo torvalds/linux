@@ -111,10 +111,7 @@ static inline void generic_handle_irq_desc(unsigned int irq, struct irq_desc *de
 	desc->handle_irq(irq, desc);
 }
 
-static inline void generic_handle_irq(unsigned int irq)
-{
-	generic_handle_irq_desc(irq, irq_to_desc(irq));
-}
+int generic_handle_irq(unsigned int irq);
 
 /* Test to see if a driver has successfully requested an irq */
 static inline int irq_has_action(unsigned int irq)
