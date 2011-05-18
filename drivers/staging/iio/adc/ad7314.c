@@ -6,16 +6,11 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/interrupt.h>
-#include <linux/gpio.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/spi/spi.h>
-#include <linux/rtc.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -262,8 +257,6 @@ static int __devexit ad7314_remove(struct spi_device *spi_dev)
 	struct iio_dev *indio_dev = chip->indio_dev;
 
 	dev_set_drvdata(&spi_dev->dev, NULL);
-	if (spi_dev->irq)
-		iio_unregister_interrupt_line(indio_dev, 0);
 	iio_device_unregister(indio_dev);
 	iio_free_device(chip->indio_dev);
 	kfree(chip);
