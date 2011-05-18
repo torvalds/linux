@@ -53,11 +53,14 @@ DEFINE_SPINLOCK(configfs_dirent_lock);
 static void configfs_d_iput(struct dentry * dentry,
 			    struct inode * inode)
 {
-	struct configfs_dirent * sd = dentry->d_fsdata;
+	struct configfs_dirent *sd = dentry->d_fsdata;
 
 	if (sd) {
 		BUG_ON(sd->s_dentry != dentry);
+		/* Coordinate with configfs_readdir */
+		spin_lock(&configfs_dirent_lock);
 		sd->s_dentry = NULL;
+		spin_unlock(&configfs_dirent_lock);
 		configfs_put(sd);
 	}
 	iput(inode);
@@ -1546,7 +1549,7 @@ static int configfs_readdir(struct file * filp, void * dirent, filldir_t filldir
 	struct configfs_dirent * parent_sd = dentry->d_fsdata;
 	struct configfs_dirent *cursor = filp->private_data;
 	struct list_head *p, *q = &cursor->s_sibling;
-	ino_t ino;
+	ino_t ino = 0;
 	int i = filp->f_pos;
 
 	switch (i) {
@@ -1574,6 +1577,7 @@ static int configfs_readdir(struct file * filp, void * dirent, filldir_t filldir
 				struct configfs_dirent *next;
 				const char * name;
 				int len;
+				struct inode *inode = NULL;
 
 				next = list_entry(p, struct configfs_dirent,
 						   s_sibling);
@@ -1582,9 +1586,28 @@ static int configfs_readdir(struct file * filp, void * dirent, filldir_t filldir
 
 				name = configfs_get_name(next);
 				len = strlen(name);
-				if (next->s_dentry)
-					ino = next->s_dentry->d_inode->i_ino;
-				else
+
+				/*
+				 * We'll have a dentry and an inode for
+				 * PINNED items and for open attribute
+				 * files.  We lock here to prevent a race
+				 * with configfs_d_iput() clearing
+				 * s_dentry before calling iput().
+				 *
+				 * Why do we go to the trouble?  If
+				 * someone has an attribute file open,
+				 * the inode number should match until
+				 * they close it.  Beyond that, we don't
+				 * care.
+				 */
+				spin_lock(&configfs_dirent_lock);
+				dentry = next->s_dentry;
+				if (dentry)
+					inode = dentry->d_inode;
+				if (inode)
+					ino = inode->i_ino;
+				spin_unlock(&configfs_dirent_lock);
+				if (!inode)
 					ino = iunique(configfs_sb, 2);
 
 				if (filldir(dirent, name, len, filp->f_pos, ino,
