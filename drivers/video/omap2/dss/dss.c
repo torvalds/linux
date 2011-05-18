@@ -1037,19 +1037,6 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 	 * the kernel resets it */
 	omap_writel(omap_readl(0x48050440) & ~0x3, 0x48050440);
 
-#ifdef CONFIG_OMAP2_DSS_SLEEP_BEFORE_RESET
-	/* We need to wait here a bit, otherwise we sometimes start to
-	 * get synclost errors, and after that only power cycle will
-	 * restore DSS functionality. I have no idea why this happens.
-	 * And we have to wait _before_ resetting the DSS, but after
-	 * enabling clocks.
-	 *
-	 * This bug was at least present on OMAP3430. It's unknown
-	 * if it happens on OMAP2 or OMAP3630.
-	 */
-	msleep(50);
-#endif
-
 	_omap_dss_reset();
 
 	/* autoidle */
