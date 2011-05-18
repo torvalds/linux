@@ -490,7 +490,8 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 	unsigned int max_blocks = 0;
 
 	q->limits.discard_zeroes_data = sdkp->lbprz;
-	q->limits.discard_alignment = sdkp->unmap_alignment;
+	q->limits.discard_alignment = sdkp->unmap_alignment *
+		logical_block_size;
 	q->limits.discard_granularity =
 		max(sdkp->physical_block_size,
 		    sdkp->unmap_granularity * logical_block_size);
