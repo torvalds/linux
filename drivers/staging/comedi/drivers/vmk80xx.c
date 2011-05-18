@@ -557,22 +557,24 @@ exit:
 #define DIR_IN  1
 #define DIR_OUT 2
 
-#define rudimentary_check(dir)                             \
-do {                                                       \
-	if (!dev)                                          \
-		return -EFAULT;                            \
-	if (!dev->probed)                                  \
-		return -ENODEV;                            \
-	if (!dev->attached)                                \
-		return -ENODEV;                            \
-	if ((dir) & DIR_IN) {                              \
-		if (test_bit(TRANS_IN_BUSY, &dev->flags))  \
-			return -EBUSY;                     \
-	} else {  /* DIR_OUT */                            \
-		if (test_bit(TRANS_OUT_BUSY, &dev->flags)) \
-			return -EBUSY;                     \
-	}                                                  \
-} while (0)
+static int rudimentary_check(struct vmk80xx_usb *dev, int dir)
+{
+	if (!dev)
+		return -EFAULT;
+	if (!dev->probed)
+		return -ENODEV;
+	if (!dev->attached)
+		return -ENODEV;
+	if (dir & DIR_IN) {
+		if (test_bit(TRANS_IN_BUSY, &dev->flags))
+			return -EBUSY;
+	} else {  /* DIR_OUT */
+		if (test_bit(TRANS_OUT_BUSY, &dev->flags))
+			return -EBUSY;
+	}
+
+	return 0;
+}
 
 static int vmk80xx_ai_rinsn(struct comedi_device *cdev,
 			    struct comedi_subdevice *s,
@@ -585,7 +587,9 @@ static int vmk80xx_ai_rinsn(struct comedi_device *cdev,
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_IN);
+	n = rudimentary_check(dev, DIR_IN);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -636,7 +640,9 @@ static int vmk80xx_ao_winsn(struct comedi_device *cdev,
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_OUT);
+	n = rudimentary_check(dev, DIR_OUT);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -679,7 +685,9 @@ static int vmk80xx_ao_rinsn(struct comedi_device *cdev,
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_IN);
+	n = rudimentary_check(dev, DIR_IN);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -713,7 +721,9 @@ static int vmk80xx_di_rinsn(struct comedi_device *cdev,
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_IN);
+	n = rudimentary_check(dev, DIR_IN);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -758,7 +768,9 @@ static int vmk80xx_do_winsn(struct comedi_device *cdev,
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_OUT);
+	n = rudimentary_check(dev, DIR_OUT);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -805,7 +817,9 @@ static int vmk80xx_do_rinsn(struct comedi_device *cdev,
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_IN);
+	n = rudimentary_check(dev, DIR_IN);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -838,7 +852,9 @@ static int vmk80xx_cnt_rinsn(struct comedi_device *cdev,
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_IN);
+	n = rudimentary_check(dev, DIR_IN);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -886,7 +902,9 @@ static int vmk80xx_cnt_cinsn(struct comedi_device *cdev,
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_OUT);
+	n = rudimentary_check(dev, DIR_OUT);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 
@@ -932,7 +950,9 @@ static int vmk80xx_cnt_winsn(struct comedi_device *cdev,
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_OUT);
+	n = rudimentary_check(dev, DIR_OUT);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -976,7 +996,9 @@ static int vmk80xx_pwm_rinsn(struct comedi_device *cdev,
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_IN);
+	n = rudimentary_check(dev, DIR_IN);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 
@@ -1009,7 +1031,9 @@ static int vmk80xx_pwm_winsn(struct comedi_device *cdev,
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_OUT);
+	n = rudimentary_check(dev, DIR_OUT);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 
