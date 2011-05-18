@@ -3664,7 +3664,6 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 {
 	struct l2cap_chan *chan;
 	struct sock *sk = NULL;
-	struct l2cap_pinfo *pi;
 	u16 control;
 	u8 tx_seq;
 	int len;
@@ -3676,7 +3675,6 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 	}
 
 	sk = chan->sk;
-	pi = l2cap_pi(sk);
 
 	BT_DBG("chan %p, len %d", chan, skb->len);
 
