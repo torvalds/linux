@@ -74,7 +74,7 @@ struct adis16203_state {
 	struct mutex			buf_lock;
 };
 
-int adis16203_set_irq(struct device *dev, bool enable);
+int adis16203_set_irq(struct iio_dev *indio_dev, bool enable);
 
 #ifdef CONFIG_IIO_RING_BUFFER
 enum adis16203_scan {
@@ -95,8 +95,6 @@ ssize_t adis16203_read_data_from_ring(struct device *dev,
 int adis16203_configure_ring(struct iio_dev *indio_dev);
 void adis16203_unconfigure_ring(struct iio_dev *indio_dev);
 
-int adis16203_initialize_ring(struct iio_ring_buffer *ring);
-void adis16203_uninitialize_ring(struct iio_ring_buffer *ring);
 #else /* CONFIG_IIO_RING_BUFFER */
 
 static inline void adis16203_remove_trigger(struct iio_dev *indio_dev)
@@ -122,15 +120,6 @@ static int adis16203_configure_ring(struct iio_dev *indio_dev)
 }
 
 static inline void adis16203_unconfigure_ring(struct iio_dev *indio_dev)
-{
-}
-
-static inline int adis16203_initialize_ring(struct iio_ring_buffer *ring)
-{
-	return 0;
-}
-
-static inline void adis16203_uninitialize_ring(struct iio_ring_buffer *ring)
 {
 }
 
