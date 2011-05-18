@@ -4,7 +4,6 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/spi/spi.h>
 
 #include "../iio.h"
@@ -33,7 +32,7 @@ static int adis16201_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	struct iio_dev *indio_dev = st->indio_dev;
 
 	dev_dbg(&indio_dev->dev, "%s (%d)\n", __func__, state);
-	return adis16201_set_irq(&st->indio_dev->dev, state);
+	return adis16201_set_irq(st->indio_dev, state);
 }
 
 int adis16201_probe_trigger(struct iio_dev *indio_dev)

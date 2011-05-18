@@ -1,14 +1,11 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
-#include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include <linux/list.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -17,63 +14,15 @@
 #include "../trigger.h"
 #include "adis16201.h"
 
-static IIO_SCAN_EL_C(in_supply, ADIS16201_SCAN_SUPPLY, ADIS16201_SUPPLY_OUT, NULL);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(in_supply, u, 12, 16);
-static IIO_SCAN_EL_C(accel_x, ADIS16201_SCAN_ACC_X, ADIS16201_XACCL_OUT, NULL);
-static IIO_SCAN_EL_C(accel_y, ADIS16201_SCAN_ACC_Y, ADIS16201_YACCL_OUT, NULL);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(accel, s, 14, 16);
-static IIO_SCAN_EL_C(in0, ADIS16201_SCAN_AUX_ADC, ADIS16201_AUX_ADC, NULL);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(in0, u, 12, 16);
-static IIO_SCAN_EL_C(temp, ADIS16201_SCAN_TEMP, ADIS16201_TEMP_OUT, NULL);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(temp, u, 12, 16);
-static IIO_SCAN_EL_C(incli_x, ADIS16201_SCAN_INCLI_X,
-		     ADIS16201_XINCL_OUT, NULL);
-static IIO_SCAN_EL_C(incli_y, ADIS16201_SCAN_INCLI_Y,
-		     ADIS16201_YINCL_OUT, NULL);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(incli, s, 14, 16);
-static IIO_SCAN_EL_TIMESTAMP(7);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
-
-static struct attribute *adis16201_scan_el_attrs[] = {
-	&iio_scan_el_in_supply.dev_attr.attr,
-	&iio_const_attr_in_supply_index.dev_attr.attr,
-	&iio_const_attr_in_supply_type.dev_attr.attr,
-	&iio_scan_el_accel_x.dev_attr.attr,
-	&iio_const_attr_accel_x_index.dev_attr.attr,
-	&iio_scan_el_accel_y.dev_attr.attr,
-	&iio_const_attr_accel_y_index.dev_attr.attr,
-	&iio_const_attr_accel_type.dev_attr.attr,
-	&iio_scan_el_in0.dev_attr.attr,
-	&iio_const_attr_in0_index.dev_attr.attr,
-	&iio_const_attr_in0_type.dev_attr.attr,
-	&iio_scan_el_temp.dev_attr.attr,
-	&iio_const_attr_temp_index.dev_attr.attr,
-	&iio_const_attr_temp_type.dev_attr.attr,
-	&iio_scan_el_incli_x.dev_attr.attr,
-	&iio_const_attr_incli_x_index.dev_attr.attr,
-	&iio_scan_el_incli_y.dev_attr.attr,
-	&iio_const_attr_incli_y_index.dev_attr.attr,
-	&iio_const_attr_incli_type.dev_attr.attr,
-	&iio_scan_el_timestamp.dev_attr.attr,
-	&iio_const_attr_timestamp_index.dev_attr.attr,
-	&iio_const_attr_timestamp_type.dev_attr.attr,
-	NULL,
-};
-
-static struct attribute_group adis16201_scan_el_group = {
-	.attrs = adis16201_scan_el_attrs,
-	.name = "scan_elements",
-};
 
 /**
  * adis16201_read_ring_data() read data registers which will be placed into ring
  * @dev: device associated with child of actual device (iio_dev or iio_trig)
  * @rx: somewhere to pass back the value read
  **/
-static int adis16201_read_ring_data(struct device *dev, u8 *rx)
+static int adis16201_read_ring_data(struct iio_dev *indio_dev, u8 *rx)
 {
 	struct spi_message msg;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct adis16201_state *st = iio_dev_get_devdata(indio_dev);
 	struct spi_transfer xfers[ADIS16201_OUTPUTS + 1];
 	int ret;
@@ -90,7 +39,8 @@ static int adis16201_read_ring_data(struct device *dev, u8 *rx)
 		xfers[i].len = 2;
 		xfers[i].delay_usecs = 20;
 		xfers[i].tx_buf = st->tx + 2 * i;
-		st->tx[2 * i] = ADIS16201_READ_REG(ADIS16201_SUPPLY_OUT + 2 * i);
+		st->tx[2 * i] = ADIS16201_READ_REG(ADIS16201_SUPPLY_OUT +
+						   2 * i);
 		st->tx[2 * i + 1] = 0;
 		if (i >= 1)
 			xfers[i].rx_buf = rx + 2 * (i - 1);
@@ -127,7 +77,7 @@ static irqreturn_t adis16201_trigger_handler(int irq, void *p)
 	}
 
 	if (ring->scan_count)
-		if (adis16201_read_ring_data(&st->indio_dev->dev, st->rx) >= 0)
+		if (adis16201_read_ring_data(st->indio_dev, st->rx) >= 0)
 			for (; i < ring->scan_count; i++)
 				data[i] = be16_to_cpup(
 					(__be16 *)&(st->rx[i*2]));
@@ -136,9 +86,7 @@ static irqreturn_t adis16201_trigger_handler(int irq, void *p)
 	if (ring->scan_timestamp)
 		*((s64 *)(data + ((i + 3)/4)*4)) = pf->timestamp;
 
-	ring->access.store_to(ring,
-			      (u8 *)data,
-			      pf->timestamp);
+	ring->access.store_to(ring, (u8 *)data, pf->timestamp);
 
 	iio_trigger_notify_done(st->indio_dev->trig);
 	kfree(data);
@@ -167,7 +115,6 @@ int adis16201_configure_ring(struct iio_dev *indio_dev)
 	/* Effectively select the ring buffer implementation */
 	iio_ring_sw_register_funcs(&ring->access);
 	ring->bpe = 2;
-	ring->scan_el_attrs = &adis16201_scan_el_group;
 	ring->scan_timestamp = true;
 	ring->preenable = &iio_sw_ring_preenable;
 	ring->postenable = &iio_triggered_ring_postenable;
@@ -175,13 +122,13 @@ int adis16201_configure_ring(struct iio_dev *indio_dev)
 	ring->owner = THIS_MODULE;
 
 	/* Set default scan mode */
-	iio_scan_mask_set(ring, iio_scan_el_in_supply.number);
-	iio_scan_mask_set(ring, iio_scan_el_accel_x.number);
-	iio_scan_mask_set(ring, iio_scan_el_accel_y.number);
-	iio_scan_mask_set(ring, iio_scan_el_temp.number);
-	iio_scan_mask_set(ring, iio_scan_el_in0.number);
-	iio_scan_mask_set(ring, iio_scan_el_incli_x.number);
-	iio_scan_mask_set(ring, iio_scan_el_incli_y.number);
+	iio_scan_mask_set(ring,	ADIS16201_SCAN_SUPPLY);
+	iio_scan_mask_set(ring, ADIS16201_SCAN_ACC_X);
+	iio_scan_mask_set(ring, ADIS16201_SCAN_ACC_Y);
+	iio_scan_mask_set(ring, ADIS16201_SCAN_AUX_ADC);
+	iio_scan_mask_set(ring, ADIS16201_SCAN_TEMP);
+	iio_scan_mask_set(ring, ADIS16201_SCAN_INCLI_X);
+	iio_scan_mask_set(ring, ADIS16201_SCAN_INCLI_Y);
 
 	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
 	if (indio_dev->pollfunc == NULL) {
@@ -206,14 +153,4 @@ error_free_poll_func:
 error_iio_sw_rb_free:
 	iio_sw_rb_free(indio_dev->ring);
 	return ret;
-}
-
-int adis16201_initialize_ring(struct iio_ring_buffer *ring)
-{
-	return iio_ring_buffer_register(ring, 0);
-}
-
-void adis16201_uninitialize_ring(struct iio_ring_buffer *ring)
-{
-	iio_ring_buffer_unregister(ring);
 }
