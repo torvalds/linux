@@ -876,7 +876,7 @@ out_free:
  */
 static void paranoid_vtbl_check(const struct ubi_device *ubi)
 {
-	if (!(ubi_chk_flags & UBI_CHK_GEN))
+	if (!ubi->dbg->chk_gen)
 		return;
 
 	if (vtbl_check(ubi, ubi->vtbl)) {

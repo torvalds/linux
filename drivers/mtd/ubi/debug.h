@@ -71,23 +71,41 @@ void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv);
 void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type);
 void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
 void ubi_dbg_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len);
-
-extern unsigned int ubi_chk_flags;
-
-/*
- * Debugging check flags.
- *
- * UBI_CHK_GEN: general checks
- * UBI_CHK_IO: check writes and erases
- */
-enum {
-	UBI_CHK_GEN = 0x1,
-	UBI_CHK_IO  = 0x2,
-};
-
 int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len);
 int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 			int offset, int len);
+int ubi_debugging_init_dev(struct ubi_device *ubi);
+void ubi_debugging_exit_dev(struct ubi_device *ubi);
+int ubi_debugfs_init(void);
+void ubi_debugfs_exit(void);
+int ubi_debugfs_init_dev(struct ubi_device *ubi);
+void ubi_debugfs_exit_dev(struct ubi_device *ubi);
+
+/*
+ * The UBI debugfs directory name pattern and maximum name length (3 for "ubi"
+ * + 2 for the number plus 1 for the trailing zero byte.
+ */
+#define UBI_DFS_DIR_NAME "ubi%d"
+#define UBI_DFS_DIR_LEN  (3 + 2 + 1)
+
+/**
+ * struct ubi_debug_info - debugging information for an UBI device.
+ *
+ * @chk_gen: if UBI general extra checks are enabled
+ * @chk_io: if UBI I/O extra checks are enabled
+ * @dfs_dir_name: name of debugfs directory containing files of this UBI device
+ * @dfs_dir: direntry object of the UBI device debugfs directory
+ * @dfs_chk_gen: debugfs knob to enable UBI general extra checks
+ * @dfs_chk_io: debugfs knob to enable UBI I/O extra checks
+ */
+struct ubi_debug_info {
+	unsigned int chk_gen:1;
+	unsigned int chk_io:1;
+	char dfs_dir_name[UBI_DFS_DIR_LEN + 1];
+	struct dentry *dfs_dir;
+	struct dentry *dfs_chk_gen;
+	struct dentry *dfs_chk_io;
+};
 
 extern unsigned int ubi_tst_flags;
 
@@ -201,17 +219,24 @@ static inline void ubi_dbg_dump_flash(struct ubi_device *ubi,
 static inline void
 ubi_dbg_print_hex_dump(const char *l, const char *ps, int pt, int r,
 		       int g, const void *b, size_t len, bool a)     { return; }
-
-static inline int ubi_dbg_is_bgt_disabled(void)                    { return 0; }
-static inline int ubi_dbg_is_bitflip(void)                         { return 0; }
-static inline int ubi_dbg_is_write_failure(void)                   { return 0; }
-static inline int ubi_dbg_is_erase_failure(void)                   { return 0; }
 static inline int ubi_dbg_check_all_ff(struct ubi_device *ubi,
 				       int pnum, int offset,
 				       int len)                    { return 0; }
 static inline int ubi_dbg_check_write(struct ubi_device *ubi,
 				      const void *buf, int pnum,
 				      int offset, int len)         { return 0; }
+
+static inline int ubi_debugging_init_dev(struct ubi_device *ubi)   { return 0; }
+static inline void ubi_debugging_exit_dev(struct ubi_device *ubi)  { return; }
+static inline int ubi_debugfs_init(void)                           { return 0; }
+static inline void ubi_debugfs_exit(void)                          { return; }
+static inline int ubi_debugfs_init_dev(struct ubi_device *ubi)     { return 0; }
+static inline void ubi_debugfs_exit_dev(struct ubi_device *ubi)    { return; }
+
+static inline int ubi_dbg_is_bgt_disabled(void)                    { return 0; }
+static inline int ubi_dbg_is_bitflip(void)                         { return 0; }
+static inline int ubi_dbg_is_write_failure(void)                   { return 0; }
+static inline int ubi_dbg_is_erase_failure(void)                   { return 0; }
 
 #endif /* !CONFIG_MTD_UBI_DEBUG */
 #endif /* !__UBI_DEBUG_H__ */

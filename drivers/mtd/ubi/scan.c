@@ -1347,7 +1347,7 @@ static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
 	struct ubi_scan_leb *seb, *last_seb;
 	uint8_t *buf;
 
-	if (!(ubi_chk_flags & UBI_CHK_GEN))
+	if (!ubi->dbg->chk_gen)
 		return 0;
 
 	/*
