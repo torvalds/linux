@@ -100,6 +100,11 @@ int mp_irq_entries;
 /* GSI interrupts */
 static int nr_irqs_gsi = NR_IRQS_LEGACY;
 
+/*
+ * Saved I/O APIC state during suspend/resume.
+*/
+static struct IO_APIC_route_entry *ioapic_saved_data[MAX_IO_APICS];
+
 #if defined (CONFIG_MCA) || defined (CONFIG_EISA)
 int mp_bus_id_to_type[MAX_MP_BUSSES];
 #endif
@@ -177,6 +182,14 @@ int __init arch_early_irq_init(void)
 	if (!legacy_pic->nr_legacy_irqs) {
 		nr_irqs_gsi = 0;
 		io_apic_irqs = ~0UL;
+	}
+
+	for (i = 0; i < nr_ioapics; i++) {
+		ioapic_saved_data[i] =
+			kzalloc(sizeof(struct IO_APIC_route_entry) *
+				nr_ioapic_registers[i], GFP_KERNEL);
+		if (!ioapic_saved_data[i])
+			pr_err("IOAPIC %d: suspend/resume impossible!\n", i);
 	}
 
 	cfg = irq_cfgx;
@@ -2918,8 +2931,6 @@ static int __init io_apic_bug_finalize(void)
 
 late_initcall(io_apic_bug_finalize);
 
-static struct IO_APIC_route_entry *ioapic_saved_data[MAX_IO_APICS];
-
 static void suspend_ioapic(int ioapic_id)
 {
 	struct IO_APIC_route_entry *saved_data = ioapic_saved_data[ioapic_id];
@@ -2978,18 +2989,6 @@ static struct syscore_ops ioapic_syscore_ops = {
 
 static int __init ioapic_init_ops(void)
 {
-	int i;
-
-	for (i = 0; i < nr_ioapics; i++) {
-		unsigned int size;
-
-		size = nr_ioapic_registers[i]
-			* sizeof(struct IO_APIC_route_entry);
-		ioapic_saved_data[i] = kzalloc(size, GFP_KERNEL);
-		if (!ioapic_saved_data[i])
-			pr_err("IOAPIC %d: suspend/resume impossible!\n", i);
-	}
-
 	register_syscore_ops(&ioapic_syscore_ops);
 
 	return 0;
