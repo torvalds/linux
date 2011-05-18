@@ -126,21 +126,23 @@ enum {
 
 /**
  * ubi_dbg_is_bgt_disabled - if the background thread is disabled.
+ * @ubi: UBI device description object
  *
  * Returns non-zero if the UBI background thread is disabled for testing
  * purposes.
  */
-static inline int ubi_dbg_is_bgt_disabled(void)
+static inline int ubi_dbg_is_bgt_disabled(const struct ubi_device *ubi)
 {
 	return ubi_tst_flags & UBI_TST_DISABLE_BGT;
 }
 
 /**
  * ubi_dbg_is_bitflip - if it is time to emulate a bit-flip.
+ * @ubi: UBI device description object
  *
  * Returns non-zero if a bit-flip should be emulated, otherwise returns zero.
  */
-static inline int ubi_dbg_is_bitflip(void)
+static inline int ubi_dbg_is_bitflip(const struct ubi_device *ubi)
 {
 	if (ubi_tst_flags & UBI_TST_EMULATE_BITFLIPS)
 		return !(random32() % 200);
@@ -149,11 +151,12 @@ static inline int ubi_dbg_is_bitflip(void)
 
 /**
  * ubi_dbg_is_write_failure - if it is time to emulate a write failure.
+ * @ubi: UBI device description object
  *
  * Returns non-zero if a write failure should be emulated, otherwise returns
  * zero.
  */
-static inline int ubi_dbg_is_write_failure(void)
+static inline int ubi_dbg_is_write_failure(const struct ubi_device *ubi)
 {
 	if (ubi_tst_flags & UBI_TST_EMULATE_WRITE_FAILURES)
 		return !(random32() % 500);
@@ -162,11 +165,12 @@ static inline int ubi_dbg_is_write_failure(void)
 
 /**
  * ubi_dbg_is_erase_failure - if its time to emulate an erase failure.
+ * @ubi: UBI device description object
  *
  * Returns non-zero if an erase failure should be emulated, otherwise returns
  * zero.
  */
-static inline int ubi_dbg_is_erase_failure(void)
+static inline int ubi_dbg_is_erase_failure(const struct ubi_device *ubi)
 {
 	if (ubi_tst_flags & UBI_TST_EMULATE_ERASE_FAILURES)
 		return !(random32() % 400);
@@ -233,10 +237,13 @@ static inline void ubi_debugfs_exit(void)                          { return; }
 static inline int ubi_debugfs_init_dev(struct ubi_device *ubi)     { return 0; }
 static inline void ubi_debugfs_exit_dev(struct ubi_device *ubi)    { return; }
 
-static inline int ubi_dbg_is_bgt_disabled(void)                    { return 0; }
-static inline int ubi_dbg_is_bitflip(void)                         { return 0; }
-static inline int ubi_dbg_is_write_failure(void)                   { return 0; }
-static inline int ubi_dbg_is_erase_failure(void)                   { return 0; }
+static inline int
+ubi_dbg_is_bgt_disabled(const struct ubi_device *ubi)              { return 0; }
+static inline int ubi_dbg_is_bitflip(const struct ubi_device *ubi) { return 0; }
+static inline int
+ubi_dbg_is_write_failure(const struct ubi_device *ubi)             { return 0; }
+static inline int
+ubi_dbg_is_erase_failure(const struct ubi_device *ubi)             { return 0; }
 
 #endif /* !CONFIG_MTD_UBI_DEBUG */
 #endif /* !__UBI_DEBUG_H__ */

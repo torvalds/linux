@@ -212,7 +212,7 @@ retry:
 	} else {
 		ubi_assert(len == read);
 
-		if (ubi_dbg_is_bitflip()) {
+		if (ubi_dbg_is_bitflip(ubi)) {
 			dbg_gen("bit-flip (emulated)");
 			err = UBI_IO_BITFLIPS;
 		}
@@ -281,7 +281,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 			return err;
 	}
 
-	if (ubi_dbg_is_write_failure()) {
+	if (ubi_dbg_is_write_failure(ubi)) {
 		dbg_err("cannot write %d bytes to PEB %d:%d "
 			"(emulated)", len, pnum, offset);
 		ubi_dbg_dump_stack();
@@ -396,7 +396,7 @@ retry:
 	if (err)
 		return err;
 
-	if (ubi_dbg_is_erase_failure()) {
+	if (ubi_dbg_is_erase_failure(ubi)) {
 		dbg_err("cannot erase PEB %d (emulated)", pnum);
 		return -EIO;
 	}
