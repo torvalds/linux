@@ -6,13 +6,10 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
@@ -176,7 +173,6 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, st);
 
-	atomic_set(&st->protect_ring, 0);
 	st->spi = spi;
 
 	st->indio_dev = iio_allocate_device(0);

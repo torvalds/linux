@@ -8,13 +8,10 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/spi/spi.h>
 
 #include "../iio.h"
@@ -77,46 +74,19 @@ static int ad7476_ring_preenable(struct iio_dev *indio_dev)
 	return 0;
 }
 
-/**
- * ad7476_poll_func_th() th of trigger launched polling to ring buffer
- *
- * As sampling only occurs on i2c comms occurring, leave timestamping until
- * then.  Some triggers will generate their own time stamp.  Currently
- * there is no way of notifying them when no one cares.
- **/
-static void ad7476_poll_func_th(struct iio_dev *indio_dev, s64 time)
+static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 {
-	struct ad7476_state *st = indio_dev->dev_data;
-
-	schedule_work(&st->poll_work);
-	return;
-}
-/**
- * ad7476_poll_bh_to_ring() bh of trigger launched polling to ring buffer
- * @work_s:	the work struct through which this was scheduled
- *
- * Currently there is no option in this driver to disable the saving of
- * timestamps within the ring.
- * I think the one copy of this at a time was to avoid problems if the
- * trigger was set far too high and the reads then locked up the computer.
- **/
-static void ad7476_poll_bh_to_ring(struct work_struct *work_s)
-{
-	struct ad7476_state *st = container_of(work_s, struct ad7476_state,
-						  poll_work);
-	struct iio_dev *indio_dev = st->indio_dev;
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->private_data;
+	struct ad7476_state *st = iio_dev_get_devdata(indio_dev);
 	struct iio_sw_ring_buffer *sw_ring = iio_to_sw_ring(indio_dev->ring);
 	s64 time_ns;
 	__u8 *rxbuf;
 	int b_sent;
 
-	/* Ensure only one copy of this function running at a time */
-	if (atomic_inc_return(&st->protect_ring) > 1)
-		return;
-
 	rxbuf = kzalloc(st->d_size, GFP_KERNEL);
 	if (rxbuf == NULL)
-		return;
+		return -ENOMEM;
 
 	b_sent = spi_read(st->spi, rxbuf,
 			  st->chip_info->channel[0].scan_type.storagebits / 8);
@@ -131,8 +101,10 @@ static void ad7476_poll_bh_to_ring(struct work_struct *work_s)
 
 	indio_dev->ring->access.store_to(&sw_ring->buf, rxbuf, time_ns);
 done:
+	iio_trigger_notify_done(indio_dev->trig);
 	kfree(rxbuf);
-	atomic_dec(&st->protect_ring);
+
+	return IRQ_HANDLED;
 }
 
 int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)
@@ -147,9 +119,22 @@ int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	}
 	/* Effectively select the ring buffer implementation */
 	iio_ring_sw_register_funcs(&indio_dev->ring->access);
-	ret = iio_alloc_pollfunc(indio_dev, NULL, &ad7476_poll_func_th);
-	if (ret)
+	indio_dev->pollfunc = kzalloc(sizeof(indio_dev->pollfunc), GFP_KERNEL);
+	if (indio_dev->pollfunc == NULL) {
+		ret = -ENOMEM;
 		goto error_deallocate_sw_rb;
+	}
+	indio_dev->pollfunc->private_data = indio_dev;
+	indio_dev->pollfunc->thread = &ad7476_trigger_handler;
+	indio_dev->pollfunc->type = IRQF_ONESHOT;
+	indio_dev->pollfunc->name
+		= kasprintf(GFP_KERNEL, "%s_consumer%d",
+			    spi_get_device_id(st->spi)->name,
+			    indio_dev->id);
+	if (indio_dev->pollfunc->name == NULL) {
+		ret = -ENOMEM;
+		goto error_free_pollfunc;
+	}
 
 	/* Ring buffer functions - here trigger setup related */
 
@@ -158,11 +143,11 @@ int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
 	indio_dev->ring->scan_timestamp = true;
 
-	INIT_WORK(&st->poll_work, &ad7476_poll_bh_to_ring);
-
 	/* Flag that polled ring buffering is possible */
 	indio_dev->modes |= INDIO_RING_TRIGGERED;
 	return 0;
+error_free_pollfunc:
+	kfree(indio_dev->pollfunc);
 error_deallocate_sw_rb:
 	iio_sw_rb_free(indio_dev->ring);
 error_ret:
@@ -177,6 +162,7 @@ void ad7476_ring_cleanup(struct iio_dev *indio_dev)
 		iio_trigger_dettach_poll_func(indio_dev->trig,
 					      indio_dev->pollfunc);
 	}
+	kfree(indio_dev->pollfunc->name);
 	kfree(indio_dev->pollfunc);
 	iio_sw_rb_free(indio_dev->ring);
 }
