@@ -1138,7 +1138,7 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = dev->board.di_chans;
-	s->maxdata = (1 << dev->board.di_bits) - 1;
+	s->maxdata = 1;
 	s->insn_read = vmk80xx_di_rinsn;
 
 	/* Digital output subdevice */
@@ -1146,7 +1146,7 @@ static int vmk80xx_attach(struct comedi_device *cdev,
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
 	s->n_chan = dev->board.do_chans;
-	s->maxdata = (1 << dev->board.do_bits) - 1;
+	s->maxdata = 1;
 	s->insn_write = vmk80xx_do_winsn;
 
 	if (dev->board.model == VMK8061_MODEL) {
