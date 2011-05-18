@@ -36,5 +36,8 @@ struct reginfo
 #define CONFIG_SENSOR_MIRROR    0
 #define CONFIG_SENSOR_MIRROR_AND_FLIPE  1
 #define CONFIG_SENSOR_NONE_FLIP_MIRROR  0
-
+/**adjust part parameter to solve bug******/
+#define ADJUST_FOR_720P_FALG      1
+#define ADJUST_FOR_VGA_FALG       1
+#define ADJUST_FOR_CAPTURE_FALG   1
 #endif

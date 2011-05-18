@@ -1377,8 +1377,14 @@ static struct reginfo sensor_720p[]=
 	{0xC870, 0x0014, WORD_LEN, 0},  // CAM_CORE_A_RX_FIFO_TRIGGER_MARK
 	{0xC858, 0x0003, WORD_LEN, 0}, // CAM_CORE_A_COARSE_ITMIN
 	{0xC8B8, 0x0004, WORD_LEN, 0},  // CAM_OUTPUT_0_JPEG_CONTROL
+/****bug:part pixsels data not to be aquired *****/
+#if ADJUST_FOR_720P_FALG            
+	{0xC8AA, 0x0500, WORD_LEN, 0},  // CAM_OUTPUT_0_IMAGE_WIDTH
+	{0xC8AC, 0x02D1, WORD_LEN, 0},  // CAM_OUTPUT_0_IMAGE_HEIGHT
+#else
 	{0xC8AA, 0x0500, WORD_LEN, 0},  // CAM_OUTPUT_0_IMAGE_WIDTH
 	{0xC8AC, 0x02D0, WORD_LEN, 0},  // CAM_OUTPUT_0_IMAGE_HEIGHT
+#endif	
 	{0xC8AE, 0x0001, WORD_LEN, 0},  // CAM_OUTPUT_0_OUTPUT_FORMAT
 	{0x8404, 0x06, BYTE_LEN, 0 },  // SEQ_CMD
 
@@ -2896,41 +2902,91 @@ static struct reginfo* sensor_fmt_catch(int set_w, int set_h, int *ret_w, int *r
             *ret_w = 320;
             *ret_h = 240;
     	} 
+
+#if  ADJUST_FOR_VGA_FALG    
+
+        if (((set_w >= 640) && (set_h >= 480)) && (sensor_vga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_vga;
+            *ret_w = 576;
+            *ret_h = 432;
+        } 
+
+#else
         if (((set_w >= 640) && (set_h >= 480)) && (sensor_vga[0].reg!=SEQUENCE_END)) {
             winseqe_set_addr = sensor_vga;
             *ret_w = 640;
             *ret_h = 480;
         } 
+
+#endif
+       
+        
         if (((set_w >= 800) && (set_h >= 600)) && (sensor_svga[0].reg!=SEQUENCE_END)) {
             winseqe_set_addr = sensor_svga;
             *ret_w = 800;
             *ret_h = 600;
         } 
+
+#if ADJUST_FOR_CAPTURE_FALG
+        if (((set_w >= 1024) && (set_h >= 768)) && (sensor_qsxga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_qsxga;
+            *ret_w = 2560;
+            *ret_h = 1920;
+    	} 
+#else
         if (((set_w >= 1024) && (set_h >= 768)) && (sensor_xga[0].reg!=SEQUENCE_END)) {
             winseqe_set_addr = sensor_xga;
             *ret_w = 1024;
             *ret_h = 768;
     	} 
+#endif       
         if (((set_w >= 1280) && (set_h >= 1024)) && (sensor_sxga[0].reg!=SEQUENCE_END)) {
             winseqe_set_addr = sensor_sxga;
             *ret_w = 1280;
             *ret_h = 1024;
         } 
+        
+#if ADJUST_FOR_CAPTURE_FALG
+        if (((set_w >= 1600) && (set_h >= 1200)) && (sensor_qsxga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_qsxga;
+            *ret_w = 2560;
+            *ret_h = 1920;
+    	} 
+#else
         if (((set_w >= 1600) && (set_h >= 1200)) && (sensor_uxga[0].reg!=SEQUENCE_END)) {
             winseqe_set_addr = sensor_uxga;
             *ret_w = 1600;
             *ret_h = 1200;
     	} 
+#endif
+
+#if ADJUST_FOR_CAPTURE_FALG
+        if (((set_w >= 2048) && (set_h >= 1536)) && (sensor_qsxga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_qsxga;
+            *ret_w = 2560;
+            *ret_h = 1920;
+        } 
+#else
         if (((set_w >= 2048) && (set_h >= 1536)) && (sensor_qxga[0].reg!=SEQUENCE_END)) {
             winseqe_set_addr = sensor_qxga;
             *ret_w = 2048;
             *ret_h = 1536;
         } 
+#endif
+
+#if  ADJUST_FOR_CAPTURE_FALG
+        if (((set_w >= 2560) && (set_h >= 1920)) && (sensor_qsxga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_qsxga;
+            *ret_w = 2560;
+            *ret_h = 1920;
+        }
+#else
         if (((set_w >= 2592) && (set_h >= 1944)) && (sensor_qsxga[0].reg!=SEQUENCE_END)) {
             winseqe_set_addr = sensor_qsxga;
             *ret_w = 2592;
             *ret_h = 1944;
         }
+#endif
 
         if (winseqe_set_addr == NULL) {
             if (((set_w <= 176) && (set_h <= 144)) && (sensor_qcif[0].reg!=SEQUENCE_END)) {
