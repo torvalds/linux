@@ -688,8 +688,8 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 
 	fmt = soc_mbus_get_fmtdesc(code);
 	if (!fmt) {
-		dev_err(icd->dev.parent,
-			"Invalid format code #%u: %d\n", idx, code);
+		dev_warn(icd->dev.parent,
+			 "Unsupported format code #%u: %d\n", idx, code);
 		return 0;
 	}
 
@@ -742,13 +742,9 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 
 static void configure_geometry(struct mx3_camera_dev *mx3_cam,
 			       unsigned int width, unsigned int height,
-			       enum v4l2_mbus_pixelcode code)
+			       const struct soc_mbus_pixelfmt *fmt)
 {
 	u32 ctrl, width_field, height_field;
-	const struct soc_mbus_pixelfmt *fmt;
-
-	fmt = soc_mbus_get_fmtdesc(code);
-	BUG_ON(!fmt);
 
 	if (fourcc_to_ipu_pix(fmt->fourcc) == IPU_PIX_FMT_GENERIC) {
 		/*
@@ -806,8 +802,8 @@ static int acquire_dma_channel(struct mx3_camera_dev *mx3_cam)
  */
 static inline void stride_align(__u32 *width)
 {
-	if (((*width + 7) &  ~7) < 4096)
-		*width = (*width + 7) &  ~7;
+	if (ALIGN(*width, 8) < 4096)
+		*width = ALIGN(*width, 8);
 	else
 		*width = *width &  ~7;
 }
@@ -833,10 +829,13 @@ static int mx3_camera_set_crop(struct soc_camera_device *icd,
 	if (ret < 0)
 		return ret;
 
-	/* The capture device might have changed its output  */
+	/* The capture device might have changed its output sizes */
 	ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
 	if (ret < 0)
 		return ret;
+
+	if (mf.code != icd->current_fmt->code)
+		return -EINVAL;
 
 	if (mf.width & 7) {
 		/* Ouch! We can only handle 8-byte aligned width... */
@@ -847,7 +846,8 @@ static int mx3_camera_set_crop(struct soc_camera_device *icd,
 	}
 
 	if (mf.width != icd->user_width || mf.height != icd->user_height)
-		configure_geometry(mx3_cam, mf.width, mf.height, mf.code);
+		configure_geometry(mx3_cam, mf.width, mf.height,
+				   icd->current_fmt->host_fmt);
 
 	dev_dbg(icd->dev.parent, "Sensor cropped %dx%d\n",
 		mf.width, mf.height);
@@ -885,7 +885,7 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 	 * mxc_v4l2_s_fmt()
 	 */
 
-	configure_geometry(mx3_cam, pix->width, pix->height, xlate->code);
+	configure_geometry(mx3_cam, pix->width, pix->height, xlate->host_fmt);
 
 	mf.width	= pix->width;
 	mf.height	= pix->height;

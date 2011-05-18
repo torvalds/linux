@@ -1082,7 +1082,7 @@ static int omap1_cam_get_formats(struct soc_camera_device *icd,
 
 	fmt = soc_mbus_get_fmtdesc(code);
 	if (!fmt) {
-		dev_err(dev, "%s: invalid format code #%d: %d\n", __func__,
+		dev_warn(dev, "%s: unsupported format code #%d: %d\n", __func__,
 				idx, code);
 		return 0;
 	}

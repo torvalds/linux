@@ -917,8 +917,8 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 
 	fmt = soc_mbus_get_fmtdesc(code);
 	if (!fmt) {
-		dev_err(dev, "Invalid format code #%u: %d\n", idx, code);
-		return -EINVAL;
+		dev_warn(dev, "unsupported format code #%u: %d\n", idx, code);
+		return 0;
 	}
 
 	if (!pcdev->pdata->csi2_dev) {

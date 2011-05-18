@@ -363,8 +363,6 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 	if (!icd->user_formats)
 		return -ENOMEM;
 
-	icd->num_user_formats = fmts;
-
 	dev_dbg(&icd->dev, "Found %d supported formats.\n", fmts);
 
 	/* Second pass - actually fill data formats */
@@ -372,9 +370,10 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 	for (i = 0; i < raw_fmts; i++)
 		if (!ici->ops->get_formats) {
 			v4l2_subdev_call(sd, video, enum_mbus_fmt, i, &code);
-			icd->user_formats[i].host_fmt =
+			icd->user_formats[fmts].host_fmt =
 				soc_mbus_get_fmtdesc(code);
-			icd->user_formats[i].code = code;
+			if (icd->user_formats[fmts].host_fmt)
+				icd->user_formats[fmts++].code = code;
 		} else {
 			ret = ici->ops->get_formats(icd, i,
 						    &icd->user_formats[fmts]);
@@ -383,12 +382,12 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 			fmts += ret;
 		}
 
+	icd->num_user_formats = fmts;
 	icd->current_fmt = &icd->user_formats[0];
 
 	return 0;
 
 egfmt:
-	icd->num_user_formats = 0;
 	vfree(icd->user_formats);
 	return ret;
 }
