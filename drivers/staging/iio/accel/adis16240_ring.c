@@ -95,8 +95,7 @@ static irqreturn_t adis16240_trigger_handler(int irq, void *p)
 
 void adis16240_unconfigure_ring(struct iio_dev *indio_dev)
 {
-	kfree(indio_dev->pollfunc->name);
-	kfree(indio_dev->pollfunc);
+	iio_dealloc_pollfunc(indio_dev->pollfunc);
 	iio_sw_rb_free(indio_dev->ring);
 }
 
@@ -132,27 +131,22 @@ int adis16240_configure_ring(struct iio_dev *indio_dev)
 	iio_scan_mask_set(ring, ADIS16240_SCAN_AUX_ADC);
 	iio_scan_mask_set(ring, ADIS16240_SCAN_TEMP);
 
-	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
+	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
+						 &adis16240_trigger_handler,
+						 IRQF_ONESHOT,
+						 indio_dev,
+						 "%s_consumer%d",
+						 indio_dev->name,
+						 indio_dev->id);
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
 		goto error_iio_sw_rb_free;
 	}
-	indio_dev->pollfunc->private_data = indio_dev;
-	indio_dev->pollfunc->h = &iio_pollfunc_store_time;
-	indio_dev->pollfunc->thread = &adis16240_trigger_handler;
-	indio_dev->pollfunc->type = IRQF_ONESHOT;
-	indio_dev->pollfunc->name =
-		kasprintf(GFP_KERNEL, "adis16240_consumer%d", indio_dev->id);
-	if (indio_dev->pollfunc->name == NULL) {
-		ret = -ENOMEM;
-		goto error_free_poll_func;
-	}
+
 	indio_dev->modes |= INDIO_RING_TRIGGERED;
 	return 0;
-error_free_poll_func:
-	kfree(indio_dev->pollfunc);
+
 error_iio_sw_rb_free:
 	iio_sw_rb_free(indio_dev->ring);
 	return ret;
 }
-

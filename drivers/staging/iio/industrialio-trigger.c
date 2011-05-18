@@ -270,6 +270,42 @@ irqreturn_t iio_pollfunc_store_time(int irq, void *p)
 }
 EXPORT_SYMBOL(iio_pollfunc_store_time);
 
+struct iio_poll_func
+*iio_alloc_pollfunc(irqreturn_t (*h)(int irq, void *p),
+		    irqreturn_t (*thread)(int irq, void *p),
+		    int type,
+		    void *private,
+		    const char *fmt,
+		    ...)
+{
+	va_list vargs;
+	struct iio_poll_func *pf;
+
+	pf = kmalloc(sizeof *pf, GFP_KERNEL);
+	if (pf == NULL)
+		return NULL;
+	va_start(vargs, fmt);
+	pf->name = kvasprintf(GFP_KERNEL, fmt, vargs);
+	va_end(vargs);
+	if (pf->name == NULL) {
+		kfree(pf);
+		return NULL;
+	}
+	pf->h = h;
+	pf->thread = thread;
+	pf->type = type;
+
+	return pf;
+}
+EXPORT_SYMBOL_GPL(iio_alloc_pollfunc);
+
+void iio_dealloc_pollfunc(struct iio_poll_func *pf)
+{
+	kfree(pf->name);
+	kfree(pf);
+}
+EXPORT_SYMBOL_GPL(iio_dealloc_pollfunc);
+
 /**
  * iio_trigger_read_currrent() - trigger consumer sysfs query which trigger
  *
