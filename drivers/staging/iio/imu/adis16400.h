@@ -141,7 +141,6 @@ struct adis16400_chip_info {
 /**
  * struct adis16400_state - device instance specific data
  * @us:			actual spi_device
- * @indio_dev:		industrial I/O device structure
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
  * @rx:			receive buffer
@@ -149,12 +148,12 @@ struct adis16400_chip_info {
  **/
 struct adis16400_state {
 	struct spi_device		*us;
-	struct iio_dev			*indio_dev;
 	struct iio_trigger		*trig;
-	u8				*tx;
-	u8				*rx;
 	struct mutex			buf_lock;
 	struct adis16400_chip_info	*variant;
+
+	u8	tx[ADIS16400_MAX_TX] ____cacheline_aligned;
+	u8	rx[ADIS16400_MAX_RX] ____cacheline_aligned;
 };
 
 int adis16400_set_irq(struct iio_dev *indio_dev, bool enable);

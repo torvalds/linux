@@ -27,7 +27,7 @@ static int adis16400_spi_read_burst(struct device *dev, u8 *rx)
 {
 	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct adis16400_state *st = iio_dev_get_devdata(indio_dev);
+	struct adis16400_state *st = iio_priv(indio_dev);
 	u32 old_speed_hz = st->us->max_speed_hz;
 	int ret;
 
@@ -81,20 +81,19 @@ static const u16 read_all_tx_array[] = {
 static int adis16350_spi_read_all(struct device *dev, u8 *rx)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct adis16400_state *st = iio_dev_get_devdata(indio_dev);
+	struct adis16400_state *st = iio_priv(indio_dev);
 
 	struct spi_message msg;
 	int i, j = 0, ret;
 	struct spi_transfer *xfers;
 
-	xfers = kzalloc(sizeof(*xfers)*
-			st->indio_dev->ring->scan_count + 1,
-		GFP_KERNEL);
+	xfers = kzalloc(sizeof(*xfers)*indio_dev->ring->scan_count + 1,
+			GFP_KERNEL);
 	if (xfers == NULL)
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(read_all_tx_array); i++)
-		if (st->indio_dev->ring->scan_mask & (1 << i)) {
+		if (indio_dev->ring->scan_mask & (1 << i)) {
 			xfers[j].tx_buf = &read_all_tx_array[i];
 			xfers[j].bits_per_word = 16;
 			xfers[j].len = 2;
@@ -105,7 +104,7 @@ static int adis16350_spi_read_all(struct device *dev, u8 *rx)
 	xfers[j].len = 2;
 
 	spi_message_init(&msg);
-	for (j = 0; j < st->indio_dev->ring->scan_count + 1; j++)
+	for (j = 0; j < indio_dev->ring->scan_count + 1; j++)
 		spi_message_add_tail(&xfers[j], &msg);
 
 	ret = spi_sync(st->us, &msg);
@@ -121,7 +120,7 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->private_data;
-	struct adis16400_state *st = iio_dev_get_devdata(indio_dev);
+	struct adis16400_state *st = iio_priv(indio_dev);
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	int i = 0, j, ret = 0;
 	s16 *data;
@@ -174,7 +173,7 @@ void adis16400_unconfigure_ring(struct iio_dev *indio_dev)
 int adis16400_configure_ring(struct iio_dev *indio_dev)
 {
 	int ret = 0;
-	struct adis16400_state *st = iio_dev_get_devdata(indio_dev);
+	struct adis16400_state *st = iio_priv(indio_dev);
 	struct iio_ring_buffer *ring;
 
 	ring = iio_sw_rb_allocate(indio_dev);
