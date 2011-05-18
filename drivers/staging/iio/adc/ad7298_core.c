@@ -6,7 +6,6 @@
  * Licensed under the GPL-2.
  */
 
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -170,7 +169,6 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, st);
 
-	atomic_set(&st->protect_ring, 0);
 	st->spi = spi;
 
 	st->indio_dev = iio_allocate_device(0);

@@ -40,8 +40,6 @@ struct ad7298_state {
 	struct iio_dev			*indio_dev;
 	struct spi_device		*spi;
 	struct regulator		*reg;
-	struct work_struct		poll_work;
-	atomic_t			protect_ring;
 	size_t				d_size;
 	u16				int_vref_mv;
 	unsigned			ext_ref;
