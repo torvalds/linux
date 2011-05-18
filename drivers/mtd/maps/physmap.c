@@ -67,6 +67,10 @@ static int physmap_flash_remove(struct platform_device *dev)
 		if (info->mtd[i] != NULL)
 			map_destroy(info->mtd[i]);
 	}
+
+	if (physmap_data->exit)
+		physmap_data->exit(dev);
+
 	return 0;
 }
 
@@ -77,7 +81,11 @@ static const char *rom_probe_types[] = {
 					"map_rom",
 					NULL };
 #ifdef CONFIG_MTD_PARTITIONS
-static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", NULL };
+static const char *part_probe_types[] = { "cmdlinepart", "RedBoot",
+#ifdef CONFIG_MTD_AFS_PARTS
+					  "afs",
+#endif
+					  NULL };
 #endif
 
 static int physmap_flash_probe(struct platform_device *dev)
@@ -98,6 +106,12 @@ static int physmap_flash_probe(struct platform_device *dev)
 	if (info == NULL) {
 		err = -ENOMEM;
 		goto err_out;
+	}
+
+	if (physmap_data->init) {
+		err = physmap_data->init(dev);
+		if (err)
+			goto err_out;
 	}
 
 	platform_set_drvdata(dev, info);
