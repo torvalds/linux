@@ -24,8 +24,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/mfp-pxa25x.h>
-#include <mach/hardware.h>
+#include <mach/pxa25x.h>
 
 #include "generic.h"
 

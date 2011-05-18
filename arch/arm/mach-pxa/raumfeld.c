@@ -46,10 +46,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/hardware.h>
-#include <mach/pxa3xx-regs.h>
-#include <mach/mfp-pxa3xx.h>
-#include <mach/mfp-pxa300.h>
+#include <mach/pxa300.h>
 #include <mach/ohci.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>

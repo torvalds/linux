@@ -31,11 +31,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include <mach/pxa25x.h>
 #include <mach/audio.h>
 #include <mach/palmte2.h>
 #include <mach/mmc.h>
 #include <mach/pxafb.h>
-#include <mach/mfp-pxa25x.h>
 #include <mach/irda.h>
 #include <mach/udc.h>
 #include <mach/palmasoc.h>

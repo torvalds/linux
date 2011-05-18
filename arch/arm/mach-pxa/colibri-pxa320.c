@@ -23,8 +23,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 
-#include <mach/pxa3xx-regs.h>
-#include <mach/mfp-pxa320.h>
+#include <mach/pxa320.h>
 #include <mach/colibri.h>
 #include <mach/pxafb.h>
 #include <mach/ohci.h>

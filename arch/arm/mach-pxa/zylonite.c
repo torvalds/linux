@@ -24,7 +24,7 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <mach/hardware.h>
+#include <mach/pxa3xx.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
 #include <mach/zylonite.h>

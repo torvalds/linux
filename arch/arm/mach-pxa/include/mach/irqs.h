@@ -112,6 +112,8 @@ void pxa_mask_irq(struct irq_data *);
 void pxa_unmask_irq(struct irq_data *);
 void icip_handle_irq(struct pt_regs *);
 void ichp_handle_irq(struct pt_regs *);
+
+void pxa_init_irq(int irq_nr, int (*set_wake)(struct irq_data *, unsigned int));
 #endif
 
 #endif /* __ASM_MACH_IRQS_H */

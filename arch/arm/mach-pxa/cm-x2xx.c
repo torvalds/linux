@@ -21,7 +21,8 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <mach/pxa2xx-regs.h>
+#include <mach/pxa25x.h>
+#include <mach/pxa27x.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
 #include <mach/smemc.h>
