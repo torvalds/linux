@@ -91,6 +91,9 @@ struct iio_event_interface {
 	void					*private;
 	char					_name[35];
 	char					_attrname[20];
+
+	struct list_head event_attr_list;
+	struct list_head dev_attr_list;
 };
 
 /**

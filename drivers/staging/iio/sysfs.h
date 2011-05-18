@@ -24,6 +24,7 @@ struct iio_event_attr {
 	struct device_attribute dev_attr;
 	int mask;
 	struct iio_event_handler_list *listel;
+	struct list_head l;
 };
 
 #define to_iio_event_attr(_dev_attr) \
@@ -34,11 +35,14 @@ struct iio_event_attr {
  * @dev_attr:	underlying device attribute
  * @address:	associated register address
  * @val2:	secondary attribute value
+ * @l:		list head for maintaining list of dynamically created attrs.
  */
 struct iio_dev_attr {
 	struct device_attribute dev_attr;
 	int address;
 	int val2;
+	struct list_head l;
+	struct iio_chan_spec const *c;
 };
 
 #define to_iio_dev_attr(_dev_attr)				\
@@ -259,26 +263,28 @@ struct iio_const_attr {
 #define IIO_EVENT_ATTR_DATA_RDY(_show, _store, _mask, _handler) \
 	IIO_EVENT_ATTR(data_rdy, _show, _store, _mask, _handler)
 
-#define IIO_EV_CLASS_BUFFER		0
-#define IIO_EV_CLASS_IN			1
-#define IIO_EV_CLASS_ACCEL		2
-#define IIO_EV_CLASS_GYRO		3
-#define IIO_EV_CLASS_MAGN		4
-#define IIO_EV_CLASS_LIGHT		5
-#define IIO_EV_CLASS_PROXIMITY		6
-#define IIO_EV_CLASS_TEMP		7
+/* must match our channel defs */
+#define IIO_EV_CLASS_IN			IIO_IN
+#define IIO_EV_CLASS_IN_DIFF		IIO_IN_DIFF
+#define IIO_EV_CLASS_ACCEL		IIO_ACCEL
+#define IIO_EV_CLASS_GYRO		IIO_GYRO
+#define IIO_EV_CLASS_MAGN		IIO_MAGN
+#define IIO_EV_CLASS_LIGHT		IIO_LIGHT
+#define IIO_EV_CLASS_PROXIMITY		IIO_PROXIMITY
+#define IIO_EV_CLASS_TEMP		IIO_TEMP
+#define IIO_EV_CLASS_BUFFER		IIO_BUFFER
 
-#define IIO_EV_MOD_X			0
-#define IIO_EV_MOD_Y			1
-#define IIO_EV_MOD_Z			2
-#define IIO_EV_MOD_X_AND_Y		3
-#define IIO_EV_MOD_X_ANX_Z		4
-#define IIO_EV_MOD_Y_AND_Z		5
-#define IIO_EV_MOD_X_AND_Y_AND_Z	6
-#define IIO_EV_MOD_X_OR_Y		7
-#define IIO_EV_MOD_X_OR_Z		8
-#define IIO_EV_MOD_Y_OR_Z		9
-#define IIO_EV_MOD_X_OR_Y_OR_Z		10
+#define IIO_EV_MOD_X			IIO_MOD_X
+#define IIO_EV_MOD_Y			IIO_MOD_Y
+#define IIO_EV_MOD_Z			IIO_MOD_Z
+#define IIO_EV_MOD_X_AND_Y		IIO_MOD_X_AND_Y
+#define IIO_EV_MOD_X_ANX_Z		IIO_MOD_X_AND_Z
+#define IIO_EV_MOD_Y_AND_Z		IIO_MOD_Y_AND_Z
+#define IIO_EV_MOD_X_AND_Y_AND_Z	IIO_MOD_X_AND_Y_AND_Z
+#define IIO_EV_MOD_X_OR_Y		IIO_MOD_X_OR_Y
+#define IIO_EV_MOD_X_OR_Z		IIO_MOD_X_OR_Z
+#define IIO_EV_MOD_Y_OR_Z		IIO_MOD_Y_OR_Z
+#define IIO_EV_MOD_X_OR_Y_OR_Z		IIO_MOD_X_OR_Y_OR_Z
 
 #define IIO_EV_TYPE_THRESH		0
 #define IIO_EV_TYPE_MAG			1
@@ -287,6 +293,10 @@ struct iio_const_attr {
 #define IIO_EV_DIR_EITHER		0
 #define IIO_EV_DIR_RISING		1
 #define IIO_EV_DIR_FALLING		2
+
+#define IIO_EV_TYPE_MAX 8
+#define IIO_EV_BIT(type, direction)			\
+	(1 << (type*IIO_EV_TYPE_MAX + direction))
 
 #define IIO_EVENT_CODE(channelclass, orient_bit, number,		\
 		       modifier, type, direction)			\
@@ -303,6 +313,14 @@ struct iio_const_attr {
 
 #define IIO_BUFFER_EVENT_CODE(code)		\
 	(IIO_EV_CLASS_BUFFER | (code << 8))
+
+#define IIO_EVENT_CODE_EXTRACT_DIR(mask) ((mask >> 24) & 0xf)
+
+/* Event code number extraction depends on which type of event we have.
+ * Perhaps review this function in the future*/
+#define IIO_EVENT_CODE_EXTRACT_NUM(mask) ((mask >> 9) & 0x0f)
+
+#define IIO_EVENT_CODE_EXTRACT_MODIFIER(mask) ((mask >> 13) & 0x7)
 
 /**
  * IIO_EVENT_ATTR_RING_50_FULL - ring buffer event to indicate 50% full

@@ -140,6 +140,8 @@ struct iio_ring_buffer {
 	int				(*predisable)(struct iio_dev *);
 	int				(*postdisable)(struct iio_dev *);
 
+	struct list_head scan_el_dev_attr_list;
+	struct list_head scan_el_en_attr_list;
 };
 
 /**
@@ -177,6 +179,7 @@ struct iio_scan_el {
 	struct device_attribute		dev_attr;
 	unsigned int			number;
 	unsigned int			label;
+	struct list_head l;
 
 	int (*set_state)(struct iio_scan_el *scanel,
 			 struct iio_dev *dev_info,
@@ -430,6 +433,14 @@ static inline void iio_put_ring_buffer(struct iio_ring_buffer *ring)
  **/
 int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id);
 
+/** iio_ring_buffer_register_ex() - register the buffer with IIO core
+ * @ring: the buffer to be registered
+ * @id: the id of the buffer (typically 0)
+ **/
+int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring, int id,
+				const struct iio_chan_spec *channels,
+				int num_channels);
+
 /**
  * iio_ring_buffer_unregister() - unregister the buffer from IIO core
  * @ring: the buffer to be unregistered
@@ -481,6 +492,15 @@ static inline int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id)
 {
 	return 0;
 };
+
+static inline int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring,
+					      int id,
+					      struct iio_chan_spec *channels,
+					      int num_channels)
+{
+	return 0;
+}
+
 static inline void iio_ring_buffer_unregister(struct iio_ring_buffer *ring)
 {};
 

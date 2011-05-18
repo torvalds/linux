@@ -233,9 +233,162 @@ void iio_ring_buffer_init(struct iio_ring_buffer *ring,
 }
 EXPORT_SYMBOL(iio_ring_buffer_init);
 
-int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id)
+static ssize_t iio_show_scan_index(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	return sprintf(buf, "%u\n", this_attr->c->scan_index);
+}
+
+static ssize_t iio_show_fixed_type(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	return sprintf(buf, "%c%d/%d>>%u\n",
+		       this_attr->c->scan_type.sign,
+		       this_attr->c->scan_type.realbits,
+		       this_attr->c->scan_type.storagebits,
+		       this_attr->c->scan_type.shift);
+}
+
+static int __iio_add_chan_scan_elattr(const char *postfix,
+				      const char *group,
+				      const struct iio_chan_spec *chan,
+				      struct device *dev,
+				      struct list_head *attr_list)
 {
 	int ret;
+	struct iio_scan_el *scan_el;
+
+	scan_el = kzalloc(sizeof *scan_el, GFP_KERNEL);
+	if (scan_el == NULL) {
+		ret = -ENOMEM;
+		goto error_ret;
+	}
+	if (chan->type != IIO_TIMESTAMP)
+		ret = __iio_device_attr_init(&scan_el->dev_attr, postfix, chan,
+					     iio_scan_el_show,
+					     iio_scan_el_store, 0);
+	else /*
+	      * Timestamp handled separately because it simplifies a lot of
+	      * drivers by ensuring they don't have to know its magic index
+	      */
+		ret = __iio_device_attr_init(&scan_el->dev_attr, postfix, chan,
+					     iio_scan_el_ts_show,
+					     iio_scan_el_ts_store, 0);
+	if (ret)
+		goto error_free_scan_el;
+
+	scan_el->number = chan->scan_index;
+
+	ret = sysfs_add_file_to_group(&dev->kobj,
+				      &scan_el->dev_attr.attr,
+				      group);
+	if (ret < 0)
+		goto error_device_attr_deinit;
+
+	list_add(&scan_el->l, attr_list);
+
+	return 0;
+error_device_attr_deinit:
+	__iio_device_attr_deinit(&scan_el->dev_attr);
+error_free_scan_el:
+	kfree(scan_el);
+error_ret:
+	return ret;
+}
+
+static int iio_ring_add_channel_sysfs(struct iio_ring_buffer *ring,
+				      const struct iio_chan_spec *chan)
+{
+	int ret;
+
+	ret = __iio_add_chan_devattr("index", "scan_elements",
+				     chan,
+				     &iio_show_scan_index,
+				     NULL,
+				     0,
+				     0,
+				     &ring->dev,
+				     &ring->scan_el_dev_attr_list);
+	if (ret)
+		goto error_ret;
+
+	ret = __iio_add_chan_devattr("type", "scan_elements",
+				     chan,
+				     &iio_show_fixed_type,
+				     NULL,
+				     0,
+				     0,
+				     &ring->dev,
+				     &ring->scan_el_dev_attr_list);
+
+	if (ret)
+		goto error_ret;
+
+	ret = __iio_add_chan_scan_elattr("en", "scan_elements",
+					 chan, &ring->dev,
+					 &ring->scan_el_en_attr_list);
+
+error_ret:
+	return ret;
+}
+
+static void iio_ring_remove_and_free_scan_el_attr(struct iio_ring_buffer *ring,
+						  struct iio_scan_el *p)
+{
+	sysfs_remove_file_from_group(&ring->dev.kobj,
+				     &p->dev_attr.attr, "scan_elements");
+	kfree(p->dev_attr.attr.name);
+	kfree(p);
+}
+
+static void iio_ring_remove_and_free_scan_dev_attr(struct iio_ring_buffer *ring,
+						   struct iio_dev_attr *p)
+{
+	sysfs_remove_file_from_group(&ring->dev.kobj,
+				     &p->dev_attr.attr, "scan_elements");
+	kfree(p->dev_attr.attr.name);
+	kfree(p);
+}
+
+static struct attribute *iio_scan_el_dummy_attrs[] = {
+	NULL
+};
+
+static struct attribute_group iio_scan_el_dummy_group = {
+	.name = "scan_elements",
+	.attrs = iio_scan_el_dummy_attrs
+};
+
+static void __iio_ring_attr_cleanup(struct iio_ring_buffer *ring)
+{
+	struct iio_dev_attr *p, *n;
+	struct iio_scan_el *q, *m;
+	int anydynamic = !(list_empty(&ring->scan_el_dev_attr_list) &&
+			   list_empty(&ring->scan_el_en_attr_list));
+	list_for_each_entry_safe(p, n,
+				 &ring->scan_el_dev_attr_list, l)
+		iio_ring_remove_and_free_scan_dev_attr(ring, p);
+	list_for_each_entry_safe(q, m,
+				 &ring->scan_el_en_attr_list, l)
+		iio_ring_remove_and_free_scan_el_attr(ring, q);
+
+	if (ring->scan_el_attrs)
+		sysfs_remove_group(&ring->dev.kobj,
+				   ring->scan_el_attrs);
+	else if (anydynamic)
+		sysfs_remove_group(&ring->dev.kobj,
+				   &iio_scan_el_dummy_group);
+}
+
+int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring, int id,
+				const struct iio_chan_spec *channels,
+				int num_channels)
+{
+	int ret, i;
 
 	ring->id = id;
 
@@ -268,9 +421,28 @@ int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id)
 				"Failed to add sysfs scan elements\n");
 			goto error_free_ring_buffer_event_chrdev;
 		}
+	} else if (channels) {
+		ret = sysfs_create_group(&ring->dev.kobj,
+					 &iio_scan_el_dummy_group);
+		if (ret)
+			goto error_free_ring_buffer_event_chrdev;
 	}
 
-	return ret;
+
+	INIT_LIST_HEAD(&ring->scan_el_dev_attr_list);
+	INIT_LIST_HEAD(&ring->scan_el_en_attr_list);
+	if (channels) {
+		/* new magic */
+		for (i = 0; i < num_channels; i++) {
+			ret = iio_ring_add_channel_sysfs(ring, &channels[i]);
+			if (ret < 0)
+				goto error_cleanup_dynamic;
+		}
+	}
+
+	return 0;
+error_cleanup_dynamic:
+	__iio_ring_attr_cleanup(ring);
 error_free_ring_buffer_event_chrdev:
 	__iio_free_ring_buffer_event_chrdev(ring);
 error_remove_device:
@@ -278,14 +450,17 @@ error_remove_device:
 error_ret:
 	return ret;
 }
+EXPORT_SYMBOL(iio_ring_buffer_register_ex);
+
+int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id)
+{
+	return iio_ring_buffer_register_ex(ring, id, NULL, 0);
+}
 EXPORT_SYMBOL(iio_ring_buffer_register);
 
 void iio_ring_buffer_unregister(struct iio_ring_buffer *ring)
 {
-	if (ring->scan_el_attrs)
-		sysfs_remove_group(&ring->dev.kobj,
-				   ring->scan_el_attrs);
-
+	__iio_ring_attr_cleanup(ring);
 	__iio_free_ring_buffer_access_chrdev(ring);
 	__iio_free_ring_buffer_event_chrdev(ring);
 	device_del(&ring->dev);
@@ -540,4 +715,3 @@ error_ret:
 	return ret ? ret : len;
 }
 EXPORT_SYMBOL(iio_scan_el_ts_store);
-
