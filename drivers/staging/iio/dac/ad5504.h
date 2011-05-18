@@ -45,8 +45,6 @@ struct ad5504_platform_data {
  * @us:			spi_device
  * @reg:		supply regulator
  * @vref_mv:		actual reference voltage used
- * @work_alarm:		bh work structure for event handling
- * @last_timestamp:	timestamp of last event interrupt
  * @pwr_down_mask	power down mask
  * @pwr_down_mode	current power down mode
  */
@@ -56,8 +54,6 @@ struct ad5504_state {
 	struct spi_device		*spi;
 	struct regulator		*reg;
 	unsigned short			vref_mv;
-	struct work_struct		work_alarm;
-	s64				last_timestamp;
 	unsigned			pwr_down_mask;
 	unsigned			pwr_down_mode;
 };

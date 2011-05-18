@@ -261,34 +261,17 @@ static struct attribute_group ad5504_ev_attribute_group = {
 	.attrs = ad5504_ev_attributes,
 };
 
-static void ad5504_interrupt_bh(struct work_struct *work_s)
+static irqreturn_t ad5504_event_handler(int irq, void *private)
 {
-	struct ad5504_state *st = container_of(work_s,
-		struct ad5504_state, work_alarm);
+	iio_push_event(private, 0,
+		       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_TEMP,
+					    0,
+					    IIO_EV_TYPE_THRESH,
+					    IIO_EV_DIR_RISING),
+		       iio_get_time_ns());
 
-	iio_push_event(st->indio_dev, 0,
-			IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_TEMP,
-			0,
-			IIO_EV_TYPE_THRESH,
-			IIO_EV_DIR_RISING),
-			st->last_timestamp);
-
-	enable_irq(st->spi->irq);
+	return IRQ_HANDLED;
 }
-
-static int ad5504_interrupt(struct iio_dev *dev_info,
-		int index,
-		s64 timestamp,
-		int no_test)
-{
-	struct ad5504_state *st = dev_info->dev_data;
-
-	st->last_timestamp = timestamp;
-	schedule_work(&st->work_alarm);
-	return 0;
-}
-
-IIO_EVENT_SH(ad5504, &ad5504_interrupt);
 
 static int __devinit ad5504_probe(struct spi_device *spi)
 {
@@ -342,18 +325,14 @@ static int __devinit ad5504_probe(struct spi_device *spi)
 		goto error_free_dev;
 
 	if (spi->irq) {
-		INIT_WORK(&st->work_alarm, ad5504_interrupt_bh);
-
-		ret = iio_register_interrupt_line(spi->irq,
-				st->indio_dev,
-				0,
-				IRQF_TRIGGER_FALLING,
-				spi_get_device_id(st->spi)->name);
+		ret = request_threaded_irq(spi->irq,
+					   NULL,
+					   &ad5504_event_handler,
+					   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					   spi_get_device_id(st->spi)->name,
+					   st->indio_dev);
 		if (ret)
 			goto error_unreg_iio_device;
-
-		iio_add_event_to_list(&iio_event_ad5504,
-				&st->indio_dev->interrupts[0]->ev_list);
 	}
 
 	return 0;
@@ -379,7 +358,7 @@ static int __devexit ad5504_remove(struct spi_device *spi)
 	struct ad5504_state *st = spi_get_drvdata(spi);
 
 	if (spi->irq)
-		iio_unregister_interrupt_line(st->indio_dev, 0);
+		free_irq(spi->irq, st->indio_dev);
 
 	iio_device_unregister(st->indio_dev);
 
