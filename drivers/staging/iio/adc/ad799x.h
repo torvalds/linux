@@ -103,7 +103,6 @@ struct ad799x_chip_info {
 };
 
 struct ad799x_state {
-	struct iio_dev			*indio_dev;
 	struct i2c_client		*client;
 	const struct ad799x_chip_info	*chip_info;
 	size_t				d_size;

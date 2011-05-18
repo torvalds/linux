@@ -29,7 +29,7 @@
 
 int ad799x_single_channel_from_ring(struct ad799x_state *st, long mask)
 {
-	struct iio_ring_buffer *ring = st->indio_dev->ring;
+	struct iio_ring_buffer *ring = iio_priv_to_dev(st)->ring;
 	int count = 0, ret;
 	u16 *ring_data;
 
@@ -72,7 +72,7 @@ error_ret:
 static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct iio_ring_buffer *ring = indio_dev->ring;
-	struct ad799x_state *st = indio_dev->dev_data;
+	struct ad799x_state *st = iio_dev_get_devdata(indio_dev);
 
 	/*
 	 * Need to figure out the current mode based upon the requested
@@ -166,7 +166,6 @@ out:
 
 int ad799x_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
-	struct ad799x_state *st = indio_dev->dev_data;
 	int ret = 0;
 
 	indio_dev->ring = iio_sw_rb_allocate(indio_dev);
@@ -175,7 +174,7 @@ int ad799x_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_ret;
 	}
 	/* Effectively select the ring buffer implementation */
-	iio_ring_sw_register_funcs(&st->indio_dev->ring->access);
+	iio_ring_sw_register_funcs(&indio_dev->ring->access);
 	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
