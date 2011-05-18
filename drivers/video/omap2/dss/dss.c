@@ -989,50 +989,10 @@ static void dss_clk_disable_all_no_ctx(void)
 	dss_clk_disable_no_ctx(clks);
 }
 
-#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
-/* CLOCKS */
-static void core_dump_clocks(struct seq_file *s)
-{
-	int i;
-	struct clk *clocks[5] = {
-		dss.dss_ick,
-		dss.dss_fck,
-		dss.dss_sys_clk,
-		dss.dss_tv_fck,
-		dss.dss_video_fck
-	};
-
-	const char *names[5] = {
-		"ick",
-		"fck",
-		"sys_clk",
-		"tv_fck",
-		"video_fck"
-	};
-
-	seq_printf(s, "- CORE -\n");
-
-	seq_printf(s, "internal clk count\t\t%u\n", dss.num_clks_enabled);
-
-	for (i = 0; i < 5; i++) {
-		if (!clocks[i])
-			continue;
-		seq_printf(s, "%s (%s)%*s\t%lu\t%d\n",
-				names[i],
-				clocks[i]->name,
-				24 - strlen(names[i]) - strlen(clocks[i]->name),
-				"",
-				clk_get_rate(clocks[i]),
-				clocks[i]->usecount);
-	}
-}
-#endif /* defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT) */
-
 /* DEBUGFS */
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
 void dss_debug_dump_clocks(struct seq_file *s)
 {
-	core_dump_clocks(s);
 	dss_dump_clocks(s);
 	dispc_dump_clocks(s);
 #ifdef CONFIG_OMAP2_DSS_DSI
