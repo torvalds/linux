@@ -47,6 +47,12 @@ config MACH_RK29_A22
         help
 	  Support for the ROCKCHIP Board For A22.
 
+config MACH_RK29_PHONEPADSDK
+	depends on ARCH_RK29
+	bool "ROCKCHIP Board Rk29 For Phone Pad Sdk"
+        help
+	  Support for the ROCKCHIP Board For Rk29 Phone Pad Sdk.
+	  
 endchoice
 
 choice DDR_TYPE

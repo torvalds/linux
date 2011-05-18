@@ -117,25 +117,17 @@ struct rk29_nand_platform_data rk29_nand_data = {
     .io_init   = rk29_nand_io_init,
 };
 
-/*****************************************************************************************
-* touch screen devices
-* author: cf@rock-chips.com
-*****************************************************************************************/
-#define TOUCH_SCREEN_STANDBY_PIN          INVALID_GPIO
-#define TOUCH_SCREEN_STANDBY_VALUE        GPIO_HIGH
-#define TOUCH_SCREEN_DISPLAY_PIN          INVALID_GPIO
-#define TOUCH_SCREEN_DISPLAY_VALUE        GPIO_HIGH
-
 #ifdef CONFIG_FB_RK29
 /*****************************************************************************************
  * lcd  devices
  * author: zyw@rock-chips.com
  *****************************************************************************************/
+//#ifdef  CONFIG_LCD_TD043MGEA1
 #define LCD_TXD_PIN          INVALID_GPIO
 #define LCD_CLK_PIN          INVALID_GPIO
 #define LCD_CS_PIN           INVALID_GPIO
 /*****************************************************************************************
-* frame buffer devices pin define
+* frame buffe  devices
 * author: zyw@rock-chips.com
 *****************************************************************************************/
 #define FB_ID                       0
@@ -146,6 +138,16 @@ struct rk29_nand_platform_data rk29_nand_data = {
 
 #define FB_DISPLAY_ON_VALUE         GPIO_HIGH
 #define FB_LCD_STANDBY_VALUE        GPIO_HIGH
+
+//#endif
+/*****************************************************************************************
+* touch screen devices
+* author: cf@rock-chips.com
+*****************************************************************************************/
+#define TOUCH_SCREEN_STANDBY_PIN          INVALID_GPIO
+#define TOUCH_SCREEN_STANDBY_VALUE        GPIO_HIGH
+#define TOUCH_SCREEN_DISPLAY_PIN          INVALID_GPIO
+#define TOUCH_SCREEN_DISPLAY_VALUE        GPIO_HIGH
 
 static int rk29_lcd_io_init(void)
 {
@@ -565,6 +567,15 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
                 .flags                  = 0,
         },
 #endif
+
+#if defined (CONFIG_SND_SOC_RT5625)
+	{
+		.type			= "rt5625",
+		.addr			= 0x1e,		//need check A1 pin,A1 pin is low,addr=0x1e,A1 pin is high,addr=0x1f.
+		.flags			= 0,
+	},
+#endif
+
 #if defined (CONFIG_SND_SOC_RK1000)
 	{
 		.type    		= "rk1000_i2c_codec",

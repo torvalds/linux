@@ -15,4 +15,4 @@ obj-$(CONFIG_MACH_RK29_MALATA) += board-malata.o board-rk29malata-key.o board-rk
 obj-$(CONFIG_MACH_RK29_PHONESDK) += board-rk29-phonesdk.o board-rk29-phonesdk-key.o board-rk29-phonesdk-rfkill.o
 obj-$(CONFIG_MACH_RK29FIH)		+= board-rk29-fih.o board-rk29-fih-key.o board-rk29sdk-rfkill.o board-rk29sdk-power.o
 obj-$(CONFIG_MACH_RK29_A22)		+= board-rk29-a22.o board-rk29-a22-key.o board-rk29-a22-rfkill.o
-
+obj-$(CONFIG_MACH_RK29_PHONEPADSDK)             += board-rk29phonepadsdk.o board-rk29phonepadsdk-key.o board-rk29phonepadsdk-rfkill.o board-rk29phonepadsdk-power.o

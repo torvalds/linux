@@ -330,7 +330,7 @@ static ssize_t dbg_level_store(struct device_driver *_drv, const char *_buf,
 		return _count;
 }
 static DRIVER_ATTR(debuglevel, S_IRUGO|S_IWUSR, dbg_level_show, dbg_level_store);
-
+#ifdef CONFIG_USB
 static ssize_t dwc_otg_enable_show( struct device *_dev, 
 								struct device_attribute *attr, char *buf)
 {
@@ -385,7 +385,7 @@ static ssize_t dwc_otg_enable_store( struct device *_dev,
     return count;
 }
 static DEVICE_ATTR(enable, S_IRUGO|S_IWUSR, dwc_otg_enable_show, dwc_otg_enable_store);
-
+#endif
 static ssize_t dwc_otg_conn_en_show(struct device_driver *_drv, char *_buf)
 {
 #ifdef CONFIG_DWC_OTG_DEVICE_ONLY
