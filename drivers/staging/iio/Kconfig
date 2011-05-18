@@ -48,6 +48,13 @@ config IIO_TRIGGER
 	  ring buffers.  The triggers are effectively a 'capture
 	  data now' interrupt.
 
+config IIO_CONSUMERS_PER_TRIGGER
+       int "Maximum number of consumers per trigger"
+       depends on IIO_TRIGGER
+       default "2"
+       help
+	This value controls the maximum number of consumers that a
+	given trigger may handle. Default is 2.
 
 source "drivers/staging/iio/accel/Kconfig"
 source "drivers/staging/iio/adc/Kconfig"

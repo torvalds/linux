@@ -6,8 +6,14 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
+#include <linux/irq.h>
+
 #ifndef _IIO_TRIGGER_H_
 #define _IIO_TRIGGER_H_
+
+struct iio_subirq {
+	bool enabled;
+};
 
 /**
  * struct iio_trigger - industrial I/O trigger device
@@ -43,6 +49,13 @@ struct iio_trigger {
 
 	int (*set_trigger_state)(struct iio_trigger *trig, bool state);
 	int (*try_reenable)(struct iio_trigger *trig);
+
+	struct irq_chip			subirq_chip;
+	int				subirq_base;
+
+	struct iio_subirq subirqs[CONFIG_IIO_CONSUMERS_PER_TRIGGER];
+	unsigned long pool[BITS_TO_LONGS(CONFIG_IIO_CONSUMERS_PER_TRIGGER)];
+	struct mutex			pool_lock;
 };
 
 static inline struct iio_trigger *to_iio_trigger(struct device *d)
@@ -114,6 +127,27 @@ int iio_trigger_dettach_poll_func(struct iio_trigger *trig,
 void iio_trigger_poll(struct iio_trigger *trig, s64 time);
 void iio_trigger_notify_done(struct iio_trigger *trig);
 
+static inline int iio_trigger_get_irq(struct iio_trigger *trig)
+{
+	int ret;
+	mutex_lock(&trig->pool_lock);
+	ret = bitmap_find_free_region(trig->pool,
+				      CONFIG_IIO_CONSUMERS_PER_TRIGGER,
+				      ilog2(1));
+	mutex_unlock(&trig->pool_lock);
+	if (ret >= 0)
+		ret += trig->subirq_base;
+
+	return ret;
+};
+
+static inline void iio_trigger_put_irq(struct iio_trigger *trig, int irq)
+{
+	mutex_lock(&trig->pool_lock);
+	clear_bit(irq - trig->subirq_base, trig->pool);
+	mutex_unlock(&trig->pool_lock);
+};
+
 /**
  * struct iio_poll_func - poll function pair
  *
@@ -125,11 +159,14 @@ void iio_trigger_notify_done(struct iio_trigger *trig);
  * @poll_func_main:		function in here is run after all immediates.
  *				Reading from sensor etc typically involves
  *				scheduling from here.
- *
- * The two stage approach used here is only important when multiple sensors are
- * being triggered by a single trigger. This really comes into its own with
- * simultaneous sampling devices where a simple latch command can be used to
- * make the device store the values on all inputs.
+ * @h:				the function that is actually run on trigger
+ * @thread:			threaded interrupt part
+ * @type:			the type of interrupt (basically if oneshot)
+ * @irq:			the corresponding irq as allocated from the
+ *				trigger pool
+ * @timestamp:			some devices need a timestamp grabbed as soon
+ *				as possible after the trigger - hence handler
+ *				passes it via here.
  **/
 struct iio_poll_func {
 	struct				list_head list;
@@ -137,11 +174,19 @@ struct iio_poll_func {
 	void (*poll_func_immediate)(struct iio_dev *indio_dev);
 	void (*poll_func_main)(struct iio_dev *private_data, s64 time);
 
+	irqreturn_t (*h)(int irq, void *p);
+	irqreturn_t (*thread)(int irq, void *p);
+	int type;
+	char *name;
+	int irq;
+	s64 timestamp;
 };
 
 int iio_alloc_pollfunc(struct iio_dev *indio_dev,
 		       void (*immediate)(struct iio_dev *indio_dev),
 		       void (*main)(struct iio_dev *private_data, s64 time));
+
+irqreturn_t iio_pollfunc_store_time(int irq, void *p);
 
 /*
  * Two functions for common case where all that happens is a pollfunc
@@ -151,7 +196,7 @@ int iio_triggered_ring_postenable(struct iio_dev *indio_dev);
 int iio_triggered_ring_predisable(struct iio_dev *indio_dev);
 
 struct iio_trigger *iio_allocate_trigger(void);
-
+struct iio_trigger *iio_allocate_trigger_named(const char *name);
 void iio_free_trigger(struct iio_trigger *trig);
 
 #endif /* _IIO_TRIGGER_H_ */

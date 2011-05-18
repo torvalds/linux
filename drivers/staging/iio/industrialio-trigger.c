@@ -163,6 +163,7 @@ static struct iio_trigger *iio_trigger_find_by_name(const char *name,
 
 void iio_trigger_poll(struct iio_trigger *trig, s64 time)
 {
+	int i;
 	struct iio_poll_func *pf_cursor;
 
 	list_for_each_entry(pf_cursor, &trig->pollfunc_list, list) {
@@ -177,6 +178,13 @@ void iio_trigger_poll(struct iio_trigger *trig, s64 time)
 						  time);
 			trig->use_count++;
 		}
+	}
+	if (!trig->use_count) {
+		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++)
+			if (trig->subirqs[i].enabled) {
+				trig->use_count++;
+				generic_handle_irq(trig->subirq_base + i);
+			}
 	}
 }
 EXPORT_SYMBOL(iio_trigger_poll);
@@ -219,16 +227,31 @@ int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 	int ret = 0;
 	unsigned long flags;
 
-	spin_lock_irqsave(&trig->pollfunc_list_lock, flags);
-	list_add_tail(&pf->list, &trig->pollfunc_list);
-	spin_unlock_irqrestore(&trig->pollfunc_list_lock, flags);
+	if (pf->thread) {
+		bool notinuse
+			= bitmap_empty(trig->pool,
+				       CONFIG_IIO_CONSUMERS_PER_TRIGGER);
 
-	if (trig->set_trigger_state)
-		ret = trig->set_trigger_state(trig, true);
-	if (ret) {
-		printk(KERN_ERR "set trigger state failed\n");
-		list_del(&pf->list);
+		pf->irq = iio_trigger_get_irq(trig);
+		ret = request_threaded_irq(pf->irq, pf->h, pf->thread,
+					   pf->type, pf->name,
+					   pf);
+		if (trig->set_trigger_state && notinuse) {
+			ret = trig->set_trigger_state(trig, true);
+	} else {
+		spin_lock_irqsave(&trig->pollfunc_list_lock, flags);
+		list_add_tail(&pf->list, &trig->pollfunc_list);
+		spin_unlock_irqrestore(&trig->pollfunc_list_lock, flags);
+
+		if (trig->set_trigger_state)
+			ret = trig->set_trigger_state(trig, true);
+		}
+		if (ret) {
+			printk(KERN_ERR "set trigger state failed\n");
+			list_del(&pf->list);
+		}
 	}
+
 	return ret;
 }
 EXPORT_SYMBOL(iio_trigger_attach_poll_func);
@@ -240,36 +263,62 @@ int iio_trigger_dettach_poll_func(struct iio_trigger *trig,
 	unsigned long flags;
 	int ret = -EINVAL;
 
-	spin_lock_irqsave(&trig->pollfunc_list_lock, flags);
-	list_for_each_entry(pf_cursor, &trig->pollfunc_list, list)
-		if (pf_cursor == pf) {
-			ret = 0;
-			break;
-		}
-	if (!ret) {
-		if (list_is_singular(&trig->pollfunc_list)
-		    && trig->set_trigger_state) {
-			spin_unlock_irqrestore(&trig->pollfunc_list_lock,
-					       flags);
-			/* May sleep hence cannot hold the spin lock */
+	if (pf->thread) {
+		bool no_other_users
+			= (bitmap_weight(trig->pool,
+					 CONFIG_IIO_CONSUMERS_PER_TRIGGER)
+			   == 1);
+		if (trig->set_trigger_state && no_other_users) {
 			ret = trig->set_trigger_state(trig, false);
 			if (ret)
 				goto error_ret;
-			spin_lock_irqsave(&trig->pollfunc_list_lock, flags);
+		} else
+			ret = 0;
+		iio_trigger_put_irq(trig, pf->irq);
+		free_irq(pf->irq, pf);
+	} else {
+		spin_lock_irqsave(&trig->pollfunc_list_lock, flags);
+		list_for_each_entry(pf_cursor, &trig->pollfunc_list, list)
+			if (pf_cursor == pf) {
+				ret = 0;
+				break;
+			}
+		if (!ret) {
+			if (list_is_singular(&trig->pollfunc_list)
+			    && trig->set_trigger_state) {
+				spin_unlock_irqrestore(&trig
+						       ->pollfunc_list_lock,
+						       flags);
+				/* May sleep hence cannot hold the spin lock */
+				ret = trig->set_trigger_state(trig, false);
+				if (ret)
+					goto error_ret;
+				spin_lock_irqsave(&trig->pollfunc_list_lock,
+						  flags);
+			}
+			/*
+			 * Now we can delete safe in the knowledge that, if
+			 * this is the last pollfunc then we have disabled
+			 * the trigger anyway and so nothing should be able
+			 * to call the pollfunc.
+			 */
+			list_del(&pf_cursor->list);
 		}
-		/*
-		 * Now we can delete safe in the knowledge that, if this is
-		 * the last pollfunc then we have disabled the trigger anyway
-		 * and so nothing should be able to call the pollfunc.
-		 */
-		list_del(&pf_cursor->list);
+		spin_unlock_irqrestore(&trig->pollfunc_list_lock, flags);
 	}
-	spin_unlock_irqrestore(&trig->pollfunc_list_lock, flags);
 
 error_ret:
 	return ret;
 }
 EXPORT_SYMBOL(iio_trigger_dettach_poll_func);
+
+irqreturn_t iio_pollfunc_store_time(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	pf->timestamp = iio_get_time_ns();
+	return IRQ_WAKE_THREAD;
+}
+EXPORT_SYMBOL(iio_pollfunc_store_time);
 
 /**
  * iio_trigger_read_currrent() - trigger consumer sysfs query which trigger
@@ -337,6 +386,22 @@ static const struct attribute_group iio_trigger_consumer_attr_group = {
 static void iio_trig_release(struct device *device)
 {
 	struct iio_trigger *trig = to_iio_trigger(device);
+	int i;
+
+	if (trig->subirq_base) {
+		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++) {
+			irq_modify_status(trig->subirq_base + i,
+					  IRQ_NOAUTOEN,
+					  IRQ_NOREQUEST | IRQ_NOPROBE);
+			irq_set_chip(trig->subirq_base + i,
+				     NULL);
+			irq_set_handler(trig->subirq_base + i,
+					NULL);
+		}
+
+		irq_free_descs(trig->subirq_base,
+			       CONFIG_IIO_CONSUMERS_PER_TRIGGER);
+	}
 	kfree(trig);
 	iio_put();
 }
@@ -345,11 +410,30 @@ static struct device_type iio_trig_type = {
 	.release = iio_trig_release,
 };
 
-struct iio_trigger *iio_allocate_trigger(void)
+static void iio_trig_subirqmask(struct irq_data *d)
+{
+	struct irq_chip *chip = irq_data_get_irq_chip(d);
+	struct iio_trigger *trig
+		= container_of(chip,
+			       struct iio_trigger, subirq_chip);
+	trig->subirqs[d->irq - trig->subirq_base].enabled = false;
+}
+
+static void iio_trig_subirqunmask(struct irq_data *d)
+{
+	struct irq_chip *chip = irq_data_get_irq_chip(d);
+	struct iio_trigger *trig
+		= container_of(chip,
+			       struct iio_trigger, subirq_chip);
+	trig->subirqs[d->irq - trig->subirq_base].enabled = true;
+}
+
+struct iio_trigger *iio_allocate_trigger_named(const char *name)
 {
 	struct iio_trigger *trig;
 	trig = kzalloc(sizeof *trig, GFP_KERNEL);
 	if (trig) {
+		int i;
 		trig->dev.type = &iio_trig_type;
 		trig->dev.bus = &iio_bus_type;
 		device_initialize(&trig->dev);
@@ -357,9 +441,40 @@ struct iio_trigger *iio_allocate_trigger(void)
 		spin_lock_init(&trig->pollfunc_list_lock);
 		INIT_LIST_HEAD(&trig->list);
 		INIT_LIST_HEAD(&trig->pollfunc_list);
+
+		if (name) {
+			mutex_init(&trig->pool_lock);
+			trig->subirq_base
+				= irq_alloc_descs(-1, 0,
+					CONFIG_IIO_CONSUMERS_PER_TRIGGER,
+					0);
+			if (trig->subirq_base < 0) {
+				kfree(trig);
+				return NULL;
+			}
+			trig->name = name;
+			trig->subirq_chip.name = name;
+			trig->subirq_chip.irq_mask = &iio_trig_subirqmask;
+			trig->subirq_chip.irq_unmask = &iio_trig_subirqunmask;
+			for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++) {
+				irq_set_chip(trig->subirq_base + i,
+					     &trig->subirq_chip);
+				irq_set_handler(trig->subirq_base + i,
+						&handle_simple_irq);
+				irq_modify_status(trig->subirq_base + i,
+						  IRQ_NOREQUEST | IRQ_NOAUTOEN,
+						  IRQ_NOPROBE);
+			}
+		}
 		iio_get();
 	}
 	return trig;
+}
+EXPORT_SYMBOL(iio_allocate_trigger_named);
+
+struct iio_trigger *iio_allocate_trigger(void)
+{
+	return iio_allocate_trigger_named(NULL);
 }
 EXPORT_SYMBOL(iio_allocate_trigger);
 
