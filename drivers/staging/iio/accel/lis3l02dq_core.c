@@ -422,10 +422,72 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 	struct iio_sw_ring_helper_state *h
 		= iio_dev_get_devdata(indio_dev);
 	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
+	u8 t;
 
-	disable_irq_nosync(irq);
-	st->thresh_timestamp = iio_get_time_ns();
-	schedule_work(&st->work_thresh);
+	s64 timestamp = iio_get_time_ns();
+
+	lis3l02dq_spi_read_reg_8(st->help.indio_dev,
+				 LIS3L02DQ_REG_WAKE_UP_SRC_ADDR,
+				 &t);
+
+	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_HIGH)
+		iio_push_event(st->help.indio_dev, 0,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Z,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
+			       timestamp);
+
+	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_LOW)
+		iio_push_event(st->help.indio_dev, 0,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Z,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
+			       timestamp);
+
+	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_HIGH)
+		iio_push_event(st->help.indio_dev, 0,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Y,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
+			       timestamp);
+
+	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_LOW)
+		iio_push_event(st->help.indio_dev, 0,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Y,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
+			       timestamp);
+
+	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_HIGH)
+		iio_push_event(st->help.indio_dev, 0,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_X,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
+			       timestamp);
+
+	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_LOW)
+		iio_push_event(st->help.indio_dev, 0,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_X,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
+			       timestamp);
+
+	/* Ack and allow for new interrupts */
+	lis3l02dq_spi_read_reg_8(st->help.indio_dev,
+				 LIS3L02DQ_REG_WAKE_UP_ACK_ADDR,
+				 &t);
 
 	return IRQ_HANDLED;
 }
@@ -550,11 +612,13 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 
 	if (changed) {
 		if (!(control & LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT)) {
-			ret = request_irq(st->us->irq,
-					  &lis3l02dq_event_handler,
-					  IRQF_TRIGGER_RISING,
-					  "lis3l02dq_event",
-					  indio_dev);
+			ret = request_threaded_irq(st->us->irq,
+						   NULL,
+						   &lis3l02dq_event_handler,
+						   IRQF_TRIGGER_RISING |
+						   IRQF_ONESHOT,
+						   "lis3l02dq_event",
+						   indio_dev);
 			if (ret)
 				goto error_ret;
 		}
@@ -583,83 +647,6 @@ error_ret:
 	return ret;
 }
 
-/* Unforunately it appears the interrupt won't clear unless you read from the
- * src register.
- */
-static void lis3l02dq_thresh_handler_bh_no_check(struct work_struct *work_s)
-{
-	struct lis3l02dq_state *st
-		= container_of(work_s,
-			       struct lis3l02dq_state, work_thresh);
-	u8 t;
-
-	lis3l02dq_spi_read_reg_8(st->help.indio_dev,
-				 LIS3L02DQ_REG_WAKE_UP_SRC_ADDR,
-				 &t);
-
-	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_HIGH)
-		iio_push_event(st->help.indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
-						  0,
-						  IIO_EV_MOD_Z,
-						  IIO_EV_TYPE_THRESH,
-						  IIO_EV_DIR_RISING),
-			       st->thresh_timestamp);
-
-	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_LOW)
-		iio_push_event(st->help.indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
-						  0,
-						  IIO_EV_MOD_Z,
-						  IIO_EV_TYPE_THRESH,
-						  IIO_EV_DIR_FALLING),
-			       st->thresh_timestamp);
-
-	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_HIGH)
-		iio_push_event(st->help.indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
-						  0,
-						  IIO_EV_MOD_Y,
-						  IIO_EV_TYPE_THRESH,
-						  IIO_EV_DIR_RISING),
-			       st->thresh_timestamp);
-
-	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_LOW)
-		iio_push_event(st->help.indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
-						  0,
-						  IIO_EV_MOD_Y,
-						  IIO_EV_TYPE_THRESH,
-						  IIO_EV_DIR_FALLING),
-			       st->thresh_timestamp);
-
-	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_HIGH)
-		iio_push_event(st->help.indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
-						  0,
-						  IIO_EV_MOD_X,
-						  IIO_EV_TYPE_THRESH,
-						  IIO_EV_DIR_RISING),
-			       st->thresh_timestamp);
-
-	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_LOW)
-		iio_push_event(st->help.indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
-						  0,
-						  IIO_EV_MOD_X,
-						  IIO_EV_TYPE_THRESH,
-						  IIO_EV_DIR_FALLING),
-			       st->thresh_timestamp);
-	/* reenable the irq */
-	enable_irq(st->us->irq);
-	/* Ack and allow for new interrupts */
-	lis3l02dq_spi_read_reg_8(st->help.indio_dev,
-				 LIS3L02DQ_REG_WAKE_UP_ACK_ADDR,
-				 &t);
-
-	return;
-}
-
 static IIO_CONST_ATTR_NAME("lis3l02dq");
 
 static struct attribute *lis3l02dq_attributes[] = {
@@ -681,7 +668,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 		ret =  -ENOMEM;
 		goto error_ret;
 	}
-	INIT_WORK(&st->work_thresh, lis3l02dq_thresh_handler_bh_no_check);
+
 	/* this is only used tor removal purposes */
 	spi_set_drvdata(spi, st);
 
