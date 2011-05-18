@@ -449,8 +449,8 @@ static int ping_push_pending_frames(struct sock *sk, struct pingfakehdr *pfh, st
 	return ip_push_pending_frames(sk, fl4);
 }
 
-int ping_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
-		 size_t len)
+static int ping_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
+			size_t len)
 {
 	struct net *net = sock_net(sk);
 	struct flowi4 fl4;
@@ -621,8 +621,8 @@ do_confirm:
 	goto out;
 }
 
-int ping_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
-		 size_t len, int noblock, int flags, int *addr_len)
+static int ping_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
+			size_t len, int noblock, int flags, int *addr_len)
 {
 	struct inet_sock *isk = inet_sk(sk);
 	struct sockaddr_in *sin = (struct sockaddr_in *)msg->msg_name;
