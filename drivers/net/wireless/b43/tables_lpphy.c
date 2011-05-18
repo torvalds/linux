@@ -2416,12 +2416,12 @@ void lpphy_write_gain_table_bulk(struct b43_wldev *dev, int offset, int count,
 
 void lpphy_init_tx_gain_table(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 
 	switch (dev->phy.rev) {
 	case 0:
-		if ((bus->sprom.boardflags_hi & B43_BFH_NOPA) ||
-		    (bus->sprom.boardflags_lo & B43_BFL_HGPA))
+		if ((sprom->boardflags_hi & B43_BFH_NOPA) ||
+		    (sprom->boardflags_lo & B43_BFL_HGPA))
 			lpphy_write_gain_table_bulk(dev, 0, 128,
 					lpphy_rev0_nopa_tx_gain_table);
 		else if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
@@ -2432,8 +2432,8 @@ void lpphy_init_tx_gain_table(struct b43_wldev *dev)
 					lpphy_rev0_5ghz_tx_gain_table);
 		break;
 	case 1:
-		if ((bus->sprom.boardflags_hi & B43_BFH_NOPA) ||
-		    (bus->sprom.boardflags_lo & B43_BFL_HGPA))
+		if ((sprom->boardflags_hi & B43_BFH_NOPA) ||
+		    (sprom->boardflags_lo & B43_BFL_HGPA))
 			lpphy_write_gain_table_bulk(dev, 0, 128,
 					lpphy_rev1_nopa_tx_gain_table);
 		else if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
@@ -2444,7 +2444,7 @@ void lpphy_init_tx_gain_table(struct b43_wldev *dev)
 					lpphy_rev1_5ghz_tx_gain_table);
 		break;
 	default:
-		if (bus->sprom.boardflags_hi & B43_BFH_NOPA)
+		if (sprom->boardflags_hi & B43_BFH_NOPA)
 			lpphy_write_gain_table_bulk(dev, 0, 128,
 					lpphy_rev2_nopa_tx_gain_table);
 		else if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)

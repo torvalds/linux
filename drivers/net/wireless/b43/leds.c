@@ -218,10 +218,10 @@ static void b43_led_get_sprominfo(struct b43_wldev *dev,
 	struct ssb_bus *bus = dev->sdev->bus;
 	u8 sprom[4];
 
-	sprom[0] = bus->sprom.gpio0;
-	sprom[1] = bus->sprom.gpio1;
-	sprom[2] = bus->sprom.gpio2;
-	sprom[3] = bus->sprom.gpio3;
+	sprom[0] = dev->dev->bus_sprom->gpio0;
+	sprom[1] = dev->dev->bus_sprom->gpio1;
+	sprom[2] = dev->dev->bus_sprom->gpio2;
+	sprom[3] = dev->dev->bus_sprom->gpio3;
 
 	if (sprom[led_index] == 0xFF) {
 		/* There is no LED information in the SPROM

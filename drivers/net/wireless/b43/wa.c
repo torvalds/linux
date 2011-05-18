@@ -487,6 +487,7 @@ static void b43_wa_boards_a(struct b43_wldev *dev)
 static void b43_wa_boards_g(struct b43_wldev *dev)
 {
 	struct ssb_bus *bus = dev->sdev->bus;
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 	struct b43_phy *phy = &dev->phy;
 
 	if (bus->boardinfo.vendor != SSB_BOARDVENDOR_BCM ||
@@ -498,7 +499,7 @@ static void b43_wa_boards_g(struct b43_wldev *dev)
 		} else {
 			b43_ofdmtab_write16(dev, B43_OFDMTAB_GAINX, 1, 0x0002);
 			b43_ofdmtab_write16(dev, B43_OFDMTAB_GAINX, 2, 0x0001);
-			if ((bus->sprom.boardflags_lo & B43_BFL_EXTLNA) &&
+			if ((sprom->boardflags_lo & B43_BFL_EXTLNA) &&
 			    (phy->rev >= 7)) {
 				b43_phy_mask(dev, B43_PHY_EXTG(0x11), 0xF7FF);
 				b43_ofdmtab_write16(dev, B43_OFDMTAB_GAINX, 0x0020, 0x0001);
@@ -510,7 +511,7 @@ static void b43_wa_boards_g(struct b43_wldev *dev)
 			}
 		}
 	}
-	if (bus->sprom.boardflags_lo & B43_BFL_FEM) {
+	if (sprom->boardflags_lo & B43_BFL_FEM) {
 		b43_phy_write(dev, B43_PHY_GTABCTL, 0x3120);
 		b43_phy_write(dev, B43_PHY_GTABDATA, 0xC480);
 	}

@@ -311,7 +311,7 @@ void b43_phy_inita(struct b43_wldev *dev)
 	}
 
 	if ((phy->type == B43_PHYTYPE_G) &&
-	    (dev->sdev->bus->sprom.boardflags_lo & B43_BFL_PACTRL)) {
+	    (dev->dev->bus_sprom->boardflags_lo & B43_BFL_PACTRL)) {
 		b43_phy_maskset(dev, B43_PHY_OFDM(0x6E), 0xE000, 0x3CF);
 	}
 }
@@ -323,17 +323,17 @@ static int b43_aphy_init_tssi2dbm_table(struct b43_wldev *dev)
 	struct b43_phy_a *aphy = phy->a;
 	s16 pab0, pab1, pab2;
 
-	pab0 = (s16) (dev->sdev->bus->sprom.pa1b0);
-	pab1 = (s16) (dev->sdev->bus->sprom.pa1b1);
-	pab2 = (s16) (dev->sdev->bus->sprom.pa1b2);
+	pab0 = (s16) (dev->dev->bus_sprom->pa1b0);
+	pab1 = (s16) (dev->dev->bus_sprom->pa1b1);
+	pab2 = (s16) (dev->dev->bus_sprom->pa1b2);
 
 	if (pab0 != 0 && pab1 != 0 && pab2 != 0 &&
 	    pab0 != -1 && pab1 != -1 && pab2 != -1) {
 		/* The pabX values are set in SPROM. Use them. */
-		if ((s8) dev->sdev->bus->sprom.itssi_a != 0 &&
-		    (s8) dev->sdev->bus->sprom.itssi_a != -1)
+		if ((s8) dev->dev->bus_sprom->itssi_a != 0 &&
+		    (s8) dev->dev->bus_sprom->itssi_a != -1)
 			aphy->tgt_idle_tssi =
-			    (s8) (dev->sdev->bus->sprom.itssi_a);
+			    (s8) (dev->dev->bus_sprom->itssi_a);
 		else
 			aphy->tgt_idle_tssi = 62;
 		aphy->tssi2dbm = b43_generate_dyn_tssi2dbm_tab(dev, pab0,

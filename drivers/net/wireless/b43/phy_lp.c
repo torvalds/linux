@@ -85,39 +85,39 @@ static void b43_lpphy_op_free(struct b43_wldev *dev)
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/LP/ReadBandSrom */
 static void lpphy_read_band_sprom(struct b43_wldev *dev)
 {
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct ssb_bus *bus = dev->sdev->bus;
 	u16 cckpo, maxpwr;
 	u32 ofdmpo;
 	int i;
 
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
-		lpphy->tx_isolation_med_band = bus->sprom.tri2g;
-		lpphy->bx_arch = bus->sprom.bxa2g;
-		lpphy->rx_pwr_offset = bus->sprom.rxpo2g;
-		lpphy->rssi_vf = bus->sprom.rssismf2g;
-		lpphy->rssi_vc = bus->sprom.rssismc2g;
-		lpphy->rssi_gs = bus->sprom.rssisav2g;
-		lpphy->txpa[0] = bus->sprom.pa0b0;
-		lpphy->txpa[1] = bus->sprom.pa0b1;
-		lpphy->txpa[2] = bus->sprom.pa0b2;
-		maxpwr = bus->sprom.maxpwr_bg;
+		lpphy->tx_isolation_med_band = sprom->tri2g;
+		lpphy->bx_arch = sprom->bxa2g;
+		lpphy->rx_pwr_offset = sprom->rxpo2g;
+		lpphy->rssi_vf = sprom->rssismf2g;
+		lpphy->rssi_vc = sprom->rssismc2g;
+		lpphy->rssi_gs = sprom->rssisav2g;
+		lpphy->txpa[0] = sprom->pa0b0;
+		lpphy->txpa[1] = sprom->pa0b1;
+		lpphy->txpa[2] = sprom->pa0b2;
+		maxpwr = sprom->maxpwr_bg;
 		lpphy->max_tx_pwr_med_band = maxpwr;
-		cckpo = bus->sprom.cck2gpo;
+		cckpo = sprom->cck2gpo;
 		/*
 		 * We don't read SPROM's opo as specs say. On rev8 SPROMs
 		 * opo == ofdm2gpo and we don't know any SSB with LP-PHY
 		 * and SPROM rev below 8.
 		 */
-		B43_WARN_ON(bus->sprom.revision < 8);
-		ofdmpo = bus->sprom.ofdm2gpo;
+		B43_WARN_ON(sprom->revision < 8);
+		ofdmpo = sprom->ofdm2gpo;
 		if (cckpo) {
 			for (i = 0; i < 4; i++) {
 				lpphy->tx_max_rate[i] =
 					maxpwr - (ofdmpo & 0xF) * 2;
 				ofdmpo >>= 4;
 			}
-			ofdmpo = bus->sprom.ofdm2gpo;
+			ofdmpo = sprom->ofdm2gpo;
 			for (i = 4; i < 15; i++) {
 				lpphy->tx_max_rate[i] =
 					maxpwr - (ofdmpo & 0xF) * 2;
@@ -131,39 +131,39 @@ static void lpphy_read_band_sprom(struct b43_wldev *dev)
 				lpphy->tx_max_rate[i] = maxpwr - ofdmpo;
 		}
 	} else { /* 5GHz */
-		lpphy->tx_isolation_low_band = bus->sprom.tri5gl;
-		lpphy->tx_isolation_med_band = bus->sprom.tri5g;
-		lpphy->tx_isolation_hi_band = bus->sprom.tri5gh;
-		lpphy->bx_arch = bus->sprom.bxa5g;
-		lpphy->rx_pwr_offset = bus->sprom.rxpo5g;
-		lpphy->rssi_vf = bus->sprom.rssismf5g;
-		lpphy->rssi_vc = bus->sprom.rssismc5g;
-		lpphy->rssi_gs = bus->sprom.rssisav5g;
-		lpphy->txpa[0] = bus->sprom.pa1b0;
-		lpphy->txpa[1] = bus->sprom.pa1b1;
-		lpphy->txpa[2] = bus->sprom.pa1b2;
-		lpphy->txpal[0] = bus->sprom.pa1lob0;
-		lpphy->txpal[1] = bus->sprom.pa1lob1;
-		lpphy->txpal[2] = bus->sprom.pa1lob2;
-		lpphy->txpah[0] = bus->sprom.pa1hib0;
-		lpphy->txpah[1] = bus->sprom.pa1hib1;
-		lpphy->txpah[2] = bus->sprom.pa1hib2;
-		maxpwr = bus->sprom.maxpwr_al;
-		ofdmpo = bus->sprom.ofdm5glpo;
+		lpphy->tx_isolation_low_band = sprom->tri5gl;
+		lpphy->tx_isolation_med_band = sprom->tri5g;
+		lpphy->tx_isolation_hi_band = sprom->tri5gh;
+		lpphy->bx_arch = sprom->bxa5g;
+		lpphy->rx_pwr_offset = sprom->rxpo5g;
+		lpphy->rssi_vf = sprom->rssismf5g;
+		lpphy->rssi_vc = sprom->rssismc5g;
+		lpphy->rssi_gs = sprom->rssisav5g;
+		lpphy->txpa[0] = sprom->pa1b0;
+		lpphy->txpa[1] = sprom->pa1b1;
+		lpphy->txpa[2] = sprom->pa1b2;
+		lpphy->txpal[0] = sprom->pa1lob0;
+		lpphy->txpal[1] = sprom->pa1lob1;
+		lpphy->txpal[2] = sprom->pa1lob2;
+		lpphy->txpah[0] = sprom->pa1hib0;
+		lpphy->txpah[1] = sprom->pa1hib1;
+		lpphy->txpah[2] = sprom->pa1hib2;
+		maxpwr = sprom->maxpwr_al;
+		ofdmpo = sprom->ofdm5glpo;
 		lpphy->max_tx_pwr_low_band = maxpwr;
 		for (i = 4; i < 12; i++) {
 			lpphy->tx_max_ratel[i] = maxpwr - (ofdmpo & 0xF) * 2;
 			ofdmpo >>= 4;
 		}
-		maxpwr = bus->sprom.maxpwr_a;
-		ofdmpo = bus->sprom.ofdm5gpo;
+		maxpwr = sprom->maxpwr_a;
+		ofdmpo = sprom->ofdm5gpo;
 		lpphy->max_tx_pwr_med_band = maxpwr;
 		for (i = 4; i < 12; i++) {
 			lpphy->tx_max_rate[i] = maxpwr - (ofdmpo & 0xF) * 2;
 			ofdmpo >>= 4;
 		}
-		maxpwr = bus->sprom.maxpwr_ah;
-		ofdmpo = bus->sprom.ofdm5ghpo;
+		maxpwr = sprom->maxpwr_ah;
+		ofdmpo = sprom->ofdm5ghpo;
 		lpphy->max_tx_pwr_hi_band = maxpwr;
 		for (i = 4; i < 12; i++) {
 			lpphy->tx_max_rateh[i] = maxpwr - (ofdmpo & 0xF) * 2;
@@ -215,6 +215,7 @@ static void lpphy_table_init(struct b43_wldev *dev)
 static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 {
 	struct ssb_bus *bus = dev->sdev->bus;
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 	struct b43_phy_lp *lpphy = dev->phy.lp;
 	u16 tmp, tmp2;
 
@@ -242,9 +243,9 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_CRS_ED_THRESH, 0x00FF, 0xAD00);
 	b43_phy_maskset(dev, B43_LPPHY_INPUT_PWRDB,
 			0xFF00, lpphy->rx_pwr_offset);
-	if ((bus->sprom.boardflags_lo & B43_BFL_FEM) &&
+	if ((sprom->boardflags_lo & B43_BFL_FEM) &&
 	   ((b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) ||
-	   (bus->sprom.boardflags_hi & B43_BFH_PAREF))) {
+	   (sprom->boardflags_hi & B43_BFH_PAREF))) {
 		ssb_pmu_set_ldo_voltage(&bus->chipco, LDO_PAREF, 0x28);
 		ssb_pmu_set_ldo_paref(&bus->chipco, true);
 		if (dev->phy.rev == 0) {
@@ -260,7 +261,7 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 	}
 	tmp = lpphy->rssi_vf | lpphy->rssi_vc << 4 | 0xA000;
 	b43_phy_write(dev, B43_LPPHY_AFE_RSSI_CTL_0, tmp);
-	if (bus->sprom.boardflags_hi & B43_BFH_RSSIINV)
+	if (sprom->boardflags_hi & B43_BFH_RSSIINV)
 		b43_phy_maskset(dev, B43_LPPHY_AFE_RSSI_CTL_1, 0xF000, 0x0AAA);
 	else
 		b43_phy_maskset(dev, B43_LPPHY_AFE_RSSI_CTL_1, 0xF000, 0x02AA);
@@ -268,7 +269,7 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_RX_RADIO_CTL,
 			0xFFF9, (lpphy->bx_arch << 1));
 	if (dev->phy.rev == 1 &&
-	   (bus->sprom.boardflags_hi & B43_BFH_FEM_BT)) {
+	   (sprom->boardflags_hi & B43_BFH_FEM_BT)) {
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x000A);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0x3F00, 0x0900);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xFFC0, 0x000A);
@@ -287,7 +288,7 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_8, 0xC0FF, 0x0B00);
 	} else if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ ||
 		  (bus->boardinfo.type == 0x048A) || ((dev->phy.rev == 0) &&
-		  (bus->sprom.boardflags_lo & B43_BFL_FEM))) {
+		  (sprom->boardflags_lo & B43_BFL_FEM))) {
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x0001);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xC0FF, 0x0400);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xFFC0, 0x0001);
@@ -297,7 +298,7 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xFFC0, 0x0002);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xC0FF, 0x0A00);
 	} else if (dev->phy.rev == 1 ||
-		  (bus->sprom.boardflags_lo & B43_BFL_FEM)) {
+		  (sprom->boardflags_lo & B43_BFL_FEM)) {
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x0004);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xC0FF, 0x0800);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xFFC0, 0x0004);
@@ -316,13 +317,13 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xFFC0, 0x0006);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xC0FF, 0x0700);
 	}
-	if (dev->phy.rev == 1 && (bus->sprom.boardflags_hi & B43_BFH_PAREF)) {
+	if (dev->phy.rev == 1 && (sprom->boardflags_hi & B43_BFH_PAREF)) {
 		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_5, B43_LPPHY_TR_LOOKUP_1);
 		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_6, B43_LPPHY_TR_LOOKUP_2);
 		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_7, B43_LPPHY_TR_LOOKUP_3);
 		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_8, B43_LPPHY_TR_LOOKUP_4);
 	}
-	if ((bus->sprom.boardflags_hi & B43_BFH_FEM_BT) &&
+	if ((sprom->boardflags_hi & B43_BFH_FEM_BT) &&
 	    (bus->chip_id == 0x5354) &&
 	    (bus->chip_package == SSB_CHIPPACK_BCM4712S)) {
 		b43_phy_set(dev, B43_LPPHY_CRSGAIN_CTL, 0x0006);

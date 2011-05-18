@@ -70,6 +70,8 @@ struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev)
 	dev->block_read = b43_bus_ssb_block_read;
 	dev->block_write = b43_bus_ssb_block_write;
 
+	dev->bus_sprom = &sdev->bus->sprom;
+
 	dev->core_id = sdev->id.coreid;
 	dev->core_rev = sdev->id.revision;
 
