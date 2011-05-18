@@ -134,8 +134,13 @@ static u8 twl6030_uv_to_vsel(unsigned long uv)
 	 * hardcoding only for 1.35 V which is used for 1GH OPP for
 	 * OMAP4430.
 	 */
-	if (uv == 1350000)
+	if (uv > twl6030_vsel_to_uv(0x39)) {
+		if (uv == 1350000)
+			return 0x3A;
+		pr_err("%s:OUT OF RANGE! non mapped vsel for %ld Vs max %ld\n",
+			__func__, uv, twl6030_vsel_to_uv(0x39));
 		return 0x3A;
+	}
 
 	if (smps_offset & 0x8)
 		return DIV_ROUND_UP(uv - 709000, 12660) + 1;
