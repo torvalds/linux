@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
+#include <linux/bitops.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -63,6 +64,56 @@ static int adis16400_spi_read_burst(struct device *dev, u8 *rx)
 	return ret;
 }
 
+static const u16 read_all_tx_array[] = {
+	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_SUPPLY_OUT)),
+	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_XGYRO_OUT)),
+	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_YGYRO_OUT)),
+	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_ZGYRO_OUT)),
+	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_XACCL_OUT)),
+	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_YACCL_OUT)),
+	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_ZACCL_OUT)),
+	cpu_to_be16(ADIS16400_READ_REG(ADIS16350_XTEMP_OUT)),
+	cpu_to_be16(ADIS16400_READ_REG(ADIS16350_YTEMP_OUT)),
+	cpu_to_be16(ADIS16400_READ_REG(ADIS16350_ZTEMP_OUT)),
+	cpu_to_be16(ADIS16400_READ_REG(ADIS16400_AUX_ADC)),
+};
+
+static int adis16350_spi_read_all(struct device *dev, u8 *rx)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct adis16400_state *st = iio_dev_get_devdata(indio_dev);
+
+	struct spi_message msg;
+	int i, j = 0, ret;
+	struct spi_transfer *xfers;
+
+	xfers = kzalloc(sizeof(*xfers)*
+			st->indio_dev->ring->scan_count + 1,
+		GFP_KERNEL);
+	if (xfers == NULL)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(read_all_tx_array); i++)
+		if (st->indio_dev->ring->scan_mask & (1 << i)) {
+			xfers[j].tx_buf = &read_all_tx_array[i];
+			xfers[j].bits_per_word = 16;
+			xfers[j].len = 2;
+			xfers[j + 1].rx_buf = rx + j*2;
+			j++;
+		}
+	xfers[j].bits_per_word = 16;
+	xfers[j].len = 2;
+
+	spi_message_init(&msg);
+	for (j = 0; j < st->indio_dev->ring->scan_count + 1; j++)
+		spi_message_add_tail(&xfers[j], &msg);
+
+	ret = spi_sync(st->us, &msg);
+	kfree(xfers);
+
+	return ret;
+}
+
 /* Whilst this makes a lot of calls to iio_sw_ring functions - it is to device
  * specific to be rolled into the core.
  */
@@ -72,7 +123,7 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->private_data;
 	struct adis16400_state *st = iio_dev_get_devdata(indio_dev);
 	struct iio_ring_buffer *ring = indio_dev->ring;
-	int i = 0, j;
+	int i = 0, j, ret = 0;
 	s16 *data;
 	size_t datasize = ring->access.get_bytes_per_datum(ring);
 	unsigned long mask = ring->scan_mask;
@@ -83,15 +134,25 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 		return -ENOMEM;
 	}
 
-	if (ring->scan_count)
-		if (adis16400_spi_read_burst(&indio_dev->dev, st->rx) >= 0)
-			for (; i < ring->scan_count; i++) {
+	if (ring->scan_count) {
+		if (st->variant->flags & ADIS16400_NO_BURST) {
+			ret = adis16350_spi_read_all(&indio_dev->dev, st->rx);
+			if (ret < 0)
+				return ret;
+			for (; i < ring->scan_count; i++)
+				data[i]	= *(s16 *)(st->rx + i*2);
+		} else {
+			ret = adis16400_spi_read_burst(&indio_dev->dev, st->rx);
+			if (ret < 0)
+				return ret;
+			for (; i < indio_dev->ring->scan_count; i++) {
 				j = __ffs(mask);
 				mask &= ~(1 << j);
-				data[i]	= be16_to_cpup(
+				data[i] = be16_to_cpup(
 					(__be16 *)&(st->rx[j*2]));
 			}
-
+		}
+	}
 	/* Guaranteed to be aligned with 8 byte boundary */
 	if (ring->scan_timestamp)
 		*((s64 *)(data + ((i + 3)/4)*4)) = pf->timestamp;
@@ -113,6 +174,7 @@ void adis16400_unconfigure_ring(struct iio_dev *indio_dev)
 int adis16400_configure_ring(struct iio_dev *indio_dev)
 {
 	int ret = 0;
+	struct adis16400_state *st = iio_dev_get_devdata(indio_dev);
 	struct iio_ring_buffer *ring;
 
 	ring = iio_sw_rb_allocate(indio_dev);
@@ -129,20 +191,9 @@ int adis16400_configure_ring(struct iio_dev *indio_dev)
 	ring->postenable = &iio_triggered_ring_postenable;
 	ring->predisable = &iio_triggered_ring_predisable;
 	ring->owner = THIS_MODULE;
-
+	ring->scan_mask = st->variant->default_scan_mask;
+	ring->scan_count = hweight_long(st->variant->default_scan_mask);
 	/* Set default scan mode */
-	iio_scan_mask_set(ring, ADIS16400_SCAN_SUPPLY);
-	iio_scan_mask_set(ring, ADIS16400_SCAN_GYRO_X);
-	iio_scan_mask_set(ring, ADIS16400_SCAN_GYRO_Y);
-	iio_scan_mask_set(ring, ADIS16400_SCAN_GYRO_Z);
-	iio_scan_mask_set(ring, ADIS16400_SCAN_ACC_X);
-	iio_scan_mask_set(ring, ADIS16400_SCAN_ACC_Y);
-	iio_scan_mask_set(ring, ADIS16400_SCAN_ACC_Z);
-	iio_scan_mask_set(ring, ADIS16400_SCAN_MAGN_X);
-	iio_scan_mask_set(ring, ADIS16400_SCAN_MAGN_Y);
-	iio_scan_mask_set(ring, ADIS16400_SCAN_MAGN_Z);
-	iio_scan_mask_set(ring, ADIS16400_SCAN_TEMP);
-	iio_scan_mask_set(ring, ADIS16400_SCAN_ADC_0);
 
 	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
 	if (indio_dev->pollfunc == NULL) {

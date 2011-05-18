@@ -64,7 +64,6 @@ int adis16400_probe_trigger(struct iio_dev *indio_dev)
 			  st->trig);
 	if (ret)
 		goto error_free_trig;
-
 	st->trig->dev.parent = &st->us->dev;
 	st->trig->owner = THIS_MODULE;
 	st->trig->private_data = st;

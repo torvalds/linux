@@ -37,6 +37,10 @@
 #define ADIS16400_TEMP_OUT  0x16 /* Temperature output */
 #define ADIS16400_AUX_ADC   0x18 /* Auxiliary ADC measurement */
 
+#define ADIS16350_XTEMP_OUT 0x10 /* X-axis gyroscope temperature measurement */
+#define ADIS16350_YTEMP_OUT 0x12 /* Y-axis gyroscope temperature measurement */
+#define ADIS16350_ZTEMP_OUT 0x14 /* Z-axis gyroscope temperature measurement */
+
 /* Calibration parameters */
 #define ADIS16400_XGYRO_OFF 0x1A /* X-axis gyroscope bias offset factor */
 #define ADIS16400_YGYRO_OFF 0x1C /* Y-axis gyroscope bias offset factor */
@@ -68,7 +72,6 @@
 #define ADIS16400_AUX_DAC   0x4A /* Auxiliary DAC data */
 
 #define ADIS16400_PRODUCT_ID 0x56 /* Product identifier */
-#define ADIS16400_PRODUCT_ID_DEFAULT 0x4015	/* Datasheet says 0x4105, I get 0x4015 */
 
 #define ADIS16400_ERROR_ACTIVE			(1<<14)
 #define ADIS16400_NEW_DATA			(1<<14)
@@ -123,6 +126,18 @@
 #define ADIS16400_SPI_BURST	(u32)(1000 * 1000)
 #define ADIS16400_SPI_FAST	(u32)(2000 * 1000)
 
+#define ADIS16400_HAS_PROD_ID 1
+#define ADIS16400_NO_BURST 2
+struct adis16400_chip_info {
+	const struct iio_chan_spec *channels;
+	const int num_channels;
+	const int product_id;
+	const long flags;
+	unsigned int gyro_scale_micro;
+	unsigned int accel_scale_micro;
+	unsigned long default_scan_mask;
+};
+
 /**
  * struct adis16400_state - device instance specific data
  * @us:			actual spi_device
@@ -139,6 +154,7 @@ struct adis16400_state {
 	u8				*tx;
 	u8				*rx;
 	struct mutex			buf_lock;
+	struct adis16400_chip_info	*variant;
 };
 
 int adis16400_set_irq(struct iio_dev *indio_dev, bool enable);
@@ -156,9 +172,13 @@ int adis16400_set_irq(struct iio_dev *indio_dev, bool enable);
 #define ADIS16400_SCAN_ACC_Y	5
 #define ADIS16400_SCAN_ACC_Z	6
 #define ADIS16400_SCAN_MAGN_X	7
+#define ADIS16350_SCAN_TEMP_X	7
 #define ADIS16400_SCAN_MAGN_Y	8
+#define ADIS16350_SCAN_TEMP_Y	8
 #define ADIS16400_SCAN_MAGN_Z	9
+#define ADIS16350_SCAN_TEMP_Z	9
 #define ADIS16400_SCAN_TEMP	10
+#define ADIS16350_SCAN_ADC_0	10
 #define ADIS16400_SCAN_ADC_0	11
 
 void adis16400_remove_trigger(struct iio_dev *indio_dev);
