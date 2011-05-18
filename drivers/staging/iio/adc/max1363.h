@@ -180,8 +180,6 @@ struct max1363_chip_info {
  * @chip_info:		chip model specific constants, available modes etc
  * @current_mode:	the scan mode of this chip
  * @requestedmask:	a valid requested set of channels
- * @poll_work:		bottom half of polling interrupt handler
- * @protect_ring:	used to ensure only one polling bh running at a time
  * @reg:		supply regulator
  * @monitor_on:		whether monitor mode is enabled
  * @monitor_speed:	parameter corresponding to device monitor speed setting
@@ -197,8 +195,6 @@ struct max1363_state {
 	const struct max1363_chip_info	*chip_info;
 	const struct max1363_mode	*current_mode;
 	u32				requestedmask;
-	struct work_struct		poll_work;
-	atomic_t			protect_ring;
 	struct iio_trigger		*trig;
 	struct regulator		*reg;
 

@@ -22,7 +22,6 @@
   */
 
 #include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/sysfs.h>
@@ -1170,8 +1169,6 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	st->reg = reg;
 	/* this is only used for device removal purposes */
 	i2c_set_clientdata(client, indio_dev);
-
-	atomic_set(&st->protect_ring, 0);
 
 	st->chip_info = &max1363_chip_info_tbl[id->driver_data];
 	st->client = client;
