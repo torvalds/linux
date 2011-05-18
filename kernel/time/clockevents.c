@@ -238,6 +238,26 @@ void clockevents_config_and_register(struct clock_event_device *dev,
 	clockevents_register_device(dev);
 }
 
+/**
+ * clockevents_update_freq - Update frequency and reprogram a clock event device.
+ * @dev:	device to modify
+ * @freq:	new device frequency
+ *
+ * Reconfigure and reprogram a clock event device in oneshot
+ * mode. Must be called on the cpu for which the device delivers per
+ * cpu timer events with interrupts disabled!  Returns 0 on success,
+ * -ETIME when the event is in the past.
+ */
+int clockevents_update_freq(struct clock_event_device *dev, u32 freq)
+{
+	clockevents_config(dev, freq);
+
+	if (dev->mode != CLOCK_EVT_MODE_ONESHOT)
+		return 0;
+
+	return clockevents_program_event(dev, dev->next_event, ktime_get());
+}
+
 /*
  * Noop handler when we shut down an event device
  */
