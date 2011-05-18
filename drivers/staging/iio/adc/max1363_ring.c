@@ -199,7 +199,6 @@ int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_deallocate_sw_rb;
 
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->ring->scan_el_attrs = st->chip_info->scan_attrs;
 	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
 	indio_dev->ring->preenable = &max1363_ring_preenable;
 	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
