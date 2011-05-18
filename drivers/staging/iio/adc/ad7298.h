@@ -17,13 +17,12 @@
 #define AD7298_TAVG	(1 << 1) /* temperature sensor averaging enable */
 #define AD7298_PDD	(1 << 0) /* partial power down enable */
 
-#define AD7298_CH_MASK	(AD7298_CH0 | AD7298_CH1 | AD7298_CH2 | AD7298_CH3 | \
-			AD7298_CH4 | AD7298_CH5 | AD7298_CH6 | AD7298_CH7)
-
 #define AD7298_MAX_CHAN		8
 #define AD7298_BITS		12
 #define AD7298_STORAGE_BITS	16
 #define AD7298_INTREF_mV	2500
+
+#define AD7298_CH_TEMP		9
 
 #define RES_MASK(bits)	((1 << (bits)) - 1)
 

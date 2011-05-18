@@ -21,49 +21,6 @@
 
 #include "ad7298.h"
 
-static IIO_SCAN_EL_C(in0, 0, 0, NULL);
-static IIO_SCAN_EL_C(in1, 1, 0, NULL);
-static IIO_SCAN_EL_C(in2, 2, 0, NULL);
-static IIO_SCAN_EL_C(in3, 3, 0, NULL);
-static IIO_SCAN_EL_C(in4, 4, 0, NULL);
-static IIO_SCAN_EL_C(in5, 5, 0, NULL);
-static IIO_SCAN_EL_C(in6, 6, 0, NULL);
-static IIO_SCAN_EL_C(in7, 7, 0, NULL);
-
-static IIO_SCAN_EL_TIMESTAMP(8);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
-
-static IIO_CONST_ATTR(in_type, "u12/16") ;
-
-static struct attribute *ad7298_scan_el_attrs[] = {
-	&iio_scan_el_in0.dev_attr.attr,
-	&iio_const_attr_in0_index.dev_attr.attr,
-	&iio_scan_el_in1.dev_attr.attr,
-	&iio_const_attr_in1_index.dev_attr.attr,
-	&iio_scan_el_in2.dev_attr.attr,
-	&iio_const_attr_in2_index.dev_attr.attr,
-	&iio_scan_el_in3.dev_attr.attr,
-	&iio_const_attr_in3_index.dev_attr.attr,
-	&iio_scan_el_in4.dev_attr.attr,
-	&iio_const_attr_in4_index.dev_attr.attr,
-	&iio_scan_el_in5.dev_attr.attr,
-	&iio_const_attr_in5_index.dev_attr.attr,
-	&iio_scan_el_in6.dev_attr.attr,
-	&iio_const_attr_in6_index.dev_attr.attr,
-	&iio_scan_el_in7.dev_attr.attr,
-	&iio_const_attr_in7_index.dev_attr.attr,
-	&iio_const_attr_timestamp_index.dev_attr.attr,
-	&iio_scan_el_timestamp.dev_attr.attr,
-	&iio_const_attr_timestamp_type.dev_attr.attr,
-	&iio_const_attr_in_type.dev_attr.attr,
-	NULL,
-};
-
-static struct attribute_group ad7298_scan_el_group = {
-	.name = "scan_elements",
-	.attrs = ad7298_scan_el_attrs,
-};
-
 int ad7298_scan_from_ring(struct ad7298_state *st, long ch)
 {
 	struct iio_ring_buffer *ring = st->indio_dev->ring;
@@ -75,7 +32,8 @@ int ad7298_scan_from_ring(struct ad7298_state *st, long ch)
 		goto error_ret;
 	}
 
-	ring_data = kmalloc(ring->access.get_bytes_per_datum(ring), GFP_KERNEL);
+	ring_data = kmalloc(ring->access.get_bytes_per_datum(ring),
+			    GFP_KERNEL);
 	if (ring_data == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -183,6 +141,7 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 		buf[i] = be16_to_cpu(st->rx_buf[i]);
 
 	indio_dev->ring->access.store_to(ring, (u8 *)buf, time_ns);
+	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -214,11 +173,10 @@ int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_free_poll_func;
 	}
 	/* Ring buffer functions - here trigger setup related */
-
 	indio_dev->ring->preenable = &ad7298_ring_preenable;
 	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
 	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
-	indio_dev->ring->scan_el_attrs = &ad7298_scan_el_group;
+
 	indio_dev->ring->scan_timestamp = true;
 
 	/* Flag that polled ring buffering is possible */
