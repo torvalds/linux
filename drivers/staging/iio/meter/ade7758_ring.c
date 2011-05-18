@@ -50,23 +50,6 @@ static struct attribute_group ade7758_scan_el_group = {
 };
 
 /**
- * ade7758_poll_func_th() top half interrupt handler called by trigger
- * @private_data:	iio_dev
- **/
-static void ade7758_poll_func_th(struct iio_dev *indio_dev, s64 time)
-{
-	struct ade7758_state *st = iio_dev_get_devdata(indio_dev);
-	st->last_timestamp = time;
-	schedule_work(&st->work_trigger_to_ring);
-	/* Indicate that this interrupt is being handled */
-
-	/* Technically this is trigger related, but without this
-	 * handler running there is currently no way for the interrupt
-	 * to clear.
-	 */
-}
-
-/**
  * ade7758_spi_read_burst() - read all data registers
  * @dev: device associated with child of actual device (iio_dev or iio_trig)
  * @rx: somewhere to pass back the value read (min size is 24 bytes)
@@ -117,13 +100,12 @@ static int ade7758_spi_read_burst(struct device *dev, u8 *rx)
 /* Whilst this makes a lot of calls to iio_sw_ring functions - it is to device
  * specific to be rolled into the core.
  */
-static void ade7758_trigger_bh_to_ring(struct work_struct *work_s)
+static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 {
-	struct ade7758_state *st
-		= container_of(work_s, struct ade7758_state,
-			       work_trigger_to_ring);
-	struct iio_ring_buffer *ring = st->indio_dev->ring;
-
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct ade7758_state *st = iio_dev_get_devdata(indio_dev);
 	int i = 0;
 	s32 *data;
 	size_t datasize = ring->access.get_bytes_per_datum(ring);
@@ -131,7 +113,7 @@ static void ade7758_trigger_bh_to_ring(struct work_struct *work_s)
 	data = kmalloc(datasize, GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(&st->us->dev, "memory alloc failed in ring bh");
-		return;
+		return -ENOMEM;
 	}
 
 	if (ring->scan_count)
@@ -145,20 +127,21 @@ static void ade7758_trigger_bh_to_ring(struct work_struct *work_s)
 	if (ring->scan_timestamp)
 		*((s64 *)
 		(((u32)data + 4 * ring->scan_count + 4) & ~0x7)) =
-			st->last_timestamp;
+			pf->timestamp;
 
 	ring->access.store_to(ring,
 			      (u8 *)data,
-			      st->last_timestamp);
+			      pf->timestamp);
 
 	iio_trigger_notify_done(st->indio_dev->trig);
 	kfree(data);
 
-	return;
+	return IRQ_HANDLED;
 }
 
 void ade7758_unconfigure_ring(struct iio_dev *indio_dev)
 {
+	kfree(indio_dev->pollfunc->name);
 	kfree(indio_dev->pollfunc);
 	iio_sw_rb_free(indio_dev->ring);
 }
@@ -166,9 +149,7 @@ void ade7758_unconfigure_ring(struct iio_dev *indio_dev)
 int ade7758_configure_ring(struct iio_dev *indio_dev)
 {
 	int ret = 0;
-	struct ade7758_state *st = indio_dev->dev_data;
 	struct iio_ring_buffer *ring;
-	INIT_WORK(&st->work_trigger_to_ring, ade7758_trigger_bh_to_ring);
 
 	ring = iio_sw_rb_allocate(indio_dev);
 	if (!ring) {
@@ -189,13 +170,26 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 	/* Set default scan mode */
 	iio_scan_mask_set(ring, iio_scan_el_wform.number);
 
-	ret = iio_alloc_pollfunc(indio_dev, NULL, &ade7758_poll_func_th);
-	if (ret)
+	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
+	if (indio_dev->pollfunc == NULL) {
+		ret = -ENOMEM;
 		goto error_iio_sw_rb_free;
-
+	}
+	indio_dev->pollfunc->private_data = indio_dev->ring;
+	indio_dev->pollfunc->h = &iio_pollfunc_store_time;
+	indio_dev->pollfunc->thread = &ade7758_trigger_handler;
+	indio_dev->pollfunc->name
+		= kasprintf(GFP_KERNEL, "ade7759_consumer%d", indio_dev->id);
+	if (indio_dev->pollfunc->name == NULL) {
+		ret = -ENOMEM;
+		goto error_free_pollfunc;
+	}
 	indio_dev->modes |= INDIO_RING_TRIGGERED;
+
 	return 0;
 
+error_free_pollfunc:
+	kfree(indio_dev->pollfunc);
 error_iio_sw_rb_free:
 	iio_sw_rb_free(indio_dev->ring);
 	return ret;
