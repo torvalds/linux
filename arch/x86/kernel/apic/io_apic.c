@@ -89,6 +89,7 @@ static struct ioapic {
 	struct mpc_ioapic mp_config;
 	/* IO APIC gsi routing info */
 	struct mp_ioapic_gsi  gsi_config;
+	DECLARE_BITMAP(pin_programmed, MP_MAX_IOAPIC_PIN + 1);
 } ioapics[MAX_IO_APICS];
 
 #define mpc_ioapic_ver(id)		ioapics[id].mp_config.apicver
@@ -1355,10 +1356,6 @@ static void setup_ioapic_irq(int apic_id, int pin, unsigned int irq,
 
 	ioapic_write_entry(apic_id, pin, entry);
 }
-
-static struct {
-	DECLARE_BITMAP(pin_programmed, MP_MAX_IOAPIC_PIN + 1);
-} mp_ioapic_routing[MAX_IO_APICS];
 
 static bool __init io_apic_pin_not_connected(int idx, int apic_id, int pin)
 {
@@ -3540,14 +3537,14 @@ int io_apic_setup_irq_pin_once(unsigned int irq, int node,
 	int ret;
 
 	/* Avoid redundant programming */
-	if (test_bit(pin, mp_ioapic_routing[id].pin_programmed)) {
+	if (test_bit(pin, ioapics[id].pin_programmed)) {
 		pr_debug("Pin %d-%d already programmed\n",
 			 mpc_ioapic_id(id), pin);
 		return 0;
 	}
 	ret = io_apic_setup_irq_pin(irq, node, attr);
 	if (!ret)
-		set_bit(pin, mp_ioapic_routing[id].pin_programmed);
+		set_bit(pin, ioapics[id].pin_programmed);
 	return ret;
 }
 
