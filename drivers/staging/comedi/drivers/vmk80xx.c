@@ -568,7 +568,8 @@ static int rudimentary_check(struct vmk80xx_usb *dev, int dir)
 	if (dir & DIR_IN) {
 		if (test_bit(TRANS_IN_BUSY, &dev->flags))
 			return -EBUSY;
-	} else {  /* DIR_OUT */
+	}
+	if (dir & DIR_OUT) {
 		if (test_bit(TRANS_OUT_BUSY, &dev->flags))
 			return -EBUSY;
 	}
