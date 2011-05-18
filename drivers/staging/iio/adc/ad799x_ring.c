@@ -80,7 +80,7 @@ static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 	 */
 
 	if (st->id == ad7997 || st->id == ad7998)
-		ad799x_set_scan_mode(st, ring->scan_mask);
+		ad7997_8_set_scan_mode(st, ring->scan_mask);
 
 	st->d_size = ring->scan_count * 2;
 
@@ -119,7 +119,7 @@ static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 
 	rxbuf = kmalloc(st->d_size, GFP_KERNEL);
 	if (rxbuf == NULL)
-		return -ENOMEM;
+		goto out;
 
 	switch (st->id) {
 	case ad7991:
@@ -157,6 +157,9 @@ done:
 	kfree(rxbuf);
 	if (b_sent < 0)
 		return b_sent;
+out:
+	iio_trigger_notify_done(indio_dev->trig);
+
 	return IRQ_HANDLED;
 }
 
@@ -194,8 +197,6 @@ int ad799x_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
 	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
 	indio_dev->ring->scan_timestamp = true;
-
-	indio_dev->ring->scan_el_attrs = st->chip_info->scan_attrs;
 
 	/* Flag that polled ring buffering is possible */
 	indio_dev->modes |= INDIO_RING_TRIGGERED;
