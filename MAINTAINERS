@@ -4340,7 +4340,7 @@ F:	drivers/net/ethernet/myricom/myri10ge/
 NATSEMI ETHERNET DRIVER (DP8381x)
 M:	Tim Hockin <thockin@hockin.org>
 S:	Maintained
-F:	drivers/net/natsemi.c
+F:	drivers/net/ethernet/natsemi/natsemi.c
 
 NATIVE INSTRUMENTS USB SOUND INTERFACE DRIVER
 M:	Daniel Mack <zonque@gmail.com>
@@ -5943,7 +5943,7 @@ SONIC NETWORK DRIVER
 M:	Thomas Bogendoerfer <tsbogend@alpha.franken.de>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/sonic.*
+F:	drivers/net/ethernet/natsemi/sonic.*
 
 SONICS SILICON BACKPLANE DRIVER (SSB)
 M:	Michael Buesch <m@bues.ch>

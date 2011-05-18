@@ -237,38 +237,12 @@ config MACB
 
 source "drivers/net/arm/Kconfig"
 
-config MACSONIC
-	tristate "Macintosh SONIC based ethernet (onboard, NuBus, LC, CS)"
-	depends on MAC
-	---help---
-	  Support for NatSemi SONIC based Ethernet devices.  This includes
-	  the onboard Ethernet in many Quadras as well as some LC-PDS,
-	  a few Nubus and all known Comm Slot Ethernet cards.  If you have
-	  one of these say Y and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. This module will
-	  be called macsonic.
-
 config KORINA
 	tristate "Korina (IDT RC32434) Ethernet support"
 	depends on NET_ETHERNET && MIKROTIK_RB532
 	help
 	  If you have a Mikrotik RouterBoard 500 or IDT RC32434
 	  based system say Y. Otherwise say N.
-
-config MIPS_JAZZ_SONIC
-	tristate "MIPS JAZZ onboard SONIC Ethernet support"
-	depends on MACH_JAZZ
-	help
-	  This is the driver for the onboard card of MIPS Magnum 4000,
-	  Acer PICA, Olivetti M700-10 and a few other identical OEM systems.
-
-config XTENSA_XT2000_SONIC
-	tristate "Xtensa XT2000 onboard SONIC Ethernet support"
-	depends on XTENSA_PLATFORM_XT2000
-	help
-	  This is the driver for the onboard card of the Xtensa XT2000 board.
 
 config SGI_IOC3_ETH
 	bool "SGI IOC3 Ethernet"
@@ -556,21 +530,6 @@ config SEEQ8005
 	  To compile this driver as a module, choose M here. The module
 	  will be called seeq8005.
 
-config IBMLANA
-	tristate "IBM LAN Adapter/A support"
-	depends on MCA
-	---help---
-	  This is a Micro Channel Ethernet adapter.  You need to set
-	  CONFIG_MCA to use this driver.  It is both available as an in-kernel
-	  driver and as a module.
-
-	  To compile this driver as a module, choose M here. The only
-	  currently supported card is the IBM LAN Adapter/A for Ethernet.  It
-	  will both support 16K and 32K memory windows, however a 32K window
-	  gives a better security against packet losses.  Usage of multiple
-	  boards with this driver should be possible, but has not been tested
-	  up to now due to lack of hardware.
-
 config NET_PCI
 	bool "EISA, VLB, PCI and on board controllers"
 	depends on ISA || EISA || PCI
@@ -634,17 +593,6 @@ config FEALNX
 	help
 	  Say Y here to support the Myson MTD-800 family of PCI-based Ethernet 
 	  cards. <http://www.myson.com.tw/>
-
-config NATSEMI
-	tristate "National Semiconductor DP8381x series PCI Ethernet support"
-	depends on NET_PCI && PCI
-	select CRC32
-	help
-	  This driver is for the National Semiconductor DP83810 series,
-	  which is used in cards from PureData, NetGear, Linksys
-	  and others, including the 83815 chip.
-	  More specific information and updates are available from
-	  <http://www.scyld.com/network/natsemi.html>.
 
 config 8139CP
 	tristate "RealTek RTL-8139 C+ PCI Fast Ethernet Adapter support (EXPERIMENTAL)"
@@ -1042,16 +990,6 @@ config IP1000
 	  will be called ipg.  This is recommended.
 
 source "drivers/net/ixp2000/Kconfig"
-
-config NS83820
-	tristate "National Semiconductor DP83820 support"
-	depends on PCI
-	help
-	  This is a driver for the National Semiconductor DP83820 series
-	  of gigabit ethernet MACs.  Cards using this chipset include
-	  the D-Link DGE-500T, PureData's PDP8023Z-TG, SMC's SMC9462TX,
-	  SOHO-GA2000T, SOHO-GA2500T.  The driver supports the use of
-	  zero copy.
 
 config HAMACHI
 	tristate "Packet Engines Hamachi GNIC-II support"
