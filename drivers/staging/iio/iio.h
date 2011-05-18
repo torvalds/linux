@@ -36,6 +36,8 @@ enum iio_chan_type {
 
 	/* real channel types */
 	IIO_IN,
+	IIO_CURRENT,
+	IIO_POWER,
 	IIO_ACCEL,
 	IIO_IN_DIFF,
 	IIO_GYRO,
