@@ -257,7 +257,7 @@ struct queue_limits {
 	unsigned char		misaligned;
 	unsigned char		discard_misaligned;
 	unsigned char		cluster;
-	signed char		discard_zeroes_data;
+	unsigned char		discard_zeroes_data;
 };
 
 struct request_queue
@@ -1069,13 +1069,16 @@ static inline int queue_limit_discard_alignment(struct queue_limits *lim, sector
 {
 	unsigned int alignment = (sector << 9) & (lim->discard_granularity - 1);
 
+	if (!lim->max_discard_sectors)
+		return 0;
+
 	return (lim->discard_granularity + lim->discard_alignment - alignment)
 		& (lim->discard_granularity - 1);
 }
 
 static inline unsigned int queue_discard_zeroes_data(struct request_queue *q)
 {
-	if (q->limits.discard_zeroes_data == 1)
+	if (q->limits.max_discard_sectors && q->limits.discard_zeroes_data == 1)
 		return 1;
 
 	return 0;

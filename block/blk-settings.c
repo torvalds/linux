@@ -120,7 +120,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->discard_granularity = 0;
 	lim->discard_alignment = 0;
 	lim->discard_misaligned = 0;
-	lim->discard_zeroes_data = -1;
+	lim->discard_zeroes_data = 1;
 	lim->logical_block_size = lim->physical_block_size = lim->io_min = 512;
 	lim->bounce_pfn = (unsigned long)(BLK_BOUNCE_ANY >> PAGE_SHIFT);
 	lim->alignment_offset = 0;
@@ -166,6 +166,7 @@ void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 
 	blk_set_default_limits(&q->limits);
 	blk_queue_max_hw_sectors(q, BLK_SAFE_MAX_SECTORS);
+	q->limits.discard_zeroes_data = 0;
 
 	/*
 	 * by default assume old behaviour and bounce for any highmem page
