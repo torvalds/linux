@@ -375,6 +375,7 @@ EXPORT_SYMBOL(iio_mark_update_needed_sw_rb);
 static void iio_sw_rb_release(struct device *dev)
 {
 	struct iio_ring_buffer *r = to_iio_ring_buffer(dev);
+	iio_ring_access_release(&r->dev);
 	kfree(iio_to_sw_ring(r));
 }
 
@@ -416,9 +417,7 @@ struct iio_ring_buffer *iio_sw_rb_allocate(struct iio_dev *indio_dev)
 	iio_ring_buffer_init(buf, indio_dev);
 	__iio_init_sw_ring_buffer(ring);
 	buf->dev.type = &iio_sw_ring_type;
-	device_initialize(&buf->dev);
 	buf->dev.parent = &indio_dev->dev;
-	buf->dev.bus = &iio_bus_type;
 	dev_set_drvdata(&buf->dev, (void *)buf);
 
 	return buf;

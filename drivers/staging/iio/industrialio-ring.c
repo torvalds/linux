@@ -106,72 +106,60 @@ static const struct file_operations iio_ring_fileops = {
 	.llseek = noop_llseek,
 };
 
-static void iio_ring_access_release(struct device *dev)
+void iio_ring_access_release(struct device *dev)
 {
 	struct iio_ring_buffer *buf
-		= access_dev_to_iio_ring_buffer(dev);
+		= container_of(dev, struct iio_ring_buffer, dev);
 	cdev_del(&buf->access_handler.chrdev);
 	iio_device_free_chrdev_minor(MINOR(dev->devt));
 }
-
-static struct device_type iio_ring_access_type = {
-	.release = iio_ring_access_release,
-};
+EXPORT_SYMBOL(iio_ring_access_release);
 
 static inline int
-__iio_request_ring_buffer_access_chrdev(struct iio_ring_buffer *buf,
-					int id,
+__iio_request_ring_buffer_chrdev(struct iio_ring_buffer *buf,
 					struct module *owner)
 {
 	int ret, minor;
 
 	buf->access_handler.flags = 0;
 
-	buf->access_dev.parent = &buf->dev;
-	buf->access_dev.bus = &iio_bus_type;
-	buf->access_dev.type = &iio_ring_access_type;
-	device_initialize(&buf->access_dev);
+	buf->dev.bus = &iio_bus_type;
+	device_initialize(&buf->dev);
 
 	minor = iio_device_get_chrdev_minor();
 	if (minor < 0) {
 		ret = minor;
 		goto error_device_put;
 	}
-	buf->access_dev.devt = MKDEV(MAJOR(iio_devt), minor);
-
-
-	buf->access_id = id;
-
-	dev_set_name(&buf->access_dev, "%s:access%d",
-		     dev_name(&buf->dev),
-		     buf->access_id);
-	ret = device_add(&buf->access_dev);
+	buf->dev.devt = MKDEV(MAJOR(iio_devt), minor);
+	dev_set_name(&buf->dev, "%s:buffer%d",
+		     dev_name(buf->dev.parent),
+		     buf->id);
+	ret = device_add(&buf->dev);
 	if (ret < 0) {
-		printk(KERN_ERR "failed to add the ring access dev\n");
+		printk(KERN_ERR "failed to add the ring dev\n");
 		goto error_device_put;
 	}
-
 	cdev_init(&buf->access_handler.chrdev, &iio_ring_fileops);
 	buf->access_handler.chrdev.owner = owner;
-
-	ret = cdev_add(&buf->access_handler.chrdev, buf->access_dev.devt, 1);
+	ret = cdev_add(&buf->access_handler.chrdev, buf->dev.devt, 1);
 	if (ret) {
-		printk(KERN_ERR "failed to allocate ring access chrdev\n");
+		printk(KERN_ERR "failed to allocate ring chrdev\n");
 		goto error_device_unregister;
 	}
 	return 0;
 
 error_device_unregister:
-	device_unregister(&buf->access_dev);
+	device_unregister(&buf->dev);
 error_device_put:
-	put_device(&buf->access_dev);
+	put_device(&buf->dev);
 
 	return ret;
 }
 
-static void __iio_free_ring_buffer_access_chrdev(struct iio_ring_buffer *buf)
+static void __iio_free_ring_buffer_chrdev(struct iio_ring_buffer *buf)
 {
-	device_unregister(&buf->access_dev);
+	device_unregister(&buf->dev);
 }
 
 void iio_ring_buffer_init(struct iio_ring_buffer *ring,
@@ -344,35 +332,24 @@ int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring, int id,
 
 	ring->id = id;
 
-	dev_set_name(&ring->dev, "%s:buffer%d",
-		     dev_name(ring->dev.parent),
-		     ring->id);
-	ret = device_add(&ring->dev);
+	ret = __iio_request_ring_buffer_chrdev(ring, ring->owner);
+
 	if (ret)
 		goto error_ret;
-
-	ret = __iio_request_ring_buffer_access_chrdev(ring,
-						      0,
-						      ring->owner);
-
-	if (ret)
-		goto error_remove_device;
-
 	if (ring->scan_el_attrs) {
 		ret = sysfs_create_group(&ring->dev.kobj,
 					 ring->scan_el_attrs);
 		if (ret) {
 			dev_err(&ring->dev,
 				"Failed to add sysfs scan elements\n");
-			goto error_free_ring_buffer_access_chrdev;
+			goto error_free_ring_buffer_chrdev;
 		}
 	} else if (channels) {
 		ret = sysfs_create_group(&ring->dev.kobj,
 					 &iio_scan_el_dummy_group);
 		if (ret)
-			goto error_free_ring_buffer_access_chrdev;
+			goto error_free_ring_buffer_chrdev;
 	}
-
 
 	INIT_LIST_HEAD(&ring->scan_el_dev_attr_list);
 	INIT_LIST_HEAD(&ring->scan_el_en_attr_list);
@@ -388,10 +365,8 @@ int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring, int id,
 	return 0;
 error_cleanup_dynamic:
 	__iio_ring_attr_cleanup(ring);
-error_free_ring_buffer_access_chrdev:
-	__iio_free_ring_buffer_access_chrdev(ring);
-error_remove_device:
-	device_del(&ring->dev);
+error_free_ring_buffer_chrdev:
+	__iio_free_ring_buffer_chrdev(ring);
 error_ret:
 	return ret;
 }
@@ -406,8 +381,7 @@ EXPORT_SYMBOL(iio_ring_buffer_register);
 void iio_ring_buffer_unregister(struct iio_ring_buffer *ring)
 {
 	__iio_ring_attr_cleanup(ring);
-	__iio_free_ring_buffer_access_chrdev(ring);
-	device_del(&ring->dev);
+	__iio_free_ring_buffer_chrdev(ring);
 }
 EXPORT_SYMBOL(iio_ring_buffer_unregister);
 

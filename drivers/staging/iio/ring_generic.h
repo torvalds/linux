@@ -68,11 +68,9 @@ struct iio_ring_access_funcs {
 /**
  * struct iio_ring_buffer - general ring buffer structure
  * @dev:		ring buffer device struct
- * @access_dev:		system device struct for the chrdev
  * @indio_dev:		industrial I/O device structure
  * @owner:		module that owns the ring buffer (for ref counting)
  * @id:			unique id number
- * @access_id:		device id number
  * @length:		[DEVICE] number of datums in ring
  * @bytes_per_datum:	[DEVICE] size of individual datum including timestamp
  * @bpe:		[DEVICE] size of individual channel value
@@ -92,11 +90,9 @@ struct iio_ring_access_funcs {
   **/
 struct iio_ring_buffer {
 	struct device dev;
-	struct device access_dev;
 	struct iio_dev *indio_dev;
 	struct module *owner;
 	int				id;
-	int				access_id;
 	int				length;
 	int				bytes_per_datum;
 	int				bpe;
@@ -398,8 +394,6 @@ static inline void iio_put_ring_buffer(struct iio_ring_buffer *ring)
 
 #define to_iio_ring_buffer(d)			\
 	container_of(d, struct iio_ring_buffer, dev)
-#define access_dev_to_iio_ring_buffer(d)			\
-	container_of(d, struct iio_ring_buffer, access_dev)
 
 /**
  * iio_ring_buffer_register() - register the buffer with IIO core
@@ -415,6 +409,8 @@ int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id);
 int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring, int id,
 				const struct iio_chan_spec *channels,
 				int num_channels);
+
+void iio_ring_access_release(struct device *dev);
 
 /**
  * iio_ring_buffer_unregister() - unregister the buffer from IIO core
