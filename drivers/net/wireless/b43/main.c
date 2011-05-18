@@ -4845,7 +4845,7 @@ err_powerdown:
 	return err;
 }
 
-static void b43_one_core_detach(struct ssb_device *dev)
+static void b43_one_core_detach(struct b43_bus_dev *dev)
 {
 	struct b43_wldev *wldev;
 	struct b43_wl *wl;
@@ -4853,17 +4853,17 @@ static void b43_one_core_detach(struct ssb_device *dev)
 	/* Do not cancel ieee80211-workqueue based work here.
 	 * See comment in b43_remove(). */
 
-	wldev = ssb_get_drvdata(dev);
+	wldev = ssb_get_drvdata(dev->sdev);
 	wl = wldev->wl;
 	b43_debugfs_remove_device(wldev);
 	b43_wireless_core_detach(wldev);
 	list_del(&wldev->list);
 	wl->nr_devs--;
-	ssb_set_drvdata(dev, NULL);
+	ssb_set_drvdata(dev->sdev, NULL);
 	kfree(wldev);
 }
 
-static int b43_one_core_attach(struct ssb_device *dev, struct b43_wl *wl)
+static int b43_one_core_attach(struct b43_bus_dev *dev, struct b43_wl *wl)
 {
 	struct b43_wldev *wldev;
 	int err = -ENOMEM;
@@ -4873,7 +4873,8 @@ static int b43_one_core_attach(struct ssb_device *dev, struct b43_wl *wl)
 		goto out;
 
 	wldev->use_pio = b43_modparam_pio;
-	wldev->sdev = dev;
+	wldev->dev = dev;
+	wldev->sdev = dev->sdev; /* TODO: Remove when not needed */
 	wldev->wl = wl;
 	b43_set_status(wldev, B43_STAT_UNINIT);
 	wldev->bad_frames_preempt = modparam_bad_frames_preempt;
@@ -4885,7 +4886,7 @@ static int b43_one_core_attach(struct ssb_device *dev, struct b43_wl *wl)
 
 	list_add(&wldev->list, &wl->devlist);
 	wl->nr_devs++;
-	ssb_set_drvdata(dev, wldev);
+	ssb_set_drvdata(dev->sdev, wldev);
 	b43_debugfs_add_device(wldev);
 
       out:
@@ -4926,11 +4927,11 @@ static void b43_sprom_fixup(struct ssb_bus *bus)
 	}
 }
 
-static void b43_wireless_exit(struct ssb_device *dev, struct b43_wl *wl)
+static void b43_wireless_exit(struct b43_bus_dev *dev, struct b43_wl *wl)
 {
 	struct ieee80211_hw *hw = wl->hw;
 
-	ssb_set_devtypedata(dev, NULL);
+	ssb_set_devtypedata(dev->sdev, NULL);
 	ieee80211_free_hw(hw);
 }
 
@@ -4985,9 +4986,12 @@ static struct b43_wl *b43_wireless_init(struct ssb_device *dev)
 static
 int b43_ssb_probe(struct ssb_device *sdev, const struct ssb_device_id *id)
 {
+	struct b43_bus_dev *dev;
 	struct b43_wl *wl;
 	int err;
 	int first = 0;
+
+	dev = b43_bus_dev_ssb_init(sdev);
 
 	wl = ssb_get_devtypedata(sdev);
 	if (!wl) {
@@ -5002,7 +5006,7 @@ int b43_ssb_probe(struct ssb_device *sdev, const struct ssb_device_id *id)
 		ssb_set_devtypedata(sdev, wl);
 		B43_WARN_ON(ssb_get_devtypedata(sdev) != wl);
 	}
-	err = b43_one_core_attach(sdev, wl);
+	err = b43_one_core_attach(dev, wl);
 	if (err)
 		goto err_wireless_exit;
 
@@ -5017,10 +5021,10 @@ int b43_ssb_probe(struct ssb_device *sdev, const struct ssb_device_id *id)
 	return err;
 
       err_one_core_detach:
-	b43_one_core_detach(sdev);
+	b43_one_core_detach(dev);
       err_wireless_exit:
 	if (first)
-		b43_wireless_exit(sdev, wl);
+		b43_wireless_exit(dev, wl);
 	return err;
 }
 
@@ -5043,14 +5047,14 @@ static void b43_ssb_remove(struct ssb_device *sdev)
 		ieee80211_unregister_hw(wl->hw);
 	}
 
-	b43_one_core_detach(sdev);
+	b43_one_core_detach(wldev->dev);
 
 	if (list_empty(&wl->devlist)) {
 		b43_leds_unregister(wl);
 		/* Last core on the chip unregistered.
 		 * We can destroy common struct b43_wl.
 		 */
-		b43_wireless_exit(sdev, wl);
+		b43_wireless_exit(wldev->dev, wl);
 	}
 }
 

@@ -1,4 +1,5 @@
 b43-y				+= main.o
+b43-y				+= bus.o
 b43-y				+= tables.o
 b43-$(CONFIG_B43_PHY_N)		+= tables_nphy.o
 b43-$(CONFIG_B43_PHY_N)		+= radio_2055.o

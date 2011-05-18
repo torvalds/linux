@@ -11,6 +11,7 @@
 #include "debugfs.h"
 #include "leds.h"
 #include "rfkill.h"
+#include "bus.h"
 #include "lo.h"
 #include "phy_common.h"
 
@@ -707,7 +708,8 @@ enum {
 
 /* Data structure for one wireless device (802.11 core) */
 struct b43_wldev {
-	struct ssb_device *sdev;
+	struct ssb_device *sdev; /* TODO: remove when b43_bus_dev is ready */
+	struct b43_bus_dev *dev;
 	struct b43_wl *wl;
 
 	/* The device initialization status.
