@@ -344,8 +344,7 @@ void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 
 void lis3l02dq_unconfigure_ring(struct iio_dev *indio_dev)
 {
-	kfree(indio_dev->pollfunc->name);
-	kfree(indio_dev->pollfunc);
+	iio_dealloc_pollfunc(indio_dev->pollfunc);
 	lis3l02dq_free_buf(indio_dev->ring);
 }
 
@@ -448,18 +447,17 @@ int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 	iio_scan_mask_set(ring, 2);
 
 	/* Functions are NULL as we set handler below */
-	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
+	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
+						 &lis3l02dq_trigger_handler,
+						 0,
+						 indio_dev,
+						 "lis3l02dq_consumer%d",
+						 indio_dev->id);
 
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
 		goto error_iio_sw_rb_free;
 	}
-	indio_dev->pollfunc->private_data = indio_dev;
-	indio_dev->pollfunc->thread = &lis3l02dq_trigger_handler;
-	indio_dev->pollfunc->h = &iio_pollfunc_store_time;
-	indio_dev->pollfunc->type = 0;
-	indio_dev->pollfunc->name
-		= kasprintf(GFP_KERNEL, "lis3l02dq_consumer%d", indio_dev->id);
 
 	indio_dev->modes |= INDIO_RING_TRIGGERED;
 	return 0;

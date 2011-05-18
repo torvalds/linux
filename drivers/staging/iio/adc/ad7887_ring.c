@@ -166,21 +166,15 @@ int ad7887_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	}
 	/* Effectively select the ring buffer implementation */
 	indio_dev->ring->access = &ring_sw_access_funcs;
-	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
+	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
+						 &ad7887_trigger_handler,
+						 IRQF_ONESHOT,
+						 indio_dev,
+						 "ad7887_consumer%d",
+						 indio_dev->id);
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
 		goto error_deallocate_sw_rb;
-	}
-
-	indio_dev->pollfunc->private_data = indio_dev;
-	indio_dev->pollfunc->h = &iio_pollfunc_store_time;
-	indio_dev->pollfunc->thread = &ad7887_trigger_handler;
-	indio_dev->pollfunc->type = IRQF_ONESHOT;
-	indio_dev->pollfunc->name =
-		kasprintf(GFP_KERNEL, "ad7887_consumer%d", indio_dev->id);
-	if (indio_dev->pollfunc->name == NULL) {
-		ret = -ENOMEM;
-		goto error_free_pollfunc;
 	}
 	/* Ring buffer functions - here trigger setup related */
 	indio_dev->ring->setup_ops = &ad7887_ring_setup_ops;
@@ -188,8 +182,7 @@ int ad7887_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	/* Flag that polled ring buffering is possible */
 	indio_dev->modes |= INDIO_RING_TRIGGERED;
 	return 0;
-error_free_pollfunc:
-	kfree(indio_dev->pollfunc);
+
 error_deallocate_sw_rb:
 	iio_sw_rb_free(indio_dev->ring);
 error_ret:
@@ -204,7 +197,6 @@ void ad7887_ring_cleanup(struct iio_dev *indio_dev)
 		iio_trigger_dettach_poll_func(indio_dev->trig,
 					      indio_dev->pollfunc);
 	}
-	kfree(indio_dev->pollfunc->name);
-	kfree(indio_dev->pollfunc);
+	iio_dealloc_pollfunc(indio_dev->pollfunc);
 	iio_sw_rb_free(indio_dev->ring);
 }
