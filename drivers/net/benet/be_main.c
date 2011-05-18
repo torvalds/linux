@@ -42,6 +42,7 @@ static DEFINE_PCI_DEVICE_TABLE(be_dev_ids) = {
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID1) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID2) },
 	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID3)},
+	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID4)},
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
@@ -3161,7 +3162,8 @@ static int be_get_config(struct be_adapter *adapter)
 
 	memset(mac, 0, ETH_ALEN);
 
-	if (be_physfn(adapter)) {
+	/* A default permanent address is given to each VF for Lancer*/
+	if (be_physfn(adapter) || lancer_chip(adapter)) {
 		status = be_cmd_mac_addr_query(adapter, mac,
 			MAC_ADDRESS_TYPE_NETWORK, true /*permanent */, 0);
 
@@ -3203,6 +3205,7 @@ static int be_dev_family_check(struct be_adapter *adapter)
 		adapter->generation = BE_GEN3;
 		break;
 	case OC_DEVICE_ID3:
+	case OC_DEVICE_ID4:
 		pci_read_config_dword(pdev, SLI_INTF_REG_OFFSET, &sli_intf);
 		if_type = (sli_intf & SLI_INTF_IF_TYPE_MASK) >>
 						SLI_INTF_IF_TYPE_SHIFT;
@@ -3210,10 +3213,6 @@ static int be_dev_family_check(struct be_adapter *adapter)
 		if (((sli_intf & SLI_INTF_VALID_MASK) != SLI_INTF_VALID) ||
 			if_type != 0x02) {
 			dev_err(&pdev->dev, "SLI_INTF reg val is not valid\n");
-			return -EINVAL;
-		}
-		if (num_vfs > 0) {
-			dev_err(&pdev->dev, "VFs not supported\n");
 			return -EINVAL;
 		}
 		adapter->sli_family = ((sli_intf & SLI_INTF_FAMILY_MASK) >>
@@ -3381,9 +3380,11 @@ static int __devinit be_probe(struct pci_dev *pdev,
 		bool link_up;
 		u16 vf, lnk_speed;
 
-		status = be_vf_eth_addr_config(adapter);
-		if (status)
-			goto unreg_netdev;
+		if (!lancer_chip(adapter)) {
+			status = be_vf_eth_addr_config(adapter);
+			if (status)
+				goto unreg_netdev;
+		}
 
 		for (vf = 0; vf < num_vfs; vf++) {
 			status = be_cmd_link_status_query(adapter, &link_up,

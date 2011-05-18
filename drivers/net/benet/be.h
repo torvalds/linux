@@ -49,6 +49,7 @@
 #define OC_DEVICE_ID1		0x700	/* Device Id for BE2 cards */
 #define OC_DEVICE_ID2		0x710	/* Device Id for BE3 cards */
 #define OC_DEVICE_ID3		0xe220	/* Device id for Lancer cards */
+#define OC_DEVICE_ID4           0xe228   /* Device id for VF in Lancer */
 
 static inline char *nic_name(struct pci_dev *pdev)
 {
@@ -58,6 +59,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 	case OC_DEVICE_ID2:
 		return OC_NAME_BE;
 	case OC_DEVICE_ID3:
+	case OC_DEVICE_ID4:
 		return OC_NAME_LANCER;
 	case BE_DEVICE_ID2:
 		return BE3_NAME;
@@ -383,7 +385,8 @@ struct be_adapter {
 #define BE_GEN2 2
 #define BE_GEN3 3
 
-#define lancer_chip(adapter)		(adapter->pdev->device == OC_DEVICE_ID3)
+#define lancer_chip(adapter)	((adapter->pdev->device == OC_DEVICE_ID3) || \
+				 (adapter->pdev->device == OC_DEVICE_ID4))
 
 extern const struct ethtool_ops be_ethtool_ops;
 
