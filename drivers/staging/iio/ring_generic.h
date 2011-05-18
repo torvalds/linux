@@ -139,6 +139,9 @@ struct iio_ring_buffer {
 
 	struct list_head scan_el_dev_attr_list;
 	struct list_head scan_el_en_attr_list;
+
+	wait_queue_head_t pollq;
+	bool stufftoread;
 };
 
 /**

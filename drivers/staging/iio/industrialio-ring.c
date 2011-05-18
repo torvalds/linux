@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
+#include <linux/poll.h>
 
 #include "iio.h"
 #include "ring_generic.h"
@@ -90,10 +91,27 @@ static ssize_t iio_ring_read_first_n_outer(struct file *filp, char __user *buf,
 	return ret;
 }
 
+/**
+ * iio_ring_poll() - poll the ring to find out if it has data
+ */
+static unsigned int iio_ring_poll(struct file *filp,
+				  struct poll_table_struct *wait)
+{
+	struct iio_ring_buffer *rb = filp->private_data;
+	int ret = 0;
+
+	poll_wait(filp, &rb->pollq, wait);
+	if (rb->stufftoread)
+		return POLLIN | POLLRDNORM;
+	/* need a way of knowing if there may be enough data... */
+	return ret;
+}
+
 static const struct file_operations iio_ring_fileops = {
 	.read = iio_ring_read_first_n_outer,
 	.release = iio_ring_release,
 	.open = iio_ring_open,
+	.poll = iio_ring_poll,
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
 };
@@ -211,6 +229,7 @@ void iio_ring_buffer_init(struct iio_ring_buffer *ring,
 	ring->indio_dev = dev_info;
 	ring->ev_int.private = ring;
 	ring->access_handler.private = ring;
+	init_waitqueue_head(&ring->pollq);
 }
 EXPORT_SYMBOL(iio_ring_buffer_init);
 
@@ -392,7 +411,7 @@ int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring, int id,
 						      ring->owner);
 
 	if (ret)
-		goto error_free_ring_buffer_event_chrdev;
+		goto error_ret;
 
 	if (ring->scan_el_attrs) {
 		ret = sysfs_create_group(&ring->dev.kobj,
@@ -400,13 +419,13 @@ int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring, int id,
 		if (ret) {
 			dev_err(&ring->dev,
 				"Failed to add sysfs scan elements\n");
-			goto error_free_ring_buffer_event_chrdev;
+			goto error_free_ring_buffer_access_chrdev;
 		}
 	} else if (channels) {
 		ret = sysfs_create_group(&ring->dev.kobj,
 					 &iio_scan_el_dummy_group);
 		if (ret)
-			goto error_free_ring_buffer_event_chrdev;
+			goto error_free_ring_buffer_access_chrdev;
 	}
 
 
@@ -424,8 +443,8 @@ int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring, int id,
 	return 0;
 error_cleanup_dynamic:
 	__iio_ring_attr_cleanup(ring);
-error_free_ring_buffer_event_chrdev:
-	__iio_free_ring_buffer_event_chrdev(ring);
+error_free_ring_buffer_access_chrdev:
+	__iio_free_ring_buffer_access_chrdev(ring);
 error_remove_device:
 	device_del(&ring->dev);
 error_ret:

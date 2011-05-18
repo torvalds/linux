@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
+#include <linux/sched.h>
 #include <linux/poll.h>
 #include "ring_sw.h"
 #include "trigger.h"
@@ -136,6 +137,8 @@ static int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 		ret = __iio_push_event(&ring->buf.ev_int,
 				       code,
 				       timestamp);
+		ring->buf.stufftoread = true;
+		wake_up_interruptible(&ring->buf.pollq);
 	}
 	return ret;
 }
@@ -261,6 +264,10 @@ int iio_read_first_n_sw_rb(struct iio_ring_buffer *r,
 		ret =  -EFAULT;
 		goto error_free_data_cpy;
 	}
+
+	if (bytes_to_rip >= ring->buf.length*ring->buf.bytes_per_datum/2)
+		ring->buf.stufftoread = 0;
+
 error_free_data_cpy:
 	kfree(data);
 error_ret:
@@ -310,6 +317,7 @@ int iio_request_update_sw_rb(struct iio_ring_buffer *r)
 	int ret = 0;
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
 
+	r->stufftoread = false;
 	spin_lock(&ring->use_lock);
 	if (!ring->update_needed)
 		goto error_ret;
