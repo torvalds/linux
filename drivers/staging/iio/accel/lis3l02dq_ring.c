@@ -220,12 +220,12 @@ __lis3l02dq_write_data_ready_config(struct device *dev, bool state)
 		/* The double write is to overcome a hardware bug?*/
 		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 						LIS3L02DQ_REG_CTRL_2_ADDR,
-						&valold);
+						valold);
 		if (ret)
 			goto error_ret;
 		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 						LIS3L02DQ_REG_CTRL_2_ADDR,
-						&valold);
+						valold);
 		if (ret)
 			goto error_ret;
 		st->trigger_on = false;
@@ -243,7 +243,7 @@ __lis3l02dq_write_data_ready_config(struct device *dev, bool state)
 		st->trigger_on = true;
 		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 						LIS3L02DQ_REG_CTRL_2_ADDR,
-						&valold);
+						valold);
 		if (ret)
 			goto error_ret;
 	}
@@ -382,7 +382,7 @@ static int lis3l02dq_ring_postenable(struct iio_dev *indio_dev)
 		return -EINVAL;
 	ret = lis3l02dq_spi_write_reg_8(indio_dev,
 					LIS3L02DQ_REG_CTRL_1_ADDR,
-					&t);
+					t);
 	if (ret)
 		goto error_ret;
 
@@ -412,7 +412,7 @@ static int lis3l02dq_ring_predisable(struct iio_dev *indio_dev)
 
 	ret = lis3l02dq_spi_write_reg_8(indio_dev,
 					LIS3L02DQ_REG_CTRL_1_ADDR,
-					&t);
+					t);
 
 error_ret:
 	return ret;
