@@ -20,6 +20,10 @@ struct b43_bus_dev {
 	void (*block_write)(struct b43_bus_dev *dev, const void *buffer,
 			    size_t count, u16 offset, u8 reg_width);
 
+	struct device *dev;
+	struct device *dma_dev;
+	unsigned int irq;
+
 	struct ssb_sprom *bus_sprom;
 
 	u16 core_id;

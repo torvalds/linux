@@ -2063,7 +2063,7 @@ int b43_do_request_fw(struct b43_request_fw_context *ctx,
 		B43_WARN_ON(1);
 		return -ENOSYS;
 	}
-	err = request_firmware(&blob, ctx->fwname, ctx->dev->sdev->dev);
+	err = request_firmware(&blob, ctx->fwname, ctx->dev->dev->dev);
 	if (err == -ENOENT) {
 		snprintf(ctx->errors[ctx->req_type],
 			 sizeof(ctx->errors[ctx->req_type]),
@@ -3970,8 +3970,8 @@ redo:
 	if (dev->sdev->bus->bustype == SSB_BUSTYPE_SDIO) {
 		b43_sdio_free_irq(dev);
 	} else {
-		synchronize_irq(dev->sdev->irq);
-		free_irq(dev->sdev->irq, dev);
+		synchronize_irq(dev->dev->irq);
+		free_irq(dev->dev->irq, dev);
 	}
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
@@ -4011,12 +4011,12 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 			goto out;
 		}
 	} else {
-		err = request_threaded_irq(dev->sdev->irq, b43_interrupt_handler,
+		err = request_threaded_irq(dev->dev->irq, b43_interrupt_handler,
 					   b43_interrupt_thread_handler,
 					   IRQF_SHARED, KBUILD_MODNAME, dev);
 		if (err) {
 			b43err(dev->wl, "Cannot request IRQ-%d\n",
-			       dev->sdev->irq);
+			       dev->dev->irq);
 			goto out;
 		}
 	}
