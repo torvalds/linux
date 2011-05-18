@@ -206,7 +206,6 @@ static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
 	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
-	unsigned long irqflags;
 
 	if (!(tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ))
 		return;
@@ -227,14 +226,14 @@ static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
 	 * sequence counting per-frame, since those will override the
 	 * sequence counter given by mac80211.
 	 */
-	spin_lock_irqsave(&intf->seqlock, irqflags);
+	spin_lock(&intf->seqlock);
 
 	if (test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags))
 		intf->seqno += 0x10;
 	hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
 	hdr->seq_ctrl |= cpu_to_le16(intf->seqno);
 
-	spin_unlock_irqrestore(&intf->seqlock, irqflags);
+	spin_unlock(&intf->seqlock);
 
 }
 
