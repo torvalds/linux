@@ -202,15 +202,14 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 		goto err2;
 
 	if (dpi_use_dsi_pll(dssdev)) {
-		dss_clk_enable(DSS_CLK_SYSCK);
 		r = dsi_pll_init(dpi.dsidev, 0, 1);
 		if (r)
-			goto err3;
+			goto err2;
 	}
 
 	r = dpi_set_mode(dssdev);
 	if (r)
-		goto err4;
+		goto err3;
 
 	mdelay(2);
 
@@ -218,12 +217,9 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 
 	return 0;
 
-err4:
-	if (dpi_use_dsi_pll(dssdev))
-		dsi_pll_uninit(dpi.dsidev, true);
 err3:
 	if (dpi_use_dsi_pll(dssdev))
-		dss_clk_disable(DSS_CLK_SYSCK);
+		dsi_pll_uninit(dpi.dsidev, true);
 err2:
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 	if (cpu_is_omap34xx())
@@ -242,7 +238,6 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 	if (dpi_use_dsi_pll(dssdev)) {
 		dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
 		dsi_pll_uninit(dpi.dsidev, true);
-		dss_clk_disable(DSS_CLK_SYSCK);
 	}
 
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
