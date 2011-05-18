@@ -454,12 +454,6 @@ static const struct attribute_group ad7291_attribute_group = {
  * temperature bound events
  */
 
-#define IIO_EVENT_CODE_AD7291_T_SENSE_HIGH  IIO_BUFFER_EVENT_CODE(0)
-#define IIO_EVENT_CODE_AD7291_T_SENSE_LOW   IIO_BUFFER_EVENT_CODE(1)
-#define IIO_EVENT_CODE_AD7291_T_AVG_HIGH    IIO_BUFFER_EVENT_CODE(2)
-#define IIO_EVENT_CODE_AD7291_T_AVG_LOW     IIO_BUFFER_EVENT_CODE(3)
-#define IIO_EVENT_CODE_AD7291_VOLTAGE_BASE  IIO_BUFFER_EVENT_CODE(4)
-
 static irqreturn_t ad7291_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
@@ -484,18 +478,50 @@ static irqreturn_t ad7291_event_handler(int irq, void *private)
 	command = chip->command & ~AD7291_ALART_CLEAR;
 	ad7291_i2c_write(chip, AD7291_COMMAND, command);
 
-	for (i = 0; i < 4; i++) {
-		if (t_status & (1 << i))
-			iio_push_event(indio_dev, 0,
-				IIO_EVENT_CODE_AD7291_T_SENSE_HIGH + i,
-				timestamp);
-	}
+	if (t_status & (1 << 0))
+		iio_push_event(indio_dev, 0,
+			       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
+						    0,
+						    IIO_EV_TYPE_THRESH,
+						    IIO_EV_DIR_FALLING),
+			       timestamp);
+	if (t_status & (1 << 1))
+		iio_push_event(indio_dev, 0,
+			       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
+						    0,
+						    IIO_EV_TYPE_THRESH,
+						    IIO_EV_DIR_RISING),
+			       timestamp);
+	if (t_status & (1 << 2))
+		iio_push_event(indio_dev, 0,
+			       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
+						    0,
+						    IIO_EV_TYPE_THRESH,
+						    IIO_EV_DIR_FALLING),
+			       timestamp);
+	if (t_status & (1 << 3))
+		iio_push_event(indio_dev, 0,
+			       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
+						    0,
+						    IIO_EV_TYPE_THRESH,
+						    IIO_EV_DIR_RISING),
+			       timestamp);
 
-	for (i = 0; i < AD7291_VOLTAGE_LIMIT_COUNT*2; i++) {
+	for (i = 0; i < AD7291_VOLTAGE_LIMIT_COUNT*2; i += 2) {
 		if (v_status & (1 << i))
 			iio_push_event(indio_dev, 0,
-				IIO_EVENT_CODE_AD7291_VOLTAGE_BASE + i,
-				timestamp);
+				       IIO_UNMOD_EVENT_CODE(IIO_IN,
+							    i/2,
+							    IIO_EV_TYPE_THRESH,
+							    IIO_EV_DIR_FALLING),
+				       timestamp);
+		if (v_status & (1 << (i + 1)))
+			iio_push_event(indio_dev, 0,
+				       IIO_UNMOD_EVENT_CODE(IIO_IN,
+							    i/2,
+							    IIO_EV_TYPE_THRESH,
+							    IIO_EV_DIR_RISING),
+				       timestamp);
 	}
 
 	return IRQ_HANDLED;
