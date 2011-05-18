@@ -28,10 +28,6 @@
 /* naughty temporary hack to match these against the event version
    - need to flattern these together */
 enum iio_chan_type {
-	/* Need this here for now to support buffer events
-	 * set to 0  to avoid changes to ring_generic.c */
-	IIO_BUFFER = 0,
-
 	/* real channel types */
 	IIO_IN,
 	IIO_CURRENT,

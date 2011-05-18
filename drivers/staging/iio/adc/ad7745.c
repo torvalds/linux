@@ -522,8 +522,8 @@ static const struct attribute_group ad774x_attribute_group = {
  * data ready events
  */
 
-#define IIO_EVENT_CODE_CAP_RDY     IIO_BUFFER_EVENT_CODE(0)
-#define IIO_EVENT_CODE_VT_RDY      IIO_BUFFER_EVENT_CODE(1)
+#define IIO_EVENT_CODE_CAP_RDY     0
+#define IIO_EVENT_CODE_VT_RDY      1
 
 #define IIO_EVENT_ATTR_CAP_RDY_SH(_evlist, _show, _store, _mask)	\
 	IIO_EVENT_ATTR_SH(cap_rdy, _evlist, _show, _store, _mask)
