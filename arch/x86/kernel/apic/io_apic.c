@@ -81,6 +81,10 @@ static struct ioapic {
 	 * # of IRQ routing registers
 	 */
 	int nr_registers;
+	/*
+	 * Saved state during suspend/resume, or while enabling intr-remap.
+	 */
+	struct IO_APIC_route_entry *saved_registers;
 } ioapics[MAX_IO_APICS];
 
 /* I/O APIC entries */
@@ -101,11 +105,6 @@ int mp_irq_entries;
 
 /* GSI interrupts */
 static int nr_irqs_gsi = NR_IRQS_LEGACY;
-
-/*
- * Saved I/O APIC state during suspend/resume, or while enabling intr-remap.
-*/
-static struct IO_APIC_route_entry *ioapic_saved_data[MAX_IO_APICS];
 
 #if defined (CONFIG_MCA) || defined (CONFIG_EISA)
 int mp_bus_id_to_type[MAX_MP_BUSSES];
@@ -187,10 +186,10 @@ int __init arch_early_irq_init(void)
 	}
 
 	for (i = 0; i < nr_ioapics; i++) {
-		ioapic_saved_data[i] =
+		ioapics[i].saved_registers =
 			kzalloc(sizeof(struct IO_APIC_route_entry) *
 				ioapics[i].nr_registers, GFP_KERNEL);
-		if (!ioapic_saved_data[i])
+		if (!ioapics[i].saved_registers)
 			pr_err("IOAPIC %d: suspend/resume impossible!\n", i);
 	}
 
@@ -639,13 +638,13 @@ int save_ioapic_entries(void)
 	int err = 0;
 
 	for (apic = 0; apic < nr_ioapics; apic++) {
-		if (!ioapic_saved_data[apic]) {
+		if (!ioapics[apic].saved_registers) {
 			err = -ENOMEM;
 			continue;
 		}
 
 		for (pin = 0; pin < ioapics[apic].nr_registers; pin++)
-			ioapic_saved_data[apic][pin] =
+			ioapics[apic].saved_registers[pin] =
 				ioapic_read_entry(apic, pin);
 	}
 
@@ -660,13 +659,13 @@ void mask_ioapic_entries(void)
 	int apic, pin;
 
 	for (apic = 0; apic < nr_ioapics; apic++) {
-		if (!ioapic_saved_data[apic])
+		if (ioapics[apic].saved_registers)
 			continue;
 
 		for (pin = 0; pin < ioapics[apic].nr_registers; pin++) {
 			struct IO_APIC_route_entry entry;
 
-			entry = ioapic_saved_data[apic][pin];
+			entry = ioapics[apic].saved_registers[pin];
 			if (!entry.mask) {
 				entry.mask = 1;
 				ioapic_write_entry(apic, pin, entry);
@@ -676,19 +675,19 @@ void mask_ioapic_entries(void)
 }
 
 /*
- * Restore IO APIC entries which was saved in ioapic_saved_data
+ * Restore IO APIC entries which was saved in the ioapic structure.
  */
 int restore_ioapic_entries(void)
 {
 	int apic, pin;
 
 	for (apic = 0; apic < nr_ioapics; apic++) {
-		if (!ioapic_saved_data[apic])
+		if (ioapics[apic].saved_registers)
 			continue;
 
 		for (pin = 0; pin < ioapics[apic].nr_registers; pin++)
 			ioapic_write_entry(apic, pin,
-					   ioapic_saved_data[apic][pin]);
+					   ioapics[apic].saved_registers[pin]);
 	}
 	return 0;
 }
