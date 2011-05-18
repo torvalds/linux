@@ -61,21 +61,13 @@ int ade7758_probe_trigger(struct iio_dev *indio_dev)
 {
 	int ret;
 	struct ade7758_state *st = indio_dev->dev_data;
-	char *name;
 
-	name = kasprintf(GFP_KERNEL,
-			 "%s-dev%d",
-			 spi_get_device_id(st->us)->name,
-			 indio_dev->id);
-	if (name == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-
-	st->trig = iio_allocate_trigger_named(name);
+	st->trig = iio_allocate_trigger("%s-dev%d",
+					spi_get_device_id(st->us)->name,
+					indio_dev->id);
 	if (st->trig == NULL) {
 		ret = -ENOMEM;
-		goto error_free_name;
+		goto error_ret;
 	}
 
 	ret = request_irq(st->us->irq,
@@ -104,8 +96,6 @@ error_free_irq:
 	free_irq(st->us->irq, st->trig);
 error_free_trig:
 	iio_free_trigger(st->trig);
-error_free_name:
-	kfree(name);
 error_ret:
 	return ret;
 }
@@ -115,7 +105,6 @@ void ade7758_remove_trigger(struct iio_dev *indio_dev)
 	struct ade7758_state *state = indio_dev->dev_data;
 
 	iio_trigger_unregister(state->trig);
-	kfree(state->trig->name);
 	free_irq(state->us->irq, state->trig);
 	iio_free_trigger(state->trig);
 }

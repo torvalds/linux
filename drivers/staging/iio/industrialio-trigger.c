@@ -39,6 +39,19 @@ static LIST_HEAD(iio_trigger_list);
 static DEFINE_MUTEX(iio_trigger_list_lock);
 
 /**
+ * iio_trigger_read_name() - retrieve useful identifying name
+ **/
+static ssize_t iio_trigger_read_name(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct iio_trigger *trig = dev_get_drvdata(dev);
+	return sprintf(buf, "%s\n", trig->name);
+}
+
+static DEVICE_ATTR(name, S_IRUGO, iio_trigger_read_name, NULL);
+
+/**
  * iio_trigger_register_sysfs() - create a device for this trigger
  * @trig_info:	the trigger
  *
@@ -46,20 +59,16 @@ static DEFINE_MUTEX(iio_trigger_list_lock);
  **/
 static int iio_trigger_register_sysfs(struct iio_trigger *trig_info)
 {
-	int ret = 0;
-
-	if (trig_info->control_attrs)
-		ret = sysfs_create_group(&trig_info->dev.kobj,
-					 trig_info->control_attrs);
-
-	return ret;
+	return sysfs_add_file_to_group(&trig_info->dev.kobj,
+				       &dev_attr_name.attr,
+				       NULL);
 }
 
 static void iio_trigger_unregister_sysfs(struct iio_trigger *trig_info)
 {
-	if (trig_info->control_attrs)
-		sysfs_remove_group(&trig_info->dev.kobj,
-				   trig_info->control_attrs);
+	sysfs_remove_file_from_group(&trig_info->dev.kobj,
+					   &dev_attr_name.attr,
+					   NULL);
 }
 
 
@@ -205,18 +214,6 @@ void iio_trigger_notify_done(struct iio_trigger *trig)
 }
 EXPORT_SYMBOL(iio_trigger_notify_done);
 
-/**
- * iio_trigger_read_name() - retrieve useful identifying name
- **/
-ssize_t iio_trigger_read_name(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf)
-{
-	struct iio_trigger *trig = dev_get_drvdata(dev);
-	return sprintf(buf, "%s\n", trig->name);
-}
-EXPORT_SYMBOL(iio_trigger_read_name);
-
 /* Trigger Consumer related functions */
 
 /* Complexity in here.  With certain triggers (datardy) an acknowledgement
@@ -355,6 +352,7 @@ static void iio_trig_release(struct device *device)
 		irq_free_descs(trig->subirq_base,
 			       CONFIG_IIO_CONSUMERS_PER_TRIGGER);
 	}
+	kfree(trig->name);
 	kfree(trig);
 	iio_put();
 }
@@ -381,8 +379,9 @@ static void iio_trig_subirqunmask(struct irq_data *d)
 	trig->subirqs[d->irq - trig->subirq_base].enabled = true;
 }
 
-struct iio_trigger *iio_allocate_trigger_named(const char *name)
+struct iio_trigger *iio_allocate_trigger(const char *fmt, ...)
 {
+	va_list vargs;
 	struct iio_trigger *trig;
 	trig = kzalloc(sizeof *trig, GFP_KERNEL);
 	if (trig) {
@@ -392,39 +391,39 @@ struct iio_trigger *iio_allocate_trigger_named(const char *name)
 		device_initialize(&trig->dev);
 		dev_set_drvdata(&trig->dev, (void *)trig);
 
-		if (name) {
-			mutex_init(&trig->pool_lock);
-			trig->subirq_base
-				= irq_alloc_descs(-1, 0,
-					CONFIG_IIO_CONSUMERS_PER_TRIGGER,
-					0);
-			if (trig->subirq_base < 0) {
-				kfree(trig);
-				return NULL;
-			}
-			trig->name = name;
-			trig->subirq_chip.name = name;
-			trig->subirq_chip.irq_mask = &iio_trig_subirqmask;
-			trig->subirq_chip.irq_unmask = &iio_trig_subirqunmask;
-			for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++) {
-				irq_set_chip(trig->subirq_base + i,
-					     &trig->subirq_chip);
-				irq_set_handler(trig->subirq_base + i,
-						&handle_simple_irq);
-				irq_modify_status(trig->subirq_base + i,
-						  IRQ_NOREQUEST | IRQ_NOAUTOEN,
-						  IRQ_NOPROBE);
-			}
+		mutex_init(&trig->pool_lock);
+		trig->subirq_base
+			= irq_alloc_descs(-1, 0,
+					  CONFIG_IIO_CONSUMERS_PER_TRIGGER,
+					  0);
+		if (trig->subirq_base < 0) {
+			kfree(trig);
+			return NULL;
+		}
+		va_start(vargs, fmt);
+		trig->name = kvasprintf(GFP_KERNEL, fmt, vargs);
+		va_end(vargs);
+		if (trig->name == NULL) {
+			irq_free_descs(trig->subirq_base,
+				       CONFIG_IIO_CONSUMERS_PER_TRIGGER);
+			kfree(trig);
+			return NULL;
+		}
+		trig->subirq_chip.name = trig->name;
+		trig->subirq_chip.irq_mask = &iio_trig_subirqmask;
+		trig->subirq_chip.irq_unmask = &iio_trig_subirqunmask;
+		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++) {
+			irq_set_chip(trig->subirq_base + i,
+				     &trig->subirq_chip);
+			irq_set_handler(trig->subirq_base + i,
+					&handle_simple_irq);
+			irq_modify_status(trig->subirq_base + i,
+					  IRQ_NOREQUEST | IRQ_NOAUTOEN,
+					  IRQ_NOPROBE);
 		}
 		iio_get();
 	}
 	return trig;
-}
-EXPORT_SYMBOL(iio_allocate_trigger_named);
-
-struct iio_trigger *iio_allocate_trigger(void)
-{
-	return iio_allocate_trigger_named(NULL);
 }
 EXPORT_SYMBOL(iio_allocate_trigger);
 

@@ -92,11 +92,9 @@ static ssize_t iio_sysfs_trigger_poll(struct device *dev,
 }
 
 static DEVICE_ATTR(trigger_now, S_IWUSR, NULL, iio_sysfs_trigger_poll);
-static IIO_TRIGGER_NAME_ATTR;
 
 static struct attribute *iio_sysfs_trigger_attrs[] = {
 	&dev_attr_trigger_now.attr,
-	&dev_attr_name.attr,
 	NULL,
 };
 
@@ -104,11 +102,15 @@ static const struct attribute_group iio_sysfs_trigger_attr_group = {
 	.attrs = iio_sysfs_trigger_attrs,
 };
 
+static const struct attribute_group *iio_sysfs_trigger_attr_groups[] = {
+	&iio_sysfs_trigger_attr_group,
+	NULL
+};
+
 static int iio_sysfs_trigger_probe(int id)
 {
 	struct iio_sysfs_trig *t;
 	int ret;
-	char *name;
 	bool foundit = false;
 	mutex_lock(&iio_syfs_trig_list_mut);
 	list_for_each_entry(t, &iio_sysfs_trig_list, l)
@@ -120,25 +122,19 @@ static int iio_sysfs_trigger_probe(int id)
 		ret = -EINVAL;
 		goto out1;
 	}
-
-	name = kasprintf(GFP_KERNEL, "sysfstrig%d", id);
-	if (name == NULL) {
-		ret = -ENOMEM;
-		goto out1;
-	}
 	t = kmalloc(sizeof(*t), GFP_KERNEL);
 	if (t == NULL) {
 		ret = -ENOMEM;
-		goto free_name;
+		goto out1;
 	}
 	t->id = id;
-	t->trig = iio_allocate_trigger_named(name);
+	t->trig = iio_allocate_trigger("sysfstrig%d", id);
 	if (!t->trig) {
 		ret = -ENOMEM;
 		goto free_t;
 	}
 
-	t->trig->control_attrs = &iio_sysfs_trigger_attr_group;
+	t->trig->dev.groups = iio_sysfs_trigger_attr_groups;
 	t->trig->owner = THIS_MODULE;
 	t->trig->dev.parent = &iio_sysfs_trig_dev;
 
@@ -154,8 +150,6 @@ out2:
 	iio_put_trigger(t->trig);
 free_t:
 	kfree(t);
-free_name:
-	kfree(name);
 out1:
 	mutex_unlock(&iio_syfs_trig_list_mut);
 	return ret;
@@ -177,7 +171,6 @@ static int iio_sysfs_trigger_remove(int id)
 	}
 
 	iio_trigger_unregister(t->trig);
-	kfree(t->trig->name);
 	iio_free_trigger(t->trig);
 
 	list_del(&t->l);

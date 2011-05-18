@@ -260,17 +260,6 @@ static int lis3l02dq_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	return ret;
 }
 
-static IIO_TRIGGER_NAME_ATTR;
-
-static struct attribute *lis3l02dq_trigger_attrs[] = {
-	&dev_attr_name.attr,
-	NULL,
-};
-
-static const struct attribute_group lis3l02dq_trigger_attr_group = {
-	.attrs = lis3l02dq_trigger_attrs,
-};
-
 /**
  * lis3l02dq_trig_try_reen() try renabling irq for data rdy trigger
  * @trig:	the datardy trigger
@@ -301,19 +290,11 @@ int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 	struct iio_sw_ring_helper_state *h
 		= iio_dev_get_devdata(indio_dev);
 	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
-	char *name;
 
-	name = kasprintf(GFP_KERNEL,
-			 "lis3l02dq-dev%d",
-			 indio_dev->id);
-	if (name == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	st->trig = iio_allocate_trigger_named(name);
+	st->trig = iio_allocate_trigger("lis3l02dq-dev%d", indio_dev->id);
 	if (!st->trig) {
 		ret = -ENOMEM;
-		goto error_free_name;
+		goto error_ret;
 	}
 
 	st->trig->dev.parent = &st->us->dev;
@@ -321,7 +302,6 @@ int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 	st->trig->private_data = st;
 	st->trig->set_trigger_state = &lis3l02dq_data_rdy_trigger_set_state;
 	st->trig->try_reenable = &lis3l02dq_trig_try_reen;
-	st->trig->control_attrs = &lis3l02dq_trigger_attr_group;
 	ret = iio_trigger_register(st->trig);
 	if (ret)
 		goto error_free_trig;
@@ -330,8 +310,6 @@ int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 
 error_free_trig:
 	iio_free_trigger(st->trig);
-error_free_name:
-	kfree(name);
 error_ret:
 	return ret;
 }
@@ -343,7 +321,6 @@ void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 
 	iio_trigger_unregister(st->trig);
-	kfree(st->trig->name);
 	iio_free_trigger(st->trig);
 }
 

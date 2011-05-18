@@ -24,12 +24,16 @@ struct iio_subirq {
  * @private_data:	[DRIVER] device specific data
  * @list:		[INTERN] used in maintenance of global trigger list
  * @alloc_list:		[DRIVER] used for driver specific trigger list
- * @control_attrs:	[DRIVER] sysfs attributes relevant to trigger type
  * @owner:		[DRIVER] used to monitor usage count of the trigger.
  * @use_count:		use count for the trigger
  * @set_trigger_state:	[DRIVER] switch on/off the trigger on demand
  * @try_reenable:	function to reenable the trigger when the
  *			use count is zero (may be NULL)
+ * @subirq_chip:	[INTERN] associate 'virtual' irq chip.
+ * @subirq_base:	[INTERN] base number for irqs provided by trigger.
+ * @subirqs:		[INTERN] information about the 'child' irqs.
+ * @pool:		[INTERN] bitmap of irqs currently in use.
+ * @pool_lock:		[INTERN] protection of the irq pool.
  **/
 struct iio_trigger {
 	int				id;
@@ -39,7 +43,6 @@ struct iio_trigger {
 	void				*private_data;
 	struct list_head		list;
 	struct list_head		alloc_list;
-	const struct attribute_group	*control_attrs;
 	struct module			*owner;
 	int use_count;
 
@@ -70,20 +73,6 @@ static inline void iio_get_trigger(struct iio_trigger *trig)
 	__module_get(trig->owner);
 	get_device(&trig->dev);
 };
-
-/**
- * iio_trigger_read_name() - sysfs access function to get the trigger name
- * @dev: the system device
- * @attr: device attributes for the device
- * @buf: output buffer to store the trigger name
- **/
-ssize_t iio_trigger_read_name(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf);
-
-#define IIO_TRIGGER_NAME_ATTR DEVICE_ATTR(name, S_IRUGO,		\
-					  iio_trigger_read_name,	\
-					  NULL);
 
 /**
  * iio_trigger_register() - register a trigger with the IIO core
@@ -154,6 +143,7 @@ static inline void iio_trigger_put_irq(struct iio_trigger *trig, int irq)
  * @h:				the function that is actually run on trigger
  * @thread:			threaded interrupt part
  * @type:			the type of interrupt (basically if oneshot)
+ * @name:			name used to identify the trigger consumer.
  * @irq:			the corresponding irq as allocated from the
  *				trigger pool
  * @timestamp:			some devices need a timestamp grabbed as soon
@@ -179,8 +169,8 @@ irqreturn_t iio_pollfunc_store_time(int irq, void *p);
 int iio_triggered_ring_postenable(struct iio_dev *indio_dev);
 int iio_triggered_ring_predisable(struct iio_dev *indio_dev);
 
-struct iio_trigger *iio_allocate_trigger(void);
-struct iio_trigger *iio_allocate_trigger_named(const char *name);
+struct iio_trigger *iio_allocate_trigger(const char *fmt, ...)
+	__attribute__((format(printf, 1, 2)));
 void iio_free_trigger(struct iio_trigger *trig);
 
 #endif /* _IIO_TRIGGER_H_ */
