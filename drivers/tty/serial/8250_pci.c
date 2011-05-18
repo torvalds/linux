@@ -971,6 +971,14 @@ ce4100_serial_setup(struct serial_private *priv,
 	return ret;
 }
 
+static int
+pci_omegapci_setup(struct serial_private *priv,
+		      struct pciserial_board *board,
+		      struct uart_port *port, int idx)
+{
+	return setup_port(priv, port, 2, idx * 8, 0);
+}
+
 static int skip_tx_en_setup(struct serial_private *priv,
 			const struct pciserial_board *board,
 			struct uart_port *port, int idx)
@@ -1011,6 +1019,7 @@ static int skip_tx_en_setup(struct serial_private *priv,
 #define PCI_DEVICE_ID_TITAN_200EISI	0xA017
 #define PCI_DEVICE_ID_OXSEMI_16PCI958	0x9538
 #define PCIE_DEVICE_ID_NEO_2_OX_IBM	0x00F6
+#define PCI_DEVICE_ID_PLX_CRONYX_OMEGA	0xc001
 
 /* Unknown vendors/cards - this should not be in linux/pci_ids.h */
 #define PCI_SUBDEVICE_ID_UNKNOWN_0x1584	0x1584
@@ -1438,6 +1447,16 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.setup		= pci_default_setup,
 	},
 	/*
+	 * Cronyx Omega PCI (PLX-chip based)
+	 */
+	{
+		.vendor		= PCI_VENDOR_ID_PLX,
+		.device		= PCI_DEVICE_ID_PLX_CRONYX_OMEGA,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= pci_omegapci_setup,
+	 },
+	/*
 	 * Default "match everything" terminator entry
 	 */
 	{
@@ -1624,6 +1643,7 @@ enum pci_board_num_t {
 	pbn_ADDIDATA_PCIe_4_3906250,
 	pbn_ADDIDATA_PCIe_8_3906250,
 	pbn_ce4100_1_115200,
+	pbn_omegapci,
 };
 
 /*
@@ -2318,6 +2338,12 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 		.num_ports	= 1,
 		.base_baud	= 921600,
 		.reg_shift      = 2,
+	},
+	[pbn_omegapci] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 8,
+		.base_baud	= 115200,
+		.uart_offset	= 0x200,
 	},
 };
 
@@ -3816,6 +3842,12 @@ static struct pci_device_id serial_pci_tbl[] = {
 		PCI_ANY_ID,  PCI_ANY_ID, 0, 0,
 		pbn_ce4100_1_115200 },
 
+	/*
+	 * Cronyx Omega PCI
+	 */
+	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_CRONYX_OMEGA,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_omegapci },
 
 	/*
 	 * These entries match devices with class COMMUNICATION_SERIAL,
