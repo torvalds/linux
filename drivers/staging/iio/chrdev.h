@@ -60,24 +60,18 @@ struct iio_detected_event_list {
  * @det_events:		list of detected events
  * @max_events:		maximum number of events before new ones are dropped
  * @current_events:	number of events in detected list
- * @owner:		ensure the driver module owns the file, not iio
- * @private:		driver specific data
  * @_name:		used internally to store the sysfs name for minor id
  *			attribute
- * @_attrname:		the event interface's attribute name
  */
 struct iio_event_interface {
 	struct device				dev;
 	struct iio_handler			handler;
 	wait_queue_head_t			wait;
 	struct mutex				event_list_lock;
-	struct iio_detected_event_list		det_events;
+	struct list_head			det_events;
 	int					max_events;
 	int					current_events;
-	struct module				*owner;
-	void					*private;
 	char					_name[35];
-	char					_attrname[20];
 	struct list_head dev_attr_list;
 };
 

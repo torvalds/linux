@@ -112,7 +112,7 @@ int iio_push_event(struct iio_dev *dev_info,
 		ev->ev.id = ev_code;
 		ev->ev.timestamp = timestamp;
 
-		list_add_tail(&ev->list, &ev_int->det_events.list);
+		list_add_tail(&ev->list, &ev_int->det_events);
 		ev_int->current_events++;
 		mutex_unlock(&ev_int->event_list_lock);
 		wake_up_interruptible(&ev_int->wait);
@@ -146,7 +146,7 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 	size_t len;
 
 	mutex_lock(&ev_int->event_list_lock);
-	if (list_empty(&ev_int->det_events.list)) {
+	if (list_empty(&ev_int->det_events)) {
 		if (filep->f_flags & O_NONBLOCK) {
 			ret = -EAGAIN;
 			goto error_mutex_unlock;
@@ -155,14 +155,14 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 		/* Blocking on device; waiting for something to be there */
 		ret = wait_event_interruptible(ev_int->wait,
 					       !list_empty(&ev_int
-							   ->det_events.list));
+							   ->det_events));
 		if (ret)
 			goto error_ret;
 		/* Single access device so no one else can get the data */
 		mutex_lock(&ev_int->event_list_lock);
 	}
 
-	el = list_first_entry(&ev_int->det_events.list,
+	el = list_first_entry(&ev_int->det_events,
 			      struct iio_detected_event_list,
 			      list);
 	len = sizeof el->ev;
@@ -197,7 +197,7 @@ static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 	 * clear out any awaiting events. The mask will prevent
 	 * any new __iio_push_event calls running.
 	 */
-	list_for_each_entry_safe(el, t, &ev_int->det_events.list, list) {
+	list_for_each_entry_safe(el, t, &ev_int->det_events, list) {
 		list_del(&el->list);
 		kfree(el);
 	}
@@ -300,7 +300,7 @@ static int iio_setup_ev_int(struct iio_event_interface *ev_int,
 	/* discussion point - make this variable? */
 	ev_int->max_events = 10;
 	ev_int->current_events = 0;
-	INIT_LIST_HEAD(&ev_int->det_events.list);
+	INIT_LIST_HEAD(&ev_int->det_events);
 	init_waitqueue_head(&ev_int->wait);
 	ev_int->handler.private = ev_int;
 	ev_int->handler.flags = 0;
@@ -1041,17 +1041,13 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 	}
 
 	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
-		dev_info->event_interfaces[i].owner = dev_info->driver_module;
-
 		snprintf(dev_info->event_interfaces[i]._name, 20,
 			 "%s:event%d",
 			 dev_name(&dev_info->dev),
 			 i);
 
 		ret = iio_setup_ev_int(&dev_info->event_interfaces[i],
-				       (const char *)(dev_info
-						      ->event_interfaces[i]
-						      ._name),
+				       dev_info->event_interfaces[i]._name,
 				       dev_info->driver_module,
 				       &dev_info->dev);
 		if (ret) {
