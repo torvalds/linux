@@ -194,7 +194,7 @@ void rh_port_disconnect(int rhport)
  *
  * So, the maximum number of ports is 31 ( port 0 to port 30) ?
  *
- * The return value is the actual transfered length in byte. If nothing has
+ * The return value is the actual transferred length in byte. If nothing has
  * been changed, return 0. In the case that the number of ports is less than or
  * equal to 6 (VHCI_NPORTS==7), return 1.
  *
@@ -876,8 +876,10 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 	}
 
 	/* kill threads related to this sdev, if v.c. exists */
-	kthread_stop(vdev->ud.tcp_rx);
-	kthread_stop(vdev->ud.tcp_tx);
+	if (vdev->ud.tcp_rx)
+		kthread_stop(vdev->ud.tcp_rx);
+	if (vdev->ud.tcp_tx)
+		kthread_stop(vdev->ud.tcp_tx);
 
 	usbip_uinfo("stop threads\n");
 
@@ -948,9 +950,6 @@ static void vhci_device_unusable(struct usbip_device *ud)
 static void vhci_device_init(struct vhci_device *vdev)
 {
 	memset(vdev, 0, sizeof(*vdev));
-
-	vdev->ud.tcp_rx = kthread_create(vhci_rx_loop, &vdev->ud, "vhci_rx");
-	vdev->ud.tcp_tx = kthread_create(vhci_tx_loop, &vdev->ud, "vhci_tx");
 
 	vdev->ud.side   = USBIP_VHCI;
 	vdev->ud.status = VDEV_ST_NULL;
@@ -1139,7 +1138,7 @@ static int vhci_hcd_probe(struct platform_device *pdev)
 		usbip_uerr("create hcd failed\n");
 		return -ENOMEM;
 	}
-
+	hcd->has_tt = 1;
 
 	/* this is private data for vhci_hcd */
 	the_controller = hcd_to_vhci(hcd);

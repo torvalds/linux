@@ -240,7 +240,7 @@ struct cgroup {
 	/* For RCU-protected deletion */
 	struct rcu_head rcu_head;
 
-	/* List of events which userspace want to recieve */
+	/* List of events which userspace want to receive */
 	struct list_head event_list;
 	spinlock_t event_list_lock;
 };

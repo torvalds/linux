@@ -391,8 +391,8 @@ static int pci_irq_host_map(struct irq_host *h, unsigned int virq,
 	DBG("%s(%d, 0x%lx)\n", __func__, virq, hw);
 	if ((virq >= 1) && (virq <= 4)){
 		irq = virq + IRQ_PCI_INTAD_BASE - 1;
-		irq_to_desc(irq)->status |= IRQ_LEVEL;
-		set_irq_chip(irq, &tsi108_pci_irq);
+		irq_set_status_flags(irq, IRQ_LEVEL);
+		irq_set_chip(irq, &tsi108_pci_irq);
 	}
 	return 0;
 }
@@ -431,7 +431,7 @@ void __init tsi108_pci_int_init(struct device_node *node)
 
 void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = get_pci_source();
 
 	if (cascade_irq != NO_IRQ)

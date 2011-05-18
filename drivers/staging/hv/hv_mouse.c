@@ -14,6 +14,7 @@
  */
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
@@ -23,6 +24,7 @@
 #include <linux/hiddev.h>
 #include <linux/pci.h>
 #include <linux/dmi.h>
+#include <linux/delay.h>
 
 #include "hv_api.h"
 #include "logging.h"
@@ -374,7 +376,7 @@ static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct
 	       desc->desc[0].wDescriptorLength);
 
 	/* Send the ack */
-	memset(&ack, sizeof(struct mousevsc_prt_msg), 0);
+	memset(&ack, 0, sizeof(struct mousevsc_prt_msg));
 
 	ack.type = PipeMessageData;
 	ack.size = sizeof(struct synthhid_device_info_ack);
@@ -595,7 +597,7 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 	/*
 	 * Now, initiate the vsc/vsp initialization protocol on the open channel
 	 */
-	memset(request, sizeof(struct mousevsc_prt_msg), 0);
+	memset(request, 0, sizeof(struct mousevsc_prt_msg));
 
 	request->type = PipeMessageData;
 	request->size = sizeof(struct synthhid_protocol_request);

@@ -244,7 +244,7 @@ void radeon_write_agp_base(drm_radeon_private_t *dev_priv, u64 agp_base)
 	u32 agp_base_lo = agp_base & 0xffffffff;
 	u32 r6xx_agp_base = (agp_base >> 22) & 0x3ffff;
 
-	/* R6xx/R7xx must be aligned to a 4MB boundry */
+	/* R6xx/R7xx must be aligned to a 4MB boundary */
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV770)
 		RADEON_WRITE(R700_MC_VM_AGP_BASE, r6xx_agp_base);
 	else if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)

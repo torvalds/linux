@@ -164,7 +164,6 @@ static inline int in_region(void *ptr, int size, void *what, size_t whatsz)
  */
 static u32 *s3c_pm_runcheck(struct resource *res, u32 *val)
 {
-	void *save_at = phys_to_virt(s3c_sleep_save_phys);
 	unsigned long addr;
 	unsigned long left;
 	void *stkpage;
@@ -189,11 +188,6 @@ static u32 *s3c_pm_runcheck(struct resource *res, u32 *val)
 
 		if (in_region(ptr, left, crcs, crc_size)) {
 			S3C_PMDBG("skipping %08lx, has crc block in\n", addr);
-			goto skip_check;
-		}
-
-		if (in_region(ptr, left, save_at, 32*4 )) {
-			S3C_PMDBG("skipping %08lx, has save block in\n", addr);
 			goto skip_check;
 		}
 

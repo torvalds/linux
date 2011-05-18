@@ -152,8 +152,8 @@ static int saa7164_encoder_buffers_alloc(struct saa7164_port *port)
 	/* Init and establish defaults */
 	params->bitspersample = 8;
 	params->linethreshold = 0;
-	params->pagetablelistvirt = 0;
-	params->pagetablelistphys = 0;
+	params->pagetablelistvirt = NULL;
+	params->pagetablelistphys = NULL;
 	params->numpagetableentries = port->hwcfg.buffercount;
 
 	/* Allocate the PCI resources, buffers (hard) */
@@ -1108,7 +1108,7 @@ static int fops_release(struct file *file)
 
 struct saa7164_user_buffer *saa7164_enc_next_buf(struct saa7164_port *port)
 {
-	struct saa7164_user_buffer *ubuf = 0;
+	struct saa7164_user_buffer *ubuf = NULL;
 	struct saa7164_dev *dev = port->dev;
 	u32 crc;
 
@@ -1443,7 +1443,7 @@ int saa7164_encoder_register(struct saa7164_port *port)
 	port->v4l_device = saa7164_encoder_alloc(port,
 		dev->pci, &saa7164_mpeg_template, "mpeg");
 
-	if (port->v4l_device == NULL) {
+	if (!port->v4l_device) {
 		printk(KERN_INFO "%s: can't allocate mpeg device\n",
 			dev->name);
 		result = -ENOMEM;

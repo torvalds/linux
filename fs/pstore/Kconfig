@@ -1,5 +1,5 @@
 config PSTORE
-	bool "Persistant store support"
+	bool "Persistent store support"
 	default n
 	help
 	   This option enables generic access to platform level

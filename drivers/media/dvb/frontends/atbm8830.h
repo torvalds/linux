@@ -39,7 +39,7 @@ struct atbm8830_config {
 	/* parallel or serial transport stream */
 	u8 serial_ts;
 
-	/* transport stream clock output only when receving valid stream */
+	/* transport stream clock output only when receiving valid stream */
 	u8 ts_clk_gated;
 
 	/* Decoder sample TS data at rising edge of clock */

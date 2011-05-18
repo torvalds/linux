@@ -45,7 +45,7 @@
  *
  * The counter counts pending write requests, plus the on-disk bit.
  * When the counter is '1' and the resync bits are clear, the on-disk
- * bit can be cleared aswell, thus setting the counter to 0.
+ * bit can be cleared as well, thus setting the counter to 0.
  * When we set a bit, or in the counter (to start a write), if the fields is
  * 0, we first set the disk bit and set the counter to 1.
  *

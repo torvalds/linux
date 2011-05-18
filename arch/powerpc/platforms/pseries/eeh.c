@@ -65,7 +65,7 @@
  *  with EEH.
  *
  *  Ideally, a PCI device driver, when suspecting that an isolation
- *  event has occured (e.g. by reading 0xff's), will then ask EEH
+ *  event has occurred (e.g. by reading 0xff's), will then ask EEH
  *  whether this is the case, and then take appropriate steps to
  *  reset the PCI slot, the PCI device, and then resume operations.
  *  However, until that day,  the checking is done here, with the

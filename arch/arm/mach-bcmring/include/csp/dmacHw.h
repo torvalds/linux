@@ -362,7 +362,7 @@ int dmacHw_setControlDescriptor(dmacHw_CONFIG_t *pConfig,	/*  [ IN ] Configurati
 /**
 *  @brief   Read data DMA transferred to memory
 *
-*  This function will read data that has been DMAed to memory while transfering from:
+*  This function will read data that has been DMAed to memory while transferring from:
 *          - Memory to memory
 *          - Peripheral to memory
 *
@@ -446,7 +446,7 @@ void dmacHw_stopTransfer(dmacHw_HANDLE_t handle	/*   [ IN ] DMA Channel handle *
 
 /****************************************************************************/
 /**
-*  @brief   Check the existance of pending descriptor
+*  @brief   Check the existence of pending descriptor
 *
 *  This function confirmes if there is any pending descriptor in the chain
 *  to program the channel
@@ -542,7 +542,7 @@ dmacHw_HANDLE_t dmacHw_getInterruptSource(void);
 /**
 *  @brief   Sets channel specific user data
 *
-*  This function associates user data to a specif DMA channel
+*  This function associates user data to a specific DMA channel
 *
 */
 /****************************************************************************/

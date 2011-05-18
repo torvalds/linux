@@ -90,7 +90,7 @@ static inline int DoC_WaitReady(void __iomem * docptr)
 	return ret;
 }
 
-/* For some reason the Millennium Plus seems to occassionally put itself
+/* For some reason the Millennium Plus seems to occasionally put itself
  * into reset mode. For me this happens randomly, with no pattern that I
  * can detect. M-systems suggest always check this on any block level
  * operation and setting to normal mode if in reset mode.

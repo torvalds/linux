@@ -120,7 +120,7 @@ struct fid {
  * encode_fh:
  *    @encode_fh should store in the file handle fragment @fh (using at most
  *    @max_len bytes) information that can be used by @decode_fh to recover the
- *    file refered to by the &struct dentry @de.  If the @connectable flag is
+ *    file referred to by the &struct dentry @de.  If the @connectable flag is
  *    set, the encode_fh() should store sufficient information so that a good
  *    attempt can be made to find not only the file but also it's place in the
  *    filesystem.   This typically means storing a reference to de->d_parent in

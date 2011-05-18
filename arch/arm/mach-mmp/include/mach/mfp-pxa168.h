@@ -8,6 +8,15 @@
 #define MFP_DRIVE_MEDIUM	(0x2 << 13)
 #define MFP_DRIVE_FAST		(0x3 << 13)
 
+#undef MFP_CFG
+#undef MFP_CFG_DRV
+
+#define MFP_CFG(pin, af)		\
+	(MFP_LPM_INPUT | MFP_PIN(MFP_PIN_##pin) | MFP_##af | MFP_DRIVE_MEDIUM)
+
+#define MFP_CFG_DRV(pin, af, drv)	\
+	(MFP_LPM_INPUT | MFP_PIN(MFP_PIN_##pin) | MFP_##af | MFP_DRIVE_##drv)
+
 /* GPIO */
 #define GPIO0_GPIO		MFP_CFG(GPIO0, AF5)
 #define GPIO1_GPIO		MFP_CFG(GPIO1, AF5)

@@ -142,7 +142,7 @@ static void __init pleb_map_io(void)
 
 	GPDR &= ~GPIO_ETH0_IRQ;
 
-	set_irq_type(GPIO_ETH0_IRQ, IRQ_TYPE_EDGE_FALLING);
+	irq_set_irq_type(GPIO_ETH0_IRQ, IRQ_TYPE_EDGE_FALLING);
 }
 
 MACHINE_START(PLEB, "PLEB")

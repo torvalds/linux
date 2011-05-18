@@ -162,7 +162,7 @@ static inline struct page *mem_map_offset(struct page *base, int offset)
 }
 
 /*
- * Iterator over all subpages withing the maximally aligned gigantic
+ * Iterator over all subpages within the maximally aligned gigantic
  * page 'base'.  Handle any discontiguity in the mem_map.
  */
 static inline struct page *mem_map_next(struct page *iter,

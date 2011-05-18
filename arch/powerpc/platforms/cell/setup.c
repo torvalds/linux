@@ -187,8 +187,8 @@ machine_subsys_initcall(cell, cell_publish_devices);
 
 static void cell_mpic_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
-	struct mpic *mpic = get_irq_desc_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct mpic *mpic = irq_desc_get_handler_data(desc);
 	unsigned int virq;
 
 	virq = mpic_get_one_irq(mpic);
@@ -223,8 +223,8 @@ static void __init mpic_init_IRQ(void)
 
 		printk(KERN_INFO "%s : hooking up to IRQ %d\n",
 		       dn->full_name, virq);
-		set_irq_data(virq, mpic);
-		set_irq_chained_handler(virq, cell_mpic_cascade);
+		irq_set_handler_data(virq, mpic);
+		irq_set_chained_handler(virq, cell_mpic_cascade);
 	}
 }
 

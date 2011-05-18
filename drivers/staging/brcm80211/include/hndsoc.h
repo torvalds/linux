@@ -181,7 +181,7 @@
  * conventions for the use the flash space:
  */
 
-/* Minumum amount of flash we support */
+/* Minimum amount of flash we support */
 #define FLASH_MIN		0x00020000	/* Minimum flash size */
 
 /* A boot/binary may have an embedded block that describes its size  */

@@ -13,7 +13,7 @@
 
 /*
  * A driver for the Freescale Semiconductor i.MXC CPUfreq module.
- * The CPUFREQ driver is for controling CPU frequency. It allows you to change
+ * The CPUFREQ driver is for controlling CPU frequency. It allows you to change
  * the CPU clock speed on the fly.
  */
 

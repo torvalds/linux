@@ -865,7 +865,12 @@ static unsigned int sh_dmae_reset(struct sh_dmae_device *shdev)
 
 static irqreturn_t sh_dmae_err(int irq, void *data)
 {
-	return IRQ_RETVAL(sh_dmae_reset(data));
+	struct sh_dmae_device *shdev = data;
+
+	if (dmaor_read(shdev) & DMAOR_AE)
+		return IRQ_RETVAL(sh_dmae_reset(data));
+	else
+		return IRQ_NONE;
 }
 
 static void dmae_do_tasklet(unsigned long data)

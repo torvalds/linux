@@ -109,7 +109,7 @@ void cpu_idle(void)
 	}
 }
 
-struct thread_info *alloc_thread_info(struct task_struct *task)
+struct thread_info *alloc_thread_info_node(struct task_struct *task, int node)
 {
 	struct page *page;
 	gfp_t flags = GFP_KERNEL;
@@ -118,7 +118,7 @@ struct thread_info *alloc_thread_info(struct task_struct *task)
 	flags |= __GFP_ZERO;
 #endif
 
-	page = alloc_pages(flags, THREAD_SIZE_ORDER);
+	page = alloc_pages_node(node, flags, THREAD_SIZE_ORDER);
 	if (!page)
 		return NULL;
 

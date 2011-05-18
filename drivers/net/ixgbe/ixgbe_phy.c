@@ -1694,7 +1694,7 @@ static void ixgbe_i2c_bus_clear(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_tn_check_overtemp - Checks if an overtemp occured.
+ *  ixgbe_tn_check_overtemp - Checks if an overtemp occurred.
  *  @hw: pointer to hardware structure
  *
  *  Checks if the LASI temp alarm status was triggered due to overtemp

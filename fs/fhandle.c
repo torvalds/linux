@@ -7,6 +7,7 @@
 #include <linux/exportfs.h>
 #include <linux/fs_struct.h>
 #include <linux/fsnotify.h>
+#include <linux/personality.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 

@@ -44,7 +44,6 @@
 #include <plat/keypad.h>
 #include <plat/pm.h>
 #include <plat/fb.h>
-#include <plat/gpio-cfg.h>
 #include <plat/s5p-time.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */

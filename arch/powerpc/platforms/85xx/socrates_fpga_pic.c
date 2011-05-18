@@ -93,7 +93,7 @@ static inline unsigned int socrates_fpga_pic_get_irq(unsigned int irq)
 
 void socrates_fpga_pic_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq;
 
 	/*
@@ -245,9 +245,9 @@ static int socrates_fpga_pic_host_map(struct irq_host *h, unsigned int virq,
 		irq_hw_number_t hwirq)
 {
 	/* All interrupts are LEVEL sensitive */
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &socrates_fpga_pic_chip,
-			handle_fasteoi_irq);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &socrates_fpga_pic_chip,
+				 handle_fasteoi_irq);
 
 	return 0;
 }
@@ -308,8 +308,8 @@ void socrates_fpga_pic_init(struct device_node *pic)
 			pr_warning("FPGA PIC: can't get irq%d.\n", i);
 			continue;
 		}
-		set_irq_chained_handler(socrates_fpga_irqs[i],
-				socrates_fpga_pic_cascade);
+		irq_set_chained_handler(socrates_fpga_irqs[i],
+					socrates_fpga_pic_cascade);
 	}
 
 	socrates_fpga_pic_iobase = of_iomap(pic, 0);

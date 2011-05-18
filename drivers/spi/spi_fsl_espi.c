@@ -474,7 +474,7 @@ static int fsl_espi_setup(struct spi_device *spi)
 	mpc8xxx_spi = spi_master_get_devdata(spi->master);
 	reg_base = mpc8xxx_spi->reg_base;
 
-	hw_mode = cs->hw_mode; /* Save orginal settings */
+	hw_mode = cs->hw_mode; /* Save original settings */
 	cs->hw_mode = mpc8xxx_spi_read_reg(
 			&reg_base->csmode[spi->chip_select]);
 	/* mask out bits we are going to set */

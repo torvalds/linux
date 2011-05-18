@@ -65,7 +65,6 @@ void check_irq_resend(struct irq_desc *desc, unsigned int irq)
 	if (desc->istate & IRQS_REPLAY)
 		return;
 	if (desc->istate & IRQS_PENDING) {
-		irq_compat_clr_pending(desc);
 		desc->istate &= ~IRQS_PENDING;
 		desc->istate |= IRQS_REPLAY;
 

@@ -466,13 +466,13 @@ static struct machine_desc * __init setup_machine(unsigned int nr)
 		/* can't use cpu_relax() here as it may require MMU setup */;
 }
 
-static int __init arm_add_memory(unsigned long start, unsigned long size)
+static int __init arm_add_memory(phys_addr_t start, unsigned long size)
 {
 	struct membank *bank = &meminfo.bank[meminfo.nr_banks];
 
 	if (meminfo.nr_banks >= NR_BANKS) {
 		printk(KERN_CRIT "NR_BANKS too low, "
-			"ignoring memory at %#lx\n", start);
+			"ignoring memory at 0x%08llx\n", (long long)start);
 		return -EINVAL;
 	}
 
@@ -502,7 +502,8 @@ static int __init arm_add_memory(unsigned long start, unsigned long size)
 static int __init early_mem(char *p)
 {
 	static int usermem __initdata = 0;
-	unsigned long size, start;
+	unsigned long size;
+	phys_addr_t start;
 	char *endp;
 
 	/*
@@ -787,30 +788,6 @@ static void __init reserve_crashkernel(void)
 #else
 static inline void reserve_crashkernel(void) {}
 #endif /* CONFIG_KEXEC */
-
-/*
- * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by
- * is_kdump_kernel() to determine if we are booting after a panic. Hence
- * ifdef it under CONFIG_CRASH_DUMP and not CONFIG_PROC_VMCORE.
- */
-
-#ifdef CONFIG_CRASH_DUMP
-/*
- * elfcorehdr= specifies the location of elf core header stored by the crashed
- * kernel. This option will be passed by kexec loader to the capture kernel.
- */
-static int __init setup_elfcorehdr(char *arg)
-{
-	char *end;
-
-	if (!arg)
-		return -EINVAL;
-
-	elfcorehdr_addr = memparse(arg, &end);
-	return end > arg ? 0 : -EINVAL;
-}
-early_param("elfcorehdr", setup_elfcorehdr);
-#endif /* CONFIG_CRASH_DUMP */
 
 static void __init squash_mem_tags(struct tag *tag)
 {

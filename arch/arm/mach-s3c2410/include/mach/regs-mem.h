@@ -101,7 +101,7 @@
 #define S3C2410_BANKCON_PMC16		(0x03)
 
 /* bank configurations for banks 0..7, note banks
- * 6 and 7 have differnt configurations depending on
+ * 6 and 7 have different configurations depending on
  * the memory type bits */
 
 #define S3C2410_BANKCON_Tacp2		(0x0 << 2)

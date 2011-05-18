@@ -7,6 +7,7 @@
 #include <linux/shm.h>
 #include <linux/sched.h>
 #include <linux/io.h>
+#include <linux/personality.h>
 #include <linux/random.h>
 #include <asm/cputype.h>
 #include <asm/system.h>
@@ -82,7 +83,8 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	        mm->cached_hole_size = 0;
 	}
 	/* 8 bits of randomness in 20 address space bits */
-	if (current->flags & PF_RANDOMIZE)
+	if ((current->flags & PF_RANDOMIZE) &&
+	    !(current->personality & ADDR_NO_RANDOMIZE))
 		addr += (get_random_int() % (1 << 8)) << PAGE_SHIFT;
 
 full_search:

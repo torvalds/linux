@@ -92,11 +92,11 @@ struct tegra_dma_req {
 	/*  This is a called from the DMA ISR context when the DMA is still in
 	 *  progress and is actively filling same buffer.
 	 *
-	 *  In case of continous mode receive, this threshold is 1/2 the buffer
+	 *  In case of continuous mode receive, this threshold is 1/2 the buffer
 	 *  size. In other cases, this will not even be called as there is no
 	 *  hardware support for it.
 	 *
-	 * In the case of continous mode receive, if there is next req already
+	 * In the case of continuous mode receive, if there is next req already
 	 * queued, DMA programs the HW to use that req when this req is
 	 * completed. If there is no "next req" queued, then DMA ISR doesn't do
 	 * anything before calling this callback.

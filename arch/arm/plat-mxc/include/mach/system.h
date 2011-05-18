@@ -20,6 +20,8 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 
+extern void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode);
+
 static inline void arch_idle(void)
 {
 #ifdef CONFIG_ARCH_MXC91231
@@ -54,7 +56,9 @@ static inline void arch_idle(void)
 			"orr %0, %0, #0x00000004\n"
 			"mcr p15, 0, %0, c1, c0, 0\n"
 			: "=r" (reg));
-	} else
+	} else if (cpu_is_mx51())
+		mx5_cpu_lp_set(WAIT_UNCLOCKED_POWER_OFF);
+	else
 		cpu_do_idle();
 }
 

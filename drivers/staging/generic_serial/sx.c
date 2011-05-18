@@ -158,13 +158,13 @@
  * Readying for release on 2.0.x (sorry David, 1.01 becomes 1.1 for RCS). 
  *
  * Revision 0.12  1999/03/28 09:20:10  wolff
- * Fixed problem in 0.11, continueing cleanup.
+ * Fixed problem in 0.11, continuing cleanup.
  *
  * Revision 0.11  1999/03/28 08:46:44  wolff
  * cleanup. Not good.
  *
  * Revision 0.10  1999/03/28 08:09:43  wolff
- * Fixed loosing characters on close.
+ * Fixed losing characters on close.
  *
  * Revision 0.9  1999/03/21 22:52:01  wolff
  * Ported back to 2.2.... (minor things)
@@ -1588,7 +1588,7 @@ static void sx_close(void *ptr)
 #define R0		if (read_sx_byte(board, i) != 0x55) return 1
 #define R1		if (read_sx_byte(board, i) != 0xaa) return 1
 
-/* This memtest takes a human-noticable time. You normally only do it
+/* This memtest takes a human-noticeable time. You normally only do it
    once a boot, so I guess that it is worth it. */
 static int do_memtest(struct sx_board *board, int min, int max)
 {
@@ -1645,7 +1645,7 @@ static int do_memtest(struct sx_board *board, int min, int max)
 #define R1		if (read_sx_word(board, i) != 0xaa55) return 1
 
 #if 0
-/* This memtest takes a human-noticable time. You normally only do it
+/* This memtest takes a human-noticeable time. You normally only do it
    once a boot, so I guess that it is worth it. */
 static int do_memtest_w(struct sx_board *board, int min, int max)
 {

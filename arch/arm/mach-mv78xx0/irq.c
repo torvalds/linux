@@ -38,8 +38,8 @@ void __init mv78xx0_init_irq(void)
 	orion_gpio_init(0, 32, GPIO_VIRT_BASE,
 			mv78xx0_core_index() ? 0x18 : 0,
 			IRQ_MV78XX0_GPIO_START);
-	set_irq_chained_handler(IRQ_MV78XX0_GPIO_0_7, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_MV78XX0_GPIO_8_15, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_MV78XX0_GPIO_16_23, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_MV78XX0_GPIO_24_31, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_MV78XX0_GPIO_0_7, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_MV78XX0_GPIO_8_15, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_MV78XX0_GPIO_16_23, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_MV78XX0_GPIO_24_31, gpio_irq_handler);
 }

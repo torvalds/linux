@@ -127,12 +127,9 @@ const char *get_system_type(void)
 void __init board_setup(void)
 {
 	unsigned long bcsr1, bcsr2;
-	u32 pin_func;
 
 	bcsr1 = DB1000_BCSR_PHYS_ADDR;
 	bcsr2 = DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS;
-
-	pin_func = 0;
 
 #ifdef CONFIG_MIPS_DB1000
 	printk(KERN_INFO "AMD Alchemy Au1000/Db1000 Board\n");
@@ -164,12 +161,16 @@ void __init board_setup(void)
 	/* Not valid for Au1550 */
 #if defined(CONFIG_IRDA) && \
    (defined(CONFIG_SOC_AU1000) || defined(CONFIG_SOC_AU1100))
-	/* Set IRFIRSEL instead of GPIO15 */
-	pin_func = au_readl(SYS_PINFUNC) | SYS_PF_IRF;
-	au_writel(pin_func, SYS_PINFUNC);
-	/* Power off until the driver is in use */
-	bcsr_mod(BCSR_RESETS, BCSR_RESETS_IRDA_MODE_MASK,
-				BCSR_RESETS_IRDA_MODE_OFF);
+	{
+		u32 pin_func;
+
+		/* Set IRFIRSEL instead of GPIO15 */
+		pin_func = au_readl(SYS_PINFUNC) | SYS_PF_IRF;
+		au_writel(pin_func, SYS_PINFUNC);
+		/* Power off until the driver is in use */
+		bcsr_mod(BCSR_RESETS, BCSR_RESETS_IRDA_MODE_MASK,
+			 BCSR_RESETS_IRDA_MODE_OFF);
+	}
 #endif
 	bcsr_write(BCSR_PCMCIA, 0);	/* turn off PCMCIA power */
 
@@ -177,31 +178,35 @@ void __init board_setup(void)
 	alchemy_gpio1_input_enable();
 
 #ifdef CONFIG_MIPS_MIRAGE
-	/* GPIO[20] is output */
-	alchemy_gpio_direction_output(20, 0);
+	{
+		u32 pin_func;
 
-	/* Set GPIO[210:208] instead of SSI_0 */
-	pin_func = au_readl(SYS_PINFUNC) | SYS_PF_S0;
+		/* GPIO[20] is output */
+		alchemy_gpio_direction_output(20, 0);
 
-	/* Set GPIO[215:211] for LEDs */
-	pin_func |= 5 << 2;
+		/* Set GPIO[210:208] instead of SSI_0 */
+		pin_func = au_readl(SYS_PINFUNC) | SYS_PF_S0;
 
-	/* Set GPIO[214:213] for more LEDs */
-	pin_func |= 5 << 12;
+		/* Set GPIO[215:211] for LEDs */
+		pin_func |= 5 << 2;
 
-	/* Set GPIO[207:200] instead of PCMCIA/LCD */
-	pin_func |= SYS_PF_LCD | SYS_PF_PC;
-	au_writel(pin_func, SYS_PINFUNC);
+		/* Set GPIO[214:213] for more LEDs */
+		pin_func |= 5 << 12;
 
-	/*
-	 * Enable speaker amplifier.  This should
-	 * be part of the audio driver.
-	 */
-	alchemy_gpio_direction_output(209, 1);
+		/* Set GPIO[207:200] instead of PCMCIA/LCD */
+		pin_func |= SYS_PF_LCD | SYS_PF_PC;
+		au_writel(pin_func, SYS_PINFUNC);
 
-	pm_power_off = mirage_power_off;
-	_machine_halt = mirage_power_off;
-	_machine_restart = (void(*)(char *))mips_softreset;
+		/*
+		 * Enable speaker amplifier.  This should
+		 * be part of the audio driver.
+		 */
+		alchemy_gpio_direction_output(209, 1);
+
+		pm_power_off = mirage_power_off;
+		_machine_halt = mirage_power_off;
+		_machine_restart = (void(*)(char *))mips_softreset;
+	}
 #endif
 
 #ifdef CONFIG_MIPS_BOSPORUS
@@ -215,35 +220,35 @@ void __init board_setup(void)
 static int __init db1x00_init_irq(void)
 {
 #if defined(CONFIG_MIPS_MIRAGE)
-	set_irq_type(AU1500_GPIO7_INT, IRQF_TRIGGER_RISING); /* TS pendown */
+	irq_set_irq_type(AU1500_GPIO7_INT, IRQF_TRIGGER_RISING); /* TS pendown */
 #elif defined(CONFIG_MIPS_DB1550)
-	set_irq_type(AU1550_GPIO0_INT, IRQF_TRIGGER_LOW);  /* CD0# */
-	set_irq_type(AU1550_GPIO1_INT, IRQF_TRIGGER_LOW);  /* CD1# */
-	set_irq_type(AU1550_GPIO3_INT, IRQF_TRIGGER_LOW);  /* CARD0# */
-	set_irq_type(AU1550_GPIO5_INT, IRQF_TRIGGER_LOW);  /* CARD1# */
-	set_irq_type(AU1550_GPIO21_INT, IRQF_TRIGGER_LOW); /* STSCHG0# */
-	set_irq_type(AU1550_GPIO22_INT, IRQF_TRIGGER_LOW); /* STSCHG1# */
+	irq_set_irq_type(AU1550_GPIO0_INT, IRQF_TRIGGER_LOW);  /* CD0# */
+	irq_set_irq_type(AU1550_GPIO1_INT, IRQF_TRIGGER_LOW);  /* CD1# */
+	irq_set_irq_type(AU1550_GPIO3_INT, IRQF_TRIGGER_LOW);  /* CARD0# */
+	irq_set_irq_type(AU1550_GPIO5_INT, IRQF_TRIGGER_LOW);  /* CARD1# */
+	irq_set_irq_type(AU1550_GPIO21_INT, IRQF_TRIGGER_LOW); /* STSCHG0# */
+	irq_set_irq_type(AU1550_GPIO22_INT, IRQF_TRIGGER_LOW); /* STSCHG1# */
 #elif defined(CONFIG_MIPS_DB1500)
-	set_irq_type(AU1500_GPIO0_INT, IRQF_TRIGGER_LOW); /* CD0# */
-	set_irq_type(AU1500_GPIO3_INT, IRQF_TRIGGER_LOW); /* CD1# */
-	set_irq_type(AU1500_GPIO2_INT, IRQF_TRIGGER_LOW); /* CARD0# */
-	set_irq_type(AU1500_GPIO5_INT, IRQF_TRIGGER_LOW); /* CARD1# */
-	set_irq_type(AU1500_GPIO1_INT, IRQF_TRIGGER_LOW); /* STSCHG0# */
-	set_irq_type(AU1500_GPIO4_INT, IRQF_TRIGGER_LOW); /* STSCHG1# */
+	irq_set_irq_type(AU1500_GPIO0_INT, IRQF_TRIGGER_LOW); /* CD0# */
+	irq_set_irq_type(AU1500_GPIO3_INT, IRQF_TRIGGER_LOW); /* CD1# */
+	irq_set_irq_type(AU1500_GPIO2_INT, IRQF_TRIGGER_LOW); /* CARD0# */
+	irq_set_irq_type(AU1500_GPIO5_INT, IRQF_TRIGGER_LOW); /* CARD1# */
+	irq_set_irq_type(AU1500_GPIO1_INT, IRQF_TRIGGER_LOW); /* STSCHG0# */
+	irq_set_irq_type(AU1500_GPIO4_INT, IRQF_TRIGGER_LOW); /* STSCHG1# */
 #elif defined(CONFIG_MIPS_DB1100)
-	set_irq_type(AU1100_GPIO0_INT, IRQF_TRIGGER_LOW); /* CD0# */
-	set_irq_type(AU1100_GPIO3_INT, IRQF_TRIGGER_LOW); /* CD1# */
-	set_irq_type(AU1100_GPIO2_INT, IRQF_TRIGGER_LOW); /* CARD0# */
-	set_irq_type(AU1100_GPIO5_INT, IRQF_TRIGGER_LOW); /* CARD1# */
-	set_irq_type(AU1100_GPIO1_INT, IRQF_TRIGGER_LOW); /* STSCHG0# */
-	set_irq_type(AU1100_GPIO4_INT, IRQF_TRIGGER_LOW); /* STSCHG1# */
+	irq_set_irq_type(AU1100_GPIO0_INT, IRQF_TRIGGER_LOW); /* CD0# */
+	irq_set_irq_type(AU1100_GPIO3_INT, IRQF_TRIGGER_LOW); /* CD1# */
+	irq_set_irq_type(AU1100_GPIO2_INT, IRQF_TRIGGER_LOW); /* CARD0# */
+	irq_set_irq_type(AU1100_GPIO5_INT, IRQF_TRIGGER_LOW); /* CARD1# */
+	irq_set_irq_type(AU1100_GPIO1_INT, IRQF_TRIGGER_LOW); /* STSCHG0# */
+	irq_set_irq_type(AU1100_GPIO4_INT, IRQF_TRIGGER_LOW); /* STSCHG1# */
 #elif defined(CONFIG_MIPS_DB1000)
-	set_irq_type(AU1000_GPIO0_INT, IRQF_TRIGGER_LOW); /* CD0# */
-	set_irq_type(AU1000_GPIO3_INT, IRQF_TRIGGER_LOW); /* CD1# */
-	set_irq_type(AU1000_GPIO2_INT, IRQF_TRIGGER_LOW); /* CARD0# */
-	set_irq_type(AU1000_GPIO5_INT, IRQF_TRIGGER_LOW); /* CARD1# */
-	set_irq_type(AU1000_GPIO1_INT, IRQF_TRIGGER_LOW); /* STSCHG0# */
-	set_irq_type(AU1000_GPIO4_INT, IRQF_TRIGGER_LOW); /* STSCHG1# */
+	irq_set_irq_type(AU1000_GPIO0_INT, IRQF_TRIGGER_LOW); /* CD0# */
+	irq_set_irq_type(AU1000_GPIO3_INT, IRQF_TRIGGER_LOW); /* CD1# */
+	irq_set_irq_type(AU1000_GPIO2_INT, IRQF_TRIGGER_LOW); /* CARD0# */
+	irq_set_irq_type(AU1000_GPIO5_INT, IRQF_TRIGGER_LOW); /* CARD1# */
+	irq_set_irq_type(AU1000_GPIO1_INT, IRQF_TRIGGER_LOW); /* STSCHG0# */
+	irq_set_irq_type(AU1000_GPIO4_INT, IRQF_TRIGGER_LOW); /* STSCHG1# */
 #endif
 	return 0;
 }

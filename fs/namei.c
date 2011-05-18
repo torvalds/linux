@@ -70,7 +70,7 @@
  * name indicated by the symlink. The old code always complained that the
  * name already exists, due to not following the symlink even if its target
  * is nonexistent.  The new semantics affects also mknod() and link() when
- * the name is a symlink pointing to a non-existant name.
+ * the name is a symlink pointing to a non-existent name.
  *
  * I don't know which semantics is the right one, since I have no access
  * to standards. But I found by trial that HP-UX 9.0 has the full "new"
@@ -179,9 +179,12 @@ EXPORT_SYMBOL(putname);
 static int acl_permission_check(struct inode *inode, int mask, unsigned int flags,
 		int (*check_acl)(struct inode *inode, int mask, unsigned int flags))
 {
-	umode_t			mode = inode->i_mode;
+	unsigned int mode = inode->i_mode;
 
 	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
+
+	if (current_user_ns() != inode_userns(inode))
+		goto other_perms;
 
 	if (current_fsuid() == inode->i_uid)
 		mode >>= 6;
@@ -196,6 +199,7 @@ static int acl_permission_check(struct inode *inode, int mask, unsigned int flag
 			mode >>= 3;
 	}
 
+other_perms:
 	/*
 	 * If the DACs are ok we don't need any capability check.
 	 */
@@ -237,7 +241,7 @@ int generic_permission(struct inode *inode, int mask, unsigned int flags,
 	 * Executable DACs are overridable if at least one exec bit is set.
 	 */
 	if (!(mask & MAY_EXEC) || execute_ok(inode))
-		if (capable(CAP_DAC_OVERRIDE))
+		if (ns_capable(inode_userns(inode), CAP_DAC_OVERRIDE))
 			return 0;
 
 	/*
@@ -245,7 +249,7 @@ int generic_permission(struct inode *inode, int mask, unsigned int flags,
 	 */
 	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
 	if (mask == MAY_READ || (S_ISDIR(inode->i_mode) && !(mask & MAY_WRITE)))
-		if (capable(CAP_DAC_READ_SEARCH))
+		if (ns_capable(inode_userns(inode), CAP_DAC_READ_SEARCH))
 			return 0;
 
 	return -EACCES;
@@ -654,6 +658,7 @@ static inline int handle_reval_path(struct nameidata *nd)
 static inline int exec_permission(struct inode *inode, unsigned int flags)
 {
 	int ret;
+	struct user_namespace *ns = inode_userns(inode);
 
 	if (inode->i_op->permission) {
 		ret = inode->i_op->permission(inode, MAY_EXEC, flags);
@@ -666,7 +671,8 @@ static inline int exec_permission(struct inode *inode, unsigned int flags)
 	if (ret == -ECHILD)
 		return ret;
 
-	if (capable(CAP_DAC_OVERRIDE) || capable(CAP_DAC_READ_SEARCH))
+	if (ns_capable(ns, CAP_DAC_OVERRIDE) ||
+			ns_capable(ns, CAP_DAC_READ_SEARCH))
 		goto ok;
 
 	return ret;
@@ -691,6 +697,7 @@ static __always_inline void set_root_rcu(struct nameidata *nd)
 		do {
 			seq = read_seqcount_begin(&fs->seq);
 			nd->root = fs->root;
+			nd->seq = __read_seqcount_begin(&nd->root.dentry->d_seq);
 		} while (read_seqcount_retry(&fs->seq, seq));
 	}
 }
@@ -986,6 +993,12 @@ int follow_down_one(struct path *path)
 	return 0;
 }
 
+static inline bool managed_dentry_might_block(struct dentry *dentry)
+{
+	return (dentry->d_flags & DCACHE_MANAGE_TRANSIT &&
+		dentry->d_op->d_manage(dentry, true) < 0);
+}
+
 /*
  * Skip to top of mountpoint pile in rcuwalk mode.  We abort the rcu-walk if we
  * meet a managed dentry and we're not walking to "..".  True is returned to
@@ -994,19 +1007,26 @@ int follow_down_one(struct path *path)
 static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 			       struct inode **inode, bool reverse_transit)
 {
-	while (d_mountpoint(path->dentry)) {
+	for (;;) {
 		struct vfsmount *mounted;
-		if (unlikely(path->dentry->d_flags & DCACHE_MANAGE_TRANSIT) &&
-		    !reverse_transit &&
-		    path->dentry->d_op->d_manage(path->dentry, true) < 0)
+		/*
+		 * Don't forget we might have a non-mountpoint managed dentry
+		 * that wants to block transit.
+		 */
+		*inode = path->dentry->d_inode;
+		if (!reverse_transit &&
+		     unlikely(managed_dentry_might_block(path->dentry)))
 			return false;
+
+		if (!d_mountpoint(path->dentry))
+			break;
+
 		mounted = __lookup_mnt(path->mnt, path->dentry, 1);
 		if (!mounted)
 			break;
 		path->mnt = mounted;
 		path->dentry = mounted->mnt_root;
 		nd->seq = read_seqcount_begin(&path->dentry->d_seq);
-		*inode = path->dentry->d_inode;
 	}
 
 	if (unlikely(path->dentry->d_flags & DCACHE_NEED_AUTOMOUNT))
@@ -1644,13 +1664,16 @@ static int path_lookupat(int dfd, const char *name,
 			err = -ECHILD;
 	}
 
-	if (!err)
+	if (!err) {
 		err = handle_reval_path(nd);
+		if (err)
+			path_put(&nd->path);
+	}
 
 	if (!err && nd->flags & LOOKUP_DIRECTORY) {
 		if (!nd->inode->i_op->lookup) {
 			path_put(&nd->path);
-			return -ENOTDIR;
+			err = -ENOTDIR;
 		}
 	}
 
@@ -1842,11 +1865,15 @@ static inline int check_sticky(struct inode *dir, struct inode *inode)
 
 	if (!(dir->i_mode & S_ISVTX))
 		return 0;
+	if (current_user_ns() != inode_userns(inode))
+		goto other_userns;
 	if (inode->i_uid == fsuid)
 		return 0;
 	if (dir->i_uid == fsuid)
 		return 0;
-	return !capable(CAP_FOWNER);
+
+other_userns:
+	return !ns_capable(inode_userns(inode), CAP_FOWNER);
 }
 
 /*
@@ -2026,7 +2053,7 @@ static int may_open(struct path *path, int acc_mode, int flag)
 	}
 
 	/* O_NOATIME can only be set by the owner or superuser */
-	if (flag & O_NOATIME && !is_owner_or_cap(inode))
+	if (flag & O_NOATIME && !inode_owner_or_capable(inode))
 		return -EPERM;
 
 	/*
@@ -2440,7 +2467,8 @@ int vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 	if (error)
 		return error;
 
-	if ((S_ISCHR(mode) || S_ISBLK(mode)) && !capable(CAP_MKNOD))
+	if ((S_ISCHR(mode) || S_ISBLK(mode)) &&
+	    !ns_capable(inode_userns(dir), CAP_MKNOD))
 		return -EPERM;
 
 	if (!dir->i_op->mknod)

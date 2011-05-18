@@ -23,6 +23,8 @@
 #include <linux/io.h>
 #include <linux/pci.h>
 #include <linux/kdebug.h>
+#include <linux/delay.h>
+#include <linux/crash_dump.h>
 
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
@@ -34,6 +36,7 @@
 #include <asm/ipi.h>
 #include <asm/smp.h>
 #include <asm/x86_init.h>
+#include <asm/emergency-restart.h>
 
 DEFINE_PER_CPU(int, x2apic_extra_bits);
 
@@ -810,4 +813,11 @@ void __init uv_system_init(void)
 
 	/* register Legacy VGA I/O redirection handler */
 	pci_register_set_vga_state(uv_set_vga_state);
+
+	/*
+	 * For a kdump kernel the reset must be BOOT_ACPI, not BOOT_EFI, as
+	 * EFI is not enabled in the kdump kernel.
+	 */
+	if (is_kdump_kernel())
+		reboot_type = BOOT_ACPI;
 }

@@ -97,11 +97,11 @@ static int __init sfi_parse_mtmr(struct sfi_table_header *table)
 			pentry->freq_hz, pentry->irq);
 			if (!pentry->irq)
 				continue;
-			mp_irq.type = MP_IOAPIC;
+			mp_irq.type = MP_INTSRC;
 			mp_irq.irqtype = mp_INT;
 /* triggering mode edge bit 2-3, active high polarity bit 0-1 */
 			mp_irq.irqflag = 5;
-			mp_irq.srcbus = 0;
+			mp_irq.srcbus = MP_BUS_ISA;
 			mp_irq.srcbusirq = pentry->irq;	/* IRQ */
 			mp_irq.dstapic = MP_APIC_ALL;
 			mp_irq.dstirq = pentry->irq;
@@ -168,10 +168,10 @@ int __init sfi_parse_mrtc(struct sfi_table_header *table)
 	for (totallen = 0; totallen < sfi_mrtc_num; totallen++, pentry++) {
 		pr_debug("RTC[%d]: paddr = 0x%08x, irq = %d\n",
 			totallen, (u32)pentry->phys_addr, pentry->irq);
-		mp_irq.type = MP_IOAPIC;
+		mp_irq.type = MP_INTSRC;
 		mp_irq.irqtype = mp_INT;
 		mp_irq.irqflag = 0xf;	/* level trigger and active low */
-		mp_irq.srcbus = 0;
+		mp_irq.srcbus = MP_BUS_ISA;
 		mp_irq.srcbusirq = pentry->irq;	/* IRQ */
 		mp_irq.dstapic = MP_APIC_ALL;
 		mp_irq.dstirq = pentry->irq;
@@ -282,7 +282,7 @@ void __init x86_mrst_early_setup(void)
 	/* Avoid searching for BIOS MP tables */
 	x86_init.mpparse.find_smp_config = x86_init_noop;
 	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
-
+	set_bit(MP_BUS_ISA, mp_bus_not_pci);
 }
 
 /*

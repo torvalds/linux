@@ -500,12 +500,17 @@ static bool check_hw_exists(void)
 	return true;
 
 bios_fail:
-	printk(KERN_CONT "Broken BIOS detected, using software events only.\n");
+	/*
+	 * We still allow the PMU driver to operate:
+	 */
+	printk(KERN_CONT "Broken BIOS detected, complain to your hardware vendor.\n");
 	printk(KERN_ERR FW_BUG "the BIOS has corrupted hw-PMU resources (MSR %x is %Lx)\n", reg, val);
-	return false;
+
+	return true;
 
 msr_fail:
 	printk(KERN_CONT "Broken PMU hardware detected, using software events only.\n");
+
 	return false;
 }
 
@@ -581,8 +586,12 @@ static int x86_setup_perfctr(struct perf_event *event)
 			return -EOPNOTSUPP;
 	}
 
+	/*
+	 * Do not allow config1 (extended registers) to propagate,
+	 * there's no sane user-space generalization yet:
+	 */
 	if (attr->type == PERF_TYPE_RAW)
-		return x86_pmu_extra_regs(event->attr.config, event);
+		return 0;
 
 	if (attr->type == PERF_TYPE_HW_CACHE)
 		return set_ext_hw_attr(hwc, event);
@@ -604,8 +613,8 @@ static int x86_setup_perfctr(struct perf_event *event)
 	/*
 	 * Branch tracing:
 	 */
-	if ((attr->config == PERF_COUNT_HW_BRANCH_INSTRUCTIONS) &&
-	    (hwc->sample_period == 1)) {
+	if (attr->config == PERF_COUNT_HW_BRANCH_INSTRUCTIONS &&
+	    !attr->freq && hwc->sample_period == 1) {
 		/* BTS is not supported by this architecture. */
 		if (!x86_pmu.bts_active)
 			return -EOPNOTSUPP;
@@ -912,7 +921,7 @@ static inline void x86_assign_hw_event(struct perf_event *event,
 		hwc->event_base	= 0;
 	} else if (hwc->idx >= X86_PMC_IDX_FIXED) {
 		hwc->config_base = MSR_ARCH_PERFMON_FIXED_CTR_CTRL;
-		hwc->event_base = MSR_ARCH_PERFMON_FIXED_CTR0;
+		hwc->event_base = MSR_ARCH_PERFMON_FIXED_CTR0 + (hwc->idx - X86_PMC_IDX_FIXED);
 	} else {
 		hwc->config_base = x86_pmu_config_addr(hwc->idx);
 		hwc->event_base  = x86_pmu_event_addr(hwc->idx);
@@ -1279,6 +1288,16 @@ static int x86_pmu_handle_irq(struct pt_regs *regs)
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
+	/*
+	 * Some chipsets need to unmask the LVTPC in a particular spot
+	 * inside the nmi handler.  As a result, the unmasking was pushed
+	 * into all the nmi handlers.
+	 *
+	 * This generic handler doesn't seem to have any issues where the
+	 * unmasking occurs so it was left at the top.
+	 */
+	apic_write(APIC_LVTPC, APIC_DM_NMI);
+
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
 		if (!test_bit(idx, cpuc->active_mask)) {
 			/*
@@ -1364,8 +1383,6 @@ perf_event_nmi_handler(struct notifier_block *self,
 	default:
 		return NOTIFY_DONE;
 	}
-
-	apic_write(APIC_LVTPC, APIC_DM_NMI);
 
 	handled = x86_pmu.handle_irq(args->regs);
 	if (!handled)

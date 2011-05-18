@@ -509,7 +509,7 @@ static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
 		 * Last BIO is always sent through the following
 		 * submission.
 		 */
-		rw |= REQ_SYNC | REQ_UNPLUG;
+		rw |= REQ_SYNC;
 		res = nilfs_segbuf_submit_bio(segbuf, &wi, rw);
 	}
 

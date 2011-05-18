@@ -98,7 +98,7 @@ static const char * const dccp_state_names[] = {
 #define sIV	CT_DCCP_INVALID
 
 /*
- * DCCP state transistion table
+ * DCCP state transition table
  *
  * The assumption is the same as for TCP tracking:
  *

@@ -385,7 +385,7 @@ SavageSetup2DEngine(struct savagefb_par  *par)
 	BCI_SEND(GlobalBitmapDescriptor);
 
 	/*
-	 * I don't know why, sending this twice fixes the intial black screen,
+	 * I don't know why, sending this twice fixes the initial black screen,
 	 * prevents X from crashing at least in Toshiba laptops with SavageIX.
 	 * --Tony
 	 */
@@ -2211,7 +2211,7 @@ static int __devinit savagefb_probe(struct pci_dev* dev,
 		goto failed_mmio;
 
 	video_len = savage_init_hw(par);
-	/* FIXME: cant be negative */
+	/* FIXME: can't be negative */
 	if (video_len < 0) {
 		err = video_len;
 		goto failed_mmio;

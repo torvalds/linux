@@ -90,7 +90,7 @@ enum omap_ecc {
 		/* 1-bit ecc: stored at end of spare area */
 	OMAP_ECC_HAMMING_CODE_DEFAULT = 0, /* Default, s/w method */
 	OMAP_ECC_HAMMING_CODE_HW, /* gpmc to detect the error */
-		/* 1-bit ecc: stored at begining of spare area as romcode */
+		/* 1-bit ecc: stored at beginning of spare area as romcode */
 	OMAP_ECC_HAMMING_CODE_HW_ROMCODE, /* gpmc method & romcode layout */
 };
 

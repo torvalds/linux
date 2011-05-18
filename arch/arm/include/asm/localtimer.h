@@ -44,8 +44,14 @@ int local_timer_ack(void);
 /*
  * Setup a local timer interrupt for a CPU.
  */
-void local_timer_setup(struct clock_event_device *);
+int local_timer_setup(struct clock_event_device *);
 
+#else
+
+static inline int local_timer_setup(struct clock_event_device *evt)
+{
+	return -ENXIO;
+}
 #endif
 
 #endif

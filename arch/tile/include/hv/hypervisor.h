@@ -1340,7 +1340,7 @@ typedef struct
  *  this operation.  If any permanent delivery errors were encountered,
  *  the routine returns HV_ERECIP.  In the event of permanent delivery
  *  errors, it may be the case that delivery was not attempted to all
- *  recipients; if any messages were succesfully delivered, however,
+ *  recipients; if any messages were successfully delivered, however,
  *  recipients' state values will be updated appropriately.
  *
  *  It is explicitly legal to specify a recipient structure whose state
@@ -1359,7 +1359,7 @@ typedef struct
  *  never call hv_receive_message, or could register a different state
  *  buffer, losing the message.
  *
- *  Specifiying the same recipient more than once in the recipient list
+ *  Specifying the same recipient more than once in the recipient list
  *  is an error, which will not result in an error return but which may
  *  or may not result in more than one message being delivered to the
  *  recipient tile.

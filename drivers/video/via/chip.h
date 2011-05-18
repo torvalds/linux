@@ -139,7 +139,6 @@ struct chip_information {
 
 struct crt_setting_information {
 	int iga_path;
-	int refresh_rate;
 };
 
 struct tmds_setting_information {

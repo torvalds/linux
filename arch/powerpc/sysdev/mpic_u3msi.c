@@ -129,7 +129,7 @@ static void u3msi_teardown_msi_irqs(struct pci_dev *pdev)
 		if (entry->irq == NO_IRQ)
 			continue;
 
-		set_irq_msi(entry->irq, NULL);
+		irq_set_msi_desc(entry->irq, NULL);
 		msi_bitmap_free_hwirqs(&msi_mpic->msi_bitmap,
 				       virq_to_hw(entry->irq), 1);
 		irq_dispose_mapping(entry->irq);
@@ -166,9 +166,9 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			return -ENOSPC;
 		}
 
-		set_irq_msi(virq, entry);
-		set_irq_chip(virq, &mpic_u3msi_chip);
-		set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
+		irq_set_msi_desc(virq, entry);
+		irq_set_chip(virq, &mpic_u3msi_chip);
+		irq_set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
 
 		pr_debug("u3msi: allocated virq 0x%x (hw 0x%x) addr 0x%lx\n",
 			  virq, hwirq, (unsigned long)addr);

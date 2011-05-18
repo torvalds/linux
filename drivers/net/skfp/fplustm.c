@@ -340,7 +340,7 @@ static void mac_counter_init(struct s_smc *smc)
 	outpw(FM_A(FM_LCNTR),0) ;
 	outpw(FM_A(FM_ECNTR),0) ;
 	/*
-	 * clear internal error counter stucture
+	 * clear internal error counter structure
 	 */
 	ec = (u_long *)&smc->hw.fp.err_stats ;
 	for (i = (sizeof(struct err_st)/sizeof(long)) ; i ; i--)
@@ -1262,8 +1262,8 @@ Function	DOWNCALL/INTERN	(SMT, fplustm.c)
 
 Para	mode =	1	RX_ENABLE_ALLMULTI	enable all multicasts
 		2	RX_DISABLE_ALLMULTI	disable "enable all multicasts"
-		3	RX_ENABLE_PROMISC	enable promiscous
-		4	RX_DISABLE_PROMISC	disable promiscous
+		3	RX_ENABLE_PROMISC	enable promiscuous
+		4	RX_DISABLE_PROMISC	disable promiscuous
 		5	RX_ENABLE_NSA		enable reception of NSA frames
 		6	RX_DISABLE_NSA		disable reception of NSA frames
 

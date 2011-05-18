@@ -1301,6 +1301,7 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi* umidi,
 	case USB_ID(0x15ca, 0x0101): /* Textech USB Midi Cable */
 	case USB_ID(0x15ca, 0x1806): /* Textech USB Midi Cable */
 	case USB_ID(0x1a86, 0x752d): /* QinHeng CH345 "USB2.0-MIDI" */
+	case USB_ID(0xfc08, 0x0101): /* Unknown vendor Cable */
 		ep->max_transfer = 4;
 		break;
 		/*

@@ -1278,7 +1278,7 @@ bfad_setup_intr(struct bfad_s *bfad)
 			 * interrupts into one vector, so even if we
 			 * can try to request less vectors, we don't
 			 * know how to associate interrupt events to
-			 *  vectors. Linux doesn't dupicate vectors
+			 *  vectors. Linux doesn't duplicate vectors
 			 * in the MSIX table for this case.
 			 */
 

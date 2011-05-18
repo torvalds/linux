@@ -494,7 +494,7 @@ static int iic_xfer_bytes(struct ibm_iic_private* dev, struct i2c_msg* pm,
 		if (unlikely(ret < 0))
 			break;
 		else if (unlikely(ret != count)){
-			DBG("%d: xfer_bytes, requested %d, transfered %d\n",
+			DBG("%d: xfer_bytes, requested %d, transferred %d\n",
 				dev->idx, count, ret);
 
 			/* If it's not a last part of xfer, abort it */
@@ -593,7 +593,7 @@ static int iic_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	if (unlikely((in_8(&iic->extsts) & EXTSTS_BCS_MASK) != EXTSTS_BCS_FREE)){
 		DBG("%d: iic_xfer, bus is not free\n", dev->idx);
 
-		/* Usually it means something serious has happend.
+		/* Usually it means something serious has happened.
 		 * We *cannot* have unfinished previous transfer
 		 * so it doesn't make any sense to try to stop it.
 		 * Probably we were not able to recover from the

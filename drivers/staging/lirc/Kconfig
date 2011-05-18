@@ -32,18 +32,6 @@ config LIRC_IMON
 
 	  Current generation iMON devices use the input layer imon driver.
 
-config LIRC_IT87
-	tristate "ITE IT87XX CIR Port Receiver"
-	depends on LIRC && PNP
-	help
-	  Driver for the ITE IT87xx IR Receiver
-
-config LIRC_ITE8709
-	tristate "ITE8709 CIR Port Receiver"
-	depends on LIRC && PNP
-	help
-	  Driver for the ITE8709 IR Receiver
-
 config LIRC_PARALLEL
 	tristate "Homebrew Parallel Port Receiver"
 	depends on LIRC && PARPORT

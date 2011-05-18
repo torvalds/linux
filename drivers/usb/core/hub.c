@@ -1649,7 +1649,7 @@ void usb_disconnect(struct usb_device **pdev)
 
 	/* mark the device as inactive, so any further urb submissions for
 	 * this device (and any of its children) will fail immediately.
-	 * this quiesces everyting except pending urbs.
+	 * this quiesces everything except pending urbs.
 	 */
 	usb_set_device_state(udev, USB_STATE_NOTATTACHED);
 	dev_info(&udev->dev, "USB disconnect, device number %d\n",
@@ -2285,7 +2285,17 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	}
 
 	/* see 7.1.7.6 */
-	status = set_port_feature(hub->hdev, port1, USB_PORT_FEAT_SUSPEND);
+	/* Clear PORT_POWER if it's a USB3.0 device connected to USB 3.0
+	 * external hub.
+	 * FIXME: this is a temporary workaround to make the system able
+	 * to suspend/resume.
+	 */
+	if ((hub->hdev->parent != NULL) && hub_is_superspeed(hub->hdev))
+		status = clear_port_feature(hub->hdev, port1,
+						USB_PORT_FEAT_POWER);
+	else
+		status = set_port_feature(hub->hdev, port1,
+						USB_PORT_FEAT_SUSPEND);
 	if (status) {
 		dev_dbg(hub->intfdev, "can't suspend port %d, status %d\n",
 				port1, status);

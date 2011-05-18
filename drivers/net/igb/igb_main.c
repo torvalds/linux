@@ -200,7 +200,7 @@ static struct pci_driver igb_driver = {
 	.probe    = igb_probe,
 	.remove   = __devexit_p(igb_remove),
 #ifdef CONFIG_PM
-	/* Power Managment Hooks */
+	/* Power Management Hooks */
 	.suspend  = igb_suspend,
 	.resume   = igb_resume,
 #endif
@@ -2292,7 +2292,7 @@ static void igb_init_hw_timer(struct igb_adapter *adapter)
 		/**
 		 * Scale the NIC clock cycle by a large factor so that
 		 * relatively small clock corrections can be added or
-		 * substracted at each clock tick. The drawbacks of a large
+		 * subtracted at each clock tick. The drawbacks of a large
 		 * factor are a) that the clock register overflows more quickly
 		 * (not such a big deal) and b) that the increment per tick has
 		 * to fit into 24 bits.  As a result we need to use a shift of
@@ -3409,7 +3409,7 @@ static void igb_set_rx_mode(struct net_device *netdev)
 		} else {
 			/*
 			 * Write addresses to the MTA, if the attempt fails
-			 * then we should just turn on promiscous mode so
+			 * then we should just turn on promiscuous mode so
 			 * that we can at least receive multicast traffic
 			 */
 			count = igb_write_mc_addr_list(netdev);
@@ -3423,7 +3423,7 @@ static void igb_set_rx_mode(struct net_device *netdev)
 		/*
 		 * Write addresses to available RAR registers, if there is not
 		 * sufficient space to store all the addresses then enable
-		 * unicast promiscous mode
+		 * unicast promiscuous mode
 		 */
 		count = igb_write_uc_addr_list(netdev);
 		if (count < 0) {
@@ -4317,7 +4317,7 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 
 	/*
 	 * count reflects descriptors mapped, if 0 or less then mapping error
-	 * has occured and we need to rewind the descriptor queue
+	 * has occurred and we need to rewind the descriptor queue
 	 */
 	count = igb_tx_map_adv(tx_ring, skb, first);
 	if (!count) {
@@ -5352,8 +5352,8 @@ static void igb_msg_task(struct igb_adapter *adapter)
  *  The unicast table address is a register array of 32-bit registers.
  *  The table is meant to be used in a way similar to how the MTA is used
  *  however due to certain limitations in the hardware it is necessary to
- *  set all the hash bits to 1 and use the VMOLR ROPE bit as a promiscous
- *  enable bit to allow vlan tag stripping when promiscous mode is enabled
+ *  set all the hash bits to 1 and use the VMOLR ROPE bit as a promiscuous
+ *  enable bit to allow vlan tag stripping when promiscuous mode is enabled
  **/
 static void igb_set_uta(struct igb_adapter *adapter)
 {

@@ -11,7 +11,7 @@
  *
  *  May be copied or modified under the terms of the GNU General Public License
  *
- *  Documentation publically available.
+ *  Documentation publicly available.
  *
  *	If you have strange problems with nVidia chipset systems please
  *	see the SI support documentation and update your system BIOS
@@ -43,7 +43,7 @@
  *
  *	Turn a config register offset into the right address in either
  *	PCI space or MMIO space to access the control register in question
- *	Thankfully this is a configuration operation so isnt performance
+ *	Thankfully this is a configuration operation so isn't performance
  *	criticial.
  */
 

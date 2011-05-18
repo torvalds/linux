@@ -487,9 +487,6 @@ static int vlan_dev_stop(struct net_device *dev)
 	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	struct net_device *real_dev = vlan->real_dev;
 
-	if (vlan->flags & VLAN_FLAG_GVRP)
-		vlan_gvrp_request_leave(dev);
-
 	dev_mc_unsync(real_dev, dev);
 	dev_uc_unsync(real_dev, dev);
 	if (dev->flags & IFF_ALLMULTI)
@@ -720,6 +717,7 @@ static int vlan_dev_init(struct net_device *dev)
 	dev->fcoe_ddp_xid = real_dev->fcoe_ddp_xid;
 #endif
 
+	dev->needed_headroom = real_dev->needed_headroom;
 	if (real_dev->features & NETIF_F_HW_VLAN_TX) {
 		dev->header_ops      = real_dev->header_ops;
 		dev->hard_header_len = real_dev->hard_header_len;

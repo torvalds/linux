@@ -211,7 +211,7 @@ cpu_v7_name:
 /* Suspend/resume support: derived from arch/arm/mach-s5pv210/sleep.S */
 .globl	cpu_v7_suspend_size
 .equ	cpu_v7_suspend_size, 4 * 8
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 ENTRY(cpu_v7_do_suspend)
 	stmfd	sp!, {r4 - r11, lr}
 	mrc	p15, 0, r4, c13, c0, 0	@ FCSE/PID
@@ -237,7 +237,7 @@ ENTRY(cpu_v7_do_resume)
 	mcr	p15, 0, r7, c2, c0, 0	@ TTB 0
 	mcr	p15, 0, r8, c2, c0, 1	@ TTB 1
 	mcr	p15, 0, ip, c2, c0, 2	@ TTB control register
-	mcr	p15, 0, r10, c1, c0, 1	@ Auxillary control register
+	mcr	p15, 0, r10, c1, c0, 1	@ Auxiliary control register
 	mcr	p15, 0, r11, c1, c0, 2	@ Co-processor access control
 	ldr	r4, =PRRR		@ PRRR
 	ldr	r5, =NMRR		@ NMRR

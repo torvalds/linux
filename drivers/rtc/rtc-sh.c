@@ -782,11 +782,11 @@ static void sh_rtc_set_irq_wake(struct device *dev, int enabled)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sh_rtc *rtc = platform_get_drvdata(pdev);
 
-	set_irq_wake(rtc->periodic_irq, enabled);
+	irq_set_irq_wake(rtc->periodic_irq, enabled);
 
 	if (rtc->carry_irq > 0) {
-		set_irq_wake(rtc->carry_irq, enabled);
-		set_irq_wake(rtc->alarm_irq, enabled);
+		irq_set_irq_wake(rtc->carry_irq, enabled);
+		irq_set_irq_wake(rtc->alarm_irq, enabled);
 	}
 }
 

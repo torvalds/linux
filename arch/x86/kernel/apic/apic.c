@@ -24,7 +24,7 @@
 #include <linux/ftrace.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/delay.h>
 #include <linux/timex.h>
 #include <linux/dmar.h>
@@ -2046,7 +2046,7 @@ static struct {
 	unsigned int apic_thmr;
 } apic_pm_state;
 
-static int lapic_suspend(struct sys_device *dev, pm_message_t state)
+static int lapic_suspend(void)
 {
 	unsigned long flags;
 	int maxlvt;
@@ -2084,23 +2084,21 @@ static int lapic_suspend(struct sys_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int lapic_resume(struct sys_device *dev)
+static void lapic_resume(void)
 {
 	unsigned int l, h;
 	unsigned long flags;
-	int maxlvt;
-	int ret = 0;
+	int maxlvt, ret;
 	struct IO_APIC_route_entry **ioapic_entries = NULL;
 
 	if (!apic_pm_state.active)
-		return 0;
+		return;
 
 	local_irq_save(flags);
 	if (intr_remapping_enabled) {
 		ioapic_entries = alloc_ioapic_entries();
 		if (!ioapic_entries) {
 			WARN(1, "Alloc ioapic_entries in lapic resume failed.");
-			ret = -ENOMEM;
 			goto restore;
 		}
 
@@ -2162,8 +2160,6 @@ static int lapic_resume(struct sys_device *dev)
 	}
 restore:
 	local_irq_restore(flags);
-
-	return ret;
 }
 
 /*
@@ -2171,15 +2167,9 @@ restore:
  * are needed on every CPU up until machine_halt/restart/poweroff.
  */
 
-static struct sysdev_class lapic_sysclass = {
-	.name		= "lapic",
+static struct syscore_ops lapic_syscore_ops = {
 	.resume		= lapic_resume,
 	.suspend	= lapic_suspend,
-};
-
-static struct sys_device device_lapic = {
-	.id	= 0,
-	.cls	= &lapic_sysclass,
 };
 
 static void __cpuinit apic_pm_activate(void)
@@ -2189,16 +2179,11 @@ static void __cpuinit apic_pm_activate(void)
 
 static int __init init_lapic_sysfs(void)
 {
-	int error;
-
-	if (!cpu_has_apic)
-		return 0;
 	/* XXX: remove suspend/resume procs if !apic_pm_state.active? */
+	if (cpu_has_apic)
+		register_syscore_ops(&lapic_syscore_ops);
 
-	error = sysdev_class_register(&lapic_sysclass);
-	if (!error)
-		error = sysdev_register(&device_lapic);
-	return error;
+	return 0;
 }
 
 /* local apic needs to resume before other devices access its registers. */

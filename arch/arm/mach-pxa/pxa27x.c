@@ -19,6 +19,7 @@
 #include <linux/sysdev.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
@@ -31,8 +32,6 @@
 #include <mach/pm.h>
 #include <mach/dma.h>
 #include <mach/smemc.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -346,7 +345,7 @@ static inline void pxa27x_init_pm(void) {}
  */
 static int pxa27x_set_wake(struct irq_data *d, unsigned int on)
 {
-	int gpio = IRQ_TO_GPIO(d->irq);
+	int gpio = irq_to_gpio(d->irq);
 	uint32_t mask;
 
 	if (gpio >= 0 && gpio < 128)

@@ -60,7 +60,7 @@
  *
  * Obviously, the GART is not cache coherent and so any change to it
  * must be flushed to memory (or maybe just make the GART space non
- * cachable). AGP memory itself doens't seem to be cache coherent neither.
+ * cachable). AGP memory itself doesn't seem to be cache coherent neither.
  *
  * In order to invalidate the GART (which is probably necessary to inval
  * the bridge internal TLBs), the following sequence has to be written,

@@ -39,6 +39,12 @@ static inline int nfs4_has_persistent_session(const struct nfs_client *clp)
 	return 0;
 }
 
+static inline void nfs_attr_check_mountpoint(struct super_block *parent, struct nfs_fattr *fattr)
+{
+	if (!nfs_fsid_equal(&NFS_SB(parent)->fsid, &fattr->fsid))
+		fattr->valid |= NFS_ATTR_FATTR_MOUNTPOINT;
+}
+
 struct nfs_clone_mount {
 	const struct super_block *sb;
 	const struct dentry *dentry;
@@ -214,6 +220,7 @@ extern const u32 nfs41_maxwrite_overhead;
 /* nfs4proc.c */
 #ifdef CONFIG_NFS_V4
 extern struct rpc_procinfo nfs4_procedures[];
+void nfs_fixup_secinfo_attributes(struct nfs_fattr *, struct nfs_fh *);
 #endif
 
 extern int nfs4_init_ds_session(struct nfs_client *clp);
@@ -276,11 +283,25 @@ extern int nfs_initiate_read(struct nfs_read_data *data, struct rpc_clnt *clnt,
 extern void nfs_read_prepare(struct rpc_task *task, void *calldata);
 
 /* write.c */
+extern void nfs_commit_free(struct nfs_write_data *p);
 extern int nfs_initiate_write(struct nfs_write_data *data,
 			      struct rpc_clnt *clnt,
 			      const struct rpc_call_ops *call_ops,
 			      int how);
 extern void nfs_write_prepare(struct rpc_task *task, void *calldata);
+extern int nfs_initiate_commit(struct nfs_write_data *data,
+			       struct rpc_clnt *clnt,
+			       const struct rpc_call_ops *call_ops,
+			       int how);
+extern void nfs_init_commit(struct nfs_write_data *data,
+			    struct list_head *head,
+			    struct pnfs_layout_segment *lseg);
+void nfs_retry_commit(struct list_head *page_list,
+		      struct pnfs_layout_segment *lseg);
+void nfs_commit_clear_lock(struct nfs_inode *nfsi);
+void nfs_commitdata_release(void *data);
+void nfs_commit_release_pages(struct nfs_write_data *data);
+
 #ifdef CONFIG_MIGRATION
 extern int nfs_migrate_page(struct address_space *,
 		struct page *, struct page *);
@@ -296,12 +317,14 @@ extern int nfs4_init_client(struct nfs_client *clp,
 			    rpc_authflavor_t authflavour,
 			    int noresvport);
 extern void nfs4_reset_write(struct rpc_task *task, struct nfs_write_data *data);
-extern int _nfs4_call_sync(struct nfs_server *server,
+extern int _nfs4_call_sync(struct rpc_clnt *clnt,
+			   struct nfs_server *server,
 			   struct rpc_message *msg,
 			   struct nfs4_sequence_args *args,
 			   struct nfs4_sequence_res *res,
 			   int cache_reply);
-extern int _nfs4_call_sync_session(struct nfs_server *server,
+extern int _nfs4_call_sync_session(struct rpc_clnt *clnt,
+				   struct nfs_server *server,
 				   struct rpc_message *msg,
 				   struct nfs4_sequence_args *args,
 				   struct nfs4_sequence_res *res,

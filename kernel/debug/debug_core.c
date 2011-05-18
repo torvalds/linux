@@ -538,7 +538,7 @@ return_normal:
 
 	/*
 	 * For single stepping, try to only enter on the processor
-	 * that was single stepping.  To gaurd against a deadlock, the
+	 * that was single stepping.  To guard against a deadlock, the
 	 * kernel will only try for the value of sstep_tries before
 	 * giving up and continuing on.
 	 */

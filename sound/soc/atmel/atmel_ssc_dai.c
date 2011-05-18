@@ -672,7 +672,7 @@ static int atmel_ssc_resume(struct snd_soc_dai *cpu_dai)
 	/* re-enable interrupts */
 	ssc_writel(ssc_p->ssc->regs, IER, ssc_p->ssc_state.ssc_imr);
 
-	/* Re-enable recieve and transmit as appropriate */
+	/* Re-enable receive and transmit as appropriate */
 	cr = 0;
 	cr |=
 	    (ssc_p->ssc_state.ssc_sr & SSC_BIT(SR_RXEN)) ? SSC_BIT(CR_RXEN) : 0;

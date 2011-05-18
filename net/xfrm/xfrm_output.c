@@ -78,6 +78,8 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 
 		spin_unlock_bh(&x->lock);
 
+		skb_dst_force(skb);
+
 		err = x->type->output(x, skb);
 		if (err == -EINPROGRESS)
 			goto out_exit;
@@ -94,7 +96,7 @@ resume:
 			err = -EHOSTUNREACH;
 			goto error_nolock;
 		}
-		skb_dst_set(skb, dst_clone(dst));
+		skb_dst_set(skb, dst);
 		x = dst->xfrm;
 	} while (x && !(x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL));
 

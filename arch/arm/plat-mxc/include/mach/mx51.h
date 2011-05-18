@@ -347,6 +347,7 @@
 
 #if !defined(__ASSEMBLY__) && !defined(__MXC_BOOT_UNCOMPRESS)
 extern int mx51_revision(void);
+extern void mx51_display_revision(void);
 #endif
 
 /* tape-out 1 defines */

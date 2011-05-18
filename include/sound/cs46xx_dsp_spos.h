@@ -147,7 +147,7 @@ struct dsp_pcm_channel_descriptor {
 };
 
 struct dsp_spos_instance {
-	struct dsp_symbol_desc symbol_table; /* currently availble loaded symbols in SP */
+	struct dsp_symbol_desc symbol_table; /* currently available loaded symbols in SP */
 
 	int nmodules;
 	struct dsp_module_desc * modules; /* modules loaded into SP */

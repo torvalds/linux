@@ -207,7 +207,7 @@ static int unix_mkname(struct sockaddr_un *sunaddr, int len, unsigned *hashp)
 		/*
 		 * This may look like an off by one error but it is a bit more
 		 * subtle. 108 is the longest valid AF_UNIX path for a binding.
-		 * sun_path[108] doesnt as such exist.  However in kernel space
+		 * sun_path[108] doesn't as such exist.  However in kernel space
 		 * we are guaranteed that it is a valid memory location in our
 		 * kernel address buffer.
 		 */
@@ -524,6 +524,8 @@ static int unix_dgram_connect(struct socket *, struct sockaddr *,
 			      int, int);
 static int unix_seqpacket_sendmsg(struct kiocb *, struct socket *,
 				  struct msghdr *, size_t);
+static int unix_seqpacket_recvmsg(struct kiocb *, struct socket *,
+				  struct msghdr *, size_t, int);
 
 static const struct proto_ops unix_stream_ops = {
 	.family =	PF_UNIX,
@@ -583,7 +585,7 @@ static const struct proto_ops unix_seqpacket_ops = {
 	.setsockopt =	sock_no_setsockopt,
 	.getsockopt =	sock_no_getsockopt,
 	.sendmsg =	unix_seqpacket_sendmsg,
-	.recvmsg =	unix_dgram_recvmsg,
+	.recvmsg =	unix_seqpacket_recvmsg,
 	.mmap =		sock_no_mmap,
 	.sendpage =	sock_no_sendpage,
 };
@@ -1697,6 +1699,18 @@ static int unix_seqpacket_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		msg->msg_namelen = 0;
 
 	return unix_dgram_sendmsg(kiocb, sock, msg, len);
+}
+
+static int unix_seqpacket_recvmsg(struct kiocb *iocb, struct socket *sock,
+			      struct msghdr *msg, size_t size,
+			      int flags)
+{
+	struct sock *sk = sock->sk;
+
+	if (sk->sk_state != TCP_ESTABLISHED)
+		return -ENOTCONN;
+
+	return unix_dgram_recvmsg(iocb, sock, msg, size, flags);
 }
 
 static void unix_copy_addr(struct msghdr *msg, struct sock *sk)

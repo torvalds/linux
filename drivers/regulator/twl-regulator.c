@@ -475,6 +475,13 @@ static struct regulator_ops twlfixed_ops = {
 	.get_status	= twlreg_get_status,
 };
 
+static struct regulator_ops twl6030_fixed_resource = {
+	.enable		= twlreg_enable,
+	.disable	= twlreg_disable,
+	.is_enabled	= twlreg_is_enabled,
+	.get_status	= twlreg_get_status,
+};
+
 /*----------------------------------------------------------------------*/
 
 #define TWL4030_FIXED_LDO(label, offset, mVolts, num, turnon_delay, \
@@ -538,6 +545,20 @@ static struct regulator_ops twlfixed_ops = {
 		}, \
 	}
 
+#define TWL6030_FIXED_RESOURCE(label, offset, num, turnon_delay, remap_conf) { \
+	.base = offset, \
+	.id = num, \
+	.delay = turnon_delay, \
+	.remap = remap_conf, \
+	.desc = { \
+		.name = #label, \
+		.id = TWL6030_REG_##label, \
+		.ops = &twl6030_fixed_resource, \
+		.type = REGULATOR_VOLTAGE, \
+		.owner = THIS_MODULE, \
+		}, \
+	}
+
 /*
  * We list regulators here if systems need some level of
  * software control over them after boot.
@@ -577,7 +598,8 @@ static struct twlreg_info twl_regs[] = {
 	TWL6030_FIXED_LDO(VANA, 0x50, 2100, 15, 0, 0x21),
 	TWL6030_FIXED_LDO(VCXIO, 0x60, 1800, 16, 0, 0x21),
 	TWL6030_FIXED_LDO(VDAC, 0x64, 1800, 17, 0, 0x21),
-	TWL6030_FIXED_LDO(VUSB, 0x70, 3300, 18, 0, 0x21)
+	TWL6030_FIXED_LDO(VUSB, 0x70, 3300, 18, 0, 0x21),
+	TWL6030_FIXED_RESOURCE(CLK32KG, 0x8C, 48, 0, 0x21),
 };
 
 static int __devinit twlreg_probe(struct platform_device *pdev)

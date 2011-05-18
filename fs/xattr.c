@@ -59,7 +59,7 @@ xattr_permission(struct inode *inode, const char *name, int mask)
 		if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode))
 			return -EPERM;
 		if (S_ISDIR(inode->i_mode) && (inode->i_mode & S_ISVTX) &&
-		    (mask & MAY_WRITE) && !is_owner_or_cap(inode))
+		    (mask & MAY_WRITE) && !inode_owner_or_capable(inode))
 			return -EPERM;
 	}
 
@@ -666,7 +666,7 @@ generic_setxattr(struct dentry *dentry, const char *name, const void *value, siz
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
 	if (!handler)
 		return -EOPNOTSUPP;
-	return handler->set(dentry, name, value, size, 0, handler->flags);
+	return handler->set(dentry, name, value, size, flags, handler->flags);
 }
 
 /*

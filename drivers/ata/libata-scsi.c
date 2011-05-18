@@ -999,7 +999,7 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
  *	@qc: Command that we are erroring out
  *
  *	Generate sense block for a failed ATA command @qc.  Descriptor
- *	format is used to accomodate LBA48 block address.
+ *	format is used to accommodate LBA48 block address.
  *
  *	LOCKING:
  *	None.

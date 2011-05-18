@@ -252,7 +252,7 @@ static struct s3c24xx_led_platdata n30_blue_led_pdata = {
 	.def_trigger	= "",
 };
 
-/* This is the blue LED on the device. Originaly used to indicate GPS activity
+/* This is the blue LED on the device. Originally used to indicate GPS activity
  * by flashing. */
 static struct s3c24xx_led_platdata n35_blue_led_pdata = {
 	.name		= "blue_led",

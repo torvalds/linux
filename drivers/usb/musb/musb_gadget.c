@@ -535,7 +535,7 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 			is_dma = 1;
 			csr |= MUSB_TXCSR_P_WZC_BITS;
 			csr &= ~(MUSB_TXCSR_DMAENAB | MUSB_TXCSR_P_UNDERRUN |
-				 MUSB_TXCSR_TXPKTRDY);
+				 MUSB_TXCSR_TXPKTRDY | MUSB_TXCSR_AUTOSET);
 			musb_writew(epio, MUSB_TXCSR, csr);
 			/* Ensure writebuffer is empty. */
 			csr = musb_readw(epio, MUSB_TXCSR);
@@ -1296,7 +1296,7 @@ static int musb_gadget_dequeue(struct usb_ep *ep, struct usb_request *request)
 	}
 
 	/* if the hardware doesn't have the request, easy ... */
-	if (musb_ep->req_list.next != &request->list || musb_ep->busy)
+	if (musb_ep->req_list.next != &req->list || musb_ep->busy)
 		musb_g_giveback(musb_ep, request, -ECONNRESET);
 
 	/* ... else abort the dma transfer ... */
@@ -1880,18 +1880,16 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		if (retval < 0) {
 			DBG(1, "add_hcd failed, %d\n", retval);
 			goto err2;
-
-			if ((musb->xceiv->last_event == USB_EVENT_ID)
-						&& musb->xceiv->set_vbus)
-				otg_set_vbus(musb->xceiv, 1);
 		}
 
+		if ((musb->xceiv->last_event == USB_EVENT_ID)
+					&& musb->xceiv->set_vbus)
+			otg_set_vbus(musb->xceiv, 1);
+
 		hcd->self.uses_pio_for_control = 1;
-
-		if (musb->xceiv->last_event == USB_EVENT_NONE)
-			pm_runtime_put(musb->controller);
-
 	}
+	if (musb->xceiv->last_event == USB_EVENT_NONE)
+		pm_runtime_put(musb->controller);
 
 	return 0;
 

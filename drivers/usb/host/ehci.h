@@ -644,7 +644,7 @@ static inline void ehci_writel(const struct ehci_hcd *ehci,
 /*
  * On certain ppc-44x SoC there is a HW issue, that could only worked around with
  * explicit suspend/operate of OHCI. This function hereby makes sense only on that arch.
- * Other common bits are dependant on has_amcc_usb23 quirk flag.
+ * Other common bits are dependent on has_amcc_usb23 quirk flag.
  */
 #ifdef CONFIG_44x
 static inline void set_ohci_hcfs(struct ehci_hcd *ehci, int operational)

@@ -128,7 +128,7 @@ alloc_inode:
 destroy_inode:
 dirty_inode:				(must not sleep)
 write_inode:
-drop_inode:				!!!inode_lock!!!
+drop_inode:				!!!inode->i_lock!!!
 evict_inode:
 put_super:		write
 write_super:		read

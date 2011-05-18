@@ -1979,8 +1979,7 @@ int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
 	case MPOL_INTERLEAVE:
 		return nodes_equal(a->v.nodes, b->v.nodes);
 	case MPOL_PREFERRED:
-		return a->v.preferred_node == b->v.preferred_node &&
-			a->flags == b->flags;
+		return a->v.preferred_node == b->v.preferred_node;
 	default:
 		BUG();
 		return 0;

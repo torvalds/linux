@@ -15,6 +15,7 @@
 #include <asm/cache.h>
 #include <asm/irqflags.h>
 #include <asm/cacheflush.h>
+#include "cache.inc"
 
 #define mn10300_local_dcache_inv_range_intr_interval \
 	+((1 << MN10300_DCACHE_INV_RANGE_INTR_LOG2_INTERVAL) - 1)
@@ -70,43 +71,7 @@ mn10300_local_icache_inv:
 	btst	CHCTR_ICEN,d0
 	beq	mn10300_local_icache_inv_end
 
-#if defined(CONFIG_AM33_2) || defined(CONFIG_AM33_3)
-	LOCAL_CLI_SAVE(d1)
-
-	# disable the icache
-	and	~CHCTR_ICEN,d0
-	movhu	d0,(a0)
-
-	# and wait for it to calm down
-	setlb
-	movhu	(a0),d0
-	btst	CHCTR_ICBUSY,d0
-	lne
-
-	# invalidate
-	or	CHCTR_ICINV,d0
-	movhu	d0,(a0)
-
-	# wait for the cache to finish
-	mov	CHCTR,a0
-	setlb
-	movhu	(a0),d0
-	btst	CHCTR_ICBUSY,d0
-	lne
-
-	# and reenable it
-	and	~CHCTR_ICINV,d0
-	or	CHCTR_ICEN,d0
-	movhu	d0,(a0)
-	movhu	(a0),d0
-
-	LOCAL_IRQ_RESTORE(d1)
-#else /* CONFIG_AM33_2 || CONFIG_AM33_3 */
-	# invalidate
-	or	CHCTR_ICINV,d0
-	movhu	d0,(a0)
-	movhu	(a0),d0
-#endif /* CONFIG_AM33_2 || CONFIG_AM33_3 */
+	invalidate_icache 1
 
 mn10300_local_icache_inv_end:
 	ret	[],0
@@ -128,43 +93,7 @@ mn10300_local_dcache_inv:
 	btst	CHCTR_DCEN,d0
 	beq	mn10300_local_dcache_inv_end
 
-#if defined(CONFIG_AM33_2) || defined(CONFIG_AM33_3)
-	LOCAL_CLI_SAVE(d1)
-
-	# disable the dcache
-	and	~CHCTR_DCEN,d0
-	movhu	d0,(a0)
-
-	# and wait for it to calm down
-	setlb
-	movhu	(a0),d0
-	btst	CHCTR_DCBUSY,d0
-	lne
-
-	# invalidate
-	or	CHCTR_DCINV,d0
-	movhu	d0,(a0)
-
-	# wait for the cache to finish
-	mov	CHCTR,a0
-	setlb
-	movhu	(a0),d0
-	btst	CHCTR_DCBUSY,d0
-	lne
-
-	# and reenable it
-	and	~CHCTR_DCINV,d0
-	or	CHCTR_DCEN,d0
-	movhu	d0,(a0)
-	movhu	(a0),d0
-
-	LOCAL_IRQ_RESTORE(d1)
-#else /* CONFIG_AM33_2 || CONFIG_AM33_3 */
-	# invalidate
-	or	CHCTR_DCINV,d0
-	movhu	d0,(a0)
-	movhu	(a0),d0
-#endif /* CONFIG_AM33_2 || CONFIG_AM33_3 */
+	invalidate_dcache 1
 
 mn10300_local_dcache_inv_end:
 	ret	[],0
@@ -195,9 +124,9 @@ mn10300_local_dcache_inv_range:
 	# and if they're not cacheline-aligned, we must flush any bits outside
 	# the range that share cachelines with stuff inside the range
 #ifdef CONFIG_MN10300_CACHE_WBACK
-	btst	~(L1_CACHE_BYTES-1),d0
+	btst	~L1_CACHE_TAG_MASK,d0
 	bne	1f
-	btst	~(L1_CACHE_BYTES-1),d1
+	btst	~L1_CACHE_TAG_MASK,d1
 	beq	2f
 1:
 	bra	mn10300_local_dcache_flush_inv_range
@@ -212,11 +141,10 @@ mn10300_local_dcache_inv_range:
 	beq	mn10300_local_dcache_inv_range_end
 
 #ifndef CONFIG_MN10300_CACHE_WBACK
-	and	L1_CACHE_TAG_ADDRESS|L1_CACHE_TAG_ENTRY,d0	# round start
-								# addr down
+	and	L1_CACHE_TAG_MASK,d0		# round start addr down
 
 	add	L1_CACHE_BYTES,d1		# round end addr up
-	and	L1_CACHE_TAG_ADDRESS|L1_CACHE_TAG_ENTRY,d1
+	and	L1_CACHE_TAG_MASK,d1
 #endif /* !CONFIG_MN10300_CACHE_WBACK */
 	mov	d0,a1
 

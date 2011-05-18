@@ -2047,8 +2047,7 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 
 	res->start += pdata->reg_offset;
 	res->end += pdata->reg_offset;
-	res = request_mem_region(res->start, res->end - res->start + 1,
-							pdev->name);
+	res = request_mem_region(res->start, resource_size(res), pdev->name);
 	if (res == NULL)
 		return -EBUSY;
 
@@ -2287,7 +2286,7 @@ err1:
 err_alloc:
 	omap_hsmmc_gpio_free(pdata);
 err:
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 	return ret;
 }
 
@@ -2324,7 +2323,7 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res)
-		release_mem_region(res->start, res->end - res->start + 1);
+		release_mem_region(res->start, resource_size(res));
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

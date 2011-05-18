@@ -46,7 +46,7 @@ extern int sdioh_mmc_irq(int irq);
 #include <mach/gpio.h>
 #endif
 
-/* Customer specific Host GPIO defintion  */
+/* Customer specific Host GPIO definition  */
 static int dhd_oob_gpio_num = -1;	/* GG 19 */
 
 module_param(dhd_oob_gpio_num, int, 0644);

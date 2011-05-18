@@ -161,7 +161,7 @@ static const struct snd_kcontrol_new lm4857_controls[] = {
 		lm4857_get_mode, lm4857_set_mode),
 };
 
-/* There is a demux inbetween the the input signal and the output signals.
+/* There is a demux between the input signal and the output signals.
  * Currently there is no easy way to model it in ASoC and since it does not make
  * much of a difference in practice simply connect the input direclty to the
  * outputs. */

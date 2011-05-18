@@ -173,6 +173,15 @@ xfs_parseargs(
 	__uint8_t		iosizelog = 0;
 
 	/*
+	 * set up the mount name first so all the errors will refer to the
+	 * correct device.
+	 */
+	mp->m_fsname = kstrndup(sb->s_id, MAXNAMELEN, GFP_KERNEL);
+	if (!mp->m_fsname)
+		return ENOMEM;
+	mp->m_fsname_len = strlen(mp->m_fsname) + 1;
+
+	/*
 	 * Copy binary VFS mount flags we are interested in.
 	 */
 	if (sb->s_flags & MS_RDONLY)
@@ -189,6 +198,7 @@ xfs_parseargs(
 	mp->m_flags |= XFS_MOUNT_BARRIER;
 	mp->m_flags |= XFS_MOUNT_COMPAT_IOSIZE;
 	mp->m_flags |= XFS_MOUNT_SMALL_INUMS;
+	mp->m_flags |= XFS_MOUNT_DELAYLOG;
 
 	/*
 	 * These can be overridden by the mount option parsing.
@@ -207,24 +217,21 @@ xfs_parseargs(
 
 		if (!strcmp(this_char, MNTOPT_LOGBUFS)) {
 			if (!value || !*value) {
-				cmn_err(CE_WARN,
-					"XFS: %s option requires an argument",
+				xfs_warn(mp, "%s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
 			mp->m_logbufs = simple_strtoul(value, &eov, 10);
 		} else if (!strcmp(this_char, MNTOPT_LOGBSIZE)) {
 			if (!value || !*value) {
-				cmn_err(CE_WARN,
-					"XFS: %s option requires an argument",
+				xfs_warn(mp, "%s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
 			mp->m_logbsize = suffix_strtoul(value, &eov, 10);
 		} else if (!strcmp(this_char, MNTOPT_LOGDEV)) {
 			if (!value || !*value) {
-				cmn_err(CE_WARN,
-					"XFS: %s option requires an argument",
+				xfs_warn(mp, "%s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
@@ -232,14 +239,12 @@ xfs_parseargs(
 			if (!mp->m_logname)
 				return ENOMEM;
 		} else if (!strcmp(this_char, MNTOPT_MTPT)) {
-			cmn_err(CE_WARN,
-				"XFS: %s option not allowed on this system",
+			xfs_warn(mp, "%s option not allowed on this system",
 				this_char);
 			return EINVAL;
 		} else if (!strcmp(this_char, MNTOPT_RTDEV)) {
 			if (!value || !*value) {
-				cmn_err(CE_WARN,
-					"XFS: %s option requires an argument",
+				xfs_warn(mp, "%s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
@@ -248,8 +253,7 @@ xfs_parseargs(
 				return ENOMEM;
 		} else if (!strcmp(this_char, MNTOPT_BIOSIZE)) {
 			if (!value || !*value) {
-				cmn_err(CE_WARN,
-					"XFS: %s option requires an argument",
+				xfs_warn(mp, "%s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
@@ -257,8 +261,7 @@ xfs_parseargs(
 			iosizelog = ffs(iosize) - 1;
 		} else if (!strcmp(this_char, MNTOPT_ALLOCSIZE)) {
 			if (!value || !*value) {
-				cmn_err(CE_WARN,
-					"XFS: %s option requires an argument",
+				xfs_warn(mp, "%s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
@@ -280,16 +283,14 @@ xfs_parseargs(
 			mp->m_flags |= XFS_MOUNT_SWALLOC;
 		} else if (!strcmp(this_char, MNTOPT_SUNIT)) {
 			if (!value || !*value) {
-				cmn_err(CE_WARN,
-					"XFS: %s option requires an argument",
+				xfs_warn(mp, "%s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
 			dsunit = simple_strtoul(value, &eov, 10);
 		} else if (!strcmp(this_char, MNTOPT_SWIDTH)) {
 			if (!value || !*value) {
-				cmn_err(CE_WARN,
-					"XFS: %s option requires an argument",
+				xfs_warn(mp, "%s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
@@ -297,8 +298,7 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_64BITINODE)) {
 			mp->m_flags &= ~XFS_MOUNT_SMALL_INUMS;
 #if !XFS_BIG_INUMS
-			cmn_err(CE_WARN,
-				"XFS: %s option not allowed on this system",
+			xfs_warn(mp, "%s option not allowed on this system",
 				this_char);
 			return EINVAL;
 #endif
@@ -356,20 +356,19 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_NODELAYLOG)) {
 			mp->m_flags &= ~XFS_MOUNT_DELAYLOG;
 		} else if (!strcmp(this_char, "ihashsize")) {
-			cmn_err(CE_WARN,
-	"XFS: ihashsize no longer used, option is deprecated.");
+			xfs_warn(mp,
+	"ihashsize no longer used, option is deprecated.");
 		} else if (!strcmp(this_char, "osyncisdsync")) {
-			cmn_err(CE_WARN,
-	"XFS: osyncisdsync has no effect, option is deprecated.");
+			xfs_warn(mp,
+	"osyncisdsync has no effect, option is deprecated.");
 		} else if (!strcmp(this_char, "osyncisosync")) {
-			cmn_err(CE_WARN,
-	"XFS: osyncisosync has no effect, option is deprecated.");
+			xfs_warn(mp,
+	"osyncisosync has no effect, option is deprecated.");
 		} else if (!strcmp(this_char, "irixsgid")) {
-			cmn_err(CE_WARN,
-	"XFS: irixsgid is now a sysctl(2) variable, option is deprecated.");
+			xfs_warn(mp,
+	"irixsgid is now a sysctl(2) variable, option is deprecated.");
 		} else {
-			cmn_err(CE_WARN,
-				"XFS: unknown mount option [%s].", this_char);
+			xfs_warn(mp, "unknown mount option [%s].", this_char);
 			return EINVAL;
 		}
 	}
@@ -379,40 +378,37 @@ xfs_parseargs(
 	 */
 	if ((mp->m_flags & XFS_MOUNT_NORECOVERY) &&
 	    !(mp->m_flags & XFS_MOUNT_RDONLY)) {
-		cmn_err(CE_WARN, "XFS: no-recovery mounts must be read-only.");
+		xfs_warn(mp, "no-recovery mounts must be read-only.");
 		return EINVAL;
 	}
 
 	if ((mp->m_flags & XFS_MOUNT_NOALIGN) && (dsunit || dswidth)) {
-		cmn_err(CE_WARN,
-	"XFS: sunit and swidth options incompatible with the noalign option");
+		xfs_warn(mp,
+	"sunit and swidth options incompatible with the noalign option");
 		return EINVAL;
 	}
 
 #ifndef CONFIG_XFS_QUOTA
 	if (XFS_IS_QUOTA_RUNNING(mp)) {
-		cmn_err(CE_WARN,
-			"XFS: quota support not available in this kernel.");
+		xfs_warn(mp, "quota support not available in this kernel.");
 		return EINVAL;
 	}
 #endif
 
 	if ((mp->m_qflags & (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE)) &&
 	    (mp->m_qflags & (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE))) {
-		cmn_err(CE_WARN,
-			"XFS: cannot mount with both project and group quota");
+		xfs_warn(mp, "cannot mount with both project and group quota");
 		return EINVAL;
 	}
 
 	if ((dsunit && !dswidth) || (!dsunit && dswidth)) {
-		cmn_err(CE_WARN,
-			"XFS: sunit and swidth must be specified together");
+		xfs_warn(mp, "sunit and swidth must be specified together");
 		return EINVAL;
 	}
 
 	if (dsunit && (dswidth % dsunit != 0)) {
-		cmn_err(CE_WARN,
-	"XFS: stripe width (%d) must be a multiple of the stripe unit (%d)",
+		xfs_warn(mp,
+	"stripe width (%d) must be a multiple of the stripe unit (%d)",
 			dswidth, dsunit);
 		return EINVAL;
 	}
@@ -438,8 +434,7 @@ done:
 	    mp->m_logbufs != 0 &&
 	    (mp->m_logbufs < XLOG_MIN_ICLOGS ||
 	     mp->m_logbufs > XLOG_MAX_ICLOGS)) {
-		cmn_err(CE_WARN,
-			"XFS: invalid logbufs value: %d [not %d-%d]",
+		xfs_warn(mp, "invalid logbufs value: %d [not %d-%d]",
 			mp->m_logbufs, XLOG_MIN_ICLOGS, XLOG_MAX_ICLOGS);
 		return XFS_ERROR(EINVAL);
 	}
@@ -448,22 +443,16 @@ done:
 	    (mp->m_logbsize < XLOG_MIN_RECORD_BSIZE ||
 	     mp->m_logbsize > XLOG_MAX_RECORD_BSIZE ||
 	     !is_power_of_2(mp->m_logbsize))) {
-		cmn_err(CE_WARN,
-	"XFS: invalid logbufsize: %d [not 16k,32k,64k,128k or 256k]",
+		xfs_warn(mp,
+			"invalid logbufsize: %d [not 16k,32k,64k,128k or 256k]",
 			mp->m_logbsize);
 		return XFS_ERROR(EINVAL);
 	}
 
-	mp->m_fsname = kstrndup(sb->s_id, MAXNAMELEN, GFP_KERNEL);
-	if (!mp->m_fsname)
-		return ENOMEM;
-	mp->m_fsname_len = strlen(mp->m_fsname) + 1;
-
 	if (iosizelog) {
 		if (iosizelog > XFS_MAX_IO_LOG ||
 		    iosizelog < XFS_MIN_IO_LOG) {
-			cmn_err(CE_WARN,
-		"XFS: invalid log iosize: %d [not %d-%d]",
+			xfs_warn(mp, "invalid log iosize: %d [not %d-%d]",
 				iosizelog, XFS_MIN_IO_LOG,
 				XFS_MAX_IO_LOG);
 			return XFS_ERROR(EINVAL);
@@ -610,7 +599,7 @@ xfs_blkdev_get(
 				    mp);
 	if (IS_ERR(*bdevp)) {
 		error = PTR_ERR(*bdevp);
-		printk("XFS: Invalid device [%s], error=%d\n", name, error);
+		xfs_warn(mp, "Invalid device [%s], error=%d\n", name, error);
 	}
 
 	return -error;
@@ -664,23 +653,23 @@ xfs_mountfs_check_barriers(xfs_mount_t *mp)
 	int error;
 
 	if (mp->m_logdev_targp != mp->m_ddev_targp) {
-		xfs_fs_cmn_err(CE_NOTE, mp,
+		xfs_notice(mp,
 		  "Disabling barriers, not supported with external log device");
 		mp->m_flags &= ~XFS_MOUNT_BARRIER;
 		return;
 	}
 
 	if (xfs_readonly_buftarg(mp->m_ddev_targp)) {
-		xfs_fs_cmn_err(CE_NOTE, mp,
-		  "Disabling barriers, underlying device is readonly");
+		xfs_notice(mp,
+			"Disabling barriers, underlying device is readonly");
 		mp->m_flags &= ~XFS_MOUNT_BARRIER;
 		return;
 	}
 
 	error = xfs_barrier_test(mp);
 	if (error) {
-		xfs_fs_cmn_err(CE_NOTE, mp,
-		  "Disabling barriers, trial barrier write failed");
+		xfs_notice(mp,
+			"Disabling barriers, trial barrier write failed");
 		mp->m_flags &= ~XFS_MOUNT_BARRIER;
 		return;
 	}
@@ -743,8 +732,8 @@ xfs_open_devices(
 			goto out_close_logdev;
 
 		if (rtdev == ddev || rtdev == logdev) {
-			cmn_err(CE_WARN,
-	"XFS: Cannot mount filesystem with identical rtdev and ddev/logdev.");
+			xfs_warn(mp,
+	"Cannot mount filesystem with identical rtdev and ddev/logdev.");
 			error = EINVAL;
 			goto out_close_rtdev;
 		}
@@ -826,75 +815,6 @@ xfs_setup_devices(
 
 	return 0;
 }
-
-/*
- * XFS AIL push thread support
- */
-void
-xfsaild_wakeup(
-	struct xfs_ail		*ailp,
-	xfs_lsn_t		threshold_lsn)
-{
-	/* only ever move the target forwards */
-	if (XFS_LSN_CMP(threshold_lsn, ailp->xa_target) > 0) {
-		ailp->xa_target = threshold_lsn;
-		wake_up_process(ailp->xa_task);
-	}
-}
-
-STATIC int
-xfsaild(
-	void	*data)
-{
-	struct xfs_ail	*ailp = data;
-	xfs_lsn_t	last_pushed_lsn = 0;
-	long		tout = 0; /* milliseconds */
-
-	while (!kthread_should_stop()) {
-		/*
-		 * for short sleeps indicating congestion, don't allow us to
-		 * get woken early. Otherwise all we do is bang on the AIL lock
-		 * without making progress.
-		 */
-		if (tout && tout <= 20)
-			__set_current_state(TASK_KILLABLE);
-		else
-			__set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(tout ?
-				 msecs_to_jiffies(tout) : MAX_SCHEDULE_TIMEOUT);
-
-		/* swsusp */
-		try_to_freeze();
-
-		ASSERT(ailp->xa_mount->m_log);
-		if (XFS_FORCED_SHUTDOWN(ailp->xa_mount))
-			continue;
-
-		tout = xfsaild_push(ailp, &last_pushed_lsn);
-	}
-
-	return 0;
-}	/* xfsaild */
-
-int
-xfsaild_start(
-	struct xfs_ail	*ailp)
-{
-	ailp->xa_target = 0;
-	ailp->xa_task = kthread_run(xfsaild, ailp, "xfsaild/%s",
-				    ailp->xa_mount->m_fsname);
-	if (IS_ERR(ailp->xa_task))
-		return -PTR_ERR(ailp->xa_task);
-	return 0;
-}
-
-void
-xfsaild_stop(
-	struct xfs_ail	*ailp)
-{
-	kthread_stop(ailp->xa_task);
-}
-
 
 /* Catch misguided souls that try to use this interface on XFS */
 STATIC struct inode *
@@ -1089,7 +1009,7 @@ xfs_fs_write_inode(
 			error = 0;
 			goto out_unlock;
 		}
-		error = xfs_iflush(ip, 0);
+		error = xfs_iflush(ip, SYNC_TRYLOCK);
 	}
 
  out_unlock:
@@ -1202,22 +1122,12 @@ xfs_fs_sync_fs(
 		return -error;
 
 	if (laptop_mode) {
-		int	prev_sync_seq = mp->m_sync_seq;
-
 		/*
 		 * The disk must be active because we're syncing.
 		 * We schedule xfssyncd now (now that the disk is
 		 * active) instead of later (when it might not be).
 		 */
-		wake_up_process(mp->m_sync_task);
-		/*
-		 * We have to wait for the sync iteration to complete.
-		 * If we don't, the disk activity caused by the sync
-		 * will come after the sync is completed, and that
-		 * triggers another sync from laptop mode.
-		 */
-		wait_event(mp->m_wait_single_sync_task,
-				mp->m_sync_seq != prev_sync_seq);
+		flush_delayed_work_sync(&mp->m_sync_work);
 	}
 
 	return 0;
@@ -1345,8 +1255,8 @@ xfs_fs_remount(
 			 * options that we can't actually change.
 			 */
 #if 0
-			printk(KERN_INFO
-	"XFS: mount option \"%s\" not supported for remount\n", p);
+			xfs_info(mp,
+		"mount option \"%s\" not supported for remount\n", p);
 			return -EINVAL;
 #else
 			break;
@@ -1367,8 +1277,7 @@ xfs_fs_remount(
 		if (mp->m_update_flags) {
 			error = xfs_mount_log_sb(mp, mp->m_update_flags);
 			if (error) {
-				cmn_err(CE_WARN,
-					"XFS: failed to write sb changes");
+				xfs_warn(mp, "failed to write sb changes");
 				return error;
 			}
 			mp->m_update_flags = 0;
@@ -1452,15 +1361,15 @@ xfs_finish_flags(
 			mp->m_logbsize = mp->m_sb.sb_logsunit;
 		} else if (mp->m_logbsize > 0 &&
 			   mp->m_logbsize < mp->m_sb.sb_logsunit) {
-			cmn_err(CE_WARN,
-	"XFS: logbuf size must be greater than or equal to log stripe size");
+			xfs_warn(mp,
+		"logbuf size must be greater than or equal to log stripe size");
 			return XFS_ERROR(EINVAL);
 		}
 	} else {
 		/* Fail a mount if the logbuf is larger than 32K */
 		if (mp->m_logbsize > XLOG_BIG_RECORD_BSIZE) {
-			cmn_err(CE_WARN,
-	"XFS: logbuf size for version 1 logs must be 16K or 32K");
+			xfs_warn(mp,
+		"logbuf size for version 1 logs must be 16K or 32K");
 			return XFS_ERROR(EINVAL);
 		}
 	}
@@ -1477,8 +1386,8 @@ xfs_finish_flags(
 	 * prohibit r/w mounts of read-only filesystems
 	 */
 	if ((mp->m_sb.sb_flags & XFS_SBF_READONLY) && !ronly) {
-		cmn_err(CE_WARN,
-	"XFS: cannot mount a read-only filesystem as read-write");
+		xfs_warn(mp,
+			"cannot mount a read-only filesystem as read-write");
 		return XFS_ERROR(EROFS);
 	}
 
@@ -1502,9 +1411,6 @@ xfs_fs_fill_super(
 	spin_lock_init(&mp->m_sb_lock);
 	mutex_init(&mp->m_growlock);
 	atomic_set(&mp->m_active_trans, 0);
-	INIT_LIST_HEAD(&mp->m_sync_list);
-	spin_lock_init(&mp->m_sync_lock);
-	init_waitqueue_head(&mp->m_wait_single_sync_task);
 
 	mp->m_super = sb;
 	sb->s_fs_info = mp;
@@ -1551,16 +1457,30 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_free_sb;
 
-	error = xfs_mountfs(mp);
-	if (error)
-		goto out_filestream_unmount;
-
+	/*
+	 * we must configure the block size in the superblock before we run the
+	 * full mount process as the mount process can lookup and cache inodes.
+	 * For the same reason we must also initialise the syncd and register
+	 * the inode cache shrinker so that inodes can be reclaimed during
+	 * operations like a quotacheck that iterate all inodes in the
+	 * filesystem.
+	 */
 	sb->s_magic = XFS_SB_MAGIC;
 	sb->s_blocksize = mp->m_sb.sb_blocksize;
 	sb->s_blocksize_bits = ffs(sb->s_blocksize) - 1;
 	sb->s_maxbytes = xfs_max_file_offset(sb->s_blocksize_bits);
 	sb->s_time_gran = 1;
 	set_posix_acl_flag(sb);
+
+	error = xfs_syncd_init(mp);
+	if (error)
+		goto out_filestream_unmount;
+
+	xfs_inode_shrinker_register(mp);
+
+	error = xfs_mountfs(mp);
+	if (error)
+		goto out_syncd_stop;
 
 	root = igrab(VFS_I(mp->m_rootip));
 	if (!root) {
@@ -1577,14 +1497,11 @@ xfs_fs_fill_super(
 		goto fail_vnrele;
 	}
 
-	error = xfs_syncd_init(mp);
-	if (error)
-		goto fail_vnrele;
-
-	xfs_inode_shrinker_register(mp);
-
 	return 0;
 
+ out_syncd_stop:
+	xfs_inode_shrinker_unregister(mp);
+	xfs_syncd_stop(mp);
  out_filestream_unmount:
 	xfs_filestream_unmount(mp);
  out_free_sb:
@@ -1608,6 +1525,9 @@ xfs_fs_fill_super(
 	}
 
  fail_unmount:
+	xfs_inode_shrinker_unregister(mp);
+	xfs_syncd_stop(mp);
+
 	/*
 	 * Blow away any referenced inode in the filestreams cache.
 	 * This can and will cause log traffic as inodes go inactive
@@ -1797,6 +1717,38 @@ xfs_destroy_zones(void)
 }
 
 STATIC int __init
+xfs_init_workqueues(void)
+{
+	/*
+	 * max_active is set to 8 to give enough concurency to allow
+	 * multiple work operations on each CPU to run. This allows multiple
+	 * filesystems to be running sync work concurrently, and scales with
+	 * the number of CPUs in the system.
+	 */
+	xfs_syncd_wq = alloc_workqueue("xfssyncd", WQ_CPU_INTENSIVE, 8);
+	if (!xfs_syncd_wq)
+		goto out;
+
+	xfs_ail_wq = alloc_workqueue("xfsail", WQ_CPU_INTENSIVE, 8);
+	if (!xfs_ail_wq)
+		goto out_destroy_syncd;
+
+	return 0;
+
+out_destroy_syncd:
+	destroy_workqueue(xfs_syncd_wq);
+out:
+	return -ENOMEM;
+}
+
+STATIC void
+xfs_destroy_workqueues(void)
+{
+	destroy_workqueue(xfs_ail_wq);
+	destroy_workqueue(xfs_syncd_wq);
+}
+
+STATIC int __init
 init_xfs_fs(void)
 {
 	int			error;
@@ -1811,9 +1763,13 @@ init_xfs_fs(void)
 	if (error)
 		goto out;
 
-	error = xfs_mru_cache_init();
+	error = xfs_init_workqueues();
 	if (error)
 		goto out_destroy_zones;
+
+	error = xfs_mru_cache_init();
+	if (error)
+		goto out_destroy_wq;
 
 	error = xfs_filestream_init();
 	if (error)
@@ -1830,6 +1786,10 @@ init_xfs_fs(void)
 	error = xfs_sysctl_register();
 	if (error)
 		goto out_cleanup_procfs;
+
+	error = xfs_init_workqueues();
+	if (error)
+		goto out_sysctl_unregister;
 
 	vfs_initquota();
 
@@ -1848,6 +1808,8 @@ init_xfs_fs(void)
 	xfs_filestream_uninit();
  out_mru_cache_uninit:
 	xfs_mru_cache_uninit();
+ out_destroy_wq:
+	xfs_destroy_workqueues();
  out_destroy_zones:
 	xfs_destroy_zones();
  out:
@@ -1864,6 +1826,7 @@ exit_xfs_fs(void)
 	xfs_buf_terminate();
 	xfs_filestream_uninit();
 	xfs_mru_cache_uninit();
+	xfs_destroy_workqueues();
 	xfs_destroy_zones();
 }
 

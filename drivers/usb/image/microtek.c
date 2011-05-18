@@ -69,7 +69,7 @@
  *	20000513 added IDs for all products supported by Windows driver (john)
  *	20000514 Rewrote mts_scsi_queuecommand to use URBs (john)
  *	20000514 Version 0.0.8j
- *      20000514 Fix reporting of non-existant devices to SCSI layer (john)
+ *      20000514 Fix reporting of non-existent devices to SCSI layer (john)
  *	20000514 Added MTS_DEBUG_INT (john)
  *	20000514 Changed "usb-microtek" to "microtek" for consistency (john)
  *	20000514 Stupid bug fixes (john)
@@ -557,14 +557,14 @@ mts_build_transfer_context(struct scsi_cmnd *srb, struct mts_desc* desc)
 
 	if ( !memcmp( srb->cmnd, mts_read_image_sig, mts_read_image_sig_len )
 ) { 		pipe = usb_rcvbulkpipe(desc->usb_dev,desc->ep_image);
-		MTS_DEBUG( "transfering from desc->ep_image == %d\n",
+		MTS_DEBUG( "transferring from desc->ep_image == %d\n",
 			   (int)desc->ep_image );
 	} else if ( MTS_DIRECTION_IS_IN(srb->cmnd[0]) ) {
 			pipe = usb_rcvbulkpipe(desc->usb_dev,desc->ep_response);
-			MTS_DEBUG( "transfering from desc->ep_response == %d\n",
+			MTS_DEBUG( "transferring from desc->ep_response == %d\n",
 				   (int)desc->ep_response);
 	} else {
-		MTS_DEBUG("transfering to desc->ep_out == %d\n",
+		MTS_DEBUG("transferring to desc->ep_out == %d\n",
 			  (int)desc->ep_out);
 		pipe = usb_sndbulkpipe(desc->usb_dev,desc->ep_out);
 	}

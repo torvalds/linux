@@ -100,9 +100,11 @@ int vrtc_set_mmss(unsigned long nowtime)
 
 void __init mrst_rtc_init(void)
 {
-	unsigned long vrtc_paddr = sfi_mrtc_array[0].phys_addr;
+	unsigned long vrtc_paddr;
 
 	sfi_table_parse(SFI_SIG_MRTC, NULL, NULL, sfi_parse_mrtc);
+
+	vrtc_paddr = sfi_mrtc_array[0].phys_addr;
 	if (!sfi_mrtc_num || !vrtc_paddr)
 		return;
 

@@ -145,6 +145,10 @@ static int __devinit clock_probe(struct platform_device *op)
 	if (!model)
 		return -ENODEV;
 
+	/* Only the primary RTC has an address property */
+	if (!of_find_property(dp, "address", NULL))
+		return -ENODEV;
+
 	m48t59_rtc.resource = &op->resource[0];
 	if (!strcmp(model, "mk48t02")) {
 		/* Map the clock register io area read-only */
@@ -164,7 +168,7 @@ static int __devinit clock_probe(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id __initdata clock_match[] = {
+static struct of_device_id clock_match[] = {
 	{
 		.name = "eeprom",
 	},

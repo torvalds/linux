@@ -1164,7 +1164,7 @@ int acpi_processor_set_throttling(struct acpi_processor *pr,
 			 */
 			if (!match_pr->flags.throttling) {
 				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					"Throttling Controll is unsupported "
+					"Throttling Control is unsupported "
 					"on CPU %d\n", i));
 				continue;
 			}

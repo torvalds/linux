@@ -588,14 +588,9 @@ static void c_can_chip_config(struct net_device *dev)
 {
 	struct c_can_priv *priv = netdev_priv(dev);
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_ONE_SHOT)
-		/* disable automatic retransmission */
-		priv->write_reg(priv, &priv->regs->control,
-				CONTROL_DISABLE_AR);
-	else
-		/* enable automatic retransmission */
-		priv->write_reg(priv, &priv->regs->control,
-				CONTROL_ENABLE_AR);
+	/* enable automatic retransmission */
+	priv->write_reg(priv, &priv->regs->control,
+			CONTROL_ENABLE_AR);
 
 	if (priv->can.ctrlmode & (CAN_CTRLMODE_LISTENONLY &
 					CAN_CTRLMODE_LOOPBACK)) {
@@ -633,9 +628,6 @@ static void c_can_start(struct net_device *dev)
 {
 	struct c_can_priv *priv = netdev_priv(dev);
 
-	/* enable status change, error and module interrupts */
-	c_can_enable_all_interrupts(priv, ENABLE_ALL_INTERRUPTS);
-
 	/* basic c_can configuration */
 	c_can_chip_config(dev);
 
@@ -643,6 +635,9 @@ static void c_can_start(struct net_device *dev)
 
 	/* reset tx helper pointers */
 	priv->tx_next = priv->tx_echo = 0;
+
+	/* enable status change, error and module interrupts */
+	c_can_enable_all_interrupts(priv, ENABLE_ALL_INTERRUPTS);
 }
 
 static void c_can_stop(struct net_device *dev)
@@ -704,7 +699,6 @@ static void c_can_do_tx(struct net_device *dev)
 
 	for (/* nix */; (priv->tx_next - priv->tx_echo) > 0; priv->tx_echo++) {
 		msg_obj_no = get_tx_echo_msg_obj(priv);
-		c_can_inval_msg_object(dev, 0, msg_obj_no);
 		val = c_can_read_reg32(priv, &priv->regs->txrqst1);
 		if (!(val & (1 << msg_obj_no))) {
 			can_get_echo_skb(dev,
@@ -713,6 +707,7 @@ static void c_can_do_tx(struct net_device *dev)
 					&priv->regs->ifregs[0].msg_cntrl)
 					& IF_MCONT_DLC_MASK;
 			stats->tx_packets++;
+			c_can_inval_msg_object(dev, 0, msg_obj_no);
 		}
 	}
 
@@ -818,7 +813,7 @@ static int c_can_handle_state_change(struct net_device *dev,
 	struct sk_buff *skb;
 	struct can_berr_counter bec;
 
-	/* propogate the error condition to the CAN stack */
+	/* propagate the error condition to the CAN stack */
 	skb = alloc_can_err_skb(dev, &cf);
 	if (unlikely(!skb))
 		return 0;
@@ -892,7 +887,7 @@ static int c_can_handle_bus_err(struct net_device *dev,
 	if (lec_type == LEC_UNUSED || lec_type == LEC_NO_ERROR)
 		return 0;
 
-	/* propogate the error condition to the CAN stack */
+	/* propagate the error condition to the CAN stack */
 	skb = alloc_can_err_skb(dev, &cf);
 	if (unlikely(!skb))
 		return 0;
@@ -1112,8 +1107,7 @@ struct net_device *alloc_c_can_dev(void)
 	priv->can.bittiming_const = &c_can_bittiming_const;
 	priv->can.do_set_mode = c_can_set_mode;
 	priv->can.do_get_berr_counter = c_can_get_berr_counter;
-	priv->can.ctrlmode_supported = CAN_CTRLMODE_ONE_SHOT |
-					CAN_CTRLMODE_LOOPBACK |
+	priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
 					CAN_CTRLMODE_LISTENONLY |
 					CAN_CTRLMODE_BERR_REPORTING;
 

@@ -1150,7 +1150,7 @@ static void gem_pcs_reinit_adv(struct gem *gp)
 	val &= ~(PCS_CFG_ENABLE | PCS_CFG_TO);
 	writel(val, gp->regs + PCS_CFG);
 
-	/* Advertise all capabilities except assymetric
+	/* Advertise all capabilities except asymmetric
 	 * pause.
 	 */
 	val = readl(gp->regs + PCS_MIIADV);

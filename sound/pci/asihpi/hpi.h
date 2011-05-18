@@ -725,7 +725,7 @@ enum HPI_AESEBU_ERRORS {
 #define HPI_PAD_TITLE_LEN               64
 /** The text string containing the comment. */
 #define HPI_PAD_COMMENT_LEN             256
-/** The PTY when the tuner has not recieved any PTY. */
+/** The PTY when the tuner has not received any PTY. */
 #define HPI_PAD_PROGRAM_TYPE_INVALID    0xffff
 /** \} */
 

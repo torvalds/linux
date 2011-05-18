@@ -268,7 +268,7 @@ ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	}
 
 	/*
-	 * If a country IE has been recieved check its rule for this
+	 * If a country IE has been received check its rule for this
 	 * channel first before enabling active scan. The passive scan
 	 * would have been enforced by the initial processing of our
 	 * custom regulatory domain.
@@ -476,7 +476,7 @@ ath_regd_init_wiphy(struct ath_regulatory *reg,
 		wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 	} else {
 		/*
-		 * This gets applied in the case of the absense of CRDA,
+		 * This gets applied in the case of the absence of CRDA,
 		 * it's our own custom world regulatory domain, similar to
 		 * cfg80211's but we enable passive scanning.
 		 */

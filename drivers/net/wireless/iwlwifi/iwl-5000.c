@@ -530,6 +530,9 @@ static struct iwl_ht_params iwl5000_ht_params = {
 struct iwl_cfg iwl5300_agn_cfg = {
 	.name = "Intel(R) Ultimate N WiFi Link 5300 AGN",
 	IWL_DEVICE_5000,
+	/* at least EEPROM 0x11A has wrong info */
+	.valid_tx_ant = ANT_ABC,	/* .cfg overwrite */
+	.valid_rx_ant = ANT_ABC,	/* .cfg overwrite */
 	.ht_params = &iwl5000_ht_params,
 };
 

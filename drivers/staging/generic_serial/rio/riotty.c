@@ -124,7 +124,7 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 	}
 
 	/*
-	 ** Grab pointer to the port stucture
+	 ** Grab pointer to the port structure
 	 */
 	PortP = p->RIOPortp[SysPort];	/* Get control struc */
 	rio_dprintk(RIO_DEBUG_TTY, "PortP: %p\n", PortP);
@@ -161,7 +161,7 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 	}
 
 	/*
-	 ** If the RTA has not booted yet and the user has choosen to block
+	 ** If the RTA has not booted yet and the user has chosen to block
 	 ** until the RTA is present then we must spin here waiting for
 	 ** the RTA to boot.
 	 */

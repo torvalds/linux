@@ -1018,6 +1018,7 @@ static int __init toshiba_acpi_init(void)
 		create_toshiba_proc_entries();
 	}
 
+	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
 	toshiba_backlight_device = backlight_device_register("toshiba",
 							     &toshiba_acpi.p_dev->dev,

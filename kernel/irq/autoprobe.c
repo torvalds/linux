@@ -70,10 +70,8 @@ unsigned long probe_irq_on(void)
 		raw_spin_lock_irq(&desc->lock);
 		if (!desc->action && irq_settings_can_probe(desc)) {
 			desc->istate |= IRQS_AUTODETECT | IRQS_WAITING;
-			if (irq_startup(desc)) {
-				irq_compat_set_pending(desc);
+			if (irq_startup(desc))
 				desc->istate |= IRQS_PENDING;
-			}
 		}
 		raw_spin_unlock_irq(&desc->lock);
 	}

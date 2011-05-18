@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/highmem.h>
 
-#define MLOG_MASK_PREFIX ML_DISK_ALLOC
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"
@@ -44,6 +43,7 @@
 #include "super.h"
 #include "sysfile.h"
 #include "uptodate.h"
+#include "ocfs2_trace.h"
 
 #include "buffer_head_io.h"
 
@@ -308,8 +308,8 @@ static int ocfs2_validate_group_descriptor(struct super_block *sb,
 	int rc;
 	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
 
-	mlog(0, "Validating group descriptor %llu\n",
-	     (unsigned long long)bh->b_blocknr);
+	trace_ocfs2_validate_group_descriptor(
+					(unsigned long long)bh->b_blocknr);
 
 	BUG_ON(!buffer_uptodate(bh));
 
@@ -389,8 +389,6 @@ static int ocfs2_block_group_fill(handle_t *handle,
 	struct ocfs2_group_desc *bg = (struct ocfs2_group_desc *) bg_bh->b_data;
 	struct super_block * sb = alloc_inode->i_sb;
 
-	mlog_entry_void();
-
 	if (((unsigned long long) bg_bh->b_blocknr) != group_blkno) {
 		ocfs2_error(alloc_inode->i_sb, "group block (%llu) != "
 			    "b_blocknr (%llu)",
@@ -436,7 +434,8 @@ static int ocfs2_block_group_fill(handle_t *handle,
 	 * allocation time. */
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -477,8 +476,8 @@ ocfs2_block_group_alloc_contig(struct ocfs2_super *osb, handle_t *handle,
 
 	/* setup the group */
 	bg_blkno = ocfs2_clusters_to_blocks(osb->sb, bit_off);
-	mlog(0, "new descriptor, record %u, at block %llu\n",
-	     alloc_rec, (unsigned long long)bg_blkno);
+	trace_ocfs2_block_group_alloc_contig(
+	     (unsigned long long)bg_blkno, alloc_rec);
 
 	bg_bh = sb_getblk(osb->sb, bg_blkno);
 	if (!bg_bh) {
@@ -657,8 +656,8 @@ ocfs2_block_group_alloc_discontig(handle_t *handle,
 
 	/* setup the group */
 	bg_blkno = ocfs2_clusters_to_blocks(osb->sb, bit_off);
-	mlog(0, "new descriptor, record %u, at block %llu\n",
-	     alloc_rec, (unsigned long long)bg_blkno);
+	trace_ocfs2_block_group_alloc_discontig(
+				(unsigned long long)bg_blkno, alloc_rec);
 
 	bg_bh = sb_getblk(osb->sb, bg_blkno);
 	if (!bg_bh) {
@@ -707,8 +706,6 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 
 	BUG_ON(ocfs2_is_cluster_bitmap(alloc_inode));
 
-	mlog_entry_void();
-
 	cl = &fe->id2.i_chain;
 	status = ocfs2_reserve_clusters_with_limit(osb,
 						   le16_to_cpu(cl->cl_cpg),
@@ -730,8 +727,8 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 	}
 
 	if (last_alloc_group && *last_alloc_group != 0) {
-		mlog(0, "use old allocation group %llu for block group alloc\n",
-		     (unsigned long long)*last_alloc_group);
+		trace_ocfs2_block_group_alloc(
+				(unsigned long long)*last_alloc_group);
 		ac->ac_last_group = *last_alloc_group;
 	}
 
@@ -796,7 +793,8 @@ bail:
 
 	brelse(bg_bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -813,8 +811,6 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 	struct buffer_head *bh = NULL;
 	struct ocfs2_dinode *fe;
 	u32 free_bits;
-
-	mlog_entry_void();
 
 	alloc_inode = ocfs2_get_system_file_inode(osb, type, slot);
 	if (!alloc_inode) {
@@ -855,16 +851,15 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 	if (bits_wanted > free_bits) {
 		/* cluster bitmap never grows */
 		if (ocfs2_is_cluster_bitmap(alloc_inode)) {
-			mlog(0, "Disk Full: wanted=%u, free_bits=%u\n",
-			     bits_wanted, free_bits);
+			trace_ocfs2_reserve_suballoc_bits_nospc(bits_wanted,
+								free_bits);
 			status = -ENOSPC;
 			goto bail;
 		}
 
 		if (!(flags & ALLOC_NEW_GROUP)) {
-			mlog(0, "Alloc File %u Full: wanted=%u, free_bits=%u, "
-			     "and we don't alloc a new group for it.\n",
-			     slot, bits_wanted, free_bits);
+			trace_ocfs2_reserve_suballoc_bits_no_new_group(
+						slot, bits_wanted, free_bits);
 			status = -ENOSPC;
 			goto bail;
 		}
@@ -890,7 +885,8 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 bail:
 	brelse(bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1052,7 +1048,8 @@ bail:
 		*ac = NULL;
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1119,8 +1116,8 @@ int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 		spin_lock(&osb->osb_lock);
 		osb->osb_inode_alloc_group = alloc_group;
 		spin_unlock(&osb->osb_lock);
-		mlog(0, "after reservation, new allocation group is "
-		     "%llu\n", (unsigned long long)alloc_group);
+		trace_ocfs2_reserve_new_inode_new_group(
+			(unsigned long long)alloc_group);
 
 		/*
 		 * Some inodes must be freed by us, so try to allocate
@@ -1152,7 +1149,8 @@ bail:
 		*ac = NULL;
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1188,8 +1186,6 @@ static int ocfs2_reserve_clusters_with_limit(struct ocfs2_super *osb,
 					     struct ocfs2_alloc_context **ac)
 {
 	int status;
-
-	mlog_entry_void();
 
 	*ac = kzalloc(sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
 	if (!(*ac)) {
@@ -1229,7 +1225,8 @@ bail:
 		*ac = NULL;
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1357,15 +1354,12 @@ static inline int ocfs2_block_group_set_bits(handle_t *handle,
 	void *bitmap = bg->bg_bitmap;
 	int journal_type = OCFS2_JOURNAL_ACCESS_WRITE;
 
-	mlog_entry_void();
-
 	/* All callers get the descriptor via
 	 * ocfs2_read_group_descriptor().  Any corruption is a code bug. */
 	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(bg));
 	BUG_ON(le16_to_cpu(bg->bg_free_bits_count) < num_bits);
 
-	mlog(0, "block_group_set_bits: off = %u, num = %u\n", bit_off,
-	     num_bits);
+	trace_ocfs2_block_group_set_bits(bit_off, num_bits);
 
 	if (ocfs2_is_cluster_bitmap(alloc_inode))
 		journal_type = OCFS2_JOURNAL_ACCESS_UNDO;
@@ -1394,7 +1388,8 @@ static inline int ocfs2_block_group_set_bits(handle_t *handle,
 	ocfs2_journal_dirty(handle, group_bh);
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1437,10 +1432,10 @@ static int ocfs2_relink_block_group(handle_t *handle,
 	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(bg));
 	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(prev_bg));
 
-	mlog(0, "Suballoc %llu, chain %u, move group %llu to top, prev = %llu\n",
-	     (unsigned long long)le64_to_cpu(fe->i_blkno), chain,
-	     (unsigned long long)le64_to_cpu(bg->bg_blkno),
-	     (unsigned long long)le64_to_cpu(prev_bg->bg_blkno));
+	trace_ocfs2_relink_block_group(
+		(unsigned long long)le64_to_cpu(fe->i_blkno), chain,
+		(unsigned long long)le64_to_cpu(bg->bg_blkno),
+		(unsigned long long)le64_to_cpu(prev_bg->bg_blkno));
 
 	fe_ptr = le64_to_cpu(fe->id2.i_chain.cl_recs[chain].c_blkno);
 	bg_ptr = le64_to_cpu(bg->bg_next_group);
@@ -1484,7 +1479,8 @@ out_rollback:
 		prev_bg->bg_next_group = cpu_to_le64(prev_bg_ptr);
 	}
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1515,7 +1511,7 @@ static int ocfs2_cluster_group_search(struct inode *inode,
 		max_bits = le16_to_cpu(gd->bg_bits);
 
 		/* Tail groups in cluster bitmaps which aren't cpg
-		 * aligned are prone to partial extention by a failed
+		 * aligned are prone to partial extension by a failed
 		 * fs resize. If the file system resize never got to
 		 * update the dinode cluster count, then we don't want
 		 * to trust any clusters past it, regardless of what
@@ -1525,10 +1521,10 @@ static int ocfs2_cluster_group_search(struct inode *inode,
 		if ((gd_cluster_off + max_bits) >
 		    OCFS2_I(inode)->ip_clusters) {
 			max_bits = OCFS2_I(inode)->ip_clusters - gd_cluster_off;
-			mlog(0, "Desc %llu, bg_bits %u, clusters %u, use %u\n",
-			     (unsigned long long)le64_to_cpu(gd->bg_blkno),
-			     le16_to_cpu(gd->bg_bits),
-			     OCFS2_I(inode)->ip_clusters, max_bits);
+			trace_ocfs2_cluster_group_search_wrong_max_bits(
+				(unsigned long long)le64_to_cpu(gd->bg_blkno),
+				le16_to_cpu(gd->bg_bits),
+				OCFS2_I(inode)->ip_clusters, max_bits);
 		}
 
 		ret = ocfs2_block_group_find_clear_bits(OCFS2_SB(inode->i_sb),
@@ -1542,9 +1538,9 @@ static int ocfs2_cluster_group_search(struct inode *inode,
 							  gd_cluster_off +
 							  res->sr_bit_offset +
 							  res->sr_bits);
-			mlog(0, "Checking %llu against %llu\n",
-			     (unsigned long long)blkoff,
-			     (unsigned long long)max_block);
+			trace_ocfs2_cluster_group_search_max_block(
+				(unsigned long long)blkoff,
+				(unsigned long long)max_block);
 			if (blkoff > max_block)
 				return -ENOSPC;
 		}
@@ -1588,9 +1584,9 @@ static int ocfs2_block_group_search(struct inode *inode,
 		if (!ret && max_block) {
 			blkoff = le64_to_cpu(bg->bg_blkno) +
 				res->sr_bit_offset + res->sr_bits;
-			mlog(0, "Checking %llu against %llu\n",
-			     (unsigned long long)blkoff,
-			     (unsigned long long)max_block);
+			trace_ocfs2_block_group_search_max_block(
+				(unsigned long long)blkoff,
+				(unsigned long long)max_block);
 			if (blkoff > max_block)
 				ret = -ENOSPC;
 		}
@@ -1756,9 +1752,9 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 	struct ocfs2_group_desc *bg;
 
 	chain = ac->ac_chain;
-	mlog(0, "trying to alloc %u bits from chain %u, inode %llu\n",
-	     bits_wanted, chain,
-	     (unsigned long long)OCFS2_I(alloc_inode)->ip_blkno);
+	trace_ocfs2_search_chain_begin(
+		(unsigned long long)OCFS2_I(alloc_inode)->ip_blkno,
+		bits_wanted, chain);
 
 	status = ocfs2_read_group_descriptor(alloc_inode, fe,
 					     le64_to_cpu(cl->cl_recs[chain].c_blkno),
@@ -1799,8 +1795,8 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 		goto bail;
 	}
 
-	mlog(0, "alloc succeeds: we give %u bits from block group %llu\n",
-	     res->sr_bits, (unsigned long long)le64_to_cpu(bg->bg_blkno));
+	trace_ocfs2_search_chain_succ(
+		(unsigned long long)le64_to_cpu(bg->bg_blkno), res->sr_bits);
 
 	res->sr_bg_blkno = le64_to_cpu(bg->bg_blkno);
 
@@ -1861,8 +1857,9 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 		goto bail;
 	}
 
-	mlog(0, "Allocated %u bits from suballocator %llu\n", res->sr_bits,
-	     (unsigned long long)le64_to_cpu(fe->i_blkno));
+	trace_ocfs2_search_chain_end(
+			(unsigned long long)le64_to_cpu(fe->i_blkno),
+			res->sr_bits);
 
 out_loc_only:
 	*bits_left = le16_to_cpu(bg->bg_free_bits_count);
@@ -1870,7 +1867,8 @@ bail:
 	brelse(group_bh);
 	brelse(prev_group_bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -1887,8 +1885,6 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_alloc_context *ac,
 	u64 hint = ac->ac_last_group;
 	struct ocfs2_chain_list *cl;
 	struct ocfs2_dinode *fe;
-
-	mlog_entry_void();
 
 	BUG_ON(ac->ac_bits_given >= ac->ac_bits_wanted);
 	BUG_ON(bits_wanted > (ac->ac_bits_wanted - ac->ac_bits_given));
@@ -1945,8 +1941,7 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_alloc_context *ac,
 		goto bail;
 	}
 
-	mlog(0, "Search of victim chain %u came up with nothing, "
-	     "trying all chains now.\n", victim);
+	trace_ocfs2_claim_suballoc_bits(victim);
 
 	/* If we didn't pick a good victim, then just default to
 	 * searching each chain in order. Don't allow chain relinking
@@ -1984,7 +1979,8 @@ set_hint:
 	}
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2021,7 +2017,8 @@ int ocfs2_claim_metadata(handle_t *handle,
 	*num_bits = res.sr_bits;
 	status = 0;
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2172,8 +2169,8 @@ int ocfs2_claim_new_inode_at_loc(handle_t *handle,
 		goto out;
 	}
 
-	mlog(0, "Allocated %u bits from suballocator %llu\n", res->sr_bits,
-	     (unsigned long long)di_blkno);
+	trace_ocfs2_claim_new_inode_at_loc((unsigned long long)di_blkno,
+					   res->sr_bits);
 
 	atomic_inc(&OCFS2_SB(ac->ac_inode->i_sb)->alloc_stats.bg_allocs);
 
@@ -2200,8 +2197,6 @@ int ocfs2_claim_new_inode(handle_t *handle,
 {
 	int status;
 	struct ocfs2_suballoc_result res;
-
-	mlog_entry_void();
 
 	BUG_ON(!ac);
 	BUG_ON(ac->ac_bits_given != 0);
@@ -2230,7 +2225,8 @@ int ocfs2_claim_new_inode(handle_t *handle,
 	ocfs2_save_inode_ac_group(dir, ac);
 	status = 0;
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2307,8 +2303,6 @@ int __ocfs2_claim_clusters(handle_t *handle,
 	struct ocfs2_suballoc_result res = { .sr_blkno = 0, };
 	struct ocfs2_super *osb = OCFS2_SB(ac->ac_inode->i_sb);
 
-	mlog_entry_void();
-
 	BUG_ON(ac->ac_bits_given >= ac->ac_bits_wanted);
 
 	BUG_ON(ac->ac_which != OCFS2_AC_USE_LOCAL
@@ -2363,7 +2357,8 @@ int __ocfs2_claim_clusters(handle_t *handle,
 	ac->ac_bits_given += *num_clusters;
 
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2392,13 +2387,11 @@ static int ocfs2_block_group_clear_bits(handle_t *handle,
 	unsigned int tmp;
 	struct ocfs2_group_desc *undo_bg = NULL;
 
-	mlog_entry_void();
-
 	/* The caller got this descriptor from
 	 * ocfs2_read_group_descriptor().  Any corruption is a code bug. */
 	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(bg));
 
-	mlog(0, "off = %u, num = %u\n", bit_off, num_bits);
+	trace_ocfs2_block_group_clear_bits(bit_off, num_bits);
 
 	BUG_ON(undo_fn && !ocfs2_is_cluster_bitmap(alloc_inode));
 	status = ocfs2_journal_access_gd(handle, INODE_CACHE(alloc_inode),
@@ -2463,19 +2456,18 @@ static int _ocfs2_free_suballoc_bits(handle_t *handle,
 	struct buffer_head *group_bh = NULL;
 	struct ocfs2_group_desc *group;
 
-	mlog_entry_void();
-
 	/* The alloc_bh comes from ocfs2_free_dinode() or
 	 * ocfs2_free_clusters().  The callers have all locked the
 	 * allocator and gotten alloc_bh from the lock call.  This
-	 * validates the dinode buffer.  Any corruption that has happended
+	 * validates the dinode buffer.  Any corruption that has happened
 	 * is a code bug. */
 	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
 	BUG_ON((count + start_bit) > ocfs2_bits_per_group(cl));
 
-	mlog(0, "%llu: freeing %u bits from group %llu, starting at %u\n",
-	     (unsigned long long)OCFS2_I(alloc_inode)->ip_blkno, count,
-	     (unsigned long long)bg_blkno, start_bit);
+	trace_ocfs2_free_suballoc_bits(
+		(unsigned long long)OCFS2_I(alloc_inode)->ip_blkno,
+		(unsigned long long)bg_blkno,
+		start_bit, count);
 
 	status = ocfs2_read_group_descriptor(alloc_inode, fe, bg_blkno,
 					     &group_bh);
@@ -2511,7 +2503,8 @@ static int _ocfs2_free_suballoc_bits(handle_t *handle,
 bail:
 	brelse(group_bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2556,11 +2549,8 @@ static int _ocfs2_free_clusters(handle_t *handle,
 
 	/* You can't ever have a contiguous set of clusters
 	 * bigger than a block group bitmap so we never have to worry
-	 * about looping on them. */
-
-	mlog_entry_void();
-
-	/* This is expensive. We can safely remove once this stuff has
+	 * about looping on them.
+	 * This is expensive. We can safely remove once this stuff has
 	 * gotten tested really well. */
 	BUG_ON(start_blk != ocfs2_clusters_to_blocks(bitmap_inode->i_sb, ocfs2_blocks_to_clusters(bitmap_inode->i_sb, start_blk)));
 
@@ -2569,10 +2559,9 @@ static int _ocfs2_free_clusters(handle_t *handle,
 	ocfs2_block_to_cluster_group(bitmap_inode, start_blk, &bg_blkno,
 				     &bg_start_bit);
 
-	mlog(0, "want to free %u clusters starting at block %llu\n",
-	     num_clusters, (unsigned long long)start_blk);
-	mlog(0, "bg_blkno = %llu, bg_start_bit = %u\n",
-	     (unsigned long long)bg_blkno, bg_start_bit);
+	trace_ocfs2_free_clusters((unsigned long long)bg_blkno,
+			(unsigned long long)start_blk,
+			bg_start_bit, num_clusters);
 
 	status = _ocfs2_free_suballoc_bits(handle, bitmap_inode, bitmap_bh,
 					   bg_start_bit, bg_blkno,
@@ -2586,7 +2575,8 @@ static int _ocfs2_free_clusters(handle_t *handle,
 					 num_clusters);
 
 out:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2756,7 +2746,7 @@ static int ocfs2_get_suballoc_slot_bit(struct ocfs2_super *osb, u64 blkno,
 	struct buffer_head *inode_bh = NULL;
 	struct ocfs2_dinode *inode_fe;
 
-	mlog_entry("blkno: %llu\n", (unsigned long long)blkno);
+	trace_ocfs2_get_suballoc_slot_bit((unsigned long long)blkno);
 
 	/* dirty read disk */
 	status = ocfs2_read_blocks_sync(osb, blkno, 1, &inode_bh);
@@ -2793,7 +2783,8 @@ static int ocfs2_get_suballoc_slot_bit(struct ocfs2_super *osb, u64 blkno,
 bail:
 	brelse(inode_bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2816,8 +2807,8 @@ static int ocfs2_test_suballoc_bit(struct ocfs2_super *osb,
 	u64 bg_blkno;
 	int status;
 
-	mlog_entry("blkno: %llu bit: %u\n", (unsigned long long)blkno,
-		   (unsigned int)bit);
+	trace_ocfs2_test_suballoc_bit((unsigned long long)blkno,
+				      (unsigned int)bit);
 
 	alloc_di = (struct ocfs2_dinode *)alloc_bh->b_data;
 	if ((bit + 1) > ocfs2_bits_per_group(&alloc_di->id2.i_chain)) {
@@ -2844,7 +2835,8 @@ static int ocfs2_test_suballoc_bit(struct ocfs2_super *osb,
 bail:
 	brelse(group_bh);
 
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }
 
@@ -2869,7 +2861,7 @@ int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res)
 	struct inode *inode_alloc_inode;
 	struct buffer_head *alloc_bh = NULL;
 
-	mlog_entry("blkno: %llu", (unsigned long long)blkno);
+	trace_ocfs2_test_inode_bit((unsigned long long)blkno);
 
 	status = ocfs2_get_suballoc_slot_bit(osb, blkno, &suballoc_slot,
 					     &group_blkno, &suballoc_bit);
@@ -2910,6 +2902,7 @@ int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res)
 	iput(inode_alloc_inode);
 	brelse(alloc_bh);
 bail:
-	mlog_exit(status);
+	if (status)
+		mlog_errno(status);
 	return status;
 }

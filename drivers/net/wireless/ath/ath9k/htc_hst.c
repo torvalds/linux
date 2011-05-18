@@ -360,7 +360,7 @@ ret:
  * HTC Messages are handled directly here and the obtained SKB
  * is freed.
  *
- * Sevice messages (Data, WMI) passed to the corresponding
+ * Service messages (Data, WMI) passed to the corresponding
  * endpoint RX handlers, which have to free the SKB.
  */
 void ath9k_htc_rx_msg(struct htc_target *htc_handle,

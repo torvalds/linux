@@ -55,6 +55,7 @@ struct netns_ipv4 {
 	int current_rt_cache_rebuild_count;
 
 	atomic_t rt_genid;
+	atomic_t dev_addr_genid;
 
 #ifdef CONFIG_IP_MROUTE
 #ifndef CONFIG_IP_MROUTE_MULTIPLE_TABLES

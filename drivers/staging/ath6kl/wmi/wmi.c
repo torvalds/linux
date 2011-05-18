@@ -4867,7 +4867,7 @@ wmi_set_country(struct wmi_t *wmip, u8 *countryCode)
 #ifdef CONFIG_HOST_TCMD_SUPPORT
 /* WMI  layer doesn't need to know the data type of the test cmd.
    This would be beneficial for customers like Qualcomm, who might
-   have different test command requirements from differnt manufacturers
+   have different test command requirements from different manufacturers
  */
 int
 wmi_test_cmd(struct wmi_t *wmip, u8 *buf, u32 len)

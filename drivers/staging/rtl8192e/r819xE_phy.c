@@ -2032,13 +2032,13 @@ void rtl8192_SetBWModeWorkItem(struct r8192_priv *priv)
 	{
 		case HT_CHANNEL_WIDTH_20:
 			regBwOpMode |= BW_OPMODE_20MHZ;
-		       // 2007/02/07 Mark by Emily becasue we have not verify whether this register works
+		       // 2007/02/07 Mark by Emily because we have not verify whether this register works
 			write_nic_byte(priv, BW_OPMODE, regBwOpMode);
 			break;
 
 		case HT_CHANNEL_WIDTH_20_40:
 			regBwOpMode &= ~BW_OPMODE_20MHZ;
-        		// 2007/02/07 Mark by Emily becasue we have not verify whether this register works
+        		// 2007/02/07 Mark by Emily because we have not verify whether this register works
 			write_nic_byte(priv, BW_OPMODE, regBwOpMode);
 			break;
 
@@ -2116,7 +2116,7 @@ void rtl8192_SetBWModeWorkItem(struct r8192_priv *priv)
 }
 
 /******************************************************************************
- *function:  This function schedules bandwith switch work.
+ *function:  This function schedules bandwidth switch work.
  *   input:  struct net_device *dev
  *   	     HT_CHANNEL_WIDTH	Bandwidth  //20M or 40M
  *   	     HT_EXTCHNL_OFFSET Offset 	   //Upper, Lower, or Don't care

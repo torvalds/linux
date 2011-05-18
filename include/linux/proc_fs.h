@@ -50,7 +50,7 @@ typedef	int (write_proc_t)(struct file *file, const char __user *buffer,
 
 struct proc_dir_entry {
 	unsigned int low_ino;
-	unsigned short namelen;
+	unsigned int namelen;
 	const char *name;
 	mode_t mode;
 	nlink_t nlink;

@@ -54,13 +54,13 @@
 #include <linux/usb/usbnet.h>
 #include <linux/usb/cdc.h>
 
-#define	DRIVER_VERSION				"7-Feb-2011"
+#define	DRIVER_VERSION				"23-Apr-2011"
 
 /* CDC NCM subclass 3.2.1 */
 #define USB_CDC_NCM_NDP16_LENGTH_MIN		0x10
 
 /* Maximum NTB length */
-#define	CDC_NCM_NTB_MAX_SIZE_TX			16384	/* bytes */
+#define	CDC_NCM_NTB_MAX_SIZE_TX			(16384 + 4) /* bytes, must be short terminated */
 #define	CDC_NCM_NTB_MAX_SIZE_RX			16384	/* bytes */
 
 /* Minimum value for MaxDatagramSize, ch. 6.2.9 */
@@ -1237,7 +1237,7 @@ static int cdc_ncm_manage_power(struct usbnet *dev, int status)
 
 static const struct driver_info cdc_ncm_info = {
 	.description = "CDC NCM",
-	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET,
+	.flags = FLAG_POINTTOPOINT | FLAG_NO_SETINT | FLAG_MULTI_PACKET,
 	.bind = cdc_ncm_bind,
 	.unbind = cdc_ncm_unbind,
 	.check_connect = cdc_ncm_check_connect,

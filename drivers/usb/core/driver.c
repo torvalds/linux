@@ -1646,7 +1646,7 @@ static int autosuspend_check(struct usb_device *udev)
 	return 0;
 }
 
-static int usb_runtime_suspend(struct device *dev)
+int usb_runtime_suspend(struct device *dev)
 {
 	struct usb_device	*udev = to_usb_device(dev);
 	int			status;
@@ -1667,7 +1667,7 @@ static int usb_runtime_suspend(struct device *dev)
 	return status;
 }
 
-static int usb_runtime_resume(struct device *dev)
+int usb_runtime_resume(struct device *dev)
 {
 	struct usb_device	*udev = to_usb_device(dev);
 	int			status;
@@ -1679,7 +1679,7 @@ static int usb_runtime_resume(struct device *dev)
 	return status;
 }
 
-static int usb_runtime_idle(struct device *dev)
+int usb_runtime_idle(struct device *dev)
 {
 	struct usb_device	*udev = to_usb_device(dev);
 
@@ -1691,19 +1691,10 @@ static int usb_runtime_idle(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops usb_bus_pm_ops = {
-	.runtime_suspend =	usb_runtime_suspend,
-	.runtime_resume =	usb_runtime_resume,
-	.runtime_idle =		usb_runtime_idle,
-};
-
 #endif /* CONFIG_USB_SUSPEND */
 
 struct bus_type usb_bus_type = {
 	.name =		"usb",
 	.match =	usb_device_match,
 	.uevent =	usb_uevent,
-#ifdef CONFIG_USB_SUSPEND
-	.pm =		&usb_bus_pm_ops,
-#endif
 };

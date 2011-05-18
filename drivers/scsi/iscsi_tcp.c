@@ -295,7 +295,7 @@ static int iscsi_sw_tcp_xmit(struct iscsi_conn *conn)
 		rc = iscsi_sw_tcp_xmit_segment(tcp_conn, segment);
 		/*
 		 * We may not have been able to send data because the conn
-		 * is getting stopped. libiscsi will know so propogate err
+		 * is getting stopped. libiscsi will know so propagate err
 		 * for it to do the right thing.
 		 */
 		if (rc == -EAGAIN)

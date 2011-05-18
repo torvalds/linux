@@ -2475,7 +2475,7 @@ static int stac92xx_hp_switch_put(struct snd_kcontrol *kcontrol,
  
 	spec->hp_switch = ucontrol->value.integer.value[0] ? nid : 0;
 
-	/* check to be sure that the ports are upto date with
+	/* check to be sure that the ports are up to date with
 	 * switch changes
 	 */
 	stac_issue_unsol_event(codec, nid);
@@ -3407,6 +3407,9 @@ static int get_connection_index(struct hda_codec *codec, hda_nid_t mux,
 {
 	hda_nid_t conn[HDA_MAX_NUM_INPUTS];
 	int i, nums;
+
+	if (!(get_wcaps(codec, mux) & AC_WCAP_CONN_LIST))
+		return -1;
 
 	nums = snd_hda_get_connections(codec, mux, conn, ARRAY_SIZE(conn));
 	for (i = 0; i < nums; i++)

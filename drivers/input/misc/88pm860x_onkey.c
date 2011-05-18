@@ -74,7 +74,7 @@ static int __devinit pm860x_onkey_probe(struct platform_device *pdev)
 	info->chip = chip;
 	info->i2c = (chip->id == CHIP_PM8607) ? chip->client : chip->companion;
 	info->dev = &pdev->dev;
-	info->irq = irq + chip->irq_base;
+	info->irq = irq;
 
 	info->idev = input_allocate_device();
 	if (!info->idev) {

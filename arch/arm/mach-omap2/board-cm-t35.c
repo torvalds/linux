@@ -488,7 +488,7 @@ static struct regulator_consumer_supply cm_t35_vsim_supply = {
 };
 
 static struct regulator_consumer_supply cm_t35_vdac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omapdss");
+	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc");
 
 static struct regulator_consumer_supply cm_t35_vdvi_supply =
 	REGULATOR_SUPPLY("vdvi", "omapdss");

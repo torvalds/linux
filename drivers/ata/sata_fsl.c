@@ -42,7 +42,7 @@ enum {
 
 	/*
 	 * SATA-FSL host controller supports a max. of (15+1) direct PRDEs, and
-	 * chained indirect PRDEs upto a max count of 63.
+	 * chained indirect PRDEs up to a max count of 63.
 	 * We are allocating an array of 63 PRDEs contiguously, but PRDE#15 will
 	 * be setup as an indirect descriptor, pointing to it's next
 	 * (contiguous) PRDE. Though chained indirect PRDE arrays are
@@ -907,7 +907,7 @@ static int sata_fsl_softreset(struct ata_link *link, unsigned int *class,
 	ata_msleep(ap, 1);
 
 	/*
-	 * SATA device enters reset state after receving a Control register
+	 * SATA device enters reset state after receiving a Control register
 	 * FIS with SRST bit asserted and it awaits another H2D Control reg.
 	 * FIS with SRST bit cleared, then the device does internal diags &
 	 * initialization, followed by indicating it's initialization status

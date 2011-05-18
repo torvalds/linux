@@ -137,9 +137,9 @@ static void __init pxa_init_low_gpio_irq(set_wake_t fn)
 	GEDR0 = 0x3;
 
 	for (irq = IRQ_GPIO0; irq <= IRQ_GPIO1; irq++) {
-		set_irq_chip(irq, &pxa_low_gpio_chip);
-		set_irq_chip_data(irq, irq_base(0));
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &pxa_low_gpio_chip,
+					 handle_edge_irq);
+		irq_set_chip_data(irq, irq_base(0));
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
@@ -165,9 +165,9 @@ void __init pxa_init_irq(int irq_nr, set_wake_t fn)
 				__raw_writel(i | IPR_VALID, IRQ_BASE + IPR(i));
 
 			irq = PXA_IRQ(i);
-			set_irq_chip(irq, &pxa_internal_irq_chip);
-			set_irq_chip_data(irq, base);
-			set_irq_handler(irq, handle_level_irq);
+			irq_set_chip_and_handler(irq, &pxa_internal_irq_chip,
+						 handle_level_irq);
+			irq_set_chip_data(irq, base);
 			set_irq_flags(irq, IRQF_VALID);
 		}
 	}

@@ -167,9 +167,6 @@ int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	radeon_crtc->cursor_width = width;
-	radeon_crtc->cursor_height = height;
-
 	obj = drm_gem_object_lookup(crtc->dev, file_priv, handle);
 	if (!obj) {
 		DRM_ERROR("Cannot find cursor object %x for crtc %d\n", handle, radeon_crtc->crtc_id);
@@ -179,6 +176,9 @@ int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 	ret = radeon_gem_object_pin(obj, RADEON_GEM_DOMAIN_VRAM, &gpu_addr);
 	if (ret)
 		goto fail;
+
+	radeon_crtc->cursor_width = width;
+	radeon_crtc->cursor_height = height;
 
 	radeon_lock_cursor(crtc, true);
 	/* XXX only 27 bit offset for legacy cursor */
@@ -226,7 +226,7 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 		y += crtc->y;
 		DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
 
-		/* avivo cursor image can't end on 128 pixel boundry or
+		/* avivo cursor image can't end on 128 pixel boundary or
 		 * go past the end of the frame if both crtcs are enabled
 		 */
 		list_for_each_entry(crtc_p, &crtc->dev->mode_config.crtc_list, head) {

@@ -32,14 +32,6 @@ unsigned long max_low_pfn;
 unsigned long min_low_pfn;
 unsigned long max_pfn;
 
-#ifdef CONFIG_CRASH_DUMP
-/*
- * If we have booted due to a crash, max_pfn will be a very low value. We need
- * to know the amount of memory that the previous kernel used.
- */
-unsigned long saved_max_pfn;
-#endif
-
 static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
 					u64 goal, u64 limit)
 {
@@ -158,7 +150,7 @@ unsigned long __init free_all_bootmem(void)
 {
 	/*
 	 * We need to use MAX_NUMNODES instead of NODE_DATA(0)->node_id
-	 *  because in some case like Node0 doesnt have RAM installed
+	 *  because in some case like Node0 doesn't have RAM installed
 	 *  low ram will be on Node1
 	 * Use MAX_NUMNODES will make sure all ranges in early_node_map[]
 	 *  will be used instead of only Node0 related

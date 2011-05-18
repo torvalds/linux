@@ -144,7 +144,7 @@ void __init tegra_init_irq(void)
 	gic_init(0, 29, IO_ADDRESS(TEGRA_ARM_INT_DIST_BASE),
 		 IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x100));
 
-	gic = get_irq_chip(29);
+	gic = irq_get_chip(29);
 	tegra_gic_unmask_irq = gic->irq_unmask;
 	tegra_gic_mask_irq = gic->irq_mask;
 	tegra_gic_ack_irq = gic->irq_ack;
@@ -154,8 +154,7 @@ void __init tegra_init_irq(void)
 
 	for (i = 0; i < INT_MAIN_NR; i++) {
 		irq = INT_PRI_BASE + i;
-		set_irq_chip(irq, &tegra_irq);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &tegra_irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 }

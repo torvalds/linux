@@ -36,6 +36,7 @@
 #include <linux/gpio.h>
 #include <linux/jiffies.h>
 #include <linux/i2c-gpio.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/serial_8250.h>
 #include <linux/smc91x.h>
 #include <linux/pwm_backlight.h>
@@ -47,7 +48,6 @@
 #include <mach/pxa25x.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
-#include <plat/i2c.h>
 #include <mach/regs-uart.h>
 #include <mach/arcom-pcmcia.h>
 #include <mach/viper.h>
@@ -310,14 +310,14 @@ static void __init viper_init_irq(void)
 	/* setup ISA IRQs */
 	for (level = 0; level < ARRAY_SIZE(viper_isa_irqs); level++) {
 		isa_irq = viper_bit_to_irq(level);
-		set_irq_chip(isa_irq, &viper_irq_chip);
-		set_irq_handler(isa_irq, handle_edge_irq);
+		irq_set_chip_and_handler(isa_irq, &viper_irq_chip,
+					 handle_edge_irq);
 		set_irq_flags(isa_irq, IRQF_VALID | IRQF_PROBE);
 	}
 
-	set_irq_chained_handler(gpio_to_irq(VIPER_CPLD_GPIO),
+	irq_set_chained_handler(gpio_to_irq(VIPER_CPLD_GPIO),
 				viper_irq_handler);
-	set_irq_type(gpio_to_irq(VIPER_CPLD_GPIO), IRQ_TYPE_EDGE_BOTH);
+	irq_set_irq_type(gpio_to_irq(VIPER_CPLD_GPIO), IRQ_TYPE_EDGE_BOTH);
 }
 
 /* Flat Panel */
@@ -932,7 +932,7 @@ static void __init viper_init(void)
 	/* Wake-up serial console */
 	viper_init_serial_gpio();
 
-	set_pxa_fb_info(&fb_info);
+	pxa_set_fb_info(NULL, &fb_info);
 
 	/* v1 hardware cannot use the datacs line */
 	version = viper_hw_version();

@@ -1983,14 +1983,20 @@ static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
-	struct qset_params *qsp = &adapter->params.sge.qset[0];
-	struct sge_qset *qs = &adapter->sge.qs[0];
+	struct qset_params *qsp;
+	struct sge_qset *qs;
+	int i;
 
 	if (c->rx_coalesce_usecs * 10 > M_NEWTIMER)
 		return -EINVAL;
 
-	qsp->coalesce_usecs = c->rx_coalesce_usecs;
-	t3_update_qset_coalesce(qs, qsp);
+	for (i = 0; i < pi->nqsets; i++) {
+		qsp = &adapter->params.sge.qset[i];
+		qs = &adapter->sge.qs[i];
+		qsp->coalesce_usecs = c->rx_coalesce_usecs;
+		t3_update_qset_coalesce(qs, qsp);
+	}
+
 	return 0;
 }
 

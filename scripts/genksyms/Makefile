@@ -28,9 +28,9 @@ $(obj)/keywords.c: $(obj)/keywords.gperf FORCE
 # flex
 
 quiet_cmd_lex.c = FLEX    $@
-      cmd_lex.c = flex -o$@ -d $< $(obj)/parse.h
+      cmd_lex.c = flex -o$@ -d $<
 
-$(obj)/lex.c: $(obj)/lex.l $(obj)/parse.h $(obj)/keywords.c FORCE
+$(obj)/lex.c: $(obj)/lex.l $(obj)/keywords.c FORCE
 	$(call if_changed,lex.c)
 	cp $@ $@_shipped
 

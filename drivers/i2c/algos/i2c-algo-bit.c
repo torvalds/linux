@@ -232,9 +232,17 @@ static int i2c_inb(struct i2c_adapter *i2c_adap)
  * Sanity check for the adapter hardware - check the reaction of
  * the bus lines only if it seems to be idle.
  */
-static int test_bus(struct i2c_algo_bit_data *adap, char *name)
+static int test_bus(struct i2c_adapter *i2c_adap)
 {
-	int scl, sda;
+	struct i2c_algo_bit_data *adap = i2c_adap->algo_data;
+	const char *name = i2c_adap->name;
+	int scl, sda, ret;
+
+	if (adap->pre_xfer) {
+		ret = adap->pre_xfer(i2c_adap);
+		if (ret < 0)
+			return -ENODEV;
+	}
 
 	if (adap->getscl == NULL)
 		pr_info("%s: Testing SDA only, SCL is not readable\n", name);
@@ -297,11 +305,19 @@ static int test_bus(struct i2c_algo_bit_data *adap, char *name)
 		       "while pulling SCL high!\n", name);
 		goto bailout;
 	}
+
+	if (adap->post_xfer)
+		adap->post_xfer(i2c_adap);
+
 	pr_info("%s: Test OK\n", name);
 	return 0;
 bailout:
 	sdahi(adap);
 	sclhi(adap);
+
+	if (adap->post_xfer)
+		adap->post_xfer(i2c_adap);
+
 	return -ENODEV;
 }
 
@@ -607,7 +623,7 @@ static int __i2c_bit_add_bus(struct i2c_adapter *adap,
 	int ret;
 
 	if (bit_test) {
-		ret = test_bus(bit_adap, adap->name);
+		ret = test_bus(adap);
 		if (ret < 0)
 			return -ENODEV;
 	}

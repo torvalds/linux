@@ -136,8 +136,6 @@ static void bio_batch_end_io(struct bio *bio, int err)
  *
  * Description:
  *  Generate and issue number of bios with zerofiled pages.
- *  Send barrier at the beginning and at the end if requested. This guarantie
- *  correct request ordering. Empty barrier allow us to avoid post queue flush.
  */
 
 int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,

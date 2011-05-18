@@ -39,7 +39,7 @@ static const char name_exynos4210[] = "EXYNOS4210";
 static struct cpu_table cpu_ids[] __initdata = {
 	{
 		.idcode		= 0x56440100,
-		.idmask		= 0xffffff00,
+		.idmask		= 0xfffff000,
 		.map_io		= s5p6440_map_io,
 		.init_clocks	= s5p6440_init_clocks,
 		.init_uarts	= s5p6440_init_uarts,
@@ -47,7 +47,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.name		= name_s5p6440,
 	}, {
 		.idcode		= 0x36442000,
-		.idmask		= 0xffffff00,
+		.idmask		= 0xfffff000,
 		.map_io		= s5p6442_map_io,
 		.init_clocks	= s5p6442_init_clocks,
 		.init_uarts	= s5p6442_init_uarts,
@@ -55,7 +55,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.name		= name_s5p6442,
 	}, {
 		.idcode		= 0x36450000,
-		.idmask		= 0xffffff00,
+		.idmask		= 0xfffff000,
 		.map_io		= s5p6450_map_io,
 		.init_clocks	= s5p6450_init_clocks,
 		.init_uarts	= s5p6450_init_uarts,
@@ -79,7 +79,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.name		= name_s5pv210,
 	}, {
 		.idcode		= 0x43210000,
-		.idmask		= 0xfffff000,
+		.idmask		= 0xfffe0000,
 		.map_io		= exynos4_map_io,
 		.init_clocks	= exynos4_init_clocks,
 		.init_uarts	= exynos4_init_uarts,

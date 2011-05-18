@@ -194,7 +194,7 @@ static int ps3_virq_setup(enum ps3_cpu_binding cpu, unsigned long outlet,
 	pr_debug("%s:%d: outlet %lu => cpu %u, virq %u\n", __func__, __LINE__,
 		outlet, cpu, *virq);
 
-	result = set_irq_chip_data(*virq, pd);
+	result = irq_set_chip_data(*virq, pd);
 
 	if (result) {
 		pr_debug("%s:%d: set_irq_chip_data failed\n",
@@ -221,12 +221,12 @@ fail_create:
 
 static int ps3_virq_destroy(unsigned int virq)
 {
-	const struct ps3_private *pd = get_irq_chip_data(virq);
+	const struct ps3_private *pd = irq_get_chip_data(virq);
 
 	pr_debug("%s:%d: ppe_id %llu, thread_id %llu, virq %u\n", __func__,
 		__LINE__, pd->ppe_id, pd->thread_id, virq);
 
-	set_irq_chip_data(virq, NULL);
+	irq_set_chip_data(virq, NULL);
 	irq_dispose_mapping(virq);
 
 	pr_debug("%s:%d <-\n", __func__, __LINE__);
@@ -256,7 +256,7 @@ int ps3_irq_plug_setup(enum ps3_cpu_binding cpu, unsigned long outlet,
 		goto fail_setup;
 	}
 
-	pd = get_irq_chip_data(*virq);
+	pd = irq_get_chip_data(*virq);
 
 	/* Binds outlet to cpu + virq. */
 
@@ -291,7 +291,7 @@ EXPORT_SYMBOL_GPL(ps3_irq_plug_setup);
 int ps3_irq_plug_destroy(unsigned int virq)
 {
 	int result;
-	const struct ps3_private *pd = get_irq_chip_data(virq);
+	const struct ps3_private *pd = irq_get_chip_data(virq);
 
 	pr_debug("%s:%d: ppe_id %llu, thread_id %llu, virq %u\n", __func__,
 		__LINE__, pd->ppe_id, pd->thread_id, virq);
@@ -661,7 +661,7 @@ static void dump_bmp(struct ps3_private* pd) {};
 
 static void ps3_host_unmap(struct irq_host *h, unsigned int virq)
 {
-	set_irq_chip_data(virq, NULL);
+	irq_set_chip_data(virq, NULL);
 }
 
 static int ps3_host_map(struct irq_host *h, unsigned int virq,
@@ -670,7 +670,7 @@ static int ps3_host_map(struct irq_host *h, unsigned int virq,
 	pr_debug("%s:%d: hwirq %lu, virq %u\n", __func__, __LINE__, hwirq,
 		virq);
 
-	set_irq_chip_and_handler(virq, &ps3_irq_chip, handle_fasteoi_irq);
+	irq_set_chip_and_handler(virq, &ps3_irq_chip, handle_fasteoi_irq);
 
 	return 0;
 }

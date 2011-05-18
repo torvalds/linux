@@ -15,17 +15,8 @@ enum {
 	_IRQF_MODIFY_MASK	= IRQF_MODIFY_MASK,
 };
 
-#define IRQ_INPROGRESS		GOT_YOU_MORON
-#define IRQ_REPLAY		GOT_YOU_MORON
-#define IRQ_WAITING		GOT_YOU_MORON
-#define IRQ_DISABLED		GOT_YOU_MORON
-#define IRQ_PENDING		GOT_YOU_MORON
-#define IRQ_MASKED		GOT_YOU_MORON
-#define IRQ_WAKEUP		GOT_YOU_MORON
-#define IRQ_MOVE_PENDING	GOT_YOU_MORON
 #define IRQ_PER_CPU		GOT_YOU_MORON
 #define IRQ_NO_BALANCING	GOT_YOU_MORON
-#define IRQ_AFFINITY_SET	GOT_YOU_MORON
 #define IRQ_LEVEL		GOT_YOU_MORON
 #define IRQ_NOPROBE		GOT_YOU_MORON
 #define IRQ_NOREQUEST		GOT_YOU_MORON
@@ -37,102 +28,98 @@ enum {
 static inline void
 irq_settings_clr_and_set(struct irq_desc *desc, u32 clr, u32 set)
 {
-	desc->status &= ~(clr & _IRQF_MODIFY_MASK);
-	desc->status |= (set & _IRQF_MODIFY_MASK);
+	desc->status_use_accessors &= ~(clr & _IRQF_MODIFY_MASK);
+	desc->status_use_accessors |= (set & _IRQF_MODIFY_MASK);
 }
 
 static inline bool irq_settings_is_per_cpu(struct irq_desc *desc)
 {
-	return desc->status & _IRQ_PER_CPU;
+	return desc->status_use_accessors & _IRQ_PER_CPU;
 }
 
 static inline void irq_settings_set_per_cpu(struct irq_desc *desc)
 {
-	desc->status |= _IRQ_PER_CPU;
+	desc->status_use_accessors |= _IRQ_PER_CPU;
 }
 
 static inline void irq_settings_set_no_balancing(struct irq_desc *desc)
 {
-	desc->status |= _IRQ_NO_BALANCING;
+	desc->status_use_accessors |= _IRQ_NO_BALANCING;
 }
 
 static inline bool irq_settings_has_no_balance_set(struct irq_desc *desc)
 {
-	return desc->status & _IRQ_NO_BALANCING;
+	return desc->status_use_accessors & _IRQ_NO_BALANCING;
 }
 
 static inline u32 irq_settings_get_trigger_mask(struct irq_desc *desc)
 {
-	return desc->status & IRQ_TYPE_SENSE_MASK;
+	return desc->status_use_accessors & IRQ_TYPE_SENSE_MASK;
 }
 
 static inline void
 irq_settings_set_trigger_mask(struct irq_desc *desc, u32 mask)
 {
-	desc->status &= ~IRQ_TYPE_SENSE_MASK;
-	desc->status |= mask & IRQ_TYPE_SENSE_MASK;
+	desc->status_use_accessors &= ~IRQ_TYPE_SENSE_MASK;
+	desc->status_use_accessors |= mask & IRQ_TYPE_SENSE_MASK;
 }
 
 static inline bool irq_settings_is_level(struct irq_desc *desc)
 {
-	return desc->status & _IRQ_LEVEL;
+	return desc->status_use_accessors & _IRQ_LEVEL;
 }
 
 static inline void irq_settings_clr_level(struct irq_desc *desc)
 {
-	desc->status &= ~_IRQ_LEVEL;
+	desc->status_use_accessors &= ~_IRQ_LEVEL;
 }
 
 static inline void irq_settings_set_level(struct irq_desc *desc)
 {
-	desc->status |= _IRQ_LEVEL;
+	desc->status_use_accessors |= _IRQ_LEVEL;
 }
 
 static inline bool irq_settings_can_request(struct irq_desc *desc)
 {
-	return !(desc->status & _IRQ_NOREQUEST);
+	return !(desc->status_use_accessors & _IRQ_NOREQUEST);
 }
 
 static inline void irq_settings_clr_norequest(struct irq_desc *desc)
 {
-	desc->status &= ~_IRQ_NOREQUEST;
+	desc->status_use_accessors &= ~_IRQ_NOREQUEST;
 }
 
 static inline void irq_settings_set_norequest(struct irq_desc *desc)
 {
-	desc->status |= _IRQ_NOREQUEST;
+	desc->status_use_accessors |= _IRQ_NOREQUEST;
 }
 
 static inline bool irq_settings_can_probe(struct irq_desc *desc)
 {
-	return !(desc->status & _IRQ_NOPROBE);
+	return !(desc->status_use_accessors & _IRQ_NOPROBE);
 }
 
 static inline void irq_settings_clr_noprobe(struct irq_desc *desc)
 {
-	desc->status &= ~_IRQ_NOPROBE;
+	desc->status_use_accessors &= ~_IRQ_NOPROBE;
 }
 
 static inline void irq_settings_set_noprobe(struct irq_desc *desc)
 {
-	desc->status |= _IRQ_NOPROBE;
+	desc->status_use_accessors |= _IRQ_NOPROBE;
 }
 
 static inline bool irq_settings_can_move_pcntxt(struct irq_desc *desc)
 {
-	return desc->status & _IRQ_MOVE_PCNTXT;
+	return desc->status_use_accessors & _IRQ_MOVE_PCNTXT;
 }
 
 static inline bool irq_settings_can_autoenable(struct irq_desc *desc)
 {
-	return !(desc->status & _IRQ_NOAUTOEN);
+	return !(desc->status_use_accessors & _IRQ_NOAUTOEN);
 }
 
 static inline bool irq_settings_is_nested_thread(struct irq_desc *desc)
 {
-	return desc->status & _IRQ_NESTED_THREAD;
+	return desc->status_use_accessors & _IRQ_NESTED_THREAD;
 }
-
-/* Nothing should touch desc->status from now on */
-#undef status
-#define status		USE_THE_PROPER_WRAPPERS_YOU_MORON

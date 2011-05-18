@@ -2227,7 +2227,7 @@ static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 
 	/*
 	 * count reflects descriptors mapped, if 0 then mapping error
-	 * has occured and we need to rewind the descriptor queue
+	 * has occurred and we need to rewind the descriptor queue
 	 */
 	count = igbvf_tx_map_adv(adapter, tx_ring, skb, first);
 

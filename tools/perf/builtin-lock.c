@@ -845,7 +845,9 @@ static void dump_info(void)
 		die("Unknown type of information\n");
 }
 
-static int process_sample_event(union perf_event *event, struct perf_sample *sample,
+static int process_sample_event(union perf_event *event,
+				struct perf_sample *sample,
+				struct perf_evsel *evsel __used,
 				struct perf_session *s)
 {
 	struct thread *thread = perf_session__findnew(s, sample->tid);

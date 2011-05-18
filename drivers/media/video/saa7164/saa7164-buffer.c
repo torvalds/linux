@@ -93,7 +93,7 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 	u32 len)
 {
 	struct tmHWStreamParameters *params = &port->hw_streamingparams;
-	struct saa7164_buffer *buf = 0;
+	struct saa7164_buffer *buf = NULL;
 	struct saa7164_dev *dev = port->dev;
 	int i;
 
@@ -103,7 +103,7 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 	}
 
 	buf = kzalloc(sizeof(struct saa7164_buffer), GFP_KERNEL);
-	if (buf == NULL) {
+	if (!buf) {
 		log_warn("%s() SAA_ERR_NO_RESOURCES\n", __func__);
 		goto ret;
 	}
@@ -157,7 +157,7 @@ fail2:
 fail1:
 	kfree(buf);
 
-	buf = 0;
+	buf = NULL;
 ret:
 	return buf;
 }
@@ -289,14 +289,14 @@ struct saa7164_user_buffer *saa7164_buffer_alloc_user(struct saa7164_dev *dev,
 	struct saa7164_user_buffer *buf;
 
 	buf = kzalloc(sizeof(struct saa7164_user_buffer), GFP_KERNEL);
-	if (buf == 0)
-		return 0;
+	if (!buf)
+		return NULL;
 
 	buf->data = kzalloc(len, GFP_KERNEL);
 
-	if (buf->data == 0) {
+	if (!buf->data) {
 		kfree(buf);
-		return 0;
+		return NULL;
 	}
 
 	buf->actual_size = len;
@@ -315,7 +315,7 @@ void saa7164_buffer_dealloc_user(struct saa7164_user_buffer *buf)
 		return;
 
 	kfree(buf->data);
-	buf->data = 0;
+	buf->data = NULL;
 
 	kfree(buf);
 }

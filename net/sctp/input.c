@@ -1034,7 +1034,7 @@ static struct sctp_association *__sctp_rcv_asconf_lookup(
 *    association.
 *
 * This means that any chunks that can help us identify the association need
-* to be looked at to find this assocation.
+* to be looked at to find this association.
 */
 static struct sctp_association *__sctp_rcv_walk_lookup(struct sk_buff *skb,
 				      const union sctp_addr *laddr,

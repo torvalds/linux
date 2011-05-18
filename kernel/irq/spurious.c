@@ -45,12 +45,12 @@ bool irq_wait_for_poll(struct irq_desc *desc)
 #ifdef CONFIG_SMP
 	do {
 		raw_spin_unlock(&desc->lock);
-		while (desc->istate & IRQS_INPROGRESS)
+		while (irqd_irq_inprogress(&desc->irq_data))
 			cpu_relax();
 		raw_spin_lock(&desc->lock);
-	} while (desc->istate & IRQS_INPROGRESS);
+	} while (irqd_irq_inprogress(&desc->irq_data));
 	/* Might have been disabled in meantime */
-	return !(desc->istate & IRQS_DISABLED) && desc->action;
+	return !irqd_irq_disabled(&desc->irq_data) && desc->action;
 #else
 	return false;
 #endif
@@ -75,7 +75,7 @@ static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 	 * Do not poll disabled interrupts unless the spurious
 	 * disabled poller asks explicitely.
 	 */
-	if ((desc->istate & IRQS_DISABLED) && !force)
+	if (irqd_irq_disabled(&desc->irq_data) && !force)
 		goto out;
 
 	/*
@@ -88,12 +88,11 @@ static int try_one_irq(int irq, struct irq_desc *desc, bool force)
 		goto out;
 
 	/* Already running on another processor */
-	if (desc->istate & IRQS_INPROGRESS) {
+	if (irqd_irq_inprogress(&desc->irq_data)) {
 		/*
 		 * Already running: If it is shared get the other
 		 * CPU to go looking for our mystery interrupt too
 		 */
-		irq_compat_set_pending(desc);
 		desc->istate |= IRQS_PENDING;
 		goto out;
 	}

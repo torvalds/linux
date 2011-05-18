@@ -658,7 +658,7 @@ lpfc_disc_set_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	return 0;
 }
 /**
- * lpfc_release_rpi - Release a RPI by issueing unreg_login mailbox cmd.
+ * lpfc_release_rpi - Release a RPI by issuing unreg_login mailbox cmd.
  * @phba : Pointer to lpfc_hba structure.
  * @vport: Pointer to lpfc_vport structure.
  * @rpi  : rpi to be release.

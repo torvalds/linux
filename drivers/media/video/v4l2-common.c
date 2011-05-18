@@ -59,7 +59,6 @@
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/div64.h>
-#define __OLD_VIDIOC_ /* To allow fixing old calls*/
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
@@ -80,69 +79,6 @@ MODULE_LICENSE("GPL");
 /*
  *  Video Standard Operations (contributed by Michael Schimek)
  */
-
-
-/* ----------------------------------------------------------------- */
-/* priority handling                                                 */
-
-#define V4L2_PRIO_VALID(val) (val == V4L2_PRIORITY_BACKGROUND   || \
-			      val == V4L2_PRIORITY_INTERACTIVE  || \
-			      val == V4L2_PRIORITY_RECORD)
-
-void v4l2_prio_init(struct v4l2_prio_state *global)
-{
-	memset(global, 0, sizeof(*global));
-}
-EXPORT_SYMBOL(v4l2_prio_init);
-
-int v4l2_prio_change(struct v4l2_prio_state *global, enum v4l2_priority *local,
-		     enum v4l2_priority new)
-{
-	if (!V4L2_PRIO_VALID(new))
-		return -EINVAL;
-	if (*local == new)
-		return 0;
-
-	atomic_inc(&global->prios[new]);
-	if (V4L2_PRIO_VALID(*local))
-		atomic_dec(&global->prios[*local]);
-	*local = new;
-	return 0;
-}
-EXPORT_SYMBOL(v4l2_prio_change);
-
-void v4l2_prio_open(struct v4l2_prio_state *global, enum v4l2_priority *local)
-{
-	v4l2_prio_change(global, local, V4L2_PRIORITY_DEFAULT);
-}
-EXPORT_SYMBOL(v4l2_prio_open);
-
-void v4l2_prio_close(struct v4l2_prio_state *global, enum v4l2_priority local)
-{
-	if (V4L2_PRIO_VALID(local))
-		atomic_dec(&global->prios[local]);
-}
-EXPORT_SYMBOL(v4l2_prio_close);
-
-enum v4l2_priority v4l2_prio_max(struct v4l2_prio_state *global)
-{
-	if (atomic_read(&global->prios[V4L2_PRIORITY_RECORD]) > 0)
-		return V4L2_PRIORITY_RECORD;
-	if (atomic_read(&global->prios[V4L2_PRIORITY_INTERACTIVE]) > 0)
-		return V4L2_PRIORITY_INTERACTIVE;
-	if (atomic_read(&global->prios[V4L2_PRIORITY_BACKGROUND]) > 0)
-		return V4L2_PRIORITY_BACKGROUND;
-	return V4L2_PRIORITY_UNSET;
-}
-EXPORT_SYMBOL(v4l2_prio_max);
-
-int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority local)
-{
-	return (local < v4l2_prio_max(global)) ? -EBUSY : 0;
-}
-EXPORT_SYMBOL(v4l2_prio_check);
-
-/* ----------------------------------------------------------------- */
 
 /* Helper functions for control handling			     */
 

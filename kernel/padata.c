@@ -262,7 +262,7 @@ static void padata_reorder(struct parallel_data *pd)
 		/*
 		 * This cpu has to do the parallel processing of the next
 		 * object. It's waiting in the cpu's parallelization queue,
-		 * so exit imediately.
+		 * so exit immediately.
 		 */
 		if (PTR_ERR(padata) == -ENODATA) {
 			del_timer(&pd->timer);
@@ -284,7 +284,7 @@ static void padata_reorder(struct parallel_data *pd)
 	/*
 	 * The next object that needs serialization might have arrived to
 	 * the reorder queues in the meantime, we will be called again
-	 * from the timer function if noone else cares for it.
+	 * from the timer function if no one else cares for it.
 	 */
 	if (atomic_read(&pd->reorder_objects)
 			&& !(pinst->flags & PADATA_RESET))
@@ -515,7 +515,7 @@ static void __padata_stop(struct padata_instance *pinst)
 	put_online_cpus();
 }
 
-/* Replace the internal control stucture with a new one. */
+/* Replace the internal control structure with a new one. */
 static void padata_replace(struct padata_instance *pinst,
 			   struct parallel_data *pd_new)
 {
@@ -768,7 +768,7 @@ static int __padata_remove_cpu(struct padata_instance *pinst, int cpu)
 }
 
  /**
- * padata_remove_cpu - remove a cpu from the one or both(serial and paralell)
+ * padata_remove_cpu - remove a cpu from the one or both(serial and parallel)
  *                     padata cpumasks.
  *
  * @pinst: padata instance

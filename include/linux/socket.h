@@ -88,7 +88,7 @@ struct cmsghdr {
 };
 
 /*
- *	Ancilliary data object information MACROS
+ *	Ancillary data object information MACROS
  *	Table 5-14 of POSIX 1003.1g
  */
 

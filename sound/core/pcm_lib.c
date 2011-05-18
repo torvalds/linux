@@ -375,6 +375,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	}
 
 	if (runtime->no_period_wakeup) {
+		snd_pcm_sframes_t xrun_threshold;
 		/*
 		 * Without regular period interrupts, we have to check
 		 * the elapsed time to detect xruns.
@@ -383,7 +384,8 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		if (jdelta < runtime->hw_ptr_buffer_jiffies / 2)
 			goto no_delta_check;
 		hdelta = jdelta - delta * HZ / runtime->rate;
-		while (hdelta > runtime->hw_ptr_buffer_jiffies / 2 + 1) {
+		xrun_threshold = runtime->hw_ptr_buffer_jiffies / 2 + 1;
+		while (hdelta > xrun_threshold) {
 			delta += runtime->buffer_size;
 			hw_base += runtime->buffer_size;
 			if (hw_base >= runtime->boundary)

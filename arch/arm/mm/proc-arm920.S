@@ -53,7 +53,7 @@
 /*
  * This is the size at which it becomes more efficient to
  * clean the whole cache, rather than using the individual
- * cache line maintainence instructions.
+ * cache line maintenance instructions.
  */
 #define CACHE_DLIMIT	65536
 
@@ -390,7 +390,7 @@ ENTRY(cpu_arm920_set_pte_ext)
 /* Suspend/resume support: taken from arch/arm/plat-s3c24xx/sleep.S */
 .globl	cpu_arm920_suspend_size
 .equ	cpu_arm920_suspend_size, 4 * 3
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 ENTRY(cpu_arm920_do_suspend)
 	stmfd	sp!, {r4 - r7, lr}
 	mrc	p15, 0, r4, c13, c0, 0	@ PID

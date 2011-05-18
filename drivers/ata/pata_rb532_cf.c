@@ -60,10 +60,10 @@ static irqreturn_t rb532_pata_irq_handler(int irq, void *dev_instance)
 	struct rb532_cf_info *info = ah->private_data;
 
 	if (gpio_get_value(info->gpio_line)) {
-		set_irq_type(info->irq, IRQ_TYPE_LEVEL_LOW);
+		irq_set_irq_type(info->irq, IRQ_TYPE_LEVEL_LOW);
 		ata_sff_interrupt(info->irq, dev_instance);
 	} else {
-		set_irq_type(info->irq, IRQ_TYPE_LEVEL_HIGH);
+		irq_set_irq_type(info->irq, IRQ_TYPE_LEVEL_HIGH);
 	}
 
 	return IRQ_HANDLED;

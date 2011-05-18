@@ -15,7 +15,7 @@
 #include <linux/notifier.h>
 #include <linux/smp.h>
 #include <linux/oprofile.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
 #include <linux/kdebug.h>
@@ -49,6 +49,10 @@ u64 op_x86_get_ctrl(struct op_x86_model_spec const *model,
 	val |= counter_config->user ? ARCH_PERFMON_EVENTSEL_USR : 0;
 	val |= counter_config->kernel ? ARCH_PERFMON_EVENTSEL_OS : 0;
 	val |= (counter_config->unit_mask & 0xFF) << 8;
+	counter_config->extra &= (ARCH_PERFMON_EVENTSEL_INV |
+				  ARCH_PERFMON_EVENTSEL_EDGE |
+				  ARCH_PERFMON_EVENTSEL_CMASK);
+	val |= counter_config->extra;
 	event &= model->event_mask ? model->event_mask : 0xFF;
 	val |= event & 0xFF;
 	val |= (event & 0x0F00) << 24;
@@ -440,6 +444,7 @@ static int nmi_create_files(struct super_block *sb, struct dentry *root)
 		oprofilefs_create_ulong(sb, dir, "unit_mask", &counter_config[i].unit_mask);
 		oprofilefs_create_ulong(sb, dir, "kernel", &counter_config[i].kernel);
 		oprofilefs_create_ulong(sb, dir, "user", &counter_config[i].user);
+		oprofilefs_create_ulong(sb, dir, "extra", &counter_config[i].extra);
 	}
 
 	return 0;
@@ -536,7 +541,7 @@ static void nmi_shutdown(void)
 
 #ifdef CONFIG_PM
 
-static int nmi_suspend(struct sys_device *dev, pm_message_t state)
+static int nmi_suspend(void)
 {
 	/* Only one CPU left, just stop that one */
 	if (nmi_enabled == 1)
@@ -544,49 +549,31 @@ static int nmi_suspend(struct sys_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int nmi_resume(struct sys_device *dev)
+static void nmi_resume(void)
 {
 	if (nmi_enabled == 1)
 		nmi_cpu_start(NULL);
-	return 0;
 }
 
-static struct sysdev_class oprofile_sysclass = {
-	.name		= "oprofile",
+static struct syscore_ops oprofile_syscore_ops = {
 	.resume		= nmi_resume,
 	.suspend	= nmi_suspend,
 };
 
-static struct sys_device device_oprofile = {
-	.id	= 0,
-	.cls	= &oprofile_sysclass,
-};
-
-static int __init init_sysfs(void)
+static void __init init_suspend_resume(void)
 {
-	int error;
-
-	error = sysdev_class_register(&oprofile_sysclass);
-	if (error)
-		return error;
-
-	error = sysdev_register(&device_oprofile);
-	if (error)
-		sysdev_class_unregister(&oprofile_sysclass);
-
-	return error;
+	register_syscore_ops(&oprofile_syscore_ops);
 }
 
-static void exit_sysfs(void)
+static void exit_suspend_resume(void)
 {
-	sysdev_unregister(&device_oprofile);
-	sysdev_class_unregister(&oprofile_sysclass);
+	unregister_syscore_ops(&oprofile_syscore_ops);
 }
 
 #else
 
-static inline int  init_sysfs(void) { return 0; }
-static inline void exit_sysfs(void) { }
+static inline void init_suspend_resume(void) { }
+static inline void exit_suspend_resume(void) { }
 
 #endif /* CONFIG_PM */
 
@@ -789,9 +776,7 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 
 	mux_init(ops);
 
-	ret = init_sysfs();
-	if (ret)
-		return ret;
+	init_suspend_resume();
 
 	printk(KERN_INFO "oprofile: using NMI interrupt.\n");
 	return 0;
@@ -799,5 +784,5 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 
 void op_nmi_exit(void)
 {
-	exit_sysfs();
+	exit_suspend_resume();
 }

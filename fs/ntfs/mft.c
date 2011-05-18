@@ -73,7 +73,7 @@ static inline MFT_RECORD *map_mft_record_page(ntfs_inode *ni)
 		if (index > end_index || (i_size & ~PAGE_CACHE_MASK) < ofs +
 				vol->mft_record_size) {
 			page = ERR_PTR(-ENOENT);
-			ntfs_error(vol->sb, "Attemt to read mft record 0x%lx, "
+			ntfs_error(vol->sb, "Attempt to read mft record 0x%lx, "
 					"which is beyond the end of the mft.  "
 					"This is probably a bug in the ntfs "
 					"driver.", ni->mft_no);
@@ -1442,7 +1442,7 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 		// Note: It will need to be a special mft record and if none of
 		// those are available it gets rather complicated...
 		ntfs_error(vol->sb, "Not enough space in this mft record to "
-				"accomodate extended mft bitmap attribute "
+				"accommodate extended mft bitmap attribute "
 				"extent.  Cannot handle this yet.");
 		ret = -EOPNOTSUPP;
 		goto undo_alloc;
@@ -1879,7 +1879,7 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 		// and we would then need to update all references to this mft
 		// record appropriately.  This is rather complicated...
 		ntfs_error(vol->sb, "Not enough space in this mft record to "
-				"accomodate extended mft data attribute "
+				"accommodate extended mft data attribute "
 				"extent.  Cannot handle this yet.");
 		ret = -EOPNOTSUPP;
 		goto undo_alloc;
@@ -2357,7 +2357,7 @@ ntfs_inode *ntfs_mft_record_alloc(ntfs_volume *vol, const int mode,
 	}
 #ifdef DEBUG
 	read_lock_irqsave(&mftbmp_ni->size_lock, flags);
-	ntfs_debug("Status of mftbmp after initialized extention: "
+	ntfs_debug("Status of mftbmp after initialized extension: "
 			"allocated_size 0x%llx, data_size 0x%llx, "
 			"initialized_size 0x%llx.",
 			(long long)mftbmp_ni->allocated_size,

@@ -21,7 +21,7 @@
 /* options may be:
  *
  * bit 0 = use ulaw instead of alaw
- * bit 1 = enable hfc hardware accelleration for all channels
+ * bit 1 = enable hfc hardware acceleration for all channels
  *
  */
 #define DSP_OPT_ULAW		(1<<0)

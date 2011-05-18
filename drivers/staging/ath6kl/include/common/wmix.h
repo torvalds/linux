@@ -191,7 +191,7 @@ typedef PREPACK struct {
 } POSTPACK WMIX_GPIO_INTR_ACK_CMD;
 
 /*
- * Target informs Host of GPIO interrupts that have ocurred since the
+ * Target informs Host of GPIO interrupts that have occurred since the
  * last WMIX_GIPO_INTR_ACK_CMD was received.  Additional information --
  * the current GPIO input values is provided -- in order to support
  * use of a GPIO interrupt as a Data Valid signal for other GPIO pins.

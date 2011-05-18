@@ -998,7 +998,7 @@ out_err:
 	return err;
 }
 
-static struct of_device_id __initdata pci_sun4v_match[] = {
+static const struct of_device_id pci_sun4v_match[] = {
 	{
 		.name = "pci",
 		.compatible = "SUNW,sun4v-pci",

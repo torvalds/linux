@@ -1,5 +1,5 @@
 /*
- * AMD Alchemy Pb1200 Referrence Board
+ * AMD Alchemy Pb1200 Reference Board
  * Board Registers defines.
  *
  * ########################################################################

@@ -124,7 +124,7 @@ in the partition table and therefore every operating system has to know
 the right geometry to be able to interpret it.
 
 Moreover there are certain limitations to the C/H/S addressing scheme,
-namely the address space is limited to upto 255 heads, upto 63 sectors
+namely the address space is limited to up to 255 heads, up to 63 sectors
 and a maximum of 1023 cylinders.
 
 The AHA-1522 BIOS calculates the geometry by fixing the number of heads

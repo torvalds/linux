@@ -102,6 +102,7 @@ static int __devinit tosa_bl_probe(struct i2c_client *client,
 	data->i2c = client;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = 512 - 1;
 	data->bl = backlight_device_register("tosa-bl", &client->dev, data,
 					     &bl_ops, &props);

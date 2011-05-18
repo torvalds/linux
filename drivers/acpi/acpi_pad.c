@@ -298,7 +298,7 @@ static ssize_t acpi_pad_rrtime_store(struct device *dev,
 static ssize_t acpi_pad_rrtime_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d", round_robin_time);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", round_robin_time);
 }
 static DEVICE_ATTR(rrtime, S_IRUGO|S_IWUSR,
 	acpi_pad_rrtime_show,
@@ -321,7 +321,7 @@ static ssize_t acpi_pad_idlepct_store(struct device *dev,
 static ssize_t acpi_pad_idlepct_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d", idle_pct);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", idle_pct);
 }
 static DEVICE_ATTR(idlepct, S_IRUGO|S_IWUSR,
 	acpi_pad_idlepct_show,
@@ -342,8 +342,11 @@ static ssize_t acpi_pad_idlecpus_store(struct device *dev,
 static ssize_t acpi_pad_idlecpus_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	return cpumask_scnprintf(buf, PAGE_SIZE,
-		to_cpumask(pad_busy_cpus_bits));
+	int n = 0;
+	n = cpumask_scnprintf(buf, PAGE_SIZE-2, to_cpumask(pad_busy_cpus_bits));
+	buf[n++] = '\n';
+	buf[n] = '\0';
+	return n;
 }
 static DEVICE_ATTR(idlecpus, S_IRUGO|S_IWUSR,
 	acpi_pad_idlecpus_show,
@@ -453,7 +456,7 @@ static void acpi_pad_notify(acpi_handle handle, u32 event,
 			dev_name(&device->dev), event, 0);
 		break;
 	default:
-		printk(KERN_WARNING"Unsupported event [0x%x]\n", event);
+		printk(KERN_WARNING "Unsupported event [0x%x]\n", event);
 		break;
 	}
 }

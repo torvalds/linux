@@ -2086,7 +2086,7 @@ struct ct_sns_pkt {
 };
 
 /*
- * SNS command structures -- for 2200 compatability.
+ * SNS command structures -- for 2200 compatibility.
  */
 #define	RFT_ID_SNS_SCMD_LEN	22
 #define	RFT_ID_SNS_CMD_SIZE	60

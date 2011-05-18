@@ -55,8 +55,11 @@ struct perf_session {
 	char			filename[0];
 };
 
+struct perf_evsel;
 struct perf_event_ops;
 
+typedef int (*event_sample)(union perf_event *event, struct perf_sample *sample,
+			    struct perf_evsel *evsel, struct perf_session *session);
 typedef int (*event_op)(union perf_event *self, struct perf_sample *sample,
 			struct perf_session *session);
 typedef int (*event_synth_op)(union perf_event *self,
@@ -65,8 +68,8 @@ typedef int (*event_op2)(union perf_event *self, struct perf_session *session,
 			 struct perf_event_ops *ops);
 
 struct perf_event_ops {
-	event_op	sample,
-			mmap,
+	event_sample	sample;
+	event_op	mmap,
 			comm,
 			fork,
 			exit,

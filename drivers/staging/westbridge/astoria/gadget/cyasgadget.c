@@ -587,6 +587,7 @@ static int cyasgadget_enable(
 			"cy_as_usb_end_point_config EP %s mismatch "
 			"on enabled\n", an_ep->usb_ep_inst.name);
 		#endif
+		spin_unlock_irqrestore(&an_dev->lock, flags);
 		return -EINVAL;
 	}
 

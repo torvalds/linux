@@ -410,7 +410,7 @@ ip6t_do_table(struct sk_buff *skb,
 					verdict = (unsigned)(-v) - 1;
 					break;
 				}
-				if (*stackptr == 0)
+				if (*stackptr <= origptr)
 					e = get_entry(table_base,
 					    private->underflow[hook]);
 				else
@@ -441,8 +441,8 @@ ip6t_do_table(struct sk_buff *skb,
 			break;
 	} while (!acpar.hotdrop);
 
-	xt_info_rdunlock_bh();
 	*stackptr = origptr;
+	xt_info_rdunlock_bh();
 
 #ifdef DEBUG_ALLOW_ALL
 	return NF_ACCEPT;
@@ -2248,7 +2248,7 @@ static int __init ip6_tables_init(void)
 	if (ret < 0)
 		goto err1;
 
-	/* Noone else will be downing sem now, so we won't sleep */
+	/* No one else will be downing sem now, so we won't sleep */
 	ret = xt_register_targets(ip6t_builtin_tg, ARRAY_SIZE(ip6t_builtin_tg));
 	if (ret < 0)
 		goto err2;

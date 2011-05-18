@@ -106,7 +106,7 @@ void dsp_dtmf_hardware(struct dsp *dsp)
  * tested it allot. it even works with very short tones (40ms). the only
  * disadvantage is, that it doesn't work good with different volumes of both
  * tones. this will happen, if accoustically coupled dialers are used.
- * it sometimes detects tones during speach, which is normal for decoders.
+ * it sometimes detects tones during speech, which is normal for decoders.
  * use sequences to given commands during calls.
  *
  * dtmf - points to a structure of the current dtmf state
@@ -244,7 +244,7 @@ coefficients:
 		if (result[i] < tresh) {
 			lowgroup = -1;
 			highgroup = -1;
-			break;  /* noise inbetween */
+			break;  /* noise in between */
 		}
 		/* good level found. This is allowed only one time per group */
 		if (i < NCOEFF/2) {

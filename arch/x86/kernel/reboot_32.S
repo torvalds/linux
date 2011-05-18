@@ -21,26 +21,26 @@ r_base = .
 	/* Get our own relocated address */
 	call	1f
 1:	popl	%ebx
-	subl	$1b, %ebx
+	subl	$(1b - r_base), %ebx
 
 	/* Compute the equivalent real-mode segment */
 	movl	%ebx, %ecx
 	shrl	$4, %ecx
 	
 	/* Patch post-real-mode segment jump */
-	movw	dispatch_table(%ebx,%eax,2),%ax
-	movw	%ax, 101f(%ebx)
-	movw	%cx, 102f(%ebx)
+	movw	(dispatch_table - r_base)(%ebx,%eax,2),%ax
+	movw	%ax, (101f - r_base)(%ebx)
+	movw	%cx, (102f - r_base)(%ebx)
 
 	/* Set up the IDT for real mode. */
-	lidtl	machine_real_restart_idt(%ebx)
+	lidtl	(machine_real_restart_idt - r_base)(%ebx)
 
 	/*
 	 * Set up a GDT from which we can load segment descriptors for real
 	 * mode.  The GDT is not used in real mode; it is just needed here to
 	 * prepare the descriptors.
 	 */
-	lgdtl	machine_real_restart_gdt(%ebx)
+	lgdtl	(machine_real_restart_gdt - r_base)(%ebx)
 
 	/*
 	 * Load the data segment registers with 16-bit compatible values

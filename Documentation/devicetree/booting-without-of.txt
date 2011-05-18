@@ -138,7 +138,7 @@ and properties to be present. This will be described in detail in
 section III, but, for example, the kernel does not require you to
 create a node for every PCI device in the system. It is a requirement
 to have a node for PCI host bridges in order to provide interrupt
-routing informations and memory/IO ranges, among others. It is also
+routing information and memory/IO ranges, among others. It is also
 recommended to define nodes for on chip devices and other buses that
 don't specifically fit in an existing OF specification. This creates a
 great flexibility in the way the kernel can then probe those and match
@@ -385,7 +385,7 @@ struct boot_param_header {
      among others, by kexec. If you are on an SMP system, this value
      should match the content of the "reg" property of the CPU node in
      the device-tree corresponding to the CPU calling the kernel entry
-     point (see further chapters for more informations on the required
+     point (see further chapters for more information on the required
      device-tree contents)
 
    - size_dt_strings
@@ -553,7 +553,7 @@ looks like in practice.
 
 This tree is almost a minimal tree. It pretty much contains the
 minimal set of required nodes and properties to boot a linux kernel;
-that is, some basic model informations at the root, the CPUs, and the
+that is, some basic model information at the root, the CPUs, and the
 physical memory layout.  It also includes misc information passed
 through /chosen, like in this example, the platform type (mandatory)
 and the kernel command line arguments (optional).

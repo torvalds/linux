@@ -92,7 +92,7 @@ typedef PREPACK struct {
 #define EPPING_CMD_RESET_RECV_CNT       2   /* reset recv count */
 #define EPPING_CMD_CAPTURE_RECV_CNT     3   /* fetch recv count, 4-byte count returned in CmdBuffer_t */
 #define EPPING_CMD_NO_ECHO              4   /* non-echo packet test (tx-only) */
-#define EPPING_CMD_CONT_RX_START        5   /* continous RX packets, parameters are in CmdBuffer_h */
+#define EPPING_CMD_CONT_RX_START        5   /* continuous RX packets, parameters are in CmdBuffer_h */
 #define EPPING_CMD_CONT_RX_STOP         6   /* stop continuous RX packet transmission */
 
     /* test command parameters may be no more than 8 bytes */

@@ -134,7 +134,7 @@ nouveau_perf_init(struct drm_device *dev)
 		case 0x13:
 		case 0x15:
 			perflvl->fanspeed = entry[55];
-			perflvl->voltage = entry[56];
+			perflvl->voltage = (recordlen > 56) ? entry[56] : 0;
 			perflvl->core = ROM32(entry[1]) * 10;
 			perflvl->memory = ROM32(entry[5]) * 20;
 			break;

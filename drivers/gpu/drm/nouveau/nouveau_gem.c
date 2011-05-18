@@ -97,7 +97,7 @@ nouveau_gem_new(struct drm_device *dev, struct nouveau_channel *chan,
 		return -ENOMEM;
 	}
 
-	nvbo->bo.persistant_swap_storage = nvbo->gem->filp;
+	nvbo->bo.persistent_swap_storage = nvbo->gem->filp;
 	nvbo->gem->driver_private = nvbo;
 	return 0;
 }

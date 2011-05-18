@@ -159,7 +159,7 @@ extern unsigned int user_debug;
 #include <mach/barriers.h>
 #elif defined(CONFIG_ARM_DMA_MEM_BUFFERABLE) || defined(CONFIG_SMP)
 #define mb()		do { dsb(); outer_sync(); } while (0)
-#define rmb()		dmb()
+#define rmb()		dsb()
 #define wmb()		mb()
 #else
 #include <asm/memory.h>
@@ -249,7 +249,7 @@ do {									\
  * cache totally.  This means that the cache becomes inconsistent, and,
  * since we use normal loads/stores as well, this is really bad.
  * Typically, this causes oopsen in filp_close, but could have other,
- * more disasterous effects.  There are two work-arounds:
+ * more disastrous effects.  There are two work-arounds:
  *  1. Disable interrupts and emulate the atomic swap
  *  2. Clean the cache, perform atomic swap, flush the cache
  *

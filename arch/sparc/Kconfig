@@ -51,7 +51,8 @@ config SPARC64
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select HAVE_GENERIC_HARDIRQS
-	select GENERIC_HARDIRQS_NO_DEPRECATED
+	select GENERIC_IRQ_SHOW
+	select IRQ_PREFLOW_FASTEOI
 
 config ARCH_DEFCONFIG
 	string
@@ -189,6 +190,10 @@ config RWSEM_XCHGADD_ALGORITHM
 	default y if SPARC64
 
 config GENERIC_FIND_NEXT_BIT
+	bool
+	default y
+
+config GENERIC_FIND_BIT_LE
 	bool
 	default y
 

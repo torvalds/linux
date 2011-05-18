@@ -1861,7 +1861,7 @@ static void rhine_restart_tx(struct net_device *dev) {
 	u32 intr_status;
 
 	/*
-	 * If new errors occured, we need to sort them out before doing Tx.
+	 * If new errors occurred, we need to sort them out before doing Tx.
 	 * In that case the ISR will be back here RSN anyway.
 	 */
 	intr_status = get_intr_status(dev);
@@ -1887,7 +1887,7 @@ static void rhine_restart_tx(struct net_device *dev) {
 		/* This should never happen */
 		if (debug > 1)
 			printk(KERN_WARNING "%s: rhine_restart_tx() "
-			       "Another error occured %8.8x.\n",
+			       "Another error occurred %8.8x.\n",
 			       dev->name, intr_status);
 	}
 

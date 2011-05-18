@@ -160,8 +160,6 @@
 #define ZC3XX_R1A6_YMEANAFTERAE        0x01a6
 #define ZC3XX_R1A7_CALCGLOBALMEAN      0x01a7
 
-#define ZC3XX_R1A2_BLUEMEANAFTERAGC    0x01a2
-
 /* Matrixes */
 
 /* Color matrix is like :

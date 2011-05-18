@@ -14,4 +14,4 @@ lmc-objs := lmc_debug.o lmc_media.o lmc_main.o lmc_proto.o
 # -DDEBUG \
 # -DLMC_PACKET_LOG
 
-EXTRA_CFLAGS += -I. $(DBGDEF)
+ccflags-y := -I. $(DBGDEF)

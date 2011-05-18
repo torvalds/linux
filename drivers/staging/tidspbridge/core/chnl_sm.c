@@ -578,7 +578,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 		} else if (stat_sync == -EPERM) {
 			/* This can occur when the user mode thread is
 			 * aborted (^C), or when _VWIN32_WaitSingleObject()
-			 * fails due to unkown causes. */
+			 * fails due to unknown causes. */
 			/* Even though Wait failed, there may be something in
 			 * the Q: */
 			if (list_empty(&pchnl->io_completions)) {

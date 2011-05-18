@@ -10,6 +10,7 @@
 #include <linux/input.h>	/* BUS_SPI */
 #include <linux/module.h>
 #include <linux/spi/spi.h>
+#include <linux/pm.h>
 #include <linux/types.h>
 #include "adxl34x.h"
 
@@ -57,7 +58,7 @@ static int adxl34x_spi_read_block(struct device *dev,
 	return (status < 0) ? status : 0;
 }
 
-static const struct adxl34x_bus_ops adx134x_spi_bops = {
+static const struct adxl34x_bus_ops adxl34x_spi_bops = {
 	.bustype	= BUS_SPI,
 	.write		= adxl34x_spi_write,
 	.read		= adxl34x_spi_read,
@@ -76,7 +77,7 @@ static int __devinit adxl34x_spi_probe(struct spi_device *spi)
 
 	ac = adxl34x_probe(&spi->dev, spi->irq,
 			   spi->max_speed_hz > MAX_FREQ_NO_FIFODELAY,
-			   &adx134x_spi_bops);
+			   &adxl34x_spi_bops);
 
 	if (IS_ERR(ac))
 		return PTR_ERR(ac);
@@ -94,8 +95,9 @@ static int __devexit adxl34x_spi_remove(struct spi_device *spi)
 }
 
 #ifdef CONFIG_PM
-static int adxl34x_spi_suspend(struct spi_device *spi, pm_message_t message)
+static int adxl34x_spi_suspend(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
 	struct adxl34x *ac = dev_get_drvdata(&spi->dev);
 
 	adxl34x_suspend(ac);
@@ -103,29 +105,29 @@ static int adxl34x_spi_suspend(struct spi_device *spi, pm_message_t message)
 	return 0;
 }
 
-static int adxl34x_spi_resume(struct spi_device *spi)
+static int adxl34x_spi_resume(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
 	struct adxl34x *ac = dev_get_drvdata(&spi->dev);
 
 	adxl34x_resume(ac);
 
 	return 0;
 }
-#else
-# define adxl34x_spi_suspend NULL
-# define adxl34x_spi_resume  NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(adxl34x_spi_pm, adxl34x_spi_suspend,
+			 adxl34x_spi_resume);
 
 static struct spi_driver adxl34x_driver = {
 	.driver = {
 		.name = "adxl34x",
 		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
+		.pm = &adxl34x_spi_pm,
 	},
 	.probe   = adxl34x_spi_probe,
 	.remove  = __devexit_p(adxl34x_spi_remove),
-	.suspend = adxl34x_spi_suspend,
-	.resume  = adxl34x_spi_resume,
 };
 
 static int __init adxl34x_spi_init(void)

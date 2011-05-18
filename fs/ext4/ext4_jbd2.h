@@ -86,8 +86,8 @@
 
 #ifdef CONFIG_QUOTA
 /* Amount of blocks needed for quota update - we know that the structure was
- * allocated so we need to update only inode+data */
-#define EXT4_QUOTA_TRANS_BLOCKS(sb) (test_opt(sb, QUOTA) ? 2 : 0)
+ * allocated so we need to update only data block */
+#define EXT4_QUOTA_TRANS_BLOCKS(sb) (test_opt(sb, QUOTA) ? 1 : 0)
 /* Amount of blocks needed for quota insert/delete - we do some block writes
  * but inode, sb and group updates are done only once */
 #define EXT4_QUOTA_INIT_BLOCKS(sb) (test_opt(sb, QUOTA) ? (DQUOT_INIT_ALLOC*\
@@ -200,13 +200,6 @@ static inline int ext4_handle_has_enough_credits(handle_t *handle, int needed)
 	if (ext4_handle_valid(handle) && handle->h_buffer_credits < needed)
 		return 0;
 	return 1;
-}
-
-static inline void ext4_journal_release_buffer(handle_t *handle,
-						struct buffer_head *bh)
-{
-	if (ext4_handle_valid(handle))
-		jbd2_journal_release_buffer(handle, bh);
 }
 
 static inline handle_t *ext4_journal_start(struct inode *inode, int nblocks)

@@ -30,7 +30,7 @@ int iio_push_ring_event(struct iio_ring_buffer *ring_buf,
  * @event_code:		event indentification code
  * @timestamp:		time of event
  *
- * Typical usecase is to escalate a 50% ring full to 75% full if noone has yet
+ * Typical usecase is to escalate a 50% ring full to 75% full if no one has yet
  * read the first event. Clearly the 50% full is no longer of interest in
  * typical use case.
  **/

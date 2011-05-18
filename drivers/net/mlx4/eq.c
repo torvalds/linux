@@ -42,7 +42,7 @@
 #include "fw.h"
 
 enum {
-	MLX4_IRQNAME_SIZE	= 64
+	MLX4_IRQNAME_SIZE	= 32
 };
 
 enum {
@@ -317,8 +317,8 @@ static int mlx4_num_eq_uar(struct mlx4_dev *dev)
 	 * we need to map, take the difference of highest index and
 	 * the lowest index we'll use and add 1.
 	 */
-	return (dev->caps.num_comp_vectors + 1 + dev->caps.reserved_eqs) / 4 -
-		dev->caps.reserved_eqs / 4 + 1;
+	return (dev->caps.num_comp_vectors + 1 + dev->caps.reserved_eqs +
+		 dev->caps.comp_pool)/4 - dev->caps.reserved_eqs/4 + 1;
 }
 
 static void __iomem *mlx4_get_eq_uar(struct mlx4_dev *dev, struct mlx4_eq *eq)
@@ -496,15 +496,31 @@ static void mlx4_free_eq(struct mlx4_dev *dev,
 static void mlx4_free_irqs(struct mlx4_dev *dev)
 {
 	struct mlx4_eq_table *eq_table = &mlx4_priv(dev)->eq_table;
-	int i;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int	i, vec;
 
 	if (eq_table->have_irq)
 		free_irq(dev->pdev->irq, dev);
+
 	for (i = 0; i < dev->caps.num_comp_vectors + 1; ++i)
 		if (eq_table->eq[i].have_irq) {
 			free_irq(eq_table->eq[i].irq, eq_table->eq + i);
 			eq_table->eq[i].have_irq = 0;
 		}
+
+	for (i = 0; i < dev->caps.comp_pool; i++) {
+		/*
+		 * Freeing the assigned irq's
+		 * all bits should be 0, but we need to validate
+		 */
+		if (priv->msix_ctl.pool_bm & 1ULL << i) {
+			/* NO need protecting*/
+			vec = dev->caps.num_comp_vectors + 1 + i;
+			free_irq(priv->eq_table.eq[vec].irq,
+				 &priv->eq_table.eq[vec]);
+		}
+	}
+
 
 	kfree(eq_table->irq_names);
 }
@@ -578,7 +594,8 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 		(priv->eq_table.inta_pin < 32 ? 4 : 0);
 
 	priv->eq_table.irq_names =
-		kmalloc(MLX4_IRQNAME_SIZE * (dev->caps.num_comp_vectors + 1),
+		kmalloc(MLX4_IRQNAME_SIZE * (dev->caps.num_comp_vectors + 1 +
+					     dev->caps.comp_pool),
 			GFP_KERNEL);
 	if (!priv->eq_table.irq_names) {
 		err = -ENOMEM;
@@ -586,7 +603,9 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 	}
 
 	for (i = 0; i < dev->caps.num_comp_vectors; ++i) {
-		err = mlx4_create_eq(dev, dev->caps.num_cqs + MLX4_NUM_SPARE_EQE,
+		err = mlx4_create_eq(dev, dev->caps.num_cqs -
+					  dev->caps.reserved_cqs +
+					  MLX4_NUM_SPARE_EQE,
 				     (dev->flags & MLX4_FLAG_MSI_X) ? i : 0,
 				     &priv->eq_table.eq[i]);
 		if (err) {
@@ -600,6 +619,22 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 			     &priv->eq_table.eq[dev->caps.num_comp_vectors]);
 	if (err)
 		goto err_out_comp;
+
+	/*if additional completion vectors poolsize is 0 this loop will not run*/
+	for (i = dev->caps.num_comp_vectors + 1;
+	      i < dev->caps.num_comp_vectors + dev->caps.comp_pool + 1; ++i) {
+
+		err = mlx4_create_eq(dev, dev->caps.num_cqs -
+					  dev->caps.reserved_cqs +
+					  MLX4_NUM_SPARE_EQE,
+				     (dev->flags & MLX4_FLAG_MSI_X) ? i : 0,
+				     &priv->eq_table.eq[i]);
+		if (err) {
+			--i;
+			goto err_out_unmap;
+		}
+	}
+
 
 	if (dev->flags & MLX4_FLAG_MSI_X) {
 		const char *eq_name;
@@ -686,7 +721,7 @@ void mlx4_cleanup_eq_table(struct mlx4_dev *dev)
 
 	mlx4_free_irqs(dev);
 
-	for (i = 0; i < dev->caps.num_comp_vectors + 1; ++i)
+	for (i = 0; i < dev->caps.num_comp_vectors + dev->caps.comp_pool + 1; ++i)
 		mlx4_free_eq(dev, &priv->eq_table.eq[i]);
 
 	mlx4_unmap_clr_int(dev);
@@ -743,3 +778,65 @@ int mlx4_test_interrupts(struct mlx4_dev *dev)
 	return err;
 }
 EXPORT_SYMBOL(mlx4_test_interrupts);
+
+int mlx4_assign_eq(struct mlx4_dev *dev, char* name, int * vector)
+{
+
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int vec = 0, err = 0, i;
+
+	spin_lock(&priv->msix_ctl.pool_lock);
+	for (i = 0; !vec && i < dev->caps.comp_pool; i++) {
+		if (~priv->msix_ctl.pool_bm & 1ULL << i) {
+			priv->msix_ctl.pool_bm |= 1ULL << i;
+			vec = dev->caps.num_comp_vectors + 1 + i;
+			snprintf(priv->eq_table.irq_names +
+					vec * MLX4_IRQNAME_SIZE,
+					MLX4_IRQNAME_SIZE, "%s", name);
+			err = request_irq(priv->eq_table.eq[vec].irq,
+					  mlx4_msi_x_interrupt, 0,
+					  &priv->eq_table.irq_names[vec<<5],
+					  priv->eq_table.eq + vec);
+			if (err) {
+				/*zero out bit by fliping it*/
+				priv->msix_ctl.pool_bm ^= 1 << i;
+				vec = 0;
+				continue;
+				/*we dont want to break here*/
+			}
+			eq_set_ci(&priv->eq_table.eq[vec], 1);
+		}
+	}
+	spin_unlock(&priv->msix_ctl.pool_lock);
+
+	if (vec) {
+		*vector = vec;
+	} else {
+		*vector = 0;
+		err = (i == dev->caps.comp_pool) ? -ENOSPC : err;
+	}
+	return err;
+}
+EXPORT_SYMBOL(mlx4_assign_eq);
+
+void mlx4_release_eq(struct mlx4_dev *dev, int vec)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	/*bm index*/
+	int i = vec - dev->caps.num_comp_vectors - 1;
+
+	if (likely(i >= 0)) {
+		/*sanity check , making sure were not trying to free irq's
+		  Belonging to a legacy EQ*/
+		spin_lock(&priv->msix_ctl.pool_lock);
+		if (priv->msix_ctl.pool_bm & 1ULL << i) {
+			free_irq(priv->eq_table.eq[vec].irq,
+				 &priv->eq_table.eq[vec]);
+			priv->msix_ctl.pool_bm &= ~(1ULL << i);
+		}
+		spin_unlock(&priv->msix_ctl.pool_lock);
+	}
+
+}
+EXPORT_SYMBOL(mlx4_release_eq);
+

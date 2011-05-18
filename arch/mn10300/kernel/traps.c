@@ -38,8 +38,9 @@
 #include <asm/busctl-regs.h>
 #include <unit/leds.h>
 #include <asm/fpu.h>
-#include <asm/gdb-stub.h>
 #include <asm/sections.h>
+#include <asm/debugger.h>
+#include "internal.h"
 
 #if (CONFIG_INTERRUPT_VECTOR_BASE & 0xffffff)
 #error "INTERRUPT_VECTOR_BASE not aligned to 16MiB boundary!"
@@ -49,63 +50,169 @@ int kstack_depth_to_print = 24;
 
 spinlock_t die_lock = __SPIN_LOCK_UNLOCKED(die_lock);
 
-ATOMIC_NOTIFIER_HEAD(mn10300_die_chain);
+struct exception_to_signal_map {
+	u8	signo;
+	u32	si_code;
+};
+
+static const struct exception_to_signal_map exception_to_signal_map[256] = {
+	/* MMU exceptions */
+	[EXCEP_ITLBMISS >> 3]	= { 0, 0 },
+	[EXCEP_DTLBMISS >> 3]	= { 0, 0 },
+	[EXCEP_IAERROR >> 3]	= { 0, 0 },
+	[EXCEP_DAERROR >> 3]	= { 0, 0 },
+
+	/* system exceptions */
+	[EXCEP_TRAP >> 3]	= { SIGTRAP,	TRAP_BRKPT },
+	[EXCEP_ISTEP >> 3]	= { SIGTRAP,	TRAP_TRACE },	/* Monitor */
+	[EXCEP_IBREAK >> 3]	= { SIGTRAP,	TRAP_HWBKPT },	/* Monitor */
+	[EXCEP_OBREAK >> 3]	= { SIGTRAP,	TRAP_HWBKPT },	/* Monitor */
+	[EXCEP_PRIVINS >> 3]	= { SIGILL,	ILL_PRVOPC },
+	[EXCEP_UNIMPINS >> 3]	= { SIGILL,	ILL_ILLOPC },
+	[EXCEP_UNIMPEXINS >> 3]	= { SIGILL,	ILL_ILLOPC },
+	[EXCEP_MEMERR >> 3]	= { SIGSEGV,	SEGV_ACCERR },
+	[EXCEP_MISALIGN >> 3]	= { SIGBUS,	BUS_ADRALN },
+	[EXCEP_BUSERROR >> 3]	= { SIGBUS,	BUS_ADRERR },
+	[EXCEP_ILLINSACC >> 3]	= { SIGSEGV,	SEGV_ACCERR },
+	[EXCEP_ILLDATACC >> 3]	= { SIGSEGV,	SEGV_ACCERR },
+	[EXCEP_IOINSACC >> 3]	= { SIGSEGV,	SEGV_ACCERR },
+	[EXCEP_PRIVINSACC >> 3]	= { SIGSEGV,	SEGV_ACCERR }, /* userspace */
+	[EXCEP_PRIVDATACC >> 3]	= { SIGSEGV,	SEGV_ACCERR }, /* userspace */
+	[EXCEP_DATINSACC >> 3]	= { SIGSEGV,	SEGV_ACCERR },
+	[EXCEP_DOUBLE_FAULT >> 3] = { SIGILL,	ILL_BADSTK },
+
+	/* FPU exceptions */
+	[EXCEP_FPU_DISABLED >> 3] = { SIGILL,	ILL_COPROC },
+	[EXCEP_FPU_UNIMPINS >> 3] = { SIGILL,	ILL_COPROC },
+	[EXCEP_FPU_OPERATION >> 3] = { SIGFPE,	FPE_INTDIV },
+
+	/* interrupts */
+	[EXCEP_WDT >> 3]	= { SIGALRM,	0 },
+	[EXCEP_NMI >> 3]	= { SIGQUIT,	0 },
+	[EXCEP_IRQ_LEVEL0 >> 3]	= { SIGINT,	0 },
+	[EXCEP_IRQ_LEVEL1 >> 3]	= { 0, 0 },
+	[EXCEP_IRQ_LEVEL2 >> 3]	= { 0, 0 },
+	[EXCEP_IRQ_LEVEL3 >> 3]	= { 0, 0 },
+	[EXCEP_IRQ_LEVEL4 >> 3]	= { 0, 0 },
+	[EXCEP_IRQ_LEVEL5 >> 3]	= { 0, 0 },
+	[EXCEP_IRQ_LEVEL6 >> 3]	= { 0, 0 },
+
+	/* system calls */
+	[EXCEP_SYSCALL0 >> 3]	= { 0, 0 },
+	[EXCEP_SYSCALL1 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL2 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL3 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL4 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL5 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL6 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL7 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL8 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL9 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL10 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL11 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL12 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL13 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL14 >> 3]	= { SIGILL,	ILL_ILLTRP },
+	[EXCEP_SYSCALL15 >> 3]	= { SIGABRT,	0 },
+};
 
 /*
- * These constants are for searching for possible module text
- * segments. MODULE_RANGE is a guess of how much space is likely
- * to be vmalloced.
+ * Handle kernel exceptions.
+ *
+ * See if there's a fixup handler we can force a jump to when an exception
+ * happens due to something kernel code did
  */
-#define MODULE_RANGE (8 * 1024 * 1024)
+int die_if_no_fixup(const char *str, struct pt_regs *regs,
+		    enum exception_code code)
+{
+	u8 opcode;
+	int signo, si_code;
 
-#define DO_ERROR(signr, prologue, str, name)			\
-asmlinkage void name(struct pt_regs *regs, u32 intcode)		\
-{								\
-	prologue;						\
-	if (die_if_no_fixup(str, regs, intcode))		\
-		return;						\
-	force_sig(signr, current);				\
+	if (user_mode(regs))
+		return 0;
+
+	peripheral_leds_display_exception(code);
+
+	signo = exception_to_signal_map[code >> 3].signo;
+	si_code = exception_to_signal_map[code >> 3].si_code;
+
+	switch (code) {
+		/* see if we can fixup the kernel accessing memory */
+	case EXCEP_ITLBMISS:
+	case EXCEP_DTLBMISS:
+	case EXCEP_IAERROR:
+	case EXCEP_DAERROR:
+	case EXCEP_MEMERR:
+	case EXCEP_MISALIGN:
+	case EXCEP_BUSERROR:
+	case EXCEP_ILLDATACC:
+	case EXCEP_IOINSACC:
+	case EXCEP_PRIVINSACC:
+	case EXCEP_PRIVDATACC:
+	case EXCEP_DATINSACC:
+		if (fixup_exception(regs))
+			return 1;
+		break;
+
+	case EXCEP_TRAP:
+	case EXCEP_UNIMPINS:
+		if (get_user(opcode, (uint8_t __user *)regs->pc) != 0)
+			break;
+		if (opcode == 0xff) {
+			if (notify_die(DIE_BREAKPOINT, str, regs, code, 0, 0))
+				return 1;
+			if (at_debugger_breakpoint(regs))
+				regs->pc++;
+			signo = SIGTRAP;
+			si_code = TRAP_BRKPT;
+		}
+		break;
+
+	case EXCEP_SYSCALL1 ... EXCEP_SYSCALL14:
+		/* syscall return addr is _after_ the instruction */
+		regs->pc -= 2;
+		break;
+
+	case EXCEP_SYSCALL15:
+		if (report_bug(regs->pc, regs) == BUG_TRAP_TYPE_WARN)
+			return 1;
+
+		/* syscall return addr is _after_ the instruction */
+		regs->pc -= 2;
+		break;
+
+	default:
+		break;
+	}
+
+	if (debugger_intercept(code, signo, si_code, regs) == 0)
+		return 1;
+
+	if (notify_die(DIE_GPF, str, regs, code, 0, 0))
+		return 1;
+
+	/* make the process die as the last resort */
+	die(str, regs, code);
 }
 
-#define DO_EINFO(signr, prologue, str, name, sicode)			\
-asmlinkage void name(struct pt_regs *regs, u32 intcode)			\
-{									\
-	siginfo_t info;							\
-	prologue;							\
-	if (die_if_no_fixup(str, regs, intcode))			\
-		return;							\
-	info.si_signo = signr;						\
-	if (signr == SIGILL && sicode == ILL_ILLOPC) {			\
-		uint8_t opcode;						\
-		if (get_user(opcode, (uint8_t __user *)regs->pc) == 0)	\
-			if (opcode == 0xff)				\
-				info.si_signo = SIGTRAP;		\
-	}								\
-	info.si_errno = 0;						\
-	info.si_code = sicode;						\
-	info.si_addr = (void *) regs->pc;				\
-	force_sig_info(info.si_signo, &info, current);			\
+/*
+ * General exception handler
+ */
+asmlinkage void handle_exception(struct pt_regs *regs, u32 intcode)
+{
+	siginfo_t info;
+
+	/* deal with kernel exceptions here */
+	if (die_if_no_fixup(NULL, regs, intcode))
+		return;
+
+	/* otherwise it's a userspace exception */
+	info.si_signo = exception_to_signal_map[intcode >> 3].signo;
+	info.si_code = exception_to_signal_map[intcode >> 3].si_code;
+	info.si_errno = 0;
+	info.si_addr = (void *) regs->pc;
+	force_sig_info(info.si_signo, &info, current);
 }
-
-DO_ERROR(SIGTRAP, {}, "trap",			trap);
-DO_ERROR(SIGSEGV, {}, "ibreak",			ibreak);
-DO_ERROR(SIGSEGV, {}, "obreak",			obreak);
-DO_EINFO(SIGSEGV, {}, "access error",		access_error,	SEGV_ACCERR);
-DO_EINFO(SIGSEGV, {}, "insn access error",	insn_acc_error,	SEGV_ACCERR);
-DO_EINFO(SIGSEGV, {}, "data access error",	data_acc_error,	SEGV_ACCERR);
-DO_EINFO(SIGILL,  {}, "privileged opcode",	priv_op,	ILL_PRVOPC);
-DO_EINFO(SIGILL,  {}, "invalid opcode",		invalid_op,	ILL_ILLOPC);
-DO_EINFO(SIGILL,  {}, "invalid ex opcode",	invalid_exop,	ILL_ILLOPC);
-DO_EINFO(SIGBUS,  {}, "invalid address",	mem_error,	BUS_ADRERR);
-DO_EINFO(SIGBUS,  {}, "bus error",		bus_error,	BUS_ADRERR);
-
-DO_ERROR(SIGTRAP,
-#ifndef CONFIG_MN10300_USING_JTAG
-	 DCR &= ~0x0001,
-#else
-	 {},
-#endif
-	 "single step", istep);
 
 /*
  * handle NMI
@@ -113,10 +220,8 @@ DO_ERROR(SIGTRAP,
 asmlinkage void nmi(struct pt_regs *regs, enum exception_code code)
 {
 	/* see if gdbstub wants to deal with it */
-#ifdef CONFIG_GDBSTUB
-	if (gdbstub_intercept(regs, code))
+	if (debugger_intercept(code, SIGQUIT, 0, regs))
 		return;
-#endif
 
 	printk(KERN_WARNING "--- Register Dump ---\n");
 	show_registers(regs);
@@ -128,29 +233,36 @@ asmlinkage void nmi(struct pt_regs *regs, enum exception_code code)
  */
 void show_trace(unsigned long *sp)
 {
-	unsigned long *stack, addr, module_start, module_end;
-	int i;
+	unsigned long bottom, stack, addr, fp, raslot;
 
-	printk(KERN_EMERG "\nCall Trace:");
+	printk(KERN_EMERG "\nCall Trace:\n");
 
-	stack = sp;
-	i = 0;
-	module_start = VMALLOC_START;
-	module_end = VMALLOC_END;
+	//stack = (unsigned long)sp;
+	asm("mov sp,%0" : "=a"(stack));
+	asm("mov a3,%0" : "=r"(fp));
 
-	while (((long) stack & (THREAD_SIZE - 1)) != 0) {
-		addr = *stack++;
+	raslot = ULONG_MAX;
+	bottom = (stack + THREAD_SIZE) & ~(THREAD_SIZE - 1);
+	for (; stack < bottom; stack += sizeof(addr)) {
+		addr = *(unsigned long *)stack;
+		if (stack == fp) {
+			if (addr > stack && addr < bottom) {
+				fp = addr;
+				raslot = stack + sizeof(addr);
+				continue;
+			}
+			fp = 0;
+			raslot = ULONG_MAX;
+		}
+
 		if (__kernel_text_address(addr)) {
-#if 1
 			printk(" [<%08lx>]", addr);
+			if (stack >= raslot)
+				raslot = ULONG_MAX;
+			else
+				printk(" ?");
 			print_symbol(" %s", addr);
 			printk("\n");
-#else
-			if ((i % 6) == 0)
-				printk(KERN_EMERG "  ");
-			printk("[<%08lx>] ", addr);
-			i++;
-#endif
 		}
 	}
 
@@ -323,86 +435,6 @@ void die(const char *str, struct pt_regs *regs, enum exception_code code)
 }
 
 /*
- * see if there's a fixup handler we can force a jump to when an exception
- * happens due to something kernel code did
- */
-int die_if_no_fixup(const char *str, struct pt_regs *regs,
-		    enum exception_code code)
-{
-	if (user_mode(regs))
-		return 0;
-
-	peripheral_leds_display_exception(code);
-
-	switch (code) {
-		/* see if we can fixup the kernel accessing memory */
-	case EXCEP_ITLBMISS:
-	case EXCEP_DTLBMISS:
-	case EXCEP_IAERROR:
-	case EXCEP_DAERROR:
-	case EXCEP_MEMERR:
-	case EXCEP_MISALIGN:
-	case EXCEP_BUSERROR:
-	case EXCEP_ILLDATACC:
-	case EXCEP_IOINSACC:
-	case EXCEP_PRIVINSACC:
-	case EXCEP_PRIVDATACC:
-	case EXCEP_DATINSACC:
-		if (fixup_exception(regs))
-			return 1;
-	case EXCEP_UNIMPINS:
-		if (regs->pc && *(uint8_t *)regs->pc == 0xff)
-			if (notify_die(DIE_BREAKPOINT, str, regs, code, 0, 0))
-				return 1;
-		break;
-	default:
-		break;
-	}
-
-	/* see if gdbstub wants to deal with it */
-#ifdef CONFIG_GDBSTUB
-	if (gdbstub_intercept(regs, code))
-		return 1;
-#endif
-
-	if (notify_die(DIE_GPF, str, regs, code, 0, 0))
-		return 1;
-
-	/* make the process die as the last resort */
-	die(str, regs, code);
-}
-
-/*
- * handle unsupported syscall instructions (syscall 1-15)
- */
-static asmlinkage void unsupported_syscall(struct pt_regs *regs,
-					   enum exception_code code)
-{
-	struct task_struct *tsk = current;
-	siginfo_t info;
-
-	/* catch a kernel BUG() */
-	if (code == EXCEP_SYSCALL15 && !user_mode(regs)) {
-		if (report_bug(regs->pc, regs) == BUG_TRAP_TYPE_BUG) {
-#ifdef CONFIG_GDBSTUB
-			gdbstub_intercept(regs, code);
-#endif
-		}
-	}
-
-	regs->pc -= 2; /* syscall return addr is _after_ the instruction */
-
-	die_if_no_fixup("An unsupported syscall insn was used by the kernel\n",
-			regs, code);
-
-	info.si_signo	= SIGILL;
-	info.si_errno	= ENOSYS;
-	info.si_code	= ILL_ILLTRP;
-	info.si_addr	= (void *) regs->pc;
-	force_sig_info(SIGILL, &info, tsk);
-}
-
-/*
  * display the register file when the stack pointer gets clobbered
  */
 asmlinkage void do_double_fault(struct pt_regs *regs)
@@ -481,10 +513,8 @@ asmlinkage void uninitialised_exception(struct pt_regs *regs,
 {
 
 	/* see if gdbstub wants to deal with it */
-#ifdef CONFIG_GDBSTUB
-	if (gdbstub_intercept(regs, code))
+	if (debugger_intercept(code, SIGSYS, 0, regs) == 0)
 		return;
-#endif
 
 	peripheral_leds_display_exception(code);
 	printk(KERN_EMERG "Uninitialised Exception 0x%04x\n", code & 0xFFFF);
@@ -549,43 +579,43 @@ void __init set_intr_stub(enum exception_code code, void *handler)
  */
 void __init trap_init(void)
 {
-	set_excp_vector(EXCEP_TRAP,		trap);
-	set_excp_vector(EXCEP_ISTEP,		istep);
-	set_excp_vector(EXCEP_IBREAK,		ibreak);
-	set_excp_vector(EXCEP_OBREAK,		obreak);
+	set_excp_vector(EXCEP_TRAP,		handle_exception);
+	set_excp_vector(EXCEP_ISTEP,		handle_exception);
+	set_excp_vector(EXCEP_IBREAK,		handle_exception);
+	set_excp_vector(EXCEP_OBREAK,		handle_exception);
 
-	set_excp_vector(EXCEP_PRIVINS,		priv_op);
-	set_excp_vector(EXCEP_UNIMPINS,		invalid_op);
-	set_excp_vector(EXCEP_UNIMPEXINS,	invalid_exop);
-	set_excp_vector(EXCEP_MEMERR,		mem_error);
+	set_excp_vector(EXCEP_PRIVINS,		handle_exception);
+	set_excp_vector(EXCEP_UNIMPINS,		handle_exception);
+	set_excp_vector(EXCEP_UNIMPEXINS,	handle_exception);
+	set_excp_vector(EXCEP_MEMERR,		handle_exception);
 	set_excp_vector(EXCEP_MISALIGN,		misalignment);
-	set_excp_vector(EXCEP_BUSERROR,		bus_error);
-	set_excp_vector(EXCEP_ILLINSACC,	insn_acc_error);
-	set_excp_vector(EXCEP_ILLDATACC,	data_acc_error);
-	set_excp_vector(EXCEP_IOINSACC,		insn_acc_error);
-	set_excp_vector(EXCEP_PRIVINSACC,	insn_acc_error);
-	set_excp_vector(EXCEP_PRIVDATACC,	data_acc_error);
-	set_excp_vector(EXCEP_DATINSACC,	insn_acc_error);
-	set_excp_vector(EXCEP_FPU_UNIMPINS,	fpu_invalid_op);
+	set_excp_vector(EXCEP_BUSERROR,		handle_exception);
+	set_excp_vector(EXCEP_ILLINSACC,	handle_exception);
+	set_excp_vector(EXCEP_ILLDATACC,	handle_exception);
+	set_excp_vector(EXCEP_IOINSACC,		handle_exception);
+	set_excp_vector(EXCEP_PRIVINSACC,	handle_exception);
+	set_excp_vector(EXCEP_PRIVDATACC,	handle_exception);
+	set_excp_vector(EXCEP_DATINSACC,	handle_exception);
+	set_excp_vector(EXCEP_FPU_UNIMPINS,	handle_exception);
 	set_excp_vector(EXCEP_FPU_OPERATION,	fpu_exception);
 
 	set_excp_vector(EXCEP_NMI,		nmi);
 
-	set_excp_vector(EXCEP_SYSCALL1,		unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL2,		unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL3,		unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL4,		unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL5,		unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL6,		unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL7,		unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL8,		unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL9,		unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL10,	unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL11,	unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL12,	unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL13,	unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL14,	unsupported_syscall);
-	set_excp_vector(EXCEP_SYSCALL15,	unsupported_syscall);
+	set_excp_vector(EXCEP_SYSCALL1,		handle_exception);
+	set_excp_vector(EXCEP_SYSCALL2,		handle_exception);
+	set_excp_vector(EXCEP_SYSCALL3,		handle_exception);
+	set_excp_vector(EXCEP_SYSCALL4,		handle_exception);
+	set_excp_vector(EXCEP_SYSCALL5,		handle_exception);
+	set_excp_vector(EXCEP_SYSCALL6,		handle_exception);
+	set_excp_vector(EXCEP_SYSCALL7,		handle_exception);
+	set_excp_vector(EXCEP_SYSCALL8,		handle_exception);
+	set_excp_vector(EXCEP_SYSCALL9,		handle_exception);
+	set_excp_vector(EXCEP_SYSCALL10,	handle_exception);
+	set_excp_vector(EXCEP_SYSCALL11,	handle_exception);
+	set_excp_vector(EXCEP_SYSCALL12,	handle_exception);
+	set_excp_vector(EXCEP_SYSCALL13,	handle_exception);
+	set_excp_vector(EXCEP_SYSCALL14,	handle_exception);
+	set_excp_vector(EXCEP_SYSCALL15,	handle_exception);
 }
 
 /*

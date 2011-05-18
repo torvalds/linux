@@ -36,7 +36,7 @@
 /**
  * ixgbe_ieee_credits - This calculates the ieee traffic class
  * credits from the configured bandwidth percentages. Credits
- * are the smallest unit programable into the underlying
+ * are the smallest unit programmable into the underlying
  * hardware. The IEEE 802.1Qaz specification do not use bandwidth
  * groups so this is much simplified from the CEE case.
  */

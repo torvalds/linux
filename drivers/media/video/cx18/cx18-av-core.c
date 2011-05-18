@@ -129,6 +129,7 @@ static void cx18_av_initialize(struct v4l2_subdev *sd)
 {
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
+	int default_volume;
 	u32 v;
 
 	cx18_av_loadfw(cx);
@@ -247,8 +248,23 @@ static void cx18_av_initialize(struct v4l2_subdev *sd)
 /*      	CxDevWrReg(CXADEC_SRC_COMB_CFG, 0x6628021F); */
 /*    } */
 	cx18_av_write4(cx, CXADEC_SRC_COMB_CFG, 0x6628021F);
-	state->default_volume = 228 - cx18_av_read(cx, 0x8d4);
-	state->default_volume = ((state->default_volume / 2) + 23) << 9;
+	default_volume = cx18_av_read(cx, 0x8d4);
+	/*
+	 * Enforce the legacy volume scale mapping limits to avoid
+	 * -ERANGE errors when initializing the volume control
+	 */
+	if (default_volume > 228) {
+		/* Bottom out at -96 dB, v4l2 vol range 0x2e00-0x2fff */
+		default_volume = 228;
+		cx18_av_write(cx, 0x8d4, 228);
+	} else if (default_volume < 20) {
+		/* Top out at + 8 dB, v4l2 vol range 0xfe00-0xffff */
+		default_volume = 20;
+		cx18_av_write(cx, 0x8d4, 20);
+	}
+	default_volume = (((228 - default_volume) >> 1) + 23) << 9;
+	state->volume->cur.val = state->volume->default_value = default_volume;
+	v4l2_ctrl_handler_setup(&state->hdl);
 }
 
 static int cx18_av_reset(struct v4l2_subdev *sd, u32 val)
@@ -901,124 +917,33 @@ static int cx18_av_s_radio(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int cx18_av_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+static int cx18_av_s_ctrl(struct v4l2_ctrl *ctrl)
 {
+	struct v4l2_subdev *sd = to_sd(ctrl);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		if (ctrl->value < 0 || ctrl->value > 255) {
-			CX18_ERR_DEV(sd, "invalid brightness setting %d\n",
-				     ctrl->value);
-			return -ERANGE;
-		}
-
-		cx18_av_write(cx, 0x414, ctrl->value - 128);
+		cx18_av_write(cx, 0x414, ctrl->val - 128);
 		break;
 
 	case V4L2_CID_CONTRAST:
-		if (ctrl->value < 0 || ctrl->value > 127) {
-			CX18_ERR_DEV(sd, "invalid contrast setting %d\n",
-				     ctrl->value);
-			return -ERANGE;
-		}
-
-		cx18_av_write(cx, 0x415, ctrl->value << 1);
+		cx18_av_write(cx, 0x415, ctrl->val << 1);
 		break;
 
 	case V4L2_CID_SATURATION:
-		if (ctrl->value < 0 || ctrl->value > 127) {
-			CX18_ERR_DEV(sd, "invalid saturation setting %d\n",
-				     ctrl->value);
-			return -ERANGE;
-		}
-
-		cx18_av_write(cx, 0x420, ctrl->value << 1);
-		cx18_av_write(cx, 0x421, ctrl->value << 1);
+		cx18_av_write(cx, 0x420, ctrl->val << 1);
+		cx18_av_write(cx, 0x421, ctrl->val << 1);
 		break;
 
 	case V4L2_CID_HUE:
-		if (ctrl->value < -128 || ctrl->value > 127) {
-			CX18_ERR_DEV(sd, "invalid hue setting %d\n",
-				     ctrl->value);
-			return -ERANGE;
-		}
-
-		cx18_av_write(cx, 0x422, ctrl->value);
+		cx18_av_write(cx, 0x422, ctrl->val);
 		break;
-
-	case V4L2_CID_AUDIO_VOLUME:
-	case V4L2_CID_AUDIO_BASS:
-	case V4L2_CID_AUDIO_TREBLE:
-	case V4L2_CID_AUDIO_BALANCE:
-	case V4L2_CID_AUDIO_MUTE:
-		return cx18_av_audio_s_ctrl(cx, ctrl);
 
 	default:
 		return -EINVAL;
 	}
 	return 0;
-}
-
-static int cx18_av_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct cx18 *cx = v4l2_get_subdevdata(sd);
-
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		ctrl->value = (s8)cx18_av_read(cx, 0x414) + 128;
-		break;
-	case V4L2_CID_CONTRAST:
-		ctrl->value = cx18_av_read(cx, 0x415) >> 1;
-		break;
-	case V4L2_CID_SATURATION:
-		ctrl->value = cx18_av_read(cx, 0x420) >> 1;
-		break;
-	case V4L2_CID_HUE:
-		ctrl->value = (s8)cx18_av_read(cx, 0x422);
-		break;
-	case V4L2_CID_AUDIO_VOLUME:
-	case V4L2_CID_AUDIO_BASS:
-	case V4L2_CID_AUDIO_TREBLE:
-	case V4L2_CID_AUDIO_BALANCE:
-	case V4L2_CID_AUDIO_MUTE:
-		return cx18_av_audio_g_ctrl(cx, ctrl);
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int cx18_av_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
-{
-	struct cx18_av_state *state = to_cx18_av_state(sd);
-
-	switch (qc->id) {
-	case V4L2_CID_BRIGHTNESS:
-		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
-	case V4L2_CID_CONTRAST:
-	case V4L2_CID_SATURATION:
-		return v4l2_ctrl_query_fill(qc, 0, 127, 1, 64);
-	case V4L2_CID_HUE:
-		return v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
-	default:
-		break;
-	}
-
-	switch (qc->id) {
-	case V4L2_CID_AUDIO_VOLUME:
-		return v4l2_ctrl_query_fill(qc, 0, 65535,
-			65535 / 100, state->default_volume);
-	case V4L2_CID_AUDIO_MUTE:
-		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
-	case V4L2_CID_AUDIO_BALANCE:
-	case V4L2_CID_AUDIO_BASS:
-	case V4L2_CID_AUDIO_TREBLE:
-		return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 32768);
-	default:
-		return -EINVAL;
-	}
-	return -EINVAL;
 }
 
 static int cx18_av_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
@@ -1356,14 +1281,22 @@ static int cx18_av_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
+static const struct v4l2_ctrl_ops cx18_av_ctrl_ops = {
+	.s_ctrl = cx18_av_s_ctrl,
+};
+
 static const struct v4l2_subdev_core_ops cx18_av_general_ops = {
 	.g_chip_ident = cx18_av_g_chip_ident,
 	.log_status = cx18_av_log_status,
 	.load_fw = cx18_av_load_fw,
 	.reset = cx18_av_reset,
-	.queryctrl = cx18_av_queryctrl,
-	.g_ctrl = cx18_av_g_ctrl,
-	.s_ctrl = cx18_av_s_ctrl,
+	.g_ctrl = v4l2_subdev_g_ctrl,
+	.s_ctrl = v4l2_subdev_s_ctrl,
+	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
+	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
+	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
+	.queryctrl = v4l2_subdev_queryctrl,
+	.querymenu = v4l2_subdev_querymenu,
 	.s_std = cx18_av_s_std,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = cx18_av_g_register,
@@ -1427,8 +1360,42 @@ int cx18_av_probe(struct cx18 *cx)
 	snprintf(sd->name, sizeof(sd->name),
 		 "%s %03x", cx->v4l2_dev.name, (state->rev >> 4));
 	sd->grp_id = CX18_HW_418_AV;
+	v4l2_ctrl_handler_init(&state->hdl, 9);
+	v4l2_ctrl_new_std(&state->hdl, &cx18_av_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(&state->hdl, &cx18_av_ctrl_ops,
+			V4L2_CID_CONTRAST, 0, 127, 1, 64);
+	v4l2_ctrl_new_std(&state->hdl, &cx18_av_ctrl_ops,
+			V4L2_CID_SATURATION, 0, 127, 1, 64);
+	v4l2_ctrl_new_std(&state->hdl, &cx18_av_ctrl_ops,
+			V4L2_CID_HUE, -128, 127, 1, 0);
+
+	state->volume = v4l2_ctrl_new_std(&state->hdl,
+			&cx18_av_audio_ctrl_ops, V4L2_CID_AUDIO_VOLUME,
+			0, 65535, 65535 / 100, 0);
+	v4l2_ctrl_new_std(&state->hdl,
+			&cx18_av_audio_ctrl_ops, V4L2_CID_AUDIO_MUTE,
+			0, 1, 1, 0);
+	v4l2_ctrl_new_std(&state->hdl, &cx18_av_audio_ctrl_ops,
+			V4L2_CID_AUDIO_BALANCE,
+			0, 65535, 65535 / 100, 32768);
+	v4l2_ctrl_new_std(&state->hdl, &cx18_av_audio_ctrl_ops,
+			V4L2_CID_AUDIO_BASS,
+			0, 65535, 65535 / 100, 32768);
+	v4l2_ctrl_new_std(&state->hdl, &cx18_av_audio_ctrl_ops,
+			V4L2_CID_AUDIO_TREBLE,
+			0, 65535, 65535 / 100, 32768);
+	sd->ctrl_handler = &state->hdl;
+	if (state->hdl.error) {
+		int err = state->hdl.error;
+
+		v4l2_ctrl_handler_free(&state->hdl);
+		return err;
+	}
 	err = v4l2_device_register_subdev(&cx->v4l2_dev, sd);
-	if (!err)
+	if (err)
+		v4l2_ctrl_handler_free(&state->hdl);
+	else
 		cx18_av_init(cx);
 	return err;
 }

@@ -21,7 +21,9 @@
 #ifndef _V4L2_DEVICE_H
 #define _V4L2_DEVICE_H
 
+#include <media/media-device.h>
 #include <media/v4l2-subdev.h>
+#include <media/v4l2-dev.h>
 
 /* Each instance of a V4L2 device should create the v4l2_device struct,
    either stand-alone or embedded in a larger struct.
@@ -39,6 +41,9 @@ struct v4l2_device {
 	   Note: dev might be NULL if there is no parent device
 	   as is the case with e.g. ISA devices. */
 	struct device *dev;
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct media_device *mdev;
+#endif
 	/* used to keep track of the registered subdevs */
 	struct list_head subdevs;
 	/* lock this struct; can be used by the driver as well if this
@@ -51,9 +56,22 @@ struct v4l2_device {
 			unsigned int notification, void *arg);
 	/* The control handler. May be NULL. */
 	struct v4l2_ctrl_handler *ctrl_handler;
+	/* Device's priority state */
+	struct v4l2_prio_state prio;
 	/* BKL replacement mutex. Temporary solution only. */
 	struct mutex ioctl_lock;
+	/* Keep track of the references to this struct. */
+	struct kref ref;
+	/* Release function that is called when the ref count goes to 0. */
+	void (*release)(struct v4l2_device *v4l2_dev);
 };
+
+static inline void v4l2_device_get(struct v4l2_device *v4l2_dev)
+{
+	kref_get(&v4l2_dev->ref);
+}
+
+int v4l2_device_put(struct v4l2_device *v4l2_dev);
 
 /* Initialize v4l2_dev and make dev->driver_data point to v4l2_dev.
    dev may be NULL in rare cases (ISA devices). In that case you
@@ -95,6 +113,12 @@ int __must_check v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 /* Unregister a subdev with a v4l2 device. Can also be called if the subdev
    wasn't registered. In that case it will do nothing. */
 void v4l2_device_unregister_subdev(struct v4l2_subdev *sd);
+
+/* Register device nodes for all subdev of the v4l2 device that are marked with
+ * the V4L2_SUBDEV_FL_HAS_DEVNODE flag.
+ */
+int __must_check
+v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev);
 
 /* Iterate over all subdevs. */
 #define v4l2_device_for_each_subdev(sd, v4l2_dev)			\
@@ -139,7 +163,7 @@ void v4l2_device_unregister_subdev(struct v4l2_subdev *sd);
 ({									\
 	struct v4l2_subdev *__sd;					\
 	__v4l2_device_call_subdevs_until_err_p(v4l2_dev, __sd, cond, o,	\
-						f, args...);		\
+						f , ##args);		\
 })
 
 /* Call the specified callback for all subdevs matching grp_id (if 0, then

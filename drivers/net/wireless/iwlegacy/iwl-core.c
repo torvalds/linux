@@ -160,6 +160,7 @@ int iwl_legacy_init_geos(struct iwl_priv *priv)
 	struct ieee80211_channel *geo_ch;
 	struct ieee80211_rate *rates;
 	int i = 0;
+	s8 max_tx_power = 0;
 
 	if (priv->bands[IEEE80211_BAND_2GHZ].n_bitrates ||
 	    priv->bands[IEEE80211_BAND_5GHZ].n_bitrates) {
@@ -235,8 +236,8 @@ int iwl_legacy_init_geos(struct iwl_priv *priv)
 
 			geo_ch->flags |= ch->ht40_extension_channel;
 
-			if (ch->max_power_avg > priv->tx_power_device_lmt)
-				priv->tx_power_device_lmt = ch->max_power_avg;
+			if (ch->max_power_avg > max_tx_power)
+				max_tx_power = ch->max_power_avg;
 		} else {
 			geo_ch->flags |= IEEE80211_CHAN_DISABLED;
 		}
@@ -248,6 +249,10 @@ int iwl_legacy_init_geos(struct iwl_priv *priv)
 				"restricted" : "valid",
 				 geo_ch->flags);
 	}
+
+	priv->tx_power_device_lmt = max_tx_power;
+	priv->tx_power_user_lmt = max_tx_power;
+	priv->tx_power_next = max_tx_power;
 
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     priv->cfg->sku & IWL_SKU_A) {
@@ -1030,7 +1035,7 @@ int iwl_legacy_apm_init(struct iwl_priv *priv)
 	/*
 	 * Enable HAP INTA (interrupt from management bus) to
 	 * wake device's PCI Express link L1a -> L0s
-	 * NOTE:  This is no-op for 3945 (non-existant bit)
+	 * NOTE:  This is no-op for 3945 (non-existent bit)
 	 */
 	iwl_legacy_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
@@ -1124,11 +1129,11 @@ int iwl_legacy_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	if (!priv->cfg->ops->lib->send_tx_power)
 		return -EOPNOTSUPP;
 
-	if (tx_power < IWL4965_TX_POWER_TARGET_POWER_MIN) {
+	/* 0 dBm mean 1 milliwatt */
+	if (tx_power < 0) {
 		IWL_WARN(priv,
-			 "Requested user TXPOWER %d below lower limit %d.\n",
-			 tx_power,
-			 IWL4965_TX_POWER_TARGET_POWER_MIN);
+			 "Requested user TXPOWER %d below 1 mW.\n",
+			 tx_power);
 		return -EINVAL;
 	}
 
@@ -1805,6 +1810,15 @@ iwl_legacy_mac_change_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
+	if (!ctx->vif || !iwl_legacy_is_ready_rf(priv)) {
+		/*
+		 * Huh? But wait ... this can maybe happen when
+		 * we're in the middle of a firmware restart!
+		 */
+		err = -EBUSY;
+		goto out;
+	}
+
 	interface_modes = ctx->interface_modes | ctx->exclusive_interface_modes;
 
 	if (!(interface_modes & BIT(newtype))) {
@@ -1832,6 +1846,7 @@ iwl_legacy_mac_change_interface(struct ieee80211_hw *hw,
 	/* success */
 	iwl_legacy_teardown_interface(priv, vif, true);
 	vif->type = newtype;
+	vif->p2p = newp2p;
 	err = iwl_legacy_setup_interface(priv, ctx);
 	WARN_ON(err);
 	/*
@@ -2136,6 +2151,13 @@ int iwl_legacy_mac_config(struct ieee80211_hw *hw, u32 changed)
 		ch_info = iwl_legacy_get_channel_info(priv, channel->band, ch);
 		if (!iwl_legacy_is_channel_valid(ch_info)) {
 			IWL_DEBUG_MAC80211(priv, "leave - invalid channel\n");
+			ret = -EINVAL;
+			goto set_ch_out;
+		}
+
+		if (priv->iw_mode == NL80211_IFTYPE_ADHOC &&
+		    !iwl_legacy_is_channel_ibss(ch_info)) {
+			IWL_DEBUG_MAC80211(priv, "leave - not IBSS channel\n");
 			ret = -EINVAL;
 			goto set_ch_out;
 		}

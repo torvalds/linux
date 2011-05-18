@@ -1568,8 +1568,8 @@ typedef PREPACK struct {
                                    switch to ps-poll mode
                                   default = 3 */
 
-	u32 scoContStompMax;   /* max number of continous stomp allowed in opt mode.
-                                   if excedded switch to pspoll mode
+	u32 scoContStompMax;   /* max number of continuous stomp allowed in opt mode.
+                                   if exceeded switch to pspoll mode
                                     default = 3 */
 
 	u32 scoMinlowRateMbps; /* Low rate threshold */
@@ -2084,7 +2084,7 @@ typedef PREPACK struct {
 /*
  * BSS INFO HDR version 2.0
  * With 6 bytes HTC header and 6 bytes of WMI header
- * WMI_BSS_INFO_HDR cannot be accomodated in the removed 802.11 management
+ * WMI_BSS_INFO_HDR cannot be accommodated in the removed 802.11 management
  * header space.
  * - Reduce the ieMask to 2 bytes as only two bit flags are used
  * - Remove rssi and compute it on the host. rssi = snr - 95
@@ -2911,7 +2911,7 @@ typedef PREPACK struct {
     u8 pktID; /* packet ID to identify parent packet */
     u8 rateIdx; /* rate index on successful transmission */
     u8 ackFailures; /* number of ACK failures in tx attempt */
-#if 0 /* optional params currently ommitted. */
+#if 0 /* optional params currently omitted. */
     u32 queueDelay; // usec delay measured Tx Start time - host delivery time
     u32 mediaDelay; // usec delay measured ACK rx time - host delivery time
 #endif

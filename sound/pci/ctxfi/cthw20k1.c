@@ -1285,7 +1285,7 @@ static int hw_trn_init(struct hw *hw, const struct trn_conf *info)
 	hw_write_20kx(hw, PTPALX, ptp_phys_low);
 	hw_write_20kx(hw, PTPAHX, ptp_phys_high);
 	hw_write_20kx(hw, TRNCTL, trnctl);
-	hw_write_20kx(hw, TRNIS, 0x200c01); /* realy needed? */
+	hw_write_20kx(hw, TRNIS, 0x200c01); /* really needed? */
 
 	return 0;
 }

@@ -1113,6 +1113,9 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 		return NF_ACCEPT;
 
 	net = skb_net(skb);
+	if (!net_ipvs(net)->enable)
+		return NF_ACCEPT;
+
 	ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6) {
@@ -1343,6 +1346,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 		return NF_ACCEPT; /* The packet looks wrong, ignore */
 
 	net = skb_net(skb);
+
 	pd = ip_vs_proto_data_get(net, cih->protocol);
 	if (!pd)
 		return NF_ACCEPT;
@@ -1529,6 +1533,11 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 			      IP_VS_DBG_ADDR(af, &iph.daddr), hooknum);
 		return NF_ACCEPT;
 	}
+	/* ipvs enabled in this netns ? */
+	net = skb_net(skb);
+	if (!net_ipvs(net)->enable)
+		return NF_ACCEPT;
+
 	ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 
 	/* Bad... Do not break raw sockets */
@@ -1562,7 +1571,6 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 			ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 		}
 
-	net = skb_net(skb);
 	/* Protocol supported? */
 	pd = ip_vs_proto_data_get(net, iph.protocol);
 	if (unlikely(!pd))
@@ -1588,7 +1596,6 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	}
 
 	IP_VS_DBG_PKT(11, af, pp, skb, 0, "Incoming packet");
-	net = skb_net(skb);
 	ipvs = net_ipvs(net);
 	/* Check the server status */
 	if (cp->dest && !(cp->dest->flags & IP_VS_DEST_F_AVAILABLE)) {
@@ -1743,8 +1750,14 @@ ip_vs_forward_icmp(unsigned int hooknum, struct sk_buff *skb,
 		   int (*okfn)(struct sk_buff *))
 {
 	int r;
+	struct net *net;
 
 	if (ip_hdr(skb)->protocol != IPPROTO_ICMP)
+		return NF_ACCEPT;
+
+	/* ipvs enabled in this netns ? */
+	net = skb_net(skb);
+	if (!net_ipvs(net)->enable)
 		return NF_ACCEPT;
 
 	return ip_vs_in_icmp(skb, &r, hooknum);
@@ -1757,8 +1770,14 @@ ip_vs_forward_icmp_v6(unsigned int hooknum, struct sk_buff *skb,
 		      int (*okfn)(struct sk_buff *))
 {
 	int r;
+	struct net *net;
 
 	if (ipv6_hdr(skb)->nexthdr != IPPROTO_ICMPV6)
+		return NF_ACCEPT;
+
+	/* ipvs enabled in this netns ? */
+	net = skb_net(skb);
+	if (!net_ipvs(net)->enable)
 		return NF_ACCEPT;
 
 	return ip_vs_in_icmp_v6(skb, &r, hooknum);
@@ -1884,19 +1903,70 @@ static int __net_init __ip_vs_init(struct net *net)
 		pr_err("%s(): no memory.\n", __func__);
 		return -ENOMEM;
 	}
+	/* Hold the beast until a service is registerd */
+	ipvs->enable = 0;
 	ipvs->net = net;
 	/* Counters used for creating unique names */
 	ipvs->gen = atomic_read(&ipvs_netns_cnt);
 	atomic_inc(&ipvs_netns_cnt);
 	net->ipvs = ipvs;
+
+	if (__ip_vs_estimator_init(net) < 0)
+		goto estimator_fail;
+
+	if (__ip_vs_control_init(net) < 0)
+		goto control_fail;
+
+	if (__ip_vs_protocol_init(net) < 0)
+		goto protocol_fail;
+
+	if (__ip_vs_app_init(net) < 0)
+		goto app_fail;
+
+	if (__ip_vs_conn_init(net) < 0)
+		goto conn_fail;
+
+	if (__ip_vs_sync_init(net) < 0)
+		goto sync_fail;
+
 	printk(KERN_INFO "IPVS: Creating netns size=%zu id=%d\n",
 			 sizeof(struct netns_ipvs), ipvs->gen);
 	return 0;
+/*
+ * Error handling
+ */
+
+sync_fail:
+	__ip_vs_conn_cleanup(net);
+conn_fail:
+	__ip_vs_app_cleanup(net);
+app_fail:
+	__ip_vs_protocol_cleanup(net);
+protocol_fail:
+	__ip_vs_control_cleanup(net);
+control_fail:
+	__ip_vs_estimator_cleanup(net);
+estimator_fail:
+	return -ENOMEM;
 }
 
 static void __net_exit __ip_vs_cleanup(struct net *net)
 {
-	IP_VS_DBG(10, "ipvs netns %d released\n", net_ipvs(net)->gen);
+	__ip_vs_service_cleanup(net);	/* ip_vs_flush() with locks */
+	__ip_vs_conn_cleanup(net);
+	__ip_vs_app_cleanup(net);
+	__ip_vs_protocol_cleanup(net);
+	__ip_vs_control_cleanup(net);
+	__ip_vs_estimator_cleanup(net);
+	IP_VS_DBG(2, "ipvs netns %d released\n", net_ipvs(net)->gen);
+}
+
+static void __net_exit __ip_vs_dev_cleanup(struct net *net)
+{
+	EnterFunction(2);
+	net_ipvs(net)->enable = 0;	/* Disable packet reception */
+	__ip_vs_sync_cleanup(net);
+	LeaveFunction(2);
 }
 
 static struct pernet_operations ipvs_core_ops = {
@@ -1906,16 +1976,16 @@ static struct pernet_operations ipvs_core_ops = {
 	.size = sizeof(struct netns_ipvs),
 };
 
+static struct pernet_operations ipvs_core_dev_ops = {
+	.exit = __ip_vs_dev_cleanup,
+};
+
 /*
  *	Initialize IP Virtual Server
  */
 static int __init ip_vs_init(void)
 {
 	int ret;
-
-	ret = register_pernet_subsys(&ipvs_core_ops);	/* Alloc ip_vs struct */
-	if (ret < 0)
-		return ret;
 
 	ip_vs_estimator_init();
 	ret = ip_vs_control_init();
@@ -1944,15 +2014,28 @@ static int __init ip_vs_init(void)
 		goto cleanup_conn;
 	}
 
+	ret = register_pernet_subsys(&ipvs_core_ops);	/* Alloc ip_vs struct */
+	if (ret < 0)
+		goto cleanup_sync;
+
+	ret = register_pernet_device(&ipvs_core_dev_ops);
+	if (ret < 0)
+		goto cleanup_sub;
+
 	ret = nf_register_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
 	if (ret < 0) {
 		pr_err("can't register hooks.\n");
-		goto cleanup_sync;
+		goto cleanup_dev;
 	}
 
 	pr_info("ipvs loaded.\n");
+
 	return ret;
 
+cleanup_dev:
+	unregister_pernet_device(&ipvs_core_dev_ops);
+cleanup_sub:
+	unregister_pernet_subsys(&ipvs_core_ops);
 cleanup_sync:
 	ip_vs_sync_cleanup();
   cleanup_conn:
@@ -1964,20 +2047,20 @@ cleanup_sync:
 	ip_vs_control_cleanup();
   cleanup_estimator:
 	ip_vs_estimator_cleanup();
-	unregister_pernet_subsys(&ipvs_core_ops);	/* free ip_vs struct */
 	return ret;
 }
 
 static void __exit ip_vs_cleanup(void)
 {
 	nf_unregister_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
+	unregister_pernet_device(&ipvs_core_dev_ops);
+	unregister_pernet_subsys(&ipvs_core_ops);	/* free ip_vs struct */
 	ip_vs_sync_cleanup();
 	ip_vs_conn_cleanup();
 	ip_vs_app_cleanup();
 	ip_vs_protocol_cleanup();
 	ip_vs_control_cleanup();
 	ip_vs_estimator_cleanup();
-	unregister_pernet_subsys(&ipvs_core_ops);	/* free ip_vs struct */
 	pr_info("ipvs unloaded.\n");
 }
 

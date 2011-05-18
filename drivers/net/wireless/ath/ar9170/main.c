@@ -974,7 +974,7 @@ void ar9170_rx(struct ar9170 *ar, struct sk_buff *skb)
 			if (ar->rx_failover_missing <= 0) {
 				/*
 				 * nested ar9170_rx call!
-				 * termination is guranteed, even when the
+				 * termination is guaranteed, even when the
 				 * combined frame also have a element with
 				 * a bad tag.
 				 */

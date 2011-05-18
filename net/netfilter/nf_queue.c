@@ -134,7 +134,7 @@ static int __nf_queue(struct sk_buff *skb,
 	const struct nf_afinfo *afinfo;
 	const struct nf_queue_handler *qh;
 
-	/* QUEUE == DROP if noone is waiting, to be safe. */
+	/* QUEUE == DROP if no one is waiting, to be safe. */
 	rcu_read_lock();
 
 	qh = rcu_dereference(queue_handler[pf]);

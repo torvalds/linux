@@ -324,6 +324,7 @@ struct xfrm_state_afinfo {
 	int			(*tmpl_sort)(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n);
 	int			(*state_sort)(struct xfrm_state **dst, struct xfrm_state **src, int n);
 	int			(*output)(struct sk_buff *skb);
+	int			(*output_finish)(struct sk_buff *skb);
 	int			(*extract_input)(struct xfrm_state *x,
 						 struct sk_buff *skb);
 	int			(*extract_output)(struct xfrm_state *x,
@@ -1430,6 +1431,7 @@ extern void xfrm_spd_getinfo(struct net *net, struct xfrmk_spdinfo *si);
 extern u32 xfrm_replay_seqhi(struct xfrm_state *x, __be32 net_seq);
 extern int xfrm_init_replay(struct xfrm_state *x);
 extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);
+extern int __xfrm_init_state(struct xfrm_state *x, bool init_replay);
 extern int xfrm_init_state(struct xfrm_state *x);
 extern int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi,
@@ -1453,6 +1455,7 @@ static inline int xfrm4_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
 extern int xfrm4_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm4_prepare_output(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm4_output(struct sk_buff *skb);
+extern int xfrm4_output_finish(struct sk_buff *skb);
 extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
 extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
 extern int xfrm6_extract_header(struct sk_buff *skb);
@@ -1469,6 +1472,7 @@ extern __be32 xfrm6_tunnel_spi_lookup(struct net *net, xfrm_address_t *saddr);
 extern int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm6_output(struct sk_buff *skb);
+extern int xfrm6_output_finish(struct sk_buff *skb);
 extern int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,
 				 u8 **prevhdr);
 
@@ -1600,6 +1604,28 @@ static inline int xfrm_replay_state_esn_len(struct xfrm_replay_state_esn *replay
 }
 
 #ifdef CONFIG_XFRM_MIGRATE
+static inline int xfrm_replay_clone(struct xfrm_state *x,
+				     struct xfrm_state *orig)
+{
+	x->replay_esn = kzalloc(xfrm_replay_state_esn_len(orig->replay_esn),
+				GFP_KERNEL);
+	if (!x->replay_esn)
+		return -ENOMEM;
+
+	x->replay_esn->bmp_len = orig->replay_esn->bmp_len;
+	x->replay_esn->replay_window = orig->replay_esn->replay_window;
+
+	x->preplay_esn = kmemdup(x->replay_esn,
+				 xfrm_replay_state_esn_len(x->replay_esn),
+				 GFP_KERNEL);
+	if (!x->preplay_esn) {
+		kfree(x->replay_esn);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static inline struct xfrm_algo *xfrm_algo_clone(struct xfrm_algo *orig)
 {
 	return kmemdup(orig, xfrm_alg_len(orig), GFP_KERNEL);

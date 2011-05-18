@@ -366,7 +366,7 @@ extern s32 dsp_debug;
  *  ======== sm_interrupt_dsp ========
  *  Purpose:
  *      Set interrupt value & send an interrupt to the DSP processor(s).
- *      This is typicaly used when mailbox interrupt mechanisms allow data
+ *      This is typically used when mailbox interrupt mechanisms allow data
  *      to be associated with interrupt such as for OMAP's CMD/DATA regs.
  *  Parameters:
  *      dev_context:    Handle to Bridge driver defined device info.

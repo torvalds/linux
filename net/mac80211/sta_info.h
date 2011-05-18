@@ -173,7 +173,7 @@ struct sta_ampdu_mlme {
 /**
  * enum plink_state - state of a mesh peer link finite state machine
  *
- * @PLINK_LISTEN: initial state, considered the implicit state of non existant
+ * @PLINK_LISTEN: initial state, considered the implicit state of non existent
  * 	mesh peer links
  * @PLINK_OPN_SNT: mesh plink open frame has been sent to this mesh peer
  * @PLINK_OPN_RCVD: mesh plink open frame has been received from this mesh peer

@@ -101,8 +101,6 @@
 
 #include <linux/version.h>
 
-#define __OLD_VIDIOC_
-
 #include "matroxfb_base.h"
 #include "matroxfb_misc.h"
 #include "matroxfb_accel.h"
@@ -623,7 +621,7 @@ static int matroxfb_decode_var(const struct matrox_fb_info *minfo,
 		var->yoffset = var->yres_virtual - var->yres;
 
 	if (bpp == 16 && var->green.length == 5) {
-		bpp--; /* an artifical value - 15 */
+		bpp--; /* an artificial value - 15 */
 	}
 
 	for (rgbt = table; rgbt->bpp < bpp; rgbt++);
@@ -1152,7 +1150,6 @@ static int matroxfb_ioctl(struct fb_info *info,
 					return -EFAULT;
 				return err;
 			}
-		case VIDIOC_S_CTRL_OLD:
 		case VIDIOC_S_CTRL:
 			{
 				struct v4l2_control ctrl;
@@ -1461,13 +1458,6 @@ static struct board {
 		MGA_G100,
 		&vbG100,
 		"MGA-G100 (AGP)"},
-	{PCI_VENDOR_ID_MATROX,	PCI_DEVICE_ID_MATROX_G200EV_PCI,	0xFF,
-		0,			0,
-		DEVF_G200,
-		230000,
-		MGA_G200,
-		&vbG200,
-		"MGA-G200eV (PCI)"},
 	{PCI_VENDOR_ID_MATROX,	PCI_DEVICE_ID_MATROX_G200_PCI,	0xFF,
 		0,			0,
 		DEVF_G200,
@@ -2118,8 +2108,6 @@ static struct pci_device_id matroxfb_devices[] = {
 	{PCI_VENDOR_ID_MATROX,	PCI_DEVICE_ID_MATROX_G100_MM,
 		PCI_ANY_ID,	PCI_ANY_ID,	0, 0, 0},
 	{PCI_VENDOR_ID_MATROX,	PCI_DEVICE_ID_MATROX_G100_AGP,
-		PCI_ANY_ID,	PCI_ANY_ID,	0, 0, 0},
-	{PCI_VENDOR_ID_MATROX,	PCI_DEVICE_ID_MATROX_G200EV_PCI,
 		PCI_ANY_ID,	PCI_ANY_ID,	0, 0, 0},
 	{PCI_VENDOR_ID_MATROX,	PCI_DEVICE_ID_MATROX_G200_PCI,
 		PCI_ANY_ID,	PCI_ANY_ID,	0, 0, 0},

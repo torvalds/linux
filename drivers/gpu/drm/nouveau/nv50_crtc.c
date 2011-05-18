@@ -469,9 +469,6 @@ nv50_crtc_wait_complete(struct drm_crtc *crtc)
 
 	start = ptimer->read(dev);
 	do {
-		nv_wr32(dev, 0x61002c, 0x370);
-		nv_wr32(dev, 0x000140, 1);
-
 		if (nv_ro32(disp->ntfy, 0x000))
 			return 0;
 	} while (ptimer->read(dev) - start < 2000000000ULL);

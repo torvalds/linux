@@ -196,7 +196,7 @@ EXPORT_SYMBOL_GPL(__rtnl_register);
  * as failure of this function is very unlikely, it can only happen due
  * to lack of memory when allocating the chain to store all message
  * handlers for a protocol. Meant for use in init functions where lack
- * of memory implies no sense in continueing.
+ * of memory implies no sense in continuing.
  */
 void rtnl_register(int protocol, int msgtype,
 		   rtnl_doit_func doit, rtnl_dumpit_func dumpit)
@@ -1440,7 +1440,7 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 errout:
 	if (err < 0 && modified && net_ratelimit())
 		printk(KERN_WARNING "A link change request failed with "
-		       "some changes comitted already. Interface %s may "
+		       "some changes committed already. Interface %s may "
 		       "have been left with an inconsistent configuration, "
 		       "please check.\n", dev->name);
 

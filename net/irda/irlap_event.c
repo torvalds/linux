@@ -708,7 +708,7 @@ static int irlap_state_reply(struct irlap_cb *self, IRLAP_EVENT event,
 
 				self->frame_sent = TRUE;
 			}
-			/* Readjust our timer to accomodate devices
+			/* Readjust our timer to accommodate devices
 			 * doing faster or slower discovery than us...
 			 * Jean II */
 			irlap_start_query_timer(self, info->S, info->s);
@@ -931,7 +931,7 @@ static int irlap_state_setup(struct irlap_cb *self, IRLAP_EVENT event,
 		irlap_send_rr_frame(self, CMD_FRAME);
 
 		/* The timer is set to half the normal timer to quickly
-		 * detect a failure to negociate the new connection
+		 * detect a failure to negotiate the new connection
 		 * parameters. IrLAP 6.11.3.2, note 3.
 		 * Note that currently we don't process this failure
 		 * properly, as we should do a quick disconnect.
@@ -1052,7 +1052,7 @@ static int irlap_state_xmit_p(struct irlap_cb *self, IRLAP_EVENT event,
 				return -EPROTO;
 			}
 
-			/* Substract space used by this skb */
+			/* Subtract space used by this skb */
 			self->bytes_left -= skb->len;
 #else	/* CONFIG_IRDA_DYNAMIC_WINDOW */
 			/* Window has been adjusted for the max packet
@@ -1808,7 +1808,7 @@ static int irlap_state_xmit_s(struct irlap_cb *self, IRLAP_EVENT event,
 
 				return -EPROTO; /* Try again later */
 			}
-			/* Substract space used by this skb */
+			/* Subtract space used by this skb */
 			self->bytes_left -= skb->len;
 #else	/* CONFIG_IRDA_DYNAMIC_WINDOW */
 			/* Window has been adjusted for the max packet

@@ -1160,7 +1160,7 @@ enum ieee80211_hw_flags {
  * @napi_weight: weight used for NAPI polling.  You must specify an
  *	appropriate value here if a napi_poll operation is provided
  *	by your driver.
-
+ *
  * @max_rx_aggregation_subframes: maximum buffer size (number of
  *	sub-frames) to be used for A-MPDU block ack receiver
  *	aggregation.
@@ -1294,7 +1294,7 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * acceleration (i.e. iwlwifi). Those drivers should provide update_tkip_key
  * handler.
  * The update_tkip_key() call updates the driver with the new phase 1 key.
- * This happens everytime the iv16 wraps around (every 65536 packets). The
+ * This happens every time the iv16 wraps around (every 65536 packets). The
  * set_key() call will happen only once for each key (unless the AP did
  * rekeying), it will not include a valid phase 1 key. The valid phase 1 key is
  * provided by update_tkip_key only. The trigger that makes mac80211 call this
@@ -1753,8 +1753,19 @@ enum ieee80211_ampdu_mlme_action {
  * 	that TX/RX_STOP can pass NULL for this parameter.
  *	The @buf_size parameter is only valid when the action is set to
  *	%IEEE80211_AMPDU_TX_OPERATIONAL and indicates the peer's reorder
- *	buffer size (number of subframes) for this session -- aggregates
- *	containing more subframes than this may not be transmitted to the peer.
+ *	buffer size (number of subframes) for this session -- the driver
+ *	may neither send aggregates containing more subframes than this
+ *	nor send aggregates in a way that lost frames would exceed the
+ *	buffer size. If just limiting the aggregate size, this would be
+ *	possible with a buf_size of 8:
+ *	 - TX: 1.....7
+ *	 - RX:  2....7 (lost frame #1)
+ *	 - TX:        8..1...
+ *	which is invalid since #1 was now re-transmitted well past the
+ *	buffer size of 8. Correct ways to retransmit #1 would be:
+ *	 - TX:       1 or 18 or 81
+ *	Even "189" would be wrong since 1 could be lost again.
+ *
  *	Returns a negative error code on failure.
  *	The callback can sleep.
  *

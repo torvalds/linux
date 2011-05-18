@@ -698,6 +698,7 @@ struct twl4030_platform_data {
 	struct regulator_init_data              *vana;
 	struct regulator_init_data              *vcxio;
 	struct regulator_init_data              *vusb;
+	struct regulator_init_data		*clk32kg;
 };
 
 /*----------------------------------------------------------------------*/
@@ -777,5 +778,6 @@ static inline int twl4030charger_usb_en(int enable) { return 0; }
 
 /* INTERNAL LDOs */
 #define TWL6030_REG_VRTC	47
+#define TWL6030_REG_CLK32KG	48
 
 #endif /* End of __TWL4030_H */

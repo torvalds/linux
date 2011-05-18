@@ -3240,7 +3240,7 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 			eep = ar9003_eeprom_struct_find_by_id(reference);
 			if (eep == NULL) {
 				ath_dbg(common, ATH_DBG_EEPROM,
-					"cant find reference eeprom struct %d\n",
+					"can't find reference eeprom struct %d\n",
 					reference);
 				return -1;
 			}

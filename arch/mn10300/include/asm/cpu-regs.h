@@ -49,7 +49,7 @@ asm(" .am33_2\n");
 #define EPSW_IM_6		0x00000600	/* interrupt mode 6 */
 #define EPSW_IM_7		0x00000700	/* interrupt mode 7 */
 #define EPSW_IE			0x00000800	/* interrupt enable */
-#define EPSW_S			0x00003000	/* software auxilliary bits */
+#define EPSW_S			0x00003000	/* software auxiliary bits */
 #define EPSW_T			0x00008000	/* trace enable */
 #define EPSW_nSL		0x00010000	/* not supervisor level */
 #define EPSW_NMID		0x00020000	/* nonmaskable interrupt disable */

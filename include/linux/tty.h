@@ -82,7 +82,7 @@ struct tty_buffer {
 
 
 struct tty_bufhead {
-	struct delayed_work work;
+	struct work_struct work;
 	spinlock_t lock;
 	struct tty_buffer *head;	/* Queue head */
 	struct tty_buffer *tail;	/* Active buffer */

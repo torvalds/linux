@@ -39,7 +39,7 @@
 #include <asm/mach-pb1x00/pb1000.h>
 #endif
 
-static int au1x_ic_settype(unsigned int irq, unsigned int flow_type);
+static int au1x_ic_settype(struct irq_data *d, unsigned int flow_type);
 
 /* NOTE on interrupt priorities: The original writers of this code said:
  *
@@ -218,17 +218,17 @@ struct au1xxx_irqmap au1200_irqmap[] __initdata = {
 };
 
 
-static void au1x_ic0_unmask(unsigned int irq_nr)
+static void au1x_ic0_unmask(struct irq_data *d)
 {
-	unsigned int bit = irq_nr - AU1000_INTC0_INT_BASE;
+	unsigned int bit = d->irq - AU1000_INTC0_INT_BASE;
 	au_writel(1 << bit, IC0_MASKSET);
 	au_writel(1 << bit, IC0_WAKESET);
 	au_sync();
 }
 
-static void au1x_ic1_unmask(unsigned int irq_nr)
+static void au1x_ic1_unmask(struct irq_data *d)
 {
-	unsigned int bit = irq_nr - AU1000_INTC1_INT_BASE;
+	unsigned int bit = d->irq - AU1000_INTC1_INT_BASE;
 	au_writel(1 << bit, IC1_MASKSET);
 	au_writel(1 << bit, IC1_WAKESET);
 
@@ -236,31 +236,31 @@ static void au1x_ic1_unmask(unsigned int irq_nr)
  * nowhere in the current kernel sources is it disabled.	--mlau
  */
 #if defined(CONFIG_MIPS_PB1000)
-	if (irq_nr == AU1000_GPIO15_INT)
+	if (d->irq == AU1000_GPIO15_INT)
 		au_writel(0x4000, PB1000_MDR); /* enable int */
 #endif
 	au_sync();
 }
 
-static void au1x_ic0_mask(unsigned int irq_nr)
+static void au1x_ic0_mask(struct irq_data *d)
 {
-	unsigned int bit = irq_nr - AU1000_INTC0_INT_BASE;
+	unsigned int bit = d->irq - AU1000_INTC0_INT_BASE;
 	au_writel(1 << bit, IC0_MASKCLR);
 	au_writel(1 << bit, IC0_WAKECLR);
 	au_sync();
 }
 
-static void au1x_ic1_mask(unsigned int irq_nr)
+static void au1x_ic1_mask(struct irq_data *d)
 {
-	unsigned int bit = irq_nr - AU1000_INTC1_INT_BASE;
+	unsigned int bit = d->irq - AU1000_INTC1_INT_BASE;
 	au_writel(1 << bit, IC1_MASKCLR);
 	au_writel(1 << bit, IC1_WAKECLR);
 	au_sync();
 }
 
-static void au1x_ic0_ack(unsigned int irq_nr)
+static void au1x_ic0_ack(struct irq_data *d)
 {
-	unsigned int bit = irq_nr - AU1000_INTC0_INT_BASE;
+	unsigned int bit = d->irq - AU1000_INTC0_INT_BASE;
 
 	/*
 	 * This may assume that we don't get interrupts from
@@ -271,9 +271,9 @@ static void au1x_ic0_ack(unsigned int irq_nr)
 	au_sync();
 }
 
-static void au1x_ic1_ack(unsigned int irq_nr)
+static void au1x_ic1_ack(struct irq_data *d)
 {
-	unsigned int bit = irq_nr - AU1000_INTC1_INT_BASE;
+	unsigned int bit = d->irq - AU1000_INTC1_INT_BASE;
 
 	/*
 	 * This may assume that we don't get interrupts from
@@ -284,9 +284,9 @@ static void au1x_ic1_ack(unsigned int irq_nr)
 	au_sync();
 }
 
-static void au1x_ic0_maskack(unsigned int irq_nr)
+static void au1x_ic0_maskack(struct irq_data *d)
 {
-	unsigned int bit = irq_nr - AU1000_INTC0_INT_BASE;
+	unsigned int bit = d->irq - AU1000_INTC0_INT_BASE;
 
 	au_writel(1 << bit, IC0_WAKECLR);
 	au_writel(1 << bit, IC0_MASKCLR);
@@ -295,9 +295,9 @@ static void au1x_ic0_maskack(unsigned int irq_nr)
 	au_sync();
 }
 
-static void au1x_ic1_maskack(unsigned int irq_nr)
+static void au1x_ic1_maskack(struct irq_data *d)
 {
-	unsigned int bit = irq_nr - AU1000_INTC1_INT_BASE;
+	unsigned int bit = d->irq - AU1000_INTC1_INT_BASE;
 
 	au_writel(1 << bit, IC1_WAKECLR);
 	au_writel(1 << bit, IC1_MASKCLR);
@@ -306,9 +306,9 @@ static void au1x_ic1_maskack(unsigned int irq_nr)
 	au_sync();
 }
 
-static int au1x_ic1_setwake(unsigned int irq, unsigned int on)
+static int au1x_ic1_setwake(struct irq_data *d, unsigned int on)
 {
-	int bit = irq - AU1000_INTC1_INT_BASE;
+	int bit = d->irq - AU1000_INTC1_INT_BASE;
 	unsigned long wakemsk, flags;
 
 	/* only GPIO 0-7 can act as wakeup source.  Fortunately these
@@ -336,28 +336,30 @@ static int au1x_ic1_setwake(unsigned int irq, unsigned int on)
  */
 static struct irq_chip au1x_ic0_chip = {
 	.name		= "Alchemy-IC0",
-	.ack		= au1x_ic0_ack,
-	.mask		= au1x_ic0_mask,
-	.mask_ack	= au1x_ic0_maskack,
-	.unmask		= au1x_ic0_unmask,
-	.set_type	= au1x_ic_settype,
+	.irq_ack	= au1x_ic0_ack,
+	.irq_mask	= au1x_ic0_mask,
+	.irq_mask_ack	= au1x_ic0_maskack,
+	.irq_unmask	= au1x_ic0_unmask,
+	.irq_set_type	= au1x_ic_settype,
 };
 
 static struct irq_chip au1x_ic1_chip = {
 	.name		= "Alchemy-IC1",
-	.ack		= au1x_ic1_ack,
-	.mask		= au1x_ic1_mask,
-	.mask_ack	= au1x_ic1_maskack,
-	.unmask		= au1x_ic1_unmask,
-	.set_type	= au1x_ic_settype,
-	.set_wake	= au1x_ic1_setwake,
+	.irq_ack	= au1x_ic1_ack,
+	.irq_mask	= au1x_ic1_mask,
+	.irq_mask_ack	= au1x_ic1_maskack,
+	.irq_unmask	= au1x_ic1_unmask,
+	.irq_set_type	= au1x_ic_settype,
+	.irq_set_wake	= au1x_ic1_setwake,
 };
 
-static int au1x_ic_settype(unsigned int irq, unsigned int flow_type)
+static int au1x_ic_settype(struct irq_data *d, unsigned int flow_type)
 {
 	struct irq_chip *chip;
 	unsigned long icr[6];
-	unsigned int bit, ic;
+	unsigned int bit, ic, irq = d->irq;
+	irq_flow_handler_t handler = NULL;
+	unsigned char *name = NULL;
 	int ret;
 
 	if (irq >= AU1000_INTC1_INT_BASE) {
@@ -387,47 +389,47 @@ static int au1x_ic_settype(unsigned int irq, unsigned int flow_type)
 		au_writel(1 << bit, icr[5]);
 		au_writel(1 << bit, icr[4]);
 		au_writel(1 << bit, icr[0]);
-		set_irq_chip_and_handler_name(irq, chip,
-				handle_edge_irq, "riseedge");
+		handler = handle_edge_irq;
+		name = "riseedge";
 		break;
 	case IRQ_TYPE_EDGE_FALLING:	/* 0:1:0 */
 		au_writel(1 << bit, icr[5]);
 		au_writel(1 << bit, icr[1]);
 		au_writel(1 << bit, icr[3]);
-		set_irq_chip_and_handler_name(irq, chip,
-				handle_edge_irq, "falledge");
+		handler = handle_edge_irq;
+		name = "falledge";
 		break;
 	case IRQ_TYPE_EDGE_BOTH:	/* 0:1:1 */
 		au_writel(1 << bit, icr[5]);
 		au_writel(1 << bit, icr[1]);
 		au_writel(1 << bit, icr[0]);
-		set_irq_chip_and_handler_name(irq, chip,
-				handle_edge_irq, "bothedge");
+		handler = handle_edge_irq;
+		name = "bothedge";
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:	/* 1:0:1 */
 		au_writel(1 << bit, icr[2]);
 		au_writel(1 << bit, icr[4]);
 		au_writel(1 << bit, icr[0]);
-		set_irq_chip_and_handler_name(irq, chip,
-				handle_level_irq, "hilevel");
+		handler = handle_level_irq;
+		name = "hilevel";
 		break;
 	case IRQ_TYPE_LEVEL_LOW:	/* 1:1:0 */
 		au_writel(1 << bit, icr[2]);
 		au_writel(1 << bit, icr[1]);
 		au_writel(1 << bit, icr[3]);
-		set_irq_chip_and_handler_name(irq, chip,
-				handle_level_irq, "lowlevel");
+		handler = handle_level_irq;
+		name = "lowlevel";
 		break;
 	case IRQ_TYPE_NONE:		/* 0:0:0 */
 		au_writel(1 << bit, icr[5]);
 		au_writel(1 << bit, icr[4]);
 		au_writel(1 << bit, icr[3]);
-		/* set at least chip so we can call set_irq_type() on it */
-		set_irq_chip(irq, chip);
 		break;
 	default:
 		ret = -EINVAL;
 	}
+	__irq_set_chip_handler_name_locked(d->irq, chip, handler, name);
+
 	au_sync();
 
 	return ret;
@@ -504,11 +506,11 @@ static void __init au1000_init_irq(struct au1xxx_irqmap *map)
 	 */
 	for (i = AU1000_INTC0_INT_BASE;
 	     (i < AU1000_INTC0_INT_BASE + 32); i++)
-		au1x_ic_settype(i, IRQ_TYPE_NONE);
+		au1x_ic_settype(irq_get_irq_data(i), IRQ_TYPE_NONE);
 
 	for (i = AU1000_INTC1_INT_BASE;
 	     (i < AU1000_INTC1_INT_BASE + 32); i++)
-		au1x_ic_settype(i, IRQ_TYPE_NONE);
+		au1x_ic_settype(irq_get_irq_data(i), IRQ_TYPE_NONE);
 
 	/*
 	 * Initialize IC0, which is fixed per processor.
@@ -526,7 +528,7 @@ static void __init au1000_init_irq(struct au1xxx_irqmap *map)
 				au_writel(1 << bit, IC0_ASSIGNSET);
 		}
 
-		au1x_ic_settype(irq_nr, map->im_type);
+		au1x_ic_settype(irq_get_irq_data(irq_nr), map->im_type);
 		++map;
 	}
 

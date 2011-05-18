@@ -858,7 +858,7 @@ static uint32 KT1[256];
 static uint32 KT2[256];
 static uint32 KT3[256];
 
-/* platform-independant	32-bit integer manipulation	macros */
+/* platform-independent	32-bit integer manipulation	macros */
 
 #define	GET_UINT32(n,b,i)						\
 {												\

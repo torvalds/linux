@@ -27,11 +27,10 @@
 #include "udf_i.h"
 #include "udf_sb.h"
 
-#define udf_clear_bit(nr, addr) ext2_clear_bit(nr, addr)
-#define udf_set_bit(nr, addr) ext2_set_bit(nr, addr)
-#define udf_test_bit(nr, addr) ext2_test_bit(nr, addr)
-#define udf_find_next_one_bit(addr, size, offset) \
-		ext2_find_next_bit((unsigned long *)(addr), size, offset)
+#define udf_clear_bit	__test_and_clear_bit_le
+#define udf_set_bit	__test_and_set_bit_le
+#define udf_test_bit	test_bit_le
+#define udf_find_next_one_bit	find_next_bit_le
 
 static int read_block_bitmap(struct super_block *sb,
 			     struct udf_bitmap *bitmap, unsigned int block,

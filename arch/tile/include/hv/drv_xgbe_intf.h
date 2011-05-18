@@ -319,7 +319,7 @@ typedef union
  *         is an error code, or zero if no error.  The val0 member is the
  *         updated value of seqno; it has been incremented by 1 for each
  *         packet sent.  That increment may be less than nentries if an
- *         error occured, or if some of the entries in the vector contain
+ *         error occurred, or if some of the entries in the vector contain
  *         handles equal to NETIO_PKT_HANDLE_NONE.  The val1 member is the
  *         updated value of nentries; it has been decremented by 1 for each
  *         vector entry processed.  Again, that decrement may be less than

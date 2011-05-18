@@ -1117,8 +1117,8 @@ static int vxge_set_flags(struct net_device *dev, u32 data)
 	struct vxgedev *vdev = netdev_priv(dev);
 	enum vxge_hw_status status;
 
-	if (data & ~ETH_FLAG_RXHASH)
-		return -EOPNOTSUPP;
+	if (ethtool_invalid_flags(dev, data, ETH_FLAG_RXHASH))
+		return -EINVAL;
 
 	if (!!(data & ETH_FLAG_RXHASH) == vdev->devh->config.rth_en)
 		return 0;

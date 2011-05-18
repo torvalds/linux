@@ -46,7 +46,7 @@
 #define SPI_INT_RXFI			(1 << 4)
 #define SPI_INT_MSTI			(1 << 5)
 
-/* TX RX interrupt level threshhold, max can be 256 */
+/* TX RX interrupt level threshold, max can be 256 */
 #define SPI_INT_THRESHOLD		32
 
 enum dw_ssi_type {

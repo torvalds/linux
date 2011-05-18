@@ -179,7 +179,7 @@ void sched_autogroup_create_attach(struct task_struct *p)
 	struct autogroup *ag = autogroup_create();
 
 	autogroup_move_group(p, ag);
-	/* drop extra refrence added by autogroup_create() */
+	/* drop extra reference added by autogroup_create() */
 	autogroup_kref_put(ag);
 }
 EXPORT_SYMBOL(sched_autogroup_create_attach);

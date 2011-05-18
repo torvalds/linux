@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2010 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -507,7 +507,10 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	phba->hba_flag &= ~HBA_ERATT_HANDLED;
 
 	/* Enable appropriate host interrupts */
-	status = readl(phba->HCregaddr);
+	if (lpfc_readl(phba->HCregaddr, &status)) {
+		spin_unlock_irq(&phba->hbalock);
+		return -EIO;
+	}
 	status |= HC_MBINT_ENA | HC_ERINT_ENA | HC_LAINT_ENA;
 	if (psli->num_rings > 0)
 		status |= HC_R0INT_ENA;
@@ -1222,7 +1225,10 @@ lpfc_handle_deferred_eratt(struct lpfc_hba *phba)
 	/* Wait for the ER1 bit to clear.*/
 	while (phba->work_hs & HS_FFER1) {
 		msleep(100);
-		phba->work_hs = readl(phba->HSregaddr);
+		if (lpfc_readl(phba->HSregaddr, &phba->work_hs)) {
+			phba->work_hs = UNPLUG_ERR ;
+			break;
+		}
 		/* If driver is unloading let the worker thread continue */
 		if (phba->pport->load_flag & FC_UNLOADING) {
 			phba->work_hs = 0;
@@ -4460,7 +4466,7 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_init_api_table_setup - Set up init api fucntion jump table
+ * lpfc_init_api_table_setup - Set up init api function jump table
  * @phba: The hba struct for which this call is being executed.
  * @dev_grp: The HBA PCI-Device group number.
  *
@@ -4474,6 +4480,7 @@ lpfc_init_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 {
 	phba->lpfc_hba_init_link = lpfc_hba_init_link;
 	phba->lpfc_hba_down_link = lpfc_hba_down_link;
+	phba->lpfc_selective_reset = lpfc_selective_reset;
 	switch (dev_grp) {
 	case LPFC_PCI_DEV_LP:
 		phba->lpfc_hba_down_post = lpfc_hba_down_post_s3;
@@ -4843,7 +4850,7 @@ out_free_mem:
  *
  * Return codes
  * 	0 - successful
- * 	-ENOMEM - No availble memory
+ * 	-ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 int
@@ -5385,13 +5392,16 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 	int i, port_error = 0;
 	uint32_t if_type;
 
+	memset(&portsmphr_reg, 0, sizeof(portsmphr_reg));
+	memset(&reg_data, 0, sizeof(reg_data));
 	if (!phba->sli4_hba.PSMPHRregaddr)
 		return -ENODEV;
 
 	/* Wait up to 30 seconds for the SLI Port POST done and ready */
 	for (i = 0; i < 3000; i++) {
-		portsmphr_reg.word0 = readl(phba->sli4_hba.PSMPHRregaddr);
-		if (bf_get(lpfc_port_smphr_perr, &portsmphr_reg)) {
+		if (lpfc_readl(phba->sli4_hba.PSMPHRregaddr,
+			&portsmphr_reg.word0) ||
+			(bf_get(lpfc_port_smphr_perr, &portsmphr_reg))) {
 			/* Port has a fatal POST error, break out */
 			port_error = -ENODEV;
 			break;
@@ -5472,9 +5482,9 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 			break;
 		case LPFC_SLI_INTF_IF_TYPE_2:
 			/* Final checks.  The port status should be clean. */
-			reg_data.word0 =
-				readl(phba->sli4_hba.u.if_type2.STATUSregaddr);
-			if (bf_get(lpfc_sliport_status_err, &reg_data)) {
+			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+				&reg_data.word0) ||
+				bf_get(lpfc_sliport_status_err, &reg_data)) {
 				phba->work_status[0] =
 					readl(phba->sli4_hba.u.if_type2.
 					      ERR1regaddr);
@@ -5720,7 +5730,7 @@ lpfc_destroy_bootstrap_mbox(struct lpfc_hba *phba)
  *
  * Return codes
  * 	0 - successful
- * 	-ENOMEM - No availble memory
+ * 	-ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
@@ -5825,7 +5835,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
  *
  * Return codes
  * 	0 - successful
- * 	-ENOMEM - No availble memory
+ * 	-ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
@@ -5884,7 +5894,7 @@ lpfc_setup_endian_order(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
@@ -6179,7 +6189,7 @@ out_error:
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 static void
@@ -6243,7 +6253,7 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 int
@@ -6488,7 +6498,7 @@ out_error:
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 void
@@ -6533,7 +6543,7 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  **/
 static int
 lpfc_sli4_cq_event_pool_create(struct lpfc_hba *phba)
@@ -6694,7 +6704,7 @@ lpfc_sli4_cq_event_release_all(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 int
@@ -6760,9 +6770,11 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			 * the loop again.
 			 */
 			for (rdy_chk = 0; rdy_chk < 1000; rdy_chk++) {
-				reg_data.word0 =
-					readl(phba->sli4_hba.u.if_type2.
-					      STATUSregaddr);
+				if (lpfc_readl(phba->sli4_hba.u.if_type2.
+					      STATUSregaddr, &reg_data.word0)) {
+					rc = -ENODEV;
+					break;
+				}
 				if (bf_get(lpfc_sliport_status_rdy, &reg_data))
 					break;
 				if (bf_get(lpfc_sliport_status_rn, &reg_data)) {
@@ -6783,8 +6795,11 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			}
 
 			/* Detect any port errors. */
-			reg_data.word0 = readl(phba->sli4_hba.u.if_type2.
-					       STATUSregaddr);
+			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+				 &reg_data.word0)) {
+				rc = -ENODEV;
+				break;
+			}
 			if ((bf_get(lpfc_sliport_status_err, &reg_data)) ||
 			    (rdy_chk >= 1000)) {
 				phba->work_status[0] = readl(

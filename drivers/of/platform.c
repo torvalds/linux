@@ -210,13 +210,16 @@ struct platform_device *of_platform_device_create(struct device_node *np,
 EXPORT_SYMBOL(of_platform_device_create);
 
 /**
- * of_platform_bus_create - Create an OF device for a bus node and all its
- * children. Optionally recursively instantiate matching busses.
+ * of_platform_bus_create() - Create a device for a node and its children.
  * @bus: device node of the bus to instantiate
- * @matches: match table, NULL to use the default, OF_NO_DEEP_PROBE to
- * disallow recursive creation of child busses
+ * @matches: match table for bus nodes
+ * disallow recursive creation of child buses
+ * @parent: parent for new device, or NULL for top level.
+ *
+ * Creates a platform_device for the provided device_node, and optionally
+ * recursively create devices for all the child nodes.
  */
-static int of_platform_bus_create(const struct device_node *bus,
+static int of_platform_bus_create(struct device_node *bus,
 				  const struct of_device_id *matches,
 				  struct device *parent)
 {
@@ -224,18 +227,13 @@ static int of_platform_bus_create(const struct device_node *bus,
 	struct platform_device *dev;
 	int rc = 0;
 
+	dev = of_platform_device_create(bus, NULL, parent);
+	if (!dev || !of_match_node(matches, bus))
+		return 0;
+
 	for_each_child_of_node(bus, child) {
 		pr_debug("   create child: %s\n", child->full_name);
-		dev = of_platform_device_create(child, NULL, parent);
-		if (dev == NULL)
-			continue;
-
-		if (!of_match_node(matches, child))
-			continue;
-		if (rc == 0) {
-			pr_debug("   and sub busses\n");
-			rc = of_platform_bus_create(child, matches, &dev->dev);
-		}
+		rc = of_platform_bus_create(child, matches, &dev->dev);
 		if (rc) {
 			of_node_put(child);
 			break;
@@ -245,9 +243,9 @@ static int of_platform_bus_create(const struct device_node *bus,
 }
 
 /**
- * of_platform_bus_probe - Probe the device-tree for platform busses
+ * of_platform_bus_probe() - Probe the device-tree for platform buses
  * @root: parent of the first level to probe or NULL for the root of the tree
- * @matches: match table, NULL to use the default
+ * @matches: match table for bus nodes
  * @parent: parent to hook devices from, NULL for toplevel
  *
  * Note that children of the provided root are not instantiated as devices
@@ -258,50 +256,26 @@ int of_platform_bus_probe(struct device_node *root,
 			  struct device *parent)
 {
 	struct device_node *child;
-	struct platform_device *dev;
 	int rc = 0;
 
-	if (WARN_ON(!matches || matches == OF_NO_DEEP_PROBE))
-		return -EINVAL;
-	if (root == NULL)
-		root = of_find_node_by_path("/");
-	else
-		of_node_get(root);
-	if (root == NULL)
+	root = root ? of_node_get(root) : of_find_node_by_path("/");
+	if (!root)
 		return -EINVAL;
 
 	pr_debug("of_platform_bus_probe()\n");
 	pr_debug(" starting at: %s\n", root->full_name);
 
-	/* Do a self check of bus type, if there's a match, create
-	 * children
-	 */
+	/* Do a self check of bus type, if there's a match, create children */
 	if (of_match_node(matches, root)) {
-		pr_debug(" root match, create all sub devices\n");
-		dev = of_platform_device_create(root, NULL, parent);
-		if (dev == NULL)
-			goto bail;
-
-		pr_debug(" create all sub busses\n");
-		rc = of_platform_bus_create(root, matches, &dev->dev);
-		goto bail;
-	}
-	for_each_child_of_node(root, child) {
+		rc = of_platform_bus_create(root, matches, parent);
+	} else for_each_child_of_node(root, child) {
 		if (!of_match_node(matches, child))
 			continue;
-
-		pr_debug("  match: %s\n", child->full_name);
-		dev = of_platform_device_create(child, NULL, parent);
-		if (dev == NULL)
-			continue;
-
-		rc = of_platform_bus_create(child, matches, &dev->dev);
-		if (rc) {
-			of_node_put(child);
+		rc = of_platform_bus_create(child, matches, parent);
+		if (rc)
 			break;
-		}
 	}
- bail:
+
 	of_node_put(root);
 	return rc;
 }

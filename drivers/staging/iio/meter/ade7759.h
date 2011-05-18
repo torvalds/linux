@@ -43,7 +43,7 @@
  * @us:			actual spi_device
  * @indio_dev:		industrial I/O device structure
  * @tx:			transmit buffer
- * @rx:			recieve buffer
+ * @rx:			receive buffer
  * @buf_lock:		mutex to protect tx and rx
  **/
 struct ade7759_state {

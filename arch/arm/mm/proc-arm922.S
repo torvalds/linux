@@ -54,7 +54,7 @@
 /*
  * This is the size at which it becomes more efficient to
  * clean the whole cache, rather than using the individual
- * cache line maintainence instructions.  (I think this should
+ * cache line maintenance instructions.  (I think this should
  * be 32768).
  */
 #define CACHE_DLIMIT	8192

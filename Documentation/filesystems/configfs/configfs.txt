@@ -409,7 +409,7 @@ As a consequence of this, default_groups cannot be removed directly via
 rmdir(2).  They also are not considered when rmdir(2) on the parent
 group is checking for children.
 
-[Dependant Subsystems]
+[Dependent Subsystems]
 
 Sometimes other drivers depend on particular configfs items.  For
 example, ocfs2 mounts depend on a heartbeat region item.  If that

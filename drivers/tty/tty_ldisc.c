@@ -529,7 +529,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 static int tty_ldisc_halt(struct tty_struct *tty)
 {
 	clear_bit(TTY_LDISC, &tty->flags);
-	return cancel_delayed_work_sync(&tty->buf.work);
+	return cancel_work_sync(&tty->buf.work);
 }
 
 /**
@@ -542,7 +542,7 @@ static void tty_ldisc_flush_works(struct tty_struct *tty)
 {
 	flush_work_sync(&tty->hangup_work);
 	flush_work_sync(&tty->SAK_work);
-	flush_delayed_work_sync(&tty->buf.work);
+	flush_work_sync(&tty->buf.work);
 }
 
 /**
@@ -722,9 +722,9 @@ enable:
 	/* Restart the work queue in case no characters kick it off. Safe if
 	   already running */
 	if (work)
-		schedule_delayed_work(&tty->buf.work, 1);
+		schedule_work(&tty->buf.work);
 	if (o_work)
-		schedule_delayed_work(&o_tty->buf.work, 1);
+		schedule_work(&o_tty->buf.work);
 	mutex_unlock(&tty->ldisc_mutex);
 	tty_unlock();
 	return retval;
@@ -830,12 +830,12 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 
 	/*
 	 * this is like tty_ldisc_halt, but we need to give up
-	 * the BTM before calling cancel_delayed_work_sync,
-	 * which may need to wait for another function taking the BTM
+	 * the BTM before calling cancel_work_sync, which may
+	 * need to wait for another function taking the BTM
 	 */
 	clear_bit(TTY_LDISC, &tty->flags);
 	tty_unlock();
-	cancel_delayed_work_sync(&tty->buf.work);
+	cancel_work_sync(&tty->buf.work);
 	mutex_unlock(&tty->ldisc_mutex);
 
 	tty_lock();

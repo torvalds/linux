@@ -834,7 +834,7 @@ struct em28xx_board em28xx_boards[] = {
 		.mts_firmware = 1,
 		.has_dvb      = 1,
 		.dvb_gpio     = hauppauge_wintv_hvr_900_digital,
-		.ir_codes     = RC_MAP_HAUPPAUGE_NEW,
+		.ir_codes     = RC_MAP_HAUPPAUGE,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -859,7 +859,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.mts_firmware = 1,
-		.ir_codes     = RC_MAP_HAUPPAUGE_NEW,
+		.ir_codes     = RC_MAP_HAUPPAUGE,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -885,7 +885,7 @@ struct em28xx_board em28xx_boards[] = {
 		.mts_firmware   = 1,
 		.has_dvb        = 1,
 		.dvb_gpio       = hauppauge_wintv_hvr_900_digital,
-		.ir_codes       = RC_MAP_HAUPPAUGE_NEW,
+		.ir_codes       = RC_MAP_HAUPPAUGE,
 		.decoder        = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -911,7 +911,7 @@ struct em28xx_board em28xx_boards[] = {
 		.mts_firmware   = 1,
 		.has_dvb        = 1,
 		.dvb_gpio       = hauppauge_wintv_hvr_900_digital,
-		.ir_codes       = RC_MAP_RC5_HAUPPAUGE_NEW,
+		.ir_codes       = RC_MAP_HAUPPAUGE,
 		.decoder        = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -2430,7 +2430,7 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 		dev->init_data.name = "i2c IR (EM28XX Pinnacle PCTV)";
 		break;
 	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
-		dev->init_data.ir_codes = RC_MAP_RC5_HAUPPAUGE_NEW;
+		dev->init_data.ir_codes = RC_MAP_HAUPPAUGE;
 		dev->init_data.get_key = em28xx_get_key_em_haup;
 		dev->init_data.name = "i2c IR (EM2840 Hauppauge)";
 		break;

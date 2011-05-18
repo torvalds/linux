@@ -649,7 +649,7 @@ static int kim_probe(struct platform_device *pdev)
 		/* multiple devices could exist */
 		st_kim_devices[pdev->id] = pdev;
 	} else {
-		/* platform's sure about existance of 1 device */
+		/* platform's sure about existence of 1 device */
 		st_kim_devices[0] = pdev;
 	}
 

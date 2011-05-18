@@ -471,6 +471,7 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
  * @avd: access vector decisions
  * @result: result from avc_has_perm_noaudit
  * @a:  auxiliary audit data
+ * @flags: VFS walk flags
  *
  * Audit the granting or denial of permissions in accordance
  * with the policy.  This function is typically called by
@@ -481,9 +482,10 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
  * be performed under a lock, to allow the lock to be released
  * before calling the auditing code.
  */
-void avc_audit(u32 ssid, u32 tsid,
+int avc_audit(u32 ssid, u32 tsid,
 	       u16 tclass, u32 requested,
-	       struct av_decision *avd, int result, struct common_audit_data *a)
+	       struct av_decision *avd, int result, struct common_audit_data *a,
+	       unsigned flags)
 {
 	struct common_audit_data stack_data;
 	u32 denied, audited;
@@ -515,11 +517,24 @@ void avc_audit(u32 ssid, u32 tsid,
 	else
 		audited = requested & avd->auditallow;
 	if (!audited)
-		return;
+		return 0;
+
 	if (!a) {
 		a = &stack_data;
 		COMMON_AUDIT_DATA_INIT(a, NONE);
 	}
+
+	/*
+	 * When in a RCU walk do the audit on the RCU retry.  This is because
+	 * the collection of the dname in an inode audit message is not RCU
+	 * safe.  Note this may drop some audits when the situation changes
+	 * during retry. However this is logically just as if the operation
+	 * happened a little later.
+	 */
+	if ((a->type == LSM_AUDIT_DATA_FS) &&
+	    (flags & IPERM_FLAG_RCU))
+		return -ECHILD;
+
 	a->selinux_audit_data.tclass = tclass;
 	a->selinux_audit_data.requested = requested;
 	a->selinux_audit_data.ssid = ssid;
@@ -529,6 +544,7 @@ void avc_audit(u32 ssid, u32 tsid,
 	a->lsm_pre_audit = avc_audit_pre_callback;
 	a->lsm_post_audit = avc_audit_post_callback;
 	common_lsm_audit(a);
+	return 0;
 }
 
 /**
@@ -793,6 +809,7 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
  * @tclass: target security class
  * @requested: requested permissions, interpreted based on @tclass
  * @auditdata: auxiliary audit data
+ * @flags: VFS walk flags
  *
  * Check the AVC to determine whether the @requested permissions are granted
  * for the SID pair (@ssid, @tsid), interpreting the permissions
@@ -802,14 +819,19 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
  * permissions are granted, -%EACCES if any permissions are denied, or
  * another -errno upon other errors.
  */
-int avc_has_perm(u32 ssid, u32 tsid, u16 tclass,
-		 u32 requested, struct common_audit_data *auditdata)
+int avc_has_perm_flags(u32 ssid, u32 tsid, u16 tclass,
+		       u32 requested, struct common_audit_data *auditdata,
+		       unsigned flags)
 {
 	struct av_decision avd;
-	int rc;
+	int rc, rc2;
 
 	rc = avc_has_perm_noaudit(ssid, tsid, tclass, requested, 0, &avd);
-	avc_audit(ssid, tsid, tclass, requested, &avd, rc, auditdata);
+
+	rc2 = avc_audit(ssid, tsid, tclass, requested, &avd, rc, auditdata,
+			flags);
+	if (rc2)
+		return rc2;
 	return rc;
 }
 

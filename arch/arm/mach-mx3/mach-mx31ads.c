@@ -199,12 +199,11 @@ static void __init mx31ads_init_expio(void)
 	__raw_writew(0xFFFF, PBC_INTSTATUS_REG);
 	for (i = MXC_EXP_IO_BASE; i < (MXC_EXP_IO_BASE + MXC_MAX_EXP_IO_LINES);
 	     i++) {
-		set_irq_chip(i, &expio_irq_chip);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &expio_irq_chip, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
-	set_irq_type(EXPIO_PARENT_INT, IRQ_TYPE_LEVEL_HIGH);
-	set_irq_chained_handler(EXPIO_PARENT_INT, mx31ads_expio_irq_handler);
+	irq_set_irq_type(EXPIO_PARENT_INT, IRQ_TYPE_LEVEL_HIGH);
+	irq_set_chained_handler(EXPIO_PARENT_INT, mx31ads_expio_irq_handler);
 }
 
 #ifdef CONFIG_MACH_MX31ADS_WM1133_EV1

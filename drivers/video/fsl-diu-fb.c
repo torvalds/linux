@@ -882,7 +882,7 @@ static inline __u32 CNVT_TOHW(__u32 val, __u32 width)
  * which needs to be scaled in this function for the hardware. Things to take
  * into consideration are how many color registers, if any, are supported with
  * the current color visual. With truecolor mode no color palettes are
- * supported. Here a psuedo palette is created which we store the value in
+ * supported. Here a pseudo palette is created which we store the value in
  * pseudo_palette in struct fb_info. For pseudocolor mode we have a limited
  * color palette.
  */

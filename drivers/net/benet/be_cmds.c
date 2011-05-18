@@ -132,7 +132,7 @@ static void be_async_grp5_pvid_state_process(struct be_adapter *adapter,
 		struct be_async_event_grp5_pvid_state *evt)
 {
 	if (evt->enabled)
-		adapter->pvid = evt->tag;
+		adapter->pvid = le16_to_cpu(evt->tag);
 	else
 		adapter->pvid = 0;
 }
@@ -1331,7 +1331,7 @@ err:
 
 /*
  * Uses MCC for this command as it may be called in BH context
- * (mc == NULL) => multicast promiscous
+ * (mc == NULL) => multicast promiscuous
  */
 int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
 		struct net_device *netdev, struct be_dma_mem *mem)

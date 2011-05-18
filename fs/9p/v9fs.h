@@ -116,7 +116,6 @@ struct v9fs_session_info {
 	struct list_head slist; /* list of sessions registered with v9fs */
 	struct backing_dev_info bdi;
 	struct rw_semaphore rename_sem;
-	struct p9_fid *root_fid; /* Used for file system sync */
 };
 
 /* cache_validity flags */
@@ -130,6 +129,7 @@ struct v9fs_inode {
 #endif
 	unsigned int cache_validity;
 	struct p9_fid *writeback_fid;
+	struct mutex v_mutex;
 	struct inode vfs_inode;
 };
 
@@ -171,6 +171,11 @@ extern struct inode *v9fs_inode_from_fid_dotl(struct v9fs_session_info *v9ses,
 static inline struct v9fs_session_info *v9fs_inode2v9ses(struct inode *inode)
 {
 	return (inode->i_sb->s_fs_info);
+}
+
+static inline struct v9fs_session_info *v9fs_dentry2v9ses(struct dentry *dentry)
+{
+	return dentry->d_sb->s_fs_info;
 }
 
 static inline int v9fs_proto_dotu(struct v9fs_session_info *v9ses)

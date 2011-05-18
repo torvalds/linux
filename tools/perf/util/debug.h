@@ -36,5 +36,6 @@ int ui_helpline__show_help(const char *format, va_list ap);
 #endif
 
 void ui__warning(const char *format, ...) __attribute__((format(printf, 1, 2)));
+void ui__warning_paranoid(void);
 
 #endif	/* __PERF_DEBUG_H */

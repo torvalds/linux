@@ -27,6 +27,7 @@
 #include <linux/string.h>
 #include <linux/mount.h>
 #include <linux/ramfs.h>
+#include <linux/parser.h>
 #include <linux/sched.h>
 #include <linux/magic.h>
 #include <linux/pstore.h>
@@ -73,9 +74,14 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 	struct pstore_private *p = dentry->d_inode->i_private;
 
 	p->erase(p->id);
-	kfree(p);
 
 	return simple_unlink(dir, dentry);
+}
+
+static void pstore_evict_inode(struct inode *inode)
+{
+	end_writeback(inode);
+	kfree(inode->i_private);
 }
 
 static const struct inode_operations pstore_dir_inode_operations = {
@@ -107,9 +113,52 @@ static struct inode *pstore_get_inode(struct super_block *sb,
 	return inode;
 }
 
+enum {
+	Opt_kmsg_bytes, Opt_err
+};
+
+static const match_table_t tokens = {
+	{Opt_kmsg_bytes, "kmsg_bytes=%u"},
+	{Opt_err, NULL}
+};
+
+static void parse_options(char *options)
+{
+	char		*p;
+	substring_t	args[MAX_OPT_ARGS];
+	int		option;
+
+	if (!options)
+		return;
+
+	while ((p = strsep(&options, ",")) != NULL) {
+		int token;
+
+		if (!*p)
+			continue;
+
+		token = match_token(p, tokens, args);
+		switch (token) {
+		case Opt_kmsg_bytes:
+			if (!match_int(&args[0], &option))
+				pstore_set_kmsg_bytes(option);
+			break;
+		}
+	}
+}
+
+static int pstore_remount(struct super_block *sb, int *flags, char *data)
+{
+	parse_options(data);
+
+	return 0;
+}
+
 static const struct super_operations pstore_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
+	.evict_inode	= pstore_evict_inode,
+	.remount_fs	= pstore_remount,
 	.show_options	= generic_show_options,
 };
 
@@ -209,6 +258,8 @@ int pstore_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op		= &pstore_ops;
 	sb->s_time_gran		= 1;
 
+	parse_options(data);
+
 	inode = pstore_get_inode(sb, NULL, S_IFDIR | 0755, 0);
 	if (!inode) {
 		err = -ENOMEM;
@@ -252,28 +303,7 @@ static struct file_system_type pstore_fs_type = {
 
 static int __init init_pstore_fs(void)
 {
-	int rc = 0;
-	struct kobject *pstorefs_kobj;
-
-	pstorefs_kobj = kobject_create_and_add("pstore", fs_kobj);
-	if (!pstorefs_kobj) {
-		rc = -ENOMEM;
-		goto done;
-	}
-
-	rc = sysfs_create_file(pstorefs_kobj, &pstore_kmsg_bytes_attr.attr);
-	if (rc)
-		goto done1;
-
-	rc = register_filesystem(&pstore_fs_type);
-	if (rc == 0)
-		goto done;
-
-	sysfs_remove_file(pstorefs_kobj, &pstore_kmsg_bytes_attr.attr);
-done1:
-	kobject_put(pstorefs_kobj);
-done:
-	return rc;
+	return register_filesystem(&pstore_fs_type);
 }
 module_init(init_pstore_fs)
 

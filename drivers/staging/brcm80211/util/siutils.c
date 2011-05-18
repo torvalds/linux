@@ -1319,7 +1319,7 @@ int si_clkctl_xtal(si_t *sih, uint what, bool on)
 }
 
 /*
- *  clock control policy function throught chipcommon
+ *  clock control policy function through chipcommon
  *
  *    set dynamic clk control mode (forceslow, forcefast, dynamic)
  *    returns true if we are forcing fast clock

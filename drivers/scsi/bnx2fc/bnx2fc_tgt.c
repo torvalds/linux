@@ -304,10 +304,8 @@ static void bnx2fc_upload_session(struct fcoe_port *port,
 				" not sent to FW\n");
 
 	/* Free session resources */
-	spin_lock_bh(&tgt->cq_lock);
 	bnx2fc_free_session_resc(hba, tgt);
 	bnx2fc_free_conn_id(hba, tgt->fcoe_conn_id);
-	spin_unlock_bh(&tgt->cq_lock);
 }
 
 static int bnx2fc_init_tgt(struct bnx2fc_rport *tgt,
@@ -397,7 +395,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 		rp = rport->dd_data;
 		if (rport->port_id == FC_FID_DIR_SERV) {
 			/*
-			 * bnx2fc_rport structure doesnt exist for
+			 * bnx2fc_rport structure doesn't exist for
 			 * directory server.
 			 * We should not come here, as lport will
 			 * take care of fabric login
@@ -830,11 +828,13 @@ static void bnx2fc_free_session_resc(struct bnx2fc_hba *hba,
 		tgt->rq = NULL;
 	}
 	/* Free CQ */
+	spin_lock_bh(&tgt->cq_lock);
 	if (tgt->cq) {
 		dma_free_coherent(&hba->pcidev->dev, tgt->cq_mem_size,
 				    tgt->cq, tgt->cq_dma);
 		tgt->cq = NULL;
 	}
+	spin_unlock_bh(&tgt->cq_lock);
 	/* Free SQ */
 	if (tgt->sq) {
 		dma_free_coherent(&hba->pcidev->dev, tgt->sq_mem_size,

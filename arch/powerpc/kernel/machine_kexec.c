@@ -31,17 +31,17 @@ void machine_kexec_mask_interrupts(void) {
 		if (!desc)
 			continue;
 
-		chip = get_irq_desc_chip(desc);
+		chip = irq_desc_get_chip(desc);
 		if (!chip)
 			continue;
 
-		if (chip->irq_eoi && desc->status & IRQ_INPROGRESS)
+		if (chip->irq_eoi && irqd_irq_inprogress(&desc->irq_data))
 			chip->irq_eoi(&desc->irq_data);
 
 		if (chip->irq_mask)
 			chip->irq_mask(&desc->irq_data);
 
-		if (chip->irq_disable && !(desc->status & IRQ_DISABLED))
+		if (chip->irq_disable && !irqd_irq_disabled(&desc->irq_data))
 			chip->irq_disable(&desc->irq_data);
 	}
 }

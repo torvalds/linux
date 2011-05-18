@@ -373,6 +373,15 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 
 			gpe_register_info = &gpe_block->register_info[i];
 
+			/*
+			 * Optimization: If there are no GPEs enabled within this
+			 * register, we can safely ignore the entire register.
+			 */
+			if (!(gpe_register_info->enable_for_run |
+			      gpe_register_info->enable_for_wake)) {
+				continue;
+			}
+
 			/* Read the Status Register */
 
 			status =

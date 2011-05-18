@@ -84,7 +84,7 @@ register unsigned long stack_pointer __asm__("sp");
   ((struct thread_info *)(stack_pointer & -THREAD_SIZE))
 
 #define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
-extern struct thread_info *alloc_thread_info(struct task_struct *task);
+extern struct thread_info *alloc_thread_info_node(struct task_struct *task, int node);
 extern void free_thread_info(struct thread_info *info);
 
 /* Sit on a nap instruction until interrupted. */

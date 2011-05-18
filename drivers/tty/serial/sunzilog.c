@@ -474,7 +474,7 @@ static void sunzilog_transmit_chars(struct uart_sunzilog_port *up,
 		 * be nice to transmit console writes just like we normally would for
 		 * a TTY line. (ie. buffered and TX interrupt driven).  That is not
 		 * easy because console writes cannot sleep.  One solution might be
-		 * to poll on enough port->xmit space becomming free.  -DaveM
+		 * to poll on enough port->xmit space becoming free.  -DaveM
 		 */
 		if (!(status & Tx_BUF_EMP))
 			return;

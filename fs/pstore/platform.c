@@ -37,26 +37,20 @@
 static DEFINE_SPINLOCK(pstore_lock);
 static struct pstore_info *psinfo;
 
-/* How much of the console log to snapshot. /sys/fs/pstore/kmsg_bytes */
+/* How much of the console log to snapshot */
 static unsigned long kmsg_bytes = 10240;
 
-static ssize_t b_show(struct kobject *kobj,
-		      struct kobj_attribute *attr, char *buf)
+void pstore_set_kmsg_bytes(int bytes)
 {
-	return snprintf(buf, PAGE_SIZE, "%lu\n", kmsg_bytes);
+	kmsg_bytes = bytes;
 }
-
-static ssize_t b_store(struct kobject *kobj, struct kobj_attribute *attr,
-		       const char *buf, size_t count)
-{
-	return (sscanf(buf, "%lu", &kmsg_bytes) > 0) ? count : 0;
-}
-
-struct kobj_attribute pstore_kmsg_bytes_attr =
-	__ATTR(kmsg_bytes, S_IRUGO | S_IWUSR, b_show, b_store);
 
 /* Tag each group of saved records with a sequence number */
 static int	oopscount;
+
+static char *reason_str[] = {
+	"Oops", "Panic", "Kexec", "Restart", "Halt", "Poweroff", "Emergency"
+};
 
 /*
  * callback from kmsg_dump. (s2,l2) has the most recently
@@ -71,15 +65,20 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	unsigned long	s1_start, s2_start;
 	unsigned long	l1_cpy, l2_cpy;
 	unsigned long	size, total = 0;
-	char		*dst;
+	char		*dst, *why;
 	u64		id;
 	int		hsize, part = 1;
+
+	if (reason < ARRAY_SIZE(reason_str))
+		why = reason_str[reason];
+	else
+		why = "Unknown";
 
 	mutex_lock(&psinfo->buf_mutex);
 	oopscount++;
 	while (total < kmsg_bytes) {
 		dst = psinfo->buf;
-		hsize = sprintf(dst, "Oops#%d Part%d\n", oopscount, part++);
+		hsize = sprintf(dst, "%s#%d Part%d\n", why, oopscount, part++);
 		size = psinfo->bufsize - hsize;
 		dst += hsize;
 
@@ -96,7 +95,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		memcpy(dst + l1_cpy, s2 + s2_start, l2_cpy);
 
 		id = psinfo->write(PSTORE_TYPE_DMESG, hsize + l1_cpy + l2_cpy);
-		if (pstore_is_mounted())
+		if (reason == KMSG_DUMP_OOPS && pstore_is_mounted())
 			pstore_mkfile(PSTORE_TYPE_DMESG, psinfo->name, id,
 				      psinfo->buf, hsize + l1_cpy + l2_cpy,
 				      CURRENT_TIME, psinfo->erase);

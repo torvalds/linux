@@ -1110,6 +1110,7 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 
 	entry->preempt_count		= pc & 0xff;
 	entry->pid			= (tsk) ? tsk->pid : 0;
+	entry->padding			= 0;
 	entry->flags =
 #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
 		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
@@ -3239,7 +3240,7 @@ waitagain:
 		trace_seq_init(&iter->seq);
 
 	/*
-	 * If there was nothing to send to user, inspite of consuming trace
+	 * If there was nothing to send to user, in spite of consuming trace
 	 * entries, go back to wait for more entries.
 	 */
 	if (sret == -EBUSY)

@@ -372,7 +372,7 @@ void android_ar6k_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, bo
             }
         }
         if (needWake) {
-            /* keep host wake up if there is any event and packate comming in*/
+            /* keep host wake up if there is any event and packate coming in*/
             if (wowledon) {
                 char buf[32];
                 int len = sprintf(buf, "on");

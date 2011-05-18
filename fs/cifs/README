@@ -685,22 +685,6 @@ LinuxExtensionsEnabled	If set to one then the client will attempt to
 			support and want to map the uid and gid fields 
 			to values supplied at mount (rather than the 
 			actual values, then set this to zero. (default 1)
-Experimental            When set to 1 used to enable certain experimental
-			features (currently enables multipage writes
-			when signing is enabled, the multipage write
-			performance enhancement was disabled when
-			signing turned on in case buffer was modified
-			just before it was sent, also this flag will
-			be used to use the new experimental directory change 
-			notification code).  When set to 2 enables
-			an additional experimental feature, "raw ntlmssp"
-			session establishment support (which allows
-			specifying "sec=ntlmssp" on mount). The Linux cifs
-			module will use ntlmv2 authentication encapsulated
-			in "raw ntlmssp" (not using SPNEGO) when
-			"sec=ntlmssp" is specified on mount.
-			This support also requires building cifs with
-			the CONFIG_CIFS_EXPERIMENTAL configuration flag.
 
 These experimental features and tracing can be enabled by changing flags in 
 /proc/fs/cifs (after the cifs module has been installed or built into the 

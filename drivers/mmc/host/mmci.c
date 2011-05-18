@@ -68,6 +68,12 @@ static struct variant_data variant_arm = {
 	.datalength_bits	= 16,
 };
 
+static struct variant_data variant_arm_extended_fifo = {
+	.fifosize		= 128 * 4,
+	.fifohalfsize		= 64 * 4,
+	.datalength_bits	= 16,
+};
+
 static struct variant_data variant_u300 = {
 	.fifosize		= 16 * 4,
 	.fifohalfsize		= 8 * 4,
@@ -1277,8 +1283,13 @@ static int mmci_resume(struct amba_device *dev)
 static struct amba_id mmci_ids[] = {
 	{
 		.id	= 0x00041180,
-		.mask	= 0x000fffff,
+		.mask	= 0xff0fffff,
 		.data	= &variant_arm,
+	},
+	{
+		.id	= 0x01041180,
+		.mask	= 0xff0fffff,
+		.data	= &variant_arm_extended_fifo,
 	},
 	{
 		.id	= 0x00041181,

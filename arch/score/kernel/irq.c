@@ -52,9 +52,9 @@ asmlinkage void do_IRQ(int irq)
 	irq_exit();
 }
 
-static void score_mask(unsigned int irq_nr)
+static void score_mask(struct irq_data *d)
 {
-	unsigned int irq_source = 63 - irq_nr;
+	unsigned int irq_source = 63 - d->irq;
 
 	if (irq_source < 32)
 		__raw_writel((__raw_readl(SCORE_PIC + INT_MASKL) | \
@@ -64,9 +64,9 @@ static void score_mask(unsigned int irq_nr)
 			(1 << (irq_source - 32))), SCORE_PIC + INT_MASKH);
 }
 
-static void score_unmask(unsigned int irq_nr)
+static void score_unmask(struct irq_data *d)
 {
-	unsigned int irq_source = 63 - irq_nr;
+	unsigned int irq_source = 63 - d->irq;
 
 	if (irq_source < 32)
 		__raw_writel((__raw_readl(SCORE_PIC + INT_MASKL) & \
@@ -78,9 +78,9 @@ static void score_unmask(unsigned int irq_nr)
 
 struct irq_chip score_irq_chip = {
 	.name		= "Score7-level",
-	.mask		= score_mask,
-	.mask_ack	= score_mask,
-	.unmask		= score_unmask,
+	.irq_mask	= score_mask,
+	.irq_mask_ack	= score_mask,
+	.irq_unmask	= score_unmask,
 };
 
 /*
@@ -92,7 +92,7 @@ void __init init_IRQ(void)
 	unsigned long target_addr;
 
 	for (index = 0; index < NR_IRQS; ++index)
-		set_irq_chip_and_handler(index, &score_irq_chip,
+		irq_set_chip_and_handler(index, &score_irq_chip,
 					 handle_level_irq);
 
 	for (target_addr = IRQ_VECTOR_BASE_ADDR;
@@ -108,41 +108,4 @@ void __init init_IRQ(void)
 		"mtcr	%0, cr3\n\t"
 		: : "r" (EXCEPTION_VECTOR_BASE_ADDR | \
 			VECTOR_ADDRESS_OFFSET_MODE16));
-}
-
-/*
- * Generic, controller-independent functions:
- */
-int show_interrupts(struct seq_file *p, void *v)
-{
-	int i = *(loff_t *)v, cpu;
-	struct irqaction *action;
-	unsigned long flags;
-
-	if (i == 0) {
-		seq_puts(p, "           ");
-		for_each_online_cpu(cpu)
-			seq_printf(p, "CPU%d       ", cpu);
-		seq_putc(p, '\n');
-	}
-
-	if (i < NR_IRQS) {
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
-		if (!action)
-			goto unlock;
-
-		seq_printf(p, "%3d: ", i);
-		seq_printf(p, "%10u ", kstat_irqs(i));
-		seq_printf(p, " %8s", irq_desc[i].chip->name ? : "-");
-		seq_printf(p, "  %s", action->name);
-		for (action = action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-
-		seq_putc(p, '\n');
-unlock:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	}
-
-	return 0;
 }

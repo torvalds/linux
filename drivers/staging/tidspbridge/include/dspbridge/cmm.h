@@ -190,7 +190,7 @@ extern int cmm_get_info(struct cmm_object *hcmm_mgr,
  *      Initializes private state of CMM module.
  *  Parameters:
  *  Returns:
- *      TRUE if initialized; FALSE if error occured.
+ *      TRUE if initialized; FALSE if error occurred.
  *  Requires:
  *  Ensures:
  *      CMM initialized.

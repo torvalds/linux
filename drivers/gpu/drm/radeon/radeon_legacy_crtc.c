@@ -889,7 +889,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		}
 
 		if (rdev->flags & RADEON_IS_MOBILITY) {
-			/* A temporal workaround for the occational blanking on certain laptop panels.
+			/* A temporal workaround for the occasional blanking on certain laptop panels.
 			   This appears to related to the PLL divider registers (fail to lock?).
 			   It occurs even when all dividers are the same with their old settings.
 			   In this case we really don't need to fiddle with PLL registers.

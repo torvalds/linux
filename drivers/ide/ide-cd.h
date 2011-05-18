@@ -111,7 +111,8 @@ int cdrom_check_status(ide_drive_t *, struct request_sense *);
 int ide_cdrom_open_real(struct cdrom_device_info *, int);
 void ide_cdrom_release_real(struct cdrom_device_info *);
 int ide_cdrom_drive_status(struct cdrom_device_info *, int);
-int ide_cdrom_check_media_change_real(struct cdrom_device_info *, int);
+unsigned int ide_cdrom_check_events_real(struct cdrom_device_info *,
+					 unsigned int clearing, int slot_nr);
 int ide_cdrom_tray_move(struct cdrom_device_info *, int);
 int ide_cdrom_lock_door(struct cdrom_device_info *, int);
 int ide_cdrom_select_speed(struct cdrom_device_info *, int);

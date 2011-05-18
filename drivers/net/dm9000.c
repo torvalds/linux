@@ -621,9 +621,9 @@ static int dm9000_set_wol(struct net_device *dev, struct ethtool_wolinfo *w)
 		/* change in wol state, update IRQ state */
 
 		if (!dm->wake_state)
-			set_irq_wake(dm->irq_wake, 1);
+			irq_set_irq_wake(dm->irq_wake, 1);
 		else if (dm->wake_state & !opts)
-			set_irq_wake(dm->irq_wake, 0);
+			irq_set_irq_wake(dm->irq_wake, 0);
 	}
 
 	dm->wake_state = opts;
@@ -1424,13 +1424,13 @@ dm9000_probe(struct platform_device *pdev)
 		} else {
 
 			/* test to see if irq is really wakeup capable */
-			ret = set_irq_wake(db->irq_wake, 1);
+			ret = irq_set_irq_wake(db->irq_wake, 1);
 			if (ret) {
 				dev_err(db->dev, "irq %d cannot set wakeup (%d)\n",
 					db->irq_wake, ret);
 				ret = 0;
 			} else {
-				set_irq_wake(db->irq_wake, 0);
+				irq_set_irq_wake(db->irq_wake, 0);
 				db->wake_supported = 1;
 			}
 		}

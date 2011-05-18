@@ -1701,7 +1701,7 @@ static struct pci_driver atl2_driver = {
 	.id_table = atl2_pci_tbl,
 	.probe    = atl2_probe,
 	.remove   = __devexit_p(atl2_remove),
-	/* Power Managment Hooks */
+	/* Power Management Hooks */
 	.suspend  = atl2_suspend,
 #ifdef CONFIG_PM
 	.resume   = atl2_resume,
@@ -1996,13 +1996,15 @@ static int atl2_set_eeprom(struct net_device *netdev,
 	if (!eeprom_buff)
 		return -ENOMEM;
 
-	ptr = (u32 *)eeprom_buff;
+	ptr = eeprom_buff;
 
 	if (eeprom->offset & 3) {
 		/* need read/modify/write of first changed EEPROM word */
 		/* only the second byte of the word is being modified */
-		if (!atl2_read_eeprom(hw, first_dword*4, &(eeprom_buff[0])))
-			return -EIO;
+		if (!atl2_read_eeprom(hw, first_dword*4, &(eeprom_buff[0]))) {
+			ret_val = -EIO;
+			goto out;
+		}
 		ptr++;
 	}
 	if (((eeprom->offset + eeprom->len) & 3)) {
@@ -2011,18 +2013,22 @@ static int atl2_set_eeprom(struct net_device *netdev,
 		 * only the first byte of the word is being modified
 		 */
 		if (!atl2_read_eeprom(hw, last_dword * 4,
-			&(eeprom_buff[last_dword - first_dword])))
-			return -EIO;
+					&(eeprom_buff[last_dword - first_dword]))) {
+			ret_val = -EIO;
+			goto out;
+		}
 	}
 
 	/* Device's eeprom is always little-endian, word addressable */
 	memcpy(ptr, bytes, eeprom->len);
 
 	for (i = 0; i < last_dword - first_dword + 1; i++) {
-		if (!atl2_write_eeprom(hw, ((first_dword+i)*4), eeprom_buff[i]))
-			return -EIO;
+		if (!atl2_write_eeprom(hw, ((first_dword+i)*4), eeprom_buff[i])) {
+			ret_val = -EIO;
+			goto out;
+		}
 	}
-
+ out:
 	kfree(eeprom_buff);
 	return ret_val;
 }

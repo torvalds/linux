@@ -1193,7 +1193,7 @@ out_free:
  * an endpoint that is multi-homed.  Much like sctp_bindx() this call
  * allows a caller to specify multiple addresses at which a peer can be
  * reached.  The way the SCTP stack uses the list of addresses to set up
- * the association is implementation dependant.  This function only
+ * the association is implementation dependent.  This function only
  * specifies that the stack will try to make use of all the addresses in
  * the list when needed.
  *

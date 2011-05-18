@@ -1035,7 +1035,7 @@ bfa_fcxp_free(struct bfa_fcxp_s *fcxp)
  * @param[in]	rport	BFA rport pointer. Could be left NULL for WKA rports
  * @param[in]	vf_id	virtual Fabric ID
  * @param[in]	lp_tag	lport tag
- * @param[in]	cts	use Continous sequence
+ * @param[in]	cts	use Continuous sequence
  * @param[in]	cos	fc Class of Service
  * @param[in]	reqlen	request length, does not include FCHS length
  * @param[in]	fchs	fc Header Pointer. The header content will be copied
@@ -5022,7 +5022,7 @@ bfa_uf_start(struct bfa_s *bfa)
 }
 
 /*
- * Register handler for all unsolicted recieve frames.
+ * Register handler for all unsolicted receive frames.
  *
  * @param[in]	bfa		BFA instance
  * @param[in]	ufrecv	receive handler function

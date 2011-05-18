@@ -387,7 +387,7 @@ ipt_do_table(struct sk_buff *skb,
 					verdict = (unsigned)(-v) - 1;
 					break;
 				}
-				if (*stackptr == 0) {
+				if (*stackptr <= origptr) {
 					e = get_entry(table_base,
 					    private->underflow[hook]);
 					pr_debug("Underflow (this is normal) "
@@ -427,10 +427,10 @@ ipt_do_table(struct sk_buff *skb,
 			/* Verdict */
 			break;
 	} while (!acpar.hotdrop);
-	xt_info_rdunlock_bh();
 	pr_debug("Exiting %s; resetting sp from %u to %u\n",
 		 __func__, *stackptr, origptr);
 	*stackptr = origptr;
+	xt_info_rdunlock_bh();
 #ifdef DEBUG_ALLOW_ALL
 	return NF_ACCEPT;
 #else
@@ -2233,7 +2233,7 @@ static int __init ip_tables_init(void)
 	if (ret < 0)
 		goto err1;
 
-	/* Noone else will be downing sem now, so we won't sleep */
+	/* No one else will be downing sem now, so we won't sleep */
 	ret = xt_register_targets(ipt_builtin_tg, ARRAY_SIZE(ipt_builtin_tg));
 	if (ret < 0)
 		goto err2;

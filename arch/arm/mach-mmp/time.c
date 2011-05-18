@@ -9,7 +9,7 @@
  *   2008-04-11: Jason Chagas <Jason.chagas@marvell.com>
  *   2008-10-08: Bin Yang <bin.yang@marvell.com>
  *
- * The timers module actually includes three timers, each timer with upto
+ * The timers module actually includes three timers, each timer with up to
  * three match comparators. Timer #0 is used here in free-running mode as
  * the clock source, and match comparator #1 used as clock event device.
  *

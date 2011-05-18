@@ -681,7 +681,7 @@ struct vxge_hw_xmac_aggr_stats {
  * @rx_red_discard: Count of received frames that are discarded because of RED
  *            (Random Early Discard).
  * @rx_xgmii_ctrl_err_cnt: Maintains a count of unexpected or misplaced control
- *            characters occuring between times of normal data transmission
+ *            characters occurring between times of normal data transmission
  *            (i.e. not included in RX_XGMII_DATA_ERR_CNT). This counter is
  *            incremented when either -
  *            1) The Reconciliation Sublayer (RS) is expecting one control

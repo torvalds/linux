@@ -1237,8 +1237,17 @@ static int bfin_mac_enable(struct phy_device *phydev)
 
 	if (phydev->interface == PHY_INTERFACE_MODE_RMII) {
 		opmode |= RMII; /* For Now only 100MBit are supported */
-#if (defined(CONFIG_BF537) || defined(CONFIG_BF536)) && CONFIG_BF_REV_0_2
-		opmode |= TE;
+#if defined(CONFIG_BF537) || defined(CONFIG_BF536)
+		if (__SILICON_REVISION__ < 3) {
+			/*
+			 * This isn't publicly documented (fun times!), but in
+			 * silicon <=0.2, the RX and TX pins are clocked together.
+			 * So in order to recv, we must enable the transmit side
+			 * as well.  This will cause a spurious TX interrupt too,
+			 * but we can easily consume that.
+			 */
+			opmode |= TE;
+		}
 #endif
 	}
 

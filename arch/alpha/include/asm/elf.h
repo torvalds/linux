@@ -101,7 +101,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #define ELF_PLAT_INIT(_r, load_addr)	_r->r0 = 0
 
-/* The registers are layed out in pt_regs for PAL and syscall
+/* The registers are laid out in pt_regs for PAL and syscall
    convenience.  Re-order them for the linear elf_gregset_t.  */
 
 struct pt_regs;

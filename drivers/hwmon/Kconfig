@@ -110,8 +110,7 @@ config SENSORS_ADM1021
 	help
 	  If you say yes here you get support for Analog Devices ADM1021
 	  and ADM1023 sensor chips and clones: Maxim MAX1617 and MAX1617A,
-	  Genesys Logic GL523SM, National Semiconductor LM84, TI THMC10,
-	  and the XEON processor built-in sensor.
+	  Genesys Logic GL523SM, National Semiconductor LM84 and TI THMC10.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called adm1021.
@@ -315,11 +314,22 @@ config SENSORS_F71805F
 	  will be called f71805f.
 
 config SENSORS_F71882FG
-	tristate "Fintek F71858FG, F71862FG, F71882FG, F71889FG and F8000"
+	tristate "Fintek F71882FG and compatibles"
 	help
 	  If you say yes here you get support for hardware monitoring
-	  features of the Fintek F71858FG, F71862FG/71863FG, F71882FG/F71883FG,
-	  F71889FG and F8000 Super-I/O chips.
+	  features of many Fintek Super-I/O (LPC) chips. The currently
+	  supported chips are:
+	    F71808E
+	    F71858FG
+	    F71862FG
+	    F71863FG
+	    F71869F/E
+	    F71882FG
+	    F71883FG
+	    F71889FG/ED/A
+	    F8000
+	    F81801U
+	    F81865F
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called f71882fg.
@@ -521,7 +531,7 @@ config SENSORS_LM75
 		- Dallas Semiconductor DS75 and DS1775
 		- Maxim MAX6625 and MAX6626
 		- Microchip MCP980x
-		- National Semiconductor LM75
+		- National Semiconductor LM75, LM75A
 		- NXP's LM75A
 		- ST Microelectronics STDS75
 		- TelCom (now Microchip) TCN75
@@ -607,10 +617,10 @@ config SENSORS_LM90
 	depends on I2C
 	help
 	  If you say yes here you get support for National Semiconductor LM90,
-	  LM86, LM89 and LM99, Analog Devices ADM1032 and ADT7461, Maxim
-	  MAX6646, MAX6647, MAX6648, MAX6649, MAX6657, MAX6658, MAX6659,
-	  MAX6680, MAX6681, MAX6692, MAX6695, MAX6696, and Winbond/Nuvoton
-	  W83L771W/G/AWG/ASG sensor chips.
+	  LM86, LM89 and LM99, Analog Devices ADM1032, ADT7461, and ADT7461A,
+	  Maxim MAX6646, MAX6647, MAX6648, MAX6649, MAX6657, MAX6658, MAX6659,
+	  MAX6680, MAX6681, MAX6692, MAX6695, MAX6696, ON Semiconductor NCT1008,
+	  and Winbond/Nuvoton W83L771W/G/AWG/ASG sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm90.
@@ -959,6 +969,25 @@ config SENSORS_SMSC47B397
 	  This driver can also be built as a module.  If so, the module
 	  will be called smsc47b397.
 
+config SENSORS_SCH5627
+	tristate "SMSC SCH5627"
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  features of the SMSC SCH5627 Super-I/O chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sch5627.
+
+config SENSORS_ADS1015
+	tristate "Texas Instruments ADS1015"
+	depends on I2C
+	help
+	  If you say yes here you get support for Texas Instruments ADS1015
+	  12-bit 4-input ADC device.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ads1015.
+
 config SENSORS_ADS7828
 	tristate "Texas Instruments ADS7828"
 	depends on I2C
@@ -1027,6 +1056,16 @@ config SENSORS_TMP421
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tmp421.
+
+config SENSORS_TWL4030_MADC
+	tristate "Texas Instruments TWL4030 MADC Hwmon"
+	depends on TWL4030_MADC
+	help
+	If you say yes here you get hwmon support for triton
+	TWL4030-MADC.
+
+	This driver can also be built as a module. If so it will be called
+	twl4030-madc-hwmon.
 
 config SENSORS_VIA_CPUTEMP
 	tristate "VIA CPU temperature sensor"
@@ -1215,40 +1254,6 @@ config SENSORS_ULTRA45
 	  This driver provides support for the Ultra45 workstation environmental
 	  sensors.
 
-config SENSORS_LIS3_SPI
-	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer (SPI)"
-	depends on !ACPI && SPI_MASTER && INPUT
-	select INPUT_POLLDEV
-	default n
-	help
-	  This driver provides support for the LIS3LV02Dx accelerometer connected
-	  via SPI. The accelerometer data is readable via
-	  /sys/devices/platform/lis3lv02d.
-
-	  This driver also provides an absolute input class device, allowing
-	  the laptop to act as a pinball machine-esque joystick.
-
-	  This driver can also be built as modules.  If so, the core module
-	  will be called lis3lv02d and a specific module for the SPI transport
-	  is called lis3lv02d_spi.
-
-config SENSORS_LIS3_I2C
-	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer (I2C)"
-	depends on I2C && INPUT
-	select INPUT_POLLDEV
-	default n
-	help
-	  This driver provides support for the LIS3LV02Dx accelerometer connected
-	  via I2C. The accelerometer data is readable via
-	  /sys/devices/platform/lis3lv02d.
-
-	  This driver also provides an absolute input class device, allowing
-	  the device to act as a pinball machine-esque joystick.
-
-	  This driver can also be built as modules.  If so, the core module
-	  will be called lis3lv02d and a specific module for the I2C transport
-	  is called lis3lv02d_i2c.
-
 config SENSORS_APPLESMC
 	tristate "Apple SMC (Motion sensor, light sensor, keyboard backlight)"
 	depends on INPUT && X86
@@ -1295,36 +1300,6 @@ config SENSORS_ATK0110
 
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_atk0110.
-
-config SENSORS_LIS3LV02D
-	tristate "STMicroeletronics LIS3* three-axis digital accelerometer"
-	depends on INPUT
-	select INPUT_POLLDEV
-	select NEW_LEDS
-	select LEDS_CLASS
-	default n
-	help
-	  This driver provides support for the LIS3* accelerometers, such as the
-	  LIS3LV02DL or the LIS331DL. In particular, it can be found in a number
-	  of HP laptops, which have the "Mobile Data Protection System 3D" or
-	  "3D DriveGuard" feature. On such systems the driver should load
-	  automatically (via ACPI alias). The accelerometer might also be found
-	  in other systems, connected via SPI or I2C. The accelerometer data is
-	  readable via /sys/devices/platform/lis3lv02d.
-
-	  This driver also provides an absolute input class device, allowing
-	  a laptop to act as a pinball machine-esque joystick. It provides also
-	  a misc device which can be used to detect free-fall. On HP laptops,
-	  if the led infrastructure is activated, support for a led indicating
-	  disk protection will be provided as hp::hddprotect. For more
-	  information on the feature, refer to Documentation/hwmon/lis3lv02d.
-
-	  This driver can also be built as modules.  If so, the core module
-	  will be called lis3lv02d and a specific module for HP laptops will be
-	  called hp_accel.
-
-	  Say Y here if you have an applicable laptop and want to experience
-	  the awesome power of lis3lv02d.
 
 endif # ACPI
 

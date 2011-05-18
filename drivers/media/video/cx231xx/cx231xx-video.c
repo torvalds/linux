@@ -309,7 +309,7 @@ static inline void get_next_buf(struct cx231xx_dmaqueue *dma_q,
 	/* Get the next buffer */
 	*buf = list_entry(dma_q->active.next, struct cx231xx_buffer, vb.queue);
 
-	/* Cleans up buffer - Usefull for testing for frame/URB loss */
+	/* Cleans up buffer - Useful for testing for frame/URB loss */
 	outp = videobuf_to_vmalloc(&(*buf)->vb);
 	memset(outp, 0, (*buf)->vb.size);
 
@@ -2190,8 +2190,7 @@ static int cx231xx_v4l2_open(struct file *filp)
 		dev->height = norm_maxh(dev);
 
 		/* Power up in Analog TV mode */
-		if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER ||
-		    dev->model == CX231XX_BOARD_HAUPPAUGE_USBLIVE2)
+		if (dev->board.external_av)
 			cx231xx_set_power_mode(dev,
 				 POLARIS_AVMODE_ENXTERNAL_AV);
 		else
@@ -2231,9 +2230,7 @@ static int cx231xx_v4l2_open(struct file *filp)
 	if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
 		/* Set the required alternate setting  VBI interface works in
 		   Bulk mode only */
-		if (dev->model != CX231XX_BOARD_CNXT_VIDEO_GRABBER &&
-		    dev->model != CX231XX_BOARD_HAUPPAUGE_USBLIVE2)
-			cx231xx_set_alt_setting(dev, INDEX_VANC, 0);
+		cx231xx_set_alt_setting(dev, INDEX_VANC, 0);
 
 		videobuf_queue_vmalloc_init(&fh->vb_vidq, &cx231xx_vbi_qops,
 					    NULL, &dev->vbi_mode.slock,
@@ -2275,7 +2272,7 @@ void cx231xx_release_analog_resources(struct cx231xx *dev)
 		cx231xx_info("V4L2 device %s deregistered\n",
 			     video_device_node_name(dev->vdev));
 
-		if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER)
+		if (dev->board.has_417)
 			cx231xx_417_unregister(dev);
 
 		if (video_is_registered(dev->vdev))
@@ -2302,10 +2299,13 @@ static int cx231xx_v4l2_close(struct file *filp)
 	if (res_check(fh))
 		res_free(fh);
 
-	/*To workaround error number=-71 on EP0 for VideoGrabber,
-		 need exclude following.*/
-	if (dev->model != CX231XX_BOARD_CNXT_VIDEO_GRABBER &&
-	    dev->model != CX231XX_BOARD_HAUPPAUGE_USBLIVE2)
+	/*
+	 * To workaround error number=-71 on EP0 for VideoGrabber,
+	 *	 need exclude following.
+	 * FIXME: It is probably safe to remove most of these, as we're
+	 * now avoiding the alternate setting for INDEX_VANC
+	 */
+	if (!dev->board.no_alt_vanc)
 		if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
 			videobuf_stop(&fh->vb_vidq);
 			videobuf_mmap_free(&fh->vb_vidq);

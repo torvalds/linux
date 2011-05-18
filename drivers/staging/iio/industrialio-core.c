@@ -258,7 +258,7 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 							   ->det_events.list));
 		if (ret)
 			goto error_ret;
-		/* Single access device so noone else can get the data */
+		/* Single access device so no one else can get the data */
 		mutex_lock(&ev_int->event_list_lock);
 	}
 

@@ -597,7 +597,7 @@ cy_as_mem_set(
    CyAsHalSleepChannel.
 
    Returns
-   CyTrue is the initialization was sucessful, and CyFalse otherwise
+   CyTrue is the initialization was successful, and CyFalse otherwise
 
    See Also
    * CyAsHalSleepChannel

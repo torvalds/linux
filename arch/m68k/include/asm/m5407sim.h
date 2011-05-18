@@ -29,7 +29,7 @@
 #define	MCFSIM_SWSR		0x03		/* SW Watchdog service (r/w) */
 #define	MCFSIM_PAR		0x04		/* Pin Assignment reg (r/w) */
 #define	MCFSIM_IRQPAR		0x06		/* Interrupt Assignment reg (r/w) */
-#define	MCFSIM_PLLCR		0x08		/* PLL Controll Reg*/
+#define	MCFSIM_PLLCR		0x08		/* PLL Control Reg*/
 #define	MCFSIM_MPARK		0x0C		/* BUS Master Control Reg*/
 #define	MCFSIM_IPR		0x40		/* Interrupt Pend reg (r/w) */
 #define	MCFSIM_IMR		0x44		/* Interrupt Mask reg (r/w) */

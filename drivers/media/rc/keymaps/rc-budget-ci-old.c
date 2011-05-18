@@ -12,7 +12,8 @@
 
 #include <media/rc-map.h>
 
-/* From reading the following remotes:
+/*
+ * From reading the following remotes:
  * Zenith Universal 7 / TV Mode 807 / VCR Mode 837
  * Hauppauge (from NOVA-CI-s box product)
  * This is a "middle of the road" approach, differences are noted

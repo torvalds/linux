@@ -157,7 +157,7 @@
 #define	MCFFEC_SIZE		0x800		/* Register set size */
 
 /*
- *  Reset Controll Unit.
+ *  Reset Control Unit.
  */
 #define	MCF_RCR			0xFC0A0000
 #define	MCF_RSR			0xFC0A0001

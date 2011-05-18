@@ -288,12 +288,10 @@ static int tps6586x_gpio_output(struct gpio_chip *gc, unsigned offset,
 	return tps6586x_update(tps6586x->dev, TPS6586X_GPIOSET1, val, mask);
 }
 
-static void tps6586x_gpio_init(struct tps6586x *tps6586x, int gpio_base)
+static int tps6586x_gpio_init(struct tps6586x *tps6586x, int gpio_base)
 {
-	int ret;
-
 	if (!gpio_base)
-		return;
+		return 0;
 
 	tps6586x->gpio.owner		= THIS_MODULE;
 	tps6586x->gpio.label		= tps6586x->client->name;
@@ -307,9 +305,7 @@ static void tps6586x_gpio_init(struct tps6586x *tps6586x, int gpio_base)
 	tps6586x->gpio.set		= tps6586x_gpio_set;
 	tps6586x->gpio.get		= tps6586x_gpio_get;
 
-	ret = gpiochip_add(&tps6586x->gpio);
-	if (ret)
-		dev_warn(tps6586x->dev, "GPIO registration failed: %d\n", ret);
+	return gpiochip_add(&tps6586x->gpio);
 }
 
 static int __remove_subdev(struct device *dev, void *unused)
@@ -426,10 +422,10 @@ static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 
 	for (i = 0; i < ARRAY_SIZE(tps6586x_irqs); i++) {
 		int __irq = i + tps6586x->irq_base;
-		set_irq_chip_data(__irq, tps6586x);
-		set_irq_chip_and_handler(__irq, &tps6586x->irq_chip,
+		irq_set_chip_data(__irq, tps6586x);
+		irq_set_chip_and_handler(__irq, &tps6586x->irq_chip,
 					 handle_simple_irq);
-		set_irq_nested_thread(__irq, 1);
+		irq_set_nested_thread(__irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(__irq, IRQF_VALID);
 #endif
@@ -517,17 +513,28 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 		}
 	}
 
+	ret = tps6586x_gpio_init(tps6586x, pdata->gpio_base);
+	if (ret) {
+		dev_err(&client->dev, "GPIO registration failed: %d\n", ret);
+		goto err_gpio_init;
+	}
+
 	ret = tps6586x_add_subdevs(tps6586x, pdata);
 	if (ret) {
 		dev_err(&client->dev, "add devices failed: %d\n", ret);
 		goto err_add_devs;
 	}
 
-	tps6586x_gpio_init(tps6586x, pdata->gpio_base);
-
 	return 0;
 
 err_add_devs:
+	if (pdata->gpio_base) {
+		ret = gpiochip_remove(&tps6586x->gpio);
+		if (ret)
+			dev_err(&client->dev, "Can't remove gpio chip: %d\n",
+				ret);
+	}
+err_gpio_init:
 	if (client->irq)
 		free_irq(client->irq, tps6586x);
 err_irq_init:
@@ -587,4 +594,3 @@ module_exit(tps6586x_exit);
 MODULE_DESCRIPTION("TPS6586X core driver");
 MODULE_AUTHOR("Mike Rapoport <mike@compulab.co.il>");
 MODULE_LICENSE("GPL");
-

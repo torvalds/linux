@@ -263,10 +263,12 @@ static struct mc13xxx_regulator_init_data pcm038_regulators[] = {
 };
 
 static struct mc13xxx_platform_data pcm038_pmic = {
-	.regulators = pcm038_regulators,
-	.num_regulators = ARRAY_SIZE(pcm038_regulators),
-	.flags = MC13XXX_USE_ADC | MC13XXX_USE_REGULATOR |
-		 MC13XXX_USE_TOUCHSCREEN,
+	.regulators = {
+		.regulators = pcm038_regulators,
+		.num_regulators = ARRAY_SIZE(pcm038_regulators),
+	},
+	.flags = MC13783_USE_ADC | MC13783_USE_REGULATOR |
+		 MC13783_USE_TOUCHSCREEN,
 };
 
 static struct spi_board_info pcm038_spi_board_info[] __initdata = {

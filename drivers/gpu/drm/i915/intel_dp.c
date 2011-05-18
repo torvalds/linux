@@ -213,7 +213,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 			return MODE_PANEL;
 	}
 
-	/* only refuse the mode on non eDP since we have seen some wierd eDP panels
+	/* only refuse the mode on non eDP since we have seen some weird eDP panels
 	   which are outside spec tolerances but somehow work by magic */
 	if (!is_edp(intel_dp) &&
 	    (intel_dp_link_required(connector->dev, intel_dp, mode->clock)
@@ -1470,7 +1470,8 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 
 	if (!HAS_PCH_CPT(dev) &&
 	    I915_READ(intel_dp->output_reg) & DP_PIPEB_SELECT) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.base.crtc);
+		struct drm_crtc *crtc = intel_dp->base.base.crtc;
+
 		/* Hardware workaround: leaving our transcoder select
 		 * set to transcoder B while it's off will prevent the
 		 * corresponding HDMI output on transcoder A.
@@ -1485,7 +1486,19 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 		/* Changes to enable or select take place the vblank
 		 * after being written.
 		 */
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
+		if (crtc == NULL) {
+			/* We can arrive here never having been attached
+			 * to a CRTC, for instance, due to inheriting
+			 * random state from the BIOS.
+			 *
+			 * If the pipe is not running, play safe and
+			 * wait for the clocks to stabilise before
+			 * continuing.
+			 */
+			POSTING_READ(intel_dp->output_reg);
+			msleep(50);
+		} else
+			intel_wait_for_vblank(dev, to_intel_crtc(crtc)->pipe);
 	}
 
 	I915_WRITE(intel_dp->output_reg, DP & ~DP_PORT_EN);
@@ -1957,9 +1970,9 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 					DP_NO_AUX_HANDSHAKE_LINK_TRAINING;
 		} else {
 			/* if this fails, presume the device is a ghost */
-			DRM_ERROR("failed to retrieve link info\n");
-			intel_dp_destroy(&intel_connector->base);
+			DRM_INFO("failed to retrieve link info, disabling eDP\n");
 			intel_dp_encoder_destroy(&intel_dp->base.base);
+			intel_dp_destroy(&intel_connector->base);
 			return;
 		}
 	}

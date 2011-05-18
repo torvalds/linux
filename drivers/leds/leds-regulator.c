@@ -178,6 +178,10 @@ static int __devinit regulator_led_probe(struct platform_device *pdev)
 	led->cdev.flags |= LED_CORE_SUSPENDRESUME;
 	led->vcc = vcc;
 
+	/* to handle correctly an already enabled regulator */
+	if (regulator_is_enabled(led->vcc))
+		led->enabled = 1;
+
 	mutex_init(&led->mutex);
 	INIT_WORK(&led->work, led_work);
 

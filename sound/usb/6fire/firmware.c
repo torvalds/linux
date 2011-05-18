@@ -76,7 +76,7 @@ struct ihex_record {
 	u16 address;
 	u8 len;
 	u8 data[256];
-	char error; /* true if an error occured parsing this record */
+	char error; /* true if an error occurred parsing this record */
 
 	u8 max_len; /* maximum record length in whole ihex */
 
@@ -107,7 +107,7 @@ static u8 usb6fire_fw_ihex_hex(const u8 *data, u8 *crc)
 
 /*
  * returns true if record is available, false otherwise.
- * iff an error occured, false will be returned and record->error will be true.
+ * iff an error occurred, false will be returned and record->error will be true.
  */
 static bool usb6fire_fw_ihex_next_record(struct ihex_record *record)
 {

@@ -52,7 +52,7 @@
 #define SHT15_TSU		150	/* data setup time */
 
 /**
- * struct sht15_temppair - elements of voltage dependant temp calc
+ * struct sht15_temppair - elements of voltage dependent temp calc
  * @vdd:	supply voltage in microvolts
  * @d1:		see data sheet
  */
@@ -251,7 +251,7 @@ static inline int sht15_update_single_val(struct sht15_data *data,
 	enable_irq(gpio_to_irq(data->pdata->gpio_data));
 	if (gpio_get_value(data->pdata->gpio_data) == 0) {
 		disable_irq_nosync(gpio_to_irq(data->pdata->gpio_data));
-		/* Only relevant if the interrupt hasn't occured. */
+		/* Only relevant if the interrupt hasn't occurred. */
 		if (!atomic_read(&data->interrupt_handled))
 			schedule_work(&data->read_work);
 	}
@@ -333,11 +333,11 @@ static inline int sht15_calc_humid(struct sht15_data *data)
 
 	const int c1 = -4;
 	const int c2 = 40500; /* x 10 ^ -6 */
-	const int c3 = -2800; /* x10 ^ -9 */
+	const int c3 = -28; /* x 10 ^ -7 */
 
 	RHlinear = c1*1000
 		+ c2 * data->val_humid/1000
-		+ (data->val_humid * data->val_humid * c3)/1000000;
+		+ (data->val_humid * data->val_humid * c3) / 10000;
 	return (temp - 25000) * (10000 + 80 * data->val_humid)
 		/ 1000000 + RHlinear;
 }
@@ -452,7 +452,7 @@ static void sht15_bh_read_data(struct work_struct *work_s)
 		*/
 		atomic_set(&data->interrupt_handled, 0);
 		enable_irq(gpio_to_irq(data->pdata->gpio_data));
-		/* If still not occured or another handler has been scheduled */
+		/* If still not occurred or another handler has been scheduled */
 		if (gpio_get_value(data->pdata->gpio_data)
 		    || atomic_read(&data->interrupt_handled))
 			return;
@@ -610,7 +610,7 @@ static int __devexit sht15_remove(struct platform_device *pdev)
 	struct sht15_data *data = platform_get_drvdata(pdev);
 
 	/* Make sure any reads from the device are done and
-	 * prevent new ones beginnning */
+	 * prevent new ones from beginning */
 	mutex_lock(&data->read_lock);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &sht15_attr_group);

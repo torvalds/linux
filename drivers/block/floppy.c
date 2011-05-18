@@ -3770,13 +3770,14 @@ out2:
 /*
  * Check if the disk has been changed or if a change has been faked.
  */
-static int check_floppy_change(struct gendisk *disk)
+static unsigned int floppy_check_events(struct gendisk *disk,
+					unsigned int clearing)
 {
 	int drive = (long)disk->private_data;
 
 	if (test_bit(FD_DISK_CHANGED_BIT, &UDRS->flags) ||
 	    test_bit(FD_VERIFY_BIT, &UDRS->flags))
-		return 1;
+		return DISK_EVENT_MEDIA_CHANGE;
 
 	if (time_after(jiffies, UDRS->last_checked + UDP->checkfreq)) {
 		lock_fdc(drive, false);
@@ -3788,7 +3789,7 @@ static int check_floppy_change(struct gendisk *disk)
 	    test_bit(FD_VERIFY_BIT, &UDRS->flags) ||
 	    test_bit(drive, &fake_change) ||
 	    drive_no_geom(drive))
-		return 1;
+		return DISK_EVENT_MEDIA_CHANGE;
 	return 0;
 }
 
@@ -3837,7 +3838,6 @@ static int __floppy_read_block_0(struct block_device *bdev)
 	bio.bi_end_io = floppy_rb0_complete;
 
 	submit_bio(READ, &bio);
-	generic_unplug_device(bdev_get_queue(bdev));
 	process_fd_request();
 	wait_for_completion(&complete);
 
@@ -3898,7 +3898,7 @@ static const struct block_device_operations floppy_fops = {
 	.release		= floppy_release,
 	.ioctl			= fd_ioctl,
 	.getgeo			= fd_getgeo,
-	.media_changed		= check_floppy_change,
+	.check_events		= floppy_check_events,
 	.revalidate_disk	= floppy_revalidate,
 };
 
@@ -4205,6 +4205,7 @@ static int __init floppy_init(void)
 		disks[dr]->major = FLOPPY_MAJOR;
 		disks[dr]->first_minor = TOMINOR(dr);
 		disks[dr]->fops = &floppy_fops;
+		disks[dr]->events = DISK_EVENT_MEDIA_CHANGE;
 		sprintf(disks[dr]->disk_name, "fd%d", dr);
 
 		init_timer(&motor_off_timer[dr]);

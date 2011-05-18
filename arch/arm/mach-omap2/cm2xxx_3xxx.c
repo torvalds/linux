@@ -247,6 +247,7 @@ struct omap3_cm_regs {
 	u32 per_cm_clksel;
 	u32 emu_cm_clksel;
 	u32 emu_cm_clkstctrl;
+	u32 pll_cm_autoidle;
 	u32 pll_cm_autoidle2;
 	u32 pll_cm_clksel4;
 	u32 pll_cm_clksel5;
@@ -319,6 +320,15 @@ void omap3_cm_save_context(void)
 		omap2_cm_read_mod_reg(OMAP3430_EMU_MOD, CM_CLKSEL1);
 	cm_context.emu_cm_clkstctrl =
 		omap2_cm_read_mod_reg(OMAP3430_EMU_MOD, OMAP2_CM_CLKSTCTRL);
+	/*
+	 * As per erratum i671, ROM code does not respect the PER DPLL
+	 * programming scheme if CM_AUTOIDLE_PLL.AUTO_PERIPH_DPLL == 1.
+	 * In this case, even though this register has been saved in
+	 * scratchpad contents, we need to restore AUTO_PERIPH_DPLL
+	 * by ourselves. So, we need to save it anyway.
+	 */
+	cm_context.pll_cm_autoidle =
+		omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE);
 	cm_context.pll_cm_autoidle2 =
 		omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE2);
 	cm_context.pll_cm_clksel4 =
@@ -441,6 +451,13 @@ void omap3_cm_restore_context(void)
 			       CM_CLKSEL1);
 	omap2_cm_write_mod_reg(cm_context.emu_cm_clkstctrl, OMAP3430_EMU_MOD,
 			       OMAP2_CM_CLKSTCTRL);
+	/*
+	 * As per erratum i671, ROM code does not respect the PER DPLL
+	 * programming scheme if CM_AUTOIDLE_PLL.AUTO_PERIPH_DPLL == 1.
+	 * In this case, we need to restore AUTO_PERIPH_DPLL by ourselves.
+	 */
+	omap2_cm_write_mod_reg(cm_context.pll_cm_autoidle, PLL_MOD,
+			       CM_AUTOIDLE);
 	omap2_cm_write_mod_reg(cm_context.pll_cm_autoidle2, PLL_MOD,
 			       CM_AUTOIDLE2);
 	omap2_cm_write_mod_reg(cm_context.pll_cm_clksel4, PLL_MOD,

@@ -39,7 +39,7 @@
 			ret__ = -ETIMEDOUT;				\
 			break;						\
 		}							\
-		if (W && !in_dbg_master()) msleep(W);			\
+		if (W && !(in_atomic() || in_dbg_master())) msleep(W);	\
 	}								\
 	ret__;								\
 })
@@ -338,4 +338,5 @@ extern int intel_overlay_attrs(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv);
 
 extern void intel_fb_output_poll_changed(struct drm_device *dev);
+extern void intel_fb_restore_mode(struct drm_device *dev);
 #endif /* __INTEL_DRV_H__ */

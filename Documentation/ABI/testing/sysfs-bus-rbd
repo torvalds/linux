@@ -1,6 +1,6 @@
 What:		/sys/bus/rbd/
 Date:		November 2010
-Contact:	Yehuda Sadeh <yehuda@hq.newdream.net>,
+Contact:	Yehuda Sadeh <yehuda@newdream.net>,
 		Sage Weil <sage@newdream.net>
 Description:
 

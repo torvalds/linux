@@ -75,7 +75,7 @@ Configuration options:
     das1800, since they have the best documented code.  Driver
     cb_pcidas64.c uses the same DMA controller.
 
-    As far as I can tell, the About interrupt doesnt work if Sample is
+    As far as I can tell, the About interrupt doesn't work if Sample is
     also enabled.  It turns out that About really isn't needed, since
     we always count down samples read.
 
@@ -370,7 +370,7 @@ struct rtdPrivate {
 	/* timer gate (when enabled) */
 	u8 utcGate[4];		/* 1 extra allows simple range check */
 
-	/* shadow registers affect other registers, but cant be read back */
+	/* shadow registers affect other registers, but can't be read back */
 	/* The macros below update these on writes */
 	u16 intMask;		/* interrupt mask */
 	u16 intClearMask;	/* interrupt clear mask */
@@ -485,7 +485,7 @@ struct rtdPrivate {
 #define RtdAdcFifoGet(dev) \
 	readw(devpriv->las1+LAS1_ADC_FIFO)
 
-/* Read two ADC data values (DOESNT WORK) */
+/* Read two ADC data values (DOESN'T WORK) */
 #define RtdAdcFifoGet2(dev) \
 	readl(devpriv->las1+LAS1_ADC_FIFO)
 
@@ -857,7 +857,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			DPRINTK("rtd520: PCI latency = %d\n", pci_latency);
 		}
 
-		/* Undocumented EPLD version (doesnt match RTD driver results) */
+		/* Undocumented EPLD version (doesn't match RTD driver results) */
 		/*DPRINTK ("rtd520: Reading epld from %p\n",
 		   devpriv->las0+0);
 		   epld_version = readl (devpriv->las0+0);
@@ -1291,7 +1291,7 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 /*
   "instructions" read/write data in "one-shot" or "software-triggered"
   mode (simplest case).
-  This doesnt use interrupts.
+  This doesn't use interrupts.
 
   Note, we don't do any settling delays.  Use a instruction list to
   select, delay, then read.
@@ -2120,7 +2120,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 
 /*
-  Stop a running data aquisition.
+  Stop a running data acquisition.
 */
 static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {

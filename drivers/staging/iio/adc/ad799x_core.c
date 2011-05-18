@@ -184,7 +184,7 @@ static ssize_t ad799x_read_single_channel(struct device *dev,
 
 	mutex_lock(&dev_info->mlock);
 	mask = 1 << this_attr->address;
-	/* If ring buffer capture is occuring, query the buffer */
+	/* If ring buffer capture is occurring, query the buffer */
 	if (iio_ring_enabled(dev_info)) {
 		data = ret = ad799x_single_channel_from_ring(st, mask);
 		if (ret < 0)

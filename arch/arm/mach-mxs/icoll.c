@@ -74,8 +74,7 @@ void __init icoll_init_irq(void)
 	mxs_reset_block(icoll_base + HW_ICOLL_CTRL);
 
 	for (i = 0; i < MXS_INTERNAL_IRQS; i++) {
-		set_irq_chip(i, &mxs_icoll_chip);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &mxs_icoll_chip, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 }

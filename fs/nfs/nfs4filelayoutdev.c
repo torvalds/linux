@@ -225,11 +225,11 @@ nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 }
 
 static struct nfs4_pnfs_ds *
-nfs4_pnfs_ds_add(struct inode *inode, u32 ip_addr, u32 port)
+nfs4_pnfs_ds_add(struct inode *inode, u32 ip_addr, u32 port, gfp_t gfp_flags)
 {
 	struct nfs4_pnfs_ds *tmp_ds, *ds;
 
-	ds = kzalloc(sizeof(*tmp_ds), GFP_KERNEL);
+	ds = kzalloc(sizeof(*tmp_ds), gfp_flags);
 	if (!ds)
 		goto out;
 
@@ -261,7 +261,7 @@ out:
  * Currently only support ipv4, and one multi-path address.
  */
 static struct nfs4_pnfs_ds *
-decode_and_add_ds(__be32 **pp, struct inode *inode)
+decode_and_add_ds(struct xdr_stream *streamp, struct inode *inode, gfp_t gfp_flags)
 {
 	struct nfs4_pnfs_ds *ds = NULL;
 	char *buf;
@@ -269,24 +269,33 @@ decode_and_add_ds(__be32 **pp, struct inode *inode)
 	u32 ip_addr, port;
 	int nlen, rlen, i;
 	int tmp[2];
-	__be32 *r_netid, *r_addr, *p = *pp;
+	__be32 *p;
 
 	/* r_netid */
+	p = xdr_inline_decode(streamp, 4);
+	if (unlikely(!p))
+		goto out_err;
 	nlen = be32_to_cpup(p++);
-	r_netid = p;
-	p += XDR_QUADLEN(nlen);
 
-	/* r_addr */
-	rlen = be32_to_cpup(p++);
-	r_addr = p;
-	p += XDR_QUADLEN(rlen);
-	*pp = p;
+	p = xdr_inline_decode(streamp, nlen);
+	if (unlikely(!p))
+		goto out_err;
 
 	/* Check that netid is "tcp" */
-	if (nlen != 3 ||  memcmp((char *)r_netid, "tcp", 3)) {
+	if (nlen != 3 ||  memcmp((char *)p, "tcp", 3)) {
 		dprintk("%s: ERROR: non ipv4 TCP r_netid\n", __func__);
 		goto out_err;
 	}
+
+	/* r_addr */
+	p = xdr_inline_decode(streamp, 4);
+	if (unlikely(!p))
+		goto out_err;
+	rlen = be32_to_cpup(p);
+
+	p = xdr_inline_decode(streamp, rlen);
+	if (unlikely(!p))
+		goto out_err;
 
 	/* ipv6 length plus port is legal */
 	if (rlen > INET6_ADDRSTRLEN + 8) {
@@ -294,13 +303,13 @@ decode_and_add_ds(__be32 **pp, struct inode *inode)
 			rlen);
 		goto out_err;
 	}
-	buf = kmalloc(rlen + 1, GFP_KERNEL);
+	buf = kmalloc(rlen + 1, gfp_flags);
 	if (!buf) {
 		dprintk("%s: Not enough memory\n", __func__);
 		goto out_err;
 	}
 	buf[rlen] = '\0';
-	memcpy(buf, r_addr, rlen);
+	memcpy(buf, p, rlen);
 
 	/* replace the port dots with dashes for the in4_pton() delimiter*/
 	for (i = 0; i < 2; i++) {
@@ -324,7 +333,7 @@ decode_and_add_ds(__be32 **pp, struct inode *inode)
 	sscanf(pstr, "-%d-%d", &tmp[0], &tmp[1]);
 	port = htons((tmp[0] << 8) | (tmp[1]));
 
-	ds = nfs4_pnfs_ds_add(inode, ip_addr, port);
+	ds = nfs4_pnfs_ds_add(inode, ip_addr, port, gfp_flags);
 	dprintk("%s: Decoded address and port %s\n", __func__, buf);
 out_free:
 	kfree(buf);
@@ -334,92 +343,156 @@ out_err:
 
 /* Decode opaque device data and return the result */
 static struct nfs4_file_layout_dsaddr*
-decode_device(struct inode *ino, struct pnfs_device *pdev)
+decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 {
-	int i, dummy;
+	int i;
 	u32 cnt, num;
 	u8 *indexp;
-	__be32 *p = (__be32 *)pdev->area, *indicesp;
-	struct nfs4_file_layout_dsaddr *dsaddr;
+	__be32 *p;
+	u8 *stripe_indices;
+	u8 max_stripe_index;
+	struct nfs4_file_layout_dsaddr *dsaddr = NULL;
+	struct xdr_stream stream;
+	struct xdr_buf buf = {
+		.pages = pdev->pages,
+		.page_len = pdev->pglen,
+		.buflen = pdev->pglen,
+		.len = pdev->pglen,
+	};
+	struct page *scratch;
+
+	/* set up xdr stream */
+	scratch = alloc_page(gfp_flags);
+	if (!scratch)
+		goto out_err;
+
+	xdr_init_decode(&stream, &buf, NULL);
+	xdr_set_scratch_buffer(&stream, page_address(scratch), PAGE_SIZE);
 
 	/* Get the stripe count (number of stripe index) */
-	cnt = be32_to_cpup(p++);
+	p = xdr_inline_decode(&stream, 4);
+	if (unlikely(!p))
+		goto out_err_free_scratch;
+
+	cnt = be32_to_cpup(p);
 	dprintk("%s stripe count  %d\n", __func__, cnt);
 	if (cnt > NFS4_PNFS_MAX_STRIPE_CNT) {
 		printk(KERN_WARNING "%s: stripe count %d greater than "
 		       "supported maximum %d\n", __func__,
 			cnt, NFS4_PNFS_MAX_STRIPE_CNT);
-		goto out_err;
+		goto out_err_free_scratch;
+	}
+
+	/* read stripe indices */
+	stripe_indices = kcalloc(cnt, sizeof(u8), gfp_flags);
+	if (!stripe_indices)
+		goto out_err_free_scratch;
+
+	p = xdr_inline_decode(&stream, cnt << 2);
+	if (unlikely(!p))
+		goto out_err_free_stripe_indices;
+
+	indexp = &stripe_indices[0];
+	max_stripe_index = 0;
+	for (i = 0; i < cnt; i++) {
+		*indexp = be32_to_cpup(p++);
+		max_stripe_index = max(max_stripe_index, *indexp);
+		indexp++;
 	}
 
 	/* Check the multipath list count */
-	indicesp = p;
-	p += XDR_QUADLEN(cnt << 2);
-	num = be32_to_cpup(p++);
+	p = xdr_inline_decode(&stream, 4);
+	if (unlikely(!p))
+		goto out_err_free_stripe_indices;
+
+	num = be32_to_cpup(p);
 	dprintk("%s ds_num %u\n", __func__, num);
 	if (num > NFS4_PNFS_MAX_MULTI_CNT) {
 		printk(KERN_WARNING "%s: multipath count %d greater than "
 			"supported maximum %d\n", __func__,
 			num, NFS4_PNFS_MAX_MULTI_CNT);
-		goto out_err;
+		goto out_err_free_stripe_indices;
 	}
+
+	/* validate stripe indices are all < num */
+	if (max_stripe_index >= num) {
+		printk(KERN_WARNING "%s: stripe index %u >= num ds %u\n",
+			__func__, max_stripe_index, num);
+		goto out_err_free_stripe_indices;
+	}
+
 	dsaddr = kzalloc(sizeof(*dsaddr) +
 			(sizeof(struct nfs4_pnfs_ds *) * (num - 1)),
-			GFP_KERNEL);
+			gfp_flags);
 	if (!dsaddr)
-		goto out_err;
-
-	dsaddr->stripe_indices = kzalloc(sizeof(u8) * cnt, GFP_KERNEL);
-	if (!dsaddr->stripe_indices)
-		goto out_err_free;
+		goto out_err_free_stripe_indices;
 
 	dsaddr->stripe_count = cnt;
+	dsaddr->stripe_indices = stripe_indices;
+	stripe_indices = NULL;
 	dsaddr->ds_num = num;
 
 	memcpy(&dsaddr->deviceid, &pdev->dev_id, sizeof(pdev->dev_id));
 
-	/* Go back an read stripe indices */
-	p = indicesp;
-	indexp = &dsaddr->stripe_indices[0];
-	for (i = 0; i < dsaddr->stripe_count; i++) {
-		*indexp = be32_to_cpup(p++);
-		if (*indexp >= num)
-			goto out_err_free;
-		indexp++;
-	}
-	/* Skip already read multipath list count */
-	p++;
-
 	for (i = 0; i < dsaddr->ds_num; i++) {
 		int j;
+		u32 mp_count;
 
-		dummy = be32_to_cpup(p++); /* multipath count */
-		if (dummy > 1) {
+		p = xdr_inline_decode(&stream, 4);
+		if (unlikely(!p))
+			goto out_err_free_deviceid;
+
+		mp_count = be32_to_cpup(p); /* multipath count */
+		if (mp_count > 1) {
 			printk(KERN_WARNING
 			       "%s: Multipath count %d not supported, "
 			       "skipping all greater than 1\n", __func__,
-				dummy);
+				mp_count);
 		}
-		for (j = 0; j < dummy; j++) {
+		for (j = 0; j < mp_count; j++) {
 			if (j == 0) {
-				dsaddr->ds_list[i] = decode_and_add_ds(&p, ino);
+				dsaddr->ds_list[i] = decode_and_add_ds(&stream,
+					ino, gfp_flags);
 				if (dsaddr->ds_list[i] == NULL)
-					goto out_err_free;
+					goto out_err_free_deviceid;
 			} else {
 				u32 len;
 				/* skip extra multipath */
-				len = be32_to_cpup(p++);
-				p += XDR_QUADLEN(len);
-				len = be32_to_cpup(p++);
-				p += XDR_QUADLEN(len);
-				continue;
+
+				/* read len, skip */
+				p = xdr_inline_decode(&stream, 4);
+				if (unlikely(!p))
+					goto out_err_free_deviceid;
+				len = be32_to_cpup(p);
+
+				p = xdr_inline_decode(&stream, len);
+				if (unlikely(!p))
+					goto out_err_free_deviceid;
+
+				/* read len, skip */
+				p = xdr_inline_decode(&stream, 4);
+				if (unlikely(!p))
+					goto out_err_free_deviceid;
+				len = be32_to_cpup(p);
+
+				p = xdr_inline_decode(&stream, len);
+				if (unlikely(!p))
+					goto out_err_free_deviceid;
 			}
 		}
 	}
+
+	__free_page(scratch);
 	return dsaddr;
 
-out_err_free:
+out_err_free_deviceid:
 	nfs4_fl_free_deviceid(dsaddr);
+	/* stripe_indicies was part of dsaddr */
+	goto out_err_free_scratch;
+out_err_free_stripe_indices:
+	kfree(stripe_indices);
+out_err_free_scratch:
+	__free_page(scratch);
 out_err:
 	dprintk("%s ERROR: returning NULL\n", __func__);
 	return NULL;
@@ -430,12 +503,12 @@ out_err:
  * available devices.
  */
 static struct nfs4_file_layout_dsaddr *
-decode_and_add_device(struct inode *inode, struct pnfs_device *dev)
+decode_and_add_device(struct inode *inode, struct pnfs_device *dev, gfp_t gfp_flags)
 {
 	struct nfs4_file_layout_dsaddr *d, *new;
 	long hash;
 
-	new = decode_device(inode, dev);
+	new = decode_device(inode, dev, gfp_flags);
 	if (!new) {
 		printk(KERN_WARNING "%s: Could not decode or add device\n",
 			__func__);
@@ -464,7 +537,7 @@ decode_and_add_device(struct inode *inode, struct pnfs_device *dev)
  * of available devices, and return it.
  */
 struct nfs4_file_layout_dsaddr *
-get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
+get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gfp_t gfp_flags)
 {
 	struct pnfs_device *pdev = NULL;
 	u32 max_resp_sz;
@@ -483,25 +556,20 @@ get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
 	dprintk("%s inode %p max_resp_sz %u max_pages %d\n",
 		__func__, inode, max_resp_sz, max_pages);
 
-	pdev = kzalloc(sizeof(struct pnfs_device), GFP_KERNEL);
+	pdev = kzalloc(sizeof(struct pnfs_device), gfp_flags);
 	if (pdev == NULL)
 		return NULL;
 
-	pages = kzalloc(max_pages * sizeof(struct page *), GFP_KERNEL);
+	pages = kzalloc(max_pages * sizeof(struct page *), gfp_flags);
 	if (pages == NULL) {
 		kfree(pdev);
 		return NULL;
 	}
 	for (i = 0; i < max_pages; i++) {
-		pages[i] = alloc_page(GFP_KERNEL);
+		pages[i] = alloc_page(gfp_flags);
 		if (!pages[i])
 			goto out_free;
 	}
-
-	/* set pdev->area */
-	pdev->area = vmap(pages, max_pages, VM_MAP, PAGE_KERNEL);
-	if (!pdev->area)
-		goto out_free;
 
 	memcpy(&pdev->dev_id, dev_id, sizeof(*dev_id));
 	pdev->layout_type = LAYOUT_NFSV4_1_FILES;
@@ -519,10 +587,8 @@ get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
 	 * Found new device, need to decode it and then add it to the
 	 * list of known devices for this mountpoint.
 	 */
-	dsaddr = decode_and_add_device(inode, pdev);
+	dsaddr = decode_and_add_device(inode, pdev, gfp_flags);
 out_free:
-	if (pdev->area != NULL)
-		vunmap(pdev->area);
 	for (i = 0; i < max_pages; i++)
 		__free_page(pages[i]);
 	kfree(pages);

@@ -35,14 +35,15 @@ void __init kirkwood_init_irq(void)
 	 */
 	orion_gpio_init(0, 32, GPIO_LOW_VIRT_BASE, 0,
 			IRQ_KIRKWOOD_GPIO_START);
-	set_irq_chained_handler(IRQ_KIRKWOOD_GPIO_LOW_0_7, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_KIRKWOOD_GPIO_LOW_8_15, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_KIRKWOOD_GPIO_LOW_16_23, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_KIRKWOOD_GPIO_LOW_24_31, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_KIRKWOOD_GPIO_LOW_0_7, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_KIRKWOOD_GPIO_LOW_8_15, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_KIRKWOOD_GPIO_LOW_16_23, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_KIRKWOOD_GPIO_LOW_24_31, gpio_irq_handler);
 
 	orion_gpio_init(32, 18, GPIO_HIGH_VIRT_BASE, 0,
 			IRQ_KIRKWOOD_GPIO_START + 32);
-	set_irq_chained_handler(IRQ_KIRKWOOD_GPIO_HIGH_0_7, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_KIRKWOOD_GPIO_HIGH_8_15, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_KIRKWOOD_GPIO_HIGH_16_23, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_KIRKWOOD_GPIO_HIGH_0_7, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_KIRKWOOD_GPIO_HIGH_8_15, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_KIRKWOOD_GPIO_HIGH_16_23,
+				gpio_irq_handler);
 }

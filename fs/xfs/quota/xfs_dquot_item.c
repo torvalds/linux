@@ -136,9 +136,8 @@ xfs_qm_dquot_logitem_push(
 	 */
 	error = xfs_qm_dqflush(dqp, 0);
 	if (error)
-		xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
-			"xfs_qm_dquot_logitem_push: push error %d on dqp %p",
-			error, dqp);
+		xfs_warn(dqp->q_mount, "%s: push error %d on dqp %p",
+			__func__, error, dqp);
 	xfs_dqunlock(dqp);
 }
 

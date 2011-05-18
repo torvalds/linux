@@ -345,7 +345,7 @@ static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
 
 static inline struct dst_entry *skb_dst_pop(struct sk_buff *skb)
 {
-	struct dst_entry *child = skb_dst(skb)->child;
+	struct dst_entry *child = dst_clone(skb_dst(skb)->child);
 
 	skb_dst_drop(skb);
 	return child;

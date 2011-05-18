@@ -167,7 +167,7 @@ static struct snd_soc_dai_link zylonite_dai[] = {
 	.codec_name = "wm9713-codec",
 	.platform_name = "pxa-pcm-audio",
 	.cpu_dai_name = "pxa2xx-ac97",
-	.codec_name = "wm9713-hifi",
+	.codec_dai_name = "wm9713-hifi",
 	.init = zylonite_wm9713_init,
 },
 {
@@ -176,7 +176,7 @@ static struct snd_soc_dai_link zylonite_dai[] = {
 	.codec_name = "wm9713-codec",
 	.platform_name = "pxa-pcm-audio",
 	.cpu_dai_name = "pxa2xx-ac97-aux",
-	.codec_name = "wm9713-aux",
+	.codec_dai_name = "wm9713-aux",
 },
 {
 	.name = "WM9713 Voice",
@@ -184,7 +184,7 @@ static struct snd_soc_dai_link zylonite_dai[] = {
 	.codec_name = "wm9713-codec",
 	.platform_name = "pxa-pcm-audio",
 	.cpu_dai_name = "pxa-ssp-dai.2",
-	.codec_name = "wm9713-voice",
+	.codec_dai_name = "wm9713-voice",
 	.ops = &zylonite_voice_ops,
 },
 };

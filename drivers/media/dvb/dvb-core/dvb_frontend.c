@@ -1638,7 +1638,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 	case FE_READ_STATUS: {
 		fe_status_t* status = parg;
 
-		/* if retune was requested but hasn't occured yet, prevent
+		/* if retune was requested but hasn't occurred yet, prevent
 		 * that user get signal state from previous tuning */
 		if (fepriv->state == FESTATE_RETUNE ||
 		    fepriv->state == FESTATE_ERROR) {
@@ -1729,7 +1729,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 			 * Dish network legacy switches (as used by Dish500)
 			 * are controlled by sending 9-bit command words
 			 * spaced 8msec apart.
-			 * the actual command word is switch/port dependant
+			 * the actual command word is switch/port dependent
 			 * so it is up to the userspace application to send
 			 * the right command.
 			 * The command must always start with a '0' after

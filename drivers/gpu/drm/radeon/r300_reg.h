@@ -608,7 +608,7 @@
  * My guess is that there are two bits for each zbias primitive
  * (FILL, LINE, POINT).
  *  One to enable depth test and one for depth write.
- * Yet this doesnt explain why depth writes work ...
+ * Yet this doesn't explain why depth writes work ...
  */
 #define R300_RE_OCCLUSION_CNTL		    0x42B4
 #	define R300_OCCLUSION_ON		(1<<1)
@@ -817,7 +817,7 @@
 #	define R300_TX_MIN_FILTER_LINEAR_MIP_NEAREST        (6  <<  11)
 #	define R300_TX_MIN_FILTER_LINEAR_MIP_LINEAR         (10 <<  11)
 
-/* NOTE: NEAREST doesnt seem to exist.
+/* NOTE: NEAREST doesn't seem to exist.
  * Im not seting MAG_FILTER_MASK and (3 << 11) on for all
  * anisotropy modes because that would void selected mag filter
  */

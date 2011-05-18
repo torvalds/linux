@@ -67,7 +67,7 @@
  * cp foo.bit /dev/icap0
  *
  * Note that unless foo.bit is an appropriately constructed partial
- * bitstream, this has a high likelyhood of overwriting the design
+ * bitstream, this has a high likelihood of overwriting the design
  * currently programmed in the FPGA.
  */
 

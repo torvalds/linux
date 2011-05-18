@@ -10,8 +10,8 @@
  *
  *  This file provides the glue to stick the processor-specific bits
  *  into the kernel in an efficient manner.  The idea is to use branches
- *  when we're only targetting one class of TLB, or indirect calls
- *  when we're targetting multiple classes of TLBs.
+ *  when we're only targeting one class of TLB, or indirect calls
+ *  when we're targeting multiple classes of TLBs.
  */
 #ifdef __KERNEL__
 

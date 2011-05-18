@@ -22,6 +22,7 @@ config MIPS
 	select HAVE_DMA_API_DEBUG
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_SHOW
 	select HAVE_ARCH_JUMP_LABEL
 
 menu "Machine selection"
@@ -777,6 +778,10 @@ config GENERIC_FIND_NEXT_BIT
 	bool
 	default y
 
+config GENERIC_FIND_BIT_LE
+	bool
+	default y
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -857,6 +862,9 @@ config GPIO_TXX9
 
 config CFE
 	bool
+
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool (HIGHMEM && 64BIT_PHYS_ADDR) || 64BIT
 
 config DMA_COHERENT
 	bool
@@ -987,9 +995,6 @@ config IRQ_GT641XX
 	bool
 
 config IRQ_GIC
-	bool
-
-config IRQ_CPU_OCTEON
 	bool
 
 config MIPS_BOARDS_GEN
@@ -1127,7 +1132,7 @@ config CPU_LOONGSON2E
 	  The Loongson 2E processor implements the MIPS III instruction set
 	  with many extensions.
 
-	  It has an internal FPGA northbridge, which is compatiable to
+	  It has an internal FPGA northbridge, which is compatible to
 	  bonito64.
 
 config CPU_LOONGSON2F
@@ -1351,8 +1356,6 @@ config CPU_SB1
 config CPU_CAVIUM_OCTEON
 	bool "Cavium Octeon processor"
 	depends on SYS_HAS_CPU_CAVIUM_OCTEON
-	select IRQ_CPU
-	select IRQ_CPU_OCTEON
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_SMP
@@ -2339,6 +2342,16 @@ config ZONE_DMA32
 source "drivers/pcmcia/Kconfig"
 
 source "drivers/pci/hotplug/Kconfig"
+
+config RAPIDIO
+	bool "RapidIO support"
+	depends on PCI
+	default n
+	help
+	  If you say Y here, the kernel will include drivers and
+	  infrastructure code to support RapidIO interconnect devices.
+
+source "drivers/rapidio/Kconfig"
 
 endmenu
 

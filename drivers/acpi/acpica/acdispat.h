@@ -48,7 +48,7 @@
 #define NAMEOF_ARG_NTE      "__A0"
 
 /*
- * dsopcode - support for late evaluation
+ * dsargs - execution of dynamic arguments for static objects
  */
 acpi_status
 acpi_ds_get_buffer_field_arguments(union acpi_operand_object *obj_desc);
@@ -62,6 +62,20 @@ acpi_status acpi_ds_get_buffer_arguments(union acpi_operand_object *obj_desc);
 
 acpi_status acpi_ds_get_package_arguments(union acpi_operand_object *obj_desc);
 
+/*
+ * dscontrol - support for execution control opcodes
+ */
+acpi_status
+acpi_ds_exec_begin_control_op(struct acpi_walk_state *walk_state,
+			      union acpi_parse_object *op);
+
+acpi_status
+acpi_ds_exec_end_control_op(struct acpi_walk_state *walk_state,
+			    union acpi_parse_object *op);
+
+/*
+ * dsopcode - support for late operand evaluation
+ */
 acpi_status
 acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 				   union acpi_parse_object *op);
@@ -84,17 +98,6 @@ acpi_ds_eval_bank_field_operands(struct acpi_walk_state *walk_state,
 				 union acpi_parse_object *op);
 
 acpi_status acpi_ds_initialize_region(acpi_handle obj_handle);
-
-/*
- * dsctrl - Parser/Interpreter interface, control stack routines
- */
-acpi_status
-acpi_ds_exec_begin_control_op(struct acpi_walk_state *walk_state,
-			      union acpi_parse_object *op);
-
-acpi_status
-acpi_ds_exec_end_control_op(struct acpi_walk_state *walk_state,
-			    union acpi_parse_object *op);
 
 /*
  * dsexec - Parser/Interpreter interface, method execution callbacks
@@ -136,22 +139,25 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 			   struct acpi_walk_state *walk_state);
 
 /*
- * dsload - Parser/Interpreter interface, namespace load callbacks
+ * dsload - Parser/Interpreter interface, pass 1 namespace load callbacks
  */
+acpi_status
+acpi_ds_init_callbacks(struct acpi_walk_state *walk_state, u32 pass_number);
+
 acpi_status
 acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		       union acpi_parse_object **out_op);
 
 acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state);
 
+/*
+ * dsload - Parser/Interpreter interface, pass 2 namespace load callbacks
+ */
 acpi_status
 acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		       union acpi_parse_object **out_op);
 
 acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state);
-
-acpi_status
-acpi_ds_init_callbacks(struct acpi_walk_state *walk_state, u32 pass_number);
 
 /*
  * dsmthdat - method data (locals/args)

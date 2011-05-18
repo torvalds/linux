@@ -62,7 +62,7 @@ typedef struct _S_MIBS_HOST_INFO
 	ULONG			NumDesUsed;
 	ULONG			CurrNumFreeDesc;
 	ULONG			PrevNumFreeDesc;
-	// to keep track the no of byte recieved
+	// to keep track the no of byte received
 	ULONG			PrevNumRcevBytes;
 	ULONG			CurrNumRcevBytes;
 

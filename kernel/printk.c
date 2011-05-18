@@ -53,7 +53,7 @@ void asmlinkage __attribute__((weak)) early_printk(const char *fmt, ...)
 #define __LOG_BUF_LEN	(1 << CONFIG_LOG_BUF_SHIFT)
 
 /* printk's without a loglevel use this.. */
-#define DEFAULT_MESSAGE_LOGLEVEL 4 /* KERN_WARNING */
+#define DEFAULT_MESSAGE_LOGLEVEL CONFIG_DEFAULT_MESSAGE_LOGLEVEL
 
 /* We show everything that is MORE important than this.. */
 #define MINIMUM_CONSOLE_LOGLEVEL 1 /* Minimum loglevel we let people use */
@@ -111,6 +111,11 @@ static DEFINE_SPINLOCK(logbuf_lock);
 static unsigned log_start;	/* Index into log_buf: next char to be read by syslog() */
 static unsigned con_start;	/* Index into log_buf: next char to be sent to consoles */
 static unsigned log_end;	/* Index into log_buf: most-recently-written-char + 1 */
+
+/*
+ * If exclusive_console is non-NULL then only this console is to be printed to.
+ */
+static struct console *exclusive_console;
 
 /*
  *	Array of consoles built from command line options (console=)
@@ -476,6 +481,8 @@ static void __call_console_drivers(unsigned start, unsigned end)
 	struct console *con;
 
 	for_each_console(con) {
+		if (exclusive_console && con != exclusive_console)
+			continue;
 		if ((con->flags & CON_ENABLED) && con->write &&
 				(cpu_online(smp_processor_id()) ||
 				(con->flags & CON_ANYTIME)))
@@ -1230,6 +1237,11 @@ void console_unlock(void)
 		local_irq_restore(flags);
 	}
 	console_locked = 0;
+
+	/* Release the exclusive_console once it is used */
+	if (unlikely(exclusive_console))
+		exclusive_console = NULL;
+
 	up(&console_sem);
 	spin_unlock_irqrestore(&logbuf_lock, flags);
 	if (wake_klogd)
@@ -1315,6 +1327,18 @@ void console_start(struct console *console)
 	console_unlock();
 }
 EXPORT_SYMBOL(console_start);
+
+static int __read_mostly keep_bootcon;
+
+static int __init keep_bootcon_setup(char *str)
+{
+	keep_bootcon = 1;
+	printk(KERN_INFO "debug: skip boot console de-registration.\n");
+
+	return 0;
+}
+
+early_param("keep_bootcon", keep_bootcon_setup);
 
 /*
  * The console driver calls this routine during kernel initialization
@@ -1452,6 +1476,12 @@ void register_console(struct console *newcon)
 		spin_lock_irqsave(&logbuf_lock, flags);
 		con_start = log_start;
 		spin_unlock_irqrestore(&logbuf_lock, flags);
+		/*
+		 * We're about to replay the log buffer.  Only do this to the
+		 * just-registered console to avoid excessive message spam to
+		 * the already-registered consoles.
+		 */
+		exclusive_console = newcon;
 	}
 	console_unlock();
 	console_sysfs_notify();
@@ -1463,7 +1493,9 @@ void register_console(struct console *newcon)
 	 * users know there might be something in the kernel's log buffer that
 	 * went to the bootconsole (that they do not see on the real console)
 	 */
-	if (bcon && ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV)) {
+	if (bcon &&
+	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV) &&
+	    !keep_bootcon) {
 		/* we need to iterate through twice, to make sure we print
 		 * everything out, before we unregister the console(s)
 		 */

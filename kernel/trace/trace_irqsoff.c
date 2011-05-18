@@ -80,7 +80,7 @@ static struct tracer_flags tracer_flags = {
  * skip the latency if the sequence has changed - some other section
  * did a maximum and could disturb our measurement with serial console
  * printouts, etc. Truly coinciding maximum latencies should be rare
- * and what happens together happens separately as well, so this doesnt
+ * and what happens together happens separately as well, so this doesn't
  * decrease the validity of the maximum found:
  */
 static __cacheline_aligned_in_smp	unsigned long max_sequence;

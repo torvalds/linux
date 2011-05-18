@@ -169,7 +169,7 @@ void br_fdb_flush(struct net_bridge *br)
 	spin_unlock_bh(&br->hash_lock);
 }
 
-/* Flush all entries refering to a specific port.
+/* Flush all entries referring to a specific port.
  * if do_all is set also flush static entries
  */
 void br_fdb_delete_by_port(struct net_bridge *br,

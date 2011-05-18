@@ -209,7 +209,7 @@ struct htc_endpoint_credit_dist {
 typedef enum _HTC_CREDIT_DIST_REASON {
     HTC_CREDIT_DIST_SEND_COMPLETE = 0,     /* credits available as a result of completed
                                               send operations (MANDATORY) resulting in credit reports */
-    HTC_CREDIT_DIST_ACTIVITY_CHANGE = 1,   /* a change in endpoint activity occured (OPTIONAL) */
+    HTC_CREDIT_DIST_ACTIVITY_CHANGE = 1,   /* a change in endpoint activity occurred (OPTIONAL) */
     HTC_CREDIT_DIST_SEEK_CREDITS,          /* an endpoint needs to "seek" credits (OPTIONAL) */
     HTC_DUMP_CREDIT_STATE                  /* for debugging, dump any state information that is kept by
                                               the distribution function */
@@ -253,7 +253,7 @@ struct htc_endpoint_stats {
     u32 RxPacketsBundled;       /* count of recv packets received in a bundle */
     u32 RxBundleLookAheads;     /* count of number of bundled lookaheads */
     u32 RxBundleIndFromHdr;     /* count of the number of bundle indications from the HTC header */
-    u32 RxAllocThreshHit;       /* count of the number of times the recv allocation threshhold was hit */
+    u32 RxAllocThreshHit;       /* count of the number of times the recv allocation threshold was hit */
     u32 RxAllocThreshBytes;     /* total number of bytes */
 };
 
@@ -391,7 +391,7 @@ int    HTCSendPkt(HTC_HANDLE HTCHandle, struct htc_packet *pPacket);
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 void        HTCStop(HTC_HANDLE HTCHandle);
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  @desc: Destory HTC service
+  @desc: Destroy HTC service
   @function name: HTCDestroy
   @input: HTCHandle 
   @output:

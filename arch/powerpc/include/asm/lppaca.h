@@ -105,7 +105,7 @@ struct lppaca {
 	// processing of external interrupts.  Note that PLIC will store the
 	// XIRR directly into the xXirrValue field so that another XIRR will
 	// not be presented until this one clears.  The layout of the low
-	// 4-bytes of this Dword is upto SLIC - PLIC just checks whether the
+	// 4-bytes of this Dword is up to SLIC - PLIC just checks whether the
 	// entire Dword is zero or not.  A non-zero value in the low order
 	// 2-bytes will result in SLIC being granted the highest thread
 	// priority upon return.  A 0 will return to SLIC as medium priority.

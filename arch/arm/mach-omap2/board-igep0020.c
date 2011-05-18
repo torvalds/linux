@@ -485,8 +485,10 @@ static struct omap_dss_board_info igep2_dss_data = {
 	.default_device	= &igep2_dvi_device,
 };
 
-static struct regulator_consumer_supply igep2_vpll2_supply =
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss");
+static struct regulator_consumer_supply igep2_vpll2_supplies[] = {
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
+};
 
 static struct regulator_init_data igep2_vpll2 = {
 	.constraints = {
@@ -499,8 +501,8 @@ static struct regulator_init_data igep2_vpll2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &igep2_vpll2_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(igep2_vpll2_supplies),
+	.consumer_supplies	= igep2_vpll2_supplies,
 };
 
 static void __init igep2_display_init(void)
@@ -694,7 +696,7 @@ static void __init igep2_init(void)
 	igep2_init_smsc911x();
 
 	/*
-	 * WLAN-BT combo module from MuRata wich has a Marvell WLAN
+	 * WLAN-BT combo module from MuRata which has a Marvell WLAN
 	 * (88W8686) + CSR Bluetooth chipset. Uses SDIO interface.
 	 */
 	igep2_wlan_bt_init();

@@ -846,7 +846,7 @@ static u32 xhci_find_real_port_number(struct xhci_hcd *xhci,
 		 * Skip ports that don't have known speeds, or have duplicate
 		 * Extended Capabilities port speed entries.
 		 */
-		if (port_speed == 0 || port_speed == -1)
+		if (port_speed == 0 || port_speed == DUPLICATE_ENTRY)
 			continue;
 
 		/*
@@ -974,6 +974,47 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	return 0;
 }
 
+/*
+ * Convert interval expressed as 2^(bInterval - 1) == interval into
+ * straight exponent value 2^n == interval.
+ *
+ */
+static unsigned int xhci_parse_exponent_interval(struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	unsigned int interval;
+
+	interval = clamp_val(ep->desc.bInterval, 1, 16) - 1;
+	if (interval != ep->desc.bInterval - 1)
+		dev_warn(&udev->dev,
+			 "ep %#x - rounding interval to %d microframes\n",
+			 ep->desc.bEndpointAddress,
+			 1 << interval);
+
+	return interval;
+}
+
+/*
+ * Convert bInterval expressed in frames (in 1-255 range) to exponent of
+ * microframes, rounded down to nearest power of 2.
+ */
+static unsigned int xhci_parse_frame_interval(struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	unsigned int interval;
+
+	interval = fls(8 * ep->desc.bInterval) - 1;
+	interval = clamp_val(interval, 3, 10);
+	if ((1 << interval) != 8 * ep->desc.bInterval)
+		dev_warn(&udev->dev,
+			 "ep %#x - rounding interval to %d microframes, ep desc says %d microframes\n",
+			 ep->desc.bEndpointAddress,
+			 1 << interval,
+			 8 * ep->desc.bInterval);
+
+	return interval;
+}
+
 /* Return the polling or NAK interval.
  *
  * The polling interval is expressed in "microframes".  If xHCI's Interval field
@@ -982,7 +1023,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
  * The NAK interval is one NAK per 1 to 255 microframes, or no NAKs if interval
  * is set to 0.
  */
-static inline unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
+static unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
 	unsigned int interval = 0;
@@ -991,45 +1032,38 @@ static inline unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
 	case USB_SPEED_HIGH:
 		/* Max NAK rate */
 		if (usb_endpoint_xfer_control(&ep->desc) ||
-				usb_endpoint_xfer_bulk(&ep->desc))
+		    usb_endpoint_xfer_bulk(&ep->desc)) {
 			interval = ep->desc.bInterval;
+			break;
+		}
 		/* Fall through - SS and HS isoc/int have same decoding */
+
 	case USB_SPEED_SUPER:
 		if (usb_endpoint_xfer_int(&ep->desc) ||
-				usb_endpoint_xfer_isoc(&ep->desc)) {
-			if (ep->desc.bInterval == 0)
-				interval = 0;
-			else
-				interval = ep->desc.bInterval - 1;
-			if (interval > 15)
-				interval = 15;
-			if (interval != ep->desc.bInterval + 1)
-				dev_warn(&udev->dev, "ep %#x - rounding interval to %d microframes\n",
-						ep->desc.bEndpointAddress, 1 << interval);
+		    usb_endpoint_xfer_isoc(&ep->desc)) {
+			interval = xhci_parse_exponent_interval(udev, ep);
 		}
 		break;
-	/* Convert bInterval (in 1-255 frames) to microframes and round down to
-	 * nearest power of 2.
-	 */
+
 	case USB_SPEED_FULL:
+		if (usb_endpoint_xfer_int(&ep->desc)) {
+			interval = xhci_parse_exponent_interval(udev, ep);
+			break;
+		}
+		/*
+		 * Fall through for isochronous endpoint interval decoding
+		 * since it uses the same rules as low speed interrupt
+		 * endpoints.
+		 */
+
 	case USB_SPEED_LOW:
 		if (usb_endpoint_xfer_int(&ep->desc) ||
-				usb_endpoint_xfer_isoc(&ep->desc)) {
-			interval = fls(8*ep->desc.bInterval) - 1;
-			if (interval > 10)
-				interval = 10;
-			if (interval < 3)
-				interval = 3;
-			if ((1 << interval) != 8*ep->desc.bInterval)
-				dev_warn(&udev->dev,
-						"ep %#x - rounding interval"
-						" to %d microframes, "
-						"ep desc says %d microframes\n",
-						ep->desc.bEndpointAddress,
-						1 << interval,
-						8*ep->desc.bInterval);
+		    usb_endpoint_xfer_isoc(&ep->desc)) {
+
+			interval = xhci_parse_frame_interval(udev, ep);
 		}
 		break;
+
 	default:
 		BUG();
 	}
@@ -1041,7 +1075,7 @@ static inline unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
  * transaction opportunities per microframe", but that goes in the Max Burst
  * endpoint context field.
  */
-static inline u32 xhci_get_endpoint_mult(struct usb_device *udev,
+static u32 xhci_get_endpoint_mult(struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
 	if (udev->speed != USB_SPEED_SUPER ||
@@ -1050,7 +1084,7 @@ static inline u32 xhci_get_endpoint_mult(struct usb_device *udev,
 	return ep->ss_ep_comp.bmAttributes;
 }
 
-static inline u32 xhci_get_endpoint_type(struct usb_device *udev,
+static u32 xhci_get_endpoint_type(struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
 	int in;
@@ -1084,7 +1118,7 @@ static inline u32 xhci_get_endpoint_type(struct usb_device *udev,
  * Basically, this is the maxpacket size, multiplied by the burst size
  * and mult size.
  */
-static inline u32 xhci_get_max_esit_payload(struct xhci_hcd *xhci,
+static u32 xhci_get_max_esit_payload(struct xhci_hcd *xhci,
 		struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
@@ -1727,12 +1761,12 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 			 * found a similar duplicate.
 			 */
 			if (xhci->port_array[i] != major_revision &&
-				xhci->port_array[i] != (u8) -1) {
+				xhci->port_array[i] != DUPLICATE_ENTRY) {
 				if (xhci->port_array[i] == 0x03)
 					xhci->num_usb3_ports--;
 				else
 					xhci->num_usb2_ports--;
-				xhci->port_array[i] = (u8) -1;
+				xhci->port_array[i] = DUPLICATE_ENTRY;
 			}
 			/* FIXME: Should we disable the port? */
 			continue;
@@ -1831,7 +1865,7 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 		for (i = 0; i < num_ports; i++) {
 			if (xhci->port_array[i] == 0x03 ||
 					xhci->port_array[i] == 0 ||
-					xhci->port_array[i] == -1)
+					xhci->port_array[i] == DUPLICATE_ENTRY)
 				continue;
 
 			xhci->usb2_ports[port_index] =

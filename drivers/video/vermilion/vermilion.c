@@ -891,8 +891,7 @@ static int vmlfb_set_par(struct fb_info *info)
 	int ret;
 
 	mutex_lock(&vml_mutex);
-	list_del(&vinfo->head);
-	list_add(&vinfo->head, (subsys) ? &global_has_mode : &global_no_mode);
+	list_move(&vinfo->head, (subsys) ? &global_has_mode : &global_no_mode);
 	ret = vmlfb_set_par_locked(vinfo);
 
 	mutex_unlock(&vml_mutex);

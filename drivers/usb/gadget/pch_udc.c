@@ -1608,7 +1608,7 @@ static int pch_udc_pcd_queue(struct usb_ep *usbep, struct usb_request *usbreq,
 		return -EINVAL;
 	if (!dev->driver || (dev->gadget.speed == USB_SPEED_UNKNOWN))
 		return -ESHUTDOWN;
-	spin_lock_irqsave(&ep->dev->lock, iflags);
+	spin_lock_irqsave(&dev->lock, iflags);
 	/* map the buffer for dma */
 	if (usbreq->length &&
 	    ((usbreq->dma == DMA_ADDR_INVALID) || !usbreq->dma)) {
@@ -1625,8 +1625,10 @@ static int pch_udc_pcd_queue(struct usb_ep *usbep, struct usb_request *usbreq,
 							     DMA_FROM_DEVICE);
 		} else {
 			req->buf = kzalloc(usbreq->length, GFP_ATOMIC);
-			if (!req->buf)
-				return -ENOMEM;
+			if (!req->buf) {
+				retval = -ENOMEM;
+				goto probe_end;
+			}
 			if (ep->in) {
 				memcpy(req->buf, usbreq->buf, usbreq->length);
 				req->dma = dma_map_single(&dev->pdev->dev,

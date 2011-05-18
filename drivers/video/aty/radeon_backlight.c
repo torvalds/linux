@@ -158,6 +158,7 @@ void radeonfb_bl_init(struct radeonfb_info *rinfo)
 	snprintf(name, sizeof(name), "radeonbl%d", rinfo->info->node);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
 	bd = backlight_device_register(name, rinfo->info->dev, pdata,
 				       &radeon_bl_data, &props);

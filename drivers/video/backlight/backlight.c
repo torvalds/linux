@@ -19,6 +19,12 @@
 #include <asm/backlight.h>
 #endif
 
+static const char const *backlight_types[] = {
+	[BACKLIGHT_RAW] = "raw",
+	[BACKLIGHT_PLATFORM] = "platform",
+	[BACKLIGHT_FIRMWARE] = "firmware",
+};
+
 #if defined(CONFIG_FB) || (defined(CONFIG_FB_MODULE) && \
 			   defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE))
 /* This callback gets called when something important happens inside a
@@ -169,6 +175,14 @@ static ssize_t backlight_store_brightness(struct device *dev,
 	return rc;
 }
 
+static ssize_t backlight_show_type(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct backlight_device *bd = to_backlight_device(dev);
+
+	return sprintf(buf, "%s\n", backlight_types[bd->props.type]);
+}
+
 static ssize_t backlight_show_max_brightness(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -234,6 +248,7 @@ static struct device_attribute bl_device_attributes[] = {
 	__ATTR(actual_brightness, 0444, backlight_show_actual_brightness,
 		     NULL),
 	__ATTR(max_brightness, 0444, backlight_show_max_brightness, NULL),
+	__ATTR(type, 0444, backlight_show_type, NULL),
 	__ATTR_NULL,
 };
 
@@ -292,9 +307,16 @@ struct backlight_device *backlight_device_register(const char *name,
 	dev_set_drvdata(&new_bd->dev, devdata);
 
 	/* Set default properties */
-	if (props)
+	if (props) {
 		memcpy(&new_bd->props, props,
 		       sizeof(struct backlight_properties));
+		if (props->type <= 0 || props->type >= BACKLIGHT_TYPE_MAX) {
+			WARN(1, "%s: invalid backlight type", name);
+			new_bd->props.type = BACKLIGHT_RAW;
+		}
+	} else {
+		new_bd->props.type = BACKLIGHT_RAW;
+	}
 
 	rc = device_register(&new_bd->dev);
 	if (rc) {

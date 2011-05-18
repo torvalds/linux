@@ -2598,7 +2598,7 @@ qla82xx_calc_dsd_lists(uint16_t dsds)
  * qla82xx_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occured, else zero.
+ * Returns non-zero if a failure occurred, else zero.
  */
 int
 qla82xx_start_scsi(srb_t *sp)

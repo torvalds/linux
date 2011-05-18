@@ -21,8 +21,8 @@
 	 */
 
 	.macro addruart, rp, rv
-		ldreq	\rp, = S3C_PA_UART
-		ldrne	\rv, = S3C_VA_UART
+		ldr	\rp, = S3C_PA_UART
+		ldr	\rv, = S3C_VA_UART
 #if CONFIG_DEBUG_S3C_UART != 0
 		add	\rp, \rp, #(0x10000 * CONFIG_DEBUG_S3C_UART)
 		add	\rv, \rv, #(0x10000 * CONFIG_DEBUG_S3C_UART)

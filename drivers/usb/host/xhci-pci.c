@@ -114,6 +114,10 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	if (pdev->vendor == PCI_VENDOR_ID_NEC)
 		xhci->quirks |= XHCI_NEC_HOST;
 
+	/* AMD PLL quirk */
+	if (pdev->vendor == PCI_VENDOR_ID_AMD && usb_amd_find_chipset_info())
+		xhci->quirks |= XHCI_AMD_PLL_FIX;
+
 	/* Make sure the HC is halted. */
 	retval = xhci_halt(xhci);
 	if (retval)

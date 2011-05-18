@@ -285,7 +285,7 @@ static inline void pxa25x_init_pm(void) {}
 
 static int pxa25x_set_wake(struct irq_data *d, unsigned int on)
 {
-	int gpio = IRQ_TO_GPIO(d->irq);
+	int gpio = irq_to_gpio(d->irq);
 	uint32_t mask = 0;
 
 	if (gpio >= 0 && gpio < 85)

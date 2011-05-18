@@ -455,7 +455,7 @@ static int s3c_cpufreq_resume(struct cpufreq_policy *policy)
 
 	/* whilst we will be called later on, we try and re-set the
 	 * cpu frequencies as soon as possible so that we do not end
-	 * up resuming devices and then immediatley having to re-set
+	 * up resuming devices and then immediately having to re-set
 	 * a number of settings once these devices have restarted.
 	 *
 	 * as a note, it is expected devices are not used until they

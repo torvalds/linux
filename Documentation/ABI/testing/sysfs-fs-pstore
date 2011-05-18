@@ -1,7 +1,0 @@
-What:		/sys/fs/pstore/kmsg_bytes
-Date:		January 2011
-Kernel Version: 2.6.38
-Contact:	"Tony Luck" <tony.luck@intel.com>
-Description:
-		Controls amount of console log that will be saved
-		to persistent store on oops/panic.

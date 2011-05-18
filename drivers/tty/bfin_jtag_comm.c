@@ -251,11 +251,11 @@ static int __init bfin_jc_init(void)
 	bfin_jc_write_buf.head = bfin_jc_write_buf.tail = 0;
 	bfin_jc_write_buf.buf = kmalloc(CIRC_SIZE, GFP_KERNEL);
 	if (!bfin_jc_write_buf.buf)
-		goto err;
+		goto err_buf;
 
 	bfin_jc_driver = alloc_tty_driver(1);
 	if (!bfin_jc_driver)
-		goto err;
+		goto err_driver;
 
 	bfin_jc_driver->owner        = THIS_MODULE;
 	bfin_jc_driver->driver_name  = DRV_NAME;
@@ -275,7 +275,9 @@ static int __init bfin_jc_init(void)
 
  err:
 	put_tty_driver(bfin_jc_driver);
+ err_driver:
 	kfree(bfin_jc_write_buf.buf);
+ err_buf:
 	kthread_stop(bfin_jc_kthread);
 	return ret;
 }

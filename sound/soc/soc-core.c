@@ -92,8 +92,8 @@ static int min_bytes_needed(unsigned long val)
 static int format_register_str(struct snd_soc_codec *codec,
 			       unsigned int reg, char *buf, size_t len)
 {
-	int wordsize = codec->driver->reg_word_size * 2;
-	int regsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
+	int wordsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
+	int regsize = codec->driver->reg_word_size * 2;
 	int ret;
 	char tmpbuf[len + 1];
 	char regbuf[regsize + 1];
@@ -132,8 +132,8 @@ static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf,
 	size_t total = 0;
 	loff_t p = 0;
 
-	wordsize = codec->driver->reg_word_size * 2;
-	regsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
+	wordsize = min_bytes_needed(codec->driver->reg_cache_size) * 2;
+	regsize = codec->driver->reg_word_size * 2;
 
 	len = wordsize + regsize + 2 + 1;
 
@@ -259,8 +259,6 @@ static ssize_t codec_reg_write_file(struct file *file,
 	while (*start == ' ')
 		start++;
 	reg = simple_strtoul(start, &start, 16);
-	if ((reg >= codec->driver->reg_cache_size) || (reg % step))
-		return -EINVAL;
 	while (*start == ' ')
 		start++;
 	if (strict_strtoul(start, 16, &value))
@@ -631,6 +629,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 			runtime->hw.rates |= codec_dai_drv->capture.rates;
 	}
 
+	ret = -EINVAL;
 	snd_pcm_limit_hw_rates(runtime);
 	if (!runtime->hw.rates) {
 		printk(KERN_ERR "asoc: %s <-> %s No matching rates\n",
@@ -642,7 +641,8 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 			codec_dai->name, cpu_dai->name);
 		goto config_err;
 	}
-	if (!runtime->hw.channels_min || !runtime->hw.channels_max) {
+	if (!runtime->hw.channels_min || !runtime->hw.channels_max ||
+	    runtime->hw.channels_min > runtime->hw.channels_max) {
 		printk(KERN_ERR "asoc: %s <-> %s No matching channels\n",
 				codec_dai->name, cpu_dai->name);
 		goto config_err;
@@ -2062,6 +2062,7 @@ const struct dev_pm_ops snd_soc_pm_ops = {
 	.resume = snd_soc_resume,
 	.poweroff = snd_soc_poweroff,
 };
+EXPORT_SYMBOL_GPL(snd_soc_pm_ops);
 
 /* ASoC platform driver */
 static struct platform_driver soc_driver = {
@@ -3289,6 +3290,8 @@ int snd_soc_register_card(struct snd_soc_card *card)
 
 	if (!card->name || !card->dev)
 		return -EINVAL;
+
+	dev_set_drvdata(card->dev, card);
 
 	snd_soc_initialize_card_lists(card);
 

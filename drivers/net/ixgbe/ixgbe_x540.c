@@ -573,7 +573,7 @@ static s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask)
  * @hw: pointer to hardware structure
  * @mask: Mask to specify which semaphore to release
  *
- * Releases the SWFW semaphore throught the SW_FW_SYNC register
+ * Releases the SWFW semaphore through the SW_FW_SYNC register
  * for the specified function (CSR, PHY0, PHY1, EVM, Flash)
  **/
 static void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask)

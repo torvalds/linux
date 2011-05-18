@@ -183,6 +183,7 @@ struct zd_usb_rx {
 	spinlock_t lock;
 	struct mutex setup_mutex;
 	struct delayed_work idle_work;
+	struct tasklet_struct reset_timer_tasklet;
 	u8 fragment[2 * USB_MAX_RX_SIZE];
 	unsigned int fragment_length;
 	unsigned int usb_packet_size;

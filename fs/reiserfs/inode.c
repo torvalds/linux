@@ -3217,7 +3217,6 @@ const struct address_space_operations reiserfs_address_space_operations = {
 	.readpages = reiserfs_readpages,
 	.releasepage = reiserfs_releasepage,
 	.invalidatepage = reiserfs_invalidatepage,
-	.sync_page = block_sync_page,
 	.write_begin = reiserfs_write_begin,
 	.write_end = reiserfs_write_end,
 	.bmap = reiserfs_aop_bmap,
