@@ -64,6 +64,8 @@ Changelog:
 
 #include "../comedidev.h"
 
+#define BOARDNAME "vmk80xx"
+
 MODULE_AUTHOR("Manuel Gebele <forensixs@gmx.de>");
 MODULE_DESCRIPTION("Velleman USB Board Low-Level Driver");
 MODULE_SUPPORTED_DEVICE("K8055/K8061 aka VM110/VM140");
@@ -1480,6 +1482,8 @@ static int vmk80xx_probe(struct usb_interface *intf,
 
 	mutex_unlock(&glb_mutex);
 
+	comedi_usb_auto_config(dev->udev, BOARDNAME);
+
 	return 0;
 error:
 	mutex_unlock(&glb_mutex);
@@ -1495,6 +1499,8 @@ static void vmk80xx_disconnect(struct usb_interface *intf)
 
 	if (!dev)
 		return;
+
+	comedi_usb_auto_unconfig(dev->udev);
 
 	mutex_lock(&glb_mutex);
 	down(&dev->limit_sem);
@@ -1533,10 +1539,16 @@ static struct comedi_driver driver_vmk80xx = {
 
 static int __init vmk80xx_init(void)
 {
+	int retval;
+
 	printk(KERN_INFO "vmk80xx: version 0.8.01 "
 	       "Manuel Gebele <forensixs@gmx.de>\n");
-	usb_register(&vmk80xx_driver);
-	return comedi_driver_register(&driver_vmk80xx);
+
+	retval = comedi_driver_register(&driver_vmk80xx);
+	if (retval < 0)
+		return retval;
+
+	return usb_register(&vmk80xx_driver);
 }
 
 static void __exit vmk80xx_exit(void)
