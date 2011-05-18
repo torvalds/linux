@@ -206,7 +206,7 @@ __lis3l02dq_write_data_ready_config(struct device *dev,
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
 /* Get the current event mask register */
-	ret = lis3l02dq_spi_read_reg_8(dev,
+	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_CTRL_2_ADDR,
 				       &valold);
 	if (ret)
@@ -220,12 +220,12 @@ __lis3l02dq_write_data_ready_config(struct device *dev,
 
 		valold &= ~LIS3L02DQ_REG_CTRL_2_ENABLE_DATA_READY_GENERATION;
 		/* The double write is to overcome a hardware bug?*/
-		ret = lis3l02dq_spi_write_reg_8(dev,
+		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 						LIS3L02DQ_REG_CTRL_2_ADDR,
 						&valold);
 		if (ret)
 			goto error_ret;
-		ret = lis3l02dq_spi_write_reg_8(dev,
+		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 						LIS3L02DQ_REG_CTRL_2_ADDR,
 						&valold);
 		if (ret)
@@ -240,7 +240,7 @@ __lis3l02dq_write_data_ready_config(struct device *dev,
 		/* if not set, enable requested */
 		valold |= LIS3L02DQ_REG_CTRL_2_ENABLE_DATA_READY_GENERATION;
 		iio_add_event_to_list(list, &indio_dev->interrupts[0]->ev_list);
-		ret = lis3l02dq_spi_write_reg_8(dev,
+		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 						LIS3L02DQ_REG_CTRL_2_ADDR,
 						&valold);
 		if (ret)
@@ -275,7 +275,7 @@ static int lis3l02dq_data_rdy_trigger_set_state(struct iio_trigger *trig,
 		/* Clear any outstanding ready events */
 		ret = lis3l02dq_read_all(st, NULL);
 	}
-	lis3l02dq_spi_read_reg_8(&st->help.indio_dev->dev,
+	lis3l02dq_spi_read_reg_8(st->help.indio_dev,
 				 LIS3L02DQ_REG_WAKE_UP_SRC_ADDR,
 				 &t);
 	return ret;
@@ -328,47 +328,51 @@ static int lis3l02dq_trig_try_reen(struct iio_trigger *trig)
 int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 {
 	int ret;
-	struct lis3l02dq_state *state = indio_dev->dev_data;
+	struct iio_sw_ring_helper_state *h
+		= iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 
-	state->trig = iio_allocate_trigger();
-	if (!state->trig)
+	st->trig = iio_allocate_trigger();
+	if (!st->trig)
 		return -ENOMEM;
 
-	state->trig->name = kasprintf(GFP_KERNEL,
-				      "lis3l02dq-dev%d",
-				      indio_dev->id);
-	if (!state->trig->name) {
+	st->trig->name = kasprintf(GFP_KERNEL,
+				   "lis3l02dq-dev%d",
+				   indio_dev->id);
+	if (!st->trig->name) {
 		ret = -ENOMEM;
 		goto error_free_trig;
 	}
 
-	state->trig->dev.parent = &state->us->dev;
-	state->trig->owner = THIS_MODULE;
-	state->trig->private_data = state;
-	state->trig->set_trigger_state = &lis3l02dq_data_rdy_trigger_set_state;
-	state->trig->try_reenable = &lis3l02dq_trig_try_reen;
-	state->trig->control_attrs = &lis3l02dq_trigger_attr_group;
-	ret = iio_trigger_register(state->trig);
+	st->trig->dev.parent = &st->us->dev;
+	st->trig->owner = THIS_MODULE;
+	st->trig->private_data = st;
+	st->trig->set_trigger_state = &lis3l02dq_data_rdy_trigger_set_state;
+	st->trig->try_reenable = &lis3l02dq_trig_try_reen;
+	st->trig->control_attrs = &lis3l02dq_trigger_attr_group;
+	ret = iio_trigger_register(st->trig);
 	if (ret)
 		goto error_free_trig_name;
 
 	return 0;
 
 error_free_trig_name:
-	kfree(state->trig->name);
+	kfree(st->trig->name);
 error_free_trig:
-	iio_free_trigger(state->trig);
+	iio_free_trigger(st->trig);
 
 	return ret;
 }
 
 void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 {
-	struct lis3l02dq_state *state = indio_dev->dev_data;
+	struct iio_sw_ring_helper_state *h
+		= iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 
-	iio_trigger_unregister(state->trig);
-	kfree(state->trig->name);
-	iio_free_trigger(state->trig);
+	iio_trigger_unregister(st->trig);
+	kfree(st->trig->name);
+	iio_free_trigger(st->trig);
 }
 
 void lis3l02dq_unconfigure_ring(struct iio_dev *indio_dev)
@@ -384,7 +388,7 @@ static int lis3l02dq_ring_postenable(struct iio_dev *indio_dev)
 	int ret;
 	bool oneenabled = false;
 
-	ret = lis3l02dq_spi_read_reg_8(&indio_dev->dev,
+	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_CTRL_1_ADDR,
 				       &t);
 	if (ret)
@@ -408,7 +412,7 @@ static int lis3l02dq_ring_postenable(struct iio_dev *indio_dev)
 
 	if (!oneenabled) /* what happens in this case is unknown */
 		return -EINVAL;
-	ret = lis3l02dq_spi_write_reg_8(&indio_dev->dev,
+	ret = lis3l02dq_spi_write_reg_8(indio_dev,
 					LIS3L02DQ_REG_CTRL_1_ADDR,
 					&t);
 	if (ret)
@@ -429,7 +433,7 @@ static int lis3l02dq_ring_predisable(struct iio_dev *indio_dev)
 	if (ret)
 		goto error_ret;
 
-	ret = lis3l02dq_spi_read_reg_8(&indio_dev->dev,
+	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_CTRL_1_ADDR,
 				       &t);
 	if (ret)
@@ -438,7 +442,7 @@ static int lis3l02dq_ring_predisable(struct iio_dev *indio_dev)
 		LIS3L02DQ_REG_CTRL_1_AXES_Y_ENABLE |
 		LIS3L02DQ_REG_CTRL_1_AXES_Z_ENABLE;
 
-	ret = lis3l02dq_spi_write_reg_8(&indio_dev->dev,
+	ret = lis3l02dq_spi_write_reg_8(indio_dev,
 					LIS3L02DQ_REG_CTRL_1_ADDR,
 					&t);
 

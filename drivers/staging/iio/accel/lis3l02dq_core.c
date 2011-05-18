@@ -39,9 +39,17 @@
  * This means that use cannot be made of spi_write etc.
  */
 
-static int __lis3l02dq_spi_read_reg_8(struct lis3l02dq_state *st,
-				      u8 reg_address, u8 *val)
+/**
+ * lis3l02dq_spi_read_reg_8() - read single byte from a single register
+ * @indio_dev: iio_dev for this actual device
+ * @reg_address: the address of the register to be read
+ * @val: pass back the resulting value
+ **/
+int lis3l02dq_spi_read_reg_8(struct iio_dev *indio_dev,
+			     u8 reg_address, u8 *val)
 {
+	struct iio_sw_ring_helper_state *h = iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 	struct spi_message msg;
 	int ret;
 	struct spi_transfer xfer = {
@@ -49,7 +57,6 @@ static int __lis3l02dq_spi_read_reg_8(struct lis3l02dq_state *st,
 		.rx_buf = st->rx,
 		.bits_per_word = 8,
 		.len = 2,
-		.cs_change = 1,
 	};
 
 	mutex_lock(&st->buf_lock);
@@ -64,50 +71,26 @@ static int __lis3l02dq_spi_read_reg_8(struct lis3l02dq_state *st,
 
 	return ret;
 }
-/**
- * lis3l02dq_spi_read_reg_8() - read single byte from a single register
- * @dev: device asosciated with child of actual device (iio_dev or iio_trig)
- * @reg_address: the address of the register to be read
- * @val: pass back the resulting value
- **/
-int lis3l02dq_spi_read_reg_8(struct device *dev, u8 reg_address, u8 *val)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct iio_sw_ring_helper_state *h = iio_dev_get_devdata(indio_dev);
-	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
-	return __lis3l02dq_spi_read_reg_8(st, reg_address, val);
-}
 
 /**
  * lis3l02dq_spi_write_reg_8() - write single byte to a register
- * @dev: device associated with child of actual device (iio_dev or iio_trig)
+ * @indio_dev: iio_dev for this device
  * @reg_address: the address of the register to be written
  * @val: the value to write
  **/
-int lis3l02dq_spi_write_reg_8(struct device *dev,
+int lis3l02dq_spi_write_reg_8(struct iio_dev *indio_dev,
 			      u8 reg_address,
 			      u8 *val)
 {
 	int ret;
-	struct spi_message msg;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct iio_sw_ring_helper_state *h
 		= iio_dev_get_devdata(indio_dev);
 	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
-	struct spi_transfer xfer = {
-		.tx_buf = st->tx,
-		.bits_per_word = 8,
-		.len = 2,
-		.cs_change = 1,
-	};
 
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = LIS3L02DQ_WRITE_REG(reg_address);
 	st->tx[1] = *val;
-
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->us, &msg);
+	ret = spi_write(st->us, st->tx, 2);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -115,18 +98,17 @@ int lis3l02dq_spi_write_reg_8(struct device *dev,
 
 /**
  * lisl302dq_spi_write_reg_s16() - write 2 bytes to a pair of registers
- * @dev: device associated with child of actual device (iio_dev or iio_trig)
- * @reg_address: the address of the lower of the two registers. Second register
- *               is assumed to have address one greater.
- * @val: value to be written
+ * @indio_dev: iio_dev for this device
+ * @lower_reg_address: the address of the lower of the two registers.
+ *               Second register is assumed to have address one greater.
+ * @value: value to be written
  **/
-static int lis3l02dq_spi_write_reg_s16(struct device *dev,
+static int lis3l02dq_spi_write_reg_s16(struct iio_dev *indio_dev,
 				       u8 lower_reg_address,
 				       s16 value)
 {
 	int ret;
 	struct spi_message msg;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct iio_sw_ring_helper_state *h
 		= iio_dev_get_devdata(indio_dev);
 	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
@@ -139,7 +121,6 @@ static int lis3l02dq_spi_write_reg_s16(struct device *dev,
 			.tx_buf = st->tx + 2,
 			.bits_per_word = 8,
 			.len = 2,
-			.cs_change = 1,
 		},
 	};
 
@@ -158,10 +139,14 @@ static int lis3l02dq_spi_write_reg_s16(struct device *dev,
 	return ret;
 }
 
-static int lis3l02dq_read_16bit_s(struct lis3l02dq_state *st,
+static int lis3l02dq_read_reg_s16(struct iio_dev *indio_dev,
 				  u8 lower_reg_address,
 				  int *val)
 {
+	struct iio_sw_ring_helper_state *h
+		= iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
+
 	struct spi_message msg;
 	int ret;
 	s16 tempval;
@@ -176,7 +161,6 @@ static int lis3l02dq_read_16bit_s(struct lis3l02dq_state *st,
 			.rx_buf = st->rx + 2,
 			.bits_per_word = 8,
 			.len = 2,
-			.cs_change = 0,
 		},
 	};
 
@@ -224,11 +208,7 @@ static int lis3l02dq_read_thresh(struct iio_dev *indio_dev,
 				 int e,
 				 int *val)
 {
-	struct iio_sw_ring_helper_state *h
-		= iio_dev_get_devdata(indio_dev);
-	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
-
-	return lis3l02dq_read_16bit_s(st, LIS3L02DQ_REG_THS_L_ADDR, val);
+	return lis3l02dq_read_reg_s16(indio_dev, LIS3L02DQ_REG_THS_L_ADDR, val);
 }
 
 static int lis3l02dq_write_thresh(struct iio_dev *indio_dev,
@@ -236,7 +216,7 @@ static int lis3l02dq_write_thresh(struct iio_dev *indio_dev,
 				  int val)
 {
 	u16 value = val;
-	return lis3l02dq_spi_write_reg_s16(&indio_dev->dev,
+	return lis3l02dq_spi_write_reg_s16(indio_dev,
 					   LIS3L02DQ_REG_THS_L_ADDR,
 					   value);
 }
@@ -250,10 +230,8 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 	u8 utemp;
 	s8 stemp;
 	ssize_t ret = 0;
-	struct iio_sw_ring_helper_state *h
-		= iio_dev_get_devdata(indio_dev);
-	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 	u8 reg;
+
 	switch (mask) {
 	case 0:
 		/* Take the iio_dev status lock */
@@ -265,7 +243,7 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 		else {
 			reg = lis3l02dq_axis_map
 				[LIS3L02DQ_ACCEL][chan->address];
-			ret = lis3l02dq_read_16bit_s(st, reg, val);
+			ret = lis3l02dq_read_reg_s16(indio_dev, reg, val);
 		}
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
@@ -275,7 +253,7 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT_PLUS_MICRO;
 	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
 		reg = lis3l02dq_axis_map[LIS3L02DQ_GAIN][chan->address];
-		ret = __lis3l02dq_spi_read_reg_8(st, reg, &utemp);
+		ret = lis3l02dq_spi_read_reg_8(indio_dev, reg, &utemp);
 		if (ret)
 			goto error_ret;
 		/* to match with what previous code does */
@@ -284,7 +262,7 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 
 	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
 		reg = lis3l02dq_axis_map[LIS3L02DQ_BIAS][chan->address];
-		ret = __lis3l02dq_spi_read_reg_8(st, reg, (u8 *)&stemp);
+		ret = lis3l02dq_spi_read_reg_8(indio_dev, reg, (u8 *)&stemp);
 		/* to match with what previous code does */
 		*val = stemp;
 		return IIO_VAL_INT;
@@ -297,9 +275,10 @@ static ssize_t lis3l02dq_read_frequency(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	int ret, len = 0;
 	s8 t;
-	ret = lis3l02dq_spi_read_reg_8(dev,
+	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_CTRL_1_ADDR,
 				       (u8 *)&t);
 	if (ret)
@@ -337,7 +316,7 @@ static ssize_t lis3l02dq_write_frequency(struct device *dev,
 		return ret;
 
 	mutex_lock(&indio_dev->mlock);
-	ret = lis3l02dq_spi_read_reg_8(dev,
+	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_CTRL_1_ADDR,
 				       &t);
 	if (ret)
@@ -362,7 +341,7 @@ static ssize_t lis3l02dq_write_frequency(struct device *dev,
 		goto error_ret_mutex;
 	}
 
-	ret = lis3l02dq_spi_write_reg_8(dev,
+	ret = lis3l02dq_spi_write_reg_8(indio_dev,
 					LIS3L02DQ_REG_CTRL_1_ADDR,
 					&t);
 
@@ -383,7 +362,7 @@ static int lis3l02dq_initial_setup(struct lis3l02dq_state *st)
 
 	val = LIS3L02DQ_DEFAULT_CTRL1;
 	/* Write suitable defaults to ctrl1 */
-	ret = lis3l02dq_spi_write_reg_8(&st->help.indio_dev->dev,
+	ret = lis3l02dq_spi_write_reg_8(st->help.indio_dev,
 					LIS3L02DQ_REG_CTRL_1_ADDR,
 					&val);
 	if (ret) {
@@ -391,7 +370,7 @@ static int lis3l02dq_initial_setup(struct lis3l02dq_state *st)
 		goto err_ret;
 	}
 	/* Repeat as sometimes doesn't work first time?*/
-	ret = lis3l02dq_spi_write_reg_8(&st->help.indio_dev->dev,
+	ret = lis3l02dq_spi_write_reg_8(st->help.indio_dev,
 					LIS3L02DQ_REG_CTRL_1_ADDR,
 					&val);
 	if (ret) {
@@ -401,17 +380,18 @@ static int lis3l02dq_initial_setup(struct lis3l02dq_state *st)
 
 	/* Read back to check this has worked acts as loose test of correct
 	 * chip */
-	ret = lis3l02dq_spi_read_reg_8(&st->help.indio_dev->dev,
+	ret = lis3l02dq_spi_read_reg_8(st->help.indio_dev,
 				       LIS3L02DQ_REG_CTRL_1_ADDR,
 				       &valtest);
 	if (ret || (valtest != val)) {
-		dev_err(&st->help.indio_dev->dev, "device not playing ball");
+		dev_err(&st->help.indio_dev->dev,
+			"device not playing ball %d %d\n", valtest, val);
 		ret = -EINVAL;
 		goto err_ret;
 	}
 
 	val = LIS3L02DQ_DEFAULT_CTRL2;
-	ret = lis3l02dq_spi_write_reg_8(&st->help.indio_dev->dev,
+	ret = lis3l02dq_spi_write_reg_8(st->help.indio_dev,
 					LIS3L02DQ_REG_CTRL_2_ADDR,
 					&val);
 	if (ret) {
@@ -420,7 +400,7 @@ static int lis3l02dq_initial_setup(struct lis3l02dq_state *st)
 	}
 
 	val = LIS3L02DQ_REG_WAKE_UP_CFG_LATCH_SRC;
-	ret = lis3l02dq_spi_write_reg_8(&st->help.indio_dev->dev,
+	ret = lis3l02dq_spi_write_reg_8(st->help.indio_dev,
 					LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
 					&val);
 	if (ret)
@@ -488,7 +468,7 @@ static ssize_t lis3l02dq_read_event_config(struct iio_dev *indio_dev,
 	u8 mask = (1 << (IIO_EVENT_CODE_EXTRACT_MODIFIER(event_code)*2 +
 			 (IIO_EVENT_CODE_EXTRACT_DIR(event_code) ==
 			  IIO_EV_DIR_RISING)));
-	ret = lis3l02dq_spi_read_reg_8(&indio_dev->dev,
+	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
 				       &val);
 	if (ret < 0)
@@ -512,12 +492,12 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 
 	mutex_lock(&indio_dev->mlock);
 	/* read current control */
-	ret = lis3l02dq_spi_read_reg_8(&indio_dev->dev,
+	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_CTRL_2_ADDR,
 				       &control);
 	if (ret)
 		goto error_ret;
-	ret = lis3l02dq_spi_read_reg_8(&indio_dev->dev,
+	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
 				       &val);
 	if (ret < 0)
@@ -537,7 +517,7 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 					   &indio_dev->interrupts[0]->ev_list);
 	}
 	if (changed) {
-		ret = lis3l02dq_spi_write_reg_8(&indio_dev->dev,
+		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 						LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
 						&val);
 		if (ret)
@@ -545,7 +525,7 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 		control = list_el->refcount ?
 			(control | LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT) :
 			(control & ~LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT);
-		ret = lis3l02dq_spi_write_reg_8(&indio_dev->dev,
+		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 					       LIS3L02DQ_REG_CTRL_2_ADDR,
 					       &control);
 	}
@@ -565,7 +545,7 @@ static void lis3l02dq_thresh_handler_bh_no_check(struct work_struct *work_s)
 			       struct lis3l02dq_state, work_thresh);
 	u8 t;
 
-	lis3l02dq_spi_read_reg_8(&st->help.indio_dev->dev,
+	lis3l02dq_spi_read_reg_8(st->help.indio_dev,
 				 LIS3L02DQ_REG_WAKE_UP_SRC_ADDR,
 				 &t);
 
@@ -625,7 +605,7 @@ static void lis3l02dq_thresh_handler_bh_no_check(struct work_struct *work_s)
 	/* reenable the irq */
 	enable_irq(st->us->irq);
 	/* Ack and allow for new interrupts */
-	lis3l02dq_spi_read_reg_8(&st->help.indio_dev->dev,
+	lis3l02dq_spi_read_reg_8(st->help.indio_dev,
 				 LIS3L02DQ_REG_WAKE_UP_ACK_ADDR,
 				 &t);
 
@@ -764,7 +744,7 @@ static int lis3l02dq_stop_device(struct iio_dev *indio_dev)
 	u8 val = 0;
 
 	mutex_lock(&indio_dev->mlock);
-	ret = lis3l02dq_spi_write_reg_8(&indio_dev->dev,
+	ret = lis3l02dq_spi_write_reg_8(indio_dev,
 					LIS3L02DQ_REG_CTRL_1_ADDR,
 					&val);
 	if (ret) {
@@ -772,7 +752,7 @@ static int lis3l02dq_stop_device(struct iio_dev *indio_dev)
 		goto err_ret;
 	}
 
-	ret = lis3l02dq_spi_write_reg_8(&indio_dev->dev,
+	ret = lis3l02dq_spi_write_reg_8(indio_dev,
 					LIS3L02DQ_REG_CTRL_2_ADDR,
 					&val);
 	if (ret)

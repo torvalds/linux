@@ -173,11 +173,11 @@ struct lis3l02dq_state {
 #define lis3l02dq_h_to_s(_h)				\
 	container_of(_h, struct lis3l02dq_state, help)
 
-int lis3l02dq_spi_read_reg_8(struct device *dev,
+int lis3l02dq_spi_read_reg_8(struct iio_dev *indio_dev,
 			     u8 reg_address,
 			     u8 *val);
 
-int lis3l02dq_spi_write_reg_8(struct device *dev,
+int lis3l02dq_spi_write_reg_8(struct iio_dev *indio_dev,
 			      u8 reg_address,
 			      u8 *val);
 
