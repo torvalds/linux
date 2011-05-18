@@ -51,22 +51,13 @@ static void lis3l02dq_poll_func_th(struct iio_dev *indio_dev, s64 time)
 /**
  * lis3l02dq_data_rdy_trig_poll() the event handler for the data rdy trig
  **/
-static int lis3l02dq_data_rdy_trig_poll(struct iio_dev *indio_dev,
-				       int index,
-				       s64 timestamp,
-				       int no_test)
+static irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private)
 {
-	struct iio_sw_ring_helper_state *h
-		= iio_dev_get_devdata(indio_dev);
-	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
-
-	iio_trigger_poll(st->trig, timestamp);
+	disable_irq_nosync(irq);
+	iio_trigger_poll(private, iio_get_time_ns());
 
 	return IRQ_HANDLED;
 }
-
-/* This is an event as it is a response to a physical interrupt */
-IIO_EVENT_SH(data_rdy_trig, &lis3l02dq_data_rdy_trig_poll);
 
 /**
  * lis3l02dq_read_accel_from_ring() individual acceleration read from ring
@@ -196,14 +187,15 @@ static int lis3l02dq_get_ring_element(struct iio_sw_ring_helper_state *h,
 
 /* Caller responsible for locking as necessary. */
 static int
-__lis3l02dq_write_data_ready_config(struct device *dev,
-				    struct iio_event_handler_list *list,
-				    bool state)
+__lis3l02dq_write_data_ready_config(struct device *dev, bool state)
 {
 	int ret;
 	u8 valold;
 	bool currentlyset;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_sw_ring_helper_state *h
+				= iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 
 /* Get the current event mask register */
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
@@ -217,8 +209,9 @@ __lis3l02dq_write_data_ready_config(struct device *dev,
 
 /* Disable requested */
 	if (!state && currentlyset) {
-
+		/* disable the data ready signal */
 		valold &= ~LIS3L02DQ_REG_CTRL_2_ENABLE_DATA_READY_GENERATION;
+
 		/* The double write is to overcome a hardware bug?*/
 		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 						LIS3L02DQ_REG_CTRL_2_ADDR,
@@ -231,20 +224,31 @@ __lis3l02dq_write_data_ready_config(struct device *dev,
 		if (ret)
 			goto error_ret;
 
-		iio_remove_event_from_list(list,
-					   &indio_dev->interrupts[0]
-					   ->ev_list);
-
+		free_irq(st->us->irq, st->trig);
 /* Enable requested */
 	} else if (state && !currentlyset) {
 		/* if not set, enable requested */
-		valold |= LIS3L02DQ_REG_CTRL_2_ENABLE_DATA_READY_GENERATION;
-		iio_add_event_to_list(list, &indio_dev->interrupts[0]->ev_list);
+		/* first disable all events */
+		ret = lis3l02dq_disable_all_events(indio_dev);
+		if (ret < 0)
+			goto error_ret;
+
+		valold = ret |
+			LIS3L02DQ_REG_CTRL_2_ENABLE_DATA_READY_GENERATION;
+		ret = request_irq(st->us->irq,
+				  lis3l02dq_data_rdy_trig_poll,
+				  IRQF_TRIGGER_RISING, "lis3l02dq_datardy",
+				  st->trig);
+		if (ret)
+			goto error_ret;
+
 		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 						LIS3L02DQ_REG_CTRL_2_ADDR,
 						&valold);
-		if (ret)
+		if (ret) {
+			free_irq(st->us->irq, st->trig);
 			goto error_ret;
+		}
 	}
 
 	return 0;
@@ -265,9 +269,8 @@ static int lis3l02dq_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	struct lis3l02dq_state *st = trig->private_data;
 	int ret = 0;
 	u8 t;
-	__lis3l02dq_write_data_ready_config(&st->help.indio_dev->dev,
-					    &iio_event_data_rdy_trig,
-					    state);
+
+	__lis3l02dq_write_data_ready_config(&st->help.indio_dev->dev, state);
 	if (state == false) {
 		/* possible quirk with handler currently worked around
 		   by ensuring the work queue is empty */

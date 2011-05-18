@@ -181,6 +181,8 @@ int lis3l02dq_spi_write_reg_8(struct iio_dev *indio_dev,
 			      u8 reg_address,
 			      u8 *val);
 
+int lis3l02dq_disable_all_events(struct iio_dev *indio_dev);
+
 #ifdef CONFIG_IIO_RING_BUFFER
 /* At the moment triggers are only used for ring buffer
  * filling. This may change!

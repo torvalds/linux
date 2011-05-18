@@ -416,25 +416,20 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("280 560 1120 4480");
 
-static int lis3l02dq_thresh_handler_th(struct iio_dev *indio_dev,
-				       int index,
-				       s64 timestamp,
-				       int no_test)
+static irqreturn_t lis3l02dq_event_handler(int irq, void *_int_info)
 {
+	struct iio_interrupt *int_info = _int_info;
+	struct iio_dev *indio_dev = int_info->dev_info;
 	struct iio_sw_ring_helper_state *h
 		= iio_dev_get_devdata(indio_dev);
 	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 
-	/* Stash the timestamp somewhere convenient for the bh */
-	st->thresh_timestamp = timestamp;
+	disable_irq_nosync(irq);
+	st->thresh_timestamp = iio_get_time_ns();
 	schedule_work(&st->work_thresh);
 
-	return 0;
+	return IRQ_HANDLED;
 }
-
-/* A shared handler for a number of threshold types */
-IIO_EVENT_SH(threshold, &lis3l02dq_thresh_handler_th);
-
 
 #define LIS3L02DQ_INFO_MASK				\
 	((1 << IIO_CHAN_INFO_SCALE_SHARED) |		\
@@ -448,13 +443,13 @@ IIO_EVENT_SH(threshold, &lis3l02dq_thresh_handler_th);
 static struct iio_chan_spec lis3l02dq_channels[] = {
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_X, LIS3L02DQ_INFO_MASK,
 		 0, 0, IIO_ST('s', 12, 16, 0),
-		 LIS3L02DQ_EVENT_MASK, &iio_event_threshold),
+		 LIS3L02DQ_EVENT_MASK, NULL),
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_Y, LIS3L02DQ_INFO_MASK,
 		 1, 1, IIO_ST('s', 12, 16, 0),
-		 LIS3L02DQ_EVENT_MASK, &iio_event_threshold),
+		 LIS3L02DQ_EVENT_MASK, NULL),
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_Z, LIS3L02DQ_INFO_MASK,
 		 2, 2, IIO_ST('s', 12, 16, 0),
-		 LIS3L02DQ_EVENT_MASK, &iio_event_threshold),
+		 LIS3L02DQ_EVENT_MASK, NULL),
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
@@ -477,11 +472,57 @@ static ssize_t lis3l02dq_read_event_config(struct iio_dev *indio_dev,
 	return !!(val & mask);
 }
 
+int lis3l02dq_disable_all_events(struct iio_dev *indio_dev)
+{
+	struct iio_sw_ring_helper_state *h
+		= iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
+	int ret;
+	u8 control, val;
+	bool irqtofree;
+
+	ret = lis3l02dq_spi_read_reg_8(indio_dev,
+				       LIS3L02DQ_REG_CTRL_2_ADDR,
+				       &control);
+
+	irqtofree = !!(control & LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT);
+
+	control &= ~LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT;
+	ret = lis3l02dq_spi_write_reg_8(indio_dev,
+					LIS3L02DQ_REG_CTRL_2_ADDR,
+					&control);
+	if (ret)
+		goto error_ret;
+	/* Also for consistency clear the mask */
+	ret = lis3l02dq_spi_read_reg_8(indio_dev,
+				       LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
+				       &val);
+	if (ret)
+		goto error_ret;
+	val &= ~0x3f;
+
+	ret = lis3l02dq_spi_write_reg_8(indio_dev,
+					LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
+					&val);
+	if (ret)
+		goto error_ret;
+
+	if (irqtofree)
+		free_irq(st->us->irq, indio_dev->interrupts[0]);
+
+	ret = control;
+error_ret:
+	return ret;
+}
+
 static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 					int event_code,
 					struct iio_event_handler_list *list_el,
 					int state)
 {
+	struct iio_sw_ring_helper_state *h
+		= iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 	int ret = 0;
 	u8 val, control;
 	u8 currentlyset;
@@ -507,27 +548,39 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 	if (!currentlyset && state) {
 		changed = true;
 		val |= mask;
-		iio_add_event_to_list(list_el,
-				      &indio_dev->interrupts[0]->ev_list);
-
 	} else if (currentlyset && !state) {
 		changed = true;
 		val &= ~mask;
-		iio_remove_event_from_list(list_el,
-					   &indio_dev->interrupts[0]->ev_list);
 	}
+
 	if (changed) {
+		if (!(control & LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT)) {
+			ret = request_irq(st->us->irq,
+					  &lis3l02dq_event_handler,
+					  IRQF_TRIGGER_RISING,
+					  "lis3l02dq_event",
+					  indio_dev->interrupts[0]);
+			if (ret)
+				goto error_ret;
+		}
+
 		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 						LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
 						&val);
 		if (ret)
 			goto error_ret;
-		control = list_el->refcount ?
+		control = val & 0x3f ?
 			(control | LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT) :
 			(control & ~LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT);
 		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 					       LIS3L02DQ_REG_CTRL_2_ADDR,
 					       &control);
+		if (ret)
+			goto error_ret;
+
+		/* remove interrupt handler if nothing is still on */
+		if (!(val & 0x3f))
+			free_irq(st->us->irq, indio_dev->interrupts[0]);
 	}
 
 error_ret:
@@ -697,7 +750,6 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 						  "lis3l02dq");
 		if (ret)
 			goto error_uninitialize_ring;
-
 		ret = lis3l02dq_probe_trigger(st->help.indio_dev);
 		if (ret)
 			goto error_unregister_line;
@@ -768,6 +820,9 @@ static int lis3l02dq_remove(struct spi_device *spi)
 	int ret;
 	struct lis3l02dq_state *st = spi_get_drvdata(spi);
 	struct iio_dev *indio_dev = st->help.indio_dev;
+	ret = lis3l02dq_disable_all_events(indio_dev);
+	if (ret)
+		goto err_ret;
 
 	ret = lis3l02dq_stop_device(indio_dev);
 	if (ret)
