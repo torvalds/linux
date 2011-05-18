@@ -12,6 +12,7 @@
 
 #include <linux/device.h>
 #include <linux/cdev.h>
+#include <linux/irq.h>
 #include "sysfs.h"
 #include "chrdev.h"
 
@@ -376,6 +377,8 @@ void iio_unregister_interrupt_line(struct iio_dev *dev_info,
 				   int line_number);
 
 
+/* temporarily exported to allow moving of interrupt requesting into drivers */
+irqreturn_t iio_interrupt_handler(int irq, void *_int_info);
 
 /**
  * iio_push_event() - try to add event to the list for userspace reading

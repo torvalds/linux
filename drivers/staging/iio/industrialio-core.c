@@ -134,7 +134,7 @@ int iio_push_event(struct iio_dev *dev_info,
 EXPORT_SYMBOL(iio_push_event);
 
 /* Generic interrupt line interrupt handler */
-static irqreturn_t iio_interrupt_handler(int irq, void *_int_info)
+irqreturn_t iio_interrupt_handler(int irq, void *_int_info)
 {
 	struct iio_interrupt *int_info = _int_info;
 	struct iio_dev *dev_info = int_info->dev_info;
@@ -157,6 +157,7 @@ static irqreturn_t iio_interrupt_handler(int irq, void *_int_info)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL(iio_interrupt_handler);
 
 static struct iio_interrupt *iio_allocate_interrupt(void)
 {
@@ -175,7 +176,7 @@ int iio_register_interrupt_line(unsigned int irq,
 				unsigned long type,
 				const char *name)
 {
-	int ret;
+	int ret = 0;
 
 	dev_info->interrupts[line_number] = iio_allocate_interrupt();
 	if (dev_info->interrupts[line_number] == NULL) {
@@ -185,16 +186,6 @@ int iio_register_interrupt_line(unsigned int irq,
 	dev_info->interrupts[line_number]->line_number = line_number;
 	dev_info->interrupts[line_number]->irq = irq;
 	dev_info->interrupts[line_number]->dev_info = dev_info;
-
-	/* Possibly only request on demand?
-	 * Can see this may complicate the handling of interrupts.
-	 * However, with this approach we might end up handling lots of
-	 * events no-one cares about.*/
-	ret = request_irq(irq,
-			  &iio_interrupt_handler,
-			  type,
-			  name,
-			  dev_info->interrupts[line_number]);
 
 error_ret:
 	return ret;
@@ -215,8 +206,6 @@ void iio_unregister_interrupt_line(struct iio_dev *dev_info, int line_number)
 {
 	/* make sure the interrupt handlers are all done */
 	flush_scheduled_work();
-	free_irq(dev_info->interrupts[line_number]->irq,
-		 dev_info->interrupts[line_number]);
 	kfree(dev_info->interrupts[line_number]);
 }
 EXPORT_SYMBOL(iio_unregister_interrupt_line);
