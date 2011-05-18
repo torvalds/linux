@@ -435,6 +435,7 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 			conf->channel_type,
 			channel_type_str(conf->channel_type));
 
+	ath9k_ps_wakeup(sc);
 	put_unaligned_le32(REG_READ_D(sc->sc_ah, AR_STA_ID0), addr);
 	put_unaligned_le16(REG_READ_D(sc->sc_ah, AR_STA_ID1) & 0xffff, addr + 4);
 	len += snprintf(buf + len, sizeof(buf) - len,
@@ -443,7 +444,6 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 	put_unaligned_le16(REG_READ_D(sc->sc_ah, AR_BSSMSKU) & 0xffff, addr + 4);
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"addrmask: %pM\n", addr);
-	ath9k_ps_wakeup(sc);
 	tmp = ath9k_hw_getrxfilter(sc->sc_ah);
 	ath9k_ps_restore(sc);
 	len += snprintf(buf + len, sizeof(buf) - len,
