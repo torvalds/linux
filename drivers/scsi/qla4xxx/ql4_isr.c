@@ -541,6 +541,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		case MBOX_ASTS_UNSOLICITED_PDU_RECEIVED:  /* Connection mode */
 		case MBOX_ASTS_IPSEC_SYSTEM_FATAL_ERROR:
 		case MBOX_ASTS_SUBNET_STATE_CHANGE:
+		case MBOX_ASTS_DUPLICATE_IP:
 			/* No action */
 			DEBUG2(printk("scsi%ld: AEN %04x\n", ha->host_no,
 				      mbox_status));
@@ -593,11 +594,13 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 					    mbox_sts[i];
 
 				/* print debug message */
-				DEBUG2(printk("scsi%ld: AEN[%d] %04x queued"
-				    " mb1:0x%x mb2:0x%x mb3:0x%x mb4:0x%x\n",
-				    ha->host_no, ha->aen_in, mbox_sts[0],
-				    mbox_sts[1], mbox_sts[2],  mbox_sts[3],
-				    mbox_sts[4]));
+				DEBUG2(printk("scsi%ld: AEN[%d] %04x queued "
+					      "mb1:0x%x mb2:0x%x mb3:0x%x "
+					      "mb4:0x%x mb5:0x%x\n",
+					      ha->host_no, ha->aen_in,
+					      mbox_sts[0], mbox_sts[1],
+					      mbox_sts[2], mbox_sts[3],
+					      mbox_sts[4], mbox_sts[5]));
 
 				/* advance pointer */
 				ha->aen_in++;
