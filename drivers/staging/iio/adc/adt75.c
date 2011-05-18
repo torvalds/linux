@@ -50,7 +50,6 @@
  */
 
 struct adt75_chip_info {
-	const char *name;
 	struct i2c_client *client;
 	struct iio_dev *indio_dev;
 	u8  config;
@@ -243,23 +242,11 @@ static ssize_t adt75_show_value(struct device *dev,
 
 static IIO_DEVICE_ATTR(value, S_IRUGO, adt75_show_value, NULL, 0);
 
-static ssize_t adt75_show_name(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt75_chip_info *chip = dev_info->dev_data;
-	return sprintf(buf, "%s\n", chip->name);
-}
-
-static IIO_DEVICE_ATTR(name, S_IRUGO, adt75_show_name, NULL, 0);
-
 static struct attribute *adt75_attributes[] = {
 	&iio_dev_attr_available_modes.dev_attr.attr,
 	&iio_dev_attr_mode.dev_attr.attr,
 	&iio_dev_attr_oneshot.dev_attr.attr,
 	&iio_dev_attr_value.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -563,7 +550,6 @@ static int __devinit adt75_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, chip);
 
 	chip->client = client;
-	chip->name = id->name;
 
 	chip->indio_dev = iio_allocate_device(0);
 	if (chip->indio_dev == NULL) {
@@ -571,6 +557,7 @@ static int __devinit adt75_probe(struct i2c_client *client,
 		goto error_free_chip;
 	}
 
+	chip->indio_dev->name = id->name;
 	chip->indio_dev->dev.parent = &client->dev;
 	chip->indio_dev->attrs = &adt75_attribute_group;
 	chip->indio_dev->event_attrs = &adt75_event_attribute_group;
@@ -588,7 +575,7 @@ static int __devinit adt75_probe(struct i2c_client *client,
 					   NULL,
 					   &adt75_event_handler,
 					   IRQF_TRIGGER_LOW,
-					   chip->name,
+					   chip->indio_dev->name,
 					   chip->indio_dev);
 		if (ret)
 			goto error_unreg_dev;
@@ -610,7 +597,7 @@ static int __devinit adt75_probe(struct i2c_client *client,
 	}
 
 	dev_info(&client->dev, "%s temperature sensor registered.\n",
-			 id->name);
+			 chip->indio_dev->name);
 
 	return 0;
 error_unreg_irq:

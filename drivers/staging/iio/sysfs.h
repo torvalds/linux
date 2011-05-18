@@ -89,13 +89,6 @@ struct iio_const_attr {
 	IIO_DEVICE_ATTR(revision, S_IRUGO, _show, NULL, 0)
 
 /**
- * IIO_DEV_ATTR_NAME - chip type dependent identifier
- * @_show: output method for the attribute
- **/
-#define IIO_DEV_ATTR_NAME(_show)				\
-	IIO_DEVICE_ATTR(name, S_IRUGO, _show, NULL, 0)
-
-/**
  * IIO_DEV_ATTR_RESET: resets the device
  **/
 #define IIO_DEV_ATTR_RESET(_store)			\

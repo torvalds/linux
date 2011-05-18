@@ -426,23 +426,11 @@ static ssize_t ad799x_show_scale(struct device *dev,
 
 static IIO_DEVICE_ATTR(in_scale, S_IRUGO, ad799x_show_scale, NULL, 0);
 
-static ssize_t ad799x_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad799x_state *st = iio_dev_get_devdata(dev_info);
-	return sprintf(buf, "%s\n", st->client->name);
-}
-
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad799x_show_name, NULL, 0);
-
 static struct attribute *ad7991_5_9_3_4_device_attrs[] = {
 	&iio_dev_attr_in0_raw.dev_attr.attr,
 	&iio_dev_attr_in1_raw.dev_attr.attr,
 	&iio_dev_attr_in2_raw.dev_attr.attr,
 	&iio_dev_attr_in3_raw.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	&iio_dev_attr_in_scale.dev_attr.attr,
 	NULL
 };
@@ -475,7 +463,6 @@ static struct attribute_group ad7991_5_9_3_4_scan_el_group = {
 static struct attribute *ad7992_device_attrs[] = {
 	&iio_dev_attr_in0_raw.dev_attr.attr,
 	&iio_dev_attr_in1_raw.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	&iio_dev_attr_in_scale.dev_attr.attr,
 	NULL
 };
@@ -510,7 +497,6 @@ static struct attribute *ad7997_8_device_attrs[] = {
 	&iio_dev_attr_in5_raw.dev_attr.attr,
 	&iio_dev_attr_in6_raw.dev_attr.attr,
 	&iio_dev_attr_in7_raw.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	&iio_dev_attr_in_scale.dev_attr.attr,
 	NULL
 };

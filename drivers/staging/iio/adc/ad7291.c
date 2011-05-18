@@ -60,7 +60,6 @@
  */
 
 struct ad7291_chip_info {
-	const char *name;
 	struct i2c_client *client;
 	struct iio_dev *indio_dev;
 	u16 command;
@@ -434,17 +433,6 @@ static IIO_DEVICE_ATTR(channel_mask, S_IRUGO | S_IWUSR,
 		ad7291_store_channel_mask,
 		0);
 
-static ssize_t ad7291_show_name(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7291_chip_info *chip = dev_info->dev_data;
-	return sprintf(buf, "%s\n", chip->name);
-}
-
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad7291_show_name, NULL, 0);
-
 static struct attribute *ad7291_attributes[] = {
 	&iio_dev_attr_available_modes.dev_attr.attr,
 	&iio_dev_attr_mode.dev_attr.attr,
@@ -455,7 +443,6 @@ static struct attribute *ad7291_attributes[] = {
 	&iio_dev_attr_t_average.dev_attr.attr,
 	&iio_dev_attr_voltage.dev_attr.attr,
 	&iio_dev_attr_channel_mask.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -784,7 +771,6 @@ static int __devinit ad7291_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, chip);
 
 	chip->client = client;
-	chip->name = id->name;
 	chip->command = AD7291_NOISE_DELAY | AD7291_T_SENSE_MASK;
 
 	chip->indio_dev = iio_allocate_device(0);
@@ -793,6 +779,7 @@ static int __devinit ad7291_probe(struct i2c_client *client,
 		goto error_free_chip;
 	}
 
+	chip->indio_dev->name = id->name;
 	chip->indio_dev->dev.parent = &client->dev;
 	chip->indio_dev->attrs = &ad7291_attribute_group;
 	chip->indio_dev->event_attrs = &ad7291_event_attribute_group;
@@ -810,7 +797,7 @@ static int __devinit ad7291_probe(struct i2c_client *client,
 					   NULL,
 					   &ad7291_event_handler,
 					   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-					   chip->name,
+					   id->name,
 					   chip->indio_dev);
 		if (ret)
 			goto error_unreg_dev;

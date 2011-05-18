@@ -118,17 +118,6 @@ static ssize_t ad7298_show_scale(struct device *dev,
 }
 static IIO_DEVICE_ATTR(in_scale, S_IRUGO, ad7298_show_scale, NULL, 0);
 
-static ssize_t ad7298_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7298_state *st = iio_dev_get_devdata(dev_info);
-
-	return sprintf(buf, "%s\n", spi_get_device_id(st->spi)->name);
-}
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad7298_show_name, NULL, 0);
-
 static struct attribute *ad7298_attributes[] = {
 	&iio_dev_attr_in0_raw.dev_attr.attr,
 	&iio_dev_attr_in1_raw.dev_attr.attr,
@@ -140,7 +129,6 @@ static struct attribute *ad7298_attributes[] = {
 	&iio_dev_attr_in7_raw.dev_attr.attr,
 	&iio_dev_attr_in_scale.dev_attr.attr,
 	&iio_dev_attr_temp0_input.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -177,6 +165,7 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 		goto error_disable_reg;
 	}
 
+	st->indio_dev->name = spi_get_device_id(spi)->name;
 	st->indio_dev->dev.parent = &spi->dev;
 	st->indio_dev->attrs = &ad7298_attribute_group;
 	st->indio_dev->dev_data = (void *)(st);

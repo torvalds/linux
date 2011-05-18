@@ -106,17 +106,6 @@ static ssize_t ad5446_show_scale(struct device *dev,
 }
 static IIO_DEVICE_ATTR(out_scale, S_IRUGO, ad5446_show_scale, NULL, 0);
 
-static ssize_t ad5446_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = iio_dev_get_devdata(dev_info);
-
-	return sprintf(buf, "%s\n", spi_get_device_id(st->spi)->name);
-}
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad5446_show_name, NULL, 0);
-
 static ssize_t ad5446_write_powerdown_mode(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t len)
@@ -204,7 +193,6 @@ static struct attribute *ad5446_attributes[] = {
 	&iio_dev_attr_out0_powerdown.dev_attr.attr,
 	&iio_dev_attr_out_powerdown_mode.dev_attr.attr,
 	&iio_const_attr_out_powerdown_mode_available.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -381,6 +369,7 @@ static int __devinit ad5446_probe(struct spi_device *spi)
 
 	/* Estabilish that the iio_dev is a child of the spi device */
 	st->indio_dev->dev.parent = &spi->dev;
+	st->indio_dev->name = spi_get_device_id(spi)->name;
 	st->indio_dev->attrs = &ad5446_attribute_group;
 	st->indio_dev->dev_data = (void *)(st);
 	st->indio_dev->driver_module = THIS_MODULE;

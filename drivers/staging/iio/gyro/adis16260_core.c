@@ -505,8 +505,6 @@ static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16260_write_reset, 0);
 static IIO_DEVICE_ATTR(sampling_frequency_available,
 		       S_IRUGO, adis16260_read_frequency_available, NULL, 0);
 
-static IIO_CONST_ATTR_NAME("adis16260");
-
 #define ADIS16260_GYRO_ATTR_SET(axis)					\
 	IIO_DEV_ATTR_GYRO##axis(adis16260_read_14bit_signed,		\
 				ADIS16260_GYRO_OUT);			\
@@ -547,7 +545,6 @@ static ADIS16260_GYRO_ATTR_SET(_Z);
 		&iio_dev_attr_sampling_frequency.dev_attr.attr,		\
 		&iio_dev_attr_sampling_frequency_available.dev_attr.attr, \
 		&iio_dev_attr_reset.dev_attr.attr,			\
-		&iio_const_attr_name.dev_attr.attr,			\
 		NULL							\
 	};								\
 	static const struct attribute_group adis16260_attribute_group##axis \
@@ -594,6 +591,7 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 		goto error_free_tx;
 	}
 
+	st->indio_dev->name = spi_get_device_id(st->us)->name;
 	st->indio_dev->dev.parent = &spi->dev;
 	if (pd && pd->direction)
 		switch (pd->direction) {

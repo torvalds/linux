@@ -521,8 +521,6 @@ static IIO_DEV_ATTR_CAPTURE_COUNT(S_IWUSR | S_IRUGO,
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("100200");
 
-static IIO_CONST_ATTR_NAME("adis16220");
-
 static struct attribute *adis16220_attributes[] = {
 	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
 	&iio_const_attr_in0_supply_scale.dev_attr.attr,
@@ -539,7 +537,6 @@ static struct attribute *adis16220_attributes[] = {
 	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_capture.dev_attr.attr,
 	&iio_dev_attr_capture_count.dev_attr.attr,
-	&iio_const_attr_name.dev_attr.attr,
 	NULL
 };
 
@@ -578,6 +575,7 @@ static int __devinit adis16220_probe(struct spi_device *spi)
 		goto error_free_tx;
 	}
 
+	st->indio_dev->name = spi->dev.driver->name;
 	st->indio_dev->dev.parent = &spi->dev;
 	st->indio_dev->attrs = &adis16220_attribute_group;
 	st->indio_dev->dev_data = (void *)(st);

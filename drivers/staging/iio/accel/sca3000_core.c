@@ -40,8 +40,7 @@ enum sca3000_variant {
  * do not actually appear to be available.
  */
 static const struct sca3000_chip_info sca3000_spi_chip_info_tbl[] = {
-	{
-		.name = "sca3000-d01",
+	[d01] = {
 		.scale = 7357,
 		.temp_output = true,
 		.measurement_mode_freq = 250,
@@ -49,16 +48,16 @@ static const struct sca3000_chip_info sca3000_spi_chip_info_tbl[] = {
 		.option_mode_1_freq = 250,
 		.mot_det_mult_xz = {50, 100, 200, 350, 650, 1300},
 		.mot_det_mult_y = {50, 100, 150, 250, 450, 850, 1750},
-	}, {
-		.name = "sca3000-e02",
+	},
+	[e02] = {
 		.scale = 9810,
 		.measurement_mode_freq = 125,
 		.option_mode_1 = SCA3000_OP_MODE_NARROW,
 		.option_mode_1_freq = 63,
 		.mot_det_mult_xz = {100, 150, 300, 550, 1050, 2050},
 		.mot_det_mult_y = {50, 100, 200, 350, 700, 1350, 2700},
-	}, {
-		.name = "sca3000-e04",
+	},
+	[e04] = {
 		.scale = 19620,
 		.measurement_mode_freq = 100,
 		.option_mode_1 = SCA3000_OP_MODE_NARROW,
@@ -67,8 +66,8 @@ static const struct sca3000_chip_info sca3000_spi_chip_info_tbl[] = {
 		.option_mode_2_freq = 400,
 		.mot_det_mult_xz = {200, 300, 600, 1100, 2100, 4100},
 		.mot_det_mult_y = {100, 200, 400, 7000, 1400, 2700, 54000},
-	}, {
-		.name = "sca3000-e05",
+	},
+	[e05] = {
 		.scale = 61313,
 		.measurement_mode_freq = 200,
 		.option_mode_1 = SCA3000_OP_MODE_NARROW,
@@ -260,14 +259,7 @@ error_ret:
 }
 #endif /* SCA3000_DEBUG */
 
-static ssize_t sca3000_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct sca3000_state *st = dev_info->dev_data;
-	return sprintf(buf, "%s\n", st->info->name);
-}
+
 /**
  * sca3000_show_reg() - sysfs interface to read the chip revision number
  **/
@@ -430,7 +422,6 @@ static IIO_DEVICE_ATTR(measurement_mode, S_IRUGO | S_IWUSR,
 
 /* More standard attributes */
 
-static IIO_DEV_ATTR_NAME(sca3000_show_name);
 static IIO_DEV_ATTR_REV(sca3000_show_rev);
 
 #define SCA3000_INFO_MASK			\
@@ -765,7 +756,6 @@ static int sca3000_write_thresh(struct iio_dev *indio_dev,
 }
 
 static struct attribute *sca3000_attributes[] = {
-	&iio_dev_attr_name.dev_attr.attr,
 	&iio_dev_attr_revision.dev_attr.attr,
 	&iio_dev_attr_measurement_mode_available.dev_attr.attr,
 	&iio_dev_attr_measurement_mode.dev_attr.attr,
@@ -775,7 +765,6 @@ static struct attribute *sca3000_attributes[] = {
 };
 
 static struct attribute *sca3000_attributes_with_temp[] = {
-	&iio_dev_attr_name.dev_attr.attr,
 	&iio_dev_attr_revision.dev_attr.attr,
 	&iio_dev_attr_measurement_mode_available.dev_attr.attr,
 	&iio_dev_attr_measurement_mode.dev_attr.attr,
@@ -1134,6 +1123,7 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 		goto error_clear_st;
 	}
 	st->indio_dev->dev.parent = &spi->dev;
+	st->indio_dev->name = spi_get_device_id(spi)->name;
 	st->indio_dev->num_interrupt_lines = 1;
 	st->indio_dev->event_attrs = &sca3000_event_attribute_group;
 	if (st->info->temp_output)

@@ -198,17 +198,6 @@ static ssize_t ad9834_store_wavetype(struct device *dev,
 	return ret ? ret : len;
 }
 
-static ssize_t ad9834_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad9834_state *st = iio_dev_get_devdata(dev_info);
-
-	return sprintf(buf, "%s\n", spi_get_device_id(st->spi)->name);
-}
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad9834_show_name, NULL, 0);
-
 static ssize_t ad9834_show_out0_wavetype_available(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
@@ -288,7 +277,6 @@ static struct attribute *ad9834_attributes[] = {
 	&iio_dev_attr_dds0_out1_wavetype.dev_attr.attr,
 	&iio_dev_attr_dds0_out0_wavetype_available.dev_attr.attr,
 	&iio_dev_attr_dds0_out1_wavetype_available.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -355,6 +343,7 @@ static int __devinit ad9834_probe(struct spi_device *spi)
 	}
 
 	st->indio_dev->dev.parent = &spi->dev;
+	st->indio_dev->name = spi_get_device_id(spi)->name;
 	st->indio_dev->attrs = &ad9834_attribute_group;
 	st->indio_dev->dev_data = (void *) st;
 	st->indio_dev->driver_module = THIS_MODULE;

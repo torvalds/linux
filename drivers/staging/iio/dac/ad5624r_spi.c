@@ -174,17 +174,6 @@ static ssize_t ad5624r_show_scale(struct device *dev,
 }
 static IIO_DEVICE_ATTR(out_scale, S_IRUGO, ad5624r_show_scale, NULL, 0);
 
-static ssize_t ad5624r_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad5624r_state *st = iio_dev_get_devdata(indio_dev);
-
-	return sprintf(buf, "%s\n", spi_get_device_id(st->us)->name);
-}
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad5624r_show_name, NULL, 0);
-
 static IIO_DEV_ATTR_OUT_RAW(0, ad5624r_write_dac, AD5624R_ADDR_DAC0);
 static IIO_DEV_ATTR_OUT_RAW(1, ad5624r_write_dac, AD5624R_ADDR_DAC1);
 static IIO_DEV_ATTR_OUT_RAW(2, ad5624r_write_dac, AD5624R_ADDR_DAC2);
@@ -222,7 +211,6 @@ static struct attribute *ad5624r_attributes[] = {
 	&iio_dev_attr_out_powerdown_mode.dev_attr.attr,
 	&iio_const_attr_out_powerdown_mode_available.dev_attr.attr,
 	&iio_dev_attr_out_scale.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -266,6 +254,7 @@ static int __devinit ad5624r_probe(struct spi_device *spi)
 		goto error_disable_reg;
 	}
 	st->indio_dev->dev.parent = &spi->dev;
+	st->indio_dev->name = spi_get_device_id(spi)->name;
 	st->indio_dev->attrs = &ad5624r_attribute_group;
 	st->indio_dev->dev_data = (void *)(st);
 	st->indio_dev->driver_module = THIS_MODULE;

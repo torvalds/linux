@@ -58,7 +58,6 @@
  */
 
 struct ad7150_chip_info {
-	const char *name;
 	struct i2c_client *client;
 	struct iio_dev *indio_dev;
 	bool inter;
@@ -584,17 +583,6 @@ static IIO_DEV_ATTR_CH2_SETUP(S_IRUGO | S_IWUSR,
 		ad7150_show_ch2_setup,
 		ad7150_store_ch2_setup);
 
-static ssize_t ad7150_show_name(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7150_chip_info *chip = dev_info->dev_data;
-	return sprintf(buf, "%s\n", chip->name);
-}
-
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad7150_show_name, NULL, 0);
-
 static ssize_t ad7150_show_powerdown_timer(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
@@ -643,7 +631,6 @@ static struct attribute *ad7150_attributes[] = {
 	&iio_dev_attr_powerdown_timer.dev_attr.attr,
 	&iio_dev_attr_ch1_value.dev_attr.attr,
 	&iio_dev_attr_ch2_value.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -724,7 +711,6 @@ static int __devinit ad7150_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, chip);
 
 	chip->client = client;
-	chip->name = id->name;
 
 	chip->indio_dev = iio_allocate_device(0);
 	if (chip->indio_dev == NULL) {
@@ -733,6 +719,7 @@ static int __devinit ad7150_probe(struct i2c_client *client,
 	}
 
 	/* Echipabilish that the iio_dev is a child of the i2c device */
+	chip->indio_dev->name = id->name;
 	chip->indio_dev->dev.parent = &client->dev;
 	chip->indio_dev->attrs = &ad7150_attribute_group;
 	chip->indio_dev->event_attrs = &ad7150_event_attribute_group;

@@ -153,17 +153,6 @@ error_ret:
 	return ret ? ret : len;
 }
 
-static ssize_t ad9832_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad9832_state *st = iio_dev_get_devdata(dev_info);
-
-	return sprintf(buf, "%s\n", spi_get_device_id(st->spi)->name);
-}
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad9832_show_name, NULL, 0);
-
 /**
  * see dds.h for further information
  */
@@ -199,7 +188,6 @@ static struct attribute *ad9832_attributes[] = {
 	&iio_dev_attr_dds0_freqsymbol.dev_attr.attr,
 	&iio_dev_attr_dds0_phasesymbol.dev_attr.attr,
 	&iio_dev_attr_dds0_out_enable.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -243,6 +231,7 @@ static int __devinit ad9832_probe(struct spi_device *spi)
 	}
 
 	st->indio_dev->dev.parent = &spi->dev;
+	st->indio_dev->name = spi_get_device_id(spi)->name;
 	st->indio_dev->attrs = &ad9832_attribute_group;
 	st->indio_dev->dev_data = (void *) st;
 	st->indio_dev->driver_module = THIS_MODULE;

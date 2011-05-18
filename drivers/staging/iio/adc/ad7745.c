@@ -53,7 +53,6 @@
  */
 
 struct ad774x_chip_info {
-	const char *name;
 	struct i2c_client *client;
 	struct iio_dev *indio_dev;
 	bool inter;
@@ -499,17 +498,6 @@ static IIO_DEV_ATTR_CAP_GAIN(S_IRUGO | S_IWUSR,
 		ad774x_show_cap_gain,
 		ad774x_store_cap_gain);
 
-static ssize_t ad774x_show_name(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad774x_chip_info *chip = dev_info->dev_data;
-	return sprintf(buf, "%s\n", chip->name);
-}
-
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad774x_show_name, NULL, 0);
-
 static struct attribute *ad774x_attributes[] = {
 	&iio_dev_attr_available_conversion_modes.dev_attr.attr,
 	&iio_dev_attr_conversion_mode.dev_attr.attr,
@@ -523,7 +511,6 @@ static struct attribute *ad774x_attributes[] = {
 	&iio_dev_attr_cap0_raw.dev_attr.attr,
 	&iio_dev_attr_capdac0_raw.dev_attr.attr,
 	&iio_dev_attr_capdac1_raw.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -596,7 +583,6 @@ static int __devinit ad774x_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, chip);
 
 	chip->client = client;
-	chip->name = id->name;
 
 	chip->indio_dev = iio_allocate_device(0);
 	if (chip->indio_dev == NULL) {
@@ -605,6 +591,7 @@ static int __devinit ad774x_probe(struct i2c_client *client,
 	}
 
 	/* Establish that the iio_dev is a child of the i2c device */
+	chip->indio_dev->name = id->name;
 	chip->indio_dev->dev.parent = &client->dev;
 	chip->indio_dev->attrs = &ad774x_attribute_group;
 	chip->indio_dev->event_attrs = &ad774x_event_attribute_group;

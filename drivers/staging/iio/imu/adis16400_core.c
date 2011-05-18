@@ -427,16 +427,6 @@ static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16400_write_reset, 0);
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("409 546 819 1638");
 
-static ssize_t adis16400_show_name(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
-{
-	struct adis16400_state *st
-		= iio_dev_get_devdata(dev_get_drvdata(dev));
-	return sprintf(buf, "%s\n", spi_get_device_id(st->us)->name);
-}
-static IIO_DEVICE_ATTR(name, S_IRUGO, adis16400_show_name, NULL, 0);
-
 enum adis16400_chan {
 	in_supply,
 	gyro_x,
@@ -704,7 +694,6 @@ static struct attribute *adis16400_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL
 };
 
@@ -814,6 +803,7 @@ static int __devinit adis16400_probe(struct spi_device *spi)
 	}
 	st->variant = &adis16400_chips[spi_get_device_id(spi)->driver_data];
 	st->indio_dev->dev.parent = &spi->dev;
+	st->indio_dev->name = spi_get_device_id(spi)->name;
 	st->indio_dev->attrs = &adis16400_attribute_group;
 	st->indio_dev->channels = st->variant->channels;
 	st->indio_dev->num_channels = st->variant->num_channels;

@@ -644,12 +644,9 @@ error_ret:
 	return ret;
 }
 
-static IIO_CONST_ATTR_NAME("lis3l02dq");
-
 static struct attribute *lis3l02dq_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_const_attr_name.dev_attr.attr,
 	NULL
 };
 
@@ -689,6 +686,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 		goto error_free_tx;
 	}
 
+	st->help.indio_dev->name = spi->dev.driver->name;
 	st->help.indio_dev->dev.parent = &spi->dev;
 	st->help.indio_dev->num_interrupt_lines = 1;
 	st->help.indio_dev->channels = lis3l02dq_channels;

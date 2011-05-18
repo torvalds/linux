@@ -422,8 +422,6 @@ static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16240_write_reset, 0);
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("4096");
 
-static IIO_CONST_ATTR_NAME("adis16240");
-
 static struct attribute *adis16240_attributes[] = {
 	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
 	&iio_const_attr_in0_supply_scale.dev_attr.attr,
@@ -444,7 +442,6 @@ static struct attribute *adis16240_attributes[] = {
 	&iio_const_attr_temp_scale.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
-	&iio_const_attr_name.dev_attr.attr,
 	NULL
 };
 
@@ -483,6 +480,7 @@ static int __devinit adis16240_probe(struct spi_device *spi)
 		goto error_free_tx;
 	}
 
+	st->indio_dev->name = spi->dev.driver->name;
 	st->indio_dev->dev.parent = &spi->dev;
 	st->indio_dev->attrs = &adis16240_attribute_group;
 	st->indio_dev->dev_data = (void *)(st);

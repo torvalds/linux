@@ -174,7 +174,6 @@
  */
 
 struct adt7316_chip_info {
-	const char		*name;
 	struct iio_dev		*indio_dev;
 	struct adt7316_bus	bus;
 	u16			ldac_pin;
@@ -1672,18 +1671,6 @@ static ssize_t adt7316_show_bus_type(struct device *dev,
 
 static IIO_DEVICE_ATTR(bus_type, S_IRUGO, adt7316_show_bus_type, NULL, 0);
 
-static ssize_t adt7316_show_name(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt7316_chip_info *chip = dev_info->dev_data;
-
-	return sprintf(buf, "%s\n", chip->name);
-}
-
-static IIO_DEVICE_ATTR(name, S_IRUGO, adt7316_show_name, NULL, 0);
-
 static struct attribute *adt7316_attributes[] = {
 	&iio_dev_attr_all_modes.dev_attr.attr,
 	&iio_dev_attr_mode.dev_attr.attr,
@@ -1720,7 +1707,6 @@ static struct attribute *adt7316_attributes[] = {
 	&iio_dev_attr_manufactorer_id.dev_attr.attr,
 	&iio_dev_attr_device_rev.dev_attr.attr,
 	&iio_dev_attr_bus_type.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -1769,7 +1755,6 @@ static struct attribute *adt7516_attributes[] = {
 	&iio_dev_attr_manufactorer_id.dev_attr.attr,
 	&iio_dev_attr_device_rev.dev_attr.attr,
 	&iio_dev_attr_bus_type.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -2118,7 +2103,6 @@ int __devinit adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	dev_set_drvdata(dev, chip);
 
 	chip->bus = *bus;
-	chip->name = name;
 
 	if (name[4] == '3')
 		chip->id = ID_ADT7316 + (name[6] - '6');
@@ -2151,6 +2135,7 @@ int __devinit adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 		chip->indio_dev->attrs = &adt7316_attribute_group;
 		chip->indio_dev->event_attrs = &adt7316_event_attribute_group;
 	}
+	chip->indio_dev->name = name;
 	chip->indio_dev->dev_data = (void *)chip;
 	chip->indio_dev->driver_module = THIS_MODULE;
 	chip->indio_dev->num_interrupt_lines = 1;
@@ -2168,7 +2153,7 @@ int __devinit adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 					   NULL,
 					   &adt7316_event_handler,
 					   chip->bus.irq_flags | IRQF_ONESHOT,
-					   chip->name,
+					   chip->indio_dev->name,
 					   chip->indio_dev);
 		if (ret)
 			goto error_unreg_dev;
@@ -2190,7 +2175,7 @@ int __devinit adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	}
 
 	dev_info(dev, "%s temperature sensor, ADC and DAC registered.\n",
-			chip->name);
+			chip->indio_dev->name);
 
 	return 0;
 

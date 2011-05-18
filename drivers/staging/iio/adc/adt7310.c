@@ -79,7 +79,6 @@
  */
 
 struct adt7310_chip_info {
-	const char *name;
 	struct spi_device *spi_dev;
 	struct iio_dev *indio_dev;
 	u8  config;
@@ -375,24 +374,12 @@ static ssize_t adt7310_show_value(struct device *dev,
 
 static IIO_DEVICE_ATTR(value, S_IRUGO, adt7310_show_value, NULL, 0);
 
-static ssize_t adt7310_show_name(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct adt7310_chip_info *chip = dev_info->dev_data;
-	return sprintf(buf, "%s\n", chip->name);
-}
-
-static IIO_DEVICE_ATTR(name, S_IRUGO, adt7310_show_name, NULL, 0);
-
 static struct attribute *adt7310_attributes[] = {
 	&iio_dev_attr_available_modes.dev_attr.attr,
 	&iio_dev_attr_mode.dev_attr.attr,
 	&iio_dev_attr_resolution.dev_attr.attr,
 	&iio_dev_attr_id.dev_attr.attr,
 	&iio_dev_attr_value.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -781,7 +768,6 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 	dev_set_drvdata(&spi_dev->dev, chip);
 
 	chip->spi_dev = spi_dev;
-	chip->name = spi_dev->modalias;
 
 	chip->indio_dev = iio_allocate_device(0);
 	if (chip->indio_dev == NULL) {
@@ -790,6 +776,7 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 	}
 
 	chip->indio_dev->dev.parent = &spi_dev->dev;
+	chip->indio_dev->name = spi_get_device_id(spi_dev)->name;
 	chip->indio_dev->attrs = &adt7310_attribute_group;
 	chip->indio_dev->event_attrs = adt7310_event_attribute_group;
 	chip->indio_dev->dev_data = (void *)chip;
@@ -811,7 +798,7 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 					   NULL,
 					   &adt7310_event_handler,
 					   irq_flags,
-					   chip->name,
+					   chip->indio_dev->name,
 					   chip->indio_dev);
 		if (ret)
 			goto error_unreg_dev;
@@ -823,7 +810,7 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 					   NULL,
 					   &adt7310_event_handler,
 					   adt7310_platform_data[1],
-					   chip->name,
+					   chip->indio_dev->name,
 					   chip->indio_dev);
 		if (ret)
 			goto error_unreg_ct_irq;
@@ -852,7 +839,7 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 	}
 
 	dev_info(&spi_dev->dev, "%s temperature sensor registered.\n",
-			chip->name);
+			chip->indio_dev->name);
 
 	return 0;
 

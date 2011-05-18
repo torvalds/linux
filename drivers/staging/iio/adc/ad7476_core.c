@@ -66,26 +66,6 @@ static int ad7476_read_raw(struct iio_dev *dev_info,
 	return -EINVAL;
 }
 
-static ssize_t ad7476_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7476_state *st = iio_dev_get_devdata(dev_info);
-
-	return sprintf(buf, "%s\n", spi_get_device_id(st->spi)->name);
-}
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad7476_show_name, NULL, 0);
-
-static struct attribute *ad7476_attributes[] = {
-	&iio_dev_attr_name.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group ad7476_attribute_group = {
-	.attrs = ad7476_attributes,
-};
-
 static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 	[ID_AD7466] = {
 		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
@@ -183,7 +163,7 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 
 	/* Establish that the iio_dev is a child of the spi device */
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &ad7476_attribute_group;
+	st->indio_dev->name = spi_get_device_id(spi)->name;
 	st->indio_dev->dev_data = (void *)(st);
 	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;

@@ -244,16 +244,6 @@ static int max1363_read_raw(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static ssize_t max1363_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct max1363_state *st = iio_priv(dev_get_drvdata(dev));
-	return sprintf(buf, "%s\n", st->client->name);
-}
-
-static IIO_DEVICE_ATTR(name, S_IRUGO, max1363_show_name, NULL, 0);
-
 /* Applies to max1363 */
 static const enum max1363_modes max1363_mode_list[] = {
 	_s0, _s1, _s2, _s3,
@@ -332,15 +322,6 @@ static struct iio_chan_spec max1361_channels[] = {
 static struct iio_chan_spec max1036_channels[] = MAX1363_4X_CHANS(8);
 static struct iio_chan_spec max1136_channels[] = MAX1363_4X_CHANS(10);
 static struct iio_chan_spec max1236_channels[] = MAX1363_4X_CHANS(12);
-
-static struct attribute *max1363_device_attrs[] = {
-	&iio_dev_attr_name.dev_attr.attr,
-	NULL
-};
-
-static struct attribute_group max1363_dev_attr_group = {
-	.attrs = max1363_device_attrs,
-};
 
 /* Appies to max1236, max1237 */
 static const enum max1363_modes max1236_mode_list[] = {
@@ -1187,7 +1168,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 			.modemask;
 	/* Estabilish that the iio_dev is a child of the i2c device */
 	indio_dev->dev.parent = &client->dev;
-	indio_dev->attrs = &max1363_dev_attr_group;
+	indio_dev->name = id->name;
 	indio_dev->read_event_value = &max1363_read_thresh;
 	indio_dev->write_event_value = &max1363_write_thresh;
 	indio_dev->read_event_config = &max1363_read_event_config;

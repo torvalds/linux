@@ -186,7 +186,6 @@ struct sca3000_state {
 
 /**
  * struct sca3000_chip_info - model dependent parameters
- * @name:			model identification
  * @scale:			scale * 10^-6
  * @temp_output:		some devices have temperature sensors.
  * @measurement_mode_freq:	normal mode sampling frequency
@@ -199,7 +198,6 @@ struct sca3000_state {
  * sca3000 variant.
  **/
 struct sca3000_chip_info {
-	const char		*name;
 	unsigned int		scale;
 	bool			temp_output;
 	int			measurement_mode_freq;

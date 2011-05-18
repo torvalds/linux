@@ -392,8 +392,6 @@ static IIO_CONST_ATTR(temp_scale, "-0.47");
 
 static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16203_write_reset, 0);
 
-static IIO_CONST_ATTR(name, "adis16203");
-
 static struct attribute *adis16203_attributes[] = {
 	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
 	&iio_const_attr_in0_supply_scale.dev_attr.attr,
@@ -401,7 +399,6 @@ static struct attribute *adis16203_attributes[] = {
 	&iio_const_attr_temp_offset.dev_attr.attr,
 	&iio_const_attr_temp_scale.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
-	&iio_const_attr_name.dev_attr.attr,
 	&iio_dev_attr_in1_raw.dev_attr.attr,
 	&iio_const_attr_in1_scale.dev_attr.attr,
 	&iio_dev_attr_incli_x_raw.dev_attr.attr,
@@ -445,7 +442,7 @@ static int __devinit adis16203_probe(struct spi_device *spi)
 		ret = -ENOMEM;
 		goto error_free_tx;
 	}
-
+	st->indio_dev->name = spi->dev.driver->name;
 	st->indio_dev->dev.parent = &spi->dev;
 	st->indio_dev->attrs = &adis16203_attribute_group;
 	st->indio_dev->dev_data = (void *)(st);
