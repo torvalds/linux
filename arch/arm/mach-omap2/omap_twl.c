@@ -95,6 +95,8 @@ static unsigned long twl6030_vsel_to_uv(const u8 vsel)
 		is_offset_valid = true;
 	}
 
+	if (!vsel)
+		return 0;
 	/*
 	 * There is no specific formula for voltage to vsel
 	 * conversion above 1.3V. There are special hardcoded
@@ -127,6 +129,8 @@ static u8 twl6030_uv_to_vsel(unsigned long uv)
 		is_offset_valid = true;
 	}
 
+	if (!uv)
+		return 0x00;
 	/*
 	 * There is no specific formula for voltage to vsel
 	 * conversion above 1.3V. There are special hardcoded
