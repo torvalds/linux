@@ -1417,63 +1417,33 @@ int qeth_l3_set_rx_csum(struct qeth_card *card, int on)
 	int rc = 0;
 
 	if (on) {
-		if (card->state != CARD_STATE_DOWN) {
-			if (!qeth_is_supported(card,
-				    IPA_INBOUND_CHECKSUM))
-					return -EPERM;
-			rc = qeth_l3_send_checksum_command(card);
-			if (rc)
-				return -EIO;
-		}
-		card->dev->features |= NETIF_F_RXCSUM;
+		rc = qeth_l3_send_checksum_command(card);
+		if (rc)
+			return -EIO;
+		dev_info(&card->gdev->dev,
+			"HW Checksumming (inbound) enabled\n");
 	} else {
-		if (card->state != CARD_STATE_DOWN) {
-			rc = qeth_l3_send_simple_setassparms(card,
-				IPA_INBOUND_CHECKSUM, IPA_CMD_ASS_STOP, 0);
-			if (rc)
-				return -EIO;
-		}
-		card->dev->features &= ~NETIF_F_RXCSUM;
+		rc = qeth_l3_send_simple_setassparms(card,
+			IPA_INBOUND_CHECKSUM, IPA_CMD_ASS_STOP, 0);
+		if (rc)
+			return -EIO;
 	}
 
-	return rc;
+	return 0;
 }
 
 static int qeth_l3_start_ipa_checksum(struct qeth_card *card)
 {
-	int rc = 0;
-
 	QETH_CARD_TEXT(card, 3, "strtcsum");
 
 	if (card->dev->features & NETIF_F_RXCSUM) {
-		/* hw may have changed during offline or recovery */
-		if (!qeth_is_supported(card, IPA_INBOUND_CHECKSUM)) {
-			dev_info(&card->gdev->dev,
-			"Inbound HW Checksumming not "
-			"supported on %s,\ncontinuing "
-			"using Inbound SW Checksumming\n",
-			QETH_CARD_IFNAME(card));
-			goto update_feature;
-		}
-
-		rc = qeth_l3_send_checksum_command(card);
-		if (!rc)
-			dev_info(&card->gdev->dev,
-			"HW Checksumming (inbound) enabled\n");
-		else
-			goto update_feature;
-	} else
-		dev_info(&card->gdev->dev,
-			"Using SW checksumming on %s.\n",
-			QETH_CARD_IFNAME(card));
+		rtnl_lock();
+		/* force set_features call */
+		card->dev->features &= ~NETIF_F_RXCSUM;
+		netdev_update_features(card->dev);
+		rtnl_unlock();
+	}
 	return 0;
-
-update_feature:
-	rtnl_lock();
-	card->dev->features &= ~NETIF_F_RXCSUM;
-	netdev_update_features(card->dev);
-	rtnl_unlock();
-	return rc;
 }
 
 static int qeth_l3_start_ipa_tx_checksum(struct qeth_card *card)
@@ -3196,17 +3166,20 @@ static int qeth_l3_set_features(struct net_device *dev, u32 features)
 {
 	struct qeth_card *card = dev->ml_priv;
 	u32 changed = dev->features ^ features;
-	int on;
+	int err;
 
 	if (!(changed & NETIF_F_RXCSUM))
 		return 0;
 
-	if (features & NETIF_F_RXCSUM)
-		on = 1;
-	else
-		on = 0;
+	if (card->state == CARD_STATE_DOWN ||
+	    card->state == CARD_STATE_RECOVER)
+		return 0;
 
-	return qeth_l3_set_rx_csum(card, on);
+	err = qeth_l3_set_rx_csum(card, features & NETIF_F_RXCSUM);
+	if (err)
+		dev->features = features ^ NETIF_F_RXCSUM;
+
+	return err;
 }
 
 static const struct ethtool_ops qeth_l3_ethtool_ops = {
