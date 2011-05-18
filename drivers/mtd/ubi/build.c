@@ -1019,6 +1019,8 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 out_debugfs:
 	ubi_debugfs_exit_dev(ubi);
 out_uif:
+	get_device(&ubi->dev);
+	ubi_assert(ref);
 	uif_close(ubi);
 out_detach:
 	ubi_wl_close(ubi);
