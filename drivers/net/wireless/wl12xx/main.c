@@ -1350,6 +1350,7 @@ static struct notifier_block wl1271_dev_notifier = {
 	.notifier_call = wl1271_dev_notify,
 };
 
+#ifdef CONFIG_PM
 static int wl1271_configure_suspend(struct wl1271 *wl)
 {
 	int ret;
@@ -1493,6 +1494,7 @@ static int wl1271_op_resume(struct ieee80211_hw *hw)
 
 	return 0;
 }
+#endif
 
 static int wl1271_op_start(struct ieee80211_hw *hw)
 {
@@ -3650,8 +3652,10 @@ static const struct ieee80211_ops wl1271_ops = {
 	.stop = wl1271_op_stop,
 	.add_interface = wl1271_op_add_interface,
 	.remove_interface = wl1271_op_remove_interface,
+#ifdef CONFIG_PM
 	.suspend = wl1271_op_suspend,
 	.resume = wl1271_op_resume,
+#endif
 	.config = wl1271_op_config,
 	.prepare_multicast = wl1271_op_prepare_multicast,
 	.configure_filter = wl1271_op_configure_filter,
