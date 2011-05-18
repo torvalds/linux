@@ -25,8 +25,6 @@
 /* Event interface flags */
 #define IIO_BUSY_BIT_POS 1
 
-struct iio_dev;
-
 /* naughty temporary hack to match these against the event version
    - need to flattern these together */
 enum iio_chan_type {
@@ -221,7 +219,6 @@ static inline s64 iio_get_time_ns(void)
  *			ownership of chrdevs etc
  * @num_interrupt_lines:[DRIVER] number of physical interrupt lines from device
  * @event_attrs:	[DRIVER] event control attributes
- * @event_conf_attrs:	[DRIVER] event configuration attributes
  * @event_interfaces:	[INTERN] event chrdevs associated with interrupt lines
  * @ring:		[DRIVER] any ring buffer present
  * @mlock:		[INTERN] lock used to prevent simultaneous device state
@@ -259,8 +256,6 @@ struct iio_dev {
 
 	int				num_interrupt_lines;
 	struct attribute_group		*event_attrs;
-	struct attribute_group		*event_conf_attrs;
-
 	struct iio_event_interface	*event_interfaces;
 
 	struct iio_ring_buffer		*ring;
@@ -325,14 +320,6 @@ int iio_push_event(struct iio_dev *dev_info,
 		  int ev_line,
 		  int ev_code,
 		  s64 timestamp);
-
-/**
- * iio_allocate_chrdev() - Allocate a chrdev
- * @handler:	struct that contains relevant file handling for chrdev
- * @dev_info:	iio_dev for which chrdev is being created
- **/
-int iio_allocate_chrdev(struct iio_handler *handler, struct iio_dev *dev_info);
-void iio_deallocate_chrdev(struct iio_handler *handler);
 
 /* Used to distinguish between bipolar and unipolar scan elemenents.
  * Whilst this may seem obvious, we may well want to change the representation

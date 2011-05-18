@@ -998,21 +998,6 @@ static inline int __iio_add_event_config_attrs(struct iio_dev *dev_info, int i)
 {
 	int j;
 	int ret;
-	struct attribute **attrp, **attrq;
-
-	if (dev_info->event_conf_attrs && dev_info->event_conf_attrs[i].attrs) {
-		attrp = dev_info->event_conf_attrs[i].attrs;
-		while (*attrp) {
-			ret =  sysfs_add_file_to_group(&dev_info
-						       ->event_interfaces[0]
-						       .dev.kobj,
-						       *attrp,
-						       NULL);
-			if (ret)
-				goto error_ret;
-			attrp++;
-		}
-	}
 	INIT_LIST_HEAD(&dev_info->event_interfaces[0].dev_attr_list);
 	/* Dynically created from the channels array */
 	if (dev_info->channels) {
@@ -1027,19 +1012,7 @@ static inline int __iio_add_event_config_attrs(struct iio_dev *dev_info, int i)
 	return 0;
 
 error_clear_attrs:
-	__iio_remove_all_event_sysfs(dev_info,
-				     NULL,
-				     i);
-error_ret:
-	attrq = dev_info->event_conf_attrs[i].attrs;
-	while (attrq != attrp) {
-			sysfs_remove_file_from_group(&dev_info
-						     ->event_interfaces[0]
-						     .dev.kobj,
-						     *attrq,
-						     NULL);
-		attrq++;
-	}
+	__iio_remove_all_event_sysfs(dev_info, NULL, i);
 
 	return ret;
 }
@@ -1047,23 +1020,7 @@ error_ret:
 static inline int __iio_remove_event_config_attrs(struct iio_dev *dev_info,
 						  int i)
 {
-	struct attribute **attrq;
-	__iio_remove_all_event_sysfs(dev_info,
-				     NULL,
-				     i);
-	if (dev_info->event_conf_attrs
-		&& dev_info->event_conf_attrs[i].attrs) {
-		attrq = dev_info->event_conf_attrs[i].attrs;
-		while (*attrq) {
-			sysfs_remove_file_from_group(&dev_info
-						     ->event_interfaces[0]
-						     .dev.kobj,
-						     *attrq,
-						     NULL);
-			attrq++;
-		}
-	}
-
+	__iio_remove_all_event_sysfs(dev_info, NULL, i);
 	return 0;
 }
 
