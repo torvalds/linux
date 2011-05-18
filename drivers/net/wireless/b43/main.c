@@ -4982,26 +4982,27 @@ static struct b43_wl *b43_wireless_init(struct ssb_device *dev)
 	return wl;
 }
 
-static int b43_ssb_probe(struct ssb_device *dev, const struct ssb_device_id *id)
+static
+int b43_ssb_probe(struct ssb_device *sdev, const struct ssb_device_id *id)
 {
 	struct b43_wl *wl;
 	int err;
 	int first = 0;
 
-	wl = ssb_get_devtypedata(dev);
+	wl = ssb_get_devtypedata(sdev);
 	if (!wl) {
 		/* Probing the first core. Must setup common struct b43_wl */
 		first = 1;
-		b43_sprom_fixup(dev->bus);
-		wl = b43_wireless_init(dev);
+		b43_sprom_fixup(sdev->bus);
+		wl = b43_wireless_init(sdev);
 		if (IS_ERR(wl)) {
 			err = PTR_ERR(wl);
 			goto out;
 		}
-		ssb_set_devtypedata(dev, wl);
-		B43_WARN_ON(ssb_get_devtypedata(dev) != wl);
+		ssb_set_devtypedata(sdev, wl);
+		B43_WARN_ON(ssb_get_devtypedata(sdev) != wl);
 	}
-	err = b43_one_core_attach(dev, wl);
+	err = b43_one_core_attach(sdev, wl);
 	if (err)
 		goto err_wireless_exit;
 
@@ -5016,17 +5017,17 @@ static int b43_ssb_probe(struct ssb_device *dev, const struct ssb_device_id *id)
 	return err;
 
       err_one_core_detach:
-	b43_one_core_detach(dev);
+	b43_one_core_detach(sdev);
       err_wireless_exit:
 	if (first)
-		b43_wireless_exit(dev, wl);
+		b43_wireless_exit(sdev, wl);
 	return err;
 }
 
-static void b43_ssb_remove(struct ssb_device *dev)
+static void b43_ssb_remove(struct ssb_device *sdev)
 {
-	struct b43_wl *wl = ssb_get_devtypedata(dev);
-	struct b43_wldev *wldev = ssb_get_drvdata(dev);
+	struct b43_wl *wl = ssb_get_devtypedata(sdev);
+	struct b43_wldev *wldev = ssb_get_drvdata(sdev);
 
 	/* We must cancel any work here before unregistering from ieee80211,
 	 * as the ieee80211 unreg will destroy the workqueue. */
@@ -5042,14 +5043,14 @@ static void b43_ssb_remove(struct ssb_device *dev)
 		ieee80211_unregister_hw(wl->hw);
 	}
 
-	b43_one_core_detach(dev);
+	b43_one_core_detach(sdev);
 
 	if (list_empty(&wl->devlist)) {
 		b43_leds_unregister(wl);
 		/* Last core on the chip unregistered.
 		 * We can destroy common struct b43_wl.
 		 */
-		b43_wireless_exit(dev, wl);
+		b43_wireless_exit(sdev, wl);
 	}
 }
 
