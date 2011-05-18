@@ -59,17 +59,6 @@ static struct attribute_group adis16260_scan_el_group = {
 };
 
 /**
- * adis16260_poll_func_th() top half interrupt handler called by trigger
- * @private_data:	iio_dev
- **/
-static void adis16260_poll_func_th(struct iio_dev *indio_dev, s64 time)
-{
-	struct adis16260_state *st = iio_dev_get_devdata(indio_dev);
-	st->last_timestamp = time;
-	schedule_work(&st->work_trigger_to_ring);
-}
-
-/**
  * adis16260_read_ring_data() read data registers which will be placed into ring
  * @dev: device associated with child of actual device (iio_dev or iio_trig)
  * @rx: somewhere to pass back the value read
@@ -117,14 +106,12 @@ static int adis16260_read_ring_data(struct device *dev, u8 *rx)
 	return ret;
 }
 
-
-static void adis16260_trigger_bh_to_ring(struct work_struct *work_s)
+static irqreturn_t adis16260_trigger_handler(int irq, void *p)
 {
-	struct adis16260_state *st
-		= container_of(work_s, struct adis16260_state,
-				work_trigger_to_ring);
-	struct iio_ring_buffer *ring = st->indio_dev->ring;
-
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->private_data;
+	struct adis16260_state *st = iio_dev_get_devdata(indio_dev);
+	struct iio_ring_buffer *ring = indio_dev->ring;
 	int i = 0;
 	s16 *data;
 	size_t datasize = ring->access.get_bytes_per_datum(ring);
@@ -132,31 +119,29 @@ static void adis16260_trigger_bh_to_ring(struct work_struct *work_s)
 	data = kmalloc(datasize , GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(&st->us->dev, "memory alloc failed in ring bh");
-		return;
+		return -ENOMEM;
 	}
 
-	if (ring->scan_count)
-		if (adis16260_read_ring_data(&st->indio_dev->dev, st->rx) >= 0)
-			for (; i < ring->scan_count; i++)
-				data[i] = be16_to_cpup(
-					(__be16 *)&(st->rx[i*2]));
+	if (ring->scan_count &&
+	    adis16260_read_ring_data(&st->indio_dev->dev, st->rx) >= 0)
+		for (; i < ring->scan_count; i++)
+			data[i] = be16_to_cpup((__be16 *)&(st->rx[i*2]));
 
 	/* Guaranteed to be aligned with 8 byte boundary */
 	if (ring->scan_timestamp)
-		*((s64 *)(data + ((i + 3)/4)*4)) = st->last_timestamp;
+		*((s64 *)(data + ((i + 3)/4)*4)) = pf->timestamp;
 
-	ring->access.store_to(ring,
-			(u8 *)data,
-			st->last_timestamp);
+	ring->access.store_to(ring, (u8 *)data, pf->timestamp);
 
 	iio_trigger_notify_done(st->indio_dev->trig);
 	kfree(data);
 
-	return;
+	return IRQ_HANDLED;
 }
 
 void adis16260_unconfigure_ring(struct iio_dev *indio_dev)
 {
+	kfree(indio_dev->pollfunc->name);
 	kfree(indio_dev->pollfunc);
 	iio_sw_rb_free(indio_dev->ring);
 }
@@ -164,9 +149,7 @@ void adis16260_unconfigure_ring(struct iio_dev *indio_dev)
 int adis16260_configure_ring(struct iio_dev *indio_dev)
 {
 	int ret = 0;
-	struct adis16260_state *st = indio_dev->dev_data;
 	struct iio_ring_buffer *ring;
-	INIT_WORK(&st->work_trigger_to_ring, adis16260_trigger_bh_to_ring);
 
 	ring = iio_sw_rb_allocate(indio_dev);
 	if (!ring) {
@@ -191,13 +174,26 @@ int adis16260_configure_ring(struct iio_dev *indio_dev)
 	iio_scan_mask_set(ring, iio_scan_el_temp.number);
 	iio_scan_mask_set(ring, iio_scan_el_angl.number);
 
-	ret = iio_alloc_pollfunc(indio_dev, NULL, &adis16260_poll_func_th);
-	if (ret)
+	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
+	if (indio_dev->pollfunc == NULL) {
+		ret = -ENOMEM;
 		goto error_iio_sw_rb_free;
+	}
+	indio_dev->pollfunc->private_data = indio_dev;
+	indio_dev->pollfunc->h = &iio_pollfunc_store_time;
+	indio_dev->pollfunc->thread = &adis16260_trigger_handler;
+	indio_dev->pollfunc->type = IRQF_ONESHOT;
+	indio_dev->pollfunc->name =
+		kasprintf(GFP_KERNEL, "adis16260_consumer%d", indio_dev->id);
+	if (indio_dev->pollfunc->name == NULL) {
+		ret = -ENOMEM;
+		goto error_free_pollfunc;
+	}
 
 	indio_dev->modes |= INDIO_RING_TRIGGERED;
 	return 0;
-
+error_free_pollfunc:
+	kfree(indio_dev->pollfunc);
 error_iio_sw_rb_free:
 	iio_sw_rb_free(indio_dev->ring);
 	return ret;
