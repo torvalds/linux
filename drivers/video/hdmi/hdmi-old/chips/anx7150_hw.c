@@ -1172,21 +1172,22 @@ static int anx7150_initddc_read(struct i2c_client *client,
 }
 static int ANX7150_GetEDIDLength(struct i2c_client *client)
 {
-    u8 edid_data_length,i;
+    u8 edid_data_length;
 	char c;
 	int rc = 0;
 
     anx7150_rst_ddcchannel(client);
 
     rc = anx7150_initddc_read(client, 0xa0, 0x00, 0x7e, 0x01, 0x00);
-    msleep(3);//FeiW - Analogix
+    /*msleep(3);//FeiW - Analogix
     for(i=0;i<10;i++)
    	{
    		rc = anx7150_i2c_read_p0_reg(client, ANX7150_DDC_FIFOCNT_REG, &c);
 		if(c!=0){
-			return rc;
+			break;
 		}
 	}
+	*/
 	msleep(10);
 	rc = anx7150_i2c_read_p0_reg(client, ANX7150_DDC_FIFO_ACC_REG, &c);
 	edid_data_length = c;

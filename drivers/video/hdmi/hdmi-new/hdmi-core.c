@@ -55,7 +55,7 @@ static void hdmi_changed_work(struct work_struct *work)
 	else
 		ret = hdmi->ops->remove(hdmi);
 	if(ret < 0)
-		dev_warn(hdmi->dev, "hdmi changed error\n");
+		dev_dbg(hdmi->dev, "hdmi changed error\n");
 	kobject_uevent(&hdmi->dev->kobj, KOBJ_CHANGE);
 }
 

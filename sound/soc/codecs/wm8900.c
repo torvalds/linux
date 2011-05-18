@@ -228,7 +228,7 @@ static void wm8900_reset(struct snd_soc_codec *codec)
 	       sizeof(codec->reg_cache));
 }
 
-void wm8990_set_spk(bool on)
+void codec_set_spk(bool on)
 {
 	isSPKon = on;
 	if (on) {
@@ -242,7 +242,7 @@ void wm8990_set_spk(bool on)
 	}
 }
 
-EXPORT_SYMBOL_GPL(wm8990_set_spk);
+EXPORT_SYMBOL_GPL(codec_set_spk);
 
 static void wm8900_powerdown(void)
 {
