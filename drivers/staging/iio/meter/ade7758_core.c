@@ -100,7 +100,7 @@ static int ade7758_spi_write_reg_24(struct device *dev,
 	return ret;
 }
 
-static int ade7758_spi_read_reg_8(struct device *dev,
+int ade7758_spi_read_reg_8(struct device *dev,
 		u8 reg_address,
 		u8 *val)
 {
@@ -111,9 +111,15 @@ static int ade7758_spi_read_reg_8(struct device *dev,
 	struct spi_transfer xfers[] = {
 		{
 			.tx_buf = st->tx,
+			.bits_per_word = 8,
+			.len = 1,
+			.delay_usecs = 4,
+		},
+		{
+			.tx_buf = &st->tx[1],
 			.rx_buf = st->rx,
 			.bits_per_word = 8,
-			.len = 2,
+			.len = 1,
 		},
 	};
 
@@ -122,14 +128,15 @@ static int ade7758_spi_read_reg_8(struct device *dev,
 	st->tx[1] = 0;
 
 	spi_message_init(&msg);
-	spi_message_add_tail(xfers, &msg);
+	spi_message_add_tail(&xfers[0], &msg);
+	spi_message_add_tail(&xfers[1], &msg);
 	ret = spi_sync(st->us, &msg);
 	if (ret) {
 		dev_err(&st->us->dev, "problem when reading 8 bit register 0x%02X",
 				reg_address);
 		goto error_ret;
 	}
-	*val = st->rx[1];
+	*val = st->rx[0];
 
 error_ret:
 	mutex_unlock(&st->buf_lock);
@@ -147,11 +154,18 @@ static int ade7758_spi_read_reg_16(struct device *dev,
 	struct spi_transfer xfers[] = {
 		{
 			.tx_buf = st->tx,
+			.bits_per_word = 8,
+			.len = 1,
+			.delay_usecs = 4,
+		},
+		{
+			.tx_buf = &st->tx[1],
 			.rx_buf = st->rx,
 			.bits_per_word = 8,
-			.len = 3,
+			.len = 2,
 		},
 	};
+
 
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADE7758_READ_REG(reg_address);
@@ -159,14 +173,16 @@ static int ade7758_spi_read_reg_16(struct device *dev,
 	st->tx[2] = 0;
 
 	spi_message_init(&msg);
-	spi_message_add_tail(xfers, &msg);
+	spi_message_add_tail(&xfers[0], &msg);
+	spi_message_add_tail(&xfers[1], &msg);
 	ret = spi_sync(st->us, &msg);
 	if (ret) {
 		dev_err(&st->us->dev, "problem when reading 16 bit register 0x%02X",
 				reg_address);
 		goto error_ret;
 	}
-	*val = (st->rx[1] << 8) | st->rx[2];
+
+	*val = (st->rx[0] << 8) | st->rx[1];
 
 error_ret:
 	mutex_unlock(&st->buf_lock);
@@ -184,9 +200,15 @@ static int ade7758_spi_read_reg_24(struct device *dev,
 	struct spi_transfer xfers[] = {
 		{
 			.tx_buf = st->tx,
+			.bits_per_word = 8,
+			.len = 1,
+			.delay_usecs = 4,
+		},
+		{
+			.tx_buf = &st->tx[1],
 			.rx_buf = st->rx,
 			.bits_per_word = 8,
-			.len = 4,
+			.len = 3,
 		},
 	};
 
@@ -197,14 +219,15 @@ static int ade7758_spi_read_reg_24(struct device *dev,
 	st->tx[3] = 0;
 
 	spi_message_init(&msg);
-	spi_message_add_tail(xfers, &msg);
+	spi_message_add_tail(&xfers[0], &msg);
+	spi_message_add_tail(&xfers[1], &msg);
 	ret = spi_sync(st->us, &msg);
 	if (ret) {
 		dev_err(&st->us->dev, "problem when reading 24 bit register 0x%02X",
 				reg_address);
 		goto error_ret;
 	}
-	*val = (st->rx[1] << 16) | (st->rx[2] << 8) | st->rx[3];
+	*val = (st->rx[0] << 16) | (st->rx[1] << 8) | st->rx[2];
 
 error_ret:
 	mutex_unlock(&st->buf_lock);
