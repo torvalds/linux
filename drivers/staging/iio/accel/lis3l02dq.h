@@ -162,6 +162,7 @@ struct lis3l02dq_state {
 	u8				*tx;
 	u8				*rx;
 	struct mutex			buf_lock;
+	bool				trigger_on;
 };
 
 #define lis3l02dq_h_to_s(_h)				\
@@ -202,7 +203,11 @@ void lis3l02dq_unconfigure_ring(struct iio_dev *indio_dev);
 #define lis3l02dq_alloc_buf iio_kfifo_allocate
 #define lis3l02dq_register_buf_funcs iio_kfifo_register_funcs
 #endif
+irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private);
+#define lis3l02dq_th lis3l02dq_data_rdy_trig_poll
+
 #else /* CONFIG_IIO_RING_BUFFER */
+#define lis3l02dq_th lis3l02dq_noring
 
 static inline void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 {

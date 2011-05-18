@@ -35,6 +35,13 @@
  * It's in the likely to be added comment at the top of spi.h.
  * This means that use cannot be made of spi_write etc.
  */
+/* direct copy of the irq_default_primary_handler */
+#ifndef CONFIG_IIO_RING_BUFFER
+static irqreturn_t lis3l02dq_noring(int irq, void *private)
+{
+	return IRQ_WAKE_THREAD;
+}
+#endif
 
 /**
  * lis3l02dq_spi_read_reg_8() - read single byte from a single register
@@ -557,18 +564,12 @@ static ssize_t lis3l02dq_read_event_config(struct iio_dev *indio_dev,
 
 int lis3l02dq_disable_all_events(struct iio_dev *indio_dev)
 {
-	struct iio_sw_ring_helper_state *h
-		= iio_dev_get_devdata(indio_dev);
-	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 	int ret;
 	u8 control, val;
-	bool irqtofree;
 
 	ret = lis3l02dq_spi_read_reg_8(indio_dev,
 				       LIS3L02DQ_REG_CTRL_2_ADDR,
 				       &control);
-
-	irqtofree = !!(control & LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT);
 
 	control &= ~LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT;
 	ret = lis3l02dq_spi_write_reg_8(indio_dev,
@@ -590,9 +591,6 @@ int lis3l02dq_disable_all_events(struct iio_dev *indio_dev)
 	if (ret)
 		goto error_ret;
 
-	if (irqtofree)
-		free_irq(st->us->irq, indio_dev);
-
 	ret = control;
 error_ret:
 	return ret;
@@ -602,9 +600,6 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 					int event_code,
 					int state)
 {
-	struct iio_sw_ring_helper_state *h
-		= iio_dev_get_devdata(indio_dev);
-	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 	int ret = 0;
 	u8 val, control;
 	u8 currentlyset;
@@ -636,18 +631,6 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 	}
 
 	if (changed) {
-		if (!(control & LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT)) {
-			ret = request_threaded_irq(st->us->irq,
-						   NULL,
-						   &lis3l02dq_event_handler,
-						   IRQF_TRIGGER_RISING |
-						   IRQF_ONESHOT,
-						   "lis3l02dq_event",
-						   indio_dev);
-			if (ret)
-				goto error_ret;
-		}
-
 		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 						LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
 						&val);
@@ -661,10 +644,6 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 					       &control);
 		if (ret)
 			goto error_ret;
-
-		/* remove interrupt handler if nothing is still on */
-		if (!(val & 0x3f))
-			free_irq(st->us->irq, indio_dev);
 	}
 
 error_ret:
@@ -748,9 +727,18 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	}
 
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
-		ret = lis3l02dq_probe_trigger(st->help.indio_dev);
+		ret = request_threaded_irq(st->us->irq,
+					   &lis3l02dq_th,
+					   &lis3l02dq_event_handler,
+					   IRQF_TRIGGER_RISING,
+					   "lis3l02dq",
+					   st->help.indio_dev);
 		if (ret)
 			goto error_uninitialize_ring;
+
+		ret = lis3l02dq_probe_trigger(st->help.indio_dev);
+		if (ret)
+			goto error_free_interrupt;
 	}
 
 	/* Get the device into a sane initial state */
@@ -762,6 +750,9 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 error_remove_trigger:
 	if (st->help.indio_dev->modes & INDIO_RING_TRIGGERED)
 		lis3l02dq_remove_trigger(st->help.indio_dev);
+error_free_interrupt:
+	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
+		free_irq(st->us->irq, st->help.indio_dev);
 error_uninitialize_ring:
 	iio_ring_buffer_unregister(st->help.indio_dev->ring);
 error_unreg_ring_funcs:
@@ -822,6 +813,9 @@ static int lis3l02dq_remove(struct spi_device *spi)
 	ret = lis3l02dq_stop_device(indio_dev);
 	if (ret)
 		goto err_ret;
+
+	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
+		free_irq(st->us->irq, indio_dev);
 
 	lis3l02dq_remove_trigger(indio_dev);
 	iio_ring_buffer_unregister(indio_dev->ring);

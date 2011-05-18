@@ -27,6 +27,22 @@ static inline u16 combine_8_to_16(u8 lower, u8 upper)
 }
 
 /**
+ * lis3l02dq_data_rdy_trig_poll() the event handler for the data rdy trig
+ **/
+irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private)
+{
+	struct iio_dev *indio_dev = private;
+	struct iio_sw_ring_helper_state *h =  iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
+
+	if (st->trigger_on) {
+		iio_trigger_poll(st->trig, iio_get_time_ns());
+		return IRQ_HANDLED;
+	} else
+		return IRQ_WAKE_THREAD;
+}
+
+/**
  * lis3l02dq_read_accel_from_ring() individual acceleration read from ring
  **/
 ssize_t lis3l02dq_read_accel_from_ring(struct iio_ring_buffer *ring,
@@ -191,8 +207,7 @@ __lis3l02dq_write_data_ready_config(struct device *dev, bool state)
 						&valold);
 		if (ret)
 			goto error_ret;
-
-		free_irq(st->us->irq, st->trig);
+		st->trigger_on = false;
 /* Enable requested */
 	} else if (state && !currentlyset) {
 		/* if not set, enable requested */
@@ -203,20 +218,13 @@ __lis3l02dq_write_data_ready_config(struct device *dev, bool state)
 
 		valold = ret |
 			LIS3L02DQ_REG_CTRL_2_ENABLE_DATA_READY_GENERATION;
-		ret = request_irq(st->us->irq,
-				  &iio_trigger_generic_data_rdy_poll,
-				  IRQF_TRIGGER_RISING, "lis3l02dq_datardy",
-				  st->trig);
-		if (ret)
-			goto error_ret;
 
+		st->trigger_on = true;
 		ret = lis3l02dq_spi_write_reg_8(indio_dev,
 						LIS3L02DQ_REG_CTRL_2_ADDR,
 						&valold);
-		if (ret) {
-			free_irq(st->us->irq, st->trig);
+		if (ret)
 			goto error_ret;
-		}
 	}
 
 	return 0;
