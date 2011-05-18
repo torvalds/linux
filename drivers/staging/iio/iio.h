@@ -400,20 +400,6 @@ int __iio_push_event(struct iio_event_interface *ev_int,
 		     s64 timestamp);
 
 /**
- * iio_setup_ev_int() - configure an event interface (chrdev)
- * @name:		name used for resulting sysfs directory etc.
- * @ev_int:		interface we are configuring
- * @owner:		module that is responsible for registering this ev_int
- * @dev:		device whose ev_int this is
- **/
-int iio_setup_ev_int(struct iio_event_interface *ev_int,
-		     const char *name,
-		     struct module *owner,
-		     struct device *dev);
-
-void iio_free_ev_int(struct iio_event_interface *ev_int);
-
-/**
  * iio_allocate_chrdev() - Allocate a chrdev
  * @handler:	struct that contains relevant file handling for chrdev
  * @dev_info:	iio_dev for which chrdev is being created

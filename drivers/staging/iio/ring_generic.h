@@ -16,29 +16,6 @@
 struct iio_ring_buffer;
 
 /**
- * iio_push_ring_event() - ring buffer specific push to event chrdev
- * @ring_buf:		ring buffer that is the event source
- * @event_code:		event indentification code
- * @timestamp:		time of event
- **/
-int iio_push_ring_event(struct iio_ring_buffer *ring_buf,
-			int event_code,
-			s64 timestamp);
-/**
- * iio_push_or_escallate_ring_event() -	escalate or add as appropriate
- * @ring_buf:		ring buffer that is the event source
- * @event_code:		event indentification code
- * @timestamp:		time of event
- *
- * Typical usecase is to escalate a 50% ring full to 75% full if no one has yet
- * read the first event. Clearly the 50% full is no longer of interest in
- * typical use case.
- **/
-int iio_push_or_escallate_ring_event(struct iio_ring_buffer *ring_buf,
-				     int event_code,
-				     s64 timestamp);
-
-/**
  * struct iio_ring_access_funcs - access functions for ring buffers.
  * @mark_in_use:	reference counting, typically to prevent module removal
  * @unmark_in_use:	reduce reference count when no longer using ring buffer
@@ -106,7 +83,6 @@ struct iio_ring_access_funcs {
  * @scan_mask:		[INTERN] bitmask used in masking scan mode elements
  * @scan_timestamp:	[INTERN] does the scan mode include a timestamp
  * @access_handler:	[INTERN] chrdev access handling
- * @ev_int:		[INTERN] chrdev interface for the event chrdev
  * @access:		[DRIVER] ring access functions associated with the
  *			implementation.
  * @preenable:		[DRIVER] function to run prior to marking ring enabled
@@ -130,7 +106,6 @@ struct iio_ring_buffer {
 	u32				scan_mask;
 	bool				scan_timestamp;
 	struct iio_handler		access_handler;
-	struct iio_event_interface	ev_int;
 	struct iio_ring_access_funcs	access;
 	int				(*preenable)(struct iio_dev *);
 	int				(*postenable)(struct iio_dev *);

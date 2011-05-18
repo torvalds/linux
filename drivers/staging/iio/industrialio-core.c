@@ -393,7 +393,7 @@ void iio_device_free_chrdev_minor(int val)
 	spin_unlock(&iio_ida_lock);
 }
 
-int iio_setup_ev_int(struct iio_event_interface *ev_int,
+static int iio_setup_ev_int(struct iio_event_interface *ev_int,
 		     const char *name,
 		     struct module *owner,
 		     struct device *dev)
@@ -445,7 +445,7 @@ error_device_put:
 	return ret;
 }
 
-void iio_free_ev_int(struct iio_event_interface *ev_int)
+static void iio_free_ev_int(struct iio_event_interface *ev_int)
 {
 	device_unregister(&ev_int->dev);
 	put_device(&ev_int->dev);

@@ -357,6 +357,7 @@ void sca3000_register_ring_funcs(struct iio_dev *indio_dev)
  **/
 void sca3000_ring_int_process(u8 val, struct iio_ring_buffer *ring)
 {
+	/*
 	if (val & SCA3000_INT_STATUS_THREE_QUARTERS)
 		iio_push_ring_event(ring,
 				    IIO_EVENT_CODE_RING_75_FULL,
@@ -364,4 +365,5 @@ void sca3000_ring_int_process(u8 val, struct iio_ring_buffer *ring)
 	else if (val & SCA3000_INT_STATUS_HALF)
 		iio_push_ring_event(ring,
 				    IIO_EVENT_CODE_RING_50_FULL, 0);
+	*/
 }

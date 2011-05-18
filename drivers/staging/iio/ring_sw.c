@@ -69,7 +69,6 @@ static int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 				unsigned char *data, s64 timestamp)
 {
 	int ret = 0;
-	int code;
 	unsigned char *temp_ptr, *change_test_ptr;
 
 	/* initial store */
@@ -133,10 +132,6 @@ static int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 	if (ring->half_p == ring->data + ring->buf.length*ring->buf.bytes_per_datum)
 		ring->half_p = ring->data;
 	if (ring->half_p == ring->read_p) {
-		code = IIO_EVENT_CODE_RING_50_FULL;
-		ret = __iio_push_event(&ring->buf.ev_int,
-				       code,
-				       timestamp);
 		ring->buf.stufftoread = true;
 		wake_up_interruptible(&ring->buf.pollq);
 	}

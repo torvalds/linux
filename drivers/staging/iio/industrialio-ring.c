@@ -23,16 +23,6 @@
 #include "iio.h"
 #include "ring_generic.h"
 
-int iio_push_ring_event(struct iio_ring_buffer *ring_buf,
-		       int event_code,
-		       s64 timestamp)
-{
-	return __iio_push_event(&ring_buf->ev_int,
-				event_code,
-				timestamp);
-}
-EXPORT_SYMBOL(iio_push_ring_event);
-
 /**
  * iio_ring_open() - chrdev file open for ring buffer access
  *
@@ -116,43 +106,6 @@ static const struct file_operations iio_ring_fileops = {
 	.llseek = noop_llseek,
 };
 
-/**
- * __iio_request_ring_buffer_event_chrdev() - allocate ring event chrdev
- * @buf:	ring buffer whose event chrdev we are allocating
- * @id:		id of this ring buffer (typically 0)
- * @owner:	the module who owns the ring buffer (for ref counting)
- * @dev:	device with which the chrdev is associated
- **/
-static inline int
-__iio_request_ring_buffer_event_chrdev(struct iio_ring_buffer *buf,
-				       int id,
-				       struct module *owner,
-				       struct device *dev)
-{
-	int ret;
-
-	snprintf(buf->ev_int._name, sizeof(buf->ev_int._name),
-		 "%s:event%d",
-		 dev_name(&buf->dev),
-		 id);
-	ret = iio_setup_ev_int(&(buf->ev_int),
-			       buf->ev_int._name,
-			       owner,
-			       dev);
-	if (ret)
-		goto error_ret;
-	return 0;
-
-error_ret:
-	return ret;
-}
-
-static inline void
-__iio_free_ring_buffer_event_chrdev(struct iio_ring_buffer *buf)
-{
-	iio_free_ev_int(&(buf->ev_int));
-}
-
 static void iio_ring_access_release(struct device *dev)
 {
 	struct iio_ring_buffer *buf
@@ -227,7 +180,6 @@ void iio_ring_buffer_init(struct iio_ring_buffer *ring,
 	if (ring->access.mark_param_change)
 		ring->access.mark_param_change(ring);
 	ring->indio_dev = dev_info;
-	ring->ev_int.private = ring;
 	ring->access_handler.private = ring;
 	init_waitqueue_head(&ring->pollq);
 }
@@ -399,19 +351,12 @@ int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring, int id,
 	if (ret)
 		goto error_ret;
 
-	ret = __iio_request_ring_buffer_event_chrdev(ring,
-						     0,
-						     ring->owner,
-						     &ring->dev);
-	if (ret)
-		goto error_remove_device;
-
 	ret = __iio_request_ring_buffer_access_chrdev(ring,
 						      0,
 						      ring->owner);
 
 	if (ret)
-		goto error_ret;
+		goto error_remove_device;
 
 	if (ring->scan_el_attrs) {
 		ret = sysfs_create_group(&ring->dev.kobj,
@@ -462,7 +407,6 @@ void iio_ring_buffer_unregister(struct iio_ring_buffer *ring)
 {
 	__iio_ring_attr_cleanup(ring);
 	__iio_free_ring_buffer_access_chrdev(ring);
-	__iio_free_ring_buffer_event_chrdev(ring);
 	device_del(&ring->dev);
 }
 EXPORT_SYMBOL(iio_ring_buffer_unregister);
