@@ -1,9 +1,9 @@
 /*
- * ADE7758 Polyphase Multifunction Energy Metering IC Driver
+ * ADE7758 Poly Phase Multifunction Energy Metering IC driver
  *
- * Copyright 2010 Analog Devices Inc.
+ * Copyright 2010-2011 Analog Devices Inc.
  *
- * Licensed under the GPL-2 or later.
+ * Licensed under the GPL-2.
  */
 
 #include <linux/interrupt.h>
@@ -342,7 +342,7 @@ static ssize_t ade7758_write_reset(struct device *dev,
 	case 'Y':
 		return ade7758_reset(dev);
 	}
-	return -1;
+	return len;
 }
 
 static IIO_DEV_ATTR_VPEAK(S_IWUSR | S_IRUGO,
