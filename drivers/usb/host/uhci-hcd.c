@@ -92,7 +92,7 @@ static void uhci_get_current_frame_number(struct uhci_hcd *uhci);
 /*
  * Calculate the link pointer DMA value for the first Skeleton QH in a frame.
  */
-static __le32 uhci_frame_skel_link(struct uhci_hcd *uhci, int frame)
+static __hc32 uhci_frame_skel_link(struct uhci_hcd *uhci, int frame)
 {
 	int skelnum;
 
@@ -114,7 +114,7 @@ static __le32 uhci_frame_skel_link(struct uhci_hcd *uhci, int frame)
 	skelnum = 8 - (int) __ffs(frame | UHCI_NUMFRAMES);
 	if (skelnum <= 1)
 		skelnum = 9;
-	return LINK_TO_QH(uhci->skelqh[skelnum]);
+	return LINK_TO_QH(uhci, uhci->skelqh[skelnum]);
 }
 
 #include "uhci-debug.c"
@@ -630,16 +630,16 @@ static int uhci_start(struct usb_hcd *hcd)
 	 * 8 Interrupt queues; link all higher int queues to int1 = async
 	 */
 	for (i = SKEL_ISO + 1; i < SKEL_ASYNC; ++i)
-		uhci->skelqh[i]->link = LINK_TO_QH(uhci->skel_async_qh);
-	uhci->skel_async_qh->link = UHCI_PTR_TERM;
-	uhci->skel_term_qh->link = LINK_TO_QH(uhci->skel_term_qh);
+		uhci->skelqh[i]->link = LINK_TO_QH(uhci, uhci->skel_async_qh);
+	uhci->skel_async_qh->link = UHCI_PTR_TERM(uhci);
+	uhci->skel_term_qh->link = LINK_TO_QH(uhci, uhci->skel_term_qh);
 
 	/* This dummy TD is to work around a bug in Intel PIIX controllers */
-	uhci_fill_td(uhci->term_td, 0, uhci_explen(0) |
+	uhci_fill_td(uhci, uhci->term_td, 0, uhci_explen(0) |
 			(0x7f << TD_TOKEN_DEVADDR_SHIFT) | USB_PID_IN, 0);
-	uhci->term_td->link = UHCI_PTR_TERM;
+	uhci->term_td->link = UHCI_PTR_TERM(uhci);
 	uhci->skel_async_qh->element = uhci->skel_term_qh->element =
-			LINK_TO_TD(uhci->term_td);
+		LINK_TO_TD(uhci, uhci->term_td);
 
 	/*
 	 * Fill the frame list: make all entries point to the proper
