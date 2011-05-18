@@ -1,8 +1,8 @@
 /*
- * Copyright 2010 Analog Devices Inc.
+ * Copyright 2010-2011 Analog Devices Inc.
  * Copyright (C) 2008 Jonathan Cameron
  *
- * Licensed under the GPL-2 or later.
+ * Licensed under the GPL-2.
  *
  * ad7887_ring.c
  */
@@ -24,61 +24,6 @@
 #include "../sysfs.h"
 
 #include "ad7887.h"
-
-static IIO_SCAN_EL_C(in0, 0, 0, NULL);
-static IIO_SCAN_EL_C(in1, 1, 0, NULL);
-static IIO_SCAN_EL_TIMESTAMP(2);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
-
-static ssize_t ad7887_show_type(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
-{
-	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
-	struct iio_dev *indio_dev = ring->indio_dev;
-	struct ad7887_state *st = indio_dev->dev_data;
-
-	return sprintf(buf, "%c%d/%d>>%d\n", st->chip_info->sign,
-		       st->chip_info->bits, st->chip_info->storagebits,
-		       st->chip_info->left_shift);
-}
-static IIO_DEVICE_ATTR(in_type, S_IRUGO, ad7887_show_type, NULL, 0);
-
-static struct attribute *ad7887_scan_el_attrs[] = {
-	&iio_scan_el_in0.dev_attr.attr,
-	&iio_const_attr_in0_index.dev_attr.attr,
-	&iio_scan_el_in1.dev_attr.attr,
-	&iio_const_attr_in1_index.dev_attr.attr,
-	&iio_const_attr_timestamp_index.dev_attr.attr,
-	&iio_scan_el_timestamp.dev_attr.attr,
-	&iio_const_attr_timestamp_type.dev_attr.attr,
-	&iio_dev_attr_in_type.dev_attr.attr,
-	NULL,
-};
-
-static mode_t ad7887_scan_el_attr_is_visible(struct kobject *kobj,
-				     struct attribute *attr, int n)
-{
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
-	struct iio_dev *indio_dev = ring->indio_dev;
-	struct ad7887_state *st = indio_dev->dev_data;
-
-	mode_t mode = attr->mode;
-
-	if ((attr == &iio_scan_el_in1.dev_attr.attr) ||
-		(attr == &iio_const_attr_in1_index.dev_attr.attr))
-		if (!st->en_dual)
-			mode = 0;
-
-	return mode;
-}
-
-static struct attribute_group ad7887_scan_el_group = {
-	.name = "scan_elements",
-	.attrs = ad7887_scan_el_attrs,
-	.is_visible = ad7887_scan_el_attr_is_visible,
-};
 
 int ad7887_scan_from_ring(struct ad7887_state *st, long mask)
 {
@@ -124,7 +69,8 @@ static int ad7887_ring_preenable(struct iio_dev *indio_dev)
 	struct ad7887_state *st = indio_dev->dev_data;
 	struct iio_ring_buffer *ring = indio_dev->ring;
 
-	st->d_size = ring->scan_count * st->chip_info->storagebits / 8;
+	st->d_size = ring->scan_count *
+		st->chip_info->channel[0].scan_type.storagebits / 8;
 
 	if (ring->scan_timestamp) {
 		st->d_size += sizeof(s64);
@@ -179,7 +125,8 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 	__u8 *buf;
 	int b_sent;
 
-	unsigned int bytes = ring->scan_count * st->chip_info->storagebits / 8;
+	unsigned int bytes = ring->scan_count *
+		st->chip_info->channel[0].scan_type.storagebits / 8;
 
 	buf = kzalloc(st->d_size, GFP_KERNEL);
 	if (buf == NULL)
@@ -199,6 +146,7 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 	indio_dev->ring->access.store_to(&sw_ring->buf, buf, time_ns);
 done:
 	kfree(buf);
+	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -236,8 +184,6 @@ int ad7887_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
 	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
 	indio_dev->ring->postdisable = &ad7887_ring_postdisable;
-	indio_dev->ring->scan_el_attrs = &ad7887_scan_el_group;
-	indio_dev->ring->scan_timestamp = true;
 
 	/* Flag that polled ring buffering is possible */
 	indio_dev->modes |= INDIO_RING_TRIGGERED;
