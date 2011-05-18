@@ -725,6 +725,11 @@ static struct iio_chan_spec ade7758_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(15),
 };
 
+static const struct iio_info ade7758_info = {
+	.attrs = &ade7758_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit ade7758_probe(struct spi_device *spi)
 {
 	int i, ret, regdone = 0;
@@ -757,8 +762,7 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 
 	indio_dev->name = spi->dev.driver->name;
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->attrs = &ade7758_attribute_group;
-	indio_dev->driver_module = THIS_MODULE;
+	indio_dev->info = &ade7758_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	for (i = 0; i < AD7758_NUM_WAVESRC; i++)

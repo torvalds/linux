@@ -770,7 +770,12 @@ static struct adis16400_chip_info adis16400_chips[] = {
 	}
 };
 
-
+static const struct iio_info adis16400_info = {
+	.driver_module = THIS_MODULE,
+	.read_raw = &adis16400_read_raw,
+	.write_raw = &adis16400_write_raw,
+	.attrs = &adis16400_attribute_group,
+};
 
 static int __devinit adis16400_probe(struct spi_device *spi)
 {
@@ -792,12 +797,9 @@ static int __devinit adis16400_probe(struct spi_device *spi)
 	st->variant = &adis16400_chips[spi_get_device_id(spi)->driver_data];
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->attrs = &adis16400_attribute_group;
 	indio_dev->channels = st->variant->channels;
 	indio_dev->num_channels = st->variant->num_channels;
-	indio_dev->read_raw = &adis16400_read_raw;
-	indio_dev->write_raw = &adis16400_write_raw;
-	indio_dev->driver_module = THIS_MODULE;
+	indio_dev->info = &adis16400_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = adis16400_configure_ring(indio_dev);

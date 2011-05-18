@@ -118,6 +118,11 @@ static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 	},
 };
 
+static const struct iio_info ad7476_info = {
+	.driver_module = THIS_MODULE,
+	.read_raw = &ad7476_read_raw,
+};
+
 static int __devinit ad7476_probe(struct spi_device *spi)
 {
 	struct ad7476_platform_data *pdata = spi->dev.platform_data;
@@ -165,11 +170,10 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	st->indio_dev->dev.parent = &spi->dev;
 	st->indio_dev->name = spi_get_device_id(spi)->name;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 	st->indio_dev->channels = st->chip_info->channel;
 	st->indio_dev->num_channels = 2;
-	st->indio_dev->read_raw = &ad7476_read_raw;
+	st->indio_dev->info = &ad7476_info;
 	/* Setup default message */
 
 	st->xfer.rx_buf = &st->data;

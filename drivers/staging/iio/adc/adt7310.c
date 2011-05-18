@@ -746,6 +746,13 @@ static struct attribute_group adt7310_event_attribute_group[ADT7310_IRQS] = {
 	}
 };
 
+static const struct iio_info adt7310_info = {
+	.attrs = &adt7310_attribute_group,
+	.num_interrupt_lines = ADT7310_IRQS,
+	.event_attrs = adt7310_event_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 /*
  * device probe and remove
  */
@@ -775,11 +782,8 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 
 	chip->indio_dev->dev.parent = &spi_dev->dev;
 	chip->indio_dev->name = spi_get_device_id(spi_dev)->name;
-	chip->indio_dev->attrs = &adt7310_attribute_group;
-	chip->indio_dev->event_attrs = adt7310_event_attribute_group;
+	chip->indio_dev->info = &adt7310_info;
 	chip->indio_dev->dev_data = (void *)chip;
-	chip->indio_dev->driver_module = THIS_MODULE;
-	chip->indio_dev->num_interrupt_lines = ADT7310_IRQS;
 	chip->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(chip->indio_dev);

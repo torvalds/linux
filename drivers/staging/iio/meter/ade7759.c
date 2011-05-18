@@ -450,6 +450,11 @@ static const struct attribute_group ade7759_attribute_group = {
 	.attrs = ade7759_attributes,
 };
 
+static const struct iio_info ade7759_info = {
+	.attrs = &ade7759_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit ade7759_probe(struct spi_device *spi)
 {
 	int ret;
@@ -483,11 +488,9 @@ static int __devinit ade7759_probe(struct spi_device *spi)
 
 	st->indio_dev->name = spi->dev.driver->name;
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->num_interrupt_lines = 1;
 
-	st->indio_dev->attrs = &ade7759_attribute_group;
+	st->indio_dev->info = &ade7759_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->indio_dev);

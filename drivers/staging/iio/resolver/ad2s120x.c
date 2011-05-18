@@ -209,8 +209,12 @@ static struct attribute *ad2s120x_attributes[] = {
 };
 
 static const struct attribute_group ad2s120x_attribute_group = {
-	.name = DRV_NAME,
 	.attrs = ad2s120x_attributes,
+};
+
+static const struct iio_info ad2s120x_info = {
+	.attrs = &ad2s120x_attribute_group,
+	.driver_module = THIS_MODULE,
 };
 
 static int __devinit ad2s120x_probe(struct spi_device *spi)
@@ -246,12 +250,9 @@ static int __devinit ad2s120x_probe(struct spi_device *spi)
 		goto error_free_st;
 	}
 	st->idev->dev.parent = &spi->dev;
-	st->idev->num_interrupt_lines = 0;
-	st->idev->event_attrs = NULL;
 
-	st->idev->attrs = &ad2s120x_attribute_group;
+	st->idev->info = &ad2s120x_info;
 	st->idev->dev_data = (void *)(st);
-	st->idev->driver_module = THIS_MODULE;
 	st->idev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->idev);

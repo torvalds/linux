@@ -565,6 +565,13 @@ static const struct attribute_group adis16260_attribute_group = {
 	.attrs = adis16260_attributes,
 };
 
+static const struct iio_info adis16260_info = {
+	.attrs = &adis16260_attribute_group,
+	.read_raw = &adis16260_read_raw,
+	.write_raw = &adis16260_write_raw,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit adis16260_probe(struct spi_device *spi)
 {
 	int ret, regdone = 0;
@@ -601,7 +608,7 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 
 	st->indio_dev->name = spi_get_device_id(st->us)->name;
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &adis16260_attribute_group;
+	st->indio_dev->info = &adis16260_info;
 	st->indio_dev->num_channels
 		= ARRAY_SIZE(adis16260_channels_x);
 	if (pd && pd->direction)
@@ -621,10 +628,7 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 	else
 		st->indio_dev->channels = adis16260_channels_x;
 
-	st->indio_dev->read_raw = &adis16260_read_raw;
-	st->indio_dev->write_raw = &adis16260_write_raw;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = adis16260_configure_ring(st->indio_dev);

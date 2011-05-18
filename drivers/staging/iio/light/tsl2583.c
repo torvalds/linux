@@ -786,6 +786,11 @@ static int taos_tsl258x_device(unsigned char *bufp)
 	return ((bufp[TSL258X_CHIPID] & 0xf0) == 0x90);
 }
 
+static const struct iio_info tsl2583_info = {
+	.attrs = &tsl2583_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 /*
  * Client probe function - When a valid device is found, the driver's device
  * data structure is updated, and initialization completes successfully.
@@ -854,10 +859,9 @@ static int __devinit taos_probe(struct i2c_client *clientp,
 		goto fail1;
 	}
 
-	chip->iio_dev->attrs = &tsl2583_attribute_group;
+	chip->iio_dev->info = &tsl2583_info;
 	chip->iio_dev->dev.parent = &clientp->dev;
 	chip->iio_dev->dev_data = (void *)(chip);
-	chip->iio_dev->driver_module = THIS_MODULE;
 	chip->iio_dev->modes = INDIO_DIRECT_MODE;
 	ret = iio_device_register(chip->iio_dev);
 	if (ret) {

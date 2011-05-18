@@ -551,6 +551,11 @@ static const struct attribute_group ade7854_attribute_group = {
 	.attrs = ade7854_attributes,
 };
 
+static const struct iio_info ade7854_info = {
+	.attrs = &ade7854_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 int ade7854_probe(struct ade7854_state *st, struct device *dev)
 {
 	int ret;
@@ -575,9 +580,8 @@ int ade7854_probe(struct ade7854_state *st, struct device *dev)
 	}
 
 	st->indio_dev->dev.parent = dev;
-	st->indio_dev->attrs = &ade7854_attribute_group;
+	st->indio_dev->info = &ade7854_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->indio_dev);

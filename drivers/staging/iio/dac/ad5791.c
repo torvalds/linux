@@ -287,6 +287,11 @@ static const struct ad5791_chip_info ad5791_chip_info_tbl[] = {
 	},
 };
 
+static const struct iio_info ad5791_info = {
+	.attrs = &ad5791_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit ad5791_probe(struct spi_device *spi)
 {
 	struct ad5791_platform_data *pdata = spi->dev.platform_data;
@@ -353,8 +358,7 @@ static int __devinit ad5791_probe(struct spi_device *spi)
 	}
 	st->indio_dev->dev.parent = &spi->dev;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->attrs = &ad5791_attribute_group;
-	st->indio_dev->driver_module = THIS_MODULE;
+	st->indio_dev->info = &ad5791_info;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->indio_dev);

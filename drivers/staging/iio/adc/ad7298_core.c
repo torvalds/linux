@@ -156,6 +156,11 @@ static int ad7298_read_raw(struct iio_dev *dev_info,
 	return -EINVAL;
 }
 
+static const struct iio_info ad7298_info = {
+	.read_raw = &ad7298_read_raw,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit ad7298_probe(struct spi_device *spi)
 {
 	struct ad7298_platform_data *pdata = spi->dev.platform_data;
@@ -181,11 +186,10 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->driver_module = THIS_MODULE;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ad7298_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad7298_channels);
-	indio_dev->read_raw = &ad7298_read_raw;
+	indio_dev->info = &ad7298_info;
 
 	/* Setup default message */
 

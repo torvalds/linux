@@ -83,6 +83,11 @@ static const struct ad7887_chip_info ad7887_chip_info_tbl[] = {
 	},
 };
 
+static const struct iio_info ad7887_info = {
+	.read_raw = &ad7887_read_raw,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit ad7887_probe(struct spi_device *spi)
 {
 	struct ad7887_platform_data *pdata = spi->dev.platform_data;
@@ -114,8 +119,7 @@ static int __devinit ad7887_probe(struct spi_device *spi)
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->dev_data = (void *)(st);
-	indio_dev->read_raw = &ad7887_read_raw;
-	indio_dev->driver_module = THIS_MODULE;
+	indio_dev->info = &ad7887_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	/* Setup default message */

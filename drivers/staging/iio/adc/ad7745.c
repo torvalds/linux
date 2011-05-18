@@ -565,6 +565,12 @@ static struct attribute_group ad774x_event_attribute_group = {
 	.attrs = ad774x_event_attributes,
 };
 
+static const struct iio_info ad774x_info = {
+	.attrs = &ad774x_event_attribute_group,
+	.event_attrs = &ad774x_event_attribute_group,
+	.num_interrupt_lines = 1,
+	.driver_module = THIS_MODULE,
+};
 /*
  * device probe and remove
  */
@@ -593,11 +599,8 @@ static int __devinit ad774x_probe(struct i2c_client *client,
 	/* Establish that the iio_dev is a child of the i2c device */
 	chip->indio_dev->name = id->name;
 	chip->indio_dev->dev.parent = &client->dev;
-	chip->indio_dev->attrs = &ad774x_attribute_group;
-	chip->indio_dev->event_attrs = &ad774x_event_attribute_group;
+	chip->indio_dev->info = &ad774x_info;
 	chip->indio_dev->dev_data = (void *)(chip);
-	chip->indio_dev->driver_module = THIS_MODULE;
-	chip->indio_dev->num_interrupt_lines = 1;
 	chip->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(chip->indio_dev);

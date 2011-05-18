@@ -154,7 +154,7 @@ enum max1363_modes {
  * @name:		indentification string for chip
  * @bits:		accuracy of the adc in bits
  * @int_vref_mv:	the internal reference voltage
- * @monitor_mode:	whether the chip supports monitor interrupts
+ * @info:		iio core function callbacks structure
  * @mode_list:		array of available scan modes
  * @num_modes:		the number of scan modes available
  * @default_mode:	the scan mode in which the chip starts up
@@ -162,14 +162,14 @@ enum max1363_modes {
  * @num_channels:	number of channels
  */
 struct max1363_chip_info {
-	u8				bits;
-	u16				int_vref_mv;
-	bool				monitor_mode;
-	const enum max1363_modes	*mode_list;
-	int				num_modes;
-	enum max1363_modes		default_mode;
+	const struct iio_info		*info;
 	struct iio_chan_spec *channels;
 	int num_channels;
+	const enum max1363_modes	*mode_list;
+	enum max1363_modes		default_mode;
+	u16				int_vref_mv;
+	u8				num_modes;
+	u8				bits;
 };
 
 /**

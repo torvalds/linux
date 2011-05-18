@@ -97,9 +97,8 @@ struct ad799x_chip_info {
 	struct iio_chan_spec		channel[9];
 	int				num_channels;
 	u16				int_vref_mv;
-	bool				monitor_mode;
 	u16				default_config;
-	struct attribute_group		*event_attrs;
+	const struct iio_info		*info;
 };
 
 struct ad799x_state {

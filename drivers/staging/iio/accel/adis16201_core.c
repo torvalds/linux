@@ -457,6 +457,13 @@ static const struct attribute_group adis16201_attribute_group = {
 	.attrs = adis16201_attributes,
 };
 
+static const struct iio_info adis16201_info = {
+	.attrs = &adis16201_attribute_group,
+	.read_raw = &adis16201_read_raw,
+	.write_raw = &adis16201_write_raw,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit adis16201_probe(struct spi_device *spi)
 {
 	int ret, regdone = 0;
@@ -490,13 +497,11 @@ static int __devinit adis16201_probe(struct spi_device *spi)
 
 	st->indio_dev->name = spi->dev.driver->name;
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &adis16201_attribute_group;
+	st->indio_dev->info = &adis16201_info;
+
 	st->indio_dev->channels = adis16201_channels;
 	st->indio_dev->num_channels = ARRAY_SIZE(adis16201_channels);
-	st->indio_dev->read_raw = &adis16201_read_raw;
-	st->indio_dev->write_raw = &adis16201_write_raw;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = adis16201_configure_ring(st->indio_dev);

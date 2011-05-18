@@ -260,6 +260,20 @@ static irqreturn_t ad5504_event_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static const struct iio_info ad5504_info = {
+	.attrs = &ad5504_attribute_group,
+	.num_interrupt_lines = 1,
+	.event_attrs = &ad5504_ev_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
+static const struct iio_info ad5501_info = {
+	.attrs = &ad5501_attribute_group,
+	.num_interrupt_lines = 1,
+	.event_attrs = &ad5504_ev_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit ad5504_probe(struct spi_device *spi)
 {
 	struct ad5504_platform_data *pdata = spi->dev.platform_data;
@@ -298,14 +312,12 @@ static int __devinit ad5504_probe(struct spi_device *spi)
 	}
 	st->indio_dev->dev.parent = &spi->dev;
 	st->indio_dev->name = spi_get_device_id(st->spi)->name;
-	st->indio_dev->attrs = spi_get_device_id(st->spi)->driver_data
-		== ID_AD5501 ? &ad5501_attribute_group :
-		&ad5504_attribute_group;
+	if (spi_get_device_id(st->spi)->driver_data == ID_AD5501)
+		st->indio_dev->info = &ad5501_info;
+	else
+		st->indio_dev->info = &ad5504_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
-	st->indio_dev->num_interrupt_lines = 1;
-	st->indio_dev->event_attrs = &ad5504_ev_attribute_group,
 
 	ret = iio_device_register(st->indio_dev);
 	if (ret)

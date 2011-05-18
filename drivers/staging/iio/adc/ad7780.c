@@ -151,6 +151,11 @@ static irqreturn_t ad7780_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 };
 
+static const struct iio_info ad7780_info = {
+	.read_raw = &ad7780_read_raw,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit ad7780_probe(struct spi_device *spi)
 {
 	struct ad7780_platform_data *pdata = spi->dev.platform_data;
@@ -195,11 +200,10 @@ static int __devinit ad7780_probe(struct spi_device *spi)
 
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->driver_module = THIS_MODULE;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = &st->chip_info->channel;
 	indio_dev->num_channels = 1;
-	indio_dev->read_raw = &ad7780_read_raw;
+	indio_dev->info = &ad7780_info;
 
 	init_waitqueue_head(&st->wq_data_avail);
 

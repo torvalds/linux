@@ -497,6 +497,10 @@ static const struct attribute_group ad7152_attribute_group = {
 	.attrs = ad7152_attributes,
 };
 
+static const struct iio_info ad7152_info = {
+	.attrs = &ad7152_attribute_group,
+	.driver_module = THIS_MODULE,
+};
 /*
  * device probe and remove
  */
@@ -525,9 +529,8 @@ static int __devinit ad7152_probe(struct i2c_client *client,
 	/* Echipabilish that the iio_dev is a child of the i2c device */
 	chip->indio_dev->name = id->name;
 	chip->indio_dev->dev.parent = &client->dev;
-	chip->indio_dev->attrs = &ad7152_attribute_group;
+	chip->indio_dev->info = &ad7152_info;
 	chip->indio_dev->dev_data = (void *)(chip);
-	chip->indio_dev->driver_module = THIS_MODULE;
 	chip->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(chip->indio_dev);

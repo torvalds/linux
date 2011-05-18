@@ -218,6 +218,11 @@ static const struct attribute_group ad5624r_attribute_group = {
 	.attrs = ad5624r_attributes,
 };
 
+static const struct iio_info ad5624r_info = {
+	.attrs = &ad5624r_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit ad5624r_probe(struct spi_device *spi)
 {
 	struct ad5624r_state *st;
@@ -255,9 +260,8 @@ static int __devinit ad5624r_probe(struct spi_device *spi)
 	}
 	st->indio_dev->dev.parent = &spi->dev;
 	st->indio_dev->name = spi_get_device_id(spi)->name;
-	st->indio_dev->attrs = &ad5624r_attribute_group;
+	st->indio_dev->info = &ad5624r_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->indio_dev);

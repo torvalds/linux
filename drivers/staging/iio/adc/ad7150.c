@@ -700,6 +700,12 @@ static struct attribute_group ad7150_event_attribute_group = {
 	.attrs = ad7150_event_attributes,
 };
 
+static const struct iio_info ad7150_info = {
+	.attrs = &ad7150_attribute_group,
+	.num_interrupt_lines = 1,
+	.event_attrs = &ad7150_event_attribute_group,
+	.driver_module = THIS_MODULE,
+};
 /*
  * device probe and remove
  */
@@ -725,14 +731,13 @@ static int __devinit ad7150_probe(struct i2c_client *client,
 		goto error_free_chip;
 	}
 
-	/* Echipabilish that the iio_dev is a child of the i2c device */
+	/* Establish that the iio_dev is a child of the i2c device */
 	chip->indio_dev->name = id->name;
 	chip->indio_dev->dev.parent = &client->dev;
-	chip->indio_dev->attrs = &ad7150_attribute_group;
-	chip->indio_dev->event_attrs = &ad7150_event_attribute_group;
+
+	chip->indio_dev->info = &ad7150_info;
 	chip->indio_dev->dev_data = (void *)(chip);
-	chip->indio_dev->driver_module = THIS_MODULE;
-	chip->indio_dev->num_interrupt_lines = 1;
+
 	chip->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(chip->indio_dev);

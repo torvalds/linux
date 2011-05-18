@@ -202,70 +202,34 @@ static inline s64 iio_get_time_ns(void)
  * call to iio_device_register. */
 #define IIO_VAL_INT 1
 #define IIO_VAL_INT_PLUS_MICRO 2
+
 /**
- * struct iio_dev - industrial I/O device
- * @id:			[INTERN] used to identify device internally
- * @dev_data:		[DRIVER] device specific data
- * @modes:		[DRIVER] operating modes supported by device
- * @currentmode:	[DRIVER] current operating mode
- * @dev:		[DRIVER] device structure, should be assigned a parent
- *			and owner
- * @attrs:		[DRIVER] general purpose device attributes
- * @driver_module:	[DRIVER] module structure used to ensure correct
+ * struct iio_info - constant information about device
+ * @driver_module:	module structure used to ensure correct
  *			ownership of chrdevs etc
- * @num_interrupt_lines:[DRIVER] number of physical interrupt lines from device
- * @event_attrs:	[DRIVER] event control attributes
- * @event_interfaces:	[INTERN] event chrdevs associated with interrupt lines
- * @ring:		[DRIVER] any ring buffer present
- * @mlock:		[INTERN] lock used to prevent simultaneous device state
- *			changes
- * @available_scan_masks: [DRIVER] optional array of allowed bitmasks
- * @trig:		[INTERN] current device trigger (ring buffer modes)
- * @pollfunc:		[DRIVER] function run on trigger being received
- * @channels:		[DRIVER] channel specification structure table
- * @num_channels:	[DRIVER] number of chanels specified in @channels.
- * @channel_attr_list:	[INTERN] keep track of automatically created channel
- *			attributes.
- * @name:		[DRIVER] name of the device.
- * @read_raw:		[DRIVER] function to request a value from the device.
+ * @num_interrupt_lines:number of physical interrupt lines from device
+ * @event_attrs:	event control attributes
+ * @attrs:		general purpose device attributes
+ * @read_raw:		function to request a value from the device.
  *			mask specifies which value. Note 0 means a reading of
  *			the channel in question.  Return value will specify the
  *			type of value returned by the device. val and val2 will
  *			contain the elements making up the returned value.
- * @write_raw:		[DRIVER] function to write a value to the device.
+ * @write_raw:		function to write a value to the device.
  *			Parameters are the same as for read_raw.
- * @read_event_config:	[DRIVER] find out if the event is enabled.
- * @write_event_config:	[DRIVER] set if the event is enabled.
- * @read_event_value:	[DRIVER] read a value associated with the event. Meaning
+ * @read_event_config:	find out if the event is enabled.
+ * @write_event_config:	set if the event is enabled.
+ * @read_event_value:	read a value associated with the event. Meaning
  *			is event dependant. event_code specifies which event.
- * @write_event_value:	[DRIVER] write the value associate with the event.
+ * @write_event_value:	write the value associate with the event.
  *			Meaning is event dependent.
  **/
-struct iio_dev {
-	int				id;
-	void				*dev_data;
-	int				modes;
-	int				currentmode;
-	struct device			dev;
-	const struct attribute_group	*attrs;
+struct iio_info {
 	struct module			*driver_module;
-
 	int				num_interrupt_lines;
 	struct attribute_group		*event_attrs;
-	struct iio_event_interface	*event_interfaces;
+	const struct attribute_group	*attrs;
 
-	struct iio_ring_buffer		*ring;
-	struct mutex			mlock;
-
-	u32				*available_scan_masks;
-	struct iio_trigger		*trig;
-	struct iio_poll_func		*pollfunc;
-
-	struct iio_chan_spec const *channels;
-	int num_channels;
-	struct list_head channel_attr_list;
-
-	const char *name;
 	int (*read_raw)(struct iio_dev *indio_dev,
 			struct iio_chan_spec const *chan,
 			int *val,
@@ -291,6 +255,51 @@ struct iio_dev {
 	int (*write_event_value)(struct iio_dev *indio_dev,
 				 int event_code,
 				 int val);
+};
+
+/**
+ * struct iio_dev - industrial I/O device
+ * @id:			[INTERN] used to identify device internally
+ * @dev_data:		[DRIVER] device specific data
+ * @modes:		[DRIVER] operating modes supported by device
+ * @currentmode:	[DRIVER] current operating mode
+ * @dev:		[DRIVER] device structure, should be assigned a parent
+ *			and owner
+ * @event_interfaces:	[INTERN] event chrdevs associated with interrupt lines
+ * @ring:		[DRIVER] any ring buffer present
+ * @mlock:		[INTERN] lock used to prevent simultaneous device state
+ *			changes
+ * @available_scan_masks: [DRIVER] optional array of allowed bitmasks
+ * @trig:		[INTERN] current device trigger (ring buffer modes)
+ * @pollfunc:		[DRIVER] function run on trigger being received
+ * @channels:		[DRIVER] channel specification structure table
+ * @num_channels:	[DRIVER] number of chanels specified in @channels.
+ * @channel_attr_list:	[INTERN] keep track of automatically created channel
+ *			attributes.
+ * @name:		[DRIVER] name of the device.
+ **/
+struct iio_dev {
+	int				id;
+	void				*dev_data;
+	int				modes;
+	int				currentmode;
+	struct device			dev;
+
+	struct iio_event_interface	*event_interfaces;
+
+	struct iio_ring_buffer		*ring;
+	struct mutex			mlock;
+
+	u32				*available_scan_masks;
+	struct iio_trigger		*trig;
+	struct iio_poll_func		*pollfunc;
+
+	struct iio_chan_spec const *channels;
+	int num_channels;
+
+	struct list_head channel_attr_list;
+	const char *name;
+	const struct iio_info *info;
 };
 
 /**

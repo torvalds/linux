@@ -175,6 +175,11 @@ static const struct attribute_group adis16130_attribute_group = {
 	.attrs = adis16130_attributes,
 };
 
+static const struct iio_info adis16130_info = {
+	.attrs = &adis16130_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit adis16130_probe(struct spi_device *spi)
 {
 	int ret;
@@ -196,9 +201,8 @@ static int __devinit adis16130_probe(struct spi_device *spi)
 
 	st->indio_dev->name = spi->dev.driver->name;
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &adis16130_attribute_group;
+	st->indio_dev->info = &adis16130_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 	st->mode = 1;
 

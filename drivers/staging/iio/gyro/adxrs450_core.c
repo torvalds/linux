@@ -349,6 +349,11 @@ static const struct attribute_group adxrs450_attribute_group = {
 	.attrs = adxrs450_attributes,
 };
 
+static const struct iio_info adxrs450_info = {
+	.attrs = &adxrs450_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit adxrs450_probe(struct spi_device *spi)
 {
 	int ret, regdone = 0;
@@ -381,9 +386,8 @@ static int __devinit adxrs450_probe(struct spi_device *spi)
 	}
 
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &adxrs450_attribute_group;
+	st->indio_dev->info = &adxrs450_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->indio_dev);

@@ -191,6 +191,10 @@ static const struct attribute_group ad7314_attribute_group = {
 	.attrs = ad7314_attributes,
 };
 
+static const struct iio_info ad7314_info = {
+	.attrs = &ad7314_attribute_group,
+	.driver_module = THIS_MODULE,
+};
 /*
  * device probe and remove
  */
@@ -218,9 +222,8 @@ static int __devinit ad7314_probe(struct spi_device *spi_dev)
 
 	chip->indio_dev->name = spi_get_device_id(spi_dev)->name;
 	chip->indio_dev->dev.parent = &spi_dev->dev;
-	chip->indio_dev->attrs = &ad7314_attribute_group;
+	chip->indio_dev->info = &ad7314_info;
 	chip->indio_dev->dev_data = (void *)chip;
-	chip->indio_dev->driver_module = THIS_MODULE;
 
 	ret = iio_device_register(chip->indio_dev);
 	if (ret)

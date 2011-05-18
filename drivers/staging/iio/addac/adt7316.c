@@ -2106,6 +2106,20 @@ int adt7316_enable(struct device *dev)
 EXPORT_SYMBOL(adt7316_enable);
 #endif
 
+static const struct iio_info adt7316_info = {
+	.attrs = &adt7316_attribute_group,
+	.num_interrupt_lines = 1,
+	.event_attrs = &adt7316_event_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
+static const struct iio_info adt7516_info = {
+	.attrs = &adt7516_attribute_group,
+	.num_interrupt_lines = 1,
+	.event_attrs = &adt7516_event_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 /*
  * device probe and remove
  */
@@ -2150,17 +2164,12 @@ int __devinit adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	}
 
 	chip->indio_dev->dev.parent = dev;
-	if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX) {
-		chip->indio_dev->attrs = &adt7516_attribute_group;
-		chip->indio_dev->event_attrs = &adt7516_event_attribute_group;
-	} else {
-		chip->indio_dev->attrs = &adt7316_attribute_group;
-		chip->indio_dev->event_attrs = &adt7316_event_attribute_group;
-	}
+	if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
+		chip->indio_dev->info = &adt7516_info;
+	else
+		chip->indio_dev->info = &adt7316_info;
 	chip->indio_dev->name = name;
 	chip->indio_dev->dev_data = (void *)chip;
-	chip->indio_dev->driver_module = THIS_MODULE;
-	chip->indio_dev->num_interrupt_lines = 1;
 	chip->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(chip->indio_dev);

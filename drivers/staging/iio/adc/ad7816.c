@@ -331,6 +331,13 @@ static struct attribute_group ad7816_event_attribute_group = {
 	.attrs = ad7816_event_attributes,
 };
 
+static const struct iio_info ad7816_info = {
+	.attrs = &ad7816_attribute_group,
+	.num_interrupt_lines = 1,
+	.event_attrs = &ad7816_event_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 /*
  * device probe and remove
  */
@@ -391,11 +398,8 @@ static int __devinit ad7816_probe(struct spi_device *spi_dev)
 	}
 	chip->indio_dev->name = spi_get_device_id(spi_dev)->name;
 	chip->indio_dev->dev.parent = &spi_dev->dev;
-	chip->indio_dev->attrs = &ad7816_attribute_group;
-	chip->indio_dev->event_attrs = &ad7816_event_attribute_group;
+	chip->indio_dev->info = &ad7816_info;
 	chip->indio_dev->dev_data = (void *)chip;
-	chip->indio_dev->driver_module = THIS_MODULE;
-	chip->indio_dev->num_interrupt_lines = 1;
 	chip->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(chip->indio_dev);

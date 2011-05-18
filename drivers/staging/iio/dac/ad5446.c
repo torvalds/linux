@@ -334,6 +334,11 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 	},
 };
 
+static const struct iio_info ad5446_info = {
+	.attrs = &ad5446_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit ad5446_probe(struct spi_device *spi)
 {
 	struct ad5446_state *st;
@@ -370,9 +375,8 @@ static int __devinit ad5446_probe(struct spi_device *spi)
 	/* Estabilish that the iio_dev is a child of the spi device */
 	st->indio_dev->dev.parent = &spi->dev;
 	st->indio_dev->name = spi_get_device_id(spi)->name;
-	st->indio_dev->attrs = &ad5446_attribute_group;
+	st->indio_dev->info = &ad5446_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	/* Setup default message */

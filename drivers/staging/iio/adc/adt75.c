@@ -534,6 +534,13 @@ static struct attribute_group adt75_event_attribute_group = {
 	.attrs = adt75_event_attributes,
 };
 
+static const struct iio_info adt75_info = {
+	.attrs = &adt75_attribute_group,
+	.num_interrupt_lines = 1,
+	.event_attrs = &adt75_event_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 /*
  * device probe and remove
  */
@@ -562,11 +569,8 @@ static int __devinit adt75_probe(struct i2c_client *client,
 
 	chip->indio_dev->name = id->name;
 	chip->indio_dev->dev.parent = &client->dev;
-	chip->indio_dev->attrs = &adt75_attribute_group;
-	chip->indio_dev->event_attrs = &adt75_event_attribute_group;
+	chip->indio_dev->info = &adt75_info;
 	chip->indio_dev->dev_data = (void *)chip;
-	chip->indio_dev->driver_module = THIS_MODULE;
-	chip->indio_dev->num_interrupt_lines = 1;
 	chip->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(chip->indio_dev);

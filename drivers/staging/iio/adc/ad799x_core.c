@@ -459,6 +459,25 @@ static struct attribute_group ad7992_event_attrs_group = {
 	.attrs = ad7992_event_attributes,
 };
 
+static const struct iio_info ad7991_info = {
+	.read_raw = &ad799x_read_raw,
+	.driver_module = THIS_MODULE,
+};
+
+static const struct iio_info ad7992_info = {
+	.read_raw = &ad799x_read_raw,
+	.num_interrupt_lines = 1,
+	.event_attrs = &ad7992_event_attrs_group,
+	.driver_module = THIS_MODULE,
+};
+
+static const struct iio_info ad7993_4_7_8_info = {
+	.read_raw = &ad799x_read_raw,
+	.num_interrupt_lines = 1,
+	.event_attrs = &ad7993_4_7_8_event_attrs_group,
+	.driver_module = THIS_MODULE,
+};
+
 static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	[ad7991] = {
 		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
@@ -476,6 +495,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 		.channel[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
 		.num_channels = 5,
 		.int_vref_mv = 4096,
+		.info = &ad7991_info,
 	},
 	[ad7995] = {
 		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
@@ -493,6 +513,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 		.channel[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
 		.num_channels = 5,
 		.int_vref_mv = 1024,
+		.info = &ad7991_info,
 	},
 	[ad7999] = {
 		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
@@ -510,6 +531,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 		.channel[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
 		.num_channels = 5,
 		.int_vref_mv = 1024,
+		.info = &ad7991_info,
 	},
 	[ad7992] = {
 		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
@@ -521,9 +543,8 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 		.channel[2] = IIO_CHAN_SOFT_TIMESTAMP(2),
 		.num_channels = 3,
 		.int_vref_mv = 4096,
-		.monitor_mode = true,
 		.default_config = AD7998_ALERT_EN,
-		.event_attrs = &ad7992_event_attrs_group,
+		.info = &ad7992_info,
 	},
 	[ad7993] = {
 		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
@@ -541,9 +562,8 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 		.channel[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
 		.num_channels = 5,
 		.int_vref_mv = 1024,
-		.monitor_mode = true,
 		.default_config = AD7998_ALERT_EN,
-		.event_attrs = &ad7993_4_7_8_event_attrs_group,
+		.info = &ad7993_4_7_8_info,
 	},
 	[ad7994] = {
 		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
@@ -561,9 +581,8 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 		.channel[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
 		.num_channels = 5,
 		.int_vref_mv = 4096,
-		.monitor_mode = true,
 		.default_config = AD7998_ALERT_EN,
-		.event_attrs = &ad7993_4_7_8_event_attrs_group,
+		.info = &ad7993_4_7_8_info,
 	},
 	[ad7997] = {
 		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
@@ -593,9 +612,8 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 		.channel[8] = IIO_CHAN_SOFT_TIMESTAMP(8),
 		.num_channels = 9,
 		.int_vref_mv = 1024,
-		.monitor_mode = true,
 		.default_config = AD7998_ALERT_EN,
-		.event_attrs = &ad7993_4_7_8_event_attrs_group,
+		.info = &ad7993_4_7_8_info,
 	},
 	[ad7998] = {
 		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
@@ -625,9 +643,8 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 		.channel[8] = IIO_CHAN_SOFT_TIMESTAMP(8),
 		.num_channels = 9,
 		.int_vref_mv = 4096,
-		.monitor_mode = true,
 		.default_config = AD7998_ALERT_EN,
-		.event_attrs = &ad7993_4_7_8_event_attrs_group,
+		.info = &ad7993_4_7_8_info,
 	},
 };
 
@@ -667,15 +684,13 @@ static int __devinit ad799x_probe(struct i2c_client *client,
 
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
-	indio_dev->event_attrs = st->chip_info->event_attrs;
+	indio_dev->info = st->chip_info->info;
 	indio_dev->name = id->name;
 	indio_dev->dev_data = (void *)(st);
-	indio_dev->driver_module = THIS_MODULE;
+
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->num_interrupt_lines = 1;
 	indio_dev->channels = st->chip_info->channel;
 	indio_dev->num_channels = st->chip_info->num_channels;
-	indio_dev->read_raw = &ad799x_read_raw;
 
 	ret = ad799x_register_ring_funcs_and_init(indio_dev);
 	if (ret)
@@ -692,7 +707,7 @@ static int __devinit ad799x_probe(struct i2c_client *client,
 	if (ret)
 		goto error_cleanup_ring;
 
-	if (client->irq > 0 && st->chip_info->monitor_mode) {
+	if (client->irq > 0) {
 		ret = request_threaded_irq(client->irq,
 					   NULL,
 					   ad799x_event_handler,
@@ -727,7 +742,7 @@ static __devexit int ad799x_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ad799x_state *st = iio_priv(indio_dev);
 
-	if (client->irq > 0 && st->chip_info->monitor_mode)
+	if (client->irq > 0)
 		free_irq(client->irq, indio_dev);
 
 	iio_ring_buffer_unregister(indio_dev->ring);

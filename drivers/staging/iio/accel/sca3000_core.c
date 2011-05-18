@@ -1100,6 +1100,28 @@ error_ret:
 	return ret;
 }
 
+static const struct iio_info sca3000_info = {
+	.attrs = &sca3000_attribute_group,
+	.read_raw = &sca3000_read_raw,
+	.num_interrupt_lines = 1,
+	.event_attrs = &sca3000_event_attribute_group,
+	.read_event_value = &sca3000_read_thresh,
+	.write_event_value = &sca3000_write_thresh,
+	.read_event_config = &sca3000_read_event_config,
+	.write_event_config = &sca3000_write_event_config,
+	.driver_module = THIS_MODULE,
+};
+
+static const struct iio_info sca3000_info_with_temp = {
+	.attrs = &sca3000_attribute_group_with_temp,
+	.read_raw = &sca3000_read_raw,
+	.read_event_value = &sca3000_read_thresh,
+	.write_event_value = &sca3000_write_thresh,
+	.read_event_config = &sca3000_read_event_config,
+	.write_event_config = &sca3000_write_event_config,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit sca3000_probe(struct spi_device *spi)
 {
 	int ret, regdone = 0;
@@ -1124,20 +1146,13 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 	}
 	st->indio_dev->dev.parent = &spi->dev;
 	st->indio_dev->name = spi_get_device_id(spi)->name;
-	st->indio_dev->num_interrupt_lines = 1;
-	st->indio_dev->event_attrs = &sca3000_event_attribute_group;
 	if (st->info->temp_output)
-		st->indio_dev->attrs = &sca3000_attribute_group_with_temp;
+		st->indio_dev->info = &sca3000_info_with_temp;
 	else {
-		st->indio_dev->attrs = &sca3000_attribute_group;
+		st->indio_dev->info = &sca3000_info;
 		st->indio_dev->channels = sca3000_channels;
 		st->indio_dev->num_channels = ARRAY_SIZE(sca3000_channels);
 	}
-	st->indio_dev->read_raw = &sca3000_read_raw;
-	st->indio_dev->read_event_value = &sca3000_read_thresh;
-	st->indio_dev->write_event_value = &sca3000_write_thresh;
-	st->indio_dev->read_event_config = &sca3000_read_event_config;
-	st->indio_dev->write_event_config = &sca3000_write_event_config;
 	st->indio_dev->dev_data = (void *)(st);
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 

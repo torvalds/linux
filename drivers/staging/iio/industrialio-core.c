@@ -383,8 +383,8 @@ static ssize_t iio_read_channel_info(struct device *dev,
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int val, val2;
-	int ret = indio_dev->read_raw(indio_dev, this_attr->c,
-				      &val, &val2, this_attr->address);
+	int ret = indio_dev->info->read_raw(indio_dev, this_attr->c,
+					    &val, &val2, this_attr->address);
 
 	if (ret < 0)
 		return ret;
@@ -411,7 +411,7 @@ static ssize_t iio_write_channel_info(struct device *dev,
 	bool integer_part = true, negative = false;
 
 	/* Assumes decimal - precision based on number of digits */
-	if (!indio_dev->write_raw)
+	if (!indio_dev->info->write_raw)
 		return -EINVAL;
 	if (buf[0] == '-') {
 		negative = true;
@@ -446,8 +446,8 @@ static ssize_t iio_write_channel_info(struct device *dev,
 			micro = -micro;
 	}
 
-	ret = indio_dev->write_raw(indio_dev, this_attr->c,
-				       integer, micro, this_attr->address);
+	ret = indio_dev->info->write_raw(indio_dev, this_attr->c,
+					 integer, micro, this_attr->address);
 	if (ret)
 		return ret;
 
@@ -707,8 +707,9 @@ static int iio_device_register_sysfs(struct iio_dev *dev_info)
 	int i, ret = 0;
 	struct iio_dev_attr *p, *n;
 
-	if (dev_info->attrs) {
-		ret = sysfs_create_group(&dev_info->dev.kobj, dev_info->attrs);
+	if (dev_info->info->attrs) {
+		ret = sysfs_create_group(&dev_info->dev.kobj,
+					 dev_info->info->attrs);
 		if (ret) {
 			dev_err(dev_info->dev.parent,
 				"Failed to register sysfs hooks\n");
@@ -744,8 +745,8 @@ error_clear_attrs:
 		list_del(&p->l);
 		iio_device_remove_and_free_read_attr(dev_info, p);
 	}
-	if (dev_info->attrs)
-		sysfs_remove_group(&dev_info->dev.kobj, dev_info->attrs);
+	if (dev_info->info->attrs)
+		sysfs_remove_group(&dev_info->dev.kobj, dev_info->info->attrs);
 error_ret:
 	return ret;
 
@@ -764,8 +765,8 @@ static void iio_device_unregister_sysfs(struct iio_dev *dev_info)
 		iio_device_remove_and_free_read_attr(dev_info, p);
 	}
 
-	if (dev_info->attrs)
-		sysfs_remove_group(&dev_info->dev.kobj, dev_info->attrs);
+	if (dev_info->info->attrs)
+		sysfs_remove_group(&dev_info->dev.kobj, dev_info->info->attrs);
 }
 
 /* Return a negative errno on failure */
@@ -824,8 +825,9 @@ static ssize_t iio_ev_state_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = indio_dev->write_event_config(indio_dev, this_attr->address,
-					    val);
+	ret = indio_dev->info->write_event_config(indio_dev,
+						  this_attr->address,
+						  val);
 	return (ret < 0) ? ret : len;
 }
 
@@ -835,7 +837,8 @@ static ssize_t iio_ev_state_show(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	int val = indio_dev->read_event_config(indio_dev, this_attr->address);
+	int val = indio_dev->info->read_event_config(indio_dev,
+						     this_attr->address);
 
 	if (val < 0)
 		return val;
@@ -851,8 +854,8 @@ static ssize_t iio_ev_value_show(struct device *dev,
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int val, ret;
 
-	ret = indio_dev->read_event_value(indio_dev,
-					  this_attr->address, &val);
+	ret = indio_dev->info->read_event_value(indio_dev,
+						this_attr->address, &val);
 	if (ret < 0)
 		return ret;
 
@@ -873,8 +876,8 @@ static ssize_t iio_ev_value_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = indio_dev->write_event_value(indio_dev, this_attr->address,
-					   val);
+	ret = indio_dev->info->write_event_value(indio_dev, this_attr->address,
+						 val);
 	if (ret < 0)
 		return ret;
 
@@ -930,8 +933,7 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 					       extending the bitmask - but
 					       how far*/
 					     0,
-					     &dev_info->event_interfaces[0]
-					     .dev,
+					     &dev_info->event_interfaces[0].dev,
 					     &dev_info->event_interfaces[0].
 					     dev_attr_list);
 		kfree(postfix);
@@ -1015,23 +1017,23 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 {
 	int ret = 0, i, j;
 
-	if (dev_info->num_interrupt_lines == 0)
+	if (dev_info->info->num_interrupt_lines == 0)
 		return 0;
 
 	dev_info->event_interfaces =
 		kzalloc(sizeof(struct iio_event_interface)
-			*dev_info->num_interrupt_lines,
+			*dev_info->info->num_interrupt_lines,
 			GFP_KERNEL);
 	if (dev_info->event_interfaces == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
 
-	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
+	for (i = 0; i < dev_info->info->num_interrupt_lines; i++) {
 		ret = iio_setup_ev_int(&dev_info->event_interfaces[i],
 				       dev_name(&dev_info->dev),
 				       i,
-				       dev_info->driver_module,
+				       dev_info->info->driver_module,
 				       &dev_info->dev);
 		if (ret) {
 			dev_err(&dev_info->dev,
@@ -1042,11 +1044,12 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 		dev_set_drvdata(&dev_info->event_interfaces[i].dev,
 				(void *)dev_info);
 
-		if (dev_info->event_attrs != NULL)
+		if (dev_info->info->event_attrs != NULL)
 			ret = sysfs_create_group(&dev_info
 						 ->event_interfaces[i]
 						 .dev.kobj,
-						 &dev_info->event_attrs[i]);
+						 &dev_info->info
+						 ->event_attrs[i]);
 
 		if (ret) {
 			dev_err(&dev_info->dev,
@@ -1055,7 +1058,7 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 		}
 	}
 
-	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
+	for (i = 0; i < dev_info->info->num_interrupt_lines; i++) {
 		ret = __iio_add_event_config_attrs(dev_info, i);
 		if (ret)
 			goto error_unregister_config_attrs;
@@ -1066,13 +1069,13 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 error_unregister_config_attrs:
 	for (j = 0; j < i; j++)
 		__iio_remove_event_config_attrs(dev_info, i);
-	i = dev_info->num_interrupt_lines - 1;
+	i = dev_info->info->num_interrupt_lines - 1;
 error_remove_sysfs_interfaces:
 	for (j = 0; j < i; j++)
-		if (dev_info->event_attrs != NULL)
+		if (dev_info->info->event_attrs != NULL)
 			sysfs_remove_group(&dev_info
 				   ->event_interfaces[j].dev.kobj,
-				   &dev_info->event_attrs[j]);
+				   &dev_info->info->event_attrs[j]);
 error_free_setup_ev_ints:
 	for (j = 0; j < i; j++)
 		iio_free_ev_int(&dev_info->event_interfaces[j]);
@@ -1086,17 +1089,17 @@ static void iio_device_unregister_eventset(struct iio_dev *dev_info)
 {
 	int i;
 
-	if (dev_info->num_interrupt_lines == 0)
+	if (dev_info->info->num_interrupt_lines == 0)
 		return;
-	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
+	for (i = 0; i < dev_info->info->num_interrupt_lines; i++) {
 		__iio_remove_event_config_attrs(dev_info, i);
-		if (dev_info->event_attrs != NULL)
+		if (dev_info->info->event_attrs != NULL)
 			sysfs_remove_group(&dev_info
 					   ->event_interfaces[i].dev.kobj,
-					   &dev_info->event_attrs[i]);
+					   &dev_info->info->event_attrs[i]);
 	}
 
-	for (i = 0; i < dev_info->num_interrupt_lines; i++)
+	for (i = 0; i < dev_info->info->num_interrupt_lines; i++)
 		iio_free_ev_int(&dev_info->event_interfaces[i]);
 	kfree(dev_info->event_interfaces);
 }

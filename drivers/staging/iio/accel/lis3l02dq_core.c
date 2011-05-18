@@ -651,6 +651,18 @@ static const struct attribute_group lis3l02dq_attribute_group = {
 	.attrs = lis3l02dq_attributes,
 };
 
+static const struct iio_info lis3l02dq_info = {
+	.num_interrupt_lines = 1,
+	.read_raw = &lis3l02dq_read_raw,
+	.write_raw = &lis3l02dq_write_raw,
+	.read_event_value = &lis3l02dq_read_thresh,
+	.write_event_value = &lis3l02dq_write_thresh,
+	.write_event_config = &lis3l02dq_write_event_config,
+	.read_event_config = &lis3l02dq_read_event_config,
+	.driver_module = THIS_MODULE,
+	.attrs = &lis3l02dq_attribute_group,
+};
+
 static int __devinit lis3l02dq_probe(struct spi_device *spi)
 {
 	int ret, regdone = 0;
@@ -670,17 +682,10 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	mutex_init(&st->buf_lock);
 	indio_dev->name = spi->dev.driver->name;
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->num_interrupt_lines = 1;
+	indio_dev->info = &lis3l02dq_info;
 	indio_dev->channels = lis3l02dq_channels;
 	indio_dev->num_channels = ARRAY_SIZE(lis3l02dq_channels);
-	indio_dev->read_raw = &lis3l02dq_read_raw;
-	indio_dev->write_raw = &lis3l02dq_write_raw;
-	indio_dev->read_event_value = &lis3l02dq_read_thresh;
-	indio_dev->write_event_value = &lis3l02dq_write_thresh;
-	indio_dev->write_event_config = &lis3l02dq_write_event_config;
-	indio_dev->read_event_config = &lis3l02dq_read_event_config;
-	indio_dev->attrs = &lis3l02dq_attribute_group;
-	indio_dev->driver_module = THIS_MODULE;
+
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = lis3l02dq_configure_ring(indio_dev);

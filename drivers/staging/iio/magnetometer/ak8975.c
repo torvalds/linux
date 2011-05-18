@@ -474,6 +474,11 @@ static struct attribute_group ak8975_attr_group = {
 	.attrs = ak8975_attr,
 };
 
+static const struct iio_info ak8975_info = {
+	.attrs = &ak8975_attr_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int ak8975_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -533,9 +538,8 @@ static int ak8975_probe(struct i2c_client *client,
 	}
 
 	data->indio_dev->dev.parent = &client->dev;
-	data->indio_dev->attrs = &ak8975_attr_group;
+	data->indio_dev->info = &ak8975_info;
 	data->indio_dev->dev_data = (void *)(data);
-	data->indio_dev->driver_module = THIS_MODULE;
 	data->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	err = iio_device_register(data->indio_dev);

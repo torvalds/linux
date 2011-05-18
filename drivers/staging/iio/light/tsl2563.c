@@ -688,6 +688,21 @@ error_ret:
 /*--------------------------------------------------------------*/
 static struct i2c_driver tsl2563_i2c_driver;
 
+static const struct iio_info tsl2563_info_no_irq = {
+	.driver_module = THIS_MODULE,
+};
+
+static const struct iio_info tsl2563_info = {
+	.driver_module = THIS_MODULE,
+	.num_interrupt_lines = 1,
+	.read_raw = &tsl2563_read_raw,
+	.write_raw = &tsl2563_write_raw,
+	.read_event_value = &tsl2563_read_thresh,
+	.write_event_value = &tsl2563_write_thresh,
+	.read_event_config = &tsl2563_read_interrupt_config,
+	.write_event_config = &tsl2563_write_interrupt_config,
+};
+
 static int __devinit tsl2563_probe(struct i2c_client *client,
 				const struct i2c_device_id *device_id)
 {
@@ -736,17 +751,12 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 	indio_dev->name = client->name;
 	indio_dev->channels = tsl2563_channels;
 	indio_dev->num_channels = ARRAY_SIZE(tsl2563_channels);
-	indio_dev->read_raw = &tsl2563_read_raw;
-	indio_dev->write_raw = &tsl2563_write_raw;
-	indio_dev->read_event_value = &tsl2563_read_thresh;
-	indio_dev->write_event_value = &tsl2563_write_thresh;
-	indio_dev->read_event_config = &tsl2563_read_interrupt_config;
-	indio_dev->write_event_config = &tsl2563_write_interrupt_config;
 	indio_dev->dev.parent = &client->dev;
-	indio_dev->driver_module = THIS_MODULE;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	if (client->irq)
-		indio_dev->num_interrupt_lines = 1;
+		indio_dev->info = &tsl2563_info;
+	else
+		indio_dev->info = &tsl2563_info_no_irq;
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto fail1;
