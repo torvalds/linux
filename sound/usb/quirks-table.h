@@ -2179,6 +2179,17 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* KORG devices */
+{
+	USB_DEVICE_VENDOR_SPEC(0x0944, 0x0200),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "KORG, Inc.",
+		/* .product_name = "PANDORA PX5D", */
+		.ifnum = 3,
+		.type = QUIRK_MIDI_STANDARD_INTERFACE,
+	}
+},
+
 /* AKAI devices */
 {
 	USB_DEVICE(0x09e8, 0x0062),
