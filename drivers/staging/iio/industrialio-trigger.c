@@ -189,6 +189,13 @@ void iio_trigger_poll(struct iio_trigger *trig, s64 time)
 }
 EXPORT_SYMBOL(iio_trigger_poll);
 
+irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private)
+{
+	iio_trigger_poll(private, iio_get_time_ns());
+	return IRQ_HANDLED;
+}
+EXPORT_SYMBOL(iio_trigger_generic_data_rdy_poll);
+
 void iio_trigger_notify_done(struct iio_trigger *trig)
 {
 	trig->use_count--;
