@@ -36,7 +36,6 @@ struct ad7298_platform_data {
 };
 
 struct ad7298_state {
-	struct iio_dev			*indio_dev;
 	struct spi_device		*spi;
 	struct regulator		*reg;
 	size_t				d_size;
@@ -55,11 +54,11 @@ struct ad7298_state {
 };
 
 #ifdef CONFIG_IIO_RING_BUFFER
-int ad7298_scan_from_ring(struct ad7298_state *st, long ch);
+int ad7298_scan_from_ring(struct iio_dev *indio_dev, long ch);
 int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev);
 void ad7298_ring_cleanup(struct iio_dev *indio_dev);
 #else /* CONFIG_IIO_RING_BUFFER */
-static inline int ad7298_scan_from_ring(struct ad7298_state *st, long ch)
+static inline int ad7298_scan_from_ring(struct iio_dev *indio_dev, long ch)
 {
 	return 0;
 }

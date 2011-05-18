@@ -116,7 +116,7 @@ static int ad7298_read_raw(struct iio_dev *dev_info,
 			   long m)
 {
 	int ret;
-	struct ad7298_state *st = dev_info->dev_data;
+	struct ad7298_state *st = iio_priv(dev_info);
 	unsigned int scale_uv;
 
 	switch (m) {
@@ -126,7 +126,8 @@ static int ad7298_read_raw(struct iio_dev *dev_info,
 			if (chan->address == AD7298_CH_TEMP)
 				ret = -ENODEV;
 			else
-				ret = ad7298_scan_from_ring(st, chan->address);
+				ret = ad7298_scan_from_ring(dev_info,
+							    chan->address);
 		} else {
 			if (chan->address == AD7298_CH_TEMP)
 				ret = ad7298_scan_temp(st, val);
@@ -159,13 +160,13 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 {
 	struct ad7298_platform_data *pdata = spi->dev.platform_data;
 	struct ad7298_state *st;
-	int ret;
+	int ret, regdone = 0;
+	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
-	if (st == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	if (indio_dev == NULL)
+		return -ENOMEM;
+
+	st = iio_priv(indio_dev);
 
 	st->reg = regulator_get(&spi->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
@@ -174,24 +175,17 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 			goto error_put_reg;
 	}
 
-	spi_set_drvdata(spi, st);
+	spi_set_drvdata(spi, indio_dev);
 
 	st->spi = spi;
 
-	st->indio_dev = iio_allocate_device(0);
-	if (st->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_disable_reg;
-	}
-
-	st->indio_dev->name = spi_get_device_id(spi)->name;
-	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
-	st->indio_dev->channels = ad7298_channels;
-	st->indio_dev->num_channels = ARRAY_SIZE(ad7298_channels);
-	st->indio_dev->read_raw = &ad7298_read_raw;
+	indio_dev->name = spi_get_device_id(spi)->name;
+	indio_dev->dev.parent = &spi->dev;
+	indio_dev->driver_module = THIS_MODULE;
+	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->channels = ad7298_channels;
+	indio_dev->num_channels = ARRAY_SIZE(ad7298_channels);
+	indio_dev->read_raw = &ad7298_read_raw;
 
 	/* Setup default message */
 
@@ -216,41 +210,44 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 		st->int_vref_mv = AD7298_INTREF_mV;
 	}
 
-	ret = ad7298_register_ring_funcs_and_init(st->indio_dev);
+	ret = ad7298_register_ring_funcs_and_init(indio_dev);
 	if (ret)
-		goto error_free_device;
+		goto error_disable_reg;
 
-	ret = iio_device_register(st->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_free_device;
+		goto error_disable_reg;
+	regdone = 1;
 
-	ret = iio_ring_buffer_register_ex(st->indio_dev->ring, 0,
+	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
 					  &ad7298_channels[1], /* skip temp0 */
 					  ARRAY_SIZE(ad7298_channels) - 1);
 	if (ret)
 		goto error_cleanup_ring;
+
 	return 0;
 
 error_cleanup_ring:
-	ad7298_ring_cleanup(st->indio_dev);
-	iio_device_unregister(st->indio_dev);
-error_free_device:
-	iio_free_device(st->indio_dev);
+	ad7298_ring_cleanup(indio_dev);
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-	kfree(st);
-error_ret:
+
+	if (regdone)
+		iio_device_unregister(indio_dev);
+	else
+		iio_free_device(indio_dev);
+
 	return ret;
 }
 
 static int __devexit ad7298_remove(struct spi_device *spi)
 {
-	struct ad7298_state *st = spi_get_drvdata(spi);
-	struct iio_dev *indio_dev = st->indio_dev;
+	struct iio_dev *indio_dev = spi_get_drvdata(spi);
+	struct ad7298_state *st = iio_priv(indio_dev);
 
 	iio_ring_buffer_unregister(indio_dev->ring);
 	ad7298_ring_cleanup(indio_dev);
@@ -259,7 +256,8 @@ static int __devexit ad7298_remove(struct spi_device *spi)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	kfree(st);
+	iio_device_unregister(indio_dev);
+
 	return 0;
 }
 

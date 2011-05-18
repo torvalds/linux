@@ -21,9 +21,9 @@
 
 #include "ad7298.h"
 
-int ad7298_scan_from_ring(struct ad7298_state *st, long ch)
+int ad7298_scan_from_ring(struct iio_dev *dev_info, long ch)
 {
-	struct iio_ring_buffer *ring = st->indio_dev->ring;
+	struct iio_ring_buffer *ring = dev_info->ring;
 	int ret;
 	u16 *ring_data;
 
@@ -59,7 +59,7 @@ error_ret:
  **/
 static int ad7298_ring_preenable(struct iio_dev *indio_dev)
 {
-	struct ad7298_state *st = indio_dev->dev_data;
+	struct ad7298_state *st = iio_priv(indio_dev);
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	size_t d_size;
 	int i, m;
@@ -121,7 +121,7 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->private_data;
-	struct ad7298_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad7298_state *st = iio_priv(indio_dev);
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	s64 time_ns;
 	__u16 buf[16];
