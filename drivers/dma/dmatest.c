@@ -634,5 +634,5 @@ static void __exit dmatest_exit(void)
 }
 module_exit(dmatest_exit);
 
-MODULE_AUTHOR("Haavard Skinnemoen <hskinnemoen@atmel.com>");
+MODULE_AUTHOR("Haavard Skinnemoen (Atmel)");
 MODULE_LICENSE("GPL v2");
