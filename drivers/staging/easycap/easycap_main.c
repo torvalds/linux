@@ -2986,8 +2986,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 	struct easycap *peasycap;
 	int ndong;
 	struct data_urb *pdata_urb;
-	size_t wMaxPacketSize;
-	u8 bEndpointAddress;
 	int i, j, k, m, rc;
 	u8 bInterfaceNumber;
 	u8 bInterfaceClass;
@@ -3350,9 +3348,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 				SAM("...... skipping\n");
 				continue;
 			}
-			wMaxPacketSize = le16_to_cpu(ep->wMaxPacketSize);
-			bEndpointAddress = ep->bEndpointAddress;
-
 
 			if (!usb_endpoint_is_isoc_in(ep)) {
 				JOM(4, "intf[%i]alt[%i]end[%i] is a %d endpoint\n",
