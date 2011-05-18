@@ -25,39 +25,6 @@
 
 #include "ad7476.h"
 
-static IIO_SCAN_EL_C(in0, 0, 0, NULL);
-static IIO_SCAN_EL_TIMESTAMP(1);
-static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
-
-static ssize_t ad7476_show_type(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
-{
-	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
-	struct iio_dev *indio_dev = ring->indio_dev;
-	struct ad7476_state *st = indio_dev->dev_data;
-
-	return sprintf(buf, "%c%d/%d>>%d\n", st->chip_info->sign,
-		       st->chip_info->bits, st->chip_info->storagebits,
-		       st->chip_info->res_shift);
-}
-static IIO_DEVICE_ATTR(in_type, S_IRUGO, ad7476_show_type, NULL, 0);
-
-static struct attribute *ad7476_scan_el_attrs[] = {
-	&iio_scan_el_in0.dev_attr.attr,
-	&iio_const_attr_in0_index.dev_attr.attr,
-	&iio_const_attr_timestamp_index.dev_attr.attr,
-	&iio_scan_el_timestamp.dev_attr.attr,
-	&iio_const_attr_timestamp_type.dev_attr.attr,
-	&iio_dev_attr_in_type.dev_attr.attr,
-	NULL,
-};
-
-static struct attribute_group ad7476_scan_el_group = {
-	.name = "scan_elements",
-	.attrs = ad7476_scan_el_attrs,
-};
-
 int ad7476_scan_from_ring(struct ad7476_state *st)
 {
 	struct iio_ring_buffer *ring = st->indio_dev->ring;
@@ -93,7 +60,8 @@ static int ad7476_ring_preenable(struct iio_dev *indio_dev)
 	struct ad7476_state *st = indio_dev->dev_data;
 	struct iio_ring_buffer *ring = indio_dev->ring;
 
-	st->d_size = ring->scan_count * st->chip_info->storagebits / 8;
+	st->d_size = ring->scan_count *
+		st->chip_info->channel[0].scan_type.storagebits / 8;
 
 	if (ring->scan_timestamp) {
 		st->d_size += sizeof(s64);
@@ -150,7 +118,8 @@ static void ad7476_poll_bh_to_ring(struct work_struct *work_s)
 	if (rxbuf == NULL)
 		return;
 
-	b_sent = spi_read(st->spi, rxbuf, st->chip_info->storagebits / 8);
+	b_sent = spi_read(st->spi, rxbuf,
+			  st->chip_info->channel[0].scan_type.storagebits / 8);
 	if (b_sent < 0)
 		goto done;
 
@@ -187,7 +156,6 @@ int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->ring->preenable = &ad7476_ring_preenable;
 	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
 	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
-	indio_dev->ring->scan_el_attrs = &ad7476_scan_el_group;
 	indio_dev->ring->scan_timestamp = true;
 
 	INIT_WORK(&st->poll_work, &ad7476_poll_bh_to_ring);
