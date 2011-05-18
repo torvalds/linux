@@ -21,14 +21,6 @@
 #ifndef __UBI_DEBUG_H__
 #define __UBI_DEBUG_H__
 
-struct ubi_ec_hdr;
-struct ubi_vid_hdr;
-struct ubi_volume;
-struct ubi_vtbl_record;
-struct ubi_scan_volume;
-struct ubi_scan_leb;
-struct ubi_mkvol_req;
-
 #ifdef CONFIG_MTD_UBI_DEBUG
 #include <linux/random.h>
 

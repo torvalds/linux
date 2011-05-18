@@ -44,7 +44,6 @@
 
 #include "ubi-media.h"
 #include "scan.h"
-#include "debug.h"
 
 /* Maximum number of supported UBI devices */
 #define UBI_MAX_DEVICES 32
@@ -477,6 +476,8 @@ struct ubi_device {
 
 	struct ubi_debug_info *dbg;
 };
+
+#include "debug.h"
 
 extern struct kmem_cache *ubi_wl_entry_slab;
 extern const struct file_operations ubi_ctrl_cdev_operations;
