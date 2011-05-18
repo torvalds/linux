@@ -578,6 +578,7 @@ static void __register_request(struct ceph_mds_client *mdsc,
 	if (dir) {
 		struct ceph_inode_info *ci = ceph_inode(dir);
 
+		ihold(dir);
 		spin_lock(&ci->i_unsafe_lock);
 		req->r_unsafe_dir = dir;
 		list_add_tail(&req->r_unsafe_dir_item, &ci->i_unsafe_dirops);
@@ -598,6 +599,9 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 		spin_lock(&ci->i_unsafe_lock);
 		list_del_init(&req->r_unsafe_dir_item);
 		spin_unlock(&ci->i_unsafe_lock);
+
+		iput(req->r_unsafe_dir);
+		req->r_unsafe_dir = NULL;
 	}
 
 	ceph_mdsc_put_request(req);
