@@ -119,7 +119,7 @@ struct adis16209_state {
 	struct mutex			buf_lock;
 };
 
-int adis16209_set_irq(struct device *dev, bool enable);
+int adis16209_set_irq(struct iio_dev *indio_dev, bool enable);
 
 #ifdef CONFIG_IIO_RING_BUFFER
 
