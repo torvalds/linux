@@ -455,11 +455,8 @@ int iio_sw_ring_preenable(struct iio_dev *indio_dev)
 }
 EXPORT_SYMBOL(iio_sw_ring_preenable);
 
-void iio_sw_trigger_bh_to_ring(struct work_struct *work_s)
+void iio_sw_trigger_to_ring(struct iio_sw_ring_helper_state *st)
 {
-	struct iio_sw_ring_helper_state *st
-		= container_of(work_s, struct iio_sw_ring_helper_state,
-			work_trigger_to_ring);
 	struct iio_ring_buffer *ring = st->indio_dev->ring;
 	int len = 0;
 	size_t datasize = ring->access.get_bytes_per_datum(ring);
@@ -487,6 +484,15 @@ void iio_sw_trigger_bh_to_ring(struct work_struct *work_s)
 	kfree(data);
 
 	return;
+}
+EXPORT_SYMBOL(iio_sw_trigger_to_ring);
+
+void iio_sw_trigger_bh_to_ring(struct work_struct *work_s)
+{
+	struct iio_sw_ring_helper_state *st
+		= container_of(work_s, struct iio_sw_ring_helper_state,
+			work_trigger_to_ring);
+	iio_sw_trigger_to_ring(st);
 }
 EXPORT_SYMBOL(iio_sw_trigger_bh_to_ring);
 

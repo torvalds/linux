@@ -216,6 +216,7 @@ struct iio_sw_ring_helper_state {
 
 void iio_sw_poll_func_th(struct iio_dev *indio_dev, s64 time);
 void iio_sw_trigger_bh_to_ring(struct work_struct *work_s);
+void iio_sw_trigger_to_ring(struct iio_sw_ring_helper_state *st);
 
 #else /* CONFIG_IIO_RING_BUFFER*/
 struct iio_sw_ring_helper_state {
