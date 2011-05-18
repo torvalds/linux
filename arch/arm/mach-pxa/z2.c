@@ -704,6 +704,7 @@ MACHINE_START(ZIPIT2, "Zipit Z2")
 	.boot_params	= 0xa0000100,
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= z2_init,
 MACHINE_END

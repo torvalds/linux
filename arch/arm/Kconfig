@@ -619,6 +619,7 @@ config ARCH_PXA
 	select PLAT_PXA
 	select SPARSE_IRQ
 	select AUTO_ZRELADDR
+	select MULTI_IRQ_HANDLER
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 

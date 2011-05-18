@@ -22,4 +22,6 @@ extern void __init pxa27x_map_io(void);
 extern void __init pxa27x_init_irq(void);
 extern int __init pxa27x_set_pwrmode(unsigned int mode);
 
+#define pxa27x_handle_irq	ichp_handle_irq
+
 #endif /* __MACH_PXA27x_H */

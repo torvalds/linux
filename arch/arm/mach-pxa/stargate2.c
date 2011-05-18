@@ -1001,6 +1001,7 @@ static void __init stargate2_init(void)
 MACHINE_START(INTELMOTE2, "IMOTE 2")
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= imote2_init,
 	.boot_params	= 0xA0000100,
@@ -1012,6 +1013,7 @@ MACHINE_START(STARGATE2, "Stargate 2")
 	.map_io = pxa27x_map_io,
 	.nr_irqs = STARGATE_NR_IRQS,
 	.init_irq = pxa27x_init_irq,
+	.handle_irq = pxa27x_handle_irq,
 	.timer = &pxa_timer,
 	.init_machine = stargate2_init,
 	.boot_params = 0xA0000100,

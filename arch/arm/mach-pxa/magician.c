@@ -768,6 +768,7 @@ MACHINE_START(MAGICIAN, "HTC Magician")
 	.map_io = pxa27x_map_io,
 	.nr_irqs = MAGICIAN_NR_IRQS,
 	.init_irq = pxa27x_init_irq,
+	.handle_irq = pxa27x_handle_irq,
 	.init_machine = magician_init,
 	.timer = &pxa_timer,
 MACHINE_END

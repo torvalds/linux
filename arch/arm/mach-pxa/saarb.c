@@ -107,6 +107,7 @@ MACHINE_START(SAARB, "PXA955 Handheld Platform (aka SAARB)")
 	.map_io         = pxa_map_io,
 	.nr_irqs	= SAARB_NR_IRQS,
 	.init_irq       = pxa95x_init_irq,
+	.handle_irq	= pxa3xx_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = saarb_init,
 MACHINE_END
