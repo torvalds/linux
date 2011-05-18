@@ -292,7 +292,7 @@ static inline struct rtable *ip_route_newports(struct flowi4 *fl4, struct rtable
 
 extern void rt_bind_peer(struct rtable *rt, int create);
 
-static inline struct inet_peer *rt_get_peer(struct rtable *rt)
+static inline struct inet_peer *rt_get_peer(struct rtable *rt, __be32 daddr)
 {
 	if (rt->peer)
 		return rt->peer;
