@@ -167,8 +167,8 @@
 /* Rx unit register */
 #define CARD_RX_UNIT_REG		0x63
 
-/* Event header Len*/
-#define MWIFIEX_EVENT_HEADER_LEN           8
+/* Event header len w/o 4 bytes of interface header */
+#define MWIFIEX_EVENT_HEADER_LEN           4
 
 /* Max retry number of CMD53 write */
 #define MAX_WRITE_IOMEM_RETRY		2
