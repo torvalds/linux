@@ -629,8 +629,12 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	/*  R/W data */
 	if (transfer_length) {
-		unsigned int pipe = srb->sc_data_direction ==
-		DMA_FROM_DEVICE ? us->recv_bulk_pipe : us->send_bulk_pipe;
+		unsigned int pipe;
+		if (srb->sc_data_direction == DMA_FROM_DEVICE)
+			pipe = us->recv_bulk_pipe;
+		else
+			pipe = us->send_bulk_pipe;
+
 		result = usb_stor_bulk_srb(us, pipe, srb);
 		/* pr_info("Bulk data transfer result 0x%x\n", result); */
 		if (result == USB_STOR_XFER_ERROR)
