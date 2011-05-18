@@ -194,6 +194,50 @@ void clockevents_register_device(struct clock_event_device *dev)
 }
 EXPORT_SYMBOL_GPL(clockevents_register_device);
 
+static void clockevents_config(struct clock_event_device *dev,
+			       u32 freq)
+{
+	unsigned long sec;
+
+	if (!(dev->features & CLOCK_EVT_FEAT_ONESHOT))
+		return;
+
+	/*
+	 * Calculate the maximum number of seconds we can sleep. Limit
+	 * to 10 minutes for hardware which can program more than
+	 * 32bit ticks so we still get reasonable conversion values.
+	 */
+	sec = dev->max_delta_ticks;
+	do_div(sec, freq);
+	if (!sec)
+		sec = 1;
+	else if (sec > 600 && dev->max_delta_ticks > UINT_MAX)
+		sec = 600;
+
+	clockevents_calc_mult_shift(dev, freq, sec);
+	dev->min_delta_ns = clockevent_delta2ns(dev->min_delta_ticks, dev);
+	dev->max_delta_ns = clockevent_delta2ns(dev->max_delta_ticks, dev);
+}
+
+/**
+ * clockevents_config_and_register - Configure and register a clock event device
+ * @dev:	device to register
+ * @freq:	The clock frequency
+ * @min_delta:	The minimum clock ticks to program in oneshot mode
+ * @max_delta:	The maximum clock ticks to program in oneshot mode
+ *
+ * min/max_delta can be 0 for devices which do not support oneshot mode.
+ */
+void clockevents_config_and_register(struct clock_event_device *dev,
+				     u32 freq, unsigned long min_delta,
+				     unsigned long max_delta)
+{
+	dev->min_delta_ticks = min_delta;
+	dev->max_delta_ticks = max_delta;
+	clockevents_config(dev, freq);
+	clockevents_register_device(dev);
+}
+
 /*
  * Noop handler when we shut down an event device
  */

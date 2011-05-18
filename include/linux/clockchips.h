@@ -69,6 +69,8 @@ enum clock_event_nofitiers {
  * @retries:		number of forced programming retries
  * @set_mode:		set mode function
  * @broadcast:		function to broadcast events
+ * @min_delta_ticks:	minimum delta value in ticks stored for reconfiguration
+ * @max_delta_ticks:	maximum delta value in ticks stored for reconfiguration
  * @name:		ptr to clock event name
  * @rating:		variable to rate clock event devices
  * @irq:		IRQ number (only for non CPU local devices)
@@ -91,6 +93,9 @@ struct clock_event_device {
 	void			(*broadcast)(const struct cpumask *mask);
 	void			(*set_mode)(enum clock_event_mode mode,
 					    struct clock_event_device *);
+	unsigned long		min_delta_ticks;
+	unsigned long		max_delta_ticks;
+
 	const char		*name;
 	int			rating;
 	int			irq;
@@ -122,6 +127,10 @@ static inline unsigned long div_sc(unsigned long ticks, unsigned long nsec,
 extern u64 clockevent_delta2ns(unsigned long latch,
 			       struct clock_event_device *evt);
 extern void clockevents_register_device(struct clock_event_device *dev);
+
+extern void clockevents_config_and_register(struct clock_event_device *dev,
+					    u32 freq, unsigned long min_delta,
+					    unsigned long max_delta);
 
 extern void clockevents_exchange_device(struct clock_event_device *old,
 					struct clock_event_device *new);
