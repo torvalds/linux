@@ -2988,7 +2988,7 @@ static int easycap_usb_probe(struct usb_interface *intf,
 	struct data_urb *pdata_urb;
 	size_t wMaxPacketSize;
 	u8 bEndpointAddress;
-	int isin, i, j, k, m, rc;
+	int i, j, k, m, rc;
 	u8 bInterfaceNumber;
 	u8 bInterfaceClass;
 	u8 bInterfaceSubClass;
@@ -3353,155 +3353,130 @@ static int easycap_usb_probe(struct usb_interface *intf,
 			wMaxPacketSize = le16_to_cpu(ep->wMaxPacketSize);
 			bEndpointAddress = ep->bEndpointAddress;
 
-			if (ep->bEndpointAddress & USB_DIR_IN) {
-				JOM(4, "intf[%i]alt[%i]end[%i] is an  IN  endpoint\n",
-							bInterfaceNumber, i, j);
-				isin = 1;
-			} else {
-				JOM(4, "intf[%i]alt[%i]end[%i] is an  OUT endpoint\n",
-							bInterfaceNumber, i, j);
-				SAM("ERROR: OUT endpoint unexpected\n");
-				SAM("...... continuing\n");
-				isin = 0;
+
+			if (!usb_endpoint_is_isoc_in(ep)) {
+				JOM(4, "intf[%i]alt[%i]end[%i] is a %d endpoint\n",
+						bInterfaceNumber,
+						i, j, ep->bmAttributes);
+				if (usb_endpoint_dir_out(ep)) {
+					SAM("ERROR: OUT endpoint unexpected\n");
+					SAM("...... continuing\n");
+				}
+				continue;
 			}
-			if ((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-						USB_ENDPOINT_XFER_ISOC) {
-				JOM(4, "intf[%i]alt[%i]end[%i] is an ISOC endpoint\n",
-							bInterfaceNumber, i, j);
-				if (isin) {
-					switch (bInterfaceClass) {
-					case USB_CLASS_VIDEO:
-					case USB_CLASS_VENDOR_SPEC: {
-						if (!peasycap) {
-							SAM("MISTAKE: "
-								"peasycap is NULL\n");
-							return -EFAULT;
-						}
-						if (ep->wMaxPacketSize) {
-							if (8 > isokalt) {
-								okalt[isokalt] = i;
-								JOM(4,
-								"%i=okalt[%i]\n",
-								okalt[isokalt],
-								isokalt);
-								okepn[isokalt] =
-								ep->
-								bEndpointAddress &
-								0x0F;
-								JOM(4,
-								"%i=okepn[%i]\n",
-								okepn[isokalt],
-								isokalt);
-								okmps[isokalt] =
-								le16_to_cpu(ep->
-								wMaxPacketSize);
-								JOM(4,
-								"%i=okmps[%i]\n",
-								okmps[isokalt],
-								isokalt);
-								isokalt++;
-							}
-						} else {
-							if (-1 == peasycap->
-								video_altsetting_off) {
-								peasycap->
-								video_altsetting_off =
-										 i;
-								JOM(4, "%i=video_"
-								"altsetting_off "
-									"<====\n",
-								peasycap->
-								video_altsetting_off);
-							} else {
-								SAM("ERROR: peasycap"
-								"->video_altsetting_"
-								"off already set\n");
-								SAM("...... "
-								"continuing with "
-								"%i=peasycap->video_"
-								"altsetting_off\n",
-								peasycap->
-								video_altsetting_off);
-							}
-						}
-						break;
+			switch (bInterfaceClass) {
+			case USB_CLASS_VIDEO:
+			case USB_CLASS_VENDOR_SPEC: {
+				if (ep->wMaxPacketSize) {
+					if (8 > isokalt) {
+						okalt[isokalt] = i;
+						JOM(4,
+						"%i=okalt[%i]\n",
+						okalt[isokalt],
+						isokalt);
+						okepn[isokalt] =
+						ep->
+						bEndpointAddress &
+						0x0F;
+						JOM(4,
+						"%i=okepn[%i]\n",
+						okepn[isokalt],
+						isokalt);
+						okmps[isokalt] =
+						le16_to_cpu(ep->
+						wMaxPacketSize);
+						JOM(4,
+						"%i=okmps[%i]\n",
+						okmps[isokalt],
+						isokalt);
+						isokalt++;
 					}
-					case USB_CLASS_AUDIO: {
-						if (bInterfaceSubClass !=
-						    USB_SUBCLASS_AUDIOSTREAMING)
-							break;
-						if (!peasycap) {
-							SAM("MISTAKE: "
-							"peasycap is NULL\n");
-							return -EFAULT;
-						}
-						if (ep->wMaxPacketSize) {
-							if (8 > isokalt) {
-								okalt[isokalt] = i ;
-								JOM(4,
-								"%i=okalt[%i]\n",
-								okalt[isokalt],
-								isokalt);
-								okepn[isokalt] =
-								ep->
-								bEndpointAddress &
-								0x0F;
-								JOM(4,
-								"%i=okepn[%i]\n",
-								okepn[isokalt],
-								isokalt);
-								okmps[isokalt] =
-								le16_to_cpu(ep->
-								wMaxPacketSize);
-								JOM(4,
-								"%i=okmps[%i]\n",
-								okmps[isokalt],
-								isokalt);
-								isokalt++;
-							}
-						} else {
-							if (-1 == peasycap->
-								audio_altsetting_off) {
-								peasycap->
-								audio_altsetting_off =
-										 i;
-								JOM(4, "%i=audio_"
-								"altsetting_off "
-								"<====\n",
-								peasycap->
-								audio_altsetting_off);
-							} else {
-								SAM("ERROR: peasycap"
-								"->audio_altsetting_"
-								"off already set\n");
-								SAM("...... "
-								"continuing with "
-								"%i=peasycap->"
-								"audio_altsetting_"
-								"off\n",
-								peasycap->
-								audio_altsetting_off);
-							}
-						}
-					break;
-					}
-					default:
-						break;
+				} else {
+					if (-1 == peasycap->
+						video_altsetting_off) {
+						peasycap->
+						video_altsetting_off =
+								 i;
+						JOM(4, "%i=video_"
+						"altsetting_off "
+							"<====\n",
+						peasycap->
+						video_altsetting_off);
+					} else {
+						SAM("ERROR: peasycap"
+						"->video_altsetting_"
+						"off already set\n");
+						SAM("...... "
+						"continuing with "
+						"%i=peasycap->video_"
+						"altsetting_off\n",
+						peasycap->
+						video_altsetting_off);
 					}
 				}
-			} else if ((ep->bmAttributes &
-							USB_ENDPOINT_XFERTYPE_MASK) ==
-							USB_ENDPOINT_XFER_BULK) {
-				JOM(4, "intf[%i]alt[%i]end[%i] is a  BULK endpoint\n",
-							bInterfaceNumber, i, j);
-			} else if ((ep->bmAttributes &
-							USB_ENDPOINT_XFERTYPE_MASK) ==
-							USB_ENDPOINT_XFER_INT) {
-				JOM(4, "intf[%i]alt[%i]end[%i] is an  INT endpoint\n",
-							bInterfaceNumber, i, j);
-			} else {
-				JOM(4, "intf[%i]alt[%i]end[%i] is a  CTRL endpoint\n",
-							bInterfaceNumber, i, j);
+				break;
+			}
+			case USB_CLASS_AUDIO: {
+				if (bInterfaceSubClass !=
+				    USB_SUBCLASS_AUDIOSTREAMING)
+					break;
+				if (!peasycap) {
+					SAM("MISTAKE: "
+					"peasycap is NULL\n");
+					return -EFAULT;
+				}
+				if (ep->wMaxPacketSize) {
+					if (8 > isokalt) {
+						okalt[isokalt] = i ;
+						JOM(4,
+						"%i=okalt[%i]\n",
+						okalt[isokalt],
+						isokalt);
+						okepn[isokalt] =
+						ep->
+						bEndpointAddress &
+						0x0F;
+						JOM(4,
+						"%i=okepn[%i]\n",
+						okepn[isokalt],
+						isokalt);
+						okmps[isokalt] =
+						le16_to_cpu(ep->
+						wMaxPacketSize);
+						JOM(4,
+						"%i=okmps[%i]\n",
+						okmps[isokalt],
+						isokalt);
+						isokalt++;
+					}
+				} else {
+					if (-1 == peasycap->
+						audio_altsetting_off) {
+						peasycap->
+						audio_altsetting_off =
+								 i;
+						JOM(4, "%i=audio_"
+						"altsetting_off "
+						"<====\n",
+						peasycap->
+						audio_altsetting_off);
+					} else {
+						SAM("ERROR: peasycap"
+						"->audio_altsetting_"
+						"off already set\n");
+						SAM("...... "
+						"continuing with "
+						"%i=peasycap->"
+						"audio_altsetting_"
+						"off\n",
+						peasycap->
+						audio_altsetting_off);
+					}
+				}
+			break;
+			}
+			default:
+				break;
 			}
 			if (0 == ep->wMaxPacketSize) {
 				JOM(4, "intf[%i]alt[%i]end[%i] "
