@@ -398,17 +398,6 @@ static int snd_nativeinstruments_control_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_nativeinstruments_ak6_mixers[] = {
-	{
-		.name = "Direct Monitor Channel 1+2",
-		.private_value = _MAKE_NI_CONTROL(0x03, 0x03),
-	},
-	{
-		.name = "Direct Monitor Channel 3+4",
-		.private_value = _MAKE_NI_CONTROL(0x03, 0x05),
-	},
-};
-
 static struct snd_kcontrol_new snd_nativeinstruments_ta6_mixers[] = {
 	{
 		.name = "Direct Thru Channel A",
@@ -535,12 +524,6 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 	case USB_ID(0x0b05, 0x1739):
 	case USB_ID(0x0b05, 0x1743):
 		err = snd_xonar_u1_controls_create(mixer);
-		break;
-
-	case USB_ID(0x17cc, 0x1001): /* Audio Kontrol 6 */
-		err = snd_nativeinstruments_create_mixer(mixer,
-				snd_nativeinstruments_ak6_mixers,
-				ARRAY_SIZE(snd_nativeinstruments_ak6_mixers));
 		break;
 
 	case USB_ID(0x17cc, 0x1011): /* Traktor Audio 6 */
