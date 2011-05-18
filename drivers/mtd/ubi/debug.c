@@ -30,13 +30,6 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
-
-unsigned int ubi_tst_flags;
-
-module_param_named(debug_tsts, ubi_tst_flags, uint, S_IRUGO | S_IWUSR);
-
-MODULE_PARM_DESC(debug_tsts, "Debug special test flags");
 
 /**
  * ubi_dbg_dump_ec_hdr - dump an erase counter header.
@@ -318,6 +311,12 @@ static ssize_t dfs_file_read(struct file *file, char __user *user_buf,
 		val = d->chk_gen;
 	else if (dent == d->dfs_chk_io)
 		val = d->chk_io;
+	else if (dent == d->dfs_disable_bgt)
+		val = d->disable_bgt;
+	else if (dent == d->dfs_emulate_bitflips)
+		val = d->emulate_bitflips;
+	else if (dent == d->dfs_emulate_io_failures)
+		val = d->emulate_io_failures;
 	else {
 		count = -EINVAL;
 		goto out;
@@ -373,6 +372,12 @@ static ssize_t dfs_file_write(struct file *file, const char __user *user_buf,
 		d->chk_gen = val;
 	else if (dent == d->dfs_chk_io)
 		d->chk_io = val;
+	else if (dent == d->dfs_disable_bgt)
+		d->disable_bgt = val;
+	else if (dent == d->dfs_emulate_bitflips)
+		d->emulate_bitflips = val;
+	else if (dent == d->dfs_emulate_io_failures)
+		d->emulate_io_failures = val;
 	else
 		count = -EINVAL;
 
@@ -441,6 +446,27 @@ int ubi_debugfs_init_dev(struct ubi_device *ubi)
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_chk_io = dent;
+
+	fname = "tst_disable_bgt";
+	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_disable_bgt = dent;
+
+	fname = "tst_emulate_bitflips";
+	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_emulate_bitflips = dent;
+
+	fname = "tst_emulate_io_failures";
+	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_emulate_io_failures = dent;
 
 	return 0;
 

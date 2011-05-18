@@ -85,35 +85,30 @@ void ubi_debugfs_exit_dev(struct ubi_device *ubi);
  *
  * @chk_gen: if UBI general extra checks are enabled
  * @chk_io: if UBI I/O extra checks are enabled
+ * @disable_bgt: disable the background task for testing purposes
+ * @emulate_bitflips: emulate bit-flips for testing purposes
+ * @emulate_io_failures: emulate write/erase failures for testing purposes
  * @dfs_dir_name: name of debugfs directory containing files of this UBI device
  * @dfs_dir: direntry object of the UBI device debugfs directory
  * @dfs_chk_gen: debugfs knob to enable UBI general extra checks
  * @dfs_chk_io: debugfs knob to enable UBI I/O extra checks
+ * @dfs_disable_bgt: debugfs knob to disable the background task
+ * @dfs_emulate_bitflips: debugfs knob to emulate bit-flips
+ * @dfs_emulate_io_failures: debugfs knob to emulate write/erase failures
  */
 struct ubi_debug_info {
 	unsigned int chk_gen:1;
 	unsigned int chk_io:1;
+	unsigned int disable_bgt:1;
+	unsigned int emulate_bitflips:1;
+	unsigned int emulate_io_failures:1;
 	char dfs_dir_name[UBI_DFS_DIR_LEN + 1];
 	struct dentry *dfs_dir;
 	struct dentry *dfs_chk_gen;
 	struct dentry *dfs_chk_io;
-};
-
-extern unsigned int ubi_tst_flags;
-
-/*
- * Special testing flags.
- *
- * UBIFS_TST_DISABLE_BGT: disable the background thread
- * UBI_TST_EMULATE_BITFLIPS: emulate bit-flips
- * UBI_TST_EMULATE_WRITE_FAILURES: emulate write failures
- * UBI_TST_EMULATE_ERASE_FAILURES: emulate erase failures
- */
-enum {
-	UBI_TST_DISABLE_BGT            = 0x1,
-	UBI_TST_EMULATE_BITFLIPS       = 0x2,
-	UBI_TST_EMULATE_WRITE_FAILURES = 0x4,
-	UBI_TST_EMULATE_ERASE_FAILURES = 0x8,
+	struct dentry *dfs_disable_bgt;
+	struct dentry *dfs_emulate_bitflips;
+	struct dentry *dfs_emulate_io_failures;
 };
 
 /**
@@ -125,7 +120,7 @@ enum {
  */
 static inline int ubi_dbg_is_bgt_disabled(const struct ubi_device *ubi)
 {
-	return ubi_tst_flags & UBI_TST_DISABLE_BGT;
+	return ubi->dbg->disable_bgt;
 }
 
 /**
@@ -136,7 +131,7 @@ static inline int ubi_dbg_is_bgt_disabled(const struct ubi_device *ubi)
  */
 static inline int ubi_dbg_is_bitflip(const struct ubi_device *ubi)
 {
-	if (ubi_tst_flags & UBI_TST_EMULATE_BITFLIPS)
+	if (ubi->dbg->emulate_bitflips)
 		return !(random32() % 200);
 	return 0;
 }
@@ -150,7 +145,7 @@ static inline int ubi_dbg_is_bitflip(const struct ubi_device *ubi)
  */
 static inline int ubi_dbg_is_write_failure(const struct ubi_device *ubi)
 {
-	if (ubi_tst_flags & UBI_TST_EMULATE_WRITE_FAILURES)
+	if (ubi->dbg->emulate_io_failures)
 		return !(random32() % 500);
 	return 0;
 }
@@ -164,7 +159,7 @@ static inline int ubi_dbg_is_write_failure(const struct ubi_device *ubi)
  */
 static inline int ubi_dbg_is_erase_failure(const struct ubi_device *ubi)
 {
-	if (ubi_tst_flags & UBI_TST_EMULATE_ERASE_FAILURES)
+	if (ubi->dbg->emulate_io_failures)
 		return !(random32() % 400);
 	return 0;
 }
