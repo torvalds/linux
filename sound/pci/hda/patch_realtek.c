@@ -15193,14 +15193,21 @@ static int alc269_fill_coef(struct hda_codec *codec)
 		val = alc_read_coef_idx(codec, 0xd);
 		if ((val & 0x0c00) >> 10 != 0x1) {
 			/* Capless ramp up clock control */
-			alc_write_coef_idx(codec, 0xd, val | 1<<10);
+			alc_write_coef_idx(codec, 0xd, val | (1<<10));
 		}
 		val = alc_read_coef_idx(codec, 0x17);
 		if ((val & 0x01c0) >> 6 != 0x4) {
 			/* Class D power on reset */
-			alc_write_coef_idx(codec, 0x17, val | 1<<7);
+			alc_write_coef_idx(codec, 0x17, val | (1<<7));
 		}
 	}
+
+	val = alc_read_coef_idx(codec, 0xd); /* Class D */
+	alc_write_coef_idx(codec, 0xd, val | (1<<14));
+
+	val = alc_read_coef_idx(codec, 0x4); /* HP */
+	alc_write_coef_idx(codec, 0x4, val | (1<<11));
+
 	return 0;
 }
 
