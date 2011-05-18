@@ -187,7 +187,8 @@ exit:
 	return sk;
 }
 
-static void inet_get_ping_group_range_net(struct net *net, gid_t *low, gid_t *high)
+static void inet_get_ping_group_range_net(struct net *net, gid_t *low,
+					  gid_t *high)
 {
 	gid_t *data = net->ipv4.sysctl_ping_group_range;
 	unsigned seq;
@@ -437,7 +438,8 @@ static int ping_getfrag(void *from, char * to,
 	return 0;
 }
 
-static int ping_push_pending_frames(struct sock *sk, struct pingfakehdr *pfh, struct flowi4 *fl4)
+static int ping_push_pending_frames(struct sock *sk, struct pingfakehdr *pfh,
+				    struct flowi4 *fl4)
 {
 	struct sk_buff *skb = skb_peek(&sk->sk_write_queue);
 
@@ -754,7 +756,9 @@ static struct sock *ping_get_first(struct seq_file *seq, int start)
 	for (state->bucket = start; state->bucket < PING_HTABLE_SIZE;
 	     ++state->bucket) {
 		struct hlist_nulls_node *node;
-		struct hlist_nulls_head *hslot = &ping_table.hash[state->bucket];
+		struct hlist_nulls_head *hslot;
+
+		hslot = &ping_table.hash[state->bucket];
 
 		if (hlist_nulls_empty(hslot))
 			continue;
