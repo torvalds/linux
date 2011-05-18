@@ -86,21 +86,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		msleep(10);
 	}
 
-	/* To prevent overwriting mailbox registers for a command that has
-	 * not yet been serviced, check to see if an active command
-	 * (AEN, IOCB, etc.) is interrupting, then service it.
-	 * -----------------------------------------------------------------
-	 */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-
-	if (!is_qla8022(ha)) {
-		intr_status = readl(&ha->reg->ctrl_status);
-		if (intr_status & CSR_SCSI_PROCESSOR_INTR) {
-			/* Service existing interrupt */
-			ha->isp_ops->interrupt_service_routine(ha, intr_status);
-			clear_bit(AF_MBOX_COMMAND_DONE, &ha->flags);
-		}
-	}
 
 	ha->mbox_status_count = outCount;
 	for (i = 0; i < outCount; i++)
