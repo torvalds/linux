@@ -60,7 +60,6 @@ struct ad7887_chip_info {
 };
 
 struct ad7887_state {
-	struct iio_dev			*indio_dev;
 	struct spi_device		*spi;
 	const struct ad7887_chip_info	*chip_info;
 	struct regulator		*reg;
