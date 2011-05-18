@@ -627,10 +627,14 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 			ch->meram_enabled = 0;
 
-			if (ch->info->var.nonstd)
-				pf = SH_MOBILE_MERAM_PF_NV;
-			else
+			if (ch->info->var.nonstd) {
+				if (ch->info->var.bits_per_pixel == 24)
+					pf = SH_MOBILE_MERAM_PF_NV24;
+				else
+					pf = SH_MOBILE_MERAM_PF_NV;
+			} else {
 				pf = SH_MOBILE_MERAM_PF_RGB;
+			}
 
 			ret = mdev->ops->meram_register(mdev, cfg, pitch,
 						ch->info->var.yres,

@@ -164,6 +164,16 @@ static inline void meram_unmark(struct sh_mobile_meram_priv *priv,
 	}
 }
 
+/*
+ * is this a YCbCr(NV12, NV16 or NV24) colorspace
+ */
+static inline int is_nvcolor(int cspace)
+{
+	if (cspace == SH_MOBILE_MERAM_PF_NV ||
+			cspace == SH_MOBILE_MERAM_PF_NV24)
+		return 1;
+	return 0;
+}
 
 /*
  * set the next address to fetch
@@ -184,7 +194,7 @@ static inline void meram_set_next_addr(struct sh_mobile_meram_priv *priv,
 	meram_write_icb(priv->base, cfg->icb[0].marker_icb, target,
 			base_addr_y + cfg->icb[0].cache_unit);
 
-	if (cfg->pixelformat == SH_MOBILE_MERAM_PF_NV) {
+	if (is_nvcolor(cfg->pixelformat)) {
 		meram_write_icb(priv->base, cfg->icb[1].cache_icb,  target,
 				base_addr_c);
 		meram_write_icb(priv->base, cfg->icb[1].marker_icb, target,
@@ -208,7 +218,7 @@ static inline void meram_get_next_icb_addr(struct sh_mobile_meram_info *pdata,
 		icb_offset = 0xc0000000 | (cfg->current_reg << 23);
 
 	*icb_addr_y = icb_offset | (cfg->icb[0].marker_icb << 24);
-	if ((*icb_addr_c) && cfg->pixelformat == SH_MOBILE_MERAM_PF_NV)
+	if ((*icb_addr_c) && is_nvcolor(cfg->pixelformat))
 		*icb_addr_c = icb_offset | (cfg->icb[1].marker_icb << 24);
 }
 
@@ -316,6 +326,7 @@ static int sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
 		return -EINVAL;
 
 	if (pixelformat != SH_MOBILE_MERAM_PF_NV &&
+	    pixelformat != SH_MOBILE_MERAM_PF_NV24 &&
 	    pixelformat != SH_MOBILE_MERAM_PF_RGB)
 		return -EINVAL;
 
@@ -366,7 +377,7 @@ static int sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
 		n = 2;
 	}
 
-	if (pixelformat == SH_MOBILE_MERAM_PF_NV && n != 2) {
+	if (is_nvcolor(pixelformat) && n != 2) {
 		dev_err(&pdev->dev, "requires two ICB sets for planar Y/C.");
 		error =  -EINVAL;
 		goto err;
@@ -375,7 +386,7 @@ static int sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
 	/* we now register the ICB */
 	cfg->pixelformat = pixelformat;
 	meram_mark(priv, &cfg->icb[0]);
-	if (pixelformat == SH_MOBILE_MERAM_PF_NV)
+	if (is_nvcolor(pixelformat))
 		meram_mark(priv, &cfg->icb[1]);
 
 	/* initialize MERAM */
@@ -383,6 +394,9 @@ static int sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
 	*pitch = out_pitch;
 	if (pixelformat == SH_MOBILE_MERAM_PF_NV)
 		meram_init(priv, &cfg->icb[1], xres, (yres + 1) / 2,
+			&out_pitch);
+	else if (pixelformat == SH_MOBILE_MERAM_PF_NV24)
+		meram_init(priv, &cfg->icb[1], 2 * xres, (yres + 1) / 2,
 			&out_pitch);
 
 	cfg->current_reg = 1;
@@ -410,7 +424,7 @@ static int sh_mobile_meram_unregister(struct sh_mobile_meram_info *pdata,
 	mutex_lock(&priv->lock);
 
 	/* deinit & unmark */
-	if (cfg->pixelformat == SH_MOBILE_MERAM_PF_NV) {
+	if (is_nvcolor(cfg->pixelformat)) {
 		meram_deinit(priv, &cfg->icb[1]);
 		meram_unmark(priv, &cfg->icb[1]);
 	}
