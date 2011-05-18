@@ -107,8 +107,6 @@ struct iio_ring_access_funcs {
  * @scan_timestamp:	[INTERN] does the scan mode include a timestamp
  * @access_handler:	[INTERN] chrdev access handling
  * @ev_int:		[INTERN] chrdev interface for the event chrdev
- * @shared_ev_pointer:	[INTERN] the shared event pointer to allow escalation of
- *			events
  * @access:		[DRIVER] ring access functions associated with the
  *			implementation.
  * @preenable:		[DRIVER] function to run prior to marking ring enabled
@@ -133,7 +131,6 @@ struct iio_ring_buffer {
 	bool				scan_timestamp;
 	struct iio_handler		access_handler;
 	struct iio_event_interface	ev_int;
-	struct iio_shared_ev_pointer	shared_ev_pointer;
 	struct iio_ring_access_funcs	access;
 	int				(*preenable)(struct iio_dev *);
 	int				(*postenable)(struct iio_dev *);

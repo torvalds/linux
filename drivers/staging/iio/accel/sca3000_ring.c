@@ -45,9 +45,12 @@
  * Currently does not provide timestamps.  As the hardware doesn't add them they
  * can only be inferred approximately from ring buffer events such as 50% full
  * and knowledge of when buffer was last emptied.  This is left to userspace.
+ *
+ * Temporarily deliberately broken.
  **/
 static int sca3000_read_first_n_hw_rb(struct iio_ring_buffer *r,
-				      size_t count, u8 **data, int *dead_offset)
+				      size_t count, char __user *buf,
+				      int *dead_offset)
 {
 	struct iio_hw_ring_buffer *hw_ring = iio_to_hw_ring_buf(r);
 	struct iio_dev *indio_dev = hw_ring->private;
@@ -56,6 +59,8 @@ static int sca3000_read_first_n_hw_rb(struct iio_ring_buffer *r,
 	s16 *samples;
 	int ret, i, num_available, num_read = 0;
 	int bytes_per_sample = 1;
+	u8 *datas;
+	u8 **data = &datas;
 
 	if (st->bpse == 11)
 		bytes_per_sample = 2;
@@ -353,9 +358,9 @@ void sca3000_register_ring_funcs(struct iio_dev *indio_dev)
 void sca3000_ring_int_process(u8 val, struct iio_ring_buffer *ring)
 {
 	if (val & SCA3000_INT_STATUS_THREE_QUARTERS)
-		iio_push_or_escallate_ring_event(ring,
-						 IIO_EVENT_CODE_RING_75_FULL,
-						 0);
+		iio_push_ring_event(ring,
+				    IIO_EVENT_CODE_RING_75_FULL,
+				    0);
 	else if (val & SCA3000_INT_STATUS_HALF)
 		iio_push_ring_event(ring,
 				    IIO_EVENT_CODE_RING_50_FULL, 0);

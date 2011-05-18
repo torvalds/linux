@@ -45,23 +45,10 @@ struct iio_event_data {
  * struct iio_detected_event_list - list element for events that have occurred
  * @list:		linked list header
  * @ev:			the event itself
- * @shared_pointer:	used when the event is shared - i.e. can be escallated
- *			on demand (eg ring buffer 50%->100% full)
  */
 struct iio_detected_event_list {
 	struct list_head		list;
 	struct iio_event_data		ev;
-	struct iio_shared_ev_pointer	*shared_pointer;
-};
-/**
- * struct iio_shared_ev_pointer - allows shared events to identify if currently
- *				in the detected event list
- * @ev_p:	pointer to detected event list element (null if not in list)
- * @lock:	protect this element to prevent simultaneous edit and remove
- */
-struct iio_shared_ev_pointer {
-	struct iio_detected_event_list	*ev_p;
-	spinlock_t			lock;
 };
 
 /**

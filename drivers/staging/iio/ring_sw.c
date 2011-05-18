@@ -123,14 +123,6 @@ static int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 		 */
 		if (change_test_ptr == ring->read_p)
 			ring->read_p = temp_ptr;
-
-		spin_lock(&ring->buf.shared_ev_pointer.lock);
-
-		ret = iio_push_or_escallate_ring_event(&ring->buf,
-			       IIO_EVENT_CODE_RING_100_FULL, timestamp);
-		spin_unlock(&ring->buf.shared_ev_pointer.lock);
-		if (ret)
-			goto error_ret;
 	}
 	/* investigate if our event barrier has been passed */
 	/* There are definite 'issues' with this and chances of
@@ -140,15 +132,11 @@ static int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 	if (ring->half_p == ring->data + ring->buf.length*ring->buf.bytes_per_datum)
 		ring->half_p = ring->data;
 	if (ring->half_p == ring->read_p) {
-		spin_lock(&ring->buf.shared_ev_pointer.lock);
 		code = IIO_EVENT_CODE_RING_50_FULL;
 		ret = __iio_push_event(&ring->buf.ev_int,
 				       code,
-				       timestamp,
-				       &ring->buf.shared_ev_pointer);
-		spin_unlock(&ring->buf.shared_ev_pointer.lock);
+				       timestamp);
 	}
-error_ret:
 	return ret;
 }
 

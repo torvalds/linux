@@ -27,27 +27,10 @@ int iio_push_ring_event(struct iio_ring_buffer *ring_buf,
 		       s64 timestamp)
 {
 	return __iio_push_event(&ring_buf->ev_int,
-			       event_code,
-			       timestamp,
-			       &ring_buf->shared_ev_pointer);
+				event_code,
+				timestamp);
 }
 EXPORT_SYMBOL(iio_push_ring_event);
-
-int iio_push_or_escallate_ring_event(struct iio_ring_buffer *ring_buf,
-				    int event_code,
-				    s64 timestamp)
-{
-	if (ring_buf->shared_ev_pointer.ev_p)
-		__iio_change_event(ring_buf->shared_ev_pointer.ev_p,
-				   event_code,
-				   timestamp);
-	else
-		return iio_push_ring_event(ring_buf,
-					  event_code,
-					  timestamp);
-	return 0;
-}
-EXPORT_SYMBOL(iio_push_or_escallate_ring_event);
 
 /**
  * iio_ring_open() - chrdev file open for ring buffer access
@@ -228,8 +211,6 @@ void iio_ring_buffer_init(struct iio_ring_buffer *ring,
 	ring->indio_dev = dev_info;
 	ring->ev_int.private = ring;
 	ring->access_handler.private = ring;
-	ring->shared_ev_pointer.ev_p = NULL;
-	spin_lock_init(&ring->shared_ev_pointer.lock);
 }
 EXPORT_SYMBOL(iio_ring_buffer_init);
 

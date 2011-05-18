@@ -82,15 +82,6 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_CALIBBIAS_SHARED/2] = "calibbias",
 };
 
-void __iio_change_event(struct iio_detected_event_list *ev,
-			int ev_code,
-			s64 timestamp)
-{
-	ev->ev.id = ev_code;
-	ev->ev.timestamp = timestamp;
-}
-EXPORT_SYMBOL(__iio_change_event);
-
 /* Used both in the interrupt line put events and the ring buffer ones */
 
 /* Note that in it's current form someone has to be listening before events
@@ -99,9 +90,7 @@ EXPORT_SYMBOL(__iio_change_event);
  */
 int __iio_push_event(struct iio_event_interface *ev_int,
 		     int ev_code,
-		     s64 timestamp,
-		     struct iio_shared_ev_pointer *
-		     shared_pointer_p)
+		     s64 timestamp)
 {
 	struct iio_detected_event_list *ev;
 	int ret = 0;
@@ -121,9 +110,6 @@ int __iio_push_event(struct iio_event_interface *ev_int,
 		}
 		ev->ev.id = ev_code;
 		ev->ev.timestamp = timestamp;
-		ev->shared_pointer = shared_pointer_p;
-		if (ev->shared_pointer)
-			shared_pointer_p->ev_p = ev;
 
 		list_add_tail(&ev->list, &ev_int->det_events.list);
 		ev_int->current_events++;
@@ -143,7 +129,7 @@ int iio_push_event(struct iio_dev *dev_info,
 		   s64 timestamp)
 {
 	return __iio_push_event(&dev_info->event_interfaces[ev_line],
-				ev_code, timestamp, NULL);
+				ev_code, timestamp);
 }
 EXPORT_SYMBOL(iio_push_event);
 
@@ -311,18 +297,6 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 	list_del(&el->list);
 	ev_int->current_events--;
 	mutex_unlock(&ev_int->event_list_lock);
-	/*
-	 * Possible concurency issue if an update of this event is on its way
-	 * through. May lead to new event being removed whilst the reported
-	 * event was the unescalated event. In typical use case this is not a
-	 * problem as userspace will say read half the buffer due to a 50%
-	 * full event which would make the correct 100% full incorrect anyway.
-	 */
-	if (el->shared_pointer) {
-		spin_lock(&el->shared_pointer->lock);
-		(el->shared_pointer->ev_p) = NULL;
-		spin_unlock(&el->shared_pointer->lock);
-	}
 	kfree(el);
 
 	return len;

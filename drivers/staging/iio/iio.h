@@ -394,22 +394,10 @@ int iio_push_event(struct iio_dev *dev_info,
  * @ev_int:		the event interface to which we are pushing the event
  * @ev_code:		the outgoing event code
  * @timestamp:		timestamp of the event
- * @shared_pointer_p:	the shared event pointer
  **/
 int __iio_push_event(struct iio_event_interface *ev_int,
-		    int ev_code,
-		    s64 timestamp,
-		    struct iio_shared_ev_pointer*
-		    shared_pointer_p);
-/**
- * __iio_change_event() - change an event code in case of event escalation
- * @ev:			the event to be changed
- * @ev_code:		new event code
- * @timestamp:		new timestamp
- **/
-void __iio_change_event(struct iio_detected_event_list *ev,
-			int ev_code,
-			s64 timestamp);
+		     int ev_code,
+		     s64 timestamp);
 
 /**
  * iio_setup_ev_int() - configure an event interface (chrdev)
