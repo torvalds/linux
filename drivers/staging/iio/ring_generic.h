@@ -108,7 +108,6 @@ struct iio_ring_buffer {
 	int				(*postdisable)(struct iio_dev *);
 
 	struct list_head scan_el_dev_attr_list;
-	struct list_head scan_el_en_attr_list;
 
 	wait_queue_head_t pollq;
 	bool stufftoread;
@@ -135,29 +134,6 @@ static inline void __iio_update_ring_buffer(struct iio_ring_buffer *ring,
 	ring->length = length;
 	ring->loopcount = 0;
 }
-
-/**
- * struct iio_scan_el - an individual element of a scan
- * @dev_attr:		control attribute (if directly controllable)
- * @number:		unique identifier of element (used for bit mask)
- * @label:		useful data for the scan el (often reg address)
- * @set_state:		for some devices datardy signals are generated
- *			for any enabled lines.  This allows unwanted lines
- *			to be disabled and hence not get in the way.
- **/
-struct iio_scan_el {
-	struct device_attribute		dev_attr;
-	unsigned int			number;
-	unsigned int			label;
-	struct list_head l;
-
-	int (*set_state)(struct iio_scan_el *scanel,
-			 struct iio_dev *dev_info,
-			 bool state);
-};
-
-#define to_iio_scan_el(_dev_attr)				\
-	container_of(_dev_attr, struct iio_scan_el, dev_attr);
 
 /**
  * iio_scan_el_store() - sysfs scan element selection interface
@@ -197,90 +173,6 @@ ssize_t iio_scan_el_ts_store(struct device *dev, struct device_attribute *attr,
  **/
 ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
 			    char *buf);
-/**
- * IIO_SCAN_EL_C - declare and initialize a scan element with a control func
- *
- * @_name:	identifying name. Resulting struct is iio_scan_el_##_name,
- *		sysfs element, _name##_en.
- * @_number:	unique id number for the scan element.
- *		length devices).
- * @_label:	indentification variable used by drivers.  Often a reg address.
- * @_controlfunc: function used to notify hardware of whether state changes
- **/
-#define __IIO_SCAN_EL_C(_name, _number, _label, _controlfunc)	\
-	struct iio_scan_el iio_scan_el_##_name = {			\
-		.dev_attr = __ATTR(_name##_en,				\
-				   S_IRUGO | S_IWUSR,			\
-				   iio_scan_el_show,			\
-				   iio_scan_el_store),			\
-		.number =  _number,					\
-		.label = _label,					\
-		.set_state = _controlfunc,				\
-	};								\
-	static IIO_CONST_ATTR(_name##_index, #_number)
-
-#define IIO_SCAN_EL_C(_name, _number, _label, _controlfunc)	\
-	__IIO_SCAN_EL_C(_name, _number, _label, _controlfunc)
-
-#define __IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf)	\
-	struct iio_scan_el iio_scan_el_##_name = {			\
-		.dev_attr = __ATTR(_string##_en,			\
-				   S_IRUGO | S_IWUSR,			\
-				   iio_scan_el_show,			\
-				   iio_scan_el_store),			\
-		.number =  _number,					\
-		.label = _label,					\
-		.set_state = _cf,					\
-	};								\
-	static struct iio_const_attr iio_const_attr_##_name##_index = {	\
-		.string = #_number,					\
-		.dev_attr = __ATTR(_string##_index,			\
-				   S_IRUGO, iio_read_const_attr, NULL)	\
-	}
-
-
-#define IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf) \
-	__IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf)
-/**
- * IIO_SCAN_EL_TIMESTAMP - declare a special scan element for timestamps
- * @number: specify where in the scan order this is stored.
- *
- * Odd one out. Handled slightly differently from other scan elements.
- **/
-#define IIO_SCAN_EL_TIMESTAMP(number)				\
-	struct iio_scan_el iio_scan_el_timestamp = {		\
-		.dev_attr = __ATTR(timestamp_en,		\
-				   S_IRUGO | S_IWUSR,		\
-				   iio_scan_el_ts_show,		\
-				   iio_scan_el_ts_store),	\
-	};							\
-	static IIO_CONST_ATTR(timestamp_index, #number)
-
-/**
- * IIO_CONST_ATTR_SCAN_EL_TYPE - attr to specify the data format of a scan el
- * @name: the scan el name (may be more general and cover a set of scan elements
- * @_sign: either s or u for signed or unsigned
- * @_bits: number of actual bits occuplied by the value
- * @_storagebits: number of bits _bits is padded to when read out of buffer
- **/
-#define IIO_CONST_ATTR_SCAN_EL_TYPE(_name, _sign, _bits, _storagebits) \
-	IIO_CONST_ATTR(_name##_type, #_sign#_bits"/"#_storagebits);
-
-/**
- * IIO_CONST_ATTR_SCAN_EL_TYPE_WITH_SHIFT - attr to specify the data format of a scan el
- * @name: the scan el name (may be more general and cover a set of scan elements
- * @_sign: either s or u for signed or unsigned
- * @_bits: number of actual bits occuplied by the value
- * @_storagebits: number of bits _bits is padded to when read out of buffer
- * @_shiftbits: number of bits _shiftbits the result must be shifted
- **/
-#define IIO_CONST_ATTR_SCAN_EL_TYPE_WITH_SHIFT(_name, _sign, _bits, \
-					       _storagebits, _shiftbits) \
-	IIO_CONST_ATTR(_name##_type, #_sign#_bits"/"#_storagebits \
-		       ">>"#_shiftbits);
-
-#define IIO_SCAN_EL_TYPE_SIGNED         's'
-#define IIO_SCAN_EL_TYPE_UNSIGNED       'u'
 
 /*
  * These are mainly provided to allow for a change of implementation if a device
