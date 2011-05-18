@@ -19,6 +19,9 @@ struct b43_bus_dev {
 			   size_t count, u16 offset, u8 reg_width);
 	void (*block_write)(struct b43_bus_dev *dev, const void *buffer,
 			    size_t count, u16 offset, u8 reg_width);
+
+	u16 core_id;
+	u8 core_rev;
 };
 
 struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev);

@@ -983,7 +983,7 @@ static u16 b43_nphy_classifier(struct b43_wldev *dev, u16 mask, u16 val)
 {
 	u16 tmp;
 
-	if (dev->sdev->id.revision == 16)
+	if (dev->dev->core_rev == 16)
 		b43_mac_suspend(dev);
 
 	tmp = b43_phy_read(dev, B43_NPHY_CLASSCTL);
@@ -993,7 +993,7 @@ static u16 b43_nphy_classifier(struct b43_wldev *dev, u16 mask, u16 val)
 	tmp |= (val & mask);
 	b43_phy_maskset(dev, B43_NPHY_CLASSCTL, 0xFFF8, tmp);
 
-	if (dev->sdev->id.revision == 16)
+	if (dev->dev->core_rev == 16)
 		b43_mac_enable(dev);
 
 	return tmp;
