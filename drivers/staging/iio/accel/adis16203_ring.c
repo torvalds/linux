@@ -73,7 +73,7 @@ static irqreturn_t adis16203_trigger_handler(int irq, void *p)
 
 	int i = 0;
 	s16 *data;
-	size_t datasize = ring->access.get_bytes_per_datum(ring);
+	size_t datasize = ring->access->get_bytes_per_datum(ring);
 
 	data = kmalloc(datasize, GFP_KERNEL);
 	if (data == NULL) {
@@ -91,7 +91,7 @@ static irqreturn_t adis16203_trigger_handler(int irq, void *p)
 	if (ring->scan_timestamp)
 		*((s64 *)(data + ((i + 3)/4)*4)) = pf->timestamp;
 
-	ring->access.store_to(ring,
+	ring->access->store_to(ring,
 			      (u8 *)data,
 			      pf->timestamp);
 
@@ -108,6 +108,12 @@ void adis16203_unconfigure_ring(struct iio_dev *indio_dev)
 	iio_sw_rb_free(indio_dev->ring);
 }
 
+static const struct iio_ring_setup_ops adis16203_ring_setup_ops = {
+	.preenable = &iio_sw_ring_preenable,
+	.postenable = &iio_triggered_ring_postenable,
+	.predisable = &iio_triggered_ring_predisable,
+};
+
 int adis16203_configure_ring(struct iio_dev *indio_dev)
 {
 	int ret = 0;
@@ -120,12 +126,10 @@ int adis16203_configure_ring(struct iio_dev *indio_dev)
 	}
 	indio_dev->ring = ring;
 	/* Effectively select the ring buffer implementation */
-	iio_ring_sw_register_funcs(&ring->access);
 	ring->bpe = 2;
 	ring->scan_timestamp = true;
-	ring->preenable = &iio_sw_ring_preenable;
-	ring->postenable = &iio_triggered_ring_postenable;
-	ring->predisable = &iio_triggered_ring_predisable;
+	ring->access = &ring_sw_access_funcs;
+	ring->setup_ops = &adis16203_ring_setup_ops;
 	ring->owner = THIS_MODULE;
 
 	/* Set default scan mode */

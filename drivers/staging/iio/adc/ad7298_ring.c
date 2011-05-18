@@ -32,13 +32,13 @@ int ad7298_scan_from_ring(struct ad7298_state *st, long ch)
 		goto error_ret;
 	}
 
-	ring_data = kmalloc(ring->access.get_bytes_per_datum(ring),
+	ring_data = kmalloc(ring->access->get_bytes_per_datum(ring),
 			    GFP_KERNEL);
 	if (ring_data == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-	ret = ring->access.read_last(ring, (u8 *) ring_data);
+	ret = ring->access->read_last(ring, (u8 *) ring_data);
 	if (ret)
 		goto error_free_ring_data;
 
@@ -74,8 +74,8 @@ static int ad7298_ring_preenable(struct iio_dev *indio_dev)
 			d_size += sizeof(s64) - (d_size % sizeof(s64));
 	}
 
-	if (ring->access.set_bytes_per_datum)
-		ring->access.set_bytes_per_datum(ring, d_size);
+	if (ring->access->set_bytes_per_datum)
+		ring->access->set_bytes_per_datum(ring, d_size);
 
 	st->d_size = d_size;
 
@@ -140,11 +140,17 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 	for (i = 0; i < ring->scan_count; i++)
 		buf[i] = be16_to_cpu(st->rx_buf[i]);
 
-	indio_dev->ring->access.store_to(ring, (u8 *)buf, time_ns);
+	indio_dev->ring->access->store_to(ring, (u8 *)buf, time_ns);
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
+
+static const struct iio_ring_setup_ops ad7298_ring_setup_ops = {
+	.preenable = &ad7298_ring_preenable,
+	.postenable = &iio_triggered_ring_postenable,
+	.predisable = &iio_triggered_ring_predisable,
+};
 
 int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
@@ -156,7 +162,7 @@ int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_ret;
 	}
 	/* Effectively select the ring buffer implementation */
-	iio_ring_sw_register_funcs(&indio_dev->ring->access);
+	indio_dev->ring->access = &ring_sw_access_funcs;
 
 	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
 	if (indio_dev->pollfunc == NULL) {
@@ -173,10 +179,7 @@ int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_free_poll_func;
 	}
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->ring->preenable = &ad7298_ring_preenable;
-	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
-	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
-
+	indio_dev->ring->setup_ops = &ad7298_ring_setup_ops;
 	indio_dev->ring->scan_timestamp = true;
 
 	/* Flag that polled ring buffering is possible */

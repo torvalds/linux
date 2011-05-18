@@ -83,7 +83,7 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 	if (ring->scan_timestamp)
 		dat64[1] = pf->timestamp;
 
-	ring->access.store_to(ring, (u8 *)dat64, pf->timestamp);
+	ring->access->store_to(ring, (u8 *)dat64, pf->timestamp);
 
 	iio_trigger_notify_done(st->indio_dev->trig);
 
@@ -118,8 +118,8 @@ static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 			d_size += sizeof(s64) - (d_size % sizeof(s64));
 	}
 
-	if (indio_dev->ring->access.set_bytes_per_datum)
-		indio_dev->ring->access.set_bytes_per_datum(indio_dev->ring,
+	if (indio_dev->ring->access->set_bytes_per_datum)
+		indio_dev->ring->access->set_bytes_per_datum(indio_dev->ring,
 							    d_size);
 
 	ade7758_write_waveform_type(&indio_dev->dev,
@@ -127,6 +127,12 @@ static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 
 	return 0;
 }
+
+static const struct iio_ring_setup_ops ade7758_ring_setup_ops = {
+	.preenable = &ade7758_ring_preenable,
+	.postenable = &iio_triggered_ring_postenable,
+	.predisable = &iio_triggered_ring_predisable,
+};
 
 void ade7758_unconfigure_ring(struct iio_dev *indio_dev)
 {
@@ -153,10 +159,8 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 	}
 
 	/* Effectively select the ring buffer implementation */
-	iio_ring_sw_register_funcs(&indio_dev->ring->access);
-	indio_dev->ring->preenable = &ade7758_ring_preenable;
-	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
-	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
+	indio_dev->ring->access = &ring_sw_access_funcs;
+	indio_dev->ring->setup_ops = &ade7758_ring_setup_ops;
 	indio_dev->ring->owner = THIS_MODULE;
 
 	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);

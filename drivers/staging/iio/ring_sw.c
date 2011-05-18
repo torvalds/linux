@@ -17,6 +17,36 @@
 #include "ring_sw.h"
 #include "trigger.h"
 
+/**
+ * struct iio_sw_ring_buffer - software ring buffer
+ * @buf:		generic ring buffer elements
+ * @data:		the ring buffer memory
+ * @read_p:		read pointer (oldest available)
+ * @write_p:		write pointer
+ * @last_written_p:	read pointer (newest available)
+ * @half_p:		half buffer length behind write_p (event generation)
+ * @use_count:		reference count to prevent resizing when in use
+ * @update_needed:	flag to indicated change in size requested
+ * @use_lock:		lock to prevent change in size when in use
+ *
+ * Note that the first element of all ring buffers must be a
+ * struct iio_ring_buffer.
+**/
+struct iio_sw_ring_buffer {
+	struct iio_ring_buffer  buf;
+	unsigned char		*data;
+	unsigned char		*read_p;
+	unsigned char		*write_p;
+	unsigned char		*last_written_p;
+	/* used to act as a point at which to signal an event */
+	unsigned char		*half_p;
+	int			use_count;
+	int			update_needed;
+	spinlock_t		use_lock;
+};
+
+#define iio_to_sw_ring(r) container_of(r, struct iio_sw_ring_buffer, buf)
+
 static inline int __iio_allocate_sw_ring_buffer(struct iio_sw_ring_buffer *ring,
 						int bytes_per_datum, int length)
 {
@@ -41,23 +71,21 @@ static inline void __iio_free_sw_ring_buffer(struct iio_sw_ring_buffer *ring)
 	kfree(ring->data);
 }
 
-void iio_mark_sw_rb_in_use(struct iio_ring_buffer *r)
+static void iio_mark_sw_rb_in_use(struct iio_ring_buffer *r)
 {
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
 	spin_lock(&ring->use_lock);
 	ring->use_count++;
 	spin_unlock(&ring->use_lock);
 }
-EXPORT_SYMBOL(iio_mark_sw_rb_in_use);
 
-void iio_unmark_sw_rb_in_use(struct iio_ring_buffer *r)
+static void iio_unmark_sw_rb_in_use(struct iio_ring_buffer *r)
 {
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
 	spin_lock(&ring->use_lock);
 	ring->use_count--;
 	spin_unlock(&ring->use_lock);
 }
-EXPORT_SYMBOL(iio_unmark_sw_rb_in_use);
 
 
 /* Ring buffer related functionality */
@@ -138,8 +166,8 @@ static int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 	return ret;
 }
 
-int iio_read_first_n_sw_rb(struct iio_ring_buffer *r,
-			   size_t n, char __user *buf)
+static int iio_read_first_n_sw_rb(struct iio_ring_buffer *r,
+				  size_t n, char __user *buf)
 {
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
 
@@ -268,14 +296,14 @@ error_ret:
 
 	return ret;
 }
-EXPORT_SYMBOL(iio_read_first_n_sw_rb);
 
-int iio_store_to_sw_rb(struct iio_ring_buffer *r, u8 *data, s64 timestamp)
+static int iio_store_to_sw_rb(struct iio_ring_buffer *r,
+			      u8 *data,
+			      s64 timestamp)
 {
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
 	return iio_store_to_sw_ring(ring, data, timestamp);
 }
-EXPORT_SYMBOL(iio_store_to_sw_rb);
 
 static int iio_read_last_from_sw_ring(struct iio_sw_ring_buffer *ring,
 				      unsigned char *data)
@@ -299,14 +327,13 @@ again:
 	return 0;
 }
 
-int iio_read_last_from_sw_rb(struct iio_ring_buffer *r,
+static int iio_read_last_from_sw_rb(struct iio_ring_buffer *r,
 			     unsigned char *data)
 {
 	return iio_read_last_from_sw_ring(iio_to_sw_ring(r), data);
 }
-EXPORT_SYMBOL(iio_read_last_from_sw_rb);
 
-int iio_request_update_sw_rb(struct iio_ring_buffer *r)
+static int iio_request_update_sw_rb(struct iio_ring_buffer *r)
 {
 	int ret = 0;
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
@@ -326,50 +353,44 @@ error_ret:
 	spin_unlock(&ring->use_lock);
 	return ret;
 }
-EXPORT_SYMBOL(iio_request_update_sw_rb);
 
-int iio_get_bytes_per_datum_sw_rb(struct iio_ring_buffer *r)
+static int iio_get_bytes_per_datum_sw_rb(struct iio_ring_buffer *r)
 {
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
 	return ring->buf.bytes_per_datum;
 }
-EXPORT_SYMBOL(iio_get_bytes_per_datum_sw_rb);
 
-int iio_set_bytes_per_datum_sw_rb(struct iio_ring_buffer *r, size_t bpd)
+static int iio_set_bytes_per_datum_sw_rb(struct iio_ring_buffer *r, size_t bpd)
 {
 	if (r->bytes_per_datum != bpd) {
 		r->bytes_per_datum = bpd;
-		if (r->access.mark_param_change)
-			r->access.mark_param_change(r);
+		if (r->access->mark_param_change)
+			r->access->mark_param_change(r);
 	}
 	return 0;
 }
-EXPORT_SYMBOL(iio_set_bytes_per_datum_sw_rb);
 
-int iio_get_length_sw_rb(struct iio_ring_buffer *r)
+static int iio_get_length_sw_rb(struct iio_ring_buffer *r)
 {
 	return r->length;
 }
-EXPORT_SYMBOL(iio_get_length_sw_rb);
 
-int iio_set_length_sw_rb(struct iio_ring_buffer *r, int length)
+static int iio_set_length_sw_rb(struct iio_ring_buffer *r, int length)
 {
 	if (r->length != length) {
 		r->length = length;
-		if (r->access.mark_param_change)
-			r->access.mark_param_change(r);
+		if (r->access->mark_param_change)
+			r->access->mark_param_change(r);
 	}
 	return 0;
 }
-EXPORT_SYMBOL(iio_set_length_sw_rb);
 
-int iio_mark_update_needed_sw_rb(struct iio_ring_buffer *r)
+static int iio_mark_update_needed_sw_rb(struct iio_ring_buffer *r)
 {
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
 	ring->update_needed = true;
 	return 0;
 }
-EXPORT_SYMBOL(iio_mark_update_needed_sw_rb);
 
 static void iio_sw_rb_release(struct device *dev)
 {
@@ -412,6 +433,7 @@ struct iio_ring_buffer *iio_sw_rb_allocate(struct iio_dev *indio_dev)
 	ring = kzalloc(sizeof *ring, GFP_KERNEL);
 	if (!ring)
 		return NULL;
+	ring->update_needed = true;
 	buf = &ring->buf;
 	iio_ring_buffer_init(buf, indio_dev);
 	__iio_init_sw_ring_buffer(ring);
@@ -430,36 +452,11 @@ void iio_sw_rb_free(struct iio_ring_buffer *r)
 }
 EXPORT_SYMBOL(iio_sw_rb_free);
 
-int iio_sw_ring_preenable(struct iio_dev *indio_dev)
-{
-	struct iio_ring_buffer *ring = indio_dev->ring;
-	size_t size;
-	dev_dbg(&indio_dev->dev, "%s\n", __func__);
-	/* Check if there are any scan elements enabled, if not fail*/
-	if (!(ring->scan_count || ring->scan_timestamp))
-		return -EINVAL;
-	if (ring->scan_timestamp)
-		if (ring->scan_count)
-			/* Timestamp (aligned to s64) and data */
-			size = (((ring->scan_count * ring->bpe)
-					+ sizeof(s64) - 1)
-				& ~(sizeof(s64) - 1))
-				+ sizeof(s64);
-		else /* Timestamp only  */
-			size = sizeof(s64);
-	else /* Data only */
-		size = ring->scan_count * ring->bpe;
-	ring->access.set_bytes_per_datum(ring, size);
-
-	return 0;
-}
-EXPORT_SYMBOL(iio_sw_ring_preenable);
-
 void iio_sw_trigger_to_ring(struct iio_sw_ring_helper_state *st)
 {
 	struct iio_ring_buffer *ring = st->indio_dev->ring;
 	int len = 0;
-	size_t datasize = ring->access.get_bytes_per_datum(ring);
+	size_t datasize = ring->access->get_bytes_per_datum(ring);
 	char *data = kmalloc(datasize, GFP_KERNEL);
 
 	if (data == NULL) {
@@ -476,7 +473,7 @@ void iio_sw_trigger_to_ring(struct iio_sw_ring_helper_state *st)
 		*(s64 *)(((phys_addr_t)data + len
 				+ sizeof(s64) - 1) & ~(sizeof(s64) - 1))
 			= st->last_timestamp;
-	ring->access.store_to(ring,
+	ring->access->store_to(ring,
 			(u8 *)data,
 			st->last_timestamp);
 
@@ -503,6 +500,21 @@ void iio_sw_poll_func_th(struct iio_dev *indio_dev, s64 time)
 	schedule_work(&h->work_trigger_to_ring);
 }
 EXPORT_SYMBOL(iio_sw_poll_func_th);
+
+const struct iio_ring_access_funcs ring_sw_access_funcs = {
+	.mark_in_use = &iio_mark_sw_rb_in_use,
+	.unmark_in_use = &iio_unmark_sw_rb_in_use,
+	.store_to = &iio_store_to_sw_rb,
+	.read_last = &iio_read_last_from_sw_rb,
+	.read_first_n = &iio_read_first_n_sw_rb,
+	.mark_param_change = &iio_mark_update_needed_sw_rb,
+	.request_update = &iio_request_update_sw_rb,
+	.get_bytes_per_datum = &iio_get_bytes_per_datum_sw_rb,
+	.set_bytes_per_datum = &iio_set_bytes_per_datum_sw_rb,
+	.get_length = &iio_get_length_sw_rb,
+	.set_length = &iio_set_length_sw_rb,
+};
+EXPORT_SYMBOL(ring_sw_access_funcs);
 
 MODULE_DESCRIPTION("Industrialio I/O software ring buffer");
 MODULE_LICENSE("GPL");

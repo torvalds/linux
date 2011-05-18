@@ -36,8 +36,8 @@ static int iio_ring_open(struct inode *inode, struct file *filp)
 	struct iio_ring_buffer *rb = hand->private;
 
 	filp->private_data = hand->private;
-	if (rb->access.mark_in_use)
-		rb->access.mark_in_use(rb);
+	if (rb->access->mark_in_use)
+		rb->access->mark_in_use(rb);
 
 	return 0;
 }
@@ -55,8 +55,8 @@ static int iio_ring_release(struct inode *inode, struct file *filp)
 	struct iio_ring_buffer *rb = hand->private;
 
 	clear_bit(IIO_BUSY_BIT_POS, &rb->access_handler.flags);
-	if (rb->access.unmark_in_use)
-		rb->access.unmark_in_use(rb);
+	if (rb->access->unmark_in_use)
+		rb->access->unmark_in_use(rb);
 
 	return 0;
 }
@@ -74,9 +74,9 @@ static ssize_t iio_ring_read_first_n_outer(struct file *filp, char __user *buf,
 	int ret;
 
 	/* rip lots must exist. */
-	if (!rb->access.read_first_n)
+	if (!rb->access->read_first_n)
 		return -EINVAL;
-	ret = rb->access.read_first_n(rb, n, buf);
+	ret = rb->access->read_first_n(rb, n, buf);
 
 	return ret;
 }
@@ -165,8 +165,6 @@ static void __iio_free_ring_buffer_chrdev(struct iio_ring_buffer *buf)
 void iio_ring_buffer_init(struct iio_ring_buffer *ring,
 			  struct iio_dev *dev_info)
 {
-	if (ring->access.mark_param_change)
-		ring->access.mark_param_change(ring);
 	ring->indio_dev = dev_info;
 	ring->access_handler.private = ring;
 	init_waitqueue_head(&ring->pollq);
@@ -344,9 +342,9 @@ ssize_t iio_read_ring_length(struct device *dev,
 	int len = 0;
 	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
 
-	if (ring->access.get_length)
+	if (ring->access->get_length)
 		len = sprintf(buf, "%d\n",
-			      ring->access.get_length(ring));
+			      ring->access->get_length(ring));
 
 	return len;
 }
@@ -364,14 +362,14 @@ ssize_t iio_write_ring_length(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (ring->access.get_length)
-		if (val == ring->access.get_length(ring))
+	if (ring->access->get_length)
+		if (val == ring->access->get_length(ring))
 			return len;
 
-	if (ring->access.set_length) {
-		ring->access.set_length(ring, val);
-		if (ring->access.mark_param_change)
-			ring->access.mark_param_change(ring);
+	if (ring->access->set_length) {
+		ring->access->set_length(ring, val);
+		if (ring->access->mark_param_change)
+			ring->access->mark_param_change(ring);
 	}
 
 	return len;
@@ -385,9 +383,9 @@ ssize_t iio_read_ring_bytes_per_datum(struct device *dev,
 	int len = 0;
 	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
 
-	if (ring->access.get_bytes_per_datum)
+	if (ring->access->get_bytes_per_datum)
 		len = sprintf(buf, "%d\n",
-			      ring->access.get_bytes_per_datum(ring));
+			      ring->access->get_bytes_per_datum(ring));
 
 	return len;
 }
@@ -413,8 +411,8 @@ ssize_t iio_store_ring_enable(struct device *dev,
 		goto done;
 	}
 	if (requested_state) {
-		if (ring->preenable) {
-			ret = ring->preenable(dev_info);
+		if (ring->setup_ops->preenable) {
+			ret = ring->setup_ops->preenable(dev_info);
 			if (ret) {
 				printk(KERN_ERR
 				       "Buffer not started:"
@@ -422,8 +420,8 @@ ssize_t iio_store_ring_enable(struct device *dev,
 				goto error_ret;
 			}
 		}
-		if (ring->access.request_update) {
-			ret = ring->access.request_update(ring);
+		if (ring->access->request_update) {
+			ret = ring->access->request_update(ring);
 			if (ret) {
 				printk(KERN_INFO
 				       "Buffer not started:"
@@ -431,16 +429,16 @@ ssize_t iio_store_ring_enable(struct device *dev,
 				goto error_ret;
 			}
 		}
-		if (ring->access.mark_in_use)
-			ring->access.mark_in_use(ring);
+		if (ring->access->mark_in_use)
+			ring->access->mark_in_use(ring);
 		/* Definitely possible for devices to support both of these.*/
 		if (dev_info->modes & INDIO_RING_TRIGGERED) {
 			if (!dev_info->trig) {
 				printk(KERN_INFO
 				       "Buffer not started: no trigger\n");
 				ret = -EINVAL;
-				if (ring->access.unmark_in_use)
-					ring->access.unmark_in_use(ring);
+				if (ring->access->unmark_in_use)
+					ring->access->unmark_in_use(ring);
 				goto error_ret;
 			}
 			dev_info->currentmode = INDIO_RING_TRIGGERED;
@@ -451,32 +449,32 @@ ssize_t iio_store_ring_enable(struct device *dev,
 			goto error_ret;
 		}
 
-		if (ring->postenable) {
+		if (ring->setup_ops->postenable) {
 
-			ret = ring->postenable(dev_info);
+			ret = ring->setup_ops->postenable(dev_info);
 			if (ret) {
 				printk(KERN_INFO
 				       "Buffer not started:"
 				       "postenable failed\n");
-				if (ring->access.unmark_in_use)
-					ring->access.unmark_in_use(ring);
+				if (ring->access->unmark_in_use)
+					ring->access->unmark_in_use(ring);
 				dev_info->currentmode = previous_mode;
-				if (ring->postdisable)
-					ring->postdisable(dev_info);
+				if (ring->setup_ops->postdisable)
+					ring->setup_ops->postdisable(dev_info);
 				goto error_ret;
 			}
 		}
 	} else {
-		if (ring->predisable) {
-			ret = ring->predisable(dev_info);
+		if (ring->setup_ops->predisable) {
+			ret = ring->setup_ops->predisable(dev_info);
 			if (ret)
 				goto error_ret;
 		}
-		if (ring->access.unmark_in_use)
-			ring->access.unmark_in_use(ring);
+		if (ring->access->unmark_in_use)
+			ring->access->unmark_in_use(ring);
 		dev_info->currentmode = INDIO_DIRECT_MODE;
-		if (ring->postdisable) {
-			ret = ring->postdisable(dev_info);
+		if (ring->setup_ops->postdisable) {
+			ret = ring->setup_ops->postdisable(dev_info);
 			if (ret)
 				goto error_ret;
 		}
@@ -584,3 +582,28 @@ error_ret:
 	return ret ? ret : len;
 }
 EXPORT_SYMBOL(iio_scan_el_ts_store);
+
+int iio_sw_ring_preenable(struct iio_dev *indio_dev)
+{
+	struct iio_ring_buffer *ring = indio_dev->ring;
+	size_t size;
+	dev_dbg(&indio_dev->dev, "%s\n", __func__);
+	/* Check if there are any scan elements enabled, if not fail*/
+	if (!(ring->scan_count || ring->scan_timestamp))
+		return -EINVAL;
+	if (ring->scan_timestamp)
+		if (ring->scan_count)
+			/* Timestamp (aligned to s64) and data */
+			size = (((ring->scan_count * ring->bpe)
+					+ sizeof(s64) - 1)
+				& ~(sizeof(s64) - 1))
+				+ sizeof(s64);
+		else /* Timestamp only  */
+			size = sizeof(s64);
+	else /* Data only */
+		size = ring->scan_count * ring->bpe;
+	ring->access->set_bytes_per_datum(ring, size);
+
+	return 0;
+}
+EXPORT_SYMBOL(iio_sw_ring_preenable);

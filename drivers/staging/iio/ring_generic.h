@@ -64,6 +64,13 @@ struct iio_ring_access_funcs {
 	int (*enable)(struct iio_ring_buffer *ring);
 };
 
+struct iio_ring_setup_ops {
+	int				(*preenable)(struct iio_dev *);
+	int				(*postenable)(struct iio_dev *);
+	int				(*predisable)(struct iio_dev *);
+	int				(*postdisable)(struct iio_dev *);
+};
+
 /**
  * struct iio_ring_buffer - general ring buffer structure
  * @dev:		ring buffer device struct
@@ -101,12 +108,8 @@ struct iio_ring_buffer {
 	u32				scan_mask;
 	bool				scan_timestamp;
 	struct iio_handler		access_handler;
-	struct iio_ring_access_funcs	access;
-	int				(*preenable)(struct iio_dev *);
-	int				(*postenable)(struct iio_dev *);
-	int				(*predisable)(struct iio_dev *);
-	int				(*postdisable)(struct iio_dev *);
-
+	const struct iio_ring_access_funcs	*access;
+	const struct iio_ring_setup_ops	*setup_ops;
 	struct list_head scan_el_dev_attr_list;
 
 	wait_queue_head_t pollq;
@@ -349,6 +352,9 @@ ssize_t iio_show_ring_enable(struct device *dev,
 #define IIO_RING_ENABLE_ATTR DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, \
 					 iio_show_ring_enable,		\
 					 iio_store_ring_enable)
+
+int iio_sw_ring_preenable(struct iio_dev *indio_dev);
+
 #else /* CONFIG_IIO_RING_BUFFER */
 static inline int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id)
 {

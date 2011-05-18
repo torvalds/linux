@@ -54,12 +54,12 @@ ssize_t lis3l02dq_read_accel_from_ring(struct iio_ring_buffer *ring,
 	if (!iio_scan_mask_query(ring, index))
 		return -EINVAL;
 
-	data = kmalloc(ring->access.get_bytes_per_datum(ring),
+	data = kmalloc(ring->access->get_bytes_per_datum(ring),
 		       GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
-	ret = ring->access.read_last(ring, (u8 *)data);
+	ret = ring->access->read_last(ring, (u8 *)data);
 	if (ret)
 		goto error_free_data;
 	*val = data[iio_scan_mask_count_to_right(ring, index)];
@@ -400,6 +400,11 @@ error_ret:
 	return ret;
 }
 
+static const struct iio_ring_setup_ops lis3l02dq_ring_setup_ops = {
+	.preenable = &iio_sw_ring_preenable,
+	.postenable = &lis3l02dq_ring_postenable,
+	.predisable = &lis3l02dq_ring_predisable,
+};
 
 int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 {
@@ -415,13 +420,11 @@ int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 
 	indio_dev->ring = ring;
 	/* Effectively select the ring buffer implementation */
-	lis3l02dq_register_buf_funcs(&ring->access);
+	indio_dev->ring->access = &lis3l02dq_access_funcs;
 	ring->bpe = 2;
 
 	ring->scan_timestamp = true;
-	ring->preenable = &iio_sw_ring_preenable;
-	ring->postenable = &lis3l02dq_ring_postenable;
-	ring->predisable = &lis3l02dq_ring_predisable;
+	ring->setup_ops = &lis3l02dq_ring_setup_ops;
 	ring->owner = THIS_MODULE;
 
 	/* Set default scan mode */

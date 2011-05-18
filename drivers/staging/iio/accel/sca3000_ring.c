@@ -367,6 +367,12 @@ static inline void sca3000_rb_free(struct iio_ring_buffer *r)
 		iio_put_ring_buffer(r);
 }
 
+static const struct iio_ring_access_funcs sca3000_ring_access_funcs = {
+	.read_first_n = &sca3000_read_first_n_hw_rb,
+	.get_length = &sca3000_ring_get_length,
+	.get_bytes_per_datum = &sca3000_ring_get_bytes_per_datum,
+};
+
 int sca3000_configure_ring(struct iio_dev *indio_dev)
 {
 	indio_dev->ring = sca3000_rb_allocate(indio_dev);
@@ -374,10 +380,7 @@ int sca3000_configure_ring(struct iio_dev *indio_dev)
 		return -ENOMEM;
 	indio_dev->modes |= INDIO_RING_HARDWARE_BUFFER;
 
-	indio_dev->ring->access.read_first_n = &sca3000_read_first_n_hw_rb;
-	indio_dev->ring->access.get_length = &sca3000_ring_get_length;
-	indio_dev->ring->access.get_bytes_per_datum =
-		&sca3000_ring_get_bytes_per_datum;
+	indio_dev->ring->access = &sca3000_ring_access_funcs;
 
 	iio_scan_mask_set(indio_dev->ring, 0);
 	iio_scan_mask_set(indio_dev->ring, 1);
@@ -432,10 +435,14 @@ static int sca3000_hw_ring_postdisable(struct iio_dev *indio_dev)
 	return __sca3000_hw_ring_state_set(indio_dev, 0);
 }
 
+static const struct iio_ring_setup_ops sca3000_ring_setup_ops = {
+	.preenable = &sca3000_hw_ring_preenable,
+	.postdisable = &sca3000_hw_ring_postdisable,
+};
+
 void sca3000_register_ring_funcs(struct iio_dev *indio_dev)
 {
-	indio_dev->ring->preenable = &sca3000_hw_ring_preenable;
-	indio_dev->ring->postdisable = &sca3000_hw_ring_postdisable;
+	indio_dev->ring->setup_ops = &sca3000_ring_setup_ops;
 }
 
 /**

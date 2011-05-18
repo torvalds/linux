@@ -28,12 +28,13 @@ int ad7476_scan_from_ring(struct ad7476_state *st)
 	int ret;
 	u8 *ring_data;
 
-	ring_data = kmalloc(ring->access.get_bytes_per_datum(ring), GFP_KERNEL);
+	ring_data = kmalloc(ring->access->get_bytes_per_datum(ring),
+			    GFP_KERNEL);
 	if (ring_data == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-	ret = ring->access.read_last(ring, ring_data);
+	ret = ring->access->read_last(ring, ring_data);
 	if (ret)
 		goto error_free_ring_data;
 
@@ -67,8 +68,8 @@ static int ad7476_ring_preenable(struct iio_dev *indio_dev)
 			st->d_size += sizeof(s64) - (st->d_size % sizeof(s64));
 	}
 
-	if (indio_dev->ring->access.set_bytes_per_datum)
-		indio_dev->ring->access.set_bytes_per_datum(indio_dev->ring,
+	if (indio_dev->ring->access->set_bytes_per_datum)
+		indio_dev->ring->access->set_bytes_per_datum(indio_dev->ring,
 							    st->d_size);
 
 	return 0;
@@ -79,7 +80,6 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->private_data;
 	struct ad7476_state *st = iio_dev_get_devdata(indio_dev);
-	struct iio_sw_ring_buffer *sw_ring = iio_to_sw_ring(indio_dev->ring);
 	s64 time_ns;
 	__u8 *rxbuf;
 	int b_sent;
@@ -99,13 +99,19 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 		memcpy(rxbuf + st->d_size - sizeof(s64),
 			&time_ns, sizeof(time_ns));
 
-	indio_dev->ring->access.store_to(&sw_ring->buf, rxbuf, time_ns);
+	indio_dev->ring->access->store_to(indio_dev->ring, rxbuf, time_ns);
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 	kfree(rxbuf);
 
 	return IRQ_HANDLED;
 }
+
+static const struct iio_ring_setup_ops ad7476_ring_setup_ops = {
+	.preenable = &ad7476_ring_preenable,
+	.postenable = &iio_triggered_ring_postenable,
+	.predisable = &iio_triggered_ring_predisable,
+};
 
 int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
@@ -118,7 +124,7 @@ int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_ret;
 	}
 	/* Effectively select the ring buffer implementation */
-	iio_ring_sw_register_funcs(&indio_dev->ring->access);
+	indio_dev->ring->access = &ring_sw_access_funcs;
 	indio_dev->pollfunc = kzalloc(sizeof(indio_dev->pollfunc), GFP_KERNEL);
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
@@ -137,10 +143,7 @@ int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	}
 
 	/* Ring buffer functions - here trigger setup related */
-
-	indio_dev->ring->preenable = &ad7476_ring_preenable;
-	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
-	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
+	indio_dev->ring->setup_ops = &ad7476_ring_setup_ops;
 	indio_dev->ring->scan_timestamp = true;
 
 	/* Flag that polled ring buffering is possible */
