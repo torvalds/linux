@@ -3,15 +3,6 @@
 #
 comment "Inertial measurement units"
 
-config ADIS16300
-	tristate "Analog Devices ADIS16300 IMU SPI driver"
-	depends on SPI
-	select IIO_SW_RING if IIO_RING_BUFFER
-	select IIO_TRIGGER if IIO_RING_BUFFER
-	help
-	  Say yes here to build support for Analog Devices adis16300 four degrees
-	  of freedom inertial sensor.
-
 config ADIS16400
 	tristate "Analog Devices ADIS16400 and similar IMU SPI driver"
 	depends on SPI
