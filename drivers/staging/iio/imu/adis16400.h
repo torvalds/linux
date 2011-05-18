@@ -180,6 +180,8 @@ int adis16400_set_irq(struct iio_dev *indio_dev, bool enable);
 #define ADIS16400_SCAN_TEMP	10
 #define ADIS16350_SCAN_ADC_0	10
 #define ADIS16400_SCAN_ADC_0	11
+#define ADIS16300_SCAN_INCLI_X	12
+#define ADIS16300_SCAN_INCLI_Y	13
 
 void adis16400_remove_trigger(struct iio_dev *indio_dev);
 int adis16400_probe_trigger(struct iio_dev *indio_dev);
