@@ -21,8 +21,12 @@ extern void of_device_make_bus_id(struct device *dev);
 static inline int of_driver_match_device(struct device *dev,
 					 const struct device_driver *drv)
 {
-	dev->of_match = of_match_device(drv->of_match_table, dev);
-	return dev->of_match != NULL;
+	const struct of_device_id *match;
+
+	match = of_match_device(drv->of_match_table, dev);
+	if (match)
+		dev->of_match = match;
+	return match != NULL;
 }
 
 extern struct platform_device *of_dev_get(struct platform_device *dev);
