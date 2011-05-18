@@ -23,11 +23,12 @@
 
 int ad7606_scan_from_ring(struct ad7606_state *st, unsigned ch)
 {
-	struct iio_ring_buffer *ring = st->indio_dev->ring;
+	struct iio_ring_buffer *ring = iio_priv_to_dev(st)->ring;
 	int ret;
 	u16 *ring_data;
 
-	ring_data = kmalloc(ring->access.get_bytes_per_datum(ring), GFP_KERNEL);
+	ring_data = kmalloc(ring->access.get_bytes_per_datum(ring),
+			    GFP_KERNEL);
 	if (ring_data == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -103,7 +104,7 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 {
 	struct ad7606_state *st = container_of(work_s, struct ad7606_state,
 						poll_work);
-	struct iio_dev *indio_dev = st->indio_dev;
+	struct iio_dev *indio_dev = iio_priv_to_dev(st);
 	struct iio_sw_ring_buffer *sw_ring = iio_to_sw_ring(indio_dev->ring);
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	s64 time_ns;

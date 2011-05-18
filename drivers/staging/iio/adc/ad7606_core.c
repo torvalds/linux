@@ -365,8 +365,8 @@ static int ad7606_request_gpios(struct ad7606_state *st)
 		st->have_reset = true;
 
 	ret = gpio_request_one(st->pdata->gpio_range, GPIOF_DIR_OUT |
-			       ((st->range == 10000) ? GPIOF_INIT_HIGH :
-			       	GPIOF_INIT_LOW), "AD7606_RANGE");
+				((st->range == 10000) ? GPIOF_INIT_HIGH :
+				GPIOF_INIT_LOW), "AD7606_RANGE");
 	if (!ret)
 		st->have_range = true;
 
@@ -413,9 +413,10 @@ static void ad7606_free_gpios(struct ad7606_state *st)
  */
 static irqreturn_t ad7606_interrupt(int irq, void *dev_id)
 {
-	struct ad7606_state *st = dev_id;
+	struct iio_dev *indio_dev = dev_id;
+	struct ad7606_state *st = iio_priv(indio_dev);
 
-	if (iio_ring_enabled(st->indio_dev)) {
+	if (iio_ring_enabled(indio_dev)) {
 		if (!work_pending(&st->poll_work))
 			schedule_work(&st->poll_work);
 	} else {
@@ -426,20 +427,22 @@ static irqreturn_t ad7606_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 };
 
-struct ad7606_state *ad7606_probe(struct device *dev, int irq,
+struct iio_dev *ad7606_probe(struct device *dev, int irq,
 			      void __iomem *base_address,
 			      unsigned id,
 			      const struct ad7606_bus_ops *bops)
 {
 	struct ad7606_platform_data *pdata = dev->platform_data;
 	struct ad7606_state *st;
-	int ret;
+	int ret, regdone = 0;
+	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
-	if (st == NULL) {
+	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
+
+	st = iio_priv(indio_dev);
 
 	st->dev = dev;
 	st->id = id;
@@ -467,65 +470,56 @@ struct ad7606_state *ad7606_probe(struct device *dev, int irq,
 	st->pdata = pdata;
 	st->chip_info = &ad7606_chip_info_tbl[id];
 
-	st->indio_dev = iio_allocate_device(0);
-	if (st->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_disable_reg;
-	}
-
-	st->indio_dev->dev.parent = dev;
-	st->indio_dev->attrs = &ad7606_attribute_group;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
-	st->indio_dev->name = st->chip_info->name;
-	st->indio_dev->channels = st->chip_info->channels;
-	st->indio_dev->num_channels = st->chip_info->num_channels;
-	st->indio_dev->read_raw = &ad7606_read_raw;
+	indio_dev->dev.parent = dev;
+	indio_dev->attrs = &ad7606_attribute_group;
+	indio_dev->dev_data = (void *)(st);
+	indio_dev->driver_module = THIS_MODULE;
+	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->name = st->chip_info->name;
+	indio_dev->channels = st->chip_info->channels;
+	indio_dev->num_channels = st->chip_info->num_channels;
+	indio_dev->read_raw = &ad7606_read_raw;
 
 	init_waitqueue_head(&st->wq_data_avail);
 
 	ret = ad7606_request_gpios(st);
 	if (ret)
-		goto error_free_device;
+		goto error_disable_reg;
 
 	ret = ad7606_reset(st);
 	if (ret)
 		dev_warn(st->dev, "failed to RESET: no RESET GPIO specified\n");
 
 	ret = request_irq(st->irq, ad7606_interrupt,
-		IRQF_TRIGGER_FALLING, st->chip_info->name, st);
+		IRQF_TRIGGER_FALLING, st->chip_info->name, indio_dev);
 	if (ret)
 		goto error_free_gpios;
 
-	ret = ad7606_register_ring_funcs_and_init(st->indio_dev);
+	ret = ad7606_register_ring_funcs_and_init(indio_dev);
 	if (ret)
 		goto error_free_irq;
 
-	ret = iio_device_register(st->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_irq;
+	regdone = 1;
 
-	ret = iio_ring_buffer_register_ex(st->indio_dev->ring, 0,
-					  st->indio_dev->channels,
-					  st->indio_dev->num_channels);
+	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
+					  indio_dev->channels,
+					  indio_dev->num_channels);
 	if (ret)
 		goto error_cleanup_ring;
 
-	return st;
+	return indio_dev;
 
 error_cleanup_ring:
-	ad7606_ring_cleanup(st->indio_dev);
-	iio_device_unregister(st->indio_dev);
+	ad7606_ring_cleanup(indio_dev);
 
 error_free_irq:
-	free_irq(st->irq, st);
+	free_irq(st->irq, indio_dev);
 
 error_free_gpios:
 	ad7606_free_gpios(st);
-
-error_free_device:
-	iio_free_device(st->indio_dev);
 
 error_disable_reg:
 	if (!IS_ERR(st->reg))
@@ -533,31 +527,37 @@ error_disable_reg:
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-	kfree(st);
+	if (regdone)
+		iio_device_unregister(indio_dev);
+	else
+		iio_free_device(indio_dev);
 error_ret:
 	return ERR_PTR(ret);
 }
 
-int ad7606_remove(struct ad7606_state *st)
+int ad7606_remove(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = st->indio_dev;
+	struct ad7606_state *st = iio_priv(indio_dev);
+
 	iio_ring_buffer_unregister(indio_dev->ring);
 	ad7606_ring_cleanup(indio_dev);
-	iio_device_unregister(indio_dev);
-	free_irq(st->irq, st);
+
+	free_irq(st->irq, indio_dev);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
 
 	ad7606_free_gpios(st);
+	iio_device_unregister(indio_dev);
 
-	kfree(st);
 	return 0;
 }
 
-void ad7606_suspend(struct ad7606_state *st)
+void ad7606_suspend(struct iio_dev *indio_dev)
 {
+	struct ad7606_state *st = iio_priv(indio_dev);
+
 	if (st->have_stby) {
 		if (st->have_range)
 			gpio_set_value(st->pdata->gpio_range, 1);
@@ -565,8 +565,10 @@ void ad7606_suspend(struct ad7606_state *st)
 	}
 }
 
-void ad7606_resume(struct ad7606_state *st)
+void ad7606_resume(struct iio_dev *indio_dev)
 {
+	struct ad7606_state *st = iio_priv(indio_dev);
+
 	if (st->have_stby) {
 		if (st->have_range)
 			gpio_set_value(st->pdata->gpio_range,

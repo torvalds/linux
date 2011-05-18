@@ -62,7 +62,6 @@ struct ad7606_chip_info {
  */
 
 struct ad7606_state {
-	struct iio_dev			*indio_dev;
 	struct device			*dev;
 	const struct ad7606_chip_info	*chip_info;
 	struct ad7606_platform_data	*pdata;
@@ -96,12 +95,12 @@ struct ad7606_bus_ops {
 	int (*read_block)(struct device *, int, void *);
 };
 
-void ad7606_suspend(struct ad7606_state *st);
-void ad7606_resume(struct ad7606_state *st);
-struct ad7606_state *ad7606_probe(struct device *dev, int irq,
+void ad7606_suspend(struct iio_dev *indio_dev);
+void ad7606_resume(struct iio_dev *indio_dev);
+struct iio_dev *ad7606_probe(struct device *dev, int irq,
 			      void __iomem *base_address, unsigned id,
 			      const struct ad7606_bus_ops *bops);
-int ad7606_remove(struct ad7606_state *st);
+int ad7606_remove(struct iio_dev *indio_dev);
 int ad7606_reset(struct ad7606_state *st);
 
 enum ad7606_supported_device_ids {
