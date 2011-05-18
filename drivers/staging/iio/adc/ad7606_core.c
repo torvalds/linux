@@ -7,12 +7,10 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -38,8 +36,9 @@ int ad7606_reset(struct ad7606_state *st)
 	return -ENODEV;
 }
 
-static int ad7606_scan_direct(struct ad7606_state *st, unsigned ch)
+static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned ch)
 {
+	struct ad7606_state *st = iio_priv(indio_dev);
 	int ret;
 
 	st->done = false;
@@ -85,16 +84,16 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	int ret;
-	struct ad7606_state *st = indio_dev->dev_data;
+	struct ad7606_state *st = iio_priv(indio_dev);
 	unsigned int scale_uv;
 
 	switch (m) {
 	case 0:
 		mutex_lock(&indio_dev->mlock);
 		if (iio_ring_enabled(indio_dev))
-			ret = ad7606_scan_from_ring(st, chan->address);
+			ret = ad7606_scan_from_ring(indio_dev, chan->address);
 		else
-			ret = ad7606_scan_direct(st, chan->address);
+			ret = ad7606_scan_direct(indio_dev, chan->address);
 		mutex_unlock(&indio_dev->mlock);
 
 		if (ret < 0)
@@ -115,7 +114,7 @@ static ssize_t ad7606_show_range(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad7606_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad7606_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%u\n", st->range);
 }
@@ -124,7 +123,7 @@ static ssize_t ad7606_store_range(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad7606_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad7606_state *st = iio_priv(indio_dev);
 	unsigned long lval;
 
 	if (strict_strtoul(buf, 10, &lval))
@@ -149,7 +148,7 @@ static ssize_t ad7606_show_oversampling_ratio(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad7606_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad7606_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%u\n", st->oversampling);
 }
@@ -170,7 +169,7 @@ static ssize_t ad7606_store_oversampling_ratio(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad7606_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad7606_state *st = iio_priv(indio_dev);
 	unsigned long lval;
 	int ret;
 
@@ -211,7 +210,7 @@ static mode_t ad7606_attr_is_visible(struct kobject *kobj,
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad7606_state *st = iio_dev_get_devdata(indio_dev);
+	struct ad7606_state *st = iio_priv(indio_dev);
 
 	mode_t mode = attr->mode;
 
@@ -472,7 +471,6 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 
 	indio_dev->dev.parent = dev;
 	indio_dev->attrs = &ad7606_attribute_group;
-	indio_dev->dev_data = (void *)(st);
 	indio_dev->driver_module = THIS_MODULE;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->name = st->chip_info->name;

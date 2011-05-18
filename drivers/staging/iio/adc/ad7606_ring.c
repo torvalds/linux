@@ -7,7 +7,6 @@
 
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -21,9 +20,9 @@
 
 #include "ad7606.h"
 
-int ad7606_scan_from_ring(struct ad7606_state *st, unsigned ch)
+int ad7606_scan_from_ring(struct iio_dev *indio_dev, unsigned ch)
 {
-	struct iio_ring_buffer *ring = iio_priv_to_dev(st)->ring;
+	struct iio_ring_buffer *ring = indio_dev->ring;
 	int ret;
 	u16 *ring_data;
 
@@ -54,7 +53,7 @@ error_ret:
  **/
 static int ad7606_ring_preenable(struct iio_dev *indio_dev)
 {
-	struct ad7606_state *st = indio_dev->dev_data;
+	struct ad7606_state *st = iio_priv(indio_dev);
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	size_t d_size;
 
@@ -84,7 +83,7 @@ static irqreturn_t ad7606_trigger_handler_th_bh(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->private_data;
-	struct ad7606_state *st = indio_dev->dev_data;
+	struct ad7606_state *st = iio_priv(indio_dev);
 
 	gpio_set_value(st->pdata->gpio_convst, 1);
 
@@ -159,7 +158,7 @@ static const struct iio_ring_setup_ops ad7606_ring_setup_ops = {
 
 int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
-	struct ad7606_state *st = indio_dev->dev_data;
+	struct ad7606_state *st = iio_priv(indio_dev);
 	int ret;
 
 	indio_dev->ring = iio_sw_rb_allocate(indio_dev);
