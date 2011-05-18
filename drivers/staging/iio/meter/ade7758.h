@@ -111,7 +111,6 @@
 /**
  * struct ade7758_state - device instance specific data
  * @us:			actual spi_device
- * @indio_dev:		industrial I/O device structure
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
  * @rx:			receive buffer
@@ -119,21 +118,20 @@
  **/
 struct ade7758_state {
 	struct spi_device	*us;
-	struct iio_dev		*indio_dev;
 	struct iio_trigger	*trig;
 	u8			*tx;
 	u8			*rx;
 	struct mutex		buf_lock;
 	u32			available_scan_masks[AD7758_NUM_WAVESRC];
 	struct iio_chan_spec	*ade7758_ring_channels;
-	struct spi_transfer		ring_xfer[4];
-	struct spi_message		ring_msg;
+	struct spi_transfer	ring_xfer[4];
+	struct spi_message	ring_msg;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	unsigned char			rx_buf[8] ____cacheline_aligned;
-	unsigned char			tx_buf[8];
+	unsigned char		rx_buf[8] ____cacheline_aligned;
+	unsigned char		tx_buf[8];
 
 };
 #ifdef CONFIG_IIO_RING_BUFFER

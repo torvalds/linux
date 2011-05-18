@@ -32,7 +32,7 @@
 static int ade7758_spi_read_burst(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7758_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret;
 
 	ret = spi_sync(st->us, &st->ring_msg);
@@ -71,12 +71,12 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->private_data;
 	struct iio_ring_buffer *ring = indio_dev->ring;
-	struct ade7758_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7758_state *st = iio_priv(indio_dev);
 	s64 dat64[2];
 	u32 *dat32 = (u32 *)dat64;
 
 	if (ring->scan_count)
-		if (ade7758_spi_read_burst(&st->indio_dev->dev) >= 0)
+		if (ade7758_spi_read_burst(&indio_dev->dev) >= 0)
 			*dat32 = get_unaligned_be32(&st->rx_buf[5]) & 0xFFFFFF;
 
 	/* Guaranteed to be aligned with 8 byte boundary */
@@ -85,7 +85,7 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 
 	ring->access->store_to(ring, (u8 *)dat64, pf->timestamp);
 
-	iio_trigger_notify_done(st->indio_dev->trig);
+	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -99,7 +99,7 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
  **/
 static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 {
-	struct ade7758_state *st = indio_dev->dev_data;
+	struct ade7758_state *st = iio_priv(indio_dev);
 	struct iio_ring_buffer *ring = indio_dev->ring;
 	size_t d_size;
 	unsigned channel;
@@ -149,7 +149,7 @@ void ade7758_unconfigure_ring(struct iio_dev *indio_dev)
 
 int ade7758_configure_ring(struct iio_dev *indio_dev)
 {
-	struct ade7758_state *st = indio_dev->dev_data;
+	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret = 0;
 
 	indio_dev->ring = iio_sw_rb_allocate(indio_dev);

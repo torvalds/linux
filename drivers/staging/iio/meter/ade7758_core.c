@@ -30,7 +30,7 @@ int ade7758_spi_write_reg_8(struct device *dev,
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7758_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7758_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADE7758_WRITE_REG(reg_address);
@@ -49,7 +49,7 @@ static int ade7758_spi_write_reg_16(struct device *dev,
 	int ret;
 	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7758_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7758_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfers[] = {
 		{
 			.tx_buf = st->tx,
@@ -78,7 +78,7 @@ static int ade7758_spi_write_reg_24(struct device *dev,
 	int ret;
 	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7758_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7758_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfers[] = {
 		{
 			.tx_buf = st->tx,
@@ -107,7 +107,7 @@ int ade7758_spi_read_reg_8(struct device *dev,
 {
 	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7758_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret;
 	struct spi_transfer xfers[] = {
 		{
@@ -150,7 +150,7 @@ static int ade7758_spi_read_reg_16(struct device *dev,
 {
 	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7758_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret;
 	struct spi_transfer xfers[] = {
 		{
@@ -196,7 +196,7 @@ static int ade7758_spi_read_reg_24(struct device *dev,
 {
 	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7758_state *st = iio_dev_get_devdata(indio_dev);
+	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret;
 	struct spi_transfer xfers[] = {
 		{
@@ -485,10 +485,11 @@ static int ade7758_stop_device(struct device *dev)
 	return ret;
 }
 
-static int ade7758_initial_setup(struct ade7758_state *st)
+static int ade7758_initial_setup(struct iio_dev *indio_dev)
 {
+	struct ade7758_state *st = iio_priv(indio_dev);
+	struct device *dev = &indio_dev->dev;
 	int ret;
-	struct device *dev = &st->indio_dev->dev;
 
 	/* use low spi speed for init */
 	st->us->mode = SPI_MODE_1;
@@ -727,19 +728,23 @@ static struct iio_chan_spec ade7758_channels[] = {
 static int __devinit ade7758_probe(struct spi_device *spi)
 {
 	int i, ret, regdone = 0;
-	struct ade7758_state *st = kzalloc(sizeof *st, GFP_KERNEL);
-	if (!st) {
-		ret =  -ENOMEM;
+	struct ade7758_state *st;
+	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
+
+	if (indio_dev == NULL) {
+		ret = -ENOMEM;
 		goto error_ret;
 	}
+
+	st = iio_priv(indio_dev);
 	/* this is only used for removal purposes */
-	spi_set_drvdata(spi, st);
+	spi_set_drvdata(spi, indio_dev);
 
 	/* Allocate the comms buffers */
 	st->rx = kzalloc(sizeof(*st->rx)*ADE7758_MAX_RX, GFP_KERNEL);
 	if (st->rx == NULL) {
 		ret = -ENOMEM;
-		goto error_free_st;
+		goto error_free_dev;
 	}
 	st->tx = kzalloc(sizeof(*st->tx)*ADE7758_MAX_TX, GFP_KERNEL);
 	if (st->tx == NULL) {
@@ -749,35 +754,28 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	st->us = spi;
 	st->ade7758_ring_channels = &ade7758_channels[0];
 	mutex_init(&st->buf_lock);
-	/* setup the industrialio driver allocated elements */
-	st->indio_dev = iio_allocate_device(0);
-	if (st->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_free_tx;
-	}
 
-	st->indio_dev->name = spi->dev.driver->name;
-	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &ade7758_attribute_group;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->name = spi->dev.driver->name;
+	indio_dev->dev.parent = &spi->dev;
+	indio_dev->attrs = &ade7758_attribute_group;
+	indio_dev->driver_module = THIS_MODULE;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	for (i = 0; i < AD7758_NUM_WAVESRC; i++)
 		st->available_scan_masks[i] = 1 << i;
 
-	st->indio_dev->available_scan_masks = st->available_scan_masks;
+	indio_dev->available_scan_masks = st->available_scan_masks;
 
-	ret = ade7758_configure_ring(st->indio_dev);
+	ret = ade7758_configure_ring(indio_dev);
 	if (ret)
-		goto error_free_dev;
+		goto error_free_tx;
 
-	ret = iio_device_register(st->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_unreg_ring_funcs;
 	regdone = 1;
 
-	ret = iio_ring_buffer_register_ex(st->indio_dev->ring, 0,
+	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
 					  &ade7758_channels[0],
 					  ARRAY_SIZE(ade7758_channels));
 	if (ret) {
@@ -786,12 +784,12 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	}
 
 	/* Get the device into a sane initial state */
-	ret = ade7758_initial_setup(st);
+	ret = ade7758_initial_setup(indio_dev);
 	if (ret)
 		goto error_uninitialize_ring;
 
 	if (spi->irq) {
-		ret = ade7758_probe_trigger(st->indio_dev);
+		ret = ade7758_probe_trigger(indio_dev);
 		if (ret)
 			goto error_remove_trigger;
 	}
@@ -799,47 +797,43 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	return 0;
 
 error_remove_trigger:
-	if (st->indio_dev->modes & INDIO_RING_TRIGGERED)
-		ade7758_remove_trigger(st->indio_dev);
+	if (indio_dev->modes & INDIO_RING_TRIGGERED)
+		ade7758_remove_trigger(indio_dev);
 error_uninitialize_ring:
-	ade7758_uninitialize_ring(st->indio_dev->ring);
+	ade7758_uninitialize_ring(indio_dev->ring);
 error_unreg_ring_funcs:
-	ade7758_unconfigure_ring(st->indio_dev);
-error_free_dev:
-	if (regdone)
-		iio_device_unregister(st->indio_dev);
-	else
-		iio_free_device(st->indio_dev);
+	ade7758_unconfigure_ring(indio_dev);
 error_free_tx:
 	kfree(st->tx);
 error_free_rx:
 	kfree(st->rx);
-error_free_st:
-	kfree(st);
+error_free_dev:
+	if (regdone)
+		iio_device_unregister(indio_dev);
+	else
+		iio_free_device(indio_dev);
 error_ret:
 	return ret;
 }
 
 static int ade7758_remove(struct spi_device *spi)
 {
+	struct iio_dev *indio_dev = spi_get_drvdata(spi);
+	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret;
-	struct ade7758_state *st = spi_get_drvdata(spi);
-	struct iio_dev *indio_dev = st->indio_dev;
 
-	ret = ade7758_stop_device(&(indio_dev->dev));
+	ret = ade7758_stop_device(&indio_dev->dev);
 	if (ret)
 		goto err_ret;
 
 	ade7758_remove_trigger(indio_dev);
 	ade7758_uninitialize_ring(indio_dev->ring);
-	iio_device_unregister(indio_dev);
 	ade7758_unconfigure_ring(indio_dev);
 	kfree(st->tx);
 	kfree(st->rx);
-	kfree(st);
+	iio_device_unregister(indio_dev);
 
 	return 0;
-
 err_ret:
 	return ret;
 }
