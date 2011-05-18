@@ -195,7 +195,6 @@ struct max1363_state {
 	const struct max1363_chip_info	*chip_info;
 	const struct max1363_mode	*current_mode;
 	u32				requestedmask;
-	struct iio_trigger		*trig;
 	struct regulator		*reg;
 
 	/* Using monitor modes and buffer at the same time is
