@@ -38,6 +38,7 @@
 #include <plat/cpu.h>
 
 #include "dss.h"
+#include "dss_features.h"
 
 /* Venc registers */
 #define VENC_REV_ID				0x00
@@ -382,12 +383,15 @@ static void venc_reset(void)
 
 static void venc_enable_clocks(int enable)
 {
-	if (enable)
-		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK | DSS_CLK_TVFCK |
-				DSS_CLK_VIDFCK);
-	else
-		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK | DSS_CLK_TVFCK |
-				DSS_CLK_VIDFCK);
+	if (enable) {
+		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK | DSS_CLK_TVFCK);
+		if (dss_has_feature(FEAT_VENC_REQUIRES_TV_DAC_CLK))
+			dss_clk_enable(DSS_CLK_VIDFCK);
+	} else {
+		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK | DSS_CLK_TVFCK);
+		if (dss_has_feature(FEAT_VENC_REQUIRES_TV_DAC_CLK))
+			dss_clk_disable(DSS_CLK_VIDFCK);
+	}
 }
 
 static const struct venc_config *venc_timings_to_config(

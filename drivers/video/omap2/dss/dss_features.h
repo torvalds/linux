@@ -51,6 +51,7 @@ enum dss_feat_id {
 	FEAT_HDMI_CTS_SWMODE		= 1 << 19,
 	FEAT_HANDLE_UV_SEPARATE         = 1 << 20,
 	FEAT_ATTR2                      = 1 << 21,
+	FEAT_VENC_REQUIRES_TV_DAC_CLK	= 1 << 22,
 };
 
 /* DSS register field id */
