@@ -1872,16 +1872,14 @@ static int max98095_put_eq_enum(struct snd_kcontrol *kcontrol,
 
 	BUG_ON(channel > 1);
 
-	cdata = &max98095->dai[channel];
+	if (!pdata || !max98095->eq_textcnt)
+		return 0;
 
 	if (sel >= pdata->eq_cfgcnt)
 		return -EINVAL;
 
+	cdata = &max98095->dai[channel];
 	cdata->eq_sel = sel;
-
-	if (!pdata || !max98095->eq_textcnt)
-		return 0;
-
 	fs = cdata->rate;
 
 	/* Find the selected configuration with nearest sample rate */
@@ -2020,16 +2018,14 @@ static int max98095_put_bq_enum(struct snd_kcontrol *kcontrol,
 
 	BUG_ON(channel > 1);
 
-	cdata = &max98095->dai[channel];
+	if (!pdata || !max98095->bq_textcnt)
+		return 0;
 
 	if (sel >= pdata->bq_cfgcnt)
 		return -EINVAL;
 
+	cdata = &max98095->dai[channel];
 	cdata->bq_sel = sel;
-
-	if (!pdata || !max98095->bq_textcnt)
-		return 0;
-
 	fs = cdata->rate;
 
 	/* Find the selected configuration with nearest sample rate */
