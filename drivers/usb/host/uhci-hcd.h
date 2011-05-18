@@ -421,6 +421,7 @@ struct uhci_hcd {
 	/* Silicon quirks */
 	unsigned int oc_low:1;			/* OverCurrent bit active low */
 	unsigned int wait_for_hp:1;		/* Wait for HP port reset */
+	unsigned int big_endian_mmio:1;		/* Big endian registers */
 
 	/* Support for port suspend/resume/reset */
 	unsigned long port_c_suspend;		/* Bit-arrays of ports */
@@ -490,90 +491,126 @@ struct urb_priv {
  * we use memory mapped registers.
  */
 
-#if !defined(CONFIG_USB_UHCI_SUPPORT_NON_PCI_HC)
+#ifndef CONFIG_USB_UHCI_SUPPORT_NON_PCI_HC
 /* Support PCI only */
-static inline u32 uhci_readl(struct uhci_hcd *uhci, int reg)
+static inline u32 uhci_readl(const struct uhci_hcd *uhci, int reg)
 {
 	return inl(uhci->io_addr + reg);
 }
 
-static inline void uhci_writel(struct uhci_hcd *uhci, u32 val, int reg)
+static inline void uhci_writel(const struct uhci_hcd *uhci, u32 val, int reg)
 {
 	outl(val, uhci->io_addr + reg);
 }
 
-static inline u16 uhci_readw(struct uhci_hcd *uhci, int reg)
+static inline u16 uhci_readw(const struct uhci_hcd *uhci, int reg)
 {
 	return inw(uhci->io_addr + reg);
 }
 
-static inline void uhci_writew(struct uhci_hcd *uhci, u16 val, int reg)
+static inline void uhci_writew(const struct uhci_hcd *uhci, u16 val, int reg)
 {
 	outw(val, uhci->io_addr + reg);
 }
 
-static inline u8 uhci_readb(struct uhci_hcd *uhci, int reg)
+static inline u8 uhci_readb(const struct uhci_hcd *uhci, int reg)
 {
 	return inb(uhci->io_addr + reg);
 }
 
-static inline void uhci_writeb(struct uhci_hcd *uhci, u8 val, int reg)
+static inline void uhci_writeb(const struct uhci_hcd *uhci, u8 val, int reg)
 {
 	outb(val, uhci->io_addr + reg);
 }
 
 #else
+/* Support non-PCI host controllers */
+#ifdef CONFIG_PCI
 /* Support PCI and non-PCI host controllers */
-
 #define uhci_has_pci_registers(u)	((u)->io_addr != 0)
+#else
+/* Support non-PCI host controllers only */
+#define uhci_has_pci_registers(u)	0
+#endif
 
-static inline u32 uhci_readl(struct uhci_hcd *uhci, int reg)
+#ifdef CONFIG_USB_UHCI_BIG_ENDIAN_MMIO
+/* Support (non-PCI) big endian host controllers */
+#define uhci_big_endian_mmio(u)		((u)->big_endian_mmio)
+#else
+#define uhci_big_endian_mmio(u)		0
+#endif
+
+static inline u32 uhci_readl(const struct uhci_hcd *uhci, int reg)
 {
 	if (uhci_has_pci_registers(uhci))
 		return inl(uhci->io_addr + reg);
+#ifdef CONFIG_USB_UHCI_BIG_ENDIAN_MMIO
+	else if (uhci_big_endian_mmio(uhci))
+		return readl_be(uhci->regs + reg);
+#endif
 	else
 		return readl(uhci->regs + reg);
 }
 
-static inline void uhci_writel(struct uhci_hcd *uhci, u32 val, int reg)
+static inline void uhci_writel(const struct uhci_hcd *uhci, u32 val, int reg)
 {
 	if (uhci_has_pci_registers(uhci))
 		outl(val, uhci->io_addr + reg);
+#ifdef CONFIG_USB_UHCI_BIG_ENDIAN_MMIO
+	else if (uhci_big_endian_mmio(uhci))
+		writel_be(val, uhci->regs + reg);
+#endif
 	else
 		writel(val, uhci->regs + reg);
 }
 
-static inline u16 uhci_readw(struct uhci_hcd *uhci, int reg)
+static inline u16 uhci_readw(const struct uhci_hcd *uhci, int reg)
 {
 	if (uhci_has_pci_registers(uhci))
 		return inw(uhci->io_addr + reg);
+#ifdef CONFIG_USB_UHCI_BIG_ENDIAN_MMIO
+	else if (uhci_big_endian_mmio(uhci))
+		return readw_be(uhci->regs + reg);
+#endif
 	else
 		return readw(uhci->regs + reg);
 }
 
-static inline void uhci_writew(struct uhci_hcd *uhci, u16 val, int reg)
+static inline void uhci_writew(const struct uhci_hcd *uhci, u16 val, int reg)
 {
 	if (uhci_has_pci_registers(uhci))
 		outw(val, uhci->io_addr + reg);
+#ifdef CONFIG_USB_UHCI_BIG_ENDIAN_MMIO
+	else if (uhci_big_endian_mmio(uhci))
+		writew_be(val, uhci->regs + reg);
+#endif
 	else
 		writew(val, uhci->regs + reg);
 }
 
-static inline u8 uhci_readb(struct uhci_hcd *uhci, int reg)
+static inline u8 uhci_readb(const struct uhci_hcd *uhci, int reg)
 {
 	if (uhci_has_pci_registers(uhci))
 		return inb(uhci->io_addr + reg);
+#ifdef CONFIG_USB_UHCI_BIG_ENDIAN_MMIO
+	else if (uhci_big_endian_mmio(uhci))
+		return readb_be(uhci->regs + reg);
+#endif
 	else
 		return readb(uhci->regs + reg);
 }
 
-static inline void uhci_writeb(struct uhci_hcd *uhci, u8 val, int reg)
+static inline void uhci_writeb(const struct uhci_hcd *uhci, u8 val, int reg)
 {
 	if (uhci_has_pci_registers(uhci))
 		outb(val, uhci->io_addr + reg);
+#ifdef CONFIG_USB_UHCI_BIG_ENDIAN_MMIO
+	else if (uhci_big_endian_mmio(uhci))
+		writeb_be(val, uhci->regs + reg);
+#endif
 	else
 		writeb(val, uhci->regs + reg);
 }
-#endif /* !defined(CONFIG_USB_UHCI_SUPPORT_NON_PCI_HC) */
+#endif /* CONFIG_USB_UHCI_SUPPORT_NON_PCI_HC */
 
 #endif
