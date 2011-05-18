@@ -107,7 +107,6 @@ enum iio_chan_info_enum {
  *			the value in channel will be suppressed for attribute
  *			but not for event codes. Typically set it to 0 when
  *			the index is false.
- * @shared_handler:	Single handler for the events registered.
  */
 struct iio_chan_spec {
 	enum iio_chan_type	type;
@@ -127,9 +126,6 @@ struct iio_chan_spec {
 	unsigned		processed_val:1;
 	unsigned		modified:1;
 	unsigned		indexed:1;
-	/* TODO: investigate pushing shared event handling out to
-	 * the drivers */
-	struct iio_event_handler_list *shared_handler;
 };
 /* Meant for internal use only */
 void __iio_device_attr_deinit(struct device_attribute *dev_attr);
@@ -148,8 +144,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	{ .sign = si, .realbits = rb, .storagebits = sb, .shift = sh }
 
 #define IIO_CHAN(_type, _mod, _indexed, _proc, _name, _chan, _chan2,	\
-		 _inf_mask, _address, _si, _stype, _event_mask,		\
-		 _handler)						\
+		 _inf_mask, _address, _si, _stype, _event_mask)		\
 	{ .type = _type,						\
 	  .modified = _mod,						\
 	  .indexed = _indexed,						\
@@ -161,8 +156,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	  .address = _address,						\
 	  .scan_index = _si,						\
 	  .scan_type = _stype,						\
-	  .event_mask = _event_mask,					\
-	  .shared_handler = _handler }
+	  .event_mask = _event_mask }
 
 #define IIO_CHAN_SOFT_TIMESTAMP(_si)					\
 	{ .type = IIO_TIMESTAMP, .channel = -1,				\
@@ -197,26 +191,6 @@ static inline s64 iio_get_time_ns(void)
 	return timespec_to_ns(&ts);
 }
 
-/**
- * iio_add_event_to_list() - Wraps adding to event lists
- * @el:		the list element of the event to be handled.
- * @head:	the list associated with the event handler being used.
- *
- * Does reference counting to allow shared handlers.
- **/
-void iio_add_event_to_list(struct iio_event_handler_list *el,
-			   struct list_head *head);
-
-/**
- * iio_remove_event_from_list() - Wraps removing from event list
- * @el:		element to be removed
- * @head:	associate list head for the interrupt handler.
- *
- * Does reference counting to allow shared handlers.
- **/
-void iio_remove_event_from_list(struct iio_event_handler_list *el,
-				struct list_head *head);
-
 /* Device operating modes */
 #define INDIO_DIRECT_MODE		0x01
 #define INDIO_RING_TRIGGERED		0x02
@@ -240,7 +214,6 @@ void iio_remove_event_from_list(struct iio_event_handler_list *el,
  * @driver_module:	[DRIVER] module structure used to ensure correct
  *			ownership of chrdevs etc
  * @num_interrupt_lines:[DRIVER] number of physical interrupt lines from device
- * @interrupts:		[INTERN] interrupt line specific event lists etc
  * @event_attrs:	[DRIVER] event control attributes
  * @event_conf_attrs:	[DRIVER] event configuration attributes
  * @event_interfaces:	[INTERN] event chrdevs associated with interrupt lines
@@ -279,7 +252,6 @@ struct iio_dev {
 	struct module			*driver_module;
 
 	int				num_interrupt_lines;
-	struct iio_interrupt		**interrupts;
 	struct attribute_group		*event_attrs;
 	struct attribute_group		*event_conf_attrs;
 
@@ -314,7 +286,6 @@ struct iio_dev {
 
 	int (*write_event_config)(struct iio_dev *indio_dev,
 				  int event_code,
-				  struct iio_event_handler_list *listel,
 				  int state);
 
 	int (*read_event_value)(struct iio_dev *indio_dev,
@@ -338,49 +309,6 @@ int iio_device_register(struct iio_dev *dev_info);
 void iio_device_unregister(struct iio_dev *dev_info);
 
 /**
- * struct iio_interrupt - wrapper used to allow easy handling of multiple
- *			physical interrupt lines
- * @dev_info:		the iio device for which the is an interrupt line
- * @line_number:	associated line number
- * @id:			ida allocated unique id number
- * @irq:		associate interrupt number
- * @ev_list:		event handler list for associated events
- * @ev_list_lock:	ensure only one access to list at a time
- **/
-struct iio_interrupt {
-	struct iio_dev			*dev_info;
-	int				line_number;
-	int				id;
-	int				irq;
-	struct list_head		ev_list;
-	spinlock_t			ev_list_lock;
-};
-
-#define to_iio_interrupt(i) container_of(i, struct iio_interrupt, ev_list)
-
-/**
- * iio_register_interrupt_line() - Tell IIO about interrupt lines
- *
- * @irq:		Typically provided via platform data
- * @dev_info:		IIO device info structure for device
- * @line_number:	Which interrupt line of the device is this?
- * @type:		Interrupt type (e.g. edge triggered etc)
- * @name:		Identifying name.
- **/
-int iio_register_interrupt_line(unsigned int			irq,
-				struct iio_dev			*dev_info,
-				int				line_number,
-				unsigned long			type,
-				const char			*name);
-
-void iio_unregister_interrupt_line(struct iio_dev *dev_info,
-				   int line_number);
-
-
-/* temporarily exported to allow moving of interrupt requesting into drivers */
-irqreturn_t iio_interrupt_handler(int irq, void *_int_info);
-
-/**
  * iio_push_event() - try to add event to the list for userspace reading
  * @dev_info:		IIO device structure
  * @ev_line:		Which event line (hardware interrupt)
@@ -391,16 +319,6 @@ int iio_push_event(struct iio_dev *dev_info,
 		  int ev_line,
 		  int ev_code,
 		  s64 timestamp);
-
-/**
- * __iio_push_event() - tries to add an event to the list associated with a chrdev
- * @ev_int:		the event interface to which we are pushing the event
- * @ev_code:		the outgoing event code
- * @timestamp:		timestamp of the event
- **/
-int __iio_push_event(struct iio_event_interface *ev_int,
-		     int ev_code,
-		     s64 timestamp);
 
 /**
  * iio_allocate_chrdev() - Allocate a chrdev

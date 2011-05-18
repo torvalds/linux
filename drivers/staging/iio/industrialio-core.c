@@ -82,16 +82,13 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_CALIBBIAS_SHARED/2] = "calibbias",
 };
 
-/* Used both in the interrupt line put events and the ring buffer ones */
-
-/* Note that in it's current form someone has to be listening before events
- * are queued. Hence a client MUST open the chrdev before the ring buffer is
- * switched on.
- */
-int __iio_push_event(struct iio_event_interface *ev_int,
-		     int ev_code,
-		     s64 timestamp)
+int iio_push_event(struct iio_dev *dev_info,
+		   int ev_line,
+		   int ev_code,
+		   s64 timestamp)
 {
+	struct iio_event_interface *ev_int
+		= &dev_info->event_interfaces[ev_line];
 	struct iio_detected_event_list *ev;
 	int ret = 0;
 
@@ -121,76 +118,8 @@ int __iio_push_event(struct iio_event_interface *ev_int,
 error_ret:
 	return ret;
 }
-EXPORT_SYMBOL(__iio_push_event);
-
-int iio_push_event(struct iio_dev *dev_info,
-		   int ev_line,
-		   int ev_code,
-		   s64 timestamp)
-{
-	return __iio_push_event(&dev_info->event_interfaces[ev_line],
-				ev_code, timestamp);
-}
 EXPORT_SYMBOL(iio_push_event);
 
-/* Generic interrupt line interrupt handler */
-irqreturn_t iio_interrupt_handler(int irq, void *_int_info)
-{
-	struct iio_interrupt *int_info = _int_info;
-	struct iio_dev *dev_info = int_info->dev_info;
-	struct iio_event_handler_list *p;
-	s64 time_ns;
-	unsigned long flags;
-
-	spin_lock_irqsave(&int_info->ev_list_lock, flags);
-	if (list_empty(&int_info->ev_list)) {
-		spin_unlock_irqrestore(&int_info->ev_list_lock, flags);
-		return IRQ_NONE;
-	}
-
-	time_ns = iio_get_time_ns();
-	list_for_each_entry(p, &int_info->ev_list, list) {
-		disable_irq_nosync(irq);
-		p->handler(dev_info, 1, time_ns, !(p->refcount > 1));
-	}
-	spin_unlock_irqrestore(&int_info->ev_list_lock, flags);
-
-	return IRQ_HANDLED;
-}
-EXPORT_SYMBOL(iio_interrupt_handler);
-
-static struct iio_interrupt *iio_allocate_interrupt(void)
-{
-	struct iio_interrupt *i = kmalloc(sizeof *i, GFP_KERNEL);
-	if (i) {
-		spin_lock_init(&i->ev_list_lock);
-		INIT_LIST_HEAD(&i->ev_list);
-	}
-	return i;
-}
-
-/* Confirming the validity of supplied irq is left to drivers.*/
-int iio_register_interrupt_line(unsigned int irq,
-				struct iio_dev *dev_info,
-				int line_number,
-				unsigned long type,
-				const char *name)
-{
-	int ret = 0;
-
-	dev_info->interrupts[line_number] = iio_allocate_interrupt();
-	if (dev_info->interrupts[line_number] == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	dev_info->interrupts[line_number]->line_number = line_number;
-	dev_info->interrupts[line_number]->irq = irq;
-	dev_info->interrupts[line_number]->dev_info = dev_info;
-
-error_ret:
-	return ret;
-}
-EXPORT_SYMBOL(iio_register_interrupt_line);
 
 /* This turns up an awful lot */
 ssize_t iio_read_const_attr(struct device *dev,
@@ -201,52 +130,6 @@ ssize_t iio_read_const_attr(struct device *dev,
 }
 EXPORT_SYMBOL(iio_read_const_attr);
 
-/* Before this runs the interrupt generator must have been disabled */
-void iio_unregister_interrupt_line(struct iio_dev *dev_info, int line_number)
-{
-	/* make sure the interrupt handlers are all done */
-	flush_scheduled_work();
-	kfree(dev_info->interrupts[line_number]);
-}
-EXPORT_SYMBOL(iio_unregister_interrupt_line);
-
-/* Reference counted add and remove */
-void iio_add_event_to_list(struct iio_event_handler_list *el,
-			  struct list_head *head)
-{
-	unsigned long flags;
-	struct iio_interrupt *inter = to_iio_interrupt(head);
-
-	/* take mutex to protect this element */
-	mutex_lock(&el->exist_lock);
-	if (el->refcount == 0) {
-		/* Take the event list spin lock */
-		spin_lock_irqsave(&inter->ev_list_lock, flags);
-		list_add(&el->list, head);
-		spin_unlock_irqrestore(&inter->ev_list_lock, flags);
-	}
-	el->refcount++;
-	mutex_unlock(&el->exist_lock);
-}
-EXPORT_SYMBOL(iio_add_event_to_list);
-
-void iio_remove_event_from_list(struct iio_event_handler_list *el,
-			       struct list_head *head)
-{
-	unsigned long flags;
-	struct iio_interrupt *inter = to_iio_interrupt(head);
-
-	mutex_lock(&el->exist_lock);
-	el->refcount--;
-	if (el->refcount == 0) {
-		/* Take the event list spin lock */
-		spin_lock_irqsave(&inter->ev_list_lock, flags);
-		list_del_init(&el->list);
-		spin_unlock_irqrestore(&inter->ev_list_lock, flags);
-	}
-	mutex_unlock(&el->exist_lock);
-}
-EXPORT_SYMBOL(iio_remove_event_from_list);
 
 static ssize_t iio_event_chrdev_read(struct file *filep,
 				     char __user *buf,
@@ -922,15 +805,14 @@ static ssize_t iio_ev_state_store(struct device *dev,
 				  size_t len)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct iio_event_attr *this_attr = to_iio_event_attr(attr);
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
 	unsigned long val;
 	ret = strict_strtoul(buf, 10, &val);
 	if (ret || val < 0 || val > 1)
 		return -EINVAL;
 
-	ret = indio_dev->write_event_config(indio_dev, this_attr->mask,
-					    this_attr->listel,
+	ret = indio_dev->write_event_config(indio_dev, this_attr->address,
 					    val);
 	return (ret < 0) ? ret : len;
 }
@@ -940,8 +822,8 @@ static ssize_t iio_ev_state_show(struct device *dev,
 				 char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct iio_event_attr *this_attr = to_iio_event_attr(attr);
-	int val = indio_dev->read_event_config(indio_dev, this_attr->mask);
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	int val = indio_dev->read_event_config(indio_dev, this_attr->address);
 
 	if (val < 0)
 		return val;
@@ -987,83 +869,6 @@ static ssize_t iio_ev_value_store(struct device *dev,
 	return len;
 }
 
-static int __iio_add_chan_event_attr(const char *postfix,
-				     const char *group,
-				     struct iio_chan_spec const *chan,
-				     unsigned int mask,
-				     struct device *dev,
-				     struct list_head *attr_list)
-{
-	char *name_format, *full_postfix;
-	int ret;
-	struct iio_event_attr *iio_ev_attr;
-
-	iio_ev_attr = kzalloc(sizeof *iio_ev_attr, GFP_KERNEL);
-	if (iio_ev_attr == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-
-	sysfs_attr_init(&iio_ev_attr->dev_attr.attr);
-	ret = __iio_build_postfix(chan, 0, postfix, &full_postfix);
-	if (ret)
-		goto error_ret;
-	/* Special case for types that uses both channel numbers in naming */
-	if (chan->type == IIO_IN_DIFF)
-		name_format
-			= kasprintf(GFP_KERNEL, "%s_%s",
-				    iio_chan_type_name_spec_complex[chan->type],
-				    full_postfix);
-	else if (!chan->indexed)
-		name_format
-			= kasprintf(GFP_KERNEL, "%s_%s",
-				    iio_chan_type_name_spec_shared[chan->type],
-				    full_postfix);
-	else
-		name_format
-			= kasprintf(GFP_KERNEL, "%s%d_%s",
-				    iio_chan_type_name_spec_shared[chan->type],
-				    chan->channel,
-				    full_postfix);
-	if (name_format == NULL) {
-		ret = -ENOMEM;
-		goto error_free_attr;
-	}
-
-	iio_ev_attr->dev_attr.attr.name = kasprintf(GFP_KERNEL,
-						    name_format,
-						    chan->channel,
-						    chan->channel2);
-	if (iio_ev_attr->dev_attr.attr.name == NULL) {
-		ret = -ENOMEM;
-		goto error_free_name_format;
-	}
-
-	iio_ev_attr->dev_attr.attr.mode = S_IRUGO | S_IWUSR;
-	iio_ev_attr->dev_attr.show = &iio_ev_state_show;
-	iio_ev_attr->dev_attr.store = &iio_ev_state_store;
-	iio_ev_attr->mask = mask;
-	iio_ev_attr->listel = chan->shared_handler;
-	ret = sysfs_add_file_to_group(&dev->kobj,
-				      &iio_ev_attr->dev_attr.attr,
-				      group);
-	if (ret < 0)
-		goto error_free_name;
-	list_add(&iio_ev_attr->l, attr_list);
-	kfree(name_format);
-	return 0;
-
-error_free_name:
-	kfree(iio_ev_attr->dev_attr.attr.name);
-error_free_name_format:
-	kfree(name_format);
-error_free_attr:
-	kfree(iio_ev_attr);
-error_ret:
-	return ret;
-}
-
-
 static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 				      struct iio_chan_spec const *chan)
 {
@@ -1102,18 +907,21 @@ static int iio_device_add_event_sysfs(struct iio_dev *dev_info,
 		default:
 			printk(KERN_INFO "currently unhandled type of event\n");
 		}
-		ret = __iio_add_chan_event_attr(postfix,
-						NULL,
-						chan,
-						mask,
-						/*HACK. - limits us to one
-						  event interface - fix by
-						  extending the bitmask - but
-						  how far*/
-						&dev_info->event_interfaces[0]
-						.dev,
-						&dev_info->event_interfaces[0].
-						event_attr_list);
+		ret = __iio_add_chan_devattr(postfix,
+					     NULL,
+					     chan,
+					     &iio_ev_state_show,
+					     iio_ev_state_store,
+					     mask,
+					     /*HACK. - limits us to one
+					       event interface - fix by
+					       extending the bitmask - but
+					       how far*/
+					     0,
+					     &dev_info->event_interfaces[0]
+					     .dev,
+					     &dev_info->event_interfaces[0].
+					     dev_attr_list);
 		kfree(postfix);
 		if (ret)
 			goto error_ret;
@@ -1149,7 +957,6 @@ static inline void __iio_remove_all_event_sysfs(struct iio_dev *dev_info,
 						int num)
 {
 	struct iio_dev_attr *p, *n;
-	struct iio_event_attr *q, *m;
 	list_for_each_entry_safe(p, n,
 				 &dev_info->event_interfaces[num].
 				 dev_attr_list, l) {
@@ -1160,23 +967,12 @@ static inline void __iio_remove_all_event_sysfs(struct iio_dev *dev_info,
 		kfree(p->dev_attr.attr.name);
 		kfree(p);
 	}
-	list_for_each_entry_safe(q, m,
-				 &dev_info->event_interfaces[num].
-				 event_attr_list, l) {
-		sysfs_remove_file_from_group(&dev_info
-					     ->event_interfaces[num].dev.kobj,
-					     &q->dev_attr.attr,
-					     groupname);
-		kfree(q->dev_attr.attr.name);
-		kfree(q);
-	}
 }
 
 static inline int __iio_add_event_config_attrs(struct iio_dev *dev_info, int i)
 {
 	int j;
 	int ret;
-	/*p for adding, q for removing */
 	struct attribute **attrp, **attrq;
 
 	if (dev_info->event_conf_attrs && dev_info->event_conf_attrs[i].attrs) {
@@ -1192,7 +988,6 @@ static inline int __iio_add_event_config_attrs(struct iio_dev *dev_info, int i)
 			attrp++;
 		}
 	}
-	INIT_LIST_HEAD(&dev_info->event_interfaces[0].event_attr_list);
 	INIT_LIST_HEAD(&dev_info->event_interfaces[0].dev_attr_list);
 	/* Dynically created from the channels array */
 	if (dev_info->channels) {
@@ -1263,14 +1058,6 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 		goto error_ret;
 	}
 
-	dev_info->interrupts = kzalloc(sizeof(struct iio_interrupt *)
-				       *dev_info->num_interrupt_lines,
-				       GFP_KERNEL);
-	if (dev_info->interrupts == NULL) {
-		ret = -ENOMEM;
-		goto error_free_event_interfaces;
-	}
-
 	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
 		dev_info->event_interfaces[i].owner = dev_info->driver_module;
 
@@ -1328,8 +1115,6 @@ error_remove_sysfs_interfaces:
 error_free_setup_ev_ints:
 	for (j = 0; j < i; j++)
 		iio_free_ev_int(&dev_info->event_interfaces[j]);
-	kfree(dev_info->interrupts);
-error_free_event_interfaces:
 	kfree(dev_info->event_interfaces);
 error_ret:
 
@@ -1352,7 +1137,6 @@ static void iio_device_unregister_eventset(struct iio_dev *dev_info)
 
 	for (i = 0; i < dev_info->num_interrupt_lines; i++)
 		iio_free_ev_int(&dev_info->event_interfaces[i]);
-	kfree(dev_info->interrupts);
 	kfree(dev_info->event_interfaces);
 }
 

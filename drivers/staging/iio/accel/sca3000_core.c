@@ -440,14 +440,11 @@ static IIO_DEV_ATTR_REV(sca3000_show_rev);
 
 static struct iio_chan_spec sca3000_channels[] = {
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_X, SCA3000_INFO_MASK,
-		 0, 0, IIO_ST('s', 11, 16, 5),
-		 SCA3000_EVENT_MASK, NULL),
+		 0, 0, IIO_ST('s', 11, 16, 5), SCA3000_EVENT_MASK),
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_Y, SCA3000_INFO_MASK,
-		 1, 1, IIO_ST('s', 11, 16, 5),
-		 SCA3000_EVENT_MASK, NULL),
+		 1, 1, IIO_ST('s', 11, 16, 5), SCA3000_EVENT_MASK),
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_Z, SCA3000_INFO_MASK,
-		 2, 2, IIO_ST('s', 11, 16, 5),
-		 SCA3000_EVENT_MASK, NULL),
+		 2, 2, IIO_ST('s', 11, 16, 5), SCA3000_EVENT_MASK),
 };
 
 static u8 sca3000_addresses[3][3] = {
@@ -977,7 +974,6 @@ error_ret:
  **/
 static int sca3000_write_event_config(struct iio_dev *indio_dev,
 				      int e,
-				      struct iio_event_handler_list *list_el,
 				      int state)
 {
 	struct sca3000_state *st = indio_dev->dev_data;
@@ -1032,23 +1028,20 @@ exit_point:
 	return ret;
 }
 
-/* Shared event handler for all events as single event status register */
-IIO_EVENT_SH(all, NULL);
-
 /* Free fall detector related event attribute */
-IIO_EVENT_ATTR_NAMED_SH(accel_xayaz_mag_falling_en,
-			accel_x&y&z_mag_falling_en,
-			iio_event_all,
-			sca3000_query_free_fall_mode,
-			sca3000_set_free_fall_mode,
-			0);
+static IIO_DEVICE_ATTR_NAMED(accel_xayaz_mag_falling_en,
+			     accel_x&y&z_mag_falling_en,
+			     S_IRUGO | S_IWUSR,
+			     sca3000_query_free_fall_mode,
+			     sca3000_set_free_fall_mode,
+			     0);
 
 static IIO_CONST_ATTR_NAMED(accel_xayaz_mag_falling_period,
 			    accel_x&y&z_mag_falling_period,
 			    "0.226");
 
 static struct attribute *sca3000_event_attributes[] = {
-	&iio_event_attr_accel_xayaz_mag_falling_en.dev_attr.attr,
+	&iio_dev_attr_accel_xayaz_mag_falling_en.dev_attr.attr,
 	&iio_const_attr_accel_xayaz_mag_falling_period.dev_attr.attr,
 	NULL,
 };

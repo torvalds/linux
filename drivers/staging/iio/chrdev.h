@@ -78,28 +78,7 @@ struct iio_event_interface {
 	void					*private;
 	char					_name[35];
 	char					_attrname[20];
-
-	struct list_head event_attr_list;
 	struct list_head dev_attr_list;
-};
-
-/**
- * struct iio_event_handler_list - element in list of handlers for events
- * @list:		list header
- * @refcount:		as the handler may be shared between multiple device
- *			side events, reference counting ensures clean removal
- * @exist_lock:		prevents race conditions related to refcount usage.
- * @handler:		event handler function - called on event if this
- *			event_handler is enabled.
- *
- * Each device has one list of these per interrupt line.
- **/
-struct iio_event_handler_list {
-	struct list_head	list;
-	int			refcount;
-	struct mutex		exist_lock;
-	int (*handler)(struct iio_dev *dev_info, int index, s64 timestamp,
-		       int no_test);
 };
 
 #endif

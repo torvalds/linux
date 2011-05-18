@@ -263,20 +263,6 @@ static const enum max1363_modes max1363_mode_list[] = {
 	d0m1to2m3, d1m0to3m2,
 };
 
-static int max1363_int_th(struct iio_dev *indio_dev,
-			int index,
-			s64 timestamp,
-			int not_test)
-{
-	struct max1363_state *st = iio_priv(indio_dev);
-
-	st->last_timestamp = timestamp;
-	schedule_work(&st->thresh_work);
-	return 0;
-}
-
-IIO_EVENT_SH(max1363_thresh, max1363_int_th);
-
 #define MAX1363_EV_M						\
 	(IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING)	\
 	 | IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING))
@@ -284,71 +270,53 @@ IIO_EVENT_SH(max1363_thresh, max1363_int_th);
 
 static struct iio_chan_spec max1363_channels[] = {
 	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0, MAX1363_INFO_MASK,
-		 _s0, 0, IIO_ST('u', 12, 16, 0), MAX1363_EV_M,
-		 &iio_event_max1363_thresh),
+		 _s0, 0, IIO_ST('u', 12, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0, MAX1363_INFO_MASK,
-		 _s1, 1, IIO_ST('u', 12, 16, 0), MAX1363_EV_M,
-		 &iio_event_max1363_thresh),
+		 _s1, 1, IIO_ST('u', 12, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 2, 0, MAX1363_INFO_MASK,
-		 _s2, 2, IIO_ST('u', 12, 16, 0), MAX1363_EV_M,
-		 &iio_event_max1363_thresh),
+		 _s2, 2, IIO_ST('u', 12, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 3, 0, MAX1363_INFO_MASK,
-		 _s3, 3, IIO_ST('u', 12, 16, 0), MAX1363_EV_M,
-		 &iio_event_max1363_thresh),
+		 _s3, 3, IIO_ST('u', 12, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 0, 1, MAX1363_INFO_MASK,
-		 d0m1, 4, IIO_ST('s', 12, 16, 0),
-		 MAX1363_EV_M, &iio_event_max1363_thresh),
+		 d0m1, 4, IIO_ST('s', 12, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 2, 3, MAX1363_INFO_MASK,
-		 d2m3, 5, IIO_ST('s', 12, 16, 0),
-		 MAX1363_EV_M, &iio_event_max1363_thresh),
+		 d2m3, 5, IIO_ST('s', 12, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 1, 0, MAX1363_INFO_MASK,
-		 d1m0, 6, IIO_ST('s', 12, 16, 0),
-		 MAX1363_EV_M, &iio_event_max1363_thresh),
+		 d1m0, 6, IIO_ST('s', 12, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 3, 2, MAX1363_INFO_MASK,
-		 d3m2, 7, IIO_ST('s', 12, 16, 0),
-		 MAX1363_EV_M, &iio_event_max1363_thresh),
+		 d3m2, 7, IIO_ST('s', 12, 16, 0), MAX1363_EV_M),
 	IIO_CHAN_SOFT_TIMESTAMP(8)
 };
 
 static struct iio_chan_spec max1361_channels[] = {
 	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0, MAX1363_INFO_MASK,
-		 _s0, 0, IIO_ST('u', 10, 16, 0), MAX1363_EV_M,
-		 &iio_event_max1363_thresh),
+		 _s0, 0, IIO_ST('u', 10, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0, MAX1363_INFO_MASK,
-		 _s1, 1, IIO_ST('u', 10, 16, 0), MAX1363_EV_M,
-		 &iio_event_max1363_thresh),
+		 _s1, 1, IIO_ST('u', 10, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 2, 0, MAX1363_INFO_MASK,
-		 _s2, 2, IIO_ST('u', 10, 16, 0), MAX1363_EV_M,
-		 &iio_event_max1363_thresh),
+		 _s2, 2, IIO_ST('u', 10, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 3, 0, MAX1363_INFO_MASK,
-		 _s3, 3, IIO_ST('u', 10, 16, 0), MAX1363_EV_M,
-		 &iio_event_max1363_thresh),
+		 _s3, 3, IIO_ST('u', 10, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 0, 1, MAX1363_INFO_MASK,
-		 d0m1, 4, IIO_ST('s', 10, 16, 0),
-		 MAX1363_EV_M, &iio_event_max1363_thresh),
+		 d0m1, 4, IIO_ST('s', 10, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 2, 3, MAX1363_INFO_MASK,
-		 d2m3, 5, IIO_ST('s', 10, 16, 0),
-		 MAX1363_EV_M, &iio_event_max1363_thresh),
+		 d2m3, 5, IIO_ST('s', 10, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 1, 0, MAX1363_INFO_MASK,
-		 d1m0, 6, IIO_ST('s', 10, 16, 0),
-		 MAX1363_EV_M, &iio_event_max1363_thresh),
+		 d1m0, 6, IIO_ST('s', 10, 16, 0), MAX1363_EV_M),
 	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, 3, 2, MAX1363_INFO_MASK,
-		 d3m2, 7, IIO_ST('s', 10, 16, 0),
-		 MAX1363_EV_M, &iio_event_max1363_thresh),
+		 d3m2, 7, IIO_ST('s', 10, 16, 0), MAX1363_EV_M),
 	IIO_CHAN_SOFT_TIMESTAMP(8)
 };
 
 #define MAX1363_CHAN_U(num, address, scan_index, bits)		\
 	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, num, 0, MAX1363_INFO_MASK,	\
 		 address, scan_index, IIO_ST('u', bits,		\
-					     (bits == 8) ? 8 : 16, 0),	\
-		 0, NULL)
+					     (bits == 8) ? 8 : 16, 0), 0)
 /* bipolar channel */
 #define MAX1363_CHAN_B(num, num2, address, scan_index, bits)		\
 	IIO_CHAN(IIO_IN_DIFF, 0, 1, 0, NULL, num, num2, MAX1363_INFO_MASK,\
 		 address, scan_index, IIO_ST('s', bits,		\
-					     (bits == 8) ? 8 : 16, 0),	\
-		 0, NULL)
+					     (bits == 8) ? 8 : 16, 0), 0)
 
 #define MAX1363_4X_CHANS(bits) {		\
 	MAX1363_CHAN_U(0, _s0, 0, bits),	\
@@ -907,11 +875,11 @@ static int max1363_write_thresh(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static void max1363_thresh_handler_bh(struct work_struct *work_s)
+static irqreturn_t max1363_event_handler(int irq, void *private)
 {
-	struct max1363_state *st = container_of(work_s, struct max1363_state,
-						thresh_work);
-	struct iio_dev *indio_dev = iio_priv_to_dev(st);
+	struct iio_dev *indio_dev = private;
+	struct max1363_state *st = iio_priv(indio_dev);
+	s64 timestamp = iio_get_time_ns();
 	u8 rx;
 	u8 tx[2] = { st->setupbyte,
 		     MAX1363_MON_INT_ENABLE | (st->monitor_speed << 1) | 0xF0 };
@@ -921,37 +889,38 @@ static void max1363_thresh_handler_bh(struct work_struct *work_s)
 	if (rx & (1 << 0))
 		iio_push_event(indio_dev, 0,
 			IIO_EVENT_CODE_IN_LOW_THRESH(3),
-			st->last_timestamp);
+			timestamp);
 	if (rx & (1 << 1))
 		iio_push_event(indio_dev, 0,
 			IIO_EVENT_CODE_IN_HIGH_THRESH(3),
-			st->last_timestamp);
+			timestamp);
 	if (rx & (1 << 2))
 		iio_push_event(indio_dev, 0,
 			IIO_EVENT_CODE_IN_LOW_THRESH(2),
-			st->last_timestamp);
+			timestamp);
 	if (rx & (1 << 3))
 		iio_push_event(indio_dev, 0,
 			IIO_EVENT_CODE_IN_HIGH_THRESH(2),
-			st->last_timestamp);
+			timestamp);
 	if (rx & (1 << 4))
 		iio_push_event(indio_dev, 0,
 			IIO_EVENT_CODE_IN_LOW_THRESH(1),
-			st->last_timestamp);
+			timestamp);
 	if (rx & (1 << 5))
 		iio_push_event(indio_dev, 0,
 			IIO_EVENT_CODE_IN_HIGH_THRESH(1),
-			st->last_timestamp);
+			timestamp);
 	if (rx & (1 << 6))
 		iio_push_event(indio_dev, 0,
 			IIO_EVENT_CODE_IN_LOW_THRESH(0),
-			st->last_timestamp);
+			timestamp);
 	if (rx & (1 << 7))
 		iio_push_event(indio_dev, 0,
 			IIO_EVENT_CODE_IN_HIGH_THRESH(0),
-			st->last_timestamp);
-	enable_irq(st->client->irq);
+			timestamp);
 	i2c_master_send(st->client, tx, 2);
+
+	return IRQ_HANDLED;
 }
 
 static int max1363_read_event_config(struct iio_dev *indio_dev,
@@ -1108,7 +1077,6 @@ error_ret:
 
 static int max1363_write_event_config(struct iio_dev *indio_dev,
 				      int event_code,
-				      struct iio_event_handler_list *listel,
 				      int state)
 {
 	int ret = 0;
@@ -1140,12 +1108,6 @@ static int max1363_write_event_config(struct iio_dev *indio_dev,
 			st->mask_high |= (1 << number);
 		}
 	}
-	if (st->monitor_on && !st->mask_high && !st->mask_low)
-		iio_remove_event_from_list(listel,
-					   &indio_dev->interrupts[0]->ev_list);
-	if (!st->monitor_on && state)
-		iio_add_event_to_list(listel,
-				      &indio_dev->interrupts[0]->ev_list);
 
 	max1363_monitor_mode_update(st, !!(st->mask_high | st->mask_low));
 error_ret:
@@ -1264,15 +1226,15 @@ static int __devinit max1363_probe(struct i2c_client *client,
 		goto error_cleanup_ring;
 
 	if (st->chip_info->monitor_mode && client->irq) {
-		ret = iio_register_interrupt_line(client->irq,
-						indio_dev,
-						0,
-						IRQF_TRIGGER_RISING,
-						client->name);
+		ret = request_threaded_irq(st->client->irq,
+					   NULL,
+					   &max1363_event_handler,
+					   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					   "max1363_event",
+					   indio_dev);
 
 		if (ret)
 			goto error_uninit_ring;
-		INIT_WORK(&st->thresh_work, max1363_thresh_handler_bh);
 	}
 
 	return 0;
@@ -1304,7 +1266,7 @@ static int max1363_remove(struct i2c_client *client)
 	struct regulator *reg = st->reg;
 
 	if (st->chip_info->monitor_mode && client->irq)
-		iio_unregister_interrupt_line(indio_dev, 0);
+		free_irq(st->client->irq, indio_dev);
 	iio_ring_buffer_unregister(indio_dev->ring);
 	max1363_ring_cleanup(indio_dev);
 	kfree(indio_dev->available_scan_masks);

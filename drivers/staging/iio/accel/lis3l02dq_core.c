@@ -416,10 +416,9 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("280 560 1120 4480");
 
-static irqreturn_t lis3l02dq_event_handler(int irq, void *_int_info)
+static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 {
-	struct iio_interrupt *int_info = _int_info;
-	struct iio_dev *indio_dev = int_info->dev_info;
+	struct iio_dev *indio_dev = private;
 	struct iio_sw_ring_helper_state *h
 		= iio_dev_get_devdata(indio_dev);
 	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
@@ -442,14 +441,11 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *_int_info)
 
 static struct iio_chan_spec lis3l02dq_channels[] = {
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_X, LIS3L02DQ_INFO_MASK,
-		 0, 0, IIO_ST('s', 12, 16, 0),
-		 LIS3L02DQ_EVENT_MASK, NULL),
+		 0, 0, IIO_ST('s', 12, 16, 0), LIS3L02DQ_EVENT_MASK),
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_Y, LIS3L02DQ_INFO_MASK,
-		 1, 1, IIO_ST('s', 12, 16, 0),
-		 LIS3L02DQ_EVENT_MASK, NULL),
+		 1, 1, IIO_ST('s', 12, 16, 0), LIS3L02DQ_EVENT_MASK),
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_Z, LIS3L02DQ_INFO_MASK,
-		 2, 2, IIO_ST('s', 12, 16, 0),
-		 LIS3L02DQ_EVENT_MASK, NULL),
+		 2, 2, IIO_ST('s', 12, 16, 0), LIS3L02DQ_EVENT_MASK),
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
@@ -508,7 +504,7 @@ int lis3l02dq_disable_all_events(struct iio_dev *indio_dev)
 		goto error_ret;
 
 	if (irqtofree)
-		free_irq(st->us->irq, indio_dev->interrupts[0]);
+		free_irq(st->us->irq, indio_dev);
 
 	ret = control;
 error_ret:
@@ -517,7 +513,6 @@ error_ret:
 
 static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 					int event_code,
-					struct iio_event_handler_list *list_el,
 					int state)
 {
 	struct iio_sw_ring_helper_state *h
@@ -559,7 +554,7 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 					  &lis3l02dq_event_handler,
 					  IRQF_TRIGGER_RISING,
 					  "lis3l02dq_event",
-					  indio_dev->interrupts[0]);
+					  indio_dev);
 			if (ret)
 				goto error_ret;
 		}
@@ -580,7 +575,7 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 
 		/* remove interrupt handler if nothing is still on */
 		if (!(val & 0x3f))
-			free_irq(st->us->irq, indio_dev->interrupts[0]);
+			free_irq(st->us->irq, indio_dev);
 	}
 
 error_ret:
@@ -743,16 +738,9 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
 		st->inter = 0;
-		ret = iio_register_interrupt_line(spi->irq,
-						  st->help.indio_dev,
-						  0,
-						  IRQF_TRIGGER_RISING,
-						  "lis3l02dq");
-		if (ret)
-			goto error_uninitialize_ring;
 		ret = lis3l02dq_probe_trigger(st->help.indio_dev);
 		if (ret)
-			goto error_unregister_line;
+			goto error_uninitialize_ring;
 	}
 
 	/* Get the device into a sane initial state */
@@ -764,9 +752,6 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 error_remove_trigger:
 	if (st->help.indio_dev->modes & INDIO_RING_TRIGGERED)
 		lis3l02dq_remove_trigger(st->help.indio_dev);
-error_unregister_line:
-	if (st->help.indio_dev->modes & INDIO_RING_TRIGGERED)
-		iio_unregister_interrupt_line(st->help.indio_dev, 0);
 error_uninitialize_ring:
 	iio_ring_buffer_unregister(st->help.indio_dev->ring);
 error_unreg_ring_funcs:
@@ -831,9 +816,6 @@ static int lis3l02dq_remove(struct spi_device *spi)
 	flush_scheduled_work();
 
 	lis3l02dq_remove_trigger(indio_dev);
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
-		iio_unregister_interrupt_line(indio_dev, 0);
-
 	iio_ring_buffer_unregister(indio_dev->ring);
 	lis3l02dq_unconfigure_ring(indio_dev);
 	iio_device_unregister(indio_dev);

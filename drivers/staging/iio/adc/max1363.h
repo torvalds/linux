@@ -189,8 +189,6 @@ struct max1363_chip_info {
  * @mask_low:		bitmask for enabled low thresholds
  * @thresh_high:	high threshold values
  * @thresh_low:		low threshold values
- * @last_timestamp:	timestamp of last event interrupt
- * @thresh_work:	bh work structure for event handling
  */
 struct max1363_state {
 	struct i2c_client		*client;
@@ -213,8 +211,6 @@ struct max1363_state {
 	/* 4x unipolar first then the fours bipolar ones */
 	s16				thresh_high[8];
 	s16				thresh_low[8];
-	s64				last_timestamp;
-	struct work_struct		thresh_work;
 };
 
 const struct max1363_mode
