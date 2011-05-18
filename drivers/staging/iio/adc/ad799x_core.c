@@ -767,7 +767,6 @@ static int __devinit ad799x_probe(struct i2c_client *client,
 	/* this is only used for device removal purposes */
 	i2c_set_clientdata(client, st);
 
-	atomic_set(&st->protect_ring, 0);
 	st->id = id->driver_data;
 	st->chip_info = &ad799x_chip_info_tbl[st->id];
 	st->config = st->chip_info->default_config;
@@ -797,7 +796,7 @@ static int __devinit ad799x_probe(struct i2c_client *client,
 	st->indio_dev->dev.parent = &client->dev;
 	st->indio_dev->attrs = st->chip_info->dev_attrs;
 	st->indio_dev->event_attrs = st->chip_info->event_attrs;
-
+	st->indio_dev->name = id->name;
 	st->indio_dev->dev_data = (void *)(st);
 	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
