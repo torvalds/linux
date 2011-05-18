@@ -24,8 +24,6 @@ struct iio_subirq {
  * @private_data:	[DRIVER] device specific data
  * @list:		[INTERN] used in maintenance of global trigger list
  * @alloc_list:		[DRIVER] used for driver specific trigger list
- * @pollfunc_list_lock:	[INTERN] protection of the polling function list
- * @pollfunc_list:	[INTERN] list of functions to run on trigger.
  * @control_attrs:	[DRIVER] sysfs attributes relevant to trigger type
  * @owner:		[DRIVER] used to monitor usage count of the trigger.
  * @use_count:		use count for the trigger
@@ -41,8 +39,6 @@ struct iio_trigger {
 	void				*private_data;
 	struct list_head		list;
 	struct list_head		alloc_list;
-	spinlock_t			pollfunc_list_lock;
-	struct list_head		pollfunc_list;
 	const struct attribute_group	*control_attrs;
 	struct module			*owner;
 	int use_count;
@@ -153,14 +149,7 @@ static inline void iio_trigger_put_irq(struct iio_trigger *trig, int irq)
 /**
  * struct iio_poll_func - poll function pair
  *
- * @list:			associate this with a triggers pollfunc_list
  * @private_data:		data specific to device (passed into poll func)
- * @poll_func_immediate:	function in here is run first. They should be
- *				extremely lightweight.  Typically used for latch
- *				control on sensor supporting it.
- * @poll_func_main:		function in here is run after all immediates.
- *				Reading from sensor etc typically involves
- *				scheduling from here.
  * @h:				the function that is actually run on trigger
  * @thread:			threaded interrupt part
  * @type:			the type of interrupt (basically if oneshot)
@@ -171,11 +160,7 @@ static inline void iio_trigger_put_irq(struct iio_trigger *trig, int irq)
  *				passes it via here.
  **/
 struct iio_poll_func {
-	struct				list_head list;
 	void				*private_data;
-	void (*poll_func_immediate)(struct iio_dev *indio_dev);
-	void (*poll_func_main)(struct iio_dev *private_data, s64 time);
-
 	irqreturn_t (*h)(int irq, void *p);
 	irqreturn_t (*thread)(int irq, void *p);
 	int type;
@@ -183,10 +168,6 @@ struct iio_poll_func {
 	int irq;
 	s64 timestamp;
 };
-
-int iio_alloc_pollfunc(struct iio_dev *indio_dev,
-		       void (*immediate)(struct iio_dev *indio_dev),
-		       void (*main)(struct iio_dev *private_data, s64 time));
 
 irqreturn_t iio_pollfunc_store_time(int irq, void *p);
 
