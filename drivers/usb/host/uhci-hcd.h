@@ -168,12 +168,7 @@ struct uhci_qh {
  * We need a special accessor for the element pointer because it is
  * subject to asynchronous updates by the controller.
  */
-static inline __le32 qh_element(struct uhci_qh *qh) {
-	__le32 element = qh->element;
-
-	barrier();
-	return element;
-}
+#define qh_element(qh)		ACCESS_ONCE((qh)->element)
 
 #define LINK_TO_QH(qh)		(UHCI_PTR_QH | cpu_to_le32((qh)->dma_handle))
 
@@ -263,12 +258,7 @@ struct uhci_td {
  * We need a special accessor for the control/status word because it is
  * subject to asynchronous updates by the controller.
  */
-static inline u32 td_status(struct uhci_td *td) {
-	__le32 status = td->status;
-
-	barrier();
-	return le32_to_cpu(status);
-}
+#define td_status(td)		le32_to_cpu(ACCESS_ONCE((td)->status))
 
 #define LINK_TO_TD(td)		(cpu_to_le32((td)->dma_handle))
 
