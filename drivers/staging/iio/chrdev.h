@@ -60,8 +60,6 @@ struct iio_detected_event_list {
  * @det_events:		list of detected events
  * @max_events:		maximum number of events before new ones are dropped
  * @current_events:	number of events in detected list
- * @_name:		used internally to store the sysfs name for minor id
- *			attribute
  */
 struct iio_event_interface {
 	struct device				dev;
@@ -71,7 +69,6 @@ struct iio_event_interface {
 	struct list_head			det_events;
 	int					max_events;
 	int					current_events;
-	char					_name[35];
 	struct list_head dev_attr_list;
 };
 

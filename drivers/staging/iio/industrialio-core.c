@@ -16,7 +16,6 @@
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/fs.h>
-#include <linux/interrupt.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
@@ -270,9 +269,10 @@ void iio_device_free_chrdev_minor(int val)
 }
 
 static int iio_setup_ev_int(struct iio_event_interface *ev_int,
-		     const char *name,
-		     struct module *owner,
-		     struct device *dev)
+			    const char *dev_name,
+			    int index,
+			    struct module *owner,
+			    struct device *dev)
 {
 	int ret, minor;
 
@@ -287,7 +287,7 @@ static int iio_setup_ev_int(struct iio_event_interface *ev_int,
 		goto error_device_put;
 	}
 	ev_int->dev.devt = MKDEV(MAJOR(iio_devt), minor);
-	dev_set_name(&ev_int->dev, "%s", name);
+	dev_set_name(&ev_int->dev, "%s:event%d", dev_name, index);
 
 	ret = device_add(&ev_int->dev);
 	if (ret)
@@ -798,20 +798,6 @@ void iio_free_ida_val(struct ida *this_ida, int id)
 }
 EXPORT_SYMBOL(iio_free_ida_val);
 
-static int iio_device_register_id(struct iio_dev *dev_info,
-				  struct ida *this_ida)
-{
-	dev_info->id = iio_get_new_ida_val(&iio_ida);
-	if (dev_info->id < 0)
-		return dev_info->id;
-	return 0;
-}
-
-static void iio_device_unregister_id(struct iio_dev *dev_info)
-{
-	iio_free_ida_val(&iio_ida, dev_info->id);
-}
-
 static const char * const iio_ev_type_text[] = {
 	[IIO_EV_TYPE_THRESH] = "thresh",
 	[IIO_EV_TYPE_MAG] = "mag",
@@ -832,10 +818,11 @@ static ssize_t iio_ev_state_store(struct device *dev,
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
-	unsigned long val;
-	ret = strict_strtoul(buf, 10, &val);
-	if (ret || val < 0 || val > 1)
-		return -EINVAL;
+	bool val;
+
+	ret = strtobool(buf, &val);
+	if (ret < 0)
+		return ret;
 
 	ret = indio_dev->write_event_config(indio_dev, this_attr->address,
 					    val);
@@ -1041,13 +1028,9 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 	}
 
 	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
-		snprintf(dev_info->event_interfaces[i]._name, 20,
-			 "%s:event%d",
-			 dev_name(&dev_info->dev),
-			 i);
-
 		ret = iio_setup_ev_int(&dev_info->event_interfaces[i],
-				       dev_info->event_interfaces[i]._name,
+				       dev_name(&dev_info->dev),
+				       i,
 				       dev_info->driver_module,
 				       &dev_info->dev);
 		if (ret) {
@@ -1120,10 +1103,8 @@ static void iio_device_unregister_eventset(struct iio_dev *dev_info)
 
 static void iio_dev_release(struct device *device)
 {
-	struct iio_dev *dev = to_iio_dev(device);
-
 	iio_put();
-	kfree(dev);
+	kfree(to_iio_dev(device));
 }
 
 static struct device_type iio_dev_type = {
@@ -1170,8 +1151,9 @@ int iio_device_register(struct iio_dev *dev_info)
 {
 	int ret;
 
-	ret = iio_device_register_id(dev_info, &iio_ida);
-	if (ret) {
+	dev_info->id = iio_get_new_ida_val(&iio_ida);
+	if (dev_info->id < 0) {
+		ret = dev_info->id;
 		dev_err(&dev_info->dev, "Failed to get id\n");
 		goto error_ret;
 	}
@@ -1202,7 +1184,7 @@ error_free_sysfs:
 error_del_device:
 	device_del(&dev_info->dev);
 error_free_ida:
-	iio_device_unregister_id(dev_info);
+	iio_free_ida_val(&iio_ida, dev_info->id);
 error_ret:
 	return ret;
 }
@@ -1214,7 +1196,7 @@ void iio_device_unregister(struct iio_dev *dev_info)
 		iio_device_unregister_trigger_consumer(dev_info);
 	iio_device_unregister_eventset(dev_info);
 	iio_device_unregister_sysfs(dev_info);
-	iio_device_unregister_id(dev_info);
+	iio_free_ida_val(&iio_ida, dev_info->id);
 	device_unregister(&dev_info->dev);
 }
 EXPORT_SYMBOL(iio_device_unregister);
