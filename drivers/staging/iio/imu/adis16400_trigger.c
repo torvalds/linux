@@ -12,16 +12,6 @@
 #include "../trigger.h"
 #include "adis16400.h"
 
-/**
- * adis16400_data_rdy_trig_poll() the event handler for the data rdy trig
- **/
-static irqreturn_t adis16400_data_rdy_trig_poll(int irq, void *private)
-{
-	disable_irq_nosync(irq);
-	iio_trigger_poll(private, iio_get_time_ns());
-	return IRQ_HANDLED;
-}
-
 static IIO_TRIGGER_NAME_ATTR;
 
 static struct attribute *adis16400_trigger_attrs[] = {
@@ -43,66 +33,58 @@ static int adis16400_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	struct iio_dev *indio_dev = st->indio_dev;
 
 	dev_dbg(&indio_dev->dev, "%s (%d)\n", __func__, state);
-	return adis16400_set_irq(&st->indio_dev->dev, state);
-}
-
-/**
- * adis16400_trig_try_reen() try renabling irq for data rdy trigger
- * @trig:	the datardy trigger
- **/
-static int adis16400_trig_try_reen(struct iio_trigger *trig)
-{
-	struct adis16400_state *st = trig->private_data;
-	enable_irq(st->us->irq);
-	/* irq reenabled so success! */
-	return 0;
+	return adis16400_set_irq(st->indio_dev, state);
 }
 
 int adis16400_probe_trigger(struct iio_dev *indio_dev)
 {
 	int ret;
 	struct adis16400_state *st = indio_dev->dev_data;
+	char *name;
 
-	st->trig = iio_allocate_trigger();
-	if (st->trig == NULL) {
+	name = kasprintf(GFP_KERNEL,
+			 "%s-dev%d",
+			 spi_get_device_id(st->us)->name,
+			 indio_dev->id);
+	if (name == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
+
+	st->trig = iio_allocate_trigger_named(name);
+	if (st->trig == NULL) {
+		ret = -ENOMEM;
+		goto error_free_name;
+	}
+
 	ret = request_irq(st->us->irq,
-			  adis16400_data_rdy_trig_poll,
+			  &iio_trigger_generic_data_rdy_poll,
 			  IRQF_TRIGGER_RISING,
 			  "adis16400",
 			  st->trig);
 	if (ret)
 		goto error_free_trig;
-	st->trig->name = kasprintf(GFP_KERNEL,
-				   "adis16400-dev%d",
-				   indio_dev->id);
-	if (!st->trig->name) {
-		ret = -ENOMEM;
-		goto error_free_irq;
-	}
+
 	st->trig->dev.parent = &st->us->dev;
 	st->trig->owner = THIS_MODULE;
 	st->trig->private_data = st;
 	st->trig->set_trigger_state = &adis16400_data_rdy_trigger_set_state;
-	st->trig->try_reenable = &adis16400_trig_try_reen;
 	st->trig->control_attrs = &adis16400_trigger_attr_group;
 	ret = iio_trigger_register(st->trig);
 
 	/* select default trigger */
 	indio_dev->trig = st->trig;
 	if (ret)
-		goto error_free_trig_name;
+		goto error_free_irq;
 
 	return 0;
 
-error_free_trig_name:
-	kfree(st->trig->name);
 error_free_irq:
 	free_irq(st->us->irq, st->trig);
 error_free_trig:
 	iio_free_trigger(st->trig);
+error_free_name:
+	kfree(name);
 error_ret:
 	return ret;
 }
