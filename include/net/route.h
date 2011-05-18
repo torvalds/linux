@@ -290,14 +290,14 @@ static inline struct rtable *ip_route_newports(struct flowi4 *fl4, struct rtable
 	return rt;
 }
 
-extern void rt_bind_peer(struct rtable *rt, int create);
+extern void rt_bind_peer(struct rtable *rt, __be32 daddr, int create);
 
 static inline struct inet_peer *rt_get_peer(struct rtable *rt, __be32 daddr)
 {
 	if (rt->peer)
 		return rt->peer;
 
-	rt_bind_peer(rt, 0);
+	rt_bind_peer(rt, daddr, 0);
 	return rt->peer;
 }
 

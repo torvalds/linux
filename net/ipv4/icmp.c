@@ -234,7 +234,7 @@ static inline void icmp_xmit_unlock(struct sock *sk)
  */
 
 static inline bool icmpv4_xrlim_allow(struct net *net, struct rtable *rt,
-		int type, int code)
+				      struct flowi4 *fl4, int type, int code)
 {
 	struct dst_entry *dst = &rt->dst;
 	bool rc = true;
@@ -253,7 +253,7 @@ static inline bool icmpv4_xrlim_allow(struct net *net, struct rtable *rt,
 	/* Limit if icmp type is enabled in ratemask. */
 	if ((1 << type) & net->ipv4.sysctl_icmp_ratemask) {
 		if (!rt->peer)
-			rt_bind_peer(rt, 1);
+			rt_bind_peer(rt, fl4->daddr, 1);
 		rc = inet_peer_xrlim_allow(rt->peer,
 					   net->ipv4.sysctl_icmp_ratelimit);
 	}
@@ -363,7 +363,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	rt = ip_route_output_key(net, &fl4);
 	if (IS_ERR(rt))
 		goto out_unlock;
-	if (icmpv4_xrlim_allow(net, rt, icmp_param->data.icmph.type,
+	if (icmpv4_xrlim_allow(net, rt, &fl4, icmp_param->data.icmph.type,
 			       icmp_param->data.icmph.code))
 		icmp_push_reply(icmp_param, &fl4, &ipc, &rt);
 	ip_rt_put(rt);
@@ -603,7 +603,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	if (IS_ERR(rt))
 		goto out_unlock;
 
-	if (!icmpv4_xrlim_allow(net, rt, type, code))
+	if (!icmpv4_xrlim_allow(net, rt, &fl4, type, code))
 		goto ende;
 
 	/* RFC says return as much as we can without exceeding 576 bytes. */
