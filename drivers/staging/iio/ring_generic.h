@@ -76,11 +76,9 @@ struct iio_ring_setup_ops {
  * @dev:		ring buffer device struct
  * @indio_dev:		industrial I/O device structure
  * @owner:		module that owns the ring buffer (for ref counting)
- * @id:			unique id number
  * @length:		[DEVICE] number of datums in ring
  * @bytes_per_datum:	[DEVICE] size of individual datum including timestamp
  * @bpe:		[DEVICE] size of individual channel value
- * @loopcount:		[INTERN] number of times the ring has looped
  * @scan_el_attrs:	[DRIVER] control of scan elements if that scan mode
  *			control method is used
  * @scan_count:	[INTERN] the number of elements in the current scan mode
@@ -93,27 +91,25 @@ struct iio_ring_setup_ops {
  * @postenable:		[DRIVER] function to run after marking ring enabled
  * @predisable:		[DRIVER] function to run prior to marking ring disabled
  * @postdisable:	[DRIVER] function to run after marking ring disabled
-  **/
+ **/
 struct iio_ring_buffer {
-	struct device dev;
-	struct iio_dev *indio_dev;
-	struct module *owner;
-	int				id;
-	int				length;
-	int				bytes_per_datum;
-	int				bpe;
-	int				loopcount;
-	struct attribute_group		*scan_el_attrs;
-	int				scan_count;
-	u32				scan_mask;
-	bool				scan_timestamp;
-	struct iio_handler		access_handler;
+	struct device				dev;
+	struct iio_dev				*indio_dev;
+	struct module				*owner;
+	int					length;
+	int					bytes_per_datum;
+	int					bpe;
+	struct attribute_group			*scan_el_attrs;
+	int					scan_count;
+	unsigned long				scan_mask;
+	bool					scan_timestamp;
+	struct iio_handler			access_handler;
 	const struct iio_ring_access_funcs	*access;
-	const struct iio_ring_setup_ops	*setup_ops;
-	struct list_head scan_el_dev_attr_list;
+	const struct iio_ring_setup_ops		*setup_ops;
+	struct list_head			scan_el_dev_attr_list;
 
-	wait_queue_head_t pollq;
-	bool stufftoread;
+	wait_queue_head_t			pollq;
+	bool					stufftoread;
 };
 
 /**
@@ -135,47 +131,7 @@ static inline void __iio_update_ring_buffer(struct iio_ring_buffer *ring,
 {
 	ring->bytes_per_datum = bytes_per_datum;
 	ring->length = length;
-	ring->loopcount = 0;
 }
-
-/**
- * iio_scan_el_store() - sysfs scan element selection interface
- * @dev: the target device
- * @attr: the device attribute that is being processed
- * @buf: input from userspace
- * @len: length of input
- *
- * A generic function used to enable various scan elements.  In some
- * devices explicit read commands for each channel mean this is merely
- * a software switch.  In others this must actively disable the channel.
- * Complexities occur when this interacts with data ready type triggers
- * which may not reset unless every channel that is enabled is explicitly
- * read.
- **/
-ssize_t iio_scan_el_store(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t len);
-/**
- * iio_scan_el_show() -	sysfs interface to query whether a scan element
- *			is enabled or not
- * @dev: the target device
- * @attr: the device attribute that is being processed
- * @buf: output buffer
- **/
-ssize_t iio_scan_el_show(struct device *dev, struct device_attribute *attr,
-			 char *buf);
-
-/**
- * iio_scan_el_ts_store() - sysfs interface to set whether a timestamp is included
- *			    in the scan.
- **/
-ssize_t iio_scan_el_ts_store(struct device *dev, struct device_attribute *attr,
-			     const char *buf, size_t len);
-/**
- * iio_scan_el_ts_show() - sysfs interface to query if a timestamp is included
- *			   in the scan.
- **/
-ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
-			    char *buf);
 
 /*
  * These are mainly provided to allow for a change of implementation if a device
@@ -243,41 +199,6 @@ static inline int iio_scan_mask_set(struct iio_ring_buffer *ring, int bit)
 };
 
 /**
- * iio_scan_mask_clear() - clear a particular element from the scan mask
- * @ring: the ring buffer whose scan mask we are interested in
- * @bit: the bit to clear
- **/
-static inline int iio_scan_mask_clear(struct iio_ring_buffer *ring, int bit)
-{
-	if (bit > IIO_MAX_SCAN_LENGTH)
-		return -EINVAL;
-	ring->scan_mask &= ~(1 << bit);
-	ring->scan_count--;
-	return 0;
-};
-
-/**
- * iio_scan_mask_count_to_right() - how many scan elements occur before here
- * @ring: the ring buffer whose scan mask we interested in
- * @bit: which number scan element is this
- **/
-static inline int iio_scan_mask_count_to_right(struct iio_ring_buffer *ring,
-						int bit)
-{
-	int count = 0;
-	int mask = (1 << bit);
-	if (bit > IIO_MAX_SCAN_LENGTH)
-		return -EINVAL;
-	while (mask) {
-		mask >>= 1;
-		if (mask & ring->scan_mask)
-			count++;
-	}
-
-	return count;
-}
-
-/**
  * iio_put_ring_buffer() - notify done with buffer
  * @ring: the buffer we are done with.
  **/
@@ -286,17 +207,11 @@ static inline void iio_put_ring_buffer(struct iio_ring_buffer *ring)
 	put_device(&ring->dev);
 };
 
-#define to_iio_ring_buffer(d)			\
+#define to_iio_ring_buffer(d)				\
 	container_of(d, struct iio_ring_buffer, dev)
 
 /**
- * iio_ring_buffer_register() - register the buffer with IIO core
- * @ring: the buffer to be registered
- * @id: the id of the buffer (typically 0)
- **/
-int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id);
-
-/** iio_ring_buffer_register_ex() - register the buffer with IIO core
+ * iio_ring_buffer_register_ex() - register the buffer with IIO core
  * @ring: the buffer to be registered
  * @id: the id of the buffer (typically 0)
  **/
@@ -356,10 +271,6 @@ ssize_t iio_show_ring_enable(struct device *dev,
 int iio_sw_ring_preenable(struct iio_dev *indio_dev);
 
 #else /* CONFIG_IIO_RING_BUFFER */
-static inline int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id)
-{
-	return 0;
-};
 
 static inline int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring,
 					      int id,

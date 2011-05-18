@@ -50,8 +50,12 @@ ssize_t lis3l02dq_read_accel_from_ring(struct iio_ring_buffer *ring,
 {
 	int ret;
 	s16 *data;
+
 	if (!iio_scan_mask_query(ring, index))
 		return -EINVAL;
+
+	if (!ring->access->read_last)
+		return -EBUSY;
 
 	data = kmalloc(ring->access->get_bytes_per_datum(ring),
 		       GFP_KERNEL);
@@ -61,9 +65,10 @@ ssize_t lis3l02dq_read_accel_from_ring(struct iio_ring_buffer *ring,
 	ret = ring->access->read_last(ring, (u8 *)data);
 	if (ret)
 		goto error_free_data;
-	*val = data[iio_scan_mask_count_to_right(ring, index)];
+	*val = data[bitmap_weight(&ring->scan_mask, index)];
 error_free_data:
 	kfree(data);
+
 	return ret;
 }
 
