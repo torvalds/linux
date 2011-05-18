@@ -7,15 +7,11 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/i2c.h>
-#include <linux/rtc.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -72,7 +68,8 @@ struct ad7152_conversion_mode {
 	u8 reg_cfg;
 };
 
-struct ad7152_conversion_mode ad7152_conv_mode_table[AD7152_MAX_CONV_MODE] = {
+static struct ad7152_conversion_mode
+ad7152_conv_mode_table[AD7152_MAX_CONV_MODE] = {
 	{ "idle", 0 },
 	{ "continuous-conversion", 1 },
 	{ "single-conversion", 2 },
@@ -567,8 +564,6 @@ static int __devexit ad7152_remove(struct i2c_client *client)
 	struct ad7152_chip_info *chip = i2c_get_clientdata(client);
 	struct iio_dev *indio_dev = chip->indio_dev;
 
-	if (client->irq && gpio_is_valid(irq_to_gpio(client->irq)) > 0)
-		iio_unregister_interrupt_line(indio_dev, 0);
 	iio_device_unregister(indio_dev);
 	kfree(chip);
 
