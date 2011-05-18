@@ -747,7 +747,7 @@ static int vmk80xx_di_rinsn(struct comedi_device *cdev,
 		else
 			inp = rx_buf[reg];
 
-		data[n] = ((inp & (1 << chan)) > 0);
+		data[n] = (inp >> chan) & 1;
 	}
 
 	up(&dev->limit_sem);
@@ -812,7 +812,6 @@ static int vmk80xx_do_rinsn(struct comedi_device *cdev,
 	struct vmk80xx_usb *dev = cdev->private;
 	int chan;
 	int reg;
-	int mask;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -825,7 +824,6 @@ static int vmk80xx_do_rinsn(struct comedi_device *cdev,
 	chan = CR_CHAN(insn->chanspec);
 
 	reg = VMK8061_DO_REG;
-	mask = 1 << chan;
 
 	dev->usb_tx_buf[0] = VMK8061_CMD_RD_DO;
 
@@ -833,7 +831,7 @@ static int vmk80xx_do_rinsn(struct comedi_device *cdev,
 		if (vmk80xx_read_packet(dev))
 			break;
 
-		data[n] = (dev->usb_rx_buf[reg] & mask) >> chan;
+		data[n] = (dev->usb_rx_buf[reg] >> chan) & 1;
 	}
 
 	up(&dev->limit_sem);
