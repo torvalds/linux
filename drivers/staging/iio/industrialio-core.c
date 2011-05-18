@@ -688,6 +688,16 @@ static void iio_device_remove_and_free_read_attr(struct iio_dev *dev_info,
 	kfree(p);
 }
 
+static ssize_t iio_show_dev_name(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	return sprintf(buf, "%s\n", indio_dev->name);
+}
+
+static DEVICE_ATTR(name, S_IRUGO, iio_show_dev_name, NULL);
+
 static int iio_device_register_sysfs(struct iio_dev *dev_info)
 {
 	int i, ret = 0;
@@ -715,8 +725,15 @@ static int iio_device_register_sysfs(struct iio_dev *dev_info)
 			if (ret < 0)
 				goto error_clear_attrs;
 		}
-
+	if (dev_info->name) {
+		ret = sysfs_add_file_to_group(&dev_info->dev.kobj,
+					      &dev_attr_name.attr,
+					      NULL);
+		if (ret)
+			goto error_clear_attrs;
+	}
 	return 0;
+
 error_clear_attrs:
 	list_for_each_entry_safe(p, n,
 				 &dev_info->channel_attr_list, l) {
@@ -734,6 +751,10 @@ static void iio_device_unregister_sysfs(struct iio_dev *dev_info)
 {
 
 	struct iio_dev_attr *p, *n;
+	if (dev_info->name)
+		sysfs_remove_file_from_group(&dev_info->dev.kobj,
+					     &dev_attr_name.attr,
+					     NULL);
 	list_for_each_entry_safe(p, n, &dev_info->channel_attr_list, l) {
 		list_del(&p->l);
 		iio_device_remove_and_free_read_attr(dev_info, p);

@@ -268,7 +268,7 @@ struct iio_dev {
 	int num_channels;
 	struct list_head channel_attr_list;
 
-	char *name; /*device name - IMPLEMENT */
+	const char *name;
 	int (*read_raw)(struct iio_dev *indio_dev,
 			struct iio_chan_spec const *chan,
 			int *val,
