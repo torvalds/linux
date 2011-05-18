@@ -15,8 +15,8 @@ config MAX1363
 	  max1139, max1236, max1237, max11238, max1239, max11600, max11601,
 	  max11602, max11603, max11604, max11605, max11606, max11607,
 	  max11608, max11609, max11610, max11611, max11612, max11613,
-	  max11614, max11615, max11616, max11617) Provides direct access
-	  via sysfs.
+	  max11614, max11615, max11616, max11617, max11644, max11645,
+	  max11646, max11647) Provides direct access via sysfs.
 
 config MAX1363_RING_BUFFER
 	bool "MAXIM max1363: use ring buffer"
