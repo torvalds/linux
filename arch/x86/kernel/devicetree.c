@@ -407,7 +407,7 @@ static void __init ioapic_add_ofnode(struct device_node *np)
 	}
 
 	for (i = 0; i < nr_ioapics; i++) {
-		if (r.start == mp_ioapics[i].apicaddr) {
+		if (r.start == mpc_ioapic_addr(i)) {
 			struct irq_domain *id;
 
 			id = kzalloc(sizeof(*id), GFP_KERNEL);

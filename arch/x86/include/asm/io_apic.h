@@ -106,10 +106,10 @@ struct IR_IO_APIC_route_entry {
  */
 extern int nr_ioapics;
 
-#define MP_MAX_IOAPIC_PIN 127
+extern int mpc_ioapic_id(int ioapic);
+extern unsigned int mpc_ioapic_addr(int ioapic);
 
-/* I/O APIC entries */
-extern struct mpc_ioapic mp_ioapics[MAX_IO_APICS];
+#define MP_MAX_IOAPIC_PIN 127
 
 /* # of MP IRQ source entries */
 extern int mp_irq_entries;

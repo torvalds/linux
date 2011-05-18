@@ -285,7 +285,7 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	intsrc.type = MP_INTSRC;
 	intsrc.irqflag = 0;	/* conforming */
 	intsrc.srcbus = 0;
-	intsrc.dstapic = mp_ioapics[0].apicid;
+	intsrc.dstapic = mpc_ioapic_id(0);
 
 	intsrc.irqtype = mp_INT;
 
