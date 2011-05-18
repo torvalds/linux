@@ -859,7 +859,7 @@ static void qla4xxx_timer(struct scsi_qla_host *ha)
 	}
 
 	/* Wakeup the dpc routine for this adapter, if needed. */
-	if ((start_dpc ||
+	if (start_dpc ||
 	     test_bit(DPC_RESET_HA, &ha->dpc_flags) ||
 	     test_bit(DPC_RETRY_RESET_HA, &ha->dpc_flags) ||
 	     test_bit(DPC_RELOGIN_DEVICE, &ha->dpc_flags) ||
@@ -869,9 +869,7 @@ static void qla4xxx_timer(struct scsi_qla_host *ha)
 	     test_bit(DPC_LINK_CHANGED, &ha->dpc_flags) ||
 	     test_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags) ||
 	     test_bit(DPC_HA_NEED_QUIESCENT, &ha->dpc_flags) ||
-	     test_bit(DPC_AEN, &ha->dpc_flags)) &&
-	     !test_bit(AF_DPC_SCHEDULED, &ha->flags) &&
-	     ha->dpc_thread) {
+	     test_bit(DPC_AEN, &ha->dpc_flags)) {
 		DEBUG2(printk("scsi%ld: %s: scheduling dpc routine"
 			      " - dpc flags = 0x%lx\n",
 			      ha->host_no, __func__, ha->dpc_flags));
@@ -1261,11 +1259,8 @@ static void qla4xxx_relogin_all_devices(struct scsi_qla_host *ha)
 
 void qla4xxx_wake_dpc(struct scsi_qla_host *ha)
 {
-	if (ha->dpc_thread &&
-	    !test_bit(AF_DPC_SCHEDULED, &ha->flags)) {
-		set_bit(AF_DPC_SCHEDULED, &ha->flags);
+	if (ha->dpc_thread)
 		queue_work(ha->dpc_thread, &ha->dpc_work);
-	}
 }
 
 /**
@@ -1292,12 +1287,12 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 
 	/* Initialization not yet finished. Don't do anything yet. */
 	if (!test_bit(AF_INIT_DONE, &ha->flags))
-		goto do_dpc_exit;
+		return;
 
 	if (test_bit(AF_EEH_BUSY, &ha->flags)) {
 		DEBUG2(printk(KERN_INFO "scsi%ld: %s: flags = %lx\n",
 		    ha->host_no, __func__, ha->flags));
-		goto do_dpc_exit;
+		return;
 	}
 
 	if (is_qla8022(ha)) {
@@ -1404,8 +1399,6 @@ dpc_post_reset_ha:
 		}
 	}
 
-do_dpc_exit:
-	clear_bit(AF_DPC_SCHEDULED, &ha->flags);
 }
 
 /**
