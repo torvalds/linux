@@ -117,6 +117,8 @@ struct bcma_device {
 	struct bcma_device_id id;
 
 	struct device dev;
+	struct device *dma_dev;
+	unsigned int irq;
 	bool dev_registered;
 
 	u8 core_index;
