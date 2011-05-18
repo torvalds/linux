@@ -3339,23 +3339,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 			return -EFAULT;
 		}
 
-		JOM(4, "intf[%i]alt[%i]: desc.bDescriptorType=0x%02X\n",
-		bInterfaceNumber, i, interface->bDescriptorType);
-		JOM(4, "intf[%i]alt[%i]: desc.bInterfaceNumber=0x%02X\n",
-		bInterfaceNumber, i, interface->bInterfaceNumber);
-		JOM(4, "intf[%i]alt[%i]: desc.bAlternateSetting=0x%02X\n",
-		bInterfaceNumber, i, interface->bAlternateSetting);
-		JOM(4, "intf[%i]alt[%i]: desc.bNumEndpoints=0x%02X\n",
-		bInterfaceNumber, i, interface->bNumEndpoints);
-		JOM(4, "intf[%i]alt[%i]: desc.bInterfaceClass=0x%02X\n",
-		bInterfaceNumber, i, interface->bInterfaceClass);
-		JOM(4, "intf[%i]alt[%i]: desc.bInterfaceSubClass=0x%02X\n",
-		bInterfaceNumber, i, interface->bInterfaceSubClass);
-		JOM(4, "intf[%i]alt[%i]: desc.bInterfaceProtocol=0x%02X\n",
-		bInterfaceNumber, i, interface->bInterfaceProtocol);
-		JOM(4, "intf[%i]alt[%i]: desc.iInterface=0x%02X\n",
-		bInterfaceNumber, i, interface->iInterface);
-
 		if (0 == interface->bNumEndpoints)
 			JOM(4, "intf[%i]alt[%i] has no endpoints\n",
 						bInterfaceNumber, i);
@@ -3369,19 +3352,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 			}
 			wMaxPacketSize = le16_to_cpu(ep->wMaxPacketSize);
 			bEndpointAddress = ep->bEndpointAddress;
-
-			JOM(4, "intf[%i]alt[%i]end[%i]: bEndpointAddress=0x%X\n",
-					bInterfaceNumber, i, j,
-					ep->bEndpointAddress);
-			JOM(4, "intf[%i]alt[%i]end[%i]: bmAttributes=0x%X\n",
-					bInterfaceNumber, i, j,
-					ep->bmAttributes);
-			JOM(4, "intf[%i]alt[%i]end[%i]: wMaxPacketSize=%i\n",
-					bInterfaceNumber, i, j,
-					ep->wMaxPacketSize);
-			JOM(4, "intf[%i]alt[%i]end[%i]: bInterval=%i\n",
-					bInterfaceNumber, i, j,
-					ep->bInterval);
 
 			if (ep->bEndpointAddress & USB_DIR_IN) {
 				JOM(4, "intf[%i]alt[%i]end[%i] is an  IN  endpoint\n",
