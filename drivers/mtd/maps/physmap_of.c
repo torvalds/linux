@@ -214,11 +214,13 @@ static void __devinit of_free_probes(const char **probes)
 }
 #endif
 
+static struct of_device_id of_flash_match[];
 static int __devinit of_flash_probe(struct platform_device *dev)
 {
 #ifdef CONFIG_MTD_PARTITIONS
 	const char **part_probe_types;
 #endif
+	const struct of_device_id *match;
 	struct device_node *dp = dev->dev.of_node;
 	struct resource res;
 	struct of_flash *info;
@@ -232,9 +234,10 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 	struct mtd_info **mtd_list = NULL;
 	resource_size_t res_size;
 
-	if (!dev->dev.of_match)
+	match = of_match_device(of_flash_match, &dev->dev);
+	if (!match)
 		return -EINVAL;
-	probe_type = dev->dev.of_match->data;
+	probe_type = match->data;
 
 	reg_tuple_size = (of_n_addr_cells(dp) + of_n_size_cells(dp)) * sizeof(u32);
 
