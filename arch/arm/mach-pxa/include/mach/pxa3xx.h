@@ -1,0 +1,7 @@
+#ifndef __MACH_PXA3XX_H	
+#define __MACH_PXA3XX_H
+
+#include <mach/hardware.h>
+#include <mach/pxa3xx-regs.h>
+
+#endif /* __MACH_PXA3XX_H */
