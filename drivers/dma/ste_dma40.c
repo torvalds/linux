@@ -2962,4 +2962,4 @@ static int __init stedma40_init(void)
 {
 	return platform_driver_probe(&d40_driver, d40_probe);
 }
-arch_initcall(stedma40_init);
+subsys_initcall(stedma40_init);
