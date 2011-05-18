@@ -106,9 +106,9 @@ static unsigned long twl6030_vsel_to_uv(const u8 vsel)
 		return 1350000;
 
 	if (smps_offset & 0x8)
-		return ((((vsel - 1) * 125) + 7000)) * 100;
+		return ((((vsel - 1) * 1266) + 70900)) * 10;
 	else
-		return ((((vsel - 1) * 125) + 6000)) * 100;
+		return ((((vsel - 1) * 1266) + 60770)) * 10;
 }
 
 static u8 twl6030_uv_to_vsel(unsigned long uv)
@@ -138,9 +138,9 @@ static u8 twl6030_uv_to_vsel(unsigned long uv)
 		return 0x3A;
 
 	if (smps_offset & 0x8)
-		return DIV_ROUND_UP(uv - 700000, 12500) + 1;
+		return DIV_ROUND_UP(uv - 709000, 12660) + 1;
 	else
-		return DIV_ROUND_UP(uv - 600000, 12500) + 1;
+		return DIV_ROUND_UP(uv - 607700, 12660) + 1;
 }
 
 static struct omap_voltdm_pmic omap3_mpu_pmic = {
@@ -187,7 +187,7 @@ static struct omap_voltdm_pmic omap3_core_pmic = {
 
 static struct omap_voltdm_pmic omap4_mpu_pmic = {
 	.slew_rate		= 4000,
-	.step_size		= 12500,
+	.step_size		= 12660,
 	.on_volt		= 1350000,
 	.onlp_volt		= 1350000,
 	.ret_volt		= 837500,
@@ -208,7 +208,7 @@ static struct omap_voltdm_pmic omap4_mpu_pmic = {
 
 static struct omap_voltdm_pmic omap4_iva_pmic = {
 	.slew_rate		= 4000,
-	.step_size		= 12500,
+	.step_size		= 12660,
 	.on_volt		= 1100000,
 	.onlp_volt		= 1100000,
 	.ret_volt		= 837500,
@@ -229,7 +229,7 @@ static struct omap_voltdm_pmic omap4_iva_pmic = {
 
 static struct omap_voltdm_pmic omap4_core_pmic = {
 	.slew_rate		= 4000,
-	.step_size		= 12500,
+	.step_size		= 12660,
 	.on_volt		= 1100000,
 	.onlp_volt		= 1100000,
 	.ret_volt		= 837500,
