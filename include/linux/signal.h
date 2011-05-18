@@ -234,6 +234,9 @@ static inline int valid_signal(unsigned long sig)
 	return sig <= _NSIG ? 1 : 0;
 }
 
+struct timespec;
+struct pt_regs;
+
 extern int next_signal(struct sigpending *pending, sigset_t *mask);
 extern int do_send_sig_info(int sig, struct siginfo *info,
 				struct task_struct *p, bool group);
@@ -248,7 +251,6 @@ extern int sigprocmask(int, sigset_t *, sigset_t *);
 extern void set_current_blocked(const sigset_t *);
 extern int show_unhandled_signals;
 
-struct pt_regs;
 extern int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka, struct pt_regs *regs, void *cookie);
 extern void exit_signals(struct task_struct *tsk);
 
