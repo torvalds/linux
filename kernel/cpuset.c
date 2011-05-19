@@ -2190,7 +2190,7 @@ int cpuset_cpus_allowed_fallback(struct task_struct *tsk)
 	rcu_read_lock();
 	cs = task_cs(tsk);
 	if (cs)
-		cpumask_copy(&tsk->cpus_allowed, cs->cpus_allowed);
+		do_set_cpus_allowed(tsk, cs->cpus_allowed);
 	rcu_read_unlock();
 
 	/*
@@ -2217,7 +2217,7 @@ int cpuset_cpus_allowed_fallback(struct task_struct *tsk)
 		 * Like above we can temporary set any mask and rely on
 		 * set_cpus_allowed_ptr() as synchronization point.
 		 */
-		cpumask_copy(&tsk->cpus_allowed, cpu_possible_mask);
+		do_set_cpus_allowed(tsk, cpu_possible_mask);
 		cpu = cpumask_any(cpu_active_mask);
 	}
 
