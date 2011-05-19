@@ -1176,10 +1176,8 @@ int blk_throtl_init(struct request_queue *q)
 	td->root_tg = tg;
 
 	rcu_read_lock();
-	blkiocg_add_blkio_group(&blkio_root_cgroup, &tg->blkg, (void *)td,
-					0, BLKIO_POLICY_THROTL);
+	throtl_init_add_tg_lists(td, tg, &blkio_root_cgroup);
 	rcu_read_unlock();
-	throtl_add_group_to_td_list(td, tg);
 
 	/* Attach throtl data to request queue */
 	q->td = td;
