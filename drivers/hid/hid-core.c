@@ -1045,6 +1045,9 @@ void hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 
 	rsize = ((report->size - 1) >> 3) + 1;
 
+	if (rsize > HID_MAX_BUFFER_SIZE)
+		rsize = HID_MAX_BUFFER_SIZE;
+
 	if (csize < rsize) {
 		dbg_hid("report %d is too short, (%d < %d)\n", report->id,
 				csize, rsize);
