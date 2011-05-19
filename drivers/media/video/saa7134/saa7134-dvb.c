@@ -1796,10 +1796,10 @@ static int dvb_init(struct saa7134_dev *dev)
 			dvb_attach(tda829x_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, 0x4b,
 				   &tda829x_no_probe);
+			fe0->dvb.frontend->ops.i2c_gate_ctrl = kworld_sbtvd_gate_ctrl;
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_adap,
 				   &kworld_tda18271_config);
-			fe0->dvb.frontend->ops.i2c_gate_ctrl = kworld_sbtvd_gate_ctrl;
 		}
 
 		/* mb86a20s need to use the I2C gateway */
