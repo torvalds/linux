@@ -515,24 +515,19 @@ void ath_ani_calibrate(unsigned long data)
 		common->ani.checkani_timer = timestamp;
 	}
 
-	/* Skip all processing if there's nothing to do. */
-	if (longcal || shortcal || aniflag) {
-		/* Call ANI routine if necessary */
-		if (aniflag) {
-			spin_lock_irqsave(&common->cc_lock, flags);
-			ath9k_hw_ani_monitor(ah, ah->curchan);
-			ath_update_survey_stats(sc);
-			spin_unlock_irqrestore(&common->cc_lock, flags);
-		}
+	/* Call ANI routine if necessary */
+	if (aniflag) {
+		spin_lock_irqsave(&common->cc_lock, flags);
+		ath9k_hw_ani_monitor(ah, ah->curchan);
+		ath_update_survey_stats(sc);
+		spin_unlock_irqrestore(&common->cc_lock, flags);
+	}
 
-		/* Perform calibration if necessary */
-		if (longcal || shortcal) {
-			common->ani.caldone =
-				ath9k_hw_calibrate(ah,
-						   ah->curchan,
-						   common->rx_chainmask,
-						   longcal);
-		}
+	/* Perform calibration if necessary */
+	if (longcal || shortcal) {
+		common->ani.caldone =
+			ath9k_hw_calibrate(ah, ah->curchan,
+						common->rx_chainmask, longcal);
 	}
 
 	ath9k_ps_restore(sc);
