@@ -11195,7 +11195,7 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, int loopback_mode)
 			}
 		} else if ((desc->type_flags & RXD_FLAG_TCPUDP_CSUM) &&
 			   (desc->ip_tcp_csum & RXD_TCPCSUM_MASK)
-			    >> RXD_TCPCSUM_SHIFT == 0xffff) {
+			    >> RXD_TCPCSUM_SHIFT != 0xffff) {
 			goto out;
 		}
 
