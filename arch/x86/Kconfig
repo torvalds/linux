@@ -1848,7 +1848,7 @@ config APM_ALLOW_INTS
 
 endif # APM
 
-source "arch/x86/kernel/cpu/cpufreq/Kconfig"
+source "drivers/cpufreq/Kconfig"
 
 source "drivers/cpuidle/Kconfig"
 
