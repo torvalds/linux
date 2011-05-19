@@ -401,6 +401,18 @@ static inline int dlm_lvb_is_empty(char *lvb)
 	return 1;
 }
 
+static inline char *dlm_list_in_text(enum dlm_lockres_list idx)
+{
+	if (idx == DLM_GRANTED_LIST)
+		return "granted";
+	else if (idx == DLM_CONVERTING_LIST)
+		return "converting";
+	else if (idx == DLM_BLOCKED_LIST)
+		return "blocked";
+	else
+		return "unknown";
+}
+
 static inline struct list_head *
 dlm_list_idx_to_ptr(struct dlm_lock_resource *res, enum dlm_lockres_list idx)
 {
