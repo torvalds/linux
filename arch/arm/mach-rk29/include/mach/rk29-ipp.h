@@ -20,6 +20,15 @@ struct rk29_ipp_req {
 	uint32_t dst_vir_w;
 	uint32_t timeout;
 	uint32_t flag; //rotate
+	
+	//chenli 0506
+	//deinterlace_enable 1:enable 0:disable
+	uint8_t deinterlace_enable;
+	//the sum of three paras should be 32,and single para should be less than 32
+	uint8_t deinterlace_para0;
+	uint8_t deinterlace_para1;
+	uint8_t deinterlace_para2;
+		
 };
 
 //uint32_t format Ã¶¾ÙÀàĞÍ
