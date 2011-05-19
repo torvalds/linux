@@ -1050,7 +1050,8 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 			break;
 
 		ret = btrfs_del_item(trans, root, path);
-		BUG_ON(ret);
+		if (ret)
+			goto out;
 
 		btrfs_release_path(root, path);
 		inode = read_one_inode(root, key.offset);
@@ -1068,8 +1069,10 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 		 */
 		key.offset = (u64)-1;
 	}
+	ret = 0;
+out:
 	btrfs_release_path(root, path);
-	return 0;
+	return ret;
 }
 
 
@@ -2587,7 +2590,8 @@ static int drop_objectid_items(struct btrfs_trans_handle *trans,
 			break;
 
 		ret = btrfs_del_item(trans, log, path);
-		BUG_ON(ret);
+		if (ret)
+			break;
 		btrfs_release_path(log, path);
 	}
 	btrfs_release_path(log, path);

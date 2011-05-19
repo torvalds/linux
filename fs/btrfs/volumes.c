@@ -967,7 +967,6 @@ static int btrfs_free_dev_extent(struct btrfs_trans_handle *trans,
 	if (device->bytes_used > 0)
 		device->bytes_used -= btrfs_dev_extent_length(leaf, extent);
 	ret = btrfs_del_item(trans, root, path);
-	BUG_ON(ret);
 
 out:
 	btrfs_free_path(path);
@@ -1770,10 +1769,9 @@ static int btrfs_free_chunk(struct btrfs_trans_handle *trans,
 	BUG_ON(ret);
 
 	ret = btrfs_del_item(trans, root, path);
-	BUG_ON(ret);
 
 	btrfs_free_path(path);
-	return 0;
+	return ret;
 }
 
 static int btrfs_del_sys_chunk(struct btrfs_root *root, u64 chunk_objectid, u64

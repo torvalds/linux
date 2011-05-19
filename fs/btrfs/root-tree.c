@@ -385,7 +385,10 @@ again:
 		*sequence = btrfs_root_ref_sequence(leaf, ref);
 
 		ret = btrfs_del_item(trans, tree_root, path);
-		BUG_ON(ret);
+		if (ret) {
+			err = ret;
+			goto out;
+		}
 	} else
 		err = -ENOENT;
 
@@ -397,6 +400,7 @@ again:
 		goto again;
 	}
 
+out:
 	btrfs_free_path(path);
 	return err;
 }

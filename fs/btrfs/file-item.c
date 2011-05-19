@@ -551,10 +551,10 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 		if (ret > 0) {
 			if (path->slots[0] == 0)
-				goto out;
+				break;
 			path->slots[0]--;
 		} else if (ret < 0) {
-			goto out;
+			break;
 		}
 
 		leaf = path->nodes[0];
@@ -579,7 +579,8 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 		/* delete the entire item, it is inside our range */
 		if (key.offset >= bytenr && csum_end <= end_byte) {
 			ret = btrfs_del_item(trans, root, path);
-			BUG_ON(ret);
+			if (ret)
+				goto out;
 			if (key.offset == bytenr)
 				break;
 		} else if (key.offset < bytenr && csum_end > end_byte) {
@@ -633,9 +634,10 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 		}
 		btrfs_release_path(root, path);
 	}
+	ret = 0;
 out:
 	btrfs_free_path(path);
-	return 0;
+	return ret;
 }
 
 int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
