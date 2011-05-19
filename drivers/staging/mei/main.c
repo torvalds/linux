@@ -1145,7 +1145,7 @@ static int mei_pci_resume(struct device *device)
 static SIMPLE_DEV_PM_OPS(mei_pm_ops, mei_pci_suspend, mei_pci_resume);
 #define MEI_PM_OPS	(&mei_pm_ops)
 #else
-#define MIE_PM_OPS	NULL
+#define MEI_PM_OPS	NULL
 #endif /* CONFIG_PM */
 /*
  *  PCI driver structure
