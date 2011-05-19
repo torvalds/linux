@@ -15080,6 +15080,9 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 			features |= NETIF_F_TSO_ECN;
 	}
 
+	dev->features |= features;
+	dev->vlan_features |= features;
+
 	/*
 	 * Add loopback capability only for a subset of devices that support
 	 * MAC-LOOPBACK. Eventually this need to be enhanced to allow INT-PHY
@@ -15090,9 +15093,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		/* Add the loopback capability */
 		features |= NETIF_F_LOOPBACK;
 
-	dev->features |= features;
 	dev->hw_features |= features;
-	dev->vlan_features |= features;
 
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5705_A1 &&
 	    !tg3_flag(tp, TSO_CAPABLE) &&
