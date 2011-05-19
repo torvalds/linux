@@ -24,11 +24,6 @@
  * GNU General Public License for more details.
  */
 
-/*
- * TODO:
- * - add timeout on polled transfers
- */
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -286,6 +281,8 @@
 #define ENABLE_ALL_INTERRUPTS (~DEFAULT_SSP_REG_IMSC)
 
 #define CLEAR_ALL_INTERRUPTS  0x3
+
+#define SPI_POLLING_TIMEOUT 1000
 
 
 /*
@@ -1378,6 +1375,7 @@ static void do_polling_transfer(struct pl022 *pl022)
 	struct spi_transfer *transfer = NULL;
 	struct spi_transfer *previous = NULL;
 	struct chip_data *chip;
+	unsigned long time, timeout;
 
 	chip = pl022->cur_chip;
 	message = pl022->cur_msg;
@@ -1415,9 +1413,18 @@ static void do_polling_transfer(struct pl022 *pl022)
 		       SSP_CR1(pl022->virtbase));
 
 		dev_dbg(&pl022->adev->dev, "polling transfer ongoing ...\n");
-		/* FIXME: insert a timeout so we don't hang here indefinitely */
-		while (pl022->tx < pl022->tx_end || pl022->rx < pl022->rx_end)
+
+		timeout = jiffies + msecs_to_jiffies(SPI_POLLING_TIMEOUT);
+		while (pl022->tx < pl022->tx_end || pl022->rx < pl022->rx_end) {
+			time = jiffies;
 			readwriter(pl022);
+			if (time_after(time, timeout)) {
+				dev_warn(&pl022->adev->dev,
+				"%s: timeout!\n", __func__);
+				message->state = STATE_ERROR;
+				goto out;
+			}
+		}
 
 		/* Update total byte transferred */
 		message->actual_length += pl022->cur_transfer->len;
@@ -1426,7 +1433,7 @@ static void do_polling_transfer(struct pl022 *pl022)
 		/* Move to next transfer */
 		message->state = next_transfer(pl022);
 	}
-
+out:
 	/* Handle end of message */
 	if (message->state == STATE_DONE)
 		message->status = 0;
