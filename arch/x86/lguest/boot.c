@@ -7,7 +7,7 @@
  * kernel and insert a module (lg.ko) which allows us to run other Linux
  * kernels the same way we'd run processes.  We call the first kernel the Host,
  * and the others the Guests.  The program which sets up and configures Guests
- * (such as the example in Documentation/lguest/lguest.c) is called the
+ * (such as the example in Documentation/virtual/lguest/lguest.c) is called the
  * Launcher.
  *
  * Secondly, we only run specially modified Guests, not normal kernels: setting
