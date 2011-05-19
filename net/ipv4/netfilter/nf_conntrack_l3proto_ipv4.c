@@ -101,7 +101,7 @@ static unsigned int ipv4_confirm(unsigned int hooknum,
 
 	/* This is where we call the helper: as the packet goes out. */
 	ct = nf_ct_get(skb, &ctinfo);
-	if (!ct || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY)
+	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
 		goto out;
 
 	help = nfct_help(ct);
