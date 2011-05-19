@@ -714,7 +714,7 @@ static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *dev,
 {
 	struct smtcfb_info *sfb;
 
-	sfb = kzalloc(sizeof(struct smtcfb_info), GFP_KERNEL);
+	sfb = kzalloc(sizeof(*sfb), GFP_KERNEL);
 
 	if (!sfb)
 		return NULL;
