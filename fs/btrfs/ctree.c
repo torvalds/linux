@@ -3216,7 +3216,6 @@ int btrfs_truncate_item(struct btrfs_trans_handle *trans,
 			struct btrfs_path *path,
 			u32 new_size, int from_end)
 {
-	int ret = 0;
 	int slot;
 	struct extent_buffer *leaf;
 	struct btrfs_item *item;
@@ -3314,12 +3313,11 @@ int btrfs_truncate_item(struct btrfs_trans_handle *trans,
 	btrfs_set_item_size(leaf, item, new_size);
 	btrfs_mark_buffer_dirty(leaf);
 
-	ret = 0;
 	if (btrfs_leaf_free_space(root, leaf) < 0) {
 		btrfs_print_leaf(root, leaf);
 		BUG();
 	}
-	return ret;
+	return 0;
 }
 
 /*
@@ -3329,7 +3327,6 @@ int btrfs_extend_item(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root, struct btrfs_path *path,
 		      u32 data_size)
 {
-	int ret = 0;
 	int slot;
 	struct extent_buffer *leaf;
 	struct btrfs_item *item;
@@ -3394,12 +3391,11 @@ int btrfs_extend_item(struct btrfs_trans_handle *trans,
 	btrfs_set_item_size(leaf, item, old_size + data_size);
 	btrfs_mark_buffer_dirty(leaf);
 
-	ret = 0;
 	if (btrfs_leaf_free_space(root, leaf) < 0) {
 		btrfs_print_leaf(root, leaf);
 		BUG();
 	}
-	return ret;
+	return 0;
 }
 
 /*

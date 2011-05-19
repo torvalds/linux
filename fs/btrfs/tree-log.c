@@ -382,7 +382,6 @@ insert:
 		} else if (found_size < item_size) {
 			ret = btrfs_extend_item(trans, root, path,
 						item_size - found_size);
-			BUG_ON(ret);
 		}
 	} else if (ret) {
 		return ret;

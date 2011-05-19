@@ -3428,7 +3428,6 @@ search_again:
 				    btrfs_file_extent_calc_inline_size(size);
 				ret = btrfs_truncate_item(trans, root, path,
 							  size, 1);
-				BUG_ON(ret);
 			} else if (root->ref_cows) {
 				inode_sub_bytes(inode, item_end + 1 -
 						found_key.offset);
