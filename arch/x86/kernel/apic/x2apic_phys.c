@@ -55,51 +55,20 @@ static void __x2apic_send_IPI_dest(unsigned int apicid, int vector,
 	native_x2apic_icr_write(cfg, apicid);
 }
 
-static void x2apic_send_IPI_mask(const struct cpumask *mask, int vector)
-{
-	unsigned long query_cpu;
-	unsigned long flags;
-
-	x2apic_wrmsr_fence();
-
-	local_irq_save(flags);
-	for_each_cpu(query_cpu, mask) {
-		__x2apic_send_IPI_dest(per_cpu(x86_cpu_to_apicid, query_cpu),
-				       vector, APIC_DEST_PHYSICAL);
-	}
-	local_irq_restore(flags);
-}
-
 static void
- x2apic_send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
+__x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
 {
-	unsigned long this_cpu = smp_processor_id();
 	unsigned long query_cpu;
+	unsigned long this_cpu;
 	unsigned long flags;
 
 	x2apic_wrmsr_fence();
 
 	local_irq_save(flags);
+
+	this_cpu = smp_processor_id();
 	for_each_cpu(query_cpu, mask) {
-		if (query_cpu != this_cpu)
-			__x2apic_send_IPI_dest(
-				per_cpu(x86_cpu_to_apicid, query_cpu),
-				vector, APIC_DEST_PHYSICAL);
-	}
-	local_irq_restore(flags);
-}
-
-static void x2apic_send_IPI_allbutself(int vector)
-{
-	unsigned long this_cpu = smp_processor_id();
-	unsigned long query_cpu;
-	unsigned long flags;
-
-	x2apic_wrmsr_fence();
-
-	local_irq_save(flags);
-	for_each_online_cpu(query_cpu) {
-		if (query_cpu == this_cpu)
+		if (apic_dest == APIC_DEST_ALLBUT && this_cpu == query_cpu)
 			continue;
 		__x2apic_send_IPI_dest(per_cpu(x86_cpu_to_apicid, query_cpu),
 				       vector, APIC_DEST_PHYSICAL);
@@ -107,9 +76,25 @@ static void x2apic_send_IPI_allbutself(int vector)
 	local_irq_restore(flags);
 }
 
+static void x2apic_send_IPI_mask(const struct cpumask *mask, int vector)
+{
+	__x2apic_send_IPI_mask(mask, vector, APIC_DEST_ALLINC);
+}
+
+static void
+ x2apic_send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
+{
+	__x2apic_send_IPI_mask(mask, vector, APIC_DEST_ALLBUT);
+}
+
+static void x2apic_send_IPI_allbutself(int vector)
+{
+	__x2apic_send_IPI_mask(cpu_online_mask, vector, APIC_DEST_ALLBUT);
+}
+
 static void x2apic_send_IPI_all(int vector)
 {
-	x2apic_send_IPI_mask(cpu_online_mask, vector);
+	__x2apic_send_IPI_mask(cpu_online_mask, vector, APIC_DEST_ALLINC);
 }
 
 static int x2apic_apic_id_registered(void)
