@@ -1128,15 +1128,8 @@ static void _dispc_set_scaling(enum omap_plane plane,
 
 	_dispc_set_scale_coef(plane, hscaleup, vscaleup, five_taps);
 
-	if (!orig_width || orig_width == out_width)
-		fir_hinc = 0;
-	else
-		fir_hinc = 1024 * orig_width / out_width;
-
-	if (!orig_height || orig_height == out_height)
-		fir_vinc = 0;
-	else
-		fir_vinc = 1024 * orig_height / out_height;
+	fir_hinc = 1024 * orig_width / out_width;
+	fir_vinc = 1024 * orig_height / out_height;
 
 	_dispc_set_fir(plane, fir_hinc, fir_vinc);
 
@@ -1144,8 +1137,8 @@ static void _dispc_set_scaling(enum omap_plane plane,
 
 	/* RESIZEENABLE and VERTICALTAPS */
 	l &= ~((0x3 << 5) | (0x1 << 21));
-	l |= fir_hinc ? (1 << 5) : 0;
-	l |= fir_vinc ? (1 << 6) : 0;
+	l |= (orig_width != out_width) ? (1 << 5) : 0;
+	l |= (orig_height != out_height) ? (1 << 6) : 0;
 	l |= five_taps ? (1 << 21) : 0;
 
 	/* VRESIZECONF and HRESIZECONF */
