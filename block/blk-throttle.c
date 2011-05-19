@@ -160,9 +160,8 @@ static void throtl_put_tg(struct throtl_grp *tg)
 }
 
 static struct throtl_grp * throtl_find_alloc_tg(struct throtl_data *td,
-			struct cgroup *cgroup)
+			struct blkio_cgroup *blkcg)
 {
-	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgroup);
 	struct throtl_grp *tg = NULL;
 	void *key = td;
 	struct backing_dev_info *bdi = &td->queue->backing_dev_info;
@@ -229,12 +228,12 @@ done:
 
 static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 {
-	struct cgroup *cgroup;
 	struct throtl_grp *tg = NULL;
+	struct blkio_cgroup *blkcg;
 
 	rcu_read_lock();
-	cgroup = task_cgroup(current, blkio_subsys_id);
-	tg = throtl_find_alloc_tg(td, cgroup);
+	blkcg = task_blkio_cgroup(current);
+	tg = throtl_find_alloc_tg(td, blkcg);
 	if (!tg)
 		tg = &td->root_tg;
 	rcu_read_unlock();

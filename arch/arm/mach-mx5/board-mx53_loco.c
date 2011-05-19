@@ -193,7 +193,7 @@ static iomux_v3_cfg_t mx53_loco_pads[] = {
 	.wakeup		= wake,					\
 }
 
-static const struct gpio_keys_button loco_buttons[] __initconst = {
+static struct gpio_keys_button loco_buttons[] = {
 	GPIO_BUTTON(MX53_LOCO_POWER, KEY_POWER, 1, "power", 0),
 	GPIO_BUTTON(MX53_LOCO_UI1, KEY_VOLUMEUP, 1, "volume-up", 0),
 	GPIO_BUTTON(MX53_LOCO_UI2, KEY_VOLUMEDOWN, 1, "volume-down", 0),

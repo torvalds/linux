@@ -94,6 +94,8 @@
 /* after this # consecutive successes, bump up the throttle if it was lowered */
 #define COMPLETE_THRESHOLD 5
 
+#define UV_LB_SUBNODEID 0x10
+
 /*
  * number of entries in the destination side payload queue
  */
@@ -124,7 +126,7 @@
  * The distribution specification (32 bytes) is interpreted as a 256-bit
  * distribution vector. Adjacent bits correspond to consecutive even numbered
  * nodeIDs. The result of adding the index of a given bit to the 15-bit
- * 'base_dest_nodeid' field of the header corresponds to the
+ * 'base_dest_nasid' field of the header corresponds to the
  * destination nodeID associated with that specified bit.
  */
 struct bau_target_uvhubmask {
@@ -176,7 +178,7 @@ struct bau_msg_payload {
 struct bau_msg_header {
 	unsigned int dest_subnodeid:6;	/* must be 0x10, for the LB */
 	/* bits 5:0 */
-	unsigned int base_dest_nodeid:15; /* nasid of the */
+	unsigned int base_dest_nasid:15; /* nasid of the */
 	/* bits 20:6 */			  /* first bit in uvhub map */
 	unsigned int command:8;	/* message type */
 	/* bits 28:21 */
@@ -378,6 +380,10 @@ struct ptc_stats {
 	unsigned long d_rcanceled; /* number of messages canceled by resets */
 };
 
+struct hub_and_pnode {
+	short uvhub;
+	short pnode;
+};
 /*
  * one per-cpu; to locate the software tables
  */
@@ -399,10 +405,12 @@ struct bau_control {
 	int baudisabled;
 	int set_bau_off;
 	short cpu;
+	short osnode;
 	short uvhub_cpu;
 	short uvhub;
 	short cpus_in_socket;
 	short cpus_in_uvhub;
+	short partition_base_pnode;
 	unsigned short message_number;
 	unsigned short uvhub_quiesce;
 	short socket_acknowledge_count[DEST_Q_SIZE];
@@ -422,15 +430,16 @@ struct bau_control {
 	int congested_period;
 	cycles_t period_time;
 	long period_requests;
+	struct hub_and_pnode *target_hub_and_pnode;
 };
 
 static inline int bau_uvhub_isset(int uvhub, struct bau_target_uvhubmask *dstp)
 {
 	return constant_test_bit(uvhub, &dstp->bits[0]);
 }
-static inline void bau_uvhub_set(int uvhub, struct bau_target_uvhubmask *dstp)
+static inline void bau_uvhub_set(int pnode, struct bau_target_uvhubmask *dstp)
 {
-	__set_bit(uvhub, &dstp->bits[0]);
+	__set_bit(pnode, &dstp->bits[0]);
 }
 static inline void bau_uvhubs_clear(struct bau_target_uvhubmask *dstp,
 				    int nbits)

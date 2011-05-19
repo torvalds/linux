@@ -104,11 +104,12 @@ nvc0_vm_flush(struct nouveau_vm *vm)
 	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
 	struct drm_device *dev = vm->dev;
 	struct nouveau_vm_pgd *vpgd;
+	unsigned long flags;
 	u32 engine = (dev_priv->chan_vm == vm) ? 1 : 5;
 
 	pinstmem->flush(vm->dev);
 
-	spin_lock(&dev_priv->ramin_lock);
+	spin_lock_irqsave(&dev_priv->vm_lock, flags);
 	list_for_each_entry(vpgd, &vm->pgd_list, head) {
 		/* looks like maybe a "free flush slots" counter, the
 		 * faster you write to 0x100cbc to more it decreases
@@ -125,5 +126,5 @@ nvc0_vm_flush(struct nouveau_vm *vm)
 				 nv_rd32(dev, 0x100c80), engine);
 		}
 	}
-	spin_unlock(&dev_priv->ramin_lock);
+	spin_unlock_irqrestore(&dev_priv->vm_lock, flags);
 }

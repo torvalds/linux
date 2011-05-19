@@ -12,6 +12,7 @@
  */
 #include <linux/cs5535.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 #include <asm/olpc.h>
 
 #include "olpc_dcon.h"

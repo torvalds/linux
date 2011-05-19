@@ -755,7 +755,7 @@ static struct preview_update update_attrs[] = {
  * @configs - pointer to update config structure.
  * @config - return pointer to appropriate structure field.
  * @bit - for which feature to return pointers.
- * Return size of coresponding prev_params member
+ * Return size of corresponding prev_params member
  */
 static u32
 __preview_get_ptrs(struct prev_params *params, void **param,

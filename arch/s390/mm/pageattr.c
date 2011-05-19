@@ -24,12 +24,13 @@ static void change_page_attr(unsigned long addr, int numpages,
 			WARN_ON_ONCE(1);
 			continue;
 		}
-		ptep = pte_offset_kernel(pmdp, addr + i * PAGE_SIZE);
+		ptep = pte_offset_kernel(pmdp, addr);
 
 		pte = *ptep;
 		pte = set(pte);
-		ptep_invalidate(&init_mm, addr + i * PAGE_SIZE, ptep);
+		ptep_invalidate(&init_mm, addr, ptep);
 		*ptep = pte;
+		addr += PAGE_SIZE;
 	}
 }
 

@@ -16,8 +16,8 @@
 
 int main(int argc, char *argv[])
 {
+	unsigned long long vmlinux_size, vmlinux_load_addr, vmlinuz_load_addr;
 	struct stat sb;
-	uint64_t vmlinux_size, vmlinux_load_addr, vmlinuz_load_addr;
 
 	if (argc != 3) {
 		fprintf(stderr, "Usage: %s <pathname> <vmlinux_load_addr>\n",

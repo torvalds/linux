@@ -131,23 +131,12 @@ static int efx_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 static int efx_test_interrupts(struct efx_nic *efx,
 			       struct efx_self_tests *tests)
 {
-	struct efx_channel *channel;
-
 	netif_dbg(efx, drv, efx->net_dev, "testing interrupts\n");
 	tests->interrupt = -1;
 
 	/* Reset interrupt flag */
 	efx->last_irq_cpu = -1;
 	smp_wmb();
-
-	/* ACK each interrupting event queue. Receiving an interrupt due to
-	 * traffic before a test event is raised is considered a pass */
-	efx_for_each_channel(channel, efx) {
-		if (channel->work_pending)
-			efx_process_channel_now(channel);
-		if (efx->last_irq_cpu >= 0)
-			goto success;
-	}
 
 	efx_nic_generate_interrupt(efx);
 
@@ -173,13 +162,13 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 			       struct efx_self_tests *tests)
 {
 	struct efx_nic *efx = channel->efx;
-	unsigned int magic_count, count;
+	unsigned int read_ptr, count;
 
 	tests->eventq_dma[channel->channel] = -1;
 	tests->eventq_int[channel->channel] = -1;
 	tests->eventq_poll[channel->channel] = -1;
 
-	magic_count = channel->magic_count;
+	read_ptr = channel->eventq_read_ptr;
 	channel->efx->last_irq_cpu = -1;
 	smp_wmb();
 
@@ -190,10 +179,7 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 	do {
 		schedule_timeout_uninterruptible(HZ / 100);
 
-		if (channel->work_pending)
-			efx_process_channel_now(channel);
-
-		if (channel->magic_count != magic_count)
+		if (ACCESS_ONCE(channel->eventq_read_ptr) != read_ptr)
 			goto eventq_ok;
 	} while (++count < 2);
 
@@ -211,8 +197,7 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 	}
 
 	/* Check to see if event was received even if interrupt wasn't */
-	efx_process_channel_now(channel);
-	if (channel->magic_count != magic_count) {
+	if (efx_nic_event_present(channel)) {
 		netif_err(efx, drv, efx->net_dev,
 			  "channel %d event was generated, but "
 			  "failed to trigger an interrupt\n", channel->channel);
@@ -769,6 +754,8 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	efx->loopback_mode = loopback_mode;
 	__efx_reconfigure_port(efx);
 	mutex_unlock(&efx->mac_lock);
+
+	netif_tx_wake_all_queues(efx->net_dev);
 
 	return rc_test;
 }

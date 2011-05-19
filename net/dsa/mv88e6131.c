@@ -207,8 +207,15 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 	 * mode, but do not enable forwarding of unknown unicasts.
 	 */
 	val = 0x0433;
-	if (p == dsa_upstream_port(ds))
+	if (p == dsa_upstream_port(ds)) {
 		val |= 0x0104;
+		/*
+		 * On 6085, unknown multicast forward is controlled
+		 * here rather than in Port Control 2 register.
+		 */
+		if (ps->id == ID_6085)
+			val |= 0x0008;
+	}
 	if (ds->dsa_port_mask & (1 << p))
 		val |= 0x0100;
 	REG_WRITE(addr, 0x04, val);
@@ -251,10 +258,19 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 	 * If this is the upstream port for this switch, enable
 	 * forwarding of unknown multicast addresses.
 	 */
-	val = 0x0080 | dsa_upstream_port(ds);
-	if (p == dsa_upstream_port(ds))
-		val |= 0x0040;
-	REG_WRITE(addr, 0x08, val);
+	if (ps->id == ID_6085)
+		/*
+		 * on 6085, bits 3:0 are reserved, bit 6 control ARP
+		 * mirroring, and multicast forward is handled in
+		 * Port Control register.
+		 */
+		REG_WRITE(addr, 0x08, 0x0080);
+	else {
+		val = 0x0080 | dsa_upstream_port(ds);
+		if (p == dsa_upstream_port(ds))
+			val |= 0x0040;
+		REG_WRITE(addr, 0x08, val);
+	}
 
 	/*
 	 * Rate Control: disable ingress rate limiting.

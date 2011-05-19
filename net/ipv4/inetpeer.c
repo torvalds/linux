@@ -354,7 +354,8 @@ static void inetpeer_free_rcu(struct rcu_head *head)
 }
 
 /* May be called with local BH enabled. */
-static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base)
+static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base,
+			     struct inet_peer __rcu **stack[PEER_MAXDEPTH])
 {
 	int do_free;
 
@@ -368,7 +369,6 @@ static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base)
 	 * We use refcnt=-1 to alert lockless readers this entry is deleted.
 	 */
 	if (atomic_cmpxchg(&p->refcnt, 1, -1) == 1) {
-		struct inet_peer __rcu **stack[PEER_MAXDEPTH];
 		struct inet_peer __rcu ***stackptr, ***delp;
 		if (lookup(&p->daddr, stack, base) != p)
 			BUG();
@@ -422,7 +422,7 @@ static struct inet_peer_base *peer_to_base(struct inet_peer *p)
 }
 
 /* May be called with local BH enabled. */
-static int cleanup_once(unsigned long ttl)
+static int cleanup_once(unsigned long ttl, struct inet_peer __rcu **stack[PEER_MAXDEPTH])
 {
 	struct inet_peer *p = NULL;
 
@@ -454,7 +454,7 @@ static int cleanup_once(unsigned long ttl)
 		 * happen because of entry limits in route cache. */
 		return -1;
 
-	unlink_from_pool(p, peer_to_base(p));
+	unlink_from_pool(p, peer_to_base(p), stack);
 	return 0;
 }
 
@@ -524,7 +524,7 @@ struct inet_peer *inet_getpeer(struct inetpeer_addr *daddr, int create)
 
 	if (base->total >= inet_peer_threshold)
 		/* Remove one less-recently-used entry. */
-		cleanup_once(0);
+		cleanup_once(0, stack);
 
 	return p;
 }
@@ -540,6 +540,7 @@ static void peer_check_expire(unsigned long dummy)
 {
 	unsigned long now = jiffies;
 	int ttl, total;
+	struct inet_peer __rcu **stack[PEER_MAXDEPTH];
 
 	total = compute_total();
 	if (total >= inet_peer_threshold)
@@ -548,7 +549,7 @@ static void peer_check_expire(unsigned long dummy)
 		ttl = inet_peer_maxttl
 				- (inet_peer_maxttl - inet_peer_minttl) / HZ *
 					total / inet_peer_threshold * HZ;
-	while (!cleanup_once(ttl)) {
+	while (!cleanup_once(ttl, stack)) {
 		if (jiffies != now)
 			break;
 	}

@@ -2984,15 +2984,15 @@ static void iwl4965_bg_txpower_work(struct work_struct *work)
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
 			txpower_work);
 
+	mutex_lock(&priv->mutex);
+
 	/* If a scan happened to start before we got here
 	 * then just return; the statistics notification will
 	 * kick off another scheduled work to compensate for
 	 * any temperature delta we missed here. */
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
 	    test_bit(STATUS_SCANNING, &priv->status))
-		return;
-
-	mutex_lock(&priv->mutex);
+		goto out;
 
 	/* Regardless of if we are associated, we must reconfigure the
 	 * TX power since frames can be sent on non-radar channels while
@@ -3002,7 +3002,7 @@ static void iwl4965_bg_txpower_work(struct work_struct *work)
 	/* Update last_temperature to keep is_calib_needed from running
 	 * when it isn't needed... */
 	priv->last_temperature = priv->temperature;
-
+out:
 	mutex_unlock(&priv->mutex);
 }
 
@@ -3139,12 +3139,6 @@ static int iwl4965_init_drv(struct iwl_priv *priv)
 					&priv->contexts[IWL_RXON_CTX_BSS]);
 
 	iwl_legacy_init_scan_params(priv);
-
-	/* Set the tx_power_user_lmt to the lowest power level
-	 * this value will get overwritten by channel max power avg
-	 * from eeprom */
-	priv->tx_power_user_lmt = IWL4965_TX_POWER_TARGET_POWER_MIN;
-	priv->tx_power_next = IWL4965_TX_POWER_TARGET_POWER_MIN;
 
 	ret = iwl_legacy_init_channel_map(priv);
 	if (ret) {

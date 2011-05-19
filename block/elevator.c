@@ -671,7 +671,8 @@ void __elv_add_request(struct request_queue *q, struct request *rq, int where)
 			q->boundary_rq = rq;
 		}
 	} else if (!(rq->cmd_flags & REQ_ELVPRIV) &&
-		    where == ELEVATOR_INSERT_SORT)
+		    (where == ELEVATOR_INSERT_SORT ||
+		     where == ELEVATOR_INSERT_SORT_MERGE))
 		where = ELEVATOR_INSERT_BACK;
 
 	switch (where) {

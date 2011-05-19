@@ -937,6 +937,7 @@ void snd_hda_shutup_pins(struct hda_codec *codec)
 }
 EXPORT_SYMBOL_HDA(snd_hda_shutup_pins);
 
+#ifdef SND_HDA_NEEDS_RESUME
 /* Restore the pin controls cleared previously via snd_hda_shutup_pins() */
 static void restore_shutup_pins(struct hda_codec *codec)
 {
@@ -953,6 +954,7 @@ static void restore_shutup_pins(struct hda_codec *codec)
 	}
 	codec->pins_shutup = 0;
 }
+#endif
 
 static void init_hda_cache(struct hda_cache_rec *cache,
 			   unsigned int record_size);
@@ -1329,6 +1331,7 @@ static void purify_inactive_streams(struct hda_codec *codec)
 	}
 }
 
+#ifdef SND_HDA_NEEDS_RESUME
 /* clean up all streams; called from suspend */
 static void hda_cleanup_all_streams(struct hda_codec *codec)
 {
@@ -1340,6 +1343,7 @@ static void hda_cleanup_all_streams(struct hda_codec *codec)
 			really_cleanup_stream(codec, p);
 	}
 }
+#endif
 
 /*
  * amp access functions

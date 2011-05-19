@@ -1978,9 +1978,6 @@ struct fib_table *fib_trie_table(u32 id)
 	t = (struct trie *) tb->tb_data;
 	memset(t, 0, sizeof(*t));
 
-	if (id == RT_TABLE_LOCAL)
-		pr_info("IPv4 FIB: Using LC-trie version %s\n", VERSION);
-
 	return tb;
 }
 

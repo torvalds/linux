@@ -98,7 +98,6 @@ static const struct attribute_group twl4030_madc_group = {
 static int __devinit twl4030_madc_hwmon_probe(struct platform_device *pdev)
 {
 	int ret;
-	int status;
 	struct device *hwmon;
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &twl4030_madc_group);
@@ -107,7 +106,7 @@ static int __devinit twl4030_madc_hwmon_probe(struct platform_device *pdev)
 	hwmon = hwmon_device_register(&pdev->dev);
 	if (IS_ERR(hwmon)) {
 		dev_err(&pdev->dev, "hwmon_device_register failed.\n");
-		status = PTR_ERR(hwmon);
+		ret = PTR_ERR(hwmon);
 		goto err_reg;
 	}
 

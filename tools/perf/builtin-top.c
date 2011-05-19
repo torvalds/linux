@@ -801,12 +801,12 @@ static void perf_event__process_sample(const union perf_event *event,
 	}
 }
 
-static void perf_session__mmap_read_cpu(struct perf_session *self, int cpu)
+static void perf_session__mmap_read_idx(struct perf_session *self, int idx)
 {
 	struct perf_sample sample;
 	union perf_event *event;
 
-	while ((event = perf_evlist__read_on_cpu(top.evlist, cpu)) != NULL) {
+	while ((event = perf_evlist__mmap_read(top.evlist, idx)) != NULL) {
 		perf_session__parse_sample(self, event, &sample);
 
 		if (event->header.type == PERF_RECORD_SAMPLE)
@@ -820,8 +820,8 @@ static void perf_session__mmap_read(struct perf_session *self)
 {
 	int i;
 
-	for (i = 0; i < top.evlist->cpus->nr; i++)
-		perf_session__mmap_read_cpu(self, i);
+	for (i = 0; i < top.evlist->nr_mmaps; i++)
+		perf_session__mmap_read_idx(self, i);
 }
 
 static void start_counters(struct perf_evlist *evlist)
@@ -845,9 +845,10 @@ static void start_counters(struct perf_evlist *evlist)
 		}
 
 		attr->mmap = 1;
+		attr->inherit = inherit;
 try_again:
 		if (perf_evsel__open(counter, top.evlist->cpus,
-				     top.evlist->threads, group, inherit) < 0) {
+				     top.evlist->threads, group) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES) {

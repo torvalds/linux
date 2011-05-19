@@ -1051,6 +1051,7 @@ static void l2cap_retransmit_one_frame(struct sock *sk, u8 tx_seq)
 	tx_skb = skb_clone(skb, GFP_ATOMIC);
 	bt_cb(skb)->retries++;
 	control = get_unaligned_le16(tx_skb->data + L2CAP_HDR_SIZE);
+	control &= L2CAP_CTRL_SAR;
 
 	if (pi->conn_state & L2CAP_CONN_SEND_FBIT) {
 		control |= L2CAP_CTRL_FINAL;
