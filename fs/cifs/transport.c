@@ -343,13 +343,14 @@ wait_for_response(struct TCP_Server_Info *server, struct mid_q_entry *midQ)
  */
 int
 cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
-		unsigned int nvec, mid_callback_t *callback, void *cbdata)
+		unsigned int nvec, mid_callback_t *callback, void *cbdata,
+		bool ignore_pend)
 {
 	int rc;
 	struct mid_q_entry *mid;
 	struct smb_hdr *hdr = (struct smb_hdr *)iov[0].iov_base;
 
-	rc = wait_for_free_request(server, CIFS_ASYNC_OP);
+	rc = wait_for_free_request(server, ignore_pend ? CIFS_ASYNC_OP : 0);
 	if (rc)
 		return rc;
 

@@ -743,7 +743,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	iov.iov_base = smb;
 	iov.iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
 
-	rc = cifs_call_async(server, &iov, 1, cifs_echo_callback, server);
+	rc = cifs_call_async(server, &iov, 1, cifs_echo_callback, server, true);
 	if (rc)
 		cFYI(1, "Echo request failed: %d", rc);
 
