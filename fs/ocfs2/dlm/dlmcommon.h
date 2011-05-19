@@ -144,6 +144,7 @@ struct dlm_ctxt
 	wait_queue_head_t dlm_join_events;
 	unsigned long live_nodes_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	unsigned long domain_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long exit_domain_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	unsigned long recovery_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	struct dlm_recovery_ctxt reco;
 	spinlock_t master_lock;
@@ -460,6 +461,7 @@ enum {
 	DLM_FINALIZE_RECO_MSG		= 518,
 	DLM_QUERY_REGION		= 519,
 	DLM_QUERY_NODEINFO		= 520,
+	DLM_BEGIN_EXIT_DOMAIN_MSG	= 521,
 };
 
 struct dlm_reco_node_data

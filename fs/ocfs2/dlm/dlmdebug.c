@@ -756,6 +756,12 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 				 buf + out, len - out);
 	out += snprintf(buf + out, len - out, "\n");
 
+	/* Exit Domain Map: xx xx xx */
+	out += snprintf(buf + out, len - out, "Exit Domain Map: ");
+	out += stringify_nodemap(dlm->exit_domain_map, O2NM_MAX_NODES,
+				 buf + out, len - out);
+	out += snprintf(buf + out, len - out, "\n");
+
 	/* Live Map: xx xx xx */
 	out += snprintf(buf + out, len - out, "Live Map: ");
 	out += stringify_nodemap(dlm->live_nodes_map, O2NM_MAX_NODES,
