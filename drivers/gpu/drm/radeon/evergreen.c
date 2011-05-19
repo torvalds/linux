@@ -1578,7 +1578,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	u32 sq_stack_resource_mgmt_2;
 	u32 sq_stack_resource_mgmt_3;
 	u32 vgt_cache_invalidation;
-	u32 hdp_host_path_cntl;
+	u32 hdp_host_path_cntl, tmp;
 	int i, j, num_shader_engines, ps_thread_count;
 
 	switch (rdev->family) {
@@ -2137,6 +2137,10 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 		WREG32(i, 0);
 	for (i = SQ_ALU_CONST_BUFFER_SIZE_HS_0; i < 0x29000; i += 4)
 		WREG32(i, 0);
+
+	tmp = RREG32(HDP_MISC_CNTL);
+	tmp |= HDP_FLUSH_INVALIDATE_CACHE;
+	WREG32(HDP_MISC_CNTL, tmp);
 
 	hdp_host_path_cntl = RREG32(HDP_HOST_PATH_CNTL);
 	WREG32(HDP_HOST_PATH_CNTL, hdp_host_path_cntl);
