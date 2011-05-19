@@ -273,13 +273,15 @@ static void __init arm_bootmem_free(unsigned long min, unsigned long max_low,
 	free_area_init_node(0, zone_size, min, zhole_size);
 }
 
-#ifndef CONFIG_SPARSEMEM
+#ifdef CONFIG_HAVE_ARCH_PFN_VALID
 int pfn_valid(unsigned long pfn)
 {
 	return memblock_is_memory(pfn << PAGE_SHIFT);
 }
 EXPORT_SYMBOL(pfn_valid);
+#endif
 
+#ifndef CONFIG_SPARSEMEM
 static void arm_memory_present(void)
 {
 }
