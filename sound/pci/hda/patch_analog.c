@@ -3070,6 +3070,7 @@ static void ad1988_auto_init_analog_input(struct hda_codec *codec)
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t nid = cfg->inputs[i].pin;
+		int type = cfg->inputs[i].type;
 		switch (nid) {
 		case 0x15: /* port-C */
 			snd_hda_codec_write(codec, 0x33, 0, AC_VERB_SET_CONNECT_SEL, 0x0);
@@ -3079,7 +3080,7 @@ static void ad1988_auto_init_analog_input(struct hda_codec *codec)
 			break;
 		}
 		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    i == AUTO_PIN_MIC ? PIN_VREF80 : PIN_IN);
+				    type == AUTO_PIN_MIC ? PIN_VREF80 : PIN_IN);
 		if (nid != AD1988_PIN_CD_NID)
 			snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 					    AMP_OUT_MUTE);
