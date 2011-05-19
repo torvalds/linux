@@ -1366,6 +1366,12 @@ void isci_host_deinit(struct isci_host *ihost)
 		del_timer_sync(&sci_port->timer.timer);
 	}
 
+	/* Cancel any/all outstanding phy timers */
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+		struct scic_sds_phy *sci_phy = &ihost->phys[i].sci;
+		del_timer_sync(&sci_phy->sata_timer.timer);
+	}
+
 	del_timer_sync(&ihost->sci.port_agent.timer.timer);
 
 	isci_timer_list_destroy(ihost);

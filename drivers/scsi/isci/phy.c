@@ -256,14 +256,17 @@ scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
 	return SCI_SUCCESS;
 }
 
-/**
- * This function will handle the sata SIGNATURE FIS timeout condition.  It will
- * restart the starting substate machine since we dont know what has actually
- * happening.
- */
-static void scic_sds_phy_sata_timeout(void *phy)
+static void phy_sata_timeout(unsigned long data)
 {
-	struct scic_sds_phy *sci_phy = phy;
+	struct sci_timer *tmr = (struct sci_timer *)data;
+	struct scic_sds_phy *sci_phy = container_of(tmr, typeof(*sci_phy), sata_timer);
+	struct isci_host *ihost = scic_to_ihost(sci_phy->owning_port->owning_controller);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+
+	if (tmr->cancel)
+		goto done;
 
 	dev_dbg(sciphy_to_dev(sci_phy),
 		 "%s: SCIC SDS Phy 0x%p did not receive signature fis before "
@@ -273,6 +276,8 @@ static void scic_sds_phy_sata_timeout(void *phy)
 
 	sci_base_state_machine_change_state(&sci_phy->state_machine,
 					    SCI_BASE_PHY_STATE_STARTING);
+done:
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 }
 
 /**
@@ -327,16 +332,6 @@ enum sci_status scic_sds_phy_initialize(
 	struct scu_transport_layer_registers __iomem *transport_layer_registers,
 	struct scu_link_layer_registers __iomem *link_layer_registers)
 {
-	struct scic_sds_controller *scic = scic_sds_phy_get_controller(sci_phy);
-	struct isci_host *ihost = scic_to_ihost(scic);
-
-	/* Create the SIGNATURE FIS Timeout timer for this phy */
-	sci_phy->sata_timeout_timer =
-		isci_timer_create(
-			ihost,
-			sci_phy,
-			scic_sds_phy_sata_timeout);
-
 	/* Perfrom the initialization of the TL hardware */
 	scic_sds_phy_transport_layer_initialization(
 			sci_phy,
@@ -442,9 +437,7 @@ void scic_sds_phy_get_protocols(struct scic_sds_phy *sci_phy,
 
 enum sci_status scic_sds_phy_start(struct scic_sds_phy *sci_phy)
 {
-	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 	enum scic_sds_phy_states state = sci_phy->state_machine.current_state_id;
-	struct isci_host *ihost = scic_to_ihost(scic);
 
 	if (state != SCI_BASE_PHY_STATE_STOPPED) {
 		dev_dbg(sciphy_to_dev(sci_phy),
@@ -452,14 +445,8 @@ enum sci_status scic_sds_phy_start(struct scic_sds_phy *sci_phy)
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	/* Create the SIGNATURE FIS Timeout timer for this phy */
-	sci_phy->sata_timeout_timer = isci_timer_create(ihost, sci_phy,
-							scic_sds_phy_sata_timeout);
-
-	if (sci_phy->sata_timeout_timer)
-		sci_base_state_machine_change_state(&sci_phy->state_machine,
-						    SCI_BASE_PHY_STATE_STARTING);
-
+	sci_base_state_machine_change_state(&sci_phy->state_machine,
+					    SCI_BASE_PHY_STATE_STARTING);
 	return SCI_SUCCESS;
 }
 
@@ -1071,30 +1058,28 @@ static void scic_sds_phy_starting_await_sata_phy_substate_enter(struct sci_base_
 {
 	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
-	isci_timer_start(sci_phy->sata_timeout_timer,
-			 SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT);
+	sci_mod_timer(&sci_phy->sata_timer, SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT);
 }
 
 static void scic_sds_phy_starting_await_sata_phy_substate_exit(struct sci_base_state_machine *sm)
 {
 	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
-	isci_timer_stop(sci_phy->sata_timeout_timer);
+	sci_del_timer(&sci_phy->sata_timer);
 }
 
 static void scic_sds_phy_starting_await_sata_speed_substate_enter(struct sci_base_state_machine *sm)
 {
 	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
-	isci_timer_start(sci_phy->sata_timeout_timer,
-			 SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT);
+	sci_mod_timer(&sci_phy->sata_timer, SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT);
 }
 
 static void scic_sds_phy_starting_await_sata_speed_substate_exit(struct sci_base_state_machine *sm)
 {
 	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
-	isci_timer_stop(sci_phy->sata_timeout_timer);
+	sci_del_timer(&sci_phy->sata_timer);
 }
 
 static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(struct sci_base_state_machine *sm)
@@ -1111,8 +1096,8 @@ static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(struct sci_bas
 		 */
 		scic_sds_phy_resume(sci_phy);
 
-		isci_timer_start(sci_phy->sata_timeout_timer,
-				 SCIC_SDS_SIGNATURE_FIS_TIMEOUT);
+		sci_mod_timer(&sci_phy->sata_timer,
+			      SCIC_SDS_SIGNATURE_FIS_TIMEOUT);
 	} else
 		sci_phy->is_in_link_training = false;
 }
@@ -1121,7 +1106,7 @@ static void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(struct sci_base
 {
 	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
 
-	isci_timer_stop(sci_phy->sata_timeout_timer);
+	sci_del_timer(&sci_phy->sata_timer);
 }
 
 static void scic_sds_phy_starting_final_substate_enter(struct sci_base_state_machine *sm)
@@ -1219,19 +1204,12 @@ static void scu_link_layer_tx_hard_reset(
 static void scic_sds_phy_stopped_state_enter(struct sci_base_state_machine *sm)
 {
 	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
-	struct scic_sds_port *sci_port = sci_phy->owning_port;
-	struct scic_sds_controller *scic = sci_port->owning_controller;
-	struct isci_host *ihost = scic_to_ihost(scic);
 
 	/*
 	 * @todo We need to get to the controller to place this PE in a
 	 * reset state
 	 */
-	if (sci_phy->sata_timeout_timer != NULL) {
-		isci_del_timer(ihost, sci_phy->sata_timeout_timer);
-
-		sci_phy->sata_timeout_timer = NULL;
-	}
+	sci_del_timer(&sci_phy->sata_timer);
 
 	scu_link_layer_stop_protocol_engine(sci_phy);
 
@@ -1362,7 +1340,9 @@ void scic_sds_phy_construct(struct scic_sds_phy *sci_phy,
 	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_UNKNOWN;
 	sci_phy->link_layer_registers = NULL;
 	sci_phy->max_negotiated_speed = SAS_LINK_RATE_UNKNOWN;
-	sci_phy->sata_timeout_timer = NULL;
+
+	/* Create the SIGNATURE FIS Timeout timer for this phy */
+	sci_init_timer(&sci_phy->sata_timer, phy_sata_timeout);
 }
 
 void isci_phy_init(struct isci_phy *iphy, struct isci_host *ihost, int index)

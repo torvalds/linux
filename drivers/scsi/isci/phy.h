@@ -134,11 +134,11 @@ struct scic_sds_phy {
 	bool is_in_link_training;
 
 	/**
-	 * This field contains a reference to the timer utilized in detecting
-	 * when a signature FIS timeout has occurred.  The signature FIS is the
-	 * first FIS sent by an attached SATA device after OOB/SN.
+	 * Timer to detect when a signature FIS timeout has occurred. The
+	 * signature FIS is the first FIS sent by an attached SATA device
+	 * after OOB/SN.
 	 */
-	void *sata_timeout_timer;
+	struct sci_timer	sata_timer;
 
 	/**
 	 * This field is the pointer to the transport layer register for the SCU
