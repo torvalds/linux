@@ -3705,7 +3705,7 @@ KEYS/KEYRINGS:
 M:	David Howells <dhowells@redhat.com>
 L:	keyrings@linux-nfs.org
 S:	Maintained
-F:	Documentation/keys.txt
+F:	Documentation/security/keys.txt
 F:	include/linux/key.h
 F:	include/linux/key-type.h
 F:	include/keys/
@@ -3717,7 +3717,7 @@ M:	Mimi Zohar <zohar@us.ibm.com>
 L:	linux-security-module@vger.kernel.org
 L:	keyrings@linux-nfs.org
 S:	Supported
-F:	Documentation/keys-trusted-encrypted.txt
+F:	Documentation/security/keys-trusted-encrypted.txt
 F:	include/keys/trusted-type.h
 F:	security/keys/trusted.c
 F:	security/keys/trusted.h
@@ -3728,7 +3728,7 @@ M:	David Safford <safford@watson.ibm.com>
 L:	linux-security-module@vger.kernel.org
 L:	keyrings@linux-nfs.org
 S:	Supported
-F:	Documentation/keys-trusted-encrypted.txt
+F:	Documentation/security/keys-trusted-encrypted.txt
 F:	include/keys/encrypted-type.h
 F:	security/keys/encrypted.c
 F:	security/keys/encrypted.h

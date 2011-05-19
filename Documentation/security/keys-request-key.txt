@@ -3,8 +3,8 @@
 			      ===================
 
 The key request service is part of the key retention service (refer to
-Documentation/keys.txt).  This document explains more fully how the requesting
-algorithm works.
+Documentation/security/keys.txt).  This document explains more fully how
+the requesting algorithm works.
 
 The process starts by either the kernel requesting a service by calling
 request_key*():
