@@ -92,6 +92,7 @@ struct mt_class {
 #define MT_CLS_3M				7
 #define MT_CLS_CONFIDENCE			8
 #define MT_CLS_CONFIDENCE_MINUS_ONE		9
+#define MT_CLS_DUAL_NSMU_CONTACTID		10
 
 #define MT_DEFAULT_MAXCONTACT	10
 
@@ -163,6 +164,10 @@ struct mt_class mt_classes[] = {
 		.sn_height = 128 },
 	{ .name = MT_CLS_CONFIDENCE,
 		.quirks = MT_QUIRK_VALID_IS_CONFIDENCE },
+	{ .name = MT_CLS_DUAL_NSMU_CONTACTID,
+		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP |
+			MT_QUIRK_SLOT_IS_CONTACTID,
+		.maxcontacts = 2 },
 
 	{ }
 };
@@ -583,6 +588,11 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_CYPRESS,
 		HID_USB_DEVICE(USB_VENDOR_ID_CYPRESS,
 			USB_DEVICE_ID_CYPRESS_TRUETOUCH) },
+
+	/* Elo TouchSystems IntelliTouch Plus panel */
+	{ .driver_data = MT_CLS_DUAL_NSMU_CONTACTID,
+		HID_USB_DEVICE(USB_VENDOR_ID_ELO,
+			USB_DEVICE_ID_ELO_TS2515) },
 
 	/* GeneralTouch panel */
 	{ .driver_data = MT_CLS_DUAL_INRANGE_CONTACTNUMBER,

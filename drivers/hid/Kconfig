@@ -305,6 +305,7 @@ config HID_MULTITOUCH
 	  - 3M PCT touch screens
 	  - Cando dual touch panel
 	  - Cypress TrueTouch panels
+	  - Elo TouchSystems IntelliTouch Plus panels
 	  - Hanvon dual touch panels
 	  - Ilitek dual touch panel
 	  - IrTouch Infrared USB panels
