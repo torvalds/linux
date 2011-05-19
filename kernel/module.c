@@ -1607,24 +1607,24 @@ static void set_section_ro_nx(void *base,
 	}
 }
 
-/* Setting memory back to W+X before releasing it */
-void unset_section_ro_nx(struct module *mod, void *module_region)
+static void unset_module_core_ro_nx(struct module *mod)
 {
-	if (mod->module_core == module_region) {
-		set_page_attributes(mod->module_core + mod->core_text_size,
-			mod->module_core + mod->core_size,
-			set_memory_x);
-		set_page_attributes(mod->module_core,
-			mod->module_core + mod->core_ro_size,
-			set_memory_rw);
-	} else if (mod->module_init == module_region) {
-		set_page_attributes(mod->module_init + mod->init_text_size,
-			mod->module_init + mod->init_size,
-			set_memory_x);
-		set_page_attributes(mod->module_init,
-			mod->module_init + mod->init_ro_size,
-			set_memory_rw);
-	}
+	set_page_attributes(mod->module_core + mod->core_text_size,
+		mod->module_core + mod->core_size,
+		set_memory_x);
+	set_page_attributes(mod->module_core,
+		mod->module_core + mod->core_ro_size,
+		set_memory_rw);
+}
+
+static void unset_module_init_ro_nx(struct module *mod)
+{
+	set_page_attributes(mod->module_init + mod->init_text_size,
+		mod->module_init + mod->init_size,
+		set_memory_x);
+	set_page_attributes(mod->module_init,
+		mod->module_init + mod->init_ro_size,
+		set_memory_rw);
 }
 
 /* Iterate through all modules and set each module's text as RW */
@@ -1670,7 +1670,8 @@ void set_all_modules_text_ro(void)
 }
 #else
 static inline void set_section_ro_nx(void *base, unsigned long text_size, unsigned long ro_size, unsigned long total_size) { }
-static inline void unset_section_ro_nx(struct module *mod, void *module_region) { }
+static void unset_module_core_ro_nx(struct module *mod) { }
+static void unset_module_init_ro_nx(struct module *mod) { }
 #endif
 
 /* Free a module, remove from lists, etc. */
@@ -1697,7 +1698,7 @@ static void free_module(struct module *mod)
 	destroy_params(mod->kp, mod->num_kp);
 
 	/* This may be NULL, but that's OK */
-	unset_section_ro_nx(mod, mod->module_init);
+	unset_module_init_ro_nx(mod);
 	module_free(mod, mod->module_init);
 	kfree(mod->args);
 	percpu_modfree(mod);
@@ -1706,7 +1707,7 @@ static void free_module(struct module *mod)
 	lockdep_free_key_range(mod->module_core, mod->core_size);
 
 	/* Finally, free the core (containing the module structure) */
-	unset_section_ro_nx(mod, mod->module_core);
+	unset_module_core_ro_nx(mod);
 	module_free(mod, mod->module_core);
 
 #ifdef CONFIG_MPU
@@ -2932,7 +2933,7 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	mod->symtab = mod->core_symtab;
 	mod->strtab = mod->core_strtab;
 #endif
-	unset_section_ro_nx(mod, mod->module_init);
+	unset_module_init_ro_nx(mod);
 	module_free(mod, mod->module_init);
 	mod->module_init = NULL;
 	mod->init_size = 0;
