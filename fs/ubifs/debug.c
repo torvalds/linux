@@ -2815,8 +2815,8 @@ static struct dentry *dfs_rootdir;
 int dbg_debugfs_init(void)
 {
 	dfs_rootdir = debugfs_create_dir("ubifs", NULL);
-	if (IS_ERR(dfs_rootdir)) {
-		int err = PTR_ERR(dfs_rootdir);
+	if (IS_ERR_OR_NULL(dfs_rootdir)) {
+		int err = dfs_rootdir ? PTR_ERR(dfs_rootdir) : -ENODEV;
 		ubifs_err("cannot create \"ubifs\" debugfs directory, "
 			  "error %d\n", err);
 		return err;
@@ -2880,12 +2880,20 @@ static const struct file_operations dfs_fops = {
  */
 int dbg_debugfs_init_fs(struct ubifs_info *c)
 {
-	int err;
+	int err, n;
 	const char *fname;
 	struct dentry *dent;
 	struct ubifs_debug_info *d = c->dbg;
 
-	sprintf(d->dfs_dir_name, "ubi%d_%d", c->vi.ubi_num, c->vi.vol_id);
+	n = snprintf(d->dfs_dir_name, UBIFS_DFS_DIR_LEN + 1, UBIFS_DFS_DIR_NAME,
+		     c->vi.ubi_num, c->vi.vol_id);
+	if (n == UBIFS_DFS_DIR_LEN) {
+		/* The array size is too small */
+		fname = UBIFS_DFS_DIR_NAME;
+		dent = ERR_PTR(-EINVAL);
+		goto out;
+	}
+
 	fname = d->dfs_dir_name;
 	dent = debugfs_create_dir(fname, dfs_rootdir);
 	if (IS_ERR_OR_NULL(dent))
@@ -2916,7 +2924,7 @@ out_remove:
 	debugfs_remove_recursive(d->dfs_dir);
 out:
 	err = dent ? PTR_ERR(dent) : -ENODEV;
-	ubifs_err("cannot create \"%s\" debugfs directory, error %d\n",
+	ubifs_err("cannot create \"%s\" debugfs filr or directory, error %d\n",
 		  fname, err);
 	return err;
 }

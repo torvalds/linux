@@ -33,6 +33,13 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
 
 #include <linux/random.h>
 
+/*
+ * The UBIFS debugfs directory name pattern and maximum name length (3 for "ubi"
+ * + 1 for "_" and plus 2x2 for 2 UBI numbers and 1 for the trailing zero byte.
+ */
+#define UBIFS_DFS_DIR_NAME "ubi%d_%d"
+#define UBIFS_DFS_DIR_LEN  (3 + 1 + 2*2 + 1)
+
 /**
  * ubifs_debug_info - per-FS debugging information.
  * @old_zroot: old index root - used by 'dbg_check_old_index()'
@@ -84,7 +91,7 @@ struct ubifs_debug_info {
 	long long saved_free;
 	int saved_idx_gc_cnt;
 
-	char dfs_dir_name[100];
+	char dfs_dir_name[UBIFS_DFS_DIR_LEN + 1];
 	struct dentry *dfs_dir;
 	struct dentry *dfs_dump_lprops;
 	struct dentry *dfs_dump_budg;
@@ -313,7 +320,7 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c);
 
 /* Use "if (0)" to make compiler check arguments even if debugging is off */
 #define ubifs_assert(expr)  do {                                               \
-	if (0 && (expr))                                                       \
+	if (0)                                                                 \
 		printk(KERN_CRIT "UBIFS assert failed in %s at %u (pid %d)\n", \
 		       __func__, __LINE__, current->pid);                      \
 } while (0)
