@@ -1558,6 +1558,40 @@ out:
 	return retval;
 }
 
+static void isp1760_endpoint_disable(struct usb_hcd *hcd,
+		struct usb_host_endpoint *ep)
+{
+	struct isp1760_hcd *priv = hcd_to_priv(hcd);
+	struct isp1760_qh *qh;
+	struct isp1760_qtd *qtd;
+	unsigned long spinflags;
+	int do_iter;
+
+	spin_lock_irqsave(&priv->lock, spinflags);
+	qh = ep->hcpriv;
+	if (!qh)
+		goto out;
+
+	do_iter = !list_empty(&qh->qtd_list);
+	while (do_iter) {
+		do_iter = 0;
+		list_for_each_entry(qtd, &qh->qtd_list, qtd_list) {
+			if (qtd->urb->ep == ep) {
+				spin_unlock_irqrestore(&priv->lock, spinflags);
+				isp1760_urb_dequeue(hcd, qtd->urb, -ECONNRESET);
+				spin_lock_irqsave(&priv->lock, spinflags);
+				do_iter = 1;
+				break; /* Restart iteration */
+			}
+		}
+	}
+	ep->hcpriv = NULL;
+	/* Cannot free qh here since it will be parsed by schedule_ptds() */
+
+out:
+	spin_unlock_irqrestore(&priv->lock, spinflags);
+}
+
 static int isp1760_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
@@ -1925,40 +1959,6 @@ error:
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return retval;
-}
-
-static void isp1760_endpoint_disable(struct usb_hcd *hcd,
-		struct usb_host_endpoint *ep)
-{
-	struct isp1760_hcd *priv = hcd_to_priv(hcd);
-	struct isp1760_qh *qh;
-	struct isp1760_qtd *qtd;
-	unsigned long spinflags;
-	int do_iter;
-
-	spin_lock_irqsave(&priv->lock, spinflags);
-	qh = ep->hcpriv;
-	if (!qh)
-		goto out;
-
-	do_iter = !list_empty(&qh->qtd_list);
-	while (do_iter) {
-		do_iter = 0;
-		list_for_each_entry(qtd, &qh->qtd_list, qtd_list) {
-			if (qtd->urb->ep == ep) {
-				spin_unlock_irqrestore(&priv->lock, spinflags);
-				isp1760_urb_dequeue(hcd, qtd->urb, -ECONNRESET);
-				spin_lock_irqsave(&priv->lock, spinflags);
-				do_iter = 1;
-				break; /* Restart iteration */
-			}
-		}
-	}
-	ep->hcpriv = NULL;
-	/* Cannot free qh here since it will be parsed by schedule_ptds() */
-
-out:
-	spin_unlock_irqrestore(&priv->lock, spinflags);
 }
 
 static int isp1760_get_frame(struct usb_hcd *hcd)
