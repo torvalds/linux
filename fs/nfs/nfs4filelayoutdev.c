@@ -308,12 +308,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 	u8 max_stripe_index;
 	struct nfs4_file_layout_dsaddr *dsaddr = NULL;
 	struct xdr_stream stream;
-	struct xdr_buf buf = {
-		.pages = pdev->pages,
-		.page_len = pdev->pglen,
-		.buflen = pdev->pglen,
-		.len = pdev->pglen,
-	};
+	struct xdr_buf buf;
 	struct page *scratch;
 
 	/* set up xdr stream */
@@ -321,7 +316,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 	if (!scratch)
 		goto out_err;
 
-	xdr_init_decode(&stream, &buf, NULL);
+	xdr_init_decode_pages(&stream, &buf, pdev->pages, pdev->pglen);
 	xdr_set_scratch_buffer(&stream, page_address(scratch), PAGE_SIZE);
 
 	/* Get the stripe count (number of stripe index) */

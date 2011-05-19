@@ -510,12 +510,7 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 			 gfp_t gfp_flags)
 {
 	struct xdr_stream stream;
-	struct xdr_buf buf = {
-		.pages =  lgr->layoutp->pages,
-		.page_len =  lgr->layoutp->len,
-		.buflen =  lgr->layoutp->len,
-		.len = lgr->layoutp->len,
-	};
+	struct xdr_buf buf;
 	struct page *scratch;
 	__be32 *p;
 	uint32_t nfl_util;
@@ -527,7 +522,7 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 	if (!scratch)
 		return -ENOMEM;
 
-	xdr_init_decode(&stream, &buf, NULL);
+	xdr_init_decode_pages(&stream, &buf, lgr->layoutp->pages, lgr->layoutp->len);
 	xdr_set_scratch_buffer(&stream, page_address(scratch), PAGE_SIZE);
 
 	/* 20 = ufl_util (4), first_stripe_index (4), pattern_offset (8),
