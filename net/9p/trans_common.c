@@ -63,7 +63,7 @@ p9_payload_gup(struct p9_req_t *req, size_t *pdata_off, int *pdata_len,
 		int nr_pages, u8 rw)
 {
 	uint32_t first_page_bytes = 0;
-	uint32_t pdata_mapped_pages;
+	int32_t pdata_mapped_pages;
 	struct trans_rpage_info  *rpinfo;
 
 	*pdata_off = (__force size_t)req->tc->pubuf & (PAGE_SIZE-1);
@@ -75,14 +75,9 @@ p9_payload_gup(struct p9_req_t *req, size_t *pdata_off, int *pdata_len,
 	rpinfo = req->tc->private;
 	pdata_mapped_pages = get_user_pages_fast((unsigned long)req->tc->pubuf,
 			nr_pages, rw, &rpinfo->rp_data[0]);
+	if (pdata_mapped_pages <= 0)
+		return pdata_mapped_pages;
 
-	if (pdata_mapped_pages < 0) {
-		printk(KERN_ERR "get_user_pages_fast failed:%d udata:%p"
-				"nr_pages:%d\n", pdata_mapped_pages,
-				req->tc->pubuf, nr_pages);
-		pdata_mapped_pages = 0;
-		return -EIO;
-	}
 	rpinfo->rp_nr_pages = pdata_mapped_pages;
 	if (*pdata_off) {
 		*pdata_len = first_page_bytes;

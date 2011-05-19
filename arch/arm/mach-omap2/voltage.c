@@ -114,7 +114,6 @@ static int __init _config_common_vdd_data(struct omap_vdd_info *vdd)
 	sys_clk_speed /= 1000;
 
 	/* Generic voltage parameters */
-	vdd->curr_volt = 1200000;
 	vdd->volt_scale = vp_forceupdate_scale_voltage;
 	vdd->vp_enabled = false;
 

@@ -328,7 +328,8 @@ static int efx_poll(struct napi_struct *napi, int budget)
  * processing to finish, then directly poll (and ack ) the eventq.
  * Finally reenable NAPI and interrupts.
  *
- * Since we are touching interrupts the caller should hold the suspend lock
+ * This is for use only during a loopback self-test.  It must not
+ * deliver any packets up the stack as this can result in deadlock.
  */
 void efx_process_channel_now(struct efx_channel *channel)
 {
@@ -336,6 +337,7 @@ void efx_process_channel_now(struct efx_channel *channel)
 
 	BUG_ON(channel->channel >= efx->n_channels);
 	BUG_ON(!channel->enabled);
+	BUG_ON(!efx->loopback_selftest);
 
 	/* Disable interrupts and wait for ISRs to complete */
 	efx_nic_disable_interrupts(efx);
@@ -1436,7 +1438,7 @@ static void efx_start_all(struct efx_nic *efx)
 	 * restart the transmit interface early so the watchdog timer stops */
 	efx_start_port(efx);
 
-	if (efx_dev_registered(efx))
+	if (efx_dev_registered(efx) && !efx->port_inhibited)
 		netif_tx_wake_all_queues(efx->net_dev);
 
 	efx_for_each_channel(channel, efx)

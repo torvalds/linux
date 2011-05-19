@@ -608,6 +608,7 @@ nouveau_card_init(struct drm_device *dev)
 	spin_lock_init(&dev_priv->channels.lock);
 	spin_lock_init(&dev_priv->tile.lock);
 	spin_lock_init(&dev_priv->context_switch_lock);
+	spin_lock_init(&dev_priv->vm_lock);
 
 	/* Make the CRTCs and I2C buses accessible */
 	ret = engine->display.early_init(dev);
@@ -766,6 +767,11 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	engine->gpio.takedown(dev);
 	engine->mc.takedown(dev);
 	engine->display.late_takedown(dev);
+
+	if (dev_priv->vga_ram) {
+		nouveau_bo_unpin(dev_priv->vga_ram);
+		nouveau_bo_ref(NULL, &dev_priv->vga_ram);
+	}
 
 	mutex_lock(&dev->struct_mutex);
 	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);

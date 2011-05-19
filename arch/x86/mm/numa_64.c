@@ -306,7 +306,7 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 		bi->end = min(bi->end, high);
 
 		/* and there's no empty block */
-		if (bi->start == bi->end) {
+		if (bi->start >= bi->end) {
 			numa_remove_memblk_from(i--, mi);
 			continue;
 		}

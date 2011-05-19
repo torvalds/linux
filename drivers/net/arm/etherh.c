@@ -527,7 +527,7 @@ static void __init etherh_banner(void)
  * Read the ethernet address string from the on board rom.
  * This is an ascii string...
  */
-static int __init etherh_addr(char *addr, struct expansion_card *ec)
+static int __devinit etherh_addr(char *addr, struct expansion_card *ec)
 {
 	struct in_chunk_dir cd;
 	char *s;
@@ -655,7 +655,7 @@ static const struct net_device_ops etherh_netdev_ops = {
 static u32 etherh_regoffsets[16];
 static u32 etherm_regoffsets[16];
 
-static int __init
+static int __devinit
 etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	const struct etherh_data *data = id->data;

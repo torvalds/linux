@@ -320,7 +320,6 @@ static void pcd_init_units(void)
 		disk->first_minor = unit;
 		strcpy(disk->disk_name, cd->name);	/* umm... */
 		disk->fops = &pcd_bdops;
-		disk->events = DISK_EVENT_MEDIA_CHANGE;
 	}
 }
 

@@ -139,7 +139,6 @@ struct pmbus_data {
 	 * A single status register covers multiple attributes,
 	 * so we keep them all together.
 	 */
-	u8 status_bits;
 	u8 status[PB_NUM_STATUS_REG];
 
 	u8 currpage;

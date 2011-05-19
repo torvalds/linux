@@ -5151,7 +5151,6 @@ static int run(mddev_t *mddev)
 
 		mddev->queue->backing_dev_info.congested_data = mddev;
 		mddev->queue->backing_dev_info.congested_fn = raid5_congested;
-		mddev->queue->queue_lock = &conf->device_lock;
 
 		chunk_size = mddev->chunk_sectors << 9;
 		blk_queue_io_min(mddev->queue, chunk_size);
@@ -5679,6 +5678,7 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 static void *raid45_takeover_raid0(mddev_t *mddev, int level)
 {
 	struct raid0_private_data *raid0_priv = mddev->private;
+	sector_t sectors;
 
 	/* for raid0 takeover only one zone is supported */
 	if (raid0_priv->nr_strip_zones > 1) {
@@ -5687,6 +5687,9 @@ static void *raid45_takeover_raid0(mddev_t *mddev, int level)
 		return ERR_PTR(-EINVAL);
 	}
 
+	sectors = raid0_priv->strip_zone[0].zone_end;
+	sector_div(sectors, raid0_priv->strip_zone[0].nb_dev);
+	mddev->dev_sectors = sectors;
 	mddev->new_level = level;
 	mddev->new_layout = ALGORITHM_PARITY_N;
 	mddev->new_chunk_sectors = mddev->chunk_sectors;

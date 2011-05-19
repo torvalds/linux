@@ -54,6 +54,7 @@ struct cred init_cred = {
 	.cap_effective		= CAP_INIT_EFF_SET,
 	.cap_bset		= CAP_INIT_BSET,
 	.user			= INIT_USER,
+	.user_ns		= &init_user_ns,
 	.group_info		= &init_groups,
 #ifdef CONFIG_KEYS
 	.tgcred			= &init_tgcred,
@@ -410,6 +411,11 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 			goto error_put;
 	}
 
+	/* cache user_ns in cred.  Doesn't need a refcount because it will
+	 * stay pinned by cred->user
+	 */
+	new->user_ns = new->user->user_ns;
+
 #ifdef CONFIG_KEYS
 	/* new threads get their own thread keyrings if their parent already
 	 * had one */
@@ -740,12 +746,6 @@ int set_create_files_as(struct cred *new, struct inode *inode)
 	return security_kernel_create_files_as(new, inode);
 }
 EXPORT_SYMBOL(set_create_files_as);
-
-struct user_namespace *current_user_ns(void)
-{
-	return _current_user_ns();
-}
-EXPORT_SYMBOL(current_user_ns);
 
 #ifdef CONFIG_DEBUG_CREDENTIALS
 

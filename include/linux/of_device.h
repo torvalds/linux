@@ -21,8 +21,7 @@ extern void of_device_make_bus_id(struct device *dev);
 static inline int of_driver_match_device(struct device *dev,
 					 const struct device_driver *drv)
 {
-	dev->of_match = of_match_device(drv->of_match_table, dev);
-	return dev->of_match != NULL;
+	return of_match_device(drv->of_match_table, dev) != NULL;
 }
 
 extern struct platform_device *of_dev_get(struct platform_device *dev);
@@ -58,6 +57,11 @@ static inline int of_device_uevent(struct device *dev,
 
 static inline void of_device_node_put(struct device *dev) { }
 
+static inline const struct of_device_id *of_match_device(
+		const struct of_device_id *matches, const struct device *dev)
+{
+	return NULL;
+}
 #endif /* CONFIG_OF_DEVICE */
 
 #endif /* _LINUX_OF_DEVICE_H */

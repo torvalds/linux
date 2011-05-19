@@ -750,7 +750,6 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 			priv->hw->dma->dma_mode(priv->ioaddr, tc, SF_DMA_MODE);
 			priv->xstats.threshold = tc;
 		}
-		stmmac_tx_err(priv);
 	} else if (unlikely(status == tx_hard_error))
 		stmmac_tx_err(priv);
 }
@@ -781,21 +780,6 @@ static int stmmac_open(struct net_device *dev)
 
 	stmmac_verify_args();
 
-	ret = stmmac_init_phy(dev);
-	if (unlikely(ret)) {
-		pr_err("%s: Cannot attach to PHY (error: %d)\n", __func__, ret);
-		return ret;
-	}
-
-	/* Request the IRQ lines */
-	ret = request_irq(dev->irq, stmmac_interrupt,
-			  IRQF_SHARED, dev->name, dev);
-	if (unlikely(ret < 0)) {
-		pr_err("%s: ERROR: allocating the IRQ %d (error: %d)\n",
-		       __func__, dev->irq, ret);
-		return ret;
-	}
-
 #ifdef CONFIG_STMMAC_TIMER
 	priv->tm = kzalloc(sizeof(struct stmmac_timer *), GFP_KERNEL);
 	if (unlikely(priv->tm == NULL)) {
@@ -814,6 +798,11 @@ static int stmmac_open(struct net_device *dev)
 	} else
 		priv->tm->enable = 1;
 #endif
+	ret = stmmac_init_phy(dev);
+	if (unlikely(ret)) {
+		pr_err("%s: Cannot attach to PHY (error: %d)\n", __func__, ret);
+		goto open_error;
+	}
 
 	/* Create and initialize the TX/RX descriptors chains. */
 	priv->dma_tx_size = STMMAC_ALIGN(dma_txsize);
@@ -822,12 +811,11 @@ static int stmmac_open(struct net_device *dev)
 	init_dma_desc_rings(dev);
 
 	/* DMA initialization and SW reset */
-	if (unlikely(priv->hw->dma->init(priv->ioaddr, priv->plat->pbl,
-					 priv->dma_tx_phy,
-					 priv->dma_rx_phy) < 0)) {
-
+	ret = priv->hw->dma->init(priv->ioaddr, priv->plat->pbl,
+				  priv->dma_tx_phy, priv->dma_rx_phy);
+	if (ret < 0) {
 		pr_err("%s: DMA initialization failed\n", __func__);
-		return -1;
+		goto open_error;
 	}
 
 	/* Copy the MAC addr into the HW  */
@@ -847,6 +835,15 @@ static int stmmac_open(struct net_device *dev)
 	/* Initialise the MMC (if present) to disable all interrupts. */
 	writel(0xffffffff, priv->ioaddr + MMC_HIGH_INTR_MASK);
 	writel(0xffffffff, priv->ioaddr + MMC_LOW_INTR_MASK);
+
+	/* Request the IRQ lines */
+	ret = request_irq(dev->irq, stmmac_interrupt,
+			 IRQF_SHARED, dev->name, dev);
+	if (unlikely(ret < 0)) {
+		pr_err("%s: ERROR: allocating the IRQ %d (error: %d)\n",
+		       __func__, dev->irq, ret);
+		goto open_error;
+	}
 
 	/* Enable the MAC Rx/Tx */
 	stmmac_enable_mac(priv->ioaddr);
@@ -878,7 +875,17 @@ static int stmmac_open(struct net_device *dev)
 	napi_enable(&priv->napi);
 	skb_queue_head_init(&priv->rx_recycle);
 	netif_start_queue(dev);
+
 	return 0;
+
+open_error:
+#ifdef CONFIG_STMMAC_TIMER
+	kfree(priv->tm);
+#endif
+	if (priv->phydev)
+		phy_disconnect(priv->phydev);
+
+	return ret;
 }
 
 /**

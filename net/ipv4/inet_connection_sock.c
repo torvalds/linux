@@ -73,7 +73,7 @@ int inet_csk_bind_conflict(const struct sock *sk,
 		     !sk2->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if)) {
 			if (!reuse || !sk2->sk_reuse ||
-			    ((1 << sk2->sk_state) & (TCPF_LISTEN | TCPF_CLOSE))) {
+			    sk2->sk_state == TCP_LISTEN) {
 				const __be32 sk2_rcv_saddr = sk_rcv_saddr(sk2);
 				if (!sk2_rcv_saddr || !sk_rcv_saddr(sk) ||
 				    sk2_rcv_saddr == sk_rcv_saddr(sk))
@@ -122,8 +122,7 @@ again:
 					    (tb->num_owners < smallest_size || smallest_size == -1)) {
 						smallest_size = tb->num_owners;
 						smallest_rover = rover;
-						if (atomic_read(&hashinfo->bsockets) > (high - low) + 1 &&
-						    !inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb)) {
+						if (atomic_read(&hashinfo->bsockets) > (high - low) + 1) {
 							spin_unlock(&head->lock);
 							snum = smallest_rover;
 							goto have_snum;
