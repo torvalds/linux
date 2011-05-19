@@ -1,14 +1,6 @@
 #
-# CPU Frequency scaling
+# x86 CPU Frequency scaling drivers
 #
-
-menu "CPU Frequency scaling"
-
-source "drivers/cpufreq/Kconfig"
-
-if CPU_FREQ
-
-comment "CPUFreq processor drivers"
 
 config X86_PCC_CPUFREQ
 	tristate "Processor Clocking Control interface driver"
@@ -261,6 +253,3 @@ config X86_SPEEDSTEP_RELAXED_CAP_CHECK
 	  option lets the probing code bypass some of those checks if the
 	  parameter "relaxed_check=1" is passed to the module.
 
-endif	# CPU_FREQ
-
-endmenu
