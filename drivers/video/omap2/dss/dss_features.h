@@ -49,6 +49,8 @@ enum dss_feat_id {
 	FEAT_DSI_REVERSE_TXCLKESC	= 1 << 17,
 	FEAT_DSI_GNQ			= 1 << 18,
 	FEAT_HDMI_CTS_SWMODE		= 1 << 19,
+	FEAT_HANDLE_UV_SEPARATE         = 1 << 20,
+	FEAT_ATTR2                      = 1 << 21,
 };
 
 /* DSS register field id */

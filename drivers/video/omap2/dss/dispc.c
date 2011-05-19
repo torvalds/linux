@@ -217,6 +217,25 @@ void dispc_save_context(void)
 	for (i = 0; i < 8; i++)
 		SR(OVL_FIR_COEF_V(OMAP_DSS_VIDEO1, i));
 
+	if (dss_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
+		SR(OVL_BA0_UV(OMAP_DSS_VIDEO1));
+		SR(OVL_BA1_UV(OMAP_DSS_VIDEO1));
+		SR(OVL_FIR2(OMAP_DSS_VIDEO1));
+		SR(OVL_ACCU2_0(OMAP_DSS_VIDEO1));
+		SR(OVL_ACCU2_1(OMAP_DSS_VIDEO1));
+
+		for (i = 0; i < 8; i++)
+			SR(OVL_FIR_COEF_H2(OMAP_DSS_VIDEO1, i));
+
+		for (i = 0; i < 8; i++)
+			SR(OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO1, i));
+
+		for (i = 0; i < 8; i++)
+			SR(OVL_FIR_COEF_V2(OMAP_DSS_VIDEO1, i));
+	}
+	if (dss_has_feature(FEAT_ATTR2))
+		SR(OVL_ATTRIBUTES2(OMAP_DSS_VIDEO1));
+
 	SR(OVL_PRELOAD(OMAP_DSS_VIDEO1));
 
 	/* VID2 */
@@ -244,6 +263,25 @@ void dispc_save_context(void)
 
 	for (i = 0; i < 8; i++)
 		SR(OVL_FIR_COEF_V(OMAP_DSS_VIDEO2, i));
+
+	if (dss_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
+		SR(OVL_BA0_UV(OMAP_DSS_VIDEO2));
+		SR(OVL_BA1_UV(OMAP_DSS_VIDEO2));
+		SR(OVL_FIR2(OMAP_DSS_VIDEO2));
+		SR(OVL_ACCU2_0(OMAP_DSS_VIDEO2));
+		SR(OVL_ACCU2_1(OMAP_DSS_VIDEO2));
+
+		for (i = 0; i < 8; i++)
+			SR(OVL_FIR_COEF_H2(OMAP_DSS_VIDEO2, i));
+
+		for (i = 0; i < 8; i++)
+			SR(OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO2, i));
+
+		for (i = 0; i < 8; i++)
+			SR(OVL_FIR_COEF_V2(OMAP_DSS_VIDEO2, i));
+	}
+	if (dss_has_feature(FEAT_ATTR2))
+		SR(OVL_ATTRIBUTES2(OMAP_DSS_VIDEO2));
 
 	SR(OVL_PRELOAD(OMAP_DSS_VIDEO2));
 
@@ -338,6 +376,25 @@ void dispc_restore_context(void)
 	for (i = 0; i < 8; i++)
 		RR(OVL_FIR_COEF_V(OMAP_DSS_VIDEO1, i));
 
+	if (dss_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
+		RR(OVL_BA0_UV(OMAP_DSS_VIDEO1));
+		RR(OVL_BA1_UV(OMAP_DSS_VIDEO1));
+		RR(OVL_FIR2(OMAP_DSS_VIDEO1));
+		RR(OVL_ACCU2_0(OMAP_DSS_VIDEO1));
+		RR(OVL_ACCU2_1(OMAP_DSS_VIDEO1));
+
+		for (i = 0; i < 8; i++)
+			RR(OVL_FIR_COEF_H2(OMAP_DSS_VIDEO1, i));
+
+		for (i = 0; i < 8; i++)
+			RR(OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO1, i));
+
+		for (i = 0; i < 8; i++)
+			RR(OVL_FIR_COEF_V2(OMAP_DSS_VIDEO1, i));
+	}
+	if (dss_has_feature(FEAT_ATTR2))
+		RR(OVL_ATTRIBUTES2(OMAP_DSS_VIDEO1));
+
 	RR(OVL_PRELOAD(OMAP_DSS_VIDEO1));
 
 	/* VID2 */
@@ -365,6 +422,25 @@ void dispc_restore_context(void)
 
 	for (i = 0; i < 8; i++)
 		RR(OVL_FIR_COEF_V(OMAP_DSS_VIDEO2, i));
+
+	if (dss_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
+		RR(OVL_BA0_UV(OMAP_DSS_VIDEO2));
+		RR(OVL_BA1_UV(OMAP_DSS_VIDEO2));
+		RR(OVL_FIR2(OMAP_DSS_VIDEO2));
+		RR(OVL_ACCU2_0(OMAP_DSS_VIDEO2));
+		RR(OVL_ACCU2_1(OMAP_DSS_VIDEO2));
+
+		for (i = 0; i < 8; i++)
+			RR(OVL_FIR_COEF_H2(OMAP_DSS_VIDEO2, i));
+
+		for (i = 0; i < 8; i++)
+			RR(OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO2, i));
+
+		for (i = 0; i < 8; i++)
+			RR(OVL_FIR_COEF_V2(OMAP_DSS_VIDEO2, i));
+	}
+	if (dss_has_feature(FEAT_ATTR2))
+		RR(OVL_ATTRIBUTES2(OMAP_DSS_VIDEO2));
 
 	RR(OVL_PRELOAD(OMAP_DSS_VIDEO2));
 
@@ -474,6 +550,27 @@ static void _dispc_write_firhv_reg(enum omap_plane plane, int reg, u32 value)
 static void _dispc_write_firv_reg(enum omap_plane plane, int reg, u32 value)
 {
 	dispc_write_reg(DISPC_OVL_FIR_COEF_V(plane, reg), value);
+}
+
+static void _dispc_write_firh2_reg(enum omap_plane plane, int reg, u32 value)
+{
+	BUG_ON(plane == OMAP_DSS_GFX);
+
+	dispc_write_reg(DISPC_OVL_FIR_COEF_H2(plane, reg), value);
+}
+
+static void _dispc_write_firhv2_reg(enum omap_plane plane, int reg, u32 value)
+{
+	BUG_ON(plane == OMAP_DSS_GFX);
+
+	dispc_write_reg(DISPC_OVL_FIR_COEF_HV2(plane, reg), value);
+}
+
+static void _dispc_write_firv2_reg(enum omap_plane plane, int reg, u32 value)
+{
+	BUG_ON(plane == OMAP_DSS_GFX);
+
+	dispc_write_reg(DISPC_OVL_FIR_COEF_V2(plane, reg), value);
 }
 
 static void _dispc_set_scale_coef(enum omap_plane plane, int hscaleup,
@@ -643,6 +740,16 @@ static void _dispc_set_plane_ba0(enum omap_plane plane, u32 paddr)
 static void _dispc_set_plane_ba1(enum omap_plane plane, u32 paddr)
 {
 	dispc_write_reg(DISPC_OVL_BA1(plane), paddr);
+}
+
+static void _dispc_set_plane_ba0_uv(enum omap_plane plane, u32 paddr)
+{
+	dispc_write_reg(DISPC_OVL_BA0_UV(plane), paddr);
+}
+
+static void _dispc_set_plane_ba1_uv(enum omap_plane plane, u32 paddr)
+{
+	dispc_write_reg(DISPC_OVL_BA1_UV(plane), paddr);
 }
 
 static void _dispc_set_plane_pos(enum omap_plane plane, int x, int y)
@@ -1025,6 +1132,21 @@ static void _dispc_set_vid_accu1(enum omap_plane plane, int haccu, int vaccu)
 	dispc_write_reg(DISPC_OVL_ACCU1(plane), val);
 }
 
+static void _dispc_set_vid_accu2_0(enum omap_plane plane, int haccu, int vaccu)
+{
+	u32 val;
+
+	val = FLD_VAL(vaccu, 26, 16) | FLD_VAL(haccu, 10, 0);
+	dispc_write_reg(DISPC_OVL_ACCU2_0(plane), val);
+}
+
+static void _dispc_set_vid_accu2_1(enum omap_plane plane, int haccu, int vaccu)
+{
+	u32 val;
+
+	val = FLD_VAL(vaccu, 26, 16) | FLD_VAL(haccu, 10, 0);
+	dispc_write_reg(DISPC_OVL_ACCU2_1(plane), val);
+}
 
 static void _dispc_set_scaling(enum omap_plane plane,
 		u16 orig_width, u16 orig_height,
@@ -2496,6 +2618,44 @@ void dispc_dump_regs(struct seq_file *s)
 	DUMPREG(DISPC_OVL_FIR_COEF_V(OMAP_DSS_VIDEO1, 6));
 	DUMPREG(DISPC_OVL_FIR_COEF_V(OMAP_DSS_VIDEO1, 7));
 
+	if (dss_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
+		DUMPREG(DISPC_OVL_BA0_UV(OMAP_DSS_VIDEO1));
+		DUMPREG(DISPC_OVL_BA1_UV(OMAP_DSS_VIDEO1));
+		DUMPREG(DISPC_OVL_FIR2(OMAP_DSS_VIDEO1));
+		DUMPREG(DISPC_OVL_ACCU2_0(OMAP_DSS_VIDEO1));
+		DUMPREG(DISPC_OVL_ACCU2_1(OMAP_DSS_VIDEO1));
+
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO1, 0));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO1, 1));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO1, 2));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO1, 3));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO1, 4));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO1, 5));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO1, 6));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO1, 7));
+
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO1, 0));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO1, 1));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO1, 2));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO1, 3));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO1, 4));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO1, 5));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO1, 6));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO1, 7));
+
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO1, 0));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO1, 1));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO1, 2));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO1, 3));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO1, 4));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO1, 5));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO1, 6));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO1, 7));
+	}
+	if (dss_has_feature(FEAT_ATTR2))
+		DUMPREG(DISPC_OVL_ATTRIBUTES2(OMAP_DSS_VIDEO1));
+
+
 	DUMPREG(DISPC_OVL_FIR_COEF_H(OMAP_DSS_VIDEO2, 0));
 	DUMPREG(DISPC_OVL_FIR_COEF_H(OMAP_DSS_VIDEO2, 1));
 	DUMPREG(DISPC_OVL_FIR_COEF_H(OMAP_DSS_VIDEO2, 2));
@@ -2525,6 +2685,43 @@ void dispc_dump_regs(struct seq_file *s)
 	DUMPREG(DISPC_OVL_FIR_COEF_V(OMAP_DSS_VIDEO2, 5));
 	DUMPREG(DISPC_OVL_FIR_COEF_V(OMAP_DSS_VIDEO2, 6));
 	DUMPREG(DISPC_OVL_FIR_COEF_V(OMAP_DSS_VIDEO2, 7));
+
+	if (dss_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
+		DUMPREG(DISPC_OVL_BA0_UV(OMAP_DSS_VIDEO2));
+		DUMPREG(DISPC_OVL_BA1_UV(OMAP_DSS_VIDEO2));
+		DUMPREG(DISPC_OVL_FIR2(OMAP_DSS_VIDEO2));
+		DUMPREG(DISPC_OVL_ACCU2_0(OMAP_DSS_VIDEO2));
+		DUMPREG(DISPC_OVL_ACCU2_1(OMAP_DSS_VIDEO2));
+
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO2, 0));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO2, 1));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO2, 2));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO2, 3));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO2, 4));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO2, 5));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO2, 6));
+		DUMPREG(DISPC_OVL_FIR_COEF_H2(OMAP_DSS_VIDEO2, 7));
+
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO2, 0));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO2, 1));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO2, 2));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO2, 3));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO2, 4));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO2, 5));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO2, 6));
+		DUMPREG(DISPC_OVL_FIR_COEF_HV2(OMAP_DSS_VIDEO2, 7));
+
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO2, 0));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO2, 1));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO2, 2));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO2, 3));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO2, 4));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO2, 5));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO2, 6));
+		DUMPREG(DISPC_OVL_FIR_COEF_V2(OMAP_DSS_VIDEO2, 7));
+	}
+	if (dss_has_feature(FEAT_ATTR2))
+		DUMPREG(DISPC_OVL_ATTRIBUTES2(OMAP_DSS_VIDEO2));
 
 	DUMPREG(DISPC_OVL_PRELOAD(OMAP_DSS_VIDEO1));
 	DUMPREG(DISPC_OVL_PRELOAD(OMAP_DSS_VIDEO2));

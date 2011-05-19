@@ -42,12 +42,18 @@
 					DISPC_BA0_OFFSET(n))
 #define DISPC_OVL_BA1(n)		(DISPC_OVL_BASE(n) + \
 					DISPC_BA1_OFFSET(n))
+#define DISPC_OVL_BA0_UV(n)		(DISPC_OVL_BASE(n) + \
+					DISPC_BA0_UV_OFFSET(n))
+#define DISPC_OVL_BA1_UV(n)		(DISPC_OVL_BASE(n) + \
+					DISPC_BA1_UV_OFFSET(n))
 #define DISPC_OVL_POSITION(n)		(DISPC_OVL_BASE(n) + \
 					DISPC_POS_OFFSET(n))
 #define DISPC_OVL_SIZE(n)		(DISPC_OVL_BASE(n) + \
 					DISPC_SIZE_OFFSET(n))
 #define DISPC_OVL_ATTRIBUTES(n)		(DISPC_OVL_BASE(n) + \
 					DISPC_ATTR_OFFSET(n))
+#define DISPC_OVL_ATTRIBUTES2(n)	(DISPC_OVL_BASE(n) + \
+					DISPC_ATTR2_OFFSET(n))
 #define DISPC_OVL_FIFO_THRESHOLD(n)	(DISPC_OVL_BASE(n) + \
 					DISPC_FIFO_THRESH_OFFSET(n))
 #define DISPC_OVL_FIFO_SIZE_STATUS(n)	(DISPC_OVL_BASE(n) + \
@@ -62,20 +68,32 @@
 					DISPC_TABLE_BA_OFFSET(n))
 #define DISPC_OVL_FIR(n)		(DISPC_OVL_BASE(n) + \
 					DISPC_FIR_OFFSET(n))
+#define DISPC_OVL_FIR2(n)		(DISPC_OVL_BASE(n) + \
+					DISPC_FIR2_OFFSET(n))
 #define DISPC_OVL_PICTURE_SIZE(n)	(DISPC_OVL_BASE(n) + \
 					DISPC_PIC_SIZE_OFFSET(n))
 #define DISPC_OVL_ACCU0(n)		(DISPC_OVL_BASE(n) + \
 					DISPC_ACCU0_OFFSET(n))
 #define DISPC_OVL_ACCU1(n)		(DISPC_OVL_BASE(n) + \
 					DISPC_ACCU1_OFFSET(n))
+#define DISPC_OVL_ACCU2_0(n)		(DISPC_OVL_BASE(n) + \
+					DISPC_ACCU2_0_OFFSET(n))
+#define DISPC_OVL_ACCU2_1(n)		(DISPC_OVL_BASE(n) + \
+					DISPC_ACCU2_1_OFFSET(n))
 #define DISPC_OVL_FIR_COEF_H(n, i)	(DISPC_OVL_BASE(n) + \
 					DISPC_FIR_COEF_H_OFFSET(n, i))
 #define DISPC_OVL_FIR_COEF_HV(n, i)	(DISPC_OVL_BASE(n) + \
 					DISPC_FIR_COEF_HV_OFFSET(n, i))
+#define DISPC_OVL_FIR_COEF_H2(n, i)	(DISPC_OVL_BASE(n) + \
+					DISPC_FIR_COEF_H2_OFFSET(n, i))
+#define DISPC_OVL_FIR_COEF_HV2(n, i)	(DISPC_OVL_BASE(n) + \
+					DISPC_FIR_COEF_HV2_OFFSET(n, i))
 #define DISPC_OVL_CONV_COEF(n, i)	(DISPC_OVL_BASE(n) + \
 					DISPC_CONV_COEF_OFFSET(n, i))
 #define DISPC_OVL_FIR_COEF_V(n, i)	(DISPC_OVL_BASE(n) + \
 					DISPC_FIR_COEF_V_OFFSET(n, i))
+#define DISPC_OVL_FIR_COEF_V2(n, i)	(DISPC_OVL_BASE(n) + \
+					DISPC_FIR_COEF_V2_OFFSET(n, i))
 #define DISPC_OVL_PRELOAD(n)		(DISPC_OVL_BASE(n) + \
 					DISPC_PRELOAD_OFFSET(n))
 
@@ -303,6 +321,34 @@ static inline u16 DISPC_BA1_OFFSET(enum omap_plane plane)
 	}
 }
 
+static inline u16 DISPC_BA0_UV_OFFSET(enum omap_plane plane)
+{
+	switch (plane) {
+	case OMAP_DSS_GFX:
+		BUG();
+	case OMAP_DSS_VIDEO1:
+		return 0x0544;
+	case OMAP_DSS_VIDEO2:
+		return 0x04BC;
+	default:
+		BUG();
+	}
+}
+
+static inline u16 DISPC_BA1_UV_OFFSET(enum omap_plane plane)
+{
+	switch (plane) {
+	case OMAP_DSS_GFX:
+		BUG();
+	case OMAP_DSS_VIDEO1:
+		return 0x0548;
+	case OMAP_DSS_VIDEO2:
+		return 0x04C0;
+	default:
+		BUG();
+	}
+}
+
 static inline u16 DISPC_POS_OFFSET(enum omap_plane plane)
 {
 	switch (plane) {
@@ -335,6 +381,20 @@ static inline u16 DISPC_ATTR_OFFSET(enum omap_plane plane)
 	case OMAP_DSS_VIDEO1:
 	case OMAP_DSS_VIDEO2:
 		return 0x0010;
+	default:
+		BUG();
+	}
+}
+
+static inline u16 DISPC_ATTR2_OFFSET(enum omap_plane plane)
+{
+	switch (plane) {
+	case OMAP_DSS_GFX:
+		BUG();
+	case OMAP_DSS_VIDEO1:
+		return 0x0568;
+	case OMAP_DSS_VIDEO2:
+		return 0x04DC;
 	default:
 		BUG();
 	}
@@ -431,6 +491,20 @@ static inline u16 DISPC_FIR_OFFSET(enum omap_plane plane)
 	}
 }
 
+static inline u16 DISPC_FIR2_OFFSET(enum omap_plane plane)
+{
+	switch (plane) {
+	case OMAP_DSS_GFX:
+		BUG();
+	case OMAP_DSS_VIDEO1:
+		return 0x0580;
+	case OMAP_DSS_VIDEO2:
+		return 0x055C;
+	default:
+		BUG();
+	}
+}
+
 static inline u16 DISPC_PIC_SIZE_OFFSET(enum omap_plane plane)
 {
 	switch (plane) {
@@ -458,6 +532,20 @@ static inline u16 DISPC_ACCU0_OFFSET(enum omap_plane plane)
 	}
 }
 
+static inline u16 DISPC_ACCU2_0_OFFSET(enum omap_plane plane)
+{
+	switch (plane) {
+	case OMAP_DSS_GFX:
+		BUG();
+	case OMAP_DSS_VIDEO1:
+		return 0x0584;
+	case OMAP_DSS_VIDEO2:
+		return 0x0560;
+	default:
+		BUG();
+	}
+}
+
 static inline u16 DISPC_ACCU1_OFFSET(enum omap_plane plane)
 {
 	switch (plane) {
@@ -466,6 +554,20 @@ static inline u16 DISPC_ACCU1_OFFSET(enum omap_plane plane)
 	case OMAP_DSS_VIDEO1:
 	case OMAP_DSS_VIDEO2:
 		return 0x0030;
+	default:
+		BUG();
+	}
+}
+
+static inline u16 DISPC_ACCU2_1_OFFSET(enum omap_plane plane)
+{
+	switch (plane) {
+	case OMAP_DSS_GFX:
+		BUG();
+	case OMAP_DSS_VIDEO1:
+		return 0x0588;
+	case OMAP_DSS_VIDEO2:
+		return 0x0564;
 	default:
 		BUG();
 	}
@@ -486,6 +588,21 @@ static inline u16 DISPC_FIR_COEF_H_OFFSET(enum omap_plane plane, u16 i)
 }
 
 /* coef index i = {0, 1, 2, 3, 4, 5, 6, 7} */
+static inline u16 DISPC_FIR_COEF_H2_OFFSET(enum omap_plane plane, u16 i)
+{
+	switch (plane) {
+	case OMAP_DSS_GFX:
+		BUG();
+	case OMAP_DSS_VIDEO1:
+		return 0x058C + i * 0x8;
+	case OMAP_DSS_VIDEO2:
+		return 0x0568 + i * 0x8;
+	default:
+		BUG();
+	}
+}
+
+/* coef index i = {0, 1, 2, 3, 4, 5, 6, 7} */
 static inline u16 DISPC_FIR_COEF_HV_OFFSET(enum omap_plane plane, u16 i)
 {
 	switch (plane) {
@@ -494,6 +611,21 @@ static inline u16 DISPC_FIR_COEF_HV_OFFSET(enum omap_plane plane, u16 i)
 	case OMAP_DSS_VIDEO1:
 	case OMAP_DSS_VIDEO2:
 		return 0x0038 + i * 0x8;
+	default:
+		BUG();
+	}
+}
+
+/* coef index i = {0, 1, 2, 3, 4, 5, 6, 7} */
+static inline u16 DISPC_FIR_COEF_HV2_OFFSET(enum omap_plane plane, u16 i)
+{
+	switch (plane) {
+	case OMAP_DSS_GFX:
+		BUG();
+	case OMAP_DSS_VIDEO1:
+		return 0x0590 + i * 8;
+	case OMAP_DSS_VIDEO2:
+		return 0x056C + i * 0x8;
 	default:
 		BUG();
 	}
@@ -523,6 +655,21 @@ static inline u16 DISPC_FIR_COEF_V_OFFSET(enum omap_plane plane, u16 i)
 		return 0x0124 + i * 0x4;
 	case OMAP_DSS_VIDEO2:
 		return 0x00B4 + i * 0x4;
+	default:
+		BUG();
+	}
+}
+
+/* coef index i = {0, 1, 2, 3, 4, 5, 6, 7} */
+static inline u16 DISPC_FIR_COEF_V2_OFFSET(enum omap_plane plane, u16 i)
+{
+	switch (plane) {
+	case OMAP_DSS_GFX:
+		BUG();
+	case OMAP_DSS_VIDEO1:
+		return 0x05CC + i * 0x4;
+	case OMAP_DSS_VIDEO2:
+		return 0x05A8 + i * 0x4;
 	default:
 		BUG();
 	}

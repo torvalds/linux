@@ -327,7 +327,7 @@ static const struct omap_dss_features omap4430_es1_0_dss_features  = {
 		FEAT_MGR_LCD2 | FEAT_GLOBAL_ALPHA_VID1 |
 		FEAT_CORE_CLK_DIV | FEAT_LCD_CLK_SRC |
 		FEAT_DSI_DCS_CMD_CONFIG_VC | FEAT_DSI_VC_OCP_WIDTH |
-		FEAT_DSI_GNQ,
+		FEAT_DSI_GNQ | FEAT_HANDLE_UV_SEPARATE | FEAT_ATTR2,
 
 	.num_mgrs = 3,
 	.num_ovls = 3,
@@ -347,7 +347,8 @@ static const struct omap_dss_features omap4_dss_features = {
 		FEAT_MGR_LCD2 | FEAT_GLOBAL_ALPHA_VID1 |
 		FEAT_CORE_CLK_DIV | FEAT_LCD_CLK_SRC |
 		FEAT_DSI_DCS_CMD_CONFIG_VC | FEAT_DSI_VC_OCP_WIDTH |
-		FEAT_DSI_GNQ | FEAT_HDMI_CTS_SWMODE,
+		FEAT_DSI_GNQ | FEAT_HDMI_CTS_SWMODE |
+		FEAT_HANDLE_UV_SEPARATE | FEAT_ATTR2,
 
 	.num_mgrs = 3,
 	.num_ovls = 3,
