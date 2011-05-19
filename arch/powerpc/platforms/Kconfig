@@ -78,6 +78,10 @@ config MPIC
 	bool
 	default n
 
+config PPC_EPAPR_HV_PIC
+	bool
+	default n
+
 config MPIC_WEIRD
 	bool
 	default n
