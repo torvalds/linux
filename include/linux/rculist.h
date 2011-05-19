@@ -253,7 +253,7 @@ static inline void list_splice_init_rcu(struct list_head *list,
  */
 #define list_for_each_entry_rcu(pos, head, member) \
 	for (pos = list_entry_rcu((head)->next, typeof(*pos), member); \
-		prefetch(pos->member.next), &pos->member != (head); \
+		&pos->member != (head); \
 		pos = list_entry_rcu(pos->member.next, typeof(*pos), member))
 
 
@@ -270,7 +270,7 @@ static inline void list_splice_init_rcu(struct list_head *list,
  */
 #define list_for_each_continue_rcu(pos, head) \
 	for ((pos) = rcu_dereference_raw(list_next_rcu(pos)); \
-		prefetch((pos)->next), (pos) != (head); \
+		(pos) != (head); \
 		(pos) = rcu_dereference_raw(list_next_rcu(pos)))
 
 /**
@@ -284,7 +284,7 @@ static inline void list_splice_init_rcu(struct list_head *list,
  */
 #define list_for_each_entry_continue_rcu(pos, head, member) 		\
 	for (pos = list_entry_rcu(pos->member.next, typeof(*pos), member); \
-	     prefetch(pos->member.next), &pos->member != (head);	\
+	     &pos->member != (head);	\
 	     pos = list_entry_rcu(pos->member.next, typeof(*pos), member))
 
 /**
