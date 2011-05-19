@@ -926,16 +926,18 @@ bool scic_sds_port_link_detected(
 	return true;
 }
 
-/**
- * This method is provided to timeout requests for port operations. Mostly its
- *    for the port reset operation.
- *
- *
- */
-static void scic_sds_port_timeout_handler(void *port)
+static void port_timeout(unsigned long data)
 {
-	struct scic_sds_port *sci_port = port;
+	struct sci_timer *tmr = (struct sci_timer *)data;
+	struct scic_sds_port *sci_port = container_of(tmr, typeof(*sci_port), timer);
+	struct isci_host *ihost = scic_to_ihost(sci_port->owning_controller);
+	unsigned long flags;
 	u32 current_state;
+
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+
+	if (tmr->cancel)
+		goto done;
 
 	current_state = sci_base_state_machine_get_state(&sci_port->state_machine);
 
@@ -965,6 +967,9 @@ static void scic_sds_port_timeout_handler(void *port)
 			"%s: SCIC Port 0x%p is processing a timeout operation "
 			"in state %d.\n", __func__, sci_port, current_state);
 	}
+
+done:
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 }
 
 /* --------------------------------------------------------------------------- */
@@ -1259,7 +1264,6 @@ static void scic_sds_port_ready_substate_configuring_exit(struct sci_base_state_
 enum sci_status scic_sds_port_start(struct scic_sds_port *sci_port)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
-	struct isci_host *ihost = scic_to_ihost(scic);
 	enum sci_status status = SCI_SUCCESS;
 	enum scic_sds_port_states state;
 	u32 phy_mask;
@@ -1279,14 +1283,6 @@ enum sci_status scic_sds_port_start(struct scic_sds_port *sci_port)
 		 */
 		return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
 	}
-
-	sci_port->timer_handle =
-		isci_timer_create(ihost,
-				  sci_port,
-				  scic_sds_port_timeout_handler);
-
-	if (!sci_port->timer_handle)
-		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
 
 	if (sci_port->reserved_rni == SCU_DUMMY_INDEX) {
 		u16 rni = scic_sds_remote_node_table_allocate_remote_node(
@@ -1390,7 +1386,7 @@ static enum sci_status scic_port_hard_reset(struct scic_sds_port *sci_port, u32 
 	if (status != SCI_SUCCESS)
 		return status;
 
-	isci_timer_start(sci_port->timer_handle, timeout);
+	sci_mod_timer(&sci_port->timer, timeout);
 	sci_port->not_ready_reason = SCIC_PORT_NOT_READY_HARD_RESET_REQUESTED;
 
 	port_state_machine_change(sci_port,
@@ -1757,14 +1753,14 @@ static void scic_sds_port_resetting_state_exit(struct sci_base_state_machine *sm
 {
 	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), state_machine);
 
-	isci_timer_stop(sci_port->timer_handle);
+	sci_del_timer(&sci_port->timer);
 }
 
 static void scic_sds_port_stopping_state_exit(struct sci_base_state_machine *sm)
 {
 	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), state_machine);
 
-	isci_timer_stop(sci_port->timer_handle);
+	sci_del_timer(&sci_port->timer);
 
 	scic_sds_port_destroy_dummy_resources(sci_port);
 }
@@ -1831,7 +1827,8 @@ void scic_sds_port_construct(struct scic_sds_port *sci_port, u8 index,
 	sci_port->reserved_rni = SCU_DUMMY_INDEX;
 	sci_port->reserved_tci = SCU_DUMMY_INDEX;
 
-	sci_port->timer_handle = NULL;
+	sci_init_timer(&sci_port->timer, port_timeout);
+
 	sci_port->port_task_scheduler_registers = NULL;
 
 	for (index = 0; index < SCI_MAX_PHYS; index++)

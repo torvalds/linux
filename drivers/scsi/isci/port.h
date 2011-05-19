@@ -139,10 +139,8 @@ struct scic_sds_port {
 	 */
 	struct scic_sds_controller *owning_controller;
 
-	/**
-	 * This field contains the port start/stop timer handle.
-	 */
-	void *timer_handle;
+	/* timer used for port start/stop operations */
+	struct sci_timer	timer;
 
 	/**
 	 * This field is the pointer to the port task scheduler registers

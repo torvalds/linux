@@ -1359,6 +1359,13 @@ void isci_host_deinit(struct isci_host *ihost)
 
 	wait_for_stop(ihost);
 	scic_controller_reset(&ihost->sci);
+
+	/* Cancel any/all outstanding port timers */
+	for (i = 0; i < ihost->sci.logical_port_entries; i++) {
+		struct scic_sds_port *sci_port = &ihost->ports[i].sci;
+		del_timer_sync(&sci_port->timer.timer);
+	}
+
 	isci_timer_list_destroy(ihost);
 }
 

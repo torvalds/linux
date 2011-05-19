@@ -551,4 +551,37 @@ extern unsigned char max_concurr_spinup;
 irqreturn_t isci_msix_isr(int vec, void *data);
 irqreturn_t isci_intx_isr(int vec, void *data);
 irqreturn_t isci_error_isr(int vec, void *data);
+
+/*
+ * Each timer is associated with a cancellation flag that is set when
+ * del_timer() is called and checked in the timer callback function. This
+ * is needed since del_timer_sync() cannot be called with scic_lock held.
+ * For deinit however, del_timer_sync() is used without holding the lock.
+ */
+struct sci_timer {
+	struct timer_list	timer;
+	bool			cancel;
+};
+
+static inline
+void sci_init_timer(struct sci_timer *tmr, void (*fn)(unsigned long))
+{
+	tmr->timer.function = fn;
+	tmr->timer.data = (unsigned long) tmr;
+	tmr->cancel = 0;
+	init_timer(&tmr->timer);
+}
+
+static inline void sci_mod_timer(struct sci_timer *tmr, unsigned long msec)
+{
+	tmr->cancel = 0;
+	mod_timer(&tmr->timer, jiffies + msecs_to_jiffies(msec));
+}
+
+static inline void sci_del_timer(struct sci_timer *tmr)
+{
+	tmr->cancel = 1;
+	del_timer(&tmr->timer);
+}
+
 #endif  /* __ISCI_H__ */
