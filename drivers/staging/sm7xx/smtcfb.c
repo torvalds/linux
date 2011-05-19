@@ -783,7 +783,7 @@ static int smtc_map_smem(struct smtcfb_info *sfb,
 	sfb->fb.screen_base = smtc_VRAMBaseAddress;
 
 	if (!sfb->fb.screen_base) {
-		printk(KERN_INFO "%s: unable to map screen memory\n",
+		printk(KERN_ERR "%s: unable to map screen memory\n",
 				sfb->fb.fix.id);
 		return -ENOMEM;
 	}
@@ -938,7 +938,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		}
 #endif
 		if (!smtc_RegBaseAddress) {
-			printk(KERN_INFO
+			printk(KERN_ERR
 				"%s: unable to map memory mapped IO\n",
 				sfb->fb.fix.id);
 			err = -ENOMEM;
@@ -973,7 +973,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		smtc_seqw(0x6b, 0x02);
 		break;
 	default:
-		printk(KERN_INFO
+		printk(KERN_ERR
 		"No valid Silicon Motion display chip was detected!\n");
 
 		goto failed_fb;
@@ -1006,7 +1006,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 failed:
-	printk(KERN_INFO "Silicon Motion, Inc.  primary display init fail\n");
+	printk(KERN_ERR "Silicon Motion, Inc.  primary display init fail\n");
 
 	smtc_unmap_smem(sfb);
 	smtc_unmap_mmio(sfb);
