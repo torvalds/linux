@@ -1115,7 +1115,7 @@ static enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 
 	scic_sds_controller_start_next_phy(scic);
 
-	isci_timer_start(scic->timeout_timer, timeout);
+	sci_mod_timer(&scic->timer, timeout);
 
 	sci_base_state_machine_change_state(&scic->state_machine,
 					    SCI_BASE_CONTROLLER_STATE_STARTING);
@@ -1296,7 +1296,7 @@ static enum sci_status scic_controller_stop(struct scic_sds_controller *scic,
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	isci_timer_start(scic->timeout_timer, timeout);
+	sci_mod_timer(&scic->timer, timeout);
 	sci_base_state_machine_change_state(&scic->state_machine,
 					    SCI_BASE_CONTROLLER_STATE_STOPPING);
 	return SCI_SUCCESS;
@@ -1376,6 +1376,8 @@ void isci_host_deinit(struct isci_host *ihost)
 
 	del_timer_sync(&ihost->sci.power_control.timer.timer);
 
+	del_timer_sync(&ihost->sci.timer.timer);
+
 	isci_timer_list_destroy(ihost);
 }
 
@@ -1433,7 +1435,7 @@ static inline void scic_sds_controller_starting_state_exit(struct sci_base_state
 {
 	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
 
-	isci_timer_stop(scic->timeout_timer);
+	sci_del_timer(&scic->timer);
 }
 
 #define INTERRUPT_COALESCE_TIMEOUT_BASE_RANGE_LOWER_BOUND_NS 853
@@ -1669,7 +1671,7 @@ static void scic_sds_controller_stopping_state_exit(struct sci_base_state_machin
 {
 	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
 
-	isci_timer_stop(scic->timeout_timer);
+	sci_del_timer(&scic->timer);
 }
 
 
@@ -1776,7 +1778,33 @@ static void scic_sds_controller_set_default_config_parameters(struct scic_sds_co
 	scic->user_parameters.sds1.no_outbound_task_timeout = 20;
 }
 
+static void controller_timeout(unsigned long data)
+{
+	struct sci_timer *tmr = (struct sci_timer *)data;
+	struct scic_sds_controller *scic = container_of(tmr, typeof(*scic), timer);
+	struct isci_host *ihost = scic_to_ihost(scic);
+	struct sci_base_state_machine *sm = &scic->state_machine;
+	unsigned long flags;
 
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+
+	if (tmr->cancel)
+		goto done;
+
+	if (sm->current_state_id == SCI_BASE_CONTROLLER_STATE_STARTING)
+		scic_sds_controller_transition_to_ready(scic, SCI_FAILURE_TIMEOUT);
+	else if (sm->current_state_id == SCI_BASE_CONTROLLER_STATE_STOPPING) {
+		sci_base_state_machine_change_state(sm, SCI_BASE_CONTROLLER_STATE_FAILED);
+		isci_host_stop_complete(ihost, SCI_FAILURE_TIMEOUT);
+	} else	/* / @todo Now what do we want to do in this case? */
+		dev_err(scic_to_dev(scic),
+			"%s: Controller timer fired when controller was not "
+			"in a state being timed.\n",
+			__func__);
+
+done:
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
+}
 
 /**
  * scic_controller_construct() - This method will attempt to construct a
@@ -1825,6 +1853,8 @@ static enum sci_status scic_controller_construct(struct scic_sds_controller *sci
 	}
 
 	scic->invalid_phy_mask = 0;
+
+	sci_init_timer(&scic->timer, controller_timeout);
 
 	/* Set the default maximum values */
 	scic->completion_event_entries      = SCU_EVENT_COUNT;
@@ -1899,24 +1929,6 @@ void scic_oem_parameters_get(
 	union scic_oem_parameters *scic_parms)
 {
 	memcpy(scic_parms, (&scic->oem_parameters), sizeof(*scic_parms));
-}
-
-static void scic_sds_controller_timeout_handler(void *_scic)
-{
-	struct scic_sds_controller *scic = _scic;
-	struct isci_host *ihost = scic_to_ihost(scic);
-	struct sci_base_state_machine *sm = &scic->state_machine;
-
-	if (sm->current_state_id == SCI_BASE_CONTROLLER_STATE_STARTING)
-		scic_sds_controller_transition_to_ready(scic, SCI_FAILURE_TIMEOUT);
-	else if (sm->current_state_id == SCI_BASE_CONTROLLER_STATE_STOPPING) {
-		sci_base_state_machine_change_state(sm, SCI_BASE_CONTROLLER_STATE_FAILED);
-		isci_host_stop_complete(ihost, SCI_FAILURE_TIMEOUT);
-	} else	/* / @todo Now what do we want to do in this case? */
-		dev_err(scic_to_dev(scic),
-			"%s: Controller timer fired when controller was not "
-			"in a state being timed.\n",
-			__func__);
 }
 
 static enum sci_status scic_sds_controller_initialize_phy_startup(struct scic_sds_controller *scic)
@@ -2245,9 +2257,6 @@ static enum sci_status scic_controller_initialize(struct scic_sds_controller *sc
 	}
 
 	sci_base_state_machine_change_state(sm, SCI_BASE_CONTROLLER_STATE_INITIALIZING);
-
-	scic->timeout_timer = isci_timer_create(ihost, scic,
-						scic_sds_controller_timeout_handler);
 
 	scic_sds_controller_initialize_phy_startup(scic);
 

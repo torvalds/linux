@@ -137,10 +137,9 @@ struct scic_sds_controller {
 	struct sci_base_state_machine state_machine;
 
 	/**
-	 * This field is the driver timer object handler used to time the controller
-	 * object start and stop requests.
+	 * Timer for controller start/stop operations.
 	 */
-	void *timeout_timer;
+	struct sci_timer timer;
 
 	/**
 	 * This field contains the user parameters to be utilized for this
