@@ -54,26 +54,18 @@ static int apicid_phys_pkg_id(int initial_apic_id, int index_msb)
  */
 void __init default_setup_apic_routing(void)
 {
+	int i;
 
 	enable_IR_x2apic();
 
-#ifdef CONFIG_X86_X2APIC
-	if (x2apic_mode
-#ifdef CONFIG_X86_UV
-		       && apic != &apic_x2apic_uv_x
-#endif
-		       ) {
-		if (x2apic_phys)
-			apic = &apic_x2apic_phys;
-		else
-			apic = &apic_x2apic_cluster;
+	for (i = 0; apic_probe[i]; ++i) {
+		if (apic_probe[i]->probe()) {
+			apic = apic_probe[i];
+			break;
+		}
 	}
-#endif
 
-	if (apic == &apic_flat && num_possible_cpus() > 8)
-			apic = &apic_physflat;
-
-	printk(KERN_INFO "Setting APIC routing to %s\n", apic->name);
+	printk(KERN_INFO "APIC routing finalized to %s.\n", apic->name);
 
 	if (is_vsmp_box()) {
 		/* need to update phys_pkg_id */

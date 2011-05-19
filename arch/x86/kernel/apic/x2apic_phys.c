@@ -173,10 +173,18 @@ static void init_x2apic_ldr(void)
 {
 }
 
+static int x2apic_phys_probe(void)
+{
+	if (x2apic_mode && x2apic_phys)
+		return 1;
+
+	return apic == &apic_x2apic_phys;
+}
+
 struct apic apic_x2apic_phys = {
 
 	.name				= "physical x2apic",
-	.probe				= NULL,
+	.probe				= x2apic_phys_probe,
 	.acpi_madt_oem_check		= x2apic_acpi_madt_oem_check,
 	.apic_id_registered		= x2apic_apic_id_registered,
 

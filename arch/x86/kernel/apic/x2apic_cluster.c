@@ -184,10 +184,15 @@ static void init_x2apic_ldr(void)
 	per_cpu(x86_cpu_to_logical_apicid, cpu) = apic_read(APIC_LDR);
 }
 
+static int x2apic_cluster_probe(void)
+{
+	return x2apic_mode;
+}
+
 struct apic apic_x2apic_cluster = {
 
 	.name				= "cluster x2apic",
-	.probe				= NULL,
+	.probe				= x2apic_cluster_probe,
 	.acpi_madt_oem_check		= x2apic_acpi_madt_oem_check,
 	.apic_id_registered		= x2apic_apic_id_registered,
 
