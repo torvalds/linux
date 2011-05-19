@@ -289,19 +289,19 @@ static int snmp6_alloc_dev(struct inet6_dev *idev)
 			  sizeof(struct ipstats_mib),
 			  __alignof__(struct ipstats_mib)) < 0)
 		goto err_ip;
-	if (snmp_mib_init((void __percpu **)idev->stats.icmpv6,
-			  sizeof(struct icmpv6_mib),
-			  __alignof__(struct icmpv6_mib)) < 0)
+	idev->stats.icmpv6dev = kzalloc(sizeof(struct icmpv6_mib_device),
+					GFP_KERNEL);
+	if (!idev->stats.icmpv6dev)
 		goto err_icmp;
-	if (snmp_mib_init((void __percpu **)idev->stats.icmpv6msg,
-			  sizeof(struct icmpv6msg_mib),
-			  __alignof__(struct icmpv6msg_mib)) < 0)
+	idev->stats.icmpv6msgdev = kzalloc(sizeof(struct icmpv6msg_mib_device),
+					   GFP_KERNEL);
+	if (!idev->stats.icmpv6msgdev)
 		goto err_icmpmsg;
 
 	return 0;
 
 err_icmpmsg:
-	snmp_mib_free((void __percpu **)idev->stats.icmpv6);
+	kfree(idev->stats.icmpv6dev);
 err_icmp:
 	snmp_mib_free((void __percpu **)idev->stats.ipv6);
 err_ip:
@@ -310,8 +310,8 @@ err_ip:
 
 static void snmp6_free_dev(struct inet6_dev *idev)
 {
-	snmp_mib_free((void __percpu **)idev->stats.icmpv6msg);
-	snmp_mib_free((void __percpu **)idev->stats.icmpv6);
+	kfree(idev->stats.icmpv6msgdev);
+	kfree(idev->stats.icmpv6dev);
 	snmp_mib_free((void __percpu **)idev->stats.ipv6);
 }
 
@@ -3838,7 +3838,7 @@ static inline size_t inet6_if_nlmsg_size(void)
 	       + nla_total_size(inet6_ifla6_size()); /* IFLA_PROTINFO */
 }
 
-static inline void __snmp6_fill_stats(u64 *stats, void __percpu **mib,
+static inline void __snmp6_fill_statsdev(u64 *stats, atomic_long_t *mib,
 				      int items, int bytes)
 {
 	int i;
@@ -3848,7 +3848,7 @@ static inline void __snmp6_fill_stats(u64 *stats, void __percpu **mib,
 	/* Use put_unaligned() because stats may not be aligned for u64. */
 	put_unaligned(items, &stats[0]);
 	for (i = 1; i < items; i++)
-		put_unaligned(snmp_fold_field(mib, i), &stats[i]);
+		put_unaligned(atomic_long_read(&mib[i]), &stats[i]);
 
 	memset(&stats[items], 0, pad);
 }
@@ -3877,7 +3877,7 @@ static void snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype,
 				     IPSTATS_MIB_MAX, bytes, offsetof(struct ipstats_mib, syncp));
 		break;
 	case IFLA_INET6_ICMP6STATS:
-		__snmp6_fill_stats(stats, (void __percpu **)idev->stats.icmpv6, ICMP6_MIB_MAX, bytes);
+		__snmp6_fill_statsdev(stats, idev->stats.icmpv6dev->mibs, ICMP6_MIB_MAX, bytes);
 		break;
 	}
 }
