@@ -67,7 +67,7 @@ static bool ath9k_has_pending_frames(struct ath_softc *sc, struct ath_txq *txq)
 	return pending;
 }
 
-bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode)
+static bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode)
 {
 	unsigned long flags;
 	bool ret;

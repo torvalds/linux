@@ -673,7 +673,6 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 
 void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw);
 void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw);
-bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode);
 bool ath9k_uses_beacons(int type);
 
 #ifdef CONFIG_ATH9K_PCI
