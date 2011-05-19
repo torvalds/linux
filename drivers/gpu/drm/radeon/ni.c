@@ -829,7 +829,7 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	rdev->config.cayman.tile_config |=
 		((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
 	rdev->config.cayman.tile_config |=
-		(gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT;
+		((gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT) << 8;
 	rdev->config.cayman.tile_config |=
 		((gb_addr_config & ROW_SIZE_MASK) >> ROW_SIZE_SHIFT) << 12;
 
