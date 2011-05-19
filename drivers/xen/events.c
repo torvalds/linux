@@ -119,6 +119,8 @@ static DEFINE_PER_CPU(unsigned long [NR_EVENT_CHANNELS/BITS_PER_LONG],
 static struct irq_chip xen_dynamic_chip;
 static struct irq_chip xen_percpu_chip;
 static struct irq_chip xen_pirq_chip;
+static void enable_dynirq(struct irq_data *data);
+static void disable_dynirq(struct irq_data *data);
 
 /* Get info for IRQ */
 static struct irq_info *info_for_irq(unsigned irq)
@@ -476,16 +478,6 @@ static void xen_free_irq(unsigned irq)
 	irq_free_desc(irq);
 }
 
-static void pirq_unmask_notify(int irq)
-{
-	struct physdev_eoi eoi = { .irq = pirq_from_irq(irq) };
-
-	if (unlikely(pirq_needs_eoi(irq))) {
-		int rc = HYPERVISOR_physdev_op(PHYSDEVOP_eoi, &eoi);
-		WARN_ON(rc);
-	}
-}
-
 static void pirq_query_unmask(int irq)
 {
 	struct physdev_irq_status_query irq_status;
@@ -507,6 +499,29 @@ static bool probing_irq(int irq)
 	struct irq_desc *desc = irq_to_desc(irq);
 
 	return desc && desc->action == NULL;
+}
+
+static void eoi_pirq(struct irq_data *data)
+{
+	int evtchn = evtchn_from_irq(data->irq);
+	struct physdev_eoi eoi = { .irq = pirq_from_irq(data->irq) };
+	int rc = 0;
+
+	irq_move_irq(data);
+
+	if (VALID_EVTCHN(evtchn))
+		clear_evtchn(evtchn);
+
+	if (pirq_needs_eoi(data->irq)) {
+		rc = HYPERVISOR_physdev_op(PHYSDEVOP_eoi, &eoi);
+		WARN_ON(rc);
+	}
+}
+
+static void mask_ack_pirq(struct irq_data *data)
+{
+	disable_dynirq(data);
+	eoi_pirq(data);
 }
 
 static unsigned int __startup_pirq(unsigned int irq)
@@ -542,7 +557,7 @@ static unsigned int __startup_pirq(unsigned int irq)
 
 out:
 	unmask_evtchn(evtchn);
-	pirq_unmask_notify(irq);
+	eoi_pirq(irq_get_irq_data(irq));
 
 	return 0;
 }
@@ -582,18 +597,7 @@ static void enable_pirq(struct irq_data *data)
 
 static void disable_pirq(struct irq_data *data)
 {
-}
-
-static void ack_pirq(struct irq_data *data)
-{
-	int evtchn = evtchn_from_irq(data->irq);
-
-	irq_move_irq(data);
-
-	if (VALID_EVTCHN(evtchn)) {
-		mask_evtchn(evtchn);
-		clear_evtchn(evtchn);
-	}
+	disable_dynirq(data);
 }
 
 static int find_irq_by_gsi(unsigned gsi)
@@ -642,9 +646,6 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 	if (irq < 0)
 		goto out;
 
-	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_level_irq,
-				      name);
-
 	irq_op.irq = irq;
 	irq_op.vector = 0;
 
@@ -660,6 +661,32 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 
 	xen_irq_info_pirq_init(irq, 0, pirq, gsi, irq_op.vector, DOMID_SELF,
 			       shareable ? PIRQ_SHAREABLE : 0);
+
+	pirq_query_unmask(irq);
+	/* We try to use the handler with the appropriate semantic for the
+	 * type of interrupt: if the interrupt doesn't need an eoi
+	 * (pirq_needs_eoi returns false), we treat it like an edge
+	 * triggered interrupt so we use handle_edge_irq.
+	 * As a matter of fact this only happens when the corresponding
+	 * physical interrupt is edge triggered or an msi.
+	 *
+	 * On the other hand if the interrupt needs an eoi (pirq_needs_eoi
+	 * returns true) we treat it like a level triggered interrupt so we
+	 * use handle_fasteoi_irq like the native code does for this kind of
+	 * interrupts.
+	 * Depending on the Xen version, pirq_needs_eoi might return true
+	 * not only for level triggered interrupts but for edge triggered
+	 * interrupts too. In any case Xen always honors the eoi mechanism,
+	 * not injecting any more pirqs of the same kind if the first one
+	 * hasn't received an eoi yet. Therefore using the fasteoi handler
+	 * is the right choice either way.
+	 */
+	if (pirq_needs_eoi(irq))
+		irq_set_chip_and_handler_name(irq, &xen_pirq_chip,
+				handle_fasteoi_irq, name);
+	else
+		irq_set_chip_and_handler_name(irq, &xen_pirq_chip,
+				handle_edge_irq, name);
 
 out:
 	spin_unlock(&irq_mapping_update_lock);
@@ -694,8 +721,8 @@ int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	if (irq == -1)
 		goto out;
 
-	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_level_irq,
-				      name);
+	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_edge_irq,
+			name);
 
 	xen_irq_info_pirq_init(irq, 0, pirq, 0, vector, domid, 0);
 	ret = irq_set_msi_desc(irq, msidesc);
@@ -790,7 +817,7 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 			goto out;
 
 		irq_set_chip_and_handler_name(irq, &xen_dynamic_chip,
-					      handle_fasteoi_irq, "event");
+					      handle_edge_irq, "event");
 
 		xen_irq_info_evtchn_init(irq, evtchn);
 	}
@@ -1196,9 +1223,6 @@ static void __xen_evtchn_do_upcall(void)
 				port = (word_idx * BITS_PER_LONG) + bit_idx;
 				irq = evtchn_to_irq[port];
 
-				mask_evtchn(port);
-				clear_evtchn(port);
-
 				if (irq != -1) {
 					desc = irq_to_desc(irq);
 					if (desc)
@@ -1354,10 +1378,16 @@ static void ack_dynirq(struct irq_data *data)
 {
 	int evtchn = evtchn_from_irq(data->irq);
 
-	irq_move_masked_irq(data);
+	irq_move_irq(data);
 
 	if (VALID_EVTCHN(evtchn))
-		unmask_evtchn(evtchn);
+		clear_evtchn(evtchn);
+}
+
+static void mask_ack_dynirq(struct irq_data *data)
+{
+	disable_dynirq(data);
+	ack_dynirq(data);
 }
 
 static int retrigger_dynirq(struct irq_data *data)
@@ -1564,7 +1594,9 @@ static struct irq_chip xen_dynamic_chip __read_mostly = {
 	.irq_mask		= disable_dynirq,
 	.irq_unmask		= enable_dynirq,
 
-	.irq_eoi		= ack_dynirq,
+	.irq_ack		= ack_dynirq,
+	.irq_mask_ack		= mask_ack_dynirq,
+
 	.irq_set_affinity	= set_affinity_irq,
 	.irq_retrigger		= retrigger_dynirq,
 };
@@ -1574,14 +1606,15 @@ static struct irq_chip xen_pirq_chip __read_mostly = {
 
 	.irq_startup		= startup_pirq,
 	.irq_shutdown		= shutdown_pirq,
-
 	.irq_enable		= enable_pirq,
-	.irq_unmask		= enable_pirq,
-
 	.irq_disable		= disable_pirq,
-	.irq_mask		= disable_pirq,
 
-	.irq_ack		= ack_pirq,
+	.irq_mask		= disable_dynirq,
+	.irq_unmask		= enable_dynirq,
+
+	.irq_ack		= eoi_pirq,
+	.irq_eoi		= eoi_pirq,
+	.irq_mask_ack		= mask_ack_pirq,
 
 	.irq_set_affinity	= set_affinity_irq,
 
