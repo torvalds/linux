@@ -46,6 +46,17 @@ struct b43_bus_dev {
 	u8 core_rev;
 };
 
+static inline bool b43_bus_host_is_pcmcia(struct b43_bus_dev *dev)
+{
+	return (dev->bus_type == B43_BUS_SSB &&
+		dev->sdev->bus->bustype == SSB_BUSTYPE_PCMCIA);
+}
+static inline bool b43_bus_host_is_sdio(struct b43_bus_dev *dev)
+{
+	return (dev->bus_type == B43_BUS_SSB &&
+		dev->sdev->bus->bustype == SSB_BUSTYPE_SDIO);
+}
+
 struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev);
 
 #endif /* B43_BUS_H_ */
