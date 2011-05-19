@@ -5,6 +5,7 @@
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/dmar.h>
+#include <linux/cpu.h>
 
 #include <asm/smp.h>
 #include <asm/apic.h>
@@ -12,6 +13,7 @@
 
 static DEFINE_PER_CPU(u32, x86_cpu_to_logical_apicid);
 static DEFINE_PER_CPU(cpumask_var_t, cpus_in_cluster);
+static DEFINE_PER_CPU(cpumask_var_t, ipi_mask);
 
 static int x2apic_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
@@ -54,30 +56,52 @@ static inline u32 x2apic_cluster(int cpu)
 	return per_cpu(x86_cpu_to_logical_apicid, cpu) >> 16;
 }
 
-/*
- * for now, we send the IPI's one by one in the cpumask.
- * TBD: Based on the cpu mask, we can send the IPI's to the cluster group
- * at once. We have 16 cpu's in a cluster. This will minimize IPI register
- * writes.
- */
 static void
 __x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
 {
-	unsigned long query_cpu;
-	unsigned long this_cpu;
+	struct cpumask *cpus_in_cluster_ptr;
+	struct cpumask *ipi_mask_ptr;
+	unsigned int cpu, this_cpu;
 	unsigned long flags;
+	u32 dest;
 
 	x2apic_wrmsr_fence();
 
 	local_irq_save(flags);
 
 	this_cpu = smp_processor_id();
-	for_each_cpu(query_cpu, mask) {
-		if (apic_dest == APIC_DEST_ALLBUT && query_cpu == this_cpu)
+
+	/*
+	 * We are to modify mask, so we need an own copy
+	 * and be sure it's manipulated with irq off.
+	 */
+	ipi_mask_ptr = __raw_get_cpu_var(ipi_mask);
+	cpumask_copy(ipi_mask_ptr, mask);
+
+	/*
+	 * The idea is to send one IPI per cluster.
+	 */
+	for_each_cpu(cpu, ipi_mask_ptr) {
+		unsigned long i;
+
+		cpus_in_cluster_ptr = per_cpu(cpus_in_cluster, cpu);
+		dest = 0;
+
+		/* Collect cpus in cluster. */
+		for_each_cpu_and(i, ipi_mask_ptr, cpus_in_cluster_ptr) {
+			if (apic_dest == APIC_DEST_ALLINC || i != this_cpu)
+				dest |= per_cpu(x86_cpu_to_logical_apicid, i);
+		}
+
+		if (!dest)
 			continue;
-		__x2apic_send_IPI_dest(
-			per_cpu(x86_cpu_to_logical_apicid, query_cpu),
-			vector, apic->dest_logical);
+
+		__x2apic_send_IPI_dest(dest, vector, apic->dest_logical);
+		/*
+		 * Cluster sibling cpus should be discared now so
+		 * we would not send IPI them second time.
+		 */
+		cpumask_andnot(ipi_mask_ptr, ipi_mask_ptr, cpus_in_cluster_ptr);
 	}
 
 	local_irq_restore(flags);
@@ -198,6 +222,10 @@ update_clusterinfo(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		if (!zalloc_cpumask_var(&per_cpu(cpus_in_cluster, this_cpu),
 					GFP_KERNEL)) {
 			err = -ENOMEM;
+		} else if (!zalloc_cpumask_var(&per_cpu(ipi_mask, this_cpu),
+					       GFP_KERNEL)) {
+			free_cpumask_var(per_cpu(cpus_in_cluster, this_cpu));
+			err = -ENOMEM;
 		}
 		break;
 	case CPU_UP_CANCELED:
@@ -210,6 +238,7 @@ update_clusterinfo(struct notifier_block *nfb, unsigned long action, void *hcpu)
 			__cpu_clear(cpu, per_cpu(cpus_in_cluster, this_cpu));
 		}
 		free_cpumask_var(per_cpu(cpus_in_cluster, this_cpu));
+		free_cpumask_var(per_cpu(ipi_mask, this_cpu));
 		break;
 	}
 
@@ -225,8 +254,9 @@ static int x2apic_init_cpu_notifier(void)
 	int cpu = smp_processor_id();
 
 	zalloc_cpumask_var(&per_cpu(cpus_in_cluster, cpu), GFP_KERNEL);
+	zalloc_cpumask_var(&per_cpu(ipi_mask, cpu), GFP_KERNEL);
 
-	BUG_ON(!per_cpu(cpus_in_cluster, cpu));
+	BUG_ON(!per_cpu(cpus_in_cluster, cpu) || !per_cpu(ipi_mask, cpu));
 
 	__cpu_set(cpu, per_cpu(cpus_in_cluster, cpu));
 	register_hotcpu_notifier(&x2apic_cpu_notifier);
