@@ -34,7 +34,9 @@ struct isp1760_hcd {
 	u32 hcs_params;
 	spinlock_t		lock;
 	struct slotinfo		atl_slots[32];
+	int			atl_done_map;
 	struct slotinfo		int_slots[32];
+	int			int_done_map;
 	struct memory_chunk memory_pool[BLOCKS];
 	struct list_head	controlqhs, bulkqhs, interruptqhs;
 	int active_ptds;
@@ -519,9 +521,9 @@ static void isp1760_init_maps(struct usb_hcd *hcd)
 	reg_write32(hcd->regs, HC_INT_PTD_LASTPTD_REG, 0x80000000);
 	reg_write32(hcd->regs, HC_ISO_PTD_LASTPTD_REG, 0x00000001);
 
-	reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, 0);
-	reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, 0);
-	reg_write32(hcd->regs, HC_ISO_PTD_SKIPMAP_REG, 0);
+	reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, 0xffffffff);
+	reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, 0xffffffff);
+	reg_write32(hcd->regs, HC_ISO_PTD_SKIPMAP_REG, 0xffffffff);
 
 	reg_write32(hcd->regs, HC_BUFFER_STATUS_REG,
 						ATL_BUF_FILL | INT_BUF_FILL);
@@ -803,6 +805,8 @@ static void start_bus_transfer(struct usb_hcd *hcd, u32 ptd_offset, int slot,
 				struct isp1760_qh *qh, struct ptd *ptd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
+	int skip_map;
+
 	WARN_ON((slot < 0) || (slot > 31));
 	WARN_ON(qtd->length && !qtd->payload_addr);
 	WARN_ON(slots[slot].qtd);
@@ -816,6 +820,25 @@ static void start_bus_transfer(struct usb_hcd *hcd, u32 ptd_offset, int slot,
 		interrupt routine may preempt and expects this value. */
 	ptd_write(hcd->regs, ptd_offset, slot, ptd);
 	priv->active_ptds++;
+
+	/* Make sure done map has not triggered from some unlinked transfer */
+	if (ptd_offset == ATL_PTD_OFFSET) {
+		priv->atl_done_map |= reg_read32(hcd->regs,
+						HC_ATL_PTD_DONEMAP_REG);
+		priv->atl_done_map &= ~(1 << qh->slot);
+
+		skip_map = reg_read32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG);
+		skip_map &= ~(1 << qh->slot);
+		reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, skip_map);
+	} else {
+		priv->int_done_map |= reg_read32(hcd->regs,
+						HC_INT_PTD_DONEMAP_REG);
+		priv->int_done_map &= ~(1 << qh->slot);
+
+		skip_map = reg_read32(hcd->regs, HC_INT_PTD_SKIPMAP_REG);
+		skip_map &= ~(1 << qh->slot);
+		reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, skip_map);
+	}
 }
 
 static int is_short_bulk(struct isp1760_qtd *qtd)
@@ -1152,7 +1175,6 @@ static irqreturn_t isp1760_irq(struct usb_hcd *hcd)
 	irqreturn_t irqret = IRQ_NONE;
 	struct ptd ptd;
 	struct isp1760_qh *qh;
-	int int_done_map, atl_done_map;
 	int slot;
 	int state;
 	struct slotinfo *slots;
@@ -1160,6 +1182,7 @@ static irqreturn_t isp1760_irq(struct usb_hcd *hcd)
 	struct isp1760_qtd *qtd;
 	int modified;
 	static int last_active_ptds;
+	int int_skip_map, atl_skip_map;
 
 	spin_lock(&priv->lock);
 
@@ -1171,29 +1194,42 @@ static irqreturn_t isp1760_irq(struct usb_hcd *hcd)
 		goto leave;
 	reg_write32(hcd->regs, HC_INTERRUPT_REG, imask); /* Clear */
 
-	int_done_map = reg_read32(hcd->regs, HC_INT_PTD_DONEMAP_REG);
-	atl_done_map = reg_read32(hcd->regs, HC_ATL_PTD_DONEMAP_REG);
-	modified = int_done_map | atl_done_map;
+	int_skip_map = reg_read32(hcd->regs, HC_INT_PTD_SKIPMAP_REG);
+	atl_skip_map = reg_read32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG);
+	priv->int_done_map |= reg_read32(hcd->regs, HC_INT_PTD_DONEMAP_REG);
+	priv->atl_done_map |= reg_read32(hcd->regs, HC_ATL_PTD_DONEMAP_REG);
+	priv->int_done_map &= ~int_skip_map;
+	priv->atl_done_map &= ~atl_skip_map;
 
-	while (int_done_map || atl_done_map) {
-		if (int_done_map) {
+	modified = priv->int_done_map | priv->atl_done_map;
+
+	while (priv->int_done_map || priv->atl_done_map) {
+		if (priv->int_done_map) {
 			/* INT ptd */
-			slot = __ffs(int_done_map);
-			int_done_map &= ~(1 << slot);
+			slot = __ffs(priv->int_done_map);
+			priv->int_done_map &= ~(1 << slot);
 			slots = priv->int_slots;
-			if (!slots[slot].qh)
+			/* This should not trigger, and could be removed if
+			   noone have any problems with it triggering: */
+			if (!slots[slot].qh) {
+				WARN_ON(1);
 				continue;
+			}
 			ptd_offset = INT_PTD_OFFSET;
 			ptd_read(hcd->regs, INT_PTD_OFFSET, slot, &ptd);
 			state = check_int_transfer(hcd, &ptd,
 							slots[slot].qtd->urb);
 		} else {
 			/* ATL ptd */
-			slot = __ffs(atl_done_map);
-			atl_done_map &= ~(1 << slot);
+			slot = __ffs(priv->atl_done_map);
+			priv->atl_done_map &= ~(1 << slot);
 			slots = priv->atl_slots;
-			if (!slots[slot].qh)
+			/* This should not trigger, and could be removed if
+			   noone have any problems with it triggering: */
+			if (!slots[slot].qh) {
+				WARN_ON(1);
 				continue;
+			}
 			ptd_offset = ATL_PTD_OFFSET;
 			ptd_read(hcd->regs, ATL_PTD_OFFSET, slot, &ptd);
 			state = check_atl_transfer(hcd, &ptd,
@@ -1509,14 +1545,41 @@ out:
 	return retval;
 }
 
+static void kill_transfer(struct usb_hcd *hcd, struct urb *urb,
+		struct isp1760_qh *qh)
+{
+	struct isp1760_hcd *priv = hcd_to_priv(hcd);
+	int skip_map;
+
+	WARN_ON(qh->slot == -1);
+
+	/* We need to forcefully reclaim the slot since some transfers never
+	   return, e.g. interrupt transfers and NAKed bulk transfers. */
+	if (usb_pipebulk(urb->pipe)) {
+		skip_map = reg_read32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG);
+		skip_map |= (1 << qh->slot);
+		reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, skip_map);
+		priv->atl_slots[qh->slot].qh = NULL;
+		priv->atl_slots[qh->slot].qtd = NULL;
+	} else {
+		skip_map = reg_read32(hcd->regs, HC_INT_PTD_SKIPMAP_REG);
+		skip_map |= (1 << qh->slot);
+		reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, skip_map);
+		priv->int_slots[qh->slot].qh = NULL;
+		priv->int_slots[qh->slot].qtd = NULL;
+	}
+
+	qh->slot = -1;
+	priv->active_ptds--;
+}
+
 static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 		int status)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
+	unsigned long spinflags;
 	struct isp1760_qh *qh;
 	struct isp1760_qtd *qtd;
-	struct ptd ptd;
-	unsigned long spinflags;
 	int retval = 0;
 
 	spin_lock_irqsave(&priv->lock, spinflags);
@@ -1527,34 +1590,18 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 		goto out;
 	}
 
-	/* We need to forcefully reclaim the slot since some transfers never
-	   return, e.g. interrupt transfers and NAKed bulk transfers. */
-	if (qh->slot > -1) {
-		memset(&ptd, 0, sizeof(ptd));
-		if (usb_pipebulk(urb->pipe)) {
-			priv->atl_slots[qh->slot].qh = NULL;
-			priv->atl_slots[qh->slot].qtd = NULL;
-			ptd_write(hcd->regs, ATL_PTD_OFFSET, qh->slot, &ptd);
-		} else {
-			priv->int_slots[qh->slot].qh = NULL;
-			priv->int_slots[qh->slot].qtd = NULL;
-			ptd_write(hcd->regs, INT_PTD_OFFSET, qh->slot, &ptd);
-		}
-		priv->active_ptds--;
-		qh->slot = -1;
-	}
-
-	list_for_each_entry(qtd, &qh->qtd_list, qtd_list) {
-		if (qtd->urb == urb)
+	list_for_each_entry(qtd, &qh->qtd_list, qtd_list)
+		if (qtd->urb == urb) {
+			if (qtd->status == QTD_XFER_STARTED)
+				kill_transfer(hcd, urb, qh);
 			qtd->status = QTD_RETIRE;
-	}
+		}
 
 	urb->status = status;
 	schedule_ptds(hcd);
 
 out:
 	spin_unlock_irqrestore(&priv->lock, spinflags);
-
 	return retval;
 }
 
@@ -1562,31 +1609,27 @@ static void isp1760_endpoint_disable(struct usb_hcd *hcd,
 		struct usb_host_endpoint *ep)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
+	unsigned long spinflags;
 	struct isp1760_qh *qh;
 	struct isp1760_qtd *qtd;
-	unsigned long spinflags;
-	int do_iter;
 
 	spin_lock_irqsave(&priv->lock, spinflags);
+
 	qh = ep->hcpriv;
 	if (!qh)
 		goto out;
 
-	do_iter = !list_empty(&qh->qtd_list);
-	while (do_iter) {
-		do_iter = 0;
-		list_for_each_entry(qtd, &qh->qtd_list, qtd_list) {
-			if (qtd->urb->ep == ep) {
-				spin_unlock_irqrestore(&priv->lock, spinflags);
-				isp1760_urb_dequeue(hcd, qtd->urb, -ECONNRESET);
-				spin_lock_irqsave(&priv->lock, spinflags);
-				do_iter = 1;
-				break; /* Restart iteration */
-			}
-		}
+	list_for_each_entry(qtd, &qh->qtd_list, qtd_list) {
+		if (qtd->status == QTD_XFER_STARTED)
+			kill_transfer(hcd, qtd->urb, qh);
+		qtd->status = QTD_RETIRE;
+		qtd->urb->status = -ECONNRESET;
 	}
+
 	ep->hcpriv = NULL;
 	/* Cannot free qh here since it will be parsed by schedule_ptds() */
+
+	schedule_ptds(hcd);
 
 out:
 	spin_unlock_irqrestore(&priv->lock, spinflags);
