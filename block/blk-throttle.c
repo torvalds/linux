@@ -188,16 +188,34 @@ throtl_add_group_to_td_list(struct throtl_data *td, struct throtl_grp *tg)
 	td->nr_undestroyed_grps++;
 }
 
-static void throtl_init_add_tg_lists(struct throtl_data *td,
-			struct throtl_grp *tg, struct blkio_cgroup *blkcg)
+static void
+__throtl_tg_fill_dev_details(struct throtl_data *td, struct throtl_grp *tg)
 {
 	struct backing_dev_info *bdi = &td->queue->backing_dev_info;
 	unsigned int major, minor;
 
+	if (!tg || tg->blkg.dev)
+		return;
+
+	/*
+	 * Fill in device details for a group which might not have been
+	 * filled at group creation time as queue was being instantiated
+	 * and driver had not attached a device yet
+	 */
+	if (bdi->dev && dev_name(bdi->dev)) {
+		sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
+		tg->blkg.dev = MKDEV(major, minor);
+	}
+}
+
+static void throtl_init_add_tg_lists(struct throtl_data *td,
+			struct throtl_grp *tg, struct blkio_cgroup *blkcg)
+{
+	__throtl_tg_fill_dev_details(td, tg);
+
 	/* Add group onto cgroup list */
-	sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
 	blkiocg_add_blkio_group(blkcg, &tg->blkg, (void *)td,
-				MKDEV(major, minor), BLKIO_POLICY_THROTL);
+				tg->blkg.dev, BLKIO_POLICY_THROTL);
 
 	tg->bps[READ] = blkcg_get_read_bps(blkcg, tg->blkg.dev);
 	tg->bps[WRITE] = blkcg_get_write_bps(blkcg, tg->blkg.dev);
@@ -225,8 +243,6 @@ throtl_grp *throtl_find_tg(struct throtl_data *td, struct blkio_cgroup *blkcg)
 {
 	struct throtl_grp *tg = NULL;
 	void *key = td;
-	struct backing_dev_info *bdi = &td->queue->backing_dev_info;
-	unsigned int major, minor;
 
 	/*
 	 * This is the common case when there are no blkio cgroups.
@@ -237,12 +253,7 @@ throtl_grp *throtl_find_tg(struct throtl_data *td, struct blkio_cgroup *blkcg)
 	else
 		tg = tg_of_blkg(blkiocg_lookup_group(blkcg, key));
 
-	/* Fill in device details for root group */
-	if (tg && !tg->blkg.dev && bdi->dev && dev_name(bdi->dev)) {
-		sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
-		tg->blkg.dev = MKDEV(major, minor);
-	}
-
+	__throtl_tg_fill_dev_details(td, tg);
 	return tg;
 }
 
