@@ -587,7 +587,6 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 
 	PRQLE("axq_q empty:       ", axq_q);
 	PRQLE("axq_acq empty:     ", axq_acq);
-	PRQLE("txq_fifo_pending:  ", txq_fifo_pending);
 	for (i = 0; i < ATH_TXFIFO_DEPTH; i++) {
 		snprintf(tmp, sizeof(tmp) - 1, "txq_fifo[%i] empty: ", i);
 		PRQLE(tmp, txq_fifo[i]);

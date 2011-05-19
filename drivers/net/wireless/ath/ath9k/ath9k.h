@@ -179,7 +179,7 @@ enum ATH_AGGR_STATUS {
 struct ath_txq {
 	int mac80211_qnum; /* mac80211 queue number, -1 means not mac80211 Q */
 	u32 axq_qnum; /* ath9k hardware queue number */
-	u32 *axq_link;
+	void *axq_link;
 	struct list_head axq_q;
 	spinlock_t axq_lock;
 	u32 axq_depth;
@@ -188,7 +188,6 @@ struct ath_txq {
 	bool axq_tx_inprogress;
 	struct list_head axq_acq;
 	struct list_head txq_fifo[ATH_TXFIFO_DEPTH];
-	struct list_head txq_fifo_pending;
 	u8 txq_headidx;
 	u8 txq_tailidx;
 	int pending_frames;

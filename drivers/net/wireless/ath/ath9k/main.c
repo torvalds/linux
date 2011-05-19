@@ -62,8 +62,6 @@ static bool ath9k_has_pending_frames(struct ath_softc *sc, struct ath_txq *txq)
 
 	if (txq->axq_depth || !list_empty(&txq->axq_acq))
 		pending = true;
-	else if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
-		pending = !list_empty(&txq->txq_fifo_pending);
 
 	spin_unlock_bh(&txq->axq_lock);
 	return pending;
