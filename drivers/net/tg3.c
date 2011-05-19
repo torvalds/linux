@@ -364,7 +364,6 @@ static const struct {
 	{ "dma_write_prioq_full" },
 	{ "rxbds_empty" },
 	{ "rx_discards" },
-	{ "mbuf_lwm_thresh_hit" },
 	{ "rx_errors" },
 	{ "rx_threshold_hit" },
 
@@ -376,7 +375,9 @@ static const struct {
 	{ "ring_status_update" },
 	{ "nic_irqs" },
 	{ "nic_avoided_irqs" },
-	{ "nic_tx_threshold_hit" }
+	{ "nic_tx_threshold_hit" },
+
+	{ "mbuf_lwm_thresh_hit" },
 };
 
 #define TG3_NUM_STATS	ARRAY_SIZE(ethtool_stats_keys)
@@ -9545,6 +9546,8 @@ static struct tg3_ethtool_stats *tg3_get_estats(struct tg3 *tp)
 	ESTAT_ADD(nic_irqs);
 	ESTAT_ADD(nic_avoided_irqs);
 	ESTAT_ADD(nic_tx_threshold_hit);
+
+	ESTAT_ADD(mbuf_lwm_thresh_hit);
 
 	return estats;
 }

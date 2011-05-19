@@ -2620,7 +2620,6 @@ struct tg3_hw_stats {
 	tg3_stat64_t			dma_write_prioq_full;
 	tg3_stat64_t			rxbds_empty;
 	tg3_stat64_t			rx_discards;
-	tg3_stat64_t			mbuf_lwm_thresh_hit;
 	tg3_stat64_t			rx_errors;
 	tg3_stat64_t			rx_threshold_hit;
 
@@ -2639,7 +2638,12 @@ struct tg3_hw_stats {
 	tg3_stat64_t			nic_avoided_irqs;
 	tg3_stat64_t			nic_tx_threshold_hit;
 
-	u8				__reserved4[0xb00-0x9c0];
+	/* NOT a part of the hardware statistics block format.
+	 * These stats are here as storage for tg3_periodic_fetch_stats().
+	 */
+	tg3_stat64_t			mbuf_lwm_thresh_hit;
+
+	u8				__reserved4[0xb00-0x9c8];
 };
 
 /* 'mapping' is superfluous as the chip does not write into
@@ -2771,6 +2775,8 @@ struct tg3_ethtool_stats {
 	u64		nic_irqs;
 	u64		nic_avoided_irqs;
 	u64		nic_tx_threshold_hit;
+
+	u64		mbuf_lwm_thresh_hit;
 };
 
 struct tg3_rx_prodring_set {
