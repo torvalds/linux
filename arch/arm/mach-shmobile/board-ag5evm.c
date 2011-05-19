@@ -296,11 +296,13 @@ static struct platform_device lcdc0_device = {
 /* MIPI-DSI */
 static struct resource mipidsi0_resources[] = {
 	[0] = {
+		.name	= "DSI0",
 		.start  = 0xfeab0000,
 		.end    = 0xfeab3fff,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
+		.name	= "DSI0",
 		.start  = 0xfeab4000,
 		.end    = 0xfeab7fff,
 		.flags  = IORESOURCE_MEM,
