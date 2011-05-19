@@ -147,6 +147,7 @@ static void del_nbp(struct net_bridge_port *p)
 	dev->priv_flags &= ~IFF_BRIDGE_PORT;
 
 	netdev_rx_handler_unregister(dev);
+	synchronize_net();
 
 	netdev_set_master(dev, NULL);
 
