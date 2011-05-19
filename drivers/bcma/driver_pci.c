@@ -161,3 +161,26 @@ void bcma_core_pci_init(struct bcma_drv_pci *pc)
 {
 	bcma_pcicore_serdes_workaround(pc);
 }
+
+int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc, struct bcma_device *core,
+			  bool enable)
+{
+	struct pci_dev *pdev = pc->core->bus->host_pci;
+	u32 coremask, tmp;
+	int err;
+
+	err = pci_read_config_dword(pdev, BCMA_PCI_IRQMASK, &tmp);
+	if (err)
+		goto out;
+
+	coremask = BIT(core->core_index) << 8;
+	if (enable)
+		tmp |= coremask;
+	else
+		tmp &= ~coremask;
+
+	err = pci_write_config_dword(pdev, BCMA_PCI_IRQMASK, tmp);
+
+out:
+	return err;
+}
