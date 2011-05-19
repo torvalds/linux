@@ -320,6 +320,7 @@ config HID_MULTITOUCH
           - eGalax dual-touch panels, including the
 	    Joojoo and Wetab tablets
 	  - Stantum multitouch panels
+	  - Touch International Panels
 
 	  If unsure, say N.
 

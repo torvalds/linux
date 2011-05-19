@@ -683,6 +683,11 @@ static const struct hid_device_id mt_devices[] = {
 		HID_USB_DEVICE(USB_VENDOR_ID_STANTUM,
 			USB_DEVICE_ID_MTP_SITRONIX)},
 
+	/* Touch International panels */
+	{ .driver_data = MT_CLS_DEFAULT,
+		HID_USB_DEVICE(USB_VENDOR_ID_TOUCH_INTL,
+			USB_DEVICE_ID_TOUCH_INTL_MULTI_TOUCH) },
+
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, mt_devices);
