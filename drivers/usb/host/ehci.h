@@ -628,9 +628,6 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 #if defined(CONFIG_ARM) && defined(CONFIG_ARCH_IXP4XX)
 #define readl_be(addr)		__raw_readl((__force unsigned *)addr)
 #define writel_be(val, addr)	__raw_writel(val, (__force unsigned *)addr)
-#elif defined(CONFIG_SPARC_LEON)
-#define readl_be(addr)		__raw_readl(addr)
-#define writel_be(val, addr)	__raw_writel(val, addr)
 #endif
 
 static inline unsigned int ehci_readl(const struct ehci_hcd *ehci,
