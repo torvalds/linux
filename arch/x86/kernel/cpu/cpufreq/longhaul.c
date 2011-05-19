@@ -77,9 +77,6 @@ static int scale_voltage;
 static int disable_acpi_c3;
 static int revid_errata;
 
-#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, \
-		"longhaul", msg)
-
 
 /* Clock ratios multiplied by 10 */
 static int mults[32];
@@ -87,7 +84,6 @@ static int eblcr[32];
 static int longhaul_version;
 static struct cpufreq_frequency_table *longhaul_table;
 
-#ifdef CONFIG_CPU_FREQ_DEBUG
 static char speedbuffer[8];
 
 static char *print_speed(int speed)
@@ -106,7 +102,6 @@ static char *print_speed(int speed)
 
 	return speedbuffer;
 }
-#endif
 
 
 static unsigned int calc_speed(int mult)
@@ -275,7 +270,7 @@ static void longhaul_setstate(unsigned int table_index)
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
-	dprintk("Setting to FSB:%dMHz Mult:%d.%dx (%s)\n",
+	pr_debug("Setting to FSB:%dMHz Mult:%d.%dx (%s)\n",
 			fsb, mult/10, mult%10, print_speed(speed/1000));
 retry_loop:
 	preempt_disable();
@@ -460,12 +455,12 @@ static int __cpuinit longhaul_get_ranges(void)
 		break;
 	}
 
-	dprintk("MinMult:%d.%dx MaxMult:%d.%dx\n",
+	pr_debug("MinMult:%d.%dx MaxMult:%d.%dx\n",
 		 minmult/10, minmult%10, maxmult/10, maxmult%10);
 
 	highest_speed = calc_speed(maxmult);
 	lowest_speed = calc_speed(minmult);
-	dprintk("FSB:%dMHz  Lowest speed: %s   Highest speed:%s\n", fsb,
+	pr_debug("FSB:%dMHz  Lowest speed: %s   Highest speed:%s\n", fsb,
 		 print_speed(lowest_speed/1000),
 		 print_speed(highest_speed/1000));
 

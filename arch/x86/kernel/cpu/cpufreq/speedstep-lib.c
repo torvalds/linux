@@ -18,9 +18,6 @@
 #include <asm/tsc.h>
 #include "speedstep-lib.h"
 
-#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, \
-		"speedstep-lib", msg)
-
 #define PFX "speedstep-lib: "
 
 #ifdef CONFIG_X86_SPEEDSTEP_RELAXED_CAP_CHECK
@@ -75,7 +72,7 @@ static unsigned int pentium3_get_frequency(enum speedstep_processor processor)
 
 	/* read MSR 0x2a - we only need the low 32 bits */
 	rdmsr(MSR_IA32_EBL_CR_POWERON, msr_lo, msr_tmp);
-	dprintk("P3 - MSR_IA32_EBL_CR_POWERON: 0x%x 0x%x\n", msr_lo, msr_tmp);
+	pr_debug("P3 - MSR_IA32_EBL_CR_POWERON: 0x%x 0x%x\n", msr_lo, msr_tmp);
 	msr_tmp = msr_lo;
 
 	/* decode the FSB */
@@ -89,7 +86,7 @@ static unsigned int pentium3_get_frequency(enum speedstep_processor processor)
 
 	/* decode the multiplier */
 	if (processor == SPEEDSTEP_CPU_PIII_C_EARLY) {
-		dprintk("workaround for early PIIIs\n");
+		pr_debug("workaround for early PIIIs\n");
 		msr_lo &= 0x03c00000;
 	} else
 		msr_lo &= 0x0bc00000;
@@ -100,7 +97,7 @@ static unsigned int pentium3_get_frequency(enum speedstep_processor processor)
 		j++;
 	}
 
-	dprintk("speed is %u\n",
+	pr_debug("speed is %u\n",
 		(msr_decode_mult[j].ratio * msr_decode_fsb[i].value * 100));
 
 	return msr_decode_mult[j].ratio * msr_decode_fsb[i].value * 100;
@@ -112,7 +109,7 @@ static unsigned int pentiumM_get_frequency(void)
 	u32 msr_lo, msr_tmp;
 
 	rdmsr(MSR_IA32_EBL_CR_POWERON, msr_lo, msr_tmp);
-	dprintk("PM - MSR_IA32_EBL_CR_POWERON: 0x%x 0x%x\n", msr_lo, msr_tmp);
+	pr_debug("PM - MSR_IA32_EBL_CR_POWERON: 0x%x 0x%x\n", msr_lo, msr_tmp);
 
 	/* see table B-2 of 24547212.pdf */
 	if (msr_lo & 0x00040000) {
@@ -122,7 +119,7 @@ static unsigned int pentiumM_get_frequency(void)
 	}
 
 	msr_tmp = (msr_lo >> 22) & 0x1f;
-	dprintk("bits 22-26 are 0x%x, speed is %u\n",
+	pr_debug("bits 22-26 are 0x%x, speed is %u\n",
 			msr_tmp, (msr_tmp * 100 * 1000));
 
 	return msr_tmp * 100 * 1000;
@@ -160,11 +157,11 @@ static unsigned int pentium_core_get_frequency(void)
 	}
 
 	rdmsr(MSR_IA32_EBL_CR_POWERON, msr_lo, msr_tmp);
-	dprintk("PCORE - MSR_IA32_EBL_CR_POWERON: 0x%x 0x%x\n",
+	pr_debug("PCORE - MSR_IA32_EBL_CR_POWERON: 0x%x 0x%x\n",
 			msr_lo, msr_tmp);
 
 	msr_tmp = (msr_lo >> 22) & 0x1f;
-	dprintk("bits 22-26 are 0x%x, speed is %u\n",
+	pr_debug("bits 22-26 are 0x%x, speed is %u\n",
 			msr_tmp, (msr_tmp * fsb));
 
 	ret = (msr_tmp * fsb);
@@ -190,7 +187,7 @@ static unsigned int pentium4_get_frequency(void)
 
 	rdmsr(0x2c, msr_lo, msr_hi);
 
-	dprintk("P4 - MSR_EBC_FREQUENCY_ID: 0x%x 0x%x\n", msr_lo, msr_hi);
+	pr_debug("P4 - MSR_EBC_FREQUENCY_ID: 0x%x 0x%x\n", msr_lo, msr_hi);
 
 	/* decode the FSB: see IA-32 Intel (C) Architecture Software
 	 * Developer's Manual, Volume 3: System Prgramming Guide,
@@ -217,7 +214,7 @@ static unsigned int pentium4_get_frequency(void)
 	/* Multiplier. */
 	mult = msr_lo >> 24;
 
-	dprintk("P4 - FSB %u kHz; Multiplier %u; Speed %u kHz\n",
+	pr_debug("P4 - FSB %u kHz; Multiplier %u; Speed %u kHz\n",
 			fsb, mult, (fsb * mult));
 
 	ret = (fsb * mult);
@@ -257,7 +254,7 @@ unsigned int speedstep_detect_processor(void)
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	u32 ebx, msr_lo, msr_hi;
 
-	dprintk("x86: %x, model: %x\n", c->x86, c->x86_model);
+	pr_debug("x86: %x, model: %x\n", c->x86, c->x86_model);
 
 	if ((c->x86_vendor != X86_VENDOR_INTEL) ||
 	    ((c->x86 != 6) && (c->x86 != 0xF)))
@@ -272,7 +269,7 @@ unsigned int speedstep_detect_processor(void)
 		ebx = cpuid_ebx(0x00000001);
 		ebx &= 0x000000FF;
 
-		dprintk("ebx value is %x, x86_mask is %x\n", ebx, c->x86_mask);
+		pr_debug("ebx value is %x, x86_mask is %x\n", ebx, c->x86_mask);
 
 		switch (c->x86_mask) {
 		case 4:
@@ -327,7 +324,7 @@ unsigned int speedstep_detect_processor(void)
 		/* cpuid_ebx(1) is 0x04 for desktop PIII,
 		 * 0x06 for mobile PIII-M */
 		ebx = cpuid_ebx(0x00000001);
-		dprintk("ebx is %x\n", ebx);
+		pr_debug("ebx is %x\n", ebx);
 
 		ebx &= 0x000000FF;
 
@@ -344,7 +341,7 @@ unsigned int speedstep_detect_processor(void)
 		/* all mobile PIII Coppermines have FSB 100 MHz
 		 * ==> sort out a few desktop PIIIs. */
 		rdmsr(MSR_IA32_EBL_CR_POWERON, msr_lo, msr_hi);
-		dprintk("Coppermine: MSR_IA32_EBL_CR_POWERON is 0x%x, 0x%x\n",
+		pr_debug("Coppermine: MSR_IA32_EBL_CR_POWERON is 0x%x, 0x%x\n",
 				msr_lo, msr_hi);
 		msr_lo &= 0x00c0000;
 		if (msr_lo != 0x0080000)
@@ -357,12 +354,12 @@ unsigned int speedstep_detect_processor(void)
 		 * bit 56 or 57 is set
 		 */
 		rdmsr(MSR_IA32_PLATFORM_ID, msr_lo, msr_hi);
-		dprintk("Coppermine: MSR_IA32_PLATFORM ID is 0x%x, 0x%x\n",
+		pr_debug("Coppermine: MSR_IA32_PLATFORM ID is 0x%x, 0x%x\n",
 				msr_lo, msr_hi);
 		if ((msr_hi & (1<<18)) &&
 		    (relaxed_check ? 1 : (msr_hi & (3<<24)))) {
 			if (c->x86_mask == 0x01) {
-				dprintk("early PIII version\n");
+				pr_debug("early PIII version\n");
 				return SPEEDSTEP_CPU_PIII_C_EARLY;
 			} else
 				return SPEEDSTEP_CPU_PIII_C;
@@ -393,14 +390,14 @@ unsigned int speedstep_get_freqs(enum speedstep_processor processor,
 	if ((!processor) || (!low_speed) || (!high_speed) || (!set_state))
 		return -EINVAL;
 
-	dprintk("trying to determine both speeds\n");
+	pr_debug("trying to determine both speeds\n");
 
 	/* get current speed */
 	prev_speed = speedstep_get_frequency(processor);
 	if (!prev_speed)
 		return -EIO;
 
-	dprintk("previous speed is %u\n", prev_speed);
+	pr_debug("previous speed is %u\n", prev_speed);
 
 	local_irq_save(flags);
 
@@ -412,7 +409,7 @@ unsigned int speedstep_get_freqs(enum speedstep_processor processor,
 		goto out;
 	}
 
-	dprintk("low speed is %u\n", *low_speed);
+	pr_debug("low speed is %u\n", *low_speed);
 
 	/* start latency measurement */
 	if (transition_latency)
@@ -431,7 +428,7 @@ unsigned int speedstep_get_freqs(enum speedstep_processor processor,
 		goto out;
 	}
 
-	dprintk("high speed is %u\n", *high_speed);
+	pr_debug("high speed is %u\n", *high_speed);
 
 	if (*low_speed == *high_speed) {
 		ret = -ENODEV;
@@ -445,7 +442,7 @@ unsigned int speedstep_get_freqs(enum speedstep_processor processor,
 	if (transition_latency) {
 		*transition_latency = (tv2.tv_sec - tv1.tv_sec) * USEC_PER_SEC +
 			tv2.tv_usec - tv1.tv_usec;
-		dprintk("transition latency is %u uSec\n", *transition_latency);
+		pr_debug("transition latency is %u uSec\n", *transition_latency);
 
 		/* convert uSec to nSec and add 20% for safety reasons */
 		*transition_latency *= 1200;

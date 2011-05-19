@@ -35,8 +35,6 @@
 #include "speedstep-lib.h"
 
 #define PFX	"p4-clockmod: "
-#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, \
-		"p4-clockmod", msg)
 
 /*
  * Duty Cycle (3bits), note DC_DISABLE is not specified in
@@ -66,7 +64,7 @@ static int cpufreq_p4_setdc(unsigned int cpu, unsigned int newstate)
 	rdmsr_on_cpu(cpu, MSR_IA32_THERM_STATUS, &l, &h);
 
 	if (l & 0x01)
-		dprintk("CPU#%d currently thermal throttled\n", cpu);
+		pr_debug("CPU#%d currently thermal throttled\n", cpu);
 
 	if (has_N44_O17_errata[cpu] &&
 	    (newstate == DC_25PT || newstate == DC_DFLT))
@@ -74,10 +72,10 @@ static int cpufreq_p4_setdc(unsigned int cpu, unsigned int newstate)
 
 	rdmsr_on_cpu(cpu, MSR_IA32_THERM_CONTROL, &l, &h);
 	if (newstate == DC_DISABLE) {
-		dprintk("CPU#%d disabling modulation\n", cpu);
+		pr_debug("CPU#%d disabling modulation\n", cpu);
 		wrmsr_on_cpu(cpu, MSR_IA32_THERM_CONTROL, l & ~(1<<4), h);
 	} else {
-		dprintk("CPU#%d setting duty cycle to %d%%\n",
+		pr_debug("CPU#%d setting duty cycle to %d%%\n",
 			cpu, ((125 * newstate) / 10));
 		/* bits 63 - 5	: reserved
 		 * bit  4	: enable/disable
@@ -217,7 +215,7 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 	case 0x0f11:
 	case 0x0f12:
 		has_N44_O17_errata[policy->cpu] = 1;
-		dprintk("has errata -- disabling low frequencies\n");
+		pr_debug("has errata -- disabling low frequencies\n");
 	}
 
 	if (speedstep_detect_processor() == SPEEDSTEP_CPU_P4D &&

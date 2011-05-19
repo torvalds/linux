@@ -68,7 +68,6 @@ union powernow_acpi_control_t {
 };
 #endif
 
-#ifdef CONFIG_CPU_FREQ_DEBUG
 /* divide by 1000 to get VCore voltage in V. */
 static const int mobile_vid_table[32] = {
     2000, 1950, 1900, 1850, 1800, 1750, 1700, 1650,
@@ -76,7 +75,6 @@ static const int mobile_vid_table[32] = {
     1275, 1250, 1225, 1200, 1175, 1150, 1125, 1100,
     1075, 1050, 1025, 1000, 975, 950, 925, 0,
 };
-#endif
 
 /* divide by 10 to get FID. */
 static const int fid_codes[32] = {
@@ -102,9 +100,6 @@ static unsigned int number_scales;
 static unsigned int fsb;
 static unsigned int latency;
 static char have_a0;
-
-#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, \
-		"powernow-k7", msg)
 
 static int check_fsb(unsigned int fsbspeed)
 {
@@ -209,7 +204,7 @@ static int get_ranges(unsigned char *pst)
 		vid = *pst++;
 		powernow_table[j].index |= (vid << 8); /* upper 8 bits */
 
-		dprintk("   FID: 0x%x (%d.%dx [%dMHz])  "
+		pr_debug("   FID: 0x%x (%d.%dx [%dMHz])  "
 			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10,
 			 fid_codes[fid] % 10, speed/1000, vid,
 			 mobile_vid_table[vid]/1000,
@@ -367,7 +362,7 @@ static int powernow_acpi_init(void)
 		unsigned int speed, speed_mhz;
 
 		pc.val = (unsigned long) state->control;
-		dprintk("acpi:  P%d: %d MHz %d mW %d uS control %08x SGTC %d\n",
+		pr_debug("acpi:  P%d: %d MHz %d mW %d uS control %08x SGTC %d\n",
 			 i,
 			 (u32) state->core_frequency,
 			 (u32) state->power,
@@ -401,7 +396,7 @@ static int powernow_acpi_init(void)
 				invalidate_entry(i);
 		}
 
-		dprintk("   FID: 0x%x (%d.%dx [%dMHz])  "
+		pr_debug("   FID: 0x%x (%d.%dx [%dMHz])  "
 			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10,
 			 fid_codes[fid] % 10, speed_mhz, vid,
 			 mobile_vid_table[vid]/1000,
@@ -409,7 +404,7 @@ static int powernow_acpi_init(void)
 
 		if (state->core_frequency != speed_mhz) {
 			state->core_frequency = speed_mhz;
-			dprintk("   Corrected ACPI frequency to %d\n",
+			pr_debug("   Corrected ACPI frequency to %d\n",
 				speed_mhz);
 		}
 
@@ -453,8 +448,8 @@ static int powernow_acpi_init(void)
 
 static void print_pst_entry(struct pst_s *pst, unsigned int j)
 {
-	dprintk("PST:%d (@%p)\n", j, pst);
-	dprintk(" cpuid: 0x%x  fsb: %d  maxFID: 0x%x  startvid: 0x%x\n",
+	pr_debug("PST:%d (@%p)\n", j, pst);
+	pr_debug(" cpuid: 0x%x  fsb: %d  maxFID: 0x%x  startvid: 0x%x\n",
 		pst->cpuid, pst->fsbspeed, pst->maxfid, pst->startvid);
 }
 
@@ -474,20 +469,20 @@ static int powernow_decode_bios(int maxfid, int startvid)
 		p = phys_to_virt(i);
 
 		if (memcmp(p, "AMDK7PNOW!",  10) == 0) {
-			dprintk("Found PSB header at %p\n", p);
+			pr_debug("Found PSB header at %p\n", p);
 			psb = (struct psb_s *) p;
-			dprintk("Table version: 0x%x\n", psb->tableversion);
+			pr_debug("Table version: 0x%x\n", psb->tableversion);
 			if (psb->tableversion != 0x12) {
 				printk(KERN_INFO PFX "Sorry, only v1.2 tables"
 						" supported right now\n");
 				return -ENODEV;
 			}
 
-			dprintk("Flags: 0x%x\n", psb->flags);
+			pr_debug("Flags: 0x%x\n", psb->flags);
 			if ((psb->flags & 1) == 0)
-				dprintk("Mobile voltage regulator\n");
+				pr_debug("Mobile voltage regulator\n");
 			else
-				dprintk("Desktop voltage regulator\n");
+				pr_debug("Desktop voltage regulator\n");
 
 			latency = psb->settlingtime;
 			if (latency < 100) {
@@ -497,9 +492,9 @@ static int powernow_decode_bios(int maxfid, int startvid)
 						"Correcting.\n", latency);
 				latency = 100;
 			}
-			dprintk("Settling Time: %d microseconds.\n",
+			pr_debug("Settling Time: %d microseconds.\n",
 					psb->settlingtime);
-			dprintk("Has %d PST tables. (Only dumping ones "
+			pr_debug("Has %d PST tables. (Only dumping ones "
 					"relevant to this CPU).\n",
 					psb->numpst);
 
@@ -650,7 +645,7 @@ static int __cpuinit powernow_cpu_init(struct cpufreq_policy *policy)
 		printk(KERN_WARNING PFX "can not determine bus frequency\n");
 		return -EINVAL;
 	}
-	dprintk("FSB: %3dMHz\n", fsb/1000);
+	pr_debug("FSB: %3dMHz\n", fsb/1000);
 
 	if (dmi_check_system(powernow_dmi_table) || acpi_force) {
 		printk(KERN_INFO PFX "PSB/PST known to be broken.  "
