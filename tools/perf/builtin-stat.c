@@ -6,24 +6,28 @@
  *
  * Sample output:
 
-   $ perf stat ~/hackbench 10
-   Time: 0.104
+   $ perf stat ./hackbench 10
 
-    Performance counter stats for '/home/mingo/hackbench':
+  Time: 0.118
 
-       1255.538611  task clock ticks     #      10.143 CPU utilization factor
-             54011  context switches     #       0.043 M/sec
-               385  CPU migrations       #       0.000 M/sec
-             17755  pagefaults           #       0.014 M/sec
-        3808323185  CPU cycles           #    3033.219 M/sec
-        1575111190  instructions         #    1254.530 M/sec
-          17367895  cache references     #      13.833 M/sec
-           7674421  cache misses         #       6.112 M/sec
+  Performance counter stats for './hackbench 10':
 
-    Wall-clock time elapsed:   123.786620 msecs
+       1708.761321 task-clock                #   11.037 CPUs utilized
+            41,190 context-switches          #    0.024 M/sec
+             6,735 CPU-migrations            #    0.004 M/sec
+            17,318 page-faults               #    0.010 M/sec
+     5,205,202,243 cycles                    #    3.046 GHz
+     3,856,436,920 stalled-cycles-frontend   #   74.09% frontend cycles idle
+     1,600,790,871 stalled-cycles-backend    #   30.75% backend  cycles idle
+     2,603,501,247 instructions              #    0.50  insns per cycle
+                                             #    1.48  stalled cycles per insn
+       484,357,498 branches                  #  283.455 M/sec
+         6,388,934 branch-misses             #    1.32% of all branches
+
+        0.154822978  seconds time elapsed
 
  *
- * Copyright (C) 2008, Red Hat Inc, Ingo Molnar <mingo@redhat.com>
+ * Copyright (C) 2008-2011, Red Hat Inc, Ingo Molnar <mingo@redhat.com>
  *
  * Improvements and fixes by:
  *
@@ -75,21 +79,9 @@ static struct perf_event_attr default_attrs[] = {
 };
 
 /*
- * Detailed stats:
+ * Detailed stats (-d), covering the L1 and last level data caches:
  */
 static struct perf_event_attr detailed_attrs[] = {
-
-  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_TASK_CLOCK		},
-  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CONTEXT_SWITCHES	},
-  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CPU_MIGRATIONS		},
-  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_PAGE_FAULTS		},
-
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_CPU_CYCLES		},
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_STALLED_CYCLES_FRONTEND	},
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_STALLED_CYCLES_BACKEND	},
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_INSTRUCTIONS		},
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_BRANCH_INSTRUCTIONS	},
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_BRANCH_MISSES		},
 
   { .type = PERF_TYPE_HW_CACHE,
     .config =
@@ -116,6 +108,69 @@ static struct perf_event_attr detailed_attrs[] = {
 	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
 };
 
+/*
+ * Very detailed stats (-d -d), covering the instruction cache and the TLB caches:
+ */
+static struct perf_event_attr very_detailed_attrs[] = {
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_L1I		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_L1I		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_DTLB		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_DTLB		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_ITLB		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_ITLB		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
+
+};
+
+/*
+ * Very, very detailed stats (-d -d -d), adding prefetch events:
+ */
+static struct perf_event_attr very_very_detailed_attrs[] = {
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_L1D		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_PREFETCH	<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_L1D		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_PREFETCH	<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
+};
+
+
+
 struct perf_evlist		*evsel_list;
 
 static bool			system_wide			=  false;
@@ -129,7 +184,7 @@ static pid_t			target_pid			= -1;
 static pid_t			target_tid			= -1;
 static pid_t			child_pid			= -1;
 static bool			null_run			=  false;
-static bool			detailed_run			=  false;
+static int			detailed_run			=  0;
 static bool			sync_run			=  false;
 static bool			big_num				=  true;
 static int			big_num_opt			=  -1;
@@ -464,7 +519,7 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 {
 	double msecs = avg / 1e6;
 	char cpustr[16] = { '\0', };
-	const char *fmt = csv_output ? "%s%.6f%s%s" : "%s%18.6f%s%-24s";
+	const char *fmt = csv_output ? "%s%.6f%s%s" : "%s%18.6f%s%-25s";
 
 	if (no_aggr)
 		sprintf(cpustr, "CPU%*d%s",
@@ -584,9 +639,9 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 	if (csv_output)
 		fmt = "%s%.0f%s%s";
 	else if (big_num)
-		fmt = "%s%'18.0f%s%-24s";
+		fmt = "%s%'18.0f%s%-25s";
 	else
-		fmt = "%s%18.0f%s%-24s";
+		fmt = "%s%18.0f%s%-25s";
 
 	if (no_aggr)
 		sprintf(cpustr, "CPU%*d%s",
@@ -616,7 +671,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 
 		if (total && avg) {
 			ratio = total / avg;
-			fprintf(stderr, "\n                                            #   %5.2f  stalled cycles per insn", ratio);
+			fprintf(stderr, "\n                                             #   %5.2f  stalled cycles per insn", ratio);
 		}
 
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES) &&
@@ -704,7 +759,7 @@ static void print_counter_aggr(struct perf_evsel *counter)
 		avg_enabled = avg_stats(&ps->res_stats[1]);
 		avg_running = avg_stats(&ps->res_stats[2]);
 
-		fprintf(stderr, "  (%.2f%%)", 100 * avg_running / avg_enabled);
+		fprintf(stderr, " [%5.2f%%]", 100 * avg_running / avg_enabled);
 	}
 	fprintf(stderr, "\n");
 }
@@ -854,7 +909,7 @@ static const struct option options[] = {
 		    "repeat command and print average + stddev (max: 100)"),
 	OPT_BOOLEAN('n', "null", &null_run,
 		    "null run - dont start any counters"),
-	OPT_BOOLEAN('d', "detailed", &detailed_run,
+	OPT_INCR('d', "detailed", &detailed_run,
 		    "detailed run - start a lot of events"),
 	OPT_BOOLEAN('S', "sync", &sync_run,
 		    "call sync() before starting a run"),
@@ -872,6 +927,70 @@ static const struct option options[] = {
 		     parse_cgroups),
 	OPT_END()
 };
+
+/*
+ * Add default attributes, if there were no attributes specified or
+ * if -d/--detailed, -d -d or -d -d -d is used:
+ */
+static int add_default_attributes(void)
+{
+	struct perf_evsel *pos;
+	size_t attr_nr = 0;
+	size_t c;
+
+	/* Set attrs if no event is selected and !null_run: */
+	if (null_run)
+		return 0;
+
+	if (!evsel_list->nr_entries) {
+		for (c = 0; c < ARRAY_SIZE(default_attrs); c++) {
+			pos = perf_evsel__new(default_attrs + c, c + attr_nr);
+			if (pos == NULL)
+				return -1;
+			perf_evlist__add(evsel_list, pos);
+		}
+		attr_nr += c;
+	}
+
+	/* Detailed events get appended to the event list: */
+
+	if (detailed_run <  1)
+		return 0;
+
+	/* Append detailed run extra attributes: */
+	for (c = 0; c < ARRAY_SIZE(detailed_attrs); c++) {
+		pos = perf_evsel__new(detailed_attrs + c, c + attr_nr);
+		if (pos == NULL)
+			return -1;
+		perf_evlist__add(evsel_list, pos);
+	}
+	attr_nr += c;
+
+	if (detailed_run < 2)
+		return 0;
+
+	/* Append very detailed run extra attributes: */
+	for (c = 0; c < ARRAY_SIZE(very_detailed_attrs); c++) {
+		pos = perf_evsel__new(very_detailed_attrs + c, c + attr_nr);
+		if (pos == NULL)
+			return -1;
+		perf_evlist__add(evsel_list, pos);
+	}
+
+	if (detailed_run < 3)
+		return 0;
+
+	/* Append very, very detailed run extra attributes: */
+	for (c = 0; c < ARRAY_SIZE(very_very_detailed_attrs); c++) {
+		pos = perf_evsel__new(very_very_detailed_attrs + c, c + attr_nr);
+		if (pos == NULL)
+			return -1;
+		perf_evlist__add(evsel_list, pos);
+	}
+
+
+	return 0;
+}
 
 int cmd_stat(int argc, const char **argv, const char *prefix __used)
 {
@@ -918,28 +1037,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(stat_usage, options);
 	}
 
-	/* Set attrs and nr_counters if no event is selected and !null_run */
-	if (detailed_run) {
-		size_t c;
-
-		for (c = 0; c < ARRAY_SIZE(detailed_attrs); ++c) {
-			pos = perf_evsel__new(&detailed_attrs[c], c);
-			if (pos == NULL)
-				goto out;
-			perf_evlist__add(evsel_list, pos);
-		}
-	}
-	/* Set attrs and nr_counters if no event is selected and !null_run */
-	if (!detailed_run && !null_run && !evsel_list->nr_entries) {
-		size_t c;
-
-		for (c = 0; c < ARRAY_SIZE(default_attrs); ++c) {
-			pos = perf_evsel__new(&default_attrs[c], c);
-			if (pos == NULL)
-				goto out;
-			perf_evlist__add(evsel_list, pos);
-		}
-	}
+	if (add_default_attributes())
+		goto out;
 
 	if (target_pid != -1)
 		target_tid = target_pid;
