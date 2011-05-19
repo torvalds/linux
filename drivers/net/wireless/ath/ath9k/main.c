@@ -217,7 +217,7 @@ static int ath_update_survey_stats(struct ath_softc *sc)
  * by reseting the chip.  To accomplish this we must first cleanup any pending
  * DMA, then restart stuff.
 */
-int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
+static int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		    struct ath9k_channel *hchan)
 {
 	struct ath_hw *ah = sc->sc_ah;
@@ -861,7 +861,7 @@ chip_reset:
 #undef SCHED_INTR
 }
 
-void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
+static void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -2327,7 +2327,7 @@ static bool ath9k_tx_frames_pending(struct ieee80211_hw *hw)
 	return false;
 }
 
-int ath9k_tx_last_beacon(struct ieee80211_hw *hw)
+static int ath9k_tx_last_beacon(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
