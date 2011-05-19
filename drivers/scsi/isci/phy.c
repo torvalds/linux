@@ -57,7 +57,6 @@
 #include "host.h"
 #include "phy.h"
 #include "scu_event_codes.h"
-#include "timers.h"
 #include "probe_roms.h"
 
 /* Maximum arbitration wait time in micro-seconds */

@@ -54,7 +54,6 @@
  */
 
 #include "host.h"
-#include "timers.h"
 
 #define SCIC_SDS_MPC_RECONFIGURATION_TIMEOUT    (10)
 #define SCIC_SDS_APC_RECONFIGURATION_TIMEOUT    (10)

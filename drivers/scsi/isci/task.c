@@ -62,7 +62,6 @@
 #include "request.h"
 #include "sata.h"
 #include "task.h"
-#include "timers.h"
 
 /**
 * isci_task_refuse() - complete the request to the upper layer driver in

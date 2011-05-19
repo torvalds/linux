@@ -56,7 +56,6 @@
 #include "isci.h"
 #include "port.h"
 #include "request.h"
-#include "timers.h"
 
 #define SCIC_SDS_PORT_HARD_RESET_TIMEOUT  (1000)
 #define SCU_DUMMY_INDEX    (0xFFFF)

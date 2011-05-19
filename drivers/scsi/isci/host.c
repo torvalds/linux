@@ -67,7 +67,6 @@
 #include "scu_remote_node_context.h"
 #include "scu_task_context.h"
 #include "scu_unsolicited_frame.h"
-#include "timers.h"
 
 #define SCU_CONTEXT_RAM_INIT_STALL_TIME      200
 
@@ -111,14 +110,6 @@
 	)
 
 
-#define SCIC_SDS_CONTROLLER_MIN_TIMER_COUNT  3
-#define SCIC_SDS_CONTROLLER_MAX_TIMER_COUNT  3
-
-/**
- *
- *
- * The number of milliseconds to wait for a phy to start.
- */
 #define SCIC_SDS_CONTROLLER_PHY_START_TIMEOUT      100
 
 /**
@@ -1379,8 +1370,6 @@ void isci_host_deinit(struct isci_host *ihost)
 	del_timer_sync(&ihost->sci.timer.timer);
 
 	del_timer_sync(&ihost->sci.phy_timer.timer);
-
-	isci_timer_list_destroy(ihost);
 }
 
 static void __iomem *scu_base(struct isci_host *isci_host)
@@ -2516,8 +2505,6 @@ int isci_host_init(struct isci_host *isci_host)
 	union scic_oem_parameters oem;
 	union scic_user_parameters scic_user_params;
 	struct isci_pci_info *pci_info = to_pci_info(isci_host->pdev);
-
-	isci_timer_list_construct(isci_host);
 
 	spin_lock_init(&isci_host->state_lock);
 	spin_lock_init(&isci_host->scic_lock);
