@@ -541,7 +541,7 @@ static int allusbip(void)
 int main(int argc, char **argv)
 {
 	char *busid = NULL;
-	char *remote_host = NULL;
+	char *remote_host __attribute__((unused)) = NULL;
 
 	enum {
 		cmd_unknown = 0,
