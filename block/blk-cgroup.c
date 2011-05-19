@@ -537,6 +537,30 @@ struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg, void *key)
 }
 EXPORT_SYMBOL_GPL(blkiocg_lookup_group);
 
+static void blkio_reset_stats_cpu(struct blkio_group *blkg)
+{
+	struct blkio_group_stats_cpu *stats_cpu;
+	int i, j, k;
+	/*
+	 * Note: On 64 bit arch this should not be an issue. This has the
+	 * possibility of returning some inconsistent value on 32bit arch
+	 * as 64bit update on 32bit is non atomic. Taking care of this
+	 * corner case makes code very complicated, like sending IPIs to
+	 * cpus, taking care of stats of offline cpus etc.
+	 *
+	 * reset stats is anyway more of a debug feature and this sounds a
+	 * corner case. So I am not complicating the code yet until and
+	 * unless this becomes a real issue.
+	 */
+	for_each_possible_cpu(i) {
+		stats_cpu = per_cpu_ptr(blkg->stats_cpu, i);
+		stats_cpu->sectors = 0;
+		for(j = 0; j < BLKIO_STAT_CPU_NR; j++)
+			for (k = 0; k < BLKIO_STAT_TOTAL; k++)
+				stats_cpu->stat_arr_cpu[j][k] = 0;
+	}
+}
+
 static int
 blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 {
@@ -581,7 +605,11 @@ blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 		}
 #endif
 		spin_unlock(&blkg->stats_lock);
+
+		/* Reset Per cpu stats which don't take blkg->stats_lock */
+		blkio_reset_stats_cpu(blkg);
 	}
+
 	spin_unlock_irq(&blkcg->lock);
 	return 0;
 }
