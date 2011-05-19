@@ -157,6 +157,7 @@ struct rxrpc_peer *rxrpc_get_peer(struct sockaddr_rxrpc *srx, gfp_t gfp)
 	/* we can now add the new candidate to the list */
 	peer = candidate;
 	candidate = NULL;
+	usage = atomic_read(&peer->usage);
 
 	list_add_tail(&peer->link, &rxrpc_peers);
 	write_unlock_bh(&rxrpc_peer_lock);
@@ -171,7 +172,7 @@ success:
 	     &peer->srx.transport.sin.sin_addr,
 	     ntohs(peer->srx.transport.sin.sin_port));
 
-	_leave(" = %p {u=%d}", peer, atomic_read(&peer->usage));
+	_leave(" = %p {u=%d}", peer, usage);
 	return peer;
 
 	/* we found the peer in the list immediately */
