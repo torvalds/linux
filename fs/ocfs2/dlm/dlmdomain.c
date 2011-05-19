@@ -451,14 +451,18 @@ redo_bucket:
 			dropped = dlm_empty_lockres(dlm, res);
 
 			spin_lock(&res->spinlock);
-			__dlm_lockres_calc_usage(dlm, res);
-			iter = res->hash_node.next;
+			if (dropped)
+				__dlm_lockres_calc_usage(dlm, res);
+			else
+				iter = res->hash_node.next;
 			spin_unlock(&res->spinlock);
 
 			dlm_lockres_put(res);
 
-			if (dropped)
+			if (dropped) {
+				cond_resched_lock(&dlm->spinlock);
 				goto redo_bucket;
+			}
 		}
 		cond_resched_lock(&dlm->spinlock);
 		num += n;
