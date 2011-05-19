@@ -1115,6 +1115,13 @@ static int _rtl_pci_init_rx_ring(struct ieee80211_hw *hw)
 
 		rtlpci->rx_ring[rx_queue_idx].idx = 0;
 
+		/* If amsdu_8k is disabled, set buffersize to 4096. This
+		 * change will reduce memory fragmentation.
+		 */
+		if (rtlpci->rxbuffersize > 4096 &&
+		    rtlpriv->rtlhal.disable_amsdu_8k)
+			rtlpci->rxbuffersize = 4096;
+
 		for (i = 0; i < rtlpci->rxringcount; i++) {
 			struct sk_buff *skb =
 			    dev_alloc_skb(rtlpci->rxbuffersize);
