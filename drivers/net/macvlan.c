@@ -238,10 +238,8 @@ static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		dest = macvlan_hash_lookup(port, eth->h_dest);
 		if (dest && dest->mode == MACVLAN_MODE_BRIDGE) {
-			unsigned int length = skb->len + ETH_HLEN;
-			int ret = dest->forward(dest->dev, skb);
-			macvlan_count_rx(dest, length,
-					 ret == NET_RX_SUCCESS, 0);
+			/* send to lowerdev first for its network taps */
+			vlan->forward(vlan->lowerdev, skb);
 
 			return NET_XMIT_SUCCESS;
 		}
