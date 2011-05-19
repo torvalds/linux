@@ -50,7 +50,7 @@ phys_addr_t xen_extra_mem_start, xen_extra_mem_size;
  */
 #define EXTRA_MEM_RATIO		(10)
 
-static __init void xen_add_extra_mem(unsigned long pages)
+static void __init xen_add_extra_mem(unsigned long pages)
 {
 	unsigned long pfn;
 
@@ -336,7 +336,7 @@ static void __init fiddle_vdso(void)
 #endif
 }
 
-static __cpuinit int register_callback(unsigned type, const void *func)
+static int __cpuinit register_callback(unsigned type, const void *func)
 {
 	struct callback_register callback = {
 		.type = type,
