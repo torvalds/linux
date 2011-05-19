@@ -342,11 +342,12 @@ wait_for_response(struct TCP_Server_Info *server, struct mid_q_entry *midQ)
  * the result. Caller is responsible for dealing with timeouts.
  */
 int
-cifs_call_async(struct TCP_Server_Info *server, struct smb_hdr *in_buf,
-		mid_callback_t *callback, void *cbdata)
+cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
+		unsigned int nvec, mid_callback_t *callback, void *cbdata)
 {
 	int rc;
 	struct mid_q_entry *mid;
+	struct smb_hdr *hdr = (struct smb_hdr *)iov[0].iov_base;
 
 	rc = wait_for_free_request(server, CIFS_ASYNC_OP);
 	if (rc)
@@ -354,10 +355,10 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_hdr *in_buf,
 
 	/* enable signing if server requires it */
 	if (server->secMode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
-		in_buf->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
+		hdr->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
 
 	mutex_lock(&server->srv_mutex);
-	mid = AllocMidQEntry(in_buf, server);
+	mid = AllocMidQEntry(hdr, server);
 	if (mid == NULL) {
 		mutex_unlock(&server->srv_mutex);
 		return -ENOMEM;
@@ -368,7 +369,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_hdr *in_buf,
 	list_add_tail(&mid->qhead, &server->pending_mid_q);
 	spin_unlock(&GlobalMid_Lock);
 
-	rc = cifs_sign_smb(in_buf, server, &mid->sequence_number);
+	rc = cifs_sign_smb2(iov, nvec, server, &mid->sequence_number);
 	if (rc) {
 		mutex_unlock(&server->srv_mutex);
 		goto out_err;
@@ -380,7 +381,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_hdr *in_buf,
 #ifdef CONFIG_CIFS_STATS2
 	atomic_inc(&server->inSend);
 #endif
-	rc = smb_send(server, in_buf, be32_to_cpu(in_buf->smb_buf_length));
+	rc = smb_sendv(server, iov, nvec);
 #ifdef CONFIG_CIFS_STATS2
 	atomic_dec(&server->inSend);
 	mid->when_sent = jiffies;

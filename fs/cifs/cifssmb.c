@@ -725,6 +725,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 {
 	ECHO_REQ *smb;
 	int rc = 0;
+	struct kvec iov;
 
 	cFYI(1, "In echo request");
 
@@ -739,9 +740,10 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	put_bcc(1, &smb->hdr);
 	smb->Data[0] = 'a';
 	inc_rfc1001_len(smb, 3);
+	iov.iov_base = smb;
+	iov.iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
 
-	rc = cifs_call_async(server, (struct smb_hdr *)smb,
-				cifs_echo_callback, server);
+	rc = cifs_call_async(server, &iov, 1, cifs_echo_callback, server);
 	if (rc)
 		cFYI(1, "Echo request failed: %d", rc);
 
