@@ -70,16 +70,17 @@ static void macvlan_hash_add(struct macvlan_dev *vlan)
 	hlist_add_head_rcu(&vlan->hlist, &port->vlan_hash[addr[5]]);
 }
 
-static void macvlan_hash_del(struct macvlan_dev *vlan)
+static void macvlan_hash_del(struct macvlan_dev *vlan, bool sync)
 {
 	hlist_del_rcu(&vlan->hlist);
-	synchronize_rcu();
+	if (sync)
+		synchronize_rcu();
 }
 
 static void macvlan_hash_change_addr(struct macvlan_dev *vlan,
 					const unsigned char *addr)
 {
-	macvlan_hash_del(vlan);
+	macvlan_hash_del(vlan, true);
 	/* Now that we are unhashed it is safe to change the device
 	 * address without confusing packet delivery.
 	 */
@@ -345,7 +346,7 @@ static int macvlan_stop(struct net_device *dev)
 	dev_uc_del(lowerdev, dev->dev_addr);
 
 hash_del:
-	macvlan_hash_del(vlan);
+	macvlan_hash_del(vlan, !dev->dismantle);
 	return 0;
 }
 
