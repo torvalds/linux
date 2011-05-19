@@ -70,11 +70,6 @@ config PPC_UDBG_BEAT
 	depends on PPC_CELLEB
 	default n
 
-config XICS
-	depends on PPC_PSERIES
-	bool
-	default y
-
 config IPIC
 	bool
 	default n
