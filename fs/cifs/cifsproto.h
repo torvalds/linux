@@ -442,4 +442,22 @@ extern int mdfour(unsigned char *, unsigned char *, int);
 extern int E_md4hash(const unsigned char *passwd, unsigned char *p16);
 extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 			unsigned char *p24);
+
+/* asynchronous write support */
+struct cifs_writedata {
+	struct kref			refcount;
+	enum writeback_sync_modes	sync_mode;
+	struct work_struct		work;
+	struct cifsFileInfo		*cfile;
+	__u64				offset;
+	unsigned int			bytes;
+	int				result;
+	unsigned int			nr_pages;
+	struct page			*pages[1];
+};
+
+int cifs_async_writev(struct cifs_writedata *wdata);
+struct cifs_writedata *cifs_writedata_alloc(unsigned int nr_pages);
+void cifs_writedata_release(struct kref *refcount);
+
 #endif			/* _CIFSPROTO_H */
