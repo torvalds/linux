@@ -1550,7 +1550,8 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 		}
 
-		blk_throtl_bio(q, &bio);
+		if (blk_throtl_bio(q, &bio))
+			goto end_io;
 
 		/*
 		 * If bio = NULL, bio has been throttled and will be submitted
