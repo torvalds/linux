@@ -872,7 +872,7 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 	}
 #endif
 
-#if 0
+#if 1
 	/* VDD2 whitch suplies for ddr3 Set the default voltage: 1087 * 1.25mV(41)*/
 	val = 42;	
 	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD2_OP);
