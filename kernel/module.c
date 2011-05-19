@@ -2935,6 +2935,7 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	module_free(mod, mod->module_init);
 	mod->module_init = NULL;
 	mod->init_size = 0;
+	mod->init_ro_size = 0;
 	mod->init_text_size = 0;
 	mutex_unlock(&module_mutex);
 
