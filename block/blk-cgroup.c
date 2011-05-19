@@ -400,14 +400,25 @@ void blkiocg_update_dispatch_stats(struct blkio_group *blkg,
 				uint64_t bytes, bool direction, bool sync)
 {
 	struct blkio_group_stats_cpu *stats_cpu;
+	unsigned long flags;
+
+	/*
+	 * Disabling interrupts to provide mutual exclusion between two
+	 * writes on same cpu. It probably is not needed for 64bit. Not
+	 * optimizing that case yet.
+	 */
+	local_irq_save(flags);
 
 	stats_cpu = this_cpu_ptr(blkg->stats_cpu);
 
+	u64_stats_update_begin(&stats_cpu->syncp);
 	stats_cpu->sectors += bytes >> 9;
 	blkio_add_stat(stats_cpu->stat_arr_cpu[BLKIO_STAT_CPU_SERVICED],
 			1, direction, sync);
 	blkio_add_stat(stats_cpu->stat_arr_cpu[BLKIO_STAT_CPU_SERVICE_BYTES],
 			bytes, direction, sync);
+	u64_stats_update_end(&stats_cpu->syncp);
+	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_dispatch_stats);
 
@@ -622,15 +633,21 @@ static uint64_t blkio_read_stat_cpu(struct blkio_group *blkg,
 {
 	int cpu;
 	struct blkio_group_stats_cpu *stats_cpu;
-	uint64_t val = 0;
+	u64 val = 0, tval;
 
 	for_each_possible_cpu(cpu) {
+		unsigned int start;
 		stats_cpu  = per_cpu_ptr(blkg->stats_cpu, cpu);
 
-		if (type == BLKIO_STAT_CPU_SECTORS)
-			val += stats_cpu->sectors;
-		else
-			val += stats_cpu->stat_arr_cpu[type][sub_type];
+		do {
+			start = u64_stats_fetch_begin(&stats_cpu->syncp);
+			if (type == BLKIO_STAT_CPU_SECTORS)
+				tval = stats_cpu->sectors;
+			else
+				tval = stats_cpu->stat_arr_cpu[type][sub_type];
+		} while(u64_stats_fetch_retry(&stats_cpu->syncp, start));
+
+		val += tval;
 	}
 
 	return val;

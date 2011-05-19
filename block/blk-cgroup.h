@@ -14,6 +14,7 @@
  */
 
 #include <linux/cgroup.h>
+#include <linux/u64_stats_sync.h>
 
 enum blkio_policy_id {
 	BLKIO_POLICY_PROP = 0,		/* Proportional Bandwidth division */
@@ -154,6 +155,7 @@ struct blkio_group_stats {
 struct blkio_group_stats_cpu {
 	uint64_t sectors;
 	uint64_t stat_arr_cpu[BLKIO_STAT_CPU_NR][BLKIO_STAT_TOTAL];
+	struct u64_stats_sync syncp;
 };
 
 struct blkio_group {
