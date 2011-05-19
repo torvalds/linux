@@ -339,54 +339,6 @@ static enum sci_status isci_task_request_build(
 }
 
 /**
- * isci_tmf_timeout_cb() - This function is called as a kernel callback when
- *    the timeout period for the TMF has expired.
- *
- *
- */
-static void isci_tmf_timeout_cb(void *tmf_request_arg)
-{
-	struct isci_request *request = (struct isci_request *)tmf_request_arg;
-	struct isci_tmf *tmf = isci_request_access_tmf(request);
-	enum sci_status status;
-
-	/* This task management request has timed-out.  Terminate the request
-	 * so that the request eventually completes to the requestor in the
-	 * request completion callback path.
-	 */
-	/* Note - the timer callback function itself has provided spinlock
-	 * exclusion from the start and completion paths.  No need to take
-	 * the request->isci_host->scic_lock here.
-	 */
-
-	if (tmf->timeout_timer != NULL) {
-		/* Call the users callback, if any. */
-		if (tmf->cb_state_func != NULL)
-			tmf->cb_state_func(isci_tmf_timed_out, tmf,
-					   tmf->cb_data);
-
-		/* Terminate the TMF transmit request. */
-		status = scic_controller_terminate_request(
-			&request->isci_host->sci,
-			&request->isci_device->sci,
-			&request->sci);
-
-		dev_dbg(&request->isci_host->pdev->dev,
-			"%s: tmf_request = %p; tmf = %p; status = %d\n",
-			__func__, request, tmf, status);
-	} else
-		dev_dbg(&request->isci_host->pdev->dev,
-			"%s: timer already canceled! "
-			"tmf_request = %p; tmf = %p\n",
-			__func__, request, tmf);
-
-	/* No need to unlock since the caller to this callback is doing it for
-	 * us.
-	 * request->isci_host->scic_lock
-	 */
-}
-
-/**
  * isci_task_execute_tmf() - This function builds and sends a task request,
  *    then waits for the completion.
  * @isci_host: This parameter specifies the ISCI host object
@@ -410,6 +362,7 @@ int isci_task_execute_tmf(
 	struct isci_request *request;
 	int ret = TMF_RESP_FUNC_FAILED;
 	unsigned long flags;
+	unsigned long timeleft;
 
 	/* sanity check, return TMF_RESP_FUNC_FAILED
 	 * if the device is not there and ready.
@@ -443,17 +396,7 @@ int isci_task_execute_tmf(
 		return TMF_RESP_FUNC_FAILED;
 	}
 
-	/* Allocate the TMF timeout timer. */
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
-	tmf->timeout_timer = isci_timer_create(isci_host, request, isci_tmf_timeout_cb);
-
-	/* Start the timer. */
-	if (tmf->timeout_timer)
-		isci_timer_start(tmf->timeout_timer, timeout_ms);
-	else
-		dev_warn(&isci_host->pdev->dev,
-			 "%s: isci_timer_create failed!!!!\n",
-			 __func__);
 
 	/* start the TMF io. */
 	status = scic_controller_start_task(
@@ -468,14 +411,13 @@ int isci_task_execute_tmf(
 			 __func__,
 			 status,
 			 request);
+		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 		goto cleanup_request;
 	}
 
-	/* Call the users callback, if any. */
 	if (tmf->cb_state_func != NULL)
 		tmf->cb_state_func(isci_tmf_started, tmf, tmf->cb_data);
 
-	/* Change the state of the TMF-bearing request to "started". */
 	isci_request_change_state(request, started);
 
 	/* add the request to the remote device request list. */
@@ -484,7 +426,22 @@ int isci_task_execute_tmf(
 	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
 	/* Wait for the TMF to complete, or a timeout. */
-	wait_for_completion(&completion);
+	timeleft = wait_for_completion_timeout(&completion,
+				       jiffies + msecs_to_jiffies(timeout_ms));
+
+	if (timeleft == 0) {
+		spin_lock_irqsave(&isci_host->scic_lock, flags);
+
+		if (tmf->cb_state_func != NULL)
+			tmf->cb_state_func(isci_tmf_timed_out, tmf, tmf->cb_data);
+
+		status = scic_controller_terminate_request(
+			&request->isci_host->sci,
+			&request->isci_device->sci,
+			&request->sci);
+
+		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	}
 
 	isci_print_tmf(tmf);
 
@@ -505,28 +462,12 @@ int isci_task_execute_tmf(
 		request);
 
 	if (request->io_request_completion != NULL) {
-
-		/* The fact that this is non-NULL for a TMF request
-		 * means there is a thread waiting for this TMF to
-		 * finish.
-		 */
+		/* A thread is waiting for this TMF to finish. */
 		complete(request->io_request_completion);
 	}
 
-	spin_lock_irqsave(&isci_host->scic_lock, flags);
-
  cleanup_request:
-
-	/* Clean up the timer if needed. */
-	if (tmf->timeout_timer) {
-		isci_del_timer(isci_host, tmf->timeout_timer);
-		tmf->timeout_timer = NULL;
-	}
-
-	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
-
 	isci_request_free(isci_host, request);
-
 	return ret;
 }
 
@@ -546,7 +487,7 @@ void isci_task_build_tmf(
 
 	tmf->device        = isci_device;
 	tmf->tmf_code      = code;
-	tmf->timeout_timer = NULL;
+
 	tmf->cb_state_func = tmf_sent_cb;
 	tmf->cb_data       = cb_data;
 }
@@ -1440,12 +1381,6 @@ isci_task_request_complete(struct isci_host *ihost,
 		memcpy(&tmf->resp.d2h_fis,
 		       &sci_req->stp.rsp,
 		       sizeof(struct dev_to_host_fis));
-	}
-
-	/* Manage the timer if it is still running. */
-	if (tmf->timeout_timer) {
-		isci_del_timer(ihost, tmf->timeout_timer);
-		tmf->timeout_timer = NULL;
 	}
 
 	/* PRINT_TMF( ((struct isci_tmf *)request->task)); */

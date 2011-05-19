@@ -107,8 +107,6 @@ struct isci_tmf {
 	enum isci_tmf_function_codes tmf_code;
 	int status;
 
-	struct isci_timer *timeout_timer;
-
 	/* The optional callback function allows the user process to
 	 * track the TMF transmit / timeout conditions.
 	 */
