@@ -25,7 +25,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
 #include <linux/gpio.h>
-#include <linux/regulator/consumer.h>
 #include <plat/usb.h>
 
 #define USBHS_DRIVER_NAME	"usbhs-omap"
@@ -700,8 +699,7 @@ static int usbhs_enable(struct device *dev)
 	dev_dbg(dev, "starting TI HSUSB Controller\n");
 	if (!pdata) {
 		dev_dbg(dev, "missing platform_data\n");
-		ret =  -ENODEV;
-		goto end_enable;
+		return  -ENODEV;
 	}
 
 	spin_lock_irqsave(&omap->lock, flags);
@@ -719,14 +717,14 @@ static int usbhs_enable(struct device *dev)
 			gpio_request(pdata->ehci_data->reset_gpio_port[0],
 						"USB1 PHY reset");
 			gpio_direction_output
-				(pdata->ehci_data->reset_gpio_port[0], 1);
+				(pdata->ehci_data->reset_gpio_port[0], 0);
 		}
 
 		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[1])) {
 			gpio_request(pdata->ehci_data->reset_gpio_port[1],
 						"USB2 PHY reset");
 			gpio_direction_output
-				(pdata->ehci_data->reset_gpio_port[1], 1);
+				(pdata->ehci_data->reset_gpio_port[1], 0);
 		}
 
 		/* Hold the PHY in RESET for enough time till DIR is high */
@@ -906,16 +904,17 @@ static int usbhs_enable(struct device *dev)
 
 		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[0]))
 			gpio_set_value
-				(pdata->ehci_data->reset_gpio_port[0], 0);
+				(pdata->ehci_data->reset_gpio_port[0], 1);
 
 		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[1]))
 			gpio_set_value
-				(pdata->ehci_data->reset_gpio_port[1], 0);
+				(pdata->ehci_data->reset_gpio_port[1], 1);
 	}
 
 end_count:
 	omap->count++;
-	goto end_enable;
+	spin_unlock_irqrestore(&omap->lock, flags);
+	return 0;
 
 err_tll:
 	if (pdata->ehci_data->phy_reset) {
@@ -931,8 +930,6 @@ err_tll:
 	clk_disable(omap->usbhost_fs_fck);
 	clk_disable(omap->usbhost_hs_fck);
 	clk_disable(omap->usbhost_ick);
-
-end_enable:
 	spin_unlock_irqrestore(&omap->lock, flags);
 	return ret;
 }

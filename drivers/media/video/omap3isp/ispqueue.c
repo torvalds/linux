@@ -339,7 +339,7 @@ static int isp_video_buffer_prepare_user(struct isp_video_buffer *buf)
 	up_read(&current->mm->mmap_sem);
 
 	if (ret != buf->npages) {
-		buf->npages = ret;
+		buf->npages = ret < 0 ? 0 : ret;
 		isp_video_buffer_cleanup(buf);
 		return -EFAULT;
 	}
@@ -408,8 +408,8 @@ done:
  * isp_video_buffer_prepare_vm_flags - Get VMA flags for a userspace address
  *
  * This function locates the VMAs for the buffer's userspace address and checks
- * that their flags match. The onlflag that we need to care for at the moment is
- * VM_PFNMAP.
+ * that their flags match. The only flag that we need to care for at the moment
+ * is VM_PFNMAP.
  *
  * The buffer vm_flags field is set to the first VMA flags.
  *

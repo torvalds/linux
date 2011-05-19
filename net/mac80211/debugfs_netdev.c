@@ -177,9 +177,9 @@ static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&local->iflist_mtx);
+	mutex_lock(&sdata->u.mgd.mtx);
 	err = __ieee80211_request_smps(sdata, smps_mode);
-	mutex_unlock(&local->iflist_mtx);
+	mutex_unlock(&sdata->u.mgd.mtx);
 
 	return err;
 }

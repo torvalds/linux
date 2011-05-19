@@ -91,7 +91,7 @@ static int detect_memory_e801(void)
 	if (oreg.ax > 15*1024) {
 		return -1;	/* Bogus! */
 	} else if (oreg.ax == 15*1024) {
-		boot_params.alt_mem_k = (oreg.dx << 6) + oreg.ax;
+		boot_params.alt_mem_k = (oreg.bx << 6) + oreg.ax;
 	} else {
 		/*
 		 * This ignores memory above 16MB if we have a memory

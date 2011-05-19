@@ -499,7 +499,7 @@ out:
 		 * Don't enable translation yet but enable GART IO and CPU
 		 * accesses and set DISTLBWALKPRB since GART table memory is UC.
 		 */
-		u32 ctl = DISTLBWALKPRB | aper_order << 1;
+		u32 ctl = aper_order << 1;
 
 		bus = amd_nb_bus_dev_ranges[i].bus;
 		dev_base = amd_nb_bus_dev_ranges[i].dev_base;

@@ -304,8 +304,10 @@ static int __devinit fsl_msi_setup_hwirq(struct fsl_msi *msi,
 	return 0;
 }
 
+static const struct of_device_id fsl_of_msi_ids[];
 static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 {
+	const struct of_device_id *match;
 	struct fsl_msi *msi;
 	struct resource res;
 	int err, i, j, irq_index, count;
@@ -316,9 +318,10 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 	u32 offset;
 	static const u32 all_avail[] = { 0, NR_MSI_IRQS };
 
-	if (!dev->dev.of_match)
+	match = of_match_device(fsl_of_msi_ids, &dev->dev);
+	if (!match)
 		return -EINVAL;
-	features = dev->dev.of_match->data;
+	features = match->data;
 
 	printk(KERN_DEBUG "Setting up Freescale MSI support\n");
 

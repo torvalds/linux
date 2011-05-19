@@ -8059,6 +8059,10 @@ static noinline int relocate_one_extent(struct btrfs_root *extent_root,
 				u64 group_start = group->key.objectid;
 				new_extents = kmalloc(sizeof(*new_extents),
 						      GFP_NOFS);
+				if (!new_extents) {
+					ret = -ENOMEM;
+					goto out;
+				}
 				nr_extents = 1;
 				ret = get_new_locations(reloc_inode,
 							extent_key,
@@ -8852,23 +8856,38 @@ out:
 int btrfs_init_space_info(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_space_info *space_info;
+	struct btrfs_super_block *disk_super;
+	u64 features;
+	u64 flags;
+	int mixed = 0;
 	int ret;
 
-	ret = update_space_info(fs_info, BTRFS_BLOCK_GROUP_SYSTEM, 0, 0,
-								 &space_info);
-	if (ret)
-		return ret;
+	disk_super = &fs_info->super_copy;
+	if (!btrfs_super_root(disk_super))
+		return 1;
 
-	ret = update_space_info(fs_info, BTRFS_BLOCK_GROUP_METADATA, 0, 0,
-								 &space_info);
-	if (ret)
-		return ret;
+	features = btrfs_super_incompat_flags(disk_super);
+	if (features & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS)
+		mixed = 1;
 
-	ret = update_space_info(fs_info, BTRFS_BLOCK_GROUP_DATA, 0, 0,
-								 &space_info);
+	flags = BTRFS_BLOCK_GROUP_SYSTEM;
+	ret = update_space_info(fs_info, flags, 0, 0, &space_info);
 	if (ret)
-		return ret;
+		goto out;
 
+	if (mixed) {
+		flags = BTRFS_BLOCK_GROUP_METADATA | BTRFS_BLOCK_GROUP_DATA;
+		ret = update_space_info(fs_info, flags, 0, 0, &space_info);
+	} else {
+		flags = BTRFS_BLOCK_GROUP_METADATA;
+		ret = update_space_info(fs_info, flags, 0, 0, &space_info);
+		if (ret)
+			goto out;
+
+		flags = BTRFS_BLOCK_GROUP_DATA;
+		ret = update_space_info(fs_info, flags, 0, 0, &space_info);
+	}
+out:
 	return ret;
 }
 

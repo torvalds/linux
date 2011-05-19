@@ -2334,7 +2334,6 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	disk->major = UB_MAJOR;
 	disk->first_minor = lun->id * UB_PARTS_PER_LUN;
 	disk->fops = &ub_bd_fops;
-	disk->events = DISK_EVENT_MEDIA_CHANGE;
 	disk->private_data = lun;
 	disk->driverfs_dev = &sc->intf->dev;
 

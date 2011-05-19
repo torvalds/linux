@@ -152,8 +152,6 @@ nouveau_mem_vram_fini(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	nouveau_bo_ref(NULL, &dev_priv->vga_ram);
-
 	ttm_bo_device_release(&dev_priv->ttm.bdev);
 
 	nouveau_ttm_global_release(dev_priv);
@@ -398,7 +396,7 @@ nouveau_mem_vram_init(struct drm_device *dev)
 			dma_bits = 40;
 	} else
 	if (drm_pci_device_is_pcie(dev) &&
-	    dev_priv->chipset != 0x40 &&
+	    dev_priv->chipset  > 0x40 &&
 	    dev_priv->chipset != 0x45) {
 		if (pci_dma_supported(dev->pdev, DMA_BIT_MASK(39)))
 			dma_bits = 39;

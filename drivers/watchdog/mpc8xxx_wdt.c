@@ -185,17 +185,20 @@ static struct miscdevice mpc8xxx_wdt_miscdev = {
 	.fops	= &mpc8xxx_wdt_fops,
 };
 
+static const struct of_device_id mpc8xxx_wdt_match[];
 static int __devinit mpc8xxx_wdt_probe(struct platform_device *ofdev)
 {
 	int ret;
+	const struct of_device_id *match;
 	struct device_node *np = ofdev->dev.of_node;
 	struct mpc8xxx_wdt_type *wdt_type;
 	u32 freq = fsl_get_sys_freq();
 	bool enabled;
 
-	if (!ofdev->dev.of_match)
+	match = of_match_device(mpc8xxx_wdt_match, &ofdev->dev);
+	if (!match)
 		return -EINVAL;
-	wdt_type = ofdev->dev.of_match->data;
+	wdt_type = match->data;
 
 	if (!freq || freq == -1)
 		return -EINVAL;

@@ -39,7 +39,7 @@
 
 typedef struct mac_addr {
 	u8 mac_addr_value[ETH_ALEN];
-} mac_addr_t;
+} __packed mac_addr_t;
 
 enum {
 	BOND_AD_STABLE = 0,
@@ -134,12 +134,12 @@ typedef struct lacpdu {
 	u8 tlv_type_terminator;	     // = terminator
 	u8 terminator_length;	     // = 0
 	u8 reserved_50[50];	     // = 0
-} lacpdu_t;
+} __packed lacpdu_t;
 
 typedef struct lacpdu_header {
 	struct ethhdr hdr;
 	struct lacpdu lacpdu;
-} lacpdu_header_t;
+} __packed lacpdu_header_t;
 
 // Marker Protocol Data Unit(PDU) structure(43.5.3.2 in the 802.3ad standard)
 typedef struct bond_marker {
@@ -155,12 +155,12 @@ typedef struct bond_marker {
 	u8 tlv_type_terminator;	     //  = 0x00
 	u8 terminator_length;	     //  = 0x00
 	u8 reserved_90[90];	     //  = 0
-} bond_marker_t;
+} __packed bond_marker_t;
 
 typedef struct bond_marker_header {
 	struct ethhdr hdr;
 	struct bond_marker marker;
-} bond_marker_header_t;
+} __packed bond_marker_header_t;
 
 #pragma pack()
 

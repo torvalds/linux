@@ -155,25 +155,25 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case VIDIOC_QUERYCTRL:
-		return v4l2_subdev_queryctrl(sd, arg);
+		return v4l2_queryctrl(sd->ctrl_handler, arg);
 
 	case VIDIOC_QUERYMENU:
-		return v4l2_subdev_querymenu(sd, arg);
+		return v4l2_querymenu(sd->ctrl_handler, arg);
 
 	case VIDIOC_G_CTRL:
-		return v4l2_subdev_g_ctrl(sd, arg);
+		return v4l2_g_ctrl(sd->ctrl_handler, arg);
 
 	case VIDIOC_S_CTRL:
-		return v4l2_subdev_s_ctrl(sd, arg);
+		return v4l2_s_ctrl(sd->ctrl_handler, arg);
 
 	case VIDIOC_G_EXT_CTRLS:
-		return v4l2_subdev_g_ext_ctrls(sd, arg);
+		return v4l2_g_ext_ctrls(sd->ctrl_handler, arg);
 
 	case VIDIOC_S_EXT_CTRLS:
-		return v4l2_subdev_s_ext_ctrls(sd, arg);
+		return v4l2_s_ext_ctrls(sd->ctrl_handler, arg);
 
 	case VIDIOC_TRY_EXT_CTRLS:
-		return v4l2_subdev_try_ext_ctrls(sd, arg);
+		return v4l2_try_ext_ctrls(sd->ctrl_handler, arg);
 
 	case VIDIOC_DQEVENT:
 		if (!(sd->flags & V4L2_SUBDEV_FL_HAS_EVENTS))

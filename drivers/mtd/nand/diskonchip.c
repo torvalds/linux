@@ -400,7 +400,7 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 	doc200x_hwcontrol(mtd, 0, NAND_CTRL_ALE | NAND_CTRL_CHANGE);
 	doc200x_hwcontrol(mtd, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 
-	/* We can't' use dev_ready here, but at least we wait for the
+	/* We can't use dev_ready here, but at least we wait for the
 	 * command to complete
 	 */
 	udelay(50);

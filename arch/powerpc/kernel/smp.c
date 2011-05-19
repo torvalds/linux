@@ -458,8 +458,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
 {
 	int rc, c;
 
-	secondary_ti = current_set[cpu];
-
 	if (smp_ops == NULL ||
 	    (smp_ops->cpu_bootable && !smp_ops->cpu_bootable(cpu)))
 		return -EINVAL;
@@ -468,6 +466,8 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	rc = create_idle(cpu);
 	if (rc)
 		return rc;
+
+	secondary_ti = current_set[cpu];
 
 	/* Make sure callin-map entry is 0 (can be leftover a CPU
 	 * hotplug

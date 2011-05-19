@@ -308,8 +308,6 @@ static int jz4740_codec_dev_probe(struct snd_soc_codec *codec)
 	snd_soc_dapm_add_routes(dapm, jz4740_codec_dapm_routes,
 		ARRAY_SIZE(jz4740_codec_dapm_routes));
 
-	snd_soc_dapm_new_widgets(codec);
-
 	jz4740_codec_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;

@@ -144,7 +144,7 @@ static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
 	int iter, i;
 	unsigned long flags;
 
-	data->chip->irq_ack(irq_data);
+	data->chip->irq_ack(data);
 
 	for (iter = 0 ; iter < MAX_ASIC_ISR_LOOPS; iter++) {
 		u32 status;

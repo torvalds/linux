@@ -64,47 +64,41 @@ asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
 
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
-	int j;
-
-	seq_printf(p, "%*s: ", prec, "NMI");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", nmi_count(j));
-	seq_putc(p, '\n');
 	seq_printf(p, "%*s: ", prec, "ERR");
 	seq_printf(p, "%10u\n", atomic_read(&irq_err_count));
 	return 0;
 }
 
-static void xtensa_irq_mask(struct irq_chip *d)
+static void xtensa_irq_mask(struct irq_data *d)
 {
 	cached_irq_mask &= ~(1 << d->irq);
 	set_sr (cached_irq_mask, INTENABLE);
 }
 
-static void xtensa_irq_unmask(struct irq_chip *d)
+static void xtensa_irq_unmask(struct irq_data *d)
 {
 	cached_irq_mask |= 1 << d->irq;
 	set_sr (cached_irq_mask, INTENABLE);
 }
 
-static void xtensa_irq_enable(struct irq_chip *d)
+static void xtensa_irq_enable(struct irq_data *d)
 {
 	variant_irq_enable(d->irq);
 	xtensa_irq_unmask(d->irq);
 }
 
-static void xtensa_irq_disable(struct irq_chip *d)
+static void xtensa_irq_disable(struct irq_data *d)
 {
 	xtensa_irq_mask(d->irq);
 	variant_irq_disable(d->irq);
 }
 
-static void xtensa_irq_ack(struct irq_chip *d)
+static void xtensa_irq_ack(struct irq_data *d)
 {
 	set_sr(1 << d->irq, INTCLEAR);
 }
 
-static int xtensa_irq_retrigger(struct irq_chip *d)
+static int xtensa_irq_retrigger(struct irq_data *d)
 {
 	set_sr (1 << d->irq, INTSET);
 	return 1;

@@ -8,7 +8,7 @@ static __initconst const u64 amd_hw_cache_event_ids
  [ C(L1D) ] = {
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = 0x0040, /* Data Cache Accesses        */
-		[ C(RESULT_MISS)   ] = 0x0041, /* Data Cache Misses          */
+		[ C(RESULT_MISS)   ] = 0x0141, /* Data Cache Misses          */
 	},
 	[ C(OP_WRITE) ] = {
 		[ C(RESULT_ACCESS) ] = 0x0142, /* Data Cache Refills :system */
@@ -427,7 +427,9 @@ static __initconst const struct x86_pmu amd_pmu = {
  *
  * Exceptions:
  *
+ * 0x000	FP	PERF_CTL[3], PERF_CTL[5:3] (*)
  * 0x003	FP	PERF_CTL[3]
+ * 0x004	FP	PERF_CTL[3], PERF_CTL[5:3] (*)
  * 0x00B	FP	PERF_CTL[3]
  * 0x00D	FP	PERF_CTL[3]
  * 0x023	DE	PERF_CTL[2:0]
@@ -448,6 +450,8 @@ static __initconst const struct x86_pmu amd_pmu = {
  * 0x0DF	LS	PERF_CTL[5:0]
  * 0x1D6	EX	PERF_CTL[5:0]
  * 0x1D8	EX	PERF_CTL[5:0]
+ *
+ * (*) depending on the umask all FPU counters may be used
  */
 
 static struct event_constraint amd_f15_PMC0  = EVENT_CONSTRAINT(0, 0x01, 0);
@@ -460,18 +464,28 @@ static struct event_constraint amd_f15_PMC53 = EVENT_CONSTRAINT(0, 0x38, 0);
 static struct event_constraint *
 amd_get_event_constraints_f15h(struct cpu_hw_events *cpuc, struct perf_event *event)
 {
-	unsigned int event_code = amd_get_event_code(&event->hw);
+	struct hw_perf_event *hwc = &event->hw;
+	unsigned int event_code = amd_get_event_code(hwc);
 
 	switch (event_code & AMD_EVENT_TYPE_MASK) {
 	case AMD_EVENT_FP:
 		switch (event_code) {
+		case 0x000:
+			if (!(hwc->config & 0x0000F000ULL))
+				break;
+			if (!(hwc->config & 0x00000F00ULL))
+				break;
+			return &amd_f15_PMC3;
+		case 0x004:
+			if (hweight_long(hwc->config & ARCH_PERFMON_EVENTSEL_UMASK) <= 1)
+				break;
+			return &amd_f15_PMC3;
 		case 0x003:
 		case 0x00B:
 		case 0x00D:
 			return &amd_f15_PMC3;
-		default:
-			return &amd_f15_PMC53;
 		}
+		return &amd_f15_PMC53;
 	case AMD_EVENT_LS:
 	case AMD_EVENT_DC:
 	case AMD_EVENT_EX_LS:

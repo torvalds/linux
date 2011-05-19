@@ -347,7 +347,7 @@
 						   "pciclass0c03";
 
 					reg = <0x16800 0x0 0x0 0x0 0x0>;
-					interrupts = <22 3>;
+					interrupts = <22 1>;
 				};
 
 				usb@d,1 {
@@ -357,7 +357,7 @@
 						   "pciclass0c03";
 
 					reg = <0x16900 0x0 0x0 0x0 0x0>;
-					interrupts = <22 3>;
+					interrupts = <22 1>;
 				};
 
 				sata@e,0 {
@@ -367,7 +367,7 @@
 						   "pciclass0106";
 
 					reg = <0x17000 0x0 0x0 0x0 0x0>;
-					interrupts = <23 3>;
+					interrupts = <23 1>;
 				};
 
 				flash@f,0 {
