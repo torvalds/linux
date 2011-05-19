@@ -338,6 +338,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 
+	call_netdevice_notifiers(NETDEV_JOIN, dev);
+
 	err = dev_set_promiscuity(dev, 1);
 	if (err)
 		goto put_back;
