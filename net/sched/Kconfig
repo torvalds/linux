@@ -288,6 +288,7 @@ config NET_CLS_TCINDEX
 
 config NET_CLS_ROUTE4
 	tristate "Routing decision (ROUTE)"
+	depends on INET
 	select IP_ROUTE_CLASSID
 	select NET_CLS
 	---help---
