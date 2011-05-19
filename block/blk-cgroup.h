@@ -49,9 +49,9 @@ enum stat_type {
 	/* All the single valued stats go below this */
 	BLKIO_STAT_TIME,
 	BLKIO_STAT_SECTORS,
+#ifdef CONFIG_DEBUG_BLK_CGROUP
 	/* Time not charged to this cgroup */
 	BLKIO_STAT_UNACCOUNTED_TIME,
-#ifdef CONFIG_DEBUG_BLK_CGROUP
 	BLKIO_STAT_AVG_QUEUE_SIZE,
 	BLKIO_STAT_IDLE_TIME,
 	BLKIO_STAT_EMPTY_TIME,
@@ -117,10 +117,11 @@ struct blkio_group_stats {
 	/* total disk time and nr sectors dispatched by this group */
 	uint64_t time;
 	uint64_t sectors;
-	/* Time not charged to this cgroup */
-	uint64_t unaccounted_time;
 	uint64_t stat_arr[BLKIO_STAT_QUEUED + 1][BLKIO_STAT_TOTAL];
 #ifdef CONFIG_DEBUG_BLK_CGROUP
+	/* Time not charged to this cgroup */
+	uint64_t unaccounted_time;
+
 	/* Sum of number of IOs queued across all samples */
 	uint64_t avg_queue_size_sum;
 	/* Count of samples taken for average */

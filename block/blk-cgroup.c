@@ -385,7 +385,9 @@ void blkiocg_update_timeslice_used(struct blkio_group *blkg, unsigned long time,
 
 	spin_lock_irqsave(&blkg->stats_lock, flags);
 	blkg->stats.time += time;
+#ifdef CONFIG_DEBUG_BLK_CGROUP
 	blkg->stats.unaccounted_time += unaccounted_time;
+#endif
 	spin_unlock_irqrestore(&blkg->stats_lock, flags);
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_timeslice_used);
