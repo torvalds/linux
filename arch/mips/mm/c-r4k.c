@@ -1006,6 +1006,7 @@ static void __cpuinit probe_pcache(void)
 	case CPU_25KF:
 	case CPU_SB1:
 	case CPU_SB1A:
+	case CPU_XLR:
 		c->dcache.flags |= MIPS_CACHE_PINDEX;
 		break;
 

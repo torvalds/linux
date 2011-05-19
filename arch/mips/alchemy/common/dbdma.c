@@ -36,7 +36,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
 
@@ -58,7 +58,8 @@ static DEFINE_SPINLOCK(au1xxx_dbdma_spin_lock);
 /* I couldn't find a macro that did this... */
 #define ALIGN_ADDR(x, a)	((((u32)(x)) + (a-1)) & ~(a-1))
 
-static dbdma_global_t *dbdma_gptr = (dbdma_global_t *)DDMA_GLOBAL_BASE;
+static dbdma_global_t *dbdma_gptr =
+			(dbdma_global_t *)KSEG1ADDR(AU1550_DBDMA_CONF_PHYS_ADDR);
 static int dbdma_initialized;
 
 static dbdev_tab_t dbdev_tab[] = {
@@ -299,7 +300,7 @@ u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
 	if (ctp != NULL) {
 		memset(ctp, 0, sizeof(chan_tab_t));
 		ctp->chan_index = chan = i;
-		dcp = DDMA_CHANNEL_BASE;
+		dcp = KSEG1ADDR(AU1550_DBDMA_PHYS_ADDR);
 		dcp += (0x0100 * chan);
 		ctp->chan_ptr = (au1x_dma_chan_t *)dcp;
 		cp = (au1x_dma_chan_t *)dcp;
@@ -958,104 +959,74 @@ u32 au1xxx_dbdma_put_dscr(u32 chanid, au1x_ddma_desc_t *dscr)
 }
 
 
-struct alchemy_dbdma_sysdev {
-	struct sys_device sysdev;
-	u32 pm_regs[NUM_DBDMA_CHANS + 1][6];
-};
+static unsigned long alchemy_dbdma_pm_data[NUM_DBDMA_CHANS + 1][6];
 
-static int alchemy_dbdma_suspend(struct sys_device *dev,
-				 pm_message_t state)
+static int alchemy_dbdma_suspend(void)
 {
-	struct alchemy_dbdma_sysdev *sdev =
-		container_of(dev, struct alchemy_dbdma_sysdev, sysdev);
 	int i;
-	u32 addr;
+	void __iomem *addr;
 
-	addr = DDMA_GLOBAL_BASE;
-	sdev->pm_regs[0][0] = au_readl(addr + 0x00);
-	sdev->pm_regs[0][1] = au_readl(addr + 0x04);
-	sdev->pm_regs[0][2] = au_readl(addr + 0x08);
-	sdev->pm_regs[0][3] = au_readl(addr + 0x0c);
+	addr = (void __iomem *)KSEG1ADDR(AU1550_DBDMA_CONF_PHYS_ADDR);
+	alchemy_dbdma_pm_data[0][0] = __raw_readl(addr + 0x00);
+	alchemy_dbdma_pm_data[0][1] = __raw_readl(addr + 0x04);
+	alchemy_dbdma_pm_data[0][2] = __raw_readl(addr + 0x08);
+	alchemy_dbdma_pm_data[0][3] = __raw_readl(addr + 0x0c);
 
 	/* save channel configurations */
-	for (i = 1, addr = DDMA_CHANNEL_BASE; i <= NUM_DBDMA_CHANS; i++) {
-		sdev->pm_regs[i][0] = au_readl(addr + 0x00);
-		sdev->pm_regs[i][1] = au_readl(addr + 0x04);
-		sdev->pm_regs[i][2] = au_readl(addr + 0x08);
-		sdev->pm_regs[i][3] = au_readl(addr + 0x0c);
-		sdev->pm_regs[i][4] = au_readl(addr + 0x10);
-		sdev->pm_regs[i][5] = au_readl(addr + 0x14);
+	addr = (void __iomem *)KSEG1ADDR(AU1550_DBDMA_PHYS_ADDR);
+	for (i = 1; i <= NUM_DBDMA_CHANS; i++) {
+		alchemy_dbdma_pm_data[i][0] = __raw_readl(addr + 0x00);
+		alchemy_dbdma_pm_data[i][1] = __raw_readl(addr + 0x04);
+		alchemy_dbdma_pm_data[i][2] = __raw_readl(addr + 0x08);
+		alchemy_dbdma_pm_data[i][3] = __raw_readl(addr + 0x0c);
+		alchemy_dbdma_pm_data[i][4] = __raw_readl(addr + 0x10);
+		alchemy_dbdma_pm_data[i][5] = __raw_readl(addr + 0x14);
 
 		/* halt channel */
-		au_writel(sdev->pm_regs[i][0] & ~1, addr + 0x00);
-		au_sync();
-		while (!(au_readl(addr + 0x14) & 1))
-			au_sync();
+		__raw_writel(alchemy_dbdma_pm_data[i][0] & ~1, addr + 0x00);
+		wmb();
+		while (!(__raw_readl(addr + 0x14) & 1))
+			wmb();
 
 		addr += 0x100;	/* next channel base */
 	}
 	/* disable channel interrupts */
-	au_writel(0, DDMA_GLOBAL_BASE + 0x0c);
-	au_sync();
+	addr = (void __iomem *)KSEG1ADDR(AU1550_DBDMA_CONF_PHYS_ADDR);
+	__raw_writel(0, addr + 0x0c);
+	wmb();
 
 	return 0;
 }
 
-static int alchemy_dbdma_resume(struct sys_device *dev)
+static void alchemy_dbdma_resume(void)
 {
-	struct alchemy_dbdma_sysdev *sdev =
-		container_of(dev, struct alchemy_dbdma_sysdev, sysdev);
 	int i;
-	u32 addr;
+	void __iomem *addr;
 
-	addr = DDMA_GLOBAL_BASE;
-	au_writel(sdev->pm_regs[0][0], addr + 0x00);
-	au_writel(sdev->pm_regs[0][1], addr + 0x04);
-	au_writel(sdev->pm_regs[0][2], addr + 0x08);
-	au_writel(sdev->pm_regs[0][3], addr + 0x0c);
+	addr = (void __iomem *)KSEG1ADDR(AU1550_DBDMA_CONF_PHYS_ADDR);
+	__raw_writel(alchemy_dbdma_pm_data[0][0], addr + 0x00);
+	__raw_writel(alchemy_dbdma_pm_data[0][1], addr + 0x04);
+	__raw_writel(alchemy_dbdma_pm_data[0][2], addr + 0x08);
+	__raw_writel(alchemy_dbdma_pm_data[0][3], addr + 0x0c);
 
 	/* restore channel configurations */
-	for (i = 1, addr = DDMA_CHANNEL_BASE; i <= NUM_DBDMA_CHANS; i++) {
-		au_writel(sdev->pm_regs[i][0], addr + 0x00);
-		au_writel(sdev->pm_regs[i][1], addr + 0x04);
-		au_writel(sdev->pm_regs[i][2], addr + 0x08);
-		au_writel(sdev->pm_regs[i][3], addr + 0x0c);
-		au_writel(sdev->pm_regs[i][4], addr + 0x10);
-		au_writel(sdev->pm_regs[i][5], addr + 0x14);
-		au_sync();
+	addr = (void __iomem *)KSEG1ADDR(AU1550_DBDMA_PHYS_ADDR);
+	for (i = 1; i <= NUM_DBDMA_CHANS; i++) {
+		__raw_writel(alchemy_dbdma_pm_data[i][0], addr + 0x00);
+		__raw_writel(alchemy_dbdma_pm_data[i][1], addr + 0x04);
+		__raw_writel(alchemy_dbdma_pm_data[i][2], addr + 0x08);
+		__raw_writel(alchemy_dbdma_pm_data[i][3], addr + 0x0c);
+		__raw_writel(alchemy_dbdma_pm_data[i][4], addr + 0x10);
+		__raw_writel(alchemy_dbdma_pm_data[i][5], addr + 0x14);
+		wmb();
 		addr += 0x100;	/* next channel base */
 	}
-
-	return 0;
 }
 
-static struct sysdev_class alchemy_dbdma_sysdev_class = {
-	.name		= "dbdma",
+static struct syscore_ops alchemy_dbdma_syscore_ops = {
 	.suspend	= alchemy_dbdma_suspend,
 	.resume		= alchemy_dbdma_resume,
 };
-
-static int __init alchemy_dbdma_sysdev_init(void)
-{
-	struct alchemy_dbdma_sysdev *sdev;
-	int ret;
-
-	ret = sysdev_class_register(&alchemy_dbdma_sysdev_class);
-	if (ret)
-		return ret;
-
-	sdev = kzalloc(sizeof(struct alchemy_dbdma_sysdev), GFP_KERNEL);
-	if (!sdev)
-		return -ENOMEM;
-
-	sdev->sysdev.id = -1;
-	sdev->sysdev.cls = &alchemy_dbdma_sysdev_class;
-	ret = sysdev_register(&sdev->sysdev);
-	if (ret)
-		kfree(sdev);
-
-	return ret;
-}
 
 static int __init au1xxx_dbdma_init(void)
 {
@@ -1084,11 +1055,7 @@ static int __init au1xxx_dbdma_init(void)
 	else {
 		dbdma_initialized = 1;
 		printk(KERN_INFO "Alchemy DBDMA initialized\n");
-		ret = alchemy_dbdma_sysdev_init();
-		if (ret) {
-			printk(KERN_ERR "DBDMA PM init failed\n");
-			ret = 0;
-		}
+		register_syscore_ops(&alchemy_dbdma_syscore_ops);
 	}
 
 	return ret;
