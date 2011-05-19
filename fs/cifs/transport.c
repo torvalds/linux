@@ -502,13 +502,31 @@ send_nt_cancel(struct TCP_Server_Info *server, struct smb_hdr *in_buf,
 }
 
 int
+cifs_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
+		   bool log_error)
+{
+	dump_smb(mid->resp_buf,
+		 min_t(u32, 92, be32_to_cpu(mid->resp_buf->smb_buf_length)));
+
+	/* convert the length into a more usable form */
+	if (server->secMode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
+		/* FIXME: add code to kill session */
+		if (cifs_verify_signature(mid->resp_buf, server,
+					  mid->sequence_number + 1) != 0)
+			cERROR(1, "Unexpected SMB signature");
+	}
+
+	/* BB special case reconnect tid and uid here? */
+	return map_smb_to_linux_error(mid->resp_buf, log_error);
+}
+
+int
 SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	     struct kvec *iov, int n_vec, int *pRespBufType /* ret */,
 	     const int flags)
 {
 	int rc = 0;
 	int long_op;
-	unsigned int receive_len;
 	struct mid_q_entry *midQ;
 	struct smb_hdr *in_buf = iov[0].iov_base;
 
@@ -605,54 +623,24 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		return rc;
 	}
 
-	receive_len = be32_to_cpu(midQ->resp_buf->smb_buf_length);
-
-	if (receive_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
-		cERROR(1, "Frame too large received.  Length: %d  Xid: %d",
-			receive_len, xid);
+	if (!midQ->resp_buf || midQ->midState != MID_RESPONSE_RECEIVED) {
 		rc = -EIO;
+		cFYI(1, "Bad MID state?");
 		goto out;
 	}
 
-	/* rcvd frame is ok */
+	iov[0].iov_base = (char *)midQ->resp_buf;
+	iov[0].iov_len = be32_to_cpu(midQ->resp_buf->smb_buf_length) + 4;
+	if (midQ->largeBuf)
+		*pRespBufType = CIFS_LARGE_BUFFER;
+	else
+		*pRespBufType = CIFS_SMALL_BUFFER;
 
-	if (midQ->resp_buf &&
-	    (midQ->midState == MID_RESPONSE_RECEIVED)) {
+	rc = cifs_check_receive(midQ, ses->server, flags & CIFS_LOG_ERROR);
 
-		iov[0].iov_base = (char *)midQ->resp_buf;
-		if (midQ->largeBuf)
-			*pRespBufType = CIFS_LARGE_BUFFER;
-		else
-			*pRespBufType = CIFS_SMALL_BUFFER;
-		iov[0].iov_len = receive_len + 4;
-
-		dump_smb(midQ->resp_buf, 80);
-		/* convert the length into a more usable form */
-		if ((receive_len > 24) &&
-		    (ses->server->secMode & (SECMODE_SIGN_REQUIRED |
-					     SECMODE_SIGN_ENABLED))) {
-			rc = cifs_verify_signature(midQ->resp_buf,
-						ses->server,
-						midQ->sequence_number+1);
-			if (rc) {
-				cERROR(1, "Unexpected SMB signature");
-				/* BB FIXME add code to kill session */
-			}
-		}
-
-		/* BB special case reconnect tid and uid here? */
-		rc = map_smb_to_linux_error(midQ->resp_buf,
-					    flags & CIFS_LOG_ERROR);
-
-		if ((flags & CIFS_NO_RESP) == 0)
-			midQ->resp_buf = NULL;  /* mark it so buf will
-						   not be freed by
-						   delete_mid */
-	} else {
-		rc = -EIO;
-		cFYI(1, "Bad MID state?");
-	}
-
+	/* mark it so buf will not be freed by delete_mid */
+	if ((flags & CIFS_NO_RESP) == 0)
+		midQ->resp_buf = NULL;
 out:
 	delete_mid(midQ);
 	atomic_dec(&ses->server->inFlight);
@@ -667,7 +655,6 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	    int *pbytes_returned, const int long_op)
 {
 	int rc = 0;
-	unsigned int receive_len;
 	struct mid_q_entry *midQ;
 
 	if (ses == NULL) {
@@ -757,47 +744,16 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		return rc;
 	}
 
-	receive_len = be32_to_cpu(midQ->resp_buf->smb_buf_length);
-
-	if (receive_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
-		cERROR(1, "Frame too large received.  Length: %d  Xid: %d",
-			receive_len, xid);
+	if (!midQ->resp_buf || !out_buf ||
+	    midQ->midState != MID_RESPONSE_RECEIVED) {
 		rc = -EIO;
+		cERROR(1, "Bad MID state?");
 		goto out;
 	}
 
-	/* rcvd frame is ok */
-
-	if (midQ->resp_buf && out_buf
-	    && (midQ->midState == MID_RESPONSE_RECEIVED)) {
-		out_buf->smb_buf_length = cpu_to_be32(receive_len);
-		memcpy((char *)out_buf + 4,
-		       (char *)midQ->resp_buf + 4,
-		       receive_len);
-
-		dump_smb(out_buf, 92);
-		/* convert the length into a more usable form */
-		if ((receive_len > 24) &&
-		    (ses->server->secMode & (SECMODE_SIGN_REQUIRED |
-					     SECMODE_SIGN_ENABLED))) {
-			rc = cifs_verify_signature(out_buf,
-						ses->server,
-						midQ->sequence_number+1);
-			if (rc) {
-				cERROR(1, "Unexpected SMB signature");
-				/* BB FIXME add code to kill session */
-			}
-		}
-
-		*pbytes_returned = be32_to_cpu(out_buf->smb_buf_length);
-
-		/* BB special case reconnect tid and uid here? */
-		rc = map_smb_to_linux_error(out_buf, 0 /* no log */ );
-	} else {
-		rc = -EIO;
-		cERROR(1, "Bad MID state?");
-	}
-
+	*pbytes_returned = be32_to_cpu(midQ->resp_buf->smb_buf_length);
+	memcpy(out_buf, midQ->resp_buf, *pbytes_returned + 4);
+	rc = cifs_check_receive(midQ, ses->server, 0);
 out:
 	delete_mid(midQ);
 	atomic_dec(&ses->server->inFlight);
@@ -838,7 +794,6 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 {
 	int rc = 0;
 	int rstart = 0;
-	unsigned int receive_len;
 	struct mid_q_entry *midQ;
 	struct cifsSesInfo *ses;
 
@@ -961,46 +916,16 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 	if (rc != 0)
 		return rc;
 
-	receive_len = be32_to_cpu(midQ->resp_buf->smb_buf_length);
-	if (receive_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
-		cERROR(1, "Frame too large received.  Length: %d  Xid: %d",
-			receive_len, xid);
-		rc = -EIO;
-		goto out;
-	}
-
 	/* rcvd frame is ok */
-
-	if ((out_buf == NULL) || (midQ->midState != MID_RESPONSE_RECEIVED)) {
+	if (out_buf == NULL || midQ->midState != MID_RESPONSE_RECEIVED) {
 		rc = -EIO;
 		cERROR(1, "Bad MID state?");
 		goto out;
 	}
 
-	out_buf->smb_buf_length = cpu_to_be32(receive_len);
-	memcpy((char *)out_buf + 4,
-	       (char *)midQ->resp_buf + 4,
-	       receive_len);
-
-	dump_smb(out_buf, 92);
-	/* convert the length into a more usable form */
-	if ((receive_len > 24) &&
-	    (ses->server->secMode & (SECMODE_SIGN_REQUIRED |
-				     SECMODE_SIGN_ENABLED))) {
-		rc = cifs_verify_signature(out_buf,
-					   ses->server,
-					   midQ->sequence_number+1);
-		if (rc) {
-			cERROR(1, "Unexpected SMB signature");
-			/* BB FIXME add code to kill session */
-		}
-	}
-
-	*pbytes_returned = be32_to_cpu(out_buf->smb_buf_length);
-
-	/* BB special case reconnect tid and uid here? */
-	rc = map_smb_to_linux_error(out_buf, 0 /* no log */ );
-
+	*pbytes_returned = be32_to_cpu(midQ->resp_buf->smb_buf_length);
+	memcpy(out_buf, midQ->resp_buf, *pbytes_returned + 4);
+	rc = cifs_check_receive(midQ, ses->server, 0);
 out:
 	delete_mid(midQ);
 	if (rstart && rc == -EACCES)
