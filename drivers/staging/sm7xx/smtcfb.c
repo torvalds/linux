@@ -128,7 +128,7 @@ u16 smtc_ChipIDs[] = {
 	0x720
 };
 
-#define numSMTCchipIDs (sizeof(smtc_ChipIDs) / sizeof(u16))
+#define numSMTCchipIDs ARRAY_SIZE(smtc_ChipIDs)
 
 static struct fb_var_screeninfo smtcfb_var = {
 	.xres           = 1024,
@@ -842,7 +842,7 @@ static int __init sm712vga_setup(char *options)
 	smdbg("\nsm712vga_setup = %s\n", options);
 
 	for (index = 0;
-	     index < (sizeof(vesa_mode) / sizeof(struct vesa_mode_table));
+	     index < ARRAY_SIZE(vesa_mode);
 	     index++) {
 		if (strstr(options, vesa_mode[index].mode_index)) {
 			smtc_screen_info.lfb_width = vesa_mode[index].lfb_width;
@@ -876,7 +876,6 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 	err = pci_enable_device(pdev);	/* enable SMTC chip */
 	if (err)
 		return err;
-	err = -ENOMEM;
 
 	hw.chipID = ent->device;
 	sprintf(name, "sm%Xfb", hw.chipID);
@@ -1006,7 +1005,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 
 	return 0;
 
- failed:
+failed:
 	printk(KERN_INFO "Silicon Motion, Inc.  primary display init fail\n");
 
 	smtc_unmap_smem(sfb);
