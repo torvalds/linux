@@ -8303,7 +8303,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	    tg3_flag(tp, HW_TSO_3))
 		rdmac_mode |= RDMAC_MODE_IPV4_LSO_EN;
 
-	if (tg3_flag(tp, HW_TSO_3) ||
+	if (tg3_flag(tp, 57765_PLUS) ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780)
 		rdmac_mode |= RDMAC_MODE_IPV6_LSO_EN;
