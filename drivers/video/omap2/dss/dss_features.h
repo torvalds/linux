@@ -48,6 +48,7 @@ enum dss_feat_id {
 	FEAT_DSI_VC_OCP_WIDTH		= 1 << 16,
 	FEAT_DSI_REVERSE_TXCLKESC	= 1 << 17,
 	FEAT_DSI_GNQ			= 1 << 18,
+	FEAT_HDMI_CTS_SWMODE		= 1 << 19,
 };
 
 /* DSS register field id */
