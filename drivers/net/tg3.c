@@ -1822,28 +1822,32 @@ static void tg3_phy_eee_adjust(struct tg3 *tp, u32 current_link_up)
 		tg3_phy_cl45_read(tp, MDIO_MMD_AN,
 				  TG3_CL45_D7_EEERES_STAT, &val);
 
-		switch (val) {
-		case TG3_CL45_D7_EEERES_STAT_LP_1000T:
-			switch (GET_ASIC_REV(tp->pci_chip_rev_id)) {
-			case ASIC_REV_5717:
-			case ASIC_REV_5719:
-			case ASIC_REV_57765:
-				if (!TG3_PHY_AUXCTL_SMDSP_ENABLE(tp)) {
-					tg3_phydsp_write(tp, MII_TG3_DSP_TAP26,
-							 0x0000);
-					TG3_PHY_AUXCTL_SMDSP_DISABLE(tp);
-				}
-			}
-			/* Fallthrough */
-		case TG3_CL45_D7_EEERES_STAT_LP_100TX:
+		if (val == TG3_CL45_D7_EEERES_STAT_LP_1000T ||
+		    val == TG3_CL45_D7_EEERES_STAT_LP_100TX)
 			tp->setlpicnt = 2;
-		}
 	}
 
 	if (!tp->setlpicnt) {
 		val = tr32(TG3_CPMU_EEE_MODE);
 		tw32(TG3_CPMU_EEE_MODE, val & ~TG3_CPMU_EEEMD_LPI_ENABLE);
 	}
+}
+
+static void tg3_phy_eee_enable(struct tg3 *tp)
+{
+	u32 val;
+
+	if (tp->link_config.active_speed == SPEED_1000 &&
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
+	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
+	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765) &&
+	    !TG3_PHY_AUXCTL_SMDSP_ENABLE(tp)) {
+		tg3_phydsp_write(tp, MII_TG3_DSP_TAP26, 0x0003);
+		TG3_PHY_AUXCTL_SMDSP_DISABLE(tp);
+	}
+
+	val = tr32(TG3_CPMU_EEE_MODE);
+	tw32(TG3_CPMU_EEE_MODE, val | TG3_CPMU_EEEMD_LPI_ENABLE);
 }
 
 static int tg3_wait_macro_done(struct tg3 *tp)
@@ -8844,11 +8848,8 @@ static void tg3_timer(unsigned long __opaque)
 		if (tg3_flag(tp, 5705_PLUS))
 			tg3_periodic_fetch_stats(tp);
 
-		if (tp->setlpicnt && !--tp->setlpicnt) {
-			u32 val = tr32(TG3_CPMU_EEE_MODE);
-			tw32(TG3_CPMU_EEE_MODE,
-			     val | TG3_CPMU_EEEMD_LPI_ENABLE);
-		}
+		if (tp->setlpicnt && !--tp->setlpicnt)
+			tg3_phy_eee_enable(tp);
 
 		if (tg3_flag(tp, USE_LINKCHG_REG)) {
 			u32 mac_stat;
