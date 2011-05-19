@@ -26,50 +26,34 @@ extern void CONCAT_(GENL_MAGIC_FAMILY, _genl_unregister)(void);
  * Extension of genl attribute validation policies			{{{2
  */
 
-/**
- * GENLA_F_FLAGS - policy type flags to ease compatible ABI evolvement
+/*
+ * @DRBD_GENLA_F_MANDATORY: By default, netlink ignores attributes it does not
+ * know about.  This flag can be set in nlattr->nla_type to indicate that this
+ * attribute must not be ignored.
  *
- * @GENLA_F_REQUIRED: attribute has to be present, or message is considered invalid.
- * Adding new REQUIRED attributes breaks ABI compatibility, so don't do that.
- *
- * @GENLA_F_MANDATORY: if present, receiver _must_ understand it.
- * Without this, unknown attributes (> maxtype) are _silently_ ignored
- * by validate_nla().
- *
- * To be used for API extensions, so older kernel can reject requests for not
- * yet implemented features, if newer userland tries to use them even though
- * the genl_family version clearly indicates they are not available.
- *
- * NOTE: These flags overload
- *   NLA_F_NESTED		(1 << 15)
- *   NLA_F_NET_BYTEORDER	(1 << 14)
- * from linux/netlink.h, which are not useful for validate_nla():
- * NET_BYTEORDER is not used anywhere, and NESTED would be specified by setting
- * .type = NLA_NESTED in the appropriate policy.
- *
- * See also: nla_type()
+ * We check and remove this flag in drbd_nla_check_mandatory() before
+ * validating the attribute types and lengths via nla_parse_nested().
  */
-enum {
-	GENLA_F_MANDATORY	= 1 << 14,
-	GENLA_F_REQUIRED	= 1 << 15,
+#define DRBD_GENLA_F_MANDATORY (1 << 14)
 
-	/* Below will not be present in the __u16 .nla_type, but can be
-	 * triggered on in <struct>_to_skb resp. <struct>_from_attrs */
+/*
+ * Flags specific to drbd and not visible at the netlink layer, used in
+ * <struct>_from_attrs and <struct>_to_skb:
+ *
+ * @DRBD_F_REQUIRED: Attribute is required; a request without this attribute is
+ * invalid.
+ *
+ * @DRBD_F_SENSITIVE: Attribute includes sensitive information and must not be
+ * included in unpriviledged get requests or broadcasts.
+ *
+ * @DRBD_F_INVARIANT: Attribute is set when an object is initially created, but
+ * cannot subsequently be changed.
+ */
+#define DRBD_F_REQUIRED (1 << 0)
+#define DRBD_F_SENSITIVE (1 << 1)
+#define DRBD_F_INVARIANT (1 << 2)
 
-	/* To exclude "sensitive" information from broadcasts, or on
-	 * unpriviledged get requests.  This is useful because genetlink
-	 * multicast groups can be listened in on by anyone.  */
-	GENLA_F_SENSITIVE	= 1 << 16,
-
-	/* INVARIAN options cannot be changed at runtime.
-	 * Useful to share an attribute policy and struct definition,
-	 * between some "create" and "change" commands,
-	 * but disallow certain fields to be changed online.
-	 */
-	GENLA_F_INVARIANT	= 1 << 17,
-};
-
-#define __nla_type(x)	((__u16)((__u16)(x) & (__u16)NLA_TYPE_MASK))
+#define __nla_type(x)	((__u16)((x) & NLA_TYPE_MASK & ~DRBD_GENLA_F_MANDATORY))
 
 /*									}}}1
  * MAGIC
@@ -170,12 +154,12 @@ enum {								\
 #undef __field
 #define __field(attr_nr, attr_flag, name, nla_type, type,	\
 		__get, __put, __is_signed)			\
-	T_ ## name = (__u16)(attr_nr | attr_flag),
+	T_ ## name = (__u16)(attr_nr | ((attr_flag) & DRBD_GENLA_F_MANDATORY)),
 
 #undef __array
 #define __array(attr_nr, attr_flag, name, nla_type, type,	\
 		maxlen, __get, __put, __is_signed)		\
-	T_ ## name = (__u16)(attr_nr | attr_flag),
+	T_ ## name = (__u16)(attr_nr | ((attr_flag) & DRBD_GENLA_F_MANDATORY)),
 
 #include GENL_MAGIC_INCLUDE_FILE
 

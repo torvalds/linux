@@ -4,53 +4,6 @@
 #include <linux/genl_magic_struct.h>
 
 /*
- * Extension of genl attribute validation policies			{{{1
- *									{{{2
- */
-
-/**
- * nla_is_required - return true if this attribute is required
- * @nla: netlink attribute
- */
-static inline int nla_is_required(const struct nlattr *nla)
-{
-        return nla->nla_type & GENLA_F_REQUIRED;
-}
-
-/**
- * nla_is_mandatory - return true if understanding this attribute is mandatory
- * @nla: netlink attribute
- * Note: REQUIRED attributes are implicitly MANDATORY as well
- */
-static inline int nla_is_mandatory(const struct nlattr *nla)
-{
-        return nla->nla_type & (GENLA_F_MANDATORY | GENLA_F_REQUIRED);
-}
-
-/* Functionality to be integrated into nla_parse(), and validate_nla(),
- * respectively.
- *
- * Enforcing the "mandatory" bit is done here,
- * by rejecting unknown mandatory attributes.
- *
- * Part of enforcing the "required" flag would mean to embed it into
- * nla_policy.type, and extending validate_nla(), which currently does
- * BUG_ON(pt->type > NLA_TYPE_MAX); we have to work on existing kernels,
- * so we cannot do that.  Thats why enforcing "required" is done in the
- * generated assignment functions below. */
-static int nla_check_unknown(int maxtype, struct nlattr *head, int len)
-{
-	struct nlattr *nla;
-	int rem;
-        nla_for_each_attr(nla, head, len, rem) {
-		__u16 type = nla_type(nla);
-		if (type > maxtype && nla_is_mandatory(nla))
-			return -EOPNOTSUPP;
-	}
-	return 0;
-}
-
-/*
  * Magic: declare tla policy						{{{1
  * Magic: declare nested policies
  *									{{{2
@@ -80,13 +33,13 @@ static struct nla_policy s_name ## _nl_policy[] __read_mostly =		\
 #undef __field
 #define __field(attr_nr, attr_flag, name, nla_type, _type, __get,	\
 		 __put, __is_signed)					\
-	[__nla_type(attr_nr)] = { .type = nla_type },
+	[attr_nr] = { .type = nla_type },
 
 #undef __array
 #define __array(attr_nr, attr_flag, name, nla_type, _type, maxlen,	\
 		__get, __put, __is_signed)				\
-	[__nla_type(attr_nr)] = { .type = nla_type,			\
-		.len = maxlen - (nla_type == NLA_NUL_STRING) },
+	[attr_nr] = { .type = nla_type,					\
+		      .len = maxlen - (nla_type == NLA_NUL_STRING) },
 
 #include GENL_MAGIC_INCLUDE_FILE
 
@@ -189,6 +142,43 @@ static struct nlattr *nested_attr_tb[128];
 #define BUILD_BUG_ON_NULL(e) ((void *)sizeof(struct { int:-!!(e); }))
 #endif
 
+static inline int drbd_nla_check_mandatory(int maxtype, struct nlattr *nla)
+{
+	struct nlattr *head = nla_data(nla);
+	int len = nla_len(nla);
+	int rem;
+
+	/*
+	 * validate_nla (called from nla_parse_nested) ignores attributes
+	 * beyond maxtype, and does not understand the DRBD_GENLA_F_MANDATORY flag.
+	 * In order to have it validate attributes with the DRBD_GENLA_F_MANDATORY
+	 * flag set also, check and remove that flag before calling
+	 * nla_parse_nested.
+	 */
+
+	nla_for_each_attr(nla, head, len, rem) {
+		if (nla->nla_type & DRBD_GENLA_F_MANDATORY) {
+			if (nla_type(nla) > maxtype)
+				return -EOPNOTSUPP;
+			nla->nla_type &= ~DRBD_GENLA_F_MANDATORY;
+		}
+	}
+	return 0;
+}
+
+static inline int drbd_nla_parse_nested(struct nlattr *tb[], int maxtype,
+					struct nlattr *nla,
+					const struct nla_policy *policy)
+{
+	int err;
+
+	err = drbd_nla_check_mandatory(maxtype, nla);
+	if (!err)
+		err = nla_parse_nested(tb, maxtype, nla, policy);
+
+	return err;
+}
+
 #undef GENL_struct
 #define GENL_struct(tag_name, tag_number, s_name, s_fields)		\
 /* *_from_attrs functions are static, but potentially unused */		\
@@ -204,12 +194,9 @@ static int __ ## s_name ## _from_attrs(struct s_name *s,		\
 	if (!tla)							\
 		return -ENOMSG;						\
 	DPRINT_TLA(#s_name, "<=-", #tag_name);				\
-	err = nla_parse_nested(ntb, maxtype, tla, s_name ## _nl_policy); \
+	err = drbd_nla_parse_nested(ntb, maxtype, tla, s_name ## _nl_policy);	\
 	if (err)							\
 		return err;						\
-	err = nla_check_unknown(maxtype, nla_data(tla), nla_len(tla));	\
-	if (err)							\
-	      return err;						\
 									\
 	s_fields							\
 	return 0;							\
@@ -226,17 +213,17 @@ static int s_name ## _from_attrs_for_change(struct s_name *s,		\
 }					__attribute__((unused))		\
 
 #define __assign(attr_nr, attr_flag, name, nla_type, type, assignment...)	\
-		nla = ntb[__nla_type(attr_nr)];				\
+		nla = ntb[attr_nr];						\
 		if (nla) {						\
-			if (exclude_invariants && ((attr_flag) & GENLA_F_INVARIANT)) {		\
+			if (exclude_invariants && ((attr_flag) & DRBD_F_INVARIANT)) {		\
 				pr_info("<< must not change invariant attr: %s\n", #name);	\
 				return -EEXIST;				\
 			}						\
 			assignment;					\
-		} else if (exclude_invariants && ((attr_flag) & GENLA_F_INVARIANT)) {		\
+		} else if (exclude_invariants && ((attr_flag) & DRBD_F_INVARIANT)) {		\
 			/* attribute missing from payload, */		\
 			/* which was expected */			\
-		} else if ((attr_flag) & GENLA_F_REQUIRED) {		\
+		} else if ((attr_flag) & DRBD_F_REQUIRED) {		\
 			pr_info("<< missing attr: %s\n", #name);	\
 			return -ENOMSG;					\
 		}
@@ -415,7 +402,7 @@ static inline int s_name ## _to_unpriv_skb(struct sk_buff *skb,		\
 #undef __field
 #define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put,	\
 		__is_signed)						\
-	if (!exclude_sensitive || !((attr_flag) & GENLA_F_SENSITIVE)) {	\
+	if (!exclude_sensitive || !((attr_flag) & DRBD_F_SENSITIVE)) {	\
 		DPRINT_FIELD(">>", nla_type, name, s, NULL);		\
 		__put(skb, attr_nr, s->name);				\
 	}
@@ -423,7 +410,7 @@ static inline int s_name ## _to_unpriv_skb(struct sk_buff *skb,		\
 #undef __array
 #define __array(attr_nr, attr_flag, name, nla_type, type, maxlen,	\
 		__get, __put, __is_signed)				\
-	if (!exclude_sensitive || !((attr_flag) & GENLA_F_SENSITIVE)) {	\
+	if (!exclude_sensitive || !((attr_flag) & DRBD_F_SENSITIVE)) {	\
 		DPRINT_ARRAY(">>",nla_type, name, s, NULL);		\
 		__put(skb, attr_nr, min_t(int, maxlen,			\
 			s->name ## _len + (nla_type == NLA_NUL_STRING)),\
