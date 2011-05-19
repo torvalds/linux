@@ -417,7 +417,7 @@ static u32 cayman_get_tile_pipe_to_backend_map(struct radeon_device *rdev,
 		num_shader_engines = 1;
 	if (num_shader_engines > rdev->config.cayman.max_shader_engines)
 		num_shader_engines = rdev->config.cayman.max_shader_engines;
-	if (num_backends_per_asic > num_shader_engines)
+	if (num_backends_per_asic < num_shader_engines)
 		num_backends_per_asic = num_shader_engines;
 	if (num_backends_per_asic > (rdev->config.cayman.max_backends_per_se * num_shader_engines))
 		num_backends_per_asic = rdev->config.cayman.max_backends_per_se * num_shader_engines;
