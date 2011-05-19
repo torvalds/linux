@@ -71,7 +71,6 @@ static struct platform_device debug_uart = {
 static struct platform_device *paz00_devices[] __initdata = {
 	&debug_uart,
 	&tegra_sdhci_device1,
-	&tegra_sdhci_device2,
 	&tegra_sdhci_device4,
 };
 
@@ -148,16 +147,10 @@ static struct tegra_sdhci_platform_data sdhci_pdata1 = {
 	.power_gpio	= TEGRA_GPIO_SD1_POWER,
 };
 
-static struct tegra_sdhci_platform_data sdhci_pdata2 = {
+static struct tegra_sdhci_platform_data sdhci_pdata4 = {
 	.cd_gpio	= -1,
 	.wp_gpio	= -1,
 	.power_gpio	= -1,
-};
-
-static struct tegra_sdhci_platform_data sdhci_pdata4 = {
-	.cd_gpio	= TEGRA_GPIO_SD4_CD,
-	.wp_gpio	= TEGRA_GPIO_SD4_WP,
-	.power_gpio	= TEGRA_GPIO_SD4_POWER,
 	.is_8bit	= 1,
 };
 
@@ -168,7 +161,6 @@ static void __init tegra_paz00_init(void)
 	paz00_pinmux_init();
 
 	tegra_sdhci_device1.dev.platform_data = &sdhci_pdata1;
-	tegra_sdhci_device2.dev.platform_data = &sdhci_pdata2;
 	tegra_sdhci_device4.dev.platform_data = &sdhci_pdata4;
 
 	platform_add_devices(paz00_devices, ARRAY_SIZE(paz00_devices));
