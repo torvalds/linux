@@ -202,7 +202,10 @@ static int cm3202_probe(struct platform_device *pdev)
 		printk("cm3202 alloc memory err !!!\n");
 		err = -ENOMEM;
 		goto alloc_memory_fail;
-	}
+	}	
+		if(pdata->init_platform_hw)
+		pdata->init_platform_hw();
+
 	cm3202->CM3202_SD = pdata->CM3202_SD_IOPIN;
 	DBG("===============================cm3202==========================\ncm3202_ADC_CHN = %d",pdata->DATA_ADC_CHN);
 	light = cm3202;

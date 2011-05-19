@@ -2570,7 +2570,7 @@ static void __init machine_rk29_board_init(void)
 	rk29sdk_init_wifi_mem();
 #endif
 
-#ifdef CONFIG_RK29_GPS
+#if CONFIG_RK29_GPS
 	rk29_gps_bcm4751_gpio_init();
 #endif
 
