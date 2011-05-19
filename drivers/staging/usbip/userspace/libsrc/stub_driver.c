@@ -8,7 +8,8 @@
 
 #include "usbip.h"
 
-static const char *usbip_stub_driver_name = "usbip";
+/* kernel module name */
+static const char *usbip_stub_driver_name = "usbip-host";
 
 
 struct usbip_stub_driver *stub_driver;
