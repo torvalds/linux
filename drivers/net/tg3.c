@@ -7990,6 +7990,22 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 			tw32(GRC_MODE, grc_mode);
 		}
 
+		if (GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_57765_AX) {
+			u32 grc_mode = tr32(GRC_MODE);
+
+			/* Access the lower 1K of DL PCIE block registers. */
+			val = grc_mode & ~GRC_MODE_PCIE_PORT_MASK;
+			tw32(GRC_MODE, val | GRC_MODE_PCIE_DL_SEL);
+
+			val = tr32(TG3_PCIE_TLDLPL_PORT +
+				   TG3_PCIE_DL_LO_FTSMAX);
+			val &= ~TG3_PCIE_DL_LO_FTSMAX_MSK;
+			tw32(TG3_PCIE_TLDLPL_PORT + TG3_PCIE_DL_LO_FTSMAX,
+			     val | TG3_PCIE_DL_LO_FTSMAX_VAL);
+
+			tw32(GRC_MODE, grc_mode);
+		}
+
 		val = tr32(TG3_CPMU_LSPD_10MB_CLK);
 		val &= ~CPMU_LSPD_10MB_MACCLK_MASK;
 		val |= CPMU_LSPD_10MB_MACCLK_6_25;
