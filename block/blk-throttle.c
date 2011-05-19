@@ -88,7 +88,7 @@ struct throtl_data
 	/* service tree for active throtl groups */
 	struct throtl_rb_root tg_service_tree;
 
-	struct throtl_grp root_tg;
+	struct throtl_grp *root_tg;
 	struct request_queue *queue;
 
 	/* Total Number of queued bios on READ and WRITE lists */
@@ -233,7 +233,7 @@ throtl_grp *throtl_find_tg(struct throtl_data *td, struct blkio_cgroup *blkcg)
  	 * Avoid lookup in this case
  	 */
 	if (blkcg == &blkio_root_cgroup)
-		tg = &td->root_tg;
+		tg = td->root_tg;
 	else
 		tg = tg_of_blkg(blkiocg_lookup_group(blkcg, key));
 
@@ -313,7 +313,7 @@ static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 
 	/* Group allocation failed. Account the IO to root group */
 	if (!tg) {
-		tg = &td->root_tg;
+		tg = td->root_tg;
 		return tg;
 	}
 
@@ -1153,18 +1153,16 @@ int blk_throtl_init(struct request_queue *q)
 	td->limits_changed = false;
 	INIT_DELAYED_WORK(&td->throtl_work, blk_throtl_work);
 
-	/* Init root group */
-	tg = &td->root_tg;
-	throtl_init_group(tg);
+	/* alloc and Init root group. */
+	td->queue = q;
+	tg = throtl_alloc_tg(td);
 
-	/*
-	 * Set root group reference to 2. One reference will be dropped when
-	 * all groups on tg_list are being deleted during queue exit. Other
-	 * reference will remain there as we don't want to delete this group
-	 * as it is statically allocated and gets destroyed when throtl_data
-	 * goes away.
-	 */
-	atomic_inc(&tg->ref);
+	if (!tg) {
+		kfree(td);
+		return -ENOMEM;
+	}
+
+	td->root_tg = tg;
 
 	rcu_read_lock();
 	blkiocg_add_blkio_group(&blkio_root_cgroup, &tg->blkg, (void *)td,
@@ -1173,7 +1171,6 @@ int blk_throtl_init(struct request_queue *q)
 	throtl_add_group_to_td_list(td, tg);
 
 	/* Attach throtl data to request queue */
-	td->queue = q;
 	q->td = td;
 	return 0;
 }
