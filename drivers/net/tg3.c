@@ -13639,6 +13639,21 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 			tp->fw_needed = FIRMWARE_TG3TSO;
 	}
 
+	/* Selectively allow TSO based on operating conditions */
+	if ((tg3_flag(tp, HW_TSO_1) ||
+	     tg3_flag(tp, HW_TSO_2) ||
+	     tg3_flag(tp, HW_TSO_3)) ||
+	    (tp->fw_needed && !tg3_flag(tp, ENABLE_ASF)))
+		tg3_flag_set(tp, TSO_CAPABLE);
+	else {
+		tg3_flag_clear(tp, TSO_CAPABLE);
+		tg3_flag_clear(tp, TSO_BUG);
+		tp->fw_needed = NULL;
+	}
+
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5701_A0)
+		tp->fw_needed = FIRMWARE_TG3;
+
 	tp->irq_max = 1;
 
 	if (tg3_flag(tp, 5750_PLUS)) {
@@ -13705,6 +13720,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		if (lnkctl & PCI_EXP_LNKCTL_CLKREQ_EN) {
 			if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
 				tg3_flag_clear(tp, HW_TSO_2);
+				tg3_flag_clear(tp, TSO_CAPABLE);
 			if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
 			    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761 ||
 			    tp->pci_chip_rev_id == CHIPREV_ID_57780_A0 ||
@@ -15043,21 +15059,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	}
 
 	tg3_init_bufmgr_config(tp);
-
-	/* Selectively allow TSO based on operating conditions */
-	if ((tg3_flag(tp, HW_TSO_1) ||
-	     tg3_flag(tp, HW_TSO_2) ||
-	     tg3_flag(tp, HW_TSO_3)) ||
-	    (tp->fw_needed && !tg3_flag(tp, ENABLE_ASF)))
-		tg3_flag_set(tp, TSO_CAPABLE);
-	else {
-		tg3_flag_clear(tp, TSO_CAPABLE);
-		tg3_flag_clear(tp, TSO_BUG);
-		tp->fw_needed = NULL;
-	}
-
-	if (tp->pci_chip_rev_id == CHIPREV_ID_5701_A0)
-		tp->fw_needed = FIRMWARE_TG3;
 
 	/* TSO is on by default on chips that support hardware TSO.
 	 * Firmware TSO on older chips gives lower performance, so it
