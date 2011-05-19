@@ -158,6 +158,7 @@ static void throtl_free_tg(struct rcu_head *head)
 	struct throtl_grp *tg;
 
 	tg = container_of(head, struct throtl_grp, rcu_head);
+	free_percpu(tg->blkg.stats_cpu);
 	kfree(tg);
 }
 
@@ -249,10 +250,18 @@ static void throtl_init_add_tg_lists(struct throtl_data *td,
 static struct throtl_grp *throtl_alloc_tg(struct throtl_data *td)
 {
 	struct throtl_grp *tg = NULL;
+	int ret;
 
 	tg = kzalloc_node(sizeof(*tg), GFP_ATOMIC, td->queue->node);
 	if (!tg)
 		return NULL;
+
+	ret = blkio_alloc_blkg_stats(&tg->blkg);
+
+	if (ret) {
+		kfree(tg);
+		return NULL;
+	}
 
 	throtl_init_group(tg);
 	return tg;

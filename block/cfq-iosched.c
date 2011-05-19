@@ -1051,7 +1051,7 @@ static void cfq_init_add_cfqg_lists(struct cfq_data *cfqd,
 static struct cfq_group * cfq_alloc_cfqg(struct cfq_data *cfqd)
 {
 	struct cfq_group *cfqg = NULL;
-	int i, j;
+	int i, j, ret;
 	struct cfq_rb_root *st;
 
 	cfqg = kzalloc_node(sizeof(*cfqg), GFP_ATOMIC, cfqd->queue->node);
@@ -1069,6 +1069,13 @@ static struct cfq_group * cfq_alloc_cfqg(struct cfq_data *cfqd)
 	 * or cgroup deletion path depending on who is exiting first.
 	 */
 	cfqg->ref = 1;
+
+	ret = blkio_alloc_blkg_stats(&cfqg->blkg);
+	if (ret) {
+		kfree(cfqg);
+		return NULL;
+	}
+
 	return cfqg;
 }
 
@@ -1183,6 +1190,7 @@ static void cfq_put_cfqg(struct cfq_group *cfqg)
 		return;
 	for_each_cfqg_st(cfqg, i, j, st)
 		BUG_ON(!RB_EMPTY_ROOT(&st->rb));
+	free_percpu(cfqg->blkg.stats_cpu);
 	kfree(cfqg);
 }
 
@@ -3995,7 +4003,15 @@ static void *cfq_init_queue(struct request_queue *q)
 	 * throtl_data goes away.
 	 */
 	cfqg->ref = 2;
+
+	if (blkio_alloc_blkg_stats(&cfqg->blkg)) {
+		kfree(cfqg);
+		kfree(cfqd);
+		return NULL;
+	}
+
 	rcu_read_lock();
+
 	cfq_blkiocg_add_blkio_group(&blkio_root_cgroup, &cfqg->blkg,
 					(void *)cfqd, 0);
 	rcu_read_unlock();
