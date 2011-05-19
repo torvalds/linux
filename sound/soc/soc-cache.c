@@ -604,6 +604,7 @@ struct snd_soc_rbtree_node {
 
 struct snd_soc_rbtree_ctx {
 	struct rb_root root;
+	struct snd_soc_rbtree_node *cached_rbnode;
 };
 
 static inline void snd_soc_rbtree_get_base_top_reg(
@@ -780,11 +781,28 @@ static int snd_soc_rbtree_cache_write(struct snd_soc_codec *codec,
 	struct rb_node *node;
 	unsigned int val;
 	unsigned int reg_tmp;
+	unsigned int base_reg, top_reg;
 	unsigned int pos;
 	int i;
 	int ret;
 
 	rbtree_ctx = codec->reg_cache;
+	/* look up the required register in the cached rbnode */
+	rbnode = rbtree_ctx->cached_rbnode;
+	if (rbnode) {
+		snd_soc_rbtree_get_base_top_reg(rbnode, &base_reg, &top_reg);
+		if (reg >= base_reg && reg <= top_reg) {
+			reg_tmp = reg - base_reg;
+			val = snd_soc_rbtree_get_register(rbnode, reg_tmp);
+			if (val == value)
+				return 0;
+			snd_soc_rbtree_set_register(rbnode, reg_tmp, value);
+			return 0;
+		}
+	}
+	/* if we can't locate it in the cached rbnode we'll have
+	 * to traverse the rbtree looking for it.
+	 */
 	rbnode = snd_soc_rbtree_lookup(&rbtree_ctx->root, reg);
 	if (rbnode) {
 		reg_tmp = reg - rbnode->base_reg;
@@ -792,6 +810,7 @@ static int snd_soc_rbtree_cache_write(struct snd_soc_codec *codec,
 		if (val == value)
 			return 0;
 		snd_soc_rbtree_set_register(rbnode, reg_tmp, value);
+		rbtree_ctx->cached_rbnode = rbnode;
 	} else {
 		/* bail out early, no need to create the rbnode yet */
 		if (!value)
@@ -813,6 +832,7 @@ static int snd_soc_rbtree_cache_write(struct snd_soc_codec *codec,
 								     reg, value);
 				if (ret)
 					return ret;
+				rbtree_ctx->cached_rbnode = rbnode_tmp;
 				return 0;
 			}
 		}
@@ -835,6 +855,7 @@ static int snd_soc_rbtree_cache_write(struct snd_soc_codec *codec,
 		}
 		snd_soc_rbtree_set_register(rbnode, 0, value);
 		snd_soc_rbtree_insert(&rbtree_ctx->root, rbnode);
+		rbtree_ctx->cached_rbnode = rbnode;
 	}
 
 	return 0;
@@ -845,13 +866,28 @@ static int snd_soc_rbtree_cache_read(struct snd_soc_codec *codec,
 {
 	struct snd_soc_rbtree_ctx *rbtree_ctx;
 	struct snd_soc_rbtree_node *rbnode;
+	unsigned int base_reg, top_reg;
 	unsigned int reg_tmp;
 
 	rbtree_ctx = codec->reg_cache;
+	/* look up the required register in the cached rbnode */
+	rbnode = rbtree_ctx->cached_rbnode;
+	if (rbnode) {
+		snd_soc_rbtree_get_base_top_reg(rbnode, &base_reg, &top_reg);
+		if (reg >= base_reg && reg <= top_reg) {
+			reg_tmp = reg - base_reg;
+			*value = snd_soc_rbtree_get_register(rbnode, reg_tmp);
+			return 0;
+		}
+	}
+	/* if we can't locate it in the cached rbnode we'll have
+	 * to traverse the rbtree looking for it.
+	 */
 	rbnode = snd_soc_rbtree_lookup(&rbtree_ctx->root, reg);
 	if (rbnode) {
 		reg_tmp = reg - rbnode->base_reg;
 		*value = snd_soc_rbtree_get_register(rbnode, reg_tmp);
+		rbtree_ctx->cached_rbnode = rbnode;
 	} else {
 		/* uninitialized registers default to 0 */
 		*value = 0;
@@ -902,6 +938,7 @@ static int snd_soc_rbtree_cache_init(struct snd_soc_codec *codec)
 
 	rbtree_ctx = codec->reg_cache;
 	rbtree_ctx->root = RB_ROOT;
+	rbtree_ctx->cached_rbnode = NULL;
 
 	if (!codec->reg_def_copy)
 		return 0;
