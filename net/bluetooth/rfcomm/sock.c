@@ -741,7 +741,6 @@ static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname, c
 static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __user *optval, int __user *optlen)
 {
 	struct sock *sk = sock->sk;
-	struct sock *l2cap_sk;
 	struct rfcomm_conninfo cinfo;
 	struct l2cap_conn *conn = l2cap_pi(sk)->chan->conn;
 	int len, err = 0;
@@ -786,7 +785,6 @@ static int rfcomm_sock_getsockopt_old(struct socket *sock, int optname, char __u
 			break;
 		}
 
-		l2cap_sk = rfcomm_pi(sk)->dlc->session->sock->sk;
 
 		memset(&cinfo, 0, sizeof(cinfo));
 		cinfo.hci_handle = conn->hcon->handle;
