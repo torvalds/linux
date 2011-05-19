@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
+#include <sound/jack.h>
 #include "hda_codec.h"
 #include "hda_local.h"
 
@@ -720,6 +721,8 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 				  &spec->sink_eld[index]);
 		/* TODO: do real things about ELD */
 	}
+
+	snd_hda_input_jack_report(codec, tag);
 }
 
 static void hdmi_non_intrinsic_event(struct hda_codec *codec, unsigned int res)
@@ -912,12 +915,19 @@ static void hdmi_present_sense(struct hda_codec *codec, hda_nid_t pin_nid,
 static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 {
 	struct hdmi_spec *spec = codec->spec;
+	int err;
 
 	if (spec->num_pins >= MAX_HDMI_PINS) {
 		snd_printk(KERN_WARNING
 			   "HDMI: no space for pin %d\n", pin_nid);
 		return -E2BIG;
 	}
+
+	err = snd_hda_input_jack_add(codec, pin_nid,
+				     SND_JACK_VIDEOOUT, NULL);
+	if (err < 0)
+		return err;
+	snd_hda_input_jack_report(codec, pin_nid);
 
 	hdmi_present_sense(codec, pin_nid, &spec->sink_eld[spec->num_pins]);
 
@@ -1120,6 +1130,7 @@ static void generic_hdmi_free(struct hda_codec *codec)
 
 	for (i = 0; i < spec->num_pins; i++)
 		snd_hda_eld_proc_free(codec, &spec->sink_eld[i]);
+	snd_hda_input_jack_free(codec);
 
 	kfree(spec);
 }

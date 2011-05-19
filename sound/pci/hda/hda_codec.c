@@ -5055,6 +5055,8 @@ static const char *get_jack_default_name(struct hda_codec *codec, hda_nid_t nid,
 		return "Line-out";
 	case SND_JACK_HEADSET:
 		return "Headset";
+	case SND_JACK_VIDEOOUT:
+		return "HDMI/DP";
 	default:
 		return "Misc";
 	}
