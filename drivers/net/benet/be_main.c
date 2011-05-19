@@ -2736,7 +2736,6 @@ static int lancer_fw_download(struct be_adapter *adapter,
 #define LANCER_FW_DOWNLOAD_CHUNK      (32 * 1024)
 #define LANCER_FW_DOWNLOAD_LOCATION   "/prg"
 	struct be_dma_mem flash_cmd;
-	struct lancer_cmd_req_write_object *req;
 	const u8 *data_ptr = NULL;
 	u8 *dest_image_ptr = NULL;
 	size_t image_size = 0;
@@ -2765,7 +2764,6 @@ static int lancer_fw_download(struct be_adapter *adapter,
 		goto lancer_fw_exit;
 	}
 
-	req = flash_cmd.va;
 	dest_image_ptr = flash_cmd.va +
 				sizeof(struct lancer_cmd_req_write_object);
 	image_size = fw->size;
