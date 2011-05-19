@@ -101,6 +101,7 @@ struct irq_info
 			unsigned short gsi;
 			unsigned char vector;
 			unsigned char flags;
+			uint16_t domid;
 		} pirq;
 	} u;
 };
@@ -184,6 +185,7 @@ static void xen_irq_info_pirq_init(unsigned irq,
 				   unsigned short pirq,
 				   unsigned short gsi,
 				   unsigned short vector,
+				   uint16_t domid,
 				   unsigned char flags)
 {
 	struct irq_info *info = info_for_irq(irq);
@@ -193,6 +195,7 @@ static void xen_irq_info_pirq_init(unsigned irq,
 	info->u.pirq.pirq = pirq;
 	info->u.pirq.gsi = gsi;
 	info->u.pirq.vector = vector;
+	info->u.pirq.domid = domid;
 	info->u.pirq.flags = flags;
 }
 
@@ -655,7 +658,7 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 		goto out;
 	}
 
-	xen_irq_info_pirq_init(irq, 0, pirq, gsi, irq_op.vector,
+	xen_irq_info_pirq_init(irq, 0, pirq, gsi, irq_op.vector, DOMID_SELF,
 			       shareable ? PIRQ_SHAREABLE : 0);
 
 out:
@@ -680,7 +683,8 @@ int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc)
 }
 
 int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			     int pirq, int vector, const char *name)
+			     int pirq, int vector, const char *name,
+			     domid_t domid)
 {
 	int irq, ret;
 
@@ -693,7 +697,7 @@ int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_level_irq,
 				      name);
 
-	xen_irq_info_pirq_init(irq, 0, pirq, 0, vector, 0);
+	xen_irq_info_pirq_init(irq, 0, pirq, 0, vector, domid, 0);
 	ret = irq_set_msi_desc(irq, msidesc);
 	if (ret < 0)
 		goto error_irq;
@@ -722,9 +726,16 @@ int xen_destroy_irq(int irq)
 
 	if (xen_initial_domain()) {
 		unmap_irq.pirq = info->u.pirq.pirq;
-		unmap_irq.domid = DOMID_SELF;
+		unmap_irq.domid = info->u.pirq.domid;
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_unmap_pirq, &unmap_irq);
-		if (rc) {
+		/* If another domain quits without making the pci_disable_msix
+		 * call, the Xen hypervisor takes care of freeing the PIRQs
+		 * (free_domain_pirqs).
+		 */
+		if ((rc == -ESRCH && info->u.pirq.domid != DOMID_SELF))
+			printk(KERN_INFO "domain %d does not have %d anymore\n",
+				info->u.pirq.domid, info->u.pirq.pirq);
+		else if (rc) {
 			printk(KERN_WARNING "unmap irq failed %d\n", rc);
 			goto out;
 		}
@@ -759,6 +770,12 @@ out:
 	return irq;
 }
 
+
+int xen_pirq_from_irq(unsigned irq)
+{
+	return pirq_from_irq(irq);
+}
+EXPORT_SYMBOL_GPL(xen_pirq_from_irq);
 int bind_evtchn_to_irq(unsigned int evtchn)
 {
 	int irq;
@@ -1501,6 +1518,18 @@ void xen_poll_irq(int irq)
 {
 	xen_poll_irq_timeout(irq, 0 /* no timeout */);
 }
+
+/* Check whether the IRQ line is shared with other guests. */
+int xen_test_irq_shared(int irq)
+{
+	struct irq_info *info = info_for_irq(irq);
+	struct physdev_irq_status_query irq_status = { .irq = info->u.pirq.pirq };
+
+	if (HYPERVISOR_physdev_op(PHYSDEVOP_irq_status_query, &irq_status))
+		return 0;
+	return !(irq_status.flags & XENIRQSTAT_shared);
+}
+EXPORT_SYMBOL_GPL(xen_test_irq_shared);
 
 void xen_irq_resume(void)
 {

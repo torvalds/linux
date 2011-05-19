@@ -650,7 +650,7 @@ static unsigned long mfn_hash(unsigned long mfn)
 }
 
 /* Add an MFN override for a particular page */
-int m2p_add_override(unsigned long mfn, struct page *page)
+int m2p_add_override(unsigned long mfn, struct page *page, bool clear_pte)
 {
 	unsigned long flags;
 	unsigned long pfn;
@@ -662,7 +662,6 @@ int m2p_add_override(unsigned long mfn, struct page *page)
 	if (!PageHighMem(page)) {
 		address = (unsigned long)__va(pfn << PAGE_SHIFT);
 		ptep = lookup_address(address, &level);
-
 		if (WARN(ptep == NULL || level != PG_LEVEL_4K,
 					"m2p_add_override: pfn %lx not mapped", pfn))
 			return -EINVAL;
@@ -674,18 +673,17 @@ int m2p_add_override(unsigned long mfn, struct page *page)
 	if (unlikely(!set_phys_to_machine(pfn, FOREIGN_FRAME(mfn))))
 		return -ENOMEM;
 
-	if (!PageHighMem(page))
+	if (clear_pte && !PageHighMem(page))
 		/* Just zap old mapping for now */
 		pte_clear(&init_mm, address, ptep);
-
 	spin_lock_irqsave(&m2p_override_lock, flags);
 	list_add(&page->lru,  &m2p_overrides[mfn_hash(mfn)]);
 	spin_unlock_irqrestore(&m2p_override_lock, flags);
 
 	return 0;
 }
-
-int m2p_remove_override(struct page *page)
+EXPORT_SYMBOL_GPL(m2p_add_override);
+int m2p_remove_override(struct page *page, bool clear_pte)
 {
 	unsigned long flags;
 	unsigned long mfn;
@@ -713,7 +711,7 @@ int m2p_remove_override(struct page *page)
 	spin_unlock_irqrestore(&m2p_override_lock, flags);
 	set_phys_to_machine(pfn, page->index);
 
-	if (!PageHighMem(page))
+	if (clear_pte && !PageHighMem(page))
 		set_pte_at(&init_mm, address, ptep,
 				pfn_pte(pfn, PAGE_KERNEL));
 		/* No tlb flush necessary because the caller already
@@ -721,6 +719,7 @@ int m2p_remove_override(struct page *page)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(m2p_remove_override);
 
 struct page *m2p_find_override(unsigned long mfn)
 {
