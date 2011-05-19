@@ -473,8 +473,8 @@ static void setup_mmu_htw(void)
 			     (unsigned long)&exc_instruction_tlb_miss_htw_book3e, 0);
 		book3e_htw_enabled = 1;
 	}
-	pr_info("MMU: Book3E Page Tables %s\n",
-		book3e_htw_enabled ? "Enabled" : "Disabled");
+	pr_info("MMU: Book3E HW tablewalk %s\n",
+		book3e_htw_enabled ? "enabled" : "not supported");
 }
 
 /*
