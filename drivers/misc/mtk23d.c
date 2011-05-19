@@ -45,8 +45,8 @@ MODULE_LICENSE("GPL");
 //#define AP_BP_WAKEUP  RK2818_PIN_PF5   //output AP wake up BP used rising edge
 //#define BP_AP_WAKEUP  RK2818_PIN_PE0	//input BP wake up AP
 
-//static bool wakelock_inited;
-//static struct wake_lock mtk23d_wakelock;
+static bool wakelock_inited;
+static struct wake_lock mtk23d_wakelock;
 
 #define SLEEP 1
 #define READY 0
@@ -236,7 +236,7 @@ static int mtk23d_probe(struct platform_device *pdev)
 	
 	rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_GPIO1C0); 		
 	gpio_request(RK29_PIN1_PC0, NULL);
-	gpio_direction_output(RK29_PIN1_PC0,GPIO_LOW);		
+	gpio_direction_input(RK29_PIN1_PC0);		
 #endif
 
 	pdata->io_init();
@@ -286,6 +286,8 @@ static int mtk23d_probe(struct platform_device *pdev)
 	mdelay(100);
 	gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
 	gpio_set_value(pdata->ap_bp_wakeup, GPIO_HIGH);
+	
+	gpio_direction_input(pdata->bp_statue);
 #endif	
 	
 #if 0 
@@ -313,10 +315,10 @@ static int mtk23d_probe(struct platform_device *pdev)
 	}
 	MODEMDBG("mtk23d_probe ok\n");
 	
-//	if (!wakelock_inited) {
-//		wake_lock_init(&mtk23d_wakelock, WAKE_LOCK_SUSPEND, "23d_resume");
-//		wakelock_inited = true;
-//	}
+	if (!wakelock_inited) {
+		wake_lock_init(&mtk23d_wakelock, WAKE_LOCK_SUSPEND, "23d_resume");
+		wakelock_inited = true;
+	}
 	
 	return result;
 err0:
@@ -338,29 +340,69 @@ ret:
 	return result;
 }
 
+static irqreturn_t BBwakeup_isr(int irq, void *dev_id)
+{
+	struct rk2818_23d_data *pdata = dev_id;
+	
+	MODEMDBG("%s \n", __FUNCTION__);
+	//if(irq != gpio_to_irq(RK29_PIN1_PC0))
+	//{
+	//		printk("irq != gpio_to_irq(RK29_PIN1_PC0) \n");
+	//		return IRQ_NONE;
+	//}
+	
+//	disable_irq_wake(irq);
+	
+	wake_lock_timeout(&mtk23d_wakelock, 2 * HZ);
+
+	return IRQ_HANDLED;
+}
+
 int mtk23d_suspend(struct platform_device *pdev)
 {
+	int irq, error;
 	struct rk2818_23d_data *pdata = pdev->dev.platform_data;
-	//int irq = gpio_to_irq(pdata->bp_ap_wakeup);
 	
 	MODEMDBG("%s \n", __FUNCTION__);
 	//enable_irq_wake(irq);
 	ap_sleep(pdev);
 	ap_wakeup_bp(pdev, 0);
+
+	irq = gpio_to_irq(pdata->bp_statue);
+	if (irq < 0) {
+		printk("can't get pdata->bp_statue irq \n");
+	}
+	else
+	{
+		error = request_irq(irq, BBwakeup_isr,
+				    IRQF_TRIGGER_FALLING,
+				    NULL,
+				    pdata);
+		if (error) {
+			printk("request_irq error!!! \n");
+		}
+		enable_irq_wake(irq);
+	}
+	
 	return 0;
 }
 
 int mtk23d_resume(struct platform_device *pdev)
 {
 	struct rk2818_23d_data *pdata = pdev->dev.platform_data;
-	//int irq = gpio_to_irq(pdata->bp_ap_wakeup);
+	int irq = 0;
 	
 	MODEMDBG("%s \n", __FUNCTION__);
 	//disable_irq_wake(irq);
 	ap_wakeup(pdev);
 	ap_wakeup_bp(pdev, 1);
 	
-//	wake_lock_timeout(&mtk23d_wakelock, 10 * HZ);
+	irq = gpio_to_irq(pdata->bp_statue);
+	if(irq)
+	{
+		printk("disable pdata->bp_statue irq_wake!! \n");
+		disable_irq_wake(irq);
+	}
 	
 	return 0;
 }
