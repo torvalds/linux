@@ -433,11 +433,11 @@ u8 mxt_read_chg(void)
 }
 
 struct mxt_platform_data mxt224_info = {
-        .numtouch = 2,
-        .init_platform_hw= mxt224_init_platform_hw,
-        .read_chg = mxt_read_chg,
-        .max_x = 4095,
-        .max_y = 4095,
+    .numtouch = 2,
+    .init_platform_hw= mxt224_init_platform_hw,
+    .read_chg = mxt_read_chg,
+    .max_x = 4095,
+    .max_y = 4095,
 };
 #endif
 
@@ -872,7 +872,7 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 	}
 #endif
 
-#if 1
+#if 0
 	/* VDD2 whitch suplies for ddr3 Set the default voltage: 1087 * 1.25mV(41)*/
 	val = 42;	
 	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD2_OP);
@@ -954,7 +954,7 @@ struct rk29_i2c_platform_data default_i2c0_data = {
 	.bus_num    = 0,
 	.flags      = 0,
 	.slave_addr = 0xff,
-	.scl_rate  = 200*1000,
+	.scl_rate  = 400*1000,
 	.mode 		= I2C_MODE_IRQ,
 	.io_init = rk29_i2c0_io_init,
 };
@@ -972,7 +972,7 @@ struct rk29_i2c_platform_data default_i2c2_data = {
 	.bus_num    = 2,
 	.flags      = 0,
 	.slave_addr = 0xff,
-	.scl_rate  = 200*1000,
+	.scl_rate  = 400*1000,
 	.mode 		= I2C_MODE_IRQ,
 	.io_init = rk29_i2c2_io_init,
 };
@@ -981,7 +981,7 @@ struct rk29_i2c_platform_data default_i2c3_data = {
 	.bus_num    = 3,
 	.flags      = 0,
 	.slave_addr = 0xff,
-	.scl_rate  = 200*1000,
+	.scl_rate  = 400*1000,
 	.mode 		= I2C_MODE_POLL,
 	.io_init = rk29_i2c3_io_init,
 };
@@ -1274,9 +1274,10 @@ static int rk29_sensor_io_init(void)
 				goto sensor_io_int_loop_end;
 			rk29_camera_platform_data.gpio_res[i].gpio_init |= RK29_CAM_FLASHACTIVE_MASK;
             /*lzg@rock-chips.com; to forbid to  flash while powing on ;*/
-         //   gpio_set_value(camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
-         //   gpio_direction_output(camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
-
+#if 0
+            gpio_set_value(camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
+            gpio_direction_output(camera_flash, ((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
+#endif
 			//printk("\n%s....flash pin(%d) init success(0x%x) \n",__FUNCTION__,camera_flash,((camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
 
         }
