@@ -378,7 +378,6 @@ static void put_chip(struct map_info *map, struct flchip *chip)
 
 	switch (chip->oldstate) {
 	case FL_ERASING:
-		chip->state = chip->oldstate;
 		map_write(map, CMD(LPDDR_RESUME),
 				map->pfow_base + PFOW_COMMAND_CODE);
 		map_write(map, CMD(LPDDR_START_EXECUTION),
