@@ -321,6 +321,7 @@ config HID_MULTITOUCH
 	    Joojoo and Wetab tablets
 	  - Stantum multitouch panels
 	  - Touch International Panels
+	  - Unitec Panels
 
 	  If unsure, say N.
 

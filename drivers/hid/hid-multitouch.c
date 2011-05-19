@@ -688,6 +688,14 @@ static const struct hid_device_id mt_devices[] = {
 		HID_USB_DEVICE(USB_VENDOR_ID_TOUCH_INTL,
 			USB_DEVICE_ID_TOUCH_INTL_MULTI_TOUCH) },
 
+	/* Unitec panels */
+	{ .driver_data = MT_CLS_DEFAULT,
+		HID_USB_DEVICE(USB_VENDOR_ID_UNITEC,
+			USB_DEVICE_ID_UNITEC_USB_TOUCH_0709) },
+	{ .driver_data = MT_CLS_DEFAULT,
+		HID_USB_DEVICE(USB_VENDOR_ID_UNITEC,
+			USB_DEVICE_ID_UNITEC_USB_TOUCH_0A19) },
+
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, mt_devices);
