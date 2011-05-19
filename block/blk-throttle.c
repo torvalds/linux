@@ -229,6 +229,22 @@ __throtl_tg_fill_dev_details(struct throtl_data *td, struct throtl_grp *tg)
 	}
 }
 
+/*
+ * Should be called with without queue lock held. Here queue lock will be
+ * taken rarely. It will be taken only once during life time of a group
+ * if need be
+ */
+static void
+throtl_tg_fill_dev_details(struct throtl_data *td, struct throtl_grp *tg)
+{
+	if (!tg || tg->blkg.dev)
+		return;
+
+	spin_lock_irq(td->queue->queue_lock);
+	__throtl_tg_fill_dev_details(td, tg);
+	spin_unlock_irq(td->queue->queue_lock);
+}
+
 static void throtl_init_add_tg_lists(struct throtl_data *td,
 			struct throtl_grp *tg, struct blkio_cgroup *blkcg)
 {
@@ -666,6 +682,12 @@ static bool tg_with_in_bps_limit(struct throtl_data *td, struct throtl_grp *tg,
 	return 0;
 }
 
+static bool tg_no_rule_group(struct throtl_grp *tg, bool rw) {
+	if (tg->bps[rw] == -1 && tg->iops[rw] == -1)
+		return 1;
+	return 0;
+}
+
 /*
  * Returns whether one can dispatch a bio or not. Also returns approx number
  * of jiffies to wait before this bio is with-in IO rate and can be dispatched
@@ -730,10 +752,6 @@ static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 	tg->bytes_disp[rw] += bio->bi_size;
 	tg->io_disp[rw]++;
 
-	/*
-	 * TODO: This will take blkg->stats_lock. Figure out a way
-	 * to avoid this cost.
-	 */
 	blkiocg_update_dispatch_stats(&tg->blkg, bio->bi_size, rw, sync);
 }
 
@@ -1111,11 +1129,38 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
 	struct throtl_grp *tg;
 	struct bio *bio = *biop;
 	bool rw = bio_data_dir(bio), update_disptime = true;
+	struct blkio_cgroup *blkcg;
 
 	if (bio->bi_rw & REQ_THROTTLED) {
 		bio->bi_rw &= ~REQ_THROTTLED;
 		return 0;
 	}
+
+	/*
+	 * A throtl_grp pointer retrieved under rcu can be used to access
+	 * basic fields like stats and io rates. If a group has no rules,
+	 * just update the dispatch stats in lockless manner and return.
+	 */
+
+	rcu_read_lock();
+	blkcg = task_blkio_cgroup(current);
+	tg = throtl_find_tg(td, blkcg);
+	if (tg) {
+		throtl_tg_fill_dev_details(td, tg);
+
+		if (tg_no_rule_group(tg, rw)) {
+			blkiocg_update_dispatch_stats(&tg->blkg, bio->bi_size,
+					rw, bio->bi_rw & REQ_SYNC);
+			rcu_read_unlock();
+			return 0;
+		}
+	}
+	rcu_read_unlock();
+
+	/*
+	 * Either group has not been allocated yet or it is not an unlimited
+	 * IO group
+	 */
 
 	spin_lock_irq(q->queue_lock);
 	tg = throtl_get_tg(td);
