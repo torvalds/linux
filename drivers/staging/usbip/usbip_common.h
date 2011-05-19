@@ -32,25 +32,13 @@
 
 #define USBIP_VERSION "1.0.0"
 
-/**
- * usbip_udbg - print debug messages if CONFIG_USB_IP_DEBUG is defined
- * @fmt:
- * @args:
- */
-#ifdef CONFIG_USB_IP_DEBUG
+#undef pr_fmt
 
-#define usbip_udbg(fmt, args...)					\
-	do {								\
-		printk(KERN_DEBUG "%-10s:(%s,%d) %s: " fmt,		\
-		       (in_interrupt() ? "interrupt" : (current)->comm),\
-		       __FILE__, __LINE__, __func__, ##args);		\
-	} while (0)
-
+#ifdef DEBUG
+#define pr_fmt(fmt)     KBUILD_MODNAME ": %s:%d: " fmt, __func__, __LINE__
 #else
-
-#define usbip_udbg(fmt, args...)	do { } while (0)
-
-#endif /* CONFIG_USB_IP_DEBUG */
+#define pr_fmt(fmt)     KBUILD_MODNAME ": " fmt
+#endif
 
 enum {
 	usbip_debug_xmit	= (1 << 0),
@@ -85,7 +73,7 @@ extern struct device_attribute dev_attr_usbip_debug;
 #define usbip_dbg_with_flag(flag, fmt, args...)		\
 	do {						\
 		if (flag & usbip_debug_flag)		\
-			usbip_udbg(fmt , ##args);	\
+			pr_debug(fmt, ##args);		\
 	} while (0)
 
 #define usbip_dbg_sysfs(fmt, args...) \
@@ -114,28 +102,6 @@ extern struct device_attribute dev_attr_usbip_debug;
 	usbip_dbg_with_flag(usbip_debug_stub_rx, fmt , ##args)
 #define usbip_dbg_stub_tx(fmt, args...) \
 	usbip_dbg_with_flag(usbip_debug_stub_tx, fmt , ##args)
-
-/**
- * usbip_uerr - print error messages
- * @fmt:
- * @args:
- */
-#define usbip_uerr(fmt, args...)					\
-	do {								\
-		printk(KERN_ERR "%-10s: ***ERROR*** (%s,%d) %s: " fmt,	\
-		       (in_interrupt() ? "interrupt" : (current)->comm),\
-		       __FILE__, __LINE__, __func__, ##args);		\
-	} while (0)
-
-/**
- * usbip_uinfo - print information messages
- * @fmt:
- * @args:
- */
-#define usbip_uinfo(fmt, args...)				\
-	do {							\
-		printk(KERN_INFO "usbip: " fmt , ## args);	\
-	} while (0)
 
 /*
  * USB/IP request headers.

@@ -118,8 +118,8 @@ static int vhci_send_cmd_submit(struct vhci_device *vdev)
 
 		ret = kernel_sendmsg(vdev->ud.tcp_socket, &msg, iov, 3, txsize);
 		if (ret != txsize) {
-			usbip_uerr("sendmsg failed!, retval %d for %zd\n", ret,
-				   txsize);
+			pr_err("sendmsg failed!, ret=%d for %zd\n", ret,
+			       txsize);
 			kfree(iso_buffer);
 			usbip_event_add(&vdev->ud, VDEV_EVENT_ERROR_TCP);
 			return -1;
@@ -188,8 +188,8 @@ static int vhci_send_cmd_unlink(struct vhci_device *vdev)
 
 		ret = kernel_sendmsg(vdev->ud.tcp_socket, &msg, iov, 1, txsize);
 		if (ret != txsize) {
-			usbip_uerr("sendmsg failed!, retval %d for %zd\n", ret,
-									txsize);
+			pr_err("sendmsg failed!, ret=%d for %zd\n", ret,
+			       txsize);
 			usbip_event_add(&vdev->ud, VDEV_EVENT_ERROR_TCP);
 			return -1;
 		}

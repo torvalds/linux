@@ -84,8 +84,7 @@ int usbip_start_eh(struct usbip_device *ud)
 
 	ud->eh = kthread_run(event_handler_loop, ud, "usbip_eh");
 	if (IS_ERR(ud->eh)) {
-		printk(KERN_WARNING
-		       "Unable to start control thread\n");
+		pr_warning("Unable to start control thread\n");
 		return PTR_ERR(ud->eh);
 	}
 

@@ -75,22 +75,23 @@ void stub_complete(struct urb *urb)
 		/* OK */
 		break;
 	case -ENOENT:
-		usbip_uinfo("stopped by a call of usb_kill_urb() because of"
-			    "cleaning up a virtual connection\n");
+		dev_info(&urb->dev->dev, "stopped by a call to usb_kill_urb() "
+			 "because of cleaning up a virtual connection\n");
 		return;
 	case -ECONNRESET:
-		usbip_uinfo("unlinked by a call of usb_unlink_urb()\n");
+		dev_info(&urb->dev->dev, "unlinked by a call to "
+			 "usb_unlink_urb()\n");
 		break;
 	case -EPIPE:
-		usbip_uinfo("endpoint %d is stalled\n",
-			    usb_pipeendpoint(urb->pipe));
+		dev_info(&urb->dev->dev, "endpoint %d is stalled\n",
+			 usb_pipeendpoint(urb->pipe));
 		break;
 	case -ESHUTDOWN:
-		usbip_uinfo("device removed?\n");
+		dev_info(&urb->dev->dev, "device removed?\n");
 		break;
 	default:
-		usbip_uinfo("urb completion with non-zero status %d\n",
-			    urb->status);
+		dev_info(&urb->dev->dev, "urb completion with non-zero status "
+			 "%d\n", urb->status);
 		break;
 	}
 

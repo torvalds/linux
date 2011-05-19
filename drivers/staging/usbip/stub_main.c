@@ -178,14 +178,14 @@ static ssize_t store_match_busid(struct device_driver *dev, const char *buf,
 		if (add_match_busid(busid) < 0)
 			return -ENOMEM;
 		else {
-			usbip_udbg("add busid %s\n", busid);
+			pr_debug("add busid %s\n", busid);
 			return count;
 		}
 	} else if (!strncmp(buf, "del ", 4)) {
 		if (del_match_busid(busid) < 0)
 			return -ENODEV;
 		else {
-			usbip_udbg("del busid %s\n", busid);
+			pr_debug("del busid %s\n", busid);
 			return count;
 		}
 	} else
@@ -239,12 +239,12 @@ void stub_device_cleanup_urbs(struct stub_device *sdev)
 {
 	struct stub_priv *priv;
 
-	usbip_udbg("free sdev %p\n", sdev);
+	dev_dbg(&sdev->udev->dev, "free sdev %p\n", sdev);
 
 	while ((priv = stub_priv_pop(sdev))) {
 		struct urb *urb = priv->urb;
 
-		usbip_udbg("   free urb %p\n", urb);
+		dev_dbg(&sdev->udev->dev, "free urb %p\n", urb);
 		usb_kill_urb(urb);
 
 		kmem_cache_free(stub_priv_cache, priv);
@@ -265,20 +265,17 @@ static int __init usb_stub_init(void)
 					    SLAB_HWCACHE_ALIGN, NULL);
 
 	if (!stub_priv_cache) {
-		printk(KERN_ERR KBUILD_MODNAME
-		       ": create stub_priv_cache error\n");
+		pr_err("create stub_priv_cache error\n");
 		return -ENOMEM;
 	}
 
 	ret = usb_register(&stub_driver);
 	if (ret) {
-		printk(KERN_ERR KBUILD_MODNAME ": usb_register failed %d\n",
-		       ret);
+		pr_err("usb_register failed %d\n", ret);
 		goto error_usb_register;
 	}
 
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC " " USBIP_VERSION
-	       "\n");
+	pr_info(DRIVER_DESC " " USBIP_VERSION "\n");
 
 	init_busid_table();
 
@@ -286,7 +283,7 @@ static int __init usb_stub_init(void)
 				 &driver_attr_match_busid);
 
 	if (ret) {
-		printk(KERN_ERR KBUILD_MODNAME ": create driver sysfs\n");
+		pr_err("create driver sysfs\n");
 		goto error_create_file;
 	}
 
