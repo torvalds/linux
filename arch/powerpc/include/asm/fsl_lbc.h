@@ -157,6 +157,8 @@ struct fsl_lbc_regs {
 #define LBCR_EPAR_SHIFT    16
 #define LBCR_BMT   0x0000FF00
 #define LBCR_BMT_SHIFT      8
+#define LBCR_BMTPS 0x0000000F
+#define LBCR_BMTPS_SHIFT    0
 #define LBCR_INIT  0x00040000
 	__be32 lcrr;            /**< Clock Ratio Register */
 #define LCRR_DBYP    0x80000000
