@@ -98,6 +98,7 @@ enum transport_state_table {
 	TRANSPORT_REMOVE	= 14,
 	TRANSPORT_FREE		= 15,
 	TRANSPORT_NEW_CMD_MAP	= 16,
+	TRANSPORT_FREE_CMD_INTR = 17,
 };
 
 /* Used for struct se_cmd->se_cmd_flags */
