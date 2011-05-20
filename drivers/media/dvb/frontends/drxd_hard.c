@@ -2348,8 +2348,9 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			status = Write16(state,
 					 FE_AG_REG_IND_DEL__A, 71, 0x0000);
 			break;
+		default:
+			status = -EINVAL;
 		}
-		status = status;
 		if (status < 0)
 			break;
 
