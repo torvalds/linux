@@ -2,6 +2,7 @@ menuconfig INFINIBAND
 	tristate "InfiniBand support"
 	depends on PCI || BROKEN
 	depends on HAS_IOMEM
+	depends on NET
 	---help---
 	  Core support for InfiniBand (IB).  Make sure to also select
 	  any protocols you wish to use as well as drivers for your

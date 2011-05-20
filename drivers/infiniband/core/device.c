@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
+#include <rdma/rdma_netlink.h>
 
 #include "core_priv.h"
 
@@ -730,13 +731,22 @@ static int __init ib_core_init(void)
 		goto err;
 	}
 
-	ret = ib_cache_setup();
+	ret = ibnl_init();
 	if (ret) {
-		printk(KERN_WARNING "Couldn't set up InfiniBand P_Key/GID cache\n");
+		printk(KERN_WARNING "Couldn't init IB netlink interface\n");
 		goto err_sysfs;
 	}
 
+	ret = ib_cache_setup();
+	if (ret) {
+		printk(KERN_WARNING "Couldn't set up InfiniBand P_Key/GID cache\n");
+		goto err_nl;
+	}
+
 	return 0;
+
+err_nl:
+	ibnl_cleanup();
 
 err_sysfs:
 	ib_sysfs_cleanup();
@@ -749,6 +759,7 @@ err:
 static void __exit ib_core_cleanup(void)
 {
 	ib_cache_cleanup();
+	ibnl_cleanup();
 	ib_sysfs_cleanup();
 	/* Make sure that any pending umem accounting work is done. */
 	destroy_workqueue(ib_wq);
