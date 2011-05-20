@@ -25,7 +25,7 @@
 /* gpio device registration */
 static struct pl061_platform_data gpio_plat_data = {
 	.gpio_base	= 0,
-	.irq_base	= SPEAR_GPIO_INT_BASE,
+	.irq_base	= SPEAR3XX_GPIO_INT_BASE,
 };
 
 struct amba_device gpio_device = {
@@ -38,7 +38,7 @@ struct amba_device gpio_device = {
 		.end = SPEAR3XX_ICM3_GPIO_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = {IRQ_BASIC_GPIO, NO_IRQ},
+	.irq = {SPEAR3XX_IRQ_BASIC_GPIO, NO_IRQ},
 };
 
 /* uart device registration */
@@ -51,7 +51,7 @@ struct amba_device uart_device = {
 		.end = SPEAR3XX_ICM1_UART_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = {IRQ_UART, NO_IRQ},
+	.irq = {SPEAR3XX_IRQ_UART, NO_IRQ},
 };
 
 /* Do spear3xx familiy common initialization part here */

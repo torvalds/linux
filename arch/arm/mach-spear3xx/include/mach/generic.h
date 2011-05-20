@@ -27,8 +27,8 @@
  * Following GPT channels will be used as clock source and clockevent
  */
 #define SPEAR_GPT0_BASE		SPEAR3XX_ML1_TMR_BASE
-#define SPEAR_GPT0_CHAN0_IRQ	IRQ_CPU_GPT1_1
-#define SPEAR_GPT0_CHAN1_IRQ	IRQ_CPU_GPT1_2
+#define SPEAR_GPT0_CHAN0_IRQ	SPEAR3XX_IRQ_CPU_GPT1_1
+#define SPEAR_GPT0_CHAN1_IRQ	SPEAR3XX_IRQ_CPU_GPT1_2
 
 /* Add spear3xx family device structure declarations here */
 extern struct amba_device gpio_device;
