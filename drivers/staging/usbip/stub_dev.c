@@ -23,14 +23,10 @@
 #include "usbip_common.h"
 #include "stub.h"
 
-static int stub_probe(struct usb_interface *interface,
-		      const struct usb_device_id *id);
-static void stub_disconnect(struct usb_interface *interface);
-
 /*
  * Define device IDs here if you want to explicitly limit exportable devices.
- * In the most cases, wild card matching will be ok because driver binding can
- * be changed dynamically by a userland program.
+ * In most cases, wildcard matching will be okay because driver binding can be
+ * changed dynamically by a userland program.
  */
 static struct usb_device_id stub_table[] = {
 #if 0
@@ -54,16 +50,9 @@ static struct usb_device_id stub_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, stub_table);
 
-struct usb_driver stub_driver = {
-	.name		= "usbip",
-	.probe		= stub_probe,
-	.disconnect	= stub_disconnect,
-	.id_table	= stub_table,
-};
-
 /*
- * usbip_status shows status of usbip as long as this driver is bound to the
- * target device.
+ * usbip_status shows the status of usbip-host as long as this driver is bound
+ * to the target device.
  */
 static ssize_t show_status(struct device *dev, struct device_attribute *attr,
 			   char *buf)
@@ -423,7 +412,7 @@ static int stub_probe(struct usb_interface *interface,
 		return 0;
 	}
 
-	/* ok. this is my device. */
+	/* ok, this is my device */
 	sdev = stub_device_alloc(udev, interface);
 	if (!sdev)
 		return -ENOMEM;
@@ -534,3 +523,10 @@ static void stub_disconnect(struct usb_interface *interface)
 		del_match_busid((char *)udev_busid);
 	}
 }
+
+struct usb_driver stub_driver = {
+	.name		= "usbip-host",
+	.probe		= stub_probe,
+	.disconnect	= stub_disconnect,
+	.id_table	= stub_table,
+};
