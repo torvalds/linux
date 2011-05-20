@@ -1,6 +1,4 @@
 /*
- *  linux/arch/arm/plat-omap/gpio.c
- *
  * Support functions for OMAP GPIO
  *
  * Copyright (C) 2003-2005 Nokia Corporation
