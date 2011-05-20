@@ -75,6 +75,12 @@ config P1022_DS
 	help
 	  This option enables support for the Freescale P1022DS reference board.
 
+config P1023_RDS
+	bool "Freescale P1023 RDS"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the P1023 RDS board
+
 config SOCRATES
 	bool "Socrates"
 	select DEFAULT_UIMAGE
