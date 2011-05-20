@@ -494,7 +494,7 @@ static int update_rmtp(ktime_t exp, enum  alarmtimer_type type,
  */
 static long __sched alarm_timer_nsleep_restart(struct restart_block *restart)
 {
-	enum  alarmtimer_type type = restart->nanosleep.index;
+	enum  alarmtimer_type type = restart->nanosleep.clockid;
 	ktime_t exp;
 	struct timespec __user  *rmtp;
 	struct alarm alarm;
@@ -573,7 +573,7 @@ static int alarm_timer_nsleep(const clockid_t which_clock, int flags,
 
 	restart = &current_thread_info()->restart_block;
 	restart->fn = alarm_timer_nsleep_restart;
-	restart->nanosleep.index = type;
+	restart->nanosleep.clockid = type;
 	restart->nanosleep.expires = exp.tv64;
 	restart->nanosleep.rmtp = rmtp;
 	ret = -ERESTART_RESTARTBLOCK;

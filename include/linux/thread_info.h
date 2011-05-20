@@ -29,7 +29,7 @@ struct restart_block {
 		} futex;
 		/* For nanosleep */
 		struct {
-			clockid_t index;
+			clockid_t clockid;
 			struct timespec __user *rmtp;
 #ifdef CONFIG_COMPAT
 			struct compat_timespec __user *compat_rmtp;

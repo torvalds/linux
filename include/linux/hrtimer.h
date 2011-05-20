@@ -143,7 +143,8 @@ struct hrtimer_sleeper {
  */
 struct hrtimer_clock_base {
 	struct hrtimer_cpu_base	*cpu_base;
-	clockid_t		index;
+	int			index;
+	clockid_t		clockid;
 	struct timerqueue_head	active;
 	ktime_t			resolution;
 	ktime_t			(*get_time)(void);
@@ -162,7 +163,7 @@ enum  hrtimer_base_type {
  * struct hrtimer_cpu_base - the per cpu clock bases
  * @lock:		lock protecting the base and associated clock bases
  *			and timers
- * @clock_base:		array of clock bases for this cpu
+ * @active_bases:	Bitfield to mark bases with active timers
  * @expires_next:	absolute time of the next event which was scheduled
  *			via clock_set_next_event()
  * @hres_active:	State of high resolution mode
@@ -171,9 +172,11 @@ enum  hrtimer_base_type {
  * @nr_retries:		Total number of hrtimer interrupt retries
  * @nr_hangs:		Total number of hrtimer interrupt hangs
  * @max_hang_time:	Maximum time spent in hrtimer_interrupt
+ * @clock_base:		array of clock bases for this cpu
  */
 struct hrtimer_cpu_base {
 	raw_spinlock_t			lock;
+	unsigned long			active_bases;
 #ifdef CONFIG_HIGH_RES_TIMERS
 	ktime_t				expires_next;
 	int				hres_active;

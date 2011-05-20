@@ -64,17 +64,20 @@ DEFINE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases) =
 	.clock_base =
 	{
 		{
-			.index = CLOCK_REALTIME,
+			.index = HRTIMER_BASE_REALTIME,
+			.clockid = CLOCK_REALTIME,
 			.get_time = &ktime_get_real,
 			.resolution = KTIME_LOW_RES,
 		},
 		{
-			.index = CLOCK_MONOTONIC,
+			.index = HRTIMER_BASE_MONOTONIC,
+			.clockid = CLOCK_MONOTONIC,
 			.get_time = &ktime_get,
 			.resolution = KTIME_LOW_RES,
 		},
 		{
-			.index = CLOCK_BOOTTIME,
+			.index = HRTIMER_BASE_BOOTTIME,
+			.clockid = CLOCK_BOOTTIME,
 			.get_time = &ktime_get_boottime,
 			.resolution = KTIME_LOW_RES,
 		},
@@ -196,7 +199,7 @@ switch_hrtimer_base(struct hrtimer *timer, struct hrtimer_clock_base *base,
 	struct hrtimer_cpu_base *new_cpu_base;
 	int this_cpu = smp_processor_id();
 	int cpu = hrtimer_get_target(this_cpu, pinned);
-	int basenum = hrtimer_clockid_to_base(base->index);
+	int basenum = base->index;
 
 again:
 	new_cpu_base = &per_cpu(hrtimer_bases, cpu);
@@ -857,6 +860,7 @@ static int enqueue_hrtimer(struct hrtimer *timer,
 	debug_activate(timer);
 
 	timerqueue_add(&base->active, &timer->node);
+	base->cpu_base->active_bases |= 1 << base->index;
 
 	/*
 	 * HRTIMER_STATE_ENQUEUED is or'ed to the current state to preserve the
@@ -898,6 +902,8 @@ static void __remove_hrtimer(struct hrtimer *timer,
 #endif
 	}
 	timerqueue_del(&base->active, &timer->node);
+	if (!timerqueue_getnext(&base->active))
+		base->cpu_base->active_bases &= ~(1 << base->index);
 out:
 	timer->state = newstate;
 }
@@ -1235,7 +1241,6 @@ static void __run_hrtimer(struct hrtimer *timer, ktime_t *now)
 void hrtimer_interrupt(struct clock_event_device *dev)
 {
 	struct hrtimer_cpu_base *cpu_base = &__get_cpu_var(hrtimer_bases);
-	struct hrtimer_clock_base *base;
 	ktime_t expires_next, now, entry_time, delta;
 	int i, retries = 0;
 
@@ -1257,12 +1262,15 @@ retry:
 	 */
 	cpu_base->expires_next.tv64 = KTIME_MAX;
 
-	base = cpu_base->clock_base;
-
 	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
-		ktime_t basenow;
+		struct hrtimer_clock_base *base;
 		struct timerqueue_node *node;
+		ktime_t basenow;
 
+		if (!(cpu_base->active_bases & (1 << i)))
+			continue;
+
+		base = cpu_base->clock_base + i;
 		basenow = ktime_add(now, base->offset);
 
 		while ((node = timerqueue_getnext(&base->active))) {
@@ -1295,7 +1303,6 @@ retry:
 
 			__run_hrtimer(timer, &basenow);
 		}
-		base++;
 	}
 
 	/*
@@ -1526,7 +1533,7 @@ long __sched hrtimer_nanosleep_restart(struct restart_block *restart)
 	struct timespec __user  *rmtp;
 	int ret = 0;
 
-	hrtimer_init_on_stack(&t.timer, restart->nanosleep.index,
+	hrtimer_init_on_stack(&t.timer, restart->nanosleep.clockid,
 				HRTIMER_MODE_ABS);
 	hrtimer_set_expires_tv64(&t.timer, restart->nanosleep.expires);
 
@@ -1578,7 +1585,7 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 
 	restart = &current_thread_info()->restart_block;
 	restart->fn = hrtimer_nanosleep_restart;
-	restart->nanosleep.index = t.timer.base->index;
+	restart->nanosleep.clockid = t.timer.base->clockid;
 	restart->nanosleep.rmtp = rmtp;
 	restart->nanosleep.expires = hrtimer_get_expires_tv64(&t.timer);
 
