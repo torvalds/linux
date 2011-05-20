@@ -420,7 +420,7 @@ static void atombios_crtc_program_ss(struct drm_crtc *crtc,
 
 	if (ASIC_IS_DCE5(rdev)) {
 		args.v3.usSpreadSpectrumAmountFrac = cpu_to_le16(0);
-		args.v3.ucSpreadSpectrumType = ss->type;
+		args.v3.ucSpreadSpectrumType = ss->type & ATOM_SS_CENTRE_SPREAD_MODE_MASK;
 		switch (pll_id) {
 		case ATOM_PPLL1:
 			args.v3.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V3_P1PLL;
@@ -441,9 +441,11 @@ static void atombios_crtc_program_ss(struct drm_crtc *crtc,
 			return;
 		}
 		args.v2.ucEnable = enable;
+		if ((ss->percentage == 0) || (ss->type & ATOM_EXTERNAL_SS_MASK))
+			args.v3.ucEnable = ATOM_DISABLE;
 	} else if (ASIC_IS_DCE4(rdev)) {
 		args.v2.usSpreadSpectrumPercentage = cpu_to_le16(ss->percentage);
-		args.v2.ucSpreadSpectrumType = ss->type;
+		args.v2.ucSpreadSpectrumType = ss->type & ATOM_SS_CENTRE_SPREAD_MODE_MASK;
 		switch (pll_id) {
 		case ATOM_PPLL1:
 			args.v2.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V2_P1PLL;
@@ -464,32 +466,36 @@ static void atombios_crtc_program_ss(struct drm_crtc *crtc,
 			return;
 		}
 		args.v2.ucEnable = enable;
+		if ((ss->percentage == 0) || (ss->type & ATOM_EXTERNAL_SS_MASK))
+			args.v2.ucEnable = ATOM_DISABLE;
 	} else if (ASIC_IS_DCE3(rdev)) {
 		args.v1.usSpreadSpectrumPercentage = cpu_to_le16(ss->percentage);
-		args.v1.ucSpreadSpectrumType = ss->type;
+		args.v1.ucSpreadSpectrumType = ss->type & ATOM_SS_CENTRE_SPREAD_MODE_MASK;
 		args.v1.ucSpreadSpectrumStep = ss->step;
 		args.v1.ucSpreadSpectrumDelay = ss->delay;
 		args.v1.ucSpreadSpectrumRange = ss->range;
 		args.v1.ucPpll = pll_id;
 		args.v1.ucEnable = enable;
 	} else if (ASIC_IS_AVIVO(rdev)) {
-		if (enable == ATOM_DISABLE) {
+		if ((enable == ATOM_DISABLE) || (ss->percentage == 0) ||
+		    (ss->type & ATOM_EXTERNAL_SS_MASK)) {
 			atombios_disable_ss(crtc);
 			return;
 		}
 		args.lvds_ss_2.usSpreadSpectrumPercentage = cpu_to_le16(ss->percentage);
-		args.lvds_ss_2.ucSpreadSpectrumType = ss->type;
+		args.lvds_ss_2.ucSpreadSpectrumType = ss->type & ATOM_SS_CENTRE_SPREAD_MODE_MASK;
 		args.lvds_ss_2.ucSpreadSpectrumStep = ss->step;
 		args.lvds_ss_2.ucSpreadSpectrumDelay = ss->delay;
 		args.lvds_ss_2.ucSpreadSpectrumRange = ss->range;
 		args.lvds_ss_2.ucEnable = enable;
 	} else {
-		if (enable == ATOM_DISABLE) {
+		if ((enable == ATOM_DISABLE) || (ss->percentage == 0) ||
+		    (ss->type & ATOM_EXTERNAL_SS_MASK)) {
 			atombios_disable_ss(crtc);
 			return;
 		}
 		args.lvds_ss.usSpreadSpectrumPercentage = cpu_to_le16(ss->percentage);
-		args.lvds_ss.ucSpreadSpectrumType = ss->type;
+		args.lvds_ss.ucSpreadSpectrumType = ss->type & ATOM_SS_CENTRE_SPREAD_MODE_MASK;
 		args.lvds_ss.ucSpreadSpectrumStepSize_Delay = (ss->step & 3) << 2;
 		args.lvds_ss.ucSpreadSpectrumStepSize_Delay |= (ss->delay & 7) << 4;
 		args.lvds_ss.ucEnable = enable;
@@ -615,7 +621,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				args.v1.usPixelClock = cpu_to_le16(mode->clock / 10);
 				args.v1.ucTransmitterID = radeon_encoder->encoder_id;
 				args.v1.ucEncodeMode = encoder_mode;
-				if (ss_enabled)
+				if (ss_enabled && ss->percentage)
 					args.v1.ucConfig |=
 						ADJUST_DISPLAY_CONFIG_SS_ENABLE;
 
@@ -628,7 +634,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				args.v3.sInput.ucTransmitterID = radeon_encoder->encoder_id;
 				args.v3.sInput.ucEncodeMode = encoder_mode;
 				args.v3.sInput.ucDispPllConfig = 0;
-				if (ss_enabled)
+				if (ss_enabled && ss->percentage)
 					args.v3.sInput.ucDispPllConfig |=
 						DISPPLL_CONFIG_SS_ENABLE;
 				if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
@@ -758,7 +764,9 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 				      u32 fb_div,
 				      u32 frac_fb_div,
 				      u32 post_div,
-				      int bpc)
+				      int bpc,
+				      bool ss_enabled,
+				      struct radeon_atom_ss *ss)
 {
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -816,6 +824,8 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v5.ulFbDivDecFrac = cpu_to_le32(frac_fb_div * 100000);
 			args.v5.ucPostDiv = post_div;
 			args.v5.ucMiscInfo = 0; /* HDMI depth, etc. */
+			if (ss_enabled && (ss->type & ATOM_EXTERNAL_SS_MASK))
+				args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_REF_DIV_SRC;
 			switch (bpc) {
 			case 8:
 			default:
@@ -837,6 +847,8 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v6.ulFbDivDecFrac = cpu_to_le32(frac_fb_div * 100000);
 			args.v6.ucPostDiv = post_div;
 			args.v6.ucMiscInfo = 0; /* HDMI depth, etc. */
+			if (ss_enabled && (ss->type & ATOM_EXTERNAL_SS_MASK))
+				args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_REF_DIV_SRC;
 			switch (bpc) {
 			case 8:
 			default:
@@ -927,12 +939,18 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 			/* DP/eDP */
 			dp_clock = dig_connector->dp_clock / 10;
 			if (radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
-				if (ASIC_IS_DCE4(rdev))
+				if (ASIC_IS_DCE4(rdev)) {
+					/* first try ASIC_INTERNAL_SS_ON_DP */
 					ss_enabled =
 						radeon_atombios_get_asic_ss_info(rdev, &ss,
-										 dig->lcd_ss_id,
+										 ASIC_INTERNAL_SS_ON_DP,
 										 dp_clock);
-				else
+					if (!ss_enabled)
+						ss_enabled =
+							radeon_atombios_get_asic_ss_info(rdev, &ss,
+											 dig->lcd_ss_id,
+											 dp_clock);
+				} else
 					ss_enabled =
 						radeon_atombios_get_ppll_ss_info(rdev, &ss,
 										 dig->lcd_ss_id);
@@ -1004,7 +1022,7 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 
 	atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,
 				  encoder_mode, radeon_encoder->encoder_id, mode->clock,
-				  ref_div, fb_div, frac_fb_div, post_div, bpc);
+				  ref_div, fb_div, frac_fb_div, post_div, bpc, ss_enabled, &ss);
 
 	if (ss_enabled) {
 		/* calculate ss amount and step size */
@@ -1012,7 +1030,7 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 			u32 step_size;
 			u32 amount = (((fb_div * 10) + frac_fb_div) * ss.percentage) / 10000;
 			ss.amount = (amount / 10) & ATOM_PPLL_SS_AMOUNT_V2_FBDIV_MASK;
-			ss.amount |= ((amount - (ss.amount * 10)) << ATOM_PPLL_SS_AMOUNT_V2_NFRAC_SHIFT) &
+			ss.amount |= ((amount - (amount / 10)) << ATOM_PPLL_SS_AMOUNT_V2_NFRAC_SHIFT) &
 				ATOM_PPLL_SS_AMOUNT_V2_NFRAC_MASK;
 			if (ss.type & ATOM_PPLL_SS_TYPE_V2_CENTRE_SPREAD)
 				step_size = (4 * amount * ref_div * (ss.rate * 2048)) /
@@ -1545,6 +1563,8 @@ static void atombios_crtc_commit(struct drm_crtc *crtc)
 static void atombios_crtc_disable(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct radeon_atom_ss ss;
+
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 
 	switch (radeon_crtc->pll_id) {
@@ -1552,7 +1572,7 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 	case ATOM_PPLL2:
 		/* disable the ppll */
 		atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,
-					  0, 0, ATOM_DISABLE, 0, 0, 0, 0, 0);
+					  0, 0, ATOM_DISABLE, 0, 0, 0, 0, 0, false, &ss);
 		break;
 	default:
 		break;
