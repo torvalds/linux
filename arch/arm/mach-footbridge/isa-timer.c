@@ -10,53 +10,16 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/spinlock.h>
 #include <linux/timex.h>
 
 #include <asm/irq.h>
-
+#include <asm/i8253.h>
 #include <asm/mach/time.h>
 
 #include "common.h"
 
-#define PIT_MODE	0x43
-#define PIT_CH0		0x40
-
-#define PIT_LATCH	((PIT_TICK_RATE + HZ / 2) / HZ)
-
-static cycle_t pit_read(struct clocksource *cs)
-{
-	unsigned long flags;
-	static int old_count;
-	static u32 old_jifs;
-	int count;
-	u32 jifs;
-
-	raw_local_irq_save(flags);
-
-	jifs = jiffies;
-	outb_p(0x00, PIT_MODE);		/* latch the count */
-	count = inb_p(PIT_CH0);		/* read the latched count */
-	count |= inb_p(PIT_CH0) << 8;
-
-	if (count > old_count && jifs == old_jifs)
-		count = old_count;
-
-	old_count = count;
-	old_jifs = jifs;
-
-	raw_local_irq_restore(flags);
-
-	count = (PIT_LATCH - 1) - count;
-
-	return (cycle_t)(jifs * PIT_LATCH) + count;
-}
-
-static struct clocksource pit_cs = {
-	.name		= "pit",
-	.rating		= 110,
-	.read		= pit_read,
-	.mask		= CLOCKSOURCE_MASK(32),
-};
+DEFINE_RAW_SPINLOCK(i8253_lock);
 
 static void pit_set_mode(enum clock_event_mode mode,
 	struct clock_event_device *evt)
@@ -121,7 +84,7 @@ static void __init isa_timer_init(void)
 	pit_ce.max_delta_ns = clockevent_delta2ns(0x7fff, &pit_ce);
 	pit_ce.min_delta_ns = clockevent_delta2ns(0x000f, &pit_ce);
 
-	clocksource_register_hz(&pit_cs, PIT_TICK_RATE);
+	clocksource_i8253_init();
 
 	setup_irq(pit_ce.irq, &pit_timer_irq);
 	clockevents_register_device(&pit_ce);

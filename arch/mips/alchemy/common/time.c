@@ -141,8 +141,7 @@ static int __init alchemy_time_init(unsigned int m2int)
 		goto cntr_err;
 
 	/* register counter1 clocksource and event device */
-	clocksource_set_clock(&au1x_counter1_clocksource, 32768);
-	clocksource_register(&au1x_counter1_clocksource);
+	clocksource_register_hz(&au1x_counter1_clocksource, 32768);
 
 	cd->shift = 32;
 	cd->mult = div_sc(32768, NSEC_PER_SEC, cd->shift);

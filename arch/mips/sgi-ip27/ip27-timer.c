@@ -163,8 +163,7 @@ static void __init hub_rt_clocksource_init(void)
 {
 	struct clocksource *cs = &hub_rt_clocksource;
 
-	clocksource_set_clock(cs, CYCLES_PER_SEC);
-	clocksource_register(cs);
+	clocksource_register_hz(cs, CYCLES_PER_SEC);
 }
 
 void __init plat_time_init(void)
