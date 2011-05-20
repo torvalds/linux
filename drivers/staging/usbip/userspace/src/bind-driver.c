@@ -27,7 +27,7 @@ static const struct option longopts[] = {
 	{NULL,		0,			NULL,  0}
 };
 
-static const char match_busid_path[] = "/sys/bus/usb/drivers/usbip/match_busid";
+static const char match_busid_path[] = "/sys/bus/usb/drivers/usbip-host/match_busid";
 
 
 static void show_help(void)
@@ -228,7 +228,7 @@ static int bind_to_usbip(char *busid)
 	for (i = 0; i < ninterface; i++) {
 		int ret;
 
-		ret = bind_interface(busid, configvalue, i, "usbip");
+		ret = bind_interface(busid, configvalue, i, "usbip-host");
 		if (ret < 0) {
 			g_warning("bind usbip at %s:%d.%d, failed",
 					busid, configvalue, i);
