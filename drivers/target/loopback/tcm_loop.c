@@ -31,7 +31,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
-#include <scsi/libsas.h> /* For TASK_ATTR_* */
+#include <scsi/scsi_tcq.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_transport.h>
@@ -95,17 +95,17 @@ static struct se_cmd *tcm_loop_allocate_core_cmd(
 	if (sc->device->tagged_supported) {
 		switch (sc->tag) {
 		case HEAD_OF_QUEUE_TAG:
-			sam_task_attr = TASK_ATTR_HOQ;
+			sam_task_attr = MSG_HEAD_TAG;
 			break;
 		case ORDERED_QUEUE_TAG:
-			sam_task_attr = TASK_ATTR_ORDERED;
+			sam_task_attr = MSG_ORDERED_TAG;
 			break;
 		default:
-			sam_task_attr = TASK_ATTR_SIMPLE;
+			sam_task_attr = MSG_SIMPLE_TAG;
 			break;
 		}
 	} else
-		sam_task_attr = TASK_ATTR_SIMPLE;
+		sam_task_attr = MSG_SIMPLE_TAG;
 
 	/*
 	 * Initialize struct se_cmd descriptor from target_core_mod infrastructure
@@ -379,7 +379,7 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 	 * Initialize struct se_cmd descriptor from target_core_mod infrastructure
 	 */
 	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess, 0,
-				DMA_NONE, TASK_ATTR_SIMPLE,
+				DMA_NONE, MSG_SIMPLE_TAG,
 				&tl_cmd->tl_sense_buf[0]);
 	/*
 	 * Allocate the LUN_RESET TMR
