@@ -278,6 +278,7 @@ cpu_resume_l1_flags:
  *	It is assumed that:
  *	- cache type register is implemented
  */
+__v7_ca5mp_setup:
 __v7_ca9mp_setup:
 #ifdef CONFIG_SMP
 	ALT_SMP(mrc	p15, 0, r0, c1, c0, 1)
@@ -442,6 +443,16 @@ __v7_setup_stack:
 	.long	v6_user_fns
 	.long	v7_cache_fns
 .endm
+
+	/*
+	 * ARM Ltd. Cortex A5 processor.
+	 */
+	.type   __v7_ca5mp_proc_info, #object
+__v7_ca5mp_proc_info:
+	.long	0x410fc050
+	.long	0xff0ffff0
+	__v7_proc __v7_ca5mp_setup
+	.size	__v7_ca5mp_proc_info, . - __v7_ca5mp_proc_info
 
 	/*
 	 * ARM Ltd. Cortex A9 processor.
