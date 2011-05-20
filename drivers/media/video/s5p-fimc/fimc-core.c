@@ -231,11 +231,7 @@ static int fimc_get_scaler_factor(u32 src, u32 tar, u32 *ratio, u32 *shift)
 			return 0;
 		}
 	}
-
 	*shift = 0, *ratio = 1;
-
-	dbg("s: %d, t: %d, shift: %d, ratio: %d",
-	    src, tar, *shift, *ratio);
 	return 0;
 }
 
@@ -267,10 +263,8 @@ int fimc_set_scaler_info(struct fimc_ctx *ctx)
 		err("invalid source size: %d x %d", sx, sy);
 		return -EINVAL;
 	}
-
 	sc->real_width = sx;
 	sc->real_height = sy;
-	dbg("sx= %d, sy= %d, tx= %d, ty= %d", sx, sy, tx, ty);
 
 	ret = fimc_get_scaler_factor(sx, tx, &sc->pre_hratio, &sc->hfactor);
 	if (ret)

@@ -262,12 +262,7 @@ static unsigned int get_plane_size(struct fimc_frame *fr, unsigned int plane)
 {
 	if (!fr || plane >= fr->fmt->memplanes)
 		return 0;
-
-	dbg("%s: w: %d. h: %d. depth[%d]: %d",
-	    __func__, fr->width, fr->height, plane, fr->fmt->depth[plane]);
-
 	return fr->f_width * fr->f_height * fr->fmt->depth[plane] / 8;
-
 }
 
 static int queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
@@ -283,12 +278,8 @@ static int queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 
 	*num_planes = fmt->memplanes;
 
-	dbg("%s, buffer count=%d, plane count=%d",
-	    __func__, *num_buffers, *num_planes);
-
 	for (i = 0; i < fmt->memplanes; i++) {
 		sizes[i] = get_plane_size(&ctx->d_frame, i);
-		dbg("plane: %u, plane_size: %lu", i, sizes[i]);
 		allocators[i] = ctx->fimc_dev->alloc_ctx;
 	}
 
