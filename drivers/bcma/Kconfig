@@ -13,6 +13,11 @@ config BCMA
 	  Bus driver for Broadcom specific Advanced Microcontroller Bus
 	  Architecture.
 
+# Support for Block-I/O. SELECT this from the driver that needs it.
+config BCMA_BLOCKIO
+	bool
+	depends on BCMA
+
 config BCMA_HOST_PCI_POSSIBLE
 	bool
 	depends on BCMA && PCI = y

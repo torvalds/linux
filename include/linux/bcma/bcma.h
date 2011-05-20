@@ -31,6 +31,12 @@ struct bcma_host_ops {
 	void (*write8)(struct bcma_device *core, u16 offset, u8 value);
 	void (*write16)(struct bcma_device *core, u16 offset, u16 value);
 	void (*write32)(struct bcma_device *core, u16 offset, u32 value);
+#ifdef CONFIG_BCMA_BLOCKIO
+	void (*block_read)(struct bcma_device *core, void *buffer,
+			   size_t count, u16 offset, u8 reg_width);
+	void (*block_write)(struct bcma_device *core, const void *buffer,
+			    size_t count, u16 offset, u8 reg_width);
+#endif
 	/* Agent ops */
 	u32 (*aread32)(struct bcma_device *core, u16 offset);
 	void (*awrite32)(struct bcma_device *core, u16 offset, u32 value);
@@ -210,6 +216,18 @@ void bcma_write32(struct bcma_device *core, u16 offset, u32 value)
 {
 	core->bus->ops->write32(core, offset, value);
 }
+#ifdef CONFIG_BCMA_BLOCKIO
+extern inline void bcma_block_read(struct bcma_device *core, void *buffer,
+				   size_t count, u16 offset, u8 reg_width)
+{
+	core->bus->ops->block_read(core, buffer, count, offset, reg_width);
+}
+extern inline void bcma_block_write(struct bcma_device *core, const void *buffer,
+				    size_t count, u16 offset, u8 reg_width)
+{
+	core->bus->ops->block_write(core, buffer, count, offset, reg_width);
+}
+#endif
 extern inline u32 bcma_aread32(struct bcma_device *core, u16 offset)
 {
 	return core->bus->ops->aread32(core, offset);
