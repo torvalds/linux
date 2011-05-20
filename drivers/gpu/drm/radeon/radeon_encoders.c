@@ -760,6 +760,7 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 	int dp_clock = 0;
 	int dp_lane_count = 0;
 	int hpd_id = RADEON_HPD_NONE;
+	int bpc = 8;
 
 	if (connector) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
@@ -769,6 +770,7 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 		dp_clock = dig_connector->dp_clock;
 		dp_lane_count = dig_connector->dp_lane_count;
 		hpd_id = radeon_connector->hpd.hpd;
+		bpc = connector->display_info.bpc;
 	}
 
 	/* no dig encoder assigned */
@@ -810,7 +812,27 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 				args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_5_40GHZ;
 		}
 		args.v4.acConfig.ucDigSel = dig->dig_encoder;
-		args.v4.ucBitPerColor = PANEL_8BIT_PER_COLOR;
+		switch (bpc) {
+		case 0:
+			args.v4.ucBitPerColor = PANEL_BPC_UNDEFINE;
+			break;
+		case 6:
+			args.v4.ucBitPerColor = PANEL_6BIT_PER_COLOR;
+			break;
+		case 8:
+		default:
+			args.v4.ucBitPerColor = PANEL_8BIT_PER_COLOR;
+			break;
+		case 10:
+			args.v4.ucBitPerColor = PANEL_10BIT_PER_COLOR;
+			break;
+		case 12:
+			args.v4.ucBitPerColor = PANEL_12BIT_PER_COLOR;
+			break;
+		case 16:
+			args.v4.ucBitPerColor = PANEL_16BIT_PER_COLOR;
+			break;
+		}
 		if (hpd_id == RADEON_HPD_NONE)
 			args.v4.ucHPD_ID = 0;
 		else
@@ -819,7 +841,27 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 		if ((args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP) && (dp_clock == 270000))
 			args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V3_DPLINKRATE_2_70GHZ;
 		args.v3.acConfig.ucDigSel = dig->dig_encoder;
-		args.v3.ucBitPerColor = PANEL_8BIT_PER_COLOR;
+		switch (bpc) {
+		case 0:
+			args.v3.ucBitPerColor = PANEL_BPC_UNDEFINE;
+			break;
+		case 6:
+			args.v3.ucBitPerColor = PANEL_6BIT_PER_COLOR;
+			break;
+		case 8:
+		default:
+			args.v3.ucBitPerColor = PANEL_8BIT_PER_COLOR;
+			break;
+		case 10:
+			args.v3.ucBitPerColor = PANEL_10BIT_PER_COLOR;
+			break;
+		case 12:
+			args.v3.ucBitPerColor = PANEL_12BIT_PER_COLOR;
+			break;
+		case 16:
+			args.v3.ucBitPerColor = PANEL_16BIT_PER_COLOR;
+			break;
+		}
 	} else {
 		if ((args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP) && (dp_clock == 270000))
 			args.v1.ucConfig |= ATOM_ENCODER_CONFIG_DPLINKRATE_2_70GHZ;
@@ -1099,6 +1141,7 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 	int dp_lane_count = 0;
 	int connector_object_id = 0;
 	u32 ext_enum = (ext_radeon_encoder->encoder_enum & ENUM_ID_MASK) >> ENUM_ID_SHIFT;
+	int bpc = 8;
 
 	if (connector) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
@@ -1109,6 +1152,7 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 		dp_lane_count = dig_connector->dp_lane_count;
 		connector_object_id =
 			(radeon_connector->connector_object_id & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
+		bpc = connector->display_info.bpc;
 	}
 
 	memset(&args, 0, sizeof(args));
@@ -1166,7 +1210,27 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 				args.v3.sExtEncoder.ucConfig |= EXTERNAL_ENCODER_CONFIG_V3_ENCODER3;
 				break;
 			}
-			args.v3.sExtEncoder.ucBitPerColor = PANEL_8BIT_PER_COLOR;
+			switch (bpc) {
+			case 0:
+				args.v3.sExtEncoder.ucBitPerColor = PANEL_BPC_UNDEFINE;
+				break;
+			case 6:
+				args.v3.sExtEncoder.ucBitPerColor = PANEL_6BIT_PER_COLOR;
+				break;
+			case 8:
+			default:
+				args.v3.sExtEncoder.ucBitPerColor = PANEL_8BIT_PER_COLOR;
+				break;
+			case 10:
+				args.v3.sExtEncoder.ucBitPerColor = PANEL_10BIT_PER_COLOR;
+				break;
+			case 12:
+				args.v3.sExtEncoder.ucBitPerColor = PANEL_12BIT_PER_COLOR;
+				break;
+			case 16:
+				args.v3.sExtEncoder.ucBitPerColor = PANEL_16BIT_PER_COLOR;
+				break;
+			}
 			break;
 		default:
 			DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);

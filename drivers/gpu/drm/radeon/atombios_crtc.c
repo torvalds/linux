@@ -512,6 +512,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_encoder *encoder = NULL;
 	struct radeon_encoder *radeon_encoder = NULL;
+	struct drm_connector *connector = NULL;
 	u32 adjusted_clock = mode->clock;
 	int encoder_mode = 0;
 	u32 dp_clock = mode->clock;
@@ -546,9 +547,11 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {
 			radeon_encoder = to_radeon_encoder(encoder);
+			connector = radeon_get_connector_for_encoder(encoder);
+			if (connector)
+				bpc = connector->display_info.bpc;
 			encoder_mode = atombios_get_encoder_mode(encoder);
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) {
-				struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 				if (connector) {
 					struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 					struct radeon_connector_atom_dig *dig_connector =
@@ -754,7 +757,8 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 				      u32 ref_div,
 				      u32 fb_div,
 				      u32 frac_fb_div,
-				      u32 post_div)
+				      u32 post_div,
+				      int bpc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -812,6 +816,15 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v5.ulFbDivDecFrac = cpu_to_le32(frac_fb_div * 100000);
 			args.v5.ucPostDiv = post_div;
 			args.v5.ucMiscInfo = 0; /* HDMI depth, etc. */
+			switch (bpc) {
+			case 8:
+			default:
+				args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_24BPP;
+				break;
+			case 10:
+				args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_30BPP;
+				break;
+			}
 			args.v5.ucTransmitterID = encoder_id;
 			args.v5.ucEncoderMode = encoder_mode;
 			args.v5.ucPpll = pll_id;
@@ -824,6 +837,21 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v6.ulFbDivDecFrac = cpu_to_le32(frac_fb_div * 100000);
 			args.v6.ucPostDiv = post_div;
 			args.v6.ucMiscInfo = 0; /* HDMI depth, etc. */
+			switch (bpc) {
+			case 8:
+			default:
+				args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_24BPP;
+				break;
+			case 10:
+				args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_30BPP;
+				break;
+			case 12:
+				args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_36BPP;
+				break;
+			case 16:
+				args.v6.ucMiscInfo |= PIXEL_CLOCK_V6_MISC_HDMI_48BPP;
+				break;
+			}
 			args.v6.ucTransmitterID = encoder_id;
 			args.v6.ucEncoderMode = encoder_mode;
 			args.v6.ucPpll = pll_id;
@@ -855,6 +883,7 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 	int encoder_mode = 0;
 	struct radeon_atom_ss ss;
 	bool ss_enabled = false;
+	int bpc = 8;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {
@@ -891,6 +920,7 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 		struct radeon_connector_atom_dig *dig_connector =
 			radeon_connector->con_priv;
 		int dp_clock;
+		bpc = connector->display_info.bpc;
 
 		switch (encoder_mode) {
 		case ATOM_ENCODER_MODE_DP:
@@ -974,7 +1004,7 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 
 	atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,
 				  encoder_mode, radeon_encoder->encoder_id, mode->clock,
-				  ref_div, fb_div, frac_fb_div, post_div);
+				  ref_div, fb_div, frac_fb_div, post_div, bpc);
 
 	if (ss_enabled) {
 		/* calculate ss amount and step size */
@@ -1522,7 +1552,7 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 	case ATOM_PPLL2:
 		/* disable the ppll */
 		atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,
-					  0, 0, ATOM_DISABLE, 0, 0, 0, 0);
+					  0, 0, ATOM_DISABLE, 0, 0, 0, 0, 0);
 		break;
 	default:
 		break;
