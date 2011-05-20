@@ -1933,8 +1933,12 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 		rdev->config.evergreen.tile_config |= (3 << 0);
 		break;
 	}
-	rdev->config.evergreen.tile_config |=
-		((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
+	/* num banks is 8 on all fusion asics */
+	if (rdev->flags & RADEON_IS_IGP)
+		rdev->config.evergreen.tile_config |= 8 << 4;
+	else
+		rdev->config.evergreen.tile_config |=
+			((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
 	rdev->config.evergreen.tile_config |=
 		((mc_arb_ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT) << 8;
 	rdev->config.evergreen.tile_config |=
