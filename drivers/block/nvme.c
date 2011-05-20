@@ -1033,51 +1033,6 @@ static void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
 		put_page(sg_page(&sg[i]));
 }
 
-static int nvme_submit_user_admin_command(struct nvme_dev *dev,
-					unsigned long addr, unsigned length,
-					struct nvme_command *cmd)
-{
-	int err, nents, tmplen = length;
-	struct scatterlist *sg;
-	struct nvme_prps *prps;
-
-	nents = nvme_map_user_pages(dev, 0, addr, length, &sg);
-	if (nents < 0)
-		return nents;
-	prps = nvme_setup_prps(dev, &cmd->common, sg, &tmplen, GFP_KERNEL);
-	if (tmplen != length)
-		err = -ENOMEM;
-	else
-		err = nvme_submit_admin_cmd(dev, cmd, NULL);
-	nvme_unmap_user_pages(dev, 0, addr, length, sg, nents);
-	nvme_free_prps(dev, prps);
-	return err ? -EIO : 0;
-}
-
-static int nvme_identify(struct nvme_ns *ns, unsigned long addr, int cns)
-{
-	struct nvme_command c;
-
-	memset(&c, 0, sizeof(c));
-	c.identify.opcode = nvme_admin_identify;
-	c.identify.nsid = cns ? 0 : cpu_to_le32(ns->ns_id);
-	c.identify.cns = cpu_to_le32(cns);
-
-	return nvme_submit_user_admin_command(ns->dev, addr, 4096, &c);
-}
-
-static int nvme_get_range_type(struct nvme_ns *ns, unsigned long addr)
-{
-	struct nvme_command c;
-
-	memset(&c, 0, sizeof(c));
-	c.features.opcode = nvme_admin_get_features;
-	c.features.nsid = cpu_to_le32(ns->ns_id);
-	c.features.fid = cpu_to_le32(NVME_FEAT_LBA_RANGE);
-
-	return nvme_submit_user_admin_command(ns->dev, addr, 4096, &c);
-}
-
 static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 {
 	struct nvme_dev *dev = ns->dev;
@@ -1096,10 +1051,11 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	switch (io.opcode) {
 	case nvme_cmd_write:
 	case nvme_cmd_read:
+	case nvme_cmd_compare:
 		nents = nvme_map_user_pages(dev, io.opcode & 1, io.addr,
 								length, &sg);
 	default:
-		return -EFAULT;
+		return -EINVAL;
 	}
 
 	if (nents < 0)
@@ -1137,50 +1093,52 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	return status;
 }
 
-static int nvme_download_firmware(struct nvme_ns *ns,
-						struct nvme_dlfw __user *udlfw)
+static int nvme_user_admin_cmd(struct nvme_ns *ns,
+					struct nvme_admin_cmd __user *ucmd)
 {
 	struct nvme_dev *dev = ns->dev;
-	struct nvme_dlfw dlfw;
+	struct nvme_admin_cmd cmd;
 	struct nvme_command c;
-	int nents, status, length;
+	int status, length, nents = 0;
 	struct scatterlist *sg;
-	struct nvme_prps *prps;
+	struct nvme_prps *prps = NULL;
 
-	if (copy_from_user(&dlfw, udlfw, sizeof(dlfw)))
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+	if (copy_from_user(&cmd, ucmd, sizeof(cmd)))
 		return -EFAULT;
-	if (dlfw.length >= (1 << 30))
-		return -EINVAL;
-	length = dlfw.length * 4;
-
-	nents = nvme_map_user_pages(dev, 1, dlfw.addr, length, &sg);
-	if (nents < 0)
-		return nents;
 
 	memset(&c, 0, sizeof(c));
-	c.dlfw.opcode = nvme_admin_download_fw;
-	c.dlfw.numd = cpu_to_le32(dlfw.length);
-	c.dlfw.offset = cpu_to_le32(dlfw.offset);
-	prps = nvme_setup_prps(dev, &c.common, sg, &length, GFP_KERNEL);
-	if (length != dlfw.length * 4)
+	c.common.opcode = cmd.opcode;
+	c.common.flags = cmd.flags;
+	c.common.nsid = cpu_to_le32(cmd.nsid);
+	c.common.cdw2[0] = cpu_to_le32(cmd.cdw2);
+	c.common.cdw2[1] = cpu_to_le32(cmd.cdw3);
+	c.common.cdw10[0] = cpu_to_le32(cmd.cdw10);
+	c.common.cdw10[1] = cpu_to_le32(cmd.cdw11);
+	c.common.cdw10[2] = cpu_to_le32(cmd.cdw12);
+	c.common.cdw10[3] = cpu_to_le32(cmd.cdw13);
+	c.common.cdw10[4] = cpu_to_le32(cmd.cdw14);
+	c.common.cdw10[5] = cpu_to_le32(cmd.cdw15);
+
+	length = cmd.data_len;
+	if (cmd.data_len) {
+		nents = nvme_map_user_pages(dev, 1, cmd.addr, length, &sg);
+		if (nents < 0)
+			return nents;
+		prps = nvme_setup_prps(dev, &c.common, sg, &length, GFP_KERNEL);
+	}
+
+	if (length != cmd.data_len)
 		status = -ENOMEM;
 	else
 		status = nvme_submit_admin_cmd(dev, &c, NULL);
-	nvme_unmap_user_pages(dev, 0, dlfw.addr, dlfw.length * 4, sg, nents);
-	nvme_free_prps(dev, prps);
+	if (cmd.data_len) {
+		nvme_unmap_user_pages(dev, 0, cmd.addr, cmd.data_len, sg,
+									nents);
+		nvme_free_prps(dev, prps);
+	}
 	return status;
-}
-
-static int nvme_activate_firmware(struct nvme_ns *ns, unsigned long arg)
-{
-	struct nvme_dev *dev = ns->dev;
-	struct nvme_command c;
-
-	memset(&c, 0, sizeof(c));
-	c.common.opcode = nvme_admin_activate_fw;
-	c.common.rsvd10[0] = cpu_to_le32(arg);
-
-	return nvme_submit_admin_cmd(dev, &c, NULL);
 }
 
 static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
@@ -1189,18 +1147,12 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 	struct nvme_ns *ns = bdev->bd_disk->private_data;
 
 	switch (cmd) {
-	case NVME_IOCTL_IDENTIFY_NS:
-		return nvme_identify(ns, arg, 0);
-	case NVME_IOCTL_IDENTIFY_CTRL:
-		return nvme_identify(ns, arg, 1);
-	case NVME_IOCTL_GET_RANGE_TYPE:
-		return nvme_get_range_type(ns, arg);
+	case NVME_IOCTL_ID:
+		return ns->ns_id;
+	case NVME_IOCTL_ADMIN_CMD:
+		return nvme_user_admin_cmd(ns, (void __user *)arg);
 	case NVME_IOCTL_SUBMIT_IO:
 		return nvme_submit_io(ns, (void __user *)arg);
-	case NVME_IOCTL_DOWNLOAD_FW:
-		return nvme_download_firmware(ns, (void __user *)arg);
-	case NVME_IOCTL_ACTIVATE_FW:
-		return nvme_activate_firmware(ns, arg);
 	default:
 		return -ENOTTY;
 	}
