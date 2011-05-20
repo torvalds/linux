@@ -249,9 +249,8 @@ static int __init usbip_host_init(void)
 {
 	int ret;
 
-	stub_priv_cache = kmem_cache_create("stub_priv",
-					    sizeof(struct stub_priv), 0,
-					    SLAB_HWCACHE_ALIGN, NULL);
+	stub_priv_cache = KMEM_CACHE(stub_priv, SLAB_HWCACHE_ALIGN);
+
 	if (!stub_priv_cache) {
 		pr_err("kmem_cache_create failed\n");
 		return -ENOMEM;
