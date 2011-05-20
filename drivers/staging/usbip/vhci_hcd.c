@@ -1209,7 +1209,7 @@ static struct platform_device the_pdev = {
 	},
 };
 
-static int __init vhci_init(void)
+static int __init vhci_hcd_init(void)
 {
 	int ret;
 
@@ -1233,14 +1233,14 @@ err_driver_register:
 	return ret;
 }
 
-static void __exit vhci_cleanup(void)
+static void __exit vhci_hcd_exit(void)
 {
 	platform_device_unregister(&the_pdev);
 	platform_driver_unregister(&vhci_driver);
 }
 
-module_init(vhci_init);
-module_exit(vhci_cleanup);
+module_init(vhci_hcd_init);
+module_exit(vhci_hcd_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
