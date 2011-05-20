@@ -29,9 +29,22 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip);
 
+struct ftrace_hash;
+
+enum {
+	FTRACE_OPS_FL_ENABLED		= 1 << 0,
+	FTRACE_OPS_FL_GLOBAL		= 1 << 1,
+	FTRACE_OPS_FL_DYNAMIC		= 1 << 2,
+};
+
 struct ftrace_ops {
-	ftrace_func_t	  func;
-	struct ftrace_ops *next;
+	ftrace_func_t			func;
+	struct ftrace_ops		*next;
+	unsigned long			flags;
+#ifdef CONFIG_DYNAMIC_FTRACE
+	struct ftrace_hash		*notrace_hash;
+	struct ftrace_hash		*filter_hash;
+#endif
 };
 
 extern int function_trace_stop;
@@ -146,13 +159,12 @@ extern void unregister_ftrace_function_probe_all(char *glob);
 extern int ftrace_text_reserved(void *start, void *end);
 
 enum {
-	FTRACE_FL_FREE		= (1 << 0),
-	FTRACE_FL_FAILED	= (1 << 1),
-	FTRACE_FL_FILTER	= (1 << 2),
-	FTRACE_FL_ENABLED	= (1 << 3),
-	FTRACE_FL_NOTRACE	= (1 << 4),
-	FTRACE_FL_CONVERTED	= (1 << 5),
+	FTRACE_FL_ENABLED	= (1 << 30),
+	FTRACE_FL_FREE		= (1 << 31),
 };
+
+#define FTRACE_FL_MASK		(0x3UL << 30)
+#define FTRACE_REF_MAX		((1 << 30) - 1)
 
 struct dyn_ftrace {
 	union {
@@ -167,7 +179,12 @@ struct dyn_ftrace {
 };
 
 int ftrace_force_update(void);
-void ftrace_set_filter(unsigned char *buf, int len, int reset);
+void ftrace_set_filter(struct ftrace_ops *ops, unsigned char *buf,
+		       int len, int reset);
+void ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
+			int len, int reset);
+void ftrace_set_global_filter(unsigned char *buf, int len, int reset);
+void ftrace_set_global_notrace(unsigned char *buf, int len, int reset);
 
 int register_ftrace_command(struct ftrace_func_command *cmd);
 int unregister_ftrace_command(struct ftrace_func_command *cmd);

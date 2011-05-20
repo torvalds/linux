@@ -4,7 +4,6 @@
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/stringify.h>
-#include <linux/jump_label.h>
 #include <asm/asm.h>
 
 /*
@@ -191,7 +190,7 @@ extern void *text_poke(void *addr, const void *opcode, size_t len);
 extern void *text_poke_smp(void *addr, const void *opcode, size_t len);
 extern void text_poke_smp_batch(struct text_poke_param *params, int n);
 
-#if defined(CONFIG_DYNAMIC_FTRACE) || defined(HAVE_JUMP_LABEL)
+#if defined(CONFIG_DYNAMIC_FTRACE) || defined(CONFIG_JUMP_LABEL)
 #define IDEAL_NOP_SIZE_5 5
 extern unsigned char ideal_nop5[IDEAL_NOP_SIZE_5];
 extern void arch_init_ideal_nop5(void);

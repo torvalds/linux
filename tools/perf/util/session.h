@@ -162,6 +162,9 @@ static inline int perf_session__parse_sample(struct perf_session *session,
 					session->sample_id_all, sample);
 }
 
+struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
+					    unsigned int type);
+
 void perf_session__print_symbols(union perf_event *event,
 				 struct perf_sample *sample,
 				 struct perf_session *session);

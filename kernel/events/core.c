@@ -2,8 +2,8 @@
  * Performance events core code:
  *
  *  Copyright (C) 2008 Thomas Gleixner <tglx@linutronix.de>
- *  Copyright (C) 2008-2009 Red Hat, Inc., Ingo Molnar
- *  Copyright (C) 2008-2009 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ *  Copyright (C) 2008-2011 Red Hat, Inc., Ingo Molnar
+ *  Copyright (C) 2008-2011 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
  *  Copyright  ©  2009 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
  *
  * For licensing details see kernel-base/COPYING
@@ -39,10 +39,10 @@
 #include <asm/irq_regs.h>
 
 struct remote_function_call {
-	struct task_struct *p;
-	int (*func)(void *info);
-	void *info;
-	int ret;
+	struct task_struct	*p;
+	int			(*func)(void *info);
+	void			*info;
+	int			ret;
 };
 
 static void remote_function(void *data)
@@ -76,10 +76,10 @@ static int
 task_function_call(struct task_struct *p, int (*func) (void *info), void *info)
 {
 	struct remote_function_call data = {
-		.p = p,
-		.func = func,
-		.info = info,
-		.ret = -ESRCH, /* No such (running) process */
+		.p	= p,
+		.func	= func,
+		.info	= info,
+		.ret	= -ESRCH, /* No such (running) process */
 	};
 
 	if (task_curr(p))
@@ -100,10 +100,10 @@ task_function_call(struct task_struct *p, int (*func) (void *info), void *info)
 static int cpu_function_call(int cpu, int (*func) (void *info), void *info)
 {
 	struct remote_function_call data = {
-		.p = NULL,
-		.func = func,
-		.info = info,
-		.ret = -ENXIO, /* No such CPU */
+		.p	= NULL,
+		.func	= func,
+		.info	= info,
+		.ret	= -ENXIO, /* No such CPU */
 	};
 
 	smp_call_function_single(cpu, remote_function, &data, 1);
@@ -125,7 +125,7 @@ enum event_type_t {
  * perf_sched_events : >0 events exist
  * perf_cgroup_events: >0 per-cpu cgroup events exist on this cpu
  */
-atomic_t perf_sched_events __read_mostly;
+struct jump_label_key perf_sched_events __read_mostly;
 static DEFINE_PER_CPU(atomic_t, perf_cgroup_events);
 
 static atomic_t nr_mmap_events __read_mostly;
@@ -5429,7 +5429,7 @@ fail:
 	return err;
 }
 
-atomic_t perf_swevent_enabled[PERF_COUNT_SW_MAX];
+struct jump_label_key perf_swevent_enabled[PERF_COUNT_SW_MAX];
 
 static void sw_perf_event_destroy(struct perf_event *event)
 {
@@ -7445,11 +7445,11 @@ static void perf_cgroup_exit(struct cgroup_subsys *ss, struct cgroup *cgrp,
 }
 
 struct cgroup_subsys perf_subsys = {
-	.name = "perf_event",
-	.subsys_id = perf_subsys_id,
-	.create = perf_cgroup_create,
-	.destroy = perf_cgroup_destroy,
-	.exit = perf_cgroup_exit,
-	.attach = perf_cgroup_attach,
+	.name		= "perf_event",
+	.subsys_id	= perf_subsys_id,
+	.create		= perf_cgroup_create,
+	.destroy	= perf_cgroup_destroy,
+	.exit		= perf_cgroup_exit,
+	.attach		= perf_cgroup_attach,
 };
 #endif /* CONFIG_CGROUP_PERF */

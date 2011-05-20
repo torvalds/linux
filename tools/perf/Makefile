@@ -5,6 +5,8 @@ endif
 # The default target of this Makefile is...
 all:
 
+include config/utilities.mak
+
 ifneq ($(OUTPUT),)
 # check that the output directory actually exists
 OUTDIR := $(shell cd $(OUTPUT) && /bin/pwd)
@@ -12,6 +14,12 @@ $(if $(OUTDIR),, $(error output directory "$(OUTPUT)" does not exist))
 endif
 
 # Define V to have a more verbose compile.
+#
+# Define PYTHON to point to the python binary if the default
+# `python' is not correct; for example: PYTHON=python2
+#
+# Define PYTHON_CONFIG to point to the python-config binary if
+# the default `$(PYTHON)-config' is not correct.
 #
 # Define ASCIIDOC8 if you want to format documentation with AsciiDoc 8
 #
@@ -134,7 +142,7 @@ INSTALL = install
 # explicitly what architecture to check for. Fix this up for yours..
 SPARSE_FLAGS = -D__BIG_ENDIAN__ -D__powerpc__
 
--include feature-tests.mak
+-include config/feature-tests.mak
 
 ifeq ($(call try-cc,$(SOURCE_HELLO),-Werror -fstack-protector-all),y)
 	CFLAGS := $(CFLAGS) -fstack-protector-all
@@ -169,12 +177,10 @@ grep-libs = $(filter -l%,$(1))
 strip-libs = $(filter-out -l%,$(1))
 
 $(OUTPUT)python/perf.so: $(PYRF_OBJS)
-	$(QUIET_GEN)( \
-		export CFLAGS="$(BASIC_CFLAGS)"; \
-		python util/setup.py --quiet  build_ext --build-lib='$(OUTPUT)python' \
-			--build-temp='$(OUTPUT)python/temp' \
-	)
-
+	$(QUIET_GEN)CFLAGS='$(BASIC_CFLAGS)' $(PYTHON_WORD) util/setup.py \
+	  --quiet build_ext \
+	  --build-lib='$(OUTPUT)python' \
+	  --build-temp='$(OUTPUT)python/temp'
 #
 # No Perl scripts right now:
 #
@@ -479,24 +485,74 @@ else
 	endif
 endif
 
-ifdef NO_LIBPYTHON
-	BASIC_CFLAGS += -DNO_LIBPYTHON
+disable-python = $(eval $(disable-python_code))
+define disable-python_code
+  BASIC_CFLAGS += -DNO_LIBPYTHON
+  $(if $(1),$(warning No $(1) was found))
+  $(warning Python support won't be built)
+endef
+
+override PYTHON := \
+  $(call get-executable-or-default,PYTHON,python)
+
+ifndef PYTHON
+  $(call disable-python,python interpreter)
+  python-clean :=
 else
-       PYTHON_EMBED_LDOPTS = $(shell python-config --ldflags 2>/dev/null)
-       PYTHON_EMBED_LDFLAGS = $(call strip-libs,$(PYTHON_EMBED_LDOPTS))
-       PYTHON_EMBED_LIBADD = $(call grep-libs,$(PYTHON_EMBED_LDOPTS))
-	PYTHON_EMBED_CCOPTS = `python-config --cflags 2>/dev/null`
-	FLAGS_PYTHON_EMBED=$(PYTHON_EMBED_CCOPTS) $(PYTHON_EMBED_LDOPTS)
-	ifneq ($(call try-cc,$(SOURCE_PYTHON_EMBED),$(FLAGS_PYTHON_EMBED)),y)
-		msg := $(warning No Python.h found, install python-dev[el] to have python support in 'perf script' and to build the python bindings)
-		BASIC_CFLAGS += -DNO_LIBPYTHON
-	else
-               ALL_LDFLAGS += $(PYTHON_EMBED_LDFLAGS)
-               EXTLIBS += $(PYTHON_EMBED_LIBADD)
-		LIB_OBJS += $(OUTPUT)util/scripting-engines/trace-event-python.o
-		LIB_OBJS += $(OUTPUT)scripts/python/Perf-Trace-Util/Context.o
-		LANG_BINDINGS += $(OUTPUT)python/perf.so
-	endif
+
+  PYTHON_WORD := $(call shell-wordify,$(PYTHON))
+
+  python-clean := $(PYTHON_WORD) util/setup.py clean \
+    --build-lib='$(OUTPUT)python' \
+    --build-temp='$(OUTPUT)python/temp'
+
+  ifdef NO_LIBPYTHON
+    $(call disable-python)
+  else
+
+    override PYTHON_CONFIG := \
+      $(call get-executable-or-default,PYTHON_CONFIG,$(PYTHON)-config)
+
+    ifndef PYTHON_CONFIG
+      $(call disable-python,python-config tool)
+    else
+
+      PYTHON_CONFIG_SQ := $(call shell-sq,$(PYTHON_CONFIG))
+
+      PYTHON_EMBED_LDOPTS := $(shell $(PYTHON_CONFIG_SQ) --ldflags 2>/dev/null)
+      PYTHON_EMBED_LDFLAGS := $(call strip-libs,$(PYTHON_EMBED_LDOPTS))
+      PYTHON_EMBED_LIBADD := $(call grep-libs,$(PYTHON_EMBED_LDOPTS))
+      PYTHON_EMBED_CCOPTS := $(shell $(PYTHON_CONFIG_SQ) --cflags 2>/dev/null)
+      FLAGS_PYTHON_EMBED := $(PYTHON_EMBED_CCOPTS) $(PYTHON_EMBED_LDOPTS)
+
+      ifneq ($(call try-cc,$(SOURCE_PYTHON_EMBED),$(FLAGS_PYTHON_EMBED)),y)
+        $(call disable-python,Python.h (for Python 2.x))
+      else
+
+        ifneq ($(call try-cc,$(SOURCE_PYTHON_VERSION),$(FLAGS_PYTHON_EMBED)),y)
+          $(warning Python 3 is not yet supported; please set)
+          $(warning PYTHON and/or PYTHON_CONFIG appropriately.)
+          $(warning If you also have Python 2 installed, then)
+          $(warning try something like:)
+          $(warning $(and ,))
+          $(warning $(and ,)  make PYTHON=python2)
+          $(warning $(and ,))
+          $(warning Otherwise, disable Python support entirely:)
+          $(warning $(and ,))
+          $(warning $(and ,)  make NO_LIBPYTHON=1)
+          $(warning $(and ,))
+          $(error   $(and ,))
+        else
+          ALL_LDFLAGS += $(PYTHON_EMBED_LDFLAGS)
+          EXTLIBS += $(PYTHON_EMBED_LIBADD)
+          LIB_OBJS += $(OUTPUT)util/scripting-engines/trace-event-python.o
+          LIB_OBJS += $(OUTPUT)scripts/python/Perf-Trace-Util/Context.o
+          LANG_BINDINGS += $(OUTPUT)python/perf.so
+        endif
+
+      endif
+    endif
+  endif
 endif
 
 ifdef NO_DEMANGLE
@@ -837,8 +893,7 @@ clean:
 	$(RM) *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope*
 	$(MAKE) -C Documentation/ clean
 	$(RM) $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)PERF-CFLAGS
-	@python util/setup.py clean --build-lib='$(OUTPUT)python' \
-				   --build-temp='$(OUTPUT)python/temp'
+	$(python-clean)
 
 .PHONY: all install clean strip
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell

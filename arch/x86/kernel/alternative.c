@@ -210,6 +210,15 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 	u8 insnbuf[MAX_PATCH_LEN];
 
 	DPRINTK("%s: alt table %p -> %p\n", __func__, start, end);
+	/*
+	 * The scan order should be from start to end. A later scanned
+	 * alternative code can overwrite a previous scanned alternative code.
+	 * Some kernel functions (e.g. memcpy, memset, etc) use this order to
+	 * patch code.
+	 *
+	 * So be careful if you want to change the scan order to any other
+	 * order.
+	 */
 	for (a = start; a < end; a++) {
 		u8 *instr = a->instr;
 		BUG_ON(a->replacementlen > a->instrlen);
@@ -679,7 +688,7 @@ void __kprobes text_poke_smp_batch(struct text_poke_param *params, int n)
 	__stop_machine(stop_machine_text_poke, (void *)&tpp, NULL);
 }
 
-#if defined(CONFIG_DYNAMIC_FTRACE) || defined(HAVE_JUMP_LABEL)
+#if defined(CONFIG_DYNAMIC_FTRACE) || defined(CONFIG_JUMP_LABEL)
 
 #ifdef CONFIG_X86_64
 unsigned char ideal_nop5[5] = { 0x66, 0x66, 0x66, 0x66, 0x90 };

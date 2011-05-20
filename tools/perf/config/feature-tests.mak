@@ -79,9 +79,15 @@ endef
 endif
 
 ifndef NO_LIBPYTHON
+define SOURCE_PYTHON_VERSION
+#include <Python.h>
+#if PY_VERSION_HEX >= 0x03000000
+	#error
+#endif
+int main(void){}
+endef
 define SOURCE_PYTHON_EMBED
 #include <Python.h>
-
 int main(void)
 {
 	Py_Initialize();
@@ -120,11 +126,3 @@ int main(void)
 	return 0;
 }
 endef
-
-# try-cc
-# Usage: option = $(call try-cc, source-to-build, cc-options)
-try-cc = $(shell sh -c						  \
-	'TMP="$(OUTPUT)$(TMPOUT).$$$$";				  \
-	 echo "$(1)" |						  \
-	 $(CC) -x c - $(2) -o "$$TMP" > /dev/null 2>&1 && echo y; \
-	 rm -f "$$TMP"')
