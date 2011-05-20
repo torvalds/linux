@@ -585,8 +585,8 @@ static int macvlan_port_create(struct net_device *dev)
 	err = netdev_rx_handler_register(dev, macvlan_handle_frame, port);
 	if (err)
 		kfree(port);
-
-	dev->priv_flags |= IFF_MACVLAN_PORT;
+	else
+		dev->priv_flags |= IFF_MACVLAN_PORT;
 	return err;
 }
 
