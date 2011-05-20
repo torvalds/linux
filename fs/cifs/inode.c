@@ -1805,8 +1805,10 @@ int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	if (!CIFS_I(inode)->clientCanCacheRead && inode->i_mapping &&
 	    inode->i_mapping->nrpages != 0) {
 		rc = filemap_fdatawait(inode->i_mapping);
-		mapping_set_error(inode->i_mapping, rc);
-		return rc;
+		if (rc) {
+			mapping_set_error(inode->i_mapping, rc);
+			return rc;
+		}
 	}
 
 	rc = cifs_revalidate_dentry_attr(dentry);

@@ -617,8 +617,10 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 		if (!CIFS_I(inode)->clientCanCacheRead && inode->i_mapping &&
 		    inode->i_mapping->nrpages != 0) {
 			rc = filemap_fdatawait(inode->i_mapping);
-			mapping_set_error(inode->i_mapping, rc);
-			return rc;
+			if (rc) {
+				mapping_set_error(inode->i_mapping, rc);
+				return rc;
+			}
 		}
 		/*
 		 * Some applications poll for the file length in this strange
