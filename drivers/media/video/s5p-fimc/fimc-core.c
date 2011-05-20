@@ -841,7 +841,7 @@ struct fimc_fmt *find_format(struct v4l2_format *f, unsigned int mask)
 
 	for (i = 0; i < ARRAY_SIZE(fimc_formats); ++i) {
 		fmt = &fimc_formats[i];
-		if (fmt->fourcc == f->fmt.pix.pixelformat &&
+		if (fmt->fourcc == f->fmt.pix_mp.pixelformat &&
 		   (fmt->flags & mask))
 			break;
 	}
