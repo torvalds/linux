@@ -206,7 +206,7 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 		DBG("headsetobserve: request gpio_request failed\n");
 		return ret;
 	}
-	gpio_pull_updown(prk2818_headset_info->gpio, GPIONormal);
+	gpio_pull_updown(prk2818_headset_info->gpio, PullDisable);
 	gpio_direction_input(prk2818_headset_info->gpio);
 	prk2818_headset_info->irq = gpio_to_irq(prk2818_headset_info->gpio);
 

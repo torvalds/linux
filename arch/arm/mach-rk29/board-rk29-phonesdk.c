@@ -1225,7 +1225,7 @@ struct wm831x_pdata wm831x_platdata = {
 	.settinginfo=wm831x_gpio_settinginfo,
 	.settinginfolen=ARRAY_SIZE(wm831x_gpio_settinginfo),
 	.pin_type_init = wm831x_init_pin_type,
-	 .irq_base= NR_AIC_IRQS + 2*NUM_GROUP + TCA6424_TOTOL_GPIO_IRQ_NUM + CONFIG_SPI_FPGA_GPIO_IRQ_NUM,
+	.irq_base= NR_AIC_IRQS + 7*NUM_GROUP,
 #endif
 
 	.backlight = &wm831x_backlight_platdata,

@@ -1208,7 +1208,7 @@ struct wm831x_pdata wm831x_platdata = {
 	.settinginfo=wm831x_gpio_settinginfo,
 	.settinginfolen=ARRAY_SIZE(wm831x_gpio_settinginfo),
 	.pin_type_init = wm831x_init_pin_type,
-	 .irq_base= NR_AIC_IRQS + 2*NUM_GROUP + TCA6424_TOTOL_GPIO_IRQ_NUM + CONFIG_SPI_FPGA_GPIO_IRQ_NUM,
+	.irq_base= NR_AIC_IRQS + 7*NUM_GROUP,
 #endif
 
 	.backlight = &wm831x_backlight_platdata,
@@ -1420,7 +1420,7 @@ struct wm8994_pdata wm8994_platdata = {
 //#endif 
 
 #ifdef CONFIG_RK_HEADSET_DET
-#define HEADSET_GPIO RK29_PIN4_PD2
+#define HEADSET_GPIO RK29_PIN3_PA6
 struct rk2818_headset_data rk2818_headset_info = {
 	.gpio		= HEADSET_GPIO,
 	.irq_type	= IRQF_TRIGGER_RISING,//IRQF_TRIGGER_RISING -- ÉÏÉýÑØ	IRQF_TRIGGER_FALLING -- ÏÂ½µÑØ
@@ -2659,6 +2659,9 @@ static void __init rk29_board_iomux_init(void)
 	#endif
 	#ifdef CONFIG_RK29_PWM_REGULATOR
 	rk29_mux_api_set(REGULATOR_PWM_MUX_NAME,REGULATOR_PWM_MUX_MODE);
+	#endif
+	#ifdef CONFIG_RK_HEADSET_DET
+	rk29_mux_api_set(GPIO3A6_SMCADDR14_HOSTDATA14_NAME,GPIO3L_GPIO3A6);
 	#endif
 }
 
