@@ -931,10 +931,10 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		else
 			args.v3.ucLaneNum = 4;
 
-		if (dig->linkb) {
+		if (dig->linkb)
 			args.v3.acConfig.ucLinkSel = 1;
+		if (dig->dig_encoder & 1)
 			args.v3.acConfig.ucEncoderSel = 1;
-		}
 
 		/* Select the PLL for the PHY
 		 * DP PHY should be clocked from external src if there is
@@ -1601,12 +1601,9 @@ static int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder)
 	/* DCE4/5 */
 	if (ASIC_IS_DCE4(rdev)) {
 		dig = radeon_encoder->enc_priv;
-		if (ASIC_IS_DCE41(rdev)) {
-			if (dig->linkb)
-				return 1;
-			else
-				return 0;
-		} else {
+		if (ASIC_IS_DCE41(rdev))
+			return radeon_crtc->crtc_id;
+		else {
 			switch (radeon_encoder->encoder_id) {
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 				if (dig->linkb)
