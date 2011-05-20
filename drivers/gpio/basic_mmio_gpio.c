@@ -192,6 +192,16 @@ static int bgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 	return 0;
 }
 
+static void __iomem *bgpio_request_and_map(struct device *dev,
+					   struct resource *res)
+{
+	if (!devm_request_mem_region(dev, res->start, resource_size(res),
+				     res->name ?: "mmio_gpio"))
+		return NULL;
+
+	return devm_ioremap(dev, res->start, resource_size(res));
+}
+
 static int bgpio_setup_accessors(struct platform_device *pdev,
 				 struct bgpio_chip *bgc)
 {
@@ -258,7 +268,7 @@ static int __devinit bgpio_probe(struct platform_device *pdev)
 	if (!bgc)
 		return -ENOMEM;
 
-	bgc->reg_dat = devm_ioremap(dev, res_dat->start, dat_sz);
+	bgc->reg_dat = bgpio_request_and_map(dev, res_dat);
 	if (!bgc->reg_dat)
 		return -ENOMEM;
 
@@ -269,8 +279,8 @@ static int __devinit bgpio_probe(struct platform_device *pdev)
 				resource_size(res_set) != dat_sz)
 			return -EINVAL;
 
-		bgc->reg_set = devm_ioremap(dev, res_set->start, dat_sz);
-		bgc->reg_clr = devm_ioremap(dev, res_clr->start, dat_sz);
+		bgc->reg_set = bgpio_request_and_map(dev, res_set);
+		bgc->reg_clr = bgpio_request_and_map(dev, res_clr);
 		if (!bgc->reg_set || !bgc->reg_clr)
 			return -ENOMEM;
 	} else if (res_set || res_clr) {
