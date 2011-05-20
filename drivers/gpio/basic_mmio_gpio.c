@@ -101,43 +101,43 @@ static struct bgpio_chip *to_bgpio_chip(struct gpio_chip *gc)
 
 static void bgpio_write8(void __iomem *reg, unsigned long data)
 {
-	__raw_writeb(data, reg);
+	writeb(data, reg);
 }
 
 static unsigned long bgpio_read8(void __iomem *reg)
 {
-	return __raw_readb(reg);
+	return readb(reg);
 }
 
 static void bgpio_write16(void __iomem *reg, unsigned long data)
 {
-	__raw_writew(data, reg);
+	writew(data, reg);
 }
 
 static unsigned long bgpio_read16(void __iomem *reg)
 {
-	return __raw_readw(reg);
+	return readw(reg);
 }
 
 static void bgpio_write32(void __iomem *reg, unsigned long data)
 {
-	__raw_writel(data, reg);
+	writel(data, reg);
 }
 
 static unsigned long bgpio_read32(void __iomem *reg)
 {
-	return __raw_readl(reg);
+	return readl(reg);
 }
 
 #if BITS_PER_LONG >= 64
 static void bgpio_write64(void __iomem *reg, unsigned long data)
 {
-	__raw_writeq(data, reg);
+	writeq(data, reg);
 }
 
 static unsigned long bgpio_read64(void __iomem *reg)
 {
-	return __raw_readq(reg);
+	return readq(reg);
 }
 #endif /* BITS_PER_LONG >= 64 */
 
