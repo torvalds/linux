@@ -114,11 +114,12 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 	u8 err = 0;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
+	/* verify there is something to do, if not then exit */
+	if (!!state != !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
+		return err;
+
 	if (state > 0) {
 		/* Turn on DCB */
-		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)
-			goto out;
-
 		if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED)) {
 			e_err(drv, "Enable failed, needs MSI-X\n");
 			err = 1;
@@ -143,9 +144,6 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 		ixgbe_setup_tc(netdev, MAX_TRAFFIC_CLASS);
 	} else {
 		/* Turn off DCB */
-		if (!(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
-			goto out;
-
 		adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
 		adapter->temp_dcb_cfg.pfc_mode_enable = false;
 		adapter->dcb_cfg.pfc_mode_enable = false;
@@ -153,7 +151,8 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 		switch (adapter->hw.mac.type) {
 		case ixgbe_mac_82599EB:
 		case ixgbe_mac_X540:
-			adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
+			if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
+				adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
 			break;
 		default:
 			break;
