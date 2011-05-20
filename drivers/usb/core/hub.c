@@ -1168,6 +1168,7 @@ static void hub_disconnect(struct usb_interface *intf)
 
 	kref_put(&hub->kref, hub_release);
 }
+struct usb_hub *g_root_hub20 = NULL;
 static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_host_interface *desc;
@@ -1217,6 +1218,10 @@ descriptor_error:
 	if (!hub) {
 		dev_dbg (&intf->dev, "couldn't kmalloc hub struct\n");
 		return -ENOMEM;
+	}
+	if(!g_root_hub20)
+	{
+		g_root_hub20 = hub;
 	}
 	kref_init(&hub->kref);
 	INIT_LIST_HEAD(&hub->event_list);

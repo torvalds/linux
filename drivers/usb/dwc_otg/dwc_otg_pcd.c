@@ -1001,7 +1001,7 @@ static int dwc_otg_pcd_wakeup(struct usb_gadget *_gadget)
 
 static int dwc_otg_pcd_pullup(struct usb_gadget *_gadget, int is_on)
 {
-	unsigned long flags;
+	//unsigned long flags;
 	dwc_otg_pcd_t *pcd;
     dctl_data_t dctl = {.d32=0};
     dwc_otg_core_if_t *core_if;
@@ -1028,6 +1028,7 @@ static int dwc_otg_pcd_pullup(struct usb_gadget *_gadget, int is_on)
         dctl.b.sftdiscon = 1;
         dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
     }
+    return 0;
 }
 
 static const struct usb_gadget_ops dwc_otg_pcd_ops = 

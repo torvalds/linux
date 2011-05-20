@@ -337,11 +337,93 @@ int32_t dwc_otg_handle_otg_intr(dwc_otg_core_if_t *_core_if)
  *
  * @param _core_if Programming view of DWC_otg controller.
  */
+#ifdef DWC_BOTH_HOST_SLAVE
+extern void dwc_otg_force_device(dwc_otg_core_if_t *core_if);
+extern void dwc_otg_force_host(dwc_otg_core_if_t *core_if);
+extern int rk28_usb_suspend( int exitsuspend );
+#endif
 
 int32_t dwc_otg_handle_conn_id_status_change_intr(dwc_otg_core_if_t *_core_if)
 {
 	gintsts_data_t gintsts = { .d32 = 0 };
+    #ifdef DWC_BOTH_HOST_SLAVE
+    uint32_t count = 0;
+    dwc_otg_pcd_t *pcd = _core_if->otg_dev->pcd;
+	gintmsk_data_t gintmsk = { .d32 = 0 };
+    gotgctl_data_t gotgctl = { .d32 = 0 }; 
+	if(pcd &&(pcd->phy_suspend == 1))
+	{
+		rk28_usb_suspend( 1 );
+	}
+	
+    /*
+    * yangkai@rk, 20100331
+    * 充电器接入时有可能USB ID为低, 此时应特别处理，不切换成HOST；
+	* 注意,如果host设备如果快速拔插，会当成USB_ID为低的充电器处理
+    */
+    gotgctl.d32 = dwc_read_reg32( &_core_if->core_global_regs->gotgctl );
+	#if 1
+    if((!gotgctl.b.conidsts)&&( gotgctl.b.bsesvld ))
+    {
+    	if(pcd &&(pcd->vbus_status == 0))
+    		pcd->vbus_status = 1;
+    	gintsts.b.conidstschng = 1;
+    	dwc_write_reg32 (&_core_if->core_global_regs->gintsts, gintsts.d32);
+    	return 1;
+    }
+    #endif
+// cmy: 只有当usb处于正常模式时，才处理该中断进行切换
+    if(_core_if->usb_mode != USB_MODE_NORMAL)
+    {
+        DWC_PRINT("_core_if->usb_mode=%d\n", _core_if->usb_mode);
+    	gintsts.b.conidstschng = 1;
+    	dwc_write_reg32 (&_core_if->core_global_regs->gintsts, gintsts.d32);
+    	return 1;
+    }
+    DWC_DEBUGPL(DBG_CIL, "switch\n");
 
+	/*
+	 * Need to disable SOF interrupt immediately. If switching from device
+	 * to host, the PCD interrupt handler won't handle the interrupt if
+	 * host mode is already set. The HCD interrupt handler won't get
+	 * called if the HCD state is HALT. This means that the interrupt does
+	 * not get handled and Linux complains loudly.
+	 */
+	gintmsk.b.sofintr = 1;
+	dwc_modify_reg32(&_core_if->core_global_regs->gintmsk, gintmsk.d32, 0);
+
+	DWC_DEBUGPL(DBG_CIL, " ++Connector ID Status Change Interrupt++  (%s)\n",
+                    (dwc_otg_is_host_mode(_core_if)?"Host":"Device"));
+        gotgctl.d32 = dwc_read_reg32(&_core_if->core_global_regs->gotgctl);
+	DWC_DEBUGPL(DBG_CIL, "gotgctl=%0x\n", gotgctl.d32);
+	DWC_DEBUGPL(DBG_CIL, "gotgctl.b.conidsts=%d\n", gotgctl.b.conidsts);
+        
+        /* B-Device connector (Device Mode) */
+        if (gotgctl.b.conidsts) {
+                /* Wait for switch to device mode. */
+                while (!dwc_otg_is_device_mode(_core_if) ){
+                        DWC_PRINT("Waiting for Peripheral Mode, Mode=%s\n",
+                                  (dwc_otg_is_host_mode(_core_if)?"Host":"Peripheral"));
+                        MDELAY(100);
+                        if (++count > 10000) *(uint32_t*)NULL=0;
+                }
+
+        hcd_stop(_core_if);
+        _core_if->op_state = B_PERIPHERAL;
+        //pcd->phy_suspend = 1;
+        pcd->vbus_status = 0;
+    	dwc_otg_pcd_start_vbus_timer( pcd );
+        } else {
+                /* A-Device connector (Host Mode) */
+                while (!dwc_otg_is_host_mode(_core_if) ) {
+                        DWC_PRINT("Waiting for Host Mode, Mode=%s\n",
+                                  (dwc_otg_is_host_mode(_core_if)?"Host":"Peripheral"));
+                        MDELAY(100);
+                        if (++count > 10000) *(uint32_t*)NULL=0;
+                }
+            dwc_otg_force_host(_core_if);
+        }
+	#endif
 	/* Set flag and clear interrupt */
 	gintsts.b.conidstschng = 1;
 	dwc_write_reg32 (&_core_if->core_global_regs->gintsts, gintsts.d32);

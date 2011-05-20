@@ -454,6 +454,7 @@ void dwc_otg_core_init(dwc_otg_core_if_t *_core_if)
 
 	/* Reset the Controller */
 	dwc_otg_core_reset( _core_if );
+    DWC_PRINT("GINTSTS:0x%x \n",_core_if->core_global_regs->gintsts);
 
 	/* Initialize parameters from Hardware configuration registers. */
 	dev_if->num_in_eps = calc_num_in_eps(_core_if);
@@ -628,7 +629,7 @@ void dwc_otg_core_init(dwc_otg_core_if_t *_core_if)
 
 	/* Enable common interrupts */
 	dwc_otg_enable_common_interrupts( _core_if );
-
+    DWC_PRINT("GINTSTS:0x%x kever@rk 20110425\n",_core_if->core_global_regs->gintsts);
 	/* Do device or host intialization based on mode during PCD
 	 * and HCD initialization  */
 	if (dwc_otg_is_host_mode( _core_if )) 
@@ -3337,14 +3338,14 @@ void dwc_otg_dump_flags(dwc_otg_core_if_t *_core_if)
 	DWC_PRINT("core_if->usb_wakeup = %x\n",_core_if->usb_wakeup);
 }
 
-#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
 extern void dwc_otg_pcd_stop(dwc_otg_pcd_t *_pcd);
 #endif
 int dwc_debug(dwc_otg_core_if_t *core_if, int flag)
 {
     dctl_data_t dctl = {.d32=0};
 	//dwc_otg_core_if_t *core_if = dwc_core_if;
-	#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+	#ifndef CONFIG_DWC_OTG_HOST_ONLY
         dwc_otg_pcd_t * pcd;
     #endif
 	struct dwc_otg_device *otg_dev;
@@ -3355,7 +3356,7 @@ int dwc_debug(dwc_otg_core_if_t *core_if, int flag)
 			dwc_otg_dump_host_registers(core_if);
 			break;
 		case 2:
-		#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+		#ifndef CONFIG_DWC_OTG_HOST_ONLY
 		    otg_dev = core_if->otg_dev;
 		    pcd = otg_dev->pcd;
 		    pcd->vbus_status = 0;
@@ -3383,7 +3384,7 @@ int dwc_debug(dwc_otg_core_if_t *core_if, int flag)
 			dwc_otg_dump_flags(core_if);
 			break;
 		case 8:
-		#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+		#ifndef CONFIG_DWC_OTG_HOST_ONLY
 		    otg_dev = core_if->otg_dev;
 		    pcd = otg_dev->pcd;
 		    //pcd->vbus_status = 0;

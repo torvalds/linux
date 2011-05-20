@@ -736,6 +736,7 @@ static ssize_t wr_reg_test_show( struct device *_dev,
 
 DEVICE_ATTR(wr_reg_test, S_IRUGO|S_IWUSR, wr_reg_test_show, 0);
 extern int dwc_debug(dwc_otg_core_if_t *core_if, int flag);
+
 static ssize_t debug_show( struct device *_dev, 
 								struct device_attribute *attr, char *buf) 
 {
