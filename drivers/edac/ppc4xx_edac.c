@@ -1019,7 +1019,7 @@ ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 	struct ppc4xx_edac_pdata *pdata = NULL;
 	const struct device_node *np = op->dev.of_node;
 
-	if (op->dev.of_match == NULL)
+	if (of_match_device(ppc4xx_edac_match, &op->dev) == NULL)
 		return -EINVAL;
 
 	/* Initial driver pointers and private data */

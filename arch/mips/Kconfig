@@ -997,9 +997,6 @@ config IRQ_GT641XX
 config IRQ_GIC
 	bool
 
-config IRQ_CPU_OCTEON
-	bool
-
 config MIPS_BOARDS_GEN
 	bool
 
@@ -1359,8 +1356,6 @@ config CPU_SB1
 config CPU_CAVIUM_OCTEON
 	bool "Cavium Octeon processor"
 	depends on SYS_HAS_CPU_CAVIUM_OCTEON
-	select IRQ_CPU
-	select IRQ_CPU_OCTEON
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_SMP

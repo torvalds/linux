@@ -1151,8 +1151,8 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 	struct uasm_reloc *r = relocs;
 	u32 *f;
 	unsigned int final_len;
-	struct mips_huge_tlb_info htlb_info;
-	enum vmalloc64_mode vmalloc_mode;
+	struct mips_huge_tlb_info htlb_info __maybe_unused;
+	enum vmalloc64_mode vmalloc_mode __maybe_unused;
 
 	memset(tlb_handler, 0, sizeof(tlb_handler));
 	memset(labels, 0, sizeof(labels));

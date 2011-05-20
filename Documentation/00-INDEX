@@ -192,10 +192,6 @@ kernel-docs.txt
 	- listing of various WWW + books that document kernel internals.
 kernel-parameters.txt
 	- summary listing of command line / boot prompt args for the kernel.
-keys-request-key.txt
-	- description of the kernel key request service.
-keys.txt
-	- description of the kernel key retention service.
 kobject.txt
 	- info of the kobject infrastructure of the Linux kernel.
 kprobes.txt
@@ -294,6 +290,8 @@ scheduler/
 	- directory with info on the scheduler.
 scsi/
 	- directory with info on Linux scsi support.
+security/
+	- directory that contains security-related info
 serial/
 	- directory with info on the low level serial API.
 serial-console.txt

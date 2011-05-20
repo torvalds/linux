@@ -178,6 +178,7 @@ static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.tmpl_sort		= __xfrm6_tmpl_sort,
 	.state_sort		= __xfrm6_state_sort,
 	.output			= xfrm6_output,
+	.output_finish		= xfrm6_output_finish,
 	.extract_input		= xfrm6_extract_input,
 	.extract_output		= xfrm6_extract_output,
 	.transport_finish	= xfrm6_transport_finish,

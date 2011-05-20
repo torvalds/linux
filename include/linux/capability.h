@@ -546,18 +546,7 @@ extern bool has_capability_noaudit(struct task_struct *t, int cap);
 extern bool capable(int cap);
 extern bool ns_capable(struct user_namespace *ns, int cap);
 extern bool task_ns_capable(struct task_struct *t, int cap);
-
-/**
- * nsown_capable - Check superior capability to one's own user_ns
- * @cap: The capability in question
- *
- * Return true if the current task has the given superior capability
- * targeted at its own user namespace.
- */
-static inline bool nsown_capable(int cap)
-{
-	return ns_capable(current_user_ns(), cap);
-}
+extern bool nsown_capable(int cap);
 
 /* audit system wants to get cap info from files as well */
 extern int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps);

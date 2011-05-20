@@ -585,8 +585,9 @@ static bool eeepc_wlan_rfkill_blocked(struct eeepc_laptop *eeepc)
 	return true;
 }
 
-static void eeepc_rfkill_hotplug(struct eeepc_laptop *eeepc)
+static void eeepc_rfkill_hotplug(struct eeepc_laptop *eeepc, acpi_handle handle)
 {
+	struct pci_dev *port;
 	struct pci_dev *dev;
 	struct pci_bus *bus;
 	bool blocked = eeepc_wlan_rfkill_blocked(eeepc);
@@ -599,9 +600,16 @@ static void eeepc_rfkill_hotplug(struct eeepc_laptop *eeepc)
 	mutex_lock(&eeepc->hotplug_lock);
 
 	if (eeepc->hotplug_slot) {
-		bus = pci_find_bus(0, 1);
+		port = acpi_get_pci_dev(handle);
+		if (!port) {
+			pr_warning("Unable to find port\n");
+			goto out_unlock;
+		}
+
+		bus = port->subordinate;
+
 		if (!bus) {
-			pr_warning("Unable to find PCI bus 1?\n");
+			pr_warning("Unable to find PCI bus?\n");
 			goto out_unlock;
 		}
 
@@ -609,6 +617,7 @@ static void eeepc_rfkill_hotplug(struct eeepc_laptop *eeepc)
 			pr_err("Unable to read PCI config space?\n");
 			goto out_unlock;
 		}
+
 		absent = (l == 0xffffffff);
 
 		if (blocked != absent) {
@@ -647,6 +656,17 @@ out_unlock:
 	mutex_unlock(&eeepc->hotplug_lock);
 }
 
+static void eeepc_rfkill_hotplug_update(struct eeepc_laptop *eeepc, char *node)
+{
+	acpi_status status = AE_OK;
+	acpi_handle handle;
+
+	status = acpi_get_handle(NULL, node, &handle);
+
+	if (ACPI_SUCCESS(status))
+		eeepc_rfkill_hotplug(eeepc, handle);
+}
+
 static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct eeepc_laptop *eeepc = data;
@@ -654,7 +674,7 @@ static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
 	if (event != ACPI_NOTIFY_BUS_CHECK)
 		return;
 
-	eeepc_rfkill_hotplug(eeepc);
+	eeepc_rfkill_hotplug(eeepc, handle);
 }
 
 static int eeepc_register_rfkill_notifier(struct eeepc_laptop *eeepc,
@@ -672,6 +692,11 @@ static int eeepc_register_rfkill_notifier(struct eeepc_laptop *eeepc,
 						     eeepc);
 		if (ACPI_FAILURE(status))
 			pr_warning("Failed to register notify on %s\n", node);
+		/*
+		 * Refresh pci hotplug in case the rfkill state was
+		 * changed during setup.
+		 */
+		eeepc_rfkill_hotplug(eeepc, handle);
 	} else
 		return -ENODEV;
 
@@ -693,6 +718,12 @@ static void eeepc_unregister_rfkill_notifier(struct eeepc_laptop *eeepc,
 		if (ACPI_FAILURE(status))
 			pr_err("Error removing rfkill notify handler %s\n",
 				node);
+			/*
+			 * Refresh pci hotplug in case the rfkill
+			 * state was changed after
+			 * eeepc_unregister_rfkill_notifier()
+			 */
+		eeepc_rfkill_hotplug(eeepc, handle);
 	}
 }
 
@@ -816,11 +847,7 @@ static void eeepc_rfkill_exit(struct eeepc_laptop *eeepc)
 		rfkill_destroy(eeepc->wlan_rfkill);
 		eeepc->wlan_rfkill = NULL;
 	}
-	/*
-	 * Refresh pci hotplug in case the rfkill state was changed after
-	 * eeepc_unregister_rfkill_notifier()
-	 */
-	eeepc_rfkill_hotplug(eeepc);
+
 	if (eeepc->hotplug_slot)
 		pci_hp_deregister(eeepc->hotplug_slot);
 
@@ -889,11 +916,6 @@ static int eeepc_rfkill_init(struct eeepc_laptop *eeepc)
 	eeepc_register_rfkill_notifier(eeepc, "\\_SB.PCI0.P0P5");
 	eeepc_register_rfkill_notifier(eeepc, "\\_SB.PCI0.P0P6");
 	eeepc_register_rfkill_notifier(eeepc, "\\_SB.PCI0.P0P7");
-	/*
-	 * Refresh pci hotplug in case the rfkill state was changed during
-	 * setup.
-	 */
-	eeepc_rfkill_hotplug(eeepc);
 
 exit:
 	if (result && result != -ENODEV)
@@ -928,8 +950,11 @@ static int eeepc_hotk_restore(struct device *device)
 	struct eeepc_laptop *eeepc = dev_get_drvdata(device);
 
 	/* Refresh both wlan rfkill state and pci hotplug */
-	if (eeepc->wlan_rfkill)
-		eeepc_rfkill_hotplug(eeepc);
+	if (eeepc->wlan_rfkill) {
+		eeepc_rfkill_hotplug_update(eeepc, "\\_SB.PCI0.P0P5");
+		eeepc_rfkill_hotplug_update(eeepc, "\\_SB.PCI0.P0P6");
+		eeepc_rfkill_hotplug_update(eeepc, "\\_SB.PCI0.P0P7");
+	}
 
 	if (eeepc->bluetooth_rfkill)
 		rfkill_set_sw_state(eeepc->bluetooth_rfkill,
