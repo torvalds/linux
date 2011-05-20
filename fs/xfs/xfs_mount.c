@@ -348,7 +348,7 @@ xfs_mount_validate_sb(
 	}
 
 	/*
-	 * More sanity checking. These were stolen directly from
+	 * More sanity checking.  Most of these were stolen directly from
 	 * xfs_repair.
 	 */
 	if (unlikely(
@@ -371,23 +371,13 @@ xfs_mount_validate_sb(
 	    (sbp->sb_blocklog - sbp->sb_inodelog != sbp->sb_inopblog)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize > XFS_MAX_RTEXTSIZE)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize < XFS_MIN_RTEXTSIZE)	||
-	    (sbp->sb_imax_pct > 100 /* zero sb_imax_pct is valid */))) {
+	    (sbp->sb_imax_pct > 100 /* zero sb_imax_pct is valid */)	||
+	    sbp->sb_dblocks == 0					||
+	    sbp->sb_dblocks > XFS_MAX_DBLOCKS(sbp)			||
+	    sbp->sb_dblocks < XFS_MIN_DBLOCKS(sbp))) {
 		if (loud)
-			xfs_warn(mp, "SB sanity check 1 failed");
-		return XFS_ERROR(EFSCORRUPTED);
-	}
-
-	/*
-	 * Sanity check AG count, size fields against data size field
-	 */
-	if (unlikely(
-	    sbp->sb_dblocks == 0 ||
-	    sbp->sb_dblocks >
-	     (xfs_drfsbno_t)sbp->sb_agcount * sbp->sb_agblocks ||
-	    sbp->sb_dblocks < (xfs_drfsbno_t)(sbp->sb_agcount - 1) *
-			      sbp->sb_agblocks + XFS_MIN_AG_BLOCKS)) {
-		if (loud)
-			xfs_warn(mp, "SB sanity check 2 failed");
+			XFS_CORRUPTION_ERROR("SB sanity check failed",
+				XFS_ERRLEVEL_LOW, mp, sbp);
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
@@ -864,7 +854,8 @@ xfs_update_alignment(xfs_mount_t *mp)
 		if ((BBTOB(mp->m_dalign) & mp->m_blockmask) ||
 		    (BBTOB(mp->m_swidth) & mp->m_blockmask)) {
 			if (mp->m_flags & XFS_MOUNT_RETERR) {
-				xfs_warn(mp, "alignment check 1 failed");
+				xfs_warn(mp, "alignment check failed: "
+					 "(sunit/swidth vs. blocksize)");
 				return XFS_ERROR(EINVAL);
 			}
 			mp->m_dalign = mp->m_swidth = 0;
@@ -875,6 +866,8 @@ xfs_update_alignment(xfs_mount_t *mp)
 			mp->m_dalign = XFS_BB_TO_FSBT(mp, mp->m_dalign);
 			if (mp->m_dalign && (sbp->sb_agblocks % mp->m_dalign)) {
 				if (mp->m_flags & XFS_MOUNT_RETERR) {
+					xfs_warn(mp, "alignment check failed: "
+						 "(sunit/swidth vs. ag size)");
 					return XFS_ERROR(EINVAL);
 				}
 				xfs_warn(mp,
@@ -889,8 +882,8 @@ xfs_update_alignment(xfs_mount_t *mp)
 				mp->m_swidth = XFS_BB_TO_FSBT(mp, mp->m_swidth);
 			} else {
 				if (mp->m_flags & XFS_MOUNT_RETERR) {
-					xfs_warn(mp,
-		"stripe alignment turned off: sunit(%d) less than bsize(%d)",
+					xfs_warn(mp, "alignment check failed: "
+						"sunit(%d) less than bsize(%d)",
 						mp->m_dalign,
 						mp->m_blockmask +1);
 					return XFS_ERROR(EINVAL);
