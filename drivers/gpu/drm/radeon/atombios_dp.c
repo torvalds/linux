@@ -327,23 +327,23 @@ union aux_channel_transaction {
 };
 
 /* radeon aux chan functions */
-bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
-			   int num_bytes, u8 *read_byte,
-			   u8 read_buf_len, u8 delay)
+static int radeon_process_aux_ch(struct radeon_i2c_chan *chan,
+				 u8 *send, int send_bytes,
+				 u8 *recv, int recv_size,
+				 u8 delay, u8 *ack)
 {
 	struct drm_device *dev = chan->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	union aux_channel_transaction args;
 	int index = GetIndexIntoMasterTable(COMMAND, ProcessAuxChannelTransaction);
 	unsigned char *base;
-	int retry_count = 0;
+	int recv_bytes;
 
 	memset(&args, 0, sizeof(args));
 
 	base = (unsigned char *)rdev->mode_info.atom_context->scratch;
 
-retry:
-	memcpy(base, req_bytes, num_bytes);
+	memcpy(base, send, send_bytes);
 
 	args.v1.lpAuxRequest = 0;
 	args.v1.lpDataOut = 16;
@@ -355,75 +355,103 @@ retry:
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
-	if (args.v1.ucReplyStatus && !args.v1.ucDataOutLen) {
-		if (args.v1.ucReplyStatus == 0x20 && retry_count++ < 10)
-			goto retry;
-		DRM_DEBUG_KMS("failed to get auxch %02x%02x %02x %02x 0x%02x %02x after %d retries\n",
-			  req_bytes[1], req_bytes[0], req_bytes[2], req_bytes[3],
-			  chan->rec.i2c_id, args.v1.ucReplyStatus, retry_count);
-		return false;
+	*ack = args.v1.ucReplyStatus;
+
+	/* timeout */
+	if (args.v1.ucReplyStatus == 1) {
+		DRM_DEBUG_KMS("dp_aux_ch timeout\n");
+		return -ETIMEDOUT;
 	}
 
-	if (args.v1.ucDataOutLen && read_byte && read_buf_len) {
-		if (read_buf_len < args.v1.ucDataOutLen) {
-			DRM_ERROR("Buffer to small for return answer %d %d\n",
-				  read_buf_len, args.v1.ucDataOutLen);
-			return false;
-		}
-		{
-			int len = min(read_buf_len, args.v1.ucDataOutLen);
-			memcpy(read_byte, base + 16, len);
-		}
+	/* flags not zero */
+	if (args.v1.ucReplyStatus == 2) {
+		DRM_DEBUG_KMS("dp_aux_ch flags not zero\n");
+		return -EBUSY;
 	}
-	return true;
+
+	/* error */
+	if (args.v1.ucReplyStatus == 3) {
+		DRM_DEBUG_KMS("dp_aux_ch error\n");
+		return -EIO;
+	}
+
+	recv_bytes = args.v1.ucDataOutLen;
+	if (recv_bytes > recv_size)
+		recv_bytes = recv_size;
+
+	if (recv && recv_size)
+		memcpy(recv, base + 16, recv_bytes);
+
+	return recv_bytes;
 }
 
-bool radeon_dp_aux_native_write(struct radeon_connector *radeon_connector, uint16_t address,
-				uint8_t send_bytes, uint8_t *send)
+static int radeon_dp_aux_native_write(struct radeon_connector *radeon_connector,
+				      u16 address, u8 *send, u8 send_bytes, u8 delay)
 {
 	struct radeon_connector_atom_dig *dig_connector = radeon_connector->con_priv;
+	int ret;
 	u8 msg[20];
-	u8 msg_len, dp_msg_len;
-	bool ret;
+	int msg_bytes = send_bytes + 4;
+	u8 ack;
 
-	dp_msg_len = 4;
+	if (send_bytes > 16)
+		return -1;
+
 	msg[0] = address;
 	msg[1] = address >> 8;
 	msg[2] = AUX_NATIVE_WRITE << 4;
-	dp_msg_len += send_bytes;
-	msg[3] = (dp_msg_len << 4) | (send_bytes - 1);
-
-	if (send_bytes > 16)
-		return false;
-
+	msg[3] = (msg_bytes << 4) | (send_bytes - 1);
 	memcpy(&msg[4], send, send_bytes);
-	msg_len = 4 + send_bytes;
-	ret = radeon_process_aux_ch(dig_connector->dp_i2c_bus, msg, msg_len, NULL, 0, 0);
-	return ret;
+
+	while (1) {
+		ret = radeon_process_aux_ch(dig_connector->dp_i2c_bus,
+					    msg, msg_bytes, NULL, 0, delay, &ack);
+		if (ret < 0)
+			return ret;
+		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
+			break;
+		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
+			udelay(400);
+		else
+			return -EIO;
+	}
+
+	return send_bytes;
 }
 
-bool radeon_dp_aux_native_read(struct radeon_connector *radeon_connector, uint16_t address,
-			       uint8_t delay, uint8_t expected_bytes,
-			       uint8_t *read_p)
+static int radeon_dp_aux_native_read(struct radeon_connector *radeon_connector,
+				     u16 address, u8 *recv, int recv_bytes, u8 delay)
 {
 	struct radeon_connector_atom_dig *dig_connector = radeon_connector->con_priv;
-	u8 msg[20];
-	u8 msg_len, dp_msg_len;
-	bool ret = false;
-	msg_len = 4;
-	dp_msg_len = 4;
+	u8 msg[4];
+	int msg_bytes = 4;
+	u8 ack;
+	int ret;
+
 	msg[0] = address;
 	msg[1] = address >> 8;
 	msg[2] = AUX_NATIVE_READ << 4;
-	msg[3] = (dp_msg_len) << 4;
-	msg[3] |= expected_bytes - 1;
+	msg[3] = (msg_bytes << 4) | (recv_bytes - 1);
 
-	ret = radeon_process_aux_ch(dig_connector->dp_i2c_bus, msg, msg_len, read_p, expected_bytes, delay);
-	return ret;
+	while (1) {
+		ret = radeon_process_aux_ch(dig_connector->dp_i2c_bus,
+					    msg, msg_bytes, recv, recv_bytes, delay, &ack);
+		if (ret == 0)
+			return -EPROTO;
+		if (ret < 0)
+			return ret;
+		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
+			return ret;
+		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
+			udelay(400);
+		else
+			return -EIO;
+	}
 }
 
 /* radeon dp functions */
-static u8 radeon_dp_encoder_service(struct radeon_device *rdev, int action, int dp_clock,
+static u8 radeon_dp_encoder_service(struct radeon_device *rdev,
+				    int action, int dp_clock,
 				    uint8_t ucconfig, uint8_t lane_num)
 {
 	DP_ENCODER_SERVICE_PARAMETERS args;
@@ -456,8 +484,8 @@ bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
 	u8 msg[25];
 	int ret;
 
-	ret = radeon_dp_aux_native_read(radeon_connector, DP_DPCD_REV, 0, 8, msg);
-	if (ret) {
+	ret = radeon_dp_aux_native_read(radeon_connector, DP_DPCD_REV, msg, 8, 0);
+	if (ret > 0) {
 		memcpy(dig_connector->dpcd, msg, 8);
 		{
 			int i;
@@ -505,9 +533,9 @@ static bool atom_dp_get_link_status(struct radeon_connector *radeon_connector,
 				    u8 link_status[DP_LINK_STATUS_SIZE])
 {
 	int ret;
-	ret = radeon_dp_aux_native_read(radeon_connector, DP_LANE0_1_STATUS, 100,
-					DP_LINK_STATUS_SIZE, link_status);
-	if (!ret) {
+	ret = radeon_dp_aux_native_read(radeon_connector, DP_LANE0_1_STATUS,
+					link_status, DP_LINK_STATUS_SIZE, 100);
+	if (ret <= 0) {
 		DRM_ERROR("displayport link status failed\n");
 		return false;
 	}
@@ -535,22 +563,22 @@ static void dp_set_power(struct radeon_connector *radeon_connector, u8 power_sta
 	struct radeon_connector_atom_dig *dig_connector = radeon_connector->con_priv;
 
 	if (dig_connector->dpcd[0] >= 0x11) {
-		radeon_dp_aux_native_write(radeon_connector, DP_SET_POWER, 1,
-					   &power_state);
+		radeon_dp_aux_native_write(radeon_connector, DP_SET_POWER,
+					   &power_state, 1, 0);
 	}
 }
 
 static void dp_set_downspread(struct radeon_connector *radeon_connector, u8 downspread)
 {
-	radeon_dp_aux_native_write(radeon_connector, DP_DOWNSPREAD_CTRL, 1,
-				   &downspread);
+	radeon_dp_aux_native_write(radeon_connector, DP_DOWNSPREAD_CTRL,
+				   &downspread, 1, 0);
 }
 
 static void dp_set_link_bw_lanes(struct radeon_connector *radeon_connector,
 				 u8 link_configuration[DP_LINK_CONFIGURATION_SIZE])
 {
-	radeon_dp_aux_native_write(radeon_connector, DP_LINK_BW_SET, 2,
-				   link_configuration);
+	radeon_dp_aux_native_write(radeon_connector, DP_LINK_BW_SET,
+				   link_configuration, 2, 0);
 }
 
 static void dp_update_dpvs_emph(struct radeon_connector *radeon_connector,
@@ -566,14 +594,14 @@ static void dp_update_dpvs_emph(struct radeon_connector *radeon_connector,
 					       i, train_set[i]);
 
 	radeon_dp_aux_native_write(radeon_connector, DP_TRAINING_LANE0_SET,
-				   dig_connector->dp_lane_count, train_set);
+				   train_set, dig_connector->dp_lane_count, 0);
 }
 
 static void dp_set_training(struct radeon_connector *radeon_connector,
 			    u8 training)
 {
 	radeon_dp_aux_native_write(radeon_connector, DP_TRAINING_PATTERN_SET,
-				   1, &training);
+				   &training, 1, 0);
 }
 
 void dp_link_train(struct drm_encoder *encoder,
@@ -756,16 +784,18 @@ void dp_link_train(struct drm_encoder *encoder,
 }
 
 int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
-			 uint8_t write_byte, uint8_t *read_byte)
+			 u8 write_byte, u8 *read_byte)
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
 	struct radeon_i2c_chan *auxch = (struct radeon_i2c_chan *)adapter;
-	int ret = 0;
-	uint16_t address = algo_data->address;
-	uint8_t msg[5];
-	uint8_t reply[2];
-	int msg_len, dp_msg_len;
-	int reply_bytes;
+	u16 address = algo_data->address;
+	u8 msg[5];
+	u8 reply[2];
+	unsigned retry;
+	int msg_bytes;
+	int reply_bytes = 1;
+	int ret;
+	u8 ack;
 
 	/* Set up the command byte */
 	if (mode & MODE_I2C_READ)
@@ -779,31 +809,67 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 	msg[0] = address;
 	msg[1] = address >> 8;
 
-	reply_bytes = 1;
-
-	msg_len = 4;
-	dp_msg_len = 3;
 	switch (mode) {
 	case MODE_I2C_WRITE:
+		msg_bytes = 5;
+		msg[3] = msg_bytes << 4;
 		msg[4] = write_byte;
-		msg_len++;
-		dp_msg_len += 2;
 		break;
 	case MODE_I2C_READ:
-		dp_msg_len += 1;
+		msg_bytes = 4;
+		msg[3] = msg_bytes << 4;
 		break;
 	default:
+		msg_bytes = 4;
+		msg[3] = 3 << 4;
 		break;
 	}
 
-	msg[3] = (dp_msg_len) << 4;
-	ret = radeon_process_aux_ch(auxch, msg, msg_len, reply, reply_bytes, 0);
+	for (retry = 0; retry < 4; retry++) {
+		ret = radeon_process_aux_ch(auxch,
+					    msg, msg_bytes, reply, reply_bytes, 0, &ack);
+		if (ret < 0) {
+			DRM_DEBUG_KMS("aux_ch failed %d\n", ret);
+			return ret;
+		}
 
-	if (ret) {
-		if (read_byte)
-			*read_byte = reply[0];
-		return reply_bytes;
+		switch (ack & AUX_NATIVE_REPLY_MASK) {
+		case AUX_NATIVE_REPLY_ACK:
+			/* I2C-over-AUX Reply field is only valid
+			 * when paired with AUX ACK.
+			 */
+			break;
+		case AUX_NATIVE_REPLY_NACK:
+			DRM_DEBUG_KMS("aux_ch native nack\n");
+			return -EREMOTEIO;
+		case AUX_NATIVE_REPLY_DEFER:
+			DRM_DEBUG_KMS("aux_ch native defer\n");
+			udelay(400);
+			continue;
+		default:
+			DRM_ERROR("aux_ch invalid native reply 0x%02x\n", ack);
+			return -EREMOTEIO;
+		}
+
+		switch (ack & AUX_I2C_REPLY_MASK) {
+		case AUX_I2C_REPLY_ACK:
+			if (mode == MODE_I2C_READ)
+				*read_byte = reply[0];
+			return ret;
+		case AUX_I2C_REPLY_NACK:
+			DRM_DEBUG_KMS("aux_i2c nack\n");
+			return -EREMOTEIO;
+		case AUX_I2C_REPLY_DEFER:
+			DRM_DEBUG_KMS("aux_i2c defer\n");
+			udelay(400);
+			break;
+		default:
+			DRM_ERROR("aux_i2c invalid reply 0x%02x\n", ack);
+			return -EREMOTEIO;
+		}
 	}
+
+	DRM_ERROR("aux i2c too many retries, giving up\n");
 	return -EREMOTEIO;
 }
 
