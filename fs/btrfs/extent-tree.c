@@ -3425,6 +3425,10 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 	if (reserved == 0)
 		return 0;
 
+	/* nothing to shrink - nothing to reclaim */
+	if (root->fs_info->delalloc_bytes == 0)
+		return 0;
+
 	max_reclaim = min(reserved, to_reclaim);
 
 	while (loops < 1024) {
