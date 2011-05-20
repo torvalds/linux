@@ -838,19 +838,19 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb)
 }
 EXPORT_SYMBOL_GPL(usbip_recv_xbuff);
 
-static int __init usbip_common_init(void)
+static int __init usbip_core_init(void)
 {
 	pr_info(DRIVER_DESC " v" USBIP_VERSION "\n");
 	return 0;
 }
 
-static void __exit usbip_common_exit(void)
+static void __exit usbip_core_exit(void)
 {
 	return;
 }
 
-module_init(usbip_common_init);
-module_exit(usbip_common_exit);
+module_init(usbip_core_init);
+module_exit(usbip_core_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
