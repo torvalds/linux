@@ -70,8 +70,14 @@ config GPIO_MAX730X
 
 comment "Memory mapped GPIO drivers:"
 
+config GPIO_BASIC_MMIO_CORE
+	tristate
+	help
+	  Provides core functionality for basic memory-mapped GPIO controllers.
+
 config GPIO_BASIC_MMIO
 	tristate "Basic memory-mapped GPIO controllers support"
+	select GPIO_BASIC_MMIO_CORE
 	help
 	  Say yes here to support basic memory-mapped GPIO controllers.
 
