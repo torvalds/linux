@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2011 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -1716,6 +1716,14 @@ typedef struct fc_port {
 #define FCS_DEVICE_DEAD		2
 #define FCS_DEVICE_LOST		3
 #define FCS_ONLINE		4
+
+static const char * const port_state_str[] = {
+	"Unknown",
+	"UNCONFIGURED",
+	"DEAD",
+	"LOST",
+	"ONLINE"
+};
 
 /*
  * FC port flags.

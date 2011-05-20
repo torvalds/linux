@@ -381,49 +381,6 @@ out:
 }
 
 /**
- * fcoe_interface_cleanup() - Clean up a FCoE interface
- * @fcoe: The FCoE interface to be cleaned up
- *
- * Caller must be holding the RTNL mutex
- */
-void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
-{
-	struct net_device *netdev = fcoe->netdev;
-	struct fcoe_ctlr *fip = &fcoe->ctlr;
-	u8 flogi_maddr[ETH_ALEN];
-	const struct net_device_ops *ops;
-
-	/*
-	 * Don't listen for Ethernet packets anymore.
-	 * synchronize_net() ensures that the packet handlers are not running
-	 * on another CPU. dev_remove_pack() would do that, this calls the
-	 * unsyncronized version __dev_remove_pack() to avoid multiple delays.
-	 */
-	__dev_remove_pack(&fcoe->fcoe_packet_type);
-	__dev_remove_pack(&fcoe->fip_packet_type);
-	synchronize_net();
-
-	/* Delete secondary MAC addresses */
-	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
-	dev_uc_del(netdev, flogi_maddr);
-	if (fip->spma)
-		dev_uc_del(netdev, fip->ctl_src_addr);
-	if (fip->mode == FIP_MODE_VN2VN) {
-		dev_mc_del(netdev, FIP_ALL_VN2VN_MACS);
-		dev_mc_del(netdev, FIP_ALL_P2P_MACS);
-	} else
-		dev_mc_del(netdev, FIP_ALL_ENODE_MACS);
-
-	/* Tell the LLD we are done w/ FCoE */
-	ops = netdev->netdev_ops;
-	if (ops->ndo_fcoe_disable) {
-		if (ops->ndo_fcoe_disable(netdev))
-			FCOE_NETDEV_DBG(netdev, "Failed to disable FCoE"
-					" specific feature for LLD.\n");
-	}
-}
-
-/**
  * fcoe_interface_release() - fcoe_port kref release function
  * @kref: Embedded reference count in an fcoe_interface struct
  */
@@ -457,6 +414,68 @@ static inline void fcoe_interface_get(struct fcoe_interface *fcoe)
 static inline void fcoe_interface_put(struct fcoe_interface *fcoe)
 {
 	kref_put(&fcoe->kref, fcoe_interface_release);
+}
+
+/**
+ * fcoe_interface_cleanup() - Clean up a FCoE interface
+ * @fcoe: The FCoE interface to be cleaned up
+ *
+ * Caller must be holding the RTNL mutex
+ */
+void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
+{
+	struct net_device *netdev = fcoe->netdev;
+	struct fcoe_ctlr *fip = &fcoe->ctlr;
+	u8 flogi_maddr[ETH_ALEN];
+	const struct net_device_ops *ops;
+	struct fcoe_port *port = lport_priv(fcoe->ctlr.lp);
+
+	FCOE_NETDEV_DBG(netdev, "Destroying interface\n");
+
+	/* Logout of the fabric */
+	fc_fabric_logoff(fcoe->ctlr.lp);
+
+	/* Cleanup the fc_lport */
+	fc_lport_destroy(fcoe->ctlr.lp);
+
+	/* Stop the transmit retry timer */
+	del_timer_sync(&port->timer);
+
+	/* Free existing transmit skbs */
+	fcoe_clean_pending_queue(fcoe->ctlr.lp);
+
+	/*
+	 * Don't listen for Ethernet packets anymore.
+	 * synchronize_net() ensures that the packet handlers are not running
+	 * on another CPU. dev_remove_pack() would do that, this calls the
+	 * unsyncronized version __dev_remove_pack() to avoid multiple delays.
+	 */
+	__dev_remove_pack(&fcoe->fcoe_packet_type);
+	__dev_remove_pack(&fcoe->fip_packet_type);
+	synchronize_net();
+
+	/* Delete secondary MAC addresses */
+	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
+	dev_uc_del(netdev, flogi_maddr);
+	if (fip->spma)
+		dev_uc_del(netdev, fip->ctl_src_addr);
+	if (fip->mode == FIP_MODE_VN2VN) {
+		dev_mc_del(netdev, FIP_ALL_VN2VN_MACS);
+		dev_mc_del(netdev, FIP_ALL_P2P_MACS);
+	} else
+		dev_mc_del(netdev, FIP_ALL_ENODE_MACS);
+
+	if (!is_zero_ether_addr(port->data_src_addr))
+		dev_uc_del(netdev, port->data_src_addr);
+
+	/* Tell the LLD we are done w/ FCoE */
+	ops = netdev->netdev_ops;
+	if (ops->ndo_fcoe_disable) {
+		if (ops->ndo_fcoe_disable(netdev))
+			FCOE_NETDEV_DBG(netdev, "Failed to disable FCoE"
+					" specific feature for LLD.\n");
+	}
+	fcoe_interface_put(fcoe);
 }
 
 /**
@@ -821,39 +840,9 @@ skip_oem:
  * fcoe_if_destroy() - Tear down a SW FCoE instance
  * @lport: The local port to be destroyed
  *
- * Locking: must be called with the RTNL mutex held and RTNL mutex
- * needed to be dropped by this function since not dropping RTNL
- * would cause circular locking warning on synchronous fip worker
- * cancelling thru fcoe_interface_put invoked by this function.
- *
  */
 static void fcoe_if_destroy(struct fc_lport *lport)
 {
-	struct fcoe_port *port = lport_priv(lport);
-	struct fcoe_interface *fcoe = port->priv;
-	struct net_device *netdev = fcoe->netdev;
-
-	FCOE_NETDEV_DBG(netdev, "Destroying interface\n");
-
-	/* Logout of the fabric */
-	fc_fabric_logoff(lport);
-
-	/* Cleanup the fc_lport */
-	fc_lport_destroy(lport);
-
-	/* Stop the transmit retry timer */
-	del_timer_sync(&port->timer);
-
-	/* Free existing transmit skbs */
-	fcoe_clean_pending_queue(lport);
-
-	if (!is_zero_ether_addr(port->data_src_addr))
-		dev_uc_del(netdev, port->data_src_addr);
-	rtnl_unlock();
-
-	/* receives may not be stopped until after this */
-	fcoe_interface_put(fcoe);
-
 	/* Free queued packets for the per-CPU receive threads */
 	fcoe_percpu_clean(lport);
 
@@ -1783,23 +1772,8 @@ static int fcoe_disable(struct net_device *netdev)
 	int rc = 0;
 
 	mutex_lock(&fcoe_config_mutex);
-#ifdef CONFIG_FCOE_MODULE
-	/*
-	 * Make sure the module has been initialized, and is not about to be
-	 * removed.  Module paramter sysfs files are writable before the
-	 * module_init function is called and after module_exit.
-	 */
-	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
-		rc = -ENODEV;
-		goto out_nodev;
-	}
-#endif
 
-	if (!rtnl_trylock()) {
-		mutex_unlock(&fcoe_config_mutex);
-		return -ERESTARTSYS;
-	}
-
+	rtnl_lock();
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	rtnl_unlock();
 
@@ -1809,7 +1783,6 @@ static int fcoe_disable(struct net_device *netdev)
 	} else
 		rc = -ENODEV;
 
-out_nodev:
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }
@@ -1828,22 +1801,7 @@ static int fcoe_enable(struct net_device *netdev)
 	int rc = 0;
 
 	mutex_lock(&fcoe_config_mutex);
-#ifdef CONFIG_FCOE_MODULE
-	/*
-	 * Make sure the module has been initialized, and is not about to be
-	 * removed.  Module paramter sysfs files are writable before the
-	 * module_init function is called and after module_exit.
-	 */
-	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
-		rc = -ENODEV;
-		goto out_nodev;
-	}
-#endif
-	if (!rtnl_trylock()) {
-		mutex_unlock(&fcoe_config_mutex);
-		return -ERESTARTSYS;
-	}
-
+	rtnl_lock();
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	rtnl_unlock();
 
@@ -1852,7 +1810,6 @@ static int fcoe_enable(struct net_device *netdev)
 	else if (!fcoe_link_ok(fcoe->ctlr.lp))
 		fcoe_ctlr_link_up(&fcoe->ctlr);
 
-out_nodev:
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }
@@ -1868,35 +1825,22 @@ out_nodev:
 static int fcoe_destroy(struct net_device *netdev)
 {
 	struct fcoe_interface *fcoe;
+	struct fc_lport *lport;
 	int rc = 0;
 
 	mutex_lock(&fcoe_config_mutex);
-#ifdef CONFIG_FCOE_MODULE
-	/*
-	 * Make sure the module has been initialized, and is not about to be
-	 * removed.  Module paramter sysfs files are writable before the
-	 * module_init function is called and after module_exit.
-	 */
-	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
-		rc = -ENODEV;
-		goto out_nodev;
-	}
-#endif
-	if (!rtnl_trylock()) {
-		mutex_unlock(&fcoe_config_mutex);
-		return -ERESTARTSYS;
-	}
-
+	rtnl_lock();
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	if (!fcoe) {
 		rtnl_unlock();
 		rc = -ENODEV;
 		goto out_nodev;
 	}
-	fcoe_interface_cleanup(fcoe);
+	lport = fcoe->ctlr.lp;
 	list_del(&fcoe->list);
-	/* RTNL mutex is dropped by fcoe_if_destroy */
-	fcoe_if_destroy(fcoe->ctlr.lp);
+	fcoe_interface_cleanup(fcoe);
+	rtnl_unlock();
+	fcoe_if_destroy(lport);
 out_nodev:
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
@@ -1912,8 +1856,6 @@ static void fcoe_destroy_work(struct work_struct *work)
 
 	port = container_of(work, struct fcoe_port, destroy_work);
 	mutex_lock(&fcoe_config_mutex);
-	rtnl_lock();
-	/* RTNL mutex is dropped by fcoe_if_destroy */
 	fcoe_if_destroy(port->lport);
 	mutex_unlock(&fcoe_config_mutex);
 }
@@ -1948,23 +1890,7 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 	struct fc_lport *lport;
 
 	mutex_lock(&fcoe_config_mutex);
-
-	if (!rtnl_trylock()) {
-		mutex_unlock(&fcoe_config_mutex);
-		return -ERESTARTSYS;
-	}
-
-#ifdef CONFIG_FCOE_MODULE
-	/*
-	 * Make sure the module has been initialized, and is not about to be
-	 * removed.  Module paramter sysfs files are writable before the
-	 * module_init function is called and after module_exit.
-	 */
-	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
-		rc = -ENODEV;
-		goto out_nodev;
-	}
-#endif
+	rtnl_lock();
 
 	/* look for existing lport */
 	if (fcoe_hostlist_lookup(netdev)) {
