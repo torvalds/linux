@@ -84,7 +84,7 @@ static void __pmac_retrigger(unsigned int irq_nr)
 
 static void pmac_mask_and_ack_irq(struct irq_data *d)
 {
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
         unsigned long bit = 1UL << (src & 0x1f);
         int i = src >> 5;
         unsigned long flags;
@@ -106,7 +106,7 @@ static void pmac_mask_and_ack_irq(struct irq_data *d)
 
 static void pmac_ack_irq(struct irq_data *d)
 {
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
         unsigned long bit = 1UL << (src & 0x1f);
         int i = src >> 5;
         unsigned long flags;
@@ -152,7 +152,7 @@ static void __pmac_set_irq_mask(unsigned int irq_nr, int nokicklost)
 static unsigned int pmac_startup_irq(struct irq_data *d)
 {
 	unsigned long flags;
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
         unsigned long bit = 1UL << (src & 0x1f);
         int i = src >> 5;
 
@@ -169,7 +169,7 @@ static unsigned int pmac_startup_irq(struct irq_data *d)
 static void pmac_mask_irq(struct irq_data *d)
 {
 	unsigned long flags;
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
 
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
         __clear_bit(src, ppc_cached_irq_mask);
@@ -180,7 +180,7 @@ static void pmac_mask_irq(struct irq_data *d)
 static void pmac_unmask_irq(struct irq_data *d)
 {
 	unsigned long flags;
-	unsigned int src = irq_map[d->irq].hwirq;
+	unsigned int src = irqd_to_hwirq(d);
 
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
 	__set_bit(src, ppc_cached_irq_mask);
@@ -193,7 +193,7 @@ static int pmac_retrigger(struct irq_data *d)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
-	__pmac_retrigger(irq_map[d->irq].hwirq);
+	__pmac_retrigger(irqd_to_hwirq(d));
 	raw_spin_unlock_irqrestore(&pmac_pic_lock, flags);
 	return 1;
 }
@@ -239,15 +239,12 @@ static unsigned int pmac_pic_get_irq(void)
 	unsigned long bits = 0;
 	unsigned long flags;
 
-#ifdef CONFIG_SMP
-	void psurge_smp_message_recv(void);
-
-       	/* IPI's are a hack on the powersurge -- Cort */
-       	if ( smp_processor_id() != 0 ) {
-		psurge_smp_message_recv();
-		return NO_IRQ_IGNORE;	/* ignore, already handled */
+#ifdef CONFIG_PPC_PMAC32_PSURGE
+	/* IPI's are a hack on the powersurge -- Cort */
+	if (smp_processor_id() != 0) {
+		return  psurge_secondary_virq;
         }
-#endif /* CONFIG_SMP */
+#endif /* CONFIG_PPC_PMAC32_PSURGE */
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
 	for (irq = max_real_irqs; (irq -= 32) >= 0; ) {
 		int i = irq >> 5;

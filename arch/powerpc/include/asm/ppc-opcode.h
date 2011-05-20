@@ -41,6 +41,10 @@
 #define PPC_INST_RFCI			0x4c000066
 #define PPC_INST_RFDI			0x4c00004e
 #define PPC_INST_RFMCI			0x4c00004c
+#define PPC_INST_MFSPR_DSCR		0x7c1102a6
+#define PPC_INST_MFSPR_DSCR_MASK	0xfc1fffff
+#define PPC_INST_MTSPR_DSCR		0x7c1103a6
+#define PPC_INST_MTSPR_DSCR_MASK	0xfc1fffff
 
 #define PPC_INST_STRING			0x7c00042a
 #define PPC_INST_STRING_MASK		0xfc0007fe
@@ -56,6 +60,17 @@
 #define PPC_INST_TLBSRX_DOT		0x7c0006a5
 #define PPC_INST_XXLOR			0xf0000510
 
+#define PPC_INST_NAP			0x4c000364
+#define PPC_INST_SLEEP			0x4c0003a4
+
+/* A2 specific instructions */
+#define PPC_INST_ERATWE			0x7c0001a6
+#define PPC_INST_ERATRE			0x7c000166
+#define PPC_INST_ERATILX		0x7c000066
+#define PPC_INST_ERATIVAX		0x7c000666
+#define PPC_INST_ERATSX			0x7c000126
+#define PPC_INST_ERATSX_DOT		0x7c000127
+
 /* macros to insert fields into opcodes */
 #define __PPC_RA(a)	(((a) & 0x1f) << 16)
 #define __PPC_RB(b)	(((b) & 0x1f) << 11)
@@ -67,6 +82,8 @@
 #define __PPC_XT(s)	__PPC_XS(s)
 #define __PPC_T_TLB(t)	(((t) & 0x3) << 21)
 #define __PPC_WC(w)	(((w) & 0x3) << 21)
+#define __PPC_WS(w)	(((w) & 0x1f) << 11)
+
 /*
  * Only use the larx hint bit on 64bit CPUs. e500v1/v2 based CPUs will treat a
  * larx with EH set as an illegal instruction.
@@ -113,6 +130,21 @@
 #define PPC_TLBIVAX(a,b)	stringify_in_c(.long PPC_INST_TLBIVAX | \
 					__PPC_RA(a) | __PPC_RB(b))
 
+#define PPC_ERATWE(s, a, w)	stringify_in_c(.long PPC_INST_ERATWE | \
+					__PPC_RS(s) | __PPC_RA(a) | __PPC_WS(w))
+#define PPC_ERATRE(s, a, w)	stringify_in_c(.long PPC_INST_ERATRE | \
+					__PPC_RS(s) | __PPC_RA(a) | __PPC_WS(w))
+#define PPC_ERATILX(t, a, b)	stringify_in_c(.long PPC_INST_ERATILX | \
+					__PPC_T_TLB(t) | __PPC_RA(a) | \
+					__PPC_RB(b))
+#define PPC_ERATIVAX(s, a, b)	stringify_in_c(.long PPC_INST_ERATIVAX | \
+					__PPC_RS(s) | __PPC_RA(a) | __PPC_RB(b))
+#define PPC_ERATSX(t, a, w)	stringify_in_c(.long PPC_INST_ERATSX | \
+					__PPC_RS(t) | __PPC_RA(a) | __PPC_RB(b))
+#define PPC_ERATSX_DOT(t, a, w)	stringify_in_c(.long PPC_INST_ERATSX_DOT | \
+					__PPC_RS(t) | __PPC_RA(a) | __PPC_RB(b))
+
+
 /*
  * Define what the VSX XX1 form instructions will look like, then add
  * the 128 bit load store instructions based on that.
@@ -125,5 +157,8 @@
 					       VSX_XX1((s), (a), (b)))
 #define XXLOR(t, a, b)		stringify_in_c(.long PPC_INST_XXLOR | \
 					       VSX_XX3((t), (a), (b)))
+
+#define PPC_NAP			stringify_in_c(.long PPC_INST_NAP)
+#define PPC_SLEEP		stringify_in_c(.long PPC_INST_SLEEP)
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */

@@ -110,7 +110,7 @@ static void fsl_teardown_msi_irqs(struct pci_dev *pdev)
 	list_for_each_entry(entry, &pdev->msi_list, list) {
 		if (entry->irq == NO_IRQ)
 			continue;
-		msi_data = irq_get_handler_data(entry->irq);
+		msi_data = irq_get_chip_data(entry->irq);
 		irq_set_msi_desc(entry->irq, NULL);
 		msi_bitmap_free_hwirqs(&msi_data->bitmap,
 				       virq_to_hw(entry->irq), 1);
@@ -168,7 +168,7 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			rc = -ENOSPC;
 			goto out_free;
 		}
-		irq_set_handler_data(virq, msi_data);
+		/* chip_data is msi_data via host->hostdata in host->map() */
 		irq_set_msi_desc(virq, entry);
 
 		fsl_compose_msi_msg(pdev, hwirq, &msg, msi_data);
@@ -193,7 +193,7 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	u32 have_shift = 0;
 	struct fsl_msi_cascade_data *cascade_data;
 
-	cascade_data = (struct fsl_msi_cascade_data *)irq_get_handler_data(irq);
+	cascade_data = irq_get_handler_data(irq);
 	msi_data = cascade_data->msi_data;
 
 	raw_spin_lock(&desc->lock);
@@ -253,7 +253,7 @@ unlock:
 
 static int fsl_of_msi_remove(struct platform_device *ofdev)
 {
-	struct fsl_msi *msi = ofdev->dev.platform_data;
+	struct fsl_msi *msi = platform_get_drvdata(ofdev);
 	int virq, i;
 	struct fsl_msi_cascade_data *cascade_data;
 
@@ -330,7 +330,7 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "No memory for MSI structure\n");
 		return -ENOMEM;
 	}
-	dev->dev.platform_data = msi;
+	platform_set_drvdata(dev, msi);
 
 	msi->irqhost = irq_alloc_host(dev->dev.of_node, IRQ_HOST_MAP_LINEAR,
 				      NR_MSI_IRQS, &fsl_msi_host_ops, 0);

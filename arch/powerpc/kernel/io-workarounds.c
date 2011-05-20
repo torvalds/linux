@@ -17,8 +17,7 @@
 #include <asm/machdep.h>
 #include <asm/pgtable.h>
 #include <asm/ppc-pci.h>
-
-#include "io-workarounds.h"
+#include <asm/io-workarounds.h>
 
 #define IOWA_MAX_BUS	8
 
@@ -145,13 +144,27 @@ static void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
 	return res;
 }
 
-/* Regist new bus to support workaround */
+/* Enable IO workaround */
+static void __devinit io_workaround_init(void)
+{
+	static int io_workaround_inited;
+
+	if (io_workaround_inited)
+		return;
+	ppc_pci_io = iowa_pci_io;
+	ppc_md.ioremap = iowa_ioremap;
+	io_workaround_inited = 1;
+}
+
+/* Register new bus to support workaround */
 void __devinit iowa_register_bus(struct pci_controller *phb,
 			struct ppc_pci_io *ops,
 			int (*initfunc)(struct iowa_bus *, void *), void *data)
 {
 	struct iowa_bus *bus;
 	struct device_node *np = phb->dn;
+
+	io_workaround_init();
 
 	if (iowa_bus_count >= IOWA_MAX_BUS) {
 		pr_err("IOWA:Too many pci bridges, "
@@ -162,6 +175,7 @@ void __devinit iowa_register_bus(struct pci_controller *phb,
 	bus = &iowa_busses[iowa_bus_count];
 	bus->phb = phb;
 	bus->ops = ops;
+	bus->private = data;
 
 	if (initfunc)
 		if ((*initfunc)(bus, data))
@@ -172,14 +186,3 @@ void __devinit iowa_register_bus(struct pci_controller *phb,
 	pr_debug("IOWA:[%d]Add bus, %s.\n", iowa_bus_count-1, np->full_name);
 }
 
-/* enable IO workaround */
-void __devinit io_workaround_init(void)
-{
-	static int io_workaround_inited;
-
-	if (io_workaround_inited)
-		return;
-	ppc_pci_io = iowa_pci_io;
-	ppc_md.ioremap = iowa_ioremap;
-	io_workaround_inited = 1;
-}

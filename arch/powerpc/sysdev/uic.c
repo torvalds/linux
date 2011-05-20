@@ -41,8 +41,6 @@
 #define UIC_VR		0x7
 #define UIC_VCR		0x8
 
-#define uic_irq_to_hw(virq)	(irq_map[virq].hwirq)
-
 struct uic *primary_uic;
 
 struct uic {
@@ -58,7 +56,7 @@ struct uic {
 static void uic_unmask_irq(struct irq_data *d)
 {
 	struct uic *uic = irq_data_get_irq_chip_data(d);
-	unsigned int src = uic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 er, sr;
 
@@ -76,7 +74,7 @@ static void uic_unmask_irq(struct irq_data *d)
 static void uic_mask_irq(struct irq_data *d)
 {
 	struct uic *uic = irq_data_get_irq_chip_data(d);
-	unsigned int src = uic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 er;
 
@@ -90,7 +88,7 @@ static void uic_mask_irq(struct irq_data *d)
 static void uic_ack_irq(struct irq_data *d)
 {
 	struct uic *uic = irq_data_get_irq_chip_data(d);
-	unsigned int src = uic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 
 	spin_lock_irqsave(&uic->lock, flags);
@@ -101,7 +99,7 @@ static void uic_ack_irq(struct irq_data *d)
 static void uic_mask_ack_irq(struct irq_data *d)
 {
 	struct uic *uic = irq_data_get_irq_chip_data(d);
-	unsigned int src = uic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 er, sr;
 
@@ -126,7 +124,7 @@ static void uic_mask_ack_irq(struct irq_data *d)
 static int uic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
 	struct uic *uic = irq_data_get_irq_chip_data(d);
-	unsigned int src = uic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	int trigger, polarity;
 	u32 tr, pr, mask;

@@ -329,6 +329,8 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	/* Make pHyp happy */
 	if ((rflags & _PAGE_NO_CACHE) & !(rflags & _PAGE_WRITETHRU))
 		hpte_r &= ~_PAGE_COHERENT;
+	if (firmware_has_feature(FW_FEATURE_XCMO) && !(hpte_r & HPTE_R_N))
+		flags |= H_COALESCE_CAND;
 
 	lpar_rc = plpar_pte_enter(flags, hpte_group, hpte_v, hpte_r, &slot);
 	if (unlikely(lpar_rc == H_PTEG_FULL)) {
@@ -573,7 +575,7 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 	unsigned long i, pix, rc;
 	unsigned long flags = 0;
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
-	int lock_tlbie = !cpu_has_feature(CPU_FTR_LOCKLESS_TLBIE);
+	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 	unsigned long param[9];
 	unsigned long va;
 	unsigned long hash, index, shift, hidx, slot;
@@ -771,3 +773,47 @@ out:
 	local_irq_restore(flags);
 }
 #endif
+
+/**
+ * h_get_mpp
+ * H_GET_MPP hcall returns info in 7 parms
+ */
+int h_get_mpp(struct hvcall_mpp_data *mpp_data)
+{
+	int rc;
+	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE];
+
+	rc = plpar_hcall9(H_GET_MPP, retbuf);
+
+	mpp_data->entitled_mem = retbuf[0];
+	mpp_data->mapped_mem = retbuf[1];
+
+	mpp_data->group_num = (retbuf[2] >> 2 * 8) & 0xffff;
+	mpp_data->pool_num = retbuf[2] & 0xffff;
+
+	mpp_data->mem_weight = (retbuf[3] >> 7 * 8) & 0xff;
+	mpp_data->unallocated_mem_weight = (retbuf[3] >> 6 * 8) & 0xff;
+	mpp_data->unallocated_entitlement = retbuf[3] & 0xffffffffffff;
+
+	mpp_data->pool_size = retbuf[4];
+	mpp_data->loan_request = retbuf[5];
+	mpp_data->backing_mem = retbuf[6];
+
+	return rc;
+}
+EXPORT_SYMBOL(h_get_mpp);
+
+int h_get_mpp_x(struct hvcall_mpp_x_data *mpp_x_data)
+{
+	int rc;
+	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE] = { 0 };
+
+	rc = plpar_hcall9(H_GET_MPP_X, retbuf);
+
+	mpp_x_data->coalesced_bytes = retbuf[0];
+	mpp_x_data->pool_coalesced_bytes = retbuf[1];
+	mpp_x_data->pool_purr_cycles = retbuf[2];
+	mpp_x_data->pool_spurr_cycles = retbuf[3];
+
+	return rc;
+}
