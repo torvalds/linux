@@ -1055,16 +1055,44 @@ static int radeon_dp_get_modes(struct drm_connector *connector)
 	int ret;
 
 	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		struct drm_encoder *encoder;
+		struct drm_display_mode *mode;
+
 		if (!radeon_dig_connector->edp_on)
 			atombios_set_edp_panel_power(connector,
 						     ATOM_TRANSMITTER_ACTION_POWER_ON);
-	}
-	ret = radeon_ddc_get_modes(radeon_connector);
-	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		ret = radeon_ddc_get_modes(radeon_connector);
 		if (!radeon_dig_connector->edp_on)
 			atombios_set_edp_panel_power(connector,
 						     ATOM_TRANSMITTER_ACTION_POWER_OFF);
-	}
+
+		if (ret > 0) {
+			encoder = radeon_best_single_encoder(connector);
+			if (encoder) {
+				radeon_fixup_lvds_native_mode(encoder, connector);
+				/* add scaled modes */
+				radeon_add_common_modes(encoder, connector);
+			}
+			return ret;
+		}
+
+		encoder = radeon_best_single_encoder(connector);
+		if (!encoder)
+			return 0;
+
+		/* we have no EDID modes */
+		mode = radeon_fp_native_mode(encoder);
+		if (mode) {
+			ret = 1;
+			drm_mode_probed_add(connector, mode);
+			/* add the width/height from vbios tables if available */
+			connector->display_info.width_mm = mode->width_mm;
+			connector->display_info.height_mm = mode->height_mm;
+			/* add scaled modes */
+			radeon_add_common_modes(encoder, connector);
+		}
+	} else
+		ret = radeon_ddc_get_modes(radeon_connector);
 
 	return ret;
 }
@@ -1155,6 +1183,15 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 	}
 
 	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		struct drm_encoder *encoder = radeon_best_single_encoder(connector);
+		if (encoder) {
+			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+			struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
+
+			/* check if panel is valid */
+			if (native_mode->hdisplay >= 320 && native_mode->vdisplay >= 240)
+				ret = connector_status_connected;
+		}
 		/* eDP is always DP */
 		radeon_dig_connector->dp_sink_type = CONNECTOR_OBJECT_ID_DISPLAYPORT;
 		if (!radeon_dig_connector->edp_on)
@@ -1194,11 +1231,38 @@ static int radeon_dp_mode_valid(struct drm_connector *connector,
 
 	/* XXX check mode bandwidth */
 
-	if ((radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
-	    (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP))
-		return radeon_dp_mode_valid_helper(connector, mode);
-	else
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		struct drm_encoder *encoder = radeon_best_single_encoder(connector);
+
+		if ((mode->hdisplay < 320) || (mode->vdisplay < 240))
+			return MODE_PANEL;
+
+		if (encoder) {
+			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+			struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
+
+		/* AVIVO hardware supports downscaling modes larger than the panel
+			 * to the panel size, but I'm not sure this is desirable.
+			 */
+			if ((mode->hdisplay > native_mode->hdisplay) ||
+			    (mode->vdisplay > native_mode->vdisplay))
+				return MODE_PANEL;
+
+			/* if scaling is disabled, block non-native modes */
+			if (radeon_encoder->rmx_type == RMX_OFF) {
+				if ((mode->hdisplay != native_mode->hdisplay) ||
+				    (mode->vdisplay != native_mode->vdisplay))
+					return MODE_PANEL;
+			}
+		}
 		return MODE_OK;
+	} else {
+		if ((radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
+		    (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP))
+			return radeon_dp_mode_valid_helper(connector, mode);
+		else
+			return MODE_OK;
+	}
 }
 
 struct drm_connector_helper_funcs radeon_dp_connector_helper_funcs = {
