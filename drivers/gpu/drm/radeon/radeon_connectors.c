@@ -1314,7 +1314,6 @@ radeon_add_atom_connector(struct drm_device *dev,
 			connector->doublescan_allowed = false;
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
-	case DRM_MODE_CONNECTOR_eDP:
 		radeon_dig_connector = kzalloc(sizeof(struct radeon_connector_atom_dig), GFP_KERNEL);
 		if (!radeon_dig_connector)
 			goto failed;
@@ -1324,10 +1323,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_helper_add(&radeon_connector->base, &radeon_dp_connector_helper_funcs);
 		if (i2c_bus->valid) {
 			/* add DP i2c bus */
-			if (connector_type == DRM_MODE_CONNECTOR_eDP)
-				radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "eDP-auxch");
-			else
-				radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "DP-auxch");
+			radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "DP-auxch");
 			if (!radeon_dig_connector->dp_i2c_bus)
 				DRM_ERROR("DP: Failed to assign dp ddc bus! Check dmesg for i2c errors.\n");
 			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
@@ -1351,6 +1347,30 @@ radeon_add_atom_connector(struct drm_device *dev,
 		}
 		connector->interlace_allowed = true;
 		/* in theory with a DP to VGA converter... */
+		connector->doublescan_allowed = false;
+		break;
+	case DRM_MODE_CONNECTOR_eDP:
+		radeon_dig_connector = kzalloc(sizeof(struct radeon_connector_atom_dig), GFP_KERNEL);
+		if (!radeon_dig_connector)
+			goto failed;
+		radeon_dig_connector->igp_lane_info = igp_lane_info;
+		radeon_connector->con_priv = radeon_dig_connector;
+		drm_connector_init(dev, &radeon_connector->base, &radeon_dp_connector_funcs, connector_type);
+		drm_connector_helper_add(&radeon_connector->base, &radeon_dp_connector_helper_funcs);
+		if (i2c_bus->valid) {
+			/* add DP i2c bus */
+			radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "eDP-auxch");
+			if (!radeon_dig_connector->dp_i2c_bus)
+				DRM_ERROR("DP: Failed to assign dp ddc bus! Check dmesg for i2c errors.\n");
+			radeon_connector->ddc_bus = radeon_i2c_lookup(rdev, i2c_bus);
+			if (!radeon_connector->ddc_bus)
+				DRM_ERROR("DP: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
+		}
+		drm_connector_attach_property(&radeon_connector->base,
+					      dev->mode_config.scaling_mode_property,
+					      DRM_MODE_SCALE_FULLSCREEN);
+		subpixel_order = SubPixelHorizontalRGB;
+		connector->interlace_allowed = false;
 		connector->doublescan_allowed = false;
 		break;
 	case DRM_MODE_CONNECTOR_SVIDEO:
