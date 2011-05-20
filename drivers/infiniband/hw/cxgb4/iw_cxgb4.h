@@ -35,7 +35,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/idr.h>
-#include <linux/workqueue.h>
+#include <linux/completion.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h>
 #include <linux/pci.h>
@@ -131,28 +131,21 @@ static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 
 #define C4IW_WR_TO (10*HZ)
 
-enum {
-	REPLY_READY = 0,
-};
-
 struct c4iw_wr_wait {
-	wait_queue_head_t wait;
-	unsigned long status;
+	struct completion completion;
 	int ret;
 };
 
 static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
 {
 	wr_waitp->ret = 0;
-	wr_waitp->status = 0;
-	init_waitqueue_head(&wr_waitp->wait);
+	init_completion(&wr_waitp->completion);
 }
 
 static inline void c4iw_wake_up(struct c4iw_wr_wait *wr_waitp, int ret)
 {
 	wr_waitp->ret = ret;
-	set_bit(REPLY_READY, &wr_waitp->status);
-	wake_up(&wr_waitp->wait);
+	complete(&wr_waitp->completion);
 }
 
 static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
@@ -164,8 +157,7 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 	int ret;
 
 	do {
-		ret = wait_event_timeout(wr_waitp->wait,
-			test_and_clear_bit(REPLY_READY, &wr_waitp->status), to);
+		ret = wait_for_completion_timeout(&wr_waitp->completion, to);
 		if (!ret) {
 			printk(KERN_ERR MOD "%s - Device %s not responding - "
 			       "tid %u qpid %u\n", func,
