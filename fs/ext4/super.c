@@ -1112,7 +1112,7 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 
 	if (!test_opt(sb, INIT_INODE_TABLE))
 		seq_puts(seq, ",noinit_inode_table");
-	else if (sbi->s_li_wait_mult)
+	else if (sbi->s_li_wait_mult != EXT4_DEF_LI_WAIT_MULT)
 		seq_printf(seq, ",init_inode_table=%u",
 			   (unsigned) sbi->s_li_wait_mult);
 
@@ -2704,11 +2704,8 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 		ret = ext4_init_inode_table(sb, group,
 					    elr->lr_timeout ? 0 : 1);
 		if (elr->lr_timeout == 0) {
-			timeout = jiffies - timeout;
-			if (elr->lr_sbi->s_li_wait_mult)
-				timeout *= elr->lr_sbi->s_li_wait_mult;
-			else
-				timeout *= 20;
+			timeout = (jiffies - timeout) *
+				  elr->lr_sbi->s_li_wait_mult;
 			elr->lr_timeout = timeout;
 		}
 		elr->lr_next_sched = jiffies + elr->lr_timeout;
@@ -2945,8 +2942,14 @@ static int ext4_register_li_request(struct super_block *sb,
 	ext4_group_t ngroups = EXT4_SB(sb)->s_groups_count;
 	int ret = 0;
 
-	if (sbi->s_li_request != NULL)
+	if (sbi->s_li_request != NULL) {
+		/*
+		 * Reset timeout so it can be computed again, because
+		 * s_li_wait_mult might have changed.
+		 */
+		sbi->s_li_request->lr_timeout = 0;
 		return 0;
+	}
 
 	if (first_not_zeroed == ngroups ||
 	    (sb->s_flags & MS_RDONLY) ||
@@ -3143,6 +3146,12 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (!IS_EXT3_SB(sb) &&
 	    ((def_mount_opts & EXT4_DEFM_NODELALLOC) == 0))
 		set_opt(sb, DELALLOC);
+
+	/*
+	 * set default s_li_wait_mult for lazyinit, for the case there is
+	 * no mount option specified.
+	 */
+	sbi->s_li_wait_mult = EXT4_DEF_LI_WAIT_MULT;
 
 	if (!parse_options((char *) sbi->s_es->s_mount_opts, sb,
 			   &journal_devnum, &journal_ioprio, NULL, 0)) {
