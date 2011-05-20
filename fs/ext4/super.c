@@ -2673,12 +2673,6 @@ static void print_daily_error_info(unsigned long arg)
 	mod_timer(&sbi->s_err_report, jiffies + 24*60*60*HZ);  /* Once a day */
 }
 
-static void ext4_lazyinode_timeout(unsigned long data)
-{
-	struct task_struct *p = (struct task_struct *)data;
-	wake_up_process(p);
-}
-
 /* Find next suitable group and run ext4_init_inode_table */
 static int ext4_run_li_request(struct ext4_li_request *elr)
 {
@@ -2726,7 +2720,7 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 
 /*
  * Remove lr_request from the list_request and free the
- * request tructure. Should be called with li_list_mtx held
+ * request structure. Should be called with li_list_mtx held
  */
 static void ext4_remove_li_request(struct ext4_li_request *elr)
 {
@@ -2770,13 +2764,9 @@ static int ext4_lazyinit_thread(void *arg)
 	struct ext4_lazy_init *eli = (struct ext4_lazy_init *)arg;
 	struct list_head *pos, *n;
 	struct ext4_li_request *elr;
-	unsigned long next_wakeup;
-	DEFINE_WAIT(wait);
+	unsigned long next_wakeup, cur;
 
 	BUG_ON(NULL == eli);
-
-	eli->li_timer.data = (unsigned long)current;
-	eli->li_timer.function = ext4_lazyinode_timeout;
 
 	eli->li_task = current;
 	wake_up(&eli->li_wait_task);
@@ -2811,19 +2801,15 @@ cont_thread:
 		if (freezing(current))
 			refrigerator();
 
-		if ((time_after_eq(jiffies, next_wakeup)) ||
+		cur = jiffies;
+		if ((time_after_eq(cur, next_wakeup)) ||
 		    (MAX_JIFFY_OFFSET == next_wakeup)) {
 			cond_resched();
 			continue;
 		}
 
-		eli->li_timer.expires = next_wakeup;
-		add_timer(&eli->li_timer);
-		prepare_to_wait(&eli->li_wait_daemon, &wait,
-				TASK_INTERRUPTIBLE);
-		if (time_before(jiffies, next_wakeup))
-			schedule();
-		finish_wait(&eli->li_wait_daemon, &wait);
+		schedule_timeout_interruptible(next_wakeup - cur);
+
 		if (kthread_should_stop()) {
 			ext4_clear_request_list();
 			goto exit_thread;
@@ -2847,12 +2833,10 @@ exit_thread:
 		goto cont_thread;
 	}
 	mutex_unlock(&eli->li_list_mtx);
-	del_timer_sync(&ext4_li_info->li_timer);
 	eli->li_task = NULL;
 	wake_up(&eli->li_wait_task);
 
 	kfree(ext4_li_info);
-	ext4_lazyinit_task = NULL;
 	ext4_li_info = NULL;
 	mutex_unlock(&ext4_li_mtx);
 
@@ -2880,7 +2864,6 @@ static int ext4_run_lazyinit_thread(void)
 	if (IS_ERR(ext4_lazyinit_task)) {
 		int err = PTR_ERR(ext4_lazyinit_task);
 		ext4_clear_request_list();
-		del_timer_sync(&ext4_li_info->li_timer);
 		kfree(ext4_li_info);
 		ext4_li_info = NULL;
 		printk(KERN_CRIT "EXT4: error %d creating inode table "
@@ -2929,9 +2912,7 @@ static int ext4_li_info_new(void)
 	INIT_LIST_HEAD(&eli->li_request_list);
 	mutex_init(&eli->li_list_mtx);
 
-	init_waitqueue_head(&eli->li_wait_daemon);
 	init_waitqueue_head(&eli->li_wait_task);
-	init_timer(&eli->li_timer);
 	eli->li_state |= EXT4_LAZYINIT_QUIT;
 
 	ext4_li_info = eli;
