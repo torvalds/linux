@@ -59,7 +59,7 @@ void radeon_connector_hotplug(struct drm_connector *connector)
 		    (radeon_dp_getsinktype(radeon_connector) == CONNECTOR_OBJECT_ID_eDP)) {
 			if (radeon_dp_needs_link_train(radeon_connector)) {
 				if (connector->encoder)
-					dp_link_train(connector->encoder, connector);
+					radeon_dp_link_train(connector->encoder, connector);
 			}
 		}
 	}
@@ -1195,7 +1195,7 @@ static int radeon_dp_mode_valid(struct drm_connector *connector,
 
 	if ((radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
 	    (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP))
-		return radeon_dp_mode_valid_helper(radeon_connector, mode);
+		return radeon_dp_mode_valid_helper(connector, mode);
 	else
 		return MODE_OK;
 }
