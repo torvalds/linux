@@ -444,7 +444,7 @@ void register_mtd_user (struct mtd_notifier *new)
 
 	list_add(&new->list, &mtd_notifiers);
 
- 	__module_get(THIS_MODULE);
+	__module_get(THIS_MODULE);
 
 	mtd_for_each_device(mtd)
 		new->add(mtd);
@@ -707,9 +707,9 @@ static int mtd_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "mtd%d: %8.8llx %8.8x \"%s\"\n",
 			   mtd->index, (unsigned long long)mtd->size,
 			   mtd->erasesize, mtd->name);
-        }
+	}
 	mutex_unlock(&mtd_table_mutex);
-        return 0;
+	return 0;
 }
 
 static int mtd_proc_open(struct inode *inode, struct file *file)
@@ -781,7 +781,7 @@ err_reg:
 static void __exit cleanup_mtd(void)
 {
 #ifdef CONFIG_PROC_FS
-        if (proc_mtd)
+	if (proc_mtd)
 		remove_proc_entry( "mtd", NULL);
 #endif /* CONFIG_PROC_FS */
 	class_unregister(&mtd_class);
