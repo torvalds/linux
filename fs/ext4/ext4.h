@@ -1605,8 +1605,6 @@ void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
  */
 struct ext4_lazy_init {
 	unsigned long		li_state;
-	wait_queue_head_t	li_wait_task;
-	struct task_struct	*li_task;
 	struct list_head	li_request_list;
 	struct mutex		li_list_mtx;
 };

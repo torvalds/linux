@@ -2768,9 +2768,6 @@ static int ext4_lazyinit_thread(void *arg)
 
 	BUG_ON(NULL == eli);
 
-	eli->li_task = current;
-	wake_up(&eli->li_wait_task);
-
 cont_thread:
 	while (true) {
 		next_wakeup = MAX_JIFFY_OFFSET;
@@ -2833,9 +2830,6 @@ exit_thread:
 		goto cont_thread;
 	}
 	mutex_unlock(&eli->li_list_mtx);
-	eli->li_task = NULL;
-	wake_up(&eli->li_wait_task);
-
 	kfree(ext4_li_info);
 	ext4_li_info = NULL;
 	mutex_unlock(&ext4_li_mtx);
@@ -2872,8 +2866,6 @@ static int ext4_run_lazyinit_thread(void)
 		return err;
 	}
 	ext4_li_info->li_state |= EXT4_LAZYINIT_RUNNING;
-
-	wait_event(ext4_li_info->li_wait_task, ext4_li_info->li_task != NULL);
 	return 0;
 }
 
@@ -2908,11 +2900,9 @@ static int ext4_li_info_new(void)
 	if (!eli)
 		return -ENOMEM;
 
-	eli->li_task = NULL;
 	INIT_LIST_HEAD(&eli->li_request_list);
 	mutex_init(&eli->li_list_mtx);
 
-	init_waitqueue_head(&eli->li_wait_task);
 	eli->li_state |= EXT4_LAZYINIT_QUIT;
 
 	ext4_li_info = eli;
