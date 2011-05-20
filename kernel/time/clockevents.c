@@ -197,7 +197,7 @@ EXPORT_SYMBOL_GPL(clockevents_register_device);
 static void clockevents_config(struct clock_event_device *dev,
 			       u32 freq)
 {
-	unsigned long sec;
+	u64 sec;
 
 	if (!(dev->features & CLOCK_EVT_FEAT_ONESHOT))
 		return;
