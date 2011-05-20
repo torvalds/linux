@@ -67,7 +67,7 @@ ENTRY(memcpy)
 	jb .Lhandle_tail
 
 	/*
-	 * We check whether memory false dependece could occur,
+	 * We check whether memory false dependence could occur,
 	 * then jump to corresponding copy mode.
 	 */
 	cmp  %dil, %sil

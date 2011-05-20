@@ -718,14 +718,12 @@ static void __init check_irq_src(struct mpc_intsrc *m, int *nr_m_spare)
 static int
 check_slot(unsigned long mpc_new_phys, unsigned long mpc_new_length, int count)
 {
-	int ret = 0;
-
 	if (!mpc_new_phys || count <= mpc_new_length) {
 		WARN(1, "update_mptable: No spare slots (length: %x)\n", count);
 		return -1;
 	}
 
-	return ret;
+	return 0;
 }
 #else /* CONFIG_X86_IO_APIC */
 static
