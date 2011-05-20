@@ -2302,6 +2302,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_range);
 
+#ifdef CONFIG_XEN_DEBUG_FS
 static int p2m_dump_open(struct inode *inode, struct file *filp)
 {
 	return single_open(filp, p2m_dump_show, NULL);
@@ -2313,3 +2314,4 @@ static const struct file_operations p2m_dump_fops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+#endif /* CONFIG_XEN_DEBUG_FS */
