@@ -119,7 +119,7 @@ static irqreturn_t call_function_action(int irq, void *data)
 
 static irqreturn_t reschedule_action(int irq, void *data)
 {
-	/* we just need the return path side effect of checking need_resched */
+	scheduler_ipi();
 	return IRQ_HANDLED;
 }
 
@@ -224,7 +224,7 @@ irqreturn_t smp_ipi_demux(void)
 		if (all & (1 << (24 - 8 * PPC_MSG_CALL_FUNCTION)))
 			generic_smp_call_function_interrupt();
 		if (all & (1 << (24 - 8 * PPC_MSG_RESCHEDULE)))
-			reschedule_action(0, NULL); /* upcoming sched hook */
+			scheduler_ipi();
 		if (all & (1 << (24 - 8 * PPC_MSG_CALL_FUNC_SINGLE)))
 			generic_smp_call_function_single_interrupt();
 		if (all & (1 << (24 - 8 * PPC_MSG_DEBUGGER_BREAK)))

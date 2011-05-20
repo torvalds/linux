@@ -28,6 +28,7 @@
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/ptrace.h>
 #include <asm/signal.h>
@@ -1793,9 +1794,8 @@ void mpic_reset_core(int cpu)
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_PM
-static int mpic_suspend(struct sys_device *dev, pm_message_t state)
+static void mpic_suspend_one(struct mpic *mpic)
 {
-	struct mpic *mpic = container_of(dev, struct mpic, sysdev);
 	int i;
 
 	for (i = 0; i < mpic->num_sources; i++) {
@@ -1804,13 +1804,22 @@ static int mpic_suspend(struct sys_device *dev, pm_message_t state)
 		mpic->save_data[i].dest =
 			mpic_irq_read(i, MPIC_INFO(IRQ_DESTINATION));
 	}
+}
+
+static int mpic_suspend(void)
+{
+	struct mpic *mpic = mpics;
+
+	while (mpic) {
+		mpic_suspend_one(mpic);
+		mpic = mpic->next;
+	}
 
 	return 0;
 }
 
-static int mpic_resume(struct sys_device *dev)
+static void mpic_resume_one(struct mpic *mpic)
 {
-	struct mpic *mpic = container_of(dev, struct mpic, sysdev);
 	int i;
 
 	for (i = 0; i < mpic->num_sources; i++) {
@@ -1837,33 +1846,28 @@ static int mpic_resume(struct sys_device *dev)
 	}
 #endif
 	} /* end for loop */
-
-	return 0;
 }
-#endif
 
-static struct sysdev_class mpic_sysclass = {
-#ifdef CONFIG_PM
+static void mpic_resume(void)
+{
+	struct mpic *mpic = mpics;
+
+	while (mpic) {
+		mpic_resume_one(mpic);
+		mpic = mpic->next;
+	}
+}
+
+static struct syscore_ops mpic_syscore_ops = {
 	.resume = mpic_resume,
 	.suspend = mpic_suspend,
-#endif
-	.name = "mpic",
 };
 
 static int mpic_init_sys(void)
 {
-	struct mpic *mpic = mpics;
-	int error, id = 0;
-
-	error = sysdev_class_register(&mpic_sysclass);
-
-	while (mpic && !error) {
-		mpic->sysdev.cls = &mpic_sysclass;
-		mpic->sysdev.id = id++;
-		error = sysdev_register(&mpic->sysdev);
-		mpic = mpic->next;
-	}
-	return error;
+	register_syscore_ops(&mpic_syscore_ops);
+	return 0;
 }
 
 device_initcall(mpic_init_sys);
+#endif

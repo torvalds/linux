@@ -76,18 +76,10 @@ int my_skb_head_push(struct sk_buff *skb, unsigned int len)
 	return 0;
 }
 
-static void softif_neigh_free_rcu(struct rcu_head *rcu)
-{
-	struct softif_neigh *softif_neigh;
-
-	softif_neigh = container_of(rcu, struct softif_neigh, rcu);
-	kfree(softif_neigh);
-}
-
 static void softif_neigh_free_ref(struct softif_neigh *softif_neigh)
 {
 	if (atomic_dec_and_test(&softif_neigh->refcount))
-		call_rcu(&softif_neigh->rcu, softif_neigh_free_rcu);
+		kfree_rcu(softif_neigh, rcu);
 }
 
 void softif_neigh_purge(struct bat_priv *bat_priv)

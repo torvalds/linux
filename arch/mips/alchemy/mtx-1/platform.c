@@ -53,8 +53,8 @@ static struct platform_device mtx1_button = {
 
 static struct resource mtx1_wdt_res[] = {
 	[0] = {
-		.start	= 15,
-		.end	= 15,
+		.start	= 215,
+		.end	= 215,
 		.name	= "mtx1-wdt-gpio",
 		.flags	= IORESOURCE_IRQ,
 	}

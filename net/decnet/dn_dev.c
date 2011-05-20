@@ -332,14 +332,9 @@ static struct dn_ifaddr *dn_dev_alloc_ifa(void)
 	return ifa;
 }
 
-static void dn_dev_free_ifa_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct dn_ifaddr, rcu));
-}
-
 static void dn_dev_free_ifa(struct dn_ifaddr *ifa)
 {
-	call_rcu(&ifa->rcu, dn_dev_free_ifa_rcu);
+	kfree_rcu(ifa, rcu);
 }
 
 static void dn_dev_del_ifa(struct dn_dev *dn_db, struct dn_ifaddr __rcu **ifap, int destroy)

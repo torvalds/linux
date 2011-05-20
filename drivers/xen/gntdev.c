@@ -330,17 +330,26 @@ static int unmap_grant_pages(struct grant_map *map, int offset, int pages)
 
 /* ------------------------------------------------------------------ */
 
+static void gntdev_vma_open(struct vm_area_struct *vma)
+{
+	struct grant_map *map = vma->vm_private_data;
+
+	pr_debug("gntdev_vma_open %p\n", vma);
+	atomic_inc(&map->users);
+}
+
 static void gntdev_vma_close(struct vm_area_struct *vma)
 {
 	struct grant_map *map = vma->vm_private_data;
 
-	pr_debug("close %p\n", vma);
+	pr_debug("gntdev_vma_close %p\n", vma);
 	map->vma = NULL;
 	vma->vm_private_data = NULL;
 	gntdev_put_map(map);
 }
 
 static struct vm_operations_struct gntdev_vmops = {
+	.open = gntdev_vma_open,
 	.close = gntdev_vma_close,
 };
 
@@ -652,7 +661,10 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 
 	vma->vm_ops = &gntdev_vmops;
 
-	vma->vm_flags |= VM_RESERVED|VM_DONTCOPY|VM_DONTEXPAND|VM_PFNMAP;
+	vma->vm_flags |= VM_RESERVED|VM_DONTEXPAND;
+
+	if (use_ptemod)
+		vma->vm_flags |= VM_DONTCOPY|VM_PFNMAP;
 
 	vma->vm_private_data = map;
 

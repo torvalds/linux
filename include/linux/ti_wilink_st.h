@@ -140,12 +140,12 @@ extern long st_unregister(struct st_proto_s *);
  */
 struct st_data_s {
 	unsigned long st_state;
-	struct tty_struct *tty;
 	struct sk_buff *tx_skb;
 #define ST_TX_SENDING	1
 #define ST_TX_WAKEUP	2
 	unsigned long tx_state;
 	struct st_proto_s *list[ST_MAX_CHANNELS];
+	bool is_registered[ST_MAX_CHANNELS];
 	unsigned long rx_state;
 	unsigned long rx_count;
 	struct sk_buff *rx_skb;
@@ -155,6 +155,7 @@ struct st_data_s {
 	unsigned char	protos_registered;
 	unsigned long ll_state;
 	void *kim_data;
+	struct tty_struct *tty;
 };
 
 /*

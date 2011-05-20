@@ -26,15 +26,12 @@ extern void setup_olpc_ofw_pgd(void);
 /* check if OFW was detected during boot */
 extern bool olpc_ofw_present(void);
 
+extern void olpc_dt_build_devicetree(void);
+
 #else /* !CONFIG_OLPC */
 static inline void olpc_ofw_detect(void) { }
 static inline void setup_olpc_ofw_pgd(void) { }
-#endif /* !CONFIG_OLPC */
-
-#ifdef CONFIG_OF_PROMTREE
-extern void olpc_dt_build_devicetree(void);
-#else
 static inline void olpc_dt_build_devicetree(void) { }
-#endif
+#endif /* !CONFIG_OLPC */
 
 #endif /* _ASM_X86_OLPC_OFW_H */

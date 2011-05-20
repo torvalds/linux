@@ -129,7 +129,9 @@ struct linux_prom_registers smp_penguin_ctable __cpuinitdata = { 0 };
 
 void smp_send_reschedule(int cpu)
 {
-	/* See sparc64 */
+	/*
+	 * XXX missing reschedule IPI, see scheduler_ipi()
+	 */
 }
 
 void smp_send_stop(void)

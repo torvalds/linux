@@ -73,8 +73,6 @@ static struct clocksource clocksource_itc = {
 	.rating         = 350,
 	.read           = itc_get_cycles,
 	.mask           = CLOCKSOURCE_MASK(64),
-	.mult           = 0, /*to be calculated*/
-	.shift          = 16,
 	.flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 #ifdef CONFIG_PARAVIRT
 	.resume		= paravirt_clocksource_resume,
@@ -365,11 +363,8 @@ ia64_init_itm (void)
 	ia64_cpu_local_tick();
 
 	if (!itc_clocksource) {
-		/* Sort out mult/shift values: */
-		clocksource_itc.mult =
-			clocksource_hz2mult(local_cpu_data->itc_freq,
-						clocksource_itc.shift);
-		clocksource_register(&clocksource_itc);
+		clocksource_register_hz(&clocksource_itc,
+						local_cpu_data->itc_freq);
 		itc_clocksource = &clocksource_itc;
 	}
 }

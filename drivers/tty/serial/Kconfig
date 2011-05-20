@@ -1391,6 +1391,14 @@ config SERIAL_OF_PLATFORM_NWPSERIAL_CONSOLE
 	help
 	  Support for Console on the NWP serial ports.
 
+config SERIAL_LANTIQ
+	bool "Lantiq serial driver"
+	depends on LANTIQ
+	select SERIAL_CORE
+	select SERIAL_CORE_CONSOLE
+	help
+	  Support for console and UART on Lantiq SoCs.
+
 config SERIAL_QE
 	tristate "Freescale QUICC Engine serial port support"
 	depends on QUICC_ENGINE

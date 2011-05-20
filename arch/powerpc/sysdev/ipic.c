@@ -18,7 +18,7 @@
 #include <linux/stddef.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/device.h>
 #include <linux/bootmem.h>
 #include <linux/spinlock.h>
@@ -900,7 +900,7 @@ static struct {
 	u32 sercr;
 } ipic_saved_state;
 
-static int ipic_suspend(struct sys_device *sdev, pm_message_t state)
+static int ipic_suspend(void)
 {
 	struct ipic *ipic = primary_ipic;
 
@@ -931,7 +931,7 @@ static int ipic_suspend(struct sys_device *sdev, pm_message_t state)
 	return 0;
 }
 
-static int ipic_resume(struct sys_device *sdev)
+static void ipic_resume(void)
 {
 	struct ipic *ipic = primary_ipic;
 
@@ -947,44 +947,26 @@ static int ipic_resume(struct sys_device *sdev)
 	ipic_write(ipic->regs, IPIC_SECNR, ipic_saved_state.secnr);
 	ipic_write(ipic->regs, IPIC_SERMR, ipic_saved_state.sermr);
 	ipic_write(ipic->regs, IPIC_SERCR, ipic_saved_state.sercr);
-
-	return 0;
 }
 #else
 #define ipic_suspend NULL
 #define ipic_resume NULL
 #endif
 
-static struct sysdev_class ipic_sysclass = {
-	.name = "ipic",
+static struct syscore_ops ipic_syscore_ops = {
 	.suspend = ipic_suspend,
 	.resume = ipic_resume,
 };
 
-static struct sys_device device_ipic = {
-	.id		= 0,
-	.cls		= &ipic_sysclass,
-};
-
-static int __init init_ipic_sysfs(void)
+static int __init init_ipic_syscore(void)
 {
-	int rc;
-
 	if (!primary_ipic || !primary_ipic->regs)
 		return -ENODEV;
-	printk(KERN_DEBUG "Registering ipic with sysfs...\n");
 
-	rc = sysdev_class_register(&ipic_sysclass);
-	if (rc) {
-		printk(KERN_ERR "Failed registering ipic sys class\n");
-		return -ENODEV;
-	}
-	rc = sysdev_register(&device_ipic);
-	if (rc) {
-		printk(KERN_ERR "Failed registering ipic sys device\n");
-		return -ENODEV;
-	}
+	printk(KERN_DEBUG "Registering ipic system core operations\n");
+	register_syscore_ops(&ipic_syscore_ops);
+
 	return 0;
 }
 
-subsys_initcall(init_ipic_sysfs);
+subsys_initcall(init_ipic_syscore);

@@ -677,8 +677,8 @@ create_efivars_bin_attributes(struct efivars *efivars)
 
 	return 0;
 out_free:
-	kfree(efivars->new_var);
-	efivars->new_var = NULL;
+	kfree(efivars->del_var);
+	efivars->del_var = NULL;
 	kfree(efivars->new_var);
 	efivars->new_var = NULL;
 	return error;
@@ -803,6 +803,8 @@ efivars_init(void)
 	ops.set_variable = efi.set_variable;
 	ops.get_next_variable = efi.get_next_variable;
 	error = register_efivars(&__efivars, &ops, efi_kobj);
+	if (error)
+		goto err_put;
 
 	/* Don't forget the systab entry */
 	error = sysfs_create_group(efi_kobj, &efi_subsys_attr_group);
@@ -810,18 +812,25 @@ efivars_init(void)
 		printk(KERN_ERR
 		       "efivars: Sysfs attribute export failed with error %d.\n",
 		       error);
-		unregister_efivars(&__efivars);
-		kobject_put(efi_kobj);
+		goto err_unregister;
 	}
 
+	return 0;
+
+err_unregister:
+	unregister_efivars(&__efivars);
+err_put:
+	kobject_put(efi_kobj);
 	return error;
 }
 
 static void __exit
 efivars_exit(void)
 {
-	unregister_efivars(&__efivars);
-	kobject_put(efi_kobj);
+	if (efi_enabled) {
+		unregister_efivars(&__efivars);
+		kobject_put(efi_kobj);
+	}
 }
 
 module_init(efivars_init);

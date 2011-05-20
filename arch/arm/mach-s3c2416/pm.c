@@ -11,6 +11,7 @@
 */
 
 #include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
@@ -55,25 +56,8 @@ static int s3c2416_pm_add(struct sys_device *sysdev)
 	return 0;
 }
 
-static int s3c2416_pm_suspend(struct sys_device *dev, pm_message_t state)
-{
-	return 0;
-}
-
-static int s3c2416_pm_resume(struct sys_device *dev)
-{
-	/* unset the return-from-sleep amd inform flags */
-	__raw_writel(0x0, S3C2443_PWRMODE);
-	__raw_writel(0x0, S3C2412_INFORM0);
-	__raw_writel(0x0, S3C2412_INFORM1);
-
-	return 0;
-}
-
 static struct sysdev_driver s3c2416_pm_driver = {
 	.add		= s3c2416_pm_add,
-	.suspend	= s3c2416_pm_suspend,
-	.resume		= s3c2416_pm_resume,
 };
 
 static __init int s3c2416_pm_init(void)
@@ -82,3 +66,16 @@ static __init int s3c2416_pm_init(void)
 }
 
 arch_initcall(s3c2416_pm_init);
+
+
+static void s3c2416_pm_resume(void)
+{
+	/* unset the return-from-sleep amd inform flags */
+	__raw_writel(0x0, S3C2443_PWRMODE);
+	__raw_writel(0x0, S3C2412_INFORM0);
+	__raw_writel(0x0, S3C2412_INFORM1);
+}
+
+struct syscore_ops s3c2416_pm_syscore_ops = {
+	.resume		= s3c2416_pm_resume,
+};

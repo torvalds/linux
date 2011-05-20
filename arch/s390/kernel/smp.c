@@ -165,11 +165,11 @@ static void do_ext_call_interrupt(unsigned int ext_int_code,
 	kstat_cpu(smp_processor_id()).irqs[EXTINT_IPI]++;
 	/*
 	 * handle bit signal external calls
-	 *
-	 * For the ec_schedule signal we have to do nothing. All the work
-	 * is done automatically when we return from the interrupt.
 	 */
 	bits = xchg(&S390_lowcore.ext_call_fast, 0);
+
+	if (test_bit(ec_schedule, &bits))
+		scheduler_ipi();
 
 	if (test_bit(ec_call_function, &bits))
 		generic_smp_call_function_interrupt();

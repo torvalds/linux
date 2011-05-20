@@ -201,7 +201,7 @@ static irqreturn_t iic_ipi_action(int irq, void *dev_id)
 		generic_smp_call_function_interrupt();
 		break;
 	case PPC_MSG_RESCHEDULE:
-		/* Upcoming sched hook */
+		scheduler_ipi();
 		break;
 	case PPC_MSG_CALL_FUNC_SINGLE:
 		generic_smp_call_function_single_interrupt();
