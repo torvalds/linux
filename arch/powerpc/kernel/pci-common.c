@@ -1728,3 +1728,21 @@ void __devinit pcibios_scan_phb(struct pci_controller *hose)
 	if (mode == PCI_PROBE_NORMAL)
 		hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
 }
+
+static void fixup_hide_host_resource_fsl(struct pci_dev *dev)
+{
+	int i, class = dev->class >> 8;
+
+	if ((class == PCI_CLASS_PROCESSOR_POWERPC ||
+	     class == PCI_CLASS_BRIDGE_OTHER) &&
+		(dev->hdr_type == PCI_HEADER_TYPE_NORMAL) &&
+		(dev->bus->parent == NULL)) {
+		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+			dev->resource[i].start = 0;
+			dev->resource[i].end = 0;
+			dev->resource[i].flags = 0;
+		}
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MOTOROLA, PCI_ANY_ID, fixup_hide_host_resource_fsl);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_FREESCALE, PCI_ANY_ID, fixup_hide_host_resource_fsl);
