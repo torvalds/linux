@@ -22,112 +22,112 @@
 #define PAD_MUX_CONFIG_REG	0x08
 
 /* devices */
-struct pmx_dev_mode pmx_emi_cs_0_1_4_5_modes[] = {
+static struct pmx_dev_mode pmx_emi_cs_0_1_4_5_modes[] = {
 	{
 		.ids = 0x00,
 		.mask = PMX_TIMER_3_4_MASK,
 	},
 };
 
-struct pmx_dev pmx_emi_cs_0_1_4_5 = {
+struct pmx_dev spear310_pmx_emi_cs_0_1_4_5 = {
 	.name = "emi_cs_0_1_4_5",
 	.modes = pmx_emi_cs_0_1_4_5_modes,
 	.mode_count = ARRAY_SIZE(pmx_emi_cs_0_1_4_5_modes),
 	.enb_on_reset = 1,
 };
 
-struct pmx_dev_mode pmx_emi_cs_2_3_modes[] = {
+static struct pmx_dev_mode pmx_emi_cs_2_3_modes[] = {
 	{
 		.ids = 0x00,
 		.mask = PMX_TIMER_1_2_MASK,
 	},
 };
 
-struct pmx_dev pmx_emi_cs_2_3 = {
+struct pmx_dev spear310_pmx_emi_cs_2_3 = {
 	.name = "emi_cs_2_3",
 	.modes = pmx_emi_cs_2_3_modes,
 	.mode_count = ARRAY_SIZE(pmx_emi_cs_2_3_modes),
 	.enb_on_reset = 1,
 };
 
-struct pmx_dev_mode pmx_uart1_modes[] = {
+static struct pmx_dev_mode pmx_uart1_modes[] = {
 	{
 		.ids = 0x00,
 		.mask = PMX_FIRDA_MASK,
 	},
 };
 
-struct pmx_dev pmx_uart1 = {
+struct pmx_dev spear310_pmx_uart1 = {
 	.name = "uart1",
 	.modes = pmx_uart1_modes,
 	.mode_count = ARRAY_SIZE(pmx_uart1_modes),
 	.enb_on_reset = 1,
 };
 
-struct pmx_dev_mode pmx_uart2_modes[] = {
+static struct pmx_dev_mode pmx_uart2_modes[] = {
 	{
 		.ids = 0x00,
 		.mask = PMX_TIMER_1_2_MASK,
 	},
 };
 
-struct pmx_dev pmx_uart2 = {
+struct pmx_dev spear310_pmx_uart2 = {
 	.name = "uart2",
 	.modes = pmx_uart2_modes,
 	.mode_count = ARRAY_SIZE(pmx_uart2_modes),
 	.enb_on_reset = 1,
 };
 
-struct pmx_dev_mode pmx_uart3_4_5_modes[] = {
+static struct pmx_dev_mode pmx_uart3_4_5_modes[] = {
 	{
 		.ids = 0x00,
 		.mask = PMX_UART0_MODEM_MASK,
 	},
 };
 
-struct pmx_dev pmx_uart3_4_5 = {
+struct pmx_dev spear310_pmx_uart3_4_5 = {
 	.name = "uart3_4_5",
 	.modes = pmx_uart3_4_5_modes,
 	.mode_count = ARRAY_SIZE(pmx_uart3_4_5_modes),
 	.enb_on_reset = 1,
 };
 
-struct pmx_dev_mode pmx_fsmc_modes[] = {
+static struct pmx_dev_mode pmx_fsmc_modes[] = {
 	{
 		.ids = 0x00,
 		.mask = PMX_SSP_CS_MASK,
 	},
 };
 
-struct pmx_dev pmx_fsmc = {
+struct pmx_dev spear310_pmx_fsmc = {
 	.name = "fsmc",
 	.modes = pmx_fsmc_modes,
 	.mode_count = ARRAY_SIZE(pmx_fsmc_modes),
 	.enb_on_reset = 1,
 };
 
-struct pmx_dev_mode pmx_rs485_0_1_modes[] = {
+static struct pmx_dev_mode pmx_rs485_0_1_modes[] = {
 	{
 		.ids = 0x00,
 		.mask = PMX_MII_MASK,
 	},
 };
 
-struct pmx_dev pmx_rs485_0_1 = {
+struct pmx_dev spear310_pmx_rs485_0_1 = {
 	.name = "rs485_0_1",
 	.modes = pmx_rs485_0_1_modes,
 	.mode_count = ARRAY_SIZE(pmx_rs485_0_1_modes),
 	.enb_on_reset = 1,
 };
 
-struct pmx_dev_mode pmx_tdm0_modes[] = {
+static struct pmx_dev_mode pmx_tdm0_modes[] = {
 	{
 		.ids = 0x00,
 		.mask = PMX_MII_MASK,
 	},
 };
 
-struct pmx_dev pmx_tdm0 = {
+struct pmx_dev spear310_pmx_tdm0 = {
 	.name = "tdm0",
 	.modes = pmx_tdm0_modes,
 	.mode_count = ARRAY_SIZE(pmx_tdm0_modes),
@@ -135,7 +135,7 @@ struct pmx_dev pmx_tdm0 = {
 };
 
 /* pmx driver structure */
-struct pmx_driver pmx_driver = {
+static struct pmx_driver pmx_driver = {
 	.mux_reg = {.offset = PAD_MUX_CONFIG_REG, .mask = 0x00007fff},
 };
 
@@ -258,7 +258,8 @@ static struct spear_shirq shirq_intrcomm_ras = {
 /* Add spear310 specific devices here */
 
 /* spear310 routines */
-void __init spear310_init(void)
+void __init spear310_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
+		u8 pmx_dev_count)
 {
 	void __iomem *base;
 	int ret = 0;
@@ -296,6 +297,10 @@ void __init spear310_init(void)
 
 	/* pmx initialization */
 	pmx_driver.base = base;
+	pmx_driver.mode = pmx_mode;
+	pmx_driver.devs = pmx_devs;
+	pmx_driver.devs_count = pmx_dev_count;
+
 	ret = pmx_register(&pmx_driver);
 	if (ret)
 		printk(KERN_ERR "padmux: registeration failed. err no: %d\n",
