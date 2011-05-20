@@ -38,6 +38,7 @@
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <scsi/scsi.h>
+#include <scsi/scsi_device.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_device.h>
@@ -658,8 +659,7 @@ int transport_core_report_lun_response(struct se_cmd *se_cmd)
 	struct se_session *se_sess = SE_SESS(se_cmd);
 	struct se_task *se_task;
 	unsigned char *buf = (unsigned char *)T_TASK(se_cmd)->t_task_buf;
-	u32 cdb_offset = 0, lun_count = 0, offset = 8;
-	u64 i, lun;
+	u32 cdb_offset = 0, lun_count = 0, offset = 8, i;
 
 	list_for_each_entry(se_task, &T_TASK(se_cmd)->t_task_list, t_list)
 		break;
@@ -675,15 +675,7 @@ int transport_core_report_lun_response(struct se_cmd *se_cmd)
 	 * a $FABRIC_MOD.  In that case, report LUN=0 only.
 	 */
 	if (!(se_sess)) {
-		lun = 0;
-		buf[offset++] = ((lun >> 56) & 0xff);
-		buf[offset++] = ((lun >> 48) & 0xff);
-		buf[offset++] = ((lun >> 40) & 0xff);
-		buf[offset++] = ((lun >> 32) & 0xff);
-		buf[offset++] = ((lun >> 24) & 0xff);
-		buf[offset++] = ((lun >> 16) & 0xff);
-		buf[offset++] = ((lun >> 8) & 0xff);
-		buf[offset++] = (lun & 0xff);
+		int_to_scsilun(0, (struct scsi_lun *)&buf[offset]);
 		lun_count = 1;
 		goto done;
 	}
@@ -703,15 +695,8 @@ int transport_core_report_lun_response(struct se_cmd *se_cmd)
 		if ((cdb_offset + 8) >= se_cmd->data_length)
 			continue;
 
-		lun = cpu_to_be64(CMD_TFO(se_cmd)->pack_lun(deve->mapped_lun));
-		buf[offset++] = ((lun >> 56) & 0xff);
-		buf[offset++] = ((lun >> 48) & 0xff);
-		buf[offset++] = ((lun >> 40) & 0xff);
-		buf[offset++] = ((lun >> 32) & 0xff);
-		buf[offset++] = ((lun >> 24) & 0xff);
-		buf[offset++] = ((lun >> 16) & 0xff);
-		buf[offset++] = ((lun >> 8) & 0xff);
-		buf[offset++] = (lun & 0xff);
+		int_to_scsilun(deve->mapped_lun, (struct scsi_lun *)&buf[offset]);
+		offset += 8;
 		cdb_offset += 8;
 	}
 	spin_unlock_irq(&SE_NODE_ACL(se_sess)->device_list_lock);
