@@ -245,7 +245,7 @@ void stub_device_cleanup_urbs(struct stub_device *sdev)
 	}
 }
 
-static int __init usb_stub_init(void)
+static int __init usbip_host_init(void)
 {
 	int ret;
 
@@ -281,7 +281,7 @@ err_usb_register:
 	return ret;
 }
 
-static void __exit usb_stub_exit(void)
+static void __exit usbip_host_exit(void)
 {
 	driver_remove_file(&stub_driver.drvwrap.driver,
 			   &driver_attr_match_busid);
@@ -295,8 +295,8 @@ static void __exit usb_stub_exit(void)
 	kmem_cache_destroy(stub_priv_cache);
 }
 
-module_init(usb_stub_init);
-module_exit(usb_stub_exit);
+module_init(usbip_host_init);
+module_exit(usbip_host_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
