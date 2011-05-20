@@ -118,17 +118,19 @@ int modem_poweron_off(int on_off)
 	
   if(on_off)
   {
-         printk("modem_poweron\n");
-         gpio_set_value(gpdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
-         msleep(4000);
-         gpio_set_value(gpdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
+		printk("modem_poweron\n");
+		gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
+		mdelay(300);
+		gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
+		msleep(4000);
+		gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
   }
   else
   {
-         printk("modem_poweroff\n");
-         gpio_set_value(gpdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
-         mdelay(100);
-         gpio_set_value(gpdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
+		printk("modem_poweroff\n");
+		gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
+		mdelay(100);
+		gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
   }
 }
 static int power_on =1;
@@ -176,14 +178,14 @@ static int mtk23d_ioctl(struct inode *inode,struct file *file, unsigned int cmd,
 	printk("mtk23d_ioctl\n");
 	switch(cmd)
 	{
-		case MTK23D_RESET:
-			gpio_set_value(gpdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
+		case MTK23D_RESET:		
+			gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
 			mdelay(100);
-			gpio_direction_output(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
-			mdelay(100);
+			gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
+			mdelay(300);
 			gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
 			msleep(4000);
-			gpio_set_value(gpdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
+			gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
 			break;
 		case MTK23D_IMEI_READ:
 			if(copy_to_user(argp, &(imei_value[0]), 16))
