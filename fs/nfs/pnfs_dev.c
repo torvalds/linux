@@ -96,11 +96,15 @@ EXPORT_SYMBOL_GPL(nfs4_find_get_deviceid);
 
 void
 nfs4_init_deviceid_node(struct nfs4_deviceid_node *d,
+			const struct pnfs_layoutdriver_type *ld,
 			const struct nfs_client *nfs_client,
 			const struct nfs4_deviceid *id)
 {
+	INIT_HLIST_NODE(&d->node);
+	d->ld = ld;
 	d->nfs_client = nfs_client;
 	d->deviceid = *id;
+	atomic_set(&d->ref, 1);
 }
 EXPORT_SYMBOL_GPL(nfs4_init_deviceid_node);
 
@@ -108,7 +112,10 @@ EXPORT_SYMBOL_GPL(nfs4_init_deviceid_node);
  * Uniquely initialize and insert a deviceid node into cache
  *
  * @new new deviceid node
- *      Note that the caller must set up new->nfs_client and new->deviceid
+ *      Note that the caller must set up the following members:
+ *        new->ld
+ *        new->nfs_client
+ *        new->deviceid
  *
  * @ret the inserted node, if none found, otherwise, the found entry.
  */
@@ -125,8 +132,6 @@ nfs4_insert_deviceid_node(struct nfs4_deviceid_node *new)
 		return d;
 	}
 
-	INIT_HLIST_NODE(&new->node);
-	atomic_set(&new->ref, 1);
 	hash = nfs4_deviceid_hash(&new->deviceid);
 	hlist_add_head_rcu(&new->node, &nfs4_deviceid_cache[hash]);
 	spin_unlock(&nfs4_deviceid_lock);
@@ -151,6 +156,42 @@ nfs4_put_deviceid_node(struct nfs4_deviceid_node *d)
 	hlist_del_init_rcu(&d->node);
 	spin_unlock(&nfs4_deviceid_lock);
 	synchronize_rcu();
+	d->ld->free_deviceid_node(d);
 	return true;
 }
 EXPORT_SYMBOL_GPL(nfs4_put_deviceid_node);
+
+static void
+_deviceid_purge_client(const struct nfs_client *clp, long hash)
+{
+	struct nfs4_deviceid_node *d;
+	struct hlist_node *n, *next;
+	HLIST_HEAD(tmp);
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(d, n, &nfs4_deviceid_cache[hash], node)
+		if (d->nfs_client == clp && atomic_read(&d->ref)) {
+			hlist_del_init_rcu(&d->node);
+			hlist_add_head(&d->node, &tmp);
+		}
+	rcu_read_unlock();
+
+	if (hlist_empty(&tmp))
+		return;
+
+	synchronize_rcu();
+	hlist_for_each_entry_safe(d, n, next, &tmp, node)
+		if (atomic_dec_and_test(&d->ref))
+			d->ld->free_deviceid_node(d);
+}
+
+void
+nfs4_deviceid_purge_client(const struct nfs_client *clp)
+{
+	long h;
+
+	spin_lock(&nfs4_deviceid_lock);
+	for (h = 0; h < NFS4_DEVICE_ID_HASH_SIZE; h++)
+		_deviceid_purge_client(clp, h);
+	spin_unlock(&nfs4_deviceid_lock);
+}

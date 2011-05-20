@@ -862,6 +862,12 @@ filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 	return -ENOMEM;
 }
 
+static void
+filelayout_free_deveiceid_node(struct nfs4_deviceid_node *d)
+{
+	nfs4_fl_free_deviceid(container_of(d, struct nfs4_file_layout_dsaddr, id_node));
+}
+
 static struct pnfs_layoutdriver_type filelayout_type = {
 	.id			= LAYOUT_NFSV4_1_FILES,
 	.name			= "LAYOUT_NFSV4_1_FILES",
@@ -874,6 +880,7 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.commit_pagelist	= filelayout_commit_pagelist,
 	.read_pagelist		= filelayout_read_pagelist,
 	.write_pagelist		= filelayout_write_pagelist,
+	.free_deviceid_node	= filelayout_free_deveiceid_node,
 };
 
 static int __init nfs4filelayout_init(void)

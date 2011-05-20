@@ -156,7 +156,7 @@ destroy_ds(struct nfs4_pnfs_ds *ds)
 	kfree(ds);
 }
 
-static void
+void
 nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 {
 	struct nfs4_pnfs_ds *ds;
@@ -386,7 +386,9 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 	dsaddr->stripe_indices = stripe_indices;
 	stripe_indices = NULL;
 	dsaddr->ds_num = num;
-	nfs4_init_deviceid_node(&dsaddr->id_node, NFS_SERVER(ino)->nfs_client,
+	nfs4_init_deviceid_node(&dsaddr->id_node,
+				NFS_SERVER(ino)->pnfs_curr_ld,
+				NFS_SERVER(ino)->nfs_client,
 				&pdev->dev_id);
 
 	for (i = 0; i < dsaddr->ds_num; i++) {
@@ -548,8 +550,7 @@ out_free:
 void
 nfs4_fl_put_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 {
-	if (nfs4_put_deviceid_node(&dsaddr->id_node))
-		nfs4_fl_free_deviceid(dsaddr);
+	nfs4_put_deviceid_node(&dsaddr->id_node);
 }
 
 /*

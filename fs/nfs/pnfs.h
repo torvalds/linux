@@ -65,6 +65,8 @@ enum {
 	NFS_LAYOUT_DESTROYED,		/* no new use of layout allowed */
 };
 
+struct nfs4_deviceid_node;
+
 /* Per-layout driver specific registration structure */
 struct pnfs_layoutdriver_type {
 	struct list_head pnfs_tblid;
@@ -90,6 +92,8 @@ struct pnfs_layoutdriver_type {
 	 */
 	enum pnfs_try_status (*read_pagelist) (struct nfs_read_data *nfs_data);
 	enum pnfs_try_status (*write_pagelist) (struct nfs_write_data *nfs_data, int how);
+
+	void (*free_deviceid_node) (struct nfs4_deviceid_node *);
 };
 
 struct pnfs_layout_hdr {
@@ -160,6 +164,7 @@ int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
 /* pnfs_dev.c */
 struct nfs4_deviceid_node {
 	struct hlist_node		node;
+	const struct pnfs_layoutdriver_type *ld;
 	const struct nfs_client		*nfs_client;
 	struct nfs4_deviceid		deviceid;
 	atomic_t			ref;
@@ -169,10 +174,12 @@ void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id);
 struct nfs4_deviceid_node *nfs4_find_get_deviceid(const struct nfs_client *, const struct nfs4_deviceid *);
 struct nfs4_deviceid_node *nfs4_unhash_put_deviceid(const struct nfs_client *, const struct nfs4_deviceid *);
 void nfs4_init_deviceid_node(struct nfs4_deviceid_node *,
+			     const struct pnfs_layoutdriver_type *,
 			     const struct nfs_client *,
 			     const struct nfs4_deviceid *);
 struct nfs4_deviceid_node *nfs4_insert_deviceid_node(struct nfs4_deviceid_node *);
 bool nfs4_put_deviceid_node(struct nfs4_deviceid_node *);
+void nfs4_deviceid_purge_client(const struct nfs_client *);
 
 static inline int lo_fail_bit(u32 iomode)
 {
@@ -348,6 +355,10 @@ static inline void pnfs_clear_request_commit(struct nfs_page *req)
 static inline int pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 {
 	return 0;
+}
+
+static inline void nfs4_deviceid_purge_client(struct nfs_client *ncl)
+{
 }
 #endif /* CONFIG_NFS_V4_1 */
 
