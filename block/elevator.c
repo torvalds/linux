@@ -416,8 +416,6 @@ void elv_dispatch_sort(struct request_queue *q, struct request *rq)
 	struct list_head *entry;
 	int stop_flags;
 
-	BUG_ON(rq->cmd_flags & REQ_ON_PLUG);
-
 	if (q->last_merge == rq)
 		q->last_merge = NULL;
 
@@ -655,8 +653,6 @@ void __elv_add_request(struct request_queue *q, struct request *rq, int where)
 	trace_block_rq_insert(q, rq);
 
 	rq->q = q;
-
-	BUG_ON(rq->cmd_flags & REQ_ON_PLUG);
 
 	if (rq->cmd_flags & REQ_SOFTBARRIER) {
 		/* barriers are scheduling boundary, update end_sector */
