@@ -64,15 +64,15 @@ DEFINE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases) =
 	.clock_base =
 	{
 		{
-			.index = HRTIMER_BASE_REALTIME,
-			.clockid = CLOCK_REALTIME,
-			.get_time = &ktime_get_real,
-			.resolution = KTIME_LOW_RES,
-		},
-		{
 			.index = HRTIMER_BASE_MONOTONIC,
 			.clockid = CLOCK_MONOTONIC,
 			.get_time = &ktime_get,
+			.resolution = KTIME_LOW_RES,
+		},
+		{
+			.index = HRTIMER_BASE_REALTIME,
+			.clockid = CLOCK_REALTIME,
+			.get_time = &ktime_get_real,
 			.resolution = KTIME_LOW_RES,
 		},
 		{
