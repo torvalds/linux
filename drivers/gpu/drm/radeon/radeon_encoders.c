@@ -988,11 +988,16 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		}
 
 		if (ASIC_IS_DCE5(rdev)) {
-			if (is_dp && rdev->clock.dp_extclk)
-				args.v4.acConfig.ucRefClkSource = 3; /* external src */
-			else
+			/* On DCE5 DCPLL usually generates the DP ref clock */
+			if (is_dp) {
+				if (rdev->clock.dp_extclk)
+					args.v4.acConfig.ucRefClkSource = ENCODER_REFCLK_SRC_EXTCLK;
+				else
+					args.v4.acConfig.ucRefClkSource = ENCODER_REFCLK_SRC_DCPLL;
+			} else
 				args.v4.acConfig.ucRefClkSource = pll_id;
 		} else {
+			/* On DCE4, if there is an external clock, it generates the DP ref clock */
 			if (is_dp && rdev->clock.dp_extclk)
 				args.v3.acConfig.ucRefClkSource = 2; /* external src */
 			else

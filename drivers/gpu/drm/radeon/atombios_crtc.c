@@ -1443,11 +1443,19 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 	uint32_t pll_in_use = 0;
 
 	if (ASIC_IS_DCE4(rdev)) {
-		/* if crtc is driving DP and we have an ext clock, use that */
 		list_for_each_entry(test_encoder, &dev->mode_config.encoder_list, head) {
 			if (test_encoder->crtc && (test_encoder->crtc == crtc)) {
+				/* in DP mode, the DP ref clock can come from PPLL, DCPLL, or ext clock,
+				 * depending on the asic:
+				 * DCE4: PPLL or ext clock
+				 * DCE5: DCPLL or ext clock
+				 *
+				 * Setting ATOM_PPLL_INVALID will cause SetPixelClock to skip
+				 * PPLL/DCPLL programming and only program the DP DTO for the
+				 * crtc virtual pixel clock.
+				 */
 				if (atombios_get_encoder_mode(test_encoder) == ATOM_ENCODER_MODE_DP) {
-					if (rdev->clock.dp_extclk)
+					if (ASIC_IS_DCE5(rdev) || rdev->clock.dp_extclk)
 						return ATOM_PPLL_INVALID;
 				}
 			}
