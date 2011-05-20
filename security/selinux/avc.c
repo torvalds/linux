@@ -343,11 +343,10 @@ static struct avc_node *avc_lookup(u32 ssid, u32 tsid, u16 tclass)
 	node = avc_search_node(ssid, tsid, tclass);
 
 	if (node)
-		avc_cache_stats_incr(hits);
-	else
-		avc_cache_stats_incr(misses);
+		return node;
 
-	return node;
+	avc_cache_stats_incr(misses);
+	return NULL;
 }
 
 static int avc_latest_notif_update(int seqno, int is_insert)
@@ -765,7 +764,7 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 	rcu_read_lock();
 
 	node = avc_lookup(ssid, tsid, tclass);
-	if (!node) {
+	if (unlikely(!node)) {
 		rcu_read_unlock();
 
 		if (in_avd)

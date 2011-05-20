@@ -1380,10 +1380,14 @@ static int sel_avc_stats_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_printf(seq, "lookups hits misses allocations reclaims "
 			   "frees\n");
-	else
-		seq_printf(seq, "%u %u %u %u %u %u\n", st->lookups,
-			   st->hits, st->misses, st->allocations,
+	else {
+		unsigned int lookups = st->lookups;
+		unsigned int misses = st->misses;
+		unsigned int hits = lookups - misses;
+		seq_printf(seq, "%u %u %u %u %u %u\n", lookups,
+			   hits, misses, st->allocations,
 			   st->reclaims, st->frees);
+	}
 	return 0;
 }
 
