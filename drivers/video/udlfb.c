@@ -27,6 +27,7 @@
 #include <linux/fb.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 #include <linux/delay.h>
 #include <video/udlfb.h>
 #include "edid.h"

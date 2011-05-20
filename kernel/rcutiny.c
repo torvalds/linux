@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/cpu.h>
+#include <linux/prefetch.h>
 
 /* Controls for rcu_kthread() kthread, replacing RCU_SOFTIRQ used previously. */
 static struct task_struct *rcu_kthread_task;

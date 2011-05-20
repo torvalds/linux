@@ -23,5 +23,5 @@ static inline void list_del_range(struct list_head *begin,
  * @head: the head for your list.
  */
 #define list_for_each_from(pos, head) \
-	for (; prefetch(pos->next), pos != (head); pos = pos->next)
+	for (; pos != (head); pos = pos->next)
 #endif

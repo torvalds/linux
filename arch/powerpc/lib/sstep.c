@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
+#include <linux/prefetch.h>
 #include <asm/sstep.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>

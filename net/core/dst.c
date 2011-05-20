@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <net/net_namespace.h>
 #include <linux/sched.h>
+#include <linux/prefetch.h>
 
 #include <net/dst.h>
 

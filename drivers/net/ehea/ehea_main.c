@@ -41,6 +41,7 @@
 #include <linux/memory.h>
 #include <asm/kexec.h>
 #include <linux/mutex.h>
+#include <linux/prefetch.h>
 
 #include <net/ip.h>
 
