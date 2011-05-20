@@ -557,7 +557,8 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 			if (connector)
 				bpc = connector->display_info.bpc;
 			encoder_mode = atombios_get_encoder_mode(encoder);
-			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) {
+			if ((radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) ||
+			    radeon_encoder_is_dp_bridge(encoder)) {
 				if (connector) {
 					struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 					struct radeon_connector_atom_dig *dig_connector =
@@ -637,7 +638,8 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				if (ss_enabled && ss->percentage)
 					args.v3.sInput.ucDispPllConfig |=
 						DISPPLL_CONFIG_SS_ENABLE;
-				if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
+				if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT) ||
+				    radeon_encoder_is_dp_bridge(encoder)) {
 					struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 					if (encoder_mode == ATOM_ENCODER_MODE_DP) {
 						args.v3.sInput.ucDispPllConfig |=

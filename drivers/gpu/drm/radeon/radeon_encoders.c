@@ -1949,8 +1949,9 @@ static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 
-	if (radeon_encoder->active_device &
-	    (ATOM_DEVICE_DFP_SUPPORT | ATOM_DEVICE_LCD_SUPPORT)) {
+	if ((radeon_encoder->active_device &
+	     (ATOM_DEVICE_DFP_SUPPORT | ATOM_DEVICE_LCD_SUPPORT)) ||
+	    radeon_encoder_is_dp_bridge(encoder)) {
 		struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 		if (dig)
 			dig->dig_encoder = radeon_atom_pick_dig_encoder(encoder);
