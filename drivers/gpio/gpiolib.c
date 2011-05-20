@@ -1165,6 +1165,7 @@ struct gpio_chip *gpiochip_find(void *data,
 
 	return chip;
 }
+EXPORT_SYMBOL_GPL(gpiochip_find);
 
 /* These "optional" allocation calls help prevent drivers from stomping
  * on each other, and help provide better diagnostics in debugfs.
