@@ -942,42 +942,24 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 		case ATOM_ENCODER_MODE_DP:
 			/* DP/eDP */
 			dp_clock = dig_connector->dp_clock / 10;
-			if (radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
-				if (ASIC_IS_DCE4(rdev)) {
-					/* first try ASIC_INTERNAL_SS_ON_DP */
-					ss_enabled =
-						radeon_atombios_get_asic_ss_info(rdev, &ss,
-										 ASIC_INTERNAL_SS_ON_DP,
-										 dp_clock);
-					if (!ss_enabled)
-						ss_enabled =
-							radeon_atombios_get_asic_ss_info(rdev, &ss,
-											 dig->lcd_ss_id,
-											 dp_clock);
-				} else
+			if (ASIC_IS_DCE4(rdev))
+				ss_enabled =
+					radeon_atombios_get_asic_ss_info(rdev, &ss,
+									 ASIC_INTERNAL_SS_ON_DP,
+									 dp_clock);
+			else {
+				if (dp_clock == 16200) {
 					ss_enabled =
 						radeon_atombios_get_ppll_ss_info(rdev, &ss,
-										 dig->lcd_ss_id);
-			} else {
-				if (ASIC_IS_DCE4(rdev))
-					ss_enabled =
-						radeon_atombios_get_asic_ss_info(rdev, &ss,
-										 ASIC_INTERNAL_SS_ON_DP,
-										 dp_clock);
-				else {
-					if (dp_clock == 16200) {
-						ss_enabled =
-							radeon_atombios_get_ppll_ss_info(rdev, &ss,
-											 ATOM_DP_SS_ID2);
-						if (!ss_enabled)
-							ss_enabled =
-								radeon_atombios_get_ppll_ss_info(rdev, &ss,
-												 ATOM_DP_SS_ID1);
-					} else
+										 ATOM_DP_SS_ID2);
+					if (!ss_enabled)
 						ss_enabled =
 							radeon_atombios_get_ppll_ss_info(rdev, &ss,
 											 ATOM_DP_SS_ID1);
-				}
+				} else
+					ss_enabled =
+						radeon_atombios_get_ppll_ss_info(rdev, &ss,
+										 ATOM_DP_SS_ID1);
 			}
 			break;
 		case ATOM_ENCODER_MODE_LVDS:
