@@ -3424,7 +3424,7 @@ IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
 L:	linux-mips@linux-mips.org
 S:	Maintained
-F:	drivers/net/ioc3-eth.c
+F:	drivers/net/ethernet/sgi/ioc3-eth.c
 
 IOC3 SERIAL DRIVER
 M:	Pat Gefre <pfg@sgi.com>
