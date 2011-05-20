@@ -15,6 +15,7 @@
 
 struct bgpio_pdata {
 	int base;
+	int ngpio;
 };
 
 #endif /* __BASIC_MMIO_GPIO_H */

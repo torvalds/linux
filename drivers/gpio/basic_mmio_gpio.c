@@ -239,6 +239,7 @@ static int __devinit bgpio_probe(struct platform_device *pdev)
 	resource_size_t dat_sz;
 	int bits;
 	int ret;
+	int ngpio;
 
 	res_dat = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dat");
 	if (!res_dat)
@@ -249,6 +250,7 @@ static int __devinit bgpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	bits = dat_sz * 8;
+	ngpio = bits;
 	if (bits > BITS_PER_LONG)
 		return -EINVAL;
 
@@ -277,24 +279,28 @@ static int __devinit bgpio_probe(struct platform_device *pdev)
 
 	spin_lock_init(&bgc->lock);
 
+	if (pdata) {
+		bgc->gc.base = pdata->base;
+		if (pdata->ngpio > 0)
+			ngpio = pdata->ngpio;
+	} else {
+		bgc->gc.base = -1;
+	}
+
 	bgc->bits = bits;
 	ret = bgpio_setup_accessors(pdev, bgc);
 	if (ret)
 		return ret;
 
 	bgc->data = bgc->read_reg(bgc->reg_dat);
-	bgc->gc.ngpio = bits;
+
+	bgc->gc.ngpio = ngpio;
 	bgc->gc.direction_input = bgpio_dir_in;
 	bgc->gc.direction_output = bgpio_dir_out;
 	bgc->gc.get = bgpio_get;
 	bgc->gc.set = bgpio_set;
 	bgc->gc.dev = dev;
 	bgc->gc.label = dev_name(dev);
-
-	if (pdata)
-		bgc->gc.base = pdata->base;
-	else
-		bgc->gc.base = -1;
 
 	platform_set_drvdata(pdev, bgc);
 
