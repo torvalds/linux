@@ -95,7 +95,6 @@ static DEFINE_PER_CPU(struct task_struct *, rcu_cpu_kthread_task);
 DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
 DEFINE_PER_CPU(int, rcu_cpu_kthread_cpu);
 DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_loops);
-static DEFINE_PER_CPU(wait_queue_head_t, rcu_cpu_wq);
 DEFINE_PER_CPU(char, rcu_cpu_has_work);
 static char rcu_kthreads_spawnable;
 
@@ -1476,7 +1475,7 @@ static void invoke_rcu_cpu_kthread(void)
 		local_irq_restore(flags);
 		return;
 	}
-	wake_up(&__get_cpu_var(rcu_cpu_wq));
+	wake_up_process(__this_cpu_read(rcu_cpu_kthread_task));
 	local_irq_restore(flags);
 }
 
@@ -1596,14 +1595,12 @@ static int rcu_cpu_kthread(void *arg)
 	unsigned long flags;
 	int spincnt = 0;
 	unsigned int *statusp = &per_cpu(rcu_cpu_kthread_status, cpu);
-	wait_queue_head_t *wqp = &per_cpu(rcu_cpu_wq, cpu);
 	char work;
 	char *workp = &per_cpu(rcu_cpu_has_work, cpu);
 
 	for (;;) {
 		*statusp = RCU_KTHREAD_WAITING;
-		wait_event_interruptible(*wqp,
-					 *workp != 0 || kthread_should_stop());
+		rcu_wait(*workp != 0 || kthread_should_stop());
 		local_bh_disable();
 		if (rcu_cpu_kthread_should_stop(cpu)) {
 			local_bh_enable();
@@ -1654,7 +1651,6 @@ static int __cpuinit rcu_spawn_one_cpu_kthread(int cpu)
 	per_cpu(rcu_cpu_kthread_cpu, cpu) = cpu;
 	WARN_ON_ONCE(per_cpu(rcu_cpu_kthread_task, cpu) != NULL);
 	per_cpu(rcu_cpu_kthread_task, cpu) = t;
-	wake_up_process(t);
 	sp.sched_priority = RCU_KTHREAD_PRIO;
 	sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
 	return 0;
@@ -1677,8 +1673,7 @@ static int rcu_node_kthread(void *arg)
 
 	for (;;) {
 		rnp->node_kthread_status = RCU_KTHREAD_WAITING;
-		wait_event_interruptible(rnp->node_wq,
-					 atomic_read(&rnp->wakemask) != 0);
+		rcu_wait(atomic_read(&rnp->wakemask) != 0);
 		rnp->node_kthread_status = RCU_KTHREAD_RUNNING;
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		mask = atomic_xchg(&rnp->wakemask, 0);
@@ -1762,7 +1757,6 @@ static int __cpuinit rcu_spawn_one_node_kthread(struct rcu_state *rsp,
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		rnp->node_kthread_task = t;
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
-		wake_up_process(t);
 		sp.sched_priority = 99;
 		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
 	}
@@ -1779,21 +1773,16 @@ static int __init rcu_spawn_kthreads(void)
 
 	rcu_kthreads_spawnable = 1;
 	for_each_possible_cpu(cpu) {
-		init_waitqueue_head(&per_cpu(rcu_cpu_wq, cpu));
 		per_cpu(rcu_cpu_has_work, cpu) = 0;
 		if (cpu_online(cpu))
 			(void)rcu_spawn_one_cpu_kthread(cpu);
 	}
 	rnp = rcu_get_root(rcu_state);
-	init_waitqueue_head(&rnp->node_wq);
-	rcu_init_boost_waitqueue(rnp);
 	(void)rcu_spawn_one_node_kthread(rcu_state, rnp);
-	if (NUM_RCU_NODES > 1)
-		rcu_for_each_leaf_node(rcu_state, rnp) {
-			init_waitqueue_head(&rnp->node_wq);
-			rcu_init_boost_waitqueue(rnp);
+	if (NUM_RCU_NODES > 1) {
+		rcu_for_each_leaf_node(rcu_state, rnp)
 			(void)rcu_spawn_one_node_kthread(rcu_state, rnp);
-		}
+	}
 	return 0;
 }
 early_initcall(rcu_spawn_kthreads);

@@ -1196,8 +1196,7 @@ static int rcu_boost_kthread(void *arg)
 
 	for (;;) {
 		rnp->boost_kthread_status = RCU_KTHREAD_WAITING;
-		wait_event_interruptible(rnp->boost_wq, rnp->boost_tasks ||
-							rnp->exp_tasks);
+		rcu_wait(rnp->boost_tasks || rnp->exp_tasks);
 		rnp->boost_kthread_status = RCU_KTHREAD_RUNNING;
 		more2boost = rcu_boost(rnp);
 		if (more2boost)
@@ -1275,14 +1274,6 @@ static void rcu_preempt_boost_start_gp(struct rcu_node *rnp)
 }
 
 /*
- * Initialize the RCU-boost waitqueue.
- */
-static void __init rcu_init_boost_waitqueue(struct rcu_node *rnp)
-{
-	init_waitqueue_head(&rnp->boost_wq);
-}
-
-/*
  * Create an RCU-boost kthread for the specified node if one does not
  * already exist.  We only create this kthread for preemptible RCU.
  * Returns zero if all is well, a negated errno otherwise.
@@ -1306,7 +1297,6 @@ static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 	raw_spin_lock_irqsave(&rnp->lock, flags);
 	rnp->boost_kthread_task = t;
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
-	wake_up_process(t);
 	sp.sched_priority = RCU_KTHREAD_PRIO;
 	sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
 	return 0;
@@ -1325,10 +1315,6 @@ static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp,
 }
 
 static void rcu_preempt_boost_start_gp(struct rcu_node *rnp)
-{
-}
-
-static void __init rcu_init_boost_waitqueue(struct rcu_node *rnp)
 {
 }
 
