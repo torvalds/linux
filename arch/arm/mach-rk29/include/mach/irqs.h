@@ -98,6 +98,8 @@
 #define IRQ_A8IRQ2              RK29XX_IRQ(66)
 #define IRQ_A8IRQ3              RK29XX_IRQ(67)
 
-#define NR_AIC_IRQS				(IRQ_A8IRQ3+1)
-#define NR_IRQS		        	(NR_AIC_IRQS + 7*32)
+#define NR_AIC_IRQS     (IRQ_A8IRQ3+1)
+#define NR_GPIO_IRQS    (7*32)
+#define NR_BOARD_IRQS   64
+#define NR_IRQS         (NR_AIC_IRQS + NR_GPIO_IRQS + NR_BOARD_IRQS)
 #endif
