@@ -1282,7 +1282,7 @@ L:	netdev@vger.kernel.org
 W:	http://sourceforge.net/projects/atl1
 W:	http://atl1.sourceforge.net
 S:	Maintained
-F:	drivers/net/atlx/
+F:	drivers/net/ethernet/atheros/
 
 ATM
 M:	Chas Williams <chas@cmf.nrl.navy.mil>

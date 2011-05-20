@@ -760,17 +760,6 @@ config FEC_MPC52xx_MDIO
 	  If not sure, enable.
 	  If compiled as module, it will be called fec_mpc52xx_phy.
 
-config ATL2
-	tristate "Atheros L2 Fast Ethernet support"
-	depends on PCI
-	select CRC32
-	select MII
-	help
-	  This driver supports the Atheros L2 fast ethernet adapter.
-
-	  To compile this driver as a module, choose M here.  The module
-	  will be called atl2.
-
 config XILINX_EMACLITE
 	tristate "Xilinx 10/100 Ethernet Lite support"
 	depends on PPC32 || MICROBLAZE
@@ -1030,40 +1019,6 @@ config XILINX_LL_TEMAC
 	help
 	  This driver supports the Xilinx 10/100/1000 LocalLink TEMAC
 	  core used in Xilinx Spartan and Virtex FPGAs
-
-config ATL1
-	tristate "Atheros/Attansic L1 Gigabit Ethernet support"
-	depends on PCI
-	select CRC32
-	select MII
-	help
-	  This driver supports the Atheros/Attansic L1 gigabit ethernet
-	  adapter.
-
-	  To compile this driver as a module, choose M here.  The module
-	  will be called atl1.
-
-config ATL1E
-	tristate "Atheros L1E Gigabit Ethernet support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
-	select CRC32
-	select MII
-	help
-	  This driver supports the Atheros L1E gigabit ethernet adapter.
-
-	  To compile this driver as a module, choose M here.  The module
-	  will be called atl1e.
-
-config ATL1C
-	tristate "Atheros L1C Gigabit Ethernet support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
-	select CRC32
-	select MII
-	help
-	  This driver supports the Atheros L1C gigabit ethernet adapter.
-
-	  To compile this driver as a module, choose M here.  The module
-	  will be called atl1c.
 
 config JME
 	tristate "JMicron(R) PCI-Express Gigabit Ethernet support"
