@@ -296,7 +296,7 @@ static int __devinit bgpio_probe(struct platform_device *pdev)
 	else
 		bgc->gc.base = -1;
 
-	dev_set_drvdata(dev, bgc);
+	platform_set_drvdata(pdev, bgc);
 
 	ret = gpiochip_add(&bgc->gc);
 	if (ret)
@@ -307,7 +307,7 @@ static int __devinit bgpio_probe(struct platform_device *pdev)
 
 static int __devexit bgpio_remove(struct platform_device *pdev)
 {
-	struct bgpio_chip *bgc = dev_get_drvdata(&pdev->dev);
+	struct bgpio_chip *bgc = platform_get_drvdata(pdev);
 
 	return gpiochip_remove(&bgc->gc);
 }
