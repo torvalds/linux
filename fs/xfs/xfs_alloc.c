@@ -2609,6 +2609,18 @@ xfs_alloc_busy_update_extent(
 	xfs_agblock_t		bend = bbno + busyp->length;
 
 	/*
+	 * This extent is currently being discarded.  Give the thread
+	 * performing the discard a chance to mark the extent unbusy
+	 * and retry.
+	 */
+	if (busyp->flags & XFS_ALLOC_BUSY_DISCARDED) {
+		spin_unlock(&pag->pagb_lock);
+		delay(1);
+		spin_lock(&pag->pagb_lock);
+		return false;
+	}
+
+	/*
 	 * If there is a busy extent overlapping a user allocation, we have
 	 * no choice but to force the log and retry the search.
 	 *
@@ -2813,7 +2825,8 @@ restart:
 		 * If this is a metadata allocation, try to reuse the busy
 		 * extent instead of trimming the allocation.
 		 */
-		if (!args->userdata) {
+		if (!args->userdata &&
+		    !(busyp->flags & XFS_ALLOC_BUSY_DISCARDED)) {
 			if (!xfs_alloc_busy_update_extent(args->mp, args->pag,
 							  busyp, fbno, flen,
 							  false))
@@ -2979,10 +2992,16 @@ xfs_alloc_busy_clear_one(
 	kmem_free(busyp);
 }
 
+/*
+ * Remove all extents on the passed in list from the busy extents tree.
+ * If do_discard is set skip extents that need to be discarded, and mark
+ * these as undergoing a discard operation instead.
+ */
 void
 xfs_alloc_busy_clear(
 	struct xfs_mount	*mp,
-	struct list_head	*list)
+	struct list_head	*list,
+	bool			do_discard)
 {
 	struct xfs_busy_extent	*busyp, *n;
 	struct xfs_perag	*pag = NULL;
@@ -2999,7 +3018,10 @@ xfs_alloc_busy_clear(
 			agno = busyp->agno;
 		}
 
-		xfs_alloc_busy_clear_one(mp, pag, busyp);
+		if (do_discard && busyp->length)
+			busyp->flags = XFS_ALLOC_BUSY_DISCARDED;
+		else
+			xfs_alloc_busy_clear_one(mp, pag, busyp);
 	}
 
 	if (pag) {
