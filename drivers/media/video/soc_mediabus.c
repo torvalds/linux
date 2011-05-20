@@ -130,6 +130,13 @@ static const struct soc_mbus_pixelfmt mbus_fmt[] = {
 		.packing		= SOC_MBUS_PACKING_2X8_PADLO,
 		.order			= SOC_MBUS_ORDER_BE,
 	},
+	[MBUS_IDX(JPEG_1X8)] = {
+		.fourcc                 = V4L2_PIX_FMT_JPEG,
+		.name                   = "JPEG",
+		.bits_per_sample        = 8,
+		.packing                = SOC_MBUS_PACKING_VARIABLE,
+		.order                  = SOC_MBUS_ORDER_LE,
+	},
 };
 
 int soc_mbus_samples_per_pixel(const struct soc_mbus_pixelfmt *mf)
@@ -141,6 +148,8 @@ int soc_mbus_samples_per_pixel(const struct soc_mbus_pixelfmt *mf)
 	case SOC_MBUS_PACKING_2X8_PADHI:
 	case SOC_MBUS_PACKING_2X8_PADLO:
 		return 2;
+	case SOC_MBUS_PACKING_VARIABLE:
+		return 0;
 	}
 	return -EINVAL;
 }
@@ -155,6 +164,8 @@ s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf)
 	case SOC_MBUS_PACKING_2X8_PADLO:
 	case SOC_MBUS_PACKING_EXTEND16:
 		return width * 2;
+	case SOC_MBUS_PACKING_VARIABLE:
+		return 0;
 	}
 	return -EINVAL;
 }
