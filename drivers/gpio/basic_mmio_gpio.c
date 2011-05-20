@@ -185,6 +185,24 @@ static void bgpio_set_with_clear(struct gpio_chip *gc, unsigned int gpio,
 		bgc->write_reg(bgc->reg_clr, mask);
 }
 
+static void bgpio_set_set(struct gpio_chip *gc, unsigned int gpio, int val)
+{
+	struct bgpio_chip *bgc = to_bgpio_chip(gc);
+	unsigned long mask = bgc->pin2mask(bgc, gpio);
+	unsigned long flags;
+
+	spin_lock_irqsave(&bgc->lock, flags);
+
+	if (val)
+		bgc->data |= mask;
+	else
+		bgc->data &= ~mask;
+
+	bgc->write_reg(bgc->reg_set, bgc->data);
+
+	spin_unlock_irqrestore(&bgc->lock, flags);
+}
+
 static int bgpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
 	return 0;
@@ -245,10 +263,12 @@ static int bgpio_setup_accessors(struct platform_device *pdev,
 
 /*
  * Create the device and allocate the resources.  For setting GPIO's there are
- * two supported configurations:
+ * three supported configurations:
  *
- *	- single output register resource (named "dat").
+ *	- single input/output register resource (named "dat").
  *	- set/clear pair (named "set" and "clr").
+ *	- single output register resource and single input resource ("set" and
+ *	dat").
  *
  * For the single output register, this drives a 1 by setting a bit and a zero
  * by clearing a bit.  For the set clr pair, this drives a 1 by setting a bit
@@ -292,11 +312,20 @@ static int bgpio_setup_io(struct platform_device *pdev,
 			return -ENOMEM;
 
 		bgc->gc.set = bgpio_set_with_clear;
-	} else if (res_set || res_clr) {
-		return -EINVAL;
+	} else if (res_set && !res_clr) {
+		if (resource_size(res_set) != resource_size(res_dat))
+			return -EINVAL;
+
+		bgc->reg_set = bgpio_request_and_map(&pdev->dev, res_set);
+		if (!bgc->reg_set)
+			return -ENOMEM;
+
+		bgc->gc.set = bgpio_set_set;
 	} else {
 		bgc->gc.set = bgpio_set;
 	}
+
+	bgc->gc.get = bgpio_get;
 
 	return 0;
 }
@@ -336,7 +365,6 @@ static int __devinit bgpio_probe(struct platform_device *pdev)
 	bgc->gc.ngpio = ngpio;
 	bgc->gc.direction_input = bgpio_dir_in;
 	bgc->gc.direction_output = bgpio_dir_out;
-	bgc->gc.get = bgpio_get;
 	bgc->gc.dev = dev;
 	bgc->gc.label = dev_name(dev);
 
