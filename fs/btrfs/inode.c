@@ -1310,7 +1310,7 @@ static int btrfs_set_bit_hook(struct inode *inode,
 
 	/*
 	 * set_bit and clear bit hooks normally require _irqsave/restore
-	 * but in this case, we are only testeing for the DELALLOC
+	 * but in this case, we are only testing for the DELALLOC
 	 * bit, which is only set or cleared with irqs on
 	 */
 	if (!(state->state & EXTENT_DELALLOC) && (*bits & EXTENT_DELALLOC)) {
@@ -1344,7 +1344,7 @@ static int btrfs_clear_bit_hook(struct inode *inode,
 {
 	/*
 	 * set_bit and clear bit hooks normally require _irqsave/restore
-	 * but in this case, we are only testeing for the DELALLOC
+	 * but in this case, we are only testing for the DELALLOC
 	 * bit, which is only set or cleared with irqs on
 	 */
 	if ((state->state & EXTENT_DELALLOC) && (*bits & EXTENT_DELALLOC)) {
