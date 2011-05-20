@@ -430,7 +430,7 @@ static struct pl061_platform_data gpio1_plat_data = {
 	.irq_base	= SPEAR300_GPIO1_INT_BASE,
 };
 
-struct amba_device gpio1_device = {
+struct amba_device spear300_gpio1_device = {
 	.dev = {
 		.init_name = "gpio1",
 		.platform_data = &gpio1_plat_data,

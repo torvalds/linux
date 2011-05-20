@@ -34,11 +34,11 @@ static struct pmx_dev *pmx_devs[] = {
 
 static struct amba_device *amba_devs[] __initdata = {
 	/* spear3xx specific devices */
-	&gpio_device,
-	&uart_device,
+	&spear3xx_gpio_device,
+	&spear3xx_uart_device,
 
 	/* spear300 specific devices */
-	&gpio1_device,
+	&spear300_gpio1_device,
 };
 
 static struct platform_device *plat_devs[] __initdata = {

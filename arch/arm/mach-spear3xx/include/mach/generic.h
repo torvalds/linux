@@ -31,8 +31,8 @@
 #define SPEAR_GPT0_CHAN1_IRQ	SPEAR3XX_IRQ_CPU_GPT1_2
 
 /* Add spear3xx family device structure declarations here */
-extern struct amba_device gpio_device;
-extern struct amba_device uart_device;
+extern struct amba_device spear3xx_gpio_device;
+extern struct amba_device spear3xx_uart_device;
 extern struct sys_timer spear3xx_timer;
 
 /* Add spear3xx family function declarations here */
@@ -98,7 +98,7 @@ extern struct pmx_dev spear3xx_pmx_plgpio_45_46_49_50;
 /* spear300 declarations */
 #ifdef CONFIG_MACH_SPEAR300
 /* Add spear300 machine device structure declarations here */
-extern struct amba_device gpio1_device;
+extern struct amba_device spear300_gpio1_device;
 
 /* pad mux modes */
 extern struct pmx_mode spear300_nand_mode;
