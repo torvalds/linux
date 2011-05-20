@@ -155,7 +155,6 @@ enum  hrtimer_base_type {
 	HRTIMER_BASE_REALTIME,
 	HRTIMER_BASE_MONOTONIC,
 	HRTIMER_BASE_BOOTTIME,
-	HRTIMER_BASE_REALTIME_COS,
 	HRTIMER_MAX_CLOCK_BASES,
 };
 
@@ -306,6 +305,11 @@ static inline int hrtimer_is_hres_active(struct hrtimer *timer)
 #endif
 
 extern void clock_was_set(void);
+#ifdef CONFIG_TIMERFD
+extern void timerfd_clock_was_set(void);
+#else
+static inline void timerfd_clock_was_set(void) { }
+#endif
 extern void hrtimers_resume(void);
 
 extern ktime_t ktime_get(void);
