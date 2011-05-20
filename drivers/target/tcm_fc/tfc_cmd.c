@@ -35,6 +35,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_tcq.h>
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
@@ -592,8 +593,25 @@ static void ft_send_cmd(struct ft_cmd *cmd)
 		case FCP_CFL_WRDATA | FCP_CFL_RDDATA:
 			goto err;	/* TBD not supported by tcm_fc yet */
 		}
+		/*
+		 * Locate the SAM Task Attr from fc_pri_ta
+		 */
+		switch (fcp->fc_pri_ta & FCP_PTA_MASK) {
+		case FCP_PTA_HEADQ:
+			task_attr = MSG_HEAD_TAG;
+			break;
+		case FCP_PTA_ORDERED:
+			task_attr = MSG_ORDERED_TAG;
+			break;
+		case FCP_PTA_ACA:
+			task_attr = MSG_ACA_TAG;
+			break;
+		case FCP_PTA_SIMPLE: /* Fallthrough */
+		default:
+			task_attr = MSG_SIMPLE_TAG;
+		}
 
-		/* FCP_PTA_ maps 1:1 to TASK_ATTR_ */
+
 		task_attr = fcp->fc_pri_ta & FCP_PTA_MASK;
 		data_len = ntohl(fcp->fc_dl);
 		cmd->cdb = fcp->fc_cdb;

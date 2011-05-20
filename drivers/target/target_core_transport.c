@@ -42,7 +42,7 @@
 #include <net/tcp.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
-#include <scsi/libsas.h> /* For TASK_ATTR_* */
+#include <scsi/scsi_tcq.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_device.h>
@@ -1074,7 +1074,7 @@ static inline int transport_add_task_check_sam_attr(
 	 * head of the struct se_device->execute_task_list, and task_prev
 	 * after that for each subsequent task
 	 */
-	if (task->task_se_cmd->sam_task_attr == TASK_ATTR_HOQ) {
+	if (task->task_se_cmd->sam_task_attr == MSG_HEAD_TAG) {
 		list_add(&task->t_execute_list,
 				(task_prev != NULL) ?
 				&task_prev->t_execute_list :
@@ -1873,7 +1873,7 @@ static int transport_check_alloc_task_attr(struct se_cmd *cmd)
 	if (SE_DEV(cmd)->dev_task_attr_type != SAM_TASK_ATTR_EMULATED)
 		return 0;
 
-	if (cmd->sam_task_attr == TASK_ATTR_ACA) {
+	if (cmd->sam_task_attr == MSG_ACA_TAG) {
 		DEBUG_STA("SAM Task Attribute ACA"
 			" emulation is not supported\n");
 		return -1;
@@ -2517,7 +2517,7 @@ static inline int transport_execute_task_attr(struct se_cmd *cmd)
 	 * Check for the existence of HEAD_OF_QUEUE, and if true return 1
 	 * to allow the passed struct se_cmd list of tasks to the front of the list.
 	 */
-	 if (cmd->sam_task_attr == TASK_ATTR_HOQ) {
+	 if (cmd->sam_task_attr == MSG_HEAD_TAG) {
 		atomic_inc(&SE_DEV(cmd)->dev_hoq_count);
 		smp_mb__after_atomic_inc();
 		DEBUG_STA("Added HEAD_OF_QUEUE for CDB:"
@@ -2525,7 +2525,7 @@ static inline int transport_execute_task_attr(struct se_cmd *cmd)
 			T_TASK(cmd)->t_task_cdb[0],
 			cmd->se_ordered_id);
 		return 1;
-	} else if (cmd->sam_task_attr == TASK_ATTR_ORDERED) {
+	} else if (cmd->sam_task_attr == MSG_ORDERED_TAG) {
 		spin_lock(&SE_DEV(cmd)->ordered_cmd_lock);
 		list_add_tail(&cmd->se_ordered_list,
 				&SE_DEV(cmd)->ordered_cmd_list);
@@ -3424,7 +3424,7 @@ static int transport_generic_cmd_sequencer(
 		 * See spc4r17 section 5.3
 		 */
 		if (SE_DEV(cmd)->dev_task_attr_type == SAM_TASK_ATTR_EMULATED)
-			cmd->sam_task_attr = TASK_ATTR_HOQ;
+			cmd->sam_task_attr = MSG_HEAD_TAG;
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_NONSG_IO_CDB;
 		break;
 	case READ_BUFFER:
@@ -3632,7 +3632,7 @@ static int transport_generic_cmd_sequencer(
 		 * See spc4r17 section 5.3
 		 */
 		if (SE_DEV(cmd)->dev_task_attr_type == SAM_TASK_ATTR_EMULATED)
-			cmd->sam_task_attr = TASK_ATTR_HOQ;
+			cmd->sam_task_attr = MSG_HEAD_TAG;
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_NONSG_IO_CDB;
 		break;
 	default:
@@ -3790,21 +3790,21 @@ static void transport_complete_task_attr(struct se_cmd *cmd)
 	struct se_cmd *cmd_p, *cmd_tmp;
 	int new_active_tasks = 0;
 
-	if (cmd->sam_task_attr == TASK_ATTR_SIMPLE) {
+	if (cmd->sam_task_attr == MSG_SIMPLE_TAG) {
 		atomic_dec(&dev->simple_cmds);
 		smp_mb__after_atomic_dec();
 		dev->dev_cur_ordered_id++;
 		DEBUG_STA("Incremented dev->dev_cur_ordered_id: %u for"
 			" SIMPLE: %u\n", dev->dev_cur_ordered_id,
 			cmd->se_ordered_id);
-	} else if (cmd->sam_task_attr == TASK_ATTR_HOQ) {
+	} else if (cmd->sam_task_attr == MSG_HEAD_TAG) {
 		atomic_dec(&dev->dev_hoq_count);
 		smp_mb__after_atomic_dec();
 		dev->dev_cur_ordered_id++;
 		DEBUG_STA("Incremented dev_cur_ordered_id: %u for"
 			" HEAD_OF_QUEUE: %u\n", dev->dev_cur_ordered_id,
 			cmd->se_ordered_id);
-	} else if (cmd->sam_task_attr == TASK_ATTR_ORDERED) {
+	} else if (cmd->sam_task_attr == MSG_ORDERED_TAG) {
 		spin_lock(&dev->ordered_cmd_lock);
 		list_del(&cmd->se_ordered_list);
 		atomic_dec(&dev->dev_ordered_sync);
@@ -3837,7 +3837,7 @@ static void transport_complete_task_attr(struct se_cmd *cmd)
 		new_active_tasks++;
 
 		spin_lock(&dev->delayed_cmd_lock);
-		if (cmd_p->sam_task_attr == TASK_ATTR_ORDERED)
+		if (cmd_p->sam_task_attr == MSG_ORDERED_TAG)
 			break;
 	}
 	spin_unlock(&dev->delayed_cmd_lock);
