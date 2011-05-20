@@ -623,26 +623,6 @@ config SIS900
 	  To compile this driver as a module, choose M here: the module
 	  will be called sis900.  This is recommended.
 
-config SUNDANCE
-	tristate "Sundance Alta support"
-	depends on NET_PCI && PCI
-	select CRC32
-	select MII
-	help
-	  This driver is for the Sundance "Alta" chip.
-	  More specific information and updates are available from
-	  <http://www.scyld.com/network/sundance.html>.
-
-config SUNDANCE_MMIO
-	bool "Use MMIO instead of PIO"
-	depends on SUNDANCE
-	help
-	  Enable memory-mapped I/O for interaction with Sundance NIC registers.
-	  Do NOT enable this by default, PIO (enabled when MMIO is disabled)
-	  is known to solve bugs on certain chips.
-
-	  If unsure, say N.
-
 config TLAN
 	tristate "TI ThunderLAN support"
 	depends on NET_PCI && (PCI || EISA)
@@ -740,36 +720,6 @@ config NET_POCKET
 	  the questions about this class of network devices. If you say Y, you
 	  will be asked for your specific device in the following questions.
 
-config DE600
-	tristate "D-Link DE600 pocket adapter support"
-	depends on NET_POCKET && PARPORT
-	---help---
-	  This is a network (Ethernet) device which attaches to your parallel
-	  port. Read <file:Documentation/networking/DLINK.txt> as well as the
-	  Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, if you want to use
-	  this. It is possible to have several devices share a single parallel
-	  port and it is safe to compile the corresponding drivers into the
-	  kernel.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called de600.
-
-config DE620
-	tristate "D-Link DE620 pocket adapter support"
-	depends on NET_POCKET && PARPORT
-	---help---
-	  This is a network (Ethernet) device which attaches to your parallel
-	  port. Read <file:Documentation/networking/DLINK.txt> as well as the
-	  Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, if you want to use
-	  this. It is possible to have several devices share a single parallel
-	  port and it is safe to compile the corresponding drivers into the
-	  kernel.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called de620.
-
 config SGISEEQ
 	tristate "SGI Seeq ethernet controller support"
 	depends on SGI_HAS_SEEQ
@@ -861,20 +811,6 @@ menuconfig NETDEV_1000
 	  If you say N, all options in this submenu will be skipped and disabled.
 
 if NETDEV_1000
-
-config DL2K
-	tristate "DL2000/TC902x-based Gigabit Ethernet support"
-	depends on PCI
-	select CRC32
-	help
-	  This driver supports DL2000/TC902x-based Gigabit ethernet cards,
-	  which includes
-	  D-Link DGE-550T Gigabit Ethernet Adapter.
-	  D-Link DL2000-based Gigabit Ethernet Adapter.
-	  Sundance/Tamarack TC902x Gigabit Ethernet Adapter.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dl2k.
 
 config IP1000
 	tristate "IP1000 Gigabit Ethernet support"
