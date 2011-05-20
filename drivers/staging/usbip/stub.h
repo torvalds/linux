@@ -77,6 +77,7 @@ struct stub_unlink {
 };
 
 #define BUSID_SIZE 20
+
 struct bus_id_priv {
 	char name[BUSID_SIZE];
 	char status;

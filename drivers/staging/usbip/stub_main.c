@@ -25,9 +25,7 @@
 #define DRIVER_AUTHOR "Takahiro Hirofuchi"
 #define DRIVER_DESC "USB/IP Host Driver"
 
-/* stub_priv is allocated from stub_priv_cache */
 struct kmem_cache *stub_priv_cache;
-
 /*
  * busid_tables defines matching busids that usbip can grab. A user can change
  * dynamically what device is locally used and what device is exported to a
@@ -42,7 +40,6 @@ int match_busid(const char *busid)
 	int i;
 
 	spin_lock(&busid_table_lock);
-
 	for (i = 0; i < MAX_BUSID; i++)
 		if (busid_table[i].name[0])
 			if (!strncmp(busid_table[i].name, busid, BUSID_SIZE)) {
@@ -50,7 +47,6 @@ int match_busid(const char *busid)
 				spin_unlock(&busid_table_lock);
 				return 0;
 			}
-
 	spin_unlock(&busid_table_lock);
 
 	return 1;
@@ -61,7 +57,6 @@ struct bus_id_priv *get_busid_priv(const char *busid)
 	int i;
 
 	spin_lock(&busid_table_lock);
-
 	for (i = 0; i < MAX_BUSID; i++)
 		if (busid_table[i].name[0])
 			if (!strncmp(busid_table[i].name, busid, BUSID_SIZE)) {
@@ -69,7 +64,6 @@ struct bus_id_priv *get_busid_priv(const char *busid)
 				spin_unlock(&busid_table_lock);
 				return &(busid_table[i]);
 			}
-
 	spin_unlock(&busid_table_lock);
 
 	return NULL;
@@ -81,15 +75,12 @@ static ssize_t show_match_busid(struct device_driver *drv, char *buf)
 	char *out = buf;
 
 	spin_lock(&busid_table_lock);
-
 	for (i = 0; i < MAX_BUSID; i++)
 		if (busid_table[i].name[0])
 			out += sprintf(out, "%s ", busid_table[i].name);
-
 	spin_unlock(&busid_table_lock);
 
 	out += sprintf(out, "\n");
-
 	return out - buf;
 }
 
@@ -101,7 +92,6 @@ static int add_match_busid(char *busid)
 		return 0;
 
 	spin_lock(&busid_table_lock);
-
 	for (i = 0; i < MAX_BUSID; i++)
 		if (!busid_table[i].name[0]) {
 			strncpy(busid_table[i].name, busid, BUSID_SIZE);
@@ -111,7 +101,6 @@ static int add_match_busid(char *busid)
 			spin_unlock(&busid_table_lock);
 			return 0;
 		}
-
 	spin_unlock(&busid_table_lock);
 
 	return -1;
@@ -122,7 +111,6 @@ int del_match_busid(char *busid)
 	int i;
 
 	spin_lock(&busid_table_lock);
-
 	for (i = 0; i < MAX_BUSID; i++)
 		if (!strncmp(busid_table[i].name, busid, BUSID_SIZE)) {
 			/* found */
@@ -135,7 +123,6 @@ int del_match_busid(char *busid)
 			spin_unlock(&busid_table_lock);
 			return 0;
 		}
-
 	spin_unlock(&busid_table_lock);
 
 	return -1;

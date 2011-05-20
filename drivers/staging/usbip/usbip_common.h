@@ -65,7 +65,7 @@ enum {
 #define usbip_dbg_flag_vhci_tx	(usbip_debug_flag & usbip_debug_vhci_tx)
 #define usbip_dbg_flag_stub_rx	(usbip_debug_flag & usbip_debug_stub_rx)
 #define usbip_dbg_flag_stub_tx	(usbip_debug_flag & usbip_debug_stub_tx)
-#define usbip_dbg_flag_vhci_sysfs   (usbip_debug_flag & usbip_debug_vhci_sysfs)
+#define usbip_dbg_flag_vhci_sysfs  (usbip_debug_flag & usbip_debug_vhci_sysfs)
 
 extern unsigned long usbip_debug_flag;
 extern struct device_attribute dev_attr_usbip_debug;
