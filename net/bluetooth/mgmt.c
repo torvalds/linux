@@ -1092,16 +1092,12 @@ static int get_connections(struct sock *sk, u16 index)
 
 	put_unaligned_le16(count, &rp->conn_count);
 
-	read_lock(&hci_dev_list_lock);
-
 	i = 0;
 	list_for_each(p, &hdev->conn_hash.list) {
 		struct hci_conn *c = list_entry(p, struct hci_conn, list);
 
 		bacpy(&rp->conn[i++], &c->dst);
 	}
-
-	read_unlock(&hci_dev_list_lock);
 
 	err = cmd_complete(sk, index, MGMT_OP_GET_CONNECTIONS, rp, rp_len);
 
