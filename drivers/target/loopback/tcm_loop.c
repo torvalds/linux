@@ -939,18 +939,6 @@ static u16 tcm_loop_get_fabric_sense_len(void)
 	return 0;
 }
 
-static u64 tcm_loop_pack_lun(unsigned int lun)
-{
-	u64 result;
-
-	/* LSB of lun into byte 1 big-endian */
-	result = ((lun & 0xff) << 8);
-	/* use flat space addressing method */
-	result |= 0x40 | ((lun >> 8) & 0x3f);
-
-	return cpu_to_le64(result);
-}
-
 static char *tcm_loop_dump_proto_id(struct tcm_loop_hba *tl_hba)
 {
 	switch (tl_hba->tl_proto_id) {
@@ -1481,7 +1469,6 @@ static int tcm_loop_register_configfs(void)
 	fabric->tf_ops.set_fabric_sense_len = &tcm_loop_set_fabric_sense_len;
 	fabric->tf_ops.get_fabric_sense_len = &tcm_loop_get_fabric_sense_len;
 	fabric->tf_ops.is_state_remove = &tcm_loop_is_state_remove;
-	fabric->tf_ops.pack_lun = &tcm_loop_pack_lun;
 
 	tf_cg = &fabric->tf_group;
 	/*

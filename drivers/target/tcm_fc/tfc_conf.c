@@ -519,13 +519,6 @@ static u32 ft_tpg_get_inst_index(struct se_portal_group *se_tpg)
 	return tpg->index;
 }
 
-static u64 ft_pack_lun(unsigned int index)
-{
-	WARN_ON(index >= 256);
-	/* Caller wants this byte-swapped */
-	return cpu_to_le64((index & 0xff) << 8);
-}
-
 static struct target_core_fabric_ops ft_fabric_ops = {
 	.get_fabric_name =		ft_get_fabric_name,
 	.get_fabric_proto_ident =	fc_get_fabric_proto_ident,
@@ -564,7 +557,6 @@ static struct target_core_fabric_ops ft_fabric_ops = {
 	.get_fabric_sense_len =		ft_get_fabric_sense_len,
 	.set_fabric_sense_len =		ft_set_fabric_sense_len,
 	.is_state_remove =		ft_is_state_remove,
-	.pack_lun =			ft_pack_lun,
 	/*
 	 * Setup function pointers for generic logic in
 	 * target_core_fabric_configfs.c
