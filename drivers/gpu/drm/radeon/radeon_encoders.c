@@ -1095,7 +1095,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
-void
+bool
 atombios_set_edp_panel_power(struct drm_connector *connector, int action)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
@@ -1106,23 +1106,37 @@ atombios_set_edp_panel_power(struct drm_connector *connector, int action)
 	uint8_t frev, crev;
 
 	if (connector->connector_type != DRM_MODE_CONNECTOR_eDP)
-		return;
+		goto done;
 
 	if (!ASIC_IS_DCE4(rdev))
-		return;
+		goto done;
 
 	if ((action != ATOM_TRANSMITTER_ACTION_POWER_ON) &&
 	    (action != ATOM_TRANSMITTER_ACTION_POWER_OFF))
-		return;
+		goto done;
 
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
-		return;
+		goto done;
 
 	memset(&args, 0, sizeof(args));
 
 	args.v1.ucAction = action;
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+	/* wait for the panel to power up */
+	if (action == ATOM_TRANSMITTER_ACTION_POWER_ON) {
+		int i;
+
+		for (i = 0; i < 300; i++) {
+			if (radeon_hpd_sense(rdev, radeon_connector->hpd.hpd))
+				return true;
+			mdelay(1);
+		}
+		return false;
+	}
+done:
+	return true;
 }
 
 union external_encoder_control {

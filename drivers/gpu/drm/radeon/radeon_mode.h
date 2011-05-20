@@ -545,7 +545,7 @@ struct drm_encoder *radeon_encoder_legacy_tmds_ext_add(struct drm_device *dev, i
 extern void atombios_dvo_setup(struct drm_encoder *encoder, int action);
 extern void atombios_digital_setup(struct drm_encoder *encoder, int action);
 extern int atombios_get_encoder_mode(struct drm_encoder *encoder);
-extern void atombios_set_edp_panel_power(struct drm_connector *connector, int action);
+extern bool atombios_set_edp_panel_power(struct drm_connector *connector, int action);
 extern void radeon_encoder_set_active_device(struct drm_encoder *encoder);
 
 extern void radeon_crtc_load_lut(struct drm_crtc *crtc);
