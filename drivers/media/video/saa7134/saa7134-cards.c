@@ -7313,6 +7313,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1150:
 	case SAA7134_BOARD_HAUPPAUGE_HVR1120:
+		dev->has_remote = SAA7134_REMOTE_GPIO;
 		/* GPIO 26 high for digital, low for analog */
 		saa7134_set_gpio(dev, 26, 0);
 		msleep(1);
