@@ -1405,7 +1405,7 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	ath9k_hw_set_interrupts(ah, ah->imask);
 
 	/* Set up ANI */
-	if ((iter_data.naps + iter_data.nadhocs) > 0) {
+	if (iter_data.naps > 0) {
 		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 		sc->sc_flags |= SC_OP_ANI_RUN;
 		ath_start_ani(common);
@@ -1945,50 +1945,35 @@ static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	struct ath_vif *avp = (void *)vif->drv_priv;
 
-	switch (sc->sc_ah->opmode) {
-	case NL80211_IFTYPE_ADHOC:
-		/* There can be only one vif available */
+	/*
+	 * Skip iteration if primary station vif's bss info
+	 * was not changed
+	 */
+	if (sc->sc_flags & SC_OP_PRIM_STA_VIF)
+		return;
+
+	if (bss_conf->assoc) {
+		sc->sc_flags |= SC_OP_PRIM_STA_VIF;
+		avp->primary_sta_vif = true;
 		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
 		common->curaid = bss_conf->aid;
 		ath9k_hw_write_associd(sc->sc_ah);
-		/* configure beacon */
-		if (bss_conf->enable_beacon)
-			ath_beacon_config(sc, vif);
-		break;
-	case NL80211_IFTYPE_STATION:
-		/*
-		 * Skip iteration if primary station vif's bss info
-		 * was not changed
-		 */
-		if (sc->sc_flags & SC_OP_PRIM_STA_VIF)
-			break;
-
-		if (bss_conf->assoc) {
-			sc->sc_flags |= SC_OP_PRIM_STA_VIF;
-			avp->primary_sta_vif = true;
-			memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
-			common->curaid = bss_conf->aid;
-			ath9k_hw_write_associd(sc->sc_ah);
-			ath_dbg(common, ATH_DBG_CONFIG,
+		ath_dbg(common, ATH_DBG_CONFIG,
 				"Bss Info ASSOC %d, bssid: %pM\n",
 				bss_conf->aid, common->curbssid);
-			ath_beacon_config(sc, vif);
-			/*
-			 * Request a re-configuration of Beacon related timers
-			 * on the receipt of the first Beacon frame (i.e.,
-			 * after time sync with the AP).
-			 */
-			sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
-			/* Reset rssi stats */
-			sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
-			sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
+		ath_beacon_config(sc, vif);
+		/*
+		 * Request a re-configuration of Beacon related timers
+		 * on the receipt of the first Beacon frame (i.e.,
+		 * after time sync with the AP).
+		 */
+		sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
+		/* Reset rssi stats */
+		sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
+		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
-			sc->sc_flags |= SC_OP_ANI_RUN;
-			ath_start_ani(common);
-		}
-		break;
-	default:
-		break;
+		sc->sc_flags |= SC_OP_ANI_RUN;
+		ath_start_ani(common);
 	}
 }
 
@@ -1997,6 +1982,9 @@ static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	struct ath_vif *avp = (void *)vif->drv_priv;
+
+	if (sc->sc_ah->opmode != NL80211_IFTYPE_STATION)
+		return;
 
 	/* Reconfigure bss info */
 	if (avp->primary_sta_vif && !bss_conf->assoc) {
@@ -2016,8 +2004,7 @@ static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
 	 * None of station vifs are associated.
 	 * Clear bssid & aid
 	 */
-	if ((sc->sc_ah->opmode == NL80211_IFTYPE_STATION) &&
-	    !(sc->sc_flags & SC_OP_PRIM_STA_VIF)) {
+	if (!(sc->sc_flags & SC_OP_PRIM_STA_VIF)) {
 		ath9k_hw_write_associd(sc->sc_ah);
 		/* Stop ANI */
 		sc->sc_flags &= ~SC_OP_ANI_RUN;
@@ -2045,6 +2032,22 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 
 		ath_dbg(common, ATH_DBG_CONFIG, "BSSID: %pM aid: 0x%x\n",
 			common->curbssid, common->curaid);
+	}
+
+	if (changed & BSS_CHANGED_IBSS) {
+		/* There can be only one vif available */
+		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
+		common->curaid = bss_conf->aid;
+		ath9k_hw_write_associd(sc->sc_ah);
+
+		if (bss_conf->ibss_joined) {
+			sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
+			sc->sc_flags |= SC_OP_ANI_RUN;
+			ath_start_ani(common);
+		} else {
+			sc->sc_flags &= ~SC_OP_ANI_RUN;
+			del_timer_sync(&common->ani.timer);
+		}
 	}
 
 	/* Enable transmission of beacons (AP, IBSS, MESH) */
