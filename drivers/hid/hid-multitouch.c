@@ -83,15 +83,18 @@ struct mt_class {
 };
 
 /* classes of device behavior */
-#define MT_CLS_DEFAULT				1
-#define MT_CLS_DUAL_INRANGE_CONTACTID		2
-#define MT_CLS_DUAL_INRANGE_CONTACTNUMBER	3
-#define MT_CLS_CYPRESS				4
-#define MT_CLS_EGALAX				5
-#define MT_CLS_3M				7
-#define MT_CLS_CONFIDENCE			8
-#define MT_CLS_CONFIDENCE_MINUS_ONE		9
-#define MT_CLS_DUAL_NSMU_CONTACTID		10
+#define MT_CLS_DEFAULT				0x0001
+
+#define MT_CLS_CONFIDENCE			0x0002
+#define MT_CLS_CONFIDENCE_MINUS_ONE		0x0003
+#define MT_CLS_DUAL_INRANGE_CONTACTID		0x0004
+#define MT_CLS_DUAL_INRANGE_CONTACTNUMBER	0x0005
+#define MT_CLS_DUAL_NSMU_CONTACTID		0x0006
+
+/* vendor specific classes */
+#define MT_CLS_3M				0x0101
+#define MT_CLS_CYPRESS				0x0102
+#define MT_CLS_EGALAX				0x0103
 
 #define MT_DEFAULT_MAXCONTACT	10
 
@@ -130,6 +133,11 @@ static int find_slot_from_contactid(struct mt_device *td)
 struct mt_class mt_classes[] = {
 	{ .name = MT_CLS_DEFAULT,
 		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP },
+	{ .name = MT_CLS_CONFIDENCE,
+		.quirks = MT_QUIRK_VALID_IS_CONFIDENCE },
+	{ .name = MT_CLS_CONFIDENCE_MINUS_ONE,
+		.quirks = MT_QUIRK_VALID_IS_CONFIDENCE |
+			MT_QUIRK_SLOT_IS_CONTACTID_MINUS_ONE },
 	{ .name = MT_CLS_DUAL_INRANGE_CONTACTID,
 		.quirks = MT_QUIRK_VALID_IS_INRANGE |
 			MT_QUIRK_SLOT_IS_CONTACTID,
@@ -138,13 +146,24 @@ struct mt_class mt_classes[] = {
 		.quirks = MT_QUIRK_VALID_IS_INRANGE |
 			MT_QUIRK_SLOT_IS_CONTACTNUMBER,
 		.maxcontacts = 2 },
+	{ .name = MT_CLS_DUAL_NSMU_CONTACTID,
+		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP |
+			MT_QUIRK_SLOT_IS_CONTACTID,
+		.maxcontacts = 2 },
+
+	/*
+	 * vendor specific classes
+	 */
+	{ .name = MT_CLS_3M,
+		.quirks = MT_QUIRK_VALID_IS_CONFIDENCE |
+			MT_QUIRK_SLOT_IS_CONTACTID,
+		.sn_move = 2048,
+		.sn_width = 128,
+		.sn_height = 128 },
 	{ .name = MT_CLS_CYPRESS,
 		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP |
 			MT_QUIRK_CYPRESS,
 		.maxcontacts = 10 },
-	{ .name = MT_CLS_CONFIDENCE_MINUS_ONE,
-		.quirks = MT_QUIRK_VALID_IS_CONFIDENCE |
-			MT_QUIRK_SLOT_IS_CONTACTID_MINUS_ONE },
 	{ .name = MT_CLS_EGALAX,
 		.quirks =  MT_QUIRK_SLOT_IS_CONTACTID |
 			MT_QUIRK_VALID_IS_INRANGE |
@@ -153,18 +172,6 @@ struct mt_class mt_classes[] = {
 		.sn_move = 4096,
 		.sn_pressure = 32,
 	},
-	{ .name = MT_CLS_3M,
-		.quirks = MT_QUIRK_VALID_IS_CONFIDENCE |
-			MT_QUIRK_SLOT_IS_CONTACTID,
-		.sn_move = 2048,
-		.sn_width = 128,
-		.sn_height = 128 },
-	{ .name = MT_CLS_CONFIDENCE,
-		.quirks = MT_QUIRK_VALID_IS_CONFIDENCE },
-	{ .name = MT_CLS_DUAL_NSMU_CONTACTID,
-		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP |
-			MT_QUIRK_SLOT_IS_CONTACTID,
-		.maxcontacts = 2 },
 
 	{ }
 };
@@ -596,6 +603,25 @@ static const struct hid_device_id mt_devices[] = {
 		HID_USB_DEVICE(USB_VENDOR_ID_CYPRESS,
 			USB_DEVICE_ID_CYPRESS_TRUETOUCH) },
 
+	/* eGalax devices (resistive) */
+	{  .driver_data = MT_CLS_EGALAX,
+		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH) },
+	{  .driver_data = MT_CLS_EGALAX,
+		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH3) },
+
+	/* eGalax devices (capacitive) */
+	{  .driver_data = MT_CLS_EGALAX,
+		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH1) },
+	{  .driver_data = MT_CLS_EGALAX,
+		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH2) },
+	{  .driver_data = MT_CLS_EGALAX,
+		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH4) },
+
 	/* Elo TouchSystems IntelliTouch Plus panel */
 	{ .driver_data = MT_CLS_DUAL_NSMU_CONTACTID,
 		HID_USB_DEVICE(USB_VENDOR_ID_ELO,
@@ -649,25 +675,6 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_DUAL_INRANGE_CONTACTID,
 		HID_USB_DEVICE(USB_VENDOR_ID_CANDO,
 			USB_DEVICE_ID_CANDO_PIXCIR_MULTI_TOUCH) },
-
-	/* Resistive eGalax devices */
-	{  .driver_data = MT_CLS_EGALAX,
-		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
-			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH) },
-	{  .driver_data = MT_CLS_EGALAX,
-		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
-			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH3) },
-
-	/* Capacitive eGalax devices */
-	{  .driver_data = MT_CLS_EGALAX,
-		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
-			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH1) },
-	{  .driver_data = MT_CLS_EGALAX,
-		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
-			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH2) },
-	{  .driver_data = MT_CLS_EGALAX,
-		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
-			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH4) },
 
 	/* Stantum panels */
 	{ .driver_data = MT_CLS_CONFIDENCE,

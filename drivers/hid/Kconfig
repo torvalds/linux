@@ -304,21 +304,20 @@ config HID_MULTITOUCH
 	  Say Y here if you have one of the following devices:
 	  - 3M PCT touch screens
 	  - ActionStar dual touch panels
-	  - Cando dual touch panel
+	  - Cando dual touch panels
 	  - CVTouch panels
 	  - Cypress TrueTouch panels
 	  - Elo TouchSystems IntelliTouch Plus panels
+	  - GeneralTouch 'Sensing Win7-TwoFinger' panels
 	  - GoodTouch panels
 	  - Hanvon dual touch panels
-	  - Ilitek dual touch panel
+	  - Ilitek dual touch panels
 	  - IrTouch Infrared USB panels
 	  - Lumio CrystalTouch panels
 	  - MosArt dual-touch panels
 	  - PenMount dual touch panels
 	  - Pixcir dual touch panels
-	  - 'Sensing Win7-TwoFinger' panel by GeneralTouch
-          - eGalax dual-touch panels, including the
-	    Joojoo and Wetab tablets
+	  - eGalax dual-touch panels, including the Joojoo and Wetab tablets
 	  - Stantum multitouch panels
 	  - Touch International Panels
 	  - Unitec Panels
