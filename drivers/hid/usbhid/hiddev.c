@@ -242,6 +242,7 @@ static int hiddev_release(struct inode * inode, struct file * file)
 	list_del(&list->node);
 	spin_unlock_irqrestore(&list->hiddev->list_lock, flags);
 
+	mutex_lock(&list->hiddev->existancelock);
 	if (!--list->hiddev->open) {
 		if (list->hiddev->exist) {
 			usbhid_close(list->hiddev->hid);
@@ -252,6 +253,7 @@ static int hiddev_release(struct inode * inode, struct file * file)
 	}
 
 	kfree(list);
+	mutex_unlock(&list->hiddev->existancelock);
 
 	return 0;
 }
@@ -300,17 +302,21 @@ static int hiddev_open(struct inode *inode, struct file *file)
 	list_add_tail(&list->node, &hiddev->list);
 	spin_unlock_irq(&list->hiddev->list_lock);
 
+	mutex_lock(&hiddev->existancelock);
 	if (!list->hiddev->open++)
 		if (list->hiddev->exist) {
 			struct hid_device *hid = hiddev->hid;
 			res = usbhid_get_power(hid);
 			if (res < 0) {
 				res = -EIO;
-				goto bail;
+				goto bail_unlock;
 			}
 			usbhid_open(hid);
 		}
+	mutex_unlock(&hiddev->existancelock);
 	return 0;
+bail_unlock:
+	mutex_unlock(&hiddev->existancelock);
 bail:
 	file->private_data = NULL;
 	kfree(list);
@@ -911,7 +917,6 @@ void hiddev_disconnect(struct hid_device *hid)
 
 	mutex_lock(&hiddev->existancelock);
 	hiddev->exist = 0;
-	mutex_unlock(&hiddev->existancelock);
 
 	usb_deregister_dev(usbhid->intf, &hiddev_class);
 
@@ -921,4 +926,5 @@ void hiddev_disconnect(struct hid_device *hid)
 	} else {
 		kfree(hiddev);
 	}
+	mutex_unlock(&hiddev->existancelock);
 }
