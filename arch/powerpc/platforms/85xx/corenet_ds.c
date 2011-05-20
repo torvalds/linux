@@ -22,6 +22,7 @@
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
+#include <asm/ppc-pci.h>
 #include <mm/mmu_decl.h>
 #include <asm/prom.h>
 #include <asm/udbg.h>
@@ -90,6 +91,10 @@ void __init corenet_ds_setup_arch(void)
 					hose->dma_window_size);
 		}
 	}
+
+#ifdef CONFIG_PPC64
+	pci_devs_phb_init();
+#endif
 #endif
 
 #ifdef CONFIG_SWIOTLB
