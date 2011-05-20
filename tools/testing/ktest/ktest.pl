@@ -1248,13 +1248,13 @@ sub run_bisect_test {
 
     if ($failed) {
 	$result = 0;
-
-	# reboot the box to a good kernel
-	if ($type ne "build") {
-	    bisect_reboot;
-	}
     } else {
 	$result = 1;
+    }
+
+    # reboot the box to a kernel we can ssh to
+    if ($type ne "build") {
+	bisect_reboot;
     }
     $in_bisect = 0;
 
