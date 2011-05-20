@@ -4776,18 +4776,20 @@ void transport_do_task_sg_chain(struct se_cmd *cmd)
 				sg_end_cur->page_link &= ~0x02;
 
 				sg_chain(sg_head, task_sg_num, sg_head_cur);
-				sg_count += (task->task_sg_num + 1);
-			} else
 				sg_count += task->task_sg_num;
+				task_sg_num = (task->task_sg_num + 1);
+			} else {
+				sg_chain(sg_head, task_sg_num, sg_head_cur);
+				sg_count += task->task_sg_num;
+				task_sg_num = task->task_sg_num;
+			}
 
 			sg_head = sg_head_cur;
 			sg_link = sg_link_cur;
-			task_sg_num = task->task_sg_num;
 			continue;
 		}
 		sg_head = sg_first = &task->task_sg[0];
 		sg_link = &task->task_sg[task->task_sg_num];
-		task_sg_num = task->task_sg_num;
 		/*
 		 * Check for single task..
 		 */
@@ -4798,9 +4800,12 @@ void transport_do_task_sg_chain(struct se_cmd *cmd)
 			 */
 			sg_end = &task->task_sg[task->task_sg_num - 1];
 			sg_end->page_link &= ~0x02;
-			sg_count += (task->task_sg_num + 1);
-		} else
 			sg_count += task->task_sg_num;
+			task_sg_num = (task->task_sg_num + 1);
+		} else {
+			sg_count += task->task_sg_num;
+			task_sg_num = task->task_sg_num;
+		}
 	}
 	/*
 	 * Setup the starting pointer and total t_tasks_sg_linked_no including
@@ -4809,21 +4814,20 @@ void transport_do_task_sg_chain(struct se_cmd *cmd)
 	T_TASK(cmd)->t_tasks_sg_chained = sg_first;
 	T_TASK(cmd)->t_tasks_sg_chained_no = sg_count;
 
-	DEBUG_CMD_M("Setup T_TASK(cmd)->t_tasks_sg_chained: %p and"
-		" t_tasks_sg_chained_no: %u\n", T_TASK(cmd)->t_tasks_sg_chained,
+	DEBUG_CMD_M("Setup cmd: %p T_TASK(cmd)->t_tasks_sg_chained: %p and"
+		" t_tasks_sg_chained_no: %u\n", cmd, T_TASK(cmd)->t_tasks_sg_chained,
 		T_TASK(cmd)->t_tasks_sg_chained_no);
 
 	for_each_sg(T_TASK(cmd)->t_tasks_sg_chained, sg,
 			T_TASK(cmd)->t_tasks_sg_chained_no, i) {
 
-		DEBUG_CMD_M("SG: %p page: %p length: %d offset: %d\n",
-			sg, sg_page(sg), sg->length, sg->offset);
+		DEBUG_CMD_M("SG[%d]: %p page: %p length: %d offset: %d, magic: 0x%08x\n",
+			i, sg, sg_page(sg), sg->length, sg->offset, sg->sg_magic);
 		if (sg_is_chain(sg))
 			DEBUG_CMD_M("SG: %p sg_is_chain=1\n", sg);
 		if (sg_is_last(sg))
 			DEBUG_CMD_M("SG: %p sg_is_last=1\n", sg);
 	}
-
 }
 EXPORT_SYMBOL(transport_do_task_sg_chain);
 
