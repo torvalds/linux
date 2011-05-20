@@ -25,6 +25,8 @@ SECTIONS
 
   EXCEPTION_TABLE(16)
 
+  _sdata = .;			/* Start of data section */
+
   RODATA
 
   RW_DATA_SECTION(16, PAGE_SIZE, THREAD_SIZE)
