@@ -46,40 +46,66 @@ void ssb_chipco_set_clockmode(struct ssb_chipcommon *cc,
 	if (!ccdev)
 		return;
 	bus = ccdev->bus;
+
+	/* We support SLOW only on 6..9 */
+	if (ccdev->id.revision >= 10 && mode == SSB_CLKMODE_SLOW)
+		mode = SSB_CLKMODE_DYNAMIC;
+
+	if (cc->capabilities & SSB_CHIPCO_CAP_PMU)
+		return; /* PMU controls clockmode, separated function needed */
+	SSB_WARN_ON(ccdev->id.revision >= 20);
+
 	/* chipcommon cores prior to rev6 don't support dynamic clock control */
 	if (ccdev->id.revision < 6)
 		return;
-	/* chipcommon cores rev10 are a whole new ball game */
+
+	/* ChipCommon cores rev10+ need testing */
 	if (ccdev->id.revision >= 10)
 		return;
+
 	if (!(cc->capabilities & SSB_CHIPCO_CAP_PCTL))
 		return;
 
 	switch (mode) {
-	case SSB_CLKMODE_SLOW:
+	case SSB_CLKMODE_SLOW: /* For revs 6..9 only */
 		tmp = chipco_read32(cc, SSB_CHIPCO_SLOWCLKCTL);
 		tmp |= SSB_CHIPCO_SLOWCLKCTL_FSLOW;
 		chipco_write32(cc, SSB_CHIPCO_SLOWCLKCTL, tmp);
 		break;
 	case SSB_CLKMODE_FAST:
-		ssb_pci_xtal(bus, SSB_GPIO_XTAL, 1); /* Force crystal on */
-		tmp = chipco_read32(cc, SSB_CHIPCO_SLOWCLKCTL);
-		tmp &= ~SSB_CHIPCO_SLOWCLKCTL_FSLOW;
-		tmp |= SSB_CHIPCO_SLOWCLKCTL_IPLL;
-		chipco_write32(cc, SSB_CHIPCO_SLOWCLKCTL, tmp);
+		if (ccdev->id.revision < 10) {
+			ssb_pci_xtal(bus, SSB_GPIO_XTAL, 1); /* Force crystal on */
+			tmp = chipco_read32(cc, SSB_CHIPCO_SLOWCLKCTL);
+			tmp &= ~SSB_CHIPCO_SLOWCLKCTL_FSLOW;
+			tmp |= SSB_CHIPCO_SLOWCLKCTL_IPLL;
+			chipco_write32(cc, SSB_CHIPCO_SLOWCLKCTL, tmp);
+		} else {
+			chipco_write32(cc, SSB_CHIPCO_SYSCLKCTL,
+				(chipco_read32(cc, SSB_CHIPCO_SYSCLKCTL) |
+				 SSB_CHIPCO_SYSCLKCTL_FORCEHT));
+			/* udelay(150); TODO: not available in early init */
+		}
 		break;
 	case SSB_CLKMODE_DYNAMIC:
-		tmp = chipco_read32(cc, SSB_CHIPCO_SLOWCLKCTL);
-		tmp &= ~SSB_CHIPCO_SLOWCLKCTL_FSLOW;
-		tmp &= ~SSB_CHIPCO_SLOWCLKCTL_IPLL;
-		tmp &= ~SSB_CHIPCO_SLOWCLKCTL_ENXTAL;
-		if ((tmp & SSB_CHIPCO_SLOWCLKCTL_SRC) != SSB_CHIPCO_SLOWCLKCTL_SRC_XTAL)
-			tmp |= SSB_CHIPCO_SLOWCLKCTL_ENXTAL;
-		chipco_write32(cc, SSB_CHIPCO_SLOWCLKCTL, tmp);
+		if (ccdev->id.revision < 10) {
+			tmp = chipco_read32(cc, SSB_CHIPCO_SLOWCLKCTL);
+			tmp &= ~SSB_CHIPCO_SLOWCLKCTL_FSLOW;
+			tmp &= ~SSB_CHIPCO_SLOWCLKCTL_IPLL;
+			tmp &= ~SSB_CHIPCO_SLOWCLKCTL_ENXTAL;
+			if ((tmp & SSB_CHIPCO_SLOWCLKCTL_SRC) !=
+			    SSB_CHIPCO_SLOWCLKCTL_SRC_XTAL)
+				tmp |= SSB_CHIPCO_SLOWCLKCTL_ENXTAL;
+			chipco_write32(cc, SSB_CHIPCO_SLOWCLKCTL, tmp);
 
-		/* for dynamic control, we have to release our xtal_pu "force on" */
-		if (tmp & SSB_CHIPCO_SLOWCLKCTL_ENXTAL)
-			ssb_pci_xtal(bus, SSB_GPIO_XTAL, 0);
+			/* For dynamic control, we have to release our xtal_pu
+			 * "force on" */
+			if (tmp & SSB_CHIPCO_SLOWCLKCTL_ENXTAL)
+				ssb_pci_xtal(bus, SSB_GPIO_XTAL, 0);
+		} else {
+			chipco_write32(cc, SSB_CHIPCO_SYSCLKCTL,
+				(chipco_read32(cc, SSB_CHIPCO_SYSCLKCTL) &
+				 ~SSB_CHIPCO_SYSCLKCTL_FORCEHT));
+		}
 		break;
 	default:
 		SSB_WARN_ON(1);
@@ -260,6 +286,12 @@ void ssb_chipcommon_init(struct ssb_chipcommon *cc)
 	if (cc->dev->id.revision >= 11)
 		cc->status = chipco_read32(cc, SSB_CHIPCO_CHIPSTAT);
 	ssb_dprintk(KERN_INFO PFX "chipcommon status is 0x%x\n", cc->status);
+
+	if (cc->dev->id.revision >= 20) {
+		chipco_write32(cc, SSB_CHIPCO_GPIOPULLUP, 0);
+		chipco_write32(cc, SSB_CHIPCO_GPIOPULLDOWN, 0);
+	}
+
 	ssb_pmu_init(cc);
 	chipco_powercontrol_init(cc);
 	ssb_chipco_set_clockmode(cc, SSB_CLKMODE_FAST);

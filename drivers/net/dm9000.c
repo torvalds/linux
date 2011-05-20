@@ -131,8 +131,6 @@ typedef struct board_info {
 	u32		msg_enable;
 	u32		wake_state;
 
-	int		rx_csum;
-	int		can_csum;
 	int		ip_summed;
 } board_info_t;
 
@@ -470,47 +468,20 @@ static int dm9000_nway_reset(struct net_device *dev)
 	return mii_nway_restart(&dm->mii);
 }
 
-static uint32_t dm9000_get_rx_csum(struct net_device *dev)
+static int dm9000_set_features(struct net_device *dev, u32 features)
 {
 	board_info_t *dm = to_dm9000_board(dev);
-	return dm->rx_csum;
-}
-
-static int dm9000_set_rx_csum_unlocked(struct net_device *dev, uint32_t data)
-{
-	board_info_t *dm = to_dm9000_board(dev);
-
-	if (dm->can_csum) {
-		dm->rx_csum = data;
-		iow(dm, DM9000_RCSR, dm->rx_csum ? RCSR_CSUM : 0);
-
-		return 0;
-	}
-
-	return -EOPNOTSUPP;
-}
-
-static int dm9000_set_rx_csum(struct net_device *dev, uint32_t data)
-{
-	board_info_t *dm = to_dm9000_board(dev);
+	u32 changed = dev->features ^ features;
 	unsigned long flags;
-	int ret;
+
+	if (!(changed & NETIF_F_RXCSUM))
+		return 0;
 
 	spin_lock_irqsave(&dm->lock, flags);
-	ret = dm9000_set_rx_csum_unlocked(dev, data);
+	iow(dm, DM9000_RCSR, (features & NETIF_F_RXCSUM) ? RCSR_CSUM : 0);
 	spin_unlock_irqrestore(&dm->lock, flags);
 
-	return ret;
-}
-
-static int dm9000_set_tx_csum(struct net_device *dev, uint32_t data)
-{
-	board_info_t *dm = to_dm9000_board(dev);
-	int ret = -EOPNOTSUPP;
-
-	if (dm->can_csum)
-		ret = ethtool_op_set_tx_csum(dev, data);
-	return ret;
+	return 0;
 }
 
 static u32 dm9000_get_link(struct net_device *dev)
@@ -643,10 +614,6 @@ static const struct ethtool_ops dm9000_ethtool_ops = {
  	.get_eeprom_len		= dm9000_get_eeprom_len,
  	.get_eeprom		= dm9000_get_eeprom,
  	.set_eeprom		= dm9000_set_eeprom,
-	.get_rx_csum		= dm9000_get_rx_csum,
-	.set_rx_csum		= dm9000_set_rx_csum,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.set_tx_csum		= dm9000_set_tx_csum,
 };
 
 static void dm9000_show_carrier(board_info_t *db,
@@ -800,7 +767,9 @@ dm9000_init_dm9000(struct net_device *dev)
 	db->io_mode = ior(db, DM9000_ISR) >> 6;	/* ISR bit7:6 keeps I/O mode */
 
 	/* Checksum mode */
-	dm9000_set_rx_csum_unlocked(dev, db->rx_csum);
+	if (dev->hw_features & NETIF_F_RXCSUM)
+		iow(db, DM9000_RCSR,
+			(dev->features & NETIF_F_RXCSUM) ? RCSR_CSUM : 0);
 
 	iow(db, DM9000_GPCR, GPCR_GEP_CNTL);	/* Let GPIO0 output */
 
@@ -1049,7 +1018,7 @@ dm9000_rx(struct net_device *dev)
 
 			/* Pass to upper layer */
 			skb->protocol = eth_type_trans(skb, dev);
-			if (db->rx_csum) {
+			if (dev->features & NETIF_F_RXCSUM) {
 				if ((((rxbyte & 0x1c) << 3) & rxbyte) == 0)
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
 				else
@@ -1358,6 +1327,7 @@ static const struct net_device_ops dm9000_netdev_ops = {
 	.ndo_set_multicast_list	= dm9000_hash_table,
 	.ndo_do_ioctl		= dm9000_ioctl,
 	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_features	= dm9000_set_features,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1551,9 +1521,8 @@ dm9000_probe(struct platform_device *pdev)
 
 	/* dm9000a/b are capable of hardware checksum offload */
 	if (db->type == TYPE_DM9000A || db->type == TYPE_DM9000B) {
-		db->can_csum = 1;
-		db->rx_csum = 1;
-		ndev->features |= NETIF_F_IP_CSUM;
+		ndev->hw_features = NETIF_F_RXCSUM | NETIF_F_IP_CSUM;
+		ndev->features |= ndev->hw_features;
 	}
 
 	/* from this point we assume that we have found a DM9000 */

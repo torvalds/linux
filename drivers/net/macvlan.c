@@ -70,16 +70,17 @@ static void macvlan_hash_add(struct macvlan_dev *vlan)
 	hlist_add_head_rcu(&vlan->hlist, &port->vlan_hash[addr[5]]);
 }
 
-static void macvlan_hash_del(struct macvlan_dev *vlan)
+static void macvlan_hash_del(struct macvlan_dev *vlan, bool sync)
 {
 	hlist_del_rcu(&vlan->hlist);
-	synchronize_rcu();
+	if (sync)
+		synchronize_rcu();
 }
 
 static void macvlan_hash_change_addr(struct macvlan_dev *vlan,
 					const unsigned char *addr)
 {
-	macvlan_hash_del(vlan);
+	macvlan_hash_del(vlan, true);
 	/* Now that we are unhashed it is safe to change the device
 	 * address without confusing packet delivery.
 	 */
@@ -345,7 +346,7 @@ static int macvlan_stop(struct net_device *dev)
 	dev_uc_del(lowerdev, dev->dev_addr);
 
 hash_del:
-	macvlan_hash_del(vlan);
+	macvlan_hash_del(vlan, !dev->dismantle);
 	return 0;
 }
 
@@ -415,7 +416,7 @@ static struct lock_class_key macvlan_netdev_addr_lock_key;
 #define MACVLAN_FEATURES \
 	(NETIF_F_SG | NETIF_F_ALL_CSUM | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST | \
 	 NETIF_F_GSO | NETIF_F_TSO | NETIF_F_UFO | NETIF_F_GSO_ROBUST | \
-	 NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_GRO)
+	 NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_RXCSUM)
 
 #define MACVLAN_STATE_MASK \
 	((1<<__LINK_STATE_NOCARRIER) | (1<<__LINK_STATE_DORMANT))
@@ -517,12 +518,6 @@ static void macvlan_ethtool_get_drvinfo(struct net_device *dev,
 	snprintf(drvinfo->version, 32, "0.1");
 }
 
-static u32 macvlan_ethtool_get_rx_csum(struct net_device *dev)
-{
-	const struct macvlan_dev *vlan = netdev_priv(dev);
-	return dev_ethtool_get_rx_csum(vlan->lowerdev);
-}
-
 static int macvlan_ethtool_get_settings(struct net_device *dev,
 					struct ethtool_cmd *cmd)
 {
@@ -530,18 +525,10 @@ static int macvlan_ethtool_get_settings(struct net_device *dev,
 	return dev_ethtool_get_settings(vlan->lowerdev, cmd);
 }
 
-static u32 macvlan_ethtool_get_flags(struct net_device *dev)
-{
-	const struct macvlan_dev *vlan = netdev_priv(dev);
-	return dev_ethtool_get_flags(vlan->lowerdev);
-}
-
 static const struct ethtool_ops macvlan_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_settings		= macvlan_ethtool_get_settings,
-	.get_rx_csum		= macvlan_ethtool_get_rx_csum,
 	.get_drvinfo		= macvlan_ethtool_get_drvinfo,
-	.get_flags		= macvlan_ethtool_get_flags,
 };
 
 static const struct net_device_ops macvlan_netdev_ops = {
@@ -598,8 +585,8 @@ static int macvlan_port_create(struct net_device *dev)
 	err = netdev_rx_handler_register(dev, macvlan_handle_frame, port);
 	if (err)
 		kfree(port);
-
-	dev->priv_flags |= IFF_MACVLAN_PORT;
+	else
+		dev->priv_flags |= IFF_MACVLAN_PORT;
 	return err;
 }
 
@@ -791,6 +778,7 @@ static int macvlan_device_event(struct notifier_block *unused,
 	struct net_device *dev = ptr;
 	struct macvlan_dev *vlan, *next;
 	struct macvlan_port *port;
+	LIST_HEAD(list_kill);
 
 	if (!macvlan_port_exists(dev))
 		return NOTIFY_DONE;
@@ -816,7 +804,9 @@ static int macvlan_device_event(struct notifier_block *unused,
 			break;
 
 		list_for_each_entry_safe(vlan, next, &port->vlans, list)
-			vlan->dev->rtnl_link_ops->dellink(vlan->dev, NULL);
+			vlan->dev->rtnl_link_ops->dellink(vlan->dev, &list_kill);
+		unregister_netdevice_many(&list_kill);
+		list_del(&list_kill);
 		break;
 	case NETDEV_PRE_TYPE_CHANGE:
 		/* Forbid underlaying device to change its type. */

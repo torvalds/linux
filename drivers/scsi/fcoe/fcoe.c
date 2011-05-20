@@ -1952,7 +1952,7 @@ out_nodev:
 int fcoe_link_speed_update(struct fc_lport *lport)
 {
 	struct net_device *netdev = fcoe_netdev(lport);
-	struct ethtool_cmd ecmd = { ETHTOOL_GSET };
+	struct ethtool_cmd ecmd;
 
 	if (!dev_ethtool_get_settings(netdev, &ecmd)) {
 		lport->link_supported_speeds &=
@@ -1963,11 +1963,14 @@ int fcoe_link_speed_update(struct fc_lport *lport)
 		if (ecmd.supported & SUPPORTED_10000baseT_Full)
 			lport->link_supported_speeds |=
 				FC_PORTSPEED_10GBIT;
-		if (ecmd.speed == SPEED_1000)
+		switch (ethtool_cmd_speed(&ecmd)) {
+		case SPEED_1000:
 			lport->link_speed = FC_PORTSPEED_1GBIT;
-		if (ecmd.speed == SPEED_10000)
+			break;
+		case SPEED_10000:
 			lport->link_speed = FC_PORTSPEED_10GBIT;
-
+			break;
+		}
 		return 0;
 	}
 	return -1;

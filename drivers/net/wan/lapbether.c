@@ -338,10 +338,6 @@ static int lapbeth_new_device(struct net_device *dev)
 	dev_hold(dev);
 	lapbeth->ethdev = dev;
 
-	rc = dev_alloc_name(ndev, ndev->name);
-	if (rc < 0) 
-		goto fail;
-
 	rc = -EIO;
 	if (register_netdevice(ndev))
 		goto fail;

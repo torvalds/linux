@@ -165,69 +165,18 @@ static int xenvif_change_mtu(struct net_device *dev, int mtu)
 	return 0;
 }
 
-static void xenvif_set_features(struct xenvif *vif)
-{
-	struct net_device *dev = vif->dev;
-	u32 features = dev->features;
-
-	if (vif->can_sg)
-		features |= NETIF_F_SG;
-	if (vif->gso || vif->gso_prefix)
-		features |= NETIF_F_TSO;
-	if (vif->csum)
-		features |= NETIF_F_IP_CSUM;
-
-	features &= ~(vif->features_disabled);
-
-	if (!(features & NETIF_F_SG) && dev->mtu > ETH_DATA_LEN)
-		dev->mtu = ETH_DATA_LEN;
-
-	dev->features = features;
-}
-
-static int xenvif_set_tx_csum(struct net_device *dev, u32 data)
+static u32 xenvif_fix_features(struct net_device *dev, u32 features)
 {
 	struct xenvif *vif = netdev_priv(dev);
-	if (data) {
-		if (!vif->csum)
-			return -EOPNOTSUPP;
-		vif->features_disabled &= ~NETIF_F_IP_CSUM;
-	} else {
-		vif->features_disabled |= NETIF_F_IP_CSUM;
-	}
 
-	xenvif_set_features(vif);
-	return 0;
-}
+	if (!vif->can_sg)
+		features &= ~NETIF_F_SG;
+	if (!vif->gso && !vif->gso_prefix)
+		features &= ~NETIF_F_TSO;
+	if (!vif->csum)
+		features &= ~NETIF_F_IP_CSUM;
 
-static int xenvif_set_sg(struct net_device *dev, u32 data)
-{
-	struct xenvif *vif = netdev_priv(dev);
-	if (data) {
-		if (!vif->can_sg)
-			return -EOPNOTSUPP;
-		vif->features_disabled &= ~NETIF_F_SG;
-	} else {
-		vif->features_disabled |= NETIF_F_SG;
-	}
-
-	xenvif_set_features(vif);
-	return 0;
-}
-
-static int xenvif_set_tso(struct net_device *dev, u32 data)
-{
-	struct xenvif *vif = netdev_priv(dev);
-	if (data) {
-		if (!vif->gso && !vif->gso_prefix)
-			return -EOPNOTSUPP;
-		vif->features_disabled &= ~NETIF_F_TSO;
-	} else {
-		vif->features_disabled |= NETIF_F_TSO;
-	}
-
-	xenvif_set_features(vif);
-	return 0;
+	return features;
 }
 
 static const struct xenvif_stat {
@@ -274,12 +223,6 @@ static void xenvif_get_strings(struct net_device *dev, u32 stringset, u8 * data)
 }
 
 static struct ethtool_ops xenvif_ethtool_ops = {
-	.get_tx_csum	= ethtool_op_get_tx_csum,
-	.set_tx_csum	= xenvif_set_tx_csum,
-	.get_sg		= ethtool_op_get_sg,
-	.set_sg		= xenvif_set_sg,
-	.get_tso	= ethtool_op_get_tso,
-	.set_tso	= xenvif_set_tso,
 	.get_link	= ethtool_op_get_link,
 
 	.get_sset_count = xenvif_get_sset_count,
@@ -293,6 +236,7 @@ static struct net_device_ops xenvif_netdev_ops = {
 	.ndo_open	= xenvif_open,
 	.ndo_stop	= xenvif_close,
 	.ndo_change_mtu	= xenvif_change_mtu,
+	.ndo_fix_features = xenvif_fix_features,
 };
 
 struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
@@ -331,7 +275,8 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	vif->credit_timeout.expires = jiffies;
 
 	dev->netdev_ops	= &xenvif_netdev_ops;
-	xenvif_set_features(vif);
+	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
+	dev->features = dev->hw_features;
 	SET_ETHTOOL_OPS(dev, &xenvif_ethtool_ops);
 
 	dev->tx_queue_len = XENVIF_QUEUE_LENGTH;
@@ -367,8 +312,6 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 	if (vif->irq)
 		return 0;
 
-	xenvif_set_features(vif);
-
 	err = xen_netbk_map_frontend_rings(vif, tx_ring_ref, rx_ring_ref);
 	if (err < 0)
 		goto err;
@@ -384,9 +327,12 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 	xenvif_get(vif);
 
 	rtnl_lock();
-	netif_carrier_on(vif->dev);
 	if (netif_running(vif->dev))
 		xenvif_up(vif);
+	if (!vif->can_sg && vif->dev->mtu > ETH_DATA_LEN)
+		dev_set_mtu(vif->dev, ETH_DATA_LEN);
+	netdev_update_features(vif->dev);
+	netif_carrier_on(vif->dev);
 	rtnl_unlock();
 
 	return 0;

@@ -1565,9 +1565,9 @@ smc_ethtool_getsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 				 SUPPORTED_TP | SUPPORTED_AUI;
 
 		if (lp->ctl_rspeed == 10)
-			cmd->speed = SPEED_10;
+			ethtool_cmd_speed_set(cmd, SPEED_10);
 		else if (lp->ctl_rspeed == 100)
-			cmd->speed = SPEED_100;
+			ethtool_cmd_speed_set(cmd, SPEED_100);
 
 		cmd->autoneg = AUTONEG_DISABLE;
 		cmd->transceiver = XCVR_INTERNAL;

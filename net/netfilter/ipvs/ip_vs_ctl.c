@@ -2069,9 +2069,6 @@ static const struct file_operations ip_vs_info_fops = {
 	.release = seq_release_net,
 };
 
-#endif
-
-#ifdef CONFIG_PROC_FS
 static int ip_vs_stats_show(struct seq_file *seq, void *v)
 {
 	struct net *net = seq_file_single_net(seq);

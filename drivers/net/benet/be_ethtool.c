@@ -26,8 +26,8 @@ struct be_ethtool_stat {
 	int offset;
 };
 
-enum {NETSTAT, PORTSTAT, MISCSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT,
-			PMEMSTAT, DRVSTAT};
+enum {NETSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT,
+			DRVSTAT};
 #define FIELDINFO(_struct, field) FIELD_SIZEOF(_struct, field), \
 					offsetof(_struct, field)
 #define NETSTAT_INFO(field) 	#field, NETSTAT,\
@@ -37,15 +37,8 @@ enum {NETSTAT, PORTSTAT, MISCSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT,
 					FIELDINFO(struct be_tx_stats, field)
 #define DRVSTAT_RX_INFO(field)	#field, DRVSTAT_RX,\
 					FIELDINFO(struct be_rx_stats, field)
-#define MISCSTAT_INFO(field) 	#field, MISCSTAT,\
-					FIELDINFO(struct be_rxf_stats, field)
-#define PORTSTAT_INFO(field) 	#field, PORTSTAT,\
-					FIELDINFO(struct be_port_rxf_stats, \
-						field)
-#define ERXSTAT_INFO(field) 	#field, ERXSTAT,\
-					FIELDINFO(struct be_erx_stats, field)
-#define PMEMSTAT_INFO(field) 	#field, PMEMSTAT,\
-					FIELDINFO(struct be_pmem_stats, field)
+#define ERXSTAT_INFO(field)	#field, ERXSTAT,\
+					FIELDINFO(struct be_erx_stats_v1, field)
 #define	DRVSTAT_INFO(field)	#field, DRVSTAT,\
 					FIELDINFO(struct be_drv_stats, \
 						field)
@@ -65,50 +58,41 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_TX_INFO(be_tx_stops)},
 	{DRVSTAT_TX_INFO(be_tx_events)},
 	{DRVSTAT_TX_INFO(be_tx_compl)},
-	{PORTSTAT_INFO(rx_unicast_frames)},
-	{PORTSTAT_INFO(rx_multicast_frames)},
-	{PORTSTAT_INFO(rx_broadcast_frames)},
-	{PORTSTAT_INFO(rx_crc_errors)},
-	{PORTSTAT_INFO(rx_alignment_symbol_errors)},
-	{PORTSTAT_INFO(rx_pause_frames)},
-	{PORTSTAT_INFO(rx_control_frames)},
-	{PORTSTAT_INFO(rx_in_range_errors)},
-	{PORTSTAT_INFO(rx_out_range_errors)},
-	{PORTSTAT_INFO(rx_frame_too_long)},
-	{PORTSTAT_INFO(rx_address_match_errors)},
-	{PORTSTAT_INFO(rx_vlan_mismatch)},
-	{PORTSTAT_INFO(rx_dropped_too_small)},
-	{PORTSTAT_INFO(rx_dropped_too_short)},
-	{PORTSTAT_INFO(rx_dropped_header_too_small)},
-	{PORTSTAT_INFO(rx_dropped_tcp_length)},
-	{PORTSTAT_INFO(rx_dropped_runt)},
-	{PORTSTAT_INFO(rx_fifo_overflow)},
-	{PORTSTAT_INFO(rx_input_fifo_overflow)},
-	{PORTSTAT_INFO(rx_ip_checksum_errs)},
-	{PORTSTAT_INFO(rx_tcp_checksum_errs)},
-	{PORTSTAT_INFO(rx_udp_checksum_errs)},
-	{PORTSTAT_INFO(rx_non_rss_packets)},
-	{PORTSTAT_INFO(rx_ipv4_packets)},
-	{PORTSTAT_INFO(rx_ipv6_packets)},
-	{PORTSTAT_INFO(rx_switched_unicast_packets)},
-	{PORTSTAT_INFO(rx_switched_multicast_packets)},
-	{PORTSTAT_INFO(rx_switched_broadcast_packets)},
-	{PORTSTAT_INFO(tx_unicastframes)},
-	{PORTSTAT_INFO(tx_multicastframes)},
-	{PORTSTAT_INFO(tx_broadcastframes)},
-	{PORTSTAT_INFO(tx_pauseframes)},
-	{PORTSTAT_INFO(tx_controlframes)},
-	{MISCSTAT_INFO(rx_drops_no_pbuf)},
-	{MISCSTAT_INFO(rx_drops_no_txpb)},
-	{MISCSTAT_INFO(rx_drops_no_erx_descr)},
-	{MISCSTAT_INFO(rx_drops_no_tpre_descr)},
-	{MISCSTAT_INFO(rx_drops_too_many_frags)},
-	{MISCSTAT_INFO(rx_drops_invalid_ring)},
-	{MISCSTAT_INFO(forwarded_packets)},
-	{MISCSTAT_INFO(rx_drops_mtu)},
-	{MISCSTAT_INFO(port0_jabber_events)},
-	{MISCSTAT_INFO(port1_jabber_events)},
-	{PMEMSTAT_INFO(eth_red_drops)},
+	{DRVSTAT_INFO(rx_crc_errors)},
+	{DRVSTAT_INFO(rx_alignment_symbol_errors)},
+	{DRVSTAT_INFO(rx_pause_frames)},
+	{DRVSTAT_INFO(rx_control_frames)},
+	{DRVSTAT_INFO(rx_in_range_errors)},
+	{DRVSTAT_INFO(rx_out_range_errors)},
+	{DRVSTAT_INFO(rx_frame_too_long)},
+	{DRVSTAT_INFO(rx_address_match_errors)},
+	{DRVSTAT_INFO(rx_dropped_too_small)},
+	{DRVSTAT_INFO(rx_dropped_too_short)},
+	{DRVSTAT_INFO(rx_dropped_header_too_small)},
+	{DRVSTAT_INFO(rx_dropped_tcp_length)},
+	{DRVSTAT_INFO(rx_dropped_runt)},
+	{DRVSTAT_INFO(rxpp_fifo_overflow_drop)},
+	{DRVSTAT_INFO(rx_input_fifo_overflow_drop)},
+	{DRVSTAT_INFO(rx_ip_checksum_errs)},
+	{DRVSTAT_INFO(rx_tcp_checksum_errs)},
+	{DRVSTAT_INFO(rx_udp_checksum_errs)},
+	{DRVSTAT_INFO(rx_switched_unicast_packets)},
+	{DRVSTAT_INFO(rx_switched_multicast_packets)},
+	{DRVSTAT_INFO(rx_switched_broadcast_packets)},
+	{DRVSTAT_INFO(tx_pauseframes)},
+	{DRVSTAT_INFO(tx_controlframes)},
+	{DRVSTAT_INFO(rx_priority_pause_frames)},
+	{DRVSTAT_INFO(pmem_fifo_overflow_drop)},
+	{DRVSTAT_INFO(jabber_events)},
+	{DRVSTAT_INFO(rx_drops_no_pbuf)},
+	{DRVSTAT_INFO(rx_drops_no_txpb)},
+	{DRVSTAT_INFO(rx_drops_no_erx_descr)},
+	{DRVSTAT_INFO(rx_drops_no_tpre_descr)},
+	{DRVSTAT_INFO(rx_drops_too_many_frags)},
+	{DRVSTAT_INFO(rx_drops_invalid_ring)},
+	{DRVSTAT_INFO(forwarded_packets)},
+	{DRVSTAT_INFO(rx_drops_mtu)},
+	{DRVSTAT_INFO(eth_red_drops)},
 	{DRVSTAT_INFO(be_on_die_temperature)}
 };
 #define ETHTOOL_STATS_NUM ARRAY_SIZE(et_stats)
@@ -156,6 +140,29 @@ be_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 }
 
 static int
+be_get_reg_len(struct net_device *netdev)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	u32 log_size = 0;
+
+	if (be_physfn(adapter))
+		be_cmd_get_reg_len(adapter, &log_size);
+
+	return log_size;
+}
+
+static void
+be_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *buf)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (be_physfn(adapter)) {
+		memset(buf, 0, regs->len);
+		be_cmd_get_regs(adapter, regs->len, buf);
+	}
+}
+
+static int
 be_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
@@ -186,9 +193,9 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 	struct be_rx_obj *rxo;
 	struct be_eq_obj *rx_eq;
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
-	u32 tx_max, tx_min, tx_cur;
 	u32 rx_max, rx_min, rx_cur;
 	int status = 0, i;
+	u32 tx_cur;
 
 	if (coalesce->use_adaptive_tx_coalesce == 1)
 		return -EINVAL;
@@ -227,8 +234,6 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 		}
 	}
 
-	tx_max = coalesce->tx_coalesce_usecs_high;
-	tx_min = coalesce->tx_coalesce_usecs_low;
 	tx_cur = coalesce->tx_coalesce_usecs;
 
 	if (tx_cur > BE_MAX_EQD)
@@ -242,32 +247,11 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 	return 0;
 }
 
-static u32 be_get_rx_csum(struct net_device *netdev)
-{
-	struct be_adapter *adapter = netdev_priv(netdev);
-
-	return adapter->rx_csum;
-}
-
-static int be_set_rx_csum(struct net_device *netdev, uint32_t data)
-{
-	struct be_adapter *adapter = netdev_priv(netdev);
-
-	if (data)
-		adapter->rx_csum = true;
-	else
-		adapter->rx_csum = false;
-
-	return 0;
-}
-
 static void
 be_get_ethtool_stats(struct net_device *netdev,
 		struct ethtool_stats *stats, uint64_t *data)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_hw_stats *hw_stats = hw_stats_from_cmd(adapter->stats_cmd.va);
-	struct be_erx_stats *erx_stats = &hw_stats->erx;
 	struct be_rx_obj *rxo;
 	void *p = NULL;
 	int i, j;
@@ -279,15 +263,6 @@ be_get_ethtool_stats(struct net_device *netdev,
 			break;
 		case DRVSTAT_TX:
 			p = &adapter->tx_stats;
-			break;
-		case PORTSTAT:
-			p = &hw_stats->rxf.port[adapter->port_num];
-			break;
-		case MISCSTAT:
-			p = &hw_stats->rxf;
-			break;
-		case PMEMSTAT:
-			p = &hw_stats->pmem;
 			break;
 		case DRVSTAT:
 			p = &adapter->drv_stats;
@@ -306,7 +281,8 @@ be_get_ethtool_stats(struct net_device *netdev,
 				p = (u8 *)&rxo->stats + et_rx_stats[i].offset;
 				break;
 			case ERXSTAT:
-				p = (u32 *)erx_stats + rxo->q.id;
+				p = (u32 *)be_erx_stats_from_cmd(adapter) +
+								rxo->q.id;
 				break;
 			}
 			data[ETHTOOL_STATS_NUM + j * ETHTOOL_RXSTATS_NUM + i] =
@@ -374,19 +350,28 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 	if ((adapter->link_speed < 0) || (!(netdev->flags & IFF_UP))) {
 		status = be_cmd_link_status_query(adapter, &link_up,
-						&mac_speed, &link_speed);
+						&mac_speed, &link_speed, 0);
 
 		be_link_status_update(adapter, link_up);
 		/* link_speed is in units of 10 Mbps */
 		if (link_speed) {
-			ecmd->speed = link_speed*10;
+			ethtool_cmd_speed_set(ecmd, link_speed*10);
 		} else {
 			switch (mac_speed) {
+			case PHY_LINK_SPEED_10MBPS:
+				ethtool_cmd_speed_set(ecmd, SPEED_10);
+				break;
+			case PHY_LINK_SPEED_100MBPS:
+				ethtool_cmd_speed_set(ecmd, SPEED_100);
+				break;
 			case PHY_LINK_SPEED_1GBPS:
-				ecmd->speed = SPEED_1000;
+				ethtool_cmd_speed_set(ecmd, SPEED_1000);
 				break;
 			case PHY_LINK_SPEED_10GBPS:
-				ecmd->speed = SPEED_10000;
+				ethtool_cmd_speed_set(ecmd, SPEED_10000);
+				break;
+			case PHY_LINK_SPEED_ZERO:
+				ethtool_cmd_speed_set(ecmd, 0);
 				break;
 			}
 		}
@@ -429,14 +414,14 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		}
 
 		/* Save for future use */
-		adapter->link_speed = ecmd->speed;
+		adapter->link_speed = ethtool_cmd_speed(ecmd);
 		adapter->port_type = ecmd->port;
 		adapter->transceiver = ecmd->transceiver;
 		adapter->autoneg = ecmd->autoneg;
 		dma_free_coherent(&adapter->pdev->dev, phy_cmd.size, phy_cmd.va,
 				  phy_cmd.dma);
 	} else {
-		ecmd->speed = adapter->link_speed;
+		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 		ecmd->port = adapter->port_type;
 		ecmd->transceiver = adapter->transceiver;
 		ecmd->autoneg = adapter->autoneg;
@@ -507,29 +492,33 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 }
 
 static int
-be_phys_id(struct net_device *netdev, u32 data)
+be_set_phys_id(struct net_device *netdev,
+	       enum ethtool_phys_id_state state)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	int status;
-	u32 cur;
 
-	be_cmd_get_beacon_state(adapter, adapter->hba_port_num, &cur);
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		be_cmd_get_beacon_state(adapter, adapter->hba_port_num,
+					&adapter->beacon_state);
+		return 1;	/* cycle on/off once per second */
 
-	if (cur == BEACON_STATE_ENABLED)
-		return 0;
+	case ETHTOOL_ID_ON:
+		be_cmd_set_beacon_state(adapter, adapter->hba_port_num, 0, 0,
+					BEACON_STATE_ENABLED);
+		break;
 
-	if (data < 2)
-		data = 2;
+	case ETHTOOL_ID_OFF:
+		be_cmd_set_beacon_state(adapter, adapter->hba_port_num, 0, 0,
+					BEACON_STATE_DISABLED);
+		break;
 
-	status = be_cmd_set_beacon_state(adapter, adapter->hba_port_num, 0, 0,
-			BEACON_STATE_ENABLED);
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(data*HZ);
+	case ETHTOOL_ID_INACTIVE:
+		be_cmd_set_beacon_state(adapter, adapter->hba_port_num, 0, 0,
+					adapter->beacon_state);
+	}
 
-	status = be_cmd_set_beacon_state(adapter, adapter->hba_port_num, 0, 0,
-			BEACON_STATE_DISABLED);
-
-	return status;
+	return 0;
 }
 
 static bool
@@ -646,7 +635,7 @@ be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 	}
 
 	if (be_cmd_link_status_query(adapter, &link_up, &mac_speed,
-				&qos_link_speed) != 0) {
+				&qos_link_speed, 0) != 0) {
 		test->flags |= ETH_TEST_FL_FAILED;
 		data[4] = -1;
 	} else if (!mac_speed) {
@@ -660,11 +649,9 @@ be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	char file_name[ETHTOOL_FLASH_MAX_FILENAME];
-	u32 region;
 
 	file_name[ETHTOOL_FLASH_MAX_FILENAME - 1] = 0;
 	strcpy(file_name, efl->data);
-	region = efl->region;
 
 	return be_load_fw(adapter, file_name);
 }
@@ -725,18 +712,12 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_ringparam = be_get_ringparam,
 	.get_pauseparam = be_get_pauseparam,
 	.set_pauseparam = be_set_pauseparam,
-	.get_rx_csum = be_get_rx_csum,
-	.set_rx_csum = be_set_rx_csum,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.set_tx_csum = ethtool_op_set_tx_hw_csum,
-	.get_sg = ethtool_op_get_sg,
-	.set_sg = ethtool_op_set_sg,
-	.get_tso = ethtool_op_get_tso,
-	.set_tso = ethtool_op_set_tso,
 	.get_strings = be_get_stat_strings,
-	.phys_id = be_phys_id,
+	.set_phys_id = be_set_phys_id,
 	.get_sset_count = be_get_sset_count,
 	.get_ethtool_stats = be_get_ethtool_stats,
+	.get_regs_len = be_get_reg_len,
+	.get_regs = be_get_regs,
 	.flash_device = be_do_flash,
 	.self_test = be_self_test,
 };

@@ -109,11 +109,10 @@ static void change_speed(struct IsdnCardState *cs, int baud)
 {
 	int	quot = 0, baud_base;
 	unsigned cval, fcr = 0;
-	int	bits;
 
 
 	/* byte size and parity */
-	cval = 0x03; bits = 10;
+	cval = 0x03;
 	/* Determine divisor based on baud rate */
 	baud_base = BASE_BAUD;
 	quot = baud_base / baud;

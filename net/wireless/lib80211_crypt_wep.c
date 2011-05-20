@@ -96,13 +96,12 @@ static int lib80211_wep_build_iv(struct sk_buff *skb, int hdr_len,
 			       u8 *key, int keylen, void *priv)
 {
 	struct lib80211_wep_data *wep = priv;
-	u32 klen, len;
+	u32 klen;
 	u8 *pos;
 
 	if (skb_headroom(skb) < 4 || skb->len < hdr_len)
 		return -1;
 
-	len = skb->len - hdr_len;
 	pos = skb_push(skb, 4);
 	memmove(pos, pos + 4, hdr_len);
 	pos += hdr_len;

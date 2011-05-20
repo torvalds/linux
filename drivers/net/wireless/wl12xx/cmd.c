@@ -76,7 +76,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		if (time_after(jiffies, timeout)) {
 			wl1271_error("command complete timeout");
 			ret = -ETIMEDOUT;
-			goto out;
+			goto fail;
 		}
 
 		poll_count++;
@@ -96,21 +96,25 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 	status = le16_to_cpu(cmd->status);
 	if (status != CMD_STATUS_SUCCESS) {
 		wl1271_error("command execute failure %d", status);
-		ieee80211_queue_work(wl->hw, &wl->recovery_work);
 		ret = -EIO;
+		goto fail;
 	}
 
 	wl1271_write32(wl, ACX_REG_INTERRUPT_ACK,
 		       WL1271_ACX_INTR_CMD_COMPLETE);
+	return 0;
 
-out:
+fail:
+	WARN_ON(1);
+	ieee80211_queue_work(wl->hw, &wl->recovery_work);
 	return ret;
 }
 
 int wl1271_cmd_general_parms(struct wl1271 *wl)
 {
 	struct wl1271_general_parms_cmd *gen_parms;
-	struct wl1271_ini_general_params *gp = &wl->nvs->general_params;
+	struct wl1271_ini_general_params *gp =
+		&((struct wl1271_nvs_file *)wl->nvs)->general_params;
 	bool answer = false;
 	int ret;
 
@@ -127,6 +131,52 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 
 	if (gp->tx_bip_fem_auto_detect)
 		answer = true;
+
+	/* Override the REF CLK from the NVS with the one from platform data */
+	gen_parms->general_params.ref_clock = wl->ref_clock;
+
+	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), answer);
+	if (ret < 0) {
+		wl1271_warning("CMD_INI_FILE_GENERAL_PARAM failed");
+		goto out;
+	}
+
+	gp->tx_bip_fem_manufacturer =
+		gen_parms->general_params.tx_bip_fem_manufacturer;
+
+	wl1271_debug(DEBUG_CMD, "FEM autodetect: %s, manufacturer: %d\n",
+		     answer ? "auto" : "manual", gp->tx_bip_fem_manufacturer);
+
+out:
+	kfree(gen_parms);
+	return ret;
+}
+
+int wl128x_cmd_general_parms(struct wl1271 *wl)
+{
+	struct wl128x_general_parms_cmd *gen_parms;
+	struct wl128x_ini_general_params *gp =
+		&((struct wl128x_nvs_file *)wl->nvs)->general_params;
+	bool answer = false;
+	int ret;
+
+	if (!wl->nvs)
+		return -ENODEV;
+
+	gen_parms = kzalloc(sizeof(*gen_parms), GFP_KERNEL);
+	if (!gen_parms)
+		return -ENOMEM;
+
+	gen_parms->test.id = TEST_CMD_INI_FILE_GENERAL_PARAM;
+
+	memcpy(&gen_parms->general_params, gp, sizeof(*gp));
+
+	if (gp->tx_bip_fem_auto_detect)
+		answer = true;
+
+	/* Replace REF and TCXO CLKs with the ones from platform data */
+	gen_parms->general_params.ref_clock = wl->ref_clock;
+	gen_parms->general_params.tcxo_ref_clock = wl->tcxo_clock;
 
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), answer);
 	if (ret < 0) {
@@ -147,8 +197,9 @@ out:
 
 int wl1271_cmd_radio_parms(struct wl1271 *wl)
 {
+	struct wl1271_nvs_file *nvs = (struct wl1271_nvs_file *)wl->nvs;
 	struct wl1271_radio_parms_cmd *radio_parms;
-	struct wl1271_ini_general_params *gp = &wl->nvs->general_params;
+	struct wl1271_ini_general_params *gp = &nvs->general_params;
 	int ret;
 
 	if (!wl->nvs)
@@ -161,19 +212,63 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	radio_parms->test.id = TEST_CMD_INI_FILE_RADIO_PARAM;
 
 	/* 2.4GHz parameters */
-	memcpy(&radio_parms->static_params_2, &wl->nvs->stat_radio_params_2,
+	memcpy(&radio_parms->static_params_2, &nvs->stat_radio_params_2,
 	       sizeof(struct wl1271_ini_band_params_2));
 	memcpy(&radio_parms->dyn_params_2,
-	       &wl->nvs->dyn_radio_params_2[gp->tx_bip_fem_manufacturer].params,
+	       &nvs->dyn_radio_params_2[gp->tx_bip_fem_manufacturer].params,
 	       sizeof(struct wl1271_ini_fem_params_2));
 
 	/* 5GHz parameters */
 	memcpy(&radio_parms->static_params_5,
-	       &wl->nvs->stat_radio_params_5,
+	       &nvs->stat_radio_params_5,
 	       sizeof(struct wl1271_ini_band_params_5));
 	memcpy(&radio_parms->dyn_params_5,
-	       &wl->nvs->dyn_radio_params_5[gp->tx_bip_fem_manufacturer].params,
+	       &nvs->dyn_radio_params_5[gp->tx_bip_fem_manufacturer].params,
 	       sizeof(struct wl1271_ini_fem_params_5));
+
+	wl1271_dump(DEBUG_CMD, "TEST_CMD_INI_FILE_RADIO_PARAM: ",
+		    radio_parms, sizeof(*radio_parms));
+
+	ret = wl1271_cmd_test(wl, radio_parms, sizeof(*radio_parms), 0);
+	if (ret < 0)
+		wl1271_warning("CMD_INI_FILE_RADIO_PARAM failed");
+
+	kfree(radio_parms);
+	return ret;
+}
+
+int wl128x_cmd_radio_parms(struct wl1271 *wl)
+{
+	struct wl128x_nvs_file *nvs = (struct wl128x_nvs_file *)wl->nvs;
+	struct wl128x_radio_parms_cmd *radio_parms;
+	struct wl128x_ini_general_params *gp = &nvs->general_params;
+	int ret;
+
+	if (!wl->nvs)
+		return -ENODEV;
+
+	radio_parms = kzalloc(sizeof(*radio_parms), GFP_KERNEL);
+	if (!radio_parms)
+		return -ENOMEM;
+
+	radio_parms->test.id = TEST_CMD_INI_FILE_RADIO_PARAM;
+
+	/* 2.4GHz parameters */
+	memcpy(&radio_parms->static_params_2, &nvs->stat_radio_params_2,
+	       sizeof(struct wl128x_ini_band_params_2));
+	memcpy(&radio_parms->dyn_params_2,
+	       &nvs->dyn_radio_params_2[gp->tx_bip_fem_manufacturer].params,
+	       sizeof(struct wl128x_ini_fem_params_2));
+
+	/* 5GHz parameters */
+	memcpy(&radio_parms->static_params_5,
+	       &nvs->stat_radio_params_5,
+	       sizeof(struct wl128x_ini_band_params_5));
+	memcpy(&radio_parms->dyn_params_5,
+	       &nvs->dyn_radio_params_5[gp->tx_bip_fem_manufacturer].params,
+	       sizeof(struct wl128x_ini_fem_params_5));
+
+	radio_parms->fem_vendor_and_options = nvs->fem_vendor_and_options;
 
 	wl1271_dump(DEBUG_CMD, "TEST_CMD_INI_FILE_RADIO_PARAM: ",
 		    radio_parms, sizeof(*radio_parms));

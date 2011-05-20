@@ -691,10 +691,8 @@ static void atl1e_cal_ring_size(struct atl1e_adapter *adapter, u32 *ring_size)
 
 static void atl1e_init_ring_resources(struct atl1e_adapter *adapter)
 {
-	struct atl1e_tx_ring *tx_ring = NULL;
 	struct atl1e_rx_ring *rx_ring = NULL;
 
-	tx_ring = &adapter->tx_ring;
 	rx_ring = &adapter->rx_ring;
 
 	rx_ring->real_page_size = adapter->rx_ring.page_size
@@ -1927,11 +1925,7 @@ void atl1e_down(struct atl1e_adapter *adapter)
 	 * reschedule our watchdog timer */
 	set_bit(__AT_DOWN, &adapter->flags);
 
-#ifdef NETIF_F_LLTX
 	netif_stop_queue(netdev);
-#else
-	netif_tx_disable(netdev);
-#endif
 
 	/* reset MAC to disable all RX/TX */
 	atl1e_reset_hw(&adapter->hw);
@@ -2223,10 +2217,10 @@ static int atl1e_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
 	netdev->watchdog_timeo = AT_TX_WATCHDOG;
 	atl1e_set_ethtool_ops(netdev);
 
-	netdev->features = NETIF_F_SG | NETIF_F_HW_CSUM |
-		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	netdev->features |= NETIF_F_LLTX;
-	netdev->features |= NETIF_F_TSO;
+	netdev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_TSO |
+		NETIF_F_HW_VLAN_TX;
+	netdev->features = netdev->hw_features |
+		NETIF_F_HW_VLAN_RX | NETIF_F_LLTX;
 
 	return 0;
 }

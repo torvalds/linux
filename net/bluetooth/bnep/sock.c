@@ -39,10 +39,10 @@
 #include <linux/init.h>
 #include <linux/compat.h>
 #include <linux/gfp.h>
+#include <linux/uaccess.h>
 #include <net/sock.h>
 
 #include <asm/system.h>
-#include <asm/uaccess.h>
 
 #include "bnep.h"
 

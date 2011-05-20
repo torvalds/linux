@@ -68,14 +68,16 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 	if (vector & BSS_LOSE_EVENT_ID) {
 		wl1251_debug(DEBUG_EVENT, "BSS_LOSE_EVENT");
 
-		if (wl->psm_requested && wl->psm) {
+		if (wl->psm_requested &&
+		    wl->station_mode != STATION_ACTIVE_MODE) {
 			ret = wl1251_ps_set_mode(wl, STATION_ACTIVE_MODE);
 			if (ret < 0)
 				return ret;
 		}
 	}
 
-	if (vector & SYNCHRONIZATION_TIMEOUT_EVENT_ID && wl->psm) {
+	if (vector & SYNCHRONIZATION_TIMEOUT_EVENT_ID &&
+	    wl->station_mode != STATION_ACTIVE_MODE) {
 		wl1251_debug(DEBUG_EVENT, "SYNCHRONIZATION_TIMEOUT_EVENT");
 
 		/* indicate to the stack, that beacons have been lost */

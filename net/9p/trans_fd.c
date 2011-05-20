@@ -716,7 +716,6 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 	substring_t args[MAX_OPT_ARGS];
 	int option;
 	char *options, *tmp_options;
-	int ret;
 
 	opts->port = P9_PORT;
 	opts->rfd = ~0;
@@ -744,7 +743,6 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 			if (r < 0) {
 				P9_DPRINTK(P9_DEBUG_ERROR,
 				"integer field, but no integer?\n");
-				ret = r;
 				continue;
 			}
 		}

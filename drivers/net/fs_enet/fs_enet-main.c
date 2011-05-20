@@ -956,8 +956,6 @@ static const struct ethtool_ops fs_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_msglevel = fs_get_msglevel,
 	.set_msglevel = fs_set_msglevel,
-	.set_tx_csum = ethtool_op_set_tx_csum,	/* local! */
-	.set_sg = ethtool_op_set_sg,
 	.get_regs = fs_get_regs,
 };
 

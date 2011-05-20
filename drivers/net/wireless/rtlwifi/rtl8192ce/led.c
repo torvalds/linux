@@ -32,6 +32,14 @@
 #include "reg.h"
 #include "led.h"
 
+static void _rtl92ce_init_led(struct ieee80211_hw *hw,
+			      struct rtl_led *pled, enum rtl_led_pin ledpin)
+{
+	pled->hw = hw;
+	pled->ledpin = ledpin;
+	pled->ledon = false;
+}
+
 void rtl92ce_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
 {
 	u8 ledcfg;
@@ -97,13 +105,12 @@ void rtl92ce_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 
 void rtl92ce_init_sw_leds(struct ieee80211_hw *hw)
 {
+	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
+	_rtl92ce_init_led(hw, &(pcipriv->ledctl.sw_led0), LED_PIN_LED0);
+	_rtl92ce_init_led(hw, &(pcipriv->ledctl.sw_led1), LED_PIN_LED1);
 }
 
-void rtl92ce_deinit_sw_leds(struct ieee80211_hw *hw)
-{
-}
-
-void _rtl92ce_sw_led_control(struct ieee80211_hw *hw,
+static void _rtl92ce_sw_led_control(struct ieee80211_hw *hw,
 				    enum led_ctl_mode ledaction)
 {
 	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
@@ -138,7 +145,7 @@ void rtl92ce_led_control(struct ieee80211_hw *hw,
 	     ledaction == LED_CTL_POWER_ON)) {
 		return;
 	}
-	RT_TRACE(rtlpriv, COMP_LED, DBG_LOUD, ("ledaction %d,\n",
+	RT_TRACE(rtlpriv, COMP_LED, DBG_LOUD, ("ledaction %d.\n",
 				ledaction));
 	_rtl92ce_sw_led_control(hw, ledaction);
 }

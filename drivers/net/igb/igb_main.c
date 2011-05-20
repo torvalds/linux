@@ -3532,6 +3532,25 @@ bool igb_has_link(struct igb_adapter *adapter)
 	return link_active;
 }
 
+static bool igb_thermal_sensor_event(struct e1000_hw *hw, u32 event)
+{
+	bool ret = false;
+	u32 ctrl_ext, thstat;
+
+	/* check for thermal sensor event on i350, copper only */
+	if (hw->mac.type == e1000_i350) {
+		thstat = rd32(E1000_THSTAT);
+		ctrl_ext = rd32(E1000_CTRL_EXT);
+
+		if ((hw->phy.media_type == e1000_media_type_copper) &&
+		    !(ctrl_ext & E1000_CTRL_EXT_LINK_MODE_SGMII)) {
+			ret = !!(thstat & event);
+		}
+	}
+
+	return ret;
+}
+
 /**
  * igb_watchdog - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
@@ -3550,7 +3569,7 @@ static void igb_watchdog_task(struct work_struct *work)
                                                    watchdog_task);
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
-	u32 link, ctrl_ext, thstat;
+	u32 link;
 	int i;
 
 	link = igb_has_link(adapter);
@@ -3574,25 +3593,14 @@ static void igb_watchdog_task(struct work_struct *work)
 			       ((ctrl & E1000_CTRL_RFCE) ?  "RX" :
 			       ((ctrl & E1000_CTRL_TFCE) ?  "TX" : "None")));
 
-			/* check for thermal sensor event on i350,
-			 * copper only */
-			if (hw->mac.type == e1000_i350) {
-				thstat = rd32(E1000_THSTAT);
-				ctrl_ext = rd32(E1000_CTRL_EXT);
-				if ((hw->phy.media_type ==
-				     e1000_media_type_copper) && !(ctrl_ext &
-				     E1000_CTRL_EXT_LINK_MODE_SGMII)) {
-					if (thstat &
-					    E1000_THSTAT_LINK_THROTTLE) {
-						printk(KERN_INFO "igb: %s The "
-						       "network adapter link "
-						       "speed was downshifted "
-						       "because it "
-						       "overheated.\n",
-						       netdev->name);
-					}
-				}
+			/* check for thermal sensor event */
+			if (igb_thermal_sensor_event(hw, E1000_THSTAT_LINK_THROTTLE)) {
+				printk(KERN_INFO "igb: %s The network adapter "
+						 "link speed was downshifted "
+						 "because it overheated.\n",
+						 netdev->name);
 			}
+
 			/* adjust timeout factor according to speed/duplex */
 			adapter->tx_timeout_factor = 1;
 			switch (adapter->link_speed) {
@@ -3618,22 +3626,15 @@ static void igb_watchdog_task(struct work_struct *work)
 		if (netif_carrier_ok(netdev)) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
-			/* check for thermal sensor event on i350
-			 * copper only*/
-			if (hw->mac.type == e1000_i350) {
-				thstat = rd32(E1000_THSTAT);
-				ctrl_ext = rd32(E1000_CTRL_EXT);
-				if ((hw->phy.media_type ==
-				     e1000_media_type_copper) && !(ctrl_ext &
-				     E1000_CTRL_EXT_LINK_MODE_SGMII)) {
-					if (thstat & E1000_THSTAT_PWR_DOWN) {
-						printk(KERN_ERR "igb: %s The "
-						"network adapter was stopped "
-						"because it overheated.\n",
+
+			/* check for thermal sensor event */
+			if (igb_thermal_sensor_event(hw, E1000_THSTAT_PWR_DOWN)) {
+				printk(KERN_ERR "igb: %s The network adapter "
+						"was stopped because it "
+						"overheated.\n",
 						netdev->name);
-					}
-				}
 			}
+
 			/* Links status message must follow this format */
 			printk(KERN_INFO "igb: %s NIC Link is Down\n",
 			       netdev->name);
@@ -6348,21 +6349,25 @@ static void igb_restore_vlan(struct igb_adapter *adapter)
 	}
 }
 
-int igb_set_spd_dplx(struct igb_adapter *adapter, u16 spddplx)
+int igb_set_spd_dplx(struct igb_adapter *adapter, u32 spd, u8 dplx)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 
 	mac->autoneg = 0;
 
+	/* Make sure dplx is at most 1 bit and lsb of speed is not set
+	 * for the switch() below to work */
+	if ((spd & 1) || (dplx & ~1))
+		goto err_inval;
+
 	/* Fiber NIC's only allow 1000 Gbps Full duplex */
 	if ((adapter->hw.phy.media_type == e1000_media_type_internal_serdes) &&
-		spddplx != (SPEED_1000 + DUPLEX_FULL)) {
-		dev_err(&pdev->dev, "Unsupported Speed/Duplex configuration\n");
-		return -EINVAL;
-	}
+	    spd != SPEED_1000 &&
+	    dplx != DUPLEX_FULL)
+		goto err_inval;
 
-	switch (spddplx) {
+	switch (spd + dplx) {
 	case SPEED_10 + DUPLEX_HALF:
 		mac->forced_speed_duplex = ADVERTISE_10_HALF;
 		break;
@@ -6381,10 +6386,13 @@ int igb_set_spd_dplx(struct igb_adapter *adapter, u16 spddplx)
 		break;
 	case SPEED_1000 + DUPLEX_HALF: /* not supported */
 	default:
-		dev_err(&pdev->dev, "Unsupported Speed/Duplex configuration\n");
-		return -EINVAL;
+		goto err_inval;
 	}
 	return 0;
+
+err_inval:
+	dev_err(&pdev->dev, "Unsupported Speed/Duplex configuration\n");
+	return -EINVAL;
 }
 
 static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake)

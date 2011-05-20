@@ -1083,7 +1083,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->prof = prof;
 	priv->port = port;
 	priv->port_up = false;
-	priv->rx_csum = 1;
 	priv->flags = prof->flags;
 	priv->tx_ring_num = prof->tx_ring_num;
 	priv->rx_ring_num = prof->rx_ring_num;
@@ -1141,21 +1140,16 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	/*
 	 * Set driver features
 	 */
-	dev->features |= NETIF_F_SG;
-	dev->vlan_features |= NETIF_F_SG;
-	dev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-	dev->vlan_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-	dev->features |= NETIF_F_HIGHDMA;
-	dev->features |= NETIF_F_HW_VLAN_TX |
-			 NETIF_F_HW_VLAN_RX |
-			 NETIF_F_HW_VLAN_FILTER;
-	dev->features |= NETIF_F_GRO;
-	if (mdev->LSO_support) {
-		dev->features |= NETIF_F_TSO;
-		dev->features |= NETIF_F_TSO6;
-		dev->vlan_features |= NETIF_F_TSO;
-		dev->vlan_features |= NETIF_F_TSO6;
-	}
+	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	if (mdev->LSO_support)
+		dev->hw_features |= NETIF_F_TSO | NETIF_F_TSO6;
+
+	dev->vlan_features = dev->hw_features;
+
+	dev->hw_features |= NETIF_F_RXCSUM;
+	dev->features = dev->hw_features | NETIF_F_HIGHDMA |
+			NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
+			NETIF_F_HW_VLAN_FILTER;
 
 	mdev->pndev[port] = dev;
 

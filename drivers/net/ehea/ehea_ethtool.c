@@ -34,6 +34,7 @@
 static int ehea_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct ehea_port *port = netdev_priv(dev);
+	u32 speed;
 	int ret;
 
 	ret = ehea_sense_port_attr(port);
@@ -43,17 +44,29 @@ static int ehea_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	if (netif_carrier_ok(dev)) {
 		switch (port->port_speed) {
-		case EHEA_SPEED_10M: cmd->speed = SPEED_10; break;
-		case EHEA_SPEED_100M: cmd->speed = SPEED_100; break;
-		case EHEA_SPEED_1G: cmd->speed = SPEED_1000; break;
-		case EHEA_SPEED_10G: cmd->speed = SPEED_10000; break;
+		case EHEA_SPEED_10M:
+			speed = SPEED_10;
+			break;
+		case EHEA_SPEED_100M:
+			speed = SPEED_100;
+			break;
+		case EHEA_SPEED_1G:
+			speed = SPEED_1000;
+			break;
+		case EHEA_SPEED_10G:
+			speed = SPEED_10000;
+			break;
+		default:
+			speed = -1;
+			break; /* BUG */
 		}
 		cmd->duplex = port->full_duplex == 1 ?
 						     DUPLEX_FULL : DUPLEX_HALF;
 	} else {
-		cmd->speed = -1;
+		speed = ~0;
 		cmd->duplex = -1;
 	}
+	ethtool_cmd_speed_set(cmd, speed);
 
 	if (cmd->speed == SPEED_10000) {
 		cmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
@@ -167,11 +180,6 @@ static void ehea_set_msglevel(struct net_device *dev, u32 value)
 	port->msg_enable = value;
 }
 
-static u32 ehea_get_rx_csum(struct net_device *dev)
-{
-	return 1;
-}
-
 static char ehea_ethtool_stats_keys[][ETH_GSTRING_LEN] = {
 	{"sig_comp_iv"},
 	{"swqe_refill_th"},
@@ -268,34 +276,16 @@ static void ehea_get_ethtool_stats(struct net_device *dev,
 
 }
 
-static int ehea_set_flags(struct net_device *dev, u32 data)
-{
-	/* Avoid changing the VLAN flags */
-	if ((data & (ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN)) !=
-	    (ethtool_op_get_flags(dev) & (ETH_FLAG_RXVLAN |
-					  ETH_FLAG_TXVLAN))){
-		return -EINVAL;
-	}
-
-	return ethtool_op_set_flags(dev, data, ETH_FLAG_LRO
-					| ETH_FLAG_TXVLAN
-					| ETH_FLAG_RXVLAN);
-}
-
 const struct ethtool_ops ehea_ethtool_ops = {
 	.get_settings = ehea_get_settings,
 	.get_drvinfo = ehea_get_drvinfo,
 	.get_msglevel = ehea_get_msglevel,
 	.set_msglevel = ehea_set_msglevel,
 	.get_link = ethtool_op_get_link,
-	.set_tso = ethtool_op_set_tso,
 	.get_strings = ehea_get_strings,
 	.get_sset_count = ehea_get_sset_count,
 	.get_ethtool_stats = ehea_get_ethtool_stats,
-	.get_rx_csum = ehea_get_rx_csum,
 	.set_settings = ehea_set_settings,
-	.get_flags = ethtool_op_get_flags,
-	.set_flags = ehea_set_flags,
 	.nway_reset = ehea_nway_reset,		/* Restart autonegotiation */
 };
 

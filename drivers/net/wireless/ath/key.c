@@ -23,6 +23,14 @@
 
 #define REG_READ			(common->ops->read)
 #define REG_WRITE(_ah, _reg, _val)	(common->ops->write)(_ah, _val, _reg)
+#define ENABLE_REGWRITE_BUFFER(_ah)			\
+	if (common->ops->enable_write_buffer)		\
+		common->ops->enable_write_buffer((_ah));
+
+#define REGWRITE_BUFFER_FLUSH(_ah)			\
+	if (common->ops->write_flush)			\
+		common->ops->write_flush((_ah));
+
 
 #define IEEE80211_WEP_NKID      4       /* number of key ids */
 
@@ -41,6 +49,8 @@ bool ath_hw_keyreset(struct ath_common *common, u16 entry)
 	}
 
 	keyType = REG_READ(ah, AR_KEYTABLE_TYPE(entry));
+
+	ENABLE_REGWRITE_BUFFER(ah);
 
 	REG_WRITE(ah, AR_KEYTABLE_KEY0(entry), 0);
 	REG_WRITE(ah, AR_KEYTABLE_KEY1(entry), 0);
@@ -65,6 +75,8 @@ bool ath_hw_keyreset(struct ath_common *common, u16 entry)
 		}
 
 	}
+
+	REGWRITE_BUFFER_FLUSH(ah);
 
 	return true;
 }
@@ -104,8 +116,12 @@ static bool ath_hw_keysetmac(struct ath_common *common,
 	} else {
 		macLo = macHi = 0;
 	}
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	REG_WRITE(ah, AR_KEYTABLE_MAC0(entry), macLo);
 	REG_WRITE(ah, AR_KEYTABLE_MAC1(entry), macHi | unicast_flag);
+
+	REGWRITE_BUFFER_FLUSH(ah);
 
 	return true;
 }
@@ -223,6 +239,8 @@ static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 			mic3 = get_unaligned_le16(k->kv_txmic + 0) & 0xffff;
 			mic4 = get_unaligned_le32(k->kv_txmic + 4);
 
+			ENABLE_REGWRITE_BUFFER(ah);
+
 			/* Write RX[31:0] and TX[31:16] */
 			REG_WRITE(ah, AR_KEYTABLE_KEY0(micentry), mic0);
 			REG_WRITE(ah, AR_KEYTABLE_KEY1(micentry), mic1);
@@ -235,6 +253,8 @@ static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 			REG_WRITE(ah, AR_KEYTABLE_KEY4(micentry), mic4);
 			REG_WRITE(ah, AR_KEYTABLE_TYPE(micentry),
 				  AR_KEYTABLE_TYPE_CLR);
+
+			REGWRITE_BUFFER_FLUSH(ah);
 
 		} else {
 			/*
@@ -258,6 +278,8 @@ static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 			mic0 = get_unaligned_le32(k->kv_mic + 0);
 			mic2 = get_unaligned_le32(k->kv_mic + 4);
 
+			ENABLE_REGWRITE_BUFFER(ah);
+
 			/* Write MIC key[31:0] */
 			REG_WRITE(ah, AR_KEYTABLE_KEY0(micentry), mic0);
 			REG_WRITE(ah, AR_KEYTABLE_KEY1(micentry), 0);
@@ -270,7 +292,11 @@ static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 			REG_WRITE(ah, AR_KEYTABLE_KEY4(micentry), 0);
 			REG_WRITE(ah, AR_KEYTABLE_TYPE(micentry),
 				  AR_KEYTABLE_TYPE_CLR);
+
+			REGWRITE_BUFFER_FLUSH(ah);
 		}
+
+		ENABLE_REGWRITE_BUFFER(ah);
 
 		/* MAC address registers are reserved for the MIC entry */
 		REG_WRITE(ah, AR_KEYTABLE_MAC0(micentry), 0);
@@ -283,7 +309,11 @@ static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 		 */
 		REG_WRITE(ah, AR_KEYTABLE_KEY0(entry), key0);
 		REG_WRITE(ah, AR_KEYTABLE_KEY1(entry), key1);
+
+		REGWRITE_BUFFER_FLUSH(ah);
 	} else {
+		ENABLE_REGWRITE_BUFFER(ah);
+
 		/* Write key[47:0] */
 		REG_WRITE(ah, AR_KEYTABLE_KEY0(entry), key0);
 		REG_WRITE(ah, AR_KEYTABLE_KEY1(entry), key1);
@@ -295,6 +325,8 @@ static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 		/* Write key[127:96] and key type */
 		REG_WRITE(ah, AR_KEYTABLE_KEY4(entry), key4);
 		REG_WRITE(ah, AR_KEYTABLE_TYPE(entry), keyType);
+
+		REGWRITE_BUFFER_FLUSH(ah);
 
 		/* Write MAC address for the entry */
 		(void) ath_hw_keysetmac(common, entry, mac);
@@ -451,6 +483,9 @@ int ath_key_config(struct ath_common *common,
 	memset(&hk, 0, sizeof(hk));
 
 	switch (key->cipher) {
+	case 0:
+		hk.kv_type = ATH_CIPHER_CLR;
+		break;
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
 		hk.kv_type = ATH_CIPHER_WEP;
@@ -466,7 +501,8 @@ int ath_key_config(struct ath_common *common,
 	}
 
 	hk.kv_len = key->keylen;
-	memcpy(hk.kv_val, key->key, key->keylen);
+	if (key->keylen)
+		memcpy(hk.kv_val, key->key, key->keylen);
 
 	if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
 		switch (vif->type) {

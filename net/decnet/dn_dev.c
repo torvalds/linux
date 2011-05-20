@@ -747,7 +747,8 @@ static int dn_nl_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	skip_naddr = cb->args[1];
 
 	idx = 0;
-	for_each_netdev(&init_net, dev) {
+	rcu_read_lock();
+	for_each_netdev_rcu(&init_net, dev) {
 		if (idx < skip_ndevs)
 			goto cont;
 		else if (idx > skip_ndevs) {
@@ -756,11 +757,11 @@ static int dn_nl_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 			skip_naddr = 0;
 		}
 
-		if ((dn_db = rtnl_dereference(dev->dn_ptr)) == NULL)
+		if ((dn_db = rcu_dereference(dev->dn_ptr)) == NULL)
 			goto cont;
 
-		for (ifa = rtnl_dereference(dn_db->ifa_list), dn_idx = 0; ifa;
-		     ifa = rtnl_dereference(ifa->ifa_next), dn_idx++) {
+		for (ifa = rcu_dereference(dn_db->ifa_list), dn_idx = 0; ifa;
+		     ifa = rcu_dereference(ifa->ifa_next), dn_idx++) {
 			if (dn_idx < skip_naddr)
 				continue;
 
@@ -773,6 +774,7 @@ cont:
 		idx++;
 	}
 done:
+	rcu_read_unlock();
 	cb->args[0] = idx;
 	cb->args[1] = dn_idx;
 

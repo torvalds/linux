@@ -39,6 +39,7 @@
 #include "mac.h"
 #include "dm.h"
 #include "hw.h"
+#include "../rtl8192ce/hw.h"
 #include "trx.h"
 #include "led.h"
 #include "table.h"
@@ -605,10 +606,10 @@ void rtl92cu_read_eeprom_info(struct ieee80211_hw *hw)
 	if (!IS_NORMAL_CHIP(rtlhal->version))
 		return;
 	tmp_u1b = rtl_read_byte(rtlpriv, REG_9346CR);
-	rtlefuse->epromtype = (tmp_u1b & EEPROMSEL) ?
+	rtlefuse->epromtype = (tmp_u1b & BOOT_FROM_EEPROM) ?
 			       EEPROM_93C46 : EEPROM_BOOT_EFUSE;
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, ("Boot from %s\n",
-		 (tmp_u1b & EEPROMSEL) ? "EERROM" : "EFUSE"));
+		 (tmp_u1b & BOOT_FROM_EEPROM) ? "EERROM" : "EFUSE"));
 	rtlefuse->autoload_failflag = (tmp_u1b & EEPROM_EN) ? false : true;
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, ("Autoload %s\n",
 		 (tmp_u1b & EEPROM_EN) ? "OK!!" : "ERR!!"));
@@ -921,7 +922,7 @@ static void _rtl92cu_init_chipT_queue_priority(struct ieee80211_hw *hw,
 					       u8 out_ep_num,
 					       u8 queue_sel)
 {
-	u8	hq_sele;
+	u8 hq_sele = 0;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	switch (out_ep_num) {
@@ -977,7 +978,7 @@ static void _rtl92cu_init_wmac_setting(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 
-	mac->rx_conf = (RCR_APM | RCR_AM | RCR_ADF | RCR_AB | RCR_APP_FCS |
+	mac->rx_conf = (RCR_APM | RCR_AM | RCR_ADF | RCR_AB | RCR_APPFCS |
 		      RCR_APP_ICV | RCR_AMF | RCR_HTC_LOC_CTRL |
 		      RCR_APP_MIC | RCR_APP_PHYSTS | RCR_ACRC32);
 	rtl_write_dword(rtlpriv, REG_RCR, mac->rx_conf);
@@ -2182,7 +2183,9 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	}
 }
 
-void rtl92cu_update_hal_rate_table(struct ieee80211_hw *hw)
+void rtl92cu_update_hal_rate_table(struct ieee80211_hw *hw,
+				   struct ieee80211_sta *sta,
+				   u8 rssi_level)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);

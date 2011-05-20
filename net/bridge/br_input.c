@@ -98,9 +98,10 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	}
 
 	if (skb) {
-		if (dst)
+		if (dst) {
+			dst->used = jiffies;
 			br_forward(dst->dst, skb, skb2);
-		else
+		} else
 			br_flood_forward(br, skb, skb2);
 	}
 

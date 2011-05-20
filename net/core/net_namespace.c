@@ -208,10 +208,13 @@ static void net_free(struct net *net)
 	kmem_cache_free(net_cachep, net);
 }
 
-static struct net *net_create(void)
+struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 {
 	struct net *net;
 	int rv;
+
+	if (!(flags & CLONE_NEWNET))
+		return get_net(old_net);
 
 	net = net_alloc();
 	if (!net)
@@ -229,13 +232,6 @@ static struct net *net_create(void)
 		return ERR_PTR(rv);
 	}
 	return net;
-}
-
-struct net *copy_net_ns(unsigned long flags, struct net *old_net)
-{
-	if (!(flags & CLONE_NEWNET))
-		return get_net(old_net);
-	return net_create();
 }
 
 static DEFINE_SPINLOCK(cleanup_list_lock);

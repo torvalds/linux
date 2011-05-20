@@ -87,14 +87,50 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
-	/* No way to verify the MIC if the hardware stripped it */
-	if (status->flag & RX_FLAG_MMIC_STRIPPED)
+	/*
+	 * it makes no sense to check for MIC errors on anything other
+	 * than data frames.
+	 */
+	if (!ieee80211_is_data_present(hdr->frame_control))
 		return RX_CONTINUE;
 
-	if (!rx->key || rx->key->conf.cipher != WLAN_CIPHER_SUITE_TKIP ||
-	    !ieee80211_has_protected(hdr->frame_control) ||
-	    !ieee80211_is_data_present(hdr->frame_control))
+	/*
+	 * No way to verify the MIC if the hardware stripped it or
+	 * the IV with the key index. In this case we have solely rely
+	 * on the driver to set RX_FLAG_MMIC_ERROR in the event of a
+	 * MIC failure report.
+	 */
+	if (status->flag & (RX_FLAG_MMIC_STRIPPED | RX_FLAG_IV_STRIPPED)) {
+		if (status->flag & RX_FLAG_MMIC_ERROR)
+			goto mic_fail;
+
+		if (!(status->flag & RX_FLAG_IV_STRIPPED))
+			goto update_iv;
+
 		return RX_CONTINUE;
+	}
+
+	/*
+	 * Some hardware seems to generate Michael MIC failure reports; even
+	 * though, the frame was not encrypted with TKIP and therefore has no
+	 * MIC. Ignore the flag them to avoid triggering countermeasures.
+	 */
+	if (!rx->key || rx->key->conf.cipher != WLAN_CIPHER_SUITE_TKIP ||
+	    !(status->flag & RX_FLAG_DECRYPTED))
+		return RX_CONTINUE;
+
+	if (rx->sdata->vif.type == NL80211_IFTYPE_AP && rx->key->conf.keyidx) {
+		/*
+		 * APs with pairwise keys should never receive Michael MIC
+		 * errors for non-zero keyidx because these are reserved for
+		 * group keys and only the AP is sending real multicast
+		 * frames in the BSS. (
+		 */
+		return RX_DROP_UNUSABLE;
+	}
+
+	if (status->flag & RX_FLAG_MMIC_ERROR)
+		goto mic_fail;
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	if (skb->len < hdrlen + MICHAEL_MIC_LEN)
@@ -102,27 +138,25 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 
 	data = skb->data + hdrlen;
 	data_len = skb->len - hdrlen - MICHAEL_MIC_LEN;
-
 	key = &rx->key->conf.key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY];
 	michael_mic(key, hdr, data, data_len, mic);
-	if (memcmp(mic, data + data_len, MICHAEL_MIC_LEN) != 0) {
-		if (!(status->rx_flags & IEEE80211_RX_RA_MATCH))
-			return RX_DROP_UNUSABLE;
-
-		mac80211_ev_michael_mic_failure(rx->sdata, rx->key->conf.keyidx,
-						(void *) skb->data, NULL,
-						GFP_ATOMIC);
-		return RX_DROP_UNUSABLE;
-	}
+	if (memcmp(mic, data + data_len, MICHAEL_MIC_LEN) != 0)
+		goto mic_fail;
 
 	/* remove Michael MIC from payload */
 	skb_trim(skb, skb->len - MICHAEL_MIC_LEN);
 
+update_iv:
 	/* update IV in key information to be able to detect replays */
 	rx->key->u.tkip.rx[rx->queue].iv32 = rx->tkip_iv32;
 	rx->key->u.tkip.rx[rx->queue].iv16 = rx->tkip_iv16;
 
 	return RX_CONTINUE;
+
+mic_fail:
+	mac80211_ev_michael_mic_failure(rx->sdata, rx->key->conf.keyidx,
+					(void *) skb->data, NULL, GFP_ATOMIC);
+	return RX_DROP_UNUSABLE;
 }
 
 

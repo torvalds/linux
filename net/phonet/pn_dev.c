@@ -418,18 +418,14 @@ int phonet_route_del(struct net_device *dev, u8 daddr)
 	return 0;
 }
 
-struct net_device *phonet_route_get(struct net *net, u8 daddr)
+struct net_device *phonet_route_get_rcu(struct net *net, u8 daddr)
 {
 	struct phonet_net *pnn = phonet_pernet(net);
 	struct phonet_routes *routes = &pnn->routes;
 	struct net_device *dev;
 
-	ASSERT_RTNL(); /* no need to hold the device */
-
 	daddr >>= 2;
-	rcu_read_lock();
 	dev = rcu_dereference(routes->table[daddr]);
-	rcu_read_unlock();
 	return dev;
 }
 

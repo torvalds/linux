@@ -35,17 +35,6 @@ Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
 
 ---------------------------
 
-What:	AR9170USB
-When:	2.6.40
-
-Why:	This driver is deprecated and the firmware is no longer
-	maintained. The replacement driver "carl9170" has been
-	around for a while, so the devices are still supported.
-
-Who:	Christian Lamparter <chunkeey@googlemail.com>
-
----------------------------
-
 What:	IRQF_SAMPLE_RANDOM
 Check:	IRQF_SAMPLE_RANDOM
 When:	July 2009
@@ -402,16 +391,6 @@ Files:	net/rfkill/core.c
 Why:	It is not possible to claim an rfkill driver since 2007. This is
 	Documented as obsolete since Feb 2010.
 Who: 	anybody or Florian Mickler <florian@mickler.org>
-
-----------------------------
-
-What:	capifs
-When:	February 2011
-Files:	drivers/isdn/capi/capifs.*
-Why:	udev fully replaces this special file system that only contains CAPI
-	NCCI TTY device nodes. User space (pppdcapiplugin) works without
-	noticing the difference.
-Who:	Jan Kiszka <jan.kiszka@web.de>
 
 ----------------------------
 

@@ -1050,7 +1050,7 @@ typhoon_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	/* need to get stats to make these link speed/duplex valid */
 	typhoon_do_get_stats(tp);
-	cmd->speed = tp->speed;
+	ethtool_cmd_speed_set(cmd, tp->speed);
 	cmd->duplex = tp->duplex;
 	cmd->phy_address = 0;
 	cmd->transceiver = XCVR_INTERNAL;
@@ -1068,25 +1068,26 @@ static int
 typhoon_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct typhoon *tp = netdev_priv(dev);
+	u32 speed = ethtool_cmd_speed(cmd);
 	struct cmd_desc xp_cmd;
 	__le16 xcvr;
 	int err;
 
 	err = -EINVAL;
-	if(cmd->autoneg == AUTONEG_ENABLE) {
+	if (cmd->autoneg == AUTONEG_ENABLE) {
 		xcvr = TYPHOON_XCVR_AUTONEG;
 	} else {
-		if(cmd->duplex == DUPLEX_HALF) {
-			if(cmd->speed == SPEED_10)
+		if (cmd->duplex == DUPLEX_HALF) {
+			if (speed == SPEED_10)
 				xcvr = TYPHOON_XCVR_10HALF;
-			else if(cmd->speed == SPEED_100)
+			else if (speed == SPEED_100)
 				xcvr = TYPHOON_XCVR_100HALF;
 			else
 				goto out;
-		} else if(cmd->duplex == DUPLEX_FULL) {
-			if(cmd->speed == SPEED_10)
+		} else if (cmd->duplex == DUPLEX_FULL) {
+			if (speed == SPEED_10)
 				xcvr = TYPHOON_XCVR_10FULL;
-			else if(cmd->speed == SPEED_100)
+			else if (speed == SPEED_100)
 				xcvr = TYPHOON_XCVR_100FULL;
 			else
 				goto out;
@@ -1105,7 +1106,7 @@ typhoon_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		tp->speed = 0xff;	/* invalid */
 		tp->duplex = 0xff;	/* invalid */
 	} else {
-		tp->speed = cmd->speed;
+		tp->speed = speed;
 		tp->duplex = cmd->duplex;
 	}
 
@@ -1144,28 +1145,6 @@ typhoon_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 
-static u32
-typhoon_get_rx_csum(struct net_device *dev)
-{
-	/* For now, we don't allow turning off RX checksums.
-	 */
-	return 1;
-}
-
-static int
-typhoon_set_flags(struct net_device *dev, u32 data)
-{
-	/* There's no way to turn off the RX VLAN offloading and stripping
-	 * on the current 3XP firmware -- it does not respect the offload
-	 * settings -- so we only allow the user to toggle the TX processing.
-	 */
-	if (!(data & ETH_FLAG_RXVLAN))
-		return -EINVAL;
-
-	return ethtool_op_set_flags(dev, data,
-				    ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN);
-}
-
 static void
 typhoon_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 {
@@ -1187,13 +1166,7 @@ static const struct ethtool_ops typhoon_ethtool_ops = {
 	.get_wol		= typhoon_get_wol,
 	.set_wol		= typhoon_set_wol,
 	.get_link		= ethtool_op_get_link,
-	.get_rx_csum		= typhoon_get_rx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_csum,
-	.set_sg			= ethtool_op_set_sg,
-	.set_tso		= ethtool_op_set_tso,
 	.get_ringparam		= typhoon_get_ringparam,
-	.set_flags		= typhoon_set_flags,
-	.get_flags		= ethtool_op_get_flags,
 };
 
 static int
@@ -2482,10 +2455,15 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* We can handle scatter gather, up to 16 entries, and
 	 * we can do IP checksumming (only version 4, doh...)
+	 *
+	 * There's no way to turn off the RX VLAN offloading and stripping
+	 * on the current 3XP firmware -- it does not respect the offload
+	 * settings -- so we only allow the user to toggle the TX processing.
 	 */
-	dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
-	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	dev->features |= NETIF_F_TSO;
+	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
+		NETIF_F_HW_VLAN_TX;
+	dev->features = dev->hw_features |
+		NETIF_F_HW_VLAN_RX | NETIF_F_RXCSUM;
 
 	if(register_netdev(dev) < 0) {
 		err_msg = "unable to register netdev";

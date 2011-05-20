@@ -26,8 +26,8 @@ struct flowi_common {
 
 union flowi_uli {
 	struct {
-		__be16	sport;
 		__be16	dport;
+		__be16	sport;
 	} ports;
 
 	struct {
@@ -36,8 +36,8 @@ union flowi_uli {
 	} icmpt;
 
 	struct {
-		__le16	sport;
 		__le16	dport;
+		__le16	sport;
 	} dnports;
 
 	__be32		spi;
@@ -69,6 +69,27 @@ struct flowi4 {
 #define fl4_mh_type		uli.mht.type
 #define fl4_gre_key		uli.gre_key
 };
+
+static inline void flowi4_init_output(struct flowi4 *fl4, int oif,
+				      __u32 mark, __u8 tos, __u8 scope,
+				      __u8 proto, __u8 flags,
+				      __be32 daddr, __be32 saddr,
+				      __be16 dport, __be32 sport)
+{
+	fl4->flowi4_oif = oif;
+	fl4->flowi4_iif = 0;
+	fl4->flowi4_mark = mark;
+	fl4->flowi4_tos = tos;
+	fl4->flowi4_scope = scope;
+	fl4->flowi4_proto = proto;
+	fl4->flowi4_flags = flags;
+	fl4->flowi4_secid = 0;
+	fl4->daddr = daddr;
+	fl4->saddr = saddr;
+	fl4->fl4_dport = dport;
+	fl4->fl4_sport = sport;
+}
+				      
 
 struct flowi6 {
 	struct flowi_common	__fl_common;

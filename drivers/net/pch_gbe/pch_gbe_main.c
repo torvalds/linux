@@ -659,6 +659,7 @@ static void pch_gbe_configure_tx(struct pch_gbe_adapter *adapter)
  */
 static void pch_gbe_setup_rctl(struct pch_gbe_adapter *adapter)
 {
+	struct net_device *netdev = adapter->netdev;
 	struct pch_gbe_hw *hw = &adapter->hw;
 	u32 rx_mode, tcpip;
 
@@ -669,7 +670,7 @@ static void pch_gbe_setup_rctl(struct pch_gbe_adapter *adapter)
 
 	tcpip = ioread32(&hw->reg->TCPIP_ACC);
 
-	if (adapter->rx_csum) {
+	if (netdev->features & NETIF_F_RXCSUM) {
 		tcpip &= ~PCH_GBE_RX_TCPIPACC_OFF;
 		tcpip |= PCH_GBE_RX_TCPIPACC_EN;
 	} else {
@@ -890,12 +891,12 @@ static void pch_gbe_watchdog(unsigned long data)
 	struct pch_gbe_adapter *adapter = (struct pch_gbe_adapter *)data;
 	struct net_device *netdev = adapter->netdev;
 	struct pch_gbe_hw *hw = &adapter->hw;
-	struct ethtool_cmd cmd;
 
 	pr_debug("right now = %ld\n", jiffies);
 
 	pch_gbe_update_stats(adapter);
 	if ((mii_link_ok(&adapter->mii)) && (!netif_carrier_ok(netdev))) {
+		struct ethtool_cmd cmd = { .cmd = ETHTOOL_GSET };
 		netdev->tx_queue_len = adapter->tx_queue_len;
 		/* mii library handles link maintenance tasks */
 		if (mii_ethtool_gset(&adapter->mii, &cmd)) {
@@ -905,7 +906,7 @@ static void pch_gbe_watchdog(unsigned long data)
 						PCH_GBE_WATCHDOG_PERIOD));
 			return;
 		}
-		hw->mac.link_speed = cmd.speed;
+		hw->mac.link_speed = ethtool_cmd_speed(&cmd);
 		hw->mac.link_duplex = cmd.duplex;
 		/* Set the RGMII control. */
 		pch_gbe_set_rgmii_ctrl(adapter, hw->mac.link_speed,
@@ -915,7 +916,7 @@ static void pch_gbe_watchdog(unsigned long data)
 				 hw->mac.link_duplex);
 		netdev_dbg(netdev,
 			   "Link is Up %d Mbps %s-Duplex\n",
-			   cmd.speed,
+			   hw->mac.link_speed,
 			   cmd.duplex == DUPLEX_FULL ? "Full" : "Half");
 		netif_carrier_on(netdev);
 		netif_wake_queue(netdev);
@@ -953,7 +954,7 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 	frame_ctrl = 0;
 	if (unlikely(skb->len < PCH_GBE_SHORT_PKT))
 		frame_ctrl |= PCH_GBE_TXD_CTRL_APAD;
-	if (unlikely(!adapter->tx_csum))
+	if (skb->ip_summed == CHECKSUM_NONE)
 		frame_ctrl |= PCH_GBE_TXD_CTRL_TCPIP_ACC_OFF;
 
 	/* Performs checksum processing */
@@ -961,7 +962,7 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 	 * It is because the hardware accelerator does not support a checksum,
 	 * when the received data size is less than 64 bytes.
 	 */
-	if ((skb->len < PCH_GBE_SHORT_PKT) && (adapter->tx_csum)) {
+	if (skb->len < PCH_GBE_SHORT_PKT && skb->ip_summed != CHECKSUM_NONE) {
 		frame_ctrl |= PCH_GBE_TXD_CTRL_APAD |
 			      PCH_GBE_TXD_CTRL_TCPIP_ACC_OFF;
 		if (skb->protocol == htons(ETH_P_IP)) {
@@ -1429,7 +1430,7 @@ pch_gbe_clean_rx(struct pch_gbe_adapter *adapter,
 			length = (rx_desc->rx_words_eob) - 3;
 
 			/* Decide the data conversion method */
-			if (!adapter->rx_csum) {
+			if (!(netdev->features & NETIF_F_RXCSUM)) {
 				/* [Header:14][payload] */
 				if (NET_IP_ALIGN) {
 					/* Because alignment differs,
@@ -2032,6 +2033,29 @@ static int pch_gbe_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 /**
+ * pch_gbe_set_features - Reset device after features changed
+ * @netdev:   Network interface device structure
+ * @features:  New features
+ * Returns
+ *	0:		HW state updated successfully
+ */
+static int pch_gbe_set_features(struct net_device *netdev, u32 features)
+{
+	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
+	u32 changed = features ^ netdev->features;
+
+	if (!(changed & NETIF_F_RXCSUM))
+		return 0;
+
+	if (netif_running(netdev))
+		pch_gbe_reinit_locked(adapter);
+	else
+		pch_gbe_reset(adapter);
+
+	return 0;
+}
+
+/**
  * pch_gbe_ioctl - Controls register through a MII interface
  * @netdev:   Network interface device structure
  * @ifr:      Pointer to ifr structure
@@ -2131,6 +2155,7 @@ static const struct net_device_ops pch_gbe_netdev_ops = {
 	.ndo_set_mac_address = pch_gbe_set_mac,
 	.ndo_tx_timeout = pch_gbe_tx_timeout,
 	.ndo_change_mtu = pch_gbe_change_mtu,
+	.ndo_set_features = pch_gbe_set_features,
 	.ndo_do_ioctl = pch_gbe_ioctl,
 	.ndo_set_multicast_list = &pch_gbe_set_multi,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2336,7 +2361,9 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	netdev->watchdog_timeo = PCH_GBE_WATCHDOG_PERIOD;
 	netif_napi_add(netdev, &adapter->napi,
 		       pch_gbe_napi_poll, PCH_GBE_RX_WEIGHT);
-	netdev->features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_GRO;
+	netdev->hw_features = NETIF_F_RXCSUM |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	netdev->features = netdev->hw_features;
 	pch_gbe_set_ethtool_ops(netdev);
 
 	pch_gbe_mac_load_mac_addr(&adapter->hw);
@@ -2374,11 +2401,6 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	INIT_WORK(&adapter->reset_task, pch_gbe_reset_task);
 
 	pch_gbe_check_options(adapter);
-
-	if (adapter->tx_csum)
-		netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-	else
-		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
 
 	/* initialize the wol settings based on the eeprom settings */
 	adapter->wake_up_evt = PCH_GBE_WL_INIT_SETTING;
