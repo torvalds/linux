@@ -77,7 +77,6 @@ config GPIO_BASIC_MMIO
 
 config GPIO_IT8761E
 	tristate "IT8761E GPIO support"
-	depends on GPIOLIB
 	help
 	  Say yes here to support GPIO functionality of IT8761E super I/O chip.
 
@@ -101,7 +100,7 @@ config GPIO_VR41XX
 
 config GPIO_SCH
 	tristate "Intel SCH/TunnelCreek GPIO"
-	depends on GPIOLIB && PCI && X86
+	depends on PCI && X86
 	select MFD_CORE
 	select LPC_SCH
 	help
@@ -121,7 +120,7 @@ config GPIO_SCH
 
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
-	depends on GPIOLIB && MFD_SUPPORT && PCI
+	depends on MFD_SUPPORT && PCI
 	select MFD_CORE
 	select MFD_VX855
 	help
@@ -347,13 +346,13 @@ config GPIO_ML_IOH
 
 config GPIO_TIMBERDALE
 	bool "Support for timberdale GPIO IP"
-	depends on MFD_TIMBERDALE && GPIOLIB && HAS_IOMEM
+	depends on MFD_TIMBERDALE && HAS_IOMEM
 	---help---
 	Add support for the GPIO IP in the timberdale FPGA.
 
 config GPIO_RDC321X
 	tristate "RDC R-321x GPIO support"
-	depends on PCI && GPIOLIB
+	depends on PCI
 	select MFD_SUPPORT
 	select MFD_CORE
 	select MFD_RDC321X
