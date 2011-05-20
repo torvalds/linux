@@ -83,6 +83,10 @@
 #define SPRN_IVOR13	0x19D	/* Interrupt Vector Offset Register 13 */
 #define SPRN_IVOR14	0x19E	/* Interrupt Vector Offset Register 14 */
 #define SPRN_IVOR15	0x19F	/* Interrupt Vector Offset Register 15 */
+#define SPRN_IVOR38	0x1B0	/* Interrupt Vector Offset Register 38 */
+#define SPRN_IVOR39	0x1B1	/* Interrupt Vector Offset Register 39 */
+#define SPRN_IVOR40	0x1B2	/* Interrupt Vector Offset Register 40 */
+#define SPRN_IVOR41	0x1B3	/* Interrupt Vector Offset Register 41 */
 #define SPRN_SPEFSCR	0x200	/* SPE & Embedded FP Status & Control */
 #define SPRN_BBEAR	0x201	/* Branch Buffer Entry Address Register */
 #define SPRN_BBTAR	0x202	/* Branch Buffer Target Address Register */

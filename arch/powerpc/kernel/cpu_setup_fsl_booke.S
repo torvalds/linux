@@ -88,6 +88,9 @@ _GLOBAL(__setup_cpu_e5500)
 	bl	__e500_dcache_setup
 #ifdef CONFIG_PPC_BOOK3E_64
 	bl	.__setup_base_ivors
+	bl	.setup_perfmon_ivor
+	bl	.setup_doorbell_ivors
+	bl	.setup_ehv_ivors
 #else
 	bl	__setup_e500mc_ivors
 #endif
