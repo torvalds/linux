@@ -2370,11 +2370,6 @@ static int __devinit check_position_fix(struct azx *chip, int fix)
 	case AZX_DRIVER_ATI:
 		/* Use link position directly, avoid any transfer problem. */
 		return POS_FIX_VIACOMBO;
-	case AZX_DRIVER_GENERIC:
-		/* AMD chipsets behave often badly, too */
-		if (chip->pci->vendor == PCI_VENDOR_ID_AMD)
-			return POS_FIX_VIACOMBO;
-		break;
 	}
 
 	return POS_FIX_AUTO;
