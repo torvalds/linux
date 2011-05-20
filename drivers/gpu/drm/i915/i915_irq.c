@@ -1736,6 +1736,8 @@ void ironlake_irq_preinstall(struct drm_device *dev)
 
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
+	if (IS_GEN6(dev) || IS_IVYBRIDGE(dev))
+		INIT_WORK(&dev_priv->rps_work, gen6_pm_rps_work);
 
 	I915_WRITE(HWSTAM, 0xeffe);
 
@@ -1887,7 +1889,6 @@ void i915_driver_irq_preinstall(struct drm_device * dev)
 
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
-	INIT_WORK(&dev_priv->rps_work, gen6_pm_rps_work);
 
 	if (I915_HAS_HOTPLUG(dev)) {
 		I915_WRITE(PORT_HOTPLUG_EN, 0);
