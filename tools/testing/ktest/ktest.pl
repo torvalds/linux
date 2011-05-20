@@ -36,6 +36,7 @@ $default{"REBOOT_ON_SUCCESS"}	= 1;
 $default{"POWEROFF_ON_SUCCESS"}	= 0;
 $default{"BUILD_OPTIONS"}	= "";
 $default{"BISECT_SLEEP_TIME"}	= 60;   # sleep time between bisects
+$default{"PATCHCHECK_SLEEP_TIME"} = 60; # sleep time between patch checks
 $default{"CLEAR_LOG"}		= 0;
 $default{"BISECT_MANUAL"}	= 0;
 $default{"BISECT_SKIP"}		= 1;
@@ -96,6 +97,7 @@ my $monitor_pid;
 my $monitor_cnt = 0;
 my $sleep_time;
 my $bisect_sleep_time;
+my $patchcheck_sleep_time;
 my $store_failures;
 my $timeout;
 my $booted_timeout;
@@ -1764,6 +1766,14 @@ sub config_bisect {
     success $i;
 }
 
+sub patchcheck_reboot {
+    doprint "Reboot and sleep $patchcheck_sleep_time seconds\n";
+    reboot;
+    start_monitor;
+    wait_for_monitor $patchcheck_sleep_time;
+    end_monitor;
+}
+
 sub patchcheck {
     my ($i) = @_;
 
@@ -1854,6 +1864,8 @@ sub patchcheck {
 	}
 	end_monitor;
 	return 0 if ($failed);
+
+	patchcheck_reboot;
 
     }
     $in_patchcheck = 0;
@@ -2004,6 +2016,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $poweroff_after_halt = set_test_option("POWEROFF_AFTER_HALT", $i);
     $sleep_time = set_test_option("SLEEP_TIME", $i);
     $bisect_sleep_time = set_test_option("BISECT_SLEEP_TIME", $i);
+    $patchcheck_sleep_time = set_test_option("PATCHCHECK_SLEEP_TIME", $i);
     $bisect_manual = set_test_option("BISECT_MANUAL", $i);
     $bisect_skip = set_test_option("BISECT_SKIP", $i);
     $store_failures = set_test_option("STORE_FAILURES", $i);
