@@ -83,10 +83,9 @@ struct scic_power_control {
 	bool timer_started;
 
 	/**
-	 * This field is the handle to the driver timer object.  This timer is used to
-	 * control when the directed attached disks can consume power.
+	 * Timer to control when the directed attached disks can consume power.
 	 */
-	void *timer;
+	struct sci_timer timer;
 
 	/**
 	 * This field is used to keep track of how many phys are put into the

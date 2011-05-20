@@ -1374,6 +1374,8 @@ void isci_host_deinit(struct isci_host *ihost)
 
 	del_timer_sync(&ihost->sci.port_agent.timer.timer);
 
+	del_timer_sync(&ihost->sci.power_control.timer.timer);
+
 	isci_timer_list_destroy(ihost);
 }
 
@@ -1935,67 +1937,55 @@ static enum sci_status scic_sds_controller_initialize_phy_startup(struct scic_sd
 	return SCI_SUCCESS;
 }
 
-static void scic_sds_controller_power_control_timer_start(struct scic_sds_controller *scic)
+static void power_control_timeout(unsigned long data)
 {
-	isci_timer_start(scic->power_control.timer,
-			 SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL);
+	struct sci_timer *tmr = (struct sci_timer *)data;
+	struct scic_sds_controller *scic = container_of(tmr, typeof(*scic), power_control.timer);
+	struct isci_host *ihost = scic_to_ihost(scic);
+	struct scic_sds_phy *sci_phy;
+	unsigned long flags;
+	u8 i;
 
-	scic->power_control.timer_started = true;
-}
+	spin_lock_irqsave(&ihost->scic_lock, flags);
 
-static void scic_sds_controller_power_control_timer_stop(struct scic_sds_controller *scic)
-{
-	if (scic->power_control.timer_started) {
-		isci_timer_stop(scic->power_control.timer);
-		scic->power_control.timer_started = false;
-	}
-}
-
-static void scic_sds_controller_power_control_timer_restart(struct scic_sds_controller *scic)
-{
-	scic_sds_controller_power_control_timer_stop(scic);
-	scic_sds_controller_power_control_timer_start(scic);
-}
-
-static void scic_sds_controller_power_control_timer_handler(
-	void *controller)
-{
-	struct scic_sds_controller *scic;
-
-	scic = (struct scic_sds_controller *)controller;
+	if (tmr->cancel)
+		goto done;
 
 	scic->power_control.phys_granted_power = 0;
 
 	if (scic->power_control.phys_waiting == 0) {
 		scic->power_control.timer_started = false;
-	} else {
-		struct scic_sds_phy *sci_phy = NULL;
-		u8 i;
-
-		for (i = 0;
-		     (i < SCI_MAX_PHYS)
-		     && (scic->power_control.phys_waiting != 0);
-		     i++) {
-			if (scic->power_control.requesters[i] != NULL) {
-				if (scic->power_control.phys_granted_power <
-				    scic->oem_parameters.sds1.controller.max_concurrent_dev_spin_up) {
-					sci_phy = scic->power_control.requesters[i];
-					scic->power_control.requesters[i] = NULL;
-					scic->power_control.phys_waiting--;
-					scic->power_control.phys_granted_power++;
-					scic_sds_phy_consume_power_handler(sci_phy);
-				} else {
-					break;
-				}
-			}
-		}
-
-		/*
-		 * It doesn't matter if the power list is empty, we need to start the
-		 * timer in case another phy becomes ready.
-		 */
-		scic_sds_controller_power_control_timer_start(scic);
+		goto done;
 	}
+
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+
+		if (scic->power_control.phys_waiting == 0)
+			break;
+
+		sci_phy = scic->power_control.requesters[i];
+		if (sci_phy == NULL)
+			continue;
+
+		if (scic->power_control.phys_granted_power >=
+		    scic->oem_parameters.sds1.controller.max_concurrent_dev_spin_up)
+			break;
+
+		scic->power_control.requesters[i] = NULL;
+		scic->power_control.phys_waiting--;
+		scic->power_control.phys_granted_power++;
+		scic_sds_phy_consume_power_handler(sci_phy);
+	}
+
+	/*
+	 * It doesn't matter if the power list is empty, we need to start the
+	 * timer in case another phy becomes ready.
+	 */
+	sci_mod_timer(tmr, SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL);
+	scic->power_control.timer_started = true;
+
+done:
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 }
 
 /**
@@ -2019,7 +2009,13 @@ void scic_sds_controller_power_control_queue_insert(
 		 * stop and start the power_control timer. When the timer fires, the
 		 * no_of_phys_granted_power will be set to 0
 		 */
-		scic_sds_controller_power_control_timer_restart(scic);
+		if (scic->power_control.timer_started)
+			sci_del_timer(&scic->power_control.timer);
+
+		sci_mod_timer(&scic->power_control.timer,
+				 SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL);
+		scic->power_control.timer_started = true;
+
 	} else {
 		/* Add the phy in the waiting list */
 		scic->power_control.requesters[sci_phy->phy_index] = sci_phy;
@@ -2224,10 +2220,7 @@ static enum sci_status scic_controller_set_mode(struct scic_sds_controller *scic
 
 static void scic_sds_controller_initialize_power_control(struct scic_sds_controller *scic)
 {
-	struct isci_host *ihost = scic_to_ihost(scic);
-	scic->power_control.timer = isci_timer_create(ihost,
-						      scic,
-					scic_sds_controller_power_control_timer_handler);
+	sci_init_timer(&scic->power_control.timer, power_control_timeout);
 
 	memset(scic->power_control.requesters, 0,
 	       sizeof(scic->power_control.requesters));
