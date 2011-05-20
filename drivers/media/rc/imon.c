@@ -1970,7 +1970,7 @@ static struct input_dev *imon_init_touch(struct imon_context *ictx)
 	return touch;
 
 touch_register_failed:
-	input_free_device(ictx->touch);
+	input_free_device(touch);
 
 touch_alloc_failed:
 	return NULL;
