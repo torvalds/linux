@@ -60,6 +60,7 @@ struct nfs4_pnfs_ds {
 
 struct nfs4_file_layout_dsaddr {
 	struct hlist_node		node;
+	struct nfs_client		*nfs_client;
 	struct nfs4_deviceid		deviceid;
 	atomic_t			ref;
 	unsigned long			flags;
@@ -101,7 +102,7 @@ u32 nfs4_fl_calc_ds_index(struct pnfs_layout_segment *lseg, u32 j);
 struct nfs4_pnfs_ds *nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg,
 					u32 ds_idx);
 extern struct nfs4_file_layout_dsaddr *
-nfs4_fl_find_get_deviceid(struct nfs4_deviceid *dev_id);
+nfs4_fl_find_get_deviceid(struct nfs_client *, struct nfs4_deviceid *dev_id);
 extern void nfs4_fl_put_deviceid(struct nfs4_file_layout_dsaddr *dsaddr);
 struct nfs4_file_layout_dsaddr *
 get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gfp_t gfp_flags);

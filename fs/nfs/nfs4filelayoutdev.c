@@ -431,7 +431,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 	dsaddr->stripe_indices = stripe_indices;
 	stripe_indices = NULL;
 	dsaddr->ds_num = num;
-
+	dsaddr->nfs_client = NFS_SERVER(ino)->nfs_client;
 	memcpy(&dsaddr->deviceid, &pdev->dev_id, sizeof(pdev->dev_id));
 
 	for (i = 0; i < dsaddr->ds_num; i++) {
@@ -516,7 +516,7 @@ decode_and_add_device(struct inode *inode, struct pnfs_device *dev, gfp_t gfp_fl
 	}
 
 	spin_lock(&filelayout_deviceid_lock);
-	d = nfs4_fl_find_get_deviceid(&new->deviceid);
+	d = nfs4_fl_find_get_deviceid(new->nfs_client, &new->deviceid);
 	if (d) {
 		spin_unlock(&filelayout_deviceid_lock);
 		nfs4_fl_free_deviceid(new);
@@ -610,16 +610,15 @@ nfs4_fl_put_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 }
 
 struct nfs4_file_layout_dsaddr *
-nfs4_fl_find_get_deviceid(struct nfs4_deviceid *id)
+nfs4_fl_find_get_deviceid(struct nfs_client *clp, struct nfs4_deviceid *id)
 {
 	struct nfs4_file_layout_dsaddr *d;
 	struct hlist_node *n;
 	long hash = nfs4_fl_deviceid_hash(id);
 
-
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(d, n, &filelayout_deviceid_cache[hash], node) {
-		if (!memcmp(&d->deviceid, id, sizeof(*id))) {
+		if (d->nfs_client == clp && !memcmp(&d->deviceid, id, sizeof(*id))) {
 			if (!atomic_inc_not_zero(&d->ref))
 				goto fail;
 			rcu_read_unlock();

@@ -440,7 +440,7 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 	}
 
 	/* find and reference the deviceid */
-	dsaddr = nfs4_fl_find_get_deviceid(id);
+	dsaddr = nfs4_fl_find_get_deviceid(NFS_SERVER(lo->plh_inode)->nfs_client, id);
 	if (dsaddr == NULL) {
 		dsaddr = get_device_info(lo->plh_inode, id, gfp_flags);
 		if (dsaddr == NULL)
