@@ -122,7 +122,7 @@ struct scic_sds_port_configuration_agent {
 	bool timer_pending;
 	port_config_fn link_up_handler;
 	port_config_fn link_down_handler;
-	void *timer;
+	struct sci_timer	timer;
 };
 
 /**
@@ -567,15 +567,6 @@ static inline struct isci_host *scic_to_ihost(struct scic_sds_controller *scic)
 			index = index + 1; \
 		} \
 	}
-
-/**
- * scic_sds_controller_get_port_configuration_agent() -
- *
- * This is a helper macro to get the port configuration agent from the
- * controller object.
- */
-#define scic_sds_controller_get_port_configuration_agent(controller) \
-	(&(controller)->port_agent)
 
 /**
  * scic_sds_controller_get_protocol_engine_group() -

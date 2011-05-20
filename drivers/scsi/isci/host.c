@@ -1366,6 +1366,8 @@ void isci_host_deinit(struct isci_host *ihost)
 		del_timer_sync(&sci_port->timer.timer);
 	}
 
+	del_timer_sync(&ihost->sci.port_agent.timer.timer);
+
 	isci_timer_list_destroy(ihost);
 }
 

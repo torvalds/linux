@@ -328,20 +328,24 @@ static enum sci_status scic_sds_mpc_agent_validate_phy_configuration(
 	return scic_sds_port_configuration_agent_validate_ports(controller, port_agent);
 }
 
-/**
- *
- *
- * This timer routine is used to allow the SCI User to rediscover or change
- * device objects before a new series of link up notifications because a link
- * down has allowed a better port configuration.
- */
-static void scic_sds_mpc_agent_timeout_handler(void *object)
+static void mpc_agent_timeout(unsigned long data)
 {
 	u8 index;
-	struct scic_sds_controller *scic = object;
-	struct isci_host *ihost = scic_to_ihost(scic);
-	struct scic_sds_port_configuration_agent *port_agent = &scic->port_agent;
+	struct sci_timer *tmr = (struct sci_timer *)data;
+	struct scic_sds_port_configuration_agent *port_agent;
+	struct scic_sds_controller *scic;
+	struct isci_host *ihost;
+	unsigned long flags;
 	u16 configure_phy_mask;
+
+	port_agent = container_of(tmr, typeof(*port_agent), timer);
+	scic = container_of(port_agent, typeof(*scic), port_agent);
+	ihost = scic_to_ihost(scic);
+
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+
+	if (tmr->cancel)
+		goto done;
 
 	port_agent->timer_pending = false;
 
@@ -357,6 +361,9 @@ static void scic_sds_mpc_agent_timeout_handler(void *object)
 						    sci_phy);
 		}
 	}
+
+done:
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 }
 
 /**
@@ -441,8 +448,8 @@ static void scic_sds_mpc_agent_link_down(
 		    !port_agent->timer_pending) {
 			port_agent->timer_pending = true;
 
-			isci_timer_start(port_agent->timer,
-					 SCIC_SDS_MPC_RECONFIGURATION_TIMEOUT);
+			sci_mod_timer(&port_agent->timer,
+				      SCIC_SDS_MPC_RECONFIGURATION_TIMEOUT);
 		}
 
 		scic_sds_port_link_down(sci_port, sci_phy);
@@ -496,31 +503,6 @@ static enum sci_status scic_sds_apc_agent_validate_phy_configuration(
 	}
 
 	return scic_sds_port_configuration_agent_validate_ports(controller, port_agent);
-}
-
-/**
- *
- * @controller: This is the controller that to which the port agent is assigned.
- * @port_agent: This is the port agent that is requesting the timer start
- *    operation.
- * @phy: This is the phy that has caused the timer operation to be scheduled.
- *
- * This routine will restart the automatic port configuration timeout timer for
- * the next time period.  This could be caused by either a link down event or a
- * link up event where we can not yet tell to which port a phy belongs.
- */
-static inline void scic_sds_apc_agent_start_timer(
-	struct scic_sds_controller *scic,
-	struct scic_sds_port_configuration_agent *port_agent,
-	struct scic_sds_phy *sci_phy,
-	u32 timeout)
-{
-	if (port_agent->timer_pending)
-		isci_timer_stop(port_agent->timer);
-
-	port_agent->timer_pending = true;
-
-	isci_timer_start(port_agent->timer, timeout);
 }
 
 /**
@@ -635,9 +617,17 @@ static void scic_sds_apc_agent_configure_ports(
 		break;
 
 	case SCIC_SDS_APC_START_TIMER:
-		scic_sds_apc_agent_start_timer(
-			controller, port_agent, phy, SCIC_SDS_APC_WAIT_LINK_UP_NOTIFICATION
-			);
+		/*
+		 * This can occur for either a link down event, or a link
+		 * up event where we cannot yet tell the port to which a
+		 * phy belongs.
+		 */
+		if (port_agent->timer_pending)
+			sci_del_timer(&port_agent->timer);
+
+		port_agent->timer_pending = true;
+		sci_mod_timer(&port_agent->timer,
+			      SCIC_SDS_APC_WAIT_LINK_UP_NOTIFICATION);
 		break;
 
 	case SCIC_SDS_APC_SKIP_PHY:
@@ -719,15 +709,24 @@ static void scic_sds_apc_agent_link_down(
 }
 
 /* configure the phys into ports when the timer fires */
-static void scic_sds_apc_agent_timeout_handler(void *object)
+static void apc_agent_timeout(unsigned long data)
 {
 	u32 index;
+	struct sci_timer *tmr = (struct sci_timer *)data;
 	struct scic_sds_port_configuration_agent *port_agent;
-	struct scic_sds_controller *scic = object;
-	struct isci_host *ihost = scic_to_ihost(scic);
+	struct scic_sds_controller *scic;
+	struct isci_host *ihost;
+	unsigned long flags;
 	u16 configure_phy_mask;
 
-	port_agent = scic_sds_controller_get_port_configuration_agent(scic);
+	port_agent = container_of(tmr, typeof(*port_agent), timer);
+	scic = container_of(port_agent, typeof(*scic), port_agent);
+	ihost = scic_to_ihost(scic);
+
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+
+	if (tmr->cancel)
+		goto done;
 
 	port_agent->timer_pending = false;
 
@@ -743,6 +742,9 @@ static void scic_sds_apc_agent_timeout_handler(void *object)
 		scic_sds_apc_agent_configure_ports(scic, port_agent,
 						   &ihost->phys[index].sci, false);
 	}
+
+done:
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 }
 
 /*
@@ -769,7 +771,6 @@ void scic_sds_port_configuration_agent_construct(
 	port_agent->link_down_handler = NULL;
 
 	port_agent->timer_pending = false;
-	port_agent->timer = NULL;
 
 	for (index = 0; index < SCI_MAX_PORTS; index++) {
 		port_agent->phy_valid_port_range[index].min_index = 0;
@@ -781,9 +782,8 @@ enum sci_status scic_sds_port_configuration_agent_initialize(
 	struct scic_sds_controller *scic,
 	struct scic_sds_port_configuration_agent *port_agent)
 {
-	enum sci_status status = SCI_SUCCESS;
+	enum sci_status status;
 	enum scic_port_configuration_mode mode;
-	struct isci_host *ihost = scic_to_ihost(scic);
 
 	mode = scic->oem_parameters.sds1.controller.mode_type;
 
@@ -794,10 +794,7 @@ enum sci_status scic_sds_port_configuration_agent_initialize(
 		port_agent->link_up_handler = scic_sds_mpc_agent_link_up;
 		port_agent->link_down_handler = scic_sds_mpc_agent_link_down;
 
-		port_agent->timer = isci_timer_create(
-				ihost,
-				scic,
-				scic_sds_mpc_agent_timeout_handler);
+		sci_init_timer(&port_agent->timer, mpc_agent_timeout);
 	} else {
 		status = scic_sds_apc_agent_validate_phy_configuration(
 				scic, port_agent);
@@ -805,21 +802,7 @@ enum sci_status scic_sds_port_configuration_agent_initialize(
 		port_agent->link_up_handler = scic_sds_apc_agent_link_up;
 		port_agent->link_down_handler = scic_sds_apc_agent_link_down;
 
-		port_agent->timer = isci_timer_create(
-				ihost,
-				scic,
-				scic_sds_apc_agent_timeout_handler);
-	}
-
-	/* Make sure we have actually gotten a timer */
-	if ((status == SCI_SUCCESS) && (port_agent->timer == NULL)) {
-		dev_err(scic_to_dev(scic),
-			"%s: Controller 0x%p automatic port configuration "
-			"agent could not get timer.\n",
-			__func__,
-			scic);
-
-		status = SCI_FAILURE;
+		sci_init_timer(&port_agent->timer, apc_agent_timeout);
 	}
 
 	return status;
