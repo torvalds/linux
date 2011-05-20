@@ -2069,7 +2069,7 @@ config OLPC
 	depends on !X86_PAE
 	select GPIOLIB
 	select OF
-	select OF_PROMTREE if PROC_DEVICETREE
+	select OF_PROMTREE
 	---help---
 	  Add support for detecting the unique features of the OLPC
 	  XO hardware.

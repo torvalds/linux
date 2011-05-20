@@ -73,6 +73,107 @@ static struct resource video_rom_resource = {
 	.flags	= IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM
 };
 
+/* does this oprom support the given pci device, or any of the devices
+ * that the driver supports?
+ */
+static bool match_id(struct pci_dev *pdev, unsigned short vendor, unsigned short device)
+{
+	struct pci_driver *drv = pdev->driver;
+	const struct pci_device_id *id;
+
+	if (pdev->vendor == vendor && pdev->device == device)
+		return true;
+
+	for (id = drv ? drv->id_table : NULL; id && id->vendor; id++)
+		if (id->vendor == vendor && id->device == device)
+			break;
+
+	return id && id->vendor;
+}
+
+static bool probe_list(struct pci_dev *pdev, unsigned short vendor,
+		       const unsigned char *rom_list)
+{
+	unsigned short device;
+
+	do {
+		if (probe_kernel_address(rom_list, device) != 0)
+			device = 0;
+
+		if (device && match_id(pdev, vendor, device))
+			break;
+
+		rom_list += 2;
+	} while (device);
+
+	return !!device;
+}
+
+static struct resource *find_oprom(struct pci_dev *pdev)
+{
+	struct resource *oprom = NULL;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(adapter_rom_resources); i++) {
+		struct resource *res = &adapter_rom_resources[i];
+		unsigned short offset, vendor, device, list, rev;
+		const unsigned char *rom;
+
+		if (res->end == 0)
+			break;
+
+		rom = isa_bus_to_virt(res->start);
+		if (probe_kernel_address(rom + 0x18, offset) != 0)
+			continue;
+
+		if (probe_kernel_address(rom + offset + 0x4, vendor) != 0)
+			continue;
+
+		if (probe_kernel_address(rom + offset + 0x6, device) != 0)
+			continue;
+
+		if (match_id(pdev, vendor, device)) {
+			oprom = res;
+			break;
+		}
+
+		if (probe_kernel_address(rom + offset + 0x8, list) == 0 &&
+		    probe_kernel_address(rom + offset + 0xc, rev) == 0 &&
+		    rev >= 3 && list &&
+		    probe_list(pdev, vendor, rom + offset + list)) {
+			oprom = res;
+			break;
+		}
+	}
+
+	return oprom;
+}
+
+void *pci_map_biosrom(struct pci_dev *pdev)
+{
+	struct resource *oprom = find_oprom(pdev);
+
+	if (!oprom)
+		return NULL;
+
+	return ioremap(oprom->start, resource_size(oprom));
+}
+EXPORT_SYMBOL(pci_map_biosrom);
+
+void pci_unmap_biosrom(void __iomem *image)
+{
+	iounmap(image);
+}
+EXPORT_SYMBOL(pci_unmap_biosrom);
+
+size_t pci_biosrom_size(struct pci_dev *pdev)
+{
+	struct resource *oprom = find_oprom(pdev);
+
+	return oprom ? resource_size(oprom) : 0;
+}
+EXPORT_SYMBOL(pci_biosrom_size);
+
 #define ROMSIGNATURE 0xaa55
 
 static int __init romsignature(const unsigned char *rom)
