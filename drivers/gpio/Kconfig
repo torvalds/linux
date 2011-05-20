@@ -1,5 +1,5 @@
 #
-# platform-neutral GPIO infrastructure and expanders
+# GPIO infrastructure and drivers
 #
 
 config ARCH_WANT_OPTIONAL_GPIOLIB
@@ -31,7 +31,7 @@ menuconfig GPIOLIB
 	help
 	  This enables GPIO support through the generic GPIO library.
 	  You only need to enable this, if you also want to enable
-	  one or more of the GPIO expansion card drivers below.
+	  one or more of the GPIO drivers below.
 
 	  If unsure, say N.
 
@@ -63,12 +63,12 @@ config GPIO_SYSFS
 	  Kernel drivers may also request that a particular GPIO be
 	  exported to userspace; this can be useful when debugging.
 
-# put expanders in the right section, in alphabetical order
+# put drivers in the right section, in alphabetical order
 
 config GPIO_MAX730X
 	tristate
 
-comment "Memory mapped GPIO expanders:"
+comment "Memory mapped GPIO drivers:"
 
 config GPIO_BASIC_MMIO
 	tristate "Basic memory-mapped GPIO controllers support"
