@@ -230,13 +230,6 @@ static void sctp_free_local_addr_list(void)
 	}
 }
 
-void sctp_local_addr_free(struct rcu_head *head)
-{
-	struct sctp_sockaddr_entry *e = container_of(head,
-				struct sctp_sockaddr_entry, rcu);
-	kfree(e);
-}
-
 /* Copy the local addresses which are valid for 'scope' into 'bp'.  */
 int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
 			      gfp_t gfp, int copy_flags)
@@ -681,7 +674,7 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 		}
 		spin_unlock_bh(&sctp_local_addr_lock);
 		if (found)
-			call_rcu(&addr->rcu, sctp_local_addr_free);
+			kfree_rcu(addr, rcu);
 		break;
 	}
 
