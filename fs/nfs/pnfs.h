@@ -157,6 +157,23 @@ bool pnfs_roc_drain(struct inode *ino, u32 *barrier);
 void pnfs_set_layoutcommit(struct nfs_write_data *wdata);
 int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
 
+/* pnfs_dev.c */
+struct nfs4_deviceid_node {
+	struct hlist_node		node;
+	const struct nfs_client		*nfs_client;
+	struct nfs4_deviceid		deviceid;
+	atomic_t			ref;
+};
+
+void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id);
+struct nfs4_deviceid_node *nfs4_find_get_deviceid(const struct nfs_client *, const struct nfs4_deviceid *);
+struct nfs4_deviceid_node *nfs4_unhash_put_deviceid(const struct nfs_client *, const struct nfs4_deviceid *);
+void nfs4_init_deviceid_node(struct nfs4_deviceid_node *,
+			     const struct nfs_client *,
+			     const struct nfs4_deviceid *);
+struct nfs4_deviceid_node *nfs4_insert_deviceid_node(struct nfs4_deviceid_node *);
+bool nfs4_put_deviceid_node(struct nfs4_deviceid_node *);
+
 static inline int lo_fail_bit(u32 iomode)
 {
 	return iomode == IOMODE_RW ?

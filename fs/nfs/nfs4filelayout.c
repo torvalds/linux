@@ -421,6 +421,7 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 			struct nfs4_deviceid *id,
 			gfp_t gfp_flags)
 {
+	struct nfs4_deviceid_node *d;
 	struct nfs4_file_layout_dsaddr *dsaddr;
 	int status = -EINVAL;
 	struct nfs_server *nfss = NFS_SERVER(lo->plh_inode);
@@ -440,12 +441,13 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 	}
 
 	/* find and reference the deviceid */
-	dsaddr = nfs4_fl_find_get_deviceid(NFS_SERVER(lo->plh_inode)->nfs_client, id);
-	if (dsaddr == NULL) {
+	d = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode)->nfs_client, id);
+	if (d == NULL) {
 		dsaddr = get_device_info(lo->plh_inode, id, gfp_flags);
 		if (dsaddr == NULL)
 			goto out;
-	}
+	} else
+		dsaddr = container_of(d, struct nfs4_file_layout_dsaddr, id_node);
 	fl->dsaddr = dsaddr;
 
 	if (fl->first_stripe_index < 0 ||
@@ -535,7 +537,7 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 
 	memcpy(id, p, sizeof(*id));
 	p += XDR_QUADLEN(NFS4_DEVICEID4_SIZE);
-	print_deviceid(id);
+	nfs4_print_deviceid(id);
 
 	nfl_util = be32_to_cpup(p++);
 	if (nfl_util & NFL4_UFLG_COMMIT_THRU_MDS)
