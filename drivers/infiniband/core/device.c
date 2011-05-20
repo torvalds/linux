@@ -725,16 +725,24 @@ static int __init ib_core_init(void)
 		return -ENOMEM;
 
 	ret = ib_sysfs_setup();
-	if (ret)
+	if (ret) {
 		printk(KERN_WARNING "Couldn't create InfiniBand device class\n");
+		goto err;
+	}
 
 	ret = ib_cache_setup();
 	if (ret) {
 		printk(KERN_WARNING "Couldn't set up InfiniBand P_Key/GID cache\n");
-		ib_sysfs_cleanup();
-		destroy_workqueue(ib_wq);
+		goto err_sysfs;
 	}
 
+	return 0;
+
+err_sysfs:
+	ib_sysfs_cleanup();
+
+err:
+	destroy_workqueue(ib_wq);
 	return ret;
 }
 
