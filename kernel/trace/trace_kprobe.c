@@ -53,7 +53,6 @@ const char *reserved_field_names[] = {
 	"common_preempt_count",
 	"common_pid",
 	"common_tgid",
-	"common_lock_depth",
 	FIELD_STRING_IP,
 	FIELD_STRING_RETIP,
 	FIELD_STRING_FUNC,
