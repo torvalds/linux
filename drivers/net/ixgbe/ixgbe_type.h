@@ -2143,7 +2143,8 @@ enum ixgbe_fdir_pballoc_type {
 #define FW_CEM_HDR_LEN                0x4
 #define FW_CEM_CMD_DRIVER_INFO        0xDD
 #define FW_CEM_CMD_DRIVER_INFO_LEN    0x5
-#define FW_CEM_CMD_RESERVED           0X0
+#define FW_CEM_CMD_RESERVED           0x0
+#define FW_CEM_UNUSED_VER             0x0
 #define FW_CEM_MAX_RETRIES            3
 #define FW_CEM_RESP_STATUS_SUCCESS    0x1
 
