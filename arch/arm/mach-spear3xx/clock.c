@@ -732,12 +732,12 @@ static struct clk_lookup spear_clk_lookups[] = {
 #endif
 };
 
-void __init clk_init(void)
+void __init spear3xx_clk_init(void)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(spear_clk_lookups); i++)
 		clk_register(&spear_clk_lookups[i]);
 
-	recalc_root_clocks();
+	clk_init();
 }

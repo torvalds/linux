@@ -97,7 +97,7 @@ void __init spear3xx_map_io(void)
 	iotable_init(spear3xx_io_desc, ARRAY_SIZE(spear3xx_io_desc));
 
 	/* This will initialize clock framework */
-	clk_init();
+	spear3xx_clk_init();
 }
 
 /* pad multiplexing support */

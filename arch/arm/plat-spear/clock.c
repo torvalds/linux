@@ -903,6 +903,11 @@ void recalc_root_clocks(void)
 	spin_unlock_irqrestore(&clocks_lock, flags);
 }
 
+void __init clk_init(void)
+{
+	recalc_root_clocks();
+}
+
 #ifdef CONFIG_DEBUG_FS
 /*
  *	debugfs support to trace clock tree hierarchy and attributes

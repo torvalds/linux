@@ -224,6 +224,7 @@ struct clcd_rate_tbl {
 };
 
 /* platform specific clock functions */
+void __init clk_init(void);
 void clk_register(struct clk_lookup *cl);
 void recalc_root_clocks(void);
 
