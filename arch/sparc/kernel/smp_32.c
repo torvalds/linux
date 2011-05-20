@@ -156,11 +156,11 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 
 void smp_resched_interrupt(void)
 {
+	irq_enter();
+	scheduler_ipi();
 	local_cpu_data().irq_resched_count++;
-	/*
-	 * do nothing, since it all was about calling re-schedule
-	 * routine called by interrupt return code.
-	 */
+	irq_exit();
+	/* re-schedule routine called by interrupt return code. */
 }
 
 void smp_call_function_single_interrupt(void)
