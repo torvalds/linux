@@ -1128,6 +1128,8 @@ struct drbd_conf {
 	int rs_in_flight; /* resync sectors in flight (to proxy, in proxy and from proxy) */
 	int rs_planed;    /* resync sectors already planned */
 	atomic_t ap_in_flight; /* App sectors in flight (waiting for ack) */
+	int peer_max_bio_size;
+	int local_max_bio_size;
 };
 
 static inline struct drbd_conf *minor_to_mdev(unsigned int minor)
@@ -1433,6 +1435,7 @@ struct bm_extent {
  * hash table. */
 #define HT_SHIFT 8
 #define DRBD_MAX_BIO_SIZE (1U<<(9+HT_SHIFT))
+#define DRBD_MAX_BIO_SIZE_SAFE (1 << 12)       /* Works always = 4k */
 
 #define DRBD_MAX_SIZE_H80_PACKET (1 << 15) /* The old header only allows packets up to 32Kib data */
 
@@ -1519,7 +1522,7 @@ extern sector_t drbd_new_dev_size(struct drbd_conf *, struct drbd_backing_dev *,
 enum determine_dev_size { dev_size_error = -1, unchanged = 0, shrunk = 1, grew = 2 };
 extern enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *, enum dds_flags) __must_hold(local);
 extern void resync_after_online_grow(struct drbd_conf *);
-extern void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int) __must_hold(local);
+extern void drbd_reconsider_max_bio_size(struct drbd_conf *mdev);
 extern enum drbd_state_rv drbd_set_role(struct drbd_conf *mdev,
 					enum drbd_role new_role,
 					int force);

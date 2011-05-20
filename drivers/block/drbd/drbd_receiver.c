@@ -899,11 +899,6 @@ retry:
 
 	drbd_thread_start(&mdev->asender);
 
-	if (mdev->agreed_pro_version < 95 && get_ldev(mdev)) {
-		drbd_setup_queue_param(mdev, DRBD_MAX_SIZE_H80_PACKET);
-		put_ldev(mdev);
-	}
-
 	if (drbd_send_protocol(mdev) == -1)
 		return -1;
 	drbd_send_sync_param(mdev, &mdev->sync_conf);
@@ -2939,7 +2934,6 @@ static int receive_sizes(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 {
 	struct p_sizes *p = &mdev->data.rbuf.sizes;
 	enum determine_dev_size dd = unchanged;
-	unsigned int max_bio_size;
 	sector_t p_size, p_usize, my_usize;
 	int ldsc = 0; /* local disk size changed */
 	enum dds_flags ddsf;
@@ -3004,23 +2998,15 @@ static int receive_sizes(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 		drbd_set_my_capacity(mdev, p_size);
 	}
 
+	mdev->peer_max_bio_size = be32_to_cpu(p->max_bio_size);
+	drbd_reconsider_max_bio_size(mdev);
+
 	if (get_ldev(mdev)) {
 		if (mdev->ldev->known_size != drbd_get_capacity(mdev->ldev->backing_bdev)) {
 			mdev->ldev->known_size = drbd_get_capacity(mdev->ldev->backing_bdev);
 			ldsc = 1;
 		}
 
-		if (mdev->agreed_pro_version < 94)
-			max_bio_size = be32_to_cpu(p->max_bio_size);
-		else if (mdev->agreed_pro_version == 94)
-			max_bio_size = DRBD_MAX_SIZE_H80_PACKET;
-		else /* drbd 8.3.8 onwards */
-			max_bio_size = DRBD_MAX_BIO_SIZE;
-
-		if (max_bio_size != queue_max_hw_sectors(mdev->rq_queue) << 9)
-			drbd_setup_queue_param(mdev, max_bio_size);
-
-		drbd_setup_order_type(mdev, be16_to_cpu(p->queue_order_type));
 		put_ldev(mdev);
 	}
 
