@@ -278,6 +278,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	int i, nthreads;
 	unsigned long len;
 	int found = -1;
+	int found_thread = 0;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
@@ -301,9 +302,11 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 		 * version 2 of the kexec param format adds the phys cpuid of
 		 * booted proc.
 		 */
-		if (initial_boot_params && initial_boot_params->version >= 2) {
-			if (intserv[i] == initial_boot_params->boot_cpuid_phys)
+		if (initial_boot_params->version >= 2) {
+			if (intserv[i] == initial_boot_params->boot_cpuid_phys) {
 				found = boot_cpu_count;
+				found_thread = i;
+			}
 		} else {
 			/*
 			 * Check if it's the boot-cpu, set it's hw index now,
@@ -322,9 +325,9 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 
 	if (found >= 0) {
 		DBG("boot cpu: logical %d physical %d\n", found,
-			intserv[i]);
+			intserv[found_thread]);
 		boot_cpuid = found;
-		set_hard_smp_processor_id(found, intserv[i]);
+		set_hard_smp_processor_id(found, intserv[found_thread]);
 
 		/*
 		 * PAPR defines "logical" PVR values for cpus that
