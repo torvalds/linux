@@ -44,7 +44,7 @@ MODULE_DESCRIPTION("Chelsio T4 RDMA Driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 
-static LIST_HEAD(dev_list);
+static LIST_HEAD(uld_ctx_list);
 static DEFINE_MUTEX(dev_mutex);
 
 static struct dentry *c4iw_debugfs_root;
@@ -370,18 +370,23 @@ static void c4iw_rdev_close(struct c4iw_rdev *rdev)
 	c4iw_destroy_resource(&rdev->resource);
 }
 
-static void c4iw_remove(struct c4iw_dev *dev)
+struct uld_ctx {
+	struct list_head entry;
+	struct cxgb4_lld_info lldi;
+	struct c4iw_dev *dev;
+};
+
+static void c4iw_remove(struct uld_ctx *ctx)
 {
-	PDBG("%s c4iw_dev %p\n", __func__,  dev);
-	list_del(&dev->entry);
-	if (dev->registered)
-		c4iw_unregister_device(dev);
-	c4iw_rdev_close(&dev->rdev);
-	idr_destroy(&dev->cqidr);
-	idr_destroy(&dev->qpidr);
-	idr_destroy(&dev->mmidr);
-	iounmap(dev->rdev.oc_mw_kva);
-	ib_dealloc_device(&dev->ibdev);
+	PDBG("%s c4iw_dev %p\n", __func__,  ctx->dev);
+	c4iw_unregister_device(ctx->dev);
+	c4iw_rdev_close(&ctx->dev->rdev);
+	idr_destroy(&ctx->dev->cqidr);
+	idr_destroy(&ctx->dev->qpidr);
+	idr_destroy(&ctx->dev->mmidr);
+	iounmap(ctx->dev->rdev.oc_mw_kva);
+	ib_dealloc_device(&ctx->dev->ibdev);
+	ctx->dev = NULL;
 }
 
 static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
@@ -392,7 +397,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	devp = (struct c4iw_dev *)ib_alloc_device(sizeof(*devp));
 	if (!devp) {
 		printk(KERN_ERR MOD "Cannot allocate ib device\n");
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 	devp->rdev.lldi = *infop;
 
@@ -402,27 +407,23 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	devp->rdev.oc_mw_kva = ioremap_wc(devp->rdev.oc_mw_pa,
 					       devp->rdev.lldi.vr->ocq.size);
 
-	printk(KERN_INFO MOD "ocq memory: "
+	PDBG(KERN_INFO MOD "ocq memory: "
 	       "hw_start 0x%x size %u mw_pa 0x%lx mw_kva %p\n",
 	       devp->rdev.lldi.vr->ocq.start, devp->rdev.lldi.vr->ocq.size,
 	       devp->rdev.oc_mw_pa, devp->rdev.oc_mw_kva);
-
-	mutex_lock(&dev_mutex);
 
 	ret = c4iw_rdev_open(&devp->rdev);
 	if (ret) {
 		mutex_unlock(&dev_mutex);
 		printk(KERN_ERR MOD "Unable to open CXIO rdev err %d\n", ret);
 		ib_dealloc_device(&devp->ibdev);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	idr_init(&devp->cqidr);
 	idr_init(&devp->qpidr);
 	idr_init(&devp->mmidr);
 	spin_lock_init(&devp->lock);
-	list_add_tail(&devp->entry, &dev_list);
-	mutex_unlock(&dev_mutex);
 
 	if (c4iw_debugfs_root) {
 		devp->debugfs_root = debugfs_create_dir(
@@ -435,7 +436,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 
 static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 {
-	struct c4iw_dev *dev;
+	struct uld_ctx *ctx;
 	static int vers_printed;
 	int i;
 
@@ -443,25 +444,33 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 		printk(KERN_INFO MOD "Chelsio T4 RDMA Driver - version %s\n",
 		       DRV_VERSION);
 
-	dev = c4iw_alloc(infop);
-	if (!dev)
+	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
+	if (!ctx) {
+		ctx = ERR_PTR(-ENOMEM);
 		goto out;
+	}
+	ctx->lldi = *infop;
 
 	PDBG("%s found device %s nchan %u nrxq %u ntxq %u nports %u\n",
-	     __func__, pci_name(dev->rdev.lldi.pdev),
-	     dev->rdev.lldi.nchan, dev->rdev.lldi.nrxq,
-	     dev->rdev.lldi.ntxq, dev->rdev.lldi.nports);
+	     __func__, pci_name(ctx->lldi.pdev),
+	     ctx->lldi.nchan, ctx->lldi.nrxq,
+	     ctx->lldi.ntxq, ctx->lldi.nports);
 
-	for (i = 0; i < dev->rdev.lldi.nrxq; i++)
-		PDBG("rxqid[%u] %u\n", i, dev->rdev.lldi.rxq_ids[i]);
+	mutex_lock(&dev_mutex);
+	list_add_tail(&ctx->entry, &uld_ctx_list);
+	mutex_unlock(&dev_mutex);
+
+	for (i = 0; i < ctx->lldi.nrxq; i++)
+		PDBG("rxqid[%u] %u\n", i, ctx->lldi.rxq_ids[i]);
 out:
-	return dev;
+	return ctx;
 }
 
 static int c4iw_uld_rx_handler(void *handle, const __be64 *rsp,
 			const struct pkt_gl *gl)
 {
-	struct c4iw_dev *dev = handle;
+	struct uld_ctx *ctx = handle;
+	struct c4iw_dev *dev = ctx->dev;
 	struct sk_buff *skb;
 	const struct cpl_act_establish *rpl;
 	unsigned int opcode;
@@ -503,47 +512,49 @@ nomem:
 
 static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 {
-	struct c4iw_dev *dev = handle;
+	struct uld_ctx *ctx = handle;
 
 	PDBG("%s new_state %u\n", __func__, new_state);
 	switch (new_state) {
 	case CXGB4_STATE_UP:
-		printk(KERN_INFO MOD "%s: Up\n", pci_name(dev->rdev.lldi.pdev));
-		if (!dev->registered) {
-			int ret;
-			ret = c4iw_register_device(dev);
-			if (ret)
+		printk(KERN_INFO MOD "%s: Up\n", pci_name(ctx->lldi.pdev));
+		if (!ctx->dev) {
+			int ret = 0;
+
+			ctx->dev = c4iw_alloc(&ctx->lldi);
+			if (!IS_ERR(ctx->dev))
+				ret = c4iw_register_device(ctx->dev);
+			if (IS_ERR(ctx->dev) || ret)
 				printk(KERN_ERR MOD
 				       "%s: RDMA registration failed: %d\n",
-				       pci_name(dev->rdev.lldi.pdev), ret);
+				       pci_name(ctx->lldi.pdev), ret);
 		}
 		break;
 	case CXGB4_STATE_DOWN:
 		printk(KERN_INFO MOD "%s: Down\n",
-		       pci_name(dev->rdev.lldi.pdev));
-		if (dev->registered)
-			c4iw_unregister_device(dev);
+		       pci_name(ctx->lldi.pdev));
+		if (ctx->dev)
+			c4iw_remove(ctx);
 		break;
 	case CXGB4_STATE_START_RECOVERY:
 		printk(KERN_INFO MOD "%s: Fatal Error\n",
-		       pci_name(dev->rdev.lldi.pdev));
-		dev->rdev.flags |= T4_FATAL_ERROR;
-		if (dev->registered) {
+		       pci_name(ctx->lldi.pdev));
+		if (ctx->dev) {
 			struct ib_event event;
 
+			ctx->dev->rdev.flags |= T4_FATAL_ERROR;
 			memset(&event, 0, sizeof event);
 			event.event  = IB_EVENT_DEVICE_FATAL;
-			event.device = &dev->ibdev;
+			event.device = &ctx->dev->ibdev;
 			ib_dispatch_event(&event);
-			c4iw_unregister_device(dev);
+			c4iw_remove(ctx);
 		}
 		break;
 	case CXGB4_STATE_DETACH:
 		printk(KERN_INFO MOD "%s: Detach\n",
-		       pci_name(dev->rdev.lldi.pdev));
-		mutex_lock(&dev_mutex);
-		c4iw_remove(dev);
-		mutex_unlock(&dev_mutex);
+		       pci_name(ctx->lldi.pdev));
+		if (ctx->dev)
+			c4iw_remove(ctx);
 		break;
 	}
 	return 0;
@@ -576,11 +587,13 @@ static int __init c4iw_init_module(void)
 
 static void __exit c4iw_exit_module(void)
 {
-	struct c4iw_dev *dev, *tmp;
+	struct uld_ctx *ctx, *tmp;
 
 	mutex_lock(&dev_mutex);
-	list_for_each_entry_safe(dev, tmp, &dev_list, entry) {
-		c4iw_remove(dev);
+	list_for_each_entry_safe(ctx, tmp, &uld_ctx_list, entry) {
+		if (ctx->dev)
+			c4iw_remove(ctx);
+		kfree(ctx);
 	}
 	mutex_unlock(&dev_mutex);
 	cxgb4_unregister_uld(CXGB4_ULD_RDMA);

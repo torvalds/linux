@@ -463,7 +463,6 @@ The format file for the sched_wakep event defines the following fields
         field:unsigned char common_flags;
         field:unsigned char common_preempt_count;
         field:int common_pid;
-        field:int common_lock_depth;
 
         field:char comm[TASK_COMM_LEN];
         field:pid_t pid;

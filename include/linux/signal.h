@@ -7,6 +7,8 @@
 #ifdef __KERNEL__
 #include <linux/list.h>
 
+struct task_struct;
+
 /* for sysctl */
 extern int print_fatal_signals;
 /*

@@ -24,7 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/kmi.h>
 #include <linux/clocksource.h>
@@ -180,13 +180,13 @@ static void __init ap_init_irq(void)
 #ifdef CONFIG_PM
 static unsigned long ic_irq_enable;
 
-static int irq_suspend(struct sys_device *dev, pm_message_t state)
+static int irq_suspend(void)
 {
 	ic_irq_enable = readl(VA_IC_BASE + IRQ_ENABLE);
 	return 0;
 }
 
-static int irq_resume(struct sys_device *dev)
+static void irq_resume(void)
 {
 	/* disable all irq sources */
 	writel(-1, VA_CMIC_BASE + IRQ_ENABLE_CLEAR);
@@ -194,33 +194,25 @@ static int irq_resume(struct sys_device *dev)
 	writel(-1, VA_IC_BASE + FIQ_ENABLE_CLEAR);
 
 	writel(ic_irq_enable, VA_IC_BASE + IRQ_ENABLE_SET);
-	return 0;
 }
 #else
 #define irq_suspend NULL
 #define irq_resume NULL
 #endif
 
-static struct sysdev_class irq_class = {
-	.name		= "irq",
+static struct syscore_ops irq_syscore_ops = {
 	.suspend	= irq_suspend,
 	.resume		= irq_resume,
 };
 
-static struct sys_device irq_device = {
-	.id	= 0,
-	.cls	= &irq_class,
-};
-
-static int __init irq_init_sysfs(void)
+static int __init irq_syscore_init(void)
 {
-	int ret = sysdev_class_register(&irq_class);
-	if (ret == 0)
-		ret = sysdev_register(&irq_device);
-	return ret;
+	register_syscore_ops(&irq_syscore_ops);
+
+	return 0;
 }
 
-device_initcall(irq_init_sysfs);
+device_initcall(irq_syscore_init);
 
 /*
  * Flash handling.

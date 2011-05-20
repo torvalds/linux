@@ -201,10 +201,6 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	return 0;
 }
 
-static void ipv6_mc_socklist_reclaim(struct rcu_head *head)
-{
-	kfree(container_of(head, struct ipv6_mc_socklist, rcu));
-}
 /*
  *	socket leave on multicast group
  */
@@ -239,7 +235,7 @@ int ipv6_sock_mc_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 				(void) ip6_mc_leave_src(sk, mc_lst, NULL);
 			rcu_read_unlock();
 			atomic_sub(sizeof(*mc_lst), &sk->sk_omem_alloc);
-			call_rcu(&mc_lst->rcu, ipv6_mc_socklist_reclaim);
+			kfree_rcu(mc_lst, rcu);
 			return 0;
 		}
 	}
@@ -307,7 +303,7 @@ void ipv6_sock_mc_close(struct sock *sk)
 		rcu_read_unlock();
 
 		atomic_sub(sizeof(*mc_lst), &sk->sk_omem_alloc);
-		call_rcu(&mc_lst->rcu, ipv6_mc_socklist_reclaim);
+		kfree_rcu(mc_lst, rcu);
 
 		spin_lock(&ipv6_sk_mc_lock);
 	}

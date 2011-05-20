@@ -51,8 +51,7 @@ void __init txx9_clocksource_init(unsigned long baseaddr,
 {
 	struct txx9_tmr_reg __iomem *tmrptr;
 
-	clocksource_set_clock(&txx9_clocksource.cs, TIMER_CLK(imbusclk));
-	clocksource_register(&txx9_clocksource.cs);
+	clocksource_register_hz(&txx9_clocksource.cs, TIMER_CLK(imbusclk));
 
 	tmrptr = ioremap(baseaddr, sizeof(struct txx9_tmr_reg));
 	__raw_writel(TCR_BASE, &tmrptr->tcr);

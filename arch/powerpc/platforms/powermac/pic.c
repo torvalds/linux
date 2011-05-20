@@ -21,7 +21,7 @@
 #include <linux/signal.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
 #include <linux/module.h>
@@ -677,7 +677,7 @@ not_found:
 	return viaint;
 }
 
-static int pmacpic_suspend(struct sys_device *sysdev, pm_message_t state)
+static int pmacpic_suspend(void)
 {
 	int viaint = pmacpic_find_viaint();
 
@@ -698,7 +698,7 @@ static int pmacpic_suspend(struct sys_device *sysdev, pm_message_t state)
         return 0;
 }
 
-static int pmacpic_resume(struct sys_device *sysdev)
+static void pmacpic_resume(void)
 {
 	int i;
 
@@ -709,39 +709,19 @@ static int pmacpic_resume(struct sys_device *sysdev)
 	for (i = 0; i < max_real_irqs; ++i)
 		if (test_bit(i, sleep_save_mask))
 			pmac_unmask_irq(irq_get_irq_data(i));
-
-	return 0;
 }
 
-#endif /* CONFIG_PM && CONFIG_PPC32 */
-
-static struct sysdev_class pmacpic_sysclass = {
-	.name = "pmac_pic",
+static struct syscore_ops pmacpic_syscore_ops = {
+	.suspend	= pmacpic_suspend,
+	.resume		= pmacpic_resume,
 };
 
-static struct sys_device device_pmacpic = {
-	.id		= 0,
-	.cls		= &pmacpic_sysclass,
-};
-
-static struct sysdev_driver driver_pmacpic = {
-#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
-	.suspend	= &pmacpic_suspend,
-	.resume		= &pmacpic_resume,
-#endif /* CONFIG_PM && CONFIG_PPC32 */
-};
-
-static int __init init_pmacpic_sysfs(void)
+static int __init init_pmacpic_syscore(void)
 {
-#ifdef CONFIG_PPC32
-	if (max_irqs == 0)
-		return -ENODEV;
-#endif
-	printk(KERN_DEBUG "Registering pmac pic with sysfs...\n");
-	sysdev_class_register(&pmacpic_sysclass);
-	sysdev_register(&device_pmacpic);
-	sysdev_driver_register(&pmacpic_sysclass, &driver_pmacpic);
+	register_syscore_ops(&pmacpic_syscore_ops);
 	return 0;
 }
-machine_subsys_initcall(powermac, init_pmacpic_sysfs);
 
+machine_subsys_initcall(powermac, init_pmacpic_syscore);
+
+#endif /* CONFIG_PM && CONFIG_PPC32 */

@@ -1014,10 +1014,9 @@ void cfq_update_blkio_group_weight(void *key, struct blkio_group *blkg,
 	cfqg->needs_update = true;
 }
 
-static struct cfq_group *
-cfq_find_alloc_cfqg(struct cfq_data *cfqd, struct cgroup *cgroup, int create)
+static struct cfq_group * cfq_find_alloc_cfqg(struct cfq_data *cfqd,
+		struct blkio_cgroup *blkcg, int create)
 {
-	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgroup);
 	struct cfq_group *cfqg = NULL;
 	void *key = cfqd;
 	int i, j;
@@ -1079,12 +1078,12 @@ done:
  */
 static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd, int create)
 {
-	struct cgroup *cgroup;
+	struct blkio_cgroup *blkcg;
 	struct cfq_group *cfqg = NULL;
 
 	rcu_read_lock();
-	cgroup = task_cgroup(current, blkio_subsys_id);
-	cfqg = cfq_find_alloc_cfqg(cfqd, cgroup, create);
+	blkcg = task_blkio_cgroup(current);
+	cfqg = cfq_find_alloc_cfqg(cfqd, blkcg, create);
 	if (!cfqg && create)
 		cfqg = &cfqd->root_group;
 	rcu_read_unlock();

@@ -12,7 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/io.h>
 
@@ -21,7 +21,6 @@
 struct intc {
 	void __iomem		*regs;
 	struct irq_chip		chip;
-	struct sys_device	sysdev;
 #ifdef CONFIG_PM
 	unsigned long		suspend_ipr;
 	unsigned long		saved_ipr[64];
@@ -146,9 +145,8 @@ void intc_set_suspend_handler(unsigned long offset)
 	intc0.suspend_ipr = offset;
 }
 
-static int intc_suspend(struct sys_device *sdev, pm_message_t state)
+static int intc_suspend(void)
 {
-	struct intc *intc = container_of(sdev, struct intc, sysdev);
 	int i;
 
 	if (unlikely(!irqs_disabled())) {
@@ -156,28 +154,25 @@ static int intc_suspend(struct sys_device *sdev, pm_message_t state)
 		return -EINVAL;
 	}
 
-	if (unlikely(!intc->suspend_ipr)) {
+	if (unlikely(!intc0.suspend_ipr)) {
 		pr_err("intc_suspend: suspend_ipr not initialized\n");
 		return -EINVAL;
 	}
 
 	for (i = 0; i < 64; i++) {
-		intc->saved_ipr[i] = intc_readl(intc, INTPR0 + 4 * i);
-		intc_writel(intc, INTPR0 + 4 * i, intc->suspend_ipr);
+		intc0.saved_ipr[i] = intc_readl(&intc0, INTPR0 + 4 * i);
+		intc_writel(&intc0, INTPR0 + 4 * i, intc0.suspend_ipr);
 	}
 
 	return 0;
 }
 
-static int intc_resume(struct sys_device *sdev)
+static int intc_resume(void)
 {
-	struct intc *intc = container_of(sdev, struct intc, sysdev);
 	int i;
 
-	WARN_ON(!irqs_disabled());
-
 	for (i = 0; i < 64; i++)
-		intc_writel(intc, INTPR0 + 4 * i, intc->saved_ipr[i]);
+		intc_writel(&intc0, INTPR0 + 4 * i, intc0.saved_ipr[i]);
 
 	return 0;
 }
@@ -186,27 +181,18 @@ static int intc_resume(struct sys_device *sdev)
 #define intc_resume	NULL
 #endif
 
-static struct sysdev_class intc_class = {
-	.name		= "intc",
+static struct syscore_ops intc_syscore_ops = {
 	.suspend	= intc_suspend,
 	.resume		= intc_resume,
 };
 
-static int __init intc_init_sysdev(void)
+static int __init intc_init_syscore(void)
 {
-	int ret;
+	register_syscore_ops(&intc_syscore_ops);
 
-	ret = sysdev_class_register(&intc_class);
-	if (ret)
-		return ret;
-
-	intc0.sysdev.id = 0;
-	intc0.sysdev.cls = &intc_class;
-	ret = sysdev_register(&intc0.sysdev);
-
-	return ret;
+	return 0;
 }
-device_initcall(intc_init_sysdev);
+device_initcall(intc_init_syscore);
 
 unsigned long intc_get_pending(unsigned int group)
 {

@@ -17,7 +17,7 @@ static inline void frozen_process(void)
 {
 	if (!unlikely(current->flags & PF_NOFREEZE)) {
 		current->flags |= PF_FROZEN;
-		wmb();
+		smp_wmb();
 	}
 	clear_freeze_flag(current);
 }
@@ -93,7 +93,7 @@ bool freeze_task(struct task_struct *p, bool sig_only)
 	 * the task as frozen and next clears its TIF_FREEZE.
 	 */
 	if (!freezing(p)) {
-		rmb();
+		smp_rmb();
 		if (frozen(p))
 			return false;
 

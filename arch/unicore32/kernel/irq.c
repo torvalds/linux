@@ -23,7 +23,7 @@
 #include <linux/list.h>
 #include <linux/kallsyms.h>
 #include <linux/proc_fs.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/gpio.h>
 
 #include <asm/system.h>
@@ -237,7 +237,7 @@ static struct puv3_irq_state {
 	unsigned int	iccr;
 } puv3_irq_state;
 
-static int puv3_irq_suspend(struct sys_device *dev, pm_message_t state)
+static int puv3_irq_suspend(void)
 {
 	struct puv3_irq_state *st = &puv3_irq_state;
 
@@ -265,7 +265,7 @@ static int puv3_irq_suspend(struct sys_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int puv3_irq_resume(struct sys_device *dev)
+static void puv3_irq_resume(void)
 {
 	struct puv3_irq_state *st = &puv3_irq_state;
 
@@ -278,27 +278,20 @@ static int puv3_irq_resume(struct sys_device *dev)
 
 		writel(st->icmr, INTC_ICMR);
 	}
-	return 0;
 }
 
-static struct sysdev_class puv3_irq_sysclass = {
-	.name		= "pkunity-irq",
+static struct syscore_ops puv3_irq_syscore_ops = {
 	.suspend	= puv3_irq_suspend,
 	.resume		= puv3_irq_resume,
 };
 
-static struct sys_device puv3_irq_device = {
-	.id		= 0,
-	.cls		= &puv3_irq_sysclass,
-};
-
-static int __init puv3_irq_init_devicefs(void)
+static int __init puv3_irq_init_syscore(void)
 {
-	sysdev_class_register(&puv3_irq_sysclass);
-	return sysdev_register(&puv3_irq_device);
+	register_syscore_ops(&puv3_irq_syscore_ops);
+	return 0;
 }
 
-device_initcall(puv3_irq_init_devicefs);
+device_initcall(puv3_irq_init_syscore);
 
 void __init init_IRQ(void)
 {

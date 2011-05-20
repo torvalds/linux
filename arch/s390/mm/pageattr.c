@@ -54,3 +54,8 @@ int set_memory_nx(unsigned long addr, int numpages)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(set_memory_nx);
+
+int set_memory_x(unsigned long addr, int numpages)
+{
+	return 0;
+}

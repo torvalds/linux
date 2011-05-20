@@ -3237,15 +3237,18 @@ static void happy_meal_pci_exit(void)
 #endif
 
 #ifdef CONFIG_SBUS
+static const struct of_device_id hme_sbus_match[];
 static int __devinit hme_sbus_probe(struct platform_device *op)
 {
+	const struct of_device_id *match;
 	struct device_node *dp = op->dev.of_node;
 	const char *model = of_get_property(dp, "model", NULL);
 	int is_qfe;
 
-	if (!op->dev.of_match)
+	match = of_match_device(hme_sbus_match, &op->dev);
+	if (!match)
 		return -EINVAL;
-	is_qfe = (op->dev.of_match->data != NULL);
+	is_qfe = (match->data != NULL);
 
 	if (!is_qfe && model && !strcmp(model, "SUNW,sbus-qfe"))
 		is_qfe = 1;

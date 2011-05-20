@@ -8413,6 +8413,8 @@ bnx2_remove_one(struct pci_dev *pdev)
 
 	unregister_netdev(dev);
 
+	del_timer_sync(&bp->timer);
+
 	if (bp->mips_firmware)
 		release_firmware(bp->mips_firmware);
 	if (bp->rv2p_firmware)

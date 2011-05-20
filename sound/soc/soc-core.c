@@ -3291,6 +3291,8 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	if (!card->name || !card->dev)
 		return -EINVAL;
 
+	dev_set_drvdata(card->dev, card);
+
 	snd_soc_initialize_card_lists(card);
 
 	soc_init_card_debugfs(card);

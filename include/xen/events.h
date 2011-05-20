@@ -85,7 +85,8 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc);
 /* Bind an PSI pirq to an irq. */
 int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			     int pirq, int vector, const char *name);
+			     int pirq, int vector, const char *name,
+			     domid_t domid);
 #endif
 
 /* De-allocates the above mentioned physical interrupt. */
@@ -93,5 +94,11 @@ int xen_destroy_irq(int irq);
 
 /* Return irq from pirq */
 int xen_irq_from_pirq(unsigned pirq);
+
+/* Return the pirq allocated to the irq. */
+int xen_pirq_from_irq(unsigned irq);
+
+/* Determine whether to ignore this IRQ if it is passed to a guest. */
+int xen_test_irq_shared(int irq);
 
 #endif	/* _XEN_EVENTS_H */

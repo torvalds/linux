@@ -1766,7 +1766,7 @@ static int compat_table_info(const struct ebt_table_info *info,
 
 	newinfo->entries_size = size;
 
-	xt_compat_init_offsets(AF_INET, info->nentries);
+	xt_compat_init_offsets(NFPROTO_BRIDGE, info->nentries);
 	return EBT_ENTRY_ITERATE(entries, size, compat_calc_entry, info,
 							entries, newinfo);
 }
@@ -1882,7 +1882,7 @@ static int compat_mtw_from_user(struct compat_ebt_entry_mwt *mwt,
 	struct xt_match *match;
 	struct xt_target *wt;
 	void *dst = NULL;
-	int off, pad = 0, ret = 0;
+	int off, pad = 0;
 	unsigned int size_kern, entry_offset, match_size = mwt->match_size;
 
 	strlcpy(name, mwt->u.name, sizeof(name));
@@ -1933,13 +1933,6 @@ static int compat_mtw_from_user(struct compat_ebt_entry_mwt *mwt,
 		size_kern = wt->targetsize;
 		module_put(wt->me);
 		break;
-	}
-
-	if (!dst) {
-		ret = xt_compat_add_offset(NFPROTO_BRIDGE, entry_offset,
-					off + ebt_compat_entry_padsize());
-		if (ret < 0)
-			return ret;
 	}
 
 	state->buf_kern_offset += match_size + off;
@@ -2016,50 +2009,6 @@ static int ebt_size_mwt(struct compat_ebt_entry_mwt *match32,
 	return growth;
 }
 
-#define EBT_COMPAT_WATCHER_ITERATE(e, fn, args...)          \
-({                                                          \
-	unsigned int __i;                                   \
-	int __ret = 0;                                      \
-	struct compat_ebt_entry_mwt *__watcher;             \
-	                                                    \
-	for (__i = e->watchers_offset;                      \
-	     __i < (e)->target_offset;                      \
-	     __i += __watcher->watcher_size +               \
-	     sizeof(struct compat_ebt_entry_mwt)) {         \
-		__watcher = (void *)(e) + __i;              \
-		__ret = fn(__watcher , ## args);            \
-		if (__ret != 0)                             \
-			break;                              \
-	}                                                   \
-	if (__ret == 0) {                                   \
-		if (__i != (e)->target_offset)              \
-			__ret = -EINVAL;                    \
-	}                                                   \
-	__ret;                                              \
-})
-
-#define EBT_COMPAT_MATCH_ITERATE(e, fn, args...)            \
-({                                                          \
-	unsigned int __i;                                   \
-	int __ret = 0;                                      \
-	struct compat_ebt_entry_mwt *__match;               \
-	                                                    \
-	for (__i = sizeof(struct ebt_entry);                \
-	     __i < (e)->watchers_offset;                    \
-	     __i += __match->match_size +                   \
-	     sizeof(struct compat_ebt_entry_mwt)) {         \
-		__match = (void *)(e) + __i;                \
-		__ret = fn(__match , ## args);              \
-		if (__ret != 0)                             \
-			break;                              \
-	}                                                   \
-	if (__ret == 0) {                                   \
-		if (__i != (e)->watchers_offset)            \
-			__ret = -EINVAL;                    \
-	}                                                   \
-	__ret;                                              \
-})
-
 /* called for all ebt_entry structures. */
 static int size_entry_mwt(struct ebt_entry *entry, const unsigned char *base,
 			  unsigned int *total,
@@ -2130,6 +2079,14 @@ static int size_entry_mwt(struct ebt_entry *entry, const unsigned char *base,
 				offsets_update[i], offsets[j] + new_offset);
 			offsets_update[i] = offsets[j] + new_offset;
 		}
+	}
+
+	if (state->buf_kern_start == NULL) {
+		unsigned int offset = buf_start - (char *) base;
+
+		ret = xt_compat_add_offset(NFPROTO_BRIDGE, offset, new_offset);
+		if (ret < 0)
+			return ret;
 	}
 
 	startoff = state->buf_user_offset - startoff;
@@ -2240,6 +2197,7 @@ static int compat_do_replace(struct net *net, void __user *user,
 
 	xt_compat_lock(NFPROTO_BRIDGE);
 
+	xt_compat_init_offsets(NFPROTO_BRIDGE, tmp.nentries);
 	ret = compat_copy_entries(entries_tmp, tmp.entries_size, &state);
 	if (ret < 0)
 		goto out_unlock;

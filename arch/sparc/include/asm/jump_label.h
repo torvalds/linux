@@ -7,17 +7,20 @@
 
 #define JUMP_LABEL_NOP_SIZE 4
 
-#define JUMP_LABEL(key, label)					\
-	do {							\
-		asm goto("1:\n\t"				\
-			 "nop\n\t"				\
-			 "nop\n\t"				\
-			 ".pushsection __jump_table,  \"a\"\n\t"\
-			 ".align 4\n\t"				\
-			 ".word 1b, %l[" #label "], %c0\n\t"	\
-			 ".popsection \n\t"			\
-			 : :  "i" (key) :  : label);\
-	} while (0)
+static __always_inline bool arch_static_branch(struct jump_label_key *key)
+{
+		asm goto("1:\n\t"
+			 "nop\n\t"
+			 "nop\n\t"
+			 ".pushsection __jump_table,  \"aw\"\n\t"
+			 ".align 4\n\t"
+			 ".word 1b, %l[l_yes], %c0\n\t"
+			 ".popsection \n\t"
+			 : :  "i" (key) : : l_yes);
+	return false;
+l_yes:
+	return true;
+}
 
 #endif /* __KERNEL__ */
 

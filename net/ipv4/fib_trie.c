@@ -350,14 +350,9 @@ static inline void free_leaf(struct leaf *l)
 	call_rcu_bh(&l->rcu, __leaf_free_rcu);
 }
 
-static void __leaf_info_free_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct leaf_info, rcu));
-}
-
 static inline void free_leaf_info(struct leaf_info *leaf)
 {
-	call_rcu(&leaf->rcu, __leaf_info_free_rcu);
+	kfree_rcu(leaf, rcu);
 }
 
 static struct tnode *tnode_alloc(size_t size)
@@ -1977,9 +1972,6 @@ struct fib_table *fib_trie_table(u32 id)
 
 	t = (struct trie *) tb->tb_data;
 	memset(t, 0, sizeof(*t));
-
-	if (id == RT_TABLE_LOCAL)
-		pr_info("IPv4 FIB: Using LC-trie version %s\n", VERSION);
 
 	return tb;
 }

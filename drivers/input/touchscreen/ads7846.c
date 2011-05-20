@@ -281,17 +281,24 @@ struct ser_req {
 	u8			command;
 	u8			ref_off;
 	u16			scratch;
-	__be16			sample;
 	struct spi_message	msg;
 	struct spi_transfer	xfer[6];
+	/*
+	 * DMA (thus cache coherency maintenance) requires the
+	 * transfer buffers to live in their own cache lines.
+	 */
+	__be16 sample ____cacheline_aligned;
 };
 
 struct ads7845_ser_req {
 	u8			command[3];
-	u8			pwrdown[3];
-	u8			sample[3];
 	struct spi_message	msg;
 	struct spi_transfer	xfer[2];
+	/*
+	 * DMA (thus cache coherency maintenance) requires the
+	 * transfer buffers to live in their own cache lines.
+	 */
+	u8 sample[3] ____cacheline_aligned;
 };
 
 static int ads7846_read12_ser(struct device *dev, unsigned command)

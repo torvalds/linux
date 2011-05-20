@@ -2017,6 +2017,13 @@ config FTMAC100
 	  from Faraday. It is used on Faraday A320, Andes AG101 and some
 	  other ARM/NDS32 SoC's.
 
+config LANTIQ_ETOP
+	tristate "Lantiq SoC ETOP driver"
+	depends on SOC_TYPE_XWAY
+	help
+	  Support for the MII0 inside the Lantiq SoC
+
+
 source "drivers/net/fs_enet/Kconfig"
 
 source "drivers/net/octeon/Kconfig"
@@ -2536,7 +2543,7 @@ config S6GMAC
 source "drivers/net/stmmac/Kconfig"
 
 config PCH_GBE
-	tristate "PCH Gigabit Ethernet"
+	tristate "Intel EG20T PCH / OKI SEMICONDUCTOR ML7223 IOH GbE"
 	depends on PCI
 	select MII
 	---help---
@@ -2547,6 +2554,12 @@ config PCH_GBE
 	  Using this interface, it is able to access system devices connected
 	  to Gigabit Ethernet.
 	  This driver enables Gigabit Ethernet function.
+
+	  This driver also can be used for OKI SEMICONDUCTOR IOH(Input/
+	  Output Hub), ML7223.
+	  ML7223 IOH is for MP(Media Phone) use.
+	  ML7223 is companion chip for Intel Atom E6xx series.
+	  ML7223 is completely compatible for Intel EG20T PCH.
 
 endif # NETDEV_1000
 

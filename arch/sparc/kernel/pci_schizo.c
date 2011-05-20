@@ -1458,11 +1458,15 @@ out_err:
 	return err;
 }
 
+static const struct of_device_id schizo_match[];
 static int __devinit schizo_probe(struct platform_device *op)
 {
-	if (!op->dev.of_match)
+	const struct of_device_id *match;
+
+	match = of_match_device(schizo_match, &op->dev);
+	if (!match)
 		return -EINVAL;
-	return __schizo_init(op, (unsigned long) op->dev.of_match->data);
+	return __schizo_init(op, (unsigned long)match->data);
 }
 
 /* The ordering of this table is very important.  Some Tomatillo

@@ -11,15 +11,13 @@ struct dyn_arch_ftrace { };
 
 #ifdef CONFIG_64BIT
 #define MCOUNT_INSN_SIZE  12
-#define MCOUNT_OFFSET	   8
 #else
 #define MCOUNT_INSN_SIZE  20
-#define MCOUNT_OFFSET	   4
 #endif
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
-	return addr - MCOUNT_OFFSET;
+	return addr;
 }
 
 #endif /* __ASSEMBLY__ */

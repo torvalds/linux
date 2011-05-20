@@ -136,11 +136,50 @@ unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,
 }
 EXPORT_SYMBOL(soc_camera_apply_sensor_flags);
 
+#define pixfmtstr(x) (x) & 0xff, ((x) >> 8) & 0xff, ((x) >> 16) & 0xff, \
+	((x) >> 24) & 0xff
+
+static int soc_camera_try_fmt(struct soc_camera_device *icd,
+			      struct v4l2_format *f)
+{
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	int ret;
+
+	dev_dbg(&icd->dev, "TRY_FMT(%c%c%c%c, %ux%u)\n",
+		pixfmtstr(pix->pixelformat), pix->width, pix->height);
+
+	pix->bytesperline = 0;
+	pix->sizeimage = 0;
+
+	ret = ici->ops->try_fmt(icd, f);
+	if (ret < 0)
+		return ret;
+
+	if (!pix->sizeimage) {
+		if (!pix->bytesperline) {
+			const struct soc_camera_format_xlate *xlate;
+
+			xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
+			if (!xlate)
+				return -EINVAL;
+
+			ret = soc_mbus_bytes_per_line(pix->width,
+						      xlate->host_fmt);
+			if (ret > 0)
+				pix->bytesperline = ret;
+		}
+		if (pix->bytesperline)
+			pix->sizeimage = pix->bytesperline * pix->height;
+	}
+
+	return 0;
+}
+
 static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 				      struct v4l2_format *f)
 {
 	struct soc_camera_device *icd = file->private_data;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
 	WARN_ON(priv != file->private_data);
 
@@ -149,7 +188,7 @@ static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 
 	/* limit format to hardware capabilities */
-	return ici->ops->try_fmt(icd, f);
+	return soc_camera_try_fmt(icd, f);
 }
 
 static int soc_camera_enum_input(struct file *file, void *priv,
@@ -362,9 +401,6 @@ static void soc_camera_free_user_formats(struct soc_camera_device *icd)
 	icd->user_formats = NULL;
 }
 
-#define pixfmtstr(x) (x) & 0xff, ((x) >> 8) & 0xff, ((x) >> 16) & 0xff, \
-	((x) >> 24) & 0xff
-
 /* Called with .vb_lock held, or from the first open(2), see comment there */
 static int soc_camera_set_fmt(struct soc_camera_device *icd,
 			      struct v4l2_format *f)
@@ -377,7 +413,7 @@ static int soc_camera_set_fmt(struct soc_camera_device *icd,
 		pixfmtstr(pix->pixelformat), pix->width, pix->height);
 
 	/* We always call try_fmt() before set_fmt() or set_crop() */
-	ret = ici->ops->try_fmt(icd, f);
+	ret = soc_camera_try_fmt(icd, f);
 	if (ret < 0)
 		return ret;
 

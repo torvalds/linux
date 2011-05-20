@@ -295,6 +295,12 @@ static int mxc_gpio_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
+/*
+ * This lock class tells lockdep that GPIO irqs are in a different
+ * category than their parents, so it won't report false recursion.
+ */
+static struct lock_class_key gpio_lock_class;
+
 int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 {
 	int i, j;
@@ -311,6 +317,7 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 		__raw_writel(~0, port[i].base + GPIO_ISR);
 		for (j = port[i].virtual_irq_start;
 			j < port[i].virtual_irq_start + 32; j++) {
+			irq_set_lockdep_class(j, &gpio_lock_class);
 			irq_set_chip_and_handler(j, &gpio_irq_chip,
 						 handle_level_irq);
 			set_irq_flags(j, IRQF_VALID);

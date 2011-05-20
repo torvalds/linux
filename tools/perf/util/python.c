@@ -680,7 +680,7 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 					 &cpu, &sample_id_all))
 		return NULL;
 
-	event = perf_evlist__read_on_cpu(evlist, cpu);
+	event = perf_evlist__mmap_read(evlist, cpu);
 	if (event != NULL) {
 		struct perf_evsel *first;
 		PyObject *pyevent = pyrf_event__new(event);
@@ -809,6 +809,9 @@ static struct {
 	{ "COUNT_HW_CACHE_OP_PREFETCH",	  PERF_COUNT_HW_CACHE_OP_PREFETCH },
 	{ "COUNT_HW_CACHE_RESULT_ACCESS", PERF_COUNT_HW_CACHE_RESULT_ACCESS },
 	{ "COUNT_HW_CACHE_RESULT_MISS",   PERF_COUNT_HW_CACHE_RESULT_MISS },
+
+	{ "COUNT_HW_STALLED_CYCLES_FRONTEND",	  PERF_COUNT_HW_STALLED_CYCLES_FRONTEND },
+	{ "COUNT_HW_STALLED_CYCLES_BACKEND",	  PERF_COUNT_HW_STALLED_CYCLES_BACKEND },
 
 	{ "COUNT_SW_CPU_CLOCK",	       PERF_COUNT_SW_CPU_CLOCK },
 	{ "COUNT_SW_TASK_CLOCK",       PERF_COUNT_SW_TASK_CLOCK },
