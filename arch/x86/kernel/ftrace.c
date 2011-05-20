@@ -260,9 +260,9 @@ do_ftrace_mod_code(unsigned long ip, void *new_code)
 	return mod_code_status;
 }
 
-static unsigned char *ftrace_nop_replace(void)
+static const unsigned char *ftrace_nop_replace(void)
 {
-	return ideal_nop5;
+	return ideal_nops[NOP_ATOMIC5];
 }
 
 static int
