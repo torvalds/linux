@@ -24,7 +24,6 @@ config MACH_MX23EVK
 	select MXS_HAVE_PLATFORM_AUART
 	select MXS_HAVE_PLATFORM_MXS_MMC
 	select MXS_HAVE_PLATFORM_MXSFB
-	default y
 	help
 	  Include support for MX23EVK platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -39,7 +38,6 @@ config MACH_MX28EVK
 	select MXS_HAVE_PLATFORM_MXS_MMC
 	select MXS_HAVE_PLATFORM_MXSFB
 	select MXS_OCOTP
-	default y
 	help
 	  Include support for MX28EVK platform. This includes specific
 	  configurations for the board and its peripherals.

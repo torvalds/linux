@@ -23,7 +23,6 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/fsl_devices.h>
 #include <linux/i2c-gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/can/platform/mcp251x.h>
@@ -32,7 +31,6 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx51.h>
-#include <mach/mxc_ehci.h>
 
 #include <asm/irq.h>
 #include <asm/setup.h>

@@ -25,7 +25,6 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <mach/iomux-mx21.h>
-#include <mach/mxc_nand.h>
 
 #include "devices-imx21.h"
 

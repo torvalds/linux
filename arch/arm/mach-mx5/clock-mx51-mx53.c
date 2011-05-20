@@ -1563,6 +1563,7 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc,
 	clk_enable(&iim_clk);
 	mx53_revision();
 	clk_disable(&iim_clk);
+	mx53_display_revision();
 
 	/* Set SDHC parents to be PLL2 */
 	clk_set_parent(&esdhc1_clk, &pll2_sw_clk);
