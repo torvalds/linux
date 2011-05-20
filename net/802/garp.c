@@ -544,11 +544,6 @@ static int garp_init_port(struct net_device *dev)
 	return 0;
 }
 
-static void garp_kfree_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct garp_port, rcu));
-}
-
 static void garp_release_port(struct net_device *dev)
 {
 	struct garp_port *port = rtnl_dereference(dev->garp_port);
@@ -559,7 +554,7 @@ static void garp_release_port(struct net_device *dev)
 			return;
 	}
 	rcu_assign_pointer(dev->garp_port, NULL);
-	call_rcu(&port->rcu, garp_kfree_rcu);
+	kfree_rcu(port, rcu);
 }
 
 int garp_init_applicant(struct net_device *dev, struct garp_application *appl)
@@ -603,11 +598,6 @@ err1:
 }
 EXPORT_SYMBOL_GPL(garp_init_applicant);
 
-static void garp_app_kfree_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct garp_applicant, rcu));
-}
-
 void garp_uninit_applicant(struct net_device *dev, struct garp_application *appl)
 {
 	struct garp_port *port = rtnl_dereference(dev->garp_port);
@@ -625,7 +615,7 @@ void garp_uninit_applicant(struct net_device *dev, struct garp_application *appl
 	garp_queue_xmit(app);
 
 	dev_mc_del(dev, appl->proto.group_address);
-	call_rcu(&app->rcu, garp_app_kfree_rcu);
+	kfree_rcu(app, rcu);
 	garp_release_port(dev);
 }
 EXPORT_SYMBOL_GPL(garp_uninit_applicant);
@@ -643,9 +633,3 @@ void garp_unregister_application(struct garp_application *appl)
 	stp_proto_unregister(&appl->proto);
 }
 EXPORT_SYMBOL_GPL(garp_unregister_application);
-
-static void __exit garp_cleanup_module(void)
-{
-	rcu_barrier(); /* Wait for completion of call_rcu()'s */
-}
-module_exit(garp_cleanup_module);
