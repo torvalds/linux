@@ -1930,7 +1930,7 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	snprintf(card->snd_card->longname, sizeof(card->snd_card->longname),
 		 "%s", card->long_name ? card->long_name : card->name);
 	snprintf(card->snd_card->driver, sizeof(card->snd_card->driver),
-		 "%s", card->driver_name);
+		 "%s", card->driver_name ? card->driver_name : card->name);
 
 	if (card->late_probe) {
 		ret = card->late_probe(card);
