@@ -715,7 +715,7 @@ static void __init check_irq_src(struct mpc_intsrc *m, int *nr_m_spare)
 	}
 }
 
-static int
+static int __init
 check_slot(unsigned long mpc_new_phys, unsigned long mpc_new_length, int count)
 {
 	if (!mpc_new_phys || count <= mpc_new_length) {

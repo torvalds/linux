@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/nodemask.h>
 #include <linux/memblock.h>
+#include <linux/bootmem.h>
 
 #include <asm/io.h>
 #include <linux/pci_ids.h>
@@ -69,10 +70,10 @@ static __init void early_get_boot_cpu_id(void)
 
 int __init amd_numa_init(void)
 {
-	unsigned long start = PFN_PHYS(0);
-	unsigned long end = PFN_PHYS(max_pfn);
+	u64 start = PFN_PHYS(0);
+	u64 end = PFN_PHYS(max_pfn);
 	unsigned numnodes;
-	unsigned long prevbase;
+	u64 prevbase;
 	int i, j, nb;
 	u32 nodeid, reg;
 	unsigned int bits, cores, apicid_base;
@@ -95,7 +96,7 @@ int __init amd_numa_init(void)
 
 	prevbase = 0;
 	for (i = 0; i < 8; i++) {
-		unsigned long base, limit;
+		u64 base, limit;
 
 		base = read_pci_config(0, nb, 1, 0x40 + i*8);
 		limit = read_pci_config(0, nb, 1, 0x44 + i*8);
@@ -107,18 +108,18 @@ int __init amd_numa_init(void)
 			continue;
 		}
 		if (nodeid >= numnodes) {
-			pr_info("Ignoring excess node %d (%lx:%lx)\n", nodeid,
+			pr_info("Ignoring excess node %d (%Lx:%Lx)\n", nodeid,
 				base, limit);
 			continue;
 		}
 
 		if (!limit) {
-			pr_info("Skipping node entry %d (base %lx)\n",
+			pr_info("Skipping node entry %d (base %Lx)\n",
 				i, base);
 			continue;
 		}
 		if ((base >> 8) & 3 || (limit >> 8) & 3) {
-			pr_err("Node %d using interleaving mode %lx/%lx\n",
+			pr_err("Node %d using interleaving mode %Lx/%Lx\n",
 			       nodeid, (base >> 8) & 3, (limit >> 8) & 3);
 			return -EINVAL;
 		}
@@ -150,19 +151,19 @@ int __init amd_numa_init(void)
 			continue;
 		}
 		if (limit < base) {
-			pr_err("Node %d bogus settings %lx-%lx.\n",
+			pr_err("Node %d bogus settings %Lx-%Lx.\n",
 			       nodeid, base, limit);
 			continue;
 		}
 
 		/* Could sort here, but pun for now. Should not happen anyroads. */
 		if (prevbase > base) {
-			pr_err("Node map not sorted %lx,%lx\n",
+			pr_err("Node map not sorted %Lx,%Lx\n",
 			       prevbase, base);
 			return -EINVAL;
 		}
 
-		pr_info("Node %d MemBase %016lx Limit %016lx\n",
+		pr_info("Node %d MemBase %016Lx Limit %016Lx\n",
 			nodeid, base, limit);
 
 		prevbase = base;
