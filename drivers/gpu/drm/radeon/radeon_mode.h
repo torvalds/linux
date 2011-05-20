@@ -470,7 +470,6 @@ extern bool radeon_connector_encoder_is_hbr2(struct drm_connector *connector);
 extern bool radeon_connector_is_dp12_capable(struct drm_connector *connector);
 
 extern void radeon_connector_hotplug(struct drm_connector *connector);
-extern bool radeon_dp_needs_link_train(struct radeon_connector *radeon_connector);
 extern int radeon_dp_mode_valid_helper(struct drm_connector *connector,
 				       struct drm_display_mode *mode);
 extern void radeon_dp_set_link_config(struct drm_connector *connector,

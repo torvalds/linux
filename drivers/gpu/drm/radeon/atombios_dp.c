@@ -613,18 +613,6 @@ static bool radeon_dp_get_link_status(struct radeon_connector *radeon_connector,
 	return true;
 }
 
-bool radeon_dp_needs_link_train(struct radeon_connector *radeon_connector)
-{
-	struct radeon_connector_atom_dig *dig_connector = radeon_connector->con_priv;
-	u8 link_status[DP_LINK_STATUS_SIZE];
-
-	if (!radeon_dp_get_link_status(radeon_connector, link_status))
-		return false;
-	if (dp_channel_eq_ok(link_status, dig_connector->dp_lane_count))
-		return false;
-	return true;
-}
-
 struct radeon_dp_link_train_info {
 	struct radeon_device *rdev;
 	struct drm_encoder *encoder;

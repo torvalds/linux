@@ -50,20 +50,15 @@ void radeon_connector_hotplug(struct drm_connector *connector)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
-	if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
-		radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
+	radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 
-	if ((connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
-	    (connector->connector_type == DRM_MODE_CONNECTOR_eDP)) {
-		if ((radeon_dp_getsinktype(radeon_connector) == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
-		    (radeon_dp_getsinktype(radeon_connector) == CONNECTOR_OBJECT_ID_eDP)) {
-			if (radeon_dp_needs_link_train(radeon_connector)) {
-				if (connector->encoder)
-					radeon_dp_link_train(connector->encoder, connector);
-			}
-		}
+	/* pre-r600 did not always have the hpd pins mapped accurately to connectors */
+	if (rdev->family >= CHIP_R600) {
+		if (radeon_hpd_sense(rdev, radeon_connector->hpd.hpd))
+			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+		else
+			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
 	}
-
 }
 
 static void radeon_property_change_mode(struct drm_encoder *encoder)
