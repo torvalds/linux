@@ -150,7 +150,7 @@ struct ispccdc_lsc {
  * @input: Active input
  * @output: Active outputs
  * @video_out: Output video node
- * @error: A hardware error occured during capture
+ * @error: A hardware error occurred during capture
  * @alaw: A-law compression enabled (1) or disabled (0)
  * @lpf: Low pass filter enabled (1) or disabled (0)
  * @obclamp: Optical-black clamp enabled (1) or disabled (0)
@@ -163,7 +163,7 @@ struct ispccdc_lsc {
  * @shadow_update: Controls update in progress by userspace
  * @syncif: Interface synchronization configuration
  * @vpcfg: Video port configuration
- * @underrun: A buffer underrun occured and a new buffer has been queued
+ * @underrun: A buffer underrun occurred and a new buffer has been queued
  * @state: Streaming state
  * @lock: Serializes shadow_update with interrupt handler
  * @wait: Wait queue used to stop the module

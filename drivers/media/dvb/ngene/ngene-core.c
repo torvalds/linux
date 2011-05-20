@@ -122,7 +122,7 @@ static void demux_tasklet(unsigned long data)
 						Cur->ngeneBuffer.SR.Flags &=
 							~0x40;
 						break;
-						/* Stop proccessing stream */
+						/* Stop processing stream */
 					}
 				} else {
 					/* We got a valid buffer,
@@ -133,7 +133,7 @@ static void demux_tasklet(unsigned long data)
 				printk(KERN_ERR DEVICE_NAME ": OOPS\n");
 				if (chan->HWState == HWSTATE_RUN) {
 					Cur->ngeneBuffer.SR.Flags &= ~0x40;
-					break;	/* Stop proccessing stream */
+					break;	/* Stop processing stream */
 				}
 			}
 			if (chan->AudioDTOUpdated) {
@@ -1520,6 +1520,7 @@ static int init_channel(struct ngene_channel *chan)
 	if (dev->ci.en && (io & NGENE_IO_TSOUT)) {
 		dvb_ca_en50221_init(adapter, dev->ci.en, 0, 1);
 		set_transfer(chan, 1);
+		chan->dev->channel[2].DataFormatFlags = DF_SWAP32;
 		set_transfer(&chan->dev->channel[2], 1);
 		dvb_register_device(adapter, &chan->ci_dev,
 				    &ngene_dvbdev_ci, (void *) chan,

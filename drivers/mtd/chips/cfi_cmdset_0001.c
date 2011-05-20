@@ -1247,12 +1247,12 @@ static int inval_cache_and_wait_for_operation(
 			break;
 
 		if (chip->erase_suspended && chip_state == FL_ERASING)  {
-			/* Erase suspend occured while sleep: reset timeout */
+			/* Erase suspend occurred while sleep: reset timeout */
 			timeo = reset_timeo;
 			chip->erase_suspended = 0;
 		}
 		if (chip->write_suspended && chip_state == FL_WRITING)  {
-			/* Write suspend occured while sleep: reset timeout */
+			/* Write suspend occurred while sleep: reset timeout */
 			timeo = reset_timeo;
 			chip->write_suspended = 0;
 		}

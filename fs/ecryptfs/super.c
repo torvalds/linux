@@ -55,6 +55,8 @@ static struct inode *ecryptfs_alloc_inode(struct super_block *sb)
 	if (unlikely(!inode_info))
 		goto out;
 	ecryptfs_init_crypt_stat(&inode_info->crypt_stat);
+	mutex_init(&inode_info->lower_file_mutex);
+	atomic_set(&inode_info->lower_file_count, 0);
 	inode_info->lower_file = NULL;
 	inode = &inode_info->vfs_inode;
 out:
@@ -77,8 +79,7 @@ static void ecryptfs_i_callback(struct rcu_head *head)
  *
  * This is used during the final destruction of the inode.  All
  * allocation of memory related to the inode, including allocated
- * memory in the crypt_stat struct, will be released here. This
- * function also fput()'s the persistent file for the lower inode.
+ * memory in the crypt_stat struct, will be released here.
  * There should be no chance that this deallocation will be missed.
  */
 static void ecryptfs_destroy_inode(struct inode *inode)
@@ -86,16 +87,7 @@ static void ecryptfs_destroy_inode(struct inode *inode)
 	struct ecryptfs_inode_info *inode_info;
 
 	inode_info = ecryptfs_inode_to_private(inode);
-	if (inode_info->lower_file) {
-		struct dentry *lower_dentry =
-			inode_info->lower_file->f_dentry;
-
-		BUG_ON(!lower_dentry);
-		if (lower_dentry->d_inode) {
-			fput(inode_info->lower_file);
-			inode_info->lower_file = NULL;
-		}
-	}
+	BUG_ON(inode_info->lower_file);
 	ecryptfs_destroy_crypt_stat(&inode_info->crypt_stat);
 	call_rcu(&inode->i_rcu, ecryptfs_i_callback);
 }

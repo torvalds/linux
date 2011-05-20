@@ -124,7 +124,7 @@
 #define PAL_NUM_COMPL_DATA_BLOCK_EVENT              0x48
 #define PAL_SHORT_RANGE_MODE_CHANGE_COMPL_EVENT     0x4C
 #define PAL_AMP_STATUS_CHANGE_EVENT                 0x4D
-/*======== End of PAL events definiton =================*/
+/*======== End of PAL events definition =================*/
 
 
 /*======== Timeouts (not part of HCI cmd, but input to PAL engine) =========*/
@@ -430,7 +430,7 @@ typedef struct  hci_event_hw_err_t {
     u8 hw_err_code;
 } POSTPACK HCI_EVENT_HW_ERR;
 
-/* Flush occured event */
+/* Flush occurred event */
 /* Qos Violation event */
 typedef struct  hci_event_handle_t {
     u8 event_code;

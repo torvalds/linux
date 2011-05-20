@@ -208,7 +208,7 @@ static __init int s5p_gpioint_add(struct s3c_gpio_chip *chip)
 	}
 
 	/*
-	 * chained GPIO irq has been sucessfully registered, allocate new gpio
+	 * chained GPIO irq has been successfully registered, allocate new gpio
 	 * int group and assign irq nubmers
 	 */
 

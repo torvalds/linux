@@ -346,7 +346,7 @@ cy_as_mtp_start(cy_as_device_handle handle,
 
 		dev_p->mtp_event_cb = event_c_b;
 		/*
-		* we register here becuase the start request may cause
+		* we register here because the start request may cause
 		* events to occur before the response to the start request.
 		*/
 		cy_as_ll_register_request_callback(dev_p,
@@ -424,7 +424,7 @@ my_handle_response_mtp_stop(cy_as_device *dev_p,
 		goto destroy;
 
 	/*
-	* we sucessfully shutdown the stack, so decrement
+	* we successfully shutdown the stack, so decrement
 	* to make the count zero.
 	*/
 	dev_p->mtp_count--;

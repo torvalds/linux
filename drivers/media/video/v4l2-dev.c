@@ -389,7 +389,8 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	video_get(vdev);
 	mutex_unlock(&videodev_lock);
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	if (vdev->v4l2_dev && vdev->v4l2_dev->mdev) {
+	if (vdev->v4l2_dev && vdev->v4l2_dev->mdev &&
+	    vdev->vfl_type != VFL_TYPE_SUBDEV) {
 		entity = media_entity_get(&vdev->entity);
 		if (!entity) {
 			ret = -EBUSY;
@@ -415,7 +416,8 @@ err:
 	/* decrease the refcount in case of an error */
 	if (ret) {
 #if defined(CONFIG_MEDIA_CONTROLLER)
-		if (vdev->v4l2_dev && vdev->v4l2_dev->mdev)
+		if (vdev->v4l2_dev && vdev->v4l2_dev->mdev &&
+		    vdev->vfl_type != VFL_TYPE_SUBDEV)
 			media_entity_put(entity);
 #endif
 		video_put(vdev);
@@ -437,7 +439,8 @@ static int v4l2_release(struct inode *inode, struct file *filp)
 			mutex_unlock(vdev->lock);
 	}
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	if (vdev->v4l2_dev && vdev->v4l2_dev->mdev)
+	if (vdev->v4l2_dev && vdev->v4l2_dev->mdev &&
+	    vdev->vfl_type != VFL_TYPE_SUBDEV)
 		media_entity_put(&vdev->entity);
 #endif
 	/* decrease the refcount unconditionally since the release()
@@ -686,7 +689,8 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	/* Part 5: Register the entity. */
-	if (vdev->v4l2_dev && vdev->v4l2_dev->mdev) {
+	if (vdev->v4l2_dev && vdev->v4l2_dev->mdev &&
+	    vdev->vfl_type != VFL_TYPE_SUBDEV) {
 		vdev->entity.type = MEDIA_ENT_T_DEVNODE_V4L;
 		vdev->entity.name = vdev->name;
 		vdev->entity.v4l.major = VIDEO_MAJOR;
@@ -733,7 +737,8 @@ void video_unregister_device(struct video_device *vdev)
 		return;
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	if (vdev->v4l2_dev && vdev->v4l2_dev->mdev)
+	if (vdev->v4l2_dev && vdev->v4l2_dev->mdev &&
+	    vdev->vfl_type != VFL_TYPE_SUBDEV)
 		media_device_unregister_entity(&vdev->entity);
 #endif
 

@@ -238,7 +238,7 @@ enum fe_stv0900_demod_mode {
 };
 
 struct stv0900_init_params{
-	u32	dmd_ref_clk;/* Refrence,Input clock for the demod in Hz */
+	u32	dmd_ref_clk;/* Reference,Input clock for the demod in Hz */
 
 	/* Demodulator Type (single demod or dual demod) */
 	enum fe_stv0900_demod_mode	demod_mode;

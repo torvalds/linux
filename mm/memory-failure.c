@@ -208,7 +208,7 @@ static int kill_proc_ao(struct task_struct *t, unsigned long addr, int trapno,
 	 * Don't use force here, it's convenient if the signal
 	 * can be temporarily blocked.
 	 * This could cause a loop when the user sets SIGBUS
-	 * to SIG_IGN, but hopefully noone will do that?
+	 * to SIG_IGN, but hopefully no one will do that?
 	 */
 	ret = send_sig_info(SIGBUS, &si, t);  /* synchronous? */
 	if (ret < 0)
@@ -634,7 +634,7 @@ static int me_pagecache_dirty(struct page *p, unsigned long pfn)
 		 * when the page is reread or dropped.  If an
 		 * application assumes it will always get error on
 		 * fsync, but does other operations on the fd before
-		 * and the page is dropped inbetween then the error
+		 * and the page is dropped between then the error
 		 * will not be properly reported.
 		 *
 		 * This can already happen even without hwpoisoned
@@ -728,7 +728,7 @@ static int me_huge_page(struct page *p, unsigned long pfn)
  * The table matches them in order and calls the right handler.
  *
  * This is quite tricky because we can access page at any time
- * in its live cycle, so all accesses have to be extremly careful.
+ * in its live cycle, so all accesses have to be extremely careful.
  *
  * This is not complete. More states could be added.
  * For any missing state don't attempt recovery.

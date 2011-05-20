@@ -326,8 +326,11 @@ req_retry_pinned:
 			outp = pack_sg_list_p(chan->sg, out, VIRTQUEUE_NUM,
 					pdata_off, rpinfo->rp_data, pdata_len);
 		} else {
-			char *pbuf = req->tc->pubuf ? req->tc->pubuf :
-								req->tc->pkbuf;
+			char *pbuf;
+			if (req->tc->pubuf)
+				pbuf = (__force char *) req->tc->pubuf;
+			else
+				pbuf = req->tc->pkbuf;
 			outp = pack_sg_list(chan->sg, out, VIRTQUEUE_NUM, pbuf,
 					req->tc->pbuf_size);
 		}
@@ -352,8 +355,12 @@ req_retry_pinned:
 			in = pack_sg_list_p(chan->sg, out+inp, VIRTQUEUE_NUM,
 					pdata_off, rpinfo->rp_data, pdata_len);
 		} else {
-			char *pbuf = req->tc->pubuf ? req->tc->pubuf :
-								req->tc->pkbuf;
+			char *pbuf;
+			if (req->tc->pubuf)
+				pbuf = (__force char *) req->tc->pubuf;
+			else
+				pbuf = req->tc->pkbuf;
+
 			in = pack_sg_list(chan->sg, out+inp, VIRTQUEUE_NUM,
 					pbuf, req->tc->pbuf_size);
 		}

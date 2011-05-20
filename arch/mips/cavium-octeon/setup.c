@@ -662,7 +662,7 @@ void __init plat_mem_setup(void)
 	 * some memory vectors. When SPARSEMEM is in use, it doesn't
 	 * verify that the size is big enough for the final
 	 * vectors. Making the smallest chuck 4MB seems to be enough
-	 * to consistantly work.
+	 * to consistently work.
 	 */
 	mem_alloc_size = 4 << 20;
 	if (mem_alloc_size > MAX_MEMORY)

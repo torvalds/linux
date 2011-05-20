@@ -501,7 +501,7 @@ int ntfs_read_compressed_block(struct page *page)
 	VCN start_vcn = (((s64)index << PAGE_CACHE_SHIFT) & ~cb_size_mask) >>
 			vol->cluster_size_bits;
 	/*
-	 * The first vcn after the last wanted vcn (minumum alignment is again
+	 * The first vcn after the last wanted vcn (minimum alignment is again
 	 * PAGE_CACHE_SIZE.
 	 */
 	VCN end_vcn = ((((s64)(index + 1UL) << PAGE_CACHE_SHIFT) + cb_size - 1)

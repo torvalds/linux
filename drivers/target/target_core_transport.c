@@ -719,7 +719,7 @@ static int transport_cmd_check_stop(
 			cmd->se_lun = NULL;
 			/*
 			 * Some fabric modules like tcm_loop can release
-			 * their internally allocated I/O refrence now and
+			 * their internally allocated I/O reference now and
 			 * struct se_cmd now.
 			 */
 			if (CMD_TFO(cmd)->check_stop_free != NULL) {
@@ -2029,7 +2029,7 @@ int transport_generic_handle_data(
 	 * If the received CDB has aleady been ABORTED by the generic
 	 * target engine, we now call transport_check_aborted_status()
 	 * to queue any delated TASK_ABORTED status for the received CDB to the
-	 * fabric module as we are expecting no futher incoming DATA OUT
+	 * fabric module as we are expecting no further incoming DATA OUT
 	 * sequences at this point.
 	 */
 	if (transport_check_aborted_status(cmd, 1) != 0)
@@ -2501,7 +2501,7 @@ static inline int transport_execute_task_attr(struct se_cmd *cmd)
 	if (SE_DEV(cmd)->dev_task_attr_type != SAM_TASK_ATTR_EMULATED)
 		return 1;
 	/*
-	 * Check for the existance of HEAD_OF_QUEUE, and if true return 1
+	 * Check for the existence of HEAD_OF_QUEUE, and if true return 1
 	 * to allow the passed struct se_cmd list of tasks to the front of the list.
 	 */
 	 if (cmd->sam_task_attr == TASK_ATTR_HOQ) {
@@ -2547,7 +2547,7 @@ static inline int transport_execute_task_attr(struct se_cmd *cmd)
 	if (atomic_read(&SE_DEV(cmd)->dev_ordered_sync) != 0) {
 		/*
 		 * Otherwise, add cmd w/ tasks to delayed cmd queue that
-		 * will be drained upon competion of HEAD_OF_QUEUE task.
+		 * will be drained upon completion of HEAD_OF_QUEUE task.
 		 */
 		spin_lock(&SE_DEV(cmd)->delayed_cmd_lock);
 		cmd->se_cmd_flags |= SCF_DELAYED_CMD_FROM_SAM_ATTR;
@@ -2589,7 +2589,7 @@ static int transport_execute_tasks(struct se_cmd *cmd)
 	}
 	/*
 	 * Call transport_cmd_check_stop() to see if a fabric exception
-	 * has occured that prevents execution.
+	 * has occurred that prevents execution.
 	 */
 	if (!(transport_cmd_check_stop(cmd, 0, TRANSPORT_PROCESSING))) {
 		/*
@@ -3109,7 +3109,7 @@ static int transport_generic_cmd_sequencer(
 	if (ret != 0) {
 		cmd->transport_wait_for_tasks = &transport_nop_wait_for_tasks;
 		/*
-		 * Set SCSI additional sense code (ASC) to 'LUN Not Accessable';
+		 * Set SCSI additional sense code (ASC) to 'LUN Not Accessible';
 		 * The ALUA additional sense code qualifier (ASCQ) is determined
 		 * by the ALUA primary or secondary access state..
 		 */
@@ -3867,7 +3867,7 @@ static void transport_generic_complete_ok(struct se_cmd *cmd)
 		}
 	}
 	/*
-	 * Check for a callback, used by amoungst other things
+	 * Check for a callback, used by amongst other things
 	 * XDWRITE_READ_10 emulation.
 	 */
 	if (cmd->transport_complete_callback)

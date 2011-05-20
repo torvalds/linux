@@ -944,6 +944,10 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 	}
 
 	for (port = 1; port <= dev->caps.num_ports; port++) {
+		enum mlx4_port_type port_type = 0;
+		mlx4_SENSE_PORT(dev, port, &port_type);
+		if (port_type)
+			dev->caps.port_type[port] = port_type;
 		ib_port_default_caps = 0;
 		err = mlx4_get_port_ib_caps(dev, port, &ib_port_default_caps);
 		if (err)
@@ -958,6 +962,7 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 			goto err_mcg_table_free;
 		}
 	}
+	mlx4_set_port_mask(dev);
 
 	return 0;
 

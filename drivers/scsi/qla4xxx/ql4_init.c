@@ -1338,7 +1338,7 @@ exit_init_hba:
 	}
 
 	DEBUG2(printk("scsi%ld: initialize adapter: %s\n", ha->host_no,
-	    status == QLA_ERROR ? "FAILED" : "SUCCEDED"));
+	    status == QLA_ERROR ? "FAILED" : "SUCCEEDED"));
 	return status;
 }
 

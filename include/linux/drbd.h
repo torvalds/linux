@@ -36,7 +36,7 @@
 #include <sys/wait.h>
 #include <limits.h>
 
-/* Altough the Linux source code makes a difference between
+/* Although the Linux source code makes a difference between
    generic endianness and the bitfields' endianness, there is no
    architecture as of Linux-2.6.24-rc4 where the bitfileds' endianness
    does not match the generic endianness. */
@@ -184,7 +184,7 @@ enum drbd_conns {
 	/* These temporal states are all used on the way
 	 * from >= C_CONNECTED to Unconnected.
 	 * The 'disconnect reason' states
-	 * I do not allow to change beween them. */
+	 * I do not allow to change between them. */
 	C_TIMEOUT,
 	C_BROKEN_PIPE,
 	C_NETWORK_FAILURE,

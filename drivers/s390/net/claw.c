@@ -779,7 +779,7 @@ claw_irq_handler(struct ccw_device *cdev,
 	case CLAW_START_WRITE:
 		if (p_ch->irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) {
 			dev_info(&cdev->dev,
-				"%s: Unit Check Occured in "
+				"%s: Unit Check Occurred in "
 				"write channel\n", dev->name);
 			clear_bit(0, (void *)&p_ch->IO_active);
 			if (p_ch->irb->ecw[0] & 0x80) {

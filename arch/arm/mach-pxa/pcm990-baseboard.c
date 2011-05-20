@@ -515,7 +515,7 @@ void __init pcm990_baseboard_init(void)
 	pcm990_init_irq();
 
 #ifndef CONFIG_PCM990_DISPLAY_NONE
-	set_pxa_fb_info(&pcm990_fbinfo);
+	pxa_set_fb_info(NULL, &pcm990_fbinfo);
 #endif
 	platform_device_register(&pcm990_backlight_device);
 

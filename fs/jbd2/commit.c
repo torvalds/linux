@@ -105,6 +105,8 @@ static int journal_submit_commit_record(journal_t *journal,
 	int ret;
 	struct timespec now = current_kernel_time();
 
+	*cbh = NULL;
+
 	if (is_journal_aborted(journal))
 		return 0;
 
@@ -403,7 +405,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 * we do not require it to remember exactly which old buffers it
 	 * has reserved.  This is consistent with the existing behaviour
 	 * that multiple jbd2_journal_get_write_access() calls to the same
-	 * buffer are perfectly permissable.
+	 * buffer are perfectly permissible.
 	 */
 	while (commit_transaction->t_reserved_list) {
 		jh = commit_transaction->t_reserved_list;
@@ -806,7 +808,7 @@ wait_for_iobuf:
 		if (err)
 			__jbd2_journal_abort_hard(journal);
 	}
-	if (!err && !is_journal_aborted(journal))
+	if (cbh)
 		err = journal_wait_on_commit_record(journal, cbh);
 	if (JBD2_HAS_INCOMPAT_FEATURE(journal,
 				      JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT) &&

@@ -1056,7 +1056,7 @@ SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
 	/*
 	 * We need look no further than the maximum address a fragment
 	 * could possibly have landed at. Also cast things to loff_t to
-	 * prevent overflows and make comparisions vs. equal-width types.
+	 * prevent overflows and make comparisons vs. equal-width types.
 	 */
 	size = PAGE_ALIGN(size);
 	while (vma && (loff_t)(vma->vm_end - addr) <= size) {

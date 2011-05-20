@@ -64,7 +64,7 @@
  *   we must stay away from it for a while since we may cause a bouncing
  *   cacheline if we try to acquire the lock. So go onto the next slab.
  *   If all pages are busy then we may allocate a new slab instead of reusing
- *   a partial slab. A new slab has noone operating on it and thus there is
+ *   a partial slab. A new slab has no one operating on it and thus there is
  *   no danger of cacheline contention.
  *
  *   Interrupts are disabled during allocation and deallocation in order to
@@ -1929,7 +1929,7 @@ redo:
 	else {
 #ifdef CONFIG_CMPXCHG_LOCAL
 		/*
-		 * The cmpxchg will only match if there was no additonal
+		 * The cmpxchg will only match if there was no additional
 		 * operation and if we are on the right processor.
 		 *
 		 * The cmpxchg does the following atomically (without lock semantics!)
@@ -1940,7 +1940,7 @@ redo:
 		 * Since this is without lock semantics the protection is only against
 		 * code executing on this cpu *not* from access by other cpus.
 		 */
-		if (unlikely(!this_cpu_cmpxchg_double(
+		if (unlikely(!irqsafe_cpu_cmpxchg_double(
 				s->cpu_slab->freelist, s->cpu_slab->tid,
 				object, tid,
 				get_freepointer(s, object), next_tid(tid)))) {
@@ -2145,7 +2145,7 @@ redo:
 		set_freepointer(s, object, c->freelist);
 
 #ifdef CONFIG_CMPXCHG_LOCAL
-		if (unlikely(!this_cpu_cmpxchg_double(
+		if (unlikely(!irqsafe_cpu_cmpxchg_double(
 				s->cpu_slab->freelist, s->cpu_slab->tid,
 				c->freelist, tid,
 				object, next_tid(tid)))) {
@@ -3547,7 +3547,7 @@ void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, unsigned long caller)
 
 	ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, caller);
 
-	/* Honor the call site pointer we recieved. */
+	/* Honor the call site pointer we received. */
 	trace_kmalloc(caller, ret, size, s->size, gfpflags);
 
 	return ret;
@@ -3577,7 +3577,7 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 
 	ret = slab_alloc(s, gfpflags, node, caller);
 
-	/* Honor the call site pointer we recieved. */
+	/* Honor the call site pointer we received. */
 	trace_kmalloc_node(caller, ret, size, s->size, gfpflags, node);
 
 	return ret;

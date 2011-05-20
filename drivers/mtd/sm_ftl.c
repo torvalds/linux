@@ -540,7 +540,7 @@ static int sm_check_block(struct sm_ftl *ftl, int zone, int block)
 			return -EIO;
 	}
 
-	/* If the block is sliced (partialy erased usually) erase it */
+	/* If the block is sliced (partially erased usually) erase it */
 	if (i == 2) {
 		sm_erase_block(ftl, zone, block, 1);
 		return 1;
@@ -878,7 +878,7 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 	return 0;
 }
 
-/* Get and automaticly initialize an FTL mapping for one zone */
+/* Get and automatically initialize an FTL mapping for one zone */
 struct ftl_zone *sm_get_zone(struct sm_ftl *ftl, int zone_num)
 {
 	struct ftl_zone *zone;

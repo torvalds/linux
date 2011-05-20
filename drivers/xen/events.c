@@ -5,7 +5,7 @@
  * domain gets 1024 event channels, but NR_IRQ is not that large, we
  * must dynamically map irqs<->event channels.  The event channels
  * interface with the rest of the kernel by defining a xen interrupt
- * chip.  When an event is recieved, it is mapped to an irq and sent
+ * chip.  When an event is received, it is mapped to an irq and sent
  * through the normal interrupt processing path.
  *
  * There are four kinds of events which can be mapped to an event
@@ -416,7 +416,7 @@ static int __must_check xen_allocate_irq_dynamic(void)
 #ifdef CONFIG_X86_IO_APIC
 	/*
 	 * For an HVM guest or domain 0 which see "real" (emulated or
-	 * actual repectively) GSIs we allocate dynamic IRQs
+	 * actual respectively) GSIs we allocate dynamic IRQs
 	 * e.g. those corresponding to event channels or MSIs
 	 * etc. from the range above those "real" GSIs to avoid
 	 * collisions.
@@ -912,8 +912,7 @@ int bind_evtchn_to_irqhandler(unsigned int evtchn,
 			      unsigned long irqflags,
 			      const char *devname, void *dev_id)
 {
-	unsigned int irq;
-	int retval;
+	int irq, retval;
 
 	irq = bind_evtchn_to_irq(evtchn);
 	if (irq < 0)
@@ -955,8 +954,7 @@ int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 			    irq_handler_t handler,
 			    unsigned long irqflags, const char *devname, void *dev_id)
 {
-	unsigned int irq;
-	int retval;
+	int irq, retval;
 
 	irq = bind_virq_to_irq(virq, cpu);
 	if (irq < 0)

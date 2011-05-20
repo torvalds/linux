@@ -391,7 +391,7 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 
 /* Status2 Register bits */ /* MADI ONLY */
 
-#define HDSPM_version0 (1<<0)	/* not realy defined but I guess */
+#define HDSPM_version0 (1<<0)	/* not really defined but I guess */
 #define HDSPM_version1 (1<<1)	/* in former cards it was ??? */
 #define HDSPM_version2 (1<<2)
 
@@ -936,7 +936,7 @@ struct hdspm {
 	struct snd_kcontrol *playback_mixer_ctls[HDSPM_MAX_CHANNELS];
 	/* but input to much, so not used */
 	struct snd_kcontrol *input_mixer_ctls[HDSPM_MAX_CHANNELS];
-	/* full mixer accessable over mixer ioctl or hwdep-device */
+	/* full mixer accessible over mixer ioctl or hwdep-device */
 	struct hdspm_mixer *mixer;
 
 	struct hdspm_tco *tco;  /* NULL if no TCO detected */

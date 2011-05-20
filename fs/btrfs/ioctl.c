@@ -81,6 +81,13 @@ static unsigned int btrfs_flags_to_ioctl(unsigned int flags)
 		iflags |= FS_NOATIME_FL;
 	if (flags & BTRFS_INODE_DIRSYNC)
 		iflags |= FS_DIRSYNC_FL;
+	if (flags & BTRFS_INODE_NODATACOW)
+		iflags |= FS_NOCOW_FL;
+
+	if ((flags & BTRFS_INODE_COMPRESS) && !(flags & BTRFS_INODE_NOCOMPRESS))
+		iflags |= FS_COMPR_FL;
+	else if (flags & BTRFS_INODE_NOCOMPRESS)
+		iflags |= FS_NOCOMP_FL;
 
 	return iflags;
 }
@@ -144,14 +151,11 @@ static int check_flags(unsigned int flags)
 	if (flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL | \
 		      FS_NOATIME_FL | FS_NODUMP_FL | \
 		      FS_SYNC_FL | FS_DIRSYNC_FL | \
-		      FS_NOCOMP_FL | FS_COMPR_FL | \
-		      FS_NOCOW_FL | FS_COW_FL))
+		      FS_NOCOMP_FL | FS_COMPR_FL |
+		      FS_NOCOW_FL))
 		return -EOPNOTSUPP;
 
 	if ((flags & FS_NOCOMP_FL) && (flags & FS_COMPR_FL))
-		return -EINVAL;
-
-	if ((flags & FS_NOCOW_FL) && (flags & FS_COW_FL))
 		return -EINVAL;
 
 	return 0;
@@ -218,6 +222,10 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		ip->flags |= BTRFS_INODE_DIRSYNC;
 	else
 		ip->flags &= ~BTRFS_INODE_DIRSYNC;
+	if (flags & FS_NOCOW_FL)
+		ip->flags |= BTRFS_INODE_NODATACOW;
+	else
+		ip->flags &= ~BTRFS_INODE_NODATACOW;
 
 	/*
 	 * The COMPRESS flag can only be changed by users, while the NOCOMPRESS
@@ -230,11 +238,9 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	} else if (flags & FS_COMPR_FL) {
 		ip->flags |= BTRFS_INODE_COMPRESS;
 		ip->flags &= ~BTRFS_INODE_NOCOMPRESS;
+	} else {
+		ip->flags &= ~(BTRFS_INODE_COMPRESS | BTRFS_INODE_NOCOMPRESS);
 	}
-	if (flags & FS_NOCOW_FL)
-		ip->flags |= BTRFS_INODE_NODATACOW;
-	else if (flags & FS_COW_FL)
-		ip->flags &= ~BTRFS_INODE_NODATACOW;
 
 	trans = btrfs_join_transaction(root, 1);
 	BUG_ON(IS_ERR(trans));
@@ -372,6 +378,10 @@ static noinline int create_subvol(struct btrfs_root *root,
 	inode_item->nlink = cpu_to_le32(1);
 	inode_item->nbytes = cpu_to_le64(root->leafsize);
 	inode_item->mode = cpu_to_le32(S_IFDIR | 0755);
+
+	root_item.flags = 0;
+	root_item.byte_limit = 0;
+	inode_item->flags = cpu_to_le64(BTRFS_INODE_ROOT_ITEM_INIT);
 
 	btrfs_set_root_bytenr(&root_item, leaf->start);
 	btrfs_set_root_generation(&root_item, trans->transid);
@@ -2283,7 +2293,7 @@ long btrfs_ioctl_space_info(struct btrfs_root *root, void __user *arg)
 	struct btrfs_ioctl_space_info space;
 	struct btrfs_ioctl_space_info *dest;
 	struct btrfs_ioctl_space_info *dest_orig;
-	struct btrfs_ioctl_space_info *user_dest;
+	struct btrfs_ioctl_space_info __user *user_dest;
 	struct btrfs_space_info *info;
 	u64 types[] = {BTRFS_BLOCK_GROUP_DATA,
 		       BTRFS_BLOCK_GROUP_SYSTEM,
@@ -2436,8 +2446,10 @@ static noinline long btrfs_ioctl_start_sync(struct file *file, void __user *argp
 		return PTR_ERR(trans);
 	transid = trans->transid;
 	ret = btrfs_commit_transaction_async(trans, root, 0);
-	if (ret)
+	if (ret) {
+		btrfs_end_transaction(trans, root);
 		return ret;
+	}
 
 	if (argp)
 		if (copy_to_user(argp, &transid, sizeof(transid)))

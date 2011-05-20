@@ -670,7 +670,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 		ssb_printk(KERN_ERR PFX "No SPROM available!\n");
 		return -ENODEV;
 	}
-	if (bus->chipco.dev) {	/* can be unavailible! */
+	if (bus->chipco.dev) {	/* can be unavailable! */
 		/*
 		 * get SPROM offset: SSB_SPROM_BASE1 except for
 		 * chipcommon rev >= 31 or chip ID is 0x4312 and

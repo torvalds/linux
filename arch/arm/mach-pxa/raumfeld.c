@@ -597,7 +597,7 @@ static void __init raumfeld_lcd_init(void)
 {
 	int ret;
 
-	set_pxa_fb_info(&raumfeld_sharp_lcd_info);
+	pxa_set_fb_info(NULL, &raumfeld_sharp_lcd_info);
 
 	/* Earlier devices had the backlight regulator controlled
 	 * via PWM, later versions use another controller for that */

@@ -97,7 +97,7 @@ struct ieee80211_bss {
 	size_t supp_rates_len;
 
 	/*
-	 * During assocation, we save an ERP value from a probe response so
+	 * During association, we save an ERP value from a probe response so
 	 * that we can feed ERP info to the driver when handling the
 	 * association completes. these fields probably won't be up-to-date
 	 * otherwise, you probably don't want to use them.

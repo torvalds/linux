@@ -138,7 +138,7 @@ static inline void move_unlock_page_cgroup(struct page_cgroup *pc,
 
 #define PCG_ARRAYID_OFFSET	(BITS_PER_LONG - PCG_ARRAYID_WIDTH)
 /*
- * Zero the shift count for non-existant fields, to prevent compiler
+ * Zero the shift count for non-existent fields, to prevent compiler
  * warnings and ensure references are optimized away.
  */
 #define PCG_ARRAYID_SHIFT	(PCG_ARRAYID_OFFSET * (PCG_ARRAYID_WIDTH != 0))

@@ -206,8 +206,14 @@ irqreturn_t bfin_gptmr0_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
 	smp_mb();
-	evt->event_handler(evt);
+	/*
+	 * We want to ACK before we handle so that we can handle smaller timer
+	 * intervals.  This way if the timer expires again while we're handling
+	 * things, we're more likely to see that 2nd int rather than swallowing
+	 * it by ACKing the int at the end of this handler.
+	 */
 	bfin_gptmr0_ack();
+	evt->event_handler(evt);
 	return IRQ_HANDLED;
 }
 

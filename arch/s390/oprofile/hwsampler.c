@@ -517,12 +517,8 @@ stop_exit:
 
 static int check_hardware_prerequisites(void)
 {
-	unsigned long long facility_bits[2];
-
-	memcpy(facility_bits, S390_lowcore.stfle_fac_list, 32);
-	if (!(facility_bits[1] & (1ULL << 59)))
+	if (!test_facility(68))
 		return -EOPNOTSUPP;
-
 	return 0;
 }
 /*
@@ -1025,20 +1021,14 @@ deallocate_exit:
 	return rc;
 }
 
-long hwsampler_query_min_interval(void)
+unsigned long hwsampler_query_min_interval(void)
 {
-	if (min_sampler_rate)
-		return min_sampler_rate;
-	else
-		return -EINVAL;
+	return min_sampler_rate;
 }
 
-long hwsampler_query_max_interval(void)
+unsigned long hwsampler_query_max_interval(void)
 {
-	if (max_sampler_rate)
-		return max_sampler_rate;
-	else
-		return -EINVAL;
+	return max_sampler_rate;
 }
 
 unsigned long hwsampler_get_sample_overflow_count(unsigned int cpu)

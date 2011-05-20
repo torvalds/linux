@@ -314,7 +314,7 @@ int ab8500_gpadc_convert(struct ab8500_gpadc *gpadc, u8 input)
 	/* wait for completion of conversion */
 	if (!wait_for_completion_timeout(&gpadc->ab8500_gpadc_complete, 2*HZ)) {
 		dev_err(gpadc->dev,
-			"timeout: didnt recieve GPADC conversion interrupt\n");
+			"timeout: didn't receive GPADC conversion interrupt\n");
 		ret = -EINVAL;
 		goto out;
 	}

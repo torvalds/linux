@@ -953,7 +953,7 @@ xfs_release(
 		 * If we previously truncated this file and removed old data
 		 * in the process, we want to initiate "early" writeout on
 		 * the last close.  This is an attempt to combat the notorious
-		 * NULL files problem which is particularly noticable from a
+		 * NULL files problem which is particularly noticeable from a
 		 * truncate down, buffered (re-)write (delalloc), followed by
 		 * a crash.  What we are effectively doing here is
 		 * significantly reducing the time window where we'd otherwise
@@ -982,7 +982,7 @@ xfs_release(
 		 *
 		 * Further, check if the inode is being opened, written and
 		 * closed frequently and we have delayed allocation blocks
-		 * oustanding (e.g. streaming writes from the NFS server),
+		 * outstanding (e.g. streaming writes from the NFS server),
 		 * truncating the blocks past EOF will cause fragmentation to
 		 * occur.
 		 *

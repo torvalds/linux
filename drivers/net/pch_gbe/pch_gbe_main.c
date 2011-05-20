@@ -34,6 +34,10 @@ const char pch_driver_version[] = DRV_VERSION;
 #define PCH_GBE_COPYBREAK_DEFAULT	256
 #define PCH_GBE_PCI_BAR			1
 
+/* Macros for ML7223 */
+#define PCI_VENDOR_ID_ROHM			0x10db
+#define PCI_DEVICE_ID_ROHM_ML7223_GBE		0x8013
+
 #define PCH_GBE_TX_WEIGHT         64
 #define PCH_GBE_RX_WEIGHT         64
 #define PCH_GBE_RX_BUFFER_WRITE   16
@@ -43,8 +47,7 @@ const char pch_driver_version[] = DRV_VERSION;
 
 #define PCH_GBE_MAC_RGMII_CTRL_SETTING ( \
 	PCH_GBE_CHIP_TYPE_INTERNAL | \
-	PCH_GBE_RGMII_MODE_RGMII   | \
-	PCH_GBE_CRS_SEL              \
+	PCH_GBE_RGMII_MODE_RGMII     \
 	)
 
 /* Ethertype field values */
@@ -1011,7 +1014,7 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 	tmp_skb->len = skb->len;
 	memcpy(&tmp_skb->data[ETH_HLEN + 2], &skb->data[ETH_HLEN],
 	       (skb->len - ETH_HLEN));
-	/*-- Set Buffer infomation --*/
+	/*-- Set Buffer information --*/
 	buffer_info->length = tmp_skb->len;
 	buffer_info->dma = dma_map_single(&adapter->pdev->dev, tmp_skb->data,
 					  buffer_info->length,
@@ -1494,12 +1497,11 @@ pch_gbe_clean_rx(struct pch_gbe_adapter *adapter,
 			/* Write meta date of skb */
 			skb_put(skb, length);
 			skb->protocol = eth_type_trans(skb, netdev);
-			if ((tcp_ip_status & PCH_GBE_RXD_ACC_STAT_TCPIPOK) ==
-			    PCH_GBE_RXD_ACC_STAT_TCPIPOK) {
-				skb->ip_summed = CHECKSUM_UNNECESSARY;
-			} else {
+			if (tcp_ip_status & PCH_GBE_RXD_ACC_STAT_TCPIPOK)
 				skb->ip_summed = CHECKSUM_NONE;
-			}
+			else
+				skb->ip_summed = CHECKSUM_UNNECESSARY;
+
 			napi_gro_receive(&adapter->napi, skb);
 			(*work_done)++;
 			pr_debug("Receive skb->ip_summed: %d length: %d\n",
@@ -1540,7 +1542,7 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
 	size = (int)sizeof(struct pch_gbe_buffer) * tx_ring->count;
 	tx_ring->buffer_info = vzalloc(size);
 	if (!tx_ring->buffer_info) {
-		pr_err("Unable to allocate memory for the buffer infomation\n");
+		pr_err("Unable to allocate memory for the buffer information\n");
 		return -ENOMEM;
 	}
 
@@ -2415,6 +2417,13 @@ err_disable_device:
 static DEFINE_PCI_DEVICE_TABLE(pch_gbe_pcidev_id) = {
 	{.vendor = PCI_VENDOR_ID_INTEL,
 	 .device = PCI_DEVICE_ID_INTEL_IOH1_GBE,
+	 .subvendor = PCI_ANY_ID,
+	 .subdevice = PCI_ANY_ID,
+	 .class = (PCI_CLASS_NETWORK_ETHERNET << 8),
+	 .class_mask = (0xFFFF00)
+	 },
+	{.vendor = PCI_VENDOR_ID_ROHM,
+	 .device = PCI_DEVICE_ID_ROHM_ML7223_GBE,
 	 .subvendor = PCI_ANY_ID,
 	 .subdevice = PCI_ANY_ID,
 	 .class = (PCI_CLASS_NETWORK_ETHERNET << 8),

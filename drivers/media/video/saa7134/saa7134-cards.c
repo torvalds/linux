@@ -7460,7 +7460,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 				dev->tuner_type = TUNER_PHILIPS_FM1216ME_MK3;
 				break;
 			default:
-				printk(KERN_ERR "%s Cant determine tuner type %x from EEPROM\n", dev->name, tuner_t);
+				printk(KERN_ERR "%s Can't determine tuner type %x from EEPROM\n", dev->name, tuner_t);
 			}
 		} else if ((data[1] != 0) && (data[1] != 0xff)) {
 			/* new config structure */
@@ -7480,7 +7480,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 					printk(KERN_INFO "%s Board has DVB-T\n", dev->name);
 				break;
 			default:
-				printk(KERN_ERR "%s Cant determine tuner type %x from EEPROM\n", dev->name, tuner_t);
+				printk(KERN_ERR "%s Can't determine tuner type %x from EEPROM\n", dev->name, tuner_t);
 			}
 		} else {
 			printk(KERN_ERR "%s unexpected config structure\n", dev->name);

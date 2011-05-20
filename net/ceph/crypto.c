@@ -5,9 +5,22 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <crypto/hash.h>
+#include <linux/key-type.h>
 
+#include <keys/ceph-type.h>
 #include <linux/ceph/decode.h>
 #include "crypto.h"
+
+int ceph_crypto_key_clone(struct ceph_crypto_key *dst,
+			  const struct ceph_crypto_key *src)
+{
+	memcpy(dst, src, sizeof(struct ceph_crypto_key));
+	dst->key = kmalloc(src->len, GFP_NOFS);
+	if (!dst->key)
+		return -ENOMEM;
+	memcpy(dst->key, src->key, src->len);
+	return 0;
+}
 
 int ceph_crypto_key_encode(struct ceph_crypto_key *key, void **p, void *end)
 {
@@ -409,4 +422,64 @@ int ceph_encrypt2(struct ceph_crypto_key *secret, void *dst, size_t *dst_len,
 	default:
 		return -EINVAL;
 	}
+}
+
+int ceph_key_instantiate(struct key *key, const void *data, size_t datalen)
+{
+	struct ceph_crypto_key *ckey;
+	int ret;
+	void *p;
+
+	ret = -EINVAL;
+	if (datalen <= 0 || datalen > 32767 || !data)
+		goto err;
+
+	ret = key_payload_reserve(key, datalen);
+	if (ret < 0)
+		goto err;
+
+	ret = -ENOMEM;
+	ckey = kmalloc(sizeof(*ckey), GFP_KERNEL);
+	if (!ckey)
+		goto err;
+
+	/* TODO ceph_crypto_key_decode should really take const input */
+	p = (void*)data;
+	ret = ceph_crypto_key_decode(ckey, &p, (char*)data+datalen);
+	if (ret < 0)
+		goto err_ckey;
+
+	key->payload.data = ckey;
+	return 0;
+
+err_ckey:
+	kfree(ckey);
+err:
+	return ret;
+}
+
+int ceph_key_match(const struct key *key, const void *description)
+{
+	return strcmp(key->description, description) == 0;
+}
+
+void ceph_key_destroy(struct key *key) {
+	struct ceph_crypto_key *ckey = key->payload.data;
+
+	ceph_crypto_key_destroy(ckey);
+}
+
+struct key_type key_type_ceph = {
+	.name		= "ceph",
+	.instantiate	= ceph_key_instantiate,
+	.match		= ceph_key_match,
+	.destroy	= ceph_key_destroy,
+};
+
+int ceph_crypto_init(void) {
+	return register_key_type(&key_type_ceph);
+}
+
+void ceph_crypto_shutdown(void) {
+	unregister_key_type(&key_type_ceph);
 }

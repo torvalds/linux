@@ -1466,7 +1466,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 					break;
 				}
 				/*
-				 * We want to do more targetted reclaim.
+				 * We want to do more targeted reclaim.
 				 * excess >> 2 is not to excessive so as to
 				 * reclaim too much, nor too less that we keep
 				 * coming back to reclaim from this cgroup
@@ -2265,7 +2265,7 @@ void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail)
  * - compound_lock is held when nr_pages > 1
  *
  * This function doesn't do "charge" nor css_get to new cgroup. It should be
- * done by a caller(__mem_cgroup_try_charge would be usefull). If @uncharge is
+ * done by a caller(__mem_cgroup_try_charge would be useful). If @uncharge is
  * true, this function does "uncharge" from old cgroup, but it doesn't if
  * @uncharge is false, so a caller should do "uncharge".
  */
@@ -2318,7 +2318,7 @@ static int mem_cgroup_move_account(struct page *page,
 	 * We charges against "to" which may not have any tasks. Then, "to"
 	 * can be under rmdir(). But in current implementation, caller of
 	 * this function is just force_empty() and move charge, so it's
-	 * garanteed that "to" is never removed. So, we don't check rmdir
+	 * guaranteed that "to" is never removed. So, we don't check rmdir
 	 * status here.
 	 */
 	move_unlock_page_cgroup(pc, &flags);
@@ -2648,7 +2648,7 @@ static void mem_cgroup_do_uncharge(struct mem_cgroup *mem,
 		batch->memcg = mem;
 	/*
 	 * do_batch > 0 when unmapping pages or inode invalidate/truncate.
-	 * In those cases, all pages freed continously can be expected to be in
+	 * In those cases, all pages freed continuously can be expected to be in
 	 * the same cgroup and we have chance to coalesce uncharges.
 	 * But we do uncharge one by one if this is killed by OOM(TIF_MEMDIE)
 	 * because we want to do uncharge as soon as possible.

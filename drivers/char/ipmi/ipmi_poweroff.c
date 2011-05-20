@@ -122,7 +122,7 @@ static struct ipmi_recv_msg halt_recv_msg = {
 
 
 /*
- * Code to send a message and wait for the reponse.
+ * Code to send a message and wait for the response.
  */
 
 static void receive_handler(struct ipmi_recv_msg *recv_msg, void *handler_data)

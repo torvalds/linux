@@ -423,7 +423,7 @@ static struct platform_device fsi_hdmi_device = {
 	.name		= "sh_fsi2_b_hdmi",
 };
 
-static int __init hdmi_init_pm_clock(void)
+static void __init hdmi_init_pm_clock(void)
 {
 	struct clk *hdmi_ick = clk_get(&hdmi_device.dev, "ick");
 	int ret;
@@ -467,17 +467,13 @@ static int __init hdmi_init_pm_clock(void)
 	pr_debug("PLLC2 set frequency %lu\n", rate);
 
 	ret = clk_set_parent(hdmi_ick, &sh7372_pllc2_clk);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_err("Cannot set HDMI parent: %d\n", ret);
-		goto out;
-	}
 
 out:
 	if (!IS_ERR(hdmi_ick))
 		clk_put(hdmi_ick);
-	return ret;
 }
-device_initcall(hdmi_init_pm_clock);
 
 /* USB1 (Host) */
 static void usb1_host_port_power(int port, int power)
@@ -1218,6 +1214,8 @@ static void __init mackerel_init(void)
 	sh7372_add_standard_devices();
 
 	platform_add_devices(mackerel_devices, ARRAY_SIZE(mackerel_devices));
+
+	hdmi_init_pm_clock();
 }
 
 static void __init mackerel_timer_init(void)

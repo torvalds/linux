@@ -356,7 +356,7 @@ void fimc_hw_en_capture(struct fimc_ctx *ctx)
 		/* one shot mode */
 		cfg |= S5P_CIIMGCPT_CPT_FREN_ENABLE | S5P_CIIMGCPT_IMGCPTEN;
 	} else {
-		/* Continous frame capture mode (freerun). */
+		/* Continuous frame capture mode (freerun). */
 		cfg &= ~(S5P_CIIMGCPT_CPT_FREN_ENABLE |
 			 S5P_CIIMGCPT_CPT_FRMOD_CNT);
 		cfg |= S5P_CIIMGCPT_IMGCPTEN;

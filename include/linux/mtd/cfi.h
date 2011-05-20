@@ -308,7 +308,7 @@ static inline uint32_t cfi_build_cmd_addr(uint32_t cmd_ofs,
 	
 	addr = (cmd_ofs * type) * interleave;
 
-	/* Modify the unlock address if we are in compatiblity mode.
+	/* Modify the unlock address if we are in compatibility mode.
 	 * For 16bit devices on 8 bit busses
 	 * and 32bit devices on 16 bit busses
 	 * set the low bit of the alternating bit sequence of the address.

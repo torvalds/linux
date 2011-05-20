@@ -3554,7 +3554,7 @@ int ocfs2_xattr_set(struct inode *inode,
 	down_write(&OCFS2_I(inode)->ip_xattr_sem);
 	/*
 	 * Scan inode and external block to find the same name
-	 * extended attribute and collect search infomation.
+	 * extended attribute and collect search information.
 	 */
 	ret = ocfs2_xattr_ibody_find(inode, name_index, name, &xis);
 	if (ret)
@@ -3578,7 +3578,7 @@ int ocfs2_xattr_set(struct inode *inode,
 			goto cleanup;
 	}
 
-	/* Check whether the value is refcounted and do some prepartion. */
+	/* Check whether the value is refcounted and do some preparation. */
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL &&
 	    (!xis.not_found || !xbs.not_found)) {
 		ret = ocfs2_prepare_refcount_xattr(inode, di, &xi,

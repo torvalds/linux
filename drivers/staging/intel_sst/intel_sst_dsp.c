@@ -350,7 +350,7 @@ static int sst_download_library(const struct firmware *fw_lib,
 
 }
 
-/* This function is called befoer downloading the codec/postprocessing
+/* This function is called before downloading the codec/postprocessing
 library is set for download to SST DSP*/
 static int sst_validate_library(const struct firmware *fw_lib,
 		struct lib_slot_info *slot,
@@ -405,7 +405,7 @@ exit:
 
 }
 
-/* This function is called when FW requests for a particular libary download
+/* This function is called when FW requests for a particular library download
 This function prepares the library to download*/
 int sst_load_library(struct snd_sst_lib_download *lib, u8 ops)
 {

@@ -857,7 +857,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		}
 
 		/* the bandwidth is not wide enough
-		 * negociate or try a lower alternate setting */
+		 * negotiate or try a lower alternate setting */
 		PDEBUG(D_ERR|D_STREAM,
 			"bandwidth not wide enough - trying again");
 		msleep(20);	/* wait for kill complete */
@@ -2346,7 +2346,7 @@ void gspca_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	/* release the device */
-	/* (this will call gspca_release() immediatly or on last close) */
+	/* (this will call gspca_release() immediately or on last close) */
 	video_unregister_device(&gspca_dev->vdev);
 
 /*	PDEBUG(D_PROBE, "disconnect complete"); */

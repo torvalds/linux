@@ -26,7 +26,9 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/platform_device.h>
+#include <linux/delay.h>
 #include <linux/slab.h>
+
 #include <asm/intel_scu_ipc.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -925,7 +927,7 @@ static struct platform_driver sn95031_codec_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= sn95031_device_probe,
-	.remove		= sn95031_device_remove,
+	.remove		= __devexit_p(sn95031_device_remove),
 };
 
 static int __init sn95031_init(void)

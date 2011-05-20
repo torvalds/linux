@@ -77,7 +77,7 @@ int lis3l02dq_spi_read_reg_8(struct device *dev, u8 reg_address, u8 *val)
 /**
  * lis3l02dq_spi_write_reg_8() - write single byte to a register
  * @dev: device associated with child of actual device (iio_dev or iio_trig)
- * @reg_address: the address of the register to be writen
+ * @reg_address: the address of the register to be written
  * @val: the value to write
  **/
 int lis3l02dq_spi_write_reg_8(struct device *dev,

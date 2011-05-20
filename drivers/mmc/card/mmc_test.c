@@ -292,7 +292,7 @@ static void mmc_test_free_mem(struct mmc_test_mem *mem)
 }
 
 /*
- * Allocate a lot of memory, preferrably max_sz but at least min_sz.  In case
+ * Allocate a lot of memory, preferably max_sz but at least min_sz.  In case
  * there isn't much memory do not exceed 1/16th total lowmem pages.  Also do
  * not exceed a maximum number of segments and try not to make segments much
  * bigger than maximum segment size.

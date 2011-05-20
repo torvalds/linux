@@ -46,7 +46,7 @@ The hardware interfacing on the LM70 LLP eval board is as follows:
 
 Note that since the LM70 uses a "3-wire" variant of SPI, the SI/SO pin
 is connected to both pin D7 (as Master Out) and Select (as Master In)
-using an arrangment that lets either the parport or the LM70 pull the
+using an arrangement that lets either the parport or the LM70 pull the
 pin low.  This can't be shared with true SPI devices, but other 3-wire
 devices might share the same SI/SO pin.
 

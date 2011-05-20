@@ -117,7 +117,7 @@ enum gp_registers {
 };
 
 #define GP_BLT_STATUS_CE		(1 << 4)	/* cmd buf empty */
-#define GP_BLT_STATUS_PB		(1 << 0)	/* primative busy */
+#define GP_BLT_STATUS_PB		(1 << 0)	/* primitive busy */
 
 
 /* Display Controller registers (table 6-47 from the data book) */

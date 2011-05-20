@@ -1200,10 +1200,11 @@ static int fsi_probe(struct platform_device *pdev)
 	master->fsib.master	= master;
 
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_resume(&pdev->dev);
 	dev_set_drvdata(&pdev->dev, master);
 
+	pm_runtime_get_sync(&pdev->dev);
 	fsi_soft_all_reset(master);
+	pm_runtime_put_sync(&pdev->dev);
 
 	ret = request_irq(irq, &fsi_interrupt, IRQF_DISABLED,
 			  id_entry->name, master);
@@ -1218,8 +1219,17 @@ static int fsi_probe(struct platform_device *pdev)
 		goto exit_free_irq;
 	}
 
-	return snd_soc_register_dais(&pdev->dev, fsi_soc_dai, ARRAY_SIZE(fsi_soc_dai));
+	ret = snd_soc_register_dais(&pdev->dev, fsi_soc_dai,
+				    ARRAY_SIZE(fsi_soc_dai));
+	if (ret < 0) {
+		dev_err(&pdev->dev, "cannot snd dai register\n");
+		goto exit_snd_soc;
+	}
 
+	return ret;
+
+exit_snd_soc:
+	snd_soc_unregister_platform(&pdev->dev);
 exit_free_irq:
 	free_irq(irq, master);
 exit_iounmap:
@@ -1238,12 +1248,11 @@ static int fsi_remove(struct platform_device *pdev)
 
 	master = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(fsi_soc_dai));
-	snd_soc_unregister_platform(&pdev->dev);
-
+	free_irq(master->irq, master);
 	pm_runtime_disable(&pdev->dev);
 
-	free_irq(master->irq, master);
+	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(fsi_soc_dai));
+	snd_soc_unregister_platform(&pdev->dev);
 
 	iounmap(master->base);
 	kfree(master);
@@ -1321,3 +1330,4 @@ module_exit(fsi_mobile_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SuperH onchip FSI audio driver");
 MODULE_AUTHOR("Kuninori Morimoto <morimoto.kuninori@renesas.com>");
+MODULE_ALIAS("platform:fsi-pcm-audio");

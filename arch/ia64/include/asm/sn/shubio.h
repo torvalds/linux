@@ -1383,7 +1383,7 @@ typedef union ii_ibcr_u {
  * response is capture in IXSM and IXSS, and IXSS[VALID] is set. The    *
  * errant header is thereby captured, and no further spurious read      *
  * respones are captured until IXSS[VALID] is cleared by setting the    *
- * appropriate bit in IECLR.Everytime a spurious read response is       *
+ * appropriate bit in IECLR. Every time a spurious read response is     *
  * detected, the SPUR_RD bit of the PRB corresponding to the incoming   *
  * message's SIDN field is set. This always happens, regarless of       *
  * whether a header is captured. The programmer should check            *
@@ -2738,7 +2738,7 @@ typedef union ii_ippr_u {
 /************************************************************************
  *									*
  * The following defines which were not formed into structures are	*
- * probably indentical to another register, and the name of the		*
+ * probably identical to another register, and the name of the		*
  * register is provided against each of these registers. This		*
  * information needs to be checked carefully				*
  *									*

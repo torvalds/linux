@@ -718,7 +718,7 @@ struct btrfs_space_info {
 	u64 total_bytes;	/* total bytes in the space,
 				   this doesn't take mirrors into account */
 	u64 bytes_used;		/* total bytes used,
-				   this does't take mirrors into account */
+				   this doesn't take mirrors into account */
 	u64 bytes_pinned;	/* total bytes pinned, will be freed when the
 				   transaction finishes */
 	u64 bytes_reserved;	/* total bytes the allocator has reserved for
@@ -740,8 +740,10 @@ struct btrfs_space_info {
 	 */
 	unsigned long reservation_progress;
 
-	int full;		/* indicates that we cannot allocate any more
+	int full:1;		/* indicates that we cannot allocate any more
 				   chunks for this space */
+	int chunk_alloc:1;	/* set if we are allocating a chunk */
+
 	int force_alloc;	/* set if we need to force a chunk alloc for
 				   this space */
 
@@ -1283,6 +1285,8 @@ struct btrfs_root {
 #define BTRFS_INODE_NOATIME		(1 << 9)
 #define BTRFS_INODE_DIRSYNC		(1 << 10)
 #define BTRFS_INODE_COMPRESS		(1 << 11)
+
+#define BTRFS_INODE_ROOT_ITEM_INIT	(1 << 31)
 
 /* some macros to generate set/get funcs for the struct fields.  This
  * assumes there is a lefoo_to_cpu for every type, so lets make a simple
@@ -2359,6 +2363,8 @@ int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid);
 int btrfs_find_orphan_roots(struct btrfs_root *tree_root);
 int btrfs_set_root_node(struct btrfs_root_item *item,
 			struct extent_buffer *node);
+void btrfs_check_and_init_root_item(struct btrfs_root_item *item);
+
 /* dir-item.c */
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, const char *name,
@@ -2572,6 +2578,11 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans, struct inode *inode,
 int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 			      struct inode *inode, u64 start, u64 end);
 int btrfs_release_file(struct inode *inode, struct file *file);
+void btrfs_drop_pages(struct page **pages, size_t num_pages);
+int btrfs_dirty_pages(struct btrfs_root *root, struct inode *inode,
+		      struct page **pages, size_t num_pages,
+		      loff_t pos, size_t write_bytes,
+		      struct extent_state **cached);
 
 /* tree-defrag.c */
 int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,

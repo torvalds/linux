@@ -355,7 +355,7 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host, struct mmc_command
 /*
  * This chip always returns (at least?) as much data as you ask for.
  * I'm unsure what happens if you ask for less than a block. This should be
- * looked into to ensure that a funny length read doesnt hose the controller.
+ * looked into to ensure that a funny length read doesn't hose the controller.
  */
 static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 {
@@ -728,15 +728,15 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		tmio_mmc_set_clock(host, ios->clock);
 
 	/* Power sequence - OFF -> UP -> ON */
-	if (ios->power_mode == MMC_POWER_OFF || !ios->clock) {
+	if (ios->power_mode == MMC_POWER_UP) {
+		/* power up SD bus */
+		if (host->set_pwr)
+			host->set_pwr(host->pdev, 1);
+	} else if (ios->power_mode == MMC_POWER_OFF || !ios->clock) {
 		/* power down SD bus */
 		if (ios->power_mode == MMC_POWER_OFF && host->set_pwr)
 			host->set_pwr(host->pdev, 0);
 		tmio_mmc_clk_stop(host);
-	} else if (ios->power_mode == MMC_POWER_UP) {
-		/* power up SD bus */
-		if (host->set_pwr)
-			host->set_pwr(host->pdev, 1);
 	} else {
 		/* start bus clock */
 		tmio_mmc_clk_start(host);

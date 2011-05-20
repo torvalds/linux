@@ -244,7 +244,7 @@ static int iic_host_map(struct irq_host *h, unsigned int virq,
 		break;
 	case IIC_IRQ_TYPE_IOEXC:
 		irq_set_chip_and_handler(virq, &iic_ioexc_chip,
-					 handle_iic_irq);
+					 handle_edge_eoi_irq);
 		break;
 	default:
 		irq_set_chip_and_handler(virq, &iic_chip, handle_edge_eoi_irq);

@@ -250,7 +250,7 @@ enum omap3isp_h3a_af_rgbpos {
 /* Contains the information regarding the Horizontal Median Filter */
 struct omap3isp_h3a_af_hmf {
 	__u8 enable;	/* Status of Horizontal Median Filter */
-	__u8 threshold;	/* Threshhold Value for Horizontal Median Filter */
+	__u8 threshold;	/* Threshold Value for Horizontal Median Filter */
 };
 
 /* Contains the information regarding the IIR Filters */

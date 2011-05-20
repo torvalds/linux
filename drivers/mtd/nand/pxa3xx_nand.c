@@ -184,7 +184,7 @@ struct pxa3xx_nand_info {
 
 static int use_dma = 1;
 module_param(use_dma, bool, 0444);
-MODULE_PARM_DESC(use_dma, "enable DMA for data transfering to/from NAND HW");
+MODULE_PARM_DESC(use_dma, "enable DMA for data transferring to/from NAND HW");
 
 /*
  * Default NAND flash controller configuration setup by the

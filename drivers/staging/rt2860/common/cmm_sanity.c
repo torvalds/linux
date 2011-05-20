@@ -67,7 +67,7 @@ BOOLEAN MlmeAddBAReqSanity(struct rt_rtmp_adapter *pAd,
 
 	if ((MsgLen != sizeof(struct rt_mlme_addba_req))) {
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("MlmeAddBAReqSanity fail - message lenght not correct.\n"));
+			 ("MlmeAddBAReqSanity fail - message length not correct.\n"));
 		return FALSE;
 	}
 
@@ -104,7 +104,7 @@ BOOLEAN MlmeDelBAReqSanity(struct rt_rtmp_adapter *pAd, void * Msg, unsigned lon
 
 	if ((MsgLen != sizeof(struct rt_mlme_delba_req))) {
 		DBGPRINT(RT_DEBUG_ERROR,
-			 ("MlmeDelBAReqSanity fail - message lenght not correct.\n"));
+			 ("MlmeDelBAReqSanity fail - message length not correct.\n"));
 		return FALSE;
 	}
 

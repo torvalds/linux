@@ -166,7 +166,7 @@ EXPORT_SYMBOL(prep_negotiate_resp);
  * from Hyper-V. This stub responds to the default negotiate messages
  * that come in for every non IDE/SCSI/Network request.
  * This behavior is normally overwritten in the hv_utils driver. That
- * driver handles requests like gracefull shutdown, heartbeats etc.
+ * driver handles requests like graceful shutdown, heartbeats etc.
  *
  * Mainly used by Hyper-V drivers.
  */

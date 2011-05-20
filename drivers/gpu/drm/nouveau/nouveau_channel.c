@@ -200,7 +200,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	/* disable the fifo caches */
 	pfifo->reassign(dev, false);
 
-	/* Construct inital RAMFC for new channel */
+	/* Construct initial RAMFC for new channel */
 	ret = pfifo->create_context(chan);
 	if (ret) {
 		nouveau_channel_put(&chan);
@@ -278,7 +278,7 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 		return;
 	}
 
-	/* noone wants the channel anymore */
+	/* no one wants the channel anymore */
 	NV_DEBUG(dev, "freeing channel %d\n", chan->id);
 	nouveau_debugfs_channel_fini(chan);
 

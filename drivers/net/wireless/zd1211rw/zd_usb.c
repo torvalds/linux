@@ -643,7 +643,7 @@ static void rx_urb_complete(struct urb *urb)
 	usb = urb->context;
 	rx = &usb->rx;
 
-	zd_usb_reset_rx_idle_timer(usb);
+	tasklet_schedule(&rx->reset_timer_tasklet);
 
 	if (length%rx->usb_packet_size > rx->usb_packet_size-4) {
 		/* If there is an old first fragment, we don't care. */
@@ -812,6 +812,7 @@ void zd_usb_disable_rx(struct zd_usb *usb)
 	__zd_usb_disable_rx(usb);
 	mutex_unlock(&rx->setup_mutex);
 
+	tasklet_kill(&rx->reset_timer_tasklet);
 	cancel_delayed_work_sync(&rx->idle_work);
 }
 
@@ -1106,6 +1107,13 @@ static void zd_rx_idle_timer_handler(struct work_struct *work)
 	zd_usb_reset_rx(usb);
 }
 
+static void zd_usb_reset_rx_idle_timer_tasklet(unsigned long param)
+{
+	struct zd_usb *usb = (struct zd_usb *)param;
+
+	zd_usb_reset_rx_idle_timer(usb);
+}
+
 void zd_usb_reset_rx_idle_timer(struct zd_usb *usb)
 {
 	struct zd_usb_rx *rx = &usb->rx;
@@ -1127,6 +1135,7 @@ static inline void init_usb_interrupt(struct zd_usb *usb)
 static inline void init_usb_rx(struct zd_usb *usb)
 {
 	struct zd_usb_rx *rx = &usb->rx;
+
 	spin_lock_init(&rx->lock);
 	mutex_init(&rx->setup_mutex);
 	if (interface_to_usbdev(usb->intf)->speed == USB_SPEED_HIGH) {
@@ -1136,11 +1145,14 @@ static inline void init_usb_rx(struct zd_usb *usb)
 	}
 	ZD_ASSERT(rx->fragment_length == 0);
 	INIT_DELAYED_WORK(&rx->idle_work, zd_rx_idle_timer_handler);
+	rx->reset_timer_tasklet.func = zd_usb_reset_rx_idle_timer_tasklet;
+	rx->reset_timer_tasklet.data = (unsigned long)usb;
 }
 
 static inline void init_usb_tx(struct zd_usb *usb)
 {
 	struct zd_usb_tx *tx = &usb->tx;
+
 	spin_lock_init(&tx->lock);
 	atomic_set(&tx->enabled, 0);
 	tx->stopped = 0;
@@ -1671,6 +1683,10 @@ static void iowrite16v_urb_complete(struct urb *urb)
 
 	if (urb->status && !usb->cmd_error)
 		usb->cmd_error = urb->status;
+
+	if (!usb->cmd_error &&
+			urb->actual_length != urb->transfer_buffer_length)
+		usb->cmd_error = -EIO;
 }
 
 static int zd_submit_waiting_urb(struct zd_usb *usb, bool last)
@@ -1805,7 +1821,7 @@ int zd_usb_iowrite16v_async(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 	usb_fill_int_urb(urb, udev, usb_sndintpipe(udev, EP_REGS_OUT),
 			 req, req_len, iowrite16v_urb_complete, usb,
 			 ep->desc.bInterval);
-	urb->transfer_flags |= URB_FREE_BUFFER | URB_SHORT_NOT_OK;
+	urb->transfer_flags |= URB_FREE_BUFFER;
 
 	/* Submit previous URB */
 	r = zd_submit_waiting_urb(usb, false);

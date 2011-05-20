@@ -209,8 +209,8 @@ static __inline__ unsigned long ffz(unsigned long x)
 		return BITS_PER_LONG;
 
 	/*
-	 * Calculate the bit position of the least signficant '1' bit in x
-	 * (since x has been changed this will actually be the least signficant
+	 * Calculate the bit position of the least significant '1' bit in x
+	 * (since x has been changed this will actually be the least significant
 	 * '0' bit in * the original x).  Note: (x & -x) gives us a mask that
 	 * is the least significant * (RIGHT-most) 1-bit of the value in x.
 	 */

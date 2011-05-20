@@ -312,7 +312,7 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 
 	/*
 	 * Set the digitizer registers for raw active VBI.
-	 * Note cx18_av_vbi_wipes out alot of the passed in fmt under valid
+	 * Note cx18_av_vbi_wipes out a lot of the passed in fmt under valid
 	 * calling conditions
 	 */
 	ret = v4l2_subdev_call(cx->sd_av, vbi, s_raw_fmt, &fmt->fmt.vbi);

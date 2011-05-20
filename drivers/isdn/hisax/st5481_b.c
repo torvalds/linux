@@ -124,7 +124,7 @@ static void usb_b_out(struct st5481_bcs *bcs,int buf_nr)
 }
 
 /*
- * Start transfering (flags or data) on the B channel, since
+ * Start transferring (flags or data) on the B channel, since
  * FIFO counters has been set to a non-zero value.
  */
 static void st5481B_start_xfer(void *context)

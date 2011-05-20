@@ -217,7 +217,7 @@ static const u8 read_all_tx_array[] = {
 /**
  * lis3l02dq_read_all() Reads all channels currently selected
  * @st:		device specific state
- * @rx_array:	(dma capable) recieve array, must be at least
+ * @rx_array:	(dma capable) receive array, must be at least
  *		4*number of channels
  **/
 static int lis3l02dq_read_all(struct lis3l02dq_state *st, u8 *rx_array)
@@ -409,7 +409,7 @@ static const struct attribute_group lis3l02dq_trigger_attr_group = {
  *
  * As the trigger may occur on any data element being updated it is
  * really rather likely to occur during the read from the previous
- * trigger event.  The only way to discover if this has occured on
+ * trigger event.  The only way to discover if this has occurred on
  * boards not supporting level interrupts is to take a look at the line.
  * If it is indicating another interrupt and we don't seem to have a
  * handler looking at it, then we need to notify the core that we need

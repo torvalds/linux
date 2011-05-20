@@ -1511,7 +1511,7 @@ static int ocfs2_cluster_group_search(struct inode *inode,
 		max_bits = le16_to_cpu(gd->bg_bits);
 
 		/* Tail groups in cluster bitmaps which aren't cpg
-		 * aligned are prone to partial extention by a failed
+		 * aligned are prone to partial extension by a failed
 		 * fs resize. If the file system resize never got to
 		 * update the dinode cluster count, then we don't want
 		 * to trust any clusters past it, regardless of what
@@ -2459,7 +2459,7 @@ static int _ocfs2_free_suballoc_bits(handle_t *handle,
 	/* The alloc_bh comes from ocfs2_free_dinode() or
 	 * ocfs2_free_clusters().  The callers have all locked the
 	 * allocator and gotten alloc_bh from the lock call.  This
-	 * validates the dinode buffer.  Any corruption that has happended
+	 * validates the dinode buffer.  Any corruption that has happened
 	 * is a code bug. */
 	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
 	BUG_ON((count + start_bit) > ocfs2_bits_per_group(cl));

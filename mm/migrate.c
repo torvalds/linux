@@ -375,7 +375,7 @@ void migrate_page_copy(struct page *newpage, struct page *page)
 		 * redo the accounting that clear_page_dirty_for_io undid,
 		 * but we can't use set_page_dirty because that function
 		 * is actually a signal that all of the page has become dirty.
-		 * Wheras only part of our page may be dirty.
+		 * Whereas only part of our page may be dirty.
 		 */
 		__set_page_dirty_nobuffers(newpage);
  	}

@@ -1080,7 +1080,7 @@ ath5k_eeprom_read_pcal_info_5112(struct ath5k_hw *ah, int mode)
  *
  * To recreate the curves we read here the points and interpolate
  * later. Note that in most cases only 2 (higher and lower) curves are
- * used (like RF5112) but vendors have the oportunity to include all
+ * used (like RF5112) but vendors have the opportunity to include all
  * 4 curves on eeprom. The final curve (higher power) has an extra
  * point for better accuracy like RF5112.
  */
@@ -1302,7 +1302,7 @@ ath5k_eeprom_read_pcal_info_2413(struct ath5k_hw *ah, int mode)
 			/*
 			 * Pd gain 0 is not the last pd gain
 			 * so it only has 2 pd points.
-			 * Continue wih pd gain 1.
+			 * Continue with pd gain 1.
 			 */
 			pcinfo->pwr_i[1] = (val >> 10) & 0x1f;
 

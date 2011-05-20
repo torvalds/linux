@@ -246,12 +246,13 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-void fixup_irqs(const struct cpumask *map)
+void migrate_irqs(void)
 {
 	struct irq_desc *desc;
 	unsigned int irq;
 	static int warned;
 	cpumask_var_t mask;
+	const struct cpumask *map = cpu_online_mask;
 
 	alloc_cpumask_var(&mask, GFP_KERNEL);
 

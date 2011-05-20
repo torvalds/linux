@@ -579,7 +579,7 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	}
 	size0 = calculate_iosize(size, min_size, size1,
 			resource_size(b_res), 4096);
-	size1 = !add_size? size0:
+	size1 = (!add_head || (add_head && !add_size)) ? size0 :
 		calculate_iosize(size, min_size+add_size, size1,
 			resource_size(b_res), 4096);
 	if (!size0 && !size1) {
@@ -676,10 +676,10 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			min_align = align1 >> 1;
 		align += aligns[order];
 	}
-	size0 = calculate_memsize(size, min_size, 0, resource_size(b_res), align);
-	size1 = !add_size ? size :
+	size0 = calculate_memsize(size, min_size, 0, resource_size(b_res), min_align);
+	size1 = (!add_head || (add_head && !add_size)) ? size0 :
 		calculate_memsize(size, min_size+add_size, 0,
-				resource_size(b_res), align);
+				resource_size(b_res), min_align);
 	if (!size0 && !size1) {
 		if (b_res->start || b_res->end)
 			dev_info(&bus->self->dev, "disabling bridge window "

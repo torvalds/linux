@@ -36,7 +36,7 @@ p9_release_req_pages(struct trans_rpage_info *rpinfo)
 EXPORT_SYMBOL(p9_release_req_pages);
 
 /**
- * p9_nr_pages - Return number of pages needed to accomodate the payload.
+ * p9_nr_pages - Return number of pages needed to accommodate the payload.
  */
 int
 p9_nr_pages(struct p9_req_t *req)
@@ -55,7 +55,7 @@ EXPORT_SYMBOL(p9_nr_pages);
  * @req: Request to be sent to server.
  * @pdata_off: data offset into the first page after translation (gup).
  * @pdata_len: Total length of the IO. gup may not return requested # of pages.
- * @nr_pages: number of pages to accomodate the payload
+ * @nr_pages: number of pages to accommodate the payload
  * @rw: Indicates if the pages are for read or write.
  */
 int
@@ -63,10 +63,10 @@ p9_payload_gup(struct p9_req_t *req, size_t *pdata_off, int *pdata_len,
 		int nr_pages, u8 rw)
 {
 	uint32_t first_page_bytes = 0;
-	uint32_t pdata_mapped_pages;
+	int32_t pdata_mapped_pages;
 	struct trans_rpage_info  *rpinfo;
 
-	*pdata_off = (size_t)req->tc->pubuf & (PAGE_SIZE-1);
+	*pdata_off = (__force size_t)req->tc->pubuf & (PAGE_SIZE-1);
 
 	if (*pdata_off)
 		first_page_bytes = min(((size_t)PAGE_SIZE - *pdata_off),
@@ -75,14 +75,9 @@ p9_payload_gup(struct p9_req_t *req, size_t *pdata_off, int *pdata_len,
 	rpinfo = req->tc->private;
 	pdata_mapped_pages = get_user_pages_fast((unsigned long)req->tc->pubuf,
 			nr_pages, rw, &rpinfo->rp_data[0]);
+	if (pdata_mapped_pages <= 0)
+		return pdata_mapped_pages;
 
-	if (pdata_mapped_pages < 0) {
-		printk(KERN_ERR "get_user_pages_fast failed:%d udata:%p"
-				"nr_pages:%d\n", pdata_mapped_pages,
-				req->tc->pubuf, nr_pages);
-		pdata_mapped_pages = 0;
-		return -EIO;
-	}
 	rpinfo->rp_nr_pages = pdata_mapped_pages;
 	if (*pdata_off) {
 		*pdata_len = first_page_bytes;

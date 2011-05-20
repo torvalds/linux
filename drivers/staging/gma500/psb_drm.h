@@ -131,7 +131,7 @@ struct drm_psb_reloc {
 	u32 pre_add;	/* Destination format: */
 	u32 background;	/* Destination add */
 	u32 dst_buffer;	/* Destination buffer. Index into buffer_list */
-	u32 arg0;		/* Reloc-op dependant */
+	u32 arg0;		/* Reloc-op dependent */
 	u32 arg1;
 };
 

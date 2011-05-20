@@ -102,9 +102,9 @@ struct fscache_cookie_def {
 	 */
 	void (*get_attr)(const void *cookie_netfs_data, uint64_t *size);
 
-	/* get the auxilliary data from netfs data
+	/* get the auxiliary data from netfs data
 	 * - this function can be absent if the index carries no state data
-	 * - should store the auxilliary data in the buffer
+	 * - should store the auxiliary data in the buffer
 	 * - should return the amount of amount stored
 	 * - not permitted to return an error
 	 * - the netfs data from the cookie being used as the source is
@@ -117,7 +117,7 @@ struct fscache_cookie_def {
 	/* consult the netfs about the state of an object
 	 * - this function can be absent if the index carries no state data
 	 * - the netfs data from the cookie being used as the target is
-	 *   presented, as is the auxilliary data
+	 *   presented, as is the auxiliary data
 	 */
 	enum fscache_checkaux (*check_aux)(void *cookie_netfs_data,
 					   const void *data,

@@ -1213,7 +1213,7 @@ recover_ha_init_adapter:
 
 	clear_bit(DPC_RESET_ACTIVE, &ha->dpc_flags);
 	DEBUG2(printk("scsi%ld: recover adapter: %s\n", ha->host_no,
-	    status == QLA_ERROR ? "FAILED" : "SUCCEDED"));
+	    status == QLA_ERROR ? "FAILED" : "SUCCEEDED"));
 
 	return status;
 }
@@ -2110,7 +2110,7 @@ static int qla4xxx_eh_abort(struct scsi_cmnd *cmd)
 
 	ql4_printk(KERN_INFO, ha,
 	    "scsi%ld:%d:%d: Abort command - %s\n",
-	    ha->host_no, id, lun, (ret == SUCCESS) ? "succeded" : "failed");
+	    ha->host_no, id, lun, (ret == SUCCESS) ? "succeeded" : "failed");
 
 	return ret;
 }
@@ -2278,7 +2278,7 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd)
 		return_status = SUCCESS;
 
 	ql4_printk(KERN_INFO, ha, "HOST RESET %s.\n",
-		   return_status == FAILED ? "FAILED" : "SUCCEDED");
+		   return_status == FAILED ? "FAILED" : "SUCCEEDED");
 
 	return return_status;
 }
@@ -2492,7 +2492,7 @@ qla4xxx_pci_slot_reset(struct pci_dev *pdev)
 	/* Initialize device or resume if in suspended state */
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: Cant re-enable "
+		ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: Can't re-enable "
 		    "device after reset\n", ha->host_no, __func__);
 		goto exit_slot_reset;
 	}

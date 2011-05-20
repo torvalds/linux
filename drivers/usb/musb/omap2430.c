@@ -259,9 +259,10 @@ static int musb_otg_notifications(struct notifier_block *nb,
 	case USB_EVENT_VBUS:
 		DBG(4, "VBUS Connect\n");
 
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 		if (musb->gadget_driver)
 			pm_runtime_get_sync(musb->controller);
-
+#endif
 		otg_init(musb->xceiv);
 		break;
 
@@ -269,7 +270,7 @@ static int musb_otg_notifications(struct notifier_block *nb,
 		DBG(4, "VBUS Disconnect\n");
 
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
-		if (is_otg_enabled(musb))
+		if (is_otg_enabled(musb) || is_peripheral_enabled(musb))
 			if (musb->gadget_driver)
 #endif
 			{

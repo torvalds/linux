@@ -1561,7 +1561,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		if (drbd_send_state(mdev))
 			dev_warn(DEV, "Notified peer that I'm now diskless.\n");
 		/* corresponding get_ldev in __drbd_set_state
-		 * this may finaly trigger drbd_ldev_destroy. */
+		 * this may finally trigger drbd_ldev_destroy. */
 		put_ldev(mdev);
 	}
 
@@ -3706,7 +3706,7 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	buffer = (struct meta_data_on_disk *)page_address(mdev->md_io_page);
 
 	if (!drbd_md_sync_page_io(mdev, bdev, bdev->md.md_offset, READ)) {
-		/* NOTE: cant do normal error processing here as this is
+		/* NOTE: can't do normal error processing here as this is
 		   called BEFORE disk is attached */
 		dev_err(DEV, "Error while reading metadata.\n");
 		rv = ERR_IO_MD_DISK;

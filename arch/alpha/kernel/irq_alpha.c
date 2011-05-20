@@ -228,7 +228,7 @@ struct irqaction timer_irqaction = {
 void __init
 init_rtc_irq(void)
 {
-	irq_set_chip_and_handler_name(RTC_IRQ, &no_irq_chip,
+	irq_set_chip_and_handler_name(RTC_IRQ, &dummy_irq_chip,
 				      handle_simple_irq, "RTC");
 	setup_irq(RTC_IRQ, &timer_irqaction);
 }

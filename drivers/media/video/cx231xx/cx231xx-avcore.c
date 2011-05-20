@@ -2577,7 +2577,7 @@ int cx231xx_initialize_stream_xfer(struct cx231xx *dev, u32 media_type)
 			break;
 
 		case 6:	/* ts1 parallel mode */
-			cx231xx_info("%s: set ts1 parrallel mode registers\n",
+			cx231xx_info("%s: set ts1 parallel mode registers\n",
 				     __func__);
 			status = cx231xx_mode_register(dev, TS_MODE_REG, 0x100);
 			status = cx231xx_mode_register(dev, TS1_CFG_REG, 0x400);

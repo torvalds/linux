@@ -500,7 +500,7 @@ void nilfs_mapping_init(struct address_space *mapping,
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
 	mapping->assoc_mapping = NULL;
 	mapping->backing_dev_info = bdi;
-	mapping->a_ops = NULL;
+	mapping->a_ops = &empty_aops;
 }
 
 /*

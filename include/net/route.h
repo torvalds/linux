@@ -64,6 +64,7 @@ struct rtable {
 
 	__be32			rt_dst;	/* Path destination	*/
 	__be32			rt_src;	/* Path source		*/
+	int			rt_route_iif;
 	int			rt_iif;
 	int			rt_oif;
 	__u32			rt_mark;
@@ -80,12 +81,12 @@ struct rtable {
 
 static inline bool rt_is_input_route(struct rtable *rt)
 {
-	return rt->rt_iif != 0;
+	return rt->rt_route_iif != 0;
 }
 
 static inline bool rt_is_output_route(struct rtable *rt)
 {
-	return rt->rt_iif == 0;
+	return rt->rt_route_iif == 0;
 }
 
 struct ip_rt_acct {

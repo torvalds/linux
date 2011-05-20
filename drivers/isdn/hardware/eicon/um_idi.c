@@ -363,7 +363,7 @@ int diva_um_idi_read(void *entity,
 
 		if ((ret = (*cp_fn) (os_handle, dst, data, length)) >= 0) {
 			/*
-			   Acknowledge only if read was successfull
+			   Acknowledge only if read was successful
 			 */
 			diva_data_q_ack_segment4read(q);
 		}

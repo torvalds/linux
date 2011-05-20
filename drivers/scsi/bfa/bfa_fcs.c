@@ -1033,7 +1033,7 @@ bfa_fcs_fabric_delvport(struct bfa_fcs_fabric_s *fabric,
 
 
 /*
- * Lookup for a vport withing a fabric given its pwwn
+ * Lookup for a vport within a fabric given its pwwn
  */
 struct bfa_fcs_vport_s *
 bfa_fcs_fabric_vport_lookup(struct bfa_fcs_fabric_s *fabric, wwn_t pwwn)

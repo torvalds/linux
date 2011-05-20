@@ -32,7 +32,7 @@ enum rq_atomic_flags {
 
 /*
  * EH timer and IO completion will both attempt to 'grab' the request, make
- * sure that only one of them suceeds
+ * sure that only one of them succeeds
  */
 static inline int blk_mark_rq_complete(struct request *rq)
 {

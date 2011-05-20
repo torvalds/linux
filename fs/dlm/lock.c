@@ -519,7 +519,7 @@ static void toss_rsb(struct kref *kref)
 	}
 }
 
-/* When all references to the rsb are gone it's transfered to
+/* When all references to the rsb are gone it's transferred to
    the tossed list for later disposal. */
 
 static void put_rsb(struct dlm_rsb *r)

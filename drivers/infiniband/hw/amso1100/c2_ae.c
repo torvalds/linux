@@ -157,7 +157,7 @@ void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)
 	int status;
 
 	/*
-	 * retreive the message
+	 * retrieve the message
 	 */
 	wr = c2_mq_consume(mq);
 	if (!wr)

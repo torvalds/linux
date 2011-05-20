@@ -441,9 +441,9 @@ static int kdb_check_regs(void)
  *	symbol name, and offset to the caller.
  *
  *	The argument may consist of a numeric value (decimal or
- *	hexidecimal), a symbol name, a register name (preceeded by the
+ *	hexidecimal), a symbol name, a register name (preceded by the
  *	percent sign), an environment variable with a numeric value
- *	(preceeded by a dollar sign) or a simple arithmetic expression
+ *	(preceded by a dollar sign) or a simple arithmetic expression
  *	consisting of a symbol name, +/-, and a numeric constant value
  *	(offset).
  * Parameters:
@@ -1335,7 +1335,7 @@ void kdb_print_state(const char *text, int value)
  *	error		The hardware-defined error code
  *	reason2		kdb's current reason code.
  *			Initially error but can change
- *			acording to kdb state.
+ *			according to kdb state.
  *	db_result	Result code from break or debug point.
  *	regs		The exception frame at time of fault/breakpoint.
  *			should always be valid.

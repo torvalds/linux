@@ -862,7 +862,7 @@ retry:
 	msock->sk->sk_rcvtimeo = mdev->net_conf->ping_int*HZ;
 
 	/* we don't want delays.
-	 * we use TCP_CORK where apropriate, though */
+	 * we use TCP_CORK where appropriate, though */
 	drbd_tcp_nodelay(sock);
 	drbd_tcp_nodelay(msock);
 

@@ -2060,7 +2060,7 @@ static __init int register_PCI(int i, struct pci_dev *dev)
 			sClockPrescale = 0x19;
 			rp_baud_base[i] = 230400;
 		} else {
-			/* mod 4 (devide by 5) prescale */
+			/* mod 4 (divide by 5) prescale */
 			sClockPrescale = 0x14;
 			rp_baud_base[i] = 460800;
 		}
@@ -2183,7 +2183,7 @@ static int __init init_ISA(int i)
 		sClockPrescale = 0x19;	/* mod 9 (divide by 10) prescale */
 		rp_baud_base[i] = 230400;
 	} else {
-		sClockPrescale = 0x14;	/* mod 4 (devide by 5) prescale */
+		sClockPrescale = 0x14;	/* mod 4 (divide by 5) prescale */
 		rp_baud_base[i] = 460800;
 	}
 

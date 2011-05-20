@@ -552,6 +552,16 @@ also have
      within the array where IO will be blocked.  This is currently
      only supported for raid4/5/6.
 
+   sync_min
+   sync_max
+     The two values, given as numbers of sectors, indicate a range
+     withing the array where 'check'/'repair' will operate. Must be
+     a multiple of chunk_size. When it reaches "sync_max" it will
+     pause, rather than complete.
+     You can use 'select' or 'poll' on "sync_completed" to wait for
+     that number to reach sync_max.  Then you can either increase
+     "sync_max", or can write 'idle' to "sync_action".
+
 
 Each active md device may also have attributes specific to the
 personality module that manages it.

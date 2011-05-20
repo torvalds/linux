@@ -378,7 +378,6 @@ EXPORT_SYMBOL_GPL(media_entity_create_link);
 
 static int __media_entity_setup_link_notify(struct media_link *link, u32 flags)
 {
-	const u32 mask = MEDIA_LNK_FL_ENABLED;
 	int ret;
 
 	/* Notify both entities. */
@@ -395,7 +394,7 @@ static int __media_entity_setup_link_notify(struct media_link *link, u32 flags)
 		return ret;
 	}
 
-	link->flags = (link->flags & ~mask) | (flags & mask);
+	link->flags = flags;
 	link->reverse->flags = link->flags;
 
 	return 0;
@@ -417,11 +416,16 @@ static int __media_entity_setup_link_notify(struct media_link *link, u32 flags)
  */
 int __media_entity_setup_link(struct media_link *link, u32 flags)
 {
+	const u32 mask = MEDIA_LNK_FL_ENABLED;
 	struct media_device *mdev;
 	struct media_entity *source, *sink;
 	int ret = -EBUSY;
 
 	if (link == NULL)
+		return -EINVAL;
+
+	/* The non-modifiable link flags must not be modified. */
+	if ((link->flags & ~mask) != (flags & ~mask))
 		return -EINVAL;
 
 	if (link->flags & MEDIA_LNK_FL_IMMUTABLE)

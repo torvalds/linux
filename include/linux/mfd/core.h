@@ -86,16 +86,25 @@ extern int mfd_clone_cell(const char *cell, const char **clones,
  */
 static inline const struct mfd_cell *mfd_get_cell(struct platform_device *pdev)
 {
-	return pdev->dev.platform_data;
+	return pdev->mfd_cell;
 }
 
 /*
  * Given a platform device that's been created by mfd_add_devices(), fetch
  * the .mfd_data entry from the mfd_cell that created it.
+ * Otherwise just return the platform_data pointer.
+ * This maintains compatibility with platform drivers whose devices aren't
+ * created by the mfd layer, and expect platform_data to contain what would've
+ * otherwise been in mfd_data.
  */
 static inline void *mfd_get_data(struct platform_device *pdev)
 {
-	return mfd_get_cell(pdev)->mfd_data;
+	const struct mfd_cell *cell = mfd_get_cell(pdev);
+
+	if (cell)
+		return cell->mfd_data;
+	else
+		return pdev->dev.platform_data;
 }
 
 extern int mfd_add_devices(struct device *parent, int id,

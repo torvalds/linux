@@ -117,8 +117,6 @@ source "drivers/staging/hv/Kconfig"
 
 source "drivers/staging/vme/Kconfig"
 
-source "drivers/staging/memrar/Kconfig"
-
 source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
@@ -132,8 +130,6 @@ source "drivers/staging/zcache/Kconfig"
 source "drivers/staging/wlags49_h2/Kconfig"
 
 source "drivers/staging/wlags49_h25/Kconfig"
-
-source "drivers/staging/samsung-laptop/Kconfig"
 
 source "drivers/staging/sm7xx/Kconfig"
 

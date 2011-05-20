@@ -3659,7 +3659,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			 * control pkt receives.
 			 * Later we use buffer-poll for data as well
 			 * as control packets.
-			 * This is required becuase dhd receives full
+			 * This is required because dhd receives full
 			 * frame in gSPI unlike SDIO.
 			 * After the frame is received we have to
 			 * distinguish whether it is data
@@ -3744,7 +3744,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 					bus->dhd->rx_errors++;
 					dhd_os_sdunlock_rxq(bus->dhd);
 					/* Force retry w/normal header read.
-					 * Don't attemp NAK for
+					 * Don't attempt NAK for
 					 * gSPI
 					 */
 					dhdsdio_rxfail(bus, true,

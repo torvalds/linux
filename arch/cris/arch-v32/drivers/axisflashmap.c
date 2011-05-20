@@ -215,7 +215,7 @@ static struct mtd_partition main_partition = {
 };
 #endif
 
-/* Auxilliary partition if we find another flash */
+/* Auxiliary partition if we find another flash */
 static struct mtd_partition aux_partition = {
 	.name = "aux",
 	.size = 0,

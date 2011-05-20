@@ -268,7 +268,7 @@ static void iwmct_irq_read_worker(struct work_struct *ws)
 		LOG_INFO(priv, IRQ, "ACK barker arrived "
 				"- starting FW download\n");
 	} else { /* REBOOT barker */
-		LOG_INFO(priv, IRQ, "Recieved reboot barker: %x\n", barker);
+		LOG_INFO(priv, IRQ, "Received reboot barker: %x\n", barker);
 		priv->barker = barker;
 
 		if (barker & BARKER_DNLOAD_SYNC_MSK) {

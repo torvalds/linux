@@ -80,7 +80,7 @@ static int mpc8xx_set_irq_type(struct irq_data *d, unsigned int flow_type)
 		if ((hw & 1) == 0) {
 			siel |= (0x80000000 >> hw);
 			out_be32(&siu_reg->sc_siel, siel);
-			__irq_set_handler_locked(irq, handle_edge_irq);
+			__irq_set_handler_locked(d->irq, handle_edge_irq);
 		}
 	}
 	return 0;

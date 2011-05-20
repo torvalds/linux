@@ -99,7 +99,7 @@ static void atmel_detach(struct pcmcia_device *link)
 }
 
 /* Call-back function to interrogate PCMCIA-specific information
-   about the current existance of the card */
+   about the current existence of the card */
 static int card_present(void *arg)
 {
 	struct pcmcia_device *link = (struct pcmcia_device *)arg;

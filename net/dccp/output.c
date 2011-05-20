@@ -143,7 +143,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 }
 
 /**
- * dccp_determine_ccmps  -  Find out about CCID-specfic packet-size limits
+ * dccp_determine_ccmps  -  Find out about CCID-specific packet-size limits
  * We only consider the HC-sender CCID for setting the CCMPS (RFC 4340, 14.),
  * since the RX CCID is restricted to feedback packets (Acks), which are small
  * in comparison with the data traffic. A value of 0 means "no current CCMPS".

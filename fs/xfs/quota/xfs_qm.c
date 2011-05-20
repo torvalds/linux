@@ -461,12 +461,10 @@ xfs_qm_dqflush_all(
 	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	int			recl;
 	struct xfs_dquot	*dqp;
-	int			niters;
 	int			error;
 
 	if (!q)
 		return 0;
-	niters = 0;
 again:
 	mutex_lock(&q->qi_dqlist_lock);
 	list_for_each_entry(dqp, &q->qi_dqlist, q_mplist) {
@@ -1314,14 +1312,9 @@ xfs_qm_dqiter_bufs(
 {
 	xfs_buf_t	*bp;
 	int		error;
-	int		notcommitted;
-	int		incr;
 	int		type;
 
 	ASSERT(blkcnt > 0);
-	notcommitted = 0;
-	incr = (blkcnt > XFS_QM_MAX_DQCLUSTER_LOGSZ) ?
-		XFS_QM_MAX_DQCLUSTER_LOGSZ : blkcnt;
 	type = flags & XFS_QMOPT_UQUOTA ? XFS_DQ_USER :
 		(flags & XFS_QMOPT_PQUOTA ? XFS_DQ_PROJ : XFS_DQ_GROUP);
 	error = 0;

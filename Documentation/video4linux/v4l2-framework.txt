@@ -343,7 +343,7 @@ ignored. If you want to check for errors use this:
 	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_chip_ident, &chip);
 
 Any error except -ENOIOCTLCMD will exit the loop with that error. If no
-errors (except -ENOIOCTLCMD) occured, then 0 is returned.
+errors (except -ENOIOCTLCMD) occurred, then 0 is returned.
 
 The second argument to both calls is a group ID. If 0, then all subdevs are
 called. If non-zero, then only those whose group ID match that value will

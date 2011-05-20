@@ -64,7 +64,7 @@ config FB_OMAP_MANUAL_UPDATE
 	depends on FB_OMAP && FB_OMAP_LCDC_EXTERNAL
 	help
 	  Say Y here, if your user-space applications are capable of
-	  notifying the frame buffer driver when a change has occured in
+	  notifying the frame buffer driver when a change has occurred in
 	  the frame buffer content and thus a reload of the image data to
 	  the external frame buffer is required. If unsure, say N.
 

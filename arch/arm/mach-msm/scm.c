@@ -46,7 +46,7 @@ static DEFINE_MUTEX(scm_lock);
  * @id: command to be executed
  * @buf: buffer returned from scm_get_command_buffer()
  *
- * An SCM command is layed out in memory as follows:
+ * An SCM command is laid out in memory as follows:
  *
  *	------------------- <--- struct scm_command
  *	| command header  |

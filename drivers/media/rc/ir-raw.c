@@ -153,7 +153,7 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
  * @type:	the type of the event that has occurred
  *
  * This routine (which may be called from an interrupt context) works
- * in similiar manner to ir_raw_event_store_edge.
+ * in similar manner to ir_raw_event_store_edge.
  * This routine is intended for devices with limited internal buffer
  * It automerges samples of same type, and handles timeouts
  */

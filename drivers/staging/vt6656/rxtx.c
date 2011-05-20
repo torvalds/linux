@@ -1938,7 +1938,7 @@ s_vGenerateMACHeader (
  *  Out:
  *      none
  *
- * Return Value: CMD_STATUS_PENDING if MAC Tx resource avaliable; otherwise FALSE
+ * Return Value: CMD_STATUS_PENDING if MAC Tx resource available; otherwise FALSE
  *
 -*/
 

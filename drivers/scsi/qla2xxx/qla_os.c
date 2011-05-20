@@ -1046,7 +1046,7 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 
 eh_bus_reset_done:
 	qla_printk(KERN_INFO, vha->hw, "%s: reset %s\n", __func__,
-	    (ret == FAILED) ? "failed" : "succeded");
+	    (ret == FAILED) ? "failed" : "succeeded");
 
 	return ret;
 }
@@ -1136,7 +1136,7 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 
 eh_host_reset_lock:
 	qla_printk(KERN_INFO, ha, "%s: reset %s\n", __func__,
-	    (ret == FAILED) ? "failed" : "succeded");
+	    (ret == FAILED) ? "failed" : "succeeded");
 
 	return ret;
 }
@@ -3902,7 +3902,7 @@ uint32_t qla82xx_error_recovery(scsi_qla_host_t *base_vha)
 			continue;
 		if (atomic_read(&other_pdev->enable_cnt)) {
 			DEBUG17(qla_printk(KERN_INFO, ha,
-			    "Found PCI func availabe and enabled at 0x%x\n",
+			    "Found PCI func available and enabled at 0x%x\n",
 			    fn));
 			pci_dev_put(other_pdev);
 			break;

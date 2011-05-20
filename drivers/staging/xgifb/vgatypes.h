@@ -85,7 +85,7 @@ struct xgi_hw_device_info
 					    unsigned long *);
 };
 
-/* Addtional IOCTL for communication xgifb <> X driver        */
+/* Additional IOCTL for communication xgifb <> X driver        */
 /* If changing this, xgifb.h must also be changed (for xgifb) */
 
 

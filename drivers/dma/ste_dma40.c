@@ -90,7 +90,7 @@ struct d40_lli_pool {
  * @lli_log: Same as above but for logical channels.
  * @lli_pool: The pool with two entries pre-allocated.
  * @lli_len: Number of llis of current descriptor.
- * @lli_current: Number of transfered llis.
+ * @lli_current: Number of transferred llis.
  * @lcla_alloc: Number of LCLA entries allocated.
  * @txd: DMA engine struct. Used for among other things for communication
  * during a transfer.
@@ -1214,7 +1214,7 @@ static void dma_tasklet(unsigned long data)
 	return;
 
  err:
-	/* Rescue manouver if receiving double interrupts */
+	/* Rescue manoeuvre if receiving double interrupts */
 	if (d40c->pending_tx > 0)
 		d40c->pending_tx--;
 	spin_unlock_irqrestore(&d40c->lock, flags);

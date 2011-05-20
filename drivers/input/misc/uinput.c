@@ -302,10 +302,14 @@ static int uinput_validate_absbits(struct input_dev *dev)
 	int retval = 0;
 
 	for (cnt = 0; cnt < ABS_CNT; cnt++) {
+		int min, max;
 		if (!test_bit(cnt, dev->absbit))
 			continue;
 
-		if (input_abs_get_max(dev, cnt) <= input_abs_get_min(dev, cnt)) {
+		min = input_abs_get_min(dev, cnt);
+		max = input_abs_get_max(dev, cnt);
+
+		if ((min != 0 || max != 0) && max <= min) {
 			printk(KERN_DEBUG
 				"%s: invalid abs[%02x] min:%d max:%d\n",
 				UINPUT_NAME, cnt,

@@ -296,7 +296,7 @@ void vmbus_on_event(unsigned long data)
 		for (dword = 0; dword < maxdword; dword++) {
 			if (recv_int_page[dword]) {
 				for (bit = 0; bit < 32; bit++) {
-					if (test_and_clear_bit(bit,
+					if (sync_test_and_clear_bit(bit,
 						(unsigned long *)
 						&recv_int_page[dword])) {
 						relid = (dword << 5) + bit;
@@ -338,7 +338,7 @@ int vmbus_post_msg(void *buffer, size_t buflen)
 int vmbus_set_event(u32 child_relid)
 {
 	/* Each u32 represents 32 channels */
-	set_bit(child_relid & 31,
+	sync_set_bit(child_relid & 31,
 		(unsigned long *)vmbus_connection.send_int_page +
 		(child_relid >> 5));
 

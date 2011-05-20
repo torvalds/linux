@@ -203,7 +203,7 @@ void __init free_unused_pacas(void)
 {
 	int new_size;
 
-	new_size = PAGE_ALIGN(sizeof(struct paca_struct) * num_possible_cpus());
+	new_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpu_ids);
 
 	if (new_size >= paca_size)
 		return;

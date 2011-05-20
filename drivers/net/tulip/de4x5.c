@@ -79,7 +79,7 @@
     every  usable DECchip board,  I  pinched Donald's 'next_module' field to
     link my modules together.
 
-    Upto 15 EISA cards can be supported under this driver, limited primarily
+    Up to 15 EISA cards can be supported under this driver, limited primarily
     by the available IRQ lines.  I have  checked different configurations of
     multiple depca, EtherWORKS 3 cards and de4x5 cards and  have not found a
     problem yet (provided you have at least depca.c v0.38) ...
@@ -517,7 +517,7 @@ struct mii_phy {
     u_int mci;              /* 21142 MII Connector Interrupt info        */
 };
 
-#define DE4X5_MAX_PHY 8     /* Allow upto 8 attached PHY devices per board */
+#define DE4X5_MAX_PHY 8     /* Allow up to 8 attached PHY devices per board */
 
 struct sia_phy {
     u_char mc;              /* Media Code                                */
@@ -1436,7 +1436,7 @@ de4x5_sw_reset(struct net_device *dev)
 
     /* Poll for setup frame completion (adapter interrupts are disabled now) */
 
-    for (j=0, i=0;(i<500) && (j==0);i++) {       /* Upto 500ms delay */
+    for (j=0, i=0;(i<500) && (j==0);i++) {       /* Up to 500ms delay */
 	mdelay(1);
 	if ((s32)le32_to_cpu(lp->tx_ring[lp->tx_new].status) >= 0) j=1;
     }

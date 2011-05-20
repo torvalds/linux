@@ -77,7 +77,7 @@ struct throtl_grp {
 	unsigned long slice_end[2];
 
 	/* Some throttle limits got updated for the group */
-	bool limits_changed;
+	int limits_changed;
 };
 
 struct throtl_data
@@ -102,7 +102,7 @@ struct throtl_data
 	/* Work for dispatching throttled bios */
 	struct delayed_work throtl_work;
 
-	bool limits_changed;
+	int limits_changed;
 };
 
 enum tg_state_flags {
@@ -160,9 +160,8 @@ static void throtl_put_tg(struct throtl_grp *tg)
 }
 
 static struct throtl_grp * throtl_find_alloc_tg(struct throtl_data *td,
-			struct cgroup *cgroup)
+			struct blkio_cgroup *blkcg)
 {
-	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgroup);
 	struct throtl_grp *tg = NULL;
 	void *key = td;
 	struct backing_dev_info *bdi = &td->queue->backing_dev_info;
@@ -229,12 +228,12 @@ done:
 
 static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 {
-	struct cgroup *cgroup;
 	struct throtl_grp *tg = NULL;
+	struct blkio_cgroup *blkcg;
 
 	rcu_read_lock();
-	cgroup = task_cgroup(current, blkio_subsys_id);
-	tg = throtl_find_alloc_tg(td, cgroup);
+	blkcg = task_blkio_cgroup(current);
+	tg = throtl_find_alloc_tg(td, blkcg);
 	if (!tg)
 		tg = &td->root_tg;
 	rcu_read_unlock();
@@ -916,7 +915,7 @@ static void throtl_update_blkio_group_common(struct throtl_data *td,
 /*
  * For all update functions, key should be a valid pointer because these
  * update functions are called under blkcg_lock, that means, blkg is
- * valid and in turn key is valid. queue exit path can not race becuase
+ * valid and in turn key is valid. queue exit path can not race because
  * of blkcg_lock
  *
  * Can not take queue lock in update functions as queue lock under blkcg_lock

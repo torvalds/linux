@@ -12,7 +12,7 @@
  *
  *   Hans Liss <hans.liss@its.uu.se>  Uppsala Universitet
  *
- * This work is based on the LPC-trie which is originally descibed in:
+ * This work is based on the LPC-trie which is originally described in:
  *
  * An experimental study of compression methods for dynamic tries
  * Stefan Nilsson and Matti Tikkanen. Algorithmica, 33(1):19-33, 2002.
@@ -1977,9 +1977,6 @@ struct fib_table *fib_trie_table(u32 id)
 
 	t = (struct trie *) tb->tb_data;
 	memset(t, 0, sizeof(*t));
-
-	if (id == RT_TABLE_LOCAL)
-		pr_info("IPv4 FIB: Using LC-trie version %s\n", VERSION);
 
 	return tb;
 }

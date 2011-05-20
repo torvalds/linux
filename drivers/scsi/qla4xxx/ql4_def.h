@@ -182,7 +182,7 @@ struct srb {
 	uint16_t flags;		/* (1) Status flags. */
 
 #define SRB_DMA_VALID		BIT_3	/* DMA Buffer mapped. */
-#define SRB_GOT_SENSE		BIT_4	/* sense data recieved. */
+#define SRB_GOT_SENSE		BIT_4	/* sense data received. */
 	uint8_t state;		/* (1) Status flags. */
 
 #define SRB_NO_QUEUE_STATE	 0	/* Request is in between states */

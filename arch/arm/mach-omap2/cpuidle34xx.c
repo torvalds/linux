@@ -297,8 +297,8 @@ DEFINE_PER_CPU(struct cpuidle_device, omap3_idle_dev);
 
 /**
  * omap3_cpuidle_update_states() - Update the cpuidle states
- * @mpu_deepest_state:	Enable states upto and including this for mpu domain
- * @core_deepest_state:	Enable states upto and including this for core domain
+ * @mpu_deepest_state:	Enable states up to and including this for mpu domain
+ * @core_deepest_state:	Enable states up to and including this for core domain
  *
  * This goes through the list of states available and enables and disables the
  * validity of C states based on deepest state that can be achieved for the

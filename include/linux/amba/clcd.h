@@ -136,7 +136,7 @@ struct clcd_board {
 	int	(*check)(struct clcd_fb *fb, struct fb_var_screeninfo *var);
 
 	/*
-	 * Compulsary.  Decode fb->fb.var into regs->*.  In the case of
+	 * Compulsory.  Decode fb->fb.var into regs->*.  In the case of
 	 * fixed timing, set regs->* to the register values required.
 	 */
 	void	(*decode)(struct clcd_fb *fb, struct clcd_regs *regs);

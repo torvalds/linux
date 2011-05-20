@@ -97,7 +97,7 @@ Note: More extensive information for getting started with ext4 can be
 * Inode allocation using large virtual block groups via flex_bg
 * delayed allocation
 * large block (up to pagesize) support
-* efficent new ordered mode in JBD2 and ext4(avoid using buffer head to force
+* efficient new ordered mode in JBD2 and ext4(avoid using buffer head to force
   the ordering)
 
 [1] Filesystems with a block size of 1k may see a limit imposed by the
@@ -106,7 +106,7 @@ directory hash tree having a maximum depth of two.
 2.2 Candidate features for future inclusion
 
 * Online defrag (patches available but not well tested)
-* reduced mke2fs time via lazy itable initialization in conjuction with
+* reduced mke2fs time via lazy itable initialization in conjunction with
   the uninit_bg feature (capability to do this is available in e2fsprogs
   but a kernel thread to do lazy zeroing of unused inode table blocks
   after filesystem is first mounted is required for safety)

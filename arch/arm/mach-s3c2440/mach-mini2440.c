@@ -155,7 +155,7 @@ static struct s3c2410fb_display mini2440_lcd_cfg[] __initdata = {
 	 * the same timings, however, anything smaller than 1024x768
 	 * will only be displayed in the top left corner of a 1024x768
 	 * XGA output unless you add optional dip switches to the shield.
-	 * Therefore timings for other resolutions have been ommited here.
+	 * Therefore timings for other resolutions have been omitted here.
 	 */
 	[2] = {
 		_LCD_DECLARE(

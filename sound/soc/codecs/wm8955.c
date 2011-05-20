@@ -176,7 +176,7 @@ static int wm8995_pll_factors(struct device *dev,
 	return 0;
 }
 
-/* Lookup table specifiying SRATE (table 25 in datasheet); some of the
+/* Lookup table specifying SRATE (table 25 in datasheet); some of the
  * output frequencies have been rounded to the standard frequencies
  * they are intended to match where the error is slight. */
 static struct {

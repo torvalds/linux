@@ -2037,7 +2037,7 @@ static void dasd_eckd_check_for_device_change(struct dasd_device *device,
 		return;
 
 	/* summary unit check */
-	if ((sense[7] == 0x0D) &&
+	if ((sense[27] & DASD_SENSE_BIT_0) && (sense[7] == 0x0D) &&
 	    (scsw_dstat(&irb->scsw) & DEV_STAT_UNIT_CHECK)) {
 		dasd_alias_handle_summary_unit_check(device, irb);
 		return;
@@ -2053,7 +2053,8 @@ static void dasd_eckd_check_for_device_change(struct dasd_device *device,
 	/* loss of device reservation is handled via base devices only
 	 * as alias devices may be used with several bases
 	 */
-	if (device->block && (sense[7] == 0x3F) &&
+	if (device->block && (sense[27] & DASD_SENSE_BIT_0) &&
+	    (sense[7] == 0x3F) &&
 	    (scsw_dstat(&irb->scsw) & DEV_STAT_UNIT_CHECK) &&
 	    test_bit(DASD_FLAG_IS_RESERVED, &device->flags)) {
 		if (device->features & DASD_FEATURE_FAILONSLCK)
@@ -2858,7 +2859,7 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 	/*
 	 * struct PFX_eckd_data has up to 2 byte as extended parameter
 	 * this is needed for write full track and has to be mentioned
-	 * seperately
+	 * separately
 	 * add 8 instead of 2 to keep 8 byte boundary
 	 */
 	pfx_datasize = sizeof(struct PFX_eckd_data) + 8;

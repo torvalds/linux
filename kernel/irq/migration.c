@@ -35,7 +35,7 @@ void irq_move_masked_irq(struct irq_data *idata)
 	 * do the disable, re-program, enable sequence.
 	 * This is *not* particularly important for level triggered
 	 * but in a edge trigger case, we might be setting rte
-	 * when an active trigger is comming in. This could
+	 * when an active trigger is coming in. This could
 	 * cause some ioapics to mal-function.
 	 * Being paranoid i guess!
 	 *

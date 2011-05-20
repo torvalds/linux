@@ -339,7 +339,7 @@ static void return_hosed_msg(struct smi_info *smi_info, int cCode)
 		cCode = IPMI_ERR_UNSPECIFIED;
 	/* else use it as is */
 
-	/* Make it a reponse */
+	/* Make it a response */
 	msg->rsp[0] = msg->data[0] | 4;
 	msg->rsp[1] = msg->data[1];
 	msg->rsp[2] = cCode;
@@ -2554,9 +2554,11 @@ static struct pci_driver ipmi_pci_driver = {
 };
 #endif /* CONFIG_PCI */
 
+static struct of_device_id ipmi_match[];
 static int __devinit ipmi_probe(struct platform_device *dev)
 {
 #ifdef CONFIG_OF
+	const struct of_device_id *match;
 	struct smi_info *info;
 	struct resource resource;
 	const __be32 *regsize, *regspacing, *regshift;
@@ -2566,7 +2568,8 @@ static int __devinit ipmi_probe(struct platform_device *dev)
 
 	dev_info(&dev->dev, "probing via device tree\n");
 
-	if (!dev->dev.of_match)
+	match = of_match_device(ipmi_match, &dev->dev);
+	if (!match)
 		return -EINVAL;
 
 	ret = of_address_to_resource(np, 0, &resource);
@@ -2601,7 +2604,7 @@ static int __devinit ipmi_probe(struct platform_device *dev)
 		return -ENOMEM;
 	}
 
-	info->si_type		= (enum si_type) dev->dev.of_match->data;
+	info->si_type		= (enum si_type) match->data;
 	info->addr_source	= SI_DEVICETREE;
 	info->irq_setup		= std_irq_setup;
 
@@ -2927,7 +2930,7 @@ static void return_hosed_msg_badsize(struct smi_info *smi_info)
 {
 	struct ipmi_smi_msg *msg = smi_info->curr_msg;
 
-	/* Make it a reponse */
+	/* Make it a response */
 	msg->rsp[0] = msg->data[0] | 4;
 	msg->rsp[1] = msg->data[1];
 	msg->rsp[2] = CANNOT_RETURN_REQUESTED_LENGTH;

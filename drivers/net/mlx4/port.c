@@ -172,7 +172,7 @@ int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *qpn, u8 wrap)
 		}
 
 		if (mac == (MLX4_MAC_MASK & be64_to_cpu(table->entries[i]))) {
-			/* MAC already registered, increase refernce count */
+			/* MAC already registered, increase references count */
 			++table->refs[i];
 			goto out;
 		}
@@ -360,7 +360,7 @@ int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index)
 		if (table->refs[i] &&
 		    (vlan == (MLX4_VLAN_MASK &
 			      be32_to_cpu(table->entries[i])))) {
-			/* Vlan already registered, increase refernce count */
+			/* Vlan already registered, increase references count */
 			*index = i;
 			++table->refs[i];
 			goto out;

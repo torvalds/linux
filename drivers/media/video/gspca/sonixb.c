@@ -827,7 +827,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		   possible to use less exposure then what the fps maximum
 		   allows by setting register 10. register 10 configures the
 		   actual exposure as quotient of the full exposure, with 0
-		   being no exposure at all (not very usefull) and reg10_max
+		   being no exposure at all (not very useful) and reg10_max
 		   being max exposure possible at that framerate.
 
 		   The code maps our 0 - 510 ms exposure ctrl to these 2

@@ -610,7 +610,7 @@ void elv_requeue_request(struct request_queue *q, struct request *rq)
 
 	rq->cmd_flags &= ~REQ_STARTED;
 
-	elv_insert(q, rq, ELEVATOR_INSERT_REQUEUE);
+	__elv_add_request(q, rq, ELEVATOR_INSERT_REQUEUE);
 }
 
 void elv_drain_elevator(struct request_queue *q)
@@ -642,7 +642,7 @@ void elv_quiesce_start(struct request_queue *q)
 	 */
 	elv_drain_elevator(q);
 	while (q->rq.elvpriv) {
-		__blk_run_queue(q, false);
+		__blk_run_queue(q);
 		spin_unlock_irq(q->queue_lock);
 		msleep(10);
 		spin_lock_irq(q->queue_lock);
@@ -655,11 +655,25 @@ void elv_quiesce_end(struct request_queue *q)
 	queue_flag_clear(QUEUE_FLAG_ELVSWITCH, q);
 }
 
-void elv_insert(struct request_queue *q, struct request *rq, int where)
+void __elv_add_request(struct request_queue *q, struct request *rq, int where)
 {
 	trace_block_rq_insert(q, rq);
 
 	rq->q = q;
+
+	BUG_ON(rq->cmd_flags & REQ_ON_PLUG);
+
+	if (rq->cmd_flags & REQ_SOFTBARRIER) {
+		/* barriers are scheduling boundary, update end_sector */
+		if (rq->cmd_type == REQ_TYPE_FS ||
+		    (rq->cmd_flags & REQ_DISCARD)) {
+			q->end_sector = rq_end_sector(rq);
+			q->boundary_rq = rq;
+		}
+	} else if (!(rq->cmd_flags & REQ_ELVPRIV) &&
+		    (where == ELEVATOR_INSERT_SORT ||
+		     where == ELEVATOR_INSERT_SORT_MERGE))
+		where = ELEVATOR_INSERT_BACK;
 
 	switch (where) {
 	case ELEVATOR_INSERT_REQUEUE:
@@ -682,7 +696,7 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 		 *   with anything.  There's no point in delaying queue
 		 *   processing.
 		 */
-		__blk_run_queue(q, false);
+		__blk_run_queue(q);
 		break;
 
 	case ELEVATOR_INSERT_SORT_MERGE:
@@ -721,24 +735,6 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 		       __func__, where);
 		BUG();
 	}
-}
-
-void __elv_add_request(struct request_queue *q, struct request *rq, int where)
-{
-	BUG_ON(rq->cmd_flags & REQ_ON_PLUG);
-
-	if (rq->cmd_flags & REQ_SOFTBARRIER) {
-		/* barriers are scheduling boundary, update end_sector */
-		if (rq->cmd_type == REQ_TYPE_FS ||
-		    (rq->cmd_flags & REQ_DISCARD)) {
-			q->end_sector = rq_end_sector(rq);
-			q->boundary_rq = rq;
-		}
-	} else if (!(rq->cmd_flags & REQ_ELVPRIV) &&
-		    where == ELEVATOR_INSERT_SORT)
-		where = ELEVATOR_INSERT_BACK;
-
-	elv_insert(q, rq, where);
 }
 EXPORT_SYMBOL(__elv_add_request);
 

@@ -94,14 +94,14 @@ MODULE_VERSION(EMAC_MODULE_VERSION);
 static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 
 /* Configuration items */
-#define EMAC_DEF_PASS_CRC		(0) /* Do not pass CRC upto frames */
+#define EMAC_DEF_PASS_CRC		(0) /* Do not pass CRC up to frames */
 #define EMAC_DEF_QOS_EN			(0) /* EMAC proprietary QoS disabled */
 #define EMAC_DEF_NO_BUFF_CHAIN		(0) /* No buffer chain */
 #define EMAC_DEF_MACCTRL_FRAME_EN	(0) /* Discard Maccontrol frames */
 #define EMAC_DEF_SHORT_FRAME_EN		(0) /* Discard short frames */
 #define EMAC_DEF_ERROR_FRAME_EN		(0) /* Discard error frames */
-#define EMAC_DEF_PROM_EN		(0) /* Promiscous disabled */
-#define EMAC_DEF_PROM_CH		(0) /* Promiscous channel is 0 */
+#define EMAC_DEF_PROM_EN		(0) /* Promiscuous disabled */
+#define EMAC_DEF_PROM_CH		(0) /* Promiscuous channel is 0 */
 #define EMAC_DEF_BCAST_EN		(1) /* Broadcast enabled */
 #define EMAC_DEF_BCAST_CH		(0) /* Broadcast channel is 0 */
 #define EMAC_DEF_MCAST_EN		(1) /* Multicast enabled */
@@ -1013,7 +1013,7 @@ static void emac_rx_handler(void *token, int len, int status)
 		return;
 	}
 
-	/* recycle on recieve error */
+	/* recycle on receive error */
 	if (status < 0) {
 		ndev->stats.rx_errors++;
 		goto recycle;

@@ -110,22 +110,22 @@ university server with various users - students, professors, system
 tasks etc. The resource planning for this server could be along the
 following lines:
 
-       CPU :           Top cpuset
+       CPU :          "Top cpuset"
                        /       \
                CPUSet1         CPUSet2
-                  |              |
-               (Profs)         (Students)
+                  |               |
+               (Professors)    (Students)
 
                In addition (system tasks) are attached to topcpuset (so
                that they can run anywhere) with a limit of 20%
 
-       Memory : Professors (50%), students (30%), system (20%)
+       Memory : Professors (50%), Students (30%), system (20%)
 
-       Disk : Prof (50%), students (30%), system (20%)
+       Disk : Professors (50%), Students (30%), system (20%)
 
        Network : WWW browsing (20%), Network File System (60%), others (20%)
                                / \
-                       Prof (15%) students (5%)
+               Professors (15%)  students (5%)
 
 Browsers like Firefox/Lynx go into the WWW network class, while (k)nfsd go
 into NFS network class.

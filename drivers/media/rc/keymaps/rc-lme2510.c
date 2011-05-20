@@ -55,7 +55,7 @@ static struct rc_map_table lme2510_rc[] = {
 	{ 0xff40fb04, KEY_MEDIA_REPEAT}, /* Recall */
 	{ 0xff40e51a, KEY_PAUSE }, /* Timeshift */
 	{ 0xff40fd02, KEY_VOLUMEUP }, /* 2 x -/+ Keys not marked */
-	{ 0xff40f906, KEY_VOLUMEDOWN }, /* Volumne defined as right hand*/
+	{ 0xff40f906, KEY_VOLUMEDOWN }, /* Volume defined as right hand*/
 	{ 0xff40fe01, KEY_CHANNELUP },
 	{ 0xff40fa05, KEY_CHANNELDOWN },
 	{ 0xff40eb14, KEY_ZOOM },
@@ -76,7 +76,7 @@ static struct rc_map_table lme2510_rc[] = {
 	{ 0xff00bb44, KEY_MEDIA_REPEAT}, /* Recall */
 	{ 0xff00b54a, KEY_PAUSE }, /* Timeshift */
 	{ 0xff00b847, KEY_VOLUMEUP }, /* 2 x -/+ Keys not marked */
-	{ 0xff00bc43, KEY_VOLUMEDOWN }, /* Volumne defined as right hand*/
+	{ 0xff00bc43, KEY_VOLUMEDOWN }, /* Volume defined as right hand*/
 	{ 0xff00b946, KEY_CHANNELUP },
 	{ 0xff00bf40, KEY_CHANNELDOWN },
 	{ 0xff00f708, KEY_ZOOM },

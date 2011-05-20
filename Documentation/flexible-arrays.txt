@@ -66,10 +66,10 @@ trick is to ensure that any needed memory allocations are done before
 entering atomic context, using:
 
     int flex_array_prealloc(struct flex_array *array, unsigned int start,
-			    unsigned int end, gfp_t flags);
+			    unsigned int nr_elements, gfp_t flags);
 
 This function will ensure that memory for the elements indexed in the range
-defined by start and end has been allocated.  Thereafter, a
+defined by start and nr_elements has been allocated.  Thereafter, a
 flex_array_put() call on an element in that range is guaranteed not to
 block.
 

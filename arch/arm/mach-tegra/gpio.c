@@ -257,7 +257,8 @@ static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 void tegra_gpio_resume(void)
 {
 	unsigned long flags;
-	int b, p, i;
+	int b;
+	int p;
 
 	local_irq_save(flags);
 
@@ -280,7 +281,8 @@ void tegra_gpio_resume(void)
 void tegra_gpio_suspend(void)
 {
 	unsigned long flags;
-	int b, p, i;
+	int b;
+	int p;
 
 	local_irq_save(flags);
 	for (b = 0; b < ARRAY_SIZE(tegra_gpio_banks); b++) {

@@ -509,7 +509,7 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	write_lock_irq(&devs_lock);
 	net_dev = br2684_find_dev(&be.ifspec);
 	if (net_dev == NULL) {
-		pr_err("tried to attach to non-existant device\n");
+		pr_err("tried to attach to non-existent device\n");
 		err = -ENXIO;
 		goto error;
 	}

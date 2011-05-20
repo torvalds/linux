@@ -112,12 +112,12 @@ int omap4430_phy_power(struct device *dev, int ID, int on)
 		else
 			/*
 			 * Enable VBUS Valid, AValid and IDDIG
-			 * high impedence
+			 * high impedance
 			 */
 			__raw_writel(IDDIG | AVALID | VBUSVALID,
 						ctrl_base + USBOTGHS_CONTROL);
 	} else {
-		/* Enable session END and IDIG to high impedence. */
+		/* Enable session END and IDIG to high impedance. */
 		__raw_writel(SESSEND | IDDIG, ctrl_base +
 					USBOTGHS_CONTROL);
 	}

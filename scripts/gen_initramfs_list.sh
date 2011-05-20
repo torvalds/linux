@@ -284,7 +284,7 @@ while [ $# -gt 0 ]; do
 done
 
 # If output_file is set we will generate cpio archive and compress it
-# we are carefull to delete tmp files
+# we are careful to delete tmp files
 if [ ! -z ${output_file} ]; then
 	if [ -z ${cpio_file} ]; then
 		cpio_tfile="$(mktemp ${TMPDIR:-/tmp}/cpiofile.XXXXXX)"

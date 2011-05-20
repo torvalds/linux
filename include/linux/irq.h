@@ -64,13 +64,6 @@ typedef	void (*irq_preflow_handler_t)(struct irq_data *data);
  * IRQ_NO_BALANCING		- Interrupt cannot be balanced (affinity set)
  * IRQ_MOVE_PCNTXT		- Interrupt can be migrated from process context
  * IRQ_NESTED_TRHEAD		- Interrupt nests into another thread
- *
- * Deprecated bits. They are kept updated as long as
- * CONFIG_GENERIC_HARDIRQS_NO_COMPAT is not set. Will go away soon. These bits
- * are internal state of the core code and if you really need to acces
- * them then talk to the genirq maintainer instead of hacking
- * something weird.
- *
  */
 enum {
 	IRQ_TYPE_NONE		= 0x00000000,

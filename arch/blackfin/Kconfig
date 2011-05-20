@@ -34,7 +34,6 @@ config BLACKFIN
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_PROBE
 	select IRQ_PER_CPU if SMP
-	select GENERIC_HARDIRQS_NO_DEPRECATED
 
 config GENERIC_CSUM
 	def_bool y

@@ -49,10 +49,10 @@
  * chips, but support three temperature sensors instead of two. MAX6695
  * and MAX6696 only differ in the pinout so they can be treated identically.
  *
- * This driver also supports the ADT7461 chip from Analog Devices.
- * It's supported in both compatibility and extended mode. It is mostly
- * compatible with LM90 except for a data format difference for the
- * temperature value registers.
+ * This driver also supports ADT7461 and ADT7461A from Analog Devices as well as
+ * NCT1008 from ON Semiconductor. The chips are supported in both compatibility
+ * and extended mode. They are mostly compatible with LM90 except for a data
+ * format difference for the temperature value registers.
  *
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
@@ -88,9 +88,10 @@
  * Addresses to scan
  * Address is fully defined internally and cannot be changed except for
  * MAX6659, MAX6680 and MAX6681.
- * LM86, LM89, LM90, LM99, ADM1032, ADM1032-1, ADT7461, MAX6649, MAX6657,
- * MAX6658 and W83L771 have address 0x4c.
- * ADM1032-2, ADT7461-2, LM89-1, LM99-1 and MAX6646 have address 0x4d.
+ * LM86, LM89, LM90, LM99, ADM1032, ADM1032-1, ADT7461, ADT7461A, MAX6649,
+ * MAX6657, MAX6658, NCT1008 and W83L771 have address 0x4c.
+ * ADM1032-2, ADT7461-2, ADT7461A-2, LM89-1, LM99-1, MAX6646, and NCT1008D
+ * have address 0x4d.
  * MAX6647 has address 0x4e.
  * MAX6659 can have address 0x4c, 0x4d or 0x4e.
  * MAX6680 and MAX6681 can have address 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
@@ -174,6 +175,7 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 static const struct i2c_device_id lm90_id[] = {
 	{ "adm1032", adm1032 },
 	{ "adt7461", adt7461 },
+	{ "adt7461a", adt7461 },
 	{ "lm90", lm90 },
 	{ "lm86", lm86 },
 	{ "lm89", lm86 },
@@ -188,6 +190,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "max6681", max6680 },
 	{ "max6695", max6696 },
 	{ "max6696", max6696 },
+	{ "nct1008", adt7461 },
 	{ "w83l771", w83l771 },
 	{ }
 };
@@ -356,7 +359,7 @@ static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl, u16 *value)
 	/*
 	 * There is a trick here. We have to read two registers to have the
 	 * sensor temperature, but we have to beware a conversion could occur
-	 * inbetween the readings. The datasheet says we should either use
+	 * between the readings. The datasheet says we should either use
 	 * the one-shot conversion register, which we don't want to do
 	 * (disables hardware monitoring) or monitor the busy bit, which is
 	 * impossible (we can't read the values and monitor that bit at the
@@ -1153,6 +1156,11 @@ static int lm90_detect(struct i2c_client *new_client,
 		 && (reg_config1 & 0x1B) == 0x00
 		 && reg_convrate <= 0x0A) {
 			name = "adt7461";
+		} else
+		if (chip_id == 0x57 /* ADT7461A, NCT1008 */
+		 && (reg_config1 & 0x1B) == 0x00
+		 && reg_convrate <= 0x0A) {
+			name = "adt7461a";
 		}
 	} else
 	if (man_id == 0x4D) { /* Maxim */

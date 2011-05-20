@@ -9,7 +9,6 @@ config XTENSA
 	select HAVE_IDE
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_SHOW
-	select GENERIC_HARDIRQS_NO_DEPRECATED
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both

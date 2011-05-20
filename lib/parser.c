@@ -13,7 +13,7 @@
 
 /**
  * match_one: - Determines if a string matches a simple pattern
- * @s: the string to examine for presense of the pattern
+ * @s: the string to examine for presence of the pattern
  * @p: the string containing the pattern
  * @args: array of %MAX_OPT_ARGS &substring_t elements. Used to return match
  * locations.

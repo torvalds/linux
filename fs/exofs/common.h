@@ -115,7 +115,7 @@ struct exofs_sb_stats {
  * Describes the raid used in the FS. It is part of the device table.
  * This here is taken from the pNFS-objects definition. In exofs we
  * use one raid policy through-out the filesystem. (NOTE: the funny
- * alignment at begining. We take care of it at exofs_device_table.
+ * alignment at beginning. We take care of it at exofs_device_table.
  */
 struct exofs_dt_data_map {
 	__le32	cb_num_comps;
@@ -136,7 +136,7 @@ struct exofs_dt_device_info {
 	u8	systemid[OSD_SYSTEMID_LEN];
 	__le64	long_name_offset;	/* If !0 then offset-in-file */
 	__le32	osdname_len;		/* */
-	u8	osdname[44];		/* Embbeded, Ususally an asci uuid */
+	u8	osdname[44];		/* Embbeded, Usually an asci uuid */
 } __packed;
 
 /*

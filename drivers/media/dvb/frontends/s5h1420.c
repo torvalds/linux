@@ -225,7 +225,7 @@ static int s5h1420_recv_slave_reply (struct dvb_frontend* fe,
 	unsigned long timeout;
 	int result = 0;
 
-	/* setup for DISEQC recieve */
+	/* setup for DISEQC receive */
 	val = s5h1420_readreg(state, 0x3b);
 	s5h1420_writereg(state, 0x3b, 0x82); /* FIXME: guess - do we need to set DIS_RDY(0x08) in receive mode? */
 	msleep(15);

@@ -359,7 +359,7 @@ tmiofb_acc_wait(struct fb_info *info, unsigned int ccs)
 {
 	struct tmiofb_par *par = info->par;
 	/*
-	 * This code can be called whith interrupts disabled.
+	 * This code can be called with interrupts disabled.
 	 * So instead of relaying on irq to trigger the event,
 	 * poll the state till the necessary command is executed.
 	 */

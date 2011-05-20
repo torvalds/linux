@@ -497,7 +497,7 @@ struct conf_rx_settings {
 #define CONF_TX_RATE_RETRY_LIMIT       10
 
 /*
- * Rates supported for data packets when operating as AP. Note the absense
+ * Rates supported for data packets when operating as AP. Note the absence
  * of the 22Mbps rate. There is a FW limitation on 12 rates so we must drop
  * one. The rate dropped is not mandatory under any operating mode.
  */
@@ -572,7 +572,7 @@ enum conf_tx_ac {
 	CONF_TX_AC_BK = 1,         /* background */
 	CONF_TX_AC_VI = 2,         /* video */
 	CONF_TX_AC_VO = 3,         /* voice */
-	CONF_TX_AC_CTS2SELF = 4,   /* fictious AC, follows AC_VO */
+	CONF_TX_AC_CTS2SELF = 4,   /* fictitious AC, follows AC_VO */
 	CONF_TX_AC_ANY_TID = 0x1f
 };
 
@@ -1169,7 +1169,7 @@ struct conf_memory_settings {
 
 	/*
 	 * Minimum required free tx memory blocks in order to assure optimum
-	 * performence
+	 * performance
 	 *
 	 * Range: 0-120
 	 */
@@ -1177,7 +1177,7 @@ struct conf_memory_settings {
 
 	/*
 	 * Minimum required free rx memory blocks in order to assure optimum
-	 * performence
+	 * performance
 	 *
 	 * Range: 0-120
 	 */

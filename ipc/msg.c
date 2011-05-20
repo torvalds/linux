@@ -704,7 +704,7 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 	msq->q_stime = get_seconds();
 
 	if (!pipelined_send(msq, msg)) {
-		/* noone is waiting for this message, enqueue it */
+		/* no one is waiting for this message, enqueue it */
 		list_add_tail(&msg->m_list, &msq->q_messages);
 		msq->q_cbytes += msgsz;
 		msq->q_qnum++;
@@ -842,7 +842,7 @@ long do_msgrcv(int msqid, long *pmtype, void __user *mtext,
 		 * Disable preemption.  We don't hold a reference to the queue
 		 * and getting a reference would defeat the idea of a lockless
 		 * operation, thus the code relies on rcu to guarantee the
-		 * existance of msq:
+		 * existence of msq:
 		 * Prior to destruction, expunge_all(-EIRDM) changes r_msg.
 		 * Thus if r_msg is -EAGAIN, then the queue not yet destroyed.
 		 * rcu_read_lock() prevents preemption between reading r_msg

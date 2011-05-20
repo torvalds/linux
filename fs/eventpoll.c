@@ -181,7 +181,7 @@ struct eventpoll {
 
 	/*
 	 * This is a single linked list that chains all the "struct epitem" that
-	 * happened while transfering ready events to userspace w/out
+	 * happened while transferring ready events to userspace w/out
 	 * holding ->lock.
 	 */
 	struct epitem *ovflist;
@@ -606,7 +606,7 @@ static void ep_free(struct eventpoll *ep)
 	 * We do not need to hold "ep->mtx" here because the epoll file
 	 * is on the way to be removed and no one has references to it
 	 * anymore. The only hit might come from eventpoll_release_file() but
-	 * holding "epmutex" is sufficent here.
+	 * holding "epmutex" is sufficient here.
 	 */
 	mutex_lock(&epmutex);
 
@@ -720,7 +720,7 @@ void eventpoll_release_file(struct file *file)
 	/*
 	 * We don't want to get "file->f_lock" because it is not
 	 * necessary. It is not necessary because we're in the "struct file"
-	 * cleanup path, and this means that noone is using this file anymore.
+	 * cleanup path, and this means that no one is using this file anymore.
 	 * So, for example, epoll_ctl() cannot hit here since if we reach this
 	 * point, the file counter already went to zero and fget() would fail.
 	 * The only hit might come from ep_free() but by holding the mutex
@@ -1112,7 +1112,7 @@ static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
 				 * Trigger mode, we need to insert back inside
 				 * the ready list, so that the next call to
 				 * epoll_wait() will check again the events
-				 * availability. At this point, noone can insert
+				 * availability. At this point, no one can insert
 				 * into ep->rdllist besides us. The epoll_ctl()
 				 * callers are locked out by
 				 * ep_scan_ready_list() holding "mtx" and the

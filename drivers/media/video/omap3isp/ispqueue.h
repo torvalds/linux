@@ -46,9 +46,9 @@ struct scatterlist;
  *	device yet.
  * @ISP_BUF_STATE_ACTIVE: The buffer is in use for an active video transfer.
  * @ISP_BUF_STATE_ERROR: The device is done with the buffer and an error
- *	occured. For capture device the buffer likely contains corrupted data or
+ *	occurred. For capture device the buffer likely contains corrupted data or
  *	no data at all.
- * @ISP_BUF_STATE_DONE: The device is done with the buffer and no error occured.
+ * @ISP_BUF_STATE_DONE: The device is done with the buffer and no error occurred.
  *	For capture devices the buffer contains valid data.
  */
 enum isp_video_buffer_state {

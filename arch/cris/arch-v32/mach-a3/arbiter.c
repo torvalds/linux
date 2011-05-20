@@ -568,7 +568,7 @@ crisv32_foo_arbiter_irq(int irq, void *dev_id)
 	REG_WR(marb_foo_bp, watch->instance, rw_ack, ack);
 	REG_WR(marb_foo, regi_marb_foo, rw_ack_intr, ack_intr);
 
-	printk(KERN_DEBUG "IRQ occured at %X\n", (unsigned)get_irq_regs());
+	printk(KERN_DEBUG "IRQ occurred at %X\n", (unsigned)get_irq_regs());
 
 	if (watch->cb)
 		watch->cb();
@@ -624,7 +624,7 @@ crisv32_bar_arbiter_irq(int irq, void *dev_id)
 	REG_WR(marb_bar_bp, watch->instance, rw_ack, ack);
 	REG_WR(marb_bar, regi_marb_bar, rw_ack_intr, ack_intr);
 
-	printk(KERN_DEBUG "IRQ occured at %X\n", (unsigned)get_irq_regs()->erp);
+	printk(KERN_DEBUG "IRQ occurred at %X\n", (unsigned)get_irq_regs()->erp);
 
 	if (watch->cb)
 		watch->cb();

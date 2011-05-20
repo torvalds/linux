@@ -35,7 +35,7 @@ struct target_core_fabric_ops {
 	/*
 	 * Optional function pointer for TCM to perform command map
 	 * from TCM processing thread context, for those struct se_cmd
-	 * initally allocated in interrupt context.
+	 * initially allocated in interrupt context.
 	 */
 	int (*new_cmd_map)(struct se_cmd *);
 	/*

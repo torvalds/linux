@@ -1729,7 +1729,7 @@ repeat:
 		BUG_ON(npath->p_depth != path->p_depth);
 		eh = npath[depth].p_hdr;
 		if (le16_to_cpu(eh->eh_entries) < le16_to_cpu(eh->eh_max)) {
-			ext_debug("next leaf isnt full(%d)\n",
+			ext_debug("next leaf isn't full(%d)\n",
 				  le16_to_cpu(eh->eh_entries));
 			path = npath;
 			goto repeat;
@@ -2533,7 +2533,7 @@ static int ext4_ext_zeroout(struct inode *inode, struct ext4_extent *ex)
 /*
  * This function is called by ext4_ext_map_blocks() if someone tries to write
  * to an uninitialized extent. It may result in splitting the uninitialized
- * extent into multiple extents (upto three - one initialized and two
+ * extent into multiple extents (up to three - one initialized and two
  * uninitialized).
  * There are three possibilities:
  *   a> There is no split required: Entire extent should be initialized
@@ -3174,7 +3174,7 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 						   path, flags);
 		/*
 		 * Flag the inode(non aio case) or end_io struct (aio case)
-		 * that this IO needs to convertion to written when IO is
+		 * that this IO needs to conversion to written when IO is
 		 * completed
 		 */
 		if (io && !(io->flag & EXT4_IO_END_UNWRITTEN)) {
@@ -3460,10 +3460,10 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 		ext4_ext_mark_uninitialized(&newex);
 		/*
 		 * io_end structure was created for every IO write to an
-		 * uninitialized extent. To avoid unecessary conversion,
+		 * uninitialized extent. To avoid unnecessary conversion,
 		 * here we flag the IO that really needs the conversion.
 		 * For non asycn direct IO case, flag the inode state
-		 * that we need to perform convertion when IO is done.
+		 * that we need to perform conversion when IO is done.
 		 */
 		if ((flags & EXT4_GET_BLOCKS_PRE_IO)) {
 			if (io && !(io->flag & EXT4_IO_END_UNWRITTEN)) {

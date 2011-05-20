@@ -3702,7 +3702,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 	if ((hw_cons & EQ_DESC_MAX_PAGE) == EQ_DESC_MAX_PAGE)
 		hw_cons++;
 
-	/* This function may never run in parralel with itself for a
+	/* This function may never run in parallel with itself for a
 	 * specific bp, thus there is no need in "paired" read memory
 	 * barrier here.
 	 */
@@ -5089,7 +5089,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp, u32 load_code)
 		/* Step 1: set zeroes to all ilt page entries with valid bit on
 		 * Step 2: set the timers first/last ilt entry to point
 		 * to the entire range to prevent ILT range error for 3rd/4th
-		 * vnic	(this code assumes existance of the vnic)
+		 * vnic	(this code assumes existence of the vnic)
 		 *
 		 * both steps performed by call to bnx2x_ilt_client_init_op()
 		 * with dummy TM client
@@ -8685,7 +8685,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 				E1H_FUNC_MAX * sizeof(struct drv_func_mb);
 		/*
 		 * get mf configuration:
-		 * 1. existance of MF configuration
+		 * 1. existence of MF configuration
 		 * 2. MAC address must be legal (check only upper bytes)
 		 *    for  Switch-Independent mode;
 		 *    OVLAN must be legal for Switch-Dependent mode
@@ -8727,7 +8727,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 			default:
 				/* Unknown configuration: reset mf_config */
 				bp->mf_config[vn] = 0;
-				DP(NETIF_MSG_PROBE, "Unkown MF mode 0x%x\n",
+				DP(NETIF_MSG_PROBE, "Unknown MF mode 0x%x\n",
 				   val);
 			}
 		}
@@ -9777,7 +9777,7 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 
 #endif
 
-	/* Configure interupt mode: try to enable MSI-X/MSI if
+	/* Configure interrupt mode: try to enable MSI-X/MSI if
 	 * needed, set bp->num_queues appropriately.
 	 */
 	bnx2x_set_int_mode(bp);

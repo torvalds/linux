@@ -734,9 +734,12 @@ retry_snap:
 		}
 	}
 	if (ret >= 0) {
+		int dirty;
 		spin_lock(&inode->i_lock);
-		__ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
+		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
 		spin_unlock(&inode->i_lock);
+		if (dirty)
+			__mark_inode_dirty(inode, dirty);
 	}
 
 out:

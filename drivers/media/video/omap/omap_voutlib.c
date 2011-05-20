@@ -53,7 +53,7 @@ EXPORT_SYMBOL_GPL(omap_vout_default_crop);
 /* Given a new render window in new_win, adjust the window to the
  * nearest supported configuration.  The adjusted window parameters are
  * returned in new_win.
- * Returns zero if succesful, or -EINVAL if the requested window is
+ * Returns zero if successful, or -EINVAL if the requested window is
  * impossible and cannot reasonably be adjusted.
  */
 int omap_vout_try_window(struct v4l2_framebuffer *fbuf,
@@ -101,7 +101,7 @@ EXPORT_SYMBOL_GPL(omap_vout_try_window);
  * will also be adjusted if necessary.  Preference is given to keeping the
  * the window as close to the requested configuration as possible.  If
  * successful, new_win, vout->win, and crop are updated.
- * Returns zero if succesful, or -EINVAL if the requested preview window is
+ * Returns zero if successful, or -EINVAL if the requested preview window is
  * impossible and cannot reasonably be adjusted.
  */
 int omap_vout_new_window(struct v4l2_rect *crop,
@@ -155,7 +155,7 @@ EXPORT_SYMBOL_GPL(omap_vout_new_window);
  * window would fall outside the display boundaries, the cropping rectangle
  * will also be adjusted to maintain the rescaling ratios.  If successful, crop
  * and win are updated.
- * Returns zero if succesful, or -EINVAL if the requested cropping rectangle is
+ * Returns zero if successful, or -EINVAL if the requested cropping rectangle is
  * impossible and cannot reasonably be adjusted.
  */
 int omap_vout_new_crop(struct v4l2_pix_format *pix,

@@ -33,7 +33,7 @@
  *
  * Note that the external interrupts are edge triggered (unlike the
  * internal interrupt sources which are level triggered). Which means
- * they also need acknowledgeing via acknowledge bits.
+ * they also need acknowledging via acknowledge bits.
  */
 struct irqmap {
 	unsigned char	icr;

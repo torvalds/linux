@@ -35,9 +35,9 @@ struct smp_ops_t {
 	int   (*probe)(void);
 	void  (*kick_cpu)(int nr);
 	void  (*setup_cpu)(int nr);
+	void  (*bringup_done)(void);
 	void  (*take_timebase)(void);
 	void  (*give_timebase)(void);
-	int   (*cpu_enable)(unsigned int nr);
 	int   (*cpu_disable)(void);
 	void  (*cpu_die)(unsigned int nr);
 	int   (*cpu_bootable)(unsigned int nr);
@@ -267,7 +267,6 @@ struct machdep_calls {
 
 extern void e500_idle(void);
 extern void power4_idle(void);
-extern void power4_cpu_offline_powersave(void);
 extern void ppc6xx_idle(void);
 extern void book3e_idle(void);
 

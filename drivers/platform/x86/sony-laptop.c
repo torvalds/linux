@@ -138,6 +138,8 @@ MODULE_PARM_DESC(kbd_backlight_timeout,
 		 "1 for 30 seconds, 2 for 60 seconds and 3 to disable timeout "
 		 "(default: 0)");
 
+static void sony_nc_kbd_backlight_resume(void);
+
 enum sony_nc_rfkill {
 	SONY_WIFI,
 	SONY_BLUETOOTH,
@@ -771,11 +773,6 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 	if (!handles)
 		return -ENOMEM;
 
-	sysfs_attr_init(&handles->devattr.attr);
-	handles->devattr.attr.name = "handles";
-	handles->devattr.attr.mode = S_IRUGO;
-	handles->devattr.show = sony_nc_handles_show;
-
 	for (i = 0; i < ARRAY_SIZE(handles->cap); i++) {
 		if (!acpi_callsetfunc(sony_nc_acpi_handle,
 					"SN00", i + 0x20, &result)) {
@@ -785,11 +782,18 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 		}
 	}
 
-	/* allow reading capabilities via sysfs */
-	if (device_create_file(&pd->dev, &handles->devattr)) {
-		kfree(handles);
-		handles = NULL;
-		return -1;
+	if (debug) {
+		sysfs_attr_init(&handles->devattr.attr);
+		handles->devattr.attr.name = "handles";
+		handles->devattr.attr.mode = S_IRUGO;
+		handles->devattr.show = sony_nc_handles_show;
+
+		/* allow reading capabilities via sysfs */
+		if (device_create_file(&pd->dev, &handles->devattr)) {
+			kfree(handles);
+			handles = NULL;
+			return -1;
+		}
 	}
 
 	return 0;
@@ -798,7 +802,8 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 static int sony_nc_handles_cleanup(struct platform_device *pd)
 {
 	if (handles) {
-		device_remove_file(&pd->dev, &handles->devattr);
+		if (debug)
+			device_remove_file(&pd->dev, &handles->devattr);
 		kfree(handles);
 		handles = NULL;
 	}
@@ -808,6 +813,11 @@ static int sony_nc_handles_cleanup(struct platform_device *pd)
 static int sony_find_snc_handle(int handle)
 {
 	int i;
+
+	/* not initialized yet, return early */
+	if (!handles)
+		return -1;
+
 	for (i = 0; i < 0x10; i++) {
 		if (handles->cap[i] == handle) {
 			dprintk("found handle 0x%.4x (offset: 0x%.2x)\n",
@@ -924,6 +934,14 @@ static ssize_t sony_nc_sysfs_store(struct device *dev,
 /*
  * Backlight device
  */
+struct sony_backlight_props {
+	struct backlight_device *dev;
+	int			handle;
+	u8			offset;
+	u8			maxlvl;
+};
+struct sony_backlight_props sony_bl_props;
+
 static int sony_backlight_update_status(struct backlight_device *bd)
 {
 	return acpi_callsetfunc(sony_nc_acpi_handle, "SBRT",
@@ -944,21 +962,26 @@ static int sony_nc_get_brightness_ng(struct backlight_device *bd)
 {
 	int result;
 	int *handle = (int *)bl_get_data(bd);
+	struct sony_backlight_props *sdev =
+		(struct sony_backlight_props *)bl_get_data(bd);
 
-	sony_call_snc_handle(*handle, 0x0200, &result);
+	sony_call_snc_handle(sdev->handle, 0x0200, &result);
 
-	return result & 0xff;
+	return (result & 0xff) - sdev->offset;
 }
 
 static int sony_nc_update_status_ng(struct backlight_device *bd)
 {
 	int value, result;
 	int *handle = (int *)bl_get_data(bd);
+	struct sony_backlight_props *sdev =
+		(struct sony_backlight_props *)bl_get_data(bd);
 
-	value = bd->props.brightness;
-	sony_call_snc_handle(*handle, 0x0100 | (value << 16), &result);
+	value = bd->props.brightness + sdev->offset;
+	if (sony_call_snc_handle(sdev->handle, 0x0100 | (value << 16), &result))
+		return -EIO;
 
-	return sony_nc_get_brightness_ng(bd);
+	return value;
 }
 
 static const struct backlight_ops sony_backlight_ops = {
@@ -971,8 +994,6 @@ static const struct backlight_ops sony_backlight_ng_ops = {
 	.update_status = sony_nc_update_status_ng,
 	.get_brightness = sony_nc_get_brightness_ng,
 };
-static int backlight_ng_handle;
-static struct backlight_device *sony_backlight_device;
 
 /*
  * New SNC-only Vaios event mapping to driver known keys
@@ -1168,6 +1189,9 @@ static int sony_nc_resume(struct acpi_device *device)
 	/* re-read rfkill state */
 	sony_nc_rfkill_update();
 
+	/* restore kbd backlight states */
+	sony_nc_kbd_backlight_resume();
+
 	return 0;
 }
 
@@ -1355,6 +1379,7 @@ out_no_enum:
 #define KBDBL_HANDLER	0x137
 #define KBDBL_PRESENT	0xB00
 #define	SET_MODE	0xC00
+#define SET_STATE	0xD00
 #define SET_TIMEOUT	0xE00
 
 struct kbd_backlight {
@@ -1376,6 +1401,10 @@ static ssize_t __sony_nc_kbd_backlight_mode_set(u8 value)
 	if (sony_call_snc_handle(KBDBL_HANDLER,
 				(value << 0x10) | SET_MODE, &result))
 		return -EIO;
+
+	/* Try to turn the light on/off immediately */
+	sony_call_snc_handle(KBDBL_HANDLER, (value << 0x10) | SET_STATE,
+			&result);
 
 	kbdbl_handle->mode = value;
 
@@ -1458,7 +1487,7 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd)
 {
 	int result;
 
-	if (sony_call_snc_handle(0x137, KBDBL_PRESENT, &result))
+	if (sony_call_snc_handle(KBDBL_HANDLER, KBDBL_PRESENT, &result))
 		return 0;
 	if (!(result & 0x02))
 		return 0;
@@ -1501,11 +1530,103 @@ outkzalloc:
 static int sony_nc_kbd_backlight_cleanup(struct platform_device *pd)
 {
 	if (kbdbl_handle) {
+		int result;
+
 		device_remove_file(&pd->dev, &kbdbl_handle->mode_attr);
 		device_remove_file(&pd->dev, &kbdbl_handle->timeout_attr);
+
+		/* restore the default hw behaviour */
+		sony_call_snc_handle(KBDBL_HANDLER, 0x1000 | SET_MODE, &result);
+		sony_call_snc_handle(KBDBL_HANDLER, SET_TIMEOUT, &result);
+
 		kfree(kbdbl_handle);
 	}
 	return 0;
+}
+
+static void sony_nc_kbd_backlight_resume(void)
+{
+	int ignore = 0;
+
+	if (!kbdbl_handle)
+		return;
+
+	if (kbdbl_handle->mode == 0)
+		sony_call_snc_handle(KBDBL_HANDLER, SET_MODE, &ignore);
+
+	if (kbdbl_handle->timeout != 0)
+		sony_call_snc_handle(KBDBL_HANDLER,
+				(kbdbl_handle->timeout << 0x10) | SET_TIMEOUT,
+				&ignore);
+}
+
+static void sony_nc_backlight_ng_read_limits(int handle,
+		struct sony_backlight_props *props)
+{
+	int offset;
+	acpi_status status;
+	u8 brlvl, i;
+	u8 min = 0xff, max = 0x00;
+	struct acpi_object_list params;
+	union acpi_object in_obj;
+	union acpi_object *lvl_enum;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+
+	props->handle = handle;
+	props->offset = 0;
+	props->maxlvl = 0xff;
+
+	offset = sony_find_snc_handle(handle);
+	if (offset < 0)
+		return;
+
+	/* try to read the boundaries from ACPI tables, if we fail the above
+	 * defaults should be reasonable
+	 */
+	params.count = 1;
+	params.pointer = &in_obj;
+	in_obj.type = ACPI_TYPE_INTEGER;
+	in_obj.integer.value = offset;
+	status = acpi_evaluate_object(sony_nc_acpi_handle, "SN06", &params,
+			&buffer);
+	if (ACPI_FAILURE(status))
+		return;
+
+	lvl_enum = (union acpi_object *) buffer.pointer;
+	if (!lvl_enum) {
+		pr_err("No SN06 return object.");
+		return;
+	}
+	if (lvl_enum->type != ACPI_TYPE_BUFFER) {
+		pr_err("Invalid SN06 return object 0x%.2x\n",
+		       lvl_enum->type);
+		goto out_invalid;
+	}
+
+	/* the buffer lists brightness levels available, brightness levels are
+	 * from 0 to 8 in the array, other values are used by ALS control.
+	 */
+	for (i = 0; i < 9 && i < lvl_enum->buffer.length; i++) {
+
+		brlvl = *(lvl_enum->buffer.pointer + i);
+		dprintk("Brightness level: %d\n", brlvl);
+
+		if (!brlvl)
+			break;
+
+		if (brlvl > max)
+			max = brlvl;
+		if (brlvl < min)
+			min = brlvl;
+	}
+	props->offset = min;
+	props->maxlvl = max;
+	dprintk("Brightness levels: min=%d max=%d\n", props->offset,
+			props->maxlvl);
+
+out_invalid:
+	kfree(buffer.pointer);
+	return;
 }
 
 static void sony_nc_backlight_setup(void)
@@ -1516,14 +1637,14 @@ static void sony_nc_backlight_setup(void)
 	struct backlight_properties props;
 
 	if (sony_find_snc_handle(0x12f) != -1) {
-		backlight_ng_handle = 0x12f;
 		ops = &sony_backlight_ng_ops;
-		max_brightness = 0xff;
+		sony_nc_backlight_ng_read_limits(0x12f, &sony_bl_props);
+		max_brightness = sony_bl_props.maxlvl - sony_bl_props.offset;
 
 	} else if (sony_find_snc_handle(0x137) != -1) {
-		backlight_ng_handle = 0x137;
 		ops = &sony_backlight_ng_ops;
-		max_brightness = 0xff;
+		sony_nc_backlight_ng_read_limits(0x137, &sony_bl_props);
+		max_brightness = sony_bl_props.maxlvl - sony_bl_props.offset;
 
 	} else if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, "GBRT",
 						&unused))) {
@@ -1536,22 +1657,22 @@ static void sony_nc_backlight_setup(void)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = max_brightness;
-	sony_backlight_device = backlight_device_register("sony", NULL,
-							  &backlight_ng_handle,
-							  ops, &props);
+	sony_bl_props.dev = backlight_device_register("sony", NULL,
+						      &sony_bl_props,
+						      ops, &props);
 
-	if (IS_ERR(sony_backlight_device)) {
-		pr_warning(DRV_PFX "unable to register backlight device\n");
-		sony_backlight_device = NULL;
+	if (IS_ERR(sony_bl_props.dev)) {
+		pr_warn(DRV_PFX "unable to register backlight device\n");
+		sony_bl_props.dev = NULL;
 	} else
-		sony_backlight_device->props.brightness =
-		    ops->get_brightness(sony_backlight_device);
+		sony_bl_props.dev->props.brightness =
+			ops->get_brightness(sony_bl_props.dev);
 }
 
 static void sony_nc_backlight_cleanup(void)
 {
-	if (sony_backlight_device)
-		backlight_device_unregister(sony_backlight_device);
+	if (sony_bl_props.dev)
+		backlight_device_unregister(sony_bl_props.dev);
 }
 
 static int sony_nc_add(struct acpi_device *device)
@@ -2549,7 +2670,7 @@ static long sonypi_misc_ioctl(struct file *fp, unsigned int cmd,
 	mutex_lock(&spic_dev.lock);
 	switch (cmd) {
 	case SONYPI_IOCGBRT:
-		if (sony_backlight_device == NULL) {
+		if (sony_bl_props.dev == NULL) {
 			ret = -EIO;
 			break;
 		}
@@ -2562,7 +2683,7 @@ static long sonypi_misc_ioctl(struct file *fp, unsigned int cmd,
 				ret = -EFAULT;
 		break;
 	case SONYPI_IOCSBRT:
-		if (sony_backlight_device == NULL) {
+		if (sony_bl_props.dev == NULL) {
 			ret = -EIO;
 			break;
 		}
@@ -2576,8 +2697,8 @@ static long sonypi_misc_ioctl(struct file *fp, unsigned int cmd,
 			break;
 		}
 		/* sync the backlight device status */
-		sony_backlight_device->props.brightness =
-		    sony_backlight_get_brightness(sony_backlight_device);
+		sony_bl_props.dev->props.brightness =
+		    sony_backlight_get_brightness(sony_bl_props.dev);
 		break;
 	case SONYPI_IOCGBAT1CAP:
 		if (ec_read16(SONYPI_BAT1_FULL, &val16)) {

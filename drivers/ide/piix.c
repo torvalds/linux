@@ -8,8 +8,8 @@
  *
  * Documentation:
  *
- *	Publically available from Intel web site. Errata documentation
- * is also publically available. As an aide to anyone hacking on this
+ *	Publicly available from Intel web site. Errata documentation
+ * is also publicly available. As an aide to anyone hacking on this
  * driver the list of errata that are relevant is below.going back to
  * PIIX4. Older device documentation is now a bit tricky to find.
  *

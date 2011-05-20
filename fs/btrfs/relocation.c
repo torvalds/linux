@@ -2346,7 +2346,7 @@ struct btrfs_root *select_one_root(struct btrfs_trans_handle *trans,
 		root = next->root;
 		BUG_ON(!root);
 
-		/* no other choice for non-refernce counted tree */
+		/* no other choice for non-references counted tree */
 		if (!root->ref_cows)
 			return root;
 

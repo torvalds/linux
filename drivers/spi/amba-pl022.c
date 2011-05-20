@@ -661,7 +661,7 @@ static void readwriter(struct pl022 *pl022)
 {
 
 	/*
-	 * The FIFO depth is different inbetween primecell variants.
+	 * The FIFO depth is different between primecell variants.
 	 * I believe filling in too much in the FIFO might cause
 	 * errons in 8bit wide transfers on ARM variants (just 8 words
 	 * FIFO, means only 8x8 = 64 bits in FIFO) at least.
@@ -722,7 +722,7 @@ static void readwriter(struct pl022 *pl022)
 		 * This inner reader takes care of things appearing in the RX
 		 * FIFO as we're transmitting. This will happen a lot since the
 		 * clock starts running when you put things into the TX FIFO,
-		 * and then things are continously clocked into the RX FIFO.
+		 * and then things are continuously clocked into the RX FIFO.
 		 */
 		while ((readw(SSP_SR(pl022->virtbase)) & SSP_SR_MASK_RNE)
 		       && (pl022->rx < pl022->rx_end)) {
@@ -842,7 +842,7 @@ static void dma_callback(void *data)
 
 	unmap_free_dma_scatter(pl022);
 
-	/* Update total bytes transfered */
+	/* Update total bytes transferred */
 	msg->actual_length += pl022->cur_transfer->len;
 	if (pl022->cur_transfer->cs_change)
 		pl022->cur_chip->
@@ -1224,7 +1224,7 @@ static irqreturn_t pl022_interrupt_handler(int irq, void *dev_id)
 				 "number of bytes on a 16bit bus?)\n",
 				 (u32) (pl022->rx - pl022->rx_end));
 		}
-		/* Update total bytes transfered */
+		/* Update total bytes transferred */
 		msg->actual_length += pl022->cur_transfer->len;
 		if (pl022->cur_transfer->cs_change)
 			pl022->cur_chip->
@@ -1415,11 +1415,11 @@ static void do_polling_transfer(struct pl022 *pl022)
 		       SSP_CR1(pl022->virtbase));
 
 		dev_dbg(&pl022->adev->dev, "polling transfer ongoing ...\n");
-		/* FIXME: insert a timeout so we don't hang here indefinately */
+		/* FIXME: insert a timeout so we don't hang here indefinitely */
 		while (pl022->tx < pl022->tx_end || pl022->rx < pl022->rx_end)
 			readwriter(pl022);
 
-		/* Update total byte transfered */
+		/* Update total byte transferred */
 		message->actual_length += pl022->cur_transfer->len;
 		if (pl022->cur_transfer->cs_change)
 			pl022->cur_chip->cs_control(SSP_CHIP_DESELECT);
@@ -1555,7 +1555,7 @@ static int stop_queue(struct pl022 *pl022)
 	 * A wait_queue on the pl022->busy could be used, but then the common
 	 * execution path (pump_messages) would be required to call wake_up or
 	 * friends on every SPI message. Do this instead */
-	while (!list_empty(&pl022->queue) && pl022->busy && limit--) {
+	while ((!list_empty(&pl022->queue) || pl022->busy) && limit--) {
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
 		msleep(10);
 		spin_lock_irqsave(&pl022->queue_lock, flags);
@@ -2129,7 +2129,7 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 			"probe - problem registering spi master\n");
 		goto err_spi_register;
 	}
-	dev_dbg(dev, "probe succeded\n");
+	dev_dbg(dev, "probe succeeded\n");
 	/*
 	 * Disable the silicon block pclk and any voltage domain and just
 	 * power it up and clock it when it's needed
@@ -2184,7 +2184,7 @@ pl022_remove(struct amba_device *adev)
 	spi_unregister_master(pl022->master);
 	spi_master_put(pl022->master);
 	amba_set_drvdata(adev, NULL);
-	dev_dbg(&adev->dev, "remove succeded\n");
+	dev_dbg(&adev->dev, "remove succeeded\n");
 	return 0;
 }
 

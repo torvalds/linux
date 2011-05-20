@@ -232,7 +232,7 @@ powertecscsi_set_proc_info(struct Scsi_Host *host, char *buffer, int length)
  * Params   : buffer  - a buffer to write information to
  *	      start   - a pointer into this buffer set by this routine to the start
  *		        of the required information.
- *	      offset  - offset into information that we have read upto.
+ *	      offset  - offset into information that we have read up to.
  *	      length  - length of buffer
  *	      inout   - 0 for reading, 1 for writing.
  * Returns  : length of data written to buffer.

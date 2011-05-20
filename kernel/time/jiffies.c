@@ -34,7 +34,7 @@
  * inaccuracies caused by missed or lost timer
  * interrupts and the inability for the timer
  * interrupt hardware to accuratly tick at the
- * requested HZ value. It is also not reccomended
+ * requested HZ value. It is also not recommended
  * for "tick-less" systems.
  */
 #define NSEC_PER_JIFFY	((u32)((((u64)NSEC_PER_SEC)<<8)/ACTHZ))

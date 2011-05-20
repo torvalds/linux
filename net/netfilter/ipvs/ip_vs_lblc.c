@@ -131,7 +131,7 @@ static inline void ip_vs_lblc_free(struct ip_vs_lblc_entry *en)
 {
 	list_del(&en->list);
 	/*
-	 * We don't kfree dest because it is refered either by its service
+	 * We don't kfree dest because it is referred either by its service
 	 * or the trash dest list.
 	 */
 	atomic_dec(&en->dest->refcnt);

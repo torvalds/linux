@@ -69,7 +69,7 @@ static void build_key_data(void)
 	memset(key_offsets, 0, sizeof(key_offsets));
 	kp = state_tbl + nstates + 1;
 	while (*kp++) {
-		/* count occurrances of each function */
+		/* count occurrences of each function */
 		for (i = 0; i < nstates; i++, kp++) {
 			if (!*kp)
 				continue;

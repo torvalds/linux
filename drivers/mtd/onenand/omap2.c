@@ -608,7 +608,7 @@ static int omap2_onenand_enable(struct mtd_info *mtd)
 
 	ret = regulator_enable(c->regulator);
 	if (ret != 0)
-		dev_err(&c->pdev->dev, "cant enable regulator\n");
+		dev_err(&c->pdev->dev, "can't enable regulator\n");
 
 	return ret;
 }
@@ -620,7 +620,7 @@ static int omap2_onenand_disable(struct mtd_info *mtd)
 
 	ret = regulator_disable(c->regulator);
 	if (ret != 0)
-		dev_err(&c->pdev->dev, "cant disable regulator\n");
+		dev_err(&c->pdev->dev, "can't disable regulator\n");
 
 	return ret;
 }

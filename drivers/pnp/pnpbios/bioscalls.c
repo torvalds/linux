@@ -219,7 +219,7 @@ void pnpbios_print_status(const char *module, u16 status)
 		       module);
 		break;
 	case PNP_HARDWARE_ERROR:
-		printk(KERN_ERR "PnPBIOS: %s: a hardware failure has occured\n",
+		printk(KERN_ERR "PnPBIOS: %s: a hardware failure has occurred\n",
 		       module);
 		break;
 	default:

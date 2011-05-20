@@ -263,7 +263,7 @@ static void __init balloon3_lcd_init(void)
 	}
 
 	balloon3_lcd_screen.pxafb_backlight_power = balloon3_backlight_power;
-	set_pxa_fb_info(&balloon3_lcd_screen);
+	pxa_set_fb_info(NULL, &balloon3_lcd_screen);
 	return;
 
 err2:

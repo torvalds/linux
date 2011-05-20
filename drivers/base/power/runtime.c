@@ -443,7 +443,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
  *
  * Check if the device's run-time PM status allows it to be resumed.  Cancel
  * any scheduled or pending requests.  If another resume has been started
- * earlier, either return imediately or wait for it to finish, depending on the
+ * earlier, either return immediately or wait for it to finish, depending on the
  * RPM_NOWAIT and RPM_ASYNC flags.  Similarly, if there's a suspend running in
  * parallel with this function, either tell the other process to resume after
  * suspending (deferred_resume) or wait for it to finish.  If the RPM_ASYNC

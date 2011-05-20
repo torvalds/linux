@@ -24,7 +24,7 @@
  * context needs to be associated with the osd write during writeback.
  *
  * Similarly, struct ceph_inode_info maintains a set of counters to
- * count dirty pages on the inode.  In the absense of snapshots,
+ * count dirty pages on the inode.  In the absence of snapshots,
  * i_wrbuffer_ref == i_wrbuffer_ref_head == the dirty page count.
  *
  * When a snapshot is taken (that is, when the client receives
@@ -775,6 +775,13 @@ get_more_pages:
 					    ci->i_truncate_seq,
 					    ci->i_truncate_size,
 					    &inode->i_mtime, true, 1, 0);
+
+				if (!req) {
+					rc = -ENOMEM;
+					unlock_page(page);
+					break;
+				}
+
 				max_pages = req->r_num_pages;
 
 				alloc_page_vec(fsc, req);

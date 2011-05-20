@@ -321,7 +321,7 @@ static int lme2510_int_read(struct dvb_usb_adapter *adap)
 	lme_int->lme_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	usb_submit_urb(lme_int->lme_urb, GFP_ATOMIC);
-	info("INT Interupt Service Started");
+	info("INT Interrupt Service Started");
 
 	return 0;
 }
@@ -482,7 +482,7 @@ static int lme2510_msg(struct dvb_usb_device *d,
 			break;
 		}
 
-		deb_info(4, "I2C From Interupt Message out(%02x) in(%02x)",
+		deb_info(4, "I2C From Interrupt Message out(%02x) in(%02x)",
 				wbuf[3], rbuf[1]);
 
 	}
@@ -632,11 +632,11 @@ static int lme2510_int_service(struct dvb_usb_adapter *adap)
 	}
 	d->rc_dev = rc;
 
-	/* Start the Interupt */
+	/* Start the Interrupt */
 	ret = lme2510_int_read(adap);
 	if (ret < 0) {
 		rc_unregister_device(rc);
-		info("INT Unable to start Interupt Service");
+		info("INT Unable to start Interrupt Service");
 		return -ENODEV;
 	}
 
@@ -1003,7 +1003,7 @@ static int dm04_lme2510_tuner(struct dvb_usb_adapter *adap)
 		return -ENODEV;
 	}
 
-	/* Start the Interupt & Remote*/
+	/* Start the Interrupt & Remote*/
 	ret = lme2510_int_service(adap);
 
 	return ret;
@@ -1171,7 +1171,7 @@ void *lme2510_exit_int(struct dvb_usb_device *d)
 		usb_kill_urb(st->lme_urb);
 		usb_free_coherent(d->udev, 5000, st->buffer,
 				  st->lme_urb->transfer_dma);
-		info("Interupt Service Stopped");
+		info("Interrupt Service Stopped");
 		rc_unregister_device(d->rc_dev);
 		info("Remote Stopped");
 	}

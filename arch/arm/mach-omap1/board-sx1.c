@@ -399,7 +399,7 @@ static void __init omap_sx1_init(void)
 	sx1_mmc_init();
 
 	/* turn on USB power */
-	/* sx1_setusbpower(1); cant do it here because i2c is not ready */
+	/* sx1_setusbpower(1); can't do it here because i2c is not ready */
 	gpio_request(1, "A_IRDA_OFF");
 	gpio_request(11, "A_SWITCH");
 	gpio_request(15, "A_USB_ON");

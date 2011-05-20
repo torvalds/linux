@@ -515,7 +515,7 @@ void __init sfi_init_late(void)
 }
 
 /*
- * The reason we put it here becasue we need wait till the /sys/firmware
+ * The reason we put it here because we need wait till the /sys/firmware
  * is setup, then our interface can be registered in /sys/firmware/sfi
  */
 core_initcall(sfi_sysfs_init);

@@ -177,7 +177,7 @@ static int scan_rom(char *path, char *file)
 
 			/*
 			 * It's OK if the ROM is unreadable.  Maybe there
-			 * is no ROM, or some other error ocurred.  The
+			 * is no ROM, or some other error occurred.  The
 			 * important thing is that no MCA happened.
 			 */
 			if (rc > 0)

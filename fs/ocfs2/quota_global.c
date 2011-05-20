@@ -556,7 +556,7 @@ int __ocfs2_sync_dquot(struct dquot *dquot, int freeing)
 	spin_unlock(&dq_data_lock);
 	err = ocfs2_qinfo_lock(info, freeing);
 	if (err < 0) {
-		mlog(ML_ERROR, "Failed to lock quota info, loosing quota write"
+		mlog(ML_ERROR, "Failed to lock quota info, losing quota write"
 			       " (type=%d, id=%u)\n", dquot->dq_type,
 			       (unsigned)dquot->dq_id);
 		goto out;

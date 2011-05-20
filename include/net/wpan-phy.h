@@ -28,7 +28,7 @@ struct wpan_phy {
 	struct mutex pib_lock;
 
 	/*
-	 * This is a PIB acording to 802.15.4-2006.
+	 * This is a PIB according to 802.15.4-2006.
 	 * We do not provide timing-related variables, as they
 	 * aren't used outside of driver
 	 */

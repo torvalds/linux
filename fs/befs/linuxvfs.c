@@ -734,7 +734,7 @@ parse_options(char *options, befs_mount_options * opts)
 
 /* This function has the responsibiltiy of getting the
  * filesystem ready for unmounting. 
- * Basicly, we free everything that we allocated in
+ * Basically, we free everything that we allocated in
  * befs_read_inode
  */
 static void

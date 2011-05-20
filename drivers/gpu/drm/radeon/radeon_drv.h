@@ -271,7 +271,7 @@ typedef struct drm_radeon_private {
 
 	int have_z_offset;
 
-	/* starting from here on, data is preserved accross an open */
+	/* starting from here on, data is preserved across an open */
 	uint32_t flags;		/* see radeon_chip_flags */
 	resource_size_t fb_aper_offset;
 

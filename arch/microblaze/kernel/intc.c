@@ -158,11 +158,11 @@ void __init init_IRQ(void)
 	for (i = 0; i < nr_irq; ++i) {
 		if (intr_type & (0x00000001 << i)) {
 			irq_set_chip_and_handler_name(i, &intc_dev,
-				handle_edge_irq, intc_dev.name);
+				handle_edge_irq, "edge");
 			irq_clear_status_flags(i, IRQ_LEVEL);
 		} else {
 			irq_set_chip_and_handler_name(i, &intc_dev,
-				handle_level_irq, intc_dev.name);
+				handle_level_irq, "level");
 			irq_set_status_flags(i, IRQ_LEVEL);
 		}
 	}

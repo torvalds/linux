@@ -90,7 +90,7 @@ int ENE_MSInit(struct us_data *us)
 
 	result = ENE_SendScsiCmd(us, FDIR_READ, &buf, 0);
 	if (result != USB_STOR_XFER_GOOD) {
-		printk(KERN_ERR "Exection MS Init Code Fail !!\n");
+		printk(KERN_ERR "Execution MS Init Code Fail !!\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -145,7 +145,7 @@ int ENE_SMInit(struct us_data *us)
 	result = ENE_SendScsiCmd(us, FDIR_READ, &buf, 0);
 	if (result != USB_STOR_XFER_GOOD) {
 		printk(KERN_ERR
-		       "Exection SM Init Code Fail !! result = %x\n", result);
+		       "Execution SM Init Code Fail !! result = %x\n", result);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 

@@ -258,6 +258,7 @@ static void nfs4_put_deleg_lease(struct nfs4_file *fp)
 	if (atomic_dec_and_test(&fp->fi_delegees)) {
 		vfs_setlease(fp->fi_deleg_file, F_UNLCK, &fp->fi_lease);
 		fp->fi_lease = NULL;
+		fput(fp->fi_deleg_file);
 		fp->fi_deleg_file = NULL;
 	}
 }
@@ -397,9 +398,12 @@ static void unhash_generic_stateid(struct nfs4_stateid *stp)
 
 static void free_generic_stateid(struct nfs4_stateid *stp)
 {
-	int oflag = nfs4_access_bmap_to_omode(stp);
+	int oflag;
 
-	nfs4_file_put_access(stp->st_file, oflag);
+	if (stp->st_access_bmap) {
+		oflag = nfs4_access_bmap_to_omode(stp);
+		nfs4_file_put_access(stp->st_file, oflag);
+	}
 	put_nfs4_file(stp->st_file);
 	kmem_cache_free(stateid_slab, stp);
 }
@@ -3055,7 +3059,7 @@ check_special_stateids(svc_fh *current_fh, stateid_t *stateid, int flags)
 	if (ONE_STATEID(stateid) && (flags & RD_STATE))
 		return nfs_ok;
 	else if (locks_in_grace()) {
-		/* Answer in remaining cases depends on existance of
+		/* Answer in remaining cases depends on existence of
 		 * conflicting state; so we must wait out the grace period. */
 		return nfserr_grace;
 	} else if (flags & WR_STATE)
@@ -3675,7 +3679,7 @@ find_lockstateowner_str(struct inode *inode, clientid_t *clid,
 /*
  * Alloc a lock owner structure.
  * Called in nfsd4_lock - therefore, OPEN and OPEN_CONFIRM (if needed) has 
- * occured. 
+ * occurred. 
  *
  * strhashval = lock_ownerstr_hashval 
  */

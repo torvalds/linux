@@ -163,7 +163,7 @@ Lsignal_return:
 
 /*
  * This is the generic interrupt handler (for all hardware interrupt
- * sources). Calls upto high level code to do all the work.
+ * sources). Calls up to high level code to do all the work.
  */
 ENTRY(inthandler)
 	SAVE_ALL

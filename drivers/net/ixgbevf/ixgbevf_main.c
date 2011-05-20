@@ -1925,7 +1925,7 @@ static void ixgbevf_acquire_msix_vectors(struct ixgbevf_adapter *adapter,
 }
 
 /*
- * ixgbevf_set_num_queues: Allocate queues for device, feature dependant
+ * ixgbevf_set_num_queues: Allocate queues for device, feature dependent
  * @adapter: board private structure to initialize
  *
  * This is the top level queue allocation routine.  The order here is very

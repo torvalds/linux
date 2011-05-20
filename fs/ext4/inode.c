@@ -2502,6 +2502,7 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 		 * for partial write.
 		 */
 		set_buffer_new(bh);
+		set_buffer_mapped(bh);
 	}
 	return 0;
 }
@@ -2588,7 +2589,7 @@ static void ext4_end_io_buffer_write(struct buffer_head *bh, int uptodate);
  * because we should have holes filled from ext4_page_mkwrite(). We even don't
  * need to file the inode to the transaction's list in ordered mode because if
  * we are writing back data added by write(), the inode is already there and if
- * we are writing back data modified via mmap(), noone guarantees in which
+ * we are writing back data modified via mmap(), no one guarantees in which
  * transaction the data will hit the disk. In case we are journaling data, we
  * cannot start transaction directly because transaction start ranks above page
  * lock so we have to do some magic.
@@ -2690,7 +2691,7 @@ static int ext4_writepage(struct page *page,
 
 /*
  * This is called via ext4_da_writepages() to
- * calulate the total number of credits to reserve to fit
+ * calculate the total number of credits to reserve to fit
  * a single extent allocation into a single transaction,
  * ext4_da_writpeages() will loop calling this before
  * the block allocation.
@@ -3304,7 +3305,7 @@ int ext4_alloc_da_blocks(struct inode *inode)
 	 * the pages by calling redirty_page_for_writepage() but that
 	 * would be ugly in the extreme.  So instead we would need to
 	 * replicate parts of the code in the above functions,
-	 * simplifying them becuase we wouldn't actually intend to
+	 * simplifying them because we wouldn't actually intend to
 	 * write out the pages, but rather only collect contiguous
 	 * logical block extents, call the multi-block allocator, and
 	 * then update the buffer heads with the block allocations.
@@ -3694,7 +3695,7 @@ retry:
  *
  * The unwrritten extents will be converted to written when DIO is completed.
  * For async direct IO, since the IO may still pending when return, we
- * set up an end_io call back function, which will do the convertion
+ * set up an end_io call back function, which will do the conversion
  * when async direct IO completed.
  *
  * If the O_DIRECT write will extend the file then add this inode to the
@@ -3717,7 +3718,7 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
  		 * We could direct write to holes and fallocate.
 		 *
  		 * Allocated blocks to fill the hole are marked as uninitialized
- 		 * to prevent paralel buffered read to expose the stale data
+ 		 * to prevent parallel buffered read to expose the stale data
  		 * before DIO complete the data IO.
 		 *
  		 * As to previously fallocated extents, ext4 get_block
@@ -3778,7 +3779,7 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 			int err;
 			/*
 			 * for non AIO case, since the IO is already
-			 * completed, we could do the convertion right here
+			 * completed, we could do the conversion right here
 			 */
 			err = ext4_convert_unwritten_extents(inode,
 							     offset, ret);
@@ -4025,7 +4026,7 @@ static inline int all_zeroes(__le32 *p, __le32 *q)
  *
  *	When we do truncate() we may have to clean the ends of several
  *	indirect blocks but leave the blocks themselves alive. Block is
- *	partially truncated if some data below the new i_size is refered
+ *	partially truncated if some data below the new i_size is referred
  *	from it (and it is on the path to the first completely truncated
  *	data block, indeed).  We have to free the top of that path along
  *	with everything to the right of the path. Since no allocation
@@ -4169,7 +4170,7 @@ out_err:
  * @first:	array of block numbers
  * @last:	points immediately past the end of array
  *
- * We are freeing all blocks refered from that array (numbers are stored as
+ * We are freeing all blocks referred from that array (numbers are stored as
  * little-endian 32-bit) and updating @inode->i_blocks appropriately.
  *
  * We accumulate contiguous runs of blocks to free.  Conveniently, if these
@@ -4261,7 +4262,7 @@ static void ext4_free_data(handle_t *handle, struct inode *inode,
  *	@last:	pointer immediately past the end of array
  *	@depth:	depth of the branches to free
  *
- *	We are freeing all blocks refered from these branches (numbers are
+ *	We are freeing all blocks referred from these branches (numbers are
  *	stored as little-endian 32-bit) and updating @inode->i_blocks
  *	appropriately.
  */
@@ -4429,8 +4430,8 @@ void ext4_truncate(struct inode *inode)
 	Indirect chain[4];
 	Indirect *partial;
 	__le32 nr = 0;
-	int n;
-	ext4_lblk_t last_block;
+	int n = 0;
+	ext4_lblk_t last_block, max_block;
 	unsigned blocksize = inode->i_sb->s_blocksize;
 
 	trace_ext4_truncate_enter(inode);
@@ -4455,14 +4456,18 @@ void ext4_truncate(struct inode *inode)
 
 	last_block = (inode->i_size + blocksize-1)
 					>> EXT4_BLOCK_SIZE_BITS(inode->i_sb);
+	max_block = (EXT4_SB(inode->i_sb)->s_bitmap_maxbytes + blocksize-1)
+					>> EXT4_BLOCK_SIZE_BITS(inode->i_sb);
 
 	if (inode->i_size & (blocksize - 1))
 		if (ext4_block_truncate_page(handle, mapping, inode->i_size))
 			goto out_stop;
 
-	n = ext4_block_to_path(inode, last_block, offsets, NULL);
-	if (n == 0)
-		goto out_stop;	/* error */
+	if (last_block != max_block) {
+		n = ext4_block_to_path(inode, last_block, offsets, NULL);
+		if (n == 0)
+			goto out_stop;	/* error */
+	}
 
 	/*
 	 * OK.  This truncate is going to happen.  We add the inode to the
@@ -4493,7 +4498,13 @@ void ext4_truncate(struct inode *inode)
 	 */
 	ei->i_disksize = inode->i_size;
 
-	if (n == 1) {		/* direct blocks */
+	if (last_block == max_block) {
+		/*
+		 * It is unnecessary to free any data blocks if last_block is
+		 * equal to the indirect block limit.
+		 */
+		goto out_unlock;
+	} else if (n == 1) {		/* direct blocks */
 		ext4_free_data(handle, inode, NULL, i_data+offsets[0],
 			       i_data + EXT4_NDIR_BLOCKS);
 		goto do_indirects;
@@ -4553,6 +4564,7 @@ do_indirects:
 		;
 	}
 
+out_unlock:
 	up_write(&ei->i_data_sem);
 	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
 	ext4_mark_inode_dirty(handle, inode);
@@ -5398,13 +5410,12 @@ static int ext4_indirect_trans_blocks(struct inode *inode, int nrblocks,
 	/* if nrblocks are contiguous */
 	if (chunk) {
 		/*
-		 * With N contiguous data blocks, it need at most
-		 * N/EXT4_ADDR_PER_BLOCK(inode->i_sb) indirect blocks
-		 * 2 dindirect blocks
-		 * 1 tindirect block
+		 * With N contiguous data blocks, we need at most
+		 * N/EXT4_ADDR_PER_BLOCK(inode->i_sb) + 1 indirect blocks,
+		 * 2 dindirect blocks, and 1 tindirect block
 		 */
-		indirects = nrblocks / EXT4_ADDR_PER_BLOCK(inode->i_sb);
-		return indirects + 3;
+		return DIV_ROUND_UP(nrblocks,
+				    EXT4_ADDR_PER_BLOCK(inode->i_sb)) + 4;
 	}
 	/*
 	 * if nrblocks are not contiguous, worse case, each block touch
@@ -5478,7 +5489,7 @@ static int ext4_meta_trans_blocks(struct inode *inode, int nrblocks, int chunk)
 }
 
 /*
- * Calulate the total number of credits to reserve to fit
+ * Calculate the total number of credits to reserve to fit
  * the modification of a single pages into a single transaction,
  * which may include multiple chunks of block allocations.
  *

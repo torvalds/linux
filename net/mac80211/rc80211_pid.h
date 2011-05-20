@@ -77,7 +77,7 @@ union rc_pid_event_data {
 };
 
 struct rc_pid_event {
-	/* The time when the event occured */
+	/* The time when the event occurred */
 	unsigned long timestamp;
 
 	/* Event ID number */

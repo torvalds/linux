@@ -60,7 +60,7 @@ static void at91_rtc_decodetime(unsigned int timereg, unsigned int calreg,
 	/*
 	 * The Calendar Alarm register does not have a field for
 	 * the year - so these will return an invalid value.  When an
-	 * alarm is set, at91_alarm_year wille store the current year.
+	 * alarm is set, at91_alarm_year will store the current year.
 	 */
 	tm->tm_year  = bcd2bin(date & AT91_RTC_CENT) * 100;	/* century */
 	tm->tm_year += bcd2bin((date & AT91_RTC_YEAR) >> 8);	/* year */

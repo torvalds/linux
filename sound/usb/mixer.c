@@ -1182,7 +1182,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 /*
  * parse a feature unit
  *
- * most of controlls are defined here.
+ * most of controls are defined here.
  */
 static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void *_ftr)
 {

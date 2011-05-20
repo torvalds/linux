@@ -529,7 +529,7 @@ static void coh901318_pause(struct dma_chan *chan)
 	val = readl(virtbase + COH901318_CX_CFG +
 		    COH901318_CX_CFG_SPACING * channel);
 
-	/* Stopping infinit transfer */
+	/* Stopping infinite transfer */
 	if ((val & COH901318_CX_CTRL_TC_ENABLE) == 0 &&
 	    (val & COH901318_CX_CFG_CH_ENABLE))
 		cohc->stopped = 1;

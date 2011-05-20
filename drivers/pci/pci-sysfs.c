@@ -645,7 +645,7 @@ pci_adjust_legacy_attr(struct pci_bus *b, enum pci_mmap_state mmap_type)
  * a per-bus basis.  This routine creates the files and ties them into
  * their associated read, write and mmap files from pci-sysfs.c
  *
- * On error unwind, but don't propogate the error to the caller
+ * On error unwind, but don't propagate the error to the caller
  * as it is ok to set up the PCI bus without these files.
  */
 void pci_create_legacy_files(struct pci_bus *b)

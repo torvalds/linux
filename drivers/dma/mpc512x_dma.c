@@ -328,7 +328,7 @@ static irqreturn_t mpc_dma_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/* proccess completed descriptors */
+/* process completed descriptors */
 static void mpc_dma_process_completed(struct mpc_dma *mdma)
 {
 	dma_cookie_t last_cookie = 0;

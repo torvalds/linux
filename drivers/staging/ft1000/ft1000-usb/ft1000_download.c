@@ -488,7 +488,7 @@ static int check_buffers(u16 *buff_w, u16 *buff_r, int len, int offset)
 // Parameters:  struct ft1000_device  - device structure
 //              u16 **pUsFile - DSP image file pointer in u16
 //              u8  **pUcFile - DSP image file pointer in u8
-//              long   word_length - lenght of the buffer to be written
+//              long   word_length - length of the buffer to be written
 //                                   to DPRAM
 //
 // Returns:     STATUS_SUCCESS - success
@@ -628,7 +628,7 @@ static void usb_dnld_complete (struct urb *urb)
 // Parameters:  struct ft1000_device  - device structure
 //              u16 **pUsFile - DSP image file pointer in u16
 //              u8  **pUcFile - DSP image file pointer in u8
-//              long   word_length - lenght of the buffer to be written
+//              long   word_length - length of the buffer to be written
 //                                   to DPRAM
 //
 // Returns:     STATUS_SUCCESS - success
@@ -817,7 +817,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart,
 						 * Error, beyond boot code range.
 						 */
 						DEBUG
-						    ("FT1000:download:Download error: Requested len=%d exceeds BOOT code boundry.\n",
+						    ("FT1000:download:Download error: Requested len=%d exceeds BOOT code boundary.\n",
 						     (int)word_length);
 						status = STATUS_FAILURE;
 						break;
@@ -950,7 +950,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart,
 						 * Error, beyond boot code range.
 						 */
 						DEBUG
-						    ("FT1000:download:Download error: Requested len=%d exceeds DSP code boundry.\n",
+						    ("FT1000:download:Download error: Requested len=%d exceeds DSP code boundary.\n",
 						     (int)word_length);
 						status = STATUS_FAILURE;
 						break;

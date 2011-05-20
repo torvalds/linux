@@ -40,6 +40,7 @@
 #include <mach/mx3fb.h>
 #include <mach/ulpi.h>
 #include <mach/audmux.h>
+#include <mach/esdhc.h>
 
 #include "devices-imx35.h"
 #include "devices.h"
@@ -217,11 +218,15 @@ static iomux_v3_cfg_t pcm043_pads[] = {
 	MX35_PAD_SD1_DATA1__ESDHC1_DAT1,
 	MX35_PAD_SD1_DATA2__ESDHC1_DAT2,
 	MX35_PAD_SD1_DATA3__ESDHC1_DAT3,
+	MX35_PAD_ATA_DATA10__GPIO2_23, /* WriteProtect */
+	MX35_PAD_ATA_DATA11__GPIO2_24, /* CardDetect */
 };
 
 #define AC97_GPIO_TXFS	IMX_GPIO_NR(2, 31)
 #define AC97_GPIO_TXD	IMX_GPIO_NR(2, 28)
 #define AC97_GPIO_RESET	IMX_GPIO_NR(2, 0)
+#define SD1_GPIO_WP	IMX_GPIO_NR(2, 23)
+#define SD1_GPIO_CD	IMX_GPIO_NR(2, 24)
 
 static void pcm043_ac97_warm_reset(struct snd_ac97 *ac97)
 {
@@ -346,6 +351,11 @@ static int __init pcm043_otg_mode(char *options)
 }
 __setup("otg_mode=", pcm043_otg_mode);
 
+static struct esdhc_platform_data sd1_pdata = {
+	.wp_gpio = SD1_GPIO_WP,
+	.cd_gpio = SD1_GPIO_CD,
+};
+
 /*
  * Board specific initialization.
  */
@@ -395,7 +405,7 @@ static void __init pcm043_init(void)
 		imx35_add_fsl_usb2_udc(&otg_device_pdata);
 
 	imx35_add_flexcan1(NULL);
-	imx35_add_sdhci_esdhc_imx(0, NULL);
+	imx35_add_sdhci_esdhc_imx(0, &sd1_pdata);
 }
 
 static void __init pcm043_timer_init(void)

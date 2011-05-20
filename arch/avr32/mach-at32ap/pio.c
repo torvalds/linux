@@ -257,7 +257,7 @@ static void gpio_irq_mask(struct irq_data *d)
 	pio_writel(pio, IDR, 1 << (gpio & 0x1f));
 }
 
-static void gpio_irq_unmask(struct irq_data *d))
+static void gpio_irq_unmask(struct irq_data *d)
 {
 	unsigned		gpio = irq_to_gpio(d->irq);
 	struct pio_device	*pio = &pio_dev[gpio >> 5];
@@ -282,7 +282,7 @@ static struct irq_chip gpio_irqchip = {
 
 static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct pio_device	*pio = get_irq_desc_chip_data(desc);
+	struct pio_device	*pio = irq_desc_get_chip_data(desc);
 	unsigned		gpio_irq;
 
 	gpio_irq = (unsigned) irq_get_handler_data(irq);

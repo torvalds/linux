@@ -52,7 +52,7 @@ struct iscsi_segment {
 	iscsi_segment_done_fn_t	*done;
 };
 
-/* Socket connection recieve helper */
+/* Socket connection receive helper */
 struct iscsi_tcp_recv {
 	struct iscsi_hdr	*hdr;
 	struct iscsi_segment	segment;

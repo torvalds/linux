@@ -182,7 +182,7 @@ static inline void get_next_buf(struct tm6000_dmaqueue *dma_q,
 	if (!buf)
 		return;
 
-	/* Cleans up buffer - Usefull for testing for frame/URB loss */
+	/* Cleans up buffer - Useful for testing for frame/URB loss */
 	outp = videobuf_to_vmalloc(&(*buf)->vb);
 
 	return;

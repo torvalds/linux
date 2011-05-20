@@ -90,7 +90,7 @@ static int rpckbd_open(struct serio *port)
 
 	if (request_irq(IRQ_KEYBOARDTX, rpckbd_tx, 0, "rpckbd", port) != 0) {
 		printk(KERN_ERR "rpckbd.c: Could not allocate keyboard transmit IRQ\n");
-		free_irq(IRQ_KEYBOARDRX, NULL);
+		free_irq(IRQ_KEYBOARDRX, port);
 		return -EBUSY;
 	}
 

@@ -124,6 +124,9 @@ static inline int verify_replay(struct xfrm_usersa_info *p,
 {
 	struct nlattr *rt = attrs[XFRMA_REPLAY_ESN_VAL];
 
+	if ((p->flags & XFRM_STATE_ESN) && !rt)
+		return -EINVAL;
+
 	if (!rt)
 		return 0;
 
@@ -894,7 +897,7 @@ static int build_spdinfo(struct sk_buff *skb, struct net *net,
 	u32 *f;
 
 	nlh = nlmsg_put(skb, pid, seq, XFRM_MSG_NEWSPDINFO, sizeof(u32), 0);
-	if (nlh == NULL) /* shouldnt really happen ... */
+	if (nlh == NULL) /* shouldn't really happen ... */
 		return -EMSGSIZE;
 
 	f = nlmsg_data(nlh);
@@ -954,7 +957,7 @@ static int build_sadinfo(struct sk_buff *skb, struct net *net,
 	u32 *f;
 
 	nlh = nlmsg_put(skb, pid, seq, XFRM_MSG_NEWSADINFO, sizeof(u32), 0);
-	if (nlh == NULL) /* shouldnt really happen ... */
+	if (nlh == NULL) /* shouldn't really happen ... */
 		return -EMSGSIZE;
 
 	f = nlmsg_data(nlh);
@@ -1361,7 +1364,7 @@ static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!xp)
 		return err;
 
-	/* shouldnt excl be based on nlh flags??
+	/* shouldn't excl be based on nlh flags??
 	 * Aha! this is anti-netlink really i.e  more pfkey derived
 	 * in netlink excl is a flag and you wouldnt need
 	 * a type XFRM_MSG_UPDPOLICY - JHS */

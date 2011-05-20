@@ -90,7 +90,7 @@
     processing hardware.</para>
 
     <figure id="pipeline-scaling">
-      <title>Image Format Negotation on Pipelines</title>
+      <title>Image Format Negotiation on Pipelines</title>
       <mediaobject>
 	<imageobject>
 	  <imagedata fileref="pipeline.pdf" format="PS" />

@@ -169,13 +169,13 @@ static inline void __init show_version (void) {
   Real Time (cdv and max CDT given)
   
   CBR(pcr)             pcr bandwidth always available
-  rtVBR(pcr,scr,mbs)   scr bandwidth always available, upto pcr at mbs too
+  rtVBR(pcr,scr,mbs)   scr bandwidth always available, up to pcr at mbs too
   
   Non Real Time
   
-  nrtVBR(pcr,scr,mbs)  scr bandwidth always available, upto pcr at mbs too
+  nrtVBR(pcr,scr,mbs)  scr bandwidth always available, up to pcr at mbs too
   UBR()
-  ABR(mcr,pcr)         mcr bandwidth always available, upto pcr (depending) too
+  ABR(mcr,pcr)         mcr bandwidth always available, up to pcr (depending) too
   
   mbs is max burst size (bucket)
   pcr and scr have associated cdvt values
@@ -944,7 +944,7 @@ static void hrz_close_rx (hrz_dev * dev, u16 vc) {
 // to be fixed soon, so do not define TAILRECUSRIONWORKS unless you
 // are sure it does as you may otherwise overflow the kernel stack.
 
-// giving this fn a return value would help GCC, alledgedly
+// giving this fn a return value would help GCC, allegedly
 
 static void rx_schedule (hrz_dev * dev, int irq) {
   unsigned int rx_bytes;
@@ -1036,7 +1036,7 @@ static void rx_schedule (hrz_dev * dev, int irq) {
 	  // VC layer stats
 	  atomic_inc(&vcc->stats->rx);
 	  __net_timestamp(skb);
-	  // end of our responsability
+	  // end of our responsibility
 	  vcc->push (vcc, skb);
 	}
       }

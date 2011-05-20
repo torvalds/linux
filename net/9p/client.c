@@ -178,7 +178,7 @@ free_and_return:
  * @tag: numeric id for transaction
  *
  * this is a simple array lookup, but will grow the
- * request_slots as necessary to accomodate transaction
+ * request_slots as necessary to accommodate transaction
  * ids which did not previously have a slot.
  *
  * this code relies on the client spinlock to manage locks, its
@@ -614,7 +614,7 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...)
 
 	err = c->trans_mod->request(c, req);
 	if (err < 0) {
-		if (err != -ERESTARTSYS)
+		if (err != -ERESTARTSYS && err != -EFAULT)
 			c->status = Disconnected;
 		goto reterr;
 	}
@@ -929,15 +929,15 @@ error:
 }
 EXPORT_SYMBOL(p9_client_attach);
 
-struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
-	int clone)
+struct p9_fid *p9_client_walk(struct p9_fid *oldfid, uint16_t nwname,
+		char **wnames, int clone)
 {
 	int err;
 	struct p9_client *clnt;
 	struct p9_fid *fid;
 	struct p9_qid *wqids;
 	struct p9_req_t *req;
-	int16_t nwqids, count;
+	uint16_t nwqids, count;
 
 	err = 0;
 	wqids = NULL;
@@ -955,7 +955,7 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
 		fid = oldfid;
 
 
-	P9_DPRINTK(P9_DEBUG_9P, ">>> TWALK fids %d,%d nwname %d wname[0] %s\n",
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TWALK fids %d,%d nwname %ud wname[0] %s\n",
 		oldfid->fid, fid->fid, nwname, wnames ? wnames[0] : NULL);
 
 	req = p9_client_rpc(clnt, P9_TWALK, "ddT", oldfid->fid, fid->fid,
@@ -1219,27 +1219,6 @@ error:
 	return err;
 }
 EXPORT_SYMBOL(p9_client_fsync);
-
-int p9_client_sync_fs(struct p9_fid *fid)
-{
-	int err = 0;
-	struct p9_req_t *req;
-	struct p9_client *clnt;
-
-	P9_DPRINTK(P9_DEBUG_9P, ">>> TSYNC_FS fid %d\n", fid->fid);
-
-	clnt = fid->clnt;
-	req = p9_client_rpc(clnt, P9_TSYNCFS, "d", fid->fid);
-	if (IS_ERR(req)) {
-		err = PTR_ERR(req);
-		goto error;
-	}
-	P9_DPRINTK(P9_DEBUG_9P, "<<< RSYNCFS fid %d\n", fid->fid);
-	p9_free_req(clnt, req);
-error:
-	return err;
-}
-EXPORT_SYMBOL(p9_client_sync_fs);
 
 int p9_client_clunk(struct p9_fid *fid)
 {

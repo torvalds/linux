@@ -146,7 +146,7 @@ static inline void clear_mfp_bit( unsigned irq, int type )
 
 /*
  * {en,dis}able_irq have the usual semantics of temporary blocking the
- * interrupt, but not loosing requests that happen between disabling and
+ * interrupt, but not losing requests that happen between disabling and
  * enabling. This is done with the MFP mask registers.
  */
 

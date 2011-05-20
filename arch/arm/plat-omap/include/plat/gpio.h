@@ -93,7 +93,7 @@ extern void omap_gpio_restore_context(void);
 /* Wrappers for "new style" GPIO calls, using the new infrastructure
  * which lets us plug in FPGA, I2C, and other implementations.
  * *
- * The original OMAP-specfic calls should eventually be removed.
+ * The original OMAP-specific calls should eventually be removed.
  */
 
 #include <linux/errno.h>

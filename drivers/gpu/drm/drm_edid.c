@@ -1297,7 +1297,7 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 /**
  * Search EDID for CEA extension block.
  */
-static u8 *drm_find_cea_extension(struct edid *edid)
+u8 *drm_find_cea_extension(struct edid *edid)
 {
 	u8 *edid_ext = NULL;
 	int i;
@@ -1318,6 +1318,7 @@ static u8 *drm_find_cea_extension(struct edid *edid)
 
 	return edid_ext;
 }
+EXPORT_SYMBOL(drm_find_cea_extension);
 
 /**
  * drm_detect_hdmi_monitor - detect whether monitor is hdmi.

@@ -180,7 +180,7 @@ while 1:
                 for s in stat:
 		    s = s.strip()
                     if s.startswith(testop[0]):
-                        # Seperate status value
+                        # Separate status value
                         val = s[2:].strip()
                         query = analyse(val, testop, dat)
                         break

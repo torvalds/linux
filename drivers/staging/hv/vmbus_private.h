@@ -31,6 +31,7 @@
 #include "channel_mgmt.h"
 #include "ring_buffer.h"
 #include <linux/list.h>
+#include <asm/sync_bitops.h>
 
 
 /*

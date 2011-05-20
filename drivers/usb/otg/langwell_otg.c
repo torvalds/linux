@@ -580,7 +580,7 @@ static void langwell_otg_add_ktimer(enum langwell_otg_timer_type timers)
 		time = TB_BUS_SUSPEND;
 		break;
 	default:
-		dev_dbg(lnw->dev, "unkown timer, cannot enable it\n");
+		dev_dbg(lnw->dev, "unknown timer, cannot enable it\n");
 		return;
 	}
 
@@ -1381,7 +1381,7 @@ static void langwell_otg_work(struct work_struct *work)
 			} else if (!iotg->hsm.a_bus_req && iotg->otg.host &&
 					iotg->otg.host->b_hnp_enable) {
 				/* It is not safe enough to do a fast
-				 * transistion from A_WAIT_BCON to
+				 * transition from A_WAIT_BCON to
 				 * A_SUSPEND */
 				msleep(10000);
 				if (iotg->hsm.a_bus_req)

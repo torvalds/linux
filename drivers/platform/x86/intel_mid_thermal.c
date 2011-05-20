@@ -202,7 +202,7 @@ static int mid_read_temp(struct thermal_zone_device *tzd, unsigned long *temp)
        if (ret)
                return ret;
 
-       /* Shift bits to accomodate the lower two data bits */
+       /* Shift bits to accommodate the lower two data bits */
        adc_val = (data << 2);
        addr++;
 

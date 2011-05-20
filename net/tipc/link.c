@@ -2471,7 +2471,7 @@ exit:
  * A pending message being re-assembled must store certain values
  * to handle subsequent fragments correctly. The following functions
  * help storing these values in unused, available fields in the
- * pending message. This makes dynamic memory allocation unecessary.
+ * pending message. This makes dynamic memory allocation unnecessary.
  */
 
 static void set_long_msg_seqno(struct sk_buff *buf, u32 seqno)

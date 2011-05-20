@@ -573,7 +573,7 @@ static bool psb_sdvo_set_current_inoutmap(struct psb_intel_output *output,
 	/* Make all fields of the  args/ret to zero */
 	memset(byArgs, 0, sizeof(byArgs));
 
-	/* Fill up the arguement values; */
+	/* Fill up the argument values; */
 	byArgs[0] = (u8) (in0outputmask & 0xFF);
 	byArgs[1] = (u8) ((in0outputmask >> 8) & 0xFF);
 	byArgs[2] = (u8) (in1outputmask & 0xFF);

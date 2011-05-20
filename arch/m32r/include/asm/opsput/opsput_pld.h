@@ -4,7 +4,7 @@
 /*
  * include/asm-m32r/opsput/opsput_pld.h
  *
- * Definitions for Programable Logic Device(PLD) on OPSPUT board.
+ * Definitions for Programmable Logic Device(PLD) on OPSPUT board.
  *
  * Copyright (c) 2002	Takeo Takahashi
  *

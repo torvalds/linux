@@ -111,7 +111,7 @@ static int new_steering_entry(struct mlx4_dev *dev, u8 vep_num, u8 port,
 	u32 members_count;
 	struct mlx4_steer_index *new_entry;
 	struct mlx4_promisc_qp *pqp;
-	struct mlx4_promisc_qp *dqp;
+	struct mlx4_promisc_qp *dqp = NULL;
 	u32 prot;
 	int err;
 	u8 pf_num;
@@ -184,7 +184,7 @@ out_mailbox:
 out_alloc:
 	if (dqp) {
 		list_del(&dqp->list);
-		kfree(&dqp);
+		kfree(dqp);
 	}
 	list_del(&new_entry->list);
 	kfree(new_entry);
@@ -222,7 +222,7 @@ static int existing_steering_entry(struct mlx4_dev *dev, u8 vep_num, u8 port,
 
 	/* the given qpn is listed as a promisc qpn
 	 * we need to add it as a duplicate to this entry
-	 * for future refernce */
+	 * for future references */
 	list_for_each_entry(dqp, &entry->duplicates, list) {
 		if (qpn == dqp->qpn)
 			return 0; /* qp is already duplicated */
@@ -469,7 +469,6 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 vep_num, u8 port,
 
 	/*remove from list of promisc qps */
 	list_del(&pqp->list);
-	kfree(pqp);
 
 	/* set the default entry not to include the removed one */
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
@@ -528,6 +527,8 @@ out_mailbox:
 out_list:
 	if (back_to_list)
 		list_add_tail(&pqp->list, &s_steer->promisc_qps[steer]);
+	else
+		kfree(pqp);
 out_mutex:
 	mutex_unlock(&priv->mcg_table.mutex);
 	return err;

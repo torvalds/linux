@@ -592,7 +592,7 @@ static void __init mainstone_init(void)
 	else
 		mainstone_pxafb_info.modes = &toshiba_ltm035a776c_mode;
 
-	set_pxa_fb_info(&mainstone_pxafb_info);
+	pxa_set_fb_info(NULL, &mainstone_pxafb_info);
 	mainstone_backlight_register();
 
 	pxa_set_mci_info(&mainstone_mci_platform_data);

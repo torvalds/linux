@@ -151,7 +151,7 @@ struct abituguru3_data {
 	/* Pointer to the sensors info for the detected motherboard */
 	const struct abituguru3_sensor_info *sensors;
 
-	/* The abituguru3 supports upto 48 sensors, and thus has registers
+	/* The abituguru3 supports up to 48 sensors, and thus has registers
 	   sets for 48 sensors, for convienence reasons / simplicity of the
 	   code we always read and store all registers for all 48 sensors */
 

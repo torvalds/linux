@@ -480,7 +480,7 @@ static void __init lpd270_init(void)
 	pxa_set_ac97_info(NULL);
 
 	if (lpd270_lcd_to_use != NULL)
-		set_pxa_fb_info(lpd270_lcd_to_use);
+		pxa_set_fb_info(NULL, lpd270_lcd_to_use);
 
 	pxa_set_ohci_info(&lpd270_ohci_platform_data);
 }

@@ -101,7 +101,7 @@ xlog_get_bp(
 	/*
 	 * We do log I/O in units of log sectors (a power-of-2
 	 * multiple of the basic block size), so we round up the
-	 * requested size to acommodate the basic blocks required
+	 * requested size to accommodate the basic blocks required
 	 * for complete log sectors.
 	 *
 	 * In addition, the buffer may be used for a non-sector-
@@ -112,7 +112,7 @@ xlog_get_bp(
 	 * an issue.  Nor will this be a problem if the log I/O is
 	 * done in basic blocks (sector size 1).  But otherwise we
 	 * extend the buffer by one extra log sector to ensure
-	 * there's space to accomodate this possiblility.
+	 * there's space to accommodate this possibility.
 	 */
 	if (nbblks > 1 && log->l_sectBBsize > 1)
 		nbblks += log->l_sectBBsize;

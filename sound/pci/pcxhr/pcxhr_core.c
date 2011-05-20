@@ -1042,11 +1042,11 @@ void pcxhr_msg_tasklet(unsigned long arg)
 	int i, j;
 
 	if (mgr->src_it_dsp & PCXHR_IRQ_FREQ_CHANGE)
-		snd_printdd("TASKLET : PCXHR_IRQ_FREQ_CHANGE event occured\n");
+		snd_printdd("TASKLET : PCXHR_IRQ_FREQ_CHANGE event occurred\n");
 	if (mgr->src_it_dsp & PCXHR_IRQ_TIME_CODE)
-		snd_printdd("TASKLET : PCXHR_IRQ_TIME_CODE event occured\n");
+		snd_printdd("TASKLET : PCXHR_IRQ_TIME_CODE event occurred\n");
 	if (mgr->src_it_dsp & PCXHR_IRQ_NOTIFY)
-		snd_printdd("TASKLET : PCXHR_IRQ_NOTIFY event occured\n");
+		snd_printdd("TASKLET : PCXHR_IRQ_NOTIFY event occurred\n");
 	if (mgr->src_it_dsp & (PCXHR_IRQ_FREQ_CHANGE | PCXHR_IRQ_TIME_CODE)) {
 		/* clear events FREQ_CHANGE and TIME_CODE */
 		pcxhr_init_rmh(prmh, CMD_TEST_IT);
@@ -1055,7 +1055,7 @@ void pcxhr_msg_tasklet(unsigned long arg)
 			    err, prmh->stat[0]);
 	}
 	if (mgr->src_it_dsp & PCXHR_IRQ_ASYNC) {
-		snd_printdd("TASKLET : PCXHR_IRQ_ASYNC event occured\n");
+		snd_printdd("TASKLET : PCXHR_IRQ_ASYNC event occurred\n");
 
 		pcxhr_init_rmh(prmh, CMD_ASYNC);
 		prmh->cmd[0] |= 1;	/* add SEL_ASYNC_EVENTS */
@@ -1233,7 +1233,7 @@ irqreturn_t pcxhr_interrupt(int irq, void *dev_id)
 	reg = PCXHR_INPL(mgr, PCXHR_PLX_L2PCIDB);
 	PCXHR_OUTPL(mgr, PCXHR_PLX_L2PCIDB, reg);
 
-	/* timer irq occured */
+	/* timer irq occurred */
 	if (reg & PCXHR_IRQ_TIMER) {
 		int timer_toggle = reg & PCXHR_IRQ_TIMER;
 		/* is a 24 bit counter */
@@ -1288,7 +1288,7 @@ irqreturn_t pcxhr_interrupt(int irq, void *dev_id)
 	if (reg & PCXHR_IRQ_MASK) {
 		if (reg & PCXHR_IRQ_ASYNC) {
 			/* as we didn't request any async notifications,
-			 * some kind of xrun error will probably occured
+			 * some kind of xrun error will probably occurred
 			 */
 			/* better resynchronize all streams next interrupt : */
 			mgr->dsp_time_last = PCXHR_DSP_TIME_INVALID;

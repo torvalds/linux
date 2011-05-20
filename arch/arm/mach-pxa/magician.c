@@ -599,7 +599,7 @@ static struct regulator_consumer_supply bq24022_consumers[] = {
 static struct regulator_init_data bq24022_init_data = {
 	.constraints = {
 		.max_uA         = 500000,
-		.valid_ops_mask = REGULATOR_CHANGE_CURRENT,
+		.valid_ops_mask = REGULATOR_CHANGE_CURRENT | REGULATOR_CHANGE_STATUS,
 	},
 	.num_consumer_supplies  = ARRAY_SIZE(bq24022_consumers),
 	.consumer_supplies      = bq24022_consumers,
@@ -757,7 +757,7 @@ static void __init magician_init(void)
 		gpio_direction_output(GPIO104_MAGICIAN_LCD_POWER_1, 0);
 		gpio_direction_output(GPIO105_MAGICIAN_LCD_POWER_2, 0);
 		gpio_direction_output(GPIO106_MAGICIAN_LCD_POWER_3, 0);
-		set_pxa_fb_info(lcd_select ? &samsung_info : &toppoly_info);
+		pxa_set_fb_info(NULL, lcd_select ? &samsung_info : &toppoly_info);
 	} else
 		pr_err("LCD detection: CPLD mapping failed\n");
 }

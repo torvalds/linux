@@ -932,7 +932,7 @@ static void __init viper_init(void)
 	/* Wake-up serial console */
 	viper_init_serial_gpio();
 
-	set_pxa_fb_info(&fb_info);
+	pxa_set_fb_info(NULL, &fb_info);
 
 	/* v1 hardware cannot use the datacs line */
 	version = viper_hw_version();

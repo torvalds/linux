@@ -259,7 +259,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 		}
 	}
 
-	/* try to sample up to half of the availble rates during each interval */
+	/* try to sample up to half of the available rates during each interval */
 	mi->sample_count *= 4;
 
 	cur_prob = 0;
@@ -659,18 +659,14 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	struct ieee80211_mcs_info *mcs = &sta->ht_cap.mcs;
 	struct ieee80211_local *local = hw_to_local(mp->hw);
 	u16 sta_cap = sta->ht_cap.cap;
+	int n_supported = 0;
 	int ack_dur;
 	int stbc;
 	int i;
 
 	/* fall back to the old minstrel for legacy stations */
-	if (!sta->ht_cap.ht_supported) {
-		msp->is_ht = false;
-		memset(&msp->legacy, 0, sizeof(msp->legacy));
-		msp->legacy.r = msp->ratelist;
-		msp->legacy.sample_table = msp->sample_table;
-		return mac80211_minstrel.rate_init(priv, sband, sta, &msp->legacy);
-	}
+	if (!sta->ht_cap.ht_supported)
+		goto use_legacy;
 
 	BUILD_BUG_ON(ARRAY_SIZE(minstrel_mcs_groups) !=
 		MINSTREL_MAX_STREAMS * MINSTREL_STREAM_GROUPS);
@@ -725,7 +721,22 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 
 		mi->groups[i].supported =
 			mcs->rx_mask[minstrel_mcs_groups[i].streams - 1];
+
+		if (mi->groups[i].supported)
+			n_supported++;
 	}
+
+	if (!n_supported)
+		goto use_legacy;
+
+	return;
+
+use_legacy:
+	msp->is_ht = false;
+	memset(&msp->legacy, 0, sizeof(msp->legacy));
+	msp->legacy.r = msp->ratelist;
+	msp->legacy.sample_table = msp->sample_table;
+	return mac80211_minstrel.rate_init(priv, sband, sta, &msp->legacy);
 }
 
 static void

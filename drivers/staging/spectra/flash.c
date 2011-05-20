@@ -965,7 +965,7 @@ static void process_cmd_fail_abort(int *first_failed_cmd,
 	if (0 == *first_failed_cmd)
 		*first_failed_cmd = PendingCMD[idx].SBDCmdIndex;
 
-	nand_dbg_print(NAND_DBG_DEBUG, "Uncorrectable error has occured "
+	nand_dbg_print(NAND_DBG_DEBUG, "Uncorrectable error has occurred "
 		"while executing %u Command %u accesing Block %u\n",
 		(unsigned int)p_BTableChangesDelta->ftl_cmd_cnt,
 		PendingCMD[idx].CMD,
@@ -1879,7 +1879,7 @@ static int write_back_to_l2_cache(u8 *buf, u64 logical_addr)
 }
 
 /*
- * Seach in the Level2 Cache table to find the cache item.
+ * Search in the Level2 Cache table to find the cache item.
  * If find, read the data from the NAND page of L2 Cache,
  * Otherwise, return FAIL.
  */
@@ -3989,7 +3989,7 @@ int GLOB_FTL_Block_Erase(u64 blk_addr)
 * Inputs:       index to block that was just incremented and is at the max
 * Outputs:      PASS=0 / FAIL=1
 * Description:  If any erase counts at MAX, adjusts erase count of every
-*               block by substracting least worn
+*               block by subtracting least worn
 *               counter from counter value of every entry in wear table
 *&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&*/
 static int FTL_Adjust_Relative_Erase_Count(u32 Index_of_MAX)

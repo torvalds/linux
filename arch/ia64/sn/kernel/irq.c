@@ -227,7 +227,7 @@ void sn_set_err_irq_affinity(unsigned int irq)
 {
         /*
          * On systems which support CPU disabling (SHub2), all error interrupts
-         * are targetted at the boot CPU.
+         * are targeted at the boot CPU.
          */
         if (is_shub2() && sn_prom_feature_available(PRF_CPU_DISABLE_SUPPORT))
                 set_irq_affinity_info(irq, cpu_physical_id(0), 0);
@@ -412,7 +412,7 @@ sn_call_force_intr_provider(struct sn_irq_info *sn_irq_info)
 	pci_provider = sn_pci_provider[sn_irq_info->irq_bridge_type];
 
 	/* Don't force an interrupt if the irq has been disabled */
-	if (!irqd_irq_disabled(sn_irq_info->irq_irq) &&
+	if (!irqd_irq_disabled(irq_get_irq_data(sn_irq_info->irq_irq)) &&
 	    pci_provider && pci_provider->force_interrupt)
 		(*pci_provider->force_interrupt)(sn_irq_info);
 }
@@ -435,7 +435,7 @@ static void sn_check_intr(int irq, struct sn_irq_info *sn_irq_info)
 	/*
 	 * Bridge types attached to TIO (anything but PIC) do not need this WAR
 	 * since they do not target Shub II interrupt registers.  If that
-	 * ever changes, this check needs to accomodate.
+	 * ever changes, this check needs to accommodate.
 	 */
 	if (sn_irq_info->irq_bridge_type != PCIIO_ASIC_TYPE_PIC)
 		return;

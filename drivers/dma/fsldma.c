@@ -1448,7 +1448,7 @@ static const struct of_device_id fsldma_of_ids[] = {
 	{}
 };
 
-static struct of_platform_driver fsldma_of_driver = {
+static struct platform_driver fsldma_of_driver = {
 	.driver = {
 		.name = "fsl-elo-dma",
 		.owner = THIS_MODULE,

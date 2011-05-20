@@ -130,7 +130,7 @@ struct ttm_fence_unref_arg {
 };
 
 /*
- * Ioctl offsets frome extenstion start.
+ * Ioctl offsets from extenstion start.
  */
 
 #define TTM_FENCE_SIGNALED 0x01

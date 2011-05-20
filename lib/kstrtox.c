@@ -49,12 +49,9 @@ static int _kstrtoull(const char *s, unsigned int base, unsigned long long *res)
 			val = *s - '0';
 		else if ('a' <= _tolower(*s) && _tolower(*s) <= 'f')
 			val = _tolower(*s) - 'a' + 10;
-		else if (*s == '\n') {
-			if (*(s + 1) == '\0')
-				break;
-			else
-				return -EINVAL;
-		} else
+		else if (*s == '\n' && *(s + 1) == '\0')
+			break;
+		else
 			return -EINVAL;
 
 		if (val >= base)

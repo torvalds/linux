@@ -95,4 +95,3 @@ There are a number of cases where a trigger might only be mappable to a
 particular LED (ACPI?). The addition of triggers provided by the LED driver
 should cover this option and be possible to add without breaking the
 current interface.
-

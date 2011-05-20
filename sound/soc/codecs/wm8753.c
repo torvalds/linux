@@ -1312,7 +1312,7 @@ static int wm8753_set_bias_level(struct snd_soc_codec *codec,
 	SNDRV_PCM_FMTBIT_S24_LE)
 
 /*
- * The WM8753 supports upto 4 different and mutually exclusive DAI
+ * The WM8753 supports up to 4 different and mutually exclusive DAI
  * configurations. This gives 2 PCM's available for use, hifi and voice.
  * NOTE: The Voice PCM cannot play or capture audio to the CPU as it's DAI
  * is connected between the wm8753 and a BT codec or GSM modem.

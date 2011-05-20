@@ -1259,7 +1259,7 @@ struct aac_dev
 #define CACHE_UNSTABLE		2
 
 /*
- *	Lets the client know at which level the data was commited on
+ *	Lets the client know at which level the data was committed on
  *	a write request
  */
 

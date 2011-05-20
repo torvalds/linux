@@ -201,8 +201,8 @@ static int asus_wmi_input_init(struct asus_wmi *asus)
 	if (!asus->inputdev)
 		return -ENOMEM;
 
-	asus->inputdev->name = asus->driver->input_phys;
-	asus->inputdev->phys = asus->driver->input_name;
+	asus->inputdev->name = asus->driver->input_name;
+	asus->inputdev->phys = asus->driver->input_phys;
 	asus->inputdev->id.bustype = BUS_HOST;
 	asus->inputdev->dev.parent = &asus->platform_device->dev;
 

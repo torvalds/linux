@@ -51,7 +51,7 @@
  */
 #define LEVEL(event) (((event) - HW_EVENT_IRQ_BASE) / 32)
 
-/* Return the hardware event's bit positon within the EMR/ESR */
+/* Return the hardware event's bit position within the EMR/ESR */
 #define EVENT_BIT(event) (((event) - HW_EVENT_IRQ_BASE) & 31)
 
 /*

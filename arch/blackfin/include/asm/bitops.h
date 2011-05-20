@@ -25,7 +25,6 @@
 #include <asm-generic/bitops/const_hweight.h>
 #include <asm-generic/bitops/lock.h>
 
-#include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic.h>
 
 #ifndef CONFIG_SMP
@@ -112,6 +111,9 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 #undef test_bit
 
 #endif /* CONFIG_SMP */
+
+/* Needs to be after test_bit and friends */
+#include <asm-generic/bitops/le.h>
 
 /*
  * hweightN: returns the hamming weight (i.e. the number

@@ -565,7 +565,7 @@ static void o2net_set_nn_state(struct o2net_node *nn,
 	 * the work queue actually being up. */
 	if (!valid && o2net_wq) {
 		unsigned long delay;
-		/* delay if we're withing a RECONNECT_DELAY of the
+		/* delay if we're within a RECONNECT_DELAY of the
 		 * last attempt */
 		delay = (nn->nn_last_connect_attempt +
 			 msecs_to_jiffies(o2net_reconnect_delay()))

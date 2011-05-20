@@ -344,6 +344,12 @@ static int do_sync_erase(struct ubi_device *ubi, int pnum)
 	wait_queue_head_t wq;
 
 	dbg_io("erase PEB %d", pnum);
+	ubi_assert(pnum >= 0 && pnum < ubi->peb_count);
+
+	if (ubi->ro_mode) {
+		ubi_err("read-only mode");
+		return -EROFS;
+	}
 
 retry:
 	init_waitqueue_head(&wq);
@@ -390,7 +396,7 @@ retry:
 	if (err)
 		return err;
 
-	if (ubi_dbg_is_erase_failure() && !err) {
+	if (ubi_dbg_is_erase_failure()) {
 		dbg_err("cannot erase PEB %d (emulated)", pnum);
 		return -EIO;
 	}

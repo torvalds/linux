@@ -687,7 +687,7 @@ static void videobuf_done(struct omap1_cam_dev *pcdev,
 		 * In CONTIG mode, the current buffer parameters had already
 		 * been entered into the DMA programming register set while the
 		 * buffer was fetched with prepare_next_vb(), they may have also
-		 * been transfered into the runtime set and already active if
+		 * been transferred into the runtime set and already active if
 		 * the DMA still running.
 		 */
 	} else {
@@ -835,7 +835,7 @@ static irqreturn_t cam_isr(int irq, void *data)
 				/*
 				 * If exactly 2 sgbufs from the next sglist have
 				 * been programmed into the DMA engine (the
-				 * frist one already transfered into the DMA
+				 * first one already transferred into the DMA
 				 * runtime register set, the second one still
 				 * in the programming set), then we are in sync.
 				 */

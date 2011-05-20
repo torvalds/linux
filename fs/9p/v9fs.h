@@ -116,7 +116,6 @@ struct v9fs_session_info {
 	struct list_head slist; /* list of sessions registered with v9fs */
 	struct backing_dev_info bdi;
 	struct rw_semaphore rename_sem;
-	struct p9_fid *root_fid; /* Used for file system sync */
 };
 
 /* cache_validity flags */

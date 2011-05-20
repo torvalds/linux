@@ -241,7 +241,7 @@ struct iwl_eeprom_enhanced_txpwr {
 
 /* 6x00 Specific */
 #define EEPROM_6000_TX_POWER_VERSION    (4)
-#define EEPROM_6000_EEPROM_VERSION	(0x434)
+#define EEPROM_6000_EEPROM_VERSION	(0x423)
 
 /* 6x50 Specific */
 #define EEPROM_6050_TX_POWER_VERSION    (4)

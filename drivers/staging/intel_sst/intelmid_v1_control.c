@@ -28,6 +28,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/pci.h>
+#include <linux/delay.h>
 #include <linux/file.h>
 #include <asm/mrst.h>
 #include <sound/pcm.h>

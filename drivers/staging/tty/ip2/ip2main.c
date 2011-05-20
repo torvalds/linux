@@ -1824,7 +1824,7 @@ ip2_flush_chars( PTTY tty )
 //		ip2trace (CHANN, ITRC_PUTC, 10, 1, strip );
 
 		//
-		// We may need to restart i2Output if it does not fullfill this request
+		// We may need to restart i2Output if it does not fulfill this request
 		//
 		strip = i2Output( pCh, pCh->Pbuf, pCh->Pbuf_stuff);
 		if ( strip != pCh->Pbuf_stuff ) {

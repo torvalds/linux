@@ -602,7 +602,7 @@ VOID LinkControlResponseMessage(PMINI_ADAPTER Adapter,PUCHAR pucBuffer)
 				Adapter->LinkStatus=LINKUP_DONE;
 				Adapter->bPHSEnabled = *(pucBuffer+3);
                	Adapter->bETHCSEnabled = *(pucBuffer+4) & ETH_CS_MASK;
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "PHS Support Status Recieved In LinkUp Ack : %x \n",Adapter->bPHSEnabled);
+				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "PHS Support Status Received In LinkUp Ack : %x \n",Adapter->bPHSEnabled);
 				if((FALSE == Adapter->bShutStatus)&&
 					(FALSE == Adapter->IdleMode))
 				{
@@ -1153,7 +1153,7 @@ int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
 
 	/*
      * 1. If the LED Settings fails, do not stop and do the Firmware download.
-     * 2. This init would happend only if the cfg file is present, else
+     * 2. This init would happened only if the cfg file is present, else
      *    call from the ioctl context.
      */
 
@@ -1185,7 +1185,7 @@ int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
 		status = PropagateCalParamsFromFlashToMemory(ps_adapter);
 		if(status)
 		{
-			BCM_DEBUG_PRINT(ps_adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL," Propogation of Cal param failed .." );
+			BCM_DEBUG_PRINT(ps_adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL," Propagation of Cal param failed .." );
 			goto OUT;
 		}
 	}

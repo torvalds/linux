@@ -78,6 +78,7 @@ static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.init_tempsel		= __xfrm4_init_tempsel,
 	.init_temprop		= xfrm4_init_temprop,
 	.output			= xfrm4_output,
+	.output_finish		= xfrm4_output_finish,
 	.extract_input		= xfrm4_extract_input,
 	.extract_output		= xfrm4_extract_output,
 	.transport_finish	= xfrm4_transport_finish,

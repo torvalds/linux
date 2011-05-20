@@ -114,6 +114,13 @@ struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup)
 }
 EXPORT_SYMBOL_GPL(cgroup_to_blkio_cgroup);
 
+struct blkio_cgroup *task_blkio_cgroup(struct task_struct *tsk)
+{
+	return container_of(task_subsys_state(tsk, blkio_subsys_id),
+			    struct blkio_cgroup, css);
+}
+EXPORT_SYMBOL_GPL(task_blkio_cgroup);
+
 static inline void
 blkio_update_group_weight(struct blkio_group *blkg, unsigned int weight)
 {
@@ -868,7 +875,7 @@ static void blkio_update_policy_rule(struct blkio_policy_node *oldpn,
 }
 
 /*
- * Some rules/values in blkg have changed. Propogate those to respective
+ * Some rules/values in blkg have changed. Propagate those to respective
  * policies.
  */
 static void blkio_update_blkg_policy(struct blkio_cgroup *blkcg,
@@ -903,7 +910,7 @@ static void blkio_update_blkg_policy(struct blkio_cgroup *blkcg,
 }
 
 /*
- * A policy node rule has been updated. Propogate this update to all the
+ * A policy node rule has been updated. Propagate this update to all the
  * block groups which might be affected by this update.
  */
 static void blkio_update_policy_node_blkg(struct blkio_cgroup *blkcg,

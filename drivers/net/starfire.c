@@ -144,11 +144,7 @@ static int full_duplex[MAX_UNITS] = {0, };
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT	(2 * HZ)
 
-/*
- * This SUCKS.
- * We need a much better method to determine if dma_addr_t is 64-bit.
- */
-#if (defined(__i386__) && defined(CONFIG_HIGHMEM64G)) || defined(__x86_64__) || defined (__ia64__) || defined(__alpha__) || (defined(CONFIG_MIPS) && ((defined(CONFIG_HIGHMEM) && defined(CONFIG_64BIT_PHYS_ADDR)) || defined(CONFIG_64BIT))) || (defined(__powerpc64__) || defined(CONFIG_PHYS_64BIT))
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 /* 64-bit dma_addr_t */
 #define ADDR_64BITS	/* This chip uses 64 bit addresses. */
 #define netdrv_addr_t __le64

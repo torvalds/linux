@@ -253,7 +253,7 @@ int __init omap4_keyboard_init(struct omap4_keypad_platform_data
 			ARRAY_SIZE(omap_keyboard_latency), 0);
 
 	if (IS_ERR(od)) {
-		WARN(1, "Cant build omap_device for %s:%s.\n",
+		WARN(1, "Can't build omap_device for %s:%s.\n",
 						name, oh->name);
 		return PTR_ERR(od);
 	}
@@ -373,7 +373,7 @@ static int omap_mcspi_init(struct omap_hwmod *oh, void *unused)
 	od = omap_device_build(name, spi_num, oh, pdata,
 				sizeof(*pdata),	omap_mcspi_latency,
 				ARRAY_SIZE(omap_mcspi_latency), 0);
-	WARN(IS_ERR(od), "Cant build omap_device for %s:%s\n",
+	WARN(IS_ERR(od), "Can't build omap_device for %s:%s\n",
 				name, oh->name);
 	kfree(pdata);
 	return 0;
@@ -725,7 +725,7 @@ static int __init omap_init_wdt(void)
 	od = omap_device_build(dev_name, id, oh, NULL, 0,
 				omap_wdt_latency,
 				ARRAY_SIZE(omap_wdt_latency), 0);
-	WARN(IS_ERR(od), "Cant build omap_device for %s:%s.\n",
+	WARN(IS_ERR(od), "Can't build omap_device for %s:%s.\n",
 				dev_name, oh->name);
 	return 0;
 }

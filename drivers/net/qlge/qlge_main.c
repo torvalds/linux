@@ -660,7 +660,7 @@ static void ql_disable_interrupts(struct ql_adapter *qdev)
 /* If we're running with multiple MSI-X vectors then we enable on the fly.
  * Otherwise, we may have multiple outstanding workers and don't want to
  * enable until the last one finishes. In this case, the irq_cnt gets
- * incremented everytime we queue a worker and decremented everytime
+ * incremented every time we queue a worker and decremented every time
  * a worker finishes.  Once it hits zero we enable the interrupt.
  */
 u32 ql_enable_completion_interrupt(struct ql_adapter *qdev, u32 intr)
@@ -3299,7 +3299,7 @@ msi:
  * will service it.  An example would be if there are
  * 2 vectors (so 2 RSS rings) and 8 TX completion rings.
  * This would mean that vector 0 would service RSS ring 0
- * and TX competion rings 0,1,2 and 3.  Vector 1 would
+ * and TX completion rings 0,1,2 and 3.  Vector 1 would
  * service RSS ring 1 and TX completion rings 4,5,6 and 7.
  */
 static void ql_set_tx_vect(struct ql_adapter *qdev)
@@ -4152,7 +4152,7 @@ static int ql_change_rx_buffers(struct ql_adapter *qdev)
 	int i, status;
 	u32 lbq_buf_len;
 
-	/* Wait for an oustanding reset to complete. */
+	/* Wait for an outstanding reset to complete. */
 	if (!test_bit(QL_ADAPTER_UP, &qdev->flags)) {
 		int i = 3;
 		while (i-- && !test_bit(QL_ADAPTER_UP, &qdev->flags)) {
@@ -4281,7 +4281,7 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 			if (ql_set_routing_reg
 			    (qdev, RT_IDX_PROMISCUOUS_SLOT, RT_IDX_VALID, 1)) {
 				netif_err(qdev, hw, qdev->ndev,
-					  "Failed to set promiscous mode.\n");
+					  "Failed to set promiscuous mode.\n");
 			} else {
 				set_bit(QL_PROMISCUOUS, &qdev->flags);
 			}
@@ -4291,7 +4291,7 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 			if (ql_set_routing_reg
 			    (qdev, RT_IDX_PROMISCUOUS_SLOT, RT_IDX_VALID, 0)) {
 				netif_err(qdev, hw, qdev->ndev,
-					  "Failed to clear promiscous mode.\n");
+					  "Failed to clear promiscuous mode.\n");
 			} else {
 				clear_bit(QL_PROMISCUOUS, &qdev->flags);
 			}

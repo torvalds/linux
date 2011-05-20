@@ -204,33 +204,33 @@ static int get_irq_server(unsigned int virq, const struct cpumask *cpumask,
 
 static void xics_unmask_irq(struct irq_data *d)
 {
-	unsigned int irq;
+	unsigned int hwirq;
 	int call_status;
 	int server;
 
 	pr_devel("xics: unmask virq %d\n", d->irq);
 
-	irq = (unsigned int)irq_map[d->irq].hwirq;
-	pr_devel(" -> map to hwirq 0x%x\n", irq);
-	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
+	hwirq = (unsigned int)irq_map[d->irq].hwirq;
+	pr_devel(" -> map to hwirq 0x%x\n", hwirq);
+	if (hwirq == XICS_IPI || hwirq == XICS_IRQ_SPURIOUS)
 		return;
 
 	server = get_irq_server(d->irq, d->affinity, 0);
 
-	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, irq, server,
+	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, hwirq, server,
 				DEFAULT_PRIORITY);
 	if (call_status != 0) {
 		printk(KERN_ERR
 			"%s: ibm_set_xive irq %u server %x returned %d\n",
-			__func__, irq, server, call_status);
+			__func__, hwirq, server, call_status);
 		return;
 	}
 
 	/* Now unmask the interrupt (often a no-op) */
-	call_status = rtas_call(ibm_int_on, 1, 1, NULL, irq);
+	call_status = rtas_call(ibm_int_on, 1, 1, NULL, hwirq);
 	if (call_status != 0) {
 		printk(KERN_ERR "%s: ibm_int_on irq=%u returned %d\n",
-			__func__, irq, call_status);
+			__func__, hwirq, call_status);
 		return;
 	}
 }
@@ -250,46 +250,46 @@ static unsigned int xics_startup(struct irq_data *d)
 	return 0;
 }
 
-static void xics_mask_real_irq(struct irq_data *d)
+static void xics_mask_real_irq(unsigned int hwirq)
 {
 	int call_status;
 
-	if (d->irq == XICS_IPI)
+	if (hwirq == XICS_IPI)
 		return;
 
-	call_status = rtas_call(ibm_int_off, 1, 1, NULL, d->irq);
+	call_status = rtas_call(ibm_int_off, 1, 1, NULL, hwirq);
 	if (call_status != 0) {
 		printk(KERN_ERR "%s: ibm_int_off irq=%u returned %d\n",
-			__func__, d->irq, call_status);
+			__func__, hwirq, call_status);
 		return;
 	}
 
 	/* Have to set XIVE to 0xff to be able to remove a slot */
-	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, d->irq,
+	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, hwirq,
 				default_server, 0xff);
 	if (call_status != 0) {
 		printk(KERN_ERR "%s: ibm_set_xive(0xff) irq=%u returned %d\n",
-			__func__, d->irq, call_status);
+			__func__, hwirq, call_status);
 		return;
 	}
 }
 
 static void xics_mask_irq(struct irq_data *d)
 {
-	unsigned int irq;
+	unsigned int hwirq;
 
 	pr_devel("xics: mask virq %d\n", d->irq);
 
-	irq = (unsigned int)irq_map[d->irq].hwirq;
-	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
+	hwirq = (unsigned int)irq_map[d->irq].hwirq;
+	if (hwirq == XICS_IPI || hwirq == XICS_IRQ_SPURIOUS)
 		return;
-	xics_mask_real_irq(d);
+	xics_mask_real_irq(hwirq);
 }
 
 static void xics_mask_unknown_vec(unsigned int vec)
 {
 	printk(KERN_ERR "Interrupt %u (real) is invalid, disabling it.\n", vec);
-	xics_mask_real_irq(irq_get_irq_data(vec));
+	xics_mask_real_irq(vec);
 }
 
 static inline unsigned int xics_xirr_vector(unsigned int xirr)
@@ -373,37 +373,37 @@ static unsigned char pop_cppr(void)
 
 static void xics_eoi_direct(struct irq_data *d)
 {
-	unsigned int irq = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int hwirq = (unsigned int)irq_map[d->irq].hwirq;
 
 	iosync();
-	direct_xirr_info_set((pop_cppr() << 24) | irq);
+	direct_xirr_info_set((pop_cppr() << 24) | hwirq);
 }
 
 static void xics_eoi_lpar(struct irq_data *d)
 {
-	unsigned int irq = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int hwirq = (unsigned int)irq_map[d->irq].hwirq;
 
 	iosync();
-	lpar_xirr_info_set((pop_cppr() << 24) | irq);
+	lpar_xirr_info_set((pop_cppr() << 24) | hwirq);
 }
 
 static int
 xics_set_affinity(struct irq_data *d, const struct cpumask *cpumask, bool force)
 {
-	unsigned int irq;
+	unsigned int hwirq;
 	int status;
 	int xics_status[2];
 	int irq_server;
 
-	irq = (unsigned int)irq_map[d->irq].hwirq;
-	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
+	hwirq = (unsigned int)irq_map[d->irq].hwirq;
+	if (hwirq == XICS_IPI || hwirq == XICS_IRQ_SPURIOUS)
 		return -1;
 
-	status = rtas_call(ibm_get_xive, 1, 3, xics_status, irq);
+	status = rtas_call(ibm_get_xive, 1, 3, xics_status, hwirq);
 
 	if (status) {
 		printk(KERN_ERR "%s: ibm,get-xive irq=%u returns %d\n",
-			__func__, irq, status);
+			__func__, hwirq, status);
 		return -1;
 	}
 
@@ -418,11 +418,11 @@ xics_set_affinity(struct irq_data *d, const struct cpumask *cpumask, bool force)
 	}
 
 	status = rtas_call(ibm_set_xive, 3, 1, NULL,
-				irq, irq_server, xics_status[1]);
+				hwirq, irq_server, xics_status[1]);
 
 	if (status) {
 		printk(KERN_ERR "%s: ibm,set-xive irq=%u returns %d\n",
-			__func__, irq, status);
+			__func__, hwirq, status);
 		return -1;
 	}
 
@@ -874,7 +874,7 @@ void xics_kexec_teardown_cpu(int secondary)
 void xics_migrate_irqs_away(void)
 {
 	int cpu = smp_processor_id(), hw_cpu = hard_smp_processor_id();
-	unsigned int irq, virq;
+	int virq;
 
 	/* If we used to be the default server, move to the new "boot_cpuid" */
 	if (hw_cpu == default_server)
@@ -892,18 +892,19 @@ void xics_migrate_irqs_away(void)
 	for_each_irq(virq) {
 		struct irq_desc *desc;
 		struct irq_chip *chip;
+		unsigned int hwirq;
 		int xics_status[2];
 		int status;
 		unsigned long flags;
 
-		/* We cant set affinity on ISA interrupts */
+		/* We can't set affinity on ISA interrupts */
 		if (virq < NUM_ISA_INTERRUPTS)
 			continue;
 		if (irq_map[virq].host != xics_host)
 			continue;
-		irq = (unsigned int)irq_map[virq].hwirq;
+		hwirq = (unsigned int)irq_map[virq].hwirq;
 		/* We need to get IPIs still. */
-		if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
+		if (hwirq == XICS_IPI || hwirq == XICS_IRQ_SPURIOUS)
 			continue;
 
 		desc = irq_to_desc(virq);
@@ -918,10 +919,10 @@ void xics_migrate_irqs_away(void)
 
 		raw_spin_lock_irqsave(&desc->lock, flags);
 
-		status = rtas_call(ibm_get_xive, 1, 3, xics_status, irq);
+		status = rtas_call(ibm_get_xive, 1, 3, xics_status, hwirq);
 		if (status) {
 			printk(KERN_ERR "%s: ibm,get-xive irq=%u returns %d\n",
-					__func__, irq, status);
+					__func__, hwirq, status);
 			goto unlock;
 		}
 

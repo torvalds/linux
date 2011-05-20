@@ -2267,6 +2267,19 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags)
 	m->more_to_follow = false;
 	m->pool = NULL;
 
+	/* middle */
+	m->middle = NULL;
+
+	/* data */
+	m->nr_pages = 0;
+	m->page_alignment = 0;
+	m->pages = NULL;
+	m->pagelist = NULL;
+	m->bio = NULL;
+	m->bio_iter = NULL;
+	m->bio_seg = 0;
+	m->trail = NULL;
+
 	/* front */
 	if (front_len) {
 		if (front_len > PAGE_CACHE_SIZE) {
@@ -2285,19 +2298,6 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags)
 		m->front.iov_base = NULL;
 	}
 	m->front.iov_len = front_len;
-
-	/* middle */
-	m->middle = NULL;
-
-	/* data */
-	m->nr_pages = 0;
-	m->page_alignment = 0;
-	m->pages = NULL;
-	m->pagelist = NULL;
-	m->bio = NULL;
-	m->bio_iter = NULL;
-	m->bio_seg = 0;
-	m->trail = NULL;
 
 	dout("ceph_msg_new %p front %d\n", m, front_len);
 	return m;

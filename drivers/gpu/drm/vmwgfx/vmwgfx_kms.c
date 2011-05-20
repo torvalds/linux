@@ -245,7 +245,7 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 		/* TODO handle none page aligned offsets */
 		/* TODO handle partial uploads and pitch != 256 */
 		/* TODO handle more then one copy (size != 64) */
-		DRM_ERROR("lazy programer, cant handle wierd stuff\n");
+		DRM_ERROR("lazy programmer, can't handle weird stuff\n");
 		return;
 	}
 

@@ -265,7 +265,7 @@ int snd_mixart_send_msg(struct mixart_mgr *mgr, struct mixart_msg *request, int 
 	if (! timeout) {
 		/* error - no ack */
 		mutex_unlock(&mgr->msg_mutex);
-		snd_printk(KERN_ERR "error: no reponse on msg %x\n", msg_frame);
+		snd_printk(KERN_ERR "error: no response on msg %x\n", msg_frame);
 		return -EIO;
 	}
 
@@ -278,7 +278,7 @@ int snd_mixart_send_msg(struct mixart_mgr *mgr, struct mixart_msg *request, int 
 	err = get_msg(mgr, &resp, msg_frame);
 
 	if( request->message_id != resp.message_id )
-		snd_printk(KERN_ERR "REPONSE ERROR!\n");
+		snd_printk(KERN_ERR "RESPONSE ERROR!\n");
 
 	mutex_unlock(&mgr->msg_mutex);
 	return err;

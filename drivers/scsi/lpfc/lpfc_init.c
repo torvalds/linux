@@ -4466,7 +4466,7 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_init_api_table_setup - Set up init api fucntion jump table
+ * lpfc_init_api_table_setup - Set up init api function jump table
  * @phba: The hba struct for which this call is being executed.
  * @dev_grp: The HBA PCI-Device group number.
  *
@@ -4850,7 +4850,7 @@ out_free_mem:
  *
  * Return codes
  * 	0 - successful
- * 	-ENOMEM - No availble memory
+ * 	-ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 int
@@ -5730,7 +5730,7 @@ lpfc_destroy_bootstrap_mbox(struct lpfc_hba *phba)
  *
  * Return codes
  * 	0 - successful
- * 	-ENOMEM - No availble memory
+ * 	-ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
@@ -5835,7 +5835,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
  *
  * Return codes
  * 	0 - successful
- * 	-ENOMEM - No availble memory
+ * 	-ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
@@ -5894,7 +5894,7 @@ lpfc_setup_endian_order(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
@@ -6189,7 +6189,7 @@ out_error:
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 static void
@@ -6253,7 +6253,7 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 int
@@ -6498,7 +6498,7 @@ out_error:
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 void
@@ -6543,7 +6543,7 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  **/
 static int
 lpfc_sli4_cq_event_pool_create(struct lpfc_hba *phba)
@@ -6704,7 +6704,7 @@ lpfc_sli4_cq_event_release_all(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      -ENOMEM - No availble memory
+ *      -ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
 int

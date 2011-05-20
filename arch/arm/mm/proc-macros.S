@@ -85,7 +85,7 @@
 
 /*
  * Sanity check the PTE configuration for the code below - which makes
- * certain assumptions about how these bits are layed out.
+ * certain assumptions about how these bits are laid out.
  */
 #ifdef CONFIG_MMU
 #if L_PTE_SHARED != PTE_EXT_SHARED

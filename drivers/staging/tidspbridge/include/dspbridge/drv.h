@@ -154,7 +154,7 @@ struct process_context {
  *  Parameters:
  *      drv_obj:        Location to store created DRV Object handle.
  *  Returns:
- *      0:        Sucess
+ *      0:        Success
  *      -ENOMEM:    Failed in Memory allocation
  *      -EPERM:      General Failure
  *  Requires:
@@ -170,7 +170,7 @@ struct process_context {
  *      There is one Driver Object for the Driver representing
  *      the driver itself. It contains the list of device
  *      Objects and the list of Device Extensions in the system.
- *      Also it can hold other neccessary
+ *      Also it can hold other necessary
  *      information in its storage area.
  */
 extern int drv_create(struct drv_object **drv_obj);
@@ -180,7 +180,7 @@ extern int drv_create(struct drv_object **drv_obj);
  *  Purpose:
  *      destroys the Dev Object list, DrvExt list
  *      and destroy the DRV object
- *      Called upon driver unLoading.or unsuccesful loading of the driver.
+ *      Called upon driver unLoading.or unsuccessful loading of the driver.
  *  Parameters:
  *      driver_obj:     Handle to Driver object .
  *  Returns:

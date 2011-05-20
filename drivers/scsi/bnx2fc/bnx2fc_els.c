@@ -397,7 +397,7 @@ void bnx2fc_process_els_compl(struct bnx2fc_cmd *els_req,
 			     &els_req->req_flags)) {
 		BNX2FC_ELS_DBG("Timer context finished processing this "
 			   "els - 0x%x\n", els_req->xid);
-		/* This IO doesnt receive cleanup completion */
+		/* This IO doesn't receive cleanup completion */
 		kref_put(&els_req->refcount, bnx2fc_cmd_release);
 		return;
 	}

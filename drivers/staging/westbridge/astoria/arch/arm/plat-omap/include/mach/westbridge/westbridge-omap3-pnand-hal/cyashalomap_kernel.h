@@ -20,7 +20,7 @@
 */
 
 /*
- * This file contains the defintion of the hardware abstraction
+ * This file contains the definition of the hardware abstraction
  * layer on OMAP3430 talking to the West Bridge Astoria device
  */
 

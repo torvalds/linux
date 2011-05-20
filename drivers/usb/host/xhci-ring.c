@@ -93,7 +93,7 @@ dma_addr_t xhci_trb_virt_to_dma(struct xhci_segment *seg,
 /* Does this link TRB point to the first segment in a ring,
  * or was the previous TRB the last TRB on the last segment in the ERST?
  */
-static inline bool last_trb_on_last_seg(struct xhci_hcd *xhci, struct xhci_ring *ring,
+static bool last_trb_on_last_seg(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		struct xhci_segment *seg, union xhci_trb *trb)
 {
 	if (ring == xhci->event_ring)
@@ -107,7 +107,7 @@ static inline bool last_trb_on_last_seg(struct xhci_hcd *xhci, struct xhci_ring 
  * segment?  I.e. would the updated event TRB pointer step off the end of the
  * event seg?
  */
-static inline int last_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
+static int last_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		struct xhci_segment *seg, union xhci_trb *trb)
 {
 	if (ring == xhci->event_ring)
@@ -116,7 +116,7 @@ static inline int last_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		return (trb->link.control & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK);
 }
 
-static inline int enqueue_is_link_trb(struct xhci_ring *ring)
+static int enqueue_is_link_trb(struct xhci_ring *ring)
 {
 	struct xhci_link_trb *link = &ring->enqueue->link;
 	return ((link->control & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK));
@@ -592,7 +592,7 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 	ep->ep_state |= SET_DEQ_PENDING;
 }
 
-static inline void xhci_stop_watchdog_timer_in_irq(struct xhci_hcd *xhci,
+static void xhci_stop_watchdog_timer_in_irq(struct xhci_hcd *xhci,
 		struct xhci_virt_ep *ep)
 {
 	ep->ep_state &= ~EP_HALT_PENDING;
@@ -619,6 +619,13 @@ static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
 
 	/* Only giveback urb when this is the last td in urb */
 	if (urb_priv->td_cnt == urb_priv->length) {
+		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
+			xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs--;
+			if (xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs	== 0) {
+				if (xhci->quirks & XHCI_AMD_PLL_FIX)
+					usb_amd_quirk_pll_enable();
+			}
+		}
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
 		xhci_dbg(xhci, "Giveback %s URB %p\n", adjective, urb);
 
@@ -1209,7 +1216,7 @@ static unsigned int find_faked_portnum_from_hw_portnum(struct usb_hcd *hcd,
 		 * Skip ports that don't have known speeds, or have duplicate
 		 * Extended Capabilities port speed entries.
 		 */
-		if (port_speed == 0 || port_speed == -1)
+		if (port_speed == 0 || port_speed == DUPLICATE_ENTRY)
 			continue;
 
 		/*
@@ -1235,6 +1242,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	u8 major_revision;
 	struct xhci_bus_state *bus_state;
 	u32 __iomem **port_array;
+	bool bogus_port_status = false;
 
 	/* Port status change events always have a successful completion code */
 	if (GET_COMP_CODE(event->generic.field[2]) != COMP_SUCCESS) {
@@ -1247,6 +1255,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	max_ports = HCS_MAX_PORTS(xhci->hcs_params1);
 	if ((port_id <= 0) || (port_id > max_ports)) {
 		xhci_warn(xhci, "Invalid port id %d\n", port_id);
+		bogus_port_status = true;
 		goto cleanup;
 	}
 
@@ -1258,12 +1267,14 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		xhci_warn(xhci, "Event for port %u not in "
 				"Extended Capabilities, ignoring.\n",
 				port_id);
+		bogus_port_status = true;
 		goto cleanup;
 	}
-	if (major_revision == (u8) -1) {
+	if (major_revision == DUPLICATE_ENTRY) {
 		xhci_warn(xhci, "Event for port %u duplicated in"
 				"Extended Capabilities, ignoring.\n",
 				port_id);
+		bogus_port_status = true;
 		goto cleanup;
 	}
 
@@ -1334,6 +1345,13 @@ static void handle_port_status(struct xhci_hcd *xhci,
 cleanup:
 	/* Update event ring dequeue pointer before dropping the lock */
 	inc_deq(xhci, xhci->event_ring, true);
+
+	/* Don't make the USB core poll the roothub if we got a bad port status
+	 * change event.  Besides, at that point we can't tell which roothub
+	 * (USB 2.0 or USB 3.0) to kick.
+	 */
+	if (bogus_port_status)
+		return;
 
 	spin_unlock(&xhci->lock);
 	/* Pass this up to the core */
@@ -1554,8 +1572,17 @@ td_cleanup:
 
 		urb_priv->td_cnt++;
 		/* Giveback the urb when all the tds are completed */
-		if (urb_priv->td_cnt == urb_priv->length)
+		if (urb_priv->td_cnt == urb_priv->length) {
 			ret = 1;
+			if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
+				xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs--;
+				if (xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs
+					== 0) {
+					if (xhci->quirks & XHCI_AMD_PLL_FIX)
+						usb_amd_quirk_pll_enable();
+				}
+			}
+		}
 	}
 
 	return ret;
@@ -1675,71 +1702,52 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	struct urb_priv *urb_priv;
 	int idx;
 	int len = 0;
-	int skip_td = 0;
 	union xhci_trb *cur_trb;
 	struct xhci_segment *cur_seg;
+	struct usb_iso_packet_descriptor *frame;
 	u32 trb_comp_code;
+	bool skip_td = false;
 
 	ep_ring = xhci_dma_to_transfer_ring(ep, event->buffer);
 	trb_comp_code = GET_COMP_CODE(event->transfer_len);
 	urb_priv = td->urb->hcpriv;
 	idx = urb_priv->td_cnt;
+	frame = &td->urb->iso_frame_desc[idx];
 
-	if (ep->skip) {
-		/* The transfer is partly done */
-		*status = -EXDEV;
-		td->urb->iso_frame_desc[idx].status = -EXDEV;
-	} else {
-		/* handle completion code */
-		switch (trb_comp_code) {
-		case COMP_SUCCESS:
-			td->urb->iso_frame_desc[idx].status = 0;
-			xhci_dbg(xhci, "Successful isoc transfer!\n");
-			break;
-		case COMP_SHORT_TX:
-			if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
-				td->urb->iso_frame_desc[idx].status =
-					 -EREMOTEIO;
-			else
-				td->urb->iso_frame_desc[idx].status = 0;
-			break;
-		case COMP_BW_OVER:
-			td->urb->iso_frame_desc[idx].status = -ECOMM;
-			skip_td = 1;
-			break;
-		case COMP_BUFF_OVER:
-		case COMP_BABBLE:
-			td->urb->iso_frame_desc[idx].status = -EOVERFLOW;
-			skip_td = 1;
-			break;
-		case COMP_STALL:
-			td->urb->iso_frame_desc[idx].status = -EPROTO;
-			skip_td = 1;
-			break;
-		case COMP_STOP:
-		case COMP_STOP_INVAL:
-			break;
-		default:
-			td->urb->iso_frame_desc[idx].status = -1;
-			break;
-		}
+	/* handle completion code */
+	switch (trb_comp_code) {
+	case COMP_SUCCESS:
+		frame->status = 0;
+		xhci_dbg(xhci, "Successful isoc transfer!\n");
+		break;
+	case COMP_SHORT_TX:
+		frame->status = td->urb->transfer_flags & URB_SHORT_NOT_OK ?
+				-EREMOTEIO : 0;
+		break;
+	case COMP_BW_OVER:
+		frame->status = -ECOMM;
+		skip_td = true;
+		break;
+	case COMP_BUFF_OVER:
+	case COMP_BABBLE:
+		frame->status = -EOVERFLOW;
+		skip_td = true;
+		break;
+	case COMP_STALL:
+		frame->status = -EPROTO;
+		skip_td = true;
+		break;
+	case COMP_STOP:
+	case COMP_STOP_INVAL:
+		break;
+	default:
+		frame->status = -1;
+		break;
 	}
 
-	/* calc actual length */
-	if (ep->skip) {
-		td->urb->iso_frame_desc[idx].actual_length = 0;
-		/* Update ring dequeue pointer */
-		while (ep_ring->dequeue != td->last_trb)
-			inc_deq(xhci, ep_ring, false);
-		inc_deq(xhci, ep_ring, false);
-		return finish_td(xhci, td, event_trb, event, ep, status, true);
-	}
-
-	if (trb_comp_code == COMP_SUCCESS || skip_td == 1) {
-		td->urb->iso_frame_desc[idx].actual_length =
-			td->urb->iso_frame_desc[idx].length;
-		td->urb->actual_length +=
-			td->urb->iso_frame_desc[idx].length;
+	if (trb_comp_code == COMP_SUCCESS || skip_td) {
+		frame->actual_length = frame->length;
+		td->urb->actual_length += frame->length;
 	} else {
 		for (cur_trb = ep_ring->dequeue,
 		     cur_seg = ep_ring->deq_seg; cur_trb != event_trb;
@@ -1755,7 +1763,7 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 			TRB_LEN(event->transfer_len);
 
 		if (trb_comp_code != COMP_STOP_INVAL) {
-			td->urb->iso_frame_desc[idx].actual_length = len;
+			frame->actual_length = len;
 			td->urb->actual_length += len;
 		}
 	}
@@ -1764,6 +1772,35 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		*status = 0;
 
 	return finish_td(xhci, td, event_trb, event, ep, status, false);
+}
+
+static int skip_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
+			struct xhci_transfer_event *event,
+			struct xhci_virt_ep *ep, int *status)
+{
+	struct xhci_ring *ep_ring;
+	struct urb_priv *urb_priv;
+	struct usb_iso_packet_descriptor *frame;
+	int idx;
+
+	ep_ring = xhci_dma_to_transfer_ring(ep, event->buffer);
+	urb_priv = td->urb->hcpriv;
+	idx = urb_priv->td_cnt;
+	frame = &td->urb->iso_frame_desc[idx];
+
+	/* The transfer is partly done */
+	*status = -EXDEV;
+	frame->status = -EXDEV;
+
+	/* calc actual length */
+	frame->actual_length = 0;
+
+	/* Update ring dequeue pointer */
+	while (ep_ring->dequeue != td->last_trb)
+		inc_deq(xhci, ep_ring, false);
+	inc_deq(xhci, ep_ring, false);
+
+	return finish_td(xhci, td, NULL, event, ep, status, true);
 }
 
 /*
@@ -2024,36 +2061,42 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		}
 
 		td = list_entry(ep_ring->td_list.next, struct xhci_td, td_list);
+
 		/* Is this a TRB in the currently executing TD? */
 		event_seg = trb_in_td(ep_ring->deq_seg, ep_ring->dequeue,
 				td->last_trb, event_dma);
-		if (event_seg && ep->skip) {
+		if (!event_seg) {
+			if (!ep->skip ||
+			    !usb_endpoint_xfer_isoc(&td->urb->ep->desc)) {
+				/* HC is busted, give up! */
+				xhci_err(xhci,
+					"ERROR Transfer event TRB DMA ptr not "
+					"part of current TD\n");
+				return -ESHUTDOWN;
+			}
+
+			ret = skip_isoc_td(xhci, td, event, ep, &status);
+			goto cleanup;
+		}
+
+		if (ep->skip) {
 			xhci_dbg(xhci, "Found td. Clear skip flag.\n");
 			ep->skip = false;
 		}
-		if (!event_seg &&
-		   (!ep->skip || !usb_endpoint_xfer_isoc(&td->urb->ep->desc))) {
-			/* HC is busted, give up! */
-			xhci_err(xhci, "ERROR Transfer event TRB DMA ptr not "
-					"part of current TD\n");
-			return -ESHUTDOWN;
-		}
 
-		if (event_seg) {
-			event_trb = &event_seg->trbs[(event_dma -
-					 event_seg->dma) / sizeof(*event_trb)];
-			/*
-			 * No-op TRB should not trigger interrupts.
-			 * If event_trb is a no-op TRB, it means the
-			 * corresponding TD has been cancelled. Just ignore
-			 * the TD.
-			 */
-			if ((event_trb->generic.field[3] & TRB_TYPE_BITMASK)
-					 == TRB_TYPE(TRB_TR_NOOP)) {
-				xhci_dbg(xhci, "event_trb is a no-op TRB. "
-						"Skip it\n");
-				goto cleanup;
-			}
+		event_trb = &event_seg->trbs[(event_dma - event_seg->dma) /
+						sizeof(*event_trb)];
+		/*
+		 * No-op TRB should not trigger interrupts.
+		 * If event_trb is a no-op TRB, it means the
+		 * corresponding TD has been cancelled. Just ignore
+		 * the TD.
+		 */
+		if ((event_trb->generic.field[3] & TRB_TYPE_BITMASK)
+				 == TRB_TYPE(TRB_TR_NOOP)) {
+			xhci_dbg(xhci,
+				 "event_trb is a no-op TRB. Skip it\n");
+			goto cleanup;
 		}
 
 		/* Now update the urb's actual_length and give back to
@@ -3125,6 +3168,12 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			return -EINVAL;
 		}
 	}
+
+	if (xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs == 0) {
+		if (xhci->quirks & XHCI_AMD_PLL_FIX)
+			usb_amd_quirk_pll_disable();
+	}
+	xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs++;
 
 	giveback_first_trb(xhci, slot_id, ep_index, urb->stream_id,
 			start_cycle, start_trb);

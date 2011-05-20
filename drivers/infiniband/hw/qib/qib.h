@@ -653,7 +653,7 @@ struct diag_observer_list_elt;
 
 /* device data struct now contains only "general per-device" info.
  * fields related to a physical IB port are in a qib_pportdata struct,
- * described above) while fields only used by a particualr chip-type are in
+ * described above) while fields only used by a particular chip-type are in
  * a qib_chipdata struct, whose contents are opaque to this file.
  */
 struct qib_devdata {

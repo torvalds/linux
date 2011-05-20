@@ -381,7 +381,7 @@ static const struct v4l2_pix_format ov519_sif_mode[] = {
    larger then necessary, however they need to be this big as the ov511 /
    ov518 always fills the entire isoc frame, using 0 padding bytes when
    it doesn't have any data. So with low framerates the amount of data
-   transfered can become quite large (libv4l will remove all the 0 padding
+   transferred can become quite large (libv4l will remove all the 0 padding
    in userspace). */
 static const struct v4l2_pix_format ov518_vga_mode[] = {
 	{320, 240, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
@@ -4368,7 +4368,7 @@ static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 				gspca_dev->last_packet_type = DISCARD_PACKET;
 				return;
 			}
-			/* Add 11 byte footer to frame, might be usefull */
+			/* Add 11 byte footer to frame, might be useful */
 			gspca_frame_add(gspca_dev, LAST_PACKET, in, 11);
 			return;
 		} else {

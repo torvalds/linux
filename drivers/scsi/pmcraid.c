@@ -213,7 +213,7 @@ static int pmcraid_slave_alloc(struct scsi_device *scsi_dev)
  * pmcraid_slave_configure - Configures a SCSI device
  * @scsi_dev: scsi device struct
  *
- * This fucntion is executed by SCSI mid layer just after a device is first
+ * This function is executed by SCSI mid layer just after a device is first
  * scanned (i.e. it has responded to an INQUIRY). For VSET resources, the
  * timeout value (default 30s) will be over-written to a higher value (60s)
  * and max_sectors value will be over-written to 512. It also sets queue depth
@@ -2122,7 +2122,7 @@ static void pmcraid_fail_outstanding_cmds(struct pmcraid_instance *pinstance)
  *
  * This function executes most of the steps required for IOA reset. This gets
  * called by user threads (modprobe/insmod/rmmod) timer, tasklet and midlayer's
- * 'eh_' thread. Access to variables used for controling the reset sequence is
+ * 'eh_' thread. Access to variables used for controlling the reset sequence is
  * synchronized using host lock. Various functions called during reset process
  * would make use of a single command block, pointer to which is also stored in
  * adapter instance structure.
@@ -2994,7 +2994,7 @@ static int pmcraid_abort_complete(struct pmcraid_cmd *cancel_cmd)
 
 	/* If the abort task is not timed out we will get a Good completion
 	 * as sense_key, otherwise we may get one the following responses
-	 * due to subsquent bus reset or device reset. In case IOASC is
+	 * due to subsequent bus reset or device reset. In case IOASC is
 	 * NR_SYNC_REQUIRED, set sync_reqd flag for the corresponding resource
 	 */
 	if (ioasc == PMCRAID_IOASC_UA_BUS_WAS_RESET ||
@@ -3814,6 +3814,9 @@ static long pmcraid_ioctl_passthrough(
 			rc = -EFAULT;
 			goto out_free_buffer;
 		}
+	} else if (request_size < 0) {
+		rc = -EINVAL;
+		goto out_free_buffer;
 	}
 
 	/* check if we have any additional command parameters */
@@ -3933,7 +3936,7 @@ static long pmcraid_ioctl_passthrough(
 
 			/* if abort task couldn't find the command i.e it got
 			 * completed prior to aborting, return good completion.
-			 * if command got aborted succesfully or there was IOA
+			 * if command got aborted successfully or there was IOA
 			 * reset due to abort task itself getting timedout then
 			 * return -ETIMEDOUT
 			 */
@@ -5932,7 +5935,7 @@ static int __devinit pmcraid_probe(
 	 * However, firmware supports 64-bit streaming DMA buffers, whereas
 	 * coherent buffers are to be 32-bit. Since pci_alloc_consistent always
 	 * returns memory within 4GB (if not, change this logic), coherent
-	 * buffers are within firmware acceptible address ranges.
+	 * buffers are within firmware acceptable address ranges.
 	 */
 	if ((sizeof(dma_addr_t) == 4) ||
 	    pci_set_dma_mask(pdev, DMA_BIT_MASK(64)))

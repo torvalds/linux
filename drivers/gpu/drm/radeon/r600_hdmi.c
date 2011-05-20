@@ -334,7 +334,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	r600_hdmi_videoinfoframe(encoder, RGB, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-	/* it's unknown what these bits do excatly, but it's indeed quite usefull for debugging */
+	/* it's unknown what these bits do excatly, but it's indeed quite useful for debugging */
 	WREG32(offset+R600_HDMI_AUDIO_DEBUG_0, 0x00FFFFFF);
 	WREG32(offset+R600_HDMI_AUDIO_DEBUG_1, 0x007FFFFF);
 	WREG32(offset+R600_HDMI_AUDIO_DEBUG_2, 0x00000001);

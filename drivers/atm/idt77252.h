@@ -766,7 +766,7 @@ struct idt77252_dev
 #define SAR_RCTE_BUFFSTAT_MASK 0x00003000  /* buffer status                  */
 #define SAR_RCTE_EFCI          0x00000800  /* EFCI Congestion flag           */
 #define SAR_RCTE_CLP           0x00000400  /* Cell Loss Priority flag        */
-#define SAR_RCTE_CRC           0x00000200  /* Recieved CRC Error             */
+#define SAR_RCTE_CRC           0x00000200  /* Received CRC Error             */
 #define SAR_RCTE_CELLCNT_MASK  0x000001FF  /* cell Count                     */
 
 #define SAR_RCTE_AAL0          0x00000000  /* AAL types for ALL field        */

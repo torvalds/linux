@@ -48,7 +48,7 @@
 #define	MCFSIM_DMR1		(MCF_IPSBAR + 0x54)	/* Address mask 1 */
 
 /*
- *  Reset Controll Unit (relative to IPSBAR).
+ *  Reset Control Unit (relative to IPSBAR).
  */
 #define	MCF_RCR			0x110000
 #define	MCF_RSR			0x110001

@@ -295,7 +295,7 @@ static void alloc_mem(struct usb_hcd *hcd, struct isp1760_qtd *qtd)
 	}
 
 	dev_err(hcd->self.controller,
-				"%s: Can not allocate %lu bytes of memory\n"
+				"%s: Cannot allocate %zu bytes of memory\n"
 				"Current memory map:\n",
 				__func__, qtd->length);
 	for (i = 0; i < BLOCKS; i++) {
@@ -1633,6 +1633,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			ints[i].qh = NULL;
 			ints[i].qtd = NULL;
 
+			urb->status = status;
 			isp1760_urb_done(hcd, urb);
 			if (qtd)
 				pe(hcd, qh, qtd);

@@ -31,7 +31,7 @@
  */
 typedef enum {
 #if defined(AR6002_REV4) || defined(AR6003)
-/* Add these definitions for compatability  */
+/* Add these definitions for compatibility  */
 #define WHAL_INI_DATA_ID_BB_RFGAIN_LNA1 WHAL_INI_DATA_ID_BB_RFGAIN
 #define WHAL_INI_DATA_ID_BB_RFGAIN_LNA2 WHAL_INI_DATA_ID_BB_RFGAIN
     WHAL_INI_DATA_ID_NULL               =0,

@@ -462,7 +462,7 @@ static void synaptics_i2c_work_handler(struct work_struct *work)
 	 * While interrupt driven, there is no real need to poll the device.
 	 * But touchpads are very sensitive, so there could be errors
 	 * related to physical environment and the attention line isn't
-	 * neccesarily asserted. In such case we can lose the touchpad.
+	 * necessarily asserted. In such case we can lose the touchpad.
 	 * We poll the device once in THREAD_IRQ_SLEEP_SECS and
 	 * if error is detected, we try to reset and reconfigure the touchpad.
 	 */

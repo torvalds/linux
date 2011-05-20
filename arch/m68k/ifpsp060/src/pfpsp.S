@@ -7777,7 +7777,7 @@ dst_get_dupper:
 	swap		%d0			# d0 now in upper word
 	lsl.l		&0x4,%d0		# d0 in proper place for dbl prec exp
 	tst.b		FTEMP_EX(%a0)		# test sign
-	bpl.b		dst_get_dman		# if postive, go process mantissa
+	bpl.b		dst_get_dman		# if positive, go process mantissa
 	bset		&0x1f,%d0		# if negative, set sign
 dst_get_dman:
 	mov.l		FTEMP_HI(%a0),%d1	# get ms mantissa
@@ -8244,7 +8244,7 @@ fmul_unfl_ena:
 	bne.b		fmul_unfl_ena_sd	# no, sgl or dbl
 
 # if the rnd mode is anything but RZ, then we have to re-do the above
-# multiplication becuase we used RZ for all.
+# multiplication because we used RZ for all.
 	fmov.l		L_SCR3(%a6),%fpcr	# set FPCR
 
 fmul_unfl_ena_cont:
@@ -12903,7 +12903,7 @@ store_fpreg_7:
 #	FP_SRC(a6) = packed operand now as a binary FP number		#
 #									#
 # ALGORITHM ***********************************************************	#
-#	Get the correct <ea> whihc is the value on the exception stack	#
+#	Get the correct <ea> which is the value on the exception stack	#
 # frame w/ maybe a correction factor if the <ea> is -(an) or (an)+.	#
 # Then, fetch the operand from memory. If the fetch fails, exit		#
 # through facc_in_x().							#
@@ -14056,7 +14056,7 @@ do_fint12:
 #      A6.  This test occurs only on the first pass.  If the
 #      result is exactly 10^LEN, decrement ILOG and divide
 #      the mantissa by 10.  The calculation of 10^LEN cannot
-#      be inexact, since all powers of ten upto 10^27 are exact
+#      be inexact, since all powers of ten up to 10^27 are exact
 #      in extended precision, so the use of a previous power-of-ten
 #      table will introduce no error.
 #

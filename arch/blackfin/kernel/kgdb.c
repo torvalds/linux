@@ -181,7 +181,7 @@ static int bfin_set_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 		return -ENOSPC;
 	}
 
-	/* Becasue hardware data watchpoint impelemented in current
+	/* Because hardware data watchpoint impelemented in current
 	 * Blackfin can not trigger an exception event as the hardware
 	 * instrction watchpoint does, we ignaore all data watch point here.
 	 * They can be turned on easily after future blackfin design

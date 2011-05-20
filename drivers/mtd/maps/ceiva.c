@@ -42,7 +42,7 @@
  *
  * Please note:
  *  1. The flash size given should be the largest flash size that can
- *     be accomodated.
+ *     be accommodated.
  *
  *  2. The bus width must defined in clps_setup_flash.
  *
@@ -58,7 +58,7 @@
 #define BOOT_PARTITION_SIZE_KiB       (16)
 #define PARAMS_PARTITION_SIZE_KiB     (8)
 #define KERNEL_PARTITION_SIZE_KiB     (4*128)
-/* Use both remaing portion of first flash, and all of second flash */
+/* Use both remaining portion of first flash, and all of second flash */
 #define ROOT_PARTITION_SIZE_KiB       (3*128) + (8*128)
 
 static struct mtd_partition ceiva_partitions[] = {

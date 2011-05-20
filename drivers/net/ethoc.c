@@ -542,7 +542,7 @@ static irqreturn_t ethoc_interrupt(int irq, void *dev_id)
 
 	/* Figure out what triggered the interrupt...
 	 * The tricky bit here is that the interrupt source bits get
-	 * set in INT_SOURCE for an event irregardless of whether that
+	 * set in INT_SOURCE for an event regardless of whether that
 	 * event is masked or not.  Thus, in order to figure out what
 	 * triggered the interrupt, we need to remove the sources
 	 * for all events that are currently masked.  This behaviour

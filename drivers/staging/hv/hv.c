@@ -37,7 +37,7 @@ struct hv_context hv_context = {
 
 /*
  * query_hypervisor_presence
- * - Query the cpuid for presense of windows hypervisor
+ * - Query the cpuid for presence of windows hypervisor
  */
 static int query_hypervisor_presence(void)
 {

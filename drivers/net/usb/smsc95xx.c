@@ -730,7 +730,7 @@ static int smsc95xx_phy_initialize(struct usbnet *dev)
 		msleep(10);
 		bmcr = smsc95xx_mdio_read(dev->net, dev->mii.phy_id, MII_BMCR);
 		timeout++;
-	} while ((bmcr & MII_BMCR) && (timeout < 100));
+	} while ((bmcr & BMCR_RESET) && (timeout < 100));
 
 	if (timeout >= 100) {
 		netdev_warn(dev->net, "timeout on PHY Reset");
@@ -1311,6 +1311,21 @@ static const struct usb_device_id products[] = {
 	{
 		/* SMSC9512/9514 USB Hub & Ethernet Device (Alternate ID) */
 		USB_DEVICE(0x0424, 0x9909),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC LAN9530 USB Ethernet Device */
+		USB_DEVICE(0x0424, 0x9530),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC LAN9730 USB Ethernet Device */
+		USB_DEVICE(0x0424, 0x9730),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC LAN89530 USB Ethernet Device */
+		USB_DEVICE(0x0424, 0x9E08),
 		.driver_info = (unsigned long) &smsc95xx_info,
 	},
 	{ },		/* END */

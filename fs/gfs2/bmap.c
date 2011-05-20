@@ -1136,7 +1136,7 @@ void gfs2_trim_blocks(struct inode *inode)
  * earlier versions of GFS2 have a bug in the stuffed file reading
  * code which will result in a buffer overrun if the size is larger
  * than the max stuffed file size. In order to prevent this from
- * occuring, such files are unstuffed, but in other cases we can
+ * occurring, such files are unstuffed, but in other cases we can
  * just update the inode size directly.
  *
  * Returns: 0 on success, or -ve on error

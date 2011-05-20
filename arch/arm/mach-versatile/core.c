@@ -314,7 +314,7 @@ static struct mmci_platform_data mmc0_plat_data = {
 	.gpio_cd	= -1,
 };
 
-static struct resource chalcd_resources[] = {
+static struct resource char_lcd_resources[] = {
 	{
 		.start = VERSATILE_CHAR_LCD_BASE,
 		.end   = (VERSATILE_CHAR_LCD_BASE + SZ_4K - 1),

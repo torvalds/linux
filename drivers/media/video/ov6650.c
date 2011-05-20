@@ -1038,7 +1038,7 @@ static int ov6650_reset(struct i2c_client *client)
 	ret = ov6650_reg_rmw(client, REG_COMA, COMA_RESET, 0);
 	if (ret)
 		dev_err(&client->dev,
-			"An error occured while entering soft reset!\n");
+			"An error occurred while entering soft reset!\n");
 
 	return ret;
 }

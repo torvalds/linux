@@ -86,7 +86,7 @@
  * IFRAME-01:  0110
  *
  * An easy eye-inspeciton of this already should tell you that this frame
- * will not pass our check. This is beacuse the bssid_mask tells the
+ * will not pass our check. This is because the bssid_mask tells the
  * hardware to only look at the second least significant bit and the
  * common bit amongst the MAC and BSSIDs is 0, this frame has the 2nd LSB
  * as 1, which does not match 0.

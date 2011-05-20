@@ -156,24 +156,34 @@ static struct platform_device nand_flash_device = {
 #define PORT_DRVCRA	0xA405018A
 #define PORT_DRVCRB	0xA405018C
 
+static int ap320_wvga_set_brightness(void *board_data, int brightness)
+{
+	if (brightness) {
+		gpio_set_value(GPIO_PTS3, 0);
+		__raw_writew(0x100, FPGA_BKLREG);
+	} else {
+		__raw_writew(0, FPGA_BKLREG);
+		gpio_set_value(GPIO_PTS3, 1);
+	}
+	
+	return 0;
+}
+
+static int ap320_wvga_get_brightness(void *board_data)
+{
+	return gpio_get_value(GPIO_PTS3);
+}
+
 static void ap320_wvga_power_on(void *board_data, struct fb_info *info)
 {
 	msleep(100);
 
 	/* ASD AP-320/325 LCD ON */
 	__raw_writew(FPGA_LCDREG_VAL, FPGA_LCDREG);
-
-	/* backlight */
-	gpio_set_value(GPIO_PTS3, 0);
-	__raw_writew(0x100, FPGA_BKLREG);
 }
 
 static void ap320_wvga_power_off(void *board_data)
 {
-	/* backlight */
-	__raw_writew(0, FPGA_BKLREG);
-	gpio_set_value(GPIO_PTS3, 1);
-
 	/* ASD AP-320/325 LCD OFF */
 	__raw_writew(0, FPGA_LCDREG);
 }
@@ -209,6 +219,12 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.board_cfg = {
 			.display_on = ap320_wvga_power_on,
 			.display_off = ap320_wvga_power_off,
+			.set_brightness = ap320_wvga_set_brightness,
+			.get_brightness = ap320_wvga_get_brightness,
+		},
+		.bl_info = {
+			.name = "sh_mobile_lcdc_bl",
+			.max_brightness = 1,
 		},
 	}
 };

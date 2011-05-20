@@ -835,7 +835,7 @@ static int ocfs2_inode_is_valid_to_delete(struct inode *inode)
 
 	/* If we have allowd wipe of this inode for another node, it
 	 * will be marked here so we can safely skip it. Recovery will
-	 * cleanup any inodes we might inadvertantly skip here. */
+	 * cleanup any inodes we might inadvertently skip here. */
 	if (oi->ip_flags & OCFS2_INODE_SKIP_DELETE)
 		goto bail_unlock;
 
@@ -917,7 +917,7 @@ static int ocfs2_query_inode_wipe(struct inode *inode,
 	 * the inode open lock in ocfs2_read_locked_inode(). When we
 	 * get to ->delete_inode(), each node tries to convert it's
 	 * lock to an exclusive. Trylocks are serialized by the inode
-	 * meta data lock. If the upconvert suceeds, we know the inode
+	 * meta data lock. If the upconvert succeeds, we know the inode
 	 * is no longer live and can be deleted.
 	 *
 	 * Though we call this with the meta data lock held, the

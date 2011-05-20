@@ -20,7 +20,7 @@ typedef struct atreq {
 } atreq_t;
 
 
-/* what is particularly stupid in the original driver is the arch-dependant
+/* what is particularly stupid in the original driver is the arch-dependent
  * member sizes. This leads to CONFIG_COMPAT breakage, since 32bit userspace
  * will lay out the structure members differently than the 64bit kernel.
  *

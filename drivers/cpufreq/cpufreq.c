@@ -1782,7 +1782,7 @@ error_out:
  *	cpufreq_update_policy - re-evaluate an existing cpufreq policy
  *	@cpu: CPU which shall be re-evaluated
  *
- *	Usefull for policy notifiers which have different necessities
+ *	Useful for policy notifiers which have different necessities
  *	at different times.
  */
 int cpufreq_update_policy(unsigned int cpu)

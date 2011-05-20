@@ -945,7 +945,7 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 		rd2 = NULL;
 		/* Per chip or per device ? */
 		chipsel = (td->options & NAND_BBT_PERCHIP) ? i : -1;
-		/* Mirrored table avilable ? */
+		/* Mirrored table available ? */
 		if (md) {
 			if (td->pages[i] == -1 && md->pages[i] == -1) {
 				writeops = 0x03;

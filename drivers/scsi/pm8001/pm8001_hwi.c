@@ -339,7 +339,7 @@ update_outbnd_queue_table(struct pm8001_hba_info *pm8001_ha, int number)
 
 /**
  * bar4_shift - function is called to shift BAR base address
- * @pm8001_ha : our hba card infomation
+ * @pm8001_ha : our hba card information
  * @shiftValue : shifting value in memory bar.
  */
 static int bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue)

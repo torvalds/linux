@@ -236,7 +236,7 @@ int intel_sst_mmap(struct file *file_ptr, struct vm_area_struct *vma)
 	if (!sst_drv_ctx->mmap_mem)
 		return -EIO;
 
-	/* round it up to the page bondary  */
+	/* round it up to the page boundary  */
 	/*mem_area = (void *)((((unsigned long)sst_drv_ctx->mmap_mem)
 				+ PAGE_SIZE - 1) & PAGE_MASK);*/
 	mem_area = (void *) PAGE_ALIGN((unsigned int) sst_drv_ctx->mmap_mem);
@@ -871,7 +871,7 @@ int sst_send_algo_ipc(struct ipc_post **msg)
 }
 
 /**
- * intel_sst_ioctl_dsp - recieves the device ioctl's
+ * intel_sst_ioctl_dsp - receives the device ioctl's
  *
  * @cmd:Ioctl cmd
  * @arg:data
@@ -1067,7 +1067,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		pr_debug("SET_VOLUME recieved for %d!\n",
+		pr_debug("SET_VOLUME received for %d!\n",
 				set_vol.stream_id);
 		if (minor == STREAM_MODULE && set_vol.stream_id == 0) {
 			pr_debug("invalid operation!\n");
@@ -1085,7 +1085,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		pr_debug("IOCTL_GET_VOLUME recieved for stream = %d!\n",
+		pr_debug("IOCTL_GET_VOLUME received for stream = %d!\n",
 				get_vol.stream_id);
 		if (minor == STREAM_MODULE && get_vol.stream_id == 0) {
 			pr_debug("invalid operation!\n");
@@ -1117,7 +1117,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		pr_debug("SNDRV_SST_SET_VOLUME recieved for %d!\n",
+		pr_debug("SNDRV_SST_SET_VOLUME received for %d!\n",
 			set_mute.stream_id);
 		if (minor == STREAM_MODULE && set_mute.stream_id == 0) {
 			retval = -EPERM;
@@ -1153,7 +1153,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	case _IOC_NR(SNDRV_SST_MMAP_CAPTURE): {
 		struct snd_sst_mmap_buffs mmap_buf;
 
-		pr_debug("SNDRV_SST_MMAP_PLAY/CAPTURE recieved!\n");
+		pr_debug("SNDRV_SST_MMAP_PLAY/CAPTURE received!\n");
 		if (minor != STREAM_MODULE) {
 			retval = -EBADRQC;
 			break;
@@ -1239,7 +1239,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	case _IOC_NR(SNDRV_SST_SET_TARGET_DEVICE): {
 		struct snd_sst_target_device target_device;
 
-		pr_debug("SET_TARGET_DEVICE recieved!\n");
+		pr_debug("SET_TARGET_DEVICE received!\n");
 		if (copy_from_user(&target_device, (void __user *)arg,
 				sizeof(target_device))) {
 			retval = -EFAULT;
@@ -1256,7 +1256,7 @@ long intel_sst_ioctl(struct file *file_ptr, unsigned int cmd, unsigned long arg)
 	case _IOC_NR(SNDRV_SST_DRIVER_INFO): {
 		struct snd_sst_driver_info info;
 
-		pr_debug("SNDRV_SST_DRIVER_INFO recived\n");
+		pr_debug("SNDRV_SST_DRIVER_INFO received\n");
 		info.version = SST_VERSION_NUM;
 		/* hard coding, shud get sumhow later */
 		info.active_pcm_streams = sst_drv_ctx->stream_cnt -

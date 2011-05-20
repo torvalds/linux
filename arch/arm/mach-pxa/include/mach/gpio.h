@@ -99,11 +99,24 @@
 #define GAFR(x)		GPIO_REG(0x54 + (((x) & 0x70) >> 2))
 
 
-#define NR_BUILTIN_GPIO 128
+#define NR_BUILTIN_GPIO		PXA_GPIO_IRQ_NUM
 
 #define gpio_to_bank(gpio)	((gpio) >> 5)
 #define gpio_to_irq(gpio)	IRQ_GPIO(gpio)
-#define irq_to_gpio(irq)	IRQ_TO_GPIO(irq)
+
+static inline int irq_to_gpio(unsigned int irq)
+{
+	int gpio;
+
+	if (irq == IRQ_GPIO0 || irq == IRQ_GPIO1)
+		return irq - IRQ_GPIO0;
+
+	gpio = irq - PXA_GPIO_IRQ_BASE;
+	if (gpio >= 2 && gpio < NR_BUILTIN_GPIO)
+		return gpio;
+
+	return -1;
+}
 
 #ifdef CONFIG_CPU_PXA26x
 /* GPIO86/87/88/89 on PXA26x have their direction bits in GPDR2 inverted,

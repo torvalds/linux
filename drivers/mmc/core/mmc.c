@@ -538,7 +538,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 
 	/*
 	 * If enhanced_area_en is TRUE, host needs to enable ERASE_GRP_DEF
-	 * bit.  This bit will be lost everytime after a reset or power off.
+	 * bit.  This bit will be lost every time after a reset or power off.
 	 */
 	if (card->ext_csd.enhanced_area_en) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,

@@ -236,7 +236,7 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 		goto err_mr;
 	}
 
-	/* Configure wich ports to start according to module parameters */
+	/* Configure which ports to start according to module parameters */
 	mdev->port_cnt = 0;
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH)
 		mdev->port_cnt++;

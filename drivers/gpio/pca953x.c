@@ -558,7 +558,7 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 
 	ret = gpiochip_add(&chip->gpio_chip);
 	if (ret)
-		goto out_failed;
+		goto out_failed_irq;
 
 	if (pdata->setup) {
 		ret = pdata->setup(client, chip->gpio_chip.base,
@@ -570,8 +570,9 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, chip);
 	return 0;
 
-out_failed:
+out_failed_irq:
 	pca953x_irq_teardown(chip);
+out_failed:
 	kfree(chip->dyn_pdata);
 	kfree(chip);
 	return ret;

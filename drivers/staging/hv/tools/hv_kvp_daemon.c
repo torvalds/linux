@@ -102,22 +102,22 @@ static char kvp_send_buffer[4096];
 static char kvp_recv_buffer[4096];
 static struct sockaddr_nl addr;
 
-static char os_name[100];
-static char os_major[50];
-static char os_minor[50];
-static char processor_arch[50];
-static char os_build[100];
+static char *os_name = "";
+static char *os_major = "";
+static char *os_minor = "";
+static char *processor_arch;
+static char *os_build;
 static char *lic_version;
+static struct utsname uts_buf;
 
 void kvp_get_os_info(void)
 {
 	FILE	*file;
-	char	*eol;
-	struct utsname buf;
+	char	*p, buf[512];
 
-	uname(&buf);
-	strcpy(os_build, buf.release);
-	strcpy(processor_arch, buf.machine);
+	uname(&uts_buf);
+	os_build = uts_buf.release;
+	processor_arch= uts_buf.machine;
 
 	file = fopen("/etc/SuSE-release", "r");
 	if (file != NULL)
@@ -132,21 +132,46 @@ void kvp_get_os_info(void)
 	/*
 	 * We don't have information about the os.
 	 */
-	strcpy(os_name, "Linux");
-	strcpy(os_major, "0");
-	strcpy(os_minor, "0");
+	os_name = uts_buf.sysname;
 	return;
 
 kvp_osinfo_found:
-	fgets(os_name, 99, file);
-	eol = index(os_name, '\n');
-	*eol = '\0';
-	fgets(os_major, 49, file);
-	eol = index(os_major, '\n');
-	*eol = '\0';
-	fgets(os_minor, 49, file);
-	eol = index(os_minor, '\n');
-	*eol = '\0';
+	/* up to three lines */
+	p = fgets(buf, sizeof(buf), file);
+	if (p) {
+		p = strchr(buf, '\n');
+		if (p)
+			*p = '\0';
+		p = strdup(buf);
+		if (!p)
+			goto done;
+		os_name = p;
+
+		/* second line */
+		p = fgets(buf, sizeof(buf), file);
+		if (p) {
+			p = strchr(buf, '\n');
+			if (p)
+				*p = '\0';
+			p = strdup(buf);
+			if (!p)
+				goto done;
+			os_major = p;
+
+			/* third line */
+			p = fgets(buf, sizeof(buf), file);
+			if (p)  {
+				p = strchr(buf, '\n');
+				if (p)
+					*p = '\0';
+				p = strdup(buf);
+				if (p)
+					os_minor = p;
+			}
+		}
+	}
+
+done:
 	fclose(file);
 	return;
 }
@@ -202,7 +227,7 @@ kvp_get_ip_address(int family, char *buffer, int length)
 
 			/*
 			 * We only support AF_INET and AF_INET6
-			 * and the list of addresses is seperated by a ";".
+			 * and the list of addresses is separated by a ";".
 			 */
 				struct sockaddr_in6 *addr =
 				(struct sockaddr_in6 *) curp->ifa_addr;
@@ -293,7 +318,7 @@ netlink_send(int fd, struct cn_msg *msg)
 	return sendmsg(fd, &message, 0);
 }
 
-main(void)
+int main(void)
 {
 	int fd, len, sock_opt;
 	int error;
@@ -301,9 +326,10 @@ main(void)
 	struct pollfd pfd;
 	struct nlmsghdr *incoming_msg;
 	struct cn_msg	*incoming_cn_msg;
+	struct hv_ku_msg *hv_msg;
+	char	*p;
 	char	*key_value;
 	char	*key_name;
-	int	 key_index;
 
 	daemon(1, 0);
 	openlog("KVP", 0, LOG_USER);
@@ -373,9 +399,10 @@ main(void)
 			 * Driver is registering with us; stash away the version
 			 * information.
 			 */
-			lic_version = malloc(strlen(incoming_cn_msg->data) + 1);
+			p = (char *)incoming_cn_msg->data;
+			lic_version = malloc(strlen(p) + 1);
 			if (lic_version) {
-				strcpy(lic_version, incoming_cn_msg->data);
+				strcpy(lic_version, p);
 				syslog(LOG_INFO, "KVP LIC Version: %s",
 					lic_version);
 			} else {
@@ -389,14 +416,11 @@ main(void)
 			continue;
 		}
 
-		key_index =
-		((struct hv_ku_msg *)incoming_cn_msg->data)->kvp_index;
-		key_name =
-		((struct hv_ku_msg *)incoming_cn_msg->data)->kvp_key;
-		key_value =
-		((struct hv_ku_msg *)incoming_cn_msg->data)->kvp_value;
+		hv_msg = (struct hv_ku_msg *)incoming_cn_msg->data;
+		key_name = (char *)hv_msg->kvp_key;
+		key_value = (char *)hv_msg->kvp_value;
 
-		switch (key_index) {
+		switch (hv_msg->kvp_index) {
 		case FullyQualifiedDomainName:
 			kvp_get_domain_name(key_value,
 					HV_KVP_EXCHANGE_MAX_VALUE_SIZE);

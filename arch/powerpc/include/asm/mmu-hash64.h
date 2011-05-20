@@ -27,7 +27,7 @@
 #define STE_VSID_SHIFT	12
 
 /* Location of cpu0's segment table */
-#define STAB0_PAGE	0x6
+#define STAB0_PAGE	0x8
 #define STAB0_OFFSET	(STAB0_PAGE << 12)
 #define STAB0_PHYS_ADDR	(STAB0_OFFSET + PHYSICAL_START)
 

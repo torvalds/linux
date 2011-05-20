@@ -249,7 +249,7 @@ extern int cod_get_sym_value(struct cod_manager *cod_mgr_obj,
  *  Parameters:
  *      None.
  *  Returns:
- *      TRUE if initialized; FALSE if error occured.
+ *      TRUE if initialized; FALSE if error occurred.
  *  Requires:
  *  Ensures:
  *      A requirement for each of the other public COD functions.

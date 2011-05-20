@@ -181,7 +181,7 @@ s32 igb_vfta_set(struct e1000_hw *hw, u32 vid, bool add)
  *  address and must override the actual permanent MAC address.  If an
  *  alternate MAC address is fopund it is saved in the hw struct and
  *  prgrammed into RAR0 and the cuntion returns success, otherwise the
- *  fucntion returns an error.
+ *  function returns an error.
  **/
 s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 {
@@ -982,7 +982,7 @@ out:
 }
 
 /**
- *  igb_get_speed_and_duplex_copper - Retreive current speed/duplex
+ *  igb_get_speed_and_duplex_copper - Retrieve current speed/duplex
  *  @hw: pointer to the HW structure
  *  @speed: stores the current speed
  *  @duplex: stores the current duplex

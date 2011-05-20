@@ -402,7 +402,7 @@ config FHCI_DEBUG
 	depends on USB_FHCI_HCD && DEBUG_FS
 	help
 	  Say "y" to see some FHCI debug information and statistics
-	  throught debugfs.
+	  through debugfs.
 
 config USB_U132_HCD
 	tristate "Elan U132 Adapter Host Controller"

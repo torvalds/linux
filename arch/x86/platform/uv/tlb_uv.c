@@ -11,6 +11,7 @@
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 #include <asm/mmu_context.h>
 #include <asm/uv/uv.h>
@@ -698,16 +699,17 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 					  struct mm_struct *mm,
 					  unsigned long va, unsigned int cpu)
 {
-	int tcpu;
-	int uvhub;
 	int locals = 0;
 	int remotes = 0;
 	int hubs = 0;
+	int tcpu;
+	int tpnode;
 	struct bau_desc *bau_desc;
 	struct cpumask *flush_mask;
 	struct ptc_stats *stat;
 	struct bau_control *bcp;
 	struct bau_control *tbcp;
+	struct hub_and_pnode *hpp;
 
 	/* kernel was booted 'nobau' */
 	if (nobau)
@@ -749,11 +751,18 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 	bau_desc += UV_ITEMS_PER_DESCRIPTOR * bcp->uvhub_cpu;
 	bau_uvhubs_clear(&bau_desc->distribution, UV_DISTRIBUTION_SIZE);
 
-	/* cpu statistics */
 	for_each_cpu(tcpu, flush_mask) {
-		uvhub = uv_cpu_to_blade_id(tcpu);
-		bau_uvhub_set(uvhub, &bau_desc->distribution);
-		if (uvhub == bcp->uvhub)
+		/*
+		 * The distribution vector is a bit map of pnodes, relative
+		 * to the partition base pnode (and the partition base nasid
+		 * in the header).
+		 * Translate cpu to pnode and hub using an array stored
+		 * in local memory.
+		 */
+		hpp = &bcp->socket_master->target_hub_and_pnode[tcpu];
+		tpnode = hpp->pnode - bcp->partition_base_pnode;
+		bau_uvhub_set(tpnode, &bau_desc->distribution);
+		if (hpp->uvhub == bcp->uvhub)
 			locals++;
 		else
 			remotes++;
@@ -854,7 +863,7 @@ void uv_bau_message_interrupt(struct pt_regs *regs)
  * an interrupt, but causes an error message to be returned to
  * the sender.
  */
-static void uv_enable_timeouts(void)
+static void __init uv_enable_timeouts(void)
 {
 	int uvhub;
 	int nuvhubs;
@@ -1325,10 +1334,10 @@ static int __init uv_ptc_init(void)
 }
 
 /*
- * initialize the sending side's sending buffers
+ * Initialize the sending side's sending buffers.
  */
 static void
-uv_activation_descriptor_init(int node, int pnode)
+uv_activation_descriptor_init(int node, int pnode, int base_pnode)
 {
 	int i;
 	int cpu;
@@ -1351,11 +1360,11 @@ uv_activation_descriptor_init(int node, int pnode)
 	n = pa >> uv_nshift;
 	m = pa & uv_mmask;
 
+	/* the 14-bit pnode */
 	uv_write_global_mmr64(pnode, UVH_LB_BAU_SB_DESCRIPTOR_BASE,
 			      (n << UV_DESC_BASE_PNODE_SHIFT | m));
-
 	/*
-	 * initializing all 8 (UV_ITEMS_PER_DESCRIPTOR) descriptors for each
+	 * Initializing all 8 (UV_ITEMS_PER_DESCRIPTOR) descriptors for each
 	 * cpu even though we only use the first one; one descriptor can
 	 * describe a broadcast to 256 uv hubs.
 	 */
@@ -1364,12 +1373,13 @@ uv_activation_descriptor_init(int node, int pnode)
 		memset(bd2, 0, sizeof(struct bau_desc));
 		bd2->header.sw_ack_flag = 1;
 		/*
-		 * base_dest_nodeid is the nasid of the first uvhub
-		 * in the partition. The bit map will indicate uvhub numbers,
-		 * which are 0-N in a partition. Pnodes are unique system-wide.
+		 * The base_dest_nasid set in the message header is the nasid
+		 * of the first uvhub in the partition. The bit map will
+		 * indicate destination pnode numbers relative to that base.
+		 * They may not be consecutive if nasid striding is being used.
 		 */
-		bd2->header.base_dest_nodeid = UV_PNODE_TO_NASID(uv_partition_base_pnode);
-		bd2->header.dest_subnodeid = 0x10; /* the LB */
+		bd2->header.base_dest_nasid = UV_PNODE_TO_NASID(base_pnode);
+		bd2->header.dest_subnodeid = UV_LB_SUBNODEID;
 		bd2->header.command = UV_NET_ENDPOINT_INTD;
 		bd2->header.int_both = 1;
 		/*
@@ -1441,7 +1451,7 @@ uv_payload_queue_init(int node, int pnode)
 /*
  * Initialization of each UV hub's structures
  */
-static void __init uv_init_uvhub(int uvhub, int vector)
+static void __init uv_init_uvhub(int uvhub, int vector, int base_pnode)
 {
 	int node;
 	int pnode;
@@ -1449,11 +1459,11 @@ static void __init uv_init_uvhub(int uvhub, int vector)
 
 	node = uvhub_to_first_node(uvhub);
 	pnode = uv_blade_to_pnode(uvhub);
-	uv_activation_descriptor_init(node, pnode);
+	uv_activation_descriptor_init(node, pnode, base_pnode);
 	uv_payload_queue_init(node, pnode);
 	/*
-	 * the below initialization can't be in firmware because the
-	 * messaging IRQ will be determined by the OS
+	 * The below initialization can't be in firmware because the
+	 * messaging IRQ will be determined by the OS.
 	 */
 	apicid = uvhub_to_first_apicid(uvhub) | uv_apicid_hibits;
 	uv_write_global_mmr64(pnode, UVH_BAU_DATA_CONFIG,
@@ -1490,10 +1500,11 @@ calculate_destination_timeout(void)
 /*
  * initialize the bau_control structure for each cpu
  */
-static int __init uv_init_per_cpu(int nuvhubs)
+static int __init uv_init_per_cpu(int nuvhubs, int base_part_pnode)
 {
 	int i;
 	int cpu;
+	int tcpu;
 	int pnode;
 	int uvhub;
 	int have_hmaster;
@@ -1527,6 +1538,15 @@ static int __init uv_init_per_cpu(int nuvhubs)
 		bcp = &per_cpu(bau_control, cpu);
 		memset(bcp, 0, sizeof(struct bau_control));
 		pnode = uv_cpu_hub_info(cpu)->pnode;
+		if ((pnode - base_part_pnode) >= UV_DISTRIBUTION_SIZE) {
+			printk(KERN_EMERG
+				"cpu %d pnode %d-%d beyond %d; BAU disabled\n",
+				cpu, pnode, base_part_pnode,
+				UV_DISTRIBUTION_SIZE);
+			return 1;
+		}
+		bcp->osnode = cpu_to_node(cpu);
+		bcp->partition_base_pnode = uv_partition_base_pnode;
 		uvhub = uv_cpu_hub_info(cpu)->numa_blade_id;
 		*(uvhub_mask + (uvhub/8)) |= (1 << (uvhub%8));
 		bdp = &uvhub_descs[uvhub];
@@ -1535,7 +1555,7 @@ static int __init uv_init_per_cpu(int nuvhubs)
 		bdp->pnode = pnode;
 		/* kludge: 'assuming' one node per socket, and assuming that
 		   disabling a socket just leaves a gap in node numbers */
-		socket = (cpu_to_node(cpu) & 1);
+		socket = bcp->osnode & 1;
 		bdp->socket_mask |= (1 << socket);
 		sdp = &bdp->socket[socket];
 		sdp->cpu_number[sdp->num_cpus] = cpu;
@@ -1584,6 +1604,20 @@ static int __init uv_init_per_cpu(int nuvhubs)
 nextsocket:
 			socket++;
 			socket_mask = (socket_mask >> 1);
+			/* each socket gets a local array of pnodes/hubs */
+			bcp = smaster;
+			bcp->target_hub_and_pnode = kmalloc_node(
+				sizeof(struct hub_and_pnode) *
+				num_possible_cpus(), GFP_KERNEL, bcp->osnode);
+			memset(bcp->target_hub_and_pnode, 0,
+				sizeof(struct hub_and_pnode) *
+				num_possible_cpus());
+			for_each_present_cpu(tcpu) {
+				bcp->target_hub_and_pnode[tcpu].pnode =
+					uv_cpu_hub_info(tcpu)->pnode;
+				bcp->target_hub_and_pnode[tcpu].uvhub =
+					uv_cpu_hub_info(tcpu)->numa_blade_id;
+			}
 		}
 	}
 	kfree(uvhub_descs);
@@ -1636,21 +1670,22 @@ static int __init uv_bau_init(void)
 	spin_lock_init(&disable_lock);
 	congested_cycles = microsec_2_cycles(congested_response_us);
 
-	if (uv_init_per_cpu(nuvhubs)) {
+	uv_partition_base_pnode = 0x7fffffff;
+	for (uvhub = 0; uvhub < nuvhubs; uvhub++) {
+		if (uv_blade_nr_possible_cpus(uvhub) &&
+			(uv_blade_to_pnode(uvhub) < uv_partition_base_pnode))
+			uv_partition_base_pnode = uv_blade_to_pnode(uvhub);
+	}
+
+	if (uv_init_per_cpu(nuvhubs, uv_partition_base_pnode)) {
 		nobau = 1;
 		return 0;
 	}
 
-	uv_partition_base_pnode = 0x7fffffff;
-	for (uvhub = 0; uvhub < nuvhubs; uvhub++)
-		if (uv_blade_nr_possible_cpus(uvhub) &&
-			(uv_blade_to_pnode(uvhub) < uv_partition_base_pnode))
-			uv_partition_base_pnode = uv_blade_to_pnode(uvhub);
-
 	vector = UV_BAU_MESSAGE;
 	for_each_possible_blade(uvhub)
 		if (uv_blade_nr_possible_cpus(uvhub))
-			uv_init_uvhub(uvhub, vector);
+			uv_init_uvhub(uvhub, vector, uv_partition_base_pnode);
 
 	uv_enable_timeouts();
 	alloc_intr_gate(vector, uv_bau_message_intr1);

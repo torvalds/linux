@@ -685,7 +685,7 @@ static int efuse_pg_packet_read(struct ieee80211_hw *hw, u8 offset, u8 *data)
 
 	u8 efuse_data, word_cnts = 0;
 	u16 efuse_addr = 0;
-	u8 hworden;
+	u8 hworden = 0;
 	u8 tmpdata[8];
 
 	if (data == NULL)

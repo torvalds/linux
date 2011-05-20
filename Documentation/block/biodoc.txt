@@ -497,7 +497,7 @@ The scatter gather list is in the form of an array of <page, offset, len>
 entries with their corresponding dma address mappings filled in at the
 appropriate time. As an optimization, contiguous physical pages can be
 covered by a single entry where <page> refers to the first page and <len>
-covers the range of pages (upto 16 contiguous pages could be covered this
+covers the range of pages (up to 16 contiguous pages could be covered this
 way). There is a helper routine (blk_rq_map_sg) which drivers can use to build
 the sg list.
 
@@ -565,7 +565,7 @@ struct request {
 	.
 	int tag;	/* command tag associated with request */
 	void *special;  /* same as before */
-	char *buffer;   /* valid only for low memory buffers upto
+	char *buffer;   /* valid only for low memory buffers up to
 			 current_nr_sectors */
 	.
 	.

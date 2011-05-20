@@ -186,7 +186,7 @@ dev_t name_to_dev_t(char *name)
 		goto done;
 
 	/*
-	 * try non-existant, but valid partition, which may only exist
+	 * try non-existent, but valid partition, which may only exist
 	 * after revalidating the disk, like partitioned md devices
 	 */
 	while (p > s && isdigit(p[-1]))

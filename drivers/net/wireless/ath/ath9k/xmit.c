@@ -628,8 +628,8 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 				 (u32)ATH_AMPDU_LIMIT_MAX);
 
 	/*
-	 * h/w can accept aggregates upto 16 bit lengths (65535).
-	 * The IE, however can hold upto 65536, which shows up here
+	 * h/w can accept aggregates up to 16 bit lengths (65535).
+	 * The IE, however can hold up to 65536, which shows up here
 	 * as zero. Ignore 65536 since we  are constrained by hw.
 	 */
 	if (tid->an->maxampdu)

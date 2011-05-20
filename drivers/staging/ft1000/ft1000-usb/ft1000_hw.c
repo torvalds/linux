@@ -585,7 +585,7 @@ int dsp_reload(struct ft1000_device *ft1000dev)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_reset_asic
-// Descripton: This function will call the Card Service function to reset the
+// Description: This function will call the Card Service function to reset the
 //             ASIC.
 // Input:
 //     dev    - device structure
@@ -626,7 +626,7 @@ static void ft1000_reset_asic(struct net_device *dev)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_reset_card
-// Descripton: This function will reset the card
+// Description: This function will reset the card
 // Input:
 //     dev    - device structure
 // Output:
@@ -917,7 +917,7 @@ static void ft1000_usb_transmit_complete(struct urb *urb)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_copy_down_pkt
-// Descripton: This function will take an ethernet packet and convert it to
+// Description: This function will take an ethernet packet and convert it to
 //             a Flarion packet prior to sending it to the ASIC Downlink
 //             FIFO.
 // Input:
@@ -1075,10 +1075,10 @@ err:
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_copy_up_pkt
-// Descripton: This function will take a packet from the FIFO up link and
+// Description: This function will take a packet from the FIFO up link and
 //             convert it into an ethernet packet and deliver it to the IP stack
 // Input:
-//     urb - the receving usb urb
+//     urb - the receiving usb urb
 //
 // Output:
 //     status - FAILURE
@@ -1182,7 +1182,7 @@ static int ft1000_copy_up_pkt(struct urb *urb)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_submit_rx_urb
-// Descripton: the receiving function of the network driver
+// Description: the receiving function of the network driver
 //
 // Input:
 //     info - a private structure contains the device information
@@ -1316,7 +1316,7 @@ Jim
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_chkcard
-// Descripton: This function will check if the device is presently available on
+// Description: This function will check if the device is presently available on
 //             the system.
 // Input:
 //     dev    - device structure
@@ -1363,7 +1363,7 @@ static int ft1000_chkcard(struct ft1000_device *dev)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_receive_cmd
-// Descripton: This function will read a message from the dpram area.
+// Description: This function will read a message from the dpram area.
 // Input:
 //    dev - network device structure
 //    pbuffer - caller supply address to buffer

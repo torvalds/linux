@@ -366,6 +366,7 @@ config ARCH_MXC
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
+	select HAVE_SCHED_CLOCK
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
@@ -693,7 +694,7 @@ config ARCH_S3C2410
 	  the Samsung SMDK2410 development board (and derivatives).
 
 	  Note, the S3C2416 and the S3C2450 are so close that they even share
-	  the same SoC ID code. This means that there is no seperate machine
+	  the same SoC ID code. This means that there is no separate machine
 	  directory (no arch/arm/mach-s3c2450) as the S3C2416 was first.
 
 config ARCH_S3C64XX
@@ -1539,7 +1540,6 @@ config HIGHMEM
 config HIGHPTE
 	bool "Allocate 2nd-level pagetables from highmem"
 	depends on HIGHMEM
-	depends on !OUTER_CACHE
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
@@ -2011,6 +2011,8 @@ source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
 	depends on !ARCH_S5P64X0 && !ARCH_S5P6442
+	depends on CPU_ARM920T || CPU_ARM926T || CPU_SA1100 || \
+		CPU_V6 || CPU_V6K || CPU_V7 || CPU_XSC3 || CPU_XSCALE
 	def_bool y
 
 endmenu

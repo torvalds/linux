@@ -100,7 +100,6 @@ pxa_osmr0_set_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 static struct clock_event_device ckevt_pxa_osmr0 = {
 	.name		= "osmr0",
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 32,
 	.rating		= 200,
 	.set_next_event	= pxa_osmr0_set_next_event,
 	.set_mode	= pxa_osmr0_set_mode,
@@ -135,8 +134,8 @@ static void __init pxa_timer_init(void)
 
 	init_sched_clock(&cd, pxa_update_sched_clock, 32, clock_tick_rate);
 
-	ckevt_pxa_osmr0.mult =
-		div_sc(clock_tick_rate, NSEC_PER_SEC, ckevt_pxa_osmr0.shift);
+	clocksource_calc_mult_shift(&cksrc_pxa_oscr0, clock_tick_rate, 4);
+	clockevents_calc_mult_shift(&ckevt_pxa_osmr0, clock_tick_rate, 4);
 	ckevt_pxa_osmr0.max_delta_ns =
 		clockevent_delta2ns(0x7fffffff, &ckevt_pxa_osmr0);
 	ckevt_pxa_osmr0.min_delta_ns =

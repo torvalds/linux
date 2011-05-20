@@ -1295,7 +1295,7 @@ xfs_get_blocks_direct(
  * If the private argument is non-NULL __xfs_get_blocks signals us that we
  * need to issue a transaction to convert the range from unwritten to written
  * extents.  In case this is regular synchronous I/O we just call xfs_end_io
- * to do this and we are done.  But in case this was a successfull AIO
+ * to do this and we are done.  But in case this was a successful AIO
  * request this handler is called from interrupt context, from which we
  * can't start transactions.  In that case offload the I/O completion to
  * the workqueues we also use for buffered I/O completion.

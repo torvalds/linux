@@ -963,7 +963,7 @@ static int snd_card_asihpi_playback_open(struct snd_pcm_substream *substream)
 
 	/*? also check ASI5000 samplerate source
 	    If external, only support external rate.
-	    If internal and other stream playing, cant switch
+	    If internal and other stream playing, can't switch
 	*/
 
 	init_timer(&dpcm->timer);

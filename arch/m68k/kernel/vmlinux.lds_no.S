@@ -3,7 +3,7 @@
  *
  *	(C) Copyright 2002-2006, Greg Ungerer <gerg@snapgear.com>
  *
- *	This linker script is equiped to build either ROM loaded or RAM
+ *	This linker script is equipped to build either ROM loaded or RAM
  *	run kernels.
  */
 
