@@ -3231,7 +3231,7 @@ static inline u32 r600_get_ih_wptr(struct radeon_device *rdev)
 	u32 wptr, tmp;
 
 	if (rdev->wb.enabled)
-		wptr = rdev->wb.wb[R600_WB_IH_WPTR_OFFSET/4];
+		wptr = le32_to_cpu(rdev->wb.wb[R600_WB_IH_WPTR_OFFSET/4]);
 	else
 		wptr = RREG32(IH_RB_WPTR);
 

@@ -2209,8 +2209,10 @@ int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 
 	log = root->log_root;
 	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
+	if (!path) {
+		err = -ENOMEM;
+		goto out_unlock;
+	}
 
 	di = btrfs_lookup_dir_item(trans, log, path, dir->i_ino,
 				   name, name_len, -1);
@@ -2271,6 +2273,7 @@ int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 	}
 fail:
 	btrfs_free_path(path);
+out_unlock:
 	mutex_unlock(&BTRFS_I(dir)->log_mutex);
 	if (ret == -ENOSPC) {
 		root->fs_info->last_trans_log_full_commit = trans->transid;

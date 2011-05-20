@@ -1251,7 +1251,7 @@ static netdev_tx_t xl_xmit(struct sk_buff *skb, struct net_device *dev)
 /* 
  * The NIC has told us that a packet has been downloaded onto the card, we must
  * find out which packet it has done, clear the skb and information for the packet
- * then advance around the ring for all tranmitted packets
+ * then advance around the ring for all transmitted packets
  */
 
 static void xl_dn_comp(struct net_device *dev) 
@@ -1568,7 +1568,7 @@ static void xl_arb_cmd(struct net_device *dev)
 			if (lan_status_diff & LSC_SOFT_ERR)
 					printk(KERN_WARNING "%s: Adapter transmitted Soft Error Report Mac Frame\n",dev->name);
 			if (lan_status_diff & LSC_TRAN_BCN) 
-					printk(KERN_INFO "%s: We are tranmitting the beacon, aaah\n",dev->name);
+					printk(KERN_INFO "%s: We are transmitting the beacon, aaah\n",dev->name);
 			if (lan_status_diff & LSC_SS) 
 					printk(KERN_INFO "%s: Single Station on the ring\n", dev->name);
 			if (lan_status_diff & LSC_RING_REC)

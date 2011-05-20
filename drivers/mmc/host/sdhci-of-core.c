@@ -124,8 +124,10 @@ static bool __devinit sdhci_of_wp_inverted(struct device_node *np)
 #endif
 }
 
+static const struct of_device_id sdhci_of_match[];
 static int __devinit sdhci_of_probe(struct platform_device *ofdev)
 {
+	const struct of_device_id *match;
 	struct device_node *np = ofdev->dev.of_node;
 	struct sdhci_of_data *sdhci_of_data;
 	struct sdhci_host *host;
@@ -134,9 +136,10 @@ static int __devinit sdhci_of_probe(struct platform_device *ofdev)
 	int size;
 	int ret;
 
-	if (!ofdev->dev.of_match)
+	match = of_match_device(sdhci_of_match, &ofdev->dev);
+	if (!match)
 		return -EINVAL;
-	sdhci_of_data = ofdev->dev.of_match->data;
+	sdhci_of_data = match->data;
 
 	if (!of_device_is_available(np))
 		return -ENODEV;

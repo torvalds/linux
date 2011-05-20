@@ -884,8 +884,8 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	}
 
 	brelse(dibh);
-	gfs2_trans_end(sdp);
 failed:
+	gfs2_trans_end(sdp);
 	if (al) {
 		gfs2_inplace_release(ip);
 		gfs2_quota_unlock(ip);

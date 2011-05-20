@@ -170,6 +170,16 @@ static const struct {
 };
 #undef _R
 
+static const struct rtl_firmware_info {
+	int mac_version;
+	const char *fw_name;
+} rtl_firmware_infos[] = {
+	{ .mac_version = RTL_GIGA_MAC_VER_25, .fw_name = FIRMWARE_8168D_1 },
+	{ .mac_version = RTL_GIGA_MAC_VER_26, .fw_name = FIRMWARE_8168D_2 },
+	{ .mac_version = RTL_GIGA_MAC_VER_29, .fw_name = FIRMWARE_8105E_1 },
+	{ .mac_version = RTL_GIGA_MAC_VER_30, .fw_name = FIRMWARE_8105E_1 }
+};
+
 enum cfg_version {
 	RTL_CFG_0 = 0x00,
 	RTL_CFG_1,
@@ -565,6 +575,7 @@ struct rtl8169_private {
 	u32 saved_wolopts;
 
 	const struct firmware *fw;
+#define RTL_FIRMWARE_UNKNOWN	ERR_PTR(-EAGAIN);
 };
 
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
@@ -1789,25 +1800,26 @@ rtl_phy_write_fw(struct rtl8169_private *tp, const struct firmware *fw)
 
 static void rtl_release_firmware(struct rtl8169_private *tp)
 {
-	release_firmware(tp->fw);
-	tp->fw = NULL;
+	if (!IS_ERR_OR_NULL(tp->fw))
+		release_firmware(tp->fw);
+	tp->fw = RTL_FIRMWARE_UNKNOWN;
 }
 
-static int rtl_apply_firmware(struct rtl8169_private *tp, const char *fw_name)
+static void rtl_apply_firmware(struct rtl8169_private *tp)
 {
-	const struct firmware **fw = &tp->fw;
-	int rc = !*fw;
-
-	if (rc) {
-		rc = request_firmware(fw, fw_name, &tp->pci_dev->dev);
-		if (rc < 0)
-			goto out;
-	}
+	const struct firmware *fw = tp->fw;
 
 	/* TODO: release firmware once rtl_phy_write_fw signals failures. */
-	rtl_phy_write_fw(tp, *fw);
-out:
-	return rc;
+	if (!IS_ERR_OR_NULL(fw))
+		rtl_phy_write_fw(tp, fw);
+}
+
+static void rtl_apply_firmware_cond(struct rtl8169_private *tp, u8 reg, u16 val)
+{
+	if (rtl_readphy(tp, reg) != val)
+		netif_warn(tp, hw, tp->dev, "chipset not ready for firmware\n");
+	else
+		rtl_apply_firmware(tp);
 }
 
 static void rtl8169s_hw_phy_config(struct rtl8169_private *tp)
@@ -2246,10 +2258,8 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp)
 
 	rtl_writephy(tp, 0x1f, 0x0005);
 	rtl_writephy(tp, 0x05, 0x001b);
-	if ((rtl_readphy(tp, 0x06) != 0xbf00) ||
-	    (rtl_apply_firmware(tp, FIRMWARE_8168D_1) < 0)) {
-		netif_warn(tp, probe, tp->dev, "unable to apply firmware patch\n");
-	}
+
+	rtl_apply_firmware_cond(tp, MII_EXPANSION, 0xbf00);
 
 	rtl_writephy(tp, 0x1f, 0x0000);
 }
@@ -2351,10 +2361,8 @@ static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp)
 
 	rtl_writephy(tp, 0x1f, 0x0005);
 	rtl_writephy(tp, 0x05, 0x001b);
-	if ((rtl_readphy(tp, 0x06) != 0xb300) ||
-	    (rtl_apply_firmware(tp, FIRMWARE_8168D_2) < 0)) {
-		netif_warn(tp, probe, tp->dev, "unable to apply firmware patch\n");
-	}
+
+	rtl_apply_firmware_cond(tp, MII_EXPANSION, 0xb300);
 
 	rtl_writephy(tp, 0x1f, 0x0000);
 }
@@ -2474,8 +2482,7 @@ static void rtl8105e_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x18, 0x0310);
 	msleep(100);
 
-	if (rtl_apply_firmware(tp, FIRMWARE_8105E_1) < 0)
-		netif_warn(tp, probe, tp->dev, "unable to apply firmware patch\n");
+	rtl_apply_firmware(tp);
 
 	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
@@ -3237,6 +3244,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->timer.data = (unsigned long) dev;
 	tp->timer.function = rtl8169_phy_timer;
 
+	tp->fw = RTL_FIRMWARE_UNKNOWN;
+
 	rc = register_netdev(dev);
 	if (rc < 0)
 		goto err_out_msi_4;
@@ -3288,9 +3297,9 @@ static void __devexit rtl8169_remove_one(struct pci_dev *pdev)
 
 	cancel_delayed_work_sync(&tp->task);
 
-	rtl_release_firmware(tp);
-
 	unregister_netdev(dev);
+
+	rtl_release_firmware(tp);
 
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_get_noresume(&pdev->dev);
@@ -3301,6 +3310,37 @@ static void __devexit rtl8169_remove_one(struct pci_dev *pdev)
 	rtl_disable_msi(pdev, tp);
 	rtl8169_release_board(pdev, dev, tp->mmio_addr);
 	pci_set_drvdata(pdev, NULL);
+}
+
+static void rtl_request_firmware(struct rtl8169_private *tp)
+{
+	int i;
+
+	/* Return early if the firmware is already loaded / cached. */
+	if (!IS_ERR(tp->fw))
+		goto out;
+
+	for (i = 0; i < ARRAY_SIZE(rtl_firmware_infos); i++) {
+		const struct rtl_firmware_info *info = rtl_firmware_infos + i;
+
+		if (info->mac_version == tp->mac_version) {
+			const char *name = info->fw_name;
+			int rc;
+
+			rc = request_firmware(&tp->fw, name, &tp->pci_dev->dev);
+			if (rc < 0) {
+				netif_warn(tp, ifup, tp->dev, "unable to load "
+					"firmware patch %s (%d)\n", name, rc);
+				goto out_disable_request_firmware;
+			}
+			goto out;
+		}
+	}
+
+out_disable_request_firmware:
+	tp->fw = NULL;
+out:
+	return;
 }
 
 static int rtl8169_open(struct net_device *dev)
@@ -3334,11 +3374,13 @@ static int rtl8169_open(struct net_device *dev)
 
 	smp_mb();
 
+	rtl_request_firmware(tp);
+
 	retval = request_irq(dev->irq, rtl8169_interrupt,
 			     (tp->features & RTL_FEATURE_MSI) ? 0 : IRQF_SHARED,
 			     dev->name, dev);
 	if (retval < 0)
-		goto err_release_ring_2;
+		goto err_release_fw_2;
 
 	napi_enable(&tp->napi);
 
@@ -3359,7 +3401,8 @@ static int rtl8169_open(struct net_device *dev)
 out:
 	return retval;
 
-err_release_ring_2:
+err_release_fw_2:
+	rtl_release_firmware(tp);
 	rtl8169_rx_clear(tp);
 err_free_rx_1:
 	dma_free_coherent(&pdev->dev, R8169_RX_RING_BYTES, tp->RxDescArray,

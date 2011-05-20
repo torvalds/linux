@@ -225,11 +225,11 @@ nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 }
 
 static struct nfs4_pnfs_ds *
-nfs4_pnfs_ds_add(struct inode *inode, u32 ip_addr, u32 port)
+nfs4_pnfs_ds_add(struct inode *inode, u32 ip_addr, u32 port, gfp_t gfp_flags)
 {
 	struct nfs4_pnfs_ds *tmp_ds, *ds;
 
-	ds = kzalloc(sizeof(*tmp_ds), GFP_KERNEL);
+	ds = kzalloc(sizeof(*tmp_ds), gfp_flags);
 	if (!ds)
 		goto out;
 
@@ -261,7 +261,7 @@ out:
  * Currently only support ipv4, and one multi-path address.
  */
 static struct nfs4_pnfs_ds *
-decode_and_add_ds(struct xdr_stream *streamp, struct inode *inode)
+decode_and_add_ds(struct xdr_stream *streamp, struct inode *inode, gfp_t gfp_flags)
 {
 	struct nfs4_pnfs_ds *ds = NULL;
 	char *buf;
@@ -303,7 +303,7 @@ decode_and_add_ds(struct xdr_stream *streamp, struct inode *inode)
 			rlen);
 		goto out_err;
 	}
-	buf = kmalloc(rlen + 1, GFP_KERNEL);
+	buf = kmalloc(rlen + 1, gfp_flags);
 	if (!buf) {
 		dprintk("%s: Not enough memory\n", __func__);
 		goto out_err;
@@ -333,7 +333,7 @@ decode_and_add_ds(struct xdr_stream *streamp, struct inode *inode)
 	sscanf(pstr, "-%d-%d", &tmp[0], &tmp[1]);
 	port = htons((tmp[0] << 8) | (tmp[1]));
 
-	ds = nfs4_pnfs_ds_add(inode, ip_addr, port);
+	ds = nfs4_pnfs_ds_add(inode, ip_addr, port, gfp_flags);
 	dprintk("%s: Decoded address and port %s\n", __func__, buf);
 out_free:
 	kfree(buf);
@@ -343,7 +343,7 @@ out_err:
 
 /* Decode opaque device data and return the result */
 static struct nfs4_file_layout_dsaddr*
-decode_device(struct inode *ino, struct pnfs_device *pdev)
+decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 {
 	int i;
 	u32 cnt, num;
@@ -362,7 +362,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev)
 	struct page *scratch;
 
 	/* set up xdr stream */
-	scratch = alloc_page(GFP_KERNEL);
+	scratch = alloc_page(gfp_flags);
 	if (!scratch)
 		goto out_err;
 
@@ -384,7 +384,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev)
 	}
 
 	/* read stripe indices */
-	stripe_indices = kcalloc(cnt, sizeof(u8), GFP_KERNEL);
+	stripe_indices = kcalloc(cnt, sizeof(u8), gfp_flags);
 	if (!stripe_indices)
 		goto out_err_free_scratch;
 
@@ -423,7 +423,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev)
 
 	dsaddr = kzalloc(sizeof(*dsaddr) +
 			(sizeof(struct nfs4_pnfs_ds *) * (num - 1)),
-			GFP_KERNEL);
+			gfp_flags);
 	if (!dsaddr)
 		goto out_err_free_stripe_indices;
 
@@ -452,7 +452,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev)
 		for (j = 0; j < mp_count; j++) {
 			if (j == 0) {
 				dsaddr->ds_list[i] = decode_and_add_ds(&stream,
-					ino);
+					ino, gfp_flags);
 				if (dsaddr->ds_list[i] == NULL)
 					goto out_err_free_deviceid;
 			} else {
@@ -503,12 +503,12 @@ out_err:
  * available devices.
  */
 static struct nfs4_file_layout_dsaddr *
-decode_and_add_device(struct inode *inode, struct pnfs_device *dev)
+decode_and_add_device(struct inode *inode, struct pnfs_device *dev, gfp_t gfp_flags)
 {
 	struct nfs4_file_layout_dsaddr *d, *new;
 	long hash;
 
-	new = decode_device(inode, dev);
+	new = decode_device(inode, dev, gfp_flags);
 	if (!new) {
 		printk(KERN_WARNING "%s: Could not decode or add device\n",
 			__func__);
@@ -537,7 +537,7 @@ decode_and_add_device(struct inode *inode, struct pnfs_device *dev)
  * of available devices, and return it.
  */
 struct nfs4_file_layout_dsaddr *
-get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
+get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gfp_t gfp_flags)
 {
 	struct pnfs_device *pdev = NULL;
 	u32 max_resp_sz;
@@ -556,17 +556,17 @@ get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
 	dprintk("%s inode %p max_resp_sz %u max_pages %d\n",
 		__func__, inode, max_resp_sz, max_pages);
 
-	pdev = kzalloc(sizeof(struct pnfs_device), GFP_KERNEL);
+	pdev = kzalloc(sizeof(struct pnfs_device), gfp_flags);
 	if (pdev == NULL)
 		return NULL;
 
-	pages = kzalloc(max_pages * sizeof(struct page *), GFP_KERNEL);
+	pages = kzalloc(max_pages * sizeof(struct page *), gfp_flags);
 	if (pages == NULL) {
 		kfree(pdev);
 		return NULL;
 	}
 	for (i = 0; i < max_pages; i++) {
-		pages[i] = alloc_page(GFP_KERNEL);
+		pages[i] = alloc_page(gfp_flags);
 		if (!pages[i])
 			goto out_free;
 	}
@@ -587,7 +587,7 @@ get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
 	 * Found new device, need to decode it and then add it to the
 	 * list of known devices for this mountpoint.
 	 */
-	dsaddr = decode_and_add_device(inode, pdev);
+	dsaddr = decode_and_add_device(inode, pdev, gfp_flags);
 out_free:
 	for (i = 0; i < max_pages; i++)
 		__free_page(pages[i]);

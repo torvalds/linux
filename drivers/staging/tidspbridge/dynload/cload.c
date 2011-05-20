@@ -718,7 +718,7 @@ static void dload_symbols(struct dload_state *dlthis)
 	 * as a temporary for .dllview record construction.
 	 * Allocate storage for the whole table.  Add 1 to the section count
 	 * in case a trampoline section is auto-generated as well as the
-	 * size of the trampoline section name so DLLView does't get lost.
+	 * size of the trampoline section name so DLLView doesn't get lost.
 	 */
 
 	siz = sym_count * sizeof(struct local_symbol);

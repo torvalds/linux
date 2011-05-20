@@ -2199,7 +2199,6 @@ static int ohci_set_config_rom(struct fw_card *card,
 {
 	struct fw_ohci *ohci;
 	unsigned long flags;
-	int ret = -EBUSY;
 	__be32 *next_config_rom;
 	dma_addr_t uninitialized_var(next_config_rom_bus);
 
@@ -2240,21 +2239,36 @@ static int ohci_set_config_rom(struct fw_card *card,
 
 	spin_lock_irqsave(&ohci->lock, flags);
 
+	/*
+	 * If there is not an already pending config_rom update,
+	 * push our new allocation into the ohci->next_config_rom
+	 * and then mark the local variable as null so that we
+	 * won't deallocate the new buffer.
+	 *
+	 * OTOH, if there is a pending config_rom update, just
+	 * use that buffer with the new config_rom data, and
+	 * let this routine free the unused DMA allocation.
+	 */
+
 	if (ohci->next_config_rom == NULL) {
 		ohci->next_config_rom = next_config_rom;
 		ohci->next_config_rom_bus = next_config_rom_bus;
-
-		copy_config_rom(ohci->next_config_rom, config_rom, length);
-
-		ohci->next_header = config_rom[0];
-		ohci->next_config_rom[0] = 0;
-
-		reg_write(ohci, OHCI1394_ConfigROMmap,
-			  ohci->next_config_rom_bus);
-		ret = 0;
+		next_config_rom = NULL;
 	}
 
+	copy_config_rom(ohci->next_config_rom, config_rom, length);
+
+	ohci->next_header = config_rom[0];
+	ohci->next_config_rom[0] = 0;
+
+	reg_write(ohci, OHCI1394_ConfigROMmap, ohci->next_config_rom_bus);
+
 	spin_unlock_irqrestore(&ohci->lock, flags);
+
+	/* If we didn't use the DMA allocation, delete it. */
+	if (next_config_rom != NULL)
+		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
+				  next_config_rom, next_config_rom_bus);
 
 	/*
 	 * Now initiate a bus reset to have the changes take
@@ -2263,13 +2277,10 @@ static int ohci_set_config_rom(struct fw_card *card,
 	 * controller could need to access it before the bus reset
 	 * takes effect.
 	 */
-	if (ret == 0)
-		fw_schedule_bus_reset(&ohci->card, true, true);
-	else
-		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-				  next_config_rom, next_config_rom_bus);
 
-	return ret;
+	fw_schedule_bus_reset(&ohci->card, true, true);
+
+	return 0;
 }
 
 static void ohci_send_request(struct fw_card *card, struct fw_packet *packet)

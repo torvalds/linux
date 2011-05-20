@@ -173,7 +173,7 @@ static int pcmcia_access_config(struct pcmcia_device *p_dev,
 	c = p_dev->function_config;
 
 	if (!(c->state & CONFIG_LOCKED)) {
-		dev_dbg(&p_dev->dev, "Configuration isn't't locked\n");
+		dev_dbg(&p_dev->dev, "Configuration isn't locked\n");
 		mutex_unlock(&s->ops_mutex);
 		return -EACCES;
 	}

@@ -1,6 +1,6 @@
 config DRM_PSB
 	tristate "Intel GMA500 KMS Framebuffer"
-	depends on DRM && PCI
+	depends on DRM && PCI && X86
 	select FB_CFB_COPYAREA
         select FB_CFB_FILLRECT
         select FB_CFB_IMAGEBLIT
