@@ -661,7 +661,7 @@ void receive_bat_packet(const struct ethhdr *ethhdr,
 				hard_iface->net_dev->dev_addr))
 			is_my_oldorig = 1;
 
-		if (compare_eth(ethhdr->h_source, broadcast_addr))
+		if (is_broadcast_ether_addr(ethhdr->h_source))
 			is_broadcast = 1;
 	}
 	rcu_read_unlock();
