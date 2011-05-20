@@ -771,7 +771,7 @@ union dig_encoder_control {
 };
 
 void
-atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
+atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -817,7 +817,10 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 
 	args.v1.ucAction = action;
 	args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
-	args.v1.ucEncoderMode = atombios_get_encoder_mode(encoder);
+	if (action == ATOM_ENCODER_CMD_SETUP_PANEL_MODE)
+		args.v3.ucPanelMode = panel_mode;
+	else
+		args.v1.ucEncoderMode = atombios_get_encoder_mode(encoder);
 
 	if ((args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP) ||
 	    (args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP_MST))
@@ -1416,7 +1419,7 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 				}
 				dp_link_train(encoder, connector);
 				if (ASIC_IS_DCE4(rdev))
-					atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_ON);
+					atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_ON, 0);
 			}
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
 				atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_LCD_BLON, 0, 0);
@@ -1429,7 +1432,7 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 				struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 
 				if (ASIC_IS_DCE4(rdev))
-					atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_OFF);
+					atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_OFF, 0);
 				if (connector &&
 				    (connector->connector_type == DRM_MODE_CONNECTOR_eDP)) {
 					struct radeon_connector *radeon_connector = to_radeon_connector(connector);
@@ -1800,7 +1803,7 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 			/* disable the transmitter */
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE, 0, 0);
 			/* setup and enable the encoder */
-			atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_SETUP);
+			atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_SETUP, 0);
 
 			/* init and enable the transmitter */
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_INIT, 0, 0);
@@ -1808,10 +1811,10 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 		} else {
 			/* disable the encoder and transmitter */
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE, 0, 0);
-			atombios_dig_encoder_setup(encoder, ATOM_DISABLE);
+			atombios_dig_encoder_setup(encoder, ATOM_DISABLE, 0);
 
 			/* setup and enable the encoder and transmitter */
-			atombios_dig_encoder_setup(encoder, ATOM_ENABLE);
+			atombios_dig_encoder_setup(encoder, ATOM_ENABLE, 0);
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_INIT, 0, 0);
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_SETUP, 0, 0);
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE, 0, 0);
@@ -2025,7 +2028,7 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 		else {
 			/* disable the encoder and transmitter */
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE, 0, 0);
-			atombios_dig_encoder_setup(encoder, ATOM_DISABLE);
+			atombios_dig_encoder_setup(encoder, ATOM_DISABLE, 0);
 		}
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DDI:

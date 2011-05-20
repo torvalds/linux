@@ -662,9 +662,9 @@ void dp_link_train(struct drm_encoder *encoder,
 	dp_set_downspread(radeon_connector, 0);
 	if (ASIC_IS_DCE4(rdev)) {
 		/* start training on the source */
-		atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_LINK_TRAINING_START);
+		atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_LINK_TRAINING_START, 0);
 		/* set training pattern 1 on the source */
-		atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_LINK_TRAINING_PATTERN1);
+		atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_LINK_TRAINING_PATTERN1, 0);
 	} else {
 		/* start training on the source */
 		radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_START,
@@ -733,7 +733,7 @@ void dp_link_train(struct drm_encoder *encoder,
 	dp_set_training(radeon_connector, DP_TRAINING_PATTERN_2);
 	/* set training pattern 2 on the source */
 	if (ASIC_IS_DCE4(rdev))
-		atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_LINK_TRAINING_PATTERN2);
+		atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_LINK_TRAINING_PATTERN2, 0);
 	else
 		radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_PATTERN_SEL,
 					  dig_connector->dp_clock, enc_id, 1);
@@ -777,7 +777,7 @@ void dp_link_train(struct drm_encoder *encoder,
 
 	/* disable the training pattern on the source */
 	if (ASIC_IS_DCE4(rdev))
-		atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_LINK_TRAINING_COMPLETE);
+		atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_LINK_TRAINING_COMPLETE, 0);
 	else
 		radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_COMPLETE,
 					  dig_connector->dp_clock, enc_id, 0);
