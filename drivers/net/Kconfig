@@ -452,8 +452,6 @@ config DNET
 	  To compile this driver as a module, choose M here: the module
 	  will be called dnet.
 
-source "drivers/net/tulip/Kconfig"
-
 config AT1700
 	tristate "AT1700/1720 support (EXPERIMENTAL)"
 	depends on (ISA || MCA_LEGACY) && EXPERIMENTAL
@@ -493,20 +491,6 @@ config NET_ISA
 	  kernel: saying N will just cause the configurator to skip all
 	  the remaining ISA network card questions. If you say Y, you will be
 	  asked for your specific card in the following questions.
-
-config EWRK3
-	tristate "EtherWORKS 3 (DE203, DE204, DE205) support"
-	depends on NET_ISA
-	select CRC32
-	---help---
-	  This driver supports the DE203, DE204 and DE205 network (Ethernet)
-	  cards. If this is for you, say Y and read
-	  <file:Documentation/networking/ewrk3.txt> in the kernel source as
-	  well as the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ewrk3.
 
 config ETH16I
 	tristate "ICL EtherTeam 16i/32 support"

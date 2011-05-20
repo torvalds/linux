@@ -2,10 +2,10 @@
 # Tulip family network device configuration
 #
 
-menuconfig NET_TULIP
-	bool "\"Tulip\" family network device support"
-	depends on PCI || EISA || CARDBUS
-	help
+config NET_TULIP
+	bool "DEC - Tulip devices"
+	depends on (PCI || EISA || CARDBUS)
+	---help---
 	  This selects the "Tulip" family of EISA/PCI network cards.
 
 if NET_TULIP
@@ -32,7 +32,7 @@ config DE2104X_DSL
 	depends on DE2104X
 	range 0 31
 	default 0
-	help
+	---help---
 	  Setting this value allows to align ring buffer descriptors into their
 	  own cache lines. Value of 4 corresponds to the typical 32 byte line
 	  (the descriptor is 16 bytes). This is necessary on systems that lack
@@ -59,7 +59,7 @@ config TULIP
 config TULIP_MWI
 	bool "New bus configuration (EXPERIMENTAL)"
 	depends on TULIP && EXPERIMENTAL
-	help
+	---help---
 	  This configures your Tulip card specifically for the card and
 	  system cache line size type you are using.
 
@@ -70,7 +70,7 @@ config TULIP_MWI
 config TULIP_MMIO
 	bool "Use PCI shared mem for NIC registers"
 	depends on TULIP
-	help
+	---help---
 	  Use PCI shared memory for the NIC registers, rather than going through
 	  the Tulip's PIO (programmed I/O ports).  Faster, but could produce
 	  obscure bugs if your mainboard has memory controller timing issues.
@@ -79,7 +79,7 @@ config TULIP_MMIO
 config TULIP_NAPI
 	bool "Use RX polling (NAPI)"
 	depends on TULIP
-	help
+	---help---
 	  NAPI is a new driver API designed to reduce CPU and interrupt load
 	  when the driver is receiving lots of packets from the card. It is
 	  still somewhat experimental and thus not yet enabled by default.
@@ -107,7 +107,7 @@ config TULIP_DM910X
 
 config DE4X5
 	tristate "Generic DECchip & DIGITAL EtherWORKS PCI/EISA"
-	depends on PCI || EISA
+	depends on (PCI || EISA)
 	select CRC32
 	---help---
 	  This is support for the DIGITAL series of PCI/EISA Ethernet cards.
@@ -126,7 +126,7 @@ config WINBOND_840
 	depends on PCI
 	select CRC32
 	select MII
-	help
+	---help---
 	  This driver is for the Winbond W89c840 chip.  It also works with 
 	  the TX9882 chip on the Compex RL100-ATX board.
 	  More specific information and updates are available from
