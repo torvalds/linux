@@ -16,12 +16,16 @@
 
 /**
  * enum soc_mbus_packing - data packing types on the media-bus
- * @SOC_MBUS_PACKING_NONE:	no packing, bit-for-bit transfer to RAM
+ * @SOC_MBUS_PACKING_NONE:	no packing, bit-for-bit transfer to RAM, one
+ *				sample represents one pixel
  * @SOC_MBUS_PACKING_2X8_PADHI:	16 bits transferred in 2 8-bit samples, in the
  *				possibly incomplete byte high bits are padding
  * @SOC_MBUS_PACKING_2X8_PADLO:	as above, but low bits are padding
  * @SOC_MBUS_PACKING_EXTEND16:	sample width (e.g., 10 bits) has to be extended
  *				to 16 bits
+ * @SOC_MBUS_PACKING_VARIABLE:	compressed formats with variable packing
+ * @SOC_MBUS_PACKING_1_5X8:	used for packed YUV 4:2:0 formats, where 4
+ *				pixels occupy 6 bytes in RAM
  */
 enum soc_mbus_packing {
 	SOC_MBUS_PACKING_NONE,
@@ -29,6 +33,7 @@ enum soc_mbus_packing {
 	SOC_MBUS_PACKING_2X8_PADLO,
 	SOC_MBUS_PACKING_EXTEND16,
 	SOC_MBUS_PACKING_VARIABLE,
+	SOC_MBUS_PACKING_1_5X8,
 };
 
 /**
@@ -75,6 +80,7 @@ const struct soc_mbus_pixelfmt *soc_mbus_find_fmtdesc(
 const struct soc_mbus_pixelfmt *soc_mbus_get_fmtdesc(
 	enum v4l2_mbus_pixelcode code);
 s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf);
-int soc_mbus_samples_per_pixel(const struct soc_mbus_pixelfmt *mf);
+int soc_mbus_samples_per_pixel(const struct soc_mbus_pixelfmt *mf,
+			unsigned int *numerator, unsigned int *denominator);
 
 #endif

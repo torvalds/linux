@@ -756,8 +756,10 @@ static void configure_geometry(struct mx3_camera_dev *mx3_cam,
 		 * the width parameter count the number of samples to
 		 * capture to complete the whole image width.
 		 */
-		width *= soc_mbus_samples_per_pixel(fmt);
-		BUG_ON(width < 0);
+		unsigned int num, den;
+		int ret = soc_mbus_samples_per_pixel(fmt, &num, &den);
+		BUG_ON(ret < 0);
+		width = width * num / den;
 	}
 
 	/* Setup frame size - this cannot be changed on-the-fly... */
