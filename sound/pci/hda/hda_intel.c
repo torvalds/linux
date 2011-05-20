@@ -2367,9 +2367,16 @@ static int __devinit check_position_fix(struct azx *chip, int fix)
 	/* Check VIA/ATI HD Audio Controller exist */
 	switch (chip->driver_type) {
 	case AZX_DRIVER_VIA:
-	case AZX_DRIVER_ATI:
 		/* Use link position directly, avoid any transfer problem. */
 		return POS_FIX_VIACOMBO;
+	case AZX_DRIVER_ATI:
+		/* ATI chipsets don't work well with position-buffer */
+		return POS_FIX_LPIB;
+	case AZX_DRIVER_GENERIC:
+		/* AMD chipsets also don't work with position-buffer */
+		if (chip->pci->vendor == PCI_VENDOR_ID_AMD)
+			return POS_FIX_LPIB;
+		break;
 	}
 
 	return POS_FIX_AUTO;
