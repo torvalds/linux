@@ -271,15 +271,14 @@ struct scic_sds_controller {
 
 	/* Phy Startup Data */
 	/**
-	 * This field is the driver timer handle for controller phy request startup.
-	 * On controller start the controller will start each PHY individually in
-	 * order of phy index.
+	 * Timer for controller phy request startup. On controller start the
+	 * controller will start each PHY individually in order of phy index.
 	 */
-	void *phy_startup_timer;
+	struct sci_timer phy_timer;
 
 	/**
-	 * This field is set when the phy_startup_timer is running and is cleared when
-	 * the phy_startup_timer is stopped.
+	 * This field is set when the phy_timer is running and is cleared when
+	 * the phy_timer is stopped.
 	 */
 	bool phy_startup_timer_pending;
 

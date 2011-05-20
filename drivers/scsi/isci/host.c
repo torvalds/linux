@@ -917,21 +917,6 @@ static void scic_sds_controller_transition_to_ready(
 	}
 }
 
-static void scic_sds_controller_phy_timer_stop(struct scic_sds_controller *scic)
-{
-	isci_timer_stop(scic->phy_startup_timer);
-
-	scic->phy_startup_timer_pending = false;
-}
-
-static void scic_sds_controller_phy_timer_start(struct scic_sds_controller *scic)
-{
-	isci_timer_start(scic->phy_startup_timer,
-			 SCIC_SDS_CONTROLLER_PHY_START_TIMEOUT);
-
-	scic->phy_startup_timer_pending = true;
-}
-
 static bool is_phy_starting(struct scic_sds_phy *sci_phy)
 {
 	enum scic_sds_phy_states state;
@@ -1008,7 +993,8 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 		 * Inform the SCI Core user and transition to the READY state. */
 		if (is_controller_start_complete == true) {
 			scic_sds_controller_transition_to_ready(scic, SCI_SUCCESS);
-			scic_sds_controller_phy_timer_stop(scic);
+			sci_del_timer(&scic->phy_timer);
+			scic->phy_startup_timer_pending = false;
 		}
 	} else {
 		sci_phy = &ihost->phys[scic->next_phy_to_start].sci;
@@ -1033,7 +1019,9 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 		status = scic_sds_phy_start(sci_phy);
 
 		if (status == SCI_SUCCESS) {
-			scic_sds_controller_phy_timer_start(scic);
+			sci_mod_timer(&scic->phy_timer,
+				      SCIC_SDS_CONTROLLER_PHY_START_TIMEOUT);
+			scic->phy_startup_timer_pending = true;
 		} else {
 			dev_warn(scic_to_dev(scic),
 				 "%s: Controller stop operation failed "
@@ -1050,15 +1038,27 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 	return status;
 }
 
-static void scic_sds_controller_phy_startup_timeout_handler(void *_scic)
+static void phy_startup_timeout(unsigned long data)
 {
-	struct scic_sds_controller *scic = _scic;
+	struct sci_timer *tmr = (struct sci_timer *)data;
+	struct scic_sds_controller *scic = container_of(tmr, typeof(*scic), phy_timer);
+	struct isci_host *ihost = scic_to_ihost(scic);
+	unsigned long flags;
 	enum sci_status status;
 
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+
+	if (tmr->cancel)
+		goto done;
+
 	scic->phy_startup_timer_pending = false;
-	status = SCI_FAILURE;
-	while (status != SCI_SUCCESS)
+
+	do {
 		status = scic_sds_controller_start_next_phy(scic);
+	} while (status != SCI_SUCCESS);
+
+done:
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 }
 
 static enum sci_status scic_controller_start(struct scic_sds_controller *scic,
@@ -1377,6 +1377,8 @@ void isci_host_deinit(struct isci_host *ihost)
 	del_timer_sync(&ihost->sci.power_control.timer.timer);
 
 	del_timer_sync(&ihost->sci.timer.timer);
+
+	del_timer_sync(&ihost->sci.phy_timer.timer);
 
 	isci_timer_list_destroy(ihost);
 }
@@ -1931,24 +1933,6 @@ void scic_oem_parameters_get(
 	memcpy(scic_parms, (&scic->oem_parameters), sizeof(*scic_parms));
 }
 
-static enum sci_status scic_sds_controller_initialize_phy_startup(struct scic_sds_controller *scic)
-{
-	struct isci_host *ihost = scic_to_ihost(scic);
-
-	scic->phy_startup_timer = isci_timer_create(ihost,
-						    scic,
-						    scic_sds_controller_phy_startup_timeout_handler);
-
-	if (scic->phy_startup_timer == NULL)
-		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
-	else {
-		scic->next_phy_to_start = 0;
-		scic->phy_startup_timer_pending = false;
-	}
-
-	return SCI_SUCCESS;
-}
-
 static void power_control_timeout(unsigned long data)
 {
 	struct sci_timer *tmr = (struct sci_timer *)data;
@@ -2258,7 +2242,10 @@ static enum sci_status scic_controller_initialize(struct scic_sds_controller *sc
 
 	sci_base_state_machine_change_state(sm, SCI_BASE_CONTROLLER_STATE_INITIALIZING);
 
-	scic_sds_controller_initialize_phy_startup(scic);
+	sci_init_timer(&scic->phy_timer, phy_startup_timeout);
+
+	scic->next_phy_to_start = 0;
+	scic->phy_startup_timer_pending = false;
 
 	scic_sds_controller_initialize_power_control(scic);
 
@@ -2640,7 +2627,8 @@ void scic_sds_controller_link_up(struct scic_sds_controller *scic,
 {
 	switch (scic->state_machine.current_state_id) {
 	case SCI_BASE_CONTROLLER_STATE_STARTING:
-		scic_sds_controller_phy_timer_stop(scic);
+		sci_del_timer(&scic->phy_timer);
+		scic->phy_startup_timer_pending = false;
 		scic->port_agent.link_up_handler(scic, &scic->port_agent,
 						 port, phy);
 		scic_sds_controller_start_next_phy(scic);
