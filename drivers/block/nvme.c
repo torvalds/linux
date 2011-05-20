@@ -325,6 +325,8 @@ static void bio_completion(struct nvme_queue *nvmeq, void *ctx,
 	if (status) {
 		bio_endio(bio, -EIO);
 	} else if (bio->bi_vcnt > bio->bi_idx) {
+		if (bio_list_empty(&nvmeq->sq_cong))
+			add_wait_queue(&nvmeq->sq_full, &nvmeq->sq_cong_wait);
 		bio_list_add(&nvmeq->sq_cong, bio);
 		wake_up_process(nvme_thread);
 	} else {
