@@ -838,6 +838,7 @@ sub monitor {
 
 	if ($stop_test_after > 0 && !$booted && !$bug) {
 	    if (time - $monitor_start > $stop_test_after) {
+		doprint "STOP_TEST_AFTER ($stop_test_after seconds) timed out\n";
 		$done = 1;
 	    }
 	}
