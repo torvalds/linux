@@ -38,11 +38,7 @@
 #define AVC_CACHE_RECLAIM		16
 
 #ifdef CONFIG_SECURITY_SELINUX_AVC_STATS
-#define avc_cache_stats_incr(field)				\
-do {								\
-	per_cpu(avc_cache_stats, get_cpu()).field++;		\
-	put_cpu();						\
-} while (0)
+#define avc_cache_stats_incr(field)	this_cpu_inc(avc_cache_stats.field)
 #else
 #define avc_cache_stats_incr(field)	do {} while (0)
 #endif
