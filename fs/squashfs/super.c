@@ -95,12 +95,6 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	msblk = sb->s_fs_info;
 
-	sblk = kzalloc(sizeof(*sblk), GFP_KERNEL);
-	if (sblk == NULL) {
-		ERROR("Failed to allocate squashfs_super_block\n");
-		goto failure;
-	}
-
 	msblk->devblksize = sb_min_blocksize(sb, BLOCK_SIZE);
 	msblk->devblksize_log2 = ffz(~msblk->devblksize);
 
@@ -114,10 +108,12 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	 * of bytes_used) we need to set it to an initial sensible dummy value
 	 */
 	msblk->bytes_used = sizeof(*sblk);
-	err = squashfs_read_table(sb, sblk, SQUASHFS_START, sizeof(*sblk));
+	sblk = squashfs_read_table(sb, SQUASHFS_START, sizeof(*sblk));
 
-	if (err < 0) {
+	if (IS_ERR(sblk)) {
 		ERROR("unable to read squashfs_super_block\n");
+		err = PTR_ERR(sblk);
+		sblk = NULL;
 		goto failed_mount;
 	}
 
@@ -222,6 +218,7 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	msblk->id_table = squashfs_read_id_index_table(sb,
 		le64_to_cpu(sblk->id_table_start), le16_to_cpu(sblk->no_ids));
 	if (IS_ERR(msblk->id_table)) {
+		ERROR("unable to read id index table\n");
 		err = PTR_ERR(msblk->id_table);
 		msblk->id_table = NULL;
 		goto failed_mount;
@@ -242,6 +239,7 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	msblk->fragment_index = squashfs_read_fragment_index_table(sb,
 		le64_to_cpu(sblk->fragment_table_start), fragments);
 	if (IS_ERR(msblk->fragment_index)) {
+		ERROR("unable to read fragment index table\n");
 		err = PTR_ERR(msblk->fragment_index);
 		msblk->fragment_index = NULL;
 		goto failed_mount;
@@ -256,6 +254,7 @@ allocate_lookup_table:
 	msblk->inode_lookup_table = squashfs_read_inode_lookup_table(sb,
 		lookup_table_start, msblk->inodes);
 	if (IS_ERR(msblk->inode_lookup_table)) {
+		ERROR("unable to read inode lookup table\n");
 		err = PTR_ERR(msblk->inode_lookup_table);
 		msblk->inode_lookup_table = NULL;
 		goto failed_mount;
@@ -273,6 +272,7 @@ allocate_xattr_table:
 	msblk->xattr_id_table = squashfs_read_xattr_id_table(sb,
 		xattr_id_table_start, &msblk->xattr_table, &msblk->xattr_ids);
 	if (IS_ERR(msblk->xattr_id_table)) {
+		ERROR("unable to read xattr id index table\n");
 		err = PTR_ERR(msblk->xattr_id_table);
 		msblk->xattr_id_table = NULL;
 		if (err != -ENOTSUPP)
@@ -318,11 +318,6 @@ failed_mount:
 	sb->s_fs_info = NULL;
 	kfree(sblk);
 	return err;
-
-failure:
-	kfree(sb->s_fs_info);
-	sb->s_fs_info = NULL;
-	return -ENOMEM;
 }
 
 

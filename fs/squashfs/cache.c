@@ -393,19 +393,36 @@ struct squashfs_cache_entry *squashfs_get_datablock(struct super_block *sb,
 /*
  * Read a filesystem table (uncompressed sequence of bytes) from disk
  */
-int squashfs_read_table(struct super_block *sb, void *buffer, u64 block,
-	int length)
+void *squashfs_read_table(struct super_block *sb, u64 block, int length)
 {
 	int pages = (length + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	int i, res;
-	void **data = kcalloc(pages, sizeof(void *), GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
+	void *table, *buffer, **data;
+
+	table = buffer = kmalloc(length, GFP_KERNEL);
+	if (table == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	data = kcalloc(pages, sizeof(void *), GFP_KERNEL);
+	if (data == NULL) {
+		res = -ENOMEM;
+		goto failed;
+	}
 
 	for (i = 0; i < pages; i++, buffer += PAGE_CACHE_SIZE)
 		data[i] = buffer;
+
 	res = squashfs_read_data(sb, data, block, length |
 		SQUASHFS_COMPRESSED_BIT_BLOCK, NULL, length, pages);
+
 	kfree(data);
-	return res;
+
+	if (res < 0)
+		goto failed;
+
+	return table;
+
+failed:
+	kfree(table);
+	return ERR_PTR(res);
 }

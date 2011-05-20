@@ -74,23 +74,6 @@ __le64 *squashfs_read_fragment_index_table(struct super_block *sb,
 	u64 fragment_table_start, unsigned int fragments)
 {
 	unsigned int length = SQUASHFS_FRAGMENT_INDEX_BYTES(fragments);
-	__le64 *fragment_index;
-	int err;
 
-	/* Allocate fragment lookup table indexes */
-	fragment_index = kmalloc(length, GFP_KERNEL);
-	if (fragment_index == NULL) {
-		ERROR("Failed to allocate fragment index table\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	err = squashfs_read_table(sb, fragment_index, fragment_table_start,
-			length);
-	if (err < 0) {
-		ERROR("unable to read fragment index table\n");
-		kfree(fragment_index);
-		return ERR_PTR(err);
-	}
-
-	return fragment_index;
+	return squashfs_read_table(sb, fragment_table_start, length);
 }

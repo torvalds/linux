@@ -44,7 +44,7 @@ extern struct squashfs_cache_entry *squashfs_get_fragment(struct super_block *,
 				u64, int);
 extern struct squashfs_cache_entry *squashfs_get_datablock(struct super_block *,
 				u64, int);
-extern int squashfs_read_table(struct super_block *, void *, u64, int);
+extern void *squashfs_read_table(struct super_block *, u64, int);
 
 /* decompressor.c */
 extern const struct squashfs_decompressor *squashfs_lookup_decompressor(int);

@@ -67,34 +67,18 @@ __le64 *squashfs_read_xattr_id_table(struct super_block *sb, u64 start,
 		u64 *xattr_table_start, int *xattr_ids)
 {
 	unsigned int len;
-	__le64 *xid_table;
-	struct squashfs_xattr_id_table id_table;
-	int err;
+	struct squashfs_xattr_id_table *id_table;
 
-	err = squashfs_read_table(sb, &id_table, start, sizeof(id_table));
-	if (err < 0) {
-		ERROR("unable to read xattr id table\n");
-		return ERR_PTR(err);
-	}
-	*xattr_table_start = le64_to_cpu(id_table.xattr_table_start);
-	*xattr_ids = le32_to_cpu(id_table.xattr_ids);
+	id_table = squashfs_read_table(sb, start, sizeof(*id_table));
+	if (IS_ERR(id_table))
+		return (__le64 *) id_table;
+
+	*xattr_table_start = le64_to_cpu(id_table->xattr_table_start);
+	*xattr_ids = le32_to_cpu(id_table->xattr_ids);
+	kfree(id_table);
 	len = SQUASHFS_XATTR_BLOCK_BYTES(*xattr_ids);
 
 	TRACE("In read_xattr_index_table, length %d\n", len);
 
-	/* Allocate xattr id lookup table indexes */
-	xid_table = kmalloc(len, GFP_KERNEL);
-	if (xid_table == NULL) {
-		ERROR("Failed to allocate xattr id index table\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	err = squashfs_read_table(sb, xid_table, start + sizeof(id_table), len);
-	if (err < 0) {
-		ERROR("unable to read xattr id index table\n");
-		kfree(xid_table);
-		return ERR_PTR(err);
-	}
-
-	return xid_table;
+	return squashfs_read_table(sb, start + sizeof(*id_table), len);
 }
