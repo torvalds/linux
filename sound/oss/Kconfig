@@ -22,10 +22,6 @@ config SOUND_VWSND
 	  <file:Documentation/sound/oss/vwsnd> for more info on this driver's
 	  capabilities.
 
-config SOUND_AU1550_AC97
-	tristate "Au1550/Au1200 AC97 Sound"
-	depends on SOC_AU1550 || SOC_AU1200
-
 config SOUND_MSNDCLAS
 	tristate "Support for Turtle Beach MultiSound Classic, Tahiti, Monterey"
 	depends on (m || !STANDALONE) && ISA
