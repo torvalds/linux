@@ -114,6 +114,7 @@ my $successes = 0;
 
 my %entered_configs;
 my %config_help;
+my %variable;
 
 $config_help{"MACHINE"} = << "EOF"
  The machine hostname that you will test.
@@ -262,6 +263,39 @@ sub get_ktest_configs {
     }
 }
 
+sub process_variables {
+    my ($value) = @_;
+    my $retval = "";
+
+    # We want to check for '\', and it is just easier
+    # to check the previous characet of '$' and not need
+    # to worry if '$' is the first character. By adding
+    # a space to $value, we can just check [^\\]\$ and
+    # it will still work.
+    $value = " $value";
+
+    while ($value =~ /(.*?[^\\])\$\{(.*?)\}(.*)/) {
+	my $begin = $1;
+	my $var = $2;
+	my $end = $3;
+	# append beginning of value to retval
+	$retval = "$retval$begin";
+	if (defined($variable{$var})) {
+	    $retval = "$retval$variable{$var}";
+	} else {
+	    # put back the origin piece.
+	    $retval = "$retval\$\{$var\}";
+	}
+	$value = $end;
+    }
+    $retval = "$retval$value";
+
+    # remove the space added in the beginning
+    $retval =~ s/ //;
+
+    return "$retval"
+}
+
 sub set_value {
     my ($lvalue, $rvalue) = @_;
 
@@ -271,7 +305,19 @@ sub set_value {
     if ($rvalue =~ /^\s*$/) {
 	delete $opt{$lvalue};
     } else {
+	$rvalue = process_variables($rvalue);
 	$opt{$lvalue} = $rvalue;
+    }
+}
+
+sub set_variable {
+    my ($lvalue, $rvalue) = @_;
+
+    if ($rvalue =~ /^\s*$/) {
+	delete $variable{$lvalue};
+    } else {
+	$rvalue = process_variables($rvalue);
+	$variable{$lvalue} = $rvalue;
     }
 }
 
@@ -387,6 +433,22 @@ sub read_config {
 		    $repeats{$val} = $repeat;
 		}
 	    }
+	} elsif (/^\s*([A-Z_\[\]\d]+)\s*:=\s*(.*?)\s*$/) {
+	    next if ($skip);
+
+	    my $lvalue = $1;
+	    my $rvalue = $2;
+
+	    # process config variables.
+	    # Config variables are only active while reading the
+	    # config and can be defined anywhere. They also ignore
+	    # TEST_START and DEFAULTS, but are skipped if they are in
+	    # on of these sections that have SKIP defined.
+	    # The save variable can be
+	    # defined multiple times and the new one simply overrides
+	    # the prevous one.
+	    set_variable($lvalue, $rvalue);
+
 	} else {
 	    die "$name: $.: Garbage found in config\n$_";
 	}
