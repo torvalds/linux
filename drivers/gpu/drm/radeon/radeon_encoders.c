@@ -250,6 +250,25 @@ struct drm_encoder *radeon_atom_get_external_encoder(struct drm_encoder *encoder
 	return NULL;
 }
 
+bool radeon_encoder_is_dp_bridge(struct drm_encoder *encoder)
+{
+	struct drm_encoder *other_encoder = radeon_atom_get_external_encoder(encoder);
+
+	if (other_encoder) {
+		struct radeon_encoder *radeon_encoder = to_radeon_encoder(other_encoder);
+
+		switch (radeon_encoder->encoder_id) {
+		case ENCODER_OBJECT_ID_TRAVIS:
+		case ENCODER_OBJECT_ID_NUTMEG:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	return false;
+}
+
 void radeon_panel_mode_fixup(struct drm_encoder *encoder,
 			     struct drm_display_mode *adjusted_mode)
 {
@@ -620,6 +639,10 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector;
 	struct radeon_connector_atom_dig *dig_connector;
+
+	/* dp bridges are always DP */
+	if (radeon_encoder_is_dp_bridge(encoder))
+		return ATOM_ENCODER_MODE_DP;
 
 	connector = radeon_get_connector_for_encoder(encoder);
 	if (!connector) {
