@@ -335,7 +335,7 @@ static u8 rs_tl_add_packet(struct iwl_lq_sta *lq_data,
 	return tid;
 }
 
-#if defined(CONFIG_MAC80211_DEBUGFS) || defined(CONFIG_IWLWIFI_DEVICE_SVTOOL)
+#ifdef CONFIG_MAC80211_DEBUGFS
 static void rs_program_fix_rate(struct iwl_priv *priv,
 				struct iwl_lq_sta *lq_sta)
 {
@@ -1072,7 +1072,7 @@ done:
 	/* See if there's a better rate or modulation mode to try. */
 	if (sta && sta->supp_rates[sband->band])
 		rs_rate_scale_perform(priv, skb, sta, lq_sta);
-#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+#ifdef CONFIG_MAC80211_DEBUGFS
 	if (priv->dbg_fixed_rate != lq_sta->dbg_fixed_rate)
 		rs_program_fix_rate(priv, lq_sta);
 #endif
