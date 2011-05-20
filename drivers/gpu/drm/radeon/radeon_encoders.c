@@ -1936,11 +1936,17 @@ static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 	radeon_atom_output_lock(encoder, true);
 	radeon_atom_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
 
-	/* select the clock/data port if it uses a router */
 	if (connector) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+
+		/* select the clock/data port if it uses a router */
 		if (radeon_connector->router.cd_valid)
 			radeon_router_select_cd_port(radeon_connector);
+
+		/* turn eDP panel on for mode set */
+		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+			atombios_set_edp_panel_power(connector,
+						     ATOM_TRANSMITTER_ACTION_POWER_ON);
 	}
 
 	/* this is needed for the pll/ss setup to work correctly in some cases */
