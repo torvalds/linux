@@ -1007,6 +1007,13 @@ remap:
 	file_pos = file_offset + head;
 
 more:
+	/*
+	 * Ensure we have enough space remaining to read
+	 * the size of the event in the headers.
+	 */
+	if (head + sizeof(event->header) > mmap_size)
+		goto remap;
+
 	event = (union perf_event *)(buf + head);
 
 	if (session->header.needs_swap)
