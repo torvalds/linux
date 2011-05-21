@@ -1442,7 +1442,7 @@ extern int ___pskb_trim(struct sk_buff *skb, unsigned int len);
 
 static inline void __skb_trim(struct sk_buff *skb, unsigned int len)
 {
-	if (unlikely(skb->data_len)) {
+	if (unlikely(skb_is_nonlinear(skb))) {
 		WARN_ON(1);
 		return;
 	}
