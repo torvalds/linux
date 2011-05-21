@@ -1018,9 +1018,6 @@ more:
 
 	if (session->header.needs_swap)
 		perf_event_header__bswap(&event->header);
-	size = event->header.size;
-	if (size == 0)
-		size = 8;
 
 	if (head + event->header.size > mmap_size) {
 		if (mmaps[map_idx]) {
