@@ -135,6 +135,7 @@ struct event_return_value {
  */
 #define ACER_WMID3_GDS_WIRELESS		(1<<0)	/* WiFi */
 #define ACER_WMID3_GDS_THREEG		(1<<6)	/* 3G */
+#define ACER_WMID3_GDS_WIMAX		(1<<7)	/* WiMAX */
 #define ACER_WMID3_GDS_BLUETOOTH	(1<<11)	/* BT */
 
 struct lm_input_params {
@@ -1142,6 +1143,114 @@ static acpi_status get_device_status(u32 *value, u32 cap)
 	}
 }
 
+static acpi_status wmid3_set_device_status(u32 value, u16 device)
+{
+	struct wmid3_gds_return_value return_value;
+	acpi_status status;
+	union acpi_object *obj;
+	u16 devices;
+	struct wmid3_gds_input_param params = {
+		.function_num = 0x1,
+		.hotkey_number = 0x01,
+		.devices = ACER_WMID3_GDS_WIRELESS &
+				ACER_WMID3_GDS_THREEG &
+				ACER_WMID3_GDS_WIMAX &
+				ACER_WMID3_GDS_BLUETOOTH,
+	};
+	struct acpi_buffer input = {
+		sizeof(struct wmid3_gds_input_param),
+		&params
+	};
+	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_buffer output2 = { ACPI_ALLOCATE_BUFFER, NULL };
+
+	status = wmi_evaluate_method(WMID_GUID3, 0, 0x2, &input, &output);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	obj = output.pointer;
+
+	if (!obj)
+		return AE_ERROR;
+	else if (obj->type != ACPI_TYPE_BUFFER) {
+		kfree(obj);
+		return AE_ERROR;
+	}
+	if (obj->buffer.length != 8) {
+		pr_warning("Unknown buffer length %d\n", obj->buffer.length);
+		kfree(obj);
+		return AE_ERROR;
+	}
+
+	return_value = *((struct wmid3_gds_return_value *)obj->buffer.pointer);
+	kfree(obj);
+
+	if (return_value.error_code || return_value.ec_return_value) {
+		pr_warning("Get Current Device Status failed: "
+			"0x%x - 0x%x\n", return_value.error_code,
+			return_value.ec_return_value);
+		return status;
+	}
+
+	devices = return_value.devices;
+	params.function_num = 0x2;
+	params.hotkey_number = 0x01;
+	params.devices = (value) ? (devices | device) : (devices & ~device);
+
+	status = wmi_evaluate_method(WMID_GUID3, 0, 0x1, &input, &output2);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	obj = output2.pointer;
+
+	if (!obj)
+		return AE_ERROR;
+	else if (obj->type != ACPI_TYPE_BUFFER) {
+		kfree(obj);
+		return AE_ERROR;
+	}
+	if (obj->buffer.length != 4) {
+		pr_warning("Unknown buffer length %d\n", obj->buffer.length);
+		kfree(obj);
+		return AE_ERROR;
+	}
+
+	return_value = *((struct wmid3_gds_return_value *)obj->buffer.pointer);
+	kfree(obj);
+
+	if (return_value.error_code || return_value.ec_return_value)
+		pr_warning("Set Device Status failed: "
+			"0x%x - 0x%x\n", return_value.error_code,
+			return_value.ec_return_value);
+
+	return status;
+}
+
+static acpi_status set_device_status(u32 value, u32 cap)
+{
+	if (wmi_has_guid(WMID_GUID3)) {
+		u16 device;
+
+		switch (cap) {
+		case ACER_CAP_WIRELESS:
+			device = ACER_WMID3_GDS_WIRELESS;
+			break;
+		case ACER_CAP_BLUETOOTH:
+			device = ACER_WMID3_GDS_BLUETOOTH;
+			break;
+		case ACER_CAP_THREEG:
+			device = ACER_WMID3_GDS_THREEG;
+			break;
+		default:
+			return AE_ERROR;
+		}
+		return wmid3_set_device_status(value, device);
+
+	} else {
+		return set_u32(value, cap);
+	}
+}
+
 /*
  * Rfkill devices
  */
@@ -1178,7 +1287,7 @@ static int acer_rfkill_set(void *data, bool blocked)
 	u32 cap = (unsigned long)data;
 
 	if (rfkill_inited) {
-		status = set_u32(!blocked, cap);
+		status = set_device_status(!blocked, cap);
 		if (ACPI_FAILURE(status))
 			return -ENODEV;
 	}
