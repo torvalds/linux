@@ -889,7 +889,8 @@ static acpi_status WMID_set_capabilities(void)
 	dmi_walk(type_aa_dmi_decode, NULL);
 	if (!has_type_aa) {
 		interface->capability |= ACER_CAP_WIRELESS;
-		interface->capability |= ACER_CAP_THREEG;
+		if (devices & 0x40)
+			interface->capability |= ACER_CAP_THREEG;
 		if (devices & 0x10)
 			interface->capability |= ACER_CAP_BLUETOOTH;
 	}
