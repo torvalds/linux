@@ -2230,8 +2230,10 @@ static inline u_long __init chipalloc(u_long size)
 {
 	size += PAGE_SIZE-1;
 	if (!(unaligned_chipptr = (u_long)amiga_chip_alloc(size,
-							   "amifb [RAM]")))
-		panic("No Chip RAM for frame buffer");
+							   "amifb [RAM]"))) {
+		pr_err("amifb: No Chip RAM for frame buffer");
+		return 0;
+	}
 	memset((void *)unaligned_chipptr, 0, size);
 	return PAGE_ALIGN(unaligned_chipptr);
 }
@@ -2385,6 +2387,10 @@ default_chipset:
 	                    DUMMYSPRITEMEMSIZE+
 	                    COPINITSIZE+
 	                    4*COPLISTSIZE);
+	if (!chipptr) {
+		err = -ENOMEM;
+		goto amifb_error;
+	}
 
 	assignchunk(videomemory, u_long, chipptr, fb_info.fix.smem_len);
 	assignchunk(spritememory, u_long, chipptr, SPRITEMEMSIZE);
