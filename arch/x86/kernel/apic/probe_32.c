@@ -87,7 +87,7 @@ static int probe_default(void)
 	return 1;
 }
 
-struct apic apic_default = {
+static struct apic apic_default = {
 
 	.name				= "default",
 	.probe				= probe_default,
@@ -151,32 +151,8 @@ struct apic apic_default = {
 
 apic_driver(apic_default);
 
-extern struct apic apic_numaq;
-extern struct apic apic_summit;
-extern struct apic apic_bigsmp;
-extern struct apic apic_es7000;
-extern struct apic apic_es7000_cluster;
-
 struct apic *apic = &apic_default;
 EXPORT_SYMBOL_GPL(apic);
-
-static struct apic *apic_probe[] __initdata = {
-#ifdef CONFIG_X86_NUMAQ
-	&apic_numaq,
-#endif
-#ifdef CONFIG_X86_SUMMIT
-	&apic_summit,
-#endif
-#ifdef CONFIG_X86_BIGSMP
-	&apic_bigsmp,
-#endif
-#ifdef CONFIG_X86_ES7000
-	&apic_es7000,
-	&apic_es7000_cluster,
-#endif
-	&apic_default,	/* must be last */
-	NULL,
-};
 
 static int cmdline_apic __initdata;
 static int __init parse_apic(char *arg)

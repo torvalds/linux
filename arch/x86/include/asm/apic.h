@@ -478,15 +478,10 @@ static inline unsigned default_get_apic_id(unsigned long x)
 #define DEFAULT_TRAMPOLINE_PHYS_HIGH		0x469
 
 #ifdef CONFIG_X86_64
-extern struct apic apic_flat;
-extern struct apic apic_physflat;
-extern struct apic apic_x2apic_cluster;
-extern struct apic apic_x2apic_phys;
 extern int default_acpi_madt_oem_check(char *, char *);
 
 extern void apic_send_IPI_self(int vector);
 
-extern struct apic apic_x2apic_uv_x;
 DECLARE_PER_CPU(int, x2apic_extra_bits);
 
 extern int default_cpu_present_to_apicid(int mps_cpu);
@@ -535,8 +530,6 @@ extern void default_setup_apic_routing(void);
 extern struct apic apic_noop;
 
 #ifdef CONFIG_X86_32
-
-extern struct apic apic_default;
 
 static inline int noop_x86_32_early_logical_apicid(int cpu)
 {

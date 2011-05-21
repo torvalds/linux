@@ -24,6 +24,12 @@
 #include <acpi/acpi_bus.h>
 #endif
 
+static struct apic apic_physflat;
+static struct apic apic_flat;
+
+struct apic __read_mostly *apic = &apic_flat;
+EXPORT_SYMBOL_GPL(apic);
+
 static int flat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	return 1;
@@ -164,7 +170,7 @@ static int flat_phys_pkg_id(int initial_apic_id, int index_msb)
 	return initial_apic_id >> index_msb;
 }
 
-struct apic apic_flat =  {
+static struct apic apic_flat =  {
 	.name				= "flat",
 	.probe				= NULL,
 	.acpi_madt_oem_check		= flat_acpi_madt_oem_check,
@@ -320,7 +326,7 @@ static int physflat_probe(void)
 	return 0;
 }
 
-struct apic apic_physflat =  {
+static struct apic apic_physflat =  {
 
 	.name				= "physical flat",
 	.probe				= physflat_probe,

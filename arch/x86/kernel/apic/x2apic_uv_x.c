@@ -58,6 +58,8 @@ unsigned int uv_apicid_hibits;
 EXPORT_SYMBOL_GPL(uv_apicid_hibits);
 static DEFINE_SPINLOCK(uv_nmi_lock);
 
+static struct apic apic_x2apic_uv_x;
+
 static unsigned long __init uv_early_read_mmr(unsigned long addr)
 {
 	unsigned long val, *mmr;
@@ -331,7 +333,7 @@ static int uv_probe(void)
 	return apic == &apic_x2apic_uv_x;
 }
 
-struct apic __refdata apic_x2apic_uv_x = {
+static struct apic __refdata apic_x2apic_uv_x = {
 
 	.name				= "UV large system",
 	.probe				= uv_probe,
