@@ -54,18 +54,20 @@ static int apicid_phys_pkg_id(int initial_apic_id, int index_msb)
  */
 void __init default_setup_apic_routing(void)
 {
-	int i;
+	struct apic **drv;
 
 	enable_IR_x2apic();
 
-	for (i = 0; apic_probe[i]; ++i) {
-		if (apic_probe[i]->probe()) {
-			apic = apic_probe[i];
+	for (drv = __apicdrivers; drv < __apicdrivers_end; drv++) {
+		if ((*drv)->probe && (*drv)->probe()) {
+			if (apic != *drv) {
+				apic = *drv;
+				pr_info("Switched APIC routing to %s.\n",
+					apic->name);
+			}
 			break;
 		}
 	}
-
-	printk(KERN_INFO "APIC routing finalized to %s.\n", apic->name);
 
 	if (is_vsmp_box()) {
 		/* need to update phys_pkg_id */
@@ -82,13 +84,15 @@ void apic_send_IPI_self(int vector)
 
 int __init default_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
-	int i;
+	struct apic **drv;
 
-	for (i = 0; apic_probe[i]; ++i) {
-		if (apic_probe[i]->acpi_madt_oem_check(oem_id, oem_table_id)) {
-			apic = apic_probe[i];
-			printk(KERN_INFO "Setting APIC routing to %s.\n",
-				apic->name);
+	for (drv = __apicdrivers; drv < __apicdrivers_end; drv++) {
+		if ((*drv)->acpi_madt_oem_check(oem_id, oem_table_id)) {
+			if (apic != *drv) {
+				apic = *drv;
+				pr_info("Setting APIC routing to %s.\n",
+					apic->name);
+			}
 			return 1;
 		}
 	}
