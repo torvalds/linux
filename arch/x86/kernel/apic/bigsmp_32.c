@@ -254,3 +254,5 @@ struct apic apic_bigsmp = {
 
 	.x86_32_early_logical_apicid	= bigsmp_early_logical_apicid,
 };
+
+apic_driver(apic_bigsmp);

@@ -174,6 +174,8 @@ struct apic apic_default = {
 	.x86_32_early_logical_apicid	= default_x86_32_early_logical_apicid,
 };
 
+apic_driver(apic_default);
+
 extern struct apic apic_numaq;
 extern struct apic apic_summit;
 extern struct apic apic_bigsmp;
