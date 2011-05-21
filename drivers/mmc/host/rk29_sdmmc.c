@@ -52,7 +52,10 @@
 #define RK29_SDMMC_CMD_ERROR_FLAGS	(SDMMC_INT_RTO | SDMMC_INT_RCRC | SDMMC_INT_RE | SDMMC_INT_HLE)
 #define RK29_SDMMC_ERROR_FLAGS		(RK29_SDMMC_DATA_ERROR_FLAGS | RK29_SDMMC_CMD_ERROR_FLAGS | SDMMC_INT_HLE)
 
-#define RK29_SDMMC_TMO_COUNT		5000		
+#define RK29_SDMMC_TMO_COUNT		10000
+
+#define RK29_SDCARD_CLK				48  //48Mhz
+#define RK29_SDIO_CLK				36	//36Mhz
 
 enum {
 	EVENT_CMD_COMPLETE = 0,
@@ -381,31 +384,28 @@ static void rk29_sdmmc_show_info(struct rk29_sdmmc *host)
 }
 static int rk29_sdmmc_reset_fifo(struct rk29_sdmmc *host)
 {
-	int tmo = RK29_SDMMC_TMO_COUNT;
-	int retry = 10000;
+	int tmo;
+	int retry = RK29_SDMMC_TMO_COUNT;
 	if(!(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_MC_BUSY|SDMMC_STAUTS_DATA_BUSY)) &&
 		(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_FIFO_EMPTY))
 		return 0;
-retry:
-	rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | SDMMC_CTRL_FIFO_RESET);
-	while (--tmo && rk29_sdmmc_read(host->regs, SDMMC_CTRL) & SDMMC_CTRL_FIFO_RESET);
-	if(tmo > 0) {
-		if(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_MC_BUSY|SDMMC_STAUTS_DATA_BUSY)){
-			udelay(1);
-			if(retry <= 0){
-				if(host->is_sdio)
-					dev_info(host->dev, "%s error,retry = %d\n", __func__,retry);
-				return -1;
-			}
-			retry--;
-			goto retry;
-		}
-		return 0;
+
+	while(retry--) 
+	{
+		tmo = RK29_SDMMC_TMO_COUNT;
+		rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | SDMMC_CTRL_FIFO_RESET);
+		while (--tmo && rk29_sdmmc_read(host->regs, SDMMC_CTRL) & SDMMC_CTRL_FIFO_RESET);
+		if(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_MC_BUSY|SDMMC_STAUTS_DATA_BUSY))
+			udelay(5);
+		else
+			break;
 	}
-	else {
-		dev_err(host->dev, "%s error\n", __func__);
+	if(retry <= 0){
+		dev_dbg(host->dev, "%s error\n", __func__);
 		return -1;
 	}
+	else
+		return 0;
 }
 static int rk29_sdmmc_reset_ctrl(struct rk29_sdmmc *host)
 {
@@ -540,8 +540,10 @@ int rk29_sdmmc_set_clock(struct rk29_sdmmc *host)
 	if(!host->ios_clock)
 		return 0;
 	div  = (((host->bus_hz + (host->bus_hz / 5)) / host->ios_clock)) >> 1;
+/*
 	if(div == 0)
 		div = 1;
+*/
 	if(host->div == div)
 		return 0;
 	
@@ -551,7 +553,7 @@ int rk29_sdmmc_set_clock(struct rk29_sdmmc *host)
 		goto send_cmd_err;
 	rk29_sdmmc_write(host->regs, SDMMC_CLKDIV, div);
 	host->div = div;
-	host->clock = (host->bus_hz / div) >> 1;
+	host->clock = (div == 0)? host->bus_hz :(host->bus_hz / div) >> 1;
 	if(sdmmc_send_cmd(host, SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0))
 		goto send_cmd_err;
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA, SDMMC_CLKEN_ENABLE);
@@ -1283,7 +1285,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	host->dev = &pdev->dev;
 	host->mrq = NULL;
 	host->state = STATE_IDLE;
-	host->div = 0;
+	host->div = -1;
 	host->is_init = 1;
 	host->is_sdio = rk29_sdmmc_is_sdio(pdata);
 
@@ -1335,7 +1337,10 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 
 	/* clk init */
 	host->clk = clk_get(&pdev->dev, "mmc");
-	clk_set_rate(host->clk,52000000);
+	if(host->is_sdio)
+		clk_set_rate(host->clk,RK29_SDIO_CLK);
+	else
+		clk_set_rate(host->clk,RK29_SDCARD_CLK);
 	clk_enable(host->clk);
 	clk_enable(clk_get(&pdev->dev, "hclk_mmc"));
 	host->bus_hz = clk_get_rate(host->clk); 
@@ -1375,7 +1380,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		mmc->ops = &rk29_sdmmc_ops[0];
 	
 	mmc->f_min = DIV_ROUND_UP(host->bus_hz, 510);
-	mmc->f_max = host->bus_hz/2; 
+	mmc->f_max = host->bus_hz; 
 	mmc->ocr_avail = pdata->host_ocr_avail;
 	mmc->caps = pdata->host_caps;
 	mmc->max_phys_segs = 64;
