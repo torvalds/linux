@@ -255,4 +255,12 @@ struct apic apic_bigsmp = {
 	.x86_32_early_logical_apicid	= bigsmp_early_logical_apicid,
 };
 
+struct apic * __init generic_bigsmp_probe(void)
+{
+	if (probe_bigsmp())
+		return &apic_bigsmp;
+
+	return NULL;
+}
+
 apic_driver(apic_bigsmp);

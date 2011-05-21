@@ -52,31 +52,6 @@ static int __init print_ipi_mode(void)
 }
 late_initcall(print_ipi_mode);
 
-void __init default_setup_apic_routing(void)
-{
-	int version = apic_version[boot_cpu_physical_apicid];
-
-	if (num_possible_cpus() > 8) {
-		switch (boot_cpu_data.x86_vendor) {
-		case X86_VENDOR_INTEL:
-			if (!APIC_XAPIC(version)) {
-				def_to_bigsmp = 0;
-				break;
-			}
-			/* If P4 and above fall through */
-		case X86_VENDOR_AMD:
-			def_to_bigsmp = 1;
-		}
-	}
-
-#ifdef CONFIG_X86_BIGSMP
-	generic_bigsmp_probe();
-#endif
-
-	if (apic->setup_apic_routing)
-		apic->setup_apic_routing();
-}
-
 static int default_x86_32_early_logical_apicid(int cpu)
 {
 	return 1 << cpu;
@@ -224,24 +199,43 @@ static int __init parse_apic(char *arg)
 }
 early_param("apic", parse_apic);
 
-void __init generic_bigsmp_probe(void)
+void __init default_setup_apic_routing(void)
 {
+	int version = apic_version[boot_cpu_physical_apicid];
+
+	if (num_possible_cpus() > 8) {
+		switch (boot_cpu_data.x86_vendor) {
+		case X86_VENDOR_INTEL:
+			if (!APIC_XAPIC(version)) {
+				def_to_bigsmp = 0;
+				break;
+			}
+			/* If P4 and above fall through */
+		case X86_VENDOR_AMD:
+			def_to_bigsmp = 1;
+		}
+	}
+
 #ifdef CONFIG_X86_BIGSMP
 	/*
-	 * This routine is used to switch to bigsmp mode when
+	 * This is used to switch to bigsmp mode when
 	 * - There is no apic= option specified by the user
 	 * - generic_apic_probe() has chosen apic_default as the sub_arch
 	 * - we find more than 8 CPUs in acpi LAPIC listing with xAPIC support
 	 */
 
 	if (!cmdline_apic && apic == &apic_default) {
-		if (apic_bigsmp.probe()) {
-			apic = &apic_bigsmp;
+		struct apic *bigsmp = generic_bigsmp_probe();
+		if (bigsmp) {
+			apic = bigsmp;
 			printk(KERN_INFO "Overriding APIC driver with %s\n",
 			       apic->name);
 		}
 	}
 #endif
+
+	if (apic->setup_apic_routing)
+		apic->setup_apic_routing();
 }
 
 void __init generic_apic_probe(void)
