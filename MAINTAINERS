@@ -4122,7 +4122,7 @@ MARVELL MV643XX ETHERNET DRIVER
 M:	Lennert Buytenhek <buytenh@wantstofly.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/mv643xx_eth.*
+F:	drivers/net/ethernet/marvell/mv643xx_eth.*
 F:	include/linux/mv643xx.h
 
 MARVELL MWIFIEX WIRELESS DRIVER
@@ -5854,8 +5854,7 @@ SKGE, SKY2 10/100/1000 GIGABIT ETHERNET DRIVERS
 M:	Stephen Hemminger <shemminger@linux-foundation.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/skge.*
-F:	drivers/net/sky2.*
+F:	drivers/net/ethernet/marvell/sk*
 
 SLAB ALLOCATOR
 M:	Christoph Lameter <cl@linux-foundation.org>
