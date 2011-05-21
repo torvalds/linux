@@ -2224,24 +2224,23 @@ static int amifb_ioctl(struct fb_info *info,
 	 * Allocate, Clear and Align a Block of Chip Memory
 	 */
 
-static u_long unaligned_chipptr = 0;
+static void *aligned_chipptr;
 
 static inline u_long __init chipalloc(u_long size)
 {
-	size += PAGE_SIZE-1;
-	if (!(unaligned_chipptr = (u_long)amiga_chip_alloc(size,
-							   "amifb [RAM]"))) {
+	aligned_chipptr = amiga_chip_alloc(size, "amifb [RAM]");
+	if (!aligned_chipptr) {
 		pr_err("amifb: No Chip RAM for frame buffer");
 		return 0;
 	}
-	memset((void *)unaligned_chipptr, 0, size);
-	return PAGE_ALIGN(unaligned_chipptr);
+	memset(aligned_chipptr, 0, size);
+	return (u_long)aligned_chipptr;
 }
 
 static inline void chipfree(void)
 {
-	if (unaligned_chipptr)
-		amiga_chip_free((void *)unaligned_chipptr);
+	if (aligned_chipptr)
+		amiga_chip_free(aligned_chipptr);
 }
 
 
