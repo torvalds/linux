@@ -828,7 +828,7 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	if(rk29_sdmmc_set_clock(host)) {
 		mrq->cmd->error = -EINPROGRESS;
-		dev_info(host->dev, "rk29_sdmmc_set_clock timeout\n");
+		dev_info(host->dev, "rk29_sdmmc_set_clock timeout, ios_clock = %d, clock = %d\n", host->ios_clock, host->clock);
 		rk29_sdmmc_request_done(host, mrq);
 		rk29_sdmmc_reset_ctrl(host);
 		rk29_sdmmc_show_info(host);
@@ -1338,9 +1338,9 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	/* clk init */
 	host->clk = clk_get(&pdev->dev, "mmc");
 	if(host->is_sdio)
-		clk_set_rate(host->clk,RK29_SDIO_CLK);
+		clk_set_rate(host->clk,RK29_SDIO_CLK * 1000000);
 	else
-		clk_set_rate(host->clk,RK29_SDCARD_CLK);
+		clk_set_rate(host->clk,RK29_SDCARD_CLK * 1000000);
 	clk_enable(host->clk);
 	clk_enable(clk_get(&pdev->dev, "hclk_mmc"));
 	host->bus_hz = clk_get_rate(host->clk); 
