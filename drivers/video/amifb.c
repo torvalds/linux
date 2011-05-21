@@ -2295,7 +2295,7 @@ default_chipset:
 			    defmode = amiga_vblank == 50 ? DEFMODE_PAL
 							 : DEFMODE_NTSC;
 			if (amiga_chip_avail()-CHIPRAM_SAFETY_LIMIT >
-			    VIDEOMEMSIZE_ECS_1M)
+			    VIDEOMEMSIZE_ECS_2M)
 				fb_info.fix.smem_len = VIDEOMEMSIZE_ECS_2M;
 			else
 				fb_info.fix.smem_len = VIDEOMEMSIZE_ECS_1M;
@@ -2312,7 +2312,7 @@ default_chipset:
 			maxfmode = TAG_FMODE_4;
 			defmode = DEFMODE_AGA;
 			if (amiga_chip_avail()-CHIPRAM_SAFETY_LIMIT >
-			    VIDEOMEMSIZE_AGA_1M)
+			    VIDEOMEMSIZE_AGA_2M)
 				fb_info.fix.smem_len = VIDEOMEMSIZE_AGA_2M;
 			else
 				fb_info.fix.smem_len = VIDEOMEMSIZE_AGA_1M;
