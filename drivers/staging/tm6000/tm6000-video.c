@@ -334,6 +334,7 @@ static int copy_streams(u8 *data, unsigned long len,
 			size = dev->isoc_ctl.size;
 			pos = dev->isoc_ctl.pos;
 			pktsize = dev->isoc_ctl.pktsize;
+			field = dev->isoc_ctl.field;
 		}
 		cpysize = (endp - ptr > size) ? size : endp - ptr;
 		if (cpysize) {
@@ -359,7 +360,8 @@ static int copy_streams(u8 *data, unsigned long len,
 				/* Need some code to copy pts */
 				u32 pts;
 				pts = *(u32 *)ptr;
-				printk(KERN_INFO "%s: field %d, PTS %x", dev->name, field, pts);
+				dprintk(dev, V4L2_DEBUG_ISOC, "field %d, PTS %x",
+					field, pts);
 				break;
 			}
 			}
@@ -371,6 +373,7 @@ static int copy_streams(u8 *data, unsigned long len,
 			dev->isoc_ctl.pos = pos + cpysize;
 			dev->isoc_ctl.size = size - cpysize;
 			dev->isoc_ctl.cmd = cmd;
+			dev->isoc_ctl.field = field;
 			dev->isoc_ctl.pktsize = pktsize - (endp - ptr);
 			ptr += endp - ptr;
 		} else {
