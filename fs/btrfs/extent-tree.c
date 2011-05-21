@@ -105,6 +105,7 @@ void btrfs_put_block_group(struct btrfs_block_group_cache *cache)
 		WARN_ON(cache->pinned > 0);
 		WARN_ON(cache->reserved > 0);
 		WARN_ON(cache->reserved_pinned > 0);
+		kfree(cache->free_space_ctl);
 		kfree(cache);
 	}
 }
@@ -3144,7 +3145,8 @@ int btrfs_check_data_free_space(struct inode *inode, u64 bytes)
 	/* make sure bytes are sectorsize aligned */
 	bytes = (bytes + root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
 
-	if (root == root->fs_info->tree_root) {
+	if (root == root->fs_info->tree_root ||
+	    BTRFS_I(inode)->location.objectid == BTRFS_FREE_INO_OBJECTID) {
 		alloc_chunk = 0;
 		committed = 1;
 	}
@@ -4893,7 +4895,7 @@ wait_block_group_cache_progress(struct btrfs_block_group_cache *cache,
 		return 0;
 
 	wait_event(caching_ctl->wait, block_group_cache_done(cache) ||
-		   (cache->free_space >= num_bytes));
+		   (cache->free_space_ctl->free_space >= num_bytes));
 
 	put_caching_control(caching_ctl);
 	return 0;
@@ -7008,8 +7010,8 @@ static noinline int get_new_locations(struct inode *reloc_inode,
 
 	cur_pos = extent_key->objectid - offset;
 	last_byte = extent_key->objectid + extent_key->offset;
-	ret = btrfs_lookup_file_extent(NULL, root, path, reloc_inode->i_ino,
-				       cur_pos, 0);
+	ret = btrfs_lookup_file_extent(NULL, root, path,
+				       btrfs_ino(reloc_inode), cur_pos, 0);
 	if (ret < 0)
 		goto out;
 	if (ret > 0) {
@@ -7032,7 +7034,7 @@ static noinline int get_new_locations(struct inode *reloc_inode,
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 		if (found_key.offset != cur_pos ||
 		    found_key.type != BTRFS_EXTENT_DATA_KEY ||
-		    found_key.objectid != reloc_inode->i_ino)
+		    found_key.objectid != btrfs_ino(reloc_inode))
 			break;
 
 		fi = btrfs_item_ptr(leaf, path->slots[0],
@@ -7178,7 +7180,7 @@ next:
 				break;
 		}
 
-		if (inode && key.objectid != inode->i_ino) {
+		if (inode && key.objectid != btrfs_ino(inode)) {
 			BUG_ON(extent_locked);
 			btrfs_release_path(root, path);
 			mutex_unlock(&inode->i_mutex);
@@ -7487,7 +7489,7 @@ static noinline int invalidate_extent_cache(struct btrfs_root *root,
 			continue;
 		if (btrfs_file_extent_disk_bytenr(leaf, fi) == 0)
 			continue;
-		if (!inode || inode->i_ino != key.objectid) {
+		if (!inode || btrfs_ino(inode) != key.objectid) {
 			iput(inode);
 			inode = btrfs_ilookup(target_root->fs_info->sb,
 					      key.objectid, target_root, 1);
@@ -8555,24 +8557,22 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 			ret = -ENOMEM;
 			goto error;
 		}
+		cache->free_space_ctl = kzalloc(sizeof(*cache->free_space_ctl),
+						GFP_NOFS);
+		if (!cache->free_space_ctl) {
+			kfree(cache);
+			ret = -ENOMEM;
+			goto error;
+		}
 
 		atomic_set(&cache->count, 1);
 		spin_lock_init(&cache->lock);
-		spin_lock_init(&cache->tree_lock);
 		cache->fs_info = info;
 		INIT_LIST_HEAD(&cache->list);
 		INIT_LIST_HEAD(&cache->cluster_list);
 
 		if (need_clear)
 			cache->disk_cache_state = BTRFS_DC_CLEAR;
-
-		/*
-		 * we only want to have 32k of ram per block group for keeping
-		 * track of free space, and if we pass 1/2 of that we want to
-		 * start converting things over to using bitmaps
-		 */
-		cache->extents_thresh = ((1024 * 32) / 2) /
-			sizeof(struct btrfs_free_space);
 
 		read_extent_buffer(leaf, &cache->item,
 				   btrfs_item_ptr_offset(leaf, path->slots[0]),
@@ -8583,6 +8583,8 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		btrfs_release_path(root, path);
 		cache->flags = btrfs_block_group_flags(&cache->item);
 		cache->sectorsize = root->sectorsize;
+
+		btrfs_init_free_space_ctl(cache);
 
 		/*
 		 * We need to exclude the super stripes now so that the space
@@ -8670,6 +8672,12 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	cache = kzalloc(sizeof(*cache), GFP_NOFS);
 	if (!cache)
 		return -ENOMEM;
+	cache->free_space_ctl = kzalloc(sizeof(*cache->free_space_ctl),
+					GFP_NOFS);
+	if (!cache->free_space_ctl) {
+		kfree(cache);
+		return -ENOMEM;
+	}
 
 	cache->key.objectid = chunk_offset;
 	cache->key.offset = size;
@@ -8677,18 +8685,12 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	cache->sectorsize = root->sectorsize;
 	cache->fs_info = root->fs_info;
 
-	/*
-	 * we only want to have 32k of ram per block group for keeping track
-	 * of free space, and if we pass 1/2 of that we want to start
-	 * converting things over to using bitmaps
-	 */
-	cache->extents_thresh = ((1024 * 32) / 2) /
-		sizeof(struct btrfs_free_space);
 	atomic_set(&cache->count, 1);
 	spin_lock_init(&cache->lock);
-	spin_lock_init(&cache->tree_lock);
 	INIT_LIST_HEAD(&cache->list);
 	INIT_LIST_HEAD(&cache->cluster_list);
+
+	btrfs_init_free_space_ctl(cache);
 
 	btrfs_set_block_group_used(&cache->item, bytes_used);
 	btrfs_set_block_group_chunk_objectid(&cache->item, chunk_objectid);

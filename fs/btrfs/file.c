@@ -298,6 +298,7 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans, struct inode *inode,
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct btrfs_key new_key;
+	u64 ino = btrfs_ino(inode);
 	u64 search_start = start;
 	u64 disk_bytenr = 0;
 	u64 num_bytes = 0;
@@ -318,14 +319,14 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans, struct inode *inode,
 
 	while (1) {
 		recow = 0;
-		ret = btrfs_lookup_file_extent(trans, root, path, inode->i_ino,
+		ret = btrfs_lookup_file_extent(trans, root, path, ino,
 					       search_start, -1);
 		if (ret < 0)
 			break;
 		if (ret > 0 && path->slots[0] > 0 && search_start == start) {
 			leaf = path->nodes[0];
 			btrfs_item_key_to_cpu(leaf, &key, path->slots[0] - 1);
-			if (key.objectid == inode->i_ino &&
+			if (key.objectid == ino &&
 			    key.type == BTRFS_EXTENT_DATA_KEY)
 				path->slots[0]--;
 		}
@@ -346,7 +347,7 @@ next_slot:
 		}
 
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-		if (key.objectid > inode->i_ino ||
+		if (key.objectid > ino ||
 		    key.type > BTRFS_EXTENT_DATA_KEY || key.offset >= end)
 			break;
 
@@ -592,6 +593,7 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 	int del_slot = 0;
 	int recow;
 	int ret;
+	u64 ino = btrfs_ino(inode);
 
 	btrfs_drop_extent_cache(inode, start, end - 1, 0);
 
@@ -600,7 +602,7 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 again:
 	recow = 0;
 	split = start;
-	key.objectid = inode->i_ino;
+	key.objectid = ino;
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = split;
 
@@ -612,8 +614,7 @@ again:
 
 	leaf = path->nodes[0];
 	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-	BUG_ON(key.objectid != inode->i_ino ||
-	       key.type != BTRFS_EXTENT_DATA_KEY);
+	BUG_ON(key.objectid != ino || key.type != BTRFS_EXTENT_DATA_KEY);
 	fi = btrfs_item_ptr(leaf, path->slots[0],
 			    struct btrfs_file_extent_item);
 	BUG_ON(btrfs_file_extent_type(leaf, fi) !=
@@ -630,7 +631,7 @@ again:
 		other_start = 0;
 		other_end = start;
 		if (extent_mergeable(leaf, path->slots[0] - 1,
-				     inode->i_ino, bytenr, orig_offset,
+				     ino, bytenr, orig_offset,
 				     &other_start, &other_end)) {
 			new_key.offset = end;
 			btrfs_set_item_key_safe(trans, root, path, &new_key);
@@ -653,7 +654,7 @@ again:
 		other_start = end;
 		other_end = 0;
 		if (extent_mergeable(leaf, path->slots[0] + 1,
-				     inode->i_ino, bytenr, orig_offset,
+				     ino, bytenr, orig_offset,
 				     &other_start, &other_end)) {
 			fi = btrfs_item_ptr(leaf, path->slots[0],
 					    struct btrfs_file_extent_item);
@@ -702,7 +703,7 @@ again:
 
 		ret = btrfs_inc_extent_ref(trans, root, bytenr, num_bytes, 0,
 					   root->root_key.objectid,
-					   inode->i_ino, orig_offset);
+					   ino, orig_offset);
 		BUG_ON(ret);
 
 		if (split == start) {
@@ -718,7 +719,7 @@ again:
 	other_start = end;
 	other_end = 0;
 	if (extent_mergeable(leaf, path->slots[0] + 1,
-			     inode->i_ino, bytenr, orig_offset,
+			     ino, bytenr, orig_offset,
 			     &other_start, &other_end)) {
 		if (recow) {
 			btrfs_release_path(root, path);
@@ -729,13 +730,13 @@ again:
 		del_nr++;
 		ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
 					0, root->root_key.objectid,
-					inode->i_ino, orig_offset);
+					ino, orig_offset);
 		BUG_ON(ret);
 	}
 	other_start = 0;
 	other_end = start;
 	if (extent_mergeable(leaf, path->slots[0] - 1,
-			     inode->i_ino, bytenr, orig_offset,
+			     ino, bytenr, orig_offset,
 			     &other_start, &other_end)) {
 		if (recow) {
 			btrfs_release_path(root, path);
@@ -746,7 +747,7 @@ again:
 		del_nr++;
 		ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
 					0, root->root_key.objectid,
-					inode->i_ino, orig_offset);
+					ino, orig_offset);
 		BUG_ON(ret);
 	}
 	if (del_nr == 0) {

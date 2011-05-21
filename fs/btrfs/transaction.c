@@ -27,6 +27,7 @@
 #include "transaction.h"
 #include "locking.h"
 #include "tree-log.h"
+#include "inode-map.h"
 
 #define BTRFS_ROOT_TRANS_TAG 0
 
@@ -760,8 +761,14 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
 			btrfs_update_reloc_root(trans, root);
 			btrfs_orphan_commit_root(trans, root);
 
+			btrfs_save_ino_cache(root, trans);
+
 			if (root->commit_root != root->node) {
+				mutex_lock(&root->fs_commit_mutex);
 				switch_commit_root(root);
+				btrfs_unpin_free_ino(root);
+				mutex_unlock(&root->fs_commit_mutex);
+
 				btrfs_set_root_node(&root->root_item,
 						    root->node);
 			}
@@ -930,7 +937,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		goto fail;
 	}
 
-	ret = btrfs_find_free_objectid(trans, tree_root, 0, &objectid);
+	ret = btrfs_find_free_objectid(tree_root, &objectid);
 	if (ret) {
 		pending->error = ret;
 		goto fail;
@@ -967,7 +974,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	BUG_ON(ret);
 	ret = btrfs_insert_dir_item(trans, parent_root,
 				dentry->d_name.name, dentry->d_name.len,
-				parent_inode->i_ino, &key,
+				btrfs_ino(parent_inode), &key,
 				BTRFS_FT_DIR, index);
 	BUG_ON(ret);
 
@@ -1009,7 +1016,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	 */
 	ret = btrfs_add_root_ref(trans, tree_root, objectid,
 				 parent_root->root_key.objectid,
-				 parent_inode->i_ino, index,
+				 btrfs_ino(parent_inode), index,
 				 dentry->d_name.name, dentry->d_name.len);
 	BUG_ON(ret);
 	dput(parent);

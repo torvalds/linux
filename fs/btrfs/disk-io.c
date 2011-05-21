@@ -41,6 +41,7 @@
 #include "locking.h"
 #include "tree-log.h"
 #include "free-space-cache.h"
+#include "inode-map.h"
 
 static struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
@@ -1326,6 +1327,19 @@ again:
 	if (IS_ERR(root))
 		return root;
 
+	root->free_ino_ctl = kzalloc(sizeof(*root->free_ino_ctl), GFP_NOFS);
+	if (!root->free_ino_ctl)
+		goto fail;
+	root->free_ino_pinned = kzalloc(sizeof(*root->free_ino_pinned),
+					GFP_NOFS);
+	if (!root->free_ino_pinned)
+		goto fail;
+
+	btrfs_init_free_ino_ctl(root);
+	mutex_init(&root->fs_commit_mutex);
+	spin_lock_init(&root->cache_lock);
+	init_waitqueue_head(&root->cache_wait);
+
 	set_anon_super(&root->anon_super, NULL);
 
 	if (btrfs_root_refs(&root->root_item) == 0) {
@@ -2404,12 +2418,15 @@ int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 	if (btrfs_root_refs(&root->root_item) == 0)
 		synchronize_srcu(&fs_info->subvol_srcu);
 
+	__btrfs_remove_free_space_cache(root->free_ino_pinned);
+	__btrfs_remove_free_space_cache(root->free_ino_ctl);
 	free_fs_root(root);
 	return 0;
 }
 
 static void free_fs_root(struct btrfs_root *root)
 {
+	iput(root->cache_inode);
 	WARN_ON(!RB_EMPTY_ROOT(&root->inode_tree));
 	if (root->anon_super.s_dev) {
 		down_write(&root->anon_super.s_umount);
@@ -2417,6 +2434,8 @@ static void free_fs_root(struct btrfs_root *root)
 	}
 	free_extent_buffer(root->node);
 	free_extent_buffer(root->commit_root);
+	kfree(root->free_ino_ctl);
+	kfree(root->free_ino_pinned);
 	kfree(root->name);
 	kfree(root);
 }

@@ -3030,7 +3030,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	 * because there might be preallocation past i_size
 	 */
 	ret = btrfs_lookup_file_extent(NULL, BTRFS_I(inode)->root,
-				       path, inode->i_ino, -1, 0);
+				       path, btrfs_ino(inode), -1, 0);
 	if (ret < 0) {
 		btrfs_free_path(path);
 		return ret;
@@ -3043,7 +3043,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	found_type = btrfs_key_type(&found_key);
 
 	/* No extents, but there might be delalloc bits */
-	if (found_key.objectid != inode->i_ino ||
+	if (found_key.objectid != btrfs_ino(inode) ||
 	    found_type != BTRFS_EXTENT_DATA_KEY) {
 		/* have to trust i_size as the end */
 		last = (u64)-1;

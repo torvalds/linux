@@ -105,6 +105,12 @@ struct btrfs_ordered_sum;
 /* For storing free space cache */
 #define BTRFS_FREE_SPACE_OBJECTID -11ULL
 
+/*
+ * The inode number assigned to the special inode for sotring
+ * free ino cache
+ */
+#define BTRFS_FREE_INO_OBJECTID -12ULL
+
 /* dummy objectid represents multiple objectids */
 #define BTRFS_MULTIPLE_OBJECTIDS -255ULL
 
@@ -830,9 +836,6 @@ struct btrfs_block_group_cache {
 	u64 bytes_super;
 	u64 flags;
 	u64 sectorsize;
-	int extents_thresh;
-	int free_extents;
-	int total_bitmaps;
 	unsigned int ro:1;
 	unsigned int dirty:1;
 	unsigned int iref:1;
@@ -847,9 +850,7 @@ struct btrfs_block_group_cache {
 	struct btrfs_space_info *space_info;
 
 	/* free space cache stuff */
-	spinlock_t tree_lock;
-	struct rb_root free_space_offset;
-	u64 free_space;
+	struct btrfs_free_space_ctl *free_space_ctl;
 
 	/* block group cache stuff */
 	struct rb_node cache_node;
@@ -1106,6 +1107,16 @@ struct btrfs_root {
 
 	spinlock_t accounting_lock;
 	struct btrfs_block_rsv *block_rsv;
+
+	/* free ino cache stuff */
+	struct mutex fs_commit_mutex;
+	struct btrfs_free_space_ctl *free_ino_ctl;
+	enum btrfs_caching_type cached;
+	spinlock_t cache_lock;
+	wait_queue_head_t cache_wait;
+	struct btrfs_free_space_ctl *free_ino_pinned;
+	u64 cache_progress;
+	struct inode *cache_inode;
 
 	struct mutex log_mutex;
 	wait_queue_head_t log_writer_wait;
@@ -2412,12 +2423,6 @@ int btrfs_insert_orphan_item(struct btrfs_trans_handle *trans,
 int btrfs_del_orphan_item(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, u64 offset);
 int btrfs_find_orphan_item(struct btrfs_root *root, u64 offset);
-
-/* inode-map.c */
-int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
-			     struct btrfs_root *fs_root,
-			     u64 dirid, u64 *objectid);
-int btrfs_find_highest_inode(struct btrfs_root *fs_root, u64 *objectid);
 
 /* inode-item.c */
 int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
