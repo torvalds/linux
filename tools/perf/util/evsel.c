@@ -304,7 +304,8 @@ static int perf_event__parse_id_sample(const union perf_event *event, u64 type,
 }
 
 int perf_event__parse_sample(const union perf_event *event, u64 type,
-			     bool sample_id_all, struct perf_sample *data)
+			     int sample_size, bool sample_id_all,
+			     struct perf_sample *data)
 {
 	const u64 *array;
 
@@ -318,6 +319,9 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	array = event->sample.array;
+
+	if (sample_size + sizeof(event->header) > event->header.size)
+		return -EFAULT;
 
 	if (type & PERF_SAMPLE_IP) {
 		data->ip = event->ip.ip;

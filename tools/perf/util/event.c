@@ -35,6 +35,22 @@ const char *perf_event__name(unsigned int id)
 	return perf_event__names[id];
 }
 
+int perf_sample_size(u64 sample_type)
+{
+	u64 mask = sample_type & PERF_SAMPLE_MASK;
+	int size = 0;
+	int i;
+
+	for (i = 0; i < 64; i++) {
+		if ((mask << i) & 1)
+			size++;
+	}
+
+	size *= sizeof(u64);
+
+	return size;
+}
+
 static struct perf_sample synth_sample = {
 	.pid	   = -1,
 	.tid	   = -1,

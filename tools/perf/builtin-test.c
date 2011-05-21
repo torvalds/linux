@@ -474,6 +474,7 @@ static int test__basic_mmap(void)
 	unsigned int nr_events[nsyscalls],
 		     expected_nr_events[nsyscalls], i, j;
 	struct perf_evsel *evsels[nsyscalls], *evsel;
+	int sample_size = perf_sample_size(attr.sample_type);
 
 	for (i = 0; i < nsyscalls; ++i) {
 		char name[64];
@@ -558,7 +559,8 @@ static int test__basic_mmap(void)
 			goto out_munmap;
 		}
 
-		perf_event__parse_sample(event, attr.sample_type, false, &sample);
+		perf_event__parse_sample(event, attr.sample_type, sample_size,
+					 false, &sample);
 		evsel = perf_evlist__id2evsel(evlist, sample.id);
 		if (evsel == NULL) {
 			pr_debug("event with id %" PRIu64

@@ -690,8 +690,9 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 			return PyErr_NoMemory();
 
 		first = list_entry(evlist->entries.next, struct perf_evsel, node);
-		perf_event__parse_sample(event, first->attr.sample_type, sample_id_all,
-					 &pevent->sample);
+		perf_event__parse_sample(event, first->attr.sample_type,
+					 perf_sample_size(first->attr.sample_type),
+					 sample_id_all, &pevent->sample);
 		return pyevent;
 	}
 
