@@ -36,6 +36,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 #include <asm/byteorder.h>
 
@@ -326,8 +327,8 @@ static int allocate_tlabel(struct fw_card *card)
  * It will contain tag, channel, and sy data instead of a node ID then.
  *
  * The payload buffer at @data is going to be DMA-mapped except in case of
- * quadlet-sized payload or of local (loopback) requests.  Hence make sure that
- * the buffer complies with the restrictions for DMA-mapped memory.  The
+ * @length <= 8 or of local (loopback) requests.  Hence make sure that the
+ * buffer complies with the restrictions of the streaming DMA mapping API.
  * @payload must not be freed before the @callback is called.
  *
  * In case of request types without payload, @data is NULL and @length is 0.
@@ -411,7 +412,8 @@ static void transaction_callback(struct fw_card *card, int rcode,
  *
  * Returns the RCODE.  See fw_send_request() for parameter documentation.
  * Unlike fw_send_request(), @data points to the payload of the request or/and
- * to the payload of the response.
+ * to the payload of the response.  DMA mapping restrictions apply to outbound
+ * request payloads of >= 8 bytes but not to inbound response payloads.
  */
 int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
 		       int generation, int speed, unsigned long long offset,
@@ -1212,13 +1214,21 @@ static int __init fw_core_init(void)
 {
 	int ret;
 
+	fw_workqueue = alloc_workqueue("firewire",
+				       WQ_NON_REENTRANT | WQ_MEM_RECLAIM, 0);
+	if (!fw_workqueue)
+		return -ENOMEM;
+
 	ret = bus_register(&fw_bus_type);
-	if (ret < 0)
+	if (ret < 0) {
+		destroy_workqueue(fw_workqueue);
 		return ret;
+	}
 
 	fw_cdev_major = register_chrdev(0, "firewire", &fw_device_ops);
 	if (fw_cdev_major < 0) {
 		bus_unregister(&fw_bus_type);
+		destroy_workqueue(fw_workqueue);
 		return fw_cdev_major;
 	}
 
@@ -1234,6 +1244,7 @@ static void __exit fw_core_cleanup(void)
 {
 	unregister_chrdev(fw_cdev_major, "firewire");
 	bus_unregister(&fw_bus_type);
+	destroy_workqueue(fw_workqueue);
 	idr_destroy(&fw_device_idr);
 }
 
