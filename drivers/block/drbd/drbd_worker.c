@@ -126,7 +126,7 @@ static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(lo
 	list_del(&e->w.list); /* has been on active_ee or sync_ee */
 	list_add_tail(&e->w.list, &mdev->done_ee);
 
-	/* No hlist_del_init(&e->colision) here, we did not send the Ack yet,
+	/* No hlist_del_init(&e->collision) here, we did not send the Ack yet,
 	 * neither did we wake possibly waiting conflicting requests.
 	 * done from "drbd_process_done_ee" within the appropriate w.cb
 	 * (e_end_block/e_end_resync_block) or from _drbd_clear_done_ee */
@@ -840,7 +840,7 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 			const int ratio =
 				(t == 0)     ? 0 :
 			(t < 100000) ? ((s*100)/t) : (s/(t/100));
-			dev_info(DEV, "%u %% had equal check sums, eliminated: %luK; "
+			dev_info(DEV, "%u %% had equal checksums, eliminated: %luK; "
 			     "transferred %luK total %luK\n",
 			     ratio,
 			     Bit2KB(mdev->rs_same_csum),

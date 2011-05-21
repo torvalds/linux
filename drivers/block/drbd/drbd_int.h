@@ -699,7 +699,7 @@ struct drbd_request {
 	 * see drbd_endio_pri(). */
 	struct bio *private_bio;
 
-	struct hlist_node colision;
+	struct hlist_node collision;
 	sector_t sector;
 	unsigned int size;
 	unsigned int epoch; /* barrier_nr */
@@ -765,7 +765,7 @@ struct digest_info {
 
 struct drbd_epoch_entry {
 	struct drbd_work w;
-	struct hlist_node colision;
+	struct hlist_node collision;
 	struct drbd_epoch *epoch; /* for writes */
 	struct drbd_conf *mdev;
 	struct page *pages;
@@ -1520,7 +1520,7 @@ extern void drbd_resume_io(struct drbd_conf *mdev);
 extern char *ppsize(char *buf, unsigned long long size);
 extern sector_t drbd_new_dev_size(struct drbd_conf *, struct drbd_backing_dev *, int);
 enum determine_dev_size { dev_size_error = -1, unchanged = 0, shrunk = 1, grew = 2 };
-extern enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *, enum dds_flags) __must_hold(local);
+extern enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *, enum dds_flags) __must_hold(local);
 extern void resync_after_online_grow(struct drbd_conf *);
 extern void drbd_reconsider_max_bio_size(struct drbd_conf *mdev);
 extern enum drbd_state_rv drbd_set_role(struct drbd_conf *mdev,

@@ -2732,7 +2732,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 
 		/* double check digest, sometimes buffers have been modified in flight. */
 		if (dgs > 0 && dgs <= 64) {
-			/* 64 byte, 512 bit, is the larges digest size
+			/* 64 byte, 512 bit, is the largest digest size
 			 * currently supported in kernel crypto. */
 			unsigned char digest[64];
 			drbd_csum_bio(mdev, mdev->integrity_w_tfm, req->master_bio, digest);
@@ -3287,7 +3287,7 @@ static void drbd_delete_device(unsigned int minor)
 
 	drbd_release_ee_lists(mdev);
 
-	/* should be free'd on disconnect? */
+	/* should be freed on disconnect? */
 	kfree(mdev->ee_hash);
 	/*
 	mdev->ee_hash_s = 0;
