@@ -614,30 +614,6 @@ config KS8851_MLL
 	  This platform driver is for Micrel KS8851 Address/data bus
 	  multiplexed network chip.
 
-config VIA_RHINE
-	tristate "VIA Rhine support"
-	depends on NET_PCI && PCI
-	select CRC32
-	select MII
-	help
-	  If you have a VIA "Rhine" based network card (Rhine-I (VT86C100A),
-	  Rhine-II (VT6102), or Rhine-III (VT6105)), say Y here. Rhine-type
-	  Ethernet functions can also be found integrated on South Bridges
-	  (e.g. VT8235).
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called via-rhine.
-
-config VIA_RHINE_MMIO
-	bool "Use MMIO instead of PIO"
-	depends on VIA_RHINE
-	help
-	  This instructs the driver to use PCI shared memory (MMIO) instead of
-	  programmed I/O ports (PIO). Enabling this gives an improvement in
-	  processing time in parts of the driver.
-
-	  If unsure, say Y.
-
 config CPMAC
 	tristate "TI AR7 CPMAC Ethernet support (EXPERIMENTAL)"
 	depends on NET_ETHERNET && EXPERIMENTAL && AR7
@@ -792,18 +768,6 @@ config SIS190
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called sis190.  This is recommended.
-
-config VIA_VELOCITY
-	tristate "VIA Velocity support"
-	depends on PCI
-	select CRC32
-	select CRC_CCITT
-	select MII
-	help
-	  If you have a VIA "Velocity" based network card say Y here.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called via-velocity.
 
 config SPIDER_NET
 	tristate "Spider Gigabit Ethernet driver"

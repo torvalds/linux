@@ -45,5 +45,6 @@ source "drivers/net/ethernet/smsc/Kconfig"
 source "drivers/net/ethernet/stmicro/Kconfig"
 source "drivers/net/ethernet/sun/Kconfig"
 source "drivers/net/ethernet/tehuti/Kconfig"
+source "drivers/net/ethernet/via/Kconfig"
 
 endif # ETHERNET
