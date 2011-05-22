@@ -174,85 +174,8 @@ static const struct sysfs_ops btrfs_root_attr_ops = {
 	.store	= btrfs_root_attr_store,
 };
 
-static struct kobj_type btrfs_root_ktype = {
-	.default_attrs	= btrfs_root_attrs,
-	.sysfs_ops	= &btrfs_root_attr_ops,
-	.release	= btrfs_root_release,
-};
-
-static struct kobj_type btrfs_super_ktype = {
-	.default_attrs	= btrfs_super_attrs,
-	.sysfs_ops	= &btrfs_super_attr_ops,
-	.release	= btrfs_super_release,
-};
-
 /* /sys/fs/btrfs/ entry */
 static struct kset *btrfs_kset;
-
-int btrfs_sysfs_add_super(struct btrfs_fs_info *fs)
-{
-	int error;
-	char *name;
-	char c;
-	int len = strlen(fs->sb->s_id) + 1;
-	int i;
-
-	name = kmalloc(len, GFP_NOFS);
-	if (!name) {
-		error = -ENOMEM;
-		goto fail;
-	}
-
-	for (i = 0; i < len; i++) {
-		c = fs->sb->s_id[i];
-		if (c == '/' || c == '\\')
-			c = '!';
-		name[i] = c;
-	}
-	name[len] = '\0';
-
-	fs->super_kobj.kset = btrfs_kset;
-	error = kobject_init_and_add(&fs->super_kobj, &btrfs_super_ktype,
-				     NULL, "%s", name);
-	kfree(name);
-	if (error)
-		goto fail;
-
-	return 0;
-
-fail:
-	printk(KERN_ERR "btrfs: sysfs creation for super failed\n");
-	return error;
-}
-
-int btrfs_sysfs_add_root(struct btrfs_root *root)
-{
-	int error;
-
-	error = kobject_init_and_add(&root->root_kobj, &btrfs_root_ktype,
-				     &root->fs_info->super_kobj,
-				     "%s", root->name);
-	if (error)
-		goto fail;
-
-	return 0;
-
-fail:
-	printk(KERN_ERR "btrfs: sysfs creation for root failed\n");
-	return error;
-}
-
-void btrfs_sysfs_del_root(struct btrfs_root *root)
-{
-	kobject_put(&root->root_kobj);
-	wait_for_completion(&root->kobj_unregister);
-}
-
-void btrfs_sysfs_del_super(struct btrfs_fs_info *fs)
-{
-	kobject_put(&fs->super_kobj);
-	wait_for_completion(&fs->kobj_unregister);
-}
 
 int btrfs_init_sysfs(void)
 {

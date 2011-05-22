@@ -191,9 +191,9 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 	}
 	while (1) {
 		if (!split)
-			split = alloc_extent_map(GFP_NOFS);
+			split = alloc_extent_map();
 		if (!split2)
-			split2 = alloc_extent_map(GFP_NOFS);
+			split2 = alloc_extent_map();
 		BUG_ON(!split || !split2);
 
 		write_lock(&em_tree->lock);
@@ -377,7 +377,7 @@ next_slot:
 
 		search_start = max(key.offset, start);
 		if (recow) {
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			continue;
 		}
 
@@ -394,7 +394,7 @@ next_slot:
 			ret = btrfs_duplicate_item(trans, root, path,
 						   &new_key);
 			if (ret == -EAGAIN) {
-				btrfs_release_path(root, path);
+				btrfs_release_path(path);
 				continue;
 			}
 			if (ret < 0)
@@ -517,7 +517,7 @@ next_slot:
 			del_nr = 0;
 			del_slot = 0;
 
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			continue;
 		}
 
@@ -682,7 +682,7 @@ again:
 		new_key.offset = split;
 		ret = btrfs_duplicate_item(trans, root, path, &new_key);
 		if (ret == -EAGAIN) {
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			goto again;
 		}
 		BUG_ON(ret < 0);
@@ -722,7 +722,7 @@ again:
 			     ino, bytenr, orig_offset,
 			     &other_start, &other_end)) {
 		if (recow) {
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			goto again;
 		}
 		extent_end = other_end;
@@ -739,7 +739,7 @@ again:
 			     ino, bytenr, orig_offset,
 			     &other_start, &other_end)) {
 		if (recow) {
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			goto again;
 		}
 		key.offset = other_start;
@@ -1376,7 +1376,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 	while (1) {
 		em = btrfs_get_extent(inode, NULL, 0, cur_offset,
 				      alloc_end - cur_offset, 0);
-		BUG_ON(IS_ERR(em) || !em);
+		BUG_ON(IS_ERR_OR_NULL(em));
 		last_byte = min(extent_map_end(em), alloc_end);
 		last_byte = (last_byte + mask) & ~mask;
 		if (em->block_start == EXTENT_MAP_HOLE ||

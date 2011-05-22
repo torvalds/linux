@@ -44,16 +44,6 @@ static int btrfs_relocate_sys_chunks(struct btrfs_root *root);
 static DEFINE_MUTEX(uuid_mutex);
 static LIST_HEAD(fs_uuids);
 
-void btrfs_lock_volumes(void)
-{
-	mutex_lock(&uuid_mutex);
-}
-
-void btrfs_unlock_volumes(void)
-{
-	mutex_unlock(&uuid_mutex);
-}
-
 static void lock_chunks(struct btrfs_root *root)
 {
 	mutex_lock(&root->fs_info->chunk_mutex);
@@ -1475,7 +1465,7 @@ next_slot:
 				goto error;
 			leaf = path->nodes[0];
 			btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			continue;
 		}
 
@@ -1947,7 +1937,7 @@ again:
 		chunk = btrfs_item_ptr(leaf, path->slots[0],
 				       struct btrfs_chunk);
 		chunk_type = btrfs_chunk_type(leaf, chunk);
-		btrfs_release_path(chunk_root, path);
+		btrfs_release_path(path);
 
 		if (chunk_type & BTRFS_BLOCK_GROUP_SYSTEM) {
 			ret = btrfs_relocate_chunk(chunk_root, chunk_tree,
@@ -2065,7 +2055,7 @@ int btrfs_balance(struct btrfs_root *dev_root)
 		if (found_key.offset == 0)
 			break;
 
-		btrfs_release_path(chunk_root, path);
+		btrfs_release_path(path);
 		ret = btrfs_relocate_chunk(chunk_root,
 					   chunk_root->root_key.objectid,
 					   found_key.objectid,
@@ -2137,7 +2127,7 @@ again:
 			goto done;
 		if (ret) {
 			ret = 0;
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			break;
 		}
 
@@ -2146,7 +2136,7 @@ again:
 		btrfs_item_key_to_cpu(l, &key, path->slots[0]);
 
 		if (key.objectid != device->devid) {
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			break;
 		}
 
@@ -2154,14 +2144,14 @@ again:
 		length = btrfs_dev_extent_length(l, dev_extent);
 
 		if (key.offset + length <= new_size) {
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			break;
 		}
 
 		chunk_tree = btrfs_dev_extent_chunk_tree(l, dev_extent);
 		chunk_objectid = btrfs_dev_extent_chunk_objectid(l, dev_extent);
 		chunk_offset = btrfs_dev_extent_chunk_offset(l, dev_extent);
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 
 		ret = btrfs_relocate_chunk(root, chunk_tree, chunk_objectid,
 					   chunk_offset);
@@ -2609,7 +2599,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 
 	trace_btrfs_chunk_alloc(info->chunk_root, map, start, *num_bytes);
 
-	em = alloc_extent_map(GFP_NOFS);
+	em = alloc_extent_map();
 	if (!em) {
 		ret = -ENOMEM;
 		goto error;
@@ -2849,7 +2839,7 @@ int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset)
 
 void btrfs_mapping_init(struct btrfs_mapping_tree *tree)
 {
-	extent_map_tree_init(&tree->map_tree, GFP_NOFS);
+	extent_map_tree_init(&tree->map_tree);
 }
 
 void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree)
@@ -3499,7 +3489,7 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 		free_extent_map(em);
 	}
 
-	em = alloc_extent_map(GFP_NOFS);
+	em = alloc_extent_map();
 	if (!em)
 		return -ENOMEM;
 	num_stripes = btrfs_chunk_num_stripes(leaf, chunk);
@@ -3688,15 +3678,6 @@ static int read_one_dev(struct btrfs_root *root,
 	return ret;
 }
 
-int btrfs_read_super_device(struct btrfs_root *root, struct extent_buffer *buf)
-{
-	struct btrfs_dev_item *dev_item;
-
-	dev_item = (struct btrfs_dev_item *)offsetof(struct btrfs_super_block,
-						     dev_item);
-	return read_one_dev(root, buf, dev_item);
-}
-
 int btrfs_read_sys_array(struct btrfs_root *root)
 {
 	struct btrfs_super_block *super_copy = &root->fs_info->super_copy;
@@ -3813,7 +3794,7 @@ again:
 	}
 	if (key.objectid == BTRFS_DEV_ITEMS_OBJECTID) {
 		key.objectid = 0;
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		goto again;
 	}
 	ret = 0;

@@ -813,7 +813,7 @@ do_again:
 
 	ret = btrfs_insert_delayed_item(trans, root, path, curr);
 	if (ret < 0) {
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		goto insert_end;
 	}
 
@@ -827,7 +827,7 @@ do_again:
 	btrfs_release_delayed_item(prev);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	mutex_unlock(&node->mutex);
 	goto do_again;
 
@@ -925,7 +925,7 @@ do_again:
 		curr = __btrfs_next_delayed_item(prev);
 		btrfs_release_delayed_item(prev);
 		ret = 0;
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		if (curr)
 			goto do_again;
 		else
@@ -933,12 +933,12 @@ do_again:
 	}
 
 	btrfs_batch_delete_items(trans, root, path, curr);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	mutex_unlock(&node->mutex);
 	goto do_again;
 
 delete_fail:
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	mutex_unlock(&node->mutex);
 	return ret;
 }
@@ -982,7 +982,7 @@ static int btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
 	key.offset = 0;
 	ret = btrfs_lookup_inode(trans, root, path, &key, 1);
 	if (ret > 0) {
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		mutex_unlock(&node->mutex);
 		return -ENOENT;
 	} else if (ret < 0) {
@@ -997,7 +997,7 @@ static int btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
 	write_extent_buffer(leaf, &node->inode_item, (unsigned long)inode_item,
 			    sizeof(struct btrfs_inode_item));
 	btrfs_mark_buffer_dirty(leaf);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	btrfs_delayed_inode_release_metadata(root, node);
 	btrfs_release_delayed_inode(node);

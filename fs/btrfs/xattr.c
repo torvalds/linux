@@ -120,13 +120,13 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_delete_one_dir_name(trans, root, path, di);
 		BUG_ON(ret);
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 
 		/* if we don't have a value then we are removing the xattr */
 		if (!value)
 			goto out;
 	} else {
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 
 		if (flags & XATTR_REPLACE) {
 			/* we couldn't find the attr to replace */

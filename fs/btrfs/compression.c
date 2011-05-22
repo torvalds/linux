@@ -333,7 +333,7 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	struct compressed_bio *cb;
 	unsigned long bytes_left;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
-	int page_index = 0;
+	int pg_index = 0;
 	struct page *page;
 	u64 first_byte = disk_start;
 	struct block_device *bdev;
@@ -367,8 +367,8 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 
 	/* create and submit bios for the compressed pages */
 	bytes_left = compressed_len;
-	for (page_index = 0; page_index < cb->nr_pages; page_index++) {
-		page = compressed_pages[page_index];
+	for (pg_index = 0; pg_index < cb->nr_pages; pg_index++) {
+		page = compressed_pages[pg_index];
 		page->mapping = inode->i_mapping;
 		if (bio->bi_size)
 			ret = io_tree->ops->merge_bio_hook(page, 0,
@@ -433,7 +433,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 				     struct compressed_bio *cb)
 {
 	unsigned long end_index;
-	unsigned long page_index;
+	unsigned long pg_index;
 	u64 last_offset;
 	u64 isize = i_size_read(inode);
 	int ret;
@@ -457,13 +457,13 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 	end_index = (i_size_read(inode) - 1) >> PAGE_CACHE_SHIFT;
 
 	while (last_offset < compressed_end) {
-		page_index = last_offset >> PAGE_CACHE_SHIFT;
+		pg_index = last_offset >> PAGE_CACHE_SHIFT;
 
-		if (page_index > end_index)
+		if (pg_index > end_index)
 			break;
 
 		rcu_read_lock();
-		page = radix_tree_lookup(&mapping->page_tree, page_index);
+		page = radix_tree_lookup(&mapping->page_tree, pg_index);
 		rcu_read_unlock();
 		if (page) {
 			misses++;
@@ -477,7 +477,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		if (!page)
 			break;
 
-		if (add_to_page_cache_lru(page, mapping, page_index,
+		if (add_to_page_cache_lru(page, mapping, pg_index,
 								GFP_NOFS)) {
 			page_cache_release(page);
 			goto next;
@@ -561,7 +561,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	unsigned long uncompressed_len = bio->bi_vcnt * PAGE_CACHE_SIZE;
 	unsigned long compressed_len;
 	unsigned long nr_pages;
-	unsigned long page_index;
+	unsigned long pg_index;
 	struct page *page;
 	struct block_device *bdev;
 	struct bio *comp_bio;
@@ -614,10 +614,10 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 
 	bdev = BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
 
-	for (page_index = 0; page_index < nr_pages; page_index++) {
-		cb->compressed_pages[page_index] = alloc_page(GFP_NOFS |
+	for (pg_index = 0; pg_index < nr_pages; pg_index++) {
+		cb->compressed_pages[pg_index] = alloc_page(GFP_NOFS |
 							      __GFP_HIGHMEM);
-		if (!cb->compressed_pages[page_index])
+		if (!cb->compressed_pages[pg_index])
 			goto fail2;
 	}
 	cb->nr_pages = nr_pages;
@@ -635,8 +635,8 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	comp_bio->bi_end_io = end_compressed_bio_read;
 	atomic_inc(&cb->pending_bios);
 
-	for (page_index = 0; page_index < nr_pages; page_index++) {
-		page = cb->compressed_pages[page_index];
+	for (pg_index = 0; pg_index < nr_pages; pg_index++) {
+		page = cb->compressed_pages[pg_index];
 		page->mapping = inode->i_mapping;
 		page->index = em_start >> PAGE_CACHE_SHIFT;
 
@@ -703,8 +703,8 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	return 0;
 
 fail2:
-	for (page_index = 0; page_index < nr_pages; page_index++)
-		free_page((unsigned long)cb->compressed_pages[page_index]);
+	for (pg_index = 0; pg_index < nr_pages; pg_index++)
+		free_page((unsigned long)cb->compressed_pages[pg_index]);
 
 	kfree(cb->compressed_pages);
 fail1:
@@ -946,7 +946,7 @@ void btrfs_exit_compress(void)
 int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
 			      unsigned long total_out, u64 disk_start,
 			      struct bio_vec *bvec, int vcnt,
-			      unsigned long *page_index,
+			      unsigned long *pg_index,
 			      unsigned long *pg_offset)
 {
 	unsigned long buf_offset;
@@ -955,7 +955,7 @@ int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
 	unsigned long working_bytes = total_out - buf_start;
 	unsigned long bytes;
 	char *kaddr;
-	struct page *page_out = bvec[*page_index].bv_page;
+	struct page *page_out = bvec[*pg_index].bv_page;
 
 	/*
 	 * start byte is the first byte of the page we're currently
@@ -996,11 +996,11 @@ int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
 
 		/* check if we need to pick another page */
 		if (*pg_offset == PAGE_CACHE_SIZE) {
-			(*page_index)++;
-			if (*page_index >= vcnt)
+			(*pg_index)++;
+			if (*pg_index >= vcnt)
 				return 0;
 
-			page_out = bvec[*page_index].bv_page;
+			page_out = bvec[*pg_index].bv_page;
 			*pg_offset = 0;
 			start_byte = page_offset(page_out) - disk_start;
 

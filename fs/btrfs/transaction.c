@@ -81,8 +81,7 @@ static noinline int join_transaction(struct btrfs_root *root)
 		INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 		list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
 		extent_io_tree_init(&cur_trans->dirty_pages,
-				     root->fs_info->btree_inode->i_mapping,
-				     GFP_NOFS);
+				     root->fs_info->btree_inode->i_mapping);
 		spin_lock(&root->fs_info->new_trans_lock);
 		root->fs_info->running_transaction = cur_trans;
 		spin_unlock(&root->fs_info->new_trans_lock);
@@ -347,49 +346,6 @@ out_unlock:
 	mutex_unlock(&root->fs_info->trans_mutex);
 	return ret;
 }
-
-#if 0
-/*
- * rate limit against the drop_snapshot code.  This helps to slow down new
- * operations if the drop_snapshot code isn't able to keep up.
- */
-static void throttle_on_drops(struct btrfs_root *root)
-{
-	struct btrfs_fs_info *info = root->fs_info;
-	int harder_count = 0;
-
-harder:
-	if (atomic_read(&info->throttles)) {
-		DEFINE_WAIT(wait);
-		int thr;
-		thr = atomic_read(&info->throttle_gen);
-
-		do {
-			prepare_to_wait(&info->transaction_throttle,
-					&wait, TASK_UNINTERRUPTIBLE);
-			if (!atomic_read(&info->throttles)) {
-				finish_wait(&info->transaction_throttle, &wait);
-				break;
-			}
-			schedule();
-			finish_wait(&info->transaction_throttle, &wait);
-		} while (thr == atomic_read(&info->throttle_gen));
-		harder_count++;
-
-		if (root->fs_info->total_ref_cache_size > 1 * 1024 * 1024 &&
-		    harder_count < 2)
-			goto harder;
-
-		if (root->fs_info->total_ref_cache_size > 5 * 1024 * 1024 &&
-		    harder_count < 10)
-			goto harder;
-
-		if (root->fs_info->total_ref_cache_size > 10 * 1024 * 1024 &&
-		    harder_count < 20)
-			goto harder;
-	}
-}
-#endif
 
 void btrfs_throttle(struct btrfs_root *root)
 {
@@ -836,97 +792,6 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 	root->defrag_running = 0;
 	return ret;
 }
-
-#if 0
-/*
- * when dropping snapshots, we generate a ton of delayed refs, and it makes
- * sense not to join the transaction while it is trying to flush the current
- * queue of delayed refs out.
- *
- * This is used by the drop snapshot code only
- */
-static noinline int wait_transaction_pre_flush(struct btrfs_fs_info *info)
-{
-	DEFINE_WAIT(wait);
-
-	mutex_lock(&info->trans_mutex);
-	while (info->running_transaction &&
-	       info->running_transaction->delayed_refs.flushing) {
-		prepare_to_wait(&info->transaction_wait, &wait,
-				TASK_UNINTERRUPTIBLE);
-		mutex_unlock(&info->trans_mutex);
-
-		schedule();
-
-		mutex_lock(&info->trans_mutex);
-		finish_wait(&info->transaction_wait, &wait);
-	}
-	mutex_unlock(&info->trans_mutex);
-	return 0;
-}
-
-/*
- * Given a list of roots that need to be deleted, call btrfs_drop_snapshot on
- * all of them
- */
-int btrfs_drop_dead_root(struct btrfs_root *root)
-{
-	struct btrfs_trans_handle *trans;
-	struct btrfs_root *tree_root = root->fs_info->tree_root;
-	unsigned long nr;
-	int ret;
-
-	while (1) {
-		/*
-		 * we don't want to jump in and create a bunch of
-		 * delayed refs if the transaction is starting to close
-		 */
-		wait_transaction_pre_flush(tree_root->fs_info);
-		trans = btrfs_start_transaction(tree_root, 1);
-
-		/*
-		 * we've joined a transaction, make sure it isn't
-		 * closing right now
-		 */
-		if (trans->transaction->delayed_refs.flushing) {
-			btrfs_end_transaction(trans, tree_root);
-			continue;
-		}
-
-		ret = btrfs_drop_snapshot(trans, root);
-		if (ret != -EAGAIN)
-			break;
-
-		ret = btrfs_update_root(trans, tree_root,
-					&root->root_key,
-					&root->root_item);
-		if (ret)
-			break;
-
-		nr = trans->blocks_used;
-		ret = btrfs_end_transaction(trans, tree_root);
-		BUG_ON(ret);
-
-		btrfs_btree_balance_dirty(tree_root, nr);
-		cond_resched();
-	}
-	BUG_ON(ret);
-
-	ret = btrfs_del_root(trans, tree_root, &root->root_key);
-	BUG_ON(ret);
-
-	nr = trans->blocks_used;
-	ret = btrfs_end_transaction(trans, tree_root);
-	BUG_ON(ret);
-
-	free_extent_buffer(root->node);
-	free_extent_buffer(root->commit_root);
-	kfree(root);
-
-	btrfs_btree_balance_dirty(tree_root, nr);
-	return ret;
-}
-#endif
 
 /*
  * new snapshots need to be created at a very specific time in the

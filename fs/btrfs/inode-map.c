@@ -86,7 +86,7 @@ again:
 				 * in the next search.
 				 */
 				btrfs_item_key_to_cpu(leaf, &key, 0);
-				btrfs_release_path(root, path);
+				btrfs_release_path(path);
 				root->cache_progress = last;
 				mutex_unlock(&root->fs_commit_mutex);
 				schedule_timeout(1);

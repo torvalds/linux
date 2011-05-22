@@ -1402,7 +1402,7 @@ static noinline int search_ioctl(struct inode *inode,
 		}
 		ret = copy_to_sk(root, path, &key, sk, args->buf,
 				 &sk_offset, &num_found);
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		if (ret || num_found >= sk->nr_items)
 			break;
 
@@ -1509,7 +1509,7 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 		if (key.offset == BTRFS_FIRST_FREE_OBJECTID)
 			break;
 
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		key.objectid = key.offset;
 		key.offset = (u64)-1;
 		dirid = key.objectid;
@@ -1988,7 +1988,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 				datal = btrfs_file_extent_ram_bytes(leaf,
 								    extent);
 			}
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 
 			if (key.offset + datal <= off ||
 			    key.offset >= off+len)
@@ -2098,7 +2098,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			}
 
 			btrfs_mark_buffer_dirty(leaf);
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 
 			inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 
@@ -2119,12 +2119,12 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			btrfs_end_transaction(trans, root);
 		}
 next:
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		key.offset++;
 	}
 	ret = 0;
 out:
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	unlock_extent(&BTRFS_I(src)->io_tree, off, off+len, GFP_NOFS);
 out_unlock:
 	mutex_unlock(&src->i_mutex);

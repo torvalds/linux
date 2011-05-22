@@ -53,7 +53,7 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 	if (ret < 0)
 		return ERR_PTR(ret);
 	if (ret > 0) {
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		return ERR_PTR(-ENOENT);
 	}
 
@@ -62,7 +62,7 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 				struct btrfs_free_space_header);
 	btrfs_free_space_key(leaf, header, &disk_key);
 	btrfs_disk_key_to_cpu(&location, &disk_key);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	inode = btrfs_iget(root->fs_info->sb, &location, root, NULL);
 	if (!inode)
@@ -140,7 +140,7 @@ int __create_free_space_inode(struct btrfs_root *root,
 	btrfs_set_inode_transid(leaf, inode_item, trans->transid);
 	btrfs_set_inode_block_group(leaf, inode_item, offset);
 	btrfs_mark_buffer_dirty(leaf);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
 	key.offset = offset;
@@ -149,7 +149,7 @@ int __create_free_space_inode(struct btrfs_root *root,
 	ret = btrfs_insert_empty_item(trans, root, path, &key,
 				      sizeof(struct btrfs_free_space_header));
 	if (ret < 0) {
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		return ret;
 	}
 	leaf = path->nodes[0];
@@ -158,7 +158,7 @@ int __create_free_space_inode(struct btrfs_root *root,
 	memset_extent_buffer(leaf, 0, (unsigned long)header, sizeof(*header));
 	btrfs_set_free_space_key(leaf, header, &disk_key);
 	btrfs_mark_buffer_dirty(leaf);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	return 0;
 }
@@ -266,7 +266,7 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 	if (ret < 0)
 		goto out;
 	else if (ret > 0) {
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		ret = 0;
 		goto out;
 	}
@@ -279,7 +279,7 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 	num_entries = btrfs_free_space_entries(leaf, header);
 	num_bitmaps = btrfs_free_space_bitmaps(leaf, header);
 	generation = btrfs_free_space_generation(leaf, header);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	if (BTRFS_I(inode)->generation != generation) {
 		printk(KERN_ERR "btrfs: free space inode generation (%llu) did"
@@ -842,7 +842,7 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 					 EXTENT_DIRTY | EXTENT_DELALLOC |
 					 EXTENT_DO_ACCOUNTING, 0, 0, NULL,
 					 GFP_NOFS);
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			goto out_free;
 		}
 	}
@@ -852,7 +852,7 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	btrfs_set_free_space_bitmaps(leaf, header, bitmaps);
 	btrfs_set_free_space_generation(leaf, header, trans->transid);
 	btrfs_mark_buffer_dirty(leaf);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	ret = 1;
 
@@ -1504,7 +1504,7 @@ out:
 	return ret;
 }
 
-bool try_merge_free_space(struct btrfs_free_space_ctl *ctl,
+static bool try_merge_free_space(struct btrfs_free_space_ctl *ctl,
 			  struct btrfs_free_space *info, bool update_stat)
 {
 	struct btrfs_free_space *left_info;
@@ -1984,8 +1984,6 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
 	while(1) {
 		if (entry->bytes < bytes ||
 		    (!entry->bitmap && entry->offset < min_start)) {
-			struct rb_node *node;
-
 			node = rb_next(&entry->offset_index);
 			if (!node)
 				break;
@@ -1999,7 +1997,6 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
 						      cluster, entry, bytes,
 						      min_start);
 			if (ret == 0) {
-				struct rb_node *node;
 				node = rb_next(&entry->offset_index);
 				if (!node)
 					break;

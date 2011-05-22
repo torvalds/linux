@@ -28,12 +28,11 @@ void extent_map_exit(void)
 /**
  * extent_map_tree_init - initialize extent map tree
  * @tree:		tree to initialize
- * @mask:		flags for memory allocations during tree operations
  *
  * Initialize the extent tree @tree.  Should be called for each new inode
  * or other user of the extent_map interface.
  */
-void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask)
+void extent_map_tree_init(struct extent_map_tree *tree)
 {
 	tree->map = RB_ROOT;
 	rwlock_init(&tree->lock);
@@ -41,16 +40,15 @@ void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask)
 
 /**
  * alloc_extent_map - allocate new extent map structure
- * @mask:	memory allocation flags
  *
  * Allocate a new extent_map structure.  The new structure is
  * returned with a reference count of one and needs to be
  * freed using free_extent_map()
  */
-struct extent_map *alloc_extent_map(gfp_t mask)
+struct extent_map *alloc_extent_map(void)
 {
 	struct extent_map *em;
-	em = kmem_cache_alloc(extent_map_cache, mask);
+	em = kmem_cache_alloc(extent_map_cache, GFP_NOFS);
 	if (!em)
 		return NULL;
 	em->in_tree = 0;

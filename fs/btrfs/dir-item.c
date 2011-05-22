@@ -176,7 +176,7 @@ second_insert:
 		ret = 0;
 		goto out_free;
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	ret2 = btrfs_insert_delayed_dir_index(trans, root, name, name_len, dir,
 					      &disk_key, type, index);

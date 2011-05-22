@@ -37,6 +37,7 @@
 #include <linux/posix_acl.h>
 #include <linux/falloc.h>
 #include <linux/slab.h>
+#include <linux/ratelimit.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -650,7 +651,7 @@ retry:
 					async_extent->start +
 					async_extent->ram_size - 1, 0);
 
-		em = alloc_extent_map(GFP_NOFS);
+		em = alloc_extent_map();
 		BUG_ON(!em);
 		em->start = async_extent->start;
 		em->len = async_extent->ram_size;
@@ -836,7 +837,7 @@ static noinline int cow_file_range(struct inode *inode,
 					   (u64)-1, &ins, 1);
 		BUG_ON(ret);
 
-		em = alloc_extent_map(GFP_NOFS);
+		em = alloc_extent_map();
 		BUG_ON(!em);
 		em->start = start;
 		em->orig_start = em->start;
@@ -1176,7 +1177,7 @@ out_check:
 			goto next_slot;
 		}
 
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		if (cow_start != (u64)-1) {
 			ret = cow_file_range(inode, locked_page, cow_start,
 					found_key.offset - 1, page_started,
@@ -1189,7 +1190,7 @@ out_check:
 			struct extent_map *em;
 			struct extent_map_tree *em_tree;
 			em_tree = &BTRFS_I(inode)->extent_tree;
-			em = alloc_extent_map(GFP_NOFS);
+			em = alloc_extent_map();
 			BUG_ON(!em);
 			em->start = cur_offset;
 			em->orig_start = em->start;
@@ -1234,7 +1235,7 @@ out_check:
 		if (cur_offset > end)
 			break;
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	if (cur_offset <= end && cow_start == (u64)-1)
 		cow_start = cur_offset;
@@ -1865,7 +1866,7 @@ static int btrfs_io_failed_hook(struct bio *failed_bio,
 		}
 		read_unlock(&em_tree->lock);
 
-		if (!em || IS_ERR(em)) {
+		if (IS_ERR_OR_NULL(em)) {
 			kfree(failrec);
 			return -EIO;
 		}
@@ -2014,13 +2015,11 @@ good:
 	return 0;
 
 zeroit:
-	if (printk_ratelimit()) {
-		printk(KERN_INFO "btrfs csum failed ino %llu off %llu csum %u "
+	printk_ratelimited(KERN_INFO "btrfs csum failed ino %llu off %llu csum %u "
 		       "private %llu\n",
 		       (unsigned long long)btrfs_ino(page->mapping->host),
 		       (unsigned long long)start, csum,
 		       (unsigned long long)private);
-	}
 	memset(kaddr + offset, 1, end - start + 1);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_USER0);
@@ -2357,7 +2356,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 			break;
 
 		/* release the path since we're done with it */
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 
 		/*
 		 * this is where we are basically btrfs_lookup, without the
@@ -2740,7 +2739,7 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 	ret = btrfs_delete_one_dir_name(trans, root, path, di);
 	if (ret)
 		goto err;
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	ret = btrfs_del_inode_ref(trans, root, name, name_len, ino,
 				  dir_ino, &index);
@@ -2882,7 +2881,7 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 	} else {
 		check_link = 0;
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	ret = btrfs_lookup_inode(trans, root, path,
 				&BTRFS_I(inode)->location, 0);
@@ -2896,7 +2895,7 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 	} else {
 		check_link = 0;
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	if (ret == 0 && S_ISREG(inode->i_mode)) {
 		ret = btrfs_lookup_file_extent(trans, root, path,
@@ -2908,7 +2907,7 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 		BUG_ON(ret == 0);
 		if (check_path_shared(root, path))
 			goto out;
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 	}
 
 	if (!check_link) {
@@ -2929,7 +2928,7 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 		err = 0;
 		goto out;
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	ref = btrfs_lookup_inode_ref(trans, root, path,
 				dentry->d_name.name, dentry->d_name.len,
@@ -2942,7 +2941,7 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 	if (check_path_shared(root, path))
 		goto out;
 	index = btrfs_inode_ref_index(path->nodes[0], ref);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	/*
 	 * This is a commit root search, if we can lookup inode item and other
@@ -3035,14 +3034,14 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 
 	di = btrfs_lookup_dir_item(trans, root, path, dir_ino,
 				   name, name_len, -1);
-	BUG_ON(!di || IS_ERR(di));
+	BUG_ON(IS_ERR_OR_NULL(di));
 
 	leaf = path->nodes[0];
 	btrfs_dir_item_key_to_cpu(leaf, di, &key);
 	WARN_ON(key.type != BTRFS_ROOT_ITEM_KEY || key.objectid != objectid);
 	ret = btrfs_delete_one_dir_name(trans, root, path, di);
 	BUG_ON(ret);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	ret = btrfs_del_root_ref(trans, root->fs_info->tree_root,
 				 objectid, root->root_key.objectid,
@@ -3051,14 +3050,14 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 		BUG_ON(ret != -ENOENT);
 		di = btrfs_search_dir_index_item(root, path, dir_ino,
 						 name, name_len);
-		BUG_ON(!di || IS_ERR(di));
+		BUG_ON(IS_ERR_OR_NULL(di));
 
 		leaf = path->nodes[0];
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		index = key.offset;
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	ret = btrfs_delete_delayed_dir_index(trans, root, dir, index);
 	BUG_ON(ret);
@@ -3113,178 +3112,6 @@ out:
 
 	return err;
 }
-
-#if 0
-/*
- * when truncating bytes in a file, it is possible to avoid reading
- * the leaves that contain only checksum items.  This can be the
- * majority of the IO required to delete a large file, but it must
- * be done carefully.
- *
- * The keys in the level just above the leaves are checked to make sure
- * the lowest key in a given leaf is a csum key, and starts at an offset
- * after the new  size.
- *
- * Then the key for the next leaf is checked to make sure it also has
- * a checksum item for the same file.  If it does, we know our target leaf
- * contains only checksum items, and it can be safely freed without reading
- * it.
- *
- * This is just an optimization targeted at large files.  It may do
- * nothing.  It will return 0 unless things went badly.
- */
-static noinline int drop_csum_leaves(struct btrfs_trans_handle *trans,
-				     struct btrfs_root *root,
-				     struct btrfs_path *path,
-				     struct inode *inode, u64 new_size)
-{
-	struct btrfs_key key;
-	int ret;
-	int nritems;
-	struct btrfs_key found_key;
-	struct btrfs_key other_key;
-	struct btrfs_leaf_ref *ref;
-	u64 leaf_gen;
-	u64 leaf_start;
-
-	path->lowest_level = 1;
-	key.objectid = inode->i_ino;
-	key.type = BTRFS_CSUM_ITEM_KEY;
-	key.offset = new_size;
-again:
-	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
-	if (ret < 0)
-		goto out;
-
-	if (path->nodes[1] == NULL) {
-		ret = 0;
-		goto out;
-	}
-	ret = 0;
-	btrfs_node_key_to_cpu(path->nodes[1], &found_key, path->slots[1]);
-	nritems = btrfs_header_nritems(path->nodes[1]);
-
-	if (!nritems)
-		goto out;
-
-	if (path->slots[1] >= nritems)
-		goto next_node;
-
-	/* did we find a key greater than anything we want to delete? */
-	if (found_key.objectid > inode->i_ino ||
-	   (found_key.objectid == inode->i_ino && found_key.type > key.type))
-		goto out;
-
-	/* we check the next key in the node to make sure the leave contains
-	 * only checksum items.  This comparison doesn't work if our
-	 * leaf is the last one in the node
-	 */
-	if (path->slots[1] + 1 >= nritems) {
-next_node:
-		/* search forward from the last key in the node, this
-		 * will bring us into the next node in the tree
-		 */
-		btrfs_node_key_to_cpu(path->nodes[1], &found_key, nritems - 1);
-
-		/* unlikely, but we inc below, so check to be safe */
-		if (found_key.offset == (u64)-1)
-			goto out;
-
-		/* search_forward needs a path with locks held, do the
-		 * search again for the original key.  It is possible
-		 * this will race with a balance and return a path that
-		 * we could modify, but this drop is just an optimization
-		 * and is allowed to miss some leaves.
-		 */
-		btrfs_release_path(root, path);
-		found_key.offset++;
-
-		/* setup a max key for search_forward */
-		other_key.offset = (u64)-1;
-		other_key.type = key.type;
-		other_key.objectid = key.objectid;
-
-		path->keep_locks = 1;
-		ret = btrfs_search_forward(root, &found_key, &other_key,
-					   path, 0, 0);
-		path->keep_locks = 0;
-		if (ret || found_key.objectid != key.objectid ||
-		    found_key.type != key.type) {
-			ret = 0;
-			goto out;
-		}
-
-		key.offset = found_key.offset;
-		btrfs_release_path(root, path);
-		cond_resched();
-		goto again;
-	}
-
-	/* we know there's one more slot after us in the tree,
-	 * read that key so we can verify it is also a checksum item
-	 */
-	btrfs_node_key_to_cpu(path->nodes[1], &other_key, path->slots[1] + 1);
-
-	if (found_key.objectid < inode->i_ino)
-		goto next_key;
-
-	if (found_key.type != key.type || found_key.offset < new_size)
-		goto next_key;
-
-	/*
-	 * if the key for the next leaf isn't a csum key from this objectid,
-	 * we can't be sure there aren't good items inside this leaf.
-	 * Bail out
-	 */
-	if (other_key.objectid != inode->i_ino || other_key.type != key.type)
-		goto out;
-
-	leaf_start = btrfs_node_blockptr(path->nodes[1], path->slots[1]);
-	leaf_gen = btrfs_node_ptr_generation(path->nodes[1], path->slots[1]);
-	/*
-	 * it is safe to delete this leaf, it contains only
-	 * csum items from this inode at an offset >= new_size
-	 */
-	ret = btrfs_del_leaf(trans, root, path, leaf_start);
-	BUG_ON(ret);
-
-	if (root->ref_cows && leaf_gen < trans->transid) {
-		ref = btrfs_alloc_leaf_ref(root, 0);
-		if (ref) {
-			ref->root_gen = root->root_key.offset;
-			ref->bytenr = leaf_start;
-			ref->owner = 0;
-			ref->generation = leaf_gen;
-			ref->nritems = 0;
-
-			btrfs_sort_leaf_ref(ref);
-
-			ret = btrfs_add_leaf_ref(root, ref, 0);
-			WARN_ON(ret);
-			btrfs_free_leaf_ref(root, ref);
-		} else {
-			WARN_ON(1);
-		}
-	}
-next_key:
-	btrfs_release_path(root, path);
-
-	if (other_key.objectid == inode->i_ino &&
-	    other_key.type == key.type && other_key.offset > key.offset) {
-		key.offset = other_key.offset;
-		cond_resched();
-		goto again;
-	}
-	ret = 0;
-out:
-	/* fixup any changes we've made to the path */
-	path->lowest_level = 0;
-	path->keep_locks = 0;
-	btrfs_release_path(root, path);
-	return ret;
-}
-
-#endif
 
 /*
  * this can truncate away extent items, csum items and directory items.
@@ -3510,7 +3337,7 @@ delete:
 				BUG_ON(ret);
 				pending_del_nr = 0;
 			}
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			goto search_again;
 		} else {
 			path->slots[0]--;
@@ -3668,7 +3495,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 	while (1) {
 		em = btrfs_get_extent(inode, NULL, 0, cur_offset,
 				block_end - cur_offset, 0);
-		BUG_ON(IS_ERR(em) || !em);
+		BUG_ON(IS_ERR_OR_NULL(em));
 		last_byte = min(extent_map_end(em), block_end);
 		last_byte = (last_byte + mask) & ~mask;
 		if (!test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
@@ -3878,7 +3705,7 @@ static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(di))
 		ret = PTR_ERR(di);
 
-	if (!di || IS_ERR(di))
+	if (IS_ERR_OR_NULL(di))
 		goto out_err;
 
 	btrfs_dir_item_key_to_cpu(path->nodes[0], di, location);
@@ -3936,7 +3763,7 @@ static int fixup_tree_root_location(struct btrfs_root *root,
 	if (ret)
 		goto out;
 
-	btrfs_release_path(root->fs_info->tree_root, path);
+	btrfs_release_path(path);
 
 	new_root = btrfs_read_fs_root_no_name(root->fs_info, location);
 	if (IS_ERR(new_root)) {
@@ -4479,24 +4306,20 @@ void btrfs_dirty_inode(struct inode *inode)
 		btrfs_end_transaction(trans, root);
 		trans = btrfs_start_transaction(root, 1);
 		if (IS_ERR(trans)) {
-			if (printk_ratelimit()) {
-				printk(KERN_ERR "btrfs: fail to "
+			printk_ratelimited(KERN_ERR "btrfs: fail to "
 				       "dirty  inode %llu error %ld\n",
 				       (unsigned long long)btrfs_ino(inode),
 				       PTR_ERR(trans));
-			}
 			return;
 		}
 		btrfs_set_trans_block_group(trans, inode);
 
 		ret = btrfs_update_inode(trans, root, inode);
 		if (ret) {
-			if (printk_ratelimit()) {
-				printk(KERN_ERR "btrfs: fail to "
+			printk_ratelimited(KERN_ERR "btrfs: fail to "
 				       "dirty  inode %llu error %d\n",
 				       (unsigned long long)btrfs_ino(inode),
 				       ret);
-			}
 		}
 	}
 	btrfs_end_transaction(trans, root);
@@ -5146,7 +4969,7 @@ again:
 		else
 			goto out;
 	}
-	em = alloc_extent_map(GFP_NOFS);
+	em = alloc_extent_map();
 	if (!em) {
 		err = -ENOMEM;
 		goto out;
@@ -5300,7 +5123,7 @@ again:
 				kunmap(page);
 				free_extent_map(em);
 				em = NULL;
-				btrfs_release_path(root, path);
+				btrfs_release_path(path);
 				trans = btrfs_join_transaction(root, 1);
 				if (IS_ERR(trans))
 					return ERR_CAST(trans);
@@ -5326,7 +5149,7 @@ not_found_em:
 	em->block_start = EXTENT_MAP_HOLE;
 	set_bit(EXTENT_FLAG_VACANCY, &em->flags);
 insert:
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	if (em->start > start || extent_map_end(em) <= start) {
 		printk(KERN_ERR "Btrfs: bad extent! em: [%llu %llu] passed "
 		       "[%llu %llu]\n", (unsigned long long)em->start,
@@ -5459,7 +5282,7 @@ struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *pag
 		u64 hole_start = start;
 		u64 hole_len = len;
 
-		em = alloc_extent_map(GFP_NOFS);
+		em = alloc_extent_map();
 		if (!em) {
 			err = -ENOMEM;
 			goto out;
@@ -5560,7 +5383,7 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 	}
 
 	if (!em) {
-		em = alloc_extent_map(GFP_NOFS);
+		em = alloc_extent_map();
 		if (!em) {
 			em = ERR_PTR(-ENOMEM);
 			goto out;
@@ -6865,9 +6688,9 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->delayed_node = NULL;
 
 	inode = &ei->vfs_inode;
-	extent_map_tree_init(&ei->extent_tree, GFP_NOFS);
-	extent_io_tree_init(&ei->io_tree, &inode->i_data, GFP_NOFS);
-	extent_io_tree_init(&ei->io_failure_tree, &inode->i_data, GFP_NOFS);
+	extent_map_tree_init(&ei->extent_tree);
+	extent_io_tree_init(&ei->io_tree, &inode->i_data);
+	extent_io_tree_init(&ei->io_failure_tree, &inode->i_data);
 	mutex_init(&ei->log_mutex);
 	btrfs_ordered_inode_tree_init(&ei->ordered_tree);
 	INIT_LIST_HEAD(&ei->i_orphan);
@@ -7262,58 +7085,6 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 		    atomic_read(&root->fs_info->async_delalloc_pages) == 0));
 	}
 	atomic_dec(&root->fs_info->async_submit_draining);
-	return 0;
-}
-
-int btrfs_start_one_delalloc_inode(struct btrfs_root *root, int delay_iput,
-				   int sync)
-{
-	struct btrfs_inode *binode;
-	struct inode *inode = NULL;
-
-	spin_lock(&root->fs_info->delalloc_lock);
-	while (!list_empty(&root->fs_info->delalloc_inodes)) {
-		binode = list_entry(root->fs_info->delalloc_inodes.next,
-				    struct btrfs_inode, delalloc_inodes);
-		inode = igrab(&binode->vfs_inode);
-		if (inode) {
-			list_move_tail(&binode->delalloc_inodes,
-				       &root->fs_info->delalloc_inodes);
-			break;
-		}
-
-		list_del_init(&binode->delalloc_inodes);
-		cond_resched_lock(&root->fs_info->delalloc_lock);
-	}
-	spin_unlock(&root->fs_info->delalloc_lock);
-
-	if (inode) {
-		if (sync) {
-			filemap_write_and_wait(inode->i_mapping);
-			/*
-			 * We have to do this because compression doesn't
-			 * actually set PG_writeback until it submits the pages
-			 * for IO, which happens in an async thread, so we could
-			 * race and not actually wait for any writeback pages
-			 * because they've not been submitted yet.  Technically
-			 * this could still be the case for the ordered stuff
-			 * since the async thread may not have started to do its
-			 * work yet.  If this becomes the case then we need to
-			 * figure out a way to make sure that in writepage we
-			 * wait for any async pages to be submitted before
-			 * returning so that fdatawait does what its supposed to
-			 * do.
-			 */
-			btrfs_wait_ordered_range(inode, 0, (u64)-1);
-		} else {
-			filemap_flush(inode->i_mapping);
-		}
-		if (delay_iput)
-			btrfs_add_delayed_iput(inode);
-		else
-			iput(inode);
-		return 1;
-	}
 	return 0;
 }
 

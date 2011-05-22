@@ -333,13 +333,13 @@ static noinline int overwrite_item(struct btrfs_trans_handle *trans,
 			goto insert;
 
 		if (item_size == 0) {
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			return 0;
 		}
 		dst_copy = kmalloc(item_size, GFP_NOFS);
 		src_copy = kmalloc(item_size, GFP_NOFS);
 		if (!dst_copy || !src_copy) {
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			kfree(dst_copy);
 			kfree(src_copy);
 			return -ENOMEM;
@@ -361,13 +361,13 @@ static noinline int overwrite_item(struct btrfs_trans_handle *trans,
 		 * sync
 		 */
 		if (ret == 0) {
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			return 0;
 		}
 
 	}
 insert:
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	/* try to insert the key into the destination tree */
 	ret = btrfs_insert_empty_item(trans, root, path,
 				      key, item_size);
@@ -438,7 +438,7 @@ insert:
 	}
 no_copy:
 	btrfs_mark_buffer_dirty(path->nodes[0]);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	return 0;
 }
 
@@ -544,11 +544,11 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		 * we don't have to do anything
 		 */
 		if (memcmp(&cmp1, &cmp2, sizeof(cmp1)) == 0) {
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			goto out;
 		}
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	saved_nbytes = inode_get_bytes(inode);
 	/* drop any overlapping extents */
@@ -600,7 +600,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 						key->objectid, offset, &ins);
 				BUG_ON(ret);
 			}
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 
 			if (btrfs_file_extent_compression(eb, item)) {
 				csum_start = ins.objectid;
@@ -629,7 +629,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 				kfree(sums);
 			}
 		} else {
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 		}
 	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
 		/* inline extents are easy, we just overwrite them */
@@ -675,7 +675,7 @@ static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	read_extent_buffer(leaf, name, (unsigned long)(di + 1), name_len);
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	inode = read_one_inode(root, location.objectid);
 	BUG_ON(!inode);
@@ -713,7 +713,7 @@ static noinline int inode_in_dir(struct btrfs_root *root,
 			goto out;
 	} else
 		goto out;
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	di = btrfs_lookup_dir_item(NULL, root, path, dirid, name, name_len, 0);
 	if (di && !IS_ERR(di)) {
@@ -724,7 +724,7 @@ static noinline int inode_in_dir(struct btrfs_root *root,
 		goto out;
 	match = 1;
 out:
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	return match;
 }
 
@@ -884,7 +884,7 @@ again:
 			if (!backref_in_log(log, key, victim_name,
 					    victim_name_len)) {
 				btrfs_inc_nlink(inode);
-				btrfs_release_path(root, path);
+				btrfs_release_path(path);
 
 				ret = btrfs_unlink_inode(trans, root, dir,
 							 inode, victim_name,
@@ -901,7 +901,7 @@ again:
 		 */
 		search_done = 1;
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 insert:
 	/* insert our name */
@@ -922,7 +922,7 @@ out:
 	BUG_ON(ret);
 
 out_nowrite:
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	iput(dir);
 	iput(inode);
 	return 0;
@@ -1000,9 +1000,9 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 		if (key.offset == 0)
 			break;
 		key.offset--;
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	if (nlink != inode->i_nlink) {
 		inode->i_nlink = nlink;
 		btrfs_update_inode(trans, root, inode);
@@ -1053,7 +1053,7 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 		ret = btrfs_del_item(trans, root, path);
 		BUG_ON(ret);
 
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		inode = read_one_inode(root, key.offset);
 		BUG_ON(!inode);
 
@@ -1069,7 +1069,7 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 		 */
 		key.offset = (u64)-1;
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	return 0;
 }
 
@@ -1097,7 +1097,7 @@ static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_insert_empty_item(trans, root, path, &key, 0);
 
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	if (ret == 0) {
 		btrfs_inc_nlink(inode);
 		btrfs_update_inode(trans, root, inode);
@@ -1193,7 +1193,7 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 		exists = 1;
 	else
 		exists = 0;
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	if (key->type == BTRFS_DIR_ITEM_KEY) {
 		dst_di = btrfs_lookup_dir_item(trans, root, path, key->objectid,
@@ -1206,7 +1206,7 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	} else {
 		BUG();
 	}
-	if (!dst_di || IS_ERR(dst_di)) {
+	if (IS_ERR_OR_NULL(dst_di)) {
 		/* we need a sequence number to insert, so we only
 		 * do inserts for the BTRFS_DIR_INDEX_KEY types
 		 */
@@ -1237,13 +1237,13 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	if (key->type == BTRFS_DIR_INDEX_KEY)
 		goto insert;
 out:
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	kfree(name);
 	iput(dir);
 	return 0;
 
 insert:
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	ret = insert_one_name(trans, root, path, key->objectid, key->offset,
 			      name, name_len, log_type, &log_key);
 
@@ -1364,7 +1364,7 @@ next:
 	*end_ret = found_end;
 	ret = 0;
 out:
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	return ret;
 }
 
@@ -1427,10 +1427,10 @@ again:
 						     dir_key->offset,
 						     name, name_len, 0);
 		}
-		if (!log_di || IS_ERR(log_di)) {
+		if (IS_ERR_OR_NULL(log_di)) {
 			btrfs_dir_item_key_to_cpu(eb, di, &location);
-			btrfs_release_path(root, path);
-			btrfs_release_path(log, log_path);
+			btrfs_release_path(path);
+			btrfs_release_path(log_path);
 			inode = read_one_inode(root, location.objectid);
 			BUG_ON(!inode);
 
@@ -1454,7 +1454,7 @@ again:
 			ret = 0;
 			goto out;
 		}
-		btrfs_release_path(log, log_path);
+		btrfs_release_path(log_path);
 		kfree(name);
 
 		ptr = (unsigned long)(di + 1);
@@ -1462,8 +1462,8 @@ again:
 	}
 	ret = 0;
 out:
-	btrfs_release_path(root, path);
-	btrfs_release_path(log, log_path);
+	btrfs_release_path(path);
+	btrfs_release_path(log_path);
 	return ret;
 }
 
@@ -1551,7 +1551,7 @@ again:
 				break;
 			dir_key.offset = found_key.offset + 1;
 		}
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		if (range_end == (u64)-1)
 			break;
 		range_start = range_end + 1;
@@ -1562,11 +1562,11 @@ next_type:
 	if (key_type == BTRFS_DIR_LOG_ITEM_KEY) {
 		key_type = BTRFS_DIR_LOG_INDEX_KEY;
 		dir_key.type = BTRFS_DIR_INDEX_KEY;
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		goto again;
 	}
 out:
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 	btrfs_free_path(log_path);
 	iput(dir);
 	return ret;
@@ -2227,7 +2227,7 @@ int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 		bytes_del += name_len;
 		BUG_ON(ret);
 	}
-	btrfs_release_path(log, path);
+	btrfs_release_path(path);
 	di = btrfs_lookup_dir_index_item(trans, log, path, dir_ino,
 					 index, name, name_len, -1);
 	if (IS_ERR(di)) {
@@ -2249,7 +2249,7 @@ int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 		key.objectid = dir_ino;
 		key.offset = 0;
 		key.type = BTRFS_INODE_ITEM_KEY;
-		btrfs_release_path(log, path);
+		btrfs_release_path(path);
 
 		ret = btrfs_search_slot(trans, log, &key, path, 0, 1);
 		if (ret < 0) {
@@ -2271,7 +2271,7 @@ int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 			btrfs_mark_buffer_dirty(path->nodes[0]);
 		} else
 			ret = 0;
-		btrfs_release_path(log, path);
+		btrfs_release_path(path);
 	}
 fail:
 	btrfs_free_path(path);
@@ -2346,7 +2346,7 @@ static noinline int insert_dir_log_key(struct btrfs_trans_handle *trans,
 			      struct btrfs_dir_log_item);
 	btrfs_set_dir_log_end(path->nodes[0], item, last_offset);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
-	btrfs_release_path(log, path);
+	btrfs_release_path(path);
 	return 0;
 }
 
@@ -2395,10 +2395,10 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 		min_key.objectid = ino;
 		min_key.type = key_type;
 		min_key.offset = (u64)-1;
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 		ret = btrfs_search_slot(NULL, root, &min_key, path, 0, 0);
 		if (ret < 0) {
-			btrfs_release_path(root, path);
+			btrfs_release_path(path);
 			return ret;
 		}
 		ret = btrfs_previous_item(root, path, ino, key_type);
@@ -2434,7 +2434,7 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 			}
 		}
 	}
-	btrfs_release_path(root, path);
+	btrfs_release_path(path);
 
 	/* find the first key from this transaction again */
 	ret = btrfs_search_slot(NULL, root, &min_key, path, 0, 0);
@@ -2491,8 +2491,8 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 		}
 	}
 done:
-	btrfs_release_path(root, path);
-	btrfs_release_path(log, dst_path);
+	btrfs_release_path(path);
+	btrfs_release_path(dst_path);
 
 	if (err == 0) {
 		*last_offset_ret = last_offset;
@@ -2588,9 +2588,9 @@ static int drop_objectid_items(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_del_item(trans, log, path);
 		BUG_ON(ret);
-		btrfs_release_path(log, path);
+		btrfs_release_path(path);
 	}
-	btrfs_release_path(log, path);
+	btrfs_release_path(path);
 	return ret;
 }
 
@@ -2696,7 +2696,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	}
 
 	btrfs_mark_buffer_dirty(dst_path->nodes[0]);
-	btrfs_release_path(log, dst_path);
+	btrfs_release_path(dst_path);
 	kfree(ins_data);
 
 	/*
@@ -2852,7 +2852,7 @@ next_slot:
 			}
 			ins_nr = 0;
 		}
-		btrfs_release_path(root, path);
+		btrfs_release_path(path);
 
 		if (min_key.offset < (u64)-1)
 			min_key.offset++;
@@ -2875,8 +2875,8 @@ next_slot:
 	}
 	WARN_ON(ins_nr);
 	if (inode_only == LOG_INODE_ALL && S_ISDIR(inode->i_mode)) {
-		btrfs_release_path(root, path);
-		btrfs_release_path(log, dst_path);
+		btrfs_release_path(path);
+		btrfs_release_path(dst_path);
 		ret = log_directory_changes(trans, root, inode, path, dst_path);
 		if (ret) {
 			err = ret;
@@ -3143,7 +3143,7 @@ again:
 		}
 		btrfs_item_key_to_cpu(path->nodes[0], &found_key,
 				      path->slots[0]);
-		btrfs_release_path(log_root_tree, path);
+		btrfs_release_path(path);
 		if (found_key.objectid != BTRFS_TREE_LOG_OBJECTID)
 			break;
 
@@ -3178,7 +3178,7 @@ again:
 		if (found_key.offset == 0)
 			break;
 	}
-	btrfs_release_path(log_root_tree, path);
+	btrfs_release_path(path);
 
 	/* step one is to pin it all, step two is to replay just inodes */
 	if (wc.pin) {

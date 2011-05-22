@@ -740,7 +740,7 @@ static int btrfs_set_super(struct super_block *s, void *data)
  *	  for multiple device setup.  Make sure to keep it in sync.
  */
 static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
-		const char *dev_name, void *data)
+		const char *device_name, void *data)
 {
 	struct block_device *bdev = NULL;
 	struct super_block *s;
@@ -763,7 +763,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	if (error)
 		return ERR_PTR(error);
 
-	error = btrfs_scan_one_device(dev_name, mode, fs_type, &fs_devices);
+	error = btrfs_scan_one_device(device_name, mode, fs_type, &fs_devices);
 	if (error)
 		goto error_free_subvol_name;
 
