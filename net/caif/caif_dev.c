@@ -142,6 +142,7 @@ static int receive(struct sk_buff *skb, struct net_device *dev,
 {
 	struct cfpkt *pkt;
 	struct caif_device_entry *caifd;
+	int err;
 
 	pkt = cfpkt_fromnative(CAIF_DIR_IN, skb);
 
@@ -159,7 +160,11 @@ static int receive(struct sk_buff *skb, struct net_device *dev,
 	caifd_hold(caifd);
 	rcu_read_unlock();
 
-	caifd->layer.up->receive(caifd->layer.up, pkt);
+	err = caifd->layer.up->receive(caifd->layer.up, pkt);
+
+	/* For -EILSEQ the packet is not freed so so it now */
+	if (err == -EILSEQ)
+		cfpkt_destroy(pkt);
 
 	/* Release reference to stack upwards */
 	caifd_put(caifd);
