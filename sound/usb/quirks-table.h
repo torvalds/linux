@@ -1651,6 +1651,32 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
+{
+	USB_DEVICE(0x0582, 0x0127),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "Roland", */
+		/* .product_name = "GR-55", */
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_MIDI_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
 
 /* Guillemot devices */
 {
@@ -1953,7 +1979,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	USB_DEVICE(0x0763, 0x2080),
+	USB_DEVICE_VENDOR_SPEC(0x0763, 0x2080),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		/* .vendor_name = "M-Audio", */
 		/* .product_name = "Fast Track Ultra", */
@@ -2020,7 +2046,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	USB_DEVICE(0x0763, 0x2081),
+	USB_DEVICE_VENDOR_SPEC(0x0763, 0x2081),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		/* .vendor_name = "M-Audio", */
 		/* .product_name = "Fast Track Ultra 8R", */
@@ -2179,6 +2205,17 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* KORG devices */
+{
+	USB_DEVICE_VENDOR_SPEC(0x0944, 0x0200),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "KORG, Inc.",
+		/* .product_name = "PANDORA PX5D", */
+		.ifnum = 3,
+		.type = QUIRK_MIDI_STANDARD_INTERFACE,
+	}
+},
+
 /* AKAI devices */
 {
 	USB_DEVICE(0x09e8, 0x0062),
@@ -2331,6 +2368,12 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 },
 
 /* Native Instruments MK2 series */
+{
+	/* Komplete Audio 6 */
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
+	.idVendor = 0x17cc,
+	.idProduct = 0x1000,
+},
 {
 	/* Traktor Audio 6 */
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,

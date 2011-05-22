@@ -303,6 +303,9 @@ static const u32 db_table[101] = {
 static const DECLARE_TLV_DB_SCALE(snd_emu10k1_db_scale1, -4000, 40, 1);
 static const DECLARE_TLV_DB_LINEAR(snd_emu10k1_db_linear, TLV_DB_GAIN_MUTE, 0);
 
+/* EMU10K1 bass/treble db gain */
+static const DECLARE_TLV_DB_SCALE(snd_emu10k1_bass_treble_db_scale, -1200, 60, 0);
+
 static const u32 onoff_table[2] = {
 	0x00000000, 0x00000001
 };
@@ -2163,6 +2166,7 @@ static int __devinit _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	ctl->min = 0;
 	ctl->max = 40;
 	ctl->value[0] = ctl->value[1] = 20;
+	ctl->tlv = snd_emu10k1_bass_treble_db_scale;
 	ctl->translation = EMU10K1_GPR_TRANSLATION_BASS;
 	ctl = &controls[i + 1];
 	ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
@@ -2172,6 +2176,7 @@ static int __devinit _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	ctl->min = 0;
 	ctl->max = 40;
 	ctl->value[0] = ctl->value[1] = 20;
+	ctl->tlv = snd_emu10k1_bass_treble_db_scale;
 	ctl->translation = EMU10K1_GPR_TRANSLATION_TREBLE;
 
 #define BASS_GPR	0x8c

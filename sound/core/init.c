@@ -514,7 +514,7 @@ static void snd_card_set_id_no_lock(struct snd_card *card, const char *nid)
 	id = card->id;
 	
 	if (*id == '\0')
-		strcpy(id, "default");
+		strcpy(id, "Default");
 
 	while (1) {
 	      	if (loops-- == 0) {
