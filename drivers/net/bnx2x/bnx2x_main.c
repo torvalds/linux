@@ -571,7 +571,7 @@ static int bnx2x_issue_dmae_with_comp(struct bnx2x *bp,
 				      struct dmae_command *dmae)
 {
 	u32 *wb_comp = bnx2x_sp(bp, wb_comp);
-	int cnt = CHIP_REV_IS_SLOW(bp) ? (400000) : 40;
+	int cnt = CHIP_REV_IS_SLOW(bp) ? (400000) : 4000;
 	int rc = 0;
 
 	DP(BNX2X_MSG_OFF, "data before [0x%08x 0x%08x 0x%08x 0x%08x]\n",
