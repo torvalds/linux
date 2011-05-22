@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
+#include <sound/jack.h>
 #include "hda_codec.h"
 #include "hda_local.h"
 
@@ -76,7 +77,7 @@ struct hdmi_spec {
 	 * ati/nvhdmi specific
 	 */
 	struct hda_multi_out multiout;
-	struct hda_pcm_stream *pcm_playback;
+	const struct hda_pcm_stream *pcm_playback;
 
 	/* misc flags */
 	/* PD bit indicates only the update, not the current state */
@@ -720,6 +721,8 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 				  &spec->sink_eld[index]);
 		/* TODO: do real things about ELD */
 	}
+
+	snd_hda_input_jack_report(codec, tag);
 }
 
 static void hdmi_non_intrinsic_event(struct hda_codec *codec, unsigned int res)
@@ -912,12 +915,19 @@ static void hdmi_present_sense(struct hda_codec *codec, hda_nid_t pin_nid,
 static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 {
 	struct hdmi_spec *spec = codec->spec;
+	int err;
 
 	if (spec->num_pins >= MAX_HDMI_PINS) {
 		snd_printk(KERN_WARNING
 			   "HDMI: no space for pin %d\n", pin_nid);
 		return -E2BIG;
 	}
+
+	err = snd_hda_input_jack_add(codec, pin_nid,
+				     SND_JACK_VIDEOOUT, NULL);
+	if (err < 0)
+		return err;
+	snd_hda_input_jack_report(codec, pin_nid);
 
 	hdmi_present_sense(codec, pin_nid, &spec->sink_eld[spec->num_pins]);
 
@@ -1044,7 +1054,7 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	return hdmi_setup_stream(codec, hinfo->nid, stream_tag, format);
 }
 
-static struct hda_pcm_stream generic_hdmi_pcm_playback = {
+static const struct hda_pcm_stream generic_hdmi_pcm_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.ops = {
@@ -1120,11 +1130,12 @@ static void generic_hdmi_free(struct hda_codec *codec)
 
 	for (i = 0; i < spec->num_pins; i++)
 		snd_hda_eld_proc_free(codec, &spec->sink_eld[i]);
+	snd_hda_input_jack_free(codec);
 
 	kfree(spec);
 }
 
-static struct hda_codec_ops generic_hdmi_patch_ops = {
+static const struct hda_codec_ops generic_hdmi_patch_ops = {
 	.init			= generic_hdmi_init,
 	.free			= generic_hdmi_free,
 	.build_pcms		= generic_hdmi_build_pcms,
@@ -1169,12 +1180,12 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 #define nvhdmi_master_con_nid_7x	0x04
 #define nvhdmi_master_pin_nid_7x	0x05
 
-static hda_nid_t nvhdmi_con_nids_7x[4] = {
+static const hda_nid_t nvhdmi_con_nids_7x[4] = {
 	/*front, rear, clfe, rear_surr */
 	0x6, 0x8, 0xa, 0xc,
 };
 
-static struct hda_verb nvhdmi_basic_init_7x[] = {
+static const struct hda_verb nvhdmi_basic_init_7x[] = {
 	/* set audio protect on */
 	{ 0x1, Nv_VERB_SET_Audio_Protection_On, 0x1},
 	/* enable digital output on pin widget */
@@ -1435,7 +1446,7 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 	return 0;
 }
 
-static struct hda_pcm_stream nvhdmi_pcm_playback_8ch_7x = {
+static const struct hda_pcm_stream nvhdmi_pcm_playback_8ch_7x = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 8,
@@ -1450,7 +1461,7 @@ static struct hda_pcm_stream nvhdmi_pcm_playback_8ch_7x = {
 	},
 };
 
-static struct hda_pcm_stream nvhdmi_pcm_playback_2ch = {
+static const struct hda_pcm_stream nvhdmi_pcm_playback_2ch = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -1465,14 +1476,14 @@ static struct hda_pcm_stream nvhdmi_pcm_playback_2ch = {
 	},
 };
 
-static struct hda_codec_ops nvhdmi_patch_ops_8ch_7x = {
+static const struct hda_codec_ops nvhdmi_patch_ops_8ch_7x = {
 	.build_controls = generic_hdmi_build_controls,
 	.build_pcms = generic_hdmi_build_pcms,
 	.init = nvhdmi_7x_init,
 	.free = generic_hdmi_free,
 };
 
-static struct hda_codec_ops nvhdmi_patch_ops_2ch = {
+static const struct hda_codec_ops nvhdmi_patch_ops_2ch = {
 	.build_controls = generic_hdmi_build_controls,
 	.build_pcms = generic_hdmi_build_pcms,
 	.init = nvhdmi_7x_init,
@@ -1568,7 +1579,7 @@ static int atihdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	return 0;
 }
 
-static struct hda_pcm_stream atihdmi_pcm_digital_playback = {
+static const struct hda_pcm_stream atihdmi_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -1580,7 +1591,7 @@ static struct hda_pcm_stream atihdmi_pcm_digital_playback = {
 	},
 };
 
-static struct hda_verb atihdmi_basic_init[] = {
+static const struct hda_verb atihdmi_basic_init[] = {
 	/* enable digital output on pin widget */
 	{ 0x03, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
 	{} /* terminator */
@@ -1599,7 +1610,7 @@ static int atihdmi_init(struct hda_codec *codec)
 	return 0;
 }
 
-static struct hda_codec_ops atihdmi_patch_ops = {
+static const struct hda_codec_ops atihdmi_patch_ops = {
 	.build_controls = generic_hdmi_build_controls,
 	.build_pcms = generic_hdmi_build_pcms,
 	.init = atihdmi_init,
@@ -1634,7 +1645,7 @@ static int patch_atihdmi(struct hda_codec *codec)
 /*
  * patch entries
  */
-static struct hda_codec_preset snd_hda_preset_hdmi[] = {
+static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x1002793c, .name = "RS600 HDMI",	.patch = patch_atihdmi },
 { .id = 0x10027919, .name = "RS600 HDMI",	.patch = patch_atihdmi },
 { .id = 0x1002791a, .name = "RS690/780 HDMI",	.patch = patch_atihdmi },
@@ -1677,6 +1688,7 @@ static struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x80862803, .name = "Eaglelake HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862804, .name = "IbexPeak HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862805, .name = "CougarPoint HDMI",	.patch = patch_generic_hdmi },
+{ .id = 0x80862806, .name = "PantherPoint HDMI", .patch = patch_generic_hdmi },
 { .id = 0x808629fb, .name = "Crestline HDMI",	.patch = patch_generic_hdmi },
 {} /* terminator */
 };
@@ -1722,6 +1734,7 @@ MODULE_ALIAS("snd-hda-codec-id:80862802");
 MODULE_ALIAS("snd-hda-codec-id:80862803");
 MODULE_ALIAS("snd-hda-codec-id:80862804");
 MODULE_ALIAS("snd-hda-codec-id:80862805");
+MODULE_ALIAS("snd-hda-codec-id:80862806");
 MODULE_ALIAS("snd-hda-codec-id:808629fb");
 
 MODULE_LICENSE("GPL");
