@@ -85,7 +85,5 @@ void viafb_init_lvds_output_interface(struct lvds_chip_information
 				struct lvds_setting_information
 				*plvds_setting_info);
 bool viafb_lcd_get_mobile_state(bool *mobile);
-void viafb_load_crtc_timing(struct display_timing device_timing,
-	int set_iga);
 
 #endif /* __LCD_H__ */

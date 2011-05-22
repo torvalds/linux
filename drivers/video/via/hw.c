@@ -1467,20 +1467,6 @@ void viafb_set_vclock(u32 clk, int set_iga)
 	via_write_misc_reg_mask(0x0C, 0x0C); /* select external clock */
 }
 
-void viafb_load_crtc_timing(struct display_timing device_timing,
-	int set_iga)
-{
-	device_timing.hor_blank_end += device_timing.hor_blank_start;
-	device_timing.hor_sync_end += device_timing.hor_sync_start;
-	device_timing.ver_blank_end += device_timing.ver_blank_start;
-	device_timing.ver_sync_end += device_timing.ver_sync_start;
-
-	if (set_iga == IGA1)
-		via_set_primary_timing(&device_timing);
-	else if (set_iga == IGA2)
-		via_set_secondary_timing(&device_timing);
-}
-
 void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	struct VideoModeTable *video_mode, int bpp_byte, int set_iga)
 {
@@ -1515,6 +1501,10 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 		crt_reg.hor_blank_end = crt_reg.hor_blank_end + 16;
 	}
 
+	crt_reg.hor_blank_end += crt_reg.hor_blank_start;
+	crt_reg.hor_sync_end += crt_reg.hor_sync_start;
+	crt_reg.ver_blank_end += crt_reg.ver_blank_start;
+	crt_reg.ver_sync_end += crt_reg.ver_sync_start;
 	h_addr = crt_reg.hor_addr;
 	v_addr = crt_reg.ver_addr;
 	if (set_iga == IGA1) {
@@ -1522,14 +1512,10 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 		viafb_write_reg_mask(CR17, VIACR, 0x00, BIT7);
 	}
 
-	switch (set_iga) {
-	case IGA1:
-		viafb_load_crtc_timing(crt_reg, IGA1);
-		break;
-	case IGA2:
-		viafb_load_crtc_timing(crt_reg, IGA2);
-		break;
-	}
+	if (set_iga == IGA1)
+		via_set_primary_timing(&crt_reg);
+	else if (set_iga == IGA2)
+		via_set_secondary_timing(&crt_reg);
 
 	viafb_lock_crt();
 	viafb_write_reg_mask(CR17, VIACR, 0x80, BIT7);
