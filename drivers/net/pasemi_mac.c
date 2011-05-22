@@ -35,6 +35,7 @@
 #include <linux/tcp.h>
 #include <net/checksum.h>
 #include <linux/inet_lro.h>
+#include <linux/prefetch.h>
 
 #include <asm/irq.h>
 #include <asm/firmware.h>

@@ -78,6 +78,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 #include <net/tcp.h>
 
 #include <asm/system.h>

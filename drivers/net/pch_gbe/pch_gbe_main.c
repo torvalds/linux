@@ -20,6 +20,7 @@
 
 #include "pch_gbe.h"
 #include "pch_gbe_api.h"
+#include <linux/prefetch.h>
 
 #define DRV_VERSION     "1.00"
 const char pch_driver_version[] = DRV_VERSION;

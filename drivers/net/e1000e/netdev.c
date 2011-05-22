@@ -49,6 +49,7 @@
 #include <linux/pm_qos_params.h>
 #include <linux/pm_runtime.h>
 #include <linux/aer.h>
+#include <linux/prefetch.h>
 
 #include "e1000.h"
 

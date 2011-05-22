@@ -44,6 +44,7 @@
 #include <linux/mii.h>
 #include <linux/slab.h>
 #include <linux/dmi.h>
+#include <linux/prefetch.h>
 #include <asm/irq.h>
 
 #include "skge.h"

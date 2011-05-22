@@ -14,6 +14,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
+#include <linux/prefetch.h>
 #include <net/ip.h>
 #include <net/checksum.h>
 #include "net_driver.h"

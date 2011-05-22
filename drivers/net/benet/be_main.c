@@ -15,6 +15,7 @@
  * Costa Mesa, CA 92626
  */
 
+#include <linux/prefetch.h>
 #include "be.h"
 #include "be_cmds.h"
 #include <asm/div64.h>

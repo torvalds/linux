@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/firmware.h>
 #include <linux/pci-aspm.h>
+#include <linux/prefetch.h>
 
 #include <asm/system.h>
 #include <asm/io.h>

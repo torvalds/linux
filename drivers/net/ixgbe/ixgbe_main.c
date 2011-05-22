@@ -41,6 +41,7 @@
 #include <net/ip6_checksum.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
+#include <linux/prefetch.h>
 #include <scsi/fc/fc_fcoe.h>
 
 #include "ixgbe.h"
