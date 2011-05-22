@@ -368,7 +368,8 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 	cfpkt_extr_head(pkt, &cmdrsp, 1);
 	cmd = cmdrsp & CFCTRL_CMD_MASK;
 	if (cmd != CFCTRL_CMD_LINK_ERR
-	    && CFCTRL_RSP_BIT != (CFCTRL_RSP_BIT & cmdrsp)) {
+	    && CFCTRL_RSP_BIT != (CFCTRL_RSP_BIT & cmdrsp)
+		&& CFCTRL_ERR_BIT != (CFCTRL_ERR_BIT & cmdrsp)) {
 		if (handle_loop(cfctrl, cmd, pkt) != 0)
 			cmdrsp |= CFCTRL_ERR_BIT;
 	}
@@ -604,16 +605,16 @@ static int handle_loop(struct cfctrl *ctrl, int cmd, struct cfpkt *pkt)
 	case CFCTRL_CMD_LINK_SETUP:
 		spin_lock_bh(&ctrl->loop_linkid_lock);
 		if (!dec) {
-			for (linkid = last_linkid + 1; linkid < 255; linkid++)
+			for (linkid = last_linkid + 1; linkid < 254; linkid++)
 				if (!ctrl->loop_linkused[linkid])
 					goto found;
 		}
 		dec = 1;
-		for (linkid = last_linkid - 1; linkid > 0; linkid--)
+		for (linkid = last_linkid - 1; linkid > 1; linkid--)
 			if (!ctrl->loop_linkused[linkid])
 				goto found;
 		spin_unlock_bh(&ctrl->loop_linkid_lock);
-
+		return -1;
 found:
 		if (linkid < 10)
 			dec = 0;
