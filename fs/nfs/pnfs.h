@@ -165,6 +165,8 @@ void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
 bool pnfs_roc_drain(struct inode *ino, u32 *barrier);
 void pnfs_set_layoutcommit(struct nfs_write_data *wdata);
 int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
+int pnfs_ld_write_done(struct nfs_write_data *);
+int pnfs_ld_read_done(struct nfs_read_data *);
 
 /* pnfs_dev.c */
 struct nfs4_deviceid_node {

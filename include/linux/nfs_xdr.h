@@ -1087,6 +1087,7 @@ struct nfs_read_data {
 	const struct rpc_call_ops *mds_ops;
 	int (*read_done_cb) (struct rpc_task *task, struct nfs_read_data *data);
 	__u64			mds_offset;
+	int			pnfs_error;
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 
@@ -1112,6 +1113,7 @@ struct nfs_write_data {
 	unsigned long		timestamp;	/* For lease renewal */
 #endif
 	__u64			mds_offset;	/* Filelayout dense stripe */
+	int			pnfs_error;
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 

@@ -243,7 +243,7 @@ put_lseg_common(struct pnfs_layout_segment *lseg)
 {
 	struct inode *inode = lseg->pls_layout->plh_inode;
 
-	BUG_ON(test_bit(NFS_LSEG_VALID, &lseg->pls_flags));
+	WARN_ON(test_bit(NFS_LSEG_VALID, &lseg->pls_flags));
 	list_del_init(&lseg->pls_list);
 	if (list_empty(&lseg->pls_layout->plh_segs)) {
 		set_bit(NFS_LAYOUT_DESTROYED, &lseg->pls_layout->plh_flags);
@@ -1054,6 +1054,29 @@ pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode)
 	pgio->pg_test = (ld && ld->pg_test) ? pnfs_write_pg_test : NULL;
 }
 
+/*
+ * Called by non rpc-based layout drivers
+ */
+int
+pnfs_ld_write_done(struct nfs_write_data *data)
+{
+	int status;
+
+	if (!data->pnfs_error) {
+		pnfs_set_layoutcommit(data);
+		data->mds_ops->rpc_call_done(&data->task, data);
+		data->mds_ops->rpc_release(data);
+		return 0;
+	}
+
+	dprintk("%s: pnfs_error=%d, retry via MDS\n", __func__,
+		data->pnfs_error);
+	status = nfs_initiate_write(data, NFS_CLIENT(data->inode),
+				    data->mds_ops, NFS_FILE_SYNC);
+	return status ? : -EAGAIN;
+}
+EXPORT_SYMBOL_GPL(pnfs_ld_write_done);
+
 enum pnfs_try_status
 pnfs_try_to_write_data(struct nfs_write_data *wdata,
 			const struct rpc_call_ops *call_ops, int how)
@@ -1077,6 +1100,29 @@ pnfs_try_to_write_data(struct nfs_write_data *wdata,
 	dprintk("%s End (trypnfs:%d)\n", __func__, trypnfs);
 	return trypnfs;
 }
+
+/*
+ * Called by non rpc-based layout drivers
+ */
+int
+pnfs_ld_read_done(struct nfs_read_data *data)
+{
+	int status;
+
+	if (!data->pnfs_error) {
+		__nfs4_read_done_cb(data);
+		data->mds_ops->rpc_call_done(&data->task, data);
+		data->mds_ops->rpc_release(data);
+		return 0;
+	}
+
+	dprintk("%s: pnfs_error=%d, retry via MDS\n", __func__,
+		data->pnfs_error);
+	status = nfs_initiate_read(data, NFS_CLIENT(data->inode),
+				   data->mds_ops);
+	return status ? : -EAGAIN;
+}
+EXPORT_SYMBOL_GPL(pnfs_ld_read_done);
 
 /*
  * Call the appropriate parallel I/O subsystem read function.
