@@ -3,6 +3,7 @@
 
 #include <linux/mm.h>
 #include <linux/uaccess.h>
+#include <asm/tlbflush.h>
 
 /* The usual comment is "Caches aren't brain-dead on the <architecture>".
  * Unfortunately, that doesn't apply to PA-RISC. */
@@ -112,8 +113,10 @@ void flush_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
 static inline void
 flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
 {
-	if (PageAnon(page))
+	if (PageAnon(page)) {
+		flush_tlb_page(vma, vmaddr);
 		flush_dcache_page_asm(page_to_phys(page), vmaddr);
+	}
 }
 
 #ifdef CONFIG_DEBUG_RODATA
