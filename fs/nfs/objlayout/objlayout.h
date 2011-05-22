@@ -51,6 +51,14 @@
 struct objlayout {
 	struct pnfs_layout_hdr pnfs_layout;
 
+	 /* for layout_commit */
+	enum osd_delta_space_valid_enum {
+		OBJ_DSU_INIT = 0,
+		OBJ_DSU_VALID,
+		OBJ_DSU_INVALID,
+	} delta_space_valid;
+	s64 delta_space_used;  /* consumed by write ops */
+
 	 /* for layout_return */
 	spinlock_t lock;
 	struct list_head err_list;
@@ -119,6 +127,23 @@ extern void objlayout_io_set_result(struct objlayout_io_state *state,
 			unsigned index, struct pnfs_osd_objid *pooid,
 			int osd_error, u64 offset, u64 length, bool is_write);
 
+static inline void
+objlayout_add_delta_space_used(struct objlayout_io_state *state, s64 space_used)
+{
+	struct objlayout *objlay = OBJLAYOUT(state->lseg->pls_layout);
+
+	/* If one of the I/Os errored out and the delta_space_used was
+	 * invalid we render the complete report as invalid. Protocol mandate
+	 * the DSU be accurate or not reported.
+	 */
+	spin_lock(&objlay->lock);
+	if (objlay->delta_space_valid != OBJ_DSU_INVALID) {
+		objlay->delta_space_valid = OBJ_DSU_VALID;
+		objlay->delta_space_used += space_used;
+	}
+	spin_unlock(&objlay->lock);
+}
+
 extern void objlayout_read_done(struct objlayout_io_state *state,
 				ssize_t status, bool sync);
 extern void objlayout_write_done(struct objlayout_io_state *state,
@@ -148,6 +173,11 @@ extern enum pnfs_try_status objlayout_read_pagelist(
 extern enum pnfs_try_status objlayout_write_pagelist(
 	struct nfs_write_data *,
 	int how);
+
+extern void objlayout_encode_layoutcommit(
+	struct pnfs_layout_hdr *,
+	struct xdr_stream *,
+	const struct nfs4_layoutcommit_args *);
 
 extern void objlayout_encode_layoutreturn(
 	struct pnfs_layout_hdr *,

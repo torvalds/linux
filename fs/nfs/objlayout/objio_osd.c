@@ -1018,6 +1018,7 @@ static struct pnfs_layoutdriver_type objlayout_type = {
 
 	.free_deviceid_node	 = objio_free_deviceid_node,
 
+	.encode_layoutcommit	 = objlayout_encode_layoutcommit,
 	.encode_layoutreturn     = objlayout_encode_layoutreturn,
 };
 
