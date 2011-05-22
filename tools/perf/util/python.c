@@ -675,6 +675,7 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 	union perf_event *event;
 	int sample_id_all = 1, cpu;
 	static char *kwlist[] = {"sample_id_all", NULL, NULL};
+	int err;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i|i", kwlist,
 					 &cpu, &sample_id_all))
@@ -690,11 +691,17 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 			return PyErr_NoMemory();
 
 		first = list_entry(evlist->entries.next, struct perf_evsel, node);
-		perf_event__parse_sample(event, first->attr.sample_type, sample_id_all,
-					 &pevent->sample);
+		err = perf_event__parse_sample(event, first->attr.sample_type,
+					       perf_sample_size(first->attr.sample_type),
+					       sample_id_all, &pevent->sample);
+		if (err) {
+			pr_err("Can't parse sample, err = %d\n", err);
+			goto end;
+		}
+
 		return pyevent;
 	}
-
+end:
 	Py_INCREF(Py_None);
 	return Py_None;
 }

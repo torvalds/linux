@@ -303,8 +303,20 @@ static int perf_event__parse_id_sample(const union perf_event *event, u64 type,
 	return 0;
 }
 
+static bool sample_overlap(const union perf_event *event,
+			   const void *offset, u64 size)
+{
+	const void *base = event;
+
+	if (offset + size > base + event->header.size)
+		return true;
+
+	return false;
+}
+
 int perf_event__parse_sample(const union perf_event *event, u64 type,
-			     bool sample_id_all, struct perf_sample *data)
+			     int sample_size, bool sample_id_all,
+			     struct perf_sample *data)
 {
 	const u64 *array;
 
@@ -318,6 +330,9 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	array = event->sample.array;
+
+	if (sample_size + sizeof(event->header) > event->header.size)
+		return -EFAULT;
 
 	if (type & PERF_SAMPLE_IP) {
 		data->ip = event->ip.ip;
@@ -369,14 +384,29 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_CALLCHAIN) {
+		if (sample_overlap(event, array, sizeof(data->callchain->nr)))
+			return -EFAULT;
+
 		data->callchain = (struct ip_callchain *)array;
+
+		if (sample_overlap(event, array, data->callchain->nr))
+			return -EFAULT;
+
 		array += 1 + data->callchain->nr;
 	}
 
 	if (type & PERF_SAMPLE_RAW) {
 		u32 *p = (u32 *)array;
+
+		if (sample_overlap(event, array, sizeof(u32)))
+			return -EFAULT;
+
 		data->raw_size = *p;
 		p++;
+
+		if (sample_overlap(event, p, data->raw_size))
+			return -EFAULT;
+
 		data->raw_data = p;
 	}
 

@@ -459,3 +459,34 @@ int perf_evlist__set_filters(struct perf_evlist *evlist)
 
 	return 0;
 }
+
+u64 perf_evlist__sample_type(struct perf_evlist *evlist)
+{
+	struct perf_evsel *pos;
+	u64 type = 0;
+
+	list_for_each_entry(pos, &evlist->entries, node) {
+		if (!type)
+			type = pos->attr.sample_type;
+		else if (type != pos->attr.sample_type)
+			die("non matching sample_type");
+	}
+
+	return type;
+}
+
+bool perf_evlist__sample_id_all(const struct perf_evlist *evlist)
+{
+	bool value = false, first = true;
+	struct perf_evsel *pos;
+
+	list_for_each_entry(pos, &evlist->entries, node) {
+		if (first) {
+			value = pos->attr.sample_id_all;
+			first = false;
+		} else if (value != pos->attr.sample_id_all)
+			die("non matching sample_id_all");
+	}
+
+	return value;
+}
