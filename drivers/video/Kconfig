@@ -1562,6 +1562,17 @@ config FB_VIA_DIRECT_PROCFS
 	  correct output device configuration.
 	  Its use is strongly discouraged.
 
+config FB_VIA_X_COMPATIBILITY
+	bool "X server compatibility"
+	depends on FB_VIA
+	default n
+	help
+	  This option reduces the functionality (power saving, ...) of the
+	  framebuffer to avoid negative impact on the OpenChrome X server.
+	  If you use any X server other than fbdev you should enable this
+	  otherwise it should be safe to disable it and allow using all
+	  features.
+
 endif
 
 config FB_NEOMAGIC
