@@ -102,7 +102,6 @@ struct smb_vol {
 	bool fsc:1;	/* enable fscache */
 	bool mfsymlinks:1; /* use Minshall+French Symlinks */
 	bool multiuser:1;
-	bool use_smb2:1; /* force smb2 use on mount instead of cifs */
 	unsigned int rsize;
 	unsigned int wsize;
 	bool sockopt_tcp_nodelay:1;
@@ -1062,13 +1061,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				   (strnicmp(value, "1", 1) == 0)) {
 				/* this is the default */
 				continue;
-			} else if ((strnicmp(value, "smb2", 4) == 0) ||
-				   (strnicmp(value, "2", 1) == 0)) {
-#ifdef CONFIG_CIFS_SMB2
-				vol->use_smb2 = true;
-#else
-				cERROR(1, "smb2 support not enabled");
-#endif /* CONFIG_CIFS_SMB2 */
 			}
 		} else if ((strnicmp(data, "unc", 3) == 0)
 			   || (strnicmp(data, "target", 6) == 0)
