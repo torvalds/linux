@@ -62,16 +62,6 @@ struct cflayer *cfmuxl_create(void)
 	return &this->layer;
 }
 
-int cfmuxl_set_uplayer(struct cflayer *layr, struct cflayer *up, u8 linkid)
-{
-	struct cfmuxl *muxl = container_obj(layr);
-
-	spin_lock_bh(&muxl->receive_lock);
-	list_add_rcu(&up->node, &muxl->srvl_list);
-	spin_unlock_bh(&muxl->receive_lock);
-	return 0;
-}
-
 int cfmuxl_set_dnlayer(struct cflayer *layr, struct cflayer *dn, u8 phyid)
 {
 	struct cfmuxl *muxl = (struct cfmuxl *) layr;
@@ -91,6 +81,24 @@ static struct cflayer *get_from_id(struct list_head *list, u16 id)
 	}
 
 	return NULL;
+}
+
+int cfmuxl_set_uplayer(struct cflayer *layr, struct cflayer *up, u8 linkid)
+{
+	struct cfmuxl *muxl = container_obj(layr);
+	struct cflayer *old;
+
+	spin_lock_bh(&muxl->receive_lock);
+
+	/* Two entries with same id is wrong, so remove old layer from mux */
+	old = get_from_id(&muxl->srvl_list, linkid);
+	if (old != NULL)
+		list_del_rcu(&old->node);
+
+	list_add_rcu(&up->node, &muxl->srvl_list);
+	spin_unlock_bh(&muxl->receive_lock);
+
+	return 0;
 }
 
 struct cflayer *cfmuxl_remove_dnlayer(struct cflayer *layr, u8 phyid)
@@ -145,6 +153,11 @@ struct cflayer *cfmuxl_remove_uplayer(struct cflayer *layr, u8 id)
 	struct cflayer *up;
 	struct cfmuxl *muxl = container_obj(layr);
 	int idx = id % UP_CACHE_SIZE;
+
+	if (id == 0) {
+		pr_warn("Trying to remove control layer\n");
+		return NULL;
+	}
 
 	spin_lock_bh(&muxl->receive_lock);
 	up = get_from_id(&muxl->srvl_list, id);
@@ -235,12 +248,26 @@ static void cfmuxl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 {
 	struct cfmuxl *muxl = container_obj(layr);
 	struct cflayer *layer;
+	int idx;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(layer, &muxl->srvl_list, node) {
-		if (cfsrvl_phyid_match(layer, phyid) && layer->ctrlcmd)
+
+		if (cfsrvl_phyid_match(layer, phyid) && layer->ctrlcmd) {
+
+			if ((ctrl == _CAIF_CTRLCMD_PHYIF_FLOW_OFF_IND ||
+				ctrl == CAIF_CTRLCMD_REMOTE_SHUTDOWN_IND) &&
+					layer->id != 0) {
+
+				idx = layer->id % UP_CACHE_SIZE;
+				spin_lock_bh(&muxl->receive_lock);
+				rcu_assign_pointer(muxl->up_cache[idx], NULL);
+				list_del_rcu(&layer->node);
+				spin_unlock_bh(&muxl->receive_lock);
+			}
 			/* NOTE: ctrlcmd is not allowed to block */
 			layer->ctrlcmd(layer, ctrl, phyid);
+		}
 	}
 	rcu_read_unlock();
 }
