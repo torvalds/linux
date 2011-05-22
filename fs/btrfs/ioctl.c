@@ -422,7 +422,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	BUG_ON(ret);
 
 	ret = btrfs_insert_dir_item(trans, root,
-				    name, namelen, btrfs_ino(dir), &key,
+				    name, namelen, dir, &key,
 				    BTRFS_FT_DIR, index);
 	if (ret)
 		goto fail;

@@ -1059,6 +1059,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->name = NULL;
 	root->in_sysfs = 0;
 	root->inode_tree = RB_ROOT;
+	INIT_RADIX_TREE(&root->delayed_nodes_tree, GFP_ATOMIC);
 	root->block_rsv = NULL;
 	root->orphan_block_rsv = NULL;
 
@@ -1707,6 +1708,13 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	INIT_LIST_HEAD(&fs_info->ordered_extents);
 	spin_lock_init(&fs_info->ordered_extent_lock);
+	fs_info->delayed_root = kmalloc(sizeof(struct btrfs_delayed_root),
+					GFP_NOFS);
+	if (!fs_info->delayed_root) {
+		err = -ENOMEM;
+		goto fail_iput;
+	}
+	btrfs_init_delayed_root(fs_info->delayed_root);
 
 	sb->s_blocksize = 4096;
 	sb->s_blocksize_bits = blksize_bits(4096);
@@ -1774,7 +1782,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	bh = btrfs_read_dev_super(fs_devices->latest_bdev);
 	if (!bh) {
 		err = -EINVAL;
-		goto fail_iput;
+		goto fail_alloc;
 	}
 
 	memcpy(&fs_info->super_copy, bh->b_data, sizeof(fs_info->super_copy));
@@ -1786,7 +1794,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	disk_super = &fs_info->super_copy;
 	if (!btrfs_super_root(disk_super))
-		goto fail_iput;
+		goto fail_alloc;
 
 	/* check FS state, whether FS is broken. */
 	fs_info->fs_state |= btrfs_super_flags(disk_super);
@@ -1802,7 +1810,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	ret = btrfs_parse_options(tree_root, options);
 	if (ret) {
 		err = ret;
-		goto fail_iput;
+		goto fail_alloc;
 	}
 
 	features = btrfs_super_incompat_flags(disk_super) &
@@ -1812,7 +1820,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		       "unsupported optional features (%Lx).\n",
 		       (unsigned long long)features);
 		err = -EINVAL;
-		goto fail_iput;
+		goto fail_alloc;
 	}
 
 	features = btrfs_super_incompat_flags(disk_super);
@@ -1828,7 +1836,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		       "unsupported option features (%Lx).\n",
 		       (unsigned long long)features);
 		err = -EINVAL;
-		goto fail_iput;
+		goto fail_alloc;
 	}
 
 	btrfs_init_workers(&fs_info->generic_worker,
@@ -1875,6 +1883,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 			   &fs_info->generic_worker);
 	btrfs_init_workers(&fs_info->endio_freespace_worker, "freespace-write",
 			   1, &fs_info->generic_worker);
+	btrfs_init_workers(&fs_info->delayed_workers, "delayed-meta",
+			   fs_info->thread_pool_size,
+			   &fs_info->generic_worker);
 
 	/*
 	 * endios are largely parallel and should have a very
@@ -1896,6 +1907,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_start_workers(&fs_info->endio_meta_write_workers, 1);
 	btrfs_start_workers(&fs_info->endio_write_workers, 1);
 	btrfs_start_workers(&fs_info->endio_freespace_worker, 1);
+	btrfs_start_workers(&fs_info->delayed_workers, 1);
 
 	fs_info->bdi.ra_pages *= btrfs_super_num_devices(disk_super);
 	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,
@@ -2152,6 +2164,9 @@ fail_sb_buffer:
 	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->endio_freespace_worker);
 	btrfs_stop_workers(&fs_info->submit_workers);
+	btrfs_stop_workers(&fs_info->delayed_workers);
+fail_alloc:
+	kfree(fs_info->delayed_root);
 fail_iput:
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 	iput(fs_info->btree_inode);
@@ -2597,6 +2612,7 @@ int close_ctree(struct btrfs_root *root)
 	del_fs_roots(fs_info);
 
 	iput(fs_info->btree_inode);
+	kfree(fs_info->delayed_root);
 
 	btrfs_stop_workers(&fs_info->generic_worker);
 	btrfs_stop_workers(&fs_info->fixup_workers);
@@ -2608,6 +2624,7 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->endio_freespace_worker);
 	btrfs_stop_workers(&fs_info->submit_workers);
+	btrfs_stop_workers(&fs_info->delayed_workers);
 
 	btrfs_close_devices(fs_info->fs_devices);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
@@ -2673,6 +2690,29 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 }
 
 void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
+{
+	/*
+	 * looks as though older kernels can get into trouble with
+	 * this code, they end up stuck in balance_dirty_pages forever
+	 */
+	u64 num_dirty;
+	unsigned long thresh = 32 * 1024 * 1024;
+
+	if (current->flags & PF_MEMALLOC)
+		return;
+
+	btrfs_balance_delayed_items(root);
+
+	num_dirty = root->fs_info->dirty_metadata_bytes;
+
+	if (num_dirty > thresh) {
+		balance_dirty_pages_ratelimited_nr(
+				   root->fs_info->btree_inode->i_mapping, 1);
+	}
+	return;
+}
+
+void __btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 {
 	/*
 	 * looks as though older kernels can get into trouble with
