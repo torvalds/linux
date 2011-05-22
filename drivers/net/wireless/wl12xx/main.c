@@ -3354,9 +3354,12 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
+	wl1271_debug(DEBUG_MAC80211, "mac80211 ampdu: Rx tid %d action %d",
+		     tid, action);
+
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		if (wl->ba_support) {
+		if ((wl->ba_support) && (wl->ba_allowed)) {
 			ret = wl1271_acx_set_ba_receiver_session(wl, tid, *ssn,
 								 true);
 			if (!ret)

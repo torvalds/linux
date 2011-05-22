@@ -71,7 +71,7 @@ enum {
 	HEALTH_CHECK_REPLY_EVENT_ID		 = BIT(27),
 	PERIODIC_SCAN_COMPLETE_EVENT_ID		 = BIT(28),
 	PERIODIC_SCAN_REPORT_EVENT_ID		 = BIT(29),
-	BA_SESSION_TEAR_DOWN_EVENT_ID		 = BIT(30),
+	BA_SESSION_RX_CONSTRAINT_EVENT_ID	 = BIT(30),
 	EVENT_MBOX_ALL_EVENT_ID			 = 0x7fffffff,
 };
 
@@ -122,7 +122,20 @@ struct event_mailbox {
 	__le16 sta_aging_status;
 	__le16 sta_tx_retry_exceeded;
 
-	u8 reserved_5[24];
+	/*
+	 * Bitmap, Each bit set represents the Role ID for which this constraint
+	 * is set. Range: 0 - FF, FF means ANY role
+	 */
+	u8 ba_role_id;
+	/*
+	 * Bitmap, Each bit set represents the Link ID for which this constraint
+	 * is set. Not applicable if ba_role_id is set to ANY role (FF).
+	 * Range: 0 - FFFF, FFFF means ANY link in that role
+	 */
+	u8 ba_link_id;
+	u8 ba_allowed;
+
+	u8 reserved_5[21];
 } __packed;
 
 int wl1271_event_unmask(struct wl1271 *wl);

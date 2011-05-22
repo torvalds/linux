@@ -485,7 +485,8 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 	if (wl->bss_type == BSS_TYPE_AP_BSS)
 		wl->event_mask |= STA_REMOVE_COMPLETE_EVENT_ID;
 	else
-		wl->event_mask |= DUMMY_PACKET_EVENT_ID;
+		wl->event_mask |= DUMMY_PACKET_EVENT_ID |
+			BA_SESSION_RX_CONSTRAINT_EVENT_ID;
 
 	ret = wl1271_event_unmask(wl);
 	if (ret < 0) {
