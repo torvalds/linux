@@ -5673,6 +5673,88 @@ int nfs4_proc_layoutget(struct nfs4_layoutget *lgp)
 	return status;
 }
 
+static void
+nfs4_layoutreturn_prepare(struct rpc_task *task, void *calldata)
+{
+	struct nfs4_layoutreturn *lrp = calldata;
+
+	dprintk("--> %s\n", __func__);
+	if (nfs41_setup_sequence(lrp->clp->cl_session, &lrp->args.seq_args,
+				&lrp->res.seq_res, 0, task))
+		return;
+	rpc_call_start(task);
+}
+
+static void nfs4_layoutreturn_done(struct rpc_task *task, void *calldata)
+{
+	struct nfs4_layoutreturn *lrp = calldata;
+	struct nfs_server *server;
+
+	dprintk("--> %s\n", __func__);
+
+	if (!nfs4_sequence_done(task, &lrp->res.seq_res))
+		return;
+
+	server = NFS_SERVER(lrp->args.inode);
+	if (nfs4_async_handle_error(task, server, NULL) == -EAGAIN) {
+		nfs_restart_rpc(task, lrp->clp);
+		return;
+	}
+	if (task->tk_status == 0) {
+		struct pnfs_layout_hdr *lo = NFS_I(lrp->args.inode)->layout;
+
+		if (lrp->res.lrs_present) {
+			spin_lock(&lo->plh_inode->i_lock);
+			pnfs_set_layout_stateid(lo, &lrp->res.stateid, true);
+			spin_unlock(&lo->plh_inode->i_lock);
+		} else
+			BUG_ON(!list_empty(&lo->plh_segs));
+	}
+	dprintk("<-- %s\n", __func__);
+}
+
+static void nfs4_layoutreturn_release(void *calldata)
+{
+	struct nfs4_layoutreturn *lrp = calldata;
+
+	dprintk("--> %s\n", __func__);
+	put_layout_hdr(NFS_I(lrp->args.inode)->layout);
+	kfree(calldata);
+	dprintk("<-- %s\n", __func__);
+}
+
+static const struct rpc_call_ops nfs4_layoutreturn_call_ops = {
+	.rpc_call_prepare = nfs4_layoutreturn_prepare,
+	.rpc_call_done = nfs4_layoutreturn_done,
+	.rpc_release = nfs4_layoutreturn_release,
+};
+
+int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp)
+{
+	struct rpc_task *task;
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LAYOUTRETURN],
+		.rpc_argp = &lrp->args,
+		.rpc_resp = &lrp->res,
+	};
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = lrp->clp->cl_rpcclient,
+		.rpc_message = &msg,
+		.callback_ops = &nfs4_layoutreturn_call_ops,
+		.callback_data = lrp,
+	};
+	int status;
+
+	dprintk("--> %s\n", __func__);
+	task = rpc_run_task(&task_setup_data);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+	status = task->tk_status;
+	dprintk("<-- %s status=%d\n", __func__, status);
+	rpc_put_task(task);
+	return status;
+}
+
 static int
 _nfs4_proc_getdeviceinfo(struct nfs_server *server, struct pnfs_device *pdev)
 {

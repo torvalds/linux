@@ -269,6 +269,27 @@ struct nfs4_layoutcommit_data {
 	struct nfs4_layoutcommit_res res;
 };
 
+struct nfs4_layoutreturn_args {
+	__u32   layout_type;
+	struct inode *inode;
+	nfs4_stateid stateid;
+	struct nfs4_sequence_args seq_args;
+};
+
+struct nfs4_layoutreturn_res {
+	struct nfs4_sequence_res seq_res;
+	u32 lrs_present;
+	nfs4_stateid stateid;
+};
+
+struct nfs4_layoutreturn {
+	struct nfs4_layoutreturn_args args;
+	struct nfs4_layoutreturn_res res;
+	struct rpc_cred *cred;
+	struct nfs_client *clp;
+	int rpc_status;
+};
+
 /*
  * Arguments to the open call.
  */

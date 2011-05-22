@@ -619,6 +619,51 @@ out_err_free:
 	return NULL;
 }
 
+/* Initiates a LAYOUTRETURN(FILE) */
+int
+_pnfs_return_layout(struct inode *ino)
+{
+	struct pnfs_layout_hdr *lo = NULL;
+	struct nfs_inode *nfsi = NFS_I(ino);
+	LIST_HEAD(tmp_list);
+	struct nfs4_layoutreturn *lrp;
+	nfs4_stateid stateid;
+	int status = 0;
+
+	dprintk("--> %s\n", __func__);
+
+	spin_lock(&ino->i_lock);
+	lo = nfsi->layout;
+	if (!lo || !mark_matching_lsegs_invalid(lo, &tmp_list, NULL)) {
+		spin_unlock(&ino->i_lock);
+		dprintk("%s: no layout segments to return\n", __func__);
+		goto out;
+	}
+	stateid = nfsi->layout->plh_stateid;
+	/* Reference matched in nfs4_layoutreturn_release */
+	get_layout_hdr(lo);
+	spin_unlock(&ino->i_lock);
+	pnfs_free_lseg_list(&tmp_list);
+
+	WARN_ON(test_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags));
+
+	lrp = kzalloc(sizeof(*lrp), GFP_KERNEL);
+	if (unlikely(lrp == NULL)) {
+		status = -ENOMEM;
+		goto out;
+	}
+
+	lrp->args.stateid = stateid;
+	lrp->args.layout_type = NFS_SERVER(ino)->pnfs_curr_ld->id;
+	lrp->args.inode = ino;
+	lrp->clp = NFS_SERVER(ino)->nfs_client;
+
+	status = nfs4_proc_layoutreturn(lrp);
+out:
+	dprintk("<-- %s status: %d\n", __func__, status);
+	return status;
+}
+
 bool pnfs_roc(struct inode *ino)
 {
 	struct pnfs_layout_hdr *lo;

@@ -129,6 +129,7 @@ extern void pnfs_unregister_layoutdriver(struct pnfs_layoutdriver_type *);
 extern int nfs4_proc_getdeviceinfo(struct nfs_server *server,
 				   struct pnfs_device *dev);
 extern int nfs4_proc_layoutget(struct nfs4_layoutget *lgp);
+extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp);
 
 /* pnfs.c */
 void get_layout_hdr(struct pnfs_layout_hdr *lo);
@@ -165,6 +166,7 @@ void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
 bool pnfs_roc_drain(struct inode *ino, u32 *barrier);
 void pnfs_set_layoutcommit(struct nfs_write_data *wdata);
 int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
+int _pnfs_return_layout(struct inode *);
 int pnfs_ld_write_done(struct nfs_write_data *);
 int pnfs_ld_read_done(struct nfs_read_data *);
 
@@ -256,6 +258,17 @@ static inline void pnfs_clear_request_commit(struct nfs_page *req)
 		put_lseg(req->wb_commit_lseg);
 }
 
+static inline int pnfs_return_layout(struct inode *ino)
+{
+	struct nfs_inode *nfsi = NFS_I(ino);
+	struct nfs_server *nfss = NFS_SERVER(ino);
+
+	if (pnfs_enabled_sb(nfss) && nfsi->layout)
+		return _pnfs_return_layout(ino);
+
+	return 0;
+}
+
 #else  /* CONFIG_NFS_V4_1 */
 
 static inline void pnfs_destroy_all_layouts(struct nfs_client *clp)
@@ -296,6 +309,11 @@ pnfs_try_to_write_data(struct nfs_write_data *data,
 		       const struct rpc_call_ops *call_ops, int how)
 {
 	return PNFS_NOT_ATTEMPTED;
+}
+
+static inline int pnfs_return_layout(struct inode *ino)
+{
+	return 0;
 }
 
 static inline bool
