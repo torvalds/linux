@@ -131,7 +131,8 @@ void get_layout_hdr(struct pnfs_layout_hdr *lo);
 void put_lseg(struct pnfs_layout_segment *lseg);
 struct pnfs_layout_segment *
 pnfs_update_layout(struct inode *ino, struct nfs_open_context *ctx,
-		   enum pnfs_iomode access_type, gfp_t gfp_flags);
+		   loff_t pos, u64 count, enum pnfs_iomode access_type,
+		   gfp_t gfp_flags);
 void set_pnfs_layoutdriver(struct nfs_server *, u32 id);
 void unset_pnfs_layoutdriver(struct nfs_server *);
 enum pnfs_try_status pnfs_try_to_write_data(struct nfs_write_data *,
@@ -271,7 +272,8 @@ static inline void put_lseg(struct pnfs_layout_segment *lseg)
 
 static inline struct pnfs_layout_segment *
 pnfs_update_layout(struct inode *ino, struct nfs_open_context *ctx,
-		   enum pnfs_iomode access_type, gfp_t gfp_flags)
+		   loff_t pos, u64 count, enum pnfs_iomode access_type,
+		   gfp_t gfp_flags)
 {
 	return NULL;
 }
