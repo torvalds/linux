@@ -2969,6 +2969,23 @@ void ieee80211_ready_on_channel(struct ieee80211_hw *hw);
  */
 void ieee80211_remain_on_channel_expired(struct ieee80211_hw *hw);
 
+/**
+ * ieee80211_stop_rx_ba_session - callback to stop existing BA sessions
+ *
+ * in order not to harm the system performance and user experience, the device
+ * may request not to allow any rx ba session and tear down existing rx ba
+ * sessions based on system constraints such as periodic BT activity that needs
+ * to limit wlan activity (eg.sco or a2dp)."
+ * in such cases, the intention is to limit the duration of the rx ppdu and
+ * therefore prevent the peer device to use a-mpdu aggregation.
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @ba_rx_bitmap: Bit map of open rx ba per tid
+ * @addr: & to bssid mac address
+ */
+void ieee80211_stop_rx_ba_session(struct ieee80211_vif *vif, u16 ba_rx_bitmap,
+				  const u8 *addr);
+
 /* Rate control API */
 
 /**
