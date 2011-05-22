@@ -840,7 +840,7 @@ static inline int bnx2x_alloc_rx_skb(struct bnx2x *bp,
 	mapping = dma_map_single(&bp->pdev->dev, skb->data, fp->rx_buf_size,
 				 DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return -ENOMEM;
 	}
 
