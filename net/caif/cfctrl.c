@@ -178,10 +178,14 @@ static void init_info(struct caif_payload_info *info, struct cfctrl *cfctrl)
 void cfctrl_enum_req(struct cflayer *layer, u8 physlinkid)
 {
 	struct cfctrl *cfctrl = container_obj(layer);
-	int ret;
 	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
+	struct cflayer *dn = cfctrl->serv.layer.dn;
 	if (!pkt) {
 		pr_warn("Out of memory\n");
+		return;
+	}
+	if (!dn) {
+		pr_debug("not able to send enum request\n");
 		return;
 	}
 	caif_assert(offsetof(struct cfctrl, serv.layer) == 0);
@@ -190,8 +194,7 @@ void cfctrl_enum_req(struct cflayer *layer, u8 physlinkid)
 	cfctrl->serv.dev_info.id = physlinkid;
 	cfpkt_addbdy(pkt, CFCTRL_CMD_ENUM);
 	cfpkt_addbdy(pkt, physlinkid);
-	ret =
-	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
+	dn->transmit(dn, pkt);
 }
 
 int cfctrl_linkup_request(struct cflayer *layer,
@@ -206,6 +209,12 @@ int cfctrl_linkup_request(struct cflayer *layer,
 	int ret;
 	char utility_name[16];
 	struct cfpkt *pkt;
+	struct cflayer *dn = cfctrl->serv.layer.dn;
+
+	if (!dn) {
+		pr_debug("not able to send linkup request\n");
+		return -ENODEV;
+	}
 
 	if (cfctrl_cancel_req(layer, user_layer) > 0) {
 		/* Slight Paranoia, check if already connecting */
@@ -282,7 +291,7 @@ int cfctrl_linkup_request(struct cflayer *layer,
 	 */
 	cfpkt_info(pkt)->dev_info->id = param->phyid;
 	ret =
-	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
+	    dn->transmit(dn, pkt);
 	if (ret < 0) {
 		int count;
 
@@ -301,15 +310,23 @@ int cfctrl_linkdown_req(struct cflayer *layer, u8 channelid,
 	int ret;
 	struct cfctrl *cfctrl = container_obj(layer);
 	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
+	struct cflayer *dn = cfctrl->serv.layer.dn;
+
 	if (!pkt) {
 		pr_warn("Out of memory\n");
 		return -ENOMEM;
 	}
+
+	if (!dn) {
+		pr_debug("not able to send link-down request\n");
+		return -ENODEV;
+	}
+
 	cfpkt_addbdy(pkt, CFCTRL_CMD_LINK_DESTROY);
 	cfpkt_addbdy(pkt, channelid);
 	init_info(cfpkt_info(pkt), cfctrl);
 	ret =
-	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
+	    dn->transmit(dn, pkt);
 #ifndef CAIF_NO_LOOP
 	cfctrl->loop_linkused[channelid] = 0;
 #endif
@@ -477,7 +494,7 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 				cfpkt_extr_head(pkt, &param, len);
 				break;
 			default:
-				pr_warn("Request setup - invalid link type (%d)\n",
+				pr_warn("Request setup, invalid type (%d)\n",
 					serv);
 				goto error;
 			}
@@ -489,7 +506,8 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 
 			if (CFCTRL_ERR_BIT == (CFCTRL_ERR_BIT & cmdrsp) ||
 				cfpkt_erroneous(pkt)) {
-				pr_err("Invalid O/E bit or parse error on CAIF control channel\n");
+				pr_err("Invalid O/E bit or parse error "
+						"on CAIF control channel\n");
 				cfctrl->res.reject_rsp(cfctrl->serv.layer.up,
 						       0,
 						       req ? req->client_layer
@@ -550,9 +568,8 @@ static void cfctrl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 	case _CAIF_CTRLCMD_PHYIF_FLOW_OFF_IND:
 	case CAIF_CTRLCMD_FLOW_OFF_IND:
 		spin_lock_bh(&this->info_list_lock);
-		if (!list_empty(&this->list)) {
+		if (!list_empty(&this->list))
 			pr_debug("Received flow off in control layer\n");
-		}
 		spin_unlock_bh(&this->info_list_lock);
 		break;
 	case _CAIF_CTRLCMD_PHYIF_DOWN_IND: {
