@@ -4478,7 +4478,7 @@ static void ovfx2_pkt_scan(struct gspca_dev *gspca_dev,
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 
 	/* A short read signals EOF */
-	if (len < OVFX2_BULK_SIZE) {
+	if (len < gspca_dev->cam.bulk_size) {
 		/* If the frame is short, and it is one of the first ones
 		   the sensor and bridge are still syncing, so drop it. */
 		if (sd->first_frame) {
