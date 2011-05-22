@@ -805,9 +805,14 @@ static void perf_session__mmap_read_cpu(struct perf_session *self, int cpu)
 {
 	struct perf_sample sample;
 	union perf_event *event;
+	int ret;
 
 	while ((event = perf_evlist__read_on_cpu(top.evlist, cpu)) != NULL) {
-		perf_session__parse_sample(self, event, &sample);
+		ret = perf_session__parse_sample(self, event, &sample);
+		if (ret) {
+			pr_err("Can't parse sample, err = %d\n", ret);
+			continue;
+		}
 
 		if (event->header.type == PERF_RECORD_SAMPLE)
 			perf_event__process_sample(event, &sample, self);
