@@ -41,6 +41,7 @@
 #include <net/ipv6.h>
 #include <net/tcp.h>
 #include <linux/dma-mapping.h>
+#include <linux/prefetch.h>
 
 #include "t4vf_common.h"
 #include "t4vf_defs.h"

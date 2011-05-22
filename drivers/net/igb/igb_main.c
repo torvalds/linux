@@ -47,6 +47,7 @@
 #include <linux/aer.h>
 #ifdef CONFIG_IGB_DCA
 #include <linux/dca.h>
+#include <linux/prefetch.h>
 #endif
 #include "igb.h"
 

@@ -29,6 +29,7 @@
 #include "e1000.h"
 #include <net/ip6_checksum.h>
 #include <linux/io.h>
+#include <linux/prefetch.h>
 
 /* Intel Media SOC GbE MDIO physical base address */
 static unsigned long ce4100_gbe_mdio_base_phy;

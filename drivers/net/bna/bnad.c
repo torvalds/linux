@@ -23,6 +23,7 @@
 #include <linux/if_vlan.h>
 #include <linux/if_ether.h>
 #include <linux/ip.h>
+#include <linux/prefetch.h>
 
 #include "bnad.h"
 #include "bna.h"

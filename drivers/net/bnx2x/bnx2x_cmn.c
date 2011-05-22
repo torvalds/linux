@@ -21,6 +21,7 @@
 #include <net/ipv6.h>
 #include <net/ip6_checksum.h>
 #include <linux/firmware.h>
+#include <linux/prefetch.h>
 #include "bnx2x_cmn.h"
 
 #include "bnx2x_init.h"

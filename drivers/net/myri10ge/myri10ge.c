@@ -65,6 +65,7 @@
 #include <linux/io.h>
 #include <linux/log2.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 #include <net/checksum.h>
 #include <net/ip.h>
 #include <net/tcp.h>

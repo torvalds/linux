@@ -52,6 +52,7 @@
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
 #include <linux/net_tstamp.h>
+#include <linux/prefetch.h>
 #include "vxge-main.h"
 #include "vxge-reg.h"
 

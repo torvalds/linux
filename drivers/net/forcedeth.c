@@ -64,6 +64,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/prefetch.h>
 #include  <linux/io.h>
 
 #include <asm/irq.h>

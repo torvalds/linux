@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
+#include <linux/prefetch.h>
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define BCM_VLAN 1
 #endif
