@@ -3707,6 +3707,7 @@ static int __init pg_init(void)
 {
 	int cpu;
 	struct proc_dir_entry *pe;
+	int ret = 0;
 
 	pr_info("%s", version);
 
@@ -3717,11 +3718,10 @@ static int __init pg_init(void)
 	pe = proc_create(PGCTRL, 0600, pg_proc_dir, &pktgen_fops);
 	if (pe == NULL) {
 		pr_err("ERROR: cannot create %s procfs entry\n", PGCTRL);
-		proc_net_remove(&init_net, PG_PROC_DIR);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto remove_dir;
 	}
 
-	/* Register us to receive netdevice events */
 	register_netdevice_notifier(&pktgen_notifier_block);
 
 	for_each_online_cpu(cpu) {
@@ -3735,13 +3735,18 @@ static int __init pg_init(void)
 
 	if (list_empty(&pktgen_threads)) {
 		pr_err("ERROR: Initialization failed for all threads\n");
-		unregister_netdevice_notifier(&pktgen_notifier_block);
-		remove_proc_entry(PGCTRL, pg_proc_dir);
-		proc_net_remove(&init_net, PG_PROC_DIR);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto unregister;
 	}
 
 	return 0;
+
+ unregister:
+	unregister_netdevice_notifier(&pktgen_notifier_block);
+	remove_proc_entry(PGCTRL, pg_proc_dir);
+ remove_dir:
+	proc_net_remove(&init_net, PG_PROC_DIR);
+	return ret;
 }
 
 static void __exit pg_cleanup(void)
