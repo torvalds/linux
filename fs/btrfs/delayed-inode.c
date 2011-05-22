@@ -88,6 +88,7 @@ static struct btrfs_delayed_node *btrfs_get_or_create_delayed_node(
 	struct btrfs_delayed_node *node;
 	struct btrfs_inode *btrfs_inode = BTRFS_I(inode);
 	struct btrfs_root *root = btrfs_inode->root;
+	u64 ino = btrfs_ino(inode);
 	int ret;
 
 again:
@@ -98,7 +99,7 @@ again:
 	}
 
 	spin_lock(&root->inode_lock);
-	node = radix_tree_lookup(&root->delayed_nodes_tree, inode->i_ino);
+	node = radix_tree_lookup(&root->delayed_nodes_tree, ino);
 	if (node) {
 		if (btrfs_inode->delayed_node) {
 			spin_unlock(&root->inode_lock);
@@ -115,7 +116,7 @@ again:
 	node = kmem_cache_alloc(delayed_node_cache, GFP_NOFS);
 	if (!node)
 		return ERR_PTR(-ENOMEM);
-	btrfs_init_delayed_node(node, root, inode->i_ino);
+	btrfs_init_delayed_node(node, root, ino);
 
 	atomic_inc(&node->refs);	/* cached in the btrfs inode */
 	atomic_inc(&node->refs);	/* can be accessed */
@@ -127,7 +128,7 @@ again:
 	}
 
 	spin_lock(&root->inode_lock);
-	ret = radix_tree_insert(&root->delayed_nodes_tree, inode->i_ino, node);
+	ret = radix_tree_insert(&root->delayed_nodes_tree, ino, node);
 	if (ret == -EEXIST) {
 		kmem_cache_free(delayed_node_cache, node);
 		spin_unlock(&root->inode_lock);
@@ -1274,7 +1275,7 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 	 */
 	BUG_ON(ret);
 
-	delayed_item->key.objectid = dir->i_ino;
+	delayed_item->key.objectid = btrfs_ino(dir);
 	btrfs_set_key_type(&delayed_item->key, BTRFS_DIR_INDEX_KEY);
 	delayed_item->key.offset = index;
 
@@ -1337,7 +1338,7 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	if (IS_ERR(node))
 		return PTR_ERR(node);
 
-	item_key.objectid = dir->i_ino;
+	item_key.objectid = btrfs_ino(dir);
 	btrfs_set_key_type(&item_key, BTRFS_DIR_INDEX_KEY);
 	item_key.offset = index;
 
