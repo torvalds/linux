@@ -426,7 +426,7 @@ SendReceiveNoRsp(const unsigned int xid, struct cifsSesInfo *ses,
 }
 
 static int
-sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
+cifs_sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 {
 	int rc = 0;
 
@@ -434,28 +434,21 @@ sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 		mid->mid, mid->midState);
 
 	spin_lock(&GlobalMid_Lock);
-	/* ensure that it's no longer on the pending_mid_q */
-	list_del_init(&mid->qhead);
-
 	switch (mid->midState) {
 	case MID_RESPONSE_RECEIVED:
 		spin_unlock(&GlobalMid_Lock);
 		return rc;
-	case MID_REQUEST_SUBMITTED:
-		/* socket is going down, reject all calls */
-		if (server->tcpStatus == CifsExiting) {
-			cERROR(1, "%s: canceling mid=%d cmd=0x%x state=%d",
-			       __func__, mid->mid, mid->command, mid->midState);
-			rc = -EHOSTDOWN;
-			break;
-		}
 	case MID_RETRY_NEEDED:
 		rc = -EAGAIN;
 		break;
 	case MID_RESPONSE_MALFORMED:
 		rc = -EIO;
 		break;
+	case MID_SHUTDOWN:
+		rc = -EHOSTDOWN;
+		break;
 	default:
+		list_del_init(&mid->qhead);
 		cERROR(1, "%s: invalid mid state mid=%d state=%d", __func__,
 			mid->mid, mid->midState);
 		rc = -EIO;
@@ -618,7 +611,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 
 	cifs_small_buf_release(in_buf);
 
-	rc = sync_mid_result(midQ, ses->server);
+	rc = cifs_sync_mid_result(midQ, ses->server);
 	if (rc != 0) {
 		atomic_dec(&ses->server->inFlight);
 		wake_up(&ses->server->request_q);
@@ -739,7 +732,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		spin_unlock(&GlobalMid_Lock);
 	}
 
-	rc = sync_mid_result(midQ, ses->server);
+	rc = cifs_sync_mid_result(midQ, ses->server);
 	if (rc != 0) {
 		atomic_dec(&ses->server->inFlight);
 		wake_up(&ses->server->request_q);
@@ -914,7 +907,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 		rstart = 1;
 	}
 
-	rc = sync_mid_result(midQ, ses->server);
+	rc = cifs_sync_mid_result(midQ, ses->server);
 	if (rc != 0)
 		return rc;
 

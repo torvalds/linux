@@ -543,9 +543,8 @@ struct mid_q_entry;
  * This is the prototype for the mid callback function. When creating one,
  * take special care to avoid deadlocks. Things to bear in mind:
  *
- * - it will be called by cifsd
- * - the GlobalMid_Lock will be held
- * - the mid will be removed from the pending_mid_q list
+ * - it will be called by cifsd, with no locks held
+ * - the mid will be removed from any lists
  */
 typedef void (mid_callback_t)(struct mid_q_entry *mid);
 
@@ -656,6 +655,7 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   MID_RESPONSE_RECEIVED 4
 #define   MID_RETRY_NEEDED      8 /* session closed while this request out */
 #define   MID_RESPONSE_MALFORMED 0x10
+#define   MID_SHUTDOWN		 0x20
 
 /* Types of response buffer returned from SendReceive2 */
 #define   CIFS_NO_BUFFER        0    /* Response buffer not returned */

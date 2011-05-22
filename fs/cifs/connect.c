@@ -137,6 +137,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	struct cifsSesInfo *ses;
 	struct cifsTconInfo *tcon;
 	struct mid_q_entry *mid_entry;
+	struct list_head retry_list;
 
 	spin_lock(&GlobalMid_Lock);
 	if (server->tcpStatus == CifsExiting) {
@@ -188,16 +189,23 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	mutex_unlock(&server->srv_mutex);
 
 	/* mark submitted MIDs for retry and issue callback */
-	cFYI(1, "%s: issuing mid callbacks", __func__);
+	INIT_LIST_HEAD(&retry_list);
+	cFYI(1, "%s: moving mids to private list", __func__);
 	spin_lock(&GlobalMid_Lock);
 	list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
 		if (mid_entry->midState == MID_REQUEST_SUBMITTED)
 			mid_entry->midState = MID_RETRY_NEEDED;
+		list_move(&mid_entry->qhead, &retry_list);
+	}
+	spin_unlock(&GlobalMid_Lock);
+
+	cFYI(1, "%s: issuing mid callbacks", __func__);
+	list_for_each_safe(tmp, tmp2, &retry_list) {
+		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
 		list_del_init(&mid_entry->qhead);
 		mid_entry->callback(mid_entry);
 	}
-	spin_unlock(&GlobalMid_Lock);
 
 	while (server->tcpStatus == CifsNeedReconnect) {
 		try_to_freeze();
@@ -671,12 +679,12 @@ multi_t2_fnd:
 			mid_entry->when_received = jiffies;
 #endif
 			list_del_init(&mid_entry->qhead);
-			mid_entry->callback(mid_entry);
 			break;
 		}
 		spin_unlock(&GlobalMid_Lock);
 
 		if (mid_entry != NULL) {
+			mid_entry->callback(mid_entry);
 			/* Was previous buf put in mpx struct for multi-rsp? */
 			if (!isMultiRsp) {
 				/* smb buffer will be freed by user thread */
@@ -740,15 +748,25 @@ multi_t2_fnd:
 		cifs_small_buf_release(smallbuf);
 
 	if (!list_empty(&server->pending_mid_q)) {
+		struct list_head dispose_list;
+
+		INIT_LIST_HEAD(&dispose_list);
 		spin_lock(&GlobalMid_Lock);
 		list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-			cFYI(1, "Clearing Mid 0x%x - issuing callback",
-					 mid_entry->mid);
+			cFYI(1, "Clearing mid 0x%x", mid_entry->mid);
+			mid_entry->midState = MID_SHUTDOWN;
+			list_move(&mid_entry->qhead, &dispose_list);
+		}
+		spin_unlock(&GlobalMid_Lock);
+
+		/* now walk dispose list and issue callbacks */
+		list_for_each_safe(tmp, tmp2, &dispose_list) {
+			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
+			cFYI(1, "Callback mid 0x%x", mid_entry->mid);
 			list_del_init(&mid_entry->qhead);
 			mid_entry->callback(mid_entry);
 		}
-		spin_unlock(&GlobalMid_Lock);
 		/* 1/8th of sec is more than enough time for them to exit */
 		msleep(125);
 	}
