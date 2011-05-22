@@ -658,6 +658,15 @@ config SND_KORG1212
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-korg1212.
 
+config SND_LOLA
+	tristate "Digigram Lola"
+	select SND_PCM
+	help
+	  Say Y to include support for Digigram Lola boards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-lola.
+
 config SND_LX6464ES
 	tristate "Digigram LX6464ES"
 	select SND_PCM
