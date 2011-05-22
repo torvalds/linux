@@ -1920,8 +1920,13 @@ encode_layoutreturn(struct xdr_stream *xdr,
 	spin_lock(&args->inode->i_lock);
 	xdr_encode_opaque_fixed(p, &args->stateid.data, NFS4_STATEID_SIZE);
 	spin_unlock(&args->inode->i_lock);
-	p = reserve_space(xdr, 4);
-	*p = cpu_to_be32(0);
+	if (NFS_SERVER(args->inode)->pnfs_curr_ld->encode_layoutreturn) {
+		NFS_SERVER(args->inode)->pnfs_curr_ld->encode_layoutreturn(
+			NFS_I(args->inode)->layout, xdr, args);
+	} else {
+		p = reserve_space(xdr, 4);
+		*p = cpu_to_be32(0);
+	}
 	hdr->nops++;
 	hdr->replen += decode_layoutreturn_maxsz;
 }

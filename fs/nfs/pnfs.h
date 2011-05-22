@@ -104,6 +104,10 @@ struct pnfs_layoutdriver_type {
 	enum pnfs_try_status (*write_pagelist) (struct nfs_write_data *nfs_data, int how);
 
 	void (*free_deviceid_node) (struct nfs4_deviceid_node *);
+
+	void (*encode_layoutreturn) (struct pnfs_layout_hdr *layoutid,
+				     struct xdr_stream *xdr,
+				     const struct nfs4_layoutreturn_args *args);
 };
 
 struct pnfs_layout_hdr {
