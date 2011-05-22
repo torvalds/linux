@@ -508,7 +508,6 @@ int register_sst_card(struct intel_sst_card_ops *card)
 			sst_drv_ctx->pmic_state = SND_MAD_INIT_DONE;
 			sst_drv_ctx->rx_time_slot_status = 0; /*default AMIC*/
 			card->pcm_control = sst_pmic_ops.pcm_control;
-			sst_drv_ctx->scard_ops->card_status = SND_CARD_UN_INIT;
 			return 0;
 		} else {
 			pr_err("strcmp fail %s\n", card->module_name);
