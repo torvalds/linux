@@ -609,7 +609,7 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
  * buffers, there are some pretty strict real time constraints for
  * isochronous transfer for larger frame sizes).
  */
-/*jfm: this value works well for 1600x1200, but not 800x600 - see isoc_init */
+/*jfm: this value does not work for 800x600 - see isoc_init */
 #define OVFX2_BULK_SIZE (13 * 4096)
 
 /* I2C registers */
@@ -3511,7 +3511,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 
 	switch (sd->bridge) {
 	case BRIDGE_OVFX2:
-		if (gspca_dev->width == 1600)
+		if (gspca_dev->width != 800)
 			gspca_dev->cam.bulk_size = OVFX2_BULK_SIZE;
 		else
 			gspca_dev->cam.bulk_size = 7 * 4096;
