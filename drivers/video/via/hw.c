@@ -1507,18 +1507,11 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	crt_reg.ver_sync_end += crt_reg.ver_sync_start;
 	h_addr = crt_reg.hor_addr;
 	v_addr = crt_reg.ver_addr;
-	if (set_iga == IGA1) {
-		viafb_unlock_crt();
-		viafb_write_reg_mask(CR17, VIACR, 0x00, BIT7);
-	}
-
 	if (set_iga == IGA1)
 		via_set_primary_timing(&crt_reg);
 	else if (set_iga == IGA2)
 		via_set_secondary_timing(&crt_reg);
 
-	viafb_lock_crt();
-	viafb_write_reg_mask(CR17, VIACR, 0x80, BIT7);
 	viafb_load_fetch_count_reg(h_addr, bpp_byte, set_iga);
 
 	/* load FIFO */

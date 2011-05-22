@@ -82,6 +82,10 @@ void via_set_primary_timing(const struct display_timing *timing)
 
 	/* lock timing registers */
 	via_write_reg_mask(VIACR, 0x11, 0x80, 0x80);
+
+	/* reset timing control */
+	via_write_reg_mask(VIACR, 0x17, 0x00, 0x80);
+	via_write_reg_mask(VIACR, 0x17, 0x80, 0x80);
 }
 
 void via_set_secondary_timing(const struct display_timing *timing)
