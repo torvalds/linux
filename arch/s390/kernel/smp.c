@@ -681,7 +681,7 @@ void __cpu_die(unsigned int cpu)
 	atomic_dec(&init_mm.context.attach_count);
 }
 
-void cpu_die(void)
+void __noreturn cpu_die(void)
 {
 	idle_task_exit();
 	while (sigp(smp_processor_id(), sigp_stop) == sigp_busy)
