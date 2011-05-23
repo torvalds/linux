@@ -110,7 +110,7 @@ static unsigned long get_sample_period(void)
 	 * increment before the hardlockup detector generates
 	 * a warning
 	 */
-	return softlockup_thresh / 5 * NSEC_PER_SEC;
+	return softlockup_thresh * (NSEC_PER_SEC / 5);
 }
 
 /* Commands for resetting the watchdog */
