@@ -395,7 +395,6 @@ static int netvsc_remove(struct hv_device *dev)
 
 	/* Stop outbound asap */
 	netif_stop_queue(net);
-	/* netif_carrier_off(net); */
 
 	unregister_netdev(net);
 
