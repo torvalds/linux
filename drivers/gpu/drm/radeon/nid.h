@@ -353,7 +353,7 @@
 #define		MULTI_GPU_TILE_SIZE_MASK		0x03000000
 #define		MULTI_GPU_TILE_SIZE_SHIFT		24
 #define		ROW_SIZE(x)             		((x) << 28)
-#define		ROW_SIZE_MASK				0x30000007
+#define		ROW_SIZE_MASK				0x30000000
 #define		ROW_SIZE_SHIFT				28
 #define		NUM_LOWER_PIPES(x)			((x) << 30)
 #define		NUM_LOWER_PIPES_MASK			0x40000000
