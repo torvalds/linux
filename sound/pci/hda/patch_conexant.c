@@ -3790,7 +3790,7 @@ static void cx_auto_check_auto_mic(struct hda_codec *codec)
 	int pset[INPUT_PIN_ATTR_NORMAL + 1];
 	int i;
 
-	for (i = 0; i < INPUT_PIN_ATTR_NORMAL; i++)
+	for (i = 0; i < ARRAY_SIZE(pset); i++)
 		pset[i] = -1;
 	for (i = 0; i < spec->private_imux.num_items; i++) {
 		hda_nid_t pin = spec->imux_info[i].pin;
