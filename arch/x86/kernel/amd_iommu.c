@@ -1538,13 +1538,11 @@ static void do_detach(struct device *dev)
 {
 	struct iommu_dev_data *dev_data;
 	struct amd_iommu *iommu;
-	struct pci_dev *pdev;
 	u16 devid;
 
 	devid    = get_device_id(dev);
 	iommu    = amd_iommu_rlookup_table[devid];
 	dev_data = get_dev_data(dev);
-	pdev     = to_pci_dev(dev);
 
 	/* decrease reference counters */
 	dev_data->domain->dev_iommu[iommu->index] -= 1;
@@ -1703,10 +1701,9 @@ static struct protection_domain *domain_for_device(struct device *dev)
 	struct protection_domain *dom;
 	struct iommu_dev_data *dev_data, *alias_data;
 	unsigned long flags;
-	u16 devid, alias;
+	u16 devid;
 
 	devid      = get_device_id(dev);
-	alias      = amd_iommu_alias_table[devid];
 	dev_data   = get_dev_data(dev);
 	alias_data = get_dev_data(dev_data->alias);
 	if (!alias_data)
