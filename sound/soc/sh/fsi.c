@@ -654,14 +654,19 @@ static void __fsi_module_clk_ctrl(struct fsi_master *master,
 	pm_runtime_put_sync(dev);
 }
 
-#define fsi_port_start(f)	__fsi_port_clk_ctrl(f, 1)
-#define fsi_port_stop(f)	__fsi_port_clk_ctrl(f, 0)
-static void __fsi_port_clk_ctrl(struct fsi_priv *fsi, int enable)
+#define fsi_port_start(f, i)	__fsi_port_clk_ctrl(f, i, 1)
+#define fsi_port_stop(f, i)	__fsi_port_clk_ctrl(f, i, 0)
+static void __fsi_port_clk_ctrl(struct fsi_priv *fsi, int is_play, int enable)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
 	u32 soft = fsi_is_port_a(fsi) ? PASR : PBSR;
 	u32 clk  = fsi_is_port_a(fsi) ? CRA  : CRB;
 	int is_master = fsi_is_clk_master(fsi);
+
+	if (enable)
+		fsi_irq_enable(fsi, is_play);
+	else
+		fsi_irq_disable(fsi, is_play);
 
 	fsi_master_mask_set(master, SOFT_RST, soft, (enable) ? soft : 0);
 	if (is_master)
@@ -901,9 +906,6 @@ static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
-	int is_play = fsi_is_play(substream);
-
-	fsi_irq_disable(fsi, is_play);
 
 	if (fsi_is_clk_master(fsi))
 		fsi_set_master_clk(dai->dev, fsi, fsi->rate, 0);
@@ -924,12 +926,10 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 		fsi_stream_push(fsi, is_play, substream);
 		ret = is_play ? fsi_data_push(fsi) : fsi_data_pop(fsi);
-		fsi_irq_enable(fsi, is_play);
-		fsi_port_start(fsi);
+		fsi_port_start(fsi, is_play);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		fsi_port_stop(fsi);
-		fsi_irq_disable(fsi, is_play);
+		fsi_port_stop(fsi, is_play);
 		fsi_stream_pop(fsi, is_play);
 		break;
 	}
