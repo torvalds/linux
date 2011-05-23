@@ -92,7 +92,7 @@ config MTD_NAND_EDB7312
 
 config MTD_NAND_H1900
 	tristate "iPAQ H1900 flash"
-	depends on ARCH_PXA && MTD_PARTITIONS
+	depends on ARCH_PXA
 	help
 	  This enables the driver for the iPAQ h1900 flash.
 
