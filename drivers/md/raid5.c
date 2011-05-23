@@ -1700,27 +1700,25 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 	raid5_conf_t *conf = mddev->private;
 	pr_debug("raid456: error called\n");
 
-	if (!test_bit(Faulty, &rdev->flags)) {
-		set_bit(MD_CHANGE_DEVS, &mddev->flags);
-		if (test_and_clear_bit(In_sync, &rdev->flags)) {
-			unsigned long flags;
-			spin_lock_irqsave(&conf->device_lock, flags);
-			mddev->degraded++;
-			spin_unlock_irqrestore(&conf->device_lock, flags);
-			/*
-			 * if recovery was running, make sure it aborts.
-			 */
-			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
-		}
-		set_bit(Faulty, &rdev->flags);
-		printk(KERN_ALERT
-		       "md/raid:%s: Disk failure on %s, disabling device.\n"
-		       "md/raid:%s: Operation continuing on %d devices.\n",
-		       mdname(mddev),
-		       bdevname(rdev->bdev, b),
-		       mdname(mddev),
-		       conf->raid_disks - mddev->degraded);
+	if (test_and_clear_bit(In_sync, &rdev->flags)) {
+		unsigned long flags;
+		spin_lock_irqsave(&conf->device_lock, flags);
+		mddev->degraded++;
+		spin_unlock_irqrestore(&conf->device_lock, flags);
+		/*
+		 * if recovery was running, make sure it aborts.
+		 */
+		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	}
+	set_bit(Faulty, &rdev->flags);
+	set_bit(MD_CHANGE_DEVS, &mddev->flags);
+	printk(KERN_ALERT
+	       "md/raid:%s: Disk failure on %s, disabling device.\n"
+	       "md/raid:%s: Operation continuing on %d devices.\n",
+	       mdname(mddev),
+	       bdevname(rdev->bdev, b),
+	       mdname(mddev),
+	       conf->raid_disks - mddev->degraded);
 }
 
 /*
@@ -5391,7 +5389,8 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 		return -EINVAL;
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	revalidate_disk(mddev->gendisk);
-	if (sectors > mddev->dev_sectors && mddev->recovery_cp == MaxSector) {
+	if (sectors > mddev->dev_sectors &&
+	    mddev->recovery_cp > mddev->dev_sectors) {
 		mddev->recovery_cp = mddev->dev_sectors;
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	}
