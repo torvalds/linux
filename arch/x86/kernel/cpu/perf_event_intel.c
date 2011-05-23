@@ -1018,6 +1018,29 @@ intel_bts_constraints(struct perf_event *event)
 	return NULL;
 }
 
+static bool intel_try_alt_er(struct perf_event *event, int orig_idx)
+{
+	if (!(x86_pmu.er_flags & ERF_HAS_RSP_1))
+		return false;
+
+	if (event->hw.extra_reg.idx == EXTRA_REG_RSP_0) {
+		event->hw.config &= ~INTEL_ARCH_EVENT_MASK;
+		event->hw.config |= 0x01bb;
+		event->hw.extra_reg.idx = EXTRA_REG_RSP_1;
+		event->hw.extra_reg.reg = MSR_OFFCORE_RSP_1;
+	} else if (event->hw.extra_reg.idx == EXTRA_REG_RSP_1) {
+		event->hw.config &= ~INTEL_ARCH_EVENT_MASK;
+		event->hw.config |= 0x01b7;
+		event->hw.extra_reg.idx = EXTRA_REG_RSP_0;
+		event->hw.extra_reg.reg = MSR_OFFCORE_RSP_0;
+	}
+
+	if (event->hw.extra_reg.idx == orig_idx)
+		return false;
+
+	return true;
+}
+
 /*
  * manage allocation of shared extra msr for certain events
  *
@@ -1027,16 +1050,19 @@ intel_bts_constraints(struct perf_event *event)
  */
 static struct event_constraint *
 __intel_shared_reg_get_constraints(struct cpu_hw_events *cpuc,
-				   struct hw_perf_event_extra *reg)
+				   struct perf_event *event)
 {
 	struct event_constraint *c = &emptyconstraint;
+	struct hw_perf_event_extra *reg = &event->hw.extra_reg;
 	struct er_account *era;
 	unsigned long flags;
+	int orig_idx = reg->idx;
 
 	/* already allocated shared msr */
 	if (reg->alloc)
 		return &unconstrained;
 
+again:
 	era = &cpuc->shared_regs->regs[reg->idx];
 	/*
 	 * we use spin_lock_irqsave() to avoid lockdep issues when
@@ -1065,6 +1091,9 @@ __intel_shared_reg_get_constraints(struct cpu_hw_events *cpuc,
 		 * the regular event constraint table.
 		 */
 		c = &unconstrained;
+	} else if (intel_try_alt_er(event, orig_idx)) {
+		raw_spin_unlock(&era->lock);
+		goto again;
 	}
 	raw_spin_unlock_irqrestore(&era->lock, flags);
 
@@ -1099,11 +1128,10 @@ intel_shared_regs_constraints(struct cpu_hw_events *cpuc,
 			      struct perf_event *event)
 {
 	struct event_constraint *c = NULL;
-	struct hw_perf_event_extra *xreg;
 
-	xreg = &event->hw.extra_reg;
-	if (xreg->idx != EXTRA_REG_NONE)
-		c = __intel_shared_reg_get_constraints(cpuc, xreg);
+	if (event->hw.extra_reg.idx != EXTRA_REG_NONE)
+		c = __intel_shared_reg_get_constraints(cpuc, event);
+
 	return c;
 }
 
@@ -1264,7 +1292,7 @@ static void intel_pmu_cpu_starting(int cpu)
 	 */
 	intel_pmu_lbr_reset();
 
-	if (!cpuc->shared_regs || x86_pmu.regs_no_ht_sharing)
+	if (!cpuc->shared_regs || (x86_pmu.er_flags & ERF_NO_HT_SHARING))
 		return;
 
 	for_each_cpu(i, topology_thread_cpumask(cpu)) {
@@ -1489,6 +1517,7 @@ static __init int intel_pmu_init(void)
 		x86_pmu.enable_all = intel_pmu_nhm_enable_all;
 		x86_pmu.pebs_constraints = intel_westmere_pebs_event_constraints;
 		x86_pmu.extra_regs = intel_westmere_extra_regs;
+		x86_pmu.er_flags |= ERF_HAS_RSP_1;
 
 		/* UOPS_ISSUED.STALLED_CYCLES */
 		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] = 0x180010e;
@@ -1508,7 +1537,8 @@ static __init int intel_pmu_init(void)
 		x86_pmu.pebs_constraints = intel_snb_pebs_events;
 		x86_pmu.extra_regs = intel_snb_extra_regs;
 		/* all extra regs are per-cpu when HT is on */
-		x86_pmu.regs_no_ht_sharing = true;
+		x86_pmu.er_flags |= ERF_HAS_RSP_1;
+		x86_pmu.er_flags |= ERF_NO_HT_SHARING;
 
 		/* UOPS_ISSUED.ANY,c=1,i=1 to count stall cycles */
 		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] = 0x180010e;

@@ -327,8 +327,11 @@ struct x86_pmu {
 	 * Extra registers for events
 	 */
 	struct extra_reg *extra_regs;
-	bool regs_no_ht_sharing;
+	unsigned int er_flags;
 };
+
+#define ERF_NO_HT_SHARING	1
+#define ERF_HAS_RSP_1		2
 
 static struct x86_pmu x86_pmu __read_mostly;
 
