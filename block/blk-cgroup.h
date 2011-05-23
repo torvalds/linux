@@ -39,8 +39,6 @@ enum stat_type {
 	BLKIO_STAT_SERVICE_TIME = 0,
 	/* Total time spent waiting in scheduler queue in ns */
 	BLKIO_STAT_WAIT_TIME,
-	/* Number of IOs merged */
-	BLKIO_STAT_MERGED,
 	/* Number of IOs queued up */
 	BLKIO_STAT_QUEUED,
 	/* All the single valued stats go below this */
@@ -63,6 +61,8 @@ enum stat_type_cpu {
 	BLKIO_STAT_CPU_SERVICE_BYTES,
 	/* Total IOs serviced, post merge */
 	BLKIO_STAT_CPU_SERVICED,
+	/* Number of IOs merged */
+	BLKIO_STAT_CPU_MERGED,
 	BLKIO_STAT_CPU_NR
 };
 
