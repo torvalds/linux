@@ -364,17 +364,7 @@ static int netvsc_probe(struct hv_device *dev)
 		return ret;
 	}
 
-	/*
-	 * If carrier is still off ie we did not get a link status callback,
-	 * update it if necessary
-	 */
-	/*
-	 * FIXME: We should use a atomic or test/set instead to avoid getting
-	 * out of sync with the device's link status
-	 */
-	if (!netif_carrier_ok(net))
-		if (!device_info.link_state)
-			netif_carrier_on(net);
+	netif_carrier_on(net);
 
 	memcpy(net->dev_addr, device_info.mac_adr, ETH_ALEN);
 
