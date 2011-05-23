@@ -85,6 +85,9 @@ struct btrfs_device {
 	/* physical drive uuid (or lvm uuid) */
 	u8 uuid[BTRFS_UUID_SIZE];
 
+	/* per-device scrub information */
+	struct scrub_dev *scrub_device;
+
 	struct btrfs_work work;
 };
 
@@ -157,6 +160,9 @@ struct map_lookup {
 	int sub_stripes;
 	struct btrfs_bio_stripe stripes[];
 };
+
+#define map_lookup_size(n) (sizeof(struct map_lookup) + \
+			    (sizeof(struct btrfs_bio_stripe) * (n)))
 
 int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
 				   u64 end, u64 *length);

@@ -38,9 +38,6 @@ static int init_first_rw_device(struct btrfs_trans_handle *trans,
 				struct btrfs_device *device);
 static int btrfs_relocate_sys_chunks(struct btrfs_root *root);
 
-#define map_lookup_size(n) (sizeof(struct map_lookup) + \
-			    (sizeof(struct btrfs_bio_stripe) * (n)))
-
 static DEFINE_MUTEX(uuid_mutex);
 static LIST_HEAD(fs_uuids);
 
@@ -1287,6 +1284,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		goto error_undo;
 
 	device->in_fs_metadata = 0;
+	btrfs_scrub_cancel_dev(root, device);
 
 	/*
 	 * the device list mutex makes sure that we don't change

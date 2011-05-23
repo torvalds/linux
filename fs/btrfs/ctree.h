@@ -23,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/fs.h>
+#include <linux/rwsem.h>
 #include <linux/completion.h>
 #include <linux/backing-dev.h>
 #include <linux/wait.h>
@@ -33,6 +34,7 @@
 #include "extent_io.h"
 #include "extent_map.h"
 #include "async-thread.h"
+#include "ioctl.h"
 
 struct btrfs_trans_handle;
 struct btrfs_transaction;
@@ -193,7 +195,6 @@ struct btrfs_mapping_tree {
 	struct extent_map_tree map_tree;
 };
 
-#define BTRFS_UUID_SIZE 16
 struct btrfs_dev_item {
 	/* the internal btrfs device id */
 	__le64 devid;
@@ -300,7 +301,6 @@ static inline unsigned long btrfs_chunk_item_size(int num_stripes)
 		sizeof(struct btrfs_stripe) * (num_stripes - 1);
 }
 
-#define BTRFS_FSID_SIZE 16
 #define BTRFS_HEADER_FLAG_WRITTEN	(1ULL << 0)
 #define BTRFS_HEADER_FLAG_RELOC		(1ULL << 1)
 
@@ -515,6 +515,12 @@ struct btrfs_extent_item_v0 {
 
 /* use full backrefs for extent pointers in the block */
 #define BTRFS_BLOCK_FLAG_FULL_BACKREF	(1ULL << 8)
+
+/*
+ * this flag is only used internally by scrub and may be changed at any time
+ * it is only declared here to avoid collisions
+ */
+#define BTRFS_EXTENT_FLAG_SUPER		(1ULL << 48)
 
 struct btrfs_tree_block_info {
 	struct btrfs_disk_key key;
@@ -1082,6 +1088,17 @@ struct btrfs_fs_info {
 	unsigned metadata_ratio;
 
 	void *bdev_holder;
+
+	/* private scrub information */
+	struct mutex scrub_lock;
+	atomic_t scrubs_running;
+	atomic_t scrub_pause_req;
+	atomic_t scrubs_paused;
+	atomic_t scrub_cancel_req;
+	wait_queue_head_t scrub_pause_wait;
+	struct rw_semaphore scrub_super_lock;
+	int scrub_workers_refcnt;
+	struct btrfs_workers scrub_workers;
 
 	/* filesystem state */
 	u64 fs_state;
@@ -2422,8 +2439,11 @@ struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 					  struct btrfs_root *root,
 					  struct btrfs_path *path,
 					  u64 bytenr, int cow);
-int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start,
-			     u64 end, struct list_head *list);
+int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
+			struct btrfs_root *root, struct btrfs_path *path,
+			u64 isize);
+int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
+			     struct list_head *list, int search_commit);
 /* inode.c */
 
 /* RHEL and EL kernels have a patch that renames PG_checked to FsMisc */
@@ -2577,4 +2597,18 @@ void btrfs_reloc_pre_snapshot(struct btrfs_trans_handle *trans,
 			      u64 *bytes_to_reserve);
 void btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 			      struct btrfs_pending_snapshot *pending);
+
+/* scrub.c */
+int btrfs_scrub_dev(struct btrfs_root *root, u64 devid, u64 start, u64 end,
+		    struct btrfs_scrub_progress *progress, int readonly);
+int btrfs_scrub_pause(struct btrfs_root *root);
+int btrfs_scrub_pause_super(struct btrfs_root *root);
+int btrfs_scrub_continue(struct btrfs_root *root);
+int btrfs_scrub_continue_super(struct btrfs_root *root);
+int btrfs_scrub_cancel(struct btrfs_root *root);
+int btrfs_scrub_cancel_dev(struct btrfs_root *root, struct btrfs_device *dev);
+int btrfs_scrub_cancel_devid(struct btrfs_root *root, u64 devid);
+int btrfs_scrub_progress(struct btrfs_root *root, u64 devid,
+			 struct btrfs_scrub_progress *progress);
+
 #endif

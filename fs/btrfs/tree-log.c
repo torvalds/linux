@@ -614,7 +614,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 
 			ret = btrfs_lookup_csums_range(root->log_root,
 						csum_start, csum_end - 1,
-						&ordered_sums);
+						&ordered_sums, 0);
 			BUG_ON(ret);
 			while (!list_empty(&ordered_sums)) {
 				struct btrfs_ordered_sum *sums;
@@ -2094,7 +2094,9 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * the running transaction open, so a full commit can't hop
 	 * in and cause problems either.
 	 */
+	btrfs_scrub_pause_super(root);
 	write_ctree_super(trans, root->fs_info->tree_root, 1);
+	btrfs_scrub_continue_super(root);
 	ret = 0;
 
 	mutex_lock(&root->log_mutex);
@@ -2689,7 +2691,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 				ret = btrfs_lookup_csums_range(
 						log->fs_info->csum_root,
 						ds + cs, ds + cs + cl - 1,
-						&ordered_sums);
+						&ordered_sums, 0);
 				BUG_ON(ret);
 			}
 		}

@@ -267,7 +267,7 @@ int btrfs_lookup_bio_sums_dio(struct btrfs_root *root, struct inode *inode,
 }
 
 int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
-			     struct list_head *list)
+			     struct list_head *list, int search_commit)
 {
 	struct btrfs_key key;
 	struct btrfs_path *path;
@@ -283,6 +283,12 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
+
+	if (search_commit) {
+		path->skip_locking = 1;
+		path->reada = 2;
+		path->search_commit_root = 1;
+	}
 
 	key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
 	key.offset = start;

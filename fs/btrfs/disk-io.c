@@ -1654,6 +1654,17 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	}
 	btrfs_init_delayed_root(fs_info->delayed_root);
 
+	mutex_init(&fs_info->scrub_lock);
+	atomic_set(&fs_info->scrubs_running, 0);
+	atomic_set(&fs_info->scrub_pause_req, 0);
+	atomic_set(&fs_info->scrubs_paused, 0);
+	atomic_set(&fs_info->scrub_cancel_req, 0);
+	init_waitqueue_head(&fs_info->scrub_pause_wait);
+	init_rwsem(&fs_info->scrub_super_lock);
+	fs_info->scrub_workers_refcnt = 0;
+	btrfs_init_workers(&fs_info->scrub_workers, "scrub",
+			   fs_info->thread_pool_size, &fs_info->generic_worker);
+
 	sb->s_blocksize = 4096;
 	sb->s_blocksize_bits = blksize_bits(4096);
 	sb->s_bdi = &fs_info->bdi;
@@ -2488,6 +2499,7 @@ int close_ctree(struct btrfs_root *root)
 	fs_info->closing = 1;
 	smp_mb();
 
+	btrfs_scrub_cancel(root);
 	btrfs_put_block_group_cache(fs_info);
 
 	/*

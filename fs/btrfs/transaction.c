@@ -1228,6 +1228,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	WARN_ON(cur_trans != trans->transaction);
 
+	btrfs_scrub_pause(root);
 	/* btrfs_commit_tree_roots is responsible for getting the
 	 * various roots consistent with each other.  Every pointer
 	 * in the tree of tree roots has to point to the most up to date
@@ -1311,6 +1312,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	trace_btrfs_transaction_commit(root);
 
 	mutex_unlock(&root->fs_info->trans_mutex);
+
+	btrfs_scrub_continue(root);
 
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
