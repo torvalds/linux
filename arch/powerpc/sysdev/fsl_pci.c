@@ -330,6 +330,7 @@ int __init fsl_add_bridge(struct device_node *dev, int is_primary)
 	struct pci_controller *hose;
 	struct resource rsrc;
 	const int *bus_range;
+	u8 progif;
 
 	if (!of_device_is_available(dev)) {
 		pr_warning("%s: disabled\n", dev->full_name);
@@ -360,6 +361,18 @@ int __init fsl_add_bridge(struct device_node *dev, int is_primary)
 
 	setup_indirect_pci(hose, rsrc.start, rsrc.start + 0x4,
 		PPC_INDIRECT_TYPE_BIG_ENDIAN);
+
+	early_read_config_byte(hose, 0, 0, PCI_CLASS_PROG, &progif);
+	if ((progif & 1) == 1) {
+		/* unmap cfg_data & cfg_addr separately if not on same page */
+		if (((unsigned long)hose->cfg_data & PAGE_MASK) !=
+		    ((unsigned long)hose->cfg_addr & PAGE_MASK))
+			iounmap(hose->cfg_data);
+		iounmap(hose->cfg_addr);
+		pcibios_free_controller(hose);
+		return 0;
+	}
+
 	setup_pci_cmd(hose);
 
 	/* check PCI express link status */
