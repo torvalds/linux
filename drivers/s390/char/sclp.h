@@ -186,4 +186,26 @@ sclp_ascebc_str(unsigned char *str, int nr)
 	(MACHINE_IS_VM) ? ASCEBC(str, nr) : ASCEBC_500(str, nr);
 }
 
+static inline struct gds_vector *
+sclp_find_gds_vector(void *start, void *end, u16 id)
+{
+	struct gds_vector *v;
+
+	for (v = start; (void *) v < end; v = (void *) v + v->length)
+		if (v->gds_id == id)
+			return v;
+	return NULL;
+}
+
+static inline struct gds_subvector *
+sclp_find_gds_subvector(void *start, void *end, u8 key)
+{
+	struct gds_subvector *sv;
+
+	for (sv = start; (void *) sv < end; sv = (void *) sv + sv->length)
+		if (sv->key == key)
+			return sv;
+	return NULL;
+}
+
 #endif	 /* __SCLP_H__ */
