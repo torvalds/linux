@@ -5,6 +5,8 @@
 #error SMP not supported on pre-ARMv6 CPUs
 #endif
 
+#include <asm/processor.h>
+
 /*
  * sev and wfe are ARMv6K extensions.  Uniprocessor ARMv6 may not have the K
  * extensions, so when running on UP, we have to patch these instructions away.

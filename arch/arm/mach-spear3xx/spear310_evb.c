@@ -19,31 +19,31 @@
 /* padmux devices to enable */
 static struct pmx_dev *pmx_devs[] = {
 	/* spear3xx specific devices */
-	&pmx_i2c,
-	&pmx_ssp,
-	&pmx_gpio_pin0,
-	&pmx_gpio_pin1,
-	&pmx_gpio_pin2,
-	&pmx_gpio_pin3,
-	&pmx_gpio_pin4,
-	&pmx_gpio_pin5,
-	&pmx_uart0,
+	&spear3xx_pmx_i2c,
+	&spear3xx_pmx_ssp,
+	&spear3xx_pmx_gpio_pin0,
+	&spear3xx_pmx_gpio_pin1,
+	&spear3xx_pmx_gpio_pin2,
+	&spear3xx_pmx_gpio_pin3,
+	&spear3xx_pmx_gpio_pin4,
+	&spear3xx_pmx_gpio_pin5,
+	&spear3xx_pmx_uart0,
 
 	/* spear310 specific devices */
-	&pmx_emi_cs_0_1_4_5,
-	&pmx_emi_cs_2_3,
-	&pmx_uart1,
-	&pmx_uart2,
-	&pmx_uart3_4_5,
-	&pmx_fsmc,
-	&pmx_rs485_0_1,
-	&pmx_tdm0,
+	&spear310_pmx_emi_cs_0_1_4_5,
+	&spear310_pmx_emi_cs_2_3,
+	&spear310_pmx_uart1,
+	&spear310_pmx_uart2,
+	&spear310_pmx_uart3_4_5,
+	&spear310_pmx_fsmc,
+	&spear310_pmx_rs485_0_1,
+	&spear310_pmx_tdm0,
 };
 
 static struct amba_device *amba_devs[] __initdata = {
 	/* spear3xx specific devices */
-	&gpio_device,
-	&uart_device,
+	&spear3xx_gpio_device,
+	&spear3xx_uart_device,
 
 	/* spear310 specific devices */
 };
@@ -58,13 +58,8 @@ static void __init spear310_evb_init(void)
 {
 	unsigned int i;
 
-	/* padmux initialization, must be done before spear310_init */
-	pmx_driver.mode = NULL;
-	pmx_driver.devs = pmx_devs;
-	pmx_driver.devs_count = ARRAY_SIZE(pmx_devs);
-
 	/* call spear310 machine init function */
-	spear310_init();
+	spear310_init(NULL, pmx_devs, ARRAY_SIZE(pmx_devs));
 
 	/* Add Platform Devices */
 	platform_add_devices(plat_devs, ARRAY_SIZE(plat_devs));

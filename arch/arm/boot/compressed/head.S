@@ -459,7 +459,11 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		orr	r1, r1, #3 << 10
 		add	r2, r3, #16384
 1:		cmp	r1, r9			@ if virt > start of RAM
+#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
+		orrhs	r1, r1, #0x08		@ set cacheable
+#else
 		orrhs	r1, r1, #0x0c		@ set cacheable, bufferable
+#endif
 		cmp	r1, r10			@ if virt > end of RAM
 		bichs	r1, r1, #0x0c		@ clear cacheable, bufferable
 		str	r1, [r0], #4		@ 1:1 mapping
@@ -483,6 +487,12 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		str	r1, [r0]
 		mov	pc, lr
 ENDPROC(__setup_mmu)
+
+__arm926ejs_mmu_cache_on:
+#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
+		mov	r0, #4			@ put dcache in WT mode
+		mcr	p15, 7, r0, c15, c0, 0
+#endif
 
 __armv4_mmu_cache_on:
 		mov	r12, lr
@@ -664,6 +674,12 @@ proc_types:
 		W(b)	__armv4_mpu_cache_on
 		W(b)	__armv4_mpu_cache_off
 		W(b)	__armv4_mpu_cache_flush
+
+		.word	0x41069260		@ ARM926EJ-S (v5TEJ)
+		.word	0xff0ffff0
+		b	__arm926ejs_mmu_cache_on
+		b	__armv4_mmu_cache_off
+		b	__armv5tej_mmu_cache_flush
 
 		.word	0x00007000		@ ARM7 IDs
 		.word	0x0000f000

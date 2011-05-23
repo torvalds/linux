@@ -39,7 +39,7 @@ void __init spear6xx_map_io(void);
 void __init spear6xx_init_irq(void);
 void __init spear6xx_init(void);
 void __init spear600_init(void);
-void __init clk_init(void);
+void __init spear6xx_clk_init(void);
 
 /* Add spear600 machine device structure declarations here */
 
