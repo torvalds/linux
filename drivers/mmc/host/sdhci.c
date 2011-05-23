@@ -838,9 +838,10 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 }
 
 static void sdhci_set_transfer_mode(struct sdhci_host *host,
-	struct mmc_data *data)
+	struct mmc_command *cmd)
 {
 	u16 mode;
+	struct mmc_data *data = cmd->data;
 
 	if (data == NULL)
 		return;
@@ -848,11 +849,14 @@ static void sdhci_set_transfer_mode(struct sdhci_host *host,
 	WARN_ON(!host->data);
 
 	mode = SDHCI_TRNS_BLK_CNT_EN;
-	if (data->blocks > 1) {
-		if (host->quirks & SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12)
-			mode |= SDHCI_TRNS_MULTI | SDHCI_TRNS_ACMD12;
-		else
-			mode |= SDHCI_TRNS_MULTI;
+	if (mmc_op_multi(cmd->opcode) || data->blocks > 1) {
+		mode |= SDHCI_TRNS_MULTI;
+		/*
+		 * If we are sending CMD23, CMD12 never gets sent
+		 * on successful completion (so no Auto-CMD12).
+		 */
+		if (!host->mrq->sbc && (host->flags & SDHCI_AUTO_CMD12))
+			mode |= SDHCI_TRNS_AUTO_CMD12;
 	}
 	if (data->flags & MMC_DATA_READ)
 		mode |= SDHCI_TRNS_READ;
@@ -893,7 +897,15 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	else
 		data->bytes_xfered = data->blksz * data->blocks;
 
-	if (data->stop) {
+	/*
+	 * Need to send CMD12 if -
+	 * a) open-ended multiblock transfer (no CMD23)
+	 * b) error in multiblock transfer
+	 */
+	if (data->stop &&
+	    (data->error ||
+	     !host->mrq->sbc)) {
+
 		/*
 		 * The controller needs a reset of internal state machines
 		 * upon error conditions.
@@ -949,7 +961,7 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 
 	sdhci_writel(host, cmd->arg, SDHCI_ARGUMENT);
 
-	sdhci_set_transfer_mode(host, cmd->data);
+	sdhci_set_transfer_mode(host, cmd);
 
 	if ((cmd->flags & MMC_RSP_136) && (cmd->flags & MMC_RSP_BUSY)) {
 		printk(KERN_ERR "%s: Unsupported response type!\n",
@@ -1004,13 +1016,21 @@ static void sdhci_finish_command(struct sdhci_host *host)
 
 	host->cmd->error = 0;
 
-	if (host->data && host->data_early)
-		sdhci_finish_data(host);
+	/* Finished CMD23, now send actual command. */
+	if (host->cmd == host->mrq->sbc) {
+		host->cmd = NULL;
+		sdhci_send_command(host, host->mrq->cmd);
+	} else {
 
-	if (!host->cmd->data)
-		tasklet_schedule(&host->finish_tasklet);
+		/* Processed actual command. */
+		if (host->data && host->data_early)
+			sdhci_finish_data(host);
 
-	host->cmd = NULL;
+		if (!host->cmd->data)
+			tasklet_schedule(&host->finish_tasklet);
+
+		host->cmd = NULL;
+	}
 }
 
 static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
@@ -1189,7 +1209,12 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 #ifndef SDHCI_USE_LEDS_CLASS
 	sdhci_activate_led(host);
 #endif
-	if (host->quirks & SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12) {
+
+	/*
+	 * Ensure we don't send the STOP for non-SET_BLOCK_COUNTED
+	 * requests if Auto-CMD12 is enabled.
+	 */
+	if (!mrq->sbc && (host->flags & SDHCI_AUTO_CMD12)) {
 		if (mrq->stop) {
 			mrq->data->stop = NULL;
 			mrq->stop = NULL;
@@ -1227,7 +1252,10 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			host->mrq = mrq;
 		}
 
-		sdhci_send_command(host, mrq->cmd);
+		if (mrq->sbc)
+			sdhci_send_command(host, mrq->sbc);
+		else
+			sdhci_send_command(host, mrq->cmd);
 	}
 
 	mmiowb();
@@ -2455,7 +2483,10 @@ int sdhci_add_host(struct sdhci_host *host)
 	} else
 		mmc->f_min = host->max_clk / SDHCI_MAX_DIV_SPEC_200;
 
-	mmc->caps |= MMC_CAP_SDIO_IRQ | MMC_CAP_ERASE;
+	mmc->caps |= MMC_CAP_SDIO_IRQ | MMC_CAP_ERASE | MMC_CAP_CMD23;
+
+	if (host->quirks & SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12)
+		host->flags |= SDHCI_AUTO_CMD12;
 
 	/*
 	 * A controller may support 8-bit width, but the board itself
