@@ -204,7 +204,7 @@ ifeq ($(gconf-target),1)
 endif
 
 clean-files	:= lkc_defs.h qconf.moc .tmp_qtcheck .tmp_gtkcheck
-clean-files	+= zconf.tab.c lex.zconf.c zconf.hash.c gconf.glade.h
+clean-files	+= zconf.tab.c zconf.lex.c zconf.hash.c gconf.glade.h
 clean-files     += mconf qconf gconf nconf
 clean-files     += config.pot linux.pot
 
@@ -220,7 +220,7 @@ always := dochecklxdialog
 HOST_EXTRACFLAGS += $(shell $(CONFIG_SHELL) $(srctree)/$(src)/check.sh $(HOSTCC) $(HOSTCFLAGS))
 
 # generated files seem to need this to find local include files
-HOSTCFLAGS_lex.zconf.o	:= -I$(src)
+HOSTCFLAGS_zconf.lex.o	:= -I$(src)
 HOSTCFLAGS_zconf.tab.o	:= -I$(src)
 
 LEX_PREFIX_zconf	:= zconf
@@ -319,7 +319,7 @@ $(obj)/.tmp_gtkcheck:
 	fi
 endif
 
-$(obj)/zconf.tab.o: $(obj)/lex.zconf.c $(obj)/zconf.hash.c
+$(obj)/zconf.tab.o: $(obj)/zconf.lex.c $(obj)/zconf.hash.c
 
 $(obj)/kconfig_load.o: $(obj)/lkc_defs.h
 
