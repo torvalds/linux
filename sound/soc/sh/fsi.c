@@ -669,32 +669,11 @@ static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
 
 }
 
-#define fsi_module_init(m, d)	__fsi_module_clk_ctrl(m, d, 1)
-#define fsi_module_kill(m, d)	__fsi_module_clk_ctrl(m, d, 0)
-static void __fsi_module_clk_ctrl(struct fsi_master *master,
-				  struct device *dev,
-				  int enable)
-{
-	pm_runtime_get_sync(dev);
-
-	if (enable) {
-		/* enable only SR */
-		fsi_master_mask_set(master, SOFT_RST, FSISR, FSISR);
-		fsi_master_mask_set(master, SOFT_RST, PASR | PBSR, 0);
-	} else {
-		/* clear all registers */
-		fsi_master_mask_set(master, SOFT_RST, FSISR, 0);
-	}
-
-	pm_runtime_put_sync(dev);
-}
-
 #define fsi_port_start(f, i)	__fsi_port_clk_ctrl(f, i, 1)
 #define fsi_port_stop(f, i)	__fsi_port_clk_ctrl(f, i, 0)
 static void __fsi_port_clk_ctrl(struct fsi_priv *fsi, int is_play, int enable)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
-	u32 soft = fsi_is_port_a(fsi) ? PASR : PBSR;
 	u32 clk  = fsi_is_port_a(fsi) ? CRA  : CRB;
 	int is_master = fsi_is_clk_master(fsi);
 
@@ -703,7 +682,6 @@ static void __fsi_port_clk_ctrl(struct fsi_priv *fsi, int is_play, int enable)
 	else
 		fsi_irq_disable(fsi, is_play);
 
-	fsi_master_mask_set(master, SOFT_RST, soft, (enable) ? soft : 0);
 	if (is_master)
 		fsi_master_mask_set(master, CLK_RST, clk, (enable) ? clk : 0);
 }
@@ -1294,8 +1272,6 @@ static int fsi_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	dev_set_drvdata(&pdev->dev, master);
 
-	fsi_module_init(master, &pdev->dev);
-
 	ret = request_irq(irq, &fsi_interrupt, IRQF_DISABLED,
 			  id_entry->name, master);
 	if (ret) {
@@ -1337,8 +1313,6 @@ static int fsi_remove(struct platform_device *pdev)
 	struct fsi_master *master;
 
 	master = dev_get_drvdata(&pdev->dev);
-
-	fsi_module_kill(master, &pdev->dev);
 
 	free_irq(master->irq, master);
 	pm_runtime_disable(&pdev->dev);
@@ -1394,8 +1368,6 @@ static int fsi_suspend(struct device *dev)
 	master->saved_clk_rst	= fsi_master_read(master, CLK_RST);
 	master->saved_soft_rst	= fsi_master_read(master, SOFT_RST);
 
-	fsi_module_kill(master, dev);
-
 	pm_runtime_put_sync(dev);
 
 	return 0;
@@ -1406,8 +1378,6 @@ static int fsi_resume(struct device *dev)
 	struct fsi_master *master = dev_get_drvdata(dev);
 
 	pm_runtime_get_sync(dev);
-
-	fsi_module_init(master, dev);
 
 	fsi_master_mask_set(master, SOFT_RST, 0xffff, master->saved_soft_rst);
 	fsi_master_mask_set(master, CLK_RST, 0xffff, master->saved_clk_rst);
