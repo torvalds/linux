@@ -399,7 +399,7 @@ poll_again:
 			    strcmp(lastchar - 11, "$qSupported") == 0) {
 				kdb_gdb_state_pass(lastchar - 11);
 				strcpy(buffer, "kgdb");
-				KDB_STATE_SET(DOING_KGDB2);
+				KDB_STATE_SET(DOING_KGDB);
 				return buffer;
 			}
 		}

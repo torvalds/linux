@@ -21,7 +21,6 @@
 #define KDB_CMD_SS	(-1003)
 #define KDB_CMD_SSB	(-1004)
 #define KDB_CMD_KGDB (-1005)
-#define KDB_CMD_KGDB2 (-1006)
 
 /* Internal debug flags */
 #define KDB_DEBUG_FLAG_BP	0x0002	/* Breakpoint subsystem debug */
@@ -146,7 +145,6 @@ extern int kdb_state;
 						 * keyboard on this cpu */
 #define KDB_STATE_KEXEC		0x00040000	/* kexec issued */
 #define KDB_STATE_DOING_KGDB	0x00080000	/* kgdb enter now issued */
-#define KDB_STATE_DOING_KGDB2	0x00100000	/* kgdb enter now issued */
 #define KDB_STATE_KGDB_TRANS	0x00200000	/* Transition to kgdb */
 #define KDB_STATE_ARCH		0xff000000	/* Reserved for arch
 						 * specific use */
