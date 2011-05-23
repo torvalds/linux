@@ -1009,7 +1009,7 @@ int hwsampler_deallocate()
 	if (hws_state != HWS_STOPPED)
 		goto deallocate_exit;
 
-	smp_ctl_clear_bit(0, 5); /* set bit 58 CR0 off */
+	ctl_clear_bit(0, 5); /* set bit 58 CR0 off */
 	deallocate_sdbt();
 
 	hws_state = HWS_DEALLOCATED;
@@ -1123,7 +1123,7 @@ int hwsampler_shutdown()
 		mutex_lock(&hws_sem);
 
 		if (hws_state == HWS_STOPPED) {
-			smp_ctl_clear_bit(0, 5); /* set bit 58 CR0 off */
+			ctl_clear_bit(0, 5); /* set bit 58 CR0 off */
 			deallocate_sdbt();
 		}
 		if (hws_wq) {
@@ -1198,7 +1198,7 @@ start_all_exit:
 	hws_oom = 1;
 	hws_flush_all = 0;
 	/* now let them in, 1407 CPUMF external interrupts */
-	smp_ctl_set_bit(0, 5); /* set CR0 bit 58 */
+	ctl_set_bit(0, 5); /* set CR0 bit 58 */
 
 	return 0;
 }
