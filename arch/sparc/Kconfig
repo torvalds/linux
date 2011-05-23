@@ -528,6 +528,11 @@ config PCI_DOMAINS
 config PCI_SYSCALL
 	def_bool PCI
 
+config PCIC_PCI
+	bool
+	depends on PCI && !SPARC_LEON
+	default y
+
 source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
