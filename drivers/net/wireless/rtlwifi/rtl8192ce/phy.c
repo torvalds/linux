@@ -281,7 +281,6 @@ bool rtl92c_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 {
 
 	int i;
-	bool rtstatus = true;
 	u32 *radioa_array_table;
 	u32 *radiob_array_table;
 	u16 radioa_arraylen, radiob_arraylen;
@@ -308,7 +307,6 @@ bool rtl92c_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 			 ("Radio_B:RTL8192CE_RADIOB_1TARRAY\n"));
 	}
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, ("Radio No %x\n", rfpath));
-	rtstatus = true;
 	switch (rfpath) {
 	case RF90_PATH_A:
 		for (i = 0; i < radioa_arraylen; i = i + 2) {
