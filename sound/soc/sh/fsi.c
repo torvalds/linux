@@ -184,13 +184,6 @@ struct fsi_priv {
 	int spdif:1;
 
 	long rate;
-
-	/* for suspend/resume */
-	u32 saved_do_fmt;
-	u32 saved_di_fmt;
-	u32 saved_ckg1;
-	u32 saved_ckg2;
-	u32 saved_out_sel;
 };
 
 struct fsi_core {
@@ -211,14 +204,6 @@ struct fsi_master {
 	struct fsi_core *core;
 	struct sh_fsi_platform_info *info;
 	spinlock_t lock;
-
-	/* for suspend/resume */
-	u32 saved_a_mclk;
-	u32 saved_b_mclk;
-	u32 saved_iemsk;
-	u32 saved_imsk;
-	u32 saved_clk_rst;
-	u32 saved_soft_rst;
 };
 
 /*
@@ -386,6 +371,21 @@ static int fsi_frame2sample(struct fsi_priv *fsi, int frames)
 static int fsi_sample2frame(struct fsi_priv *fsi, int samples)
 {
 	return samples / fsi->chan_num;
+}
+
+static int fsi_stream_is_working(struct fsi_priv *fsi,
+				  int is_play)
+{
+	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
+	struct fsi_master *master = fsi_get_master(fsi);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&master->lock, flags);
+	ret = !!io->substream;
+	spin_unlock_irqrestore(&master->lock, flags);
+
+	return ret;
 }
 
 static void fsi_stream_push(struct fsi_priv *fsi,
@@ -666,7 +666,6 @@ static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
 	}
 
 	return ret;
-
 }
 
 #define fsi_port_start(f, i)	__fsi_port_clk_ctrl(f, i, 1)
@@ -675,14 +674,13 @@ static void __fsi_port_clk_ctrl(struct fsi_priv *fsi, int is_play, int enable)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
 	u32 clk  = fsi_is_port_a(fsi) ? CRA  : CRB;
-	int is_master = fsi_is_clk_master(fsi);
 
 	if (enable)
 		fsi_irq_enable(fsi, is_play);
 	else
 		fsi_irq_disable(fsi, is_play);
 
-	if (is_master)
+	if (fsi_is_clk_master(fsi))
 		fsi_master_mask_set(master, CLK_RST, clk, (enable) ? clk : 0);
 }
 
@@ -1327,48 +1325,43 @@ static int fsi_remove(struct platform_device *pdev)
 }
 
 static void __fsi_suspend(struct fsi_priv *fsi,
+			  int is_play,
 			  struct device *dev)
 {
-	fsi->saved_do_fmt	= fsi_reg_read(fsi, DO_FMT);
-	fsi->saved_di_fmt	= fsi_reg_read(fsi, DI_FMT);
-	fsi->saved_ckg1		= fsi_reg_read(fsi, CKG1);
-	fsi->saved_ckg2		= fsi_reg_read(fsi, CKG2);
-	fsi->saved_out_sel	= fsi_reg_read(fsi, OUT_SEL);
+	if (!fsi_stream_is_working(fsi, is_play))
+		return;
 
-	if (fsi_is_clk_master(fsi))
-		fsi_set_master_clk(dev, fsi, fsi->rate, 0);
+	fsi_port_stop(fsi, is_play);
+	fsi_hw_shutdown(fsi, is_play, dev);
 }
 
 static void __fsi_resume(struct fsi_priv *fsi,
+			 int is_play,
 			 struct device *dev)
 {
-	fsi_reg_write(fsi, DO_FMT,	fsi->saved_do_fmt);
-	fsi_reg_write(fsi, DI_FMT,	fsi->saved_di_fmt);
-	fsi_reg_write(fsi, CKG1,	fsi->saved_ckg1);
-	fsi_reg_write(fsi, CKG2,	fsi->saved_ckg2);
-	fsi_reg_write(fsi, OUT_SEL,	fsi->saved_out_sel);
+	if (!fsi_stream_is_working(fsi, is_play))
+		return;
 
-	if (fsi_is_clk_master(fsi))
+	fsi_hw_startup(fsi, is_play, dev);
+
+	if (fsi_is_clk_master(fsi) && fsi->rate)
 		fsi_set_master_clk(dev, fsi, fsi->rate, 1);
+
+	fsi_port_start(fsi, is_play);
+
 }
 
 static int fsi_suspend(struct device *dev)
 {
 	struct fsi_master *master = dev_get_drvdata(dev);
+	struct fsi_priv *fsia = &master->fsia;
+	struct fsi_priv *fsib = &master->fsib;
 
-	pm_runtime_get_sync(dev);
+	__fsi_suspend(fsia, 1, dev);
+	__fsi_suspend(fsia, 0, dev);
 
-	__fsi_suspend(&master->fsia, dev);
-	__fsi_suspend(&master->fsib, dev);
-
-	master->saved_a_mclk	= fsi_core_read(master, a_mclk);
-	master->saved_b_mclk	= fsi_core_read(master, b_mclk);
-	master->saved_iemsk	= fsi_core_read(master, iemsk);
-	master->saved_imsk	= fsi_core_read(master, imsk);
-	master->saved_clk_rst	= fsi_master_read(master, CLK_RST);
-	master->saved_soft_rst	= fsi_master_read(master, SOFT_RST);
-
-	pm_runtime_put_sync(dev);
+	__fsi_suspend(fsib, 1, dev);
+	__fsi_suspend(fsib, 0, dev);
 
 	return 0;
 }
@@ -1376,20 +1369,14 @@ static int fsi_suspend(struct device *dev)
 static int fsi_resume(struct device *dev)
 {
 	struct fsi_master *master = dev_get_drvdata(dev);
+	struct fsi_priv *fsia = &master->fsia;
+	struct fsi_priv *fsib = &master->fsib;
 
-	pm_runtime_get_sync(dev);
+	__fsi_resume(fsia, 1, dev);
+	__fsi_resume(fsia, 0, dev);
 
-	fsi_master_mask_set(master, SOFT_RST, 0xffff, master->saved_soft_rst);
-	fsi_master_mask_set(master, CLK_RST, 0xffff, master->saved_clk_rst);
-	fsi_core_mask_set(master, a_mclk, 0xffff, master->saved_a_mclk);
-	fsi_core_mask_set(master, b_mclk, 0xffff, master->saved_b_mclk);
-	fsi_core_mask_set(master, iemsk, 0xffff, master->saved_iemsk);
-	fsi_core_mask_set(master, imsk, 0xffff, master->saved_imsk);
-
-	__fsi_resume(&master->fsia, dev);
-	__fsi_resume(&master->fsib, dev);
-
-	pm_runtime_put_sync(dev);
+	__fsi_resume(fsib, 1, dev);
+	__fsi_resume(fsib, 0, dev);
 
 	return 0;
 }
