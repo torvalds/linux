@@ -73,9 +73,18 @@ extern int parse_mtd_partitions(struct mtd_info *master, const char **types,
 struct device;
 struct device_node;
 
+#ifdef CONFIG_MTD_OF_PARTS
 int __devinit of_mtd_parse_partitions(struct device *dev,
                                       struct device_node *node,
                                       struct mtd_partition **pparts);
+#else
+static inline int of_mtd_parse_partitions(struct device *dev,
+					  struct device_node *node,
+					  struct mtd_partition **pparts)
+{
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_MTD_PARTITIONS
 static inline int mtd_has_partitions(void) { return 1; }
