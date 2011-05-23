@@ -687,7 +687,7 @@ config VIDEO_HEXIUM_GEMINI
 
 config VIDEO_TIMBERDALE
 	tristate "Support for timberdale Video In/LogiWIN"
-	depends on VIDEO_V4L2 && I2C
+	depends on VIDEO_V4L2 && I2C && DMADEVICES
 	select DMA_ENGINE
 	select TIMB_DMA
 	select VIDEO_ADV7180
