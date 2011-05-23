@@ -675,18 +675,11 @@ int hwsampler_activate(unsigned int cpu)
 static void hws_ext_handler(unsigned int ext_int_code,
 			    unsigned int param32, unsigned long param64)
 {
-	int cpu;
 	struct hws_cpu_buffer *cb;
 
 	kstat_cpu(smp_processor_id()).irqs[EXTINT_CPM]++;
-	cpu = smp_processor_id();
-	cb = &per_cpu(sampler_cpu_buffer, cpu);
-
-	atomic_xchg(
-			&cb->ext_params,
-			atomic_read(&cb->ext_params)
-				| S390_lowcore.ext_params);
-
+	cb = &__get_cpu_var(sampler_cpu_buffer);
+	atomic_xchg(&cb->ext_params, atomic_read(&cb->ext_params) | param32);
 	if (hws_wq)
 		queue_work(hws_wq, &cb->worker);
 }
