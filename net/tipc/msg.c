@@ -68,20 +68,6 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type,
 }
 
 /**
- * tipc_msg_calc_data_size - determine total data size for message
- */
-
-int tipc_msg_calc_data_size(struct iovec const *msg_sect, u32 num_sect)
-{
-	int dsz = 0;
-	int i;
-
-	for (i = 0; i < num_sect; i++)
-		dsz += msg_sect[i].iov_len;
-	return dsz;
-}
-
-/**
  * tipc_msg_build - create message using specified header and data
  *
  * Note: Caller must not hold any locks in case copy_from_user() is interrupted!
@@ -89,18 +75,13 @@ int tipc_msg_calc_data_size(struct iovec const *msg_sect, u32 num_sect)
  * Returns message data size or errno
  */
 
-int tipc_msg_build(struct tipc_msg *hdr,
-			    struct iovec const *msg_sect, u32 num_sect,
+int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
+		   u32 num_sect, unsigned int total_len,
 			    int max_size, int usrmem, struct sk_buff **buf)
 {
 	int dsz, sz, hsz, pos, res, cnt;
 
-	dsz = tipc_msg_calc_data_size(msg_sect, num_sect);
-	if (unlikely(dsz > TIPC_MAX_USER_MSG_SIZE)) {
-		*buf = NULL;
-		return -EINVAL;
-	}
-
+	dsz = total_len;
 	pos = hsz = msg_hdr_sz(hdr);
 	sz = hsz + dsz;
 	msg_set_size(hdr, sz);

@@ -33,6 +33,7 @@ void wl1271_pspoll_work(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 	struct wl1271 *wl;
+	int ret;
 
 	dwork = container_of(work, struct delayed_work, work);
 	wl = container_of(dwork, struct wl1271, pspoll_work);
@@ -55,8 +56,13 @@ void wl1271_pspoll_work(struct work_struct *work)
 	 * delivery failure occurred, and no-one changed state since, so
 	 * we should go back to powersave.
 	 */
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
 	wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE, wl->basic_rate, true);
 
+	wl1271_ps_elp_sleep(wl);
 out:
 	mutex_unlock(&wl->mutex);
 };
@@ -132,8 +138,10 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 		if (ret < 0)
 			break;
 
-		/* go to extremely low power mode */
-		wl1271_ps_elp_sleep(wl);
+		if (wl->ps_compl) {
+			complete(wl->ps_compl);
+			wl->ps_compl = NULL;
+		}
 		break;
 	default:
 		break;
@@ -187,6 +195,22 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		wl1271_scan_stm(wl);
 	}
 
+	if (vector & PERIODIC_SCAN_REPORT_EVENT_ID) {
+		wl1271_debug(DEBUG_EVENT, "PERIODIC_SCAN_REPORT_EVENT "
+			     "(status 0x%0x)", mbox->scheduled_scan_status);
+
+		wl1271_scan_sched_scan_results(wl);
+	}
+
+	if (vector & PERIODIC_SCAN_COMPLETE_EVENT_ID) {
+		wl1271_debug(DEBUG_EVENT, "PERIODIC_SCAN_COMPLETE_EVENT "
+			     "(status 0x%0x)", mbox->scheduled_scan_status);
+		if (wl->sched_scanning) {
+			wl1271_scan_sched_scan_stop(wl);
+			ieee80211_sched_scan_stopped(wl->hw);
+		}
+	}
+
 	/* disable dynamic PS when requested by the firmware */
 	if (vector & SOFT_GEMINI_SENSE_EVENT_ID &&
 	    wl->bss_type == BSS_TYPE_STA_BSS) {
@@ -226,6 +250,12 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		wl1271_debug(DEBUG_EVENT, "RSSI_SNR_TRIGGER_0_EVENT");
 		if (wl->vif)
 			wl1271_event_rssi_trigger(wl, mbox);
+	}
+
+	if ((vector & DUMMY_PACKET_EVENT_ID) && !is_ap) {
+		wl1271_debug(DEBUG_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
+		if (wl->vif)
+			wl1271_tx_dummy_packet(wl);
 	}
 
 	if (wl->vif && beacon_loss)

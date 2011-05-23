@@ -162,7 +162,7 @@ static inline void ip6_tnl_dst_store(struct ip6_tnl *t, struct dst_entry *dst)
 	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
 
 static struct ip6_tnl *
-ip6_tnl_lookup(struct net *net, struct in6_addr *remote, struct in6_addr *local)
+ip6_tnl_lookup(struct net *net, const struct in6_addr *remote, const struct in6_addr *local)
 {
 	unsigned int h0 = HASH(remote);
 	unsigned int h1 = HASH(local);
@@ -194,10 +194,10 @@ ip6_tnl_lookup(struct net *net, struct in6_addr *remote, struct in6_addr *local)
  **/
 
 static struct ip6_tnl __rcu **
-ip6_tnl_bucket(struct ip6_tnl_net *ip6n, struct ip6_tnl_parm *p)
+ip6_tnl_bucket(struct ip6_tnl_net *ip6n, const struct ip6_tnl_parm *p)
 {
-	struct in6_addr *remote = &p->raddr;
-	struct in6_addr *local = &p->laddr;
+	const struct in6_addr *remote = &p->raddr;
+	const struct in6_addr *local = &p->laddr;
 	unsigned h = 0;
 	int prio = 0;
 
@@ -280,11 +280,6 @@ static struct ip6_tnl *ip6_tnl_create(struct net *net, struct ip6_tnl_parm *p)
 
 	dev_net_set(dev, net);
 
-	if (strchr(name, '%')) {
-		if (dev_alloc_name(dev, name) < 0)
-			goto failed_free;
-	}
-
 	t = netdev_priv(dev);
 	t->parms = *p;
 	err = ip6_tnl_dev_init(dev);
@@ -321,8 +316,8 @@ failed:
 static struct ip6_tnl *ip6_tnl_locate(struct net *net,
 		struct ip6_tnl_parm *p, int create)
 {
-	struct in6_addr *remote = &p->raddr;
-	struct in6_addr *local = &p->laddr;
+	const struct in6_addr *remote = &p->raddr;
+	const struct in6_addr *local = &p->laddr;
 	struct ip6_tnl __rcu **tp;
 	struct ip6_tnl *t;
 	struct ip6_tnl_net *ip6n = net_generic(net, ip6_tnl_net_id);
@@ -374,7 +369,7 @@ ip6_tnl_dev_uninit(struct net_device *dev)
 static __u16
 parse_tlv_tnl_enc_lim(struct sk_buff *skb, __u8 * raw)
 {
-	struct ipv6hdr *ipv6h = (struct ipv6hdr *) raw;
+	const struct ipv6hdr *ipv6h = (const struct ipv6hdr *) raw;
 	__u8 nexthdr = ipv6h->nexthdr;
 	__u16 off = sizeof (*ipv6h);
 
@@ -435,7 +430,7 @@ static int
 ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
 	    u8 *type, u8 *code, int *msg, __u32 *info, int offset)
 {
-	struct ipv6hdr *ipv6h = (struct ipv6hdr *) skb->data;
+	const struct ipv6hdr *ipv6h = (const struct ipv6hdr *) skb->data;
 	struct ip6_tnl *t;
 	int rel_msg = 0;
 	u8 rel_type = ICMPV6_DEST_UNREACH;
@@ -535,8 +530,9 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	__u32 rel_info = ntohl(info);
 	int err;
 	struct sk_buff *skb2;
-	struct iphdr *eiph;
+	const struct iphdr *eiph;
 	struct rtable *rt;
+	struct flowi4 fl4;
 
 	err = ip6_tnl_err(skb, IPPROTO_IPIP, opt, &rel_type, &rel_code,
 			  &rel_msg, &rel_info, offset);
@@ -577,7 +573,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	eiph = ip_hdr(skb2);
 
 	/* Try to guess incoming interface */
-	rt = ip_route_output_ports(dev_net(skb->dev), NULL,
+	rt = ip_route_output_ports(dev_net(skb->dev), &fl4, NULL,
 				   eiph->saddr, 0,
 				   0, 0,
 				   IPPROTO_IPIP, RT_TOS(eiph->tos), 0);
@@ -590,7 +586,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (rt->rt_flags & RTCF_LOCAL) {
 		ip_rt_put(rt);
 		rt = NULL;
-		rt = ip_route_output_ports(dev_net(skb->dev), NULL,
+		rt = ip_route_output_ports(dev_net(skb->dev), &fl4, NULL,
 					   eiph->daddr, eiph->saddr,
 					   0, 0,
 					   IPPROTO_IPIP,
@@ -669,8 +665,8 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	return 0;
 }
 
-static void ip4ip6_dscp_ecn_decapsulate(struct ip6_tnl *t,
-					struct ipv6hdr *ipv6h,
+static void ip4ip6_dscp_ecn_decapsulate(const struct ip6_tnl *t,
+					const struct ipv6hdr *ipv6h,
 					struct sk_buff *skb)
 {
 	__u8 dsfield = ipv6_get_dsfield(ipv6h) & ~INET_ECN_MASK;
@@ -682,8 +678,8 @@ static void ip4ip6_dscp_ecn_decapsulate(struct ip6_tnl *t,
 		IP_ECN_set_ce(ip_hdr(skb));
 }
 
-static void ip6ip6_dscp_ecn_decapsulate(struct ip6_tnl *t,
-					struct ipv6hdr *ipv6h,
+static void ip6ip6_dscp_ecn_decapsulate(const struct ip6_tnl *t,
+					const struct ipv6hdr *ipv6h,
 					struct sk_buff *skb)
 {
 	if (t->parms.flags & IP6_TNL_F_RCV_DSCP_COPY)
@@ -726,12 +722,12 @@ static inline int ip6_tnl_rcv_ctl(struct ip6_tnl *t)
 
 static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 		       __u8 ipproto,
-		       void (*dscp_ecn_decapsulate)(struct ip6_tnl *t,
-						    struct ipv6hdr *ipv6h,
+		       void (*dscp_ecn_decapsulate)(const struct ip6_tnl *t,
+						    const struct ipv6hdr *ipv6h,
 						    struct sk_buff *skb))
 {
 	struct ip6_tnl *t;
-	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
+	const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 
 	rcu_read_lock();
 
@@ -828,7 +824,7 @@ static void init_tel_txopt(struct ipv6_tel_txoption *opt, __u8 encap_limit)
  **/
 
 static inline int
-ip6_tnl_addr_conflict(struct ip6_tnl *t, struct ipv6hdr *hdr)
+ip6_tnl_addr_conflict(const struct ip6_tnl *t, const struct ipv6hdr *hdr)
 {
 	return ipv6_addr_equal(&t->parms.raddr, &hdr->saddr);
 }
@@ -1005,7 +1001,7 @@ static inline int
 ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
-	struct iphdr  *iph = ip_hdr(skb);
+	const struct iphdr  *iph = ip_hdr(skb);
 	int encap_limit = -1;
 	struct flowi6 fl6;
 	__u8 dsfield;

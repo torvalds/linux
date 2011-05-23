@@ -35,17 +35,6 @@ Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
 
 ---------------------------
 
-What:	AR9170USB
-When:	2.6.40
-
-Why:	This driver is deprecated and the firmware is no longer
-	maintained. The replacement driver "carl9170" has been
-	around for a while, so the devices are still supported.
-
-Who:	Christian Lamparter <chunkeey@googlemail.com>
-
----------------------------
-
 What:	IRQF_SAMPLE_RANDOM
 Check:	IRQF_SAMPLE_RANDOM
 When:	July 2009
@@ -405,16 +394,6 @@ Who: 	anybody or Florian Mickler <florian@mickler.org>
 
 ----------------------------
 
-What:	capifs
-When:	February 2011
-Files:	drivers/isdn/capi/capifs.*
-Why:	udev fully replaces this special file system that only contains CAPI
-	NCCI TTY device nodes. User space (pppdcapiplugin) works without
-	noticing the difference.
-Who:	Jan Kiszka <jan.kiszka@web.de>
-
-----------------------------
-
 What:	KVM paravirt mmu host support
 When:	January 2011
 Why:	The paravirt mmu host support is slower than non-paravirt mmu, both
@@ -457,14 +436,6 @@ What:	IRQF_DISABLED
 When:	2.6.36
 Why:	The flag is a NOOP as we run interrupt handlers with interrupts disabled
 Who:	Thomas Gleixner <tglx@linutronix.de>
-
-----------------------------
-
-What:	The acpi_sleep=s4_nonvs command line option
-When:	2.6.37
-Files:	arch/x86/kernel/acpi/sleep.c
-Why:	superseded by acpi_sleep=nonvs
-Who:	Rafael J. Wysocki <rjw@sisk.pl>
 
 ----------------------------
 

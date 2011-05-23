@@ -363,7 +363,12 @@ struct apic {
 	 */
 	int (*x86_32_early_logical_apicid)(int cpu);
 
-	/* determine CPU -> NUMA node mapping */
+	/*
+	 * Optional method called from setup_local_APIC() after logical
+	 * apicid is guaranteed to be known to initialize apicid -> node
+	 * mapping if NUMA initialization hasn't done so already.  Don't
+	 * add new users.
+	 */
 	int (*x86_32_numa_cpu_node)(int cpu);
 #endif
 };
@@ -536,8 +541,6 @@ static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
 {
 	return cpuid_apic >> index_msb;
 }
-
-extern int default_x86_32_numa_cpu_node(int cpu);
 
 #endif
 

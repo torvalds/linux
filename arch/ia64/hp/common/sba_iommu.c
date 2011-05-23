@@ -37,6 +37,7 @@
 #include <linux/crash_dump.h>
 #include <linux/iommu-helper.h>
 #include <linux/dma-mapping.h>
+#include <linux/prefetch.h>
 
 #include <asm/delay.h>		/* ia64_get_itc() */
 #include <asm/io.h>

@@ -43,6 +43,7 @@
 #define AR9287_DEVID_PCI	0x002d
 #define AR9287_DEVID_PCIE	0x002e
 #define AR9300_DEVID_PCIE	0x0030
+#define AR9300_DEVID_AR9340	0x0031
 #define AR9300_DEVID_AR9485_PCIE 0x0032
 
 #define AR5416_AR9100_DEVID	0x000b
@@ -55,6 +56,9 @@
 #define AT9285_COEX3WIRE_SA_SUBSYSID	0x30aa
 #define AT9285_COEX3WIRE_DA_SUBSYSID	0x30ab
 
+#define AR9300_NUM_BT_WEIGHTS   4
+#define AR9300_NUM_WLAN_WEIGHTS 4
+
 #define ATH_AMPDU_LIMIT_MAX        (64 * 1024 - 1)
 
 #define	ATH_DEFAULT_NOISE_FLOOR -95
@@ -65,53 +69,49 @@
 
 /* Register read/write primitives */
 #define REG_WRITE(_ah, _reg, _val) \
-	ath9k_hw_common(_ah)->ops->write((_ah), (_val), (_reg))
+	(_ah)->reg_ops.write((_ah), (_val), (_reg))
 
 #define REG_READ(_ah, _reg) \
-	ath9k_hw_common(_ah)->ops->read((_ah), (_reg))
+	(_ah)->reg_ops.read((_ah), (_reg))
 
 #define REG_READ_MULTI(_ah, _addr, _val, _cnt)		\
-	ath9k_hw_common(_ah)->ops->multi_read((_ah), (_addr), (_val), (_cnt))
+	(_ah)->reg_ops.multi_read((_ah), (_addr), (_val), (_cnt))
+
+#define REG_RMW(_ah, _reg, _set, _clr) \
+	(_ah)->reg_ops.rmw((_ah), (_reg), (_set), (_clr))
 
 #define ENABLE_REGWRITE_BUFFER(_ah)					\
 	do {								\
-		if (ath9k_hw_common(_ah)->ops->enable_write_buffer)	\
-			ath9k_hw_common(_ah)->ops->enable_write_buffer((_ah)); \
+		if ((_ah)->reg_ops.enable_write_buffer)	\
+			(_ah)->reg_ops.enable_write_buffer((_ah)); \
 	} while (0)
 
 #define REGWRITE_BUFFER_FLUSH(_ah)					\
 	do {								\
-		if (ath9k_hw_common(_ah)->ops->write_flush)		\
-			ath9k_hw_common(_ah)->ops->write_flush((_ah));	\
+		if ((_ah)->reg_ops.write_flush)		\
+			(_ah)->reg_ops.write_flush((_ah));	\
 	} while (0)
 
 #define SM(_v, _f)  (((_v) << _f##_S) & _f)
 #define MS(_v, _f)  (((_v) & _f) >> _f##_S)
-#define REG_RMW(_a, _r, _set, _clr)    \
-	REG_WRITE(_a, _r, (REG_READ(_a, _r) & ~(_clr)) | (_set))
 #define REG_RMW_FIELD(_a, _r, _f, _v) \
-	REG_WRITE(_a, _r, \
-	(REG_READ(_a, _r) & ~_f) | (((_v) << _f##_S) & _f))
+	REG_RMW(_a, _r, (((_v) << _f##_S) & _f), (_f))
 #define REG_READ_FIELD(_a, _r, _f) \
 	(((REG_READ(_a, _r) & _f) >> _f##_S))
 #define REG_SET_BIT(_a, _r, _f) \
-	REG_WRITE(_a, _r, REG_READ(_a, _r) | (_f))
+	REG_RMW(_a, _r, (_f), 0)
 #define REG_CLR_BIT(_a, _r, _f) \
-	REG_WRITE(_a, _r, REG_READ(_a, _r) & ~(_f))
+	REG_RMW(_a, _r, 0, (_f))
 
-#define DO_DELAY(x) do {			\
-		if ((++(x) % 64) == 0)          \
-			udelay(1);		\
+#define DO_DELAY(x) do {					\
+		if (((++(x) % 64) == 0) &&			\
+		    (ath9k_hw_common(ah)->bus_ops->ath_bus_type	\
+			!= ATH_USB))				\
+			udelay(1);				\
 	} while (0)
 
-#define REG_WRITE_ARRAY(iniarray, column, regWr) do {                   \
-		int r;							\
-		for (r = 0; r < ((iniarray)->ia_rows); r++) {		\
-			REG_WRITE(ah, INI_RA((iniarray), (r), 0),	\
-				  INI_RA((iniarray), r, (column)));	\
-			DO_DELAY(regWr);				\
-		}							\
-	} while (0)
+#define REG_WRITE_ARRAY(iniarray, column, regWr) \
+	ath9k_hw_write_array(ah, iniarray, column, &(regWr))
 
 #define AR_GPIO_OUTPUT_MUX_AS_OUTPUT             0
 #define AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED 1
@@ -125,7 +125,7 @@
 #define AR_GPIO_BIT(_gpio)          (1 << (_gpio))
 
 #define BASE_ACTIVATE_DELAY         100
-#define RTC_PLL_SETTLE_DELAY        100
+#define RTC_PLL_SETTLE_DELAY        (AR_SREV_9340(ah) ? 1000 : 100)
 #define COEF_SCALE_S                24
 #define HT40_CHANNEL_CENTER_SHIFT   10
 
@@ -178,7 +178,6 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_HT                         = BIT(0),
 	ATH9K_HW_CAP_RFSILENT                   = BIT(1),
 	ATH9K_HW_CAP_CST                        = BIT(2),
-	ATH9K_HW_CAP_ENHANCEDPM                 = BIT(3),
 	ATH9K_HW_CAP_AUTOSLEEP                  = BIT(4),
 	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(5),
 	ATH9K_HW_CAP_EDMA			= BIT(6),
@@ -195,17 +194,11 @@ enum ath9k_hw_caps {
 
 struct ath9k_hw_capabilities {
 	u32 hw_caps; /* ATH9K_HW_CAP_* from ath9k_hw_caps */
-	u16 total_queues;
-	u16 keycache_size;
-	u16 low_5ghz_chan, high_5ghz_chan;
-	u16 low_2ghz_chan, high_2ghz_chan;
 	u16 rts_aggr_limit;
 	u8 tx_chainmask;
 	u8 rx_chainmask;
 	u8 max_txchains;
 	u8 max_rxchains;
-	u16 tx_triglevel_max;
-	u16 reg_cap;
 	u8 num_gpio_pins;
 	u8 rx_hp_qdepth;
 	u8 rx_lp_qdepth;
@@ -227,7 +220,6 @@ struct ath9k_ops_config {
 	u8 pcie_clock_req;
 	u32 pcie_waen;
 	u8 analog_shiftreg;
-	u8 ht_enable;
 	u8 paprd_disable;
 	u32 ofdm_trig_low;
 	u32 ofdm_trig_high;
@@ -412,8 +404,6 @@ struct ath9k_beacon_state {
 	u32 bs_nextdtim;
 	u32 bs_intval;
 #define ATH9K_BEACON_PERIOD       0x0000ffff
-#define ATH9K_BEACON_ENA          0x00800000
-#define ATH9K_BEACON_RESET_TSF    0x01000000
 #define ATH9K_TSFOOR_THRESHOLD    0x00004240 /* 16k us */
 	u32 bs_dtimperiod;
 	u16 bs_cfpperiod;
@@ -489,6 +479,10 @@ struct ath_hw_antcomb_conf {
 	u8 main_lna_conf;
 	u8 alt_lna_conf;
 	u8 fast_div_bias;
+	u8 main_gaintb;
+	u8 alt_gaintb;
+	int lna1_lna2_delta;
+	u8 div_group;
 };
 
 /**
@@ -638,10 +632,12 @@ struct ath_hw_ops {
 				   u32 numDelims);
 	void (*set11n_aggr_last)(struct ath_hw *ah, void *ds);
 	void (*clr11n_aggr)(struct ath_hw *ah, void *ds);
-	void (*set11n_burstduration)(struct ath_hw *ah, void *ds,
-				     u32 burstDuration);
-	void (*set11n_virtualmorefrag)(struct ath_hw *ah, void *ds,
-				       u32 vmf);
+	void (*set_clrdmask)(struct ath_hw *ah, void *ds, bool val);
+	void (*antdiv_comb_conf_get)(struct ath_hw *ah,
+			struct ath_hw_antcomb_conf *antconf);
+	void (*antdiv_comb_conf_set)(struct ath_hw *ah,
+			struct ath_hw_antcomb_conf *antconf);
+
 };
 
 struct ath_nf_limits {
@@ -655,6 +651,8 @@ struct ath_nf_limits {
 #define AH_UNPLUGGED    0x2 /* The card has been physically removed. */
 
 struct ath_hw {
+	struct ath_ops reg_ops;
+
 	struct ieee80211_hw *hw;
 	struct ath_common common;
 	struct ath9k_hw_version hw_version;
@@ -784,6 +782,8 @@ struct ath_hw {
 
 	/* Bluetooth coexistance */
 	struct ath_btcoex_hw btcoex_hw;
+	u32 bt_coex_bt_weight[AR9300_NUM_BT_WEIGHTS];
+	u32 bt_coex_wlan_weight[AR9300_NUM_WLAN_WEIGHTS];
 
 	u32 intr_txqs;
 	u8 txchainmask;
@@ -794,7 +794,9 @@ struct ath_hw {
 	u32 originalGain[22];
 	int initPDADC;
 	int PDADCdelta;
-	u8 led_pin;
+	int led_pin;
+	u32 gpio_mask;
+	u32 gpio_val;
 
 	struct ar5416IniArray iniModes;
 	struct ar5416IniArray iniCommon;
@@ -810,6 +812,7 @@ struct ath_hw {
 	struct ar5416IniArray iniPcieSerdes;
 	struct ar5416IniArray iniPcieSerdesLowPower;
 	struct ar5416IniArray iniModesAdditional;
+	struct ar5416IniArray iniModesAdditional_40M;
 	struct ar5416IniArray iniModesRxGain;
 	struct ar5416IniArray iniModesTxGain;
 	struct ar5416IniArray iniModes_9271_1_0_only;
@@ -856,6 +859,16 @@ struct ath_hw {
 
 	/* Enterprise mode cap */
 	u32 ent_mode;
+
+	bool is_clk_25mhz;
+};
+
+struct ath_bus_ops {
+	enum ath_bus_type ath_bus_type;
+	void (*read_cachesize)(struct ath_common *common, int *csz);
+	bool (*eeprom_read)(struct ath_common *common, u32 off, u16 *data);
+	void (*bt_coex_prep)(struct ath_common *common);
+	void (*extn_synch_en)(struct ath_common *common);
 };
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
@@ -900,15 +913,12 @@ void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val);
 u32 ath9k_hw_getdefantenna(struct ath_hw *ah);
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
-void ath9k_hw_antdiv_comb_conf_get(struct ath_hw *ah,
-				   struct ath_hw_antcomb_conf *antconf);
-void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
-				   struct ath_hw_antcomb_conf *antconf);
 
 /* General Operation */
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
+void ath9k_hw_write_array(struct ath_hw *ah, struct ar5416IniArray *array,
+			  int column, unsigned int *writecnt);
 u32 ath9k_hw_reverse_bits(u32 val, u32 n);
-bool ath9k_get_channel_edges(struct ath_hw *ah, u16 flags, u16 *low, u16 *high);
 u16 ath9k_hw_computetxtime(struct ath_hw *ah,
 			   u8 phy, int kbps,
 			   u32 frameLen, u16 rateix, bool shortPreamble);
@@ -924,12 +934,13 @@ void ath9k_hw_setopmode(struct ath_hw *ah);
 void ath9k_hw_setmcastfilter(struct ath_hw *ah, u32 filter0, u32 filter1);
 void ath9k_hw_setbssidmask(struct ath_hw *ah);
 void ath9k_hw_write_associd(struct ath_hw *ah);
+u32 ath9k_hw_gettsf32(struct ath_hw *ah);
 u64 ath9k_hw_gettsf64(struct ath_hw *ah);
 void ath9k_hw_settsf64(struct ath_hw *ah, u64 tsf64);
 void ath9k_hw_reset_tsf(struct ath_hw *ah);
 void ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting);
 void ath9k_hw_init_global_settings(struct ath_hw *ah);
-unsigned long ar9003_get_pll_sqsum_dvc(struct ath_hw *ah);
+u32 ar9003_get_pll_sqsum_dvc(struct ath_hw *ah);
 void ath9k_hw_set11nmac2040(struct ath_hw *ah);
 void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period);
 void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,

@@ -18,6 +18,50 @@
 
 #define FUDGE 2
 
+void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
+{
+	struct ath_hw *ah = priv->ah;
+	struct ath9k_tx_queue_info qi, qi_be;
+
+	memset(&qi, 0, sizeof(struct ath9k_tx_queue_info));
+	memset(&qi_be, 0, sizeof(struct ath9k_tx_queue_info));
+
+	ath9k_hw_get_txq_props(ah, priv->beaconq, &qi);
+
+	if (priv->ah->opmode == NL80211_IFTYPE_AP) {
+		qi.tqi_aifs = 1;
+		qi.tqi_cwmin = 0;
+		qi.tqi_cwmax = 0;
+	} else if (priv->ah->opmode == NL80211_IFTYPE_ADHOC) {
+		int qnum = priv->hwq_map[WME_AC_BE];
+
+		ath9k_hw_get_txq_props(ah, qnum, &qi_be);
+
+		qi.tqi_aifs = qi_be.tqi_aifs;
+
+		/*
+		 * For WIFI Beacon Distribution
+		 * Long slot time  : 2x cwmin
+		 * Short slot time : 4x cwmin
+		 */
+		if (ah->slottime == ATH9K_SLOT_TIME_20)
+			qi.tqi_cwmin = 2*qi_be.tqi_cwmin;
+		else
+			qi.tqi_cwmin = 4*qi_be.tqi_cwmin;
+
+		qi.tqi_cwmax = qi_be.tqi_cwmax;
+
+	}
+
+	if (!ath9k_hw_set_txq_props(ah, priv->beaconq, &qi)) {
+		ath_err(ath9k_hw_common(ah),
+			"Unable to update beacon queue %u!\n", priv->beaconq);
+	} else {
+		ath9k_hw_resettxqueue(ah, priv->beaconq);
+	}
+}
+
+
 static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 					struct htc_beacon_config *bss_conf)
 {
@@ -30,7 +74,7 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	__be32 htc_imask = 0;
 	u64 tsf;
 	int num_beacons, offset, dtim_dec_count, cfp_dec_count;
-	int ret;
+	int ret __attribute__ ((unused));
 	u8 cmd_rsp;
 
 	memset(&bs, 0, sizeof(bs));
@@ -146,7 +190,7 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 	enum ath9k_int imask = 0;
 	u32 nexttbtt, intval, tsftu;
 	__be32 htc_imask = 0;
-	int ret;
+	int ret __attribute__ ((unused));
 	u8 cmd_rsp;
 	u64 tsf;
 
@@ -154,8 +198,17 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 	intval /= ATH9K_HTC_MAX_BCN_VIF;
 	nexttbtt = intval;
 
+	/*
+	 * To reduce beacon misses under heavy TX load,
+	 * set the beacon response time to a larger value.
+	 */
+	if (intval > DEFAULT_SWBA_RESPONSE)
+		priv->ah->config.sw_beacon_response_time = DEFAULT_SWBA_RESPONSE;
+	else
+		priv->ah->config.sw_beacon_response_time = MIN_SWBA_RESPONSE;
+
 	if (priv->op_flags & OP_TSF_RESET) {
-		intval |= ATH9K_BEACON_RESET_TSF;
+		ath9k_hw_reset_tsf(priv->ah);
 		priv->op_flags &= ~OP_TSF_RESET;
 	} else {
 		/*
@@ -168,18 +221,20 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 		} while (nexttbtt < tsftu);
 	}
 
-	intval |= ATH9K_BEACON_ENA;
-
 	if (priv->op_flags & OP_ENABLE_BEACON)
 		imask |= ATH9K_INT_SWBA;
 
 	ath_dbg(common, ATH_DBG_CONFIG,
-		"AP Beacon config, intval: %d, nexttbtt: %u imask: 0x%x\n",
-		bss_conf->beacon_interval, nexttbtt, imask);
+		"AP Beacon config, intval: %d, nexttbtt: %u, resp_time: %d "
+		"imask: 0x%x\n",
+		bss_conf->beacon_interval, nexttbtt,
+		priv->ah->config.sw_beacon_response_time, imask);
+
+	ath9k_htc_beaconq_config(priv);
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
-	ath9k_hw_beaconinit(priv->ah, nexttbtt, intval);
-	priv->bmiss_cnt = 0;
+	ath9k_hw_beaconinit(priv->ah, TU_TO_USEC(nexttbtt), TU_TO_USEC(intval));
+	priv->cur_beacon_conf.bmiss_cnt = 0;
 	htc_imask = cpu_to_be32(imask);
 	WMI_CMD_BUF(WMI_ENABLE_INTR_CMDID, &htc_imask);
 }
@@ -191,7 +246,7 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 	enum ath9k_int imask = 0;
 	u32 nexttbtt, intval, tsftu;
 	__be32 htc_imask = 0;
-	int ret;
+	int ret __attribute__ ((unused));
 	u8 cmd_rsp;
 	u64 tsf;
 
@@ -207,17 +262,26 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 		nexttbtt += intval;
 	} while (nexttbtt < tsftu);
 
-	intval |= ATH9K_BEACON_ENA;
+	/*
+	 * Only one IBSS interfce is allowed.
+	 */
+	if (intval > DEFAULT_SWBA_RESPONSE)
+		priv->ah->config.sw_beacon_response_time = DEFAULT_SWBA_RESPONSE;
+	else
+		priv->ah->config.sw_beacon_response_time = MIN_SWBA_RESPONSE;
+
 	if (priv->op_flags & OP_ENABLE_BEACON)
 		imask |= ATH9K_INT_SWBA;
 
 	ath_dbg(common, ATH_DBG_CONFIG,
-		"IBSS Beacon config, intval: %d, nexttbtt: %u, imask: 0x%x\n",
-		bss_conf->beacon_interval, nexttbtt, imask);
+		"IBSS Beacon config, intval: %d, nexttbtt: %u, "
+		"resp_time: %d, imask: 0x%x\n",
+		bss_conf->beacon_interval, nexttbtt,
+		priv->ah->config.sw_beacon_response_time, imask);
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
-	ath9k_hw_beaconinit(priv->ah, nexttbtt, intval);
-	priv->bmiss_cnt = 0;
+	ath9k_hw_beaconinit(priv->ah, TU_TO_USEC(nexttbtt), TU_TO_USEC(intval));
+	priv->cur_beacon_conf.bmiss_cnt = 0;
 	htc_imask = cpu_to_be32(imask);
 	WMI_CMD_BUF(WMI_ENABLE_INTR_CMDID, &htc_imask);
 }
@@ -228,25 +292,81 @@ void ath9k_htc_beaconep(void *drv_priv, struct sk_buff *skb,
 	dev_kfree_skb_any(skb);
 }
 
-void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending)
+static void ath9k_htc_send_buffered(struct ath9k_htc_priv *priv,
+				    int slot)
 {
-	struct ath9k_htc_vif *avp = (void *)priv->vif->drv_priv;
-	struct tx_beacon_header beacon_hdr;
-	struct ath9k_htc_tx_ctl tx_ctl;
-	struct ieee80211_tx_info *info;
-	struct sk_buff *beacon;
-	u8 *tx_fhdr;
-
-	memset(&beacon_hdr, 0, sizeof(struct tx_beacon_header));
-	memset(&tx_ctl, 0, sizeof(struct ath9k_htc_tx_ctl));
-
-	/* FIXME: Handle BMISS */
-	if (beacon_pending != 0) {
-		priv->bmiss_cnt++;
-		return;
-	}
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ieee80211_vif *vif;
+	struct sk_buff *skb;
+	struct ieee80211_hdr *hdr;
+	int padpos, padsize, ret, tx_slot;
 
 	spin_lock_bh(&priv->beacon_lock);
+
+	vif = priv->cur_beacon_conf.bslot[slot];
+
+	skb = ieee80211_get_buffered_bc(priv->hw, vif);
+
+	while(skb) {
+		hdr = (struct ieee80211_hdr *) skb->data;
+
+		padpos = ath9k_cmn_padpos(hdr->frame_control);
+		padsize = padpos & 3;
+		if (padsize && skb->len > padpos) {
+			if (skb_headroom(skb) < padsize) {
+				dev_kfree_skb_any(skb);
+				goto next;
+			}
+			skb_push(skb, padsize);
+			memmove(skb->data, skb->data + padsize, padpos);
+		}
+
+		tx_slot = ath9k_htc_tx_get_slot(priv);
+		if (tx_slot < 0) {
+			ath_dbg(common, ATH_DBG_XMIT, "No free CAB slot\n");
+			dev_kfree_skb_any(skb);
+			goto next;
+		}
+
+		ret = ath9k_htc_tx_start(priv, skb, tx_slot, true);
+		if (ret != 0) {
+			ath9k_htc_tx_clear_slot(priv, tx_slot);
+			dev_kfree_skb_any(skb);
+
+			ath_dbg(common, ATH_DBG_XMIT,
+				"Failed to send CAB frame\n");
+		} else {
+			spin_lock_bh(&priv->tx.tx_lock);
+			priv->tx.queued_cnt++;
+			spin_unlock_bh(&priv->tx.tx_lock);
+		}
+	next:
+		skb = ieee80211_get_buffered_bc(priv->hw, vif);
+	}
+
+	spin_unlock_bh(&priv->beacon_lock);
+}
+
+static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
+				  int slot)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ieee80211_vif *vif;
+	struct ath9k_htc_vif *avp;
+	struct tx_beacon_header beacon_hdr;
+	struct ath9k_htc_tx_ctl *tx_ctl;
+	struct ieee80211_tx_info *info;
+	struct ieee80211_mgmt *mgmt;
+	struct sk_buff *beacon;
+	u8 *tx_fhdr;
+	int ret;
+
+	memset(&beacon_hdr, 0, sizeof(struct tx_beacon_header));
+
+	spin_lock_bh(&priv->beacon_lock);
+
+	vif = priv->cur_beacon_conf.bslot[slot];
+	avp = (struct ath9k_htc_vif *)vif->drv_priv;
 
 	if (unlikely(priv->op_flags & OP_SCANNING)) {
 		spin_unlock_bh(&priv->beacon_lock);
@@ -254,11 +374,18 @@ void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending)
 	}
 
 	/* Get a new beacon */
-	beacon = ieee80211_beacon_get(priv->hw, priv->vif);
+	beacon = ieee80211_beacon_get(priv->hw, vif);
 	if (!beacon) {
 		spin_unlock_bh(&priv->beacon_lock);
 		return;
 	}
+
+	/*
+	 * Update the TSF adjust value here, the HW will
+	 * add this value for every beacon.
+	 */
+	mgmt = (struct ieee80211_mgmt *)beacon->data;
+	mgmt->u.beacon.timestamp = avp->tsfadjust;
 
 	info = IEEE80211_SKB_CB(beacon);
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
@@ -269,45 +396,149 @@ void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending)
 		hdr->seq_ctrl |= cpu_to_le16(avp->seq_no);
 	}
 
-	tx_ctl.type = ATH9K_HTC_NORMAL;
+	tx_ctl = HTC_SKB_CB(beacon);
+	memset(tx_ctl, 0, sizeof(*tx_ctl));
+
+	tx_ctl->type = ATH9K_HTC_BEACON;
+	tx_ctl->epid = priv->beacon_ep;
+
 	beacon_hdr.vif_index = avp->index;
 	tx_fhdr = skb_push(beacon, sizeof(beacon_hdr));
 	memcpy(tx_fhdr, (u8 *) &beacon_hdr, sizeof(beacon_hdr));
 
-	htc_send(priv->htc, beacon, priv->beacon_ep, &tx_ctl);
+	ret = htc_send(priv->htc, beacon);
+	if (ret != 0) {
+		if (ret == -ENOMEM) {
+			ath_dbg(common, ATH_DBG_BSTUCK,
+				"Failed to send beacon, no free TX buffer\n");
+		}
+		dev_kfree_skb_any(beacon);
+	}
 
 	spin_unlock_bh(&priv->beacon_lock);
 }
 
-/* Currently, only for IBSS */
-void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
+static int ath9k_htc_choose_bslot(struct ath9k_htc_priv *priv,
+				  struct wmi_event_swba *swba)
 {
-	struct ath_hw *ah = priv->ah;
-	struct ath9k_tx_queue_info qi, qi_be;
-	int qnum = priv->hwq_map[WME_AC_BE];
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	u64 tsf;
+	u32 tsftu;
+	u16 intval;
+	int slot;
 
-	memset(&qi, 0, sizeof(struct ath9k_tx_queue_info));
-	memset(&qi_be, 0, sizeof(struct ath9k_tx_queue_info));
+	intval = priv->cur_beacon_conf.beacon_interval & ATH9K_BEACON_PERIOD;
 
-	ath9k_hw_get_txq_props(ah, qnum, &qi_be);
+	tsf = be64_to_cpu(swba->tsf);
+	tsftu = TSF_TO_TU(tsf >> 32, tsf);
+	slot = ((tsftu % intval) * ATH9K_HTC_MAX_BCN_VIF) / intval;
+	slot = ATH9K_HTC_MAX_BCN_VIF - slot - 1;
 
-	qi.tqi_aifs = qi_be.tqi_aifs;
-	/* For WIFI Beacon Distribution
-	 * Long slot time  : 2x cwmin
-	 * Short slot time : 4x cwmin
-	 */
-	if (ah->slottime == ATH9K_SLOT_TIME_20)
-		qi.tqi_cwmin = 2*qi_be.tqi_cwmin;
-	else
-		qi.tqi_cwmin = 4*qi_be.tqi_cwmin;
-	qi.tqi_cwmax = qi_be.tqi_cwmax;
+	ath_dbg(common, ATH_DBG_BEACON,
+		"Choose slot: %d, tsf: %llu, tsftu: %u, intval: %u\n",
+		slot, tsf, tsftu, intval);
 
-	if (!ath9k_hw_set_txq_props(ah, priv->beaconq, &qi)) {
-		ath_err(ath9k_hw_common(ah),
-			"Unable to update beacon queue %u!\n", qnum);
-	} else {
-		ath9k_hw_resettxqueue(ah, priv->beaconq);
+	return slot;
+}
+
+void ath9k_htc_swba(struct ath9k_htc_priv *priv,
+		    struct wmi_event_swba *swba)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	int slot;
+
+	if (swba->beacon_pending != 0) {
+		priv->cur_beacon_conf.bmiss_cnt++;
+		if (priv->cur_beacon_conf.bmiss_cnt > BSTUCK_THRESHOLD) {
+			ath_dbg(common, ATH_DBG_BSTUCK,
+				"Beacon stuck, HW reset\n");
+			ieee80211_queue_work(priv->hw,
+					     &priv->fatal_work);
+		}
+		return;
 	}
+
+	if (priv->cur_beacon_conf.bmiss_cnt) {
+		ath_dbg(common, ATH_DBG_BSTUCK,
+			"Resuming beacon xmit after %u misses\n",
+			priv->cur_beacon_conf.bmiss_cnt);
+		priv->cur_beacon_conf.bmiss_cnt = 0;
+	}
+
+	slot = ath9k_htc_choose_bslot(priv, swba);
+	spin_lock_bh(&priv->beacon_lock);
+	if (priv->cur_beacon_conf.bslot[slot] == NULL) {
+		spin_unlock_bh(&priv->beacon_lock);
+		return;
+	}
+	spin_unlock_bh(&priv->beacon_lock);
+
+	ath9k_htc_send_buffered(priv, slot);
+	ath9k_htc_send_beacon(priv, slot);
+}
+
+void ath9k_htc_assign_bslot(struct ath9k_htc_priv *priv,
+			    struct ieee80211_vif *vif)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_vif *avp = (struct ath9k_htc_vif *)vif->drv_priv;
+	int i = 0;
+
+	spin_lock_bh(&priv->beacon_lock);
+	for (i = 0; i < ATH9K_HTC_MAX_BCN_VIF; i++) {
+		if (priv->cur_beacon_conf.bslot[i] == NULL) {
+			avp->bslot = i;
+			break;
+		}
+	}
+
+	priv->cur_beacon_conf.bslot[avp->bslot] = vif;
+	spin_unlock_bh(&priv->beacon_lock);
+
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"Added interface at beacon slot: %d\n", avp->bslot);
+}
+
+void ath9k_htc_remove_bslot(struct ath9k_htc_priv *priv,
+			    struct ieee80211_vif *vif)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_vif *avp = (struct ath9k_htc_vif *)vif->drv_priv;
+
+	spin_lock_bh(&priv->beacon_lock);
+	priv->cur_beacon_conf.bslot[avp->bslot] = NULL;
+	spin_unlock_bh(&priv->beacon_lock);
+
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"Removed interface at beacon slot: %d\n", avp->bslot);
+}
+
+/*
+ * Calculate the TSF adjustment value for all slots
+ * other than zero.
+ */
+void ath9k_htc_set_tsfadjust(struct ath9k_htc_priv *priv,
+			     struct ieee80211_vif *vif)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_vif *avp = (struct ath9k_htc_vif *)vif->drv_priv;
+	struct htc_beacon_config *cur_conf = &priv->cur_beacon_conf;
+	u64 tsfadjust;
+
+	if (avp->bslot == 0)
+		return;
+
+	/*
+	 * The beacon interval cannot be different for multi-AP mode,
+	 * and we reach here only for VIF slots greater than zero,
+	 * so beacon_interval is guaranteed to be set in cur_conf.
+	 */
+	tsfadjust = cur_conf->beacon_interval * avp->bslot / ATH9K_HTC_MAX_BCN_VIF;
+	avp->tsfadjust = cpu_to_le64(TU_TO_USEC(tsfadjust));
+
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"tsfadjust is: %llu for bslot: %d\n",
+		(unsigned long long)tsfadjust, avp->bslot);
 }
 
 static void ath9k_htc_beacon_iter(void *data, u8 *mac, struct ieee80211_vif *vif)

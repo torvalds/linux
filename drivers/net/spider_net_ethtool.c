@@ -58,7 +58,7 @@ spider_net_ethtool_get_settings(struct net_device *netdev,
 	cmd->advertising = (ADVERTISED_1000baseT_Full |
 			     ADVERTISED_FIBRE);
 	cmd->port = PORT_FIBRE;
-	cmd->speed = card->phy.speed;
+	ethtool_cmd_speed_set(cmd, card->phy.speed);
 	cmd->duplex = DUPLEX_FULL;
 
 	return 0;
@@ -114,24 +114,6 @@ spider_net_ethtool_nway_reset(struct net_device *netdev)
 	}
 	return 0;
 }
-
-static u32
-spider_net_ethtool_get_rx_csum(struct net_device *netdev)
-{
-	struct spider_net_card *card = netdev_priv(netdev);
-
-	return card->options.rx_csum;
-}
-
-static int
-spider_net_ethtool_set_rx_csum(struct net_device *netdev, u32 n)
-{
-	struct spider_net_card *card = netdev_priv(netdev);
-
-	card->options.rx_csum = n;
-	return 0;
-}
-
 
 static void
 spider_net_ethtool_get_ringparam(struct net_device *netdev,
@@ -189,9 +171,6 @@ const struct ethtool_ops spider_net_ethtool_ops = {
 	.set_msglevel		= spider_net_ethtool_set_msglevel,
 	.get_link		= ethtool_op_get_link,
 	.nway_reset		= spider_net_ethtool_nway_reset,
-	.get_rx_csum		= spider_net_ethtool_get_rx_csum,
-	.set_rx_csum		= spider_net_ethtool_set_rx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_csum,
 	.get_ringparam          = spider_net_ethtool_get_ringparam,
 	.get_strings		= spider_net_get_strings,
 	.get_sset_count		= spider_net_get_sset_count,

@@ -521,6 +521,11 @@ static int _request_firmware(const struct firmware **firmware_p,
 	if (!firmware_p)
 		return -EINVAL;
 
+	if (WARN_ON(usermodehelper_is_disabled())) {
+		dev_err(device, "firmware: %s will not be loaded\n", name);
+		return -EBUSY;
+	}
+
 	*firmware_p = firmware = kzalloc(sizeof(*firmware), GFP_KERNEL);
 	if (!firmware) {
 		dev_err(device, "%s: kmalloc(struct firmware) failed\n",

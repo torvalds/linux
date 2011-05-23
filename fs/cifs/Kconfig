@@ -7,6 +7,7 @@ config CIFS
 	select CRYPTO_MD5
 	select CRYPTO_HMAC
 	select CRYPTO_ARC4
+	select CRYPTO_DES
 	help
 	  This is the client VFS module for the Common Internet File System
 	  (CIFS) protocol which is the successor to the Server Message Block
@@ -152,16 +153,28 @@ config CIFS_ACL
 	    Allows to fetch CIFS/NTFS ACL from the server.  The DACL blob
 	    is handed over to the application/caller.
 
-config CIFS_EXPERIMENTAL
-	  bool "CIFS Experimental Features (EXPERIMENTAL)"
+config CIFS_SMB2
+	bool "SMB2 network file system support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && INET && BROKEN
+	select NLS
+	select KEYS
+	select FSCACHE
+	select DNS_RESOLVER
+
+	help
+	  This enables experimental support for the SMB2 (Server Message Block
+	  version 2) protocol. The SMB2 protocol is the successor to the
+	  popular CIFS and SMB network file sharing protocols. SMB2 is the
+	  native file sharing mechanism for recent versions of Windows
+	  operating systems (since Vista).  SMB2 enablement will eventually
+	  allow users better performance, security and features, than would be
+	  possible with cifs. Note that smb2 mount options also are simpler
+	  (compared to cifs) due to protocol improvements.
+
+	  Unless you are a developer or tester, say N.
+
+config CIFS_NFSD_EXPORT
+	  bool "Allow nfsd to export CIFS file system (EXPERIMENTAL)"
 	  depends on CIFS && EXPERIMENTAL
 	  help
-	    Enables cifs features under testing. These features are
-	    experimental and currently include DFS support and directory
-	    change notification ie fcntl(F_DNOTIFY), as well as the upcall
-	    mechanism which will be used for Kerberos session negotiation
-	    and uid remapping.  Some of these features also may depend on
-	    setting a value of 1 to the pseudo-file /proc/fs/cifs/Experimental
-	    (which is disabled by default). See the file fs/cifs/README
-	    for more details.  If unsure, say N.
-
+	   Allows NFS server to export a CIFS mounted share (nfsd over cifs)

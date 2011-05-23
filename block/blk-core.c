@@ -204,7 +204,7 @@ static void blk_delay_work(struct work_struct *work)
 
 	q = container_of(work, struct request_queue, delay_work.work);
 	spin_lock_irq(q->queue_lock);
-	__blk_run_queue(q, false);
+	__blk_run_queue(q);
 	spin_unlock_irq(q->queue_lock);
 }
 
@@ -220,7 +220,8 @@ static void blk_delay_work(struct work_struct *work)
  */
 void blk_delay_queue(struct request_queue *q, unsigned long msecs)
 {
-	schedule_delayed_work(&q->delay_work, msecs_to_jiffies(msecs));
+	queue_delayed_work(kblockd_workqueue, &q->delay_work,
+				msecs_to_jiffies(msecs));
 }
 EXPORT_SYMBOL(blk_delay_queue);
 
@@ -238,7 +239,7 @@ void blk_start_queue(struct request_queue *q)
 	WARN_ON(!irqs_disabled());
 
 	queue_flag_clear(QUEUE_FLAG_STOPPED, q);
-	__blk_run_queue(q, false);
+	__blk_run_queue(q);
 }
 EXPORT_SYMBOL(blk_start_queue);
 
@@ -291,29 +292,36 @@ EXPORT_SYMBOL(blk_sync_queue);
 /**
  * __blk_run_queue - run a single device queue
  * @q:	The queue to run
- * @force_kblockd: Don't run @q->request_fn directly.  Use kblockd.
  *
  * Description:
  *    See @blk_run_queue. This variant must be called with the queue lock
  *    held and interrupts disabled.
- *
  */
-void __blk_run_queue(struct request_queue *q, bool force_kblockd)
+void __blk_run_queue(struct request_queue *q)
 {
 	if (unlikely(blk_queue_stopped(q)))
 		return;
 
-	/*
-	 * Only recurse once to avoid overrunning the stack, let the unplug
-	 * handling reinvoke the handler shortly if we already got there.
-	 */
-	if (!force_kblockd && !queue_flag_test_and_set(QUEUE_FLAG_REENTER, q)) {
-		q->request_fn(q);
-		queue_flag_clear(QUEUE_FLAG_REENTER, q);
-	} else
-		queue_delayed_work(kblockd_workqueue, &q->delay_work, 0);
+	q->request_fn(q);
 }
 EXPORT_SYMBOL(__blk_run_queue);
+
+/**
+ * blk_run_queue_async - run a single device queue in workqueue context
+ * @q:	The queue to run
+ *
+ * Description:
+ *    Tells kblockd to perform the equivalent of @blk_run_queue on behalf
+ *    of us.
+ */
+void blk_run_queue_async(struct request_queue *q)
+{
+	if (likely(!blk_queue_stopped(q))) {
+		__cancel_delayed_work(&q->delay_work);
+		queue_delayed_work(kblockd_workqueue, &q->delay_work, 0);
+	}
+}
+EXPORT_SYMBOL(blk_run_queue_async);
 
 /**
  * blk_run_queue - run a single device queue
@@ -328,7 +336,7 @@ void blk_run_queue(struct request_queue *q)
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	__blk_run_queue(q, false);
+	__blk_run_queue(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(blk_run_queue);
@@ -977,7 +985,7 @@ void blk_insert_request(struct request_queue *q, struct request *rq,
 		blk_queue_end_tag(q, rq);
 
 	add_acct_request(q, rq, where);
-	__blk_run_queue(q, false);
+	__blk_run_queue(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(blk_insert_request);
@@ -1321,7 +1329,7 @@ get_rq:
 	} else {
 		spin_lock_irq(q->queue_lock);
 		add_acct_request(q, req, where);
-		__blk_run_queue(q, false);
+		__blk_run_queue(q);
 out_unlock:
 		spin_unlock_irq(q->queue_lock);
 	}
@@ -2638,6 +2646,7 @@ void blk_start_plug(struct blk_plug *plug)
 
 	plug->magic = PLUG_MAGIC;
 	INIT_LIST_HEAD(&plug->list);
+	INIT_LIST_HEAD(&plug->cb_list);
 	plug->should_sort = 0;
 
 	/*
@@ -2670,12 +2679,41 @@ static int plug_rq_cmp(void *priv, struct list_head *a, struct list_head *b)
  */
 static void queue_unplugged(struct request_queue *q, unsigned int depth,
 			    bool from_schedule)
+	__releases(q->queue_lock)
 {
 	trace_block_unplug(q, depth, !from_schedule);
-	__blk_run_queue(q, from_schedule);
 
-	if (q->unplugged_fn)
-		q->unplugged_fn(q);
+	/*
+	 * If we are punting this to kblockd, then we can safely drop
+	 * the queue_lock before waking kblockd (which needs to take
+	 * this lock).
+	 */
+	if (from_schedule) {
+		spin_unlock(q->queue_lock);
+		blk_run_queue_async(q);
+	} else {
+		__blk_run_queue(q);
+		spin_unlock(q->queue_lock);
+	}
+
+}
+
+static void flush_plug_callbacks(struct blk_plug *plug)
+{
+	LIST_HEAD(callbacks);
+
+	if (list_empty(&plug->cb_list))
+		return;
+
+	list_splice_init(&plug->cb_list, &callbacks);
+
+	while (!list_empty(&callbacks)) {
+		struct blk_plug_cb *cb = list_first_entry(&callbacks,
+							  struct blk_plug_cb,
+							  list);
+		list_del(&cb->list);
+		cb->callback(cb);
+	}
 }
 
 void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
@@ -2688,6 +2726,7 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 
 	BUG_ON(plug->magic != PLUG_MAGIC);
 
+	flush_plug_callbacks(plug);
 	if (list_empty(&plug->list))
 		return;
 
@@ -2712,10 +2751,11 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		BUG_ON(!(rq->cmd_flags & REQ_ON_PLUG));
 		BUG_ON(!rq->q);
 		if (rq->q != q) {
-			if (q) {
+			/*
+			 * This drops the queue lock
+			 */
+			if (q)
 				queue_unplugged(q, depth, from_schedule);
-				spin_unlock(q->queue_lock);
-			}
 			q = rq->q;
 			depth = 0;
 			spin_lock(q->queue_lock);
@@ -2733,14 +2773,14 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		depth++;
 	}
 
-	if (q) {
+	/*
+	 * This drops the queue lock
+	 */
+	if (q)
 		queue_unplugged(q, depth, from_schedule);
-		spin_unlock(q->queue_lock);
-	}
 
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(blk_flush_plug_list);
 
 void blk_finish_plug(struct blk_plug *plug)
 {

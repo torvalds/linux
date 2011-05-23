@@ -104,10 +104,10 @@ ixgb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	ecmd->transceiver = XCVR_EXTERNAL;
 
 	if (netif_carrier_ok(adapter->netdev)) {
-		ecmd->speed = SPEED_10000;
+		ethtool_cmd_speed_set(ecmd, SPEED_10000);
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 
@@ -129,9 +129,10 @@ static int
 ixgb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
+	u32 speed = ethtool_cmd_speed(ecmd);
 
 	if (ecmd->autoneg == AUTONEG_ENABLE ||
-	   ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL)
+	    (speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
 		return -EINVAL;
 
 	if (netif_running(adapter->netdev)) {
@@ -610,45 +611,23 @@ err_setup_rx:
 	return err;
 }
 
-/* toggle LED 4 times per second = 2 "blinks" per second */
-#define IXGB_ID_INTERVAL	(HZ/4)
-
-/* bit defines for adapter->led_status */
-#define IXGB_LED_ON		0
-
-static void
-ixgb_led_blink_callback(unsigned long data)
-{
-	struct ixgb_adapter *adapter = (struct ixgb_adapter *)data;
-
-	if (test_and_change_bit(IXGB_LED_ON, &adapter->led_status))
-		ixgb_led_off(&adapter->hw);
-	else
-		ixgb_led_on(&adapter->hw);
-
-	mod_timer(&adapter->blink_timer, jiffies + IXGB_ID_INTERVAL);
-}
-
 static int
-ixgb_phys_id(struct net_device *netdev, u32 data)
+ixgb_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
-	if (!data)
-		data = INT_MAX;
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		return 2;
 
-	if (!adapter->blink_timer.function) {
-		init_timer(&adapter->blink_timer);
-		adapter->blink_timer.function = ixgb_led_blink_callback;
-		adapter->blink_timer.data = (unsigned long)adapter;
+	case ETHTOOL_ID_ON:
+		ixgb_led_on(&adapter->hw);
+		break;
+
+	case ETHTOOL_ID_OFF:
+	case ETHTOOL_ID_INACTIVE:
+		ixgb_led_off(&adapter->hw);
 	}
-
-	mod_timer(&adapter->blink_timer, jiffies);
-
-	msleep_interruptible(data * 1000);
-	del_timer_sync(&adapter->blink_timer);
-	ixgb_led_off(&adapter->hw);
-	clear_bit(IXGB_LED_ON, &adapter->led_status);
 
 	return 0;
 }
@@ -766,7 +745,7 @@ static const struct ethtool_ops ixgb_ethtool_ops = {
 	.set_msglevel = ixgb_set_msglevel,
 	.set_tso = ixgb_set_tso,
 	.get_strings = ixgb_get_strings,
-	.phys_id = ixgb_phys_id,
+	.set_phys_id = ixgb_set_phys_id,
 	.get_sset_count = ixgb_get_sset_count,
 	.get_ethtool_stats = ixgb_get_ethtool_stats,
 	.get_flags = ethtool_op_get_flags,

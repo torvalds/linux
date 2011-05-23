@@ -65,17 +65,9 @@ static void run_again(struct ieee80211_local *local,
 		mod_timer(&local->work_timer, timeout);
 }
 
-static void work_free_rcu(struct rcu_head *head)
-{
-	struct ieee80211_work *wk =
-		container_of(head, struct ieee80211_work, rcu_head);
-
-	kfree(wk);
-}
-
 void free_work(struct ieee80211_work *wk)
 {
-	call_rcu(&wk->rcu_head, work_free_rcu);
+	kfree_rcu(wk, rcu_head);
 }
 
 static int ieee80211_compatible_rates(const u8 *supp_rates, int supp_rates_len,
@@ -198,9 +190,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos, qos_info;
-	const u8 *ies;
 	size_t offset = 0, noffset;
-	int i, len, count, rates_len, supp_rates_len;
+	int i, count, rates_len, supp_rates_len;
 	u16 capab;
 	struct ieee80211_supported_band *sband;
 	u32 rates = 0;
@@ -285,7 +276,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* SSID */
-	ies = pos = skb_put(skb, 2 + wk->assoc.ssid_len);
+	pos = skb_put(skb, 2 + wk->assoc.ssid_len);
 	*pos++ = WLAN_EID_SSID;
 	*pos++ = wk->assoc.ssid_len;
 	memcpy(pos, wk->assoc.ssid, wk->assoc.ssid_len);
@@ -295,7 +286,6 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	if (supp_rates_len > 8)
 		supp_rates_len = 8;
 
-	len = sband->n_bitrates;
 	pos = skb_put(skb, supp_rates_len + 2);
 	*pos++ = WLAN_EID_SUPP_RATES;
 	*pos++ = supp_rates_len;

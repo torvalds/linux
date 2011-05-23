@@ -16,10 +16,6 @@
 
 #include "htc.h"
 
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
-static struct dentry *ath9k_debugfs_root;
-#endif
-
 /*************/
 /* Utilities */
 /*************/
@@ -197,10 +193,15 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 
 	ath9k_htc_stop_ani(priv);
 	ieee80211_stop_queues(priv->hw);
-	htc_stop(priv->htc);
+
+	del_timer_sync(&priv->tx.cleanup_timer);
+	ath9k_htc_tx_drain(priv);
+
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
 	WMI_CMD(WMI_STOP_RECV_CMDID);
+
+	ath9k_wmi_event_drain(priv);
 
 	caldata = &priv->caldata;
 	ret = ath9k_hw_reset(ah, ah->curchan, caldata, false);
@@ -224,6 +225,9 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv)
 	htc_start(priv->htc);
 	ath9k_htc_vif_reconfig(priv);
 	ieee80211_wake_queues(priv->hw);
+
+	mod_timer(&priv->tx.cleanup_timer,
+		  jiffies + msecs_to_jiffies(ATH9K_HTC_TX_CLEANUP_INTERVAL));
 
 	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
@@ -250,10 +254,15 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	fastcc = !!(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL);
 
 	ath9k_htc_ps_wakeup(priv);
-	htc_stop(priv->htc);
+
+	del_timer_sync(&priv->tx.cleanup_timer);
+	ath9k_htc_tx_drain(priv);
+
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
 	WMI_CMD(WMI_STOP_RECV_CMDID);
+
+	ath9k_wmi_event_drain(priv);
 
 	ath_dbg(common, ATH_DBG_CONFIG,
 		"(%u MHz) -> (%u MHz), HT: %d, HT40: %d fastcc: %d\n",
@@ -263,6 +272,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 
 	if (!fastcc)
 		caldata = &priv->caldata;
+
 	ret = ath9k_hw_reset(ah, hchan, caldata, fastcc);
 	if (ret) {
 		ath_err(common,
@@ -296,6 +306,9 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	    !(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
 		ath9k_htc_vif_reconfig(priv);
 
+	mod_timer(&priv->tx.cleanup_timer,
+		  jiffies + msecs_to_jiffies(ATH9K_HTC_TX_CLEANUP_INTERVAL));
+
 err:
 	ath9k_htc_ps_restore(priv);
 	return ret;
@@ -319,6 +332,11 @@ static void __ath9k_htc_remove_monitor_interface(struct ath9k_htc_priv *priv)
 	memcpy(&hvif.myaddr, common->macaddr, ETH_ALEN);
 	hvif.index = priv->mon_vif_idx;
 	WMI_CMD_BUF(WMI_VAP_REMOVE_CMDID, &hvif);
+	if (ret) {
+		ath_err(common, "Unable to remove monitor interface at idx: %d\n",
+			priv->mon_vif_idx);
+	}
+
 	priv->nvifs--;
 	priv->vif_slot &= ~(1 << priv->mon_vif_idx);
 }
@@ -349,7 +367,7 @@ static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
 	memset(&hvif, 0, sizeof(struct ath9k_htc_target_vif));
 	memcpy(&hvif.myaddr, common->macaddr, ETH_ALEN);
 
-	hvif.opmode = cpu_to_be32(HTC_M_MONITOR);
+	hvif.opmode = HTC_M_MONITOR;
 	hvif.index = ffz(priv->vif_slot);
 
 	WMI_CMD_BUF(WMI_VAP_CREATE_CMDID, &hvif);
@@ -382,7 +400,7 @@ static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
 	tsta.is_vif_sta = 1;
 	tsta.sta_index = sta_idx;
 	tsta.vif_index = hvif.index;
-	tsta.maxampdu = 0xffff;
+	tsta.maxampdu = cpu_to_be16(0xffff);
 
 	WMI_CMD_BUF(WMI_NODE_CREATE_CMDID, &tsta);
 	if (ret) {
@@ -449,6 +467,7 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 	struct ath9k_htc_sta *ista;
 	int ret, sta_idx;
 	u8 cmd_rsp;
+	u16 maxampdu;
 
 	if (priv->nstations >= ATH9K_HTC_MAX_STA)
 		return -ENOBUFS;
@@ -463,9 +482,7 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 		ista = (struct ath9k_htc_sta *) sta->drv_priv;
 		memcpy(&tsta.macaddr, sta->addr, ETH_ALEN);
 		memcpy(&tsta.bssid, common->curbssid, ETH_ALEN);
-		tsta.associd = common->curaid;
 		tsta.is_vif_sta = 0;
-		tsta.valid = true;
 		ista->index = sta_idx;
 	} else {
 		memcpy(&tsta.macaddr, vif->addr, ETH_ALEN);
@@ -474,7 +491,15 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 
 	tsta.sta_index = sta_idx;
 	tsta.vif_index = avp->index;
-	tsta.maxampdu = 0xffff;
+
+	if (!sta) {
+		tsta.maxampdu = cpu_to_be16(0xffff);
+	} else {
+		maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
+				 sta->ht_cap.ampdu_factor);
+		tsta.maxampdu = cpu_to_be16(maxampdu);
+	}
+
 	if (sta && sta->ht_cap.ht_supported)
 		tsta.flags = cpu_to_be16(ATH_HTC_STA_HT);
 
@@ -547,7 +572,8 @@ static int ath9k_htc_remove_station(struct ath9k_htc_priv *priv,
 	return 0;
 }
 
-int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv)
+int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv,
+				u8 enable_coex)
 {
 	struct ath9k_htc_cap_target tcap;
 	int ret;
@@ -555,13 +581,9 @@ int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv)
 
 	memset(&tcap, 0, sizeof(struct ath9k_htc_cap_target));
 
-	/* FIXME: Values are hardcoded */
-	tcap.flags = 0x240c40;
-	tcap.flags_ext = 0x80601000;
-	tcap.ampdu_limit = 0xffff0000;
-	tcap.ampdu_subframes = 20;
-	tcap.tx_chainmask_legacy = priv->ah->caps.tx_chainmask;
-	tcap.protmode = 1;
+	tcap.ampdu_limit = cpu_to_be32(0xffff);
+	tcap.ampdu_subframes = priv->hw->max_tx_aggregation_subframes;
+	tcap.enable_coex = enable_coex;
 	tcap.tx_chainmask = priv->ah->caps.tx_chainmask;
 
 	WMI_CMD_BUF(WMI_TARGET_IC_UPDATE_CMDID, &tcap);
@@ -709,217 +731,12 @@ static int ath9k_htc_tx_aggr_oper(struct ath9k_htc_priv *priv,
 			(aggr.aggr_enable) ? "Starting" : "Stopping",
 			sta->addr, tid);
 
-	spin_lock_bh(&priv->tx_lock);
+	spin_lock_bh(&priv->tx.tx_lock);
 	ista->tid_state[tid] = (aggr.aggr_enable && !ret) ? AGGR_START : AGGR_STOP;
-	spin_unlock_bh(&priv->tx_lock);
+	spin_unlock_bh(&priv->tx.tx_lock);
 
 	return ret;
 }
-
-/*********/
-/* DEBUG */
-/*********/
-
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
-
-static int ath9k_debugfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
-static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos)
-{
-	struct ath9k_htc_priv *priv = file->private_data;
-	struct ath9k_htc_target_stats cmd_rsp;
-	char buf[512];
-	unsigned int len = 0;
-	int ret = 0;
-
-	memset(&cmd_rsp, 0, sizeof(cmd_rsp));
-
-	WMI_CMD(WMI_TGT_STATS_CMDID);
-	if (ret)
-		return -EINVAL;
-
-
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%19s : %10u\n", "TX Short Retries",
-			be32_to_cpu(cmd_rsp.tx_shortretry));
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%19s : %10u\n", "TX Long Retries",
-			be32_to_cpu(cmd_rsp.tx_longretry));
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%19s : %10u\n", "TX Xretries",
-			be32_to_cpu(cmd_rsp.tx_xretries));
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%19s : %10u\n", "TX Unaggr. Xretries",
-			be32_to_cpu(cmd_rsp.ht_txunaggr_xretry));
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%19s : %10u\n", "TX Xretries (HT)",
-			be32_to_cpu(cmd_rsp.ht_tx_xretries));
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%19s : %10u\n", "TX Rate", priv->debug.txrate);
-
-	if (len > sizeof(buf))
-		len = sizeof(buf);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-}
-
-static const struct file_operations fops_tgt_stats = {
-	.read = read_file_tgt_stats,
-	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
-
-static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
-			      size_t count, loff_t *ppos)
-{
-	struct ath9k_htc_priv *priv = file->private_data;
-	char buf[512];
-	unsigned int len = 0;
-
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "Buffers queued",
-			priv->debug.tx_stats.buf_queued);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "Buffers completed",
-			priv->debug.tx_stats.buf_completed);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "SKBs queued",
-			priv->debug.tx_stats.skb_queued);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "SKBs completed",
-			priv->debug.tx_stats.skb_completed);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "SKBs dropped",
-			priv->debug.tx_stats.skb_dropped);
-
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "BE queued",
-			priv->debug.tx_stats.queue_stats[WME_AC_BE]);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "BK queued",
-			priv->debug.tx_stats.queue_stats[WME_AC_BK]);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "VI queued",
-			priv->debug.tx_stats.queue_stats[WME_AC_VI]);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "VO queued",
-			priv->debug.tx_stats.queue_stats[WME_AC_VO]);
-
-	if (len > sizeof(buf))
-		len = sizeof(buf);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-}
-
-static const struct file_operations fops_xmit = {
-	.read = read_file_xmit,
-	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
-
-static ssize_t read_file_recv(struct file *file, char __user *user_buf,
-			      size_t count, loff_t *ppos)
-{
-	struct ath9k_htc_priv *priv = file->private_data;
-	char buf[512];
-	unsigned int len = 0;
-
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "SKBs allocated",
-			priv->debug.rx_stats.skb_allocated);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "SKBs completed",
-			priv->debug.rx_stats.skb_completed);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "SKBs Dropped",
-			priv->debug.rx_stats.skb_dropped);
-
-	if (len > sizeof(buf))
-		len = sizeof(buf);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-}
-
-static const struct file_operations fops_recv = {
-	.read = read_file_recv,
-	.open = ath9k_debugfs_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
-
-int ath9k_htc_init_debug(struct ath_hw *ah)
-{
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
-
-	if (!ath9k_debugfs_root)
-		return -ENOENT;
-
-	priv->debug.debugfs_phy = debugfs_create_dir(wiphy_name(priv->hw->wiphy),
-						     ath9k_debugfs_root);
-	if (!priv->debug.debugfs_phy)
-		goto err;
-
-	priv->debug.debugfs_tgt_stats = debugfs_create_file("tgt_stats", S_IRUSR,
-						    priv->debug.debugfs_phy,
-						    priv, &fops_tgt_stats);
-	if (!priv->debug.debugfs_tgt_stats)
-		goto err;
-
-
-	priv->debug.debugfs_xmit = debugfs_create_file("xmit", S_IRUSR,
-						       priv->debug.debugfs_phy,
-						       priv, &fops_xmit);
-	if (!priv->debug.debugfs_xmit)
-		goto err;
-
-	priv->debug.debugfs_recv = debugfs_create_file("recv", S_IRUSR,
-						       priv->debug.debugfs_phy,
-						       priv, &fops_recv);
-	if (!priv->debug.debugfs_recv)
-		goto err;
-
-	return 0;
-
-err:
-	ath9k_htc_exit_debug(ah);
-	return -ENOMEM;
-}
-
-void ath9k_htc_exit_debug(struct ath_hw *ah)
-{
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
-
-	debugfs_remove(priv->debug.debugfs_recv);
-	debugfs_remove(priv->debug.debugfs_xmit);
-	debugfs_remove(priv->debug.debugfs_tgt_stats);
-	debugfs_remove(priv->debug.debugfs_phy);
-}
-
-int ath9k_htc_debug_create_root(void)
-{
-	ath9k_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!ath9k_debugfs_root)
-		return -ENOENT;
-
-	return 0;
-}
-
-void ath9k_htc_debug_remove_root(void)
-{
-	debugfs_remove(ath9k_debugfs_root);
-	ath9k_debugfs_root = NULL;
-}
-
-#endif /* CONFIG_ATH9K_HTC_DEBUGFS */
 
 /*******/
 /* ANI */
@@ -1040,7 +857,8 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 	struct ath9k_htc_priv *priv = hw->priv;
-	int padpos, padsize, ret;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	int padpos, padsize, ret, slot;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 
@@ -1048,30 +866,32 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	padpos = ath9k_cmn_padpos(hdr->frame_control);
 	padsize = padpos & 3;
 	if (padsize && skb->len > padpos) {
-		if (skb_headroom(skb) < padsize)
+		if (skb_headroom(skb) < padsize) {
+			ath_dbg(common, ATH_DBG_XMIT, "No room for padding\n");
 			goto fail_tx;
+		}
 		skb_push(skb, padsize);
 		memmove(skb->data, skb->data + padsize, padpos);
 	}
 
-	ret = ath9k_htc_tx_start(priv, skb);
-	if (ret != 0) {
-		if (ret == -ENOMEM) {
-			ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
-				"Stopping TX queues\n");
-			ieee80211_stop_queues(hw);
-			spin_lock_bh(&priv->tx_lock);
-			priv->tx_queues_stop = true;
-			spin_unlock_bh(&priv->tx_lock);
-		} else {
-			ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
-				"Tx failed\n");
-		}
+	slot = ath9k_htc_tx_get_slot(priv);
+	if (slot < 0) {
+		ath_dbg(common, ATH_DBG_XMIT, "No free TX slot\n");
 		goto fail_tx;
 	}
 
+	ret = ath9k_htc_tx_start(priv, skb, slot, false);
+	if (ret != 0) {
+		ath_dbg(common, ATH_DBG_XMIT, "Tx failed\n");
+		goto clear_slot;
+	}
+
+	ath9k_htc_check_stop_queues(priv);
+
 	return;
 
+clear_slot:
+	ath9k_htc_tx_clear_slot(priv, slot);
 fail_tx:
 	dev_kfree_skb_any(skb);
 }
@@ -1122,7 +942,7 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 
 	ath9k_host_rx_init(priv);
 
-	ret = ath9k_htc_update_cap_target(priv);
+	ret = ath9k_htc_update_cap_target(priv, 0);
 	if (ret)
 		ath_dbg(common, ATH_DBG_CONFIG,
 			"Failed to update capability in target\n");
@@ -1130,11 +950,14 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	priv->op_flags &= ~OP_INVALID;
 	htc_start(priv->htc);
 
-	spin_lock_bh(&priv->tx_lock);
-	priv->tx_queues_stop = false;
-	spin_unlock_bh(&priv->tx_lock);
+	spin_lock_bh(&priv->tx.tx_lock);
+	priv->tx.flags &= ~ATH9K_HTC_OP_TX_QUEUES_STOP;
+	spin_unlock_bh(&priv->tx.tx_lock);
 
 	ieee80211_wake_queues(hw);
+
+	mod_timer(&priv->tx.cleanup_timer,
+		  jiffies + msecs_to_jiffies(ATH9K_HTC_TX_CLEANUP_INTERVAL));
 
 	if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE) {
 		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
@@ -1152,7 +975,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	int ret = 0;
+	int ret __attribute__ ((unused));
 	u8 cmd_rsp;
 
 	mutex_lock(&priv->mutex);
@@ -1164,25 +987,27 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	}
 
 	ath9k_htc_ps_wakeup(priv);
-	htc_stop(priv->htc);
+
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
 	WMI_CMD(WMI_STOP_RECV_CMDID);
 
-	tasklet_kill(&priv->swba_tasklet);
 	tasklet_kill(&priv->rx_tasklet);
-	tasklet_kill(&priv->tx_tasklet);
 
-	skb_queue_purge(&priv->tx_queue);
+	del_timer_sync(&priv->tx.cleanup_timer);
+	ath9k_htc_tx_drain(priv);
+	ath9k_wmi_event_drain(priv);
 
 	mutex_unlock(&priv->mutex);
 
 	/* Cancel all the running timers/work .. */
 	cancel_work_sync(&priv->fatal_work);
 	cancel_work_sync(&priv->ps_work);
-	cancel_delayed_work_sync(&priv->ath9k_led_blink_work);
+
+#ifdef CONFIG_MAC80211_LEDS
+	cancel_work_sync(&priv->led_work);
+#endif
 	ath9k_htc_stop_ani(priv);
-	ath9k_led_stop_brightness(priv);
 
 	mutex_lock(&priv->mutex);
 
@@ -1245,13 +1070,13 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		hvif.opmode = cpu_to_be32(HTC_M_STA);
+		hvif.opmode = HTC_M_STA;
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		hvif.opmode = cpu_to_be32(HTC_M_IBSS);
+		hvif.opmode = HTC_M_IBSS;
 		break;
 	case NL80211_IFTYPE_AP:
-		hvif.opmode = cpu_to_be32(HTC_M_HOSTAP);
+		hvif.opmode = HTC_M_HOSTAP;
 		break;
 	default:
 		ath_err(common,
@@ -1281,14 +1106,20 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 
 	priv->vif_slot |= (1 << avp->index);
 	priv->nvifs++;
-	priv->vif = vif;
 
 	INC_VIF(priv, vif->type);
+
+	if ((vif->type == NL80211_IFTYPE_AP) ||
+	    (vif->type == NL80211_IFTYPE_ADHOC))
+		ath9k_htc_assign_bslot(priv, vif);
+
 	ath9k_htc_set_opmode(priv);
 
 	if ((priv->ah->opmode == NL80211_IFTYPE_AP) &&
-	    !(priv->op_flags & OP_ANI_RUNNING))
+	    !(priv->op_flags & OP_ANI_RUNNING)) {
+		ath9k_hw_set_tsfadjust(priv->ah, 1);
 		ath9k_htc_start_ani(priv);
+	}
 
 	ath_dbg(common, ATH_DBG_CONFIG,
 		"Attach a VIF of type: %d at idx: %d\n", vif->type, avp->index);
@@ -1317,13 +1148,21 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	memcpy(&hvif.myaddr, vif->addr, ETH_ALEN);
 	hvif.index = avp->index;
 	WMI_CMD_BUF(WMI_VAP_REMOVE_CMDID, &hvif);
+	if (ret) {
+		ath_err(common, "Unable to remove interface at idx: %d\n",
+			avp->index);
+	}
 	priv->nvifs--;
 	priv->vif_slot &= ~(1 << avp->index);
 
 	ath9k_htc_remove_station(priv, vif, NULL);
-	priv->vif = NULL;
 
 	DEC_VIF(priv, vif->type);
+
+	if ((vif->type == NL80211_IFTYPE_AP) ||
+	    (vif->type == NL80211_IFTYPE_ADHOC))
+		ath9k_htc_remove_bslot(priv, vif);
+
 	ath9k_htc_set_opmode(priv);
 
 	/*
@@ -1493,10 +1332,13 @@ static int ath9k_htc_sta_remove(struct ieee80211_hw *hw,
 				struct ieee80211_sta *sta)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
+	struct ath9k_htc_sta *ista;
 	int ret;
 
 	mutex_lock(&priv->mutex);
 	ath9k_htc_ps_wakeup(priv);
+	ista = (struct ath9k_htc_sta *) sta->drv_priv;
+	htc_sta_drain(priv->htc, ista->index);
 	ret = ath9k_htc_remove_station(priv, vif, sta);
 	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
@@ -1644,6 +1486,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) && bss_conf->enable_beacon) {
 		ath_dbg(common, ATH_DBG_CONFIG,
 			"Beacon enabled for BSS: %pM\n", bss_conf->bssid);
+		ath9k_htc_set_tsfadjust(priv, vif);
 		priv->op_flags |= OP_ENABLE_BEACON;
 		ath9k_htc_beacon_config(priv, vif);
 	}
@@ -1741,6 +1584,7 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 	int ret = 0;
 
 	mutex_lock(&priv->mutex);
+	ath9k_htc_ps_wakeup(priv);
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
@@ -1758,14 +1602,15 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		ista = (struct ath9k_htc_sta *) sta->drv_priv;
-		spin_lock_bh(&priv->tx_lock);
+		spin_lock_bh(&priv->tx.tx_lock);
 		ista->tid_state[tid] = AGGR_OPERATIONAL;
-		spin_unlock_bh(&priv->tx_lock);
+		spin_unlock_bh(&priv->tx.tx_lock);
 		break;
 	default:
 		ath_err(ath9k_hw_common(priv->ah), "Unknown AMPDU action\n");
 	}
 
+	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
 
 	return ret;
@@ -1816,6 +1661,55 @@ static void ath9k_htc_set_coverage_class(struct ieee80211_hw *hw,
 	mutex_unlock(&priv->mutex);
 }
 
+/*
+ * Currently, this is used only for selecting the minimum rate
+ * for management frames, rate selection for data frames remain
+ * unaffected.
+ */
+static int ath9k_htc_set_bitrate_mask(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      const struct cfg80211_bitrate_mask *mask)
+{
+	struct ath9k_htc_priv *priv = hw->priv;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_target_rate_mask tmask;
+	struct ath9k_htc_vif *avp = (void *)vif->drv_priv;
+	int ret = 0;
+	u8 cmd_rsp;
+
+	memset(&tmask, 0, sizeof(struct ath9k_htc_target_rate_mask));
+
+	tmask.vif_index = avp->index;
+	tmask.band = IEEE80211_BAND_2GHZ;
+	tmask.mask = cpu_to_be32(mask->control[IEEE80211_BAND_2GHZ].legacy);
+
+	WMI_CMD_BUF(WMI_BITRATE_MASK_CMDID, &tmask);
+	if (ret) {
+		ath_err(common,
+			"Unable to set 2G rate mask for "
+			"interface at idx: %d\n", avp->index);
+		goto out;
+	}
+
+	tmask.band = IEEE80211_BAND_5GHZ;
+	tmask.mask = cpu_to_be32(mask->control[IEEE80211_BAND_5GHZ].legacy);
+
+	WMI_CMD_BUF(WMI_BITRATE_MASK_CMDID, &tmask);
+	if (ret) {
+		ath_err(common,
+			"Unable to set 5G rate mask for "
+			"interface at idx: %d\n", avp->index);
+		goto out;
+	}
+
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"Set bitrate masks: 0x%x, 0x%x\n",
+		mask->control[IEEE80211_BAND_2GHZ].legacy,
+		mask->control[IEEE80211_BAND_5GHZ].legacy);
+out:
+	return ret;
+}
+
 struct ieee80211_ops ath9k_htc_ops = {
 	.tx                 = ath9k_htc_tx,
 	.start              = ath9k_htc_start,
@@ -1838,4 +1732,5 @@ struct ieee80211_ops ath9k_htc_ops = {
 	.set_rts_threshold  = ath9k_htc_set_rts_threshold,
 	.rfkill_poll        = ath9k_htc_rfkill_poll_state,
 	.set_coverage_class = ath9k_htc_set_coverage_class,
+	.set_bitrate_mask   = ath9k_htc_set_bitrate_mask,
 };

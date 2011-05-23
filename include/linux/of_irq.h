@@ -68,6 +68,7 @@ extern int of_irq_to_resource(struct device_node *dev, int index,
 extern int of_irq_count(struct device_node *dev);
 extern int of_irq_to_resource_table(struct device_node *dev,
 		struct resource *res, int nr_irqs);
+extern struct device_node *of_irq_find_parent(struct device_node *child);
 
 #endif /* CONFIG_OF_IRQ */
 #endif /* CONFIG_OF */

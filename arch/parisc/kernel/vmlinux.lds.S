@@ -69,6 +69,9 @@ SECTIONS
 	/* End of text section */
 	_etext = .;
 
+	/* Start of data section */
+	_sdata = .;
+
 	RODATA
 
 	/* writeable */
@@ -134,6 +137,7 @@ SECTIONS
 	. = ALIGN(16384);
 	__init_begin = .;
 	INIT_TEXT_SECTION(16384)
+	. = ALIGN(PAGE_SIZE);
 	INIT_DATA_SECTION(16)
 	/* we have to discard exit text and such at runtime, not link time */
 	.exit.text :

@@ -75,7 +75,7 @@ static const unsigned int ack_rates_high[] =
  * bwmodes.
  */
 int ath5k_hw_get_frame_duration(struct ath5k_hw *ah,
-		int len, struct ieee80211_rate *rate)
+		int len, struct ieee80211_rate *rate, bool shortpre)
 {
 	struct ath5k_softc *sc = ah->ah_sc;
 	int sifs, preamble, plcp_bits, sym_time;
@@ -84,9 +84,15 @@ int ath5k_hw_get_frame_duration(struct ath5k_hw *ah,
 
 	/* Fallback */
 	if (!ah->ah_bwmode) {
-		dur = ieee80211_generic_frame_duration(sc->hw,
-						NULL, len, rate);
-		return le16_to_cpu(dur);
+		__le16 raw_dur = ieee80211_generic_frame_duration(sc->hw,
+					NULL, len, rate);
+
+		/* subtract difference between long and short preamble */
+		dur = le16_to_cpu(raw_dur);
+		if (shortpre)
+			dur -= 96;
+
+		return dur;
 	}
 
 	bitrate = rate->bitrate;
@@ -145,9 +151,9 @@ unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah)
 		slot_time = AR5K_INIT_SLOT_TIME_QUARTER_RATE;
 		break;
 	case AR5K_BWMODE_DEFAULT:
-		slot_time = AR5K_INIT_SLOT_TIME_DEFAULT;
 	default:
-		if (channel->hw_value & CHANNEL_CCK)
+		slot_time = AR5K_INIT_SLOT_TIME_DEFAULT;
+		if ((channel->hw_value & CHANNEL_CCK) && !ah->ah_short_slot)
 			slot_time = AR5K_INIT_SLOT_TIME_B;
 		break;
 	}
@@ -263,27 +269,14 @@ static inline void ath5k_hw_write_rate_duration(struct ath5k_hw *ah)
 		 * actual rate for this rate. See mac80211 tx.c
 		 * ieee80211_duration() for a brief description of
 		 * what rate we should choose to TX ACKs. */
-		tx_time = ath5k_hw_get_frame_duration(ah, 10, rate);
+		tx_time = ath5k_hw_get_frame_duration(ah, 10, rate, false);
 
 		ath5k_hw_reg_write(ah, tx_time, reg);
 
 		if (!(rate->flags & IEEE80211_RATE_SHORT_PREAMBLE))
 			continue;
 
-		/*
-		 * We're not distinguishing short preamble here,
-		 * This is true, all we'll get is a longer value here
-		 * which is not necessarilly bad. We could use
-		 * export ieee80211_frame_duration() but that needs to be
-		 * fixed first to be properly used by mac802111 drivers:
-		 *
-		 *  - remove erp stuff and let the routine figure ofdm
-		 *    erp rates
-		 *  - remove passing argument ieee80211_local as
-		 *    drivers don't have access to it
-		 *  - move drivers using ieee80211_generic_frame_duration()
-		 *    to this
-		 */
+		tx_time = ath5k_hw_get_frame_duration(ah, 10, rate, true);
 		ath5k_hw_reg_write(ah, tx_time,
 			reg + (AR5K_SET_SHORT_PREAMBLE << 2));
 	}

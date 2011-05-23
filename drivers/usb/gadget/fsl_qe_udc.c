@@ -2539,15 +2539,18 @@ static void qe_udc_release(struct device *dev)
 }
 
 /* Driver probe functions */
+static const struct of_device_id qe_udc_match[];
 static int __devinit qe_udc_probe(struct platform_device *ofdev)
 {
+	const struct of_device_id *match;
 	struct device_node *np = ofdev->dev.of_node;
 	struct qe_ep *ep;
 	unsigned int ret = 0;
 	unsigned int i;
 	const void *prop;
 
-	if (!ofdev->dev.of_match)
+	match = of_match_device(qe_udc_match, &ofdev->dev);
+	if (!match)
 		return -EINVAL;
 
 	prop = of_get_property(np, "mode", NULL);
@@ -2561,7 +2564,7 @@ static int __devinit qe_udc_probe(struct platform_device *ofdev)
 		return -ENOMEM;
 	}
 
-	udc_controller->soc_type = (unsigned long)ofdev->dev.of_match->data;
+	udc_controller->soc_type = (unsigned long)match->data;
 	udc_controller->usb_regs = of_iomap(np, 0);
 	if (!udc_controller->usb_regs) {
 		ret = -ENOMEM;

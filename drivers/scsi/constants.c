@@ -772,6 +772,7 @@ static const struct error_info additional[] =
 	{0x3802, "Esn - power management class event"},
 	{0x3804, "Esn - media class event"},
 	{0x3806, "Esn - device busy class event"},
+	{0x3807, "Thin Provisioning soft threshold reached"},
 
 	{0x3900, "Saving parameters not supported"},
 

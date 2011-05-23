@@ -317,8 +317,6 @@ static void netvsc_get_drvinfo(struct net_device *net,
 
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo	= netvsc_get_drvinfo,
-	.get_sg		= ethtool_op_get_sg,
-	.set_sg		= ethtool_op_set_sg,
 	.get_link	= ethtool_op_get_link,
 };
 
@@ -406,6 +404,7 @@ static int netvsc_probe(struct device *device)
 	net->netdev_ops = &device_ops;
 
 	/* TODO: Add GSO and Checksum offload */
+	net->hw_features = NETIF_F_SG;
 	net->features = NETIF_F_SG;
 
 	SET_ETHTOOL_OPS(net, &ethtool_ops);

@@ -33,7 +33,8 @@ static int vxge_ethtool_sset(struct net_device *dev, struct ethtool_cmd *info)
 {
 	/* We currently only support 10Gb/FULL */
 	if ((info->autoneg == AUTONEG_ENABLE) ||
-	    (info->speed != SPEED_10000) || (info->duplex != DUPLEX_FULL))
+	    (ethtool_cmd_speed(info) != SPEED_10000) ||
+	    (info->duplex != DUPLEX_FULL))
 		return -EINVAL;
 
 	return 0;
@@ -58,10 +59,10 @@ static int vxge_ethtool_gset(struct net_device *dev, struct ethtool_cmd *info)
 	info->transceiver = XCVR_EXTERNAL;
 
 	if (netif_carrier_ok(dev)) {
-		info->speed = SPEED_10000;
+		ethtool_cmd_speed_set(info, SPEED_10000);
 		info->duplex = DUPLEX_FULL;
 	} else {
-		info->speed = -1;
+		ethtool_cmd_speed_set(info, -1);
 		info->duplex = -1;
 	}
 
@@ -134,22 +135,29 @@ static void vxge_ethtool_gregs(struct net_device *dev,
 /**
  * vxge_ethtool_idnic - To physically identify the nic on the system.
  * @dev : device pointer.
- * @id : pointer to the structure with identification parameters given by
- * ethtool.
+ * @state : requested LED state
  *
  * Used to physically identify the NIC on the system.
- * The Link LED will blink for a time specified by the user.
- * Return value:
  * 0 on success
  */
-static int vxge_ethtool_idnic(struct net_device *dev, u32 data)
+static int vxge_ethtool_idnic(struct net_device *dev,
+			      enum ethtool_phys_id_state state)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
 	struct __vxge_hw_device *hldev = vdev->devh;
 
-	vxge_hw_device_flick_link_led(hldev, VXGE_FLICKER_ON);
-	msleep_interruptible(data ? (data * HZ) : VXGE_MAX_FLICKER_TIME);
-	vxge_hw_device_flick_link_led(hldev, VXGE_FLICKER_OFF);
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		vxge_hw_device_flick_link_led(hldev, VXGE_FLICKER_ON);
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		vxge_hw_device_flick_link_led(hldev, VXGE_FLICKER_OFF);
+		break;
+
+	default:
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1064,35 +1072,6 @@ static int vxge_ethtool_get_regs_len(struct net_device *dev)
 	return sizeof(struct vxge_hw_vpath_reg) * vdev->no_of_vpath;
 }
 
-static u32 vxge_get_rx_csum(struct net_device *dev)
-{
-	struct vxgedev *vdev = netdev_priv(dev);
-
-	return vdev->rx_csum;
-}
-
-static int vxge_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct vxgedev *vdev = netdev_priv(dev);
-
-	if (data)
-		vdev->rx_csum = 1;
-	else
-		vdev->rx_csum = 0;
-
-	return 0;
-}
-
-static int vxge_ethtool_op_set_tso(struct net_device *dev, u32 data)
-{
-	if (data)
-		dev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
-	else
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
-
-	return 0;
-}
-
 static int vxge_ethtool_get_sset_count(struct net_device *dev, int sset)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
@@ -1110,40 +1089,6 @@ static int vxge_ethtool_get_sset_count(struct net_device *dev, int sset)
 	default:
 		return -EOPNOTSUPP;
 	}
-}
-
-static int vxge_set_flags(struct net_device *dev, u32 data)
-{
-	struct vxgedev *vdev = netdev_priv(dev);
-	enum vxge_hw_status status;
-
-	if (ethtool_invalid_flags(dev, data, ETH_FLAG_RXHASH))
-		return -EINVAL;
-
-	if (!!(data & ETH_FLAG_RXHASH) == vdev->devh->config.rth_en)
-		return 0;
-
-	if (netif_running(dev) || (vdev->config.rth_steering == NO_STEERING))
-		return -EINVAL;
-
-	vdev->devh->config.rth_en = !!(data & ETH_FLAG_RXHASH);
-
-	/* Enabling RTH requires some of the logic in vxge_device_register and a
-	 * vpath reset.  Due to these restrictions, only allow modification
-	 * while the interface is down.
-	 */
-	status = vxge_reset_all_vpaths(vdev);
-	if (status != VXGE_HW_OK) {
-		vdev->devh->config.rth_en = !vdev->devh->config.rth_en;
-		return -EFAULT;
-	}
-
-	if (vdev->devh->config.rth_en)
-		dev->features |= NETIF_F_RXHASH;
-	else
-		dev->features &= ~NETIF_F_RXHASH;
-
-	return 0;
 }
 
 static int vxge_fw_flash(struct net_device *dev, struct ethtool_flash *parms)
@@ -1174,19 +1119,10 @@ static const struct ethtool_ops vxge_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_pauseparam		= vxge_ethtool_getpause_data,
 	.set_pauseparam		= vxge_ethtool_setpause_data,
-	.get_rx_csum		= vxge_get_rx_csum,
-	.set_rx_csum		= vxge_set_rx_csum,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_ipv6_csum,
-	.get_sg			= ethtool_op_get_sg,
-	.set_sg			= ethtool_op_set_sg,
-	.get_tso		= ethtool_op_get_tso,
-	.set_tso		= vxge_ethtool_op_set_tso,
 	.get_strings		= vxge_ethtool_get_strings,
-	.phys_id		= vxge_ethtool_idnic,
+	.set_phys_id		= vxge_ethtool_idnic,
 	.get_sset_count		= vxge_ethtool_get_sset_count,
 	.get_ethtool_stats	= vxge_get_ethtool_stats,
-	.set_flags		= vxge_set_flags,
 	.flash_device		= vxge_fw_flash,
 };
 

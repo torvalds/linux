@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,7 +73,7 @@ struct iwl_cmd;
 
 
 #define IWLWIFI_VERSION "in-tree:"
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2010 Intel Corporation"
+#define DRV_COPYRIGHT	"Copyright(c) 2003-2011 Intel Corporation"
 #define DRV_AUTHOR     "<ilw@linux.intel.com>"
 
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
@@ -90,7 +90,6 @@ struct iwl_cmd;
 #define IWL_CMD(x) case x: return #x
 
 struct iwl_hcmd_ops {
-	int (*rxon_assoc)(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 	int (*commit_rxon)(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 	void (*set_rxon_chain)(struct iwl_priv *priv,
 			       struct iwl_rxon_context *ctx);
@@ -100,7 +99,6 @@ struct iwl_hcmd_ops {
 };
 
 struct iwl_hcmd_utils_ops {
-	u16 (*get_hcmd_size)(u8 cmd_id, u16 len);
 	u16 (*build_addsta_hcmd)(const struct iwl_addsta_cmd *cmd, u8 *data);
 	void (*gain_computation)(struct iwl_priv *priv,
 			u32 *average_noise,
@@ -122,46 +120,14 @@ struct iwl_apm_ops {
 	void (*config)(struct iwl_priv *priv);
 };
 
-struct iwl_isr_ops {
-	irqreturn_t (*isr) (int irq, void *data);
-	void (*free)(struct iwl_priv *priv);
-	int (*alloc)(struct iwl_priv *priv);
-	int (*reset)(struct iwl_priv *priv);
-	void (*disable)(struct iwl_priv *priv);
-};
-
-struct iwl_debugfs_ops {
-	ssize_t (*rx_stats_read)(struct file *file, char __user *user_buf,
-				 size_t count, loff_t *ppos);
-	ssize_t (*tx_stats_read)(struct file *file, char __user *user_buf,
-				 size_t count, loff_t *ppos);
-	ssize_t (*general_stats_read)(struct file *file, char __user *user_buf,
-				      size_t count, loff_t *ppos);
-	ssize_t (*bt_stats_read)(struct file *file, char __user *user_buf,
-				 size_t count, loff_t *ppos);
-	ssize_t (*reply_tx_error)(struct file *file, char __user *user_buf,
-				 size_t count, loff_t *ppos);
-};
-
 struct iwl_temp_ops {
 	void (*temperature)(struct iwl_priv *priv);
-};
-
-struct iwl_tt_ops {
-	bool (*lower_power_detection)(struct iwl_priv *priv);
-	u8 (*tt_power_mode)(struct iwl_priv *priv);
-	bool (*ct_kill_check)(struct iwl_priv *priv);
 };
 
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
 	/* Handling TX */
-	void (*txq_update_byte_cnt_tbl)(struct iwl_priv *priv,
-					struct iwl_tx_queue *txq,
-					u16 byte_cnt);
-	void (*txq_inval_byte_cnt_tbl)(struct iwl_priv *priv,
-				       struct iwl_tx_queue *txq);
 	void (*txq_set_sched)(struct iwl_priv *priv, u32 mask);
 	int (*txq_attach_buf_to_tfd)(struct iwl_priv *priv,
 				     struct iwl_tx_queue *txq,
@@ -171,30 +137,14 @@ struct iwl_lib_ops {
 			     struct iwl_tx_queue *txq);
 	int (*txq_init)(struct iwl_priv *priv,
 			struct iwl_tx_queue *txq);
-	/* aggregations */
-	int (*txq_agg_enable)(struct iwl_priv *priv, int txq_id, int tx_fifo,
-			      int sta_id, int tid, u16 ssn_idx);
-	int (*txq_agg_disable)(struct iwl_priv *priv, u16 txq_id, u16 ssn_idx,
-			       u8 tx_fifo);
 	/* setup Rx handler */
 	void (*rx_handler_setup)(struct iwl_priv *priv);
 	/* setup deferred work */
 	void (*setup_deferred_work)(struct iwl_priv *priv);
 	/* cancel deferred work */
 	void (*cancel_deferred_work)(struct iwl_priv *priv);
-	/* alive notification after init uCode load */
-	void (*init_alive_start)(struct iwl_priv *priv);
-	/* alive notification */
-	int (*alive_notify)(struct iwl_priv *priv);
 	/* check validity of rtc data address */
 	int (*is_valid_rtc_data_addr)(u32 addr);
-	/* 1st ucode load */
-	int (*load_ucode)(struct iwl_priv *priv);
-	int (*dump_nic_event_log)(struct iwl_priv *priv,
-				  bool full_log, char **buf, bool display);
-	void (*dump_nic_error_log)(struct iwl_priv *priv);
-	void (*dump_csr)(struct iwl_priv *priv);
-	int (*dump_fh)(struct iwl_priv *priv, char **buf, bool display);
 	int (*set_channel_switch)(struct iwl_priv *priv,
 				  struct ieee80211_channel_switch *ch_switch);
 	/* power management */
@@ -203,9 +153,6 @@ struct iwl_lib_ops {
 	/* power */
 	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
-
-	/* isr */
-	struct iwl_isr_ops isr_ops;
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
@@ -216,14 +163,6 @@ struct iwl_lib_ops {
 	int (*txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
 	void (*dev_txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
 
-	struct iwl_debugfs_ops debugfs_ops;
-
-	/* thermal throttling */
-	struct iwl_tt_ops tt_ops;
-};
-
-struct iwl_led_ops {
-	int (*cmd)(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd);
 };
 
 /* NIC specific ops */
@@ -231,28 +170,15 @@ struct iwl_nic_ops {
 	void (*additional_nic_config)(struct iwl_priv *priv);
 };
 
-struct iwl_legacy_ops {
-	void (*post_associate)(struct iwl_priv *priv);
-	void (*config_ap)(struct iwl_priv *priv);
-	/* station management */
-	int (*update_bcast_stations)(struct iwl_priv *priv);
-	int (*manage_ibss_station)(struct iwl_priv *priv,
-				   struct ieee80211_vif *vif, bool add);
-};
-
 struct iwl_ops {
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
-	const struct iwl_led_ops *led;
 	const struct iwl_nic_ops *nic;
-	const struct iwl_legacy_ops *legacy;
-	const struct ieee80211_ops *ieee80211_ops;
 };
 
 struct iwl_mod_params {
 	int sw_crypto;		/* def: 0 = using hardware encryption */
-	int disable_hw_scan;	/* def: 0 = use h/w scan */
 	int num_of_queues;	/* def: HW dependent */
 	int disable_11n;	/* def: 0 = 11n capabilities enabled */
 	int amsdu_size_8K;	/* def: 1 = enable 8K amsdu size */
@@ -278,16 +204,7 @@ struct iwl_mod_params {
  * @wd_timeout: TX queues watchdog timeout
  * @temperature_kelvin: temperature report by uCode in kelvin
  * @max_event_log_size: size of event log buffer size for ucode event logging
- * @tx_power_by_driver: tx power calibration performed by driver
- *	instead of uCode
- * @ucode_tracing: support ucode continuous tracing
- * @sensitivity_calib_by_driver: driver has the capability to perform
- *	sensitivity calibration operation
- * @chain_noise_calib_by_driver: driver has the capability to perform
- *	chain noise calibration operation
  * @shadow_reg_enable: HW shadhow register bit
- * @no_agg_framecnt_info: uCode do not provide aggregation frame count
- *	information
  */
 struct iwl_base_params {
 	int eeprom_size;
@@ -295,14 +212,10 @@ struct iwl_base_params {
 	int num_of_ampdu_queues;/* def: HW dependent */
 	/* for iwl_apm_init() */
 	u32 pll_cfg_val;
-	bool set_l0s;
-	bool use_bsm;
 
-	bool use_isr_legacy;
 	const u16 max_ll_items;
 	const bool shadow_ram_support;
 	u16 led_compensation;
-	const bool broken_powersave;
 	int chain_noise_num_beacons;
 	bool adv_thermal_throttle;
 	bool support_ct_kill_exit;
@@ -312,18 +225,12 @@ struct iwl_base_params {
 	unsigned int wd_timeout;
 	bool temperature_kelvin;
 	u32 max_event_log_size;
-	const bool tx_power_by_driver;
-	const bool ucode_tracing;
-	const bool sensitivity_calib_by_driver;
-	const bool chain_noise_calib_by_driver;
 	const bool shadow_reg_enable;
-	const bool no_agg_framecnt_info;
 };
 /*
  * @advanced_bt_coexist: support advanced bt coexist
  * @bt_init_traffic_load: specify initial bt traffic load
  * @bt_prio_boost: default bt priority boost value
- * @bt_statistics: use BT version of statistics notification
  * @agg_time_limit: maximum number of uSec in aggregation
  * @ampdu_factor: Maximum A-MPDU length factor
  * @ampdu_density: Minimum A-MPDU spacing
@@ -333,7 +240,6 @@ struct iwl_bt_params {
 	bool advanced_bt_coexist;
 	u8 bt_init_traffic_load;
 	u8 bt_prio_boost;
-	const bool bt_statistics;
 	u16 agg_time_limit;
 	u8 ampdu_factor;
 	u8 ampdu_density;
@@ -364,6 +270,7 @@ struct iwl_ht_params {
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
  * @internal_wimax_coex: internal wifi/wimax combo device
  * @iq_invert: I/Q inversion
+ * @disable_otp_refresh: disable OTP refresh current limit
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
@@ -398,8 +305,6 @@ struct iwl_cfg {
 	u16  eeprom_ver;
 	u16  eeprom_calib_ver;
 	const struct iwl_ops *ops;
-	/* module based parameters which can be set from modprobe cmd */
-	const struct iwl_mod_params *mod_params;
 	/* params not likely to change within a device family */
 	struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
@@ -414,13 +319,13 @@ struct iwl_cfg {
 	const bool rx_with_siso_diversity;
 	const bool internal_wimax_coex;
 	const bool iq_invert;
+	const bool disable_otp_refresh;
 };
 
 /***************************
  *   L i b                 *
  ***************************/
 
-struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg);
 int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw);
@@ -625,6 +530,8 @@ extern const struct dev_pm_ops iwl_pm_ops;
 void iwl_dump_nic_error_log(struct iwl_priv *priv);
 int iwl_dump_nic_event_log(struct iwl_priv *priv,
 			   bool full_log, char **buf, bool display);
+void iwl_dump_csr(struct iwl_priv *priv);
+int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display);
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 			     struct iwl_rxon_context *ctx);
@@ -662,6 +569,7 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 #define STATUS_SCAN_HW		15
 #define STATUS_POWER_PMI	16
 #define STATUS_FW_ERROR		17
+#define STATUS_DEVICE_ENABLED	18
 
 
 static inline int iwl_is_ready(struct iwl_priv *priv)
@@ -714,11 +622,6 @@ void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 
 int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
-static inline int iwl_send_rxon_assoc(struct iwl_priv *priv,
-				      struct iwl_rxon_context *ctx)
-{
-	return priv->cfg->ops->hcmd->rxon_assoc(priv, ctx);
-}
 static inline int iwlcore_commit_rxon(struct iwl_priv *priv,
 				      struct iwl_rxon_context *ctx)
 {
@@ -736,12 +639,10 @@ static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 	       priv->cfg->bt_params->advanced_bt_coexist;
 }
 
-static inline bool iwl_bt_statistics(struct iwl_priv *priv)
-{
-	return priv->cfg->bt_params && priv->cfg->bt_params->bt_statistics;
-}
-
 extern bool bt_coex_active;
 extern bool bt_siso_mode;
+
+
+void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
 
 #endif /* __iwl_core_h__ */

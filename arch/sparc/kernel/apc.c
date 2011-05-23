@@ -165,7 +165,7 @@ static int __devinit apc_probe(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id __initdata apc_match[] = {
+static struct of_device_id apc_match[] = {
 	{
 		.name = APC_OBPNAME,
 	},

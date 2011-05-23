@@ -109,7 +109,7 @@ static int kgdb_call_nmi_hook(struct pt_regs *regs)
 #ifdef CONFIG_SMP
 void kgdb_roundup_cpus(unsigned long flags)
 {
-	smp_send_debugger_break(MSG_ALL_BUT_SELF);
+	smp_send_debugger_break();
 }
 #endif
 

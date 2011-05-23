@@ -2254,7 +2254,6 @@ struct sky2_port {
 	u8		     wol;		/* WAKE_ bits */
 	u8		     duplex;		/* DUPLEX_HALF, DUPLEX_FULL */
 	u16		     flags;
-#define SKY2_FLAG_RX_CHECKSUM		0x0001
 #define SKY2_FLAG_AUTO_SPEED		0x0002
 #define SKY2_FLAG_AUTO_PAUSE		0x0004
 

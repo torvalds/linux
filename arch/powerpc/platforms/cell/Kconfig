@@ -6,7 +6,8 @@ config PPC_CELL_COMMON
 	bool
 	select PPC_CELL
 	select PPC_DCR_MMIO
-	select PPC_INDIRECT_IO
+	select PPC_INDIRECT_PIO
+	select PPC_INDIRECT_MMIO
 	select PPC_NATIVE
 	select PPC_RTAS
 	select IRQ_EDGE_EOI_HANDLER
@@ -15,6 +16,7 @@ config PPC_CELL_NATIVE
 	bool
 	select PPC_CELL_COMMON
 	select MPIC
+	select PPC_IO_WORKAROUNDS
 	select IBM_NEW_EMAC_EMAC4
 	select IBM_NEW_EMAC_RGMII
 	select IBM_NEW_EMAC_ZMII #test only

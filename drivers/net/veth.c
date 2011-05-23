@@ -22,7 +22,6 @@
 
 #define MIN_MTU 68		/* Min L3 MTU */
 #define MAX_MTU 65535		/* Max L3 MTU (arbitrary) */
-#define MTU_PAD (ETH_HLEN + 4)  /* Max difference between L2 and L3 size MTU */
 
 struct veth_net_stats {
 	unsigned long	rx_packets;
@@ -36,7 +35,6 @@ struct veth_net_stats {
 struct veth_priv {
 	struct net_device *peer;
 	struct veth_net_stats __percpu *stats;
-	unsigned ip_summed;
 };
 
 /*
@@ -53,7 +51,7 @@ static int veth_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	cmd->supported		= 0;
 	cmd->advertising	= 0;
-	cmd->speed		= SPEED_10000;
+	ethtool_cmd_speed_set(cmd, SPEED_10000);
 	cmd->duplex		= DUPLEX_FULL;
 	cmd->port		= PORT_TP;
 	cmd->phy_address	= 0;
@@ -99,47 +97,10 @@ static void veth_get_ethtool_stats(struct net_device *dev,
 	data[0] = priv->peer->ifindex;
 }
 
-static u32 veth_get_rx_csum(struct net_device *dev)
-{
-	struct veth_priv *priv;
-
-	priv = netdev_priv(dev);
-	return priv->ip_summed == CHECKSUM_UNNECESSARY;
-}
-
-static int veth_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct veth_priv *priv;
-
-	priv = netdev_priv(dev);
-	priv->ip_summed = data ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
-	return 0;
-}
-
-static u32 veth_get_tx_csum(struct net_device *dev)
-{
-	return (dev->features & NETIF_F_NO_CSUM) != 0;
-}
-
-static int veth_set_tx_csum(struct net_device *dev, u32 data)
-{
-	if (data)
-		dev->features |= NETIF_F_NO_CSUM;
-	else
-		dev->features &= ~NETIF_F_NO_CSUM;
-	return 0;
-}
-
 static const struct ethtool_ops veth_ethtool_ops = {
 	.get_settings		= veth_get_settings,
 	.get_drvinfo		= veth_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
-	.get_rx_csum		= veth_get_rx_csum,
-	.set_rx_csum		= veth_set_rx_csum,
-	.get_tx_csum		= veth_get_tx_csum,
-	.set_tx_csum		= veth_set_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
-	.set_sg			= ethtool_op_set_sg,
 	.get_strings		= veth_get_strings,
 	.get_sset_count		= veth_get_sset_count,
 	.get_ethtool_stats	= veth_get_ethtool_stats,
@@ -168,8 +129,9 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* don't change ip_summed == CHECKSUM_PARTIAL, as that
 	   will cause bad checksum on forwarded packets */
-	if (skb->ip_summed == CHECKSUM_NONE)
-		skb->ip_summed = rcv_priv->ip_summed;
+	if (skb->ip_summed == CHECKSUM_NONE &&
+	    rcv->features & NETIF_F_RXCSUM)
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	length = skb->len;
 	if (dev_forward_skb(rcv, skb) != NET_RX_SUCCESS)
@@ -304,6 +266,8 @@ static void veth_setup(struct net_device *dev)
 	dev->ethtool_ops = &veth_ethtool_ops;
 	dev->features |= NETIF_F_LLTX;
 	dev->destructor = veth_dev_free;
+
+	dev->hw_features = NETIF_F_NO_CSUM | NETIF_F_SG | NETIF_F_RXCSUM;
 }
 
 /*
@@ -403,6 +367,17 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	if (tb[IFLA_ADDRESS] == NULL)
 		random_ether_addr(dev->dev_addr);
 
+	if (tb[IFLA_IFNAME])
+		nla_strlcpy(dev->name, tb[IFLA_IFNAME], IFNAMSIZ);
+	else
+		snprintf(dev->name, IFNAMSIZ, DRV_NAME "%%d");
+
+	if (strchr(dev->name, '%')) {
+		err = dev_alloc_name(dev, dev->name);
+		if (err < 0)
+			goto err_alloc_name;
+	}
+
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto err_register_dev;
@@ -422,6 +397,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 
 err_register_dev:
 	/* nothing to do */
+err_alloc_name:
 err_configure_peer:
 	unregister_netdevice(peer);
 	return err;

@@ -212,6 +212,24 @@ config MACH_JZ4740
 	select HAVE_PWM
 	select HAVE_CLK
 
+config LANTIQ
+	bool "Lantiq based platforms"
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select CEVT_R4K
+	select CSRC_R4K
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_HAS_EARLY_PRINTK
+	select ARCH_REQUIRE_GPIOLIB
+	select SWAP_IO_SPACE
+	select BOOT_RAW
+	select HAVE_CLK
+	select MIPS_MACHINE
+
 config LASAT
 	bool "LASAT Networks platforms"
 	select CEVT_R4K
@@ -736,6 +754,33 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 		Hikari
 	  Say Y here for most Octeon reference boards.
 
+config NLM_XLR_BOARD
+	bool "Netlogic XLR/XLS based systems"
+	depends on EXPERIMENTAL
+	select BOOT_ELF32
+	select NLM_COMMON
+	select NLM_XLR
+	select SYS_HAS_CPU_XLR
+	select SYS_SUPPORTS_SMP
+	select HW_HAS_PCI
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select 64BIT_PHYS_ADDR
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
+	select DMA_COHERENT
+	select NR_CPUS_DEFAULT_32
+	select CEVT_R4K
+	select CSRC_R4K
+	select IRQ_CPU
+	select ZONE_DMA if 64BIT
+	select SYNC_R4K
+	select SYS_HAS_EARLY_PRINTK
+	help
+	  Support for systems based on Netlogic XLR and XLS processors.
+	  Say Y here if you have a XLR or XLS based board.
+
 endchoice
 
 source "arch/mips/alchemy/Kconfig"
@@ -743,6 +788,7 @@ source "arch/mips/ath79/Kconfig"
 source "arch/mips/bcm63xx/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/jz4740/Kconfig"
+source "arch/mips/lantiq/Kconfig"
 source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
 source "arch/mips/powertv/Kconfig"
@@ -752,6 +798,7 @@ source "arch/mips/txx9/Kconfig"
 source "arch/mips/vr41xx/Kconfig"
 source "arch/mips/cavium-octeon/Kconfig"
 source "arch/mips/loongson/Kconfig"
+source "arch/mips/netlogic/Kconfig"
 
 endmenu
 
@@ -995,9 +1042,6 @@ config IRQ_GT641XX
 	bool
 
 config IRQ_GIC
-	bool
-
-config IRQ_CPU_OCTEON
 	bool
 
 config MIPS_BOARDS_GEN
@@ -1359,8 +1403,6 @@ config CPU_SB1
 config CPU_CAVIUM_OCTEON
 	bool "Cavium Octeon processor"
 	depends on SYS_HAS_CPU_CAVIUM_OCTEON
-	select IRQ_CPU
-	select IRQ_CPU_OCTEON
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_SMP
@@ -1425,6 +1467,17 @@ config CPU_BMIPS5000
 	help
 	  Broadcom BMIPS5000 processors.
 
+config CPU_XLR
+	bool "Netlogic XLR SoC"
+	depends on SYS_HAS_CPU_XLR
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select WEAK_ORDERING
+	select WEAK_REORDERING_BEYOND_LLSC
+	select CPU_SUPPORTS_HUGEPAGES
+	help
+	  Netlogic Microsystems XLR/XLS processors.
 endchoice
 
 if CPU_LOONGSON2F
@@ -1553,6 +1606,9 @@ config SYS_HAS_CPU_BMIPS4380
 	bool
 
 config SYS_HAS_CPU_BMIPS5000
+	bool
+
+config SYS_HAS_CPU_XLR
 	bool
 
 #
@@ -2339,6 +2395,7 @@ config MMU
 
 config I8253
 	bool
+	select CLKSRC_I8253
 	select MIPS_EXTERNAL_TIMER
 
 config ZONE_DMA32

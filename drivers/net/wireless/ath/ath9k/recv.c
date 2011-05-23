@@ -28,6 +28,33 @@ static inline bool ath_is_alt_ant_ratio_better(int alt_ratio, int maxdelta,
 		(alt_rssi_avg > main_rssi_avg + mindelta)) && (pkt_count > 50);
 }
 
+static inline bool ath_ant_div_comb_alt_check(u8 div_group, int alt_ratio,
+					int curr_main_set, int curr_alt_set,
+					int alt_rssi_avg, int main_rssi_avg)
+{
+	bool result = false;
+	switch (div_group) {
+	case 0:
+		if (alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO)
+			result = true;
+		break;
+	case 1:
+		if ((((curr_main_set == ATH_ANT_DIV_COMB_LNA2) &&
+			(curr_alt_set == ATH_ANT_DIV_COMB_LNA1) &&
+				(alt_rssi_avg >= (main_rssi_avg - 5))) ||
+			((curr_main_set == ATH_ANT_DIV_COMB_LNA1) &&
+			(curr_alt_set == ATH_ANT_DIV_COMB_LNA2) &&
+				(alt_rssi_avg >= (main_rssi_avg - 2)))) &&
+							(alt_rssi_avg >= 4))
+			result = true;
+		else
+			result = false;
+		break;
+	}
+
+	return result;
+}
+
 static inline bool ath9k_check_auto_sleep(struct ath_softc *sc)
 {
 	return sc->ps_enabled &&
@@ -75,7 +102,6 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 		*sc->rx.rxlink = bf->bf_daddr;
 
 	sc->rx.rxlink = &ds->ds_link;
-	ath9k_hw_rxena(ah);
 }
 
 static void ath_setdefantenna(struct ath_softc *sc, u32 antenna)
@@ -426,9 +452,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	else
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
-	if ((AR_SREV_9280_20_OR_LATER(sc->sc_ah) ||
-	    AR_SREV_9285_12_OR_LATER(sc->sc_ah)) &&
-	    (sc->sc_ah->opmode == NL80211_IFTYPE_AP) &&
+	if ((sc->sc_ah->opmode == NL80211_IFTYPE_AP) ||
 	    (sc->rx.rxfilter & FIF_PSPOLL))
 		rfilt |= ATH9K_RX_FILTER_PSPOLL;
 
@@ -486,12 +510,12 @@ start_recv:
 bool ath_stoprecv(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	bool stopped;
+	bool stopped, reset = false;
 
 	spin_lock_bh(&sc->rx.rxbuflock);
 	ath9k_hw_abortpcurecv(ah);
 	ath9k_hw_setrxfilter(ah, 0);
-	stopped = ath9k_hw_stopdmarecv(ah);
+	stopped = ath9k_hw_stopdmarecv(ah, &reset);
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
 		ath_edma_stop_recv(sc);
@@ -506,7 +530,7 @@ bool ath_stoprecv(struct ath_softc *sc)
 			"confusing the DMA engine when we start RX up\n");
 		ATH_DBG_WARN_ON_ONCE(!stopped);
 	}
-	return stopped;
+	return stopped && !reset;
 }
 
 void ath_flushrecv(struct ath_softc *sc)
@@ -574,7 +598,8 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		sc->ps_flags &= ~PS_BEACON_SYNC;
 		ath_dbg(common, ATH_DBG_PS,
 			"Reconfigure Beacon timers based on timestamp from the AP\n");
-		ath_beacon_config(sc, NULL);
+		ath_set_beacon(sc);
+		sc->ps_flags &= ~PS_TSFOOR_SYNC;
 	}
 
 	if (ath_beacon_dtim_pending_cab(skb)) {
@@ -919,7 +944,8 @@ static void ath9k_process_rssi(struct ath_common *common,
 	int last_rssi;
 	__le16 fc;
 
-	if (ah->opmode != NL80211_IFTYPE_STATION)
+	if ((ah->opmode != NL80211_IFTYPE_STATION) &&
+	    (ah->opmode != NL80211_IFTYPE_ADHOC))
 		return;
 
 	fc = hdr->frame_control;
@@ -1291,49 +1317,138 @@ static void ath_select_ant_div_from_quick_scan(struct ath_ant_comb *antcomb,
 	}
 }
 
-static void ath_ant_div_conf_fast_divbias(struct ath_hw_antcomb_conf *ant_conf)
+static void ath_ant_div_conf_fast_divbias(struct ath_hw_antcomb_conf *ant_conf,
+		struct ath_ant_comb *antcomb, int alt_ratio)
 {
-	/* Adjust the fast_div_bias based on main and alt lna conf */
-	switch ((ant_conf->main_lna_conf << 4) | ant_conf->alt_lna_conf) {
-	case (0x01): /* A-B LNA2 */
-		ant_conf->fast_div_bias = 0x3b;
-		break;
-	case (0x02): /* A-B LNA1 */
-		ant_conf->fast_div_bias = 0x3d;
-		break;
-	case (0x03): /* A-B A+B */
-		ant_conf->fast_div_bias = 0x1;
-		break;
-	case (0x10): /* LNA2 A-B */
-		ant_conf->fast_div_bias = 0x7;
-		break;
-	case (0x12): /* LNA2 LNA1 */
-		ant_conf->fast_div_bias = 0x2;
-		break;
-	case (0x13): /* LNA2 A+B */
-		ant_conf->fast_div_bias = 0x7;
-		break;
-	case (0x20): /* LNA1 A-B */
-		ant_conf->fast_div_bias = 0x6;
-		break;
-	case (0x21): /* LNA1 LNA2 */
-		ant_conf->fast_div_bias = 0x0;
-		break;
-	case (0x23): /* LNA1 A+B */
-		ant_conf->fast_div_bias = 0x6;
-		break;
-	case (0x30): /* A+B A-B */
-		ant_conf->fast_div_bias = 0x1;
-		break;
-	case (0x31): /* A+B LNA2 */
-		ant_conf->fast_div_bias = 0x3b;
-		break;
-	case (0x32): /* A+B LNA1 */
-		ant_conf->fast_div_bias = 0x3d;
-		break;
-	default:
-		break;
+	if (ant_conf->div_group == 0) {
+		/* Adjust the fast_div_bias based on main and alt lna conf */
+		switch ((ant_conf->main_lna_conf << 4) |
+				ant_conf->alt_lna_conf) {
+		case (0x01): /* A-B LNA2 */
+			ant_conf->fast_div_bias = 0x3b;
+			break;
+		case (0x02): /* A-B LNA1 */
+			ant_conf->fast_div_bias = 0x3d;
+			break;
+		case (0x03): /* A-B A+B */
+			ant_conf->fast_div_bias = 0x1;
+			break;
+		case (0x10): /* LNA2 A-B */
+			ant_conf->fast_div_bias = 0x7;
+			break;
+		case (0x12): /* LNA2 LNA1 */
+			ant_conf->fast_div_bias = 0x2;
+			break;
+		case (0x13): /* LNA2 A+B */
+			ant_conf->fast_div_bias = 0x7;
+			break;
+		case (0x20): /* LNA1 A-B */
+			ant_conf->fast_div_bias = 0x6;
+			break;
+		case (0x21): /* LNA1 LNA2 */
+			ant_conf->fast_div_bias = 0x0;
+			break;
+		case (0x23): /* LNA1 A+B */
+			ant_conf->fast_div_bias = 0x6;
+			break;
+		case (0x30): /* A+B A-B */
+			ant_conf->fast_div_bias = 0x1;
+			break;
+		case (0x31): /* A+B LNA2 */
+			ant_conf->fast_div_bias = 0x3b;
+			break;
+		case (0x32): /* A+B LNA1 */
+			ant_conf->fast_div_bias = 0x3d;
+			break;
+		default:
+			break;
+		}
+	} else if (ant_conf->div_group == 2) {
+		/* Adjust the fast_div_bias based on main and alt_lna_conf */
+		switch ((ant_conf->main_lna_conf << 4) |
+				ant_conf->alt_lna_conf) {
+		case (0x01): /* A-B LNA2 */
+			ant_conf->fast_div_bias = 0x1;
+			ant_conf->main_gaintb = 0;
+			ant_conf->alt_gaintb = 0;
+			break;
+		case (0x02): /* A-B LNA1 */
+			ant_conf->fast_div_bias = 0x1;
+			ant_conf->main_gaintb = 0;
+			ant_conf->alt_gaintb = 0;
+			break;
+		case (0x03): /* A-B A+B */
+			ant_conf->fast_div_bias = 0x1;
+			ant_conf->main_gaintb = 0;
+			ant_conf->alt_gaintb = 0;
+			break;
+		case (0x10): /* LNA2 A-B */
+			if (!(antcomb->scan) &&
+				(alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO))
+				ant_conf->fast_div_bias = 0x1;
+			else
+				ant_conf->fast_div_bias = 0x2;
+			ant_conf->main_gaintb = 0;
+			ant_conf->alt_gaintb = 0;
+			break;
+		case (0x12): /* LNA2 LNA1 */
+			ant_conf->fast_div_bias = 0x1;
+			ant_conf->main_gaintb = 0;
+			ant_conf->alt_gaintb = 0;
+			break;
+		case (0x13): /* LNA2 A+B */
+			if (!(antcomb->scan) &&
+				(alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO))
+				ant_conf->fast_div_bias = 0x1;
+			else
+				ant_conf->fast_div_bias = 0x2;
+			ant_conf->main_gaintb = 0;
+			ant_conf->alt_gaintb = 0;
+			break;
+		case (0x20): /* LNA1 A-B */
+			if (!(antcomb->scan) &&
+				(alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO))
+				ant_conf->fast_div_bias = 0x1;
+			else
+				ant_conf->fast_div_bias = 0x2;
+			ant_conf->main_gaintb = 0;
+			ant_conf->alt_gaintb = 0;
+			break;
+		case (0x21): /* LNA1 LNA2 */
+			ant_conf->fast_div_bias = 0x1;
+			ant_conf->main_gaintb = 0;
+			ant_conf->alt_gaintb = 0;
+			break;
+		case (0x23): /* LNA1 A+B */
+			if (!(antcomb->scan) &&
+				(alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO))
+				ant_conf->fast_div_bias = 0x1;
+			else
+				ant_conf->fast_div_bias = 0x2;
+			ant_conf->main_gaintb = 0;
+			ant_conf->alt_gaintb = 0;
+			break;
+		case (0x30): /* A+B A-B */
+			ant_conf->fast_div_bias = 0x1;
+			ant_conf->main_gaintb = 0;
+			ant_conf->alt_gaintb = 0;
+			break;
+		case (0x31): /* A+B LNA2 */
+			ant_conf->fast_div_bias = 0x1;
+			ant_conf->main_gaintb = 0;
+			ant_conf->alt_gaintb = 0;
+			break;
+		case (0x32): /* A+B LNA1 */
+			ant_conf->fast_div_bias = 0x1;
+			ant_conf->main_gaintb = 0;
+			ant_conf->alt_gaintb = 0;
+			break;
+		default:
+			break;
+		}
+
 	}
+
 }
 
 /* Antenna diversity and combining */
@@ -1342,7 +1457,7 @@ static void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 	struct ath_hw_antcomb_conf div_ant_conf;
 	struct ath_ant_comb *antcomb = &sc->ant_comb;
 	int alt_ratio = 0, alt_rssi_avg = 0, main_rssi_avg = 0, curr_alt_set;
-	int curr_main_set, curr_bias;
+	int curr_main_set;
 	int main_rssi = rs->rs_rssi_ctl0;
 	int alt_rssi = rs->rs_rssi_ctl1;
 	int rx_ant_conf,  main_ant_conf;
@@ -1353,8 +1468,8 @@ static void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 	main_ant_conf = (rs->rs_rssi_ctl2 >> ATH_ANT_RX_MAIN_SHIFT) &
 			 ATH_ANT_RX_MASK;
 
-	/* Record packet only when alt_rssi is positive */
-	if (alt_rssi > 0) {
+	/* Record packet only when both main_rssi and  alt_rssi is positive */
+	if (main_rssi > 0 && alt_rssi > 0) {
 		antcomb->total_pkt_count++;
 		antcomb->main_total_rssi += main_rssi;
 		antcomb->alt_total_rssi  += alt_rssi;
@@ -1396,7 +1511,6 @@ static void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 	ath9k_hw_antdiv_comb_conf_get(sc->sc_ah, &div_ant_conf);
 	curr_alt_set = div_ant_conf.alt_lna_conf;
 	curr_main_set = div_ant_conf.main_lna_conf;
-	curr_bias = div_ant_conf.fast_div_bias;
 
 	antcomb->count++;
 
@@ -1415,7 +1529,9 @@ static void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 	}
 
 	if (!antcomb->scan) {
-		if (alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO) {
+		if (ath_ant_div_comb_alt_check(div_ant_conf.div_group,
+					alt_ratio, curr_main_set, curr_alt_set,
+					alt_rssi_avg, main_rssi_avg)) {
 			if (curr_alt_set == ATH_ANT_DIV_COMB_LNA2) {
 				/* Switch main and alt LNA */
 				div_ant_conf.main_lna_conf =
@@ -1444,7 +1560,7 @@ static void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 		}
 
 		if ((alt_rssi_avg < (main_rssi_avg +
-		    ATH_ANT_DIV_COMB_LNA1_LNA2_DELTA)))
+						div_ant_conf.lna1_lna2_delta)))
 			goto div_comb_done;
 	}
 
@@ -1558,8 +1674,7 @@ static void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 	antcomb->quick_scan_cnt++;
 
 div_comb_done:
-	ath_ant_div_conf_fast_divbias(&div_ant_conf);
-
+	ath_ant_div_conf_fast_divbias(&div_ant_conf, antcomb, alt_ratio);
 	ath9k_hw_antdiv_comb_conf_set(sc->sc_ah, &div_ant_conf);
 
 	antcomb->scan_start_time = jiffies;
@@ -1746,7 +1861,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if ((sc->ps_flags & (PS_WAIT_FOR_BEACON |
 					      PS_WAIT_FOR_CAB |
 					      PS_WAIT_FOR_PSPOLL_DATA)) ||
-					unlikely(ath9k_check_auto_sleep(sc)))
+						ath9k_check_auto_sleep(sc))
 			ath_rx_ps(sc, skb);
 		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
@@ -1767,6 +1882,7 @@ requeue:
 		} else {
 			list_move_tail(&bf->list, &sc->rx.rxbuf);
 			ath_rx_buf_link(sc, bf);
+			ath9k_hw_rxena(ah);
 		}
 	} while (1);
 

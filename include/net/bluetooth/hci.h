@@ -246,6 +246,15 @@ enum {
 #define HCI_AT_GENERAL_BONDING		0x04
 #define HCI_AT_GENERAL_BONDING_MITM	0x05
 
+/* Link Key types */
+#define HCI_LK_COMBINATION		0x00
+#define HCI_LK_LOCAL_UNIT		0x01
+#define HCI_LK_REMOTE_UNIT		0x02
+#define HCI_LK_DEBUG_COMBINATION	0x03
+#define HCI_LK_UNAUTH_COMBINATION	0x04
+#define HCI_LK_AUTH_COMBINATION		0x05
+#define HCI_LK_CHANGED_COMBINATION	0x06
+
 /* -----  HCI Commands ---- */
 #define HCI_OP_NOP			0x0000
 
@@ -428,6 +437,18 @@ struct hci_rp_user_confirm_reply {
 
 #define HCI_OP_USER_CONFIRM_NEG_REPLY	0x042d
 
+#define HCI_OP_REMOTE_OOB_DATA_REPLY	0x0430
+struct hci_cp_remote_oob_data_reply {
+	bdaddr_t bdaddr;
+	__u8     hash[16];
+	__u8     randomizer[16];
+} __packed;
+
+#define HCI_OP_REMOTE_OOB_DATA_NEG_REPLY	0x0433
+struct hci_cp_remote_oob_data_neg_reply {
+	bdaddr_t bdaddr;
+} __packed;
+
 #define HCI_OP_IO_CAPABILITY_NEG_REPLY	0x0434
 struct hci_cp_io_capability_neg_reply {
 	bdaddr_t bdaddr;
@@ -537,15 +558,17 @@ struct hci_cp_delete_stored_link_key {
 	__u8     delete_all;
 } __packed;
 
+#define HCI_MAX_NAME_LENGTH		248
+
 #define HCI_OP_WRITE_LOCAL_NAME		0x0c13
 struct hci_cp_write_local_name {
-	__u8     name[248];
+	__u8     name[HCI_MAX_NAME_LENGTH];
 } __packed;
 
 #define HCI_OP_READ_LOCAL_NAME		0x0c14
 struct hci_rp_read_local_name {
 	__u8     status;
-	__u8     name[248];
+	__u8     name[HCI_MAX_NAME_LENGTH];
 } __packed;
 
 #define HCI_OP_WRITE_CA_TIMEOUT		0x0c16
@@ -602,6 +625,14 @@ struct hci_cp_host_buffer_size {
 
 #define HCI_OP_WRITE_INQUIRY_MODE	0x0c45
 
+#define HCI_MAX_EIR_LENGTH		240
+
+#define HCI_OP_WRITE_EIR		0x0c52
+struct hci_cp_write_eir {
+	uint8_t		fec;
+	uint8_t		data[HCI_MAX_EIR_LENGTH];
+} __packed;
+
 #define HCI_OP_READ_SSP_MODE		0x0c55
 struct hci_rp_read_ssp_mode {
 	__u8     status;
@@ -611,6 +642,13 @@ struct hci_rp_read_ssp_mode {
 #define HCI_OP_WRITE_SSP_MODE		0x0c56
 struct hci_cp_write_ssp_mode {
 	__u8     mode;
+} __packed;
+
+#define HCI_OP_READ_LOCAL_OOB_DATA		0x0c57
+struct hci_rp_read_local_oob_data {
+	__u8     status;
+	__u8     hash[16];
+	__u8     randomizer[16];
 } __packed;
 
 #define HCI_OP_READ_INQ_RSP_TX_POWER	0x0c58
@@ -747,7 +785,7 @@ struct hci_ev_auth_complete {
 struct hci_ev_remote_name {
 	__u8     status;
 	bdaddr_t bdaddr;
-	__u8     name[248];
+	__u8     name[HCI_MAX_NAME_LENGTH];
 } __packed;
 
 #define HCI_EV_ENCRYPT_CHANGE		0x08
@@ -955,6 +993,11 @@ struct hci_ev_user_confirm_req {
 	__le32		passkey;
 } __packed;
 
+#define HCI_EV_REMOTE_OOB_DATA_REQUEST	0x35
+struct hci_ev_remote_oob_data_request {
+	bdaddr_t bdaddr;
+} __packed;
+
 #define HCI_EV_SIMPLE_PAIR_COMPLETE	0x36
 struct hci_ev_simple_pair_complete {
 	__u8     status;
@@ -1033,7 +1076,6 @@ struct hci_sco_hdr {
 	__u8	dlen;
 } __packed;
 
-#ifdef __KERNEL__
 #include <linux/skbuff.h>
 static inline struct hci_event_hdr *hci_event_hdr(const struct sk_buff *skb)
 {
@@ -1049,7 +1091,6 @@ static inline struct hci_sco_hdr *hci_sco_hdr(const struct sk_buff *skb)
 {
 	return (struct hci_sco_hdr *) skb->data;
 }
-#endif
 
 /* Command opcode pack/unpack */
 #define hci_opcode_pack(ogf, ocf)	(__u16) ((ocf & 0x03ff)|(ogf << 10))

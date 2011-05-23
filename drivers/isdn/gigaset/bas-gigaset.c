@@ -1157,7 +1157,6 @@ static void write_iso_tasklet(unsigned long data)
 	struct urb *urb;
 	int status;
 	struct usb_iso_packet_descriptor *ifd;
-	int offset;
 	unsigned long flags;
 	int i;
 	struct sk_buff *skb;
@@ -1225,7 +1224,6 @@ static void write_iso_tasklet(unsigned long data)
 			 *   successfully sent
 			 * - all following frames are not sent at all
 			 */
-			offset = done->limit;	/* default (no error) */
 			for (i = 0; i < BAS_NUMFRAMES; i++) {
 				ifd = &urb->iso_frame_desc[i];
 				if (ifd->status ||
@@ -1235,9 +1233,6 @@ static void write_iso_tasklet(unsigned long data)
 						 i, ifd->actual_length,
 						 ifd->length,
 						 get_usb_statmsg(ifd->status));
-					offset = (ifd->offset +
-						  ifd->actual_length)
-						 % BAS_OUTBUFSIZE;
 					break;
 				}
 			}

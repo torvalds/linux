@@ -382,23 +382,6 @@ extern const char gfar_driver_version[];
 #define BD_LFLAG(flags) ((flags) << 16)
 #define BD_LENGTH_MASK		0x0000ffff
 
-#define CLASS_CODE_UNRECOG		0x00
-#define CLASS_CODE_DUMMY1		0x01
-#define CLASS_CODE_ETHERTYPE1		0x02
-#define CLASS_CODE_ETHERTYPE2		0x03
-#define CLASS_CODE_USER_PROG1		0x04
-#define CLASS_CODE_USER_PROG2		0x05
-#define CLASS_CODE_USER_PROG3		0x06
-#define CLASS_CODE_USER_PROG4		0x07
-#define CLASS_CODE_TCP_IPV4		0x08
-#define CLASS_CODE_UDP_IPV4		0x09
-#define CLASS_CODE_AH_ESP_IPV4		0x0a
-#define CLASS_CODE_SCTP_IPV4		0x0b
-#define CLASS_CODE_TCP_IPV6		0x0c
-#define CLASS_CODE_UDP_IPV6		0x0d
-#define CLASS_CODE_AH_ESP_IPV6		0x0e
-#define CLASS_CODE_SCTP_IPV6		0x0f
-
 #define FPR_FILER_MASK	0xFFFFFFFF
 #define MAX_FILER_IDX	0xFF
 
@@ -1100,7 +1083,7 @@ struct gfar_private {
 	struct device_node *phy_node;
 	struct device_node *tbi_node;
 	u32 device_flags;
-	unsigned char rx_csum_enable:1,
+	unsigned char
 		extended_hash:1,
 		bd_stash_en:1,
 		rx_filer_enable:1,
@@ -1170,6 +1153,7 @@ extern void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev,
 extern void gfar_configure_coalescing(struct gfar_private *priv,
 		unsigned long tx_mask, unsigned long rx_mask);
 void gfar_init_sysfs(struct net_device *dev);
+int gfar_set_features(struct net_device *dev, u32 features);
 
 extern const struct ethtool_ops gfar_ethtool_ops;
 

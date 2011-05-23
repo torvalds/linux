@@ -238,6 +238,21 @@ config DETECT_HUNG_TASK
 	  enabled then all held locks will also be reported. This
 	  feature has negligible overhead.
 
+config DEFAULT_HUNG_TASK_TIMEOUT
+	int "Default timeout for hung task detection (in seconds)"
+	depends on DETECT_HUNG_TASK
+	default 120
+	help
+	  This option controls the default timeout (in seconds) used
+	  to determine when a task has become non-responsive and should
+	  be considered hung.
+
+	  It can be adjusted at runtime via the kernel.hung_task_timeout
+	  sysctl or by writing a value to /proc/sys/kernel/hung_task_timeout.
+
+	  A timeout of 0 disables the check.  The default is two minutes.
+	  Keeping the default should be fine in most cases.
+
 config BOOTPARAM_HUNG_TASK_PANIC
 	bool "Panic (Reboot) On Hung Tasks"
 	depends on DETECT_HUNG_TASK
@@ -337,7 +352,7 @@ config DEBUG_OBJECTS_WORK
 
 config DEBUG_OBJECTS_RCU_HEAD
 	bool "Debug RCU callbacks objects"
-	depends on DEBUG_OBJECTS && PREEMPT
+	depends on DEBUG_OBJECTS
 	help
 	  Enable this to turn on debugging of RCU list heads (call_rcu() usage).
 
@@ -398,9 +413,9 @@ config SLUB_STATS
 config DEBUG_KMEMLEAK
 	bool "Kernel memory leak detector"
 	depends on DEBUG_KERNEL && EXPERIMENTAL && !MEMORY_HOTPLUG && \
-		(X86 || ARM || PPC || S390 || SPARC64 || SUPERH || MICROBLAZE || TILE)
+		(X86 || ARM || PPC || MIPS || S390 || SPARC64 || SUPERH || MICROBLAZE || TILE)
 
-	select DEBUG_FS if SYSFS
+	select DEBUG_FS
 	select STACKTRACE if STACKTRACE_SUPPORT
 	select KALLSYMS
 	select CRC32
@@ -875,22 +890,9 @@ config RCU_TORTURE_TEST_RUNNABLE
 	  Say N here if you want the RCU torture tests to start only
 	  after being manually enabled via /proc.
 
-config RCU_CPU_STALL_DETECTOR
-	bool "Check for stalled CPUs delaying RCU grace periods"
-	depends on TREE_RCU || TREE_PREEMPT_RCU
-	default y
-	help
-	  This option causes RCU to printk information on which
-	  CPUs are delaying the current grace period, but only when
-	  the grace period extends for excessive time periods.
-
-	  Say N if you want to disable such checks.
-
-	  Say Y if you are unsure.
-
 config RCU_CPU_STALL_TIMEOUT
 	int "RCU CPU stall timeout in seconds"
-	depends on RCU_CPU_STALL_DETECTOR
+	depends on TREE_RCU || TREE_PREEMPT_RCU
 	range 3 300
 	default 60
 	help
@@ -899,22 +901,9 @@ config RCU_CPU_STALL_TIMEOUT
 	  RCU grace period persists, additional CPU stall warnings are
 	  printed at more widely spaced intervals.
 
-config RCU_CPU_STALL_DETECTOR_RUNNABLE
-	bool "RCU CPU stall checking starts automatically at boot"
-	depends on RCU_CPU_STALL_DETECTOR
-	default y
-	help
-	  If set, start checking for RCU CPU stalls immediately on
-	  boot.  Otherwise, RCU CPU stall checking must be manually
-	  enabled.
-
-	  Say Y if you are unsure.
-
-	  Say N if you wish to suppress RCU CPU stall checking during boot.
-
 config RCU_CPU_STALL_VERBOSE
 	bool "Print additional per-task information for RCU_CPU_STALL_DETECTOR"
-	depends on RCU_CPU_STALL_DETECTOR && TREE_PREEMPT_RCU
+	depends on TREE_PREEMPT_RCU
 	default y
 	help
 	  This option causes RCU to printk detailed per-task information

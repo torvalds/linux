@@ -1245,7 +1245,6 @@ struct nes_vnic {
 	u8  next_qp_nic_index;
 	u8  of_device_registered;
 	u8  rdma_enabled;
-	u8  rx_checksum_disabled;
 	u32 lro_max_aggr;
 	struct net_lro_mgr lro_mgr;
 	struct net_lro_desc lro_desc[NES_MAX_LRO_DESCRIPTORS];

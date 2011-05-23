@@ -10,6 +10,7 @@
 #include <linux/buffer_head.h>
 #include <linux/dlmconstants.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/writeback.h>
 #include "incore.h"
 #include "glock.h"
 
@@ -40,7 +41,9 @@
 	{(1UL << GLF_REPLY_PENDING),		"r" },		\
 	{(1UL << GLF_INITIAL),			"I" },		\
 	{(1UL << GLF_FROZEN),			"F" },		\
-	{(1UL << GLF_QUEUED),			"q" })
+	{(1UL << GLF_QUEUED),			"q" },		\
+	{(1UL << GLF_LRU),			"L" },		\
+	{(1UL << GLF_OBJECT),			"o" })
 
 #ifndef NUMPTY
 #define NUMPTY
@@ -94,7 +97,7 @@ TRACE_EVENT(gfs2_glock_state_change,
 		__entry->new_state	= glock_trace_state(new_state);
 		__entry->tgt_state	= glock_trace_state(gl->gl_target);
 		__entry->dmt_state	= glock_trace_state(gl->gl_demote_state);
-		__entry->flags		= gl->gl_flags;
+		__entry->flags		= gl->gl_flags | (gl->gl_object ? (1UL<<GLF_OBJECT) : 0);
 	),
 
 	TP_printk("%u,%u glock %d:%lld state %s to %s tgt:%s dmt:%s flags:%s",
@@ -127,7 +130,7 @@ TRACE_EVENT(gfs2_glock_put,
 		__entry->gltype		= gl->gl_name.ln_type;
 		__entry->glnum		= gl->gl_name.ln_number;
 		__entry->cur_state	= glock_trace_state(gl->gl_state);
-		__entry->flags		= gl->gl_flags;
+		__entry->flags		= gl->gl_flags  | (gl->gl_object ? (1UL<<GLF_OBJECT) : 0);
 	),
 
 	TP_printk("%u,%u glock %d:%lld state %s => %s flags:%s",
@@ -161,7 +164,7 @@ TRACE_EVENT(gfs2_demote_rq,
 		__entry->glnum		= gl->gl_name.ln_number;
 		__entry->cur_state	= glock_trace_state(gl->gl_state);
 		__entry->dmt_state	= glock_trace_state(gl->gl_demote_state);
-		__entry->flags		= gl->gl_flags;
+		__entry->flags		= gl->gl_flags  | (gl->gl_object ? (1UL<<GLF_OBJECT) : 0);
 	),
 
 	TP_printk("%u,%u glock %d:%lld demote %s to %s flags:%s",
@@ -316,6 +319,33 @@ TRACE_EVENT(gfs2_log_blocks,
 
 	TP_printk("%u,%u log reserve %d", MAJOR(__entry->dev),
 		  MINOR(__entry->dev), __entry->blocks)
+);
+
+/* Writing back the AIL */
+TRACE_EVENT(gfs2_ail_flush,
+
+	TP_PROTO(const struct gfs2_sbd *sdp, const struct writeback_control *wbc, int start),
+
+	TP_ARGS(sdp, wbc, start),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	int, start			)
+		__field(	int, sync_mode			)
+		__field(	long, nr_to_write		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sdp->sd_vfs->s_dev;
+		__entry->start		= start;
+		__entry->sync_mode	= wbc->sync_mode;
+		__entry->nr_to_write	= wbc->nr_to_write;
+	),
+
+	TP_printk("%u,%u ail flush %s %s %ld", MAJOR(__entry->dev),
+		  MINOR(__entry->dev), __entry->start ? "start" : "end",
+		  __entry->sync_mode == WB_SYNC_ALL ? "all" : "none",
+		  __entry->nr_to_write)
 );
 
 /* Section 3 - bmap

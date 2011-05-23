@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -51,9 +51,7 @@ const char *get_cmd_string(u8 cmd)
 		IWL_CMD(REPLY_REMOVE_ALL_STA);
 		IWL_CMD(REPLY_TXFIFO_FLUSH);
 		IWL_CMD(REPLY_WEPKEY);
-		IWL_CMD(REPLY_3945_RX);
 		IWL_CMD(REPLY_TX);
-		IWL_CMD(REPLY_RATE_SCALE);
 		IWL_CMD(REPLY_LEDS_CMD);
 		IWL_CMD(REPLY_TX_LINK_QUALITY_CMD);
 		IWL_CMD(COEX_PRIORITY_TABLE_CMD);
@@ -145,10 +143,12 @@ static int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	int ret;
 
-	BUG_ON(!(cmd->flags & CMD_ASYNC));
+	if (WARN_ON(!(cmd->flags & CMD_ASYNC)))
+		return -EINVAL;
 
 	/* An asynchronous command can not expect an SKB to be set. */
-	BUG_ON(cmd->flags & CMD_WANT_SKB);
+	if (WARN_ON(cmd->flags & CMD_WANT_SKB))
+		return -EINVAL;
 
 	/* Assign a generic callback if one is not provided */
 	if (!cmd->callback)
@@ -171,14 +171,15 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	int cmd_idx;
 	int ret;
 
-	BUG_ON(cmd->flags & CMD_ASYNC);
+	if (WARN_ON(cmd->flags & CMD_ASYNC))
+		return -EINVAL;
 
 	 /* A synchronous command can not have a callback set. */
-	BUG_ON(cmd->callback);
+	if (WARN_ON(cmd->callback))
+		return -EINVAL;
 
 	IWL_DEBUG_INFO(priv, "Attempting to send sync command %s\n",
 			get_cmd_string(cmd->id));
-	mutex_lock(&priv->sync_cmd_mutex);
 
 	set_bit(STATUS_HCMD_ACTIVE, &priv->status);
 	IWL_DEBUG_INFO(priv, "Setting HCMD_ACTIVE for command %s\n",
@@ -189,7 +190,7 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		ret = cmd_idx;
 		IWL_ERR(priv, "Error sending %s: enqueue_hcmd failed: %d\n",
 			  get_cmd_string(cmd->id), ret);
-		goto out;
+		return ret;
 	}
 
 	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
@@ -229,8 +230,7 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		goto cancel;
 	}
 
-	ret = 0;
-	goto out;
+	return 0;
 
 cancel:
 	if (cmd->flags & CMD_WANT_SKB) {
@@ -248,8 +248,7 @@ fail:
 		iwl_free_pages(priv, cmd->reply_page);
 		cmd->reply_page = 0;
 	}
-out:
-	mutex_unlock(&priv->sync_cmd_mutex);
+
 	return ret;
 }
 

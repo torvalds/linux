@@ -20,7 +20,7 @@
 
 static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
 {
-	struct ipv6hdr *outer_iph = ipv6_hdr(skb);
+	const struct ipv6hdr *outer_iph = ipv6_hdr(skb);
 	struct ipv6hdr *inner_iph = ipipv6_hdr(skb);
 
 	if (INET_ECN_is_ce(ipv6_get_dsfield(outer_iph)))
@@ -55,8 +55,8 @@ static int xfrm6_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 		dsfield &= ~INET_ECN_MASK;
 	ipv6_change_dsfield(top_iph, 0, dsfield);
 	top_iph->hop_limit = ip6_dst_hoplimit(dst->child);
-	ipv6_addr_copy(&top_iph->saddr, (struct in6_addr *)&x->props.saddr);
-	ipv6_addr_copy(&top_iph->daddr, (struct in6_addr *)&x->id.daddr);
+	ipv6_addr_copy(&top_iph->saddr, (const struct in6_addr *)&x->props.saddr);
+	ipv6_addr_copy(&top_iph->daddr, (const struct in6_addr *)&x->id.daddr);
 	return 0;
 }
 

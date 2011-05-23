@@ -98,7 +98,6 @@ const char *sctp_cname(const sctp_subtype_t cid)
 
 /* These are printable forms of the states.  */
 const char *const sctp_state_tbl[SCTP_STATE_NUM_STATES] = {
-	"STATE_EMPTY",
 	"STATE_CLOSED",
 	"STATE_COOKIE_WAIT",
 	"STATE_COOKIE_ECHOED",

@@ -422,8 +422,7 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 
 	snprintf(fc_host->work_q_name, sizeof(fc_host->work_q_name),
 		 "fc_wq_%d", shost->host_no);
-	fc_host->work_q = create_singlethread_workqueue(
-					fc_host->work_q_name);
+	fc_host->work_q = alloc_workqueue(fc_host->work_q_name, 0, 0);
 	if (!fc_host->work_q)
 		return -ENOMEM;
 
@@ -431,8 +430,8 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	snprintf(fc_host->devloss_work_q_name,
 		 sizeof(fc_host->devloss_work_q_name),
 		 "fc_dl_%d", shost->host_no);
-	fc_host->devloss_work_q = create_singlethread_workqueue(
-					fc_host->devloss_work_q_name);
+	fc_host->devloss_work_q =
+			alloc_workqueue(fc_host->devloss_work_q_name, 0, 0);
 	if (!fc_host->devloss_work_q) {
 		destroy_workqueue(fc_host->work_q);
 		fc_host->work_q = NULL;
@@ -2489,14 +2488,14 @@ fc_rport_final_delete(struct work_struct *work)
 	unsigned long flags;
 	int do_callback = 0;
 
+	fc_terminate_rport_io(rport);
+
 	/*
 	 * if a scan is pending, flush the SCSI Host work_q so that
 	 * that we can reclaim the rport scan work element.
 	 */
 	if (rport->flags & FC_RPORT_SCAN_PENDING)
 		scsi_flush_work(shost);
-
-	fc_terminate_rport_io(rport);
 
 	/*
 	 * Cancel any outstanding timers. These should really exist
@@ -3816,27 +3815,16 @@ fail_host_msg:
 static void
 fc_bsg_goose_queue(struct fc_rport *rport)
 {
-	int flagset;
-	unsigned long flags;
-
 	if (!rport->rqst_q)
 		return;
 
+	/*
+	 * This get/put dance makes no sense
+	 */
 	get_device(&rport->dev);
-
-	spin_lock_irqsave(rport->rqst_q->queue_lock, flags);
-	flagset = test_bit(QUEUE_FLAG_REENTER, &rport->rqst_q->queue_flags) &&
-		  !test_bit(QUEUE_FLAG_REENTER, &rport->rqst_q->queue_flags);
-	if (flagset)
-		queue_flag_set(QUEUE_FLAG_REENTER, rport->rqst_q);
-	__blk_run_queue(rport->rqst_q, false);
-	if (flagset)
-		queue_flag_clear(QUEUE_FLAG_REENTER, rport->rqst_q);
-	spin_unlock_irqrestore(rport->rqst_q->queue_lock, flags);
-
+	blk_run_queue_async(rport->rqst_q);
 	put_device(&rport->dev);
 }
-
 
 /**
  * fc_bsg_rport_dispatch - process rport bsg requests and dispatch to LLDD

@@ -140,14 +140,14 @@ static inline int ip_select_ttl(struct inet_sock *inet, struct dst_entry *dst)
  *
  */
 int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
-			  __be32 saddr, __be32 daddr, struct ip_options *opt)
+			  __be32 saddr, __be32 daddr, struct ip_options_rcu *opt)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct rtable *rt = skb_rtable(skb);
 	struct iphdr *iph;
 
 	/* Build the IP header. */
-	skb_push(skb, sizeof(struct iphdr) + (opt ? opt->optlen : 0));
+	skb_push(skb, sizeof(struct iphdr) + (opt ? opt->opt.optlen : 0));
 	skb_reset_network_header(skb);
 	iph = ip_hdr(skb);
 	iph->version  = 4;
@@ -158,14 +158,14 @@ int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
 	else
 		iph->frag_off = 0;
 	iph->ttl      = ip_select_ttl(inet, &rt->dst);
-	iph->daddr    = rt->rt_dst;
-	iph->saddr    = rt->rt_src;
+	iph->daddr    = (opt && opt->opt.srr ? opt->opt.faddr : daddr);
+	iph->saddr    = saddr;
 	iph->protocol = sk->sk_protocol;
 	ip_select_ident(iph, &rt->dst, sk);
 
-	if (opt && opt->optlen) {
-		iph->ihl += opt->optlen>>2;
-		ip_options_build(skb, opt, daddr, rt, 0);
+	if (opt && opt->opt.optlen) {
+		iph->ihl += opt->opt.optlen>>2;
+		ip_options_build(skb, &opt->opt, daddr, rt, 0);
 	}
 
 	skb->priority = sk->sk_priority;
@@ -312,11 +312,12 @@ int ip_output(struct sk_buff *skb)
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }
 
-int ip_queue_xmit(struct sk_buff *skb)
+int ip_queue_xmit(struct sk_buff *skb, struct flowi *fl)
 {
 	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);
-	struct ip_options *opt = inet->opt;
+	struct ip_options_rcu *inet_opt;
+	struct flowi4 *fl4;
 	struct rtable *rt;
 	struct iphdr *iph;
 	int res;
@@ -325,6 +326,8 @@ int ip_queue_xmit(struct sk_buff *skb)
 	 * f.e. by something like SCTP.
 	 */
 	rcu_read_lock();
+	inet_opt = rcu_dereference(inet->inet_opt);
+	fl4 = &fl->u.ip4;
 	rt = skb_rtable(skb);
 	if (rt != NULL)
 		goto packet_routed;
@@ -336,14 +339,14 @@ int ip_queue_xmit(struct sk_buff *skb)
 
 		/* Use correct destination address if we have options. */
 		daddr = inet->inet_daddr;
-		if(opt && opt->srr)
-			daddr = opt->faddr;
+		if (inet_opt && inet_opt->opt.srr)
+			daddr = inet_opt->opt.faddr;
 
 		/* If this fails, retransmit mechanism of transport layer will
 		 * keep trying until route appears or the connection times
 		 * itself out.
 		 */
-		rt = ip_route_output_ports(sock_net(sk), sk,
+		rt = ip_route_output_ports(sock_net(sk), fl4, sk,
 					   daddr, inet->inet_saddr,
 					   inet->inet_dport,
 					   inet->inet_sport,
@@ -357,11 +360,11 @@ int ip_queue_xmit(struct sk_buff *skb)
 	skb_dst_set_noref(skb, &rt->dst);
 
 packet_routed:
-	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway)
+	if (inet_opt && inet_opt->opt.is_strictroute && fl4->daddr != rt->rt_gateway)
 		goto no_route;
 
 	/* OK, we know where to send it, allocate and build IP header. */
-	skb_push(skb, sizeof(struct iphdr) + (opt ? opt->optlen : 0));
+	skb_push(skb, sizeof(struct iphdr) + (inet_opt ? inet_opt->opt.optlen : 0));
 	skb_reset_network_header(skb);
 	iph = ip_hdr(skb);
 	*((__be16 *)iph) = htons((4 << 12) | (5 << 8) | (inet->tos & 0xff));
@@ -371,13 +374,13 @@ packet_routed:
 		iph->frag_off = 0;
 	iph->ttl      = ip_select_ttl(inet, &rt->dst);
 	iph->protocol = sk->sk_protocol;
-	iph->saddr    = rt->rt_src;
-	iph->daddr    = rt->rt_dst;
+	iph->saddr    = fl4->saddr;
+	iph->daddr    = fl4->daddr;
 	/* Transport layer set skb->h.foo itself. */
 
-	if (opt && opt->optlen) {
-		iph->ihl += opt->optlen >> 2;
-		ip_options_build(skb, opt, inet->inet_daddr, rt, 0);
+	if (inet_opt && inet_opt->opt.optlen) {
+		iph->ihl += inet_opt->opt.optlen >> 2;
+		ip_options_build(skb, &inet_opt->opt, inet->inet_daddr, rt, 0);
 	}
 
 	ip_select_ident_more(iph, &rt->dst, sk,
@@ -773,7 +776,9 @@ static inline int ip_ufo_append_data(struct sock *sk,
 				       (length - transhdrlen));
 }
 
-static int __ip_append_data(struct sock *sk, struct sk_buff_head *queue,
+static int __ip_append_data(struct sock *sk,
+			    struct flowi4 *fl4,
+			    struct sk_buff_head *queue,
 			    struct inet_cork *cork,
 			    int getfrag(void *from, char *to, int offset,
 					int len, int odd, struct sk_buff *skb),
@@ -805,7 +810,7 @@ static int __ip_append_data(struct sock *sk, struct sk_buff_head *queue,
 	maxfraglen = ((mtu - fragheaderlen) & ~7) + fragheaderlen;
 
 	if (cork->length + length > 0xFFFF - fragheaderlen) {
-		ip_local_error(sk, EMSGSIZE, rt->rt_dst, inet->inet_dport,
+		ip_local_error(sk, EMSGSIZE, fl4->daddr, inet->inet_dport,
 			       mtu-exthdrlen);
 		return -EMSGSIZE;
 	}
@@ -1033,7 +1038,7 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 			 struct ipcm_cookie *ipc, struct rtable **rtp)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	struct ip_options *opt;
+	struct ip_options_rcu *opt;
 	struct rtable *rt;
 
 	/*
@@ -1047,7 +1052,7 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 			if (unlikely(cork->opt == NULL))
 				return -ENOBUFS;
 		}
-		memcpy(cork->opt, opt, sizeof(struct ip_options) + opt->optlen);
+		memcpy(cork->opt, &opt->opt, sizeof(struct ip_options) + opt->opt.optlen);
 		cork->flags |= IPCORK_OPT;
 		cork->addr = ipc->addr;
 	}
@@ -1080,7 +1085,7 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
  *
  *	LATER: length must be adjusted by pad at tail, when it is required.
  */
-int ip_append_data(struct sock *sk,
+int ip_append_data(struct sock *sk, struct flowi4 *fl4,
 		   int getfrag(void *from, char *to, int offset, int len,
 			       int odd, struct sk_buff *skb),
 		   void *from, int length, int transhdrlen,
@@ -1094,24 +1099,25 @@ int ip_append_data(struct sock *sk,
 		return 0;
 
 	if (skb_queue_empty(&sk->sk_write_queue)) {
-		err = ip_setup_cork(sk, &inet->cork, ipc, rtp);
+		err = ip_setup_cork(sk, &inet->cork.base, ipc, rtp);
 		if (err)
 			return err;
 	} else {
 		transhdrlen = 0;
 	}
 
-	return __ip_append_data(sk, &sk->sk_write_queue, &inet->cork, getfrag,
+	return __ip_append_data(sk, fl4, &sk->sk_write_queue, &inet->cork.base, getfrag,
 				from, length, transhdrlen, flags);
 }
 
-ssize_t	ip_append_page(struct sock *sk, struct page *page,
+ssize_t	ip_append_page(struct sock *sk, struct flowi4 *fl4, struct page *page,
 		       int offset, size_t size, int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct sk_buff *skb;
 	struct rtable *rt;
 	struct ip_options *opt = NULL;
+	struct inet_cork *cork;
 	int hh_len;
 	int mtu;
 	int len;
@@ -1127,28 +1133,29 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 	if (skb_queue_empty(&sk->sk_write_queue))
 		return -EINVAL;
 
-	rt = (struct rtable *)inet->cork.dst;
-	if (inet->cork.flags & IPCORK_OPT)
-		opt = inet->cork.opt;
+	cork = &inet->cork.base;
+	rt = (struct rtable *)cork->dst;
+	if (cork->flags & IPCORK_OPT)
+		opt = cork->opt;
 
 	if (!(rt->dst.dev->features&NETIF_F_SG))
 		return -EOPNOTSUPP;
 
 	hh_len = LL_RESERVED_SPACE(rt->dst.dev);
-	mtu = inet->cork.fragsize;
+	mtu = cork->fragsize;
 
 	fragheaderlen = sizeof(struct iphdr) + (opt ? opt->optlen : 0);
 	maxfraglen = ((mtu - fragheaderlen) & ~7) + fragheaderlen;
 
-	if (inet->cork.length + size > 0xFFFF - fragheaderlen) {
-		ip_local_error(sk, EMSGSIZE, rt->rt_dst, inet->inet_dport, mtu);
+	if (cork->length + size > 0xFFFF - fragheaderlen) {
+		ip_local_error(sk, EMSGSIZE, fl4->daddr, inet->inet_dport, mtu);
 		return -EMSGSIZE;
 	}
 
 	if ((skb = skb_peek_tail(&sk->sk_write_queue)) == NULL)
 		return -EINVAL;
 
-	inet->cork.length += size;
+	cork->length += size;
 	if ((size + skb->len > mtu) &&
 	    (sk->sk_protocol == IPPROTO_UDP) &&
 	    (rt->dst.dev->features & NETIF_F_UFO)) {
@@ -1243,7 +1250,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 	return 0;
 
 error:
-	inet->cork.length -= size;
+	cork->length -= size;
 	IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTDISCARDS);
 	return err;
 }
@@ -1262,6 +1269,7 @@ static void ip_cork_release(struct inet_cork *cork)
  *	and push them out.
  */
 struct sk_buff *__ip_make_skb(struct sock *sk,
+			      struct flowi4 *fl4,
 			      struct sk_buff_head *queue,
 			      struct inet_cork *cork)
 {
@@ -1319,17 +1327,18 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	iph = (struct iphdr *)skb->data;
 	iph->version = 4;
 	iph->ihl = 5;
-	if (opt) {
-		iph->ihl += opt->optlen>>2;
-		ip_options_build(skb, opt, cork->addr, rt, 0);
-	}
 	iph->tos = inet->tos;
 	iph->frag_off = df;
 	ip_select_ident(iph, &rt->dst, sk);
 	iph->ttl = ttl;
 	iph->protocol = sk->sk_protocol;
-	iph->saddr = rt->rt_src;
-	iph->daddr = rt->rt_dst;
+	iph->saddr = fl4->saddr;
+	iph->daddr = fl4->daddr;
+
+	if (opt) {
+		iph->ihl += opt->optlen>>2;
+		ip_options_build(skb, opt, cork->addr, rt, 0);
+	}
 
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
@@ -1365,11 +1374,11 @@ int ip_send_skb(struct sk_buff *skb)
 	return err;
 }
 
-int ip_push_pending_frames(struct sock *sk)
+int ip_push_pending_frames(struct sock *sk, struct flowi4 *fl4)
 {
 	struct sk_buff *skb;
 
-	skb = ip_finish_skb(sk);
+	skb = ip_finish_skb(sk, fl4);
 	if (!skb)
 		return 0;
 
@@ -1394,17 +1403,18 @@ static void __ip_flush_pending_frames(struct sock *sk,
 
 void ip_flush_pending_frames(struct sock *sk)
 {
-	__ip_flush_pending_frames(sk, &sk->sk_write_queue, &inet_sk(sk)->cork);
+	__ip_flush_pending_frames(sk, &sk->sk_write_queue, &inet_sk(sk)->cork.base);
 }
 
 struct sk_buff *ip_make_skb(struct sock *sk,
+			    struct flowi4 *fl4,
 			    int getfrag(void *from, char *to, int offset,
 					int len, int odd, struct sk_buff *skb),
 			    void *from, int length, int transhdrlen,
 			    struct ipcm_cookie *ipc, struct rtable **rtp,
 			    unsigned int flags)
 {
-	struct inet_cork cork = {};
+	struct inet_cork cork;
 	struct sk_buff_head queue;
 	int err;
 
@@ -1413,18 +1423,21 @@ struct sk_buff *ip_make_skb(struct sock *sk,
 
 	__skb_queue_head_init(&queue);
 
+	cork.flags = 0;
+	cork.addr = 0;
+	cork.opt = NULL;
 	err = ip_setup_cork(sk, &cork, ipc, rtp);
 	if (err)
 		return ERR_PTR(err);
 
-	err = __ip_append_data(sk, &queue, &cork, getfrag,
+	err = __ip_append_data(sk, fl4, &queue, &cork, getfrag,
 			       from, length, transhdrlen, flags);
 	if (err) {
 		__ip_flush_pending_frames(sk, &queue, &cork);
 		return ERR_PTR(err);
 	}
 
-	return __ip_make_skb(sk, &queue, &cork);
+	return __ip_make_skb(sk, fl4, &queue, &cork);
 }
 
 /*
@@ -1447,48 +1460,39 @@ static int ip_reply_glue_bits(void *dptr, char *to, int offset,
  *	Should run single threaded per socket because it uses the sock
  *     	structure to pass arguments.
  */
-void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *arg,
-		   unsigned int len)
+void ip_send_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
+		   struct ip_reply_arg *arg, unsigned int len)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	struct {
-		struct ip_options	opt;
-		char			data[40];
-	} replyopts;
+	struct ip_options_data replyopts;
 	struct ipcm_cookie ipc;
-	__be32 daddr;
+	struct flowi4 fl4;
 	struct rtable *rt = skb_rtable(skb);
 
-	if (ip_options_echo(&replyopts.opt, skb))
+	if (ip_options_echo(&replyopts.opt.opt, skb))
 		return;
 
-	daddr = ipc.addr = rt->rt_src;
+	ipc.addr = daddr;
 	ipc.opt = NULL;
 	ipc.tx_flags = 0;
 
-	if (replyopts.opt.optlen) {
+	if (replyopts.opt.opt.optlen) {
 		ipc.opt = &replyopts.opt;
 
-		if (ipc.opt->srr)
-			daddr = replyopts.opt.faddr;
+		if (replyopts.opt.opt.srr)
+			daddr = replyopts.opt.opt.faddr;
 	}
 
-	{
-		struct flowi4 fl4 = {
-			.flowi4_oif = arg->bound_dev_if,
-			.daddr = daddr,
-			.saddr = rt->rt_spec_dst,
-			.flowi4_tos = RT_TOS(ip_hdr(skb)->tos),
-			.fl4_sport = tcp_hdr(skb)->dest,
-			.fl4_dport = tcp_hdr(skb)->source,
-			.flowi4_proto = sk->sk_protocol,
-			.flowi4_flags = ip_reply_arg_flowi_flags(arg),
-		};
-		security_skb_classify_flow(skb, flowi4_to_flowi(&fl4));
-		rt = ip_route_output_key(sock_net(sk), &fl4);
-		if (IS_ERR(rt))
-			return;
-	}
+	flowi4_init_output(&fl4, arg->bound_dev_if, 0,
+			   RT_TOS(ip_hdr(skb)->tos),
+			   RT_SCOPE_UNIVERSE, sk->sk_protocol,
+			   ip_reply_arg_flowi_flags(arg),
+			   daddr, rt->rt_spec_dst,
+			   tcp_hdr(skb)->source, tcp_hdr(skb)->dest);
+	security_skb_classify_flow(skb, flowi4_to_flowi(&fl4));
+	rt = ip_route_output_key(sock_net(sk), &fl4);
+	if (IS_ERR(rt))
+		return;
 
 	/* And let IP do all the hard work.
 
@@ -1501,7 +1505,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 	sk->sk_priority = skb->priority;
 	sk->sk_protocol = ip_hdr(skb)->protocol;
 	sk->sk_bound_dev_if = arg->bound_dev_if;
-	ip_append_data(sk, ip_reply_glue_bits, arg->iov->iov_base, len, 0,
+	ip_append_data(sk, &fl4, ip_reply_glue_bits, arg->iov->iov_base, len, 0,
 		       &ipc, &rt, MSG_DONTWAIT);
 	if ((skb = skb_peek(&sk->sk_write_queue)) != NULL) {
 		if (arg->csumoffset >= 0)
@@ -1509,7 +1513,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 			  arg->csumoffset) = csum_fold(csum_add(skb->csum,
 								arg->csum));
 		skb->ip_summed = CHECKSUM_NONE;
-		ip_push_pending_frames(sk);
+		ip_push_pending_frames(sk, &fl4);
 	}
 
 	bh_unlock_sock(sk);

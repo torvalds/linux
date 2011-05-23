@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -605,7 +605,7 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 	IWL_DEBUG_CALIB(priv, "<<return 0x%X\n", ret);
 }
 
-void iwl_sensitivity_calibration(struct iwl_priv *priv, void *resp)
+void iwl_sensitivity_calibration(struct iwl_priv *priv)
 {
 	u32 rx_enable_time;
 	u32 fa_cck;
@@ -631,16 +631,9 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv, void *resp)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (iwl_bt_statistics(priv)) {
-		rx_info = &(((struct iwl_bt_notif_statistics *)resp)->
-			      rx.general.common);
-		ofdm = &(((struct iwl_bt_notif_statistics *)resp)->rx.ofdm);
-		cck = &(((struct iwl_bt_notif_statistics *)resp)->rx.cck);
-	} else {
-		rx_info = &(((struct iwl_notif_statistics *)resp)->rx.general);
-		ofdm = &(((struct iwl_notif_statistics *)resp)->rx.ofdm);
-		cck = &(((struct iwl_notif_statistics *)resp)->rx.cck);
-	}
+	rx_info = &priv->statistics.rx_non_phy;
+	ofdm = &priv->statistics.rx_ofdm;
+	cck = &priv->statistics.rx_cck;
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		IWL_DEBUG_CALIB(priv, "<< invalid data.\n");
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -851,7 +844,7 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
  * 1)  Which antennas are connected.
  * 2)  Differential rx gain settings to balance the 3 receivers.
  */
-void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
+void iwl_chain_noise_calibration(struct iwl_priv *priv)
 {
 	struct iwl_chain_noise_data *data = NULL;
 
@@ -896,13 +889,9 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (iwl_bt_statistics(priv)) {
-		rx_info = &(((struct iwl_bt_notif_statistics *)stat_resp)->
-			      rx.general.common);
-	} else {
-		rx_info = &(((struct iwl_notif_statistics *)stat_resp)->
-			      rx.general);
-	}
+
+	rx_info = &priv->statistics.rx_non_phy;
+
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		IWL_DEBUG_CALIB(priv, " << Interference data unavailable\n");
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -911,19 +900,9 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 
 	rxon_band24 = !!(ctx->staging.flags & RXON_FLG_BAND_24G_MSK);
 	rxon_chnum = le16_to_cpu(ctx->staging.channel);
-	if (iwl_bt_statistics(priv)) {
-		stat_band24 = !!(((struct iwl_bt_notif_statistics *)
-				 stat_resp)->flag &
-				 STATISTICS_REPLY_FLG_BAND_24G_MSK);
-		stat_chnum = le32_to_cpu(((struct iwl_bt_notif_statistics *)
-					 stat_resp)->flag) >> 16;
-	} else {
-		stat_band24 = !!(((struct iwl_notif_statistics *)
-				 stat_resp)->flag &
-				 STATISTICS_REPLY_FLG_BAND_24G_MSK);
-		stat_chnum = le32_to_cpu(((struct iwl_notif_statistics *)
-					 stat_resp)->flag) >> 16;
-	}
+	stat_band24 =
+		!!(priv->statistics.flag & STATISTICS_REPLY_FLG_BAND_24G_MSK);
+	stat_chnum = le32_to_cpu(priv->statistics.flag) >> 16;
 
 	/* Make sure we accumulate data for just the associated channel
 	 *   (even if scanning). */

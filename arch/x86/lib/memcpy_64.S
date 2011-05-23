@@ -4,6 +4,7 @@
 
 #include <asm/cpufeature.h>
 #include <asm/dwarf2.h>
+#include <asm/alternative-asm.h>
 
 /*
  * memcpy - Copy a memory block.
@@ -37,6 +38,23 @@
 .Lmemcpy_e:
 	.previous
 
+/*
+ * memcpy_c_e() - enhanced fast string memcpy. This is faster and simpler than
+ * memcpy_c. Use memcpy_c_e when possible.
+ *
+ * This gets patched over the unrolled variant (below) via the
+ * alternative instructions framework:
+ */
+	.section .altinstr_replacement, "ax", @progbits
+.Lmemcpy_c_e:
+	movq %rdi, %rax
+
+	movl %edx, %ecx
+	rep movsb
+	ret
+.Lmemcpy_e_e:
+	.previous
+
 ENTRY(__memcpy)
 ENTRY(memcpy)
 	CFI_STARTPROC
@@ -49,7 +67,7 @@ ENTRY(memcpy)
 	jb .Lhandle_tail
 
 	/*
-	 * We check whether memory false dependece could occur,
+	 * We check whether memory false dependence could occur,
 	 * then jump to corresponding copy mode.
 	 */
 	cmp  %dil, %sil
@@ -171,21 +189,22 @@ ENDPROC(memcpy)
 ENDPROC(__memcpy)
 
 	/*
-	 * Some CPUs run faster using the string copy instructions.
-	 * It is also a lot simpler. Use this when possible:
-	 */
-
-	.section .altinstructions, "a"
-	.align 8
-	.quad memcpy
-	.quad .Lmemcpy_c
-	.word X86_FEATURE_REP_GOOD
-
-	/*
+	 * Some CPUs are adding enhanced REP MOVSB/STOSB feature
+	 * If the feature is supported, memcpy_c_e() is the first choice.
+	 * If enhanced rep movsb copy is not available, use fast string copy
+	 * memcpy_c() when possible. This is faster and code is simpler than
+	 * original memcpy().
+	 * Otherwise, original memcpy() is used.
+	 * In .altinstructions section, ERMS feature is placed after REG_GOOD
+         * feature to implement the right patch order.
+	 *
 	 * Replace only beginning, memcpy is used to apply alternatives,
 	 * so it is silly to overwrite itself with nops - reboot is the
 	 * only outcome...
 	 */
-	.byte .Lmemcpy_e - .Lmemcpy_c
-	.byte .Lmemcpy_e - .Lmemcpy_c
+	.section .altinstructions, "a"
+	altinstruction_entry memcpy,.Lmemcpy_c,X86_FEATURE_REP_GOOD,\
+			     .Lmemcpy_e-.Lmemcpy_c,.Lmemcpy_e-.Lmemcpy_c
+	altinstruction_entry memcpy,.Lmemcpy_c_e,X86_FEATURE_ERMS, \
+			     .Lmemcpy_e_e-.Lmemcpy_c_e,.Lmemcpy_e_e-.Lmemcpy_c_e
 	.previous

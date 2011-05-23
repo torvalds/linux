@@ -155,6 +155,15 @@ static noinline int run_scheduled_bios(struct btrfs_device *device)
 	unsigned long limit;
 	unsigned long last_waited = 0;
 	int force_reg = 0;
+	struct blk_plug plug;
+
+	/*
+	 * this function runs all the bios we've collected for
+	 * a particular device.  We don't want to wander off to
+	 * another device without first sending all of these down.
+	 * So, setup a plug here and finish it off before we return
+	 */
+	blk_start_plug(&plug);
 
 	bdi = blk_get_backing_dev_info(device->bdev);
 	fs_info = device->dev_root->fs_info;
@@ -294,6 +303,7 @@ loop_lock:
 	spin_unlock(&device->io_lock);
 
 done:
+	blk_finish_plug(&plug);
 	return 0;
 }
 

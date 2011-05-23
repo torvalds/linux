@@ -93,19 +93,11 @@ extern void setup_node_to_cpumask_map(void);
 #define pcibus_to_node(bus) __pcibus_to_node(bus)
 
 #ifdef CONFIG_X86_32
-extern unsigned long node_start_pfn[];
-extern unsigned long node_end_pfn[];
-extern unsigned long node_remap_size[];
-#define node_has_online_mem(nid) (node_start_pfn[nid] != node_end_pfn[nid])
-
 # define SD_CACHE_NICE_TRIES	1
 # define SD_IDLE_IDX		1
-
 #else
-
 # define SD_CACHE_NICE_TRIES	2
 # define SD_IDLE_IDX		2
-
 #endif
 
 /* sched_domains SD_NODE_INIT for NUMA machines */

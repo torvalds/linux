@@ -449,6 +449,16 @@ static void sata_pmp_quirks(struct ata_port *ap)
 		 * otherwise.  Don't try hard to recover it.
 		 */
 		ap->pmp_link[ap->nr_pmp_links - 1].flags |= ATA_LFLAG_NO_RETRY;
+	} else if (vendor == 0x197b && devid == 0x2352) {
+		/* chip found in Thermaltake BlackX Duet, jmicron JMB350? */
+		ata_for_each_link(link, ap, EDGE) {
+			/* SRST breaks detection and disks get misclassified
+			 * LPM disabled to avoid potential problems
+			 */
+			link->flags |= ATA_LFLAG_NO_LPM |
+				       ATA_LFLAG_NO_SRST |
+				       ATA_LFLAG_ASSUME_ATA;
+		}
 	}
 }
 

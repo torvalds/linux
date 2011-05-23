@@ -524,6 +524,8 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 		goto fail2;
 	}
 
+	platform_set_drvdata(pdev, davinci_rtc);
+
 	davinci_rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
 				    &davinci_rtc_ops, THIS_MODULE);
 	if (IS_ERR(davinci_rtc->rtc)) {
@@ -553,8 +555,6 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 
 	rtcss_write(davinci_rtc, PRTCSS_RTC_CCTRL_CAEN, PRTCSS_RTC_CCTRL);
 
-	platform_set_drvdata(pdev, davinci_rtc);
-
 	device_init_wakeup(&pdev->dev, 0);
 
 	return 0;
@@ -562,6 +562,7 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 fail4:
 	rtc_device_unregister(davinci_rtc->rtc);
 fail3:
+	platform_set_drvdata(pdev, NULL);
 	iounmap(davinci_rtc->base);
 fail2:
 	release_mem_region(davinci_rtc->pbase, davinci_rtc->base_size);

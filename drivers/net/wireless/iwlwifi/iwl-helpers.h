@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -64,30 +64,6 @@ static inline int iwl_queue_dec_wrap(int index, int n_bd)
 	return --index & (n_bd - 1);
 }
 
-/* TODO: Move fw_desc functions to iwl-pci.ko */
-static inline void iwl_free_fw_desc(struct pci_dev *pci_dev,
-				    struct fw_desc *desc)
-{
-	if (desc->v_addr)
-		dma_free_coherent(&pci_dev->dev, desc->len,
-				  desc->v_addr, desc->p_addr);
-	desc->v_addr = NULL;
-	desc->len = 0;
-}
-
-static inline int iwl_alloc_fw_desc(struct pci_dev *pci_dev,
-				    struct fw_desc *desc)
-{
-	if (!desc->len) {
-		desc->v_addr = NULL;
-		return -EINVAL;
-	}
-
-	desc->v_addr = dma_alloc_coherent(&pci_dev->dev, desc->len,
-					  &desc->p_addr, GFP_KERNEL);
-	return (desc->v_addr != NULL) ? 0 : -ENOMEM;
-}
-
 /*
  * we have 8 bits used like this:
  *
@@ -129,6 +105,19 @@ static inline void iwl_stop_queue(struct iwl_priv *priv,
 	if (!test_and_set_bit(hwq, priv->queue_stopped))
 		if (atomic_inc_return(&priv->queue_stop_count[ac]) > 0)
 			ieee80211_stop_queue(priv->hw, ac);
+}
+
+static inline void iwl_wake_any_queue(struct iwl_priv *priv,
+				      struct iwl_rxon_context *ctx)
+{
+	u8 ac;
+
+	for (ac = 0; ac < AC_NUM; ac++) {
+		IWL_DEBUG_INFO(priv, "Queue Status: Q[%d] %s\n",
+			ac, (atomic_read(&priv->queue_stop_count[ac]) > 0)
+			      ? "stopped" : "awake");
+		iwl_wake_queue(priv, &priv->txq[ctx->ac_to_queue[ac]]);
+	}
 }
 
 #define ieee80211_stop_queue DO_NOT_USE_ieee80211_stop_queue

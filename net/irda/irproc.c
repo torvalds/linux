@@ -65,15 +65,14 @@ static const struct irda_entry irda_dirs[] = {
 void __init irda_proc_register(void)
 {
 	int i;
-	struct proc_dir_entry *d;
 
 	proc_irda = proc_mkdir("irda", init_net.proc_net);
 	if (proc_irda == NULL)
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(irda_dirs); i++)
-		d = proc_create(irda_dirs[i].name, 0, proc_irda,
-				irda_dirs[i].fops);
+		(void) proc_create(irda_dirs[i].name, 0, proc_irda,
+				   irda_dirs[i].fops);
 }
 
 /*

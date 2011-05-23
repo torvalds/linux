@@ -399,3 +399,15 @@ bool task_ns_capable(struct task_struct *t, int cap)
 	return ns_capable(task_cred_xxx(t, user)->user_ns, cap);
 }
 EXPORT_SYMBOL(task_ns_capable);
+
+/**
+ * nsown_capable - Check superior capability to one's own user_ns
+ * @cap: The capability in question
+ *
+ * Return true if the current task has the given superior capability
+ * targeted at its own user namespace.
+ */
+bool nsown_capable(int cap)
+{
+	return ns_capable(current_user_ns(), cap);
+}

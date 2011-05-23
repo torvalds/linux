@@ -1,0 +1,23 @@
+if LANTIQ
+
+config SOC_TYPE_XWAY
+	bool
+	default n
+
+choice
+	prompt "SoC Type"
+	default SOC_XWAY
+
+config SOC_AMAZON_SE
+	bool "Amazon SE"
+	select SOC_TYPE_XWAY
+
+config SOC_XWAY
+	bool "XWAY"
+	select SOC_TYPE_XWAY
+	select HW_HAS_PCI
+endchoice
+
+source "arch/mips/lantiq/xway/Kconfig"
+
+endif

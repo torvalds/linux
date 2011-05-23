@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -155,17 +155,9 @@
 #define CSR_DBG_LINK_PWR_MGMT_REG	(CSR_BASE+0x250)
 
 /* Bits for CSR_HW_IF_CONFIG_REG */
-#define CSR49_HW_IF_CONFIG_REG_BIT_4965_R	(0x00000010)
 #define CSR_HW_IF_CONFIG_REG_MSK_BOARD_VER	(0x00000C00)
 #define CSR_HW_IF_CONFIG_REG_BIT_MAC_SI 	(0x00000100)
 #define CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI	(0x00000200)
-
-#define CSR39_HW_IF_CONFIG_REG_BIT_3945_MB         (0x00000100)
-#define CSR39_HW_IF_CONFIG_REG_BIT_3945_MM         (0x00000200)
-#define CSR39_HW_IF_CONFIG_REG_BIT_SKU_MRC            (0x00000400)
-#define CSR39_HW_IF_CONFIG_REG_BIT_BOARD_TYPE         (0x00000800)
-#define CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_A    (0x00000000)
-#define CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_B    (0x00001000)
 
 #define CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A	(0x00080000)
 #define CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM	(0x00200000)
@@ -186,7 +178,7 @@
 #define CSR_INT_BIT_SW_ERR       (1 << 25) /* uCode error */
 #define CSR_INT_BIT_RF_KILL      (1 << 7)  /* HW RFKILL switch GP_CNTRL[27] toggled */
 #define CSR_INT_BIT_CT_KILL      (1 << 6)  /* Critical temp (chip too hot) rfkill */
-#define CSR_INT_BIT_SW_RX        (1 << 3)  /* Rx, command responses, 3945 */
+#define CSR_INT_BIT_SW_RX        (1 << 3)  /* Rx, command responses */
 #define CSR_INT_BIT_WAKEUP       (1 << 1)  /* NIC controller waking up (pwr mgmt) */
 #define CSR_INT_BIT_ALIVE        (1 << 0)  /* uCode interrupts once it initializes */
 
@@ -202,29 +194,17 @@
 /* interrupt flags in FH (flow handler) (PCI busmaster DMA) */
 #define CSR_FH_INT_BIT_ERR       (1 << 31) /* Error */
 #define CSR_FH_INT_BIT_HI_PRIOR  (1 << 30) /* High priority Rx, bypass coalescing */
-#define CSR39_FH_INT_BIT_RX_CHNL2  (1 << 18) /* Rx channel 2 (3945 only) */
 #define CSR_FH_INT_BIT_RX_CHNL1  (1 << 17) /* Rx channel 1 */
 #define CSR_FH_INT_BIT_RX_CHNL0  (1 << 16) /* Rx channel 0 */
-#define CSR39_FH_INT_BIT_TX_CHNL6  (1 << 6)  /* Tx channel 6 (3945 only) */
 #define CSR_FH_INT_BIT_TX_CHNL1  (1 << 1)  /* Tx channel 1 */
 #define CSR_FH_INT_BIT_TX_CHNL0  (1 << 0)  /* Tx channel 0 */
 
-#define CSR39_FH_INT_RX_MASK	(CSR_FH_INT_BIT_HI_PRIOR | \
-				 CSR39_FH_INT_BIT_RX_CHNL2 | \
-				 CSR_FH_INT_BIT_RX_CHNL1 | \
-				 CSR_FH_INT_BIT_RX_CHNL0)
+#define CSR_FH_INT_RX_MASK	(CSR_FH_INT_BIT_HI_PRIOR | \
+				CSR_FH_INT_BIT_RX_CHNL1 | \
+				CSR_FH_INT_BIT_RX_CHNL0)
 
-
-#define CSR39_FH_INT_TX_MASK	(CSR39_FH_INT_BIT_TX_CHNL6 | \
-				 CSR_FH_INT_BIT_TX_CHNL1 | \
-				 CSR_FH_INT_BIT_TX_CHNL0)
-
-#define CSR49_FH_INT_RX_MASK	(CSR_FH_INT_BIT_HI_PRIOR | \
-				 CSR_FH_INT_BIT_RX_CHNL1 | \
-				 CSR_FH_INT_BIT_RX_CHNL0)
-
-#define CSR49_FH_INT_TX_MASK	(CSR_FH_INT_BIT_TX_CHNL1 | \
-				 CSR_FH_INT_BIT_TX_CHNL0)
+#define CSR_FH_INT_TX_MASK	(CSR_FH_INT_BIT_TX_CHNL1 | \
+				CSR_FH_INT_BIT_TX_CHNL0)
 
 /* GPIO */
 #define CSR_GPIO_IN_BIT_AUX_POWER                   (0x00000200)
@@ -268,7 +248,7 @@
  *         Indicates MAC (ucode processor, etc.) is powered up and can run.
  *         Internal resources are accessible.
  *         NOTE:  This does not indicate that the processor is actually running.
- *         NOTE:  This does not indicate that 4965 or 3945 has completed
+ *         NOTE:  This does not indicate that device has completed
  *                init or post-power-down restore of internal SRAM memory.
  *                Use CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP as indication that
  *                SRAM is restored and uCode is in normal operation mode.
@@ -291,8 +271,6 @@
 
 /* HW REV */
 #define CSR_HW_REV_TYPE_MSK            (0x00001F0)
-#define CSR_HW_REV_TYPE_3945           (0x00000D0)
-#define CSR_HW_REV_TYPE_4965           (0x0000000)
 #define CSR_HW_REV_TYPE_5300           (0x0000020)
 #define CSR_HW_REV_TYPE_5350           (0x0000030)
 #define CSR_HW_REV_TYPE_5100           (0x0000050)
@@ -363,7 +341,7 @@
  *     0:  MAC_SLEEP
  *         uCode sets this when preparing a power-saving power-down.
  *         uCode resets this when power-up is complete and SRAM is sane.
- *         NOTE:  3945/4965 saves internal SRAM data to host when powering down,
+ *         NOTE:  device saves internal SRAM data to host when powering down,
  *                and must restore this data after powering back up.
  *                MAC_SLEEP is the best indication that restore is complete.
  *                Later devices (5xxx/6xxx/1xxx) use non-volatile SRAM, and
@@ -394,7 +372,6 @@
 #define CSR_LED_REG_TRUN_OFF (0x38)
 
 /* ANA_PLL */
-#define CSR39_ANA_PLL_CFG_VAL        (0x01000000)
 #define CSR50_ANA_PLL_CFG_VAL        (0x00880300)
 
 /* HPET MEM debug */

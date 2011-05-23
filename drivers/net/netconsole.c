@@ -242,34 +242,6 @@ static struct netconsole_target *to_target(struct config_item *item)
 }
 
 /*
- * Wrapper over simple_strtol (base 10) with sanity and range checking.
- * We return (signed) long only because we may want to return errors.
- * Do not use this to convert numbers that are allowed to be negative.
- */
-static long strtol10_check_range(const char *cp, long min, long max)
-{
-	long ret;
-	char *p = (char *) cp;
-
-	WARN_ON(min < 0);
-	WARN_ON(max < min);
-
-	ret = simple_strtol(p, &p, 10);
-
-	if (*p && (*p != '\n')) {
-		printk(KERN_ERR "netconsole: invalid input\n");
-		return -EINVAL;
-	}
-	if ((ret < min) || (ret > max)) {
-		printk(KERN_ERR "netconsole: input %ld must be between "
-				"%ld and %ld\n", ret, min, max);
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
-/*
  * Attribute operations for netconsole_target.
  */
 
@@ -327,12 +299,14 @@ static ssize_t store_enabled(struct netconsole_target *nt,
 			     const char *buf,
 			     size_t count)
 {
+	int enabled;
 	int err;
-	long enabled;
 
-	enabled = strtol10_check_range(buf, 0, 1);
-	if (enabled < 0)
-		return enabled;
+	err = kstrtoint(buf, 10, &enabled);
+	if (err < 0)
+		return err;
+	if (enabled < 0 || enabled > 1)
+		return -EINVAL;
 
 	if (enabled) {	/* 1 */
 
@@ -384,8 +358,7 @@ static ssize_t store_local_port(struct netconsole_target *nt,
 				const char *buf,
 				size_t count)
 {
-	long local_port;
-#define __U16_MAX	((__u16) ~0U)
+	int rv;
 
 	if (nt->enabled) {
 		printk(KERN_ERR "netconsole: target (%s) is enabled, "
@@ -394,12 +367,9 @@ static ssize_t store_local_port(struct netconsole_target *nt,
 		return -EINVAL;
 	}
 
-	local_port = strtol10_check_range(buf, 0, __U16_MAX);
-	if (local_port < 0)
-		return local_port;
-
-	nt->np.local_port = local_port;
-
+	rv = kstrtou16(buf, 10, &nt->np.local_port);
+	if (rv < 0)
+		return rv;
 	return strnlen(buf, count);
 }
 
@@ -407,8 +377,7 @@ static ssize_t store_remote_port(struct netconsole_target *nt,
 				 const char *buf,
 				 size_t count)
 {
-	long remote_port;
-#define __U16_MAX	((__u16) ~0U)
+	int rv;
 
 	if (nt->enabled) {
 		printk(KERN_ERR "netconsole: target (%s) is enabled, "
@@ -417,12 +386,9 @@ static ssize_t store_remote_port(struct netconsole_target *nt,
 		return -EINVAL;
 	}
 
-	remote_port = strtol10_check_range(buf, 0, __U16_MAX);
-	if (remote_port < 0)
-		return remote_port;
-
-	nt->np.remote_port = remote_port;
-
+	rv = kstrtou16(buf, 10, &nt->np.remote_port);
+	if (rv < 0)
+		return rv;
 	return strnlen(buf, count);
 }
 
@@ -463,8 +429,6 @@ static ssize_t store_remote_mac(struct netconsole_target *nt,
 				size_t count)
 {
 	u8 remote_mac[ETH_ALEN];
-	char *p = (char *) buf;
-	int i;
 
 	if (nt->enabled) {
 		printk(KERN_ERR "netconsole: target (%s) is enabled, "
@@ -473,23 +437,13 @@ static ssize_t store_remote_mac(struct netconsole_target *nt,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < ETH_ALEN - 1; i++) {
-		remote_mac[i] = simple_strtoul(p, &p, 16);
-		if (*p != ':')
-			goto invalid;
-		p++;
-	}
-	remote_mac[ETH_ALEN - 1] = simple_strtoul(p, &p, 16);
-	if (*p && (*p != '\n'))
-		goto invalid;
-
+	if (!mac_pton(buf, remote_mac))
+		return -EINVAL;
+	if (buf[3 * ETH_ALEN - 1] && buf[3 * ETH_ALEN - 1] != '\n')
+		return -EINVAL;
 	memcpy(nt->np.remote_mac, remote_mac, ETH_ALEN);
 
 	return strnlen(buf, count);
-
-invalid:
-	printk(KERN_ERR "netconsole: invalid input\n");
-	return -EINVAL;
 }
 
 /*
@@ -671,6 +625,7 @@ static int netconsole_netdev_event(struct notifier_block *this,
 		goto done;
 
 	spin_lock_irqsave(&target_list_lock, flags);
+restart:
 	list_for_each_entry(nt, &target_list, list) {
 		netconsole_target_get(nt);
 		if (nt->np.dev == dev) {
@@ -683,9 +638,16 @@ static int netconsole_netdev_event(struct notifier_block *this,
 				 * rtnl_lock already held
 				 */
 				if (nt->np.dev) {
+					spin_unlock_irqrestore(
+							      &target_list_lock,
+							      flags);
 					__netpoll_cleanup(&nt->np);
+					spin_lock_irqsave(&target_list_lock,
+							  flags);
 					dev_put(nt->np.dev);
 					nt->np.dev = NULL;
+					netconsole_target_put(nt);
+					goto restart;
 				}
 				/* Fall through */
 			case NETDEV_GOING_DOWN:

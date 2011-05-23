@@ -64,7 +64,8 @@ struct net_bridge_fdb_entry
 	struct net_bridge_port		*dst;
 
 	struct rcu_head			rcu;
-	unsigned long			ageing_timer;
+	unsigned long			updated;
+	unsigned long			used;
 	mac_addr			addr;
 	unsigned char			is_local;
 	unsigned char			is_static;
@@ -182,7 +183,6 @@ struct net_bridge
 	struct br_cpu_netstats __percpu *stats;
 	spinlock_t			hash_lock;
 	struct hlist_head		hash[BR_HASH_SIZE];
-	u32				feature_mask;
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct rtable 			fake_rtable;
 	bool				nf_call_iptables;
@@ -353,6 +353,9 @@ extern int br_fdb_insert(struct net_bridge *br,
 extern void br_fdb_update(struct net_bridge *br,
 			  struct net_bridge_port *source,
 			  const unsigned char *addr);
+extern int br_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb);
+extern int br_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
+extern int br_fdb_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
 
 /* br_forward.c */
 extern void br_deliver(const struct net_bridge_port *to,
@@ -375,7 +378,7 @@ extern int br_add_if(struct net_bridge *br,
 extern int br_del_if(struct net_bridge *br,
 	      struct net_device *dev);
 extern int br_min_mtu(const struct net_bridge *br);
-extern void br_features_recompute(struct net_bridge *br);
+extern u32 br_features_recompute(struct net_bridge *br, u32 features);
 
 /* br_input.c */
 extern int br_handle_frame_finish(struct sk_buff *skb);
@@ -491,6 +494,11 @@ extern struct net_bridge_port *br_get_port(struct net_bridge *br,
 extern void br_init_port(struct net_bridge_port *p);
 extern void br_become_designated_port(struct net_bridge_port *p);
 
+extern int br_set_forward_delay(struct net_bridge *br, unsigned long x);
+extern int br_set_hello_time(struct net_bridge *br, unsigned long x);
+extern int br_set_max_age(struct net_bridge *br, unsigned long x);
+
+
 /* br_stp_if.c */
 extern void br_stp_enable_bridge(struct net_bridge *br);
 extern void br_stp_disable_bridge(struct net_bridge *br);
@@ -501,10 +509,10 @@ extern bool br_stp_recalculate_bridge_id(struct net_bridge *br);
 extern void br_stp_change_bridge_id(struct net_bridge *br, const unsigned char *a);
 extern void br_stp_set_bridge_priority(struct net_bridge *br,
 				       u16 newprio);
-extern void br_stp_set_port_priority(struct net_bridge_port *p,
-				     u8 newprio);
-extern void br_stp_set_path_cost(struct net_bridge_port *p,
-				 u32 path_cost);
+extern int br_stp_set_port_priority(struct net_bridge_port *p,
+				    unsigned long newprio);
+extern int br_stp_set_path_cost(struct net_bridge_port *p,
+				unsigned long path_cost);
 extern ssize_t br_show_bridge_id(char *buf, const struct bridge_id *id);
 
 /* br_stp_bpdu.c */

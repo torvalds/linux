@@ -28,6 +28,7 @@
 #include <net/checksum.h>
 #include <linux/rcupdate.h>
 #include <linux/dmaengine.h>
+#include <linux/prefetch.h>
 #include <linux/hrtimer.h>
 
 /* Don't change this without changing skb_csum_unnecessary! */
@@ -391,8 +392,8 @@ struct sk_buff {
 
 	__u32			rxhash;
 
+	__u16			queue_mapping;
 	kmemcheck_bitfield_begin(flags2);
-	__u16			queue_mapping:16;
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	__u8			ndisc_nodetype:2;
 #endif

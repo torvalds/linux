@@ -601,9 +601,7 @@ static struct snd_soc_codec_driver soc_codec_dev_uda134x = {
 	.reg_cache_step = 1,
 	.read = uda134x_read_reg_cache,
 	.write = uda134x_write,
-#ifdef POWER_OFF_ON_STANDBY
 	.set_bias_level = uda134x_set_bias_level,
-#endif
 };
 
 static int __devinit uda134x_codec_probe(struct platform_device *pdev)

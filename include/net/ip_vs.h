@@ -8,9 +8,6 @@
 
 #include <linux/ip_vs.h>                /* definitions shared with userland */
 
-/* old ipvsadm versions still include this file directly */
-#ifdef __KERNEL__
-
 #include <asm/types.h>                  /* for __uXX types */
 
 #include <linux/sysctl.h>               /* for ctl_path */
@@ -668,9 +665,7 @@ struct ip_vs_dest {
 	struct dst_entry	*dst_cache;	/* destination cache entry */
 	u32			dst_rtos;	/* RT_TOS(tos) for dst */
 	u32			dst_cookie;
-#ifdef CONFIG_IP_VS_IPV6
-	struct in6_addr		dst_saddr;
-#endif
+	union nf_inet_addr	dst_saddr;
 
 	/* for virtual service */
 	struct ip_vs_service	*svc;		/* service it belongs to */
@@ -791,6 +786,7 @@ struct ip_vs_app {
 /* IPVS in network namespace */
 struct netns_ipvs {
 	int			gen;		/* Generation */
+	int			enable;		/* enable like nf_hooks do */
 	/*
 	 *	Hash table: for real service lookups
 	 */
@@ -1089,6 +1085,22 @@ ip_vs_control_add(struct ip_vs_conn *cp, struct ip_vs_conn *ctl_cp)
 	atomic_inc(&ctl_cp->n_control);
 }
 
+/*
+ * IPVS netns init & cleanup functions
+ */
+extern int __ip_vs_estimator_init(struct net *net);
+extern int __ip_vs_control_init(struct net *net);
+extern int __ip_vs_protocol_init(struct net *net);
+extern int __ip_vs_app_init(struct net *net);
+extern int __ip_vs_conn_init(struct net *net);
+extern int __ip_vs_sync_init(struct net *net);
+extern void __ip_vs_conn_cleanup(struct net *net);
+extern void __ip_vs_app_cleanup(struct net *net);
+extern void __ip_vs_protocol_cleanup(struct net *net);
+extern void __ip_vs_control_cleanup(struct net *net);
+extern void __ip_vs_estimator_cleanup(struct net *net);
+extern void __ip_vs_sync_cleanup(struct net *net);
+extern void __ip_vs_service_cleanup(struct net *net);
 
 /*
  *      IPVS application functions
@@ -1239,7 +1251,8 @@ extern int ip_vs_tunnel_xmit
 extern int ip_vs_dr_xmit
 (struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
 extern int ip_vs_icmp_xmit
-(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp, int offset);
+(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp,
+ int offset, unsigned int hooknum);
 extern void ip_vs_dst_reset(struct ip_vs_dest *dest);
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1253,7 +1266,7 @@ extern int ip_vs_dr_xmit_v6
 (struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
 extern int ip_vs_icmp_xmit_v6
 (struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp,
- int offset);
+ int offset, unsigned int hooknum);
 #endif
 
 #ifdef CONFIG_SYSCTL
@@ -1414,7 +1427,5 @@ ip_vs_dest_conn_overhead(struct ip_vs_dest *dest)
 	return (atomic_read(&dest->activeconns) << 8) +
 		atomic_read(&dest->inactconns);
 }
-
-#endif /* __KERNEL__ */
 
 #endif	/* _NET_IP_VS_H */

@@ -13,6 +13,7 @@
 #include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/delay.h>
+#include <linux/pci-ats.h>
 #include "pci.h"
 
 #define VIRTFN_ID_LEN	16

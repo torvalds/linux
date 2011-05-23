@@ -481,5 +481,6 @@ source "drivers/misc/cb710/Kconfig"
 source "drivers/misc/iwmc3200top/Kconfig"
 source "drivers/misc/ti-st/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"
+source "drivers/misc/carma/Kconfig"
 
 endif # MISC_DEVICES

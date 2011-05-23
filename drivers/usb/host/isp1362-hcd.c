@@ -81,6 +81,7 @@
 #include <linux/pm.h>
 #include <linux/io.h>
 #include <linux/bitmap.h>
+#include <linux/prefetch.h>
 
 #include <asm/irq.h>
 #include <asm/system.h>

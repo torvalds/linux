@@ -12,9 +12,11 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/etherdevice.h>
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
+
 #include "br_private.h"
 
 static inline size_t br_nlmsg_size(void)
@@ -118,8 +120,9 @@ static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	int idx;
 
 	idx = 0;
-	for_each_netdev(net, dev) {
-		struct net_bridge_port *port = br_port_get_rtnl(dev);
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev) {
+		struct net_bridge_port *port = br_port_get_rcu(dev);
 
 		/* not a bridge port */
 		if (!port || idx < cb->args[0])
@@ -133,7 +136,7 @@ static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 skip:
 		++idx;
 	}
-
+	rcu_read_unlock();
 	cb->args[0] = idx;
 
 	return skb->len;
@@ -188,20 +191,61 @@ static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 	return 0;
 }
 
-
-int __init br_netlink_init(void)
+static int br_validate(struct nlattr *tb[], struct nlattr *data[])
 {
-	if (__rtnl_register(PF_BRIDGE, RTM_GETLINK, NULL, br_dump_ifinfo))
-		return -ENOBUFS;
-
-	/* Only the first call to __rtnl_register can fail */
-	__rtnl_register(PF_BRIDGE, RTM_SETLINK, br_rtm_setlink, NULL);
+	if (tb[IFLA_ADDRESS]) {
+		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
+			return -EINVAL;
+		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
+			return -EADDRNOTAVAIL;
+	}
 
 	return 0;
 }
 
-void __exit br_netlink_fini(void)
+static struct rtnl_link_ops br_link_ops __read_mostly = {
+	.kind		= "bridge",
+	.priv_size	= sizeof(struct net_bridge),
+	.setup		= br_dev_setup,
+	.validate	= br_validate,
+};
+
+int __init br_netlink_init(void)
 {
+	int err;
+
+	err = rtnl_link_register(&br_link_ops);
+	if (err < 0)
+		goto err1;
+
+	err = __rtnl_register(PF_BRIDGE, RTM_GETLINK, NULL, br_dump_ifinfo);
+	if (err)
+		goto err2;
+	err = __rtnl_register(PF_BRIDGE, RTM_SETLINK, br_rtm_setlink, NULL);
+	if (err)
+		goto err3;
+	err = __rtnl_register(PF_BRIDGE, RTM_NEWNEIGH, br_fdb_add, NULL);
+	if (err)
+		goto err3;
+	err = __rtnl_register(PF_BRIDGE, RTM_DELNEIGH, br_fdb_delete, NULL);
+	if (err)
+		goto err3;
+	err = __rtnl_register(PF_BRIDGE, RTM_GETNEIGH, NULL, br_fdb_dump);
+	if (err)
+		goto err3;
+
+	return 0;
+
+err3:
 	rtnl_unregister_all(PF_BRIDGE);
+err2:
+	rtnl_link_unregister(&br_link_ops);
+err1:
+	return err;
 }
 
+void __exit br_netlink_fini(void)
+{
+	rtnl_link_unregister(&br_link_ops);
+	rtnl_unregister_all(PF_BRIDGE);
+}

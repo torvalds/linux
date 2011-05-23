@@ -400,8 +400,6 @@ struct raid5_private_data {
 					    * Cleared when a sync completes.
 					    */
 
-	struct plug_handle	plug;
-
 	/* per cpu variables */
 	struct raid5_percpu {
 		struct page	*spare_page; /* Used when checking P/Q in raid6 */

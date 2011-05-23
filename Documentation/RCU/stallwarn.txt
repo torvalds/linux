@@ -1,22 +1,25 @@
 Using RCU's CPU Stall Detector
 
-The CONFIG_RCU_CPU_STALL_DETECTOR kernel config parameter enables
-RCU's CPU stall detector, which detects conditions that unduly delay
-RCU grace periods.  The stall detector's idea of what constitutes
-"unduly delayed" is controlled by a set of C preprocessor macros:
+The rcu_cpu_stall_suppress module parameter enables RCU's CPU stall
+detector, which detects conditions that unduly delay RCU grace periods.
+This module parameter enables CPU stall detection by default, but
+may be overridden via boot-time parameter or at runtime via sysfs.
+The stall detector's idea of what constitutes "unduly delayed" is
+controlled by a set of kernel configuration variables and cpp macros:
 
-RCU_SECONDS_TILL_STALL_CHECK
+CONFIG_RCU_CPU_STALL_TIMEOUT
 
-	This macro defines the period of time that RCU will wait from
-	the beginning of a grace period until it issues an RCU CPU
-	stall warning.	This time period is normally ten seconds.
+	This kernel configuration parameter defines the period of time
+	that RCU will wait from the beginning of a grace period until it
+	issues an RCU CPU stall warning.  This time period is normally
+	ten seconds.
 
 RCU_SECONDS_TILL_STALL_RECHECK
 
 	This macro defines the period of time that RCU will wait after
 	issuing a stall warning until it issues another stall warning
-	for the same stall.  This time period is normally set to thirty
-	seconds.
+	for the same stall.  This time period is normally set to three
+	times the check interval plus thirty seconds.
 
 RCU_STALL_RAT_DELAY
 

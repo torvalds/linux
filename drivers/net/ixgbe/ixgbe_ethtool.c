@@ -84,6 +84,7 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"hw_rsc_flushed", IXGBE_STAT(rsc_total_flush)},
 	{"fdir_match", IXGBE_STAT(stats.fdirmatch)},
 	{"fdir_miss", IXGBE_STAT(stats.fdirmiss)},
+	{"fdir_overflow", IXGBE_STAT(fdir_overflow)},
 	{"rx_fifo_errors", IXGBE_NETDEV_STAT(rx_fifo_errors)},
 	{"rx_missed_errors", IXGBE_NETDEV_STAT(rx_missed_errors)},
 	{"tx_aborted_errors", IXGBE_NETDEV_STAT(tx_aborted_errors)},
@@ -102,6 +103,10 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"alloc_rx_page_failed", IXGBE_STAT(alloc_rx_page_failed)},
 	{"alloc_rx_buff_failed", IXGBE_STAT(alloc_rx_buff_failed)},
 	{"rx_no_dma_resources", IXGBE_STAT(hw_rx_no_dma_resources)},
+	{"os2bmc_rx_by_bmc", IXGBE_STAT(stats.o2bgptc)},
+	{"os2bmc_tx_by_bmc", IXGBE_STAT(stats.b2ospc)},
+	{"os2bmc_tx_by_host", IXGBE_STAT(stats.o2bspc)},
+	{"os2bmc_rx_by_host", IXGBE_STAT(stats.b2ogprc)},
 #ifdef IXGBE_FCOE
 	{"fcoe_bad_fccrc", IXGBE_STAT(stats.fccrc)},
 	{"rx_fcoe_dropped", IXGBE_STAT(stats.fcoerpdc)},
@@ -288,20 +293,20 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	if (link_up) {
 		switch (link_speed) {
 		case IXGBE_LINK_SPEED_10GB_FULL:
-			ecmd->speed = SPEED_10000;
+			ethtool_cmd_speed_set(ecmd, SPEED_10000);
 			break;
 		case IXGBE_LINK_SPEED_1GB_FULL:
-			ecmd->speed = SPEED_1000;
+			ethtool_cmd_speed_set(ecmd, SPEED_1000);
 			break;
 		case IXGBE_LINK_SPEED_100_FULL:
-			ecmd->speed = SPEED_100;
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 			break;
 		default:
 			break;
 		}
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 
@@ -346,9 +351,10 @@ static int ixgbe_set_settings(struct net_device *netdev,
 		}
 	} else {
 		/* in this case we currently only support 10Gb/FULL */
+		u32 speed = ethtool_cmd_speed(ecmd);
 		if ((ecmd->autoneg == AUTONEG_ENABLE) ||
 		    (ecmd->advertising != ADVERTISED_10000baseT_Full) ||
-		    (ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
+		    (speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
 			return -EINVAL;
 	}
 
@@ -846,11 +852,8 @@ static int ixgbe_get_eeprom(struct net_device *netdev,
 	if (!eeprom_buff)
 		return -ENOMEM;
 
-	for (i = 0; i < eeprom_len; i++) {
-		if ((ret_val = hw->eeprom.ops.read(hw, first_word + i,
-		    &eeprom_buff[i])))
-			break;
-	}
+	ret_val = hw->eeprom.ops.read_buffer(hw, first_word, eeprom_len,
+					     eeprom_buff);
 
 	/* Device's eeprom is always little-endian, word addressable */
 	for (i = 0; i < eeprom_len; i++)
@@ -931,7 +934,7 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 	}
 
 	while (test_and_set_bit(__IXGBE_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	if (!netif_running(adapter->netdev)) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
@@ -1030,9 +1033,6 @@ static int ixgbe_get_sset_count(struct net_device *netdev, int sset)
 		return IXGBE_TEST_LEN;
 	case ETH_SS_STATS:
 		return IXGBE_STATS_LEN;
-	case ETH_SS_NTUPLE_FILTERS:
-		return ETHTOOL_MAX_NTUPLE_LIST_ENTRY *
-		       ETHTOOL_MAX_NTUPLE_STRING_PER_ENTRY;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1238,45 +1238,61 @@ static const struct ixgbe_reg_test reg_test_82598[] = {
 	{ 0, 0, 0, 0 }
 };
 
-static const u32 register_test_patterns[] = {
-	0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF
-};
+static bool reg_pattern_test(struct ixgbe_adapter *adapter, u64 *data, int reg,
+			     u32 mask, u32 write)
+{
+	u32 pat, val, before;
+	static const u32 test_pattern[] = {
+		0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
 
-#define REG_PATTERN_TEST(R, M, W)                                             \
-{                                                                             \
-	u32 pat, val, before;                                                 \
-	for (pat = 0; pat < ARRAY_SIZE(register_test_patterns); pat++) {      \
-		before = readl(adapter->hw.hw_addr + R);                      \
-		writel((register_test_patterns[pat] & W),                     \
-		       (adapter->hw.hw_addr + R));                            \
-		val = readl(adapter->hw.hw_addr + R);                         \
-		if (val != (register_test_patterns[pat] & W & M)) {           \
-			e_err(drv, "pattern test reg %04X failed: got "       \
-			      "0x%08X expected 0x%08X\n",                     \
-			      R, val, (register_test_patterns[pat] & W & M)); \
-			*data = R;                                            \
-			writel(before, adapter->hw.hw_addr + R);              \
-			return 1;                                             \
-		}                                                             \
-		writel(before, adapter->hw.hw_addr + R);                      \
-	}                                                                     \
+	for (pat = 0; pat < ARRAY_SIZE(test_pattern); pat++) {
+		before = readl(adapter->hw.hw_addr + reg);
+		writel((test_pattern[pat] & write),
+		       (adapter->hw.hw_addr + reg));
+		val = readl(adapter->hw.hw_addr + reg);
+		if (val != (test_pattern[pat] & write & mask)) {
+			e_err(drv, "pattern test reg %04X failed: got "
+			      "0x%08X expected 0x%08X\n",
+			      reg, val, (test_pattern[pat] & write & mask));
+			*data = reg;
+			writel(before, adapter->hw.hw_addr + reg);
+			return 1;
+		}
+		writel(before, adapter->hw.hw_addr + reg);
+	}
+	return 0;
 }
 
-#define REG_SET_AND_CHECK(R, M, W)                                            \
-{                                                                             \
-	u32 val, before;                                                      \
-	before = readl(adapter->hw.hw_addr + R);                              \
-	writel((W & M), (adapter->hw.hw_addr + R));                           \
-	val = readl(adapter->hw.hw_addr + R);                                 \
-	if ((W & M) != (val & M)) {                                           \
-		e_err(drv, "set/check reg %04X test failed: got 0x%08X "  \
-		      "expected 0x%08X\n", R, (val & M), (W & M));        \
-		*data = R;                                                    \
-		writel(before, (adapter->hw.hw_addr + R));                    \
-		return 1;                                                     \
-	}                                                                     \
-	writel(before, (adapter->hw.hw_addr + R));                            \
+static bool reg_set_and_check(struct ixgbe_adapter *adapter, u64 *data, int reg,
+			      u32 mask, u32 write)
+{
+	u32 val, before;
+	before = readl(adapter->hw.hw_addr + reg);
+	writel((write & mask), (adapter->hw.hw_addr + reg));
+	val = readl(adapter->hw.hw_addr + reg);
+	if ((write & mask) != (val & mask)) {
+		e_err(drv, "set/check reg %04X test failed: got 0x%08X "
+		      "expected 0x%08X\n", reg, (val & mask), (write & mask));
+		*data = reg;
+		writel(before, (adapter->hw.hw_addr + reg));
+		return 1;
+	}
+	writel(before, (adapter->hw.hw_addr + reg));
+	return 0;
 }
+
+#define REG_PATTERN_TEST(reg, mask, write)				      \
+	do {								      \
+		if (reg_pattern_test(adapter, data, reg, mask, write))	      \
+			return 1;					      \
+	} while (0)							      \
+
+
+#define REG_SET_AND_CHECK(reg, mask, write)				      \
+	do {								      \
+		if (reg_set_and_check(adapter, data, reg, mask, write))	      \
+			return 1;					      \
+	} while (0)							      \
 
 static int ixgbe_reg_test(struct ixgbe_adapter *adapter, u64 *data)
 {
@@ -1328,13 +1344,13 @@ static int ixgbe_reg_test(struct ixgbe_adapter *adapter, u64 *data)
 			switch (test->test_type) {
 			case PATTERN_TEST:
 				REG_PATTERN_TEST(test->reg + (i * 0x40),
-						test->mask,
-						test->write);
+						 test->mask,
+						 test->write);
 				break;
 			case SET_READ_TEST:
 				REG_SET_AND_CHECK(test->reg + (i * 0x40),
-						test->mask,
-						test->write);
+						  test->mask,
+						  test->write);
 				break;
 			case WRITE_NO_TEST:
 				writel(test->write,
@@ -1343,18 +1359,18 @@ static int ixgbe_reg_test(struct ixgbe_adapter *adapter, u64 *data)
 				break;
 			case TABLE32_TEST:
 				REG_PATTERN_TEST(test->reg + (i * 4),
-						test->mask,
-						test->write);
+						 test->mask,
+						 test->write);
 				break;
 			case TABLE64_TEST_LO:
 				REG_PATTERN_TEST(test->reg + (i * 8),
-						test->mask,
-						test->write);
+						 test->mask,
+						 test->write);
 				break;
 			case TABLE64_TEST_HI:
 				REG_PATTERN_TEST((test->reg + 4) + (i * 8),
-						test->mask,
-						test->write);
+						 test->mask,
+						 test->write);
 				break;
 			}
 		}
@@ -1417,7 +1433,7 @@ static int ixgbe_intr_test(struct ixgbe_adapter *adapter, u64 *data)
 
 	/* Disable all the interrupts */
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, 0xFFFFFFFF);
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	/* Test each interrupt */
 	for (; i < 10; i++) {
@@ -1437,7 +1453,7 @@ static int ixgbe_intr_test(struct ixgbe_adapter *adapter, u64 *data)
 			                ~mask & 0x00007FFF);
 			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS,
 			                ~mask & 0x00007FFF);
-			msleep(10);
+			usleep_range(10000, 20000);
 
 			if (adapter->test_icr & mask) {
 				*data = 3;
@@ -1454,7 +1470,7 @@ static int ixgbe_intr_test(struct ixgbe_adapter *adapter, u64 *data)
 		adapter->test_icr = 0;
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, mask);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS, mask);
-		msleep(10);
+		usleep_range(10000, 20000);
 
 		if (!(adapter->test_icr &mask)) {
 			*data = 4;
@@ -1474,7 +1490,7 @@ static int ixgbe_intr_test(struct ixgbe_adapter *adapter, u64 *data)
 			                ~mask & 0x00007FFF);
 			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS,
 			                ~mask & 0x00007FFF);
-			msleep(10);
+			usleep_range(10000, 20000);
 
 			if (adapter->test_icr) {
 				*data = 5;
@@ -1485,7 +1501,7 @@ static int ixgbe_intr_test(struct ixgbe_adapter *adapter, u64 *data)
 
 	/* Disable all the interrupts */
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, 0xFFFFFFFF);
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	/* Unhook test interrupt handler */
 	free_irq(irq, netdev);
@@ -1598,6 +1614,13 @@ static int ixgbe_setup_loopback_test(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 reg_data;
 
+	/* X540 needs to set the MACC.FLU bit to force link up */
+	if (adapter->hw.mac.type == ixgbe_mac_X540) {
+		reg_data = IXGBE_READ_REG(&adapter->hw, IXGBE_MACC);
+		reg_data |= IXGBE_MACC_FLU;
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_MACC, reg_data);
+	}
+
 	/* right now we only support MAC loopback in the driver */
 	reg_data = IXGBE_READ_REG(&adapter->hw, IXGBE_HLREG0);
 	/* Setup MAC loopback */
@@ -1613,7 +1636,7 @@ static int ixgbe_setup_loopback_test(struct ixgbe_adapter *adapter)
 	reg_data |= IXGBE_AUTOC_LMS_10G_LINK_NO_AN | IXGBE_AUTOC_FLU;
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_AUTOC, reg_data);
 	IXGBE_WRITE_FLUSH(&adapter->hw);
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	/* Disable Atlas Tx lanes; re-enabled in reset path */
 	if (hw->mac.type == ixgbe_mac_82598EB) {
@@ -1999,25 +2022,30 @@ static int ixgbe_nway_reset(struct net_device *netdev)
 	return 0;
 }
 
-static int ixgbe_phys_id(struct net_device *netdev, u32 data)
+static int ixgbe_set_phys_id(struct net_device *netdev,
+			     enum ethtool_phys_id_state state)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
-	u32 i;
 
-	if (!data || data > 300)
-		data = 300;
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		adapter->led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+		return 2;
 
-	for (i = 0; i < (data * 1000); i += 400) {
+	case ETHTOOL_ID_ON:
 		hw->mac.ops.led_on(hw, IXGBE_LED_ON);
-		msleep_interruptible(200);
-		hw->mac.ops.led_off(hw, IXGBE_LED_ON);
-		msleep_interruptible(200);
-	}
+		break;
 
-	/* Restore LED settings */
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_LEDCTL, led_reg);
+	case ETHTOOL_ID_OFF:
+		hw->mac.ops.led_off(hw, IXGBE_LED_ON);
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		/* Restore LED settings */
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_LEDCTL, adapter->led_reg);
+		break;
+	}
 
 	return 0;
 }
@@ -2230,8 +2258,13 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 	need_reset = (data & ETH_FLAG_RXVLAN) !=
 		     (netdev->features & NETIF_F_HW_VLAN_RX);
 
+	if ((data & ETH_FLAG_RXHASH) &&
+	    !(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
+		return -EOPNOTSUPP;
+
 	rc = ethtool_op_set_flags(netdev, data, ETH_FLAG_LRO | ETH_FLAG_NTUPLE |
-					ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN);
+				  ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN |
+				  ETH_FLAG_RXHASH);
 	if (rc)
 		return rc;
 
@@ -2465,7 +2498,7 @@ static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.set_tso                = ixgbe_set_tso,
 	.self_test              = ixgbe_diag_test,
 	.get_strings            = ixgbe_get_strings,
-	.phys_id                = ixgbe_phys_id,
+	.set_phys_id            = ixgbe_set_phys_id,
 	.get_sset_count         = ixgbe_get_sset_count,
 	.get_ethtool_stats      = ixgbe_get_ethtool_stats,
 	.get_coalesce           = ixgbe_get_coalesce,

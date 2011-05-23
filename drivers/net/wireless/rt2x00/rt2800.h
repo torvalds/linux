@@ -51,6 +51,7 @@
  * RF3320 2.4G 1T1R(RT3350/RT3370/RT3390)
  * RF3322 2.4G 2T2R(RT3352/RT3371/RT3372/RT3391/RT3392)
  * RF3853 2.4G/5G 3T3R(RT3883/RT3563/RT3573/RT3593/RT3662)
+ * RF5370 2.4G 1T1R
  * RF5390 2.4G 1T1R
  */
 #define RF2820				0x0001
@@ -66,6 +67,7 @@
 #define RF3320				0x000b
 #define RF3322				0x000c
 #define RF3853				0x000d
+#define RF5370				0x5370
 #define RF5390				0x5390
 
 /*
@@ -2104,6 +2106,59 @@ struct mac_iveiv_entry {
 #define EEPROM_TXPOWER_BG_2		FIELD16(0xff00)
 
 /*
+ * EEPROM temperature compensation boundaries 802.11BG
+ * MINUS4: If the actual TSSI is below this boundary, tx power needs to be
+ *         reduced by (agc_step * -4)
+ * MINUS3: If the actual TSSI is below this boundary, tx power needs to be
+ *         reduced by (agc_step * -3)
+ */
+#define EEPROM_TSSI_BOUND_BG1		0x0037
+#define EEPROM_TSSI_BOUND_BG1_MINUS4	FIELD16(0x00ff)
+#define EEPROM_TSSI_BOUND_BG1_MINUS3	FIELD16(0xff00)
+
+/*
+ * EEPROM temperature compensation boundaries 802.11BG
+ * MINUS2: If the actual TSSI is below this boundary, tx power needs to be
+ *         reduced by (agc_step * -2)
+ * MINUS1: If the actual TSSI is below this boundary, tx power needs to be
+ *         reduced by (agc_step * -1)
+ */
+#define EEPROM_TSSI_BOUND_BG2		0x0038
+#define EEPROM_TSSI_BOUND_BG2_MINUS2	FIELD16(0x00ff)
+#define EEPROM_TSSI_BOUND_BG2_MINUS1	FIELD16(0xff00)
+
+/*
+ * EEPROM temperature compensation boundaries 802.11BG
+ * REF: Reference TSSI value, no tx power changes needed
+ * PLUS1: If the actual TSSI is above this boundary, tx power needs to be
+ *        increased by (agc_step * 1)
+ */
+#define EEPROM_TSSI_BOUND_BG3		0x0039
+#define EEPROM_TSSI_BOUND_BG3_REF	FIELD16(0x00ff)
+#define EEPROM_TSSI_BOUND_BG3_PLUS1	FIELD16(0xff00)
+
+/*
+ * EEPROM temperature compensation boundaries 802.11BG
+ * PLUS2: If the actual TSSI is above this boundary, tx power needs to be
+ *        increased by (agc_step * 2)
+ * PLUS3: If the actual TSSI is above this boundary, tx power needs to be
+ *        increased by (agc_step * 3)
+ */
+#define EEPROM_TSSI_BOUND_BG4		0x003a
+#define EEPROM_TSSI_BOUND_BG4_PLUS2	FIELD16(0x00ff)
+#define EEPROM_TSSI_BOUND_BG4_PLUS3	FIELD16(0xff00)
+
+/*
+ * EEPROM temperature compensation boundaries 802.11BG
+ * PLUS4: If the actual TSSI is above this boundary, tx power needs to be
+ *        increased by (agc_step * 4)
+ * AGC_STEP: Temperature compensation step.
+ */
+#define EEPROM_TSSI_BOUND_BG5		0x003b
+#define EEPROM_TSSI_BOUND_BG5_PLUS4	FIELD16(0x00ff)
+#define EEPROM_TSSI_BOUND_BG5_AGC_STEP	FIELD16(0xff00)
+
+/*
  * EEPROM TXPOWER 802.11A
  */
 #define EEPROM_TXPOWER_A1		0x003c
@@ -2111,6 +2166,59 @@ struct mac_iveiv_entry {
 #define EEPROM_TXPOWER_A_SIZE		6
 #define EEPROM_TXPOWER_A_1		FIELD16(0x00ff)
 #define EEPROM_TXPOWER_A_2		FIELD16(0xff00)
+
+/*
+ * EEPROM temperature compensation boundaries 802.11A
+ * MINUS4: If the actual TSSI is below this boundary, tx power needs to be
+ *         reduced by (agc_step * -4)
+ * MINUS3: If the actual TSSI is below this boundary, tx power needs to be
+ *         reduced by (agc_step * -3)
+ */
+#define EEPROM_TSSI_BOUND_A1		0x006a
+#define EEPROM_TSSI_BOUND_A1_MINUS4	FIELD16(0x00ff)
+#define EEPROM_TSSI_BOUND_A1_MINUS3	FIELD16(0xff00)
+
+/*
+ * EEPROM temperature compensation boundaries 802.11A
+ * MINUS2: If the actual TSSI is below this boundary, tx power needs to be
+ *         reduced by (agc_step * -2)
+ * MINUS1: If the actual TSSI is below this boundary, tx power needs to be
+ *         reduced by (agc_step * -1)
+ */
+#define EEPROM_TSSI_BOUND_A2		0x006b
+#define EEPROM_TSSI_BOUND_A2_MINUS2	FIELD16(0x00ff)
+#define EEPROM_TSSI_BOUND_A2_MINUS1	FIELD16(0xff00)
+
+/*
+ * EEPROM temperature compensation boundaries 802.11A
+ * REF: Reference TSSI value, no tx power changes needed
+ * PLUS1: If the actual TSSI is above this boundary, tx power needs to be
+ *        increased by (agc_step * 1)
+ */
+#define EEPROM_TSSI_BOUND_A3		0x006c
+#define EEPROM_TSSI_BOUND_A3_REF	FIELD16(0x00ff)
+#define EEPROM_TSSI_BOUND_A3_PLUS1	FIELD16(0xff00)
+
+/*
+ * EEPROM temperature compensation boundaries 802.11A
+ * PLUS2: If the actual TSSI is above this boundary, tx power needs to be
+ *        increased by (agc_step * 2)
+ * PLUS3: If the actual TSSI is above this boundary, tx power needs to be
+ *        increased by (agc_step * 3)
+ */
+#define EEPROM_TSSI_BOUND_A4		0x006d
+#define EEPROM_TSSI_BOUND_A4_PLUS2	FIELD16(0x00ff)
+#define EEPROM_TSSI_BOUND_A4_PLUS3	FIELD16(0xff00)
+
+/*
+ * EEPROM temperature compensation boundaries 802.11A
+ * PLUS4: If the actual TSSI is above this boundary, tx power needs to be
+ *        increased by (agc_step * 4)
+ * AGC_STEP: Temperature compensation step.
+ */
+#define EEPROM_TSSI_BOUND_A5		0x006e
+#define EEPROM_TSSI_BOUND_A5_PLUS4	FIELD16(0x00ff)
+#define EEPROM_TSSI_BOUND_A5_AGC_STEP	FIELD16(0xff00)
 
 /*
  * EEPROM TXPOWER by rate: tx power per tx rate for HT20 mode
