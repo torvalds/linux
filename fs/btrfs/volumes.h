@@ -89,6 +89,8 @@ struct btrfs_device {
 	struct scrub_dev *scrub_device;
 
 	struct btrfs_work work;
+	struct rcu_head rcu;
+	struct work_struct rcu_work;
 };
 
 struct btrfs_fs_devices {

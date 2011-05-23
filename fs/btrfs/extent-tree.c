@@ -952,7 +952,6 @@ static int convert_extent_item_v0(struct btrfs_trans_handle *trans,
 	BUG_ON(ret);
 
 	ret = btrfs_extend_item(trans, root, path, new_size);
-	BUG_ON(ret);
 
 	leaf = path->nodes[0];
 	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
@@ -1560,7 +1559,6 @@ int setup_inline_extent_backref(struct btrfs_trans_handle *trans,
 	size = btrfs_extent_inline_ref_size(type);
 
 	ret = btrfs_extend_item(trans, root, path, size);
-	BUG_ON(ret);
 
 	ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
 	refs = btrfs_extent_refs(leaf, ei);
@@ -1689,7 +1687,6 @@ int update_inline_extent_backref(struct btrfs_trans_handle *trans,
 					      end - ptr - size);
 		item_size -= size;
 		ret = btrfs_truncate_item(trans, root, path, item_size, 1);
-		BUG_ON(ret);
 	}
 	btrfs_mark_buffer_dirty(leaf);
 	return 0;
@@ -3305,6 +3302,10 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 	progress = space_info->reservation_progress;
 
 	if (reserved == 0)
+		return 0;
+
+	/* nothing to shrink - nothing to reclaim */
+	if (root->fs_info->delalloc_bytes == 0)
 		return 0;
 
 	max_reclaim = min(reserved, to_reclaim);

@@ -1053,7 +1053,6 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	INIT_LIST_HEAD(&root->dirty_list);
 	INIT_LIST_HEAD(&root->orphan_list);
 	INIT_LIST_HEAD(&root->root_list);
-	spin_lock_init(&root->node_lock);
 	spin_lock_init(&root->orphan_lock);
 	spin_lock_init(&root->inode_lock);
 	spin_lock_init(&root->accounting_lock);
@@ -1363,7 +1362,8 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 	struct btrfs_device *device;
 	struct backing_dev_info *bdi;
 
-	list_for_each_entry(device, &info->fs_devices->devices, dev_list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(device, &info->fs_devices->devices, dev_list) {
 		if (!device->bdev)
 			continue;
 		bdi = blk_get_backing_dev_info(device->bdev);
@@ -1372,6 +1372,7 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 			break;
 		}
 	}
+	rcu_read_unlock();
 	return ret;
 }
 
@@ -2305,9 +2306,9 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 	sb = &root->fs_info->super_for_commit;
 	dev_item = &sb->dev_item;
 
-	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
+	rcu_read_lock();
 	head = &root->fs_info->fs_devices->devices;
-	list_for_each_entry(dev, head, dev_list) {
+	list_for_each_entry_rcu(dev, head, dev_list) {
 		if (!dev->bdev) {
 			total_errors++;
 			continue;
@@ -2340,7 +2341,7 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 	}
 
 	total_errors = 0;
-	list_for_each_entry(dev, head, dev_list) {
+	list_for_each_entry_rcu(dev, head, dev_list) {
 		if (!dev->bdev)
 			continue;
 		if (!dev->in_fs_metadata || !dev->writeable)
@@ -2350,7 +2351,7 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 		if (ret)
 			total_errors++;
 	}
-	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
+	rcu_read_unlock();
 	if (total_errors > max_errors) {
 		printk(KERN_ERR "btrfs: %d errors while writing supers\n",
 		       total_errors);

@@ -282,8 +282,9 @@ static noinline int btrfs_ioctl_fitrim(struct file *file, void __user *arg)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
-	list_for_each_entry(device, &fs_info->fs_devices->devices, dev_list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(device, &fs_info->fs_devices->devices,
+				dev_list) {
 		if (!device->bdev)
 			continue;
 		q = bdev_get_queue(device->bdev);
@@ -293,7 +294,7 @@ static noinline int btrfs_ioctl_fitrim(struct file *file, void __user *arg)
 				     minlen);
 		}
 	}
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	rcu_read_unlock();
 	if (!num_devices)
 		return -EOPNOTSUPP;
 
@@ -1279,7 +1280,6 @@ static noinline int copy_to_sk(struct btrfs_root *root,
 	int nritems;
 	int i;
 	int slot;
-	int found = 0;
 	int ret = 0;
 
 	leaf = path->nodes[0];
@@ -1326,7 +1326,7 @@ static noinline int copy_to_sk(struct btrfs_root *root,
 					   item_off, item_len);
 			*sk_offset += item_len;
 		}
-		found++;
+		(*num_found)++;
 
 		if (*num_found >= sk->nr_items)
 			break;
@@ -1345,7 +1345,6 @@ advance_key:
 	} else
 		ret = 1;
 overflow:
-	*num_found += found;
 	return ret;
 }
 

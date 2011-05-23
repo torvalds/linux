@@ -382,7 +382,6 @@ insert:
 		} else if (found_size < item_size) {
 			ret = btrfs_extend_item(trans, root, path,
 						item_size - found_size);
-			BUG_ON(ret);
 		}
 	} else if (ret) {
 		return ret;
@@ -590,6 +589,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 						ins.objectid, ins.offset,
 						0, root->root_key.objectid,
 						key->objectid, offset);
+				BUG_ON(ret);
 			} else {
 				/*
 				 * insert the extent pointer in the extent
@@ -678,7 +678,10 @@ static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
 	btrfs_release_path(path);
 
 	inode = read_one_inode(root, location.objectid);
-	BUG_ON(!inode);
+	if (!inode) {
+		kfree(name);
+		return -EIO;
+	}
 
 	ret = link_to_fixup_dir(trans, root, path, location.objectid);
 	BUG_ON(ret);
@@ -817,7 +820,10 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 		return -ENOENT;
 
 	inode = read_one_inode(root, key->objectid);
-	BUG_ON(!inode);
+	if (!inode) {
+		iput(dir);
+		return -EIO;
+	}
 
 	ref_ptr = btrfs_item_ptr_offset(eb, slot);
 	ref_end = ref_ptr + btrfs_item_size_nr(eb, slot);
@@ -1051,11 +1057,13 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 			break;
 
 		ret = btrfs_del_item(trans, root, path);
-		BUG_ON(ret);
+		if (ret)
+			goto out;
 
 		btrfs_release_path(path);
 		inode = read_one_inode(root, key.offset);
-		BUG_ON(!inode);
+		if (!inode)
+			return -EIO;
 
 		ret = fixup_inode_link_count(trans, root, inode);
 		BUG_ON(ret);
@@ -1069,8 +1077,10 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 		 */
 		key.offset = (u64)-1;
 	}
+	ret = 0;
+out:
 	btrfs_release_path(path);
-	return 0;
+	return ret;
 }
 
 
@@ -1089,7 +1099,8 @@ static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 	struct inode *inode;
 
 	inode = read_one_inode(root, objectid);
-	BUG_ON(!inode);
+	if (!inode)
+		return -EIO;
 
 	key.objectid = BTRFS_TREE_LOG_FIXUP_OBJECTID;
 	btrfs_set_key_type(&key, BTRFS_ORPHAN_ITEM_KEY);
@@ -1176,7 +1187,8 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	int ret;
 
 	dir = read_one_inode(root, key->objectid);
-	BUG_ON(!dir);
+	if (!dir)
+		return -EIO;
 
 	name_len = btrfs_dir_name_len(eb, di);
 	name = kmalloc(name_len, GFP_NOFS);
@@ -1432,7 +1444,10 @@ again:
 			btrfs_release_path(path);
 			btrfs_release_path(log_path);
 			inode = read_one_inode(root, location.objectid);
-			BUG_ON(!inode);
+			if (!inode) {
+				kfree(name);
+				return -EIO;
+			}
 
 			ret = link_to_fixup_dir(trans, root,
 						path, location.objectid);
@@ -2589,7 +2604,8 @@ static int drop_objectid_items(struct btrfs_trans_handle *trans,
 			break;
 
 		ret = btrfs_del_item(trans, log, path);
-		BUG_ON(ret);
+		if (ret)
+			break;
 		btrfs_release_path(path);
 	}
 	btrfs_release_path(path);

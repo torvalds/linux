@@ -1113,9 +1113,6 @@ struct btrfs_fs_info {
 struct btrfs_root {
 	struct extent_buffer *node;
 
-	/* the node lock is held while changing the node pointer */
-	spinlock_t node_lock;
-
 	struct extent_buffer *commit_root;
 	struct btrfs_root *log_root;
 	struct btrfs_root *reloc_root;

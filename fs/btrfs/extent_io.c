@@ -439,6 +439,15 @@ static int clear_state_bit(struct extent_io_tree *tree,
 	return ret;
 }
 
+static struct extent_state *
+alloc_extent_state_atomic(struct extent_state *prealloc)
+{
+	if (!prealloc)
+		prealloc = alloc_extent_state(GFP_ATOMIC);
+
+	return prealloc;
+}
+
 /*
  * clear some bits on a range in the tree.  This may require splitting
  * or inserting elements in the tree, so the gfp mask is used to
@@ -476,8 +485,7 @@ int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 again:
 	if (!prealloc && (mask & __GFP_WAIT)) {
 		prealloc = alloc_extent_state(mask);
-		if (!prealloc)
-			return -ENOMEM;
+		BUG_ON(!prealloc);
 	}
 
 	spin_lock(&tree->lock);
@@ -529,8 +537,8 @@ hit_next:
 	 */
 
 	if (state->start < start) {
-		if (!prealloc)
-			prealloc = alloc_extent_state(GFP_ATOMIC);
+		prealloc = alloc_extent_state_atomic(prealloc);
+		BUG_ON(!prealloc);
 		err = split_state(tree, state, prealloc, start);
 		BUG_ON(err == -EEXIST);
 		prealloc = NULL;
@@ -551,8 +559,8 @@ hit_next:
 	 * on the first half
 	 */
 	if (state->start <= end && state->end > end) {
-		if (!prealloc)
-			prealloc = alloc_extent_state(GFP_ATOMIC);
+		prealloc = alloc_extent_state_atomic(prealloc);
+		BUG_ON(!prealloc);
 		err = split_state(tree, state, prealloc, end + 1);
 		BUG_ON(err == -EEXIST);
 		if (wake)
@@ -725,8 +733,7 @@ int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 again:
 	if (!prealloc && (mask & __GFP_WAIT)) {
 		prealloc = alloc_extent_state(mask);
-		if (!prealloc)
-			return -ENOMEM;
+		BUG_ON(!prealloc);
 	}
 
 	spin_lock(&tree->lock);
@@ -743,6 +750,8 @@ again:
 	 */
 	node = tree_search(tree, start);
 	if (!node) {
+		prealloc = alloc_extent_state_atomic(prealloc);
+		BUG_ON(!prealloc);
 		err = insert_state(tree, prealloc, start, end, &bits);
 		prealloc = NULL;
 		BUG_ON(err == -EEXIST);
@@ -771,20 +780,18 @@ hit_next:
 		if (err)
 			goto out;
 
+		next_node = rb_next(node);
 		cache_state(state, cached_state);
 		merge_state(tree, state);
 		if (last_end == (u64)-1)
 			goto out;
 
 		start = last_end + 1;
-		if (start < end && prealloc && !need_resched()) {
-			next_node = rb_next(node);
-			if (next_node) {
-				state = rb_entry(next_node, struct extent_state,
-						 rb_node);
-				if (state->start == start)
-					goto hit_next;
-			}
+		if (next_node && start < end && prealloc && !need_resched()) {
+			state = rb_entry(next_node, struct extent_state,
+					 rb_node);
+			if (state->start == start)
+				goto hit_next;
 		}
 		goto search_again;
 	}
@@ -811,6 +818,9 @@ hit_next:
 			err = -EEXIST;
 			goto out;
 		}
+
+		prealloc = alloc_extent_state_atomic(prealloc);
+		BUG_ON(!prealloc);
 		err = split_state(tree, state, prealloc, start);
 		BUG_ON(err == -EEXIST);
 		prealloc = NULL;
@@ -841,14 +851,25 @@ hit_next:
 			this_end = end;
 		else
 			this_end = last_start - 1;
+
+		prealloc = alloc_extent_state_atomic(prealloc);
+		BUG_ON(!prealloc);
+
+		/*
+		 * Avoid to free 'prealloc' if it can be merged with
+		 * the later extent.
+		 */
+		atomic_inc(&prealloc->refs);
 		err = insert_state(tree, prealloc, start, this_end,
 				   &bits);
 		BUG_ON(err == -EEXIST);
 		if (err) {
+			free_extent_state(prealloc);
 			prealloc = NULL;
 			goto out;
 		}
 		cache_state(prealloc, cached_state);
+		free_extent_state(prealloc);
 		prealloc = NULL;
 		start = this_end + 1;
 		goto search_again;
@@ -865,6 +886,9 @@ hit_next:
 			err = -EEXIST;
 			goto out;
 		}
+
+		prealloc = alloc_extent_state_atomic(prealloc);
+		BUG_ON(!prealloc);
 		err = split_state(tree, state, prealloc, end + 1);
 		BUG_ON(err == -EEXIST);
 

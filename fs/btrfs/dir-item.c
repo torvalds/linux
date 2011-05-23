@@ -50,7 +50,6 @@ static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 		if (di)
 			return ERR_PTR(-EEXIST);
 		ret = btrfs_extend_item(trans, root, path, data_size);
-		WARN_ON(ret > 0);
 	}
 	if (ret < 0)
 		return ERR_PTR(ret);
@@ -438,7 +437,7 @@ int verify_dir_item(struct btrfs_root *root,
 		namelen = XATTR_NAME_MAX;
 
 	if (btrfs_dir_name_len(leaf, dir_item) > namelen) {
-		printk(KERN_CRIT "btrfS: invalid dir item name len: %u\n",
+		printk(KERN_CRIT "btrfs: invalid dir item name len: %u\n",
 		       (unsigned)btrfs_dir_data_len(leaf, dir_item));
 		return 1;
 	}
