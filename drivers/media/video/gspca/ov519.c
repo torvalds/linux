@@ -3307,6 +3307,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	gspca_dev->cam.ctrls = sd->ctrls;
 	sd->quality = QUALITY_DEF;
+	sd->frame_rate = 15;
 
 	return 0;
 }
@@ -3469,7 +3470,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				ARRAY_SIZE(init_519_ov7660));
 		write_i2c_regvals(sd, norm_7660, ARRAY_SIZE(norm_7660));
 		sd->gspca_dev.curr_mode = 1;	/* 640x480 */
-		sd->frame_rate = 15;
 		ov519_set_mode(sd);
 		ov519_set_fr(sd);
 		sd->ctrls[COLORS].max = 4;	/* 0..4 */
