@@ -3468,7 +3468,11 @@ device_initcall(ftrace_nodyn_init);
 static inline int ftrace_init_dyn_debugfs(struct dentry *d_tracer) { return 0; }
 static inline void ftrace_startup_enable(int command) { }
 /* Keep as macros so we do not need to define the commands */
-# define ftrace_startup(ops, command)	({0;})
+# define ftrace_startup(ops, command)			\
+	({						\
+		(ops)->flags |= FTRACE_OPS_FL_ENABLED;	\
+		0;					\
+	})
 # define ftrace_shutdown(ops, command)	do { } while (0)
 # define ftrace_startup_sysctl()	do { } while (0)
 # define ftrace_shutdown_sysctl()	do { } while (0)
