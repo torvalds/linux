@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/vt_ioctl.c
- *
  *  Copyright (C) 1992 obz under the linux copyright
  *
  *  Dynamic diacritical handling - aeb@cwi.nl - Dec 1993
@@ -698,10 +696,23 @@ int vt_ioctl(struct tty_struct *tty,
 		break;
 
 	case KDGKBMODE:
-		uival = ((kbd->kbdmode == VC_RAW) ? K_RAW :
-				 (kbd->kbdmode == VC_MEDIUMRAW) ? K_MEDIUMRAW :
-				 (kbd->kbdmode == VC_UNICODE) ? K_UNICODE :
-				 K_XLATE);
+		switch (kbd->kbdmode) {
+		case VC_RAW:
+			uival = K_RAW;
+			break;
+		case VC_MEDIUMRAW:
+			uival = K_MEDIUMRAW;
+			break;
+		case VC_UNICODE:
+			uival = K_UNICODE;
+			break;
+		case VC_OFF:
+			uival = K_OFF;
+			break;
+		default:
+			uival = K_XLATE;
+			break;
+		}
 		goto setint;
 
 	/* this could be folded into KDSKBMODE, but for compatibility
@@ -1499,7 +1510,6 @@ long vt_compat_ioctl(struct tty_struct *tty,
 {
 	struct vc_data *vc = tty->driver_data;
 	struct console_font_op op;	/* used in multiple places here */
-	struct kbd_struct *kbd;
 	unsigned int console;
 	void __user *up = (void __user *)arg;
 	int perm;
@@ -1522,7 +1532,6 @@ long vt_compat_ioctl(struct tty_struct *tty,
 	if (current->signal->tty == tty || capable(CAP_SYS_TTY_CONFIG))
 		perm = 1;
 
-	kbd = kbd_table + console;
 	switch (cmd) {
 	/*
 	 * these need special handlers for incompatible data structures

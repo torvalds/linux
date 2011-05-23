@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/tty_ioctl.c
- *
  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
  *
  * Modified by Fred N. van Kempen, 01/29/93, to add line disciplines
