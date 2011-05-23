@@ -9,21 +9,21 @@
 #include "thread_map.h"
 
 static const char *perf_event__names[] = {
-	[0]			 = "TOTAL",
-	[PERF_RECORD_MMAP]	 = "MMAP",
-	[PERF_RECORD_LOST]	 = "LOST",
-	[PERF_RECORD_COMM]	 = "COMM",
-	[PERF_RECORD_EXIT]	 = "EXIT",
-	[PERF_RECORD_THROTTLE]	 = "THROTTLE",
-	[PERF_RECORD_UNTHROTTLE] = "UNTHROTTLE",
-	[PERF_RECORD_FORK]	 = "FORK",
-	[PERF_RECORD_READ]	 = "READ",
-	[PERF_RECORD_SAMPLE]	 = "SAMPLE",
-	[PERF_RECORD_HEADER_ATTR]	 = "ATTR",
-	[PERF_RECORD_HEADER_EVENT_TYPE]	 = "EVENT_TYPE",
-	[PERF_RECORD_HEADER_TRACING_DATA]	 = "TRACING_DATA",
-	[PERF_RECORD_HEADER_BUILD_ID]	 = "BUILD_ID",
-	[PERF_RECORD_FINISHED_ROUND]	 = "FINISHED_ROUND",
+	[0]					= "TOTAL",
+	[PERF_RECORD_MMAP]			= "MMAP",
+	[PERF_RECORD_LOST]			= "LOST",
+	[PERF_RECORD_COMM]			= "COMM",
+	[PERF_RECORD_EXIT]			= "EXIT",
+	[PERF_RECORD_THROTTLE]			= "THROTTLE",
+	[PERF_RECORD_UNTHROTTLE]		= "UNTHROTTLE",
+	[PERF_RECORD_FORK]			= "FORK",
+	[PERF_RECORD_READ]			= "READ",
+	[PERF_RECORD_SAMPLE]			= "SAMPLE",
+	[PERF_RECORD_HEADER_ATTR]		= "ATTR",
+	[PERF_RECORD_HEADER_EVENT_TYPE]		= "EVENT_TYPE",
+	[PERF_RECORD_HEADER_TRACING_DATA]	= "TRACING_DATA",
+	[PERF_RECORD_HEADER_BUILD_ID]		= "BUILD_ID",
+	[PERF_RECORD_FINISHED_ROUND]		= "FINISHED_ROUND",
 };
 
 const char *perf_event__name(unsigned int id)
@@ -33,6 +33,22 @@ const char *perf_event__name(unsigned int id)
 	if (!perf_event__names[id])
 		return "UNKNOWN";
 	return perf_event__names[id];
+}
+
+int perf_sample_size(u64 sample_type)
+{
+	u64 mask = sample_type & PERF_SAMPLE_MASK;
+	int size = 0;
+	int i;
+
+	for (i = 0; i < 64; i++) {
+		if (mask & (1UL << i))
+			size++;
+	}
+
+	size *= sizeof(u64);
+
+	return size;
 }
 
 static struct perf_sample synth_sample = {
