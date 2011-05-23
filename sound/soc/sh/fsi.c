@@ -394,7 +394,10 @@ static void fsi_stream_push(struct fsi_priv *fsi,
 {
 	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct fsi_master *master = fsi_get_master(fsi);
+	unsigned long flags;
 
+	spin_lock_irqsave(&master->lock, flags);
 	io->substream	= substream;
 	io->buff_sample_capa	= fsi_frame2sample(fsi, runtime->buffer_size);
 	io->buff_sample_pos	= 0;
@@ -402,13 +405,17 @@ static void fsi_stream_push(struct fsi_priv *fsi,
 	io->period_pos		= 0;
 	io->oerr_num	= -1; /* ignore 1st err */
 	io->uerr_num	= -1; /* ignore 1st err */
+	spin_unlock_irqrestore(&master->lock, flags);
 }
 
 static void fsi_stream_pop(struct fsi_priv *fsi, int is_play)
 {
 	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
 	struct snd_soc_dai *dai = fsi_get_dai(io->substream);
+	struct fsi_master *master = fsi_get_master(fsi);
+	unsigned long flags;
 
+	spin_lock_irqsave(&master->lock, flags);
 
 	if (io->oerr_num > 0)
 		dev_err(dai->dev, "over_run = %d\n", io->oerr_num);
@@ -423,6 +430,7 @@ static void fsi_stream_pop(struct fsi_priv *fsi, int is_play)
 	io->period_pos		= 0;
 	io->oerr_num	= 0;
 	io->uerr_num	= 0;
+	spin_unlock_irqrestore(&master->lock, flags);
 }
 
 static int fsi_get_current_fifo_samples(struct fsi_priv *fsi, int is_play)
