@@ -171,5 +171,12 @@ struct rk29camera_platform_data {
 	struct rk29camera_mem_res meminfo;
 };
 
+struct rk29camera_platform_ioctl_cb {
+    int (*sensor_power_cb)(struct rk29camera_gpio_res *res, int on);
+    int (*sensor_reset_cb)(struct rk29camera_gpio_res *res, int on);
+    int (*sensor_powerdown_cb)(struct rk29camera_gpio_res *res, int on);
+    int (*sensor_flash_cb)(struct rk29camera_gpio_res *res, int on);    
+};
+
 #endif /* __ASM_ARCH_CAMERA_H_ */
 

@@ -1748,6 +1748,64 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  * camera  devices
  * author: ddl@rock-chips.com
  *****************************************************************************************/
+#define CONFIG_SENSOR_POWER_IOCTL_USR      0
+#define CONFIG_SENSOR_RESET_IOCTL_USR      0
+#define CONFIG_SENSOR_POWERDOWN_IOCTL_USR      0
+#define CONFIG_SENSOR_FLASH_IOCTL_USR      0
+
+#if CONFIG_SENSOR_POWER_IOCTL_USR
+static int sensor_power_usr_cb (struct rk29camera_gpio_res *res,int on)
+{
+    #error "CONFIG_SENSOR_POWER_IOCTL_USR is 1, sensor_power_usr_cb function must be writed!!";
+}
+#endif
+
+#if CONFIG_SENSOR_RESET_IOCTL_USR
+static int sensor_reset_usr_cb (struct rk29camera_gpio_res *res,int on)
+{
+    #error "CONFIG_SENSOR_RESET_IOCTL_USR is 1, sensor_reset_usr_cb function must be writed!!";
+}
+#endif
+
+#if CONFIG_SENSOR_POWERDOWN_IOCTL_USR
+static int sensor_powerdown_usr_cb (struct rk29camera_gpio_res *res,int on)
+{
+    #error "CONFIG_SENSOR_POWERDOWN_IOCTL_USR is 1, sensor_powerdown_usr_cb function must be writed!!";
+}
+#endif
+
+#if CONFIG_SENSOR_FLASH_IOCTL_USR
+static int sensor_flash_usr_cb (struct rk29camera_gpio_res *res,int on)
+{
+    #error "CONFIG_SENSOR_FLASH_IOCTL_USR is 1, sensor_flash_usr_cb function must be writed!!";
+}
+#endif
+
+static struct rk29camera_platform_ioctl_cb  sensor_ioctl_cb = {
+    #if CONFIG_SENSOR_POWER_IOCTL_USR
+    .sensor_power_cb = sensor_power_usr_cb,
+    #else
+    .sensor_power_cb = NULL,
+    #endif
+
+    #if CONFIG_SENSOR_RESET_IOCTL_USR
+    .sensor_reset_cb = sensor_reset_usr_cb,
+    #else
+    .sensor_reset_cb = NULL,
+    #endif
+
+    #if CONFIG_SENSOR_POWERDOWN_IOCTL_USR
+    .sensor_powerdown_cb = sensor_powerdown_usr_cb,
+    #else
+    .sensor_powerdown_cb = NULL,
+    #endif
+
+    #if CONFIG_SENSOR_FLASH_IOCTL_USR
+    .sensor_flash_cb = sensor_flash_usr_cb,
+    #else
+    .sensor_flash_cb = NULL,
+    #endif
+};
 #include "../../../drivers/media/video/rk29_camera.c"
 
 /*****************************************************************************************
@@ -2297,7 +2355,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_VIDEO_RK29
  	&rk29_device_camera,      /* ddl@rock-chips.com : camera support  */
- 	#if (SENSOR_IIC_ADDR_0 != 0x00)
+ 	#if (CONFIG_SENSOR_IIC_ADDR_0 != 0x00)
  	&rk29_soc_camera_pdrv_0,
  	#endif
  	&rk29_soc_camera_pdrv_1,
