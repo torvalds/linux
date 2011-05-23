@@ -102,6 +102,8 @@ close($module_symvers);
 #
 # collect the usage count of each symbol.
 #
+my $modversion_warnings = 0;
+
 foreach my $thismod (@allcfiles) {
 	my $module;
 
@@ -132,7 +134,8 @@ foreach my $thismod (@allcfiles) {
 		}
 	}
 	if ($state != 2) {
-		print "WARNING:$thismod is not built with CONFIG_MODVERSION enabled\n";
+		warn "WARNING:$thismod is not built with CONFIG_MODVERSIONS enabled\n";
+		$modversion_warnings++;
 	}
 	close($module);
 }
@@ -165,6 +168,9 @@ printf("%s\n\n\n","x"x80);
 printf("SECTION 2:\n\tThis section reports export-symbol-usage of in-kernel
 modules. Each module lists the modules, and the symbols from that module that
 it uses.  Each listed symbol reports the number of modules using it\n");
+
+print "\nNOTE: Got $modversion_warnings CONFIG_MODVERSIONS warnings\n\n"
+    if $modversion_warnings;
 
 print "~"x80 , "\n";
 for my $thismod (sort keys %MODULE) {
