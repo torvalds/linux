@@ -530,6 +530,8 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 	int				ret;
 	uint32_t			val;
 	nand_ecc_modes_t		ecc_mode;
+	struct mtd_partition		*mtd_parts = NULL;
+	int				mtd_parts_nb = 0;
 
 	/* insist on board-specific configuration */
 	if (!pdata)
@@ -749,41 +751,33 @@ syndrome_done:
 	if (ret < 0)
 		goto err_scan;
 
-	if (mtd_has_partitions()) {
-		struct mtd_partition	*mtd_parts = NULL;
-		int			mtd_parts_nb = 0;
+	if (mtd_has_cmdlinepart()) {
+		static const char *probes[] __initconst = {
+			"cmdlinepart", NULL
+		};
 
-		if (mtd_has_cmdlinepart()) {
-			static const char *probes[] __initconst =
-				{ "cmdlinepart", NULL };
+		mtd_parts_nb = parse_mtd_partitions(&info->mtd, probes,
+						    &mtd_parts, 0);
+	}
 
-			mtd_parts_nb = parse_mtd_partitions(&info->mtd, probes,
-							    &mtd_parts, 0);
-		}
+	if (mtd_parts_nb <= 0) {
+		mtd_parts = pdata->parts;
+		mtd_parts_nb = pdata->nr_parts;
+	}
 
-		if (mtd_parts_nb <= 0) {
-			mtd_parts = pdata->parts;
-			mtd_parts_nb = pdata->nr_parts;
-		}
-
-		/* Register any partitions */
-		if (mtd_parts_nb > 0) {
-			ret = add_mtd_partitions(&info->mtd,
-					mtd_parts, mtd_parts_nb);
-			if (ret == 0)
-				info->partitioned = true;
-		}
-
-	} else if (pdata->nr_parts) {
-		dev_warn(&pdev->dev, "ignoring %d default partitions on %s\n",
-				pdata->nr_parts, info->mtd.name);
+	/* Register any partitions */
+	if (mtd_parts_nb > 0) {
+		ret = mtd_device_register(&info->mtd, mtd_parts,
+					  mtd_parts_nb);
+		if (ret == 0)
+			info->partitioned = true;
 	}
 
 	/* If there's no partition info, just package the whole chip
 	 * as a single MTD device.
 	 */
 	if (!info->partitioned)
-		ret = add_mtd_device(&info->mtd) ? -ENODEV : 0;
+		ret = mtd_device_register(&info->mtd, NULL, 0) ? -ENODEV : 0;
 
 	if (ret < 0)
 		goto err_scan;
@@ -824,10 +818,7 @@ static int __exit nand_davinci_remove(struct platform_device *pdev)
 	struct davinci_nand_info *info = platform_get_drvdata(pdev);
 	int status;
 
-	if (mtd_has_partitions() && info->partitioned)
-		status = del_mtd_partitions(&info->mtd);
-	else
-		status = del_mtd_device(&info->mtd);
+	status = mtd_device_unregister(&info->mtd);
 
 	spin_lock_irq(&davinci_nand_lock);
 	if (info->chip.ecc.mode == NAND_ECC_HW_SYNDROME)
