@@ -452,22 +452,28 @@ static int __init nopfault(char *str)
 
 __setup("nopfault", nopfault);
 
-typedef struct {
-	__u16 refdiagc;
-	__u16 reffcode;
-	__u16 refdwlen;
-	__u16 refversn;
-	__u64 refgaddr;
-	__u64 refselmk;
-	__u64 refcmpmk;
-	__u64 reserved;
-} __attribute__ ((packed, aligned(8))) pfault_refbk_t;
+struct pfault_refbk {
+	u16 refdiagc;
+	u16 reffcode;
+	u16 refdwlen;
+	u16 refversn;
+	u64 refgaddr;
+	u64 refselmk;
+	u64 refcmpmk;
+	u64 reserved;
+} __attribute__ ((packed, aligned(8)));
 
 int pfault_init(void)
 {
-	pfault_refbk_t refbk =
-		{ 0x258, 0, 5, 2, __LC_CURRENT_PID, 1ULL << 48, 1ULL << 48,
-		  __PF_RES_FIELD };
+	struct pfault_refbk refbk = {
+		.refdiagc = 0x258,
+		.reffcode = 0,
+		.refdwlen = 5,
+		.refversn = 2,
+		.refgaddr = __LC_CURRENT_PID,
+		.refselmk = 1ULL << 48,
+		.refcmpmk = 1ULL << 48,
+		.reserved = __PF_RES_FIELD };
         int rc;
 
 	if (!MACHINE_IS_VM || pfault_disable)
@@ -485,8 +491,12 @@ int pfault_init(void)
 
 void pfault_fini(void)
 {
-	pfault_refbk_t refbk =
-	{ 0x258, 1, 5, 2, 0ULL, 0ULL, 0ULL, 0ULL };
+	struct pfault_refbk refbk = {
+		.refdiagc = 0x258,
+		.reffcode = 1,
+		.refdwlen = 5,
+		.refversn = 2,
+	};
 
 	if (!MACHINE_IS_VM || pfault_disable)
 		return;
@@ -599,24 +609,21 @@ static int __init pfault_irq_init(void)
 
 	if (!MACHINE_IS_VM)
 		return 0;
-	/*
-	 * Try to get pfault pseudo page faults going.
-	 */
 	rc = register_external_interrupt(0x2603, pfault_interrupt);
-	if (rc) {
-		pfault_disable = 1;
-		return rc;
-	}
-	if (pfault_init() == 0) {
-		hotcpu_notifier(pfault_cpu_notify, 0);
-		return 0;
-	}
-
-	/* Tough luck, no pfault. */
-	pfault_disable = 1;
-	unregister_external_interrupt(0x2603, pfault_interrupt);
+	if (rc)
+		goto out_extint;
+	rc = pfault_init() == 0 ? 0 : -EOPNOTSUPP;
+	if (rc)
+		goto out_pfault;
+	hotcpu_notifier(pfault_cpu_notify, 0);
 	return 0;
+
+out_pfault:
+	unregister_external_interrupt(0x2603, pfault_interrupt);
+out_extint:
+	pfault_disable = 1;
+	return rc;
 }
 early_initcall(pfault_irq_init);
 
-#endif
+#endif /* CONFIG_PFAULT */
