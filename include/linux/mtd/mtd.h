@@ -353,15 +353,7 @@ int default_mtd_readv(struct mtd_info *mtd, struct kvec *vecs,
 
 void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size);
 
-#ifdef CONFIG_MTD_PARTITIONS
 void mtd_erase_callback(struct erase_info *instr);
-#else
-static inline void mtd_erase_callback(struct erase_info *instr)
-{
-	if (instr->callback)
-		instr->callback(instr);
-}
-#endif
 
 /*
  * Debugging macro and defines

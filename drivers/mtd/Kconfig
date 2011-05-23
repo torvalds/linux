@@ -1,7 +1,6 @@
 menuconfig MTD
 	tristate "Memory Technology Device (MTD) support"
 	depends on HAS_IOMEM
-	select MTD_PARTITIONS
 	help
 	  Memory Technology Devices are flash, RAM and similar chips, often
 	  used for solid state file systems on embedded devices. This option
@@ -33,11 +32,6 @@ config MTD_TESTS
 	  This option includes various MTD tests into compilation. The tests
 	  should normally be compiled as kernel modules. The modules perform
 	  various checks and verifications when loaded.
-
-config MTD_PARTITIONS
-	bool
-
-if MTD_PARTITIONS
 
 config MTD_REDBOOT_PARTS
 	tristate "RedBoot partition table parsing"
@@ -91,7 +85,7 @@ endif # MTD_REDBOOT_PARTS
 
 config MTD_CMDLINE_PARTS
 	bool "Command line partition table parsing"
-	depends on MTD_PARTITIONS = "y" && MTD = "y"
+	depends on MTD = "y"
 	---help---
 	  Allow generic configuration of the MTD partition tables via the kernel
 	  command line. Multiple flash resources are supported for hardware where
@@ -155,8 +149,6 @@ config MTD_AR7_PARTS
 	tristate "TI AR7 partitioning support"
 	---help---
 	  TI AR7 partitioning support
-
-endif # MTD_PARTITIONS
 
 comment "User Modules And Translation Layers"
 
