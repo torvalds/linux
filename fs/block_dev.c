@@ -1120,6 +1120,15 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 					goto restart;
 				}
 			}
+
+			if (!ret && !bdev->bd_openers) {
+				bd_set_size(bdev,(loff_t)get_capacity(disk)<<9);
+				bdi = blk_get_backing_dev_info(bdev);
+				if (bdi == NULL)
+					bdi = &default_backing_dev_info;
+				bdev_inode_switch_bdi(bdev->bd_inode, bdi);
+			}
+
 			/*
 			 * If the device is invalidated, rescan partition
 			 * if open succeeded or failed with -ENOMEDIUM.
@@ -1130,14 +1139,6 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 				rescan_partitions(disk, bdev);
 			if (ret)
 				goto out_clear;
-
-			if (!bdev->bd_openers) {
-				bd_set_size(bdev,(loff_t)get_capacity(disk)<<9);
-				bdi = blk_get_backing_dev_info(bdev);
-				if (bdi == NULL)
-					bdi = &default_backing_dev_info;
-				bdev_inode_switch_bdi(bdev->bd_inode, bdi);
-			}
 		} else {
 			struct block_device *whole;
 			whole = bdget_disk(disk, 0);
