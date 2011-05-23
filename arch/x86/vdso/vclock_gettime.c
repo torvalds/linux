@@ -22,9 +22,8 @@
 #include <asm/hpet.h>
 #include <asm/unistd.h>
 #include <asm/io.h>
-#include "vextern.h"
 
-#define gtod vdso_vsyscall_gtod_data
+#define gtod (&VVAR(vsyscall_gtod_data))
 
 notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 {

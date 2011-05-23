@@ -777,8 +777,8 @@ static cycle_t __vsyscall_fn vread_tsc(void)
 	ret = (cycle_t)vget_cycles();
 	rdtsc_barrier();
 
-	return ret >= __vsyscall_gtod_data.clock.cycle_last ?
-		ret : __vsyscall_gtod_data.clock.cycle_last;
+	return ret >= VVAR(vsyscall_gtod_data).clock.cycle_last ?
+		ret : VVAR(vsyscall_gtod_data).clock.cycle_last;
 }
 #endif
 
