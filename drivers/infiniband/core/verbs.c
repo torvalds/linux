@@ -250,6 +250,7 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 		srq->uobject       = NULL;
 		srq->event_handler = srq_init_attr->event_handler;
 		srq->srq_context   = srq_init_attr->srq_context;
+		srq->srq_type      = srq_init_attr->srq_type;
 		atomic_inc(&pd->usecnt);
 		atomic_set(&srq->usecnt, 0);
 	}

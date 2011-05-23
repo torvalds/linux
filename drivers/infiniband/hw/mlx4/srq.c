@@ -81,6 +81,9 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 	int err;
 	int i;
 
+	if (init_attr->srq_type != IB_SRQT_BASIC)
+		return ERR_PTR(-ENOSYS);
+
 	/* Sanity check SRQ size before proceeding */
 	if (init_attr->attr.max_wr  >= dev->dev->caps.max_srq_wqes ||
 	    init_attr->attr.max_sge >  dev->dev->caps.max_srq_sge)

@@ -2013,6 +2013,7 @@ ssize_t ib_uverbs_create_srq(struct ib_uverbs_file *file,
 
 	attr.event_handler  = ib_uverbs_srq_event_handler;
 	attr.srq_context    = file;
+	attr.srq_type       = IB_SRQT_BASIC;
 	attr.attr.max_wr    = cmd.max_wr;
 	attr.attr.max_sge   = cmd.max_sge;
 	attr.attr.srq_limit = cmd.srq_limit;

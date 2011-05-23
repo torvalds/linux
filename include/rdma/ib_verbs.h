@@ -523,6 +523,10 @@ enum ib_cq_notify_flags {
 	IB_CQ_REPORT_MISSED_EVENTS	= 1 << 2,
 };
 
+enum ib_srq_type {
+	IB_SRQT_BASIC
+};
+
 enum ib_srq_attr_mask {
 	IB_SRQ_MAX_WR	= 1 << 0,
 	IB_SRQ_LIMIT	= 1 << 1,
@@ -538,6 +542,7 @@ struct ib_srq_init_attr {
 	void		      (*event_handler)(struct ib_event *, void *);
 	void		       *srq_context;
 	struct ib_srq_attr	attr;
+	enum ib_srq_type	srq_type;
 };
 
 struct ib_qp_cap {
@@ -888,6 +893,7 @@ struct ib_srq {
 	struct ib_uobject      *uobject;
 	void		      (*event_handler)(struct ib_event *, void *);
 	void		       *srq_context;
+	enum ib_srq_type	srq_type;
 	atomic_t		usecnt;
 };
 
