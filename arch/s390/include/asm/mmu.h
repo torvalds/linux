@@ -9,8 +9,10 @@ typedef struct {
 	unsigned long asce_bits;
 	unsigned long asce_limit;
 	unsigned long vdso_base;
-	int has_pgste;	 /* The mmu context has extended page tables */
-	int alloc_pgste; /* cloned contexts will have extended page tables */
+	/* Cloned contexts will be created with extended page tables. */
+	unsigned int alloc_pgste:1;
+	/* The mmu context has extended page tables. */
+	unsigned int has_pgste:1;
 } mm_context_t;
 
 #define INIT_MM_CONTEXT(name)						      \

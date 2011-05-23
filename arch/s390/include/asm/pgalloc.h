@@ -65,10 +65,7 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 #define pmd_free(mm, x)				do { } while (0)
 
 #define pgd_populate(mm, pgd, pud)		BUG()
-#define pgd_populate_kernel(mm, pgd, pud)	BUG()
-
 #define pud_populate(mm, pud, pmd)		BUG()
-#define pud_populate_kernel(mm, pud, pmd)	BUG()
 
 #else /* __s390x__ */
 
@@ -102,26 +99,14 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
 }
 #define pmd_free(mm, pmd) crst_table_free(mm, (unsigned long *) pmd)
 
-static inline void pgd_populate_kernel(struct mm_struct *mm,
-				       pgd_t *pgd, pud_t *pud)
+static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
 {
 	pgd_val(*pgd) = _REGION2_ENTRY | __pa(pud);
 }
 
-static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
-{
-	pgd_populate_kernel(mm, pgd, pud);
-}
-
-static inline void pud_populate_kernel(struct mm_struct *mm,
-				       pud_t *pud, pmd_t *pmd)
-{
-	pud_val(*pud) = _REGION3_ENTRY | __pa(pmd);
-}
-
 static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 {
-	pud_populate_kernel(mm, pud, pmd);
+	pud_val(*pud) = _REGION3_ENTRY | __pa(pmd);
 }
 
 #endif /* __s390x__ */
@@ -134,17 +119,13 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 }
 #define pgd_free(mm, pgd) crst_table_free(mm, (unsigned long *) pgd)
 
-static inline void pmd_populate_kernel(struct mm_struct *mm,
-				       pmd_t *pmd, pte_t *pte)
+static inline void pmd_populate(struct mm_struct *mm,
+				pmd_t *pmd, pgtable_t pte)
 {
 	pmd_val(*pmd) = _SEGMENT_ENTRY + __pa(pte);
 }
 
-static inline void pmd_populate(struct mm_struct *mm,
-				pmd_t *pmd, pgtable_t pte)
-{
-	pmd_populate_kernel(mm, pmd, pte);
-}
+#define pmd_populate_kernel(mm, pmd, pte) pmd_populate(mm, pmd, pte)
 
 #define pmd_pgtable(pmd) \
 	(pgtable_t)(pmd_val(pmd) & -sizeof(pte_t)*PTRS_PER_PTE)

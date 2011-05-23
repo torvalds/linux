@@ -90,6 +90,7 @@ static inline void copy_page(void *to, void *from)
  */
 
 typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct { unsigned long pgste; } pgste_t;
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pmd; } pmd_t;
 typedef struct { unsigned long pud; } pud_t;
@@ -97,13 +98,16 @@ typedef struct { unsigned long pgd; } pgd_t;
 typedef pte_t *pgtable_t;
 
 #define pgprot_val(x)	((x).pgprot)
+#define pgste_val(x)	((x).pgste)
 #define pte_val(x)	((x).pte)
 #define pmd_val(x)	((x).pmd)
 #define pud_val(x)	((x).pud)
 #define pgd_val(x)      ((x).pgd)
 
+#define __pgste(x)	((pgste_t) { (x) } )
 #define __pte(x)        ((pte_t) { (x) } )
 #define __pmd(x)        ((pmd_t) { (x) } )
+#define __pud(x)	((pud_t) { (x) } )
 #define __pgd(x)        ((pgd_t) { (x) } )
 #define __pgprot(x)     ((pgprot_t) { (x) } )
 
