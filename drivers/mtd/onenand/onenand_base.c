@@ -4142,12 +4142,8 @@ void onenand_release(struct mtd_info *mtd)
 {
 	struct onenand_chip *this = mtd->priv;
 
-#ifdef CONFIG_MTD_PARTITIONS
 	/* Deregister partitions */
-	del_mtd_partitions (mtd);
-#endif
-	/* Deregister the device */
-	del_mtd_device (mtd);
+	mtd_device_unregister(mtd);
 
 	/* Free bad block table memory, if allocated */
 	if (this->bbm) {
