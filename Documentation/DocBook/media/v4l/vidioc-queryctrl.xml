@@ -156,7 +156,8 @@ signed value.</entry>
 	    <entry>Maximum value, inclusive. This field gives an upper
 bound for <constant>V4L2_CTRL_TYPE_INTEGER</constant> controls and the
 highest valid index for <constant>V4L2_CTRL_TYPE_MENU</constant>
-controls.
+controls. For <constant>V4L2_CTRL_TYPE_BITMASK</constant> controls it is the
+set of usable bits.
 For <constant>V4L2_CTRL_TYPE_STRING</constant> controls the maximum value
 gives the maximum length of the string. This length <emphasis>does not include the terminating
 zero</emphasis>. It may not be valid for any other type of control, including
@@ -289,6 +290,15 @@ values which are actually different on the hardware.</entry>
 	    <entry>The control has a menu of N choices. The names of
 the menu items can be enumerated with the
 <constant>VIDIOC_QUERYMENU</constant> ioctl.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_TYPE_BITMASK</constant></entry>
+	    <entry>0</entry>
+	    <entry>n/a</entry>
+	    <entry>any</entry>
+	    <entry>A bitmask field. The maximum value is the set of bits that can
+be used, all other bits are to be 0. The maximum value is interpreted as a __u32,
+allowing the use of bit 31 in the bitmask.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CTRL_TYPE_BUTTON</constant></entry>

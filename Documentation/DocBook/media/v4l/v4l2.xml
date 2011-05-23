@@ -87,7 +87,7 @@ Remote Controller chapter.</contrib>
       </author>
 
       <author>
-      	<firstname>Pawel</firstname>
+	<firstname>Pawel</firstname>
 	<surname>Osciak</surname>
 	<contrib>Designed and documented the multi-planar API.</contrib>
 	<affiliation>
@@ -130,9 +130,10 @@ applications. -->
       <revision>
 	<revnumber>3.1</revnumber>
 	<date>2011-06-27</date>
-	<authorinitials>mcc, po</authorinitials>
-	<revremark>Documented that VIDIOC_QUERYCAP now returns a per-subsystem version instead of a per-driver one.</revremark>
-	<revremark>Standardize an error code for invalid ioctl.</revremark>
+	<authorinitials>mcc, po, hv</authorinitials>
+	<revremark>Documented that VIDIOC_QUERYCAP now returns a per-subsystem version instead of a per-driver one.
+		   Standardize an error code for invalid ioctl.
+		   Added V4L2_CTRL_TYPE_BITMASK.</revremark>
       </revision>
 
       <revision>
@@ -409,7 +410,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 2.6.39</subtitle>
+ <subtitle>Revision 3.1</subtitle>
 
   <chapter id="common">
     &sub-common;

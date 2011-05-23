@@ -2360,6 +2360,16 @@ that used it. It was originally scheduled for removal in 2.6.35.
         </listitem>
       </orderedlist>
     </section>
+    <section>
+      <title>V4L2 in Linux 3.1</title>
+      <orderedlist>
+        <listitem>
+	  <para>VIDIOC_QUERYCAP now returns a per-subsystem version instead of a per-driver one.</para>
+	  <para>Standardize an error code for invalid ioctl.</para>
+          <para>Added V4L2_CTRL_TYPE_BITMASK.</para>
+        </listitem>
+      </orderedlist>
+    </section>
 
     <section id="other">
       <title>Relation of V4L2 to other Linux multimedia APIs</title>
