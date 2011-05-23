@@ -538,7 +538,7 @@ struct ieee80211_tx_info {
 };
 
 /**
- * ieee80211_sched_scan_ies - scheduled scan IEs
+ * struct ieee80211_sched_scan_ies - scheduled scan IEs
  *
  * This structure is used to pass the appropriate IEs to be used in scheduled
  * scans for all bands.  It contains both the IEs passed from the userspace
@@ -2278,6 +2278,7 @@ static inline int ieee80211_sta_ps_transition_ni(struct ieee80211_sta *sta,
 
 /**
  * ieee80211_sta_set_tim - set the TIM bit for a sleeping station
+ * @sta: &struct ieee80211_sta pointer for the sleeping station
  *
  * If a driver buffers frames for a powersave station instead of passing
  * them back to mac80211 for retransmission, the station needs to be told
