@@ -156,9 +156,6 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	/* Setup the rndis header */
 	packet->page_buf_cnt = num_pages;
 
-	/* TODO: Flush all write buffers/ memory fence ??? */
-	/* wmb(); */
-
 	/* Initialize it from the skb */
 	packet->total_data_buflen	= skb->len;
 
