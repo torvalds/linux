@@ -352,7 +352,7 @@ static int netvsc_probe(struct hv_device *dev)
 
 	/* Notify the netvsc driver of the new device */
 	device_info.ring_size = ring_size;
-	ret = rndis_filte_device_add(dev, &device_info);
+	ret = rndis_filter_device_add(dev, &device_info);
 	if (ret != 0) {
 		free_netdev(net);
 		dev_set_drvdata(&dev->device, NULL);

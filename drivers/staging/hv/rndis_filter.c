@@ -681,7 +681,7 @@ static int rndis_filter_close_device(struct rndis_device *dev)
 	return ret;
 }
 
-int rndis_filte_device_add(struct hv_device *dev,
+int rndis_filter_device_add(struct hv_device *dev,
 				  void *additional_info)
 {
 	int ret;
