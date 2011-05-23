@@ -277,22 +277,15 @@ static int is_geode(void)
 	return 0;
 }
 
-
-#ifdef CONFIG_MTD_PARTITIONS
 static const char *part_probes[] = { "cmdlinepart", NULL };
-#endif
-
 
 static int __init cs553x_init(void)
 {
 	int err = -ENXIO;
 	int i;
 	uint64_t val;
-
-#ifdef CONFIG_MTD_PARTITIONS
 	int mtd_parts_nb = 0;
 	struct mtd_partition *mtd_parts = NULL;
-#endif
 
 	/* If the CPU isn't a Geode GX or LX, abort */
 	if (!is_geode())
@@ -324,17 +317,11 @@ static int __init cs553x_init(void)
 		if (cs553x_mtd[i]) {
 
 			/* If any devices registered, return success. Else the last error. */
-#ifdef CONFIG_MTD_PARTITIONS
 			mtd_parts_nb = parse_mtd_partitions(cs553x_mtd[i], part_probes, &mtd_parts, 0);
-			if (mtd_parts_nb > 0) {
+			if (mtd_parts_nb > 0)
 				printk(KERN_NOTICE "Using command line partition definition\n");
-				add_mtd_partitions(cs553x_mtd[i], mtd_parts, mtd_parts_nb);
-			} else {
-				add_mtd_device(cs553x_mtd[i]);
-			}
-#else
-			add_mtd_device(cs553x_mtd[i]);
-#endif
+			mtd_device_register(cs553x_mtd[i], mtd_parts,
+					    mtd_parts_nb);
 			err = 0;
 		}
 	}
