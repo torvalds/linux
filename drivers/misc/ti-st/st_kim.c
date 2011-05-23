@@ -245,9 +245,9 @@ void skip_change_remote_baud(unsigned char **ptr, long *len)
 		pr_err("invalid action after change remote baud command");
 	} else {
 		*ptr = *ptr + sizeof(struct bts_action) +
-			((struct bts_action *)nxt_action)->size;
+			((struct bts_action *)cur_action)->size;
 		*len = *len - (sizeof(struct bts_action) +
-				((struct bts_action *)nxt_action)->size);
+				((struct bts_action *)cur_action)->size);
 		/* warn user on not commenting these in firmware */
 		pr_warn("skipping the wait event of change remote baud");
 	}
