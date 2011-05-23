@@ -704,22 +704,18 @@ static int fimc_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 	f = ctx_get_frame(ctx, vq->type);
 	if (IS_ERR(f))
 		return PTR_ERR(f);
-
 	/*
 	 * Return number of non-contigous planes (plane buffers)
 	 * depending on the configured color format.
 	 */
-	if (f->fmt)
-		*num_planes = f->fmt->memplanes;
+	if (!f->fmt)
+		return -EINVAL;
 
+	*num_planes = f->fmt->memplanes;
 	for (i = 0; i < f->fmt->memplanes; i++) {
-		sizes[i] = (f->width * f->height * f->fmt->depth[i]) >> 3;
+		sizes[i] = (f->f_width * f->f_height * f->fmt->depth[i]) / 8;
 		allocators[i] = ctx->fimc_dev->alloc_ctx;
 	}
-
-	if (*num_buffers == 0)
-		*num_buffers = 1;
-
 	return 0;
 }
 
