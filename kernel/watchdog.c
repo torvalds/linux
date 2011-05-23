@@ -28,7 +28,7 @@
 #include <linux/perf_event.h>
 
 int watchdog_enabled = 1;
-int __read_mostly softlockup_thresh = 60;
+int __read_mostly watchdog_thresh = 60;
 
 static DEFINE_PER_CPU(unsigned long, watchdog_touch_ts);
 static DEFINE_PER_CPU(struct task_struct *, softlockup_watchdog);
@@ -105,12 +105,12 @@ static unsigned long get_timestamp(int this_cpu)
 static unsigned long get_sample_period(void)
 {
 	/*
-	 * convert softlockup_thresh from seconds to ns
+	 * convert watchdog_thresh from seconds to ns
 	 * the divide by 5 is to give hrtimer 5 chances to
 	 * increment before the hardlockup detector generates
 	 * a warning
 	 */
-	return softlockup_thresh * (NSEC_PER_SEC / 5);
+	return watchdog_thresh * (NSEC_PER_SEC / 5);
 }
 
 /* Commands for resetting the watchdog */
@@ -182,7 +182,7 @@ static int is_softlockup(unsigned long touch_ts)
 	unsigned long now = get_timestamp(smp_processor_id());
 
 	/* Warn about unreasonable delays: */
-	if (time_after(now, touch_ts + softlockup_thresh))
+	if (time_after(now, touch_ts + watchdog_thresh))
 		return now - touch_ts;
 
 	return 0;
@@ -501,32 +501,25 @@ static void watchdog_disable_all_cpus(void)
 /* sysctl functions */
 #ifdef CONFIG_SYSCTL
 /*
- * proc handler for /proc/sys/kernel/nmi_watchdog
+ * proc handler for /proc/sys/kernel/nmi_watchdog,watchdog_thresh
  */
 
-int proc_dowatchdog_enabled(struct ctl_table *table, int write,
-		     void __user *buffer, size_t *length, loff_t *ppos)
+int proc_dowatchdog(struct ctl_table *table, int write,
+		    void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
-	ret = proc_dointvec(table, write, buffer, length, ppos);
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (ret || !write)
 		goto out;
 
-	if (watchdog_enabled)
+	if (watchdog_enabled && watchdog_thresh)
 		watchdog_enable_all_cpus();
 	else
 		watchdog_disable_all_cpus();
 
 out:
 	return ret;
-}
-
-int proc_dowatchdog_thresh(struct ctl_table *table, int write,
-			     void __user *buffer,
-			     size_t *lenp, loff_t *ppos)
-{
-	return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 }
 #endif /* CONFIG_SYSCTL */
 
