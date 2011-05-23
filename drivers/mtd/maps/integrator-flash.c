@@ -221,7 +221,7 @@ static int armflash_probe(struct platform_device *dev)
 
 	err = parse_mtd_partitions(info->mtd, probes, &info->parts, 0);
 	if (err > 0) {
-		err = add_mtd_partitions(info->mtd, info->parts, err);
+		err = mtd_device_register(info->mtd, info->parts, err);
 		if (err)
 			printk(KERN_ERR
 			       "mtd partition registration failed: %d\n", err);
@@ -237,7 +237,7 @@ static int armflash_probe(struct platform_device *dev)
 	 */
  cleanup:
 	if (info->mtd) {
-		del_mtd_partitions(info->mtd);
+		mtd_device_unregister(info->mtd);
 		if (info->mtd != info->subdev[0].mtd)
 			mtd_concat_destroy(info->mtd);
 	}
@@ -263,7 +263,7 @@ static int armflash_remove(struct platform_device *dev)
 
 	if (info) {
 		if (info->mtd) {
-			del_mtd_partitions(info->mtd);
+			mtd_device_unregister(info->mtd);
 			if (info->mtd != info->subdev[0].mtd)
 				mtd_concat_destroy(info->mtd);
 		}

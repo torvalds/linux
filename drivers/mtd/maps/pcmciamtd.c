@@ -630,7 +630,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 		dev->pcmcia_map.copy_to = pcmcia_copy_to;
 	}
 
-	if(add_mtd_device(mtd)) {
+	if (mtd_device_register(mtd, NULL, 0)) {
 		map_destroy(mtd);
 		dev->mtd_info = NULL;
 		dev_err(&dev->p_dev->dev,
@@ -669,7 +669,7 @@ static void pcmciamtd_detach(struct pcmcia_device *link)
 	DEBUG(3, "link=0x%p", link);
 
 	if(dev->mtd_info) {
-		del_mtd_device(dev->mtd_info);
+		mtd_device_unregister(dev->mtd_info);
 		dev_info(&dev->p_dev->dev, "mtd%d: Removing\n",
 			 dev->mtd_info->index);
 		map_destroy(dev->mtd_info);

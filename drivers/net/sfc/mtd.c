@@ -216,7 +216,7 @@ static void efx_mtd_remove_partition(struct efx_mtd_partition *part)
 	int rc;
 
 	for (;;) {
-		rc = del_mtd_device(&part->mtd);
+		rc = mtd_device_unregister(&part->mtd);
 		if (rc != -EBUSY)
 			break;
 		ssleep(1);
@@ -268,7 +268,7 @@ static int efx_mtd_probe_device(struct efx_nic *efx, struct efx_mtd *efx_mtd)
 		part->mtd.write = efx_mtd->ops->write;
 		part->mtd.sync = efx_mtd_sync;
 
-		if (add_mtd_device(&part->mtd))
+		if (mtd_device_register(&part->mtd, NULL, 0))
 			goto fail;
 	}
 
@@ -280,7 +280,7 @@ fail:
 		--part;
 		efx_mtd_remove_partition(part);
 	}
-	/* add_mtd_device() returns 1 if the MTD table is full */
+	/* mtd_device_register() returns 1 if the MTD table is full */
 	return -ENOMEM;
 }
 

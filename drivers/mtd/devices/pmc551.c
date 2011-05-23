@@ -798,7 +798,7 @@ static int __init init_pmc551(void)
 		mtd->writesize = 1;
 		mtd->owner = THIS_MODULE;
 
-		if (add_mtd_device(mtd)) {
+		if (mtd_device_register(mtd, NULL, 0)) {
 			printk(KERN_NOTICE "pmc551: Failed to register new device\n");
 			pci_iounmap(PCI_Device, priv->start);
 			kfree(mtd->priv);
@@ -806,7 +806,7 @@ static int __init init_pmc551(void)
 			break;
 		}
 
-		/* Keep a reference as the add_mtd_device worked */
+		/* Keep a reference as the mtd_device_register worked */
 		pci_dev_get(PCI_Device);
 
 		printk(KERN_NOTICE "Registered pmc551 memory device.\n");
@@ -856,7 +856,7 @@ static void __exit cleanup_pmc551(void)
 		pci_dev_put(priv->dev);
 
 		kfree(mtd->priv);
-		del_mtd_device(mtd);
+		mtd_device_unregister(mtd);
 		kfree(mtd);
 		found++;
 	}

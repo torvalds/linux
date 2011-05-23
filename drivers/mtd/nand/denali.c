@@ -1644,7 +1644,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto failed_req_irq;
 	}
 
-	ret = add_mtd_device(&denali->mtd);
+	ret = mtd_device_register(&denali->mtd, NULL, 0);
 	if (ret) {
 		dev_err(&dev->dev, "Spectra: Failed to register MTD: %d\n",
 				ret);
@@ -1676,7 +1676,7 @@ static void denali_pci_remove(struct pci_dev *dev)
 	struct denali_nand_info *denali = pci_get_drvdata(dev);
 
 	nand_release(&denali->mtd);
-	del_mtd_device(&denali->mtd);
+	mtd_device_unregister(&denali->mtd);
 
 	denali_irq_cleanup(dev->irq, denali);
 
