@@ -412,6 +412,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	struct dcss_segment *seg;
 	int rc, diag_cc;
 
+	start_addr = end_addr = 0;
 	seg = kmalloc(sizeof(*seg), GFP_KERNEL | GFP_DMA);
 	if (seg == NULL) {
 		rc = -ENOMEM;
@@ -573,6 +574,7 @@ segment_modify_shared (char *name, int do_nonshared)
 	unsigned long start_addr, end_addr, dummy;
 	int rc, diag_cc;
 
+	start_addr = end_addr = 0;
 	mutex_lock(&dcss_lock);
 	seg = segment_by_name (name);
 	if (seg == NULL) {
