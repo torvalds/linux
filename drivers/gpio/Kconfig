@@ -98,6 +98,12 @@ config GPIO_PLAT_SAMSUNG
 	help
 	  Say yes here to support Samsung SoCs GPIO library
 
+config GPIO_S5PC100
+	bool "Samsung S5PC100 GPIO library support"
+	default y if CPU_S5PC100
+	help
+	  Say yes here to support Samsung S5PC100 SoCs GPIO library
+
 config GPIO_S5PV210
 	bool "Samsung S5PV210/S5PC110 GPIO library support"
 	default y if CPU_S5PV210
