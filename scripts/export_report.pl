@@ -25,11 +25,12 @@ sub alphabetically {
 sub print_depends_on {
 	my ($href) = @_;
 	print "\n";
-	while (my ($mod, $list) = each %$href) {
+	for my $mod (sort keys %$href) {
+		my $list = $href->{$mod};
 		print "\t$mod:\n";
 		foreach my $sym (sort numerically @{$list}) {
 			my ($symbol, $no) = split /\s+/, $sym;
-			printf("\t\t%-25s\t%-25d\n", $symbol, $no);
+			printf("\t\t%-25s\n", $symbol);
 		}
 		print "\n";
 	}
@@ -166,7 +167,8 @@ modules. Each module lists the modules, and the symbols from that module that
 it uses.  Each listed symbol reports the number of modules using it\n");
 
 print "~"x80 , "\n";
-while (my ($thismod, $list) = each %MODULE) {
+for my $thismod (sort keys %MODULE) {
+	my $list = $MODULE{$thismod};
 	my %depends;
 	$thismod =~ s/\.mod\.c/.ko/;
 	print "\t\t\t$thismod\n";
