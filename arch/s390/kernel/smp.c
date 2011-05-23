@@ -654,8 +654,8 @@ int __cpu_disable(void)
 
 	/* disable all external interrupts */
 	cr_parms.orvals[0] = 0;
-	cr_parms.andvals[0] = ~(1 << 15 | 1 << 14 | 1 << 13 | 1 << 12 |
-				1 << 11 | 1 << 10 | 1 <<  6 | 1 <<  4);
+	cr_parms.andvals[0] = ~(1 << 15 | 1 << 14 | 1 << 13 | 1 << 11 |
+				1 << 10 | 1 <<	9 | 1 <<  6 | 1 <<  4);
 	/* disable all I/O interrupts */
 	cr_parms.orvals[6] = 0;
 	cr_parms.andvals[6] = ~(1 << 31 | 1 << 30 | 1 << 29 | 1 << 28 |
