@@ -769,13 +769,14 @@ static cycle_t __vsyscall_fn vread_tsc(void)
 	cycle_t ret;
 
 	/*
-	 * Surround the RDTSC by barriers, to make sure it's not
-	 * speculated to outside the seqlock critical section and
-	 * does not cause time warps:
+	 * Empirically, a fence (of type that depends on the CPU)
+	 * before rdtsc is enough to ensure that rdtsc is ordered
+	 * with respect to loads.  The various CPU manuals are unclear
+	 * as to whether rdtsc can be reordered with later loads,
+	 * but no one has ever seen it happen.
 	 */
 	rdtsc_barrier();
 	ret = (cycle_t)vget_cycles();
-	rdtsc_barrier();
 
 	return ret >= VVAR(vsyscall_gtod_data).clock.cycle_last ?
 		ret : VVAR(vsyscall_gtod_data).clock.cycle_last;
