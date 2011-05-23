@@ -358,14 +358,10 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 	struct sk_buff *rbuf;
 	struct tipc_msg *rmsg;
 	int hdr_sz;
-	u32 imp = msg_importance(msg);
+	u32 imp;
 	u32 data_sz = msg_data_sz(msg);
 	u32 src_node;
-
-	if (data_sz > MAX_REJECT_SIZE)
-		data_sz = MAX_REJECT_SIZE;
-	if (msg_connected(msg) && (imp < TIPC_CRITICAL_IMPORTANCE))
-		imp++;
+	u32 rmsg_sz;
 
 	/* discard rejected message if it shouldn't be returned to sender */
 
@@ -377,30 +373,33 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 	if (msg_errcode(msg) || msg_dest_droppable(msg))
 		goto exit;
 
-	/* construct rejected message */
-	if (msg_mcast(msg))
-		hdr_sz = MCAST_H_SIZE;
-	else
-		hdr_sz = LONG_H_SIZE;
-	rbuf = tipc_buf_acquire(data_sz + hdr_sz);
+	/*
+	 * construct returned message by copying rejected message header and
+	 * data (or subset), then updating header fields that need adjusting
+	 */
+
+	hdr_sz = msg_hdr_sz(msg);
+	rmsg_sz = hdr_sz + min_t(u32, data_sz, MAX_REJECT_SIZE);
+
+	rbuf = tipc_buf_acquire(rmsg_sz);
 	if (rbuf == NULL)
 		goto exit;
 
 	rmsg = buf_msg(rbuf);
-	tipc_msg_init(rmsg, imp, msg_type(msg), hdr_sz, msg_orignode(msg));
-	msg_set_errcode(rmsg, err);
-	msg_set_destport(rmsg, msg_origport(msg));
-	msg_set_origport(rmsg, msg_destport(msg));
-	if (msg_short(msg)) {
-		msg_set_orignode(rmsg, tipc_own_addr);
-		/* leave name type & instance as zeroes */
-	} else {
-		msg_set_orignode(rmsg, msg_destnode(msg));
-		msg_set_nametype(rmsg, msg_nametype(msg));
-		msg_set_nameinst(rmsg, msg_nameinst(msg));
+	skb_copy_to_linear_data(rbuf, msg, rmsg_sz);
+
+	if (msg_connected(rmsg)) {
+		imp = msg_importance(rmsg);
+		if (imp < TIPC_CRITICAL_IMPORTANCE)
+			msg_set_importance(rmsg, ++imp);
 	}
-	msg_set_size(rmsg, data_sz + hdr_sz);
-	skb_copy_to_linear_data_offset(rbuf, hdr_sz, msg_data(msg), data_sz);
+	msg_set_non_seq(rmsg, 0);
+	msg_set_size(rmsg, rmsg_sz);
+	msg_set_errcode(rmsg, err);
+	msg_set_prevnode(rmsg, tipc_own_addr);
+	msg_swap_words(rmsg, 4, 5);
+	if (!msg_short(rmsg))
+		msg_swap_words(rmsg, 6, 7);
 
 	/* send self-abort message when rejecting on a connected port */
 	if (msg_connected(msg)) {
