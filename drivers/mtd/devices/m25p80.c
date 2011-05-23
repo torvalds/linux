@@ -825,6 +825,8 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	struct m25p			*flash;
 	struct flash_info		*info;
 	unsigned			i;
+	struct mtd_partition		*parts = NULL;
+	int				nr_parts = 0;
 
 	/* Platform data helps sort out which chip type we have, as
 	 * well as how this board partitions it.  If we don't have
@@ -966,48 +968,41 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	/* partitions should match sector boundaries; and it may be good to
 	 * use readonly partitions for writeprotected sectors (BP2..BP0).
 	 */
-	if (mtd_has_partitions()) {
-		struct mtd_partition	*parts = NULL;
-		int			nr_parts = 0;
+	if (mtd_has_cmdlinepart()) {
+		static const char *part_probes[]
+			= { "cmdlinepart", NULL, };
 
-		if (mtd_has_cmdlinepart()) {
-			static const char *part_probes[]
-					= { "cmdlinepart", NULL, };
+		nr_parts = parse_mtd_partitions(&flash->mtd,
+						part_probes, &parts, 0);
+	}
 
-			nr_parts = parse_mtd_partitions(&flash->mtd,
-					part_probes, &parts, 0);
-		}
-
-		if (nr_parts <= 0 && data && data->parts) {
-			parts = data->parts;
-			nr_parts = data->nr_parts;
-		}
+	if (nr_parts <= 0 && data && data->parts) {
+		parts = data->parts;
+		nr_parts = data->nr_parts;
+	}
 
 #ifdef CONFIG_MTD_OF_PARTS
-		if (nr_parts <= 0 && spi->dev.of_node) {
-			nr_parts = of_mtd_parse_partitions(&spi->dev,
-					spi->dev.of_node, &parts);
-		}
+	if (nr_parts <= 0 && spi->dev.of_node) {
+		nr_parts = of_mtd_parse_partitions(&spi->dev,
+						   spi->dev.of_node, &parts);
+	}
 #endif
 
-		if (nr_parts > 0) {
-			for (i = 0; i < nr_parts; i++) {
-				DEBUG(MTD_DEBUG_LEVEL2, "partitions[%d] = "
-					"{.name = %s, .offset = 0x%llx, "
-						".size = 0x%llx (%lldKiB) }\n",
-					i, parts[i].name,
-					(long long)parts[i].offset,
-					(long long)parts[i].size,
-					(long long)(parts[i].size >> 10));
-			}
-			flash->partitioned = 1;
-			return add_mtd_partitions(&flash->mtd, parts, nr_parts);
+	if (nr_parts > 0) {
+		for (i = 0; i < nr_parts; i++) {
+			DEBUG(MTD_DEBUG_LEVEL2, "partitions[%d] = "
+			      "{.name = %s, .offset = 0x%llx, "
+			      ".size = 0x%llx (%lldKiB) }\n",
+			      i, parts[i].name,
+			      (long long)parts[i].offset,
+			      (long long)parts[i].size,
+			      (long long)(parts[i].size >> 10));
 		}
-	} else if (data && data->nr_parts)
-		dev_warn(&spi->dev, "ignoring %d default partitions on %s\n",
-				data->nr_parts, data->name);
+		flash->partitioned = 1;
+	}
 
-	return add_mtd_device(&flash->mtd) == 1 ? -ENODEV : 0;
+	return mtd_device_register(&flash->mtd, parts, nr_parts) == 1 ?
+		-ENODEV : 0;
 }
 
 
@@ -1017,10 +1012,7 @@ static int __devexit m25p_remove(struct spi_device *spi)
 	int		status;
 
 	/* Clean up MTD stuff. */
-	if (mtd_has_partitions() && flash->partitioned)
-		status = del_mtd_partitions(&flash->mtd);
-	else
-		status = del_mtd_device(&flash->mtd);
+	status = mtd_device_unregister(&flash->mtd);
 	if (status == 0) {
 		kfree(flash->command);
 		kfree(flash);
