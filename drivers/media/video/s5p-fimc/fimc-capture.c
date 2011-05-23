@@ -286,12 +286,6 @@ static int queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 	return 0;
 }
 
-static int buffer_init(struct vb2_buffer *vb)
-{
-	/* TODO: */
-	return 0;
-}
-
 static int buffer_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
@@ -371,7 +365,6 @@ static struct vb2_ops fimc_capture_qops = {
 	.queue_setup		= queue_setup,
 	.buf_prepare		= buffer_prepare,
 	.buf_queue		= buffer_queue,
-	.buf_init		= buffer_init,
 	.wait_prepare		= fimc_unlock,
 	.wait_finish		= fimc_lock,
 	.start_streaming	= start_streaming,
