@@ -3450,8 +3450,9 @@ void ext4_ext_truncate(struct inode *inode)
 	if (IS_SYNC(inode))
 		ext4_handle_sync(handle);
 
-out_stop:
 	up_write(&EXT4_I(inode)->i_data_sem);
+
+out_stop:
 	/*
 	 * If this was a simple ftruncate() and the file will remain alive,
 	 * then we need to clear up the orphan record which we created above.
