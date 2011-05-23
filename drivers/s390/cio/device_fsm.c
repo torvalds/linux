@@ -841,9 +841,6 @@ call_handler:
 static void
 ccw_device_killing_irq(struct ccw_device *cdev, enum dev_event dev_event)
 {
-	struct subchannel *sch;
-
-	sch = to_subchannel(cdev->dev.parent);
 	ccw_device_set_timeout(cdev, 0);
 	/* Start delayed path verification. */
 	ccw_device_online_verify(cdev, 0);

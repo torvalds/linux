@@ -681,8 +681,6 @@ void
 segment_save(char *name)
 {
 	struct dcss_segment *seg;
-	int startpfn = 0;
-	int endpfn = 0;
 	char cmd1[160];
 	char cmd2[80];
 	int i, response;
@@ -698,8 +696,6 @@ segment_save(char *name)
 		goto out;
 	}
 
-	startpfn = seg->start_addr >> PAGE_SHIFT;
-	endpfn = (seg->end) >> PAGE_SHIFT;
 	sprintf(cmd1, "DEFSEG %s", name);
 	for (i=0; i<seg->segcnt; i++) {
 		sprintf(cmd1+strlen(cmd1), " %lX-%lX %s",

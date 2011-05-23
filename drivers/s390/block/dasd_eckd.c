@@ -1611,10 +1611,8 @@ static void dasd_eckd_analysis_callback(struct dasd_ccw_req *init_cqr,
 
 static int dasd_eckd_start_analysis(struct dasd_block *block)
 {
-	struct dasd_eckd_private *private;
 	struct dasd_ccw_req *init_cqr;
 
-	private = (struct dasd_eckd_private *) block->base->private;
 	init_cqr = dasd_eckd_analysis_ccw(block->base);
 	if (IS_ERR(init_cqr))
 		return PTR_ERR(init_cqr);
@@ -2264,7 +2262,6 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 					       unsigned int blk_per_trk,
 					       unsigned int blksize)
 {
-	struct dasd_eckd_private *private;
 	unsigned long *idaws;
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
@@ -2283,7 +2280,6 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 	unsigned int recoffs;
 
 	basedev = block->base;
-	private = (struct dasd_eckd_private *) basedev->private;
 	if (rq_data_dir(req) == READ)
 		cmd = DASD_ECKD_CCW_READ_TRACK_DATA;
 	else if (rq_data_dir(req) == WRITE)
@@ -2573,7 +2569,6 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 					       unsigned int blk_per_trk,
 					       unsigned int blksize)
 {
-	struct dasd_eckd_private *private;
 	struct dasd_ccw_req *cqr;
 	struct req_iterator iter;
 	struct bio_vec *bv;
@@ -2594,7 +2589,6 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 	unsigned int count, count_to_trk_end;
 
 	basedev = block->base;
-	private = (struct dasd_eckd_private *) basedev->private;
 	if (rq_data_dir(req) == READ) {
 		cmd = DASD_ECKD_CCW_READ_TRACK_DATA;
 		itcw_op = ITCW_OP_READ;
@@ -2801,7 +2795,6 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 					       struct dasd_block *block,
 					       struct request *req)
 {
-	struct dasd_eckd_private *private;
 	unsigned long *idaws;
 	struct dasd_device *basedev;
 	struct dasd_ccw_req *cqr;
@@ -2836,7 +2829,6 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 	trkcount = last_trk - first_trk + 1;
 	first_offs = 0;
 	basedev = block->base;
-	private = (struct dasd_eckd_private *) basedev->private;
 
 	if (rq_data_dir(req) == READ)
 		cmd = DASD_ECKD_CCW_READ_TRACK;

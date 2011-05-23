@@ -796,10 +796,8 @@ static void tape_3590_med_state_set(struct tape_device *device,
 static int
 tape_3590_done(struct tape_device *device, struct tape_request *request)
 {
-	struct tape_3590_disc_data *disc_data;
 
 	DBF_EVENT(6, "%s done\n", tape_op_verbose[request->op]);
-	disc_data = device->discdata;
 
 	switch (request->op) {
 	case TO_BSB:
@@ -1397,11 +1395,9 @@ static int tape_3590_crypt_error(struct tape_device *device,
 	u8 cu_rc, ekm_rc1;
 	u16 ekm_rc2;
 	u32 drv_rc;
-	const char *bus_id;
 	char *sense;
 
 	sense = ((struct tape_3590_sense *) irb->ecw)->fmt.data;
-	bus_id = dev_name(&device->cdev->dev);
 	cu_rc = sense[0];
 	drv_rc = *((u32*) &sense[5]) & 0xffffff;
 	ekm_rc1 = sense[9];
@@ -1429,7 +1425,6 @@ tape_3590_unit_check(struct tape_device *device, struct tape_request *request,
 		     struct irb *irb)
 {
 	struct tape_3590_sense *sense;
-	int rc;
 
 #ifdef CONFIG_S390_TAPE_BLOCK
 	if (request->op == TO_BLOCK) {
@@ -1454,7 +1449,6 @@ tape_3590_unit_check(struct tape_device *device, struct tape_request *request,
 	 *   - "break":     basic error recovery is done
 	 *   - "goto out:": just print error message if available
 	 */
-	rc = -EIO;
 	switch (sense->rc_rqc) {
 
 	case 0x1110:
