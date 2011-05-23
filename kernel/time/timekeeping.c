@@ -680,7 +680,7 @@ static void timekeeping_resume(void)
 	clockevents_notify(CLOCK_EVT_NOTIFY_RESUME, NULL);
 
 	/* Resume hrtimers */
-	hres_timers_resume();
+	hrtimers_resume();
 }
 
 static int timekeeping_suspend(void)
@@ -1096,6 +1096,21 @@ void get_xtime_and_monotonic_and_sleep_offset(struct timespec *xtim,
 		*wtom = wall_to_monotonic;
 		*sleep = total_sleep_time;
 	} while (read_seqretry(&xtime_lock, seq));
+}
+
+/**
+ * ktime_get_monotonic_offset() - get wall_to_monotonic in ktime_t format
+ */
+ktime_t ktime_get_monotonic_offset(void)
+{
+	unsigned long seq;
+	struct timespec wtom;
+
+	do {
+		seq = read_seqbegin(&xtime_lock);
+		wtom = wall_to_monotonic;
+	} while (read_seqretry(&xtime_lock, seq));
+	return timespec_to_ktime(wtom);
 }
 
 /**
