@@ -1629,6 +1629,10 @@ void __gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen)
 	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
 
 	gfs2_trans_add_rg(rgd);
+
+	/* Directories keep their data in the metadata address space */
+	if (ip->i_depth)
+		gfs2_meta_wipe(ip, bstart, blen);
 }
 
 /**

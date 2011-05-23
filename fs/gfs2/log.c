@@ -228,6 +228,27 @@ static int gfs2_ail1_empty(struct gfs2_sbd *sdp)
 	return ret;
 }
 
+static void gfs2_ail1_wait(struct gfs2_sbd *sdp)
+{
+	struct gfs2_ail *ai;
+	struct gfs2_bufdata *bd;
+	struct buffer_head *bh;
+
+	spin_lock(&sdp->sd_ail_lock);
+	list_for_each_entry_reverse(ai, &sdp->sd_ail1_list, ai_list) {
+		list_for_each_entry(bd, &ai->ai_ail1_list, bd_ail_st_list) {
+			bh = bd->bd_bh;
+			if (!buffer_locked(bh))
+				continue;
+			get_bh(bh);
+			spin_unlock(&sdp->sd_ail_lock);
+			wait_on_buffer(bh);
+			brelse(bh);
+			return;
+		}
+	}
+	spin_unlock(&sdp->sd_ail_lock);
+}
 
 /**
  * gfs2_ail2_empty_one - Check whether or not a trans in the AIL has been synced
@@ -878,9 +899,9 @@ void gfs2_meta_syncfs(struct gfs2_sbd *sdp)
 	gfs2_log_flush(sdp, NULL);
 	for (;;) {
 		gfs2_ail1_start(sdp);
+		gfs2_ail1_wait(sdp);
 		if (gfs2_ail1_empty(sdp))
 			break;
-		msleep(10);
 	}
 }
 
@@ -920,12 +941,14 @@ int gfs2_logd(void *data)
 
 		if (gfs2_ail_flush_reqd(sdp)) {
 			gfs2_ail1_start(sdp);
-			io_schedule();
+			gfs2_ail1_wait(sdp);
 			gfs2_ail1_empty(sdp);
 			gfs2_log_flush(sdp, NULL);
 		}
 
-		wake_up(&sdp->sd_log_waitq);
+		if (!gfs2_ail_flush_reqd(sdp))
+			wake_up(&sdp->sd_log_waitq);
+
 		t = gfs2_tune_get(sdp, gt_logd_secs) * HZ;
 		if (freezing(current))
 			refrigerator();
