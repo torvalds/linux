@@ -387,7 +387,6 @@ static int netvsc_probe(struct hv_device *dev)
 static int netvsc_remove(struct hv_device *dev)
 {
 	struct net_device *net = dev_get_drvdata(&dev->device);
-	int ret;
 
 	if (net == NULL) {
 		dev_err(&dev->device, "No net device to remove\n");
@@ -404,14 +403,10 @@ static int netvsc_remove(struct hv_device *dev)
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed
 	 */
-	ret = rndis_filter_device_remove(dev);
-	if (ret != 0) {
-		/* TODO: */
-		netdev_err(net, "unable to remove vsc device (ret %d)\n", ret);
-	}
+	rndis_filter_device_remove(dev);
 
 	free_netdev(net);
-	return ret;
+	return 0;
 }
 
 /* The one and only one */

@@ -741,7 +741,7 @@ int rndis_filte_device_add(struct hv_device *dev,
 	return ret;
 }
 
-int rndis_filter_device_remove(struct hv_device *dev)
+void rndis_filter_device_remove(struct hv_device *dev)
 {
 	struct netvsc_device *net_dev = dev->ext;
 	struct rndis_device *rndis_dev = net_dev->extension;
@@ -753,8 +753,6 @@ int rndis_filter_device_remove(struct hv_device *dev)
 	net_dev->extension = NULL;
 
 	netvsc_device_remove(dev);
-
-	return 0;
 }
 
 
