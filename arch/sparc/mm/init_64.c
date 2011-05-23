@@ -862,7 +862,7 @@ static void init_node_masks_nonnuma(void)
 	for (i = 0; i < NR_CPUS; i++)
 		numa_cpu_lookup_table[i] = 0;
 
-	numa_cpumask_lookup_table[0] = CPU_MASK_ALL;
+	cpumask_setall(&numa_cpumask_lookup_table[0]);
 }
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
@@ -1080,7 +1080,7 @@ static void __init numa_parse_mdesc_group_cpus(struct mdesc_handle *md,
 {
 	u64 arc;
 
-	cpus_clear(*mask);
+	cpumask_clear(mask);
 
 	mdesc_for_each_arc(arc, md, grp, MDESC_ARC_TYPE_BACK) {
 		u64 target = mdesc_arc_target(md, arc);
@@ -1091,7 +1091,7 @@ static void __init numa_parse_mdesc_group_cpus(struct mdesc_handle *md,
 			continue;
 		id = mdesc_get_property(md, target, "id", NULL);
 		if (*id < nr_cpu_ids)
-			cpu_set(*id, *mask);
+			cpumask_set_cpu(*id, mask);
 	}
 }
 
@@ -1153,13 +1153,13 @@ static int __init numa_parse_mdesc_group(struct mdesc_handle *md, u64 grp,
 
 	numa_parse_mdesc_group_cpus(md, grp, &mask);
 
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu(cpu, &mask)
 		numa_cpu_lookup_table[cpu] = index;
-	numa_cpumask_lookup_table[index] = mask;
+	cpumask_copy(&numa_cpumask_lookup_table[index], &mask);
 
 	if (numa_debug) {
 		printk(KERN_INFO "NUMA GROUP[%d]: cpus [ ", index);
-		for_each_cpu_mask(cpu, mask)
+		for_each_cpu(cpu, &mask)
 			printk("%d ", cpu);
 		printk("]\n");
 	}
@@ -1218,7 +1218,7 @@ static int __init numa_parse_jbus(void)
 	index = 0;
 	for_each_present_cpu(cpu) {
 		numa_cpu_lookup_table[cpu] = index;
-		numa_cpumask_lookup_table[index] = cpumask_of_cpu(cpu);
+		cpumask_copy(&numa_cpumask_lookup_table[index], cpumask_of(cpu));
 		node_masks[index].mask = ~((1UL << 36UL) - 1UL);
 		node_masks[index].val = cpu << 36UL;
 

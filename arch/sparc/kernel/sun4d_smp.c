@@ -32,6 +32,7 @@ static inline unsigned long sun4d_swap(volatile unsigned long *ptr, unsigned lon
 	return val;
 }
 
+static void smp4d_ipi_init(void);
 static void smp_setup_percpu_timer(void);
 
 static unsigned char cpu_leds[32];
@@ -80,8 +81,6 @@ void __cpuinit smp4d_callin(void)
 	local_flush_cache_all();
 	local_flush_tlb_all();
 
-	cpu_probe();
-
 	while ((unsigned long)current_set[cpuid] < PAGE_OFFSET)
 		barrier();
 
@@ -105,7 +104,7 @@ void __cpuinit smp4d_callin(void)
 
 	local_irq_enable();	/* We don't allow PIL 14 yet */
 
-	while (!cpu_isset(cpuid, smp_commenced_mask))
+	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))
 		barrier();
 
 	spin_lock_irqsave(&sun4d_imsk_lock, flags);
@@ -120,6 +119,7 @@ void __cpuinit smp4d_callin(void)
  */
 void __init smp4d_boot_cpus(void)
 {
+	smp4d_ipi_init();
 	if (boot_cpu_id)
 		current_set[0] = NULL;
 	smp_setup_percpu_timer();
@@ -191,6 +191,80 @@ void __init smp4d_smp_done(void)
 	sun4d_distribute_irqs();
 }
 
+/* Memory structure giving interrupt handler information about IPI generated */
+struct sun4d_ipi_work {
+	int single;
+	int msk;
+	int resched;
+};
+
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct sun4d_ipi_work, sun4d_ipi_work);
+
+/* Initialize IPIs on the SUN4D SMP machine */
+static void __init smp4d_ipi_init(void)
+{
+	int cpu;
+	struct sun4d_ipi_work *work;
+
+	printk(KERN_INFO "smp4d: setup IPI at IRQ %d\n", SUN4D_IPI_IRQ);
+
+	for_each_possible_cpu(cpu) {
+		work = &per_cpu(sun4d_ipi_work, cpu);
+		work->single = work->msk = work->resched = 0;
+	}
+}
+
+void sun4d_ipi_interrupt(void)
+{
+	struct sun4d_ipi_work *work = &__get_cpu_var(sun4d_ipi_work);
+
+	if (work->single) {
+		work->single = 0;
+		smp_call_function_single_interrupt();
+	}
+	if (work->msk) {
+		work->msk = 0;
+		smp_call_function_interrupt();
+	}
+	if (work->resched) {
+		work->resched = 0;
+		smp_resched_interrupt();
+	}
+}
+
+static void smp4d_ipi_single(int cpu)
+{
+	struct sun4d_ipi_work *work = &per_cpu(sun4d_ipi_work, cpu);
+
+	/* Mark work */
+	work->single = 1;
+
+	/* Generate IRQ on the CPU */
+	sun4d_send_ipi(cpu, SUN4D_IPI_IRQ);
+}
+
+static void smp4d_ipi_mask_one(int cpu)
+{
+	struct sun4d_ipi_work *work = &per_cpu(sun4d_ipi_work, cpu);
+
+	/* Mark work */
+	work->msk = 1;
+
+	/* Generate IRQ on the CPU */
+	sun4d_send_ipi(cpu, SUN4D_IPI_IRQ);
+}
+
+static void smp4d_ipi_resched(int cpu)
+{
+	struct sun4d_ipi_work *work = &per_cpu(sun4d_ipi_work, cpu);
+
+	/* Mark work */
+	work->resched = 1;
+
+	/* Generate IRQ on the CPU (any IRQ will cause resched) */
+	sun4d_send_ipi(cpu, SUN4D_IPI_IRQ);
+}
+
 static struct smp_funcall {
 	smpfunc_t func;
 	unsigned long arg1;
@@ -239,10 +313,10 @@ static void smp4d_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 		{
 			register int i;
 
-			cpu_clear(smp_processor_id(), mask);
-			cpus_and(mask, cpu_online_map, mask);
+			cpumask_clear_cpu(smp_processor_id(), &mask);
+			cpumask_and(&mask, cpu_online_mask, &mask);
 			for (i = 0; i <= high; i++) {
-				if (cpu_isset(i, mask)) {
+				if (cpumask_test_cpu(i, &mask)) {
 					ccall_info.processors_in[i] = 0;
 					ccall_info.processors_out[i] = 0;
 					sun4d_send_ipi(i, IRQ_CROSS_CALL);
@@ -255,7 +329,7 @@ static void smp4d_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 
 			i = 0;
 			do {
-				if (!cpu_isset(i, mask))
+				if (!cpumask_test_cpu(i, &mask))
 					continue;
 				while (!ccall_info.processors_in[i])
 					barrier();
@@ -263,7 +337,7 @@ static void smp4d_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 
 			i = 0;
 			do {
-				if (!cpu_isset(i, mask))
+				if (!cpumask_test_cpu(i, &mask))
 					continue;
 				while (!ccall_info.processors_out[i])
 					barrier();
@@ -356,6 +430,9 @@ void __init sun4d_init_smp(void)
 	BTFIXUPSET_BLACKBOX(load_current, smp4d_blackbox_current);
 	BTFIXUPSET_CALL(smp_cross_call, smp4d_cross_call, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(__hard_smp_processor_id, __smp4d_processor_id, BTFIXUPCALL_NORM);
+	BTFIXUPSET_CALL(smp_ipi_resched, smp4d_ipi_resched, BTFIXUPCALL_NORM);
+	BTFIXUPSET_CALL(smp_ipi_single, smp4d_ipi_single, BTFIXUPCALL_NORM);
+	BTFIXUPSET_CALL(smp_ipi_mask_one, smp4d_ipi_mask_one, BTFIXUPCALL_NORM);
 
 	for (i = 0; i < NR_CPUS; i++) {
 		ccall_info.processors_in[i] = 1;

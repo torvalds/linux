@@ -827,11 +827,6 @@ config SCHED_AUTOGROUP
 	  desktop applications.  Task group autogeneration is currently based
 	  upon task session.
 
-config SCHED_TTWU_QUEUE
-	bool
-	depends on !SPARC32
-	default y
-
 config MM_OWNER
 	bool
 

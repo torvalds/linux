@@ -228,14 +228,10 @@ static void __init sbus_time_init(void)
 
 void __init time_init(void)
 {
-#ifdef CONFIG_PCI
-	extern void pci_time_init(void);
-	if (pcic_present()) {
+	if (pcic_present())
 		pci_time_init();
-		return;
-	}
-#endif
-	sbus_time_init();
+	else
+		sbus_time_init();
 }
 
 
