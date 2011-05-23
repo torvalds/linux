@@ -2,7 +2,7 @@
  * Copyright 2006 Andi Kleen, SUSE Labs.
  * Subject to the GNU Public License, v.2
  *
- * Fast user context implementation of clock_gettime and gettimeofday.
+ * Fast user context implementation of clock_gettime, gettimeofday, and time.
  *
  * The code should have no internal unresolved relocations.
  * Check with readelf after changing.
@@ -160,3 +160,36 @@ notrace int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 }
 int gettimeofday(struct timeval *, struct timezone *)
 	__attribute__((weak, alias("__vdso_gettimeofday")));
+
+/* This will break when the xtime seconds get inaccurate, but that is
+ * unlikely */
+
+static __always_inline long time_syscall(long *t)
+{
+	long secs;
+	asm volatile("syscall"
+		     : "=a" (secs)
+		     : "0" (__NR_time), "D" (t) : "cc", "r11", "cx", "memory");
+	return secs;
+}
+
+notrace time_t __vdso_time(time_t *t)
+{
+	unsigned seq;
+	time_t result;
+	if (unlikely(!VVAR(vsyscall_gtod_data).sysctl_enabled))
+		return time_syscall(t);
+
+	do {
+		seq = read_seqbegin(&VVAR(vsyscall_gtod_data).lock);
+
+		result = VVAR(vsyscall_gtod_data).wall_time_sec;
+
+	} while (read_seqretry(&VVAR(vsyscall_gtod_data).lock, seq));
+
+	if (t)
+		*t = result;
+	return result;
+}
+int time(time_t *t)
+	__attribute__((weak, alias("__vdso_time")));

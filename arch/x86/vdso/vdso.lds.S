@@ -23,6 +23,8 @@ VERSION {
 		__vdso_gettimeofday;
 		getcpu;
 		__vdso_getcpu;
+		time;
+		__vdso_time;
 	local: *;
 	};
 }
