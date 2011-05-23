@@ -920,7 +920,6 @@ xfs_iread_extents(
 	/*
 	 * We know that the size is valid (it's checked in iformat_btree)
 	 */
-	ifp->if_lastex = NULLEXTNUM;
 	ifp->if_bytes = ifp->if_real_bytes = 0;
 	ifp->if_flags |= XFS_IFEXTENTS;
 	xfs_iext_add(ifp, 0, nextents);
@@ -3191,7 +3190,6 @@ xfs_iext_add(
 		}
 		ifp->if_u1.if_extents = ifp->if_u2.if_inline_ext;
 		ifp->if_real_bytes = 0;
-		ifp->if_lastex = nextents + ext_diff;
 	}
 	/*
 	 * Otherwise use a linear (direct) extent list.
