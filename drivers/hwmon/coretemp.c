@@ -51,10 +51,12 @@
 #define TO_PHYS_ID(cpu)		cpu_data(cpu).phys_proc_id
 #define TO_CORE_ID(cpu)		cpu_data(cpu).cpu_core_id
 #define TO_ATTR_NO(cpu)		(TO_CORE_ID(cpu) + BASE_SYSFS_ATTR_NO)
+#define for_each_sibling(i, cpu)	for_each_cpu(i, cpu_sibling_mask(cpu))
 #else
 #define TO_PHYS_ID(cpu)		(cpu)
 #define TO_CORE_ID(cpu)		(cpu)
 #define TO_ATTR_NO(cpu)		(cpu)
+#define for_each_sibling(i, cpu)	for (i = 0; false; )
 #endif
 
 /*
@@ -762,7 +764,7 @@ static void __cpuinit put_core_offline(unsigned int cpu)
 		coretemp_remove_core(pdata, &pdev->dev, indx);
 
 	/* Online the HT version of this core, if any */
-	for_each_cpu(i, cpu_sibling_mask(cpu)) {
+	for_each_sibling(i, cpu) {
 		if (i != cpu) {
 			get_core_online(i);
 			break;
