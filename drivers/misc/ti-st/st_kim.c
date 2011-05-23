@@ -604,6 +604,10 @@ void st_kim_ref(struct st_data_s **core_data, int id)
 	struct kim_data_s	*kim_gdata;
 	/* get kim_gdata reference from platform device */
 	pdev = st_get_plat_device(id);
+	if (!pdev) {
+		*core_data = NULL;
+		return;
+	}
 	kim_gdata = dev_get_drvdata(&pdev->dev);
 	*core_data = kim_gdata->core_data;
 }
