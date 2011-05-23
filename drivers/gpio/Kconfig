@@ -98,6 +98,12 @@ config GPIO_PLAT_SAMSUNG
 	help
 	  Say yes here to support Samsung SoCs GPIO library
 
+config GPIO_S5PV210
+	bool "Samsung S5PV210/S5PC110 GPIO library support"
+	default y if CPU_S5PV210
+	help
+	  Say yes here to support Samsung S5PV210/S5PC110 SoCs GPIO library
+
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
 	depends on ARM_AMBA
