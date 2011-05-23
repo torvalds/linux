@@ -3697,13 +3697,14 @@ static int cx_auto_mux_enum_update(struct hda_codec *codec,
 {
 	struct conexant_spec *spec = codec->spec;
 	hda_nid_t adc;
+	int changed = 1;
 
 	if (!imux->num_items)
 		return 0;
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
 	if (spec->cur_mux[0] == idx)
-		return 0;
+		changed = 0;
 	adc = spec->imux_info[idx].adc;
 	select_input_connection(codec, spec->imux_info[idx].adc,
 				spec->imux_info[idx].pin);
@@ -3716,7 +3717,7 @@ static int cx_auto_mux_enum_update(struct hda_codec *codec,
 					   spec->cur_adc_format);
 	}
 	spec->cur_mux[0] = idx;
-	return 1;
+	return changed;
 }
 
 static int cx_auto_mux_enum_put(struct snd_kcontrol *kcontrol,
