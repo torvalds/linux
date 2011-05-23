@@ -7196,6 +7196,8 @@ static int ocfs2_trim_extent(struct super_block *sb,
 	discard = le64_to_cpu(gd->bg_blkno) +
 			ocfs2_clusters_to_blocks(sb, start);
 
+	trace_ocfs2_trim_extent(sb, (unsigned long long)discard, bcount);
+
 	return sb_issue_discard(sb, discard, bcount, GFP_NOFS, 0);
 }
 
@@ -7208,6 +7210,9 @@ static int ocfs2_trim_group(struct super_block *sb,
 
 	if (le16_to_cpu(gd->bg_free_bits_count) < minbits)
 		return 0;
+
+	trace_ocfs2_trim_group((unsigned long long)le64_to_cpu(gd->bg_blkno),
+			       start, max, minbits);
 
 	while (start < max) {
 		start = ocfs2_find_next_zero_bit(bitmap, max, start);
@@ -7291,6 +7296,8 @@ int ocfs2_trim_fs(struct super_block *sb, struct fstrim_range *range)
 
 	if (start + len > le32_to_cpu(main_bm->i_clusters))
 		len = le32_to_cpu(main_bm->i_clusters) - start;
+
+	trace_ocfs2_trim_fs(start, len, minlen);
 
 	/* Determine first and last group to examine based on start and len */
 	first_group = ocfs2_which_cluster_group(main_bm_inode, start);
