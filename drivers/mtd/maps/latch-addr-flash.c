@@ -112,18 +112,9 @@ static int latch_addr_flash_remove(struct platform_device *dev)
 	latch_addr_data = dev->dev.platform_data;
 
 	if (info->mtd != NULL) {
-		if (mtd_has_partitions()) {
-			if (info->nr_parts) {
-				del_mtd_partitions(info->mtd);
-				kfree(info->parts);
-			} else if (latch_addr_data->nr_parts) {
-				del_mtd_partitions(info->mtd);
-			} else {
-				del_mtd_device(info->mtd);
-			}
-		} else {
-			del_mtd_device(info->mtd);
-		}
+		if (info->nr_parts)
+			kfree(info->parts);
+		mtd_device_unregister(info->mtd);
 		map_destroy(info->mtd);
 	}
 
@@ -215,23 +206,21 @@ static int __devinit latch_addr_flash_probe(struct platform_device *dev)
 	}
 	info->mtd->owner = THIS_MODULE;
 
-	if (mtd_has_partitions()) {
-
-		err = parse_mtd_partitions(info->mtd,
-					   (const char **)part_probe_types,
-					   &info->parts, 0);
-		if (err > 0) {
-			add_mtd_partitions(info->mtd, info->parts, err);
-			return 0;
-		}
-		if (latch_addr_data->nr_parts) {
-			pr_notice("Using latch-addr-flash partition information\n");
-			add_mtd_partitions(info->mtd, latch_addr_data->parts,
-					latch_addr_data->nr_parts);
-			return 0;
-		}
+	err = parse_mtd_partitions(info->mtd, (const char **)part_probe_types,
+				   &info->parts, 0);
+	if (err > 0) {
+		mtd_device_register(info->mtd, info->parts, err);
+		return 0;
 	}
-	add_mtd_device(info->mtd);
+	if (latch_addr_data->nr_parts) {
+		pr_notice("Using latch-addr-flash partition information\n");
+		mtd_device_register(info->mtd,
+				    latch_addr_data->parts,
+				    latch_addr_data->nr_parts);
+		return 0;
+	}
+
+	mtd_device_register(info->mtd, NULL, 0);
 	return 0;
 
 iounmap:
