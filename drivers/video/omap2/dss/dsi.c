@@ -493,9 +493,18 @@ static void dsi_perf_show(struct platform_device *dsidev, const char *name)
 			total_bytes * 1000 / total_us);
 }
 #else
-#define dsi_perf_mark_setup(x)
-#define dsi_perf_mark_start(x)
-#define dsi_perf_show(x, y)
+static inline void dsi_perf_mark_setup(struct platform_device *dsidev)
+{
+}
+
+static inline void dsi_perf_mark_start(struct platform_device *dsidev)
+{
+}
+
+static inline void dsi_perf_show(struct platform_device *dsidev,
+		const char *name)
+{
+}
 #endif
 
 static void print_irq_status(u32 status)
