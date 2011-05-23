@@ -30,6 +30,7 @@
 #include <linux/jbd.h>
 #include <linux/ext3_fs.h>
 #include <linux/ext3_jbd.h>
+#include <trace/events/ext3.h>
 
 /*
  * akpm: A new design for ext3_sync_file().
@@ -51,10 +52,13 @@ int ext3_sync_file(struct file *file, int datasync)
 	int ret, needs_barrier = 0;
 	tid_t commit_tid;
 
+	J_ASSERT(ext3_journal_current_handle() == NULL);
+
+	trace_ext3_sync_file_enter(file, datasync);
+
 	if (inode->i_sb->s_flags & MS_RDONLY)
 		return 0;
 
-	J_ASSERT(ext3_journal_current_handle() == NULL);
 
 	/*
 	 * data=writeback,ordered:
@@ -70,8 +74,10 @@ int ext3_sync_file(struct file *file, int datasync)
 	 *  (they were dirtied by commit).  But that's OK - the blocks are
 	 *  safe in-journal, which is all fsync() needs to ensure.
 	 */
-	if (ext3_should_journal_data(inode))
-		return ext3_force_commit(inode->i_sb);
+	if (ext3_should_journal_data(inode)) {
+		ret = ext3_force_commit(inode->i_sb);
+		goto out;
+	}
 
 	if (datasync)
 		commit_tid = atomic_read(&ei->i_datasync_tid);
@@ -91,5 +97,8 @@ int ext3_sync_file(struct file *file, int datasync)
 	 */
 	if (needs_barrier)
 		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
+
+out:
+	trace_ext3_sync_file_exit(inode, ret);
 	return ret;
 }
