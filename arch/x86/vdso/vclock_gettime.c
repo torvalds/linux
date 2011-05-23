@@ -180,12 +180,8 @@ notrace time_t __vdso_time(time_t *t)
 	if (unlikely(!VVAR(vsyscall_gtod_data).sysctl_enabled))
 		return time_syscall(t);
 
-	do {
-		seq = read_seqbegin(&VVAR(vsyscall_gtod_data).lock);
-
-		result = VVAR(vsyscall_gtod_data).wall_time_sec;
-
-	} while (read_seqretry(&VVAR(vsyscall_gtod_data).lock, seq));
+	/* This is atomic on x86_64 so we don't need any locks. */
+	result = ACCESS_ONCE(VVAR(vsyscall_gtod_data).wall_time_sec);
 
 	if (t)
 		*t = result;
