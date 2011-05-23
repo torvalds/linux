@@ -1298,8 +1298,12 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 				i_size_write(inode, new_isize);
 				invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
 			}
-			dprintk("NFS: isize change on server for file %s/%ld\n",
-					inode->i_sb->s_id, inode->i_ino);
+			dprintk("NFS: isize change on server for file %s/%ld "
+					"(%Ld to %Ld)\n",
+					inode->i_sb->s_id,
+					inode->i_ino,
+					(long long)cur_isize,
+					(long long)new_isize);
 		}
 	} else
 		invalid |= save_cache_validity & (NFS_INO_INVALID_ATTR
