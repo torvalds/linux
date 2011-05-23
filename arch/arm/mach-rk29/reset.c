@@ -126,10 +126,6 @@ void  rk29_arch_reset(int mode, const char *cmd)
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_SLOW, CRU_MODE_CON);
 	LOOP(LOOPS_PER_USEC);
 
-	/* from panic? */
-	if (system_state != SYSTEM_RESTART)
-		machine_power_off();
-
 	pwm2gpiodefault();
 
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_GENERAL_MODE_MASK) | CRU_GENERAL_MODE_SLOW, CRU_MODE_CON);
@@ -183,9 +179,9 @@ void  rk29_arch_reset(int mode, const char *cmd)
 	cru_writel((cru_readl(CRU_CLKSEL8_CON) & ~(7 | (0x3f << 14) | (3 << 20))) | (2 << 20), CRU_CLKSEL8_CON);
 
 	// remap bit control = 0, normal mode
-	writel(readl(RK29_GRF_PHYS + 0xc0) & ~(1 << 21), RK29_GRF_PHYS + 0xc0);
+	writel(readl(RK29_GRF_BASE + 0xc0) & ~(1 << 21), RK29_GRF_BASE + 0xc0);
 	// emmc_and_boot_en control=0, normal mode
-	writel(readl(RK29_GRF_PHYS + 0xbc) & ~(1 << 9), RK29_GRF_PHYS + 0xbc);
+	writel(readl(RK29_GRF_BASE + 0xbc) & ~(1 << 9), RK29_GRF_BASE + 0xbc);
 	dsb();
 
 	writel(0, RK29_CPU_AXI_BUS0_PHYS);
