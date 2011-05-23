@@ -548,10 +548,11 @@ S:	Maintained
 F:	sound/aoa/
 
 APM DRIVER
-L:	linux-laptop@vger.kernel.org
-S:	Orphan
+M:	Jiri Kosina <jkosina@suse.cz>
+S:	Odd fixes
 F:	arch/x86/kernel/apm_32.c
 F:	include/linux/apm_bios.h
+F:	drivers/char/apm-emulation.c
 
 APPLE BCM5974 MULTITOUCH DRIVER
 M:	Henrik Rydberg <rydberg@euromail.se>
