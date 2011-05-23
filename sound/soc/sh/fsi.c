@@ -689,7 +689,7 @@ static void __fsi_port_clk_ctrl(struct fsi_priv *fsi, int is_play, int enable)
  */
 static void fsi_fifo_init(struct fsi_priv *fsi,
 			  int is_play,
-			  struct snd_soc_dai *dai)
+			  struct device *dev)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
 	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
@@ -701,7 +701,7 @@ static void fsi_fifo_init(struct fsi_priv *fsi,
 	shift >>= fsi_get_port_shift(fsi, is_play);
 	shift &= FIFO_SZ_MASK;
 	frame_capa = 256 << shift;
-	dev_dbg(dai->dev, "fifo = %d words\n", frame_capa);
+	dev_dbg(dev, "fifo = %d words\n", frame_capa);
 
 	/*
 	 * The maximum number of sample data varies depending
@@ -724,7 +724,7 @@ static void fsi_fifo_init(struct fsi_priv *fsi,
 	 */
 	for (i = 1; i < fsi->chan_num; i <<= 1)
 		frame_capa >>= 1;
-	dev_dbg(dai->dev, "%d channel %d store\n",
+	dev_dbg(dev, "%d channel %d store\n",
 		fsi->chan_num, frame_capa);
 
 	io->fifo_sample_capa = fsi_frame2sample(fsi, frame_capa);
@@ -881,15 +881,14 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
  *		dai ops
  */
 
-static int fsi_dai_startup(struct snd_pcm_substream *substream,
-			   struct snd_soc_dai *dai)
+static int fsi_hw_startup(struct fsi_priv *fsi,
+			  int is_play,
+			  struct device *dev)
 {
-	struct fsi_priv *fsi = fsi_get_priv(substream);
 	u32 flags = fsi_get_info_flags(fsi);
 	u32 data = 0;
-	int is_play = fsi_is_play(substream);
 
-	pm_runtime_get_sync(dai->dev);
+	pm_runtime_get_sync(dev);
 
 	/* clock setting */
 	if (fsi_is_clk_master(fsi))
@@ -925,22 +924,38 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	fsi_irq_clear_status(fsi);
 
 	/* fifo init */
-	fsi_fifo_init(fsi, is_play, dai);
+	fsi_fifo_init(fsi, is_play, dev);
 
 	return 0;
+}
+
+static void fsi_hw_shutdown(struct fsi_priv *fsi,
+			    int is_play,
+			    struct device *dev)
+{
+	if (fsi_is_clk_master(fsi))
+		fsi_set_master_clk(dev, fsi, fsi->rate, 0);
+
+	pm_runtime_put_sync(dev);
+}
+
+static int fsi_dai_startup(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
+{
+	struct fsi_priv *fsi = fsi_get_priv(substream);
+	int is_play = fsi_is_play(substream);
+
+	return fsi_hw_startup(fsi, is_play, dai->dev);
 }
 
 static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
+	int is_play = fsi_is_play(substream);
 
-	if (fsi_is_clk_master(fsi))
-		fsi_set_master_clk(dai->dev, fsi, fsi->rate, 0);
-
+	fsi_hw_shutdown(fsi, is_play, dai->dev);
 	fsi->rate = 0;
-
-	pm_runtime_put_sync(dai->dev);
 }
 
 static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
