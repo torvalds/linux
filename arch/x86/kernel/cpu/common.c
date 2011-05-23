@@ -254,7 +254,7 @@ static inline void squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
 }
 #endif
 
-static int disable_smep __initdata;
+static int disable_smep __cpuinitdata;
 static __init int setup_disable_smep(char *arg)
 {
 	disable_smep = 1;
@@ -262,7 +262,7 @@ static __init int setup_disable_smep(char *arg)
 }
 __setup("nosmep", setup_disable_smep);
 
-static __init void setup_smep(struct cpuinfo_x86 *c)
+static __cpuinit void setup_smep(struct cpuinfo_x86 *c)
 {
 	if (cpu_has(c, X86_FEATURE_SMEP)) {
 		if (unlikely(disable_smep)) {
