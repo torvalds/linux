@@ -440,7 +440,7 @@ static void atombios_crtc_program_ss(struct drm_crtc *crtc,
 		case ATOM_PPLL_INVALID:
 			return;
 		}
-		args.v2.ucEnable = enable;
+		args.v3.ucEnable = enable;
 		if ((ss->percentage == 0) || (ss->type & ATOM_EXTERNAL_SS_MASK))
 			args.v3.ucEnable = ATOM_DISABLE;
 	} else if (ASIC_IS_DCE4(rdev)) {
