@@ -141,13 +141,15 @@ struct dtv_properties {
  </row></tbody></tgroup></informaltable>
 </section>
 
+<section>
+	<title>Property types</title>
 <para>
 On <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY</link>/<link linkend="FE_SET_PROPERTY">FE_SET_PROPERTY</link>,
 the actual action is determined by the dtv_property cmd/data pairs. With one single ioctl, is possible to
 get/set up to 64 properties. The actual meaning of each property is described on the next sections.
 </para>
 
-<para>The Available frontend property types are:</para>
+<para>The available frontend property types are:</para>
 <programlisting>
 #define DTV_UNDEFINED		0
 #define DTV_TUNE		1
@@ -193,6 +195,7 @@ get/set up to 64 properties. The actual meaning of each property is described on
 #define DTV_ISDBT_LAYER_ENABLED	41
 #define DTV_ISDBS_TS_ID		42
 </programlisting>
+</section>
 
 <section id="fe_property_common">
 	<title>Parameters that are common to all Digital TV standards</title>

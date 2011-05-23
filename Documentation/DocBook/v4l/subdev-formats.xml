@@ -2531,13 +2531,13 @@
 	<constant>_JPEG</constant> prefix the format code is made of
 	the following information.
 	<itemizedlist>
-	  <listitem>The number of bus samples per entropy encoded byte.</listitem>
-	  <listitem>The bus width.</listitem>
+	  <listitem><para>The number of bus samples per entropy encoded byte.</para></listitem>
+	  <listitem><para>The bus width.</para></listitem>
 	</itemizedlist>
+      </para>
 
-	<para>For instance, for a JPEG baseline process and an 8-bit bus width
-	  the format will be named <constant>V4L2_MBUS_FMT_JPEG_1X8</constant>.
-	</para>
+      <para>For instance, for a JPEG baseline process and an 8-bit bus width
+        the format will be named <constant>V4L2_MBUS_FMT_JPEG_1X8</constant>.
       </para>
 
       <para>The following table lists existing JPEG compressed formats.</para>
