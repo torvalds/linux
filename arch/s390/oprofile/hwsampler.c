@@ -764,7 +764,7 @@ static int worker_check_error(unsigned int cpu, int ext_params)
 	if (!sdbt || !*sdbt)
 		return -EINVAL;
 
-	if (ext_params & EI_IEA)
+	if (ext_params & EI_PRA)
 		cb->req_alert++;
 
 	if (ext_params & EI_LSDA)
