@@ -344,16 +344,15 @@ static u32 fsi_get_port_shift(struct fsi_priv *fsi, int is_play)
 
 static void fsi_stream_push(struct fsi_priv *fsi,
 			    int is_play,
-			    struct snd_pcm_substream *substream,
-			    u32 buffer_len,
-			    u32 period_len)
+			    struct snd_pcm_substream *substream)
 {
 	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	io->substream	= substream;
-	io->buff_len	= buffer_len;
+	io->buff_len	= frames_to_bytes(runtime, runtime->buffer_size);
 	io->buff_offset	= 0;
-	io->period_len	= period_len;
+	io->period_len	= frames_to_bytes(runtime, runtime->period_size);
 	io->period_num	= 0;
 	io->oerr_num	= -1; /* ignore 1st err */
 	io->uerr_num	= -1; /* ignore 1st err */
@@ -844,15 +843,12 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			   struct snd_soc_dai *dai)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	int is_play = fsi_is_play(substream);
 	int ret = 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		fsi_stream_push(fsi, is_play, substream,
-				frames_to_bytes(runtime, runtime->buffer_size),
-				frames_to_bytes(runtime, runtime->period_size));
+		fsi_stream_push(fsi, is_play, substream);
 		ret = is_play ? fsi_data_push(fsi) : fsi_data_pop(fsi);
 		fsi_irq_enable(fsi, is_play);
 		fsi_port_start(fsi);
