@@ -63,6 +63,7 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	/* Registers init */
 	vcpu->arch.pvr = mfspr(SPRN_PVR);
+	vcpu_e500->svr = mfspr(SPRN_SVR);
 
 	/* Since booke kvm only support one core, update all vcpus' PIR to 0 */
 	vcpu->vcpu_id = 0;
@@ -94,6 +95,81 @@ int kvmppc_core_vcpu_translate(struct kvm_vcpu *vcpu,
 	tr->valid = 1;
 
 	return 0;
+}
+
+void kvmppc_core_get_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
+{
+	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
+
+	sregs->u.e.features |= KVM_SREGS_E_ARCH206_MMU | KVM_SREGS_E_SPE |
+	                       KVM_SREGS_E_PM;
+	sregs->u.e.impl_id = KVM_SREGS_E_IMPL_FSL;
+
+	sregs->u.e.impl.fsl.features = 0;
+	sregs->u.e.impl.fsl.svr = vcpu_e500->svr;
+	sregs->u.e.impl.fsl.hid0 = vcpu_e500->hid0;
+	sregs->u.e.impl.fsl.mcar = vcpu_e500->mcar;
+
+	sregs->u.e.mas0 = vcpu_e500->mas0;
+	sregs->u.e.mas1 = vcpu_e500->mas1;
+	sregs->u.e.mas2 = vcpu_e500->mas2;
+	sregs->u.e.mas7_3 = ((u64)vcpu_e500->mas7 << 32) | vcpu_e500->mas3;
+	sregs->u.e.mas4 = vcpu_e500->mas4;
+	sregs->u.e.mas6 = vcpu_e500->mas6;
+
+	sregs->u.e.mmucfg = mfspr(SPRN_MMUCFG);
+	sregs->u.e.tlbcfg[0] = vcpu_e500->tlb0cfg;
+	sregs->u.e.tlbcfg[1] = vcpu_e500->tlb1cfg;
+	sregs->u.e.tlbcfg[2] = 0;
+	sregs->u.e.tlbcfg[3] = 0;
+
+	sregs->u.e.ivor_high[0] = vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_UNAVAIL];
+	sregs->u.e.ivor_high[1] = vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_FP_DATA];
+	sregs->u.e.ivor_high[2] = vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_FP_ROUND];
+	sregs->u.e.ivor_high[3] =
+		vcpu->arch.ivor[BOOKE_IRQPRIO_PERFORMANCE_MONITOR];
+
+	kvmppc_get_sregs_ivor(vcpu, sregs);
+}
+
+int kvmppc_core_set_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
+{
+	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
+
+	if (sregs->u.e.impl_id == KVM_SREGS_E_IMPL_FSL) {
+		vcpu_e500->svr = sregs->u.e.impl.fsl.svr;
+		vcpu_e500->hid0 = sregs->u.e.impl.fsl.hid0;
+		vcpu_e500->mcar = sregs->u.e.impl.fsl.mcar;
+	}
+
+	if (sregs->u.e.features & KVM_SREGS_E_ARCH206_MMU) {
+		vcpu_e500->mas0 = sregs->u.e.mas0;
+		vcpu_e500->mas1 = sregs->u.e.mas1;
+		vcpu_e500->mas2 = sregs->u.e.mas2;
+		vcpu_e500->mas7 = sregs->u.e.mas7_3 >> 32;
+		vcpu_e500->mas3 = (u32)sregs->u.e.mas7_3;
+		vcpu_e500->mas4 = sregs->u.e.mas4;
+		vcpu_e500->mas6 = sregs->u.e.mas6;
+	}
+
+	if (!(sregs->u.e.features & KVM_SREGS_E_IVOR))
+		return 0;
+
+	if (sregs->u.e.features & KVM_SREGS_E_SPE) {
+		vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_UNAVAIL] =
+			sregs->u.e.ivor_high[0];
+		vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_FP_DATA] =
+			sregs->u.e.ivor_high[1];
+		vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_FP_ROUND] =
+			sregs->u.e.ivor_high[2];
+	}
+
+	if (sregs->u.e.features & KVM_SREGS_E_PM) {
+		vcpu->arch.ivor[BOOKE_IRQPRIO_PERFORMANCE_MONITOR] =
+			sregs->u.e.ivor_high[3];
+	}
+
+	return kvmppc_set_sregs_ivor(vcpu, sregs);
 }
 
 struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
