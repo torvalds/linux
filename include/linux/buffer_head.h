@@ -230,6 +230,8 @@ static inline int block_page_mkwrite_return(int err)
 		return VM_FAULT_NOPAGE;
 	if (err == -ENOMEM)
 		return VM_FAULT_OOM;
+	if (err == -EAGAIN)
+		return VM_FAULT_RETRY;
 	/* -ENOSPC, -EDQUOT, -EIO ... */
 	return VM_FAULT_SIGBUS;
 }

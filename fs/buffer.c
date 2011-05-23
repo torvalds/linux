@@ -2331,6 +2331,9 @@ EXPORT_SYMBOL(block_commit_write);
  * page lock we can determine safely if the page is beyond EOF. If it is not
  * beyond EOF, then the page is guaranteed safe against truncation until we
  * unlock the page.
+ *
+ * Direct callers of this function should call vfs_check_frozen() so that page
+ * fault does not busyloop until the fs is thawed.
  */
 int __block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 			 get_block_t get_block)
@@ -2362,6 +2365,18 @@ int __block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 
 	if (unlikely(ret < 0))
 		goto out_unlock;
+	/*
+	 * Freezing in progress? We check after the page is marked dirty and
+	 * with page lock held so if the test here fails, we are sure freezing
+	 * code will wait during syncing until the page fault is done - at that
+	 * point page will be dirty and unlocked so freezing code will write it
+	 * and writeprotect it again.
+	 */
+	set_page_dirty(page);
+	if (inode->i_sb->s_frozen != SB_UNFROZEN) {
+		ret = -EAGAIN;
+		goto out_unlock;
+	}
 	return 0;
 out_unlock:
 	unlock_page(page);
@@ -2372,8 +2387,15 @@ EXPORT_SYMBOL(__block_page_mkwrite);
 int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 		   get_block_t get_block)
 {
-	int ret = __block_page_mkwrite(vma, vmf, get_block);
+	int ret;
+	struct super_block *sb = vma->vm_file->f_path.dentry->d_inode->i_sb;
 
+	/*
+	 * This check is racy but catches the common case. The check in
+	 * __block_page_mkwrite() is reliable.
+	 */
+	vfs_check_frozen(sb, SB_FREEZE_WRITE);
+	ret = __block_page_mkwrite(vma, vmf, get_block);
 	return block_page_mkwrite_return(ret);
 }
 EXPORT_SYMBOL(block_page_mkwrite);
