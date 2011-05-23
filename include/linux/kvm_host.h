@@ -517,6 +517,7 @@ struct kvm_assigned_dev_kernel {
 	struct kvm *kvm;
 	spinlock_t intx_lock;
 	char irq_name[32];
+	struct pci_saved_state *pci_saved_state;
 };
 
 struct kvm_irq_mask_notifier {
