@@ -86,6 +86,12 @@ config GPIO_IT8761E
 	help
 	  Say yes here to support GPIO functionality of IT8761E super I/O chip.
 
+config GPIO_PLAT_SAMSUNG
+	bool "Samsung SoCs GPIO library support"
+	default y if SAMSUNG_GPIOLIB_4BIT
+	help
+	  Say yes here to support Samsung SoCs GPIO library
+
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
 	depends on ARM_AMBA
