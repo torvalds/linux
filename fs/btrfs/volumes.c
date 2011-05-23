@@ -366,6 +366,14 @@ static noinline int device_list_add(const char *path,
 		}
 		INIT_LIST_HEAD(&device->dev_alloc_list);
 
+		/* init readahead state */
+		spin_lock_init(&device->reada_lock);
+		device->reada_curr_zone = NULL;
+		atomic_set(&device->reada_in_flight, 0);
+		device->reada_next = 0;
+		INIT_RADIX_TREE(&device->reada_zones, GFP_NOFS & ~__GFP_WAIT);
+		INIT_RADIX_TREE(&device->reada_extents, GFP_NOFS & ~__GFP_WAIT);
+
 		mutex_lock(&fs_devices->device_list_mutex);
 		list_add_rcu(&device->dev_list, &fs_devices->devices);
 		mutex_unlock(&fs_devices->device_list_mutex);

@@ -92,6 +92,14 @@ struct btrfs_device {
 	struct btrfs_work work;
 	struct rcu_head rcu;
 	struct work_struct rcu_work;
+
+	/* readahead state */
+	spinlock_t reada_lock;
+	atomic_t reada_in_flight;
+	u64 reada_next;
+	struct reada_zone *reada_curr_zone;
+	struct radix_tree_root reada_zones;
+	struct radix_tree_root reada_extents;
 };
 
 struct btrfs_fs_devices {
