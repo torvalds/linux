@@ -558,6 +558,82 @@ static void fsi_spdif_clk_ctrl(struct fsi_priv *fsi, int enable)
 /*
  *		clock function
  */
+static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
+			      long rate, int enable)
+{
+	struct fsi_master *master = fsi_get_master(fsi);
+	set_rate_func set_rate = fsi_get_info_set_rate(master);
+	int fsi_ver = master->core->ver;
+	int ret;
+
+	ret = set_rate(dev, fsi_is_port_a(fsi), rate, enable);
+	if (ret < 0) /* error */
+		return ret;
+
+	if (!enable)
+		return 0;
+
+	if (ret > 0) {
+		u32 data = 0;
+
+		switch (ret & SH_FSI_ACKMD_MASK) {
+		default:
+			/* FALL THROUGH */
+		case SH_FSI_ACKMD_512:
+			data |= (0x0 << 12);
+			break;
+		case SH_FSI_ACKMD_256:
+			data |= (0x1 << 12);
+			break;
+		case SH_FSI_ACKMD_128:
+			data |= (0x2 << 12);
+			break;
+		case SH_FSI_ACKMD_64:
+			data |= (0x3 << 12);
+			break;
+		case SH_FSI_ACKMD_32:
+			if (fsi_ver < 2)
+				dev_err(dev, "unsupported ACKMD\n");
+			else
+				data |= (0x4 << 12);
+			break;
+		}
+
+		switch (ret & SH_FSI_BPFMD_MASK) {
+		default:
+			/* FALL THROUGH */
+		case SH_FSI_BPFMD_32:
+			data |= (0x0 << 8);
+			break;
+		case SH_FSI_BPFMD_64:
+			data |= (0x1 << 8);
+			break;
+		case SH_FSI_BPFMD_128:
+			data |= (0x2 << 8);
+			break;
+		case SH_FSI_BPFMD_256:
+			data |= (0x3 << 8);
+			break;
+		case SH_FSI_BPFMD_512:
+			data |= (0x4 << 8);
+			break;
+		case SH_FSI_BPFMD_16:
+			if (fsi_ver < 2)
+				dev_err(dev, "unsupported ACKMD\n");
+			else
+				data |= (0x7 << 8);
+			break;
+		}
+
+		fsi_reg_mask_set(fsi, CKG1, (ACKMD_MASK | BPFMD_MASK) , data);
+		udelay(10);
+		ret = 0;
+	}
+
+	return ret;
+
+}
+
 #define fsi_module_init(m, d)	__fsi_module_clk_ctrl(m, d, 1)
 #define fsi_module_kill(m, d)	__fsi_module_clk_ctrl(m, d, 0)
 static void __fsi_module_clk_ctrl(struct fsi_master *master,
@@ -826,13 +902,11 @@ static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 	int is_play = fsi_is_play(substream);
-	struct fsi_master *master = fsi_get_master(fsi);
-	set_rate_func set_rate = fsi_get_info_set_rate(master);
 
 	fsi_irq_disable(fsi, is_play);
 
 	if (fsi_is_clk_master(fsi))
-		set_rate(dai->dev, fsi_is_port_a(fsi), fsi->rate, 0);
+		fsi_set_master_clk(dai->dev, fsi, fsi->rate, 0);
 
 	fsi->rate = 0;
 
@@ -960,79 +1034,19 @@ static int fsi_dai_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
-	struct fsi_master *master = fsi_get_master(fsi);
-	set_rate_func set_rate = fsi_get_info_set_rate(master);
-	int fsi_ver = master->core->ver;
 	long rate = params_rate(params);
 	int ret;
 
 	if (!fsi_is_clk_master(fsi))
 		return 0;
 
-	ret = set_rate(dai->dev, fsi_is_port_a(fsi), rate, 1);
-	if (ret < 0) /* error */
+	ret = fsi_set_master_clk(dai->dev, fsi, rate, 1);
+	if (ret < 0)
 		return ret;
 
 	fsi->rate = rate;
-	if (ret > 0) {
-		u32 data = 0;
-
-		switch (ret & SH_FSI_ACKMD_MASK) {
-		default:
-			/* FALL THROUGH */
-		case SH_FSI_ACKMD_512:
-			data |= (0x0 << 12);
-			break;
-		case SH_FSI_ACKMD_256:
-			data |= (0x1 << 12);
-			break;
-		case SH_FSI_ACKMD_128:
-			data |= (0x2 << 12);
-			break;
-		case SH_FSI_ACKMD_64:
-			data |= (0x3 << 12);
-			break;
-		case SH_FSI_ACKMD_32:
-			if (fsi_ver < 2)
-				dev_err(dai->dev, "unsupported ACKMD\n");
-			else
-				data |= (0x4 << 12);
-			break;
-		}
-
-		switch (ret & SH_FSI_BPFMD_MASK) {
-		default:
-			/* FALL THROUGH */
-		case SH_FSI_BPFMD_32:
-			data |= (0x0 << 8);
-			break;
-		case SH_FSI_BPFMD_64:
-			data |= (0x1 << 8);
-			break;
-		case SH_FSI_BPFMD_128:
-			data |= (0x2 << 8);
-			break;
-		case SH_FSI_BPFMD_256:
-			data |= (0x3 << 8);
-			break;
-		case SH_FSI_BPFMD_512:
-			data |= (0x4 << 8);
-			break;
-		case SH_FSI_BPFMD_16:
-			if (fsi_ver < 2)
-				dev_err(dai->dev, "unsupported ACKMD\n");
-			else
-				data |= (0x7 << 8);
-			break;
-		}
-
-		fsi_reg_mask_set(fsi, CKG1, (ACKMD_MASK | BPFMD_MASK) , data);
-		udelay(10);
-		ret = 0;
-	}
 
 	return ret;
-
 }
 
 static struct snd_soc_dai_ops fsi_dai_ops = {
@@ -1301,8 +1315,7 @@ static int fsi_remove(struct platform_device *pdev)
 }
 
 static void __fsi_suspend(struct fsi_priv *fsi,
-			  struct device *dev,
-			  set_rate_func set_rate)
+			  struct device *dev)
 {
 	fsi->saved_do_fmt	= fsi_reg_read(fsi, DO_FMT);
 	fsi->saved_di_fmt	= fsi_reg_read(fsi, DI_FMT);
@@ -1311,12 +1324,11 @@ static void __fsi_suspend(struct fsi_priv *fsi,
 	fsi->saved_out_sel	= fsi_reg_read(fsi, OUT_SEL);
 
 	if (fsi_is_clk_master(fsi))
-		set_rate(dev, fsi_is_port_a(fsi), fsi->rate, 0);
+		fsi_set_master_clk(dev, fsi, fsi->rate, 0);
 }
 
 static void __fsi_resume(struct fsi_priv *fsi,
-			 struct device *dev,
-			 set_rate_func set_rate)
+			 struct device *dev)
 {
 	fsi_reg_write(fsi, DO_FMT,	fsi->saved_do_fmt);
 	fsi_reg_write(fsi, DI_FMT,	fsi->saved_di_fmt);
@@ -1325,18 +1337,17 @@ static void __fsi_resume(struct fsi_priv *fsi,
 	fsi_reg_write(fsi, OUT_SEL,	fsi->saved_out_sel);
 
 	if (fsi_is_clk_master(fsi))
-		set_rate(dev, fsi_is_port_a(fsi), fsi->rate, 1);
+		fsi_set_master_clk(dev, fsi, fsi->rate, 1);
 }
 
 static int fsi_suspend(struct device *dev)
 {
 	struct fsi_master *master = dev_get_drvdata(dev);
-	set_rate_func set_rate = fsi_get_info_set_rate(master);
 
 	pm_runtime_get_sync(dev);
 
-	__fsi_suspend(&master->fsia, dev, set_rate);
-	__fsi_suspend(&master->fsib, dev, set_rate);
+	__fsi_suspend(&master->fsia, dev);
+	__fsi_suspend(&master->fsib, dev);
 
 	master->saved_a_mclk	= fsi_core_read(master, a_mclk);
 	master->saved_b_mclk	= fsi_core_read(master, b_mclk);
@@ -1355,7 +1366,6 @@ static int fsi_suspend(struct device *dev)
 static int fsi_resume(struct device *dev)
 {
 	struct fsi_master *master = dev_get_drvdata(dev);
-	set_rate_func set_rate = fsi_get_info_set_rate(master);
 
 	pm_runtime_get_sync(dev);
 
@@ -1368,8 +1378,8 @@ static int fsi_resume(struct device *dev)
 	fsi_core_mask_set(master, iemsk, 0xffff, master->saved_iemsk);
 	fsi_core_mask_set(master, imsk, 0xffff, master->saved_imsk);
 
-	__fsi_resume(&master->fsia, dev, set_rate);
-	__fsi_resume(&master->fsib, dev, set_rate);
+	__fsi_resume(&master->fsia, dev);
+	__fsi_resume(&master->fsib, dev);
 
 	pm_runtime_put_sync(dev);
 
