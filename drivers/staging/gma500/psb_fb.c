@@ -36,10 +36,7 @@
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
 #include "psb_intel_drv.h"
-#include "psb_ttm_userobj_api.h"
 #include "psb_fb.h"
-#include "psb_sgx.h"
-#include "psb_pvr_glue.h"
 
 static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb);
 static int psb_user_framebuffer_create_handle(struct drm_framebuffer *fb,
@@ -193,8 +190,7 @@ static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct psb_framebuffer *psbfb = vma->vm_private_data;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_gtt *pg = dev_priv->pg;
-	unsigned long phys_addr = (unsigned long)pg->stolen_base;;
+	unsigned long phys_addr = (unsigned long)dev_priv->stolen_base;
 
 	page_num = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 
@@ -243,7 +239,6 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	char *fb_screen_base = NULL;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_gtt *pg = dev_priv->pg;
 
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
@@ -256,22 +251,48 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	fb_screen_base = (char *)info->screen_base;
 
 	DRM_DEBUG("vm_pgoff 0x%lx, screen base %p vram_addr %p\n",
-				vma->vm_pgoff, fb_screen_base, pg->vram_addr);
+				vma->vm_pgoff, fb_screen_base,
+                                dev_priv->vram_addr);
 
-	/*if using stolen memory, */
-	if (fb_screen_base == pg->vram_addr) {
+        /* FIXME: ultimately this needs to become 'if entirely stolen memory' */
+	if (1 || fb_screen_base == dev_priv->vram_addr) {
 		vma->vm_ops = &psbfb_vm_ops;
 		vma->vm_private_data = (void *)psbfb;
 		vma->vm_flags |= VM_RESERVED | VM_IO |
 						VM_MIXEDMAP | VM_DONTEXPAND;
 	} else {
-	/*using IMG meminfo, can I use pvrmmap to map it?*/
-
+	        /* GTT memory backed by kernel/user pages, needs a different
+	           approach ? - GEM ? */
 	}
 
 	return 0;
 }
 
+static int psbfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
+{
+	struct psb_fbdev *fbdev = info->par;
+	struct psb_framebuffer *psbfb = fbdev->pfb;
+	struct drm_device *dev = psbfb->base.dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	u32 __user *p = (u32 __user *)arg;
+	u32 l;
+	u32 buf[32];
+	switch (cmd) {
+	case 0x12345678:
+		if (!capable(CAP_SYS_RAWIO))
+			return -EPERM;
+		if (get_user(l, p))
+			return -EFAULT;
+		if (l > 32)
+			return -EMSGSIZE;
+		if (copy_from_user(buf, p + 1, l * sizeof(u32)))
+			return -EFAULT;
+		psbfb_2d_submit(dev_priv, buf, l);
+		return 0;
+	default:
+		return -ENOTTY;
+	}
+}
 
 static struct fb_ops psbfb_ops = {
 	.owner = THIS_MODULE,
@@ -284,11 +305,12 @@ static struct fb_ops psbfb_ops = {
 	.fb_imageblit = psbfb_imageblit,
 	.fb_mmap = psbfb_mmap,
 	.fb_sync = psbfb_sync,
+	.fb_ioctl = psbfb_ioctl,
 };
 
 static struct drm_framebuffer *psb_framebuffer_create
 			(struct drm_device *dev, struct drm_mode_fb_cmd *r,
-			 void *mm_private)
+			 struct gtt_range *gt)
 {
 	struct psb_framebuffer *fb;
 	int ret;
@@ -304,7 +326,7 @@ static struct drm_framebuffer *psb_framebuffer_create
 
 	drm_helper_mode_fill_fb_struct(&fb->base, r);
 
-	fb->bo = mm_private;
+	fb->gtt = gt;
 
 	return &fb->base;
 
@@ -313,136 +335,58 @@ err:
 	return NULL;
 }
 
-static struct drm_framebuffer *psb_user_framebuffer_create
-			(struct drm_device *dev, struct drm_file *filp,
-			 struct drm_mode_fb_cmd *r)
+/**
+ *	psbfb_alloc		-	allocate frame buffer memory
+ *	@dev: the DRM device
+ *	@aligned_size: space needed
+ *
+ *	Allocate the frame buffer. In the usual case we get a GTT range that
+ *	is stolen memory backed and life is simple. If there isn't sufficient
+ *	stolen memory or the system has no stolen memory we allocate a range
+ *	and back it with a GEM object.
+ *
+ *	In this case the GEM object has no handle. 
+ */
+static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
 {
-	struct ttm_buffer_object *bo = NULL;
-	uint64_t size;
-
-	bo = ttm_buffer_object_lookup(psb_fpriv(filp)->tfile, r->handle);
-	if (!bo)
+	struct gtt_range *backing;
+	/* Begin by trying to use stolen memory backing */
+	backing = psb_gtt_alloc_range(dev, aligned_size, "fb", 1);
+	if (backing)
+		return backing;
+	/* Next try using GEM host memory */
+	backing = psb_gtt_alloc_range(dev, aligned_size, "fb(gem)", 0);
+	if (backing == NULL)
 		return NULL;
 
-	/* JB: TODO not drop, make smarter */
-	size = ((uint64_t) bo->num_pages) << PAGE_SHIFT;
-	if (size < r->width * r->height * 4)
-		return NULL;
-
-	/* JB: TODO not drop, refcount buffer */
-	return psb_framebuffer_create(dev, r, bo);
-
-#if 0
-	struct psb_framebuffer *psbfb;
-	struct drm_framebuffer *fb;
-	struct fb_info *info;
-	void *psKernelMemInfo = NULL;
-	void * hKernelMemInfo = (void *)r->handle;
-	struct drm_psb_private *dev_priv
-		= (struct drm_psb_private *)dev->dev_private;
-	struct psb_fbdev *fbdev = dev_priv->fbdev;
-	struct psb_gtt *pg = dev_priv->pg;
-	int ret;
-	uint32_t offset;
-	uint64_t size;
-
-	ret = psb_get_meminfo_by_handle(hKernelMemInfo, &psKernelMemInfo);
-	if (ret) {
-		DRM_ERROR("Cannot get meminfo for handle 0x%x\n",
-						(u32)hKernelMemInfo);
+	/* Now back it with an object */
+	if (drm_gem_object_init(dev, &backing->gem, aligned_size) != 0) {
+		psb_gtt_free_range(dev, backing);
 		return NULL;
 	}
-
-	DRM_DEBUG("Got Kernel MemInfo for handle %lx\n",
-		  (u32)hKernelMemInfo);
-
-	/* JB: TODO not drop, make smarter */
-	size = psKernelMemInfo->ui32AllocSize;
-	if (size < r->height * r->pitch)
-		return NULL;
-
-	/* JB: TODO not drop, refcount buffer */
-	/* return psb_framebuffer_create(dev, r, bo); */
-
-	fb = psb_framebuffer_create(dev, r, (void *)psKernelMemInfo);
-	if (!fb) {
-		DRM_ERROR("failed to allocate fb.\n");
-		return NULL;
-	}
-
-	psbfb = to_psb_fb(fb);
-	psbfb->size = size;
-	psbfb->hKernelMemInfo = hKernelMemInfo;
-
-	DRM_DEBUG("Mapping to gtt..., KernelMemInfo %p\n", psKernelMemInfo);
-
-	/*if not VRAM, map it into tt aperture*/
-	if (psKernelMemInfo->pvLinAddrKM != pg->vram_addr) {
-		ret = psb_gtt_map_meminfo(dev, hKernelMemInfo, &offset);
-		if (ret) {
-			DRM_ERROR("map meminfo for 0x%x failed\n",
-				  (u32)hKernelMemInfo);
-			return NULL;
-		}
-		psbfb->offset = (offset << PAGE_SHIFT);
-	} else {
-		psbfb->offset = 0;
-	}
-	info = framebuffer_alloc(0, &dev->pdev->dev);
-	if (!info)
-		return NULL;
-
-	strcpy(info->fix.id, "psbfb");
-
-	info->flags = FBINFO_DEFAULT;
-	info->fix.accel = FB_ACCEL_I830;	/*FIXMEAC*/
-	info->fbops = &psbfb_ops;
-
-	info->fix.smem_start = dev->mode_config.fb_base;
-	info->fix.smem_len = size;
-
-	info->screen_base = psKernelMemInfo->pvLinAddrKM;
-	info->screen_size = size;
-
-	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
-	drm_fb_helper_fill_var(info, &fbdev->psb_fb_helper,
-							fb->width, fb->height);
-
-	info->fix.mmio_start = pci_resource_start(dev->pdev, 0);
-	info->fix.mmio_len = pci_resource_len(dev->pdev, 0);
-
-	info->pixmap.size = 64 * 1024;
-	info->pixmap.buf_align = 8;
-	info->pixmap.access_align = 32;
-	info->pixmap.flags = FB_PIXMAP_SYSTEM;
-	info->pixmap.scan_align = 1;
-
-	psbfb->fbdev = info;
-	fbdev->pfb = psbfb;
-
-	fbdev->psb_fb_helper.fb = fb;
-	fbdev->psb_fb_helper.fbdev = info;
-	MRSTLFBHandleChangeFB(dev, psbfb);
-
-	return fb;
-#endif
+	return backing;
 }
-
+	
+/**
+ *	psbfb_create		-	create a framebuffer
+ *	@fbdev: the framebuffer device
+ *	@sizes: specification of the layout
+ *
+ *	Create a framebuffer to the specifications provided
+ */
 static int psbfb_create(struct psb_fbdev *fbdev,
 				struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_device *dev = fbdev->psb_fb_helper.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_gtt *pg = dev_priv->pg;
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct psb_framebuffer *psbfb;
 	struct drm_mode_fb_cmd mode_cmd;
 	struct device *device = &dev->pdev->dev;
-
-	struct ttm_buffer_object *fbo = NULL;
 	int size, aligned_size;
 	int ret;
+	struct gtt_range *backing;
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
@@ -455,15 +399,19 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	size = mode_cmd.pitch * mode_cmd.height;
 	aligned_size = ALIGN(size, PAGE_SIZE);
 
+	/* Allocate the framebuffer in the GTT with stolen page backing */
+	backing = psbfb_alloc(dev, aligned_size);
+	if (backing == NULL)
+	        return -ENOMEM;
+
 	mutex_lock(&dev->struct_mutex);
-	fb = psb_framebuffer_create(dev, &mode_cmd, fbo);
+	fb = psb_framebuffer_create(dev, &mode_cmd, backing);
 	if (!fb) {
 		DRM_ERROR("failed to allocate fb.\n");
 		ret = -ENOMEM;
 		goto out_err1;
 	}
 	psbfb = to_psb_fb(fb);
-	psbfb->size = size;
 
 	info = framebuffer_alloc(sizeof(struct psb_fbdev), device);
 	if (!info) {
@@ -485,7 +433,11 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info->fbops = &psbfb_ops;
 	info->fix.smem_start = dev->mode_config.fb_base;
 	info->fix.smem_len = size;
-	info->screen_base = (char *)pg->vram_addr;
+
+	/* Accessed via stolen memory directly, This only works for stolem
+	   memory however. Need to address this once we start using gtt
+	   pages we allocate */
+	info->screen_base = (char *)dev_priv->vram_addr + backing->offset;
 	info->screen_size = size;
 	memset(info->screen_base, 0, size);
 
@@ -515,7 +467,49 @@ out_err0:
 	fb->funcs->destroy(fb);
 out_err1:
 	mutex_unlock(&dev->struct_mutex);
+	psb_gtt_free_range(dev, backing);
 	return ret;
+}
+
+/**
+ *	psb_user_framebuffer_create	-	create framebuffer
+ *	@dev: our DRM device
+ *	@filp: client file
+ *	@cmd: mode request
+ *
+ *	Create a new framebuffer backed by a userspace GEM object
+ */
+static struct drm_framebuffer *psb_user_framebuffer_create
+			(struct drm_device *dev, struct drm_file *filp,
+			 struct drm_mode_fb_cmd *cmd)
+{
+        struct gtt_range *r;
+        struct drm_gem_object *obj;
+        struct psb_framebuffer *psbfb;
+
+        /* Find the GEM object and thus the gtt range object that is
+           to back this space */
+	obj = drm_gem_object_lookup(dev, filp, cmd->handle);
+	if (obj == NULL)
+	        return ERR_PTR(-ENOENT);
+
+        /* Allocate a framebuffer */
+        psbfb = kzalloc(sizeof(*psbfb), GFP_KERNEL);
+        if (psbfb == NULL) {
+                drm_gem_object_unreference_unlocked(obj);
+                return ERR_PTR(-ENOMEM);
+        }
+        
+        /* Let the core code do all the work */
+        r = container_of(obj, struct gtt_range, gem);
+	if (psb_framebuffer_create(dev, cmd, r) == NULL) {
+                drm_gem_object_unreference_unlocked(obj);
+                kfree(psbfb);
+                return ERR_PTR(-EINVAL);
+        }
+        /* Return the drm_framebuffer contained within the psb fbdev which
+           has been initialized by the framebuffer creation */
+        return &psbfb->base;
 }
 
 static void psbfb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
@@ -561,15 +555,20 @@ int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 
 	if (fbdev->psb_fb_helper.fbdev) {
 		info = fbdev->psb_fb_helper.fbdev;
+		/* FIXME: this is a bit more inside knowledge than I'd like
+		   but I don't see how to make a fake GEM object of the
+		   stolen space nicely */
+		if (psbfb->gtt->stolen)
+			psb_gtt_free_range(dev, psbfb->gtt);
+		else
+			drm_gem_object_unreference(&psbfb->gtt->gem);
 		unregister_framebuffer(info);
 		iounmap(info->screen_base);
 		framebuffer_release(info);
 	}
 
 	drm_fb_helper_fini(&fbdev->psb_fb_helper);
-
 	drm_framebuffer_cleanup(&psbfb->base);
-
 	return 0;
 }
 
@@ -610,7 +609,6 @@ void psb_fbdev_fini(struct drm_device *dev)
 	dev_priv->fbdev = NULL;
 }
 
-
 static void psbfb_output_poll_changed(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -627,7 +625,6 @@ int psbfb_remove(struct drm_device *dev, struct drm_framebuffer *fb)
 		return 0;
 
 	info = psbfb->fbdev;
-	psbfb->pvrBO = NULL;
 
 	if (info)
 		framebuffer_release(info);
@@ -635,28 +632,48 @@ int psbfb_remove(struct drm_device *dev, struct drm_framebuffer *fb)
 }
 /*EXPORT_SYMBOL(psbfb_remove); */
 
+/**
+ *	psb_user_framebuffer_create_handle - add hamdle to a framebuffer
+ *	@fb: framebuffer
+ *	@file_priv: our DRM file
+ *	@handle: returned handle
+ *
+ *	Our framebuffer object is a GTT range which also contains a GEM
+ *	object. We need to turn it into a handle for userspace. GEM will do
+ *	the work for us
+ */
 static int psb_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 					      struct drm_file *file_priv,
 					      unsigned int *handle)
 {
-	/* JB: TODO currently we can't go from a bo to a handle with ttm */
-	(void) file_priv;
-	*handle = 0;
-	return 0;
+        struct psb_framebuffer *psbfb = to_psb_fb(fb);
+        struct gtt_range *r = psbfb->gtt;
+        if (r->stolen)
+                return -EOPNOTSUPP;
+        return drm_gem_handle_create(file_priv, &r->gem, handle);
 }
 
+/**
+ *	psb_user_framebuffer_destroy	-	destruct user created fb
+ *	@fb: framebuffer
+ *
+ *	User framebuffers are backed by GEM objects so all we have to do is
+ *	clean up a bit and drop the reference, GEM will handle the fallout
+ */
 static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = fb->dev;
 	struct psb_framebuffer *psbfb = to_psb_fb(fb);
+	struct gtt_range *r = psbfb->gtt;
 
-	/*ummap gtt pages*/
-	psb_gtt_unmap_meminfo(dev, psbfb->hKernelMemInfo);
 	if (psbfb->fbdev)
 		psbfb_remove(dev, fb);
 
-	/* JB: TODO not drop, refcount buffer */
+        /* Let DRM do its clean up */
 	drm_framebuffer_cleanup(fb);
+	/*  We are no longer using the resource in GEM */
+	drm_gem_object_unreference_unlocked(&r->gem);
+
 	kfree(fb);
 }
 
@@ -698,8 +715,15 @@ static void psb_setup_outputs(struct drm_device *dev)
 
 	psb_create_backlight_property(dev);
 
-	psb_intel_lvds_init(dev, &dev_priv->mode_dev);
-	/* psb_intel_sdvo_init(dev, SDVOB); */
+	if (IS_MRST(dev)) {
+		if (dev_priv->iLVDS_enable)
+			mrst_lvds_init(dev, &dev_priv->mode_dev);
+		else
+			DRM_ERROR("DSI is not supported\n");
+	} else {
+		psb_intel_lvds_init(dev, &dev_priv->mode_dev);
+		psb_intel_sdvo_init(dev, SDVOB);
+	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    head) {
@@ -716,7 +740,10 @@ static void psb_setup_outputs(struct drm_device *dev)
 			break;
 		case INTEL_OUTPUT_LVDS:
 			PSB_DEBUG_ENTRY("LVDS.\n");
-			crtc_mask = (1 << 1);
+			if (IS_MRST(dev))
+				crtc_mask = (1 << 0);
+			else
+				crtc_mask = (1 << 1);
 			clone_mask = (1 << INTEL_OUTPUT_LVDS);
 			break;
 		case INTEL_OUTPUT_MIPI:
@@ -743,52 +770,6 @@ static void psb_setup_outputs(struct drm_device *dev)
 	}
 }
 
-static void *psb_bo_from_handle(struct drm_device *dev,
-				struct drm_file *file_priv,
-				unsigned int handle)
-{
-	void *psKernelMemInfo = NULL;
-	void * hKernelMemInfo = (void *)handle;
-	int ret;
-
-	ret = psb_get_meminfo_by_handle(hKernelMemInfo, &psKernelMemInfo);
-	if (ret) {
-		DRM_ERROR("Cannot get meminfo for handle 0x%x\n",
-			  (u32)hKernelMemInfo);
-		return NULL;
-	}
-
-	return (void *)psKernelMemInfo;
-}
-
-static size_t psb_bo_size(struct drm_device *dev, void *bof)
-{
-#if 0
-	void *psKernelMemInfo	= (void *)bof;
-	return (size_t)psKernelMemInfo->ui32AllocSize;
-#else
-	return 0;
-#endif
-}
-
-static size_t psb_bo_offset(struct drm_device *dev, void *bof)
-{
-	struct psb_framebuffer *psbfb
-		= (struct psb_framebuffer *)bof;
-
-	return (size_t)psbfb->offset;
-}
-
-static int psb_bo_pin_for_scanout(struct drm_device *dev, void *bo)
-{
-	 return 0;
-}
-
-static int psb_bo_unpin_for_scanout(struct drm_device *dev, void *bo)
-{
-	return 0;
-}
-
 void psb_modeset_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv =
@@ -797,12 +778,6 @@ void psb_modeset_init(struct drm_device *dev)
 	int i;
 
 	PSB_DEBUG_ENTRY("\n");
-	/* Init mm functions */
-	mode_dev->bo_from_handle = psb_bo_from_handle;
-	mode_dev->bo_size = psb_bo_size;
-	mode_dev->bo_offset = psb_bo_offset;
-	mode_dev->bo_pin_for_scanout = psb_bo_pin_for_scanout;
-	mode_dev->bo_unpin_for_scanout = psb_bo_unpin_for_scanout;
 
 	drm_mode_config_init(dev);
 

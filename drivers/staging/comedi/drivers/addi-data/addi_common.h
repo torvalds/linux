@@ -406,7 +406,6 @@ struct addi_private {
 
 	/* Pointer to the current process */
 	struct task_struct *tsk_Current;
-	struct addi_board *ps_BoardInfo;
 
 	/* Hardware board infos for 1710 */
 	struct {
@@ -434,6 +433,22 @@ struct addi_private {
 	union str_ModuleInfo s_ModuleInfo[4];
 	unsigned int ul_TTLPortConfiguration[10];
 
+	/* Parameters read from EEPROM overriding static board info */
+	struct {
+		int i_NbrAiChannel;	/*  num of A/D chans */
+		int i_NbrAoChannel;	/*  num of D/A chans */
+		int i_AiMaxdata;	/*  resolution of A/D */
+		int i_AoMaxdata;	/*  resolution of D/A */
+		int i_NbrDiChannel;	/*  Number of DI channels */
+		int i_NbrDoChannel;	/*  Number of DO channels */
+		int i_DoMaxdata;	/*  data to set all channels high */
+		int i_Dma;		/*  dma present or not */
+		int i_Timer;		/*  timer subdevice present or not */
+		unsigned int ui_MinAcquisitiontimeNs;
+					/*  Minimum Acquisition in Nano secs */
+		unsigned int ui_MinDelaytimeNs;
+					/*  Minimum Delay in Nano secs */
+	} s_EeParameters;
 };
 
 static unsigned short pci_list_builded;	/* set to 1 when list of card is known */

@@ -92,6 +92,7 @@ struct ad5446_chip_info {
 enum ad5446_supported_device_ids {
 	ID_AD5444,
 	ID_AD5446,
+	ID_AD5541A,
 	ID_AD5542A,
 	ID_AD5543,
 	ID_AD5512A,

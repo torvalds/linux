@@ -222,6 +222,11 @@ static const struct attribute_group ad9852_attribute_group = {
 	.attrs = ad9852_attributes,
 };
 
+static const struct iio_info ad9852_info = {
+	.attrs = &ad9852_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit ad9852_probe(struct spi_device *spi)
 {
 	struct ad9852_state *st;
@@ -237,18 +242,15 @@ static int __devinit ad9852_probe(struct spi_device *spi)
 	mutex_init(&st->lock);
 	st->sdev = spi;
 
-	st->idev = iio_allocate_device();
+	st->idev = iio_allocate_device(0);
 	if (st->idev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_st;
 	}
 	st->idev->dev.parent = &spi->dev;
-	st->idev->num_interrupt_lines = 0;
-	st->idev->event_attrs = NULL;
 
-	st->idev->attrs = &ad9852_attribute_group;
+	st->idev->info = &ad9852_info;
 	st->idev->dev_data = (void *)(st);
-	st->idev->driver_module = THIS_MODULE;
 	st->idev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->idev);

@@ -1,9 +1,9 @@
 /*
- * AD9834 SPI DDS driver
+ * AD9833/AD9834/AD9837/AD9838 SPI DDS driver
  *
- * Copyright 2010 Analog Devices Inc.
+ * Copyright 2010-2011 Analog Devices Inc.
  *
- * Licensed under the GPL-2 or later.
+ * Licensed under the GPL-2.
  */
 #ifndef IIO_DDS_AD9834_H_
 #define IIO_DDS_AD9834_H_
@@ -107,6 +107,8 @@ struct ad9834_platform_data {
 enum ad9834_supported_device_ids {
 	ID_AD9833,
 	ID_AD9834,
+	ID_AD9837,
+	ID_AD9838,
 };
 
 #endif /* IIO_DDS_AD9834_H_ */

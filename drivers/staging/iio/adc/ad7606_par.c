@@ -12,13 +12,15 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
+#include "../iio.h"
 #include "ad7606.h"
 
 static int ad7606_par16_read_block(struct device *dev,
 				 int count, void *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct ad7606_state *st = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct ad7606_state *st = iio_priv(indio_dev);
 
 	insw((unsigned long) st->base_address, buf, count);
 
@@ -33,7 +35,8 @@ static int ad7606_par8_read_block(struct device *dev,
 				 int count, void *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct ad7606_state *st = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct ad7606_state *st = iio_priv(indio_dev);
 
 	insb((unsigned long) st->base_address, buf, count * 2);
 
@@ -47,7 +50,7 @@ static const struct ad7606_bus_ops ad7606_par8_bops = {
 static int __devinit ad7606_par_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	struct ad7606_state *st;
+	struct iio_dev *indio_dev;
 	void __iomem *addr;
 	resource_size_t remap_size;
 	int ret, irq;
@@ -75,17 +78,17 @@ static int __devinit ad7606_par_probe(struct platform_device *pdev)
 		goto out1;
 	}
 
-	st = ad7606_probe(&pdev->dev, irq, addr,
+	indio_dev = ad7606_probe(&pdev->dev, irq, addr,
 			  platform_get_device_id(pdev)->driver_data,
 			  remap_size > 1 ? &ad7606_par16_bops :
 			  &ad7606_par8_bops);
 
-	if (IS_ERR(st))  {
-		ret = PTR_ERR(st);
+	if (IS_ERR(indio_dev))  {
+		ret = PTR_ERR(indio_dev);
 		goto out2;
 	}
 
-	platform_set_drvdata(pdev, st);
+	platform_set_drvdata(pdev, indio_dev);
 
 	return 0;
 
@@ -99,10 +102,11 @@ out1:
 
 static int __devexit ad7606_par_remove(struct platform_device *pdev)
 {
-	struct ad7606_state *st = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct resource *res;
+	struct ad7606_state *st = iio_priv(indio_dev);
 
-	ad7606_remove(st);
+	ad7606_remove(indio_dev);
 
 	iounmap(st->base_address);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -116,18 +120,18 @@ static int __devexit ad7606_par_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int ad7606_par_suspend(struct device *dev)
 {
-	struct ad7606_state *st = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
-	ad7606_suspend(st);
+	ad7606_suspend(indio_dev);
 
 	return 0;
 }
 
 static int ad7606_par_resume(struct device *dev)
 {
-	struct ad7606_state *st = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
-	ad7606_resume(st);
+	ad7606_resume(indio_dev);
 
 	return 0;
 }

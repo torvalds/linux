@@ -204,7 +204,7 @@ static void psb_intel_sdvo_write_cmd(struct psb_intel_output *psb_intel_output,
 	struct psb_intel_sdvo_priv *sdvo_priv = psb_intel_output->dev_priv;
 	int i;
 
-	if (1) {
+	if (0) {
 		DRM_DEBUG("%s: W: %02X ", SDVO_NAME(sdvo_priv), cmd);
 		for (i = 0; i < args_len; i++)
 			printk(KERN_INFO"%02X ", ((u8 *) args)[i]);
@@ -266,7 +266,7 @@ static u8 psb_intel_sdvo_read_response(
 					 SDVO_I2C_CMD_STATUS,
 					 &status);
 
-		if (1) {
+		if (0) {
 			DRM_DEBUG("%s: R: ", SDVO_NAME(sdvo_priv));
 			for (i = 0; i < response_len; i++)
 				printk(KERN_INFO"%02X ", ((u8 *) response)[i]);

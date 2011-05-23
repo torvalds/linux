@@ -64,6 +64,8 @@ Changelog:
 
 #include "../comedidev.h"
 
+#define BOARDNAME "vmk80xx"
+
 MODULE_AUTHOR("Manuel Gebele <forensixs@gmx.de>");
 MODULE_DESCRIPTION("Velleman USB Board Low-Level Driver");
 MODULE_SUPPORTED_DEVICE("K8055/K8061 aka VM110/VM140");
@@ -305,8 +307,10 @@ exit:
 
 static int vmk80xx_check_data_link(struct vmk80xx_usb *dev)
 {
-	unsigned int tx_pipe, rx_pipe;
-	unsigned char tx[1], rx[2];
+	unsigned int tx_pipe;
+	unsigned int rx_pipe;
+	unsigned char tx[1];
+	unsigned char rx[2];
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
@@ -315,9 +319,11 @@ static int vmk80xx_check_data_link(struct vmk80xx_usb *dev)
 
 	tx[0] = VMK8061_CMD_RD_PWR_STAT;
 
-	/* Check that IC6 (PIC16F871) is powered and
+	/*
+	 * Check that IC6 (PIC16F871) is powered and
 	 * running and the data link between IC3 and
-	 * IC6 is working properly */
+	 * IC6 is working properly
+	 */
 	usb_bulk_msg(dev->udev, tx_pipe, tx, 1, NULL, dev->ep_tx->bInterval);
 	usb_bulk_msg(dev->udev, rx_pipe, rx, 2, NULL, HZ * 10);
 
@@ -326,8 +332,10 @@ static int vmk80xx_check_data_link(struct vmk80xx_usb *dev)
 
 static void vmk80xx_read_eeprom(struct vmk80xx_usb *dev, int flag)
 {
-	unsigned int tx_pipe, rx_pipe;
-	unsigned char tx[1], rx[64];
+	unsigned int tx_pipe;
+	unsigned int rx_pipe;
+	unsigned char tx[1];
+	unsigned char rx[64];
 	int cnt;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -337,8 +345,10 @@ static void vmk80xx_read_eeprom(struct vmk80xx_usb *dev, int flag)
 
 	tx[0] = VMK8061_CMD_RD_VERSION;
 
-	/* Read the firmware version info of IC3 and
-	 * IC6 from the internal EEPROM of the IC */
+	/*
+	 * Read the firmware version info of IC3 and
+	 * IC6 from the internal EEPROM of the IC
+	 */
 	usb_bulk_msg(dev->udev, tx_pipe, tx, 1, NULL, dev->ep_tx->bInterval);
 	usb_bulk_msg(dev->udev, rx_pipe, rx, 64, &cnt, HZ * 10);
 
@@ -388,7 +398,8 @@ static int vmk80xx_reset_device(struct vmk80xx_usb *dev)
 static void vmk80xx_build_int_urb(struct urb *urb, int flag)
 {
 	struct vmk80xx_usb *dev = urb->context;
-	__u8 rx_addr, tx_addr;
+	__u8 rx_addr;
+	__u8 tx_addr;
 	unsigned int pipe;
 	unsigned char *buf;
 	size_t size;
@@ -418,8 +429,10 @@ static void vmk80xx_build_int_urb(struct urb *urb, int flag)
 
 static void vmk80xx_do_bulk_msg(struct vmk80xx_usb *dev)
 {
-	__u8 tx_addr, rx_addr;
-	unsigned int tx_pipe, rx_pipe;
+	__u8 tx_addr;
+	__u8 rx_addr;
+	unsigned int tx_pipe;
+	unsigned int rx_pipe;
 	size_t size;
 
 	dbgvm("vmk80xx: %s\n", __func__);
@@ -432,8 +445,10 @@ static void vmk80xx_do_bulk_msg(struct vmk80xx_usb *dev)
 	tx_pipe = usb_sndbulkpipe(dev->udev, tx_addr);
 	rx_pipe = usb_rcvbulkpipe(dev->udev, rx_addr);
 
-	/* The max packet size attributes of the K8061
-	 * input/output endpoints are identical */
+	/*
+	 * The max packet size attributes of the K8061
+	 * input/output endpoints are identical
+	 */
 	size = le16_to_cpu(dev->ep_tx->wMaxPacketSize);
 
 	usb_bulk_msg(dev->udev, tx_pipe, dev->usb_tx_buf,
@@ -544,34 +559,40 @@ exit:
 #define DIR_IN  1
 #define DIR_OUT 2
 
-#define rudimentary_check(dir)                             \
-do {                                                       \
-	if (!dev)                                          \
-		return -EFAULT;                            \
-	if (!dev->probed)                                  \
-		return -ENODEV;                            \
-	if (!dev->attached)                                \
-		return -ENODEV;                            \
-	if ((dir) & DIR_IN) {                              \
-		if (test_bit(TRANS_IN_BUSY, &dev->flags))  \
-			return -EBUSY;                     \
-	} else {  /* DIR_OUT */                            \
-		if (test_bit(TRANS_OUT_BUSY, &dev->flags)) \
-			return -EBUSY;                     \
-	}                                                  \
-} while (0)
+static int rudimentary_check(struct vmk80xx_usb *dev, int dir)
+{
+	if (!dev)
+		return -EFAULT;
+	if (!dev->probed)
+		return -ENODEV;
+	if (!dev->attached)
+		return -ENODEV;
+	if (dir & DIR_IN) {
+		if (test_bit(TRANS_IN_BUSY, &dev->flags))
+			return -EBUSY;
+	}
+	if (dir & DIR_OUT) {
+		if (test_bit(TRANS_OUT_BUSY, &dev->flags))
+			return -EBUSY;
+	}
+
+	return 0;
+}
 
 static int vmk80xx_ai_rinsn(struct comedi_device *cdev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *dev = cdev->private;
-	int chan, reg[2];
+	int chan;
+	int reg[2];
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_IN);
+	n = rudimentary_check(dev, DIR_IN);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -615,12 +636,16 @@ static int vmk80xx_ao_winsn(struct comedi_device *cdev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *dev = cdev->private;
-	int chan, cmd, reg;
+	int chan;
+	int cmd;
+	int reg;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_OUT);
+	n = rudimentary_check(dev, DIR_OUT);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -657,12 +682,15 @@ static int vmk80xx_ao_rinsn(struct comedi_device *cdev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *dev = cdev->private;
-	int chan, reg;
+	int chan;
+	int reg;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_IN);
+	n = rudimentary_check(dev, DIR_IN);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -683,6 +711,50 @@ static int vmk80xx_ao_rinsn(struct comedi_device *cdev,
 	return n;
 }
 
+static int vmk80xx_di_bits(struct comedi_device *cdev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn, unsigned int *data)
+{
+	struct vmk80xx_usb *dev = cdev->private;
+	unsigned char *rx_buf;
+	int reg;
+	int retval;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	retval = rudimentary_check(dev, DIR_IN);
+	if (retval)
+		return retval;
+
+	down(&dev->limit_sem);
+
+	rx_buf = dev->usb_rx_buf;
+
+	if (dev->board.model == VMK8061_MODEL) {
+		reg = VMK8061_DI_REG;
+		dev->usb_tx_buf[0] = VMK8061_CMD_RD_DI;
+	} else {
+		reg = VMK8055_DI_REG;
+	}
+
+	retval = vmk80xx_read_packet(dev);
+
+	if (!retval) {
+		if (dev->board.model == VMK8055_MODEL)
+			data[1] = (((rx_buf[reg] >> 4) & 0x03) |
+				  ((rx_buf[reg] << 2) & 0x04) |
+				  ((rx_buf[reg] >> 3) & 0x18));
+		else
+			data[1] = rx_buf[reg];
+
+		retval = 2;
+	}
+
+	up(&dev->limit_sem);
+
+	return retval;
+}
+
 static int vmk80xx_di_rinsn(struct comedi_device *cdev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
@@ -690,12 +762,15 @@ static int vmk80xx_di_rinsn(struct comedi_device *cdev,
 	struct vmk80xx_usb *dev = cdev->private;
 	int chan;
 	unsigned char *rx_buf;
-	int reg, inp;
+	int reg;
+	int inp;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_IN);
+	n = rudimentary_check(dev, DIR_IN);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -705,9 +780,9 @@ static int vmk80xx_di_rinsn(struct comedi_device *cdev,
 	if (dev->board.model == VMK8061_MODEL) {
 		reg = VMK8061_DI_REG;
 		dev->usb_tx_buf[0] = VMK8061_CMD_RD_DI;
-	} else
+	} else {
 		reg = VMK8055_DI_REG;
-
+	}
 	for (n = 0; n < insn->n; n++) {
 		if (vmk80xx_read_packet(dev))
 			break;
@@ -719,7 +794,7 @@ static int vmk80xx_di_rinsn(struct comedi_device *cdev,
 		else
 			inp = rx_buf[reg];
 
-		data[n] = ((inp & (1 << chan)) > 0);
+		data[n] = (inp >> chan) & 1;
 	}
 
 	up(&dev->limit_sem);
@@ -731,16 +806,18 @@ static int vmk80xx_do_winsn(struct comedi_device *cdev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-
 	struct vmk80xx_usb *dev = cdev->private;
 	int chan;
 	unsigned char *tx_buf;
-	int reg, cmd;
+	int reg;
+	int cmd;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_OUT);
+	n = rudimentary_check(dev, DIR_OUT);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -755,21 +832,17 @@ static int vmk80xx_do_winsn(struct comedi_device *cdev,
 				tx_buf[reg] |= (1 << chan);
 			else
 				tx_buf[reg] ^= (1 << chan);
-
-			goto write_packet;
+		} else { /* VMK8061_MODEL */
+			reg = VMK8061_DO_REG;
+			if (data[n] == 1) {
+				cmd = VMK8061_CMD_SET_DO;
+				tx_buf[reg] = 1 << chan;
+			} else {
+				cmd = VMK8061_CMD_CLR_DO;
+				tx_buf[reg] = 0xff - (1 << chan);
+			}
 		}
 
-		/* VMK8061_MODEL */
-		reg = VMK8061_DO_REG;
-		if (data[n] == 1) {
-			cmd = VMK8061_CMD_SET_DO;
-			tx_buf[reg] = 1 << chan;
-		} else {
-			cmd = VMK8061_CMD_CLR_DO;
-			tx_buf[reg] = 0xff - (1 << chan);
-		}
-
-write_packet:
 		if (vmk80xx_write_packet(dev, cmd))
 			break;
 	}
@@ -784,18 +857,20 @@ static int vmk80xx_do_rinsn(struct comedi_device *cdev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *dev = cdev->private;
-	int chan, reg, mask;
+	int chan;
+	int reg;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_IN);
+	n = rudimentary_check(dev, DIR_IN);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
 
 	reg = VMK8061_DO_REG;
-	mask = 1 << chan;
 
 	dev->usb_tx_buf[0] = VMK8061_CMD_RD_DO;
 
@@ -803,7 +878,7 @@ static int vmk80xx_do_rinsn(struct comedi_device *cdev,
 		if (vmk80xx_read_packet(dev))
 			break;
 
-		data[n] = (dev->usb_rx_buf[reg] & mask) >> chan;
+		data[n] = (dev->usb_rx_buf[reg] >> chan) & 1;
 	}
 
 	up(&dev->limit_sem);
@@ -811,17 +886,87 @@ static int vmk80xx_do_rinsn(struct comedi_device *cdev,
 	return n;
 }
 
+static int vmk80xx_do_bits(struct comedi_device *cdev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn, unsigned int *data)
+{
+	struct vmk80xx_usb *dev = cdev->private;
+	unsigned char *rx_buf, *tx_buf;
+	int dir, reg, cmd;
+	int retval;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	dir = 0;
+
+	if (data[0])
+		dir |= DIR_OUT;
+
+	if (dev->board.model == VMK8061_MODEL)
+		dir |= DIR_IN;
+
+	retval = rudimentary_check(dev, dir);
+	if (retval)
+		return retval;
+
+	down(&dev->limit_sem);
+
+	rx_buf = dev->usb_rx_buf;
+	tx_buf = dev->usb_tx_buf;
+
+	if (data[0]) {
+		if (dev->board.model == VMK8055_MODEL) {
+			reg = VMK8055_DO_REG;
+			cmd = VMK8055_CMD_WRT_AD;
+		} else { /* VMK8061_MODEL */
+			reg = VMK8061_DO_REG;
+			cmd = VMK8061_CMD_DO;
+		}
+
+		tx_buf[reg] &= ~data[0];
+		tx_buf[reg] |= (data[0] & data[1]);
+
+		retval = vmk80xx_write_packet(dev, cmd);
+
+		if (retval)
+			goto out;
+	}
+
+	if (dev->board.model == VMK8061_MODEL) {
+		reg = VMK8061_DO_REG;
+		tx_buf[0] = VMK8061_CMD_RD_DO;
+
+		retval = vmk80xx_read_packet(dev);
+
+		if (!retval) {
+			data[1] = rx_buf[reg];
+			retval = 2;
+		}
+	} else {
+		data[1] = tx_buf[reg];
+		retval = 2;
+	}
+
+out:
+	up(&dev->limit_sem);
+
+	return retval;
+}
+
 static int vmk80xx_cnt_rinsn(struct comedi_device *cdev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *dev = cdev->private;
-	int chan, reg[2];
+	int chan;
+	int reg[2];
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_IN);
+	n = rudimentary_check(dev, DIR_IN);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -844,14 +989,11 @@ static int vmk80xx_cnt_rinsn(struct comedi_device *cdev,
 		if (vmk80xx_read_packet(dev))
 			break;
 
-		if (dev->board.model == VMK8055_MODEL) {
+		if (dev->board.model == VMK8055_MODEL)
 			data[n] = dev->usb_rx_buf[reg[0]];
-			continue;
-		}
-
-		/* VMK8061_MODEL */
-		data[n] = dev->usb_rx_buf[reg[0] * (chan + 1) + 1]
-		    + 256 * dev->usb_rx_buf[reg[1] * 2 + 2];
+		else /* VMK8061_MODEL */
+			data[n] = dev->usb_rx_buf[reg[0] * (chan + 1) + 1]
+			    + 256 * dev->usb_rx_buf[reg[1] * 2 + 2];
 	}
 
 	up(&dev->limit_sem);
@@ -865,12 +1007,16 @@ static int vmk80xx_cnt_cinsn(struct comedi_device *cdev,
 {
 	struct vmk80xx_usb *dev = cdev->private;
 	unsigned int insn_cmd;
-	int chan, cmd, reg;
+	int chan;
+	int cmd;
+	int reg;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_OUT);
+	n = rudimentary_check(dev, DIR_OUT);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 
@@ -890,8 +1036,9 @@ static int vmk80xx_cnt_cinsn(struct comedi_device *cdev,
 		}
 
 		dev->usb_tx_buf[reg] = 0x00;
-	} else
+	} else {
 		cmd = VMK8061_CMD_RST_CNT;
+	}
 
 	for (n = 0; n < insn->n; n++)
 		if (vmk80xx_write_packet(dev, cmd))
@@ -907,13 +1054,17 @@ static int vmk80xx_cnt_winsn(struct comedi_device *cdev,
 			     struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *dev = cdev->private;
-	unsigned long debtime, val;
-	int chan, cmd;
+	unsigned long debtime;
+	unsigned long val;
+	int chan;
+	int cmd;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_OUT);
+	n = rudimentary_check(dev, DIR_OUT);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 	chan = CR_CHAN(insn->chanspec);
@@ -957,7 +1108,9 @@ static int vmk80xx_pwm_rinsn(struct comedi_device *cdev,
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_IN);
+	n = rudimentary_check(dev, DIR_IN);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 
@@ -984,12 +1137,15 @@ static int vmk80xx_pwm_winsn(struct comedi_device *cdev,
 {
 	struct vmk80xx_usb *dev = cdev->private;
 	unsigned char *tx_buf;
-	int reg[2], cmd;
+	int reg[2];
+	int cmd;
 	int n;
 
 	dbgvm("vmk80xx: %s\n", __func__);
 
-	rudimentary_check(DIR_OUT);
+	n = rudimentary_check(dev, DIR_OUT);
+	if (n)
+		return n;
 
 	down(&dev->limit_sem);
 
@@ -1026,8 +1182,8 @@ static int vmk80xx_pwm_winsn(struct comedi_device *cdev,
 	return n;
 }
 
-static int
-vmk80xx_attach(struct comedi_device *cdev, struct comedi_devconfig *it)
+static int vmk80xx_attach(struct comedi_device *cdev,
+			  struct comedi_devconfig *it)
 {
 	int i;
 	struct vmk80xx_usb *dev;
@@ -1094,16 +1250,18 @@ vmk80xx_attach(struct comedi_device *cdev, struct comedi_devconfig *it)
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = dev->board.di_chans;
-	s->maxdata = (1 << dev->board.di_bits) - 1;
+	s->maxdata = 1;
 	s->insn_read = vmk80xx_di_rinsn;
+	s->insn_bits = vmk80xx_di_bits;
 
 	/* Digital output subdevice */
 	s = cdev->subdevices + VMK80XX_SUBD_DO;
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
 	s->n_chan = dev->board.do_chans;
-	s->maxdata = (1 << dev->board.do_bits) - 1;
+	s->maxdata = 1;
 	s->insn_write = vmk80xx_do_winsn;
+	s->insn_bits = vmk80xx_do_bits;
 
 	if (dev->board.model == VMK8061_MODEL) {
 		s->subdev_flags |= SDF_READABLE;
@@ -1179,8 +1337,8 @@ static int vmk80xx_detach(struct comedi_device *cdev)
 	return 0;
 }
 
-static int
-vmk80xx_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int vmk80xx_probe(struct usb_interface *intf,
+			 const struct usb_device_id *id)
 {
 	int i;
 	struct vmk80xx_usb *dev;
@@ -1309,8 +1467,9 @@ vmk80xx_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			vmk80xx_read_eeprom(dev, IC6_VERSION);
 			printk(KERN_INFO "comedi#: vmk80xx: %s\n",
 			       dev->fw.ic6_vers);
-		} else
+		} else {
 			dbgcm("comedi#: vmk80xx: no conn. to CPU\n");
+		}
 	}
 
 	if (dev->board.model == VMK8055_MODEL)
@@ -1322,6 +1481,8 @@ vmk80xx_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	       dev->count, dev->board.name);
 
 	mutex_unlock(&glb_mutex);
+
+	comedi_usb_auto_config(dev->udev, BOARDNAME);
 
 	return 0;
 error:
@@ -1338,6 +1499,8 @@ static void vmk80xx_disconnect(struct usb_interface *intf)
 
 	if (!dev)
 		return;
+
+	comedi_usb_auto_unconfig(dev->udev);
 
 	mutex_lock(&glb_mutex);
 	down(&dev->limit_sem);
@@ -1376,10 +1539,16 @@ static struct comedi_driver driver_vmk80xx = {
 
 static int __init vmk80xx_init(void)
 {
+	int retval;
+
 	printk(KERN_INFO "vmk80xx: version 0.8.01 "
 	       "Manuel Gebele <forensixs@gmx.de>\n");
-	usb_register(&vmk80xx_driver);
-	return comedi_driver_register(&driver_vmk80xx);
+
+	retval = comedi_driver_register(&driver_vmk80xx);
+	if (retval < 0)
+		return retval;
+
+	return usb_register(&vmk80xx_driver);
 }
 
 static void __exit vmk80xx_exit(void)

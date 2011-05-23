@@ -400,6 +400,13 @@ struct snd_sst_dbufs  {
 	struct snd_sst_buffs *obufs;
 };
 
+struct snd_sst_tuning_params {
+	__u8 type;
+	__u8 str_id;
+	__u8 size;
+	__u8 rsvd;
+	__aligned_u64 addr;
+} __attribute__ ((packed));
 /*IOCTL defined here */
 /*SST MMF IOCTLS only */
 #define SNDRV_SST_STREAM_SET_PARAMS _IOR('L', 0x00, \
@@ -428,5 +435,6 @@ struct snd_sst_dbufs  {
 /*DSP Ioctls on /dev/intel_sst_ctrl only*/
 #define SNDRV_SST_SET_ALGO	_IOW('L', 0x30,  struct snd_ppp_params *)
 #define SNDRV_SST_GET_ALGO	_IOWR('L', 0x31,  struct snd_ppp_params *)
+#define SNDRV_SST_TUNING_PARAMS	_IOW('L', 0x32,  struct snd_sst_tuning_params *)
 
 #endif /* __INTEL_SST_IOCTL_H__ */

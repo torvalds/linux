@@ -307,9 +307,9 @@ static sint recv_decache(union recv_frame *precv_frame, u8 bretry,
 	return _SUCCESS;
 }
 
-static sint sta2sta_data_frame(struct _adapter *adapter, union recv_frame *precv_frame,
-			struct sta_info **psta
-)
+static sint sta2sta_data_frame(struct _adapter *adapter,
+			       union recv_frame *precv_frame,
+			       struct sta_info **psta)
 {
 	u8 *ptr = precv_frame->u.hdr.rx_data;
 	sint ret = _SUCCESS;
@@ -373,8 +373,9 @@ static sint sta2sta_data_frame(struct _adapter *adapter, union recv_frame *precv
 	return ret;
 }
 
-static sint ap2sta_data_frame(struct _adapter *adapter, union recv_frame *precv_frame,
-		       struct sta_info **psta)
+static sint ap2sta_data_frame(struct _adapter *adapter,
+			      union recv_frame *precv_frame,
+			      struct sta_info **psta)
 {
 	u8 *ptr = precv_frame->u.hdr.rx_data;
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
@@ -431,8 +432,9 @@ static sint ap2sta_data_frame(struct _adapter *adapter, union recv_frame *precv_
 	return _SUCCESS;
 }
 
-static sint sta2ap_data_frame(struct _adapter *adapter, union recv_frame *precv_frame,
-		       struct sta_info **psta)
+static sint sta2ap_data_frame(struct _adapter *adapter,
+			      union recv_frame *precv_frame,
+			      struct sta_info **psta)
 {
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
 	struct	sta_priv *pstapriv = &adapter->stapriv;

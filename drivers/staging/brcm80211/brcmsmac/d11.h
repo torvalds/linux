@@ -17,6 +17,8 @@
 #ifndef	_D11_H
 #define	_D11_H
 
+#include <sbconfig.h>
+
 #ifndef WL_RSSI_ANT_MAX
 #define WL_RSSI_ANT_MAX		4	/* max possible rx antennas */
 #elif WL_RSSI_ANT_MAX != 4

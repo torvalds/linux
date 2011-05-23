@@ -222,7 +222,7 @@ int PSSendOps(void *arg)
         A_RELEASE_FIRMWARE(firmware);
         /* Parse the PS buffer to a global variable */
         status = AthDoParsePS(buffer,len);
-        A_FREE(buffer);
+        kfree(buffer);
     } else {
         A_RELEASE_FIRMWARE(firmware);
     }
@@ -256,7 +256,7 @@ int PSSendOps(void *arg)
                 A_RELEASE_FIRMWARE(firmware);
                 /* parse and store the Patch file contents to a global variables */
                 status = AthDoParsePatch(buffer,len);
-                A_FREE(buffer);
+                kfree(buffer);
             } else {
                 A_RELEASE_FIRMWARE(firmware);
             }
@@ -283,7 +283,7 @@ int PSSendOps(void *arg)
     &bufferToFree) == 0) {
         if(ReadPSEvent(event) == 0) { /* Exit if the status is success */
             if(bufferToFree != NULL) {
-                A_FREE(bufferToFree);
+                kfree(bufferToFree);
                 }
 	
 #ifndef HCI_TRANSPORT_SDIO
@@ -295,7 +295,7 @@ int PSSendOps(void *arg)
                goto complete;
         }
         if(bufferToFree != NULL) {
-               A_FREE(bufferToFree);
+               kfree(bufferToFree);
         }
     } else {
         status = 0;
@@ -312,13 +312,13 @@ int PSSendOps(void *arg)
         &bufferToFree) == 0) {
             if(ReadPSEvent(event) != 0) { /* Exit if the status is success */
                 if(bufferToFree != NULL) {
-                    A_FREE(bufferToFree);
+                    kfree(bufferToFree);
                     }
                    status = 1;
                     goto complete;
             }
             if(bufferToFree != NULL) {
-                   A_FREE(bufferToFree);
+                   kfree(bufferToFree);
             }
         } else {
             status = 0;
@@ -376,10 +376,10 @@ complete:
         AthFreeCommandList(&HciCmdList,numCmds);
     }
     if(path) {
-        A_FREE(path);
+        kfree(path);
     }
     if(config_path) {
-        A_FREE(config_path);
+        kfree(config_path);
     }
     return status;
 }
@@ -511,7 +511,7 @@ int write_bdaddr(struct ar3k_config_info *pConfig,u8 *bdaddr,int type)
 
     }
     if(bufferToFree != NULL) {
-        A_FREE(bufferToFree);
+        kfree(bufferToFree);
    }
     return result;
 
@@ -527,7 +527,7 @@ int ReadVersionInfo(struct ar3k_config_info *pConfig)
 
     }
     if(bufferToFree != NULL) {
-        A_FREE(bufferToFree);
+        kfree(bufferToFree);
    }
     return result;
 }
@@ -564,7 +564,7 @@ int getDeviceType(struct ar3k_config_info *pConfig, u32 *code)
 
     }
     if(bufferToFree != NULL) {
-        A_FREE(bufferToFree);
+        kfree(bufferToFree);
    }
     return result;
 }

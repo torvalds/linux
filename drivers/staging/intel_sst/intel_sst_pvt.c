@@ -203,7 +203,7 @@ int sst_create_large_msg(struct ipc_post **arg)
 		kfree(msg);
 		pr_err("kzalloc mailbox_data failed");
 		return -ENOMEM;
-	};
+	}
 	*arg = msg;
 	return 0;
 }

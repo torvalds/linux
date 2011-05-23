@@ -244,7 +244,8 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 			 struct pkt_attrib *pattrib);
 int r8712_txframes_sta_ac_pending(struct _adapter *padapter,
 				  struct pkt_attrib *pattrib);
-sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv, struct _adapter *padapter);
+sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
+			   struct _adapter *padapter);
 void _free_xmit_priv(struct xmit_priv *pxmitpriv);
 void r8712_free_xmitframe_ex(struct xmit_priv *pxmitpriv,
 			     struct xmit_frame *pxmitframe);

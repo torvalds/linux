@@ -105,21 +105,28 @@ void free_stream_context(unsigned int str_id)
 	if (!sst_validate_strid(str_id)) {
 		/* str_id is valid, so stream is alloacted */
 		stream = &sst_drv_ctx->streams[str_id];
+		if (sst_free_stream(str_id))
+			sst_clean_stream(&sst_drv_ctx->streams[str_id]);
 		if (stream->ops == STREAM_OPS_PLAYBACK ||
 				stream->ops == STREAM_OPS_PLAYBACK_DRM) {
 			sst_drv_ctx->pb_streams--;
-			if (sst_drv_ctx->pb_streams == 0)
-				sst_drv_ctx->scard_ops->power_down_pmic_pb();
+			if (sst_drv_ctx->pci_id == SST_MFLD_PCI_ID)
+				sst_drv_ctx->scard_ops->power_down_pmic_pb(
+						stream->device);
+			else {
+				if (sst_drv_ctx->pb_streams == 0)
+					sst_drv_ctx->scard_ops->
+					power_down_pmic_pb(stream->device);
+			}
 		} else if (stream->ops == STREAM_OPS_CAPTURE) {
 			sst_drv_ctx->cp_streams--;
 			if (sst_drv_ctx->cp_streams == 0)
-				sst_drv_ctx->scard_ops->power_down_pmic_cp();
+				sst_drv_ctx->scard_ops->power_down_pmic_cp(
+						stream->device);
 		}
 		if (sst_drv_ctx->pb_streams == 0
 				&& sst_drv_ctx->cp_streams == 0)
 			sst_drv_ctx->scard_ops->power_down_pmic();
-		if (sst_free_stream(str_id))
-			sst_clean_stream(&sst_drv_ctx->streams[str_id]);
 	}
 }
 
@@ -276,8 +283,8 @@ void sst_process_mad_ops(struct work_struct *work)
 		retval = sst_resume_stream(mad_ops->stream_id);
 		break;
 	case SST_SND_DROP:
-/*		retval = sst_drop_stream(mad_ops->stream_id);
-*/		break;
+		retval = sst_drop_stream(mad_ops->stream_id);
+		break;
 	case SST_SND_START:
 			pr_debug("SST Debug: start stream\n");
 		retval = sst_start_stream(mad_ops->stream_id);
@@ -519,6 +526,9 @@ int register_sst_card(struct intel_sst_card_ops *card)
 		pr_err("Repeat for registration..denied\n");
 		return -EBADRQC;
 	}
+	/* The ASoC code doesn't set scard_ops */
+	if (sst_drv_ctx->scard_ops)
+		sst_drv_ctx->scard_ops->card_status = SND_CARD_UN_INIT;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(register_sst_card);

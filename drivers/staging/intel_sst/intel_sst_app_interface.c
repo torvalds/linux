@@ -418,10 +418,6 @@ static int snd_sst_fill_kernel_list(struct stream_info *stream,
 	static int sent_offset;
 	static unsigned long sent_index;
 
-	stream_bufs = kzalloc(sizeof(*stream_bufs), GFP_KERNEL);
-	if (!stream_bufs)
-		return -ENOMEM;
-	stream_bufs->addr = sst_drv_ctx->mmap_mem;
 #ifdef CONFIG_MRST_RAR_HANDLER
 	if (stream->ops == STREAM_OPS_PLAYBACK_DRM) {
 		for (index = stream->sg_index; index < nr_segs; index++) {
@@ -448,6 +444,10 @@ static int snd_sst_fill_kernel_list(struct stream_info *stream,
 		return retval;
 	}
 #endif
+	stream_bufs = kzalloc(sizeof(*stream_bufs), GFP_KERNEL);
+	if (!stream_bufs)
+		return -ENOMEM;
+	stream_bufs->addr = sst_drv_ctx->mmap_mem;
 	mmap_len = sst_drv_ctx->mmap_len;
 	stream_bufs->addr = sst_drv_ctx->mmap_mem;
 	bufp = stream->cur_ptr;
@@ -961,6 +961,34 @@ free_mem:
 	return retval;
 }
 
+
+int sst_ioctl_tuning_params(unsigned long arg)
+{
+	struct snd_sst_tuning_params params;
+	struct ipc_post *msg;
+
+	if (copy_from_user(&params, (void __user *)arg, sizeof(params)))
+		return -EFAULT;
+	if (params.size > SST_MAILBOX_SIZE)
+		return -ENOMEM;
+	pr_debug("Parameter %d, Stream %d, Size %d\n", params.type,
+			params.str_id, params.size);
+	if (sst_create_large_msg(&msg))
+		return -ENOMEM;
+
+	sst_fill_header(&msg->header, IPC_IA_TUNING_PARAMS, 1, params.str_id);
+	msg->header.part.data = sizeof(u32) + sizeof(params) + params.size;
+	memcpy(msg->mailbox_data, &msg->header.full, sizeof(u32));
+	memcpy(msg->mailbox_data + sizeof(u32), &params, sizeof(params));
+	if (copy_from_user(msg->mailbox_data + sizeof(params),
+			(void __user *)(unsigned long)params.addr,
+			params.size)) {
+		kfree(msg->mailbox_data);
+		kfree(msg);
+		return -EFAULT;
+	}
+	return sst_send_algo_ipc(&msg);
+}
 /**
  * intel_sst_ioctl - receives the device ioctl's
  * @file_ptr:pointer to file
@@ -1412,6 +1440,15 @@ free_iobufs:
 		}
 		retval = intel_sst_ioctl_dsp(cmd, arg);
 		break;
+
+	case _IOC_NR(SNDRV_SST_TUNING_PARAMS):
+		if (minor != AM_MODULE) {
+			retval = -EBADRQC;
+			break;
+		}
+		retval = sst_ioctl_tuning_params(arg);
+		break;
+
 	default:
 		retval = -EINVAL;
 	}

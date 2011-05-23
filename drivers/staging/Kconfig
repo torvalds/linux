@@ -67,10 +67,6 @@ source "drivers/staging/echo/Kconfig"
 
 source "drivers/staging/brcm80211/Kconfig"
 
-source "drivers/staging/rt2860/Kconfig"
-
-source "drivers/staging/rt2870/Kconfig"
-
 source "drivers/staging/comedi/Kconfig"
 
 source "drivers/staging/olpc_dcon/Kconfig"
@@ -176,6 +172,10 @@ source "drivers/staging/ste_rmi4/Kconfig"
 source "drivers/staging/gma500/Kconfig"
 
 source "drivers/staging/altera-stapl/Kconfig"
+
+source "drivers/staging/mei/Kconfig"
+
+source "drivers/staging/nvec/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
