@@ -40,10 +40,10 @@ enum koneplus_control_values {
 	KONEPLUS_CONTROL_REQUEST_STATUS_WAIT = 3,
 };
 
-struct koneplus_startup_profile {
-	uint8_t command; /* KONEPLUS_COMMAND_STARTUP_PROFILE */
+struct koneplus_actual_profile {
+	uint8_t command; /* KONEPLUS_COMMAND_ACTUAL_PROFILE */
 	uint8_t size; /* always 3 */
-	uint8_t startup_profile; /* Range 0-4! */
+	uint8_t actual_profile; /* Range 0-4! */
 } __attribute__ ((__packed__));
 
 struct koneplus_profile_settings {
@@ -132,7 +132,7 @@ struct koneplus_tcu_image {
 
 enum koneplus_commands {
 	KONEPLUS_COMMAND_CONTROL = 0x4,
-	KONEPLUS_COMMAND_STARTUP_PROFILE = 0x5,
+	KONEPLUS_COMMAND_ACTUAL_PROFILE = 0x5,
 	KONEPLUS_COMMAND_PROFILE_SETTINGS = 0x6,
 	KONEPLUS_COMMAND_PROFILE_BUTTONS = 0x7,
 	KONEPLUS_COMMAND_MACRO = 0x8,
@@ -145,7 +145,7 @@ enum koneplus_commands {
 
 enum koneplus_usb_commands {
 	KONEPLUS_USB_COMMAND_CONTROL = 0x304,
-	KONEPLUS_USB_COMMAND_STARTUP_PROFILE = 0x305,
+	KONEPLUS_USB_COMMAND_ACTUAL_PROFILE = 0x305,
 	KONEPLUS_USB_COMMAND_PROFILE_SETTINGS = 0x306,
 	KONEPLUS_USB_COMMAND_PROFILE_BUTTONS = 0x307,
 	KONEPLUS_USB_COMMAND_MACRO = 0x308,
@@ -215,7 +215,6 @@ struct koneplus_device {
 
 	struct mutex koneplus_lock;
 
-	int startup_profile;
 	struct koneplus_info info;
 	struct koneplus_profile_settings profile_settings[5];
 	struct koneplus_profile_buttons profile_buttons[5];
