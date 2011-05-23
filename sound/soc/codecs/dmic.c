@@ -39,7 +39,31 @@ static struct snd_soc_dai_driver dmic_dai = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_dmic = {};
+static const struct snd_soc_dapm_widget dmic_dapm_widgets[] = {
+	SND_SOC_DAPM_AIF_OUT("DMIC AIF", "Capture", 0,
+			     SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_INPUT("DMic"),
+};
+
+static const struct snd_soc_dapm_route intercon[] = {
+	{"DMIC AIF", NULL, "DMic"},
+};
+
+static int dmic_probe(struct snd_soc_codec *codec)
+{
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
+	snd_soc_dapm_new_controls(dapm, dmic_dapm_widgets,
+				  ARRAY_SIZE(dmic_dapm_widgets));
+        snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
+	snd_soc_dapm_new_widgets(dapm);
+
+	return 0;
+}
+
+static struct snd_soc_codec_driver soc_dmic = {
+	.probe	= dmic_probe,
+};
 
 static int __devinit dmic_dev_probe(struct platform_device *pdev)
 {

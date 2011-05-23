@@ -112,6 +112,10 @@
 #include <sound/ac97_codec.h>
 #include <sound/initval.h>
 
+#ifdef CONFIG_SND_ES1968_RADIO
+#include <sound/tea575x-tuner.h>
+#endif
+
 #define CARD_NAME "ESS Maestro1/2"
 #define DRIVER_NAME "ES1968"
 
@@ -552,6 +556,10 @@ struct es1968 {
 	struct snd_kcontrol *master_volume;
 	spinlock_t ac97_lock;
 	struct tasklet_struct hwvol_tq;
+#endif
+
+#ifdef CONFIG_SND_ES1968_RADIO
+	struct snd_tea575x tea;
 #endif
 };
 
@@ -2571,6 +2579,63 @@ static int __devinit snd_es1968_input_register(struct es1968 *chip)
 }
 #endif /* CONFIG_SND_ES1968_INPUT */
 
+#ifdef CONFIG_SND_ES1968_RADIO
+#define GPIO_DATA	0x60
+#define IO_MASK		4      /* mask      register offset from GPIO_DATA
+				bits 1=unmask write to given bit */
+#define IO_DIR		8      /* direction register offset from GPIO_DATA
+				bits 0/1=read/write direction */
+/* mask bits for GPIO lines */
+#define STR_DATA	0x0040 /* GPIO6 */
+#define STR_CLK		0x0080 /* GPIO7 */
+#define STR_WREN	0x0100 /* GPIO8 */
+#define STR_MOST	0x0200 /* GPIO9 */
+
+static void snd_es1968_tea575x_set_pins(struct snd_tea575x *tea, u8 pins)
+{
+	struct es1968 *chip = tea->private_data;
+	unsigned long io = chip->io_port + GPIO_DATA;
+	u16 val = 0;
+
+	val |= (pins & TEA575X_DATA) ? STR_DATA : 0;
+	val |= (pins & TEA575X_CLK)  ? STR_CLK  : 0;
+	val |= (pins & TEA575X_WREN) ? STR_WREN : 0;
+
+	outw(val, io);
+}
+
+static u8 snd_es1968_tea575x_get_pins(struct snd_tea575x *tea)
+{
+	struct es1968 *chip = tea->private_data;
+	unsigned long io = chip->io_port + GPIO_DATA;
+	u16 val = inw(io);
+
+	return  (val & STR_DATA) ? TEA575X_DATA : 0 |
+		(val & STR_MOST) ? TEA575X_MOST : 0;
+}
+
+static void snd_es1968_tea575x_set_direction(struct snd_tea575x *tea, bool output)
+{
+	struct es1968 *chip = tea->private_data;
+	unsigned long io = chip->io_port + GPIO_DATA;
+	u16 odir = inw(io + IO_DIR);
+
+	if (output) {
+		outw(~(STR_DATA | STR_CLK | STR_WREN), io + IO_MASK);
+		outw(odir | STR_DATA | STR_CLK | STR_WREN, io + IO_DIR);
+	} else {
+		outw(~(STR_CLK | STR_WREN | STR_DATA | STR_MOST), io + IO_MASK);
+		outw((odir & ~(STR_DATA | STR_MOST)) | STR_CLK | STR_WREN, io + IO_DIR);
+	}
+}
+
+static struct snd_tea575x_ops snd_es1968_tea_ops = {
+	.set_pins = snd_es1968_tea575x_set_pins,
+	.get_pins = snd_es1968_tea575x_get_pins,
+	.set_direction = snd_es1968_tea575x_set_direction,
+};
+#endif
+
 static int snd_es1968_free(struct es1968 *chip)
 {
 #ifdef CONFIG_SND_ES1968_INPUT
@@ -2584,6 +2649,10 @@ static int snd_es1968_free(struct es1968 *chip)
 		outw(1, chip->io_port + 0x04); /* clear WP interrupts */
 		outw(0, chip->io_port + ESM_PORT_HOST_IRQ); /* disable IRQ */
 	}
+
+#ifdef CONFIG_SND_ES1968_RADIO
+	snd_tea575x_exit(&chip->tea);
+#endif
 
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
@@ -2722,6 +2791,15 @@ static int __devinit snd_es1968_create(struct snd_card *card,
 	}
 
 	snd_card_set_dev(card, &pci->dev);
+
+#ifdef CONFIG_SND_ES1968_RADIO
+	chip->tea.private_data = chip;
+	chip->tea.ops = &snd_es1968_tea_ops;
+	strlcpy(chip->tea.card, "SF64-PCE2", sizeof(chip->tea.card));
+	sprintf(chip->tea.bus_info, "PCI:%s", pci_name(pci));
+	if (!snd_tea575x_init(&chip->tea))
+		printk(KERN_INFO "es1968: detected TEA575x radio\n");
+#endif
 
 	*chip_ret = chip;
 

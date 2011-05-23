@@ -4269,6 +4269,13 @@ M:	Tim Hockin <thockin@hockin.org>
 S:	Maintained
 F:	drivers/net/natsemi.c
 
+NATIVE INSTRUMENTS USB SOUND INTERFACE DRIVER
+M:	Daniel Mack <zonque@gmail.com>
+S:	Maintained
+L:	alsa-devel@alsa-project.org
+W:	http://www.native-instruments.com
+F:	sound/usb/caiaq/
+
 NCP FILESYSTEM
 M:	Petr Vandrovec <petr@vandrovec.name>
 S:	Odd Fixes
@@ -5868,7 +5875,7 @@ F:	include/sound/
 F:	sound/
 
 SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)
-M:	Liam Girdwood <lrg@slimlogic.co.uk>
+M:	Liam Girdwood <lrg@ti.com>
 M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound-2.6.git
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
@@ -6119,7 +6126,7 @@ F:	drivers/mmc/host/tifm_sd.c
 F:	include/linux/tifm.h
 
 TI TWL4030 SERIES SOC CODEC DRIVER
-M:	Peter Ujfalusi <peter.ujfalusi@nokia.com>
+M:	Peter Ujfalusi <peter.ujfalusi@ti.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	sound/soc/codecs/twl4030*
@@ -6763,7 +6770,7 @@ F:	drivers/scsi/vmw_pvscsi.c
 F:	drivers/scsi/vmw_pvscsi.h
 
 VOLTAGE AND CURRENT REGULATOR FRAMEWORK
-M:	Liam Girdwood <lrg@slimlogic.co.uk>
+M:	Liam Girdwood <lrg@ti.com>
 M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
 W:	http://opensource.wolfsonmicro.com/node/15
 W:	http://www.slimlogic.co.uk/?p=48

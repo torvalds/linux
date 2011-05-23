@@ -534,6 +534,14 @@ config SND_ES1968_INPUT
 	  If you say N the buttons will directly control the master volume.
 	  It is recommended to say Y.
 
+config SND_ES1968_RADIO
+	bool "Enable TEA5757 radio tuner support for es1968"
+	depends on SND_ES1968
+	depends on VIDEO_V4L2=y || VIDEO_V4L2=SND_ES1968
+	help
+	  Say Y here to include support for TEA5757 radio tuner integrated on
+	  some MediaForte cards (e.g. SF64-PCE2).
+
 config SND_FM801
 	tristate "ForteMedia FM801"
 	select SND_OPL3_LIB
@@ -552,13 +560,13 @@ config SND_FM801_TEA575X_BOOL
 	depends on VIDEO_V4L2=y || VIDEO_V4L2=SND_FM801
 	help
 	  Say Y here to include support for soundcards based on the ForteMedia
-	  FM801 chip with a TEA5757 tuner connected to GPIO1-3 pins (Media
-	  Forte SF256-PCS-02) into the snd-fm801 driver.
+	  FM801 chip with a TEA5757 tuner (MediaForte SF256-PCS, SF256-PCP and
+	  SF64-PCR) into the snd-fm801 driver.
 
-config SND_FM801_TEA575X
+config SND_TEA575X
 	tristate
-	depends on SND_FM801_TEA575X_BOOL
-	default SND_FM801
+	depends on SND_FM801_TEA575X_BOOL || SND_ES1968_RADIO
+	default SND_FM801 || SND_ES1968
 
 source "sound/pci/hda/Kconfig"
 
@@ -657,6 +665,15 @@ config SND_KORG1212
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-korg1212.
+
+config SND_LOLA
+	tristate "Digigram Lola"
+	select SND_PCM
+	help
+	  Say Y to include support for Digigram Lola boards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-lola.
 
 config SND_LX6464ES
 	tristate "Digigram LX6464ES"

@@ -200,8 +200,8 @@ static void hpi_read_block(struct dsp_obj *pdo, u32 address, u32 *pdata,
 static void subsys_create_adapter(struct hpi_message *phm,
 	struct hpi_response *phr);
 
-static void subsys_delete_adapter(struct hpi_message *phm,
-	struct hpi_response *phr);
+static void adapter_delete(struct hpi_adapter_obj *pao,
+	struct hpi_message *phm, struct hpi_response *phr);
 
 static void adapter_get_asserts(struct hpi_adapter_obj *pao,
 	struct hpi_message *phm, struct hpi_response *phr);
@@ -221,9 +221,6 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr)
 	switch (phm->function) {
 	case HPI_SUBSYS_CREATE_ADAPTER:
 		subsys_create_adapter(phm, phr);
-		break;
-	case HPI_SUBSYS_DELETE_ADAPTER:
-		subsys_delete_adapter(phm, phr);
 		break;
 	default:
 		phr->error = HPI_ERROR_INVALID_FUNC;
@@ -277,6 +274,10 @@ static void adapter_message(struct hpi_adapter_obj *pao,
 	switch (phm->function) {
 	case HPI_ADAPTER_GET_ASSERT:
 		adapter_get_asserts(pao, phm, phr);
+		break;
+
+	case HPI_ADAPTER_DELETE:
+		adapter_delete(pao, phm, phr);
 		break;
 
 	default:
@@ -333,26 +334,22 @@ void HPI_6000(struct hpi_message *phm, struct hpi_response *phr)
 {
 	struct hpi_adapter_obj *pao = NULL;
 
-	/* subsytem messages get executed by every HPI. */
-	/* All other messages are ignored unless the adapter index matches */
-	/* an adapter in the HPI */
-	/*HPI_DEBUG_LOG(DEBUG, "O %d,F %x\n", phm->wObject, phm->wFunction); */
-
-	/* if Dsp has crashed then do not communicate with it any more */
 	if (phm->object != HPI_OBJ_SUBSYSTEM) {
 		pao = hpi_find_adapter(phm->adapter_index);
 		if (!pao) {
-			HPI_DEBUG_LOG(DEBUG,
-				" %d,%d refused, for another HPI?\n",
-				phm->object, phm->function);
+			hpi_init_response(phr, phm->object, phm->function,
+				HPI_ERROR_BAD_ADAPTER_NUMBER);
+			HPI_DEBUG_LOG(DEBUG, "invalid adapter index: %d \n",
+				phm->adapter_index);
 			return;
 		}
 
+		/* Don't even try to communicate with crashed DSP */
 		if (pao->dsp_crashed >= 10) {
 			hpi_init_response(phr, phm->object, phm->function,
 				HPI_ERROR_DSP_HARDWARE);
-			HPI_DEBUG_LOG(DEBUG, " %d,%d dsp crashed.\n",
-				phm->object, phm->function);
+			HPI_DEBUG_LOG(DEBUG, "adapter %d dsp crashed\n",
+				phm->adapter_index);
 			return;
 		}
 	}
@@ -463,15 +460,9 @@ static void subsys_create_adapter(struct hpi_message *phm,
 	phr->error = 0;
 }
 
-static void subsys_delete_adapter(struct hpi_message *phm,
-	struct hpi_response *phr)
+static void adapter_delete(struct hpi_adapter_obj *pao,
+	struct hpi_message *phm, struct hpi_response *phr)
 {
-	struct hpi_adapter_obj *pao = NULL;
-
-	pao = hpi_find_adapter(phm->obj_index);
-	if (!pao)
-		return;
-
 	delete_adapter_obj(pao);
 	hpi_delete_adapter(pao);
 	phr->error = 0;

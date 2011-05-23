@@ -249,10 +249,13 @@ static int sst_platform_open(struct snd_pcm_substream *substream)
 		return -ENOMEM;
 	}
 	stream->sstdrv_ops->vendor_id = MSIC_VENDOR_ID;
+	stream->sstdrv_ops->module_name = SST_CARD_NAMES;
 	/* registering with SST driver to get access to SST APIs to use */
 	ret_val = register_sst_card(stream->sstdrv_ops);
 	if (ret_val) {
 		pr_err("sst: sst card registration failed\n");
+		kfree(stream->sstdrv_ops);
+		kfree(stream);
 		return ret_val;
 	}
 	runtime->private_data = stream;
@@ -270,6 +273,7 @@ static int sst_platform_close(struct snd_pcm_substream *substream)
 	str_id = stream->stream_info.str_id;
 	if (str_id)
 		ret_val = stream->sstdrv_ops->pcm_control->close(str_id);
+	unregister_sst_card(stream->sstdrv_ops);
 	kfree(stream->sstdrv_ops);
 	kfree(stream);
 	return ret_val;
