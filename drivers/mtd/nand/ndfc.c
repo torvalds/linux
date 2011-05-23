@@ -42,9 +42,7 @@ struct ndfc_controller {
 	struct nand_chip chip;
 	int chip_select;
 	struct nand_hw_control ndfc_control;
-#ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *parts;
-#endif
 };
 
 static struct ndfc_controller ndfc_ctrl[NDFC_MAX_CS];
@@ -161,12 +159,10 @@ static int ndfc_verify_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 static int ndfc_chip_init(struct ndfc_controller *ndfc,
 			  struct device_node *node)
 {
-#ifdef CONFIG_MTD_PARTITIONS
 #ifdef CONFIG_MTD_CMDLINE_PARTS
 	static const char *part_types[] = { "cmdlinepart", NULL };
 #else
 	static const char *part_types[] = { NULL };
-#endif
 #endif
 	struct device_node *flash_np;
 	struct nand_chip *chip = &ndfc->chip;
@@ -208,25 +204,18 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 	if (ret)
 		goto err;
 
-#ifdef CONFIG_MTD_PARTITIONS
 	ret = parse_mtd_partitions(&ndfc->mtd, part_types, &ndfc->parts, 0);
 	if (ret < 0)
 		goto err;
 
-#ifdef CONFIG_MTD_OF_PARTS
 	if (ret == 0) {
 		ret = of_mtd_parse_partitions(&ndfc->ofdev->dev, flash_np,
 					      &ndfc->parts);
 		if (ret < 0)
 			goto err;
 	}
-#endif
 
-	if (ret > 0)
-		ret = add_mtd_partitions(&ndfc->mtd, ndfc->parts, ret);
-	else
-#endif
-		ret = add_mtd_device(&ndfc->mtd);
+	ret = mtd_device_register(&ndfc->mtd, ndfc->parts, ret);
 
 err:
 	of_node_put(flash_np);
