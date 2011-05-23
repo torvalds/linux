@@ -1122,6 +1122,7 @@ static bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
 	req->ioprio = ioprio_best(req->ioprio, bio_prio(bio));
 
 	drive_stat_acct(req, 0);
+	elv_bio_merged(q, req, bio);
 	return true;
 }
 
@@ -1155,6 +1156,7 @@ static bool bio_attempt_front_merge(struct request_queue *q,
 	req->ioprio = ioprio_best(req->ioprio, bio_prio(bio));
 
 	drive_stat_acct(req, 0);
+	elv_bio_merged(q, req, bio);
 	return true;
 }
 
