@@ -248,12 +248,6 @@ static int create_image(int platform_mode)
 	if (error)
 		return error;
 
-	/* At this point, dpm_suspend_start() has been called, but *not*
-	 * dpm_suspend_noirq(). We *must* call dpm_suspend_noirq() now.
-	 * Otherwise, drivers for some devices (e.g. interrupt controllers)
-	 * become desynchronized with the actual state of the hardware
-	 * at resume time, and evil weirdness ensues.
-	 */
 	error = dpm_suspend_noirq(PMSG_FREEZE);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to power down, "
@@ -297,9 +291,6 @@ static int create_image(int platform_mode)
 
  Power_up:
 	syscore_resume();
-	/* NOTE:  dpm_resume_noirq() is just a resume() for devices
-	 * that suspended with irqs off ... no overall powerup.
-	 */
 
  Enable_irqs:
 	local_irq_enable();
@@ -416,24 +407,26 @@ static int resume_target_kernel(bool platform_mode)
 	if (error)
 		goto Enable_irqs;
 
-	/* We'll ignore saved state, but this gets preempt count (etc) right */
 	save_processor_state();
 	error = restore_highmem();
 	if (!error) {
 		error = swsusp_arch_resume();
 		/*
 		 * The code below is only ever reached in case of a failure.
-		 * Otherwise execution continues at place where
-		 * swsusp_arch_suspend() was called
+		 * Otherwise, execution continues at the place where
+		 * swsusp_arch_suspend() was called.
 		 */
 		BUG_ON(!error);
-		/* This call to restore_highmem() undos the previous one */
+		/*
+		 * This call to restore_highmem() reverts the changes made by
+		 * the previous one.
+		 */
 		restore_highmem();
 	}
 	/*
 	 * The only reason why swsusp_arch_resume() can fail is memory being
 	 * very tight, so we have to free it as soon as we can to avoid
-	 * subsequent failures
+	 * subsequent failures.
 	 */
 	swsusp_free();
 	restore_processor_state();
