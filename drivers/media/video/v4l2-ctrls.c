@@ -805,6 +805,10 @@ static int validate_new_int(const struct v4l2_ctrl *ctrl, s32 *pval)
 			return -EINVAL;
 		return 0;
 
+	case V4L2_CTRL_TYPE_BITMASK:
+		*pval &= ctrl->maximum;
+		return 0;
+
 	case V4L2_CTRL_TYPE_BUTTON:
 	case V4L2_CTRL_TYPE_CTRL_CLASS:
 		*pval = 0;
@@ -825,6 +829,7 @@ static int validate_new(const struct v4l2_ctrl *ctrl, struct v4l2_ext_control *c
 	case V4L2_CTRL_TYPE_INTEGER:
 	case V4L2_CTRL_TYPE_BOOLEAN:
 	case V4L2_CTRL_TYPE_MENU:
+	case V4L2_CTRL_TYPE_BITMASK:
 	case V4L2_CTRL_TYPE_BUTTON:
 	case V4L2_CTRL_TYPE_CTRL_CLASS:
 		return validate_new_int(ctrl, &c->value);
@@ -1063,10 +1068,14 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 
 	/* Sanity checks */
 	if (id == 0 || name == NULL || id >= V4L2_CID_PRIVATE_BASE ||
-	    max < min ||
 	    (type == V4L2_CTRL_TYPE_INTEGER && step == 0) ||
+	    (type == V4L2_CTRL_TYPE_BITMASK && max == 0) ||
 	    (type == V4L2_CTRL_TYPE_MENU && qmenu == NULL) ||
 	    (type == V4L2_CTRL_TYPE_STRING && max == 0)) {
+		handler_set_err(hdl, -ERANGE);
+		return NULL;
+	}
+	if (type != V4L2_CTRL_TYPE_BITMASK && max < min) {
 		handler_set_err(hdl, -ERANGE);
 		return NULL;
 	}
@@ -1074,6 +1083,10 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 	     type == V4L2_CTRL_TYPE_MENU ||
 	     type == V4L2_CTRL_TYPE_BOOLEAN) &&
 	    (def < min || def > max)) {
+		handler_set_err(hdl, -ERANGE);
+		return NULL;
+	}
+	if (type == V4L2_CTRL_TYPE_BITMASK && ((def & ~max) || min || step)) {
 		handler_set_err(hdl, -ERANGE);
 		return NULL;
 	}
@@ -1356,6 +1369,9 @@ static void log_ctrl(const struct v4l2_ctrl *ctrl,
 		break;
 	case V4L2_CTRL_TYPE_MENU:
 		printk(KERN_CONT "%s", ctrl->qmenu[ctrl->cur.val]);
+		break;
+	case V4L2_CTRL_TYPE_BITMASK:
+		printk(KERN_CONT "0x%08x", ctrl->cur.val);
 		break;
 	case V4L2_CTRL_TYPE_INTEGER64:
 		printk(KERN_CONT "%lld", ctrl->cur.val64);
