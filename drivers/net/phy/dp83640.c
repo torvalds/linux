@@ -1092,7 +1092,7 @@ MODULE_LICENSE("GPL");
 module_init(dp83640_init);
 module_exit(dp83640_exit);
 
-static struct mdio_device_id dp83640_tbl[] = {
+static struct mdio_device_id __maybe_unused dp83640_tbl[] = {
 	{ DP83640_PHY_ID, 0xfffffff0 },
 	{ }
 };
