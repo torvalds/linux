@@ -74,6 +74,7 @@ obj-$(CONFIG_SPARC64_SMP) += cpumap.o
 obj-y                     += dma.o
 
 obj-$(CONFIG_PCIC_PCI)    += pcic.o
+obj-$(CONFIG_LEON_PCI)    += leon_pci.o
 
 obj-$(CONFIG_SMP)         += trampoline_$(BITS).o smp_$(BITS).o
 obj-$(CONFIG_SPARC32_SMP) += sun4m_smp.o sun4d_smp.o leon_smp.o
