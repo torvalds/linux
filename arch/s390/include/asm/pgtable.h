@@ -373,10 +373,6 @@ extern unsigned long VMALLOC_START;
 #define _ASCE_USER_BITS		(_ASCE_SPACE_SWITCH | _ASCE_PRIVATE_SPACE | \
 				 _ASCE_ALT_EVENT)
 
-/* Bits int the storage key */
-#define _PAGE_CHANGED    0x02          /* HW changed bit                   */
-#define _PAGE_REFERENCED 0x04          /* HW referenced bit                */
-
 /*
  * Page protection definitions.
  */
@@ -555,8 +551,6 @@ static inline void rcp_unlock(pte_t *ptep)
 #endif
 }
 
-/* forward declaration for SetPageUptodate in page-flags.h*/
-static inline void page_clear_dirty(struct page *page, int mapped);
 #include <linux/page-flags.h>
 
 static inline void ptep_rcp_copy(pte_t *ptep)
@@ -566,7 +560,7 @@ static inline void ptep_rcp_copy(pte_t *ptep)
 	unsigned int skey;
 	unsigned long *pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
 
-	skey = page_get_storage_key(page_to_phys(page));
+	skey = page_get_storage_key(pte_val(*ptep) >> PAGE_SHIFT);
 	if (skey & _PAGE_CHANGED) {
 		set_bit_simple(RCP_GC_BIT, pgste);
 		set_bit_simple(KVM_UD_BIT, pgste);
@@ -760,6 +754,7 @@ static inline int kvm_s390_test_and_clear_page_dirty(struct mm_struct *mm,
 {
 	int dirty;
 	unsigned long *pgste;
+	unsigned long pfn;
 	struct page *page;
 	unsigned int skey;
 
@@ -767,8 +762,9 @@ static inline int kvm_s390_test_and_clear_page_dirty(struct mm_struct *mm,
 		return -EINVAL;
 	rcp_lock(ptep);
 	pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
-	page = virt_to_page(pte_val(*ptep));
-	skey = page_get_storage_key(page_to_phys(page));
+	pfn = pte_val(*ptep) >> PAGE_SHIFT;
+	page = pfn_to_page(pfn);
+	skey = page_get_storage_key(pfn);
 	if (skey & _PAGE_CHANGED) {
 		set_bit_simple(RCP_GC_BIT, pgste);
 		set_bit_simple(KVM_UD_BIT, pgste);
@@ -779,7 +775,7 @@ static inline int kvm_s390_test_and_clear_page_dirty(struct mm_struct *mm,
 	}
 	dirty = test_and_clear_bit_simple(KVM_UD_BIT, pgste);
 	if (skey & _PAGE_CHANGED)
-		page_clear_dirty(page, 1);
+		page_set_storage_key(pfn, skey & ~_PAGE_CHANGED, 1);
 	rcp_unlock(ptep);
 	return dirty;
 }
@@ -790,16 +786,16 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 					    unsigned long addr, pte_t *ptep)
 {
 #ifdef CONFIG_PGSTE
-	unsigned long physpage;
+	unsigned long pfn;
 	int young;
 	unsigned long *pgste;
 
 	if (!vma->vm_mm->context.has_pgste)
 		return 0;
-	physpage = pte_val(*ptep) & PAGE_MASK;
+	pfn = pte_val(*ptep) >> PAGE_SHIFT;
 	pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
 
-	young = ((page_get_storage_key(physpage) & _PAGE_REFERENCED) != 0);
+	young = ((page_get_storage_key(pfn) & _PAGE_REFERENCED) != 0);
 	rcp_lock(ptep);
 	if (young)
 		set_bit_simple(RCP_GR_BIT, pgste);
@@ -935,42 +931,6 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 	}								\
 	__changed;							\
 })
-
-/*
- * Test and clear dirty bit in storage key.
- * We can't clear the changed bit atomically. This is a potential
- * race against modification of the referenced bit. This function
- * should therefore only be called if it is not mapped in any
- * address space.
- */
-#define __HAVE_ARCH_PAGE_TEST_DIRTY
-static inline int page_test_dirty(struct page *page)
-{
-	return (page_get_storage_key(page_to_phys(page)) & _PAGE_CHANGED) != 0;
-}
-
-#define __HAVE_ARCH_PAGE_CLEAR_DIRTY
-static inline void page_clear_dirty(struct page *page, int mapped)
-{
-	page_set_storage_key(page_to_phys(page), PAGE_DEFAULT_KEY, mapped);
-}
-
-/*
- * Test and clear referenced bit in storage key.
- */
-#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
-static inline int page_test_and_clear_young(struct page *page)
-{
-	unsigned long physpage = page_to_phys(page);
-	int ccode;
-
-	asm volatile(
-		"	rrbe	0,%1\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (ccode) : "a" (physpage) : "cc" );
-	return ccode & 2;
-}
 
 /*
  * Conversion functions: convert a page and protection to a page entry,
