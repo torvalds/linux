@@ -1392,15 +1392,12 @@ tape_3590_print_era_msg(struct tape_device *device, struct irb *irb)
 static int tape_3590_crypt_error(struct tape_device *device,
 				 struct tape_request *request, struct irb *irb)
 {
-	u8 cu_rc, ekm_rc1;
+	u8 cu_rc;
 	u16 ekm_rc2;
-	u32 drv_rc;
 	char *sense;
 
 	sense = ((struct tape_3590_sense *) irb->ecw)->fmt.data;
 	cu_rc = sense[0];
-	drv_rc = *((u32*) &sense[5]) & 0xffffff;
-	ekm_rc1 = sense[9];
 	ekm_rc2 = *((u16*) &sense[10]);
 	if ((cu_rc == 0) && (ekm_rc2 == 0xee31))
 		/* key not defined on EKM */
