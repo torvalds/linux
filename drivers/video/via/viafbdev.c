@@ -348,8 +348,9 @@ static int viafb_pan_display(struct fb_var_screeninfo *var,
 	struct fb_info *info)
 {
 	struct viafb_par *viapar = info->par;
-	u32 vram_addr = (var->yoffset * var->xres_virtual + var->xoffset)
-		* (var->bits_per_pixel / 8) + viapar->vram_addr;
+	u32 vram_addr = viapar->vram_addr
+		+ var->yoffset * info->fix.line_length
+		+ var->xoffset * info->var.bits_per_pixel / 8;
 
 	DEBUG_MSG(KERN_DEBUG "viafb_pan_display, address = %d\n", vram_addr);
 	if (!viafb_dual_fb) {
