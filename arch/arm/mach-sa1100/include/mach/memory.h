@@ -14,18 +14,8 @@
  */
 #define PLAT_PHYS_OFFSET	UL(0xc0000000)
 
-#ifndef __ASSEMBLY__
-
 #ifdef CONFIG_SA1111
-void sa1111_adjust_zones(unsigned long *size, unsigned long *holes);
-
-#define arch_adjust_zones(size, holes) \
-	sa1111_adjust_zones(size, holes)
-
-#define ISA_DMA_THRESHOLD	(PHYS_OFFSET + SZ_1M - 1)
-#define MAX_DMA_ADDRESS		(PAGE_OFFSET + SZ_1M)
-
-#endif
+#define ARM_DMA_ZONE_SIZE	SZ_1M
 #endif
 
 /*

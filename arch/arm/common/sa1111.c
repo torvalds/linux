@@ -185,14 +185,6 @@ static struct sa1111_dev_info sa1111_devices[] = {
 	},
 };
 
-void __init sa1111_adjust_zones(unsigned long *size, unsigned long *holes)
-{
-	unsigned int sz = SZ_1M >> PAGE_SHIFT;
-
-	size[1] = size[0] - sz;
-	size[0] = sz;
-}
-
 /*
  * SA1111 interrupt support.  Since clearing an IRQ while there are
  * active IRQs causes the interrupt output to pulse, the upper levels

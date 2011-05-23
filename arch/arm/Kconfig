@@ -381,16 +381,6 @@ config ARCH_MXS
 	help
 	  Support for Freescale MXS-based family of processors
 
-config ARCH_STMP3XXX
-	bool "Freescale STMP3xxx"
-	select CPU_ARM926T
-	select CLKDEV_LOOKUP
-	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_CLOCKEVENTS
-	select USB_ARCH_HAS_EHCI
-	help
-	  Support for systems based on the Freescale 3xxx CPUs.
-
 config ARCH_NETX
 	bool "Hilscher NetX based"
 	select CLKSRC_MMIO
@@ -1017,8 +1007,6 @@ source "arch/arm/mach-s5pv210/Kconfig"
 source "arch/arm/mach-exynos4/Kconfig"
 
 source "arch/arm/mach-shmobile/Kconfig"
-
-source "arch/arm/plat-stmp3xxx/Kconfig"
 
 source "arch/arm/mach-tegra/Kconfig"
 

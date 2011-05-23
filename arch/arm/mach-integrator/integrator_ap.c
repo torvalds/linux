@@ -31,6 +31,7 @@
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/mtd/physmap.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -43,7 +44,6 @@
 #include <mach/lm.h>
 
 #include <asm/mach/arch.h>
-#include <asm/mach/flash.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -222,7 +222,7 @@ device_initcall(irq_syscore_init);
 #define EBI_CSR1 (VA_EBI_BASE + INTEGRATOR_EBI_CSR1_OFFSET)
 #define EBI_LOCK (VA_EBI_BASE + INTEGRATOR_EBI_LOCK_OFFSET)
 
-static int ap_flash_init(void)
+static int ap_flash_init(struct platform_device *dev)
 {
 	u32 tmp;
 
@@ -239,7 +239,7 @@ static int ap_flash_init(void)
 	return 0;
 }
 
-static void ap_flash_exit(void)
+static void ap_flash_exit(struct platform_device *dev)
 {
 	u32 tmp;
 
@@ -255,15 +255,14 @@ static void ap_flash_exit(void)
 	}
 }
 
-static void ap_flash_set_vpp(int on)
+static void ap_flash_set_vpp(struct platform_device *pdev, int on)
 {
 	void __iomem *reg = on ? SC_CTRLS : SC_CTRLC;
 
 	writel(INTEGRATOR_SC_CTRL_nFLVPPEN, reg);
 }
 
-static struct flash_platform_data ap_flash_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data ap_flash_data = {
 	.width		= 4,
 	.init		= ap_flash_init,
 	.exit		= ap_flash_exit,
@@ -277,7 +276,7 @@ static struct resource cfi_flash_resource = {
 };
 
 static struct platform_device cfi_flash_device = {
-	.name		= "armflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &ap_flash_data,

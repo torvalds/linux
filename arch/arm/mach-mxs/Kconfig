@@ -17,6 +17,16 @@ config SOC_IMX28
 
 comment "MXS platforms:"
 
+config MACH_STMP378X_DEVB
+	bool "Support STMP378x_devb Platform"
+	select SOC_IMX23
+	select MXS_HAVE_AMBA_DUART
+	select MXS_HAVE_PLATFORM_AUART
+	select MXS_HAVE_PLATFORM_MXS_MMC
+	help
+	  Include support for STMP378x-devb platform. This includes specific
+	  configurations for the board and its peripherals.
+
 config MACH_MX23EVK
 	bool "Support MX23EVK Platform"
 	select SOC_IMX23
