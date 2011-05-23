@@ -361,7 +361,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	unsigned int hash;
-	sfq_index x;
+	sfq_index x, qlen;
 	struct sfq_slot *slot;
 	int uninitialized_var(ret);
 
@@ -405,8 +405,12 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (++sch->q.qlen <= q->limit)
 		return NET_XMIT_SUCCESS;
 
+	qlen = slot->qlen;
 	sfq_drop(sch);
-	return NET_XMIT_CN;
+	/* Return Congestion Notification only if we dropped a packet
+	 * from this flow.
+	 */
+	return (qlen != slot->qlen) ? NET_XMIT_CN : NET_XMIT_SUCCESS;
 }
 
 static struct sk_buff *
