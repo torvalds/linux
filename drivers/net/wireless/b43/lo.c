@@ -301,14 +301,12 @@ static void lo_measure_gain_values(struct b43_wldev *dev,
 		max_rx_gain = 0;
 
 	if (has_loopback_gain(phy)) {
-		int trsw_rx = 0;
 		int trsw_rx_gain;
 
 		if (use_trsw_rx) {
 			trsw_rx_gain = gphy->trsw_rx_gain / 2;
 			if (max_rx_gain >= trsw_rx_gain) {
 				trsw_rx_gain = max_rx_gain - trsw_rx_gain;
-				trsw_rx = 0x20;
 			}
 		} else
 			trsw_rx_gain = max_rx_gain;
