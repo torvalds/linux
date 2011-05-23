@@ -82,7 +82,6 @@ bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	enum rf_pwrstate rtstate;
 	bool actionallowed = false;
 	u16 rfwait_cnt = 0;
 	unsigned long flag;
@@ -129,8 +128,6 @@ bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 	}
 
 no_protect:
-	rtstate = ppsc->rfpwr_state;
-
 	switch (state_toset) {
 	case ERFON:
 		ppsc->rfoff_reason &= (~changesource);
