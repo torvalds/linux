@@ -82,7 +82,7 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
  */
 
 /*
- * Update transiaction's maximum wait time, if debugging is enabled.
+ * Update transaction's maximum wait time, if debugging is enabled.
  *
  * In order for t_max_wait to be reliable, it must be protected by a
  * lock.  But doing so will mean that start_this_handle() can not be
@@ -91,11 +91,10 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
  * means that maximum wait time reported by the jbd2_run_stats
  * tracepoint will always be zero.
  */
-static inline void update_t_max_wait(transaction_t *transaction)
+static inline void update_t_max_wait(transaction_t *transaction,
+				     unsigned long ts)
 {
 #ifdef CONFIG_JBD2_DEBUG
-	unsigned long ts = jiffies;
-
 	if (jbd2_journal_enable_debug &&
 	    time_after(transaction->t_start, ts)) {
 		ts = jbd2_time_diff(ts, transaction->t_start);
@@ -121,6 +120,7 @@ static int start_this_handle(journal_t *journal, handle_t *handle,
 	tid_t		tid;
 	int		needed, need_to_start;
 	int		nblocks = handle->h_buffer_credits;
+	unsigned long ts = jiffies;
 
 	if (nblocks > journal->j_max_transaction_buffers) {
 		printk(KERN_ERR "JBD: %s wants too many credits (%d > %d)\n",
@@ -271,7 +271,7 @@ repeat:
 	/* OK, account for the buffers that this operation expects to
 	 * use and add the handle to the running transaction. 
 	 */
-	update_t_max_wait(transaction);
+	update_t_max_wait(transaction, ts);
 	handle->h_transaction = transaction;
 	atomic_inc(&transaction->t_updates);
 	atomic_inc(&transaction->t_handle_count);
