@@ -1314,8 +1314,10 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	if (ret <= 0)
 		return ret;
 	xhci = hcd_to_xhci(hcd);
-	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
+	if (xhci->xhc_state & XHCI_STATE_DYING)
+		return -ENODEV;
 
+	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
 	drop_flag = xhci_get_endpoint_flag(&ep->desc);
 	if (drop_flag == SLOT_FLAG || drop_flag == EP0_FLAG) {
 		xhci_dbg(xhci, "xHCI %s - can't drop slot or ep 0 %#x\n",
@@ -1401,6 +1403,8 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		return ret;
 	}
 	xhci = hcd_to_xhci(hcd);
+	if (xhci->xhc_state & XHCI_STATE_DYING)
+		return -ENODEV;
 
 	added_ctxs = xhci_get_endpoint_flag(&ep->desc);
 	last_ctx = xhci_last_valid_endpoint(added_ctxs);
@@ -1676,6 +1680,8 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	if (ret <= 0)
 		return ret;
 	xhci = hcd_to_xhci(hcd);
+	if (xhci->xhc_state & XHCI_STATE_DYING)
+		return -ENODEV;
 
 	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
 	virt_dev = xhci->devs[udev->slot_id];
