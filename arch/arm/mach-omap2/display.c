@@ -25,6 +25,7 @@
 #include <video/omapdss.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
+#include <plat/omap-pm.h>
 
 static struct platform_device omap_display_device = {
 	.name          = "omapdss",
@@ -117,7 +118,8 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 	}
 
 	pdata.board_data = board_data;
-	pdata.board_data->get_context_loss_count = NULL;
+	pdata.board_data->get_context_loss_count =
+		omap_pm_get_dev_context_loss_count;
 	pdata.opt_clock_available = opt_clock_available;
 
 	for (i = 0; i < oh_count; i++) {
