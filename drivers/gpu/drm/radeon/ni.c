@@ -417,7 +417,7 @@ static u32 cayman_get_tile_pipe_to_backend_map(struct radeon_device *rdev,
 		num_shader_engines = 1;
 	if (num_shader_engines > rdev->config.cayman.max_shader_engines)
 		num_shader_engines = rdev->config.cayman.max_shader_engines;
-	if (num_backends_per_asic > num_shader_engines)
+	if (num_backends_per_asic < num_shader_engines)
 		num_backends_per_asic = num_shader_engines;
 	if (num_backends_per_asic > (rdev->config.cayman.max_backends_per_se * num_shader_engines))
 		num_backends_per_asic = rdev->config.cayman.max_backends_per_se * num_shader_engines;
@@ -829,7 +829,7 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	rdev->config.cayman.tile_config |=
 		((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
 	rdev->config.cayman.tile_config |=
-		(gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT;
+		((gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT) << 8;
 	rdev->config.cayman.tile_config |=
 		((gb_addr_config & ROW_SIZE_MASK) >> ROW_SIZE_SHIFT) << 12;
 
@@ -930,6 +930,10 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	WREG32(CB_PERF_CTR2_SEL_1, 0);
 	WREG32(CB_PERF_CTR3_SEL_0, 0);
 	WREG32(CB_PERF_CTR3_SEL_1, 0);
+
+	tmp = RREG32(HDP_MISC_CNTL);
+	tmp |= HDP_FLUSH_INVALIDATE_CACHE;
+	WREG32(HDP_MISC_CNTL, tmp);
 
 	hdp_host_path_cntl = RREG32(HDP_HOST_PATH_CNTL);
 	WREG32(HDP_HOST_PATH_CNTL, hdp_host_path_cntl);
