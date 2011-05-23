@@ -1338,9 +1338,11 @@ static const struct file_operations ucma_fops = {
 };
 
 static struct miscdevice ucma_misc = {
-	.minor	= MISC_DYNAMIC_MINOR,
-	.name	= "rdma_cm",
-	.fops	= &ucma_fops,
+	.minor		= MISC_DYNAMIC_MINOR,
+	.name		= "rdma_cm",
+	.nodename	= "infiniband/rdma_cm",
+	.mode		= 0666,
+	.fops		= &ucma_fops,
 };
 
 static ssize_t show_abi_version(struct device *dev,
