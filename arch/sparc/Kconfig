@@ -538,6 +538,13 @@ config LEON_PCI
 	depends on PCI && SPARC_LEON
 	default y
 
+config GRPCI2
+	bool "GRPCI2 Host Bridge Support"
+	depends on LEON_PCI
+	default y
+	help
+	  Say Y here to include the GRPCI2 Host Bridge Driver.
+
 source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"

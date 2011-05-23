@@ -236,6 +236,21 @@ static unsigned int _leon_build_device_irq(struct platform_device *op,
 	return leon_build_device_irq(real_irq, handle_simple_irq, "edge", 0);
 }
 
+void leon_update_virq_handling(unsigned int virq,
+			      irq_flow_handler_t flow_handler,
+			      const char *name, int do_ack)
+{
+	unsigned long mask = (unsigned long)irq_get_chip_data(virq);
+
+	mask &= ~LEON_DO_ACK_HW;
+	if (do_ack)
+		mask |= LEON_DO_ACK_HW;
+
+	irq_set_chip_and_handler_name(virq, &leon_irq,
+				      flow_handler, name);
+	irq_set_chip_data(virq, (void *)mask);
+}
+
 void __init leon_init_timers(irq_handler_t counter_fn)
 {
 	int irq, eirq;
