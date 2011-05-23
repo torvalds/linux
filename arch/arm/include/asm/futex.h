@@ -3,16 +3,74 @@
 
 #ifdef __KERNEL__
 
+#if defined(CONFIG_CPU_USE_DOMAINS) && defined(CONFIG_SMP)
+/* ARM doesn't provide unprivileged exclusive memory accessors */
+#include <asm-generic/futex.h>
+#else
+
+#include <linux/futex.h>
+#include <linux/uaccess.h>
+#include <asm/errno.h>
+
+#define __futex_atomic_ex_table(err_reg)			\
+	"3:\n"							\
+	"	.pushsection __ex_table,\"a\"\n"		\
+	"	.align	3\n"					\
+	"	.long	1b, 4f, 2b, 4f\n"			\
+	"	.popsection\n"					\
+	"	.pushsection .fixup,\"ax\"\n"			\
+	"4:	mov	%0, " err_reg "\n"			\
+	"	b	3b\n"					\
+	"	.popsection"
+
 #ifdef CONFIG_SMP
 
-#include <asm-generic/futex.h>
+#define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)	\
+	smp_mb();						\
+	__asm__ __volatile__(					\
+	"1:	ldrex	%1, [%2]\n"				\
+	"	" insn "\n"					\
+	"2:	strex	%1, %0, [%2]\n"				\
+	"	teq	%1, #0\n"				\
+	"	bne	1b\n"					\
+	"	mov	%0, #0\n"				\
+	__futex_atomic_ex_table("%4")				\
+	: "=&r" (ret), "=&r" (oldval)				\
+	: "r" (uaddr), "r" (oparg), "Ir" (-EFAULT)		\
+	: "cc", "memory")
+
+static inline int
+futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
+			      u32 oldval, u32 newval)
+{
+	int ret;
+	u32 val;
+
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
+		return -EFAULT;
+
+	smp_mb();
+	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"
+	"1:	ldrex	%1, [%4]\n"
+	"	teq	%1, %2\n"
+	"	ite	eq	@ explicit IT needed for the 2b label\n"
+	"2:	strexeq	%0, %3, [%4]\n"
+	"	movne	%0, #0\n"
+	"	teq	%0, #0\n"
+	"	bne	1b\n"
+	__futex_atomic_ex_table("%5")
+	: "=&r" (ret), "=&r" (val)
+	: "r" (oldval), "r" (newval), "r" (uaddr), "Ir" (-EFAULT)
+	: "cc", "memory");
+	smp_mb();
+
+	*uval = val;
+	return ret;
+}
 
 #else /* !SMP, we can work around lack of atomic ops by disabling preemption */
 
-#include <linux/futex.h>
 #include <linux/preempt.h>
-#include <linux/uaccess.h>
-#include <asm/errno.h>
 #include <asm/domain.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)	\
@@ -21,18 +79,36 @@
 	"	" insn "\n"					\
 	"2:	" T(str) "	%0, [%2]\n"			\
 	"	mov	%0, #0\n"				\
-	"3:\n"							\
-	"	.pushsection __ex_table,\"a\"\n"		\
-	"	.align	3\n"					\
-	"	.long	1b, 4f, 2b, 4f\n"			\
-	"	.popsection\n"					\
-	"	.pushsection .fixup,\"ax\"\n"			\
-	"4:	mov	%0, %4\n"				\
-	"	b	3b\n"					\
-	"	.popsection"					\
+	__futex_atomic_ex_table("%4")				\
 	: "=&r" (ret), "=&r" (oldval)				\
 	: "r" (uaddr), "r" (oparg), "Ir" (-EFAULT)		\
 	: "cc", "memory")
+
+static inline int
+futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
+			      u32 oldval, u32 newval)
+{
+	int ret = 0;
+	u32 val;
+
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
+		return -EFAULT;
+
+	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"
+	"1:	" T(ldr) "	%1, [%4]\n"
+	"	teq	%1, %2\n"
+	"	it	eq	@ explicit IT needed for the 2b label\n"
+	"2:	" T(streq) "	%3, [%4]\n"
+	__futex_atomic_ex_table("%5")
+	: "+r" (ret), "=&r" (val)
+	: "r" (oldval), "r" (newval), "r" (uaddr), "Ir" (-EFAULT)
+	: "cc", "memory");
+
+	*uval = val;
+	return ret;
+}
+
+#endif /* !SMP */
 
 static inline int
 futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
@@ -87,39 +163,6 @@ futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
 	return ret;
 }
 
-static inline int
-futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
-			      u32 oldval, u32 newval)
-{
-	int ret = 0;
-	u32 val;
-
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
-		return -EFAULT;
-
-	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"
-	"1:	" T(ldr) "	%1, [%4]\n"
-	"	teq	%1, %2\n"
-	"	it	eq	@ explicit IT needed for the 2b label\n"
-	"2:	" T(streq) "	%3, [%4]\n"
-	"3:\n"
-	"	.pushsection __ex_table,\"a\"\n"
-	"	.align	3\n"
-	"	.long	1b, 4f, 2b, 4f\n"
-	"	.popsection\n"
-	"	.pushsection .fixup,\"ax\"\n"
-	"4:	mov	%0, %5\n"
-	"	b	3b\n"
-	"	.popsection"
-	: "+r" (ret), "=&r" (val)
-	: "r" (oldval), "r" (newval), "r" (uaddr), "Ir" (-EFAULT)
-	: "cc", "memory");
-
-	*uval = val;
-	return ret;
-}
-
-#endif /* !SMP */
-
+#endif /* !(CPU_USE_DOMAINS && SMP) */
 #endif /* __KERNEL__ */
 #endif /* _ASM_ARM_FUTEX_H */

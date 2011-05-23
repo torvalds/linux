@@ -20,13 +20,11 @@
 
 #include <linux/init.h>
 #include <linux/clk.h>
-#include <linux/fec.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx53.h>
 
 #include <asm/mach-types.h>

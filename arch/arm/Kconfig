@@ -197,15 +197,21 @@ config ARM_PATCH_PHYS_VIRT
 	depends on !XIP_KERNEL && MMU
 	depends on !ARCH_REALVIEW || !SPARSEMEM
 	help
-	  Patch phys-to-virt translation functions at runtime according to
-	  the position of the kernel in system memory.
+	  Patch phys-to-virt and virt-to-phys translation functions at
+	  boot and module load time according to the position of the
+	  kernel in system memory.
 
-	  This can only be used with non-XIP with MMU kernels where
-	  the base of physical memory is at a 16MB boundary.
+	  This can only be used with non-XIP MMU kernels where the base
+	  of physical memory is at a 16MB boundary, or theoretically 64K
+	  for the MSM machine class.
 
 config ARM_PATCH_PHYS_VIRT_16BIT
 	def_bool y
 	depends on ARM_PATCH_PHYS_VIRT && ARCH_MSM
+	help
+	  This option extends the physical to virtual translation patching
+	  to allow physical memory down to a theoretical minimum of 64K
+	  boundaries.
 
 source "init/Kconfig"
 
@@ -297,6 +303,7 @@ config ARCH_BCMRING
 	depends on MMU
 	select CPU_V6
 	select ARM_AMBA
+	select ARM_TIMER_SP804
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -366,6 +373,7 @@ config ARCH_MXC
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
 	select HAVE_SCHED_CLOCK
 	help
 	  Support for Freescale MXC/iMX-based family of processors
@@ -375,21 +383,13 @@ config ARCH_MXS
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
 	help
 	  Support for Freescale MXS-based family of processors
 
-config ARCH_STMP3XXX
-	bool "Freescale STMP3xxx"
-	select CPU_ARM926T
-	select CLKDEV_LOOKUP
-	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_CLOCKEVENTS
-	select USB_ARCH_HAS_EHCI
-	help
-	  Support for systems based on the Freescale 3xxx CPUs.
-
 config ARCH_NETX
 	bool "Hilscher NetX based"
+	select CLKSRC_MMIO
 	select CPU_ARM926T
 	select ARM_VIC
 	select GENERIC_CLOCKEVENTS
@@ -457,6 +457,7 @@ config ARCH_IXP2000
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
+	select CLKSRC_MMIO
 	select CPU_XSCALE
 	select GENERIC_GPIO
 	select GENERIC_CLOCKEVENTS
@@ -468,7 +469,7 @@ config ARCH_IXP4XX
 
 config ARCH_DOVE
 	bool "Marvell Dove"
-	select CPU_V6K
+	select CPU_V7
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
@@ -497,6 +498,7 @@ config ARCH_LOKI
 
 config ARCH_LPC32XX
 	bool "NXP LPC32XX"
+	select CLKSRC_MMIO
 	select CPU_ARM926T
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_IDE
@@ -554,23 +556,12 @@ config ARCH_KS8695
 	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
 	  System-on-Chip devices.
 
-config ARCH_NS9XXX
-	bool "NetSilicon NS9xxx"
-	select CPU_ARM926T
-	select GENERIC_GPIO
-	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
-	help
-	  Say Y here if you intend to run this kernel on a NetSilicon NS9xxx
-	  System.
-
-	  <http://www.digi.com/products/microprocessors/index.jsp>
-
 config ARCH_W90X900
 	bool "Nuvoton W90X900 CPU"
 	select CPU_ARM926T
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
 	help
 	  Support for Nuvoton (Winbond logic dept.) ARM9 processor,
@@ -592,6 +583,7 @@ config ARCH_NUC93X
 config ARCH_TEGRA
 	bool "NVIDIA Tegra"
 	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
@@ -617,6 +609,7 @@ config ARCH_PXA
 	select ARCH_MTD_XIP
 	select ARCH_HAS_CPUFREQ
 	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
 	select HAVE_SCHED_CLOCK
@@ -667,6 +660,7 @@ config ARCH_RPC
 
 config ARCH_SA1100
 	bool "SA1100-based"
+	select CLKSRC_MMIO
 	select CPU_SA1100
 	select ISA
 	select ARCH_SPARSEMEM_ENABLE
@@ -803,6 +797,7 @@ config ARCH_SHARK
 
 config ARCH_TCC_926
 	bool "Telechips TCC ARM926-based systems"
+	select CLKSRC_MMIO
 	select CPU_ARM926T
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
@@ -813,6 +808,7 @@ config ARCH_TCC_926
 config ARCH_U300
 	bool "ST-Ericsson U300 Series"
 	depends on MMU
+	select CLKSRC_MMIO
 	select CPU_ARM926T
 	select HAVE_SCHED_CLOCK
 	select HAVE_TCM
@@ -854,6 +850,7 @@ config ARCH_DAVINCI
 	select HAVE_IDE
 	select CLKDEV_LOOKUP
 	select GENERIC_ALLOCATOR
+	select GENERIC_IRQ_CHIP
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	help
 	  Support for TI's DaVinci platform.
@@ -874,6 +871,7 @@ config PLAT_SPEAR
 	select ARM_AMBA
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
 	help
@@ -951,8 +949,6 @@ source "arch/arm/mach-netx/Kconfig"
 source "arch/arm/mach-nomadik/Kconfig"
 source "arch/arm/plat-nomadik/Kconfig"
 
-source "arch/arm/mach-ns9xxx/Kconfig"
-
 source "arch/arm/mach-nuc93x/Kconfig"
 
 source "arch/arm/plat-omap/Kconfig"
@@ -1005,8 +1001,6 @@ source "arch/arm/mach-exynos4/Kconfig"
 
 source "arch/arm/mach-shmobile/Kconfig"
 
-source "arch/arm/plat-stmp3xxx/Kconfig"
-
 source "arch/arm/mach-tegra/Kconfig"
 
 source "arch/arm/mach-u300/Kconfig"
@@ -1033,6 +1027,8 @@ config PLAT_IOP
 
 config PLAT_ORION
 	bool
+	select CLKSRC_MMIO
+	select GENERIC_IRQ_CHIP
 	select HAVE_SCHED_CLOCK
 
 config PLAT_PXA
@@ -1043,6 +1039,7 @@ config PLAT_VERSATILE
 
 config ARM_TIMER_SP804
 	bool
+	select CLKSRC_MMIO
 
 source arch/arm/mm/Kconfig
 
@@ -1318,8 +1315,7 @@ menu "Kernel Features"
 source "kernel/time/Kconfig"
 
 config SMP
-	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Symmetric Multi-Processing"
 	depends on CPU_V6K || CPU_V7
 	depends on GENERIC_CLOCKEVENTS
 	depends on REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP || \
@@ -1521,8 +1517,8 @@ config ARCH_SELECT_MEMORY_MODEL
 	def_bool ARCH_SPARSEMEM_ENABLE
 
 config HIGHMEM
-	bool "High Memory Support (EXPERIMENTAL)"
-	depends on MMU && EXPERIMENTAL
+	bool "High Memory Support"
+	depends on MMU
 	help
 	  The address space of ARM processors is only 4 Gigabytes large
 	  and it has to accommodate user address space, kernel address
@@ -1742,16 +1738,31 @@ config CMDLINE
 	  time by entering them here. As a minimum, you should specify the
 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
 
+choice
+	prompt "Kernel command line type" if CMDLINE != ""
+	default CMDLINE_FROM_BOOTLOADER
+
+config CMDLINE_FROM_BOOTLOADER
+	bool "Use bootloader kernel arguments if available"
+	help
+	  Uses the command-line options passed by the boot loader. If
+	  the boot loader doesn't provide any, the default kernel command
+	  string provided in CMDLINE will be used.
+
+config CMDLINE_EXTEND
+	bool "Extend bootloader kernel arguments"
+	help
+	  The command-line arguments provided by the boot loader will be
+	  appended to the default kernel command string.
+
 config CMDLINE_FORCE
 	bool "Always use the default kernel command string"
-	depends on CMDLINE != ""
 	help
 	  Always use the default kernel command string, even if the boot
 	  loader passes other arguments to the kernel.
 	  This is useful if you cannot or don't want to change the
 	  command-line options your boot loader passes to the kernel.
-
-	  If unsure, say N.
+endchoice
 
 config XIP_KERNEL
 	bool "Kernel Execute-In-Place from ROM"
@@ -2010,7 +2021,7 @@ menu "Power management options"
 source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
-	depends on !ARCH_S5P64X0 && !ARCH_S5P6442
+	depends on !ARCH_S5P64X0 && !ARCH_S5P6442 && !ARCH_S5PC100
 	depends on CPU_ARM920T || CPU_ARM926T || CPU_SA1100 || \
 		CPU_V6 || CPU_V6K || CPU_V7 || CPU_XSC3 || CPU_XSCALE
 	def_bool y

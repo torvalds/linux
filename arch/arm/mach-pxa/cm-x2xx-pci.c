@@ -29,33 +29,6 @@
 unsigned long it8152_base_address;
 static int cmx2xx_it8152_irq_gpio;
 
-/*
- * Only first 64MB of memory can be accessed via PCI.
- * We use GFP_DMA to allocate safe buffers to do map/unmap.
- * This is really ugly and we need a better way of specifying
- * DMA-capable regions of memory.
- */
-void __init cmx2xx_pci_adjust_zones(unsigned long *zone_size,
-	unsigned long *zhole_size)
-{
-	unsigned int sz = SZ_64M >> PAGE_SHIFT;
-
-	if (machine_is_armcore()) {
-		pr_info("Adjusting zones for CM-X2XX\n");
-
-		/*
-		 * Only adjust if > 64M on current system
-		 */
-		if (zone_size[0] <= sz)
-			return;
-
-		zone_size[1] = zone_size[0] - sz;
-		zone_size[0] = sz;
-		zhole_size[1] = zhole_size[0];
-		zhole_size[0] = 0;
-	}
-}
-
 static void cmx2xx_it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
 	/* clear our parent irq */

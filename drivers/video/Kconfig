@@ -8,9 +8,6 @@ menu "Graphics support"
 config HAVE_FB_ATMEL
 	bool
 
-config HAVE_FB_IMX
-	bool
-
 config SH_MIPI_DSI
 	tristate
 	depends on (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
@@ -359,7 +356,7 @@ config FB_SA1100
 
 config FB_IMX
 	tristate "Freescale i.MX LCD support"
-	depends on FB && (HAVE_FB_IMX || ARCH_MX1 || ARCH_MX2)
+	depends on FB && IMX_HAVE_PLATFORM_IMX_FB
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

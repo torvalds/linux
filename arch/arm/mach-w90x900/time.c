@@ -43,7 +43,6 @@
 #define PRESCALE	0x63 /* Divider = prescale + 1 */
 
 #define	TDR_SHIFT	24
-#define	TDR_MASK	((1 << TDR_SHIFT) - 1)
 
 static unsigned int timer0_load;
 
@@ -143,19 +142,6 @@ static void __init nuc900_clockevents_init(void)
 	clockevents_register_device(&nuc900_clockevent_device);
 }
 
-static cycle_t nuc900_get_cycles(struct clocksource *cs)
-{
-	return (~__raw_readl(REG_TDR1)) & TDR_MASK;
-}
-
-static struct clocksource clocksource_nuc900 = {
-	.name	= "nuc900-timer1",
-	.rating	= 200,
-	.read	= nuc900_get_cycles,
-	.mask	= CLOCKSOURCE_MASK(TDR_SHIFT),
-	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 static void __init nuc900_clocksource_init(void)
 {
 	unsigned int val;
@@ -175,7 +161,8 @@ static void __init nuc900_clocksource_init(void)
 	val |= (COUNTEN | PERIOD | PRESCALE);
 	__raw_writel(val, REG_TCSR1);
 
-	clocksource_register_hz(&clocksource_nuc900, rate);
+	clocksource_mmio_init(REG_TDR1, "nuc900-timer1", rate, 200,
+		TDR_SHIFT, clocksource_mmio_readl_down);
 }
 
 static void __init nuc900_timer_init(void)

@@ -662,7 +662,7 @@ static struct pxaohci_platform_data magician_ohci_info = {
  * StrataFlash
  */
 
-static void magician_set_vpp(struct map_info *map, int vpp)
+static void magician_set_vpp(struct platform_device *pdev, int vpp)
 {
 	gpio_set_value(EGPIO_MAGICIAN_FLASH_VPP, vpp);
 }
