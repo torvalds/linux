@@ -37,9 +37,7 @@ enum stat_item {
 
 struct kmem_cache_cpu {
 	void **freelist;	/* Pointer to next available object */
-#ifdef CONFIG_CMPXCHG_LOCAL
 	unsigned long tid;	/* Globally unique transaction id */
-#endif
 	struct page *page;	/* The slab from which we are allocating */
 	int node;		/* The node of the page (or -1 for debug) */
 #ifdef CONFIG_SLUB_STATS
@@ -179,7 +177,8 @@ static __always_inline int kmalloc_index(size_t size)
 	if (size <=   4 * 1024) return 12;
 /*
  * The following is only needed to support architectures with a larger page
- * size than 4k.
+ * size than 4k. We need to support 2 * PAGE_SIZE here. So for a 64k page
+ * size we would have to go up to 128k.
  */
 	if (size <=   8 * 1024) return 13;
 	if (size <=  16 * 1024) return 14;
@@ -190,7 +189,8 @@ static __always_inline int kmalloc_index(size_t size)
 	if (size <= 512 * 1024) return 19;
 	if (size <= 1024 * 1024) return 20;
 	if (size <=  2 * 1024 * 1024) return 21;
-	return -1;
+	BUG();
+	return -1; /* Will never be reached */
 
 /*
  * What we really wanted to do and cannot do because of compiler issues is:
