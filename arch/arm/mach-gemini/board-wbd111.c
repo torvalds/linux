@@ -84,7 +84,6 @@ static struct sys_timer wbd111_timer = {
 	.init	= gemini_timer_init,
 };
 
-#ifdef CONFIG_MTD_PARTITIONS
 static struct mtd_partition wbd111_partitions[] = {
 	{
 		.name		= "RedBoot",
@@ -116,11 +115,7 @@ static struct mtd_partition wbd111_partitions[] = {
 		.mask_flags	= MTD_WRITEABLE,
 	}
 };
-#define wbd111_num_partitions	ARRAY_SIZE(wbd111_partitions)
-#else
-#define wbd111_partitions	NULL
-#define wbd111_num_partitions	0
-#endif /* CONFIG_MTD_PARTITIONS */
+#define wbd111_num_partitions  ARRAY_SIZE(wbd111_partitions)
 
 static void __init wbd111_init(void)
 {
