@@ -847,4 +847,5 @@ ia32_sys_call_table:
 	.quad sys_name_to_handle_at
 	.quad compat_sys_open_by_handle_at
 	.quad compat_sys_clock_adjtime
+	.quad sys_syncfs
 ia32_syscall_end:

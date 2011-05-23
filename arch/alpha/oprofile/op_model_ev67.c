@@ -192,7 +192,7 @@ ev67_handle_interrupt(unsigned long which, struct pt_regs *regs,
 		case TRAP_INVALID1:
 		case TRAP_INVALID2:
 		case TRAP_INVALID3:
-			/* Pipeline redirection ocurred. PMPC points
+			/* Pipeline redirection occurred. PMPC points
 			   to PALcode. Recognize ITB miss by PALcode
 			   offset address, and get actual PC from
 			   EXC_ADDR.  */

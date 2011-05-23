@@ -41,7 +41,7 @@ early_param("threadirqs", setup_forced_irqthreads);
 void synchronize_irq(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	unsigned int state;
+	bool inprogress;
 
 	if (!desc)
 		return;
@@ -53,16 +53,16 @@ void synchronize_irq(unsigned int irq)
 		 * Wait until we're out of the critical section.  This might
 		 * give the wrong answer due to the lack of memory barriers.
 		 */
-		while (desc->istate & IRQS_INPROGRESS)
+		while (irqd_irq_inprogress(&desc->irq_data))
 			cpu_relax();
 
 		/* Ok, that indicated we're done: double-check carefully. */
 		raw_spin_lock_irqsave(&desc->lock, flags);
-		state = desc->istate;
+		inprogress = irqd_irq_inprogress(&desc->irq_data);
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 		/* Oops, that failed? */
-	} while (state & IRQS_INPROGRESS);
+	} while (inprogress);
 
 	/*
 	 * We made sure that no hardirq handler is running. Now verify
@@ -112,13 +112,13 @@ void irq_set_thread_affinity(struct irq_desc *desc)
 }
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-static inline bool irq_can_move_pcntxt(struct irq_desc *desc)
+static inline bool irq_can_move_pcntxt(struct irq_data *data)
 {
-	return irq_settings_can_move_pcntxt(desc);
+	return irqd_can_move_in_process_context(data);
 }
-static inline bool irq_move_pending(struct irq_desc *desc)
+static inline bool irq_move_pending(struct irq_data *data)
 {
-	return irqd_is_setaffinity_pending(&desc->irq_data);
+	return irqd_is_setaffinity_pending(data);
 }
 static inline void
 irq_copy_pending(struct irq_desc *desc, const struct cpumask *mask)
@@ -131,43 +131,34 @@ irq_get_pending(struct cpumask *mask, struct irq_desc *desc)
 	cpumask_copy(mask, desc->pending_mask);
 }
 #else
-static inline bool irq_can_move_pcntxt(struct irq_desc *desc) { return true; }
-static inline bool irq_move_pending(struct irq_desc *desc) { return false; }
+static inline bool irq_can_move_pcntxt(struct irq_data *data) { return true; }
+static inline bool irq_move_pending(struct irq_data *data) { return false; }
 static inline void
 irq_copy_pending(struct irq_desc *desc, const struct cpumask *mask) { }
 static inline void
 irq_get_pending(struct cpumask *mask, struct irq_desc *desc) { }
 #endif
 
-/**
- *	irq_set_affinity - Set the irq affinity of a given irq
- *	@irq:		Interrupt to set affinity
- *	@cpumask:	cpumask
- *
- */
-int irq_set_affinity(unsigned int irq, const struct cpumask *mask)
+int __irq_set_affinity_locked(struct irq_data *data, const struct cpumask *mask)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_chip *chip = desc->irq_data.chip;
-	unsigned long flags;
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
+	struct irq_desc *desc = irq_data_to_desc(data);
 	int ret = 0;
 
-	if (!chip->irq_set_affinity)
+	if (!chip || !chip->irq_set_affinity)
 		return -EINVAL;
 
-	raw_spin_lock_irqsave(&desc->lock, flags);
-
-	if (irq_can_move_pcntxt(desc)) {
-		ret = chip->irq_set_affinity(&desc->irq_data, mask, false);
+	if (irq_can_move_pcntxt(data)) {
+		ret = chip->irq_set_affinity(data, mask, false);
 		switch (ret) {
 		case IRQ_SET_MASK_OK:
-			cpumask_copy(desc->irq_data.affinity, mask);
+			cpumask_copy(data->affinity, mask);
 		case IRQ_SET_MASK_OK_NOCOPY:
 			irq_set_thread_affinity(desc);
 			ret = 0;
 		}
 	} else {
-		irqd_set_move_pending(&desc->irq_data);
+		irqd_set_move_pending(data);
 		irq_copy_pending(desc, mask);
 	}
 
@@ -175,8 +166,28 @@ int irq_set_affinity(unsigned int irq, const struct cpumask *mask)
 		kref_get(&desc->affinity_notify->kref);
 		schedule_work(&desc->affinity_notify->work);
 	}
-	irq_compat_set_affinity(desc);
-	irqd_set(&desc->irq_data, IRQD_AFFINITY_SET);
+	irqd_set(data, IRQD_AFFINITY_SET);
+
+	return ret;
+}
+
+/**
+ *	irq_set_affinity - Set the irq affinity of a given irq
+ *	@irq:		Interrupt to set affinity
+ *	@mask:		cpumask
+ *
+ */
+int irq_set_affinity(unsigned int irq, const struct cpumask *mask)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	unsigned long flags;
+	int ret;
+
+	if (!desc)
+		return -EINVAL;
+
+	raw_spin_lock_irqsave(&desc->lock, flags);
+	ret =  __irq_set_affinity_locked(irq_desc_get_irq_data(desc), mask);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return ret;
 }
@@ -206,7 +217,7 @@ static void irq_affinity_notify(struct work_struct *work)
 		goto out;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	if (irq_move_pending(desc))
+	if (irq_move_pending(&desc->irq_data))
 		irq_get_pending(cpumask, desc);
 	else
 		cpumask_copy(cpumask, desc->irq_data.affinity);
@@ -285,10 +296,8 @@ setup_affinity(unsigned int irq, struct irq_desc *desc, struct cpumask *mask)
 		if (cpumask_intersects(desc->irq_data.affinity,
 				       cpu_online_mask))
 			set = desc->irq_data.affinity;
-		else {
-			irq_compat_clr_affinity(desc);
+		else
 			irqd_clear(&desc->irq_data, IRQD_AFFINITY_SET);
-		}
 	}
 
 	cpumask_and(mask, cpu_online_mask, set);
@@ -551,9 +560,9 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 	flags &= IRQ_TYPE_SENSE_MASK;
 
 	if (chip->flags & IRQCHIP_SET_TYPE_MASKED) {
-		if (!(desc->istate & IRQS_MASKED))
+		if (!irqd_irq_masked(&desc->irq_data))
 			mask_irq(desc);
-		if (!(desc->istate & IRQS_DISABLED))
+		if (!irqd_irq_disabled(&desc->irq_data))
 			unmask = 1;
 	}
 
@@ -575,8 +584,6 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 			irqd_set(&desc->irq_data, IRQD_LEVEL);
 		}
 
-		if (chip != desc->irq_data.chip)
-			irq_chip_set_defaults(desc->irq_data.chip);
 		ret = 0;
 		break;
 	default:
@@ -651,7 +658,7 @@ again:
 	 * irq_wake_thread(). See the comment there which explains the
 	 * serialization.
 	 */
-	if (unlikely(desc->istate & IRQS_INPROGRESS)) {
+	if (unlikely(irqd_irq_inprogress(&desc->irq_data))) {
 		raw_spin_unlock_irq(&desc->lock);
 		chip_bus_sync_unlock(desc);
 		cpu_relax();
@@ -668,12 +675,10 @@ again:
 
 	desc->threads_oneshot &= ~action->thread_mask;
 
-	if (!desc->threads_oneshot && !(desc->istate & IRQS_DISABLED) &&
-	    (desc->istate & IRQS_MASKED)) {
-		irq_compat_clr_masked(desc);
-		desc->istate &= ~IRQS_MASKED;
-		desc->irq_data.chip->irq_unmask(&desc->irq_data);
-	}
+	if (!desc->threads_oneshot && !irqd_irq_disabled(&desc->irq_data) &&
+	    irqd_irq_masked(&desc->irq_data))
+		unmask_irq(desc);
+
 out_unlock:
 	raw_spin_unlock_irq(&desc->lock);
 	chip_bus_sync_unlock(desc);
@@ -767,7 +772,7 @@ static int irq_thread(void *data)
 		atomic_inc(&desc->threads_active);
 
 		raw_spin_lock_irq(&desc->lock);
-		if (unlikely(desc->istate & IRQS_DISABLED)) {
+		if (unlikely(irqd_irq_disabled(&desc->irq_data))) {
 			/*
 			 * CHECKME: We might need a dedicated
 			 * IRQ_THREAD_PENDING flag here, which
@@ -775,7 +780,6 @@ static int irq_thread(void *data)
 			 * but AFAICT IRQS_PENDING should be fine as it
 			 * retriggers the interrupt itself --- tglx
 			 */
-			irq_compat_set_pending(desc);
 			desc->istate |= IRQS_PENDING;
 			raw_spin_unlock_irq(&desc->lock);
 		} else {
@@ -971,8 +975,6 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	new->thread_mask = 1 << ffz(thread_mask);
 
 	if (!shared) {
-		irq_chip_set_defaults(desc->irq_data.chip);
-
 		init_waitqueue_head(&desc->wait_for_threads);
 
 		/* Setup the type (level, edge polarity) if configured: */
@@ -985,8 +987,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		}
 
 		desc->istate &= ~(IRQS_AUTODETECT | IRQS_SPURIOUS_DISABLED | \
-				  IRQS_INPROGRESS | IRQS_ONESHOT | \
-				  IRQS_WAITING);
+				  IRQS_ONESHOT | IRQS_WAITING);
+		irqd_clear(&desc->irq_data, IRQD_IRQ_INPROGRESS);
 
 		if (new->flags & IRQF_PERCPU) {
 			irqd_set(&desc->irq_data, IRQD_PER_CPU);
@@ -1049,6 +1051,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	register_irq_proc(irq, desc);
 	new->dir = NULL;
 	register_handler_proc(irq, new);
+	free_cpumask_var(mask);
 
 	return 0;
 

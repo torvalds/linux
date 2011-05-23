@@ -341,6 +341,8 @@ int ndisc_mc_map(struct in6_addr *addr, char *buf, struct net_device *dev, int d
 	case ARPHRD_INFINIBAND:
 		ipv6_ib_mc_map(addr, dev->broadcast, buf);
 		return 0;
+	case ARPHRD_IPGRE:
+		return ipv6_ipgre_mc_map(addr, dev->broadcast, buf);
 	default:
 		if (dir) {
 			memcpy(buf, dev->broadcast, dev->addr_len);

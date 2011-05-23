@@ -124,9 +124,9 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 |                     -5: The selected PCI input clock is wrong              |
 |                     -6: Timing unity selection is wrong                    |
 |                     -7: Base timing selection is wrong                     |
-|                     -8: You can not used the 40MHz clock selection wich    |
+|                     -8: You can not used the 40MHz clock selection with    |
 |                         this board                                         |
-|                     -9: You can not used the 40MHz clock selection wich    |
+|                     -9: You can not used the 40MHz clock selection with    |
 |                         this CHRONOS version                               |
 +----------------------------------------------------------------------------+
 */
@@ -721,10 +721,10 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device *dev, struct comedi_sub
 								}
 							} else {
 			     /**************************************************************/
-								/* You can not used the 40MHz clock selection wich this board */
+								/* You can not use the 40MHz clock selection with this board */
 			     /**************************************************************/
 
-								DPRINTK("You can not used the 40MHz clock selection wich this board\n");
+								DPRINTK("You can not used the 40MHz clock selection with this board\n");
 								i_ReturnValue =
 									-8;
 							}

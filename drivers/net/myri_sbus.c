@@ -1009,7 +1009,7 @@ static int __devinit myri_sbus_probe(struct platform_device *op)
 
 	/* Map in the MyriCOM register/localram set. */
 	if (mp->eeprom.cpuvers < CPUVERS_4_0) {
-		/* XXX Makes no sense, if control reg is non-existant this
+		/* XXX Makes no sense, if control reg is non-existent this
 		 * XXX driver cannot function at all... maybe pre-4.0 is
 		 * XXX only a valid version for PCI cards?  Ask feldy...
 		 */

@@ -131,6 +131,11 @@ classic time/space tradeoff taught in beginning data structures classes
 often does not apply to contemporary hardware.  Space *is* time, in that a
 larger program will run slower than one which is more compact.
 
+More recent compilers take an increasingly active role in deciding whether
+a given function should actually be inlined or not.  So the liberal
+placement of "inline" keywords may not just be excessive; it could also be
+irrelevant.
+
 
 * Locking
 
@@ -285,6 +290,13 @@ be found at https://sparse.wiki.kernel.org/index.php/Main_Page if your
 distributor does not package it); it can then be run on the code by adding
 "C=1" to your make command.
 
+The "Coccinelle" tool (http://coccinelle.lip6.fr/) is able to find a wide
+variety of potential coding problems; it can also propose fixes for those
+problems.  Quite a few "semantic patches" for the kernel have been packaged
+under the scripts/coccinelle directory; running "make coccicheck" will run
+through those semantic patches and report on any problems found.  See
+Documentation/coccinelle.txt for more information.
+
 Other kinds of portability errors are best found by compiling your code for
 other architectures.  If you do not happen to have an S/390 system or a
 Blackfin development board handy, you can still perform the compilation
@@ -308,7 +320,9 @@ The first piece of documentation for any patch is its associated
 changelog.  Log entries should describe the problem being solved, the form
 of the solution, the people who worked on the patch, any relevant
 effects on performance, and anything else that might be needed to
-understand the patch.
+understand the patch.  Be sure that the changelog says *why* the patch is
+worth applying; a surprising number of developers fail to provide that
+information.
 
 Any code which adds a new user-space interface - including new sysfs or
 /proc files - should include documentation of that interface which enables
@@ -321,7 +335,7 @@ boot-time parameters.  Any patch which adds new parameters should add the
 appropriate entries to this file.
 
 Any new configuration options must be accompanied by help text which
-clearly explains the options and when the user might want to select them. 
+clearly explains the options and when the user might want to select them.
 
 Internal API information for many subsystems is documented by way of
 specially-formatted comments; these comments can be extracted and formatted
@@ -372,7 +386,8 @@ which is broken by the change.  For a widely-used function, this duty can
 lead to literally hundreds or thousands of changes - many of which are
 likely to conflict with work being done by other developers.  Needless to
 say, this can be a large job, so it is best to be sure that the
-justification is solid.
+justification is solid.  Note that the Coccinelle tool can help with
+wide-ranging API changes.
 
 When making an incompatible API change, one should, whenever possible,
 ensure that code which has not been updated is caught by the compiler.

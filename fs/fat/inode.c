@@ -236,7 +236,6 @@ static const struct address_space_operations fat_aops = {
 	.readpages	= fat_readpages,
 	.writepage	= fat_writepage,
 	.writepages	= fat_writepages,
-	.sync_page	= block_sync_page,
 	.write_begin	= fat_write_begin,
 	.write_end	= fat_write_end,
 	.direct_IO	= fat_direct_IO,

@@ -1953,7 +1953,7 @@ ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf)
 
 #define FUDGE AR5K_TUNE_SW_BEACON_RESP + 3
 	/* We use FUDGE to make sure the next TBTT is ahead of the current TU.
-	 * Since we later substract AR5K_TUNE_SW_BEACON_RESP (10) in the timer
+	 * Since we later subtract AR5K_TUNE_SW_BEACON_RESP (10) in the timer
 	 * configuration we need to make sure it is bigger than that. */
 
 	if (bc_tsf == -1) {
@@ -1971,7 +1971,7 @@ ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf)
 		intval |= AR5K_BEACON_RESET_TSF;
 	} else if (bc_tsf > hw_tsf) {
 		/*
-		 * beacon received, SW merge happend but HW TSF not yet updated.
+		 * beacon received, SW merge happened but HW TSF not yet updated.
 		 * not possible to reconfigure timers yet, but next time we
 		 * receive a beacon with the same BSSID, the hardware will
 		 * automatically update the TSF and then we need to reconfigure
@@ -2651,7 +2651,7 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 	synchronize_irq(sc->irq);
 	stop_tasklets(sc);
 
-	/* Save ani mode and disable ANI durring
+	/* Save ani mode and disable ANI during
 	 * reset. If we don't we might get false
 	 * PHY error interrupts. */
 	ani_mode = ah->ah_sc->ani_state.ani_mode;

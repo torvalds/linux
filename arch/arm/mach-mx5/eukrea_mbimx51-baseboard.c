@@ -212,7 +212,7 @@ void __init eukrea_mbimx51_baseboard_init(void)
 
 	gpio_request(MBIMX51_TSC2007_GPIO, "tsc2007_irq");
 	gpio_direction_input(MBIMX51_TSC2007_GPIO);
-	set_irq_type(MBIMX51_TSC2007_IRQ, IRQF_TRIGGER_FALLING);
+	irq_set_irq_type(MBIMX51_TSC2007_IRQ, IRQF_TRIGGER_FALLING);
 	i2c_register_board_info(1, mbimx51_i2c_devices,
 				ARRAY_SIZE(mbimx51_i2c_devices));
 

@@ -122,12 +122,10 @@ static int adis16400_spi_read_burst(struct device *dev, u8 *rx)
 			.tx_buf = st->tx,
 			.bits_per_word = 8,
 			.len = 2,
-			.cs_change = 0,
 		}, {
 			.rx_buf = rx,
 			.bits_per_word = 8,
 			.len = 24,
-			.cs_change = 1,
 		},
 	};
 
@@ -162,9 +160,10 @@ static void adis16400_trigger_bh_to_ring(struct work_struct *work_s)
 			       work_trigger_to_ring);
 	struct iio_ring_buffer *ring = st->indio_dev->ring;
 
-	int i = 0;
+	int i = 0, j;
 	s16 *data;
 	size_t datasize = ring->access.get_bytes_per_datum(ring);
+	unsigned long mask = ring->scan_mask;
 
 	data = kmalloc(datasize , GFP_KERNEL);
 	if (data == NULL) {
@@ -174,9 +173,12 @@ static void adis16400_trigger_bh_to_ring(struct work_struct *work_s)
 
 	if (ring->scan_count)
 		if (adis16400_spi_read_burst(&st->indio_dev->dev, st->rx) >= 0)
-			for (; i < ring->scan_count; i++)
+			for (; i < ring->scan_count; i++) {
+				j = __ffs(mask);
+				mask &= ~(1 << j);
 				data[i]	= be16_to_cpup(
-					(__be16 *)&(st->rx[i*2]));
+					(__be16 *)&(st->rx[j*2]));
+			}
 
 	/* Guaranteed to be aligned with 8 byte boundary */
 	if (ring->scan_timestamp)

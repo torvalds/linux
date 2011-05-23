@@ -2,6 +2,7 @@
  * arch/arm/mach-tegra/board-harmony.c
  *
  * Copyright (C) 2010 Google, Inc.
+ * Copyright (C) 2011 NVIDIA, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -22,12 +23,18 @@
 #include <linux/dma-mapping.h>
 #include <linux/pda_power.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
+#include <linux/i2c.h>
+#include <linux/i2c-tegra.h>
+
+#include <sound/wm8903.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/setup.h>
 
+#include <mach/harmony_audio.h>
 #include <mach/iomap.h>
 #include <mach/irqs.h>
 #include <mach/sdhci.h>
@@ -60,11 +67,81 @@ static struct platform_device debug_uart = {
 	},
 };
 
+static struct harmony_audio_platform_data harmony_audio_pdata = {
+	.gpio_spkr_en		= TEGRA_GPIO_SPKR_EN,
+	.gpio_hp_det		= TEGRA_GPIO_HP_DET,
+	.gpio_int_mic_en	= TEGRA_GPIO_INT_MIC_EN,
+	.gpio_ext_mic_en	= TEGRA_GPIO_EXT_MIC_EN,
+};
+
+static struct platform_device harmony_audio_device = {
+	.name	= "tegra-snd-harmony",
+	.id	= 0,
+	.dev	= {
+		.platform_data  = &harmony_audio_pdata,
+	},
+};
+
+static struct tegra_i2c_platform_data harmony_i2c1_platform_data = {
+	.bus_clk_rate   = 400000,
+};
+
+static struct tegra_i2c_platform_data harmony_i2c2_platform_data = {
+	.bus_clk_rate   = 400000,
+};
+
+static struct tegra_i2c_platform_data harmony_i2c3_platform_data = {
+	.bus_clk_rate   = 400000,
+};
+
+static struct tegra_i2c_platform_data harmony_dvc_platform_data = {
+	.bus_clk_rate   = 400000,
+};
+
+static struct wm8903_platform_data harmony_wm8903_pdata = {
+	.irq_active_low = 0,
+	.micdet_cfg = 0,
+	.micdet_delay = 100,
+	.gpio_base = HARMONY_GPIO_WM8903(0),
+	.gpio_cfg = {
+		WM8903_GPIO_NO_CONFIG,
+		WM8903_GPIO_NO_CONFIG,
+		0,
+		WM8903_GPIO_NO_CONFIG,
+		WM8903_GPIO_NO_CONFIG,
+	},
+};
+
+static struct i2c_board_info __initdata wm8903_board_info = {
+	I2C_BOARD_INFO("wm8903", 0x1a),
+	.platform_data = &harmony_wm8903_pdata,
+	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_CDC_IRQ),
+};
+
+static void __init harmony_i2c_init(void)
+{
+	tegra_i2c_device1.dev.platform_data = &harmony_i2c1_platform_data;
+	tegra_i2c_device2.dev.platform_data = &harmony_i2c2_platform_data;
+	tegra_i2c_device3.dev.platform_data = &harmony_i2c3_platform_data;
+	tegra_i2c_device4.dev.platform_data = &harmony_dvc_platform_data;
+
+	platform_device_register(&tegra_i2c_device1);
+	platform_device_register(&tegra_i2c_device2);
+	platform_device_register(&tegra_i2c_device3);
+	platform_device_register(&tegra_i2c_device4);
+
+	i2c_register_board_info(0, &wm8903_board_info, 1);
+}
+
 static struct platform_device *harmony_devices[] __initdata = {
 	&debug_uart,
 	&tegra_sdhci_device1,
 	&tegra_sdhci_device2,
 	&tegra_sdhci_device4,
+	&tegra_i2s_device1,
+	&tegra_das_device,
+	&tegra_pcm_device,
+	&harmony_audio_device,
 };
 
 static void __init tegra_harmony_fixup(struct machine_desc *desc,
@@ -80,6 +157,10 @@ static void __init tegra_harmony_fixup(struct machine_desc *desc,
 static __initdata struct tegra_clk_init_table harmony_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	{ "uartd",	"pll_p",	216000000,	true },
+	{ "pll_a",	"pll_p_out1",	56448000,	true },
+	{ "pll_a_out0",	"pll_a",	11289600,	true },
+	{ "cdev1",	NULL,		0,		true },
+	{ "i2s1",	"pll_a_out0",	11289600,	false},
 	{ NULL,		NULL,		0,		0},
 };
 
@@ -91,15 +172,15 @@ static struct tegra_sdhci_platform_data sdhci_pdata1 = {
 };
 
 static struct tegra_sdhci_platform_data sdhci_pdata2 = {
-	.cd_gpio	= TEGRA_GPIO_PI5,
-	.wp_gpio	= TEGRA_GPIO_PH1,
-	.power_gpio	= TEGRA_GPIO_PT3,
+	.cd_gpio	= TEGRA_GPIO_SD2_CD,
+	.wp_gpio	= TEGRA_GPIO_SD2_WP,
+	.power_gpio	= TEGRA_GPIO_SD2_POWER,
 };
 
 static struct tegra_sdhci_platform_data sdhci_pdata4 = {
-	.cd_gpio	= TEGRA_GPIO_PH2,
-	.wp_gpio	= TEGRA_GPIO_PH3,
-	.power_gpio	= TEGRA_GPIO_PI6,
+	.cd_gpio	= TEGRA_GPIO_SD4_CD,
+	.wp_gpio	= TEGRA_GPIO_SD4_WP,
+	.power_gpio	= TEGRA_GPIO_SD4_POWER,
 	.is_8bit	= 1,
 };
 
@@ -114,6 +195,8 @@ static void __init tegra_harmony_init(void)
 	tegra_sdhci_device4.dev.platform_data = &sdhci_pdata4;
 
 	platform_add_devices(harmony_devices, ARRAY_SIZE(harmony_devices));
+	harmony_i2c_init();
+	harmony_regulator_init();
 }
 
 MACHINE_START(HARMONY, "harmony")

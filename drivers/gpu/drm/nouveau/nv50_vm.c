@@ -174,10 +174,11 @@ void
 nv50_vm_flush_engine(struct drm_device *dev, int engine)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	unsigned long flags;
 
-	spin_lock(&dev_priv->ramin_lock);
+	spin_lock_irqsave(&dev_priv->vm_lock, flags);
 	nv_wr32(dev, 0x100c80, (engine << 16) | 1);
 	if (!nv_wait(dev, 0x100c80, 0x00000001, 0x00000000))
 		NV_ERROR(dev, "vm flush timeout: engine %d\n", engine);
-	spin_unlock(&dev_priv->ramin_lock);
+	spin_unlock_irqrestore(&dev_priv->vm_lock, flags);
 }

@@ -101,16 +101,16 @@ static struct irq_host *flipper_irq_host;
 static int flipper_pic_map(struct irq_host *h, unsigned int virq,
 			   irq_hw_number_t hwirq)
 {
-	set_irq_chip_data(virq, h->host_data);
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &flipper_pic, handle_level_irq);
+	irq_set_chip_data(virq, h->host_data);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &flipper_pic, handle_level_irq);
 	return 0;
 }
 
 static void flipper_pic_unmap(struct irq_host *h, unsigned int irq)
 {
-	set_irq_chip_data(irq, NULL);
-	set_irq_chip(irq, NULL);
+	irq_set_chip_data(irq, NULL);
+	irq_set_chip(irq, NULL);
 }
 
 static int flipper_pic_match(struct irq_host *h, struct device_node *np)

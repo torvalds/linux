@@ -169,7 +169,7 @@ static int tegra_sdhci_pltfm_init(struct sdhci_host *host,
 		if (rc) {
 			dev_err(mmc_dev(host->mmc),
 				"failed to allocate wp gpio\n");
-			goto out_cd;
+			goto out_irq;
 		}
 		tegra_gpio_enable(plat->wp_gpio);
 		gpio_direction_input(plat->wp_gpio);
@@ -195,6 +195,9 @@ out_wp:
 		gpio_free(plat->wp_gpio);
 	}
 
+out_irq:
+	if (gpio_is_valid(plat->cd_gpio))
+		free_irq(gpio_to_irq(plat->cd_gpio), host);
 out_cd:
 	if (gpio_is_valid(plat->cd_gpio)) {
 		tegra_gpio_disable(plat->cd_gpio);
@@ -225,6 +228,7 @@ static void tegra_sdhci_pltfm_exit(struct sdhci_host *host)
 	}
 
 	if (gpio_is_valid(plat->cd_gpio)) {
+		free_irq(gpio_to_irq(plat->cd_gpio), host);
 		tegra_gpio_disable(plat->cd_gpio);
 		gpio_free(plat->cd_gpio);
 	}

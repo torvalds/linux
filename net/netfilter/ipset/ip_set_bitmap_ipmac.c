@@ -343,6 +343,10 @@ bitmap_ipmac_kadt(struct ip_set *set, const struct sk_buff *skb,
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct ipmac data;
 
+	/* MAC can be src only */
+	if (!(flags & IPSET_DIM_TWO_SRC))
+		return 0;
+
 	data.id = ntohl(ip4addr(skb, flags & IPSET_DIM_ONE_SRC));
 	if (data.id < map->first_ip || data.id > map->last_ip)
 		return -IPSET_ERR_BITMAP_RANGE;
@@ -434,8 +438,7 @@ bitmap_ipmac_head(struct ip_set *set, struct sk_buff *skb)
 		goto nla_put_failure;
 	NLA_PUT_IPADDR4(skb, IPSET_ATTR_IP, htonl(map->first_ip));
 	NLA_PUT_IPADDR4(skb, IPSET_ATTR_IP_TO, htonl(map->last_ip));
-	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES,
-		      htonl(atomic_read(&set->ref) - 1));
+	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1));
 	NLA_PUT_NET32(skb, IPSET_ATTR_MEMSIZE,
 		      htonl(sizeof(*map)
 			    + (map->last_ip - map->first_ip + 1) * map->dsize));

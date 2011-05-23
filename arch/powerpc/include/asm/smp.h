@@ -36,15 +36,16 @@ extern void cpu_die(void);
 
 extern void smp_send_debugger_break(int cpu);
 extern void smp_message_recv(int);
+extern void start_secondary_resume(void);
 
 DECLARE_PER_CPU(unsigned int, cpu_pvr);
 
 #ifdef CONFIG_HOTPLUG_CPU
-extern void fixup_irqs(const struct cpumask *map);
+extern void migrate_irqs(void);
 int generic_cpu_disable(void);
-int generic_cpu_enable(unsigned int cpu);
 void generic_cpu_die(unsigned int cpu);
 void generic_mach_cpu_die(void);
+void generic_set_cpu_dead(unsigned int cpu);
 #endif
 
 #ifdef CONFIG_PPC64

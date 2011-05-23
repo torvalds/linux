@@ -143,7 +143,7 @@ static void iwl_do_scan_abort(struct iwl_priv *priv)
 		IWL_DEBUG_SCAN(priv, "Send scan abort failed %d\n", ret);
 		iwl_force_scan_end(priv);
 	} else
-		IWL_DEBUG_SCAN(priv, "Sucessfully send scan abort\n");
+		IWL_DEBUG_SCAN(priv, "Successfully send scan abort\n");
 }
 
 /**

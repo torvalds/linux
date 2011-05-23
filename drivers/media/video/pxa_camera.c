@@ -714,7 +714,7 @@ static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
  *
  * The DMA chaining is done with DMA running. This means a tiny temporal window
  * remains, where a buffer is queued on the chain, while the chain is already
- * stopped. This means the tailed buffer would never be transfered by DMA.
+ * stopped. This means the tailed buffer would never be transferred by DMA.
  * This function restarts the capture for this corner case, where :
  *  - DADR() == DADDR_STOP
  *  - a videobuffer is queued on the pcdev->capture list

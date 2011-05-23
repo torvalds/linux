@@ -339,6 +339,14 @@ static inline void ip_ib_mc_map(__be32 naddr, const unsigned char *broadcast, ch
 	buf[16] = addr & 0x0f;
 }
 
+static inline void ip_ipgre_mc_map(__be32 naddr, const unsigned char *broadcast, char *buf)
+{
+	if ((broadcast[0] | broadcast[1] | broadcast[2] | broadcast[3]) != 0)
+		memcpy(buf, broadcast, 4);
+	else
+		memcpy(buf, &naddr, sizeof(naddr));
+}
+
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 #include <linux/ipv6.h>
 #endif

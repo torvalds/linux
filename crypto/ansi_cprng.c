@@ -83,7 +83,7 @@ static void xor_vectors(unsigned char *in1, unsigned char *in2,
 }
 /*
  * Returns DEFAULT_BLK_SZ bytes of random data per call
- * returns 0 if generation succeded, <0 if something went wrong
+ * returns 0 if generation succeeded, <0 if something went wrong
  */
 static int _get_more_prng_bytes(struct prng_context *ctx, int cont_test)
 {

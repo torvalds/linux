@@ -157,7 +157,7 @@ static int __devinit pasemi_nand_probe(struct platform_device *ofdev)
 	/* Enable the following for a flash based bad block table */
 	chip->options = NAND_USE_FLASH_BBT | NAND_NO_AUTOINCR;
 
-	/* Scan to find existance of the device */
+	/* Scan to find existence of the device */
 	if (nand_scan(pasemi_nand_mtd, 1)) {
 		err = -ENXIO;
 		goto out_lpc;

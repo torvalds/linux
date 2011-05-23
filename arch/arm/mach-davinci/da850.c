@@ -1123,7 +1123,7 @@ void __init da850_init(void)
 	 * This helps keeping the peripherals on this domain insulated
 	 * from CPU frequency changes caused by DVFS. The firmware sets
 	 * both PLL0 and PLL1 to the same frequency so, there should not
-	 * be any noticible change even in non-DVFS use cases.
+	 * be any noticeable change even in non-DVFS use cases.
 	 */
 	da850_set_async3_src(1);
 

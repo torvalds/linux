@@ -2454,7 +2454,7 @@ static void scsi_debug_slave_destroy(struct scsi_device *sdp)
 		printk(KERN_INFO "scsi_debug: slave_destroy <%u %u %u %u>\n",
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 	if (devip) {
-		/* make this slot avaliable for re-use */
+		/* make this slot available for re-use */
 		devip->used = 0;
 		sdp->hostdata = NULL;
 	}

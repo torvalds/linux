@@ -162,47 +162,14 @@ void irq_free(unsigned int irq)
 /*
  * /proc/interrupts printing:
  */
-
-int show_interrupts(struct seq_file *p, void *v)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
-	int i = *(loff_t *) v, j;
-	struct irqaction * action;
-	unsigned long flags;
+	int j;
 
-	if (i == 0) {
-		seq_printf(p, "           ");
-		for_each_online_cpu(j)
-			seq_printf(p, "CPU%d       ",j);
-		seq_putc(p, '\n');
-	}
-
-	if (i < NR_IRQS) {
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
-		if (!action)
-			goto skip;
-		seq_printf(p, "%3d: ",i);
-#ifndef CONFIG_SMP
-		seq_printf(p, "%10u ", kstat_irqs(i));
-#else
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-#endif
-		seq_printf(p, " %9s", irq_desc[i].irq_data.chip->name);
-		seq_printf(p, "  %s", action->name);
-
-		for (action=action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-
-		seq_putc(p, '\n');
-skip:
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == NR_IRQS) {
-		seq_printf(p, "NMI: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", cpu_data(j).__nmi_count);
-		seq_printf(p, "     Non-maskable interrupts\n");
-	}
+	seq_printf(p, "NMI: ");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", cpu_data(j).__nmi_count);
+	seq_printf(p, "     Non-maskable interrupts\n");
 	return 0;
 }
 
@@ -344,10 +311,6 @@ static void sun4u_irq_disable(struct irq_data *data)
 static void sun4u_irq_eoi(struct irq_data *data)
 {
 	struct irq_handler_data *handler_data = data->handler_data;
-	struct irq_desc *desc = irq_desc + data->irq;
-
-	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		return;
 
 	if (likely(handler_data))
 		upa_writeq(ICLR_IDLE, handler_data->iclr);
@@ -402,11 +365,7 @@ static void sun4v_irq_disable(struct irq_data *data)
 static void sun4v_irq_eoi(struct irq_data *data)
 {
 	unsigned int ino = irq_table[data->irq].dev_ino;
-	struct irq_desc *desc = irq_desc + data->irq;
 	int err;
-
-	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		return;
 
 	err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
 	if (err != HV_EOK)
@@ -481,12 +440,8 @@ static void sun4v_virq_disable(struct irq_data *data)
 
 static void sun4v_virq_eoi(struct irq_data *data)
 {
-	struct irq_desc *desc = irq_desc + data->irq;
 	unsigned long dev_handle, dev_ino;
 	int err;
-
-	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		return;
 
 	dev_handle = irq_table[data->irq].dev_handle;
 	dev_ino = irq_table[data->irq].dev_ino;
@@ -505,6 +460,7 @@ static struct irq_chip sun4u_irq = {
 	.irq_disable		= sun4u_irq_disable,
 	.irq_eoi		= sun4u_irq_eoi,
 	.irq_set_affinity	= sun4u_set_affinity,
+	.flags			= IRQCHIP_EOI_IF_HANDLED,
 };
 
 static struct irq_chip sun4v_irq = {
@@ -513,6 +469,7 @@ static struct irq_chip sun4v_irq = {
 	.irq_disable		= sun4v_irq_disable,
 	.irq_eoi		= sun4v_irq_eoi,
 	.irq_set_affinity	= sun4v_set_affinity,
+	.flags			= IRQCHIP_EOI_IF_HANDLED,
 };
 
 static struct irq_chip sun4v_virq = {
@@ -521,30 +478,28 @@ static struct irq_chip sun4v_virq = {
 	.irq_disable		= sun4v_virq_disable,
 	.irq_eoi		= sun4v_virq_eoi,
 	.irq_set_affinity	= sun4v_virt_set_affinity,
+	.flags			= IRQCHIP_EOI_IF_HANDLED,
 };
 
-static void pre_flow_handler(unsigned int irq, struct irq_desc *desc)
+static void pre_flow_handler(struct irq_data *d)
 {
-	struct irq_handler_data *handler_data = get_irq_data(irq);
-	unsigned int ino = irq_table[irq].dev_ino;
+	struct irq_handler_data *handler_data = irq_data_get_irq_handler_data(d);
+	unsigned int ino = irq_table[d->irq].dev_ino;
 
 	handler_data->pre_handler(ino, handler_data->arg1, handler_data->arg2);
-
-	handle_fasteoi_irq(irq, desc);
 }
 
 void irq_install_pre_handler(int irq,
 			     void (*func)(unsigned int, void *, void *),
 			     void *arg1, void *arg2)
 {
-	struct irq_handler_data *handler_data = get_irq_data(irq);
-	struct irq_desc *desc = irq_desc + irq;
+	struct irq_handler_data *handler_data = irq_get_handler_data(irq);
 
 	handler_data->pre_handler = func;
 	handler_data->arg1 = arg1;
 	handler_data->arg2 = arg2;
 
-	desc->handle_irq = pre_flow_handler;
+	__irq_set_preflow_handler(irq, pre_flow_handler);
 }
 
 unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
@@ -562,13 +517,11 @@ unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 	if (!irq) {
 		irq = irq_alloc(0, ino);
 		bucket_set_irq(__pa(bucket), irq);
-		set_irq_chip_and_handler_name(irq,
-					      &sun4u_irq,
-					      handle_fasteoi_irq,
-					      "IVEC");
+		irq_set_chip_and_handler_name(irq, &sun4u_irq,
+					      handle_fasteoi_irq, "IVEC");
 	}
 
-	handler_data = get_irq_data(irq);
+	handler_data = irq_get_handler_data(irq);
 	if (unlikely(handler_data))
 		goto out;
 
@@ -577,7 +530,7 @@ unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 		prom_printf("IRQ: kzalloc(irq_handler_data) failed.\n");
 		prom_halt();
 	}
-	set_irq_data(irq, handler_data);
+	irq_set_handler_data(irq, handler_data);
 
 	handler_data->imap  = imap;
 	handler_data->iclr  = iclr;
@@ -600,12 +553,11 @@ static unsigned int sun4v_build_common(unsigned long sysino,
 	if (!irq) {
 		irq = irq_alloc(0, sysino);
 		bucket_set_irq(__pa(bucket), irq);
-		set_irq_chip_and_handler_name(irq, chip,
-					      handle_fasteoi_irq,
+		irq_set_chip_and_handler_name(irq, chip, handle_fasteoi_irq,
 					      "IVEC");
 	}
 
-	handler_data = get_irq_data(irq);
+	handler_data = irq_get_handler_data(irq);
 	if (unlikely(handler_data))
 		goto out;
 
@@ -614,7 +566,7 @@ static unsigned int sun4v_build_common(unsigned long sysino,
 		prom_printf("IRQ: kzalloc(irq_handler_data) failed.\n");
 		prom_halt();
 	}
-	set_irq_data(irq, handler_data);
+	irq_set_handler_data(irq, handler_data);
 
 	/* Catch accidental accesses to these things.  IMAP/ICLR handling
 	 * is done by hypervisor calls on sun4v platforms, not by direct
@@ -639,7 +591,6 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 	struct irq_handler_data *handler_data;
 	unsigned long hv_err, cookie;
 	struct ino_bucket *bucket;
-	struct irq_desc *desc;
 	unsigned int irq;
 
 	bucket = kzalloc(sizeof(struct ino_bucket), GFP_ATOMIC);
@@ -660,8 +611,7 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 	irq = irq_alloc(devhandle, devino);
 	bucket_set_irq(__pa(bucket), irq);
 
-	set_irq_chip_and_handler_name(irq, &sun4v_virq,
-				      handle_fasteoi_irq,
+	irq_set_chip_and_handler_name(irq, &sun4v_virq, handle_fasteoi_irq,
 				      "IVEC");
 
 	handler_data = kzalloc(sizeof(struct irq_handler_data), GFP_ATOMIC);
@@ -672,10 +622,8 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 	 * especially wrt. locking, we do not let request_irq() enable
 	 * the interrupt.
 	 */
-	desc = irq_desc + irq;
-	desc->status |= IRQ_NOAUTOEN;
-
-	set_irq_data(irq, handler_data);
+	irq_set_status_flags(irq, IRQ_NOAUTOEN);
+	irq_set_handler_data(irq, handler_data);
 
 	/* Catch accidental accesses to these things.  IMAP/ICLR handling
 	 * is done by hypervisor calls on sun4v platforms, not by direct
@@ -734,7 +682,6 @@ void __irq_entry handler_irq(int pil, struct pt_regs *regs)
 	orig_sp = set_hardirq_stack();
 
 	while (bucket_pa) {
-		struct irq_desc *desc;
 		unsigned long next_pa;
 		unsigned int irq;
 
@@ -742,10 +689,7 @@ void __irq_entry handler_irq(int pil, struct pt_regs *regs)
 		irq = bucket_get_irq(bucket_pa);
 		bucket_clear_chain_pa(bucket_pa);
 
-		desc = irq_desc + irq;
-
-		if (!(desc->status & IRQ_DISABLED))
-			desc->handle_irq(irq, desc);
+		generic_handle_irq(irq);
 
 		bucket_pa = next_pa;
 	}
@@ -788,19 +732,18 @@ void fixup_irqs(void)
 	unsigned int irq;
 
 	for (irq = 0; irq < NR_IRQS; irq++) {
+		struct irq_desc *desc = irq_to_desc(irq);
+		struct irq_data *data = irq_desc_get_irq_data(desc);
 		unsigned long flags;
 
-		raw_spin_lock_irqsave(&irq_desc[irq].lock, flags);
-		if (irq_desc[irq].action &&
-		    !(irq_desc[irq].status & IRQ_PER_CPU)) {
-			struct irq_data *data = irq_get_irq_data(irq);
-
+		raw_spin_lock_irqsave(&desc->lock, flags);
+		if (desc->action && !irqd_is_per_cpu(data)) {
 			if (data->chip->irq_set_affinity)
 				data->chip->irq_set_affinity(data,
-				                             data->affinity,
-				                             false);
+							     data->affinity,
+							     false);
 		}
-		raw_spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 
 	tick_ops->disable_irq();
@@ -1038,5 +981,5 @@ void __init init_IRQ(void)
 			     : "i" (PSTATE_IE)
 			     : "g1");
 
-	irq_desc[0].action = &timer_irq_action;
+	irq_to_desc(0)->action = &timer_irq_action;
 }

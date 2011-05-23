@@ -482,7 +482,7 @@ static struct dentry *nilfs_get_dentry(struct super_block *sb, u64 cno,
 	if (ino < NILFS_FIRST_INO(sb) && ino != NILFS_ROOT_INO)
 		return ERR_PTR(-ESTALE);
 
-	root = nilfs_lookup_root(NILFS_SB(sb)->s_nilfs, cno);
+	root = nilfs_lookup_root(sb->s_fs_info, cno);
 	if (!root)
 		return ERR_PTR(-ESTALE);
 

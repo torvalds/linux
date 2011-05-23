@@ -44,6 +44,11 @@
 #define GPIO_NR_PALMZ72_BT_POWER		17
 #define GPIO_NR_PALMZ72_BT_RESET		83
 
+/* Camera */
+#define GPIO_NR_PALMZ72_CAM_PWDN		56
+#define GPIO_NR_PALMZ72_CAM_RESET		57
+#define GPIO_NR_PALMZ72_CAM_POWER		91
+
 /** Initial values **/
 
 /* Battery */

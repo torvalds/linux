@@ -214,8 +214,9 @@ void s3c_pm_do_restore_core(struct sleep_save *ptr, int count)
  *
  * print any IRQs asserted at resume time (ie, we woke from)
 */
-static void s3c_pm_show_resume_irqs(int start, unsigned long which,
-				    unsigned long mask)
+static void __maybe_unused s3c_pm_show_resume_irqs(int start,
+						   unsigned long which,
+						   unsigned long mask)
 {
 	int i;
 

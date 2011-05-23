@@ -118,6 +118,8 @@ static void mxs_i2c_reset(struct mxs_i2c_dev *i2c)
 {
 	mxs_reset_block(i2c->regs);
 	writel(MXS_I2C_IRQ_MASK << 8, i2c->regs + MXS_I2C_CTRL1_SET);
+	writel(MXS_I2C_QUEUECTRL_PIO_QUEUE_MODE,
+			i2c->regs + MXS_I2C_QUEUECTRL_SET);
 }
 
 static void mxs_i2c_pioq_setup_read(struct mxs_i2c_dev *i2c, u8 addr, int len,
@@ -147,7 +149,7 @@ static void mxs_i2c_pioq_setup_write(struct mxs_i2c_dev *i2c,
 	 * We have to copy the slave address (u8) and buffer (arbitrary number
 	 * of u8) into the data register (u32). To achieve that, the u8 are put
 	 * into the MSBs of 'data' which is then shifted for the next u8. When
-	 * apropriate, 'data' is written to MXS_I2C_DATA. So, the first u32
+	 * appropriate, 'data' is written to MXS_I2C_DATA. So, the first u32
 	 * looks like this:
 	 *
 	 *  3          2          1          0
@@ -347,8 +349,6 @@ static int __devinit mxs_i2c_probe(struct platform_device *pdev)
 
 	/* Do reset to enforce correct startup after pinmuxing */
 	mxs_i2c_reset(i2c);
-	writel(MXS_I2C_QUEUECTRL_PIO_QUEUE_MODE,
-			i2c->regs + MXS_I2C_QUEUECTRL_SET);
 
 	adap = &i2c->adapter;
 	strlcpy(adap->name, "MXS I2C adapter", sizeof(adap->name));

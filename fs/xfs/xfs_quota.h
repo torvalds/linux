@@ -382,7 +382,8 @@ static inline int xfs_qm_sync(struct xfs_mount *mp, int flags)
 	xfs_trans_reserve_quota_bydquots(tp, mp, ud, gd, nb, ni, \
 				f | XFS_QMOPT_RES_REGBLKS)
 
-extern int xfs_qm_dqcheck(xfs_disk_dquot_t *, xfs_dqid_t, uint, uint, char *);
+extern int xfs_qm_dqcheck(struct xfs_mount *, xfs_disk_dquot_t *,
+				xfs_dqid_t, uint, uint, char *);
 extern int xfs_mount_reset_sbqflags(struct xfs_mount *);
 
 #endif	/* __KERNEL__ */

@@ -1021,7 +1021,7 @@ static int sq_ioctl(struct file *file, u_int cmd, u_long arg)
 	case SNDCTL_DSP_SYNC:
 		/* This call, effectively, has the same behaviour as SNDCTL_DSP_RESET
 		   except that it waits for output to finish before resetting
-		   everything - read, however, is killed imediately.
+		   everything - read, however, is killed immediately.
 		*/
 		result = 0 ;
 		if (file->f_mode & FMODE_WRITE) {

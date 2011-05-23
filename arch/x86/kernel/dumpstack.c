@@ -27,7 +27,7 @@ static int die_counter;
 
 void printk_address(unsigned long address, int reliable)
 {
-	printk(" [<%p>] %s%pS\n", (void *) address,
+	printk(" [<%p>] %s%pB\n", (void *) address,
 			reliable ? "" : "? ", (void *) address);
 }
 
@@ -321,16 +321,6 @@ void die(const char *str, struct pt_regs *regs, long err)
 		sig = 0;
 	oops_end(flags, regs, sig);
 }
-
-static int __init oops_setup(char *s)
-{
-	if (!s)
-		return -EINVAL;
-	if (!strcmp(s, "panic"))
-		panic_on_oops = 1;
-	return 0;
-}
-early_param("oops", oops_setup);
 
 static int __init kstack_setup(char *s)
 {

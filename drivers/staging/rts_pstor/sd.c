@@ -909,7 +909,7 @@ static int sd_change_phase(struct rtsx_chip *chip, u8 sample_point, u8 tune_dir)
 		RTSX_WRITE_REG(chip, SD_VPCLK0_CTL, PHASE_NOT_RESET, PHASE_NOT_RESET);
 		RTSX_WRITE_REG(chip, CLK_CTL, CHANGE_CLK, 0);
 	} else {
-#if CONFIG_RTS_PSTOR_DEBUG
+#ifdef CONFIG_RTS_PSTOR_DEBUG
 		rtsx_read_register(chip, SD_VP_CTL, &val);
 		RTSX_DEBUGP("SD_VP_CTL: 0x%x\n", val);
 		rtsx_read_register(chip, SD_DCMPS_CTL, &val);
@@ -958,7 +958,7 @@ static int sd_change_phase(struct rtsx_chip *chip, u8 sample_point, u8 tune_dir)
 	return STATUS_SUCCESS;
 
 Fail:
-#if CONFIG_RTS_PSTOR_DEBUG
+#ifdef CONFIG_RTS_PSTOR_DEBUG
 	rtsx_read_register(chip, SD_VP_CTL, &val);
 	RTSX_DEBUGP("SD_VP_CTL: 0x%x\n", val);
 	rtsx_read_register(chip, SD_DCMPS_CTL, &val);
@@ -1719,7 +1719,7 @@ static u8 sd_search_final_phase(struct rtsx_chip *chip, u32 phase_map, u8 tune_d
 	}
 
 Search_Finish:
-	RTSX_DEBUGP("Final choosen phase: %d\n", final_phase);
+	RTSX_DEBUGP("Final chosen phase: %d\n", final_phase);
 	return final_phase;
 }
 

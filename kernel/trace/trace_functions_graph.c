@@ -905,7 +905,7 @@ print_graph_prologue(struct trace_iterator *iter, struct trace_seq *s,
  *
  * returns 1 if
  *  - we are inside irq code
- *  - we just extered irq code
+ *  - we just entered irq code
  *
  * retunns 0 if
  *  - funcgraph-interrupts option is set

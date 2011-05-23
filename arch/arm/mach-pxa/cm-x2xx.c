@@ -379,7 +379,7 @@ __setup("monitor=", cmx2xx_set_display);
 
 static void __init cmx2xx_init_display(void)
 {
-	set_pxa_fb_info(cmx2xx_display);
+	pxa_set_fb_info(NULL, cmx2xx_display);
 }
 #else
 static inline void cmx2xx_init_display(void) {}

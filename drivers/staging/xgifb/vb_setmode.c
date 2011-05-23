@@ -7834,7 +7834,7 @@ unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 						== 600)) {
 			index++;
 		}
-		/* Alan 10/19/2007; do the similiar adjustment like XGISearchCRT1Rate() */
+		/* Alan 10/19/2007; do the similar adjustment like XGISearchCRT1Rate() */
 		if ((pVBInfo->RefIndex[RefreshRateTableIndex].XRes == 1024)
 				&& (pVBInfo->RefIndex[RefreshRateTableIndex].YRes
 						== 768)) {

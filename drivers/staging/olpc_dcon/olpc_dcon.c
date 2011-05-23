@@ -574,6 +574,7 @@ static const struct backlight_ops dcon_bl_ops = {
 
 static struct backlight_properties dcon_bl_props = {
 	.max_brightness = 15,
+	.type = BACKLIGHT_RAW,
 	.power = FB_BLANK_UNBLANK,
 };
 

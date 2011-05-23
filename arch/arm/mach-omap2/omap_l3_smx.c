@@ -196,11 +196,11 @@ static irqreturn_t omap3_l3_app_irq(int irq, void *_l3)
 		/* No timeout error for debug sources */
 	}
 
-	base = ((l3->rt) + (*(omap3_l3_bases[int_type] + err_source)));
-
 	/* identify the error source */
 	for (err_source = 0; !(status & (1 << err_source)); err_source++)
 									;
+
+	base = l3->rt + *(omap3_l3_bases[int_type] + err_source);
 	error = omap3_l3_readll(base, L3_ERROR_LOG);
 
 	if (error) {
@@ -226,7 +226,6 @@ static int __init omap3_l3_probe(struct platform_device *pdev)
 	struct omap3_l3         *l3;
 	struct resource         *res;
 	int                     ret;
-	int                     irq;
 
 	l3 = kzalloc(sizeof(*l3), GFP_KERNEL);
 	if (!l3) {
@@ -249,18 +248,17 @@ static int __init omap3_l3_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	irq = platform_get_irq(pdev, 0);
-	ret = request_irq(irq, omap3_l3_app_irq,
+	l3->debug_irq = platform_get_irq(pdev, 0);
+	ret = request_irq(l3->debug_irq, omap3_l3_app_irq,
 		IRQF_DISABLED | IRQF_TRIGGER_RISING,
 		"l3-debug-irq", l3);
 	if (ret) {
 		dev_err(&pdev->dev, "couldn't request debug irq\n");
 		goto err3;
 	}
-	l3->debug_irq = irq;
 
-	irq = platform_get_irq(pdev, 1);
-	ret = request_irq(irq, omap3_l3_app_irq,
+	l3->app_irq = platform_get_irq(pdev, 1);
+	ret = request_irq(l3->app_irq, omap3_l3_app_irq,
 		IRQF_DISABLED | IRQF_TRIGGER_RISING,
 		"l3-app-irq", l3);
 
@@ -269,7 +267,6 @@ static int __init omap3_l3_probe(struct platform_device *pdev)
 		goto err4;
 	}
 
-	l3->app_irq = irq;
 	goto err0;
 
 err4:

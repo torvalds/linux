@@ -116,7 +116,7 @@ static void opticon_read_bulk_callback(struct urb *urb)
 		} else {
 			if ((data[0] == 0x00) && (data[1] == 0x01)) {
 				spin_lock_irqsave(&priv->lock, flags);
-				/* CTS status infomation package */
+				/* CTS status information package */
 				if (data[2] == 0x00)
 					priv->cts = false;
 				else
@@ -413,7 +413,7 @@ static int opticon_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-static int opticon_tiocmset(struct tty_struct *tty, struct file *file,
+static int opticon_tiocmset(struct tty_struct *tty,
 			   unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;

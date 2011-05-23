@@ -88,7 +88,8 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 	search_key.offset = (u64)-1;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
 	if (ret < 0)
 		goto out;
@@ -332,7 +333,8 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	struct extent_buffer *leaf;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 	ret = btrfs_search_slot(trans, root, key, path, -1, 1);
 	if (ret < 0)
 		goto out;
@@ -470,4 +472,22 @@ again:
 
 	btrfs_free_path(path);
 	return 0;
+}
+
+/*
+ * Old btrfs forgets to init root_item->flags and root_item->byte_limit
+ * for subvolumes. To work around this problem, we steal a bit from
+ * root_item->inode_item->flags, and use it to indicate if those fields
+ * have been properly initialized.
+ */
+void btrfs_check_and_init_root_item(struct btrfs_root_item *root_item)
+{
+	u64 inode_flags = le64_to_cpu(root_item->inode.flags);
+
+	if (!(inode_flags & BTRFS_INODE_ROOT_ITEM_INIT)) {
+		inode_flags |= BTRFS_INODE_ROOT_ITEM_INIT;
+		root_item->inode.flags = cpu_to_le64(inode_flags);
+		root_item->flags = 0;
+		root_item->byte_limit = 0;
+	}
 }

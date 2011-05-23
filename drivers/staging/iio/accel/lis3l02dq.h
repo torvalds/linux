@@ -57,7 +57,7 @@
 /* Reboot memory content */
 #define LIS3L02DQ_REG_CTRL_2_REBOOT_MEMORY	0x10
 
-/* Interupt Enable - applies data ready to the RDY pad */
+/* Interrupt Enable - applies data ready to the RDY pad */
 #define LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT	0x08
 
 /* Enable Data Ready Generation - relationship with previous unclear in docs */
@@ -70,34 +70,34 @@
  * - option for 16 bit left justified */
 #define LIS3L02DQ_REG_CTRL_2_DATA_ALIGNMENT_16_BIT_LEFT_JUSTIFIED	0x01
 
-/* Interupt related stuff */
+/* Interrupt related stuff */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_ADDR			0x23
 
 /* Switch from or combination fo conditions to and */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_BOOLEAN_AND		0x80
 
-/* Latch interupt request,
+/* Latch interrupt request,
  * if on ack must be given by reading the ack register */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_LATCH_SRC		0x40
 
-/* Z Interupt on High (above threshold)*/
+/* Z Interrupt on High (above threshold)*/
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Z_HIGH	0x20
-/* Z Interupt on Low */
+/* Z Interrupt on Low */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Z_LOW	0x10
-/* Y Interupt on High */
+/* Y Interrupt on High */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Y_HIGH	0x08
-/* Y Interupt on Low */
+/* Y Interrupt on Low */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Y_LOW	0x04
-/* X Interupt on High */
+/* X Interrupt on High */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_X_HIGH	0x02
-/* X Interupt on Low */
+/* X Interrupt on Low */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_X_LOW 0x01
 
-/* Register that gives description of what caused interupt
+/* Register that gives description of what caused interrupt
  * - latched if set in CFG_ADDRES */
 #define LIS3L02DQ_REG_WAKE_UP_SRC_ADDR			0x24
 /* top bit ignored */
-/* Interupt Active */
+/* Interrupt Active */
 #define LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_ACTIVATED	0x40
 /* Interupts that have been triggered */
 #define LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_HIGH	0x20
@@ -123,7 +123,7 @@
 #define LIS3L02DQ_REG_STATUS_X_NEW_DATA			0x01
 
 /* The accelerometer readings - low and high bytes.
-Form of high byte dependant on justification set in ctrl reg */
+Form of high byte dependent on justification set in ctrl reg */
 #define LIS3L02DQ_REG_OUT_X_L_ADDR			0x28
 #define LIS3L02DQ_REG_OUT_X_H_ADDR			0x29
 #define LIS3L02DQ_REG_OUT_Y_L_ADDR			0x2A
@@ -155,7 +155,7 @@ Form of high byte dependant on justification set in ctrl reg */
  * @inter:		used to check if new interrupt has been triggered
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
- * @rx:			recieve buffer
+ * @rx:			receive buffer
  * @buf_lock:		mutex to protect tx and rx
  **/
 struct lis3l02dq_state {

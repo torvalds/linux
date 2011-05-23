@@ -107,7 +107,7 @@ static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 static void ide_floppy_report_error(struct ide_disk_obj *floppy,
 				    struct ide_atapi_pc *pc)
 {
-	/* supress error messages resulting from Medium not present */
+	/* suppress error messages resulting from Medium not present */
 	if (floppy->sense_key == 0x02 &&
 	    floppy->asc       == 0x3a &&
 	    floppy->ascq      == 0x00)

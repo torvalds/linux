@@ -2460,7 +2460,7 @@ int rt28xx_sta_ioctl(IN struct net_device *net_dev,
 		}
 	}
 
-	{			/* determine this ioctl command is comming from which interface. */
+	{			/* determine this ioctl command is coming from which interface. */
 		pObj->ioctl_if_type = INT_MAIN;
 		pObj->ioctl_if = MAIN_MBSSID;
 	}

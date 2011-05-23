@@ -97,7 +97,7 @@ static void __exit ab8500_i2c_exit(void)
 {
 	platform_driver_unregister(&ab8500_i2c_driver);
 }
-subsys_initcall(ab8500_i2c_init);
+arch_initcall(ab8500_i2c_init);
 module_exit(ab8500_i2c_exit);
 
 MODULE_AUTHOR("Mattias WALLIN <mattias.wallin@stericsson.com");

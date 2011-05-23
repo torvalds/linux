@@ -58,22 +58,22 @@ static int pnx4008_set_irq_type(struct irq_data *d, unsigned int type)
 	case IRQ_TYPE_EDGE_RISING:
 		__raw_writel(__raw_readl(INTC_ATR(d->irq)) | INTC_BIT(d->irq), INTC_ATR(d->irq));	/*edge sensitive */
 		__raw_writel(__raw_readl(INTC_APR(d->irq)) | INTC_BIT(d->irq), INTC_APR(d->irq));	/*rising edge */
-		set_irq_handler(d->irq, handle_edge_irq);
+		irq_set_handler(d->irq, handle_edge_irq);
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
 		__raw_writel(__raw_readl(INTC_ATR(d->irq)) | INTC_BIT(d->irq), INTC_ATR(d->irq));	/*edge sensitive */
 		__raw_writel(__raw_readl(INTC_APR(d->irq)) & ~INTC_BIT(d->irq), INTC_APR(d->irq));	/*falling edge */
-		set_irq_handler(d->irq, handle_edge_irq);
+		irq_set_handler(d->irq, handle_edge_irq);
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		__raw_writel(__raw_readl(INTC_ATR(d->irq)) & ~INTC_BIT(d->irq), INTC_ATR(d->irq));	/*level sensitive */
 		__raw_writel(__raw_readl(INTC_APR(d->irq)) & ~INTC_BIT(d->irq), INTC_APR(d->irq));	/*low level */
-		set_irq_handler(d->irq, handle_level_irq);
+		irq_set_handler(d->irq, handle_level_irq);
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 		__raw_writel(__raw_readl(INTC_ATR(d->irq)) & ~INTC_BIT(d->irq), INTC_ATR(d->irq));	/*level sensitive */
 		__raw_writel(__raw_readl(INTC_APR(d->irq)) | INTC_BIT(d->irq), INTC_APR(d->irq));	/* high level */
-		set_irq_handler(d->irq, handle_level_irq);
+		irq_set_handler(d->irq, handle_level_irq);
 		break;
 
 	/* IRQ_TYPE_EDGE_BOTH is not supported */
@@ -98,7 +98,7 @@ void __init pnx4008_init_irq(void)
 	/* configure IRQ's */
 	for (i = 0; i < NR_IRQS; i++) {
 		set_irq_flags(i, IRQF_VALID);
-		set_irq_chip(i, &pnx4008_irq_chip);
+		irq_set_chip(i, &pnx4008_irq_chip);
 		pnx4008_set_irq_type(irq_get_irq_data(i), pnx4008_irq_type[i]);
 	}
 

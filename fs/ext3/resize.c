@@ -1009,7 +1009,7 @@ int ext3_group_extend(struct super_block *sb, struct ext3_super_block *es,
 
 	if (test_opt(sb, DEBUG))
 		printk(KERN_DEBUG "EXT3-fs: extending last group from "E3FSBLK
-		       " upto "E3FSBLK" blocks\n",
+		       " up to "E3FSBLK" blocks\n",
 		       o_blocks_count, n_blocks_count);
 
 	if (n_blocks_count == 0 || n_blocks_count == o_blocks_count)

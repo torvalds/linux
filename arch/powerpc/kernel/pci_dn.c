@@ -176,11 +176,14 @@ static void *is_devfn_node(struct device_node *dn, void *data)
  */
 struct device_node *fetch_dev_dn(struct pci_dev *dev)
 {
-	struct device_node *orig_dn = dev->dev.of_node;
+	struct pci_controller *phb = dev->sysdata;
 	struct device_node *dn;
 	unsigned long searchval = (dev->bus->number << 8) | dev->devfn;
 
-	dn = traverse_pci_devices(orig_dn, is_devfn_node, (void *)searchval);
+	if (WARN_ON(!phb))
+		return NULL;
+
+	dn = traverse_pci_devices(phb->dn, is_devfn_node, (void *)searchval);
 	if (dn)
 		dev->dev.of_node = dn;
 	return dn;

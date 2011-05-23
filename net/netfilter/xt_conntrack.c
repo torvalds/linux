@@ -195,7 +195,7 @@ conntrack_mt(const struct sk_buff *skb, struct xt_action_param *par,
 		return info->match_flags & XT_CONNTRACK_STATE;
 	if ((info->match_flags & XT_CONNTRACK_DIRECTION) &&
 	    (CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL) ^
-	    !!(info->invert_flags & XT_CONNTRACK_DIRECTION))
+	    !(info->invert_flags & XT_CONNTRACK_DIRECTION))
 		return false;
 
 	if (info->match_flags & XT_CONNTRACK_ORIGSRC)
@@ -271,11 +271,6 @@ conntrack_mt_v3(const struct sk_buff *skb, struct xt_action_param *par)
 static int conntrack_mt_check(const struct xt_mtchk_param *par)
 {
 	int ret;
-
-	if (strcmp(par->table, "raw") == 0) {
-		pr_info("state is undetermined at the time of raw table\n");
-		return -EINVAL;
-	}
 
 	ret = nf_ct_l3proto_try_module_get(par->family);
 	if (ret < 0)

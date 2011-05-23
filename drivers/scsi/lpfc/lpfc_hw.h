@@ -1344,7 +1344,7 @@ typedef struct {		/* FireFly BIU registers */
 #define HS_FFER1       0x80000000	/* Bit 31 */
 #define HS_CRIT_TEMP   0x00000100	/* Bit 8  */
 #define HS_FFERM       0xFF000100	/* Mask for error bits 31:24 and 8 */
-
+#define UNPLUG_ERR     0x00000001	/* Indicate pci hot unplug */
 /* Host Control Register */
 
 #define HC_REG_OFFSET  12	/* Byte offset from register base address */
@@ -1713,6 +1713,17 @@ struct lpfc_pde6 {
 #define pde6_apptagval_WORD	word2
 };
 
+struct lpfc_pde7 {
+	uint32_t word0;
+#define pde7_type_SHIFT		24
+#define pde7_type_MASK		0x000000ff
+#define pde7_type_WORD		word0
+#define pde7_rsvd0_SHIFT	0
+#define pde7_rsvd0_MASK		0x00ffffff
+#define pde7_rsvd0_WORD		word0
+	uint32_t addrHigh;
+	uint32_t addrLow;
+};
 
 /* Structure for MB Command LOAD_SM and DOWN_LOAD */
 
@@ -3621,7 +3632,7 @@ typedef struct _IOCB {	/* IOCB structure */
 		ASYNCSTAT_FIELDS asyncstat; /* async_status iocb */
 		QUE_XRI64_CX_FIELDS quexri64cx; /* que_xri64_cx fields */
 		struct rcv_seq64 rcvseq64;	/* RCV_SEQ64 and RCV_CONT64 */
-		struct sli4_bls_acc bls_acc; /* UNSOL ABTS BLS_ACC params */
+		struct sli4_bls_rsp bls_rsp; /* UNSOL ABTS BLS_RSP params */
 		uint32_t ulpWord[IOCB_WORD_SZ - 2];	/* generic 6 'words' */
 	} un;
 	union {

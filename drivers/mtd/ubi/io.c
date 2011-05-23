@@ -344,6 +344,12 @@ static int do_sync_erase(struct ubi_device *ubi, int pnum)
 	wait_queue_head_t wq;
 
 	dbg_io("erase PEB %d", pnum);
+	ubi_assert(pnum >= 0 && pnum < ubi->peb_count);
+
+	if (ubi->ro_mode) {
+		ubi_err("read-only mode");
+		return -EROFS;
+	}
 
 retry:
 	init_waitqueue_head(&wq);
@@ -390,7 +396,7 @@ retry:
 	if (err)
 		return err;
 
-	if (ubi_dbg_is_erase_failure() && !err) {
+	if (ubi_dbg_is_erase_failure()) {
 		dbg_err("cannot erase PEB %d (emulated)", pnum);
 		return -EIO;
 	}
@@ -1345,7 +1351,7 @@ int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 	if (!(ubi_chk_flags & UBI_CHK_IO))
 		return 0;
 
-	buf1 = __vmalloc(len, GFP_KERNEL | GFP_NOFS, PAGE_KERNEL);
+	buf1 = __vmalloc(len, GFP_NOFS, PAGE_KERNEL);
 	if (!buf1) {
 		ubi_err("cannot allocate memory to check writes");
 		return 0;
@@ -1409,7 +1415,7 @@ int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 	if (!(ubi_chk_flags & UBI_CHK_IO))
 		return 0;
 
-	buf = __vmalloc(len, GFP_KERNEL | GFP_NOFS, PAGE_KERNEL);
+	buf = __vmalloc(len, GFP_NOFS, PAGE_KERNEL);
 	if (!buf) {
 		ubi_err("cannot allocate memory to check for 0xFFs");
 		return 0;

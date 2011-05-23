@@ -378,7 +378,7 @@ static u32 read_rtl8225(struct net_device *dev, u8 adr)
 	mask = (low2high) ? 0x01 : (((u32)0x01) << (12-1));
 
 	/*
-	 * We must set data pin to HW controled, otherwise RF can't driver it
+	 * We must set data pin to HW controlled, otherwise RF can't driver it
 	 * and value RF register won't be able to read back properly.
 	 */
 	write_nic_word(dev, RFPinsEnable, (oval2 & (~0x01)));

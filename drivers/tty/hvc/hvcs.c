@@ -118,7 +118,7 @@
  * arch/powerepc/include/asm/hvcserver.h
  *
  * 1.3.2 -> 1.3.3 Replaced yield() in hvcs_close() with tty_wait_until_sent() to
- * prevent possible lockup with realtime scheduling as similarily pointed out by
+ * prevent possible lockup with realtime scheduling as similarly pointed out by
  * akpm in hvc_console.  Changed resulted in the removal of hvcs_final_close()
  * to reorder cleanup operations and prevent discarding of pending data during
  * an hvcs_close().  Removed spinlock protection of hvcs_struct data members in
@@ -581,7 +581,7 @@ static void hvcs_try_write(struct hvcs_struct *hvcsd)
 			/*
 			 * We are still obligated to deliver the data to the
 			 * hypervisor even if the tty has been closed because
-			 * we commited to delivering it.  But don't try to wake
+			 * we committed to delivering it.  But don't try to wake
 			 * a non-existent tty.
 			 */
 			if (tty) {
@@ -1349,7 +1349,7 @@ static int hvcs_write(struct tty_struct *tty,
 	spin_lock_irqsave(&hvcsd->lock, flags);
 
 	/*
-	 * Somehow an open succedded but the device was removed or the
+	 * Somehow an open succeeded but the device was removed or the
 	 * connection terminated between the vty-server and partner vty during
 	 * the middle of a write operation?  This is a crummy place to do this
 	 * but we want to keep it all in the spinlock.
@@ -1420,7 +1420,7 @@ static int hvcs_write(struct tty_struct *tty,
 }
 
 /*
- * This is really asking how much can we guarentee that we can send or that we
+ * This is really asking how much can we guarantee that we can send or that we
  * absolutely WILL BUFFER if we can't send it.  This driver MUST honor the
  * return value, hence the reason for hvcs_struct buffering.
  */

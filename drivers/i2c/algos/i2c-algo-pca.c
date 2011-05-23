@@ -343,7 +343,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 
 	ret = curmsg;
  out:
-	DEB1("}}} transfered %d/%d messages. "
+	DEB1("}}} transferred %d/%d messages. "
 	     "status is %#04x. control is %#04x\n",
 	     curmsg, num, pca_status(adap),
 	     pca_get_con(adap));

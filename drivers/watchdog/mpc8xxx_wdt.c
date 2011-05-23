@@ -195,7 +195,7 @@ static int __devinit mpc8xxx_wdt_probe(struct platform_device *ofdev)
 
 	if (!ofdev->dev.of_match)
 		return -EINVAL;
-	wdt_type = match->data;
+	wdt_type = ofdev->dev.of_match->data;
 
 	if (!freq || freq == -1)
 		return -EINVAL;

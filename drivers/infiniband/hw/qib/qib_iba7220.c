@@ -2111,7 +2111,7 @@ static int qib_setup_7220_reset(struct qib_devdata *dd)
 	/*
 	 * Keep chip from being accessed until we are ready.  Use
 	 * writeq() directly, to allow the write even though QIB_PRESENT
-	 * isnt' set.
+	 * isn't set.
 	 */
 	dd->flags &= ~(QIB_INITTED | QIB_PRESENT);
 	dd->int_counter = 0; /* so we check interrupts work again */
@@ -2479,7 +2479,7 @@ static int qib_7220_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 		 * we command the link down.  As with width, only write the
 		 * actual register if the link is currently down, otherwise
 		 * takes effect on next link change.  Since setting is being
-		 * explictly requested (via MAD or sysfs), clear autoneg
+		 * explicitly requested (via MAD or sysfs), clear autoneg
 		 * failure status if speed autoneg is enabled.
 		 */
 		ppd->link_speed_enabled = val;
@@ -2778,7 +2778,7 @@ static void rcvctrl_7220_mod(struct qib_pportdata *ppd, unsigned int op,
 		 * Init the context registers also; if we were
 		 * disabled, tail and head should both be zero
 		 * already from the enable, but since we don't
-		 * know, we have to do it explictly.
+		 * know, we have to do it explicitly.
 		 */
 		val = qib_read_ureg32(dd, ur_rcvegrindextail, ctxt);
 		qib_write_ureg(dd, ur_rcvegrindexhead, val, ctxt);

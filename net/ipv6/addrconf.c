@@ -1084,7 +1084,7 @@ static int ipv6_get_saddr_eval(struct net *net,
 	case IPV6_SADDR_RULE_PRIVACY:
 	    {
 		/* Rule 7: Prefer public address
-		 * Note: prefer temprary address if use_tempaddr >= 2
+		 * Note: prefer temporary address if use_tempaddr >= 2
 		 */
 		int preftmp = dst->prefs & (IPV6_PREFER_SRC_PUBLIC|IPV6_PREFER_SRC_TMP) ?
 				!!(dst->prefs & IPV6_PREFER_SRC_TMP) :
@@ -1968,7 +1968,7 @@ ok:
 					 *  to the stored lifetime since we'll
 					 *  be updating the timestamp below,
 					 *  else we'll set it back to the
-					 *  minumum.
+					 *  minimum.
 					 */
 					if (prefered_lft != ifp->prefered_lft) {
 						valid_lft = stored_lft;
@@ -4537,7 +4537,7 @@ static void __addrconf_sysctl_unregister(struct ipv6_devconf *p)
 
 	t = p->sysctl;
 	p->sysctl = NULL;
-	unregister_sysctl_table(t->sysctl_header);
+	unregister_net_sysctl_table(t->sysctl_header);
 	kfree(t->dev_name);
 	kfree(t);
 }

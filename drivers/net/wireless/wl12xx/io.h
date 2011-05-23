@@ -94,7 +94,7 @@ static inline int wl1271_translate_addr(struct wl1271 *wl, int addr)
 	 * translated region.
 	 *
 	 * The translated regions occur next to each other in physical device
-	 * memory, so just add the sizes of the preceeding address regions to
+	 * memory, so just add the sizes of the preceding address regions to
 	 * get the offset to the new region.
 	 *
 	 * Currently, only the two first regions are addressed, and the

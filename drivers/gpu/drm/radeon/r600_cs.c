@@ -921,7 +921,7 @@ static inline int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx
 		return 0;
 	ib = p->ib->ptr;
 	switch (reg) {
-	/* force following reg to 0 in an attemp to disable out buffer
+	/* force following reg to 0 in an attempt to disable out buffer
 	 * which will need us to better understand how it works to perform
 	 * security check on it (Jerome)
 	 */

@@ -65,16 +65,22 @@ struct xfs_ail_cursor {
 struct xfs_ail {
 	struct xfs_mount	*xa_mount;
 	struct list_head	xa_ail;
-	uint			xa_gen;
-	struct task_struct	*xa_task;
 	xfs_lsn_t		xa_target;
 	struct xfs_ail_cursor	xa_cursors;
 	spinlock_t		xa_lock;
+	struct delayed_work	xa_work;
+	xfs_lsn_t		xa_last_pushed_lsn;
+	unsigned long		xa_flags;
 };
+
+#define XFS_AIL_PUSHING_BIT	0
 
 /*
  * From xfs_trans_ail.c
  */
+
+extern struct workqueue_struct	*xfs_ail_wq;	/* AIL workqueue */
+
 void	xfs_trans_ail_update_bulk(struct xfs_ail *ailp,
 				struct xfs_log_item **log_items, int nr_items,
 				xfs_lsn_t lsn) __releases(ailp->xa_lock);
@@ -98,11 +104,12 @@ xfs_trans_ail_delete(
 	xfs_trans_ail_delete_bulk(ailp, &lip, 1);
 }
 
-void			xfs_trans_ail_push(struct xfs_ail *, xfs_lsn_t);
+void			xfs_ail_push(struct xfs_ail *, xfs_lsn_t);
+void			xfs_ail_push_all(struct xfs_ail *);
+xfs_lsn_t		xfs_ail_min_lsn(struct xfs_ail *ailp);
+
 void			xfs_trans_unlocked_item(struct xfs_ail *,
 					xfs_log_item_t *);
-
-xfs_lsn_t		xfs_trans_ail_tail(struct xfs_ail *ailp);
 
 struct xfs_log_item	*xfs_trans_ail_cursor_first(struct xfs_ail *ailp,
 					struct xfs_ail_cursor *cur,
@@ -111,11 +118,6 @@ struct xfs_log_item	*xfs_trans_ail_cursor_next(struct xfs_ail *ailp,
 					struct xfs_ail_cursor *cur);
 void			xfs_trans_ail_cursor_done(struct xfs_ail *ailp,
 					struct xfs_ail_cursor *cur);
-
-long	xfsaild_push(struct xfs_ail *, xfs_lsn_t *);
-void	xfsaild_wakeup(struct xfs_ail *, xfs_lsn_t);
-int	xfsaild_start(struct xfs_ail *);
-void	xfsaild_stop(struct xfs_ail *);
 
 #if BITS_PER_LONG != 64
 static inline void

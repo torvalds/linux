@@ -148,7 +148,7 @@ static void aureon_pca9554_write(struct snd_ice1712 *ice, unsigned char reg,
 	udelay(100);
 	/*
 	 * send device address, command and value,
-	 * skipping ack cycles inbetween
+	 * skipping ack cycles in between
 	 */
 	for (j = 0; j < 3; j++) {
 		switch (j) {
@@ -2143,7 +2143,7 @@ static int __devinit aureon_init(struct snd_ice1712 *ice)
 		ice->num_total_adcs = 2;
 	}
 
-	/* to remeber the register values of CS8415 */
+	/* to remember the register values of CS8415 */
 	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (!ice->akm)
 		return -ENOMEM;

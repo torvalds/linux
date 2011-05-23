@@ -95,7 +95,7 @@ axon_ram_irq_handler(int irq, void *dev)
 
 	BUG_ON(!bank);
 
-	dev_err(&device->dev, "Correctable memory error occured\n");
+	dev_err(&device->dev, "Correctable memory error occurred\n");
 	bank->ecc_counter++;
 	return IRQ_HANDLED;
 }

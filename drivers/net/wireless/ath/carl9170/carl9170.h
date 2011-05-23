@@ -161,7 +161,7 @@ struct carl9170_sta_tid {
  * Naturally: The higher the limit, the faster the device CAN send.
  * However, even a slight over-commitment at the wrong time and the
  * hardware is doomed to send all already-queued frames at suboptimal
- * rates. This in turn leads to an enourmous amount of unsuccessful
+ * rates. This in turn leads to an enormous amount of unsuccessful
  * retries => Latency goes up, whereas the throughput goes down. CRASH!
  */
 #define CARL9170_NUM_TX_LIMIT_HARD	((AR9170_TXQ_DEPTH * 3) / 2)
@@ -443,6 +443,7 @@ struct carl9170_ba_stats {
 	u8 ampdu_len;
 	u8 ampdu_ack_len;
 	bool clear;
+	bool req;
 };
 
 struct carl9170_sta_info {

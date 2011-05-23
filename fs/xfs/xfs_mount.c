@@ -133,9 +133,7 @@ xfs_uuid_mount(
 		return 0;
 
 	if (uuid_is_nil(uuid)) {
-		cmn_err(CE_WARN,
-			"XFS: Filesystem %s has nil UUID - can't mount",
-			mp->m_fsname);
+		xfs_warn(mp, "Filesystem has nil UUID - can't mount");
 		return XFS_ERROR(EINVAL);
 	}
 
@@ -163,8 +161,7 @@ xfs_uuid_mount(
 
  out_duplicate:
 	mutex_unlock(&xfs_uuid_table_mutex);
-	cmn_err(CE_WARN, "XFS: Filesystem %s has duplicate UUID - can't mount",
-			 mp->m_fsname);
+	xfs_warn(mp, "Filesystem has duplicate UUID - can't mount");
 	return XFS_ERROR(EINVAL);
 }
 
@@ -311,6 +308,8 @@ xfs_mount_validate_sb(
 	xfs_sb_t	*sbp,
 	int		flags)
 {
+	int		loud = !(flags & XFS_MFSI_QUIET);
+
 	/*
 	 * If the log device and data device have the
 	 * same device number, the log is internal.
@@ -319,28 +318,32 @@ xfs_mount_validate_sb(
 	 * a volume filesystem in a non-volume manner.
 	 */
 	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
-		xfs_fs_mount_cmn_err(flags, "bad magic number");
+		if (loud)
+			xfs_warn(mp, "bad magic number");
 		return XFS_ERROR(EWRONGFS);
 	}
 
 	if (!xfs_sb_good_version(sbp)) {
-		xfs_fs_mount_cmn_err(flags, "bad version");
+		if (loud)
+			xfs_warn(mp, "bad version");
 		return XFS_ERROR(EWRONGFS);
 	}
 
 	if (unlikely(
 	    sbp->sb_logstart == 0 && mp->m_logdev_targp == mp->m_ddev_targp)) {
-		xfs_fs_mount_cmn_err(flags,
-			"filesystem is marked as having an external log; "
-			"specify logdev on the\nmount command line.");
+		if (loud)
+			xfs_warn(mp,
+		"filesystem is marked as having an external log; "
+		"specify logdev on the mount command line.");
 		return XFS_ERROR(EINVAL);
 	}
 
 	if (unlikely(
 	    sbp->sb_logstart != 0 && mp->m_logdev_targp != mp->m_ddev_targp)) {
-		xfs_fs_mount_cmn_err(flags,
-			"filesystem is marked as having an internal log; "
-			"do not specify logdev on\nthe mount command line.");
+		if (loud)
+			xfs_warn(mp,
+		"filesystem is marked as having an internal log; "
+		"do not specify logdev on the mount command line.");
 		return XFS_ERROR(EINVAL);
 	}
 
@@ -369,7 +372,8 @@ xfs_mount_validate_sb(
 	    (sbp->sb_rextsize * sbp->sb_blocksize > XFS_MAX_RTEXTSIZE)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize < XFS_MIN_RTEXTSIZE)	||
 	    (sbp->sb_imax_pct > 100 /* zero sb_imax_pct is valid */))) {
-		xfs_fs_mount_cmn_err(flags, "SB sanity check 1 failed");
+		if (loud)
+			xfs_warn(mp, "SB sanity check 1 failed");
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
@@ -382,7 +386,8 @@ xfs_mount_validate_sb(
 	     (xfs_drfsbno_t)sbp->sb_agcount * sbp->sb_agblocks ||
 	    sbp->sb_dblocks < (xfs_drfsbno_t)(sbp->sb_agcount - 1) *
 			      sbp->sb_agblocks + XFS_MIN_AG_BLOCKS)) {
-		xfs_fs_mount_cmn_err(flags, "SB sanity check 2 failed");
+		if (loud)
+			xfs_warn(mp, "SB sanity check 2 failed");
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
@@ -390,12 +395,12 @@ xfs_mount_validate_sb(
 	 * Until this is fixed only page-sized or smaller data blocks work.
 	 */
 	if (unlikely(sbp->sb_blocksize > PAGE_SIZE)) {
-		xfs_fs_mount_cmn_err(flags,
-			"file system with blocksize %d bytes",
-			sbp->sb_blocksize);
-		xfs_fs_mount_cmn_err(flags,
-			"only pagesize (%ld) or less will currently work.",
-			PAGE_SIZE);
+		if (loud) {
+			xfs_warn(mp,
+		"File system with blocksize %d bytes. "
+		"Only pagesize (%ld) or less will currently work.",
+				sbp->sb_blocksize, PAGE_SIZE);
+		}
 		return XFS_ERROR(ENOSYS);
 	}
 
@@ -409,21 +414,23 @@ xfs_mount_validate_sb(
 	case 2048:
 		break;
 	default:
-		xfs_fs_mount_cmn_err(flags,
-			"inode size of %d bytes not supported",
-			sbp->sb_inodesize);
+		if (loud)
+			xfs_warn(mp, "inode size of %d bytes not supported",
+				sbp->sb_inodesize);
 		return XFS_ERROR(ENOSYS);
 	}
 
 	if (xfs_sb_validate_fsb_count(sbp, sbp->sb_dblocks) ||
 	    xfs_sb_validate_fsb_count(sbp, sbp->sb_rblocks)) {
-		xfs_fs_mount_cmn_err(flags,
-			"file system too large to be mounted on this system.");
+		if (loud)
+			xfs_warn(mp,
+		"file system too large to be mounted on this system.");
 		return XFS_ERROR(EFBIG);
 	}
 
 	if (unlikely(sbp->sb_inprogress)) {
-		xfs_fs_mount_cmn_err(flags, "file system busy");
+		if (loud)
+			xfs_warn(mp, "file system busy");
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
@@ -431,8 +438,9 @@ xfs_mount_validate_sb(
 	 * Version 1 directory format has never worked on Linux.
 	 */
 	if (unlikely(!xfs_sb_version_hasdirv2(sbp))) {
-		xfs_fs_mount_cmn_err(flags,
-			"file system using version 1 directory format");
+		if (loud)
+			xfs_warn(mp,
+				"file system using version 1 directory format");
 		return XFS_ERROR(ENOSYS);
 	}
 
@@ -673,6 +681,7 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 	unsigned int	sector_size;
 	xfs_buf_t	*bp;
 	int		error;
+	int		loud = !(flags & XFS_MFSI_QUIET);
 
 	ASSERT(mp->m_sb_bp == NULL);
 	ASSERT(mp->m_ddev_targp != NULL);
@@ -688,7 +697,8 @@ reread:
 	bp = xfs_buf_read_uncached(mp, mp->m_ddev_targp,
 					XFS_SB_DADDR, sector_size, 0);
 	if (!bp) {
-		xfs_fs_mount_cmn_err(flags, "SB buffer read failed");
+		if (loud)
+			xfs_warn(mp, "SB buffer read failed");
 		return EIO;
 	}
 
@@ -699,7 +709,8 @@ reread:
 	xfs_sb_from_disk(&mp->m_sb, XFS_BUF_TO_SBP(bp));
 	error = xfs_mount_validate_sb(mp, &(mp->m_sb), flags);
 	if (error) {
-		xfs_fs_mount_cmn_err(flags, "SB validate failed");
+		if (loud)
+			xfs_warn(mp, "SB validate failed");
 		goto release_buf;
 	}
 
@@ -707,9 +718,9 @@ reread:
 	 * We must be able to do sector-sized and sector-aligned IO.
 	 */
 	if (sector_size > mp->m_sb.sb_sectsize) {
-		xfs_fs_mount_cmn_err(flags,
-			"device supports only %u byte sectors (not %u)",
-			sector_size, mp->m_sb.sb_sectsize);
+		if (loud)
+			xfs_warn(mp, "device supports %u byte sectors (not %u)",
+				sector_size, mp->m_sb.sb_sectsize);
 		error = ENOSYS;
 		goto release_buf;
 	}
@@ -853,8 +864,7 @@ xfs_update_alignment(xfs_mount_t *mp)
 		if ((BBTOB(mp->m_dalign) & mp->m_blockmask) ||
 		    (BBTOB(mp->m_swidth) & mp->m_blockmask)) {
 			if (mp->m_flags & XFS_MOUNT_RETERR) {
-				cmn_err(CE_WARN,
-					"XFS: alignment check 1 failed");
+				xfs_warn(mp, "alignment check 1 failed");
 				return XFS_ERROR(EINVAL);
 			}
 			mp->m_dalign = mp->m_swidth = 0;
@@ -867,8 +877,9 @@ xfs_update_alignment(xfs_mount_t *mp)
 				if (mp->m_flags & XFS_MOUNT_RETERR) {
 					return XFS_ERROR(EINVAL);
 				}
-				xfs_fs_cmn_err(CE_WARN, mp,
-"stripe alignment turned off: sunit(%d)/swidth(%d) incompatible with agsize(%d)",
+				xfs_warn(mp,
+		"stripe alignment turned off: sunit(%d)/swidth(%d) "
+		"incompatible with agsize(%d)",
 					mp->m_dalign, mp->m_swidth,
 					sbp->sb_agblocks);
 
@@ -878,9 +889,9 @@ xfs_update_alignment(xfs_mount_t *mp)
 				mp->m_swidth = XFS_BB_TO_FSBT(mp, mp->m_swidth);
 			} else {
 				if (mp->m_flags & XFS_MOUNT_RETERR) {
-					xfs_fs_cmn_err(CE_WARN, mp,
-"stripe alignment turned off: sunit(%d) less than bsize(%d)",
-                                        	mp->m_dalign,
+					xfs_warn(mp,
+		"stripe alignment turned off: sunit(%d) less than bsize(%d)",
+						mp->m_dalign,
 						mp->m_blockmask +1);
 					return XFS_ERROR(EINVAL);
 				}
@@ -1026,14 +1037,14 @@ xfs_check_sizes(xfs_mount_t *mp)
 
 	d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks);
 	if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_dblocks) {
-		cmn_err(CE_WARN, "XFS: filesystem size mismatch detected");
+		xfs_warn(mp, "filesystem size mismatch detected");
 		return XFS_ERROR(EFBIG);
 	}
 	bp = xfs_buf_read_uncached(mp, mp->m_ddev_targp,
 					d - XFS_FSS_TO_BB(mp, 1),
 					BBTOB(XFS_FSS_TO_BB(mp, 1)), 0);
 	if (!bp) {
-		cmn_err(CE_WARN, "XFS: last sector read failed");
+		xfs_warn(mp, "last sector read failed");
 		return EIO;
 	}
 	xfs_buf_relse(bp);
@@ -1041,14 +1052,14 @@ xfs_check_sizes(xfs_mount_t *mp)
 	if (mp->m_logdev_targp != mp->m_ddev_targp) {
 		d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_logblocks);
 		if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_logblocks) {
-			cmn_err(CE_WARN, "XFS: log size mismatch detected");
+			xfs_warn(mp, "log size mismatch detected");
 			return XFS_ERROR(EFBIG);
 		}
 		bp = xfs_buf_read_uncached(mp, mp->m_logdev_targp,
 					d - XFS_FSB_TO_BB(mp, 1),
 					XFS_FSB_TO_B(mp, 1), 0);
 		if (!bp) {
-			cmn_err(CE_WARN, "XFS: log device read failed");
+			xfs_warn(mp, "log device read failed");
 			return EIO;
 		}
 		xfs_buf_relse(bp);
@@ -1086,7 +1097,7 @@ xfs_mount_reset_sbqflags(
 		return 0;
 
 #ifdef QUOTADEBUG
-	xfs_fs_cmn_err(CE_NOTE, mp, "Writing superblock quota changes");
+	xfs_notice(mp, "Writing superblock quota changes");
 #endif
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
@@ -1094,8 +1105,7 @@ xfs_mount_reset_sbqflags(
 				      XFS_DEFAULT_LOG_COUNT);
 	if (error) {
 		xfs_trans_cancel(tp, 0);
-		xfs_fs_cmn_err(CE_ALERT, mp,
-			"xfs_mount_reset_sbqflags: Superblock update failed!");
+		xfs_alert(mp, "%s: Superblock update failed!", __func__);
 		return error;
 	}
 
@@ -1161,8 +1171,7 @@ xfs_mountfs(
 	 * transaction subsystem is online.
 	 */
 	if (xfs_sb_has_mismatched_features2(sbp)) {
-		cmn_err(CE_WARN,
-			"XFS: correcting sb_features alignment problem");
+		xfs_warn(mp, "correcting sb_features alignment problem");
 		sbp->sb_features2 |= sbp->sb_bad_features2;
 		sbp->sb_bad_features2 = sbp->sb_features2;
 		mp->m_update_flags |= XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2;
@@ -1241,7 +1250,7 @@ xfs_mountfs(
 	 */
 	error = xfs_rtmount_init(mp);
 	if (error) {
-		cmn_err(CE_WARN, "XFS: RT mount failed");
+		xfs_warn(mp, "RT mount failed");
 		goto out_remove_uuid;
 	}
 
@@ -1272,12 +1281,12 @@ xfs_mountfs(
 	INIT_RADIX_TREE(&mp->m_perag_tree, GFP_ATOMIC);
 	error = xfs_initialize_perag(mp, sbp->sb_agcount, &mp->m_maxagi);
 	if (error) {
-		cmn_err(CE_WARN, "XFS: Failed per-ag init: %d", error);
+		xfs_warn(mp, "Failed per-ag init: %d", error);
 		goto out_remove_uuid;
 	}
 
 	if (!sbp->sb_logblocks) {
-		cmn_err(CE_WARN, "XFS: no log defined");
+		xfs_warn(mp, "no log defined");
 		XFS_ERROR_REPORT("xfs_mountfs", XFS_ERRLEVEL_LOW, mp);
 		error = XFS_ERROR(EFSCORRUPTED);
 		goto out_free_perag;
@@ -1290,7 +1299,7 @@ xfs_mountfs(
 			      XFS_FSB_TO_DADDR(mp, sbp->sb_logstart),
 			      XFS_FSB_TO_BB(mp, sbp->sb_logblocks));
 	if (error) {
-		cmn_err(CE_WARN, "XFS: log mount failed");
+		xfs_warn(mp, "log mount failed");
 		goto out_free_perag;
 	}
 
@@ -1327,16 +1336,14 @@ xfs_mountfs(
 	 */
 	error = xfs_iget(mp, NULL, sbp->sb_rootino, 0, XFS_ILOCK_EXCL, &rip);
 	if (error) {
-		cmn_err(CE_WARN, "XFS: failed to read root inode");
+		xfs_warn(mp, "failed to read root inode");
 		goto out_log_dealloc;
 	}
 
 	ASSERT(rip != NULL);
 
 	if (unlikely((rip->i_d.di_mode & S_IFMT) != S_IFDIR)) {
-		cmn_err(CE_WARN, "XFS: corrupted root inode");
-		cmn_err(CE_WARN, "Device %s - root %llu is not a directory",
-			XFS_BUFTARG_NAME(mp->m_ddev_targp),
+		xfs_warn(mp, "corrupted root inode %llu: not a directory",
 			(unsigned long long)rip->i_ino);
 		xfs_iunlock(rip, XFS_ILOCK_EXCL);
 		XFS_ERROR_REPORT("xfs_mountfs_int(2)", XFS_ERRLEVEL_LOW,
@@ -1356,7 +1363,7 @@ xfs_mountfs(
 		/*
 		 * Free up the root inode.
 		 */
-		cmn_err(CE_WARN, "XFS: failed to read RT inodes");
+		xfs_warn(mp, "failed to read RT inodes");
 		goto out_rele_rip;
 	}
 
@@ -1368,7 +1375,7 @@ xfs_mountfs(
 	if (mp->m_update_flags && !(mp->m_flags & XFS_MOUNT_RDONLY)) {
 		error = xfs_mount_log_sb(mp, mp->m_update_flags);
 		if (error) {
-			cmn_err(CE_WARN, "XFS: failed to write sb changes");
+			xfs_warn(mp, "failed to write sb changes");
 			goto out_rtunmount;
 		}
 	}
@@ -1389,10 +1396,7 @@ xfs_mountfs(
 		 * quotachecked license.
 		 */
 		if (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_ACCT) {
-			cmn_err(CE_NOTE,
-				"XFS: resetting qflags for filesystem %s",
-				mp->m_fsname);
-
+			xfs_notice(mp, "resetting quota flags");
 			error = xfs_mount_reset_sbqflags(mp);
 			if (error)
 				return error;
@@ -1406,7 +1410,7 @@ xfs_mountfs(
 	 */
 	error = xfs_log_mount_finish(mp);
 	if (error) {
-		cmn_err(CE_WARN, "XFS: log mount finish failed");
+		xfs_warn(mp, "log mount finish failed");
 		goto out_rtunmount;
 	}
 
@@ -1435,8 +1439,8 @@ xfs_mountfs(
 		resblks = xfs_default_resblks(mp);
 		error = xfs_reserve_blocks(mp, &resblks, NULL);
 		if (error)
-			cmn_err(CE_WARN, "XFS: Unable to allocate reserve "
-				"blocks. Continuing without a reserve pool.");
+			xfs_warn(mp,
+	"Unable to allocate reserve blocks. Continuing without reserve pool.");
 	}
 
 	return 0;
@@ -1525,12 +1529,12 @@ xfs_unmountfs(
 	resblks = 0;
 	error = xfs_reserve_blocks(mp, &resblks, NULL);
 	if (error)
-		cmn_err(CE_WARN, "XFS: Unable to free reserved block pool. "
+		xfs_warn(mp, "Unable to free reserved block pool. "
 				"Freespace may not be correct on next mount.");
 
 	error = xfs_log_sbcount(mp, 1);
 	if (error)
-		cmn_err(CE_WARN, "XFS: Unable to update superblock counters. "
+		xfs_warn(mp, "Unable to update superblock counters. "
 				"Freespace may not be correct on next mount.");
 	xfs_unmountfs_writesb(mp);
 	xfs_unmountfs_wait(mp); 		/* wait for async bufs */
@@ -2013,10 +2017,8 @@ xfs_dev_is_read_only(
 	if (xfs_readonly_buftarg(mp->m_ddev_targp) ||
 	    xfs_readonly_buftarg(mp->m_logdev_targp) ||
 	    (mp->m_rtdev_targp && xfs_readonly_buftarg(mp->m_rtdev_targp))) {
-		cmn_err(CE_NOTE,
-			"XFS: %s required on read-only device.", message);
-		cmn_err(CE_NOTE,
-			"XFS: write access unavailable, cannot proceed.");
+		xfs_notice(mp, "%s required on read-only device.", message);
+		xfs_notice(mp, "write access unavailable, cannot proceed.");
 		return EROFS;
 	}
 	return 0;

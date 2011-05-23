@@ -105,6 +105,7 @@ static int pch_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 		reg_val |= (1 << nr);
 	else
 		reg_val &= ~(1 << nr);
+	iowrite32(reg_val, &chip->reg->po);
 
 	mutex_unlock(&chip->lock);
 

@@ -1128,6 +1128,7 @@ static int __init fujitsu_init(void)
 
 		memset(&props, 0, sizeof(struct backlight_properties));
 		max_brightness = fujitsu->max_brightness;
+		props.type = BACKLIGHT_PLATFORM;
 		props.max_brightness = max_brightness - 1;
 		fujitsu->bl_device = backlight_device_register("fujitsu-laptop",
 							       NULL, NULL,

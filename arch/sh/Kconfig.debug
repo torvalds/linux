@@ -82,7 +82,7 @@ config SH_NO_BSS_INIT
 	help
 	  If running in painfully slow environments, such as an RTL
 	  simulation or from remote memory via SHdebug, where the memory
-	  can already be gauranteed to ber zeroed on boot, say Y.
+	  can already be guaranteed to ber zeroed on boot, say Y.
 
 	  For all other cases, say N. If this option seems perplexing, or
 	  you aren't sure, say N.

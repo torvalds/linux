@@ -773,7 +773,7 @@
  * the sections that has this restriction (or similar)
  * is located before the ones requiring PAGE_SIZE alignment.
  * NOSAVE_DATA starts and ends with a PAGE_SIZE alignment which
- * matches the requirment of PAGE_ALIGNED_DATA.
+ * matches the requirement of PAGE_ALIGNED_DATA.
  *
  * use 0 as page_align if page_aligned data is not used */
 #define RW_DATA_SECTION(cacheline, pagealigned, inittask)		\

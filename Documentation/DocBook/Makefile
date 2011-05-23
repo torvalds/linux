@@ -53,7 +53,9 @@ MAN := $(patsubst %.xml, %.9, $(BOOKS))
 mandocs: $(MAN)
 
 build_images = mkdir -p $(objtree)/Documentation/DocBook/media/ && \
-	       cp $(srctree)/Documentation/DocBook/dvb/*.png $(srctree)/Documentation/DocBook/v4l/*.gif $(objtree)/Documentation/DocBook/media/
+	       cp $(srctree)/Documentation/DocBook/dvb/*.png \
+	          $(srctree)/Documentation/DocBook/v4l/*.gif \
+		  $(objtree)/Documentation/DocBook/media/
 
 xmldoclinks:
 ifneq ($(objtree),$(srctree))

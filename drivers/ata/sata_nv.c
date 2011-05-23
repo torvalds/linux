@@ -2121,7 +2121,7 @@ static int nv_swncq_sdbfis(struct ata_port *ap)
 
 	host_stat = ap->ops->bmdma_status(ap);
 	if (unlikely(host_stat & ATA_DMA_ERR)) {
-		/* error when transfering data to/from memory */
+		/* error when transferring data to/from memory */
 		ata_ehi_clear_desc(ehi);
 		ata_ehi_push_desc(ehi, "BMDMA stat 0x%x", host_stat);
 		ehi->err_mask |= AC_ERR_HOST_BUS;

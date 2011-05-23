@@ -87,7 +87,7 @@
 
 
 /*
- * For performance reasons, we handle storage endpoint transfers upto 4 KB
+ * For performance reasons, we handle storage endpoint transfers up to 4 KB
  * within the HAL itself.
  */
  #define CYASSTORAGE_WRITE_EP_NUM	(4)
@@ -108,12 +108,12 @@
 				((ep) == 6) || ((ep) == 8))
 
 /*
- * persistant, stores current GPMC interface cfg mode
+ * persistent, stores current GPMC interface cfg mode
  */
 static uint8_t pnand_16bit;
 
 /*
- * keep processing new WB DRQ in ISR untill all handled (performance feature)
+ * keep processing new WB DRQ in ISR until all handled (performance feature)
  */
 #define PROCESS_MULTIPLE_DRQ_IN_ISR (1)
 
@@ -157,7 +157,7 @@ typedef struct cy_as_hal_endpoint_dma {
 	 * dma_xfer_sz - size of the next dma xfer on P port
 	 * seg_xfer_cnt -  counts xfered bytes for in current sg_list
 	 *		memory segment
-	 * req_xfer_cnt - total number of bytes transfered so far in
+	 * req_xfer_cnt - total number of bytes transferred so far in
 	 *		current request
 	 * req_length - total request length
 	 */
@@ -597,7 +597,7 @@ static int cy_as_hal_configure_interrupts(void *dev_p)
 	int result;
 	int irq_pin  = AST_INT;
 
-	set_irq_type(OMAP_GPIO_IRQ(irq_pin), IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(OMAP_GPIO_IRQ(irq_pin), IRQ_TYPE_LEVEL_LOW);
 
 	/*
 	 * for shared IRQS must provide non NULL device ptr
@@ -2160,7 +2160,7 @@ void cy_as_hal_mem_set(void *ptr, uint8_t value, uint32_t cnt)
 /*
  * This function is expected to create a sleep channel.
  * The data structure that represents the sleep channel object
- * sleep channel (which is Linux "wait_queue_head_t wq" for this paticular HAL)
+ * sleep channel (which is Linux "wait_queue_head_t wq" for this particular HAL)
  * passed as a pointer, and allpocated by the caller
  * (typically as a local var on the stack) "Create" word should read as
  * "SleepOn", this func doesn't actually create anything
@@ -2364,7 +2364,7 @@ int start_o_m_a_p_kernel(const char *pgm,
 	 */
 	cy_as_hal_gpmc_enable_16bit_bus(cy_true);
 #else
-   /* Astoria and GPMC are already in 8 bit mode, jsut initialize PNAND_CFG */
+   /* Astoria and GPMC are already in 8 bit mode, just initialize PNAND_CFG */
 	ast_p_nand_casdi_write(CY_AS_MEM_PNAND_CFG, 0x0000);
 #endif
 

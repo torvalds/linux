@@ -186,7 +186,7 @@ typedef struct page *pgtable_t;
 /*
  * While BYTES_PER_WORD == 4 on the current sh64 ABI, GCC will still
  * happily generate {ld/st}.q pairs, requiring us to have 8-byte
- * alignment to avoid traps. The kmalloc alignment is gauranteed by
+ * alignment to avoid traps. The kmalloc alignment is guaranteed by
  * virtue of L1_CACHE_BYTES, requiring this to only be special cased
  * for slab caches.
  */

@@ -181,7 +181,7 @@ static int rds_iw_init_qp_attrs(struct ib_qp_init_attr *attr,
 	unsigned int send_size, recv_size;
 	int ret;
 
-	/* The offset of 1 is to accomodate the additional ACK WR. */
+	/* The offset of 1 is to accommodate the additional ACK WR. */
 	send_size = min_t(unsigned int, rds_iwdev->max_wrs, rds_iw_sysctl_max_send_wr + 1);
 	recv_size = min_t(unsigned int, rds_iwdev->max_wrs, rds_iw_sysctl_max_recv_wr + 1);
 	rds_iw_ring_resize(send_ring, send_size - 1);

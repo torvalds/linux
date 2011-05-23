@@ -212,7 +212,7 @@ static const int TSI148_LCSR_OT[8] = { TSI148_LCSR_OT0, TSI148_LCSR_OT1,
 #define TSI148_LCSR_OFFSET_OTAT		0x1C
 
 /*
- * VMEbus interupt ack
+ * VMEbus interrupt ack
  * offset  200
  */
 #define TSI148_LCSR_VIACK1	0x204
@@ -613,7 +613,7 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 /*
  *  PCI-X Status Register (CRG +$054)
  */
-#define TSI148_PCFS_PCIXSTAT_RSCEM     (1<<29)	/* Recieved Split Comp Error */
+#define TSI148_PCFS_PCIXSTAT_RSCEM     (1<<29)	/* Received Split Comp Error */
 #define TSI148_PCFS_PCIXSTAT_DMCRS_M   (7<<26)	/* max Cumulative Read Size */
 #define TSI148_PCFS_PCIXSTAT_DMOST_M   (7<<23)	/* max outstanding Split Trans
 						 */
@@ -982,8 +982,8 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 #define TSI148_LCSR_VICR_CNTS_IRQ1     (2<<22)	/* IRQ1 to Cntr */
 #define TSI148_LCSR_VICR_CNTS_IRQ2     (3<<22)	/* IRQ2 to Cntr */
 
-#define TSI148_LCSR_VICR_EDGIS_M       (3<<20)	/* Edge interupt MASK */
-#define TSI148_LCSR_VICR_EDGIS_DIS     (1<<20)	/* Edge interupt Disable */
+#define TSI148_LCSR_VICR_EDGIS_M       (3<<20)	/* Edge interrupt MASK */
+#define TSI148_LCSR_VICR_EDGIS_DIS     (1<<20)	/* Edge interrupt Disable */
 #define TSI148_LCSR_VICR_EDGIS_IRQ1    (2<<20)	/* IRQ1 to Edge */
 #define TSI148_LCSR_VICR_EDGIS_IRQ2    (3<<20)	/* IRQ2 to Edge */
 

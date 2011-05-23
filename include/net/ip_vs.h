@@ -52,7 +52,7 @@ static inline struct net *skb_net(const struct sk_buff *skb)
 	 */
 	if (likely(skb->dev && skb->dev->nd_net))
 		return dev_net(skb->dev);
-	if (skb_dst(skb)->dev)
+	if (skb_dst(skb) && skb_dst(skb)->dev)
 		return dev_net(skb_dst(skb)->dev);
 	WARN(skb->sk, "Maybe skb_sknet should be used in %s() at line:%d\n",
 		      __func__, __LINE__);
@@ -92,7 +92,7 @@ static inline struct net *skb_sknet(const struct sk_buff *skb)
 }
 /*
  * This one needed for single_open_net since net is stored directly in
- * private not as a struct i.e. seq_file_net cant be used.
+ * private not as a struct i.e. seq_file_net can't be used.
  */
 static inline struct net *seq_file_single_net(struct seq_file *seq)
 {
@@ -791,6 +791,7 @@ struct ip_vs_app {
 /* IPVS in network namespace */
 struct netns_ipvs {
 	int			gen;		/* Generation */
+	int			enable;		/* enable like nf_hooks do */
 	/*
 	 *	Hash table: for real service lookups
 	 */
@@ -801,8 +802,6 @@ struct netns_ipvs {
 	struct list_head	rs_table[IP_VS_RTAB_SIZE];
 	/* ip_vs_app */
 	struct list_head	app_list;
-	struct mutex		app_mutex;
-	struct lock_class_key	app_key;	/* mutex debuging */
 
 	/* ip_vs_proto */
 	#define IP_VS_PROTO_TAB_SIZE	32	/* must be power of 2 */
@@ -1091,6 +1090,22 @@ ip_vs_control_add(struct ip_vs_conn *cp, struct ip_vs_conn *ctl_cp)
 	atomic_inc(&ctl_cp->n_control);
 }
 
+/*
+ * IPVS netns init & cleanup functions
+ */
+extern int __ip_vs_estimator_init(struct net *net);
+extern int __ip_vs_control_init(struct net *net);
+extern int __ip_vs_protocol_init(struct net *net);
+extern int __ip_vs_app_init(struct net *net);
+extern int __ip_vs_conn_init(struct net *net);
+extern int __ip_vs_sync_init(struct net *net);
+extern void __ip_vs_conn_cleanup(struct net *net);
+extern void __ip_vs_app_cleanup(struct net *net);
+extern void __ip_vs_protocol_cleanup(struct net *net);
+extern void __ip_vs_control_cleanup(struct net *net);
+extern void __ip_vs_estimator_cleanup(struct net *net);
+extern void __ip_vs_sync_cleanup(struct net *net);
+extern void __ip_vs_service_cleanup(struct net *net);
 
 /*
  *      IPVS application functions

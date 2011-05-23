@@ -30,7 +30,7 @@
  * @us_w:		actual spi_device to write config
  * @us_r:		actual spi_device to read back data
  * @indio_dev:		industrial I/O device structure
- * @buf:		transmit or recieve buffer
+ * @buf:		transmit or receive buffer
  * @buf_lock:		mutex to protect tx and rx
  **/
 struct adis16060_state {

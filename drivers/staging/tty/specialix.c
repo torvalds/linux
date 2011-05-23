@@ -9,7 +9,7 @@
  *      support. But please read the documentation (specialix.txt)
  *      first.
  *
- *      This driver was developped in the BitWizard linux device
+ *      This driver was developed in the BitWizard linux device
  *      driver service. If you require a linux device driver for your
  *      product, please contact devices@BitWizard.nl for a quote.
  *
@@ -978,7 +978,7 @@ static void sx_change_speed(struct specialix_board *bp,
 	spin_lock_irqsave(&bp->lock, flags);
 	sx_out(bp, CD186x_CAR, port_No(port));
 
-	/* The Specialix board doens't implement the RTS lines.
+	/* The Specialix board doesn't implement the RTS lines.
 	   They are used to set the IRQ level. Don't touch them. */
 	if (sx_crtscts(tty))
 		port->MSVR = MSVR_DTR | (sx_in(bp, CD186x_MSVR) & MSVR_RTS);
@@ -1416,7 +1416,7 @@ static int sx_open(struct tty_struct *tty, struct file *filp)
 				 board, bp, port, SX_PORT(tty->index));
 
 	if (sx_paranoia_check(port, tty->name, "sx_open")) {
-		func_enter();
+		func_exit();
 		return -ENODEV;
 	}
 
@@ -1435,13 +1435,13 @@ static int sx_open(struct tty_struct *tty, struct file *filp)
 
 	error = sx_setup_port(bp, port);
 	if (error) {
-		func_enter();
+		func_exit();
 		return error;
 	}
 
 	error = block_til_ready(tty, filp, port);
 	if (error) {
-		func_enter();
+		func_exit();
 		return error;
 	}
 
@@ -1860,7 +1860,7 @@ static int sx_set_serial_info(struct specialix_port *port,
 	func_enter();
 
 	if (copy_from_user(&tmp, newinfo, sizeof(tmp))) {
-		func_enter();
+		func_exit();
 		return -EFAULT;
 	}
 

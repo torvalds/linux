@@ -1010,7 +1010,7 @@ out_dealloc_cmap:
 	fb_dealloc_cmap(&info->cmap);
 
 out_unmap_dac:
-	of_iounmap(&op->resource[2], par->fbc, sizeof(struct ffb_fbc));
+	of_iounmap(&op->resource[1], par->dac, sizeof(struct ffb_dac));
 
 out_unmap_fbc:
 	of_iounmap(&op->resource[2], par->fbc, sizeof(struct ffb_fbc));

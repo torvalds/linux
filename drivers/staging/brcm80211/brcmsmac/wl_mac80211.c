@@ -1079,7 +1079,7 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 	 */
 	hw->max_rates = 2;	/* Primary rate and 1 fallback rate */
 
-	hw->channel_change_time = 7 * 1000;	/* channel change time is dependant on chip and band  */
+	hw->channel_change_time = 7 * 1000;	/* channel change time is dependent on chip and band  */
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	hw->rate_control_algorithm = "minstrel_ht";

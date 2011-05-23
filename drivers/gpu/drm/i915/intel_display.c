@@ -1516,9 +1516,10 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 	reg = PIPECONF(pipe);
 	val = I915_READ(reg);
-	val |= PIPECONF_ENABLE;
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
+	if (val & PIPECONF_ENABLE)
+		return;
+
+	I915_WRITE(reg, val | PIPECONF_ENABLE);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
 
@@ -1552,9 +1553,10 @@ static void intel_disable_pipe(struct drm_i915_private *dev_priv,
 
 	reg = PIPECONF(pipe);
 	val = I915_READ(reg);
-	val &= ~PIPECONF_ENABLE;
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
+	if ((val & PIPECONF_ENABLE) == 0)
+		return;
+
+	I915_WRITE(reg, val & ~PIPECONF_ENABLE);
 	intel_wait_for_pipe_off(dev_priv->dev, pipe);
 }
 
@@ -1577,9 +1579,10 @@ static void intel_enable_plane(struct drm_i915_private *dev_priv,
 
 	reg = DSPCNTR(plane);
 	val = I915_READ(reg);
-	val |= DISPLAY_PLANE_ENABLE;
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
+	if (val & DISPLAY_PLANE_ENABLE)
+		return;
+
+	I915_WRITE(reg, val | DISPLAY_PLANE_ENABLE);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
 
@@ -1610,9 +1613,10 @@ static void intel_disable_plane(struct drm_i915_private *dev_priv,
 
 	reg = DSPCNTR(plane);
 	val = I915_READ(reg);
-	val &= ~DISPLAY_PLANE_ENABLE;
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
+	if ((val & DISPLAY_PLANE_ENABLE) == 0)
+		return;
+
+	I915_WRITE(reg, val & ~DISPLAY_PLANE_ENABLE);
 	intel_flush_display_plane(dev_priv, plane);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
@@ -1769,7 +1773,6 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 			return;
 
 		I915_WRITE(DPFC_CONTROL, dpfc_ctl & ~DPFC_CTL_EN);
-		POSTING_READ(DPFC_CONTROL);
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	}
 
@@ -1861,7 +1864,6 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 			return;
 
 		I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl & ~DPFC_CTL_EN);
-		POSTING_READ(ILK_DPFC_CONTROL);
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	}
 
@@ -3769,8 +3771,11 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	int entries, tlb_miss;
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (crtc->fb == NULL || !crtc->enabled)
+	if (crtc->fb == NULL || !crtc->enabled) {
+		*cursor_wm = cursor->guard_size;
+		*plane_wm = display->guard_size;
 		return false;
+	}
 
 	htotal = crtc->mode.htotal;
 	hdisplay = crtc->mode.hdisplay;
@@ -3883,10 +3888,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			      display, cursor);
 }
 
-static inline bool single_plane_enabled(unsigned int mask)
-{
-	return mask && (mask & -mask) == 0;
-}
+#define single_plane_enabled(mask) is_power_of_2(mask)
 
 static void g4x_update_wm(struct drm_device *dev)
 {
@@ -5603,9 +5605,9 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 	intel_clock_t clock;
 
 	if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
-		fp = FP0(pipe);
+		fp = I915_READ(FP0(pipe));
 	else
-		fp = FP1(pipe);
+		fp = I915_READ(FP1(pipe));
 
 	clock.m1 = (fp & FP_M1_DIV_MASK) >> FP_M1_DIV_SHIFT;
 	if (IS_PINEVIEW(dev)) {
@@ -5777,7 +5779,6 @@ static void intel_increase_pllclock(struct drm_crtc *crtc)
 
 		dpll &= ~DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
-		POSTING_READ(dpll_reg);
 		intel_wait_for_vblank(dev, pipe);
 
 		dpll = I915_READ(dpll_reg);
@@ -5821,7 +5822,6 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 
 		dpll |= DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
-		dpll = I915_READ(dpll_reg);
 		intel_wait_for_vblank(dev, pipe);
 		dpll = I915_READ(dpll_reg);
 		if (!(dpll & DISPLAY_RATE_SELECT_FPA1))
@@ -6218,36 +6218,6 @@ cleanup_work:
 	return ret;
 }
 
-static void intel_crtc_reset(struct drm_crtc *crtc)
-{
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	/* Reset flags back to the 'unknown' status so that they
-	 * will be correctly set on the initial modeset.
-	 */
-	intel_crtc->dpms_mode = -1;
-}
-
-static struct drm_crtc_helper_funcs intel_helper_funcs = {
-	.dpms = intel_crtc_dpms,
-	.mode_fixup = intel_crtc_mode_fixup,
-	.mode_set = intel_crtc_mode_set,
-	.mode_set_base = intel_pipe_set_base,
-	.mode_set_base_atomic = intel_pipe_set_base_atomic,
-	.load_lut = intel_crtc_load_lut,
-	.disable = intel_crtc_disable,
-};
-
-static const struct drm_crtc_funcs intel_crtc_funcs = {
-	.reset = intel_crtc_reset,
-	.cursor_set = intel_crtc_cursor_set,
-	.cursor_move = intel_crtc_cursor_move,
-	.gamma_set = intel_crtc_gamma_set,
-	.set_config = drm_crtc_helper_set_config,
-	.destroy = intel_crtc_destroy,
-	.page_flip = intel_crtc_page_flip,
-};
-
 static void intel_sanitize_modesetting(struct drm_device *dev,
 				       int pipe, int plane)
 {
@@ -6283,6 +6253,42 @@ static void intel_sanitize_modesetting(struct drm_device *dev,
 	intel_disable_plane(dev_priv, plane, pipe);
 	intel_disable_pipe(dev_priv, pipe);
 }
+
+static void intel_crtc_reset(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	/* Reset flags back to the 'unknown' status so that they
+	 * will be correctly set on the initial modeset.
+	 */
+	intel_crtc->dpms_mode = -1;
+
+	/* We need to fix up any BIOS configuration that conflicts with
+	 * our expectations.
+	 */
+	intel_sanitize_modesetting(dev, intel_crtc->pipe, intel_crtc->plane);
+}
+
+static struct drm_crtc_helper_funcs intel_helper_funcs = {
+	.dpms = intel_crtc_dpms,
+	.mode_fixup = intel_crtc_mode_fixup,
+	.mode_set = intel_crtc_mode_set,
+	.mode_set_base = intel_pipe_set_base,
+	.mode_set_base_atomic = intel_pipe_set_base_atomic,
+	.load_lut = intel_crtc_load_lut,
+	.disable = intel_crtc_disable,
+};
+
+static const struct drm_crtc_funcs intel_crtc_funcs = {
+	.reset = intel_crtc_reset,
+	.cursor_set = intel_crtc_cursor_set,
+	.cursor_move = intel_crtc_cursor_move,
+	.gamma_set = intel_crtc_gamma_set,
+	.set_config = drm_crtc_helper_set_config,
+	.destroy = intel_crtc_destroy,
+	.page_flip = intel_crtc_page_flip,
+};
 
 static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
@@ -6333,8 +6339,6 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 
 	setup_timer(&intel_crtc->idle_timer, intel_crtc_idle_timer,
 		    (unsigned long)intel_crtc);
-
-	intel_sanitize_modesetting(dev, intel_crtc->pipe, intel_crtc->plane);
 }
 
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
@@ -6575,8 +6579,10 @@ intel_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-ENOENT);
 
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
-	if (!intel_fb)
+	if (!intel_fb) {
+		drm_gem_object_unreference_unlocked(&obj->base);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	ret = intel_framebuffer_init(dev, intel_fb, mode_cmd, obj);
 	if (ret) {
@@ -6933,7 +6939,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 		DRM_ERROR("timeout waiting for pcode mailbox to finish\n");
 	if (pcu_mbox & (1<<31)) { /* OC supported */
 		max_freq = pcu_mbox & 0xff;
-		DRM_DEBUG_DRIVER("overclocking supported, adjusting frequency max to %dMHz\n", pcu_mbox * 100);
+		DRM_DEBUG_DRIVER("overclocking supported, adjusting frequency max to %dMHz\n", pcu_mbox * 50);
 	}
 
 	/* In units of 100MHz */

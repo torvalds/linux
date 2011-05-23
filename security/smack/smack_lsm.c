@@ -686,7 +686,7 @@ static int smack_inode_rename(struct inode *old_inode,
  *
  * Returns 0 if access is permitted, -EACCES otherwise
  */
-static int smack_inode_permission(struct inode *inode, int mask)
+static int smack_inode_permission(struct inode *inode, int mask, unsigned flags)
 {
 	struct smk_audit_info ad;
 
@@ -696,6 +696,10 @@ static int smack_inode_permission(struct inode *inode, int mask)
 	 */
 	if (mask == 0)
 		return 0;
+
+	/* May be droppable after audit */
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
 	smk_ad_setfield_u_fs_inode(&ad, inode);
 	return smk_curacc(smk_of_inode(inode), mask, &ad);
@@ -1794,7 +1798,7 @@ static void smack_set_catset(char *catset, struct netlbl_lsm_secattr *sap)
  * Casey says that CIPSO is good enough for now.
  * It can be used to effect.
  * It can also be abused to effect when necessary.
- * Appologies to the TSIG group in general and GW in particular.
+ * Apologies to the TSIG group in general and GW in particular.
  */
 static void smack_to_secattr(char *smack, struct netlbl_lsm_secattr *nlsp)
 {
@@ -2530,7 +2534,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 	switch (sbp->s_magic) {
 	case SMACK_MAGIC:
 		/*
-		 * Casey says that it's a little embarassing
+		 * Casey says that it's a little embarrassing
 		 * that the smack file system doesn't do
 		 * extended attributes.
 		 */
@@ -3084,7 +3088,7 @@ static int smack_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	/*
 	 * We need to decide if we want to label the incoming connection here
 	 * if we do we only need to label the request_sock and the stack will
-	 * propogate the wire-label to the sock when it is created.
+	 * propagate the wire-label to the sock when it is created.
 	 */
 	hdr = ip_hdr(skb);
 	addr.sin_addr.s_addr = hdr->saddr;

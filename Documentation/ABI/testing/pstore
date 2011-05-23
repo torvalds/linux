@@ -1,6 +1,6 @@
 Where:		/dev/pstore/...
-Date:		January 2011
-Kernel Version: 2.6.38
+Date:		March 2011
+Kernel Version: 2.6.39
 Contact:	tony.luck@intel.com
 Description:	Generic interface to platform dependent persistent storage.
 
@@ -11,7 +11,7 @@ Description:	Generic interface to platform dependent persistent storage.
 		of the console log is captured, but other interesting
 		data can also be saved.
 
-		# mount -t pstore - /dev/pstore
+		# mount -t pstore -o kmsg_bytes=8000 - /dev/pstore
 
 		$ ls -l /dev/pstore
 		total 0
@@ -33,3 +33,9 @@ Description:	Generic interface to platform dependent persistent storage.
 		will be saved elsewhere and erased from persistent store
 		soon after boot to free up space ready for the next
 		catastrophe.
+
+		The 'kmsg_bytes' mount option changes the target amount of
+		data saved on each oops/panic. Pstore saves (possibly
+		multiple) files based on the record size of the underlying
+		persistent storage until at least this amount is reached.
+		Default is 10 Kbytes.

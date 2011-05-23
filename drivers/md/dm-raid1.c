@@ -842,8 +842,6 @@ static void do_mirror(struct work_struct *work)
 	do_reads(ms, &reads);
 	do_writes(ms, &writes);
 	do_failures(ms, &failures);
-
-	dm_table_unplug_all(ms->ti->table);
 }
 
 /*-----------------------------------------------------------------

@@ -459,7 +459,7 @@
 /* ==================================================================== */
 /* Some MMRs are functionally identical (or close enough) on both SHUB1 */
 /* and SHUB2 that it makes sense to define a geberic name for the MMR.  */
-/* It is acceptible to use (for example) SH_IPI_INT to reference the    */
+/* It is acceptable to use (for example) SH_IPI_INT to reference the    */
 /* the IPI MMR. The value of SH_IPI_INT is determined at runtime based  */
 /* on the type of the SHUB. Do not use these #defines in performance    */
 /* critical code  or loops - there is a small performance penalty.      */

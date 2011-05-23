@@ -14,6 +14,7 @@
 #include <asm/thread_info.h>
 #include <asm/memory.h>
 #include <asm/page.h>
+#include <asm/cache.h>
 
 OUTPUT_ARCH(unicore32)
 ENTRY(stext)
@@ -29,7 +30,7 @@ SECTIONS
 	HEAD_TEXT_SECTION
 	INIT_TEXT_SECTION(PAGE_SIZE)
 	INIT_DATA_SECTION(16)
-	PERCPU(PAGE_SIZE)
+	PERCPU(L1_CACHE_BYTES, PAGE_SIZE)
 	__init_end = .;
 
 	_stext = .;
@@ -45,10 +46,10 @@ SECTIONS
 
 	_sdata = .;
 	RO_DATA_SECTION(PAGE_SIZE)
-	RW_DATA_SECTION(32, PAGE_SIZE, THREAD_SIZE)
+	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
 	_edata = .;
 
-	EXCEPTION_TABLE(32)
+	EXCEPTION_TABLE(L1_CACHE_BYTES)
 	NOTES
 
 	BSS_SECTION(0, 0, 0)

@@ -1552,8 +1552,7 @@ static void __devinit uvesafb_init_mtrr(struct fb_info *info)
 			int rc;
 
 			/* Find the largest power-of-two */
-			while (temp_size & (temp_size - 1))
-				temp_size &= (temp_size - 1);
+			temp_size = roundup_pow_of_two(temp_size);
 
 			/* Try and find a power of two to add */
 			do {
@@ -1566,6 +1565,28 @@ static void __devinit uvesafb_init_mtrr(struct fb_info *info)
 #endif /* CONFIG_MTRR */
 }
 
+static void __devinit uvesafb_ioremap(struct fb_info *info)
+{
+#ifdef CONFIG_X86
+	switch (mtrr) {
+	case 1: /* uncachable */
+		info->screen_base = ioremap_nocache(info->fix.smem_start, info->fix.smem_len);
+		break;
+	case 2: /* write-back */
+		info->screen_base = ioremap_cache(info->fix.smem_start, info->fix.smem_len);
+		break;
+	case 3: /* write-combining */
+		info->screen_base = ioremap_wc(info->fix.smem_start, info->fix.smem_len);
+		break;
+	case 4: /* write-through */
+	default:
+		info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
+		break;
+	}
+#else
+	info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
+#endif /* CONFIG_X86 */
+}
 
 static ssize_t uvesafb_show_vbe_ver(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1736,15 +1757,22 @@ static int __devinit uvesafb_probe(struct platform_device *dev)
 
 	uvesafb_init_info(info, mode);
 
+	if (!request_region(0x3c0, 32, "uvesafb")) {
+		printk(KERN_ERR "uvesafb: request region 0x3c0-0x3e0 failed\n");
+		err = -EIO;
+		goto out_mode;
+	}
+
 	if (!request_mem_region(info->fix.smem_start, info->fix.smem_len,
 				"uvesafb")) {
 		printk(KERN_ERR "uvesafb: cannot reserve video memory at "
 				"0x%lx\n", info->fix.smem_start);
 		err = -EIO;
-		goto out_mode;
+		goto out_reg;
 	}
 
-	info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
+	uvesafb_init_mtrr(info);
+	uvesafb_ioremap(info);
 
 	if (!info->screen_base) {
 		printk(KERN_ERR
@@ -1755,20 +1783,13 @@ static int __devinit uvesafb_probe(struct platform_device *dev)
 		goto out_mem;
 	}
 
-	if (!request_region(0x3c0, 32, "uvesafb")) {
-		printk(KERN_ERR "uvesafb: request region 0x3c0-0x3e0 failed\n");
-		err = -EIO;
-		goto out_unmap;
-	}
-
-	uvesafb_init_mtrr(info);
 	platform_set_drvdata(dev, info);
 
 	if (register_framebuffer(info) < 0) {
 		printk(KERN_ERR
 			"uvesafb: failed to register framebuffer device\n");
 		err = -EINVAL;
-		goto out_reg;
+		goto out_unmap;
 	}
 
 	printk(KERN_INFO "uvesafb: framebuffer at 0x%lx, mapped to 0x%p, "
@@ -1785,12 +1806,12 @@ static int __devinit uvesafb_probe(struct platform_device *dev)
 
 	return 0;
 
-out_reg:
-	release_region(0x3c0, 32);
 out_unmap:
 	iounmap(info->screen_base);
 out_mem:
 	release_mem_region(info->fix.smem_start, info->fix.smem_len);
+out_reg:
+	release_region(0x3c0, 32);
 out_mode:
 	if (!list_empty(&info->modelist))
 		fb_destroy_modelist(&info->modelist);

@@ -376,15 +376,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.destroy_context	= nv50_graph_destroy_context;
 		engine->graph.load_context	= nv50_graph_load_context;
 		engine->graph.unload_context	= nv50_graph_unload_context;
-		if (dev_priv->chipset != 0x86)
+		if (dev_priv->chipset == 0x50 ||
+		    dev_priv->chipset == 0xac)
 			engine->graph.tlb_flush	= nv50_graph_tlb_flush;
-		else {
-			/* from what i can see nvidia do this on every
-			 * pre-NVA3 board except NVAC, but, we've only
-			 * ever seen problems on NV86
-			 */
-			engine->graph.tlb_flush	= nv86_graph_tlb_flush;
-		}
+		else
+			engine->graph.tlb_flush	= nv84_graph_tlb_flush;
 		engine->fifo.channels		= 128;
 		engine->fifo.init		= nv50_fifo_init;
 		engine->fifo.takedown		= nv50_fifo_takedown;
@@ -612,6 +608,7 @@ nouveau_card_init(struct drm_device *dev)
 	spin_lock_init(&dev_priv->channels.lock);
 	spin_lock_init(&dev_priv->tile.lock);
 	spin_lock_init(&dev_priv->context_switch_lock);
+	spin_lock_init(&dev_priv->vm_lock);
 
 	/* Make the CRTCs and I2C buses accessible */
 	ret = engine->display.early_init(dev);
@@ -704,10 +701,6 @@ nouveau_card_init(struct drm_device *dev)
 			goto out_fence;
 	}
 
-	ret = nouveau_backlight_init(dev);
-	if (ret)
-		NV_ERROR(dev, "Error %d registering backlight\n", ret);
-
 	nouveau_fbcon_init(dev);
 	drm_kms_helper_poll_init(dev);
 	return 0;
@@ -759,8 +752,6 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_engine *engine = &dev_priv->engine;
 
-	nouveau_backlight_exit(dev);
-
 	if (!engine->graph.accel_blocked) {
 		nouveau_fence_fini(dev);
 		nouveau_channel_put_unlocked(&dev_priv->channel);
@@ -776,6 +767,11 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	engine->gpio.takedown(dev);
 	engine->mc.takedown(dev);
 	engine->display.late_takedown(dev);
+
+	if (dev_priv->vga_ram) {
+		nouveau_bo_unpin(dev_priv->vga_ram);
+		nouveau_bo_ref(NULL, &dev_priv->vga_ram);
+	}
 
 	mutex_lock(&dev->struct_mutex);
 	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
@@ -969,7 +965,7 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_mmio;
 
-	/* Map PRAMIN BAR, or on older cards, the aperture withing BAR0 */
+	/* Map PRAMIN BAR, or on older cards, the aperture within BAR0 */
 	if (dev_priv->card_type >= NV_40) {
 		int ramin_bar = 2;
 		if (pci_resource_len(dev->pdev, ramin_bar) == 0)

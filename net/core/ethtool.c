@@ -141,9 +141,24 @@ u32 ethtool_op_get_flags(struct net_device *dev)
 }
 EXPORT_SYMBOL(ethtool_op_get_flags);
 
+/* Check if device can enable (or disable) particular feature coded in "data"
+ * argument. Flags "supported" describe features that can be toggled by device.
+ * If feature can not be toggled, it state (enabled or disabled) must match
+ * hardcoded device features state, otherwise flags are marked as invalid.
+ */
+bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported)
+{
+	u32 features = dev->features & flags_dup_features;
+	/* "data" can contain only flags_dup_features bits,
+	 * see __ethtool_set_flags */
+
+	return (features & ~supported) != (data & ~supported);
+}
+EXPORT_SYMBOL(ethtool_invalid_flags);
+
 int ethtool_op_set_flags(struct net_device *dev, u32 data, u32 supported)
 {
-	if (data & ~supported)
+	if (ethtool_invalid_flags(dev, data, supported))
 		return -EINVAL;
 
 	dev->features = ((dev->features & ~flags_dup_features) |
@@ -513,7 +528,7 @@ static int ethtool_set_one_feature(struct net_device *dev,
 	}
 }
 
-static int __ethtool_set_flags(struct net_device *dev, u32 data)
+int __ethtool_set_flags(struct net_device *dev, u32 data)
 {
 	u32 changed;
 
@@ -1456,6 +1471,9 @@ static int ethtool_set_pauseparam(struct net_device *dev, void __user *useraddr)
 static int __ethtool_set_sg(struct net_device *dev, u32 data)
 {
 	int err;
+
+	if (!dev->ethtool_ops->set_sg)
+		return -EOPNOTSUPP;
 
 	if (data && !(dev->features & NETIF_F_ALL_CSUM))
 		return -EINVAL;

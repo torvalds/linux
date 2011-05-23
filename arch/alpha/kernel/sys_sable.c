@@ -518,8 +518,8 @@ sable_lynx_init_irq(int nr_of_irqs)
 	long i;
 
 	for (i = 0; i < nr_of_irqs; ++i) {
-		set_irq_chip_and_handler(i, &sable_lynx_irq_type,
-			handle_level_irq);
+		irq_set_chip_and_handler(i, &sable_lynx_irq_type,
+					 handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 

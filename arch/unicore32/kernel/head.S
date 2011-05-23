@@ -164,7 +164,7 @@ ENTRY(stext)
 ENDPROC(stext)
 
 /*
- * Enable the MMU.  This completely changes the stucture of the visible
+ * Enable the MMU.  This completely changes the structure of the visible
  * memory space.  You will not be able to trace execution through this.
  *
  *  r0  = cp#0 control register

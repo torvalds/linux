@@ -2509,7 +2509,7 @@ static struct pci_driver atl1e_driver = {
 	.id_table = atl1e_pci_tbl,
 	.probe    = atl1e_probe,
 	.remove   = __devexit_p(atl1e_remove),
-	/* Power Managment Hooks */
+	/* Power Management Hooks */
 #ifdef CONFIG_PM
 	.suspend  = atl1e_suspend,
 	.resume   = atl1e_resume,

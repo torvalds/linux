@@ -7,6 +7,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/gpio.h>
 #include <asm/olpc.h>

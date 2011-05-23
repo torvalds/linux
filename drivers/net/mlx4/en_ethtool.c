@@ -45,7 +45,7 @@ mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 
-	sprintf(drvinfo->driver, DRV_NAME " (%s)", mdev->dev->board_id);
+	strncpy(drvinfo->driver, DRV_NAME, 32);
 	strncpy(drvinfo->version, DRV_VERSION " (" DRV_RELDATE ")", 32);
 	sprintf(drvinfo->fw_version, "%d.%d.%d",
 		(u16) (mdev->dev->caps.fw_ver >> 32),
@@ -131,8 +131,65 @@ static void mlx4_en_set_msglevel(struct net_device *dev, u32 val)
 static void mlx4_en_get_wol(struct net_device *netdev,
 			    struct ethtool_wolinfo *wol)
 {
-	wol->supported = 0;
-	wol->wolopts = 0;
+	struct mlx4_en_priv *priv = netdev_priv(netdev);
+	int err = 0;
+	u64 config = 0;
+
+	if (!priv->mdev->dev->caps.wol) {
+		wol->supported = 0;
+		wol->wolopts = 0;
+		return;
+	}
+
+	err = mlx4_wol_read(priv->mdev->dev, &config, priv->port);
+	if (err) {
+		en_err(priv, "Failed to get WoL information\n");
+		return;
+	}
+
+	if (config & MLX4_EN_WOL_MAGIC)
+		wol->supported = WAKE_MAGIC;
+	else
+		wol->supported = 0;
+
+	if (config & MLX4_EN_WOL_ENABLED)
+		wol->wolopts = WAKE_MAGIC;
+	else
+		wol->wolopts = 0;
+}
+
+static int mlx4_en_set_wol(struct net_device *netdev,
+			    struct ethtool_wolinfo *wol)
+{
+	struct mlx4_en_priv *priv = netdev_priv(netdev);
+	u64 config = 0;
+	int err = 0;
+
+	if (!priv->mdev->dev->caps.wol)
+		return -EOPNOTSUPP;
+
+	if (wol->supported & ~WAKE_MAGIC)
+		return -EINVAL;
+
+	err = mlx4_wol_read(priv->mdev->dev, &config, priv->port);
+	if (err) {
+		en_err(priv, "Failed to get WoL info, unable to modify\n");
+		return err;
+	}
+
+	if (wol->wolopts & WAKE_MAGIC) {
+		config |= MLX4_EN_WOL_DO_MODIFY | MLX4_EN_WOL_ENABLED |
+				MLX4_EN_WOL_MAGIC;
+	} else {
+		config &= ~(MLX4_EN_WOL_ENABLED | MLX4_EN_WOL_MAGIC);
+		config |= MLX4_EN_WOL_DO_MODIFY;
+	}
+
+	err = mlx4_wol_write(priv->mdev->dev, config, priv->port);
+	if (err)
+		en_err(priv, "Failed to set WoL information\n");
+
+	return err;
 }
 
 static int mlx4_en_get_sset_count(struct net_device *dev, int sset)
@@ -388,7 +445,7 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 		mlx4_en_stop_port(dev);
 	}
 
-	mlx4_en_free_resources(priv);
+	mlx4_en_free_resources(priv, true);
 
 	priv->prof->tx_ring_size = tx_size;
 	priv->prof->rx_ring_size = rx_size;
@@ -442,6 +499,7 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_ethtool_stats = mlx4_en_get_ethtool_stats,
 	.self_test = mlx4_en_self_test,
 	.get_wol = mlx4_en_get_wol,
+	.set_wol = mlx4_en_set_wol,
 	.get_msglevel = mlx4_en_get_msglevel,
 	.set_msglevel = mlx4_en_set_msglevel,
 	.get_coalesce = mlx4_en_get_coalesce,

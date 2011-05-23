@@ -52,7 +52,7 @@ struct bridge_dev_context;
  *      dev_ctxt:    Handle to Bridge driver defined device context.
  *  Returns:
  *      0:        Success.
- *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
+ *      -ETIMEDOUT:  Timeout occurred waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL
@@ -91,7 +91,7 @@ typedef int(*fxn_brd_setstate) (struct bridge_dev_context
  *      dsp_addr:       DSP address at which to start execution.
  *  Returns:
  *      0:        Success.
- *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
+ *      -ETIMEDOUT:  Timeout occurred waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL
@@ -142,7 +142,7 @@ typedef int(*fxn_brd_memcopy) (struct bridge_dev_context
  *      mem_type:       Memory space on DSP to which to transfer.
  *  Returns:
  *      0:        Success.
- *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
+ *      -ETIMEDOUT:  Timeout occurred waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL;
@@ -205,7 +205,7 @@ typedef int(*fxn_brd_memunmap) (struct bridge_dev_context
  *      dev_ctxt:    Handle to Bridge driver defined device context.
  *  Returns:
  *      0:        Success.
- *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
+ *      -ETIMEDOUT:  Timeout occurred waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL
@@ -248,7 +248,7 @@ typedef int(*fxn_brd_status) (struct bridge_dev_context *dev_ctxt,
  *      mem_type:       Memory space on DSP from which to transfer.
  *  Returns:
  *      0:        Success.
- *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
+ *      -ETIMEDOUT:  Timeout occurred waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL;
@@ -274,7 +274,7 @@ typedef int(*fxn_brd_read) (struct bridge_dev_context *dev_ctxt,
  *      mem_type:       Memory space on DSP to which to transfer.
  *  Returns:
  *      0:        Success.
- *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
+ *      -ETIMEDOUT:  Timeout occurred waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL;
@@ -601,7 +601,7 @@ typedef int(*fxn_chnl_getmgrinfo) (struct chnl_mgr
  *  Returns:
  *      0:            Success;
  *      -EFAULT:        Invalid chnl_obj.
- *      -ETIMEDOUT: Timeout occured before channel could be idled.
+ *      -ETIMEDOUT: Timeout occurred before channel could be idled.
  *  Requires:
  *  Ensures:
  */

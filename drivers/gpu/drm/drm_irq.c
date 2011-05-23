@@ -932,11 +932,34 @@ EXPORT_SYMBOL(drm_vblank_put);
 
 void drm_vblank_off(struct drm_device *dev, int crtc)
 {
+	struct drm_pending_vblank_event *e, *t;
+	struct timeval now;
 	unsigned long irqflags;
+	unsigned int seq;
 
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	vblank_disable_and_save(dev, crtc);
 	DRM_WAKEUP(&dev->vbl_queue[crtc]);
+
+	/* Send any queued vblank events, lest the natives grow disquiet */
+	seq = drm_vblank_count_and_time(dev, crtc, &now);
+	list_for_each_entry_safe(e, t, &dev->vblank_event_list, base.link) {
+		if (e->pipe != crtc)
+			continue;
+		DRM_DEBUG("Sending premature vblank event on disable: \
+			  wanted %d, current %d\n",
+			  e->event.sequence, seq);
+
+		e->event.sequence = seq;
+		e->event.tv_sec = now.tv_sec;
+		e->event.tv_usec = now.tv_usec;
+		drm_vblank_put(dev, e->pipe);
+		list_move_tail(&e->base.link, &e->base.file_priv->event_list);
+		wake_up_interruptible(&e->base.file_priv->event_wait);
+		trace_drm_vblank_event_delivered(e->base.pid, e->pipe,
+						 e->event.sequence);
+	}
+
 	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 }
 EXPORT_SYMBOL(drm_vblank_off);
@@ -1125,7 +1148,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 {
 	union drm_wait_vblank *vblwait = data;
 	int ret = 0;
-	unsigned int flags, seq, crtc;
+	unsigned int flags, seq, crtc, high_crtc;
 
 	if ((!drm_dev_to_irq(dev)) || (!dev->irq_enabled))
 		return -EINVAL;
@@ -1134,16 +1157,21 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	if (vblwait->request.type &
-	    ~(_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK)) {
+	    ~(_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK |
+	      _DRM_VBLANK_HIGH_CRTC_MASK)) {
 		DRM_ERROR("Unsupported type value 0x%x, supported mask 0x%x\n",
 			  vblwait->request.type,
-			  (_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK));
+			  (_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK |
+			   _DRM_VBLANK_HIGH_CRTC_MASK));
 		return -EINVAL;
 	}
 
 	flags = vblwait->request.type & _DRM_VBLANK_FLAGS_MASK;
-	crtc = flags & _DRM_VBLANK_SECONDARY ? 1 : 0;
-
+	high_crtc = (vblwait->request.type & _DRM_VBLANK_HIGH_CRTC_MASK);
+	if (high_crtc)
+		crtc = high_crtc >> _DRM_VBLANK_HIGH_CRTC_SHIFT;
+	else
+		crtc = flags & _DRM_VBLANK_SECONDARY ? 1 : 0;
 	if (crtc >= dev->num_crtcs)
 		return -EINVAL;
 

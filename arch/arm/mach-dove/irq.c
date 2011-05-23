@@ -86,8 +86,7 @@ static void pmu_irq_handler(unsigned int irq, struct irq_desc *desc)
 		if (!(cause & (1 << irq)))
 			continue;
 		irq = pmu_to_irq(irq);
-		desc = irq_desc + irq;
-		desc_handle_irq(irq, desc);
+		generic_handle_irq(irq);
 	}
 }
 
@@ -103,14 +102,14 @@ void __init dove_init_irq(void)
 	 */
 	orion_gpio_init(0, 32, DOVE_GPIO_LO_VIRT_BASE, 0,
 			IRQ_DOVE_GPIO_START);
-	set_irq_chained_handler(IRQ_DOVE_GPIO_0_7, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_DOVE_GPIO_8_15, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_DOVE_GPIO_16_23, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_DOVE_GPIO_24_31, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_DOVE_GPIO_0_7, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_DOVE_GPIO_8_15, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_DOVE_GPIO_16_23, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_DOVE_GPIO_24_31, gpio_irq_handler);
 
 	orion_gpio_init(32, 32, DOVE_GPIO_HI_VIRT_BASE, 0,
 			IRQ_DOVE_GPIO_START + 32);
-	set_irq_chained_handler(IRQ_DOVE_HIGH_GPIO, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_DOVE_HIGH_GPIO, gpio_irq_handler);
 
 	orion_gpio_init(64, 8, DOVE_GPIO2_VIRT_BASE, 0,
 			IRQ_DOVE_GPIO_START + 64);
@@ -122,10 +121,9 @@ void __init dove_init_irq(void)
 	writel(0, PMU_INTERRUPT_CAUSE);
 
 	for (i = IRQ_DOVE_PMU_START; i < NR_IRQS; i++) {
-		set_irq_chip(i, &pmu_irq_chip);
-		set_irq_handler(i, handle_level_irq);
-		irq_desc[i].status |= IRQ_LEVEL;
+		irq_set_chip_and_handler(i, &pmu_irq_chip, handle_level_irq);
+		irq_set_status_flags(i, IRQ_LEVEL);
 		set_irq_flags(i, IRQF_VALID);
 	}
-	set_irq_chained_handler(IRQ_DOVE_PMU, pmu_irq_handler);
+	irq_set_chained_handler(IRQ_DOVE_PMU, pmu_irq_handler);
 }

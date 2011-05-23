@@ -656,7 +656,7 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct fc_lport *lport,
 		 * If non-FIP, we may have gotten an SID by accepting an FLOGI
 		 * from a point-to-point connection.  Switch to using
 		 * the source mac based on the SID.  The destination
-		 * MAC in this case would have been set by receving the
+		 * MAC in this case would have been set by receiving the
 		 * FLOGI.
 		 */
 		if (fip->state == FIP_ST_NON_FIP) {
@@ -1876,7 +1876,7 @@ static void fcoe_ctlr_vn_send(struct fcoe_ctlr *fip,
  * fcoe_ctlr_vn_rport_callback - Event handler for rport events.
  * @lport: The lport which is receiving the event
  * @rdata: remote port private data
- * @event: The event that occured
+ * @event: The event that occurred
  *
  * Locking Note:  The rport lock must not be held when calling this function.
  */

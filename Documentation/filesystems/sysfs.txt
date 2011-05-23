@@ -62,7 +62,7 @@ values of the same type.
 
 Mixing types, expressing multiple lines of data, and doing fancy
 formatting of data is heavily frowned upon. Doing these things may get
-you publically humiliated and your code rewritten without notice. 
+you publicly humiliated and your code rewritten without notice. 
 
 
 An attribute definition is simply:

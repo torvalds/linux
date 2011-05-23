@@ -735,6 +735,7 @@ static struct pci_device_id pch_phub_pcidev_id[] = {
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ROHM_ML7213_PHUB), 2,  },
 	{ }
 };
+MODULE_DEVICE_TABLE(pci, pch_phub_pcidev_id);
 
 static struct pci_driver pch_phub_driver = {
 	.name = "pch_phub",

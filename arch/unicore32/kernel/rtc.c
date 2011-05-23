@@ -88,11 +88,6 @@ static int puv3_rtc_setpie(struct device *dev, int enabled)
 	return 0;
 }
 
-static int puv3_rtc_setfreq(struct device *dev, int freq)
-{
-	return 0;
-}
-
 /* Time read/write */
 
 static int puv3_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
@@ -214,8 +209,6 @@ static const struct rtc_class_ops puv3_rtcops = {
 	.set_time	= puv3_rtc_settime,
 	.read_alarm	= puv3_rtc_getalarm,
 	.set_alarm	= puv3_rtc_setalarm,
-	.irq_set_freq	= puv3_rtc_setfreq,
-	.irq_set_state	= puv3_rtc_setpie,
 	.proc	        = puv3_rtc_proc,
 };
 
@@ -293,8 +286,6 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 	}
 
 	puv3_rtc_enable(pdev, 1);
-
-	puv3_rtc_setfreq(&pdev->dev, 1);
 
 	/* register RTC and exit */
 

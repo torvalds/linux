@@ -999,7 +999,7 @@ static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	switch (n->nlmsg_type) {
 	case RTM_NEWACTION:
 		/* we are going to assume all other flags
-		 * imply create only if it doesnt exist
+		 * imply create only if it doesn't exist
 		 * Note that CREATE | EXCL implies that
 		 * but since we want avoid ambiguity (eg when flags
 		 * is zero) then just set this

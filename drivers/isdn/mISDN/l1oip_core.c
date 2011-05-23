@@ -179,7 +179,7 @@ NOTE: A value of 0 equals 256 bytes of data.
 - Time Base = Timestamp of first sample in frame
 The "Time Base" is used to rearange packets and to detect packet loss.
 The 16 bits are sent in network order (MSB first) and count 1/8000 th of a
-second. This causes a wrap arround each 8,192 seconds. There is no requirement
+second. This causes a wrap around each 8,192 seconds. There is no requirement
 for the initial "Time Base", but 0 should be used for the first packet.
 In case of HDLC data, this timestamp counts the packet or byte number.
 
@@ -205,7 +205,7 @@ On Demand:
 
 If the ondemand parameter is given, the remote IP is set to 0 on timeout.
 This will stop keepalive traffic to remote. If the remote is online again,
-traffic will continue to the remote address. This is usefull for road warriors.
+traffic will continue to the remote address. This is useful for road warriors.
 This feature only works with ID set, otherwhise it is highly unsecure.
 
 
@@ -590,7 +590,7 @@ multiframe:
 			return;
 		}
 	} else
-		mlen = len-2; /* single frame, substract timebase */
+		mlen = len-2; /* single frame, subtract timebase */
 
 	if (len < 2) {
 		printk(KERN_WARNING "%s: packet error - packet too short, time "

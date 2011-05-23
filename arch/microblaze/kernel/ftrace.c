@@ -51,6 +51,9 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 			: "r" (parent), "r" (return_hooker)
 	);
 
+	flush_dcache_range((u32)parent, (u32)parent + 4);
+	flush_icache_range((u32)parent, (u32)parent + 4);
+
 	if (unlikely(faulted)) {
 		ftrace_graph_stop();
 		WARN_ON(1);
@@ -94,6 +97,9 @@ static int ftrace_modify_code(unsigned long addr, unsigned int value)
 
 	if (unlikely(faulted))
 		return -EFAULT;
+
+	flush_dcache_range(addr, addr + 4);
+	flush_icache_range(addr, addr + 4);
 
 	return 0;
 }
@@ -195,8 +201,6 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	ret += ftrace_modify_code((unsigned long)&ftrace_caller,
 				  MICROBLAZE_NOP);
 
-	/* All changes are done - lets do caches consistent */
-	flush_icache();
 	return ret;
 }
 
@@ -210,7 +214,6 @@ int ftrace_enable_ftrace_graph_caller(void)
 
 	old_jump = *(unsigned int *)ip; /* save jump over instruction */
 	ret = ftrace_modify_code(ip, MICROBLAZE_NOP);
-	flush_icache();
 
 	pr_debug("%s: Replace instruction: 0x%x\n", __func__, old_jump);
 	return ret;
@@ -222,7 +225,6 @@ int ftrace_disable_ftrace_graph_caller(void)
 	unsigned long ip = (unsigned long)(&ftrace_call_graph);
 
 	ret = ftrace_modify_code(ip, old_jump);
-	flush_icache();
 
 	pr_debug("%s\n", __func__);
 	return ret;

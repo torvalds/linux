@@ -81,48 +81,9 @@ void ack_bad_irq(unsigned int irq)
 
 atomic_t irq_err_count;
 
-/*
- * Generic, controller-independent functions:
- */
-
-int show_interrupts(struct seq_file *p, void *v)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
-	int i = *(loff_t *) v, j;
-	struct irqaction * action;
-	unsigned long flags;
-
-	if (i == 0) {
-		seq_printf(p, "           ");
-		for_each_online_cpu(j)
-			seq_printf(p, "CPU%d       ", j);
-		seq_putc(p, '\n');
-	}
-
-	if (i < NR_IRQS) {
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
-		if (!action)
-			goto skip;
-		seq_printf(p, "%3d: ", i);
-#ifndef CONFIG_SMP
-		seq_printf(p, "%10u ", kstat_irqs(i));
-#else
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-#endif
-		seq_printf(p, " %14s", irq_desc[i].chip->name);
-		seq_printf(p, "  %s", action->name);
-
-		for (action=action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-
-		seq_putc(p, '\n');
-skip:
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == NR_IRQS) {
-		seq_putc(p, '\n');
-		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
-	}
+	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
 	return 0;
 }
 
@@ -141,7 +102,7 @@ void __init init_IRQ(void)
 #endif
 
 	for (i = 0; i < NR_IRQS; i++)
-		set_irq_noprobe(i);
+		irq_set_noprobe(i);
 
 	arch_init_irq();
 
@@ -183,8 +144,8 @@ void __irq_entry do_IRQ(unsigned int irq)
 {
 	irq_enter();
 	check_stack_overflow();
-	__DO_IRQ_SMTC_HOOK(irq);
-	generic_handle_irq(irq);
+	if (!smtc_handle_on_other_cpu(irq))
+		generic_handle_irq(irq);
 	irq_exit();
 }
 
@@ -197,7 +158,7 @@ void __irq_entry do_IRQ(unsigned int irq)
 void __irq_entry do_IRQ_no_affinity(unsigned int irq)
 {
 	irq_enter();
-	__NO_AFFINITY_IRQ_SMTC_HOOK(irq);
+	smtc_im_backstop(irq);
 	generic_handle_irq(irq);
 	irq_exit();
 }

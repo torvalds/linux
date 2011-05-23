@@ -48,9 +48,9 @@
 #include <net/ip.h>
 
 #include <asm/system.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_SPARC
 #include <asm/idprom.h>
@@ -9712,7 +9712,7 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		eeprom->len += b_count;
 	}
 
-	/* read bytes upto the last 4 byte boundary */
+	/* read bytes up to the last 4 byte boundary */
 	pd = &data[eeprom->len];
 	for (i = 0; i < (len - (len & 3)); i += 4) {
 		ret = tg3_nvram_read_be32(tp, offset + i, &val);
@@ -12327,8 +12327,10 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 		if (val & VCPU_CFGSHDW_ASPM_DBNC)
 			tp->tg3_flags |= TG3_FLAG_ASPM_WORKAROUND;
 		if ((val & VCPU_CFGSHDW_WOL_ENABLE) &&
-		    (val & VCPU_CFGSHDW_WOL_MAGPKT))
+		    (val & VCPU_CFGSHDW_WOL_MAGPKT)) {
 			tp->tg3_flags |= TG3_FLAG_WOL_ENABLE;
+			device_set_wakeup_enable(&tp->pdev->dev, true);
+		}
 		goto done;
 	}
 
@@ -12461,8 +12463,10 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 			tp->tg3_flags &= ~TG3_FLAG_WOL_CAP;
 
 		if ((tp->tg3_flags & TG3_FLAG_WOL_CAP) &&
-		    (nic_cfg & NIC_SRAM_DATA_CFG_WOL_ENABLE))
+		    (nic_cfg & NIC_SRAM_DATA_CFG_WOL_ENABLE)) {
 			tp->tg3_flags |= TG3_FLAG_WOL_ENABLE;
+			device_set_wakeup_enable(&tp->pdev->dev, true);
+		}
 
 		if (cfg2 & (1 << 17))
 			tp->phy_flags |= TG3_PHYFLG_CAPACITIVE_COUPLING;
@@ -13118,7 +13122,7 @@ done:
 
 static struct pci_dev * __devinit tg3_find_peer(struct tg3 *);
 
-static void inline vlan_features_add(struct net_device *dev, unsigned long flags)
+static inline void vlan_features_add(struct net_device *dev, unsigned long flags)
 {
 	dev->vlan_features |= flags;
 }

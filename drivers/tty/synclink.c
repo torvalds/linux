@@ -4072,7 +4072,7 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 	
 	if ( request_irq(info->irq_level,mgsl_interrupt,info->irq_flags,
 		info->device_name, info ) < 0 ) {
-		printk( "%s(%d):Cant request interrupt on device %s IRQ=%d\n",
+		printk( "%s(%d):Can't request interrupt on device %s IRQ=%d\n",
 			__FILE__,__LINE__,info->device_name, info->irq_level );
 		goto errout;
 	}
@@ -4095,7 +4095,7 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 		info->memory_base = ioremap_nocache(info->phys_memory_base,
 								0x40000);
 		if (!info->memory_base) {
-			printk( "%s(%d):Cant map shared memory on device %s MemAddr=%08X\n",
+			printk( "%s(%d):Can't map shared memory on device %s MemAddr=%08X\n",
 				__FILE__,__LINE__,info->device_name, info->phys_memory_base );
 			goto errout;
 		}
@@ -4109,7 +4109,7 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 		info->lcr_base = ioremap_nocache(info->phys_lcr_base,
 								PAGE_SIZE);
 		if (!info->lcr_base) {
-			printk( "%s(%d):Cant map LCR memory on device %s MemAddr=%08X\n",
+			printk( "%s(%d):Can't map LCR memory on device %s MemAddr=%08X\n",
 				__FILE__,__LINE__,info->device_name, info->phys_lcr_base );
 			goto errout;
 		}
@@ -4119,7 +4119,7 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 		/* claim DMA channel */
 		
 		if (request_dma(info->dma_level,info->device_name) < 0){
-			printk( "%s(%d):Cant request DMA channel on device %s DMA=%d\n",
+			printk( "%s(%d):Can't request DMA channel on device %s DMA=%d\n",
 				__FILE__,__LINE__,info->device_name, info->dma_level );
 			mgsl_release_resources( info );
 			return -ENODEV;
@@ -4132,7 +4132,7 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 	}
 	
 	if ( mgsl_allocate_dma_buffers(info) < 0 ) {
-		printk( "%s(%d):Cant allocate DMA buffers on device %s DMA=%d\n",
+		printk( "%s(%d):Can't allocate DMA buffers on device %s DMA=%d\n",
 			__FILE__,__LINE__,info->device_name, info->dma_level );
 		goto errout;
 	}	

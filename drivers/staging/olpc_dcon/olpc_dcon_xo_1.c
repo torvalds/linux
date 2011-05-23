@@ -12,6 +12,7 @@
  */
 #include <linux/cs5535.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 #include <asm/olpc.h>
 
 #include "olpc_dcon.h"
@@ -80,7 +81,7 @@ static int dcon_init_xo_1(struct dcon_priv *dcon)
 	lob &= ~(1 << DCON_IRQ);
 	outb(lob, 0x4d0);
 
-	/* Register the interupt handler */
+	/* Register the interrupt handler */
 	if (request_irq(DCON_IRQ, &dcon_interrupt, 0, "DCON", dcon)) {
 		printk(KERN_ERR "olpc-dcon: failed to request DCON's irq\n");
 		goto err_req_irq;

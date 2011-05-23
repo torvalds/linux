@@ -234,7 +234,7 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 		 * the data. For our userspace tools it is important
 		 * to dump areas with ecc errors !
 		 * For kernel internal usage it also might return -EUCLEAN
-		 * to signal the caller that a bitflip has occured and has
+		 * to signal the caller that a bitflip has occurred and has
 		 * been corrected by the ECC algorithm.
 		 * Userspace software which accesses NAND this way
 		 * must be aware of the fact that it deals with NAND

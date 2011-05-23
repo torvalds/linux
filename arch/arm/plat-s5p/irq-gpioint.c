@@ -43,13 +43,13 @@ LIST_HEAD(banks);
 
 static int s5p_gpioint_get_offset(struct irq_data *data)
 {
-	struct s3c_gpio_chip *chip = irq_data_get_irq_data(data);
+	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
 	return data->irq - chip->irq_base;
 }
 
 static void s5p_gpioint_ack(struct irq_data *data)
 {
-	struct s3c_gpio_chip *chip = irq_data_get_irq_data(data);
+	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
 	int group, offset, pend_offset;
 	unsigned int value;
 
@@ -64,7 +64,7 @@ static void s5p_gpioint_ack(struct irq_data *data)
 
 static void s5p_gpioint_mask(struct irq_data *data)
 {
-	struct s3c_gpio_chip *chip = irq_data_get_irq_data(data);
+	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
 	int group, offset, mask_offset;
 	unsigned int value;
 
@@ -79,7 +79,7 @@ static void s5p_gpioint_mask(struct irq_data *data)
 
 static void s5p_gpioint_unmask(struct irq_data *data)
 {
-	struct s3c_gpio_chip *chip = irq_data_get_irq_data(data);
+	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
 	int group, offset, mask_offset;
 	unsigned int value;
 
@@ -100,7 +100,7 @@ static void s5p_gpioint_mask_ack(struct irq_data *data)
 
 static int s5p_gpioint_set_type(struct irq_data *data, unsigned int type)
 {
-	struct s3c_gpio_chip *chip = irq_data_get_irq_data(data);
+	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
 	int group, offset, con_offset;
 	unsigned int value;
 
@@ -149,7 +149,7 @@ static struct irq_chip s5p_gpioint = {
 
 static void s5p_gpioint_handler(unsigned int irq, struct irq_desc *desc)
 {
-	struct s5p_gpioint_bank *bank = get_irq_data(irq);
+	struct s5p_gpioint_bank *bank = irq_get_handler_data(irq);
 	int group, pend_offset, mask_offset;
 	unsigned int pend, mask;
 
@@ -200,15 +200,15 @@ static __init int s5p_gpioint_add(struct s3c_gpio_chip *chip)
 		if (!bank->chips)
 			return -ENOMEM;
 
-		set_irq_chained_handler(bank->irq, s5p_gpioint_handler);
-		set_irq_data(bank->irq, bank);
+		irq_set_chained_handler(bank->irq, s5p_gpioint_handler);
+		irq_set_handler_data(bank->irq, bank);
 		bank->handler = s5p_gpioint_handler;
 		printk(KERN_INFO "Registered chained gpio int handler for interrupt %d.\n",
 		       bank->irq);
 	}
 
 	/*
-	 * chained GPIO irq has been sucessfully registered, allocate new gpio
+	 * chained GPIO irq has been successfully registered, allocate new gpio
 	 * int group and assign irq nubmers
 	 */
 
@@ -219,9 +219,9 @@ static __init int s5p_gpioint_add(struct s3c_gpio_chip *chip)
 	bank->chips[group - bank->start] = chip;
 	for (i = 0; i < chip->chip.ngpio; i++) {
 		irq = chip->irq_base + i;
-		set_irq_chip(irq, &s5p_gpioint);
-		set_irq_data(irq, chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip(irq, &s5p_gpioint);
+		irq_set_handler_data(irq, chip);
+		irq_set_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 	return 0;

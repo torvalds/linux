@@ -495,6 +495,7 @@ struct sis_video_info {
 	unsigned int	refresh_rate;
 
 	unsigned int	chip;
+	unsigned int	chip_real_id;
 	u8		revision_id;
 	int		sisvga_enabled;		/* PCI device was enabled */
 

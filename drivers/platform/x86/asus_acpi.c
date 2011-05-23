@@ -1507,6 +1507,7 @@ static int __init asus_acpi_init(void)
 	}
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = 15;
 	asus_backlight_device = backlight_device_register("asus", NULL, NULL,
 							  &asus_backlight_data,

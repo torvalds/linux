@@ -567,7 +567,7 @@ static const struct block_device_operations sr_bdops =
 	.revalidate_disk = sr_block_revalidate_disk,
 	/* 
 	 * No compat_ioctl for now because sr_block_ioctl never
-	 * seems to pass arbitary ioctls down to host drivers.
+	 * seems to pass arbitrary ioctls down to host drivers.
 	 */
 };
 

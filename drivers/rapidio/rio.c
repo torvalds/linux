@@ -32,6 +32,7 @@
 #include "rio.h"
 
 static LIST_HEAD(rio_mports);
+static unsigned char next_portid;
 
 /**
  * rio_local_get_device_id - Get the base/extended device id for a port
@@ -68,9 +69,13 @@ int rio_request_inb_mbox(struct rio_mport *mport,
 			 void (*minb) (struct rio_mport * mport, void *dev_id, int mbox,
 				       int slot))
 {
-	int rc = 0;
+	int rc = -ENOSYS;
+	struct resource *res;
 
-	struct resource *res = kmalloc(sizeof(struct resource), GFP_KERNEL);
+	if (mport->ops->open_inb_mbox == NULL)
+		goto out;
+
+	res = kmalloc(sizeof(struct resource), GFP_KERNEL);
 
 	if (res) {
 		rio_init_mbox_res(res, mbox, mbox);
@@ -88,7 +93,7 @@ int rio_request_inb_mbox(struct rio_mport *mport,
 		/* Hook the inbound message callback */
 		mport->inb_msg[mbox].mcback = minb;
 
-		rc = rio_open_inb_mbox(mport, dev_id, mbox, entries);
+		rc = mport->ops->open_inb_mbox(mport, dev_id, mbox, entries);
 	} else
 		rc = -ENOMEM;
 
@@ -106,10 +111,13 @@ int rio_request_inb_mbox(struct rio_mport *mport,
  */
 int rio_release_inb_mbox(struct rio_mport *mport, int mbox)
 {
-	rio_close_inb_mbox(mport, mbox);
+	if (mport->ops->close_inb_mbox) {
+		mport->ops->close_inb_mbox(mport, mbox);
 
-	/* Release the mailbox resource */
-	return release_resource(mport->inb_msg[mbox].res);
+		/* Release the mailbox resource */
+		return release_resource(mport->inb_msg[mbox].res);
+	} else
+		return -ENOSYS;
 }
 
 /**
@@ -129,9 +137,13 @@ int rio_request_outb_mbox(struct rio_mport *mport,
 			  int entries,
 			  void (*moutb) (struct rio_mport * mport, void *dev_id, int mbox, int slot))
 {
-	int rc = 0;
+	int rc = -ENOSYS;
+	struct resource *res;
 
-	struct resource *res = kmalloc(sizeof(struct resource), GFP_KERNEL);
+	if (mport->ops->open_outb_mbox == NULL)
+		goto out;
+
+	res = kmalloc(sizeof(struct resource), GFP_KERNEL);
 
 	if (res) {
 		rio_init_mbox_res(res, mbox, mbox);
@@ -149,7 +161,7 @@ int rio_request_outb_mbox(struct rio_mport *mport,
 		/* Hook the inbound message callback */
 		mport->outb_msg[mbox].mcback = moutb;
 
-		rc = rio_open_outb_mbox(mport, dev_id, mbox, entries);
+		rc = mport->ops->open_outb_mbox(mport, dev_id, mbox, entries);
 	} else
 		rc = -ENOMEM;
 
@@ -167,10 +179,13 @@ int rio_request_outb_mbox(struct rio_mport *mport,
  */
 int rio_release_outb_mbox(struct rio_mport *mport, int mbox)
 {
-	rio_close_outb_mbox(mport, mbox);
+	if (mport->ops->close_outb_mbox) {
+		mport->ops->close_outb_mbox(mport, mbox);
 
-	/* Release the mailbox resource */
-	return release_resource(mport->outb_msg[mbox].res);
+		/* Release the mailbox resource */
+		return release_resource(mport->outb_msg[mbox].res);
+	} else
+		return -ENOSYS;
 }
 
 /**
@@ -1120,37 +1135,53 @@ static int __devinit rio_init(void)
 	return 0;
 }
 
-device_initcall(rio_init);
-
 int __devinit rio_init_mports(void)
 {
-	int rc = 0;
 	struct rio_mport *port;
 
 	list_for_each_entry(port, &rio_mports, node) {
-		if (!request_mem_region(port->iores.start,
-					resource_size(&port->iores),
-					port->name)) {
-			printk(KERN_ERR
-			       "RIO: Error requesting master port region 0x%016llx-0x%016llx\n",
-			       (u64)port->iores.start, (u64)port->iores.end);
-			rc = -ENOMEM;
-			goto out;
-		}
-
 		if (port->host_deviceid >= 0)
 			rio_enum_mport(port);
 		else
 			rio_disc_mport(port);
 	}
 
-      out:
-	return rc;
+	rio_init();
+
+	return 0;
 }
 
-void rio_register_mport(struct rio_mport *port)
+device_initcall_sync(rio_init_mports);
+
+static int hdids[RIO_MAX_MPORTS + 1];
+
+static int rio_get_hdid(int index)
 {
+	if (!hdids[0] || hdids[0] <= index || index >= RIO_MAX_MPORTS)
+		return -1;
+
+	return hdids[index + 1];
+}
+
+static int rio_hdid_setup(char *str)
+{
+	(void)get_options(str, ARRAY_SIZE(hdids), hdids);
+	return 1;
+}
+
+__setup("riohdid=", rio_hdid_setup);
+
+int rio_register_mport(struct rio_mport *port)
+{
+	if (next_portid >= RIO_MAX_MPORTS) {
+		pr_err("RIO: reached specified max number of mports\n");
+		return 1;
+	}
+
+	port->id = next_portid++;
+	port->host_deviceid = rio_get_hdid(port->id);
 	list_add_tail(&port->node, &rio_mports);
+	return 0;
 }
 
 EXPORT_SYMBOL_GPL(rio_local_get_device_id);

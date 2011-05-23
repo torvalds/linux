@@ -22,6 +22,7 @@
 
 #define MAX_DSS_MANAGERS	3
 #define MAX_DSS_OVERLAYS	3
+#define MAX_DSS_LCD_MANAGERS	2
 
 /* DSS has feature id */
 enum dss_feat_id {
@@ -33,6 +34,12 @@ enum dss_feat_id {
 	FEAT_PCKFREEENABLE	= 1 << 5,
 	FEAT_FUNCGATED		= 1 << 6,
 	FEAT_MGR_LCD2		= 1 << 7,
+	FEAT_LINEBUFFERSPLIT	= 1 << 8,
+	FEAT_ROWREPEATENABLE	= 1 << 9,
+	FEAT_RESIZECONF		= 1 << 10,
+	/* Independent core clk divider */
+	FEAT_CORE_CLK_DIV	= 1 << 11,
+	FEAT_LCD_CLK_SRC	= 1 << 12,
 };
 
 /* DSS register field id */
@@ -42,15 +49,35 @@ enum dss_feat_reg_field {
 	FEAT_REG_FIFOHIGHTHRESHOLD,
 	FEAT_REG_FIFOLOWTHRESHOLD,
 	FEAT_REG_FIFOSIZE,
+	FEAT_REG_HORIZONTALACCU,
+	FEAT_REG_VERTICALACCU,
+	FEAT_REG_DISPC_CLK_SWITCH,
+	FEAT_REG_DSIPLL_REGN,
+	FEAT_REG_DSIPLL_REGM,
+	FEAT_REG_DSIPLL_REGM_DISPC,
+	FEAT_REG_DSIPLL_REGM_DSI,
+};
+
+enum dss_range_param {
+	FEAT_PARAM_DSS_FCK,
+	FEAT_PARAM_DSIPLL_REGN,
+	FEAT_PARAM_DSIPLL_REGM,
+	FEAT_PARAM_DSIPLL_REGM_DISPC,
+	FEAT_PARAM_DSIPLL_REGM_DSI,
+	FEAT_PARAM_DSIPLL_FINT,
+	FEAT_PARAM_DSIPLL_LPDIV,
 };
 
 /* DSS Feature Functions */
 int dss_feat_get_num_mgrs(void);
 int dss_feat_get_num_ovls(void);
+unsigned long dss_feat_get_param_min(enum dss_range_param param);
+unsigned long dss_feat_get_param_max(enum dss_range_param param);
 enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel);
 enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane);
 bool dss_feat_color_mode_supported(enum omap_plane plane,
 		enum omap_color_mode color_mode);
+const char *dss_feat_get_clk_source_name(enum dss_clk_source id);
 
 bool dss_has_feature(enum dss_feat_id id);
 void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end);

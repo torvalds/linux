@@ -69,7 +69,7 @@ MODULE_LICENSE("GPL");
 /* module parameters */
 static int opmode   = OPMODE_AUTO;
 int msp_debug;		 /* msp_debug output */
-int msp_once;		 /* no continous stereo monitoring */
+int msp_once;		 /* no continuous stereo monitoring */
 int msp_amsound;	 /* hard-wire AM sound at 6.5 Hz (france),
 			    the autoscan seems work well only with FM... */
 int msp_standard = 1;    /* Override auto detect of audio msp_standard,
@@ -551,7 +551,7 @@ static int msp_log_status(struct v4l2_subdev *sd)
 	switch (state->mode) {
 		case MSP_MODE_AM_DETECT: p = "AM (for carrier detect)"; break;
 		case MSP_MODE_FM_RADIO: p = "FM Radio"; break;
-		case MSP_MODE_FM_TERRA: p = "Terrestial FM-mono/stereo"; break;
+		case MSP_MODE_FM_TERRA: p = "Terrestrial FM-mono/stereo"; break;
 		case MSP_MODE_FM_SAT: p = "Satellite FM-mono"; break;
 		case MSP_MODE_FM_NICAM1: p = "NICAM/FM (B/G, D/K)"; break;
 		case MSP_MODE_FM_NICAM2: p = "NICAM/FM (I)"; break;

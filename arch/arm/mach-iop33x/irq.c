@@ -110,8 +110,9 @@ void __init iop33x_init_irq(void)
 		*IOP3XX_PCIIRSR = 0x0f;
 
 	for (i = 0; i < NR_IRQS; i++) {
-		set_irq_chip(i, (i < 32) ? &iop33x_irqchip1 : &iop33x_irqchip2);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i,
+					 (i < 32) ? &iop33x_irqchip1 : &iop33x_irqchip2,
+					 handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
 }

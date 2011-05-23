@@ -465,7 +465,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 
 		if (slot < 0) {
 			/*
-			 * The device supports the choosen algorithm, but the
+			 * The device supports the chosen algorithm, but the
 			 * firmware does not provide enough key slots to store
 			 * all of them.
 			 * But encryption offload for outgoing frames is always

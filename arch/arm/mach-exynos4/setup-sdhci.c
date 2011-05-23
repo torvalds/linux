@@ -35,7 +35,7 @@ void exynos4_setup_sdhci_cfg_card(struct platform_device *dev, void __iomem *r,
 {
 	u32 ctrl2, ctrl3;
 
-	/* don't need to alter anything acording to card-type */
+	/* don't need to alter anything according to card-type */
 
 	ctrl2 = readl(r + S3C_SDHCI_CONTROL2);
 

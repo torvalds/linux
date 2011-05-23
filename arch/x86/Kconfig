@@ -71,6 +71,7 @@ config X86
 	select GENERIC_IRQ_SHOW
 	select IRQ_FORCED_THREADING
 	select USE_GENERIC_SMP_HELPERS if SMP
+	select ARCH_NO_SYSDEV_OPS
 
 config INSTRUCTION_DECODER
 	def_bool (KPROBES || PERF_EVENTS)
@@ -123,7 +124,7 @@ config NEED_SG_DMA_LENGTH
 	def_bool y
 
 config GENERIC_ISA_DMA
-	def_bool y
+	def_bool ISA_DMA_API
 
 config GENERIC_IOMAP
 	def_bool y
@@ -143,7 +144,7 @@ config GENERIC_GPIO
 	bool
 
 config ARCH_MAY_HAVE_PC_FDC
-	def_bool y
+	def_bool ISA_DMA_API
 
 config RWSEM_GENERIC_SPINLOCK
 	def_bool !X86_XADD
@@ -2002,9 +2003,13 @@ source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"
 
-# x86_64 have no ISA slots, but do have ISA-style DMA.
+# x86_64 have no ISA slots, but can have ISA-style DMA.
 config ISA_DMA_API
-	def_bool y
+	bool "ISA-style DMA support" if (X86_64 && EXPERT)
+	default y
+	help
+	  Enables ISA-style DMA support for devices requiring such controllers.
+	  If unsure, say Y.
 
 if X86_32
 
@@ -2091,6 +2096,16 @@ config AMD_NB
 source "drivers/pcmcia/Kconfig"
 
 source "drivers/pci/hotplug/Kconfig"
+
+config RAPIDIO
+	bool "RapidIO support"
+	depends on PCI
+	default n
+	help
+	  If you say Y here, the kernel will include drivers and
+	  infrastructure code to support RapidIO interconnect devices.
+
+source "drivers/rapidio/Kconfig"
 
 endmenu
 

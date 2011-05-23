@@ -45,22 +45,8 @@ static int exofs_release_file(struct inode *inode, struct file *filp)
 static int exofs_file_fsync(struct file *filp, int datasync)
 {
 	int ret;
-	struct inode *inode = filp->f_mapping->host;
-	struct super_block *sb;
 
-	if (!(inode->i_state & I_DIRTY))
-		return 0;
-	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
-		return 0;
-
-	ret = sync_inode_metadata(inode, 1);
-
-	/* This is a good place to write the sb */
-	/* TODO: Sechedule an sb-sync on create */
-	sb = inode->i_sb;
-	if (sb->s_dirt)
-		exofs_sync_fs(sb, 1);
-
+	ret = sync_inode_metadata(filp->f_mapping->host, 1);
 	return ret;
 }
 

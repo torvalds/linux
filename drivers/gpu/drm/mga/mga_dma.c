@@ -426,7 +426,7 @@ int mga_driver_load(struct drm_device *dev, unsigned long flags)
  * Bootstrap the driver for AGP DMA.
  *
  * \todo
- * Investigate whether there is any benifit to storing the WARP microcode in
+ * Investigate whether there is any benefit to storing the WARP microcode in
  * AGP memory.  If not, the microcode may as well always be put in PCI
  * memory.
  *

@@ -257,6 +257,8 @@ static int __devinit max8925_rtc_probe(struct platform_device *pdev)
 		goto out_irq;
 	}
 
+	dev_set_drvdata(&pdev->dev, info);
+
 	info->rtc_dev = rtc_device_register("max8925-rtc", &pdev->dev,
 					&max8925_rtc_ops, THIS_MODULE);
 	ret = PTR_ERR(info->rtc_dev);
@@ -265,7 +267,6 @@ static int __devinit max8925_rtc_probe(struct platform_device *pdev)
 		goto out_rtc;
 	}
 
-	dev_set_drvdata(&pdev->dev, info);
 	platform_set_drvdata(pdev, info);
 
 	return 0;

@@ -59,10 +59,10 @@ void __init gdbstub_io_init(void)
 
 	/* we want to get serial receive interrupts */
 	set_intr_level(gdbstub_port->rx_irq,
-		NUM2GxICR_LEVEL(CONFIG_GDBSTUB_IRQ_LEVEL));
+		NUM2GxICR_LEVEL(CONFIG_DEBUGGER_IRQ_LEVEL));
 	set_intr_level(gdbstub_port->tx_irq,
-		NUM2GxICR_LEVEL(CONFIG_GDBSTUB_IRQ_LEVEL));
-	set_intr_stub(NUM2EXCEP_IRQ_LEVEL(CONFIG_GDBSTUB_IRQ_LEVEL),
+		NUM2GxICR_LEVEL(CONFIG_DEBUGGER_IRQ_LEVEL));
+	set_intr_stub(NUM2EXCEP_IRQ_LEVEL(CONFIG_DEBUGGER_IRQ_LEVEL),
 		gdbstub_io_rx_handler);
 
 	*gdbstub_port->rx_icr |= GxICR_ENABLE;
@@ -88,7 +88,7 @@ void __init gdbstub_io_init(void)
 
 	/* permit level 0 IRQs only */
 	arch_local_change_intr_mask_level(
-		NUM2EPSW_IM(CONFIG_GDBSTUB_IRQ_LEVEL + 1));
+		NUM2EPSW_IM(CONFIG_DEBUGGER_IRQ_LEVEL + 1));
 }
 
 /*

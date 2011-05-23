@@ -648,7 +648,7 @@ static void i5400_process_nonfatal_error_info(struct mem_ctl_info *mci,
 		return;
 	}
 
-	/* Miscelaneous errors */
+	/* Miscellaneous errors */
 	errnum = find_first_bit(&allErrors, ARRAY_SIZE(error_name));
 
 	branch = extract_fbdchan_indx(info->ferr_nf_fbd);
@@ -1240,7 +1240,7 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 	 * actual number of slots/dimms per channel, we thus utilize the
 	 * resource as specified by the chipset. Thus, we might have
 	 * have more DIMMs per channel than actually on the mobo, but this
-	 * allows the driver to support upto the chipset max, without
+	 * allows the driver to support up to the chipset max, without
 	 * some fancy mobo determination.
 	 */
 	num_dimms_per_channel = MAX_DIMMS_PER_CHANNEL;

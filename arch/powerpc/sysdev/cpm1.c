@@ -103,8 +103,8 @@ static int cpm_pic_host_map(struct irq_host *h, unsigned int virq,
 {
 	pr_debug("cpm_pic_host_map(%d, 0x%lx)\n", virq, hw);
 
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &cpm_pic, handle_fasteoi_irq);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &cpm_pic, handle_fasteoi_irq);
 	return 0;
 }
 
@@ -223,7 +223,7 @@ void __init cpm_reset(void)
 
 	/* Set SDMA Bus Request priority 5.
 	 * On 860T, this also enables FEC priority 6.  I am not sure
-	 * this is what we realy want for some applications, but the
+	 * this is what we really want for some applications, but the
 	 * manual recommends it.
 	 * Bit 25, FAM can also be set to use FEC aggressive mode (860T).
 	 */

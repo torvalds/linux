@@ -7,7 +7,7 @@
  * for each partition that this code should check.
  *
  * If any of the checksums fail, we assume the flash is so
- * corrupt that we cant use it to boot into the ftp flash
+ * corrupt that we can't use it to boot into the ftp flash
  * loader, and instead we initialize the serial port to
  * receive a flash-loader and new flash image. we dont include
  * any flash code here, but just accept a certain amount of

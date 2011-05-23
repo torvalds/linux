@@ -9,7 +9,7 @@
  *      Please DO contact io8-linux@specialix.co.uk if you require
  *      support.
  *
- *      This driver was developped in the BitWizard linux device
+ *      This driver was developed in the BitWizard linux device
  *      driver service. If you require a linux device driver for your
  *      product, please contact devices@BitWizard.nl for a quote.
  *

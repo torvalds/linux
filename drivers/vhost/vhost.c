@@ -41,8 +41,8 @@ static void vhost_poll_func(struct file *file, wait_queue_head_t *wqh,
 			    poll_table *pt)
 {
 	struct vhost_poll *poll;
-	poll = container_of(pt, struct vhost_poll, table);
 
+	poll = container_of(pt, struct vhost_poll, table);
 	poll->wqh = wqh;
 	add_wait_queue(wqh, &poll->wait);
 }
@@ -85,6 +85,7 @@ void vhost_poll_init(struct vhost_poll *poll, vhost_work_fn_t fn,
 void vhost_poll_start(struct vhost_poll *poll, struct file *file)
 {
 	unsigned long mask;
+
 	mask = file->f_op->poll(file, &poll->table);
 	if (mask)
 		vhost_poll_wakeup(&poll->wait, 0, 0, (void *)mask);
@@ -101,6 +102,7 @@ static bool vhost_work_seq_done(struct vhost_dev *dev, struct vhost_work *work,
 				unsigned seq)
 {
 	int left;
+
 	spin_lock_irq(&dev->work_lock);
 	left = seq - work->done_seq;
 	spin_unlock_irq(&dev->work_lock);
@@ -222,6 +224,7 @@ static int vhost_worker(void *data)
 static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 {
 	int i;
+
 	for (i = 0; i < dev->nvqs; ++i) {
 		dev->vqs[i].indirect = kmalloc(sizeof *dev->vqs[i].indirect *
 					       UIO_MAXIOV, GFP_KERNEL);
@@ -235,6 +238,7 @@ static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 			goto err_nomem;
 	}
 	return 0;
+
 err_nomem:
 	for (; i >= 0; --i) {
 		kfree(dev->vqs[i].indirect);
@@ -247,6 +251,7 @@ err_nomem:
 static void vhost_dev_free_iovecs(struct vhost_dev *dev)
 {
 	int i;
+
 	for (i = 0; i < dev->nvqs; ++i) {
 		kfree(dev->vqs[i].indirect);
 		dev->vqs[i].indirect = NULL;
@@ -296,26 +301,28 @@ long vhost_dev_check_owner(struct vhost_dev *dev)
 }
 
 struct vhost_attach_cgroups_struct {
-        struct vhost_work work;
-        struct task_struct *owner;
-        int ret;
+	struct vhost_work work;
+	struct task_struct *owner;
+	int ret;
 };
 
 static void vhost_attach_cgroups_work(struct vhost_work *work)
 {
-        struct vhost_attach_cgroups_struct *s;
-        s = container_of(work, struct vhost_attach_cgroups_struct, work);
-        s->ret = cgroup_attach_task_all(s->owner, current);
+	struct vhost_attach_cgroups_struct *s;
+
+	s = container_of(work, struct vhost_attach_cgroups_struct, work);
+	s->ret = cgroup_attach_task_all(s->owner, current);
 }
 
 static int vhost_attach_cgroups(struct vhost_dev *dev)
 {
-        struct vhost_attach_cgroups_struct attach;
-        attach.owner = current;
-        vhost_work_init(&attach.work, vhost_attach_cgroups_work);
-        vhost_work_queue(dev, &attach.work);
-        vhost_work_flush(dev, &attach.work);
-        return attach.ret;
+	struct vhost_attach_cgroups_struct attach;
+
+	attach.owner = current;
+	vhost_work_init(&attach.work, vhost_attach_cgroups_work);
+	vhost_work_queue(dev, &attach.work);
+	vhost_work_flush(dev, &attach.work);
+	return attach.ret;
 }
 
 /* Caller should have device mutex */
@@ -323,11 +330,13 @@ static long vhost_dev_set_owner(struct vhost_dev *dev)
 {
 	struct task_struct *worker;
 	int err;
+
 	/* Is there an owner already? */
 	if (dev->mm) {
 		err = -EBUSY;
 		goto err_mm;
 	}
+
 	/* No owner, become one */
 	dev->mm = get_task_mm(current);
 	worker = kthread_create(vhost_worker, dev, "vhost-%d", current->pid);
@@ -380,6 +389,7 @@ long vhost_dev_reset_owner(struct vhost_dev *dev)
 void vhost_dev_cleanup(struct vhost_dev *dev)
 {
 	int i;
+
 	for (i = 0; i < dev->nvqs; ++i) {
 		if (dev->vqs[i].kick && dev->vqs[i].handle_kick) {
 			vhost_poll_stop(&dev->vqs[i].poll);
@@ -421,6 +431,7 @@ void vhost_dev_cleanup(struct vhost_dev *dev)
 static int log_access_ok(void __user *log_base, u64 addr, unsigned long sz)
 {
 	u64 a = addr / VHOST_PAGE_SIZE / 8;
+
 	/* Make sure 64 bit math will not overflow. */
 	if (a > ULONG_MAX - (unsigned long)log_base ||
 	    a + (unsigned long)log_base > ULONG_MAX)
@@ -461,6 +472,7 @@ static int memory_access_ok(struct vhost_dev *d, struct vhost_memory *mem,
 			    int log_all)
 {
 	int i;
+
 	for (i = 0; i < d->nvqs; ++i) {
 		int ok;
 		mutex_lock(&d->vqs[i].mutex);
@@ -527,6 +539,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 {
 	struct vhost_memory mem, *newmem, *oldmem;
 	unsigned long size = offsetof(struct vhost_memory, regions);
+
 	if (copy_from_user(&mem, m, size))
 		return -EFAULT;
 	if (mem.padding)
@@ -544,7 +557,8 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 		return -EFAULT;
 	}
 
-	if (!memory_access_ok(d, newmem, vhost_has_feature(d, VHOST_F_LOG_ALL))) {
+	if (!memory_access_ok(d, newmem,
+			      vhost_has_feature(d, VHOST_F_LOG_ALL))) {
 		kfree(newmem);
 		return -EFAULT;
 	}
@@ -560,6 +574,7 @@ static int init_used(struct vhost_virtqueue *vq,
 		     struct vring_used __user *used)
 {
 	int r = put_user(vq->used_flags, &used->flags);
+
 	if (r)
 		return r;
 	return get_user(vq->last_used_idx, &used->idx);
@@ -849,6 +864,7 @@ static const struct vhost_memory_region *find_region(struct vhost_memory *mem,
 {
 	struct vhost_memory_region *reg;
 	int i;
+
 	/* linear search is not brilliant, but we really have on the order of 6
 	 * regions in practice */
 	for (i = 0; i < mem->nregions; ++i) {
@@ -871,6 +887,7 @@ static int set_bit_to_user(int nr, void __user *addr)
 	void *base;
 	int bit = nr + (log % PAGE_SIZE) * 8;
 	int r;
+
 	r = get_user_pages_fast(log, 1, 1, &page);
 	if (r < 0)
 		return r;
@@ -888,6 +905,7 @@ static int log_write(void __user *log_base,
 {
 	u64 write_page = write_address / VHOST_PAGE_SIZE;
 	int r;
+
 	if (!write_length)
 		return 0;
 	write_length += write_address % VHOST_PAGE_SIZE;
@@ -1037,8 +1055,8 @@ static int get_indirect(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 			       i, count);
 			return -EINVAL;
 		}
-		if (unlikely(memcpy_fromiovec((unsigned char *)&desc, vq->indirect,
-					      sizeof desc))) {
+		if (unlikely(memcpy_fromiovec((unsigned char *)&desc,
+					      vq->indirect, sizeof desc))) {
 			vq_err(vq, "Failed indirect descriptor: idx %d, %zx\n",
 			       i, (size_t)indirect->addr + i * sizeof desc);
 			return -EINVAL;
@@ -1153,7 +1171,7 @@ int vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 			       i, vq->num, head);
 			return -EINVAL;
 		}
-		ret = copy_from_user(&desc, vq->desc + i, sizeof desc);
+		ret = __copy_from_user(&desc, vq->desc + i, sizeof desc);
 		if (unlikely(ret)) {
 			vq_err(vq, "Failed to get descriptor: idx %d addr %p\n",
 			       i, vq->desc + i);
@@ -1317,6 +1335,7 @@ int vhost_add_used_n(struct vhost_virtqueue *vq, struct vring_used_elem *heads,
 void vhost_signal(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 {
 	__u16 flags;
+
 	/* Flush out used index updates. This is paired
 	 * with the barrier that the Guest executes when enabling
 	 * interrupts. */
@@ -1361,6 +1380,7 @@ bool vhost_enable_notify(struct vhost_virtqueue *vq)
 {
 	u16 avail_idx;
 	int r;
+
 	if (!(vq->used_flags & VRING_USED_F_NO_NOTIFY))
 		return false;
 	vq->used_flags &= ~VRING_USED_F_NO_NOTIFY;
@@ -1387,6 +1407,7 @@ bool vhost_enable_notify(struct vhost_virtqueue *vq)
 void vhost_disable_notify(struct vhost_virtqueue *vq)
 {
 	int r;
+
 	if (vq->used_flags & VRING_USED_F_NO_NOTIFY)
 		return;
 	vq->used_flags |= VRING_USED_F_NO_NOTIFY;

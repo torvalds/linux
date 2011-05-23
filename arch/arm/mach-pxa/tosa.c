@@ -34,6 +34,8 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/i2c/pxa-i2c.h>
+#include <linux/usb/gpio_vbus.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -41,7 +43,6 @@
 #include <mach/pxa25x.h>
 #include <mach/reset.h>
 #include <mach/irda.h>
-#include <plat/i2c.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/tosa_bt.h>
@@ -240,10 +241,18 @@ static struct scoop_pcmcia_config tosa_pcmcia_config = {
 /*
  * USB Device Controller
  */
-static struct pxa2xx_udc_mach_info udc_info __initdata = {
+static struct gpio_vbus_mach_info tosa_udc_info = {
 	.gpio_pullup		= TOSA_GPIO_USB_PULLUP,
 	.gpio_vbus		= TOSA_GPIO_USB_IN,
 	.gpio_vbus_inverted	= 1,
+};
+
+static struct platform_device tosa_gpio_vbus = {
+	.name	= "gpio-vbus",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &tosa_udc_info,
+	},
 };
 
 /*
@@ -891,6 +900,7 @@ static struct platform_device *devices[] __initdata = {
 	&tosa_bt_device,
 	&sharpsl_rom_device,
 	&wm9712_device,
+	&tosa_gpio_vbus,
 };
 
 static void tosa_poweroff(void)
@@ -937,7 +947,6 @@ static void __init tosa_init(void)
 	dummy = gpiochip_reserve(TOSA_TC6393XB_GPIO_BASE, 16);
 
 	pxa_set_mci_info(&tosa_mci_platform_data);
-	pxa_set_udc_info(&udc_info);
 	pxa_set_ficp_info(&tosa_ficp_platform_data);
 	pxa_set_i2c_info(NULL);
 	pxa_set_ac97_info(NULL);

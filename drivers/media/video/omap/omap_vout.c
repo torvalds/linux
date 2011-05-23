@@ -473,7 +473,7 @@ static int omap_vout_vrfb_buffer_setup(struct omap_vout_device *vout,
 /*
  * Convert V4L2 rotation to DSS rotation
  *	V4L2 understand 0, 90, 180, 270.
- *	Convert to 0, 1, 2 and 3 repsectively for DSS
+ *	Convert to 0, 1, 2 and 3 respectively for DSS
  */
 static int v4l2_rot_to_dss_rot(int v4l2_rotation,
 			enum dss_rotation *rotation, bool mirror)
@@ -1142,7 +1142,7 @@ static int omap_vout_buffer_prepare(struct videobuf_queue *q,
 }
 
 /*
- * Buffer queue funtion will be called from the videobuf layer when _QBUF
+ * Buffer queue function will be called from the videobuf layer when _QBUF
  * ioctl is called. It is used to enqueue buffer, which is ready to be
  * displayed.
  */

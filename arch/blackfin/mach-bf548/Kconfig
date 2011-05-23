@@ -42,6 +42,65 @@ config BF548_ATAPI_ALTERNATIVE_PORT
 	  async address or GPIO port F and G. Select y to route it
 	  to GPIO.
 
+choice
+	prompt "UART2 DMA channel selection"
+	depends on SERIAL_BFIN_UART2
+	default UART2_DMA_RX_ON_DMA18
+	help
+		UART2 DMA channel selection
+		RX -> DMA18
+		TX -> DMA19
+		or
+		RX -> DMA13
+		TX -> DMA14
+
+config UART2_DMA_RX_ON_DMA18
+	bool "UART2 DMA RX -> DMA18 TX -> DMA19"
+	help
+		UART2 DMA channel assignment
+		RX -> DMA18
+		TX -> DMA19
+		use SPORT2 default DMA channel
+
+config UART2_DMA_RX_ON_DMA13
+	bool "UART2 DMA RX -> DMA13 TX -> DMA14"
+	help
+		UART2 DMA channel assignment
+		RX -> DMA13
+		TX -> DMA14
+		use EPPI1 EPPI2 default DMA channel
+endchoice
+
+choice
+	prompt "UART3 DMA channel selection"
+	depends on SERIAL_BFIN_UART3
+	default UART3_DMA_RX_ON_DMA20
+	help
+		UART3 DMA channel selection
+		RX -> DMA20
+		TX -> DMA21
+		or
+		RX -> DMA15
+		TX -> DMA16
+
+config UART3_DMA_RX_ON_DMA20
+	bool "UART3 DMA RX -> DMA20 TX -> DMA21"
+	help
+		UART3 DMA channel assignment
+		RX -> DMA20
+		TX -> DMA21
+		use SPORT3 default DMA channel
+
+config UART3_DMA_RX_ON_DMA15
+	bool "UART3 DMA RX -> DMA15 TX -> DMA16"
+	help
+		UART3 DMA channel assignment
+		RX -> DMA15
+		TX -> DMA16
+		use PIXC default DMA channel
+
+endchoice
+
 comment "Interrupt Priority Assignment"
 menu "Priority"
 

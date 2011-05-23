@@ -596,7 +596,7 @@ static struct regulator_ops regulator_ops = {
 	.get_current_limit	= get_current_limit,
 };
 
-static int __devexit pmic_remove(struct spi_device *spi)
+static int pmic_remove(struct spi_device *spi)
 {
 	struct tps6524x *hw = spi_get_drvdata(spi);
 	int i;

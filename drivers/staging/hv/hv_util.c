@@ -80,7 +80,7 @@ static void shutdown_onchannelcallback(void *context)
 				execute_shutdown = true;
 
 				DPRINT_INFO(VMBUS, "Shutdown request received -"
-					    " gracefull shutdown initiated");
+					    " graceful shutdown initiated");
 				break;
 			default:
 				icmsghdrp->status = HV_E_FAIL;

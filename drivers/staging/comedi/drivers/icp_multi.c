@@ -715,7 +715,7 @@ Description:
 	is built correctly
 
 Parameters:
-	struct comedi_device *dev	Pointer to current sevice structure
+	struct comedi_device *dev	Pointer to current service structure
 	struct comedi_subdevice *s	Pointer to current subdevice structure
 	unsigned int *chanlist	Pointer to packed channel list
 	unsigned int n_chan	Number of channels to scan
@@ -772,7 +772,7 @@ Description:
 	Status register.
 
 Parameters:
-	struct comedi_device *dev	Pointer to current sevice structure
+	struct comedi_device *dev	Pointer to current service structure
 	struct comedi_subdevice *s	Pointer to current subdevice structure
 	unsigned int *chanlist	Pointer to packed channel list
 	unsigned int n_chan	Number of channels to scan
@@ -848,7 +848,7 @@ Description:
 	This function resets the icp multi device to a 'safe' state
 
 Parameters:
-	struct comedi_device *dev	Pointer to current sevice structure
+	struct comedi_device *dev	Pointer to current service structure
 
 Returns:int	0 = success
 

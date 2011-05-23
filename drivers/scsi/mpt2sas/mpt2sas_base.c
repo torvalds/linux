@@ -925,7 +925,7 @@ _base_interrupt(int irq, void *bus_id)
 }
 
 /**
- * mpt2sas_base_release_callback_handler - clear interupt callback handler
+ * mpt2sas_base_release_callback_handler - clear interrupt callback handler
  * @cb_idx: callback index
  *
  * Return nothing.
@@ -1113,7 +1113,7 @@ _base_restore_msix_table(struct MPT2SAS_ADAPTER *ioc)
  * @ioc: per adapter object
  *
  * Check to see if card is capable of MSIX, and set number
- * of avaliable msix vectors
+ * of available msix vectors
  */
 static int
 _base_check_enable_msix(struct MPT2SAS_ADAPTER *ioc)
@@ -1595,7 +1595,7 @@ mpt2sas_base_put_smid_scsi_io(struct MPT2SAS_ADAPTER *ioc, u16 smid, u16 handle)
 
 
 /**
- * mpt2sas_base_put_smid_hi_priority - send Task Managment request to firmware
+ * mpt2sas_base_put_smid_hi_priority - send Task Management request to firmware
  * @ioc: per adapter object
  * @smid: system request message index
  *
@@ -1748,6 +1748,54 @@ _base_display_intel_branding(struct MPT2SAS_ADAPTER *ioc)
 }
 
 /**
+ * _base_display_hp_branding - Display branding string
+ * @ioc: per adapter object
+ *
+ * Return nothing.
+ */
+static void
+_base_display_hp_branding(struct MPT2SAS_ADAPTER *ioc)
+{
+	if (ioc->pdev->subsystem_vendor != MPT2SAS_HP_3PAR_SSVID)
+		return;
+
+	switch (ioc->pdev->device) {
+	case MPI2_MFGPAGE_DEVID_SAS2004:
+		switch (ioc->pdev->subsystem_device) {
+		case MPT2SAS_HP_DAUGHTER_2_4_INTERNAL_SSDID:
+			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
+			    MPT2SAS_HP_DAUGHTER_2_4_INTERNAL_BRANDING);
+			break;
+		default:
+			break;
+		}
+	case MPI2_MFGPAGE_DEVID_SAS2308_2:
+		switch (ioc->pdev->subsystem_device) {
+		case MPT2SAS_HP_2_4_INTERNAL_SSDID:
+			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
+			    MPT2SAS_HP_2_4_INTERNAL_BRANDING);
+			break;
+		case MPT2SAS_HP_2_4_EXTERNAL_SSDID:
+			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
+			    MPT2SAS_HP_2_4_EXTERNAL_BRANDING);
+			break;
+		case MPT2SAS_HP_1_4_INTERNAL_1_4_EXTERNAL_SSDID:
+			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
+			    MPT2SAS_HP_1_4_INTERNAL_1_4_EXTERNAL_BRANDING);
+			break;
+		case MPT2SAS_HP_EMBEDDED_2_4_INTERNAL_SSDID:
+			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
+			    MPT2SAS_HP_EMBEDDED_2_4_INTERNAL_BRANDING);
+			break;
+		default:
+			break;
+		}
+	default:
+		break;
+	}
+}
+
+/**
  * _base_display_ioc_capabilities - Disply IOC's capabilities.
  * @ioc: per adapter object
  *
@@ -1778,6 +1826,7 @@ _base_display_ioc_capabilities(struct MPT2SAS_ADAPTER *ioc)
 
 	_base_display_dell_branding(ioc);
 	_base_display_intel_branding(ioc);
+	_base_display_hp_branding(ioc);
 
 	printk(MPT2SAS_INFO_FMT "Protocol=(", ioc->name);
 
@@ -2550,7 +2599,7 @@ _base_wait_for_doorbell_int(struct MPT2SAS_ADAPTER *ioc, int timeout,
 		int_status = readl(&ioc->chip->HostInterruptStatus);
 		if (int_status & MPI2_HIS_IOC2SYS_DB_STATUS) {
 			dhsprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: "
-			    "successfull count(%d), timeout(%d)\n", ioc->name,
+			    "successful count(%d), timeout(%d)\n", ioc->name,
 			    __func__, count, timeout));
 			return 0;
 		}
@@ -2591,7 +2640,7 @@ _base_wait_for_doorbell_ack(struct MPT2SAS_ADAPTER *ioc, int timeout,
 		int_status = readl(&ioc->chip->HostInterruptStatus);
 		if (!(int_status & MPI2_HIS_SYS2IOC_DB_STATUS)) {
 			dhsprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: "
-			    "successfull count(%d), timeout(%d)\n", ioc->name,
+			    "successful count(%d), timeout(%d)\n", ioc->name,
 			    __func__, count, timeout));
 			return 0;
 		} else if (int_status & MPI2_HIS_IOC2SYS_DB_STATUS) {
@@ -2639,7 +2688,7 @@ _base_wait_for_doorbell_not_used(struct MPT2SAS_ADAPTER *ioc, int timeout,
 		doorbell_reg = readl(&ioc->chip->Doorbell);
 		if (!(doorbell_reg & MPI2_DOORBELL_USED)) {
 			dhsprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: "
-			    "successfull count(%d), timeout(%d)\n", ioc->name,
+			    "successful count(%d), timeout(%d)\n", ioc->name,
 			    __func__, count, timeout));
 			return 0;
 		}

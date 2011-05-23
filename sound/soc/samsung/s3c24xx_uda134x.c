@@ -219,7 +219,7 @@ static struct snd_soc_ops s3c24xx_uda134x_ops = {
 static struct snd_soc_dai_link s3c24xx_uda134x_dai_link = {
 	.name = "UDA134X",
 	.stream_name = "UDA134X",
-	.codec_name = "uda134x-hifi",
+	.codec_name = "uda134x-codec",
 	.codec_dai_name = "uda134x-hifi",
 	.cpu_dai_name = "s3c24xx-iis",
 	.ops = &s3c24xx_uda134x_ops,
@@ -314,6 +314,7 @@ static int s3c24xx_uda134x_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(s3c24xx_uda134x_snd_device,
 			     &snd_soc_s3c24xx_uda134x);
+	platform_device_add_data(s3c24xx_uda134x_snd_device, &s3c24xx_uda134x, sizeof(s3c24xx_uda134x));
 	ret = platform_device_add(s3c24xx_uda134x_snd_device);
 	if (ret) {
 		printk(KERN_ERR "S3C24XX_UDA134X SoC Audio: Unable to add\n");

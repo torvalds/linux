@@ -321,9 +321,12 @@ static inline void mod_state(struct zone *zone,
 		/*
 		 * The fetching of the stat_threshold is racy. We may apply
 		 * a counter threshold to the wrong the cpu if we get
-		 * rescheduled while executing here. However, the following
-		 * will apply the threshold again and therefore bring the
-		 * counter under the threshold.
+		 * rescheduled while executing here. However, the next
+		 * counter update will apply the threshold again and
+		 * therefore bring the counter under the threshold again.
+		 *
+		 * Most of the time the thresholds are the same anyways
+		 * for all cpus in a zone.
 		 */
 		t = this_cpu_read(pcp->stat_threshold);
 
@@ -500,8 +503,12 @@ void refresh_cpu_vm_stats(int cpu)
  * z 	    = the zone from which the allocation occurred.
  *
  * Must be called with interrupts disabled.
+ *
+ * When __GFP_OTHER_NODE is set assume the node of the preferred
+ * zone is the local node. This is useful for daemons who allocate
+ * memory on behalf of other processes.
  */
-void zone_statistics(struct zone *preferred_zone, struct zone *z)
+void zone_statistics(struct zone *preferred_zone, struct zone *z, gfp_t flags)
 {
 	if (z->zone_pgdat == preferred_zone->zone_pgdat) {
 		__inc_zone_state(z, NUMA_HIT);
@@ -509,7 +516,8 @@ void zone_statistics(struct zone *preferred_zone, struct zone *z)
 		__inc_zone_state(z, NUMA_MISS);
 		__inc_zone_state(preferred_zone, NUMA_FOREIGN);
 	}
-	if (z->node == numa_node_id())
+	if (z->node == ((flags & __GFP_OTHER_NODE) ?
+			preferred_zone->node : numa_node_id()))
 		__inc_zone_state(z, NUMA_LOCAL);
 	else
 		__inc_zone_state(z, NUMA_OTHER);
@@ -940,7 +948,16 @@ static const char * const vmstat_text[] = {
 	"unevictable_pgs_cleared",
 	"unevictable_pgs_stranded",
 	"unevictable_pgs_mlockfreed",
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	"thp_fault_alloc",
+	"thp_fault_fallback",
+	"thp_collapse_alloc",
+	"thp_collapse_alloc_failed",
+	"thp_split",
 #endif
+
+#endif /* CONFIG_VM_EVENTS_COUNTERS */
 };
 
 static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,

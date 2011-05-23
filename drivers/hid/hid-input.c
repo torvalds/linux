@@ -44,11 +44,11 @@ static const unsigned char hid_keyboard[256] = {
 	 72, 73, 82, 83, 86,127,116,117,183,184,185,186,187,188,189,190,
 	191,192,193,194,134,138,130,132,128,129,131,137,133,135,136,113,
 	115,114,unk,unk,unk,121,unk, 89, 93,124, 92, 94, 95,unk,unk,unk,
-	122,123, 90, 91, 85,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
+	122,123, 90, 91, 85,unk,unk,unk,unk,unk,unk,unk,111,unk,unk,unk,
 	unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
 	unk,unk,unk,unk,unk,unk,179,180,unk,unk,unk,unk,unk,unk,unk,unk,
 	unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
-	unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
+	unk,unk,unk,unk,unk,unk,unk,unk,111,unk,unk,unk,unk,unk,unk,unk,
 	 29, 42, 56,125, 97, 54,100,126,164,166,165,163,161,115,114,113,
 	150,158,159,128,136,177,178,176,142,152,173,140,unk,unk,unk,unk
 };
@@ -357,6 +357,18 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			case 0x1: map_key_clear(KEY_POWER);  break;
 			case 0x2: map_key_clear(KEY_SLEEP);  break;
 			case 0x3: map_key_clear(KEY_WAKEUP); break;
+			case 0x4: map_key_clear(KEY_CONTEXT_MENU); break;
+			case 0x5: map_key_clear(KEY_MENU); break;
+			case 0x6: map_key_clear(KEY_PROG1); break;
+			case 0x7: map_key_clear(KEY_HELP); break;
+			case 0x8: map_key_clear(KEY_EXIT); break;
+			case 0x9: map_key_clear(KEY_SELECT); break;
+			case 0xa: map_key_clear(KEY_RIGHT); break;
+			case 0xb: map_key_clear(KEY_LEFT); break;
+			case 0xc: map_key_clear(KEY_UP); break;
+			case 0xd: map_key_clear(KEY_DOWN); break;
+			case 0xe: map_key_clear(KEY_POWER2); break;
+			case 0xf: map_key_clear(KEY_RESTART); break;
 			default: goto unknown;
 			}
 			break;
@@ -466,16 +478,39 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		}
 		break;
 
-	case HID_UP_CONSUMER:	/* USB HUT v1.1, pages 56-62 */
+	case HID_UP_CONSUMER:	/* USB HUT v1.12, pages 75-84 */
 		switch (usage->hid & HID_USAGE) {
 		case 0x000: goto ignore;
+		case 0x030: map_key_clear(KEY_POWER);		break;
+		case 0x031: map_key_clear(KEY_RESTART);		break;
+		case 0x032: map_key_clear(KEY_SLEEP);		break;
 		case 0x034: map_key_clear(KEY_SLEEP);		break;
+		case 0x035: map_key_clear(KEY_KBDILLUMTOGGLE);	break;
 		case 0x036: map_key_clear(BTN_MISC);		break;
 
-		case 0x040: map_key_clear(KEY_MENU);		break;
-		case 0x045: map_key_clear(KEY_RADIO);		break;
+		case 0x040: map_key_clear(KEY_MENU);		break; /* Menu */
+		case 0x041: map_key_clear(KEY_SELECT);		break; /* Menu Pick */
+		case 0x042: map_key_clear(KEY_UP);		break; /* Menu Up */
+		case 0x043: map_key_clear(KEY_DOWN);		break; /* Menu Down */
+		case 0x044: map_key_clear(KEY_LEFT);		break; /* Menu Left */
+		case 0x045: map_key_clear(KEY_RIGHT);		break; /* Menu Right */
+		case 0x046: map_key_clear(KEY_ESC);		break; /* Menu Escape */
+		case 0x047: map_key_clear(KEY_KPPLUS);		break; /* Menu Value Increase */
+		case 0x048: map_key_clear(KEY_KPMINUS);		break; /* Menu Value Decrease */
 
+		case 0x060: map_key_clear(KEY_INFO);		break; /* Data On Screen */
+		case 0x061: map_key_clear(KEY_SUBTITLE);	break; /* Closed Caption */
+		case 0x063: map_key_clear(KEY_VCR);		break; /* VCR/TV */
+		case 0x065: map_key_clear(KEY_CAMERA);		break; /* Snapshot */
+		case 0x069: map_key_clear(KEY_RED);		break;
+		case 0x06a: map_key_clear(KEY_GREEN);		break;
+		case 0x06b: map_key_clear(KEY_BLUE);		break;
+		case 0x06c: map_key_clear(KEY_YELLOW);		break;
+		case 0x06d: map_key_clear(KEY_ZOOM);		break;
+
+		case 0x082: map_key_clear(KEY_VIDEO_NEXT);	break;
 		case 0x083: map_key_clear(KEY_LAST);		break;
+		case 0x084: map_key_clear(KEY_ENTER);		break;
 		case 0x088: map_key_clear(KEY_PC);		break;
 		case 0x089: map_key_clear(KEY_TV);		break;
 		case 0x08a: map_key_clear(KEY_WWW);		break;
@@ -509,6 +544,8 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x0b7: map_key_clear(KEY_STOPCD);		break;
 		case 0x0b8: map_key_clear(KEY_EJECTCD);		break;
 		case 0x0bc: map_key_clear(KEY_MEDIA_REPEAT);	break;
+		case 0x0b9: map_key_clear(KEY_SHUFFLE);		break;
+		case 0x0bf: map_key_clear(KEY_SLOW);		break;
 
 		case 0x0cd: map_key_clear(KEY_PLAYPAUSE);	break;
 		case 0x0e0: map_abs_clear(ABS_VOLUME);		break;
@@ -516,6 +553,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x0e5: map_key_clear(KEY_BASSBOOST);	break;
 		case 0x0e9: map_key_clear(KEY_VOLUMEUP);	break;
 		case 0x0ea: map_key_clear(KEY_VOLUMEDOWN);	break;
+		case 0x0f5: map_key_clear(KEY_SLOW);		break;
 
 		case 0x182: map_key_clear(KEY_BOOKMARKS);	break;
 		case 0x183: map_key_clear(KEY_CONFIG);		break;
@@ -532,6 +570,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x18e: map_key_clear(KEY_CALENDAR);	break;
 		case 0x191: map_key_clear(KEY_FINANCE);		break;
 		case 0x192: map_key_clear(KEY_CALC);		break;
+		case 0x193: map_key_clear(KEY_PLAYER);		break;
 		case 0x194: map_key_clear(KEY_FILE);		break;
 		case 0x196: map_key_clear(KEY_WWW);		break;
 		case 0x199: map_key_clear(KEY_CHAT);		break;
@@ -540,8 +579,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x1a6: map_key_clear(KEY_HELP);		break;
 		case 0x1a7: map_key_clear(KEY_DOCUMENTS);	break;
 		case 0x1ab: map_key_clear(KEY_SPELLCHECK);	break;
-		case 0x1b6: map_key_clear(KEY_MEDIA);		break;
-		case 0x1b7: map_key_clear(KEY_SOUND);		break;
+		case 0x1ae: map_key_clear(KEY_KEYBOARD);	break;
+		case 0x1b6: map_key_clear(KEY_IMAGES);		break;
+		case 0x1b7: map_key_clear(KEY_AUDIO);		break;
+		case 0x1b8: map_key_clear(KEY_VIDEO);		break;
 		case 0x1bc: map_key_clear(KEY_MESSENGER);	break;
 		case 0x1bd: map_key_clear(KEY_INFO);		break;
 		case 0x201: map_key_clear(KEY_NEW);		break;
@@ -570,7 +611,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x233: map_key_clear(KEY_SCROLLUP);	break;
 		case 0x234: map_key_clear(KEY_SCROLLDOWN);	break;
 		case 0x238: map_rel(REL_HWHEEL);		break;
+		case 0x23d: map_key_clear(KEY_EDIT);		break;
 		case 0x25f: map_key_clear(KEY_CANCEL);		break;
+		case 0x269: map_key_clear(KEY_INSERT);		break;
+		case 0x26a: map_key_clear(KEY_DELETE);		break;
 		case 0x279: map_key_clear(KEY_REDO);		break;
 
 		case 0x289: map_key_clear(KEY_REPLY);		break;
@@ -900,8 +944,8 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 					hid->ll_driver->hidinput_input_event;
 				input_dev->open = hidinput_open;
 				input_dev->close = hidinput_close;
-				input_dev->setkeycode_new = hidinput_setkeycode;
-				input_dev->getkeycode_new = hidinput_getkeycode;
+				input_dev->setkeycode = hidinput_setkeycode;
+				input_dev->getkeycode = hidinput_getkeycode;
 
 				input_dev->name = hid->name;
 				input_dev->phys = hid->phys;

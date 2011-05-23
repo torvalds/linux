@@ -213,7 +213,7 @@ static u16 map_class(u16 pol_value)
 			return i;
 	}
 
-	return pol_value;
+	return SECCLASS_NULL;
 }
 
 static void map_decision(u16 tclass, struct av_decision *avd,
@@ -2806,7 +2806,7 @@ int selinux_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 	case AUDIT_SUBJ_CLR:
 	case AUDIT_OBJ_LEV_LOW:
 	case AUDIT_OBJ_LEV_HIGH:
-		/* we do not allow a range, indicated by the presense of '-' */
+		/* we do not allow a range, indicated by the presence of '-' */
 		if (strchr(rulestr, '-'))
 			return -EINVAL;
 		break;
@@ -3075,7 +3075,7 @@ static void security_netlbl_cache_add(struct netlbl_lsm_secattr *secattr,
  * Description:
  * Convert the given NetLabel security attributes in @secattr into a
  * SELinux SID.  If the @secattr field does not contain a full SELinux
- * SID/context then use SECINITSID_NETMSG as the foundation.  If possibile the
+ * SID/context then use SECINITSID_NETMSG as the foundation.  If possible the
  * 'cache' field of @secattr is set and the CACHE flag is set; this is to
  * allow the @secattr to be used by NetLabel to cache the secattr to SID
  * conversion for future lookups.  Returns zero on success, negative values on

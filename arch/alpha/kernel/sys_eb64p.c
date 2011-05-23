@@ -118,7 +118,7 @@ eb64p_init_irq(void)
 	init_i8259a_irqs();
 
 	for (i = 16; i < 32; ++i) {
-		set_irq_chip_and_handler(i, &eb64p_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &eb64p_irq_type, handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 

@@ -635,7 +635,7 @@ static int au8522_led_gpio_enable(struct au8522_state *state, int onoff)
 	struct au8522_led_config *led_config = state->config->led_cfg;
 	u8 val;
 
-	/* bail out if we cant control an LED */
+	/* bail out if we can't control an LED */
 	if (!led_config || !led_config->gpio_output ||
 	    !led_config->gpio_output_enable || !led_config->gpio_output_disable)
 		return 0;
@@ -665,7 +665,7 @@ static int au8522_led_ctrl(struct au8522_state *state, int led)
 	struct au8522_led_config *led_config = state->config->led_cfg;
 	int i, ret = 0;
 
-	/* bail out if we cant control an LED */
+	/* bail out if we can't control an LED */
 	if (!led_config || !led_config->gpio_leds ||
 	    !led_config->num_led_states || !led_config->led_states)
 		return 0;
@@ -803,7 +803,7 @@ static int au8522_led_status(struct au8522_state *state, const u16 *snr)
 	int led;
 	u16 strong;
 
-	/* bail out if we cant control an LED */
+	/* bail out if we can't control an LED */
 	if (!led_config)
 		return 0;
 

@@ -26,6 +26,7 @@
 
 static LIST_HEAD(ip_set_type_list);		/* all registered set types */
 static DEFINE_MUTEX(ip_set_type_mutex);		/* protects ip_set_type_list */
+static DEFINE_RWLOCK(ip_set_ref_lock);		/* protects the set refs */
 
 static struct ip_set **ip_set_list;		/* all individual sets */
 static ip_set_id_t ip_set_max = CONFIG_IP_SET_MAX; /* max number of sets */
@@ -94,16 +95,28 @@ static int
 find_set_type_get(const char *name, u8 family, u8 revision,
 		  struct ip_set_type **found)
 {
+	struct ip_set_type *type;
+	int err;
+
 	rcu_read_lock();
 	*found = find_set_type(name, family, revision);
 	if (*found) {
-		int err = !try_module_get((*found)->me);
-		rcu_read_unlock();
-		return err ? -EFAULT : 0;
+		err = !try_module_get((*found)->me) ? -EFAULT : 0;
+		goto unlock;
 	}
+	/* Make sure the type is loaded but we don't support the revision */
+	list_for_each_entry_rcu(type, &ip_set_type_list, list)
+		if (STREQ(type->name, name)) {
+			err = -IPSET_ERR_FIND_TYPE;
+			goto unlock;
+		}
 	rcu_read_unlock();
 
 	return try_to_load_type(name);
+
+unlock:
+	rcu_read_unlock();
+	return err;
 }
 
 /* Find a given set type by name and family.
@@ -116,7 +129,7 @@ find_set_type_minmax(const char *name, u8 family, u8 *min, u8 *max)
 	struct ip_set_type *type;
 	bool found = false;
 
-	*min = *max = 0;
+	*min = 255; *max = 0;
 	rcu_read_lock();
 	list_for_each_entry_rcu(type, &ip_set_type_list, list)
 		if (STREQ(type->name, name) &&
@@ -124,7 +137,7 @@ find_set_type_minmax(const char *name, u8 family, u8 *min, u8 *max)
 			found = true;
 			if (type->revision < *min)
 				*min = type->revision;
-			else if (type->revision > *max)
+			if (type->revision > *max)
 				*max = type->revision;
 		}
 	rcu_read_unlock();
@@ -289,13 +302,18 @@ EXPORT_SYMBOL_GPL(ip_set_get_ipaddr6);
 static inline void
 __ip_set_get(ip_set_id_t index)
 {
-	atomic_inc(&ip_set_list[index]->ref);
+	write_lock_bh(&ip_set_ref_lock);
+	ip_set_list[index]->ref++;
+	write_unlock_bh(&ip_set_ref_lock);
 }
 
 static inline void
 __ip_set_put(ip_set_id_t index)
 {
-	atomic_dec(&ip_set_list[index]->ref);
+	write_lock_bh(&ip_set_ref_lock);
+	BUG_ON(ip_set_list[index]->ref == 0);
+	ip_set_list[index]->ref--;
+	write_unlock_bh(&ip_set_ref_lock);
 }
 
 /*
@@ -312,7 +330,7 @@ ip_set_test(ip_set_id_t index, const struct sk_buff *skb,
 	struct ip_set *set = ip_set_list[index];
 	int ret = 0;
 
-	BUG_ON(set == NULL || atomic_read(&set->ref) == 0);
+	BUG_ON(set == NULL);
 	pr_debug("set %s, index %u\n", set->name, index);
 
 	if (dim < set->type->dimension ||
@@ -344,7 +362,7 @@ ip_set_add(ip_set_id_t index, const struct sk_buff *skb,
 	struct ip_set *set = ip_set_list[index];
 	int ret;
 
-	BUG_ON(set == NULL || atomic_read(&set->ref) == 0);
+	BUG_ON(set == NULL);
 	pr_debug("set %s, index %u\n", set->name, index);
 
 	if (dim < set->type->dimension ||
@@ -366,7 +384,7 @@ ip_set_del(ip_set_id_t index, const struct sk_buff *skb,
 	struct ip_set *set = ip_set_list[index];
 	int ret = 0;
 
-	BUG_ON(set == NULL || atomic_read(&set->ref) == 0);
+	BUG_ON(set == NULL);
 	pr_debug("set %s, index %u\n", set->name, index);
 
 	if (dim < set->type->dimension ||
@@ -385,7 +403,6 @@ EXPORT_SYMBOL_GPL(ip_set_del);
  * Find set by name, reference it once. The reference makes sure the
  * thing pointed to, does not go away under our feet.
  *
- * The nfnl mutex must already be activated.
  */
 ip_set_id_t
 ip_set_get_byname(const char *name, struct ip_set **set)
@@ -411,15 +428,12 @@ EXPORT_SYMBOL_GPL(ip_set_get_byname);
  * reference count by 1. The caller shall not assume the index
  * to be valid, after calling this function.
  *
- * The nfnl mutex must already be activated.
  */
 void
 ip_set_put_byindex(ip_set_id_t index)
 {
-	if (ip_set_list[index] != NULL) {
-		BUG_ON(atomic_read(&ip_set_list[index]->ref) == 0);
+	if (ip_set_list[index] != NULL)
 		__ip_set_put(index);
-	}
 }
 EXPORT_SYMBOL_GPL(ip_set_put_byindex);
 
@@ -429,7 +443,6 @@ EXPORT_SYMBOL_GPL(ip_set_put_byindex);
  * can't be destroyed. The set cannot be renamed due to
  * the referencing either.
  *
- * The nfnl mutex must already be activated.
  */
 const char *
 ip_set_name_byindex(ip_set_id_t index)
@@ -437,7 +450,7 @@ ip_set_name_byindex(ip_set_id_t index)
 	const struct ip_set *set = ip_set_list[index];
 
 	BUG_ON(set == NULL);
-	BUG_ON(atomic_read(&set->ref) == 0);
+	BUG_ON(set->ref == 0);
 
 	/* Referenced, so it's safe */
 	return set->name;
@@ -503,10 +516,7 @@ void
 ip_set_nfnl_put(ip_set_id_t index)
 {
 	nfnl_lock();
-	if (ip_set_list[index] != NULL) {
-		BUG_ON(atomic_read(&ip_set_list[index]->ref) == 0);
-		__ip_set_put(index);
-	}
+	ip_set_put_byindex(index);
 	nfnl_unlock();
 }
 EXPORT_SYMBOL_GPL(ip_set_nfnl_put);
@@ -514,7 +524,7 @@ EXPORT_SYMBOL_GPL(ip_set_nfnl_put);
 /*
  * Communication protocol with userspace over netlink.
  *
- * We already locked by nfnl_lock.
+ * The commands are serialized by the nfnl mutex.
  */
 
 static inline bool
@@ -645,7 +655,6 @@ ip_set_create(struct sock *ctnl, struct sk_buff *skb,
 		return -ENOMEM;
 	rwlock_init(&set->lock);
 	strlcpy(set->name, name, IPSET_MAXNAMELEN);
-	atomic_set(&set->ref, 0);
 	set->family = family;
 
 	/*
@@ -678,8 +687,8 @@ ip_set_create(struct sock *ctnl, struct sk_buff *skb,
 
 	/*
 	 * Here, we have a valid, constructed set and we are protected
-	 * by nfnl_lock. Find the first free index in ip_set_list and
-	 * check clashing.
+	 * by the nfnl mutex. Find the first free index in ip_set_list
+	 * and check clashing.
 	 */
 	if ((ret = find_free_id(set->name, &index, &clash)) != 0) {
 		/* If this is the same set and requested, ignore error */
@@ -739,31 +748,51 @@ ip_set_destroy(struct sock *ctnl, struct sk_buff *skb,
 	       const struct nlattr * const attr[])
 {
 	ip_set_id_t i;
+	int ret = 0;
 
 	if (unlikely(protocol_failed(attr)))
 		return -IPSET_ERR_PROTOCOL;
 
-	/* References are protected by the nfnl mutex */
+	/* Commands are serialized and references are
+	 * protected by the ip_set_ref_lock.
+	 * External systems (i.e. xt_set) must call
+	 * ip_set_put|get_nfnl_* functions, that way we
+	 * can safely check references here.
+	 *
+	 * list:set timer can only decrement the reference
+	 * counter, so if it's already zero, we can proceed
+	 * without holding the lock.
+	 */
+	read_lock_bh(&ip_set_ref_lock);
 	if (!attr[IPSET_ATTR_SETNAME]) {
 		for (i = 0; i < ip_set_max; i++) {
-			if (ip_set_list[i] != NULL &&
-			    (atomic_read(&ip_set_list[i]->ref)))
-				return -IPSET_ERR_BUSY;
+			if (ip_set_list[i] != NULL && ip_set_list[i]->ref) {
+				ret = IPSET_ERR_BUSY;
+				goto out;
+			}
 		}
+		read_unlock_bh(&ip_set_ref_lock);
 		for (i = 0; i < ip_set_max; i++) {
 			if (ip_set_list[i] != NULL)
 				ip_set_destroy_set(i);
 		}
 	} else {
 		i = find_set_id(nla_data(attr[IPSET_ATTR_SETNAME]));
-		if (i == IPSET_INVALID_ID)
-			return -ENOENT;
-		else if (atomic_read(&ip_set_list[i]->ref))
-			return -IPSET_ERR_BUSY;
+		if (i == IPSET_INVALID_ID) {
+			ret = -ENOENT;
+			goto out;
+		} else if (ip_set_list[i]->ref) {
+			ret = -IPSET_ERR_BUSY;
+			goto out;
+		}
+		read_unlock_bh(&ip_set_ref_lock);
 
 		ip_set_destroy_set(i);
 	}
 	return 0;
+out:
+	read_unlock_bh(&ip_set_ref_lock);
+	return ret;
 }
 
 /* Flush sets */
@@ -822,6 +851,7 @@ ip_set_rename(struct sock *ctnl, struct sk_buff *skb,
 	struct ip_set *set;
 	const char *name2;
 	ip_set_id_t i;
+	int ret = 0;
 
 	if (unlikely(protocol_failed(attr) ||
 		     attr[IPSET_ATTR_SETNAME] == NULL ||
@@ -831,25 +861,33 @@ ip_set_rename(struct sock *ctnl, struct sk_buff *skb,
 	set = find_set(nla_data(attr[IPSET_ATTR_SETNAME]));
 	if (set == NULL)
 		return -ENOENT;
-	if (atomic_read(&set->ref) != 0)
-		return -IPSET_ERR_REFERENCED;
+
+	read_lock_bh(&ip_set_ref_lock);
+	if (set->ref != 0) {
+		ret = -IPSET_ERR_REFERENCED;
+		goto out;
+	}
 
 	name2 = nla_data(attr[IPSET_ATTR_SETNAME2]);
 	for (i = 0; i < ip_set_max; i++) {
 		if (ip_set_list[i] != NULL &&
-		    STREQ(ip_set_list[i]->name, name2))
-			return -IPSET_ERR_EXIST_SETNAME2;
+		    STREQ(ip_set_list[i]->name, name2)) {
+			ret = -IPSET_ERR_EXIST_SETNAME2;
+			goto out;
+		}
 	}
 	strncpy(set->name, name2, IPSET_MAXNAMELEN);
 
-	return 0;
+out:
+	read_unlock_bh(&ip_set_ref_lock);
+	return ret;
 }
 
 /* Swap two sets so that name/index points to the other.
  * References and set names are also swapped.
  *
- * We are protected by the nfnl mutex and references are
- * manipulated only by holding the mutex. The kernel interfaces
+ * The commands are serialized by the nfnl mutex and references are
+ * protected by the ip_set_ref_lock. The kernel interfaces
  * do not hold the mutex but the pointer settings are atomic
  * so the ip_set_list always contains valid pointers to the sets.
  */
@@ -862,7 +900,6 @@ ip_set_swap(struct sock *ctnl, struct sk_buff *skb,
 	struct ip_set *from, *to;
 	ip_set_id_t from_id, to_id;
 	char from_name[IPSET_MAXNAMELEN];
-	u32 from_ref;
 
 	if (unlikely(protocol_failed(attr) ||
 		     attr[IPSET_ATTR_SETNAME] == NULL ||
@@ -881,23 +918,21 @@ ip_set_swap(struct sock *ctnl, struct sk_buff *skb,
 	to = ip_set_list[to_id];
 
 	/* Features must not change.
-	 * Not an artifical restriction anymore, as we must prevent
+	 * Not an artificial restriction anymore, as we must prevent
 	 * possible loops created by swapping in setlist type of sets. */
 	if (!(from->type->features == to->type->features &&
 	      from->type->family == to->type->family))
 		return -IPSET_ERR_TYPE_MISMATCH;
 
-	/* No magic here: ref munging protected by the nfnl_lock */
 	strncpy(from_name, from->name, IPSET_MAXNAMELEN);
-	from_ref = atomic_read(&from->ref);
-
 	strncpy(from->name, to->name, IPSET_MAXNAMELEN);
-	atomic_set(&from->ref, atomic_read(&to->ref));
 	strncpy(to->name, from_name, IPSET_MAXNAMELEN);
-	atomic_set(&to->ref, from_ref);
 
+	write_lock_bh(&ip_set_ref_lock);
+	swap(from->ref, to->ref);
 	ip_set_list[from_id] = to;
 	ip_set_list[to_id] = from;
+	write_unlock_bh(&ip_set_ref_lock);
 
 	return 0;
 }
@@ -914,7 +949,7 @@ ip_set_dump_done(struct netlink_callback *cb)
 {
 	if (cb->args[2]) {
 		pr_debug("release set %s\n", ip_set_list[cb->args[1]]->name);
-		__ip_set_put((ip_set_id_t) cb->args[1]);
+		ip_set_put_byindex((ip_set_id_t) cb->args[1]);
 	}
 	return 0;
 }
@@ -987,8 +1022,9 @@ ip_set_dump_start(struct sk_buff *skb, struct netlink_callback *cb)
 	if (cb->args[1] >= ip_set_max)
 		goto out;
 
-	pr_debug("args[0]: %ld args[1]: %ld\n", cb->args[0], cb->args[1]);
 	max = cb->args[0] == DUMP_ONE ? cb->args[1] + 1 : ip_set_max;
+dump_last:
+	pr_debug("args[0]: %ld args[1]: %ld\n", cb->args[0], cb->args[1]);
 	for (; cb->args[1] < max; cb->args[1]++) {
 		index = (ip_set_id_t) cb->args[1];
 		set = ip_set_list[index];
@@ -1003,8 +1039,8 @@ ip_set_dump_start(struct sk_buff *skb, struct netlink_callback *cb)
 		 * so that lists (unions of sets) are dumped last.
 		 */
 		if (cb->args[0] != DUMP_ONE &&
-		    !((cb->args[0] == DUMP_ALL) ^
-		      (set->type->features & IPSET_DUMP_LAST)))
+		    ((cb->args[0] == DUMP_ALL) ==
+		     !!(set->type->features & IPSET_DUMP_LAST)))
 			continue;
 		pr_debug("List set: %s\n", set->name);
 		if (!cb->args[2]) {
@@ -1048,6 +1084,12 @@ ip_set_dump_start(struct sk_buff *skb, struct netlink_callback *cb)
 			goto release_refcount;
 		}
 	}
+	/* If we dump all sets, continue with dumping last ones */
+	if (cb->args[0] == DUMP_ALL) {
+		cb->args[0] = DUMP_LAST;
+		cb->args[1] = 0;
+		goto dump_last;
+	}
 	goto out;
 
 nla_put_failure:
@@ -1056,13 +1098,8 @@ release_refcount:
 	/* If there was an error or set is done, release set */
 	if (ret || !cb->args[2]) {
 		pr_debug("release set %s\n", ip_set_list[index]->name);
-		__ip_set_put(index);
+		ip_set_put_byindex(index);
 	}
-
-	/* If we dump all sets, continue with dumping last ones */
-	if (cb->args[0] == DUMP_ALL && cb->args[1] >= max && !cb->args[2])
-		cb->args[0] = DUMP_LAST;
-
 out:
 	if (nlh) {
 		nlmsg_end(skb, nlh);

@@ -29,12 +29,19 @@
 #include <linux/module.h>
 #include <linux/ptrace.h>
 
+#include <asm/cevt-r4k.h>
 #include <asm/mipsregs.h>
 #include <asm/time.h>
 
 #include <msp_prom.h>
 #include <msp_int.h>
 #include <msp_regs.h>
+
+#define get_current_vpe()   \
+	((read_c0_tcbind() >> TCBIND_CURVPE_SHIFT) & TCBIND_CURVPE)
+
+static struct irqaction timer_vpe1;
+static int tim_installed;
 
 void __init plat_time_init(void)
 {
@@ -83,5 +90,12 @@ void __init plat_time_init(void)
 
 unsigned int __cpuinit get_c0_compare_int(void)
 {
-	return MSP_INT_VPE0_TIMER;
+	/* MIPS_MT modes may want timer for second VPE */
+	if ((get_current_vpe()) && !tim_installed) {
+		memcpy(&timer_vpe1, &c0_compare_irqaction, sizeof(timer_vpe1));
+		setup_irq(MSP_INT_VPE1_TIMER, &timer_vpe1);
+		tim_installed++;
+	}
+
+	return get_current_vpe() ? MSP_INT_VPE1_TIMER : MSP_INT_VPE0_TIMER;
 }

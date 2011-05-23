@@ -73,7 +73,7 @@ static inline void mult_sh_align_mod(long *v1, long *v2, long *w,
 		: "0" (5), "1" (8), "2" (5));
 	align_mod(align, mod);
 	/*
-	 * The trailing nop is needed to fullfill the two-instruction
+	 * The trailing nop is needed to fulfill the two-instruction
 	 * requirement between reading hi/lo and staring a mult/div.
 	 * Leaving it out may cause gas insert a nop itself breaking
 	 * the desired alignment of the next chunk.

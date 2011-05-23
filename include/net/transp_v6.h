@@ -16,7 +16,7 @@ extern struct proto tcpv6_prot;
 
 struct flowi6;
 
-/* extention headers */
+/* extension headers */
 extern int				ipv6_exthdrs_init(void);
 extern void				ipv6_exthdrs_exit(void);
 extern int				ipv6_frag_init(void);

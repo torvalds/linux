@@ -543,7 +543,7 @@ just those considered 'most important'.  The new vectors are:
   their statistics are used by kernel developers and interested users to
   determine the occurrence of interrupts of the given type.
 
-The above IRQ vectors are displayed only when relevent.  For example,
+The above IRQ vectors are displayed only when relevant.  For example,
 the threshold vector does not exist on x86_64 platforms.  Others are
 suppressed when the system is a uniprocessor.  As of this writing, only
 i386 and x86_64 platforms support the new IRQ vector displays.
@@ -1202,7 +1202,7 @@ The columns are:
                        W = can do write operations
                        U = can do unblank
   flags                E = it is enabled
-                       C = it is prefered console
+                       C = it is preferred console
                        B = it is primary boot console
                        p = it is used for printk buffer
                        b = it is not a TTY but a Braille device
@@ -1331,7 +1331,7 @@ NOTICE: /proc/<pid>/oom_adj is deprecated and will be removed, please see
 Documentation/feature-removal-schedule.txt.
 
 Caveat: when a parent task is selected, the oom killer will sacrifice any first
-generation children with seperate address spaces instead, if possible.  This
+generation children with separate address spaces instead, if possible.  This
 avoids servers and important system daemons from being killed and loses the
 minimal amount of work.
 

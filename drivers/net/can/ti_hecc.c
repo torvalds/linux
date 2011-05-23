@@ -663,7 +663,7 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 	struct can_frame *cf;
 	struct sk_buff *skb;
 
-	/* propogate the error condition to the can stack */
+	/* propagate the error condition to the can stack */
 	skb = alloc_can_err_skb(ndev, &cf);
 	if (!skb) {
 		if (printk_ratelimit())

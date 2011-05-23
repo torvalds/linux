@@ -406,7 +406,7 @@ ext2_xattr_set_acl(struct dentry *dentry, const char *name, const void *value,
 		return -EINVAL;
 	if (!test_opt(dentry->d_sb, POSIX_ACL))
 		return -EOPNOTSUPP;
-	if (!is_owner_or_cap(dentry->d_inode))
+	if (!inode_owner_or_capable(dentry->d_inode))
 		return -EPERM;
 
 	if (value) {

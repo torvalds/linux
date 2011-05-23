@@ -72,7 +72,7 @@ static struct powerdomain mpu_3xxx_pwrdm = {
 
 /*
  * The USBTLL Save-and-Restore mechanism is broken on
- * 3430s upto ES3.0 and 3630ES1.0. Hence this feature
+ * 3430s up to ES3.0 and 3630ES1.0. Hence this feature
  * needs to be disabled on these chips.
  * Refer: 3430 errata ID i459 and 3630 errata ID i579
  *

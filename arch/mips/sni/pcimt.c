@@ -194,33 +194,24 @@ static struct pci_controller sni_controller = {
 	.io_map_base    = SNI_PORT_BASE
 };
 
-static void enable_pcimt_irq(unsigned int irq)
+static void enable_pcimt_irq(struct irq_data *d)
 {
-	unsigned int mask = 1 << (irq - PCIMT_IRQ_INT2);
+	unsigned int mask = 1 << (d->irq - PCIMT_IRQ_INT2);
 
 	*(volatile u8 *) PCIMT_IRQSEL |= mask;
 }
 
-void disable_pcimt_irq(unsigned int irq)
+void disable_pcimt_irq(struct irq_data *d)
 {
-	unsigned int mask = ~(1 << (irq - PCIMT_IRQ_INT2));
+	unsigned int mask = ~(1 << (d->irq - PCIMT_IRQ_INT2));
 
 	*(volatile u8 *) PCIMT_IRQSEL &= mask;
 }
 
-static void end_pcimt_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_pcimt_irq(irq);
-}
-
 static struct irq_chip pcimt_irq_type = {
 	.name = "PCIMT",
-	.ack = disable_pcimt_irq,
-	.mask = disable_pcimt_irq,
-	.mask_ack = disable_pcimt_irq,
-	.unmask = enable_pcimt_irq,
-	.end = end_pcimt_irq,
+	.irq_mask = disable_pcimt_irq,
+	.irq_unmask = enable_pcimt_irq,
 };
 
 /*
@@ -305,7 +296,7 @@ void __init sni_pcimt_irq_init(void)
 	mips_cpu_irq_init();
 	/* Actually we've got more interrupts to handle ...  */
 	for (i = PCIMT_IRQ_INT2; i <= PCIMT_IRQ_SCSI; i++)
-		set_irq_chip_and_handler(i, &pcimt_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &pcimt_irq_type, handle_level_irq);
 	sni_hwint = sni_pcimt_hwint;
 	change_c0_status(ST0_IM, IE_IRQ1|IE_IRQ3);
 }

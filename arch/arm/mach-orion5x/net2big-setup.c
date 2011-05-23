@@ -190,7 +190,7 @@ err_free_1:
  * The power front LEDs (blue and red) and SATA red LEDs are controlled via a
  * single GPIO line and are compatible with the leds-gpio driver.
  *
- * The SATA blue LEDs have some hardware blink capabilities which are detailled
+ * The SATA blue LEDs have some hardware blink capabilities which are detailed
  * in the following array:
  *
  * SATAx blue LED | SATAx activity | LED state

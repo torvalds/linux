@@ -132,8 +132,8 @@ static int
 cpld_pic_host_map(struct irq_host *h, unsigned int virq,
 			     irq_hw_number_t hw)
 {
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &cpld_pic, handle_level_irq);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &cpld_pic, handle_level_irq);
 	return 0;
 }
 
@@ -198,7 +198,7 @@ mpc5121_ads_cpld_pic_init(void)
 		goto end;
 	}
 
-	set_irq_chained_handler(cascade_irq, cpld_pic_cascade);
+	irq_set_chained_handler(cascade_irq, cpld_pic_cascade);
 end:
 	of_node_put(np);
 }

@@ -15,7 +15,7 @@ struct usb_dr_device {
 	u8 res1[256];
 	u16 caplength;		/* Capability Register Length */
 	u16 hciversion;		/* Host Controller Interface Version */
-	u32 hcsparams;		/* Host Controller Structual Parameters */
+	u32 hcsparams;		/* Host Controller Structural Parameters */
 	u32 hccparams;		/* Host Controller Capability Parameters */
 	u8 res2[20];
 	u32 dciversion;		/* Device Controller Interface Version */
@@ -52,7 +52,7 @@ struct usb_dr_host {
 	u8 res1[256];
 	u16 caplength;		/* Capability Register Length */
 	u16 hciversion;		/* Host Controller Interface Version */
-	u32 hcsparams;		/* Host Controller Structual Parameters */
+	u32 hcsparams;		/* Host Controller Structural Parameters */
 	u32 hccparams;		/* Host Controller Capability Parameters */
 	u8 res2[20];
 	u32 dciversion;		/* Device Controller Interface Version */

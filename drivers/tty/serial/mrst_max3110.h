@@ -21,7 +21,7 @@
 
 #define WC_IRQ_MASK		(0xF << 8)
 #define WC_TXE_IRQ_ENABLE	(1 << 11)	/* TX empty irq */
-#define WC_RXA_IRQ_ENABLE	(1 << 10)	/* RX availabe irq */
+#define WC_RXA_IRQ_ENABLE	(1 << 10)	/* RX available irq */
 #define WC_PAR_HIGH_IRQ_ENABLE	(1 << 9)
 #define WC_REC_ACT_IRQ_ENABLE	(1 << 8)
 

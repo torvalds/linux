@@ -1283,7 +1283,7 @@ static void uea_set_bulk_timeout(struct uea_softc *sc, u32 dsrate)
 
 	/* in bulk mode the modem have problem with high rate
 	 * changing internal timing could improve things, but the
-	 * value is misterious.
+	 * value is mysterious.
 	 * ADI930 don't support it (-EPIPE error).
 	 */
 
@@ -1743,7 +1743,7 @@ static int uea_send_cmvs_e1(struct uea_softc *sc)
 				goto out;
 		}
 	} else {
-		/* This realy should not happen */
+		/* This really should not happen */
 		uea_err(INS_TO_USBDEV(sc), "bad cmvs version %d\n", ver);
 		goto out;
 	}
@@ -1798,7 +1798,7 @@ static int uea_send_cmvs_e4(struct uea_softc *sc)
 				goto out;
 		}
 	} else {
-		/* This realy should not happen */
+		/* This really should not happen */
 		uea_err(INS_TO_USBDEV(sc), "bad cmvs version %d\n", ver);
 		goto out;
 	}
@@ -1829,7 +1829,7 @@ static int uea_start_reset(struct uea_softc *sc)
 
 	/* mask interrupt */
 	sc->booting = 1;
-	/* We need to set this here because, a ack timeout could have occured,
+	/* We need to set this here because, a ack timeout could have occurred,
 	 * but before we start the reboot, the ack occurs and set this to 1.
 	 * So we will failed to wait Ready CMV.
 	 */

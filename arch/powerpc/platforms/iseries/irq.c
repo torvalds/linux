@@ -220,7 +220,7 @@ void __init iSeries_activate_IRQs()
 		if (!desc)
 			continue;
 
-		chip = get_irq_desc_chip(desc);
+		chip = irq_desc_get_chip(desc);
 		if (chip && chip->irq_startup) {
 			raw_spin_lock_irqsave(&desc->lock, flags);
 			chip->irq_startup(&desc->irq_data);
@@ -346,7 +346,7 @@ unsigned int iSeries_get_irq(void)
 static int iseries_irq_host_map(struct irq_host *h, unsigned int virq,
 				irq_hw_number_t hw)
 {
-	set_irq_chip_and_handler(virq, &iseries_pic, handle_fasteoi_irq);
+	irq_set_chip_and_handler(virq, &iseries_pic, handle_fasteoi_irq);
 
 	return 0;
 }

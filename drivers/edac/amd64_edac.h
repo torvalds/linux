@@ -196,6 +196,9 @@
 
 #define DCT_CFG_SEL			0x10C
 
+#define DRAM_LOCAL_NODE_BASE		0x120
+#define DRAM_LOCAL_NODE_LIM		0x124
+
 #define DRAM_BASE_HI			0x140
 #define DRAM_LIMIT_HI			0x144
 

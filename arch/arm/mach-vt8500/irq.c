@@ -97,15 +97,15 @@ static int vt8500_irq_set_type(unsigned int irq, unsigned int flow_type)
 		return -EINVAL;
 	case IRQF_TRIGGER_HIGH:
 		dctr |= VT8500_TRIGGER_HIGH;
-		irq_desc[orig_irq].handle_irq = handle_level_irq;
+		__irq_set_handler_locked(orig_irq, handle_level_irq);
 		break;
 	case IRQF_TRIGGER_FALLING:
 		dctr |= VT8500_TRIGGER_FALLING;
-		irq_desc[orig_irq].handle_irq = handle_edge_irq;
+		__irq_set_handler_locked(orig_irq, handle_edge_irq);
 		break;
 	case IRQF_TRIGGER_RISING:
 		dctr |= VT8500_TRIGGER_RISING;
-		irq_desc[orig_irq].handle_irq = handle_edge_irq;
+		__irq_set_handler_locked(orig_irq, handle_edge_irq);
 		break;
 	}
 	writeb(dctr, base + VT8500_IC_DCTR + irq);
@@ -136,8 +136,8 @@ void __init vt8500_init_irq(void)
 			/* Disable all interrupts and route them to IRQ */
 			writeb(0x00, ic_regbase + VT8500_IC_DCTR + i);
 
-			set_irq_chip(i, &vt8500_irq_chip);
-			set_irq_handler(i, handle_level_irq);
+			irq_set_chip_and_handler(i, &vt8500_irq_chip,
+						 handle_level_irq);
 			set_irq_flags(i, IRQF_VALID);
 		}
 	} else {
@@ -167,8 +167,8 @@ void __init wm8505_init_irq(void)
 				writeb(0x00, sic_regbase + VT8500_IC_DCTR
 								+ i - 64);
 
-			set_irq_chip(i, &vt8500_irq_chip);
-			set_irq_handler(i, handle_level_irq);
+			irq_set_chip_and_handler(i, &vt8500_irq_chip,
+						 handle_level_irq);
 			set_irq_flags(i, IRQF_VALID);
 		}
 	} else {

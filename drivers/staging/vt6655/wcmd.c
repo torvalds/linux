@@ -587,7 +587,7 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
             if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) && (pMgmt->eCurrState == WMAC_STATE_JOINTED)) {
 
 		// Call mgr to begin the deauthentication
-                // reason = (3) beacuse sta has left ESS
+                // reason = (3) because sta has left ESS
                 if (pMgmt->eCurrState>= WMAC_STATE_AUTH) {
                     vMgrDeAuthenBeginSta((void *)pDevice, pMgmt, pMgmt->abyCurrBSSID, (3), &Status);
                 }

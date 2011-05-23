@@ -2130,7 +2130,7 @@
 #define MII_TG3_DSP_EXP96		0x0f96
 #define MII_TG3_DSP_EXP97		0x0f97
 
-#define MII_TG3_AUX_CTRL		0x18 /* auxilliary control register */
+#define MII_TG3_AUX_CTRL		0x18 /* auxiliary control register */
 
 #define MII_TG3_AUXCTL_PCTL_100TX_LPWR	0x0010
 #define MII_TG3_AUXCTL_PCTL_SPR_ISOLATE	0x0020
@@ -2146,7 +2146,7 @@
 #define MII_TG3_AUXCTL_ACTL_TX_6DB	0x0400
 #define MII_TG3_AUXCTL_SHDWSEL_AUXCTL	0x0000
 
-#define MII_TG3_AUX_STAT		0x19 /* auxilliary status register */
+#define MII_TG3_AUX_STAT		0x19 /* auxiliary status register */
 #define MII_TG3_AUX_STAT_LPASS		0x0004
 #define MII_TG3_AUX_STAT_SPDMASK	0x0700
 #define MII_TG3_AUX_STAT_10HALF		0x0100

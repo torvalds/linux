@@ -322,7 +322,7 @@ void tty_schedule_flip(struct tty_struct *tty)
 	if (tty->buf.tail != NULL)
 		tty->buf.tail->commit = tty->buf.tail->used;
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
-	schedule_delayed_work(&tty->buf.work, 1);
+	schedule_work(&tty->buf.work);
 }
 EXPORT_SYMBOL(tty_schedule_flip);
 
@@ -402,7 +402,7 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string_flags);
 static void flush_to_ldisc(struct work_struct *work)
 {
 	struct tty_struct *tty =
-		container_of(work, struct tty_struct, buf.work.work);
+		container_of(work, struct tty_struct, buf.work);
 	unsigned long 	flags;
 	struct tty_ldisc *disc;
 
@@ -442,10 +442,8 @@ static void flush_to_ldisc(struct work_struct *work)
 			   line discipline as we want to empty the queue */
 			if (test_bit(TTY_FLUSHPENDING, &tty->flags))
 				break;
-			if (!tty->receive_room || seen_tail) {
-				schedule_delayed_work(&tty->buf.work, 1);
+			if (!tty->receive_room || seen_tail)
 				break;
-			}
 			if (count > tty->receive_room)
 				count = tty->receive_room;
 			char_buf = head->char_buf_ptr + head->read;
@@ -481,7 +479,7 @@ static void flush_to_ldisc(struct work_struct *work)
  */
 void tty_flush_to_ldisc(struct tty_struct *tty)
 {
-	flush_delayed_work(&tty->buf.work);
+	flush_work(&tty->buf.work);
 }
 
 /**
@@ -506,9 +504,9 @@ void tty_flip_buffer_push(struct tty_struct *tty)
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
 
 	if (tty->low_latency)
-		flush_to_ldisc(&tty->buf.work.work);
+		flush_to_ldisc(&tty->buf.work);
 	else
-		schedule_delayed_work(&tty->buf.work, 1);
+		schedule_work(&tty->buf.work);
 }
 EXPORT_SYMBOL(tty_flip_buffer_push);
 
@@ -529,6 +527,6 @@ void tty_buffer_init(struct tty_struct *tty)
 	tty->buf.tail = NULL;
 	tty->buf.free = NULL;
 	tty->buf.memory_used = 0;
-	INIT_DELAYED_WORK(&tty->buf.work, flush_to_ldisc);
+	INIT_WORK(&tty->buf.work, flush_to_ldisc);
 }
 

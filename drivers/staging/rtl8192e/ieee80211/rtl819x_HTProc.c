@@ -459,7 +459,7 @@ u8 HTIOTActIsForcedCTS2Self(struct ieee80211_device *ieee, struct ieee80211_netw
 /**
 * Function:	HTIOTActIsDisableMCS15
 *
-* Overview:	Check whether driver should declare capability of receving MCS15
+* Overview:	Check whether driver should declare capability of receiving MCS15
 *
 * Input:
 *			PADAPTER		Adapter,
@@ -496,7 +496,7 @@ bool HTIOTActIsDisableMCS15(struct ieee80211_device* ieee)
 /**
 * Function:	HTIOTActIsDisableMCSTwoSpatialStream
 *
-* Overview:	Check whether driver should declare capability of receving All 2 ss packets
+* Overview:	Check whether driver should declare capability of receiving All 2 ss packets
 *
 * Input:
 *			PADAPTER		Adapter,
@@ -1681,7 +1681,7 @@ void HTSetConnectBwMode(struct ieee80211_device* ieee, HT_CHANNEL_WIDTH	Bandwidt
 	//if in half N mode, set to 20M bandwidth please 09.08.2008 WB.
 	if (Bandwidth==HT_CHANNEL_WIDTH_20_40 && (!ieee->GetHalfNmodeSupportByAPsHandler(ieee)))
 	 {
-	 		// Handle Illegal extention channel offset!!
+	 		// Handle Illegal extension channel offset!!
 		if(ieee->current_network.channel<2 && Offset==HT_EXTCHNL_OFFSET_LOWER)
 			Offset = HT_EXTCHNL_OFFSET_NO_EXT;
 		if(Offset==HT_EXTCHNL_OFFSET_UPPER || Offset==HT_EXTCHNL_OFFSET_LOWER) {
@@ -1698,7 +1698,7 @@ void HTSetConnectBwMode(struct ieee80211_device* ieee, HT_CHANNEL_WIDTH	Bandwidt
 
 	pHTInfo->bSwBwInProgress = true;
 
-	// TODO: 2007.7.13 by Emily Wait 2000ms  in order to garantee that switching
+	// TODO: 2007.7.13 by Emily Wait 2000ms  in order to guarantee that switching
 	//   bandwidth is executed after scan is finished. It is a temporal solution
 	//   because software should ganrantee the last operation of switching bandwidth
 	//   is executed properlly.

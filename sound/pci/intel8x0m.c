@@ -331,7 +331,7 @@ static int snd_intel8x0m_codec_semaphore(struct intel8x0m *chip, unsigned int co
 		udelay(10);
 	} while (time--);
 
-	/* access to some forbidden (non existant) ac97 registers will not
+	/* access to some forbidden (non existent) ac97 registers will not
 	 * reset the semaphore. So even if you don't get the semaphore, still
 	 * continue the access. We don't need the semaphore anyway. */
 	snd_printk(KERN_ERR "codec_semaphore: semaphore is not ready [0x%x][0x%x]\n",

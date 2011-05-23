@@ -321,24 +321,24 @@ void __init init_IRQ(void)
 	writel(1, INTC_ICCR);
 
 	for (irq = 0; irq < IRQ_GPIOHIGH; irq++) {
-		set_irq_chip(irq, &puv3_low_gpio_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip(irq, &puv3_low_gpio_chip);
+		irq_set_handler(irq, handle_edge_irq);
 		irq_modify_status(irq,
 			IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN,
 			0);
 	}
 
 	for (irq = IRQ_GPIOHIGH + 1; irq < IRQ_GPIO0; irq++) {
-		set_irq_chip(irq, &puv3_normal_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip(irq, &puv3_normal_chip);
+		irq_set_handler(irq, handle_level_irq);
 		irq_modify_status(irq,
 			IRQ_NOREQUEST | IRQ_NOAUTOEN,
 			IRQ_NOPROBE);
 	}
 
 	for (irq = IRQ_GPIO0; irq <= IRQ_GPIO27; irq++) {
-		set_irq_chip(irq, &puv3_high_gpio_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip(irq, &puv3_high_gpio_chip);
+		irq_set_handler(irq, handle_edge_irq);
 		irq_modify_status(irq,
 			IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN,
 			0);
@@ -347,54 +347,12 @@ void __init init_IRQ(void)
 	/*
 	 * Install handler for GPIO 0-27 edge detect interrupts
 	 */
-	set_irq_chip(IRQ_GPIOHIGH, &puv3_normal_chip);
-	set_irq_chained_handler(IRQ_GPIOHIGH, puv3_gpio_handler);
+	irq_set_chip(IRQ_GPIOHIGH, &puv3_normal_chip);
+	irq_set_chained_handler(IRQ_GPIOHIGH, puv3_gpio_handler);
 
 #ifdef CONFIG_PUV3_GPIO
 	puv3_init_gpio();
 #endif
-}
-
-int show_interrupts(struct seq_file *p, void *v)
-{
-	int i = *(loff_t *) v, cpu;
-	struct irq_desc *desc;
-	struct irqaction *action;
-	unsigned long flags;
-
-	if (i == 0) {
-		char cpuname[12];
-
-		seq_printf(p, "    ");
-		for_each_present_cpu(cpu) {
-			sprintf(cpuname, "CPU%d", cpu);
-			seq_printf(p, " %10s", cpuname);
-		}
-		seq_putc(p, '\n');
-	}
-
-	if (i < nr_irqs) {
-		desc = irq_to_desc(i);
-		raw_spin_lock_irqsave(&desc->lock, flags);
-		action = desc->action;
-		if (!action)
-			goto unlock;
-
-		seq_printf(p, "%3d: ", i);
-		for_each_present_cpu(cpu)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, cpu));
-		seq_printf(p, " %10s", desc->irq_data.chip->name ? : "-");
-		seq_printf(p, "  %s", action->name);
-		for (action = action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-
-		seq_putc(p, '\n');
-unlock:
-		raw_spin_unlock_irqrestore(&desc->lock, flags);
-	} else if (i == nr_irqs) {
-		seq_printf(p, "Error in interrupt!\n");
-	}
-	return 0;
 }
 
 /*

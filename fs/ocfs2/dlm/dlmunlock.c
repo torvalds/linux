@@ -317,7 +317,7 @@ static enum dlm_status dlm_send_remote_unlock_request(struct dlm_ctxt *dlm,
 	struct kvec vec[2];
 	size_t veclen = 1;
 
-	mlog_entry("%.*s\n", res->lockname.len, res->lockname.name);
+	mlog(0, "%.*s\n", res->lockname.len, res->lockname.name);
 
 	if (owner == dlm->node_num) {
 		/* ended up trying to contact ourself.  this means
@@ -587,8 +587,6 @@ enum dlm_status dlmunlock(struct dlm_ctxt *dlm, struct dlm_lockstatus *lksb,
 	struct dlm_lock_resource *res;
 	struct dlm_lock *lock = NULL;
 	int call_ast, is_master;
-
-	mlog_entry_void();
 
 	if (!lksb) {
 		dlm_error(DLM_BADARGS);

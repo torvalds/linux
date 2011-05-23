@@ -47,13 +47,14 @@
 
 struct ctl_table;
 struct audit_krule;
+struct user_namespace;
 
 /*
  * These functions are in security/capability.c and are used
  * as the default capabilities functions
  */
 extern int cap_capable(struct task_struct *tsk, const struct cred *cred,
-		       int cap, int audit);
+		       struct user_namespace *ns, int cap, int audit);
 extern int cap_settime(const struct timespec *ts, const struct timezone *tz);
 extern int cap_ptrace_access_check(struct task_struct *child, unsigned int mode);
 extern int cap_ptrace_traceme(struct task_struct *parent);
@@ -1262,6 +1263,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	credentials.
  *	@tsk contains the task_struct for the process.
  *	@cred contains the credentials to use.
+ *      @ns contains the user namespace we want the capability in
  *	@cap contains the capability <include/linux/capability.h>.
  *	@audit: Whether to write an audit message or not
  *	Return 0 if the capability is granted for @tsk.
@@ -1384,7 +1386,7 @@ struct security_operations {
 		       const kernel_cap_t *inheritable,
 		       const kernel_cap_t *permitted);
 	int (*capable) (struct task_struct *tsk, const struct cred *cred,
-			int cap, int audit);
+			struct user_namespace *ns, int cap, int audit);
 	int (*quotactl) (int cmds, int type, int id, struct super_block *sb);
 	int (*quota_on) (struct dentry *dentry);
 	int (*syslog) (int type);
@@ -1454,7 +1456,7 @@ struct security_operations {
 			     struct inode *new_dir, struct dentry *new_dentry);
 	int (*inode_readlink) (struct dentry *dentry);
 	int (*inode_follow_link) (struct dentry *dentry, struct nameidata *nd);
-	int (*inode_permission) (struct inode *inode, int mask);
+	int (*inode_permission) (struct inode *inode, int mask, unsigned flags);
 	int (*inode_setattr)	(struct dentry *dentry, struct iattr *attr);
 	int (*inode_getattr) (struct vfsmount *mnt, struct dentry *dentry);
 	int (*inode_setxattr) (struct dentry *dentry, const char *name,
@@ -1665,9 +1667,12 @@ int security_capset(struct cred *new, const struct cred *old,
 		    const kernel_cap_t *effective,
 		    const kernel_cap_t *inheritable,
 		    const kernel_cap_t *permitted);
-int security_capable(const struct cred *cred, int cap);
-int security_real_capable(struct task_struct *tsk, int cap);
-int security_real_capable_noaudit(struct task_struct *tsk, int cap);
+int security_capable(struct user_namespace *ns, const struct cred *cred,
+			int cap);
+int security_real_capable(struct task_struct *tsk, struct user_namespace *ns,
+			int cap);
+int security_real_capable_noaudit(struct task_struct *tsk,
+			struct user_namespace *ns, int cap);
 int security_quotactl(int cmds, int type, int id, struct super_block *sb);
 int security_quota_on(struct dentry *dentry);
 int security_syslog(int type);
@@ -1860,28 +1865,29 @@ static inline int security_capset(struct cred *new,
 	return cap_capset(new, old, effective, inheritable, permitted);
 }
 
-static inline int security_capable(const struct cred *cred, int cap)
+static inline int security_capable(struct user_namespace *ns,
+				   const struct cred *cred, int cap)
 {
-	return cap_capable(current, cred, cap, SECURITY_CAP_AUDIT);
+	return cap_capable(current, cred, ns, cap, SECURITY_CAP_AUDIT);
 }
 
-static inline int security_real_capable(struct task_struct *tsk, int cap)
+static inline int security_real_capable(struct task_struct *tsk, struct user_namespace *ns, int cap)
 {
 	int ret;
 
 	rcu_read_lock();
-	ret = cap_capable(tsk, __task_cred(tsk), cap, SECURITY_CAP_AUDIT);
+	ret = cap_capable(tsk, __task_cred(tsk), ns, cap, SECURITY_CAP_AUDIT);
 	rcu_read_unlock();
 	return ret;
 }
 
 static inline
-int security_real_capable_noaudit(struct task_struct *tsk, int cap)
+int security_real_capable_noaudit(struct task_struct *tsk, struct user_namespace *ns, int cap)
 {
 	int ret;
 
 	rcu_read_lock();
-	ret = cap_capable(tsk, __task_cred(tsk), cap,
+	ret = cap_capable(tsk, __task_cred(tsk), ns, cap,
 			       SECURITY_CAP_NOAUDIT);
 	rcu_read_unlock();
 	return ret;

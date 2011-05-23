@@ -1083,7 +1083,7 @@ static void zfcp_fsf_send_els_handler(struct zfcp_fsf_req *req)
 		}
 		break;
 	case FSF_SBAL_MISMATCH:
-		/* should never occure, avoided in zfcp_fsf_send_els */
+		/* should never occur, avoided in zfcp_fsf_send_els */
 		/* fall through */
 	default:
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;

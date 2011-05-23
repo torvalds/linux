@@ -707,7 +707,7 @@ static const char *ct_sdp_header_search(const char *dptr, const char *limit,
 }
 
 /* Locate a SDP header (optionally a substring within the header value),
- * optionally stopping at the first occurence of the term header, parse
+ * optionally stopping at the first occurrence of the term header, parse
  * it and return the offset and length of the data we're interested in.
  */
 int ct_sip_get_sdp_header(const struct nf_conn *ct, const char *dptr,

@@ -239,7 +239,7 @@ static __init void pas_init_IRQ(void)
 	if (nmiprop) {
 		nmi_virq = irq_create_mapping(NULL, *nmiprop);
 		mpic_irq_set_priority(nmi_virq, 15);
-		set_irq_type(nmi_virq, IRQ_TYPE_EDGE_RISING);
+		irq_set_irq_type(nmi_virq, IRQ_TYPE_EDGE_RISING);
 		mpic_unmask_irq(irq_get_irq_data(nmi_virq));
 	}
 

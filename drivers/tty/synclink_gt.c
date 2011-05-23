@@ -3491,7 +3491,7 @@ static int claim_resources(struct slgt_info *info)
 
 	info->reg_addr = ioremap_nocache(info->phys_reg_addr, SLGT_REG_SIZE);
 	if (!info->reg_addr) {
-		DBGERR(("%s cant map device registers, addr=%08X\n",
+		DBGERR(("%s can't map device registers, addr=%08X\n",
 			info->device_name, info->phys_reg_addr));
 		info->init_error = DiagStatus_CantAssignPciResources;
 		goto errout;

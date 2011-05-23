@@ -472,7 +472,7 @@ void ath5k_hw_set_rx_filter(struct ath5k_hw *ah, u32 filter)
 	}
 
 	/*
-	 * The AR5210 uses promiscous mode to detect radar activity
+	 * The AR5210 uses promiscuous mode to detect radar activity
 	 */
 	if (ah->ah_version == AR5K_AR5210 &&
 			(filter & AR5K_RX_FILTER_RADARERR)) {
@@ -706,8 +706,8 @@ ath5k_check_timer_win(int a, int b, int window, int intval)
  * The need for this function arises from the fact that we have 4 separate
  * HW timer registers (TIMER0 - TIMER3), which are closely related to the
  * next beacon target time (NBTT), and that the HW updates these timers
- * seperately based on the current TSF value. The hardware increments each
- * timer by the beacon interval, when the local TSF coverted to TU is equal
+ * separately based on the current TSF value. The hardware increments each
+ * timer by the beacon interval, when the local TSF converted to TU is equal
  * to the value stored in the timer.
  *
  * The reception of a beacon with the same BSSID can update the local HW TSF

@@ -137,8 +137,6 @@ enum {
 	ATA_DFLAG_ACPI_PENDING	= (1 << 5), /* ACPI resume action pending */
 	ATA_DFLAG_ACPI_FAILED	= (1 << 6), /* ACPI on devcfg has failed */
 	ATA_DFLAG_AN		= (1 << 7), /* AN configured */
-	ATA_DFLAG_HIPM		= (1 << 8), /* device supports HIPM */
-	ATA_DFLAG_DIPM		= (1 << 9), /* device supports DIPM */
 	ATA_DFLAG_DMADIR	= (1 << 10), /* device requires DMADIR */
 	ATA_DFLAG_CFG_MASK	= (1 << 12) - 1,
 
@@ -198,6 +196,7 @@ enum {
 					      * management */
 	ATA_FLAG_SW_ACTIVITY	= (1 << 22), /* driver supports sw activity
 					      * led */
+	ATA_FLAG_NO_DIPM	= (1 << 23), /* host not happy with DIPM */
 
 	/* bits 24:31 of ap->flags are reserved for LLD specific flags */
 
@@ -364,7 +363,7 @@ enum {
 	ATA_EH_CMD_TIMEOUT_TABLE_SIZE = 6,
 
 	/* Horkage types. May be set by libata or controller on drives
-	   (some horkage may be drive/controller pair dependant */
+	   (some horkage may be drive/controller pair dependent */
 
 	ATA_HORKAGE_DIAGNOSTIC	= (1 << 0),	/* Failed boot diag */
 	ATA_HORKAGE_NODMA	= (1 << 1),	/* DMA problems */

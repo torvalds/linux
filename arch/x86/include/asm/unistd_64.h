@@ -675,6 +675,8 @@ __SYSCALL(__NR_name_to_handle_at, sys_name_to_handle_at)
 __SYSCALL(__NR_open_by_handle_at, sys_open_by_handle_at)
 #define __NR_clock_adjtime			305
 __SYSCALL(__NR_clock_adjtime, sys_clock_adjtime)
+#define __NR_syncfs                             306
+__SYSCALL(__NR_syncfs, sys_syncfs)
 
 #ifndef __NO_STUBS
 #define __ARCH_WANT_OLD_READDIR

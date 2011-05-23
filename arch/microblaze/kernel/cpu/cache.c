@@ -129,7 +129,7 @@ do {									\
  * to use for simple wdc or wic.
  *
  * start address is cache aligned
- * end address is not aligned, if end is aligned then I have to substract
+ * end address is not aligned, if end is aligned then I have to subtract
  * cacheline length because I can't flush/invalidate the next cacheline.
  * If is not, I align it because I will flush/invalidate whole line.
  */

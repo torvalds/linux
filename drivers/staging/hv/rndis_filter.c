@@ -585,7 +585,7 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 		ret = -1;
 		DPRINT_ERR(NETVSC, "timeout before we got a set response...");
 		/*
-		 * We cant deallocate the request since we may still receive a
+		 * We can't deallocate the request since we may still receive a
 		 * send completion for it.
 		 */
 		goto Exit;

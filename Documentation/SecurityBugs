@@ -28,7 +28,7 @@ expect these delays to be short, measurable in days, not weeks or months.
 A disclosure date is negotiated by the security team working with the
 bug submitter as well as vendors.  However, the kernel security team
 holds the final say when setting a disclosure date.  The timeframe for
-disclosure is from immediate (esp. if it's already publically known)
+disclosure is from immediate (esp. if it's already publicly known)
 to a few weeks.  As a basic default policy, we expect report date to
 disclosure date to be on the order of 7 days.
 

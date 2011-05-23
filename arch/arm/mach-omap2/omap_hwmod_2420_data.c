@@ -1168,11 +1168,6 @@ static struct omap_hwmod_class omap2420_dss_hwmod_class = {
 	.sysc = &omap2420_dss_sysc,
 };
 
-/* dss */
-static struct omap_hwmod_irq_info omap2420_dss_irqs[] = {
-	{ .irq = 25 },
-};
-
 static struct omap_hwmod_dma_info omap2420_dss_sdma_chs[] = {
 	{ .name = "dispc", .dma_req = 5 },
 };
@@ -1221,8 +1216,6 @@ static struct omap_hwmod omap2420_dss_core_hwmod = {
 	.name		= "dss_core",
 	.class		= &omap2420_dss_hwmod_class,
 	.main_clk	= "dss1_fck", /* instead of dss_fck */
-	.mpu_irqs	= omap2420_dss_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap2420_dss_irqs),
 	.sdma_reqs	= omap2420_dss_sdma_chs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap2420_dss_sdma_chs),
 	.prcm		= {
@@ -1265,6 +1258,10 @@ static struct omap_hwmod_class omap2420_dispc_hwmod_class = {
 	.sysc = &omap2420_dispc_sysc,
 };
 
+static struct omap_hwmod_irq_info omap2420_dispc_irqs[] = {
+	{ .irq = 25 },
+};
+
 static struct omap_hwmod_addr_space omap2420_dss_dispc_addrs[] = {
 	{
 		.pa_start	= 0x48050400,
@@ -1297,6 +1294,8 @@ static struct omap_hwmod_ocp_if *omap2420_dss_dispc_slaves[] = {
 static struct omap_hwmod omap2420_dss_dispc_hwmod = {
 	.name		= "dss_dispc",
 	.class		= &omap2420_dispc_hwmod_class,
+	.mpu_irqs	= omap2420_dispc_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(omap2420_dispc_irqs),
 	.main_clk	= "dss1_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1640,6 +1639,7 @@ static struct omap_hwmod_ocp_if *omap2420_gpio1_slaves[] = {
 
 static struct omap_hwmod omap2420_gpio1_hwmod = {
 	.name		= "gpio1",
+	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap242x_gpio1_irqs,
 	.mpu_irqs_cnt	= ARRAY_SIZE(omap242x_gpio1_irqs),
 	.main_clk	= "gpios_fck",
@@ -1670,6 +1670,7 @@ static struct omap_hwmod_ocp_if *omap2420_gpio2_slaves[] = {
 
 static struct omap_hwmod omap2420_gpio2_hwmod = {
 	.name		= "gpio2",
+	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap242x_gpio2_irqs,
 	.mpu_irqs_cnt	= ARRAY_SIZE(omap242x_gpio2_irqs),
 	.main_clk	= "gpios_fck",
@@ -1700,6 +1701,7 @@ static struct omap_hwmod_ocp_if *omap2420_gpio3_slaves[] = {
 
 static struct omap_hwmod omap2420_gpio3_hwmod = {
 	.name		= "gpio3",
+	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap242x_gpio3_irqs,
 	.mpu_irqs_cnt	= ARRAY_SIZE(omap242x_gpio3_irqs),
 	.main_clk	= "gpios_fck",
@@ -1730,6 +1732,7 @@ static struct omap_hwmod_ocp_if *omap2420_gpio4_slaves[] = {
 
 static struct omap_hwmod omap2420_gpio4_hwmod = {
 	.name		= "gpio4",
+	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap242x_gpio4_irqs,
 	.mpu_irqs_cnt	= ARRAY_SIZE(omap242x_gpio4_irqs),
 	.main_clk	= "gpios_fck",
@@ -1783,7 +1786,7 @@ static struct omap_hwmod_irq_info omap2420_dma_system_irqs[] = {
 static struct omap_hwmod_addr_space omap2420_dma_system_addrs[] = {
 	{
 		.pa_start	= 0x48056000,
-		.pa_end		= 0x4a0560ff,
+		.pa_end		= 0x48056fff,
 		.flags		= ADDR_TYPE_RT
 	},
 };

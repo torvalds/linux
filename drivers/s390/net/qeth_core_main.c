@@ -1107,7 +1107,7 @@ static int qeth_setup_card(struct qeth_card *card)
 	INIT_LIST_HEAD(card->ip_tbd_list);
 	INIT_LIST_HEAD(&card->cmd_waiter_list);
 	init_waitqueue_head(&card->wait_q);
-	/* intial options */
+	/* initial options */
 	qeth_set_intial_options(card);
 	/* IP address takeover */
 	INIT_LIST_HEAD(&card->ipato.entries);
@@ -3902,7 +3902,9 @@ static struct ccw_device_id qeth_ids[] = {
 MODULE_DEVICE_TABLE(ccw, qeth_ids);
 
 static struct ccw_driver qeth_ccw_driver = {
-	.name = "qeth",
+	.driver = {
+		.name = "qeth",
+	},
 	.ids = qeth_ids,
 	.probe = ccwgroup_probe_ccwdev,
 	.remove = ccwgroup_remove_ccwdev,
@@ -4428,8 +4430,10 @@ static int qeth_core_restore(struct ccwgroup_device *gdev)
 }
 
 static struct ccwgroup_driver qeth_core_ccwgroup_driver = {
-	.owner = THIS_MODULE,
-	.name = "qeth",
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "qeth",
+	},
 	.driver_id = 0xD8C5E3C8,
 	.probe = qeth_core_probe_device,
 	.remove = qeth_core_remove_device,

@@ -13,6 +13,9 @@
 #ifndef _LINUX_ETHTOOL_H
 #define _LINUX_ETHTOOL_H
 
+#ifdef __KERNEL__
+#include <linux/compat.h>
+#endif
 #include <linux/types.h>
 #include <linux/if_ether.h>
 
@@ -450,6 +453,37 @@ struct ethtool_rxnfc {
 	__u32				rule_locs[0];
 };
 
+#ifdef __KERNEL__
+#ifdef CONFIG_COMPAT
+
+struct compat_ethtool_rx_flow_spec {
+	u32		flow_type;
+	union {
+		struct ethtool_tcpip4_spec		tcp_ip4_spec;
+		struct ethtool_tcpip4_spec		udp_ip4_spec;
+		struct ethtool_tcpip4_spec		sctp_ip4_spec;
+		struct ethtool_ah_espip4_spec		ah_ip4_spec;
+		struct ethtool_ah_espip4_spec		esp_ip4_spec;
+		struct ethtool_usrip4_spec		usr_ip4_spec;
+		struct ethhdr				ether_spec;
+		u8					hdata[72];
+	} h_u, m_u;
+	compat_u64	ring_cookie;
+	u32		location;
+};
+
+struct compat_ethtool_rxnfc {
+	u32				cmd;
+	u32				flow_type;
+	compat_u64			data;
+	struct compat_ethtool_rx_flow_spec fs;
+	u32				rule_cnt;
+	u32				rule_locs[0];
+};
+
+#endif /* CONFIG_COMPAT */
+#endif /* __KERNEL__ */
+
 /**
  * struct ethtool_rxfh_indir - command to get or set RX flow hash indirection
  * @cmd: Specific command number - %ETHTOOL_GRXFHINDIR or %ETHTOOL_SRXFHINDIR
@@ -580,7 +614,7 @@ struct ethtool_sfeatures {
  * values of corresponding bits in features[].requested. Bits in .requested
  * not set in .valid or not changeable are ignored.
  *
- * Returns %EINVAL when .valid contains undefined or never-changable bits
+ * Returns %EINVAL when .valid contains undefined or never-changeable bits
  * or size is not equal to required number of features words (32-bit blocks).
  * Returns >= 0 if request was completed; bits set in the value mean:
  *   %ETHTOOL_F_UNSUPPORTED - there were bits set in .valid that are not
@@ -614,6 +648,9 @@ enum ethtool_sfeatures_retval_bits {
 
 #include <linux/rculist.h>
 
+/* needed by dev_disable_lro() */
+extern int __ethtool_set_flags(struct net_device *dev, u32 flags);
+
 struct ethtool_rx_ntuple_flow_spec_container {
 	struct ethtool_rx_ntuple_flow_spec fs;
 	struct list_head list;
@@ -643,6 +680,7 @@ int ethtool_op_set_ufo(struct net_device *dev, u32 data);
 u32 ethtool_op_get_flags(struct net_device *dev);
 int ethtool_op_set_flags(struct net_device *dev, u32 data, u32 supported);
 void ethtool_ntuple_flush(struct net_device *dev);
+bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported);
 
 /**
  * &ethtool_ops - Alter and report network device settings

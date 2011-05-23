@@ -144,7 +144,7 @@ struct chnl_object {
 	s8 chnl_mode;		/* Chnl mode and attributes */
 	/* Chnl I/O completion event (user mode) */
 	void *user_event;
-	/* Abstract syncronization object */
+	/* Abstract synchronization object */
 	struct sync_object *sync_event;
 	u32 process;		/* Process which created this channel */
 	u32 cb_arg;		/* Argument to use with callback */
@@ -156,7 +156,7 @@ struct chnl_object {
 	struct list_head io_completions;
 	struct list_head free_packets_list;	/* List of free Irps */
 	struct ntfy_object *ntfy_obj;
-	u32 bytes_moved;	/* Total number of bytes transfered */
+	u32 bytes_moved;	/* Total number of bytes transferred */
 
 	/* For DSP-DMA */
 

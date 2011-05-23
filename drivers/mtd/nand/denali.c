@@ -724,7 +724,7 @@ static uint32_t wait_for_irq(struct denali_nand_info *denali, uint32_t irq_mask)
 }
 
 /* This helper function setups the registers for ECC and whether or not
- * the spare area will be transfered. */
+ * the spare area will be transferred. */
 static void setup_ecc_for_xfer(struct denali_nand_info *denali, bool ecc_en,
 				bool transfer_spare)
 {
@@ -965,7 +965,7 @@ static bool handle_ecc(struct denali_nand_info *denali, uint8_t *buf,
 
 			if (ECC_ERROR_CORRECTABLE(err_correction_info)) {
 				/* If err_byte is larger than ECC_SECTOR_SIZE,
-				 * means error happend in OOB, so we ignore
+				 * means error happened in OOB, so we ignore
 				 * it. It's no need for us to correct it
 				 * err_device is represented the NAND error
 				 * bits are happened in if there are more
@@ -1109,7 +1109,7 @@ static void denali_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 /* This is the callback that the NAND core calls to write a page without ECC.
- * raw access is similiar to ECC page writes, so all the work is done in the
+ * raw access is similar to ECC page writes, so all the work is done in the
  * write_page() function above.
  */
 static void denali_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,

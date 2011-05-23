@@ -38,7 +38,7 @@
 * Outputs:      Number of Used Bits
 *               0, if the argument is 0
 * Description:  Calculate the number of bits used by a given power of 2 number
-*               Number can be upto 32 bit
+*               Number can be up to 32 bit
 *&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&*/
 int GLOB_Calc_Used_Bits(u32 n)
 {
@@ -653,7 +653,7 @@ static int SBD_setup_device(struct spectra_nand_dev *dev, int which)
 	}
 	dev->queue->queuedata = dev;
 
-	/* As Linux block layer doens't support >4KB hardware sector,  */
+	/* As Linux block layer doesn't support >4KB hardware sector,  */
 	/* Here we force report 512 byte hardware sector size to Kernel */
 	blk_queue_logical_block_size(dev->queue, 512);
 

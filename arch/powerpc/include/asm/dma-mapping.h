@@ -42,6 +42,7 @@ extern void __dma_free_coherent(size_t size, void *vaddr);
 extern void __dma_sync(void *vaddr, size_t size, int direction);
 extern void __dma_sync_page(struct page *page, unsigned long offset,
 				 size_t size, int direction);
+extern unsigned long __dma_get_coherent_pfn(unsigned long cpu_addr);
 
 #else /* ! CONFIG_NOT_COHERENT_CACHE */
 /*
@@ -197,6 +198,11 @@ static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
+
+extern int dma_mmap_coherent(struct device *, struct vm_area_struct *,
+			     void *, dma_addr_t, size_t);
+#define ARCH_HAS_DMA_MMAP_COHERENT
+
 
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		enum dma_data_direction direction)

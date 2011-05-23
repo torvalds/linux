@@ -169,7 +169,7 @@ struct sh_mmcif_host {
 	struct dma_chan		*chan_rx;
 	struct dma_chan		*chan_tx;
 	struct completion	dma_complete;
-	unsigned int            dma_sglen;
+	bool			dma_active;
 };
 
 static inline void sh_mmcif_bitset(struct sh_mmcif_host *host,
@@ -194,10 +194,12 @@ static void mmcif_dma_complete(void *arg)
 		return;
 
 	if (host->data->flags & MMC_DATA_READ)
-		dma_unmap_sg(&host->pd->dev, host->data->sg, host->dma_sglen,
+		dma_unmap_sg(host->chan_rx->device->dev,
+			     host->data->sg, host->data->sg_len,
 			     DMA_FROM_DEVICE);
 	else
-		dma_unmap_sg(&host->pd->dev, host->data->sg, host->dma_sglen,
+		dma_unmap_sg(host->chan_tx->device->dev,
+			     host->data->sg, host->data->sg_len,
 			     DMA_TO_DEVICE);
 
 	complete(&host->dma_complete);
@@ -211,9 +213,10 @@ static void sh_mmcif_start_dma_rx(struct sh_mmcif_host *host)
 	dma_cookie_t cookie = -EINVAL;
 	int ret;
 
-	ret = dma_map_sg(&host->pd->dev, sg, host->data->sg_len, DMA_FROM_DEVICE);
+	ret = dma_map_sg(chan->device->dev, sg, host->data->sg_len,
+			 DMA_FROM_DEVICE);
 	if (ret > 0) {
-		host->dma_sglen = ret;
+		host->dma_active = true;
 		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
 			DMA_FROM_DEVICE, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	}
@@ -221,14 +224,9 @@ static void sh_mmcif_start_dma_rx(struct sh_mmcif_host *host)
 	if (desc) {
 		desc->callback = mmcif_dma_complete;
 		desc->callback_param = host;
-		cookie = desc->tx_submit(desc);
-		if (cookie < 0) {
-			desc = NULL;
-			ret = cookie;
-		} else {
-			sh_mmcif_bitset(host, MMCIF_CE_BUF_ACC, BUF_ACC_DMAREN);
-			chan->device->device_issue_pending(chan);
-		}
+		cookie = dmaengine_submit(desc);
+		sh_mmcif_bitset(host, MMCIF_CE_BUF_ACC, BUF_ACC_DMAREN);
+		dma_async_issue_pending(chan);
 	}
 	dev_dbg(&host->pd->dev, "%s(): mapped %d -> %d, cookie %d\n",
 		__func__, host->data->sg_len, ret, cookie);
@@ -238,7 +236,7 @@ static void sh_mmcif_start_dma_rx(struct sh_mmcif_host *host)
 		if (ret >= 0)
 			ret = -EIO;
 		host->chan_rx = NULL;
-		host->dma_sglen = 0;
+		host->dma_active = false;
 		dma_release_channel(chan);
 		/* Free the Tx channel too */
 		chan = host->chan_tx;
@@ -263,9 +261,10 @@ static void sh_mmcif_start_dma_tx(struct sh_mmcif_host *host)
 	dma_cookie_t cookie = -EINVAL;
 	int ret;
 
-	ret = dma_map_sg(&host->pd->dev, sg, host->data->sg_len, DMA_TO_DEVICE);
+	ret = dma_map_sg(chan->device->dev, sg, host->data->sg_len,
+			 DMA_TO_DEVICE);
 	if (ret > 0) {
-		host->dma_sglen = ret;
+		host->dma_active = true;
 		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
 			DMA_TO_DEVICE, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	}
@@ -273,14 +272,9 @@ static void sh_mmcif_start_dma_tx(struct sh_mmcif_host *host)
 	if (desc) {
 		desc->callback = mmcif_dma_complete;
 		desc->callback_param = host;
-		cookie = desc->tx_submit(desc);
-		if (cookie < 0) {
-			desc = NULL;
-			ret = cookie;
-		} else {
-			sh_mmcif_bitset(host, MMCIF_CE_BUF_ACC, BUF_ACC_DMAWEN);
-			chan->device->device_issue_pending(chan);
-		}
+		cookie = dmaengine_submit(desc);
+		sh_mmcif_bitset(host, MMCIF_CE_BUF_ACC, BUF_ACC_DMAWEN);
+		dma_async_issue_pending(chan);
 	}
 	dev_dbg(&host->pd->dev, "%s(): mapped %d -> %d, cookie %d\n",
 		__func__, host->data->sg_len, ret, cookie);
@@ -290,7 +284,7 @@ static void sh_mmcif_start_dma_tx(struct sh_mmcif_host *host)
 		if (ret >= 0)
 			ret = -EIO;
 		host->chan_tx = NULL;
-		host->dma_sglen = 0;
+		host->dma_active = false;
 		dma_release_channel(chan);
 		/* Free the Rx channel too */
 		chan = host->chan_rx;
@@ -317,7 +311,7 @@ static bool sh_mmcif_filter(struct dma_chan *chan, void *arg)
 static void sh_mmcif_request_dma(struct sh_mmcif_host *host,
 				 struct sh_mmcif_plat_data *pdata)
 {
-	host->dma_sglen = 0;
+	host->dma_active = false;
 
 	/* We can only either use DMA for both Tx and Rx or not use it at all */
 	if (pdata->dma) {
@@ -364,7 +358,7 @@ static void sh_mmcif_release_dma(struct sh_mmcif_host *host)
 		dma_release_channel(chan);
 	}
 
-	host->dma_sglen = 0;
+	host->dma_active = false;
 }
 
 static void sh_mmcif_clock_control(struct sh_mmcif_host *host, unsigned int clk)
@@ -753,7 +747,7 @@ static void sh_mmcif_start_cmd(struct sh_mmcif_host *host,
 	}
 	sh_mmcif_get_response(host, cmd);
 	if (host->data) {
-		if (!host->dma_sglen) {
+		if (!host->dma_active) {
 			ret = sh_mmcif_data_trans(host, mrq, cmd->opcode);
 		} else {
 			long time =
@@ -765,7 +759,7 @@ static void sh_mmcif_start_cmd(struct sh_mmcif_host *host,
 				ret = time;
 			sh_mmcif_bitclr(host, MMCIF_CE_BUF_ACC,
 					BUF_ACC_DMAREN | BUF_ACC_DMAWEN);
-			host->dma_sglen = 0;
+			host->dma_active = false;
 		}
 		if (ret < 0)
 			mrq->data->bytes_xfered = 0;
@@ -850,15 +844,15 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct sh_mmcif_host *host = mmc_priv(mmc);
 	struct sh_mmcif_plat_data *p = host->pd->dev.platform_data;
 
-	if (ios->power_mode == MMC_POWER_OFF) {
-		/* clock stop */
-		sh_mmcif_clock_control(host, 0);
-		if (p->down_pwr)
-			p->down_pwr(host->pd);
-		return;
-	} else if (ios->power_mode == MMC_POWER_UP) {
+	if (ios->power_mode == MMC_POWER_UP) {
 		if (p->set_pwr)
 			p->set_pwr(host->pd, ios->power_mode);
+	} else if (ios->power_mode == MMC_POWER_OFF || !ios->clock) {
+		/* clock stop */
+		sh_mmcif_clock_control(host, 0);
+		if (ios->power_mode == MMC_POWER_OFF && p->down_pwr)
+			p->down_pwr(host->pd);
+		return;
 	}
 
 	if (ios->clock)

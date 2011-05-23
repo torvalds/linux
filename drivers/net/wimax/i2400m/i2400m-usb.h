@@ -105,14 +105,14 @@ static inline void edc_init(struct edc *edc)
  *
  * @edc: pointer to error density counter.
  * @max_err: maximum number of errors we can accept over the timeframe
- * @timeframe: lenght of the timeframe (in jiffies).
+ * @timeframe: length of the timeframe (in jiffies).
  *
  * Returns: !0 1 if maximum acceptable errors per timeframe has been
  *     exceeded. 0 otherwise.
  *
  * This is way to determine if the number of acceptable errors per time
  * period has been exceeded. It is not accurate as there are cases in which
- * this scheme will not work, for example if there are periodic occurences
+ * this scheme will not work, for example if there are periodic occurrences
  * of errors that straddle updates to the start time. This scheme is
  * sufficient for our usage.
  *
@@ -204,7 +204,7 @@ enum {
  *     usb_autopm_get/put_interface() barriers when executing
  *     commands. See doc in i2400mu_suspend() for more information.
  *
- * @rx_size_auto_shrink: if true, the rx_size is shrinked
+ * @rx_size_auto_shrink: if true, the rx_size is shrunk
  *     automatically based on the average size of the received
  *     transactions. This allows the receive code to allocate smaller
  *     chunks of memory and thus reduce pressure on the memory

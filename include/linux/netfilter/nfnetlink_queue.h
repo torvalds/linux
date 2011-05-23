@@ -25,8 +25,8 @@ struct nfqnl_msg_packet_hw {
 };
 
 struct nfqnl_msg_packet_timestamp {
-	aligned_be64	sec;
-	aligned_be64	usec;
+	__aligned_be64	sec;
+	__aligned_be64	usec;
 };
 
 enum nfqnl_attr_type {

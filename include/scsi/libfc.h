@@ -260,7 +260,7 @@ struct fcoe_dev_stats {
 /**
  * struct fc_seq_els_data - ELS data used for passing ELS specific responses
  * @reason: The reason for rejection
- * @explan: The explaination of the rejection
+ * @explan: The explanation of the rejection
  *
  * Mainly used by the exchange manager layer.
  */
@@ -525,7 +525,7 @@ struct libfc_function_template {
 			struct fc_frame *);
 
 	/*
-	 * Send an ELS response using infomation from the received frame.
+	 * Send an ELS response using information from the received frame.
 	 *
 	 * STATUS: OPTIONAL
 	 */
@@ -663,7 +663,7 @@ struct libfc_function_template {
 	int (*rport_logoff)(struct fc_rport_priv *);
 
 	/*
-	 * Recieve a request from a remote port.
+	 * Receive a request from a remote port.
 	 *
 	 * STATUS: OPTIONAL
 	 */
@@ -704,7 +704,7 @@ struct libfc_function_template {
 					 void *));
 
 	/*
-	 * Cleanup the FCP layer, used durring link down and reset
+	 * Cleanup the FCP layer, used during link down and reset
 	 *
 	 * STATUS: OPTIONAL
 	 */

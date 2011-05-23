@@ -84,6 +84,8 @@ enum {
 	HCI_SERVICE_CACHE,
 	HCI_LINK_KEYS,
 	HCI_DEBUG_KEYS,
+
+	HCI_RESET,
 };
 
 /* HCI ioctl defines */

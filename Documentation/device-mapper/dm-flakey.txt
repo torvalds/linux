@@ -1,0 +1,17 @@
+dm-flakey
+=========
+
+This target is the same as the linear target except that it returns I/O
+errors periodically.  It's been found useful in simulating failing
+devices for testing purposes.
+
+Starting from the time the table is loaded, the device is available for
+<up interval> seconds, then returns errors for <down interval> seconds,
+and then this cycle repeats.
+
+Parameters: <dev path> <offset> <up interval> <down interval>
+    <dev path>: Full pathname to the underlying block-device, or a
+                "major:minor" device-number.
+    <offset>: Starting sector within the device.
+    <up interval>: Number of seconds device is available.
+    <down interval>: Number of seconds device returns errors.

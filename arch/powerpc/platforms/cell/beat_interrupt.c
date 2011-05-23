@@ -136,15 +136,14 @@ static void beatic_pic_host_unmap(struct irq_host *h, unsigned int virq)
 static int beatic_pic_host_map(struct irq_host *h, unsigned int virq,
 			       irq_hw_number_t hw)
 {
-	struct irq_desc *desc = irq_to_desc(virq);
 	int64_t	err;
 
 	err = beat_construct_and_connect_irq_plug(virq, hw);
 	if (err < 0)
 		return -EIO;
 
-	desc->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &beatic_pic, handle_fasteoi_irq);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &beatic_pic, handle_fasteoi_irq);
 	return 0;
 }
 

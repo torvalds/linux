@@ -324,9 +324,8 @@ EXPORT_SYMBOL(orion_gpio_set_blink);
 static void gpio_irq_ack(struct irq_data *d)
 {
 	struct orion_gpio_chip *ochip = irq_data_get_irq_chip_data(d);
-	int type;
+	int type = irqd_get_trigger_type(d);
 
-	type = irq_desc[d->irq].status & IRQ_TYPE_SENSE_MASK;
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
 		int pin = d->irq - ochip->secondary_irq_base;
 
@@ -337,11 +336,10 @@ static void gpio_irq_ack(struct irq_data *d)
 static void gpio_irq_mask(struct irq_data *d)
 {
 	struct orion_gpio_chip *ochip = irq_data_get_irq_chip_data(d);
-	int type;
+	int type = irqd_get_trigger_type(d);
 	void __iomem *reg;
 	int pin;
 
-	type = irq_desc[d->irq].status & IRQ_TYPE_SENSE_MASK;
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
 		reg = GPIO_EDGE_MASK(ochip);
 	else
@@ -355,11 +353,10 @@ static void gpio_irq_mask(struct irq_data *d)
 static void gpio_irq_unmask(struct irq_data *d)
 {
 	struct orion_gpio_chip *ochip = irq_data_get_irq_chip_data(d);
-	int type;
+	int type = irqd_get_trigger_type(d);
 	void __iomem *reg;
 	int pin;
 
-	type = irq_desc[d->irq].status & IRQ_TYPE_SENSE_MASK;
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
 		reg = GPIO_EDGE_MASK(ochip);
 	else
@@ -389,9 +386,9 @@ static int gpio_irq_set_type(struct irq_data *d, u32 type)
 	 * Set edge/level type.
 	 */
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
-		set_irq_handler(d->irq, handle_edge_irq);
+		__irq_set_handler_locked(d->irq, handle_edge_irq);
 	} else if (type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
-		set_irq_handler(d->irq, handle_level_irq);
+		__irq_set_handler_locked(d->irq, handle_level_irq);
 	} else {
 		printk(KERN_ERR "failed to set irq=%d (type=%d)\n",
 		       d->irq, type);
@@ -477,10 +474,10 @@ void __init orion_gpio_init(int gpio_base, int ngpio,
 	for (i = 0; i < ngpio; i++) {
 		unsigned int irq = secondary_irq_base + i;
 
-		set_irq_chip(irq, &orion_gpio_irq_chip);
-		set_irq_handler(irq, handle_level_irq);
-		set_irq_chip_data(irq, ochip);
-		irq_desc[irq].status |= IRQ_LEVEL;
+		irq_set_chip_and_handler(irq, &orion_gpio_irq_chip,
+					 handle_level_irq);
+		irq_set_chip_data(irq, ochip);
+		irq_set_status_flags(irq, IRQ_LEVEL);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 }
@@ -488,7 +485,7 @@ void __init orion_gpio_init(int gpio_base, int ngpio,
 void orion_gpio_irq_handler(int pinoff)
 {
 	struct orion_gpio_chip *ochip;
-	u32 cause;
+	u32 cause, type;
 	int i;
 
 	ochip = orion_gpio_chip_find(pinoff);
@@ -500,15 +497,14 @@ void orion_gpio_irq_handler(int pinoff)
 
 	for (i = 0; i < ochip->chip.ngpio; i++) {
 		int irq;
-		struct irq_desc *desc;
 
 		irq = ochip->secondary_irq_base + i;
 
 		if (!(cause & (1 << i)))
 			continue;
 
-		desc = irq_desc + irq;
-		if ((desc->status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
+		type = irqd_get_trigger_type(irq_get_irq_data(irq));
+		if ((type & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
 			/* Swap polarity (race with GPIO line) */
 			u32 polarity;
 
@@ -516,7 +512,6 @@ void orion_gpio_irq_handler(int pinoff)
 			polarity ^= 1 << i;
 			writel(polarity, GPIO_IN_POL(ochip));
 		}
-
-		desc_handle_irq(irq, desc);
+		generic_handle_irq(irq);
 	}
 }

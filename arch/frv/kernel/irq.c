@@ -47,89 +47,45 @@ extern void __init mb93493_init(void);
 
 atomic_t irq_err_count;
 
-/*
- * Generic, controller-independent functions:
- */
-int show_interrupts(struct seq_file *p, void *v)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
-	int i = *(loff_t *) v, cpu;
-	struct irqaction * action;
-	unsigned long flags;
-
-	if (i == 0) {
-		char cpuname[12];
-
-		seq_printf(p, "    ");
-		for_each_present_cpu(cpu) {
-			sprintf(cpuname, "CPU%d", cpu);
-			seq_printf(p, " %10s", cpuname);
-		}
-		seq_putc(p, '\n');
-	}
-
-	if (i < NR_IRQS) {
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
-		if (action) {
-			seq_printf(p, "%3d: ", i);
-			for_each_present_cpu(cpu)
-				seq_printf(p, "%10u ", kstat_irqs_cpu(i, cpu));
-			seq_printf(p, " %10s", irq_desc[i].chip->name ? : "-");
-			seq_printf(p, "  %s", action->name);
-			for (action = action->next;
-			     action;
-			     action = action->next)
-				seq_printf(p, ", %s", action->name);
-
-			seq_putc(p, '\n');
-		}
-
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == NR_IRQS) {
-		seq_printf(p, "Err: %10u\n", atomic_read(&irq_err_count));
-	}
-
+	seq_printf(p, "%*s: ", prec, "ERR");
+	seq_printf(p, "%10u\n", atomic_read(&irq_err_count));
 	return 0;
 }
 
 /*
  * on-CPU PIC operations
  */
-static void frv_cpupic_ack(unsigned int irqlevel)
+static void frv_cpupic_ack(struct irq_data *d)
 {
-	__clr_RC(irqlevel);
+	__clr_RC(d->irq);
 	__clr_IRL();
 }
 
-static void frv_cpupic_mask(unsigned int irqlevel)
+static void frv_cpupic_mask(struct irq_data *d)
 {
-	__set_MASK(irqlevel);
+	__set_MASK(d->irq);
 }
 
-static void frv_cpupic_mask_ack(unsigned int irqlevel)
+static void frv_cpupic_mask_ack(struct irq_data *d)
 {
-	__set_MASK(irqlevel);
-	__clr_RC(irqlevel);
+	__set_MASK(d->irq);
+	__clr_RC(d->irq);
 	__clr_IRL();
 }
 
-static void frv_cpupic_unmask(unsigned int irqlevel)
+static void frv_cpupic_unmask(struct irq_data *d)
 {
-	__clr_MASK(irqlevel);
-}
-
-static void frv_cpupic_end(unsigned int irqlevel)
-{
-	__clr_MASK(irqlevel);
+	__clr_MASK(d->irq);
 }
 
 static struct irq_chip frv_cpu_pic = {
 	.name		= "cpu",
-	.ack		= frv_cpupic_ack,
-	.mask		= frv_cpupic_mask,
-	.mask_ack	= frv_cpupic_mask_ack,
-	.unmask		= frv_cpupic_unmask,
-	.end		= frv_cpupic_end,
+	.irq_ack	= frv_cpupic_ack,
+	.irq_mask	= frv_cpupic_mask,
+	.irq_mask_ack	= frv_cpupic_mask_ack,
+	.irq_unmask	= frv_cpupic_unmask,
 };
 
 /*
@@ -161,10 +117,10 @@ void __init init_IRQ(void)
 	int level;
 
 	for (level = 1; level <= 14; level++)
-		set_irq_chip_and_handler(level, &frv_cpu_pic,
+		irq_set_chip_and_handler(level, &frv_cpu_pic,
 					 handle_level_irq);
 
-	set_irq_handler(IRQ_CPU_TIMER0, handle_edge_irq);
+	irq_set_handler(IRQ_CPU_TIMER0, handle_edge_irq);
 
 	/* set the trigger levels for internal interrupt sources
 	 * - timers all falling-edge

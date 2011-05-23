@@ -502,7 +502,7 @@ static inline void vbi_get_next_buf(struct au0828_dmaqueue *dma_q,
 
 	/* Get the next buffer */
 	*buf = list_entry(dma_q->active.next, struct au0828_buffer, vb.queue);
-	/* Cleans up buffer - Usefull for testing for frame/URB loss */
+	/* Cleans up buffer - Useful for testing for frame/URB loss */
 	outp = videobuf_to_vmalloc(&(*buf)->vb);
 	memset(outp, 0x00, (*buf)->vb.size);
 
@@ -1177,10 +1177,6 @@ static int au0828_set_format(struct au0828_dev *dev, unsigned int cmd,
 	int ret;
 	int width = format->fmt.pix.width;
 	int height = format->fmt.pix.height;
-	unsigned int maxwidth, maxheight;
-
-	maxwidth = 720;
-	maxheight = 480;
 
 	if (format->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;

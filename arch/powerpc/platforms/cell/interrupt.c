@@ -101,9 +101,9 @@ static void iic_ioexc_eoi(struct irq_data *d)
 
 static void iic_ioexc_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct cbe_iic_regs __iomem *node_iic =
-		(void __iomem *)get_irq_desc_data(desc);
+		(void __iomem *)irq_desc_get_handler_data(desc);
 	unsigned int base = (irq & 0xffffff00) | IIC_IRQ_TYPE_IOEXC;
 	unsigned long bits, ack;
 	int cascade;
@@ -235,67 +235,19 @@ static int iic_host_match(struct irq_host *h, struct device_node *node)
 				    "IBM,CBEA-Internal-Interrupt-Controller");
 }
 
-extern int noirqdebug;
-
-static void handle_iic_irq(unsigned int irq, struct irq_desc *desc)
-{
-	struct irq_chip *chip = get_irq_desc_chip(desc);
-
-	raw_spin_lock(&desc->lock);
-
-	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
-
-	/*
-	 * If we're currently running this IRQ, or its disabled,
-	 * we shouldn't process the IRQ. Mark it pending, handle
-	 * the necessary masking and go out
-	 */
-	if (unlikely((desc->status & (IRQ_INPROGRESS | IRQ_DISABLED)) ||
-		    !desc->action)) {
-		desc->status |= IRQ_PENDING;
-		goto out_eoi;
-	}
-
-	kstat_incr_irqs_this_cpu(irq, desc);
-
-	/* Mark the IRQ currently in progress.*/
-	desc->status |= IRQ_INPROGRESS;
-
-	do {
-		struct irqaction *action = desc->action;
-		irqreturn_t action_ret;
-
-		if (unlikely(!action))
-			goto out_eoi;
-
-		desc->status &= ~IRQ_PENDING;
-		raw_spin_unlock(&desc->lock);
-		action_ret = handle_IRQ_event(irq, action);
-		if (!noirqdebug)
-			note_interrupt(irq, desc, action_ret);
-		raw_spin_lock(&desc->lock);
-
-	} while ((desc->status & (IRQ_PENDING | IRQ_DISABLED)) == IRQ_PENDING);
-
-	desc->status &= ~IRQ_INPROGRESS;
-out_eoi:
-	chip->irq_eoi(&desc->irq_data);
-	raw_spin_unlock(&desc->lock);
-}
-
 static int iic_host_map(struct irq_host *h, unsigned int virq,
 			irq_hw_number_t hw)
 {
 	switch (hw & IIC_IRQ_TYPE_MASK) {
 	case IIC_IRQ_TYPE_IPI:
-		set_irq_chip_and_handler(virq, &iic_chip, handle_percpu_irq);
+		irq_set_chip_and_handler(virq, &iic_chip, handle_percpu_irq);
 		break;
 	case IIC_IRQ_TYPE_IOEXC:
-		set_irq_chip_and_handler(virq, &iic_ioexc_chip,
-					 handle_iic_irq);
+		irq_set_chip_and_handler(virq, &iic_ioexc_chip,
+					 handle_edge_eoi_irq);
 		break;
 	default:
-		set_irq_chip_and_handler(virq, &iic_chip, handle_iic_irq);
+		irq_set_chip_and_handler(virq, &iic_chip, handle_edge_eoi_irq);
 	}
 	return 0;
 }
@@ -412,8 +364,8 @@ static int __init setup_iic(void)
 		 * irq_data is a generic pointer that gets passed back
 		 * to us later, so the forced cast is fine.
 		 */
-		set_irq_data(cascade, (void __force *)node_iic);
-		set_irq_chained_handler(cascade , iic_ioexc_cascade);
+		irq_set_handler_data(cascade, (void __force *)node_iic);
+		irq_set_chained_handler(cascade, iic_ioexc_cascade);
 		out_be64(&node_iic->iic_ir,
 			 (1 << 12)		/* priority */ |
 			 (node << 4)		/* dest node */ |

@@ -67,7 +67,7 @@ static void cy82c693_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 	/*
 	 * note: below we set the value for Bus Master IDE TimeOut Register
-	 * I'm not absolutly sure what this does, but it solved my problem
+	 * I'm not absolutely sure what this does, but it solved my problem
 	 * with IDE DMA and sound, so I now can play sound and work with
 	 * my IDE driver at the same time :-)
 	 *

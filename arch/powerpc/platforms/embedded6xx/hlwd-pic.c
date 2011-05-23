@@ -94,16 +94,16 @@ static struct irq_host *hlwd_irq_host;
 static int hlwd_pic_map(struct irq_host *h, unsigned int virq,
 			   irq_hw_number_t hwirq)
 {
-	set_irq_chip_data(virq, h->host_data);
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &hlwd_pic, handle_level_irq);
+	irq_set_chip_data(virq, h->host_data);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &hlwd_pic, handle_level_irq);
 	return 0;
 }
 
 static void hlwd_pic_unmap(struct irq_host *h, unsigned int irq)
 {
-	set_irq_chip_data(irq, NULL);
-	set_irq_chip(irq, NULL);
+	irq_set_chip_data(irq, NULL);
+	irq_set_chip(irq, NULL);
 }
 
 static struct irq_host_ops hlwd_irq_host_ops = {
@@ -129,8 +129,8 @@ static unsigned int __hlwd_pic_get_irq(struct irq_host *h)
 static void hlwd_pic_irq_cascade(unsigned int cascade_virq,
 				      struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
-	struct irq_host *irq_host = get_irq_data(cascade_virq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct irq_host *irq_host = irq_get_handler_data(cascade_virq);
 	unsigned int virq;
 
 	raw_spin_lock(&desc->lock);
@@ -145,7 +145,7 @@ static void hlwd_pic_irq_cascade(unsigned int cascade_virq,
 
 	raw_spin_lock(&desc->lock);
 	chip->irq_ack(&desc->irq_data); /* IRQ_LEVEL */
-	if (!(desc->status & IRQ_DISABLED) && chip->irq_unmask)
+	if (!irqd_irq_disabled(&desc->irq_data) && chip->irq_unmask)
 		chip->irq_unmask(&desc->irq_data);
 	raw_spin_unlock(&desc->lock);
 }
@@ -218,8 +218,8 @@ void hlwd_pic_probe(void)
 			host = hlwd_pic_init(np);
 			BUG_ON(!host);
 			cascade_virq = irq_of_parse_and_map(np, 0);
-			set_irq_data(cascade_virq, host);
-			set_irq_chained_handler(cascade_virq,
+			irq_set_handler_data(cascade_virq, host);
+			irq_set_chained_handler(cascade_virq,
 						hlwd_pic_irq_cascade);
 			hlwd_irq_host = host;
 			break;

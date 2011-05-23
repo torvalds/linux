@@ -381,10 +381,10 @@ static int cyasblkdev_blk_ioctl(
 	return -ENOTTY;
 }
 
-/* Media_changed block_device opp
+/* check_events block_device opp
  * this one is called by kernel to confirm if the media really changed
  * as we indicated by issuing check_disk_change() call */
-int cyasblkdev_media_changed(struct gendisk *gd)
+unsigned int cyasblkdev_check_events(struct gendisk *gd, unsigned int clearing)
 {
 	struct cyasblkdev_blk_data *bd;
 
@@ -402,7 +402,7 @@ int cyasblkdev_media_changed(struct gendisk *gd)
 		#endif
 	}
 
-	/* return media change state "1" yes, 0 no */
+	/* return media change state - DISK_EVENT_MEDIA_CHANGE yes, 0 no */
 	return 0;
 }
 
@@ -432,7 +432,7 @@ static struct block_device_operations cyasblkdev_bdops = {
 	.ioctl			= cyasblkdev_blk_ioctl,
 	/* .getgeo		= cyasblkdev_blk_getgeo, */
 	/* added to support media removal( real and simulated) media */
-	.media_changed  = cyasblkdev_media_changed,
+	.check_events		= cyasblkdev_check_events,
 	/* added to support media removal( real and simulated) media */
 	.revalidate_disk = cyasblkdev_revalidate_disk,
 	.owner			= THIS_MODULE,
@@ -1090,6 +1090,7 @@ static int cyasblkdev_add_disks(int bus_num,
 		bd->user_disk_0->first_minor = devidx << CYASBLKDEV_SHIFT;
 		bd->user_disk_0->minors = 8;
 		bd->user_disk_0->fops = &cyasblkdev_bdops;
+		bd->user_disk_0->events = DISK_EVENT_MEDIA_CHANGE;
 		bd->user_disk_0->private_data = bd;
 		bd->user_disk_0->queue = bd->queue.queue;
 		bd->dbgprn_flags = DBGPRN_RD_RQ;
@@ -1190,6 +1191,7 @@ static int cyasblkdev_add_disks(int bus_num,
 		bd->user_disk_1->first_minor = (devidx + 1) << CYASBLKDEV_SHIFT;
 		bd->user_disk_1->minors = 8;
 		bd->user_disk_1->fops = &cyasblkdev_bdops;
+		bd->user_disk_1->events = DISK_EVENT_MEDIA_CHANGE;
 		bd->user_disk_1->private_data = bd;
 		bd->user_disk_1->queue = bd->queue.queue;
 		bd->dbgprn_flags = DBGPRN_RD_RQ;
@@ -1278,6 +1280,7 @@ static int cyasblkdev_add_disks(int bus_num,
 				(devidx + 2) << CYASBLKDEV_SHIFT;
 			bd->system_disk->minors = 8;
 			bd->system_disk->fops = &cyasblkdev_bdops;
+			bd->system_disk->events = DISK_EVENT_MEDIA_CHANGE;
 			bd->system_disk->private_data = bd;
 			bd->system_disk->queue = bd->queue.queue;
 			/* don't search for vfat

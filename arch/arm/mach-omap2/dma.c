@@ -262,7 +262,7 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 			omap2_dma_latency, ARRAY_SIZE(omap2_dma_latency), 0);
 	kfree(p);
 	if (IS_ERR(od)) {
-		pr_err("%s: Cant build omap_device for %s:%s.\n",
+		pr_err("%s: Can't build omap_device for %s:%s.\n",
 			__func__, name, oh->name);
 		return PTR_ERR(od);
 	}

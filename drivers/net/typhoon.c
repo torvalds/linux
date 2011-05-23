@@ -846,7 +846,7 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 	if(typhoon_num_free_tx(txRing) < (numDesc + 2)) {
 		netif_stop_queue(dev);
 
-		/* A Tx complete IRQ could have gotten inbetween, making
+		/* A Tx complete IRQ could have gotten between, making
 		 * the ring free again. Only need to recheck here, since
 		 * Tx is serialized.
 		 */

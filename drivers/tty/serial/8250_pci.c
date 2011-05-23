@@ -433,7 +433,7 @@ static void __devexit sbs_exit(struct pci_dev *dev)
 /*
  * SIIG serial cards have an PCI interface chip which also controls
  * the UART clocking frequency. Each UART can be clocked independently
- * (except cards equiped with 4 UARTs) and initial clocking settings
+ * (except cards equipped with 4 UARTs) and initial clocking settings
  * are stored in the EEPROM chip. It can cause problems because this
  * version of serial driver doesn't support differently clocked UART's
  * on single PCI card. To prevent this, initialization functions set

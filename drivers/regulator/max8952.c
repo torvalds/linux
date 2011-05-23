@@ -262,7 +262,7 @@ static int __devinit max8952_pmic_probe(struct i2c_client *client,
 
 	if (err) {
 		dev_warn(max8952->dev, "VID0/1 gpio invalid: "
-				"DVS not avilable.\n");
+				"DVS not available.\n");
 		max8952->vid0 = 0;
 		max8952->vid1 = 0;
 		/* Mark invalid */

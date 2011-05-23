@@ -124,8 +124,14 @@ static inline int verify_replay(struct xfrm_usersa_info *p,
 {
 	struct nlattr *rt = attrs[XFRMA_REPLAY_ESN_VAL];
 
+	if ((p->flags & XFRM_STATE_ESN) && !rt)
+		return -EINVAL;
+
 	if (!rt)
 		return 0;
+
+	if (p->id.proto != IPPROTO_ESP)
+		return -EINVAL;
 
 	if (p->replay_window != 0)
 		return -EINVAL;
@@ -360,6 +366,23 @@ static int attach_aead(struct xfrm_algo_aead **algpp, u8 *props,
 	return 0;
 }
 
+static inline int xfrm_replay_verify_len(struct xfrm_replay_state_esn *replay_esn,
+					 struct nlattr *rp)
+{
+	struct xfrm_replay_state_esn *up;
+
+	if (!replay_esn || !rp)
+		return 0;
+
+	up = nla_data(rp);
+
+	if (xfrm_replay_state_esn_len(replay_esn) !=
+			xfrm_replay_state_esn_len(up))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int xfrm_alloc_replay_state_esn(struct xfrm_replay_state_esn **replay_esn,
 				       struct xfrm_replay_state_esn **preplay_esn,
 				       struct nlattr *rta)
@@ -511,7 +534,7 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 
 	xfrm_mark_get(attrs, &x->mark);
 
-	err = xfrm_init_state(x);
+	err = __xfrm_init_state(x, false);
 	if (err)
 		goto error;
 
@@ -874,7 +897,7 @@ static int build_spdinfo(struct sk_buff *skb, struct net *net,
 	u32 *f;
 
 	nlh = nlmsg_put(skb, pid, seq, XFRM_MSG_NEWSPDINFO, sizeof(u32), 0);
-	if (nlh == NULL) /* shouldnt really happen ... */
+	if (nlh == NULL) /* shouldn't really happen ... */
 		return -EMSGSIZE;
 
 	f = nlmsg_data(nlh);
@@ -934,7 +957,7 @@ static int build_sadinfo(struct sk_buff *skb, struct net *net,
 	u32 *f;
 
 	nlh = nlmsg_put(skb, pid, seq, XFRM_MSG_NEWSADINFO, sizeof(u32), 0);
-	if (nlh == NULL) /* shouldnt really happen ... */
+	if (nlh == NULL) /* shouldn't really happen ... */
 		return -EMSGSIZE;
 
 	f = nlmsg_data(nlh);
@@ -1341,7 +1364,7 @@ static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!xp)
 		return err;
 
-	/* shouldnt excl be based on nlh flags??
+	/* shouldn't excl be based on nlh flags??
 	 * Aha! this is anti-netlink really i.e  more pfkey derived
 	 * in netlink excl is a flag and you wouldnt need
 	 * a type XFRM_MSG_UPDPOLICY - JHS */
@@ -1764,6 +1787,10 @@ static int xfrm_new_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -ESRCH;
 
 	if (x->km.state != XFRM_STATE_VALID)
+		goto out;
+
+	err = xfrm_replay_verify_len(x->replay_esn, rp);
+	if (err)
 		goto out;
 
 	spin_lock_bh(&x->lock);

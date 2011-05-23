@@ -921,7 +921,7 @@ static const char * chip_ids[ 16 ] =  {
  * Hack Alert: Some setups just can't write 8 or 16 bits reliably when not
  * aligned to a 32 bit boundary.  I tell you that does exist!
  * Fortunately the affected register accesses can be easily worked around
- * since we can write zeroes to the preceeding 16 bits without adverse
+ * since we can write zeroes to the preceding 16 bits without adverse
  * effects and use a 32-bit access.
  *
  * Enforce it on any 32-bit capable setup for now.

@@ -49,6 +49,10 @@ static u32 mii_get_an(struct mii_if_info *mii, u16 addr)
 		result |= ADVERTISED_100baseT_Half;
 	if (advert & ADVERTISE_100FULL)
 		result |= ADVERTISED_100baseT_Full;
+	if (advert & ADVERTISE_PAUSE_CAP)
+		result |= ADVERTISED_Pause;
+	if (advert & ADVERTISE_PAUSE_ASYM)
+		result |= ADVERTISED_Asym_Pause;
 
 	return result;
 }

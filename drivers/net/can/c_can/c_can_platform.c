@@ -73,7 +73,8 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 	void __iomem *addr;
 	struct net_device *dev;
 	struct c_can_priv *priv;
-	struct resource *mem, *irq;
+	struct resource *mem;
+	int irq;
 #ifdef CONFIG_HAVE_CLK
 	struct clk *clk;
 
@@ -88,8 +89,8 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 
 	/* get the platform data */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!mem || (irq <= 0)) {
+	irq = platform_get_irq(pdev, 0);
+	if (!mem || irq <= 0) {
 		ret = -ENODEV;
 		goto exit_free_clk;
 	}
@@ -117,7 +118,7 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(dev);
 
-	dev->irq = irq->start;
+	dev->irq = irq;
 	priv->regs = addr;
 #ifdef CONFIG_HAVE_CLK
 	priv->can.clock.freq = clk_get_rate(clk);

@@ -63,20 +63,19 @@ void __init board_setup(void)
 static int __init db1200_arch_init(void)
 {
 	/* GPIO7 is low-level triggered CPLD cascade */
-	set_irq_type(AU1200_GPIO7_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1200_GPIO7_INT, IRQF_TRIGGER_LOW);
 	bcsr_init_irq(DB1200_INT_BEGIN, DB1200_INT_END, AU1200_GPIO7_INT);
 
 	/* insert/eject pairs: one of both is always screaming.  To avoid
 	 * issues they must not be automatically enabled when initially
 	 * requested.
 	 */
-	irq_to_desc(DB1200_SD0_INSERT_INT)->status |= IRQ_NOAUTOEN;
-	irq_to_desc(DB1200_SD0_EJECT_INT)->status |= IRQ_NOAUTOEN;
-	irq_to_desc(DB1200_PC0_INSERT_INT)->status |= IRQ_NOAUTOEN;
-	irq_to_desc(DB1200_PC0_EJECT_INT)->status |= IRQ_NOAUTOEN;
-	irq_to_desc(DB1200_PC1_INSERT_INT)->status |= IRQ_NOAUTOEN;
-	irq_to_desc(DB1200_PC1_EJECT_INT)->status |= IRQ_NOAUTOEN;
-
+	irq_set_status_flags(DB1200_SD0_INSERT_INT, IRQ_NOAUTOEN);
+	irq_set_status_flags(DB1200_SD0_EJECT_INT, IRQ_NOAUTOEN);
+	irq_set_status_flags(DB1200_PC0_INSERT_INT, IRQ_NOAUTOEN);
+	irq_set_status_flags(DB1200_PC0_EJECT_INT, IRQ_NOAUTOEN);
+	irq_set_status_flags(DB1200_PC1_INSERT_INT, IRQ_NOAUTOEN);
+	irq_set_status_flags(DB1200_PC1_EJECT_INT, IRQ_NOAUTOEN);
 	return 0;
 }
 arch_initcall(db1200_arch_init);

@@ -138,7 +138,8 @@ takara_init_irq(void)
 		takara_update_irq_hw(i, -1);
 
 	for (i = 16; i < 128; ++i) {
-		set_irq_chip_and_handler(i, &takara_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &takara_irq_type,
+					 handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 

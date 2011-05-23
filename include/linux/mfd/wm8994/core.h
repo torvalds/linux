@@ -59,7 +59,7 @@ struct wm8994 {
 	int (*read_dev)(struct wm8994 *wm8994, unsigned short reg,
 			int bytes, void *dest);
 	int (*write_dev)(struct wm8994 *wm8994, unsigned short reg,
-			 int bytes, void *src);
+			 int bytes, const void *src);
 
 	void *control_data;
 
@@ -88,6 +88,8 @@ int wm8994_set_bits(struct wm8994 *wm8994, unsigned short reg,
 		    unsigned short mask, unsigned short val);
 int wm8994_bulk_read(struct wm8994 *wm8994, unsigned short reg,
 		     int count, u16 *buf);
+int wm8994_bulk_write(struct wm8994 *wm8994, unsigned short reg,
+		     int count, const u16 *buf);
 
 
 /* Helper to save on boilerplate */

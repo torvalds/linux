@@ -22,6 +22,9 @@ config GENERIC_FIND_FIRST_BIT
 config GENERIC_FIND_NEXT_BIT
 	bool
 
+config GENERIC_FIND_BIT_LE
+	bool
+
 config GENERIC_FIND_LAST_BIT
 	bool
 	default y
@@ -153,6 +156,45 @@ config REED_SOLOMON_ENC16
 
 config REED_SOLOMON_DEC16
 	boolean
+
+#
+# BCH support is selected if needed
+#
+config BCH
+	tristate
+
+config BCH_CONST_PARAMS
+	boolean
+	help
+	  Drivers may select this option to force specific constant
+	  values for parameters 'm' (Galois field order) and 't'
+	  (error correction capability). Those specific values must
+	  be set by declaring default values for symbols BCH_CONST_M
+	  and BCH_CONST_T.
+	  Doing so will enable extra compiler optimizations,
+	  improving encoding and decoding performance up to 2x for
+	  usual (m,t) values (typically such that m*t < 200).
+	  When this option is selected, the BCH library supports
+	  only a single (m,t) configuration. This is mainly useful
+	  for NAND flash board drivers requiring known, fixed BCH
+	  parameters.
+
+config BCH_CONST_M
+	int
+	range 5 15
+	help
+	  Constant value for Galois field order 'm'. If 'k' is the
+	  number of data bits to protect, 'm' should be chosen such
+	  that (k + m*t) <= 2**m - 1.
+	  Drivers should declare a default value for this symbol if
+	  they select option BCH_CONST_PARAMS.
+
+config BCH_CONST_T
+	int
+	help
+	  Constant value for error correction capability in bits 't'.
+	  Drivers should declare a default value for this symbol if
+	  they select option BCH_CONST_PARAMS.
 
 #
 # Textsearch support is select'ed if needed

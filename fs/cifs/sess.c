@@ -219,12 +219,12 @@ static void unicode_ssetup_strings(char **pbcc_area, struct cifsSesInfo *ses,
 		bcc_ptr++;
 	} */
 	/* copy user */
-	if (ses->userName == NULL) {
+	if (ses->user_name == NULL) {
 		/* null user mount */
 		*bcc_ptr = 0;
 		*(bcc_ptr+1) = 0;
 	} else {
-		bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, ses->userName,
+		bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, ses->user_name,
 					  MAX_USERNAME_SIZE, nls_cp);
 	}
 	bcc_ptr += 2 * bytes_ret;
@@ -244,12 +244,11 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifsSesInfo *ses,
 	/* copy user */
 	/* BB what about null user mounts - check that we do this BB */
 	/* copy user */
-	if (ses->userName == NULL) {
-		/* BB what about null user mounts - check that we do this BB */
-	} else {
-		strncpy(bcc_ptr, ses->userName, MAX_USERNAME_SIZE);
-	}
-	bcc_ptr += strnlen(ses->userName, MAX_USERNAME_SIZE);
+	if (ses->user_name != NULL)
+		strncpy(bcc_ptr, ses->user_name, MAX_USERNAME_SIZE);
+	/* else null user mount */
+
+	bcc_ptr += strnlen(ses->user_name, MAX_USERNAME_SIZE);
 	*bcc_ptr = 0;
 	bcc_ptr++; /* account for null termination */
 
@@ -277,26 +276,13 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifsSesInfo *ses,
 }
 
 static void
-decode_unicode_ssetup(char **pbcc_area, __u16 bleft, struct cifsSesInfo *ses,
+decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifsSesInfo *ses,
 		      const struct nls_table *nls_cp)
 {
 	int len;
 	char *data = *pbcc_area;
 
 	cFYI(1, "bleft %d", bleft);
-
-	/*
-	 * Windows servers do not always double null terminate their final
-	 * Unicode string. Check to see if there are an uneven number of bytes
-	 * left. If so, then add an extra NULL pad byte to the end of the
-	 * response.
-	 *
-	 * See section 2.7.2 in "Implementing CIFS" for details
-	 */
-	if (bleft % 2) {
-		data[bleft] = 0;
-		++bleft;
-	}
 
 	kfree(ses->serverOS);
 	ses->serverOS = cifs_strndup_from_ucs(data, bleft, true, nls_cp);
@@ -405,8 +391,8 @@ static int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 	/* BB spec says that if AvId field of MsvAvTimestamp is populated then
 		we must set the MIC field of the AUTHENTICATE_MESSAGE */
 	ses->ntlmssp->server_flags = le32_to_cpu(pblob->NegotiateFlags);
-	tioffset = cpu_to_le16(pblob->TargetInfoArray.BufferOffset);
-	tilen = cpu_to_le16(pblob->TargetInfoArray.Length);
+	tioffset = le32_to_cpu(pblob->TargetInfoArray.BufferOffset);
+	tilen = le16_to_cpu(pblob->TargetInfoArray.Length);
 	if (tilen) {
 		ses->auth_key.response = kmalloc(tilen, GFP_KERNEL);
 		if (!ses->auth_key.response) {
@@ -523,14 +509,14 @@ static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 		tmp += len;
 	}
 
-	if (ses->userName == NULL) {
+	if (ses->user_name == NULL) {
 		sec_blob->UserName.BufferOffset = cpu_to_le32(tmp - pbuffer);
 		sec_blob->UserName.Length = 0;
 		sec_blob->UserName.MaximumLength = 0;
 		tmp += 2;
 	} else {
 		int len;
-		len = cifs_strtoUCS((__le16 *)tmp, ses->userName,
+		len = cifs_strtoUCS((__le16 *)tmp, ses->user_name,
 				    MAX_USERNAME_SIZE, nls_cp);
 		len *= 2; /* unicode is 2 bytes each */
 		sec_blob->UserName.BufferOffset = cpu_to_le32(tmp - pbuffer);
@@ -930,7 +916,9 @@ ssetup_ntlmssp_authenticate:
 	}
 
 	/* BB check if Unicode and decode strings */
-	if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
+	if (bytes_remaining == 0) {
+		/* no string area to decode, do nothing */
+	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
 		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
 			++bcc_ptr;

@@ -45,7 +45,7 @@
 #include <asm/sections.h>
 #include <asm/macio.h>
 
-#define LOG_TEMP		0			/* continously log temperature */
+#define LOG_TEMP		0			/* continuously log temperature */
 
 static struct {
 	volatile int		running;

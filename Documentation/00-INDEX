@@ -206,8 +206,8 @@ laptops/
 	- directory with laptop related info and laptop driver documentation.
 ldm.txt
 	- a brief description of LDM (Windows Dynamic Disks).
-leds-class.txt
-	- documents LED handling under Linux.
+leds/
+	- directory with info about LED handling under Linux.
 local_ops.txt
 	- semantics and behavior of local atomic operations.
 lockdep-design.txt

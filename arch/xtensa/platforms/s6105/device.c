@@ -120,7 +120,7 @@ static int __init prepare_phy_irq(int pin)
 	irq = gpio_to_irq(pin);
 	if (irq < 0)
 		goto free;
-	if (set_irq_type(irq, IRQ_TYPE_LEVEL_LOW) < 0)
+	if (irq_set_irq_type(irq, IRQ_TYPE_LEVEL_LOW) < 0)
 		goto free;
 	return irq;
 free:

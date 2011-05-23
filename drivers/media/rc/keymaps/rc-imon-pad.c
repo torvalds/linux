@@ -125,7 +125,7 @@ static struct rc_map_table imon_pad[] = {
 	{ 0x2b8195b7, KEY_CONTEXT_MENU }, /* Left Menu*/
 	{ 0x02000065, KEY_COMPOSE }, /* RightMenu */
 	{ 0x28b715b7, KEY_COMPOSE }, /* RightMenu */
-	{ 0x2ab195b7, KEY_PROG1 }, /* Go or MultiMon */
+	{ 0x2ab195b7, KEY_LEFTMETA }, /* Go or MultiMon */
 	{ 0x29b715b7, KEY_DASHBOARD }, /* AppLauncher */
 };
 

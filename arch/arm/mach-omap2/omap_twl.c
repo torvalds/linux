@@ -308,7 +308,7 @@ int __init omap3_twl_init(void)
  * Strategy Software Scaling Mode (ENABLE_VMODE=0), for setting the voltages,
  * in those scenarios this bit is to be cleared (enable = false).
  *
- * Returns 0 on sucess, error is returned if I2C read/write fails.
+ * Returns 0 on success, error is returned if I2C read/write fails.
  */
 int __init omap3_twl_set_sr_bit(bool enable)
 {

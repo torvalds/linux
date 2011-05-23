@@ -105,6 +105,8 @@ static int journal_submit_commit_record(journal_t *journal,
 	int ret;
 	struct timespec now = current_kernel_time();
 
+	*cbh = NULL;
+
 	if (is_journal_aborted(journal))
 		return 0;
 
@@ -137,9 +139,9 @@ static int journal_submit_commit_record(journal_t *journal,
 	if (journal->j_flags & JBD2_BARRIER &&
 	    !JBD2_HAS_INCOMPAT_FEATURE(journal,
 				       JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT))
-		ret = submit_bh(WRITE_SYNC_PLUG | WRITE_FLUSH_FUA, bh);
+		ret = submit_bh(WRITE_SYNC | WRITE_FLUSH_FUA, bh);
 	else
-		ret = submit_bh(WRITE_SYNC_PLUG, bh);
+		ret = submit_bh(WRITE_SYNC, bh);
 
 	*cbh = bh;
 	return ret;
@@ -329,7 +331,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	int tag_bytes = journal_tag_bytes(journal);
 	struct buffer_head *cbh = NULL; /* For transactional checksums */
 	__u32 crc32_sum = ~0;
-	int write_op = WRITE_SYNC;
+	struct blk_plug plug;
 
 	/*
 	 * First job: lock down the current transaction and wait for
@@ -363,13 +365,6 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	write_lock(&journal->j_state_lock);
 	commit_transaction->t_state = T_LOCKED;
 
-	/*
-	 * Use plugged writes here, since we want to submit several before
-	 * we unplug the device. We don't do explicit unplugging in here,
-	 * instead we rely on sync_buffer() doing the unplug for us.
-	 */
-	if (commit_transaction->t_synchronous_commit)
-		write_op = WRITE_SYNC_PLUG;
 	trace_jbd2_commit_locking(journal, commit_transaction);
 	stats.run.rs_wait = commit_transaction->t_max_wait;
 	stats.run.rs_locked = jiffies;
@@ -410,7 +405,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 * we do not require it to remember exactly which old buffers it
 	 * has reserved.  This is consistent with the existing behaviour
 	 * that multiple jbd2_journal_get_write_access() calls to the same
-	 * buffer are perfectly permissable.
+	 * buffer are perfectly permissible.
 	 */
 	while (commit_transaction->t_reserved_list) {
 		jh = commit_transaction->t_reserved_list;
@@ -469,8 +464,10 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	if (err)
 		jbd2_journal_abort(journal, err);
 
+	blk_start_plug(&plug);
 	jbd2_journal_write_revoke_records(journal, commit_transaction,
-					  write_op);
+					  WRITE_SYNC);
+	blk_finish_plug(&plug);
 
 	jbd_debug(3, "JBD: commit phase 2\n");
 
@@ -497,6 +494,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	err = 0;
 	descriptor = NULL;
 	bufs = 0;
+	blk_start_plug(&plug);
 	while (commit_transaction->t_buffers) {
 
 		/* Find the next buffer to be journaled... */
@@ -658,7 +656,7 @@ start_journal_io:
 				clear_buffer_dirty(bh);
 				set_buffer_uptodate(bh);
 				bh->b_end_io = journal_end_buffer_io_sync;
-				submit_bh(write_op, bh);
+				submit_bh(WRITE_SYNC, bh);
 			}
 			cond_resched();
 			stats.run.rs_blocks_logged += bufs;
@@ -698,6 +696,8 @@ start_journal_io:
 		if (err)
 			__jbd2_journal_abort_hard(journal);
 	}
+
+	blk_finish_plug(&plug);
 
 	/* Lo and behold: we have just managed to send a transaction to
            the log.  Before we can commit it, wait for the IO so far to
@@ -808,7 +808,7 @@ wait_for_iobuf:
 		if (err)
 			__jbd2_journal_abort_hard(journal);
 	}
-	if (!err && !is_journal_aborted(journal))
+	if (cbh)
 		err = journal_wait_on_commit_record(journal, cbh);
 	if (JBD2_HAS_INCOMPAT_FEATURE(journal,
 				      JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT) &&

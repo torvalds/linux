@@ -1859,7 +1859,7 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 
 	/*
 	 * Apply CRC over SROM content regardless SROM is present or not,
-	 * and use variable <devpath>sromrev's existance in flash to decide
+	 * and use variable <devpath>sromrev's existence in flash to decide
 	 * if we should return an error when CRC fails or read SROM variables
 	 * from flash.
 	 */

@@ -631,7 +631,7 @@ static int decode_seqof(bitstr_t *bs, const struct field_t *f,
 		CHECK_BOUND(bs, 2);
 		count = *bs->cur++;
 		count <<= 8;
-		count = *bs->cur++;
+		count += *bs->cur++;
 		break;
 	case SEMI:
 		BYTE_ALIGN(bs);

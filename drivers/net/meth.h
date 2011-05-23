@@ -144,7 +144,7 @@ typedef struct rx_packet {
 				       /* Bits 22 through 28 are used to determine IPGR2 */
 
 #define METH_REV_SHIFT 29       /* Bits 29 through 31 are used to determine the revision */
-				       /* 000: Inital revision */
+				       /* 000: Initial revision */
 				       /* 001: First revision, Improved TX concatenation */
 
 
@@ -193,7 +193,7 @@ typedef struct rx_packet {
 					      	/* 1: A TX message had the INT request bit set, the packet has been sent. */
 #define METH_INT_TX_LINK_FAIL	BIT(2)	/* 0: No interrupt pending, 1: PHY has reported a link failure */
 #define METH_INT_MEM_ERROR	BIT(3)	/* 0: No interrupt pending */
-						/* 1: A memory error occurred durring DMA, DMA stopped, Fatal */
+						/* 1: A memory error occurred during DMA, DMA stopped, Fatal */
 #define METH_INT_TX_ABORT		BIT(4)	/* 0: No interrupt pending, 1: The TX aborted operation, DMA stopped, FATAL */
 #define METH_INT_RX_THRESHOLD	BIT(5)	/* 0: No interrupt pending, 1: Selected receive threshold condition Valid */
 #define METH_INT_RX_UNDERFLOW	BIT(6)	/* 0: No interrupt pending, 1: FIFO was empty, packet could not be queued */

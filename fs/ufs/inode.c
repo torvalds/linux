@@ -78,7 +78,7 @@ static int ufs_block_to_path(struct inode *inode, sector_t i_block, sector_t off
 
 /*
  * Returns the location of the fragment from
- * the begining of the filesystem.
+ * the beginning of the filesystem.
  */
 
 static u64 ufs_frag_map(struct inode *inode, sector_t frag, bool needs_lock)
@@ -552,7 +552,6 @@ static sector_t ufs_bmap(struct address_space *mapping, sector_t block)
 const struct address_space_operations ufs_aops = {
 	.readpage = ufs_readpage,
 	.writepage = ufs_writepage,
-	.sync_page = block_sync_page,
 	.write_begin = ufs_write_begin,
 	.write_end = generic_write_end,
 	.bmap = ufs_bmap

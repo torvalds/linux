@@ -245,9 +245,8 @@ static int apds9802als_probe(struct i2c_client *client,
 	als_set_default_config(client);
 	mutex_init(&data->mutex);
 
+	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
-	pm_runtime_get(&client->dev);
-	pm_runtime_put(&client->dev);
 
 	return res;
 als_error1:
@@ -255,12 +254,19 @@ als_error1:
 	return res;
 }
 
-static int apds9802als_remove(struct i2c_client *client)
+static int __devexit apds9802als_remove(struct i2c_client *client)
 {
 	struct als_data *data = i2c_get_clientdata(client);
 
+	pm_runtime_get_sync(&client->dev);
+
 	als_set_power_state(client, false);
 	sysfs_remove_group(&client->dev.kobj, &m_als_gr);
+
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_put_noidle(&client->dev);
+
 	kfree(data);
 	return 0;
 }
@@ -275,9 +281,6 @@ static int apds9802als_suspend(struct i2c_client *client, pm_message_t mesg)
 static int apds9802als_resume(struct i2c_client *client)
 {
 	als_set_default_config(client);
-
-	pm_runtime_get(&client->dev);
-	pm_runtime_put(&client->dev);
 	return 0;
 }
 
@@ -323,7 +326,7 @@ static struct i2c_driver apds9802als_driver = {
 		.pm = APDS9802ALS_PM_OPS,
 	},
 	.probe = apds9802als_probe,
-	.remove = apds9802als_remove,
+	.remove = __devexit_p(apds9802als_remove),
 	.suspend = apds9802als_suspend,
 	.resume = apds9802als_resume,
 	.id_table = apds9802als_id,

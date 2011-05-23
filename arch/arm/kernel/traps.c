@@ -410,8 +410,7 @@ static int bad_syscall(int n, struct pt_regs *regs)
 	struct thread_info *thread = current_thread_info();
 	siginfo_t info;
 
-	if (current->personality != PER_LINUX &&
-	    current->personality != PER_LINUX_32BIT &&
+	if ((current->personality & PER_MASK) != PER_LINUX &&
 	    thread->exec_domain->handler) {
 		thread->exec_domain->handler(n, regs);
 		return regs->ARM_r0;
@@ -712,17 +711,17 @@ EXPORT_SYMBOL(__readwrite_bug);
 
 void __pte_error(const char *file, int line, pte_t pte)
 {
-	printk("%s:%d: bad pte %08lx.\n", file, line, pte_val(pte));
+	printk("%s:%d: bad pte %08llx.\n", file, line, (long long)pte_val(pte));
 }
 
 void __pmd_error(const char *file, int line, pmd_t pmd)
 {
-	printk("%s:%d: bad pmd %08lx.\n", file, line, pmd_val(pmd));
+	printk("%s:%d: bad pmd %08llx.\n", file, line, (long long)pmd_val(pmd));
 }
 
 void __pgd_error(const char *file, int line, pgd_t pgd)
 {
-	printk("%s:%d: bad pgd %08lx.\n", file, line, pgd_val(pgd));
+	printk("%s:%d: bad pgd %08llx.\n", file, line, (long long)pgd_val(pgd));
 }
 
 asmlinkage void __div0(void)

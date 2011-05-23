@@ -1875,7 +1875,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_unregister;
 
-	/* print device infomation */
+	/* print device information */
 	pr_info("Base address at 0x%x, %pM, IRQ %d.\n",
 	       (u32)ndev->base_addr, ndev->dev_addr, ndev->irq);
 

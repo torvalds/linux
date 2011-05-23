@@ -945,7 +945,7 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 		rd2 = NULL;
 		/* Per chip or per device ? */
 		chipsel = (td->options & NAND_BBT_PERCHIP) ? i : -1;
-		/* Mirrored table avilable ? */
+		/* Mirrored table available ? */
 		if (md) {
 			if (td->pages[i] == -1 && md->pages[i] == -1) {
 				writeops = 0x03;
@@ -1101,12 +1101,16 @@ static void mark_bbt_region(struct mtd_info *mtd, struct nand_bbt_descr *td)
 static void verify_bbt_descr(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 {
 	struct nand_chip *this = mtd->priv;
-	u32 pattern_len = bd->len;
-	u32 bits = bd->options & NAND_BBT_NRBITS_MSK;
+	u32 pattern_len;
+	u32 bits;
 	u32 table_size;
 
 	if (!bd)
 		return;
+
+	pattern_len = bd->len;
+	bits = bd->options & NAND_BBT_NRBITS_MSK;
+
 	BUG_ON((this->options & NAND_USE_FLASH_BBT_NO_OOB) &&
 			!(this->options & NAND_USE_FLASH_BBT));
 	BUG_ON(!bits);

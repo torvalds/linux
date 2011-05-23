@@ -442,11 +442,11 @@ static int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 			     u32 flags, phy_interface_t interface)
 {
 	struct device *d = &phydev->dev;
+	int err;
 
 	/* Assume that if there is no driver, that it doesn't
 	 * exist, and we should use the genphy driver. */
 	if (NULL == d->driver) {
-		int err;
 		d->driver = &genphy_driver.driver;
 
 		err = d->driver->probe(d);
@@ -474,7 +474,11 @@ static int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	/* Do initial configuration here, now that
 	 * we have certain key parameters
 	 * (dev_flags and interface) */
-	return phy_init_hw(phydev);
+	err = phy_init_hw(phydev);
+	if (err)
+		phy_detach(phydev);
+
+	return err;
 }
 
 /**
@@ -534,7 +538,7 @@ EXPORT_SYMBOL(phy_detach);
 /* Generic PHY support and helper functions */
 
 /**
- * genphy_config_advert - sanitize and advertise auto-negotation parameters
+ * genphy_config_advert - sanitize and advertise auto-negotiation parameters
  * @phydev: target phy_device struct
  *
  * Description: Writes MII_ADVERTISE with the appropriate values,
@@ -683,7 +687,7 @@ int genphy_config_aneg(struct phy_device *phydev)
 		return result;
 
 	if (result == 0) {
-		/* Advertisment hasn't changed, but maybe aneg was never on to
+		/* Advertisement hasn't changed, but maybe aneg was never on to
 		 * begin with?  Or maybe phy was isolated? */
 		int ctl = phy_read(phydev, MII_BMCR);
 

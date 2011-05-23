@@ -759,7 +759,7 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 
 	/* authentication */
 	monc->auth = ceph_auth_init(cl->options->name,
-				    cl->options->secret);
+				    cl->options->key);
 	if (IS_ERR(monc->auth))
 		return PTR_ERR(monc->auth);
 	monc->auth->want_keys =

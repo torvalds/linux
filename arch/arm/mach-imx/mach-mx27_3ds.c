@@ -232,10 +232,13 @@ static struct mc13xxx_regulator_init_data mx27_3ds_regulators[] = {
 };
 
 /* MC13783 */
-static struct mc13xxx_platform_data mc13783_pdata __initdata = {
-	.regulators = mx27_3ds_regulators,
-	.num_regulators = ARRAY_SIZE(mx27_3ds_regulators),
-	.flags  = MC13XXX_USE_REGULATOR,
+static struct mc13xxx_platform_data mc13783_pdata = {
+	.regulators = {
+		.regulators = mx27_3ds_regulators,
+		.num_regulators = ARRAY_SIZE(mx27_3ds_regulators),
+
+	},
+	.flags  = MC13783_USE_REGULATOR,
 };
 
 /* SPI */

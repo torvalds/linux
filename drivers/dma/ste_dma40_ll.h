@@ -163,6 +163,22 @@
 #define D40_DREG_LCEIS1		0x0B4
 #define D40_DREG_LCEIS2		0x0B8
 #define D40_DREG_LCEIS3		0x0BC
+#define D40_DREG_PSEG1		0x110
+#define D40_DREG_PSEG2		0x114
+#define D40_DREG_PSEG3		0x118
+#define D40_DREG_PSEG4		0x11C
+#define D40_DREG_PCEG1		0x120
+#define D40_DREG_PCEG2		0x124
+#define D40_DREG_PCEG3		0x128
+#define D40_DREG_PCEG4		0x12C
+#define D40_DREG_RSEG1		0x130
+#define D40_DREG_RSEG2		0x134
+#define D40_DREG_RSEG3		0x138
+#define D40_DREG_RSEG4		0x13C
+#define D40_DREG_RCEG1		0x140
+#define D40_DREG_RCEG2		0x144
+#define D40_DREG_RCEG3		0x148
+#define D40_DREG_RCEG4		0x14C
 #define D40_DREG_STFU		0xFC8
 #define D40_DREG_ICFG		0xFCC
 #define D40_DREG_PERIPHID0	0xFE0
@@ -277,6 +293,13 @@ struct d40_def_lcsp {
 
 /* Physical channels */
 
+enum d40_lli_flags {
+	LLI_ADDR_INC	= 1 << 0,
+	LLI_TERM_INT	= 1 << 1,
+	LLI_CYCLIC	= 1 << 2,
+	LLI_LAST_LINK	= 1 << 3,
+};
+
 void d40_phy_cfg(struct stedma40_chan_cfg *cfg,
 		 u32 *src_cfg,
 		 u32 *dst_cfg,
@@ -292,46 +315,15 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 		      struct d40_phy_lli *lli,
 		      dma_addr_t lli_phys,
 		      u32 reg_cfg,
-		      u32 data_width1,
-		      u32 data_width2,
-		      int psize);
-
-struct d40_phy_lli *d40_phy_buf_to_lli(struct d40_phy_lli *lli,
-				       dma_addr_t data,
-				       u32 data_size,
-				       int psize,
-				       dma_addr_t next_lli,
-				       u32 reg_cfg,
-				       bool term_int,
-				       u32 data_width1,
-				       u32 data_width2,
-				       bool is_device);
-
-void d40_phy_lli_write(void __iomem *virtbase,
-		       u32 phy_chan_num,
-		       struct d40_phy_lli *lli_dst,
-		       struct d40_phy_lli *lli_src);
+		      struct stedma40_half_channel_info *info,
+		      struct stedma40_half_channel_info *otherinfo,
+		      unsigned long flags);
 
 /* Logical channels */
 
-struct d40_log_lli *d40_log_buf_to_lli(struct d40_log_lli *lli_sg,
-				       dma_addr_t addr,
-				       int size,
-				       u32 lcsp13, /* src or dst*/
-				       u32 data_width1, u32 data_width2,
-				       bool addr_inc);
-
-int d40_log_sg_to_dev(struct scatterlist *sg,
-		      int sg_len,
-		      struct d40_log_lli_bidir *lli,
-		      struct d40_def_lcsp *lcsp,
-		      u32 src_data_width,
-		      u32 dst_data_width,
-		      enum dma_data_direction direction,
-		      dma_addr_t dev_addr);
-
 int d40_log_sg_to_lli(struct scatterlist *sg,
 		      int sg_len,
+		      dma_addr_t dev_addr,
 		      struct d40_log_lli *lli_sg,
 		      u32 lcsp13, /* src or dst*/
 		      u32 data_width1, u32 data_width2);
@@ -339,11 +331,11 @@ int d40_log_sg_to_lli(struct scatterlist *sg,
 void d40_log_lli_lcpa_write(struct d40_log_lli_full *lcpa,
 			    struct d40_log_lli *lli_dst,
 			    struct d40_log_lli *lli_src,
-			    int next);
+			    int next, unsigned int flags);
 
 void d40_log_lli_lcla_write(struct d40_log_lli *lcla,
 			    struct d40_log_lli *lli_dst,
 			    struct d40_log_lli *lli_src,
-			    int next);
+			    int next, unsigned int flags);
 
 #endif /* STE_DMA40_LLI_H */

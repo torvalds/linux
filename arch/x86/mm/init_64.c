@@ -52,6 +52,7 @@
 #include <asm/cacheflush.h>
 #include <asm/init.h>
 #include <asm/uv/uv.h>
+#include <asm/setup.h>
 
 static int __init parse_direct_gbpages_off(char *arg)
 {
@@ -294,18 +295,18 @@ void __init init_extra_mapping_uc(unsigned long phys, unsigned long size)
  * to the compile time generated pmds. This results in invalid pmds up
  * to the point where we hit the physaddr 0 mapping.
  *
- * We limit the mappings to the region from _text to _end.  _end is
- * rounded up to the 2MB boundary. This catches the invalid pmds as
+ * We limit the mappings to the region from _text to _brk_end.  _brk_end
+ * is rounded up to the 2MB boundary. This catches the invalid pmds as
  * well, as they are located before _text:
  */
 void __init cleanup_highmap(void)
 {
 	unsigned long vaddr = __START_KERNEL_map;
-	unsigned long end = roundup((unsigned long)_end, PMD_SIZE) - 1;
+	unsigned long vaddr_end = __START_KERNEL_map + (max_pfn_mapped << PAGE_SHIFT);
+	unsigned long end = roundup((unsigned long)_brk_end, PMD_SIZE) - 1;
 	pmd_t *pmd = level2_kernel_pgt;
-	pmd_t *last_pmd = pmd + PTRS_PER_PMD;
 
-	for (; pmd < last_pmd; pmd++, vaddr += PMD_SIZE) {
+	for (; vaddr + PMD_SIZE - 1 < vaddr_end; pmd++, vaddr += PMD_SIZE) {
 		if (pmd_none(*pmd))
 			continue;
 		if (vaddr < (unsigned long) _text || vaddr > end)
@@ -861,18 +862,18 @@ static struct vm_area_struct gate_vma = {
 	.vm_flags	= VM_READ | VM_EXEC
 };
 
-struct vm_area_struct *get_gate_vma(struct task_struct *tsk)
+struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
 {
 #ifdef CONFIG_IA32_EMULATION
-	if (test_tsk_thread_flag(tsk, TIF_IA32))
+	if (!mm || mm->context.ia32_compat)
 		return NULL;
 #endif
 	return &gate_vma;
 }
 
-int in_gate_area(struct task_struct *task, unsigned long addr)
+int in_gate_area(struct mm_struct *mm, unsigned long addr)
 {
-	struct vm_area_struct *vma = get_gate_vma(task);
+	struct vm_area_struct *vma = get_gate_vma(mm);
 
 	if (!vma)
 		return 0;
@@ -881,11 +882,11 @@ int in_gate_area(struct task_struct *task, unsigned long addr)
 }
 
 /*
- * Use this when you have no reliable task/vma, typically from interrupt
- * context. It is less reliable than using the task's vma and may give
- * false positives:
+ * Use this when you have no reliable mm, typically from interrupt
+ * context. It is less reliable than using a task's mm and may give
+ * false positives.
  */
-int in_gate_area_no_task(unsigned long addr)
+int in_gate_area_no_mm(unsigned long addr)
 {
 	return (addr >= VSYSCALL_START) && (addr < VSYSCALL_END);
 }

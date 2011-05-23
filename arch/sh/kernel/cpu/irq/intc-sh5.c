@@ -135,7 +135,7 @@ void __init plat_irq_setup(void)
 
 	/* Set default: per-line enable/disable, priority driven ack/eoi */
 	for (i = 0; i < NR_INTC_IRQS; i++)
-		set_irq_chip_and_handler(i, &intc_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &intc_irq_type, handle_level_irq);
 
 
 	/* Disable all interrupts and set all priorities to 0 to avoid trouble */

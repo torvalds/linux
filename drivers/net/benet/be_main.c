@@ -708,7 +708,7 @@ static void be_set_multicast_list(struct net_device *netdev)
 		goto done;
 	}
 
-	/* BE was previously in promiscous mode; disable it */
+	/* BE was previously in promiscuous mode; disable it */
 	if (adapter->promiscuous) {
 		adapter->promiscuous = false;
 		be_cmd_promiscuous_config(adapter, adapter->port_num, 0);
@@ -1018,7 +1018,8 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 			kfree_skb(skb);
 			return;
 		}
-		vlan_hwaccel_receive_skb(skb, adapter->vlan_grp, rxcp->vid);
+		vlan_hwaccel_receive_skb(skb, adapter->vlan_grp,
+					rxcp->vlan_tag);
 	} else {
 		netif_receive_skb(skb);
 	}
@@ -1076,7 +1077,8 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	if (likely(!rxcp->vlanf))
 		napi_gro_frags(&eq_obj->napi);
 	else
-		vlan_gro_frags(&eq_obj->napi, adapter->vlan_grp, rxcp->vid);
+		vlan_gro_frags(&eq_obj->napi, adapter->vlan_grp,
+				rxcp->vlan_tag);
 }
 
 static void be_parse_rx_compl_v1(struct be_adapter *adapter,
@@ -1102,7 +1104,8 @@ static void be_parse_rx_compl_v1(struct be_adapter *adapter,
 	rxcp->pkt_type =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, cast_enc, compl);
 	rxcp->vtm = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vtm, compl);
-	rxcp->vid = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vlan_tag, compl);
+	rxcp->vlan_tag = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vlan_tag,
+					compl);
 }
 
 static void be_parse_rx_compl_v0(struct be_adapter *adapter,
@@ -1128,7 +1131,8 @@ static void be_parse_rx_compl_v0(struct be_adapter *adapter,
 	rxcp->pkt_type =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, cast_enc, compl);
 	rxcp->vtm = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vtm, compl);
-	rxcp->vid = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vlan_tag, compl);
+	rxcp->vlan_tag = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vlan_tag,
+					compl);
 }
 
 static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
@@ -1155,9 +1159,11 @@ static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
 		rxcp->vlanf = 0;
 
 	if (!lancer_chip(adapter))
-		rxcp->vid = swab16(rxcp->vid);
+		rxcp->vlan_tag = swab16(rxcp->vlan_tag);
 
-	if ((adapter->pvid == rxcp->vid) && !adapter->vlan_tag[rxcp->vid])
+	if (((adapter->pvid & VLAN_VID_MASK) ==
+		(rxcp->vlan_tag & VLAN_VID_MASK)) &&
+		!adapter->vlan_tag[rxcp->vlan_tag])
 		rxcp->vlanf = 0;
 
 	/* As the compl has been parsed, reset it; we wont touch it again */
@@ -1497,7 +1503,7 @@ static int be_tx_queues_create(struct be_adapter *adapter)
 	if (be_cmd_eq_create(adapter, eq, adapter->tx_eq.cur_eqd))
 		goto tx_eq_free;
 
-	adapter->tx_eq.msix_vec_idx = adapter->msix_vec_next_idx++;
+	adapter->tx_eq.eq_idx = adapter->eq_next_idx++;
 
 
 	/* Alloc TX eth compl queue */
@@ -1590,7 +1596,7 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 		if (rc)
 			goto err;
 
-		rxo->rx_eq.msix_vec_idx = adapter->msix_vec_next_idx++;
+		rxo->rx_eq.eq_idx = adapter->eq_next_idx++;
 
 		/* CQ */
 		cq = &rxo->cq;
@@ -1666,11 +1672,11 @@ static irqreturn_t be_intx(int irq, void *dev)
 		if (!isr)
 			return IRQ_NONE;
 
-		if ((1 << adapter->tx_eq.msix_vec_idx & isr))
+		if ((1 << adapter->tx_eq.eq_idx & isr))
 			event_handle(adapter, &adapter->tx_eq);
 
 		for_all_rx_queues(adapter, rxo, i) {
-			if ((1 << rxo->rx_eq.msix_vec_idx & isr))
+			if ((1 << rxo->rx_eq.eq_idx & isr))
 				event_handle(adapter, &rxo->rx_eq);
 		}
 	}
@@ -1873,6 +1879,7 @@ static void be_worker(struct work_struct *work)
 		be_detect_dump_ue(adapter);
 
 reschedule:
+	adapter->work_counter++;
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
 }
 
@@ -1951,7 +1958,7 @@ static void be_sriov_disable(struct be_adapter *adapter)
 static inline int be_msix_vec_get(struct be_adapter *adapter,
 					struct be_eq_obj *eq_obj)
 {
-	return adapter->msix_entries[eq_obj->msix_vec_idx].vector;
+	return adapter->msix_entries[eq_obj->eq_idx].vector;
 }
 
 static int be_request_irq(struct be_adapter *adapter,
@@ -2345,6 +2352,7 @@ static int be_clear(struct be_adapter *adapter)
 	be_mcc_queues_destroy(adapter);
 	be_rx_queues_destroy(adapter);
 	be_tx_queues_destroy(adapter);
+	adapter->eq_next_idx = 0;
 
 	if (be_physfn(adapter) && adapter->sriov_enabled)
 		for (vf = 0; vf < num_vfs; vf++)
@@ -3141,12 +3149,14 @@ static int be_resume(struct pci_dev *pdev)
 static void be_shutdown(struct pci_dev *pdev)
 {
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
-	struct net_device *netdev =  adapter->netdev;
 
-	if (netif_running(netdev))
+	if (!adapter)
+		return;
+
+	if (netif_running(adapter->netdev))
 		cancel_delayed_work_sync(&adapter->work);
 
-	netif_device_detach(netdev);
+	netif_device_detach(adapter->netdev);
 
 	be_cmd_reset_function(adapter);
 

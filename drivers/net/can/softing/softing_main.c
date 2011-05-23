@@ -218,7 +218,7 @@ static int softing_handle_1(struct softing *card)
 	ptr = buf;
 	cmd = *ptr++;
 	if (cmd == 0xff)
-		/* not quite usefull, probably the card has got out */
+		/* not quite useful, probably the card has got out */
 		return 0;
 	netdev = card->net[0];
 	if (cmd & CMD_BUS2)

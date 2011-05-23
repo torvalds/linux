@@ -89,7 +89,7 @@ extern int proc_auto_start(struct cfg_devnode *dev_node_obj,
  *  Returns:
  *      0     :       SUCCESS
  *      -EFAULT :       Invalid processor handle.
- *      -ETIME:       A Timeout Occured before the Control information
+ *      -ETIME:       A Timeout Occurred before the Control information
  *			  could be sent.
  *      -EPERM   :       General Failure.
  *  Requires:
@@ -169,7 +169,7 @@ extern int proc_enum_nodes(void *hprocessor,
  *      0     :       Success.
  *      -EFAULT :       Invalid processor handle.
  *      -EBADR:    The processor is not in the PROC_RUNNING state.
- *      -ETIME:       A timeout occured before the DSP responded to the
+ *      -ETIME:       A timeout occurred before the DSP responded to the
  *			  querry.
  *      -EPERM   :       Unable to get Resource Information
  *  Requires:
@@ -229,7 +229,7 @@ extern int proc_get_dev_object(void *hprocessor,
  *      call.
  *  Parameters:
  *  Returns:
- *      TRUE if initialized; FALSE if error occured.
+ *      TRUE if initialized; FALSE if error occurred.
  *  Requires:
  *  Ensures:
  *      TRUE: A requirement for the other public PROC functions.

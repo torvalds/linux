@@ -202,7 +202,7 @@ static void
 sa1111_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int stat0, stat1, i;
-	struct sa1111 *sachip = get_irq_data(irq);
+	struct sa1111 *sachip = irq_get_handler_data(irq);
 	void __iomem *mapbase = sachip->base + SA1111_INTC;
 
 	stat0 = sa1111_readl(mapbase + SA1111_INTSTATCLR0);
@@ -472,25 +472,25 @@ static void sa1111_setup_irq(struct sa1111 *sachip)
 	sa1111_writel(~0, irqbase + SA1111_INTSTATCLR1);
 
 	for (irq = IRQ_GPAIN0; irq <= SSPROR; irq++) {
-		set_irq_chip(irq, &sa1111_low_chip);
-		set_irq_chip_data(irq, sachip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &sa1111_low_chip,
+					 handle_edge_irq);
+		irq_set_chip_data(irq, sachip);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	for (irq = AUDXMTDMADONEA; irq <= IRQ_S1_BVD1_STSCHG; irq++) {
-		set_irq_chip(irq, &sa1111_high_chip);
-		set_irq_chip_data(irq, sachip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &sa1111_high_chip,
+					 handle_edge_irq);
+		irq_set_chip_data(irq, sachip);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	/*
 	 * Register SA1111 interrupt
 	 */
-	set_irq_type(sachip->irq, IRQ_TYPE_EDGE_RISING);
-	set_irq_data(sachip->irq, sachip);
-	set_irq_chained_handler(sachip->irq, sa1111_irq_handler);
+	irq_set_irq_type(sachip->irq, IRQ_TYPE_EDGE_RISING);
+	irq_set_handler_data(sachip->irq, sachip);
+	irq_set_chained_handler(sachip->irq, sa1111_irq_handler);
 }
 
 /*
@@ -815,8 +815,8 @@ static void __sa1111_remove(struct sa1111 *sachip)
 	clk_disable(sachip->clk);
 
 	if (sachip->irq != NO_IRQ) {
-		set_irq_chained_handler(sachip->irq, NULL);
-		set_irq_data(sachip->irq, NULL);
+		irq_set_chained_handler(sachip->irq, NULL);
+		irq_set_handler_data(sachip->irq, NULL);
 
 		release_mem_region(sachip->phys + SA1111_INTC, 512);
 	}

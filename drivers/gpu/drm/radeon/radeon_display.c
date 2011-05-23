@@ -1492,7 +1492,7 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  *
  * \return Flags, or'ed together as follows:
  *
- * DRM_SCANOUTPOS_VALID = Query successfull.
+ * DRM_SCANOUTPOS_VALID = Query successful.
  * DRM_SCANOUTPOS_INVBL = Inside vblank.
  * DRM_SCANOUTPOS_ACCURATE = Returned position is accurate. A lack of
  * this flag means that returned position may be offset by a constant but

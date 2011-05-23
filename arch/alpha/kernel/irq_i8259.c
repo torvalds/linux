@@ -92,7 +92,7 @@ init_i8259a_irqs(void)
 	outb(0xff, 0xA1);	/* mask all of 8259A-2 */
 
 	for (i = 0; i < 16; i++) {
-		set_irq_chip_and_handler(i, &i8259a_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &i8259a_irq_type, handle_level_irq);
 	}
 
 	setup_irq(2, &cascade);

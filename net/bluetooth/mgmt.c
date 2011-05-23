@@ -1230,6 +1230,8 @@ static int user_confirm_reply(struct sock *sk, u16 index, unsigned char *data,
 	if (!hdev)
 		return cmd_status(sk, index, mgmt_op, ENODEV);
 
+	hci_dev_lock_bh(hdev);
+
 	if (!test_bit(HCI_UP, &hdev->flags)) {
 		err = cmd_status(sk, index, mgmt_op, ENETDOWN);
 		goto failed;

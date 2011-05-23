@@ -149,7 +149,7 @@ void dm_kcopyd_exit(void);
 /*
  * Mempool operations
  */
-struct dm_md_mempools *dm_alloc_md_mempools(unsigned type);
+struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity);
 void dm_free_md_mempools(struct dm_md_mempools *pools);
 
 #endif

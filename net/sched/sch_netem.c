@@ -160,7 +160,7 @@ static bool loss_4state(struct netem_sched_data *q)
 	u32 rnd = net_random();
 
 	/*
-	 * Makes a comparision between rnd and the transition
+	 * Makes a comparison between rnd and the transition
 	 * probabilities outgoing from the current state, then decides the
 	 * next state and if the next packet has to be transmitted or lost.
 	 * The four states correspond to:
@@ -212,9 +212,9 @@ static bool loss_4state(struct netem_sched_data *q)
  * Generates losses according to the Gilbert-Elliot loss model or
  * its special cases  (Gilbert or Simple Gilbert)
  *
- * Makes a comparision between random number and the transition
+ * Makes a comparison between random number and the transition
  * probabilities outgoing from the current state, then decides the
- * next state. A second random number is extracted and the comparision
+ * next state. A second random number is extracted and the comparison
  * with the loss probability of the current state decides if the next
  * packet will be transmitted or lost.
  */

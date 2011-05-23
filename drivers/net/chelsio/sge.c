@@ -1662,7 +1662,7 @@ irqreturn_t t1_interrupt(int irq, void *data)
  * The code figures out how many entries the sk_buff will require in the
  * cmdQ and updates the cmdQ data structure with the state once the enqueue
  * has complete. Then, it doesn't access the global structure anymore, but
- * uses the corresponding fields on the stack. In conjuction with a spinlock
+ * uses the corresponding fields on the stack. In conjunction with a spinlock
  * around that code, we can make the function reentrant without holding the
  * lock when we actually enqueue (which might be expensive, especially on
  * architectures with IO MMUs).

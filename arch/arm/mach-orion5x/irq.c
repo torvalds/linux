@@ -34,8 +34,8 @@ void __init orion5x_init_irq(void)
 	 * Initialize gpiolib for GPIOs 0-31.
 	 */
 	orion_gpio_init(0, 32, GPIO_VIRT_BASE, 0, IRQ_ORION5X_GPIO_START);
-	set_irq_chained_handler(IRQ_ORION5X_GPIO_0_7, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_ORION5X_GPIO_8_15, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_ORION5X_GPIO_16_23, gpio_irq_handler);
-	set_irq_chained_handler(IRQ_ORION5X_GPIO_24_31, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_ORION5X_GPIO_0_7, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_ORION5X_GPIO_8_15, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_ORION5X_GPIO_16_23, gpio_irq_handler);
+	irq_set_chained_handler(IRQ_ORION5X_GPIO_24_31, gpio_irq_handler);
 }

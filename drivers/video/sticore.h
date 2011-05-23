@@ -79,7 +79,7 @@ struct sti_glob_cfg_ext {
 	 u8 curr_mon;			/* current monitor configured */
 	 u8 friendly_boot;		/* in friendly boot mode */
 	s16 power;			/* power calculation (in Watts) */
-	s32 freq_ref;			/* frequency refrence */
+	s32 freq_ref;			/* frequency reference */
 	u32 sti_mem_addr;		/* pointer to global sti memory (size=sti_mem_request) */
 	u32 future_ptr; 		/* pointer to future data */
 };

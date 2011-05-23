@@ -32,6 +32,7 @@ struct ceph_osd {
 	struct rb_node o_node;
 	struct ceph_connection o_con;
 	struct list_head o_requests;
+	struct list_head o_linger_requests;
 	struct list_head o_osd_lru;
 	struct ceph_authorizer *o_authorizer;
 	void *o_authorizer_buf, *o_authorizer_reply_buf;
@@ -47,6 +48,8 @@ struct ceph_osd_request {
 	struct rb_node  r_node;
 	struct list_head r_req_lru_item;
 	struct list_head r_osd_item;
+	struct list_head r_linger_item;
+	struct list_head r_linger_osd;
 	struct ceph_osd *r_osd;
 	struct ceph_pg   r_pgid;
 	int              r_pg_osds[CEPH_PG_MAX_SIZE];
@@ -59,6 +62,7 @@ struct ceph_osd_request {
 	int               r_flags;     /* any additional flags for the osd */
 	u32               r_sent;      /* >0 if r_request is sending/sent */
 	int               r_got_reply;
+	int		  r_linger;
 
 	struct ceph_osd_client *r_osdc;
 	struct kref       r_kref;
@@ -74,7 +78,6 @@ struct ceph_osd_request {
 	char              r_oid[40];          /* object name */
 	int               r_oid_len;
 	unsigned long     r_stamp;            /* send OR check time */
-	bool              r_resend;           /* msg send failed, needs retry */
 
 	struct ceph_file_layout r_file_layout;
 	struct ceph_snap_context *r_snapc;    /* snap context for writes */
@@ -88,6 +91,26 @@ struct ceph_osd_request {
 #endif
 
 	struct ceph_pagelist *r_trail;	      /* trailing part of the data */
+};
+
+struct ceph_osd_event {
+	u64 cookie;
+	int one_shot;
+	struct ceph_osd_client *osdc;
+	void (*cb)(u64, u64, u8, void *);
+	void *data;
+	struct rb_node node;
+	struct list_head osd_node;
+	struct kref kref;
+	struct completion completion;
+};
+
+struct ceph_osd_event_work {
+	struct work_struct work;
+	struct ceph_osd_event *event;
+        u64 ver;
+        u64 notify_id;
+        u8 opcode;
 };
 
 struct ceph_osd_client {
@@ -104,7 +127,10 @@ struct ceph_osd_client {
 	u64                    timeout_tid;   /* tid of timeout triggering rq */
 	u64                    last_tid;      /* tid of last request */
 	struct rb_root         requests;      /* pending requests */
-	struct list_head       req_lru;	      /* pending requests lru */
+	struct list_head       req_lru;	      /* in-flight lru */
+	struct list_head       req_unsent;    /* unsent/need-resend queue */
+	struct list_head       req_notarget;  /* map to no osd */
+	struct list_head       req_linger;    /* lingering requests */
 	int                    num_requests;
 	struct delayed_work    timeout_work;
 	struct delayed_work    osds_timeout_work;
@@ -116,6 +142,12 @@ struct ceph_osd_client {
 
 	struct ceph_msgpool	msgpool_op;
 	struct ceph_msgpool	msgpool_op_reply;
+
+	spinlock_t		event_lock;
+	struct rb_root		event_tree;
+	u64			event_count;
+
+	struct workqueue_struct	*notify_wq;
 };
 
 struct ceph_osd_req_op {
@@ -150,6 +182,13 @@ struct ceph_osd_req_op {
 	        struct {
 		        u64 snapid;
 	        } snap;
+		struct {
+			u64 cookie;
+			u64 ver;
+			__u8 flag;
+			u32 prot_ver;
+			u32 timeout;
+		} watch;
 	};
 	u32 payload_len;
 };
@@ -198,6 +237,11 @@ extern struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *,
 				      bool use_mempool, int num_reply,
 				      int page_align);
 
+extern void ceph_osdc_set_request_linger(struct ceph_osd_client *osdc,
+					 struct ceph_osd_request *req);
+extern void ceph_osdc_unregister_linger_request(struct ceph_osd_client *osdc,
+						struct ceph_osd_request *req);
+
 static inline void ceph_osdc_get_request(struct ceph_osd_request *req)
 {
 	kref_get(&req->r_kref);
@@ -233,5 +277,14 @@ extern int ceph_osdc_writepages(struct ceph_osd_client *osdc,
 				struct page **pages, int nr_pages,
 				int flags, int do_sync, bool nofail);
 
+/* watch/notify events */
+extern int ceph_osdc_create_event(struct ceph_osd_client *osdc,
+				  void (*event_cb)(u64, u64, u8, void *),
+				  int one_shot, void *data,
+				  struct ceph_osd_event **pevent);
+extern void ceph_osdc_cancel_event(struct ceph_osd_event *event);
+extern int ceph_osdc_wait_event(struct ceph_osd_event *event,
+				unsigned long timeout);
+extern void ceph_osdc_put_event(struct ceph_osd_event *event);
 #endif
 

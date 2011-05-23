@@ -474,7 +474,7 @@ void interface_rx(struct net_device *soft_iface,
 		goto dropped;
 	skb->protocol = eth_type_trans(skb, soft_iface);
 
-	/* should not be neccesary anymore as we use skb_pull_rcsum()
+	/* should not be necessary anymore as we use skb_pull_rcsum()
 	 * TODO: please verify this and remove this TODO
 	 * -- Dec 21st 2009, Simon Wunderlich */
 

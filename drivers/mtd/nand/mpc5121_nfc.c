@@ -29,6 +29,7 @@
 #include <linux/clk.h>
 #include <linux/gfp.h>
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -757,9 +758,9 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op)
 
 	/* Enable NFC clock */
 	prv->clk = clk_get(dev, "nfc_clk");
-	if (!prv->clk) {
+	if (IS_ERR(prv->clk)) {
 		dev_err(dev, "Unable to acquire NFC clock!\n");
-		retval = -ENODEV;
+		retval = PTR_ERR(prv->clk);
 		goto error;
 	}
 

@@ -34,6 +34,11 @@
 #define MX28EVK_LCD_ENABLE	MXS_GPIO_NR(3, 30)
 #define MX28EVK_FEC_PHY_RESET	MXS_GPIO_NR(4, 13)
 
+#define MX28EVK_MMC0_WRITE_PROTECT	MXS_GPIO_NR(2, 12)
+#define MX28EVK_MMC1_WRITE_PROTECT	MXS_GPIO_NR(0, 28)
+#define MX28EVK_MMC0_SLOT_POWER		MXS_GPIO_NR(3, 28)
+#define MX28EVK_MMC1_SLOT_POWER		MXS_GPIO_NR(3, 29)
+
 static const iomux_cfg_t mx28evk_pads[] __initconst = {
 	/* duart */
 	MX28_PAD_PWM0__DUART_RX | MXS_PAD_CTRL,
@@ -115,6 +120,65 @@ static const iomux_cfg_t mx28evk_pads[] __initconst = {
 	MX28_PAD_LCD_RESET__GPIO_3_30 | MXS_PAD_CTRL,
 	/* backlight control */
 	MX28_PAD_PWM2__GPIO_3_18 | MXS_PAD_CTRL,
+	/* mmc0 */
+	MX28_PAD_SSP0_DATA0__SSP0_D0 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SSP0_DATA1__SSP0_D1 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SSP0_DATA2__SSP0_D2 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SSP0_DATA3__SSP0_D3 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SSP0_DATA4__SSP0_D4 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SSP0_DATA5__SSP0_D5 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SSP0_DATA6__SSP0_D6 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SSP0_DATA7__SSP0_D7 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SSP0_CMD__SSP0_CMD |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SSP0_DETECT__SSP0_CARD_DETECT |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	MX28_PAD_SSP0_SCK__SSP0_SCK |
+		(MXS_PAD_12MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	/* write protect */
+	MX28_PAD_SSP1_SCK__GPIO_2_12 |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	/* slot power enable */
+	MX28_PAD_PWM3__GPIO_3_28 |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+
+	/* mmc1 */
+	MX28_PAD_GPMI_D00__SSP1_D0 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_GPMI_D01__SSP1_D1 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_GPMI_D02__SSP1_D2 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_GPMI_D03__SSP1_D3 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_GPMI_D04__SSP1_D4 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_GPMI_D05__SSP1_D5 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_GPMI_D06__SSP1_D6 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_GPMI_D07__SSP1_D7 |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_GPMI_RDY1__SSP1_CMD |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_GPMI_RDY0__SSP1_CARD_DETECT |
+		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	MX28_PAD_GPMI_WRN__SSP1_SCK |
+		(MXS_PAD_12MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	/* write protect */
+	MX28_PAD_GPMI_RESETN__GPIO_0_28 |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+	/* slot power enable */
+	MX28_PAD_PWM4__GPIO_3_29 |
+		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
 };
 
 /* fec */
@@ -258,6 +322,18 @@ static const struct mxsfb_platform_data mx28evk_mxsfb_pdata __initconst = {
 	.ld_intf_width	= STMLCDIF_24BIT,
 };
 
+static struct mxs_mmc_platform_data mx28evk_mmc_pdata[] __initdata = {
+	{
+		/* mmc0 */
+		.wp_gpio = MX28EVK_MMC0_WRITE_PROTECT,
+		.flags = SLOTF_8_BIT_CAPABLE,
+	}, {
+		/* mmc1 */
+		.wp_gpio = MX28EVK_MMC1_WRITE_PROTECT,
+		.flags = SLOTF_8_BIT_CAPABLE,
+	},
+};
+
 static void __init mx28evk_init(void)
 {
 	int ret;
@@ -297,6 +373,19 @@ static void __init mx28evk_init(void)
 		gpio_set_value(MX28EVK_BL_ENABLE, 1);
 
 	mx28_add_mxsfb(&mx28evk_mxsfb_pdata);
+
+	/* power on mmc slot by writing 0 to the gpio */
+	ret = gpio_request_one(MX28EVK_MMC0_SLOT_POWER, GPIOF_DIR_OUT,
+			       "mmc0-slot-power");
+	if (ret)
+		pr_warn("failed to request gpio mmc0-slot-power: %d\n", ret);
+	mx28_add_mxs_mmc(0, &mx28evk_mmc_pdata[0]);
+
+	ret = gpio_request_one(MX28EVK_MMC1_SLOT_POWER, GPIOF_DIR_OUT,
+			       "mmc1-slot-power");
+	if (ret)
+		pr_warn("failed to request gpio mmc1-slot-power: %d\n", ret);
+	mx28_add_mxs_mmc(1, &mx28evk_mmc_pdata[1]);
 }
 
 static void __init mx28evk_timer_init(void)

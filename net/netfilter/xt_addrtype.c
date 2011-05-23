@@ -32,11 +32,32 @@ MODULE_ALIAS("ipt_addrtype");
 MODULE_ALIAS("ip6t_addrtype");
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
-static u32 xt_addrtype_rt6_to_type(const struct rt6_info *rt)
+static u32 match_lookup_rt6(struct net *net, const struct net_device *dev,
+			    const struct in6_addr *addr)
 {
+	const struct nf_afinfo *afinfo;
+	struct flowi6 flow;
+	struct rt6_info *rt;
 	u32 ret;
+	int route_err;
 
-	if (!rt)
+	memset(&flow, 0, sizeof(flow));
+	ipv6_addr_copy(&flow.daddr, addr);
+	if (dev)
+		flow.flowi6_oif = dev->ifindex;
+
+	rcu_read_lock();
+
+	afinfo = nf_get_afinfo(NFPROTO_IPV6);
+	if (afinfo != NULL)
+		route_err = afinfo->route(net, (struct dst_entry **)&rt,
+					flowi6_to_flowi(&flow), !!dev);
+	else
+		route_err = 1;
+
+	rcu_read_unlock();
+
+	if (route_err)
 		return XT_ADDRTYPE_UNREACHABLE;
 
 	if (rt->rt6i_flags & RTF_REJECT)
@@ -48,6 +69,9 @@ static u32 xt_addrtype_rt6_to_type(const struct rt6_info *rt)
 		ret |= XT_ADDRTYPE_LOCAL;
 	if (rt->rt6i_flags & RTF_ANYCAST)
 		ret |= XT_ADDRTYPE_ANYCAST;
+
+
+	dst_release(&rt->dst);
 	return ret;
 }
 
@@ -65,18 +89,8 @@ static bool match_type6(struct net *net, const struct net_device *dev,
 		return false;
 
 	if ((XT_ADDRTYPE_LOCAL | XT_ADDRTYPE_ANYCAST |
-	     XT_ADDRTYPE_UNREACHABLE) & mask) {
-		struct rt6_info *rt;
-		u32 type;
-		int ifindex = dev ? dev->ifindex : 0;
-
-		rt = rt6_lookup(net, addr, NULL, ifindex, !!dev);
-
-		type = xt_addrtype_rt6_to_type(rt);
-
-		dst_release(&rt->dst);
-		return !!(mask & type);
-	}
+	     XT_ADDRTYPE_UNREACHABLE) & mask)
+		return !!(mask & match_lookup_rt6(net, dev, addr));
 	return true;
 }
 

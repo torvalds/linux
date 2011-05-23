@@ -134,7 +134,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid, *old_fid = NULL;
 
-	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	v9ses = v9fs_dentry2v9ses(dentry);
 	access = v9ses->flags & V9FS_ACCESS_MASK;
 	fid = v9fs_fid_find(dentry, uid, any);
 	if (fid)
@@ -237,7 +237,7 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 	int  any, access;
 	struct v9fs_session_info *v9ses;
 
-	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	v9ses = v9fs_dentry2v9ses(dentry);
 	access = v9ses->flags & V9FS_ACCESS_MASK;
 	switch (access) {
 	case V9FS_ACCESS_SINGLE:

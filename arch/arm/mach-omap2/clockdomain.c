@@ -258,7 +258,7 @@ static void _resolve_clkdm_deps(struct clockdomain *clkdm,
  * clkdm_init - set up the clockdomain layer
  * @clkdms: optional pointer to an array of clockdomains to register
  * @init_autodeps: optional pointer to an array of autodeps to register
- * @custom_funcs: func pointers for arch specfic implementations
+ * @custom_funcs: func pointers for arch specific implementations
  *
  * Set up internal state.  If a pointer to an array of clockdomains
  * @clkdms was supplied, loop through the list of clockdomains,

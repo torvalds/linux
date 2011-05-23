@@ -21,6 +21,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/sysdev.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
@@ -32,7 +33,6 @@
 #include <mach/dma.h>
 #include <mach/regs-intc.h>
 #include <mach/smemc.h>
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -362,8 +362,8 @@ static void __init pxa_init_ext_wakeup_irq(set_wake_t fn)
 	int irq;
 
 	for (irq = IRQ_WAKEUP0; irq <= IRQ_WAKEUP1; irq++) {
-		set_irq_chip(irq, &pxa_ext_wakeup_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &pxa_ext_wakeup_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 

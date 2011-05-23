@@ -40,10 +40,8 @@ static int wm8994_read(struct wm8994 *wm8994, unsigned short reg,
 		return ret;
 
 	for (i = 0; i < bytes / 2; i++) {
-		buf[i] = be16_to_cpu(buf[i]);
-
 		dev_vdbg(wm8994->dev, "Read %04x from R%d(0x%x)\n",
-			 buf[i], reg + i, reg + i);
+			 be16_to_cpu(buf[i]), reg + i, reg + i);
 	}
 
 	return 0;
@@ -69,7 +67,7 @@ int wm8994_reg_read(struct wm8994 *wm8994, unsigned short reg)
 	if (ret < 0)
 		return ret;
 	else
-		return val;
+		return be16_to_cpu(val);
 }
 EXPORT_SYMBOL_GPL(wm8994_reg_read);
 
@@ -79,7 +77,7 @@ EXPORT_SYMBOL_GPL(wm8994_reg_read);
  * @wm8994: Device to read from
  * @reg: First register
  * @count: Number of registers
- * @buf: Buffer to fill.
+ * @buf: Buffer to fill.  The data will be returned big endian.
  */
 int wm8994_bulk_read(struct wm8994 *wm8994, unsigned short reg,
 		     int count, u16 *buf)
@@ -97,9 +95,9 @@ int wm8994_bulk_read(struct wm8994 *wm8994, unsigned short reg,
 EXPORT_SYMBOL_GPL(wm8994_bulk_read);
 
 static int wm8994_write(struct wm8994 *wm8994, unsigned short reg,
-			int bytes, void *src)
+			int bytes, const void *src)
 {
-	u16 *buf = src;
+	const u16 *buf = src;
 	int i;
 
 	BUG_ON(bytes % 2);
@@ -107,9 +105,7 @@ static int wm8994_write(struct wm8994 *wm8994, unsigned short reg,
 
 	for (i = 0; i < bytes / 2; i++) {
 		dev_vdbg(wm8994->dev, "Write %04x to R%d(0x%x)\n",
-			 buf[i], reg + i, reg + i);
-
-		buf[i] = cpu_to_be16(buf[i]);
+			 be16_to_cpu(buf[i]), reg + i, reg + i);
 	}
 
 	return wm8994->write_dev(wm8994, reg, bytes, src);
@@ -127,6 +123,8 @@ int wm8994_reg_write(struct wm8994 *wm8994, unsigned short reg,
 {
 	int ret;
 
+	val = cpu_to_be16(val);
+
 	mutex_lock(&wm8994->io_lock);
 
 	ret = wm8994_write(wm8994, reg, 2, &val);
@@ -136,6 +134,29 @@ int wm8994_reg_write(struct wm8994 *wm8994, unsigned short reg,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm8994_reg_write);
+
+/**
+ * wm8994_bulk_write: Write multiple WM8994 registers
+ *
+ * @wm8994: Device to write to
+ * @reg: First register
+ * @count: Number of registers
+ * @buf: Buffer to write from.  Data must be big-endian formatted.
+ */
+int wm8994_bulk_write(struct wm8994 *wm8994, unsigned short reg,
+		      int count, const u16 *buf)
+{
+	int ret;
+
+	mutex_lock(&wm8994->io_lock);
+
+	ret = wm8994_write(wm8994, reg, count * 2, buf);
+
+	mutex_unlock(&wm8994->io_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wm8994_bulk_write);
 
 /**
  * wm8994_set_bits: Set the value of a bitfield in a WM8994 register
@@ -157,8 +178,12 @@ int wm8994_set_bits(struct wm8994 *wm8994, unsigned short reg,
 	if (ret < 0)
 		goto out;
 
+	r = be16_to_cpu(r);
+
 	r &= ~mask;
 	r |= val;
+
+	r = cpu_to_be16(r);
 
 	ret = wm8994_write(wm8994, reg, 2, &r);
 
@@ -270,6 +295,11 @@ static int wm8994_suspend(struct device *dev)
 			  &wm8994->ldo_regs);
 	if (ret < 0)
 		dev_err(dev, "Failed to save LDO registers: %d\n", ret);
+
+	/* Explicitly put the device into reset in case regulators
+	 * don't get disabled in order to ensure consistent restart.
+	 */
+	wm8994_reg_write(wm8994, WM8994_SOFTWARE_RESET, 0x8994);
 
 	wm8994->suspended = true;
 
@@ -552,25 +582,29 @@ static int wm8994_i2c_read_device(struct wm8994 *wm8994, unsigned short reg,
 	return 0;
 }
 
-/* Currently we allocate the write buffer on the stack; this is OK for
- * small writes - if we need to do large writes this will need to be
- * revised.
- */
 static int wm8994_i2c_write_device(struct wm8994 *wm8994, unsigned short reg,
-				   int bytes, void *src)
+				   int bytes, const void *src)
 {
 	struct i2c_client *i2c = wm8994->control_data;
-	unsigned char msg[bytes + 2];
+	struct i2c_msg xfer[2];
 	int ret;
 
 	reg = cpu_to_be16(reg);
-	memcpy(&msg[0], &reg, 2);
-	memcpy(&msg[2], src, bytes);
 
-	ret = i2c_master_send(i2c, msg, bytes + 2);
+	xfer[0].addr = i2c->addr;
+	xfer[0].flags = 0;
+	xfer[0].len = 2;
+	xfer[0].buf = (char *)&reg;
+
+	xfer[1].addr = i2c->addr;
+	xfer[1].flags = I2C_M_NOSTART;
+	xfer[1].len = bytes;
+	xfer[1].buf = (char *)src;
+
+	ret = i2c_transfer(i2c->adapter, xfer, 2);
 	if (ret < 0)
 		return ret;
-	if (ret < bytes + 2)
+	if (ret != 2)
 		return -EIO;
 
 	return 0;
@@ -612,7 +646,8 @@ static const struct i2c_device_id wm8994_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8994_i2c_id);
 
-UNIVERSAL_DEV_PM_OPS(wm8994_pm_ops, wm8994_suspend, wm8994_resume, NULL);
+static UNIVERSAL_DEV_PM_OPS(wm8994_pm_ops, wm8994_suspend, wm8994_resume,
+			    NULL);
 
 static struct i2c_driver wm8994_i2c_driver = {
 	.driver = {

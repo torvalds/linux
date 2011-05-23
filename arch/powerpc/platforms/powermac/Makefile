@@ -11,7 +11,7 @@ obj-y				+= pic.o setup.o time.o feature.o pci.o \
 obj-$(CONFIG_PMAC_BACKLIGHT)	+= backlight.o
 obj-$(CONFIG_CPU_FREQ_PMAC)	+= cpufreq_32.o
 obj-$(CONFIG_CPU_FREQ_PMAC64)	+= cpufreq_64.o
-# CONFIG_NVRAM is an arch. independant tristate symbol, for pmac32 we really
+# CONFIG_NVRAM is an arch. independent tristate symbol, for pmac32 we really
 # need this to be a bool.  Cheat here and pretend CONFIG_NVRAM=m is really
 # CONFIG_NVRAM=y
 obj-$(CONFIG_NVRAM:m=y)		+= nvram.o
