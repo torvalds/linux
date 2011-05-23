@@ -367,10 +367,8 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 		imp++;
 
 	/* discard rejected message if it shouldn't be returned to sender */
-	if (msg_errcode(msg) || msg_dest_droppable(msg)) {
-		buf_discard(buf);
-		return data_sz;
-	}
+	if (msg_errcode(msg) || msg_dest_droppable(msg))
+		goto exit;
 
 	/* construct rejected message */
 	if (msg_mcast(msg))
@@ -378,10 +376,9 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 	else
 		hdr_sz = LONG_H_SIZE;
 	rbuf = tipc_buf_acquire(data_sz + hdr_sz);
-	if (rbuf == NULL) {
-		buf_discard(buf);
-		return data_sz;
-	}
+	if (rbuf == NULL)
+		goto exit;
+
 	rmsg = buf_msg(rbuf);
 	tipc_msg_init(rmsg, imp, msg_type(msg), hdr_sz, msg_orignode(msg));
 	msg_set_errcode(rmsg, err);
@@ -411,9 +408,11 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 		tipc_net_route_msg(abuf);
 	}
 
-	/* send rejected message */
-	buf_discard(buf);
+	/* send returned message & dispose of rejected message */
+
 	tipc_net_route_msg(rbuf);
+exit:
+	buf_discard(buf);
 	return data_sz;
 }
 
