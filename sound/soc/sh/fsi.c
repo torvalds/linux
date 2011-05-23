@@ -176,8 +176,12 @@ struct fsi_priv {
 	struct fsi_stream playback;
 	struct fsi_stream capture;
 
+	u32 do_fmt;
+	u32 di_fmt;
+
 	int chan_num:16;
 	int clk_master:1;
+	int spdif:1;
 
 	long rate;
 
@@ -296,6 +300,11 @@ static int fsi_is_clk_master(struct fsi_priv *fsi)
 static int fsi_is_port_a(struct fsi_priv *fsi)
 {
 	return fsi->master->base == fsi->base;
+}
+
+static int fsi_is_spdif(struct fsi_priv *fsi)
+{
+	return fsi->spdif;
 }
 
 static struct snd_soc_dai *fsi_get_dai(struct snd_pcm_substream *substream)
@@ -893,11 +902,16 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 	u32 flags = fsi_get_info_flags(fsi);
-	u32 data;
+	u32 data = 0;
 	int is_play = fsi_is_play(substream);
 
 	pm_runtime_get_sync(dai->dev);
 
+	/* clock setting */
+	if (fsi_is_clk_master(fsi))
+		data = DIMD | DOMD;
+
+	fsi_reg_mask_set(fsi, CKG1, (DIMD | DOMD), data);
 
 	/* clock inversion (CKG2) */
 	data = 0;
@@ -911,6 +925,16 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 		data |= 1 << 0;
 
 	fsi_reg_write(fsi, CKG2, data);
+
+	/* set format */
+	fsi_reg_write(fsi, DO_FMT, fsi->do_fmt);
+	fsi_reg_write(fsi, DI_FMT, fsi->di_fmt);
+
+	/* spdif ? */
+	if (fsi_is_spdif(fsi)) {
+		fsi_spdif_clk_ctrl(fsi, 1);
+		fsi_reg_mask_set(fsi, OUT_SEL, DMMD, DMMD);
+	}
 
 	/* irq clear */
 	fsi_irq_disable(fsi, is_play);
@@ -974,8 +998,8 @@ static int fsi_set_fmt_dai(struct fsi_priv *fsi, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	fsi_reg_write(fsi, DO_FMT, data);
-	fsi_reg_write(fsi, DI_FMT, data);
+	fsi->do_fmt = data;
+	fsi->di_fmt = data;
 
 	return 0;
 }
@@ -990,11 +1014,10 @@ static int fsi_set_fmt_spdif(struct fsi_priv *fsi)
 
 	data = CR_BWS_16 | CR_DTMD_SPDIF_PCM | CR_PCM;
 	fsi->chan_num = 2;
-	fsi_spdif_clk_ctrl(fsi, 1);
-	fsi_reg_mask_set(fsi, OUT_SEL, DMMD, DMMD);
+	fsi->spdif = 1;
 
-	fsi_reg_write(fsi, DO_FMT, data);
-	fsi_reg_write(fsi, DI_FMT, data);
+	fsi->do_fmt = data;
+	fsi->di_fmt = data;
 
 	return 0;
 }
@@ -1005,31 +1028,23 @@ static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct fsi_master *master = fsi_get_master(fsi);
 	set_rate_func set_rate = fsi_get_info_set_rate(master);
 	u32 flags = fsi_get_info_flags(fsi);
-	u32 data = 0;
 	int ret;
-
-	pm_runtime_get_sync(dai->dev);
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
-		data = DIMD | DOMD;
 		fsi->clk_master = 1;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
 		break;
 	default:
-		ret = -EINVAL;
-		goto set_fmt_exit;
+		return -EINVAL;
 	}
 
 	if (fsi_is_clk_master(fsi) && !set_rate) {
 		dev_err(dai->dev, "platform doesn't have set_rate\n");
-		ret = -EINVAL;
-		goto set_fmt_exit;
+		return -EINVAL;
 	}
-
-	fsi_reg_mask_set(fsi, CKG1, (DIMD | DOMD), data);
 
 	/* set format */
 	switch (flags & SH_FSI_FMT_MASK) {
@@ -1042,9 +1057,6 @@ static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	default:
 		ret = -EINVAL;
 	}
-
-set_fmt_exit:
-	pm_runtime_put_sync(dai->dev);
 
 	return ret;
 }
