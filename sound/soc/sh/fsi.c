@@ -118,10 +118,38 @@ typedef int (*set_rate_func)(struct device *dev, int is_porta, int rate, int ena
 /*
  * FSI driver use below type name for variable
  *
- * xxx_len	: data length
- * xxx_width	: data width
- * xxx_offset	: data offset
  * xxx_num	: number of data
+ * xxx_pos	: position of data
+ * xxx_capa	: capacity of data
+ */
+
+/*
+ *	period/frame/sample image
+ *
+ * ex) PCM (2ch)
+ *
+ * period pos					   period pos
+ *   [n]					     [n + 1]
+ *   |<-------------------- period--------------------->|
+ * ==|============================================ ... =|==
+ *   |							|
+ *   ||<-----  frame ----->|<------ frame ----->|  ...	|
+ *   |+--------------------+--------------------+- ...	|
+ *   ||[ sample ][ sample ]|[ sample ][ sample ]|  ...	|
+ *   |+--------------------+--------------------+- ...	|
+ * ==|============================================ ... =|==
+ */
+
+/*
+ *	FSI FIFO image
+ *
+ *	|	     |
+ *	|	     |
+ *	| [ sample ] |
+ *	| [ sample ] |
+ *	| [ sample ] |
+ *	| [ sample ] |
+ *		--> go to codecs
  */
 
 /*
@@ -131,12 +159,11 @@ typedef int (*set_rate_func)(struct device *dev, int is_porta, int rate, int ena
 struct fsi_stream {
 	struct snd_pcm_substream *substream;
 
-	int fifo_max_num;
-
-	int buff_offset;
-	int buff_len;
-	int period_len;
-	int period_num;
+	int fifo_sample_capa;	/* sample capacity of FSI FIFO */
+	int buff_sample_capa;	/* sample capacity of ALSA buffer */
+	int buff_sample_pos;	/* sample position of ALSA buffer */
+	int period_samples;	/* sample number / 1 period */
+	int period_pos;		/* current period position */
 
 	int uerr_num;
 	int oerr_num;
@@ -342,6 +369,16 @@ static u32 fsi_get_port_shift(struct fsi_priv *fsi, int is_play)
 	return shift;
 }
 
+static int fsi_frame2sample(struct fsi_priv *fsi, int frames)
+{
+	return frames * fsi->chan_num;
+}
+
+static int fsi_sample2frame(struct fsi_priv *fsi, int samples)
+{
+	return samples / fsi->chan_num;
+}
+
 static void fsi_stream_push(struct fsi_priv *fsi,
 			    int is_play,
 			    struct snd_pcm_substream *substream)
@@ -350,10 +387,10 @@ static void fsi_stream_push(struct fsi_priv *fsi,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	io->substream	= substream;
-	io->buff_len	= frames_to_bytes(runtime, runtime->buffer_size);
-	io->buff_offset	= 0;
-	io->period_len	= frames_to_bytes(runtime, runtime->period_size);
-	io->period_num	= 0;
+	io->buff_sample_capa	= fsi_frame2sample(fsi, runtime->buffer_size);
+	io->buff_sample_pos	= 0;
+	io->period_samples	= fsi_frame2sample(fsi, runtime->period_size);
+	io->period_pos		= 0;
 	io->oerr_num	= -1; /* ignore 1st err */
 	io->uerr_num	= -1; /* ignore 1st err */
 }
@@ -371,47 +408,26 @@ static void fsi_stream_pop(struct fsi_priv *fsi, int is_play)
 		dev_err(dai->dev, "under_run = %d\n", io->uerr_num);
 
 	io->substream	= NULL;
-	io->buff_len	= 0;
-	io->buff_offset	= 0;
-	io->period_len	= 0;
-	io->period_num	= 0;
+	io->buff_sample_capa	= 0;
+	io->buff_sample_pos	= 0;
+	io->period_samples	= 0;
+	io->period_pos		= 0;
 	io->oerr_num	= 0;
 	io->uerr_num	= 0;
 }
 
-static int fsi_get_fifo_data_num(struct fsi_priv *fsi, int is_play)
+static int fsi_get_current_fifo_samples(struct fsi_priv *fsi, int is_play)
 {
 	u32 status;
-	int data_num;
+	int frames;
 
 	status = is_play ?
 		fsi_reg_read(fsi, DOFF_ST) :
 		fsi_reg_read(fsi, DIFF_ST);
 
-	data_num = 0x1ff & (status >> 8);
-	data_num *= fsi->chan_num;
+	frames = 0x1ff & (status >> 8);
 
-	return data_num;
-}
-
-static int fsi_len2num(int len, int width)
-{
-	return len / width;
-}
-
-#define fsi_num2offset(a, b) fsi_num2len(a, b)
-static int fsi_num2len(int num, int width)
-{
-	return num * width;
-}
-
-static int fsi_get_frame_width(struct fsi_priv *fsi, int is_play)
-{
-	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
-	struct snd_pcm_substream *substream = io->substream;
-	struct snd_pcm_runtime *runtime = substream->runtime;
-
-	return frames_to_bytes(runtime, 1) / fsi->chan_num;
+	return fsi_frame2sample(fsi, frames);
 }
 
 static void fsi_count_fifo_err(struct fsi_priv *fsi)
@@ -443,8 +459,10 @@ static u8 *fsi_dma_get_area(struct fsi_priv *fsi, int stream)
 {
 	int is_play = fsi_stream_is_play(stream);
 	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
+	struct snd_pcm_runtime *runtime = io->substream->runtime;
 
-	return io->substream->runtime->dma_area + io->buff_offset;
+	return runtime->dma_area +
+		samples_to_bytes(runtime, io->buff_sample_pos);
 }
 
 static void fsi_dma_soft_push16(struct fsi_priv *fsi, int num)
@@ -683,13 +701,14 @@ static void fsi_fifo_init(struct fsi_priv *fsi,
 	struct fsi_master *master = fsi_get_master(fsi);
 	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
 	u32 shift, i;
+	int frame_capa;
 
 	/* get on-chip RAM capacity */
 	shift = fsi_master_read(master, FIFO_SZ);
 	shift >>= fsi_get_port_shift(fsi, is_play);
 	shift &= FIFO_SZ_MASK;
-	io->fifo_max_num = 256 << shift;
-	dev_dbg(dai->dev, "fifo = %d words\n", io->fifo_max_num);
+	frame_capa = 256 << shift;
+	dev_dbg(dai->dev, "fifo = %d words\n", frame_capa);
 
 	/*
 	 * The maximum number of sample data varies depending
@@ -711,9 +730,11 @@ static void fsi_fifo_init(struct fsi_priv *fsi,
 	 * 8 channels:  32 ( 32 x 8 = 256)
 	 */
 	for (i = 1; i < fsi->chan_num; i <<= 1)
-		io->fifo_max_num >>= 1;
+		frame_capa >>= 1;
 	dev_dbg(dai->dev, "%d channel %d store\n",
-		fsi->chan_num, io->fifo_max_num);
+		fsi->chan_num, frame_capa);
+
+	io->fifo_sample_capa = fsi_frame2sample(fsi, frame_capa);
 
 	/*
 	 * set interrupt generation factor
@@ -734,10 +755,10 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
 	struct snd_pcm_substream *substream = NULL;
 	int is_play = fsi_stream_is_play(stream);
 	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
-	int data_residue_num;
-	int data_num;
-	int data_num_max;
-	int ch_width;
+	int sample_residues;
+	int sample_width;
+	int samples;
+	int samples_max;
 	int over_period;
 	void (*fn)(struct fsi_priv *fsi, int size);
 
@@ -753,36 +774,35 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
 	/* FSI FIFO has limit.
 	 * So, this driver can not send periods data at a time
 	 */
-	if (io->buff_offset >=
-	    fsi_num2offset(io->period_num + 1, io->period_len)) {
+	if (io->buff_sample_pos >=
+	    io->period_samples * (io->period_pos + 1)) {
 
 		over_period = 1;
-		io->period_num = (io->period_num + 1) % runtime->periods;
+		io->period_pos = (io->period_pos + 1) % runtime->periods;
 
-		if (0 == io->period_num)
-			io->buff_offset = 0;
+		if (0 == io->period_pos)
+			io->buff_sample_pos = 0;
 	}
 
-	/* get 1 channel data width */
-	ch_width = fsi_get_frame_width(fsi, is_play);
+	/* get 1 sample data width */
+	sample_width = samples_to_bytes(runtime, 1);
 
-	/* get residue data number of alsa */
-	data_residue_num = fsi_len2num(io->buff_len - io->buff_offset,
-				       ch_width);
+	/* get number of residue samples */
+	sample_residues = io->buff_sample_capa - io->buff_sample_pos;
 
 	if (is_play) {
 		/*
 		 * for play-back
 		 *
-		 * data_num_max	: number of FSI fifo free space
-		 * data_num	: number of ALSA residue data
+		 * samples_max	: number of FSI fifo free samples space
+		 * samples	: number of ALSA residue samples
 		 */
-		data_num_max  = io->fifo_max_num * fsi->chan_num;
-		data_num_max -= fsi_get_fifo_data_num(fsi, is_play);
+		samples_max  = io->fifo_sample_capa;
+		samples_max -= fsi_get_current_fifo_samples(fsi, is_play);
 
-		data_num = data_residue_num;
+		samples = sample_residues;
 
-		switch (ch_width) {
+		switch (sample_width) {
 		case 2:
 			fn = fsi_dma_soft_push16;
 			break;
@@ -796,13 +816,13 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
 		/*
 		 * for capture
 		 *
-		 * data_num_max	: number of ALSA free space
-		 * data_num	: number of data in FSI fifo
+		 * samples_max	: number of ALSA free samples space
+		 * samples	: number of samples in FSI fifo
 		 */
-		data_num_max = data_residue_num;
-		data_num     = fsi_get_fifo_data_num(fsi, is_play);
+		samples_max = sample_residues;
+		samples     = fsi_get_current_fifo_samples(fsi, is_play);
 
-		switch (ch_width) {
+		switch (sample_width) {
 		case 2:
 			fn = fsi_dma_soft_pop16;
 			break;
@@ -814,12 +834,12 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
 		}
 	}
 
-	data_num = min(data_num, data_num_max);
+	samples = min(samples, samples_max);
 
-	fn(fsi, data_num);
+	fn(fsi, samples);
 
-	/* update buff_offset */
-	io->buff_offset += fsi_num2offset(data_num, ch_width);
+	/* update buff_sample_pos */
+	io->buff_sample_pos += samples;
 
 	if (over_period)
 		snd_pcm_period_elapsed(substream);
@@ -1107,16 +1127,14 @@ static int fsi_hw_free(struct snd_pcm_substream *substream)
 
 static snd_pcm_uframes_t fsi_pointer(struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 	struct fsi_stream *io = fsi_get_stream(fsi, fsi_is_play(substream));
-	long location;
+	int samples_pos = io->buff_sample_pos - 1;
 
-	location = (io->buff_offset - 1);
-	if (location < 0)
-		location = 0;
+	if (samples_pos < 0)
+		samples_pos = 0;
 
-	return bytes_to_frames(runtime, location);
+	return fsi_sample2frame(fsi, samples_pos);
 }
 
 static struct snd_pcm_ops fsi_pcm_ops = {
