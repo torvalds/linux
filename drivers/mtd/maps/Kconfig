@@ -184,7 +184,7 @@ config MTD_VMAX
 
 config MTD_SCx200_DOCFLASH
 	tristate "Flash device mapped with DOCCS on NatSemi SCx200"
-	depends on SCx200 && MTD_CFI && MTD_PARTITIONS
+	depends on SCx200 && MTD_CFI
 	help
 	  Enable support for a flash chip mapped using the DOCCS signal on a
 	  National Semiconductor SCx200 processor.
