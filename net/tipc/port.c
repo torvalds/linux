@@ -367,6 +367,12 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 		imp++;
 
 	/* discard rejected message if it shouldn't be returned to sender */
+
+	if (WARN(!msg_isdata(msg),
+		 "attempt to reject message with user=%u", msg_user(msg))) {
+		dump_stack();
+		goto exit;
+	}
 	if (msg_errcode(msg) || msg_dest_droppable(msg))
 		goto exit;
 
