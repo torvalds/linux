@@ -1886,12 +1886,14 @@ static int _regulator_get_voltage(struct regulator_dev *rdev)
 		if (sel < 0)
 			return sel;
 		ret = rdev->desc->ops->list_voltage(rdev, sel);
-	}
-	if (rdev->desc->ops->get_voltage)
+	} else if (rdev->desc->ops->get_voltage) {
 		ret = rdev->desc->ops->get_voltage(rdev);
-	else
+	} else {
 		return -EINVAL;
+	}
 
+	if (ret < 0)
+		return ret;
 	return ret - rdev->constraints->uV_offset;
 }
 
