@@ -83,8 +83,9 @@
 #include "atl1.h"
 
 #define ATLX_DRIVER_VERSION "2.1.3"
-MODULE_AUTHOR("Xiong Huang <xiong.huang@atheros.com>, \
-Chris Snook <csnook@redhat.com>, Jay Cliburn <jcliburn@gmail.com>");
+MODULE_AUTHOR("Xiong Huang <xiong.huang@atheros.com>, "
+	      "Chris Snook <csnook@redhat.com>, "
+	      "Jay Cliburn <jcliburn@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ATLX_DRIVER_VERSION);
 

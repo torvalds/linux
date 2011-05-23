@@ -160,7 +160,7 @@ static void pm8001_free(struct pm8001_hba_info *pm8001_ha)
 static void pm8001_tasklet(unsigned long opaque)
 {
 	struct pm8001_hba_info *pm8001_ha;
-	pm8001_ha = (struct pm8001_hba_info *)opaque;;
+	pm8001_ha = (struct pm8001_hba_info *)opaque;
 	if (unlikely(!pm8001_ha))
 		BUG_ON(1);
 	PM8001_CHIP_DISP->isr(pm8001_ha);

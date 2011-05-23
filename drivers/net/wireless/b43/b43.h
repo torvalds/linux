@@ -648,8 +648,8 @@ struct b43_request_fw_context {
 	char errors[B43_NR_FWTYPES][128];
 	/* Temporary buffer for storing the firmware name. */
 	char fwname[64];
-	/* A fatal error occurred while requesting. Firmware reqest
-	 * can not continue, as any other reqest will also fail. */
+	/* A fatal error occurred while requesting. Firmware request
+	 * can not continue, as any other request will also fail. */
 	int fatal_failure;
 };
 

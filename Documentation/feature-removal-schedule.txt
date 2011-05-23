@@ -215,7 +215,7 @@ Who:	Zhang Rui <rui.zhang@intel.com>
 What:	CONFIG_ACPI_PROCFS_POWER
 When:	2.6.39
 Why:	sysfs I/F for ACPI power devices, including AC and Battery,
-        has been working in upstream kenrel since 2.6.24, Sep 2007.
+        has been working in upstream kernel since 2.6.24, Sep 2007.
 	In 2.6.37, we make the sysfs I/F always built in and this option
 	disabled by default.
 	Remove this option and the ACPI power procfs interface in 2.6.39.

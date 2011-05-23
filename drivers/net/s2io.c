@@ -7163,7 +7163,7 @@ static void do_s2io_card_down(struct s2io_nic *sp, int do_io)
 		/* As per the HW requirement we need to replenish the
 		 * receive buffer to avoid the ring bump. Since there is
 		 * no intention of processing the Rx frame at this pointwe are
-		 * just settting the ownership bit of rxd in Each Rx
+		 * just setting the ownership bit of rxd in Each Rx
 		 * ring to HW and set the appropriate buffer size
 		 * based on the ring mode
 		 */

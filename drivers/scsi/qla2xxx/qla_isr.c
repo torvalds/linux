@@ -1060,7 +1060,7 @@ qla2x00_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		}
 		DEBUG2(qla2x00_dump_buffer((uint8_t *)pkt, sizeof(*pkt)));
 	} else {
-		bsg_job->reply->result =  DID_OK << 16;;
+		bsg_job->reply->result =  DID_OK << 16;
 		bsg_job->reply->reply_payload_rcv_len =
 		    bsg_job->reply_payload.payload_len;
 		bsg_job->reply_len = 0;
@@ -1155,7 +1155,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		DEBUG2(qla2x00_dump_buffer((uint8_t *)pkt, sizeof(*pkt)));
 	}
 	else {
-		bsg_job->reply->result =  DID_OK << 16;;
+		bsg_job->reply->result =  DID_OK << 16;
 		bsg_job->reply->reply_payload_rcv_len = bsg_job->reply_payload.payload_len;
 		bsg_job->reply_len = 0;
 	}

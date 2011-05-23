@@ -3958,7 +3958,7 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 			/* spinlock is needed as reshape_progress may be
 			 * 64bit on a 32bit platform, and so it might be
 			 * possible to see a half-updated value
-			 * Ofcourse reshape_progress could change after
+			 * Of course reshape_progress could change after
 			 * the lock is dropped, so once we get a reference
 			 * to the stripe that we think it is, we will have
 			 * to check again.

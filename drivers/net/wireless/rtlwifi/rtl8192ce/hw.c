@@ -697,7 +697,7 @@ static bool _rtl92ce_init_mac(struct ieee80211_hw *hw)
 	rtl_write_word(rtlpriv, REG_CR, 0x2ff);
 
 	if (_rtl92ce_llt_table_init(hw) == false)
-		return false;;
+		return false;
 
 	rtl_write_dword(rtlpriv, REG_HISR, 0xffffffff);
 	rtl_write_byte(rtlpriv, REG_HISRE, 0xff);
@@ -754,7 +754,7 @@ static bool _rtl92ce_init_mac(struct ieee80211_hw *hw)
 
 	rtl_write_dword(rtlpriv, REG_MCUTST_1, 0x0);
 
-	return true;;
+	return true;
 }
 
 static void _rtl92ce_hw_configure(struct ieee80211_hw *hw)

@@ -309,7 +309,7 @@ EXPORT_SYMBOL(tty_termios_input_baud_rate);
  *	@ospeed: output speed
  *
  *	Encode the speeds set into the passed termios structure. This is
- *	used as a library helper for drivers os that they can report back
+ *	used as a library helper for drivers so that they can report back
  *	the actual speed selected when it differs from the speed requested
  *
  *	For maximal back compatibility with legacy SYS5/POSIX *nix behaviour

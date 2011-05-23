@@ -29,7 +29,7 @@
  * plus functions layered ontop of the generic cache implementation to
  * access the metadata and fragment caches.
  *
- * To avoid out of memory and fragmentation isssues with vmalloc the cache
+ * To avoid out of memory and fragmentation issues with vmalloc the cache
  * uses sequences of kmalloced PAGE_CACHE_SIZE buffers.
  *
  * It should be noted that the cache is not used for file datablocks, these

@@ -3541,7 +3541,7 @@ static void setup_pagelist_highmark(struct per_cpu_pageset *p,
 		pcp->batch = PAGE_SHIFT * 8;
 }
 
-static __meminit void setup_zone_pageset(struct zone *zone)
+static void setup_zone_pageset(struct zone *zone)
 {
 	int cpu;
 

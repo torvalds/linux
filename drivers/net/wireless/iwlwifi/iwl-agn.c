@@ -1766,7 +1766,7 @@ static const char *desc_lookup(u32 num)
 	max = ARRAY_SIZE(advanced_lookup) - 1;
 	for (i = 0; i < max; i++) {
 		if (advanced_lookup[i].num == num)
-			break;;
+			break;
 	}
 	return advanced_lookup[i].name;
 }

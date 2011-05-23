@@ -3327,26 +3327,26 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 	else
 		cptr = AR9300_BASE_ADDR;
 	ath_dbg(common, ATH_DBG_EEPROM,
-		"Trying EEPROM accesss at Address 0x%04x\n", cptr);
+		"Trying EEPROM access at Address 0x%04x\n", cptr);
 	if (ar9300_check_eeprom_header(ah, read, cptr))
 		goto found;
 
 	cptr = AR9300_BASE_ADDR_512;
 	ath_dbg(common, ATH_DBG_EEPROM,
-		"Trying EEPROM accesss at Address 0x%04x\n", cptr);
+		"Trying EEPROM access at Address 0x%04x\n", cptr);
 	if (ar9300_check_eeprom_header(ah, read, cptr))
 		goto found;
 
 	read = ar9300_read_otp;
 	cptr = AR9300_BASE_ADDR;
 	ath_dbg(common, ATH_DBG_EEPROM,
-		"Trying OTP accesss at Address 0x%04x\n", cptr);
+		"Trying OTP access at Address 0x%04x\n", cptr);
 	if (ar9300_check_eeprom_header(ah, read, cptr))
 		goto found;
 
 	cptr = AR9300_BASE_ADDR_512;
 	ath_dbg(common, ATH_DBG_EEPROM,
-		"Trying OTP accesss at Address 0x%04x\n", cptr);
+		"Trying OTP access at Address 0x%04x\n", cptr);
 	if (ar9300_check_eeprom_header(ah, read, cptr))
 		goto found;
 

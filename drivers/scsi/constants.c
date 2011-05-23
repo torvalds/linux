@@ -34,7 +34,7 @@
 static const char * cdb_byte0_names[] = {
 /* 00-03 */ "Test Unit Ready", "Rezero Unit/Rewind", NULL, "Request Sense",
 /* 04-07 */ "Format Unit/Medium", "Read Block Limits", NULL,
-	    "Reasssign Blocks",
+	    "Reassign Blocks",
 /* 08-0d */ "Read(6)", NULL, "Write(6)", "Seek(6)", NULL, NULL,
 /* 0e-12 */ NULL, "Read Reverse", "Write Filemarks", "Space", "Inquiry",  
 /* 13-16 */ "Verify(6)", "Recover Buffered Data", "Mode Select(6)",

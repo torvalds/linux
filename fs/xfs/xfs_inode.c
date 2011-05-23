@@ -1470,7 +1470,7 @@ xfs_itruncate_finish(
 	 * file but the log buffers containing the free and reallocation
 	 * don't, then we'd end up with garbage in the blocks being freed.
 	 * As long as we make the new_size permanent before actually
-	 * freeing any blocks it doesn't matter if they get writtten to.
+	 * freeing any blocks it doesn't matter if they get written to.
 	 *
 	 * The callers must signal into us whether or not the size
 	 * setting here must be synchronous.  There are a few cases

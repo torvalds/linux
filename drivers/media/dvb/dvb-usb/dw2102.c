@@ -1377,7 +1377,7 @@ static struct rc_map_table rc_map_su3000_table[] = {
 	{ 0x0f, KEY_BLUE },	/* bottom yellow button */
 	{ 0x14, KEY_AUDIO },	/* Snapshot */
 	{ 0x38, KEY_TV },	/* TV/Radio */
-	{ 0x0c, KEY_ESC }	/* upper Red buttton */
+	{ 0x0c, KEY_ESC }	/* upper Red button */
 };
 
 static struct rc_map_dvb_usb_table_table keys_tables[] = {

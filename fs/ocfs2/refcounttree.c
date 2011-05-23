@@ -3706,7 +3706,7 @@ int ocfs2_refcount_cow_xattr(struct inode *inode,
 	context->cow_start = cow_start;
 	context->cow_len = cow_len;
 	context->ref_tree = ref_tree;
-	context->ref_root_bh = ref_root_bh;;
+	context->ref_root_bh = ref_root_bh;
 	context->cow_object = xv;
 
 	context->cow_duplicate_clusters = ocfs2_duplicate_clusters_by_jbd;

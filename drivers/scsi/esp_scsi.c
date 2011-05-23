@@ -1058,7 +1058,7 @@ static struct esp_cmd_entry *esp_reconnect_with_tag(struct esp *esp,
 	esp->ops->send_dma_cmd(esp, esp->command_block_dma,
 			       2, 2, 1, ESP_CMD_DMA | ESP_CMD_TI);
 
-	/* ACK the msssage.  */
+	/* ACK the message.  */
 	scsi_esp_cmd(esp, ESP_CMD_MOK);
 
 	for (i = 0; i < ESP_RESELECT_TAG_LIMIT; i++) {
