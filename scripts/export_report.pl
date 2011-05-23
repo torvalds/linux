@@ -49,8 +49,14 @@ sub usage {
 }
 
 sub collectcfiles {
-    my @file
-	= `cat .tmp_versions/*.mod | grep '.*\.ko\$' | sed s/\.ko$/.mod.c/`;
+    my @file;
+    while (<.tmp_versions/*.mod>) {
+	open my $fh, '<', $_ or die "cannot open $_: $!\n";
+	push (@file,
+	      grep s/\.ko/.mod.c/,	# change the suffix
+	      grep m/.+\.ko/,		# find the .ko path
+	      <$fh>);			# lines in opened file
+    }
     chomp @file;
     return @file;
 }
