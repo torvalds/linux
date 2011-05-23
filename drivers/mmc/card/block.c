@@ -59,10 +59,6 @@ MODULE_ALIAS("mmc:block");
 #define INAND_CMD38_ARG_SECTRIM1 0x81
 #define INAND_CMD38_ARG_SECTRIM2 0x88
 
-#define REL_WRITES_SUPPORTED(card) (mmc_card_mmc((card)) &&	\
-    (((card)->ext_csd.rel_param & EXT_CSD_WR_REL_PARAM_EN) ||	\
-     ((card)->ext_csd.rel_sectors)))
-
 static DEFINE_MUTEX(block_mutex);
 
 /*
@@ -89,6 +85,10 @@ struct mmc_blk_data {
 	struct gendisk	*disk;
 	struct mmc_queue queue;
 	struct list_head part;
+
+	unsigned int	flags;
+#define MMC_BLK_CMD23	(1 << 0)	/* Can do SET_BLOCK_COUNT for multiblock */
+#define MMC_BLK_REL_WR	(1 << 1)	/* MMC Reliable write support */
 
 	unsigned int	usage;
 	unsigned int	read_only;
@@ -429,6 +429,7 @@ static const struct block_device_operations mmc_bdops = {
 
 struct mmc_blk_request {
 	struct mmc_request	mrq;
+	struct mmc_command	sbc;
 	struct mmc_command	cmd;
 	struct mmc_command	stop;
 	struct mmc_data		data;
@@ -652,13 +653,10 @@ static int mmc_blk_issue_flush(struct mmc_queue *mq, struct request *req)
  * reliable write can handle, thus finish the request in
  * partial completions.
  */
-static inline int mmc_apply_rel_rw(struct mmc_blk_request *brq,
-				   struct mmc_card *card,
-				   struct request *req)
+static inline void mmc_apply_rel_rw(struct mmc_blk_request *brq,
+				    struct mmc_card *card,
+				    struct request *req)
 {
-	int err;
-	struct mmc_command set_count = {0};
-
 	if (!(card->ext_csd.rel_param & EXT_CSD_WR_REL_PARAM_EN)) {
 		/* Legacy mode imposes restrictions on transfers. */
 		if (!IS_ALIGNED(brq->cmd.arg, card->ext_csd.rel_sectors))
@@ -669,15 +667,6 @@ static inline int mmc_apply_rel_rw(struct mmc_blk_request *brq,
 		else if (brq->data.blocks < card->ext_csd.rel_sectors)
 			brq->data.blocks = 1;
 	}
-
-	set_count.opcode = MMC_SET_BLOCK_COUNT;
-	set_count.arg = brq->data.blocks | (1 << 31);
-	set_count.flags = MMC_RSP_R1 | MMC_CMD_AC;
-	err = mmc_wait_for_cmd(card->host, &set_count, 0);
-	if (err)
-		printk(KERN_ERR "%s: error %d SET_BLOCK_COUNT\n",
-		       req->rq_disk->disk_name, err);
-	return err;
 }
 
 static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
@@ -694,7 +683,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 	bool do_rel_wr = ((req->cmd_flags & REQ_FUA) ||
 			  (req->cmd_flags & REQ_META)) &&
 		(rq_data_dir(req) == WRITE) &&
-		REL_WRITES_SUPPORTED(card);
+		(md->flags & MMC_BLK_REL_WR);
 
 	do {
 		struct mmc_command cmd = {0};
@@ -732,11 +721,9 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 
 		if (brq.data.blocks > 1 || do_rel_wr) {
 			/* SPI multiblock writes terminate using a special
-			 * token, not a STOP_TRANSMISSION request. Reliable
-			 * writes use SET_BLOCK_COUNT and do not use a
-			 * STOP_TRANSMISSION request either.
+			 * token, not a STOP_TRANSMISSION request.
 			 */
-			if ((!mmc_host_is_spi(card->host) && !do_rel_wr) ||
+			if (!mmc_host_is_spi(card->host) ||
 			    rq_data_dir(req) == READ)
 				brq.mrq.stop = &brq.stop;
 			readcmd = MMC_READ_MULTIPLE_BLOCK;
@@ -754,8 +741,37 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 			brq.data.flags |= MMC_DATA_WRITE;
 		}
 
-		if (do_rel_wr && mmc_apply_rel_rw(&brq, card, req))
-			goto cmd_err;
+		if (do_rel_wr)
+			mmc_apply_rel_rw(&brq, card, req);
+
+		/*
+		 * Pre-defined multi-block transfers are preferable to
+		 * open ended-ones (and necessary for reliable writes).
+		 * However, it is not sufficient to just send CMD23,
+		 * and avoid the final CMD12, as on an error condition
+		 * CMD12 (stop) needs to be sent anyway. This, coupled
+		 * with Auto-CMD23 enhancements provided by some
+		 * hosts, means that the complexity of dealing
+		 * with this is best left to the host. If CMD23 is
+		 * supported by card and host, we'll fill sbc in and let
+		 * the host deal with handling it correctly. This means
+		 * that for hosts that don't expose MMC_CAP_CMD23, no
+		 * change of behavior will be observed.
+		 *
+		 * N.B: Some MMC cards experience perf degradation.
+		 * We'll avoid using CMD23-bounded multiblock writes for
+		 * these, while retaining features like reliable writes.
+		 */
+
+		if ((md->flags & MMC_BLK_CMD23) &&
+		    mmc_op_multi(brq.cmd.opcode) &&
+		    (do_rel_wr || !(card->quirks & MMC_QUIRK_BLK_NO_CMD23))) {
+			brq.sbc.opcode = MMC_SET_BLOCK_COUNT;
+			brq.sbc.arg = brq.data.blocks |
+				(do_rel_wr ? (1 << 31) : 0);
+			brq.sbc.flags = MMC_RSP_R1 | MMC_CMD_AC;
+			brq.mrq.sbc = &brq.sbc;
+		}
 
 		mmc_set_data_timeout(&brq.data, card);
 
@@ -792,7 +808,8 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 		 * until later as we need to wait for the card to leave
 		 * programming mode even when things go wrong.
 		 */
-		if (brq.cmd.error || brq.data.error || brq.stop.error) {
+		if (brq.sbc.error || brq.cmd.error ||
+		    brq.data.error || brq.stop.error) {
 			if (brq.data.blocks > 1 && rq_data_dir(req) == READ) {
 				/* Redo read one sector at a time */
 				printk(KERN_WARNING "%s: retrying using single "
@@ -801,6 +818,13 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 				continue;
 			}
 			status = get_card_status(card, req);
+		}
+
+		if (brq.sbc.error) {
+			printk(KERN_ERR "%s: error %d sending SET_BLOCK_COUNT "
+			       "command, response %#x, card status %#x\n",
+			       req->rq_disk->disk_name, brq.sbc.error,
+			       brq.sbc.resp[0], status);
 		}
 
 		if (brq.cmd.error) {
@@ -1014,8 +1038,6 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	md->disk->queue = md->queue.queue;
 	md->disk->driverfs_dev = parent;
 	set_disk_ro(md->disk, md->read_only || default_ro);
-	if (REL_WRITES_SUPPORTED(card))
-		blk_queue_flush(md->queue.queue, REQ_FLUSH | REQ_FUA);
 
 	/*
 	 * As discussed on lkml, GENHD_FL_REMOVABLE should:
@@ -1034,6 +1056,19 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 
 	blk_queue_logical_block_size(md->queue.queue, 512);
 	set_capacity(md->disk, size);
+
+	if (mmc_host_cmd23(card->host) &&
+	    mmc_card_mmc(card))
+		md->flags |= MMC_BLK_CMD23;
+
+	if (mmc_card_mmc(card) &&
+	    md->flags & MMC_BLK_CMD23 &&
+	    ((card->ext_csd.rel_param & EXT_CSD_WR_REL_PARAM_EN) ||
+	     card->ext_csd.rel_sectors)) {
+		md->flags |= MMC_BLK_REL_WR;
+		blk_queue_flush(md->queue.queue, REQ_FLUSH | REQ_FUA);
+	}
+
 	return md;
 
  err_putdisk:
@@ -1189,6 +1224,21 @@ static const struct mmc_fixup blk_fixups[] =
 	MMC_FIXUP("SEM08G", 0x2, 0x100, add_quirk, MMC_QUIRK_INAND_CMD38),
 	MMC_FIXUP("SEM16G", 0x2, 0x100, add_quirk, MMC_QUIRK_INAND_CMD38),
 	MMC_FIXUP("SEM32G", 0x2, 0x100, add_quirk, MMC_QUIRK_INAND_CMD38),
+
+	/*
+	 * Some MMC cards experience performance degradation with CMD23
+	 * instead of CMD12-bounded multiblock transfers. For now we'll
+	 * black list what's bad...
+	 * - Certain Toshiba cards.
+	 *
+	 * N.B. This doesn't affect SD cards.
+	 */
+	MMC_FIXUP("MMC08G", 0x11, CID_OEMID_ANY, add_quirk_mmc,
+		  MMC_QUIRK_BLK_NO_CMD23),
+	MMC_FIXUP("MMC16G", 0x11, CID_OEMID_ANY, add_quirk_mmc,
+		  MMC_QUIRK_BLK_NO_CMD23),
+	MMC_FIXUP("MMC32G", 0x11, CID_OEMID_ANY, add_quirk_mmc,
+		  MMC_QUIRK_BLK_NO_CMD23),
 	END_FIXUP
 };
 

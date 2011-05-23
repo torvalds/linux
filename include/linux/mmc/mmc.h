@@ -83,6 +83,12 @@
 #define MMC_APP_CMD              55   /* ac   [31:16] RCA        R1  */
 #define MMC_GEN_CMD              56   /* adtc [0] RD/WR          R1  */
 
+static inline bool mmc_op_multi(u32 opcode)
+{
+	return opcode == MMC_WRITE_MULTIPLE_BLOCK ||
+	       opcode == MMC_READ_MULTIPLE_BLOCK;
+}
+
 /*
  * MMC_SWITCH argument format:
  *
