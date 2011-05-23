@@ -857,7 +857,12 @@ static void sdhci_set_transfer_mode(struct sdhci_host *host,
 		 */
 		if (!host->mrq->sbc && (host->flags & SDHCI_AUTO_CMD12))
 			mode |= SDHCI_TRNS_AUTO_CMD12;
+		else if (host->mrq->sbc && (host->flags & SDHCI_AUTO_CMD23)) {
+			mode |= SDHCI_TRNS_AUTO_CMD23;
+			sdhci_writel(host, host->mrq->sbc->arg, SDHCI_ARGUMENT2);
+		}
 	}
+
 	if (data->flags & MMC_DATA_READ)
 		mode |= SDHCI_TRNS_READ;
 	if (host->flags & SDHCI_REQ_USE_DMA)
@@ -1252,7 +1257,7 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			host->mrq = mrq;
 		}
 
-		if (mrq->sbc)
+		if (mrq->sbc && !(host->flags & SDHCI_AUTO_CMD23))
 			sdhci_send_command(host, mrq->sbc);
 		else
 			sdhci_send_command(host, mrq->cmd);
@@ -2487,6 +2492,16 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	if (host->quirks & SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12)
 		host->flags |= SDHCI_AUTO_CMD12;
+
+	/* Auto-CMD23 stuff only works in ADMA or PIO. */
+	if ((host->version == SDHCI_SPEC_300) &&
+	    ((host->flags & SDHCI_USE_ADMA) ||
+	     !(host->flags & SDHCI_REQ_USE_DMA))) {
+		host->flags |= SDHCI_AUTO_CMD23;
+		DBG("%s: Auto-CMD23 available\n", mmc_hostname(mmc));
+	} else {
+		DBG("%s: Auto-CMD23 unavailable\n", mmc_hostname(mmc));
+	}
 
 	/*
 	 * A controller may support 8-bit width, but the board itself
