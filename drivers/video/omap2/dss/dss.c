@@ -60,7 +60,7 @@ struct dss_reg {
 static struct {
 	struct platform_device *pdev;
 	void __iomem    *base;
-	int             ctx_id;
+	int		ctx_loss_cnt;
 
 	struct clk	*dpll4_m4_ck;
 	struct clk	*dss_ick;
@@ -665,34 +665,58 @@ void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select hdmi)
 }
 
 /* CONTEXT */
-static int dss_get_ctx_id(void)
+static void dss_init_ctx_loss_count(void)
 {
-	struct omap_display_platform_data *pdata = dss.pdev->dev.platform_data;
-	int r;
+	struct device *dev = &dss.pdev->dev;
+	struct omap_display_platform_data *pdata = dev->platform_data;
+	struct omap_dss_board_info *board_data = pdata->board_data;
+	int cnt = 0;
 
-	if (!pdata->board_data->get_last_off_on_transaction_id)
-		return 0;
-	r = pdata->board_data->get_last_off_on_transaction_id(&dss.pdev->dev);
-	if (r < 0) {
-		dev_err(&dss.pdev->dev, "getting transaction ID failed, "
-				"will force context restore\n");
-		r = -1;
-	}
-	return r;
+	/*
+	 * get_context_loss_count returns negative on error. We'll ignore the
+	 * error and store the error to ctx_loss_cnt, which will cause
+	 * dss_need_ctx_restore() call to return true.
+	 */
+
+	if (board_data->get_context_loss_count)
+		cnt = board_data->get_context_loss_count(dev);
+
+	WARN_ON(cnt < 0);
+
+	dss.ctx_loss_cnt = cnt;
+
+	DSSDBG("initial ctx_loss_cnt %u\n", cnt);
 }
 
-int dss_need_ctx_restore(void)
+static bool dss_need_ctx_restore(void)
 {
-	int id = dss_get_ctx_id();
+	struct device *dev = &dss.pdev->dev;
+	struct omap_display_platform_data *pdata = dev->platform_data;
+	struct omap_dss_board_info *board_data = pdata->board_data;
+	int cnt;
 
-	if (id < 0 || id != dss.ctx_id) {
-		DSSDBG("ctx id %d -> id %d\n",
-				dss.ctx_id, id);
-		dss.ctx_id = id;
-		return 1;
-	} else {
-		return 0;
+	/*
+	 * If get_context_loss_count is not available, assume that we need
+	 * context restore always.
+	 */
+	if (!board_data->get_context_loss_count)
+		return true;
+
+	cnt = board_data->get_context_loss_count(dev);
+	if (cnt < 0) {
+		dev_err(dev, "getting context loss count failed, will force "
+				"context restore\n");
+		dss.ctx_loss_cnt = cnt;
+		return true;
 	}
+
+	if (cnt == dss.ctx_loss_cnt)
+		return false;
+
+	DSSDBG("ctx_loss_cnt %d -> %d\n", dss.ctx_loss_cnt, cnt);
+	dss.ctx_loss_cnt = cnt;
+
+	return true;
 }
 
 static void save_all_ctx(void)
@@ -1046,8 +1070,7 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 
 	dss_clk_enable_all_no_ctx();
 
-	dss.ctx_id = dss_get_ctx_id();
-	DSSDBG("initial ctx id %u\n", dss.ctx_id);
+	dss_init_ctx_loss_count();
 
 	/* disable LCD and DIGIT output. This seems to fix the synclost
 	 * problem that we get, if the bootloader starts the DSS and

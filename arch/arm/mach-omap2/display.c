@@ -117,7 +117,7 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 	}
 
 	pdata.board_data = board_data;
-	pdata.board_data->get_last_off_on_transaction_id = NULL;
+	pdata.board_data->get_context_loss_count = NULL;
 	pdata.opt_clock_available = opt_clock_available;
 
 	for (i = 0; i < oh_count; i++) {
