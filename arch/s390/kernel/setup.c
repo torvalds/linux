@@ -305,8 +305,7 @@ static int set_amode_and_uaccess(unsigned long user_amode,
  */
 static int __init early_parse_switch_amode(char *p)
 {
-	if (user_mode != SECONDARY_SPACE_MODE)
-		user_mode = PRIMARY_SPACE_MODE;
+	user_mode = PRIMARY_SPACE_MODE;
 	return 0;
 }
 early_param("switch_amode", early_parse_switch_amode);
@@ -315,10 +314,6 @@ static int __init early_parse_user_mode(char *p)
 {
 	if (p && strcmp(p, "primary") == 0)
 		user_mode = PRIMARY_SPACE_MODE;
-#ifdef CONFIG_S390_EXEC_PROTECT
-	else if (p && strcmp(p, "secondary") == 0)
-		user_mode = SECONDARY_SPACE_MODE;
-#endif
 	else if (!p || strcmp(p, "home") == 0)
 		user_mode = HOME_SPACE_MODE;
 	else
@@ -327,31 +322,9 @@ static int __init early_parse_user_mode(char *p)
 }
 early_param("user_mode", early_parse_user_mode);
 
-#ifdef CONFIG_S390_EXEC_PROTECT
-/*
- * Enable execute protection?
- */
-static int __init early_parse_noexec(char *p)
-{
-	if (!strncmp(p, "off", 3))
-		return 0;
-	user_mode = SECONDARY_SPACE_MODE;
-	return 0;
-}
-early_param("noexec", early_parse_noexec);
-#endif /* CONFIG_S390_EXEC_PROTECT */
-
 static void setup_addressing_mode(void)
 {
-	if (user_mode == SECONDARY_SPACE_MODE) {
-		if (set_amode_and_uaccess(PSW_ASC_SECONDARY,
-					  PSW32_ASC_SECONDARY))
-			pr_info("Execute protection active, "
-				"mvcos available\n");
-		else
-			pr_info("Execute protection active, "
-				"mvcos not available\n");
-	} else if (user_mode == PRIMARY_SPACE_MODE) {
+	if (user_mode == PRIMARY_SPACE_MODE) {
 		if (set_amode_and_uaccess(PSW_ASC_PRIMARY, PSW32_ASC_PRIMARY))
 			pr_info("Address spaces switched, "
 				"mvcos available\n");

@@ -225,33 +225,6 @@ static noinline void do_sigbus(struct pt_regs *regs, long int_code,
 	force_sig_info(SIGBUS, &si, tsk);
 }
 
-#ifdef CONFIG_S390_EXEC_PROTECT
-static noinline int signal_return(struct pt_regs *regs, long int_code,
-				  unsigned long trans_exc_code)
-{
-	u16 instruction;
-	int rc;
-
-	rc = __get_user(instruction, (u16 __user *) regs->psw.addr);
-
-	if (!rc && instruction == 0x0a77) {
-		clear_tsk_thread_flag(current, TIF_PER_TRAP);
-		if (is_compat_task())
-			sys32_sigreturn();
-		else
-			sys_sigreturn();
-	} else if (!rc && instruction == 0x0aad) {
-		clear_tsk_thread_flag(current, TIF_PER_TRAP);
-		if (is_compat_task())
-			sys32_rt_sigreturn();
-		else
-			sys_rt_sigreturn();
-	} else
-		do_sigsegv(regs, int_code, SEGV_MAPERR, trans_exc_code);
-	return 0;
-}
-#endif /* CONFIG_S390_EXEC_PROTECT */
-
 static noinline void do_fault_error(struct pt_regs *regs, long int_code,
 				    unsigned long trans_exc_code, int fault)
 {
@@ -259,13 +232,6 @@ static noinline void do_fault_error(struct pt_regs *regs, long int_code,
 
 	switch (fault) {
 	case VM_FAULT_BADACCESS:
-#ifdef CONFIG_S390_EXEC_PROTECT
-		if ((regs->psw.mask & PSW_MASK_ASC) == PSW_ASC_SECONDARY &&
-		    (trans_exc_code & 3) == 0) {
-			signal_return(regs, int_code, trans_exc_code);
-			break;
-		}
-#endif /* CONFIG_S390_EXEC_PROTECT */
 	case VM_FAULT_BADMAP:
 		/* Bad memory access. Check if it is kernel or user space. */
 		if (regs->psw.mask & PSW_MASK_PSTATE) {
@@ -414,11 +380,6 @@ void __kprobes do_dat_exception(struct pt_regs *regs, long pgm_int_code,
 	int access, fault;
 
 	access = VM_READ | VM_EXEC | VM_WRITE;
-#ifdef CONFIG_S390_EXEC_PROTECT
-	if ((regs->psw.mask & PSW_MASK_ASC) == PSW_ASC_SECONDARY &&
-	    (trans_exc_code & 3) == 0)
-		access = VM_EXEC;
-#endif
 	fault = do_exception(regs, access, trans_exc_code);
 	if (unlikely(fault))
 		do_fault_error(regs, pgm_int_code & 255, trans_exc_code, fault);

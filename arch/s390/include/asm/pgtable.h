@@ -256,8 +256,6 @@ extern unsigned long VMALLOC_START;
 #define _PAGE_TYPE_FILE		0x601	/* bit 0x002 is used for offset !! */
 #define _PAGE_TYPE_RO		0x200
 #define _PAGE_TYPE_RW		0x000
-#define _PAGE_TYPE_EX_RO	0x202
-#define _PAGE_TYPE_EX_RW	0x002
 
 /*
  * Only four types for huge pages, using the invalid bit and protection bit
@@ -287,8 +285,6 @@ extern unsigned long VMALLOC_START;
  * _PAGE_TYPE_FILE	11?1   ->   11?1
  * _PAGE_TYPE_RO	0100   ->   1100
  * _PAGE_TYPE_RW	0000   ->   1000
- * _PAGE_TYPE_EX_RO	0110   ->   1110
- * _PAGE_TYPE_EX_RW	0010   ->   1010
  *
  * pte_none is true for bits combinations 1000, 1010, 1100, 1110
  * pte_present is true for bits combinations 0000, 0010, 0100, 0110, 1001
@@ -387,55 +383,33 @@ extern unsigned long VMALLOC_START;
 #define PAGE_NONE	__pgprot(_PAGE_TYPE_NONE)
 #define PAGE_RO		__pgprot(_PAGE_TYPE_RO)
 #define PAGE_RW		__pgprot(_PAGE_TYPE_RW)
-#define PAGE_EX_RO	__pgprot(_PAGE_TYPE_EX_RO)
-#define PAGE_EX_RW	__pgprot(_PAGE_TYPE_EX_RW)
 
 #define PAGE_KERNEL	PAGE_RW
 #define PAGE_COPY	PAGE_RO
 
 /*
- * Dependent on the EXEC_PROTECT option s390 can do execute protection.
- * Write permission always implies read permission. In theory with a
- * primary/secondary page table execute only can be implemented but
- * it would cost an additional bit in the pte to distinguish all the
- * different pte types. To avoid that execute permission currently
- * implies read permission as well.
+ * On s390 the page table entry has an invalid bit and a read-only bit.
+ * Read permission implies execute permission and write permission
+ * implies read permission.
  */
          /*xwr*/
 #define __P000	PAGE_NONE
 #define __P001	PAGE_RO
 #define __P010	PAGE_RO
 #define __P011	PAGE_RO
-#define __P100	PAGE_EX_RO
-#define __P101	PAGE_EX_RO
-#define __P110	PAGE_EX_RO
-#define __P111	PAGE_EX_RO
+#define __P100	PAGE_RO
+#define __P101	PAGE_RO
+#define __P110	PAGE_RO
+#define __P111	PAGE_RO
 
 #define __S000	PAGE_NONE
 #define __S001	PAGE_RO
 #define __S010	PAGE_RW
 #define __S011	PAGE_RW
-#define __S100	PAGE_EX_RO
-#define __S101	PAGE_EX_RO
-#define __S110	PAGE_EX_RW
-#define __S111	PAGE_EX_RW
-
-#ifndef __s390x__
-# define PxD_SHADOW_SHIFT	1
-#else /* __s390x__ */
-# define PxD_SHADOW_SHIFT	2
-#endif /* __s390x__ */
-
-static inline void *get_shadow_table(void *table)
-{
-	unsigned long addr, offset;
-	struct page *page;
-
-	addr = (unsigned long) table;
-	offset = addr & ((PAGE_SIZE << PxD_SHADOW_SHIFT) - 1);
-	page = virt_to_page((void *)(addr ^ offset));
-	return (void *)(addr_t)(page->index ? (page->index | offset) : 0UL);
-}
+#define __S100	PAGE_RO
+#define __S101	PAGE_RO
+#define __S110	PAGE_RW
+#define __S111	PAGE_RW
 
 /*
  * Certain architectures need to do special things when PTEs
@@ -446,14 +420,6 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t entry)
 {
 	*ptep = entry;
-	if (mm->context.noexec) {
-		if (!(pte_val(entry) & _PAGE_INVALID) &&
-		    (pte_val(entry) & _PAGE_SWX))
-			pte_val(entry) |= _PAGE_RO;
-		else
-			pte_val(entry) = _PAGE_TYPE_EMPTY;
-		ptep[PTRS_PER_PTE] = entry;
-	}
 }
 
 /*
@@ -662,11 +628,7 @@ static inline void pgd_clear_kernel(pgd_t * pgd)
 
 static inline void pgd_clear(pgd_t * pgd)
 {
-	pgd_t *shadow = get_shadow_table(pgd);
-
 	pgd_clear_kernel(pgd);
-	if (shadow)
-		pgd_clear_kernel(shadow);
 }
 
 static inline void pud_clear_kernel(pud_t *pud)
@@ -677,13 +639,8 @@ static inline void pud_clear_kernel(pud_t *pud)
 
 static inline void pud_clear(pud_t *pud)
 {
-	pud_t *shadow = get_shadow_table(pud);
-
 	pud_clear_kernel(pud);
-	if (shadow)
-		pud_clear_kernel(shadow);
 }
-
 #endif /* __s390x__ */
 
 static inline void pmd_clear_kernel(pmd_t * pmdp)
@@ -693,18 +650,12 @@ static inline void pmd_clear_kernel(pmd_t * pmdp)
 
 static inline void pmd_clear(pmd_t *pmd)
 {
-	pmd_t *shadow = get_shadow_table(pmd);
-
 	pmd_clear_kernel(pmd);
-	if (shadow)
-		pmd_clear_kernel(shadow);
 }
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
-	if (mm->context.noexec)
-		pte_val(ptep[PTRS_PER_PTE]) = _PAGE_TYPE_EMPTY;
 }
 
 /*
@@ -903,10 +854,6 @@ static inline void ptep_invalidate(struct mm_struct *mm,
 	}
 	__ptep_ipte(address, ptep);
 	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
-	if (mm->context.noexec) {
-		__ptep_ipte(address, ptep + PTRS_PER_PTE);
-		pte_val(*(ptep + PTRS_PER_PTE)) = _PAGE_TYPE_EMPTY;
-	}
 }
 
 /*

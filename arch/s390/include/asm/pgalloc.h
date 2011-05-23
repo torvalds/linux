@@ -19,14 +19,13 @@
 
 #define check_pgt_cache()	do {} while (0)
 
-unsigned long *crst_table_alloc(struct mm_struct *, int);
+unsigned long *crst_table_alloc(struct mm_struct *);
 void crst_table_free(struct mm_struct *, unsigned long *);
 void crst_table_free_rcu(struct mm_struct *, unsigned long *);
 
 unsigned long *page_table_alloc(struct mm_struct *);
 void page_table_free(struct mm_struct *, unsigned long *);
 void page_table_free_rcu(struct mm_struct *, unsigned long *);
-void disable_noexec(struct mm_struct *, struct task_struct *);
 
 static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
 {
@@ -50,9 +49,6 @@ static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
 static inline void crst_table_init(unsigned long *crst, unsigned long entry)
 {
 	clear_table(crst, entry, sizeof(unsigned long)*2048);
-	crst = get_shadow_table(crst);
-	if (crst)
-		clear_table(crst, entry, sizeof(unsigned long)*2048);
 }
 
 #ifndef __s390x__
@@ -90,7 +86,7 @@ void crst_table_downgrade(struct mm_struct *, unsigned long limit);
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
 {
-	unsigned long *table = crst_table_alloc(mm, mm->context.noexec);
+	unsigned long *table = crst_table_alloc(mm);
 	if (table)
 		crst_table_init(table, _REGION3_ENTRY_EMPTY);
 	return (pud_t *) table;
@@ -99,7 +95,7 @@ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
 {
-	unsigned long *table = crst_table_alloc(mm, mm->context.noexec);
+	unsigned long *table = crst_table_alloc(mm);
 	if (table)
 		crst_table_init(table, _SEGMENT_ENTRY_EMPTY);
 	return (pmd_t *) table;
@@ -115,11 +111,6 @@ static inline void pgd_populate_kernel(struct mm_struct *mm,
 static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
 {
 	pgd_populate_kernel(mm, pgd, pud);
-	if (mm->context.noexec) {
-		pgd = get_shadow_table(pgd);
-		pud = get_shadow_table(pud);
-		pgd_populate_kernel(mm, pgd, pud);
-	}
 }
 
 static inline void pud_populate_kernel(struct mm_struct *mm,
@@ -131,11 +122,6 @@ static inline void pud_populate_kernel(struct mm_struct *mm,
 static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 {
 	pud_populate_kernel(mm, pud, pmd);
-	if (mm->context.noexec) {
-		pud = get_shadow_table(pud);
-		pmd = get_shadow_table(pmd);
-		pud_populate_kernel(mm, pud, pmd);
-	}
 }
 
 #endif /* __s390x__ */
@@ -143,10 +129,8 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	spin_lock_init(&mm->context.list_lock);
-	INIT_LIST_HEAD(&mm->context.crst_list);
 	INIT_LIST_HEAD(&mm->context.pgtable_list);
-	return (pgd_t *)
-		crst_table_alloc(mm, user_mode == SECONDARY_SPACE_MODE);
+	return (pgd_t *) crst_table_alloc(mm);
 }
 #define pgd_free(mm, pgd) crst_table_free(mm, (unsigned long *) pgd)
 
@@ -160,10 +144,6 @@ static inline void pmd_populate(struct mm_struct *mm,
 				pmd_t *pmd, pgtable_t pte)
 {
 	pmd_populate_kernel(mm, pmd, pte);
-	if (mm->context.noexec) {
-		pmd = get_shadow_table(pmd);
-		pmd_populate_kernel(mm, pmd, pte + PTRS_PER_PTE);
-	}
 }
 
 #define pmd_pgtable(pmd) \

@@ -80,16 +80,11 @@ static inline void __tlb_flush_mm(struct mm_struct * mm)
 	 * on all cpus instead of doing a local flush if the mm
 	 * only ran on the local cpu.
 	 */
-	if (MACHINE_HAS_IDTE) {
-		if (mm->context.noexec)
-			__tlb_flush_idte((unsigned long)
-					 get_shadow_table(mm->pgd) |
-					 mm->context.asce_bits);
+	if (MACHINE_HAS_IDTE)
 		__tlb_flush_idte((unsigned long) mm->pgd |
 				 mm->context.asce_bits);
-		return;
-	}
-	__tlb_flush_full(mm);
+	else
+		__tlb_flush_full(mm);
 }
 
 static inline void __tlb_flush_mm_cond(struct mm_struct * mm)
