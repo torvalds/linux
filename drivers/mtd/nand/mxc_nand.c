@@ -243,9 +243,7 @@ static struct nand_ecclayout nandv2_hw_eccoob_4k = {
 	}
 };
 
-#ifdef CONFIG_MTD_PARTITIONS
 static const char *part_probes[] = { "RedBoot", "cmdlinepart", NULL };
-#endif
 
 static irqreturn_t mxc_nfc_irq(int irq, void *dev_id)
 {
@@ -1233,18 +1231,15 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	}
 
 	/* Register the partitions */
-#ifdef CONFIG_MTD_PARTITIONS
 	nr_parts =
 	    parse_mtd_partitions(mtd, part_probes, &host->parts, 0);
 	if (nr_parts > 0)
-		add_mtd_partitions(mtd, host->parts, nr_parts);
+		mtd_device_register(mtd, host->parts, nr_parts);
 	else if (pdata->parts)
-		add_mtd_partitions(mtd, pdata->parts, pdata->nr_parts);
-	else
-#endif
-	{
+		mtd_device_register(mtd, pdata->parts, pdata->nr_parts);
+	else {
 		pr_info("Registering %s as whole device\n", mtd->name);
-		add_mtd_device(mtd);
+		mtd_device_register(mtd, NULL, 0);
 	}
 
 	platform_set_drvdata(pdev, host);
