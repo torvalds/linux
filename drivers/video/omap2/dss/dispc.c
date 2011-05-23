@@ -33,6 +33,7 @@
 #include <linux/workqueue.h>
 #include <linux/hardirq.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
 #include <plat/sram.h>
 #include <plat/clock.h>

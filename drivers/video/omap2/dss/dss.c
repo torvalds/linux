@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/clk.h>
+#include <linux/platform_device.h>
 
 #include <video/omapdss.h>
 #include <plat/clock.h>

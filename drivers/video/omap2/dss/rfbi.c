@@ -33,6 +33,7 @@
 #include <linux/hrtimer.h>
 #include <linux/seq_file.h>
 #include <linux/semaphore.h>
+#include <linux/platform_device.h>
 
 #include <video/omapdss.h>
 #include "dss.h"
