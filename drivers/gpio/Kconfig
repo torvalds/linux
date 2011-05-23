@@ -86,6 +86,12 @@ config GPIO_IT8761E
 	help
 	  Say yes here to support GPIO functionality of IT8761E super I/O chip.
 
+config GPIO_EXYNOS4
+	bool "Samsung Exynos4 GPIO library support"
+	default y if CPU_EXYNOS4210
+	help
+	  Say yes here to support Samsung Exynos4 series SoCs GPIO library
+
 config GPIO_PLAT_SAMSUNG
 	bool "Samsung SoCs GPIO library support"
 	default y if SAMSUNG_GPIOLIB_4BIT
