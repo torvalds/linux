@@ -511,8 +511,8 @@ static int create_core_data(struct platform_data *pdata,
 	/*
 	 * Provide a single set of attributes for all HT siblings of a core
 	 * to avoid duplicate sensors (the processor ID and core ID of all
-	 * HT siblings of a core is the same).
-	 * Skip if a HT sibling of this core is already online.
+	 * HT siblings of a core are the same).
+	 * Skip if a HT sibling of this core is already registered.
 	 * This is not an error.
 	 */
 	if (pdata->core_data[attr_no] != NULL)
@@ -772,10 +772,10 @@ static void __cpuinit put_core_offline(unsigned int cpu)
 		coretemp_remove_core(pdata, &pdev->dev, indx);
 
 	/*
-	 * If a core is taken offline, but a HT sibling of the same core is
-	 * still online, register the alternate sibling. This ensures that
-	 * exactly one set of attributes is provided as long as at least one
-	 * HT sibling of a core is online.
+	 * If a HT sibling of a core is taken offline, but another HT sibling
+	 * of the same core is still online, register the alternate sibling.
+	 * This ensures that exactly one set of attributes is provided as long
+	 * as at least one HT sibling of a core is online.
 	 */
 	for_each_sibling(i, cpu) {
 		if (i != cpu) {
