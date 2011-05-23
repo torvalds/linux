@@ -174,6 +174,36 @@ static void __nmk_gpio_set_mode_safe(struct nmk_gpio_chip *nmk_chip,
 	}
 }
 
+static void
+nmk_gpio_disable_lazy_irq(struct nmk_gpio_chip *nmk_chip, unsigned offset)
+{
+	u32 falling = nmk_chip->fimsc & BIT(offset);
+	u32 rising = nmk_chip->rimsc & BIT(offset);
+	int gpio = nmk_chip->chip.base + offset;
+	int irq = NOMADIK_GPIO_TO_IRQ(gpio);
+	struct irq_data *d = irq_get_irq_data(irq);
+
+	if (!rising && !falling)
+		return;
+
+	if (!d || !irqd_irq_disabled(d))
+		return;
+
+	if (rising) {
+		nmk_chip->rimsc &= ~BIT(offset);
+		writel_relaxed(nmk_chip->rimsc,
+			       nmk_chip->addr + NMK_GPIO_RIMSC);
+	}
+
+	if (falling) {
+		nmk_chip->fimsc &= ~BIT(offset);
+		writel_relaxed(nmk_chip->fimsc,
+			       nmk_chip->addr + NMK_GPIO_FIMSC);
+	}
+
+	dev_dbg(nmk_chip->chip.dev, "%d: clearing interrupt mask\n", gpio);
+}
+
 static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
 			     pin_cfg_t cfg, bool sleep, unsigned int *slpmregs)
 {
@@ -238,6 +268,15 @@ static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
 		__nmk_gpio_make_input(nmk_chip, offset);
 		__nmk_gpio_set_pull(nmk_chip, offset, pull);
 	}
+
+	/*
+	 * If the pin is switching to altfunc, and there was an interrupt
+	 * installed on it which has been lazy disabled, actually mask the
+	 * interrupt to prevent spurious interrupts that would occur while the
+	 * pin is under control of the peripheral.  Only SKE does this.
+	 */
+	if (af != NMK_GPIO_ALT_GPIO)
+		nmk_gpio_disable_lazy_irq(nmk_chip, offset);
 
 	/*
 	 * If we've backed up the SLPM registers (glitch workaround), modify
