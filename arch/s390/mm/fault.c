@@ -466,7 +466,7 @@ typedef struct {
 int pfault_init(void)
 {
 	pfault_refbk_t refbk =
-		{ 0x258, 0, 5, 2, __LC_CURRENT, 1ULL << 48, 1ULL << 48,
+		{ 0x258, 0, 5, 2, __LC_CURRENT_PID, 1ULL << 48, 1ULL << 48,
 		  __PF_RES_FIELD };
         int rc;
 
@@ -498,11 +498,15 @@ void pfault_fini(void)
 		: : "a" (&refbk), "m" (refbk) : "cc");
 }
 
+static DEFINE_SPINLOCK(pfault_lock);
+static LIST_HEAD(pfault_list);
+
 static void pfault_interrupt(unsigned int ext_int_code,
 			     unsigned int param32, unsigned long param64)
 {
 	struct task_struct *tsk;
 	__u16 subcode;
+	pid_t pid;
 
 	/*
 	 * Get the external interruption subcode & pfault
@@ -514,44 +518,79 @@ static void pfault_interrupt(unsigned int ext_int_code,
 	if ((subcode & 0xff00) != __SUBCODE_MASK)
 		return;
 	kstat_cpu(smp_processor_id()).irqs[EXTINT_PFL]++;
-
-	/*
-	 * Get the token (= address of the task structure of the affected task).
-	 */
-#ifdef CONFIG_64BIT
-	tsk = (struct task_struct *) param64;
-#else
-	tsk = (struct task_struct *) param32;
-#endif
-
+	if (subcode & 0x0080) {
+		/* Get the token (= pid of the affected task). */
+		pid = sizeof(void *) == 4 ? param32 : param64;
+		rcu_read_lock();
+		tsk = find_task_by_pid_ns(pid, &init_pid_ns);
+		if (tsk)
+			get_task_struct(tsk);
+		rcu_read_unlock();
+		if (!tsk)
+			return;
+	} else {
+		tsk = current;
+	}
+	spin_lock(&pfault_lock);
 	if (subcode & 0x0080) {
 		/* signal bit is set -> a page has been swapped in by VM */
-		if (xchg(&tsk->thread.pfault_wait, -1) != 0) {
+		if (tsk->thread.pfault_wait == 1) {
 			/* Initial interrupt was faster than the completion
 			 * interrupt. pfault_wait is valid. Set pfault_wait
 			 * back to zero and wake up the process. This can
 			 * safely be done because the task is still sleeping
 			 * and can't produce new pfaults. */
 			tsk->thread.pfault_wait = 0;
+			list_del(&tsk->thread.list);
 			wake_up_process(tsk);
-			put_task_struct(tsk);
+		} else {
+			/* Completion interrupt was faster than initial
+			 * interrupt. Set pfault_wait to -1 so the initial
+			 * interrupt doesn't put the task to sleep. */
+			tsk->thread.pfault_wait = -1;
 		}
+		put_task_struct(tsk);
 	} else {
 		/* signal bit not set -> a real page is missing. */
-		get_task_struct(tsk);
-		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
-		if (xchg(&tsk->thread.pfault_wait, 1) != 0) {
+		if (tsk->thread.pfault_wait == -1) {
 			/* Completion interrupt was faster than the initial
-			 * interrupt (swapped in a -1 for pfault_wait). Set
-			 * pfault_wait back to zero and exit. This can be
-			 * done safely because tsk is running in kernel 
-			 * mode and can't produce new pfaults. */
+			 * interrupt (pfault_wait == -1). Set pfault_wait
+			 * back to zero and exit. */
 			tsk->thread.pfault_wait = 0;
-			set_task_state(tsk, TASK_RUNNING);
-			put_task_struct(tsk);
-		} else
+		} else {
+			/* Initial interrupt arrived before completion
+			 * interrupt. Let the task sleep. */
+			tsk->thread.pfault_wait = 1;
+			list_add(&tsk->thread.list, &pfault_list);
+			set_task_state(tsk, TASK_UNINTERRUPTIBLE);
 			set_tsk_need_resched(tsk);
+		}
 	}
+	spin_unlock(&pfault_lock);
+}
+
+static int __cpuinit pfault_cpu_notify(struct notifier_block *self,
+				       unsigned long action, void *hcpu)
+{
+	struct thread_struct *thread, *next;
+	struct task_struct *tsk;
+
+	switch (action) {
+	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
+		spin_lock_irq(&pfault_lock);
+		list_for_each_entry_safe(thread, next, &pfault_list, list) {
+			thread->pfault_wait = 0;
+			list_del(&thread->list);
+			tsk = container_of(thread, struct task_struct, thread);
+			wake_up_process(tsk);
+		}
+		spin_unlock_irq(&pfault_lock);
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_OK;
 }
 
 static int __init pfault_irq_init(void)
@@ -568,8 +607,10 @@ static int __init pfault_irq_init(void)
 		pfault_disable = 1;
 		return rc;
 	}
-	if (pfault_init() == 0)
+	if (pfault_init() == 0) {
+		hotcpu_notifier(pfault_cpu_notify, 0);
 		return 0;
+	}
 
 	/* Tough luck, no pfault. */
 	pfault_disable = 1;

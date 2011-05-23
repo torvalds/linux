@@ -124,6 +124,7 @@ int main(void)
 	DEFINE(__LC_LAST_UPDATE_TIMER, offsetof(struct _lowcore, last_update_timer));
 	DEFINE(__LC_LAST_UPDATE_CLOCK, offsetof(struct _lowcore, last_update_clock));
 	DEFINE(__LC_CURRENT, offsetof(struct _lowcore, current_task));
+	DEFINE(__LC_CURRENT_PID, offsetof(struct _lowcore, current_pid));
 	DEFINE(__LC_THREAD_INFO, offsetof(struct _lowcore, thread_info));
 	DEFINE(__LC_KERNEL_STACK, offsetof(struct _lowcore, kernel_stack));
 	DEFINE(__LC_ASYNC_STACK, offsetof(struct _lowcore, async_stack));
