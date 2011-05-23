@@ -1219,8 +1219,6 @@ extern void drbd_free_resources(struct drbd_conf *mdev);
 extern void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
 		       unsigned int set_size);
 extern void tl_clear(struct drbd_conf *mdev);
-enum drbd_req_event;
-extern void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
 extern void _tl_add_barrier(struct drbd_conf *, struct drbd_tl_epoch *);
 extern void drbd_free_sock(struct drbd_conf *mdev);
 extern int drbd_send(struct drbd_conf *mdev, struct socket *sock,
