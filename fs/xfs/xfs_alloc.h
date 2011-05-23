@@ -140,11 +140,24 @@ xfs_alloc_busy_insert(struct xfs_trans *tp, xfs_agnumber_t agno,
 	xfs_agblock_t bno, xfs_extlen_t len);
 
 void
-xfs_alloc_busy_clear(struct xfs_mount *mp, struct xfs_busy_extent *busyp);
+xfs_alloc_busy_clear(struct xfs_mount *mp, struct list_head *list);
 
 int
 xfs_alloc_busy_search(struct xfs_mount *mp, xfs_agnumber_t agno,
 	xfs_agblock_t bno, xfs_extlen_t len);
+
+void
+xfs_alloc_busy_reuse(struct xfs_mount *mp, xfs_agnumber_t agno,
+	xfs_agblock_t fbno, xfs_extlen_t flen, bool userdata);
+
+int
+xfs_busy_extent_ag_cmp(void *priv, struct list_head *a, struct list_head *b);
+
+static inline void xfs_alloc_busy_sort(struct list_head *list)
+{
+	list_sort(NULL, list, xfs_busy_extent_ag_cmp);
+}
+
 #endif	/* __KERNEL__ */
 
 /*
