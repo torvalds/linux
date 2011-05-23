@@ -5,6 +5,7 @@
  * Author: Heinz Graalfs <graalfs@de.ibm.com>
  */
 
+#include <linux/kernel_stat.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/smp.h>
@@ -677,6 +678,7 @@ static void hws_ext_handler(unsigned int ext_int_code,
 	int cpu;
 	struct hws_cpu_buffer *cb;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_CPM]++;
 	cpu = smp_processor_id();
 	cb = &per_cpu(sampler_cpu_buffer, cpu);
 
