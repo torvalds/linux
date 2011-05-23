@@ -507,15 +507,19 @@ static void watchdog_disable_all_cpus(void)
 int proc_dowatchdog_enabled(struct ctl_table *table, int write,
 		     void __user *buffer, size_t *length, loff_t *ppos)
 {
-	proc_dointvec(table, write, buffer, length, ppos);
+	int ret;
 
-	if (write) {
-		if (watchdog_enabled)
-			watchdog_enable_all_cpus();
-		else
-			watchdog_disable_all_cpus();
-	}
-	return 0;
+	ret = proc_dointvec(table, write, buffer, length, ppos);
+	if (ret || !write)
+		goto out;
+
+	if (watchdog_enabled)
+		watchdog_enable_all_cpus();
+	else
+		watchdog_disable_all_cpus();
+
+out:
+	return ret;
 }
 
 int proc_dowatchdog_thresh(struct ctl_table *table, int write,
