@@ -1947,37 +1947,6 @@ static int wedge_bulk_in_endpoint(struct fsg_dev *fsg)
 	return rc;
 }
 
-static int pad_with_zeros(struct fsg_dev *fsg)
-{
-	struct fsg_buffhd	*bh = fsg->next_buffhd_to_fill;
-	u32			nkeep = bh->inreq->length;
-	u32			nsend;
-	int			rc;
-
-	bh->state = BUF_STATE_EMPTY;		// For the first iteration
-	fsg->usb_amount_left = nkeep + fsg->residue;
-	while (fsg->usb_amount_left > 0) {
-
-		/* Wait for the next buffer to be free */
-		while (bh->state != BUF_STATE_EMPTY) {
-			rc = sleep_thread(fsg);
-			if (rc)
-				return rc;
-		}
-
-		nsend = min(fsg->usb_amount_left, (u32) mod_data.buflen);
-		memset(bh->buf + nkeep, 0, nsend - nkeep);
-		bh->inreq->length = nsend;
-		bh->inreq->zero = 0;
-		start_transfer(fsg, fsg->bulk_in, bh->inreq,
-				&bh->inreq_busy, &bh->state);
-		bh = fsg->next_buffhd_to_fill = bh->next;
-		fsg->usb_amount_left -= nsend;
-		nkeep = 0;
-	}
-	return 0;
-}
-
 static int throw_away_data(struct fsg_dev *fsg)
 {
 	struct fsg_buffhd	*bh;
@@ -2082,18 +2051,20 @@ static int finish_reply(struct fsg_dev *fsg)
 			}
 		}
 
-		/* For Bulk-only, if we're allowed to stall then send the
-		 * short packet and halt the bulk-in endpoint.  If we can't
-		 * stall, pad out the remaining data with 0's. */
+		/*
+		 * For Bulk-only, mark the end of the data with a short
+		 * packet.  If we are allowed to stall, halt the bulk-in
+		 * endpoint.  (Note: This violates the Bulk-Only Transport
+		 * specification, which requires us to pad the data if we
+		 * don't halt the endpoint.  Presumably nobody will mind.)
+		 */
 		else {
-			if (mod_data.can_stall) {
-				bh->inreq->zero = 1;
-				start_transfer(fsg, fsg->bulk_in, bh->inreq,
-						&bh->inreq_busy, &bh->state);
-				fsg->next_buffhd_to_fill = bh->next;
+			bh->inreq->zero = 1;
+			start_transfer(fsg, fsg->bulk_in, bh->inreq,
+					&bh->inreq_busy, &bh->state);
+			fsg->next_buffhd_to_fill = bh->next;
+			if (mod_data.can_stall)
 				rc = halt_bulk_in_endpoint(fsg);
-			} else
-				rc = pad_with_zeros(fsg);
 		}
 		break;
 
@@ -2314,7 +2285,7 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 		fsg->lun = lun;		// Use LUN from the command
 
 	/* Check the LUN */
-	if (fsg->lun >= 0 && fsg->lun < fsg->nluns) {
+	if (fsg->lun < fsg->nluns) {
 		fsg->curlun = curlun = &fsg->luns[fsg->lun];
 		if (fsg->cmnd[0] != REQUEST_SENSE) {
 			curlun->sense_data = SS_NO_SENSE;

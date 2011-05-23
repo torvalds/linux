@@ -806,8 +806,10 @@ struct usbdrv_wrap {
  * @resume: Called when the device is being resumed by the system.
  * @reset_resume: Called when the suspended device has been reset instead
  *	of being resumed.
- * @pre_reset: Called by usb_reset_device() when the device
- *	is about to be reset.
+ * @pre_reset: Called by usb_reset_device() when the device is about to be
+ *	reset.  This routine must not return until the driver has no active
+ *	URBs for the device, and no more URBs may be submitted until the
+ *	post_reset method is called.
  * @post_reset: Called by usb_reset_device() after the device
  *	has been reset
  * @id_table: USB drivers use ID table to support hotplugging.

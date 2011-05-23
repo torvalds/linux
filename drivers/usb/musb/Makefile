@@ -2,8 +2,6 @@
 # for USB OTG silicon based on Mentor Graphics INVENTRA designs
 #
 
-ccflags-$(CONFIG_USB_MUSB_DEBUG) := -DDEBUG
-
 obj-$(CONFIG_USB_MUSB_HDRC) += musb_hdrc.o
 
 musb_hdrc-y := musb_core.o
@@ -39,6 +37,11 @@ ifneq ($(CONFIG_MUSB_PIO_ONLY),y)
       ifeq ($(CONFIG_USB_TUSB_OMAP_DMA),y)
 	musb_hdrc-y		+= tusb6010_omap.o
 
+      else
+        ifeq ($(CONFIG_USB_UX500_DMA),y)
+	  musb_hdrc-y		+= ux500_dma.o
+
+        endif
       endif
     endif
   endif

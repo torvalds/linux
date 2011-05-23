@@ -21,6 +21,10 @@
 /* USB host controller */
 #define S3C2410_PA_USBHOST (0x49000000)
 
+/* S3C2416/S3C2443/S3C2450 High-Speed USB Gadget */
+#define S3C2416_PA_HSUDC	(0x49800000)
+#define S3C2416_SZ_HSUDC	(SZ_4K)
+
 /* DMA controller */
 #define S3C2410_PA_DMA	   (0x4B000000)
 #define S3C24XX_SZ_DMA	   SZ_1M

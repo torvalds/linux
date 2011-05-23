@@ -88,6 +88,7 @@ extern struct platform_device s3c64xx_device_onenand1;
 extern struct platform_device s5p_device_onenand;
 
 extern struct platform_device s3c_device_usbgadget;
+extern struct platform_device s3c_device_usb_hsudc;
 extern struct platform_device s3c_device_usb_hsotg;
 
 extern struct platform_device s5pv210_device_ac97;
@@ -141,6 +142,8 @@ extern struct platform_device s5p_device_fimc3;
 
 extern struct platform_device s5p_device_mipi_csis0;
 extern struct platform_device s5p_device_mipi_csis1;
+
+extern struct platform_device s5p_device_ehci;
 
 extern struct platform_device exynos4_device_sysmmu;
 
