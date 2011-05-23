@@ -542,6 +542,29 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 
 		return ocfs2_info_handle(inode, &info, 0);
+	case FITRIM:
+	{
+		struct super_block *sb = inode->i_sb;
+		struct fstrim_range range;
+		int ret = 0;
+
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+		if (copy_from_user(&range, (struct fstrim_range *)arg,
+		    sizeof(range)))
+			return -EFAULT;
+
+		ret = ocfs2_trim_fs(sb, &range);
+		if (ret < 0)
+			return ret;
+
+		if (copy_to_user((struct fstrim_range *)arg, &range,
+		    sizeof(range)))
+			return -EFAULT;
+
+		return 0;
+	}
 	default:
 		return -ENOTTY;
 	}
@@ -569,6 +592,7 @@ long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case OCFS2_IOC_GROUP_EXTEND:
 	case OCFS2_IOC_GROUP_ADD:
 	case OCFS2_IOC_GROUP_ADD64:
+	case FITRIM:
 		break;
 	case OCFS2_IOC_REFLINK:
 		if (copy_from_user(&args, (struct reflink_arguments *)arg,
