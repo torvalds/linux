@@ -1183,8 +1183,12 @@ static void ap_scan_bus(struct work_struct *unused)
 		INIT_LIST_HEAD(&ap_dev->list);
 		setup_timer(&ap_dev->timeout, ap_request_timeout,
 			    (unsigned long) ap_dev);
-		if (device_type == 0)
-			ap_probe_device_type(ap_dev);
+		if (device_type == 0) {
+			if (ap_probe_device_type(ap_dev)) {
+				kfree(ap_dev);
+				continue;
+			}
+		}
 		else
 			ap_dev->device_type = device_type;
 
