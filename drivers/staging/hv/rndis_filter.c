@@ -372,24 +372,6 @@ int rndis_filter_receive(struct hv_device *dev,
 			pkt->page_buf[0].offset);
 
 	/* Make sure we got a valid rndis message */
-	/*
-	 * FIXME: There seems to be a bug in set completion msg where its
-	 * MessageLength is 16 bytes but the ByteCount field in the xfer page
-	 * range shows 52 bytes
-	 * */
-#if 0
-	if (pkt->total_data_buflen != rndis_hdr->msg_len) {
-		kunmap_atomic(rndis_hdr - pkt->page_buf[0].offset,
-			      KM_IRQ0);
-
-		dev_err(&dev->device, "invalid rndis message? (expected %u "
-			   "bytes got %u)...dropping this message!\n",
-			   rndis_hdr->msg_len,
-			   pkt->total_data_buflen);
-		return -1;
-	}
-#endif
-
 	if ((rndis_hdr->ndis_msg_type != REMOTE_NDIS_PACKET_MSG) &&
 	    (rndis_hdr->msg_len > sizeof(struct rndis_message))) {
 		dev_err(&dev->device, "incoming rndis message buffer overflow "
