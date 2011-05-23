@@ -16,7 +16,7 @@
  * Partition definition structure:
  *
  * An array of struct partition is passed along with a MTD object to
- * add_mtd_partitions() to create them.
+ * mtd_device_register() to create them.
  *
  * For each partition, these fields are available:
  * name: string that will be used to label the partition's MTD device.

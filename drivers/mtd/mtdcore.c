@@ -38,6 +38,7 @@
 #include <linux/gfp.h>
 
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
 
 #include "mtdcore.h"
 /*
@@ -426,6 +427,50 @@ out_error:
 	mutex_unlock(&mtd_table_mutex);
 	return ret;
 }
+
+/**
+ * mtd_device_register - register an MTD device.
+ *
+ * @master: the MTD device to register
+ * @parts: the partitions to register - only valid if nr_parts > 0
+ * @nr_parts: the number of partitions in parts.  If zero then the full MTD
+ *            device is registered
+ *
+ * Register an MTD device with the system and optionally, a number of
+ * partitions.  If nr_parts is 0 then the whole device is registered, otherwise
+ * only the partitions are registered.  To register both the full device *and*
+ * the partitions, call mtd_device_register() twice, once with nr_parts == 0
+ * and once equal to the number of partitions.
+ */
+int mtd_device_register(struct mtd_info *master,
+			const struct mtd_partition *parts,
+			int nr_parts)
+{
+	return parts ? add_mtd_partitions(master, parts, nr_parts) :
+		add_mtd_device(master);
+}
+EXPORT_SYMBOL_GPL(mtd_device_register);
+
+/**
+ * mtd_device_unregister - unregister an existing MTD device.
+ *
+ * @master: the MTD device to unregister.  This will unregister both the master
+ *          and any partitions if registered.
+ */
+int mtd_device_unregister(struct mtd_info *master)
+{
+	int err;
+
+	err = del_mtd_partitions(master);
+	if (err)
+		return err;
+
+	if (!device_is_registered(&master->dev))
+		return 0;
+
+	return del_mtd_device(master);
+}
+EXPORT_SYMBOL_GPL(mtd_device_unregister);
 
 /**
  *	register_mtd_user - register a 'user' of MTD devices.
