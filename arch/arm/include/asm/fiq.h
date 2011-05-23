@@ -29,9 +29,21 @@ struct fiq_handler {
 extern int claim_fiq(struct fiq_handler *f);
 extern void release_fiq(struct fiq_handler *f);
 extern void set_fiq_handler(void *start, unsigned int length);
-extern void set_fiq_regs(struct pt_regs *regs);
-extern void get_fiq_regs(struct pt_regs *regs);
 extern void enable_fiq(int fiq);
 extern void disable_fiq(int fiq);
+
+/* helpers defined in fiqasm.S: */
+extern void __set_fiq_regs(unsigned long const *regs);
+extern void __get_fiq_regs(unsigned long *regs);
+
+static inline void set_fiq_regs(struct pt_regs const *regs)
+{
+	__set_fiq_regs(&regs->ARM_r8);
+}
+
+static inline void get_fiq_regs(struct pt_regs *regs)
+{
+	__get_fiq_regs(&regs->ARM_r8);
+}
 
 #endif
