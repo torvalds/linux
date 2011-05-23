@@ -51,7 +51,7 @@ asynchronous and synchronous parts of the kernel.
 #include <linux/async.h>
 #include <linux/atomic.h>
 #include <linux/ktime.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/slab.h>

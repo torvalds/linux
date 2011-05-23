@@ -62,7 +62,7 @@
  */
 #include <linux/spinlock.h>
 #include <linux/hardirq.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/percpu.h>
 #include <linux/ktime.h>
 #include <linux/sched.h>

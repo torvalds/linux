@@ -45,7 +45,7 @@
 #include <asm/types.h>
 #include <linux/atomic.h>
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/kthread.h>

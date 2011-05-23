@@ -10,7 +10,7 @@
 #include <linux/audit.h>
 #include <linux/capability.h>
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/pid_namespace.h>

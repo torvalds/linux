@@ -19,7 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/debug_locks.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 /*
  * If lockdep is enabled then we use the non-preemption spin-ops
