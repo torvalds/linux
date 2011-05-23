@@ -18,13 +18,11 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/fsl_devices.h>
 #include <linux/i2c/tsc2007.h>
 #include <linux/leds.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx51.h>
 
 #include <asm/mach/arch.h>

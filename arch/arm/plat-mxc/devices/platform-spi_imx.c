@@ -80,7 +80,7 @@ const struct imx_spi_imx_data imx35_cspi_data[] __initconst = {
 
 #ifdef CONFIG_SOC_IMX51
 const struct imx_spi_imx_data imx51_cspi_data __initconst =
-	imx_spi_imx_data_entry_single(MX51, CSPI, "imx51-cspi", 0, , SZ_4K);
+	imx_spi_imx_data_entry_single(MX51, CSPI, "imx51-cspi", 2, , SZ_4K);
 
 const struct imx_spi_imx_data imx51_ecspi_data[] __initconst = {
 #define imx51_ecspi_data_entry(_id, _hwid)				\

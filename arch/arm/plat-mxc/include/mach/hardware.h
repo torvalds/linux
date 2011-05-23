@@ -86,15 +86,6 @@
  *	SPBA0	0x70000000+0x100000	->	0xf5400000+0x100000
  *	AIPS1	0x73f00000+0x100000	->	0xf5700000+0x100000
  *	AIPS2	0x83f00000+0x100000	->	0xf4300000+0x100000
- * mxc91231:
- *	L2CC	0x30000000+0x010000	->	0xf4400000+0x010000
- *	X_MEMC	0xb8000000+0x010000	->	0xf4c00000+0x010000
- *	ROMP	0x60000000+0x010000	->	0xf5000000+0x010000
- *	AVIC	0x68000000+0x010000	->	0xf5800000+0x010000
- *	AIPS1	0x43f00000+0x100000	->	0xf5300000+0x100000
- *	SPBA0	0x50000000+0x100000	->	0xf5400000+0x100000
- *	SPBA1	0x52000000+0x100000	->	0xf5600000+0x100000
- *	AIPS2	0x53f00000+0x100000	->	0xf5700000+0x100000
  */
 #define IMX_IO_P2V(x)	(						\
 			0xf4000000 +					\
@@ -103,6 +94,8 @@
 			(((x) & 0x000fffff)))
 
 #define IMX_IO_ADDRESS(x)	IOMEM(IMX_IO_P2V(x))
+
+#include <mach/mxc.h>
 
 #ifdef CONFIG_ARCH_MX5
 #include <mach/mx50.h>
@@ -133,12 +126,6 @@
 #ifdef CONFIG_ARCH_MX25
 # include <mach/mx25.h>
 #endif
-
-#ifdef CONFIG_ARCH_MXC91231
-# include <mach/mxc91231.h>
-#endif
-
-#include <mach/mxc.h>
 
 #define imx_map_entry(soc, name, _type)	{				\
 	.virtual = soc ## _IO_P2V(soc ## _ ## name ## _BASE_ADDR),	\

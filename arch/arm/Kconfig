@@ -469,7 +469,7 @@ config ARCH_IXP4XX
 
 config ARCH_DOVE
 	bool "Marvell Dove"
-	select CPU_V6K
+	select CPU_V7
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
@@ -850,6 +850,7 @@ config ARCH_DAVINCI
 	select HAVE_IDE
 	select CLKDEV_LOOKUP
 	select GENERIC_ALLOCATOR
+	select GENERIC_IRQ_CHIP
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	help
 	  Support for TI's DaVinci platform.
@@ -1027,6 +1028,7 @@ config PLAT_IOP
 config PLAT_ORION
 	bool
 	select CLKSRC_MMIO
+	select GENERIC_IRQ_CHIP
 	select HAVE_SCHED_CLOCK
 
 config PLAT_PXA

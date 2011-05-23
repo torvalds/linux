@@ -166,6 +166,29 @@ int mx50_revision(void)
 }
 EXPORT_SYMBOL(mx50_revision);
 
+void mx53_display_revision(void)
+{
+	int rev;
+	char *srev;
+	rev = mx53_revision();
+
+	switch (rev) {
+	case IMX_CHIP_REVISION_1_0:
+		srev = IMX_CHIP_REVISION_1_0_STRING;
+		break;
+	case IMX_CHIP_REVISION_2_0:
+		srev = IMX_CHIP_REVISION_2_0_STRING;
+		break;
+	case IMX_CHIP_REVISION_2_1:
+		srev = IMX_CHIP_REVISION_2_1_STRING;
+		break;
+	default:
+		srev = IMX_CHIP_REVISION_UNKNOWN_STRING;
+	}
+	printk(KERN_INFO "CPU identified as i.MX53, silicon rev %s\n", srev);
+}
+EXPORT_SYMBOL(mx53_display_revision);
+
 static int __init post_cpu_init(void)
 {
 	unsigned int reg;

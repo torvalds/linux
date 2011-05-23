@@ -23,6 +23,8 @@
 #include <linux/irq.h>
 #include <linux/slab.h>
 
+#include <asm/mach/irq.h>
+
 #include <plat/pincfg.h>
 #include <mach/hardware.h>
 #include <mach/gpio.h>
@@ -681,13 +683,7 @@ static void __nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc,
 	struct irq_chip *host_chip = irq_get_chip(irq);
 	unsigned int first_irq;
 
-	if (host_chip->irq_mask_ack)
-		host_chip->irq_mask_ack(&desc->irq_data);
-	else {
-		host_chip->irq_mask(&desc->irq_data);
-		if (host_chip->irq_ack)
-			host_chip->irq_ack(&desc->irq_data);
-	}
+	chained_irq_enter(host_chip, desc);
 
 	nmk_chip = irq_get_handler_data(irq);
 	first_irq = NOMADIK_GPIO_TO_IRQ(nmk_chip->chip.base);
@@ -698,7 +694,7 @@ static void __nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc,
 		status &= ~BIT(bit);
 	}
 
-	host_chip->irq_unmask(&desc->irq_data);
+	chained_irq_exit(host_chip, desc);
 }
 
 static void nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
