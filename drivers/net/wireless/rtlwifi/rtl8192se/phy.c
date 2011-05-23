@@ -263,7 +263,6 @@ void rtl92s_phy_set_bw_mode(struct ieee80211_hw *hw,
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	u8 reg_bw_opmode;
-	u8 reg_prsr_rsc;
 
 	RT_TRACE(rtlpriv, COMP_SCAN, DBG_TRACE, ("Switch to %s bandwidth\n",
 		  rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_20 ?
@@ -277,7 +276,8 @@ void rtl92s_phy_set_bw_mode(struct ieee80211_hw *hw,
 	rtlphy->set_bwmode_inprogress = true;
 
 	reg_bw_opmode = rtl_read_byte(rtlpriv, BW_OPMODE);
-	reg_prsr_rsc = rtl_read_byte(rtlpriv, RRSR + 2);
+	/* dummy read */
+	rtl_read_byte(rtlpriv, RRSR + 2);
 
 	switch (rtlphy->current_chan_bw) {
 	case HT_CHANNEL_WIDTH_20:
