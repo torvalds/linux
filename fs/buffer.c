@@ -2332,23 +2332,22 @@ EXPORT_SYMBOL(block_commit_write);
  * beyond EOF, then the page is guaranteed safe against truncation until we
  * unlock the page.
  */
-int
-block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
-		   get_block_t get_block)
+int __block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
+			 get_block_t get_block)
 {
 	struct page *page = vmf->page;
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
 	unsigned long end;
 	loff_t size;
-	int ret = VM_FAULT_NOPAGE; /* make the VM retry the fault */
+	int ret;
 
 	lock_page(page);
 	size = i_size_read(inode);
 	if ((page->mapping != inode->i_mapping) ||
 	    (page_offset(page) > size)) {
-		/* page got truncated out from underneath us */
-		unlock_page(page);
-		goto out;
+		/* We overload EFAULT to mean page got truncated */
+		ret = -EFAULT;
+		goto out_unlock;
 	}
 
 	/* page is wholly or partially inside EOF */
@@ -2361,17 +2360,21 @@ block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 	if (!ret)
 		ret = block_commit_write(page, 0, end);
 
-	if (unlikely(ret)) {
-		unlock_page(page);
-		if (ret == -ENOMEM)
-			ret = VM_FAULT_OOM;
-		else /* -ENOSPC, -EIO, etc */
-			ret = VM_FAULT_SIGBUS;
-	} else
-		ret = VM_FAULT_LOCKED;
-
-out:
+	if (unlikely(ret < 0))
+		goto out_unlock;
+	return 0;
+out_unlock:
+	unlock_page(page);
 	return ret;
+}
+EXPORT_SYMBOL(__block_page_mkwrite);
+
+int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
+		   get_block_t get_block)
+{
+	int ret = __block_page_mkwrite(vma, vmf, get_block);
+
+	return block_page_mkwrite_return(ret);
 }
 EXPORT_SYMBOL(block_page_mkwrite);
 
