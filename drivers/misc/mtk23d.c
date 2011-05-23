@@ -213,11 +213,30 @@ static struct miscdevice mtk23d_misc = {
 	.fops = &mtk23d_fops
 };
 
+static irqreturn_t BBwakeup_isr(int irq, void *dev_id)
+{
+	struct rk2818_23d_data *pdata = dev_id;
+	
+	MODEMDBG("%s \n", __FUNCTION__);
+	//if(irq != gpio_to_irq(RK29_PIN1_PC0))
+	//{
+	//		printk("irq != gpio_to_irq(RK29_PIN1_PC0) \n");
+	//		return IRQ_NONE;
+	//}
+	
+//	disable_irq_wake(irq);
+	
+	if(wakelock_inited == true)
+		wake_lock_timeout(&mtk23d_wakelock, 2 * HZ);
+
+	return IRQ_HANDLED;
+}
+
 static int mtk23d_probe(struct platform_device *pdev)
 {
 	struct rk2818_23d_data *pdata = gpdata = pdev->dev.platform_data;
 	struct modem_dev *mt6223d_data = NULL;
-	int result, irq = 0;	
+	int result, error = 0, irq = 0;	
 	
 	MODEMDBG("mtk23d_probe\n");
 
@@ -317,6 +336,21 @@ static int mtk23d_probe(struct platform_device *pdev)
 	}
 	MODEMDBG("mtk23d_probe ok\n");
 	
+	wakelock_inited = false;
+	irq = gpio_to_irq(pdata->bp_statue);
+	if (irq < 0) {
+		printk("can't get pdata->bp_statue irq \n");
+	}
+	else
+	{
+		error = request_irq(irq, BBwakeup_isr,
+				    IRQF_TRIGGER_FALLING,
+				    NULL,
+				    pdata);
+		if (error) {
+			printk("mtk23d_probe bp_statue request_irq error!!! \n");
+		}
+	}
 	if (!wakelock_inited) {
 		wake_lock_init(&mtk23d_wakelock, WAKE_LOCK_SUSPEND, "23d_resume");
 		wakelock_inited = true;
@@ -342,24 +376,6 @@ ret:
 	return result;
 }
 
-static irqreturn_t BBwakeup_isr(int irq, void *dev_id)
-{
-	struct rk2818_23d_data *pdata = dev_id;
-	
-	MODEMDBG("%s \n", __FUNCTION__);
-	//if(irq != gpio_to_irq(RK29_PIN1_PC0))
-	//{
-	//		printk("irq != gpio_to_irq(RK29_PIN1_PC0) \n");
-	//		return IRQ_NONE;
-	//}
-	
-//	disable_irq_wake(irq);
-	
-	wake_lock_timeout(&mtk23d_wakelock, 2 * HZ);
-
-	return IRQ_HANDLED;
-}
-
 int mtk23d_suspend(struct platform_device *pdev)
 {
 	int irq, error;
@@ -376,13 +392,7 @@ int mtk23d_suspend(struct platform_device *pdev)
 	}
 	else
 	{
-		error = request_irq(irq, BBwakeup_isr,
-				    IRQF_TRIGGER_FALLING,
-				    NULL,
-				    pdata);
-		if (error) {
-			printk("request_irq error!!! \n");
-		}
+		printk("enable pdata->bp_statue irq_wake!! \n");
 		enable_irq_wake(irq);
 	}
 	
