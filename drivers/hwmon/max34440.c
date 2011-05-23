@@ -32,7 +32,7 @@ enum chips { max34440, max34441 };
 #define MAX34440_STATUS_OT_FAULT	(1 << 5)
 #define MAX34440_STATUS_OT_WARN		(1 << 6)
 
-static int max34440_get_status(struct i2c_client *client, int page, int reg)
+static int max34440_read_byte_data(struct i2c_client *client, int page, int reg)
 {
 	int ret;
 	int mfg_status;
@@ -108,7 +108,7 @@ static struct pmbus_driver_info max34440_info[] = {
 		.func[11] = PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP,
 		.func[12] = PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP,
 		.func[13] = PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP,
-		.get_status = max34440_get_status,
+		.read_byte_data = max34440_read_byte_data,
 	},
 	[max34441] = {
 		.pages = 12,
@@ -149,7 +149,7 @@ static struct pmbus_driver_info max34440_info[] = {
 		.func[9] = PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP,
 		.func[10] = PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP,
 		.func[11] = PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP,
-		.get_status = max34440_get_status,
+		.read_byte_data = max34440_read_byte_data,
 	},
 };
 

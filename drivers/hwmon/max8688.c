@@ -37,7 +37,7 @@
 #define MAX8688_STATUS_OT_FAULT		(1 << 13)
 #define MAX8688_STATUS_OT_WARNING	(1 << 14)
 
-static int max8688_get_status(struct i2c_client *client, int page, int reg)
+static int max8688_read_byte_data(struct i2c_client *client, int page, int reg)
 {
 	int ret = 0;
 	int mfg_status;
@@ -110,7 +110,7 @@ static struct pmbus_driver_info max8688_info = {
 	.func[0] = PMBUS_HAVE_VOUT | PMBUS_HAVE_IOUT | PMBUS_HAVE_TEMP
 		| PMBUS_HAVE_STATUS_VOUT | PMBUS_HAVE_STATUS_IOUT
 		| PMBUS_HAVE_STATUS_TEMP,
-	.get_status = max8688_get_status,
+	.read_byte_data = max8688_read_byte_data,
 };
 
 static int max8688_probe(struct i2c_client *client,
