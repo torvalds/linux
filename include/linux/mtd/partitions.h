@@ -49,9 +49,6 @@ struct mtd_partition {
 
 struct mtd_info;
 
-int add_mtd_partitions(struct mtd_info *, const struct mtd_partition *, int);
-int del_mtd_partitions(struct mtd_info *);
-
 /*
  * Functions dealing with the various ways of partitioning the space
  */
@@ -84,12 +81,6 @@ static inline int of_mtd_parse_partitions(struct device *dev,
 {
 	return 0;
 }
-#endif
-
-#ifdef CONFIG_MTD_PARTITIONS
-static inline int mtd_has_partitions(void) { return 1; }
-#else
-static inline int mtd_has_partitions(void) { return 0; }
 #endif
 
 #ifdef CONFIG_MTD_CMDLINE_PARTS

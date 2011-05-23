@@ -31,6 +31,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/err.h>
 
+#include "mtdcore.h"
+
 /* Our partition linked list */
 static LIST_HEAD(mtd_partitions);
 static DEFINE_MUTEX(mtd_partitions_mutex);
@@ -376,7 +378,6 @@ int del_mtd_partitions(struct mtd_info *master)
 
 	return err;
 }
-EXPORT_SYMBOL(del_mtd_partitions);
 
 static struct mtd_part *allocate_partition(struct mtd_info *master,
 			const struct mtd_partition *part, int partno,
@@ -671,7 +672,6 @@ int add_mtd_partitions(struct mtd_info *master,
 
 	return 0;
 }
-EXPORT_SYMBOL(add_mtd_partitions);
 
 static DEFINE_SPINLOCK(part_parser_lock);
 static LIST_HEAD(part_parsers);

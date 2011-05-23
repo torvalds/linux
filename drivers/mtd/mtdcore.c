@@ -393,7 +393,7 @@ fail_locked:
  *	if the requested device does not appear to be present in the list.
  */
 
-int del_mtd_device (struct mtd_info *mtd)
+int del_mtd_device(struct mtd_info *mtd)
 {
 	int ret;
 	struct mtd_notifier *not;
@@ -723,8 +723,6 @@ void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size)
 	return kmalloc(*size, GFP_KERNEL);
 }
 
-EXPORT_SYMBOL_GPL(add_mtd_device);
-EXPORT_SYMBOL_GPL(del_mtd_device);
 EXPORT_SYMBOL_GPL(get_mtd_device);
 EXPORT_SYMBOL_GPL(get_mtd_device_nm);
 EXPORT_SYMBOL_GPL(__get_mtd_device);
