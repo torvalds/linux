@@ -21,10 +21,8 @@ struct plat_nand_data {
 	struct nand_chip	chip;
 	struct mtd_info		mtd;
 	void __iomem		*io_base;
-#ifdef CONFIG_MTD_PARTITIONS
 	int			nr_parts;
 	struct mtd_partition	*parts;
-#endif
 };
 
 /*
@@ -101,13 +99,12 @@ static int __devinit plat_nand_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-#ifdef CONFIG_MTD_PARTITIONS
 	if (pdata->chip.part_probe_types) {
 		err = parse_mtd_partitions(&data->mtd,
 					pdata->chip.part_probe_types,
 					&data->parts, 0);
 		if (err > 0) {
-			add_mtd_partitions(&data->mtd, data->parts, err);
+			mtd_device_register(&data->mtd, data->parts, err);
 			return 0;
 		}
 	}
@@ -115,11 +112,10 @@ static int __devinit plat_nand_probe(struct platform_device *pdev)
 		pdata->chip.set_parts(data->mtd.size, &pdata->chip);
 	if (pdata->chip.partitions) {
 		data->parts = pdata->chip.partitions;
-		err = add_mtd_partitions(&data->mtd, data->parts,
+		err = mtd_device_register(&data->mtd, data->parts,
 			pdata->chip.nr_partitions);
 	} else
-#endif
-	err = add_mtd_device(&data->mtd);
+		err = mtd_device_register(&data->mtd, NULL, 0);
 
 	if (!err)
 		return err;
@@ -149,10 +145,8 @@ static int __devexit plat_nand_remove(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	nand_release(&data->mtd);
-#ifdef CONFIG_MTD_PARTITIONS
 	if (data->parts && data->parts != pdata->chip.partitions)
 		kfree(data->parts);
-#endif
 	if (pdata->ctrl.remove)
 		pdata->ctrl.remove(pdev);
 	iounmap(data->io_base);
