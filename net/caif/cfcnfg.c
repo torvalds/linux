@@ -182,39 +182,26 @@ static int cfcnfg_get_id_from_ifi(struct cfcnfg *cnfg, int ifi)
 
 int caif_disconnect_client(struct net *net, struct cflayer *adap_layer)
 {
-	u8 channel_id = 0;
-	int ret = 0;
-	struct cflayer *servl = NULL;
+	u8 channel_id;
 	struct cfcnfg *cfg = get_cfcnfg(net);
 
 	caif_assert(adap_layer != NULL);
-
-	channel_id = adap_layer->id;
-	if (adap_layer->dn == NULL || channel_id == 0) {
-		pr_err("adap_layer->dn == NULL or adap_layer->id is 0\n");
-		ret = -ENOTCONN;
-		goto end;
-	}
-
-	servl = cfmuxl_remove_uplayer(cfg->mux, channel_id);
-	if (servl == NULL) {
-		pr_err("PROTOCOL ERROR - "
-				"Error removing service_layer Channel_Id(%d)",
-				channel_id);
-		ret = -EINVAL;
-		goto end;
-	}
-
-	ret = cfctrl_linkdown_req(cfg->ctrl, channel_id, adap_layer);
-
-end:
 	cfctrl_cancel_req(cfg->ctrl, adap_layer);
+	channel_id = adap_layer->id;
+	if (channel_id != 0) {
+		struct cflayer *servl;
+		servl = cfmuxl_remove_uplayer(cfg->mux, channel_id);
+		if (servl != NULL)
+			layer_set_up(servl, NULL);
+	} else
+		pr_debug("nothing to disconnect\n");
+	cfctrl_linkdown_req(cfg->ctrl, channel_id, adap_layer);
 
 	/* Do RCU sync before initiating cleanup */
 	synchronize_rcu();
 	if (adap_layer->ctrlcmd != NULL)
 		adap_layer->ctrlcmd(adap_layer, CAIF_CTRLCMD_DEINIT_RSP, 0);
-	return ret;
+	return 0;
 
 }
 EXPORT_SYMBOL(caif_disconnect_client);
@@ -400,6 +387,14 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 	struct cfcnfg_phyinfo *phyinfo;
 	struct net_device *netdev;
 
+	if (channel_id == 0) {
+		pr_warn("received channel_id zero\n");
+		if (adapt_layer != NULL && adapt_layer->ctrlcmd != NULL)
+			adapt_layer->ctrlcmd(adapt_layer,
+						CAIF_CTRLCMD_INIT_FAIL_RSP, 0);
+		return;
+	}
+
 	rcu_read_lock();
 
 	if (adapt_layer == NULL) {
@@ -523,7 +518,6 @@ got_phyid:
 	phyinfo->use_stx = stx;
 	phyinfo->use_fcs = fcs;
 
-	phy_layer->type = phy_type;
 	frml = cffrml_create(phyid, fcs);
 
 	if (!frml) {

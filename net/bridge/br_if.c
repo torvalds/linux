@@ -147,6 +147,7 @@ static void del_nbp(struct net_bridge_port *p)
 	dev->priv_flags &= ~IFF_BRIDGE_PORT;
 
 	netdev_rx_handler_unregister(dev);
+	synchronize_net();
 
 	netdev_set_master(dev, NULL);
 
@@ -337,6 +338,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	p = new_nbp(br, dev);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
+
+	call_netdevice_notifiers(NETDEV_JOIN, dev);
 
 	err = dev_set_promiscuity(dev, 1);
 	if (err)
