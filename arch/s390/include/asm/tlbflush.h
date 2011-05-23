@@ -50,7 +50,7 @@ static inline void __tlb_flush_full(struct mm_struct *mm)
 	/*
 	 * If the process only ran on the local cpu, do a local flush.
 	 */
-	local_cpumask = cpumask_of_cpu(smp_processor_id());
+	cpumask_copy(&local_cpumask, cpumask_of(smp_processor_id()));
 	if (cpumask_equal(mm_cpumask(mm), &local_cpumask))
 		__tlb_flush_local();
 	else

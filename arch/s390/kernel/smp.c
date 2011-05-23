@@ -335,7 +335,7 @@ static int smp_rescan_cpus_sigp(cpumask_t avail)
 		smp_cpu_polarization[logical_cpu] = POLARIZATION_UNKNWN;
 		if (!cpu_stopped(logical_cpu))
 			continue;
-		cpu_set(logical_cpu, cpu_present_map);
+		set_cpu_present(logical_cpu, true);
 		smp_cpu_state[logical_cpu] = CPU_STATE_CONFIGURED;
 		logical_cpu = cpumask_next(logical_cpu, &avail);
 		if (logical_cpu >= nr_cpu_ids)
@@ -367,7 +367,7 @@ static int smp_rescan_cpus_sclp(cpumask_t avail)
 			continue;
 		__cpu_logical_map[logical_cpu] = cpu_id;
 		smp_cpu_polarization[logical_cpu] = POLARIZATION_UNKNWN;
-		cpu_set(logical_cpu, cpu_present_map);
+		set_cpu_present(logical_cpu, true);
 		if (cpu >= info->configured)
 			smp_cpu_state[logical_cpu] = CPU_STATE_STANDBY;
 		else
@@ -385,7 +385,7 @@ static int __smp_rescan_cpus(void)
 {
 	cpumask_t avail;
 
-	cpus_xor(avail, cpu_possible_map, cpu_present_map);
+	cpumask_xor(&avail, cpu_possible_mask, cpu_present_mask);
 	if (smp_use_sigp_detection)
 		return smp_rescan_cpus_sigp(avail);
 	else
@@ -467,7 +467,7 @@ int __cpuinit start_secondary(void *cpuvoid)
 	notify_cpu_starting(smp_processor_id());
 	/* Mark this cpu as online */
 	ipi_call_lock();
-	cpu_set(smp_processor_id(), cpu_online_map);
+	set_cpu_online(smp_processor_id(), true);
 	ipi_call_unlock();
 	/* Switch on interrupts */
 	local_irq_enable();
@@ -644,7 +644,7 @@ int __cpu_disable(void)
 	struct ec_creg_mask_parms cr_parms;
 	int cpu = smp_processor_id();
 
-	cpu_clear(cpu, cpu_online_map);
+	set_cpu_online(cpu, false);
 
 	/* Disable pfault pseudo page faults on this cpu. */
 	pfault_fini();
@@ -738,8 +738,8 @@ void __init smp_prepare_boot_cpu(void)
 	BUG_ON(smp_processor_id() != 0);
 
 	current_thread_info()->cpu = 0;
-	cpu_set(0, cpu_present_map);
-	cpu_set(0, cpu_online_map);
+	set_cpu_present(0, true);
+	set_cpu_online(0, true);
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
 	current_set[0] = current;
 	smp_cpu_state[0] = CPU_STATE_CONFIGURED;
@@ -1016,21 +1016,21 @@ int __ref smp_rescan_cpus(void)
 
 	get_online_cpus();
 	mutex_lock(&smp_cpu_state_mutex);
-	newcpus = cpu_present_map;
+	cpumask_copy(&newcpus, cpu_present_mask);
 	rc = __smp_rescan_cpus();
 	if (rc)
 		goto out;
-	cpus_andnot(newcpus, cpu_present_map, newcpus);
-	for_each_cpu_mask(cpu, newcpus) {
+	cpumask_andnot(&newcpus, cpu_present_mask, &newcpus);
+	for_each_cpu(cpu, &newcpus) {
 		rc = smp_add_present_cpu(cpu);
 		if (rc)
-			cpu_clear(cpu, cpu_present_map);
+			set_cpu_present(cpu, false);
 	}
 	rc = 0;
 out:
 	mutex_unlock(&smp_cpu_state_mutex);
 	put_online_cpus();
-	if (!cpus_empty(newcpus))
+	if (!cpumask_empty(&newcpus))
 		topology_schedule_update();
 	return rc;
 }
