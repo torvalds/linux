@@ -2716,6 +2716,8 @@ static int ext4_split_extent(handle_t *handle,
 				       EXT4_EXT_MARK_UNINIT2;
 		err = ext4_split_extent_at(handle, inode, path,
 				map->m_lblk + map->m_len, split_flag1, flags1);
+		if (err)
+			goto out;
 	}
 
 	ext4_ext_drop_refs(path);
