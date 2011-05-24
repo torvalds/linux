@@ -1306,10 +1306,6 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 	/* no, then find CPU DAI from registered DAIs*/
 	list_for_each_entry(cpu_dai, &dai_list, list) {
 		if (!strcmp(cpu_dai->name, dai_link->cpu_dai_name)) {
-
-			if (!try_module_get(cpu_dai->dev->driver->owner))
-				return -ENODEV;
-
 			rtd->cpu_dai = cpu_dai;
 			goto find_codec;
 		}
@@ -1621,12 +1617,17 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num)
 	rtd->pmdown_time = pmdown_time;
 
 	/* probe the cpu_dai */
+
 	if (!cpu_dai->probed) {
+		if (!try_module_get(cpu_dai->dev->driver->owner))
+			return -ENODEV;
+
 		if (cpu_dai->driver->probe) {
 			ret = cpu_dai->driver->probe(cpu_dai);
 			if (ret < 0) {
 				printk(KERN_ERR "asoc: failed to probe CPU DAI %s\n",
 						cpu_dai->name);
+				module_put(cpu_dai->dev->driver->owner);
 				return ret;
 			}
 		}
