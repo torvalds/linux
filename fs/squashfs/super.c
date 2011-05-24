@@ -268,7 +268,7 @@ allocate_id_index_table:
 handle_fragments:
 	fragments = le32_to_cpu(sblk->fragments);
 	if (fragments == 0)
-		goto allocate_root;
+		goto check_directory_table;
 
 	msblk->fragment_cache = squashfs_cache_init("fragment",
 		SQUASHFS_CACHED_FRAGMENTS, msblk->block_size);
@@ -286,8 +286,22 @@ handle_fragments:
 		msblk->fragment_index = NULL;
 		goto failed_mount;
 	}
+	next_table = msblk->fragment_index[0];
 
-allocate_root:
+check_directory_table:
+	/* Sanity check directory_table */
+	if (msblk->directory_table >= next_table) {
+		err = -EINVAL;
+		goto failed_mount;
+	}
+
+	/* Sanity check inode_table */
+	if (msblk->inode_table >= msblk->directory_table) {
+		err = -EINVAL;
+		goto failed_mount;
+	}
+
+	/* allocate root */
 	root = new_inode(sb);
 	if (!root) {
 		err = -ENOMEM;
