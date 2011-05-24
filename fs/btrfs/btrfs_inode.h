@@ -153,6 +153,7 @@ struct btrfs_inode {
 	unsigned ordered_data_close:1;
 	unsigned orphan_meta_reserved:1;
 	unsigned dummy_inode:1;
+	unsigned in_defrag:1;
 
 	/*
 	 * always compress this one file

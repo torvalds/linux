@@ -181,37 +181,6 @@ struct btrfs_ioctl_clone_range_args {
 #define BTRFS_DEFRAG_RANGE_COMPRESS 1
 #define BTRFS_DEFRAG_RANGE_START_IO 2
 
-struct btrfs_ioctl_defrag_range_args {
-	/* start of the defrag operation */
-	__u64 start;
-
-	/* number of bytes to defrag, use (u64)-1 to say all */
-	__u64 len;
-
-	/*
-	 * flags for the operation, which can include turning
-	 * on compression for this one defrag
-	 */
-	__u64 flags;
-
-	/*
-	 * any extent bigger than this will be considered
-	 * already defragged.  Use 0 to take the kernel default
-	 * Use 1 to say every single extent must be rewritten
-	 */
-	__u32 extent_thresh;
-
-	/*
-	 * which compression method to use if turning on compression
-	 * for this defrag operation.  If unspecified, zlib will
-	 * be used
-	 */
-	__u32 compress_type;
-
-	/* spare for later */
-	__u32 unused[4];
-};
-
 struct btrfs_ioctl_space_info {
 	__u64 flags;
 	__u64 total_bytes;

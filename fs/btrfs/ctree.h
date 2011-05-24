@@ -1074,6 +1074,11 @@ struct btrfs_fs_info {
 	/* all metadata allocations go through this cluster */
 	struct btrfs_free_cluster meta_alloc_cluster;
 
+	/* auto defrag inodes go here */
+	spinlock_t defrag_inodes_lock;
+	struct rb_root defrag_inodes;
+	atomic_t defrag_running;
+
 	spinlock_t ref_cache_lock;
 	u64 total_ref_cache_size;
 
@@ -1205,6 +1210,38 @@ struct btrfs_root {
 	struct super_block anon_super;
 };
 
+struct btrfs_ioctl_defrag_range_args {
+	/* start of the defrag operation */
+	__u64 start;
+
+	/* number of bytes to defrag, use (u64)-1 to say all */
+	__u64 len;
+
+	/*
+	 * flags for the operation, which can include turning
+	 * on compression for this one defrag
+	 */
+	__u64 flags;
+
+	/*
+	 * any extent bigger than this will be considered
+	 * already defragged.  Use 0 to take the kernel default
+	 * Use 1 to say every single extent must be rewritten
+	 */
+	__u32 extent_thresh;
+
+	/*
+	 * which compression method to use if turning on compression
+	 * for this defrag operation.  If unspecified, zlib will
+	 * be used
+	 */
+	__u32 compress_type;
+
+	/* spare for later */
+	__u32 unused[4];
+};
+
+
 /*
  * inode items have the data typically returned from stat and store other
  * info about object characteristics.  There is one for every file and dir in
@@ -1302,6 +1339,7 @@ struct btrfs_root {
 #define BTRFS_MOUNT_CLEAR_CACHE		(1 << 13)
 #define BTRFS_MOUNT_USER_SUBVOL_RM_ALLOWED (1 << 14)
 #define BTRFS_MOUNT_ENOSPC_DEBUG	 (1 << 15)
+#define BTRFS_MOUNT_AUTO_DEFRAG		(1 << 16)
 
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
@@ -2528,8 +2566,13 @@ extern const struct dentry_operations btrfs_dentry_operations;
 long btrfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 void btrfs_update_iflags(struct inode *inode);
 void btrfs_inherit_iflags(struct inode *inode, struct inode *dir);
-
+int btrfs_defrag_file(struct inode *inode, struct file *file,
+		      struct btrfs_ioctl_defrag_range_args *range,
+		      u64 newer_than, unsigned long max_pages);
 /* file.c */
+int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
+			   struct inode *inode);
+int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info);
 int btrfs_sync_file(struct file *file, int datasync);
 int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			    int skip_pinned);

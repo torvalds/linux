@@ -1475,6 +1475,7 @@ static int cleaner_kthread(void *arg)
 			btrfs_run_delayed_iputs(root);
 			btrfs_clean_old_snapshots(root);
 			mutex_unlock(&root->fs_info->cleaner_mutex);
+			btrfs_run_defrag_inodes(root->fs_info);
 		}
 
 		if (freezing(current)) {
@@ -1616,6 +1617,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->ref_cache_lock);
 	spin_lock_init(&fs_info->fs_roots_radix_lock);
 	spin_lock_init(&fs_info->delayed_iput_lock);
+	spin_lock_init(&fs_info->defrag_inodes_lock);
 
 	init_completion(&fs_info->kobj_unregister);
 	fs_info->tree_root = tree_root;
@@ -1638,9 +1640,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	atomic_set(&fs_info->async_delalloc_pages, 0);
 	atomic_set(&fs_info->async_submit_draining, 0);
 	atomic_set(&fs_info->nr_async_bios, 0);
+	atomic_set(&fs_info->defrag_running, 0);
 	fs_info->sb = sb;
 	fs_info->max_inline = 8192 * 1024;
 	fs_info->metadata_ratio = 0;
+	fs_info->defrag_inodes = RB_ROOT;
 
 	fs_info->thread_pool_size = min_t(unsigned long,
 					  num_online_cpus() + 2, 8);
@@ -2501,6 +2505,14 @@ int close_ctree(struct btrfs_root *root)
 	smp_mb();
 
 	btrfs_scrub_cancel(root);
+
+	/* wait for any defraggers to finish */
+	wait_event(fs_info->transaction_wait,
+		   (atomic_read(&fs_info->defrag_running) == 0));
+
+	/* clear out the rbtree of defraggable inodes */
+	btrfs_run_defrag_inodes(root->fs_info);
+
 	btrfs_put_block_group_cache(fs_info);
 
 	/*

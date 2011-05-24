@@ -40,6 +40,263 @@
 #include "locking.h"
 #include "compat.h"
 
+/*
+ * when auto defrag is enabled we
+ * queue up these defrag structs to remember which
+ * inodes need defragging passes
+ */
+struct inode_defrag {
+	struct rb_node rb_node;
+	/* objectid */
+	u64 ino;
+	/*
+	 * transid where the defrag was added, we search for
+	 * extents newer than this
+	 */
+	u64 transid;
+
+	/* root objectid */
+	u64 root;
+
+	/* last offset we were able to defrag */
+	u64 last_offset;
+
+	/* if we've wrapped around back to zero once already */
+	int cycled;
+};
+
+/* pop a record for an inode into the defrag tree.  The lock
+ * must be held already
+ *
+ * If you're inserting a record for an older transid than an
+ * existing record, the transid already in the tree is lowered
+ *
+ * If an existing record is found the defrag item you
+ * pass in is freed
+ */
+static int __btrfs_add_inode_defrag(struct inode *inode,
+				    struct inode_defrag *defrag)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct inode_defrag *entry;
+	struct rb_node **p;
+	struct rb_node *parent = NULL;
+
+	p = &root->fs_info->defrag_inodes.rb_node;
+	while (*p) {
+		parent = *p;
+		entry = rb_entry(parent, struct inode_defrag, rb_node);
+
+		if (defrag->ino < entry->ino)
+			p = &parent->rb_left;
+		else if (defrag->ino > entry->ino)
+			p = &parent->rb_right;
+		else {
+			/* if we're reinserting an entry for
+			 * an old defrag run, make sure to
+			 * lower the transid of our existing record
+			 */
+			if (defrag->transid < entry->transid)
+				entry->transid = defrag->transid;
+			if (defrag->last_offset > entry->last_offset)
+				entry->last_offset = defrag->last_offset;
+			goto exists;
+		}
+	}
+	BTRFS_I(inode)->in_defrag = 1;
+	rb_link_node(&defrag->rb_node, parent, p);
+	rb_insert_color(&defrag->rb_node, &root->fs_info->defrag_inodes);
+	return 0;
+
+exists:
+	kfree(defrag);
+	return 0;
+
+}
+
+/*
+ * insert a defrag record for this inode if auto defrag is
+ * enabled
+ */
+int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
+			   struct inode *inode)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct inode_defrag *defrag;
+	int ret = 0;
+	u64 transid;
+
+	if (!btrfs_test_opt(root, AUTO_DEFRAG))
+		return 0;
+
+	if (root->fs_info->closing)
+		return 0;
+
+	if (BTRFS_I(inode)->in_defrag)
+		return 0;
+
+	if (trans)
+		transid = trans->transid;
+	else
+		transid = BTRFS_I(inode)->root->last_trans;
+
+	defrag = kzalloc(sizeof(*defrag), GFP_NOFS);
+	if (!defrag)
+		return -ENOMEM;
+
+	defrag->ino = inode->i_ino;
+	defrag->transid = transid;
+	defrag->root = root->root_key.objectid;
+
+	spin_lock(&root->fs_info->defrag_inodes_lock);
+	if (!BTRFS_I(inode)->in_defrag)
+		ret = __btrfs_add_inode_defrag(inode, defrag);
+	spin_unlock(&root->fs_info->defrag_inodes_lock);
+	return ret;
+}
+
+/*
+ * must be called with the defrag_inodes lock held
+ */
+struct inode_defrag *btrfs_find_defrag_inode(struct btrfs_fs_info *info, u64 ino,
+					     struct rb_node **next)
+{
+	struct inode_defrag *entry = NULL;
+	struct rb_node *p;
+	struct rb_node *parent = NULL;
+
+	p = info->defrag_inodes.rb_node;
+	while (p) {
+		parent = p;
+		entry = rb_entry(parent, struct inode_defrag, rb_node);
+
+		if (ino < entry->ino)
+			p = parent->rb_left;
+		else if (ino > entry->ino)
+			p = parent->rb_right;
+		else
+			return entry;
+	}
+
+	if (next) {
+		while (parent && ino > entry->ino) {
+			parent = rb_next(parent);
+			entry = rb_entry(parent, struct inode_defrag, rb_node);
+		}
+		*next = parent;
+	}
+	return NULL;
+}
+
+/*
+ * run through the list of inodes in the FS that need
+ * defragging
+ */
+int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
+{
+	struct inode_defrag *defrag;
+	struct btrfs_root *inode_root;
+	struct inode *inode;
+	struct rb_node *n;
+	struct btrfs_key key;
+	struct btrfs_ioctl_defrag_range_args range;
+	u64 first_ino = 0;
+	int num_defrag;
+	int defrag_batch = 1024;
+
+	memset(&range, 0, sizeof(range));
+	range.len = (u64)-1;
+
+	atomic_inc(&fs_info->defrag_running);
+	spin_lock(&fs_info->defrag_inodes_lock);
+	while(1) {
+		n = NULL;
+
+		/* find an inode to defrag */
+		defrag = btrfs_find_defrag_inode(fs_info, first_ino, &n);
+		if (!defrag) {
+			if (n)
+				defrag = rb_entry(n, struct inode_defrag, rb_node);
+			else if (first_ino) {
+				first_ino = 0;
+				continue;
+			} else {
+				break;
+			}
+		}
+
+		/* remove it from the rbtree */
+		first_ino = defrag->ino + 1;
+		rb_erase(&defrag->rb_node, &fs_info->defrag_inodes);
+
+		if (fs_info->closing)
+			goto next_free;
+
+		spin_unlock(&fs_info->defrag_inodes_lock);
+
+		/* get the inode */
+		key.objectid = defrag->root;
+		btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
+		key.offset = (u64)-1;
+		inode_root = btrfs_read_fs_root_no_name(fs_info, &key);
+		if (IS_ERR(inode_root))
+			goto next;
+
+		key.objectid = defrag->ino;
+		btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
+		key.offset = 0;
+
+		inode = btrfs_iget(fs_info->sb, &key, inode_root, NULL);
+		if (IS_ERR(inode))
+			goto next;
+
+		/* do a chunk of defrag */
+		BTRFS_I(inode)->in_defrag = 0;
+		range.start = defrag->last_offset;
+		num_defrag = btrfs_defrag_file(inode, NULL, &range, defrag->transid,
+					       defrag_batch);
+		/*
+		 * if we filled the whole defrag batch, there
+		 * must be more work to do.  Queue this defrag
+		 * again
+		 */
+		if (num_defrag == defrag_batch) {
+			defrag->last_offset = range.start;
+			__btrfs_add_inode_defrag(inode, defrag);
+			/*
+			 * we don't want to kfree defrag, we added it back to
+			 * the rbtree
+			 */
+			defrag = NULL;
+		} else if (defrag->last_offset && !defrag->cycled) {
+			/*
+			 * we didn't fill our defrag batch, but
+			 * we didn't start at zero.  Make sure we loop
+			 * around to the start of the file.
+			 */
+			defrag->last_offset = 0;
+			defrag->cycled = 1;
+			__btrfs_add_inode_defrag(inode, defrag);
+			defrag = NULL;
+		}
+
+		iput(inode);
+next:
+		spin_lock(&fs_info->defrag_inodes_lock);
+next_free:
+		kfree(defrag);
+	}
+	spin_unlock(&fs_info->defrag_inodes_lock);
+
+	atomic_dec(&fs_info->defrag_running);
+
+	/*
+	 * during unmount, we use the transaction_wait queue to
+	 * wait for the defragger to stop
+	 */
+	wake_up(&fs_info->transaction_wait);
+	return 0;
+}
 
 /* simple helper to fault in pages and copy.  This should go away
  * and be replaced with calls into generic code.

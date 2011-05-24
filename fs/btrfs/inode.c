@@ -342,6 +342,10 @@ static noinline int compress_file_range(struct inode *inode,
 	int will_compress;
 	int compress_type = root->fs_info->compress_type;
 
+	/* if this is a small write inside eof, kick off a defragbot */
+	if (end <= BTRFS_I(inode)->disk_i_size && (end - start + 1) < 16 * 1024)
+		btrfs_add_inode_defrag(NULL, inode);
+
 	actual_end = min_t(u64, isize, end + 1);
 again:
 	will_compress = 0;
@@ -798,6 +802,10 @@ static noinline int cow_file_range(struct inode *inode,
 	num_bytes = max(blocksize,  num_bytes);
 	disk_num_bytes = num_bytes;
 	ret = 0;
+
+	/* if this is a small write inside eof, kick off defrag */
+	if (end <= BTRFS_I(inode)->disk_i_size && num_bytes < 64 * 1024)
+		btrfs_add_inode_defrag(trans, inode);
 
 	if (start == 0) {
 		/* lets try to make an inline extent */
@@ -5371,6 +5379,9 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 	if (IS_ERR(trans))
 		return ERR_CAST(trans);
 
+	if (start <= BTRFS_I(inode)->disk_i_size && len < 64 * 1024)
+		btrfs_add_inode_defrag(trans, inode);
+
 	trans->block_rsv = &root->fs_info->delalloc_block_rsv;
 
 	alloc_hint = get_extent_allocation_hint(inode, start, len);
@@ -6682,6 +6693,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->ordered_data_close = 0;
 	ei->orphan_meta_reserved = 0;
 	ei->dummy_inode = 0;
+	ei->in_defrag = 0;
 	ei->force_compress = BTRFS_COMPRESS_NONE;
 
 	ei->delayed_node = NULL;
