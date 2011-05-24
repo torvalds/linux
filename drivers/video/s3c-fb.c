@@ -302,6 +302,7 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length	= 5;
 		break;
 
+	case 32:
 	case 28:
 	case 25:
 		var->transp.length	= var->bits_per_pixel - 24;
@@ -310,7 +311,6 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 	case 24:
 		/* our 24bpp is unpacked, so 32bpp */
 		var->bits_per_pixel	= 32;
-	case 32:
 		var->red.offset		= 16;
 		var->red.length		= 8;
 		var->green.offset	= 8;
