@@ -271,6 +271,10 @@ static int rk29_gps_probe(struct platform_device *pdev)
 	INIT_WORK(&pdata->work, rk29_gps_delay_power_downup);
 	pdata->power_flag = 0;
 
+	//gps power down
+	if (pdata->power_down)
+		pdata->power_down();
+
 	pgps = pdata;
 
 
