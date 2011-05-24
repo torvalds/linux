@@ -2529,10 +2529,10 @@ SYSCALL_DEFINE2(mkdir, const char __user *, pathname, int, mode)
 }
 
 /*
- * We try to drop the dentry early: we should have
- * a usage count of 2 if we're the only user of this
- * dentry, and if that is true (possibly after pruning
- * the dcache), then we drop the dentry now.
+ * The dentry_unhash() helper will try to drop the dentry early: we
+ * should have a usage count of 2 if we're the only user of this
+ * dentry, and if that is true (possibly after pruning the dcache),
+ * then we drop the dentry now.
  *
  * A low-level filesystem can, if it choses, legally
  * do a
