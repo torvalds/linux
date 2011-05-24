@@ -729,3 +729,4 @@ module_exit(sh_mobile_i2c_adap_exit);
 MODULE_DESCRIPTION("SuperH Mobile I2C Bus Controller driver");
 MODULE_AUTHOR("Magnus Damm");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:i2c-sh_mobile");

@@ -186,4 +186,12 @@ config MEDIA_TUNER_TDA18218
 	default m if MEDIA_TUNER_CUSTOMISE
 	help
 	  NXP TDA18218 silicon tuner driver.
+
+config MEDIA_TUNER_TDA18212
+	tristate "NXP TDA18212 silicon tuner"
+	depends on VIDEO_MEDIA && I2C
+	default m if MEDIA_TUNER_CUSTOMISE
+	help
+	  NXP TDA18212 silicon tuner driver.
+
 endmenu

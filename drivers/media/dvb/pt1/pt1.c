@@ -1090,6 +1090,7 @@ pt1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	i2c_adap->algo = &pt1_i2c_algo;
 	i2c_adap->algo_data = NULL;
 	i2c_adap->dev.parent = &pdev->dev;
+	strcpy(i2c_adap->name, DRIVER_NAME);
 	i2c_set_adapdata(i2c_adap, pt1);
 	ret = i2c_add_adapter(i2c_adap);
 	if (ret < 0)
@@ -1156,10 +1157,10 @@ err_pt1_disable_ram:
 	pt1->power = 0;
 	pt1->reset = 1;
 	pt1_update_power(pt1);
-err_pt1_cleanup_adapters:
-	pt1_cleanup_adapters(pt1);
 err_i2c_del_adapter:
 	i2c_del_adapter(i2c_adap);
+err_pt1_cleanup_adapters:
+	pt1_cleanup_adapters(pt1);
 err_kfree:
 	pci_set_drvdata(pdev, NULL);
 	kfree(pt1);

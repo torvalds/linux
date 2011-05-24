@@ -157,7 +157,7 @@ static int default_platform_runtime_suspend(struct device *dev)
 	might_sleep();
 
 	/* catch misconfigured drivers not starting with resume */
-	if (test_bit(PDEV_ARCHDATA_FLAG_INIT, &pdev->archdata.flags)) {
+	if (test_bit(PDEV_ARCHDATA_FLAG_INIT, &ad->flags)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -170,8 +170,8 @@ static int default_platform_runtime_suspend(struct device *dev)
 
 	/* put device on idle list */
 	spin_lock_irqsave(&hwblk_lock, flags);
-	list_add_tail(&pdev->archdata.entry, &hwblk_idle_list);
-	__set_bit(PDEV_ARCHDATA_FLAG_IDLE, &pdev->archdata.flags);
+	list_add_tail(&ad->entry, &hwblk_idle_list);
+	__set_bit(PDEV_ARCHDATA_FLAG_IDLE, &ad->flags);
 	spin_unlock_irqrestore(&hwblk_lock, flags);
 
 	/* increase idle count */

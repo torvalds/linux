@@ -42,7 +42,7 @@ int perf_sample_size(u64 sample_type)
 	int i;
 
 	for (i = 0; i < 64; i++) {
-		if (mask & (1UL << i))
+		if (mask & (1ULL << i))
 			size++;
 	}
 

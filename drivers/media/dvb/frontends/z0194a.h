@@ -42,7 +42,7 @@ static int sharp_z0194a_set_symbol_rate(struct dvb_frontend *fe,
 
 static u8 sharp_z0194a_inittab[] = {
 	0x01, 0x15,
-	0x02, 0x00,
+	0x02, 0x30,
 	0x03, 0x00,
 	0x04, 0x7d,   /* F22FR = 0x7d, F22 = f_VCO / 128 / 0x7d = 22 kHz */
 	0x05, 0x35,   /* I2CT = 0, SCLT = 1, SDAT = 1 */

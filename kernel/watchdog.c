@@ -98,7 +98,7 @@ __setup("nosoftlockup", nosoftlockup_setup);
  * the thresholds with a factor: we make the soft threshold twice the amount of
  * time the hard threshold is.
  */
-static int get_softlockup_thresh()
+static int get_softlockup_thresh(void)
 {
 	return watchdog_thresh * 2;
 }

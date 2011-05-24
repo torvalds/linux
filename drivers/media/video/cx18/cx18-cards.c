@@ -39,6 +39,16 @@ static struct cx18_card_tuner_i2c cx18_i2c_std = {
 	.tv    = { 0x61, 0x60, I2C_CLIENT_END },
 };
 
+/*
+ * usual i2c tuner addresses to probe with additional demod address for
+ * an NXP TDA8295 at 0x42 (N.B. it can possibly be at 0x4b or 0x4c too).
+ */
+static struct cx18_card_tuner_i2c cx18_i2c_nxp = {
+	.radio = { I2C_CLIENT_END },
+	.demod = { 0x42, 0x43, I2C_CLIENT_END },
+	.tv    = { 0x61, 0x60, I2C_CLIENT_END },
+};
+
 /* Please add new PCI IDs to: http://pci-ids.ucw.cz/
    This keeps the PCI ID database up to date. Note that the entries
    must be added under vendor 0x4444 (Conexant) as subsystem IDs.
@@ -131,15 +141,15 @@ static const struct cx18_card cx18_card_hvr1600_s5h1411 = {
 		.tune_lane = 0,
 		.initial_emrs = 0,
 	},
-	.gpio_init.initial_value = 0x3001,
-	.gpio_init.direction = 0x3001,
+	.gpio_init.initial_value = 0x3801,
+	.gpio_init.direction = 0x3801,
 	.gpio_i2c_slave_reset = {
-		.active_lo_mask = 0x3001,
+		.active_lo_mask = 0x3801,
 		.msecs_asserted = 10,
 		.msecs_recovery = 40,
 		.ir_reset_mask  = 0x0001,
 	},
-	.i2c = &cx18_i2c_std,
+	.i2c = &cx18_i2c_nxp,
 };
 
 static const struct cx18_card cx18_card_hvr1600_samsung = {

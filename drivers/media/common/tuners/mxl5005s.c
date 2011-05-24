@@ -4024,6 +4024,8 @@ static int mxl5005s_set_params(struct dvb_frontend *fe,
 			case BANDWIDTH_8_MHZ:
 				req_bw  = MXL5005S_BANDWIDTH_8MHZ;
 				break;
+			default:
+				return -EINVAL;
 			}
 		}
 

@@ -78,17 +78,26 @@ static struct rc_map_table rc_map_a800_table[] = {
 
 static int a800_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	u8 key[5];
+	int ret;
+	u8 *key = kmalloc(5, GFP_KERNEL);
+	if (!key)
+		return -ENOMEM;
+
 	if (usb_control_msg(d->udev,usb_rcvctrlpipe(d->udev,0),
 				0x04, USB_TYPE_VENDOR | USB_DIR_IN, 0, 0, key, 5,
-				2000) != 5)
-		return -ENODEV;
+				2000) != 5) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	/* call the universal NEC remote processor, to find out the key's state and event */
 	dvb_usb_nec_rc_key_to_event(d,key,event,state);
 	if (key[0] != 0)
 		deb_rc("key: %x %x %x %x %x\n",key[0],key[1],key[2],key[3],key[4]);
-	return 0;
+	ret = 0;
+out:
+	kfree(key);
+	return ret;
 }
 
 /* USB Driver stuff */

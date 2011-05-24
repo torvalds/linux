@@ -379,8 +379,27 @@ static int pwc_s_input(struct file *file, void *fh, unsigned int i)
 
 static int pwc_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *c)
 {
-	int i;
+	int i, idx;
+	u32 id;
 
+	id = c->id;
+	if (id & V4L2_CTRL_FLAG_NEXT_CTRL) {
+		id &= V4L2_CTRL_ID_MASK;
+		id++;
+		idx = -1;
+		for (i = 0; i < ARRAY_SIZE(pwc_controls); i++) {
+			if (pwc_controls[i].id < id)
+				continue;
+			if (idx >= 0
+			 && pwc_controls[i].id > pwc_controls[idx].id)
+				continue;
+			idx = i;
+		}
+		if (idx < 0)
+			return -EINVAL;
+		memcpy(c, &pwc_controls[idx], sizeof pwc_controls[0]);
+		return 0;
+	}
 	for (i = 0; i < sizeof(pwc_controls) / sizeof(struct v4l2_queryctrl); i++) {
 		if (pwc_controls[i].id == c->id) {
 			PWC_DEBUG_IOCTL("ioctl(VIDIOC_QUERYCTRL) found\n");
