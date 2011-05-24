@@ -112,6 +112,7 @@ enum ib_device_cap_flags {
 	 */
 	IB_DEVICE_UD_IP_CSUM		= (1<<18),
 	IB_DEVICE_UD_TSO		= (1<<19),
+	IB_DEVICE_XRC			= (1<<20),
 	IB_DEVICE_MEM_MGT_EXTENSIONS	= (1<<21),
 	IB_DEVICE_BLOCK_MULTICAST_LOOPBACK = (1<<22),
 };
@@ -858,6 +859,11 @@ struct ib_pd {
 	atomic_t          	usecnt; /* count all resources */
 };
 
+struct ib_xrcd {
+	struct ib_device       *device;
+	atomic_t          	usecnt; /* count all resources */
+};
+
 struct ib_ah {
 	struct ib_device	*device;
 	struct ib_pd		*pd;
@@ -1149,6 +1155,10 @@ struct ib_device {
 						  struct ib_grh *in_grh,
 						  struct ib_mad *in_mad,
 						  struct ib_mad *out_mad);
+	struct ib_xrcd *	   (*alloc_xrcd)(struct ib_device *device,
+						 struct ib_ucontext *ucontext,
+						 struct ib_udata *udata);
+	int			   (*dealloc_xrcd)(struct ib_xrcd *xrcd);
 
 	struct ib_dma_mapping_ops   *dma_ops;
 
@@ -2059,5 +2069,17 @@ int ib_attach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid);
  * @lid: Multicast group LID in host byte order.
  */
 int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid);
+
+/**
+ * ib_alloc_xrcd - Allocates an XRC domain.
+ * @device: The device on which to allocate the XRC domain.
+ */
+struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device);
+
+/**
+ * ib_dealloc_xrcd - Deallocates an XRC domain.
+ * @xrcd: The XRC domain to deallocate.
+ */
+int ib_dealloc_xrcd(struct ib_xrcd *xrcd);
 
 #endif /* IB_VERBS_H */

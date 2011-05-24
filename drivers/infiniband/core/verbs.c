@@ -920,3 +920,29 @@ int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 	return qp->device->detach_mcast(qp, gid, lid);
 }
 EXPORT_SYMBOL(ib_detach_mcast);
+
+struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device)
+{
+	struct ib_xrcd *xrcd;
+
+	if (!device->alloc_xrcd)
+		return ERR_PTR(-ENOSYS);
+
+	xrcd = device->alloc_xrcd(device, NULL, NULL);
+	if (!IS_ERR(xrcd)) {
+		xrcd->device = device;
+		atomic_set(&xrcd->usecnt, 0);
+	}
+
+	return xrcd;
+}
+EXPORT_SYMBOL(ib_alloc_xrcd);
+
+int ib_dealloc_xrcd(struct ib_xrcd *xrcd)
+{
+	if (atomic_read(&xrcd->usecnt))
+		return -EBUSY;
+
+	return xrcd->device->dealloc_xrcd(xrcd);
+}
+EXPORT_SYMBOL(ib_dealloc_xrcd);
