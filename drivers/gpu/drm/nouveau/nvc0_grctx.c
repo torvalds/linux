@@ -1531,21 +1531,11 @@ nvc0_grctx_generate_ccache(struct drm_device *dev)
 static void
 nvc0_grctx_generate_rop(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
 	/* ROPC_BROADCAST */
 	nv_wr32(dev, 0x408800, 0x02802a3c);
 	nv_wr32(dev, 0x408804, 0x00000040);
 	nv_wr32(dev, 0x408808, 0x0003e00d);
-	switch (dev_priv->chipset) {
-	case 0xc0:
-		nv_wr32(dev, 0x408900, 0x0080b801);
-		break;
-	case 0xc3:
-	case 0xc4:
-		nv_wr32(dev, 0x408900, 0x3080b801);
-		break;
-	}
+	nv_wr32(dev, 0x408900, 0x3080b801);
 	nv_wr32(dev, 0x408904, 0x02000001);
 	nv_wr32(dev, 0x408908, 0x00c80929);
 	nv_wr32(dev, 0x40890c, 0x00000000);
@@ -1639,6 +1629,8 @@ nvc0_grctx_generate_tp(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	/* GPC_BROADCAST.TP_BROADCAST */
+	nv_wr32(dev, 0x419818, 0x00000000);
+	nv_wr32(dev, 0x41983c, 0x00038bc7);
 	nv_wr32(dev, 0x419848, 0x00000000);
 	nv_wr32(dev, 0x419864, 0x0000012a);
 	nv_wr32(dev, 0x419888, 0x00000000);
@@ -1665,7 +1657,7 @@ nvc0_grctx_generate_tp(struct drm_device *dev)
 	nv_wr32(dev, 0x419c04, 0x00000006);
 	nv_wr32(dev, 0x419c08, 0x00000002);
 	nv_wr32(dev, 0x419c20, 0x00000000);
-	nv_wr32(dev, 0x419cbc, 0x28137606);
+	nv_wr32(dev, 0x419cb0, 0x00060048);
 	nv_wr32(dev, 0x419ce8, 0x00000000);
 	nv_wr32(dev, 0x419cf4, 0x00000183);
 	nv_wr32(dev, 0x419d20, 0x02180000);

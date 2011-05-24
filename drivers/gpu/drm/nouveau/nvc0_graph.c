@@ -159,7 +159,7 @@ nvc0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 	nv_wo32(grch->mmio, i++ * 4, 0x00405830);
 	nv_wo32(grch->mmio, i++ * 4, magic);
 	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-		for (tp = 0; tp < priv->tp_nr[gpc]; tp++, magic += 0x02fc) {
+		for (tp = 0; tp < priv->tp_nr[gpc]; tp++, magic += 0x0324) {
 			u32 reg = 0x504520 + (gpc * 0x8000) + (tp * 0x0800);
 			nv_wo32(grch->mmio, i++ * 4, reg);
 			nv_wo32(grch->mmio, i++ * 4, magic);
