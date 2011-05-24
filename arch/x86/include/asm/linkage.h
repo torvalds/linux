@@ -8,11 +8,6 @@
 
 #ifdef CONFIG_X86_32
 #define asmlinkage CPP_ASMLINKAGE __attribute__((regparm(0)))
-/*
- * For 32-bit UML - mark functions implemented in assembly that use
- * regparm input parameters:
- */
-#define asmregparm __attribute__((regparm(3)))
 
 /*
  * Make sure the compiler doesn't do anything stupid with the
