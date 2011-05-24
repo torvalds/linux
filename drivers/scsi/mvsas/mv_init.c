@@ -34,6 +34,8 @@ MODULE_PARM_DESC(collector, "\n"
 	"\tThe mvsas SAS LLDD supports both modes.\n"
 	"\tDefault: 1 (Direct Mode).\n");
 
+int interrupt_coalescing = 0x80;
+
 static struct scsi_transport_template *mvs_stt;
 struct kmem_cache *mvs_task_list_cache;
 static const struct mvs_chip_info mvs_chips[] = {
@@ -47,6 +49,8 @@ static const struct mvs_chip_info mvs_chips[] = {
 	[chip_1300] =	{ 1, 4, 0x400, 17, 16,  9, &mvs_64xx_dispatch, },
 	[chip_1320] =	{ 2, 4, 0x800, 17, 64,  9, &mvs_94xx_dispatch, },
 };
+
+struct device_attribute *mvst_host_attrs[];
 
 #define SOC_SAS_NUM 2
 #define SG_MX 64
@@ -74,6 +78,7 @@ static struct scsi_host_template mvs_sht = {
 	.slave_alloc		= mvs_slave_alloc,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
+	.shost_attrs		= mvst_host_attrs,
 };
 
 static struct sas_domain_function_template mvs_transport_ops = {
@@ -706,6 +711,70 @@ static struct pci_driver mvs_pci_driver = {
 	.remove		= __devexit_p(mvs_pci_remove),
 };
 
+static ssize_t
+mvs_show_driver_version(struct device *cdev,
+		struct device_attribute *attr,  char *buffer)
+{
+	return snprintf(buffer, PAGE_SIZE, "%s\n", DRV_VERSION);
+}
+
+static DEVICE_ATTR(driver_version,
+			 S_IRUGO,
+			 mvs_show_driver_version,
+			 NULL);
+
+static ssize_t
+mvs_store_interrupt_coalescing(struct device *cdev,
+			struct device_attribute *attr,
+			const char *buffer, size_t size)
+{
+	int val = 0;
+	struct mvs_info *mvi = NULL;
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	u8 i, core_nr;
+	if (buffer == NULL)
+		return size;
+
+	if (sscanf(buffer, "%d", &val) != 1)
+		return -EINVAL;
+
+	if (val >= 0x10000) {
+		mv_dprintk("interrupt coalescing timer %d us is"
+			"too long\n", val);
+		return strlen(buffer);
+	}
+
+	interrupt_coalescing = val;
+
+	core_nr = ((struct mvs_prv_info *)sha->lldd_ha)->n_host;
+	mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[0];
+
+	if (unlikely(!mvi))
+		return -EINVAL;
+
+	for (i = 0; i < core_nr; i++) {
+		mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[i];
+		if (MVS_CHIP_DISP->tune_interrupt)
+			MVS_CHIP_DISP->tune_interrupt(mvi,
+				interrupt_coalescing);
+	}
+	mv_dprintk("set interrupt coalescing time to %d us\n",
+		interrupt_coalescing);
+	return strlen(buffer);
+}
+
+static ssize_t mvs_show_interrupt_coalescing(struct device *cdev,
+			struct device_attribute *attr, char *buffer)
+{
+	return snprintf(buffer, PAGE_SIZE, "%d\n", interrupt_coalescing);
+}
+
+static DEVICE_ATTR(interrupt_coalescing,
+			 S_IRUGO|S_IWUSR,
+			 mvs_show_interrupt_coalescing,
+			 mvs_store_interrupt_coalescing);
+
 /* task handler */
 struct task_struct *mvs_th;
 static int __init mvs_init(void)
@@ -741,6 +810,12 @@ static void __exit mvs_exit(void)
 	sas_release_transport(mvs_stt);
 	kmem_cache_destroy(mvs_task_list_cache);
 }
+
+struct device_attribute *mvst_host_attrs[] = {
+	&dev_attr_driver_version,
+	&dev_attr_interrupt_coalescing,
+	NULL,
+};
 
 module_init(mvs_init);
 module_exit(mvs_exit);

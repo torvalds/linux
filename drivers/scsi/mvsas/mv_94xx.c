@@ -475,7 +475,7 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 	tmp = 0;
 	mw32(MVS_INT_COAL, tmp);
 
-	tmp = 0x100;
+	tmp = 0x10000 | interrupt_coalescing;
 	mw32(MVS_INT_COAL_TMOUT, tmp);
 
 	/* ladies and gentlemen, start your engines */
@@ -894,6 +894,29 @@ static void mvs_94xx_clear_srs_irq(struct mvs_info *mvi, u8 reg_set,
 {
 }
 
+static void mvs_94xx_tune_interrupt(struct mvs_info *mvi, u32 time)
+{
+	void __iomem *regs = mvi->regs;
+	u32 tmp = 0;
+	/* interrupt coalescing may cause missing HW interrput in some case,
+	 * and the max count is 0x1ff, while our max slot is 0x200,
+	 * it will make count 0.
+	 */
+	if (time == 0) {
+		mw32(MVS_INT_COAL, 0);
+		mw32(MVS_INT_COAL_TMOUT, 0x10000);
+	} else {
+		if (MVS_CHIP_SLOT_SZ > 0x1ff)
+			mw32(MVS_INT_COAL, 0x1ff|COAL_EN);
+		else
+			mw32(MVS_INT_COAL, MVS_CHIP_SLOT_SZ|COAL_EN);
+
+		tmp = 0x10000 | time;
+		mw32(MVS_INT_COAL_TMOUT, tmp);
+	}
+
+}
+
 const struct mvs_dispatch mvs_94xx_dispatch = {
 	"mv94xx",
 	mvs_94xx_init,
@@ -947,6 +970,7 @@ const struct mvs_dispatch mvs_94xx_dispatch = {
 #ifndef DISABLE_HOTPLUG_DMA_FIX
 	mvs_94xx_fix_dma,
 #endif
+	mvs_94xx_tune_interrupt,
 	mvs_94xx_non_spec_ncq_error,
 };
 

@@ -64,6 +64,7 @@
 #endif
 #define MV_MAX_U32			0xffffffff
 
+extern int interrupt_coalescing;
 extern struct mvs_tgt_initiator mvs_tgt;
 extern struct mvs_info *tgt_mvi;
 extern const struct mvs_dispatch mvs_64xx_dispatch;
@@ -170,6 +171,7 @@ struct mvs_dispatch {
 #ifndef DISABLE_HOTPLUG_DMA_FIX
 	void (*dma_fix)(dma_addr_t buf_dma, int buf_len, int from, void *prd);
 #endif
+	void (*tune_interrupt)(struct mvs_info *mvi, u32 time);
 	void (*non_spec_ncq_error)(struct mvs_info *mvi);
 
 };
