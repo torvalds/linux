@@ -822,6 +822,7 @@ CONFIG_APANIC_PLABEL="kpanic"
 # CONFIG_STE is not set
 # CONFIG_MTK23D is not set
 # CONFIG_C2PORT is not set
+CONFIG_MU509=y
 
 #
 # EEPROM support

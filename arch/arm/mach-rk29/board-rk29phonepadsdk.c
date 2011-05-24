@@ -52,6 +52,9 @@
 #include <linux/mtd/partitions.h>
 
 #include "devices.h"
+#if defined(CONFIG_MU509)
+#include <linux/mu509.h>
+#endif
 #include "../../../drivers/input/touchscreen/xpt2046_cbn_ts.h"
 
 #ifdef CONFIG_VIDEO_RK29
@@ -902,6 +905,37 @@ static struct platform_device rk29_device_pwm_regulator = {
 
 #endif
 
+#if defined(CONFIG_MU509)
+static int mu509_io_init(void)
+{
+	
+	return 0;
+}
+
+static int mu509_io_deinit(void)
+{
+	
+	return 0;
+}
+ 
+struct rk29_mu509_data rk29_mu509_info = {
+	.io_init = mu509_io_init,
+  	.io_deinit = mu509_io_deinit,
+	.bp_power = RK29_PIN6_PB1,//RK29_PIN0_PB4,
+	.bp_power_active_low = 1,
+	.bp_reset = RK29_PIN6_PC7,//RK29_PIN0_PB3,
+	.bp_reset_active_low = 1,
+	.bp_wakeup_ap = RK29_PIN0_PA4,//RK29_PIN0_PC2,
+	.ap_wakeup_bp = RK29_PIN2_PB3,//RK29_PIN0_PB0, 
+};
+struct platform_device rk29_device_mu509 = {	
+        .name = "mu509",	
+    	.id = -1,	
+	.dev		= {
+		.platform_data = &rk29_mu509_info,
+	}    	
+    };
+#endif
 /*****************************************************************************************
  * SDMMC devices
 *****************************************************************************************/
@@ -1284,6 +1318,9 @@ static struct platform_device *devices[] __initdata = {
         &rk29sdk_rfkill,
 #endif
 
+#if defined(CONFIG_MU509)
+	&rk29_device_mu509,
+#endif
 #ifdef CONFIG_MTD_NAND_RK29
 	&rk29_device_nand,
 #endif

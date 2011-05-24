@@ -296,6 +296,10 @@ config FM580X
 	bool "FM rda580x driver"
 	default n	
 	
+config MU509
+	bool "MU509 modem control driver"
+	default n
+	
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
