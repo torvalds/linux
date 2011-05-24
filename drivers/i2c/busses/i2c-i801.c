@@ -931,7 +931,8 @@ static struct pci_driver i801_driver = {
 
 static int __init i2c_i801_init(void)
 {
-	input_apanel_init();
+	if (dmi_name_in_vendors("FUJITSU"))
+		input_apanel_init();
 	return pci_register_driver(&i801_driver);
 }
 
