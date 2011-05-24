@@ -3,6 +3,7 @@
  * AVR32 systems.)
  *
  * Copyright (C) 2007-2008 Atmel Corporation
+ * Copyright (C) 2010-2011 ST Microelectronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1575,3 +1576,4 @@ module_exit(dw_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Synopsys DesignWare DMA Controller driver");
 MODULE_AUTHOR("Haavard Skinnemoen <haavard.skinnemoen@atmel.com>");
+MODULE_AUTHOR("Viresh Kumar <viresh.kumar@st.com>");

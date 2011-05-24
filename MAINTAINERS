@@ -5401,6 +5401,13 @@ L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/tty/serial
 
+SYNOPSYS DESIGNWARE DMAC DRIVER
+M:	Viresh Kumar <viresh.kumar@st.com>
+S:	Maintained
+F:	include/linux/dw_dmac.h
+F:	drivers/dma/dw_dmac_regs.h
+F:	drivers/dma/dw_dmac.c
+
 TIMEKEEPING, NTP
 M:	John Stultz <johnstul@us.ibm.com>
 M:	Thomas Gleixner <tglx@linutronix.de>
