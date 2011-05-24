@@ -30,6 +30,7 @@
 #include <linux/ctype.h>
 #include <linux/aer.h>
 #include <linux/slab.h>
+#include <linux/firmware.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -8775,6 +8776,97 @@ lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_write_firmware - attempt to write a firmware image to the port
+ * @phba: pointer to lpfc hba data structure.
+ * @fw: pointer to firmware image returned from request_firmware.
+ *
+ * returns the number of bytes written if write is successful.
+ * returns a negative error value if there were errors.
+ * returns 0 if firmware matches currently active firmware on port.
+ **/
+int
+lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
+{
+	char fwrev[32];
+	struct lpfc_grp_hdr *image = (struct lpfc_grp_hdr *)fw->data;
+	struct list_head dma_buffer_list;
+	int i, rc = 0;
+	struct lpfc_dmabuf *dmabuf, *next;
+	uint32_t offset = 0, temp_offset = 0;
+
+	INIT_LIST_HEAD(&dma_buffer_list);
+	if ((image->magic_number != LPFC_GROUP_OJECT_MAGIC_NUM) ||
+	    (bf_get(lpfc_grp_hdr_file_type, image) != LPFC_FILE_TYPE_GROUP) ||
+	    (bf_get(lpfc_grp_hdr_id, image) != LPFC_FILE_ID_GROUP) ||
+	    (image->size != fw->size)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3022 Invalid FW image found. "
+				"Magic:%d Type:%x ID:%x\n",
+				image->magic_number,
+				bf_get(lpfc_grp_hdr_file_type, image),
+				bf_get(lpfc_grp_hdr_id, image));
+		return -EINVAL;
+	}
+	lpfc_decode_firmware_rev(phba, fwrev, 1);
+	if (strncmp(fwrev, image->rev_name, strnlen(fwrev, 16))) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3023 Updating Firmware. Current Version:%s "
+				"New Version:%s\n",
+				fwrev, image->rev_name);
+		for (i = 0; i < LPFC_MBX_WR_CONFIG_MAX_BDE; i++) {
+			dmabuf = kzalloc(sizeof(struct lpfc_dmabuf),
+					 GFP_KERNEL);
+			if (!dmabuf) {
+				rc = -ENOMEM;
+				goto out;
+			}
+			dmabuf->virt = dma_alloc_coherent(&phba->pcidev->dev,
+							  SLI4_PAGE_SIZE,
+							  &dmabuf->phys,
+							  GFP_KERNEL);
+			if (!dmabuf->virt) {
+				kfree(dmabuf);
+				rc = -ENOMEM;
+				goto out;
+			}
+			list_add_tail(&dmabuf->list, &dma_buffer_list);
+		}
+		while (offset < fw->size) {
+			temp_offset = offset;
+			list_for_each_entry(dmabuf, &dma_buffer_list, list) {
+				if (offset + SLI4_PAGE_SIZE > fw->size) {
+					temp_offset += fw->size - offset;
+					memcpy(dmabuf->virt,
+					       fw->data + temp_offset,
+					       fw->size - offset);
+					break;
+				}
+				temp_offset += SLI4_PAGE_SIZE;
+				memcpy(dmabuf->virt, fw->data + temp_offset,
+				       SLI4_PAGE_SIZE);
+			}
+			rc = lpfc_wr_object(phba, &dma_buffer_list,
+				    (fw->size - offset), &offset);
+			if (rc) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"3024 Firmware update failed. "
+						"%d\n", rc);
+				goto out;
+			}
+		}
+		rc = offset;
+	}
+out:
+	list_for_each_entry_safe(dmabuf, next, &dma_buffer_list, list) {
+		list_del(&dmabuf->list);
+		dma_free_coherent(&phba->pcidev->dev, SLI4_PAGE_SIZE,
+				  dmabuf->virt, dmabuf->phys);
+		kfree(dmabuf);
+	}
+	return rc;
+}
+
+/**
  * lpfc_pci_probe_one_s4 - PCI probe func to reg SLI-4 device to PCI subsys
  * @pdev: pointer to PCI device
  * @pid: pointer to PCI device identifier
@@ -8803,6 +8895,8 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	int mcnt;
 	int adjusted_fcp_eq_count;
 	int fcp_qidx;
+	const struct firmware *fw;
+	uint8_t file_name[16];
 
 	/* Allocate memory for HBA structure */
 	phba = lpfc_hba_alloc(pdev);
@@ -8956,6 +9050,14 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	/* Perform post initialization setup */
 	lpfc_post_init_setup(phba);
+
+	/* check for firmware upgrade or downgrade */
+	snprintf(file_name, 16, "%s.grp", phba->ModelName);
+	error = request_firmware(&fw, file_name, &phba->pcidev->dev);
+	if (!error) {
+		lpfc_write_firmware(phba, fw);
+		release_firmware(fw);
+	}
 
 	/* Check if there are static vports to be created. */
 	lpfc_create_static_vport(phba);

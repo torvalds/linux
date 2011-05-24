@@ -821,6 +821,7 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_MQ_CREATE_EXT		0x5A
 #define LPFC_MBOX_OPCODE_GET_FUNCTION_CONFIG    0xA0
 #define LPFC_MBOX_OPCODE_GET_PROFILE_CONFIG	0xA4
+#define LPFC_MBOX_OPCODE_WRITE_OBJECT		0xAC
 #define LPFC_MBOX_OPCODE_GET_SLI4_PARAMETERS	0xB5
 
 /* FCoE Opcodes */
@@ -2372,6 +2373,29 @@ struct lpfc_mbx_get_prof_cfg {
 #define MB_CEQ_STATUS_QUEUE_FLUSHING		0x4
 #define MB_CQE_STATUS_DMA_FAILED		0x5
 
+#define LPFC_MBX_WR_CONFIG_MAX_BDE		8
+struct lpfc_mbx_wr_object {
+	struct mbox_header header;
+	union {
+		struct {
+			uint32_t word4;
+#define lpfc_wr_object_eof_SHIFT		31
+#define lpfc_wr_object_eof_MASK			0x00000001
+#define lpfc_wr_object_eof_WORD			word4
+#define lpfc_wr_object_write_length_SHIFT	0
+#define lpfc_wr_object_write_length_MASK	0x00FFFFFF
+#define lpfc_wr_object_write_length_WORD	word4
+			uint32_t write_offset;
+			uint32_t object_name[26];
+			uint32_t bde_count;
+			struct ulp_bde64 bde[LPFC_MBX_WR_CONFIG_MAX_BDE];
+		} request;
+		struct {
+			uint32_t actual_write_length;
+		} response;
+	} u;
+};
+
 /* mailbox queue entry structure */
 struct lpfc_mqe {
 	uint32_t word0;
@@ -2421,6 +2445,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_get_func_cfg get_func_cfg;
 		struct lpfc_mbx_get_prof_cfg get_prof_cfg;
 		struct lpfc_mbx_nop nop;
+		struct lpfc_mbx_wr_object wr_object;
 	} un;
 };
 
@@ -2966,9 +2991,28 @@ union lpfc_wqe {
 	struct gen_req64_wqe gen_req;
 };
 
+#define LPFC_GROUP_OJECT_MAGIC_NUM		0xfeaa0001
+#define LPFC_FILE_TYPE_GROUP			0xf7
+#define LPFC_FILE_ID_GROUP			0xa2
+struct lpfc_grp_hdr {
+	uint32_t size;
+	uint32_t magic_number;
+	uint32_t word2;
+#define lpfc_grp_hdr_file_type_SHIFT	24
+#define lpfc_grp_hdr_file_type_MASK	0x000000FF
+#define lpfc_grp_hdr_file_type_WORD	word2
+#define lpfc_grp_hdr_id_SHIFT		16
+#define lpfc_grp_hdr_id_MASK		0x000000FF
+#define lpfc_grp_hdr_id_WORD		word2
+	uint8_t rev_name[128];
+};
+
 #define FCP_COMMAND 0x0
 #define FCP_COMMAND_DATA_OUT 0x1
 #define ELS_COMMAND_NON_FIP 0xC
 #define ELS_COMMAND_FIP 0xD
 #define OTHER_COMMAND 0x8
 
+#define LPFC_FW_DUMP	1
+#define LPFC_FW_RESET	2
+#define LPFC_DV_RESET	3

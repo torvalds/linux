@@ -755,18 +755,18 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 }
 
 /**
- * lpfc_sli4_fw_dump_request - Request firmware to perform a firmware dump
+ * lpfc_sli4_pdev_reg_request - Request physical dev to perform a register acc
  * @phba: lpfc_hba pointer.
  *
  * Description:
- * Request SLI4 interface type-2 device to perform a dump of firmware dump
- * object into it's /dbg directory of the flash file system.
+ * Request SLI4 interface type-2 device to perform a physical register set
+ * access.
  *
  * Returns:
  * zero for success
  **/
 static ssize_t
-lpfc_sli4_fw_dump_request(struct lpfc_hba *phba)
+lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 {
 	struct completion online_compl;
 	uint32_t reg_val;
@@ -775,6 +775,11 @@ lpfc_sli4_fw_dump_request(struct lpfc_hba *phba)
 
 	if (!phba->cfg_enable_hba_reset)
 		return -EIO;
+
+	if ((phba->sli_rev < LPFC_SLI_REV4) ||
+	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	     LPFC_SLI_INTF_IF_TYPE_2))
+		return -EPERM;
 
 	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 
@@ -786,7 +791,14 @@ lpfc_sli4_fw_dump_request(struct lpfc_hba *phba)
 
 	reg_val = readl(phba->sli4_hba.conf_regs_memmap_p +
 			LPFC_CTL_PDEV_CTL_OFFSET);
-	reg_val |= LPFC_FW_DUMP_REQUEST;
+
+	if (opcode == LPFC_FW_DUMP)
+		reg_val |= LPFC_FW_DUMP_REQUEST;
+	else if (opcode == LPFC_FW_RESET)
+		reg_val |= LPFC_CTL_PDEV_CTL_FRST;
+	else if (opcode == LPFC_DV_RESET)
+		reg_val |= LPFC_CTL_PDEV_CTL_DRST;
+
 	writel(reg_val, phba->sli4_hba.conf_regs_memmap_p +
 	       LPFC_CTL_PDEV_CTL_OFFSET);
 	/* flush */
@@ -904,12 +916,11 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 		else
 			status = lpfc_do_offline(phba, LPFC_EVT_KILL);
 	else if (strncmp(buf, "dump", sizeof("dump") - 1) == 0)
-		if ((phba->sli_rev < LPFC_SLI_REV4) ||
-		    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
-		     LPFC_SLI_INTF_IF_TYPE_2))
-			return -EPERM;
-		else
-			status = lpfc_sli4_fw_dump_request(phba);
+		status = lpfc_sli4_pdev_reg_request(phba, LPFC_FW_DUMP);
+	else if (strncmp(buf, "fw_reset", sizeof("fw_reset") - 1) == 0)
+		status = lpfc_sli4_pdev_reg_request(phba, LPFC_FW_RESET);
+	else if (strncmp(buf, "dv_reset", sizeof("dv_reset") - 1) == 0)
+		status = lpfc_sli4_pdev_reg_request(phba, LPFC_DV_RESET);
 	else
 		return -EINVAL;
 
