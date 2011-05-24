@@ -1422,6 +1422,10 @@ static void domain_exit(struct dmar_domain *domain)
 	if (!domain)
 		return;
 
+	/* Flush any lazy unmaps that may reference this domain */
+	if (!intel_iommu_strict)
+		flush_unmaps_timeout(0);
+
 	domain_remove_dev_info(domain);
 	/* destroy iovas */
 	put_iova_domain(&domain->iovad);
