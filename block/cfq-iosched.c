@@ -3973,8 +3973,12 @@ static void *cfq_init_queue(struct request_queue *q)
 		return NULL;
 
 	cfqd = kmalloc_node(sizeof(*cfqd), GFP_KERNEL | __GFP_ZERO, q->node);
-	if (!cfqd)
+	if (!cfqd) {
+		spin_lock(&cic_index_lock);
+		ida_remove(&cic_index_ida, i);
+		spin_unlock(&cic_index_lock);
 		return NULL;
+	}
 
 	/*
 	 * Don't need take queue_lock in the routine, since we are
