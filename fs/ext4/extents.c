@@ -3688,6 +3688,7 @@ static int ext4_ext_fiemap_cb(struct inode *inode, struct ext4_ext_path *path,
 		pgoff_t		last_offset;
 		pgoff_t		offset;
 		pgoff_t		index;
+		pgoff_t		start_index = 0;
 		struct page	**pages = NULL;
 		struct buffer_head *bh = NULL;
 		struct buffer_head *head = NULL;
@@ -3714,39 +3715,57 @@ out:
 				kfree(pages);
 				return EXT_CONTINUE;
 			}
+			index = 0;
 
+next_page:
 			/* Try to find the 1st mapped buffer. */
-			end = ((__u64)pages[0]->index << PAGE_SHIFT) >>
+			end = ((__u64)pages[index]->index << PAGE_SHIFT) >>
 				  blksize_bits;
-			if (!page_has_buffers(pages[0]))
+			if (!page_has_buffers(pages[index]))
 				goto out;
-			head = page_buffers(pages[0]);
+			head = page_buffers(pages[index]);
 			if (!head)
 				goto out;
 
+			index++;
 			bh = head;
 			do {
-				if (buffer_mapped(bh)) {
+				if (end >= newex->ec_block +
+					newex->ec_len)
+					/* The buffer is out of
+					 * the request range.
+					 */
+					goto out;
+
+				if (buffer_mapped(bh) &&
+				    end >= newex->ec_block) {
+					start_index = index - 1;
 					/* get the 1st mapped buffer. */
-					if (end > newex->ec_block +
-						newex->ec_len)
-						/* The buffer is out of
-						 * the request range.
-						 */
-						goto out;
 					goto found_mapped_buffer;
 				}
+
 				bh = bh->b_this_page;
 				end++;
 			} while (bh != head);
 
-			/* No mapped buffer found. */
-			goto out;
+			/* No mapped buffer in the range found in this page,
+			 * We need to look up next page.
+			 */
+			if (index >= ret) {
+				/* There is no page left, but we need to limit
+				 * newex->ec_len.
+				 */
+				newex->ec_len = end - newex->ec_block;
+				goto out;
+			}
+			goto next_page;
 		} else {
 			/*Find contiguous delayed buffers. */
 			if (ret > 0 && pages[0]->index == last_offset)
 				head = page_buffers(pages[0]);
 			bh = head;
+			index = 1;
+			start_index = 0;
 		}
 
 found_mapped_buffer:
@@ -3769,7 +3788,7 @@ found_mapped_buffer:
 				end++;
 			} while (bh != head);
 
-			for (index = 1; index < ret; index++) {
+			for (; index < ret; index++) {
 				if (!page_has_buffers(pages[index])) {
 					bh = NULL;
 					break;
@@ -3779,8 +3798,10 @@ found_mapped_buffer:
 					bh = NULL;
 					break;
 				}
+
 				if (pages[index]->index !=
-					pages[0]->index + index) {
+				    pages[start_index]->index + index
+				    - start_index) {
 					/* Blocks are not contiguous. */
 					bh = NULL;
 					break;
