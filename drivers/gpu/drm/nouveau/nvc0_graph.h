@@ -82,13 +82,14 @@ nvc0_graph_class(struct drm_device *dev)
 	case 0xc0:
 	case 0xc3:
 	case 0xc4:
+	case 0xce: /* guess, mmio trace shows only 0x9097 state */
 		return 0x9097;
 #if 0
 	case 0xc1:
 		return 0x9197;
+#endif
 	case 0xc8:
 		return 0x9297;
-#endif
 	default:
 		return 0;
 	}

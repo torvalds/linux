@@ -1642,8 +1642,8 @@ nvc0_grctx_generate_tp(struct drm_device *dev)
 	nv_wr32(dev, 0x419a14, 0x00000200);
 	nv_wr32(dev, 0x419a1c, 0x00000000);
 	nv_wr32(dev, 0x419a20, 0x00000800);
-	if (dev_priv->chipset != 0xc0)
-		nv_wr32(dev, 0x00419ac4, 0x0007f440); /* 0xc3 */
+	if (dev_priv->chipset != 0xc0 && dev_priv->chipset != 0xc8)
+		nv_wr32(dev, 0x00419ac4, 0x0007f440);
 	nv_wr32(dev, 0x419b00, 0x0a418820);
 	nv_wr32(dev, 0x419b04, 0x062080e6);
 	nv_wr32(dev, 0x419b08, 0x020398a4);
@@ -1657,7 +1657,7 @@ nvc0_grctx_generate_tp(struct drm_device *dev)
 	nv_wr32(dev, 0x419c04, 0x00000006);
 	nv_wr32(dev, 0x419c08, 0x00000002);
 	nv_wr32(dev, 0x419c20, 0x00000000);
-	nv_wr32(dev, 0x419cb0, 0x00060048);
+	nv_wr32(dev, 0x419cb0, 0x00060048); //XXX: 0xce 0x00020048
 	nv_wr32(dev, 0x419ce8, 0x00000000);
 	nv_wr32(dev, 0x419cf4, 0x00000183);
 	nv_wr32(dev, 0x419d20, 0x02180000);
@@ -1687,11 +1687,11 @@ nvc0_grctx_generate_tp(struct drm_device *dev)
 	nv_wr32(dev, 0x419e8c, 0x00000000);
 	nv_wr32(dev, 0x419e90, 0x00000000);
 	nv_wr32(dev, 0x419e98, 0x00000000);
-	if (dev_priv->chipset != 0xc0)
+	if (dev_priv->chipset != 0xc0 && dev_priv->chipset != 0xc8)
 		nv_wr32(dev, 0x419ee0, 0x00011110);
 	nv_wr32(dev, 0x419f50, 0x00000000);
 	nv_wr32(dev, 0x419f54, 0x00000000);
-	if (dev_priv->chipset != 0xc0)
+	if (dev_priv->chipset != 0xc0 && dev_priv->chipset != 0xc8)
 		nv_wr32(dev, 0x419f58, 0x00000000);
 }
 
