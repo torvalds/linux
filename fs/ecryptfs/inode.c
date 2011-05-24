@@ -58,85 +58,87 @@ static int ecryptfs_inode_test(struct inode *inode, void *lower_inode)
 	return 0;
 }
 
-static int ecryptfs_inode_set(struct inode *inode, void *lower_inode)
+static int ecryptfs_inode_set(struct inode *inode, void *opaque)
 {
-	ecryptfs_set_inode_lower(inode, (struct inode *)lower_inode);
-	inode->i_ino = ((struct inode *)lower_inode)->i_ino;
+	struct inode *lower_inode = opaque;
+
+	ecryptfs_set_inode_lower(inode, lower_inode);
+	fsstack_copy_attr_all(inode, lower_inode);
+	/* i_size will be overwritten for encrypted regular files */
+	fsstack_copy_inode_size(inode, lower_inode);
+	inode->i_ino = lower_inode->i_ino;
 	inode->i_version++;
-	inode->i_op = &ecryptfs_main_iops;
-	inode->i_fop = &ecryptfs_main_fops;
 	inode->i_mapping->a_ops = &ecryptfs_aops;
+
+	if (S_ISLNK(inode->i_mode))
+		inode->i_op = &ecryptfs_symlink_iops;
+	else if (S_ISDIR(inode->i_mode))
+		inode->i_op = &ecryptfs_dir_iops;
+	else
+		inode->i_op = &ecryptfs_main_iops;
+
+	if (S_ISDIR(inode->i_mode))
+		inode->i_fop = &ecryptfs_dir_fops;
+	else if (special_file(inode->i_mode))
+		init_special_inode(inode, inode->i_mode, inode->i_rdev);
+	else
+		inode->i_fop = &ecryptfs_main_fops;
+
 	return 0;
+}
+
+static struct inode *__ecryptfs_get_inode(struct inode *lower_inode,
+					  struct super_block *sb)
+{
+	struct inode *inode;
+
+	if (lower_inode->i_sb != ecryptfs_superblock_to_lower(sb))
+		return ERR_PTR(-EXDEV);
+	if (!igrab(lower_inode))
+		return ERR_PTR(-ESTALE);
+	inode = iget5_locked(sb, (unsigned long)lower_inode,
+			     ecryptfs_inode_test, ecryptfs_inode_set,
+			     lower_inode);
+	if (!inode) {
+		iput(lower_inode);
+		return ERR_PTR(-EACCES);
+	}
+	if (!(inode->i_state & I_NEW))
+		iput(lower_inode);
+
+	return inode;
 }
 
 struct inode *ecryptfs_get_inode(struct inode *lower_inode,
 				 struct super_block *sb)
 {
-	struct inode *inode;
-	int rc = 0;
+	struct inode *inode = __ecryptfs_get_inode(lower_inode, sb);
 
-	if (lower_inode->i_sb != ecryptfs_superblock_to_lower(sb)) {
-		rc = -EXDEV;
-		goto out;
-	}
-	if (!igrab(lower_inode)) {
-		rc = -ESTALE;
-		goto out;
-	}
-	inode = iget5_locked(sb, (unsigned long)lower_inode,
-			     ecryptfs_inode_test, ecryptfs_inode_set,
-			     lower_inode);
-	if (!inode) {
-		rc = -EACCES;
-		iput(lower_inode);
-		goto out;
-	}
-	if (inode->i_state & I_NEW)
+	if (!IS_ERR(inode) && (inode->i_state & I_NEW))
 		unlock_new_inode(inode);
-	else
-		iput(lower_inode);
-	if (S_ISLNK(lower_inode->i_mode))
-		inode->i_op = &ecryptfs_symlink_iops;
-	else if (S_ISDIR(lower_inode->i_mode))
-		inode->i_op = &ecryptfs_dir_iops;
-	if (S_ISDIR(lower_inode->i_mode))
-		inode->i_fop = &ecryptfs_dir_fops;
-	if (special_file(lower_inode->i_mode))
-		init_special_inode(inode, lower_inode->i_mode,
-				   lower_inode->i_rdev);
-	fsstack_copy_attr_all(inode, lower_inode);
-	/* This size will be overwritten for real files w/ headers and
-	 * other metadata */
-	fsstack_copy_inode_size(inode, lower_inode);
+
 	return inode;
-out:
-	return ERR_PTR(rc);
 }
 
-#define ECRYPTFS_INTERPOSE_FLAG_D_ADD                 0x00000001
 /**
  * ecryptfs_interpose
  * @lower_dentry: Existing dentry in the lower filesystem
  * @dentry: ecryptfs' dentry
  * @sb: ecryptfs's super_block
- * @flags: flags to govern behavior of interpose procedure
  *
  * Interposes upper and lower dentries.
  *
  * Returns zero on success; non-zero otherwise
  */
 static int ecryptfs_interpose(struct dentry *lower_dentry,
-			      struct dentry *dentry, struct super_block *sb,
-			      u32 flags)
+			      struct dentry *dentry, struct super_block *sb)
 {
-	struct inode *lower_inode = lower_dentry->d_inode;
-	struct inode *inode = ecryptfs_get_inode(lower_inode, sb);
+	struct inode *inode = ecryptfs_get_inode(lower_dentry->d_inode, sb);
+
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
-	if (flags & ECRYPTFS_INTERPOSE_FLAG_D_ADD)
-		d_add(dentry, inode);
-	else
-		d_instantiate(dentry, inode);
+	d_instantiate(dentry, inode);
+
 	return 0;
 }
 
@@ -218,7 +220,7 @@ ecryptfs_do_create(struct inode *directory_inode,
 		goto out_lock;
 	}
 	rc = ecryptfs_interpose(lower_dentry, ecryptfs_dentry,
-				directory_inode->i_sb, 0);
+				directory_inode->i_sb);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Failure in ecryptfs_interpose\n");
 		goto out_lock;
@@ -305,15 +307,15 @@ out:
 }
 
 /**
- * ecryptfs_lookup_and_interpose_lower - Perform a lookup
+ * ecryptfs_lookup_interpose - Dentry interposition for a lookup
  */
-int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
-					struct dentry *lower_dentry,
-					struct inode *ecryptfs_dir_inode)
+static int ecryptfs_lookup_interpose(struct dentry *ecryptfs_dentry,
+				     struct dentry *lower_dentry,
+				     struct inode *ecryptfs_dir_inode)
 {
 	struct dentry *lower_dir_dentry;
 	struct vfsmount *lower_mnt;
-	struct inode *lower_inode;
+	struct inode *inode, *lower_inode;
 	struct ecryptfs_crypt_stat *crypt_stat;
 	char *page_virt = NULL;
 	int put_lower = 0, rc = 0;
@@ -341,14 +343,16 @@ int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 		d_add(ecryptfs_dentry, NULL);
 		goto out;
 	}
-	rc = ecryptfs_interpose(lower_dentry, ecryptfs_dentry,
-				ecryptfs_dir_inode->i_sb,
-				ECRYPTFS_INTERPOSE_FLAG_D_ADD);
-	if (rc) {
+	inode = __ecryptfs_get_inode(lower_inode, ecryptfs_dir_inode->i_sb);
+	if (IS_ERR(inode)) {
+		rc = PTR_ERR(inode);
 		printk(KERN_ERR "%s: Error interposing; rc = [%d]\n",
 		       __func__, rc);
 		goto out;
 	}
+	if (inode->i_state & I_NEW)
+		unlock_new_inode(inode);
+	d_add(ecryptfs_dentry, inode);
 	if (S_ISDIR(lower_inode->i_mode))
 		goto out;
 	if (S_ISLNK(lower_inode->i_mode))
@@ -442,12 +446,12 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 		goto out_d_drop;
 	}
 	if (lower_dentry->d_inode)
-		goto lookup_and_interpose;
+		goto interpose;
 	mount_crypt_stat = &ecryptfs_superblock_to_private(
 				ecryptfs_dentry->d_sb)->mount_crypt_stat;
 	if (!(mount_crypt_stat
 	    && (mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)))
-		goto lookup_and_interpose;
+		goto interpose;
 	dput(lower_dentry);
 	rc = ecryptfs_encrypt_and_encode_filename(
 		&encrypted_and_encoded_name, &encrypted_and_encoded_name_size,
@@ -470,9 +474,9 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 				encrypted_and_encoded_name);
 		goto out_d_drop;
 	}
-lookup_and_interpose:
-	rc = ecryptfs_lookup_and_interpose_lower(ecryptfs_dentry, lower_dentry,
-						 ecryptfs_dir_inode);
+interpose:
+	rc = ecryptfs_lookup_interpose(ecryptfs_dentry, lower_dentry,
+				       ecryptfs_dir_inode);
 	goto out;
 out_d_drop:
 	d_drop(ecryptfs_dentry);
@@ -500,7 +504,7 @@ static int ecryptfs_link(struct dentry *old_dentry, struct inode *dir,
 		      lower_new_dentry);
 	if (rc || !lower_new_dentry->d_inode)
 		goto out_lock;
-	rc = ecryptfs_interpose(lower_new_dentry, new_dentry, dir->i_sb, 0);
+	rc = ecryptfs_interpose(lower_new_dentry, new_dentry, dir->i_sb);
 	if (rc)
 		goto out_lock;
 	fsstack_copy_attr_times(dir, lower_dir_dentry->d_inode);
@@ -567,7 +571,7 @@ static int ecryptfs_symlink(struct inode *dir, struct dentry *dentry,
 	kfree(encoded_symname);
 	if (rc || !lower_dentry->d_inode)
 		goto out_lock;
-	rc = ecryptfs_interpose(lower_dentry, dentry, dir->i_sb, 0);
+	rc = ecryptfs_interpose(lower_dentry, dentry, dir->i_sb);
 	if (rc)
 		goto out_lock;
 	fsstack_copy_attr_times(dir, lower_dir_dentry->d_inode);
@@ -591,7 +595,7 @@ static int ecryptfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	rc = vfs_mkdir(lower_dir_dentry->d_inode, lower_dentry, mode);
 	if (rc || !lower_dentry->d_inode)
 		goto out;
-	rc = ecryptfs_interpose(lower_dentry, dentry, dir->i_sb, 0);
+	rc = ecryptfs_interpose(lower_dentry, dentry, dir->i_sb);
 	if (rc)
 		goto out;
 	fsstack_copy_attr_times(dir, lower_dir_dentry->d_inode);
@@ -639,7 +643,7 @@ ecryptfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 	rc = vfs_mknod(lower_dir_dentry->d_inode, lower_dentry, mode, dev);
 	if (rc || !lower_dentry->d_inode)
 		goto out;
-	rc = ecryptfs_interpose(lower_dentry, dentry, dir->i_sb, 0);
+	rc = ecryptfs_interpose(lower_dentry, dentry, dir->i_sb);
 	if (rc)
 		goto out;
 	fsstack_copy_attr_times(dir, lower_dir_dentry->d_inode);
