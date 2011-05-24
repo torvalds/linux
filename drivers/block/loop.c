@@ -1691,6 +1691,9 @@ static int __init loop_init(void)
 	if (max_part > 0)
 		part_shift = fls(max_part);
 
+	if ((1UL << part_shift) > DISK_MAX_PARTS)
+		return -EINVAL;
+
 	if (max_loop > 1UL << (MINORBITS - part_shift))
 		return -EINVAL;
 
