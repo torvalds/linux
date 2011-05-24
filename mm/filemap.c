@@ -80,8 +80,8 @@
  *  ->i_mutex
  *    ->i_alloc_sem             (various)
  *
- *  ->inode_lock
- *    ->sb_lock			(fs/fs-writeback.c)
+ *  inode_wb_list_lock
+ *    sb_lock			(fs/fs-writeback.c)
  *    ->mapping->tree_lock	(__sync_single_inode)
  *
  *  ->i_mmap_lock
@@ -98,8 +98,10 @@
  *    ->zone.lru_lock		(check_pte_range->isolate_lru_page)
  *    ->private_lock		(page_remove_rmap->set_page_dirty)
  *    ->tree_lock		(page_remove_rmap->set_page_dirty)
- *    ->inode_lock		(page_remove_rmap->set_page_dirty)
- *    ->inode_lock		(zap_pte_range->set_page_dirty)
+ *    inode_wb_list_lock	(page_remove_rmap->set_page_dirty)
+ *    ->inode->i_lock		(page_remove_rmap->set_page_dirty)
+ *    inode_wb_list_lock	(zap_pte_range->set_page_dirty)
+ *    ->inode->i_lock		(zap_pte_range->set_page_dirty)
  *    ->private_lock		(zap_pte_range->__set_page_dirty_buffers)
  *
  *  (code doesn't rely on that order, so you could switch it around)

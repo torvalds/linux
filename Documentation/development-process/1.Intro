@@ -56,13 +56,13 @@ information on kernel development.
 
 1.2: WHAT THIS DOCUMENT IS ABOUT
 
-The Linux kernel, at over 6 million lines of code and well over 1000 active
-contributors, is one of the largest and most active free software projects
-in existence.  Since its humble beginning in 1991, this kernel has evolved
-into a best-of-breed operating system component which runs on pocket-sized
-digital music players, desktop PCs, the largest supercomputers in
-existence, and all types of systems in between.  It is a robust, efficient,
-and scalable solution for almost any situation.
+The Linux kernel, at over 8 million lines of code and well over 1000
+contributors to each release, is one of the largest and most active free
+software projects in existence.  Since its humble beginning in 1991, this
+kernel has evolved into a best-of-breed operating system component which
+runs on pocket-sized digital music players, desktop PCs, the largest
+supercomputers in existence, and all types of systems in between.  It is a
+robust, efficient, and scalable solution for almost any situation.
 
 With the growth of Linux has come an increase in the number of developers
 (and companies) wishing to participate in its development.  Hardware
@@ -115,7 +115,7 @@ This document was written by Jonathan Corbet, corbet@lwn.net.  It has been
 improved by comments from Johannes Berg, James Berry, Alex Chiang, Roland
 Dreier, Randy Dunlap, Jake Edge, Jiri Kosina, Matt Mackall, Arthur Marsh,
 Amanda McPherson, Andrew Morton, Andrew Price, Tsugikazu Shibata, and
-Jochen Voß. 
+Jochen Voß.
 
 This work was supported by the Linux Foundation; thanks especially to
 Amanda McPherson, who saw the value of this effort and made it all happen.
@@ -221,7 +221,7 @@ include:
 - Everything that was said above about code review applies doubly to
   closed-source code.  Since this code is not available at all, it cannot
   have been reviewed by the community and will, beyond doubt, have serious
-  problems. 
+  problems.
 
 Makers of embedded systems, in particular, may be tempted to disregard much
 of what has been said in this section in the belief that they are shipping

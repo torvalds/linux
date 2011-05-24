@@ -1101,12 +1101,16 @@ static void mark_bbt_region(struct mtd_info *mtd, struct nand_bbt_descr *td)
 static void verify_bbt_descr(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 {
 	struct nand_chip *this = mtd->priv;
-	u32 pattern_len = bd->len;
-	u32 bits = bd->options & NAND_BBT_NRBITS_MSK;
+	u32 pattern_len;
+	u32 bits;
 	u32 table_size;
 
 	if (!bd)
 		return;
+
+	pattern_len = bd->len;
+	bits = bd->options & NAND_BBT_NRBITS_MSK;
+
 	BUG_ON((this->options & NAND_USE_FLASH_BBT_NO_OOB) &&
 			!(this->options & NAND_USE_FLASH_BBT));
 	BUG_ON(!bits);

@@ -992,6 +992,12 @@ int follow_down_one(struct path *path)
 	return 0;
 }
 
+static inline bool managed_dentry_might_block(struct dentry *dentry)
+{
+	return (dentry->d_flags & DCACHE_MANAGE_TRANSIT &&
+		dentry->d_op->d_manage(dentry, true) < 0);
+}
+
 /*
  * Skip to top of mountpoint pile in rcuwalk mode.  We abort the rcu-walk if we
  * meet a managed dentry and we're not walking to "..".  True is returned to
@@ -1000,19 +1006,26 @@ int follow_down_one(struct path *path)
 static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 			       struct inode **inode, bool reverse_transit)
 {
-	while (d_mountpoint(path->dentry)) {
+	for (;;) {
 		struct vfsmount *mounted;
-		if (unlikely(path->dentry->d_flags & DCACHE_MANAGE_TRANSIT) &&
-		    !reverse_transit &&
-		    path->dentry->d_op->d_manage(path->dentry, true) < 0)
+		/*
+		 * Don't forget we might have a non-mountpoint managed dentry
+		 * that wants to block transit.
+		 */
+		*inode = path->dentry->d_inode;
+		if (!reverse_transit &&
+		     unlikely(managed_dentry_might_block(path->dentry)))
 			return false;
+
+		if (!d_mountpoint(path->dentry))
+			break;
+
 		mounted = __lookup_mnt(path->mnt, path->dentry, 1);
 		if (!mounted)
 			break;
 		path->mnt = mounted;
 		path->dentry = mounted->mnt_root;
 		nd->seq = read_seqcount_begin(&path->dentry->d_seq);
-		*inode = path->dentry->d_inode;
 	}
 
 	if (unlikely(path->dentry->d_flags & DCACHE_NEED_AUTOMOUNT))

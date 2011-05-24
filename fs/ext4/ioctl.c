@@ -334,16 +334,22 @@ mext_out:
 	case FITRIM:
 	{
 		struct super_block *sb = inode->i_sb;
+		struct request_queue *q = bdev_get_queue(sb->s_bdev);
 		struct fstrim_range range;
 		int ret = 0;
 
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
+		if (!blk_queue_discard(q))
+			return -EOPNOTSUPP;
+
 		if (copy_from_user(&range, (struct fstrim_range *)arg,
 		    sizeof(range)))
 			return -EFAULT;
 
+		range.minlen = max((unsigned int)range.minlen,
+				   q->limits.discard_granularity);
 		ret = ext4_trim_fs(sb, &range);
 		if (ret < 0)
 			return ret;
@@ -421,6 +427,7 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return err;
 	}
 	case EXT4_IOC_MOVE_EXT:
+	case FITRIM:
 		break;
 	default:
 		return -ENOIOCTLCMD;

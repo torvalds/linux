@@ -139,13 +139,12 @@ static void asic3_irq_flip_edge(struct asic3 *asic,
 
 static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
+	struct asic3 *asic = irq_desc_get_handler_data(desc);
+	struct irq_data *data = irq_desc_get_irq_data(desc);
 	int iter, i;
 	unsigned long flags;
-	struct asic3 *asic;
 
-	desc->irq_data.chip->irq_ack(&desc->irq_data);
-
-	asic = get_irq_data(irq);
+	data->chip->irq_ack(irq_data);
 
 	for (iter = 0 ; iter < MAX_ASIC_ISR_LOOPS; iter++) {
 		u32 status;
@@ -188,8 +187,7 @@ static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
 					irqnr = asic->irq_base +
 						(ASIC3_GPIOS_PER_BANK * bank)
 						+ i;
-					desc = irq_to_desc(irqnr);
-					desc->handle_irq(irqnr, desc);
+					generic_handle_irq(irqnr);
 					if (asic->irq_bothedge[bank] & bit)
 						asic3_irq_flip_edge(asic, base,
 								    bit);
@@ -200,11 +198,8 @@ static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
 		/* Handle remaining IRQs in the status register */
 		for (i = ASIC3_NUM_GPIOS; i < ASIC3_NR_IRQS; i++) {
 			/* They start at bit 4 and go up */
-			if (status & (1 << (i - ASIC3_NUM_GPIOS + 4))) {
-				desc = irq_to_desc(asic->irq_base + i);
-				desc->handle_irq(asic->irq_base + i,
-						 desc);
-			}
+			if (status & (1 << (i - ASIC3_NUM_GPIOS + 4)))
+				generic_handle_irq(asic->irq_base + i);
 		}
 	}
 
@@ -393,21 +388,21 @@ static int __init asic3_irq_probe(struct platform_device *pdev)
 
 	for (irq = irq_base; irq < irq_base + ASIC3_NR_IRQS; irq++) {
 		if (irq < asic->irq_base + ASIC3_NUM_GPIOS)
-			set_irq_chip(irq, &asic3_gpio_irq_chip);
+			irq_set_chip(irq, &asic3_gpio_irq_chip);
 		else
-			set_irq_chip(irq, &asic3_irq_chip);
+			irq_set_chip(irq, &asic3_irq_chip);
 
-		set_irq_chip_data(irq, asic);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_data(irq, asic);
+		irq_set_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	asic3_write_register(asic, ASIC3_OFFSET(INTR, INT_MASK),
 			     ASIC3_INTMASK_GINTMASK);
 
-	set_irq_chained_handler(asic->irq_nr, asic3_irq_demux);
-	set_irq_type(asic->irq_nr, IRQ_TYPE_EDGE_RISING);
-	set_irq_data(asic->irq_nr, asic);
+	irq_set_chained_handler(asic->irq_nr, asic3_irq_demux);
+	irq_set_irq_type(asic->irq_nr, IRQ_TYPE_EDGE_RISING);
+	irq_set_handler_data(asic->irq_nr, asic);
 
 	return 0;
 }
@@ -421,11 +416,10 @@ static void asic3_irq_remove(struct platform_device *pdev)
 
 	for (irq = irq_base; irq < irq_base + ASIC3_NR_IRQS; irq++) {
 		set_irq_flags(irq, 0);
-		set_irq_handler(irq, NULL);
-		set_irq_chip(irq, NULL);
-		set_irq_chip_data(irq, NULL);
+		irq_set_chip_and_handler(irq, NULL, NULL);
+		irq_set_chip_data(irq, NULL);
 	}
-	set_irq_chained_handler(asic->irq_nr, NULL);
+	irq_set_chained_handler(asic->irq_nr, NULL);
 }
 
 /* GPIOs */

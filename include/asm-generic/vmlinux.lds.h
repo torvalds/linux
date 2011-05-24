@@ -688,6 +688,28 @@
 	}
 
 /**
+ * PERCPU_INPUT - the percpu input sections
+ * @cacheline: cacheline size
+ *
+ * The core percpu section names and core symbols which do not rely
+ * directly upon load addresses.
+ *
+ * @cacheline is used to align subsections to avoid false cacheline
+ * sharing between subsections for different purposes.
+ */
+#define PERCPU_INPUT(cacheline)						\
+	VMLINUX_SYMBOL(__per_cpu_start) = .;				\
+	*(.data..percpu..first)						\
+	. = ALIGN(PAGE_SIZE);						\
+	*(.data..percpu..page_aligned)					\
+	. = ALIGN(cacheline);						\
+	*(.data..percpu..readmostly)					\
+	. = ALIGN(cacheline);						\
+	*(.data..percpu)						\
+	*(.data..percpu..shared_aligned)				\
+	VMLINUX_SYMBOL(__per_cpu_end) = .;
+
+/**
  * PERCPU_VADDR - define output section for percpu area
  * @cacheline: cacheline size
  * @vaddr: explicit base address (optional)
@@ -715,16 +737,7 @@
 	VMLINUX_SYMBOL(__per_cpu_load) = .;				\
 	.data..percpu vaddr : AT(VMLINUX_SYMBOL(__per_cpu_load)		\
 				- LOAD_OFFSET) {			\
-		VMLINUX_SYMBOL(__per_cpu_start) = .;			\
-		*(.data..percpu..first)					\
-		. = ALIGN(PAGE_SIZE);					\
-		*(.data..percpu..page_aligned)				\
-		. = ALIGN(cacheline);					\
-		*(.data..percpu..readmostly)				\
-		. = ALIGN(cacheline);					\
-		*(.data..percpu)					\
-		*(.data..percpu..shared_aligned)			\
-		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
+		PERCPU_INPUT(cacheline)					\
 	} phdr								\
 	. = VMLINUX_SYMBOL(__per_cpu_load) + SIZEOF(.data..percpu);
 
@@ -744,16 +757,7 @@
 	. = ALIGN(PAGE_SIZE);						\
 	.data..percpu	: AT(ADDR(.data..percpu) - LOAD_OFFSET) {	\
 		VMLINUX_SYMBOL(__per_cpu_load) = .;			\
-		VMLINUX_SYMBOL(__per_cpu_start) = .;			\
-		*(.data..percpu..first)					\
-		. = ALIGN(PAGE_SIZE);					\
-		*(.data..percpu..page_aligned)				\
-		. = ALIGN(cacheline);					\
-		*(.data..percpu..readmostly)				\
-		. = ALIGN(cacheline);					\
-		*(.data..percpu)					\
-		*(.data..percpu..shared_aligned)			\
-		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
+		PERCPU_INPUT(cacheline)					\
 	}
 
 

@@ -360,52 +360,14 @@ static void ep93xx_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	gpio = ep93xx_chip->chip.base;
 	for (i = 0; i < chip->ngpio; i++, gpio++) {
 		int is_out = data_dir_reg & (1 << i);
+		int irq = gpio_to_irq(gpio);
 
-		seq_printf(s, " %s%d gpio-%-3d (%-12s) %s %s",
+		seq_printf(s, " %s%d gpio-%-3d (%-12s) %s %s %s\n",
 				chip->label, i, gpio,
 				gpiochip_is_requested(chip, i) ? : "",
 				is_out ? "out" : "in ",
-				(data_reg & (1 << i)) ? "hi" : "lo");
-
-		if (!is_out) {
-			int irq = gpio_to_irq(gpio);
-			struct irq_desc *desc = irq_desc + irq;
-
-			if (irq >= 0 && desc->action) {
-				char *trigger;
-
-				switch (desc->status & IRQ_TYPE_SENSE_MASK) {
-				case IRQ_TYPE_NONE:
-					trigger = "(default)";
-					break;
-				case IRQ_TYPE_EDGE_FALLING:
-					trigger = "edge-falling";
-					break;
-				case IRQ_TYPE_EDGE_RISING:
-					trigger = "edge-rising";
-					break;
-				case IRQ_TYPE_EDGE_BOTH:
-					trigger = "edge-both";
-					break;
-				case IRQ_TYPE_LEVEL_HIGH:
-					trigger = "level-high";
-					break;
-				case IRQ_TYPE_LEVEL_LOW:
-					trigger = "level-low";
-					break;
-				default:
-					trigger = "?trigger?";
-					break;
-				}
-
-				seq_printf(s, " irq-%d %s%s",
-						irq, trigger,
-						(desc->status & IRQ_WAKEUP)
-							? " wakeup" : "");
-			}
-		}
-
-		seq_printf(s, "\n");
+				(data_reg & (1<<  i)) ? "hi" : "lo",
+				(!is_out && irq>= 0) ? "(interrupt)" : "");
 	}
 }
 

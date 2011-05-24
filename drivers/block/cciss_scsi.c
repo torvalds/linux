@@ -824,12 +824,17 @@ static void complete_scsi_command(CommandList_struct *c, int timeout,
 			break;
 			case CMD_UNSOLICITED_ABORT:
 				cmd->result = DID_ABORT << 16;
-				dev_warn(&h->pdev->dev, "%p aborted do to an "
+				dev_warn(&h->pdev->dev, "%p aborted due to an "
 					"unsolicited abort\n", c);
 			break;
 			case CMD_TIMEOUT:
 				cmd->result = DID_TIME_OUT << 16;
 				dev_warn(&h->pdev->dev, "%p timedout\n", c);
+			break;
+			case CMD_UNABORTABLE:
+				cmd->result = DID_ERROR << 16;
+				dev_warn(&h->pdev->dev, "c %p command "
+					"unabortable\n", c);
 			break;
 			default:
 				cmd->result = DID_ERROR << 16;
@@ -1007,10 +1012,14 @@ cciss_scsi_interpret_error(ctlr_info_t *h, CommandList_struct *c)
 		break;
 		case CMD_UNSOLICITED_ABORT:
 			dev_warn(&h->pdev->dev,
-				"%p aborted do to an unsolicited abort\n", c);
+				"%p aborted due to an unsolicited abort\n", c);
 		break;
 		case CMD_TIMEOUT:
 			dev_warn(&h->pdev->dev, "%p timedout\n", c);
+		break;
+		case CMD_UNABORTABLE:
+			dev_warn(&h->pdev->dev,
+				"%p unabortable\n", c);
 		break;
 		default:
 			dev_warn(&h->pdev->dev,

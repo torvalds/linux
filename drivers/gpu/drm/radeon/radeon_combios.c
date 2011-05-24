@@ -448,7 +448,7 @@ static uint16_t combios_get_table_offset(struct drm_device *dev,
 
 bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev)
 {
-	int edid_info;
+	int edid_info, size;
 	struct edid *edid;
 	unsigned char *raw;
 	edid_info = combios_get_table_offset(rdev->ddev, COMBIOS_HARDCODED_EDID_TABLE);
@@ -456,11 +456,12 @@ bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev)
 		return false;
 
 	raw = rdev->bios + edid_info;
-	edid = kmalloc(EDID_LENGTH * (raw[0x7e] + 1), GFP_KERNEL);
+	size = EDID_LENGTH * (raw[0x7e] + 1);
+	edid = kmalloc(size, GFP_KERNEL);
 	if (edid == NULL)
 		return false;
 
-	memcpy((unsigned char *)edid, raw, EDID_LENGTH * (raw[0x7e] + 1));
+	memcpy((unsigned char *)edid, raw, size);
 
 	if (!drm_edid_is_valid(edid)) {
 		kfree(edid);
@@ -468,6 +469,7 @@ bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev)
 	}
 
 	rdev->mode_info.bios_hardcoded_edid = edid;
+	rdev->mode_info.bios_hardcoded_edid_size = size;
 	return true;
 }
 
@@ -475,8 +477,17 @@ bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev)
 struct edid *
 radeon_bios_get_hardcoded_edid(struct radeon_device *rdev)
 {
-	if (rdev->mode_info.bios_hardcoded_edid)
-		return rdev->mode_info.bios_hardcoded_edid;
+	struct edid *edid;
+
+	if (rdev->mode_info.bios_hardcoded_edid) {
+		edid = kmalloc(rdev->mode_info.bios_hardcoded_edid_size, GFP_KERNEL);
+		if (edid) {
+			memcpy((unsigned char *)edid,
+			       (unsigned char *)rdev->mode_info.bios_hardcoded_edid,
+			       rdev->mode_info.bios_hardcoded_edid_size);
+			return edid;
+		}
+	}
 	return NULL;
 }
 

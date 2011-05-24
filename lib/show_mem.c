@@ -9,7 +9,7 @@
 #include <linux/nmi.h>
 #include <linux/quicklist.h>
 
-void __show_mem(unsigned int filter)
+void show_mem(unsigned int filter)
 {
 	pg_data_t *pgdat;
 	unsigned long total = 0, reserved = 0, shared = 0,
@@ -60,9 +60,4 @@ void __show_mem(unsigned int filter)
 	printk("%lu pages in pagetable cache\n",
 		quicklist_total_size());
 #endif
-}
-
-void show_mem(void)
-{
-	__show_mem(0);
 }

@@ -422,10 +422,10 @@ static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 
 	for (i = 0; i < ARRAY_SIZE(tps6586x_irqs); i++) {
 		int __irq = i + tps6586x->irq_base;
-		set_irq_chip_data(__irq, tps6586x);
-		set_irq_chip_and_handler(__irq, &tps6586x->irq_chip,
+		irq_set_chip_data(__irq, tps6586x);
+		irq_set_chip_and_handler(__irq, &tps6586x->irq_chip,
 					 handle_simple_irq);
-		set_irq_nested_thread(__irq, 1);
+		irq_set_nested_thread(__irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(__irq, IRQF_VALID);
 #endif

@@ -31,6 +31,10 @@ config GENERIC_IRQ_PROBE
 config GENERIC_IRQ_SHOW
        bool
 
+# Print level/edge extra information
+config GENERIC_IRQ_SHOW_LEVEL
+       bool
+
 # Support for delayed migration from interrupt context
 config GENERIC_PENDING_IRQ
 	bool

@@ -198,15 +198,6 @@ err:
 	return -ENOMEM;
 }
 
-struct irq_desc * __ref irq_to_desc_alloc_node(unsigned int irq, int node)
-{
-	int res = irq_alloc_descs(irq, irq, 1, node);
-
-	if (res == -EEXIST || res == irq)
-		return irq_to_desc(irq);
-	return NULL;
-}
-
 static int irq_expand_nr_irqs(unsigned int nr)
 {
 	if (nr > IRQ_BITMAP_BITS)
@@ -281,11 +272,6 @@ int __init early_irq_init(void)
 struct irq_desc *irq_to_desc(unsigned int irq)
 {
 	return (irq < NR_IRQS) ? irq_desc + irq : NULL;
-}
-
-struct irq_desc *irq_to_desc_alloc_node(unsigned int irq, int node)
-{
-	return irq_to_desc(irq);
 }
 
 static void free_desc(unsigned int irq)

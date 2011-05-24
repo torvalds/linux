@@ -20,6 +20,7 @@
 #include <linux/amba/serial.h>
 #include <linux/spi/spi.h>
 #include <linux/mfd/ab8500.h>
+#include <linux/regulator/ab8500.h>
 #include <linux/mfd/tc3589x.h>
 #include <linux/leds-lp5521.h>
 #include <linux/input.h>

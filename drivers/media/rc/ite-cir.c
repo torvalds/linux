@@ -187,7 +187,7 @@ static void ite_decode_bytes(struct ite_dev *dev, const u8 * data, int
 	sample_period = dev->params.sample_period;
 	ldata = (unsigned long *)data;
 	size = length << 3;
-	next_one = generic_find_next_le_bit(ldata, size, 0);
+	next_one = find_next_bit_le(ldata, size, 0);
 	if (next_one > 0) {
 		ev.pulse = true;
 		ev.duration =
@@ -196,14 +196,14 @@ static void ite_decode_bytes(struct ite_dev *dev, const u8 * data, int
 	}
 
 	while (next_one < size) {
-		next_zero = generic_find_next_zero_le_bit(ldata, size, next_one + 1);
+		next_zero = find_next_zero_bit_le(ldata, size, next_one + 1);
 		ev.pulse = false;
 		ev.duration = ITE_BITS_TO_NS(next_zero - next_one, sample_period);
 		ir_raw_event_store_with_filter(dev->rdev, &ev);
 
 		if (next_zero < size) {
 			next_one =
-			    generic_find_next_le_bit(ldata,
+			    find_next_bit_le(ldata,
 						     size,
 						     next_zero + 1);
 			ev.pulse = true;

@@ -10,6 +10,12 @@
 #include <asm/frame.h>
 #include <asm/dwarf2.h>
 
+#ifdef CONFIG_SMP
+#define SEG_PREFIX %gs:
+#else
+#define SEG_PREFIX
+#endif
+
 .text
 
 /*
@@ -37,13 +43,13 @@ this_cpu_cmpxchg16b_emu:
 	pushf
 	cli
 
-	cmpq %gs:(%rsi), %rax
+	cmpq SEG_PREFIX(%rsi), %rax
 	jne not_same
-	cmpq %gs:8(%rsi), %rdx
+	cmpq SEG_PREFIX 8(%rsi), %rdx
 	jne not_same
 
-	movq %rbx, %gs:(%rsi)
-	movq %rcx, %gs:8(%rsi)
+	movq %rbx, SEG_PREFIX(%rsi)
+	movq %rcx, SEG_PREFIX 8(%rsi)
 
 	popf
 	mov $1, %al

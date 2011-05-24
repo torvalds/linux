@@ -59,3 +59,15 @@ Kernel Version: 2.6.31
 Contact:	iss_storagedev@hp.com
 Description:	Displays the usage count (number of opens) of logical drive Y
 		of controller X.
+
+Where:		/sys/bus/pci/devices/<dev>/ccissX/resettable
+Date:		February 2011
+Kernel Version:	2.6.38
+Contact:	iss_storagedev@hp.com
+Description:	Value of 1 indicates the controller can honor the reset_devices
+		kernel parameter.  Value of 0 indicates reset_devices cannot be
+		honored.  This is to allow, for example, kexec tools to be able
+		to warn the user if they designate an unresettable device as
+		a dump device, as kdump requires resetting the device in order
+		to work reliably.
+

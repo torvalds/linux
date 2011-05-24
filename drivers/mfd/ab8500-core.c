@@ -334,14 +334,14 @@ static int ab8500_irq_init(struct ab8500 *ab8500)
 	int irq;
 
 	for (irq = base; irq < base + AB8500_NR_IRQS; irq++) {
-		set_irq_chip_data(irq, ab8500);
-		set_irq_chip_and_handler(irq, &ab8500_irq_chip,
+		irq_set_chip_data(irq, ab8500);
+		irq_set_chip_and_handler(irq, &ab8500_irq_chip,
 					 handle_simple_irq);
-		set_irq_nested_thread(irq, 1);
+		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID);
 #else
-		set_irq_noprobe(irq);
+		irq_set_noprobe(irq);
 #endif
 	}
 
@@ -357,8 +357,8 @@ static void ab8500_irq_remove(struct ab8500 *ab8500)
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, 0);
 #endif
-		set_irq_chip_and_handler(irq, NULL, NULL);
-		set_irq_chip_data(irq, NULL);
+		irq_set_chip_and_handler(irq, NULL, NULL);
+		irq_set_chip_data(irq, NULL);
 	}
 }
 

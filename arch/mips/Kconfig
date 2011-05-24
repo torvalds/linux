@@ -22,6 +22,7 @@ config MIPS
 	select HAVE_DMA_API_DEBUG
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_SHOW
 	select HAVE_ARCH_JUMP_LABEL
 
 menu "Machine selection"
@@ -861,6 +862,9 @@ config GPIO_TXX9
 
 config CFE
 	bool
+
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool (HIGHMEM && 64BIT_PHYS_ADDR) || 64BIT
 
 config DMA_COHERENT
 	bool

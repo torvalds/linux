@@ -740,6 +740,12 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 
 	if (!__pci_complete_power_transition(dev, state))
 		error = 0;
+	/*
+	 * When aspm_policy is "powersave" this call ensures
+	 * that ASPM is configured.
+	 */
+	if (!error && dev->bus->self)
+		pcie_aspm_powersave_config_link(dev->bus->self);
 
 	return error;
 }

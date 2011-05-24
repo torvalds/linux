@@ -239,6 +239,7 @@ struct radeon_mode_info {
 	struct drm_property *underscan_vborder_property;
 	/* hardcoded DFP edid from BIOS */
 	struct edid *bios_hardcoded_edid;
+	int bios_hardcoded_edid_size;
 
 	/* pointer to fbdev info structure */
 	struct radeon_fbdev *rfbdev;

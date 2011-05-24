@@ -633,6 +633,8 @@ static int radeon_vga_mode_valid(struct drm_connector *connector,
 static enum drm_connector_status
 radeon_vga_detect(struct drm_connector *connector, bool force)
 {
+	struct drm_device *dev = connector->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct drm_encoder *encoder;
 	struct drm_encoder_helper_funcs *encoder_funcs;
@@ -683,6 +685,17 @@ radeon_vga_detect(struct drm_connector *connector, bool force)
 
 	if (ret == connector_status_connected)
 		ret = radeon_connector_analog_encoder_conflict_solve(connector, encoder, ret, true);
+
+	/* RN50 and some RV100 asics in servers often have a hardcoded EDID in the
+	 * vbios to deal with KVMs. If we have one and are not able to detect a monitor
+	 * by other means, assume the CRT is connected and use that EDID.
+	 */
+	if ((!rdev->is_atom_bios) &&
+	    (ret == connector_status_disconnected) &&
+	    rdev->mode_info.bios_hardcoded_edid_size) {
+		ret = connector_status_connected;
+	}
+
 	radeon_connector_update_scratch_regs(connector, ret);
 	return ret;
 }
@@ -794,6 +807,8 @@ static int radeon_dvi_get_modes(struct drm_connector *connector)
 static enum drm_connector_status
 radeon_dvi_detect(struct drm_connector *connector, bool force)
 {
+	struct drm_device *dev = connector->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct drm_encoder *encoder = NULL;
 	struct drm_encoder_helper_funcs *encoder_funcs;
@@ -833,8 +848,6 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 			 * you don't really know what's connected to which port as both are digital.
 			 */
 			if (radeon_connector->shared_ddc && (ret == connector_status_connected)) {
-				struct drm_device *dev = connector->dev;
-				struct radeon_device *rdev = dev->dev_private;
 				struct drm_connector *list_connector;
 				struct radeon_connector *list_radeon_connector;
 				list_for_each_entry(list_connector, &dev->mode_config.connector_list, head) {
@@ -897,6 +910,19 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 	if ((ret == connector_status_connected) && (radeon_connector->use_digital == false) &&
 	    encoder) {
 		ret = radeon_connector_analog_encoder_conflict_solve(connector, encoder, ret, true);
+	}
+
+	/* RN50 and some RV100 asics in servers often have a hardcoded EDID in the
+	 * vbios to deal with KVMs. If we have one and are not able to detect a monitor
+	 * by other means, assume the DFP is connected and use that EDID.  In most
+	 * cases the DVI port is actually a virtual KVM port connected to the service
+	 * processor.
+	 */
+	if ((!rdev->is_atom_bios) &&
+	    (ret == connector_status_disconnected) &&
+	    rdev->mode_info.bios_hardcoded_edid_size) {
+		radeon_connector->use_digital = true;
+		ret = connector_status_connected;
 	}
 
 out:

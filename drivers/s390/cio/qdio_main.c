@@ -1508,7 +1508,8 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 
 	if (irq_ptr->state != QDIO_IRQ_STATE_ACTIVE)
 		return -EBUSY;
-
+	if (!count)
+		return 0;
 	if (callflags & QDIO_FLAG_SYNC_INPUT)
 		return handle_inbound(irq_ptr->input_qs[q_nr],
 				      callflags, bufnr, count);

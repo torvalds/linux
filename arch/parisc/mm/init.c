@@ -544,7 +544,7 @@ void __init mem_init(void)
 unsigned long *empty_zero_page __read_mostly;
 EXPORT_SYMBOL(empty_zero_page);
 
-void show_mem(void)
+void show_mem(unsigned int filter)
 {
 	int i,free = 0,total = 0,reserved = 0;
 	int shared = 0, cached = 0;

@@ -114,8 +114,10 @@ static inline void unmask_gic_int(unsigned int irq_nr)
 	PNX8550_GIC_REQ(irq_nr) = (1<<26 | 1<<16) | (1<<28) | gic_prio[irq_nr];
 }
 
-static inline void mask_irq(unsigned int irq_nr)
+static inline void mask_irq(struct irq_data *d)
 {
+	unsigned int irq_nr = d->irq;
+
 	if ((PNX8550_INT_CP0_MIN <= irq_nr) && (irq_nr <= PNX8550_INT_CP0_MAX)) {
 		modify_cp0_intmask(1 << irq_nr, 0);
 	} else if ((PNX8550_INT_GIC_MIN <= irq_nr) &&
@@ -129,8 +131,10 @@ static inline void mask_irq(unsigned int irq_nr)
 	}
 }
 
-static inline void unmask_irq(unsigned int irq_nr)
+static inline void unmask_irq(struct irq_data *d)
 {
+	unsigned int irq_nr = d->irq;
+
 	if ((PNX8550_INT_CP0_MIN <= irq_nr) && (irq_nr <= PNX8550_INT_CP0_MAX)) {
 		modify_cp0_intmask(0, 1 << irq_nr);
 	} else if ((PNX8550_INT_GIC_MIN <= irq_nr) &&
@@ -157,10 +161,8 @@ int pnx8550_set_gic_priority(int irq, int priority)
 
 static struct irq_chip level_irq_type = {
 	.name =		"PNX Level IRQ",
-	.ack =		mask_irq,
-	.mask =		mask_irq,
-	.mask_ack =	mask_irq,
-	.unmask =	unmask_irq,
+	.irq_mask =	mask_irq,
+	.irq_unmask =	unmask_irq,
 };
 
 static struct irqaction gic_action = {
@@ -180,10 +182,8 @@ void __init arch_init_irq(void)
 	int i;
 	int configPR;
 
-	for (i = 0; i < PNX8550_INT_CP0_TOTINT; i++) {
+	for (i = 0; i < PNX8550_INT_CP0_TOTINT; i++)
 		set_irq_chip_and_handler(i, &level_irq_type, handle_level_irq);
-		mask_irq(i);	/* mask the irq just in case  */
-	}
 
 	/* init of GIC/IPC interrupts */
 	/* should be done before cp0 since cp0 init enables the GIC int */

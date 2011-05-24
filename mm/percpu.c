@@ -1648,8 +1648,8 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 	/* warn if maximum distance is further than 75% of vmalloc space */
 	if (max_distance > (VMALLOC_END - VMALLOC_START) * 3 / 4) {
 		pr_warning("PERCPU: max_distance=0x%zx too large for vmalloc "
-			   "space 0x%lx\n",
-			   max_distance, VMALLOC_END - VMALLOC_START);
+			   "space 0x%lx\n", max_distance,
+			   (unsigned long)(VMALLOC_END - VMALLOC_START));
 #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
 		/* and fail if we have fallback */
 		rc = -EINVAL;

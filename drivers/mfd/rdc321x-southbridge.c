@@ -97,6 +97,7 @@ static DEFINE_PCI_DEVICE_TABLE(rdc321x_sb_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_RDC, PCI_DEVICE_ID_RDC_R6030) },
 	{}
 };
+MODULE_DEVICE_TABLE(pci, rdc321x_sb_table);
 
 static struct pci_driver rdc321x_sb_driver = {
 	.name		= "RDC321x Southbridge",

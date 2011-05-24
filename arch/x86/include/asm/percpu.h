@@ -45,7 +45,7 @@
 #include <linux/stringify.h>
 
 #ifdef CONFIG_SMP
-#define __percpu_arg(x)		"%%"__stringify(__percpu_seg)":%P" #x
+#define __percpu_prefix		"%%"__stringify(__percpu_seg)":"
 #define __my_cpu_offset		percpu_read(this_cpu_off)
 
 /*
@@ -62,8 +62,10 @@
 	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;	\
 })
 #else
-#define __percpu_arg(x)		"%P" #x
+#define __percpu_prefix		""
 #endif
+
+#define __percpu_arg(x)		__percpu_prefix "%P" #x
 
 /*
  * Initialized pointers to per-cpu variables needed for the boot
@@ -507,6 +509,11 @@ do {									\
  * it in software.  The address used in the cmpxchg16 instruction must be
  * aligned to a 16 byte boundary.
  */
+#ifdef CONFIG_SMP
+#define CMPXCHG16B_EMU_CALL "call this_cpu_cmpxchg16b_emu\n\t" P6_NOP3
+#else
+#define CMPXCHG16B_EMU_CALL "call this_cpu_cmpxchg16b_emu\n\t" P6_NOP2
+#endif
 #define percpu_cmpxchg16b_double(pcp1, o1, o2, n1, n2)			\
 ({									\
 	char __ret;							\
@@ -515,12 +522,12 @@ do {									\
 	typeof(o2) __o2 = o2;						\
 	typeof(o2) __n2 = n2;						\
 	typeof(o2) __dummy;						\
-	alternative_io("call this_cpu_cmpxchg16b_emu\n\t" P6_NOP4,	\
-		       "cmpxchg16b %%gs:(%%rsi)\n\tsetz %0\n\t",	\
+	alternative_io(CMPXCHG16B_EMU_CALL,				\
+		       "cmpxchg16b " __percpu_prefix "(%%rsi)\n\tsetz %0\n\t",	\
 		       X86_FEATURE_CX16,				\
 		       ASM_OUTPUT2("=a"(__ret), "=d"(__dummy)),		\
 		       "S" (&pcp1), "b"(__n1), "c"(__n2),		\
-		       "a"(__o1), "d"(__o2));				\
+		       "a"(__o1), "d"(__o2) : "memory");		\
 	__ret;								\
 })
 

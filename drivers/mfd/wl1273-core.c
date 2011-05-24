@@ -25,7 +25,7 @@
 
 #define DRIVER_DESC "WL1273 FM Radio Core"
 
-static struct i2c_device_id wl1273_driver_id_table[] = {
+static const struct i2c_device_id wl1273_driver_id_table[] = {
 	{ WL1273_FM_DRIVER_NAME, 0 },
 	{ }
 };

@@ -209,7 +209,7 @@ static int max8998_suspend(struct device *dev)
 	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 
 	if (max8998->wakeup)
-		set_irq_wake(max8998->irq, 1);
+		irq_set_irq_wake(max8998->irq, 1);
 	return 0;
 }
 
@@ -219,7 +219,7 @@ static int max8998_resume(struct device *dev)
 	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 
 	if (max8998->wakeup)
-		set_irq_wake(max8998->irq, 0);
+		irq_set_irq_wake(max8998->irq, 0);
 	/*
 	 * In LP3974, if IRQ registers are not "read & clear"
 	 * when it's set during sleep, the interrupt becomes

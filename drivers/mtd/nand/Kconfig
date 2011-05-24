@@ -31,6 +31,21 @@ config MTD_NAND_VERIFY_WRITE
 	  device thinks the write was successful, a bit could have been
 	  flipped accidentally due to device wear or something else.
 
+config MTD_NAND_BCH
+	tristate
+	select BCH
+	depends on MTD_NAND_ECC_BCH
+	default MTD_NAND
+
+config MTD_NAND_ECC_BCH
+	bool "Support software BCH ECC"
+	default n
+	help
+	  This enables support for software BCH error correction. Binary BCH
+	  codes are more powerful and cpu intensive than traditional Hamming
+	  ECC codes. They are used with NAND devices requiring more than 1 bit
+	  of error correction.
+
 config MTD_SM_COMMON
 	tristate
 	default n

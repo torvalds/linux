@@ -168,6 +168,26 @@
 #define MPT2SAS_INTEL_RMS2LL080_SSDID          0x350E
 #define MPT2SAS_INTEL_RMS2LL040_SSDID          0x350F
 
+
+/*
+ * HP HBA branding
+ */
+#define MPT2SAS_HP_3PAR_SSVID                0x1590
+#define MPT2SAS_HP_2_4_INTERNAL_BRANDING        "HP H220 Host Bus Adapter"
+#define MPT2SAS_HP_2_4_EXTERNAL_BRANDING        "HP H221 Host Bus Adapter"
+#define MPT2SAS_HP_1_4_INTERNAL_1_4_EXTERNAL_BRANDING "HP H222 Host Bus Adapter"
+#define MPT2SAS_HP_EMBEDDED_2_4_INTERNAL_BRANDING    "HP H220i Host Bus Adapter"
+#define MPT2SAS_HP_DAUGHTER_2_4_INTERNAL_BRANDING    "HP H210i Host Bus Adapter"
+
+/*
+ * HO HBA SSDIDs
+ */
+#define MPT2SAS_HP_2_4_INTERNAL_SSDID            0x0041
+#define MPT2SAS_HP_2_4_EXTERNAL_SSDID            0x0042
+#define MPT2SAS_HP_1_4_INTERNAL_1_4_EXTERNAL_SSDID    0x0043
+#define MPT2SAS_HP_EMBEDDED_2_4_INTERNAL_SSDID        0x0044
+#define MPT2SAS_HP_DAUGHTER_2_4_INTERNAL_SSDID        0x0046
+
 /*
  * per target private data
  */

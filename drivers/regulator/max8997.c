@@ -1185,6 +1185,7 @@ static const struct platform_device_id max8997_pmic_id[] = {
 	{ "max8997-pmic", 0},
 	{ },
 };
+MODULE_DEVICE_TABLE(platform, max8997_pmic_id);
 
 static struct platform_driver max8997_pmic_driver = {
 	.driver = {

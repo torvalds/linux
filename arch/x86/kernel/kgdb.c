@@ -121,8 +121,8 @@ char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
 		memcpy(mem, (void *)regs + dbg_reg_def[regno].offset,
 		       dbg_reg_def[regno].size);
 
-	switch (regno) {
 #ifdef CONFIG_X86_32
+	switch (regno) {
 	case GDB_SS:
 		if (!user_mode_vm(regs))
 			*(unsigned long *)mem = __KERNEL_DS;
@@ -135,8 +135,8 @@ char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
 	case GDB_FS:
 		*(unsigned long *)mem = 0xFFFF;
 		break;
-#endif
 	}
+#endif
 	return dbg_reg_def[regno].name;
 }
 

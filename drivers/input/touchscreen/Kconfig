@@ -641,7 +641,7 @@ config TOUCHSCREEN_TOUCHIT213
 
 config TOUCHSCREEN_TSC2005
         tristate "TSC2005 based touchscreens"
-        depends on SPI_MASTER
+        depends on SPI_MASTER && GENERIC_HARDIRQS
         help
           Say Y here if you have a TSC2005 based touchscreen.
 

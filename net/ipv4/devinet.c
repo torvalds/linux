@@ -64,6 +64,8 @@
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 
+#include "fib_lookup.h"
+
 static struct ipv4_devconf ipv4_devconf = {
 	.data = {
 		[IPV4_DEVCONF_ACCEPT_REDIRECTS - 1] = 1,
@@ -150,6 +152,20 @@ struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref)
 			result = dev;
 			break;
 		}
+	}
+	if (!result) {
+		struct flowi4 fl4 = { .daddr = addr };
+		struct fib_result res = { 0 };
+		struct fib_table *local;
+
+		/* Fallback to FIB local table so that communication
+		 * over loopback subnets work.
+		 */
+		local = fib_get_table(net, RT_TABLE_LOCAL);
+		if (local &&
+		    !fib_table_lookup(local, &fl4, &res, FIB_LOOKUP_NOREF) &&
+		    res.type == RTN_LOCAL)
+			result = FIB_RES_DEV(res);
 	}
 	if (result && devref)
 		dev_hold(result);
@@ -345,6 +361,17 @@ static void __inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 		}
 	}
 
+	/* On promotion all secondaries from subnet are changing
+	 * the primary IP, we must remove all their routes silently
+	 * and later to add them back with new prefsrc. Do this
+	 * while all addresses are on the device list.
+	 */
+	for (ifa = promote; ifa; ifa = ifa->ifa_next) {
+		if (ifa1->ifa_mask == ifa->ifa_mask &&
+		    inet_ifa_match(ifa1->ifa_address, ifa))
+			fib_del_ifaddr(ifa, ifa1);
+	}
+
 	/* 2. Unlink it */
 
 	*ifap = ifa1->ifa_next;
@@ -364,6 +391,7 @@ static void __inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 	blocking_notifier_call_chain(&inetaddr_chain, NETDEV_DOWN, ifa1);
 
 	if (promote) {
+		struct in_ifaddr *next_sec = promote->ifa_next;
 
 		if (prev_prom) {
 			prev_prom->ifa_next = promote->ifa_next;
@@ -375,7 +403,7 @@ static void __inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 		rtmsg_ifa(RTM_NEWADDR, promote, nlh, pid);
 		blocking_notifier_call_chain(&inetaddr_chain,
 				NETDEV_UP, promote);
-		for (ifa = promote->ifa_next; ifa; ifa = ifa->ifa_next) {
+		for (ifa = next_sec; ifa; ifa = ifa->ifa_next) {
 			if (ifa1->ifa_mask != ifa->ifa_mask ||
 			    !inet_ifa_match(ifa1->ifa_address, ifa))
 					continue;

@@ -40,6 +40,7 @@
 #include "xattr.h"
 #include "acl.h"
 
+#include <trace/events/ext4.h>
 /*
  * define how far ahead to read directories while searching them.
  */
@@ -2183,6 +2184,7 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	struct ext4_dir_entry_2 *de;
 	handle_t *handle;
 
+	trace_ext4_unlink_enter(dir, dentry);
 	/* Initialize quotas before so that eventual writes go
 	 * in separate transaction */
 	dquot_initialize(dir);
@@ -2228,6 +2230,7 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 end_unlink:
 	ext4_journal_stop(handle);
 	brelse(bh);
+	trace_ext4_unlink_exit(dentry, retval);
 	return retval;
 }
 
@@ -2402,6 +2405,10 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (!new_inode && new_dir != old_dir &&
 		    EXT4_DIR_LINK_MAX(new_dir))
 			goto end_rename;
+		BUFFER_TRACE(dir_bh, "get_write_access");
+		retval = ext4_journal_get_write_access(handle, dir_bh);
+		if (retval)
+			goto end_rename;
 	}
 	if (!new_bh) {
 		retval = ext4_add_entry(handle, new_dentry, old_inode);
@@ -2409,7 +2416,9 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto end_rename;
 	} else {
 		BUFFER_TRACE(new_bh, "get write access");
-		ext4_journal_get_write_access(handle, new_bh);
+		retval = ext4_journal_get_write_access(handle, new_bh);
+		if (retval)
+			goto end_rename;
 		new_de->inode = cpu_to_le32(old_inode->i_ino);
 		if (EXT4_HAS_INCOMPAT_FEATURE(new_dir->i_sb,
 					      EXT4_FEATURE_INCOMPAT_FILETYPE))
@@ -2470,8 +2479,6 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	old_dir->i_ctime = old_dir->i_mtime = ext4_current_time(old_dir);
 	ext4_update_dx_flag(old_dir);
 	if (dir_bh) {
-		BUFFER_TRACE(dir_bh, "get_write_access");
-		ext4_journal_get_write_access(handle, dir_bh);
 		PARENT_INO(dir_bh->b_data, new_dir->i_sb->s_blocksize) =
 						cpu_to_le32(new_dir->i_ino);
 		BUFFER_TRACE(dir_bh, "call ext4_handle_dirty_metadata");

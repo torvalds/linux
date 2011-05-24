@@ -535,6 +535,7 @@ struct cfi_fixup {
 #define CFI_MFR_CONTINUATION	0x007F
 
 #define CFI_MFR_AMD		0x0001
+#define CFI_MFR_AMIC		0x0037
 #define CFI_MFR_ATMEL		0x001F
 #define CFI_MFR_EON		0x001C
 #define CFI_MFR_FUJITSU		0x0004

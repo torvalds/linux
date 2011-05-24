@@ -78,7 +78,7 @@ static unsigned int kdb_continue_catastrophic;
 static kdbtab_t *kdb_commands;
 #define KDB_BASE_CMD_MAX 50
 static int kdb_max_commands = KDB_BASE_CMD_MAX;
-static kdbtab_t kdb_base_commands[50];
+static kdbtab_t kdb_base_commands[KDB_BASE_CMD_MAX];
 #define for_each_kdbcmd(cmd, num)					\
 	for ((cmd) = kdb_base_commands, (num) = 0;			\
 	     num < kdb_max_commands;					\
@@ -2892,7 +2892,7 @@ static void __init kdb_inittab(void)
 	  "Send a signal to a process", 0, KDB_REPEAT_NONE);
 	kdb_register_repeat("summary", kdb_summary, "",
 	  "Summarize the system", 4, KDB_REPEAT_NONE);
-	kdb_register_repeat("per_cpu", kdb_per_cpu, "",
+	kdb_register_repeat("per_cpu", kdb_per_cpu, "<sym> [<bytes>] [<cpu>]",
 	  "Display per_cpu variables", 3, KDB_REPEAT_NONE);
 	kdb_register_repeat("grephelp", kdb_grep_help, "",
 	  "Display help on | grep", 0, KDB_REPEAT_NONE);

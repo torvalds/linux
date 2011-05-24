@@ -648,6 +648,9 @@ enum ethtool_sfeatures_retval_bits {
 
 #include <linux/rculist.h>
 
+/* needed by dev_disable_lro() */
+extern int __ethtool_set_flags(struct net_device *dev, u32 flags);
+
 struct ethtool_rx_ntuple_flow_spec_container {
 	struct ethtool_rx_ntuple_flow_spec fs;
 	struct list_head list;

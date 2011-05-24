@@ -349,6 +349,7 @@ static struct cfi_fixup cfi_fixup_table[] = {
 	{ CFI_MFR_ATMEL, CFI_ID_ANY, fixup_convert_atmel_pri },
 #ifdef AMD_BOOTLOC_BUG
 	{ CFI_MFR_AMD, CFI_ID_ANY, fixup_amd_bootblock },
+	{ CFI_MFR_AMIC, CFI_ID_ANY, fixup_amd_bootblock },
 	{ CFI_MFR_MACRONIX, CFI_ID_ANY, fixup_amd_bootblock },
 #endif
 	{ CFI_MFR_AMD, 0x0050, fixup_use_secsi },
@@ -440,7 +441,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 	mtd->flags   = MTD_CAP_NORFLASH;
 	mtd->name    = map->name;
 	mtd->writesize = 1;
-	mtd->writebufsize = 1 << cfi->cfiq->MaxBufWriteSize;
+	mtd->writebufsize = cfi_interleave(cfi) << cfi->cfiq->MaxBufWriteSize;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "MTD %s(): write buffer size %d\n",
 		__func__, mtd->writebufsize);

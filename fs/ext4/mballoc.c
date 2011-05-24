@@ -432,9 +432,10 @@ static void *mb_find_buddy(struct ext4_buddy *e4b, int order, int *max)
 	}
 
 	/* at order 0 we see each particular block */
-	*max = 1 << (e4b->bd_blkbits + 3);
-	if (order == 0)
+	if (order == 0) {
+		*max = 1 << (e4b->bd_blkbits + 3);
 		return EXT4_MB_BITMAP(e4b);
+	}
 
 	bb = EXT4_MB_BUDDY(e4b) + EXT4_SB(e4b->bd_sb)->s_mb_offsets[order];
 	*max = EXT4_SB(e4b->bd_sb)->s_mb_maxs[order];
@@ -616,7 +617,6 @@ static int __mb_check_buddy(struct ext4_buddy *e4b, char *file,
 	MB_CHECK_ASSERT(e4b->bd_info->bb_fragments == fragments);
 
 	grp = ext4_get_group_info(sb, e4b->bd_group);
-	buddy = mb_find_buddy(e4b, 0, &max);
 	list_for_each(cur, &grp->bb_prealloc_list) {
 		ext4_group_t groupnr;
 		struct ext4_prealloc_space *pa;
@@ -635,7 +635,12 @@ static int __mb_check_buddy(struct ext4_buddy *e4b, char *file,
 #define mb_check_buddy(e4b)
 #endif
 
-/* FIXME!! need more doc */
+/*
+ * Divide blocks started from @first with length @len into
+ * smaller chunks with power of 2 blocks.
+ * Clear the bits in bitmap which the blocks of the chunk(s) covered,
+ * then increase bb_counters[] for corresponded chunk size.
+ */
 static void ext4_mb_mark_free_simple(struct super_block *sb,
 				void *buddy, ext4_grpblk_t first, ext4_grpblk_t len,
 					struct ext4_group_info *grp)
@@ -2381,7 +2386,7 @@ static int ext4_mb_init_backend(struct super_block *sb)
 	/* An 8TB filesystem with 64-bit pointers requires a 4096 byte
 	 * kmalloc. A 128kb malloc should suffice for a 256TB filesystem.
 	 * So a two level scheme suffices for now. */
-	sbi->s_group_info = kmalloc(array_size, GFP_KERNEL);
+	sbi->s_group_info = kzalloc(array_size, GFP_KERNEL);
 	if (sbi->s_group_info == NULL) {
 		printk(KERN_ERR "EXT4-fs: can't allocate buddy meta group\n");
 		return -ENOMEM;
@@ -3208,7 +3213,7 @@ ext4_mb_check_group_pa(ext4_fsblk_t goal_block,
 	cur_distance = abs(goal_block - cpa->pa_pstart);
 	new_distance = abs(goal_block - pa->pa_pstart);
 
-	if (cur_distance < new_distance)
+	if (cur_distance <= new_distance)
 		return cpa;
 
 	/* drop the previous reference */
@@ -3907,7 +3912,8 @@ static void ext4_mb_show_ac(struct ext4_allocation_context *ac)
 	struct super_block *sb = ac->ac_sb;
 	ext4_group_t ngroups, i;
 
-	if (EXT4_SB(sb)->s_mount_flags & EXT4_MF_FS_ABORTED)
+	if (!mb_enable_debug ||
+	    (EXT4_SB(sb)->s_mount_flags & EXT4_MF_FS_ABORTED))
 		return;
 
 	printk(KERN_ERR "EXT4-fs: Can't allocate:"
@@ -4753,7 +4759,8 @@ static int ext4_trim_extent(struct super_block *sb, int start, int count,
  * bitmap. Then issue a TRIM command on this extent and free the extent in
  * the group buddy bitmap. This is done until whole group is scanned.
  */
-ext4_grpblk_t ext4_trim_all_free(struct super_block *sb, struct ext4_buddy *e4b,
+static ext4_grpblk_t
+ext4_trim_all_free(struct super_block *sb, struct ext4_buddy *e4b,
 		ext4_grpblk_t start, ext4_grpblk_t max, ext4_grpblk_t minblocks)
 {
 	void *bitmap;
@@ -4863,10 +4870,15 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 			break;
 		}
 
-		if (len >= EXT4_BLOCKS_PER_GROUP(sb))
-			len -= (EXT4_BLOCKS_PER_GROUP(sb) - first_block);
-		else
+		/*
+		 * For all the groups except the last one, last block will
+		 * always be EXT4_BLOCKS_PER_GROUP(sb), so we only need to
+		 * change it for the last group in which case start +
+		 * len < EXT4_BLOCKS_PER_GROUP(sb).
+		 */
+		if (first_block + len < EXT4_BLOCKS_PER_GROUP(sb))
 			last_block = first_block + len;
+		len -= last_block - first_block;
 
 		if (e4b.bd_info->bb_free >= minlen) {
 			cnt = ext4_trim_all_free(sb, &e4b, first_block,

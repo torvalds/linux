@@ -1748,6 +1748,54 @@ _base_display_intel_branding(struct MPT2SAS_ADAPTER *ioc)
 }
 
 /**
+ * _base_display_hp_branding - Display branding string
+ * @ioc: per adapter object
+ *
+ * Return nothing.
+ */
+static void
+_base_display_hp_branding(struct MPT2SAS_ADAPTER *ioc)
+{
+	if (ioc->pdev->subsystem_vendor != MPT2SAS_HP_3PAR_SSVID)
+		return;
+
+	switch (ioc->pdev->device) {
+	case MPI2_MFGPAGE_DEVID_SAS2004:
+		switch (ioc->pdev->subsystem_device) {
+		case MPT2SAS_HP_DAUGHTER_2_4_INTERNAL_SSDID:
+			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
+			    MPT2SAS_HP_DAUGHTER_2_4_INTERNAL_BRANDING);
+			break;
+		default:
+			break;
+		}
+	case MPI2_MFGPAGE_DEVID_SAS2308_2:
+		switch (ioc->pdev->subsystem_device) {
+		case MPT2SAS_HP_2_4_INTERNAL_SSDID:
+			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
+			    MPT2SAS_HP_2_4_INTERNAL_BRANDING);
+			break;
+		case MPT2SAS_HP_2_4_EXTERNAL_SSDID:
+			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
+			    MPT2SAS_HP_2_4_EXTERNAL_BRANDING);
+			break;
+		case MPT2SAS_HP_1_4_INTERNAL_1_4_EXTERNAL_SSDID:
+			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
+			    MPT2SAS_HP_1_4_INTERNAL_1_4_EXTERNAL_BRANDING);
+			break;
+		case MPT2SAS_HP_EMBEDDED_2_4_INTERNAL_SSDID:
+			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
+			    MPT2SAS_HP_EMBEDDED_2_4_INTERNAL_BRANDING);
+			break;
+		default:
+			break;
+		}
+	default:
+		break;
+	}
+}
+
+/**
  * _base_display_ioc_capabilities - Disply IOC's capabilities.
  * @ioc: per adapter object
  *
@@ -1778,6 +1826,7 @@ _base_display_ioc_capabilities(struct MPT2SAS_ADAPTER *ioc)
 
 	_base_display_dell_branding(ioc);
 	_base_display_intel_branding(ioc);
+	_base_display_hp_branding(ioc);
 
 	printk(MPT2SAS_INFO_FMT "Protocol=(", ioc->name);
 

@@ -78,8 +78,11 @@ struct max8997_regulator_data {
 };
 
 struct max8997_platform_data {
-	bool wakeup;
-	/* IRQ: Not implemented */
+	/* IRQ */
+	int irq_base;
+	int ono;
+	int wakeup;
+
 	/* ---- PMIC ---- */
 	struct max8997_regulator_data *regulators;
 	int num_regulators;

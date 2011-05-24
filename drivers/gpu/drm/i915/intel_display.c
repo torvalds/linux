@@ -1516,9 +1516,10 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 	reg = PIPECONF(pipe);
 	val = I915_READ(reg);
-	val |= PIPECONF_ENABLE;
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
+	if (val & PIPECONF_ENABLE)
+		return;
+
+	I915_WRITE(reg, val | PIPECONF_ENABLE);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
 
@@ -1552,9 +1553,10 @@ static void intel_disable_pipe(struct drm_i915_private *dev_priv,
 
 	reg = PIPECONF(pipe);
 	val = I915_READ(reg);
-	val &= ~PIPECONF_ENABLE;
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
+	if ((val & PIPECONF_ENABLE) == 0)
+		return;
+
+	I915_WRITE(reg, val & ~PIPECONF_ENABLE);
 	intel_wait_for_pipe_off(dev_priv->dev, pipe);
 }
 
@@ -1577,9 +1579,10 @@ static void intel_enable_plane(struct drm_i915_private *dev_priv,
 
 	reg = DSPCNTR(plane);
 	val = I915_READ(reg);
-	val |= DISPLAY_PLANE_ENABLE;
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
+	if (val & DISPLAY_PLANE_ENABLE)
+		return;
+
+	I915_WRITE(reg, val | DISPLAY_PLANE_ENABLE);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
 
@@ -1610,9 +1613,10 @@ static void intel_disable_plane(struct drm_i915_private *dev_priv,
 
 	reg = DSPCNTR(plane);
 	val = I915_READ(reg);
-	val &= ~DISPLAY_PLANE_ENABLE;
-	I915_WRITE(reg, val);
-	POSTING_READ(reg);
+	if ((val & DISPLAY_PLANE_ENABLE) == 0)
+		return;
+
+	I915_WRITE(reg, val & ~DISPLAY_PLANE_ENABLE);
 	intel_flush_display_plane(dev_priv, plane);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
@@ -1769,7 +1773,6 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 			return;
 
 		I915_WRITE(DPFC_CONTROL, dpfc_ctl & ~DPFC_CTL_EN);
-		POSTING_READ(DPFC_CONTROL);
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	}
 
@@ -1861,7 +1864,6 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 			return;
 
 		I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl & ~DPFC_CTL_EN);
-		POSTING_READ(ILK_DPFC_CONTROL);
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	}
 
@@ -3883,10 +3885,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			      display, cursor);
 }
 
-static inline bool single_plane_enabled(unsigned int mask)
-{
-	return mask && (mask & -mask) == 0;
-}
+#define single_plane_enabled(mask) is_power_of_2(mask)
 
 static void g4x_update_wm(struct drm_device *dev)
 {
@@ -5777,7 +5776,6 @@ static void intel_increase_pllclock(struct drm_crtc *crtc)
 
 		dpll &= ~DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
-		POSTING_READ(dpll_reg);
 		intel_wait_for_vblank(dev, pipe);
 
 		dpll = I915_READ(dpll_reg);
@@ -5821,7 +5819,6 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 
 		dpll |= DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
-		dpll = I915_READ(dpll_reg);
 		intel_wait_for_vblank(dev, pipe);
 		dpll = I915_READ(dpll_reg);
 		if (!(dpll & DISPLAY_RATE_SELECT_FPA1))
@@ -6933,7 +6930,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 		DRM_ERROR("timeout waiting for pcode mailbox to finish\n");
 	if (pcu_mbox & (1<<31)) { /* OC supported */
 		max_freq = pcu_mbox & 0xff;
-		DRM_DEBUG_DRIVER("overclocking supported, adjusting frequency max to %dMHz\n", pcu_mbox * 100);
+		DRM_DEBUG_DRIVER("overclocking supported, adjusting frequency max to %dMHz\n", pcu_mbox * 50);
 	}
 
 	/* In units of 100MHz */

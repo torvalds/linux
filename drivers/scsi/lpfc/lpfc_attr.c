@@ -685,7 +685,7 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
  * -EIO reset not configured or error posting the event
  * zero for success
  **/
-static int
+int
 lpfc_selective_reset(struct lpfc_hba *phba)
 {
 	struct completion online_compl;
@@ -746,7 +746,7 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 	int status = -EINVAL;
 
 	if (strncmp(buf, "selective", sizeof("selective") - 1) == 0)
-		status = lpfc_selective_reset(phba);
+		status = phba->lpfc_selective_reset(phba);
 
 	if (status == 0)
 		return strlen(buf);
@@ -1224,7 +1224,10 @@ lpfc_poll_store(struct device *dev, struct device_attribute *attr,
 	if (val & ENABLE_FCP_RING_POLLING) {
 		if ((val & DISABLE_FCP_RING_INT) &&
 		    !(old_val & DISABLE_FCP_RING_INT)) {
-			creg_val = readl(phba->HCregaddr);
+			if (lpfc_readl(phba->HCregaddr, &creg_val)) {
+				spin_unlock_irq(&phba->hbalock);
+				return -EINVAL;
+			}
 			creg_val &= ~(HC_R0INT_ENA << LPFC_FCP_RING);
 			writel(creg_val, phba->HCregaddr);
 			readl(phba->HCregaddr); /* flush */
@@ -1242,7 +1245,10 @@ lpfc_poll_store(struct device *dev, struct device_attribute *attr,
 		spin_unlock_irq(&phba->hbalock);
 		del_timer(&phba->fcp_poll_timer);
 		spin_lock_irq(&phba->hbalock);
-		creg_val = readl(phba->HCregaddr);
+		if (lpfc_readl(phba->HCregaddr, &creg_val)) {
+			spin_unlock_irq(&phba->hbalock);
+			return -EINVAL;
+		}
 		creg_val |= (HC_R0INT_ENA << LPFC_FCP_RING);
 		writel(creg_val, phba->HCregaddr);
 		readl(phba->HCregaddr); /* flush */

@@ -47,6 +47,7 @@ struct iscsi_segment {
 	struct scatterlist	*sg;
 	void			*sg_mapped;
 	unsigned int		sg_offset;
+	bool			atomic_mapped;
 
 	iscsi_segment_done_fn_t	*done;
 };

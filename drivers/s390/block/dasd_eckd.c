@@ -3982,8 +3982,10 @@ out_err:
 }
 
 static struct ccw_driver dasd_eckd_driver = {
-	.name	     = "dasd-eckd",
-	.owner	     = THIS_MODULE,
+	.driver = {
+		.name	= "dasd-eckd",
+		.owner	= THIS_MODULE,
+	},
 	.ids	     = dasd_eckd_ids,
 	.probe	     = dasd_eckd_probe,
 	.remove      = dasd_generic_remove,

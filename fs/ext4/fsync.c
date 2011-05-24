@@ -164,20 +164,20 @@ int ext4_sync_file(struct file *file, int datasync)
 
 	J_ASSERT(ext4_journal_current_handle() == NULL);
 
-	trace_ext4_sync_file(file, datasync);
+	trace_ext4_sync_file_enter(file, datasync);
 
 	if (inode->i_sb->s_flags & MS_RDONLY)
 		return 0;
 
 	ret = ext4_flush_completed_IO(inode);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	if (!journal) {
 		ret = generic_file_fsync(file, datasync);
 		if (!ret && !list_empty(&inode->i_dentry))
 			ext4_sync_parent(inode);
-		return ret;
+		goto out;
 	}
 
 	/*
@@ -194,8 +194,10 @@ int ext4_sync_file(struct file *file, int datasync)
 	 *  (they were dirtied by commit).  But that's OK - the blocks are
 	 *  safe in-journal, which is all fsync() needs to ensure.
 	 */
-	if (ext4_should_journal_data(inode))
-		return ext4_force_commit(inode->i_sb);
+	if (ext4_should_journal_data(inode)) {
+		ret = ext4_force_commit(inode->i_sb);
+		goto out;
+	}
 
 	commit_tid = datasync ? ei->i_datasync_tid : ei->i_sync_tid;
 	if (jbd2_log_start_commit(journal, commit_tid)) {
@@ -215,5 +217,7 @@ int ext4_sync_file(struct file *file, int datasync)
 		ret = jbd2_log_wait_commit(journal, commit_tid);
 	} else if (journal->j_flags & JBD2_BARRIER)
 		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
+ out:
+	trace_ext4_sync_file_exit(inode, ret);
 	return ret;
 }

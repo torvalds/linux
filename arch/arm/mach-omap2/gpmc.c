@@ -693,6 +693,7 @@ static int __init gpmc_init(void)
 {
 	u32 l, irq;
 	int cs, ret = -EINVAL;
+	int gpmc_irq;
 	char *ck = NULL;
 
 	if (cpu_is_omap24xx()) {
@@ -701,12 +702,15 @@ static int __init gpmc_init(void)
 			l = OMAP2420_GPMC_BASE;
 		else
 			l = OMAP34XX_GPMC_BASE;
+		gpmc_irq = INT_34XX_GPMC_IRQ;
 	} else if (cpu_is_omap34xx()) {
 		ck = "gpmc_fck";
 		l = OMAP34XX_GPMC_BASE;
+		gpmc_irq = INT_34XX_GPMC_IRQ;
 	} else if (cpu_is_omap44xx()) {
 		ck = "gpmc_ck";
 		l = OMAP44XX_GPMC_BASE;
+		gpmc_irq = OMAP44XX_IRQ_GPMC;
 	}
 
 	if (WARN_ON(!ck))
@@ -739,16 +743,17 @@ static int __init gpmc_init(void)
 	/* initalize the irq_chained */
 	irq = OMAP_GPMC_IRQ_BASE;
 	for (cs = 0; cs < GPMC_CS_NUM; cs++) {
-		set_irq_handler(irq, handle_simple_irq);
+		set_irq_chip_and_handler(irq, &dummy_irq_chip,
+						handle_simple_irq);
 		set_irq_flags(irq, IRQF_VALID);
 		irq++;
 	}
 
-	ret = request_irq(INT_34XX_GPMC_IRQ,
+	ret = request_irq(gpmc_irq,
 			gpmc_handle_irq, IRQF_SHARED, "gpmc", gpmc_base);
 	if (ret)
 		pr_err("gpmc: irq-%d could not claim: err %d\n",
-						INT_34XX_GPMC_IRQ, ret);
+						gpmc_irq, ret);
 	return ret;
 }
 postcore_initcall(gpmc_init);
@@ -757,8 +762,6 @@ static irqreturn_t gpmc_handle_irq(int irq, void *dev)
 {
 	u8 cs;
 
-	if (irq != INT_34XX_GPMC_IRQ)
-		return IRQ_HANDLED;
 	/* check cs to invoke the irq */
 	cs = ((gpmc_read_reg(GPMC_PREFETCH_CONFIG1)) >> CS_NUM_SHIFT) & 0x7;
 	if (OMAP_GPMC_IRQ_BASE+cs <= OMAP_GPMC_IRQ_END)

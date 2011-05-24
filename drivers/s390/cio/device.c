@@ -127,7 +127,7 @@ static int ccw_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return ret;
 }
 
-struct bus_type ccw_bus_type;
+static struct bus_type ccw_bus_type;
 
 static void io_subchannel_irq(struct subchannel *);
 static int io_subchannel_probe(struct subchannel *);
@@ -547,7 +547,7 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 	if (atomic_cmpxchg(&cdev->private->onoff, 0, 1) != 0)
 		return -EAGAIN;
 
-	if (cdev->drv && !try_module_get(cdev->drv->owner)) {
+	if (cdev->drv && !try_module_get(cdev->drv->driver.owner)) {
 		atomic_set(&cdev->private->onoff, 0);
 		return -EINVAL;
 	}
@@ -573,7 +573,7 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 	}
 out:
 	if (cdev->drv)
-		module_put(cdev->drv->owner);
+		module_put(cdev->drv->driver.owner);
 	atomic_set(&cdev->private->onoff, 0);
 	return (ret < 0) ? ret : count;
 }
@@ -1970,7 +1970,7 @@ static const struct dev_pm_ops ccw_pm_ops = {
 	.restore = ccw_device_pm_restore,
 };
 
-struct bus_type ccw_bus_type = {
+static struct bus_type ccw_bus_type = {
 	.name   = "ccw",
 	.match  = ccw_bus_match,
 	.uevent = ccw_uevent,
@@ -1993,8 +1993,6 @@ int ccw_driver_register(struct ccw_driver *cdriver)
 	struct device_driver *drv = &cdriver->driver;
 
 	drv->bus = &ccw_bus_type;
-	drv->name = cdriver->name;
-	drv->owner = cdriver->owner;
 
 	return driver_register(drv);
 }
@@ -2112,5 +2110,4 @@ EXPORT_SYMBOL(ccw_device_set_offline);
 EXPORT_SYMBOL(ccw_driver_register);
 EXPORT_SYMBOL(ccw_driver_unregister);
 EXPORT_SYMBOL(get_ccwdev_by_busid);
-EXPORT_SYMBOL(ccw_bus_type);
 EXPORT_SYMBOL_GPL(ccw_device_get_subchannel_id);

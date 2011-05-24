@@ -36,21 +36,18 @@
 #include <asm/sn/sn0/hubio.h>
 #include <asm/pci/bridge.h>
 
-static void enable_rt_irq(unsigned int irq)
+static void enable_rt_irq(struct irq_data *d)
 {
 }
 
-static void disable_rt_irq(unsigned int irq)
+static void disable_rt_irq(struct irq_data *d)
 {
 }
 
 static struct irq_chip rt_irq_type = {
 	.name		= "SN HUB RT timer",
-	.ack		= disable_rt_irq,
-	.mask		= disable_rt_irq,
-	.mask_ack	= disable_rt_irq,
-	.unmask		= enable_rt_irq,
-	.eoi		= enable_rt_irq,
+	.irq_mask	= disable_rt_irq,
+	.irq_unmask	= enable_rt_irq,
 };
 
 static int rt_next_event(unsigned long delta, struct clock_event_device *evt)

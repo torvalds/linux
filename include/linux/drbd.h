@@ -53,10 +53,10 @@
 
 
 extern const char *drbd_buildtag(void);
-#define REL_VERSION "8.3.9"
+#define REL_VERSION "8.3.10"
 #define API_VERSION 88
 #define PRO_VERSION_MIN 86
-#define PRO_VERSION_MAX 95
+#define PRO_VERSION_MAX 96
 
 
 enum drbd_io_error_p {
@@ -96,8 +96,14 @@ enum drbd_on_no_data {
 	OND_SUSPEND_IO
 };
 
+enum drbd_on_congestion {
+	OC_BLOCK,
+	OC_PULL_AHEAD,
+	OC_DISCONNECT,
+};
+
 /* KEEP the order, do not delete or insert. Only append. */
-enum drbd_ret_codes {
+enum drbd_ret_code {
 	ERR_CODE_BASE		= 100,
 	NO_ERROR		= 101,
 	ERR_LOCAL_ADDR		= 102,
@@ -146,6 +152,9 @@ enum drbd_ret_codes {
 	ERR_PERM		= 152,
 	ERR_NEED_APV_93		= 153,
 	ERR_STONITH_AND_PROT_A  = 154,
+	ERR_CONG_NOT_PROTO_A	= 155,
+	ERR_PIC_AFTER_DEP	= 156,
+	ERR_PIC_PEER_DEP	= 157,
 
 	/* insert new ones above this line */
 	AFTER_LAST_ERR_CODE
@@ -199,6 +208,10 @@ enum drbd_conns {
 	C_VERIFY_T,
 	C_PAUSED_SYNC_S,
 	C_PAUSED_SYNC_T,
+
+	C_AHEAD,
+	C_BEHIND,
+
 	C_MASK = 31
 };
 
@@ -259,7 +272,7 @@ union drbd_state {
 	unsigned int i;
 };
 
-enum drbd_state_ret_codes {
+enum drbd_state_rv {
 	SS_CW_NO_NEED = 4,
 	SS_CW_SUCCESS = 3,
 	SS_NOTHING_TO_DO = 2,
@@ -290,7 +303,7 @@ enum drbd_state_ret_codes {
 extern const char *drbd_conn_str(enum drbd_conns);
 extern const char *drbd_role_str(enum drbd_role);
 extern const char *drbd_disk_str(enum drbd_disk_state);
-extern const char *drbd_set_st_err_str(enum drbd_state_ret_codes);
+extern const char *drbd_set_st_err_str(enum drbd_state_rv);
 
 #define SHARED_SECRET_MAX 64
 

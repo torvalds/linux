@@ -89,7 +89,8 @@ lpfc_els_chk_latt(struct lpfc_vport *vport)
 		return 0;
 
 	/* Read the HBA Host Attention Register */
-	ha_copy = readl(phba->HAregaddr);
+	if (lpfc_readl(phba->HAregaddr, &ha_copy))
+		return 1;
 
 	if (!(ha_copy & HA_LATT))
 		return 0;
