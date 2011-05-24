@@ -58,24 +58,17 @@ static void __devinit mvs_64xx_enable_xmt(struct mvs_info *mvi, int phy_id)
 static void __devinit mvs_64xx_phy_hacks(struct mvs_info *mvi)
 {
 	void __iomem *regs = mvi->regs;
+	int i;
 
 	mvs_phy_hacks(mvi);
 
 	if (!(mvi->flags & MVF_FLAG_SOC)) {
 		/* TEST - for phy decoding error, adjust voltage levels */
-		mw32(MVS_P0_VSR_ADDR + 0, 0x8);
-		mw32(MVS_P0_VSR_DATA + 0, 0x2F0);
-
-		mw32(MVS_P0_VSR_ADDR + 8, 0x8);
-		mw32(MVS_P0_VSR_DATA + 8, 0x2F0);
-
-		mw32(MVS_P0_VSR_ADDR + 16, 0x8);
-		mw32(MVS_P0_VSR_DATA + 16, 0x2F0);
-
-		mw32(MVS_P0_VSR_ADDR + 24, 0x8);
-		mw32(MVS_P0_VSR_DATA + 24, 0x2F0);
+		for (i = 0; i < MVS_SOC_PORTS; i++) {
+			mvs_write_port_vsr_addr(mvi, i, VSR_PHY_MODE8);
+			mvs_write_port_vsr_data(mvi, i, 0x2F0);
+		}
 	} else {
-		int i;
 		/* disable auto port detection */
 		mw32(MVS_GBL_PORT_TYPE, 0);
 		for (i = 0; i < mvi->chip->n_phy; i++) {
@@ -321,6 +314,11 @@ static int __devinit mvs_64xx_init(struct mvs_info *mvi)
 	/* init phys */
 	mvs_64xx_phy_hacks(mvi);
 
+	tmp = mvs_cr32(mvi, CMD_PHY_MODE_21);
+	tmp &= 0x0000ffff;
+	tmp |= 0x00fa0000;
+	mvs_cw32(mvi, CMD_PHY_MODE_21, tmp);
+
 	/* enable auto port detection */
 	mw32(MVS_GBL_PORT_TYPE, MODE_AUTO_DET_EN);
 
@@ -394,13 +392,17 @@ static int __devinit mvs_64xx_init(struct mvs_info *mvi)
 	/* reset CMD queue */
 	tmp = mr32(MVS_PCS);
 	tmp |= PCS_CMD_RST;
+	tmp &= ~PCS_SELF_CLEAR;
 	mw32(MVS_PCS, tmp);
 	/* interrupt coalescing may cause missing HW interrput in some case,
 	 * and the max count is 0x1ff, while our max slot is 0x200,
 	 * it will make count 0.
 	 */
 	tmp = 0;
-	mw32(MVS_INT_COAL, tmp);
+	if (MVS_CHIP_SLOT_SZ > 0x1ff)
+		mw32(MVS_INT_COAL, 0x1ff | COAL_EN);
+	else
+		mw32(MVS_INT_COAL, MVS_CHIP_SLOT_SZ | COAL_EN);
 
 	tmp = 0x10000 | interrupt_coalescing;
 	mw32(MVS_INT_COAL_TMOUT, tmp);

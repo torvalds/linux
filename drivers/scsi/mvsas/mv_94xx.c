@@ -271,7 +271,14 @@ static void __devinit mvs_94xx_enable_xmt(struct mvs_info *mvi, int phy_id)
 static void mvs_94xx_phy_reset(struct mvs_info *mvi, u32 phy_id, int hard)
 {
 	u32 tmp;
-
+	u32 delay = 5000;
+	if (hard == MVS_PHY_TUNE) {
+		mvs_write_port_cfg_addr(mvi, phy_id, PHYR_SATA_CTL);
+		tmp = mvs_read_port_cfg_data(mvi, phy_id);
+		mvs_write_port_cfg_data(mvi, phy_id, tmp|0x20000000);
+		mvs_write_port_cfg_data(mvi, phy_id, tmp|0x100000);
+		return;
+	}
 	tmp = mvs_read_port_irq_stat(mvi, phy_id);
 	tmp &= ~PHYEV_RDY_CH;
 	mvs_write_port_irq_stat(mvi, phy_id, tmp);
@@ -281,12 +288,15 @@ static void mvs_94xx_phy_reset(struct mvs_info *mvi, u32 phy_id, int hard)
 		mvs_write_phy_ctl(mvi, phy_id, tmp);
 		do {
 			tmp = mvs_read_phy_ctl(mvi, phy_id);
-		} while (tmp & PHY_RST_HARD);
+			udelay(10);
+			delay--;
+		} while ((tmp & PHY_RST_HARD) && delay);
+		if (!delay)
+			mv_dprintk("phy hard reset failed.\n");
 	} else {
-		mvs_write_port_vsr_addr(mvi, phy_id, VSR_PHY_STAT);
-		tmp = mvs_read_port_vsr_data(mvi, phy_id);
+		tmp = mvs_read_phy_ctl(mvi, phy_id);
 		tmp |= PHY_RST;
-		mvs_write_port_vsr_data(mvi, phy_id, tmp);
+		mvs_write_phy_ctl(mvi, phy_id, tmp);
 	}
 }
 
@@ -413,7 +423,7 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 		mvs_94xx_phy_disable(mvi, i);
 		/* set phy local SAS address */
 		mvs_set_sas_addr(mvi, i, CONFIG_ID_FRAME3, CONFIG_ID_FRAME4,
-						(mvi->phy[i].dev_sas_addr));
+						cpu_to_le64(mvi->phy[i].dev_sas_addr));
 
 		mvs_94xx_enable_xmt(mvi, i);
 		mvs_94xx_config_reg_from_hba(mvi, i);
@@ -459,7 +469,6 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 	 */
 	cctl = mr32(MVS_CTL);
 	cctl |= CCTL_ENDIAN_CMD;
-	cctl |= CCTL_ENDIAN_DATA;
 	cctl &= ~CCTL_ENDIAN_OPEN;
 	cctl |= CCTL_ENDIAN_RSP;
 	mw32_f(MVS_CTL, cctl);
@@ -467,13 +476,17 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 	/* reset CMD queue */
 	tmp = mr32(MVS_PCS);
 	tmp |= PCS_CMD_RST;
+	tmp &= ~PCS_SELF_CLEAR;
 	mw32(MVS_PCS, tmp);
 	/* interrupt coalescing may cause missing HW interrput in some case,
 	 * and the max count is 0x1ff, while our max slot is 0x200,
 	 * it will make count 0.
 	 */
 	tmp = 0;
-	mw32(MVS_INT_COAL, tmp);
+	if (MVS_CHIP_SLOT_SZ > 0x1ff)
+		mw32(MVS_INT_COAL, 0x1ff | COAL_EN);
+	else
+		mw32(MVS_INT_COAL, MVS_CHIP_SLOT_SZ | COAL_EN);
 
 	tmp = 0x10000 | interrupt_coalescing;
 	mw32(MVS_INT_COAL_TMOUT, tmp);
@@ -674,24 +687,16 @@ static void mvs_94xx_non_spec_ncq_error(struct mvs_info *mvi)
 static void mvs_94xx_free_reg_set(struct mvs_info *mvi, u8 *tfs)
 {
 	void __iomem *regs = mvi->regs;
-	u32 tmp;
 	u8 reg_set = *tfs;
 
 	if (*tfs == MVS_ID_NOT_MAPPED)
 		return;
 
 	mvi->sata_reg_set &= ~bit(reg_set);
-	if (reg_set < 32) {
+	if (reg_set < 32)
 		w_reg_set_enable(reg_set, (u32)mvi->sata_reg_set);
-		tmp = mr32(MVS_INT_STAT_SRS_0) & (u32)mvi->sata_reg_set;
-		if (tmp)
-			mw32(MVS_INT_STAT_SRS_0, tmp);
-	} else {
-		w_reg_set_enable(reg_set, mvi->sata_reg_set);
-		tmp = mr32(MVS_INT_STAT_SRS_1) & mvi->sata_reg_set;
-		if (tmp)
-			mw32(MVS_INT_STAT_SRS_1, tmp);
-	}
+	else
+		w_reg_set_enable(reg_set, (u32)(mvi->sata_reg_set >> 32));
 
 	*tfs = MVS_ID_NOT_MAPPED;
 
@@ -707,7 +712,7 @@ static u8 mvs_94xx_assign_reg_set(struct mvs_info *mvi, u8 *tfs)
 		return 0;
 
 	i = mv_ffc64(mvi->sata_reg_set);
-	if (i > 32) {
+	if (i >= 32) {
 		mvi->sata_reg_set |= bit(i);
 		w_reg_set_enable(i, (u32)(mvi->sata_reg_set >> 32));
 		*tfs = i;
@@ -726,9 +731,12 @@ static void mvs_94xx_make_prd(struct scatterlist *scatter, int nr, void *prd)
 	int i;
 	struct scatterlist *sg;
 	struct mvs_prd *buf_prd = prd;
+	struct mvs_prd_imt im_len;
+	*(u32 *)&im_len = 0;
 	for_each_sg(scatter, sg, nr, i) {
 		buf_prd->addr = cpu_to_le64(sg_dma_address(sg));
-		buf_prd->im_len.len = cpu_to_le32(sg_dma_len(sg));
+		im_len.len = sg_dma_len(sg);
+		buf_prd->im_len = cpu_to_le32(*(u32 *)&im_len);
 		buf_prd++;
 	}
 }
@@ -751,7 +759,7 @@ static void mvs_94xx_get_dev_identify_frame(struct mvs_info *mvi, int port_id,
 	for (i = 0; i < 7; i++) {
 		mvs_write_port_cfg_addr(mvi, port_id,
 					CONFIG_ID_FRAME0 + i * 4);
-		id_frame[i] = mvs_read_port_cfg_data(mvi, port_id);
+		id_frame[i] = cpu_to_le32(mvs_read_port_cfg_data(mvi, port_id));
 	}
 	memcpy(id, id_frame, 28);
 }
@@ -766,7 +774,7 @@ static void mvs_94xx_get_att_identify_frame(struct mvs_info *mvi, int port_id,
 	for (i = 0; i < 7; i++) {
 		mvs_write_port_cfg_addr(mvi, port_id,
 					CONFIG_ATT_ID_FRAME0 + i * 4);
-		id_frame[i] = mvs_read_port_cfg_data(mvi, port_id);
+		id_frame[i] = cpu_to_le32(mvs_read_port_cfg_data(mvi, port_id));
 		mv_dprintk("94xx phy %d atta frame %d %x.\n",
 			port_id + mvi->id * mvi->chip->n_phy, i, id_frame[i]);
 	}
@@ -924,8 +932,12 @@ void mvs_94xx_fix_dma(struct mvs_info *mvi, u32 phy_mask,
 	int i;
 	struct mvs_prd *buf_prd = prd;
 	dma_addr_t buf_dma;
+	struct mvs_prd_imt im_len;
+
+	*(u32 *)&im_len = 0;
 	buf_prd += from;
 
+#define PRD_CHAINED_ENTRY 0x01
 	if ((mvi->pdev->revision == VANIR_A0_REV) ||
 			(mvi->pdev->revision == VANIR_B0_REV))
 		buf_dma = (phy_mask <= 0x08) ?
@@ -933,10 +945,16 @@ void mvs_94xx_fix_dma(struct mvs_info *mvi, u32 phy_mask,
 	else
 		return;
 
-	for (i = 0; i < MAX_SG_ENTRY - from; i++) {
-		buf_prd->addr = cpu_to_le64(buf_dma);
-		buf_prd->im_len.len = cpu_to_le32(buf_len);
-		++buf_prd;
+	for (i = from; i < MAX_SG_ENTRY; i++, ++buf_prd) {
+		if (i == MAX_SG_ENTRY - 1) {
+			buf_prd->addr = cpu_to_le64(virt_to_phys(buf_prd - 1));
+			im_len.len = 2;
+			im_len.misc_ctl = PRD_CHAINED_ENTRY;
+		} else {
+			buf_prd->addr = cpu_to_le64(buf_dma);
+			im_len.len = buf_len;
+		}
+		buf_prd->im_len = cpu_to_le32(*(u32 *)&im_len);
 	}
 }
 

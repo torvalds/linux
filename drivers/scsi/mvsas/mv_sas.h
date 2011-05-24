@@ -417,7 +417,8 @@ struct mvs_info {
 struct mvs_prv_info{
 	u8 n_host;
 	u8 n_phy;
-	u16 reserve;
+	u8 scan_finished;
+	u8 reserve;
 	struct mvs_info *mvi[2];
 };
 
