@@ -135,12 +135,12 @@ static int ecryptfs_init_lower_file(struct dentry *dentry,
 	return rc;
 }
 
-int ecryptfs_get_lower_file(struct dentry *dentry)
+int ecryptfs_get_lower_file(struct dentry *dentry, struct inode *inode)
 {
-	struct ecryptfs_inode_info *inode_info =
-		ecryptfs_inode_to_private(dentry->d_inode);
+	struct ecryptfs_inode_info *inode_info;
 	int count, rc = 0;
 
+	inode_info = ecryptfs_inode_to_private(inode);
 	mutex_lock(&inode_info->lower_file_mutex);
 	count = atomic_inc_return(&inode_info->lower_file_count);
 	if (WARN_ON_ONCE(count < 1))

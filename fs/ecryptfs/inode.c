@@ -259,7 +259,8 @@ static int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry)
 				"context; rc = [%d]\n", rc);
 		goto out;
 	}
-	rc = ecryptfs_get_lower_file(ecryptfs_dentry);
+	rc = ecryptfs_get_lower_file(ecryptfs_dentry,
+				     ecryptfs_dentry->d_inode);
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to initialize "
 			"the lower file for the dentry with name "
@@ -350,50 +351,51 @@ static int ecryptfs_lookup_interpose(struct dentry *ecryptfs_dentry,
 		       __func__, rc);
 		goto out;
 	}
-	if (inode->i_state & I_NEW)
-		unlock_new_inode(inode);
-	d_add(ecryptfs_dentry, inode);
-	if (S_ISDIR(lower_inode->i_mode))
+	if (!S_ISREG(inode->i_mode)) {
+		if (inode->i_state & I_NEW)
+			unlock_new_inode(inode);
+		d_add(ecryptfs_dentry, inode);
 		goto out;
-	if (S_ISLNK(lower_inode->i_mode))
-		goto out;
-	if (special_file(lower_inode->i_mode))
-		goto out;
+	}
 	/* Released in this function */
 	page_virt = kmem_cache_zalloc(ecryptfs_header_cache_2, GFP_USER);
 	if (!page_virt) {
 		printk(KERN_ERR "%s: Cannot kmem_cache_zalloc() a page\n",
 		       __func__);
 		rc = -ENOMEM;
+		make_bad_inode(inode);
 		goto out;
 	}
-	rc = ecryptfs_get_lower_file(ecryptfs_dentry);
+	rc = ecryptfs_get_lower_file(ecryptfs_dentry, inode);
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to initialize "
 			"the lower file for the dentry with name "
 			"[%s]; rc = [%d]\n", __func__,
 			ecryptfs_dentry->d_name.name, rc);
+		make_bad_inode(inode);
 		goto out_free_kmem;
 	}
 	put_lower = 1;
-	crypt_stat = &ecryptfs_inode_to_private(
-					ecryptfs_dentry->d_inode)->crypt_stat;
+	crypt_stat = &ecryptfs_inode_to_private(inode)->crypt_stat;
 	/* TODO: lock for crypt_stat comparison */
 	if (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED))
 			ecryptfs_set_default_sizes(crypt_stat);
-	rc = ecryptfs_read_and_validate_header_region(page_virt,
-						      ecryptfs_dentry->d_inode);
+	rc = ecryptfs_read_and_validate_header_region(page_virt, inode);
 	if (rc) {
 		memset(page_virt, 0, PAGE_CACHE_SIZE);
 		rc = ecryptfs_read_and_validate_xattr_region(page_virt,
-							     ecryptfs_dentry);
+							     inode);
 		if (rc) {
 			rc = 0;
-			goto out_free_kmem;
+			goto unlock_inode;
 		}
 		crypt_stat->flags |= ECRYPTFS_METADATA_IN_XATTR;
 	}
-	ecryptfs_i_size_init(page_virt, ecryptfs_dentry->d_inode);
+	ecryptfs_i_size_init(page_virt, inode);
+unlock_inode:
+	if (inode->i_state & I_NEW)
+		unlock_new_inode(inode);
+	d_add(ecryptfs_dentry, inode);
 out_free_kmem:
 	kmem_cache_free(ecryptfs_header_cache_2, page_virt);
 	goto out;
@@ -403,7 +405,7 @@ out_put:
 	d_drop(ecryptfs_dentry);
 out:
 	if (put_lower)
-		ecryptfs_put_lower_file(ecryptfs_dentry->d_inode);
+		ecryptfs_put_lower_file(inode);
 	return rc;
 }
 
@@ -843,7 +845,7 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 		lower_ia->ia_valid &= ~ATTR_SIZE;
 		return 0;
 	}
-	rc = ecryptfs_get_lower_file(dentry);
+	rc = ecryptfs_get_lower_file(dentry, inode);
 	if (rc)
 		return rc;
 	crypt_stat = &ecryptfs_inode_to_private(dentry->d_inode)->crypt_stat;
@@ -999,7 +1001,7 @@ static int ecryptfs_setattr(struct dentry *dentry, struct iattr *ia)
 
 		mount_crypt_stat = &ecryptfs_superblock_to_private(
 			dentry->d_sb)->mount_crypt_stat;
-		rc = ecryptfs_get_lower_file(dentry);
+		rc = ecryptfs_get_lower_file(dentry, inode);
 		if (rc) {
 			mutex_unlock(&crypt_stat->cs_mutex);
 			goto out;

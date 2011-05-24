@@ -662,7 +662,7 @@ void ecryptfs_write_crypt_stat_flags(char *page_virt,
 int ecryptfs_read_and_validate_header_region(char *data,
 					     struct inode *ecryptfs_inode);
 int ecryptfs_read_and_validate_xattr_region(char *page_virt,
-					    struct dentry *ecryptfs_dentry);
+					    struct inode *inode);
 u8 ecryptfs_code_for_cipher_string(char *cipher_name, size_t key_bytes);
 int ecryptfs_cipher_code_to_string(char *str, u8 cipher_code);
 void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat);
@@ -753,7 +753,7 @@ int ecryptfs_privileged_open(struct file **lower_file,
 			     struct dentry *lower_dentry,
 			     struct vfsmount *lower_mnt,
 			     const struct cred *cred);
-int ecryptfs_get_lower_file(struct dentry *ecryptfs_dentry);
+int ecryptfs_get_lower_file(struct dentry *dentry, struct inode *inode);
 void ecryptfs_put_lower_file(struct inode *inode);
 int
 ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,

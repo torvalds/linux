@@ -1568,11 +1568,11 @@ out:
 }
 
 int ecryptfs_read_and_validate_xattr_region(char *page_virt,
-					    struct dentry *ecryptfs_dentry)
+					    struct inode *inode)
 {
 	int rc;
 
-	rc = ecryptfs_read_xattr_region(page_virt, ecryptfs_dentry->d_inode);
+	rc = ecryptfs_read_xattr_region(page_virt, inode);
 	if (rc)
 		goto out;
 	if (!contains_ecryptfs_marker(page_virt	+ ECRYPTFS_FILE_SIZE_BYTES)) {
