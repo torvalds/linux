@@ -33,6 +33,7 @@
 #include <linux/spi/spi.h>
 
 #include <asm/coldfire.h>
+#include <asm/mcfsim.h>
 #include <asm/mcfqspi.h>
 
 #define	DRIVER_NAME "mcfqspi"

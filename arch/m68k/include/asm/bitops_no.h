@@ -246,23 +246,7 @@ static inline int __test_and_clear_bit_le(int nr, volatile void *addr)
 	return retval;
 }
 
-#define ext2_set_bit_atomic(lock, nr, addr)		\
-	({						\
-		int ret;				\
-		spin_lock(lock);			\
-		ret = __test_and_set_bit_le((nr), (addr));	\
-		spin_unlock(lock);			\
-		ret;					\
-	})
-
-#define ext2_clear_bit_atomic(lock, nr, addr)		\
-	({						\
-		int ret;				\
-		spin_lock(lock);			\
-		ret = __test_and_clear_bit_le((nr), (addr));	\
-		spin_unlock(lock);			\
-		ret;					\
-	})
+#include <asm-generic/bitops/ext2-atomic.h>
 
 static inline int test_bit_le(int nr, const volatile void *addr)
 {

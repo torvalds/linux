@@ -5,6 +5,7 @@ config M68K
 	select HAVE_AOUT if MMU
 	select GENERIC_ATOMIC64 if MMU
 	select HAVE_GENERIC_HARDIRQS if !MMU
+	select GENERIC_IRQ_SHOW if !MMU
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
