@@ -176,14 +176,14 @@ EXPORT_SYMBOL_GPL(iic_get_target_id);
 #ifdef CONFIG_SMP
 
 /* Use the highest interrupt priorities for IPI */
-static inline int iic_ipi_to_irq(int ipi)
+static inline int iic_msg_to_irq(int msg)
 {
-	return IIC_IRQ_TYPE_IPI + 0xf - ipi;
+	return IIC_IRQ_TYPE_IPI + 0xf - msg;
 }
 
-void iic_cause_IPI(int cpu, int mesg)
+void iic_message_pass(int cpu, int msg)
 {
-	out_be64(&per_cpu(cpu_iic, cpu).regs->generate, (0xf - mesg) << 4);
+	out_be64(&per_cpu(cpu_iic, cpu).regs->generate, (0xf - msg) << 4);
 }
 
 struct irq_host *iic_get_irq_host(int node)
@@ -192,14 +192,14 @@ struct irq_host *iic_get_irq_host(int node)
 }
 EXPORT_SYMBOL_GPL(iic_get_irq_host);
 
-static void iic_request_ipi(int ipi)
+static void iic_request_ipi(int msg)
 {
 	int virq;
 
-	virq = irq_create_mapping(iic_host, iic_ipi_to_irq(ipi));
+	virq = irq_create_mapping(iic_host, iic_msg_to_irq(msg));
 	if (virq == NO_IRQ) {
 		printk(KERN_ERR
-		       "iic: failed to map IPI %s\n", smp_ipi_name[ipi]);
+		       "iic: failed to map IPI %s\n", smp_ipi_name[msg]);
 		return;
 	}
 
@@ -207,7 +207,7 @@ static void iic_request_ipi(int ipi)
 	 * If smp_request_message_ipi encounters an error it will notify
 	 * the error.  If a message is not needed it will return non-zero.
 	 */
-	if (smp_request_message_ipi(virq, ipi))
+	if (smp_request_message_ipi(virq, msg))
 		irq_dispose_mapping(virq);
 }
 
