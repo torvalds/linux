@@ -313,20 +313,27 @@ static void ili2102_ts_work_func(struct work_struct *work)
 	msg[0].len = 1;
 	msg[0].buf = &start_reg;
 	msg[0].scl_rate = 400*1000;
-	msg[0].udelay = 80;
+	msg[0].udelay = 0;
 
-	msg[1].addr = ts->client->addr;
-	msg[1].flags = ts->client->flags | I2C_M_RD;
-	msg[1].len = 9;	
-	msg[1].buf = buf;
-	msg[1].scl_rate = 400*1000;
-	msg[1].udelay = 80;
-	
-	ret = i2c_transfer(ts->client->adapter, msg, 2); 
+	ret = i2c_transfer(ts->client->adapter, msg, 1); 
 	if (ret < 0) 
 	{
-		//for(i=0; i<msg[1].len; i++) 
-		//buf[i] = 0xff;
+		printk("%s:i2c_transfer fail, ret=%d\n",__FUNCTION__,ret);
+		goto out;
+	}
+	
+	udelay(200);	//tp need delay
+	
+	msg[0].addr = ts->client->addr;
+	msg[0].flags = ts->client->flags | I2C_M_RD;
+	msg[0].len = 9;	
+	msg[0].buf = buf;
+	msg[0].scl_rate = 400*1000;
+	msg[0].udelay = 0;
+	
+	ret = i2c_transfer(ts->client->adapter, msg, 1); 
+	if (ret < 0) 
+	{
 		printk("%s:i2c_transfer fail, ret=%d\n",__FUNCTION__,ret);
 		goto out;
 	}

@@ -777,12 +777,31 @@ static void wm831x_batt_work(struct work_struct *work)
 	struct wm831x_power *power = container_of(work, struct wm831x_power, batt_work);
 
 	ret = wm831x_power_check_online(power->wm831x, WM831X_PWR_SRC_BATT, &val);
+	if (ret < 0) {
+		printk("%s: check bat online failer...  err = %d\n", __FUNCTION__, ret);
+		return;
+	}
 	online = val.intval;
 
 	ret = wm831x_bat_check_status(power->wm831x, &status);
+	if (ret < 0) {
+		printk("%s: check bat status failer...  err = %d\n", __FUNCTION__, ret);
+		return;
+	}
+
 	ret = wm831x_bat_check_health(power->wm831x, &health);
+	if (ret < 0) {
+		printk("%s: check bat health failer...  err = %d\n", __FUNCTION__, ret);
+		return;
+	}
 
 	ret = wm831x_power_read_voltage(power->wm831x, WM831X_AUX_BATT, &val);
+	if (ret < 0) {
+		printk("%s: read bat voltage failer...err = %d\n", __FUNCTION__, ret);
+		return;
+	}
+	power->priv.voltage = val.intval;
+	
 	wm831x_batt_vol_level(power, val.intval, &level);
 	mod_timer(&power->timer, jiffies + msecs_to_jiffies(power->interval));
 
@@ -943,17 +962,19 @@ static __devexit int wm831x_power_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int wm831x_battery_suspend(struct platform_device *dev, pm_message_t state)
 {
-	//struct wm831x_power *power = (struct wm831x_power *)platform_get_drvdata(dev);
-	//flush_scheduled_work();
-	//del_timer(&power->timer);
+	struct wm831x_power *power = (struct wm831x_power *)platform_get_drvdata(dev);
+	flush_scheduled_work();
+	del_timer(&power->timer);
+	printk("%s\n",__FUNCTION__);
 	return 0;
 }
 
 static int wm831x_battery_resume(struct platform_device *dev)
 {
-	//struct wm831x_power *power = (struct wm831x_power *)platform_get_drvdata(dev);
-	//power->timer.expires = jiffies + msecs_to_jiffies(power->interval);
-	//add_timer(&power->timer);
+	struct wm831x_power *power = (struct wm831x_power *)platform_get_drvdata(dev);
+	power->timer.expires = jiffies + msecs_to_jiffies(power->interval);
+	add_timer(&power->timer);
+	printk("%s\n",__FUNCTION__);
 	return 0;
 }
 #else

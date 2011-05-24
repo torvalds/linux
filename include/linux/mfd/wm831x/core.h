@@ -261,9 +261,11 @@ struct wm831x {
 	void *control_data;
 
 	int irq;  /* Our chip IRQ */
+	int flag_suspend;
+	spinlock_t		flag_lock;
 	struct mutex irq_lock;
 	struct workqueue_struct *irq_wq;
-	struct work_struct irq_work;
+	struct delayed_work irq_work;
 	struct wake_lock 	irq_wake;
 	struct wake_lock 	handle_wake;
 #if WM831X_IRQ_LIST

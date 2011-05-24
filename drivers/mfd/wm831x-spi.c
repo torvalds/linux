@@ -30,12 +30,12 @@ static int wm831x_spi_read_device(struct wm831x *wm831x, unsigned short reg,
 	/* Go register at a time */
 	for (r = reg; r < reg + (bytes / 2); r++) {
 		tx_val = cpu_to_be16(r | 0x8000);
-
+		//printk("read:reg=0x%x,",reg);
 		ret = spi_write_then_read(wm831x->control_data,
 					  (u8 *)&tx_val, 2, (u8 *)d, 2);
 		if (ret != 0)
 			return ret;
-
+		//printk("rec=0x%x\n",be16_to_cpu(*d));
 		//*d = be16_to_cpu(*d);
 
 		d++;
@@ -56,7 +56,7 @@ static int wm831x_spi_write_device(struct wm831x *wm831x, unsigned short reg,
 	for (r = reg; r < reg + (bytes / 2); r++) {
 		data[0] = cpu_to_be16(r);
 		data[1] = *s++;
-
+		//printk("write:reg=0x%x,send=0x%x\n",reg, data[0]);
 		ret = spi_write(spi, (char *)&data, sizeof(data));
 		if (ret != 0)
 			return ret;
@@ -130,7 +130,9 @@ static int __devexit wm831x_spi_remove(struct spi_device *spi)
 static int wm831x_spi_suspend(struct spi_device *spi, pm_message_t m)
 {
 	struct wm831x *wm831x = dev_get_drvdata(&spi->dev);
-
+	spin_lock(&wm831x->flag_lock);
+	wm831x->flag_suspend = 1;
+	spin_unlock(&wm831x->flag_lock);
 	return wm831x_device_suspend(wm831x);
 }
 

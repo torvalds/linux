@@ -1766,7 +1766,7 @@ static void spi_hw_init(struct rk29xx_spi *dws)
 	}
 	
 	spi_enable_chip(dws, 1);
-	flush(dws);
+	//flush(dws);
 }
 
 /* cpufreq driver support */
@@ -1893,6 +1893,7 @@ static int __init rk29xx_spim_probe(struct platform_device *pdev)
 	dws->pdev = pdev;
 	/* Basic HW init */
 	spi_hw_init(dws);
+	flush(dws);
 	/* Initial and start queue */
 	ret = init_queue(dws);
 	if (ret) {
@@ -1973,7 +1974,8 @@ static int rk29xx_spim_suspend(struct platform_device *pdev, pm_message_t mesg)
 	struct rk29xx_spi *dws = spi_master_get_devdata(master);
 	struct rk29xx_spi_platform_data *pdata = pdev->dev.platform_data;
 	int status;
-
+	
+	flush(dws);
 	status = stop_queue(dws);
 	if (status != 0)
 		return status;

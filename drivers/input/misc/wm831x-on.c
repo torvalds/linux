@@ -63,7 +63,7 @@ void rk28_send_wakeup_key(void)
 }
 #endif
 
-#if 1
+#if 0
 
 static int wm831x_on_suspend_noirq(struct device *dev)
 {
@@ -89,6 +89,7 @@ static int wm831x_on_resume_noirq(struct device *dev)
 		input_sync(g_wm831x_on->dev);
 		DBG("%s:poll=%d,ret=0x%x\n",__FUNCTION__,poll,ret);
 	} 
+
 	DBG("%s\n",__FUNCTION__);
 	return 0;
 }
@@ -229,7 +230,7 @@ static int __devinit wm831x_on_probe(struct platform_device *pdev)
 	wm831x_on->dev->dev.parent = &pdev->dev;
 	g_wm831x_on = wm831x_on;
 
-	wm831x_on_pm_init();
+//	wm831x_on_pm_init();
 	
 	ret = request_threaded_irq(irq, NULL, wm831x_on_irq,
 				   IRQF_TRIGGER_RISING, "wm831x_on",
