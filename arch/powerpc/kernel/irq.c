@@ -893,10 +893,13 @@ unsigned int irq_radix_revmap_lookup(struct irq_host *host,
 		return irq_find_mapping(host, hwirq);
 
 	/*
-	 * No rcu_read_lock(ing) needed, the ptr returned can't go under us
-	 * as it's referencing an entry in the static irq_map table.
+	 * The ptr returned references the static global irq_map.
+	 * but freeing an irq can delete nodes along the path to
+	 * do the lookup via call_rcu.
 	 */
+	rcu_read_lock();
 	ptr = radix_tree_lookup(&host->revmap_data.tree, hwirq);
+	rcu_read_unlock();
 
 	/*
 	 * If found in radix tree, then fine.
