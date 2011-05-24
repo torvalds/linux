@@ -572,7 +572,7 @@ static const struct file_operations ip_vs_app_fops = {
 	.open	 = ip_vs_app_open,
 	.read	 = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_net,
 };
 #endif
 

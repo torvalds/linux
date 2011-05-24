@@ -1163,7 +1163,6 @@ static int __devinit swim3_attach(struct macio_dev *mdev, const struct of_device
 	disk->major = FLOPPY_MAJOR;
 	disk->first_minor = i;
 	disk->fops = &floppy_fops;
-	disk->events = DISK_EVENT_MEDIA_CHANGE;
 	disk->private_data = &floppy_states[i];
 	disk->queue = swim3_queue;
 	disk->flags |= GENHD_FL_REMOVABLE;

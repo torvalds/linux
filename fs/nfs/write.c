@@ -939,7 +939,7 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc)
 	atomic_set(&req->wb_complete, requests);
 
 	BUG_ON(desc->pg_lseg);
-	lseg = pnfs_update_layout(desc->pg_inode, req->wb_context, IOMODE_RW);
+	lseg = pnfs_update_layout(desc->pg_inode, req->wb_context, IOMODE_RW, GFP_NOFS);
 	ClearPageError(page);
 	offset = 0;
 	nbytes = desc->pg_count;
@@ -1013,7 +1013,7 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc)
 	}
 	req = nfs_list_entry(data->pages.next);
 	if ((!lseg) && list_is_singular(&data->pages))
-		lseg = pnfs_update_layout(desc->pg_inode, req->wb_context, IOMODE_RW);
+		lseg = pnfs_update_layout(desc->pg_inode, req->wb_context, IOMODE_RW, GFP_NOFS);
 
 	if ((desc->pg_ioflags & FLUSH_COND_STABLE) &&
 	    (desc->pg_moreio || NFS_I(desc->pg_inode)->ncommit))

@@ -2643,16 +2643,19 @@ fore200e_init(struct fore200e* fore200e, struct device *parent)
 }
 
 #ifdef CONFIG_SBUS
+static const struct of_device_id fore200e_sba_match[];
 static int __devinit fore200e_sba_probe(struct platform_device *op)
 {
+	const struct of_device_id *match;
 	const struct fore200e_bus *bus;
 	struct fore200e *fore200e;
 	static int index = 0;
 	int err;
 
-	if (!op->dev.of_match)
+	match = of_match_device(fore200e_sba_match, &op->dev);
+	if (!match)
 		return -EINVAL;
-	bus = op->dev.of_match->data;
+	bus = match->data;
 
 	fore200e = kzalloc(sizeof(struct fore200e), GFP_KERNEL);
 	if (!fore200e)

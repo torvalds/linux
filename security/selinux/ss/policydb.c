@@ -1819,8 +1819,6 @@ static int filename_trans_read(struct policydb *p, void *fp)
 		goto out;
 	nel = le32_to_cpu(buf[0]);
 
-	printk(KERN_ERR "%s: nel=%d\n", __func__, nel);
-
 	last = p->filename_trans;
 	while (last && last->next)
 		last = last->next;
@@ -1856,8 +1854,6 @@ static int filename_trans_read(struct policydb *p, void *fp)
 		if (rc)
 			goto out;
 		name[len] = 0;
-
-		printk(KERN_ERR "%s: ft=%p ft->name=%p ft->name=%s\n", __func__, ft, ft->name, ft->name);
 
 		rc = next_entry(buf, fp, sizeof(u32) * 4);
 		if (rc)

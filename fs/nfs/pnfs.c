@@ -383,6 +383,7 @@ pnfs_destroy_all_layouts(struct nfs_client *clp)
 				plh_layouts);
 		dprintk("%s freeing layout for inode %lu\n", __func__,
 			lo->plh_inode->i_ino);
+		list_del_init(&lo->plh_layouts);
 		pnfs_destroy_layout(NFS_I(lo->plh_inode));
 	}
 }
@@ -466,7 +467,8 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 static struct pnfs_layout_segment *
 send_layoutget(struct pnfs_layout_hdr *lo,
 	   struct nfs_open_context *ctx,
-	   u32 iomode)
+	   u32 iomode,
+	   gfp_t gfp_flags)
 {
 	struct inode *ino = lo->plh_inode;
 	struct nfs_server *server = NFS_SERVER(ino);
@@ -479,7 +481,7 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	dprintk("--> %s\n", __func__);
 
 	BUG_ON(ctx == NULL);
-	lgp = kzalloc(sizeof(*lgp), GFP_KERNEL);
+	lgp = kzalloc(sizeof(*lgp), gfp_flags);
 	if (lgp == NULL)
 		return NULL;
 
@@ -487,12 +489,12 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	max_resp_sz = server->nfs_client->cl_session->fc_attrs.max_resp_sz;
 	max_pages = max_resp_sz >> PAGE_SHIFT;
 
-	pages = kzalloc(max_pages * sizeof(struct page *), GFP_KERNEL);
+	pages = kzalloc(max_pages * sizeof(struct page *), gfp_flags);
 	if (!pages)
 		goto out_err_free;
 
 	for (i = 0; i < max_pages; i++) {
-		pages[i] = alloc_page(GFP_KERNEL);
+		pages[i] = alloc_page(gfp_flags);
 		if (!pages[i])
 			goto out_err_free;
 	}
@@ -508,6 +510,7 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	lgp->args.layout.pages = pages;
 	lgp->args.layout.pglen = max_pages * PAGE_SIZE;
 	lgp->lsegpp = &lseg;
+	lgp->gfp_flags = gfp_flags;
 
 	/* Synchronously retrieve layout information from server and
 	 * store in lseg.
@@ -665,11 +668,11 @@ pnfs_insert_layout(struct pnfs_layout_hdr *lo,
 }
 
 static struct pnfs_layout_hdr *
-alloc_init_layout_hdr(struct inode *ino)
+alloc_init_layout_hdr(struct inode *ino, gfp_t gfp_flags)
 {
 	struct pnfs_layout_hdr *lo;
 
-	lo = kzalloc(sizeof(struct pnfs_layout_hdr), GFP_KERNEL);
+	lo = kzalloc(sizeof(struct pnfs_layout_hdr), gfp_flags);
 	if (!lo)
 		return NULL;
 	atomic_set(&lo->plh_refcount, 1);
@@ -681,7 +684,7 @@ alloc_init_layout_hdr(struct inode *ino)
 }
 
 static struct pnfs_layout_hdr *
-pnfs_find_alloc_layout(struct inode *ino)
+pnfs_find_alloc_layout(struct inode *ino, gfp_t gfp_flags)
 {
 	struct nfs_inode *nfsi = NFS_I(ino);
 	struct pnfs_layout_hdr *new = NULL;
@@ -696,7 +699,7 @@ pnfs_find_alloc_layout(struct inode *ino)
 			return nfsi->layout;
 	}
 	spin_unlock(&ino->i_lock);
-	new = alloc_init_layout_hdr(ino);
+	new = alloc_init_layout_hdr(ino, gfp_flags);
 	spin_lock(&ino->i_lock);
 
 	if (likely(nfsi->layout == NULL))	/* Won the race? */
@@ -756,7 +759,8 @@ pnfs_find_lseg(struct pnfs_layout_hdr *lo, u32 iomode)
 struct pnfs_layout_segment *
 pnfs_update_layout(struct inode *ino,
 		   struct nfs_open_context *ctx,
-		   enum pnfs_iomode iomode)
+		   enum pnfs_iomode iomode,
+		   gfp_t gfp_flags)
 {
 	struct nfs_inode *nfsi = NFS_I(ino);
 	struct nfs_client *clp = NFS_SERVER(ino)->nfs_client;
@@ -767,7 +771,7 @@ pnfs_update_layout(struct inode *ino,
 	if (!pnfs_enabled_sb(NFS_SERVER(ino)))
 		return NULL;
 	spin_lock(&ino->i_lock);
-	lo = pnfs_find_alloc_layout(ino);
+	lo = pnfs_find_alloc_layout(ino, gfp_flags);
 	if (lo == NULL) {
 		dprintk("%s ERROR: can't get pnfs_layout_hdr\n", __func__);
 		goto out_unlock;
@@ -807,7 +811,7 @@ pnfs_update_layout(struct inode *ino,
 		spin_unlock(&clp->cl_lock);
 	}
 
-	lseg = send_layoutget(lo, ctx, iomode);
+	lseg = send_layoutget(lo, ctx, iomode, gfp_flags);
 	if (!lseg && first) {
 		spin_lock(&clp->cl_lock);
 		list_del_init(&lo->plh_layouts);
@@ -846,7 +850,7 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		goto out;
 	}
 	/* Inject layout blob into I/O device driver */
-	lseg = NFS_SERVER(ino)->pnfs_curr_ld->alloc_lseg(lo, res);
+	lseg = NFS_SERVER(ino)->pnfs_curr_ld->alloc_lseg(lo, res, lgp->gfp_flags);
 	if (!lseg || IS_ERR(lseg)) {
 		if (!lseg)
 			status = -ENOMEM;
@@ -899,7 +903,8 @@ static int pnfs_read_pg_test(struct nfs_pageio_descriptor *pgio,
 		/* This is first coelesce call for a series of nfs_pages */
 		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 						   prev->wb_context,
-						   IOMODE_READ);
+						   IOMODE_READ,
+						   GFP_KERNEL);
 	}
 	return NFS_SERVER(pgio->pg_inode)->pnfs_curr_ld->pg_test(pgio, prev, req);
 }
@@ -921,7 +926,8 @@ static int pnfs_write_pg_test(struct nfs_pageio_descriptor *pgio,
 		/* This is first coelesce call for a series of nfs_pages */
 		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 						   prev->wb_context,
-						   IOMODE_RW);
+						   IOMODE_RW,
+						   GFP_NOFS);
 	}
 	return NFS_SERVER(pgio->pg_inode)->pnfs_curr_ld->pg_test(pgio, prev, req);
 }

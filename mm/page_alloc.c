@@ -2358,6 +2358,7 @@ EXPORT_SYMBOL(alloc_pages_exact);
 /**
  * alloc_pages_exact_nid - allocate an exact number of physically-contiguous
  *			   pages on a node.
+ * @nid: the preferred node ID where memory should be allocated
  * @size: the number of bytes to allocate
  * @gfp_mask: GFP flags for the allocation
  *

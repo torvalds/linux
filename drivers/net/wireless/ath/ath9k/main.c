@@ -2141,6 +2141,8 @@ static void ath9k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
 static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	int timeout = 200; /* ms */
 	int i, j;
 
@@ -2148,6 +2150,12 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 	mutex_lock(&sc->mutex);
 
 	cancel_delayed_work_sync(&sc->tx_complete_work);
+
+	if (sc->sc_flags & SC_OP_INVALID) {
+		ath_dbg(common, ATH_DBG_ANY, "Device not present\n");
+		mutex_unlock(&sc->mutex);
+		return;
+	}
 
 	if (drop)
 		timeout = 1;
