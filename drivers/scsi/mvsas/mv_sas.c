@@ -38,7 +38,7 @@ static int mvs_find_tag(struct mvs_info *mvi, struct sas_task *task, u32 *tag)
 
 void mvs_tag_clear(struct mvs_info *mvi, u32 tag)
 {
-	void *bitmap = &mvi->tags;
+	void *bitmap = mvi->tags;
 	clear_bit(tag, bitmap);
 }
 
@@ -49,14 +49,14 @@ void mvs_tag_free(struct mvs_info *mvi, u32 tag)
 
 void mvs_tag_set(struct mvs_info *mvi, unsigned int tag)
 {
-	void *bitmap = &mvi->tags;
+	void *bitmap = mvi->tags;
 	set_bit(tag, bitmap);
 }
 
 inline int mvs_tag_alloc(struct mvs_info *mvi, u32 *tag_out)
 {
 	unsigned int index, tag;
-	void *bitmap = &mvi->tags;
+	void *bitmap = mvi->tags;
 
 	index = find_first_zero_bit(bitmap, mvi->tags_num);
 	tag = index;
@@ -72,126 +72,6 @@ void mvs_tag_init(struct mvs_info *mvi)
 	int i;
 	for (i = 0; i < mvi->tags_num; ++i)
 		mvs_tag_clear(mvi, i);
-}
-
-void mvs_hexdump(u32 size, u8 *data, u32 baseaddr)
-{
-	u32 i;
-	u32 run;
-	u32 offset;
-
-	offset = 0;
-	while (size) {
-		printk(KERN_DEBUG"%08X : ", baseaddr + offset);
-		if (size >= 16)
-			run = 16;
-		else
-			run = size;
-		size -= run;
-		for (i = 0; i < 16; i++) {
-			if (i < run)
-				printk(KERN_DEBUG"%02X ", (u32)data[i]);
-			else
-				printk(KERN_DEBUG"   ");
-		}
-		printk(KERN_DEBUG": ");
-		for (i = 0; i < run; i++)
-			printk(KERN_DEBUG"%c",
-				isalnum(data[i]) ? data[i] : '.');
-		printk(KERN_DEBUG"\n");
-		data = &data[16];
-		offset += run;
-	}
-	printk(KERN_DEBUG"\n");
-}
-
-#if (_MV_DUMP > 1)
-static void mvs_hba_sb_dump(struct mvs_info *mvi, u32 tag,
-				   enum sas_protocol proto)
-{
-	u32 offset;
-	struct mvs_slot_info *slot = &mvi->slot_info[tag];
-
-	offset = slot->cmd_size + MVS_OAF_SZ +
-	    MVS_CHIP_DISP->prd_size() * slot->n_elem;
-	dev_printk(KERN_DEBUG, mvi->dev, "+---->Status buffer[%d] :\n",
-			tag);
-	mvs_hexdump(32, (u8 *) slot->response,
-		    (u32) slot->buf_dma + offset);
-}
-#endif
-
-static void mvs_hba_memory_dump(struct mvs_info *mvi, u32 tag,
-				enum sas_protocol proto)
-{
-#if (_MV_DUMP > 1)
-	u32 sz, w_ptr;
-	u64 addr;
-	struct mvs_slot_info *slot = &mvi->slot_info[tag];
-
-	/*Delivery Queue */
-	sz = MVS_CHIP_SLOT_SZ;
-	w_ptr = slot->tx;
-	addr = mvi->tx_dma;
-	dev_printk(KERN_DEBUG, mvi->dev,
-		"Delivery Queue Size=%04d , WRT_PTR=%04X\n", sz, w_ptr);
-	dev_printk(KERN_DEBUG, mvi->dev,
-		"Delivery Queue Base Address=0x%llX (PA)"
-		"(tx_dma=0x%llX), Entry=%04d\n",
-		addr, (unsigned long long)mvi->tx_dma, w_ptr);
-	mvs_hexdump(sizeof(u32), (u8 *)(&mvi->tx[mvi->tx_prod]),
-			(u32) mvi->tx_dma + sizeof(u32) * w_ptr);
-	/*Command List */
-	addr = mvi->slot_dma;
-	dev_printk(KERN_DEBUG, mvi->dev,
-		"Command List Base Address=0x%llX (PA)"
-		"(slot_dma=0x%llX), Header=%03d\n",
-		addr, (unsigned long long)slot->buf_dma, tag);
-	dev_printk(KERN_DEBUG, mvi->dev, "Command Header[%03d]:\n", tag);
-	/*mvs_cmd_hdr */
-	mvs_hexdump(sizeof(struct mvs_cmd_hdr), (u8 *)(&mvi->slot[tag]),
-		(u32) mvi->slot_dma + tag * sizeof(struct mvs_cmd_hdr));
-	/*1.command table area */
-	dev_printk(KERN_DEBUG, mvi->dev, "+---->Command Table :\n");
-	mvs_hexdump(slot->cmd_size, (u8 *) slot->buf, (u32) slot->buf_dma);
-	/*2.open address frame area */
-	dev_printk(KERN_DEBUG, mvi->dev, "+---->Open Address Frame :\n");
-	mvs_hexdump(MVS_OAF_SZ, (u8 *) slot->buf + slot->cmd_size,
-				(u32) slot->buf_dma + slot->cmd_size);
-	/*3.status buffer */
-	mvs_hba_sb_dump(mvi, tag, proto);
-	/*4.PRD table */
-	dev_printk(KERN_DEBUG, mvi->dev, "+---->PRD table :\n");
-	mvs_hexdump(MVS_CHIP_DISP->prd_size() * slot->n_elem,
-		(u8 *) slot->buf + slot->cmd_size + MVS_OAF_SZ,
-		(u32) slot->buf_dma + slot->cmd_size + MVS_OAF_SZ);
-#endif
-}
-
-static void mvs_hba_cq_dump(struct mvs_info *mvi)
-{
-#if (_MV_DUMP > 2)
-	u64 addr;
-	void __iomem *regs = mvi->regs;
-	u32 entry = mvi->rx_cons + 1;
-	u32 rx_desc = le32_to_cpu(mvi->rx[entry]);
-
-	/*Completion Queue */
-	addr = mr32(RX_HI) << 16 << 16 | mr32(RX_LO);
-	dev_printk(KERN_DEBUG, mvi->dev, "Completion Task = 0x%p\n",
-		   mvi->slot_info[rx_desc & RXQ_SLOT_MASK].task);
-	dev_printk(KERN_DEBUG, mvi->dev,
-		"Completion List Base Address=0x%llX (PA), "
-		"CQ_Entry=%04d, CQ_WP=0x%08X\n",
-		addr, entry - 1, mvi->rx[0]);
-	mvs_hexdump(sizeof(u32), (u8 *)(&rx_desc),
-		    mvi->rx_dma + sizeof(u32) * entry);
-#endif
-}
-
-void mvs_get_sas_addr(void *buf, u32 buflen)
-{
-	/*memcpy(buf, "\x50\x05\x04\x30\x11\xab\x64\x40", 8);*/
 }
 
 struct mvs_info *mvs_find_dev_mvi(struct domain_device *dev)
@@ -421,13 +301,6 @@ int mvs_slave_configure(struct scsi_device *sdev)
 	if (ret)
 		return ret;
 	if (dev_is_sata(dev)) {
-		/* may set PIO mode */
-	#if MV_DISABLE_NCQ
-		struct ata_port *ap = dev->sata_dev.ap;
-		struct ata_device *adev = ap->link.device;
-		adev->flags |= ATA_DFLAG_NCQ_OFF;
-		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, 1);
-	#endif
 	}
 	return 0;
 }
@@ -475,10 +348,7 @@ static int mvs_task_prep_smp(struct mvs_info *mvi,
 	void *buf_prd;
 	struct mvs_slot_info *slot = &mvi->slot_info[tag];
 	u32 flags = (tei->n_elem << MCH_PRD_LEN_SHIFT);
-#if _MV_DUMP
-	u8 *buf_cmd;
-	void *from;
-#endif
+
 	/*
 	 * DMA-map SMP request, response buffers
 	 */
@@ -510,15 +380,7 @@ static int mvs_task_prep_smp(struct mvs_info *mvi,
 	buf_tmp = slot->buf;
 	buf_tmp_dma = slot->buf_dma;
 
-#if _MV_DUMP
-	buf_cmd = buf_tmp;
-	hdr->cmd_tbl = cpu_to_le64(buf_tmp_dma);
-	buf_tmp += req_len;
-	buf_tmp_dma += req_len;
-	slot->cmd_size = req_len;
-#else
 	hdr->cmd_tbl = cpu_to_le64(sg_dma_address(sg_req));
-#endif
 
 	/* region 2: open address frame area (MVS_OAF_SZ bytes) ********* */
 	buf_oaf = buf_tmp;
@@ -567,12 +429,6 @@ static int mvs_task_prep_smp(struct mvs_info *mvi,
 	/* fill in PRD (scatter/gather) table, if any */
 	MVS_CHIP_DISP->make_prd(task->scatter, tei->n_elem, buf_prd);
 
-#if _MV_DUMP
-	/* copy cmd table */
-	from = kmap_atomic(sg_page(sg_req), KM_IRQ0);
-	memcpy(buf_cmd, from + sg_req->offset, req_len);
-	kunmap_atomic(from, KM_IRQ0);
-#endif
 	return 0;
 
 err_out_2:
@@ -668,9 +524,6 @@ static int mvs_task_prep_ata(struct mvs_info *mvi,
 
 	buf_tmp += MVS_ATA_CMD_SZ;
 	buf_tmp_dma += MVS_ATA_CMD_SZ;
-#if _MV_DUMP
-	slot->cmd_size = MVS_ATA_CMD_SZ;
-#endif
 
 	/* region 2: open address frame area (MVS_OAF_SZ bytes) ********* */
 	/* used for STP.  unused for SATA? */
@@ -788,9 +641,6 @@ static int mvs_task_prep_ssp(struct mvs_info *mvi,
 
 	buf_tmp += MVS_SSP_CMD_SZ;
 	buf_tmp_dma += MVS_SSP_CMD_SZ;
-#if _MV_DUMP
-	slot->cmd_size = MVS_SSP_CMD_SZ;
-#endif
 
 	/* region 2: open address frame area (MVS_OAF_SZ bytes) ********* */
 	buf_oaf = buf_tmp;
@@ -997,7 +847,6 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 	task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 	spin_unlock(&task->task_state_lock);
 
-	mvs_hba_memory_dump(mvi, tag, task->task_proto);
 	mvi_dev->running_req++;
 	++(*pass);
 	mvi->tx_prod = (mvi->tx_prod + 1) & (MVS_CHIP_SLOT_SZ - 1);
@@ -1963,16 +1812,12 @@ int mvs_slot_complete(struct mvs_info *mvi, u32 rx_desc, u32 flags)
 	void *to;
 	enum exec_status sts;
 
-	if (mvi->exp_req)
-		mvi->exp_req--;
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return -1;
 
 	tstat = &task->task_status;
 	dev = task->dev;
 	mvi_dev = dev->lldd_dev;
-
-	mvs_hba_cq_dump(mvi);
 
 	spin_lock(&task->task_state_lock);
 	task->task_state_flags &=

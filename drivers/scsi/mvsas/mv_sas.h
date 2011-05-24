@@ -48,12 +48,8 @@
 
 #define DRV_NAME		"mvsas"
 #define DRV_VERSION		"0.8.2"
-#define _MV_DUMP		0
 #define MVS_ID_NOT_MAPPED	0x7f
-/* #define DISABLE_HOTPLUG_DMA_FIX */
-// #define MAX_EXP_RUNNING_REQ	2
 #define WIDE_PORT_MAX_PHY		4
-#define	MV_DISABLE_NCQ	0
 #define mv_printk(fmt, arg ...)	\
 	printk(KERN_DEBUG"%s %d:" fmt, __FILE__, __LINE__, ## arg)
 #ifdef MV_DEBUG
@@ -131,7 +127,6 @@ struct mvs_dispatch {
 	u32 (*read_port_irq_mask)(struct mvs_info *mvi, u32 port);
 	void (*write_port_irq_mask)(struct mvs_info *mvi, u32 port, u32 val);
 
-	void (*get_sas_addr)(void *buf, u32 buflen);
 	void (*command_active)(struct mvs_info *mvi, u32 slot_idx);
 	void (*clear_srs_irq)(struct mvs_info *mvi, u8 reg_set, u8 clear_all);
 	void (*issue_stop)(struct mvs_info *mvi, enum mvs_port_type type,
@@ -333,9 +328,6 @@ struct mvs_slot_info {
 	 */
 	void *buf;
 	dma_addr_t buf_dma;
-#if _MV_DUMP
-	u32 cmd_size;
-#endif
 	void *response;
 	struct mvs_port *port;
 	struct mvs_device	*device;
@@ -389,12 +381,10 @@ struct mvs_info {
 	const struct mvs_chip_info *chip;
 
 	int tags_num;
-	DECLARE_BITMAP(tags, MVS_SLOTS);
+	unsigned long *tags;
 	/* further per-slot information */
 	struct mvs_phy phy[MVS_MAX_PHYS];
 	struct mvs_port port[MVS_MAX_PHYS];
-	u32 irq;
-	u32 exp_req;
 	u32 id;
 	u64 sata_reg_set;
 	struct list_head *hba_list;
@@ -485,7 +475,6 @@ void mvs_do_release_task(struct mvs_info *mvi, int phy_no,
 void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events);
 void mvs_update_phyinfo(struct mvs_info *mvi, int i, int get_st);
 int mvs_int_rx(struct mvs_info *mvi, bool self_clear);
-void mvs_hexdump(u32 size, u8 *data, u32 baseaddr);
 struct mvs_device *mvs_find_dev_by_reg_set(struct mvs_info *mvi, u8 reg_set);
 #endif
 

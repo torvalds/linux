@@ -43,7 +43,6 @@ enum chip_flavors {
 
 /* driver compile-time configuration */
 enum driver_configuration {
-	MVS_SLOTS		= 512,	/* command slots */
 	MVS_TX_RING_SZ		= 1024,	/* TX ring size (12-bit) */
 	MVS_RX_RING_SZ		= 1024, /* RX ring size (12-bit) */
 					/* software requires power-of-2
@@ -56,8 +55,7 @@ enum driver_configuration {
 	MVS_SSP_CMD_SZ		= 64,	/* SSP command table buffer size */
 	MVS_ATA_CMD_SZ		= 96,	/* SATA command table buffer size */
 	MVS_OAF_SZ		= 64,	/* Open address frame buffer size */
-	MVS_QUEUE_SIZE	= 32,	/* Support Queue depth */
-	MVS_CAN_QUEUE		= MVS_SLOTS - 2,	/* SCSI Queue depth */
+	MVS_QUEUE_SIZE		= 64,	/* Support Queue depth */
 	MVS_SOC_CAN_QUEUE	= MVS_SOC_SLOTS - 2,
 };
 
@@ -392,7 +390,6 @@ enum sas_cmd_port_registers {
 };
 
 enum mvs_info_flags {
-	MVF_MSI		= (1U << 0),	/* MSI is enabled */
 	MVF_PHY_PWR_FIX	= (1U << 1),	/* bug workaround */
 	MVF_FLAG_SOC		= (1U << 2),	/* SoC integrated controllers */
 };

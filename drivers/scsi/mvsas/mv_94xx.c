@@ -947,7 +947,6 @@ const struct mvs_dispatch mvs_94xx_dispatch = {
 	mvs_write_port_irq_stat,
 	mvs_read_port_irq_mask,
 	mvs_write_port_irq_mask,
-	mvs_get_sas_addr,
 	mvs_94xx_command_active,
 	mvs_94xx_clear_srs_irq,
 	mvs_94xx_issue_stop,

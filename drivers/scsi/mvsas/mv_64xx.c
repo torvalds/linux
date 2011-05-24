@@ -803,7 +803,6 @@ const struct mvs_dispatch mvs_64xx_dispatch = {
 	mvs_write_port_irq_stat,
 	mvs_read_port_irq_mask,
 	mvs_write_port_irq_mask,
-	mvs_get_sas_addr,
 	mvs_64xx_command_active,
 	mvs_64xx_clear_srs_irq,
 	mvs_64xx_issue_stop,

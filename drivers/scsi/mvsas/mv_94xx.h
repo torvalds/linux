@@ -132,8 +132,6 @@ enum sas_sata_vsp_regs {
 	VSR_PHY_MODE9		= 0x09 * 4, /* Test */
 	VSR_PHY_MODE10		= 0x0A * 4, /* Power */
 	VSR_PHY_MODE11		= 0x0B * 4, /* Phy Mode */
-	VSR_PHY_VS0		= 0x0C * 4, /* Vednor Specific 0 */
-	VSR_PHY_VS1		= 0x0D * 4, /* Vednor Specific 1 */
 
 	VSR_PHY_FFE_CONTROL	= 0x10C,
 	VSR_PHY_DFE_UPDATE_CRTL	= 0x110,

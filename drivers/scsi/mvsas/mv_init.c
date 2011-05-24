@@ -53,7 +53,6 @@ static const struct mvs_chip_info mvs_chips[] = {
 struct device_attribute *mvst_host_attrs[];
 
 #define SOC_SAS_NUM 2
-#define SG_MX 64
 
 static struct scsi_host_template mvs_sht = {
 	.module			= THIS_MODULE,
@@ -70,7 +69,7 @@ static struct scsi_host_template mvs_sht = {
 	.can_queue		= 1,
 	.cmd_per_lun		= 1,
 	.this_id		= -1,
-	.sg_tablesize		= SG_MX,
+	.sg_tablesize		= SG_ALL,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_device_reset_handler = sas_eh_device_reset_handler,
@@ -133,7 +132,7 @@ static void mvs_free(struct mvs_info *mvi)
 	if (mvi->flags & MVF_FLAG_SOC)
 		slot_nr = MVS_SOC_SLOTS;
 	else
-		slot_nr = MVS_SLOTS;
+		slot_nr = MVS_CHIP_SLOT_SZ;
 
 	if (mvi->dma_pool)
 		pci_pool_destroy(mvi->dma_pool);
@@ -166,6 +165,7 @@ static void mvs_free(struct mvs_info *mvi)
 		scsi_host_put(mvi->shost);
 	list_for_each_entry(mwq, &mvi->wq_list, entry)
 		cancel_delayed_work(&mwq->work_q);
+	kfree(mvi->tags);
 	kfree(mvi);
 }
 
@@ -232,7 +232,7 @@ static int __devinit mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 	if (mvi->flags & MVF_FLAG_SOC)
 		slot_nr = MVS_SOC_SLOTS;
 	else
-		slot_nr = MVS_SLOTS;
+		slot_nr = MVS_CHIP_SLOT_SZ;
 
 	spin_lock_init(&mvi->lock);
 	for (i = 0; i < mvi->chip->n_phy; i++) {
@@ -369,8 +369,9 @@ static struct mvs_info *__devinit mvs_pci_alloc(struct pci_dev *pdev,
 	struct mvs_info *mvi;
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 
-	mvi = kzalloc(sizeof(*mvi) + MVS_SLOTS * sizeof(struct mvs_slot_info),
-			GFP_KERNEL);
+	mvi = kzalloc(sizeof(*mvi) +
+		(1L << mvs_chips[ent->driver_data].slot_width) *
+		sizeof(struct mvs_slot_info), GFP_KERNEL);
 	if (!mvi)
 		return NULL;
 
@@ -379,7 +380,6 @@ static struct mvs_info *__devinit mvs_pci_alloc(struct pci_dev *pdev,
 	mvi->chip_id = ent->driver_data;
 	mvi->chip = &mvs_chips[mvi->chip_id];
 	INIT_LIST_HEAD(&mvi->wq_list);
-	mvi->irq = pdev->irq;
 
 	((struct mvs_prv_info *)sha->lldd_ha)->mvi[id] = mvi;
 	((struct mvs_prv_info *)sha->lldd_ha)->n_phy = mvi->chip->n_phy;
@@ -390,6 +390,10 @@ static struct mvs_info *__devinit mvs_pci_alloc(struct pci_dev *pdev,
 #ifdef MVS_USE_TASKLET
 	tasklet_init(&mv_tasklet, mvs_tasklet, (unsigned long)sha);
 #endif
+
+	mvi->tags = kzalloc(MVS_CHIP_SLOT_SZ>>3, GFP_KERNEL);
+	if (!mvi->tags)
+		goto err_out;
 
 	if (MVS_CHIP_DISP->chip_ioremap(mvi))
 		goto err_out;
@@ -505,11 +509,11 @@ static void  __devinit mvs_post_sas_ha_init(struct Scsi_Host *shost,
 	if (mvi->flags & MVF_FLAG_SOC)
 		can_queue = MVS_SOC_CAN_QUEUE;
 	else
-		can_queue = MVS_CAN_QUEUE;
+		can_queue = MVS_CHIP_SLOT_SZ;
 
 	sha->lldd_queue_size = can_queue;
 	shost->can_queue = can_queue;
-	mvi->shost->cmd_per_lun = MVS_SLOTS/sha->num_phys;
+	mvi->shost->cmd_per_lun = MVS_QUEUE_SIZE;
 	sha->core.shost = mvi->shost;
 }
 
@@ -650,7 +654,7 @@ static void __devexit mvs_pci_remove(struct pci_dev *pdev)
 	scsi_remove_host(mvi->shost);
 
 	MVS_CHIP_DISP->interrupt_disable(mvi);
-	free_irq(mvi->irq, sha);
+	free_irq(mvi->pdev->irq, sha);
 	for (i = 0; i < core_nr; i++) {
 		mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[i];
 		mvs_free(mvi);
