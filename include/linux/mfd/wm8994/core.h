@@ -20,6 +20,7 @@
 enum wm8994_type {
 	WM8994 = 0,
 	WM8958 = 1,
+	WM1811 = 2,
 };
 
 struct regulator_dev;
