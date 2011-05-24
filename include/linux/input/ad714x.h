@@ -6,7 +6,7 @@
  * The platform_data for the device's "struct device" holds this
  * information.
  *
- * Copyright 2009 Analog Devices Inc.
+ * Copyright 2009-2011 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -58,6 +58,7 @@ struct ad714x_platform_data {
 	struct ad714x_button_plat *button;
 	unsigned short stage_cfg_reg[STAGE_NUM][STAGE_CFGREG_NUM];
 	unsigned short sys_cfg_reg[SYS_CFGREG_NUM];
+	unsigned long irqflags;
 };
 
 #endif

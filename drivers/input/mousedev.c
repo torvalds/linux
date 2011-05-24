@@ -508,7 +508,6 @@ static void mousedev_attach_client(struct mousedev *mousedev,
 	spin_lock(&mousedev->client_lock);
 	list_add_tail_rcu(&client->node, &mousedev->client_list);
 	spin_unlock(&mousedev->client_lock);
-	synchronize_rcu();
 }
 
 static void mousedev_detach_client(struct mousedev *mousedev,
