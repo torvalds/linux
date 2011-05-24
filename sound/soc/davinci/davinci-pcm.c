@@ -155,6 +155,22 @@ struct davinci_runtime_data {
 	struct edmacc_param ram_params;
 };
 
+static void davinci_pcm_period_elapsed(struct snd_pcm_substream *substream)
+{
+	struct davinci_runtime_data *prtd = substream->runtime->private_data;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	prtd->period++;
+	if (unlikely(prtd->period >= runtime->periods))
+		prtd->period = 0;
+}
+
+static void davinci_pcm_period_reset(struct snd_pcm_substream *substream)
+{
+	struct davinci_runtime_data *prtd = substream->runtime->private_data;
+
+	prtd->period = 0;
+}
 /*
  * Not used with ping/pong
  */
@@ -216,9 +232,7 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 		edma_set_transfer_params(link, acnt, fifo_level, count,
 							fifo_level, ABSYNC);
 
-	prtd->period++;
-	if (unlikely(prtd->period >= runtime->periods))
-		prtd->period = 0;
+	davinci_pcm_period_elapsed(substream);
 }
 
 static void davinci_pcm_dma_irq(unsigned link, u16 ch_status, void *data)
@@ -591,7 +605,7 @@ static int davinci_pcm_prepare(struct snd_pcm_substream *substream)
 
 		return 0;
 	}
-	prtd->period = 0;
+	davinci_pcm_period_reset(substream);
 	davinci_pcm_enqueue_dma(substream);
 
 	/* Copy self-linked parameter RAM entry into master channel */
