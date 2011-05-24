@@ -1991,6 +1991,18 @@ config FB_SH_MOBILE_HDMI
 	---help---
 	  Driver for the on-chip SH-Mobile HDMI controller.
 
+config FB_SH_MOBILE_MERAM
+	tristate "SuperH Mobile MERAM read ahead support for LCDC"
+	depends on FB_SH_MOBILE_LCDC
+	default y
+	---help---
+	  Enable MERAM support for the SH-Mobile LCD controller.
+
+	  This will allow for caching of the framebuffer to provide more
+	  reliable access under heavy main memory bus traffic situations.
+	  Up to 4 memory channels can be configured, allowing 4 RGB or
+	  2 YCbCr framebuffers to be configured.
+
 config FB_TMIO
 	tristate "Toshiba Mobile IO FrameBuffer support"
 	depends on FB && MFD_CORE

@@ -27,6 +27,7 @@
 #include <asm/atomic.h>
 
 #include "sh_mobile_lcdcfb.h"
+#include "sh_mobile_meram.h"
 
 #define SIDE_B_OFFSET 0x1000
 #define MIRROR_OFFSET 0x2000
@@ -143,6 +144,7 @@ struct sh_mobile_lcdc_priv {
 	unsigned long saved_shared_regs[NR_SHARED_REGS];
 	int started;
 	int forced_bpp; /* 2 channel LCDC must share bpp setting */
+	struct sh_mobile_meram_info *meram_dev;
 };
 
 static bool banked(int reg_nr)
@@ -469,7 +471,6 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	int bpp = 0;
 	unsigned long ldddsr;
 	int k, m;
-	int ret = 0;
 
 	/* enable clocks before accessing the hardware */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
@@ -538,11 +539,12 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		lcdc_write_chan(ch, LDPMR, 0);
 
 		board_cfg = &ch->cfg.board_cfg;
-		if (board_cfg->setup_sys)
-			ret = board_cfg->setup_sys(board_cfg->board_data, ch,
-						   &sh_mobile_lcdc_sys_bus_ops);
-		if (ret)
-			return ret;
+		if (board_cfg->setup_sys) {
+			int ret = board_cfg->setup_sys(board_cfg->board_data,
+						ch, &sh_mobile_lcdc_sys_bus_ops);
+			if (ret)
+				return ret;
+		}
 	}
 
 	/* word and long word swap */
@@ -564,6 +566,9 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	}
 
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
+		unsigned long base_addr_y;
+		unsigned long base_addr_c = 0;
+		int pitch;
 		ch = &priv->ch[k];
 
 		if (!priv->ch[k].enabled)
@@ -598,16 +603,67 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		}
 		lcdc_write_chan(ch, LDDFR, tmp);
 
-		/* point out our frame buffer */
-		lcdc_write_chan(ch, LDSA1R, ch->info->fix.smem_start);
-		if (ch->info->var.nonstd)
-			lcdc_write_chan(ch, LDSA2R,
-				ch->info->fix.smem_start +
+		base_addr_y = ch->info->fix.smem_start;
+		base_addr_c = base_addr_y +
 				ch->info->var.xres *
-				ch->info->var.yres_virtual);
+				ch->info->var.yres_virtual;
+		pitch = ch->info->fix.line_length;
+
+		/* test if we can enable meram */
+		if (ch->cfg.meram_cfg && priv->meram_dev) {
+			struct sh_mobile_meram_cfg *cfg;
+			struct sh_mobile_meram_info *mdev;
+			unsigned long icb_addr_y, icb_addr_c;
+			int icb_pitch;
+			int pf;
+
+			cfg = ch->cfg.meram_cfg;
+			mdev = priv->meram_dev;
+			/* we need to de-init configured ICBs before we
+			 * we can re-initialize them.
+			 */
+			if (ch->meram_enabled)
+				mdev->ops->meram_unregister(mdev, cfg);
+
+			ch->meram_enabled = 0;
+
+			if (ch->info->var.nonstd) {
+				if (ch->info->var.bits_per_pixel == 24)
+					pf = SH_MOBILE_MERAM_PF_NV24;
+				else
+					pf = SH_MOBILE_MERAM_PF_NV;
+			} else {
+				pf = SH_MOBILE_MERAM_PF_RGB;
+			}
+
+			ret = mdev->ops->meram_register(mdev, cfg, pitch,
+						ch->info->var.yres,
+						pf,
+						base_addr_y,
+						base_addr_c,
+						&icb_addr_y,
+						&icb_addr_c,
+						&icb_pitch);
+			if (!ret)  {
+				/* set LDSA1R value */
+				base_addr_y = icb_addr_y;
+				pitch = icb_pitch;
+
+				/* set LDSA2R value if required */
+				if (base_addr_c)
+					base_addr_c = icb_addr_c;
+
+				ch->meram_enabled = 1;
+			}
+		}
+
+		/* point out our frame buffer */
+		lcdc_write_chan(ch, LDSA1R, base_addr_y);
+		if (ch->info->var.nonstd)
+			lcdc_write_chan(ch, LDSA2R, base_addr_c);
 
 		/* set line size */
-		lcdc_write_chan(ch, LDMLSR, ch->info->fix.line_length);
+		lcdc_write_chan(ch, LDMLSR, pitch);
 
 		/* setup deferred io if SYS bus */
 		tmp = ch->cfg.sys_bus_cfg.deferred_io_msec;
@@ -692,6 +748,17 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 			board_cfg->display_off(board_cfg->board_data);
 			module_put(board_cfg->owner);
 		}
+
+		/* disable the meram */
+		if (ch->meram_enabled) {
+			struct sh_mobile_meram_cfg *cfg;
+			struct sh_mobile_meram_info *mdev;
+			cfg = ch->cfg.meram_cfg;
+			mdev = priv->meram_dev;
+			mdev->ops->meram_unregister(mdev, cfg);
+			ch->meram_enabled = 0;
+		}
+
 	}
 
 	/* stop the lcdc */
@@ -875,9 +942,29 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 	} else
 		base_addr_c = 0;
 
-	lcdc_write_chan_mirror(ch, LDSA1R, base_addr_y);
-	if (base_addr_c)
-		lcdc_write_chan_mirror(ch, LDSA2R, base_addr_c);
+	if (!ch->meram_enabled) {
+		lcdc_write_chan_mirror(ch, LDSA1R, base_addr_y);
+		if (base_addr_c)
+			lcdc_write_chan_mirror(ch, LDSA2R, base_addr_c);
+	} else {
+		struct sh_mobile_meram_cfg *cfg;
+		struct sh_mobile_meram_info *mdev;
+		unsigned long icb_addr_y, icb_addr_c;
+		int ret;
+
+		cfg = ch->cfg.meram_cfg;
+		mdev = priv->meram_dev;
+		ret = mdev->ops->meram_update(mdev, cfg,
+					base_addr_y, base_addr_c,
+					&icb_addr_y, &icb_addr_c);
+		if (ret)
+			return ret;
+
+		lcdc_write_chan_mirror(ch, LDSA1R, icb_addr_y);
+		if (icb_addr_c)
+			lcdc_write_chan_mirror(ch, LDSA2R, icb_addr_c);
+
+	}
 
 	if (lcdc_chan_is_sublcd(ch))
 		lcdc_write(ch->lcdc, _LDRCNTR, ldrcntr ^ LDRCNTR_SRS);
@@ -1288,7 +1375,6 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 	struct fb_info *info = event->info;
 	struct sh_mobile_lcdc_chan *ch = info->par;
 	struct sh_mobile_lcdc_board_cfg	*board_cfg = &ch->cfg.board_cfg;
-	int ret;
 
 	if (&ch->lcdc->notifier != nb)
 		return NOTIFY_DONE;
@@ -1302,7 +1388,6 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 			board_cfg->display_off(board_cfg->board_data);
 			module_put(board_cfg->owner);
 		}
-		pm_runtime_put(info->device);
 		sh_mobile_lcdc_stop(ch->lcdc);
 		break;
 	case FB_EVENT_RESUME:
@@ -1316,9 +1401,7 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 			module_put(board_cfg->owner);
 		}
 
-		ret = sh_mobile_lcdc_start(ch->lcdc);
-		if (!ret)
-			pm_runtime_get_sync(info->device);
+		sh_mobile_lcdc_start(ch->lcdc);
 	}
 
 	return NOTIFY_OK;
@@ -1419,6 +1502,8 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to setup clocks\n");
 		goto err1;
 	}
+
+	priv->meram_dev = pdata->meram_dev;
 
 	for (i = 0; i < j; i++) {
 		struct fb_var_screeninfo *var;
