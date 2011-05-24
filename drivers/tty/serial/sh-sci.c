@@ -41,6 +41,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial_sci.h>
 #include <linux/notifier.h>
+#include <linux/pm_runtime.h>
 #include <linux/cpufreq.h>
 #include <linux/clk.h>
 #include <linux/ctype.h>
@@ -560,6 +561,9 @@ static void sci_break_timer(unsigned long data)
 {
 	struct sci_port *port = (struct sci_port *)data;
 
+	if (port->enable)
+		port->enable(&port->port);
+
 	if (sci_rxd_in(&port->port) == 0) {
 		port->break_flag = 1;
 		sci_schedule_break_timer(port);
@@ -569,6 +573,9 @@ static void sci_break_timer(unsigned long data)
 		sci_schedule_break_timer(port);
 	} else
 		port->break_flag = 0;
+
+	if (port->disable)
+		port->disable(&port->port);
 }
 
 static int sci_handle_errors(struct uart_port *port)
@@ -837,6 +844,8 @@ static void sci_clk_enable(struct uart_port *port)
 {
 	struct sci_port *sci_port = to_sci_port(port);
 
+	pm_runtime_get_sync(port->dev);
+
 	clk_enable(sci_port->iclk);
 	sci_port->port.uartclk = clk_get_rate(sci_port->iclk);
 	clk_enable(sci_port->fclk);
@@ -848,6 +857,8 @@ static void sci_clk_disable(struct uart_port *port)
 
 	clk_disable(sci_port->fclk);
 	clk_disable(sci_port->iclk);
+
+	pm_runtime_put_sync(port->dev);
 }
 
 static int sci_request_irq(struct sci_port *port)
@@ -1756,6 +1767,8 @@ static int __devinit sci_init_single(struct platform_device *dev,
 		sci_port->enable = sci_clk_enable;
 		sci_port->disable = sci_clk_disable;
 		port->dev = &dev->dev;
+
+		pm_runtime_enable(&dev->dev);
 	}
 
 	sci_port->break_timer.data = (unsigned long)sci_port;
@@ -1775,7 +1788,7 @@ static int __devinit sci_init_single(struct platform_device *dev,
 	 *
 	 * For the muxed case there's nothing more to do.
 	 */
-	port->irq		= p->irqs[SCIx_TXI_IRQ];
+	port->irq		= p->irqs[SCIx_RXI_IRQ];
 
 	if (p->dma_dev)
 		dev_dbg(port->dev, "DMA device %p, tx %d, rx %d\n",
@@ -1936,6 +1949,7 @@ static int sci_remove(struct platform_device *dev)
 	clk_put(port->iclk);
 	clk_put(port->fclk);
 
+	pm_runtime_disable(&dev->dev);
 	return 0;
 }
 

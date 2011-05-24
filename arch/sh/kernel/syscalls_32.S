@@ -380,3 +380,4 @@ ENTRY(sys_call_table)
 	.long sys_open_by_handle_at	/* 360 */
 	.long sys_clock_adjtime
 	.long sys_syncfs
+	.long sys_sendmmsg
