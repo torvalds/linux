@@ -4303,7 +4303,7 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 		goto fail0;
 	}
 
-	pci_read_config_byte(dev, PCI_CLASS_REVISION, &btv->revision);
+	btv->revision = dev->revision;
 	pci_read_config_byte(dev, PCI_LATENCY_TIMER, &lat);
 	printk(KERN_INFO "bttv%d: Bt%d (rev %d) at %s, ",
 	       bttv_num,btv->id, btv->revision, pci_name(dev));

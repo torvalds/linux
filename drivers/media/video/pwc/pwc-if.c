@@ -1850,7 +1850,6 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 	} else {
 		/* Device is closed, so we can safely unregister it */
 		PWC_DEBUG_PROBE("Unregistering video device in disconnect().\n");
-		pwc_cleanup(pdev);
 
 disconnect_out:
 		/* search device_hint[] table if we occupy a slot, by any chance */
@@ -1860,6 +1859,7 @@ disconnect_out:
 	}
 
 	mutex_unlock(&pdev->modlock);
+	pwc_cleanup(pdev);
 }
 
 

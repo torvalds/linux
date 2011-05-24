@@ -1399,6 +1399,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		else
 			altera_init(&netup_config, fw);
 
+		release_firmware(fw);
 		break;
 	}
 	}

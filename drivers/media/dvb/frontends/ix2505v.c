@@ -218,10 +218,12 @@ static int ix2505v_set_params(struct dvb_frontend *fe,
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
 	len = sizeof(data);
-
 	ret |= ix2505v_write(state, data, len);
 
 	data[2] |= 0x4; /* set TM = 1 other bits same */
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 
 	len = 1;
 	ret |= ix2505v_write(state, &data[2], len); /* write byte 4 only */
@@ -233,11 +235,11 @@ static int ix2505v_set_params(struct dvb_frontend *fe,
 
 	deb_info("Data 2=[%x%x]\n", data[2], data[3]);
 
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
 	len = 2;
 	ret |= ix2505v_write(state, &data[2], len); /* write byte 4 & 5 */
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
 
 	if (state->config->min_delay_ms)
 		msleep(state->config->min_delay_ms);

@@ -40,11 +40,24 @@
 #define TM6000_VERSION KERNEL_VERSION(0, 0, 2)
 
 /* Inputs */
-
 enum tm6000_itype {
-	TM6000_INPUT_TV	= 0,
-	TM6000_INPUT_COMPOSITE,
+	TM6000_INPUT_TV	= 1,
+	TM6000_INPUT_COMPOSITE1,
+	TM6000_INPUT_COMPOSITE2,
 	TM6000_INPUT_SVIDEO,
+	TM6000_INPUT_DVB,
+	TM6000_INPUT_RADIO,
+};
+
+enum tm6000_mux {
+	TM6000_VMUX_VIDEO_A = 1,
+	TM6000_VMUX_VIDEO_B,
+	TM6000_VMUX_VIDEO_AB,
+	TM6000_AMUX_ADC1,
+	TM6000_AMUX_ADC2,
+	TM6000_AMUX_SIF1,
+	TM6000_AMUX_SIF2,
+	TM6000_AMUX_I2S,
 };
 
 enum tm6000_devtype {
@@ -53,12 +66,12 @@ enum tm6000_devtype {
 	TM6010,
 };
 
-enum tm6000_inaudio {
-	TM6000_AIP_UNK = 0,
-	TM6000_AIP_SIF1,
-	TM6000_AIP_SIF2,
-	TM6000_AIP_LINE1,
-	TM6000_AIP_LINE2,
+struct tm6000_input {
+	enum tm6000_itype	type;
+	enum tm6000_mux		vmux;
+	enum tm6000_mux		amux;
+	unsigned int		v_gpio;
+	unsigned int		a_gpio;
 };
 
 /* ------------------------------------------------------------------
@@ -129,8 +142,7 @@ struct tm6000_capabilities {
 	unsigned int    has_zl10353:1;
 	unsigned int    has_eeprom:1;
 	unsigned int    has_remote:1;
-	unsigned int    has_input_comp:1;
-	unsigned int    has_input_svid:1;
+	unsigned int    has_radio:1;
 };
 
 struct tm6000_dvb {
@@ -167,6 +179,8 @@ struct tm6000_core {
 	int				model;		/* index in the device_data struct */
 	int				devno;		/* marks the number of this device */
 	enum tm6000_devtype		dev_type;	/* type of device */
+	unsigned char			eedata[256];	/* Eeprom data */
+	unsigned			eedata_size;	/* Size of the eeprom info */
 
 	v4l2_std_id                     norm;           /* Current norm */
 	int				width, height;	/* Selected resolution */
@@ -211,6 +225,9 @@ struct tm6000_core {
 	struct v4l2_device		v4l2_dev;
 
 	int				input;
+	struct tm6000_input		vinput[3];	/* video input */
+	struct tm6000_input		rinput;		/* radio input */
+
 	int				freq;
 	unsigned int			fourcc;
 
@@ -218,6 +235,7 @@ struct tm6000_core {
 
 	int				ctl_mute;             /* audio */
 	int				ctl_volume;
+	int				amode;
 
 	/* DVB-T support */
 	struct tm6000_dvb		*dvb;
@@ -226,8 +244,6 @@ struct tm6000_core {
 	struct snd_tm6000_card		*adev;
 	struct work_struct		wq_trigger;   /* Trigger to start/stop audio for alsa module */
 	atomic_t			stream_started;  /* stream should be running if true */
-	enum tm6000_inaudio		avideo;
-	enum tm6000_inaudio		aradio;
 
 	struct tm6000_IR		*ir;
 
@@ -302,7 +318,7 @@ int tm6000_init(struct tm6000_core *dev);
 int tm6000_init_analog_mode(struct tm6000_core *dev);
 int tm6000_init_digital_mode(struct tm6000_core *dev);
 int tm6000_set_audio_bitrate(struct tm6000_core *dev, int bitrate);
-int tm6000_set_audio_input(struct tm6000_core *dev, enum tm6000_inaudio ainp);
+int tm6000_set_audio_rinput(struct tm6000_core *dev);
 int tm6000_tvaudio_set_mute(struct tm6000_core *dev, u8 mute);
 void tm6000_set_volume(struct tm6000_core *dev, int vol);
 
@@ -323,7 +339,7 @@ int tm6000_call_fillbuf(struct tm6000_core *dev, enum tm6000_ops_type type,
 
 /* In tm6000-stds.c */
 void tm6000_get_std_res(struct tm6000_core *dev);
-int tm6000_set_standard(struct tm6000_core *dev, v4l2_std_id *norm);
+int tm6000_set_standard(struct tm6000_core *dev);
 
 /* In tm6000-i2c.c */
 int tm6000_i2c_register(struct tm6000_core *dev);

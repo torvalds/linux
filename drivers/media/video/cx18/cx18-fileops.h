@@ -33,6 +33,8 @@ int cx18_start_capture(struct cx18_open_id *id);
 void cx18_stop_capture(struct cx18_open_id *id, int gop_end);
 void cx18_mute(struct cx18 *cx);
 void cx18_unmute(struct cx18 *cx);
+int cx18_v4l2_mmap(struct file *file, struct vm_area_struct *vma);
+void cx18_vb_timeout(unsigned long data);
 
 /* Shared with cx18-alsa module */
 int cx18_claim_stream(struct cx18_open_id *id, int type);

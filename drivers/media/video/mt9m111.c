@@ -315,10 +315,20 @@ static int mt9m111_setup_rect(struct i2c_client *client,
 static int mt9m111_setup_pixfmt(struct i2c_client *client, u16 outfmt)
 {
 	int ret;
+	u16 mask = MT9M111_OUTFMT_PROCESSED_BAYER | MT9M111_OUTFMT_RGB |
+		MT9M111_OUTFMT_BYPASS_IFP | MT9M111_OUTFMT_SWAP_RGB_EVEN |
+		MT9M111_OUTFMT_RGB565 | MT9M111_OUTFMT_RGB555 |
+		MT9M111_OUTFMT_SWAP_YCbCr_Cb_Cr |
+		MT9M111_OUTFMT_SWAP_YCbCr_C_Y;
 
-	ret = reg_write(OUTPUT_FORMAT_CTRL2_A, outfmt);
+	ret = reg_read(OUTPUT_FORMAT_CTRL2_A);
+	if (ret >= 0)
+		ret = reg_write(OUTPUT_FORMAT_CTRL2_A, (ret & ~mask) | outfmt);
 	if (!ret)
-		ret = reg_write(OUTPUT_FORMAT_CTRL2_B, outfmt);
+		ret = reg_read(OUTPUT_FORMAT_CTRL2_B);
+	if (ret >= 0)
+		ret = reg_write(OUTPUT_FORMAT_CTRL2_B, (ret & ~mask) | outfmt);
+
 	return ret;
 }
 

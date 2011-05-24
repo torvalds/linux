@@ -976,6 +976,10 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 			tda_warn("bandwidth not set!\n");
 			return -EINVAL;
 		}
+	} else if (fe->ops.info.type == FE_QAM) {
+		/* DVB-C */
+		map = &std_map->qam_8;
+		bw = 8000000;
 	} else {
 		tda_warn("modulation type not supported!\n");
 		return -EINVAL;

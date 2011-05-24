@@ -53,27 +53,36 @@ static int opera1_xilinx_rw(struct usb_device *dev, u8 request, u16 value,
 			    u8 * data, u16 len, int flags)
 {
 	int ret;
-	u8 r;
-	u8 u8buf[len];
-
+	u8 tmp;
+	u8 *buf;
 	unsigned int pipe = (flags == OPERA_READ_MSG) ?
 		usb_rcvctrlpipe(dev,0) : usb_sndctrlpipe(dev, 0);
 	u8 request_type = (flags == OPERA_READ_MSG) ? USB_DIR_IN : USB_DIR_OUT;
 
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
 	if (flags == OPERA_WRITE_MSG)
-		memcpy(u8buf, data, len);
-	ret =
-		usb_control_msg(dev, pipe, request, request_type | USB_TYPE_VENDOR,
-			value, 0x0, u8buf, len, 2000);
+		memcpy(buf, data, len);
+	ret = usb_control_msg(dev, pipe, request,
+			request_type | USB_TYPE_VENDOR, value, 0x0,
+			buf, len, 2000);
 
 	if (request == OPERA_TUNER_REQ) {
+		tmp = buf[0];
 		if (usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
-				OPERA_TUNER_REQ, USB_DIR_IN | USB_TYPE_VENDOR,
-				0x01, 0x0, &r, 1, 2000)<1 || r!=0x08)
-					return 0;
+			    OPERA_TUNER_REQ, USB_DIR_IN | USB_TYPE_VENDOR,
+			    0x01, 0x0, buf, 1, 2000) < 1 || buf[0] != 0x08) {
+			ret = 0;
+			goto out;
+		}
+		buf[0] = tmp;
 	}
 	if (flags == OPERA_READ_MSG)
-		memcpy(data, u8buf, len);
+		memcpy(data, buf, len);
+out:
+	kfree(buf);
 	return ret;
 }
 
@@ -189,7 +198,7 @@ static int opera1_stv0299_set_symbol_rate(struct dvb_frontend *fe, u32 srate,
 static u8 opera1_inittab[] = {
 	0x00, 0xa1,
 	0x01, 0x15,
-	0x02, 0x00,
+	0x02, 0x30,
 	0x03, 0x00,
 	0x04, 0x7d,
 	0x05, 0x05,
