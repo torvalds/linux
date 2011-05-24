@@ -557,15 +557,8 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 	if (revmap_type == IRQ_HOST_MAP_LEGACY) {
 		if (irq_map[0].host != NULL) {
 			raw_spin_unlock_irqrestore(&irq_big_lock, flags);
-			/* If we are early boot, we can't free the structure,
-			 * too bad...
-			 * this will be fixed once slab is made available early
-			 * instead of the current cruft
-			 */
-			if (mem_init_done) {
-				of_node_put(host->of_node);
-				kfree(host);
-			}
+			of_node_put(host->of_node);
+			kfree(host);
 			return NULL;
 		}
 		irq_map[0].host = host;
