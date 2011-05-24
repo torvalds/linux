@@ -1342,7 +1342,7 @@ static int drbd_nl_detach(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	ret = wait_event_interruptible(mdev->misc_wait,
 			mdev->state.disk != D_FAILED);
 	drbd_resume_io(mdev);
-	if (retcode == SS_IS_DISKLESS)
+	if ((int)retcode == (int)SS_IS_DISKLESS)
 		retcode = SS_NOTHING_TO_DO;
 	if (ret)
 		retcode = ERR_INTR;

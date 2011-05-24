@@ -2911,12 +2911,6 @@ disconnect:
 	return false;
 }
 
-static void drbd_setup_order_type(struct drbd_conf *mdev, int peer)
-{
-	/* sorry, we currently have no working implementation
-	 * of distributed TCQ */
-}
-
 /* warn if the arguments differ by more than 12.5% */
 static void warn_if_differ_considerably(struct drbd_conf *mdev,
 	const char *s, sector_t a, sector_t b)
