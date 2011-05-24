@@ -596,6 +596,58 @@ void __init timekeeping_init(void)
 static struct timespec timekeeping_suspend_time;
 
 /**
+ * __timekeeping_inject_sleeptime - Internal function to add sleep interval
+ * @delta: pointer to a timespec delta value
+ *
+ * Takes a timespec offset measuring a suspend interval and properly
+ * adds the sleep offset to the timekeeping variables.
+ */
+static void __timekeeping_inject_sleeptime(struct timespec *delta)
+{
+	xtime = timespec_add(xtime, *delta);
+	wall_to_monotonic = timespec_sub(wall_to_monotonic, *delta);
+	total_sleep_time = timespec_add(total_sleep_time, *delta);
+}
+
+
+/**
+ * timekeeping_inject_sleeptime - Adds suspend interval to timeekeeping values
+ * @delta: pointer to a timespec delta value
+ *
+ * This hook is for architectures that cannot support read_persistent_clock
+ * because their RTC/persistent clock is only accessible when irqs are enabled.
+ *
+ * This function should only be called by rtc_resume(), and allows
+ * a suspend offset to be injected into the timekeeping values.
+ */
+void timekeeping_inject_sleeptime(struct timespec *delta)
+{
+	unsigned long flags;
+	struct timespec ts;
+
+	/* Make sure we don't set the clock twice */
+	read_persistent_clock(&ts);
+	if (!(ts.tv_sec == 0 && ts.tv_nsec == 0))
+		return;
+
+	write_seqlock_irqsave(&xtime_lock, flags);
+	timekeeping_forward_now();
+
+	__timekeeping_inject_sleeptime(delta);
+
+	timekeeper.ntp_error = 0;
+	ntp_clear();
+	update_vsyscall(&xtime, &wall_to_monotonic, timekeeper.clock,
+				timekeeper.mult);
+
+	write_sequnlock_irqrestore(&xtime_lock, flags);
+
+	/* signal hrtimers about time change */
+	clock_was_set();
+}
+
+
+/**
  * timekeeping_resume - Resumes the generic timekeeping subsystem.
  *
  * This is for the generic clocksource timekeeping.
@@ -615,9 +667,7 @@ static void timekeeping_resume(void)
 
 	if (timespec_compare(&ts, &timekeeping_suspend_time) > 0) {
 		ts = timespec_sub(ts, timekeeping_suspend_time);
-		xtime = timespec_add(xtime, ts);
-		wall_to_monotonic = timespec_sub(wall_to_monotonic, ts);
-		total_sleep_time = timespec_add(total_sleep_time, ts);
+		__timekeeping_inject_sleeptime(&ts);
 	}
 	/* re-base the last cycle value */
 	timekeeper.clock->cycle_last = timekeeper.clock->read(timekeeper.clock);
@@ -630,7 +680,7 @@ static void timekeeping_resume(void)
 	clockevents_notify(CLOCK_EVT_NOTIFY_RESUME, NULL);
 
 	/* Resume hrtimers */
-	hres_timers_resume();
+	hrtimers_resume();
 }
 
 static int timekeeping_suspend(void)
@@ -1046,6 +1096,21 @@ void get_xtime_and_monotonic_and_sleep_offset(struct timespec *xtim,
 		*wtom = wall_to_monotonic;
 		*sleep = total_sleep_time;
 	} while (read_seqretry(&xtime_lock, seq));
+}
+
+/**
+ * ktime_get_monotonic_offset() - get wall_to_monotonic in ktime_t format
+ */
+ktime_t ktime_get_monotonic_offset(void)
+{
+	unsigned long seq;
+	struct timespec wtom;
+
+	do {
+		seq = read_seqbegin(&xtime_lock);
+		wtom = wall_to_monotonic;
+	} while (read_seqretry(&xtime_lock, seq));
+	return timespec_to_ktime(wtom);
 }
 
 /**

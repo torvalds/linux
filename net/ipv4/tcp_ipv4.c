@@ -146,13 +146,15 @@ EXPORT_SYMBOL_GPL(tcp_twsk_unique);
 /* This will initiate an outgoing connection. */
 int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
+	struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
 	struct inet_sock *inet = inet_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
 	__be16 orig_sport, orig_dport;
-	struct rtable *rt;
 	__be32 daddr, nexthop;
+	struct flowi4 *fl4;
+	struct rtable *rt;
 	int err;
+	struct ip_options_rcu *inet_opt;
 
 	if (addr_len < sizeof(struct sockaddr_in))
 		return -EINVAL;
@@ -161,15 +163,18 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		return -EAFNOSUPPORT;
 
 	nexthop = daddr = usin->sin_addr.s_addr;
-	if (inet->opt && inet->opt->srr) {
+	inet_opt = rcu_dereference_protected(inet->inet_opt,
+					     sock_owned_by_user(sk));
+	if (inet_opt && inet_opt->opt.srr) {
 		if (!daddr)
 			return -EINVAL;
-		nexthop = inet->opt->faddr;
+		nexthop = inet_opt->opt.faddr;
 	}
 
 	orig_sport = inet->inet_sport;
 	orig_dport = usin->sin_port;
-	rt = ip_route_connect(nexthop, inet->inet_saddr,
+	fl4 = &inet->cork.fl.u.ip4;
+	rt = ip_route_connect(fl4, nexthop, inet->inet_saddr,
 			      RT_CONN_FLAGS(sk), sk->sk_bound_dev_if,
 			      IPPROTO_TCP,
 			      orig_sport, orig_dport, sk, true);
@@ -185,11 +190,11 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		return -ENETUNREACH;
 	}
 
-	if (!inet->opt || !inet->opt->srr)
-		daddr = rt->rt_dst;
+	if (!inet_opt || !inet_opt->opt.srr)
+		daddr = fl4->daddr;
 
 	if (!inet->inet_saddr)
-		inet->inet_saddr = rt->rt_src;
+		inet->inet_saddr = fl4->saddr;
 	inet->inet_rcv_saddr = inet->inet_saddr;
 
 	if (tp->rx_opt.ts_recent_stamp && inet->inet_daddr != daddr) {
@@ -200,8 +205,8 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	}
 
 	if (tcp_death_row.sysctl_tw_recycle &&
-	    !tp->rx_opt.ts_recent_stamp && rt->rt_dst == daddr) {
-		struct inet_peer *peer = rt_get_peer(rt);
+	    !tp->rx_opt.ts_recent_stamp && fl4->daddr == daddr) {
+		struct inet_peer *peer = rt_get_peer(rt, fl4->daddr);
 		/*
 		 * VJ's idea. We save last timestamp seen from
 		 * the destination in peer table, when entering state
@@ -221,8 +226,8 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	inet->inet_daddr = daddr;
 
 	inet_csk(sk)->icsk_ext_hdr_len = 0;
-	if (inet->opt)
-		inet_csk(sk)->icsk_ext_hdr_len = inet->opt->optlen;
+	if (inet_opt)
+		inet_csk(sk)->icsk_ext_hdr_len = inet_opt->opt.optlen;
 
 	tp->rx_opt.mss_clamp = TCP_MSS_DEFAULT;
 
@@ -236,8 +241,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (err)
 		goto failure;
 
-	rt = ip_route_newports(rt, IPPROTO_TCP,
-			       orig_sport, orig_dport,
+	rt = ip_route_newports(fl4, rt, orig_sport, orig_dport,
 			       inet->inet_sport, inet->inet_dport, sk);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);
@@ -279,7 +283,7 @@ EXPORT_SYMBOL(tcp_v4_connect);
 /*
  * This routine does path mtu discovery as defined in RFC1191.
  */
-static void do_pmtu_discovery(struct sock *sk, struct iphdr *iph, u32 mtu)
+static void do_pmtu_discovery(struct sock *sk, const struct iphdr *iph, u32 mtu)
 {
 	struct dst_entry *dst;
 	struct inet_sock *inet = inet_sk(sk);
@@ -341,7 +345,7 @@ static void do_pmtu_discovery(struct sock *sk, struct iphdr *iph, u32 mtu)
 
 void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 {
-	struct iphdr *iph = (struct iphdr *)icmp_skb->data;
+	const struct iphdr *iph = (const struct iphdr *)icmp_skb->data;
 	struct tcphdr *th = (struct tcphdr *)(icmp_skb->data + (iph->ihl << 2));
 	struct inet_connection_sock *icsk;
 	struct tcp_sock *tp;
@@ -647,7 +651,7 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 	arg.flags = (sk && inet_sk(sk)->transparent) ? IP_REPLY_ARG_NOSRCCHECK : 0;
 
 	net = dev_net(skb_dst(skb)->dev);
-	ip_send_reply(net->ipv4.tcp_sock, skb,
+	ip_send_reply(net->ipv4.tcp_sock, skb, ip_hdr(skb)->saddr,
 		      &arg, arg.iov[0].iov_len);
 
 	TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
@@ -722,7 +726,7 @@ static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
 	if (oif)
 		arg.bound_dev_if = oif;
 
-	ip_send_reply(net->ipv4.tcp_sock, skb,
+	ip_send_reply(net->ipv4.tcp_sock, skb, ip_hdr(skb)->saddr,
 		      &arg, arg.iov[0].iov_len);
 
 	TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
@@ -765,11 +769,12 @@ static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 			      struct request_values *rvp)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
+	struct flowi4 fl4;
 	int err = -1;
 	struct sk_buff * skb;
 
 	/* First, grab a route. */
-	if (!dst && (dst = inet_csk_route_req(sk, req)) == NULL)
+	if (!dst && (dst = inet_csk_route_req(sk, &fl4, req)) == NULL)
 		return -1;
 
 	skb = tcp_make_synack(sk, dst, req, rvp);
@@ -820,17 +825,18 @@ static void syn_flood_warning(const struct sk_buff *skb)
 /*
  * Save and compile IPv4 options into the request_sock if needed.
  */
-static struct ip_options *tcp_v4_save_options(struct sock *sk,
-					      struct sk_buff *skb)
+static struct ip_options_rcu *tcp_v4_save_options(struct sock *sk,
+						  struct sk_buff *skb)
 {
-	struct ip_options *opt = &(IPCB(skb)->opt);
-	struct ip_options *dopt = NULL;
+	const struct ip_options *opt = &(IPCB(skb)->opt);
+	struct ip_options_rcu *dopt = NULL;
 
 	if (opt && opt->optlen) {
-		int opt_size = optlength(opt);
+		int opt_size = sizeof(*dopt) + opt->optlen;
+
 		dopt = kmalloc(opt_size, GFP_ATOMIC);
 		if (dopt) {
-			if (ip_options_echo(dopt, skb)) {
+			if (ip_options_echo(&dopt->opt, skb)) {
 				kfree(dopt);
 				dopt = NULL;
 			}
@@ -1333,6 +1339,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		req->cookie_ts = tmp_opt.tstamp_ok;
 	} else if (!isn) {
 		struct inet_peer *peer = NULL;
+		struct flowi4 fl4;
 
 		/* VJ's idea. We save last timestamp seen
 		 * from the destination in peer table, when entering
@@ -1345,9 +1352,9 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		 */
 		if (tmp_opt.saw_tstamp &&
 		    tcp_death_row.sysctl_tw_recycle &&
-		    (dst = inet_csk_route_req(sk, req)) != NULL &&
-		    (peer = rt_get_peer((struct rtable *)dst)) != NULL &&
-		    peer->daddr.addr.a4 == saddr) {
+		    (dst = inet_csk_route_req(sk, &fl4, req)) != NULL &&
+		    fl4.daddr == saddr &&
+		    (peer = rt_get_peer((struct rtable *)dst, fl4.daddr)) != NULL) {
 			inet_peer_refcheck(peer);
 			if ((u32)get_seconds() - peer->tcp_ts_stamp < TCP_PAWS_MSL &&
 			    (s32)(peer->tcp_ts - req->ts_recent) >
@@ -1411,19 +1418,16 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key *key;
 #endif
+	struct ip_options_rcu *inet_opt;
 
 	if (sk_acceptq_is_full(sk))
 		goto exit_overflow;
-
-	if (!dst && (dst = inet_csk_route_req(sk, req)) == NULL)
-		goto exit;
 
 	newsk = tcp_create_openreq_child(sk, req, skb);
 	if (!newsk)
 		goto exit_nonewsk;
 
 	newsk->sk_gso_type = SKB_GSO_TCPV4;
-	sk_setup_caps(newsk, dst);
 
 	newtp		      = tcp_sk(newsk);
 	newinet		      = inet_sk(newsk);
@@ -1431,14 +1435,20 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	newinet->inet_daddr   = ireq->rmt_addr;
 	newinet->inet_rcv_saddr = ireq->loc_addr;
 	newinet->inet_saddr	      = ireq->loc_addr;
-	newinet->opt	      = ireq->opt;
+	inet_opt	      = ireq->opt;
+	rcu_assign_pointer(newinet->inet_opt, inet_opt);
 	ireq->opt	      = NULL;
 	newinet->mc_index     = inet_iif(skb);
 	newinet->mc_ttl	      = ip_hdr(skb)->ttl;
 	inet_csk(newsk)->icsk_ext_hdr_len = 0;
-	if (newinet->opt)
-		inet_csk(newsk)->icsk_ext_hdr_len = newinet->opt->optlen;
+	if (inet_opt)
+		inet_csk(newsk)->icsk_ext_hdr_len = inet_opt->opt.optlen;
 	newinet->inet_id = newtp->write_seq ^ jiffies;
+
+	if (!dst && (dst = inet_csk_route_child_sock(sk, newsk, req)) == NULL)
+		goto put_and_exit;
+
+	sk_setup_caps(newsk, dst);
 
 	tcp_mtup_init(newsk);
 	tcp_sync_mss(newsk, dst_mtu(dst));
@@ -1467,10 +1477,8 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	}
 #endif
 
-	if (__inet_inherit_port(sk, newsk) < 0) {
-		sock_put(newsk);
-		goto exit;
-	}
+	if (__inet_inherit_port(sk, newsk) < 0)
+		goto put_and_exit;
 	__inet_hash_nolisten(newsk, NULL);
 
 	return newsk;
@@ -1482,6 +1490,9 @@ exit_nonewsk:
 exit:
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
 	return NULL;
+put_and_exit:
+	sock_put(newsk);
+	goto exit;
 }
 EXPORT_SYMBOL(tcp_v4_syn_recv_sock);
 
@@ -1764,12 +1775,13 @@ struct inet_peer *tcp_v4_get_peer(struct sock *sk, bool *release_it)
 	struct inet_sock *inet = inet_sk(sk);
 	struct inet_peer *peer;
 
-	if (!rt || rt->rt_dst != inet->inet_daddr) {
+	if (!rt ||
+	    inet->cork.fl.u.ip4.daddr != inet->inet_daddr) {
 		peer = inet_getpeer_v4(inet->inet_daddr, 1);
 		*release_it = true;
 	} else {
 		if (!rt->peer)
-			rt_bind_peer(rt, 1);
+			rt_bind_peer(rt, inet->inet_daddr, 1);
 		peer = rt->peer;
 		*release_it = false;
 	}
@@ -2527,7 +2539,7 @@ void tcp4_proc_exit(void)
 
 struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
-	struct iphdr *iph = skb_gro_network_header(skb);
+	const struct iphdr *iph = skb_gro_network_header(skb);
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
@@ -2548,7 +2560,7 @@ struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 int tcp4_gro_complete(struct sk_buff *skb)
 {
-	struct iphdr *iph = ip_hdr(skb);
+	const struct iphdr *iph = ip_hdr(skb);
 	struct tcphdr *th = tcp_hdr(skb);
 
 	th->check = ~tcp_v4_check(skb->len - skb_transport_offset(skb),

@@ -456,6 +456,23 @@
 	      <entry>b<subscript>1</subscript></entry>
 	      <entry>b<subscript>0</subscript></entry>
 	    </row>
+	    <row id="V4L2-MBUS-FMT-SGBRG8-1X8">
+	      <entry>V4L2_MBUS_FMT_SGBRG8_1X8</entry>
+	      <entry>0x3013</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>g<subscript>7</subscript></entry>
+	      <entry>g<subscript>6</subscript></entry>
+	      <entry>g<subscript>5</subscript></entry>
+	      <entry>g<subscript>4</subscript></entry>
+	      <entry>g<subscript>3</subscript></entry>
+	      <entry>g<subscript>2</subscript></entry>
+	      <entry>g<subscript>1</subscript></entry>
+	      <entry>g<subscript>0</subscript></entry>
+	    </row>
 	    <row id="V4L2-MBUS-FMT-SGRBG8-1X8">
 	      <entry>V4L2_MBUS_FMT_SGRBG8_1X8</entry>
 	      <entry>0x3002</entry>
@@ -472,6 +489,23 @@
 	      <entry>g<subscript>2</subscript></entry>
 	      <entry>g<subscript>1</subscript></entry>
 	      <entry>g<subscript>0</subscript></entry>
+	    </row>
+	    <row id="V4L2-MBUS-FMT-SRGGB8-1X8">
+	      <entry>V4L2_MBUS_FMT_SRGGB8_1X8</entry>
+	      <entry>0x3014</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>r<subscript>7</subscript></entry>
+	      <entry>r<subscript>6</subscript></entry>
+	      <entry>r<subscript>5</subscript></entry>
+	      <entry>r<subscript>4</subscript></entry>
+	      <entry>r<subscript>3</subscript></entry>
+	      <entry>r<subscript>2</subscript></entry>
+	      <entry>r<subscript>1</subscript></entry>
+	      <entry>r<subscript>0</subscript></entry>
 	    </row>
 	    <row id="V4L2-MBUS-FMT-SBGGR10-DPCM8-1X8">
 	      <entry>V4L2_MBUS_FMT_SBGGR10_DPCM8_1X8</entry>
@@ -2158,6 +2192,31 @@
 	      <entry>u<subscript>2</subscript></entry>
 	      <entry>u<subscript>1</subscript></entry>
 	      <entry>u<subscript>0</subscript></entry>
+	    </row>
+	    <row id="V4L2-MBUS-FMT-Y12-1X12">
+	      <entry>V4L2_MBUS_FMT_Y12_1X12</entry>
+	      <entry>0x2013</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>y<subscript>11</subscript></entry>
+	      <entry>y<subscript>10</subscript></entry>
+	      <entry>y<subscript>9</subscript></entry>
+	      <entry>y<subscript>8</subscript></entry>
+	      <entry>y<subscript>7</subscript></entry>
+	      <entry>y<subscript>6</subscript></entry>
+	      <entry>y<subscript>5</subscript></entry>
+	      <entry>y<subscript>4</subscript></entry>
+	      <entry>y<subscript>3</subscript></entry>
+	      <entry>y<subscript>2</subscript></entry>
+	      <entry>y<subscript>1</subscript></entry>
+	      <entry>y<subscript>0</subscript></entry>
 	    </row>
 	    <row id="V4L2-MBUS-FMT-UYVY8-1X16">
 	      <entry>V4L2_MBUS_FMT_UYVY8_1X16</entry>

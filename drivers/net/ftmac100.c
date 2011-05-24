@@ -139,11 +139,11 @@ static int ftmac100_reset(struct ftmac100 *priv)
 			 * that hardware reset completed (what the f*ck).
 			 * We still need to wait for a while.
 			 */
-			usleep_range(500, 1000);
+			udelay(500);
 			return 0;
 		}
 
-		usleep_range(1000, 10000);
+		udelay(1000);
 	}
 
 	netdev_err(netdev, "software reset failed\n");
@@ -772,7 +772,7 @@ static int ftmac100_mdio_read(struct net_device *netdev, int phy_id, int reg)
 		if ((phycr & FTMAC100_PHYCR_MIIRD) == 0)
 			return phycr & FTMAC100_PHYCR_MIIRDATA;
 
-		usleep_range(100, 1000);
+		udelay(100);
 	}
 
 	netdev_err(netdev, "mdio read timed out\n");
@@ -801,7 +801,7 @@ static void ftmac100_mdio_write(struct net_device *netdev, int phy_id, int reg,
 		if ((phycr & FTMAC100_PHYCR_MIIWR) == 0)
 			return;
 
-		usleep_range(100, 1000);
+		udelay(100);
 	}
 
 	netdev_err(netdev, "mdio write timed out\n");

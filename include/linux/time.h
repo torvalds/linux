@@ -126,6 +126,7 @@ struct timespec __current_kernel_time(void); /* does not take xtime_lock */
 struct timespec get_monotonic_coarse(void);
 void get_xtime_and_monotonic_and_sleep_offset(struct timespec *xtim,
 				struct timespec *wtom, struct timespec *sleep);
+void timekeeping_inject_sleeptime(struct timespec *delta);
 
 #define CURRENT_TIME		(current_kernel_time())
 #define CURRENT_TIME_SEC	((struct timespec) { get_seconds(), 0 })
@@ -294,6 +295,8 @@ struct itimerval {
 #define CLOCK_REALTIME_COARSE		5
 #define CLOCK_MONOTONIC_COARSE		6
 #define CLOCK_BOOTTIME			7
+#define CLOCK_REALTIME_ALARM		8
+#define CLOCK_BOOTTIME_ALARM		9
 
 /*
  * The IDs of various hardware clocks:

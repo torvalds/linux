@@ -376,6 +376,13 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	}
 }
 
+static void (*smp_cross_call)(const struct cpumask *, unsigned int);
+
+void __init set_smp_cross_call(void (*fn)(const struct cpumask *, unsigned int))
+{
+	smp_cross_call = fn;
+}
+
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
 	smp_cross_call(mask, IPI_CALL_FUNC);
@@ -479,7 +486,7 @@ static void broadcast_timer_set_mode(enum clock_event_mode mode,
 {
 }
 
-static void broadcast_timer_setup(struct clock_event_device *evt)
+static void __cpuinit broadcast_timer_setup(struct clock_event_device *evt)
 {
 	evt->name	= "dummy_timer";
 	evt->features	= CLOCK_EVT_FEAT_ONESHOT |
@@ -560,10 +567,7 @@ asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
 		break;
 
 	case IPI_RESCHEDULE:
-		/*
-		 * nothing more to do - eveything is
-		 * done on the interrupt return path
-		 */
+		scheduler_ipi();
 		break;
 
 	case IPI_CALL_FUNC:

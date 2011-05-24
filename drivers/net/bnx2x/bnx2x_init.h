@@ -1,7 +1,7 @@
 /* bnx2x_init.h: Broadcom Everest network driver.
  *               Structures and macroes needed during the initialization.
  *
- * Copyright (c) 2007-2009 Broadcom Corporation
+ * Copyright (c) 2007-2011 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

@@ -118,7 +118,7 @@ _GLOBAL(__hash_page_4K)
 BEGIN_FTR_SECTION
 	cmpdi	r9,0			/* check segment size */
 	bne	3f
-END_FTR_SECTION_IFSET(CPU_FTR_1T_SEGMENT)
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	/* Calc va and put it in r29 */
 	rldicr	r29,r5,28,63-28
 	rldicl	r3,r3,0,36
@@ -401,7 +401,7 @@ _GLOBAL(__hash_page_4K)
 BEGIN_FTR_SECTION
 	cmpdi	r9,0			/* check segment size */
 	bne	3f
-END_FTR_SECTION_IFSET(CPU_FTR_1T_SEGMENT)
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	/* Calc va and put it in r29 */
 	rldicr	r29,r5,28,63-28		/* r29 = (vsid << 28) */
 	rldicl	r3,r3,0,36		/* r3 = (ea & 0x0fffffff) */
@@ -715,7 +715,7 @@ BEGIN_FTR_SECTION
 	andi.	r0,r31,_PAGE_NO_CACHE
 	/* If so, bail out and refault as a 4k page */
 	bne-	ht64_bail_ok
-END_FTR_SECTION_IFCLR(CPU_FTR_CI_LARGE_PAGE)
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_CI_LARGE_PAGE)
 	/* Prepare new PTE value (turn access RW into DIRTY, then
 	 * add BUSY and ACCESSED)
 	 */
@@ -736,7 +736,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_CI_LARGE_PAGE)
 BEGIN_FTR_SECTION
 	cmpdi	r9,0			/* check segment size */
 	bne	3f
-END_FTR_SECTION_IFSET(CPU_FTR_1T_SEGMENT)
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	/* Calc va and put it in r29 */
 	rldicr	r29,r5,28,63-28
 	rldicl	r3,r3,0,36

@@ -178,10 +178,11 @@ static void dwmac1000_pmt(void __iomem *ioaddr, unsigned long mode)
 {
 	unsigned int pmt = 0;
 
-	if (mode == WAKE_MAGIC) {
+	if (mode & WAKE_MAGIC) {
 		CHIP_DBG(KERN_DEBUG "GMAC: WOL Magic frame\n");
 		pmt |= power_down | magic_pkt_en;
-	} else if (mode == WAKE_UCAST) {
+	}
+	if (mode & WAKE_UCAST) {
 		CHIP_DBG(KERN_DEBUG "GMAC: WOL on global unicast\n");
 		pmt |= global_unicast;
 	}

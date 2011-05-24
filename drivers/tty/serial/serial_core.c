@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/core.c
- *
  *  Driver core for serial ports
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
@@ -172,12 +170,16 @@ static int uart_startup(struct tty_struct *tty, struct uart_state *state, int in
 
 	retval = uport->ops->startup(uport);
 	if (retval == 0) {
-		if (init_hw) {
-			/*
-			 * Initialise the hardware port settings.
-			 */
-			uart_change_speed(tty, state, NULL);
+		if (uart_console(uport) && uport->cons->cflag) {
+			tty->termios->c_cflag = uport->cons->cflag;
+			uport->cons->cflag = 0;
+		}
+		/*
+		 * Initialise the hardware port settings.
+		 */
+		uart_change_speed(tty, state, NULL);
 
+		if (init_hw) {
 			/*
 			 * Setup the RTS and DTR signals once the
 			 * port is open and ready to respond.
@@ -1240,17 +1242,6 @@ static void uart_set_termios(struct tty_struct *tty,
 		}
 		spin_unlock_irqrestore(&state->uart_port->lock, flags);
 	}
-#if 0
-	/*
-	 * No need to wake up processes in open wait, since they
-	 * sample the CLOCAL flag once, and don't recheck it.
-	 * XXX  It's not clear whether the current behavior is correct
-	 * or not.  Hence, this may change.....
-	 */
-	if (!(old_termios->c_cflag & CLOCAL) &&
-	    (tty->termios->c_cflag & CLOCAL))
-		wake_up_interruptible(&state->uart_port.open_wait);
-#endif
 }
 
 /*
@@ -1423,7 +1414,6 @@ static void __uart_wait_until_sent(struct uart_port *port, int timeout)
 		if (time_after(jiffies, expire))
 			break;
 	}
-	set_current_state(TASK_RUNNING); /* might not be needed */
 }
 
 static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
@@ -1466,45 +1456,6 @@ static void uart_hangup(struct tty_struct *tty)
 	mutex_unlock(&port->mutex);
 }
 
-/**
- *	uart_update_termios	-	update the terminal hw settings
- *	@tty: tty associated with UART
- *	@state: UART to update
- *
- *	Copy across the serial console cflag setting into the termios settings
- *	for the initial open of the port.  This allows continuity between the
- *	kernel settings, and the settings init adopts when it opens the port
- *	for the first time.
- */
-static void uart_update_termios(struct tty_struct *tty,
-						struct uart_state *state)
-{
-	struct uart_port *port = state->uart_port;
-
-	if (uart_console(port) && port->cons->cflag) {
-		tty->termios->c_cflag = port->cons->cflag;
-		port->cons->cflag = 0;
-	}
-
-	/*
-	 * If the device failed to grab its irq resources,
-	 * or some other error occurred, don't try to talk
-	 * to the port hardware.
-	 */
-	if (!(tty->flags & (1 << TTY_IO_ERROR))) {
-		/*
-		 * Make termios settings take effect.
-		 */
-		uart_change_speed(tty, state, NULL);
-
-		/*
-		 * And finally enable the RTS and DTR signals.
-		 */
-		if (tty->termios->c_cflag & CBAUD)
-			uart_set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
-	}
-}
-
 static int uart_carrier_raised(struct tty_port *port)
 {
 	struct uart_state *state = container_of(port, struct uart_state, port);
@@ -1524,16 +1475,8 @@ static void uart_dtr_rts(struct tty_port *port, int onoff)
 	struct uart_state *state = container_of(port, struct uart_state, port);
 	struct uart_port *uport = state->uart_port;
 
-	if (onoff) {
+	if (onoff)
 		uart_set_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
-
-		/*
-		 * If this is the first open to succeed,
-		 * adjust things to suit.
-		 */
-		if (!test_and_set_bit(ASYNCB_NORMAL_ACTIVE, &port->flags))
-			uart_update_termios(port->tty, state);
-	}
 	else
 		uart_clear_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
 }
@@ -1584,15 +1527,6 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 
 	BUG_ON(!tty_locked());
 	pr_debug("uart_open(%d) called\n", line);
-
-	/*
-	 * tty->driver->num won't change, so we won't fail here with
-	 * tty->driver_data set to something non-NULL (and therefore
-	 * we won't get caught by uart_close()).
-	 */
-	retval = -ENODEV;
-	if (line >= tty->driver->num)
-		goto fail;
 
 	/*
 	 * We take the semaphore inside uart_get to guarantee that we won't
@@ -1972,12 +1906,8 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 	struct tty_port *port = &state->port;
 	struct device *tty_dev;
 	struct uart_match match = {uport, drv};
-	struct tty_struct *tty;
 
 	mutex_lock(&port->mutex);
-
-	/* Must be inside the mutex lock until we convert to tty_port */
-	tty = port->tty;
 
 	tty_dev = device_find_child(uport->dev, &match, serial_match_port);
 	if (device_may_wakeup(tty_dev)) {

@@ -93,6 +93,7 @@ static int ibm_slot_error_detail;
 static int ibm_get_config_addr_info;
 static int ibm_get_config_addr_info2;
 static int ibm_configure_bridge;
+static int ibm_configure_pe;
 
 int eeh_subsystem_enabled;
 EXPORT_SYMBOL(eeh_subsystem_enabled);
@@ -261,6 +262,8 @@ void eeh_slot_error_detail(struct pci_dn *pdn, int severity)
 	pci_regs_buf[0] = 0;
 
 	rtas_pci_enable(pdn, EEH_THAW_MMIO);
+	rtas_configure_bridge(pdn);
+	eeh_restore_bars(pdn);
 	loglen = gather_pci_data(pdn, pci_regs_buf, EEH_PCI_REGS_LOG_LEN);
 
 	rtas_slot_error_detail(pdn, severity, pci_regs_buf, loglen);
@@ -446,6 +449,39 @@ void eeh_clear_slot (struct device_node *dn, int mode_flag)
 	PCI_DN(dn)->eeh_check_count = 0;
 	__eeh_clear_slot(dn, mode_flag);
 	raw_spin_unlock_irqrestore(&confirm_error_lock, flags);
+}
+
+void __eeh_set_pe_freset(struct device_node *parent, unsigned int *freset)
+{
+	struct device_node *dn;
+
+	for_each_child_of_node(parent, dn) {
+		if (PCI_DN(dn)) {
+
+			struct pci_dev *dev = PCI_DN(dn)->pcidev;
+
+			if (dev && dev->driver)
+				*freset |= dev->needs_freset;
+
+			__eeh_set_pe_freset(dn, freset);
+		}
+	}
+}
+
+void eeh_set_pe_freset(struct device_node *dn, unsigned int *freset)
+{
+	struct pci_dev *dev;
+	dn = find_device_pe(dn);
+
+	/* Back up one, since config addrs might be shared */
+	if (!pcibios_find_pci_bus(dn) && PCI_DN(dn->parent))
+		dn = dn->parent;
+
+	dev = PCI_DN(dn)->pcidev;
+	if (dev)
+		*freset |= dev->needs_freset;
+
+	__eeh_set_pe_freset(dn, freset);
 }
 
 /**
@@ -692,15 +728,24 @@ rtas_pci_slot_reset(struct pci_dn *pdn, int state)
 	if (pdn->eeh_pe_config_addr)
 		config_addr = pdn->eeh_pe_config_addr;
 
-	rc = rtas_call(ibm_set_slot_reset,4,1, NULL,
+	rc = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
 	               config_addr,
 	               BUID_HI(pdn->phb->buid),
 	               BUID_LO(pdn->phb->buid),
 	               state);
-	if (rc)
-		printk (KERN_WARNING "EEH: Unable to reset the failed slot,"
-		        " (%d) #RST=%d dn=%s\n",
-		        rc, state, pdn->node->full_name);
+
+	/* Fundamental-reset not supported on this PE, try hot-reset */
+	if (rc == -8 && state == 3) {
+		rc = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
+			       config_addr,
+			       BUID_HI(pdn->phb->buid),
+			       BUID_LO(pdn->phb->buid), 1);
+		if (rc)
+			printk(KERN_WARNING
+				"EEH: Unable to reset the failed slot,"
+				" #RST=%d dn=%s\n",
+				rc, pdn->node->full_name);
+	}
 }
 
 /**
@@ -736,18 +781,21 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 /**
  * rtas_set_slot_reset -- assert the pci #RST line for 1/4 second
  * @pdn: pci device node to be reset.
- *
- *  Return 0 if success, else a non-zero value.
  */
 
 static void __rtas_set_slot_reset(struct pci_dn *pdn)
 {
-	struct pci_dev *dev = pdn->pcidev;
+	unsigned int freset = 0;
 
-	/* Determine type of EEH reset required by device,
-	 * default hot reset or fundamental reset
-	 */
-	if (dev && dev->needs_freset)
+	/* Determine type of EEH reset required for
+	 * Partitionable Endpoint, a hot-reset (1)
+	 * or a fundamental reset (3).
+	 * A fundamental reset required by any device under
+	 * Partitionable Endpoint trumps hot-reset.
+  	 */
+	eeh_set_pe_freset(pdn->node, &freset);
+
+	if (freset)
 		rtas_pci_slot_reset(pdn, 3);
 	else
 		rtas_pci_slot_reset(pdn, 1);
@@ -895,13 +943,20 @@ rtas_configure_bridge(struct pci_dn *pdn)
 {
 	int config_addr;
 	int rc;
+	int token;
 
 	/* Use PE configuration address, if present */
 	config_addr = pdn->eeh_config_addr;
 	if (pdn->eeh_pe_config_addr)
 		config_addr = pdn->eeh_pe_config_addr;
 
-	rc = rtas_call(ibm_configure_bridge,3,1, NULL,
+	/* Use new configure-pe function, if supported */
+	if (ibm_configure_pe != RTAS_UNKNOWN_SERVICE)
+		token = ibm_configure_pe;
+	else
+		token = ibm_configure_bridge;
+
+	rc = rtas_call(token, 3, 1, NULL,
 	               config_addr,
 	               BUID_HI(pdn->phb->buid),
 	               BUID_LO(pdn->phb->buid));
@@ -1077,6 +1132,7 @@ void __init eeh_init(void)
 	ibm_get_config_addr_info = rtas_token("ibm,get-config-addr-info");
 	ibm_get_config_addr_info2 = rtas_token("ibm,get-config-addr-info2");
 	ibm_configure_bridge = rtas_token ("ibm,configure-bridge");
+	ibm_configure_pe = rtas_token("ibm,configure-pe");
 
 	if (ibm_set_eeh_option == RTAS_UNKNOWN_SERVICE)
 		return;

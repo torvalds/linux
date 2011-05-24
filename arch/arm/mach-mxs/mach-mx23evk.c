@@ -148,7 +148,7 @@ static void __init mx23evk_init(void)
 	mx23_add_auart0();
 
 	/* power on mmc slot by writing 0 to the gpio */
-	ret = gpio_request_one(MX23EVK_MMC0_SLOT_POWER, GPIOF_DIR_OUT,
+	ret = gpio_request_one(MX23EVK_MMC0_SLOT_POWER, GPIOF_OUT_INIT_LOW,
 			       "mmc0-slot-power");
 	if (ret)
 		pr_warn("failed to request gpio mmc0-slot-power: %d\n", ret);

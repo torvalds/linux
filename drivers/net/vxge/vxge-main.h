@@ -168,9 +168,6 @@ struct vxge_config {
 
 #define	NEW_NAPI_WEIGHT	64
 	int		napi_weight;
-#define VXGE_GRO_DONOT_AGGREGATE		0
-#define VXGE_GRO_ALWAYS_AGGREGATE		1
-	int		gro_enable;
 	int		intr_type;
 #define INTA	0
 #define MSI	1
@@ -290,13 +287,11 @@ struct vxge_ring {
 	unsigned long interrupt_count;
 	unsigned long jiffies;
 
-	/* copy of the flag indicating whether rx_csum is to be used */
-	u32 rx_csum:1,
-	    rx_hwts:1;
+	/* copy of the flag indicating whether rx_hwts is to be used */
+	u32 rx_hwts:1;
 
 	int pkts_processed;
 	int budget;
-	int gro_enable;
 
 	struct napi_struct napi;
 	struct napi_struct *napi_p;
@@ -369,9 +364,8 @@ struct vxgedev {
 	 */
 	u16		all_multi_flg;
 
-	 /* A flag indicating whether rx_csum is to be used or not. */
-	u32	rx_csum:1,
-		rx_hwts:1,
+	/* A flag indicating whether rx_hwts is to be used or not. */
+	u32	rx_hwts:1,
 		titan1:1;
 
 	struct vxge_msix_entry *vxge_entries;

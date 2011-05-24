@@ -28,7 +28,7 @@
 
 #define RTSX_STOR "rts_pstor: "
 
-#if CONFIG_RTS_PSTOR_DEBUG
+#ifdef CONFIG_RTS_PSTOR_DEBUG
 #define RTSX_DEBUGP(x...) printk(KERN_DEBUG RTSX_STOR x)
 #define RTSX_DEBUGPN(x...) printk(KERN_DEBUG x)
 #define RTSX_DEBUGPX(x...) printk(x)

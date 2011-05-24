@@ -732,18 +732,11 @@ struct _lcd_scaling_factor {
 	struct _lcd_ver_scaling_factor lcd_ver_scaling_factor;
 };
 
-struct pll_config {
-	u16 multiplier;
+struct pll_limit {
+	u16 multiplier_min;
+	u16 multiplier_max;
 	u8 divisor;
 	u8 rshift;
-};
-
-struct pll_map {
-	u32 clk;
-	struct pll_config cle266_pll;
-	struct pll_config k800_pll;
-	struct pll_config cx700_pll;
-	struct pll_config vx855_pll;
 };
 
 struct rgbLUT {
@@ -910,7 +903,6 @@ struct via_device_mapping {
 	const char *name;
 };
 
-extern unsigned int viafb_second_virtual_xres;
 extern int viafb_SAMM_ON;
 extern int viafb_dual_fb;
 extern int viafb_LCD2_ON;
@@ -936,7 +928,6 @@ void viafb_lock_crt(void);
 void viafb_unlock_crt(void);
 void viafb_load_fetch_count_reg(int h_addr, int bpp_byte, int set_iga);
 void viafb_write_regx(struct io_reg RegTable[], int ItemNum);
-u32 viafb_get_clk_value(int clk);
 void viafb_load_FIFO_reg(int set_iga, int hor_active, int ver_active);
 void viafb_set_dpa_gfx(int output_interface, struct GFX_DPA_SETTING\
 					*p_gfx_dpa_setting);

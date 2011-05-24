@@ -322,7 +322,7 @@ void radeon_fence_unref(struct radeon_fence **fence)
 
 	*fence = NULL;
 	if (tmp) {
-		kref_put(&tmp->kref, &radeon_fence_destroy);
+		kref_put(&tmp->kref, radeon_fence_destroy);
 	}
 }
 

@@ -369,6 +369,7 @@ static struct of_ioapic_type of_ioapic_type[] =
 static int ioapic_xlate(struct irq_domain *id, const u32 *intspec, u32 intsize,
 			u32 *out_hwirq, u32 *out_type)
 {
+	struct mp_ioapic_gsi *gsi_cfg;
 	struct io_apic_irq_attr attr;
 	struct of_ioapic_type *it;
 	u32 line, idx, type;
@@ -378,7 +379,8 @@ static int ioapic_xlate(struct irq_domain *id, const u32 *intspec, u32 intsize,
 
 	line = *intspec;
 	idx = (u32) id->priv;
-	*out_hwirq = line + mp_gsi_routing[idx].gsi_base;
+	gsi_cfg = mp_ioapic_gsi_routing(idx);
+	*out_hwirq = line + gsi_cfg->gsi_base;
 
 	intspec++;
 	type = *intspec;
@@ -391,7 +393,7 @@ static int ioapic_xlate(struct irq_domain *id, const u32 *intspec, u32 intsize,
 
 	set_io_apic_irq_attr(&attr, idx, line, it->trigger, it->polarity);
 
-	return io_apic_setup_irq_pin(*out_hwirq, cpu_to_node(0), &attr);
+	return io_apic_setup_irq_pin_once(*out_hwirq, cpu_to_node(0), &attr);
 }
 
 static void __init ioapic_add_ofnode(struct device_node *np)
@@ -407,7 +409,7 @@ static void __init ioapic_add_ofnode(struct device_node *np)
 	}
 
 	for (i = 0; i < nr_ioapics; i++) {
-		if (r.start == mp_ioapics[i].apicaddr) {
+		if (r.start == mpc_ioapic_addr(i)) {
 			struct irq_domain *id;
 
 			id = kzalloc(sizeof(*id), GFP_KERNEL);

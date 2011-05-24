@@ -219,7 +219,7 @@ static inline void nf_bridge_update_protocol(struct sk_buff *skb)
 static int br_parse_ip_options(struct sk_buff *skb)
 {
 	struct ip_options *opt;
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	struct net_device *dev = skb->dev;
 	u32 len;
 
@@ -249,11 +249,9 @@ static int br_parse_ip_options(struct sk_buff *skb)
 		goto drop;
 	}
 
-	/* Zero out the CB buffer if no options present */
-	if (iph->ihl == 5) {
-		memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+	memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+	if (iph->ihl == 5)
 		return 0;
-	}
 
 	opt->optlen = iph->ihl*4 - sizeof(struct iphdr);
 	if (ip_options_compile(dev_net(dev), opt, skb))
@@ -556,7 +554,7 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 					   const struct net_device *out,
 					   int (*okfn)(struct sk_buff *))
 {
-	struct ipv6hdr *hdr;
+	const struct ipv6hdr *hdr;
 	u32 pkt_len;
 
 	if (skb->len < sizeof(struct ipv6hdr))
@@ -739,7 +737,7 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 		nf_bridge->mask |= BRNF_PKT_TYPE;
 	}
 
-	if (br_parse_ip_options(skb))
+	if (pf == PF_INET && br_parse_ip_options(skb))
 		return NF_DROP;
 
 	/* The physdev module checks on this */

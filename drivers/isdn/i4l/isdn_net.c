@@ -1678,7 +1678,6 @@ isdn_net_ciscohdlck_slarp_in(isdn_net_local *lp, struct sk_buff *skb)
 	u32 your_seq;
 	__be32 local;
 	__be32 *addr, *mask;
-	u16 unused;
 
 	if (skb->len < 14)
 		return;
@@ -1722,7 +1721,6 @@ isdn_net_ciscohdlck_slarp_in(isdn_net_local *lp, struct sk_buff *skb)
 		lp->cisco_last_slarp_in = jiffies;
 		my_seq = be32_to_cpup((__be32 *)(p + 0));
 		your_seq = be32_to_cpup((__be32 *)(p + 4));
-		unused = be16_to_cpup((__be16 *)(p + 8));
 		p += 10;
 		lp->cisco_yourseq = my_seq;
 		lp->cisco_mineseen = your_seq;

@@ -449,7 +449,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	/* APs need special treatment */
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		struct ieee80211_sub_if_data *vlan, *tmpsdata;
-		struct beacon_data *old_beacon = sdata->u.ap.beacon;
+		struct beacon_data *old_beacon =
+			rtnl_dereference(sdata->u.ap.beacon);
 
 		/* sdata_running will return false, so this will disable */
 		ieee80211_bss_info_change_notify(sdata,
@@ -1143,10 +1144,6 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 				- ETH_HLEN /* ethernet hard_header_len */
 				+ IEEE80211_ENCRYPT_HEADROOM;
 	ndev->needed_tailroom = IEEE80211_ENCRYPT_TAILROOM;
-
-	ret = dev_alloc_name(ndev, ndev->name);
-	if (ret < 0)
-		goto fail;
 
 	ieee80211_assign_perm_addr(local, ndev, type);
 	memcpy(ndev->dev_addr, ndev->perm_addr, ETH_ALEN);

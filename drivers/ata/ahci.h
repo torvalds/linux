@@ -229,6 +229,10 @@ enum {
 	EM_CTL_ALHD		= (1 << 26), /* Activity LED */
 	EM_CTL_XMT		= (1 << 25), /* Transmit Only */
 	EM_CTL_SMB		= (1 << 24), /* Single Message Buffer */
+	EM_CTL_SGPIO		= (1 << 19), /* SGPIO messages supported */
+	EM_CTL_SES		= (1 << 18), /* SES-2 messages supported */
+	EM_CTL_SAFTE		= (1 << 17), /* SAF-TE messages supported */
+	EM_CTL_LED		= (1 << 16), /* LED messages supported */
 
 	/* em message type */
 	EM_MSG_TYPE_LED		= (1 << 0), /* LED */

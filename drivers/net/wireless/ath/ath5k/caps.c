@@ -94,6 +94,9 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 		}
 	}
 
+	if ((ah->ah_radio_5ghz_revision & 0xf0) == AR5K_SREV_RAD_2112)
+		__clear_bit(AR5K_MODE_11A, caps->cap_mode);
+
 	/* Set number of supported TX queues */
 	if (ah->ah_version == AR5K_AR5210)
 		caps->cap_queues.q_tx_num = AR5K_NUM_TX_QUEUES_NOQCU;

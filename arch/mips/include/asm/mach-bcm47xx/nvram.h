@@ -39,8 +39,16 @@ extern int nvram_getenv(char *name, char *val, size_t val_len);
 
 static inline void nvram_parse_macaddr(char *buf, u8 *macaddr)
 {
-	sscanf(buf, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &macaddr[0], &macaddr[1],
-	       &macaddr[2], &macaddr[3], &macaddr[4], &macaddr[5]);
+	if (strchr(buf, ':'))
+		sscanf(buf, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &macaddr[0],
+			&macaddr[1], &macaddr[2], &macaddr[3], &macaddr[4],
+			&macaddr[5]);
+	else if (strchr(buf, '-'))
+		sscanf(buf, "%hhx-%hhx-%hhx-%hhx-%hhx-%hhx", &macaddr[0],
+			&macaddr[1], &macaddr[2], &macaddr[3], &macaddr[4],
+			&macaddr[5]);
+	else
+		printk(KERN_WARNING "Can not parse mac address: %s\n", buf);
 }
 
 #endif

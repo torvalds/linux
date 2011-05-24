@@ -106,10 +106,10 @@ int __init instantiate_cache_sram(struct platform_device *dev,
 		goto out_free;
 	}
 
-	cache_sram->base_virt = ioremap_flags(cache_sram->base_phys,
+	cache_sram->base_virt = ioremap_prot(cache_sram->base_phys,
 				cache_sram->size, _PAGE_COHERENT | PAGE_KERNEL);
 	if (!cache_sram->base_virt) {
-		dev_err(&dev->dev, "%s: ioremap_flags failed\n",
+		dev_err(&dev->dev, "%s: ioremap_prot failed\n",
 				dev->dev.of_node->full_name);
 		ret = -ENOMEM;
 		goto out_release;

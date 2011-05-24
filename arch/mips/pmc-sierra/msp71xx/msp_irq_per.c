@@ -97,7 +97,7 @@ static int msp_per_irq_set_affinity(struct irq_data *d,
 
 static struct irq_chip msp_per_irq_controller = {
 	.name = "MSP_PER",
-	.irq_enable = unmask_per_irq.
+	.irq_enable = unmask_per_irq,
 	.irq_disable = mask_per_irq,
 	.irq_ack = msp_per_irq_ack,
 #ifdef CONFIG_SMP

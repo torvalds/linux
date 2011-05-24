@@ -6,11 +6,9 @@
 #include <asm/traps.h>
 
 /* cpu.c */
-extern const char *sparc_cpu_type;
 extern const char *sparc_pmu_type;
-extern const char *sparc_fpu_type;
-
 extern unsigned int fsr_storage;
+extern int ncpus_probed;
 
 #ifdef CONFIG_SPARC32
 /* cpu.c */
@@ -37,6 +35,7 @@ extern void sun4c_init_IRQ(void);
 extern unsigned int lvl14_resolution;
 
 extern void sun4m_init_IRQ(void);
+extern void sun4m_unmask_profile_irq(void);
 extern void sun4m_clear_profile_irq(int cpu);
 
 /* sun4d_irq.c */

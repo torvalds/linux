@@ -189,16 +189,19 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	bool acked;
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
-		/* the HW cannot have attempted that rate */
-		if (i >= hw->max_report_rates) {
+		if (info->status.rates[i].idx < 0) {
+			break;
+		} else if (i >= hw->max_report_rates) {
+			/* the HW cannot have attempted that rate */
 			info->status.rates[i].idx = -1;
 			info->status.rates[i].count = 0;
-		} else if (info->status.rates[i].idx >= 0) {
-			rates_idx = i;
+			break;
 		}
 
 		retry_count += info->status.rates[i].count;
 	}
+	rates_idx = i - 1;
+
 	if (retry_count < 0)
 		retry_count = 0;
 
@@ -443,3 +446,11 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	dev_kfree_skb(skb);
 }
 EXPORT_SYMBOL(ieee80211_tx_status);
+
+void ieee80211_report_low_ack(struct ieee80211_sta *pubsta, u32 num_packets)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+	cfg80211_cqm_pktloss_notify(sta->sdata->dev, sta->sta.addr,
+				    num_packets, GFP_ATOMIC);
+}
+EXPORT_SYMBOL(ieee80211_report_low_ack);

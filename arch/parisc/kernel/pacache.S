@@ -817,10 +817,7 @@ ENTRY(purge_kernel_dcache_page)
 	.procend
 ENDPROC(purge_kernel_dcache_page)
 
-
-	.export flush_user_dcache_range_asm
-
-flush_user_dcache_range_asm:
+ENTRY(flush_user_dcache_range_asm)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -839,6 +836,7 @@ flush_user_dcache_range_asm:
 	.exit
 
 	.procend
+ENDPROC(flush_user_dcache_range_asm)
 
 ENTRY(flush_kernel_dcache_range_asm)
 	.proc

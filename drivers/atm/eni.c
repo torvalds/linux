@@ -1469,10 +1469,7 @@ if (eni_boards) printk(KERN_INFO "loss: %ld\n",ENI_DEV(eni_boards)->lost);
 
 static void bug_int(struct atm_dev *dev,unsigned long reason)
 {
-	struct eni_dev *eni_dev;
-
 	DPRINTK(">bug_int\n");
-	eni_dev = ENI_DEV(dev);
 	if (reason & MID_DMA_ERR_ACK)
 		printk(KERN_CRIT DEV_LABEL "(itf %d): driver error - DMA "
 		    "error\n",dev->number);
@@ -1900,7 +1897,6 @@ static void eni_close(struct atm_vcc *vcc)
 
 static int eni_open(struct atm_vcc *vcc)
 {
-	struct eni_dev *eni_dev;
 	struct eni_vcc *eni_vcc;
 	int error;
 	short vpi = vcc->vpi;
@@ -1910,7 +1906,6 @@ static int eni_open(struct atm_vcc *vcc)
 	EVENT("eni_open\n",0,0);
 	if (!test_bit(ATM_VF_PARTIAL,&vcc->flags))
 		vcc->dev_data = NULL;
-	eni_dev = ENI_DEV(vcc->dev);
 	if (vci != ATM_VPI_UNSPEC && vpi != ATM_VCI_UNSPEC)
 		set_bit(ATM_VF_ADDR,&vcc->flags);
 	if (vcc->qos.aal != ATM_AAL0 && vcc->qos.aal != ATM_AAL5)

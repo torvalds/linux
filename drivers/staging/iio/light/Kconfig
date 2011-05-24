@@ -1,17 +1,7 @@
-#
+\#
 # Light sensors
 #
 comment "Light sensors"
-
-config SENSORS_TSL2563
-	tristate "TAOS TSL256[0-3] ambient light sensor"
-	depends on I2C
-	help
-	 If you say yes here you get support for the Taos TSL2560,
-	 TSL2561, TSL2562 and TSL2563 ambient light sensors.
-
-	 This driver can also be built as a module.  If so, the module
-	 will be called tsl2563.
 
 config SENSORS_ISL29018
         tristate "ISL 29018 light and proximity sensor"
@@ -24,3 +14,19 @@ config SENSORS_ISL29018
          in lux, proximity infrared sensing and normal infrared sensing.
          Data from sensor is accessible via sysfs.
 
+config SENSORS_TSL2563
+	tristate "TAOS TSL2560, TSL2561, TSL2562 and TSL2563 ambient light sensors"
+	depends on I2C
+	help
+	 If you say yes here you get support for the Taos TSL2560,
+	 TSL2561, TSL2562 and TSL2563 ambient light sensors.
+
+	 This driver can also be built as a module.  If so, the module
+	 will be called tsl2563.
+
+config TSL2583
+	tristate "TAOS TSL2580, TSL2581 and TSL2583 light-to-digital converters"
+	depends on I2C
+	help
+	 Provides support for the TAOS tsl2580, tsl2581 and tsl2583 devices.
+	 Access ALS data via iio, sysfs.

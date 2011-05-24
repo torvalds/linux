@@ -417,7 +417,7 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 
 	VPRINTK("ENTER\n");
 
-	WARN_ON(ATA_MAX_QUEUE > AHCI_MAX_CMDS);
+	WARN_ON((int)ATA_MAX_QUEUE > AHCI_MAX_CMDS);
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");

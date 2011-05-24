@@ -220,6 +220,8 @@ static struct usb_device_id mceusb_dev_table[] = {
 	{ USB_DEVICE(VENDOR_PHILIPS, 0x206c) },
 	/* Philips/Spinel plus IR transceiver for ASUS */
 	{ USB_DEVICE(VENDOR_PHILIPS, 0x2088) },
+	/* Philips IR transceiver (Dell branded) */
+	{ USB_DEVICE(VENDOR_PHILIPS, 0x2093) },
 	/* Realtek MCE IR Receiver and card reader */
 	{ USB_DEVICE(VENDOR_REALTEK, 0x0161),
 	  .driver_info = MULTIFUNCTION },

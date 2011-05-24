@@ -267,16 +267,61 @@ enum vnic_devcmd_cmd {
 
 	/*
 	 * As for BY_BDF except a0 is index of hvnlink subordinate vnic
-	 * or SR-IOV virtual vnic */
+	 * or SR-IOV virtual vnic
+	 */
 	CMD_PROXY_BY_INDEX =    _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 43),
 
 	/*
-	 * in:  (u64)a0=paddr of buffer to put latest VIC VIF-CONFIG-INFO TLV in
-	 *      (u32)a1=length of buffer in a0
-	 * out: (u64)a0=paddr of buffer with latest VIC VIF-CONFIG-INFO TLV
-	 *      (u32)a1=actual length of latest VIC VIF-CONFIG-INFO TLV */
+	 * For HPP toggle:
+	 * adapter-info-get
+	 * in:  (u64)a0=phsical address of buffer passed in from caller.
+	 *      (u16)a1=size of buffer specified in a0.
+	 * out: (u64)a0=phsical address of buffer passed in from caller.
+	 *      (u16)a1=actual bytes from VIF-CONFIG-INFO TLV, or
+	 *              0 if no VIF-CONFIG-INFO TLV was ever received. */
 	CMD_CONFIG_INFO_GET     = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 44),
+
+	/* init_prov_info2:
+	 * Variant of CMD_INIT_PROV_INFO, where it will not try to enable
+	 * the vnic until CMD_ENABLE2 is issued.
+	 *     (u64)a0=paddr of vnic_devcmd_provinfo
+	 *     (u32)a1=sizeof provision info */
+	CMD_INIT_PROV_INFO2  = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 47),
+
+	/* enable2:
+	 *      (u32)a0=0                  ==> standby
+	 *             =CMD_ENABLE2_ACTIVE ==> active
+	 */
+	CMD_ENABLE2 = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 48),
+
+	/*
+	 * cmd_status:
+	 *     Returns the status of the specified command
+	 * Input:
+	 *     a0 = command for which status is being queried.
+	 *          Possible values are:
+	 *              CMD_SOFT_RESET
+	 *              CMD_HANG_RESET
+	 *              CMD_OPEN
+	 *              CMD_INIT
+	 *              CMD_INIT_PROV_INFO
+	 *              CMD_DEINIT
+	 *              CMD_INIT_PROV_INFO2
+	 *              CMD_ENABLE2
+	 * Output:
+	 *     if status == STAT_ERROR
+	 *        a0 = ERR_ENOTSUPPORTED - status for command in a0 is
+	 *                                 not supported
+	 *     if status == STAT_NONE
+	 *        a0 = status of the devcmd specified in a0 as follows.
+	 *             ERR_SUCCESS   - command in a0 completed successfully
+	 *             ERR_EINPROGRESS - command in a0 is still in progress
+	 */
+	CMD_STATUS = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 49),
 };
+
+/* CMD_ENABLE2 flags */
+#define CMD_ENABLE2_ACTIVE  0x1
 
 /* flags for CMD_OPEN */
 #define CMD_OPENF_OPROM		0x1	/* open coming from option rom */
@@ -315,6 +360,8 @@ enum vnic_devcmd_error {
 	ERR_ETIMEDOUT = 8,
 	ERR_ELINKDOWN = 9,
 	ERR_EMAXRES = 10,
+	ERR_ENOTSUPPORTED = 11,
+	ERR_EINPROGRESS = 12,
 };
 
 /*

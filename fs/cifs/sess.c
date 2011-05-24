@@ -276,26 +276,13 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifsSesInfo *ses,
 }
 
 static void
-decode_unicode_ssetup(char **pbcc_area, __u16 bleft, struct cifsSesInfo *ses,
+decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifsSesInfo *ses,
 		      const struct nls_table *nls_cp)
 {
 	int len;
 	char *data = *pbcc_area;
 
 	cFYI(1, "bleft %d", bleft);
-
-	/*
-	 * Windows servers do not always double null terminate their final
-	 * Unicode string. Check to see if there are an uneven number of bytes
-	 * left. If so, then add an extra NULL pad byte to the end of the
-	 * response.
-	 *
-	 * See section 2.7.2 in "Implementing CIFS" for details
-	 */
-	if (bleft % 2) {
-		data[bleft] = 0;
-		++bleft;
-	}
 
 	kfree(ses->serverOS);
 	ses->serverOS = cifs_strndup_from_ucs(data, bleft, true, nls_cp);
@@ -634,7 +621,7 @@ ssetup_ntlmssp_authenticate:
 	and rest of bcc area. This allows us to avoid
 	a large buffer 17K allocation */
 	iov[0].iov_base = (char *)pSMB;
-	iov[0].iov_len = smb_buf->smb_buf_length + 4;
+	iov[0].iov_len = be32_to_cpu(smb_buf->smb_buf_length) + 4;
 
 	/* setting this here allows the code at the end of the function
 	   to free the request buffer if there's an error */
@@ -669,7 +656,7 @@ ssetup_ntlmssp_authenticate:
 		 * to use challenge/response method (i.e. Password bit is 1).
 		 */
 
-		calc_lanman_hash(ses->password, ses->server->cryptkey,
+		rc = calc_lanman_hash(ses->password, ses->server->cryptkey,
 				 ses->server->secMode & SECMODE_PW_ENCRYPT ?
 					true : false, lnm_session_key);
 
@@ -872,9 +859,10 @@ ssetup_ntlmssp_authenticate:
 	iov[2].iov_len = (long) bcc_ptr - (long) str_area;
 
 	count = iov[1].iov_len + iov[2].iov_len;
-	smb_buf->smb_buf_length += count;
+	smb_buf->smb_buf_length =
+		cpu_to_be32(be32_to_cpu(smb_buf->smb_buf_length) + count);
 
-	put_bcc_le(count, smb_buf);
+	put_bcc(count, smb_buf);
 
 	rc = SendReceive2(xid, ses, iov, 3 /* num_iovecs */, &resp_buf_type,
 			  CIFS_LOG_ERROR);
@@ -929,7 +917,9 @@ ssetup_ntlmssp_authenticate:
 	}
 
 	/* BB check if Unicode and decode strings */
-	if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
+	if (bytes_remaining == 0) {
+		/* no string area to decode, do nothing */
+	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
 		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
 			++bcc_ptr;

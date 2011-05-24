@@ -31,6 +31,7 @@
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/sched.h>
+#include <linux/delay.h>
 #include "intel_sst_ioctl.h"
 #include "intel_sst.h"
 #include "intel_sst_fw_ipc.h"
@@ -47,7 +48,7 @@
  */
 int sst_check_device_type(u32 device, u32 num_chan, u32 *pcm_slot)
 {
-	if (device > MAX_NUM_STREAMS_MFLD) {
+	if (device >= MAX_NUM_STREAMS_MFLD) {
 		pr_debug("device type invalid %d\n", device);
 		return -EINVAL;
 	}
@@ -72,6 +73,8 @@ int sst_check_device_type(u32 device, u32 num_chan, u32 *pcm_slot)
 			*pcm_slot = 0x07;
 		else if (device == SND_SST_DEVICE_CAPTURE && num_chan == 4)
 			*pcm_slot = 0x0F;
+		else if (device == SND_SST_DEVICE_CAPTURE && num_chan > 4)
+			*pcm_slot = 0x1F;
 		else {
 			pr_debug("No condition satisfied.. ret err\n");
 			return -EINVAL;
@@ -519,10 +522,6 @@ int sst_drain_stream(int str_id)
 	str_info->data_blk.on = true;
 	retval = sst_wait_interruptible(sst_drv_ctx, &str_info->data_blk);
 	str_info->need_draining = false;
-	if (retval == -SST_ERR_INVALID_STREAM_ID) {
-		retval = -EINVAL;
-		sst_clean_stream(str_info);
-	}
 	return retval;
 }
 
@@ -563,6 +562,12 @@ int sst_free_stream(int str_id)
 			str_info->data_blk.ret_code = 0;
 			wake_up(&sst_drv_ctx->wait_queue);
 		}
+		str_info->data_blk.on = true;
+		str_info->data_blk.condition = false;
+		retval = sst_wait_interruptible_timeout(sst_drv_ctx,
+				&str_info->ctrl_blk, SST_BLOCK_TIMEOUT);
+		pr_debug("wait for free returned %d\n", retval);
+		msleep(100);
 		mutex_lock(&sst_drv_ctx->stream_lock);
 		sst_clean_stream(str_info);
 		mutex_unlock(&sst_drv_ctx->stream_lock);

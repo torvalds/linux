@@ -58,6 +58,71 @@ static void tegra_ehci_power_down(struct usb_hcd *hcd)
 	clk_disable(tegra->emc_clk);
 }
 
+static int tegra_ehci_internal_port_reset(
+	struct ehci_hcd	*ehci,
+	u32 __iomem	*portsc_reg
+)
+{
+	u32		temp;
+	unsigned long	flags;
+	int		retval = 0;
+	int		i, tries;
+	u32		saved_usbintr;
+
+	spin_lock_irqsave(&ehci->lock, flags);
+	saved_usbintr = ehci_readl(ehci, &ehci->regs->intr_enable);
+	/* disable USB interrupt */
+	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
+	spin_unlock_irqrestore(&ehci->lock, flags);
+
+	/*
+	 * Here we have to do Port Reset at most twice for
+	 * Port Enable bit to be set.
+	 */
+	for (i = 0; i < 2; i++) {
+		temp = ehci_readl(ehci, portsc_reg);
+		temp |= PORT_RESET;
+		ehci_writel(ehci, temp, portsc_reg);
+		mdelay(10);
+		temp &= ~PORT_RESET;
+		ehci_writel(ehci, temp, portsc_reg);
+		mdelay(1);
+		tries = 100;
+		do {
+			mdelay(1);
+			/*
+			 * Up to this point, Port Enable bit is
+			 * expected to be set after 2 ms waiting.
+			 * USB1 usually takes extra 45 ms, for safety,
+			 * we take 100 ms as timeout.
+			 */
+			temp = ehci_readl(ehci, portsc_reg);
+		} while (!(temp & PORT_PE) && tries--);
+		if (temp & PORT_PE)
+			break;
+	}
+	if (i == 2)
+		retval = -ETIMEDOUT;
+
+	/*
+	 * Clear Connect Status Change bit if it's set.
+	 * We can't clear PORT_PEC. It will also cause PORT_PE to be cleared.
+	 */
+	if (temp & PORT_CSC)
+		ehci_writel(ehci, PORT_CSC, portsc_reg);
+
+	/*
+	 * Write to clear any interrupt status bits that might be set
+	 * during port reset.
+	 */
+	temp = ehci_readl(ehci, &ehci->regs->status);
+	ehci_writel(ehci, temp, &ehci->regs->status);
+
+	/* restore original interrupt enable bits */
+	ehci_writel(ehci, saved_usbintr, &ehci->regs->intr_enable);
+	return retval;
+}
+
 static int tegra_ehci_hub_control(
 	struct usb_hcd	*hcd,
 	u16		typeReq,
@@ -119,6 +184,13 @@ static int tegra_ehci_hub_control(
 
 		set_bit((wIndex & 0xff) - 1, &ehci->suspended_ports);
 		goto done;
+	}
+
+	/* For USB1 port we need to issue Port Reset twice internally */
+	if (tegra->phy->instance == 0 &&
+	   (typeReq == SetPortFeature && wValue == USB_PORT_FEAT_RESET)) {
+		spin_unlock_irqrestore(&ehci->lock, flags);
+		return tegra_ehci_internal_port_reset(ehci, status_reg);
 	}
 
 	/*
@@ -328,7 +400,7 @@ static int tegra_ehci_setup(struct usb_hcd *hcd)
 	/* EHCI registers start at offset 0x100 */
 	ehci->caps = hcd->regs + 0x100;
 	ehci->regs = hcd->regs + 0x100 +
-		HC_LENGTH(readl(&ehci->caps->hc_capbase));
+		HC_LENGTH(ehci, readl(&ehci->caps->hc_capbase));
 
 	dbg_hcs_params(ehci, "reset");
 	dbg_hcc_params(ehci, "reset");

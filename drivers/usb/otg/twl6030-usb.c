@@ -31,6 +31,7 @@
 #include <linux/err.h>
 #include <linux/notifier.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 /* usb register definitions */
 #define USB_VENDOR_ID_LSB		0x00
@@ -101,7 +102,7 @@ struct twl6030_usb {
 	bool			irq_enabled;
 };
 
-#define xceiv_to_twl(x)		container_of((x), struct twl6030_usb, otg);
+#define xceiv_to_twl(x)		container_of((x), struct twl6030_usb, otg)
 
 /*-------------------------------------------------------------------------*/
 
@@ -184,6 +185,19 @@ static int twl6030_phy_suspend(struct otg_transceiver *x, int suspend)
 	struct twl4030_usb_data *pdata = dev->platform_data;
 
 	pdata->phy_suspend(dev, suspend);
+
+	return 0;
+}
+
+static int twl6030_start_srp(struct otg_transceiver *x)
+{
+	struct twl6030_usb *twl = xceiv_to_twl(x);
+
+	twl6030_writeb(twl, TWL_MODULE_USB, 0x24, USB_VBUS_CTRL_SET);
+	twl6030_writeb(twl, TWL_MODULE_USB, 0x84, USB_VBUS_CTRL_SET);
+
+	mdelay(100);
+	twl6030_writeb(twl, TWL_MODULE_USB, 0xa0, USB_VBUS_CTRL_CLR);
 
 	return 0;
 }
@@ -403,6 +417,7 @@ static int __devinit twl6030_usb_probe(struct platform_device *pdev)
 	twl->otg.init		= twl6030_phy_init;
 	twl->otg.shutdown	= twl6030_phy_shutdown;
 	twl->otg.set_suspend	= twl6030_phy_suspend;
+	twl->otg.start_srp	= twl6030_start_srp;
 
 	/* init spinlock for workqueue */
 	spin_lock_init(&twl->lock);

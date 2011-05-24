@@ -565,7 +565,7 @@ static bool ldm_validate_partition_table(struct parsed_partitions *state)
 
 	data = read_part_sector(state, 0, &sect);
 	if (!data) {
-		ldm_crit ("Disk read failed.");
+		ldm_info ("Disk read failed.");
 		return false;
 	}
 
@@ -1335,6 +1335,11 @@ static bool ldm_frag_add (const u8 *data, int size, struct list_head *frags)
 
 	list_add_tail (&f->list, frags);
 found:
+	if (rec >= f->num) {
+		ldm_error("REC value (%d) exceeds NUM value (%d)", rec, f->num);
+		return false;
+	}
+
 	if (f->map & (1 << rec)) {
 		ldm_error ("Duplicate VBLK, part %d.", rec);
 		f->map &= 0x7F;			/* Mark the group as broken */

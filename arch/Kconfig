@@ -144,9 +144,6 @@ config HAVE_CLK
 config HAVE_DMA_API_DEBUG
 	bool
 
-config HAVE_DEFAULT_NO_SPIN_MUTEXES
-	bool
-
 config HAVE_HW_BREAKPOINT
 	bool
 	depends on PERF_EVENTS

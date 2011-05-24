@@ -15,6 +15,7 @@
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/pm_qos_params.h>
+#include <linux/slab.h>
 #include <net/sch_generic.h>
 #include <linux/slab.h>
 #include <net/mac80211.h>
@@ -170,7 +171,7 @@ ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 		return RX_CONTINUE;
 
 	if (skb->len < 24)
-		return RX_DROP_MONITOR;
+		return RX_CONTINUE;
 
 	presp = ieee80211_is_probe_resp(fc);
 	if (presp) {
@@ -850,3 +851,122 @@ void ieee80211_scan_cancel(struct ieee80211_local *local)
 	}
 	mutex_unlock(&local->mtx);
 }
+
+int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
+				       struct cfg80211_sched_scan_request *req)
+{
+	struct ieee80211_local *local = sdata->local;
+	int ret, i;
+
+	mutex_lock(&sdata->local->mtx);
+
+	if (local->sched_scanning) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	if (!local->ops->sched_scan_start) {
+		ret = -ENOTSUPP;
+		goto out;
+	}
+
+	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+		local->sched_scan_ies.ie[i] = kzalloc(2 +
+						      IEEE80211_MAX_SSID_LEN +
+						      local->scan_ies_len,
+						      GFP_KERNEL);
+		if (!local->sched_scan_ies.ie[i]) {
+			ret = -ENOMEM;
+			goto out_free;
+		}
+
+		local->sched_scan_ies.len[i] =
+			ieee80211_build_preq_ies(local,
+						 local->sched_scan_ies.ie[i],
+						 req->ie, req->ie_len, i,
+						 (u32) -1, 0);
+	}
+
+	ret = drv_sched_scan_start(local, sdata, req,
+				   &local->sched_scan_ies);
+	if (ret == 0) {
+		local->sched_scanning = true;
+		goto out;
+	}
+
+out_free:
+	while (i > 0)
+		kfree(local->sched_scan_ies.ie[--i]);
+out:
+	mutex_unlock(&sdata->local->mtx);
+	return ret;
+}
+
+int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	int ret = 0, i;
+
+	mutex_lock(&sdata->local->mtx);
+
+	if (!local->ops->sched_scan_stop) {
+		ret = -ENOTSUPP;
+		goto out;
+	}
+
+	if (local->sched_scanning) {
+		for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+			kfree(local->sched_scan_ies.ie[i]);
+
+		drv_sched_scan_stop(local, sdata);
+		local->sched_scanning = false;
+	}
+out:
+	mutex_unlock(&sdata->local->mtx);
+
+	return ret;
+}
+
+void ieee80211_sched_scan_results(struct ieee80211_hw *hw)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	trace_api_sched_scan_results(local);
+
+	cfg80211_sched_scan_results(hw->wiphy);
+}
+EXPORT_SYMBOL(ieee80211_sched_scan_results);
+
+void ieee80211_sched_scan_stopped_work(struct work_struct *work)
+{
+	struct ieee80211_local *local =
+		container_of(work, struct ieee80211_local,
+			     sched_scan_stopped_work);
+	int i;
+
+	mutex_lock(&local->mtx);
+
+	if (!local->sched_scanning) {
+		mutex_unlock(&local->mtx);
+		return;
+	}
+
+	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+		kfree(local->sched_scan_ies.ie[i]);
+
+	local->sched_scanning = false;
+
+	mutex_unlock(&local->mtx);
+
+	cfg80211_sched_scan_stopped(local->hw.wiphy);
+}
+
+void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	trace_api_sched_scan_stopped(local);
+
+	ieee80211_queue_work(&local->hw, &local->sched_scan_stopped_work);
+}
+EXPORT_SYMBOL(ieee80211_sched_scan_stopped);

@@ -72,6 +72,7 @@ MODULE_FIRMWARE("b43/ucode11.fw");
 MODULE_FIRMWARE("b43/ucode13.fw");
 MODULE_FIRMWARE("b43/ucode14.fw");
 MODULE_FIRMWARE("b43/ucode15.fw");
+MODULE_FIRMWARE("b43/ucode16_mimo.fw");
 MODULE_FIRMWARE("b43/ucode5.fw");
 MODULE_FIRMWARE("b43/ucode9.fw");
 
@@ -2685,6 +2686,17 @@ out:
 	dev->mac_suspended++;
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/MacPhyClkSet */
+void b43_mac_phy_clock_set(struct b43_wldev *dev, bool on)
+{
+	u32 tmslow = ssb_read32(dev->dev, SSB_TMSLOW);
+	if (on)
+		tmslow |= B43_TMSLOW_MACPHYCLKEN;
+	else
+		tmslow &= ~B43_TMSLOW_MACPHYCLKEN;
+	ssb_write32(dev->dev, SSB_TMSLOW, tmslow);
+}
+
 static void b43_adjust_opmode(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
@@ -2841,7 +2853,7 @@ static int b43_chip_init(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
 	int err;
-	u32 value32, macctl;
+	u32 macctl;
 	u16 value16;
 
 	/* Initialize the MAC control */
@@ -2919,9 +2931,7 @@ static int b43_chip_init(struct b43_wldev *dev)
 	b43_write32(dev, B43_MMIO_DMA4_IRQ_MASK, 0x0000DC00);
 	b43_write32(dev, B43_MMIO_DMA5_IRQ_MASK, 0x0000DC00);
 
-	value32 = ssb_read32(dev->dev, SSB_TMSLOW);
-	value32 |= 0x00100000;
-	ssb_write32(dev->dev, SSB_TMSLOW, value32);
+	b43_mac_phy_clock_set(dev, true);
 
 	b43_write16(dev, B43_MMIO_POWERUP_DELAY,
 		    dev->dev->bus->chipco.fast_pwrup_delay);
@@ -4212,33 +4222,18 @@ static void b43_bluetooth_coext_disable(struct b43_wldev *dev)
 
 static void b43_imcfglo_timeouts_workaround(struct b43_wldev *dev)
 {
-#ifdef CONFIG_SSB_DRIVER_PCICORE
 	struct ssb_bus *bus = dev->dev->bus;
 	u32 tmp;
 
-	if (bus->pcicore.dev &&
-	    bus->pcicore.dev->id.coreid == SSB_DEV_PCI &&
-	    bus->pcicore.dev->id.revision <= 5) {
-		/* IMCFGLO timeouts workaround. */
+	if ((bus->chip_id == 0x4311 && bus->chip_rev == 2) ||
+	    (bus->chip_id == 0x4312)) {
 		tmp = ssb_read32(dev->dev, SSB_IMCFGLO);
-		switch (bus->bustype) {
-		case SSB_BUSTYPE_PCI:
-		case SSB_BUSTYPE_PCMCIA:
-			tmp &= ~SSB_IMCFGLO_REQTO;
-			tmp &= ~SSB_IMCFGLO_SERTO;
-			tmp |= 0x32;
-			break;
-		case SSB_BUSTYPE_SSB:
-			tmp &= ~SSB_IMCFGLO_REQTO;
-			tmp &= ~SSB_IMCFGLO_SERTO;
-			tmp |= 0x53;
-			break;
-		default:
-			break;
-		}
+		tmp &= ~SSB_IMCFGLO_REQTO;
+		tmp &= ~SSB_IMCFGLO_SERTO;
+		tmp |= 0x3;
 		ssb_write32(dev->dev, SSB_IMCFGLO, tmp);
+		ssb_commit_settings(bus);
 	}
-#endif /* CONFIG_SSB_DRIVER_PCICORE */
 }
 
 static void b43_set_synth_pu_delay(struct b43_wldev *dev, bool idle)
@@ -4862,24 +4857,7 @@ static void b43_one_core_detach(struct ssb_device *dev)
 static int b43_one_core_attach(struct ssb_device *dev, struct b43_wl *wl)
 {
 	struct b43_wldev *wldev;
-	struct pci_dev *pdev;
 	int err = -ENOMEM;
-
-	if (!list_empty(&wl->devlist)) {
-		/* We are not the first core on this chip. */
-		pdev = (dev->bus->bustype == SSB_BUSTYPE_PCI) ? dev->bus->host_pci : NULL;
-		/* Only special chips support more than one wireless
-		 * core, although some of the other chips have more than
-		 * one wireless core as well. Check for this and
-		 * bail out early.
-		 */
-		if (!pdev ||
-		    ((pdev->device != 0x4321) &&
-		     (pdev->device != 0x4313) && (pdev->device != 0x431A))) {
-			b43dbg(wl, "Ignoring unconnected 802.11 core\n");
-			return -ENODEV;
-		}
-	}
 
 	wldev = kzalloc(sizeof(*wldev), GFP_KERNEL);
 	if (!wldev)
@@ -5001,7 +4979,7 @@ out:
 	return err;
 }
 
-static int b43_probe(struct ssb_device *dev, const struct ssb_device_id *id)
+static int b43_ssb_probe(struct ssb_device *dev, const struct ssb_device_id *id)
 {
 	struct b43_wl *wl;
 	int err;
@@ -5039,7 +5017,7 @@ static int b43_probe(struct ssb_device *dev, const struct ssb_device_id *id)
 	return err;
 }
 
-static void b43_remove(struct ssb_device *dev)
+static void b43_ssb_remove(struct ssb_device *dev)
 {
 	struct b43_wl *wl = ssb_get_devtypedata(dev);
 	struct b43_wldev *wldev = ssb_get_drvdata(dev);
@@ -5082,8 +5060,8 @@ void b43_controller_restart(struct b43_wldev *dev, const char *reason)
 static struct ssb_driver b43_ssb_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= b43_ssb_tbl,
-	.probe		= b43_probe,
-	.remove		= b43_remove,
+	.probe		= b43_ssb_probe,
+	.remove		= b43_ssb_remove,
 };
 
 static void b43_print_driverinfo(void)

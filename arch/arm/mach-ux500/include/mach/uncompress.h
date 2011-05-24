@@ -24,7 +24,7 @@
 #include <linux/amba/serial.h>
 #include <mach/hardware.h>
 
-static u32 ux500_uart_base;
+u32 ux500_uart_base;
 
 static void putc(const char c)
 {

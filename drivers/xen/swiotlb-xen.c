@@ -54,7 +54,7 @@ u64 start_dma_addr;
 
 static dma_addr_t xen_phys_to_bus(phys_addr_t paddr)
 {
-	return phys_to_machine(XPADDR(paddr)).maddr;;
+	return phys_to_machine(XPADDR(paddr)).maddr;
 }
 
 static phys_addr_t xen_bus_to_phys(dma_addr_t baddr)

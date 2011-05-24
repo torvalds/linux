@@ -1103,7 +1103,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	posix_cpu_timers_init(p);
 
-	p->lock_depth = -1;		/* -1 = no lock */
 	do_posix_clock_monotonic_gettime(&p->start_time);
 	p->real_start_time = p->start_time;
 	monotonic_to_bootbased(&p->real_start_time);
@@ -1153,7 +1152,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #endif
 
 	/* Perform scheduler related setup. Assign this task to a CPU. */
-	sched_fork(p, clone_flags);
+	sched_fork(p);
 
 	retval = perf_event_init_task(p);
 	if (retval)
@@ -1464,7 +1463,7 @@ long do_fork(unsigned long clone_flags,
 		 */
 		p->flags &= ~PF_STARTING;
 
-		wake_up_new_task(p, clone_flags);
+		wake_up_new_task(p);
 
 		tracehook_report_clone_complete(trace, regs,
 						clone_flags, nr, p);

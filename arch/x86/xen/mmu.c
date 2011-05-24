@@ -1054,7 +1054,7 @@ void xen_mm_pin_all(void)
  * that's before we have page structures to store the bits.  So do all
  * the book-keeping now.
  */
-static __init int xen_mark_pinned(struct mm_struct *mm, struct page *page,
+static int __init xen_mark_pinned(struct mm_struct *mm, struct page *page,
 				  enum pt_level level)
 {
 	SetPagePinned(page);
@@ -1187,7 +1187,7 @@ static void drop_other_mm_ref(void *info)
 
 	active_mm = percpu_read(cpu_tlbstate.active_mm);
 
-	if (active_mm == mm)
+	if (active_mm == mm && percpu_read(cpu_tlbstate.state) != TLBSTATE_OK)
 		leave_mm(smp_processor_id());
 
 	/* If this cpu still has a stale cr3 reference, then make sure
@@ -1271,13 +1271,27 @@ void xen_exit_mmap(struct mm_struct *mm)
 	spin_unlock(&mm->page_table_lock);
 }
 
-static __init void xen_pagetable_setup_start(pgd_t *base)
+static void __init xen_pagetable_setup_start(pgd_t *base)
 {
+}
+
+static __init void xen_mapping_pagetable_reserve(u64 start, u64 end)
+{
+	/* reserve the range used */
+	native_pagetable_reserve(start, end);
+
+	/* set as RW the rest */
+	printk(KERN_DEBUG "xen: setting RW the range %llx - %llx\n", end,
+			PFN_PHYS(pgt_buf_top));
+	while (end < PFN_PHYS(pgt_buf_top)) {
+		make_lowmem_page_readwrite(__va(end));
+		end += PAGE_SIZE;
+	}
 }
 
 static void xen_post_allocator_init(void);
 
-static __init void xen_pagetable_setup_done(pgd_t *base)
+static void __init xen_pagetable_setup_done(pgd_t *base)
 {
 	xen_setup_shared_info();
 	xen_post_allocator_init();
@@ -1473,16 +1487,20 @@ static void xen_pgd_free(struct mm_struct *mm, pgd_t *pgd)
 #endif
 }
 
-static __init pte_t mask_rw_pte(pte_t *ptep, pte_t pte)
-{
-	unsigned long pfn = pte_pfn(pte);
-
 #ifdef CONFIG_X86_32
+static pte_t __init mask_rw_pte(pte_t *ptep, pte_t pte)
+{
 	/* If there's an existing pte, then don't allow _PAGE_RW to be set */
 	if (pte_val_ma(*ptep) & _PAGE_PRESENT)
 		pte = __pte_ma(((pte_val_ma(*ptep) & _PAGE_RW) | ~_PAGE_RW) &
 			       pte_val_ma(pte));
-#endif
+
+	return pte;
+}
+#else /* CONFIG_X86_64 */
+static pte_t __init mask_rw_pte(pte_t *ptep, pte_t pte)
+{
+	unsigned long pfn = pte_pfn(pte);
 
 	/*
 	 * If the new pfn is within the range of the newly allocated
@@ -1491,16 +1509,17 @@ static __init pte_t mask_rw_pte(pte_t *ptep, pte_t pte)
 	 * it is RO.
 	 */
 	if (((!is_early_ioremap_ptep(ptep) &&
-			pfn >= pgt_buf_start && pfn < pgt_buf_end)) ||
+			pfn >= pgt_buf_start && pfn < pgt_buf_top)) ||
 			(is_early_ioremap_ptep(ptep) && pfn != (pgt_buf_end - 1)))
 		pte = pte_wrprotect(pte);
 
 	return pte;
 }
+#endif /* CONFIG_X86_64 */
 
 /* Init-time set_pte while constructing initial pagetables, which
    doesn't allow RO pagetable pages to be remapped RW */
-static __init void xen_set_pte_init(pte_t *ptep, pte_t pte)
+static void __init xen_set_pte_init(pte_t *ptep, pte_t pte)
 {
 	pte = mask_rw_pte(ptep, pte);
 
@@ -1518,7 +1537,7 @@ static void pin_pagetable_pfn(unsigned cmd, unsigned long pfn)
 
 /* Early in boot, while setting up the initial pagetable, assume
    everything is pinned. */
-static __init void xen_alloc_pte_init(struct mm_struct *mm, unsigned long pfn)
+static void __init xen_alloc_pte_init(struct mm_struct *mm, unsigned long pfn)
 {
 #ifdef CONFIG_FLATMEM
 	BUG_ON(mem_map);	/* should only be used early */
@@ -1528,7 +1547,7 @@ static __init void xen_alloc_pte_init(struct mm_struct *mm, unsigned long pfn)
 }
 
 /* Used for pmd and pud */
-static __init void xen_alloc_pmd_init(struct mm_struct *mm, unsigned long pfn)
+static void __init xen_alloc_pmd_init(struct mm_struct *mm, unsigned long pfn)
 {
 #ifdef CONFIG_FLATMEM
 	BUG_ON(mem_map);	/* should only be used early */
@@ -1538,13 +1557,13 @@ static __init void xen_alloc_pmd_init(struct mm_struct *mm, unsigned long pfn)
 
 /* Early release_pte assumes that all pts are pinned, since there's
    only init_mm and anything attached to that is pinned. */
-static __init void xen_release_pte_init(unsigned long pfn)
+static void __init xen_release_pte_init(unsigned long pfn)
 {
 	pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
 	make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
 }
 
-static __init void xen_release_pmd_init(unsigned long pfn)
+static void __init xen_release_pmd_init(unsigned long pfn)
 {
 	make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
 }
@@ -1670,7 +1689,7 @@ static void set_page_prot(void *addr, pgprot_t prot)
 		BUG();
 }
 
-static __init void xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
+static void __init xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 {
 	unsigned pmdidx, pteidx;
 	unsigned ident_pte;
@@ -1753,7 +1772,7 @@ static void convert_pfn_mfn(void *v)
  * of the physical mapping once some sort of allocator has been set
  * up.
  */
-__init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd,
+pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
 					 unsigned long max_pfn)
 {
 	pud_t *l3;
@@ -1824,7 +1843,7 @@ __init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd,
 static RESERVE_BRK_ARRAY(pmd_t, initial_kernel_pmd, PTRS_PER_PMD);
 static RESERVE_BRK_ARRAY(pmd_t, swapper_kernel_pmd, PTRS_PER_PMD);
 
-static __init void xen_write_cr3_init(unsigned long cr3)
+static void __init xen_write_cr3_init(unsigned long cr3)
 {
 	unsigned long pfn = PFN_DOWN(__pa(swapper_pg_dir));
 
@@ -1861,7 +1880,7 @@ static __init void xen_write_cr3_init(unsigned long cr3)
 	pv_mmu_ops.write_cr3 = &xen_write_cr3;
 }
 
-__init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd,
+pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
 					 unsigned long max_pfn)
 {
 	pmd_t *kernel_pmd;
@@ -1967,7 +1986,7 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 #endif
 }
 
-__init void xen_ident_map_ISA(void)
+void __init xen_ident_map_ISA(void)
 {
 	unsigned long pa;
 
@@ -1990,7 +2009,7 @@ __init void xen_ident_map_ISA(void)
 	xen_flush_tlb();
 }
 
-static __init void xen_post_allocator_init(void)
+static void __init xen_post_allocator_init(void)
 {
 #ifdef CONFIG_XEN_DEBUG
 	pv_mmu_ops.make_pte = PV_CALLEE_SAVE(xen_make_pte_debug);
@@ -2027,7 +2046,7 @@ static void xen_leave_lazy_mmu(void)
 	preempt_enable();
 }
 
-static const struct pv_mmu_ops xen_mmu_ops __initdata = {
+static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 	.read_cr2 = xen_read_cr2,
 	.write_cr2 = xen_write_cr2,
 
@@ -2100,6 +2119,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 
 void __init xen_init_mmu_ops(void)
 {
+	x86_init.mapping.pagetable_reserve = xen_mapping_pagetable_reserve;
 	x86_init.paging.pagetable_setup_start = xen_pagetable_setup_start;
 	x86_init.paging.pagetable_setup_done = xen_pagetable_setup_done;
 	pv_mmu_ops = xen_mmu_ops;

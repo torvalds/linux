@@ -39,7 +39,7 @@
 
 typedef struct mac_addr {
 	u8 mac_addr_value[ETH_ALEN];
-} mac_addr_t;
+} __packed mac_addr_t;
 
 enum {
 	BOND_AD_STABLE = 0,
@@ -134,12 +134,12 @@ typedef struct lacpdu {
 	u8 tlv_type_terminator;	     // = terminator
 	u8 terminator_length;	     // = 0
 	u8 reserved_50[50];	     // = 0
-} lacpdu_t;
+} __packed lacpdu_t;
 
 typedef struct lacpdu_header {
 	struct ethhdr hdr;
 	struct lacpdu lacpdu;
-} lacpdu_header_t;
+} __packed lacpdu_header_t;
 
 // Marker Protocol Data Unit(PDU) structure(43.5.3.2 in the 802.3ad standard)
 typedef struct bond_marker {
@@ -155,12 +155,12 @@ typedef struct bond_marker {
 	u8 tlv_type_terminator;	     //  = 0x00
 	u8 terminator_length;	     //  = 0x00
 	u8 reserved_90[90];	     //  = 0
-} bond_marker_t;
+} __packed bond_marker_t;
 
 typedef struct bond_marker_header {
 	struct ethhdr hdr;
 	struct bond_marker marker;
-} bond_marker_header_t;
+} __packed bond_marker_header_t;
 
 #pragma pack()
 
@@ -258,7 +258,6 @@ struct ad_bond_info {
 				 * requested
 				 */
 	struct timer_list ad_timer;
-	struct packet_type ad_pkt_type;
 };
 
 struct ad_slave_info {
@@ -280,7 +279,8 @@ void bond_3ad_adapter_duplex_changed(struct slave *slave);
 void bond_3ad_handle_link_change(struct slave *slave, char link);
 int  bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info);
 int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev);
-int bond_3ad_lacpdu_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type* ptype, struct net_device *orig_dev);
+void bond_3ad_lacpdu_recv(struct sk_buff *skb, struct bonding *bond,
+			  struct slave *slave);
 int bond_3ad_set_carrier(struct bonding *bond);
 #endif //__BOND_3AD_H__
 

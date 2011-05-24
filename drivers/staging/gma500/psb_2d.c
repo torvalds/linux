@@ -40,7 +40,6 @@
 #include "psb_reg.h"
 #include "psb_drv.h"
 #include "psb_fb.h"
-#include "psb_sgx.h"
 
 void psb_spank(struct drm_psb_private *dev_priv)
 {
@@ -85,7 +84,7 @@ static int psb_2d_wait_available(struct drm_psb_private *dev_priv,
 /* FIXME: Remember if we expose the 2D engine to the DRM we need to serialize
    it with console use */
 
-static int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
+int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
 	 	  	   unsigned size)
 {
 	int ret = 0;
@@ -161,7 +160,7 @@ static void psbfb_fillrect_accel(struct fb_info *info,
 	if (!fb)
 		return;
 
-	offset = psbfb->offset;
+	offset = psbfb->gtt->offset;
 	stride = fb->pitch;
 
 	switch (fb->depth) {
@@ -304,7 +303,7 @@ static void psbfb_copyarea_accel(struct fb_info *info,
 	if (!fb)
 		return;
 
-	offset = psbfb->offset;
+	offset = psbfb->gtt->offset;
 	stride = fb->pitch;
 
 	switch (fb->depth) {
@@ -344,7 +343,7 @@ void psbfb_copyarea(struct fb_info *info,
 	if (unlikely(info->state != FBINFO_STATE_RUNNING))
 		return;
 
-	if (1 || (info->flags & FBINFO_HWACCEL_DISABLED))
+	if (info->flags & FBINFO_HWACCEL_DISABLED)
 		return cfb_copyarea(info, region);
 
 	/* psb_check_power_state(dev, PSB_DEVICE_SGX); */

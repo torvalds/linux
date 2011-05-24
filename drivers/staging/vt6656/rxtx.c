@@ -2441,13 +2441,13 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
         if (pDevice->bEnableHostWEP) {
             uNodeIndex = 0;
             bNodeExist = TRUE;
-        };
+        }
     }
     else {
         if (pDevice->bEnableHostWEP) {
             if (BSSbIsSTAInNodeDB(pDevice, (PBYTE)(p80211Header->sA3.abyAddr1), &uNodeIndex))
                 bNodeExist = TRUE;
-        };
+        }
         bNeedACK = TRUE;
         pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
     };

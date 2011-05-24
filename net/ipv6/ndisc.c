@@ -324,7 +324,7 @@ static inline u8 *ndisc_opt_addr_data(struct nd_opt_hdr *p,
 	return lladdr + prepad;
 }
 
-int ndisc_mc_map(struct in6_addr *addr, char *buf, struct net_device *dev, int dir)
+int ndisc_mc_map(const struct in6_addr *addr, char *buf, struct net_device *dev, int dir)
 {
 	switch (dev->type) {
 	case ARPHRD_ETHER:
@@ -611,6 +611,29 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 		     inc_opt ? ND_OPT_TARGET_LL_ADDR : 0);
 }
 
+static void ndisc_send_unsol_na(struct net_device *dev)
+{
+	struct inet6_dev *idev;
+	struct inet6_ifaddr *ifa;
+	struct in6_addr mcaddr;
+
+	idev = in6_dev_get(dev);
+	if (!idev)
+		return;
+
+	read_lock_bh(&idev->lock);
+	list_for_each_entry(ifa, &idev->addr_list, if_list) {
+		addrconf_addr_solict_mult(&ifa->addr, &mcaddr);
+		ndisc_send_na(dev, NULL, &mcaddr, &ifa->addr,
+			      /*router=*/ !!idev->cnf.forwarding,
+			      /*solicited=*/ false, /*override=*/ true,
+			      /*inc_opt=*/ true);
+	}
+	read_unlock_bh(&idev->lock);
+
+	in6_dev_put(idev);
+}
+
 void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 		   const struct in6_addr *solicit,
 		   const struct in6_addr *daddr, const struct in6_addr *saddr)
@@ -725,8 +748,8 @@ static int pndisc_is_router(const void *pkey,
 static void ndisc_recv_ns(struct sk_buff *skb)
 {
 	struct nd_msg *msg = (struct nd_msg *)skb_transport_header(skb);
-	struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
-	struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
+	const struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
+	const struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
 	u8 *lladdr = NULL;
 	u32 ndoptlen = skb->tail - (skb->transport_header +
 				    offsetof(struct nd_msg, opt));
@@ -901,8 +924,8 @@ out:
 static void ndisc_recv_na(struct sk_buff *skb)
 {
 	struct nd_msg *msg = (struct nd_msg *)skb_transport_header(skb);
-	struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
-	struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
+	const struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
+	const struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
 	u8 *lladdr = NULL;
 	u32 ndoptlen = skb->tail - (skb->transport_header +
 				    offsetof(struct nd_msg, opt));
@@ -945,9 +968,10 @@ static void ndisc_recv_na(struct sk_buff *skb)
 	}
 	ifp = ipv6_get_ifaddr(dev_net(dev), &msg->target, dev, 1);
 	if (ifp) {
-		if (ifp->flags & IFA_F_TENTATIVE) {
-			addrconf_dad_failure(ifp);
-			return;
+		if (skb->pkt_type != PACKET_LOOPBACK
+		    && (ifp->flags & IFA_F_TENTATIVE)) {
+				addrconf_dad_failure(ifp);
+				return;
 		}
 		/* What should we make now? The advertisement
 		   is invalid, but ndisc specs say nothing
@@ -1014,7 +1038,7 @@ static void ndisc_recv_rs(struct sk_buff *skb)
 	unsigned long ndoptlen = skb->len - sizeof(*rs_msg);
 	struct neighbour *neigh;
 	struct inet6_dev *idev;
-	struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
+	const struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
 	struct ndisc_options ndopts;
 	u8 *lladdr = NULL;
 
@@ -1411,8 +1435,8 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 {
 	struct inet6_dev *in6_dev;
 	struct icmp6hdr *icmph;
-	struct in6_addr *dest;
-	struct in6_addr *target;	/* new first hop to destination */
+	const struct in6_addr *dest;
+	const struct in6_addr *target;	/* new first hop to destination */
 	struct neighbour *neigh;
 	int on_link = 0;
 	struct ndisc_options ndopts;
@@ -1445,7 +1469,7 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 	}
 
 	icmph = icmp6_hdr(skb);
-	target = (struct in6_addr *) (icmph + 1);
+	target = (const struct in6_addr *) (icmph + 1);
 	dest = target + 1;
 
 	if (ipv6_addr_is_multicast(dest)) {
@@ -1721,6 +1745,9 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 	case NETDEV_DOWN:
 		neigh_ifdown(&nd_tbl, dev);
 		fib6_run_gc(~0UL, net);
+		break;
+	case NETDEV_NOTIFY_PEERS:
+		ndisc_send_unsol_na(dev);
 		break;
 	default:
 		break;

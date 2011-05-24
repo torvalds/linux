@@ -46,6 +46,7 @@ SECTIONS
 	__init_end = .;
 	/* Freed after init ends here */
 
+	_sdata = .;	/* Start of rw data section */
 	_data = .;
 	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
 

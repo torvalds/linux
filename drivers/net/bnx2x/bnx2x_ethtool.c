@@ -1,6 +1,6 @@
 /* bnx2x_ethtool.c: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2010 Broadcom Corporation
+ * Copyright (c) 2007-2011 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -167,6 +167,7 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int cfg_idx = bnx2x_get_link_cfg_idx(bp);
+
 	/* Dual Media boards present all available port types */
 	cmd->supported = bp->port.supported[cfg_idx] |
 		(bp->port.supported[cfg_idx ^ 1] &
@@ -176,16 +177,16 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if ((bp->state == BNX2X_STATE_OPEN) &&
 	    !(bp->flags & MF_FUNC_DIS) &&
 	    (bp->link_vars.link_up)) {
-		cmd->speed = bp->link_vars.line_speed;
+		ethtool_cmd_speed_set(cmd, bp->link_vars.line_speed);
 		cmd->duplex = bp->link_vars.duplex;
 	} else {
-
-		cmd->speed = bp->link_params.req_line_speed[cfg_idx];
+		ethtool_cmd_speed_set(
+			cmd, bp->link_params.req_line_speed[cfg_idx]);
 		cmd->duplex = bp->link_params.req_duplex[cfg_idx];
 	}
 
 	if (IS_MF(bp))
-		cmd->speed = bnx2x_get_mf_speed(bp);
+		ethtool_cmd_speed_set(cmd, bnx2x_get_mf_speed(bp));
 
 	if (bp->port.supported[cfg_idx] & SUPPORTED_TP)
 		cmd->port = PORT_TP;
@@ -206,10 +207,11 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	cmd->maxrxpkt = 0;
 
 	DP(NETIF_MSG_LINK, "ethtool_cmd: cmd %d\n"
-	   DP_LEVEL "  supported 0x%x  advertising 0x%x  speed %d\n"
+	   DP_LEVEL "  supported 0x%x  advertising 0x%x  speed %u\n"
 	   DP_LEVEL "  duplex %d  port %d  phy_address %d  transceiver %d\n"
 	   DP_LEVEL "  autoneg %d  maxtxpkt %d  maxrxpkt %d\n",
-	   cmd->cmd, cmd->supported, cmd->advertising, cmd->speed,
+	   cmd->cmd, cmd->supported, cmd->advertising,
+	   ethtool_cmd_speed(cmd),
 	   cmd->duplex, cmd->port, cmd->phy_address, cmd->transceiver,
 	   cmd->autoneg, cmd->maxtxpkt, cmd->maxrxpkt);
 
@@ -226,16 +228,15 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return 0;
 
 	DP(NETIF_MSG_LINK, "ethtool_cmd: cmd %d\n"
-	   "  supported 0x%x  advertising 0x%x  speed %d speed_hi %d\n"
+	   "  supported 0x%x  advertising 0x%x  speed %u\n"
 	   "  duplex %d  port %d  phy_address %d  transceiver %d\n"
 	   "  autoneg %d  maxtxpkt %d  maxrxpkt %d\n",
-	   cmd->cmd, cmd->supported, cmd->advertising, cmd->speed,
-	   cmd->speed_hi,
+	   cmd->cmd, cmd->supported, cmd->advertising,
+	   ethtool_cmd_speed(cmd),
 	   cmd->duplex, cmd->port, cmd->phy_address, cmd->transceiver,
 	   cmd->autoneg, cmd->maxtxpkt, cmd->maxrxpkt);
 
-	speed = cmd->speed;
-	speed |= (cmd->speed_hi << 16);
+	speed = ethtool_cmd_speed(cmd);
 
 	if (IS_MF_SI(bp)) {
 		u32 part;
@@ -439,7 +440,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			break;
 
 		default:
-			DP(NETIF_MSG_LINK, "Unsupported speed %d\n", speed);
+			DP(NETIF_MSG_LINK, "Unsupported speed %u\n", speed);
 			return -EINVAL;
 		}
 
@@ -1219,7 +1220,8 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 	}
 
 	if ((ering->rx_pending > MAX_RX_AVAIL) ||
-	    (ering->rx_pending < MIN_RX_AVAIL) ||
+	    (ering->rx_pending < (bp->disable_tpa ? MIN_RX_SIZE_NONTPA :
+						    MIN_RX_SIZE_TPA)) ||
 	    (ering->tx_pending > MAX_TX_AVAIL) ||
 	    (ering->tx_pending <= MAX_SKB_FRAGS + 4))
 		return -EINVAL;
@@ -1294,91 +1296,6 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 	if (netif_running(dev)) {
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 		bnx2x_link_set(bp);
-	}
-
-	return 0;
-}
-
-static int bnx2x_set_flags(struct net_device *dev, u32 data)
-{
-	struct bnx2x *bp = netdev_priv(dev);
-	int changed = 0;
-	int rc = 0;
-
-	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
-		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
-		return -EAGAIN;
-	}
-
-	if (!(data & ETH_FLAG_RXVLAN))
-		return -EINVAL;
-
-	if ((data & ETH_FLAG_LRO) && bp->rx_csum && bp->disable_tpa)
-		return -EINVAL;
-
-	rc = ethtool_op_set_flags(dev, data, ETH_FLAG_LRO | ETH_FLAG_RXVLAN |
-					ETH_FLAG_TXVLAN | ETH_FLAG_RXHASH);
-	if (rc)
-		return rc;
-
-	/* TPA requires Rx CSUM offloading */
-	if ((data & ETH_FLAG_LRO) && bp->rx_csum) {
-		if (!(bp->flags & TPA_ENABLE_FLAG)) {
-			bp->flags |= TPA_ENABLE_FLAG;
-			changed = 1;
-		}
-	} else if (bp->flags & TPA_ENABLE_FLAG) {
-		dev->features &= ~NETIF_F_LRO;
-		bp->flags &= ~TPA_ENABLE_FLAG;
-		changed = 1;
-	}
-
-	if (changed && netif_running(dev)) {
-		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
-		rc = bnx2x_nic_load(bp, LOAD_NORMAL);
-	}
-
-	return rc;
-}
-
-static u32 bnx2x_get_rx_csum(struct net_device *dev)
-{
-	struct bnx2x *bp = netdev_priv(dev);
-
-	return bp->rx_csum;
-}
-
-static int bnx2x_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct bnx2x *bp = netdev_priv(dev);
-	int rc = 0;
-
-	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
-		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
-		return -EAGAIN;
-	}
-
-	bp->rx_csum = data;
-
-	/* Disable TPA, when Rx CSUM is disabled. Otherwise all
-	   TPA'ed packets will be discarded due to wrong TCP CSUM */
-	if (!data) {
-		u32 flags = ethtool_op_get_flags(dev);
-
-		rc = bnx2x_set_flags(dev, (flags & ~ETH_FLAG_LRO));
-	}
-
-	return rc;
-}
-
-static int bnx2x_set_tso(struct net_device *dev, u32 data)
-{
-	if (data) {
-		dev->features |= (NETIF_F_TSO | NETIF_F_TSO_ECN);
-		dev->features |= NETIF_F_TSO6;
-	} else {
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO_ECN);
-		dev->features &= ~NETIF_F_TSO6;
 	}
 
 	return 0;
@@ -2097,36 +2014,37 @@ static void bnx2x_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
-static int bnx2x_phys_id(struct net_device *dev, u32 data)
+static int bnx2x_set_phys_id(struct net_device *dev,
+			     enum ethtool_phys_id_state state)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int i;
 
 	if (!netif_running(dev))
-		return 0;
+		return -EAGAIN;
 
 	if (!bp->port.pmf)
-		return 0;
+		return -EOPNOTSUPP;
 
-	if (data == 0)
-		data = 2;
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		return 1;	/* cycle on/off once per second */
 
-	for (i = 0; i < (data * 2); i++) {
-		if ((i % 2) == 0)
-			bnx2x_set_led(&bp->link_params, &bp->link_vars,
-				      LED_MODE_OPER, SPEED_1000);
-		else
-			bnx2x_set_led(&bp->link_params, &bp->link_vars,
-				      LED_MODE_OFF, 0);
+	case ETHTOOL_ID_ON:
+		bnx2x_set_led(&bp->link_params, &bp->link_vars,
+			      LED_MODE_ON, SPEED_1000);
+		break;
 
-		msleep_interruptible(500);
-		if (signal_pending(current))
-			break;
-	}
+	case ETHTOOL_ID_OFF:
+		bnx2x_set_led(&bp->link_params, &bp->link_vars,
+			      LED_MODE_FRONT_PANEL_OFF, 0);
 
-	if (bp->link_vars.link_up)
-		bnx2x_set_led(&bp->link_params, &bp->link_vars, LED_MODE_OPER,
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		bnx2x_set_led(&bp->link_params, &bp->link_vars,
+			      LED_MODE_OPER,
 			      bp->link_vars.line_speed);
+	}
 
 	return 0;
 }
@@ -2205,20 +2123,10 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.set_ringparam		= bnx2x_set_ringparam,
 	.get_pauseparam		= bnx2x_get_pauseparam,
 	.set_pauseparam		= bnx2x_set_pauseparam,
-	.get_rx_csum		= bnx2x_get_rx_csum,
-	.set_rx_csum		= bnx2x_set_rx_csum,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_hw_csum,
-	.set_flags		= bnx2x_set_flags,
-	.get_flags		= ethtool_op_get_flags,
-	.get_sg			= ethtool_op_get_sg,
-	.set_sg			= ethtool_op_set_sg,
-	.get_tso		= ethtool_op_get_tso,
-	.set_tso		= bnx2x_set_tso,
 	.self_test		= bnx2x_self_test,
 	.get_sset_count		= bnx2x_get_sset_count,
 	.get_strings		= bnx2x_get_strings,
-	.phys_id		= bnx2x_phys_id,
+	.set_phys_id		= bnx2x_set_phys_id,
 	.get_ethtool_stats	= bnx2x_get_ethtool_stats,
 	.get_rxnfc		= bnx2x_get_rxnfc,
 	.get_rxfh_indir		= bnx2x_get_rxfh_indir,

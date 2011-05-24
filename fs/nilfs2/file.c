@@ -111,7 +111,6 @@ static int nilfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	nilfs_transaction_commit(inode->i_sb);
 
  mapped:
-	SetPageChecked(page);
 	wait_on_page_writeback(page);
 	return VM_FAULT_LOCKED;
 }

@@ -12,6 +12,7 @@
  */
 #include <linux/cs5535.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 #include <asm/olpc.h>
 
 #include "olpc_dcon.h"
@@ -152,7 +153,7 @@ static void dcon_wiggle_xo_1(void)
 	 * According to the cs5536 spec, to set GPIO14 to SMB_CLK we must
 	 * simultaneously set AUX1 IN/OUT to GPIO14; ditto for SMB_DATA and
 	 * GPIO15.
- 	 */
+	 */
 	cs5535_gpio_set(OLPC_GPIO_SMB_CLK, GPIO_OUTPUT_VAL);
 	cs5535_gpio_set(OLPC_GPIO_SMB_DATA, GPIO_OUTPUT_VAL);
 	cs5535_gpio_set(OLPC_GPIO_SMB_CLK, GPIO_OUTPUT_ENABLE);

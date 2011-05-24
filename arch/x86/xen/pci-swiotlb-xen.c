@@ -36,7 +36,7 @@ int __init pci_xen_swiotlb_detect(void)
 
 	/* If running as PV guest, either iommu=soft, or swiotlb=force will
 	 * activate this IOMMU. If running as PV privileged, activate it
-	 * irregardlesss.
+	 * irregardless.
 	 */
 	if ((xen_initial_domain() || swiotlb || swiotlb_force) &&
 	    (xen_pv_domain()))

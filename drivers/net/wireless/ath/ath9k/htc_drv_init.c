@@ -117,6 +117,21 @@ static struct ieee80211_rate ath9k_legacy_rates[] = {
 	RATE(540, 0x0c, 0),
 };
 
+#ifdef CONFIG_MAC80211_LEDS
+static const struct ieee80211_tpt_blink ath9k_htc_tpt_blink[] = {
+	{ .throughput = 0 * 1024, .blink_time = 334 },
+	{ .throughput = 1 * 1024, .blink_time = 260 },
+	{ .throughput = 5 * 1024, .blink_time = 220 },
+	{ .throughput = 10 * 1024, .blink_time = 190 },
+	{ .throughput = 20 * 1024, .blink_time = 170 },
+	{ .throughput = 50 * 1024, .blink_time = 150 },
+	{ .throughput = 70 * 1024, .blink_time = 130 },
+	{ .throughput = 100 * 1024, .blink_time = 110 },
+	{ .throughput = 200 * 1024, .blink_time = 80 },
+	{ .throughput = 300 * 1024, .blink_time = 50 },
+};
+#endif
+
 static int ath9k_htc_wait_for_target(struct ath9k_htc_priv *priv)
 {
 	int time_left;
@@ -140,7 +155,6 @@ static int ath9k_htc_wait_for_target(struct ath9k_htc_priv *priv)
 
 static void ath9k_deinit_priv(struct ath9k_htc_priv *priv)
 {
-	ath9k_htc_exit_debug(priv->ah);
 	ath9k_hw_deinit(priv->ah);
 	kfree(priv->ah);
 	priv->ah = NULL;
@@ -244,7 +258,7 @@ static int ath9k_init_htc_services(struct ath9k_htc_priv *priv, u16 devid,
 	 */
 
 	if (IS_AR7010_DEVICE(drv_info))
-		priv->htc->credits = 45;
+		priv->htc->credits = 48;
 	else
 		priv->htc->credits = 33;
 
@@ -430,13 +444,16 @@ static void ath9k_regwrite_flush(void *hw_priv)
 	mutex_unlock(&priv->wmi->multi_write_mutex);
 }
 
-static const struct ath_ops ath9k_common_ops = {
-	.read = ath9k_regread,
-	.multi_read = ath9k_multi_regread,
-	.write = ath9k_regwrite,
-	.enable_write_buffer = ath9k_enable_regwrite_buffer,
-	.write_flush = ath9k_regwrite_flush,
-};
+static u32 ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 clr)
+{
+	u32 val;
+
+	val = ath9k_regread(hw_priv, reg_offset);
+	val &= ~clr;
+	val |= set;
+	ath9k_regwrite(hw_priv, val, reg_offset);
+	return val;
+}
 
 static void ath_usb_read_cachesize(struct ath_common *common, int *csz)
 {
@@ -561,13 +578,7 @@ static void ath9k_init_crypto(struct ath9k_htc_priv *priv)
 	int i = 0;
 
 	/* Get the hardware key cache size. */
-	common->keymax = priv->ah->caps.keycache_size;
-	if (common->keymax > ATH_KEYMAX) {
-		ath_dbg(common, ATH_DBG_ANY,
-			"Warning, using only %u entries in %u key cache\n",
-			ATH_KEYMAX, common->keymax);
-		common->keymax = ATH_KEYMAX;
-	}
+	common->keymax = AR_KEYTABLE_SIZE;
 
 	if (priv->ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA)
 		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
@@ -646,7 +657,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 {
 	struct ath_hw *ah = NULL;
 	struct ath_common *common;
-	int ret = 0, csz = 0;
+	int i, ret = 0, csz = 0;
 
 	priv->op_flags |= OP_INVALID;
 
@@ -658,30 +669,35 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	ah->hw_version.subsysid = 0; /* FIXME */
 	ah->hw_version.usbdev = drv_info;
 	ah->ah_flags |= AH_USE_EEPROM;
+	ah->reg_ops.read = ath9k_regread;
+	ah->reg_ops.multi_read = ath9k_multi_regread;
+	ah->reg_ops.write = ath9k_regwrite;
+	ah->reg_ops.enable_write_buffer = ath9k_enable_regwrite_buffer;
+	ah->reg_ops.write_flush = ath9k_regwrite_flush;
+	ah->reg_ops.rmw = ath9k_reg_rmw;
 	priv->ah = ah;
 
 	common = ath9k_hw_common(ah);
-	common->ops = &ath9k_common_ops;
+	common->ops = &ah->reg_ops;
 	common->bus_ops = &ath9k_usb_bus_ops;
 	common->ah = ah;
 	common->hw = priv->hw;
 	common->priv = priv;
 	common->debug_mask = ath9k_debug;
 
-	spin_lock_init(&priv->wmi->wmi_lock);
 	spin_lock_init(&priv->beacon_lock);
-	spin_lock_init(&priv->tx_lock);
+	spin_lock_init(&priv->tx.tx_lock);
 	mutex_init(&priv->mutex);
 	mutex_init(&priv->htc_pm_lock);
-	tasklet_init(&priv->swba_tasklet, ath9k_swba_tasklet,
-		     (unsigned long)priv);
 	tasklet_init(&priv->rx_tasklet, ath9k_rx_tasklet,
 		     (unsigned long)priv);
-	tasklet_init(&priv->tx_tasklet, ath9k_tx_tasklet,
+	tasklet_init(&priv->tx_failed_tasklet, ath9k_tx_failed_tasklet,
 		     (unsigned long)priv);
 	INIT_DELAYED_WORK(&priv->ani_work, ath9k_htc_ani_work);
 	INIT_WORK(&priv->ps_work, ath9k_ps_work);
 	INIT_WORK(&priv->fatal_work, ath9k_fatal_work);
+	setup_timer(&priv->tx.cleanup_timer, ath9k_htc_tx_cleanup_timer,
+		    (unsigned long)priv);
 
 	/*
 	 * Cache line size is used to size and align various
@@ -698,15 +714,12 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 		goto err_hw;
 	}
 
-	ret = ath9k_htc_init_debug(ah);
-	if (ret) {
-		ath_err(common, "Unable to create debugfs files\n");
-		goto err_debug;
-	}
-
 	ret = ath9k_init_queues(priv);
 	if (ret)
 		goto err_queues;
+
+	for (i = 0; i < ATH9K_HTC_MAX_BCN_VIF; i++)
+		priv->cur_beacon_conf.bslot[i] = NULL;
 
 	ath9k_init_crypto(priv);
 	ath9k_init_channels_rates(priv);
@@ -720,8 +733,6 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	return 0;
 
 err_queues:
-	ath9k_htc_exit_debug(ah);
-err_debug:
 	ath9k_hw_deinit(ah);
 err_hw:
 
@@ -742,17 +753,27 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 		IEEE80211_HW_HAS_RATE_CONTROL |
 		IEEE80211_HW_RX_INCLUDES_FCS |
 		IEEE80211_HW_SUPPORTS_PS |
-		IEEE80211_HW_PS_NULLFUNC_STACK;
+		IEEE80211_HW_PS_NULLFUNC_STACK |
+		IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
-		BIT(NL80211_IFTYPE_ADHOC);
+		BIT(NL80211_IFTYPE_ADHOC) |
+		BIT(NL80211_IFTYPE_AP) |
+		BIT(NL80211_IFTYPE_P2P_GO) |
+		BIT(NL80211_IFTYPE_P2P_CLIENT);
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	hw->queues = 4;
 	hw->channel_change_time = 5000;
 	hw->max_listen_interval = 10;
+
+	if (AR_SREV_9271(priv->ah))
+		hw->max_tx_aggregation_subframes = MAX_TX_AMPDU_SUBFRAMES_9271;
+	else
+		hw->max_tx_aggregation_subframes = MAX_TX_AMPDU_SUBFRAMES_7010;
+
 	hw->vif_data_size = sizeof(struct ath9k_htc_vif);
 	hw->sta_data_size = sizeof(struct ath9k_htc_sta);
 
@@ -779,6 +800,43 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
 }
 
+static int ath9k_init_firmware_version(struct ath9k_htc_priv *priv)
+{
+	struct ieee80211_hw *hw = priv->hw;
+	struct wmi_fw_version cmd_rsp;
+	int ret;
+
+	memset(&cmd_rsp, 0, sizeof(cmd_rsp));
+
+	WMI_CMD(WMI_GET_FW_VERSION);
+	if (ret)
+		return -EINVAL;
+
+	priv->fw_version_major = be16_to_cpu(cmd_rsp.major);
+	priv->fw_version_minor = be16_to_cpu(cmd_rsp.minor);
+
+	snprintf(hw->wiphy->fw_version, ETHTOOL_BUSINFO_LEN, "%d.%d",
+		 priv->fw_version_major,
+		 priv->fw_version_minor);
+
+	dev_info(priv->dev, "ath9k_htc: FW Version: %d.%d\n",
+		 priv->fw_version_major,
+		 priv->fw_version_minor);
+
+	/*
+	 * Check if the available FW matches the driver's
+	 * required version.
+	 */
+	if (priv->fw_version_major != MAJOR_VERSION_REQ ||
+	    priv->fw_version_minor != MINOR_VERSION_REQ) {
+		dev_err(priv->dev, "ath9k_htc: Please upgrade to FW version %d.%d\n",
+			MAJOR_VERSION_REQ, MINOR_VERSION_REQ);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ath9k_init_device(struct ath9k_htc_priv *priv,
 			     u16 devid, char *product, u32 drv_info)
 {
@@ -798,6 +856,10 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 	common = ath9k_hw_common(ah);
 	ath9k_set_hw_capab(priv, hw);
 
+	error = ath9k_init_firmware_version(priv);
+	if (error != 0)
+		goto err_fw;
+
 	/* Initialize regulatory */
 	error = ath_regd_init(&common->regulatory, priv->hw->wiphy,
 			      ath9k_reg_notifier);
@@ -816,6 +878,13 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 	if (error != 0)
 		goto err_rx;
 
+#ifdef CONFIG_MAC80211_LEDS
+	/* must be initialized before ieee80211_register_hw */
+	priv->led_cdev.default_trigger = ieee80211_create_tpt_led_trigger(priv->hw,
+		IEEE80211_TPT_LEDTRIG_FL_RADIO, ath9k_htc_tpt_blink,
+		ARRAY_SIZE(ath9k_htc_tpt_blink));
+#endif
+
 	/* Register with mac80211 */
 	error = ieee80211_register_hw(hw);
 	if (error)
@@ -826,6 +895,12 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 		error = regulatory_hint(hw->wiphy, reg->alpha2);
 		if (error)
 			goto err_world;
+	}
+
+	error = ath9k_htc_init_debug(priv->ah);
+	if (error) {
+		ath_err(common, "Unable to create debugfs files\n");
+		goto err_world;
 	}
 
 	ath_dbg(common, ATH_DBG_CONFIG,
@@ -858,6 +933,8 @@ err_rx:
 err_tx:
 	/* Nothing */
 err_regd:
+	/* Nothing */
+err_fw:
 	ath9k_deinit_priv(priv);
 err_init:
 	return error;
@@ -946,38 +1023,20 @@ int ath9k_htc_resume(struct htc_target *htc_handle)
 
 static int __init ath9k_htc_init(void)
 {
-	int error;
-
-	error = ath9k_htc_debug_create_root();
-	if (error < 0) {
-		printk(KERN_ERR
-			"ath9k_htc: Unable to create debugfs root: %d\n",
-			error);
-		goto err_dbg;
-	}
-
-	error = ath9k_hif_usb_init();
-	if (error < 0) {
+	if (ath9k_hif_usb_init() < 0) {
 		printk(KERN_ERR
 			"ath9k_htc: No USB devices found,"
 			" driver not installed.\n");
-		error = -ENODEV;
-		goto err_usb;
+		return -ENODEV;
 	}
 
 	return 0;
-
-err_usb:
-	ath9k_htc_debug_remove_root();
-err_dbg:
-	return error;
 }
 module_init(ath9k_htc_init);
 
 static void __exit ath9k_htc_exit(void)
 {
 	ath9k_hif_usb_exit();
-	ath9k_htc_debug_remove_root();
 	printk(KERN_INFO "ath9k_htc: Driver unloaded\n");
 }
 module_exit(ath9k_htc_exit);

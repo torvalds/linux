@@ -377,7 +377,6 @@ struct st5481_bcs {
 };
 
 struct st5481_adapter {
-	struct list_head list;
 	int number_of_leds;
 	struct usb_device *usb_dev;
 	struct hisax_d_if hisax_d_if;

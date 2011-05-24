@@ -337,7 +337,7 @@ static int tegra2_super_clk_set_parent(struct clk *c, struct clk *p)
 	const struct clk_mux_sel *sel;
 	int shift;
 
-	val = clk_readl(c->reg + SUPER_CLK_MUX);;
+	val = clk_readl(c->reg + SUPER_CLK_MUX);
 	BUG_ON(((val & SUPER_STATE_MASK) != SUPER_STATE_RUN) &&
 		((val & SUPER_STATE_MASK) != SUPER_STATE_IDLE));
 	shift = ((val & SUPER_STATE_MASK) == SUPER_STATE_IDLE) ?

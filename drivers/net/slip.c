@@ -670,16 +670,17 @@ static void sl_setup(struct net_device *dev)
  * in parallel
  */
 
-static void slip_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-							char *fp, int count)
+static unsigned int slip_receive_buf(struct tty_struct *tty,
+		const unsigned char *cp, char *fp, int count)
 {
 	struct slip *sl = tty->disc_data;
+	int bytes = count;
 
 	if (!sl || sl->magic != SLIP_MAGIC || !netif_running(sl->dev))
-		return;
+		return -ENODEV;
 
 	/* Read the characters out of the buffer */
-	while (count--) {
+	while (bytes--) {
 		if (fp && *fp++) {
 			if (!test_and_set_bit(SLF_ERROR, &sl->flags))
 				sl->dev->stats.rx_errors++;
@@ -693,6 +694,8 @@ static void slip_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 #endif
 			slip_unesc(sl, *cp++);
 	}
+
+	return count;
 }
 
 /************************************
@@ -853,7 +856,9 @@ static int slip_open(struct tty_struct *tty)
 	/* Done.  We have linked the TTY line to a channel. */
 	rtnl_unlock();
 	tty->receive_room = 65536;	/* We don't flow control */
-	return sl->dev->base_addr;
+
+	/* TTY layer expects 0 on success */
+	return 0;
 
 err_free_bufs:
 	sl_free_bufs(sl);

@@ -439,7 +439,8 @@ static void adjust_quirks(struct us_data *us)
 			US_FL_CAPACITY_HEURISTICS | US_FL_IGNORE_DEVICE |
 			US_FL_NOT_LOCKABLE | US_FL_MAX_SECTORS_64 |
 			US_FL_CAPACITY_OK | US_FL_IGNORE_RESIDUE |
-			US_FL_SINGLE_LUN | US_FL_NO_WP_DETECT);
+			US_FL_SINGLE_LUN | US_FL_NO_WP_DETECT |
+			US_FL_NO_READ_DISC_INFO | US_FL_NO_READ_CAPACITY_16);
 
 	p = quirks;
 	while (*p) {
@@ -470,6 +471,12 @@ static void adjust_quirks(struct us_data *us)
 			break;
 		case 'c':
 			f |= US_FL_FIX_CAPACITY;
+			break;
+		case 'd':
+			f |= US_FL_NO_READ_DISC_INFO;
+			break;
+		case 'e':
+			f |= US_FL_NO_READ_CAPACITY_16;
 			break;
 		case 'h':
 			f |= US_FL_CAPACITY_HEURISTICS;

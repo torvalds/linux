@@ -54,6 +54,9 @@ struct ath_buf;
  * @dtimsync: DTIM sync lossage
  * @dtim: RX Beacon with DTIM
  * @bb_watchdog: Baseband watchdog
+ * @tsfoor: TSF out of range, indicates that the corrected TSF received
+ * from a beacon differs from the PCU's internal TSF by more than a
+ * (programmable) threshold
  */
 struct ath_interrupt_stats {
 	u32 total;
@@ -78,6 +81,7 @@ struct ath_interrupt_stats {
 	u32 dtimsync;
 	u32 dtim;
 	u32 bb_watchdog;
+	u32 tsfoor;
 };
 
 /**
@@ -157,6 +161,13 @@ struct ath_rx_stats {
 	u32 post_delim_crc_err;
 	u32 decrypt_busy_err;
 	u32 phy_err_stats[ATH9K_PHYERR_MAX];
+	int8_t rs_rssi_ctl0;
+	int8_t rs_rssi_ctl1;
+	int8_t rs_rssi_ctl2;
+	int8_t rs_rssi_ext0;
+	int8_t rs_rssi_ext1;
+	int8_t rs_rssi_ext2;
+	u8 rs_antenna;
 };
 
 struct ath_stats {

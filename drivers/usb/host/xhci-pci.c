@@ -21,6 +21,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include "xhci.h"
 

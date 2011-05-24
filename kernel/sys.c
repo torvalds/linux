@@ -314,8 +314,8 @@ void kernel_restart_prepare(char *cmd)
 {
 	blocking_notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
 	system_state = SYSTEM_RESTART;
+	usermodehelper_disable();
 	device_shutdown();
-	sysdev_shutdown();
 	syscore_shutdown();
 }
 
@@ -344,6 +344,7 @@ static void kernel_shutdown_prepare(enum system_states state)
 	blocking_notifier_call_chain(&reboot_notifier_list,
 		(state == SYSTEM_HALT)?SYS_HALT:SYS_POWER_OFF, NULL);
 	system_state = state;
+	usermodehelper_disable();
 	device_shutdown();
 }
 /**
@@ -354,7 +355,6 @@ static void kernel_shutdown_prepare(enum system_states state)
 void kernel_halt(void)
 {
 	kernel_shutdown_prepare(SYSTEM_HALT);
-	sysdev_shutdown();
 	syscore_shutdown();
 	printk(KERN_EMERG "System halted.\n");
 	kmsg_dump(KMSG_DUMP_HALT);
@@ -374,7 +374,6 @@ void kernel_power_off(void)
 	if (pm_power_off_prepare)
 		pm_power_off_prepare();
 	disable_nonboot_cpus();
-	sysdev_shutdown();
 	syscore_shutdown();
 	printk(KERN_EMERG "Power down.\n");
 	kmsg_dump(KMSG_DUMP_POWEROFF);

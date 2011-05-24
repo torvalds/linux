@@ -43,13 +43,15 @@ static void add_channel_to_table(struct st_data_s *st_gdata,
 	pr_info("%s: id %d\n", __func__, new_proto->chnl_id);
 	/* list now has the channel id as index itself */
 	st_gdata->list[new_proto->chnl_id] = new_proto;
+	st_gdata->is_registered[new_proto->chnl_id] = true;
 }
 
 static void remove_channel_from_table(struct st_data_s *st_gdata,
 		struct st_proto_s *proto)
 {
 	pr_info("%s: id %d\n", __func__, proto->chnl_id);
-	st_gdata->list[proto->chnl_id] = NULL;
+/*	st_gdata->list[proto->chnl_id] = NULL; */
+	st_gdata->is_registered[proto->chnl_id] = false;
 }
 
 /*
@@ -104,7 +106,7 @@ void st_send_frame(unsigned char chnl_id, struct st_data_s *st_gdata)
 
 	if (unlikely
 	    (st_gdata == NULL || st_gdata->rx_skb == NULL
-	     || st_gdata->list[chnl_id] == NULL)) {
+	     || st_gdata->is_registered[chnl_id] == false)) {
 		pr_err("chnl_id %d not registered, no data to send?",
 			   chnl_id);
 		kfree_skb(st_gdata->rx_skb);
@@ -141,14 +143,15 @@ void st_reg_complete(struct st_data_s *st_gdata, char err)
 	unsigned char i = 0;
 	pr_info(" %s ", __func__);
 	for (i = 0; i < ST_MAX_CHANNELS; i++) {
-		if (likely(st_gdata != NULL && st_gdata->list[i] != NULL &&
-			   st_gdata->list[i]->reg_complete_cb != NULL)) {
+		if (likely(st_gdata != NULL &&
+			st_gdata->is_registered[i] == true &&
+				st_gdata->list[i]->reg_complete_cb != NULL)) {
 			st_gdata->list[i]->reg_complete_cb
 				(st_gdata->list[i]->priv_data, err);
 			pr_info("protocol %d's cb sent %d\n", i, err);
 			if (err) { /* cleanup registered protocol */
 				st_gdata->protos_registered--;
-				st_gdata->list[i] = NULL;
+				st_gdata->is_registered[i] = false;
 			}
 		}
 	}
@@ -475,9 +478,9 @@ void kim_st_list_protocols(struct st_data_s *st_gdata, void *buf)
 {
 	seq_printf(buf, "[%d]\nBT=%c\nFM=%c\nGPS=%c\n",
 			st_gdata->protos_registered,
-			st_gdata->list[0x04] != NULL ? 'R' : 'U',
-			st_gdata->list[0x08] != NULL ? 'R' : 'U',
-			st_gdata->list[0x09] != NULL ? 'R' : 'U');
+			st_gdata->is_registered[0x04] == true ? 'R' : 'U',
+			st_gdata->is_registered[0x08] == true ? 'R' : 'U',
+			st_gdata->is_registered[0x09] == true ? 'R' : 'U');
 }
 
 /********************************************************************/
@@ -504,7 +507,7 @@ long st_register(struct st_proto_s *new_proto)
 		return -EPROTONOSUPPORT;
 	}
 
-	if (st_gdata->list[new_proto->chnl_id] != NULL) {
+	if (st_gdata->is_registered[new_proto->chnl_id] == true) {
 		pr_err("chnl_id %d already registered", new_proto->chnl_id);
 		return -EALREADY;
 	}
@@ -563,7 +566,7 @@ long st_register(struct st_proto_s *new_proto)
 		/* check for already registered once more,
 		 * since the above check is old
 		 */
-		if (st_gdata->list[new_proto->chnl_id] != NULL) {
+		if (st_gdata->is_registered[new_proto->chnl_id] == true) {
 			pr_err(" proto %d already registered ",
 				   new_proto->chnl_id);
 			return -EALREADY;
@@ -744,8 +747,8 @@ static void st_tty_close(struct tty_struct *tty)
 	pr_debug("%s: done ", __func__);
 }
 
-static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
-			   char *tty_flags, int count)
+static unsigned int st_tty_receive(struct tty_struct *tty,
+		const unsigned char *data, char *tty_flags, int count)
 {
 #ifdef VERBOSE
 	print_hex_dump(KERN_DEBUG, ">in>", DUMP_PREFIX_NONE,
@@ -758,6 +761,8 @@ static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
 	 */
 	st_recv(tty->disc_data, data, count);
 	pr_debug("done %s", __func__);
+
+	return count;
 }
 
 /* wake-up function called in from the TTY layer

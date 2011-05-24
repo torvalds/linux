@@ -27,7 +27,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#include <a_types.h>
 #include <a_osapi.h>
 
     /* standard debug print masks bits 0..7 */
@@ -187,35 +186,7 @@ void a_dump_module_debug_info_by_name(char *module_name);
 void a_module_debug_support_init(void);
 void a_module_debug_support_cleanup(void);
 
-#ifdef UNDER_NWIFI
-#include "../os/windows/include/debug.h"
-#endif
-
-#ifdef ATHR_CE_LEGACY
-#include "../os/windows/include/debug.h"
-#endif
-
-#if defined(__linux__) && !defined(LINUX_EMULATION)
 #include "../os/linux/include/debug_linux.h"
-#endif
-
-#ifdef REXOS
-#include "../os/rexos/include/common/debug_rexos.h"
-#endif
-
-#if defined ART_WIN
-#include "../os/win_art/include/debug_win.h"
-#endif
-
-#ifdef WIN_NWF
-#include <debug_win.h>
-#endif
-
-#ifdef THREADX
-#define ATH_DEBUG_MAKE_MODULE_MASK(index)  (1 << (ATH_DEBUG_MODULE_MASK_SHIFT + (index)))
-#include "../os/threadx/include/common/debug_threadx.h"
-#endif  
-
 
 #ifdef __cplusplus
 }

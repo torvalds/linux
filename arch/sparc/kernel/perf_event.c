@@ -26,6 +26,7 @@
 #include <asm/nmi.h>
 #include <asm/pcr.h>
 
+#include "kernel.h"
 #include "kstack.h"
 
 /* Sparc64 chips have two performance counters, 32-bits each, with

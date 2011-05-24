@@ -114,7 +114,6 @@ static void __balloon_append(struct page *page)
 	if (PageHighMem(page)) {
 		list_add_tail(&page->lru, &ballooned_pages);
 		balloon_stats.balloon_high++;
-		dec_totalhigh_pages();
 	} else {
 		list_add(&page->lru, &ballooned_pages);
 		balloon_stats.balloon_low++;
@@ -124,6 +123,8 @@ static void __balloon_append(struct page *page)
 static void balloon_append(struct page *page)
 {
 	__balloon_append(page);
+	if (PageHighMem(page))
+		dec_totalhigh_pages();
 	totalram_pages--;
 }
 
@@ -193,7 +194,7 @@ static enum bp_state update_schedule(enum bp_state state)
 	return BP_EAGAIN;
 }
 
-static unsigned long current_target(void)
+static long current_credit(void)
 {
 	unsigned long target = balloon_stats.target_pages;
 
@@ -202,7 +203,7 @@ static unsigned long current_target(void)
 		     balloon_stats.balloon_low +
 		     balloon_stats.balloon_high);
 
-	return target;
+	return target - balloon_stats.current_pages;
 }
 
 static enum bp_state increase_reservation(unsigned long nr_pages)
@@ -246,7 +247,7 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 		set_phys_to_machine(pfn, frame_list[i]);
 
 		/* Link back into the page tables if not highmem. */
-		if (!xen_hvm_domain() && pfn < max_low_pfn) {
+		if (xen_pv_domain() && !PageHighMem(page)) {
 			int ret;
 			ret = HYPERVISOR_update_va_mapping(
 				(unsigned long)__va(pfn << PAGE_SHIFT),
@@ -293,7 +294,7 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 
 		scrub_page(page);
 
-		if (!xen_hvm_domain() && !PageHighMem(page)) {
+		if (xen_pv_domain() && !PageHighMem(page)) {
 			ret = HYPERVISOR_update_va_mapping(
 				(unsigned long)__va(pfn << PAGE_SHIFT),
 				__pte_ma(0), 0);
@@ -337,7 +338,7 @@ static void balloon_process(struct work_struct *work)
 	mutex_lock(&balloon_mutex);
 
 	do {
-		credit = current_target() - balloon_stats.current_pages;
+		credit = current_credit();
 
 		if (credit > 0)
 			state = increase_reservation(credit);
@@ -420,7 +421,7 @@ void free_xenballooned_pages(int nr_pages, struct page** pages)
 	}
 
 	/* The balloon may be too large now. Shrink it if needed. */
-	if (current_target() != balloon_stats.current_pages)
+	if (current_credit())
 		schedule_delayed_work(&balloon_worker, 0);
 
 	mutex_unlock(&balloon_mutex);
@@ -429,7 +430,7 @@ EXPORT_SYMBOL(free_xenballooned_pages);
 
 static int __init balloon_init(void)
 {
- 	unsigned long pfn, nr_pages, extra_pfn_end;
+	unsigned long pfn, extra_pfn_end;
 	struct page *page;
 
 	if (!xen_domain())
@@ -437,11 +438,7 @@ static int __init balloon_init(void)
 
 	pr_info("xen/balloon: Initialising balloon driver.\n");
 
- 	if (xen_pv_domain())
- 		nr_pages = xen_start_info->nr_pages;
- 	else
- 		nr_pages = max_pfn;
- 	balloon_stats.current_pages = min(nr_pages, max_pfn);
+	balloon_stats.current_pages = xen_pv_domain() ? min(xen_start_info->nr_pages, max_pfn) : max_pfn;
 	balloon_stats.target_pages  = balloon_stats.current_pages;
 	balloon_stats.balloon_low   = 0;
 	balloon_stats.balloon_high  = 0;
@@ -466,7 +463,7 @@ static int __init balloon_init(void)
 	     pfn < extra_pfn_end;
 	     pfn++) {
 		page = pfn_to_page(pfn);
-		/* totalram_pages doesn't include the boot-time
+		/* totalram_pages and totalhigh_pages do not include the boot-time
 		   balloon extension, so don't subtract from it. */
 		__balloon_append(page);
 	}

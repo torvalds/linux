@@ -3040,7 +3040,7 @@ lpfc_sli_sp_handle_rspiocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	list_add_tail(&rspiocbp->list, &(pring->iocb_continueq));
 	pring->iocb_continueq_cnt++;
 
-	/* Now, determine whetehr the list is completed for processing */
+	/* Now, determine whether the list is completed for processing */
 	irsp = &rspiocbp->iocb;
 	if (irsp->ulpLe) {
 		/*
@@ -4769,8 +4769,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	else
 		phba->hba_flag &= ~HBA_FIP_SUPPORT;
 
-	if (phba->sli_rev != LPFC_SLI_REV4 ||
-	    !(phba->hba_flag & HBA_FCOE_MODE)) {
+	if (phba->sli_rev != LPFC_SLI_REV4) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
 			"0376 READ_REV Error. SLI Level %d "
 			"FCoE enabled %d\n",
@@ -5018,10 +5017,11 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		lpfc_reg_fcfi(phba, mboxq);
 		mboxq->vport = phba->pport;
 		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-		if (rc == MBX_SUCCESS)
-			rc = 0;
-		else
+		if (rc != MBX_SUCCESS)
 			goto out_unset_queue;
+		rc = 0;
+		phba->fcf.fcfi = bf_get(lpfc_reg_fcfi_fcfi,
+					&mboxq->u.mqe.un.reg_fcfi);
 	}
 	/*
 	 * The port is ready, set the host's link state to LINK_DOWN
@@ -6402,6 +6402,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 	uint32_t els_id = LPFC_ELS_ID_DEFAULT;
 	int numBdes, i;
 	struct ulp_bde64 bde;
+	struct lpfc_nodelist *ndlp;
 
 	fip = phba->hba_flag & HBA_FIP_SUPPORT;
 	/* The fcp commands will set command type */
@@ -6447,6 +6448,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 
 	switch (iocbq->iocb.ulpCommand) {
 	case CMD_ELS_REQUEST64_CR:
+		ndlp = (struct lpfc_nodelist *)iocbq->context1;
 		if (!iocbq->iocb.ulpLe) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"2007 Only Limited Edition cmd Format"
@@ -6472,6 +6474,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 			els_id = ((iocbq->iocb_flag & LPFC_FIP_ELS_ID_MASK)
 					>> LPFC_FIP_ELS_ID_SHIFT);
 		}
+		bf_set(wqe_temp_rpi, &wqe->els_req.wqe_com, ndlp->nlp_rpi);
 		bf_set(wqe_els_id, &wqe->els_req.wqe_com, els_id);
 		bf_set(wqe_dbde, &wqe->els_req.wqe_com, 1);
 		bf_set(wqe_iod, &wqe->els_req.wqe_com, LPFC_WQE_IOD_READ);
@@ -6604,6 +6607,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		command_type = OTHER_COMMAND;
 	break;
 	case CMD_XMIT_ELS_RSP64_CX:
+		ndlp = (struct lpfc_nodelist *)iocbq->context1;
 		/* words0-2 BDE memcpy */
 		/* word3 iocb=iotag32 wqe=response_payload_len */
 		wqe->xmit_els_rsp.response_payload_len = xmit_len;
@@ -6626,6 +6630,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(wqe_lenloc, &wqe->xmit_els_rsp.wqe_com,
 		       LPFC_WQE_LENLOC_WORD3);
 		bf_set(wqe_ebde_cnt, &wqe->xmit_els_rsp.wqe_com, 0);
+		bf_set(wqe_rsp_temp_rpi, &wqe->xmit_els_rsp, ndlp->nlp_rpi);
 		command_type = OTHER_COMMAND;
 	break;
 	case CMD_CLOSE_XRI_CN:
@@ -10522,8 +10527,8 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	bf_set(lpfc_mbox_hdr_version, &shdr->request,
 	       phba->sli4_hba.pc_sli4_params.cqv);
 	if (phba->sli4_hba.pc_sli4_params.cqv == LPFC_Q_CREATE_VERSION_2) {
-		bf_set(lpfc_mbx_cq_create_page_size, &cq_create->u.request,
-		       (PAGE_SIZE/SLI4_PAGE_SIZE));
+		/* FW only supports 1. Should be PAGE_SIZE/SLI4_PAGE_SIZE */
+		bf_set(lpfc_mbx_cq_create_page_size, &cq_create->u.request, 1);
 		bf_set(lpfc_cq_eq_id_2, &cq_create->u.request.context,
 		       eq->queue_id);
 	} else {
@@ -10967,6 +10972,12 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		       &rq_create->u.request.context,
 		       hrq->entry_count);
 		rq_create->u.request.context.buffer_size = LPFC_HDR_BUF_SIZE;
+		bf_set(lpfc_rq_context_rqe_size,
+		       &rq_create->u.request.context,
+		       LPFC_RQE_SIZE_8);
+		bf_set(lpfc_rq_context_page_size,
+		       &rq_create->u.request.context,
+		       (PAGE_SIZE/SLI4_PAGE_SIZE));
 	} else {
 		switch (hrq->entry_count) {
 		default:
@@ -11042,9 +11053,12 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	       phba->sli4_hba.pc_sli4_params.rqv);
 	if (phba->sli4_hba.pc_sli4_params.rqv == LPFC_Q_CREATE_VERSION_1) {
 		bf_set(lpfc_rq_context_rqe_count_1,
-		       &rq_create->u.request.context,
-		       hrq->entry_count);
+		       &rq_create->u.request.context, hrq->entry_count);
 		rq_create->u.request.context.buffer_size = LPFC_DATA_BUF_SIZE;
+		bf_set(lpfc_rq_context_rqe_size, &rq_create->u.request.context,
+		       LPFC_RQE_SIZE_8);
+		bf_set(lpfc_rq_context_page_size, &rq_create->u.request.context,
+		       (PAGE_SIZE/SLI4_PAGE_SIZE));
 	} else {
 		switch (drq->entry_count) {
 		default:

@@ -224,13 +224,13 @@ static int irq_choose_cpu(unsigned int irq, const struct cpumask *affinity)
 	int cpuid;
 
 	cpumask_copy(&mask, affinity);
-	if (cpus_equal(mask, cpu_online_map)) {
+	if (cpumask_equal(&mask, cpu_online_mask)) {
 		cpuid = map_to_cpu(irq);
 	} else {
 		cpumask_t tmp;
 
-		cpus_and(tmp, cpu_online_map, mask);
-		cpuid = cpus_empty(tmp) ? map_to_cpu(irq) : first_cpu(tmp);
+		cpumask_and(&tmp, cpu_online_mask, &mask);
+		cpuid = cpumask_empty(&tmp) ? map_to_cpu(irq) : cpumask_first(&tmp);
 	}
 
 	return cpuid;

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -149,32 +149,31 @@ void iwl_cmd_queue_unmap(struct iwl_priv *priv)
 	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
 	struct iwl_queue *q = &txq->q;
 	int i;
-	bool huge = false;
 
 	if (q->n_bd == 0)
 		return;
 
 	while (q->read_ptr != q->write_ptr) {
-		/* we have no way to tell if it is a huge cmd ATM */
 		i = get_cmd_index(q, q->read_ptr, 0);
 
-		if (txq->meta[i].flags & CMD_SIZE_HUGE)
-			huge = true;
-		else
+		if (txq->meta[i].flags & CMD_MAPPED) {
 			pci_unmap_single(priv->pci_dev,
 					 dma_unmap_addr(&txq->meta[i], mapping),
 					 dma_unmap_len(&txq->meta[i], len),
 					 PCI_DMA_BIDIRECTIONAL);
+			txq->meta[i].flags = 0;
+		}
 
-	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
+		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
 
-	if (huge) {
-		i = q->n_window;
+	i = q->n_window;
+	if (txq->meta[i].flags & CMD_MAPPED) {
 		pci_unmap_single(priv->pci_dev,
 				 dma_unmap_addr(&txq->meta[i], mapping),
 				 dma_unmap_len(&txq->meta[i], len),
 				 PCI_DMA_BIDIRECTIONAL);
+		txq->meta[i].flags = 0;
 	}
 }
 
@@ -233,7 +232,6 @@ void iwl_cmd_queue_free(struct iwl_priv *priv)
  * reclaiming packets (on 'tx done IRQ), if free space become > high mark,
  * Tx queue resumed.
  *
- * See more detailed info in iwl-4965-hw.h.
  ***************************************************/
 
 int iwl_queue_space(const struct iwl_queue *q)
@@ -265,11 +263,13 @@ static int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 
 	/* count must be power-of-two size, otherwise iwl_queue_inc_wrap
 	 * and iwl_queue_dec_wrap are broken. */
-	BUG_ON(!is_power_of_2(count));
+	if (WARN_ON(!is_power_of_2(count)))
+		return -EINVAL;
 
 	/* slots_num must be power-of-two size, otherwise
 	 * get_cmd_index is broken. */
-	BUG_ON(!is_power_of_2(slots_num));
+	if (WARN_ON(!is_power_of_2(slots_num)))
+		return -EINVAL;
 
 	q->low_mark = q->n_window / 4;
 	if (q->low_mark < 4)
@@ -386,7 +386,9 @@ int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
 
 	/* Initialize queue's high/low-water marks, and head/tail indexes */
-	iwl_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
+	ret = iwl_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
+	if (ret)
+		return ret;
 
 	/* Tell device where to find queue */
 	priv->cfg->ops->lib->txq_init(priv, txq);
@@ -440,22 +442,25 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	struct iwl_cmd_meta *out_meta;
 	dma_addr_t phys_addr;
 	unsigned long flags;
-	int len;
 	u32 idx;
 	u16 fix_size;
 	bool is_ct_kill = false;
 
-	cmd->len = priv->cfg->ops->utils->get_hcmd_size(cmd->id, cmd->len);
 	fix_size = (u16)(cmd->len + sizeof(out_cmd->hdr));
 
-	/* If any of the command structures end up being larger than
+	/*
+	 * If any of the command structures end up being larger than
 	 * the TFD_MAX_PAYLOAD_SIZE, and it sent as a 'small' command then
 	 * we will need to increase the size of the TFD entries
 	 * Also, check to see if command buffer should not exceed the size
-	 * of device_cmd and max_cmd_size. */
-	BUG_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
-	       !(cmd->flags & CMD_SIZE_HUGE));
-	BUG_ON(fix_size > IWL_MAX_CMD_SIZE);
+	 * of device_cmd and max_cmd_size.
+	 */
+	if (WARN_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
+		    !(cmd->flags & CMD_SIZE_HUGE)))
+		return -EINVAL;
+
+	if (WARN_ON(fix_size > IWL_MAX_CMD_SIZE))
+		return -EINVAL;
 
 	if (iwl_is_rfkill(priv) || iwl_is_ctkill(priv)) {
 		IWL_WARN(priv, "Not sending command - %s KILL\n",
@@ -463,35 +468,38 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		return -EIO;
 	}
 
-	if (iwl_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
-		IWL_ERR(priv, "No space in command queue\n");
-		if (priv->cfg->ops->lib->tt_ops.ct_kill_check) {
-			is_ct_kill =
-				priv->cfg->ops->lib->tt_ops.ct_kill_check(priv);
-		}
-		if (!is_ct_kill) {
-			IWL_ERR(priv, "Restarting adapter due to queue full\n");
-			queue_work(priv->workqueue, &priv->restart);
-		}
-		return -ENOSPC;
-	}
+	/*
+	 * As we only have a single huge buffer, check that the command
+	 * is synchronous (otherwise buffers could end up being reused).
+	 */
+
+	if (WARN_ON((cmd->flags & CMD_ASYNC) && (cmd->flags & CMD_SIZE_HUGE)))
+		return -EINVAL;
 
 	spin_lock_irqsave(&priv->hcmd_lock, flags);
 
-	/* If this is a huge cmd, mark the huge flag also on the meta.flags
-	 * of the _original_ cmd. This is used for DMA mapping clean up.
-	 */
-	if (cmd->flags & CMD_SIZE_HUGE) {
-		idx = get_cmd_index(q, q->write_ptr, 0);
-		txq->meta[idx].flags = CMD_SIZE_HUGE;
+	if (iwl_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
+		spin_unlock_irqrestore(&priv->hcmd_lock, flags);
+
+		IWL_ERR(priv, "No space in command queue\n");
+		is_ct_kill = iwl_check_for_ct_kill(priv);
+		if (!is_ct_kill) {
+			IWL_ERR(priv, "Restarting adapter due to queue full\n");
+			iwlagn_fw_error(priv, false);
+		}
+		return -ENOSPC;
 	}
 
 	idx = get_cmd_index(q, q->write_ptr, cmd->flags & CMD_SIZE_HUGE);
 	out_cmd = txq->cmd[idx];
 	out_meta = &txq->meta[idx];
 
+	if (WARN_ON(out_meta->flags & CMD_MAPPED)) {
+		spin_unlock_irqrestore(&priv->hcmd_lock, flags);
+		return -ENOSPC;
+	}
+
 	memset(out_meta, 0, sizeof(*out_meta));	/* re-initialize to NULL */
-	out_meta->flags = cmd->flags;
 	if (cmd->flags & CMD_WANT_SKB)
 		out_meta->source = cmd;
 	if (cmd->flags & CMD_ASYNC)
@@ -508,9 +516,6 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 			INDEX_TO_SEQ(q->write_ptr));
 	if (cmd->flags & CMD_SIZE_HUGE)
 		out_cmd->hdr.sequence |= SEQ_HUGE_FRAME;
-	len = sizeof(struct iwl_device_cmd);
-	if (idx == TFD_CMD_SLOTS)
-		len = IWL_MAX_CMD_SIZE;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	switch (out_cmd->hdr.cmd) {
@@ -532,16 +537,19 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 				q->write_ptr, idx, priv->cmd_queue);
 	}
 #endif
-	txq->need_update = 1;
-
-	if (priv->cfg->ops->lib->txq_update_byte_cnt_tbl)
-		/* Set up entry in queue's byte count circular buffer */
-		priv->cfg->ops->lib->txq_update_byte_cnt_tbl(priv, txq, 0);
-
 	phys_addr = pci_map_single(priv->pci_dev, &out_cmd->hdr,
 				   fix_size, PCI_DMA_BIDIRECTIONAL);
+	if (unlikely(pci_dma_mapping_error(priv->pci_dev, phys_addr))) {
+		idx = -ENOMEM;
+		goto out;
+	}
+
 	dma_unmap_addr_set(out_meta, mapping, phys_addr);
 	dma_unmap_len_set(out_meta, len, fix_size);
+
+	out_meta->flags = cmd->flags | CMD_MAPPED;
+
+	txq->need_update = 1;
 
 	trace_iwlwifi_dev_hcmd(priv, &out_cmd->hdr, fix_size, cmd->flags);
 
@@ -553,6 +561,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	iwl_txq_update_write_ptr(priv, txq);
 
+ out:
 	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
 	return idx;
 }
@@ -584,7 +593,7 @@ static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id,
 		if (nfreed++ > 0) {
 			IWL_ERR(priv, "HCMD skipped: index (%d) %d %d\n", idx,
 					q->write_ptr, q->read_ptr);
-			queue_work(priv->workqueue, &priv->restart);
+			iwlagn_fw_error(priv, false);
 		}
 
 	}
@@ -609,6 +618,7 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	struct iwl_device_cmd *cmd;
 	struct iwl_cmd_meta *meta;
 	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
+	unsigned long flags;
 
 	/* If a Tx command is being handled and it isn't in the actual
 	 * command queue then there a command routing bug has been introduced
@@ -622,14 +632,6 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		return;
 	}
 
-	/* If this is a huge cmd, clear the huge flag on the meta.flags
-	 * of the _original_ cmd. So that iwl_cmd_queue_free won't unmap
-	 * the DMA buffer for the scan (huge) command.
-	 */
-	if (huge) {
-		cmd_index = get_cmd_index(&txq->q, index, 0);
-		txq->meta[cmd_index].flags = 0;
-	}
 	cmd_index = get_cmd_index(&txq->q, index, huge);
 	cmd = txq->cmd[cmd_index];
 	meta = &txq->meta[cmd_index];
@@ -646,6 +648,8 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	} else if (meta->callback)
 		meta->callback(priv, cmd, pkt);
 
+	spin_lock_irqsave(&priv->hcmd_lock, flags);
+
 	iwl_hcmd_queue_reclaim(priv, txq_id, index, cmd_index);
 
 	if (!(meta->flags & CMD_ASYNC)) {
@@ -654,5 +658,9 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 			       get_cmd_string(cmd->hdr.cmd));
 		wake_up_interruptible(&priv->wait_command_queue);
 	}
+
+	/* Mark as unmapped */
 	meta->flags = 0;
+
+	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
 }

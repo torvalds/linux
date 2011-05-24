@@ -24,7 +24,6 @@
 //==============================================================================
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 #include "a_osapi.h"
 #include "../htc_debug.h"
 #include "hif.h"
@@ -108,7 +107,7 @@ static void HCIUartCleanup(struct gmbox_proto_hci_uart *pProtocol)
     A_MUTEX_DELETE(&pProtocol->HCIRxLock);
     A_MUTEX_DELETE(&pProtocol->HCITxLock);
         
-    A_FREE(pProtocol);    
+    kfree(pProtocol);    
 }
 
 static int InitTxCreditState(struct gmbox_proto_hci_uart *pProt)

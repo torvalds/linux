@@ -49,6 +49,5 @@ void __init sb1480_clocksource_init(void)
 
 	plldiv = G_BCM1480_SYS_PLL_DIV(__raw_readq(IOADDR(A_SCD_SYSTEM_CFG)));
 	zbbus = ((plldiv >> 1) * 50000000) + ((plldiv & 1) * 25000000);
-	clocksource_set_clock(cs, zbbus);
-	clocksource_register(cs);
+	clocksource_register_hz(cs, zbbus);
 }

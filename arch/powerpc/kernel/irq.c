@@ -66,7 +66,6 @@
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
 #include <asm/udbg.h>
-#include <asm/dbell.h>
 #include <asm/smp.h>
 
 #ifdef CONFIG_PPC64
@@ -160,7 +159,8 @@ notrace void arch_local_irq_restore(unsigned long en)
 
 #if defined(CONFIG_BOOKE) && defined(CONFIG_SMP)
 	/* Check for pending doorbell interrupts and resend to ourself */
-	doorbell_check_self();
+	if (cpu_has_feature(CPU_FTR_DBELL))
+		smp_muxed_ipi_resend();
 #endif
 
 	/*
@@ -397,24 +397,28 @@ struct thread_info *mcheckirq_ctx[NR_CPUS] __read_mostly;
 void exc_lvl_ctx_init(void)
 {
 	struct thread_info *tp;
-	int i, hw_cpu;
+	int i, cpu_nr;
 
 	for_each_possible_cpu(i) {
-		hw_cpu = get_hard_smp_processor_id(i);
-		memset((void *)critirq_ctx[hw_cpu], 0, THREAD_SIZE);
-		tp = critirq_ctx[hw_cpu];
-		tp->cpu = i;
+#ifdef CONFIG_PPC64
+		cpu_nr = i;
+#else
+		cpu_nr = get_hard_smp_processor_id(i);
+#endif
+		memset((void *)critirq_ctx[cpu_nr], 0, THREAD_SIZE);
+		tp = critirq_ctx[cpu_nr];
+		tp->cpu = cpu_nr;
 		tp->preempt_count = 0;
 
 #ifdef CONFIG_BOOKE
-		memset((void *)dbgirq_ctx[hw_cpu], 0, THREAD_SIZE);
-		tp = dbgirq_ctx[hw_cpu];
-		tp->cpu = i;
+		memset((void *)dbgirq_ctx[cpu_nr], 0, THREAD_SIZE);
+		tp = dbgirq_ctx[cpu_nr];
+		tp->cpu = cpu_nr;
 		tp->preempt_count = 0;
 
-		memset((void *)mcheckirq_ctx[hw_cpu], 0, THREAD_SIZE);
-		tp = mcheckirq_ctx[hw_cpu];
-		tp->cpu = i;
+		memset((void *)mcheckirq_ctx[cpu_nr], 0, THREAD_SIZE);
+		tp = mcheckirq_ctx[cpu_nr];
+		tp->cpu = cpu_nr;
 		tp->preempt_count = HARDIRQ_OFFSET;
 #endif
 	}
@@ -477,19 +481,40 @@ void do_softirq(void)
  * IRQ controller and virtual interrupts
  */
 
+/* The main irq map itself is an array of NR_IRQ entries containing the
+ * associate host and irq number. An entry with a host of NULL is free.
+ * An entry can be allocated if it's free, the allocator always then sets
+ * hwirq first to the host's invalid irq number and then fills ops.
+ */
+struct irq_map_entry {
+	irq_hw_number_t	hwirq;
+	struct irq_host	*host;
+};
+
 static LIST_HEAD(irq_hosts);
 static DEFINE_RAW_SPINLOCK(irq_big_lock);
-static unsigned int revmap_trees_allocated;
 static DEFINE_MUTEX(revmap_trees_mutex);
-struct irq_map_entry irq_map[NR_IRQS];
+static struct irq_map_entry irq_map[NR_IRQS];
 static unsigned int irq_virq_count = NR_IRQS;
 static struct irq_host *irq_default_host;
+
+irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
+{
+	return irq_map[d->irq].hwirq;
+}
+EXPORT_SYMBOL_GPL(irqd_to_hwirq);
 
 irq_hw_number_t virq_to_hw(unsigned int virq)
 {
 	return irq_map[virq].hwirq;
 }
 EXPORT_SYMBOL_GPL(virq_to_hw);
+
+bool virq_is_host(unsigned int virq, struct irq_host *host)
+{
+	return irq_map[virq].host == host;
+}
+EXPORT_SYMBOL_GPL(virq_is_host);
 
 static int default_irq_host_match(struct irq_host *h, struct device_node *np)
 {
@@ -511,7 +536,7 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 	/* Allocate structure and revmap table if using linear mapping */
 	if (revmap_type == IRQ_HOST_MAP_LINEAR)
 		size += revmap_arg * sizeof(unsigned int);
-	host = zalloc_maybe_bootmem(size, GFP_KERNEL);
+	host = kzalloc(size, GFP_KERNEL);
 	if (host == NULL)
 		return NULL;
 
@@ -561,14 +586,14 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 			irq_map[i].host = host;
 			smp_wmb();
 
-			/* Clear norequest flags */
-			irq_clear_status_flags(i, IRQ_NOREQUEST);
-
 			/* Legacy flags are left to default at this point,
 			 * one can then use irq_create_mapping() to
 			 * explicitly change them
 			 */
 			ops->map(host, i, i);
+
+			/* Clear norequest flags */
+			irq_clear_status_flags(i, IRQ_NOREQUEST);
 		}
 		break;
 	case IRQ_HOST_MAP_LINEAR:
@@ -578,6 +603,9 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 		host->revmap_data.linear.size = revmap_arg;
 		smp_wmb();
 		host->revmap_data.linear.revmap = rmap;
+		break;
+	case IRQ_HOST_MAP_TREE:
+		INIT_RADIX_TREE(&host->revmap_data.tree, GFP_KERNEL);
 		break;
 	default:
 		break;
@@ -636,8 +664,6 @@ static int irq_setup_virq(struct irq_host *host, unsigned int virq,
 		goto error;
 	}
 
-	irq_clear_status_flags(virq, IRQ_NOREQUEST);
-
 	/* map it */
 	smp_wmb();
 	irq_map[virq].hwirq = hwirq;
@@ -647,6 +673,8 @@ static int irq_setup_virq(struct irq_host *host, unsigned int virq,
 		pr_debug("irq: -> mapping failed, freeing\n");
 		goto errdesc;
 	}
+
+	irq_clear_status_flags(virq, IRQ_NOREQUEST);
 
 	return 0;
 
@@ -704,8 +732,6 @@ unsigned int irq_create_mapping(struct irq_host *host,
 	 */
 	virq = irq_find_mapping(host, hwirq);
 	if (virq != NO_IRQ) {
-		if (host->ops->remap)
-			host->ops->remap(host, virq, hwirq);
 		pr_debug("irq: -> existing mapping on virq %d\n", virq);
 		return virq;
 	}
@@ -786,13 +812,14 @@ void irq_dispose_mapping(unsigned int virq)
 		return;
 
 	host = irq_map[virq].host;
-	WARN_ON (host == NULL);
-	if (host == NULL)
+	if (WARN_ON(host == NULL))
 		return;
 
 	/* Never unmap legacy interrupts */
 	if (host->revmap_type == IRQ_HOST_MAP_LEGACY)
 		return;
+
+	irq_set_status_flags(virq, IRQ_NOREQUEST);
 
 	/* remove chip and handler */
 	irq_set_chip_and_handler(virq, NULL, NULL);
@@ -813,13 +840,6 @@ void irq_dispose_mapping(unsigned int virq)
 			host->revmap_data.linear.revmap[hwirq] = NO_IRQ;
 		break;
 	case IRQ_HOST_MAP_TREE:
-		/*
-		 * Check if radix tree allocated yet, if not then nothing to
-		 * remove.
-		 */
-		smp_rmb();
-		if (revmap_trees_allocated < 1)
-			break;
 		mutex_lock(&revmap_trees_mutex);
 		radix_tree_delete(&host->revmap_data.tree, hwirq);
 		mutex_unlock(&revmap_trees_mutex);
@@ -829,8 +849,6 @@ void irq_dispose_mapping(unsigned int virq)
 	/* Destroy map */
 	smp_mb();
 	irq_map[virq].hwirq = host->inval_irq;
-
-	irq_set_status_flags(virq, IRQ_NOREQUEST);
 
 	irq_free_descs(virq, 1);
 	/* Free it */
@@ -877,16 +895,9 @@ unsigned int irq_radix_revmap_lookup(struct irq_host *host,
 	struct irq_map_entry *ptr;
 	unsigned int virq;
 
-	WARN_ON(host->revmap_type != IRQ_HOST_MAP_TREE);
-
-	/*
-	 * Check if the radix tree exists and has bee initialized.
-	 * If not, we fallback to slow mode
-	 */
-	if (revmap_trees_allocated < 2)
+	if (WARN_ON_ONCE(host->revmap_type != IRQ_HOST_MAP_TREE))
 		return irq_find_mapping(host, hwirq);
 
-	/* Now try to resolve */
 	/*
 	 * No rcu_read_lock(ing) needed, the ptr returned can't go under us
 	 * as it's referencing an entry in the static irq_map table.
@@ -909,16 +920,7 @@ unsigned int irq_radix_revmap_lookup(struct irq_host *host,
 void irq_radix_revmap_insert(struct irq_host *host, unsigned int virq,
 			     irq_hw_number_t hwirq)
 {
-
-	WARN_ON(host->revmap_type != IRQ_HOST_MAP_TREE);
-
-	/*
-	 * Check if the radix tree exists yet.
-	 * If not, then the irq will be inserted into the tree when it gets
-	 * initialized.
-	 */
-	smp_rmb();
-	if (revmap_trees_allocated < 1)
+	if (WARN_ON(host->revmap_type != IRQ_HOST_MAP_TREE))
 		return;
 
 	if (virq != NO_IRQ) {
@@ -934,7 +936,8 @@ unsigned int irq_linear_revmap(struct irq_host *host,
 {
 	unsigned int *revmap;
 
-	WARN_ON(host->revmap_type != IRQ_HOST_MAP_LINEAR);
+	if (WARN_ON_ONCE(host->revmap_type != IRQ_HOST_MAP_LINEAR))
+		return irq_find_mapping(host, hwirq);
 
 	/* Check revmap bounds */
 	if (unlikely(hwirq >= host->revmap_data.linear.size))
@@ -1028,53 +1031,6 @@ int arch_early_irq_init(void)
 	return 0;
 }
 
-/* We need to create the radix trees late */
-static int irq_late_init(void)
-{
-	struct irq_host *h;
-	unsigned int i;
-
-	/*
-	 * No mutual exclusion with respect to accessors of the tree is needed
-	 * here as the synchronization is done via the state variable
-	 * revmap_trees_allocated.
-	 */
-	list_for_each_entry(h, &irq_hosts, link) {
-		if (h->revmap_type == IRQ_HOST_MAP_TREE)
-			INIT_RADIX_TREE(&h->revmap_data.tree, GFP_KERNEL);
-	}
-
-	/*
-	 * Make sure the radix trees inits are visible before setting
-	 * the flag
-	 */
-	smp_wmb();
-	revmap_trees_allocated = 1;
-
-	/*
-	 * Insert the reverse mapping for those interrupts already present
-	 * in irq_map[].
-	 */
-	mutex_lock(&revmap_trees_mutex);
-	for (i = 0; i < irq_virq_count; i++) {
-		if (irq_map[i].host &&
-		    (irq_map[i].host->revmap_type == IRQ_HOST_MAP_TREE))
-			radix_tree_insert(&irq_map[i].host->revmap_data.tree,
-					  irq_map[i].hwirq, &irq_map[i]);
-	}
-	mutex_unlock(&revmap_trees_mutex);
-
-	/*
-	 * Make sure the radix trees insertions are visible before setting
-	 * the flag
-	 */
-	smp_wmb();
-	revmap_trees_allocated = 2;
-
-	return 0;
-}
-arch_initcall(irq_late_init);
-
 #ifdef CONFIG_VIRQ_DEBUG
 static int virq_debug_show(struct seq_file *m, void *private)
 {
@@ -1082,10 +1038,11 @@ static int virq_debug_show(struct seq_file *m, void *private)
 	struct irq_desc *desc;
 	const char *p;
 	static const char none[] = "none";
+	void *data;
 	int i;
 
-	seq_printf(m, "%-5s  %-7s  %-15s  %s\n", "virq", "hwirq",
-		      "chip name", "host name");
+	seq_printf(m, "%-5s  %-7s  %-15s  %-18s  %s\n", "virq", "hwirq",
+		      "chip name", "chip data", "host name");
 
 	for (i = 1; i < nr_irqs; i++) {
 		desc = irq_to_desc(i);
@@ -1098,7 +1055,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			struct irq_chip *chip;
 
 			seq_printf(m, "%5d  ", i);
-			seq_printf(m, "0x%05lx  ", virq_to_hw(i));
+			seq_printf(m, "0x%05lx  ", irq_map[i].hwirq);
 
 			chip = irq_desc_get_chip(desc);
 			if (chip && chip->name)
@@ -1106,6 +1063,9 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			else
 				p = none;
 			seq_printf(m, "%-15s  ", p);
+
+			data = irq_desc_get_chip_data(desc);
+			seq_printf(m, "0x%16p  ", data);
 
 			if (irq_map[i].host && irq_map[i].host->of_node)
 				p = irq_map[i].host->of_node->full_name;

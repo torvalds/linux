@@ -120,7 +120,7 @@
  */
 #define PM860X_DAPM_OUTPUT(wname, wevent)	\
 {	.id = snd_soc_dapm_pga, .name = wname, .reg = SND_SOC_NOPM, \
-	.shift = 0, .invert = 0, .kcontrols = NULL, \
+	.shift = 0, .invert = 0, .kcontrol_news = NULL, \
 	.num_kcontrols = 0, .event = wevent, \
 	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD, }
 

@@ -547,11 +547,9 @@ static inline void tulip_stop_rxtx(struct tulip_private *tp)
 			udelay(10);
 
 		if (!i)
-			printk(KERN_DEBUG "%s: tulip_stop_rxtx() failed"
-					" (CSR5 0x%x CSR6 0x%x)\n",
-					pci_name(tp->pdev),
-					ioread32(ioaddr + CSR5),
-					ioread32(ioaddr + CSR6));
+			netdev_dbg(tp->dev, "tulip_stop_rxtx() failed (CSR5 0x%x CSR6 0x%x)\n",
+				   ioread32(ioaddr + CSR5),
+				   ioread32(ioaddr + CSR6));
 	}
 }
 

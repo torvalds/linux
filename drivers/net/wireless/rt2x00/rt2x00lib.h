@@ -32,6 +32,7 @@
  */
 #define WATCHDOG_INTERVAL	round_jiffies_relative(HZ)
 #define LINK_TUNE_INTERVAL	round_jiffies_relative(HZ)
+#define AGC_INTERVAL		round_jiffies_relative(4 * HZ)
 
 /*
  * rt2x00_rate: Per rate device information
@@ -119,16 +120,6 @@ void rt2x00queue_free_skb(struct queue_entry *entry);
 void rt2x00queue_align_frame(struct sk_buff *skb);
 
 /**
- * rt2x00queue_align_payload - Align 802.11 payload to 4-byte boundary
- * @skb: The skb to align
- * @header_length: Length of 802.11 header
- *
- * Align the 802.11 payload to a 4-byte boundary, this could
- * mean the header is not aligned properly though.
- */
-void rt2x00queue_align_payload(struct sk_buff *skb, unsigned int header_length);
-
-/**
  * rt2x00queue_insert_l2pad - Align 802.11 header & payload to 4-byte boundary
  * @skb: The skb to align
  * @header_length: Length of 802.11 header
@@ -184,14 +175,14 @@ int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
 
 /**
  * rt2x00queue_index_inc - Index incrementation function
- * @queue: Queue (&struct data_queue) to perform the action on.
+ * @entry: Queue entry (&struct queue_entry) to perform the action on.
  * @index: Index type (&enum queue_index) to perform the action on.
  *
- * This function will increase the requested index on the queue,
+ * This function will increase the requested index on the entry's queue,
  * it will grab the appropriate locks and handle queue overflow events by
  * resetting the index to the start of the queue.
  */
-void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index);
+void rt2x00queue_index_inc(struct queue_entry *entry, enum queue_index index);
 
 /**
  * rt2x00queue_init_queues - Initialize all data queues
@@ -279,6 +270,18 @@ void rt2x00link_start_watchdog(struct rt2x00_dev *rt2x00dev);
  * be running until &rt2x00link_start_watchdog is called.
  */
 void rt2x00link_stop_watchdog(struct rt2x00_dev *rt2x00dev);
+
+/**
+ * rt2x00link_start_agc - Start periodic gain calibration
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ */
+void rt2x00link_start_agc(struct rt2x00_dev *rt2x00dev);
+
+/**
+ * rt2x00link_stop_agc - Stop periodic gain calibration
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ */
+void rt2x00link_stop_agc(struct rt2x00_dev *rt2x00dev);
 
 /**
  * rt2x00link_register - Initialize link tuning & watchdog functionality
@@ -385,41 +388,17 @@ static inline void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
 
 /*
- * HT handlers.
- */
-#ifdef CONFIG_RT2X00_LIB_HT
-void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
-				   struct txentry_desc *txdesc,
-				   const struct rt2x00_rate *hwrate);
-
-u16 rt2x00ht_center_channel(struct rt2x00_dev *rt2x00dev,
-			    struct ieee80211_conf *conf);
-#else
-static inline void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
-						 struct txentry_desc *txdesc,
-						 const struct rt2x00_rate *hwrate)
-{
-}
-
-static inline u16 rt2x00ht_center_channel(struct rt2x00_dev *rt2x00dev,
-					  struct ieee80211_conf *conf)
-{
-	return conf->channel->hw_value;
-}
-#endif /* CONFIG_RT2X00_LIB_HT */
-
-/*
  * RFkill handlers.
  */
 static inline void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 {
-	if (test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+	if (test_bit(CAPABILITY_HW_BUTTON, &rt2x00dev->cap_flags))
 		wiphy_rfkill_start_polling(rt2x00dev->hw->wiphy);
 }
 
 static inline void rt2x00rfkill_unregister(struct rt2x00_dev *rt2x00dev)
 {
-	if (test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+	if (test_bit(CAPABILITY_HW_BUTTON, &rt2x00dev->cap_flags))
 		wiphy_rfkill_stop_polling(rt2x00dev->hw->wiphy);
 }
 

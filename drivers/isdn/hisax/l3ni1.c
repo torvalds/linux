@@ -2883,7 +2883,7 @@ global_handler(struct PStack *st, int mt, struct sk_buff *skb)
 static void
 ni1up(struct PStack *st, int pr, void *arg)
 {
-	int i, mt, cr, cause, callState;
+	int i, mt, cr, callState;
 	char *ptr;
 	u_char *p;
 	struct sk_buff *skb = arg;
@@ -2986,12 +2986,10 @@ ni1up(struct PStack *st, int pr, void *arg)
 				return;
 			}
 		} else if (mt == MT_STATUS) {
-			cause = 0;
 			if ((ptr = findie(skb->data, skb->len, IE_CAUSE, 0)) != NULL) {
 				ptr++;
 				if (*ptr++ == 2)
 					ptr++;
-				cause = *ptr & 0x7f;
 			}
 			callState = 0;
 			if ((ptr = findie(skb->data, skb->len, IE_CALL_STATE, 0)) != NULL) {

@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>

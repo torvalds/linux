@@ -70,8 +70,9 @@
 #include "usbvision.h"
 #include "usbvision-cards.h"
 
-#define DRIVER_AUTHOR "Joerg Heckenbach <joerg@heckenbach-aw.de>, \
-Dwaine Garden <DwaineGarden@rogers.com>"
+#define DRIVER_AUTHOR					\
+	"Joerg Heckenbach <joerg@heckenbach-aw.de>, "	\
+	"Dwaine Garden <DwaineGarden@rogers.com>"
 #define DRIVER_NAME "usbvision"
 #define DRIVER_ALIAS "USBVision"
 #define DRIVER_DESC "USBVision USB Video Device Driver for Linux"

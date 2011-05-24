@@ -185,15 +185,20 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	__be32 dst_ip = dst_in->sin_addr.s_addr;
 	struct rtable *rt;
 	struct neighbour *neigh;
+	struct flowi4 fl4;
 	int ret;
 
-	rt = ip_route_output(&init_net, dst_ip, src_ip, 0, addr->bound_dev_if);
+	memset(&fl4, 0, sizeof(fl4));
+	fl4.daddr = dst_ip;
+	fl4.saddr = src_ip;
+	fl4.flowi4_oif = addr->bound_dev_if;
+	rt = ip_route_output_key(&init_net, &fl4);
 	if (IS_ERR(rt)) {
 		ret = PTR_ERR(rt);
 		goto out;
 	}
 	src_in->sin_family = AF_INET;
-	src_in->sin_addr.s_addr = rt->rt_src;
+	src_in->sin_addr.s_addr = fl4.saddr;
 
 	if (rt->dst.dev->flags & IFF_LOOPBACK) {
 		ret = rdma_translate_ip((struct sockaddr *) dst_in, addr);

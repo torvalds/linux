@@ -133,6 +133,7 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip)
 static struct ftrace_ops trace_ops __read_mostly =
 {
 	.func = stack_trace_call,
+	.flags = FTRACE_OPS_FL_GLOBAL,
 };
 
 static ssize_t

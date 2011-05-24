@@ -166,7 +166,7 @@ void wifi_del_dev(void)
 
 #if defined(CONFIG_PM_SLEEP)
 #include <linux/suspend.h>
-volatile bool dhd_mmc_suspend = false;
+atomic_t dhd_mmc_suspend;
 DECLARE_WAIT_QUEUE_HEAD(dhd_dpc_wait);
 #endif	/*  defined(CONFIG_PM_SLEEP) */
 
@@ -325,7 +325,7 @@ uint dhd_roam = 1;
 uint dhd_radio_up = 1;
 
 /* Network inteface name */
-char iface_name[IFNAMSIZ];
+char iface_name[IFNAMSIZ] = "wlan";
 module_param_string(iface_name, iface_name, IFNAMSIZ, 0);
 
 /* The following are specific to the SDIO dongle */
@@ -385,10 +385,6 @@ module_param(dhd_pktgen_len, uint, 0);
 #define DHD_COMPILED
 #endif
 
-#if defined(CONFIG_WIRELESS_EXT)
-struct iw_statistics *dhd_get_wireless_stats(struct net_device *dev);
-#endif				/* defined(CONFIG_WIRELESS_EXT) */
-
 static void dhd_dpc(unsigned long data);
 /* forward decl */
 extern int dhd_wait_pend8021x(struct net_device *dev);
@@ -411,11 +407,11 @@ static int dhd_sleep_pm_callback(struct notifier_block *nfb,
 	switch (action) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
-		dhd_mmc_suspend = true;
+		atomic_set(&dhd_mmc_suspend, true);
 		return NOTIFY_OK;
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
-		dhd_mmc_suspend = false;
+		atomic_set(&dhd_mmc_suspend, false);
 		return NOTIFY_OK;
 	}
 	return 0;
@@ -1619,51 +1615,6 @@ static int dhd_ethtool(dhd_info_t *dhd, void *uaddr)
 	return 0;
 }
 
-static s16 linuxbcmerrormap[] = { 0,	/* 0 */
-	-EINVAL,		/* BCME_ERROR */
-	-EINVAL,		/* BCME_BADARG */
-	-EINVAL,		/* BCME_BADOPTION */
-	-EINVAL,		/* BCME_NOTUP */
-	-EINVAL,		/* BCME_NOTDOWN */
-	-EINVAL,		/* BCME_NOTAP */
-	-EINVAL,		/* BCME_NOTSTA */
-	-EINVAL,		/* BCME_BADKEYIDX */
-	-EINVAL,		/* BCME_RADIOOFF */
-	-EINVAL,		/* BCME_NOTBANDLOCKED */
-	-EINVAL,		/* BCME_NOCLK */
-	-EINVAL,		/* BCME_BADRATESET */
-	-EINVAL,		/* BCME_BADBAND */
-	-E2BIG,			/* BCME_BUFTOOSHORT */
-	-E2BIG,			/* BCME_BUFTOOLONG */
-	-EBUSY,			/* BCME_BUSY */
-	-EINVAL,		/* BCME_NOTASSOCIATED */
-	-EINVAL,		/* BCME_BADSSIDLEN */
-	-EINVAL,		/* BCME_OUTOFRANGECHAN */
-	-EINVAL,		/* BCME_BADCHAN */
-	-EFAULT,		/* BCME_BADADDR */
-	-ENOMEM,		/* BCME_NORESOURCE */
-	-EOPNOTSUPP,		/* BCME_UNSUPPORTED */
-	-EMSGSIZE,		/* BCME_BADLENGTH */
-	-EINVAL,		/* BCME_NOTREADY */
-	-EPERM,			/* BCME_NOTPERMITTED */
-	-ENOMEM,		/* BCME_NOMEM */
-	-EINVAL,		/* BCME_ASSOCIATED */
-	-ERANGE,		/* BCME_RANGE */
-	-EINVAL,		/* BCME_NOTFOUND */
-	-EINVAL,		/* BCME_WME_NOT_ENABLED */
-	-EINVAL,		/* BCME_TSPEC_NOTFOUND */
-	-EINVAL,		/* BCME_ACM_NOTSUPPORTED */
-	-EINVAL,		/* BCME_NOT_WME_ASSOCIATION */
-	-EIO,			/* BCME_SDIO_ERROR */
-	-ENODEV,		/* BCME_DONGLE_DOWN */
-	-EINVAL,		/* BCME_VERSION */
-	-EIO,			/* BCME_TXFAIL */
-	-EIO,			/* BCME_RXFAIL */
-	-EINVAL,		/* BCME_NODEVICE */
-	-EINVAL,		/* BCME_NMODE_DISABLED */
-	-ENODATA,		/* BCME_NONRESIDENT */
-};
-
 static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 {
 	dhd_info_t *dhd = *(dhd_info_t **) netdev_priv(net);
@@ -1699,7 +1650,7 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	/* Copy the ioc control structure part of ioctl request */
 	if (copy_from_user(&ioc, ifr->ifr_data, sizeof(wl_ioctl_t))) {
-		bcmerror = -BCME_BADADDR;
+		bcmerror = -EINVAL;
 		goto done;
 	}
 
@@ -1715,11 +1666,11 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 		{
 			buf = kmalloc(buflen, GFP_ATOMIC);
 			if (!buf) {
-				bcmerror = -BCME_NOMEM;
+				bcmerror = -ENOMEM;
 				goto done;
 			}
 			if (copy_from_user(buf, ioc.buf, buflen)) {
-				bcmerror = -BCME_BADADDR;
+				bcmerror = -EINVAL;
 				goto done;
 			}
 		}
@@ -1728,12 +1679,12 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 	/* To differentiate between wl and dhd read 4 more byes */
 	if ((copy_from_user(&driver, (char *)ifr->ifr_data + sizeof(wl_ioctl_t),
 			    sizeof(uint)) != 0)) {
-		bcmerror = -BCME_BADADDR;
+		bcmerror = -EINVAL;
 		goto done;
 	}
 
 	if (!capable(CAP_NET_ADMIN)) {
-		bcmerror = -BCME_EPERM;
+		bcmerror = -EPERM;
 		goto done;
 	}
 
@@ -1748,12 +1699,12 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 	/* send to dongle (must be up, and wl) */
 	if ((dhd->pub.busstate != DHD_BUS_DATA)) {
 		DHD_ERROR(("%s DONGLE_DOWN,__func__\n", __func__));
-		bcmerror = BCME_DONGLE_DOWN;
+		bcmerror = -EIO;
 		goto done;
 	}
 
 	if (!dhd->pub.iswl) {
-		bcmerror = BCME_DONGLE_DOWN;
+		bcmerror = -EIO;
 		goto done;
 	}
 
@@ -1781,10 +1732,8 @@ done:
 
 	if (bcmerror > 0)
 		bcmerror = 0;
-	else if (bcmerror < BCME_LAST)
-		bcmerror = BCME_ERROR;
 
-	return linuxbcmerrormap[-bcmerror];
+	return bcmerror;
 }
 
 static int dhd_stop(struct net_device *net)
@@ -1997,7 +1946,6 @@ dhd_pub_t *dhd_attach(struct dhd_bus *bus, uint bus_hdrlen)
 			strcpy(fw_path, wl_cfg80211_get_fwname());
 			strcpy(nv_path, wl_cfg80211_get_nvramname());
 		}
-		wl_cfg80211_dbg_level(DBG_CFG80211_GET());
 	}
 
 	/* Set up the watchdog timer */
@@ -2062,7 +2010,9 @@ dhd_pub_t *dhd_attach(struct dhd_bus *bus, uint bus_hdrlen)
 	g_bus = bus;
 #endif
 #if defined(CONFIG_PM_SLEEP)
-	register_pm_notifier(&dhd_sleep_pm_notifier);
+	atomic_set(&dhd_mmc_suspend, false);
+	if (!IS_CFG80211_FAVORITE())
+		register_pm_notifier(&dhd_sleep_pm_notifier);
 #endif	/* defined(CONFIG_PM_SLEEP) */
 	/* && defined(DHD_GPL) */
 	/* Init lock suspend to prevent kernel going to suspend */
@@ -2252,18 +2202,6 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 	net->hard_header_len = ETH_HLEN + dhd->pub.hdrlen;
 	net->ethtool_ops = &dhd_ethtool_ops;
 
-#if defined(CONFIG_WIRELESS_EXT)
-	if (!IS_CFG80211_FAVORITE()) {
-#if WIRELESS_EXT < 19
-		net->get_wireless_stats = dhd_get_wireless_stats;
-#endif				/* WIRELESS_EXT < 19 */
-#if WIRELESS_EXT > 12
-		net->wireless_handlers =
-		    (struct iw_handler_def *)&wl_iw_handler_def;
-#endif				/* WIRELESS_EXT > 12 */
-	}
-#endif				/* defined(CONFIG_WIRELESS_EXT) */
-
 	dhd->pub.rxsz = net->mtu + net->hard_header_len + dhd->pub.hdrlen;
 
 	memcpy(net->dev_addr, temp_addr, ETH_ALEN);
@@ -2280,7 +2218,7 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 
 fail:
 	net->netdev_ops = NULL;
-	return BCME_ERROR;
+	return -EBADE;
 }
 
 void dhd_bus_detach(dhd_pub_t *dhdp)
@@ -2368,7 +2306,8 @@ void dhd_detach(dhd_pub_t *dhdp)
 				wl_cfg80211_detach();
 
 #if defined(CONFIG_PM_SLEEP)
-			unregister_pm_notifier(&dhd_sleep_pm_notifier);
+			if (!IS_CFG80211_FAVORITE())
+				unregister_pm_notifier(&dhd_sleep_pm_notifier);
 #endif	/* defined(CONFIG_PM_SLEEP) */
 			/* && defined(DHD_GPL) */
 			free_netdev(ifp->net);
@@ -2670,21 +2609,6 @@ void dhd_os_sdtxunlock(dhd_pub_t *pub)
 	dhd_os_sdunlock(pub);
 }
 
-#if defined(CONFIG_WIRELESS_EXT)
-struct iw_statistics *dhd_get_wireless_stats(struct net_device *dev)
-{
-	int res = 0;
-	dhd_info_t *dhd = *(dhd_info_t **) netdev_priv(dev);
-
-	res = wl_iw_get_wireless_stats(dev, &dhd->iw.wstats);
-
-	if (res == 0)
-		return &dhd->iw.wstats;
-	else
-		return NULL;
-}
-#endif	/* defined(CONFIG_WIRELESS_EXT) */
-
 static int
 dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 		  wl_event_msg_t *event, void **data)
@@ -2694,7 +2618,7 @@ dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 	ASSERT(dhd != NULL);
 
 	bcmerror = wl_host_event(dhd, ifidx, pktdata, event, data);
-	if (bcmerror != BCME_OK)
+	if (bcmerror != 0)
 		return bcmerror;
 
 #if defined(CONFIG_WIRELESS_EXT)
@@ -2892,6 +2816,13 @@ int dhd_wait_pend8021x(struct net_device *dev)
 		pend = dhd_get_pend_8021x_cnt(dhd);
 	}
 	return pend;
+}
+
+void wl_os_wd_timer(struct net_device *ndev, uint wdtick)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(ndev);
+
+	dhd_os_wd_timer(&dhd->pub, wdtick);
 }
 
 #ifdef DHD_DEBUG

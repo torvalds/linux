@@ -212,7 +212,7 @@ static const struct snd_soc_dapm_widget tlv320aic23_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MICIN"),
 };
 
-static const struct snd_soc_dapm_route intercon[] = {
+static const struct snd_soc_dapm_route tlv320aic23_intercon[] = {
 	/* Output Mixer */
 	{"Output Mixer", "Line Bypass Switch", "Line Input"},
 	{"Output Mixer", "Playback Switch", "DAC"},
@@ -385,18 +385,6 @@ static int set_sample_rate_control(struct snd_soc_codec *codec, int mclk,
 			adc, dac, data);
 	}
 #endif
-	return 0;
-}
-
-static int tlv320aic23_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, tlv320aic23_dapm_widgets,
-				  ARRAY_SIZE(tlv320aic23_dapm_widgets));
-	/* set up audio path interconnects */
-	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
-
 	return 0;
 }
 
@@ -676,7 +664,6 @@ static int tlv320aic23_probe(struct snd_soc_codec *codec)
 
 	snd_soc_add_controls(codec, tlv320aic23_snd_controls,
 				ARRAY_SIZE(tlv320aic23_snd_controls));
-	tlv320aic23_add_widgets(codec);
 
 	return 0;
 }
@@ -698,6 +685,10 @@ static struct snd_soc_codec_driver soc_codec_dev_tlv320aic23 = {
 	.read = tlv320aic23_read_reg_cache,
 	.write = tlv320aic23_write,
 	.set_bias_level = tlv320aic23_set_bias_level,
+	.dapm_widgets = tlv320aic23_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(tlv320aic23_dapm_widgets),
+	.dapm_routes = tlv320aic23_intercon,
+	.num_dapm_routes = ARRAY_SIZE(tlv320aic23_intercon),
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)

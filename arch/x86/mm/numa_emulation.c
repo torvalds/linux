@@ -5,6 +5,7 @@
 #include <linux/errno.h>
 #include <linux/topology.h>
 #include <linux/memblock.h>
+#include <linux/bootmem.h>
 #include <asm/dma.h>
 
 #include "numa_internal.h"
@@ -84,7 +85,13 @@ static int __init split_nodes_interleave(struct numa_meminfo *ei,
 		nr_nodes = MAX_NUMNODES;
 	}
 
-	size = (max_addr - addr - memblock_x86_hole_size(addr, max_addr)) / nr_nodes;
+	/*
+	 * Calculate target node size.  x86_32 freaks on __udivdi3() so do
+	 * the division in ulong number of pages and convert back.
+	 */
+	size = max_addr - addr - memblock_x86_hole_size(addr, max_addr);
+	size = PFN_PHYS((unsigned long)(size >> PAGE_SHIFT) / nr_nodes);
+
 	/*
 	 * Calculate the number of big nodes that can be allocated as a result
 	 * of consolidating the remainder.
@@ -226,7 +233,7 @@ static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
 	 */
 	while (nodes_weight(physnode_mask)) {
 		for_each_node_mask(i, physnode_mask) {
-			u64 dma32_end = MAX_DMA32_PFN << PAGE_SHIFT;
+			u64 dma32_end = PFN_PHYS(MAX_DMA32_PFN);
 			u64 start, limit, end;
 			int phys_blk;
 
@@ -298,7 +305,7 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 {
 	static struct numa_meminfo ei __initdata;
 	static struct numa_meminfo pi __initdata;
-	const u64 max_addr = max_pfn << PAGE_SHIFT;
+	const u64 max_addr = PFN_PHYS(max_pfn);
 	u8 *phys_dist = NULL;
 	size_t phys_size = numa_dist_cnt * numa_dist_cnt * sizeof(phys_dist[0]);
 	int max_emu_nid, dfl_phys_nid;
@@ -342,8 +349,7 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 	if (numa_dist_cnt) {
 		u64 phys;
 
-		phys = memblock_find_in_range(0,
-					      (u64)max_pfn_mapped << PAGE_SHIFT,
+		phys = memblock_find_in_range(0, PFN_PHYS(max_pfn_mapped),
 					      phys_size, PAGE_SIZE);
 		if (phys == MEMBLOCK_ERROR) {
 			pr_warning("NUMA: Warning: can't allocate copy of distance table, disabling emulation\n");
@@ -454,10 +460,9 @@ void __cpuinit numa_remove_cpu(int cpu)
 		cpumask_clear_cpu(cpu, node_to_cpumask_map[i]);
 }
 #else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
-static void __cpuinit numa_set_cpumask(int cpu, int enable)
+static void __cpuinit numa_set_cpumask(int cpu, bool enable)
 {
-	struct cpumask *mask;
-	int nid, physnid, i;
+	int nid, physnid;
 
 	nid = early_cpu_to_node(cpu);
 	if (nid == NUMA_NO_NODE) {
@@ -467,28 +472,21 @@ static void __cpuinit numa_set_cpumask(int cpu, int enable)
 
 	physnid = emu_nid_to_phys[nid];
 
-	for_each_online_node(i) {
+	for_each_online_node(nid) {
 		if (emu_nid_to_phys[nid] != physnid)
 			continue;
 
-		mask = debug_cpumask_set_cpu(cpu, enable);
-		if (!mask)
-			return;
-
-		if (enable)
-			cpumask_set_cpu(cpu, mask);
-		else
-			cpumask_clear_cpu(cpu, mask);
+		debug_cpumask_set_cpu(cpu, nid, enable);
 	}
 }
 
 void __cpuinit numa_add_cpu(int cpu)
 {
-	numa_set_cpumask(cpu, 1);
+	numa_set_cpumask(cpu, true);
 }
 
 void __cpuinit numa_remove_cpu(int cpu)
 {
-	numa_set_cpumask(cpu, 0);
+	numa_set_cpumask(cpu, false);
 }
 #endif	/* !CONFIG_DEBUG_PER_CPU_MAPS */

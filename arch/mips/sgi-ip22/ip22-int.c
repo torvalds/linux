@@ -2,7 +2,7 @@
  * ip22-int.c: Routines for generic manipulation of the INT[23] ASIC
  *             found on INDY and Indigo2 workstations.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997, 1998 Ralf Baechle (ralf@gnu.org)
  * Copyright (C) 1999 Andrew R. Baker (andrewb@uab.edu)
  *                    - Indigo2 changes

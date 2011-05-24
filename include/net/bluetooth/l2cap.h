@@ -276,11 +276,81 @@ struct l2cap_conn_param_update_rsp {
 #define L2CAP_CONN_PARAM_ACCEPTED	0x0000
 #define L2CAP_CONN_PARAM_REJECTED	0x0001
 
-/* ----- L2CAP connections ----- */
-struct l2cap_chan_list {
-	struct sock	*head;
-	rwlock_t	lock;
-	long		num;
+/* ----- L2CAP channels and connections ----- */
+struct srej_list {
+	__u8	tx_seq;
+	struct list_head list;
+};
+
+struct l2cap_chan {
+	struct sock *sk;
+
+	struct l2cap_conn	*conn;
+
+	__le16		psm;
+	__u16		dcid;
+	__u16		scid;
+
+	__u16		imtu;
+	__u16		omtu;
+	__u16		flush_to;
+	__u8		mode;
+
+	__le16		sport;
+
+	__u8		sec_level;
+	__u8		role_switch;
+	__u8		force_reliable;
+	__u8		flushable;
+
+	__u8		ident;
+
+	__u8		conf_req[64];
+	__u8		conf_len;
+	__u8		num_conf_req;
+	__u8		num_conf_rsp;
+
+	__u8		fcs;
+
+	__u8		tx_win;
+	__u8		max_tx;
+	__u16		retrans_timeout;
+	__u16		monitor_timeout;
+	__u16		mps;
+
+	__u8		conf_state;
+	__u16		conn_state;
+
+	__u8		next_tx_seq;
+	__u8		expected_ack_seq;
+	__u8		expected_tx_seq;
+	__u8		buffer_seq;
+	__u8		buffer_seq_srej;
+	__u8		srej_save_reqseq;
+	__u8		frames_sent;
+	__u8		unacked_frames;
+	__u8		retry_count;
+	__u8		num_acked;
+	__u16		sdu_len;
+	__u16		partial_sdu_len;
+	struct sk_buff	*sdu;
+
+	__u8		remote_tx_win;
+	__u8		remote_max_tx;
+	__u16		remote_mps;
+
+	struct timer_list	retrans_timer;
+	struct timer_list	monitor_timer;
+	struct timer_list	ack_timer;
+	struct sk_buff		*tx_send_head;
+	struct sk_buff_head	tx_q;
+	struct sk_buff_head	srej_q;
+	struct sk_buff_head	busy_q;
+	struct work_struct	busy_work;
+	struct list_head	srej_l;
+
+	struct list_head list;
+	struct list_head global_l;
 };
 
 struct l2cap_conn {
@@ -302,97 +372,24 @@ struct l2cap_conn {
 
 	struct sk_buff *rx_skb;
 	__u32		rx_len;
-	__u8		rx_ident;
 	__u8		tx_ident;
 
 	__u8		disc_reason;
 
-	struct l2cap_chan_list chan_list;
-};
-
-struct sock_del_list {
-	struct sock *sk;
-	struct list_head list;
+	struct list_head chan_l;
+	rwlock_t	chan_lock;
 };
 
 #define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
 #define L2CAP_INFO_FEAT_MASK_REQ_SENT	0x04
 #define L2CAP_INFO_FEAT_MASK_REQ_DONE	0x08
 
-/* ----- L2CAP channel and socket info ----- */
+/* ----- L2CAP socket info ----- */
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)
-#define TX_QUEUE(sk) (&l2cap_pi(sk)->tx_queue)
-#define SREJ_QUEUE(sk) (&l2cap_pi(sk)->srej_queue)
-#define BUSY_QUEUE(sk) (&l2cap_pi(sk)->busy_queue)
-#define SREJ_LIST(sk) (&l2cap_pi(sk)->srej_l.list)
-
-struct srej_list {
-	__u8	tx_seq;
-	struct list_head list;
-};
 
 struct l2cap_pinfo {
 	struct bt_sock	bt;
-	__le16		psm;
-	__u16		dcid;
-	__u16		scid;
-
-	__u16		imtu;
-	__u16		omtu;
-	__u16		flush_to;
-	__u8		mode;
-	__u8		num_conf_req;
-	__u8		num_conf_rsp;
-
-	__u8		fcs;
-	__u8		sec_level;
-	__u8		role_switch;
-	__u8		force_reliable;
-	__u8		flushable;
-
-	__u8		conf_req[64];
-	__u8		conf_len;
-	__u8		conf_state;
-	__u16		conn_state;
-
-	__u8		next_tx_seq;
-	__u8		expected_ack_seq;
-	__u8		expected_tx_seq;
-	__u8		buffer_seq;
-	__u8		buffer_seq_srej;
-	__u8		srej_save_reqseq;
-	__u8		frames_sent;
-	__u8		unacked_frames;
-	__u8		retry_count;
-	__u8		num_acked;
-	__u16		sdu_len;
-	__u16		partial_sdu_len;
-	struct sk_buff	*sdu;
-
-	__u8		ident;
-
-	__u8		tx_win;
-	__u8		max_tx;
-	__u8		remote_tx_win;
-	__u8		remote_max_tx;
-	__u16		retrans_timeout;
-	__u16		monitor_timeout;
-	__u16		remote_mps;
-	__u16		mps;
-
-	__le16		sport;
-
-	struct timer_list	retrans_timer;
-	struct timer_list	monitor_timer;
-	struct timer_list	ack_timer;
-	struct sk_buff_head	tx_queue;
-	struct sk_buff_head	srej_queue;
-	struct sk_buff_head	busy_queue;
-	struct work_struct	busy_work;
-	struct srej_list	srej_l;
-	struct l2cap_conn	*conn;
-	struct sock		*next_c;
-	struct sock		*prev_c;
+	struct l2cap_chan	*chan;
 };
 
 #define L2CAP_CONF_REQ_SENT       0x01
@@ -419,24 +416,23 @@ struct l2cap_pinfo {
 #define L2CAP_CONN_RNR_SENT        0x0200
 #define L2CAP_CONN_SAR_RETRY       0x0400
 
-#define __mod_retrans_timer() mod_timer(&l2cap_pi(sk)->retrans_timer, \
+#define __mod_retrans_timer() mod_timer(&chan->retrans_timer, \
 		jiffies +  msecs_to_jiffies(L2CAP_DEFAULT_RETRANS_TO));
-#define __mod_monitor_timer() mod_timer(&l2cap_pi(sk)->monitor_timer, \
+#define __mod_monitor_timer() mod_timer(&chan->monitor_timer, \
 		jiffies + msecs_to_jiffies(L2CAP_DEFAULT_MONITOR_TO));
-#define __mod_ack_timer() mod_timer(&l2cap_pi(sk)->ack_timer, \
+#define __mod_ack_timer() mod_timer(&chan->ack_timer, \
 		jiffies + msecs_to_jiffies(L2CAP_DEFAULT_ACK_TO));
 
-static inline int l2cap_tx_window_full(struct sock *sk)
+static inline int l2cap_tx_window_full(struct l2cap_chan *ch)
 {
-	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	int sub;
 
-	sub = (pi->next_tx_seq - pi->expected_ack_seq) % 64;
+	sub = (ch->next_tx_seq - ch->expected_ack_seq) % 64;
 
 	if (sub < 0)
 		sub += 64;
 
-	return sub == pi->remote_tx_win;
+	return sub == ch->remote_tx_win;
 }
 
 #define __get_txseq(ctrl)	(((ctrl) & L2CAP_CTRL_TXSEQ) >> 1)
@@ -446,24 +442,24 @@ static inline int l2cap_tx_window_full(struct sock *sk)
 #define __is_sar_start(ctrl)	(((ctrl) & L2CAP_CTRL_SAR) == L2CAP_SDU_START)
 
 extern int disable_ertm;
-extern const struct proto_ops l2cap_sock_ops;
-extern struct bt_sock_list l2cap_sk_list;
 
 int l2cap_init_sockets(void);
 void l2cap_cleanup_sockets(void);
 
-u8 l2cap_get_ident(struct l2cap_conn *conn);
 void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, void *data);
-int l2cap_build_conf_req(struct sock *sk, void *data);
+void __l2cap_connect_rsp_defer(struct l2cap_chan *chan);
 int __l2cap_wait_ack(struct sock *sk);
 
-struct sk_buff *l2cap_create_connless_pdu(struct sock *sk, struct msghdr *msg, size_t len);
-struct sk_buff *l2cap_create_basic_pdu(struct sock *sk, struct msghdr *msg, size_t len);
-struct sk_buff *l2cap_create_iframe_pdu(struct sock *sk, struct msghdr *msg, size_t len, u16 control, u16 sdulen);
-int l2cap_sar_segment_sdu(struct sock *sk, struct msghdr *msg, size_t len);
-void l2cap_do_send(struct sock *sk, struct sk_buff *skb);
-void l2cap_streaming_send(struct sock *sk);
-int l2cap_ertm_send(struct sock *sk);
+struct sk_buff *l2cap_create_connless_pdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
+struct sk_buff *l2cap_create_basic_pdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
+struct sk_buff *l2cap_create_iframe_pdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len, u16 control, u16 sdulen);
+int l2cap_sar_segment_sdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
+void l2cap_do_send(struct l2cap_chan *chan, struct sk_buff *skb);
+void l2cap_streaming_send(struct l2cap_chan *chan);
+int l2cap_ertm_send(struct l2cap_chan *chan);
+
+int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm);
+int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);
 
 void l2cap_sock_set_timer(struct sock *sk, long timeout);
 void l2cap_sock_clear_timer(struct sock *sk);
@@ -472,8 +468,10 @@ void l2cap_sock_kill(struct sock *sk);
 void l2cap_sock_init(struct sock *sk, struct sock *parent);
 struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 							int proto, gfp_t prio);
-void l2cap_send_disconn_req(struct l2cap_conn *conn, struct sock *sk, int err);
-void l2cap_chan_del(struct sock *sk, int err);
-int l2cap_do_connect(struct sock *sk);
+void l2cap_send_disconn_req(struct l2cap_conn *conn, struct l2cap_chan *chan, int err);
+struct l2cap_chan *l2cap_chan_create(struct sock *sk);
+void l2cap_chan_del(struct l2cap_chan *chan, int err);
+void l2cap_chan_destroy(struct l2cap_chan *chan);
+int l2cap_chan_connect(struct l2cap_chan *chan);
 
 #endif /* __L2CAP_H */

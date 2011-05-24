@@ -47,6 +47,7 @@ static const char *version = "tc35815.c:v" DRV_VERSION "\n";
 #include <linux/phy.h>
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
+#include <linux/prefetch.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
 

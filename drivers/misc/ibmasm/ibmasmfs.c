@@ -29,7 +29,7 @@
 
 /*
  * The IBMASM file virtual filesystem. It creates the following hierarchy
- * dymamically when mounted from user space:
+ * dynamically when mounted from user space:
  *
  *    /ibmasm
  *    |-- 0

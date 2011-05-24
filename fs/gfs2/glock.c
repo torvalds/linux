@@ -93,14 +93,12 @@ static unsigned int gl_hash(const struct gfs2_sbd *sdp,
 
 static inline void spin_lock_bucket(unsigned int hash)
 {
-	struct hlist_bl_head *bl = &gl_hash_table[hash];
-	bit_spin_lock(0, (unsigned long *)bl);
+	hlist_bl_lock(&gl_hash_table[hash]);
 }
 
 static inline void spin_unlock_bucket(unsigned int hash)
 {
-	struct hlist_bl_head *bl = &gl_hash_table[hash];
-	__bit_spin_unlock(0, (unsigned long *)bl);
+	hlist_bl_unlock(&gl_hash_table[hash]);
 }
 
 static void gfs2_glock_dealloc(struct rcu_head *rcu)
@@ -145,20 +143,40 @@ static int demote_ok(const struct gfs2_glock *gl)
 {
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 
-	/* assert_spin_locked(&gl->gl_spin); */
-
 	if (gl->gl_state == LM_ST_UNLOCKED)
 		return 0;
-	if (test_bit(GLF_LFLUSH, &gl->gl_flags))
-		return 0;
-	if ((gl->gl_name.ln_type != LM_TYPE_INODE) &&
-	    !list_empty(&gl->gl_holders))
+	if (!list_empty(&gl->gl_holders))
 		return 0;
 	if (glops->go_demote_ok)
 		return glops->go_demote_ok(gl);
 	return 1;
 }
 
+
+void gfs2_glock_add_to_lru(struct gfs2_glock *gl)
+{
+	spin_lock(&lru_lock);
+
+	if (!list_empty(&gl->gl_lru))
+		list_del_init(&gl->gl_lru);
+	else
+		atomic_inc(&lru_count);
+
+	list_add_tail(&gl->gl_lru, &lru_list);
+	set_bit(GLF_LRU, &gl->gl_flags);
+	spin_unlock(&lru_lock);
+}
+
+static void gfs2_glock_remove_from_lru(struct gfs2_glock *gl)
+{
+	spin_lock(&lru_lock);
+	if (!list_empty(&gl->gl_lru)) {
+		list_del_init(&gl->gl_lru);
+		atomic_dec(&lru_count);
+		clear_bit(GLF_LRU, &gl->gl_flags);
+	}
+	spin_unlock(&lru_lock);
+}
 
 /**
  * __gfs2_glock_schedule_for_reclaim - Add a glock to the reclaim list
@@ -170,24 +188,8 @@ static int demote_ok(const struct gfs2_glock *gl)
 
 static void __gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl)
 {
-	if (demote_ok(gl)) {
-		spin_lock(&lru_lock);
-
-		if (!list_empty(&gl->gl_lru))
-			list_del_init(&gl->gl_lru);
-		else
-			atomic_inc(&lru_count);
-
-		list_add_tail(&gl->gl_lru, &lru_list);
-		spin_unlock(&lru_lock);
-	}
-}
-
-void gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl)
-{
-	spin_lock(&gl->gl_spin);
-	__gfs2_glock_schedule_for_reclaim(gl);
-	spin_unlock(&gl->gl_spin);
+	if (demote_ok(gl))
+		gfs2_glock_add_to_lru(gl);
 }
 
 /**
@@ -219,12 +221,7 @@ void gfs2_glock_put(struct gfs2_glock *gl)
 		spin_lock_bucket(gl->gl_hash);
 		hlist_bl_del_rcu(&gl->gl_list);
 		spin_unlock_bucket(gl->gl_hash);
-		spin_lock(&lru_lock);
-		if (!list_empty(&gl->gl_lru)) {
-			list_del_init(&gl->gl_lru);
-			atomic_dec(&lru_count);
-		}
-		spin_unlock(&lru_lock);
+		gfs2_glock_remove_from_lru(gl);
 		GLOCK_BUG_ON(gl, !list_empty(&gl->gl_holders));
 		GLOCK_BUG_ON(gl, mapping && mapping->nrpages);
 		trace_gfs2_glock_put(gl);
@@ -544,11 +541,6 @@ __acquires(&gl->gl_spin)
 	clear_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags);
 
 	gfs2_glock_hold(gl);
-	if (target != LM_ST_UNLOCKED && (gl->gl_state == LM_ST_SHARED ||
-	    gl->gl_state == LM_ST_DEFERRED) &&
-	    !(lck_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)))
-		lck_flags |= LM_FLAG_TRY_1CB;
-
 	if (sdp->sd_lockstruct.ls_ops->lm_lock)	{
 		/* lock_dlm */
 		ret = sdp->sd_lockstruct.ls_ops->lm_lock(gl, target, lck_flags);
@@ -650,7 +642,7 @@ static void delete_work_func(struct work_struct *work)
 	/* Note: Unsafe to dereference ip as we don't hold right refs/locks */
 
 	if (ip)
-		inode = gfs2_ilookup(sdp->sd_vfs, no_addr);
+		inode = gfs2_ilookup(sdp->sd_vfs, no_addr, 1);
 	else
 		inode = gfs2_lookup_by_inum(sdp, no_addr, NULL, GFS2_BLKST_UNLINKED);
 	if (inode && !IS_ERR(inode)) {
@@ -1027,6 +1019,9 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		return -EIO;
 
+	if (test_bit(GLF_LRU, &gl->gl_flags))
+		gfs2_glock_remove_from_lru(gl);
+
 	spin_lock(&gl->gl_spin);
 	add_to_queue(gh);
 	if ((LM_FLAG_NOEXP & gh->gh_flags) &&
@@ -1084,7 +1079,8 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 		    !test_bit(GLF_DEMOTE, &gl->gl_flags))
 			fast_path = 1;
 	}
-	__gfs2_glock_schedule_for_reclaim(gl);
+	if (!test_bit(GLF_LFLUSH, &gl->gl_flags))
+		__gfs2_glock_schedule_for_reclaim(gl);
 	trace_gfs2_glock_queue(gh, 0);
 	spin_unlock(&gl->gl_spin);
 	if (likely(fast_path))
@@ -1367,6 +1363,7 @@ static int gfs2_shrink_glock_memory(struct shrinker *shrink, int nr, gfp_t gfp_m
 	while(nr && !list_empty(&lru_list)) {
 		gl = list_entry(lru_list.next, struct gfs2_glock, gl_lru);
 		list_del_init(&gl->gl_lru);
+		clear_bit(GLF_LRU, &gl->gl_flags);
 		atomic_dec(&lru_count);
 
 		/* Test for being demotable */
@@ -1389,6 +1386,7 @@ static int gfs2_shrink_glock_memory(struct shrinker *shrink, int nr, gfp_t gfp_m
 		}
 		nr_skipped++;
 		list_add(&gl->gl_lru, &skipped);
+		set_bit(GLF_LRU, &gl->gl_flags);
 	}
 	list_splice(&skipped, &lru_list);
 	atomic_add(nr_skipped, &lru_count);
@@ -1461,12 +1459,7 @@ static void thaw_glock(struct gfs2_glock *gl)
 
 static void clear_glock(struct gfs2_glock *gl)
 {
-	spin_lock(&lru_lock);
-	if (!list_empty(&gl->gl_lru)) {
-		list_del_init(&gl->gl_lru);
-		atomic_dec(&lru_count);
-	}
-	spin_unlock(&lru_lock);
+	gfs2_glock_remove_from_lru(gl);
 
 	spin_lock(&gl->gl_spin);
 	if (gl->gl_state != LM_ST_UNLOCKED)
@@ -1601,9 +1594,11 @@ static int dump_holder(struct seq_file *seq, const struct gfs2_holder *gh)
 	return 0;
 }
 
-static const char *gflags2str(char *buf, const unsigned long *gflags)
+static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 {
+	const unsigned long *gflags = &gl->gl_flags;
 	char *p = buf;
+
 	if (test_bit(GLF_LOCK, gflags))
 		*p++ = 'l';
 	if (test_bit(GLF_DEMOTE, gflags))
@@ -1626,6 +1621,10 @@ static const char *gflags2str(char *buf, const unsigned long *gflags)
 		*p++ = 'F';
 	if (test_bit(GLF_QUEUED, gflags))
 		*p++ = 'q';
+	if (test_bit(GLF_LRU, gflags))
+		*p++ = 'L';
+	if (gl->gl_object)
+		*p++ = 'o';
 	*p = 0;
 	return buf;
 }
@@ -1660,14 +1659,15 @@ static int __dump_glock(struct seq_file *seq, const struct gfs2_glock *gl)
 	dtime *= 1000000/HZ; /* demote time in uSec */
 	if (!test_bit(GLF_DEMOTE, &gl->gl_flags))
 		dtime = 0;
-	gfs2_print_dbg(seq, "G:  s:%s n:%u/%llx f:%s t:%s d:%s/%llu a:%d r:%d\n",
+	gfs2_print_dbg(seq, "G:  s:%s n:%u/%llx f:%s t:%s d:%s/%llu a:%d v:%d r:%d\n",
 		  state2str(gl->gl_state),
 		  gl->gl_name.ln_type,
 		  (unsigned long long)gl->gl_name.ln_number,
-		  gflags2str(gflags_buf, &gl->gl_flags),
+		  gflags2str(gflags_buf, gl),
 		  state2str(gl->gl_target),
 		  state2str(gl->gl_demote_state), dtime,
 		  atomic_read(&gl->gl_ail_count),
+		  atomic_read(&gl->gl_revokes),
 		  atomic_read(&gl->gl_ref));
 
 	list_for_each_entry(gh, &gl->gl_holders, gh_list) {

@@ -948,7 +948,7 @@ int dev_alloc_name(struct net_device *dev, const char *name)
 }
 EXPORT_SYMBOL(dev_alloc_name);
 
-static int dev_get_valid_name(struct net_device *dev, const char *name, bool fmt)
+static int dev_get_valid_name(struct net_device *dev, const char *name)
 {
 	struct net *net;
 
@@ -958,7 +958,7 @@ static int dev_get_valid_name(struct net_device *dev, const char *name, bool fmt
 	if (!dev_valid_name(name))
 		return -EINVAL;
 
-	if (fmt && strchr(name, '%'))
+	if (strchr(name, '%'))
 		return dev_alloc_name(dev, name);
 	else if (__dev_get_by_name(net, name))
 		return -EEXIST;
@@ -995,7 +995,7 @@ int dev_change_name(struct net_device *dev, const char *newname)
 
 	memcpy(oldname, dev->name, IFNAMSIZ);
 
-	err = dev_get_valid_name(dev, newname, 1);
+	err = dev_get_valid_name(dev, newname);
 	if (err < 0)
 		return err;
 
@@ -1007,7 +1007,7 @@ rollback:
 	}
 
 	write_lock_bh(&dev_base_lock);
-	hlist_del(&dev->name_hlist);
+	hlist_del_rcu(&dev->name_hlist);
 	write_unlock_bh(&dev_base_lock);
 
 	synchronize_rcu();
@@ -1284,11 +1284,13 @@ static int dev_close_many(struct list_head *head)
  */
 int dev_close(struct net_device *dev)
 {
-	LIST_HEAD(single);
+	if (dev->flags & IFF_UP) {
+		LIST_HEAD(single);
 
-	list_add(&dev->unreg_list, &single);
-	dev_close_many(&single);
-	list_del(&single);
+		list_add(&dev->unreg_list, &single);
+		dev_close_many(&single);
+		list_del(&single);
+	}
 	return 0;
 }
 EXPORT_SYMBOL(dev_close);
@@ -1315,7 +1317,8 @@ void dev_disable_lro(struct net_device *dev)
 		return;
 
 	__ethtool_set_flags(dev, flags & ~ETH_FLAG_LRO);
-	WARN_ON(dev->features & NETIF_F_LRO);
+	if (unlikely(dev->features & NETIF_F_LRO))
+		netdev_WARN(dev, "failed to disable LRO!\n");
 }
 EXPORT_SYMBOL(dev_disable_lro);
 
@@ -2502,8 +2505,8 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 __u32 __skb_get_rxhash(struct sk_buff *skb)
 {
 	int nhoff, hash = 0, poff;
-	struct ipv6hdr *ip6;
-	struct iphdr *ip;
+	const struct ipv6hdr *ip6;
+	const struct iphdr *ip;
 	u8 ip_proto;
 	u32 addr1, addr2, ihl;
 	union {
@@ -2518,7 +2521,7 @@ __u32 __skb_get_rxhash(struct sk_buff *skb)
 		if (!pskb_may_pull(skb, sizeof(*ip) + nhoff))
 			goto done;
 
-		ip = (struct iphdr *) (skb->data + nhoff);
+		ip = (const struct iphdr *) (skb->data + nhoff);
 		if (ip->frag_off & htons(IP_MF | IP_OFFSET))
 			ip_proto = 0;
 		else
@@ -2531,7 +2534,7 @@ __u32 __skb_get_rxhash(struct sk_buff *skb)
 		if (!pskb_may_pull(skb, sizeof(*ip6) + nhoff))
 			goto done;
 
-		ip6 = (struct ipv6hdr *) (skb->data + nhoff);
+		ip6 = (const struct ipv6hdr *) (skb->data + nhoff);
 		ip_proto = ip6->nexthdr;
 		addr1 = (__force u32) ip6->saddr.s6_addr32[3];
 		addr2 = (__force u32) ip6->daddr.s6_addr32[3];
@@ -3076,25 +3079,6 @@ void netdev_rx_handler_unregister(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(netdev_rx_handler_unregister);
 
-static void vlan_on_bond_hook(struct sk_buff *skb)
-{
-	/*
-	 * Make sure ARP frames received on VLAN interfaces stacked on
-	 * bonding interfaces still make their way to any base bonding
-	 * device that may have registered for a specific ptype.
-	 */
-	if (skb->dev->priv_flags & IFF_802_1Q_VLAN &&
-	    vlan_dev_real_dev(skb->dev)->priv_flags & IFF_BONDING &&
-	    skb->protocol == htons(ETH_P_ARP)) {
-		struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
-
-		if (!skb2)
-			return;
-		skb2->dev = vlan_dev_real_dev(skb->dev);
-		netif_rx(skb2);
-	}
-}
-
 static int __netif_receive_skb(struct sk_buff *skb)
 {
 	struct packet_type *ptype, *pt_prev;
@@ -3129,6 +3113,12 @@ static int __netif_receive_skb(struct sk_buff *skb)
 another_round:
 
 	__this_cpu_inc(softnet_data.processed);
+
+	if (skb->protocol == cpu_to_be16(ETH_P_8021Q)) {
+		skb = vlan_untag(skb);
+		if (unlikely(!skb))
+			goto out;
+	}
 
 #ifdef CONFIG_NET_CLS_ACT
 	if (skb->tc_verd & TC_NCLS) {
@@ -3177,14 +3167,12 @@ ncls:
 			ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = NULL;
 		}
-		if (vlan_hwaccel_do_receive(&skb)) {
+		if (vlan_do_receive(&skb)) {
 			ret = __netif_receive_skb(skb);
 			goto out;
 		} else if (unlikely(!skb))
 			goto out;
 	}
-
-	vlan_on_bond_hook(skb);
 
 	/* deliver only exact match when indicated */
 	null_or_dev = deliver_exact ? skb->dev : NULL;
@@ -4306,10 +4294,8 @@ int netdev_set_master(struct net_device *slave, struct net_device *master)
 
 	slave->master = master;
 
-	if (old) {
-		synchronize_net();
+	if (old)
 		dev_put(old);
-	}
 	return 0;
 }
 EXPORT_SYMBOL(netdev_set_master);
@@ -4508,6 +4494,30 @@ void dev_set_rx_mode(struct net_device *dev)
 	__dev_set_rx_mode(dev);
 	netif_addr_unlock_bh(dev);
 }
+
+/**
+ *	dev_ethtool_get_settings - call device's ethtool_ops::get_settings()
+ *	@dev: device
+ *	@cmd: memory area for ethtool_ops::get_settings() result
+ *
+ *      The cmd arg is initialized properly (cleared and
+ *      ethtool_cmd::cmd field set to ETHTOOL_GSET).
+ *
+ *	Return device's ethtool_ops::get_settings() result value or
+ *	-EOPNOTSUPP when device doesn't expose
+ *	ethtool_ops::get_settings() operation.
+ */
+int dev_ethtool_get_settings(struct net_device *dev,
+			     struct ethtool_cmd *cmd)
+{
+	if (!dev->ethtool_ops || !dev->ethtool_ops->get_settings)
+		return -EOPNOTSUPP;
+
+	memset(cmd, 0, sizeof(struct ethtool_cmd));
+	cmd->cmd = ETHTOOL_GSET;
+	return dev->ethtool_ops->get_settings(dev, cmd);
+}
+EXPORT_SYMBOL(dev_ethtool_get_settings);
 
 /**
  *	dev_get_flags - get flags reported to userspace
@@ -4773,7 +4783,7 @@ static int dev_ifsioc_locked(struct net *net, struct ifreq *ifr, unsigned int cm
 		 * is never reached
 		 */
 		WARN_ON(1);
-		err = -EINVAL;
+		err = -ENOTTY;
 		break;
 
 	}
@@ -5041,7 +5051,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		/* Set the per device memory buffer space.
 		 * Not applicable in our case */
 	case SIOCSIFLINK:
-		return -EINVAL;
+		return -ENOTTY;
 
 	/*
 	 *	Unknown or private ioctl.
@@ -5062,7 +5072,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		/* Take care of Wireless Extensions */
 		if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST)
 			return wext_handle_ioctl(net, &ifr, cmd, arg);
-		return -EINVAL;
+		return -ENOTTY;
 	}
 }
 
@@ -5114,7 +5124,7 @@ static void rollback_registered_many(struct list_head *head)
 			list_del(&dev->unreg_list);
 			continue;
 		}
-
+		dev->dismantle = true;
 		BUG_ON(dev->reg_state != NETREG_REGISTERED);
 	}
 
@@ -5184,33 +5194,37 @@ u32 netdev_fix_features(struct net_device *dev, u32 features)
 	/* Fix illegal checksum combinations */
 	if ((features & NETIF_F_HW_CSUM) &&
 	    (features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
-		netdev_info(dev, "mixed HW and IP checksum settings.\n");
+		netdev_warn(dev, "mixed HW and IP checksum settings.\n");
 		features &= ~(NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM);
 	}
 
 	if ((features & NETIF_F_NO_CSUM) &&
 	    (features & (NETIF_F_HW_CSUM|NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
-		netdev_info(dev, "mixed no checksumming and other settings.\n");
+		netdev_warn(dev, "mixed no checksumming and other settings.\n");
 		features &= ~(NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM|NETIF_F_HW_CSUM);
 	}
 
 	/* Fix illegal SG+CSUM combinations. */
 	if ((features & NETIF_F_SG) &&
 	    !(features & NETIF_F_ALL_CSUM)) {
-		netdev_info(dev,
-			    "Dropping NETIF_F_SG since no checksum feature.\n");
+		netdev_dbg(dev,
+			"Dropping NETIF_F_SG since no checksum feature.\n");
 		features &= ~NETIF_F_SG;
 	}
 
 	/* TSO requires that SG is present as well. */
-	if ((features & NETIF_F_TSO) && !(features & NETIF_F_SG)) {
-		netdev_info(dev, "Dropping NETIF_F_TSO since no SG feature.\n");
-		features &= ~NETIF_F_TSO;
+	if ((features & NETIF_F_ALL_TSO) && !(features & NETIF_F_SG)) {
+		netdev_dbg(dev, "Dropping TSO features since no SG feature.\n");
+		features &= ~NETIF_F_ALL_TSO;
 	}
+
+	/* TSO ECN requires that TSO is present as well. */
+	if ((features & NETIF_F_ALL_TSO) == NETIF_F_TSO_ECN)
+		features &= ~NETIF_F_TSO_ECN;
 
 	/* Software GSO depends on SG. */
 	if ((features & NETIF_F_GSO) && !(features & NETIF_F_SG)) {
-		netdev_info(dev, "Dropping NETIF_F_GSO since no SG feature.\n");
+		netdev_dbg(dev, "Dropping NETIF_F_GSO since no SG feature.\n");
 		features &= ~NETIF_F_GSO;
 	}
 
@@ -5220,13 +5234,13 @@ u32 netdev_fix_features(struct net_device *dev, u32 features)
 		if (!((features & NETIF_F_GEN_CSUM) ||
 		    (features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))
 			    == (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
-			netdev_info(dev,
+			netdev_dbg(dev,
 				"Dropping NETIF_F_UFO since no checksum offload features.\n");
 			features &= ~NETIF_F_UFO;
 		}
 
 		if (!(features & NETIF_F_SG)) {
-			netdev_info(dev,
+			netdev_dbg(dev,
 				"Dropping NETIF_F_UFO since no NETIF_F_SG feature.\n");
 			features &= ~NETIF_F_UFO;
 		}
@@ -5236,10 +5250,12 @@ u32 netdev_fix_features(struct net_device *dev, u32 features)
 }
 EXPORT_SYMBOL(netdev_fix_features);
 
-void netdev_update_features(struct net_device *dev)
+int __netdev_update_features(struct net_device *dev)
 {
 	u32 features;
 	int err = 0;
+
+	ASSERT_RTNL();
 
 	features = netdev_get_wanted_features(dev);
 
@@ -5250,22 +5266,58 @@ void netdev_update_features(struct net_device *dev)
 	features = netdev_fix_features(dev, features);
 
 	if (dev->features == features)
-		return;
+		return 0;
 
-	netdev_info(dev, "Features changed: 0x%08x -> 0x%08x\n",
+	netdev_dbg(dev, "Features changed: 0x%08x -> 0x%08x\n",
 		dev->features, features);
 
 	if (dev->netdev_ops->ndo_set_features)
 		err = dev->netdev_ops->ndo_set_features(dev, features);
 
-	if (!err)
-		dev->features = features;
-	else if (err < 0)
+	if (unlikely(err < 0)) {
 		netdev_err(dev,
 			"set_features() failed (%d); wanted 0x%08x, left 0x%08x\n",
 			err, features, dev->features);
+		return -1;
+	}
+
+	if (!err)
+		dev->features = features;
+
+	return 1;
+}
+
+/**
+ *	netdev_update_features - recalculate device features
+ *	@dev: the device to check
+ *
+ *	Recalculate dev->features set and send notifications if it
+ *	has changed. Should be called after driver or hardware dependent
+ *	conditions might have changed that influence the features.
+ */
+void netdev_update_features(struct net_device *dev)
+{
+	if (__netdev_update_features(dev))
+		netdev_features_change(dev);
 }
 EXPORT_SYMBOL(netdev_update_features);
+
+/**
+ *	netdev_change_features - recalculate device features
+ *	@dev: the device to check
+ *
+ *	Recalculate dev->features set and send notifications even
+ *	if they have not changed. Should be called instead of
+ *	netdev_update_features() if also dev->vlan_features might
+ *	have changed to allow the changes to be propagated to stacked
+ *	VLAN devices.
+ */
+void netdev_change_features(struct net_device *dev)
+{
+	__netdev_update_features(dev);
+	netdev_features_change(dev);
+}
+EXPORT_SYMBOL(netdev_change_features);
 
 /**
  *	netif_stacked_transfer_operstate -	transfer operstate
@@ -5383,6 +5435,10 @@ int register_netdevice(struct net_device *dev)
 
 	dev->iflink = -1;
 
+	ret = dev_get_valid_name(dev, dev->name);
+	if (ret < 0)
+		goto out;
+
 	/* Init, if this function is available */
 	if (dev->netdev_ops->ndo_init) {
 		ret = dev->netdev_ops->ndo_init(dev);
@@ -5392,10 +5448,6 @@ int register_netdevice(struct net_device *dev)
 			goto out;
 		}
 	}
-
-	ret = dev_get_valid_name(dev, dev->name, 0);
-	if (ret)
-		goto err_uninit;
 
 	dev->ifindex = dev_new_index(net);
 	if (dev->iflink == -1)
@@ -5408,10 +5460,12 @@ int register_netdevice(struct net_device *dev)
 	dev->features |= NETIF_F_SOFT_FEATURES;
 	dev->wanted_features = dev->features & dev->hw_features;
 
-	/* Avoid warning from netdev_fix_features() for GSO without SG */
-	if (!(dev->wanted_features & NETIF_F_SG)) {
-		dev->wanted_features &= ~NETIF_F_GSO;
-		dev->features &= ~NETIF_F_GSO;
+	/* Turn on no cache copy if HW is doing checksum */
+	dev->hw_features |= NETIF_F_NOCACHE_COPY;
+	if ((dev->features & NETIF_F_ALL_CSUM) &&
+	    !(dev->features & NETIF_F_NO_CSUM)) {
+		dev->wanted_features |= NETIF_F_NOCACHE_COPY;
+		dev->features |= NETIF_F_NOCACHE_COPY;
 	}
 
 	/* Enable GRO and NETIF_F_HIGHDMA for vlans by default,
@@ -5430,7 +5484,7 @@ int register_netdevice(struct net_device *dev)
 		goto err_uninit;
 	dev->reg_state = NETREG_REGISTERED;
 
-	netdev_update_features(dev);
+	__netdev_update_features(dev);
 
 	/*
 	 *	Default initial state at registry is that the
@@ -5527,19 +5581,7 @@ int register_netdev(struct net_device *dev)
 	int err;
 
 	rtnl_lock();
-
-	/*
-	 * If the name is a format string the caller wants us to do a
-	 * name allocation.
-	 */
-	if (strchr(dev->name, '%')) {
-		err = dev_alloc_name(dev, dev->name);
-		if (err < 0)
-			goto out;
-	}
-
 	err = register_netdevice(dev);
-out:
 	rtnl_unlock();
 	return err;
 }
@@ -6021,7 +6063,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 		/* We get here if we can't use the current device name */
 		if (!pat)
 			goto out;
-		if (dev_get_valid_name(dev, pat, 1))
+		if (dev_get_valid_name(dev, pat) < 0)
 			goto out;
 	}
 
@@ -6153,29 +6195,20 @@ static int dev_cpu_callback(struct notifier_block *nfb,
  */
 u32 netdev_increment_features(u32 all, u32 one, u32 mask)
 {
+	if (mask & NETIF_F_GEN_CSUM)
+		mask |= NETIF_F_ALL_CSUM;
+	mask |= NETIF_F_VLAN_CHALLENGED;
+
+	all |= one & (NETIF_F_ONE_FOR_ALL|NETIF_F_ALL_CSUM) & mask;
+	all &= one | ~NETIF_F_ALL_FOR_ALL;
+
 	/* If device needs checksumming, downgrade to it. */
-	if (all & NETIF_F_NO_CSUM && !(one & NETIF_F_NO_CSUM))
-		all ^= NETIF_F_NO_CSUM | (one & NETIF_F_ALL_CSUM);
-	else if (mask & NETIF_F_ALL_CSUM) {
-		/* If one device supports v4/v6 checksumming, set for all. */
-		if (one & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM) &&
-		    !(all & NETIF_F_GEN_CSUM)) {
-			all &= ~NETIF_F_ALL_CSUM;
-			all |= one & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-		}
+	if (all & (NETIF_F_ALL_CSUM & ~NETIF_F_NO_CSUM))
+		all &= ~NETIF_F_NO_CSUM;
 
-		/* If one device supports hw checksumming, set for all. */
-		if (one & NETIF_F_GEN_CSUM && !(all & NETIF_F_GEN_CSUM)) {
-			all &= ~NETIF_F_ALL_CSUM;
-			all |= NETIF_F_HW_CSUM;
-		}
-	}
-
-	one |= NETIF_F_ALL_CSUM;
-
-	one |= all & NETIF_F_ONE_FOR_ALL;
-	all &= one | NETIF_F_LLTX | NETIF_F_GSO | NETIF_F_UFO;
-	all |= one & mask & NETIF_F_ONE_FOR_ALL;
+	/* If one device supports hw checksumming, set for all. */
+	if (all & NETIF_F_GEN_CSUM)
+		all &= ~(NETIF_F_ALL_CSUM & ~NETIF_F_GEN_CSUM);
 
 	return all;
 }

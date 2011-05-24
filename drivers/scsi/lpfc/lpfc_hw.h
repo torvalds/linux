@@ -1002,7 +1002,7 @@ typedef struct _ELS_PKT {	/* Structure is in Big Endian format */
 #define  SLI_MGMT_GRPL     0x102	/* Get registered Port list */
 #define  SLI_MGMT_GPAT     0x110	/* Get Port attributes */
 #define  SLI_MGMT_RHBA     0x200	/* Register HBA */
-#define  SLI_MGMT_RHAT     0x201	/* Register HBA atttributes */
+#define  SLI_MGMT_RHAT     0x201	/* Register HBA attributes */
 #define  SLI_MGMT_RPRT     0x210	/* Register Port */
 #define  SLI_MGMT_RPA      0x211	/* Register Port attributes */
 #define  SLI_MGMT_DHBA     0x300	/* De-register HBA */

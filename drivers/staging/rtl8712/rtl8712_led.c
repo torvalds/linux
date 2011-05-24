@@ -49,7 +49,7 @@
  * LED object.
  *===========================================================================
  */
-enum _LED_STATE_871x{
+enum _LED_STATE_871x {
 	LED_UNKNOWN = 0,
 	LED_ON = 1,
 	LED_OFF = 2,

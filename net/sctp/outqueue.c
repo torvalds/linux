@@ -131,7 +131,8 @@ static inline int sctp_cacc_skip_3_1_d(struct sctp_transport *primary,
 static inline int sctp_cacc_skip_3_1_f(struct sctp_transport *transport,
 				       int count_of_newacks)
 {
-	if (count_of_newacks < 2 && !transport->cacc.cacc_saw_newack)
+	if (count_of_newacks < 2 &&
+			(transport && !transport->cacc.cacc_saw_newack))
 		return 1;
 	return 0;
 }
@@ -319,7 +320,6 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk)
 		 * chunk.
 		 */
 		switch (q->asoc->state) {
-		case SCTP_STATE_EMPTY:
 		case SCTP_STATE_CLOSED:
 		case SCTP_STATE_SHUTDOWN_PENDING:
 		case SCTP_STATE_SHUTDOWN_SENT:
@@ -577,6 +577,13 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 	 * try to send as much as possible.
 	 */
 	list_for_each_entry_safe(chunk, chunk1, lqueue, transmitted_list) {
+		/* If the chunk is abandoned, move it to abandoned list. */
+		if (sctp_chunk_abandoned(chunk)) {
+			list_del_init(&chunk->transmitted_list);
+			sctp_insert_list(&q->abandoned,
+					 &chunk->transmitted_list);
+			continue;
+		}
 
 		/* Make sure that Gap Acked TSNs are not retransmitted.  A
 		 * simple approach is just to move such TSNs out of the
@@ -618,9 +625,12 @@ redo:
 
 			/* If we are retransmitting, we should only
 			 * send a single packet.
+			 * Otherwise, try appending this chunk again.
 			 */
 			if (rtx_timeout || fast_rtx)
 				done = 1;
+			else
+				goto redo;
 
 			/* Bundle next chunk in the next round.  */
 			break;
@@ -1683,8 +1693,9 @@ static void sctp_mark_missing(struct sctp_outq *q,
 			/* SFR-CACC may require us to skip marking
 			 * this chunk as missing.
 			 */
-			if (!transport || !sctp_cacc_skip(primary, transport,
-					    count_of_newacks, tsn)) {
+			if (!transport || !sctp_cacc_skip(primary,
+						chunk->transport,
+						count_of_newacks, tsn)) {
 				chunk->tsn_missing_report++;
 
 				SCTP_DEBUG_PRINTK(

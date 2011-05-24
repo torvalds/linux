@@ -7430,7 +7430,7 @@ static int ipw_associate_network(struct ipw_priv *priv,
 		priv->assoc_request.capability &=
 		    ~cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME);
 
-	IPW_DEBUG_ASSOC("%sssocation attempt: '%s', channel %d, "
+	IPW_DEBUG_ASSOC("%ssociation attempt: '%s', channel %d, "
 			"802.11%c [%d], %s[:%s], enc=%s%s%s%c%c\n",
 			roaming ? "Rea" : "A",
 			print_ssid(ssid, priv->essid, priv->essid_len),

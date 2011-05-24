@@ -35,22 +35,8 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   | Project manager: Eric Stolz   | Date     :  02/12/2002                |
   +-----------------------------------------------------------------------+
   | Description :   APCI-1710 SSI counter module                          |
-  |                                                                       |
-  |                                                                       |
   +-----------------------------------------------------------------------+
-  |                             UPDATES                                   |
-  +-----------------------------------------------------------------------+
-  |   Date   |   Author  |          Description of updates                |
-  +----------+-----------+------------------------------------------------+
-  | 13/05/98 | S. Weber  | SSI digital input / output implementation      |
-  |----------|-----------|------------------------------------------------|
-  | 22/03/00 | C.Guinot  | 0100/0226 -> 0200/0227                         |
-  |          |           | Änderung in InitSSI Funktion                   |
-  |          |           | b_SSIProfile >= 2 anstatt b_SSIProfile > 2     |
-  |          |           |                                                |
-  +-----------------------------------------------------------------------+
-  | 08/05/00 | Guinot C  | - 0400/0228 All Function in RING 0             |
-  |          |           |   available                                    |
+  | several changes done by S. Weber in 1998 and C. Guinot in 2000        |
   +-----------------------------------------------------------------------+
 */
 

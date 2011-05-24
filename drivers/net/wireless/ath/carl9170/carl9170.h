@@ -448,6 +448,8 @@ struct carl9170_ba_stats {
 
 struct carl9170_sta_info {
 	bool ht_sta;
+	bool sleeping;
+	atomic_t pending_frames;
 	unsigned int ampdu_max_len;
 	struct carl9170_sta_tid *agg[CARL9170_NUM_TID];
 	struct carl9170_ba_stats stats[CARL9170_NUM_TID];

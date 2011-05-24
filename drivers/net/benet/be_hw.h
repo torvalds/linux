@@ -155,6 +155,10 @@
 /********** SRIOV VF PCICFG OFFSET ********/
 #define SRIOV_VF_PCICFG_OFFSET		(4096)
 
+/********** FAT TABLE  ********/
+#define RETRIEVE_FAT	0
+#define QUERY_FAT	1
+
 /* Flashrom related descriptors */
 #define IMAGE_TYPE_FIRMWARE		160
 #define IMAGE_TYPE_BOOTCODE		224

@@ -24,83 +24,73 @@
  * Authors:
  *    Benjamin Defnet <benjamin.r.defnet@intel.com>
  *    Rajesh Poornachandran <rajesh.poornachandran@intel.com>
- *
+ * Massively reworked
+ *    Alan Cox <alan@linux.intel.com>
  */
 #include "psb_powermgmt.h"
 #include "psb_drv.h"
+#include "psb_reg.h"
 #include "psb_intel_reg.h"
 #include <linux/mutex.h>
 #include <linux/pm_runtime.h>
 
-#undef OSPM_GFX_DPK
-
-extern u32 gui32SGXDeviceID;
-extern u32 gui32MRSTDisplayDeviceID;
-extern u32 gui32MRSTMSVDXDeviceID;
-extern u32 gui32MRSTTOPAZDeviceID;
-
-struct drm_device *gpDrmDevice = NULL;
 static struct mutex power_mutex;
-static bool gbSuspendInProgress = false;
-static bool gbResumeInProgress = false;
-static int g_hw_power_status_mask;
-static atomic_t g_display_access_count;
-static atomic_t g_graphics_access_count;
-static atomic_t g_videoenc_access_count;
-static atomic_t g_videodec_access_count;
-int allow_runtime_pm = 0;
 
-void ospm_power_island_up(int hw_islands);
-void ospm_power_island_down(int hw_islands);
-static bool gbSuspended = false;
-bool gbgfxsuspended = false;
-
-/*
- * ospm_power_init
+/**
+ *	gma_power_init		-	initialise power manager
+ *	@dev: our device
  *
- * Description: Initialize this ospm power management module
+ *	Set up for power management tracking of our hardware.
  */
-void ospm_power_init(struct drm_device *dev)
+void gma_power_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = (struct drm_psb_private *)dev->dev_private;
-
-	gpDrmDevice = dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 
 	dev_priv->apm_base = dev_priv->apm_reg & 0xffff;
 	dev_priv->ospm_base &= 0xffff;
 
+	dev_priv->display_power = true;	/* We start active */
+	dev_priv->display_count = 0;	/* Currently no users */
+	dev_priv->suspended = false;	/* And not suspended */
 	mutex_init(&power_mutex);
-	g_hw_power_status_mask = OSPM_ALL_ISLANDS;
-	atomic_set(&g_display_access_count, 0);
-	atomic_set(&g_graphics_access_count, 0);
-	atomic_set(&g_videoenc_access_count, 0);
-	atomic_set(&g_videodec_access_count, 0);
+
+	if (!IS_MRST(dev)) {
+		/* FIXME: wants further review */
+		u32 gating = PSB_RSGX32(PSB_CR_CLKGATECTL);
+		/* Disable 2D clock gating */
+		gating &= ~3;
+		gating |= 1;
+		PSB_WSGX32(gating, PSB_CR_CLKGATECTL);
+		PSB_RSGX32(PSB_CR_CLKGATECTL);
+	}
 }
 
-/*
- * ospm_power_uninit
+/**
+ *	gma_power_uninit	-	end power manager
+ *	@dev: device to end for
  *
- * Description: Uninitialize this ospm power management module
+ *	Undo the effects of gma_power_init
  */
-void ospm_power_uninit(void)
+void gma_power_uninit(struct drm_device *dev)
 {
 	mutex_destroy(&power_mutex);
-    	pm_runtime_disable(&gpDrmDevice->pdev->dev);
-	pm_runtime_set_suspended(&gpDrmDevice->pdev->dev);
+	pm_runtime_disable(&dev->pdev->dev);
+	pm_runtime_set_suspended(&dev->pdev->dev);
 }
 
 
-/*
- * save_display_registers
+/**
+ *	save_display_registers	-	save registers lost on suspend
+ *	@dev: our DRM device
  *
- * Description: We are going to suspend so save current display
- * register state.
+ *	Save the state we need in order to be able to restore the interface
+ *	upon resume from suspend
  */
 static int save_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct drm_crtc * crtc;
-	struct drm_connector * connector;
+	struct drm_crtc *crtc;
+	struct drm_connector *connector;
 
 	/* Display arbitration control + watermarks */
 	dev_priv->saveDSPARB = PSB_RVDC32(DSPARB);
@@ -112,37 +102,31 @@ static int save_display_registers(struct drm_device *dev)
 	dev_priv->saveDSPFW6 = PSB_RVDC32(DSPFW6);
 	dev_priv->saveCHICKENBIT = PSB_RVDC32(DSPCHICKENBIT);
 
-	/*save crtc and output state*/
+	/* Save crtc and output state */
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if(drm_helper_crtc_in_use(crtc)) {
+		if (drm_helper_crtc_in_use(crtc))
 			crtc->funcs->save(crtc);
-		}
 	}
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		connector->funcs->save(connector);
-	}
+
 	mutex_unlock(&dev->mode_config.mutex);
-
-	/* Interrupt state */
-	/*
-	 * Handled in psb_irq.c
-	 */
-
 	return 0;
 }
 
-/*
- * restore_display_registers
+/**
+ *	restore_display_registers	-	restore lost register state
+ *	@dev: our DRM device
  *
- * Description: We are going to resume so restore display register state.
+ *	Restore register state that was lost during suspend and resume.
  */
 static int restore_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct drm_crtc * crtc;
-	struct drm_connector * connector;
+	struct drm_crtc *crtc;
+	struct drm_connector *connector;
 
 	/* Display arbitration + watermarks */
 	PSB_WVDC32(dev_priv->saveDSPARB, DSPARB);
@@ -158,39 +142,57 @@ static int restore_display_registers(struct drm_device *dev)
 	PSB_WVDC32(0x80000000, VGACNTRL);
 
 	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if(drm_helper_crtc_in_use(crtc))
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		if (drm_helper_crtc_in_use(crtc))
 			crtc->funcs->restore(crtc);
-	}
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		connector->funcs->restore(connector);
-	}
+
 	mutex_unlock(&dev->mode_config.mutex);
-
-	/*Interrupt state*/
-	/*
-	 * Handled in psb_irq.c
-	 */
-
 	return 0;
 }
-/*
- * powermgmt_suspend_display
+
+/**
+ *	power_down	-	power down the display island
+ *	@dev: our DRM device
  *
- * Description: Suspend the display hardware saving state and disabling
- * as necessary.
+ *	Power down the display interface of our device
  */
-void ospm_suspend_display(struct drm_device *dev)
+static void power_down(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	int pp_stat, ret=0;
+	u32 pwr_mask ;
+	u32 pwr_sts;
 
-	printk(KERN_ALERT "%s \n", __func__);
+	if (IS_MRST(dev)) {
+		pwr_mask = PSB_PWRGT_DISPLAY_MASK;
+		outl(pwr_mask, dev_priv->ospm_base + PSB_PM_SSC);
 
-#ifdef OSPM_GFX_DPK
-	printk(KERN_ALERT "%s \n", __func__);
-#endif
-	if (!(g_hw_power_status_mask & OSPM_DISPLAY_ISLAND))
+		while (true) {
+			pwr_sts = inl(dev_priv->ospm_base + PSB_PM_SSS);
+			if ((pwr_sts & pwr_mask) == pwr_mask)
+				break;
+			else
+				udelay(10);
+		}
+		dev_priv->display_power = false;
+	}
+}
+
+
+/**
+ *	gma_suspend_display	-	suspend the display logic
+ *	@dev: our DRM device
+ *
+ *	Suspend the display logic of the graphics interface
+ */
+static void gma_suspend_display(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	int pp_stat;
+
+	if (dev_priv->suspended)
 		return;
 
 	save_display_registers(dev);
@@ -225,193 +227,22 @@ void ospm_suspend_display(struct drm_device *dev)
 			!= DPI_FIFO_EMPTY);
 		PSB_WVDC32(0, DEVICE_READY_REG);
 			/* turn off panel power */
-		ret = 0;
 	}
-	ospm_power_island_down(OSPM_DISPLAY_ISLAND);
+	power_down(dev);
 }
 
 /*
- * ospm_resume_display
- *
- * Description: Resume the display hardware restoring state and enabling
- * as necessary.
- */
-void ospm_resume_display(struct pci_dev *pdev)
-{
-	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_gtt *pg = dev_priv->pg;
-
-	printk(KERN_ALERT "%s \n", __func__);
-
-#ifdef OSPM_GFX_DPK
-	printk(KERN_ALERT "%s \n", __func__);
-#endif
-	if (g_hw_power_status_mask & OSPM_DISPLAY_ISLAND)
-		return;
-
-	/* turn on the display power island */
-	ospm_power_island_up(OSPM_DISPLAY_ISLAND);
-
-	PSB_WVDC32(pg->pge_ctl | _PSB_PGETBL_ENABLED, PSB_PGETBL_CTL);
-	pci_write_config_word(pdev, PSB_GMCH_CTRL,
-			pg->gmch_ctrl | _PSB_GMCH_ENABLED);
-
-	/* Don't reinitialize the GTT as it is unnecessary.  The gtt is
-	 * stored in memory so it will automatically be restored.  All
-	 * we need to do is restore the PGETBL_CTL which we already do
-	 * above.
-	 */
-	/*psb_gtt_init(dev_priv->pg, 1);*/
-
-	restore_display_registers(dev);
-}
-
-#if 1
-/*
- * ospm_suspend_pci
- *
- * Description: Suspend the pci device saving state and disabling
- * as necessary.
- */
-static void ospm_suspend_pci(struct pci_dev *pdev)
-{
-	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	int bsm, vbt;
-
-	if (gbSuspended)
-		return;
-
-#ifdef OSPM_GFX_DPK
-	printk(KERN_ALERT "ospm_suspend_pci\n");
-#endif
-
-	pci_save_state(pdev);
-	pci_read_config_dword(pdev, 0x5C, &bsm);
-	dev_priv->saveBSM = bsm;
-	pci_read_config_dword(pdev, 0xFC, &vbt);
-	dev_priv->saveVBT = vbt;
-	pci_read_config_dword(pdev, PSB_PCIx_MSI_ADDR_LOC, &dev_priv->msi_addr);
-	pci_read_config_dword(pdev, PSB_PCIx_MSI_DATA_LOC, &dev_priv->msi_data);
-
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-
-	gbSuspended = true;
-	gbgfxsuspended = true;
-}
-
-/*
- * ospm_resume_pci
- *
- * Description: Resume the pci device restoring state and enabling
- * as necessary.
- */
-static bool ospm_resume_pci(struct pci_dev *pdev)
-{
-	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	int ret = 0;
-
-	if (!gbSuspended)
-		return true;
-
-#ifdef OSPM_GFX_DPK
-	printk(KERN_ALERT "ospm_resume_pci\n");
-#endif
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	pci_write_config_dword(pdev, 0x5c, dev_priv->saveBSM);
-	pci_write_config_dword(pdev, 0xFC, dev_priv->saveVBT);
-	/* retoring MSI address and data in PCIx space */
-	pci_write_config_dword(pdev, PSB_PCIx_MSI_ADDR_LOC, dev_priv->msi_addr);
-	pci_write_config_dword(pdev, PSB_PCIx_MSI_DATA_LOC, dev_priv->msi_data);
-	ret = pci_enable_device(pdev);
-
-	if (ret != 0)
-		printk(KERN_ALERT "ospm_resume_pci: pci_enable_device failed: %d\n", ret);
-	else
-		gbSuspended = false;
-
-	return !gbSuspended;
-}
-#endif
-/*
- * ospm_power_suspend
- *
- * Description: OSPM is telling our driver to suspend so save state
- * and power down all hardware.
- */
-int ospm_power_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-        int ret = 0;
-        int graphics_access_count;
-        int videoenc_access_count;
-        int videodec_access_count;
-        int display_access_count;
-    	bool suspend_pci = true;
-
-	if(gbSuspendInProgress || gbResumeInProgress)
-        {
-#ifdef OSPM_GFX_DPK
-                printk(KERN_ALERT "OSPM_GFX_DPK: %s system BUSY \n", __func__);
-#endif
-                return  -EBUSY;
-        }
-
-        mutex_lock(&power_mutex);
-
-        if (!gbSuspended) {
-                graphics_access_count = atomic_read(&g_graphics_access_count);
-                videoenc_access_count = atomic_read(&g_videoenc_access_count);
-                videodec_access_count = atomic_read(&g_videodec_access_count);
-                display_access_count = atomic_read(&g_display_access_count);
-
-                if (graphics_access_count ||
-			videoenc_access_count ||
-			videodec_access_count ||
-			display_access_count)
-                        ret = -EBUSY;
-
-                if (!ret) {
-                        gbSuspendInProgress = true;
-
-                        psb_irq_uninstall_islands(gpDrmDevice, OSPM_DISPLAY_ISLAND);
-                        ospm_suspend_display(gpDrmDevice);
-                        if (suspend_pci == true) {
-				ospm_suspend_pci(pdev);
-                        }
-                        gbSuspendInProgress = false;
-                } else {
-                        printk(KERN_ALERT "ospm_power_suspend: device busy: graphics %d videoenc %d videodec %d display %d\n", graphics_access_count, videoenc_access_count, videodec_access_count, display_access_count);
-                }
-        }
-
-
-        mutex_unlock(&power_mutex);
-        return ret;
-}
-
-/*
- * ospm_power_island_up
+ * power_up
  *
  * Description: Restore power to the specified island(s) (powergating)
  */
-void ospm_power_island_up(int hw_islands)
+static void power_up(struct drm_device *dev)
 {
-	u32 pwr_cnt = 0;
-	u32 pwr_sts = 0;
-	u32 pwr_mask = 0;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	u32 pwr_mask = PSB_PWRGT_DISPLAY_MASK;
+	u32 pwr_sts, pwr_cnt;
 
-	struct drm_psb_private *dev_priv =
-		(struct drm_psb_private *) gpDrmDevice->dev_private;
-
-
-	if (hw_islands & OSPM_DISPLAY_ISLAND) {
-		pwr_mask = PSB_PWRGT_DISPLAY_MASK;
-
+	if (IS_MRST(dev)) {
 		pwr_cnt = inl(dev_priv->ospm_base + PSB_PM_SSC);
 		pwr_cnt &= ~pwr_mask;
 		outl(pwr_cnt, (dev_priv->ospm_base + PSB_PM_SSC));
@@ -424,355 +255,221 @@ void ospm_power_island_up(int hw_islands)
 				udelay(10);
 		}
 	}
-
-	g_hw_power_status_mask |= hw_islands;
+	dev_priv->suspended = false;
+	dev_priv->display_power = true;
 }
 
-/*
- * ospm_power_resume
+/**
+ *	gma_resume_display	-	resume display side logic
+ *
+ *	Resume the display hardware restoring state and enabling
+ *	as necessary.
  */
-int ospm_power_resume(struct pci_dev *pdev)
+static void gma_resume_display(struct pci_dev *pdev)
 {
-	if(gbSuspendInProgress || gbResumeInProgress)
-        {
-#ifdef OSPM_GFX_DPK
-                printk(KERN_ALERT "OSPM_GFX_DPK: %s hw_island: Suspend || gbResumeInProgress!!!! \n", __func__);
-#endif
-                return 0;
-        }
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_psb_private *dev_priv = dev->dev_private;
 
-        mutex_lock(&power_mutex);
+	if (dev_priv->suspended == false)
+		return;
 
-#ifdef OSPM_GFX_DPK
-	printk(KERN_ALERT "OSPM_GFX_DPK: ospm_power_resume \n");
-#endif
+	/* turn on the display power island */
+	power_up(dev);
 
-  	gbResumeInProgress = true;
+	PSB_WVDC32(dev_priv->pge_ctl | _PSB_PGETBL_ENABLED, PSB_PGETBL_CTL);
+	pci_write_config_word(pdev, PSB_GMCH_CTRL,
+			dev_priv->gmch_ctrl | _PSB_GMCH_ENABLED);
 
-        ospm_resume_pci(pdev);
+	/* Don't reinitialize the GTT as it is unnecessary.  The gtt is
+	 * stored in memory so it will automatically be restored.  All
+	 * we need to do is restore the PGETBL_CTL which we already do
+	 * above.
+	 */
+	/*psb_gtt_init(dev_priv->pg, 1);*/
 
-	ospm_resume_display(gpDrmDevice->pdev);
-        psb_irq_preinstall_islands(gpDrmDevice, OSPM_DISPLAY_ISLAND);
-        psb_irq_postinstall_islands(gpDrmDevice, OSPM_DISPLAY_ISLAND);
+	restore_display_registers(dev);
+}
 
-	gbResumeInProgress = false;
+/**
+ *	gma_suspend_pci		-	suspend PCI side
+ *	@pdev: PCI device
+ *
+ *	Perform the suspend processing on our PCI device state
+ */
+static void gma_suspend_pci(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	int bsm, vbt;
 
-        mutex_unlock(&power_mutex);
+	if (dev_priv->suspended)
+		return;
 
+	pci_save_state(pdev);
+	pci_read_config_dword(pdev, 0x5C, &bsm);
+	dev_priv->saveBSM = bsm;
+	pci_read_config_dword(pdev, 0xFC, &vbt);
+	dev_priv->saveVBT = vbt;
+	pci_read_config_dword(pdev, PSB_PCIx_MSI_ADDR_LOC, &dev_priv->msi_addr);
+	pci_read_config_dword(pdev, PSB_PCIx_MSI_DATA_LOC, &dev_priv->msi_data);
+
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+
+	dev_priv->suspended = true;
+}
+
+/**
+ *	gma_resume_pci		-	resume helper
+ *	@dev: our PCI device
+ *
+ *	Perform the resume processing on our PCI device state - rewrite
+ *	register state and re-enable the PCI device
+ */
+static bool gma_resume_pci(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	int ret;
+
+	if (!dev_priv->suspended)
+		return true;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_write_config_dword(pdev, 0x5c, dev_priv->saveBSM);
+	pci_write_config_dword(pdev, 0xFC, dev_priv->saveVBT);
+	/* retoring MSI address and data in PCIx space */
+	pci_write_config_dword(pdev, PSB_PCIx_MSI_ADDR_LOC, dev_priv->msi_addr);
+	pci_write_config_dword(pdev, PSB_PCIx_MSI_DATA_LOC, dev_priv->msi_data);
+	ret = pci_enable_device(pdev);
+
+	if (ret != 0)
+		dev_err(&pdev->dev, "pci_enable failed: %d\n", ret);
+	else
+		dev_priv->suspended = false;
+	return !dev_priv->suspended;
+}
+
+/**
+ *	gma_power_suspend		-	bus callback for suspend
+ *	@pdev: our PCI device
+ *	@state: suspend type
+ *
+ *	Called back by the PCI layer during a suspend of the system. We
+ *	perform the necessary shut down steps and save enough state that
+ *	we can undo this when resume is called.
+ */
+int gma_power_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_psb_private *dev_priv = dev->dev_private;
+
+	mutex_lock(&power_mutex);
+	if (!dev_priv->suspended) {
+		if (dev_priv->display_count) {
+			mutex_unlock(&power_mutex);
+			return -EBUSY;
+		}
+		psb_irq_uninstall(dev);
+		gma_suspend_display(dev);
+		gma_suspend_pci(pdev);
+	}
+	mutex_unlock(&power_mutex);
 	return 0;
 }
 
 
-/*
- * ospm_power_island_down
+/**
+ *	gma_power_resume		-	resume power
+ *	@pdev: PCI device
  *
- * Description: Cut power to the specified island(s) (powergating)
+ *	Resume the PCI side of the graphics and then the displays
  */
-void ospm_power_island_down(int islands)
+int gma_power_resume(struct pci_dev *pdev)
 {
-#if 0
-	u32 pwr_cnt = 0;
-	u32 pwr_mask = 0;
-	u32 pwr_sts = 0;
+	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	struct drm_psb_private *dev_priv =
-		(struct drm_psb_private *) gpDrmDevice->dev_private;
-
-	g_hw_power_status_mask &= ~islands;
-
-	if (islands & OSPM_GRAPHICS_ISLAND) {
-		pwr_cnt |= PSB_PWRGT_GFX_MASK;
-		pwr_mask |= PSB_PWRGT_GFX_MASK;
-		if (dev_priv->graphics_state == PSB_PWR_STATE_ON) {
-			dev_priv->gfx_on_time += (jiffies - dev_priv->gfx_last_mode_change) * 1000 / HZ;
-			dev_priv->gfx_last_mode_change = jiffies;
-			dev_priv->graphics_state = PSB_PWR_STATE_OFF;
-			dev_priv->gfx_off_cnt++;
-		}
-	}
-	if (islands & OSPM_VIDEO_ENC_ISLAND) {
-		pwr_cnt |= PSB_PWRGT_VID_ENC_MASK;
-		pwr_mask |= PSB_PWRGT_VID_ENC_MASK;
-	}
-	if (islands & OSPM_VIDEO_DEC_ISLAND) {
-		pwr_cnt |= PSB_PWRGT_VID_DEC_MASK;
-		pwr_mask |= PSB_PWRGT_VID_DEC_MASK;
-	}
-	if (pwr_cnt) {
-		pwr_cnt |= inl(dev_priv->apm_base);
-		outl(pwr_cnt, dev_priv->apm_base  + PSB_APM_CMD);
-		while (true) {
-			pwr_sts = inl(dev_priv->apm_base + PSB_APM_STS);
-
-			if ((pwr_sts & pwr_mask) == pwr_mask)
-				break;
-			else
-				udelay(10);
-		}
-	}
-
-	if (islands & OSPM_DISPLAY_ISLAND) {
-		pwr_mask = PSB_PWRGT_DISPLAY_MASK;
-
-		outl(pwr_mask, (dev_priv->ospm_base + PSB_PM_SSC));
-
-		while (true) {
-			pwr_sts = inl(dev_priv->ospm_base + PSB_PM_SSS);
-			if ((pwr_sts & pwr_mask) == pwr_mask)
-				break;
-			else
-				udelay(10);
-		}
-	}
-#endif
-}
-
-
-/*
- * ospm_power_is_hw_on
- *
- * Description: do an instantaneous check for if the specified islands
- * are on.  Only use this in cases where you know the g_state_change_mutex
- * is already held such as in irq install/uninstall.  Otherwise, use
- * ospm_power_using_hw_begin().
- */
-bool ospm_power_is_hw_on(int hw_islands)
-{
-	return ((g_hw_power_status_mask & hw_islands) == hw_islands) ? true:false;
-}
-
-/*
- * ospm_power_using_hw_begin
- *
- * Description: Notify PowerMgmt module that you will be accessing the
- * specified island's hw so don't power it off.  If force_on is true,
- * this will power on the specified island if it is off.
- * Otherwise, this will return false and the caller is expected to not
- * access the hw.
- *
- * NOTE *** If this is called from and interrupt handler or other atomic
- * context, then it will return false if we are in the middle of a
- * power state transition and the caller will be expected to handle that
- * even if force_on is set to true.
- */
-bool ospm_power_using_hw_begin(int hw_island, UHBUsage usage)
-{
-        return 1;	/*FIXMEAC */
-#if 0
-	bool ret = true;
-	bool island_is_off = false;
-	bool b_atomic = (in_interrupt() || in_atomic());
-	bool locked = true;
-	struct pci_dev *pdev = gpDrmDevice->pdev;
-	u32 deviceID = 0;
-	bool force_on = usage ? true: false;
-	/*quick path, not 100% race safe, but should be enough comapre to current other code in this file */
-	if (!force_on) {
-		if (hw_island & (OSPM_ALL_ISLANDS & ~g_hw_power_status_mask))
-			return false;
-		else {
-			locked = false;
-#ifdef CONFIG_PM_RUNTIME
-			/* increment pm_runtime_refcount */
-			pm_runtime_get(&pdev->dev);
-#endif
-			goto increase_count;
-		}
-	}
-
-
-	if (!b_atomic)
-		mutex_lock(&power_mutex);
-
-	island_is_off = hw_island & (OSPM_ALL_ISLANDS & ~g_hw_power_status_mask);
-
-	if (b_atomic && (gbSuspendInProgress || gbResumeInProgress || gbSuspended) && force_on && island_is_off)
-		ret = false;
-
-	if (ret && island_is_off && !force_on)
-		ret = false;
-
-	if (ret && island_is_off && force_on) {
-		gbResumeInProgress = true;
-
-		ret = ospm_resume_pci(pdev);
-
-		if (ret) {
-			switch(hw_island)
-			{
-			case OSPM_DISPLAY_ISLAND:
-				deviceID = gui32MRSTDisplayDeviceID;
-				ospm_resume_display(pdev);
-				psb_irq_preinstall_islands(gpDrmDevice, OSPM_DISPLAY_ISLAND);
-				psb_irq_postinstall_islands(gpDrmDevice, OSPM_DISPLAY_ISLAND);
-				break;
-			case OSPM_GRAPHICS_ISLAND:
-				deviceID = gui32SGXDeviceID;
-				ospm_power_island_up(OSPM_GRAPHICS_ISLAND);
-				psb_irq_preinstall_islands(gpDrmDevice, OSPM_GRAPHICS_ISLAND);
-				psb_irq_postinstall_islands(gpDrmDevice, OSPM_GRAPHICS_ISLAND);
-				break;
-#if 1
-			case OSPM_VIDEO_DEC_ISLAND:
-				if(!ospm_power_is_hw_on(OSPM_DISPLAY_ISLAND)) {
-					//printk(KERN_ALERT "%s power on display for video decode use\n", __func__);
-					deviceID = gui32MRSTDisplayDeviceID;
-					ospm_resume_display(pdev);
-					psb_irq_preinstall_islands(gpDrmDevice, OSPM_DISPLAY_ISLAND);
-					psb_irq_postinstall_islands(gpDrmDevice, OSPM_DISPLAY_ISLAND);
-				}
-				else{
-					//printk(KERN_ALERT "%s display is already on for video decode use\n", __func__);
-				}
-
-				if(!ospm_power_is_hw_on(OSPM_VIDEO_DEC_ISLAND)) {
-					//printk(KERN_ALERT "%s power on video decode\n", __func__);
-					deviceID = gui32MRSTMSVDXDeviceID;
-					ospm_power_island_up(OSPM_VIDEO_DEC_ISLAND);
-					psb_irq_preinstall_islands(gpDrmDevice, OSPM_VIDEO_DEC_ISLAND);
-					psb_irq_postinstall_islands(gpDrmDevice, OSPM_VIDEO_DEC_ISLAND);
-				}
-				else{
-					//printk(KERN_ALERT "%s video decode is already on\n", __func__);
-				}
-
-				break;
-			case OSPM_VIDEO_ENC_ISLAND:
-				if(!ospm_power_is_hw_on(OSPM_DISPLAY_ISLAND)) {
-					//printk(KERN_ALERT "%s power on display for video encode\n", __func__);
-					deviceID = gui32MRSTDisplayDeviceID;
-					ospm_resume_display(pdev);
-					psb_irq_preinstall_islands(gpDrmDevice, OSPM_DISPLAY_ISLAND);
-					psb_irq_postinstall_islands(gpDrmDevice, OSPM_DISPLAY_ISLAND);
-				}
-				else{
-					//printk(KERN_ALERT "%s display is already on for video encode use\n", __func__);
-				}
-
-				if(!ospm_power_is_hw_on(OSPM_VIDEO_ENC_ISLAND)) {
-					//printk(KERN_ALERT "%s power on video encode\n", __func__);
-					deviceID = gui32MRSTTOPAZDeviceID;
-					ospm_power_island_up(OSPM_VIDEO_ENC_ISLAND);
-					psb_irq_preinstall_islands(gpDrmDevice, OSPM_VIDEO_ENC_ISLAND);
-					psb_irq_postinstall_islands(gpDrmDevice, OSPM_VIDEO_ENC_ISLAND);
-				}
-				else{
-					//printk(KERN_ALERT "%s video decode is already on\n", __func__);
-				}
-#endif
-				break;
-
-			default:
-				printk(KERN_ALERT "%s unknown island !!!! \n", __func__);
-				break;
-			}
-
-		}
-
-		if (!ret)
-			printk(KERN_ALERT "ospm_power_using_hw_begin: forcing on %d failed\n", hw_island);
-
-		gbResumeInProgress = false;
-	}
-increase_count:
-	if (ret) {
-		switch(hw_island)
-		{
-		case OSPM_GRAPHICS_ISLAND:
-			atomic_inc(&g_graphics_access_count);
-			break;
-		case OSPM_VIDEO_ENC_ISLAND:
-			atomic_inc(&g_videoenc_access_count);
-			break;
-		case OSPM_VIDEO_DEC_ISLAND:
-			atomic_inc(&g_videodec_access_count);
-			break;
-		case OSPM_DISPLAY_ISLAND:
-			atomic_inc(&g_display_access_count);
-			break;
-		}
-	}
-
-	if (!b_atomic && locked)
-		mutex_unlock(&power_mutex);
-
-	return ret;
-#endif
-}
-
-
-/*
- * ospm_power_using_hw_end
- *
- * Description: Notify PowerMgmt module that you are done accessing the
- * specified island's hw so feel free to power it off.  Note that this
- * function doesn't actually power off the islands.
- */
-void ospm_power_using_hw_end(int hw_island)
-{
-#if 0 /* FIXMEAC */
-	switch(hw_island)
-	{
-	case OSPM_GRAPHICS_ISLAND:
-		atomic_dec(&g_graphics_access_count);
-		break;
-	case OSPM_VIDEO_ENC_ISLAND:
-		atomic_dec(&g_videoenc_access_count);
-		break;
-	case OSPM_VIDEO_DEC_ISLAND:
-		atomic_dec(&g_videodec_access_count);
-		break;
-	case OSPM_DISPLAY_ISLAND:
-		atomic_dec(&g_display_access_count);
-		break;
-	}
-
-	//decrement runtime pm ref count
-	pm_runtime_put(&gpDrmDevice->pdev->dev);
-
-	WARN_ON(atomic_read(&g_graphics_access_count) < 0);
-	WARN_ON(atomic_read(&g_videoenc_access_count) < 0);
-	WARN_ON(atomic_read(&g_videodec_access_count) < 0);
-	WARN_ON(atomic_read(&g_display_access_count) < 0);
-#endif
-}
-
-int ospm_runtime_pm_allow(struct drm_device * dev)
-{
+	mutex_lock(&power_mutex);
+	gma_resume_pci(pdev);
+	gma_resume_display(pdev);
+	psb_irq_preinstall(dev);
+	psb_irq_postinstall(dev);
+	mutex_unlock(&power_mutex);
 	return 0;
 }
 
-void ospm_runtime_pm_forbid(struct drm_device * dev)
+
+
+/**
+ *	gma_power_is_on		-	returne true if power is on
+ *	@dev: our DRM device
+ *
+ *	Returns true if the display island power is on at this moment
+ */
+bool gma_power_is_on(struct drm_device *dev)
 {
-	struct drm_psb_private * dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	return dev_priv->display_power;
+}
 
-	DRM_INFO("%s\n", __FUNCTION__);
 
-	pm_runtime_forbid(&dev->pdev->dev);
-	dev_priv->rpm_enabled = 0;
+/**
+ *	gma_power_begin		-	begin requiring power
+ *	@dev: our DRM device
+ *	@force_on: true to force power on
+ *
+ *	Begin an action that requires the display power island is enabled.
+ *	We refcount the islands.
+ *
+ *	FIXME: locking
+ */
+bool gma_power_begin(struct drm_device *dev, bool force_on)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	int ret;
+
+	/* Power already on ? */
+	if (dev_priv->display_power) {
+		dev_priv->display_count++;
+		pm_runtime_get(&dev->pdev->dev);
+		return true;
+	}
+	if (force_on == false)
+		return false;
+
+	/* Ok power up needed */
+	ret = gma_resume_pci(dev->pdev);
+	if (ret == 0) {
+		psb_irq_preinstall(dev);
+		psb_irq_postinstall(dev);
+		pm_runtime_get(&dev->pdev->dev);
+		dev_priv->display_count++;
+		return true;
+	}
+	return false;
+}
+
+
+/**
+ *	gma_power_end		-	end use of power
+ *	@dev: Our DRM device
+ *
+ *	Indicate that one of our gma_power_begin() requested periods when
+ *	the diplay island power is needed has completed.
+ */
+void gma_power_end(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	dev_priv->display_count--;
+	WARN_ON(dev_priv->display_count < 0);
+	pm_runtime_put(&dev->pdev->dev);
 }
 
 int psb_runtime_suspend(struct device *dev)
 {
-	pm_message_t state;
-	int ret = 0;
-	state.event = 0;
-
-#ifdef OSPM_GFX_DPK
-	printk(KERN_ALERT "OSPM_GFX_DPK: %s \n", __func__);
-#endif
-        if (atomic_read(&g_graphics_access_count) || atomic_read(&g_videoenc_access_count)
-		|| atomic_read(&g_videodec_access_count) || atomic_read(&g_display_access_count)){
-#ifdef OSPM_GFX_DPK
-                printk(KERN_ALERT "OSPM_GFX_DPK: GFX: %d VEC: %d VED: %d DC: %d DSR: %d \n", atomic_read(&g_graphics_access_count),
-			atomic_read(&g_videoenc_access_count), atomic_read(&g_videodec_access_count), atomic_read(&g_display_access_count));
-#endif
-                return -EBUSY;
-        }
-        else
-		ret = ospm_power_suspend(gpDrmDevice->pdev, state);
-
-	return ret;
+	static pm_message_t dummy;
+	return gma_power_suspend(to_pci_dev(dev), dummy);
 }
 
 int psb_runtime_resume(struct device *dev)
@@ -782,11 +479,11 @@ int psb_runtime_resume(struct device *dev)
 
 int psb_runtime_idle(struct device *dev)
 {
-	/*printk (KERN_ALERT "lvds:%d,mipi:%d\n", dev_priv->is_lvds_on, dev_priv->is_mipi_on);*/
-	if (atomic_read(&g_graphics_access_count) || atomic_read(&g_videoenc_access_count)
-		|| atomic_read(&g_videodec_access_count) || atomic_read(&g_display_access_count))
-		return 1;
-	else
+	struct drm_device *drmdev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_psb_private *dev_priv = drmdev->dev_private;
+	if (dev_priv->display_count)
 		return 0;
+	else
+		return 1;
 }
 

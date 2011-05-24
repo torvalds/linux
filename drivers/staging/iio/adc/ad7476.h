@@ -19,11 +19,8 @@ struct ad7476_platform_data {
 };
 
 struct ad7476_chip_info {
-	u8				bits;
-	u8				storagebits;
-	u8				res_shift;
-	char				sign;
 	u16				int_vref_mv;
+	struct iio_chan_spec		channel[2];
 };
 
 struct ad7476_state {
@@ -31,8 +28,6 @@ struct ad7476_state {
 	struct spi_device		*spi;
 	const struct ad7476_chip_info	*chip_info;
 	struct regulator		*reg;
-	struct work_struct		poll_work;
-	atomic_t			protect_ring;
 	size_t				d_size;
 	u16				int_vref_mv;
 	struct spi_transfer		xfer;

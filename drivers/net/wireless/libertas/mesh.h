@@ -1,6 +1,6 @@
-/**
-  * Contains all definitions needed for the Libertas' MESH implementation.
-  */
+/*
+ * Contains all definitions needed for the Libertas' MESH implementation.
+ */
 #ifndef _LBS_MESH_H_
 #define _LBS_MESH_H_
 

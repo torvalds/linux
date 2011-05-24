@@ -922,7 +922,7 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 			/* Try 2560x1920, 1280x960, 640x480, 320x240 */
 			mf.width	= 2560 >> shift;
 			mf.height	= 1920 >> shift;
-			ret = v4l2_device_call_until_err(sd->v4l2_dev, 0, video,
+			ret = v4l2_device_call_until_err(sd->v4l2_dev, (long)icd, video,
 							 s_mbus_fmt, &mf);
 			if (ret < 0)
 				return ret;
@@ -1224,7 +1224,7 @@ static int client_s_fmt(struct soc_camera_device *icd,
 	struct v4l2_cropcap cap;
 	int ret;
 
-	ret = v4l2_device_call_until_err(sd->v4l2_dev, 0, video,
+	ret = v4l2_device_call_until_err(sd->v4l2_dev, (long)icd, video,
 					 s_mbus_fmt, mf);
 	if (ret < 0)
 		return ret;
@@ -1254,7 +1254,7 @@ static int client_s_fmt(struct soc_camera_device *icd,
 		tmp_h = min(2 * tmp_h, max_height);
 		mf->width = tmp_w;
 		mf->height = tmp_h;
-		ret = v4l2_device_call_until_err(sd->v4l2_dev, 0, video,
+		ret = v4l2_device_call_until_err(sd->v4l2_dev, (long)icd, video,
 						 s_mbus_fmt, mf);
 		dev_geo(dev, "Camera scaled to %ux%u\n",
 			mf->width, mf->height);
@@ -1658,7 +1658,7 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 	mf.code		= xlate->code;
 	mf.colorspace	= pix->colorspace;
 
-	ret = v4l2_device_call_until_err(sd->v4l2_dev, 0, video, try_mbus_fmt, &mf);
+	ret = v4l2_device_call_until_err(sd->v4l2_dev, (long)icd, video, try_mbus_fmt, &mf);
 	if (ret < 0)
 		return ret;
 
@@ -1682,7 +1682,7 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 			 */
 			mf.width = 2560;
 			mf.height = 1920;
-			ret = v4l2_device_call_until_err(sd->v4l2_dev, 0, video,
+			ret = v4l2_device_call_until_err(sd->v4l2_dev, (long)icd, video,
 							 try_mbus_fmt, &mf);
 			if (ret < 0) {
 				/* Shouldn't actually happen... */

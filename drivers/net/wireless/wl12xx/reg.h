@@ -207,6 +207,8 @@
 
 #define CHIP_ID_1271_PG10              (0x4030101)
 #define CHIP_ID_1271_PG20              (0x4030111)
+#define CHIP_ID_1283_PG10              (0x05030101)
+#define CHIP_ID_1283_PG20              (0x05030111)
 
 #define ENABLE                         (REGISTERS_BASE + 0x5450)
 
@@ -452,24 +454,11 @@
 #define HI_CFG_UART_TX_OUT_GPIO_14  0x00000200
 #define HI_CFG_UART_TX_OUT_GPIO_7   0x00000400
 
-/*
- * NOTE: USE_ACTIVE_HIGH compilation flag should be defined in makefile
- *       for platforms using active high interrupt level
- */
-#ifdef USE_ACTIVE_HIGH
 #define HI_CFG_DEF_VAL              \
 	(HI_CFG_UART_ENABLE |        \
 	HI_CFG_RST232_ENABLE |      \
 	HI_CFG_CLOCK_REQ_SELECT |   \
 	HI_CFG_HOST_INT_ENABLE)
-#else
-#define HI_CFG_DEF_VAL              \
-	(HI_CFG_UART_ENABLE |        \
-	HI_CFG_RST232_ENABLE |      \
-	HI_CFG_CLOCK_REQ_SELECT |   \
-	HI_CFG_HOST_INT_ENABLE)
-
-#endif
 
 #define REF_FREQ_19_2                       0
 #define REF_FREQ_26_0                       1

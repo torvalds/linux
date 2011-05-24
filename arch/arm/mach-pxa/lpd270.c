@@ -15,7 +15,7 @@
 
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/bitops.h>
@@ -159,30 +159,22 @@ static void __init lpd270_init_irq(void)
 
 
 #ifdef CONFIG_PM
-static int lpd270_irq_resume(struct sys_device *dev)
+static void lpd270_irq_resume(void)
 {
 	__raw_writew(lpd270_irq_enabled, LPD270_INT_MASK);
-	return 0;
 }
 
-static struct sysdev_class lpd270_irq_sysclass = {
-	.name = "cpld_irq",
+static struct syscore_ops lpd270_irq_syscore_ops = {
 	.resume = lpd270_irq_resume,
-};
-
-static struct sys_device lpd270_irq_device = {
-	.cls = &lpd270_irq_sysclass,
 };
 
 static int __init lpd270_irq_device_init(void)
 {
-	int ret = -ENODEV;
 	if (machine_is_logicpd_pxa270()) {
-		ret = sysdev_class_register(&lpd270_irq_sysclass);
-		if (ret == 0)
-			ret = sysdev_register(&lpd270_irq_device);
+		register_syscore_ops(&lpd270_irq_syscore_ops);
+		return 0;
 	}
-	return ret;
+	return -ENODEV;
 }
 
 device_initcall(lpd270_irq_device_init);

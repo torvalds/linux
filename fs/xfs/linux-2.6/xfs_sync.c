@@ -267,6 +267,16 @@ xfs_sync_inode_attr(
 
 	error = xfs_iflush(ip, flags);
 
+	/*
+	 * We don't want to try again on non-blocking flushes that can't run
+	 * again immediately. If an inode really must be written, then that's
+	 * what the SYNC_WAIT flag is for.
+	 */
+	if (error == EAGAIN) {
+		ASSERT(!(flags & SYNC_WAIT));
+		error = 0;
+	}
+
  out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 	return error;
@@ -926,6 +936,7 @@ restart:
 					XFS_LOOKUP_BATCH,
 					XFS_ICI_RECLAIM_TAG);
 			if (!nr_found) {
+				done = 1;
 				rcu_read_unlock();
 				break;
 			}

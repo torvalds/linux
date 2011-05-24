@@ -27,7 +27,6 @@
  * processing errors, the last frame header is dump for comparison */
 //#define HTC_CAPTURE_LAST_FRAME
 
-//#define HTC_EP_STAT_PROFILING
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,7 +36,6 @@ extern "C" {
 
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 #include "a_osapi.h"
 #include "htc_debug.h"
 #include "htc.h"
@@ -82,17 +80,10 @@ struct htc_endpoint {
     struct htc_target           *target;                /* back pointer to target */
     u8 SeqNo;                  /* TX seq no (helpful) for debugging */
     u32 LocalConnectionFlags;   /* local connection flags */
-#ifdef HTC_EP_STAT_PROFILING
     struct htc_endpoint_stats          EndPointStats;          /* endpoint statistics */
-#endif
 };
 
-#ifdef HTC_EP_STAT_PROFILING
 #define INC_HTC_EP_STAT(p,stat,count) (p)->EndPointStats.stat += (count);
-#else
-#define INC_HTC_EP_STAT(p,stat,count)
-#endif
-
 #define HTC_SERVICE_TX_PACKET_TAG  HTC_TX_PACKET_TAG_INTERNAL
 
 #define NUM_CONTROL_BUFFERS     8

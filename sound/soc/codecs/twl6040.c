@@ -960,9 +960,9 @@ static DECLARE_TLV_DB_SCALE(mic_amp_tlv, -600, 600, 0);
 
 /*
  * AFMGAIN volume control:
- * from 18 to 24 dB in 6 dB steps
+ * from -18 to 24 dB in 6 dB steps
  */
-static DECLARE_TLV_DB_SCALE(afm_amp_tlv, 1800, 600, 0);
+static DECLARE_TLV_DB_SCALE(afm_amp_tlv, -1800, 600, 0);
 
 /*
  * HSGAIN volume control:
@@ -1049,7 +1049,7 @@ static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 
 	/* AFM gains */
 	SOC_DOUBLE_TLV("Aux FM Volume",
-		TWL6040_REG_LINEGAIN, 0, 4, 0xF, 0, afm_amp_tlv),
+		TWL6040_REG_LINEGAIN, 0, 3, 7, 0, afm_amp_tlv),
 
 	/* Playback gains */
 	SOC_TWL6040_DOUBLE_TLV("Headset Playback Volume",

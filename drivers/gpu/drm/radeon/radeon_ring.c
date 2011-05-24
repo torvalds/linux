@@ -194,7 +194,7 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	r = radeon_bo_kmap(rdev->ib_pool.robj, &ptr);
 	radeon_bo_unreserve(rdev->ib_pool.robj);
 	if (r) {
-		DRM_ERROR("radeon: failed to map ib poll (%d).\n", r);
+		DRM_ERROR("radeon: failed to map ib pool (%d).\n", r);
 		return r;
 	}
 	for (i = 0; i < RADEON_IB_POOL_SIZE; i++) {

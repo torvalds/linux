@@ -274,7 +274,7 @@ static struct clk timer2_clk = {
 	.name = "timer2",
 	.parent = &pll1_aux_clk,
 	.lpsc = DAVINCI_LPSC_TIMER2,
-	.usecount = 1,              /* REVISIT: why can't' this be disabled? */
+	.usecount = 1,              /* REVISIT: why can't this be disabled? */
 };
 
 static struct clk_lookup dm644x_clks[] = {

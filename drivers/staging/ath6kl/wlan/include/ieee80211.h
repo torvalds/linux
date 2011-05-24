@@ -23,8 +23,6 @@
 #ifndef _NET80211_IEEE80211_H_
 #define _NET80211_IEEE80211_H_
 
-#include "athstartpack.h"
-
 /*
  * 802.11 protocol definitions.
  */
@@ -395,7 +393,5 @@ enum ieee80211_authmode {
 };
 
 #define IEEE80211_PS_MAX_QUEUE    50 /*Maximum no of buffers that can be queues for PS*/
-
-#include "athendpack.h"
 
 #endif /* _NET80211_IEEE80211_H_ */

@@ -1900,7 +1900,7 @@ xfs_mod_incore_sb_batch(
 	uint			nmsb,
 	int			rsvd)
 {
-	xfs_mod_sb_t		*msbp = &msb[0];
+	xfs_mod_sb_t		*msbp;
 	int			error = 0;
 
 	/*
@@ -1910,7 +1910,7 @@ xfs_mod_incore_sb_batch(
 	 * changes will be atomic.
 	 */
 	spin_lock(&mp->m_sb_lock);
-	for (msbp = &msbp[0]; msbp < (msb + nmsb); msbp++) {
+	for (msbp = msb; msbp < (msb + nmsb); msbp++) {
 		ASSERT(msbp->msb_field < XFS_SBS_ICOUNT ||
 		       msbp->msb_field > XFS_SBS_FDBLOCKS);
 

@@ -223,6 +223,7 @@ struct kvm_vcpu_arch {
 	ulong hflags;
 	ulong guest_owned_ext;
 #endif
+	u32 vrsave; /* also USPRG0 */
 	u32 mmucr;
 	ulong sprg4;
 	ulong sprg5;
@@ -232,6 +233,9 @@ struct kvm_vcpu_arch {
 	ulong csrr1;
 	ulong dsrr0;
 	ulong dsrr1;
+	ulong mcsrr0;
+	ulong mcsrr1;
+	ulong mcsr;
 	ulong esr;
 	u32 dec;
 	u32 decar;
@@ -255,6 +259,7 @@ struct kvm_vcpu_arch {
 	u32 dbsr;
 
 #ifdef CONFIG_KVM_EXIT_TIMING
+	struct mutex exit_timing_lock;
 	struct kvmppc_exit_timing timing_exit;
 	struct kvmppc_exit_timing timing_last_enter;
 	u32 last_exit_type;

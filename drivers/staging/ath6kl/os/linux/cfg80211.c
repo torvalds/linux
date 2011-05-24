@@ -172,6 +172,12 @@ ar6k_set_auth_type(struct ar6_softc *ar, enum nl80211_auth_type auth_type)
     case NL80211_AUTHTYPE_NETWORK_EAP:
         ar->arDot11AuthMode = LEAP_AUTH;
         break;
+
+    case NL80211_AUTHTYPE_AUTOMATIC:
+        ar->arDot11AuthMode = OPEN_AUTH;
+        ar->arAutoAuthStage = AUTH_OPEN_IN_PROGRESS;
+        break;
+
     default:
         ar->arDot11AuthMode = OPEN_AUTH;
         AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
@@ -460,6 +466,8 @@ ar6k_cfg80211_connect_event(struct ar6_softc *ar, u16 channel,
     assocReqLen -= assocReqIeOffset;
     assocRespLen -= assocRespIeOffset;
 
+    ar->arAutoAuthStage = AUTH_IDLE;
+
     if((ADHOC_NETWORK & networkType)) {
         if(NL80211_IFTYPE_ADHOC != ar->wdev->iftype) {
             AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
@@ -487,74 +495,83 @@ ar6k_cfg80211_connect_event(struct ar6_softc *ar, u16 channel,
                            ((ADHOC_NETWORK & networkType) ? WLAN_CAPABILITY_IBSS : WLAN_CAPABILITY_ESS),
                            ((ADHOC_NETWORK & networkType) ? WLAN_CAPABILITY_IBSS : WLAN_CAPABILITY_ESS));
 
-    if(!bss) {
-        if (ADHOC_NETWORK & networkType) {
+    /*
+     * Earlier we were updating the cfg about bss by making a beacon frame
+     * only if the entry for bss is not there. This can have some issue if
+     * ROAM event is generated and a heavy traffic is ongoing. The ROAM
+     * event is handled through a work queue and by the time it really gets
+     * handled, BSS would have been aged out. So it is better to update the
+     * cfg about BSS irrespective of its entry being present right now or
+     * not.
+     */
+
+    if (ADHOC_NETWORK & networkType) {
             /* construct 802.11 mgmt beacon */
             if(ptr_ie_buf) {
-                *ptr_ie_buf++ = WLAN_EID_SSID;
-                *ptr_ie_buf++ = ar->arSsidLen;
-                memcpy(ptr_ie_buf, ar->arSsid, ar->arSsidLen);
-                ptr_ie_buf +=ar->arSsidLen;
+		    *ptr_ie_buf++ = WLAN_EID_SSID;
+		    *ptr_ie_buf++ = ar->arSsidLen;
+		    memcpy(ptr_ie_buf, ar->arSsid, ar->arSsidLen);
+		    ptr_ie_buf +=ar->arSsidLen;
 
-                *ptr_ie_buf++ = WLAN_EID_IBSS_PARAMS;
-                *ptr_ie_buf++ = 2; /* length */
-                *ptr_ie_buf++ = 0; /* ATIM window */
-                *ptr_ie_buf++ = 0; /* ATIM window */
+		    *ptr_ie_buf++ = WLAN_EID_IBSS_PARAMS;
+		    *ptr_ie_buf++ = 2; /* length */
+		    *ptr_ie_buf++ = 0; /* ATIM window */
+		    *ptr_ie_buf++ = 0; /* ATIM window */
 
-                /* TODO: update ibss params and include supported rates,
-                 * DS param set, extened support rates, wmm. */
+		    /* TODO: update ibss params and include supported rates,
+		     * DS param set, extened support rates, wmm. */
 
-                ie_buf_len = ptr_ie_buf - ie_buf;
+		    ie_buf_len = ptr_ie_buf - ie_buf;
             }
 
             capability |= IEEE80211_CAPINFO_IBSS;
             if(WEP_CRYPT == ar->arPairwiseCrypto) {
-                capability |= IEEE80211_CAPINFO_PRIVACY;
+		    capability |= IEEE80211_CAPINFO_PRIVACY;
             }
             memcpy(source_mac, ar->arNetDev->dev_addr, ATH_MAC_LEN);
             ptr_ie_buf = ie_buf;
-        } else {
+    } else {
             capability = *(u16 *)(&assocInfo[beaconIeLen]);
             memcpy(source_mac, bssid, ATH_MAC_LEN);
             ptr_ie_buf = assocReqIe;
             ie_buf_len = assocReqLen;
-        }
+    }
 
-        size = offsetof(struct ieee80211_mgmt, u)
-             + sizeof(mgmt->u.beacon)
-             + ie_buf_len;
+    size = offsetof(struct ieee80211_mgmt, u)
+	    + sizeof(mgmt->u.beacon)
+	    + ie_buf_len;
 
-        ieeemgmtbuf = A_MALLOC_NOWAIT(size);
-        if(!ieeemgmtbuf) {
+    ieeemgmtbuf = A_MALLOC_NOWAIT(size);
+    if(!ieeemgmtbuf) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                             ("%s: ieeeMgmtbuf alloc error\n", __func__));
+	    cfg80211_put_bss(bss);
             return;
-        }
-
-        A_MEMZERO(ieeemgmtbuf, size);
-        mgmt = (struct ieee80211_mgmt *)ieeemgmtbuf;
-        mgmt->frame_control = (IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
-        memcpy(mgmt->da, bcast_mac, ATH_MAC_LEN);
-        memcpy(mgmt->sa, source_mac, ATH_MAC_LEN);
-        memcpy(mgmt->bssid, bssid, ATH_MAC_LEN);
-        mgmt->u.beacon.beacon_int = beaconInterval;
-        mgmt->u.beacon.capab_info = capability;
-        memcpy(mgmt->u.beacon.variable, ptr_ie_buf, ie_buf_len);
-
-        ibss_channel = ieee80211_get_channel(ar->wdev->wiphy, (int)channel);
-
-	AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
-		("%s: inform bss with bssid %pM channel %d beaconInterval %d "
-			"capability 0x%x\n", __func__, mgmt->bssid,
-			ibss_channel->hw_value, beaconInterval, capability));
-
-        bss = cfg80211_inform_bss_frame(ar->wdev->wiphy,
-                                        ibss_channel, mgmt,
-                                        le16_to_cpu(size),
-                                        signal, GFP_KERNEL);
-        A_FREE(ieeemgmtbuf);
-        cfg80211_put_bss(bss);
     }
+
+    A_MEMZERO(ieeemgmtbuf, size);
+    mgmt = (struct ieee80211_mgmt *)ieeemgmtbuf;
+    mgmt->frame_control = (IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
+    memcpy(mgmt->da, bcast_mac, ATH_MAC_LEN);
+    memcpy(mgmt->sa, source_mac, ATH_MAC_LEN);
+    memcpy(mgmt->bssid, bssid, ATH_MAC_LEN);
+    mgmt->u.beacon.beacon_int = beaconInterval;
+    mgmt->u.beacon.capab_info = capability;
+    memcpy(mgmt->u.beacon.variable, ptr_ie_buf, ie_buf_len);
+
+    ibss_channel = ieee80211_get_channel(ar->wdev->wiphy, (int)channel);
+
+    AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
+		    ("%s: inform bss with bssid %pM channel %d beaconInterval %d "
+		     "capability 0x%x\n", __func__, mgmt->bssid,
+		     ibss_channel->hw_value, beaconInterval, capability));
+
+    bss = cfg80211_inform_bss_frame(ar->wdev->wiphy,
+				    ibss_channel, mgmt,
+				    le16_to_cpu(size),
+				    signal, GFP_KERNEL);
+    kfree(ieeemgmtbuf);
+    cfg80211_put_bss(bss);
 
     if((ADHOC_NETWORK & networkType)) {
         cfg80211_ibss_joined(ar->arNetDev, bssid, GFP_KERNEL);
@@ -625,8 +642,14 @@ ar6k_cfg80211_disconnect_event(struct ar6_softc *ar, u8 reason,
                                u8 *assocInfo, u16 protocolReasonStatus)
 {
 
+    u16 status;
+
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: reason=%u\n", __func__, reason));
 
+    if (ar->scan_request) {
+	cfg80211_scan_done(ar->scan_request, true);
+        ar->scan_request = NULL;
+    }
     if((ADHOC_NETWORK & ar->arNetworkType)) {
         if(NL80211_IFTYPE_ADHOC != ar->wdev->iftype) {
             AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
@@ -651,23 +674,70 @@ ar6k_cfg80211_disconnect_event(struct ar6_softc *ar, u8 reason,
             /* connect cmd failed */
             wmi_disconnect_cmd(ar->arWmi);
         } else if (reason == DISCONNECT_CMD) {
-            /* connection loss due to disconnect cmd or low rssi */
-            ar->arConnectPending = false;   
-            if (ar->smeState == SME_CONNECTING) {
-                cfg80211_connect_result(ar->arNetDev, bssid,
-                                        NULL, 0,
-                                        NULL, 0,
-                                        WLAN_STATUS_UNSPECIFIED_FAILURE,
-                                        GFP_KERNEL);
-            } else {
-                cfg80211_disconnected(ar->arNetDev, reason, NULL, 0, GFP_KERNEL);
-            }
-            ar->smeState = SME_DISCONNECTED;
-        }
+		if (ar->arAutoAuthStage) {
+			/*
+			 * If the current auth algorithm is open try shared
+			 * and make autoAuthStage idle. We do not make it
+			 * leap for now being.
+			 */
+			if (ar->arDot11AuthMode == OPEN_AUTH) {
+				struct ar_key *key = NULL;
+				key = &ar->keys[ar->arDefTxKeyIndex];
+				if (down_interruptible(&ar->arSem)) {
+					AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("%s: busy, couldn't get access\n", __func__));
+					return;
+				}
+
+
+				ar->arDot11AuthMode = SHARED_AUTH;
+				ar->arAutoAuthStage = AUTH_IDLE;
+
+				wmi_addKey_cmd(ar->arWmi, ar->arDefTxKeyIndex,
+						ar->arPairwiseCrypto,
+						GROUP_USAGE | TX_USAGE,
+						key->key_len,
+						NULL,
+						key->key, KEY_OP_INIT_VAL, NULL,
+						NO_SYNC_WMIFLAG);
+
+				status = wmi_connect_cmd(ar->arWmi,
+							 ar->arNetworkType,
+							 ar->arDot11AuthMode,
+							 ar->arAuthMode,
+							 ar->arPairwiseCrypto,
+							 ar->arPairwiseCryptoLen,
+							 ar->arGroupCrypto,
+							 ar->arGroupCryptoLen,
+							 ar->arSsidLen,
+							 ar->arSsid,
+							 ar->arReqBssid,
+							 ar->arChannelHint,
+							 ar->arConnectCtrlFlags);
+				up(&ar->arSem);
+
+			} else if (ar->arDot11AuthMode == SHARED_AUTH) {
+				/* should not reach here */
+			}
+		} else {
+			ar->arConnectPending = false;
+			if (ar->smeState == SME_CONNECTING) {
+				cfg80211_connect_result(ar->arNetDev, bssid,
+							NULL, 0,
+							NULL, 0,
+							WLAN_STATUS_UNSPECIFIED_FAILURE,
+							GFP_KERNEL);
+			} else {
+				cfg80211_disconnected(ar->arNetDev,
+						      reason,
+						      NULL, 0,
+						      GFP_KERNEL);
+			}
+			ar->smeState = SME_DISCONNECTED;
+		}
+	}
     } else {
-        if (reason != DISCONNECT_CMD) {
-            wmi_disconnect_cmd(ar->arWmi);
-        }
+	    if (reason != DISCONNECT_CMD)
+		    wmi_disconnect_cmd(ar->arWmi);
     }
 }
 
@@ -729,7 +799,7 @@ ar6k_cfg80211_scan_node(void *arg, bss_t *ni)
                               le16_to_cpu(size),
                               signal, GFP_KERNEL);
 
-    A_FREE (ieeemgmtbuf);
+    kfree (ieeemgmtbuf);
 }
 
 static int
@@ -1205,10 +1275,10 @@ ar6k_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 
     if(pmgmt) {
         AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: Max Perf\n", __func__));
-        pwrMode.powerMode = MAX_PERF_POWER;
+        pwrMode.powerMode = REC_POWER;
     } else {
         AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: Rec Power\n", __func__));
-        pwrMode.powerMode = REC_POWER;
+        pwrMode.powerMode = MAX_PERF_POWER;
     }
 
     if(wmi_powermode_cmd(ar->arWmi, pwrMode.powerMode) != 0) {
@@ -1391,6 +1461,151 @@ u32 cipher_suites[] = {
     WLAN_CIPHER_SUITE_CCMP,
 };
 
+bool is_rate_legacy(s32 rate)
+{
+	static const s32 legacy[] = { 1000, 2000, 5500, 11000,
+				      6000, 9000, 12000, 18000, 24000,
+				      36000, 48000, 54000 };
+	u8 i;
+
+	for (i = 0; i < ARRAY_SIZE(legacy); i++) {
+		if (rate == legacy[i])
+			return true;
+	}
+
+	return false;
+}
+
+bool is_rate_ht20(s32 rate, u8 *mcs, bool *sgi)
+{
+	static const s32 ht20[] = { 6500, 13000, 19500, 26000, 39000,
+				    52000, 58500, 65000, 72200 };
+	u8 i;
+
+	for (i = 0; i < ARRAY_SIZE(ht20); i++) {
+		if (rate == ht20[i]) {
+			if (i == ARRAY_SIZE(ht20) - 1)
+				/* last rate uses sgi */
+				*sgi = true;
+			else
+				*sgi = false;
+
+			*mcs = i;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool is_rate_ht40(s32 rate, u8 *mcs, bool *sgi)
+{
+	static const s32 ht40[] = { 13500, 27000, 40500, 54000,
+				    81000, 108000, 121500, 135000,
+				    150000 };
+	u8 i;
+
+	for (i = 0; i < ARRAY_SIZE(ht40); i++) {
+		if (rate == ht40[i]) {
+			if (i == ARRAY_SIZE(ht40) - 1)
+				/* last rate uses sgi */
+				*sgi = true;
+			else
+				*sgi = false;
+
+			*mcs = i;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static int ar6k_get_station(struct wiphy *wiphy, struct net_device *dev,
+			    u8 *mac, struct station_info *sinfo)
+{
+	struct ar6_softc *ar = ar6k_priv(dev);
+	long left;
+	bool sgi;
+	s32 rate;
+	int ret;
+	u8 mcs;
+
+	if (memcmp(mac, ar->arBssid, ETH_ALEN) != 0)
+		return -ENOENT;
+
+	if (down_interruptible(&ar->arSem))
+		return -EBUSY;
+
+	ar->statsUpdatePending = true;
+
+	ret = wmi_get_stats_cmd(ar->arWmi);
+
+	if (ret != 0) {
+		up(&ar->arSem);
+		return -EIO;
+	}
+
+	left = wait_event_interruptible_timeout(arEvent,
+						ar->statsUpdatePending == false,
+						wmitimeout * HZ);
+
+	up(&ar->arSem);
+
+	if (left == 0)
+		return -ETIMEDOUT;
+	else if (left < 0)
+		return left;
+
+	if (ar->arTargetStats.rx_bytes) {
+		sinfo->rx_bytes = ar->arTargetStats.rx_bytes;
+		sinfo->filled |= STATION_INFO_RX_BYTES;
+		sinfo->rx_packets = ar->arTargetStats.rx_packets;
+		sinfo->filled |= STATION_INFO_RX_PACKETS;
+	}
+
+	if (ar->arTargetStats.tx_bytes) {
+		sinfo->tx_bytes = ar->arTargetStats.tx_bytes;
+		sinfo->filled |= STATION_INFO_TX_BYTES;
+		sinfo->tx_packets = ar->arTargetStats.tx_packets;
+		sinfo->filled |= STATION_INFO_TX_PACKETS;
+	}
+
+	sinfo->signal = ar->arTargetStats.cs_rssi;
+	sinfo->filled |= STATION_INFO_SIGNAL;
+
+	rate = ar->arTargetStats.tx_unicast_rate;
+
+	if (is_rate_legacy(rate)) {
+		sinfo->txrate.legacy = rate / 100;
+	} else if (is_rate_ht20(rate, &mcs, &sgi)) {
+		if (sgi) {
+			sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
+			sinfo->txrate.mcs = mcs - 1;
+		} else {
+			sinfo->txrate.mcs = mcs;
+		}
+
+		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
+	} else if (is_rate_ht40(rate, &mcs, &sgi)) {
+		if (sgi) {
+			sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
+			sinfo->txrate.mcs = mcs - 1;
+		} else {
+			sinfo->txrate.mcs = mcs;
+		}
+
+		sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
+	} else {
+		WARN(1, "invalid rate: %d", rate);
+		return 0;
+	}
+
+	sinfo->filled |= STATION_INFO_TX_BITRATE;
+
+	return 0;
+}
+
 static struct
 cfg80211_ops ar6k_cfg80211_ops = {
     .change_virtual_intf = ar6k_cfg80211_change_iface,
@@ -1411,6 +1626,7 @@ cfg80211_ops ar6k_cfg80211_ops = {
     .set_power_mgmt = ar6k_cfg80211_set_power_mgmt,
     .join_ibss = ar6k_cfg80211_join_ibss,
     .leave_ibss = ar6k_cfg80211_leave_ibss,
+    .get_station = ar6k_get_station,
 };
 
 struct wireless_dev *

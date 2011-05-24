@@ -3,9 +3,6 @@
 
 struct xfs_mount;
 
-extern void xfs_printk(const char *level, const struct xfs_mount *mp,
-                      const char *fmt, ...)
-        __attribute__ ((format (printf, 3, 4)));
 extern void xfs_emerg(const struct xfs_mount *mp, const char *fmt, ...)
         __attribute__ ((format (printf, 2, 3)));
 extern void xfs_alert(const struct xfs_mount *mp, const char *fmt, ...)
@@ -28,7 +25,9 @@ extern void xfs_info(const struct xfs_mount *mp, const char *fmt, ...)
 extern void xfs_debug(const struct xfs_mount *mp, const char *fmt, ...)
         __attribute__ ((format (printf, 2, 3)));
 #else
-static inline void xfs_debug(const struct xfs_mount *mp, const char *fmt, ...)
+static inline void
+__attribute__ ((format (printf, 2, 3)))
+xfs_debug(const struct xfs_mount *mp, const char *fmt, ...)
 {
 }
 #endif

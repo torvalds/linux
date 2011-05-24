@@ -267,6 +267,11 @@ config PPC_EARLY_DEBUG_USBGECKO
 	  Select this to enable early debugging for Nintendo GameCube/Wii
 	  consoles via an external USB Gecko adapter.
 
+config PPC_EARLY_DEBUG_WSP
+	bool "Early debugging via WSP's internal UART"
+	depends on PPC_WSP
+	select PPC_UDBG_16550
+
 endchoice
 
 config PPC_EARLY_DEBUG_44x_PHYSLOW

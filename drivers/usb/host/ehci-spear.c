@@ -38,7 +38,7 @@ static int ehci_spear_setup(struct usb_hcd *hcd)
 
 	/* registers start at offset 0x0 */
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs + HC_LENGTH(ehci_readl(ehci,
+	ehci->regs = hcd->regs + HC_LENGTH(ehci, ehci_readl(ehci,
 				&ehci->caps->hc_capbase));
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);

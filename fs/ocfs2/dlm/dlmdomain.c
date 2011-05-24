@@ -1614,7 +1614,8 @@ static int dlm_try_to_join_domain(struct dlm_ctxt *dlm)
 	spin_unlock(&dlm->spinlock);
 
 	/* Support for global heartbeat and node info was added in 1.1 */
-	if (dlm_protocol.pv_major > 1 || dlm_protocol.pv_minor > 0) {
+	if (dlm->dlm_locking_proto.pv_major > 1 ||
+	    dlm->dlm_locking_proto.pv_minor > 0) {
 		status = dlm_send_nodeinfo(dlm, ctxt->yes_resp_map);
 		if (status) {
 			mlog_errno(status);

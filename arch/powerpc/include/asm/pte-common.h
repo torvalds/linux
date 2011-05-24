@@ -162,7 +162,7 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
  * on platforms where such control is possible.
  */
 #if defined(CONFIG_KGDB) || defined(CONFIG_XMON) || defined(CONFIG_BDI_SWITCH) ||\
-	defined(CONFIG_KPROBES)
+	defined(CONFIG_KPROBES) || defined(CONFIG_DYNAMIC_FTRACE)
 #define PAGE_KERNEL_TEXT	PAGE_KERNEL_X
 #else
 #define PAGE_KERNEL_TEXT	PAGE_KERNEL_ROX

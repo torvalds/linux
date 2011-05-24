@@ -230,13 +230,6 @@ static void sctp_free_local_addr_list(void)
 	}
 }
 
-void sctp_local_addr_free(struct rcu_head *head)
-{
-	struct sctp_sockaddr_entry *e = container_of(head,
-				struct sctp_sockaddr_entry, rcu);
-	kfree(e);
-}
-
 /* Copy the local addresses which are valid for 'scope' into 'bp'.  */
 int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
 			      gfp_t gfp, int copy_flags)
@@ -339,13 +332,12 @@ static int sctp_v4_to_addr_param(const union sctp_addr *addr,
 }
 
 /* Initialize a sctp_addr from a dst_entry. */
-static void sctp_v4_dst_saddr(union sctp_addr *saddr, struct dst_entry *dst,
+static void sctp_v4_dst_saddr(union sctp_addr *saddr, struct flowi4 *fl4,
 			      __be16 port)
 {
-	struct rtable *rt = (struct rtable *)dst;
 	saddr->v4.sin_family = AF_INET;
 	saddr->v4.sin_port = port;
-	saddr->v4.sin_addr.s_addr = rt->rt_src;
+	saddr->v4.sin_addr.s_addr = fl4->saddr;
 }
 
 /* Compare two addresses exactly. */
@@ -463,35 +455,36 @@ static sctp_scope_t sctp_v4_scope(union sctp_addr *addr)
  * addresses. If an association is passed, trys to get a dst entry with a
  * source address that matches an address in the bind address list.
  */
-static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
-					 union sctp_addr *daddr,
-					 union sctp_addr *saddr)
+static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
+				struct flowi *fl, struct sock *sk)
 {
+	struct sctp_association *asoc = t->asoc;
 	struct rtable *rt;
-	struct flowi4 fl4;
+	struct flowi4 *fl4 = &fl->u.ip4;
 	struct sctp_bind_addr *bp;
 	struct sctp_sockaddr_entry *laddr;
 	struct dst_entry *dst = NULL;
+	union sctp_addr *daddr = &t->ipaddr;
 	union sctp_addr dst_saddr;
 
-	memset(&fl4, 0x0, sizeof(struct flowi4));
-	fl4.daddr  = daddr->v4.sin_addr.s_addr;
-	fl4.fl4_dport = daddr->v4.sin_port;
-	fl4.flowi4_proto = IPPROTO_SCTP;
+	memset(fl4, 0x0, sizeof(struct flowi4));
+	fl4->daddr  = daddr->v4.sin_addr.s_addr;
+	fl4->fl4_dport = daddr->v4.sin_port;
+	fl4->flowi4_proto = IPPROTO_SCTP;
 	if (asoc) {
-		fl4.flowi4_tos = RT_CONN_FLAGS(asoc->base.sk);
-		fl4.flowi4_oif = asoc->base.sk->sk_bound_dev_if;
-		fl4.fl4_sport = htons(asoc->base.bind_addr.port);
+		fl4->flowi4_tos = RT_CONN_FLAGS(asoc->base.sk);
+		fl4->flowi4_oif = asoc->base.sk->sk_bound_dev_if;
+		fl4->fl4_sport = htons(asoc->base.bind_addr.port);
 	}
 	if (saddr) {
-		fl4.saddr = saddr->v4.sin_addr.s_addr;
-		fl4.fl4_sport = saddr->v4.sin_port;
+		fl4->saddr = saddr->v4.sin_addr.s_addr;
+		fl4->fl4_sport = saddr->v4.sin_port;
 	}
 
 	SCTP_DEBUG_PRINTK("%s: DST:%pI4, SRC:%pI4 - ",
-			  __func__, &fl4.daddr, &fl4.saddr);
+			  __func__, &fl4->daddr, &fl4->saddr);
 
-	rt = ip_route_output_key(&init_net, &fl4);
+	rt = ip_route_output_key(&init_net, fl4);
 	if (!IS_ERR(rt))
 		dst = &rt->dst;
 
@@ -507,7 +500,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		/* Walk through the bind address list and look for a bind
 		 * address that matches the source address of the returned dst.
 		 */
-		sctp_v4_dst_saddr(&dst_saddr, dst, htons(bp->port));
+		sctp_v4_dst_saddr(&dst_saddr, fl4, htons(bp->port));
 		rcu_read_lock();
 		list_for_each_entry_rcu(laddr, &bp->address_list, list) {
 			if (!laddr->valid || (laddr->state != SCTP_ADDR_SRC))
@@ -533,9 +526,9 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 			continue;
 		if ((laddr->state == SCTP_ADDR_SRC) &&
 		    (AF_INET == laddr->a.sa.sa_family)) {
-			fl4.saddr = laddr->a.v4.sin_addr.s_addr;
-			fl4.fl4_sport = laddr->a.v4.sin_port;
-			rt = ip_route_output_key(&init_net, &fl4);
+			fl4->saddr = laddr->a.v4.sin_addr.s_addr;
+			fl4->fl4_sport = laddr->a.v4.sin_port;
+			rt = ip_route_output_key(&init_net, fl4);
 			if (!IS_ERR(rt)) {
 				dst = &rt->dst;
 				goto out_unlock;
@@ -546,33 +539,27 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 out_unlock:
 	rcu_read_unlock();
 out:
+	t->dst = dst;
 	if (dst)
 		SCTP_DEBUG_PRINTK("rt_dst:%pI4, rt_src:%pI4\n",
-				  &rt->rt_dst, &rt->rt_src);
+				  &fl4->daddr, &fl4->saddr);
 	else
 		SCTP_DEBUG_PRINTK("NO ROUTE\n");
-
-	return dst;
 }
 
 /* For v4, the source address is cached in the route entry(dst). So no need
  * to cache it separately and hence this is an empty routine.
  */
 static void sctp_v4_get_saddr(struct sctp_sock *sk,
-			      struct sctp_association *asoc,
-			      struct dst_entry *dst,
-			      union sctp_addr *daddr,
-			      union sctp_addr *saddr)
+			      struct sctp_transport *t,
+			      struct flowi *fl)
 {
-	struct rtable *rt = (struct rtable *)dst;
-
-	if (!asoc)
-		return;
+	union sctp_addr *saddr = &t->saddr;
+	struct rtable *rt = (struct rtable *)t->dst;
 
 	if (rt) {
 		saddr->v4.sin_family = AF_INET;
-		saddr->v4.sin_port = htons(asoc->base.bind_addr.port);
-		saddr->v4.sin_addr.s_addr = rt->rt_src;
+		saddr->v4.sin_addr.s_addr = fl->u.ip4.saddr;
 	}
 }
 
@@ -681,7 +668,7 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 		}
 		spin_unlock_bh(&sctp_local_addr_lock);
 		if (found)
-			call_rcu(&addr->rcu, sctp_local_addr_free);
+			kfree_rcu(addr, rcu);
 		break;
 	}
 
@@ -854,14 +841,14 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 
 	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, src:%pI4, dst:%pI4\n",
 			  __func__, skb, skb->len,
-			  &skb_rtable(skb)->rt_src,
-			  &skb_rtable(skb)->rt_dst);
+			  &transport->fl.u.ip4.saddr,
+			  &transport->fl.u.ip4.daddr);
 
 	inet->pmtudisc = transport->param_flags & SPP_PMTUD_ENABLE ?
 			 IP_PMTUDISC_DO : IP_PMTUDISC_DONT;
 
 	SCTP_INC_STATS(SCTP_MIB_OUTSCTPPACKS);
-	return ip_queue_xmit(skb);
+	return ip_queue_xmit(skb, &transport->fl);
 }
 
 static struct sctp_af sctp_af_inet;
@@ -950,7 +937,6 @@ static struct sctp_af sctp_af_inet = {
 	.to_sk_daddr	   = sctp_v4_to_sk_daddr,
 	.from_addr_param   = sctp_v4_from_addr_param,
 	.to_addr_param	   = sctp_v4_to_addr_param,
-	.dst_saddr	   = sctp_v4_dst_saddr,
 	.cmp_addr	   = sctp_v4_cmp_addr,
 	.addr_valid	   = sctp_v4_addr_valid,
 	.inaddr_any	   = sctp_v4_inaddr_any,

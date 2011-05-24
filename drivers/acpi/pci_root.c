@@ -596,12 +596,18 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 			dev_info(root->bus->bridge,
 				"ACPI _OSC control (0x%02x) granted\n", flags);
 		} else {
-			dev_dbg(root->bus->bridge,
-				"ACPI _OSC request failed (code %d)\n", status);
-			printk(KERN_INFO "Unable to assume _OSC PCIe control. "
-				"Disabling ASPM\n");
+			dev_info(root->bus->bridge,
+				"ACPI _OSC request failed (%s), "
+				"returned control mask: 0x%02x\n",
+				acpi_format_exception(status), flags);
+			pr_info("ACPI _OSC control for PCIe not granted, "
+				"disabling ASPM\n");
 			pcie_no_aspm();
 		}
+	} else {
+		dev_info(root->bus->bridge,
+			 "Unable to request _OSC control "
+			 "(_OSC support mask: 0x%02x)\n", flags);
 	}
 
 	pci_acpi_add_bus_pm_notifier(device, root->bus);

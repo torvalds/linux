@@ -39,6 +39,7 @@
 #include <linux/ip.h>
 #include <linux/dma-mapping.h>
 #include <linux/jiffies.h>
+#include <linux/prefetch.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
 #include "cxgb4.h"
@@ -1556,7 +1557,6 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 {
 	bool csum_ok;
 	struct sk_buff *skb;
-	struct port_info *pi;
 	const struct cpl_rx_pkt *pkt;
 	struct sge_eth_rxq *rxq = container_of(q, struct sge_eth_rxq, rspq);
 
@@ -1584,10 +1584,9 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	if (skb->dev->features & NETIF_F_RXHASH)
 		skb->rxhash = (__force u32)pkt->rsshdr.hash_val;
 
-	pi = netdev_priv(skb->dev);
 	rxq->stats.pkts++;
 
-	if (csum_ok && (pi->rx_offload & RX_CSO) &&
+	if (csum_ok && (q->netdev->features & NETIF_F_RXCSUM) &&
 	    (pkt->l2info & htonl(RXF_UDP | RXF_TCP))) {
 		if (!pkt->ip_frag) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;

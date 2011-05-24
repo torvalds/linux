@@ -782,7 +782,8 @@ static int ibmlana_open(struct net_device *dev)
 
 	/* register resources - only necessary for IRQ */
 
-	result = request_irq(priv->realirq, irq_handler, IRQF_SHARED | IRQF_SAMPLE_RANDOM, dev->name, dev);
+	result = request_irq(priv->realirq, irq_handler, IRQF_SHARED,
+			     dev->name, dev);
 	if (result != 0) {
 		printk(KERN_ERR "%s: failed to register irq %d\n", dev->name, dev->irq);
 		return result;
@@ -894,12 +895,12 @@ static int ibmlana_irq;
 static int ibmlana_io;
 static int startslot;		/* counts through slots when probing multiple devices */
 
-static short ibmlana_adapter_ids[] __initdata = {
+static const short ibmlana_adapter_ids[] __devinitconst = {
 	IBM_LANA_ID,
 	0x0000
 };
 
-static char *ibmlana_adapter_names[] __devinitdata = {
+static const char *const ibmlana_adapter_names[] __devinitconst = {
 	"IBM LAN Adapter/A",
 	NULL
 };

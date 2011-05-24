@@ -335,6 +335,7 @@ static void __init prom_printf(const char *format, ...)
 	const char *p, *q, *s;
 	va_list args;
 	unsigned long v;
+	long vs;
 	struct prom_t *_prom = &RELOC(prom);
 
 	va_start(args, format);
@@ -368,12 +369,35 @@ static void __init prom_printf(const char *format, ...)
 			v = va_arg(args, unsigned long);
 			prom_print_hex(v);
 			break;
+		case 'd':
+			++q;
+			vs = va_arg(args, int);
+			if (vs < 0) {
+				prom_print(RELOC("-"));
+				vs = -vs;
+			}
+			prom_print_dec(vs);
+			break;
 		case 'l':
 			++q;
-			if (*q == 'u') { /* '%lu' */
+			if (*q == 0)
+				break;
+			else if (*q == 'x') {
+				++q;
+				v = va_arg(args, unsigned long);
+				prom_print_hex(v);
+			} else if (*q == 'u') { /* '%lu' */
 				++q;
 				v = va_arg(args, unsigned long);
 				prom_print_dec(v);
+			} else if (*q == 'd') { /* %ld */
+				++q;
+				vs = va_arg(args, long);
+				if (vs < 0) {
+					prom_print(RELOC("-"));
+					vs = -vs;
+				}
+				prom_print_dec(vs);
 			}
 			break;
 		}
@@ -676,8 +700,10 @@ static void __init early_cmdline_parse(void)
 #endif /* CONFIG_PCI_MSI */
 #ifdef CONFIG_PPC_SMLPAR
 #define OV5_CMO			0x80	/* Cooperative Memory Overcommitment */
+#define OV5_XCMO			0x40	/* Page Coalescing */
 #else
 #define OV5_CMO			0x00
+#define OV5_XCMO			0x00
 #endif
 #define OV5_TYPE1_AFFINITY	0x80	/* Type 1 NUMA affinity */
 
@@ -732,7 +758,7 @@ static unsigned char ibm_architecture_vec[] = {
 	OV5_LPAR | OV5_SPLPAR | OV5_LARGE_PAGES | OV5_DRCONF_MEMORY |
 	OV5_DONATE_DEDICATE_CPU | OV5_MSI,
 	0,
-	OV5_CMO,
+	OV5_CMO | OV5_XCMO,
 	OV5_TYPE1_AFFINITY,
 	0,
 	0,

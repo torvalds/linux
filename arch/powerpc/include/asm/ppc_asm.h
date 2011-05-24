@@ -170,6 +170,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #define HMT_MEDIUM	or	2,2,2
 #define HMT_MEDIUM_HIGH or	5,5,5		# medium high priority
 #define HMT_HIGH	or	3,3,3
+#define HMT_EXTRA_HIGH	or	7,7,7		# power7 only
 
 #ifdef __KERNEL__
 #ifdef CONFIG_PPC64

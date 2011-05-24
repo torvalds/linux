@@ -201,7 +201,7 @@ static int wm8731_check_osc(struct snd_soc_dapm_widget *source,
 	return wm8731->sysclk_type == WM8731_SYSCLK_MCLK;
 }
 
-static const struct snd_soc_dapm_route intercon[] = {
+static const struct snd_soc_dapm_route wm8731_intercon[] = {
 	{"DAC", NULL, "OSC", wm8731_check_osc},
 	{"ADC", NULL, "OSC", wm8731_check_osc},
 
@@ -226,17 +226,6 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Line Input", NULL, "RLINEIN"},
 	{"Mic Bias", NULL, "MICIN"},
 };
-
-static int wm8731_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8731_dapm_widgets,
-				  ARRAY_SIZE(wm8731_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
-
-	return 0;
-}
 
 struct _coeff_div {
 	u32 mclk;
@@ -599,7 +588,6 @@ static int wm8731_probe(struct snd_soc_codec *codec)
 
 	snd_soc_add_controls(codec, wm8731_snd_controls,
 			     ARRAY_SIZE(wm8731_snd_controls));
-	wm8731_add_widgets(codec);
 
 	/* Regulators will have been enabled by bias management */
 	regulator_bulk_disable(ARRAY_SIZE(wm8731->supplies), wm8731->supplies);
@@ -636,6 +624,10 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8731 = {
 	.reg_cache_size = ARRAY_SIZE(wm8731_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8731_reg,
+	.dapm_widgets = wm8731_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8731_dapm_widgets),
+	.dapm_routes = wm8731_intercon,
+	.num_dapm_routes = ARRAY_SIZE(wm8731_intercon),
 };
 
 #if defined(CONFIG_SPI_MASTER)
@@ -667,7 +659,7 @@ static int __devexit wm8731_spi_remove(struct spi_device *spi)
 
 static struct spi_driver wm8731_spi_driver = {
 	.driver = {
-		.name	= "wm8731-codec",
+		.name	= "wm8731",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wm8731_spi_probe,
@@ -711,7 +703,7 @@ MODULE_DEVICE_TABLE(i2c, wm8731_i2c_id);
 
 static struct i2c_driver wm8731_i2c_driver = {
 	.driver = {
-		.name = "wm8731-codec",
+		.name = "wm8731",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8731_i2c_probe,

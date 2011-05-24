@@ -27,8 +27,8 @@
 
 #define MDR1_MODE_MASK			0x07
 
-static volatile u8 *uart_base;
-static int uart_shift;
+volatile u8 *uart_base;
+int uart_shift;
 
 /*
  * Store the DEBUG_LL uart number into memory.

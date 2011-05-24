@@ -131,9 +131,9 @@ struct ispstat {
 struct ispstat_generic_config {
 	/*
 	 * Fields must be in the same order as in:
-	 *  - isph3a_aewb_config
-	 *  - isph3a_af_config
-	 *  - isphist_config
+	 *  - omap3isp_h3a_aewb_config
+	 *  - omap3isp_h3a_af_config
+	 *  - omap3isp_hist_config
 	 */
 	u32 buf_size;
 	u16 config_counter;

@@ -36,12 +36,6 @@
 
 #define	AUTO	(-1)		/* Auto = -1 */
 
-#ifdef mips
-#define BCMFASTPATH		__attribute__ ((__section__(".text.fastpath")))
-#else
-#define BCMFASTPATH
-#endif
-
 /* Bus types */
 #define	SI_BUS			0	/* SOC Interconnect */
 #define	PCI_BUS			1	/* PCI target */
@@ -113,12 +107,6 @@ typedef struct {
  */
 
 #define BCMEXTRAHDROOM 172
-
-#ifdef BCMDBG
-#ifndef BCMDBG_ASSERT
-#define BCMDBG_ASSERT
-#endif	/* BCMDBG_ASSERT */
-#endif	/* BCMDBG */
 
 /* Macros for doing definition and get/set of bitfields
  * Usage example, e.g. a three-bit field (bits 4-6):
