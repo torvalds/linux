@@ -96,6 +96,11 @@ enum dev_status {
 	MVS_DEV_EH	= 0x1,
 };
 
+enum dev_reset {
+	MVS_SOFT_RESET	= 0,
+	MVS_HARD_RESET	= 1,
+	MVS_PHY_TUNE	= 2,
+};
 
 struct mvs_info;
 
@@ -176,9 +181,11 @@ struct mvs_chip_info {
 	u32 		fis_offs;
 	u32 		fis_count;
 	u32 		srs_sz;
+	u32		sg_width;
 	u32 		slot_width;
 	const struct mvs_dispatch *dispatch;
 };
+#define MVS_MAX_SG		(1U << mvi->chip->sg_width)
 #define MVS_CHIP_SLOT_SZ	(1U << mvi->chip->slot_width)
 #define MVS_RX_FISL_SZ		\
 	(mvi->chip->fis_offs + (mvi->chip->fis_count * 0x100))

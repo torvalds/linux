@@ -48,7 +48,7 @@ static void __devinit mvs_64xx_enable_xmt(struct mvs_info *mvi, int phy_id)
 	u32 tmp;
 
 	tmp = mr32(MVS_PCS);
-	if (mvi->chip->n_phy <= 4)
+	if (mvi->chip->n_phy <= MVS_SOC_PORTS)
 		tmp |= 1 << (phy_id + PCS_EN_PORT_XMT_SHIFT);
 	else
 		tmp |= 1 << (phy_id + PCS_EN_PORT_XMT_SHIFT2);
@@ -95,7 +95,7 @@ static void mvs_64xx_stp_reset(struct mvs_info *mvi, u32 phy_id)
 	u32 reg, tmp;
 
 	if (!(mvi->flags & MVF_FLAG_SOC)) {
-		if (phy_id < 4)
+		if (phy_id < MVS_SOC_PORTS)
 			pci_read_config_dword(mvi->pdev, PCR_PHY_CTL, &reg);
 		else
 			pci_read_config_dword(mvi->pdev, PCR_PHY_CTL2, &reg);
@@ -104,13 +104,13 @@ static void mvs_64xx_stp_reset(struct mvs_info *mvi, u32 phy_id)
 		reg = mr32(MVS_PHY_CTL);
 
 	tmp = reg;
-	if (phy_id < 4)
+	if (phy_id < MVS_SOC_PORTS)
 		tmp |= (1U << phy_id) << PCTL_LINK_OFFS;
 	else
-		tmp |= (1U << (phy_id - 4)) << PCTL_LINK_OFFS;
+		tmp |= (1U << (phy_id - MVS_SOC_PORTS)) << PCTL_LINK_OFFS;
 
 	if (!(mvi->flags & MVF_FLAG_SOC)) {
-		if (phy_id < 4) {
+		if (phy_id < MVS_SOC_PORTS) {
 			pci_write_config_dword(mvi->pdev, PCR_PHY_CTL, tmp);
 			mdelay(10);
 			pci_write_config_dword(mvi->pdev, PCR_PHY_CTL, reg);
@@ -133,9 +133,9 @@ static void mvs_64xx_phy_reset(struct mvs_info *mvi, u32 phy_id, int hard)
 	tmp &= ~PHYEV_RDY_CH;
 	mvs_write_port_irq_stat(mvi, phy_id, tmp);
 	tmp = mvs_read_phy_ctl(mvi, phy_id);
-	if (hard == 1)
+	if (hard == MVS_HARD_RESET)
 		tmp |= PHY_RST_HARD;
-	else if (hard == 0)
+	else if (hard == MVS_SOFT_RESET)
 		tmp |= PHY_RST;
 	mvs_write_phy_ctl(mvi, phy_id, tmp);
 	if (hard) {
@@ -346,7 +346,7 @@ static int __devinit mvs_64xx_init(struct mvs_info *mvi)
 
 		mvs_64xx_enable_xmt(mvi, i);
 
-		mvs_64xx_phy_reset(mvi, i, 1);
+		mvs_64xx_phy_reset(mvi, i, MVS_HARD_RESET);
 		msleep(500);
 		mvs_64xx_detect_porttype(mvi, i);
 	}
@@ -661,7 +661,7 @@ void mvs_64xx_phy_set_link_rate(struct mvs_info *mvi, u32 phy_id,
 		tmp |= lrmax;
 	}
 	mvs_write_phy_ctl(mvi, phy_id, tmp);
-	mvs_64xx_phy_reset(mvi, phy_id, 1);
+	mvs_64xx_phy_reset(mvi, phy_id, MVS_HARD_RESET);
 }
 
 static void mvs_64xx_clear_active_cmds(struct mvs_info *mvi)

@@ -203,12 +203,12 @@ int mvs_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 		tmp = MVS_CHIP_DISP->read_phy_ctl(mvi, phy_id);
 		if (tmp & PHY_RST_HARD)
 			break;
-		MVS_CHIP_DISP->phy_reset(mvi, phy_id, 1);
+		MVS_CHIP_DISP->phy_reset(mvi, phy_id, MVS_HARD_RESET);
 		break;
 
 	case PHY_FUNC_LINK_RESET:
 		MVS_CHIP_DISP->phy_enable(mvi, phy_id);
-		MVS_CHIP_DISP->phy_reset(mvi, phy_id, 0);
+		MVS_CHIP_DISP->phy_reset(mvi, phy_id, MVS_SOFT_RESET);
 		break;
 
 	case PHY_FUNC_DISABLE:
@@ -1758,12 +1758,63 @@ static int mvs_sata_done(struct mvs_info *mvi, struct sas_task *task,
 	return stat;
 }
 
+void mvs_set_sense(u8 *buffer, int len, int d_sense,
+		int key, int asc, int ascq)
+{
+	memset(buffer, 0, len);
+
+	if (d_sense) {
+		/* Descriptor format */
+		if (len < 4) {
+			mv_printk("Length %d of sense buffer too small to "
+				"fit sense %x:%x:%x", len, key, asc, ascq);
+		}
+
+		buffer[0] = 0x72;		/* Response Code	*/
+		if (len > 1)
+			buffer[1] = key;	/* Sense Key */
+		if (len > 2)
+			buffer[2] = asc;	/* ASC	*/
+		if (len > 3)
+			buffer[3] = ascq;	/* ASCQ	*/
+	} else {
+		if (len < 14) {
+			mv_printk("Length %d of sense buffer too small to "
+				"fit sense %x:%x:%x", len, key, asc, ascq);
+		}
+
+		buffer[0] = 0x70;		/* Response Code	*/
+		if (len > 2)
+			buffer[2] = key;	/* Sense Key */
+		if (len > 7)
+			buffer[7] = 0x0a;	/* Additional Sense Length */
+		if (len > 12)
+			buffer[12] = asc;	/* ASC */
+		if (len > 13)
+			buffer[13] = ascq; /* ASCQ */
+	}
+
+	return;
+}
+
+void mvs_fill_ssp_resp_iu(struct ssp_response_iu *iu,
+				u8 key, u8 asc, u8 asc_q)
+{
+	iu->datapres = 2;
+	iu->response_data_len = 0;
+	iu->sense_data_len = 17;
+	iu->status = 02;
+	mvs_set_sense(iu->sense_data, 17, 0,
+			key, asc, asc_q);
+}
+
 static int mvs_slot_err(struct mvs_info *mvi, struct sas_task *task,
 			 u32 slot_idx)
 {
 	struct mvs_slot_info *slot = &mvi->slot_info[slot_idx];
 	int stat;
 	u32 err_dw0 = le32_to_cpu(*(u32 *) (slot->response));
+	u32 err_dw1 = le32_to_cpu(*((u32 *)slot->response + 1));
 	u32 tfs = 0;
 	enum mvs_port_type type = PORT_TYPE_SAS;
 
@@ -1775,8 +1826,19 @@ static int mvs_slot_err(struct mvs_info *mvi, struct sas_task *task,
 	stat = SAM_STAT_CHECK_CONDITION;
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SSP:
+	{
 		stat = SAS_ABORTED_TASK;
+		if ((err_dw0 & NO_DEST) || err_dw1 & bit(31)) {
+			struct ssp_response_iu *iu = slot->response +
+				sizeof(struct mvs_err_info);
+			mvs_fill_ssp_resp_iu(iu, NOT_READY, 0x04, 01);
+			sas_ssp_task_response(mvi->dev, task, iu);
+			stat = SAM_STAT_CHECK_CONDITION;
+		}
+		if (err_dw1 & bit(31))
+			mv_printk("reuse same slot, retry command.\n");
 		break;
+	}
 	case SAS_PROTOCOL_SMP:
 		stat = SAM_STAT_CHECK_CONDITION;
 		break;
@@ -1974,13 +2036,13 @@ static void mvs_work_queue(struct work_struct *work)
 	struct mvs_wq *mwq = container_of(dw, struct mvs_wq, work_q);
 	struct mvs_info *mvi = mwq->mvi;
 	unsigned long flags;
+	u32 phy_no = (unsigned long) mwq->data;
+	struct sas_ha_struct *sas_ha = mvi->sas;
+	struct mvs_phy *phy = &mvi->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 
 	spin_lock_irqsave(&mvi->lock, flags);
 	if (mwq->handler & PHY_PLUG_EVENT) {
-		u32 phy_no = (unsigned long) mwq->data;
-		struct sas_ha_struct *sas_ha = mvi->sas;
-		struct mvs_phy *phy = &mvi->phy[phy_no];
-		struct asd_sas_phy *sas_phy = &phy->sas_phy;
 
 		if (phy->phy_event & PHY_PLUG_OUT) {
 			u32 tmp;
@@ -2002,6 +2064,11 @@ static void mvs_work_queue(struct work_struct *work)
 				mv_dprintk("phy%d Attached Device\n", phy_no);
 			}
 		}
+	} else if (mwq->handler & EXP_BRCT_CHG) {
+		phy->phy_event &= ~EXP_BRCT_CHG;
+		sas_ha->notify_port_event(sas_phy,
+				PORTE_BROADCAST_RCVD);
+		mv_dprintk("phy%d Got Broadcast Change\n", phy_no);
 	}
 	list_del(&mwq->entry);
 	spin_unlock_irqrestore(&mvi->lock, flags);
@@ -2037,7 +2104,7 @@ static void mvs_sig_time_out(unsigned long tphy)
 		if (&mvi->phy[phy_no] == phy) {
 			mv_dprintk("Get signature time out, reset phy %d\n",
 				phy_no+mvi->id*mvi->chip->n_phy);
-			MVS_CHIP_DISP->phy_reset(mvi, phy_no, 1);
+			MVS_CHIP_DISP->phy_reset(mvi, phy_no, MVS_HARD_RESET);
 		}
 	}
 }
@@ -2045,9 +2112,7 @@ static void mvs_sig_time_out(unsigned long tphy)
 void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events)
 {
 	u32 tmp;
-	struct sas_ha_struct *sas_ha = mvi->sas;
 	struct mvs_phy *phy = &mvi->phy[phy_no];
-	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 
 	phy->irq_status = MVS_CHIP_DISP->read_port_irq_stat(mvi, phy_no);
 	mv_dprintk("port %d ctrl sts=0x%X.\n", phy_no+mvi->id*mvi->chip->n_phy,
@@ -2086,7 +2151,7 @@ void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events)
 							phy_no);
 				else
 					MVS_CHIP_DISP->phy_reset(mvi,
-							phy_no, 0);
+							phy_no, MVS_SOFT_RESET);
 				return;
 			}
 		}
@@ -2118,14 +2183,14 @@ void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events)
 			}
 			mvs_update_phyinfo(mvi, phy_no, 0);
 			if (phy->phy_type & PORT_TYPE_SAS) {
-				MVS_CHIP_DISP->phy_reset(mvi, phy_no, 2);
+				MVS_CHIP_DISP->phy_reset(mvi, phy_no, MVS_PHY_TUNE);
 				mdelay(10);
 			}
 
 			mvs_bytes_dmaed(mvi, phy_no);
 			/* whether driver is going to handle hot plug */
 			if (phy->phy_event & PHY_PLUG_OUT) {
-				mvs_port_notify_formed(sas_phy, 0);
+				mvs_port_notify_formed(&phy->sas_phy, 0);
 				phy->phy_event &= ~PHY_PLUG_OUT;
 			}
 		} else {
@@ -2135,9 +2200,8 @@ void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events)
 	} else if (phy->irq_status & PHYEV_BROAD_CH) {
 		mv_dprintk("port %d broadcast change.\n",
 			phy_no + mvi->id*mvi->chip->n_phy);
-		/* exception for Samsung disk drive*/
-		mdelay(1000);
-		sas_ha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
+		mvs_handle_event(mvi, (void *)(unsigned long)phy_no,
+				EXP_BRCT_CHG);
 	}
 	MVS_CHIP_DISP->write_port_irq_stat(mvi, phy_no, phy->irq_status);
 }

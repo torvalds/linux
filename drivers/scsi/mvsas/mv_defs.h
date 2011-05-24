@@ -395,9 +395,10 @@ enum mvs_info_flags {
 };
 
 enum mvs_event_flags {
-	PHY_PLUG_EVENT	= (3U),
+	PHY_PLUG_EVENT		= (3U),
 	PHY_PLUG_IN		= (1U << 0),	/* phy plug in */
 	PHY_PLUG_OUT		= (1U << 1),	/* phy plug out */
+	EXP_BRCT_CHG		= (1U << 2),	/* broadcast change */
 };
 
 enum mvs_port_type {

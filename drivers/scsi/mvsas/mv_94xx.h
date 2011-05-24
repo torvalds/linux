@@ -109,6 +109,7 @@ enum hw_registers {
 	MVS_P4_VSR_DATA 	= 0x254, /* phy4 VSR data */
 	MVS_PA_VSR_ADDR		= 0x290, /* All port VSR addr */
 	MVS_PA_VSR_PORT		= 0x294, /* All port VSR data */
+	MVS_COMMAND_ACTIVE	= 0x300,
 };
 
 enum pci_cfg_registers {
@@ -132,6 +133,7 @@ enum sas_sata_vsp_regs {
 	VSR_PHY_MODE9		= 0x09 * 4, /* Test */
 	VSR_PHY_MODE10		= 0x0A * 4, /* Power */
 	VSR_PHY_MODE11		= 0x0B * 4, /* Phy Mode */
+	VSR_PHY_ACT_LED		= 0x0C * 4, /* Activity LED control */
 
 	VSR_PHY_FFE_CONTROL	= 0x10C,
 	VSR_PHY_DFE_UPDATE_CRTL	= 0x110,

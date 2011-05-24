@@ -389,7 +389,7 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 	mvs_phy_hacks(mvi);
 
 	/* set LED blink when IO*/
-	mw32(MVS_PA_VSR_ADDR, 0x00000030);
+	mw32(MVS_PA_VSR_ADDR, VSR_PHY_ACT_LED);
 	tmp = mr32(MVS_PA_VSR_PORT);
 	tmp &= 0xFFFF00FF;
 	tmp |= 0x00003300;
@@ -419,7 +419,7 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 		mvs_94xx_config_reg_from_hba(mvi, i);
 		mvs_94xx_phy_enable(mvi, i);
 
-		mvs_94xx_phy_reset(mvi, i, 1);
+		mvs_94xx_phy_reset(mvi, i, PHY_RST_HARD);
 		msleep(500);
 		mvs_94xx_detect_porttype(mvi, i);
 	}
@@ -585,10 +585,48 @@ static irqreturn_t mvs_94xx_isr(struct mvs_info *mvi, int irq, u32 stat)
 static void mvs_94xx_command_active(struct mvs_info *mvi, u32 slot_idx)
 {
 	u32 tmp;
-	mvs_cw32(mvi, 0x300 + (slot_idx >> 3), 1 << (slot_idx % 32));
-	do {
-		tmp = mvs_cr32(mvi, 0x300 + (slot_idx >> 3));
-	} while (tmp & 1 << (slot_idx % 32));
+	tmp = mvs_cr32(mvi, MVS_COMMAND_ACTIVE+(slot_idx >> 3));
+	if (tmp && 1 << (slot_idx % 32)) {
+		mv_printk("command active %08X,  slot [%x].\n", tmp, slot_idx);
+		mvs_cw32(mvi, MVS_COMMAND_ACTIVE + (slot_idx >> 3),
+			1 << (slot_idx % 32));
+		do {
+			tmp = mvs_cr32(mvi,
+				MVS_COMMAND_ACTIVE + (slot_idx >> 3));
+		} while (tmp & 1 << (slot_idx % 32));
+	}
+}
+
+void mvs_94xx_clear_srs_irq(struct mvs_info *mvi, u8 reg_set, u8 clear_all)
+{
+	void __iomem *regs = mvi->regs;
+	u32 tmp;
+
+	if (clear_all) {
+		tmp = mr32(MVS_INT_STAT_SRS_0);
+		if (tmp) {
+			mv_dprintk("check SRS 0 %08X.\n", tmp);
+			mw32(MVS_INT_STAT_SRS_0, tmp);
+		}
+		tmp = mr32(MVS_INT_STAT_SRS_1);
+		if (tmp) {
+			mv_dprintk("check SRS 1 %08X.\n", tmp);
+			mw32(MVS_INT_STAT_SRS_1, tmp);
+		}
+	} else {
+		if (reg_set > 31)
+			tmp = mr32(MVS_INT_STAT_SRS_1);
+		else
+			tmp = mr32(MVS_INT_STAT_SRS_0);
+
+		if (tmp & (1 << (reg_set % 32))) {
+			mv_dprintk("register set 0x%x was stopped.\n", reg_set);
+			if (reg_set > 31)
+				mw32(MVS_INT_STAT_SRS_1, 1 << (reg_set % 32));
+			else
+				mw32(MVS_INT_STAT_SRS_0, 1 << (reg_set % 32));
+		}
+	}
 }
 
 static void mvs_94xx_issue_stop(struct mvs_info *mvi, enum mvs_port_type type,
@@ -596,12 +634,10 @@ static void mvs_94xx_issue_stop(struct mvs_info *mvi, enum mvs_port_type type,
 {
 	void __iomem *regs = mvi->regs;
 	u32 tmp;
+	mvs_94xx_clear_srs_irq(mvi, 0, 1);
 
-	if (type == PORT_TYPE_SATA) {
-		tmp = mr32(MVS_INT_STAT_SRS_0) | (1U << tfs);
-		mw32(MVS_INT_STAT_SRS_0, tmp);
-	}
-	mw32(MVS_INT_STAT, CINT_CI_STOP);
+	tmp = mr32(MVS_INT_STAT);
+	mw32(MVS_INT_STAT, tmp | CINT_CI_STOP);
 	tmp = mr32(MVS_PCS) | 0xFF00;
 	mw32(MVS_PCS, tmp);
 }
@@ -794,7 +830,18 @@ static void mvs_94xx_fix_phy_info(struct mvs_info *mvi, int i,
 void mvs_94xx_phy_set_link_rate(struct mvs_info *mvi, u32 phy_id,
 			struct sas_phy_linkrates *rates)
 {
-	/* TODO */
+	u32 lrmax = 0;
+	u32 tmp;
+
+	tmp = mvs_read_phy_ctl(mvi, phy_id);
+	lrmax = (rates->maximum_linkrate - SAS_LINK_RATE_1_5_GBPS) << 12;
+
+	if (lrmax) {
+		tmp &= ~(0x3 << 12);
+		tmp |= lrmax;
+	}
+	mvs_write_phy_ctl(mvi, phy_id, tmp);
+	mvs_94xx_phy_reset(mvi, phy_id, PHY_RST_HARD);
 }
 
 static void mvs_94xx_clear_active_cmds(struct mvs_info *mvi)
@@ -891,15 +938,6 @@ void mvs_94xx_fix_dma(struct mvs_info *mvi, u32 phy_mask,
 		buf_prd->im_len.len = cpu_to_le32(buf_len);
 		++buf_prd;
 	}
-}
-
-/*
- * FIXME JEJB: temporary nop clear_srs_irq to make 94xx still work
- * with 64xx fixes
- */
-static void mvs_94xx_clear_srs_irq(struct mvs_info *mvi, u8 reg_set,
-				   u8 clear_all)
-{
 }
 
 static void mvs_94xx_tune_interrupt(struct mvs_info *mvi, u32 time)
