@@ -156,15 +156,19 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
 	       return -EPERM;
 
 	adm_ctx.reply_skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
-	if (!adm_ctx.reply_skb)
+	if (!adm_ctx.reply_skb) {
+		err = -ENOMEM;
 		goto fail;
+	}
 
 	adm_ctx.reply_dh = genlmsg_put_reply(adm_ctx.reply_skb,
 					info, &drbd_genl_family, 0, cmd);
 	/* put of a few bytes into a fresh skb of >= 4k will always succeed.
 	 * but anyways */
-	if (!adm_ctx.reply_dh)
+	if (!adm_ctx.reply_dh) {
+		err = -ENOMEM;
 		goto fail;
+	}
 
 	adm_ctx.reply_dh->minor = d_in->minor;
 	adm_ctx.reply_dh->ret_code = NO_ERROR;
@@ -229,7 +233,7 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
 fail:
 	nlmsg_free(adm_ctx.reply_skb);
 	adm_ctx.reply_skb = NULL;
-	return -ENOMEM;
+	return err;
 }
 
 static int drbd_adm_finish(struct genl_info *info, int retcode)
