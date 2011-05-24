@@ -814,6 +814,7 @@ int v9fs_vfs_unlink(struct inode *i, struct dentry *d)
 
 int v9fs_vfs_rmdir(struct inode *i, struct dentry *d)
 {
+	dentry_unhash(d);
 	return v9fs_remove(i, d, 1);
 }
 

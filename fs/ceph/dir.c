@@ -827,6 +827,9 @@ static int ceph_unlink(struct inode *dir, struct dentry *dentry)
 	int err = -EROFS;
 	int op;
 
+	if ((dentry->d_inode->i_mode & S_IFMT) == S_IFDIR)
+		dentry_unhash(dentry);
+
 	if (ceph_snap(dir) == CEPH_SNAPDIR) {
 		/* rmdir .snap/foo is RMSNAP */
 		dout("rmsnap dir %p '%.*s' dn %p\n", dir, dentry->d_name.len,

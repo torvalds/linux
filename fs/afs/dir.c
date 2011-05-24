@@ -845,6 +845,8 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 	_enter("{%x:%u},{%s}",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name);
 
+	dentry_unhash(dentry);
+
 	ret = -ENAMETOOLONG;
 	if (dentry->d_name.len >= AFSNAMEMAX)
 		goto error;

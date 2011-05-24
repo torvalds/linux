@@ -196,6 +196,8 @@ static int sysv_rmdir(struct inode * dir, struct dentry * dentry)
 	struct inode *inode = dentry->d_inode;
 	int err = -ENOTEMPTY;
 
+	dentry_unhash(dentry);
+
 	if (sysv_empty_dir(inode)) {
 		err = sysv_unlink(dir, dentry);
 		if (!err) {

@@ -253,6 +253,9 @@ static int hfs_remove(struct inode *dir, struct dentry *dentry)
 	struct inode *inode = dentry->d_inode;
 	int res;
 
+	if (S_ISDIR(inode->i_mode))
+		dentry_unhash(dentry);
+
 	if (S_ISDIR(inode->i_mode) && inode->i_size != 2)
 		return -ENOTEMPTY;
 	res = hfs_cat_delete(inode->i_ino, dir, &dentry->d_name);

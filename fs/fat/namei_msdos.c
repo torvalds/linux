@@ -326,6 +326,8 @@ static int msdos_rmdir(struct inode *dir, struct dentry *dentry)
 	struct fat_slot_info sinfo;
 	int err;
 
+	dentry_unhash(dentry);
+
 	lock_super(sb);
 	/*
 	 * Check whether the directory is not in use, then check

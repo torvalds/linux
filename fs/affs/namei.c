@@ -320,6 +320,8 @@ affs_rmdir(struct inode *dir, struct dentry *dentry)
 		 dentry->d_inode->i_ino,
 		 (int)dentry->d_name.len, dentry->d_name.name);
 
+	dentry_unhash(dentry);
+
 	return affs_remove_header(dentry);
 }
 

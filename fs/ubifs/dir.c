@@ -656,6 +656,8 @@ static int ubifs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct ubifs_inode *dir_ui = ubifs_inode(dir);
 	struct ubifs_budget_req req = { .mod_dent = 1, .dirtied_ino = 2 };
 
+	dentry_unhash(dentry);
+
 	/*
 	 * Budget request settings: deletion direntry, deletion inode and
 	 * changing the parent inode. If budgeting fails, go ahead anyway

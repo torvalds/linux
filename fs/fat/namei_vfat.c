@@ -824,6 +824,8 @@ static int vfat_rmdir(struct inode *dir, struct dentry *dentry)
 	struct fat_slot_info sinfo;
 	int err;
 
+	dentry_unhash(dentry);
+
 	lock_super(sb);
 
 	err = fat_dir_empty(inode);

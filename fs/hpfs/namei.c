@@ -461,6 +461,8 @@ static int hpfs_rmdir(struct inode *dir, struct dentry *dentry)
 	int err;
 	int r;
 
+	dentry_unhash(dentry);
+
 	hpfs_adjust_length(name, &len);
 	hpfs_lock(dir->i_sb);
 	mutex_lock(&hpfs_i(inode)->i_parent_mutex);

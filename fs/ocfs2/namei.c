@@ -810,6 +810,9 @@ static int ocfs2_unlink(struct inode *dir,
 			   (unsigned long long)OCFS2_I(dir)->ip_blkno,
 			   (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
+	if (S_ISDIR(inode->i_mode))
+		dentry_unhash(dentry);
+
 	dquot_initialize(dir);
 
 	BUG_ON(dentry->d_parent->d_inode != dir);

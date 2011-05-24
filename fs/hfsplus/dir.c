@@ -370,6 +370,8 @@ static int hfsplus_rmdir(struct inode *dir, struct dentry *dentry)
 	struct inode *inode = dentry->d_inode;
 	int res;
 
+	dentry_unhash(dentry);
+
 	if (inode->i_size != 2)
 		return -ENOTEMPTY;
 

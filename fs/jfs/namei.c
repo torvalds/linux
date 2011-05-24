@@ -360,6 +360,8 @@ static int jfs_rmdir(struct inode *dip, struct dentry *dentry)
 
 	jfs_info("jfs_rmdir: dip:0x%p name:%s", dip, dentry->d_name.name);
 
+	dentry_unhash(dentry);
+
 	/* Init inode for quota operations. */
 	dquot_initialize(dip);
 	dquot_initialize(ip);

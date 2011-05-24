@@ -258,6 +258,8 @@ static int ufs_rmdir (struct inode * dir, struct dentry *dentry)
 	struct inode * inode = dentry->d_inode;
 	int err= -ENOTEMPTY;
 
+	dentry_unhash(dentry);
+
 	lock_ufs(dir->i_sb);
 	if (ufs_empty_dir (inode)) {
 		err = ufs_unlink(dir, dentry);

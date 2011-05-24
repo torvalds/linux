@@ -1033,6 +1033,8 @@ static int ncp_rmdir(struct inode *dir, struct dentry *dentry)
 	DPRINTK("ncp_rmdir: removing %s/%s\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
+	dentry_unhash(dentry);
+
 	error = -EBUSY;
 	if (!d_unhashed(dentry))
 		goto out;

@@ -311,6 +311,8 @@ int simple_rmdir(struct inode *dir, struct dentry *dentry)
 	if (!simple_empty(dentry))
 		return -ENOTEMPTY;
 
+	dentry_unhash(dentry);
+
 	drop_nlink(dentry->d_inode);
 	simple_unlink(dir, dentry);
 	drop_nlink(dir);

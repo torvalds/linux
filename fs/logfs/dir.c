@@ -273,6 +273,8 @@ static int logfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 
+	dentry_unhash(dentry);
+
 	if (!logfs_empty_dir(inode))
 		return -ENOTEMPTY;
 

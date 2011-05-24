@@ -1461,6 +1461,8 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 
 	cFYI(1, "cifs_rmdir, inode = 0x%p", inode);
 
+	dentry_unhash(direntry);
+
 	xid = GetXid();
 
 	full_path = build_path_from_dentry(direntry);
