@@ -1383,7 +1383,7 @@ void mainMIC_to_baseband_to_speakers(void)
 	wm8994_write(0x602, 0x0001);
 //	wm8994_write(0x24,  0x0011);	
 //volume
-	wm8994_write(0x25,  0x003F);
+//	wm8994_write(0x25,  0x003F);
 	wm8994_write(0x610, 0x01C0);  //DAC1 Left Volume bit0~7	
 	wm8994_write(0x611, 0x01C0);  //DAC1 Right Volume bit0~7
 	wm8994_set_channel_vol();	
@@ -1460,7 +1460,7 @@ void BT_baseband(void)
 	wm8994_write(0x300, 0xC010);    //DSP/PCM; 16bits; ADC L channel = R channel;MODE A
 	wm8994_write(0x200, 0x0001);
 	//AIF2CLK use FLL2
-/*	wm8994_write(0x204, 0x0000);
+	wm8994_write(0x204, 0x0000);
 	msleep(WM8994_DELAY);
 	wm8994_write(0x240, 0x0000);
 	wm8994_write(0x241, 0x2F00);//48
@@ -1480,15 +1480,15 @@ void BT_baseband(void)
 	wm8994_write(0x314, 0x0080);    // SMbus_16inx_16dat     Write  0x34      * AIF2 ADCLRCK DIV-----BCLK/128
 	wm8994_write(0x315, 0x0080);
 	wm8994_write(0x310, 0x0118);    //DSP/PCM; 16bits; ADC L channel = R channel;MODE A
-	wm8994_write(0x204, 0x00019);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Clocking (1)(204H): 0011  AIF2CLK_SRC=10, AIF2CLK_INV=0, AIF2CLK_DIV=0, AIF2CLK_ENA=1
-*/
-	
+	wm8994_write(0x204, 0x0019);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Clocking (1)(204H): 0011  AIF2CLK_SRC=10, AIF2CLK_INV=0, AIF2CLK_DIV=0, AIF2CLK_ENA=1
+
+/*	
 	wm8994_write(0x310, 0x0118); 
 	wm8994_write(0x204, 0x0001); 	
 	wm8994_write(0x208, 0x000F); 	
 	wm8994_write(0x211, 0x0009); 	
 	wm8994_write(0x312, 0x7000); 	
-	wm8994_write(0x313, 0x00F0); 
+	wm8994_write(0x313, 0x00F0); */
 	
 //GPIO
 	wm8994_write(0x702, 0x2100);
@@ -2473,6 +2473,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	{
 		case HEADSET_NORMAL:
 		case HEADSET_INCALL:
+		case EARPIECE_INCALL:
 			PA_ctrl(GPIO_LOW);
 			break;
 		default:
@@ -2546,6 +2547,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	//enable PA
 	switch(route)
 	{
+		case EARPIECE_INCALL:
 		case HEADSET_NORMAL:
 		case HEADSET_INCALL:
 		case BLUETOOTH_A2DP_NORMAL:	
