@@ -2102,7 +2102,7 @@ cfq_prio_to_maxrq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 
 	WARN_ON(cfqq->ioprio >= IOPRIO_BE_NR);
 
-	return 2 * (base_rq + base_rq * (CFQ_PRIO_LISTS - 1 - cfqq->ioprio));
+	return 2 * base_rq * (IOPRIO_BE_NR - cfqq->ioprio);
 }
 
 /*
