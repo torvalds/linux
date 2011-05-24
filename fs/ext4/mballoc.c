@@ -4825,11 +4825,11 @@ ext4_trim_all_free(struct super_block *sb, ext4_group_t group,
 				"information for %u", group);
 		return ret;
 	}
-
 	bitmap = e4b.bd_bitmap;
+
+	ext4_lock_group(sb, group);
 	start = (e4b.bd_info->bb_first_free > start) ?
 		e4b.bd_info->bb_first_free : start;
-	ext4_lock_group(sb, group);
 
 	while (start < max) {
 		start = mb_find_next_zero_bit(bitmap, max, start);
