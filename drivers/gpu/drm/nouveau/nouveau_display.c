@@ -276,7 +276,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_fence *fence;
 	int ret;
 
-	if (dev_priv->engine.graph.accel_blocked)
+	if (!dev_priv->channel)
 		return -ENODEV;
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
