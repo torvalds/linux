@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/ftrace.h>
 #include <linux/hw_breakpoint.h>
+#include <linux/prefetch.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/system.h>
