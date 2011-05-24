@@ -1247,6 +1247,7 @@ int ubifs_read_nnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip)
 
 out:
 	ubifs_err("error %d reading nnode at %d:%d", err, lnum, offs);
+	dbg_dump_stack();
 	kfree(nnode);
 	return err;
 }
@@ -1312,6 +1313,7 @@ static int read_pnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip)
 out:
 	ubifs_err("error %d reading pnode at %d:%d", err, lnum, offs);
 	dbg_dump_pnode(c, pnode, parent, iip);
+	dbg_dump_stack();
 	dbg_msg("calc num: %d", calc_pnode_num_from_parent(c, parent, iip));
 	kfree(pnode);
 	return err;
