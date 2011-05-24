@@ -57,11 +57,20 @@ struct mb862xxfb_par {
 	unsigned int		refclk;		/* disp. reference clock */
 	struct mb862xx_gc_mode	*gc_mode;	/* GDC mode init data */
 	int			pre_init;	/* don't init display if 1 */
+	struct i2c_adapter	*adap;		/* GDC I2C bus adapter */
+	int			i2c_rs;
 
 	u32			pseudo_palette[16];
 };
 
 extern void mb862xxfb_init_accel(struct fb_info *info, int xres);
+#ifdef CONFIG_FB_MB862XX_I2C
+extern int mb862xx_i2c_init(struct mb862xxfb_par *par);
+extern void mb862xx_i2c_exit(struct mb862xxfb_par *par);
+#else
+static inline int mb862xx_i2c_init(struct mb862xxfb_par *par) { return 0; }
+static inline void mb862xx_i2c_exit(struct mb862xxfb_par *par) { }
+#endif
 
 #if defined(CONFIG_FB_MB862XX_LIME) && defined(CONFIG_FB_MB862XX_PCI_GDC)
 #error	"Select Lime GDC or CoralP/Carmine support, but not both together"

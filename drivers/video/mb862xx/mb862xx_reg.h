@@ -80,6 +80,27 @@
 
 #define GC_DISP_REFCLK_400	400
 
+/* I2C */
+#define GC_I2C_BSR		0x00000000	/* BSR */
+#define GC_I2C_BCR		0x00000004	/* BCR */
+#define GC_I2C_CCR		0x00000008	/* CCR */
+#define GC_I2C_ADR		0x0000000C	/* ADR */
+#define GC_I2C_DAR		0x00000010	/* DAR */
+
+#define I2C_DISABLE		0x00000000
+#define I2C_STOP		0x00000000
+#define I2C_START		0x00000010
+#define I2C_REPEATED_START	0x00000030
+#define I2C_CLOCK_AND_ENABLE	0x0000003f
+#define I2C_READY		0x01
+#define I2C_INT			0x01
+#define I2C_INTE		0x02
+#define I2C_ACK			0x08
+#define I2C_BER			0x80
+#define I2C_BEIE		0x40
+#define I2C_TRX			0x80
+#define I2C_LRB			0x10
+
 /* Carmine specific */
 #define MB86297_DRAW_BASE		0x00020000
 #define MB86297_DISP0_BASE		0x00100000

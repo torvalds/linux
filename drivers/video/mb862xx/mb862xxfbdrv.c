@@ -772,6 +772,8 @@ static int coralp_init(struct mb862xxfb_par *par)
 	} else {
 		return -ENODEV;
 	}
+
+	mb862xx_i2c_init(par);
 	return 0;
 }
 
@@ -1028,6 +1030,8 @@ static void __devexit mb862xx_pci_remove(struct pci_dev *pdev)
 	} else {
 		outreg(host, GC_IMASK, 0);
 	}
+
+	mb862xx_i2c_exit(par);
 
 	device_remove_file(&pdev->dev, &dev_attr_dispregs);
 
