@@ -675,13 +675,10 @@ nvc0_graph_create(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvc0_graph_priv *priv;
 	int ret, gpc, i;
+	u32 fermi;
 
-	switch (dev_priv->chipset) {
-	case 0xc0:
-	case 0xc3:
-	case 0xc4:
-		break;
-	default:
+	fermi = nvc0_graph_class(dev);
+	if (!fermi) {
 		NV_ERROR(dev, "PGRAPH: unsupported chipset, please report!\n");
 		return 0;
 	}
@@ -770,6 +767,10 @@ nvc0_graph_create(struct drm_device *dev)
 	NVOBJ_CLASS(dev, 0x9039, GR); /* M2MF */
 	NVOBJ_MTHD (dev, 0x9039, 0x0500, nvc0_graph_mthd_page_flip);
 	NVOBJ_CLASS(dev, 0x9097, GR); /* 3D */
+	if (fermi >= 0x9197)
+		NVOBJ_CLASS(dev, 0x9197, GR); /* 3D (NVC1-) */
+	if (fermi >= 0x9297)
+		NVOBJ_CLASS(dev, 0x9297, GR); /* 3D (NVC8-) */
 	NVOBJ_CLASS(dev, 0x90c0, GR); /* COMPUTE */
 	return 0;
 
