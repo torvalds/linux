@@ -83,7 +83,7 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	long long root_inode;
 	unsigned short flags;
 	unsigned int fragments;
-	u64 lookup_table_start, xattr_id_table_start;
+	u64 lookup_table_start, xattr_id_table_start, next_table;
 	int err;
 
 	TRACE("Entered squashfs_fill_superblock\n");
@@ -217,8 +217,10 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	/* Handle xattrs */
 	sb->s_xattr = squashfs_xattr_handlers;
 	xattr_id_table_start = le64_to_cpu(sblk->xattr_id_table_start);
-	if (xattr_id_table_start == SQUASHFS_INVALID_BLK)
+	if (xattr_id_table_start == SQUASHFS_INVALID_BLK) {
+		next_table = msblk->bytes_used;
 		goto allocate_id_index_table;
+	}
 
 	/* Allocate and read xattr id lookup table */
 	msblk->xattr_id_table = squashfs_read_xattr_id_table(sb,
@@ -230,11 +232,13 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 		if (err != -ENOTSUPP)
 			goto failed_mount;
 	}
+	next_table = msblk->xattr_table;
 
 allocate_id_index_table:
 	/* Allocate and read id index table */
 	msblk->id_table = squashfs_read_id_index_table(sb,
-		le64_to_cpu(sblk->id_table_start), le16_to_cpu(sblk->no_ids));
+		le64_to_cpu(sblk->id_table_start), next_table,
+		le16_to_cpu(sblk->no_ids));
 	if (IS_ERR(msblk->id_table)) {
 		ERROR("unable to read id index table\n");
 		err = PTR_ERR(msblk->id_table);
