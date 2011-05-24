@@ -118,6 +118,18 @@ struct vmcs {
 	char data[0];
 };
 
+/*
+ * Track a VMCS that may be loaded on a certain CPU. If it is (cpu!=-1), also
+ * remember whether it was VMLAUNCHed, and maintain a linked list of all VMCSs
+ * loaded on this CPU (so we can clear them if the CPU goes down).
+ */
+struct loaded_vmcs {
+	struct vmcs *vmcs;
+	int cpu;
+	int launched;
+	struct list_head loaded_vmcss_on_cpu_link;
+};
+
 struct shared_msr_entry {
 	unsigned index;
 	u64 data;
@@ -126,9 +138,7 @@ struct shared_msr_entry {
 
 struct vcpu_vmx {
 	struct kvm_vcpu       vcpu;
-	struct list_head      local_vcpus_link;
 	unsigned long         host_rsp;
-	int                   launched;
 	u8                    fail;
 	u8                    cpl;
 	bool                  nmi_known_unmasked;
@@ -142,7 +152,14 @@ struct vcpu_vmx {
 	u64 		      msr_host_kernel_gs_base;
 	u64 		      msr_guest_kernel_gs_base;
 #endif
-	struct vmcs          *vmcs;
+	/*
+	 * loaded_vmcs points to the VMCS currently used in this vcpu. For a
+	 * non-nested (L1) guest, it always points to vmcs01. For a nested
+	 * guest (L2), it points to a different VMCS.
+	 */
+	struct loaded_vmcs    vmcs01;
+	struct loaded_vmcs   *loaded_vmcs;
+	bool                  __launched; /* temporary, used in vmx_vcpu_run */
 	struct msr_autoload {
 		unsigned nr;
 		struct vmx_msr_entry guest[NR_AUTOLOAD_MSRS];
@@ -202,7 +219,11 @@ static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr);
 
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
 static DEFINE_PER_CPU(struct vmcs *, current_vmcs);
-static DEFINE_PER_CPU(struct list_head, vcpus_on_cpu);
+/*
+ * We maintain a per-CPU linked-list of VMCS loaded on that CPU. This is needed
+ * when a CPU is brought down, and we need to VMCLEAR all VMCSs loaded on it.
+ */
+static DEFINE_PER_CPU(struct list_head, loaded_vmcss_on_cpu);
 static DEFINE_PER_CPU(struct desc_ptr, host_gdt);
 
 static unsigned long *vmx_io_bitmap_a;
@@ -503,6 +524,13 @@ static void vmcs_clear(struct vmcs *vmcs)
 		       vmcs, phys_addr);
 }
 
+static inline void loaded_vmcs_init(struct loaded_vmcs *loaded_vmcs)
+{
+	vmcs_clear(loaded_vmcs->vmcs);
+	loaded_vmcs->cpu = -1;
+	loaded_vmcs->launched = 0;
+}
+
 static void vmcs_load(struct vmcs *vmcs)
 {
 	u64 phys_addr = __pa(vmcs);
@@ -516,25 +544,24 @@ static void vmcs_load(struct vmcs *vmcs)
 		       vmcs, phys_addr);
 }
 
-static void __vcpu_clear(void *arg)
+static void __loaded_vmcs_clear(void *arg)
 {
-	struct vcpu_vmx *vmx = arg;
+	struct loaded_vmcs *loaded_vmcs = arg;
 	int cpu = raw_smp_processor_id();
 
-	if (vmx->vcpu.cpu == cpu)
-		vmcs_clear(vmx->vmcs);
-	if (per_cpu(current_vmcs, cpu) == vmx->vmcs)
+	if (loaded_vmcs->cpu != cpu)
+		return; /* vcpu migration can race with cpu offline */
+	if (per_cpu(current_vmcs, cpu) == loaded_vmcs->vmcs)
 		per_cpu(current_vmcs, cpu) = NULL;
-	list_del(&vmx->local_vcpus_link);
-	vmx->vcpu.cpu = -1;
-	vmx->launched = 0;
+	list_del(&loaded_vmcs->loaded_vmcss_on_cpu_link);
+	loaded_vmcs_init(loaded_vmcs);
 }
 
-static void vcpu_clear(struct vcpu_vmx *vmx)
+static void loaded_vmcs_clear(struct loaded_vmcs *loaded_vmcs)
 {
-	if (vmx->vcpu.cpu == -1)
-		return;
-	smp_call_function_single(vmx->vcpu.cpu, __vcpu_clear, vmx, 1);
+	if (loaded_vmcs->cpu != -1)
+		smp_call_function_single(
+			loaded_vmcs->cpu, __loaded_vmcs_clear, loaded_vmcs, 1);
 }
 
 static inline void vpid_sync_vcpu_single(struct vcpu_vmx *vmx)
@@ -973,22 +1000,22 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	if (!vmm_exclusive)
 		kvm_cpu_vmxon(phys_addr);
-	else if (vcpu->cpu != cpu)
-		vcpu_clear(vmx);
+	else if (vmx->loaded_vmcs->cpu != cpu)
+		loaded_vmcs_clear(vmx->loaded_vmcs);
 
-	if (per_cpu(current_vmcs, cpu) != vmx->vmcs) {
-		per_cpu(current_vmcs, cpu) = vmx->vmcs;
-		vmcs_load(vmx->vmcs);
+	if (per_cpu(current_vmcs, cpu) != vmx->loaded_vmcs->vmcs) {
+		per_cpu(current_vmcs, cpu) = vmx->loaded_vmcs->vmcs;
+		vmcs_load(vmx->loaded_vmcs->vmcs);
 	}
 
-	if (vcpu->cpu != cpu) {
+	if (vmx->loaded_vmcs->cpu != cpu) {
 		struct desc_ptr *gdt = &__get_cpu_var(host_gdt);
 		unsigned long sysenter_esp;
 
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 		local_irq_disable();
-		list_add(&vmx->local_vcpus_link,
-			 &per_cpu(vcpus_on_cpu, cpu));
+		list_add(&vmx->loaded_vmcs->loaded_vmcss_on_cpu_link,
+			 &per_cpu(loaded_vmcss_on_cpu, cpu));
 		local_irq_enable();
 
 		/*
@@ -1000,6 +1027,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);
 		vmcs_writel(HOST_IA32_SYSENTER_ESP, sysenter_esp); /* 22.2.3 */
+		vmx->loaded_vmcs->cpu = cpu;
 	}
 }
 
@@ -1007,7 +1035,8 @@ static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	__vmx_load_host_state(to_vmx(vcpu));
 	if (!vmm_exclusive) {
-		__vcpu_clear(to_vmx(vcpu));
+		__loaded_vmcs_clear(to_vmx(vcpu)->loaded_vmcs);
+		vcpu->cpu = -1;
 		kvm_cpu_vmxoff();
 	}
 }
@@ -1471,7 +1500,7 @@ static int hardware_enable(void *garbage)
 	if (read_cr4() & X86_CR4_VMXE)
 		return -EBUSY;
 
-	INIT_LIST_HEAD(&per_cpu(vcpus_on_cpu, cpu));
+	INIT_LIST_HEAD(&per_cpu(loaded_vmcss_on_cpu, cpu));
 	rdmsrl(MSR_IA32_FEATURE_CONTROL, old);
 
 	test_bits = FEATURE_CONTROL_LOCKED;
@@ -1495,14 +1524,14 @@ static int hardware_enable(void *garbage)
 	return 0;
 }
 
-static void vmclear_local_vcpus(void)
+static void vmclear_local_loaded_vmcss(void)
 {
 	int cpu = raw_smp_processor_id();
-	struct vcpu_vmx *vmx, *n;
+	struct loaded_vmcs *v, *n;
 
-	list_for_each_entry_safe(vmx, n, &per_cpu(vcpus_on_cpu, cpu),
-				 local_vcpus_link)
-		__vcpu_clear(vmx);
+	list_for_each_entry_safe(v, n, &per_cpu(loaded_vmcss_on_cpu, cpu),
+				 loaded_vmcss_on_cpu_link)
+		__loaded_vmcs_clear(v);
 }
 
 
@@ -1517,7 +1546,7 @@ static void kvm_cpu_vmxoff(void)
 static void hardware_disable(void *garbage)
 {
 	if (vmm_exclusive) {
-		vmclear_local_vcpus();
+		vmclear_local_loaded_vmcss();
 		kvm_cpu_vmxoff();
 	}
 	write_cr4(read_cr4() & ~X86_CR4_VMXE);
@@ -1696,6 +1725,18 @@ static struct vmcs *alloc_vmcs(void)
 static void free_vmcs(struct vmcs *vmcs)
 {
 	free_pages((unsigned long)vmcs, vmcs_config.order);
+}
+
+/*
+ * Free a VMCS, but before that VMCLEAR it on the CPU where it was last loaded
+ */
+static void free_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
+{
+	if (!loaded_vmcs->vmcs)
+		return;
+	loaded_vmcs_clear(loaded_vmcs);
+	free_vmcs(loaded_vmcs->vmcs);
+	loaded_vmcs->vmcs = NULL;
 }
 
 static void free_kvm_area(void)
@@ -4169,6 +4210,7 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
 		vmx_set_interrupt_shadow(vcpu, 0);
 
+	vmx->__launched = vmx->loaded_vmcs->launched;
 	asm(
 		/* Store host registers */
 		"push %%"R"dx; push %%"R"bp;"
@@ -4239,7 +4281,7 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		"pop  %%"R"bp; pop  %%"R"dx \n\t"
 		"setbe %c[fail](%0) \n\t"
 	      : : "c"(vmx), "d"((unsigned long)HOST_RSP),
-		[launched]"i"(offsetof(struct vcpu_vmx, launched)),
+		[launched]"i"(offsetof(struct vcpu_vmx, __launched)),
 		[fail]"i"(offsetof(struct vcpu_vmx, fail)),
 		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp)),
 		[rax]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RAX])),
@@ -4279,7 +4321,7 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	vmx->idt_vectoring_info = vmcs_read32(IDT_VECTORING_INFO_FIELD);
 
 	asm("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
-	vmx->launched = 1;
+	vmx->loaded_vmcs->launched = 1;
 
 	vmx->exit_reason = vmcs_read32(VM_EXIT_REASON);
 
@@ -4291,39 +4333,15 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 #undef R
 #undef Q
 
-static void vmx_free_vmcs(struct kvm_vcpu *vcpu)
-{
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-
-	if (vmx->vmcs) {
-		vcpu_clear(vmx);
-		free_vmcs(vmx->vmcs);
-		vmx->vmcs = NULL;
-	}
-}
-
 static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	free_vpid(vmx);
-	vmx_free_vmcs(vcpu);
+	free_loaded_vmcs(vmx->loaded_vmcs);
 	kfree(vmx->guest_msrs);
 	kvm_vcpu_uninit(vcpu);
 	kmem_cache_free(kvm_vcpu_cache, vmx);
-}
-
-static inline void vmcs_init(struct vmcs *vmcs)
-{
-	u64 phys_addr = __pa(per_cpu(vmxarea, raw_smp_processor_id()));
-
-	if (!vmm_exclusive)
-		kvm_cpu_vmxon(phys_addr);
-
-	vmcs_clear(vmcs);
-
-	if (!vmm_exclusive)
-		kvm_cpu_vmxoff();
 }
 
 static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
@@ -4347,11 +4365,15 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 		goto uninit_vcpu;
 	}
 
-	vmx->vmcs = alloc_vmcs();
-	if (!vmx->vmcs)
+	vmx->loaded_vmcs = &vmx->vmcs01;
+	vmx->loaded_vmcs->vmcs = alloc_vmcs();
+	if (!vmx->loaded_vmcs->vmcs)
 		goto free_msrs;
-
-	vmcs_init(vmx->vmcs);
+	if (!vmm_exclusive)
+		kvm_cpu_vmxon(__pa(per_cpu(vmxarea, raw_smp_processor_id())));
+	loaded_vmcs_init(vmx->loaded_vmcs);
+	if (!vmm_exclusive)
+		kvm_cpu_vmxoff();
 
 	cpu = get_cpu();
 	vmx_vcpu_load(&vmx->vcpu, cpu);
@@ -4380,7 +4402,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	return &vmx->vcpu;
 
 free_vmcs:
-	free_vmcs(vmx->vmcs);
+	free_vmcs(vmx->loaded_vmcs->vmcs);
 free_msrs:
 	kfree(vmx->guest_msrs);
 uninit_vcpu:
