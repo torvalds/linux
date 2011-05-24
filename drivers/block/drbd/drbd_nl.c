@@ -1155,7 +1155,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 		set_disk_conf_defaults(new_disk_conf);
 
 	err = disk_conf_from_attrs_for_change(new_disk_conf, info);
-	if (err) {
+	if (err && err != -ENOMSG) {
 		retcode = ERR_MANDATORY_TAG;
 		drbd_msg_put_info(from_attrs_err_to_txt(err));
 	}
@@ -1902,7 +1902,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 		set_net_conf_defaults(new_conf);
 
 	err = net_conf_from_attrs_for_change(new_conf, info);
-	if (err) {
+	if (err && err != -ENOMSG) {
 		retcode = ERR_MANDATORY_TAG;
 		drbd_msg_put_info(from_attrs_err_to_txt(err));
 		goto fail;
@@ -2337,7 +2337,7 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 		set_res_opts_defaults(&res_opts);
 
 	err = res_opts_from_attrs(&res_opts, info);
-	if (err) {
+	if (err && err != -ENOMSG) {
 		retcode = ERR_MANDATORY_TAG;
 		drbd_msg_put_info(from_attrs_err_to_txt(err));
 		goto fail;
