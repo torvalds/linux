@@ -209,6 +209,8 @@ struct ext4_io_submit {
  */
 #define	EXT4_BAD_INO		 1	/* Bad blocks inode */
 #define EXT4_ROOT_INO		 2	/* Root inode */
+#define EXT4_USR_QUOTA_INO	 3	/* User quota inode */
+#define EXT4_GRP_QUOTA_INO	 4	/* Group quota inode */
 #define EXT4_BOOT_LOADER_INO	 5	/* Boot loader inode */
 #define EXT4_UNDEL_DIR_INO	 6	/* Undelete directory inode */
 #define EXT4_RESIZE_INO		 7	/* Reserved group descriptors inode */
@@ -1344,6 +1346,7 @@ static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
 #define EXT4_FEATURE_RO_COMPAT_GDT_CSUM		0x0010
 #define EXT4_FEATURE_RO_COMPAT_DIR_NLINK	0x0020
 #define EXT4_FEATURE_RO_COMPAT_EXTRA_ISIZE	0x0040
+#define EXT4_FEATURE_RO_COMPAT_QUOTA		0x0100
 
 #define EXT4_FEATURE_INCOMPAT_COMPRESSION	0x0001
 #define EXT4_FEATURE_INCOMPAT_FILETYPE		0x0002
