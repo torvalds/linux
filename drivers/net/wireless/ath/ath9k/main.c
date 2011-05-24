@@ -392,12 +392,14 @@ void ath_paprd_calibrate(struct work_struct *work)
 	if (!caldata)
 		return;
 
+	ath9k_ps_wakeup(sc);
+
 	if (ar9003_paprd_init_table(ah) < 0)
-		return;
+		goto fail_paprd;
 
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
-		return;
+		goto fail_paprd;
 
 	skb_put(skb, len);
 	memset(skb->data, 0, len);
@@ -409,7 +411,6 @@ void ath_paprd_calibrate(struct work_struct *work)
 	memcpy(hdr->addr2, hw->wiphy->perm_addr, ETH_ALEN);
 	memcpy(hdr->addr3, hw->wiphy->perm_addr, ETH_ALEN);
 
-	ath9k_ps_wakeup(sc);
 	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
 		if (!(common->tx_chainmask & BIT(chain)))
 			continue;
