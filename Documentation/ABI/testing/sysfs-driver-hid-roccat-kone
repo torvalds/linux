@@ -16,12 +16,14 @@ Description:	It is possible to switch the dpi setting of the mouse with the
 		6     3200
 
 		This file is readonly.
+Users:		http://roccat.sourceforge.net
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/actual_profile
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When read, this file returns the number of the actual profile.
 		This file is readonly.
+Users:		http://roccat.sourceforge.net
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/firmware_version
 Date:		March 2010
@@ -32,12 +34,13 @@ Description:	When read, this file returns the raw integer version number of the
 		number the decimal point has to be shifted 2 positions to the
 		left. E.g. a returned value of 138 means 1.38
 		This file is readonly.
+Users:		http://roccat.sourceforge.net
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/profile[1-5]
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse can store 5 profiles which can be switched by the
-                press of a button. A profile holds informations like button
+                press of a button. A profile holds information like button
                 mappings, sensitivity, the colors of the 5 leds and light
                 effects.
                 When read, these files return the respective profile. The
@@ -47,6 +50,7 @@ Description:	The mouse can store 5 profiles which can be switched by the
 		The mouse will reject invalid data, whereas the profile number
 		stored in the profile doesn't need to fit the number of the
 		store.
+Users:		http://roccat.sourceforge.net
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/settings
 Date:		March 2010
@@ -57,6 +61,7 @@ Description:	When read, this file returns the settings stored in the mouse.
 		When written, this file lets write settings back to the mouse.
 		The data has to be 36 bytes long. The mouse will reject invalid
 		data.
+Users:		http://roccat.sourceforge.net
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/startup_profile
 Date:		March 2010
@@ -66,6 +71,7 @@ Description:	The integer value of this attribute ranges from 1 to 5.
                 that's active when the mouse is powered on.
 		When written, this file sets the number of the startup profile
 		and the mouse activates this profile immediately.
+Users:		http://roccat.sourceforge.net
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/tcu
 Date:		March 2010
@@ -77,6 +83,7 @@ Description:	The mouse has a "Tracking Control Unit" which lets the user
 		Writing 0 in this file will switch the TCU off.
 		Writing 1 in this file will start the calibration which takes
 		around 6 seconds to complete and activates the TCU.
+Users:		http://roccat.sourceforge.net
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/weight
 Date:		March 2010
@@ -96,3 +103,4 @@ Description:	The mouse can be equipped with one of four supplied weights
 		4     20g
 
 		This file is readonly.
+Users:		http://roccat.sourceforge.net

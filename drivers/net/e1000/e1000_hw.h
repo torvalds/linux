@@ -1026,7 +1026,7 @@ extern void __iomem *ce4100_gbe_mdio_base_virt;
 
 #define E1000_KUMCTRLSTA 0x00034	/* MAC-PHY interface - RW */
 #define E1000_MDPHYA     0x0003C	/* PHY address - RW */
-#define E1000_MANC2H     0x05860	/* Managment Control To Host - RW */
+#define E1000_MANC2H     0x05860	/* Management Control To Host - RW */
 #define E1000_SW_FW_SYNC 0x05B5C	/* Software-Firmware Synchronization - RW */
 
 #define E1000_GCR       0x05B00	/* PCI-Ex Control */
@@ -2917,6 +2917,7 @@ struct e1000_host_command_info {
 #define M88E1000_14_PHY_ID M88E1000_E_PHY_ID
 #define M88E1011_I_REV_4   0x04
 #define M88E1111_I_PHY_ID  0x01410CC0
+#define M88E1118_E_PHY_ID  0x01410E40
 #define L1LXT971A_PHY_ID   0x001378E0
 
 #define RTL8211B_PHY_ID    0x001CC910

@@ -281,7 +281,7 @@ static int wdt977_release(struct inode *inode, struct file *file)
 {
 	/*
 	 *	Shut off the timer.
-	 * 	Lock it in if it's a module and we set nowayout
+	 *	Lock it in if it's a module and we set nowayout
 	 */
 	if (expect_close == 42) {
 		wdt977_stop();

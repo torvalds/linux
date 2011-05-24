@@ -657,7 +657,7 @@ out:
  * @sdp: the file system
  *
  * This function flushes data and meta data for all machines by
- * aquiring the transaction log exclusively.  All journals are
+ * acquiring the transaction log exclusively.  All journals are
  * ensured to be in a clean state as well.
  *
  * Returns: errno

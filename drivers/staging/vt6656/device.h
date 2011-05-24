@@ -55,6 +55,7 @@
 #include <linux/reboot.h>
 #include <linux/usb.h>
 #include <linux/signal.h>
+#include <linux/firmware.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #ifdef SIOCETHTOOL
@@ -420,6 +421,8 @@ typedef struct __device_info {
 	struct usb_device*          usb;
     struct net_device*          dev;
     struct net_device_stats     stats;
+
+    const struct firmware	*firmware;
 
     OPTIONS                     sOpts;
 

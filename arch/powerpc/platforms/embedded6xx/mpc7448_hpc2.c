@@ -153,8 +153,8 @@ static void __init mpc7448_hpc2_init_IRQ(void)
 	DBG("%s: tsi108 cascade_pci_irq = 0x%x\n", __func__,
 	    (u32) cascade_pci_irq);
 	tsi108_pci_int_init(cascade_node);
-	set_irq_data(cascade_pci_irq, mpic);
-	set_irq_chained_handler(cascade_pci_irq, tsi108_irq_cascade);
+	irq_set_handler_data(cascade_pci_irq, mpic);
+	irq_set_chained_handler(cascade_pci_irq, tsi108_irq_cascade);
 #endif
 	/* Configure MPIC outputs to CPU0 */
 	tsi108_write_reg(TSI108_MPIC_OFFSET + 0x30c, 0);

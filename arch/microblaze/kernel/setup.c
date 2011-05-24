@@ -95,7 +95,8 @@ inline unsigned get_romfs_len(unsigned *addr)
 void __init machine_early_init(const char *cmdline, unsigned int ram,
 		unsigned int fdt, unsigned int msr)
 {
-	unsigned long *src, *dst = (unsigned long *)0x0;
+	unsigned long *src, *dst;
+	unsigned int offset = 0;
 
 	/* If CONFIG_MTD_UCLINUX is defined, assume ROMFS is at the
 	 * end of kernel. There are two position which we want to check.
@@ -161,14 +162,21 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 #if CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR
 	if (msr)
 		eprintk("!!!Your kernel has setup MSR instruction but "
-				"CPU don't have it %d\n", msr);
+				"CPU don't have it %x\n", msr);
 #else
 	if (!msr)
 		eprintk("!!!Your kernel not setup MSR instruction but "
-				"CPU have it %d\n", msr);
+				"CPU have it %x\n", msr);
 #endif
 
-	for (src = __ivt_start; src < __ivt_end; src++, dst++)
+	/* Do not copy reset vectors. offset = 0x2 means skip the first
+	 * two instructions. dst is pointer to MB vectors which are placed
+	 * in block ram. If you want to copy reset vector setup offset to 0x0 */
+#if !CONFIG_MANUAL_RESET_VECTOR
+	offset = 0x2;
+#endif
+	dst = (unsigned long *) (offset * sizeof(u32));
+	for (src = __ivt_start + offset; src < __ivt_end; src++, dst++)
 		*dst = *src;
 
 	/* Initialize global data */

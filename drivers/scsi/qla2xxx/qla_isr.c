@@ -414,7 +414,7 @@ skip_rio:
 				    "marked OFFLINE!\n");
 				vha->flags.online = 0;
 			} else {
-				/* Check to see if MPI timeout occured */
+				/* Check to see if MPI timeout occurred */
 				if ((mbx & MBX_3) && (ha->flags.port0))
 					set_bit(MPI_RESET_NEEDED,
 					    &vha->dpc_flags);

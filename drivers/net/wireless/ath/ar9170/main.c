@@ -974,7 +974,7 @@ void ar9170_rx(struct ar9170 *ar, struct sk_buff *skb)
 			if (ar->rx_failover_missing <= 0) {
 				/*
 				 * nested ar9170_rx call!
-				 * termination is guranteed, even when the
+				 * termination is guaranteed, even when the
 				 * combined frame also have a element with
 				 * a bad tag.
 				 */
@@ -1475,7 +1475,7 @@ static void ar9170_tx(struct ar9170 *ar)
 				     msecs_to_jiffies(AR9170_JANITOR_DELAY));
 }
 
-int ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+void ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ar9170 *ar = hw->priv;
 	struct ieee80211_tx_info *info;
@@ -1493,11 +1493,10 @@ int ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	skb_queue_tail(&ar->tx_pending[queue], skb);
 
 	ar9170_tx(ar);
-	return NETDEV_TX_OK;
+	return;
 
 err_free:
 	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
 }
 
 static int ar9170_op_add_interface(struct ieee80211_hw *hw,
@@ -1945,7 +1944,8 @@ static int ar9170_conf_tx(struct ieee80211_hw *hw, u16 queue,
 static int ar9170_ampdu_action(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       enum ieee80211_ampdu_mlme_action action,
-			       struct ieee80211_sta *sta, u16 tid, u16 *ssn)
+			       struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+			       u8 buf_size)
 {
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:

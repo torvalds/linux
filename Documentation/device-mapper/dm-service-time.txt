@@ -37,7 +37,7 @@ Algorithm
 =========
 
 dm-service-time adds the I/O size to 'in-flight-size' when the I/O is
-dispatched and substracts when completed.
+dispatched and subtracts when completed.
 Basically, dm-service-time selects a path having minimum service time
 which is calculated by:
 

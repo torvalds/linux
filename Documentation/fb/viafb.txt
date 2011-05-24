@@ -204,7 +204,7 @@ Notes:
 
     supported_output_devices
 
-        This read-only file contains a full ',' seperated list containing all
+        This read-only file contains a full ',' separated list containing all
         output devices that could be available on your platform. It is likely
         that not all of those have a connector on your hardware but it should
         provide a good starting point to figure out which of those names match
@@ -225,7 +225,7 @@ Notes:
         This can happen for example if only one (the other) iga is used.
         Writing to these files allows adjusting the output devices during
         runtime. One can add new devices, remove existing ones or switch
-        between igas. Essentially you can write a ',' seperated list of device
+        between igas. Essentially you can write a ',' separated list of device
         names (or a single one) in the same format as the output to those
         files. You can add a '+' or '-' as a prefix allowing simple addition
         and removal of devices. So a prefix '+' adds the devices from your list

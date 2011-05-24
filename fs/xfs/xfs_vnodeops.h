@@ -18,6 +18,7 @@ int xfs_setattr(struct xfs_inode *ip, struct iattr *vap, int flags);
 #define	XFS_ATTR_NONBLOCK	0x02	/* return EAGAIN if operation would block */
 #define XFS_ATTR_NOLOCK		0x04	/* Don't grab any conflicting locks */
 #define XFS_ATTR_NOACL		0x08	/* Don't call xfs_acl_chmod */
+#define XFS_ATTR_SYNC		0x10	/* synchronous operation required */
 
 int xfs_readlink(struct xfs_inode *ip, char *link);
 int xfs_release(struct xfs_inode *ip);

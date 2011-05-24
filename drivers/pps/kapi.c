@@ -168,7 +168,7 @@ void pps_event(struct pps_device *pps, struct pps_event_time *ts, int event,
 {
 	unsigned long flags;
 	int captured = 0;
-	struct pps_ktime ts_real;
+	struct pps_ktime ts_real = { .sec = 0, .nsec = 0, .flags = 0 };
 
 	/* check event type */
 	BUG_ON((event & (PPS_CAPTUREASSERT | PPS_CAPTURECLEAR)) == 0);

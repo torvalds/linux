@@ -350,7 +350,7 @@ Note the "Should sync?" parameter "nosync" means that the two mirrors are
 already in sync which will be the case on a clean shutdown of Windows.  If the
 mirrors are not clean, you can specify the "sync" option instead of "nosync"
 and the Device-Mapper driver will then copy the entirety of the "Source Device"
-to the "Target Device" or if you specified multipled target devices to all of
+to the "Target Device" or if you specified multiple target devices to all of
 them.
 
 Once you have your table, save it in a file somewhere (e.g. /etc/ntfsvolume1),

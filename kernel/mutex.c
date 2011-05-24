@@ -245,7 +245,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		}
 		__set_task_state(task, state);
 
-		/* didnt get the lock, go to sleep: */
+		/* didn't get the lock, go to sleep: */
 		spin_unlock_mutex(&lock->wait_lock, flags);
 		preempt_enable_no_resched();
 		schedule();

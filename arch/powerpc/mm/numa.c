@@ -186,7 +186,7 @@ static void unmap_cpu_from_node(unsigned long cpu)
 	dbg("removing cpu %lu from node %d\n", cpu, node);
 
 	if (cpumask_test_cpu(cpu, node_to_cpumask_map[node])) {
-		cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
+		cpumask_clear_cpu(cpu, node_to_cpumask_map[node]);
 	} else {
 		printk(KERN_ERR "WARNING: cpu %lu not found in node %d\n",
 		       cpu, node);
@@ -440,11 +440,11 @@ static void read_drconf_cell(struct of_drconf_cell *drmem, const u32 **cellp)
 }
 
 /*
- * Retreive and validate the ibm,dynamic-memory property of the device tree.
+ * Retrieve and validate the ibm,dynamic-memory property of the device tree.
  *
  * The layout of the ibm,dynamic-memory property is a number N of memblock
  * list entries followed by N memblock list entries.  Each memblock list entry
- * contains information as layed out in the of_drconf_cell struct above.
+ * contains information as laid out in the of_drconf_cell struct above.
  */
 static int of_get_drconf_memory(struct device_node *memory, const u32 **dm)
 {
@@ -468,7 +468,7 @@ static int of_get_drconf_memory(struct device_node *memory, const u32 **dm)
 }
 
 /*
- * Retreive and validate the ibm,lmb-size property for drconf memory
+ * Retrieve and validate the ibm,lmb-size property for drconf memory
  * from the device tree.
  */
 static u64 of_get_lmb_size(struct device_node *memory)
@@ -490,7 +490,7 @@ struct assoc_arrays {
 };
 
 /*
- * Retreive and validate the list of associativity arrays for drconf
+ * Retrieve and validate the list of associativity arrays for drconf
  * memory from the ibm,associativity-lookup-arrays property of the
  * device tree..
  *
@@ -604,7 +604,7 @@ static int __cpuinit cpu_numa_callback(struct notifier_block *nfb,
  * Returns the size the region should have to enforce the memory limit.
  * This will either be the original value of size, a truncated value,
  * or zero. If the returned value of size is 0 the region should be
- * discarded as it lies wholy above the memory limit.
+ * discarded as it lies wholly above the memory limit.
  */
 static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 						      unsigned long size)
@@ -1289,10 +1289,9 @@ u64 memory_hotplug_max(void)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
-/* Vrtual Processor Home Node (VPHN) support */
+/* Virtual Processor Home Node (VPHN) support */
 #ifdef CONFIG_PPC_SPLPAR
-#define VPHN_NR_CHANGE_CTRS (8)
-static u8 vphn_cpu_change_counts[NR_CPUS][VPHN_NR_CHANGE_CTRS];
+static u8 vphn_cpu_change_counts[NR_CPUS][MAX_DISTANCE_REF_POINTS];
 static cpumask_t cpu_associativity_changes_mask;
 static int vphn_enabled;
 static void set_topology_timer(void);
@@ -1303,16 +1302,18 @@ static void set_topology_timer(void);
  */
 static void setup_cpu_associativity_change_counters(void)
 {
-	int cpu = 0;
+	int cpu;
+
+	/* The VPHN feature supports a maximum of 8 reference points */
+	BUILD_BUG_ON(MAX_DISTANCE_REF_POINTS > 8);
 
 	for_each_possible_cpu(cpu) {
-		int i = 0;
+		int i;
 		u8 *counts = vphn_cpu_change_counts[cpu];
 		volatile u8 *hypervisor_counts = lppaca[cpu].vphn_assoc_counts;
 
-		for (i = 0; i < VPHN_NR_CHANGE_CTRS; i++) {
+		for (i = 0; i < distance_ref_points_depth; i++)
 			counts[i] = hypervisor_counts[i];
-		}
 	}
 }
 
@@ -1329,7 +1330,7 @@ static void setup_cpu_associativity_change_counters(void)
  */
 static int update_cpu_associativity_changes_mask(void)
 {
-	int cpu = 0, nr_cpus = 0;
+	int cpu, nr_cpus = 0;
 	cpumask_t *changes = &cpu_associativity_changes_mask;
 
 	cpumask_clear(changes);
@@ -1339,8 +1340,8 @@ static int update_cpu_associativity_changes_mask(void)
 		u8 *counts = vphn_cpu_change_counts[cpu];
 		volatile u8 *hypervisor_counts = lppaca[cpu].vphn_assoc_counts;
 
-		for (i = 0; i < VPHN_NR_CHANGE_CTRS; i++) {
-			if (hypervisor_counts[i] > counts[i]) {
+		for (i = 0; i < distance_ref_points_depth; i++) {
+			if (hypervisor_counts[i] != counts[i]) {
 				counts[i] = hypervisor_counts[i];
 				changed = 1;
 			}
@@ -1354,8 +1355,11 @@ static int update_cpu_associativity_changes_mask(void)
 	return nr_cpus;
 }
 
-/* 6 64-bit registers unpacked into 12 32-bit associativity values */
-#define VPHN_ASSOC_BUFSIZE (6*sizeof(u64)/sizeof(u32))
+/*
+ * 6 64-bit registers unpacked into 12 32-bit associativity values. To form
+ * the complete property we have to add the length in the first cell.
+ */
+#define VPHN_ASSOC_BUFSIZE (6*sizeof(u64)/sizeof(u32) + 1)
 
 /*
  * Convert the associativity domain numbers returned from the hypervisor
@@ -1363,15 +1367,14 @@ static int update_cpu_associativity_changes_mask(void)
  */
 static int vphn_unpack_associativity(const long *packed, unsigned int *unpacked)
 {
-	int i = 0;
-	int nr_assoc_doms = 0;
+	int i, nr_assoc_doms = 0;
 	const u16 *field = (const u16*) packed;
 
 #define VPHN_FIELD_UNUSED	(0xffff)
 #define VPHN_FIELD_MSB		(0x8000)
 #define VPHN_FIELD_MASK		(~VPHN_FIELD_MSB)
 
-	for (i = 0; i < VPHN_ASSOC_BUFSIZE; i++) {
+	for (i = 1; i < VPHN_ASSOC_BUFSIZE; i++) {
 		if (*field == VPHN_FIELD_UNUSED) {
 			/* All significant fields processed, and remaining
 			 * fields contain the reserved value of all 1's.
@@ -1379,14 +1382,12 @@ static int vphn_unpack_associativity(const long *packed, unsigned int *unpacked)
 			 */
 			unpacked[i] = *((u32*)field);
 			field += 2;
-		}
-		else if (*field & VPHN_FIELD_MSB) {
+		} else if (*field & VPHN_FIELD_MSB) {
 			/* Data is in the lower 15 bits of this field */
 			unpacked[i] = *field & VPHN_FIELD_MASK;
 			field++;
 			nr_assoc_doms++;
-		}
-		else {
+		} else {
 			/* Data is in the lower 15 bits of this field
 			 * concatenated with the next 16 bit field
 			 */
@@ -1395,6 +1396,9 @@ static int vphn_unpack_associativity(const long *packed, unsigned int *unpacked)
 			nr_assoc_doms++;
 		}
 	}
+
+	/* The first cell contains the length of the property */
+	unpacked[0] = nr_assoc_doms;
 
 	return nr_assoc_doms;
 }
@@ -1405,7 +1409,7 @@ static int vphn_unpack_associativity(const long *packed, unsigned int *unpacked)
  */
 static long hcall_vphn(unsigned long cpu, unsigned int *associativity)
 {
-	long rc = 0;
+	long rc;
 	long retbuf[PLPAR_HCALL9_BUFSIZE] = {0};
 	u64 flags = 1;
 	int hwcpu = get_hard_smp_processor_id(cpu);
@@ -1419,7 +1423,7 @@ static long hcall_vphn(unsigned long cpu, unsigned int *associativity)
 static long vphn_get_associativity(unsigned long cpu,
 					unsigned int *associativity)
 {
-	long rc = 0;
+	long rc;
 
 	rc = hcall_vphn(cpu, associativity);
 
@@ -1445,9 +1449,9 @@ static long vphn_get_associativity(unsigned long cpu,
  */
 int arch_update_cpu_topology(void)
 {
-	int cpu = 0, nid = 0, old_nid = 0;
+	int cpu, nid, old_nid;
 	unsigned int associativity[VPHN_ASSOC_BUFSIZE] = {0};
-	struct sys_device *sysdev = NULL;
+	struct sys_device *sysdev;
 
 	for_each_cpu_mask(cpu, cpu_associativity_changes_mask) {
 		vphn_get_associativity(cpu, associativity);
@@ -1512,7 +1516,9 @@ int start_topology_update(void)
 {
 	int rc = 0;
 
-	if (firmware_has_feature(FW_FEATURE_VPHN)) {
+	/* Disabled until races with load balancing are fixed */
+	if (0 && firmware_has_feature(FW_FEATURE_VPHN) &&
+	    get_lppaca()->shared_proc) {
 		vphn_enabled = 1;
 		setup_cpu_associativity_change_counters();
 		init_timer_deferrable(&topology_timer);

@@ -158,6 +158,17 @@ intensive calculation on your laptop that you do not care how long it
 takes to complete as you can 'nice' it and prevent it from taking part
 in the deciding process of whether to increase your CPU frequency.
 
+sampling_down_factor: this parameter controls the rate at which the
+kernel makes a decision on when to decrease the frequency while running
+at top speed. When set to 1 (the default) decisions to reevaluate load
+are made at the same interval regardless of current clock speed. But
+when set to greater than 1 (e.g. 100) it acts as a multiplier for the
+scheduling interval for reevaluating load when the CPU is at its top
+speed due to high load. This improves performance by reducing the overhead
+of load evaluation and helping the CPU stay at its top speed when truly
+busy, rather than shifting back and forth in speed. This tunable has no
+effect on behavior at lower speeds/lower CPU loads.
+
 
 2.5 Conservative
 ----------------

@@ -305,7 +305,7 @@ static void cuse_gendev_release(struct device *dev)
 static void cuse_process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 {
 	struct cuse_conn *cc = fc_to_cc(fc);
-	struct cuse_init_out *arg = &req->misc.cuse_init_out;
+	struct cuse_init_out *arg = req->out.args[0].value;
 	struct page *page = req->pages[0];
 	struct cuse_devinfo devinfo = { };
 	struct device *dev;
@@ -384,6 +384,7 @@ static void cuse_process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 	dev_set_uevent_suppress(dev, 0);
 	kobject_uevent(&dev->kobj, KOBJ_ADD);
 out:
+	kfree(arg);
 	__free_page(page);
 	return;
 
@@ -405,6 +406,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 	struct page *page;
 	struct fuse_conn *fc = &cc->fc;
 	struct cuse_init_in *arg;
+	void *outarg;
 
 	BUILD_BUG_ON(CUSE_INIT_INFO_MAX > PAGE_SIZE);
 
@@ -419,6 +421,10 @@ static int cuse_send_init(struct cuse_conn *cc)
 	if (!page)
 		goto err_put_req;
 
+	outarg = kzalloc(sizeof(struct cuse_init_out), GFP_KERNEL);
+	if (!outarg)
+		goto err_free_page;
+
 	arg = &req->misc.cuse_init_in;
 	arg->major = FUSE_KERNEL_VERSION;
 	arg->minor = FUSE_KERNEL_MINOR_VERSION;
@@ -429,7 +435,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 	req->in.args[0].value = arg;
 	req->out.numargs = 2;
 	req->out.args[0].size = sizeof(struct cuse_init_out);
-	req->out.args[0].value = &req->misc.cuse_init_out;
+	req->out.args[0].value = outarg;
 	req->out.args[1].size = CUSE_INIT_INFO_MAX;
 	req->out.argvar = 1;
 	req->out.argpages = 1;
@@ -440,6 +446,8 @@ static int cuse_send_init(struct cuse_conn *cc)
 
 	return 0;
 
+err_free_page:
+	__free_page(page);
 err_put_req:
 	fuse_put_request(fc, req);
 err:
@@ -458,7 +466,7 @@ static void cuse_fc_release(struct fuse_conn *fc)
  * @file: file struct being opened
  *
  * Userland CUSE server can create a CUSE device by opening /dev/cuse
- * and replying to the initilaization request kernel sends.  This
+ * and replying to the initialization request kernel sends.  This
  * function is responsible for handling CUSE device initialization.
  * Because the fd opened by this function is used during
  * initialization, this function only creates cuse_conn and sends

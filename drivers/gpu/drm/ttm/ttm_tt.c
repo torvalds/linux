@@ -49,12 +49,16 @@ static int ttm_tt_swapin(struct ttm_tt *ttm);
 static void ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
 	ttm->pages = drm_calloc_large(ttm->num_pages, sizeof(*ttm->pages));
+	ttm->dma_address = drm_calloc_large(ttm->num_pages,
+					    sizeof(*ttm->dma_address));
 }
 
 static void ttm_tt_free_page_directory(struct ttm_tt *ttm)
 {
 	drm_free_large(ttm->pages);
 	ttm->pages = NULL;
+	drm_free_large(ttm->dma_address);
+	ttm->dma_address = NULL;
 }
 
 static void ttm_tt_free_user_pages(struct ttm_tt *ttm)
@@ -105,7 +109,8 @@ static struct page *__ttm_tt_get_page(struct ttm_tt *ttm, int index)
 
 		INIT_LIST_HEAD(&h);
 
-		ret = ttm_get_pages(&h, ttm->page_flags, ttm->caching_state, 1);
+		ret = ttm_get_pages(&h, ttm->page_flags, ttm->caching_state, 1,
+				    &ttm->dma_address[index]);
 
 		if (ret != 0)
 			return NULL;
@@ -164,7 +169,7 @@ int ttm_tt_populate(struct ttm_tt *ttm)
 	}
 
 	be->func->populate(be, ttm->num_pages, ttm->pages,
-			   ttm->dummy_read_page);
+			   ttm->dummy_read_page, ttm->dma_address);
 	ttm->state = tt_unbound;
 	return 0;
 }
@@ -298,7 +303,8 @@ static void ttm_tt_free_alloced_pages(struct ttm_tt *ttm)
 			count++;
 		}
 	}
-	ttm_put_pages(&h, count, ttm->page_flags, ttm->caching_state);
+	ttm_put_pages(&h, count, ttm->page_flags, ttm->caching_state,
+		      ttm->dma_address);
 	ttm->state = tt_unpopulated;
 	ttm->first_himem_page = ttm->num_pages;
 	ttm->last_lomem_page = -1;
@@ -326,7 +332,7 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 		ttm_tt_free_page_directory(ttm);
 	}
 
-	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTANT_SWAP) &&
+	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP) &&
 	    ttm->swap_storage)
 		fput(ttm->swap_storage);
 
@@ -497,7 +503,7 @@ static int ttm_tt_swapin(struct ttm_tt *ttm)
 		page_cache_release(from_page);
 	}
 
-	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTANT_SWAP))
+	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP))
 		fput(swap_storage);
 	ttm->swap_storage = NULL;
 	ttm->page_flags &= ~TTM_PAGE_FLAG_SWAPPED;
@@ -508,7 +514,7 @@ out_err:
 	return ret;
 }
 
-int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistant_swap_storage)
+int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 {
 	struct address_space *swap_space;
 	struct file *swap_storage;
@@ -534,7 +540,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistant_swap_storage)
 		return 0;
 	}
 
-	if (!persistant_swap_storage) {
+	if (!persistent_swap_storage) {
 		swap_storage = shmem_file_setup("ttm swap",
 						ttm->num_pages << PAGE_SHIFT,
 						0);
@@ -543,7 +549,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistant_swap_storage)
 			return PTR_ERR(swap_storage);
 		}
 	} else
-		swap_storage = persistant_swap_storage;
+		swap_storage = persistent_swap_storage;
 
 	swap_space = swap_storage->f_path.dentry->d_inode->i_mapping;
 
@@ -571,12 +577,12 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistant_swap_storage)
 	ttm_tt_free_alloced_pages(ttm);
 	ttm->swap_storage = swap_storage;
 	ttm->page_flags |= TTM_PAGE_FLAG_SWAPPED;
-	if (persistant_swap_storage)
-		ttm->page_flags |= TTM_PAGE_FLAG_PERSISTANT_SWAP;
+	if (persistent_swap_storage)
+		ttm->page_flags |= TTM_PAGE_FLAG_PERSISTENT_SWAP;
 
 	return 0;
 out_err:
-	if (!persistant_swap_storage)
+	if (!persistent_swap_storage)
 		fput(swap_storage);
 
 	return ret;

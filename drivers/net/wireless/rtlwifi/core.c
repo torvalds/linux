@@ -82,7 +82,7 @@ static void rtl_op_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&rtlpriv->locks.conf_mutex);
 }
 
-static int rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -97,11 +97,10 @@ static int rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	rtlpriv->intf_ops->adapter_tx(hw, skb);
 
-	return NETDEV_TX_OK;
+	return;
 
 err_free:
 	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
 }
 
 static int rtl_op_add_interface(struct ieee80211_hw *hw,
@@ -434,9 +433,9 @@ static int rtl_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 	aci = _rtl_get_hal_qnum(queue);
 	mac->ac[aci].aifs = param->aifs;
-	mac->ac[aci].cw_min = param->cw_min;
-	mac->ac[aci].cw_max = param->cw_max;
-	mac->ac[aci].tx_op = param->txop;
+	mac->ac[aci].cw_min = cpu_to_le16(param->cw_min);
+	mac->ac[aci].cw_max = cpu_to_le16(param->cw_max);
+	mac->ac[aci].tx_op = cpu_to_le16(param->txop);
 	memcpy(&mac->edca_param[aci], param, sizeof(*param));
 	rtlpriv->cfg->ops->set_qos(hw, aci);
 	return 0;
@@ -552,6 +551,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_TRACE,
 			 ("BSS_CHANGED_HT\n"));
 
+		rcu_read_lock();
 		sta = ieee80211_find_sta(mac->vif, mac->bssid);
 
 		if (sta) {
@@ -564,6 +564,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				mac->current_ampdu_factor =
 				    sta->ht_cap.ampdu_factor;
 		}
+		rcu_read_unlock();
 
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SHORTGI_DENSITY,
 					      (u8 *) (&mac->max_mss_density));
@@ -615,6 +616,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		else
 			mac->mode = WIRELESS_MODE_G;
 
+		rcu_read_lock();
 		sta = ieee80211_find_sta(mac->vif, mac->bssid);
 
 		if (sta) {
@@ -649,6 +651,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				 */
 			}
 		}
+		rcu_read_unlock();
 
 		/*mac80211 just give us CCK rates any time
 		 *So we add G rate in basic rates when
@@ -666,7 +669,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_BASIC_RATE,
 					(u8 *) (&basic_rates));
 
-			if (rtlpriv->dm.b_useramask)
+			if (rtlpriv->dm.useramask)
 				rtlpriv->cfg->ops->update_rate_mask(hw, 0);
 			else
 				rtlpriv->cfg->ops->update_rate_table(hw);
@@ -681,7 +684,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 	 */
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
-			if (ppsc->b_fwctrl_lps) {
+			if (ppsc->fwctrl_lps) {
 				u8 mstatus = RT_MEDIA_CONNECT;
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						      HW_VAR_H2C_FW_JOINBSSRPT,
@@ -689,7 +692,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				ppsc->report_linked = true;
 			}
 		} else {
-			if (ppsc->b_fwctrl_lps) {
+			if (ppsc->fwctrl_lps) {
 				u8 mstatus = RT_MEDIA_DISCONNECT;
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						      HW_VAR_H2C_FW_JOINBSSRPT,
@@ -748,7 +751,8 @@ static void rtl_op_sta_notify(struct ieee80211_hw *hw,
 static int rtl_op_ampdu_action(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       enum ieee80211_ampdu_mlme_action action,
-			       struct ieee80211_sta *sta, u16 tid, u16 * ssn)
+			       struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+			       u8 buf_size)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -817,7 +821,7 @@ static void rtl_op_sw_scan_complete(struct ieee80211_hw *hw)
 		/* fix fwlps issue */
 		rtlpriv->cfg->ops->set_network_type(hw, mac->opmode);
 
-		if (rtlpriv->dm.b_useramask)
+		if (rtlpriv->dm.useramask)
 			rtlpriv->cfg->ops->update_rate_mask(hw, 0);
 		else
 			rtlpriv->cfg->ops->update_rate_table(hw);

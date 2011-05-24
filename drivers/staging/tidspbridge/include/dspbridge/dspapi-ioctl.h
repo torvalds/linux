@@ -29,22 +29,22 @@ union trapped_args {
 	/* MGR Module */
 	struct {
 		u32 node_id;
-		struct dsp_ndbprops __user *pndb_props;
-		u32 undb_props_size;
-		u32 __user *pu_num_nodes;
+		struct dsp_ndbprops __user *ndb_props;
+		u32 ndb_props_size;
+		u32 __user *num_nodes;
 	} args_mgr_enumnode_info;
 
 	struct {
 		u32 processor_id;
 		struct dsp_processorinfo __user *processor_info;
 		u32 processor_info_size;
-		u32 __user *pu_num_procs;
+		u32 __user *num_procs;
 	} args_mgr_enumproc_info;
 
 	struct {
 		struct dsp_uuid *uuid_obj;
 		enum dsp_dcdobjtype obj_type;
-		char *psz_path_name;
+		char *sz_path_name;
 	} args_mgr_registerobject;
 
 	struct {
@@ -55,8 +55,8 @@ union trapped_args {
 	struct {
 		struct dsp_notification __user *__user *anotifications;
 		u32 count;
-		u32 __user *pu_index;
-		u32 utimeout;
+		u32 __user *index;
+		u32 timeout;
 	} args_mgr_wait;
 
 	/* PROC Module */
@@ -67,196 +67,188 @@ union trapped_args {
 	} args_proc_attach;
 
 	struct {
-		void *hprocessor;
-		u32 dw_cmd;
-		struct dsp_cbdata __user *pargs;
+		void *processor;
+		u32 cmd;
+		struct dsp_cbdata __user *args;
 	} args_proc_ctrl;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 	} args_proc_detach;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		void *__user *node_tab;
 		u32 node_tab_size;
-		u32 __user *pu_num_nodes;
-		u32 __user *pu_allocated;
+		u32 __user *num_nodes;
+		u32 __user *allocated;
 	} args_proc_enumnode_info;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		u32 resource_type;
 		struct dsp_resourceinfo *resource_info;
 		u32 resource_info_size;
 	} args_proc_enumresources;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		struct dsp_processorstate __user *proc_state_obj;
 		u32 state_info_size;
 	} args_proc_getstate;
 
 	struct {
-		void *hprocessor;
-		u8 __user *pbuf;
-		u8 __user *psize;
+		void *processor;
+		u8 __user *buf;
+		u8 __user *size;
 		u32 max_size;
 	} args_proc_gettrace;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		s32 argc_index;
 		char __user *__user *user_args;
 		char *__user *user_envp;
 	} args_proc_load;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		u32 event_mask;
 		u32 notify_type;
-		struct dsp_notification __user *hnotification;
+		struct dsp_notification __user *notification;
 	} args_proc_register_notify;
 
 	struct {
-		void *hprocessor;
-	} args_proc_start;
-
-	struct {
-		void *hprocessor;
-		u32 ul_size;
-		void *__user *pp_rsv_addr;
+		void *processor;
+		u32 size;
+		void *__user *rsv_addr;
 	} args_proc_rsvmem;
 
 	struct {
-		void *hprocessor;
-		u32 ul_size;
-		void *prsv_addr;
+		void *processor;
+		u32 size;
+		void *rsv_addr;
 	} args_proc_unrsvmem;
 
 	struct {
-		void *hprocessor;
-		void *pmpu_addr;
-		u32 ul_size;
+		void *processor;
+		void *mpu_addr;
+		u32 size;
 		void *req_addr;
-		void *__user *pp_map_addr;
-		u32 ul_map_attr;
+		void *__user *map_addr;
+		u32 map_attr;
 	} args_proc_mapmem;
 
 	struct {
-		void *hprocessor;
-		u32 ul_size;
+		void *processor;
+		u32 size;
 		void *map_addr;
 	} args_proc_unmapmem;
 
 	struct {
-		void *hprocessor;
-		void *pmpu_addr;
-		u32 ul_size;
+		void *processor;
+		void *mpu_addr;
+		u32 size;
 		u32 dir;
 	} args_proc_dma;
 
 	struct {
-		void *hprocessor;
-		void *pmpu_addr;
-		u32 ul_size;
-		u32 ul_flags;
+		void *processor;
+		void *mpu_addr;
+		u32 size;
+		u32 flags;
 	} args_proc_flushmemory;
 
 	struct {
-		void *hprocessor;
-	} args_proc_stop;
-
-	struct {
-		void *hprocessor;
-		void *pmpu_addr;
-		u32 ul_size;
+		void *processor;
+		void *mpu_addr;
+		u32 size;
 	} args_proc_invalidatememory;
 
 	/* NODE Module */
 	struct {
-		void *hprocessor;
+		void *processor;
 		struct dsp_uuid __user *node_id_ptr;
-		struct dsp_cbdata __user *pargs;
+		struct dsp_cbdata __user *args;
 		struct dsp_nodeattrin __user *attr_in;
-		void *__user *ph_node;
+		void *__user *node;
 	} args_node_allocate;
 
 	struct {
-		void *hnode;
-		u32 usize;
-		struct dsp_bufferattr __user *pattr;
-		u8 *__user *pbuffer;
+		void *node;
+		u32 size;
+		struct dsp_bufferattr __user *attr;
+		u8 *__user *buffer;
 	} args_node_allocmsgbuf;
 
 	struct {
-		void *hnode;
+		void *node;
 		s32 prio;
 	} args_node_changepriority;
 
 	struct {
-		void *hnode;
+		void *node;
 		u32 stream_id;
 		void *other_node;
 		u32 other_stream;
-		struct dsp_strmattr __user *pattrs;
+		struct dsp_strmattr __user *attrs;
 		struct dsp_cbdata __user *conn_param;
 	} args_node_connect;
 
 	struct {
-		void *hnode;
+		void *node;
 	} args_node_create;
 
 	struct {
-		void *hnode;
+		void *node;
 	} args_node_delete;
 
 	struct {
-		void *hnode;
-		struct dsp_bufferattr __user *pattr;
-		u8 *pbuffer;
+		void *node;
+		struct dsp_bufferattr __user *attr;
+		u8 *buffer;
 	} args_node_freemsgbuf;
 
 	struct {
-		void *hnode;
-		struct dsp_nodeattr __user *pattr;
+		void *node;
+		struct dsp_nodeattr __user *attr;
 		u32 attr_size;
 	} args_node_getattr;
 
 	struct {
-		void *hnode;
+		void *node;
 		struct dsp_msg __user *message;
-		u32 utimeout;
+		u32 timeout;
 	} args_node_getmessage;
 
 	struct {
-		void *hnode;
+		void *node;
 	} args_node_pause;
 
 	struct {
-		void *hnode;
+		void *node;
 		struct dsp_msg __user *message;
-		u32 utimeout;
+		u32 timeout;
 	} args_node_putmessage;
 
 	struct {
-		void *hnode;
+		void *node;
 		u32 event_mask;
 		u32 notify_type;
-		struct dsp_notification __user *hnotification;
+		struct dsp_notification __user *notification;
 	} args_node_registernotify;
 
 	struct {
-		void *hnode;
+		void *node;
 	} args_node_run;
 
 	struct {
-		void *hnode;
-		int __user *pstatus;
+		void *node;
+		int __user *status;
 	} args_node_terminate;
 
 	struct {
-		void *hprocessor;
+		void *processor;
 		struct dsp_uuid __user *node_id_ptr;
 		struct dsp_ndbprops __user *node_props;
 	} args_node_getuuidprops;
@@ -264,104 +256,104 @@ union trapped_args {
 	/* STRM module */
 
 	struct {
-		void *hstream;
-		u32 usize;
+		void *stream;
+		u32 size;
 		u8 *__user *ap_buffer;
 		u32 num_bufs;
 	} args_strm_allocatebuffer;
 
 	struct {
-		void *hstream;
+		void *stream;
 	} args_strm_close;
 
 	struct {
-		void *hstream;
+		void *stream;
 		u8 *__user *ap_buffer;
 		u32 num_bufs;
 	} args_strm_freebuffer;
 
 	struct {
-		void *hstream;
-		void **ph_event;
+		void *stream;
+		void **event;
 	} args_strm_geteventhandle;
 
 	struct {
-		void *hstream;
+		void *stream;
 		struct stream_info __user *stream_info;
 		u32 stream_info_size;
 	} args_strm_getinfo;
 
 	struct {
-		void *hstream;
+		void *stream;
 		bool flush_flag;
 	} args_strm_idle;
 
 	struct {
-		void *hstream;
-		u8 *pbuffer;
-		u32 dw_bytes;
-		u32 dw_buf_size;
-		u32 dw_arg;
+		void *stream;
+		u8 *buffer;
+		u32 bytes;
+		u32 buf_size;
+		u32 arg;
 	} args_strm_issue;
 
 	struct {
-		void *hnode;
+		void *node;
 		u32 direction;
 		u32 index;
 		struct strm_attr __user *attr_in;
-		void *__user *ph_stream;
+		void *__user *stream;
 	} args_strm_open;
 
 	struct {
-		void *hstream;
+		void *stream;
 		u8 *__user *buf_ptr;
 		u32 __user *bytes;
 		u32 __user *buf_size_ptr;
-		u32 __user *pdw_arg;
+		u32 __user *arg;
 	} args_strm_reclaim;
 
 	struct {
-		void *hstream;
+		void *stream;
 		u32 event_mask;
 		u32 notify_type;
-		struct dsp_notification __user *hnotification;
+		struct dsp_notification __user *notification;
 	} args_strm_registernotify;
 
 	struct {
 		void *__user *stream_tab;
 		u32 strm_num;
-		u32 __user *pmask;
-		u32 utimeout;
+		u32 __user *mask;
+		u32 timeout;
 	} args_strm_select;
 
 	/* CMM Module */
 	struct {
-		struct cmm_object *hcmm_mgr;
-		u32 usize;
-		struct cmm_attrs *pattrs;
-		void **pp_buf_va;
+		struct cmm_object *cmm_mgr;
+		u32 size;
+		struct cmm_attrs *attrs;
+		void **buf_va;
 	} args_cmm_allocbuf;
 
 	struct {
-		struct cmm_object *hcmm_mgr;
+		struct cmm_object *cmm_mgr;
 		void *buf_pa;
-		u32 ul_seg_id;
+		u32 seg_id;
 	} args_cmm_freebuf;
 
 	struct {
-		void *hprocessor;
-		struct cmm_object *__user *ph_cmm_mgr;
+		void *processor;
+		struct cmm_object *__user *cmm_mgr;
 	} args_cmm_gethandle;
 
 	struct {
-		struct cmm_object *hcmm_mgr;
+		struct cmm_object *cmm_mgr;
 		struct cmm_info __user *cmm_info_obj;
 	} args_cmm_getinfo;
 
 	/* UTIL module */
 	struct {
 		s32 util_argc;
-		char **pp_argv;
+		char **argv;
 	} args_util_testdll;
 };
 

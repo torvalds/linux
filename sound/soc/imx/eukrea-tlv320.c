@@ -79,7 +79,7 @@ static struct snd_soc_dai_link eukrea_tlv320_dai = {
 	.name		= "tlv320aic23",
 	.stream_name	= "TLV320AIC23",
 	.codec_dai_name	= "tlv320aic23-hifi",
-	.platform_name	= "imx-pcm-audio.0",
+	.platform_name	= "imx-fiq-pcm-audio.0",
 	.codec_name	= "tlv320aic23-codec.0-001a",
 	.cpu_dai_name	= "imx-ssi.0",
 	.ops		= &eukrea_tlv320_snd_ops,
@@ -98,7 +98,8 @@ static int __init eukrea_tlv320_init(void)
 	int ret;
 
 	if (!machine_is_eukrea_cpuimx27() && !machine_is_eukrea_cpuimx25sd()
-		&& !machine_is_eukrea_cpuimx35sd())
+		&& !machine_is_eukrea_cpuimx35sd()
+		&& !machine_is_eukrea_cpuimx51sd())
 		/* return happy. We might run on a totally different machine */
 		return 0;
 

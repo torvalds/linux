@@ -1,7 +1,7 @@
 First of all, the best thing would be that this driver becomes obsolte by
 adding support for Hermes II and Hermes II.5 cards to the existing orinoco
 driver. The orinoco driver currently only supports Hermes I based cards.
-Since this will not happen by magic and has not happend until now this
+Since this will not happen by magic and has not happened until now this
 driver provides a stop-gap solution for these type of cards.
 
 Having said that, the following wishlist comes to mind to make the driver
@@ -18,7 +18,7 @@ TODO:
 	- the driver is split into a Hermes II and a Hermes II.5 part, it
 	  would be nice to handle both with one module instead of two
 	- review by the wireless developer community
-	- verify the code against the coding standards for a propper linux
+	- verify the code against the coding standards for a proper linux
 	  driver
 	- resolve license issues (?)
 

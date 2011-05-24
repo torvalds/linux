@@ -100,22 +100,16 @@ int vrtc_set_mmss(unsigned long nowtime)
 
 void __init mrst_rtc_init(void)
 {
-	unsigned long rtc_paddr;
-	void __iomem *virt_base;
+	unsigned long vrtc_paddr;
 
 	sfi_table_parse(SFI_SIG_MRTC, NULL, NULL, sfi_parse_mrtc);
-	if (!sfi_mrtc_num)
+
+	vrtc_paddr = sfi_mrtc_array[0].phys_addr;
+	if (!sfi_mrtc_num || !vrtc_paddr)
 		return;
 
-	rtc_paddr = sfi_mrtc_array[0].phys_addr;
-
-	/* vRTC's register address may not be page aligned */
-	set_fixmap_nocache(FIX_LNW_VRTC, rtc_paddr);
-
-	virt_base = (void __iomem *)__fix_to_virt(FIX_LNW_VRTC);
-	virt_base += rtc_paddr & ~PAGE_MASK;
-	vrtc_virt_base = virt_base;
-
+	vrtc_virt_base = (void __iomem *)set_fixmap_offset_nocache(FIX_LNW_VRTC,
+								vrtc_paddr);
 	x86_platform.get_wallclock = vrtc_get_time;
 	x86_platform.set_wallclock = vrtc_set_mmss;
 }

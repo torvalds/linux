@@ -2,7 +2,7 @@
  * net/tipc/node_subscr.c: TIPC "node down" subscription handling
  *
  * Copyright (c) 1995-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,4 +75,23 @@ void tipc_nodesub_unsubscribe(struct tipc_node_subscr *node_sub)
 	tipc_node_lock(node_sub->node);
 	list_del_init(&node_sub->nodesub_list);
 	tipc_node_unlock(node_sub->node);
+}
+
+/**
+ * tipc_nodesub_notify - notify subscribers that a node is unreachable
+ *
+ * Note: node is locked by caller
+ */
+
+void tipc_nodesub_notify(struct tipc_node *node)
+{
+	struct tipc_node_subscr *ns;
+
+	list_for_each_entry(ns, &node->nsub, nodesub_list) {
+		if (ns->handle_node_down) {
+			tipc_k_signal((Handler)ns->handle_node_down,
+				      (unsigned long)ns->usr_handle);
+			ns->handle_node_down = NULL;
+		}
+	}
 }

@@ -30,14 +30,6 @@ typedef __signed__ long saddr_t;
 
 #ifndef __ASSEMBLY__
 
-typedef u64 dma64_addr_t;
-#ifdef __s390x__
-/* DMA addresses come in 32-bit and 64-bit flavours. */
-typedef u64 dma_addr_t;
-#else
-typedef u32 dma_addr_t;
-#endif
-
 #ifndef __s390x__
 typedef union {
 	unsigned long long pair;

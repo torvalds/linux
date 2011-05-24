@@ -95,6 +95,53 @@ static const struct cx18_card cx18_card_hvr1600_esmt = {
 	.i2c = &cx18_i2c_std,
 };
 
+static const struct cx18_card cx18_card_hvr1600_s5h1411 = {
+	.type = CX18_CARD_HVR_1600_S5H1411,
+	.name = "Hauppauge HVR-1600",
+	.comment = "Simultaneous Digital and Analog TV capture supported\n",
+	.v4l2_capabilities = CX18_CAP_ENCODER,
+	.hw_audio_ctrl = CX18_HW_418_AV,
+	.hw_muxer = CX18_HW_CS5345,
+	.hw_all = CX18_HW_TVEEPROM | CX18_HW_418_AV | CX18_HW_TUNER |
+		  CX18_HW_CS5345 | CX18_HW_DVB | CX18_HW_GPIO_RESET_CTRL |
+		  CX18_HW_Z8F0811_IR_HAUP,
+	.video_inputs = {
+		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE7 },
+		{ CX18_CARD_INPUT_SVIDEO1,    1, CX18_AV_SVIDEO1    },
+		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX18_AV_COMPOSITE3 },
+		{ CX18_CARD_INPUT_SVIDEO2,    2, CX18_AV_SVIDEO2    },
+		{ CX18_CARD_INPUT_COMPOSITE2, 2, CX18_AV_COMPOSITE4 },
+	},
+	.audio_inputs = {
+		{ CX18_CARD_INPUT_AUD_TUNER,
+		  CX18_AV_AUDIO8, CS5345_IN_1 | CS5345_MCLK_1_5 },
+		{ CX18_CARD_INPUT_LINE_IN1,
+		  CX18_AV_AUDIO_SERIAL1, CS5345_IN_2 },
+		{ CX18_CARD_INPUT_LINE_IN2,
+		  CX18_AV_AUDIO_SERIAL1, CS5345_IN_3 },
+	},
+	.radio_input = { CX18_CARD_INPUT_AUD_TUNER,
+			 CX18_AV_AUDIO_SERIAL1, CS5345_IN_4 },
+	.ddr = {
+		/* ESMT M13S128324A-5B memory */
+		.chip_config = 0x003,
+		.refresh = 0x30c,
+		.timing1 = 0x44220e82,
+		.timing2 = 0x08,
+		.tune_lane = 0,
+		.initial_emrs = 0,
+	},
+	.gpio_init.initial_value = 0x3001,
+	.gpio_init.direction = 0x3001,
+	.gpio_i2c_slave_reset = {
+		.active_lo_mask = 0x3001,
+		.msecs_asserted = 10,
+		.msecs_recovery = 40,
+		.ir_reset_mask  = 0x0001,
+	},
+	.i2c = &cx18_i2c_std,
+};
+
 static const struct cx18_card cx18_card_hvr1600_samsung = {
 	.type = CX18_CARD_HVR_1600_SAMSUNG,
 	.name = "Hauppauge HVR-1600 (Preproduction)",
@@ -523,7 +570,8 @@ static const struct cx18_card *cx18_card_list[] = {
 	&cx18_card_toshiba_qosmio_dvbt,
 	&cx18_card_leadtek_pvr2100,
 	&cx18_card_leadtek_dvr3100h,
-	&cx18_card_gotview_dvd3
+	&cx18_card_gotview_dvd3,
+	&cx18_card_hvr1600_s5h1411
 };
 
 const struct cx18_card *cx18_get_card(u16 index)

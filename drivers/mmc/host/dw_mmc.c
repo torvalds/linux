@@ -32,6 +32,7 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/dw_mmc.h>
 #include <linux/bitops.h>
+#include <linux/regulator/consumer.h>
 
 #include "dw_mmc.h"
 
@@ -315,7 +316,7 @@ static void dw_mci_idmac_stop_dma(struct dw_mci *host)
 
 	/* Stop the IDMAC running */
 	temp = mci_readl(host, BMOD);
-	temp &= ~SDMMC_IDMAC_ENABLE;
+	temp &= ~(SDMMC_IDMAC_ENABLE | SDMMC_IDMAC_FB);
 	mci_writel(host, BMOD, temp);
 }
 
@@ -384,7 +385,7 @@ static void dw_mci_idmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 
 	/* Enable the IDMAC */
 	temp = mci_readl(host, BMOD);
-	temp |= SDMMC_IDMAC_ENABLE;
+	temp |= SDMMC_IDMAC_ENABLE | SDMMC_IDMAC_FB;
 	mci_writel(host, BMOD, temp);
 
 	/* Start it running */
@@ -562,7 +563,8 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot)
 			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
 
 		/* enable clock */
-		mci_writel(host, CLKENA, SDMMC_CLKEN_ENABLE);
+		mci_writel(host, CLKENA, SDMMC_CLKEN_ENABLE |
+			   SDMMC_CLKEN_LOW_PWR);
 
 		/* inform CIU */
 		mci_send_cmd(slot,
@@ -661,6 +663,7 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
+	u32 regs;
 
 	/* set default 1 bit mode */
 	slot->ctype = SDMMC_CTYPE_1BIT;
@@ -672,6 +675,16 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_BUS_WIDTH_4:
 		slot->ctype = SDMMC_CTYPE_4BIT;
 		break;
+	case MMC_BUS_WIDTH_8:
+		slot->ctype = SDMMC_CTYPE_8BIT;
+		break;
+	}
+
+	/* DDR mode set */
+	if (ios->ddr) {
+		regs = mci_readl(slot->host, UHS_REG);
+		regs |= (0x1 << slot->id) << 16;
+		mci_writel(slot->host, UHS_REG, regs);
 	}
 
 	if (ios->clock) {
@@ -717,7 +730,9 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	struct dw_mci_board *brd = slot->host->pdata;
 
 	/* Use platform get_cd function, else try onboard card detect */
-	if (brd->get_cd)
+	if (brd->quirks & DW_MCI_QUIRK_BROKEN_CARD_DETECTION)
+		present = 1;
+	else if (brd->get_cd)
 		present = !brd->get_cd(slot->id);
 	else
 		present = (mci_readl(slot->host, CDETECT) & (1 << slot->id))
@@ -1019,13 +1034,10 @@ static void dw_mci_read_data_pio(struct dw_mci *host)
 	struct mmc_data	*data = host->data;
 	int shift = host->data_shift;
 	u32 status;
-	unsigned int nbytes = 0, len, old_len, count = 0;
+	unsigned int nbytes = 0, len;
 
 	do {
 		len = SDMMC_GET_FCNT(mci_readl(host, STATUS)) << shift;
-		if (count == 0)
-			old_len = len;
-
 		if (offset + len <= sg->length) {
 			host->pull_data(host, (void *)(buf + offset), len);
 
@@ -1070,7 +1082,6 @@ static void dw_mci_read_data_pio(struct dw_mci *host)
 			tasklet_schedule(&host->tasklet);
 			return;
 		}
-		count++;
 	} while (status & SDMMC_INT_RXDR); /*if the RXDR is ready read again*/
 	len = SDMMC_GET_FCNT(mci_readl(host, STATUS));
 	host->pio_offset = offset;
@@ -1395,7 +1406,11 @@ static int __init dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	if (host->pdata->setpower)
 		host->pdata->setpower(id, 0);
 
-	mmc->caps = 0;
+	if (host->pdata->caps)
+		mmc->caps = host->pdata->caps;
+	else
+		mmc->caps = 0;
+
 	if (host->pdata->get_bus_wd)
 		if (host->pdata->get_bus_wd(slot->id) >= 4)
 			mmc->caps |= MMC_CAP_4_BIT_DATA;
@@ -1426,6 +1441,13 @@ static int __init dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	}
 #endif /* CONFIG_MMC_DW_IDMAC */
 
+	host->vmmc = regulator_get(mmc_dev(mmc), "vmmc");
+	if (IS_ERR(host->vmmc)) {
+		printk(KERN_INFO "%s: no vmmc regulator found\n", mmc_hostname(mmc));
+		host->vmmc = NULL;
+	} else
+		regulator_enable(host->vmmc);
+
 	if (dw_mci_get_cd(mmc))
 		set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
 	else
@@ -1440,6 +1462,12 @@ static int __init dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 
 	/* Card initially undetected */
 	slot->last_detect_state = 0;
+
+	/*
+	 * Card may have been plugged in prior to boot so we
+	 * need to run the detect tasklet
+	 */
+	tasklet_schedule(&host->card_tasklet);
 
 	return 0;
 }
@@ -1619,8 +1647,9 @@ static int dw_mci_probe(struct platform_device *pdev)
 	 */
 	fifo_size = mci_readl(host, FIFOTH);
 	fifo_size = (fifo_size >> 16) & 0x7ff;
-	mci_writel(host, FIFOTH, ((0x2 << 28) | ((fifo_size/2 - 1) << 16) |
-				  ((fifo_size/2) << 0)));
+	host->fifoth_val = ((0x2 << 28) | ((fifo_size/2 - 1) << 16) |
+			((fifo_size/2) << 0));
+	mci_writel(host, FIFOTH, host->fifoth_val);
 
 	/* disable clock to CIU */
 	mci_writel(host, CLKENA, 0);
@@ -1683,6 +1712,12 @@ err_dmaunmap:
 			  host->sg_cpu, host->sg_dma);
 	iounmap(host->regs);
 
+	if (host->vmmc) {
+		regulator_disable(host->vmmc);
+		regulator_put(host->vmmc);
+	}
+
+
 err_freehost:
 	kfree(host);
 	return ret;
@@ -1714,6 +1749,11 @@ static int __exit dw_mci_remove(struct platform_device *pdev)
 	if (host->use_dma && host->dma_ops->exit)
 		host->dma_ops->exit(host);
 
+	if (host->vmmc) {
+		regulator_disable(host->vmmc);
+		regulator_put(host->vmmc);
+	}
+
 	iounmap(host->regs);
 
 	kfree(host);
@@ -1728,6 +1768,9 @@ static int dw_mci_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
 	int i, ret;
 	struct dw_mci *host = platform_get_drvdata(pdev);
+
+	if (host->vmmc)
+		regulator_enable(host->vmmc);
 
 	for (i = 0; i < host->num_slots; i++) {
 		struct dw_mci_slot *slot = host->slot[i];
@@ -1744,6 +1787,9 @@ static int dw_mci_suspend(struct platform_device *pdev, pm_message_t mesg)
 		}
 	}
 
+	if (host->vmmc)
+		regulator_disable(host->vmmc);
+
 	return 0;
 }
 
@@ -1751,6 +1797,23 @@ static int dw_mci_resume(struct platform_device *pdev)
 {
 	int i, ret;
 	struct dw_mci *host = platform_get_drvdata(pdev);
+
+	if (host->dma_ops->init)
+		host->dma_ops->init(host);
+
+	if (!mci_wait_reset(&pdev->dev, host)) {
+		ret = -ENODEV;
+		return ret;
+	}
+
+	/* Restore the old value at FIFOTH register */
+	mci_writel(host, FIFOTH, host->fifoth_val);
+
+	mci_writel(host, RINTSTS, 0xFFFFFFFF);
+	mci_writel(host, INTMASK, SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER |
+		   SDMMC_INT_TXDR | SDMMC_INT_RXDR |
+		   DW_MCI_ERROR_FLAGS | SDMMC_INT_CD);
+	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
 
 	for (i = 0; i < host->num_slots; i++) {
 		struct dw_mci_slot *slot = host->slot[i];

@@ -392,7 +392,7 @@ void __kprobes do_protection_exception(struct pt_regs *regs, long pgm_int_code,
 {
 	int fault;
 
-	/* Protection exception is supressing, decrement psw address. */
+	/* Protection exception is suppressing, decrement psw address. */
 	regs->psw.addr -= (pgm_int_code >> 16);
 	/*
 	 * Check for low-address protection.  This needs to be treated

@@ -116,7 +116,7 @@ static void release_in_xmit(struct rds_connection *conn)
 }
 
 /*
- * We're making the concious trade-off here to only send one message
+ * We're making the conscious trade-off here to only send one message
  * down the connection at a time.
  *   Pro:
  *      - tx queueing is a simple fifo list

@@ -49,6 +49,8 @@ enum stat_type {
 	/* All the single valued stats go below this */
 	BLKIO_STAT_TIME,
 	BLKIO_STAT_SECTORS,
+	/* Time not charged to this cgroup */
+	BLKIO_STAT_UNACCOUNTED_TIME,
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 	BLKIO_STAT_AVG_QUEUE_SIZE,
 	BLKIO_STAT_IDLE_TIME,
@@ -81,6 +83,7 @@ enum blkcg_file_name_prop {
 	BLKIO_PROP_io_serviced,
 	BLKIO_PROP_time,
 	BLKIO_PROP_sectors,
+	BLKIO_PROP_unaccounted_time,
 	BLKIO_PROP_io_service_time,
 	BLKIO_PROP_io_wait_time,
 	BLKIO_PROP_io_merged,
@@ -114,6 +117,8 @@ struct blkio_group_stats {
 	/* total disk time and nr sectors dispatched by this group */
 	uint64_t time;
 	uint64_t sectors;
+	/* Time not charged to this cgroup */
+	uint64_t unaccounted_time;
 	uint64_t stat_arr[BLKIO_STAT_QUEUED + 1][BLKIO_STAT_TOTAL];
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 	/* Sum of number of IOs queued across all samples */
@@ -240,7 +245,7 @@ static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
 
 #endif
 
-#define BLKIO_WEIGHT_MIN	100
+#define BLKIO_WEIGHT_MIN	10
 #define BLKIO_WEIGHT_MAX	1000
 #define BLKIO_WEIGHT_DEFAULT	500
 
@@ -293,7 +298,8 @@ extern int blkiocg_del_blkio_group(struct blkio_group *blkg);
 extern struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
 						void *key);
 void blkiocg_update_timeslice_used(struct blkio_group *blkg,
-					unsigned long time);
+					unsigned long time,
+					unsigned long unaccounted_time);
 void blkiocg_update_dispatch_stats(struct blkio_group *blkg, uint64_t bytes,
 						bool direction, bool sync);
 void blkiocg_update_completion_stats(struct blkio_group *blkg,
@@ -319,7 +325,9 @@ blkiocg_del_blkio_group(struct blkio_group *blkg) { return 0; }
 static inline struct blkio_group *
 blkiocg_lookup_group(struct blkio_cgroup *blkcg, void *key) { return NULL; }
 static inline void blkiocg_update_timeslice_used(struct blkio_group *blkg,
-						unsigned long time) {}
+						unsigned long time,
+						unsigned long unaccounted_time)
+{}
 static inline void blkiocg_update_dispatch_stats(struct blkio_group *blkg,
 				uint64_t bytes, bool direction, bool sync) {}
 static inline void blkiocg_update_completion_stats(struct blkio_group *blkg,

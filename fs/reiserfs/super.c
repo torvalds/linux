@@ -393,7 +393,7 @@ void add_save_link(struct reiserfs_transaction_handle *th,
 	/* body of "save" link */
 	link = INODE_PKEY(inode)->k_dir_id;
 
-	/* put "save" link inot tree, don't charge quota to anyone */
+	/* put "save" link into tree, don't charge quota to anyone */
 	retval =
 	    reiserfs_insert_item(th, &path, &key, &ih, NULL, (char *)&link);
 	if (retval) {
@@ -2104,7 +2104,7 @@ out:
 
 /* Read data from quotafile - avoid pagecache and such because we cannot afford
  * acquiring the locks... As quota files are never truncated and quota code
- * itself serializes the operations (and noone else should touch the files)
+ * itself serializes the operations (and no one else should touch the files)
  * we don't have to be afraid of races */
 static ssize_t reiserfs_quota_read(struct super_block *sb, int type, char *data,
 				   size_t len, loff_t off)

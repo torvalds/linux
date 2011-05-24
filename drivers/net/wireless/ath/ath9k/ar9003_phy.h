@@ -486,6 +486,8 @@
 #define AR_PHY_HEAVYCLIP_40      (AR_SM_BASE + 0x1ac)
 #define AR_PHY_ILLEGAL_TXRATE    (AR_SM_BASE + 0x1b0)
 
+#define AR_PHY_POWER_TX_RATE(_d) (AR_SM_BASE + 0x1c0 + ((_d) << 2))
+
 #define AR_PHY_PWRTX_MAX         (AR_SM_BASE + 0x1f0)
 #define AR_PHY_POWER_TX_SUB      (AR_SM_BASE + 0x1f4)
 

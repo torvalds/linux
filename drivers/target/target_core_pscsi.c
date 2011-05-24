@@ -34,7 +34,6 @@
 #include <linux/blk_types.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/genhd.h>
 #include <linux/cdrom.h>
 #include <linux/file.h>
@@ -442,6 +441,7 @@ static struct se_device *pscsi_create_type_disk(
 	struct pscsi_dev_virt *pdv,
 	struct se_subsystem_dev *se_dev,
 	struct se_hba *hba)
+	__releases(sh->host_lock)
 {
 	struct se_device *dev;
 	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)pdv->pdv_se_hba->hba_ptr;
@@ -462,8 +462,8 @@ static struct se_device *pscsi_create_type_disk(
 	 */
 	bd = blkdev_get_by_path(se_dev->se_dev_udev_path,
 				FMODE_WRITE|FMODE_READ|FMODE_EXCL, pdv);
-	if (!(bd)) {
-		printk("pSCSI: blkdev_get_by_path() failed\n");
+	if (IS_ERR(bd)) {
+		printk(KERN_ERR "pSCSI: blkdev_get_by_path() failed\n");
 		scsi_device_put(sd);
 		return NULL;
 	}
@@ -489,6 +489,7 @@ static struct se_device *pscsi_create_type_rom(
 	struct pscsi_dev_virt *pdv,
 	struct se_subsystem_dev *se_dev,
 	struct se_hba *hba)
+	__releases(sh->host_lock)
 {
 	struct se_device *dev;
 	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)pdv->pdv_se_hba->hba_ptr;
@@ -523,6 +524,7 @@ static struct se_device *pscsi_create_type_other(
 	struct pscsi_dev_virt *pdv,
 	struct se_subsystem_dev *se_dev,
 	struct se_hba *hba)
+	__releases(sh->host_lock)
 {
 	struct se_device *dev;
 	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)pdv->pdv_se_hba->hba_ptr;
@@ -556,7 +558,7 @@ static struct se_device *pscsi_create_virtdevice(
 	if (!(pdv)) {
 		printk(KERN_ERR "Unable to locate struct pscsi_dev_virt"
 				" parameter\n");
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 	/*
 	 * If not running in PHV_LLD_SCSI_HOST_NO mode, locate the
@@ -566,7 +568,7 @@ static struct se_device *pscsi_create_virtdevice(
 		if (phv->phv_mode == PHV_LLD_SCSI_HOST_NO) {
 			printk(KERN_ERR "pSCSI: Unable to locate struct"
 				" Scsi_Host for PHV_LLD_SCSI_HOST_NO\n");
-			return NULL;
+			return ERR_PTR(-ENODEV);
 		}
 		/*
 		 * For the newer PHV_VIRUTAL_HOST_ID struct scsi_device
@@ -575,7 +577,7 @@ static struct se_device *pscsi_create_virtdevice(
 		if (!(se_dev->su_dev_flags & SDF_USING_UDEV_PATH)) {
 			printk(KERN_ERR "pSCSI: udev_path attribute has not"
 				" been set before ENABLE=1\n");
-			return NULL;
+			return ERR_PTR(-EINVAL);
 		}
 		/*
 		 * If no scsi_host_id= was passed for PHV_VIRUTAL_HOST_ID,
@@ -588,12 +590,12 @@ static struct se_device *pscsi_create_virtdevice(
 				printk(KERN_ERR "pSCSI: Unable to set hba_mode"
 					" with active devices\n");
 				spin_unlock(&hba->device_lock);
-				return NULL;
+				return ERR_PTR(-EEXIST);
 			}
 			spin_unlock(&hba->device_lock);
 
 			if (pscsi_pmode_enable_hba(hba, 1) != 1)
-				return NULL;
+				return ERR_PTR(-ENODEV);
 
 			legacy_mode_enable = 1;
 			hba->hba_flags |= HBA_FLAGS_PSCSI_MODE;
@@ -603,14 +605,14 @@ static struct se_device *pscsi_create_virtdevice(
 			if (!(sh)) {
 				printk(KERN_ERR "pSCSI: Unable to locate"
 					" pdv_host_id: %d\n", pdv->pdv_host_id);
-				return NULL;
+				return ERR_PTR(-ENODEV);
 			}
 		}
 	} else {
 		if (phv->phv_mode == PHV_VIRUTAL_HOST_ID) {
 			printk(KERN_ERR "pSCSI: PHV_VIRUTAL_HOST_ID set while"
 				" struct Scsi_Host exists\n");
-			return NULL;
+			return ERR_PTR(-EEXIST);
 		}
 	}
 
@@ -645,7 +647,7 @@ static struct se_device *pscsi_create_virtdevice(
 				hba->hba_flags &= ~HBA_FLAGS_PSCSI_MODE;
 			}
 			pdv->pdv_sd = NULL;
-			return NULL;
+			return ERR_PTR(-ENODEV);
 		}
 		return dev;
 	}
@@ -661,7 +663,7 @@ static struct se_device *pscsi_create_virtdevice(
 		hba->hba_flags &= ~HBA_FLAGS_PSCSI_MODE;
 	}
 
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 /*	pscsi_free_device(): (Part of se_subsystem_api_t template)
@@ -817,6 +819,7 @@ pscsi_alloc_task(struct se_cmd *cmd)
 		if (!(pt->pscsi_cdb)) {
 			printk(KERN_ERR "pSCSI: Unable to allocate extended"
 					" pt->pscsi_cdb\n");
+			kfree(pt);
 			return NULL;
 		}
 	} else

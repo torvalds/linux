@@ -33,8 +33,6 @@ cmd_opcodes = {
     "lockintnowait" : "6",
     "lockcont"      : "7",
     "unlock"        : "8",
-    "lockbkl"       : "9",
-    "unlockbkl"     : "10",
     "signal"        : "11",
     "resetevent"    : "98",
     "reset"         : "99",
@@ -182,7 +180,7 @@ while 1:
                 for s in stat:
 		    s = s.strip()
                     if s.startswith(testop[0]):
-                        # Seperate status value
+                        # Separate status value
                         val = s[2:].strip()
                         query = analyse(val, testop, dat)
                         break

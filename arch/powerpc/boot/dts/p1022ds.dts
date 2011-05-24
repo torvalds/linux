@@ -475,14 +475,14 @@
 		};
 
 		sata@18000 {
-			compatible = "fsl,mpc8536-sata", "fsl,pq-sata";
+			compatible = "fsl,p1022-sata", "fsl,pq-sata-v2";
 			reg = <0x18000 0x1000>;
 			cell-index = <1>;
 			interrupts = <74 0x2>;
 		};
 
 		sata@19000 {
-			compatible = "fsl,mpc8536-sata", "fsl,pq-sata";
+			compatible = "fsl,p1022-sata", "fsl,pq-sata-v2";
 			reg = <0x19000 0x1000>;
 			cell-index = <2>;
 			interrupts = <41 0x2>;

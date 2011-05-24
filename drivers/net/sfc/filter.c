@@ -8,6 +8,7 @@
  */
 
 #include <linux/in.h>
+#include <net/ip.h>
 #include "efx.h"
 #include "filter.h"
 #include "io.h"
@@ -26,6 +27,10 @@
  * table is full.
  */
 #define FILTER_CTL_SRCH_MAX 200
+
+/* Don't try very hard to find space for performance hints, as this is
+ * counter-productive. */
+#define FILTER_CTL_SRCH_HINT_MAX 5
 
 enum efx_filter_table_id {
 	EFX_FILTER_TABLE_RX_IP = 0,
@@ -47,6 +52,10 @@ struct efx_filter_table {
 struct efx_filter_state {
 	spinlock_t	lock;
 	struct efx_filter_table table[EFX_FILTER_TABLE_COUNT];
+#ifdef CONFIG_RFS_ACCEL
+	u32		*rps_flow_id;
+	unsigned	rps_expire_index;
+#endif
 };
 
 /* The filter hash function is LFSR polynomial x^16 + x^3 + 1 of a 32-bit
@@ -325,15 +334,16 @@ static int efx_filter_search(struct efx_filter_table *table,
 			     struct efx_filter_spec *spec, u32 key,
 			     bool for_insert, int *depth_required)
 {
-	unsigned hash, incr, filter_idx, depth;
+	unsigned hash, incr, filter_idx, depth, depth_max;
 	struct efx_filter_spec *cmp;
 
 	hash = efx_filter_hash(key);
 	incr = efx_filter_increment(key);
+	depth_max = (spec->priority <= EFX_FILTER_PRI_HINT ?
+		     FILTER_CTL_SRCH_HINT_MAX : FILTER_CTL_SRCH_MAX);
 
 	for (depth = 1, filter_idx = hash & (table->size - 1);
-	     depth <= FILTER_CTL_SRCH_MAX &&
-		     test_bit(filter_idx, table->used_bitmap);
+	     depth <= depth_max && test_bit(filter_idx, table->used_bitmap);
 	     ++depth) {
 		cmp = &table->spec[filter_idx];
 		if (efx_filter_equal(spec, cmp))
@@ -342,7 +352,7 @@ static int efx_filter_search(struct efx_filter_table *table,
 	}
 	if (!for_insert)
 		return -ENOENT;
-	if (depth > FILTER_CTL_SRCH_MAX)
+	if (depth > depth_max)
 		return -EBUSY;
 found:
 	*depth_required = depth;
@@ -562,6 +572,13 @@ int efx_probe_filters(struct efx_nic *efx)
 	spin_lock_init(&state->lock);
 
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
+#ifdef CONFIG_RFS_ACCEL
+		state->rps_flow_id = kcalloc(FR_BZ_RX_FILTER_TBL0_ROWS,
+					     sizeof(*state->rps_flow_id),
+					     GFP_KERNEL);
+		if (!state->rps_flow_id)
+			goto fail;
+#endif
 		table = &state->table[EFX_FILTER_TABLE_RX_IP];
 		table->id = EFX_FILTER_TABLE_RX_IP;
 		table->offset = FR_BZ_RX_FILTER_TBL0;
@@ -607,5 +624,97 @@ void efx_remove_filters(struct efx_nic *efx)
 		kfree(state->table[table_id].used_bitmap);
 		vfree(state->table[table_id].spec);
 	}
+#ifdef CONFIG_RFS_ACCEL
+	kfree(state->rps_flow_id);
+#endif
 	kfree(state);
 }
+
+#ifdef CONFIG_RFS_ACCEL
+
+int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
+		   u16 rxq_index, u32 flow_id)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_channel *channel;
+	struct efx_filter_state *state = efx->filter_state;
+	struct efx_filter_spec spec;
+	const struct iphdr *ip;
+	const __be16 *ports;
+	int nhoff;
+	int rc;
+
+	nhoff = skb_network_offset(skb);
+
+	if (skb->protocol != htons(ETH_P_IP))
+		return -EPROTONOSUPPORT;
+
+	/* RFS must validate the IP header length before calling us */
+	EFX_BUG_ON_PARANOID(!pskb_may_pull(skb, nhoff + sizeof(*ip)));
+	ip = (const struct iphdr *)(skb->data + nhoff);
+	if (ip->frag_off & htons(IP_MF | IP_OFFSET))
+		return -EPROTONOSUPPORT;
+	EFX_BUG_ON_PARANOID(!pskb_may_pull(skb, nhoff + 4 * ip->ihl + 4));
+	ports = (const __be16 *)(skb->data + nhoff + 4 * ip->ihl);
+
+	efx_filter_init_rx(&spec, EFX_FILTER_PRI_HINT, 0, rxq_index);
+	rc = efx_filter_set_ipv4_full(&spec, ip->protocol,
+				      ip->daddr, ports[1], ip->saddr, ports[0]);
+	if (rc)
+		return rc;
+
+	rc = efx_filter_insert_filter(efx, &spec, true);
+	if (rc < 0)
+		return rc;
+
+	/* Remember this so we can check whether to expire the filter later */
+	state->rps_flow_id[rc] = flow_id;
+	channel = efx_get_channel(efx, skb_get_rx_queue(skb));
+	++channel->rfs_filters_added;
+
+	netif_info(efx, rx_status, efx->net_dev,
+		   "steering %s %pI4:%u:%pI4:%u to queue %u [flow %u filter %d]\n",
+		   (ip->protocol == IPPROTO_TCP) ? "TCP" : "UDP",
+		   &ip->saddr, ntohs(ports[0]), &ip->daddr, ntohs(ports[1]),
+		   rxq_index, flow_id, rc);
+
+	return rc;
+}
+
+bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned quota)
+{
+	struct efx_filter_state *state = efx->filter_state;
+	struct efx_filter_table *table = &state->table[EFX_FILTER_TABLE_RX_IP];
+	unsigned mask = table->size - 1;
+	unsigned index;
+	unsigned stop;
+
+	if (!spin_trylock_bh(&state->lock))
+		return false;
+
+	index = state->rps_expire_index;
+	stop = (index + quota) & mask;
+
+	while (index != stop) {
+		if (test_bit(index, table->used_bitmap) &&
+		    table->spec[index].priority == EFX_FILTER_PRI_HINT &&
+		    rps_may_expire_flow(efx->net_dev,
+					table->spec[index].dmaq_id,
+					state->rps_flow_id[index], index)) {
+			netif_info(efx, rx_status, efx->net_dev,
+				   "expiring filter %d [flow %u]\n",
+				   index, state->rps_flow_id[index]);
+			efx_filter_table_clear_entry(efx, table, index);
+		}
+		index = (index + 1) & mask;
+	}
+
+	state->rps_expire_index = stop;
+	if (table->used == 0)
+		efx_filter_table_reset_search_depth(table);
+
+	spin_unlock_bh(&state->lock);
+	return true;
+}
+
+#endif /* CONFIG_RFS_ACCEL */

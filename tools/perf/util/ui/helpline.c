@@ -5,6 +5,7 @@
 
 #include "../debug.h"
 #include "helpline.h"
+#include "ui.h"
 
 void ui_helpline__pop(void)
 {
@@ -55,7 +56,8 @@ int ui_helpline__show_help(const char *format, va_list ap)
 	int ret;
 	static int backlog;
 
-        ret = vsnprintf(ui_helpline__last_msg + backlog,
+	pthread_mutex_lock(&ui__lock);
+	ret = vsnprintf(ui_helpline__last_msg + backlog,
 			sizeof(ui_helpline__last_msg) - backlog, format, ap);
 	backlog += ret;
 
@@ -64,6 +66,7 @@ int ui_helpline__show_help(const char *format, va_list ap)
 		newtRefresh();
 		backlog = 0;
 	}
+	pthread_mutex_unlock(&ui__lock);
 
 	return ret;
 }

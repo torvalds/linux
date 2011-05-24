@@ -44,22 +44,22 @@ eb64p_update_irq_hw(unsigned int irq, unsigned long mask)
 }
 
 static inline void
-eb64p_enable_irq(unsigned int irq)
+eb64p_enable_irq(struct irq_data *d)
 {
-	eb64p_update_irq_hw(irq, cached_irq_mask &= ~(1 << irq));
+	eb64p_update_irq_hw(d->irq, cached_irq_mask &= ~(1 << d->irq));
 }
 
 static void
-eb64p_disable_irq(unsigned int irq)
+eb64p_disable_irq(struct irq_data *d)
 {
-	eb64p_update_irq_hw(irq, cached_irq_mask |= 1 << irq);
+	eb64p_update_irq_hw(d->irq, cached_irq_mask |= 1 << d->irq);
 }
 
 static struct irq_chip eb64p_irq_type = {
 	.name		= "EB64P",
-	.unmask		= eb64p_enable_irq,
-	.mask		= eb64p_disable_irq,
-	.mask_ack	= eb64p_disable_irq,
+	.irq_unmask	= eb64p_enable_irq,
+	.irq_mask	= eb64p_disable_irq,
+	.irq_mask_ack	= eb64p_disable_irq,
 };
 
 static void 
@@ -118,9 +118,9 @@ eb64p_init_irq(void)
 	init_i8259a_irqs();
 
 	for (i = 16; i < 32; ++i) {
-		irq_to_desc(i)->status |= IRQ_LEVEL;
-		set_irq_chip_and_handler(i, &eb64p_irq_type, handle_level_irq);
-	}		
+		irq_set_chip_and_handler(i, &eb64p_irq_type, handle_level_irq);
+		irq_set_status_flags(i, IRQ_LEVEL);
+	}
 
 	common_init_isa_dma();
 	setup_irq(16+5, &isa_cascade_irqaction);

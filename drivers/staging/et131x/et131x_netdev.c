@@ -415,7 +415,7 @@ void et131x_multicast(struct net_device *netdev)
 	 */
 	PacketFilter = adapter->PacketFilter;
 
-	/* Clear the 'multicast' flag locally; becuase we only have a single
+	/* Clear the 'multicast' flag locally; because we only have a single
 	 * flag to check multicast, and multiple multicast addresses can be
 	 * set, this is the easiest way to determine if more than one
 	 * multicast address is being set.
@@ -603,7 +603,7 @@ int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 	et131x_init_send(adapter);
 
 	et131x_hwaddr_init(adapter);
-	memcpy(netdev->dev_addr, adapter->CurrentAddress, ETH_ALEN);
+	memcpy(netdev->dev_addr, adapter->addr, ETH_ALEN);
 
 	/* Init the device with the new settings */
 	et131x_adapter_setup(adapter);

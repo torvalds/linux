@@ -189,6 +189,17 @@ void ath9k_cmn_btcoex_bt_stomp(struct ath_common *common,
 }
 EXPORT_SYMBOL(ath9k_cmn_btcoex_bt_stomp);
 
+void ath9k_cmn_update_txpow(struct ath_hw *ah, u16 cur_txpow,
+			    u16 new_txpow, u16 *txpower)
+{
+	if (cur_txpow != new_txpow) {
+		ath9k_hw_set_txpowerlimit(ah, new_txpow, false);
+		/* read back in case value is clamped */
+		*txpower = ath9k_hw_regulatory(ah)->power_limit;
+	}
+}
+EXPORT_SYMBOL(ath9k_cmn_update_txpow);
+
 static int __init ath9k_cmn_init(void)
 {
 	return 0;

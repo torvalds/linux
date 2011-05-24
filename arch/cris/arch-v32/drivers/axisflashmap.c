@@ -215,7 +215,7 @@ static struct mtd_partition main_partition = {
 };
 #endif
 
-/* Auxilliary partition if we find another flash */
+/* Auxiliary partition if we find another flash */
 static struct mtd_partition aux_partition = {
 	.name = "aux",
 	.size = 0,
@@ -275,7 +275,6 @@ static struct mtd_info *flash_probe(void)
 	}
 
 	if (count > 1) {
-#ifdef CONFIG_MTD_CONCAT
 		/* Since the concatenation layer adds a small overhead we
 		 * could try to figure out if the chips in cse0 and cse1 are
 		 * identical and reprobe the whole cse0+cse1 window. But since
@@ -284,11 +283,6 @@ static struct mtd_info *flash_probe(void)
 		 * complicating the probing procedure.
 		 */
 		mtd_total = mtd_concat_create(mtds, count, "cse0+cse1");
-#else
-		printk(KERN_ERR "%s and %s: Cannot concatenate due to kernel "
-		       "(mis)configuration!\n", map_cse0.name, map_cse1.name);
-		mtd_toal = NULL;
-#endif
 		if (!mtd_total) {
 			printk(KERN_ERR "%s and %s: Concatenation failed!\n",
 				map_cse0.name, map_cse1.name);

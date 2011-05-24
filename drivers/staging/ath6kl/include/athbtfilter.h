@@ -61,11 +61,11 @@ typedef enum _ATHBT_STATE {
 
 typedef void   (*ATHBT_INDICATE_STATE_FN)(void *pContext, ATHBT_STATE_INDICATION Indication, ATHBT_STATE State, unsigned char LMPVersion);
 
-typedef struct _ATHBT_FILTER_INSTANCE {
+struct athbt_filter_instance {
 #ifdef UNDER_CE
     WCHAR                       *pWlanAdapterName;  /* filled in by user */
 #else
-    char                        *pWlanAdapterName;  /* filled in by user */
+    char *pWlanAdapterName;  /* filled in by user */
 #endif /* UNDER_CE */
     int                         FilterEnabled;      /* filtering is enabled */
     int                         Attached;           /* filter library is attached */
@@ -74,7 +74,7 @@ typedef struct _ATHBT_FILTER_INSTANCE {
     ATHBT_FILTER_DATA_FN        pFilterAclDataOut;  /* function ptr to filter ACL data out (to radio) */
     ATHBT_FILTER_DATA_FN        pFilterAclDataIn;   /* function ptr to filter ACL data in (from radio) */
     ATHBT_INDICATE_STATE_FN     pIndicateState;     /* function ptr to indicate a state */
-} ATH_BT_FILTER_INSTANCE;
+}; /* XXX: unused ? */
 
 
 /* API MACROS */

@@ -2,7 +2,7 @@
  * net/tipc/name_distr.c: TIPC name distribution code
  *
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -109,11 +109,9 @@ static void named_cluster_distribute(struct sk_buff *buf)
 {
 	struct sk_buff *buf_copy;
 	struct tipc_node *n_ptr;
-	u32 n_num;
 
-	for (n_num = 1; n_num <= tipc_net.highest_node; n_num++) {
-		n_ptr = tipc_net.nodes[n_num];
-		if (n_ptr && tipc_node_has_active_links(n_ptr)) {
+	list_for_each_entry(n_ptr, &tipc_node_list, list) {
+		if (tipc_node_active_links(n_ptr)) {
 			buf_copy = skb_copy(buf, GFP_ATOMIC);
 			if (!buf_copy)
 				break;
@@ -162,7 +160,7 @@ void tipc_named_withdraw(struct publication *publ)
 
 	buf = named_prepare_buf(WITHDRAWAL, ITEM_SIZE, 0);
 	if (!buf) {
-		warn("Withdrawl distribution failure\n");
+		warn("Withdrawal distribution failure\n");
 		return;
 	}
 
@@ -214,17 +212,16 @@ exit:
 }
 
 /**
- * node_is_down - remove publication associated with a failed node
+ * named_purge_publ - remove publication associated with a failed node
  *
  * Invoked for each publication issued by a newly failed node.
  * Removes publication structure from name table & deletes it.
  * In rare cases the link may have come back up again when this
  * function is called, and we have two items representing the same
  * publication. Nudge this item's key to distinguish it from the other.
- * (Note: Publication's node subscription is already unsubscribed.)
  */
 
-static void node_is_down(struct publication *publ)
+static void named_purge_publ(struct publication *publ)
 {
 	struct publication *p;
 
@@ -232,6 +229,8 @@ static void node_is_down(struct publication *publ)
 	publ->key += 1222345;
 	p = tipc_nametbl_remove_publ(publ->type, publ->lower,
 				     publ->node, publ->ref, publ->key);
+	if (p)
+		tipc_nodesub_unsubscribe(&p->subscr);
 	write_unlock_bh(&tipc_nametbl_lock);
 
 	if (p != publ) {
@@ -268,7 +267,8 @@ void tipc_named_recv(struct sk_buff *buf)
 				tipc_nodesub_subscribe(&publ->subscr,
 						       msg_orignode(msg),
 						       publ,
-						       (net_ev_handler)node_is_down);
+						       (net_ev_handler)
+						       named_purge_publ);
 			}
 		} else if (msg_type(msg) == WITHDRAWAL) {
 			publ = tipc_nametbl_remove_publ(ntohl(item->type),

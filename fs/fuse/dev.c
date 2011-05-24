@@ -737,14 +737,12 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 	if (WARN_ON(PageMlocked(oldpage)))
 		goto out_fallback_unlock;
 
-	remove_from_page_cache(oldpage);
-	page_cache_release(oldpage);
-
-	err = add_to_page_cache_locked(newpage, mapping, index, GFP_KERNEL);
+	err = replace_page_cache_page(oldpage, newpage, GFP_KERNEL);
 	if (err) {
-		printk(KERN_WARNING "fuse_try_move_page: failed to add page");
-		goto out_fallback_unlock;
+		unlock_page(newpage);
+		return err;
 	}
+
 	page_cache_get(newpage);
 
 	if (!(buf->flags & PIPE_BUF_FLAG_LRU))
@@ -1910,6 +1908,21 @@ __acquires(fc->lock)
 		kfree(dequeue_forget(fc, 1, NULL));
 }
 
+static void end_polls(struct fuse_conn *fc)
+{
+	struct rb_node *p;
+
+	p = rb_first(&fc->polled_files);
+
+	while (p) {
+		struct fuse_file *ff;
+		ff = rb_entry(p, struct fuse_file, polled_node);
+		wake_up_interruptible_all(&ff->poll_wait);
+
+		p = rb_next(p);
+	}
+}
+
 /*
  * Abort all requests.
  *
@@ -1937,6 +1950,7 @@ void fuse_abort_conn(struct fuse_conn *fc)
 		fc->blocked = 0;
 		end_io_requests(fc);
 		end_queued_requests(fc);
+		end_polls(fc);
 		wake_up_all(&fc->waitq);
 		wake_up_all(&fc->blocked_waitq);
 		kill_fasync(&fc->fasync, SIGIO, POLL_IN);
@@ -1953,6 +1967,7 @@ int fuse_dev_release(struct inode *inode, struct file *file)
 		fc->connected = 0;
 		fc->blocked = 0;
 		end_queued_requests(fc);
+		end_polls(fc);
 		wake_up_all(&fc->blocked_waitq);
 		spin_unlock(&fc->lock);
 		fuse_conn_put(fc);

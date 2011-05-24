@@ -202,6 +202,18 @@ config SATA_DWC
 
 	  If unsure, say N.
 
+config SATA_DWC_DEBUG
+	bool "Debugging driver version"
+	depends on SATA_DWC
+	help
+	  This option enables debugging output in the driver.
+
+config SATA_DWC_VDEBUG
+	bool "Verbose debug output"
+	depends on SATA_DWC_DEBUG
+	help
+	  This option enables the taskfile dumping and NCQ debugging.
+
 config SATA_MV
 	tristate "Marvell SATA support"
 	help
@@ -298,6 +310,12 @@ config PATA_AMD
 	  interfaces found on the chipsets for Athlon/Athlon64.
 
 	  If unsure, say N.
+
+config PATA_ARASAN_CF
+	tristate "ARASAN CompactFlash PATA Controller Support"
+	select DMA_ENGINE
+	help
+	  Say Y here to support the ARASAN CompactFlash PATA controller
 
 config PATA_ARTOP
 	tristate "ARTOP 6210/6260 PATA support"

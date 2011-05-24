@@ -201,7 +201,7 @@ void mi1320_init_settings(struct gspca_dev *gspca_dev)
 	sd->vmax.backlight  =  2;
 	sd->vmax.brightness =  8;
 	sd->vmax.sharpness  =  7;
-	sd->vmax.contrast   =  0; /* 10 but not working with tihs driver */
+	sd->vmax.contrast   =  0; /* 10 but not working with this driver */
 	sd->vmax.gamma      = 40;
 	sd->vmax.hue        =  5 + 1;
 	sd->vmax.saturation =  8;

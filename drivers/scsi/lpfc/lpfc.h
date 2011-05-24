@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2010 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -325,6 +325,7 @@ struct lpfc_vport {
 #define FC_VPORT_CVL_RCVD	0x400000 /* VLink failed due to CVL	 */
 #define FC_VFI_REGISTERED	0x800000 /* VFI is registered */
 #define FC_FDISC_COMPLETED	0x1000000/* FDISC completed */
+#define FC_DISC_DELAYED		0x2000000/* Delay NPort discovery */
 
 	uint32_t ct_flags;
 #define FC_CT_RFF_ID		0x1	 /* RFF_ID accepted by switch */
@@ -348,6 +349,8 @@ struct lpfc_vport {
 
 	uint32_t fc_myDID;	/* fibre channel S_ID */
 	uint32_t fc_prevDID;	/* previous fibre channel S_ID */
+	struct lpfc_name fabric_portname;
+	struct lpfc_name fabric_nodename;
 
 	int32_t stopped;   /* HBA has not been restarted since last ERATT */
 	uint8_t fc_linkspeed;	/* Link speed after last READ_LA */
@@ -372,6 +375,7 @@ struct lpfc_vport {
 #define WORKER_DISC_TMO                0x1	/* vport: Discovery timeout */
 #define WORKER_ELS_TMO                 0x2	/* vport: ELS timeout */
 #define WORKER_FDMI_TMO                0x4	/* vport: FDMI timeout */
+#define WORKER_DELAYED_DISC_TMO        0x8	/* vport: delayed discovery */
 
 #define WORKER_MBOX_TMO                0x100	/* hba: MBOX timeout */
 #define WORKER_HB_TMO                  0x200	/* hba: Heart beat timeout */
@@ -382,6 +386,7 @@ struct lpfc_vport {
 
 	struct timer_list fc_fdmitmo;
 	struct timer_list els_tmofunc;
+	struct timer_list delayed_disc_tmo;
 
 	int unreg_vpi_cmpl;
 
@@ -534,6 +539,8 @@ struct lpfc_hba {
 		(struct lpfc_hba *, uint32_t);
 	int (*lpfc_hba_down_link)
 		(struct lpfc_hba *, uint32_t);
+	int (*lpfc_selective_reset)
+		(struct lpfc_hba *);
 
 	/* SLI4 specific HBA data structure */
 	struct lpfc_sli4_hba sli4_hba;
@@ -548,6 +555,8 @@ struct lpfc_hba {
 #define LPFC_SLI3_CRP_ENABLED		0x08
 #define LPFC_SLI3_BG_ENABLED		0x20
 #define LPFC_SLI3_DSS_ENABLED		0x40
+#define LPFC_SLI4_PERFH_ENABLED		0x80
+#define LPFC_SLI4_PHWQ_ENABLED		0x100
 	uint32_t iocb_cmd_size;
 	uint32_t iocb_rsp_size;
 
@@ -655,7 +664,7 @@ struct lpfc_hba {
 #define LPFC_INITIALIZE_LINK              0	/* do normal init_link mbox */
 #define LPFC_DELAY_INIT_LINK              1	/* layered driver hold off */
 #define LPFC_DELAY_INIT_LINK_INDEFINITELY 2	/* wait, manual intervention */
-
+	uint32_t cfg_enable_dss;
 	lpfc_vpd_t vpd;		/* vital product data */
 
 	struct pci_dev *pcidev;
@@ -792,6 +801,10 @@ struct lpfc_hba {
 	struct dentry *debug_slow_ring_trc;
 	struct lpfc_debugfs_trc *slow_ring_trc;
 	atomic_t slow_ring_trc_cnt;
+	/* iDiag debugfs sub-directory */
+	struct dentry *idiag_root;
+	struct dentry *idiag_pci_cfg;
+	struct dentry *idiag_que_info;
 #endif
 
 	/* Used for deferred freeing of ELS data buffers */
@@ -884,7 +897,18 @@ lpfc_worker_wake_up(struct lpfc_hba *phba)
 	return;
 }
 
-static inline void
+static inline int
+lpfc_readl(void __iomem *addr, uint32_t *data)
+{
+	uint32_t temp;
+	temp = readl(addr);
+	if (temp == 0xffffffff)
+		return -EIO;
+	*data = temp;
+	return 0;
+}
+
+static inline int
 lpfc_sli_read_hs(struct lpfc_hba *phba)
 {
 	/*
@@ -893,15 +917,17 @@ lpfc_sli_read_hs(struct lpfc_hba *phba)
 	 */
 	phba->sli.slistat.err_attn_event++;
 
-	/* Save status info */
-	phba->work_hs = readl(phba->HSregaddr);
-	phba->work_status[0] = readl(phba->MBslimaddr + 0xa8);
-	phba->work_status[1] = readl(phba->MBslimaddr + 0xac);
+	/* Save status info and check for unplug error */
+	if (lpfc_readl(phba->HSregaddr, &phba->work_hs) ||
+		lpfc_readl(phba->MBslimaddr + 0xa8, &phba->work_status[0]) ||
+		lpfc_readl(phba->MBslimaddr + 0xac, &phba->work_status[1])) {
+		return -EIO;
+	}
 
 	/* Clear chip Host Attention error bit */
 	writel(HA_ERATT, phba->HAregaddr);
 	readl(phba->HAregaddr); /* flush */
 	phba->pport->stopped = 1;
 
-	return;
+	return 0;
 }

@@ -1738,6 +1738,55 @@ fdmi_cmd_exit:
 	return 1;
 }
 
+/**
+ * lpfc_delayed_disc_tmo - Timeout handler for delayed discovery timer.
+ * @ptr - Context object of the timer.
+ *
+ * This function set the WORKER_DELAYED_DISC_TMO flag and wake up
+ * the worker thread.
+ **/
+void
+lpfc_delayed_disc_tmo(unsigned long ptr)
+{
+	struct lpfc_vport *vport = (struct lpfc_vport *)ptr;
+	struct lpfc_hba   *phba = vport->phba;
+	uint32_t tmo_posted;
+	unsigned long iflag;
+
+	spin_lock_irqsave(&vport->work_port_lock, iflag);
+	tmo_posted = vport->work_port_events & WORKER_DELAYED_DISC_TMO;
+	if (!tmo_posted)
+		vport->work_port_events |= WORKER_DELAYED_DISC_TMO;
+	spin_unlock_irqrestore(&vport->work_port_lock, iflag);
+
+	if (!tmo_posted)
+		lpfc_worker_wake_up(phba);
+	return;
+}
+
+/**
+ * lpfc_delayed_disc_timeout_handler - Function called by worker thread to
+ *      handle delayed discovery.
+ * @vport: pointer to a host virtual N_Port data structure.
+ *
+ * This function start nport discovery of the vport.
+ **/
+void
+lpfc_delayed_disc_timeout_handler(struct lpfc_vport *vport)
+{
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+
+	spin_lock_irq(shost->host_lock);
+	if (!(vport->fc_flag & FC_DISC_DELAYED)) {
+		spin_unlock_irq(shost->host_lock);
+		return;
+	}
+	vport->fc_flag &= ~FC_DISC_DELAYED;
+	spin_unlock_irq(shost->host_lock);
+
+	lpfc_do_scr_ns_plogi(vport->phba, vport);
+}
+
 void
 lpfc_fdmi_tmo(unsigned long ptr)
 {

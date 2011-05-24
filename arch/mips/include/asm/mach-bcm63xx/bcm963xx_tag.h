@@ -4,7 +4,7 @@
 #define TAGVER_LEN		4	/* Length of Tag Version */
 #define TAGLAYOUT_LEN		4	/* Length of FlashLayoutVer */
 #define SIG1_LEN		20	/* Company Signature 1 Length */
-#define SIG2_LEN		14	/* Company Signature 2 Lenght */
+#define SIG2_LEN		14	/* Company Signature 2 Length */
 #define BOARDID_LEN		16	/* Length of BoardId */
 #define ENDIANFLAG_LEN		2	/* Endian Flag Length */
 #define CHIPID_LEN		6	/* Chip Id Length */

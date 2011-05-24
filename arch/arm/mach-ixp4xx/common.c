@@ -252,8 +252,8 @@ void __init ixp4xx_init_irq(void)
 
         /* Default to all level triggered */
 	for(i = 0; i < NR_IRQS; i++) {
-		set_irq_chip(i, &ixp4xx_irq_chip);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &ixp4xx_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 }
@@ -432,7 +432,7 @@ static struct clocksource clocksource_ixp4xx = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-unsigned long ixp4xx_timer_freq = FREQ;
+unsigned long ixp4xx_timer_freq = IXP4XX_TIMER_FREQ;
 EXPORT_SYMBOL(ixp4xx_timer_freq);
 static void __init ixp4xx_clocksource_init(void)
 {
@@ -496,7 +496,7 @@ static struct clock_event_device clockevent_ixp4xx = {
 
 static void __init ixp4xx_clockevent_init(void)
 {
-	clockevent_ixp4xx.mult = div_sc(FREQ, NSEC_PER_SEC,
+	clockevent_ixp4xx.mult = div_sc(IXP4XX_TIMER_FREQ, NSEC_PER_SEC,
 					clockevent_ixp4xx.shift);
 	clockevent_ixp4xx.max_delta_ns =
 		clockevent_delta2ns(0xfffffffe, &clockevent_ixp4xx);

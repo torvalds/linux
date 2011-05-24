@@ -25,6 +25,14 @@
 #include "cm-regbits-24xx.h"
 #include "cm-regbits-34xx.h"
 
+/* CM_AUTOIDLE_PLL.AUTO_* bit values for DPLLs */
+#define DPLL_AUTOIDLE_DISABLE				0x0
+#define OMAP2XXX_DPLL_AUTOIDLE_LOW_POWER_STOP		0x3
+
+/* CM_AUTOIDLE_PLL.AUTO_* bit values for APLLs (OMAP2xxx only) */
+#define OMAP2XXX_APLL_AUTOIDLE_DISABLE			0x0
+#define OMAP2XXX_APLL_AUTOIDLE_LOW_POWER_STOP		0x3
+
 static const u8 cm_idlest_offs[] = {
 	CM_IDLEST1, CM_IDLEST2, OMAP2430_CM_IDLEST3
 };
@@ -125,6 +133,67 @@ void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
 	_write_clktrctrl(OMAP34XX_CLKSTCTRL_FORCE_WAKEUP, module, mask);
 }
 
+/*
+ * DPLL autoidle control
+ */
+
+static void _omap2xxx_set_dpll_autoidle(u8 m)
+{
+	u32 v;
+
+	v = omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE);
+	v &= ~OMAP24XX_AUTO_DPLL_MASK;
+	v |= m << OMAP24XX_AUTO_DPLL_SHIFT;
+	omap2_cm_write_mod_reg(v, PLL_MOD, CM_AUTOIDLE);
+}
+
+void omap2xxx_cm_set_dpll_disable_autoidle(void)
+{
+	_omap2xxx_set_dpll_autoidle(OMAP2XXX_DPLL_AUTOIDLE_LOW_POWER_STOP);
+}
+
+void omap2xxx_cm_set_dpll_auto_low_power_stop(void)
+{
+	_omap2xxx_set_dpll_autoidle(DPLL_AUTOIDLE_DISABLE);
+}
+
+/*
+ * APLL autoidle control
+ */
+
+static void _omap2xxx_set_apll_autoidle(u8 m, u32 mask)
+{
+	u32 v;
+
+	v = omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE);
+	v &= ~mask;
+	v |= m << __ffs(mask);
+	omap2_cm_write_mod_reg(v, PLL_MOD, CM_AUTOIDLE);
+}
+
+void omap2xxx_cm_set_apll54_disable_autoidle(void)
+{
+	_omap2xxx_set_apll_autoidle(OMAP2XXX_APLL_AUTOIDLE_LOW_POWER_STOP,
+				    OMAP24XX_AUTO_54M_MASK);
+}
+
+void omap2xxx_cm_set_apll54_auto_low_power_stop(void)
+{
+	_omap2xxx_set_apll_autoidle(OMAP2XXX_APLL_AUTOIDLE_DISABLE,
+				    OMAP24XX_AUTO_54M_MASK);
+}
+
+void omap2xxx_cm_set_apll96_disable_autoidle(void)
+{
+	_omap2xxx_set_apll_autoidle(OMAP2XXX_APLL_AUTOIDLE_LOW_POWER_STOP,
+				    OMAP24XX_AUTO_96M_MASK);
+}
+
+void omap2xxx_cm_set_apll96_auto_low_power_stop(void)
+{
+	_omap2xxx_set_apll_autoidle(OMAP2XXX_APLL_AUTOIDLE_DISABLE,
+				    OMAP24XX_AUTO_96M_MASK);
+}
 
 /*
  *

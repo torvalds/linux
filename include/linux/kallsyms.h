@@ -36,6 +36,7 @@ const char *kallsyms_lookup(unsigned long addr,
 
 /* Look up a kernel symbol and return it in a text buffer. */
 extern int sprint_symbol(char *buffer, unsigned long address);
+extern int sprint_backtrace(char *buffer, unsigned long address);
 
 /* Look up a kernel symbol and print it to the kernel messages. */
 extern void __print_symbol(const char *fmt, unsigned long address);
@@ -74,6 +75,12 @@ static inline const char *kallsyms_lookup(unsigned long addr,
 }
 
 static inline int sprint_symbol(char *buffer, unsigned long addr)
+{
+	*buffer = '\0';
+	return 0;
+}
+
+static inline int sprint_backtrace(char *buffer, unsigned long addr)
 {
 	*buffer = '\0';
 	return 0;

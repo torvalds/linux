@@ -880,6 +880,19 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 }
 EXPORT_SYMBOL(inet_ioctl);
 
+#ifdef CONFIG_COMPAT
+int inet_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	struct sock *sk = sock->sk;
+	int err = -ENOIOCTLCMD;
+
+	if (sk->sk_prot->compat_ioctl)
+		err = sk->sk_prot->compat_ioctl(sk, cmd, arg);
+
+	return err;
+}
+#endif
+
 const struct proto_ops inet_stream_ops = {
 	.family		   = PF_INET,
 	.owner		   = THIS_MODULE,
@@ -903,6 +916,7 @@ const struct proto_ops inet_stream_ops = {
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,
+	.compat_ioctl	   = inet_compat_ioctl,
 #endif
 };
 EXPORT_SYMBOL(inet_stream_ops);
@@ -929,6 +943,7 @@ const struct proto_ops inet_dgram_ops = {
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,
+	.compat_ioctl	   = inet_compat_ioctl,
 #endif
 };
 EXPORT_SYMBOL(inet_dgram_ops);
@@ -959,6 +974,7 @@ static const struct proto_ops inet_sockraw_ops = {
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,
+	.compat_ioctl	   = inet_compat_ioctl,
 #endif
 };
 
@@ -1085,23 +1101,20 @@ int sysctl_ip_dynaddr __read_mostly;
 static int inet_sk_reselect_saddr(struct sock *sk)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	int err;
-	struct rtable *rt;
 	__be32 old_saddr = inet->inet_saddr;
-	__be32 new_saddr;
 	__be32 daddr = inet->inet_daddr;
+	struct rtable *rt;
+	__be32 new_saddr;
 
 	if (inet->opt && inet->opt->srr)
 		daddr = inet->opt->faddr;
 
 	/* Query new route. */
-	err = ip_route_connect(&rt, daddr, 0,
-			       RT_CONN_FLAGS(sk),
-			       sk->sk_bound_dev_if,
-			       sk->sk_protocol,
-			       inet->inet_sport, inet->inet_dport, sk, 0);
-	if (err)
-		return err;
+	rt = ip_route_connect(daddr, 0, RT_CONN_FLAGS(sk),
+			      sk->sk_bound_dev_if, sk->sk_protocol,
+			      inet->inet_sport, inet->inet_dport, sk, false);
+	if (IS_ERR(rt))
+		return PTR_ERR(rt);
 
 	sk_setup_caps(sk, &rt->dst);
 
@@ -1144,25 +1157,16 @@ int inet_sk_rebuild_header(struct sock *sk)
 	daddr = inet->inet_daddr;
 	if (inet->opt && inet->opt->srr)
 		daddr = inet->opt->faddr;
-{
-	struct flowi fl = {
-		.oif = sk->sk_bound_dev_if,
-		.mark = sk->sk_mark,
-		.fl4_dst = daddr,
-		.fl4_src = inet->inet_saddr,
-		.fl4_tos = RT_CONN_FLAGS(sk),
-		.proto = sk->sk_protocol,
-		.flags = inet_sk_flowi_flags(sk),
-		.fl_ip_sport = inet->inet_sport,
-		.fl_ip_dport = inet->inet_dport,
-	};
-
-	security_sk_classify_flow(sk, &fl);
-	err = ip_route_output_flow(sock_net(sk), &rt, &fl, sk, 0);
-}
-	if (!err)
+	rt = ip_route_output_ports(sock_net(sk), sk, daddr, inet->inet_saddr,
+				   inet->inet_dport, inet->inet_sport,
+				   sk->sk_protocol, RT_CONN_FLAGS(sk),
+				   sk->sk_bound_dev_if);
+	if (!IS_ERR(rt)) {
+		err = 0;
 		sk_setup_caps(sk, &rt->dst);
-	else {
+	} else {
+		err = PTR_ERR(rt);
+
 		/* Routing failed... */
 		sk->sk_route_caps = 0;
 		/*
@@ -1215,7 +1219,7 @@ out:
 	return err;
 }
 
-static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
+static struct sk_buff *inet_gso_segment(struct sk_buff *skb, u32 features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	struct iphdr *iph;

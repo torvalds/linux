@@ -5,5 +5,8 @@ config ARCH_VEXPRESS_CA9X4
 	bool "Versatile Express Cortex-A9x4 tile"
 	select CPU_V7
 	select ARM_GIC
+	select ARM_ERRATA_720789
+	select ARM_ERRATA_751472
+	select ARM_ERRATA_753970
 
 endmenu

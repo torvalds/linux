@@ -19,7 +19,7 @@
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <mach/generic.h>
-#include <mach/spear.h>
+#include <mach/hardware.h>
 
 /* Add spear3xx machines common devices here */
 /* gpio device registration */
@@ -35,7 +35,7 @@ struct amba_device gpio_device = {
 	},
 	.res = {
 		.start = SPEAR3XX_ICM3_GPIO_BASE,
-		.end = SPEAR3XX_ICM3_GPIO_BASE + SPEAR3XX_ICM3_GPIO_SIZE - 1,
+		.end = SPEAR3XX_ICM3_GPIO_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	.irq = {IRQ_BASIC_GPIO, NO_IRQ},
@@ -48,7 +48,7 @@ struct amba_device uart_device = {
 	},
 	.res = {
 		.start = SPEAR3XX_ICM1_UART_BASE,
-		.end = SPEAR3XX_ICM1_UART_BASE + SPEAR3XX_ICM1_UART_SIZE - 1,
+		.end = SPEAR3XX_ICM1_UART_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	.irq = {IRQ_UART, NO_IRQ},
@@ -71,22 +71,22 @@ struct map_desc spear3xx_io_desc[] __initdata = {
 	{
 		.virtual	= VA_SPEAR3XX_ICM1_UART_BASE,
 		.pfn		= __phys_to_pfn(SPEAR3XX_ICM1_UART_BASE),
-		.length		= SPEAR3XX_ICM1_UART_SIZE,
+		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
 		.virtual	= VA_SPEAR3XX_ML1_VIC_BASE,
 		.pfn		= __phys_to_pfn(SPEAR3XX_ML1_VIC_BASE),
-		.length		= SPEAR3XX_ML1_VIC_SIZE,
+		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
 		.virtual	= VA_SPEAR3XX_ICM3_SYS_CTRL_BASE,
 		.pfn		= __phys_to_pfn(SPEAR3XX_ICM3_SYS_CTRL_BASE),
-		.length		= SPEAR3XX_ICM3_SYS_CTRL_SIZE,
+		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
 		.virtual	= VA_SPEAR3XX_ICM3_MISC_REG_BASE,
 		.pfn		= __phys_to_pfn(SPEAR3XX_ICM3_MISC_REG_BASE),
-		.length		= SPEAR3XX_ICM3_MISC_REG_SIZE,
+		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	},
 };
@@ -523,26 +523,35 @@ struct pmx_dev pmx_plgpio_45_46_49_50 = {
 	.mode_count = ARRAY_SIZE(pmx_plgpio_45_46_49_50_modes),
 	.enb_on_reset = 1,
 };
+#endif /* CONFIG_MACH_SPEAR310 || CONFIG_MACH_SPEAR320 */
 
-#endif
-
-/* spear padmux initialization function */
-void spear_pmx_init(struct pmx_driver *pmx_driver, uint base, uint size)
+static void __init spear3xx_timer_init(void)
 {
-	int ret = 0;
+	char pclk_name[] = "pll3_48m_clk";
+	struct clk *gpt_clk, *pclk;
 
-	/* pad mux initialization */
-	pmx_driver->base = ioremap(base, size);
-	if (!pmx_driver->base) {
-		ret = -ENOMEM;
-		goto pmx_fail;
+	/* get the system timer clock */
+	gpt_clk = clk_get_sys("gpt0", NULL);
+	if (IS_ERR(gpt_clk)) {
+		pr_err("%s:couldn't get clk for gpt\n", __func__);
+		BUG();
 	}
 
-	ret = pmx_register(pmx_driver);
-	iounmap(pmx_driver->base);
+	/* get the suitable parent clock for timer*/
+	pclk = clk_get(NULL, pclk_name);
+	if (IS_ERR(pclk)) {
+		pr_err("%s:couldn't get %s as parent for gpt\n",
+				__func__, pclk_name);
+		BUG();
+	}
 
-pmx_fail:
-	if (ret)
-		printk(KERN_ERR "padmux: registration failed. err no: %d\n",
-				ret);
+	clk_set_parent(gpt_clk, pclk);
+	clk_put(gpt_clk);
+	clk_put(pclk);
+
+	spear_setup_timer();
 }
+
+struct sys_timer spear3xx_timer = {
+	.init = spear3xx_timer_init,
+};

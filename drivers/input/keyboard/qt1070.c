@@ -248,6 +248,7 @@ static const struct i2c_device_id qt1070_id[] = {
 	{ "qt1070", 0 },
 	{ },
 };
+MODULE_DEVICE_TABLE(i2c, qt1070_id);
 
 static struct i2c_driver qt1070_driver = {
 	.driver	= {

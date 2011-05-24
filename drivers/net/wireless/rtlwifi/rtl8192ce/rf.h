@@ -40,5 +40,8 @@ extern void rtl92c_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 					      u8 *ppowerlevel);
 extern void rtl92c_phy_rf6052_set_ofdm_txpower(struct ieee80211_hw *hw,
 					       u8 *ppowerlevel, u8 channel);
-extern bool rtl92c_phy_rf6052_config(struct ieee80211_hw *hw);
+bool rtl92ce_phy_rf6052_config(struct ieee80211_hw *hw);
+bool rtl92ce_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
+					  enum radio_path rfpath);
+
 #endif

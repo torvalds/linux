@@ -50,6 +50,8 @@
 #include <mach/platform.h>
 #include <asm/hardware/timer-sp.h>
 
+#include <plat/clcd.h>
+#include <plat/fpga-irq.h>
 #include <plat/sched_clock.h>
 
 #include "core.h"
@@ -63,46 +65,11 @@
 #define VA_VIC_BASE		__io_address(VERSATILE_VIC_BASE)
 #define VA_SIC_BASE		__io_address(VERSATILE_SIC_BASE)
 
-static void sic_mask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_SIC_START;
-
-	writel(1 << irq, VA_SIC_BASE + SIC_IRQ_ENABLE_CLEAR);
-}
-
-static void sic_unmask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_SIC_START;
-
-	writel(1 << irq, VA_SIC_BASE + SIC_IRQ_ENABLE_SET);
-}
-
-static struct irq_chip sic_chip = {
-	.name		= "SIC",
-	.irq_ack	= sic_mask_irq,
-	.irq_mask	= sic_mask_irq,
-	.irq_unmask	= sic_unmask_irq,
+static struct fpga_irq_data sic_irq = {
+	.base		= VA_SIC_BASE,
+	.irq_start	= IRQ_SIC_START,
+	.chip.name	= "SIC",
 };
-
-static void
-sic_handle_irq(unsigned int irq, struct irq_desc *desc)
-{
-	unsigned long status = readl(VA_SIC_BASE + SIC_IRQ_STATUS);
-
-	if (status == 0) {
-		do_bad_IRQ(irq, desc);
-		return;
-	}
-
-	do {
-		irq = ffs(status) - 1;
-		status &= ~(1 << irq);
-
-		irq += IRQ_SIC_START;
-
-		generic_handle_irq(irq);
-	} while (status);
-}
 
 #if 1
 #define IRQ_MMCI0A	IRQ_VICSOURCE22
@@ -118,22 +85,11 @@ sic_handle_irq(unsigned int irq, struct irq_desc *desc)
 
 void __init versatile_init_irq(void)
 {
-	unsigned int i;
-
 	vic_init(VA_VIC_BASE, IRQ_VIC_START, ~0, 0);
 
-	set_irq_chained_handler(IRQ_VICSOURCE31, sic_handle_irq);
-
-	/* Do second interrupt controller */
 	writel(~0, VA_SIC_BASE + SIC_IRQ_ENABLE_CLEAR);
 
-	for (i = IRQ_SIC_START; i <= IRQ_SIC_END; i++) {
-		if ((PIC_MASK & (1 << (i - IRQ_SIC_START))) == 0) {
-			set_irq_chip(i, &sic_chip);
-			set_irq_handler(i, handle_level_irq);
-			set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
-		}
-	}
+	fpga_irq_init(IRQ_VICSOURCE31, ~PIC_MASK, &sic_irq);
 
 	/*
 	 * Interrupts on secondary controller from 0 to 8 are routed to
@@ -476,127 +432,7 @@ static struct clk_lookup lookups[] = {
 #define SYS_CLCD_ID_SANYO_2_5	(0x07 << 8)
 #define SYS_CLCD_ID_VGA		(0x1f << 8)
 
-static struct clcd_panel vga = {
-	.mode		= {
-		.name		= "VGA",
-		.refresh	= 60,
-		.xres		= 640,
-		.yres		= 480,
-		.pixclock	= 39721,
-		.left_margin	= 40,
-		.right_margin	= 24,
-		.upper_margin	= 32,
-		.lower_margin	= 11,
-		.hsync_len	= 96,
-		.vsync_len	= 2,
-		.sync		= 0,
-		.vmode		= FB_VMODE_NONINTERLACED,
-	},
-	.width		= -1,
-	.height		= -1,
-	.tim2		= TIM2_BCD | TIM2_IPC,
-	.cntl		= CNTL_LCDTFT | CNTL_LCDVCOMP(1),
-	.bpp		= 16,
-};
-
-static struct clcd_panel sanyo_3_8_in = {
-	.mode		= {
-		.name		= "Sanyo QVGA",
-		.refresh	= 116,
-		.xres		= 320,
-		.yres		= 240,
-		.pixclock	= 100000,
-		.left_margin	= 6,
-		.right_margin	= 6,
-		.upper_margin	= 5,
-		.lower_margin	= 5,
-		.hsync_len	= 6,
-		.vsync_len	= 6,
-		.sync		= 0,
-		.vmode		= FB_VMODE_NONINTERLACED,
-	},
-	.width		= -1,
-	.height		= -1,
-	.tim2		= TIM2_BCD,
-	.cntl		= CNTL_LCDTFT | CNTL_LCDVCOMP(1),
-	.bpp		= 16,
-};
-
-static struct clcd_panel sanyo_2_5_in = {
-	.mode		= {
-		.name		= "Sanyo QVGA Portrait",
-		.refresh	= 116,
-		.xres		= 240,
-		.yres		= 320,
-		.pixclock	= 100000,
-		.left_margin	= 20,
-		.right_margin	= 10,
-		.upper_margin	= 2,
-		.lower_margin	= 2,
-		.hsync_len	= 10,
-		.vsync_len	= 2,
-		.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-		.vmode		= FB_VMODE_NONINTERLACED,
-	},
-	.width		= -1,
-	.height		= -1,
-	.tim2		= TIM2_IVS | TIM2_IHS | TIM2_IPC,
-	.cntl		= CNTL_LCDTFT | CNTL_LCDVCOMP(1),
-	.bpp		= 16,
-};
-
-static struct clcd_panel epson_2_2_in = {
-	.mode		= {
-		.name		= "Epson QCIF",
-		.refresh	= 390,
-		.xres		= 176,
-		.yres		= 220,
-		.pixclock	= 62500,
-		.left_margin	= 3,
-		.right_margin	= 2,
-		.upper_margin	= 1,
-		.lower_margin	= 0,
-		.hsync_len	= 3,
-		.vsync_len	= 2,
-		.sync		= 0,
-		.vmode		= FB_VMODE_NONINTERLACED,
-	},
-	.width		= -1,
-	.height		= -1,
-	.tim2		= TIM2_BCD | TIM2_IPC,
-	.cntl		= CNTL_LCDTFT | CNTL_LCDVCOMP(1),
-	.bpp		= 16,
-};
-
-/*
- * Detect which LCD panel is connected, and return the appropriate
- * clcd_panel structure.  Note: we do not have any information on
- * the required timings for the 8.4in panel, so we presently assume
- * VGA timings.
- */
-static struct clcd_panel *versatile_clcd_panel(void)
-{
-	void __iomem *sys_clcd = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_CLCD_OFFSET;
-	struct clcd_panel *panel = &vga;
-	u32 val;
-
-	val = readl(sys_clcd) & SYS_CLCD_ID_MASK;
-	if (val == SYS_CLCD_ID_SANYO_3_8)
-		panel = &sanyo_3_8_in;
-	else if (val == SYS_CLCD_ID_SANYO_2_5)
-		panel = &sanyo_2_5_in;
-	else if (val == SYS_CLCD_ID_EPSON_2_2)
-		panel = &epson_2_2_in;
-	else if (val == SYS_CLCD_ID_VGA)
-		panel = &vga;
-	else {
-		printk(KERN_ERR "CLCD: unknown LCD panel ID 0x%08x, using VGA\n",
-			val);
-		panel = &vga;
-	}
-
-	return panel;
-}
+static bool is_sanyo_2_5_lcd;
 
 /*
  * Disable all display connectors on the interface module.
@@ -614,7 +450,7 @@ static void versatile_clcd_disable(struct clcd_fb *fb)
 	/*
 	 * If the LCD is Sanyo 2x5 in on the IB2 board, turn the back-light off
 	 */
-	if (machine_is_versatile_ab() && fb->panel == &sanyo_2_5_in) {
+	if (machine_is_versatile_ab() && is_sanyo_2_5_lcd) {
 		void __iomem *versatile_ib2_ctrl = __io_address(VERSATILE_IB2_CTRL);
 		unsigned long ctrl;
 
@@ -630,18 +466,22 @@ static void versatile_clcd_disable(struct clcd_fb *fb)
  */
 static void versatile_clcd_enable(struct clcd_fb *fb)
 {
+	struct fb_var_screeninfo *var = &fb->fb.var;
 	void __iomem *sys_clcd = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_CLCD_OFFSET;
 	u32 val;
 
 	val = readl(sys_clcd);
 	val &= ~SYS_CLCD_MODE_MASK;
 
-	switch (fb->fb.var.green.length) {
+	switch (var->green.length) {
 	case 5:
 		val |= SYS_CLCD_MODE_5551;
 		break;
 	case 6:
-		val |= SYS_CLCD_MODE_565_RLSB;
+		if (var->red.offset == 0)
+			val |= SYS_CLCD_MODE_565_RLSB;
+		else
+			val |= SYS_CLCD_MODE_565_BLSB;
 		break;
 	case 8:
 		val |= SYS_CLCD_MODE_888;
@@ -663,7 +503,7 @@ static void versatile_clcd_enable(struct clcd_fb *fb)
 	/*
 	 * If the LCD is Sanyo 2x5 in on the IB2 board, turn the back-light on
 	 */
-	if (machine_is_versatile_ab() && fb->panel == &sanyo_2_5_in) {
+	if (machine_is_versatile_ab() && is_sanyo_2_5_lcd) {
 		void __iomem *versatile_ib2_ctrl = __io_address(VERSATILE_IB2_CTRL);
 		unsigned long ctrl;
 
@@ -674,50 +514,62 @@ static void versatile_clcd_enable(struct clcd_fb *fb)
 #endif
 }
 
-static unsigned long framesize = SZ_1M;
-
+/*
+ * Detect which LCD panel is connected, and return the appropriate
+ * clcd_panel structure.  Note: we do not have any information on
+ * the required timings for the 8.4in panel, so we presently assume
+ * VGA timings.
+ */
 static int versatile_clcd_setup(struct clcd_fb *fb)
 {
-	dma_addr_t dma;
+	void __iomem *sys_clcd = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_CLCD_OFFSET;
+	const char *panel_name;
+	u32 val;
 
-	fb->panel		= versatile_clcd_panel();
+	is_sanyo_2_5_lcd = false;
 
-	fb->fb.screen_base = dma_alloc_writecombine(&fb->dev->dev, framesize,
-						    &dma, GFP_KERNEL);
-	if (!fb->fb.screen_base) {
-		printk(KERN_ERR "CLCD: unable to map framebuffer\n");
-		return -ENOMEM;
+	val = readl(sys_clcd) & SYS_CLCD_ID_MASK;
+	if (val == SYS_CLCD_ID_SANYO_3_8)
+		panel_name = "Sanyo TM38QV67A02A";
+	else if (val == SYS_CLCD_ID_SANYO_2_5) {
+		panel_name = "Sanyo QVGA Portrait";
+		is_sanyo_2_5_lcd = true;
+	} else if (val == SYS_CLCD_ID_EPSON_2_2)
+		panel_name = "Epson L2F50113T00";
+	else if (val == SYS_CLCD_ID_VGA)
+		panel_name = "VGA";
+	else {
+		printk(KERN_ERR "CLCD: unknown LCD panel ID 0x%08x, using VGA\n",
+			val);
+		panel_name = "VGA";
 	}
 
-	fb->fb.fix.smem_start	= dma;
-	fb->fb.fix.smem_len	= framesize;
+	fb->panel = versatile_clcd_get_panel(panel_name);
+	if (!fb->panel)
+		return -EINVAL;
 
-	return 0;
+	return versatile_clcd_setup_dma(fb, SZ_1M);
 }
 
-static int versatile_clcd_mmap(struct clcd_fb *fb, struct vm_area_struct *vma)
+static void versatile_clcd_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 {
-	return dma_mmap_writecombine(&fb->dev->dev, vma,
-				     fb->fb.screen_base,
-				     fb->fb.fix.smem_start,
-				     fb->fb.fix.smem_len);
-}
+	clcdfb_decode(fb, regs);
 
-static void versatile_clcd_remove(struct clcd_fb *fb)
-{
-	dma_free_writecombine(&fb->dev->dev, fb->fb.fix.smem_len,
-			      fb->fb.screen_base, fb->fb.fix.smem_start);
+	/* Always clear BGR for RGB565: we do the routing externally */
+	if (fb->fb.var.green.length == 6)
+		regs->cntl &= ~CNTL_BGR;
 }
 
 static struct clcd_board clcd_plat_data = {
 	.name		= "Versatile",
+	.caps		= CLCD_CAP_5551 | CLCD_CAP_565 | CLCD_CAP_888,
 	.check		= clcdfb_check,
-	.decode		= clcdfb_decode,
+	.decode		= versatile_clcd_decode,
 	.disable	= versatile_clcd_disable,
 	.enable		= versatile_clcd_enable,
 	.setup		= versatile_clcd_setup,
-	.mmap		= versatile_clcd_mmap,
-	.remove		= versatile_clcd_remove,
+	.mmap		= versatile_clcd_mmap_dma,
+	.remove		= versatile_clcd_remove_dma,
 };
 
 static struct pl061_platform_data gpio0_plat_data = {
@@ -737,53 +589,35 @@ static struct pl022_ssp_controller ssp0_plat_data = {
 };
 
 #define AACI_IRQ	{ IRQ_AACI, NO_IRQ }
-#define AACI_DMA	{ 0x80, 0x81 }
 #define MMCI0_IRQ	{ IRQ_MMCI0A,IRQ_SIC_MMCI0B }
-#define MMCI0_DMA	{ 0x84, 0 }
 #define KMI0_IRQ	{ IRQ_SIC_KMI0, NO_IRQ }
-#define KMI0_DMA	{ 0, 0 }
 #define KMI1_IRQ	{ IRQ_SIC_KMI1, NO_IRQ }
-#define KMI1_DMA	{ 0, 0 }
 
 /*
  * These devices are connected directly to the multi-layer AHB switch
  */
 #define SMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define SMC_DMA		{ 0, 0 }
 #define MPMC_IRQ	{ NO_IRQ, NO_IRQ }
-#define MPMC_DMA	{ 0, 0 }
 #define CLCD_IRQ	{ IRQ_CLCDINT, NO_IRQ }
-#define CLCD_DMA	{ 0, 0 }
 #define DMAC_IRQ	{ IRQ_DMAINT, NO_IRQ }
-#define DMAC_DMA	{ 0, 0 }
 
 /*
  * These devices are connected via the core APB bridge
  */
 #define SCTL_IRQ	{ NO_IRQ, NO_IRQ }
-#define SCTL_DMA	{ 0, 0 }
 #define WATCHDOG_IRQ	{ IRQ_WDOGINT, NO_IRQ }
-#define WATCHDOG_DMA	{ 0, 0 }
 #define GPIO0_IRQ	{ IRQ_GPIOINT0, NO_IRQ }
-#define GPIO0_DMA	{ 0, 0 }
 #define GPIO1_IRQ	{ IRQ_GPIOINT1, NO_IRQ }
-#define GPIO1_DMA	{ 0, 0 }
 #define RTC_IRQ		{ IRQ_RTCINT, NO_IRQ }
-#define RTC_DMA		{ 0, 0 }
 
 /*
  * These devices are connected via the DMA APB bridge
  */
 #define SCI_IRQ		{ IRQ_SCIINT, NO_IRQ }
-#define SCI_DMA		{ 7, 6 }
 #define UART0_IRQ	{ IRQ_UARTINT0, NO_IRQ }
-#define UART0_DMA	{ 15, 14 }
 #define UART1_IRQ	{ IRQ_UARTINT1, NO_IRQ }
-#define UART1_DMA	{ 13, 12 }
 #define UART2_IRQ	{ IRQ_UARTINT2, NO_IRQ }
-#define UART2_DMA	{ 11, 10 }
 #define SSP_IRQ		{ IRQ_SSPINT, NO_IRQ }
-#define SSP_DMA		{ 9, 8 }
 
 /* FPGA Primecells */
 AMBA_DEVICE(aaci,  "fpga:04", AACI,     NULL);
@@ -865,13 +699,20 @@ static void versatile_leds_event(led_event_t ledevt)
 }
 #endif	/* CONFIG_LEDS */
 
+/* Early initializations */
+void __init versatile_init_early(void)
+{
+	void __iomem *sys = __io_address(VERSATILE_SYS_BASE);
+
+	osc4_clk.vcoreg	= sys + VERSATILE_SYS_OSCCLCD_OFFSET;
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
+
+	versatile_sched_clock_init(sys + VERSATILE_SYS_24MHz_OFFSET, 24000000);
+}
+
 void __init versatile_init(void)
 {
 	int i;
-
-	osc4_clk.vcoreg	= __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_OSCCLCD_OFFSET;
-
-	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	platform_device_register(&versatile_flash_device);
 	platform_device_register(&versatile_i2c_device);
@@ -889,12 +730,6 @@ void __init versatile_init(void)
 }
 
 /*
- * The sched_clock counter
- */
-#define REFCOUNTER		(__io_address(VERSATILE_SYS_BASE) + \
-				 VERSATILE_SYS_24MHz_OFFSET)
-
-/*
  * Where is the timer (VA)?
  */
 #define TIMER0_VA_BASE		 __io_address(VERSATILE_TIMER0_1_BASE)
@@ -908,8 +743,6 @@ void __init versatile_init(void)
 static void __init versatile_timer_init(void)
 {
 	u32 val;
-
-	versatile_sched_clock_init(REFCOUNTER, 24000000);
 
 	/* 
 	 * set clock frequency: 

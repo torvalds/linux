@@ -264,7 +264,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 		driver_type = RC_DRIVER_IR_RAW;
 		allowed_protos = RC_TYPE_ALL;
 		/* The grey Hauppauge RC-5 remote */
-		rc_map = RC_MAP_RC5_HAUPPAUGE_NEW;
+		rc_map = RC_MAP_HAUPPAUGE;
 		break;
 	case CX23885_BOARD_TEVII_S470:
 		/* Integrated CX23885 IR controller */

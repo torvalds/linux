@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -31,23 +31,18 @@
 
 extern struct notifier_block hard_if_notifier;
 
-struct batman_if *get_batman_if_by_netdev(struct net_device *net_dev);
-int hardif_enable_interface(struct batman_if *batman_if, char *iface_name);
-void hardif_disable_interface(struct batman_if *batman_if);
+struct hard_iface *hardif_get_by_netdev(struct net_device *net_dev);
+int hardif_enable_interface(struct hard_iface *hard_iface, char *iface_name);
+void hardif_disable_interface(struct hard_iface *hard_iface);
 void hardif_remove_interfaces(void);
-int batman_skb_recv(struct sk_buff *skb,
-				struct net_device *dev,
-				struct packet_type *ptype,
-				struct net_device *orig_dev);
 int hardif_min_mtu(struct net_device *soft_iface);
 void update_min_mtu(struct net_device *soft_iface);
+void hardif_free_rcu(struct rcu_head *rcu);
 
-static inline void hardif_free_ref(struct kref *refcount)
+static inline void hardif_free_ref(struct hard_iface *hard_iface)
 {
-	struct batman_if *batman_if;
-
-	batman_if = container_of(refcount, struct batman_if, refcount);
-	kfree(batman_if);
+	if (atomic_dec_and_test(&hard_iface->refcount))
+		call_rcu(&hard_iface->rcu, hardif_free_rcu);
 }
 
 #endif /* _NET_BATMAN_ADV_HARD_INTERFACE_H_ */

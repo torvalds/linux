@@ -151,7 +151,7 @@ static inline void vga_irq_set_state(struct vga_device *vgadev, bool state)
 static void vga_check_first_use(void)
 {
 	/* we should inform all GPUs in the system that
-	 * VGA arb has occured and to try and disable resources
+	 * VGA arb has occurred and to try and disable resources
 	 * if they can */
 	if (!vga_arbiter_used) {
 		vga_arbiter_used = true;
@@ -774,7 +774,7 @@ static ssize_t vga_arb_read(struct file *file, char __user * buf,
 	 */
 	spin_lock_irqsave(&vga_lock, flags);
 
-	/* If we are targetting the default, use it */
+	/* If we are targeting the default, use it */
 	pdev = priv->target;
 	if (pdev == NULL || pdev == PCI_INVALID_CARD) {
 		spin_unlock_irqrestore(&vga_lock, flags);

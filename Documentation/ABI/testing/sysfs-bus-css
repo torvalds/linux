@@ -29,7 +29,7 @@ Contact:	Cornelia Huck <cornelia.huck@de.ibm.com>
 		linux-s390@vger.kernel.org
 Description:	Contains the PIM/PAM/POM values, as reported by the
 		channel subsystem when last queried by the common I/O
-		layer (this implies that this attribute is not neccessarily
+		layer (this implies that this attribute is not necessarily
 		in sync with the values current in the channel subsystem).
 		Note: This is an I/O-subchannel specific attribute.
 Users:		s390-tools, HAL

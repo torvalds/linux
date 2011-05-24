@@ -160,8 +160,7 @@ enum {
 	/* Host Flags */
 	MV_FLAG_DUAL_HC		= (1 << 30),  /* two SATA Host Controllers */
 
-	MV_COMMON_FLAGS		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO | ATA_FLAG_PIO_POLLING,
+	MV_COMMON_FLAGS		= ATA_FLAG_SATA | ATA_FLAG_PIO_POLLING,
 
 	MV_GEN_I_FLAGS		= MV_COMMON_FLAGS | ATA_FLAG_NO_ATAPI,
 
@@ -1353,7 +1352,7 @@ static int mv_scr_write(struct ata_link *link, unsigned int sc_reg_in, u32 val)
 			/*
 			 * Workaround for 88SX60x1 FEr SATA#26:
 			 *
-			 * COMRESETs have to take care not to accidently
+			 * COMRESETs have to take care not to accidentally
 			 * put the drive to sleep when writing SCR_CONTROL.
 			 * Setting bits 12..15 prevents this problem.
 			 *
@@ -2045,7 +2044,7 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 
 	cw = &pp->crqb[in_index].ata_cmd[0];
 
-	/* Sadly, the CRQB cannot accomodate all registers--there are
+	/* Sadly, the CRQB cannot accommodate all registers--there are
 	 * only 11 bytes...so we must pick and choose required
 	 * registers based on the command.  So, we drop feature and
 	 * hob_feature for [RW] DMA commands, but they are needed for

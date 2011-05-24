@@ -396,12 +396,12 @@ int et131x_init_eeprom(struct et131x_adapter *etdev)
 	/* Read the EEPROM for information regarding LED behavior. Refer to
 	 * ET1310_phy.c, et131x_xcvr_init(), for its use.
 	 */
-	eeprom_read(etdev, 0x70, &etdev->eepromData[0]);
-	eeprom_read(etdev, 0x71, &etdev->eepromData[1]);
+	eeprom_read(etdev, 0x70, &etdev->eeprom_data[0]);
+	eeprom_read(etdev, 0x71, &etdev->eeprom_data[1]);
 
-	if (etdev->eepromData[0] != 0xcd)
+	if (etdev->eeprom_data[0] != 0xcd)
 		/* Disable all optional features */
-		etdev->eepromData[1] = 0x00;
+		etdev->eeprom_data[1] = 0x00;
 
 	return 0;
 }

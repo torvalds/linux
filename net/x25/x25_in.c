@@ -91,10 +91,10 @@ static int x25_state1_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 {
 	struct x25_address source_addr, dest_addr;
 	int len;
+	struct x25_sock *x25 = x25_sk(sk);
 
 	switch (frametype) {
 		case X25_CALL_ACCEPTED: {
-			struct x25_sock *x25 = x25_sk(sk);
 
 			x25_stop_timer(sk);
 			x25->condition = 0x00;
@@ -113,14 +113,16 @@ static int x25_state1_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 						&dest_addr);
 			if (len > 0)
 				skb_pull(skb, len);
+			else if (len < 0)
+				goto out_clear;
 
 			len = x25_parse_facilities(skb, &x25->facilities,
 						&x25->dte_facilities,
 						&x25->vc_facil_mask);
 			if (len > 0)
 				skb_pull(skb, len);
-			else
-				return -1;
+			else if (len < 0)
+				goto out_clear;
 			/*
 			 *	Copy any Call User Data.
 			 */
@@ -143,6 +145,12 @@ static int x25_state1_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 			break;
 	}
 
+	return 0;
+
+out_clear:
+	x25_write_internal(sk, X25_CLEAR_REQUEST);
+	x25->state = X25_STATE_2;
+	x25_start_t23timer(sk);
 	return 0;
 }
 

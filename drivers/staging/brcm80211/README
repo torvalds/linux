@@ -71,7 +71,7 @@ the driver. The devices use a single worldwide regulatory domain, with channels
 passive operation. Transmission on those channels is suppressed until
 appropriate other traffic is observed on those channels.
 
-Within the driver, we use the ficticious country code "X2" to represent this
+Within the driver, we use the fictitious country code "X2" to represent this
 worldwide regulatory domain. There is currently no interface to configure a
 different domain.
 

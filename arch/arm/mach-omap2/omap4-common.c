@@ -52,6 +52,12 @@ static void omap4_l2x0_disable(void)
 	omap_smc1(0x102, 0x0);
 }
 
+static void omap4_l2x0_set_debug(unsigned long val)
+{
+	/* Program PL310 L2 Cache controller debug register */
+	omap_smc1(0x100, val);
+}
+
 static int __init omap_l2_cache_init(void)
 {
 	u32 aux_ctrl = 0;
@@ -99,6 +105,7 @@ static int __init omap_l2_cache_init(void)
 	 * specific one
 	*/
 	outer_cache.disable = omap4_l2x0_disable;
+	outer_cache.set_debug = omap4_l2x0_set_debug;
 
 	return 0;
 }

@@ -164,7 +164,7 @@ nv_crtc_dpms(struct drm_crtc *crtc, int mode)
 	NV_DEBUG_KMS(dev, "Setting dpms mode %d on CRTC %d\n", mode,
 							nv_crtc->index);
 
-	if (nv_crtc->last_dpms == mode) /* Don't do unnecesary mode changes. */
+	if (nv_crtc->last_dpms == mode) /* Don't do unnecessary mode changes. */
 		return;
 
 	nv_crtc->last_dpms = mode;
@@ -677,7 +677,7 @@ static void nv_crtc_prepare(struct drm_crtc *crtc)
 
 	NVBlankScreen(dev, nv_crtc->index, true);
 
-	/* Some more preperation. */
+	/* Some more preparation. */
 	NVWriteCRTC(dev, nv_crtc->index, NV_PCRTC_CONFIG, NV_PCRTC_CONFIG_START_ADDRESS_NON_VGA);
 	if (dev_priv->card_type == NV_40) {
 		uint32_t reg900 = NVReadRAMDAC(dev, nv_crtc->index, NV_PRAMDAC_900);
@@ -1031,7 +1031,7 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 	drm_mode_crtc_set_gamma_size(&nv_crtc->base, 256);
 
 	ret = nouveau_bo_new(dev, NULL, 64*64*4, 0x100, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, false, true, &nv_crtc->cursor.nvbo);
+			     0, 0x0000, &nv_crtc->cursor.nvbo);
 	if (!ret) {
 		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);
 		if (!ret)

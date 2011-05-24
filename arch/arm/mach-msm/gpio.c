@@ -293,10 +293,10 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	val = readl(msm_chip->regs.int_edge);
 	if (flow_type & IRQ_TYPE_EDGE_BOTH) {
 		writel(val | mask, msm_chip->regs.int_edge);
-		irq_desc[d->irq].handle_irq = handle_edge_irq;
+		__irq_set_handler_locked(d->irq, handle_edge_irq);
 	} else {
 		writel(val & ~mask, msm_chip->regs.int_edge);
-		irq_desc[d->irq].handle_irq = handle_level_irq;
+		__irq_set_handler_locked(d->irq, handle_level_irq);
 	}
 	if ((flow_type & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
 		msm_chip->both_edge_detect |= mask;
@@ -354,9 +354,9 @@ static int __init msm_init_gpio(void)
 			msm_gpio_chips[j].chip.base +
 			msm_gpio_chips[j].chip.ngpio)
 			j++;
-		set_irq_chip_data(i, &msm_gpio_chips[j]);
-		set_irq_chip(i, &msm_gpio_irq_chip);
-		set_irq_handler(i, handle_edge_irq);
+		irq_set_chip_data(i, &msm_gpio_chips[j]);
+		irq_set_chip_and_handler(i, &msm_gpio_irq_chip,
+					 handle_edge_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 
@@ -366,10 +366,10 @@ static int __init msm_init_gpio(void)
 		gpiochip_add(&msm_gpio_chips[i].chip);
 	}
 
-	set_irq_chained_handler(INT_GPIO_GROUP1, msm_gpio_irq_handler);
-	set_irq_chained_handler(INT_GPIO_GROUP2, msm_gpio_irq_handler);
-	set_irq_wake(INT_GPIO_GROUP1, 1);
-	set_irq_wake(INT_GPIO_GROUP2, 2);
+	irq_set_chained_handler(INT_GPIO_GROUP1, msm_gpio_irq_handler);
+	irq_set_chained_handler(INT_GPIO_GROUP2, msm_gpio_irq_handler);
+	irq_set_irq_wake(INT_GPIO_GROUP1, 1);
+	irq_set_irq_wake(INT_GPIO_GROUP2, 2);
 	return 0;
 }
 

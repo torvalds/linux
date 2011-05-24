@@ -21,6 +21,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/sysdev.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
@@ -32,7 +33,6 @@
 #include <mach/dma.h>
 #include <mach/regs-intc.h>
 #include <mach/smemc.h>
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -142,8 +142,7 @@ static void pxa3xx_cpu_pm_suspend(void)
 	volatile unsigned long *p = (volatile void *)0xc0000000;
 	unsigned long saved_data = *p;
 
-	extern void pxa3xx_cpu_suspend(void);
-	extern void pxa3xx_cpu_resume(void);
+	extern void pxa3xx_cpu_suspend(long);
 
 	/* resuming from D2 requires the HSIO2/BOOT/TPM clocks enabled */
 	CKENA |= (1 << CKEN_BOOT) | (1 << CKEN_TPM);
@@ -161,9 +160,9 @@ static void pxa3xx_cpu_pm_suspend(void)
 	PSPR = 0x5c014000;
 
 	/* overwrite with the resume address */
-	*p = virt_to_phys(pxa3xx_cpu_resume);
+	*p = virt_to_phys(cpu_resume);
 
-	pxa3xx_cpu_suspend();
+	pxa3xx_cpu_suspend(PLAT_PHYS_OFFSET - PAGE_OFFSET);
 
 	*p = saved_data;
 
@@ -363,8 +362,8 @@ static void __init pxa_init_ext_wakeup_irq(set_wake_t fn)
 	int irq;
 
 	for (irq = IRQ_WAKEUP0; irq <= IRQ_WAKEUP1; irq++) {
-		set_irq_chip(irq, &pxa_ext_wakeup_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &pxa_ext_wakeup_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 

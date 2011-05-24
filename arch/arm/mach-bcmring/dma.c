@@ -629,7 +629,7 @@ EXPORT_SYMBOL(dma_get_device_descriptor_ring);
 *   Configures a DMA channel.
 *
 *   @return
-*       >= 0    - Initialization was successfull.
+*       >= 0    - Initialization was successful.
 *
 *       -EBUSY  - Device is currently being used.
 *       -ENODEV - Device handed in is invalid.
@@ -673,7 +673,7 @@ static int ConfigChannel(DMA_Handle_t handle)
 /**
 *   Initializes all of the data structures associated with the DMA.
 *   @return
-*       >= 0    - Initialization was successfull.
+*       >= 0    - Initialization was successful.
 *
 *       -EBUSY  - Device is currently being used.
 *       -ENODEV - Device handed in is invalid.

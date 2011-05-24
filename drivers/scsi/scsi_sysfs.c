@@ -383,7 +383,7 @@ struct bus_type scsi_bus_type = {
         .name		= "scsi",
         .match		= scsi_bus_match,
 	.uevent		= scsi_bus_uevent,
-#ifdef CONFIG_PM_OPS
+#ifdef CONFIG_PM
 	.pm		= &scsi_bus_pm_ops,
 #endif
 };

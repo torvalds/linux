@@ -47,20 +47,20 @@
  * CP0_STATUS is a thread's resource (saved/restored on context switch).
  * So disable_irq/enable_irq MUST handle IOC/IRC registers.
  */
-static void mask_irq_ioc(unsigned int irq)
+static void mask_irq_ioc(struct irq_data *d)
 {
 	/* 0: mask */
-	unsigned int irq_nr = irq - JMR3927_IRQ_IOC;
+	unsigned int irq_nr = d->irq - JMR3927_IRQ_IOC;
 	unsigned char imask = jmr3927_ioc_reg_in(JMR3927_IOC_INTM_ADDR);
 	unsigned int bit = 1 << irq_nr;
 	jmr3927_ioc_reg_out(imask & ~bit, JMR3927_IOC_INTM_ADDR);
 	/* flush write buffer */
 	(void)jmr3927_ioc_reg_in(JMR3927_IOC_REV_ADDR);
 }
-static void unmask_irq_ioc(unsigned int irq)
+static void unmask_irq_ioc(struct irq_data *d)
 {
 	/* 0: mask */
-	unsigned int irq_nr = irq - JMR3927_IRQ_IOC;
+	unsigned int irq_nr = d->irq - JMR3927_IRQ_IOC;
 	unsigned char imask = jmr3927_ioc_reg_in(JMR3927_IOC_INTM_ADDR);
 	unsigned int bit = 1 << irq_nr;
 	jmr3927_ioc_reg_out(imask | bit, JMR3927_IOC_INTM_ADDR);
@@ -95,10 +95,8 @@ static int jmr3927_irq_dispatch(int pending)
 
 static struct irq_chip jmr3927_irq_ioc = {
 	.name = "jmr3927_ioc",
-	.ack = mask_irq_ioc,
-	.mask = mask_irq_ioc,
-	.mask_ack = mask_irq_ioc,
-	.unmask = unmask_irq_ioc,
+	.irq_mask = mask_irq_ioc,
+	.irq_unmask = unmask_irq_ioc,
 };
 
 void __init jmr3927_irq_setup(void)
@@ -122,8 +120,9 @@ void __init jmr3927_irq_setup(void)
 
 	tx3927_irq_init();
 	for (i = JMR3927_IRQ_IOC; i < JMR3927_IRQ_IOC + JMR3927_NR_IRQ_IOC; i++)
-		set_irq_chip_and_handler(i, &jmr3927_irq_ioc, handle_level_irq);
+		irq_set_chip_and_handler(i, &jmr3927_irq_ioc,
+					 handle_level_irq);
 
 	/* setup IOC interrupt 1 (PCI, MODEM) */
-	set_irq_chained_handler(JMR3927_IRQ_IOCINT, handle_simple_irq);
+	irq_set_chained_handler(JMR3927_IRQ_IOCINT, handle_simple_irq);
 }

@@ -189,8 +189,9 @@ enum {
 void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state);
 
 /* DCB netlink */
-#ifdef BCM_DCB
+#ifdef BCM_DCBNL
 extern const struct dcbnl_rtnl_ops bnx2x_dcbnl_ops;
-#endif /* BCM_DCB */
+int bnx2x_dcbnl_update_applist(struct bnx2x *bp, bool delall);
+#endif /* BCM_DCBNL */
 
 #endif /* BNX2X_DCB_H */

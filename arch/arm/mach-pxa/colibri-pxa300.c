@@ -41,7 +41,7 @@ static mfp_cfg_t colibri_pxa300_evalboard_pin_config[] __initdata = {
 	GPIO4_MMC1_DAT1,
 	GPIO5_MMC1_DAT2,
 	GPIO6_MMC1_DAT3,
-	GPIO39_GPIO,	/* SD detect */
+	GPIO13_GPIO,	/* GPIO13_COLIBRI_PXA300_SD_DETECT */
 
 	/* UHC */
 	GPIO0_2_USBH_PEN,

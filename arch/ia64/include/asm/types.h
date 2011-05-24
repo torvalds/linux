@@ -40,9 +40,6 @@ struct fnptr {
 	unsigned long gp;
 };
 
-/* DMA addresses are 64-bits wide, in general.  */
-typedef u64 dma_addr_t;
-
 # endif /* __KERNEL__ */
 #endif /* !__ASSEMBLY__ */
 

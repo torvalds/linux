@@ -809,7 +809,7 @@ static int lm8323_suspend(struct device *dev)
 	struct lm8323_chip *lm = i2c_get_clientdata(client);
 	int i;
 
-	set_irq_wake(client->irq, 0);
+	irq_set_irq_wake(client->irq, 0);
 	disable_irq(client->irq);
 
 	mutex_lock(&lm->lock);
@@ -838,7 +838,7 @@ static int lm8323_resume(struct device *dev)
 			led_classdev_resume(&lm->pwm[i].cdev);
 
 	enable_irq(client->irq);
-	set_irq_wake(client->irq, 1);
+	irq_set_irq_wake(client->irq, 1);
 
 	return 0;
 }

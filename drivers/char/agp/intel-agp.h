@@ -130,6 +130,7 @@
 #define INTEL_GMCH_GMS_STOLEN_352M	(0xd << 4)
 
 #define I915_IFPADDR    0x60
+#define I830_HIC        0x70
 
 /* Intel 965G registers */
 #define I965_MSAC 0x62

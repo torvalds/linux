@@ -53,9 +53,10 @@ struct sys_timer zn5_timer = {
 };
 
 MACHINE_START(MAGX_ZN5, "Motorola Zn5")
-	.boot_params	= MXC91231_PHYS_OFFSET + 0x100,
-	.map_io		= mxc91231_map_io,
-	.init_irq	= mxc91231_init_irq,
-	.timer		= &zn5_timer,
-	.init_machine	= zn5_init,
+	.boot_params = MXC91231_PHYS_OFFSET + 0x100,
+	.map_io = mxc91231_map_io,
+	.init_early = mxc91231_init_early,
+	.init_irq = mxc91231_init_irq,
+	.timer = &zn5_timer,
+	.init_machine = zn5_init,
 MACHINE_END

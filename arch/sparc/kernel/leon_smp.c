@@ -41,6 +41,8 @@
 #include <asm/leon.h>
 #include <asm/leon_amba.h>
 
+#include "kernel.h"
+
 #ifdef CONFIG_SPARC_LEON
 
 #include "irq.h"
@@ -261,23 +263,23 @@ void __init leon_smp_done(void)
 
 	/* Free unneeded trap tables */
 	if (!cpu_isset(1, cpu_present_map)) {
-		ClearPageReserved(virt_to_page(trapbase_cpu1));
-		init_page_count(virt_to_page(trapbase_cpu1));
-		free_page((unsigned long)trapbase_cpu1);
+		ClearPageReserved(virt_to_page(&trapbase_cpu1));
+		init_page_count(virt_to_page(&trapbase_cpu1));
+		free_page((unsigned long)&trapbase_cpu1);
 		totalram_pages++;
 		num_physpages++;
 	}
 	if (!cpu_isset(2, cpu_present_map)) {
-		ClearPageReserved(virt_to_page(trapbase_cpu2));
-		init_page_count(virt_to_page(trapbase_cpu2));
-		free_page((unsigned long)trapbase_cpu2);
+		ClearPageReserved(virt_to_page(&trapbase_cpu2));
+		init_page_count(virt_to_page(&trapbase_cpu2));
+		free_page((unsigned long)&trapbase_cpu2);
 		totalram_pages++;
 		num_physpages++;
 	}
 	if (!cpu_isset(3, cpu_present_map)) {
-		ClearPageReserved(virt_to_page(trapbase_cpu3));
-		init_page_count(virt_to_page(trapbase_cpu3));
-		free_page((unsigned long)trapbase_cpu3);
+		ClearPageReserved(virt_to_page(&trapbase_cpu3));
+		init_page_count(virt_to_page(&trapbase_cpu3));
+		free_page((unsigned long)&trapbase_cpu3);
 		totalram_pages++;
 		num_physpages++;
 	}
@@ -437,15 +439,6 @@ void __init leon_blackbox_current(unsigned *addr)
 
 }
 
-/*
- * CPU idle callback function
- * See .../arch/sparc/kernel/process.c
- */
-void pmc_leon_idle(void)
-{
-	__asm__ volatile ("mov %g0, %asr19");
-}
-
 void __init leon_init_smp(void)
 {
 	/* Patch ipi15 trap table */
@@ -456,13 +449,6 @@ void __init leon_init_smp(void)
 	BTFIXUPSET_CALL(smp_cross_call, leon_cross_call, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(__hard_smp_processor_id, __leon_processor_id,
 			BTFIXUPCALL_NORM);
-
-#ifndef PMC_NO_IDLE
-	/* Assign power management IDLE handler */
-	pm_idle = pmc_leon_idle;
-	printk(KERN_INFO "leon: power management initialized\n");
-#endif
-
 }
 
 #endif /* CONFIG_SPARC_LEON */

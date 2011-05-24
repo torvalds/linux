@@ -38,7 +38,7 @@
 #define PCMD(x)		__REG(0x40F50110 + ((x) << 2))
 
 /*
- * Slave Power Managment Unit
+ * Slave Power Management Unit
  */
 #define ASCR		__REG(0x40f40000)	/* Application Subsystem Power Status/Configuration */
 #define ARSR		__REG(0x40f40004)	/* Application Subsystem Reset Status */

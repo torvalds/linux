@@ -94,7 +94,7 @@ static inline int wl1271_translate_addr(struct wl1271 *wl, int addr)
 	 * translated region.
 	 *
 	 * The translated regions occur next to each other in physical device
-	 * memory, so just add the sizes of the preceeding address regions to
+	 * memory, so just add the sizes of the preceding address regions to
 	 * get the offset to the new region.
 	 *
 	 * Currently, only the two first regions are addressed, and the
@@ -168,5 +168,6 @@ void wl1271_unregister_hw(struct wl1271 *wl);
 int wl1271_init_ieee80211(struct wl1271 *wl);
 struct ieee80211_hw *wl1271_alloc_hw(void);
 int wl1271_free_hw(struct wl1271 *wl);
+irqreturn_t wl1271_irq(int irq, void *data);
 
 #endif

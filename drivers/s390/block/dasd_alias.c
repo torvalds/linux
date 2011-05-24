@@ -319,6 +319,9 @@ void dasd_alias_disconnect_device_from_lcu(struct dasd_device *device)
 
 	private = (struct dasd_eckd_private *) device->private;
 	lcu = private->lcu;
+	/* nothing to do if already disconnected */
+	if (!lcu)
+		return;
 	device->discipline->get_uid(device, &uid);
 	spin_lock_irqsave(&lcu->lock, flags);
 	list_del_init(&device->alias_list);
@@ -680,6 +683,9 @@ int dasd_alias_remove_device(struct dasd_device *device)
 
 	private = (struct dasd_eckd_private *) device->private;
 	lcu = private->lcu;
+	/* nothing to do if already removed */
+	if (!lcu)
+		return 0;
 	spin_lock_irqsave(&lcu->lock, flags);
 	_remove_device_from_lcu(lcu, device);
 	spin_unlock_irqrestore(&lcu->lock, flags);

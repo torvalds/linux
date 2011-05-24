@@ -45,6 +45,7 @@
 #include <linux/cpu.h>
 #include <linux/pci.h>
 #include <linux/smp.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/processor.h>
 #include <asm/e820.h>
@@ -292,14 +293,24 @@ set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type typ
 
 	/*
 	 * HACK!
-	 * We use this same function to initialize the mtrrs on boot.
-	 * The state of the boot cpu's mtrrs has been saved, and we want
-	 * to replicate across all the APs.
-	 * If we're doing that @reg is set to something special...
+	 *
+	 * We use this same function to initialize the mtrrs during boot,
+	 * resume, runtime cpu online and on an explicit request to set a
+	 * specific MTRR.
+	 *
+	 * During boot or suspend, the state of the boot cpu's mtrrs has been
+	 * saved, and we want to replicate that across all the cpus that come
+	 * online (either at the end of boot or resume or during a runtime cpu
+	 * online). If we're doing that, @reg is set to something special and on
+	 * this cpu we still do mtrr_if->set_all(). During boot/resume, this
+	 * is unnecessary if at this point we are still on the cpu that started
+	 * the boot/resume sequence. But there is no guarantee that we are still
+	 * on the same cpu. So we do mtrr_if->set_all() on this cpu aswell to be
+	 * sure that we are in sync with everyone else.
 	 */
 	if (reg != ~0U)
 		mtrr_if->set(reg, base, size, type);
-	else if (!mtrr_aps_delayed_init)
+	else
 		mtrr_if->set_all();
 
 	/* Wait for the others */
@@ -630,7 +641,7 @@ struct mtrr_value {
 
 static struct mtrr_value mtrr_value[MTRR_MAX_VAR_RANGES];
 
-static int mtrr_save(struct sys_device *sysdev, pm_message_t state)
+static int mtrr_save(void)
 {
 	int i;
 
@@ -642,7 +653,7 @@ static int mtrr_save(struct sys_device *sysdev, pm_message_t state)
 	return 0;
 }
 
-static int mtrr_restore(struct sys_device *sysdev)
+static void mtrr_restore(void)
 {
 	int i;
 
@@ -653,12 +664,11 @@ static int mtrr_restore(struct sys_device *sysdev)
 				    mtrr_value[i].ltype);
 		}
 	}
-	return 0;
 }
 
 
 
-static struct sysdev_driver mtrr_sysdev_driver = {
+static struct syscore_ops mtrr_syscore_ops = {
 	.suspend	= mtrr_save,
 	.resume		= mtrr_restore,
 };
@@ -793,11 +803,19 @@ void set_mtrr_aps_delayed_init(void)
 }
 
 /*
- * MTRR initialization for all AP's
+ * Delayed MTRR initialization for all AP's
  */
 void mtrr_aps_init(void)
 {
 	if (!use_intel())
+		return;
+
+	/*
+	 * Check if someone has requested the delay of AP MTRR initialization,
+	 * by doing set_mtrr_aps_delayed_init(), prior to this point. If not,
+	 * then we are done.
+	 */
+	if (!mtrr_aps_delayed_init)
 		return;
 
 	set_mtrr(~0U, 0, 0, 0);
@@ -831,7 +849,7 @@ static int __init mtrr_init_finialize(void)
 	 * TBD: is there any system with such CPU which supports
 	 * suspend/resume? If no, we should remove the code.
 	 */
-	sysdev_driver_register(&cpu_sysdev_class, &mtrr_sysdev_driver);
+	register_syscore_ops(&mtrr_syscore_ops);
 
 	return 0;
 }

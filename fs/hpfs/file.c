@@ -6,16 +6,15 @@
  *  file VFS functions
  */
 
-#include <linux/smp_lock.h>
 #include "hpfs_fn.h"
 
 #define BLOCKS(size) (((size) + 511) >> 9)
 
 static int hpfs_file_release(struct inode *inode, struct file *file)
 {
-	lock_kernel();
+	hpfs_lock(inode->i_sb);
 	hpfs_write_if_changed(inode);
-	unlock_kernel();
+	hpfs_unlock(inode->i_sb);
 	return 0;
 }
 
@@ -49,14 +48,14 @@ static secno hpfs_bmap(struct inode *inode, unsigned file_secno)
 static void hpfs_truncate(struct inode *i)
 {
 	if (IS_IMMUTABLE(i)) return /*-EPERM*/;
-	lock_kernel();
+	hpfs_lock(i->i_sb);
 	hpfs_i(i)->i_n_secs = 0;
 	i->i_blocks = 1 + ((i->i_size + 511) >> 9);
 	hpfs_i(i)->mmu_private = i->i_size;
 	hpfs_truncate_btree(i->i_sb, i->i_ino, 1, ((i->i_size + 511) >> 9));
 	hpfs_write_inode(i);
 	hpfs_i(i)->i_n_secs = 0;
-	unlock_kernel();
+	hpfs_unlock(i->i_sb);
 }
 
 static int hpfs_get_block(struct inode *inode, sector_t iblock, struct buffer_head *bh_result, int create)
@@ -120,7 +119,6 @@ static sector_t _hpfs_bmap(struct address_space *mapping, sector_t block)
 const struct address_space_operations hpfs_aops = {
 	.readpage = hpfs_readpage,
 	.writepage = hpfs_writepage,
-	.sync_page = block_sync_page,
 	.write_begin = hpfs_write_begin,
 	.write_end = generic_write_end,
 	.bmap = _hpfs_bmap

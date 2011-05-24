@@ -551,26 +551,14 @@ static void rt61pci_config_intf(struct rt2x00_dev *rt2x00dev,
 				struct rt2x00intf_conf *conf,
 				const unsigned int flags)
 {
-	unsigned int beacon_base;
 	u32 reg;
 
 	if (flags & CONFIG_UPDATE_TYPE) {
 		/*
-		 * Clear current synchronisation setup.
-		 * For the Beacon base registers, we only need to clear
-		 * the first byte since that byte contains the VALID and OWNER
-		 * bits which (when set to 0) will invalidate the entire beacon.
-		 */
-		beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
-		rt2x00pci_register_write(rt2x00dev, beacon_base, 0);
-
-		/*
 		 * Enable synchronisation.
 		 */
 		rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
-		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, conf->sync);
-		rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
 		rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 	}
 
@@ -1154,6 +1142,11 @@ static void rt61pci_start_queue(struct data_queue *queue)
 		rt2x00pci_register_write(rt2x00dev, TXRX_CSR0, reg);
 		break;
 	case QID_BEACON:
+		/*
+		 * Allow the tbtt tasklet to be scheduled.
+		 */
+		tasklet_enable(&rt2x00dev->tbtt_tasklet);
+
 		rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
 		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
@@ -1233,6 +1226,11 @@ static void rt61pci_stop_queue(struct data_queue *queue)
 		rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 0);
 		rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
 		rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
+
+		/*
+		 * Wait for possibly running tbtt tasklets.
+		 */
+		tasklet_disable(&rt2x00dev->tbtt_tasklet);
 		break;
 	default:
 		break;
@@ -1719,9 +1717,9 @@ static int rt61pci_init_bbp(struct rt2x00_dev *rt2x00dev)
 static void rt61pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 			       enum dev_state state)
 {
-	int mask = (state == STATE_RADIO_IRQ_OFF) ||
-		   (state == STATE_RADIO_IRQ_OFF_ISR);
+	int mask = (state == STATE_RADIO_IRQ_OFF);
 	u32 reg;
+	unsigned long flags;
 
 	/*
 	 * When interrupts are being enabled, the interrupt registers
@@ -1733,12 +1731,21 @@ static void rt61pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 
 		rt2x00pci_register_read(rt2x00dev, MCU_INT_SOURCE_CSR, &reg);
 		rt2x00pci_register_write(rt2x00dev, MCU_INT_SOURCE_CSR, reg);
+
+		/*
+		 * Enable tasklets.
+		 */
+		tasklet_enable(&rt2x00dev->txstatus_tasklet);
+		tasklet_enable(&rt2x00dev->rxdone_tasklet);
+		tasklet_enable(&rt2x00dev->autowake_tasklet);
 	}
 
 	/*
 	 * Only toggle the interrupts bits we are going to use.
 	 * Non-checked interrupt bits are disabled by default.
 	 */
+	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+
 	rt2x00pci_register_read(rt2x00dev, INT_MASK_CSR, &reg);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_TXDONE, mask);
 	rt2x00_set_field32(&reg, INT_MASK_CSR_RXDONE, mask);
@@ -1758,6 +1765,17 @@ static void rt61pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, MCU_INT_MASK_CSR_7, mask);
 	rt2x00_set_field32(&reg, MCU_INT_MASK_CSR_TWAKEUP, mask);
 	rt2x00pci_register_write(rt2x00dev, MCU_INT_MASK_CSR, reg);
+
+	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+
+	if (state == STATE_RADIO_IRQ_OFF) {
+		/*
+		 * Ensure that all tasklets are finished.
+		 */
+		tasklet_disable(&rt2x00dev->txstatus_tasklet);
+		tasklet_disable(&rt2x00dev->rxdone_tasklet);
+		tasklet_disable(&rt2x00dev->autowake_tasklet);
+	}
 }
 
 static int rt61pci_enable_radio(struct rt2x00_dev *rt2x00dev)
@@ -1833,9 +1851,7 @@ static int rt61pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt61pci_disable_radio(rt2x00dev);
 		break;
 	case STATE_RADIO_IRQ_ON:
-	case STATE_RADIO_IRQ_ON_ISR:
 	case STATE_RADIO_IRQ_OFF:
-	case STATE_RADIO_IRQ_OFF_ISR:
 		rt61pci_toggle_irq(rt2x00dev, state);
 		break;
 	case STATE_DEEP_SLEEP:
@@ -1882,10 +1898,12 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 	rt2x00_desc_write(txd, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_SIGNAL, txdesc->signal);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_SERVICE, txdesc->service);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW, txdesc->length_low);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_HIGH, txdesc->length_high);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_SIGNAL, txdesc->u.plcp.signal);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_SERVICE, txdesc->u.plcp.service);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW,
+			   txdesc->u.plcp.length_low);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_HIGH,
+			   txdesc->u.plcp.length_high);
 	rt2x00_desc_write(txd, 2, word);
 
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags)) {
@@ -1930,7 +1948,7 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_OFDM,
 			   (txdesc->rate_mode == RATE_MODE_OFDM));
-	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
+	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->u.plcp.ifs);
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
 			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_TKIP_MIC,
@@ -1962,13 +1980,14 @@ static void rt61pci_write_beacon(struct queue_entry *entry,
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	unsigned int beacon_base;
 	unsigned int padding_len;
-	u32 reg;
+	u32 orig_reg, reg;
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
 	 * otherwise we might be sending out invalid data.
 	 */
 	rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
+	orig_reg = reg;
 	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 
@@ -1986,7 +2005,14 @@ static void rt61pci_write_beacon(struct queue_entry *entry,
 	 * Write entire beacon with descriptor and padding to register.
 	 */
 	padding_len = roundup(entry->skb->len, 4) - entry->skb->len;
-	skb_pad(entry->skb, padding_len);
+	if (padding_len && skb_pad(entry->skb, padding_len)) {
+		ERROR(rt2x00dev, "Failure padding beacon, aborting\n");
+		/* skb freed by skb_pad() on failure */
+		entry->skb = NULL;
+		rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, orig_reg);
+		return;
+	}
+
 	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
 	rt2x00pci_register_multiwrite(rt2x00dev, beacon_base,
 				      entry_priv->desc, TXINFO_SIZE);
@@ -2002,8 +2028,6 @@ static void rt61pci_write_beacon(struct queue_entry *entry,
 	 */
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR10, 0x00001008);
 
-	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
 	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 1);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 
@@ -2012,6 +2036,32 @@ static void rt61pci_write_beacon(struct queue_entry *entry,
 	 */
 	dev_kfree_skb_any(entry->skb);
 	entry->skb = NULL;
+}
+
+static void rt61pci_clear_beacon(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	u32 reg;
+
+	/*
+	 * Disable beaconing while we are reloading the beacon data,
+	 * otherwise we might be sending out invalid data.
+	 */
+	rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
+	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
+
+	/*
+	 * Clear beacon.
+	 */
+	rt2x00pci_register_write(rt2x00dev,
+				 HW_BEACON_OFFSET(entry->entry_idx), 0);
+
+	/*
+	 * Enable beaconing again.
+	 */
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 1);
+	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 }
 
 /*
@@ -2078,9 +2128,8 @@ static void rt61pci_fill_rxdone(struct queue_entry *entry,
 		rxdesc->flags |= RX_FLAG_IV_STRIPPED;
 
 		/*
-		 * FIXME: Legacy driver indicates that the frame does
-		 * contain the Michael Mic. Unfortunately, in rt2x00
-		 * the MIC seems to be missing completely...
+		 * The hardware has already checked the Michael Mic and has
+		 * stripped it from the frame. Signal this to mac80211.
 		 */
 		rxdesc->flags |= RX_FLAG_MMIC_STRIPPED;
 
@@ -2143,7 +2192,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 		 * queue identication number.
 		 */
 		type = rt2x00_get_field32(reg, STA_CSR4_PID_TYPE);
-		queue = rt2x00queue_get_queue(rt2x00dev, type);
+		queue = rt2x00queue_get_tx_queue(rt2x00dev, type);
 		if (unlikely(!queue))
 			continue;
 
@@ -2211,61 +2260,77 @@ static void rt61pci_wakeup(struct rt2x00_dev *rt2x00dev)
 	rt61pci_config(rt2x00dev, &libconf, IEEE80211_CONF_CHANGE_PS);
 }
 
-static irqreturn_t rt61pci_interrupt_thread(int irq, void *dev_instance)
+static void rt61pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
+				     struct rt2x00_field32 irq_field)
 {
-	struct rt2x00_dev *rt2x00dev = dev_instance;
-	u32 reg = rt2x00dev->irqvalue[0];
-	u32 reg_mcu = rt2x00dev->irqvalue[1];
+	u32 reg;
 
 	/*
-	 * Handle interrupts, walk through all bits
-	 * and run the tasks, the bits are checked in order of
-	 * priority.
+	 * Enable a single interrupt. The interrupt mask register
+	 * access needs locking.
 	 */
+	spin_lock_irq(&rt2x00dev->irqmask_lock);
 
-	/*
-	 * 1 - Rx ring done interrupt.
-	 */
-	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_RXDONE))
-		rt2x00pci_rxdone(rt2x00dev);
+	rt2x00pci_register_read(rt2x00dev, INT_MASK_CSR, &reg);
+	rt2x00_set_field32(&reg, irq_field, 0);
+	rt2x00pci_register_write(rt2x00dev, INT_MASK_CSR, reg);
 
-	/*
-	 * 2 - Tx ring done interrupt.
-	 */
-	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TXDONE))
-		rt61pci_txdone(rt2x00dev);
-
-	/*
-	 * 3 - Handle MCU command done.
-	 */
-	if (reg_mcu)
-		rt2x00pci_register_write(rt2x00dev,
-					 M2H_CMD_DONE_CSR, 0xffffffff);
-
-	/*
-	 * 4 - MCU Autowakeup interrupt.
-	 */
-	if (rt2x00_get_field32(reg_mcu, MCU_INT_SOURCE_CSR_TWAKEUP))
-		rt61pci_wakeup(rt2x00dev);
-
-	/*
-	 * 5 - Beacon done interrupt.
-	 */
-	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_BEACON_DONE))
-		rt2x00lib_beacondone(rt2x00dev);
-
-	/* Enable interrupts again. */
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev,
-					      STATE_RADIO_IRQ_ON_ISR);
-	return IRQ_HANDLED;
+	spin_unlock_irq(&rt2x00dev->irqmask_lock);
 }
 
+static void rt61pci_enable_mcu_interrupt(struct rt2x00_dev *rt2x00dev,
+					 struct rt2x00_field32 irq_field)
+{
+	u32 reg;
+
+	/*
+	 * Enable a single MCU interrupt. The interrupt mask register
+	 * access needs locking.
+	 */
+	spin_lock_irq(&rt2x00dev->irqmask_lock);
+
+	rt2x00pci_register_read(rt2x00dev, MCU_INT_MASK_CSR, &reg);
+	rt2x00_set_field32(&reg, irq_field, 0);
+	rt2x00pci_register_write(rt2x00dev, MCU_INT_MASK_CSR, reg);
+
+	spin_unlock_irq(&rt2x00dev->irqmask_lock);
+}
+
+static void rt61pci_txstatus_tasklet(unsigned long data)
+{
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	rt61pci_txdone(rt2x00dev);
+	rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_TXDONE);
+}
+
+static void rt61pci_tbtt_tasklet(unsigned long data)
+{
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	rt2x00lib_beacondone(rt2x00dev);
+	rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_BEACON_DONE);
+}
+
+static void rt61pci_rxdone_tasklet(unsigned long data)
+{
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	rt2x00pci_rxdone(rt2x00dev);
+	rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_RXDONE);
+}
+
+static void rt61pci_autowake_tasklet(unsigned long data)
+{
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	rt61pci_wakeup(rt2x00dev);
+	rt2x00pci_register_write(rt2x00dev,
+				 M2H_CMD_DONE_CSR, 0xffffffff);
+	rt61pci_enable_mcu_interrupt(rt2x00dev, MCU_INT_MASK_CSR_TWAKEUP);
+}
 
 static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 {
 	struct rt2x00_dev *rt2x00dev = dev_instance;
-	u32 reg_mcu;
-	u32 reg;
+	u32 reg_mcu, mask_mcu;
+	u32 reg, mask;
 
 	/*
 	 * Get the interrupt sources & saved to local variable.
@@ -2283,14 +2348,46 @@ static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return IRQ_HANDLED;
 
-	/* Store irqvalues for use in the interrupt thread. */
-	rt2x00dev->irqvalue[0] = reg;
-	rt2x00dev->irqvalue[1] = reg_mcu;
+	/*
+	 * Schedule tasklets for interrupt handling.
+	 */
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_RXDONE))
+		tasklet_schedule(&rt2x00dev->rxdone_tasklet);
 
-	/* Disable interrupts, will be enabled again in the interrupt thread. */
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev,
-					      STATE_RADIO_IRQ_OFF_ISR);
-	return IRQ_WAKE_THREAD;
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TXDONE))
+		tasklet_schedule(&rt2x00dev->txstatus_tasklet);
+
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_BEACON_DONE))
+		tasklet_hi_schedule(&rt2x00dev->tbtt_tasklet);
+
+	if (rt2x00_get_field32(reg_mcu, MCU_INT_SOURCE_CSR_TWAKEUP))
+		tasklet_schedule(&rt2x00dev->autowake_tasklet);
+
+	/*
+	 * Since INT_MASK_CSR and INT_SOURCE_CSR use the same bits
+	 * for interrupts and interrupt masks we can just use the value of
+	 * INT_SOURCE_CSR to create the interrupt mask.
+	 */
+	mask = reg;
+	mask_mcu = reg_mcu;
+
+	/*
+	 * Disable all interrupts for which a tasklet was scheduled right now,
+	 * the tasklet will reenable the appropriate interrupts.
+	 */
+	spin_lock(&rt2x00dev->irqmask_lock);
+
+	rt2x00pci_register_read(rt2x00dev, INT_MASK_CSR, &reg);
+	reg |= mask;
+	rt2x00pci_register_write(rt2x00dev, INT_MASK_CSR, reg);
+
+	rt2x00pci_register_read(rt2x00dev, MCU_INT_MASK_CSR, &reg);
+	reg |= mask_mcu;
+	rt2x00pci_register_write(rt2x00dev, MCU_INT_MASK_CSR, reg);
+
+	spin_unlock(&rt2x00dev->irqmask_lock);
+
+	return IRQ_HANDLED;
 }
 
 /*
@@ -2819,7 +2916,7 @@ static int rt61pci_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	if (queue_idx >= 4)
 		return 0;
 
-	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
+	queue = rt2x00queue_get_tx_queue(rt2x00dev, queue_idx);
 
 	/* Update WMM TXOP register */
 	offset = AC_TXOP_CSR0 + (sizeof(u32) * (!!(queue_idx & 2)));
@@ -2884,7 +2981,10 @@ static const struct ieee80211_ops rt61pci_mac80211_ops = {
 
 static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.irq_handler		= rt61pci_interrupt,
-	.irq_handler_thread	= rt61pci_interrupt_thread,
+	.txstatus_tasklet	= rt61pci_txstatus_tasklet,
+	.tbtt_tasklet		= rt61pci_tbtt_tasklet,
+	.rxdone_tasklet		= rt61pci_rxdone_tasklet,
+	.autowake_tasklet	= rt61pci_autowake_tasklet,
 	.probe_hw		= rt61pci_probe_hw,
 	.get_firmware_name	= rt61pci_get_firmware_name,
 	.check_firmware		= rt61pci_check_firmware,
@@ -2903,6 +3003,7 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.stop_queue		= rt61pci_stop_queue,
 	.write_tx_desc		= rt61pci_write_tx_desc,
 	.write_beacon		= rt61pci_write_beacon,
+	.clear_beacon		= rt61pci_clear_beacon,
 	.fill_rxdone		= rt61pci_fill_rxdone,
 	.config_shared_key	= rt61pci_config_shared_key,
 	.config_pairwise_key	= rt61pci_config_pairwise_key,

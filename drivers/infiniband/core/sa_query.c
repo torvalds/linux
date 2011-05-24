@@ -1079,7 +1079,7 @@ static void ib_sa_remove_one(struct ib_device *device)
 
 	ib_unregister_event_handler(&sa_dev->event_handler);
 
-	flush_scheduled_work();
+	flush_workqueue(ib_wq);
 
 	for (i = 0; i <= sa_dev->end_port - sa_dev->start_port; ++i) {
 		if (rdma_port_get_link_layer(device, i + 1) == IB_LINK_LAYER_INFINIBAND) {

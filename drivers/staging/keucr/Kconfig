@@ -1,8 +1,9 @@
 config USB_ENESTORAGE
-	tristate "USB ENE card reader support"
+	tristate "USB ENE SM/MS card reader support"
 	depends on USB && SCSI && m
 	---help---
-	  Say Y here if you wish to control a ENE Card reader.
+	  Say Y here if you wish to control a ENE SM/MS Card reader.
+	  To use SD card, please build driver/usb/storage/ums-eneub6250.ko
 
 	  This option depends on 'SCSI' support being enabled, but you
 	  probably also need 'SCSI device support: SCSI disk support'

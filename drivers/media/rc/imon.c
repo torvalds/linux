@@ -277,12 +277,21 @@ static const struct {
 	u64 hw_code;
 	u32 keycode;
 } imon_panel_key_table[] = {
-	{ 0x000000000f00ffeell, KEY_PROG1 }, /* Go */
+	{ 0x000000000f00ffeell, KEY_MEDIA }, /* Go */
+	{ 0x000000001200ffeell, KEY_UP },
+	{ 0x000000001300ffeell, KEY_DOWN },
+	{ 0x000000001400ffeell, KEY_LEFT },
+	{ 0x000000001500ffeell, KEY_RIGHT },
+	{ 0x000000001600ffeell, KEY_ENTER },
+	{ 0x000000001700ffeell, KEY_ESC },
 	{ 0x000000001f00ffeell, KEY_AUDIO },
 	{ 0x000000002000ffeell, KEY_VIDEO },
 	{ 0x000000002100ffeell, KEY_CAMERA },
 	{ 0x000000002700ffeell, KEY_DVD },
 	{ 0x000000002300ffeell, KEY_TV },
+	{ 0x000000002b00ffeell, KEY_EXIT },
+	{ 0x000000002c00ffeell, KEY_SELECT },
+	{ 0x000000002d00ffeell, KEY_MENU },
 	{ 0x000000000500ffeell, KEY_PREVIOUS },
 	{ 0x000000000700ffeell, KEY_REWIND },
 	{ 0x000000000400ffeell, KEY_STOP },
@@ -1284,7 +1293,7 @@ static void imon_pad_to_keys(struct imon_context *ictx, unsigned char *buf)
 	 * contain a position coordinate (x,y), with each component ranging
 	 * from -14 to 14. We want to down-sample this to only 4 discrete values
 	 * for up/down/left/right arrow keys. Also, when you get too close to
-	 * diagonals, it has a tendancy to jump back and forth, so lets try to
+	 * diagonals, it has a tendency to jump back and forth, so lets try to
 	 * ignore when they get too close.
 	 */
 	if (ictx->product != 0xffdc) {

@@ -59,9 +59,7 @@ drm_sman_init(struct drm_sman * sman, unsigned int num_managers,
 {
 	int ret = 0;
 
-	sman->mm = (struct drm_sman_mm *) kcalloc(num_managers,
-						  sizeof(*sman->mm),
-						  GFP_KERNEL);
+	sman->mm = kcalloc(num_managers, sizeof(*sman->mm), GFP_KERNEL);
 	if (!sman->mm) {
 		ret = -ENOMEM;
 		goto out;

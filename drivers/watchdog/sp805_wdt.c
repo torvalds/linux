@@ -90,7 +90,7 @@ static void wdt_setload(unsigned int timeout)
 	/*
 	 * sp805 runs counter with given value twice, after the end of first
 	 * counter it gives an interrupt and then starts counter again. If
-	 * interrupt already occured then it resets the system. This is why
+	 * interrupt already occurred then it resets the system. This is why
 	 * load is half of what should be required.
 	 */
 	load = div_u64(rate, 2) * timeout - 1;
@@ -278,7 +278,7 @@ static struct miscdevice sp805_wdt_miscdev = {
 };
 
 static int __devinit
-sp805_wdt_probe(struct amba_device *adev, struct amba_id *id)
+sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
 

@@ -397,7 +397,7 @@ _scsih_get_sas_address(struct MPT2SAS_ADAPTER *ioc, u16 handle,
  * @is_raid: [flag] 1 = raid object, 0 = sas object
  *
  * Determines whether this device should be first reported device to
- * to scsi-ml or sas transport, this purpose is for persistant boot device.
+ * to scsi-ml or sas transport, this purpose is for persistent boot device.
  * There are primary, alternate, and current entries in bios page 2. The order
  * priority is primary, alternate, then current.  This routine saves
  * the corresponding device object and is_raid flag in the ioc object.
@@ -819,7 +819,7 @@ _scsih_is_end_device(u32 device_info)
 }
 
 /**
- * mptscsih_get_scsi_lookup - returns scmd entry
+ * _scsih_scsi_lookup_get - returns scmd entry
  * @ioc: per adapter object
  * @smid: system request message index
  *
@@ -829,6 +829,28 @@ static struct scsi_cmnd *
 _scsih_scsi_lookup_get(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 {
 	return ioc->scsi_lookup[smid - 1].scmd;
+}
+
+/**
+ * _scsih_scsi_lookup_get_clear - returns scmd entry
+ * @ioc: per adapter object
+ * @smid: system request message index
+ *
+ * Returns the smid stored scmd pointer.
+ * Then will derefrence the stored scmd pointer.
+ */
+static inline struct scsi_cmnd *
+_scsih_scsi_lookup_get_clear(struct MPT2SAS_ADAPTER *ioc, u16 smid)
+{
+	unsigned long flags;
+	struct scsi_cmnd *scmd;
+
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	scmd = ioc->scsi_lookup[smid - 1].scmd;
+	ioc->scsi_lookup[smid - 1].scmd = NULL;
+	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+
+	return scmd;
 }
 
 /**
@@ -2649,10 +2671,10 @@ _scsih_block_io_to_children_attached_directly(struct MPT2SAS_ADAPTER *ioc,
  * @handle: device handle
  * Context: interrupt time.
  *
- * This code is to initiate the device removal handshake protocal
+ * This code is to initiate the device removal handshake protocol
  * with controller firmware.  This function will issue target reset
  * using high priority request queue.  It will send a sas iounit
- * controll request (MPI2_SAS_OP_REMOVE_DEVICE) from this completion.
+ * control request (MPI2_SAS_OP_REMOVE_DEVICE) from this completion.
  *
  * This is designed to send muliple task management request at the same
  * time to the fifo. If the fifo is full, we will append the request,
@@ -2727,9 +2749,9 @@ _scsih_tm_tr_send(struct MPT2SAS_ADAPTER *ioc, u16 handle)
  * @reply: reply message frame(lower 32bit addr)
  * Context: interrupt time.
  *
- * This is the sas iounit controll completion routine.
+ * This is the sas iounit control completion routine.
  * This code is part of the code to initiate the device removal
- * handshake protocal with controller firmware.
+ * handshake protocol with controller firmware.
  *
  * Return 1 meaning mf should be freed from _base_interrupt
  *        0 means the mf is freed from this function.
@@ -2856,8 +2878,8 @@ _scsih_tm_volume_tr_complete(struct MPT2SAS_ADAPTER *ioc, u16 smid,
  *
  * This is the target reset completion routine.
  * This code is part of the code to initiate the device removal
- * handshake protocal with controller firmware.
- * It will send a sas iounit controll request (MPI2_SAS_OP_REMOVE_DEVICE)
+ * handshake protocol with controller firmware.
+ * It will send a sas iounit control request (MPI2_SAS_OP_REMOVE_DEVICE)
  *
  * Return 1 meaning mf should be freed from _base_interrupt
  *        0 means the mf is freed from this function.
@@ -2962,7 +2984,7 @@ _scsih_check_for_pending_tm(struct MPT2SAS_ADAPTER *ioc, u16 smid)
  *
  * This routine added to better handle cable breaker.
  *
- * This handles the case where driver recieves multiple expander
+ * This handles the case where driver receives multiple expander
  * add and delete events in a single shot.  When there is a delete event
  * the routine will void any pending add events waiting in the event queue.
  *
@@ -2981,9 +3003,6 @@ _scsih_check_topo_delete_events(struct MPT2SAS_ADAPTER *ioc,
 	u16 handle;
 
 	for (i = 0 ; i < event_data->NumEntries; i++) {
-		if (event_data->PHY[i].PhyStatus &
-		    MPI2_EVENT_SAS_TOPO_PHYSTATUS_VACANT)
-			continue;
 		handle = le16_to_cpu(event_data->PHY[i].AttachedDevHandle);
 		if (!handle)
 			continue;
@@ -3210,7 +3229,7 @@ _scsih_flush_running_cmds(struct MPT2SAS_ADAPTER *ioc)
 	u16 count = 0;
 
 	for (smid = 1; smid <= ioc->scsiio_depth; smid++) {
-		scmd = _scsih_scsi_lookup_get(ioc, smid);
+		scmd = _scsih_scsi_lookup_get_clear(ioc, smid);
 		if (!scmd)
 			continue;
 		count++;
@@ -3492,7 +3511,7 @@ _scsih_normalize_sense(char *sense_buffer, struct sense_info *data)
 
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 /**
- * _scsih_scsi_ioc_info - translated non-successfull SCSI_IO request
+ * _scsih_scsi_ioc_info - translated non-successful SCSI_IO request
  * @ioc: per adapter object
  * @scmd: pointer to scsi command object
  * @mpi_reply: reply mf payload returned from firmware
@@ -3804,7 +3823,7 @@ _scsih_io_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	u32 response_code = 0;
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
-	scmd = _scsih_scsi_lookup_get(ioc, smid);
+	scmd = _scsih_scsi_lookup_get_clear(ioc, smid);
 	if (scmd == NULL)
 		return 1;
 
@@ -5005,6 +5024,12 @@ _scsih_sas_device_status_change_event(struct MPT2SAS_ADAPTER *ioc,
 		     event_data);
 #endif
 
+	/* In MPI Revision K (0xC), the internal device reset complete was
+	 * implemented, so avoid setting tm_busy flag for older firmware.
+	 */
+	if ((ioc->facts.HeaderVersion >> 8) < 0xC)
+		return;
+
 	if (event_data->ReasonCode !=
 	    MPI2_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET &&
 	   event_data->ReasonCode !=
@@ -5099,6 +5124,7 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
     struct fw_event_work *fw_event)
 {
 	struct scsi_cmnd *scmd;
+	struct scsi_device *sdev;
 	u16 smid, handle;
 	u32 lun;
 	struct MPT2SAS_DEVICE *sas_device_priv_data;
@@ -5109,12 +5135,17 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 	Mpi2EventDataSasBroadcastPrimitive_t *event_data = fw_event->event_data;
 #endif
 	u16 ioc_status;
-	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "broadcast primative: "
+	unsigned long flags;
+	int r;
+
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "broadcast primitive: "
 	    "phy number(%d), width(%d)\n", ioc->name, event_data->PhyNum,
 	    event_data->PortWidth));
 	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter\n", ioc->name,
 	    __func__));
 
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	ioc->broadcast_aen_busy = 0;
 	termination_count = 0;
 	query_count = 0;
 	mpi_reply = ioc->tm_cmds.reply;
@@ -5122,7 +5153,8 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 		scmd = _scsih_scsi_lookup_get(ioc, smid);
 		if (!scmd)
 			continue;
-		sas_device_priv_data = scmd->device->hostdata;
+		sdev = scmd->device;
+		sas_device_priv_data = sdev->hostdata;
 		if (!sas_device_priv_data || !sas_device_priv_data->sas_target)
 			continue;
 		 /* skip hidden raid components */
@@ -5138,6 +5170,7 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 		lun = sas_device_priv_data->lun;
 		query_count++;
 
+		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 		mpt2sas_scsih_issue_tm(ioc, handle, 0, 0, lun,
 		    MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK, smid, 30, NULL);
 		ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
@@ -5147,14 +5180,20 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 		    (mpi_reply->ResponseCode ==
 		     MPI2_SCSITASKMGMT_RSP_TM_SUCCEEDED ||
 		     mpi_reply->ResponseCode ==
-		     MPI2_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC))
+		     MPI2_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC)) {
+			spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 			continue;
-
-		mpt2sas_scsih_issue_tm(ioc, handle, 0, 0, lun,
-		    MPI2_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET, 0, 30, NULL);
+		}
+		r = mpt2sas_scsih_issue_tm(ioc, handle, sdev->channel, sdev->id,
+		    sdev->lun, MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK, smid, 30,
+		    scmd);
+		if (r == FAILED)
+			sdev_printk(KERN_WARNING, sdev, "task abort: FAILED "
+			    "scmd(%p)\n", scmd);
 		termination_count += le32_to_cpu(mpi_reply->TerminationCount);
+		spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 	}
-	ioc->broadcast_aen_busy = 0;
+	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 
 	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT
 	    "%s - exit, query_count = %d termination_count = %d\n",
@@ -6626,6 +6665,7 @@ _scsih_remove(struct pci_dev *pdev)
 		destroy_workqueue(wq);
 
 	/* release all the volumes */
+	_scsih_ir_shutdown(ioc);
 	list_for_each_entry_safe(raid_device, next, &ioc->raid_device_list,
 	    list) {
 		if (raid_device->starget) {
@@ -6935,7 +6975,6 @@ _scsih_suspend(struct pci_dev *pdev, pm_message_t state)
 	u32 device_state;
 
 	mpt2sas_base_stop_watchdog(ioc);
-	flush_scheduled_work();
 	scsi_block_requests(shost);
 	device_state = pci_choose_state(pdev, state);
 	printk(MPT2SAS_INFO_FMT "pdev=0x%p, slot=%s, entering "

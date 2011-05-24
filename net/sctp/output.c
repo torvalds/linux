@@ -510,7 +510,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 		sh->checksum = sctp_end_cksum(crc32);
 	} else {
 		if (dst->dev->features & NETIF_F_SCTP_CSUM) {
-			/* no need to seed psuedo checksum for SCTP */
+			/* no need to seed pseudo checksum for SCTP */
 			nskb->ip_summed = CHECKSUM_PARTIAL;
 			nskb->csum_start = (skb_transport_header(nskb) -
 			                    nskb->head);

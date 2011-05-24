@@ -185,7 +185,7 @@ static struct platform_driver ohci_hcd_tmio_driver;
 
 static int __devinit ohci_hcd_tmio_drv_probe(struct platform_device *dev)
 {
-	struct mfd_cell *cell = dev->dev.platform_data;
+	const struct mfd_cell *cell = mfd_get_cell(dev);
 	struct resource *regs = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	struct resource *config = platform_get_resource(dev, IORESOURCE_MEM, 1);
 	struct resource *sram = platform_get_resource(dev, IORESOURCE_MEM, 2);
@@ -274,7 +274,7 @@ static int __devexit ohci_hcd_tmio_drv_remove(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct tmio_hcd *tmio = hcd_to_tmio(hcd);
-	struct mfd_cell *cell = dev->dev.platform_data;
+	const struct mfd_cell *cell = mfd_get_cell(dev);
 
 	usb_remove_hcd(hcd);
 	tmio_stop_hc(dev);
@@ -293,7 +293,7 @@ static int __devexit ohci_hcd_tmio_drv_remove(struct platform_device *dev)
 #ifdef CONFIG_PM
 static int ohci_hcd_tmio_drv_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct mfd_cell *cell = dev->dev.platform_data;
+	const struct mfd_cell *cell = mfd_get_cell(dev);
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 	struct tmio_hcd *tmio = hcd_to_tmio(hcd);
@@ -326,7 +326,7 @@ static int ohci_hcd_tmio_drv_suspend(struct platform_device *dev, pm_message_t s
 
 static int ohci_hcd_tmio_drv_resume(struct platform_device *dev)
 {
-	struct mfd_cell *cell = dev->dev.platform_data;
+	const struct mfd_cell *cell = mfd_get_cell(dev);
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 	struct tmio_hcd *tmio = hcd_to_tmio(hcd);

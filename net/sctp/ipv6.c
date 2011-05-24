@@ -201,40 +201,40 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 {
 	struct sock *sk = skb->sk;
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct flowi fl;
+	struct flowi6 fl6;
 
-	memset(&fl, 0, sizeof(fl));
+	memset(&fl6, 0, sizeof(fl6));
 
-	fl.proto = sk->sk_protocol;
+	fl6.flowi6_proto = sk->sk_protocol;
 
 	/* Fill in the dest address from the route entry passed with the skb
 	 * and the source address from the transport.
 	 */
-	ipv6_addr_copy(&fl.fl6_dst, &transport->ipaddr.v6.sin6_addr);
-	ipv6_addr_copy(&fl.fl6_src, &transport->saddr.v6.sin6_addr);
+	ipv6_addr_copy(&fl6.daddr, &transport->ipaddr.v6.sin6_addr);
+	ipv6_addr_copy(&fl6.saddr, &transport->saddr.v6.sin6_addr);
 
-	fl.fl6_flowlabel = np->flow_label;
-	IP6_ECN_flow_xmit(sk, fl.fl6_flowlabel);
-	if (ipv6_addr_type(&fl.fl6_src) & IPV6_ADDR_LINKLOCAL)
-		fl.oif = transport->saddr.v6.sin6_scope_id;
+	fl6.flowlabel = np->flow_label;
+	IP6_ECN_flow_xmit(sk, fl6.flowlabel);
+	if (ipv6_addr_type(&fl6.saddr) & IPV6_ADDR_LINKLOCAL)
+		fl6.flowi6_oif = transport->saddr.v6.sin6_scope_id;
 	else
-		fl.oif = sk->sk_bound_dev_if;
+		fl6.flowi6_oif = sk->sk_bound_dev_if;
 
 	if (np->opt && np->opt->srcrt) {
 		struct rt0_hdr *rt0 = (struct rt0_hdr *) np->opt->srcrt;
-		ipv6_addr_copy(&fl.fl6_dst, rt0->addr);
+		ipv6_addr_copy(&fl6.daddr, rt0->addr);
 	}
 
 	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, src:%pI6 dst:%pI6\n",
 			  __func__, skb, skb->len,
-			  &fl.fl6_src, &fl.fl6_dst);
+			  &fl6.saddr, &fl6.daddr);
 
 	SCTP_INC_STATS(SCTP_MIB_OUTSCTPPACKS);
 
 	if (!(transport->param_flags & SPP_PMTUD_ENABLE))
 		skb->local_df = 1;
 
-	return ip6_xmit(sk, skb, &fl, np->opt);
+	return ip6_xmit(sk, skb, &fl6, np->opt);
 }
 
 /* Returns the dst cache entry for the given source and destination ip
@@ -245,22 +245,22 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 					 union sctp_addr *saddr)
 {
 	struct dst_entry *dst;
-	struct flowi fl;
+	struct flowi6 fl6;
 
-	memset(&fl, 0, sizeof(fl));
-	ipv6_addr_copy(&fl.fl6_dst, &daddr->v6.sin6_addr);
+	memset(&fl6, 0, sizeof(fl6));
+	ipv6_addr_copy(&fl6.daddr, &daddr->v6.sin6_addr);
 	if (ipv6_addr_type(&daddr->v6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
-		fl.oif = daddr->v6.sin6_scope_id;
+		fl6.flowi6_oif = daddr->v6.sin6_scope_id;
 
 
-	SCTP_DEBUG_PRINTK("%s: DST=%pI6 ", __func__, &fl.fl6_dst);
+	SCTP_DEBUG_PRINTK("%s: DST=%pI6 ", __func__, &fl6.daddr);
 
 	if (saddr) {
-		ipv6_addr_copy(&fl.fl6_src, &saddr->v6.sin6_addr);
-		SCTP_DEBUG_PRINTK("SRC=%pI6 - ", &fl.fl6_src);
+		ipv6_addr_copy(&fl6.saddr, &saddr->v6.sin6_addr);
+		SCTP_DEBUG_PRINTK("SRC=%pI6 - ", &fl6.saddr);
 	}
 
-	dst = ip6_route_output(&init_net, NULL, &fl);
+	dst = ip6_route_output(&init_net, NULL, &fl6);
 	if (!dst->error) {
 		struct rt6_info *rt;
 		rt = (struct rt6_info *)dst;

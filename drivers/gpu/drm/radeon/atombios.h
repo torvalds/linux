@@ -738,13 +738,13 @@ typedef struct _ATOM_DIG_ENCODER_CONFIG_V3
 {
 #if ATOM_BIG_ENDIAN
     UCHAR ucReserved1:1;
-    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also refered as DIGA/B/C/D/E/F)
+    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also referred as DIGA/B/C/D/E/F)
     UCHAR ucReserved:3;
     UCHAR ucDPLinkRate:1;         // =0: 1.62Ghz, =1: 2.7Ghz
 #else
     UCHAR ucDPLinkRate:1;         // =0: 1.62Ghz, =1: 2.7Ghz
     UCHAR ucReserved:3;
-    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also refered as DIGA/B/C/D/E/F)
+    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also referred as DIGA/B/C/D/E/F)
     UCHAR ucReserved1:1;
 #endif
 }ATOM_DIG_ENCODER_CONFIG_V3;
@@ -785,13 +785,13 @@ typedef struct _ATOM_DIG_ENCODER_CONFIG_V4
 {
 #if ATOM_BIG_ENDIAN
     UCHAR ucReserved1:1;
-    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also refered as DIGA/B/C/D/E/F)
+    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also referred as DIGA/B/C/D/E/F)
     UCHAR ucReserved:2;
     UCHAR ucDPLinkRate:2;         // =0: 1.62Ghz, =1: 2.7Ghz, 2=5.4Ghz    <= Changed comparing to previous version
 #else
     UCHAR ucDPLinkRate:2;         // =0: 1.62Ghz, =1: 2.7Ghz, 2=5.4Ghz    <= Changed comparing to previous version
     UCHAR ucReserved:2;
-    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also refered as DIGA/B/C/D/E/F)
+    UCHAR ucDigSel:3;             // =0/1/2/3/4/5: DIG0/1/2/3/4/5 (In register spec also referred as DIGA/B/C/D/E/F)
     UCHAR ucReserved1:1;
 #endif
 }ATOM_DIG_ENCODER_CONFIG_V4;
@@ -2126,7 +2126,7 @@ typedef struct _ATOM_MULTIMEDIA_CONFIG_INFO
 // Structures used in FirmwareInfoTable
 /****************************************************************************/	
 
-// usBIOSCapability Defintion:
+// usBIOSCapability Definition:
 // Bit 0 = 0: Bios image is not Posted, =1:Bios image is Posted; 
 // Bit 1 = 0: Dual CRTC is not supported, =1: Dual CRTC is supported; 
 // Bit 2 = 0: Extended Desktop is not supported, =1: Extended Desktop is supported; 
@@ -3341,7 +3341,7 @@ typedef struct _ATOM_SPREAD_SPECTRUM_INFO
 /****************************************************************************/	
 // Structure used in AnalogTV_InfoTable (Top level)
 /****************************************************************************/	
-//ucTVBootUpDefaultStd definiton:
+//ucTVBootUpDefaultStd definition:
 
 //ATOM_TV_NTSC                1
 //ATOM_TV_NTSCJ               2
@@ -3816,7 +3816,7 @@ typedef  struct _ATOM_EXTERNAL_DISPLAY_CONNECTION_INFO
   UCHAR                    Reserved [6];                          // for potential expansion
 }ATOM_EXTERNAL_DISPLAY_CONNECTION_INFO;
 
-//Related definitions, all records are differnt but they have a commond header
+//Related definitions, all records are different but they have a commond header
 typedef struct _ATOM_COMMON_RECORD_HEADER
 {
   UCHAR               ucRecordType;                      //An emun to indicate the record type
@@ -4365,14 +4365,14 @@ ucUMAChannelNumber:      	        System memory channel numbers.
 ulCSR_M3_ARB_CNTL_DEFAULT[10]:    Arrays with values for CSR M3 arbiter for default
 ulCSR_M3_ARB_CNTL_UVD[10]:        Arrays with values for CSR M3 arbiter for UVD playback.
 ulCSR_M3_ARB_CNTL_FS3D[10]:       Arrays with values for CSR M3 arbiter for Full Screen 3D applications.
-sAvail_SCLK[5]:                   Arrays to provide availabe list of SLCK and corresponding voltage, order from low to high  
+sAvail_SCLK[5]:                   Arrays to provide available list of SLCK and corresponding voltage, order from low to high  
 ulGMCRestoreResetTime:            GMC power restore and GMC reset time to calculate data reconnection latency. Unit in ns. 
 ulMinimumNClk:                    Minimum NCLK speed among all NB-Pstates to calcualte data reconnection latency. Unit in 10kHz. 
 ulIdleNClk:                       NCLK speed while memory runs in self-refresh state. Unit in 10kHz.
 ulDDR_DLL_PowerUpTime:            DDR PHY DLL power up time. Unit in ns.
 ulDDR_PLL_PowerUpTime:            DDR PHY PLL power up time. Unit in ns.
-usPCIEClkSSPercentage:            PCIE Clock Spred Spectrum Percentage in unit 0.01%; 100 mean 1%.
-usPCIEClkSSType:                  PCIE Clock Spred Spectrum Type. 0 for Down spread(default); 1 for Center spread.
+usPCIEClkSSPercentage:            PCIE Clock Spread Spectrum Percentage in unit 0.01%; 100 mean 1%.
+usPCIEClkSSType:                  PCIE Clock Spread Spectrum Type. 0 for Down spread(default); 1 for Center spread.
 usLvdsSSPercentage:               LVDS panel ( not include eDP ) Spread Spectrum Percentage in unit of 0.01%, =0, use VBIOS default setting. 
 usLvdsSSpreadRateIn10Hz:          LVDS panel ( not include eDP ) Spread Spectrum frequency in unit of 10Hz, =0, use VBIOS default setting. 
 usHDMISSPercentage:               HDMI Spread Spectrum Percentage in unit 0.01%; 100 mean 1%,  =0, use VBIOS default setting. 
@@ -4555,7 +4555,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO_V3
 #define ATOM_S0_SYSTEM_POWER_STATE_VALUE_LITEAC 3
 #define ATOM_S0_SYSTEM_POWER_STATE_VALUE_LIT2AC 4
 
-//Byte aligned defintion for BIOS usage
+//Byte aligned definition for BIOS usage
 #define ATOM_S0_CRT1_MONOb0             0x01
 #define ATOM_S0_CRT1_COLORb0            0x02
 #define ATOM_S0_CRT1_MASKb0             (ATOM_S0_CRT1_MONOb0+ATOM_S0_CRT1_COLORb0)
@@ -4621,7 +4621,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO_V3
 #define ATOM_S2_DISPLAY_ROTATION_ANGLE_MASK   0xC0000000L
 
 
-//Byte aligned defintion for BIOS usage
+//Byte aligned definition for BIOS usage
 #define ATOM_S2_TV1_STANDARD_MASKb0     0x0F
 #define ATOM_S2_CURRENT_BL_LEVEL_MASKb1 0xFF
 #define ATOM_S2_DEVICE_DPMS_STATEb2     0x01
@@ -4671,7 +4671,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO_V3
 #define ATOM_S3_ALLOW_FAST_PWR_SWITCH   0x40000000L
 #define ATOM_S3_RQST_GPU_USE_MIN_PWR    0x80000000L
 
-//Byte aligned defintion for BIOS usage
+//Byte aligned definition for BIOS usage
 #define ATOM_S3_CRT1_ACTIVEb0           0x01
 #define ATOM_S3_LCD1_ACTIVEb0           0x02
 #define ATOM_S3_TV1_ACTIVEb0            0x04
@@ -4707,7 +4707,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO_V3
 #define ATOM_S4_LCD1_REFRESH_MASK       0x0000FF00L
 #define ATOM_S4_LCD1_REFRESH_SHIFT      8
 
-//Byte aligned defintion for BIOS usage
+//Byte aligned definition for BIOS usage
 #define ATOM_S4_LCD1_PANEL_ID_MASKb0	  0x0FF
 #define ATOM_S4_LCD1_REFRESH_MASKb1		  ATOM_S4_LCD1_PANEL_ID_MASKb0
 #define ATOM_S4_VRAM_INFO_MASKb2        ATOM_S4_LCD1_PANEL_ID_MASKb0
@@ -4786,7 +4786,7 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO_V3
 #define ATOM_S6_VRI_BRIGHTNESS_CHANGE       0x40000000L
 #define ATOM_S6_CONFIG_DISPLAY_CHANGE_MASK  0x80000000L
 
-//Byte aligned defintion for BIOS usage
+//Byte aligned definition for BIOS usage
 #define ATOM_S6_DEVICE_CHANGEb0         0x01
 #define ATOM_S6_SCALER_CHANGEb0         0x02
 #define ATOM_S6_LID_CHANGEb0            0x04
@@ -5027,7 +5027,7 @@ typedef struct _ENABLE_GRAPH_SURFACE_PS_ALLOCATION
 
 typedef struct _MEMORY_CLEAN_UP_PARAMETERS
 {
-  USHORT  usMemoryStart;                //in 8Kb boundry, offset from memory base address
+  USHORT  usMemoryStart;                //in 8Kb boundary, offset from memory base address
   USHORT  usMemorySize;                 //8Kb blocks aligned
 }MEMORY_CLEAN_UP_PARAMETERS;
 #define MEMORY_CLEAN_UP_PS_ALLOCATION MEMORY_CLEAN_UP_PARAMETERS
@@ -6855,7 +6855,7 @@ typedef struct _ATOM_PPLIB_Clock_Voltage_Limit_Table
 /**************************************************************************/
 
 
-// Following definitions are for compatiblity issue in different SW components. 
+// Following definitions are for compatibility issue in different SW components. 
 #define ATOM_MASTER_DATA_TABLE_REVISION   0x01
 #define Object_Info												Object_Header			
 #define	AdjustARB_SEQ											MC_InitParameter

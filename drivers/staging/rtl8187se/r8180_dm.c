@@ -123,7 +123,7 @@ DoTxHighPower(
 //
 //	Description:
 //		Callback function of UpdateTxPowerWorkItem.
-//		Because of some event happend, e.g. CCX TPC, High Power Mechanism,
+//		Because of some event happened, e.g. CCX TPC, High Power Mechanism,
 //		We update Tx power of current channel again.
 //
 void rtl8180_tx_pw_wq (struct work_struct *work)
@@ -984,7 +984,7 @@ StaRateAdaptive87SE(
 		{
 			priv->TryupingCount = 0;
 			//
-			// When transfering from CCK to OFDM, DIG is an important issue.
+			// When transferring from CCK to OFDM, DIG is an important issue.
 			//
 			if(priv->CurrentOperaRate == 22)
 				bUpdateInitialGain = true;

@@ -26,17 +26,24 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
 	select SND_SOC_CS42L51 if I2C
 	select SND_SOC_CS4270 if I2C
+	select SND_SOC_CS4271 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_CX20442
 	select SND_SOC_DA7210 if I2C
+	select SND_SOC_DFBMCS320
 	select SND_SOC_JZ4740_CODEC if SOC_JZ4740
+	select SND_SOC_LM4857 if I2C
 	select SND_SOC_MAX98088 if I2C
+	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_PCM3008
+	select SND_SOC_SGTL5000 if I2C
+	select SND_SOC_SN95031 if INTEL_SCU_IPC
 	select SND_SOC_SPDIF
 	select SND_SOC_SSM2602 if I2C
 	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
 	select SND_SOC_TLV320AIC23 if I2C
 	select SND_SOC_TLV320AIC26 if SPI_MASTER
+	select SND_SOC_TVL320AIC32X4 if I2C
 	select SND_SOC_TLV320AIC3X if I2C
 	select SND_SOC_TPA6130A2 if I2C
 	select SND_SOC_TLV320DAC33 if I2C
@@ -44,7 +51,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TWL6040 if TWL4030_CORE
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
-	select SND_SOC_WL1273 if RADIO_WL1273
+	select SND_SOC_WL1273 if MFD_WL1273_CORE
 	select SND_SOC_WM2000 if I2C
 	select SND_SOC_WM8350 if MFD_WM8350
 	select SND_SOC_WM8400 if MFD_WM8400
@@ -76,6 +83,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8985 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8988 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8990 if I2C
+	select SND_SOC_WM8991 if I2C
 	select SND_SOC_WM8993 if I2C
 	select SND_SOC_WM8994 if MFD_WM8994
 	select SND_SOC_WM8995 if SND_SOC_I2C_AND_SPI
@@ -155,6 +163,9 @@ config SND_SOC_CS4270_VD33_ERRATA
 	bool
 	depends on SND_SOC_CS4270
 
+config SND_SOC_CS4271
+	tristate
+
 config SND_SOC_CX20442
 	tristate
 
@@ -167,14 +178,27 @@ config SND_SOC_L3
 config SND_SOC_DA7210
         tristate
 
+config SND_SOC_DFBMCS320
+	tristate
+
 config SND_SOC_DMIC
 	tristate
 
 config SND_SOC_MAX98088
        tristate
 
+config SND_SOC_MAX9850
+	tristate
+
 config SND_SOC_PCM3008
        tristate
+
+#Freescale sgtl5000 codec
+config SND_SOC_SGTL5000
+	tristate
+
+config SND_SOC_SN95031
+	tristate
 
 config SND_SOC_SPDIF
 	tristate
@@ -191,6 +215,9 @@ config SND_SOC_TLV320AIC23
 config SND_SOC_TLV320AIC26
 	tristate "TI TLV320AIC26 Codec support" if SND_SOC_OF_SIMPLE
 	depends on SPI
+
+config SND_SOC_TVL320AIC32X4
+	tristate
 
 config SND_SOC_TLV320AIC3X
 	tristate
@@ -304,6 +331,9 @@ config SND_SOC_WM8988
 config SND_SOC_WM8990
 	tristate
 
+config SND_SOC_WM8991
+	tristate
+
 config SND_SOC_WM8993
 	tristate
 
@@ -326,6 +356,9 @@ config SND_SOC_WM9713
 	tristate
 
 # Amp
+config SND_SOC_LM4857
+	tristate
+
 config SND_SOC_MAX9877
 	tristate
 
@@ -337,4 +370,3 @@ config SND_SOC_WM2000
 
 config SND_SOC_WM9090
 	tristate
-

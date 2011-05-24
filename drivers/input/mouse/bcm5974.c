@@ -639,7 +639,7 @@ exit:
  * device, resulting in trackpad malfunction under certain
  * circumstances. To get around this problem, there is at least one
  * example that utilizes the USB_QUIRK_RESET_RESUME quirk in order to
- * recieve a reset_resume request rather than the normal resume.
+ * receive a reset_resume request rather than the normal resume.
  * Since the implementation of reset_resume is equal to mode switch
  * plus start_traffic, it seems easier to always do the switch when
  * starting traffic on the device.

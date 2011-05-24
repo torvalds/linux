@@ -494,7 +494,7 @@ static int iic_xfer_bytes(struct ibm_iic_private* dev, struct i2c_msg* pm,
 		if (unlikely(ret < 0))
 			break;
 		else if (unlikely(ret != count)){
-			DBG("%d: xfer_bytes, requested %d, transfered %d\n",
+			DBG("%d: xfer_bytes, requested %d, transferred %d\n",
 				dev->idx, count, ret);
 
 			/* If it's not a last part of xfer, abort it */
@@ -593,7 +593,7 @@ static int iic_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	if (unlikely((in_8(&iic->extsts) & EXTSTS_BCS_MASK) != EXTSTS_BCS_FREE)){
 		DBG("%d: iic_xfer, bus is not free\n", dev->idx);
 
-		/* Usually it means something serious has happend.
+		/* Usually it means something serious has happened.
 		 * We *cannot* have unfinished previous transfer
 		 * so it doesn't make any sense to try to stop it.
 		 * Probably we were not able to recover from the
@@ -691,8 +691,7 @@ static int __devinit iic_request_irq(struct platform_device *ofdev,
 /*
  * Register single IIC interface
  */
-static int __devinit iic_probe(struct platform_device *ofdev,
-			       const struct of_device_id *match)
+static int __devinit iic_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct ibm_iic_private *dev;
@@ -806,7 +805,7 @@ static const struct of_device_id ibm_iic_match[] = {
 	{}
 };
 
-static struct of_platform_driver ibm_iic_driver = {
+static struct platform_driver ibm_iic_driver = {
 	.driver = {
 		.name = "ibm-iic",
 		.owner = THIS_MODULE,
@@ -818,12 +817,12 @@ static struct of_platform_driver ibm_iic_driver = {
 
 static int __init iic_init(void)
 {
-	return of_register_platform_driver(&ibm_iic_driver);
+	return platform_driver_register(&ibm_iic_driver);
 }
 
 static void __exit iic_exit(void)
 {
-	of_unregister_platform_driver(&ibm_iic_driver);
+	platform_driver_unregister(&ibm_iic_driver);
 }
 
 module_init(iic_init);

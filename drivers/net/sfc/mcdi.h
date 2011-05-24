@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2008-2009 Solarflare Communications Inc.
+ * Copyright 2008-2010 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -93,7 +93,7 @@ extern void efx_mcdi_process_event(struct efx_channel *channel,
 #define MCDI_EVENT_FIELD(_ev, _field)			\
 	EFX_QWORD_FIELD(_ev, MCDI_EVENT_ ## _field)
 
-extern int efx_mcdi_fwver(struct efx_nic *efx, u64 *version, u32 *build);
+extern void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len);
 extern int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 			       bool *was_attached_out);
 extern int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,

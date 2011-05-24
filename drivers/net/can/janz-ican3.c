@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/core.h>
 
 #include <linux/netdevice.h>
 #include <linux/can.h>
@@ -273,7 +274,7 @@ static inline void ican3_set_page(struct ican3_dev *mod, unsigned int page)
  */
 
 /*
- * Recieve a message from the ICAN3 "old-style" firmware interface
+ * Receive a message from the ICAN3 "old-style" firmware interface
  *
  * LOCKING: must hold mod->lock
  *
@@ -1049,7 +1050,7 @@ static void ican3_handle_inquiry(struct ican3_dev *mod, struct ican3_msg *msg)
 		complete(&mod->termination_comp);
 		break;
 	default:
-		dev_err(mod->dev, "recieved an unknown inquiry response\n");
+		dev_err(mod->dev, "received an unknown inquiry response\n");
 		break;
 	}
 }
@@ -1057,7 +1058,7 @@ static void ican3_handle_inquiry(struct ican3_dev *mod, struct ican3_msg *msg)
 static void ican3_handle_unknown_message(struct ican3_dev *mod,
 					struct ican3_msg *msg)
 {
-	dev_warn(mod->dev, "recieved unknown message: spec 0x%.2x length %d\n",
+	dev_warn(mod->dev, "received unknown message: spec 0x%.2x length %d\n",
 			   msg->spec, le16_to_cpu(msg->len));
 }
 
@@ -1112,7 +1113,7 @@ static bool ican3_txok(struct ican3_dev *mod)
 }
 
 /*
- * Recieve one CAN frame from the hardware
+ * Receive one CAN frame from the hardware
  *
  * CONTEXT: must be called from user context
  */
@@ -1618,7 +1619,7 @@ static ssize_t ican3_sysfs_set_term(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(termination, S_IWUGO | S_IRUGO, ican3_sysfs_show_term,
+static DEVICE_ATTR(termination, S_IWUSR | S_IRUGO, ican3_sysfs_show_term,
 						   ican3_sysfs_set_term);
 
 static struct attribute *ican3_sysfs_attrs[] = {
@@ -1643,7 +1644,7 @@ static int __devinit ican3_probe(struct platform_device *pdev)
 	struct device *dev;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
+	pdata = mfd_get_data(pdev);
 	if (!pdata)
 		return -ENXIO;
 

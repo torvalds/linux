@@ -177,6 +177,8 @@ static int __init xen_hvc_init(void)
 	}
 	if (xencons_irq < 0)
 		xencons_irq = 0; /* NO_IRQ */
+	else
+		irq_set_noprobe(xencons_irq);
 
 	hp = hvc_alloc(HVC_COOKIE, xencons_irq, ops, 256);
 	if (IS_ERR(hp))

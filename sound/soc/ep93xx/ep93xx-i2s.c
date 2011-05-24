@@ -242,7 +242,7 @@ static int ep93xx_i2s_hw_params(struct snd_pcm_substream *substream,
 {
 	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
 	unsigned word_len, div, sdiv, lrdiv;
-	int found = 0, err;
+	int err;
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -275,15 +275,14 @@ static int ep93xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	 * the codec uses.
 	 */
 	div = clk_get_rate(info->mclk) / params_rate(params);
-	for (sdiv = 2; sdiv <= 4; sdiv += 2)
-		for (lrdiv = 64; lrdiv <= 128; lrdiv <<= 1)
-			if (sdiv * lrdiv == div) {
-				found = 1;
-				goto out;
-			}
-out:
-	if (!found)
-		return -EINVAL;
+	sdiv = 4;
+	if (div > (256 + 512) / 2) {
+		lrdiv = 128;
+	} else {
+		lrdiv = 64;
+		if (div < (128 + 256) / 2)
+			sdiv = 2;
+	}
 
 	err = clk_set_rate(info->sclk, clk_get_rate(info->mclk) / sdiv);
 	if (err)
@@ -314,10 +313,12 @@ static int ep93xx_i2s_suspend(struct snd_soc_dai *dai)
 	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
 
 	if (!dai->active)
-		return;
+		return 0;
 
 	ep93xx_i2s_disable(info, SNDRV_PCM_STREAM_PLAYBACK);
 	ep93xx_i2s_disable(info, SNDRV_PCM_STREAM_CAPTURE);
+
+	return 0;
 }
 
 static int ep93xx_i2s_resume(struct snd_soc_dai *dai)
@@ -325,10 +326,12 @@ static int ep93xx_i2s_resume(struct snd_soc_dai *dai)
 	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
 
 	if (!dai->active)
-		return;
+		return 0;
 
 	ep93xx_i2s_enable(info, SNDRV_PCM_STREAM_PLAYBACK);
 	ep93xx_i2s_enable(info, SNDRV_PCM_STREAM_CAPTURE);
+
+	return 0;
 }
 #else
 #define ep93xx_i2s_suspend	NULL
@@ -352,13 +355,13 @@ static struct snd_soc_dai_driver ep93xx_i2s_dai = {
 	.playback	= {
 		.channels_min	= 2,
 		.channels_max	= 2,
-		.rates		= SNDRV_PCM_RATE_8000_96000,
+		.rates		= SNDRV_PCM_RATE_8000_192000,
 		.formats	= EP93XX_I2S_FORMATS,
 	},
 	.capture	= {
 		 .channels_min	= 2,
 		 .channels_max	= 2,
-		 .rates		= SNDRV_PCM_RATE_8000_96000,
+		 .rates		= SNDRV_PCM_RATE_8000_192000,
 		 .formats	= EP93XX_I2S_FORMATS,
 	},
 	.ops		= &ep93xx_i2s_dai_ops,

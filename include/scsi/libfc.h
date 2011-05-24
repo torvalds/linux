@@ -35,6 +35,8 @@
 
 #include <scsi/fc_frame.h>
 
+#define	FC_FC4_PROV_SIZE	(FC_TYPE_FCP + 1)	/* size of tables */
+
 /*
  * libfc error codes
  */
@@ -156,6 +158,7 @@ struct fc_rport_libfc_priv {
 	#define FC_RP_FLAGS_REC_SUPPORTED	(1 << 0)
 	#define FC_RP_FLAGS_RETRY		(1 << 1)
 	#define FC_RP_STARTED			(1 << 2)
+	#define FC_RP_FLAGS_CONF_REQ		(1 << 3)
 	unsigned int	           e_d_tov;
 	unsigned int	           r_a_tov;
 };
@@ -179,6 +182,7 @@ struct fc_rport_libfc_priv {
  * @rp_mutex:       The mutex that protects the remote port
  * @retry_work:     Handle for retries
  * @event_callback: Callback when READY, FAILED or LOGO states complete
+ * @prli_count:     Count of open PRLI sessions in providers
  * @rcu:	    Structure used for freeing in an RCU-safe manner
  */
 struct fc_rport_priv {
@@ -202,7 +206,13 @@ struct fc_rport_priv {
 	struct list_head            peers;
 	struct work_struct          event_work;
 	u32			    supported_classes;
+	u16                         prli_count;
 	struct rcu_head		    rcu;
+	u16			    sp_features;
+	u8			    spp_type;
+	void			    (*lld_event_callback)(struct fc_lport *,
+						      struct fc_rport_priv *,
+						      enum fc_rport_event);
 };
 
 /**
@@ -250,7 +260,7 @@ struct fcoe_dev_stats {
 /**
  * struct fc_seq_els_data - ELS data used for passing ELS specific responses
  * @reason: The reason for rejection
- * @explan: The explaination of the rejection
+ * @explan: The explanation of the rejection
  *
  * Mainly used by the exchange manager layer.
  */
@@ -515,7 +525,7 @@ struct libfc_function_template {
 			struct fc_frame *);
 
 	/*
-	 * Send an ELS response using infomation from the received frame.
+	 * Send an ELS response using information from the received frame.
 	 *
 	 * STATUS: OPTIONAL
 	 */
@@ -551,11 +561,28 @@ struct libfc_function_template {
 	struct fc_seq *(*seq_start_next)(struct fc_seq *);
 
 	/*
+	 * Set a response handler for the exchange of the sequence.
+	 *
+	 * STATUS: OPTIONAL
+	 */
+	void (*seq_set_resp)(struct fc_seq *sp,
+			     void (*resp)(struct fc_seq *, struct fc_frame *,
+					  void *),
+			     void *arg);
+
+	/*
 	 * Assign a sequence for an incoming request frame.
 	 *
 	 * STATUS: OPTIONAL
 	 */
 	struct fc_seq *(*seq_assign)(struct fc_lport *, struct fc_frame *);
+
+	/*
+	 * Release the reference on the sequence returned by seq_assign().
+	 *
+	 * STATUS: OPTIONAL
+	 */
+	void (*seq_release)(struct fc_seq *);
 
 	/*
 	 * Reset an exchange manager, completing all sequences and exchanges.
@@ -636,7 +663,7 @@ struct libfc_function_template {
 	int (*rport_logoff)(struct fc_rport_priv *);
 
 	/*
-	 * Recieve a request from a remote port.
+	 * Receive a request from a remote port.
 	 *
 	 * STATUS: OPTIONAL
 	 */
@@ -656,6 +683,15 @@ struct libfc_function_template {
 	void (*rport_destroy)(struct kref *);
 
 	/*
+	 * Callback routine after the remote port is logged in
+	 *
+	 * STATUS: OPTIONAL
+	 */
+	void (*rport_event_callback)(struct fc_lport *,
+				     struct fc_rport_priv *,
+				     enum fc_rport_event);
+
+	/*
 	 * Send a fcp cmd from fsp pkt.
 	 * Called with the SCSI host lock unlocked and irqs disabled.
 	 *
@@ -668,7 +704,7 @@ struct libfc_function_template {
 					 void *));
 
 	/*
-	 * Cleanup the FCP layer, used durring link down and reset
+	 * Cleanup the FCP layer, used during link down and reset
 	 *
 	 * STATUS: OPTIONAL
 	 */
@@ -749,6 +785,15 @@ struct fc_disc {
 			      enum fc_disc_event);
 };
 
+/*
+ * Local port notifier and events.
+ */
+extern struct blocking_notifier_head fc_lport_notifier_head;
+enum fc_lport_event {
+	FC_LPORT_EV_ADD,
+	FC_LPORT_EV_DEL,
+};
+
 /**
  * struct fc_lport - Local port
  * @host:                  The SCSI host associated with a local port
@@ -789,8 +834,10 @@ struct fc_disc {
  * @lso_max:               The maximum large offload send size
  * @fcts:                  FC-4 type mask
  * @lp_mutex:              Mutex to protect the local port
- * @list:                  Handle for list of local ports
+ * @list:                  Linkage on list of vport peers
  * @retry_work:            Handle to local port for delayed retry context
+ * @prov:		   Pointers available for use by passive FC-4 providers
+ * @lport_list:            Linkage on module-wide list of local ports
  */
 struct fc_lport {
 	/* Associations */
@@ -846,7 +893,31 @@ struct fc_lport {
 	struct mutex                   lp_mutex;
 	struct list_head               list;
 	struct delayed_work	       retry_work;
+	void			       *prov[FC_FC4_PROV_SIZE];
+	struct list_head               lport_list;
 };
+
+/**
+ * struct fc4_prov - FC-4 provider registration
+ * @prli:               Handler for incoming PRLI
+ * @prlo:               Handler for session reset
+ * @recv:		Handler for incoming request
+ * @module:		Pointer to module.  May be NULL.
+ */
+struct fc4_prov {
+	int (*prli)(struct fc_rport_priv *, u32 spp_len,
+		    const struct fc_els_spp *spp_in,
+		    struct fc_els_spp *spp_out);
+	void (*prlo)(struct fc_rport_priv *);
+	void (*recv)(struct fc_lport *, struct fc_frame *);
+	struct module *module;
+};
+
+/*
+ * Register FC-4 provider with libfc.
+ */
+int fc_fc4_register_provider(enum fc_fh_type type, struct fc4_prov *);
+void fc_fc4_deregister_provider(enum fc_fh_type type, struct fc4_prov *);
 
 /*
  * FC_LPORT HELPER FUNCTIONS
@@ -978,6 +1049,7 @@ struct fc_lport *libfc_vport_create(struct fc_vport *, int privsize);
 struct fc_lport *fc_vport_id_lookup(struct fc_lport *, u32 port_id);
 int fc_lport_bsg_request(struct fc_bsg_job *);
 void fc_lport_set_local_id(struct fc_lport *, u32 port_id);
+void fc_lport_iterate(void (*func)(struct fc_lport *, void *), void *);
 
 /*
  * REMOTE PORT LAYER

@@ -10,3 +10,4 @@ obj-$(CONFIG_I2C_MUX)		+= i2c-mux.o
 obj-y				+= algos/ busses/ muxes/
 
 ccflags-$(CONFIG_I2C_DEBUG_CORE) := -DDEBUG
+CFLAGS_i2c-core.o := -Wno-deprecated-declarations

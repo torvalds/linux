@@ -175,7 +175,7 @@ static int txsrc_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int wm8804_volatile(unsigned int reg)
+static int wm8804_volatile(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM8804_RST_DEVID1:

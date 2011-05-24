@@ -3203,7 +3203,7 @@ static void b43_tx_work(struct work_struct *work)
 	mutex_unlock(&wl->mutex);
 }
 
-static int b43_op_tx(struct ieee80211_hw *hw,
+static void b43_op_tx(struct ieee80211_hw *hw,
 		     struct sk_buff *skb)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
@@ -3211,14 +3211,12 @@ static int b43_op_tx(struct ieee80211_hw *hw,
 	if (unlikely(skb->len < 2 + 2 + 6)) {
 		/* Too short, this can't be a valid frame. */
 		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
+		return;
 	}
 	B43_WARN_ON(skb_shinfo(skb)->nr_frags);
 
 	skb_queue_tail(&wl->tx_queue, skb);
 	ieee80211_queue_work(wl->hw, &wl->tx_work);
-
-	return NETDEV_TX_OK;
 }
 
 static void b43_qos_params_upload(struct b43_wldev *dev,
@@ -4012,7 +4010,7 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 	b43_mac_enable(dev);
 	b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, dev->irq_mask);
 
-	/* Start maintainance work */
+	/* Start maintenance work */
 	b43_periodic_tasks_setup(dev);
 
 	b43_leds_init(dev);

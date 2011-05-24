@@ -356,7 +356,7 @@ static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl, u16 *value)
 	/*
 	 * There is a trick here. We have to read two registers to have the
 	 * sensor temperature, but we have to beware a conversion could occur
-	 * inbetween the readings. The datasheet says we should either use
+	 * between the readings. The datasheet says we should either use
 	 * the one-shot conversion register, which we don't want to do
 	 * (disables hardware monitoring) or monitor the busy bit, which is
 	 * impossible (we can't read the values and monitor that bit at the

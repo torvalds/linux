@@ -26,6 +26,7 @@
 #include "drmP.h"
 #include "radeon.h"
 #include "radeon_reg.h"
+#include "radeon_asic.h"
 #include "atom.h"
 
 #define AUDIO_TIMER_INTERVALL 100 /* 1/10 sekund should be enough */

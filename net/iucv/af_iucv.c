@@ -250,7 +250,7 @@ static struct device *af_iucv_dev;
  *	PRMDATA[0..6]	socket data (max 7 bytes);
  *	PRMDATA[7]	socket data length value (len is 0xff - PRMDATA[7])
  *
- * The socket data length is computed by substracting the socket data length
+ * The socket data length is computed by subtracting the socket data length
  * value from 0xFF.
  * If the socket data len is greater 7, then PRMDATA can be used for special
  * notifications (see iucv_sock_shutdown); and further,

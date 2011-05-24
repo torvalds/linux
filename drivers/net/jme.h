@@ -26,7 +26,7 @@
 #define __JME_H_INCLUDED__
 
 #define DRV_NAME	"jme"
-#define DRV_VERSION	"1.0.7"
+#define DRV_VERSION	"1.0.8"
 #define PFX		DRV_NAME ": "
 
 #define PCI_DEVICE_ID_JMICRON_JMC250	0x0250
@@ -102,6 +102,37 @@ enum jme_spi_op_bits {
 
 #define HALF_US 500	/* 500 ns */
 #define JMESPIIOCTL	SIOCDEVPRIVATE
+
+#define PCI_PRIV_PE1		0xE4
+
+enum pci_priv_pe1_bit_masks {
+	PE1_ASPMSUPRT	= 0x00000003, /*
+				       * RW:
+				       * Aspm_support[1:0]
+				       * (R/W Port of 5C[11:10])
+				       */
+	PE1_MULTIFUN	= 0x00000004, /* RW: Multi_fun_bit */
+	PE1_RDYDMA	= 0x00000008, /* RO: ~link.rdy_for_dma */
+	PE1_ASPMOPTL	= 0x00000030, /* RW: link.rx10s_option[1:0] */
+	PE1_ASPMOPTH	= 0x000000C0, /* RW: 10_req=[3]?HW:[2] */
+	PE1_GPREG0	= 0x0000FF00, /*
+				       * SRW:
+				       * Cfg_gp_reg0
+				       * [7:6] phy_giga BG control
+				       * [5] CREQ_N as CREQ_N1 (CPPE# as CREQ#)
+				       * [4:0] Reserved
+				       */
+	PE1_GPREG0_PBG	= 0x0000C000, /* phy_giga BG control */
+	PE1_GPREG1	= 0x00FF0000, /* RW: Cfg_gp_reg1 */
+	PE1_REVID	= 0xFF000000, /* RO: Rev ID */
+};
+
+enum pci_priv_pe1_values {
+	PE1_GPREG0_ENBG		= 0x00000000, /* en BG */
+	PE1_GPREG0_PDD3COLD	= 0x00004000, /* giga_PD + d3cold */
+	PE1_GPREG0_PDPCIESD	= 0x00008000, /* giga_PD + pcie_shutdown */
+	PE1_GPREG0_PDPCIEIDDQ	= 0x0000C000, /* giga_PD + pcie_iddq */
+};
 
 /*
  * Dynamic(adaptive)/Static PCC values
@@ -403,6 +434,7 @@ struct jme_adapter {
 	u32			reg_rxmcs;
 	u32			reg_ghc;
 	u32			reg_pmcs;
+	u32			reg_gpreg1;
 	u32			phylink;
 	u32			tx_ring_size;
 	u32			tx_ring_mask;
@@ -411,8 +443,10 @@ struct jme_adapter {
 	u32			rx_ring_mask;
 	u8			mrrs;
 	unsigned int		fpgaver;
-	unsigned int		chiprev;
-	u8			rev;
+	u8			chiprev;
+	u8			chip_main_rev;
+	u8			chip_sub_rev;
+	u8			pcirev;
 	u32			msg_enable;
 	struct ethtool_cmd	old_ecmd;
 	unsigned int		old_mtu;
@@ -497,6 +531,7 @@ enum jme_iomap_regs {
 	JME_PMCS	= JME_MAC | 0x60, /* Power Management Control/Stat */
 
 
+	JME_PHY_PWR	= JME_PHY | 0x24, /* New PHY Power Ctrl Register */
 	JME_PHY_CS	= JME_PHY | 0x28, /* PHY Ctrl and Status Register */
 	JME_PHY_LINK	= JME_PHY | 0x30, /* PHY Link Status Register */
 	JME_SMBCSR	= JME_PHY | 0x40, /* SMB Control and Status */
@@ -622,6 +657,14 @@ enum jme_txtrhd_bits_masks {
 enum jme_txtrhd_shifts {
 	TXTRHD_TXP_SHIFT	= 8,
 	TXTRHD_TXRL_SHIFT	= 0,
+};
+
+enum jme_txtrhd_values {
+	TXTRHD_FULLDUPLEX	= 0x00000000,
+	TXTRHD_HALFDUPLEX	= TXTRHD_TXPEN |
+				  ((0x2000 << TXTRHD_TXP_SHIFT) & TXTRHD_TXP) |
+				  TXTRHD_TXREN |
+				  ((8 << TXTRHD_TXRL_SHIFT) & TXTRHD_TXRL),
 };
 
 /*
@@ -779,6 +822,8 @@ static inline u32 smi_phy_addr(int x)
  */
 enum jme_ghc_bit_mask {
 	GHC_SWRST		= 0x40000000,
+	GHC_TO_CLK_SRC		= 0x00C00000,
+	GHC_TXMAC_CLK_SRC	= 0x00300000,
 	GHC_DPX			= 0x00000040,
 	GHC_SPEED		= 0x00000030,
 	GHC_LINK_POLL		= 0x00000001,
@@ -830,6 +875,21 @@ enum jme_pmcs_bit_masks {
 	PMCS_LFEN	= 0x00000004,
 	PMCS_LREN	= 0x00000002,
 	PMCS_MFEN	= 0x00000001,
+};
+
+/*
+ * New PHY Power Control Register
+ */
+enum jme_phy_pwr_bit_masks {
+	PHY_PWR_DWN1SEL	= 0x01000000, /* Phy_giga.p_PWR_DOWN1_SEL */
+	PHY_PWR_DWN1SW	= 0x02000000, /* Phy_giga.p_PWR_DOWN1_SW */
+	PHY_PWR_DWN2	= 0x04000000, /* Phy_giga.p_PWR_DOWN2 */
+	PHY_PWR_CLKSEL	= 0x08000000, /*
+				       * XTL_OUT Clock select
+				       * (an internal free-running clock)
+				       * 0: xtl_out = phy_giga.A_XTL25_O
+				       * 1: xtl_out = phy_giga.PD_OSC
+				       */
 };
 
 /*
@@ -942,18 +1002,17 @@ enum jme_gpreg0_vals {
 
 /*
  * General Purpose REG-1
- * Note: All theses bits defined here are for
- *       Chip mode revision 0x11 only
  */
-enum jme_gpreg1_masks {
+enum jme_gpreg1_bit_masks {
+	GPREG1_RXCLKOFF		= 0x04000000,
+	GPREG1_PCREQN		= 0x00020000,
+	GPREG1_HALFMODEPATCH	= 0x00000040, /* For Chip revision 0x11 only */
+	GPREG1_RSSPATCH		= 0x00000020, /* For Chip revision 0x11 only */
 	GPREG1_INTRDELAYUNIT	= 0x00000018,
 	GPREG1_INTRDELAYENABLE	= 0x00000007,
 };
 
 enum jme_gpreg1_vals {
-	GPREG1_RSSPATCH		= 0x00000040,
-	GPREG1_HALFMODEPATCH	= 0x00000020,
-
 	GPREG1_INTDLYUNIT_16NS	= 0x00000000,
 	GPREG1_INTDLYUNIT_256NS	= 0x00000008,
 	GPREG1_INTDLYUNIT_1US	= 0x00000010,
@@ -967,7 +1026,7 @@ enum jme_gpreg1_vals {
 	GPREG1_INTDLYEN_6U	= 0x00000006,
 	GPREG1_INTDLYEN_7U	= 0x00000007,
 
-	GPREG1_DEFAULT		= 0x00000000,
+	GPREG1_DEFAULT		= GPREG1_PCREQN,
 };
 
 /*
@@ -1184,9 +1243,14 @@ enum jme_phy_reg17_vals {
 /*
  * Workaround
  */
-static inline int is_buggy250(unsigned short device, unsigned int chiprev)
+static inline int is_buggy250(unsigned short device, u8 chiprev)
 {
 	return device == PCI_DEVICE_ID_JMICRON_JMC250 && chiprev == 0x11;
+}
+
+static inline int new_phy_power_ctrl(u8 chip_main_rev)
+{
+	return chip_main_rev >= 5;
 }
 
 /*
@@ -1194,6 +1258,7 @@ static inline int is_buggy250(unsigned short device, unsigned int chiprev)
  */
 static int jme_set_settings(struct net_device *netdev,
 				struct ethtool_cmd *ecmd);
+static void jme_set_unicastaddr(struct net_device *netdev);
 static void jme_set_multi(struct net_device *netdev);
 
 #endif

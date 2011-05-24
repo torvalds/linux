@@ -476,7 +476,7 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 static int get_inbound_buffer_frontier(struct qdio_q *q)
 {
 	int count, stop;
-	unsigned char state;
+	unsigned char state = 0;
 
 	/*
 	 * Don't check 128 buffers, as otherwise qdio_inbound_q_moved
@@ -643,7 +643,7 @@ void qdio_inbound_processing(unsigned long data)
 static int get_outbound_buffer_frontier(struct qdio_q *q)
 {
 	int count, stop;
-	unsigned char state;
+	unsigned char state = 0;
 
 	if (need_siga_sync(q))
 		if (((queue_type(q) != QDIO_IQDIO_QFMT) &&
@@ -1508,7 +1508,8 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 
 	if (irq_ptr->state != QDIO_IRQ_STATE_ACTIVE)
 		return -EBUSY;
-
+	if (!count)
+		return 0;
 	if (callflags & QDIO_FLAG_SYNC_INPUT)
 		return handle_inbound(irq_ptr->input_qs[q_nr],
 				      callflags, bufnr, count);
@@ -1648,26 +1649,26 @@ static int __init init_QDIO(void)
 {
 	int rc;
 
-	rc = qdio_setup_init();
+	rc = qdio_debug_init();
 	if (rc)
 		return rc;
+	rc = qdio_setup_init();
+	if (rc)
+		goto out_debug;
 	rc = tiqdio_allocate_memory();
 	if (rc)
 		goto out_cache;
-	rc = qdio_debug_init();
-	if (rc)
-		goto out_ti;
 	rc = tiqdio_register_thinints();
 	if (rc)
-		goto out_debug;
+		goto out_ti;
 	return 0;
 
-out_debug:
-	qdio_debug_exit();
 out_ti:
 	tiqdio_free_memory();
 out_cache:
 	qdio_setup_exit();
+out_debug:
+	qdio_debug_exit();
 	return rc;
 }
 
@@ -1675,8 +1676,8 @@ static void __exit exit_QDIO(void)
 {
 	tiqdio_unregister_thinints();
 	tiqdio_free_memory();
-	qdio_debug_exit();
 	qdio_setup_exit();
+	qdio_debug_exit();
 }
 
 module_init(init_QDIO);

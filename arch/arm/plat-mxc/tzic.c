@@ -167,8 +167,8 @@ void __init tzic_init_irq(void __iomem *irqbase)
 	/* all IRQ no FIQ Warning :: No selection */
 
 	for (i = 0; i < MXC_INTERNAL_IRQS; i++) {
-		set_irq_chip(i, &mxc_tzic_chip.base);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &mxc_tzic_chip.base,
+					 handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 

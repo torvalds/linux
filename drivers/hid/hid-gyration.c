@@ -43,6 +43,11 @@ static int gyration_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	case 0x048: gy_map_key_clear(KEY_MEDIA);	break;
 	case 0x049: gy_map_key_clear(KEY_CAMERA);	break;
 	case 0x04a: gy_map_key_clear(KEY_VIDEO);	break;
+	case 0x05a: gy_map_key_clear(KEY_TEXT);		break;
+	case 0x05b: gy_map_key_clear(KEY_RED);		break;
+	case 0x05c: gy_map_key_clear(KEY_GREEN);	break;
+	case 0x05d: gy_map_key_clear(KEY_YELLOW);	break;
+	case 0x05e: gy_map_key_clear(KEY_BLUE);		break;
 
 	default:
 		return 0;

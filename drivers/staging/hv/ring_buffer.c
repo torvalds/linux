@@ -23,7 +23,6 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include "osd.h"
 #include "logging.h"
 #include "ring_buffer.h"
 

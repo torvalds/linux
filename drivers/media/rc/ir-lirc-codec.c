@@ -1,4 +1,4 @@
-/* ir-lirc-codec.c - ir-core to classic lirc interface bridge
+/* ir-lirc-codec.c - rc-core to classic lirc interface bridge
  *
  * Copyright (C) 2010 by Jarod Wilson <jarod@redhat.com>
  *
@@ -47,6 +47,7 @@ static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	/* Carrier reports */
 	if (ev.carrier_report) {
 		sample = LIRC_FREQUENCY(ev.carrier);
+		IR_dprintk(2, "carrier report (freq: %d)\n", sample);
 
 	/* Packet end */
 	} else if (ev.timeout) {
@@ -62,6 +63,7 @@ static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			return 0;
 
 		sample = LIRC_TIMEOUT(ev.duration / 1000);
+		IR_dprintk(2, "timeout report (duration: %d)\n", sample);
 
 	/* Normal sample */
 	} else {
@@ -85,6 +87,8 @@ static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 		sample = ev.pulse ? LIRC_PULSE(ev.duration / 1000) :
 					LIRC_SPACE(ev.duration / 1000);
+		IR_dprintk(2, "delivering %uus %s to lirc_dev\n",
+			   TO_US(ev.duration), TO_STR(ev.pulse));
 	}
 
 	lirc_buffer_write(dev->raw->lirc.drv->rbuf,

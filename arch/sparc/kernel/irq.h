@@ -1,4 +1,40 @@
+#include <linux/platform_device.h>
+
 #include <asm/btfixup.h>
+
+/* sun4m specific type definitions */
+
+/* This maps direct to CPU specific interrupt registers */
+struct sun4m_irq_percpu {
+	u32	pending;
+	u32	clear;
+	u32	set;
+};
+
+/* This maps direct to global interrupt registers */
+struct sun4m_irq_global {
+	u32	pending;
+	u32	mask;
+	u32	mask_clear;
+	u32	mask_set;
+	u32	interrupt_target;
+};
+
+extern struct sun4m_irq_percpu __iomem *sun4m_irq_percpu[SUN4M_NCPUS];
+extern struct sun4m_irq_global __iomem *sun4m_irq_global;
+
+/*
+ * Platform specific irq configuration
+ * The individual platforms assign their platform
+ * specifics in their init functions.
+ */
+struct sparc_irq_config {
+	void (*init_timers)(irq_handler_t);
+	unsigned int (*build_device_irq)(struct platform_device *op,
+	                                 unsigned int real_irq);
+};
+extern struct sparc_irq_config sparc_irq_config;
+
 
 /* Dave Redman (djhr@tadpole.co.uk)
  * changed these to function pointers.. it saves cycles and will allow
@@ -44,12 +80,6 @@ static inline void load_profile_irq(int cpu, int limit)
 {
 	BTFIXUP_CALL(load_profile_irq)(cpu, limit);
 }
-
-extern void (*sparc_init_timers)(irq_handler_t lvl10_irq);
-
-extern void claim_ticker14(irq_handler_t irq_handler,
-			   int irq,
-			   unsigned int timeout);
 
 #ifdef CONFIG_SMP
 BTFIXUPDEF_CALL(void, set_cpu_int, int, int)

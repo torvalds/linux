@@ -311,7 +311,7 @@ int kvm_s390_handle_b2(struct kvm_vcpu *vcpu)
 
 	/*
 	 * a lot of B2 instructions are priviledged. We first check for
-	 * the priviledges ones, that we can handle in the kernel. If the
+	 * the privileged ones, that we can handle in the kernel. If the
 	 * kernel can handle this instruction, we check for the problem
 	 * state bit and (a) handle the instruction or (b) send a code 2
 	 * program check.

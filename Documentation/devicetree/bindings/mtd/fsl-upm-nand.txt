@@ -1,0 +1,63 @@
+Freescale Localbus UPM programmed to work with NAND flash
+
+Required properties:
+- compatible : "fsl,upm-nand".
+- reg : should specify localbus chip select and size used for the chip.
+- fsl,upm-addr-offset : UPM pattern offset for the address latch.
+- fsl,upm-cmd-offset : UPM pattern offset for the command latch.
+
+Optional properties:
+- fsl,upm-wait-flags : add chip-dependent short delays after running the
+	UPM pattern (0x1), after writing a data byte (0x2) or after
+	writing out a buffer (0x4).
+- fsl,upm-addr-line-cs-offsets : address offsets for multi-chip support.
+	The corresponding address lines are used to select the chip.
+- gpios : may specify optional GPIOs connected to the Ready-Not-Busy pins
+	(R/B#). For multi-chip devices, "n" GPIO definitions are required
+	according to the number of chips.
+- chip-delay : chip dependent delay for transferring data from array to
+	read registers (tR). Required if property "gpios" is not used
+	(R/B# pins not connected).
+
+Examples:
+
+upm@1,0 {
+	compatible = "fsl,upm-nand";
+	reg = <1 0 1>;
+	fsl,upm-addr-offset = <16>;
+	fsl,upm-cmd-offset = <8>;
+	gpios = <&qe_pio_e 18 0>;
+
+	flash {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "...";
+
+		partition@0 {
+			...
+		};
+	};
+};
+
+upm@3,0 {
+	#address-cells = <0>;
+	#size-cells = <0>;
+	compatible = "tqc,tqm8548-upm-nand", "fsl,upm-nand";
+	reg = <3 0x0 0x800>;
+	fsl,upm-addr-offset = <0x10>;
+	fsl,upm-cmd-offset = <0x08>;
+	/* Multi-chip NAND device */
+	fsl,upm-addr-line-cs-offsets = <0x0 0x200>;
+	fsl,upm-wait-flags = <0x5>;
+	chip-delay = <25>; // in micro-seconds
+
+	nand@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			    label = "fs";
+			    reg = <0x00000000 0x10000000>;
+		};
+	};
+};

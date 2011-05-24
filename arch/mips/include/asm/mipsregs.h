@@ -922,7 +922,7 @@ do {									\
 #define write_c0_config7(val)	__write_32bit_c0_register($16, 7, val)
 
 /*
- * The WatchLo register.  There may be upto 8 of them.
+ * The WatchLo register.  There may be up to 8 of them.
  */
 #define read_c0_watchlo0()	__read_ulong_c0_register($18, 0)
 #define read_c0_watchlo1()	__read_ulong_c0_register($18, 1)
@@ -942,7 +942,7 @@ do {									\
 #define write_c0_watchlo7(val)	__write_ulong_c0_register($18, 7, val)
 
 /*
- * The WatchHi register.  There may be upto 8 of them.
+ * The WatchHi register.  There may be up to 8 of them.
  */
 #define read_c0_watchhi0()	__read_32bit_c0_register($19, 0)
 #define read_c0_watchhi1()	__read_32bit_c0_register($19, 1)

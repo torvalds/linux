@@ -30,7 +30,7 @@
  *
  * Different modes can be active at a time, but only
  * one can be set at array creation.  Others can be added later.
- * A mode can be one-shot or recurrent with the recurrance being
+ * A mode can be one-shot or recurrent with the recurrence being
  * once in every N requests.
  * The bottom 5 bits of the "layout" indicate the mode.  The
  * remainder indicate a period, or 0 for one-shot.

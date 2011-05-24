@@ -241,9 +241,8 @@ enum ath5k_eeprom_freq_bands{
 #define	AR5K_SPUR_SYMBOL_WIDTH_TURBO_100Hz	6250
 
 #define AR5K_EEPROM_READ(_o, _v) do {			\
-	ret = ath5k_hw_nvram_read(ah, (_o), &(_v));	\
-	if (ret)					\
-		return ret;				\
+	if (!ath5k_hw_nvram_read(ah, (_o), &(_v)))	\
+		return -EIO;				\
 } while (0)
 
 #define AR5K_EEPROM_READ_HDR(_o, _v)					\
@@ -268,29 +267,6 @@ enum ath5k_ctl_mode {
 	AR5K_CTL_5GHT40 = 8,
 	AR5K_CTL_MODE_M = 15,
 };
-
-/* Default CTL ids for the 3 main reg domains.
- * Atheros only uses these by default but vendors
- * can have up to 32 different CTLs for different
- * scenarios. Note that theese values are ORed with
- * the mode id (above) so we can have up to 24 CTL
- * datasets out of these 3 main regdomains. That leaves
- * 8 ids that can be used by vendors and since 0x20 is
- * missing from HAL sources i guess this is the set of
- * custom CTLs vendors can use. */
-#define	AR5K_CTL_FCC	0x10
-#define	AR5K_CTL_CUSTOM	0x20
-#define	AR5K_CTL_ETSI	0x30
-#define	AR5K_CTL_MKK	0x40
-
-/* Indicates a CTL with only mode set and
- * no reg domain mapping, such CTLs are used
- * for world roaming domains or simply when
- * a reg domain is not set */
-#define	AR5K_CTL_NO_REGDOMAIN	0xf0
-
-/* Indicates an empty (invalid) CTL */
-#define AR5K_CTL_NO_CTL		0xff
 
 /* Per channel calibration data, used for power table setup */
 struct ath5k_chan_pcal_info_rf5111 {

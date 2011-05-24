@@ -172,8 +172,7 @@ static struct miscdevice riowd_miscdev = {
 	.fops	= &riowd_fops
 };
 
-static int __devinit riowd_probe(struct platform_device *op,
-				 const struct of_device_id *match)
+static int __devinit riowd_probe(struct platform_device *op)
 {
 	struct riowd *p;
 	int err = -EINVAL;
@@ -238,7 +237,7 @@ static const struct of_device_id riowd_match[] = {
 };
 MODULE_DEVICE_TABLE(of, riowd_match);
 
-static struct of_platform_driver riowd_driver = {
+static struct platform_driver riowd_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -250,12 +249,12 @@ static struct of_platform_driver riowd_driver = {
 
 static int __init riowd_init(void)
 {
-	return of_register_platform_driver(&riowd_driver);
+	return platform_driver_register(&riowd_driver);
 }
 
 static void __exit riowd_exit(void)
 {
-	of_unregister_platform_driver(&riowd_driver);
+	platform_driver_unregister(&riowd_driver);
 }
 
 module_init(riowd_init);

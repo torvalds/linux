@@ -80,7 +80,7 @@ static void nes_terminate_start_timer(struct nes_qp *nesqp);
 
 #ifdef CONFIG_INFINIBAND_NES_DEBUG
 static unsigned char *nes_iwarp_state_str[] = {
-	"Non-Existant",
+	"Non-Existent",
 	"Idle",
 	"RTS",
 	"Closing",
@@ -91,7 +91,7 @@ static unsigned char *nes_iwarp_state_str[] = {
 };
 
 static unsigned char *nes_tcp_state_str[] = {
-	"Non-Existant",
+	"Non-Existent",
 	"Closed",
 	"Listen",
 	"SYN Sent",
@@ -2610,9 +2610,11 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 					netif_carrier_on(nesvnic->netdev);
 
 					spin_lock(&nesvnic->port_ibevent_lock);
-					if (nesdev->iw_status == 0) {
-						nesdev->iw_status = 1;
-						nes_port_ibevent(nesvnic);
+					if (nesvnic->of_device_registered) {
+						if (nesdev->iw_status == 0) {
+							nesdev->iw_status = 1;
+							nes_port_ibevent(nesvnic);
+						}
 					}
 					spin_unlock(&nesvnic->port_ibevent_lock);
 				}
@@ -2642,9 +2644,11 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 					netif_carrier_off(nesvnic->netdev);
 
 					spin_lock(&nesvnic->port_ibevent_lock);
-					if (nesdev->iw_status == 1) {
-						nesdev->iw_status = 0;
-						nes_port_ibevent(nesvnic);
+					if (nesvnic->of_device_registered) {
+						if (nesdev->iw_status == 1) {
+							nesdev->iw_status = 0;
+							nes_port_ibevent(nesvnic);
+						}
 					}
 					spin_unlock(&nesvnic->port_ibevent_lock);
 				}
@@ -2703,9 +2707,11 @@ void nes_recheck_link_status(struct work_struct *work)
 				netif_carrier_on(nesvnic->netdev);
 
 				spin_lock(&nesvnic->port_ibevent_lock);
-				if (nesdev->iw_status == 0) {
-					nesdev->iw_status = 1;
-					nes_port_ibevent(nesvnic);
+				if (nesvnic->of_device_registered) {
+					if (nesdev->iw_status == 0) {
+						nesdev->iw_status = 1;
+						nes_port_ibevent(nesvnic);
+					}
 				}
 				spin_unlock(&nesvnic->port_ibevent_lock);
 			}
@@ -2723,9 +2729,11 @@ void nes_recheck_link_status(struct work_struct *work)
 				netif_carrier_off(nesvnic->netdev);
 
 				spin_lock(&nesvnic->port_ibevent_lock);
-				if (nesdev->iw_status == 1) {
-					nesdev->iw_status = 0;
-					nes_port_ibevent(nesvnic);
+				if (nesvnic->of_device_registered) {
+					if (nesdev->iw_status == 1) {
+						nesdev->iw_status = 0;
+						nes_port_ibevent(nesvnic);
+					}
 				}
 				spin_unlock(&nesvnic->port_ibevent_lock);
 			}

@@ -1376,13 +1376,13 @@ static void orinoco_process_scan_results(struct work_struct *work)
 
 	spin_lock_irqsave(&priv->scan_lock, flags);
 	list_for_each_entry_safe(sd, temp, &priv->scan_list, list) {
-		spin_unlock_irqrestore(&priv->scan_lock, flags);
 
 		buf = sd->buf;
 		len = sd->len;
 		type = sd->type;
 
 		list_del(&sd->list);
+		spin_unlock_irqrestore(&priv->scan_lock, flags);
 		kfree(sd);
 
 		if (len > 0) {

@@ -147,9 +147,6 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event);
 /* -iso */
 
 int fw_iso_buffer_map(struct fw_iso_buffer *buffer, struct vm_area_struct *vma);
-void fw_iso_resource_manage(struct fw_card *card, int generation,
-			    u64 channels_mask, int *channel, int *bandwidth,
-			    bool allocate, __be32 buffer[2]);
 
 
 /* -topology */

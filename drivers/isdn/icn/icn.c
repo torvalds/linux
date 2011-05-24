@@ -1627,7 +1627,7 @@ __setup("icn=", icn_setup);
 static int __init icn_init(void)
 {
 	char *p;
-	char rev[20];
+	char rev[21];
 
 	memset(&dev, 0, sizeof(icn_dev));
 	dev.memaddr = (membase & 0x0ffc000);
@@ -1638,6 +1638,7 @@ static int __init icn_init(void)
 
 	if ((p = strchr(revision, ':'))) {
 		strncpy(rev, p + 1, 20);
+		rev[20] = '\0';
 		p = strchr(rev, '$');
 		if (p)
 			*p = 0;

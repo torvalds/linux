@@ -52,10 +52,6 @@ static struct drm_driver driver = {
 		 .fasync = drm_fasync,
 		 .llseek = noop_llseek,
 	},
-	.pci_driver = {
-		 .name = DRIVER_NAME,
-		 .id_table = pciidlist,
-	},
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
@@ -65,14 +61,19 @@ static struct drm_driver driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
+static struct pci_driver tdfx_pci_driver = {
+	.name = DRIVER_NAME,
+	.id_table = pciidlist,
+};
+
 static int __init tdfx_init(void)
 {
-	return drm_init(&driver);
+	return drm_pci_init(&driver, &tdfx_pci_driver);
 }
 
 static void __exit tdfx_exit(void)
 {
-	drm_exit(&driver);
+	drm_pci_exit(&driver, &tdfx_pci_driver);
 }
 
 module_init(tdfx_init);

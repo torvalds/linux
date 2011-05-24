@@ -23,7 +23,7 @@ config CAN_SLCAN
 
 	  As only the sending and receiving of CAN frames is implemented, this
 	  driver should work with the (serial/USB) CAN hardware from:
-	  www.canusb.com / www.can232.com / www.mictronic.com / www.canhack.de
+	  www.canusb.com / www.can232.com / www.mictronics.de / www.canhack.de
 
 	  Userspace tools to attach the SLCAN line discipline (slcan_attach,
 	  slcand) can be found in the can-utils at the SocketCAN SVN, see
@@ -114,6 +114,8 @@ config PCH_CAN
 source "drivers/net/can/mscan/Kconfig"
 
 source "drivers/net/can/sja1000/Kconfig"
+
+source "drivers/net/can/c_can/Kconfig"
 
 source "drivers/net/can/usb/Kconfig"
 

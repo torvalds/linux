@@ -123,8 +123,9 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	/* TSF out of range threshold fixed at 1 second */
 	bs.bs_tsfoor_threshold = ATH9K_TSFOOR_THRESHOLD;
 
-	ath_dbg(common, ATH_DBG_BEACON, "tsf: %llu tsftu: %u\n", tsf, tsftu);
-	ath_dbg(common, ATH_DBG_BEACON,
+	ath_dbg(common, ATH_DBG_CONFIG, "intval: %u tsf: %llu tsftu: %u\n",
+		intval, tsf, tsftu);
+	ath_dbg(common, ATH_DBG_CONFIG,
 		"bmiss: %u sleep: %u cfp-period: %u maxdur: %u next: %u\n",
 		bs.bs_bmissthreshold, bs.bs_sleepduration,
 		bs.bs_cfpperiod, bs.bs_cfpmaxduration, bs.bs_cfpnext);
@@ -138,25 +139,81 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	WMI_CMD_BUF(WMI_ENABLE_INTR_CMDID, &htc_imask);
 }
 
+static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
+				       struct htc_beacon_config *bss_conf)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	enum ath9k_int imask = 0;
+	u32 nexttbtt, intval, tsftu;
+	__be32 htc_imask = 0;
+	int ret;
+	u8 cmd_rsp;
+	u64 tsf;
+
+	intval = bss_conf->beacon_interval & ATH9K_BEACON_PERIOD;
+	intval /= ATH9K_HTC_MAX_BCN_VIF;
+	nexttbtt = intval;
+
+	if (priv->op_flags & OP_TSF_RESET) {
+		intval |= ATH9K_BEACON_RESET_TSF;
+		priv->op_flags &= ~OP_TSF_RESET;
+	} else {
+		/*
+		 * Pull nexttbtt forward to reflect the current TSF.
+		 */
+		tsf = ath9k_hw_gettsf64(priv->ah);
+		tsftu = TSF_TO_TU(tsf >> 32, tsf) + FUDGE;
+		do {
+			nexttbtt += intval;
+		} while (nexttbtt < tsftu);
+	}
+
+	intval |= ATH9K_BEACON_ENA;
+
+	if (priv->op_flags & OP_ENABLE_BEACON)
+		imask |= ATH9K_INT_SWBA;
+
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"AP Beacon config, intval: %d, nexttbtt: %u imask: 0x%x\n",
+		bss_conf->beacon_interval, nexttbtt, imask);
+
+	WMI_CMD(WMI_DISABLE_INTR_CMDID);
+	ath9k_hw_beaconinit(priv->ah, nexttbtt, intval);
+	priv->bmiss_cnt = 0;
+	htc_imask = cpu_to_be32(imask);
+	WMI_CMD_BUF(WMI_ENABLE_INTR_CMDID, &htc_imask);
+}
+
 static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 					  struct htc_beacon_config *bss_conf)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	enum ath9k_int imask = 0;
-	u32 nexttbtt, intval;
+	u32 nexttbtt, intval, tsftu;
 	__be32 htc_imask = 0;
 	int ret;
 	u8 cmd_rsp;
+	u64 tsf;
 
 	intval = bss_conf->beacon_interval & ATH9K_BEACON_PERIOD;
 	nexttbtt = intval;
+
+	/*
+	 * Pull nexttbtt forward to reflect the current TSF.
+	 */
+	tsf = ath9k_hw_gettsf64(priv->ah);
+	tsftu = TSF_TO_TU(tsf >> 32, tsf) + FUDGE;
+	do {
+		nexttbtt += intval;
+	} while (nexttbtt < tsftu);
+
 	intval |= ATH9K_BEACON_ENA;
 	if (priv->op_flags & OP_ENABLE_BEACON)
 		imask |= ATH9K_INT_SWBA;
 
-	ath_dbg(common, ATH_DBG_BEACON,
-		"IBSS Beacon config, intval: %d, imask: 0x%x\n",
-		bss_conf->beacon_interval, imask);
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"IBSS Beacon config, intval: %d, nexttbtt: %u, imask: 0x%x\n",
+		bss_conf->beacon_interval, nexttbtt, imask);
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	ath9k_hw_beaconinit(priv->ah, nexttbtt, intval);
@@ -207,9 +264,9 @@ void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending)
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
 		struct ieee80211_hdr *hdr =
 			(struct ieee80211_hdr *) beacon->data;
-		priv->seq_no += 0x10;
+		avp->seq_no += 0x10;
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		hdr->seq_ctrl |= cpu_to_le16(priv->seq_no);
+		hdr->seq_ctrl |= cpu_to_le16(avp->seq_no);
 	}
 
 	tx_ctl.type = ATH9K_HTC_NORMAL;
@@ -253,29 +310,122 @@ void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
 	}
 }
 
+static void ath9k_htc_beacon_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	bool *beacon_configured = (bool *)data;
+	struct ath9k_htc_vif *avp = (struct ath9k_htc_vif *) vif->drv_priv;
+
+	if (vif->type == NL80211_IFTYPE_STATION &&
+	    avp->beacon_configured)
+		*beacon_configured = true;
+}
+
+static bool ath9k_htc_check_beacon_config(struct ath9k_htc_priv *priv,
+					  struct ieee80211_vif *vif)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct htc_beacon_config *cur_conf = &priv->cur_beacon_conf;
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+	bool beacon_configured;
+
+	/*
+	 * Changing the beacon interval when multiple AP interfaces
+	 * are configured will affect beacon transmission of all
+	 * of them.
+	 */
+	if ((priv->ah->opmode == NL80211_IFTYPE_AP) &&
+	    (priv->num_ap_vif > 1) &&
+	    (vif->type == NL80211_IFTYPE_AP) &&
+	    (cur_conf->beacon_interval != bss_conf->beacon_int)) {
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Changing beacon interval of multiple AP interfaces !\n");
+		return false;
+	}
+
+	/*
+	 * If the HW is operating in AP mode, any new station interfaces that
+	 * are added cannot change the beacon parameters.
+	 */
+	if (priv->num_ap_vif &&
+	    (vif->type != NL80211_IFTYPE_AP)) {
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"HW in AP mode, cannot set STA beacon parameters\n");
+		return false;
+	}
+
+	/*
+	 * The beacon parameters are configured only for the first
+	 * station interface.
+	 */
+	if ((priv->ah->opmode == NL80211_IFTYPE_STATION) &&
+	    (priv->num_sta_vif > 1) &&
+	    (vif->type == NL80211_IFTYPE_STATION)) {
+		beacon_configured = false;
+		ieee80211_iterate_active_interfaces_atomic(priv->hw,
+							   ath9k_htc_beacon_iter,
+							   &beacon_configured);
+
+		if (beacon_configured) {
+			ath_dbg(common, ATH_DBG_CONFIG,
+				"Beacon already configured for a station interface\n");
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct htc_beacon_config *cur_conf = &priv->cur_beacon_conf;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+	struct ath9k_htc_vif *avp = (struct ath9k_htc_vif *) vif->drv_priv;
+
+	if (!ath9k_htc_check_beacon_config(priv, vif))
+		return;
 
 	cur_conf->beacon_interval = bss_conf->beacon_int;
 	if (cur_conf->beacon_interval == 0)
 		cur_conf->beacon_interval = 100;
 
 	cur_conf->dtim_period = bss_conf->dtim_period;
-	cur_conf->listen_interval = 1;
-	cur_conf->dtim_count = 1;
 	cur_conf->bmiss_timeout =
 		ATH_DEFAULT_BMISS_LIMIT * cur_conf->beacon_interval;
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		ath9k_htc_beacon_config_sta(priv, cur_conf);
+		avp->beacon_configured = true;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		ath9k_htc_beacon_config_adhoc(priv, cur_conf);
+		break;
+	case NL80211_IFTYPE_AP:
+		ath9k_htc_beacon_config_ap(priv, cur_conf);
+		break;
+	default:
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Unsupported beaconing mode\n");
+		return;
+	}
+}
+
+void ath9k_htc_beacon_reconfig(struct ath9k_htc_priv *priv)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct htc_beacon_config *cur_conf = &priv->cur_beacon_conf;
+
+	switch (priv->ah->opmode) {
+	case NL80211_IFTYPE_STATION:
+		ath9k_htc_beacon_config_sta(priv, cur_conf);
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		ath9k_htc_beacon_config_adhoc(priv, cur_conf);
+		break;
+	case NL80211_IFTYPE_AP:
+		ath9k_htc_beacon_config_ap(priv, cur_conf);
 		break;
 	default:
 		ath_dbg(common, ATH_DBG_CONFIG,

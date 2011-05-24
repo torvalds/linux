@@ -1026,9 +1026,9 @@ static void gfs2_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
 
 /**
  * gfs2_permission -
- * @inode:
- * @mask:
- * @nd: passed from Linux VFS, ignored by us
+ * @inode: The inode
+ * @mask: The mask to be tested
+ * @flags: Indicates whether this is an RCU path walk or not
  *
  * This may be called from the VFS directly, or from within GFS2 with the
  * inode locked, so we look to see if the glock is already locked and only
@@ -1044,11 +1044,11 @@ int gfs2_permission(struct inode *inode, int mask, unsigned int flags)
 	int error;
 	int unlock = 0;
 
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
 
 	ip = GFS2_I(inode);
 	if (gfs2_glock_is_locked_by_me(ip->i_gl) == NULL) {
+		if (flags & IPERM_FLAG_RCU)
+			return -ECHILD;
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
 		if (error)
 			return error;

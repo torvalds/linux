@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2009-2011 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -44,24 +44,36 @@ int originator_init(struct bat_priv *bat_priv)
 	if (bat_priv->orig_hash)
 		return 1;
 
-	spin_lock_bh(&bat_priv->orig_hash_lock);
 	bat_priv->orig_hash = hash_new(1024);
 
 	if (!bat_priv->orig_hash)
 		goto err;
 
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
 	start_purge_timer(bat_priv);
 	return 1;
 
 err:
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
 	return 0;
 }
 
-struct neigh_node *
-create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
-		uint8_t *neigh, struct batman_if *if_incoming)
+static void neigh_node_free_rcu(struct rcu_head *rcu)
+{
+	struct neigh_node *neigh_node;
+
+	neigh_node = container_of(rcu, struct neigh_node, rcu);
+	kfree(neigh_node);
+}
+
+void neigh_node_free_ref(struct neigh_node *neigh_node)
+{
+	if (atomic_dec_and_test(&neigh_node->refcount))
+		call_rcu(&neigh_node->rcu, neigh_node_free_rcu);
+}
+
+struct neigh_node *create_neighbor(struct orig_node *orig_node,
+				   struct orig_node *orig_neigh_node,
+				   uint8_t *neigh,
+				   struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct neigh_node *neigh_node;
@@ -73,50 +85,94 @@ create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
 	if (!neigh_node)
 		return NULL;
 
-	INIT_LIST_HEAD(&neigh_node->list);
+	INIT_HLIST_NODE(&neigh_node->list);
+	INIT_LIST_HEAD(&neigh_node->bonding_list);
 
 	memcpy(neigh_node->addr, neigh, ETH_ALEN);
 	neigh_node->orig_node = orig_neigh_node;
 	neigh_node->if_incoming = if_incoming;
 
-	list_add_tail(&neigh_node->list, &orig_node->neigh_list);
+	/* extra reference for return */
+	atomic_set(&neigh_node->refcount, 2);
+
+	spin_lock_bh(&orig_node->neigh_list_lock);
+	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
+	spin_unlock_bh(&orig_node->neigh_list_lock);
 	return neigh_node;
 }
 
-static void free_orig_node(void *data, void *arg)
+static void orig_node_free_rcu(struct rcu_head *rcu)
 {
-	struct list_head *list_pos, *list_pos_tmp;
-	struct neigh_node *neigh_node;
-	struct orig_node *orig_node = (struct orig_node *)data;
-	struct bat_priv *bat_priv = (struct bat_priv *)arg;
+	struct hlist_node *node, *node_tmp;
+	struct neigh_node *neigh_node, *tmp_neigh_node;
+	struct orig_node *orig_node;
 
-	/* for all neighbors towards this originator ... */
-	list_for_each_safe(list_pos, list_pos_tmp, &orig_node->neigh_list) {
-		neigh_node = list_entry(list_pos, struct neigh_node, list);
+	orig_node = container_of(rcu, struct orig_node, rcu);
 
-		list_del(list_pos);
-		kfree(neigh_node);
+	spin_lock_bh(&orig_node->neigh_list_lock);
+
+	/* for all bonding members ... */
+	list_for_each_entry_safe(neigh_node, tmp_neigh_node,
+				 &orig_node->bond_list, bonding_list) {
+		list_del_rcu(&neigh_node->bonding_list);
+		neigh_node_free_ref(neigh_node);
 	}
 
+	/* for all neighbors towards this originator ... */
+	hlist_for_each_entry_safe(neigh_node, node, node_tmp,
+				  &orig_node->neigh_list, list) {
+		hlist_del_rcu(&neigh_node->list);
+		neigh_node_free_ref(neigh_node);
+	}
+
+	spin_unlock_bh(&orig_node->neigh_list_lock);
+
 	frag_list_free(&orig_node->frag_list);
-	hna_global_del_orig(bat_priv, orig_node, "originator timed out");
+	hna_global_del_orig(orig_node->bat_priv, orig_node,
+			    "originator timed out");
 
 	kfree(orig_node->bcast_own);
 	kfree(orig_node->bcast_own_sum);
 	kfree(orig_node);
 }
 
+void orig_node_free_ref(struct orig_node *orig_node)
+{
+	if (atomic_dec_and_test(&orig_node->refcount))
+		call_rcu(&orig_node->rcu, orig_node_free_rcu);
+}
+
 void originator_free(struct bat_priv *bat_priv)
 {
-	if (!bat_priv->orig_hash)
+	struct hashtable_t *hash = bat_priv->orig_hash;
+	struct hlist_node *node, *node_tmp;
+	struct hlist_head *head;
+	spinlock_t *list_lock; /* spinlock to protect write access */
+	struct orig_node *orig_node;
+	int i;
+
+	if (!hash)
 		return;
 
 	cancel_delayed_work_sync(&bat_priv->orig_work);
 
-	spin_lock_bh(&bat_priv->orig_hash_lock);
-	hash_delete(bat_priv->orig_hash, free_orig_node, bat_priv);
 	bat_priv->orig_hash = NULL;
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
+
+	for (i = 0; i < hash->size; i++) {
+		head = &hash->table[i];
+		list_lock = &hash->list_locks[i];
+
+		spin_lock_bh(list_lock);
+		hlist_for_each_entry_safe(orig_node, node, node_tmp,
+					  head, hash_entry) {
+
+			hlist_del_rcu(node);
+			orig_node_free_ref(orig_node);
+		}
+		spin_unlock_bh(list_lock);
+	}
+
+	hash_destroy(hash);
 }
 
 /* this function finds or creates an originator entry for the given
@@ -127,10 +183,7 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 	int size;
 	int hash_added;
 
-	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
-						   compare_orig, choose_orig,
-						   addr));
-
+	orig_node = orig_hash_find(bat_priv, addr);
 	if (orig_node)
 		return orig_node;
 
@@ -141,8 +194,16 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 	if (!orig_node)
 		return NULL;
 
-	INIT_LIST_HEAD(&orig_node->neigh_list);
+	INIT_HLIST_HEAD(&orig_node->neigh_list);
+	INIT_LIST_HEAD(&orig_node->bond_list);
+	spin_lock_init(&orig_node->ogm_cnt_lock);
+	spin_lock_init(&orig_node->bcast_seqno_lock);
+	spin_lock_init(&orig_node->neigh_list_lock);
 
+	/* extra reference for return */
+	atomic_set(&orig_node->refcount, 2);
+
+	orig_node->bat_priv = bat_priv;
 	memcpy(orig_node->orig, addr, ETH_ALEN);
 	orig_node->router = NULL;
 	orig_node->hna_buff = NULL;
@@ -150,6 +211,8 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 					- msecs_to_jiffies(RESET_PROTECTION_MS);
 	orig_node->batman_seqno_reset = jiffies - 1
 					- msecs_to_jiffies(RESET_PROTECTION_MS);
+
+	atomic_set(&orig_node->bond_candidates, 0);
 
 	size = bat_priv->num_ifaces * sizeof(unsigned long) * NUM_WORDS;
 
@@ -166,8 +229,8 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 	if (!orig_node->bcast_own_sum)
 		goto free_bcast_own;
 
-	hash_added = hash_add(bat_priv->orig_hash, compare_orig, choose_orig,
-			      orig_node);
+	hash_added = hash_add(bat_priv->orig_hash, compare_orig,
+			      choose_orig, orig_node, &orig_node->hash_entry);
 	if (hash_added < 0)
 		goto free_bcast_own_sum;
 
@@ -185,23 +248,30 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 				 struct orig_node *orig_node,
 				 struct neigh_node **best_neigh_node)
 {
-	struct list_head *list_pos, *list_pos_tmp;
+	struct hlist_node *node, *node_tmp;
 	struct neigh_node *neigh_node;
 	bool neigh_purged = false;
 
 	*best_neigh_node = NULL;
 
+	spin_lock_bh(&orig_node->neigh_list_lock);
+
 	/* for all neighbors towards this originator ... */
-	list_for_each_safe(list_pos, list_pos_tmp, &orig_node->neigh_list) {
-		neigh_node = list_entry(list_pos, struct neigh_node, list);
+	hlist_for_each_entry_safe(neigh_node, node, node_tmp,
+				  &orig_node->neigh_list, list) {
 
 		if ((time_after(jiffies,
 			neigh_node->last_valid + PURGE_TIMEOUT * HZ)) ||
 		    (neigh_node->if_incoming->if_status == IF_INACTIVE) ||
+		    (neigh_node->if_incoming->if_status == IF_NOT_IN_USE) ||
 		    (neigh_node->if_incoming->if_status == IF_TO_BE_REMOVED)) {
 
-			if (neigh_node->if_incoming->if_status ==
-							IF_TO_BE_REMOVED)
+			if ((neigh_node->if_incoming->if_status ==
+								IF_INACTIVE) ||
+			    (neigh_node->if_incoming->if_status ==
+							IF_NOT_IN_USE) ||
+			    (neigh_node->if_incoming->if_status ==
+							IF_TO_BE_REMOVED))
 				bat_dbg(DBG_BATMAN, bat_priv,
 					"neighbor purge: originator %pM, "
 					"neighbor: %pM, iface: %s\n",
@@ -215,14 +285,18 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 					(neigh_node->last_valid / HZ));
 
 			neigh_purged = true;
-			list_del(list_pos);
-			kfree(neigh_node);
+
+			hlist_del_rcu(&neigh_node->list);
+			bonding_candidate_del(orig_node, neigh_node);
+			neigh_node_free_ref(neigh_node);
 		} else {
 			if ((!*best_neigh_node) ||
 			    (neigh_node->tq_avg > (*best_neigh_node)->tq_avg))
 				*best_neigh_node = neigh_node;
 		}
 	}
+
+	spin_unlock_bh(&orig_node->neigh_list_lock);
 	return neigh_purged;
 }
 
@@ -245,9 +319,6 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 				      best_neigh_node,
 				      orig_node->hna_buff,
 				      orig_node->hna_buff_len);
-			/* update bonding candidates, we could have lost
-			 * some candidates. */
-			update_bonding_candidates(bat_priv, orig_node);
 		}
 	}
 
@@ -257,39 +328,37 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 static void _purge_orig(struct bat_priv *bat_priv)
 {
 	struct hashtable_t *hash = bat_priv->orig_hash;
-	struct hlist_node *walk, *safe;
+	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
-	struct element_t *bucket;
+	spinlock_t *list_lock; /* spinlock to protect write access */
 	struct orig_node *orig_node;
 	int i;
 
 	if (!hash)
 		return;
 
-	spin_lock_bh(&bat_priv->orig_hash_lock);
-
 	/* for all origins... */
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
+		list_lock = &hash->list_locks[i];
 
-		hlist_for_each_entry_safe(bucket, walk, safe, head, hlist) {
-			orig_node = bucket->data;
-
+		spin_lock_bh(list_lock);
+		hlist_for_each_entry_safe(orig_node, node, node_tmp,
+					  head, hash_entry) {
 			if (purge_orig_node(bat_priv, orig_node)) {
 				if (orig_node->gw_flags)
 					gw_node_delete(bat_priv, orig_node);
-				hlist_del(walk);
-				kfree(bucket);
-				free_orig_node(orig_node, bat_priv);
+				hlist_del_rcu(node);
+				orig_node_free_ref(orig_node);
+				continue;
 			}
 
 			if (time_after(jiffies, orig_node->last_frag_packet +
 						msecs_to_jiffies(FRAG_TIMEOUT)))
 				frag_list_free(&orig_node->frag_list);
 		}
+		spin_unlock_bh(list_lock);
 	}
-
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
 
 	gw_node_purge(bat_priv);
 	gw_election(bat_priv);
@@ -318,9 +387,8 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	struct hashtable_t *hash = bat_priv->orig_hash;
-	struct hlist_node *walk;
+	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
-	struct element_t *bucket;
 	struct orig_node *orig_node;
 	struct neigh_node *neigh_node;
 	int batman_count = 0;
@@ -348,14 +416,11 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 		   "Originator", "last-seen", "#", TQ_MAX_VALUE, "Nexthop",
 		   "outgoingIF", "Potential nexthops");
 
-	spin_lock_bh(&bat_priv->orig_hash_lock);
-
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each_entry(bucket, walk, head, hlist) {
-			orig_node = bucket->data;
-
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
 			if (!orig_node->router)
 				continue;
 
@@ -374,8 +439,8 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 				   neigh_node->addr,
 				   neigh_node->if_incoming->net_dev->name);
 
-			list_for_each_entry(neigh_node, &orig_node->neigh_list,
-					    list) {
+			hlist_for_each_entry_rcu(neigh_node, node_tmp,
+						 &orig_node->neigh_list, list) {
 				seq_printf(seq, " %pM (%3i)", neigh_node->addr,
 						neigh_node->tq_avg);
 			}
@@ -383,9 +448,8 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 			seq_printf(seq, "\n");
 			batman_count++;
 		}
+		rcu_read_unlock();
 	}
-
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
 
 	if ((batman_count == 0))
 		seq_printf(seq, "No batman nodes in range ...\n");
@@ -423,36 +487,36 @@ static int orig_node_add_if(struct orig_node *orig_node, int max_if_num)
 	return 0;
 }
 
-int orig_hash_add_if(struct batman_if *batman_if, int max_if_num)
+int orig_hash_add_if(struct hard_iface *hard_iface, int max_if_num)
 {
-	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
+	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct hashtable_t *hash = bat_priv->orig_hash;
-	struct hlist_node *walk;
+	struct hlist_node *node;
 	struct hlist_head *head;
-	struct element_t *bucket;
 	struct orig_node *orig_node;
-	int i;
+	int i, ret;
 
 	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
 	 * if_num */
-	spin_lock_bh(&bat_priv->orig_hash_lock);
-
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each_entry(bucket, walk, head, hlist) {
-			orig_node = bucket->data;
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
+			spin_lock_bh(&orig_node->ogm_cnt_lock);
+			ret = orig_node_add_if(orig_node, max_if_num);
+			spin_unlock_bh(&orig_node->ogm_cnt_lock);
 
-			if (orig_node_add_if(orig_node, max_if_num) == -1)
+			if (ret == -1)
 				goto err;
 		}
+		rcu_read_unlock();
 	}
 
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
 	return 0;
 
 err:
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
+	rcu_read_unlock();
 	return -ENOMEM;
 }
 
@@ -508,57 +572,55 @@ free_own_sum:
 	return 0;
 }
 
-int orig_hash_del_if(struct batman_if *batman_if, int max_if_num)
+int orig_hash_del_if(struct hard_iface *hard_iface, int max_if_num)
 {
-	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
+	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct hashtable_t *hash = bat_priv->orig_hash;
-	struct hlist_node *walk;
+	struct hlist_node *node;
 	struct hlist_head *head;
-	struct element_t *bucket;
-	struct batman_if *batman_if_tmp;
+	struct hard_iface *hard_iface_tmp;
 	struct orig_node *orig_node;
 	int i, ret;
 
 	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
 	 * if_num */
-	spin_lock_bh(&bat_priv->orig_hash_lock);
-
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
-		hlist_for_each_entry(bucket, walk, head, hlist) {
-			orig_node = bucket->data;
-
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
+			spin_lock_bh(&orig_node->ogm_cnt_lock);
 			ret = orig_node_del_if(orig_node, max_if_num,
-					batman_if->if_num);
+					hard_iface->if_num);
+			spin_unlock_bh(&orig_node->ogm_cnt_lock);
 
 			if (ret == -1)
 				goto err;
 		}
+		rcu_read_unlock();
 	}
 
 	/* renumber remaining batman interfaces _inside_ of orig_hash_lock */
 	rcu_read_lock();
-	list_for_each_entry_rcu(batman_if_tmp, &if_list, list) {
-		if (batman_if_tmp->if_status == IF_NOT_IN_USE)
+	list_for_each_entry_rcu(hard_iface_tmp, &hardif_list, list) {
+		if (hard_iface_tmp->if_status == IF_NOT_IN_USE)
 			continue;
 
-		if (batman_if == batman_if_tmp)
+		if (hard_iface == hard_iface_tmp)
 			continue;
 
-		if (batman_if->soft_iface != batman_if_tmp->soft_iface)
+		if (hard_iface->soft_iface != hard_iface_tmp->soft_iface)
 			continue;
 
-		if (batman_if_tmp->if_num > batman_if->if_num)
-			batman_if_tmp->if_num--;
+		if (hard_iface_tmp->if_num > hard_iface->if_num)
+			hard_iface_tmp->if_num--;
 	}
 	rcu_read_unlock();
 
-	batman_if->if_num = -1;
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
+	hard_iface->if_num = -1;
 	return 0;
 
 err:
-	spin_unlock_bh(&bat_priv->orig_hash_lock);
+	rcu_read_unlock();
 	return -ENOMEM;
 }

@@ -2152,7 +2152,7 @@ static void user_instruction_dump(unsigned int __user *pc)
 
 void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 {
-	unsigned long fp, thread_base, ksp;
+	unsigned long fp, ksp;
 	struct thread_info *tp;
 	int count = 0;
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -2173,7 +2173,6 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 		flushw_all();
 
 	fp = ksp + STACK_BIAS;
-	thread_base = (unsigned long) tp;
 
 	printk("Call Trace:\n");
 	do {

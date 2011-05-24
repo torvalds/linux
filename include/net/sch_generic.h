@@ -25,16 +25,18 @@ struct qdisc_rate_table {
 enum qdisc_state_t {
 	__QDISC_STATE_SCHED,
 	__QDISC_STATE_DEACTIVATED,
+	__QDISC_STATE_THROTTLED,
 };
 
 /*
  * following bits are only changed while qdisc lock is held
  */
 enum qdisc___state_t {
-	__QDISC___STATE_RUNNING,
+	__QDISC___STATE_RUNNING = 1,
 };
 
 struct qdisc_size_table {
+	struct rcu_head		rcu;
 	struct list_head	list;
 	struct tc_sizespec	szopts;
 	int			refcnt;
@@ -46,14 +48,13 @@ struct Qdisc {
 	struct sk_buff *	(*dequeue)(struct Qdisc *dev);
 	unsigned		flags;
 #define TCQ_F_BUILTIN		1
-#define TCQ_F_THROTTLED		2
-#define TCQ_F_INGRESS		4
-#define TCQ_F_CAN_BYPASS	8
-#define TCQ_F_MQROOT		16
+#define TCQ_F_INGRESS		2
+#define TCQ_F_CAN_BYPASS	4
+#define TCQ_F_MQROOT		8
 #define TCQ_F_WARN_NONWC	(1 << 16)
 	int			padded;
 	struct Qdisc_ops	*ops;
-	struct qdisc_size_table	*stab;
+	struct qdisc_size_table	__rcu *stab;
 	struct list_head	list;
 	u32			handle;
 	u32			parent;
@@ -78,25 +79,44 @@ struct Qdisc {
 	unsigned long		state;
 	struct sk_buff_head	q;
 	struct gnet_stats_basic_packed bstats;
-	unsigned long		__state;
+	unsigned int		__state;
 	struct gnet_stats_queue	qstats;
 	struct rcu_head		rcu_head;
 	spinlock_t		busylock;
+	u32			limit;
 };
 
-static inline bool qdisc_is_running(struct Qdisc *qdisc)
+static inline bool qdisc_is_running(const struct Qdisc *qdisc)
 {
-	return test_bit(__QDISC___STATE_RUNNING, &qdisc->__state);
+	return (qdisc->__state & __QDISC___STATE_RUNNING) ? true : false;
 }
 
 static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 {
-	return !__test_and_set_bit(__QDISC___STATE_RUNNING, &qdisc->__state);
+	if (qdisc_is_running(qdisc))
+		return false;
+	qdisc->__state |= __QDISC___STATE_RUNNING;
+	return true;
 }
 
 static inline void qdisc_run_end(struct Qdisc *qdisc)
 {
-	__clear_bit(__QDISC___STATE_RUNNING, &qdisc->__state);
+	qdisc->__state &= ~__QDISC___STATE_RUNNING;
+}
+
+static inline bool qdisc_is_throttled(const struct Qdisc *qdisc)
+{
+	return test_bit(__QDISC_STATE_THROTTLED, &qdisc->state) ? true : false;
+}
+
+static inline void qdisc_throttled(struct Qdisc *qdisc)
+{
+	set_bit(__QDISC_STATE_THROTTLED, &qdisc->state);
+}
+
+static inline void qdisc_unthrottled(struct Qdisc *qdisc)
+{
+	clear_bit(__QDISC_STATE_THROTTLED, &qdisc->state);
 }
 
 struct Qdisc_class_ops {
@@ -199,7 +219,7 @@ struct tcf_proto {
 
 struct qdisc_skb_cb {
 	unsigned int		pkt_len;
-	char			data[];
+	long			data[];
 };
 
 static inline int qdisc_qlen(struct Qdisc *q)
@@ -331,8 +351,8 @@ extern struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 				 struct Qdisc_ops *ops);
 extern struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
 				       struct Qdisc_ops *ops, u32 parentid);
-extern void qdisc_calculate_pkt_len(struct sk_buff *skb,
-				   struct qdisc_size_table *stab);
+extern void __qdisc_calculate_pkt_len(struct sk_buff *skb,
+				      const struct qdisc_size_table *stab);
 extern void tcf_destroy(struct tcf_proto *tp);
 extern void tcf_destroy_chain(struct tcf_proto **fl);
 
@@ -411,12 +431,20 @@ enum net_xmit_qdisc_t {
 #define net_xmit_drop_count(e)	(1)
 #endif
 
-static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static inline void qdisc_calculate_pkt_len(struct sk_buff *skb,
+					   const struct Qdisc *sch)
 {
 #ifdef CONFIG_NET_SCHED
-	if (sch->stab)
-		qdisc_calculate_pkt_len(skb, sch->stab);
+	struct qdisc_size_table *stab = rcu_dereference_bh(sch->stab);
+
+	if (stab)
+		__qdisc_calculate_pkt_len(skb, stab);
 #endif
+}
+
+static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+{
+	qdisc_calculate_pkt_len(skb, sch);
 	return sch->enqueue(skb, sch);
 }
 

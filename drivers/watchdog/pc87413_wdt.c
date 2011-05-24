@@ -49,7 +49,7 @@
 #define WDT_DATA_IO_PORT    (WDT_INDEX_IO_PORT+1)
 #define SWC_LDN             0x04
 #define SIOCFG2             0x22	/* Serial IO register */
-#define WDCTL               0x10	/* Watchdog-Timer-Controll-Register */
+#define WDCTL               0x10	/* Watchdog-Timer-Control-Register */
 #define WDTO                0x11	/* Watchdog timeout register */
 #define WDCFG               0x12	/* Watchdog config register */
 
@@ -514,7 +514,7 @@ static struct miscdevice pc87413_miscdev = {
 /* -- Module init functions -------------------------------------*/
 
 /**
- * 	pc87413_init: module's "constructor"
+ *	pc87413_init: module's "constructor"
  *
  *	Set up the WDT watchdog board. All we have to do is grab the
  *	resources we require and bitch if anyone beat us to them.

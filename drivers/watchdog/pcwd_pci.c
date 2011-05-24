@@ -817,7 +817,7 @@ static void __devexit pcipcwd_card_exit(struct pci_dev *pdev)
 	cards_found--;
 }
 
-static struct pci_device_id pcipcwd_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(pcipcwd_pci_tbl) = {
 	{ PCI_VENDOR_ID_QUICKLOGIC, PCI_DEVICE_ID_WATCHDOG_PCIPCWD,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0 },			/* End of list */

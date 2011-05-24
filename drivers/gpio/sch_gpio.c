@@ -25,6 +25,7 @@
 #include <linux/errno.h>
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
+#include <linux/pci_ids.h>
 
 #include <linux/gpio.h>
 
@@ -187,7 +188,11 @@ static struct gpio_chip sch_gpio_resume = {
 static int __devinit sch_gpio_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	int err;
+	int err, id;
+
+	id = pdev->id;
+	if (!id)
+		return -ENODEV;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res)
@@ -198,12 +203,40 @@ static int __devinit sch_gpio_probe(struct platform_device *pdev)
 
 	gpio_ba = res->start;
 
-	sch_gpio_core.base = 0;
-	sch_gpio_core.ngpio = 10;
-	sch_gpio_core.dev = &pdev->dev;
+	switch (id) {
+		case PCI_DEVICE_ID_INTEL_SCH_LPC:
+			sch_gpio_core.base = 0;
+			sch_gpio_core.ngpio = 10;
 
-	sch_gpio_resume.base = 10;
-	sch_gpio_resume.ngpio = 4;
+			sch_gpio_resume.base = 10;
+			sch_gpio_resume.ngpio = 4;
+
+			/*
+			 * GPIO[6:0] enabled by default
+			 * GPIO7 is configured by the CMC as SLPIOVR
+			 * Enable GPIO[9:8] core powered gpios explicitly
+			 */
+			outb(0x3, gpio_ba + CGEN + 1);
+			/*
+			 * SUS_GPIO[2:0] enabled by default
+			 * Enable SUS_GPIO3 resume powered gpio explicitly
+			 */
+			outb(0x8, gpio_ba + RGEN);
+			break;
+
+		case PCI_DEVICE_ID_INTEL_ITC_LPC:
+			sch_gpio_core.base = 0;
+			sch_gpio_core.ngpio = 5;
+
+			sch_gpio_resume.base = 5;
+			sch_gpio_resume.ngpio = 9;
+			break;
+
+		default:
+			return -ENODEV;
+	}
+
+	sch_gpio_core.dev = &pdev->dev;
 	sch_gpio_resume.dev = &pdev->dev;
 
 	err = gpiochip_add(&sch_gpio_core);
@@ -213,18 +246,6 @@ static int __devinit sch_gpio_probe(struct platform_device *pdev)
 	err = gpiochip_add(&sch_gpio_resume);
 	if (err < 0)
 		goto err_sch_gpio_resume;
-
-	/*
-	 * GPIO[6:0] enabled by default
-	 * GPIO7 is configured by the CMC as SLPIOVR
-	 * Enable GPIO[9:8] core powered gpios explicitly
-	 */
-	outb(0x3, gpio_ba + CGEN + 1);
-	/*
-	 * SUS_GPIO[2:0] enabled by default
-	 * Enable SUS_GPIO3 resume powered gpio explicitly
-	 */
-	outb(0x8, gpio_ba + RGEN);
 
 	return 0;
 

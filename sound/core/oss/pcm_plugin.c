@@ -264,7 +264,7 @@ snd_pcm_sframes_t snd_pcm_plug_slave_size(struct snd_pcm_substream *plug, snd_pc
 	return frames;
 }
 
-static int snd_pcm_plug_formats(struct snd_mask *mask, int format)
+static int snd_pcm_plug_formats(struct snd_mask *mask, snd_pcm_format_t format)
 {
 	struct snd_mask formats = *mask;
 	u64 linfmts = (SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S8 |
@@ -276,16 +276,16 @@ static int snd_pcm_plug_formats(struct snd_mask *mask, int format)
 		       SNDRV_PCM_FMTBIT_U24_3BE | SNDRV_PCM_FMTBIT_S24_3BE |
 		       SNDRV_PCM_FMTBIT_U32_LE | SNDRV_PCM_FMTBIT_S32_LE |
 		       SNDRV_PCM_FMTBIT_U32_BE | SNDRV_PCM_FMTBIT_S32_BE);
-	snd_mask_set(&formats, SNDRV_PCM_FORMAT_MU_LAW);
+	snd_mask_set(&formats, (__force int)SNDRV_PCM_FORMAT_MU_LAW);
 	
 	if (formats.bits[0] & (u32)linfmts)
 		formats.bits[0] |= (u32)linfmts;
 	if (formats.bits[1] & (u32)(linfmts >> 32))
 		formats.bits[1] |= (u32)(linfmts >> 32);
-	return snd_mask_test(&formats, format);
+	return snd_mask_test(&formats, (__force int)format);
 }
 
-static int preferred_formats[] = {
+static snd_pcm_format_t preferred_formats[] = {
 	SNDRV_PCM_FORMAT_S16_LE,
 	SNDRV_PCM_FORMAT_S16_BE,
 	SNDRV_PCM_FORMAT_U16_LE,
@@ -306,24 +306,25 @@ static int preferred_formats[] = {
 	SNDRV_PCM_FORMAT_U8
 };
 
-int snd_pcm_plug_slave_format(int format, struct snd_mask *format_mask)
+snd_pcm_format_t snd_pcm_plug_slave_format(snd_pcm_format_t format,
+					   struct snd_mask *format_mask)
 {
 	int i;
 
-	if (snd_mask_test(format_mask, format))
+	if (snd_mask_test(format_mask, (__force int)format))
 		return format;
-	if (! snd_pcm_plug_formats(format_mask, format))
-		return -EINVAL;
+	if (!snd_pcm_plug_formats(format_mask, format))
+		return (__force snd_pcm_format_t)-EINVAL;
 	if (snd_pcm_format_linear(format)) {
 		unsigned int width = snd_pcm_format_width(format);
 		int unsignd = snd_pcm_format_unsigned(format) > 0;
 		int big = snd_pcm_format_big_endian(format) > 0;
 		unsigned int badness, best = -1;
-		int best_format = -1;
+		snd_pcm_format_t best_format = (__force snd_pcm_format_t)-1;
 		for (i = 0; i < ARRAY_SIZE(preferred_formats); i++) {
-			int f = preferred_formats[i];
+			snd_pcm_format_t f = preferred_formats[i];
 			unsigned int w;
-			if (!snd_mask_test(format_mask, f))
+			if (!snd_mask_test(format_mask, (__force int)f))
 				continue;
 			w = snd_pcm_format_width(f);
 			if (w >= width)
@@ -337,17 +338,20 @@ int snd_pcm_plug_slave_format(int format, struct snd_mask *format_mask)
 				best = badness;
 			}
 		}
-		return best_format >= 0 ? best_format : -EINVAL;
+		if ((__force int)best_format >= 0)
+			return best_format;
+		else
+			return (__force snd_pcm_format_t)-EINVAL;
 	} else {
 		switch (format) {
 		case SNDRV_PCM_FORMAT_MU_LAW:
 			for (i = 0; i < ARRAY_SIZE(preferred_formats); ++i) {
-				int format1 = preferred_formats[i];
-				if (snd_mask_test(format_mask, format1))
+				snd_pcm_format_t format1 = preferred_formats[i];
+				if (snd_mask_test(format_mask, (__force int)format1))
 					return format1;
 			}
 		default:
-			return -EINVAL;
+			return (__force snd_pcm_format_t)-EINVAL;
 		}
 	}
 }
@@ -359,7 +363,7 @@ int snd_pcm_plug_format_plugins(struct snd_pcm_substream *plug,
 	struct snd_pcm_plugin_format tmpformat;
 	struct snd_pcm_plugin_format dstformat;
 	struct snd_pcm_plugin_format srcformat;
-	int src_access, dst_access;
+	snd_pcm_access_t src_access, dst_access;
 	struct snd_pcm_plugin *plugin = NULL;
 	int err;
 	int stream = snd_pcm_plug_stream(plug);
@@ -641,7 +645,7 @@ snd_pcm_sframes_t snd_pcm_plug_read_transfer(struct snd_pcm_substream *plug, str
 }
 
 int snd_pcm_area_silence(const struct snd_pcm_channel_area *dst_area, size_t dst_offset,
-			 size_t samples, int format)
+			 size_t samples, snd_pcm_format_t format)
 {
 	/* FIXME: sub byte resolution and odd dst_offset */
 	unsigned char *dst;
@@ -688,7 +692,7 @@ int snd_pcm_area_silence(const struct snd_pcm_channel_area *dst_area, size_t dst
 
 int snd_pcm_area_copy(const struct snd_pcm_channel_area *src_area, size_t src_offset,
 		      const struct snd_pcm_channel_area *dst_area, size_t dst_offset,
-		      size_t samples, int format)
+		      size_t samples, snd_pcm_format_t format)
 {
 	/* FIXME: sub byte resolution and odd dst_offset */
 	char *src, *dst;

@@ -125,9 +125,9 @@ static size_t copy_in_user_std(size_t size, void __user *to,
 	unsigned long tmp1;
 
 	asm volatile(
+		"   sacf  256\n"
 		"  "AHI"  %0,-1\n"
 		"   jo    5f\n"
-		"   sacf  256\n"
 		"   bras  %3,3f\n"
 		"0:"AHI"  %0,257\n"
 		"1: mvc   0(1,%1),0(%2)\n"
@@ -142,9 +142,8 @@ static size_t copy_in_user_std(size_t size, void __user *to,
 		"3:"AHI"  %0,-256\n"
 		"   jnm   2b\n"
 		"4: ex    %0,1b-0b(%3)\n"
-		"   sacf  0\n"
 		"5: "SLR"  %0,%0\n"
-		"6:\n"
+		"6: sacf  0\n"
 		EX_TABLE(1b,6b) EX_TABLE(2b,0b) EX_TABLE(4b,0b)
 		: "+a" (size), "+a" (to), "+a" (from), "=a" (tmp1)
 		: : "cc", "memory");
@@ -156,9 +155,9 @@ static size_t clear_user_std(size_t size, void __user *to)
 	unsigned long tmp1, tmp2;
 
 	asm volatile(
+		"   sacf  256\n"
 		"  "AHI"  %0,-1\n"
 		"   jo    5f\n"
-		"   sacf  256\n"
 		"   bras  %3,3f\n"
 		"   xc    0(1,%1),0(%1)\n"
 		"0:"AHI"  %0,257\n"
@@ -178,9 +177,8 @@ static size_t clear_user_std(size_t size, void __user *to)
 		"3:"AHI"  %0,-256\n"
 		"   jnm   2b\n"
 		"4: ex    %0,0(%3)\n"
-		"   sacf  0\n"
 		"5: "SLR"  %0,%0\n"
-		"6:\n"
+		"6: sacf  0\n"
 		EX_TABLE(1b,6b) EX_TABLE(2b,0b) EX_TABLE(4b,0b)
 		: "+a" (size), "+a" (to), "=a" (tmp1), "=a" (tmp2)
 		: : "cc", "memory");
@@ -257,7 +255,7 @@ size_t strncpy_from_user_std(size_t size, const char __user *src, char *dst)
 		: "0" (-EFAULT), "d" (oparg), "a" (uaddr),		\
 		  "m" (*uaddr) : "cc");
 
-int futex_atomic_op_std(int op, int __user *uaddr, int oparg, int *old)
+int futex_atomic_op_std(int op, u32 __user *uaddr, int oparg, int *old)
 {
 	int oldval = 0, newval, ret;
 
@@ -289,19 +287,21 @@ int futex_atomic_op_std(int op, int __user *uaddr, int oparg, int *old)
 	return ret;
 }
 
-int futex_atomic_cmpxchg_std(int __user *uaddr, int oldval, int newval)
+int futex_atomic_cmpxchg_std(u32 *uval, u32 __user *uaddr,
+			     u32 oldval, u32 newval)
 {
 	int ret;
 
 	asm volatile(
 		"   sacf 256\n"
 		"0: cs   %1,%4,0(%5)\n"
-		"1: lr   %0,%1\n"
+		"1: la   %0,0\n"
 		"2: sacf 0\n"
 		EX_TABLE(0b,2b) EX_TABLE(1b,2b)
 		: "=d" (ret), "+d" (oldval), "=m" (*uaddr)
 		: "0" (-EFAULT), "d" (newval), "a" (uaddr), "m" (*uaddr)
 		: "cc", "memory" );
+	*uval = oldval;
 	return ret;
 }
 

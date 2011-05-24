@@ -1988,6 +1988,10 @@ int ib_send_cm_dreq(struct ib_cm_id *cm_id,
 		goto out;
 	}
 
+	if (cm_id->lap_state == IB_CM_LAP_SENT ||
+	    cm_id->lap_state == IB_CM_MRA_LAP_RCVD)
+		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
+
 	ret = cm_alloc_msg(cm_id_priv, &msg);
 	if (ret) {
 		cm_enter_timewait(cm_id_priv);
@@ -2129,6 +2133,10 @@ static int cm_dreq_handler(struct cm_work *work)
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 		break;
 	case IB_CM_ESTABLISHED:
+		if (cm_id_priv->id.lap_state == IB_CM_LAP_SENT ||
+		    cm_id_priv->id.lap_state == IB_CM_MRA_LAP_RCVD)
+			ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
+		break;
 	case IB_CM_MRA_REP_RCVD:
 		break;
 	case IB_CM_TIMEWAIT:
@@ -2349,9 +2357,18 @@ static int cm_rej_handler(struct cm_work *work)
 		/* fall through */
 	case IB_CM_REP_RCVD:
 	case IB_CM_MRA_REP_SENT:
-	case IB_CM_ESTABLISHED:
 		cm_enter_timewait(cm_id_priv);
 		break;
+	case IB_CM_ESTABLISHED:
+		if (cm_id_priv->id.lap_state == IB_CM_LAP_UNINIT ||
+		    cm_id_priv->id.lap_state == IB_CM_LAP_SENT) {
+			if (cm_id_priv->id.lap_state == IB_CM_LAP_SENT)
+				ib_cancel_mad(cm_id_priv->av.port->mad_agent,
+					      cm_id_priv->msg);
+			cm_enter_timewait(cm_id_priv);
+			break;
+		}
+		/* fall through */
 	default:
 		spin_unlock_irq(&cm_id_priv->lock);
 		ret = -EINVAL;
@@ -2989,6 +3006,7 @@ static int cm_sidr_req_handler(struct cm_work *work)
 		goto out; /* No match. */
 	}
 	atomic_inc(&cur_cm_id_priv->refcount);
+	atomic_inc(&cm_id_priv->refcount);
 	spin_unlock_irq(&cm.lock);
 
 	cm_id_priv->id.cm_handler = cur_cm_id_priv->id.cm_handler;

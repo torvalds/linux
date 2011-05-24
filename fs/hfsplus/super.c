@@ -338,20 +338,22 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *root, *inode;
 	struct qstr str;
 	struct nls_table *nls = NULL;
-	int err = -EINVAL;
+	int err;
 
+	err = -EINVAL;
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		goto out;
 
 	sb->s_fs_info = sbi;
 	mutex_init(&sbi->alloc_mutex);
 	mutex_init(&sbi->vh_mutex);
 	hfsplus_fill_defaults(sbi);
+
+	err = -EINVAL;
 	if (!hfsplus_parse_options(data, sbi)) {
 		printk(KERN_ERR "hfs: unable to parse mount options\n");
-		err = -EINVAL;
-		goto cleanup;
+		goto out_unload_nls;
 	}
 
 	/* temporarily use utf8 to correctly find the hidden dir below */
@@ -359,16 +361,14 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->nls = load_nls("utf8");
 	if (!sbi->nls) {
 		printk(KERN_ERR "hfs: unable to load nls for utf8\n");
-		err = -EINVAL;
-		goto cleanup;
+		goto out_unload_nls;
 	}
 
 	/* Grab the volume header */
 	if (hfsplus_read_wrapper(sb)) {
 		if (!silent)
 			printk(KERN_WARNING "hfs: unable to find HFS+ superblock\n");
-		err = -EINVAL;
-		goto cleanup;
+		goto out_unload_nls;
 	}
 	vhdr = sbi->s_vhdr;
 
@@ -377,7 +377,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	if (be16_to_cpu(vhdr->version) < HFSPLUS_MIN_VERSION ||
 	    be16_to_cpu(vhdr->version) > HFSPLUS_CURRENT_VERSION) {
 		printk(KERN_ERR "hfs: wrong filesystem version\n");
-		goto cleanup;
+		goto out_free_vhdr;
 	}
 	sbi->total_blocks = be32_to_cpu(vhdr->total_blocks);
 	sbi->free_blocks = be32_to_cpu(vhdr->free_blocks);
@@ -421,19 +421,19 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->ext_tree = hfs_btree_open(sb, HFSPLUS_EXT_CNID);
 	if (!sbi->ext_tree) {
 		printk(KERN_ERR "hfs: failed to load extents file\n");
-		goto cleanup;
+		goto out_free_vhdr;
 	}
 	sbi->cat_tree = hfs_btree_open(sb, HFSPLUS_CAT_CNID);
 	if (!sbi->cat_tree) {
 		printk(KERN_ERR "hfs: failed to load catalog file\n");
-		goto cleanup;
+		goto out_close_ext_tree;
 	}
 
 	inode = hfsplus_iget(sb, HFSPLUS_ALLOC_CNID);
 	if (IS_ERR(inode)) {
 		printk(KERN_ERR "hfs: failed to load allocation file\n");
 		err = PTR_ERR(inode);
-		goto cleanup;
+		goto out_close_cat_tree;
 	}
 	sbi->alloc_file = inode;
 
@@ -442,14 +442,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	if (IS_ERR(root)) {
 		printk(KERN_ERR "hfs: failed to load root directory\n");
 		err = PTR_ERR(root);
-		goto cleanup;
-	}
-	sb->s_d_op = &hfsplus_dentry_operations;
-	sb->s_root = d_alloc_root(root);
-	if (!sb->s_root) {
-		iput(root);
-		err = -ENOMEM;
-		goto cleanup;
+		goto out_put_alloc_file;
 	}
 
 	str.len = sizeof(HFSP_HIDDENDIR_NAME) - 1;
@@ -459,46 +452,69 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	if (!hfs_brec_read(&fd, &entry, sizeof(entry))) {
 		hfs_find_exit(&fd);
 		if (entry.type != cpu_to_be16(HFSPLUS_FOLDER))
-			goto cleanup;
+			goto out_put_root;
 		inode = hfsplus_iget(sb, be32_to_cpu(entry.folder.id));
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
-			goto cleanup;
+			goto out_put_root;
 		}
 		sbi->hidden_dir = inode;
 	} else
 		hfs_find_exit(&fd);
 
-	if (sb->s_flags & MS_RDONLY)
-		goto out;
+	if (!(sb->s_flags & MS_RDONLY)) {
+		/*
+		 * H+LX == hfsplusutils, H+Lx == this driver, H+lx is unused
+		 * all three are registered with Apple for our use
+		 */
+		vhdr->last_mount_vers = cpu_to_be32(HFSP_MOUNT_VERSION);
+		vhdr->modify_date = hfsp_now2mt();
+		be32_add_cpu(&vhdr->write_count, 1);
+		vhdr->attributes &= cpu_to_be32(~HFSPLUS_VOL_UNMNT);
+		vhdr->attributes |= cpu_to_be32(HFSPLUS_VOL_INCNSTNT);
+		hfsplus_sync_fs(sb, 1);
 
-	/* H+LX == hfsplusutils, H+Lx == this driver, H+lx is unused
-	 * all three are registered with Apple for our use
-	 */
-	vhdr->last_mount_vers = cpu_to_be32(HFSP_MOUNT_VERSION);
-	vhdr->modify_date = hfsp_now2mt();
-	be32_add_cpu(&vhdr->write_count, 1);
-	vhdr->attributes &= cpu_to_be32(~HFSPLUS_VOL_UNMNT);
-	vhdr->attributes |= cpu_to_be32(HFSPLUS_VOL_INCNSTNT);
-	hfsplus_sync_fs(sb, 1);
+		if (!sbi->hidden_dir) {
+			mutex_lock(&sbi->vh_mutex);
+			sbi->hidden_dir = hfsplus_new_inode(sb, S_IFDIR);
+			hfsplus_create_cat(sbi->hidden_dir->i_ino, root, &str,
+					   sbi->hidden_dir);
+			mutex_unlock(&sbi->vh_mutex);
 
-	if (!sbi->hidden_dir) {
-		mutex_lock(&sbi->vh_mutex);
-		sbi->hidden_dir = hfsplus_new_inode(sb, S_IFDIR);
-		hfsplus_create_cat(sbi->hidden_dir->i_ino, sb->s_root->d_inode,
-				   &str, sbi->hidden_dir);
-		mutex_unlock(&sbi->vh_mutex);
-
-		hfsplus_mark_inode_dirty(sbi->hidden_dir, HFSPLUS_I_CAT_DIRTY);
+			hfsplus_mark_inode_dirty(sbi->hidden_dir,
+						 HFSPLUS_I_CAT_DIRTY);
+		}
 	}
-out:
+
+	sb->s_d_op = &hfsplus_dentry_operations;
+	sb->s_root = d_alloc_root(root);
+	if (!sb->s_root) {
+		err = -ENOMEM;
+		goto out_put_hidden_dir;
+	}
+
 	unload_nls(sbi->nls);
 	sbi->nls = nls;
 	return 0;
 
-cleanup:
-	hfsplus_put_super(sb);
+out_put_hidden_dir:
+	iput(sbi->hidden_dir);
+out_put_root:
+	iput(sbi->alloc_file);
+out_put_alloc_file:
+	iput(sbi->alloc_file);
+out_close_cat_tree:
+	hfs_btree_close(sbi->cat_tree);
+out_close_ext_tree:
+	hfs_btree_close(sbi->ext_tree);
+out_free_vhdr:
+	kfree(sbi->s_vhdr);
+	kfree(sbi->s_backup_vhdr);
+out_unload_nls:
+	unload_nls(sbi->nls);
 	unload_nls(nls);
+	kfree(sbi);
+out:
 	return err;
 }
 

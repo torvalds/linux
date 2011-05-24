@@ -361,7 +361,7 @@ enum  velocity_owner {
 #define MAC_REG_CHIPGSR     0x9C
 #define MAC_REG_TESTCFG     0x9D
 #define MAC_REG_DEBUG       0x9E
-#define MAC_REG_CHIPGCR     0x9F
+#define MAC_REG_CHIPGCR     0x9F	/* Chip Operation and Diagnostic Control */
 #define MAC_REG_WOLCR0_SET  0xA0
 #define MAC_REG_WOLCR1_SET  0xA1
 #define MAC_REG_PWCFG_SET   0xA2
@@ -848,10 +848,10 @@ enum  velocity_owner {
  *	Bits in CHIPGCR register
  */
 
-#define CHIPGCR_FCGMII      0x80	/* enable GMII mode */
-#define CHIPGCR_FCFDX       0x40
+#define CHIPGCR_FCGMII      0x80	/* force GMII (else MII only) */
+#define CHIPGCR_FCFDX       0x40	/* force full duplex */
 #define CHIPGCR_FCRESV      0x20
-#define CHIPGCR_FCMODE      0x10
+#define CHIPGCR_FCMODE      0x10	/* enable MAC forced mode */
 #define CHIPGCR_LPSOPT      0x08
 #define CHIPGCR_TM1US       0x04
 #define CHIPGCR_TM0US       0x02

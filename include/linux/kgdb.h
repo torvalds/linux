@@ -297,6 +297,7 @@ extern int
 kgdb_handle_exception(int ex_vector, int signo, int err_code,
 		      struct pt_regs *regs);
 extern int kgdb_nmicallback(int cpu, void *regs);
+extern void gdbstub_exit(int status);
 
 extern int			kgdb_single_step;
 extern atomic_t			kgdb_active;

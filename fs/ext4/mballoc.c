@@ -92,7 +92,7 @@
  * between CPUs. It is possible to get scheduled at this point.
  *
  * The locality group prealloc space is used looking at whether we have
- * enough free space (pa_free) withing the prealloc space.
+ * enough free space (pa_free) within the prealloc space.
  *
  * If we can't allocate blocks via inode prealloc or/and locality group
  * prealloc then we look at the buddy cache. The buddy cache is represented
@@ -342,9 +342,14 @@ static struct kmem_cache *ext4_free_ext_cachep;
 /* We create slab caches for groupinfo data structures based on the
  * superblock block size.  There will be one per mounted filesystem for
  * each unique s_blocksize_bits */
-#define NR_GRPINFO_CACHES	\
-	(EXT4_MAX_BLOCK_LOG_SIZE - EXT4_MIN_BLOCK_LOG_SIZE + 1)
+#define NR_GRPINFO_CACHES 8
 static struct kmem_cache *ext4_groupinfo_caches[NR_GRPINFO_CACHES];
+
+static const char *ext4_groupinfo_slab_names[NR_GRPINFO_CACHES] = {
+	"ext4_groupinfo_1k", "ext4_groupinfo_2k", "ext4_groupinfo_4k",
+	"ext4_groupinfo_8k", "ext4_groupinfo_16k", "ext4_groupinfo_32k",
+	"ext4_groupinfo_64k", "ext4_groupinfo_128k"
+};
 
 static void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,
 					ext4_group_t group);
@@ -427,9 +432,10 @@ static void *mb_find_buddy(struct ext4_buddy *e4b, int order, int *max)
 	}
 
 	/* at order 0 we see each particular block */
-	*max = 1 << (e4b->bd_blkbits + 3);
-	if (order == 0)
+	if (order == 0) {
+		*max = 1 << (e4b->bd_blkbits + 3);
 		return EXT4_MB_BITMAP(e4b);
+	}
 
 	bb = EXT4_MB_BUDDY(e4b) + EXT4_SB(e4b->bd_sb)->s_mb_offsets[order];
 	*max = EXT4_SB(e4b->bd_sb)->s_mb_maxs[order];
@@ -611,7 +617,6 @@ static int __mb_check_buddy(struct ext4_buddy *e4b, char *file,
 	MB_CHECK_ASSERT(e4b->bd_info->bb_fragments == fragments);
 
 	grp = ext4_get_group_info(sb, e4b->bd_group);
-	buddy = mb_find_buddy(e4b, 0, &max);
 	list_for_each(cur, &grp->bb_prealloc_list) {
 		ext4_group_t groupnr;
 		struct ext4_prealloc_space *pa;
@@ -630,7 +635,12 @@ static int __mb_check_buddy(struct ext4_buddy *e4b, char *file,
 #define mb_check_buddy(e4b)
 #endif
 
-/* FIXME!! need more doc */
+/*
+ * Divide blocks started from @first with length @len into
+ * smaller chunks with power of 2 blocks.
+ * Clear the bits in bitmap which the blocks of the chunk(s) covered,
+ * then increase bb_counters[] for corresponded chunk size.
+ */
 static void ext4_mb_mark_free_simple(struct super_block *sb,
 				void *buddy, ext4_grpblk_t first, ext4_grpblk_t len,
 					struct ext4_group_info *grp)
@@ -2376,7 +2386,7 @@ static int ext4_mb_init_backend(struct super_block *sb)
 	/* An 8TB filesystem with 64-bit pointers requires a 4096 byte
 	 * kmalloc. A 128kb malloc should suffice for a 256TB filesystem.
 	 * So a two level scheme suffices for now. */
-	sbi->s_group_info = kmalloc(array_size, GFP_KERNEL);
+	sbi->s_group_info = kzalloc(array_size, GFP_KERNEL);
 	if (sbi->s_group_info == NULL) {
 		printk(KERN_ERR "EXT4-fs: can't allocate buddy meta group\n");
 		return -ENOMEM;
@@ -2414,6 +2424,55 @@ err_freesgi:
 	return -ENOMEM;
 }
 
+static void ext4_groupinfo_destroy_slabs(void)
+{
+	int i;
+
+	for (i = 0; i < NR_GRPINFO_CACHES; i++) {
+		if (ext4_groupinfo_caches[i])
+			kmem_cache_destroy(ext4_groupinfo_caches[i]);
+		ext4_groupinfo_caches[i] = NULL;
+	}
+}
+
+static int ext4_groupinfo_create_slab(size_t size)
+{
+	static DEFINE_MUTEX(ext4_grpinfo_slab_create_mutex);
+	int slab_size;
+	int blocksize_bits = order_base_2(size);
+	int cache_index = blocksize_bits - EXT4_MIN_BLOCK_LOG_SIZE;
+	struct kmem_cache *cachep;
+
+	if (cache_index >= NR_GRPINFO_CACHES)
+		return -EINVAL;
+
+	if (unlikely(cache_index < 0))
+		cache_index = 0;
+
+	mutex_lock(&ext4_grpinfo_slab_create_mutex);
+	if (ext4_groupinfo_caches[cache_index]) {
+		mutex_unlock(&ext4_grpinfo_slab_create_mutex);
+		return 0;	/* Already created */
+	}
+
+	slab_size = offsetof(struct ext4_group_info,
+				bb_counters[blocksize_bits + 2]);
+
+	cachep = kmem_cache_create(ext4_groupinfo_slab_names[cache_index],
+					slab_size, 0, SLAB_RECLAIM_ACCOUNT,
+					NULL);
+
+	mutex_unlock(&ext4_grpinfo_slab_create_mutex);
+	if (!cachep) {
+		printk(KERN_EMERG "EXT4: no memory for groupinfo slab cache\n");
+		return -ENOMEM;
+	}
+
+	ext4_groupinfo_caches[cache_index] = cachep;
+
+	return 0;
+}
+
 int ext4_mb_init(struct super_block *sb, int needs_recovery)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -2421,9 +2480,6 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 	unsigned offset;
 	unsigned max;
 	int ret;
-	int cache_index;
-	struct kmem_cache *cachep;
-	char *namep = NULL;
 
 	i = (sb->s_blocksize_bits + 2) * sizeof(*sbi->s_mb_offsets);
 
@@ -2440,30 +2496,9 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 		goto out;
 	}
 
-	cache_index = sb->s_blocksize_bits - EXT4_MIN_BLOCK_LOG_SIZE;
-	cachep = ext4_groupinfo_caches[cache_index];
-	if (!cachep) {
-		char name[32];
-		int len = offsetof(struct ext4_group_info,
-					bb_counters[sb->s_blocksize_bits + 2]);
-
-		sprintf(name, "ext4_groupinfo_%d", sb->s_blocksize_bits);
-		namep = kstrdup(name, GFP_KERNEL);
-		if (!namep) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		/* Need to free the kmem_cache_name() when we
-		 * destroy the slab */
-		cachep = kmem_cache_create(namep, len, 0,
-					     SLAB_RECLAIM_ACCOUNT, NULL);
-		if (!cachep) {
-			ret = -ENOMEM;
-			goto out;
-		}
-		ext4_groupinfo_caches[cache_index] = cachep;
-	}
+	ret = ext4_groupinfo_create_slab(sb->s_blocksize);
+	if (ret < 0)
+		goto out;
 
 	/* order 0 is regular bitmap */
 	sbi->s_mb_maxs[0] = sb->s_blocksize << 3;
@@ -2520,7 +2555,6 @@ out:
 	if (ret) {
 		kfree(sbi->s_mb_offsets);
 		kfree(sbi->s_mb_maxs);
-		kfree(namep);
 	}
 	return ret;
 }
@@ -2734,7 +2768,6 @@ int __init ext4_init_mballoc(void)
 
 void ext4_exit_mballoc(void)
 {
-	int i;
 	/*
 	 * Wait for completion of call_rcu()'s on ext4_pspace_cachep
 	 * before destroying the slab cache.
@@ -2743,15 +2776,7 @@ void ext4_exit_mballoc(void)
 	kmem_cache_destroy(ext4_pspace_cachep);
 	kmem_cache_destroy(ext4_ac_cachep);
 	kmem_cache_destroy(ext4_free_ext_cachep);
-
-	for (i = 0; i < NR_GRPINFO_CACHES; i++) {
-		struct kmem_cache *cachep = ext4_groupinfo_caches[i];
-		if (cachep) {
-			char *name = (char *)kmem_cache_name(cachep);
-			kmem_cache_destroy(cachep);
-			kfree(name);
-		}
-	}
+	ext4_groupinfo_destroy_slabs();
 	ext4_remove_debugfs_entry();
 }
 
@@ -3188,7 +3213,7 @@ ext4_mb_check_group_pa(ext4_fsblk_t goal_block,
 	cur_distance = abs(goal_block - cpa->pa_pstart);
 	new_distance = abs(goal_block - pa->pa_pstart);
 
-	if (cur_distance < new_distance)
+	if (cur_distance <= new_distance)
 		return cpa;
 
 	/* drop the previous reference */
@@ -3887,7 +3912,8 @@ static void ext4_mb_show_ac(struct ext4_allocation_context *ac)
 	struct super_block *sb = ac->ac_sb;
 	ext4_group_t ngroups, i;
 
-	if (EXT4_SB(sb)->s_mount_flags & EXT4_MF_FS_ABORTED)
+	if (!mb_enable_debug ||
+	    (EXT4_SB(sb)->s_mount_flags & EXT4_MF_FS_ABORTED))
 		return;
 
 	printk(KERN_ERR "EXT4-fs: Can't allocate:"
@@ -4733,7 +4759,8 @@ static int ext4_trim_extent(struct super_block *sb, int start, int count,
  * bitmap. Then issue a TRIM command on this extent and free the extent in
  * the group buddy bitmap. This is done until whole group is scanned.
  */
-ext4_grpblk_t ext4_trim_all_free(struct super_block *sb, struct ext4_buddy *e4b,
+static ext4_grpblk_t
+ext4_trim_all_free(struct super_block *sb, struct ext4_buddy *e4b,
 		ext4_grpblk_t start, ext4_grpblk_t max, ext4_grpblk_t minblocks)
 {
 	void *bitmap;
@@ -4843,10 +4870,15 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 			break;
 		}
 
-		if (len >= EXT4_BLOCKS_PER_GROUP(sb))
-			len -= (EXT4_BLOCKS_PER_GROUP(sb) - first_block);
-		else
+		/*
+		 * For all the groups except the last one, last block will
+		 * always be EXT4_BLOCKS_PER_GROUP(sb), so we only need to
+		 * change it for the last group in which case start +
+		 * len < EXT4_BLOCKS_PER_GROUP(sb).
+		 */
+		if (first_block + len < EXT4_BLOCKS_PER_GROUP(sb))
 			last_block = first_block + len;
+		len -= last_block - first_block;
 
 		if (e4b.bd_info->bb_free >= minlen) {
 			cnt = ext4_trim_all_free(sb, &e4b, first_block,

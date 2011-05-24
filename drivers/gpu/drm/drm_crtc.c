@@ -1073,6 +1073,9 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	uint32_t __user *encoder_id;
 	struct drm_mode_group *mode_group;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	mutex_lock(&dev->mode_config.mutex);
 
 	/*
@@ -1244,6 +1247,9 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	struct drm_mode_object *obj;
 	int ret = 0;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	mutex_lock(&dev->mode_config.mutex);
 
 	obj = drm_mode_object_find(dev, crtc_resp->crtc_id,
@@ -1311,6 +1317,9 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	uint32_t __user *prop_ptr;
 	uint64_t __user *prop_values;
 	uint32_t __user *encoder_ptr;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	memset(&u_mode, 0, sizeof(struct drm_mode_modeinfo));
 
@@ -1431,6 +1440,9 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 	struct drm_encoder *encoder;
 	int ret = 0;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, enc_resp->encoder_id,
 				   DRM_MODE_OBJECT_ENCODER);
@@ -1485,6 +1497,9 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	uint32_t __user *set_connectors_ptr;
 	int ret = 0;
 	int i;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, crtc_req->crtc_id,
@@ -1603,6 +1618,9 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int ret = 0;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	if (!req->flags) {
 		DRM_ERROR("no operation set\n");
 		return -EINVAL;
@@ -1667,6 +1685,9 @@ int drm_mode_addfb(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	int ret = 0;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	if ((config->min_width > r->width) || (r->width > config->max_width)) {
 		DRM_ERROR("mode new framebuffer width not within limits\n");
 		return -EINVAL;
@@ -1678,7 +1699,7 @@ int drm_mode_addfb(struct drm_device *dev,
 
 	mutex_lock(&dev->mode_config.mutex);
 
-	/* TODO check buffer is sufficently large */
+	/* TODO check buffer is sufficiently large */
 	/* TODO setup destructor callback */
 
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
@@ -1724,9 +1745,12 @@ int drm_mode_rmfb(struct drm_device *dev,
 	int ret = 0;
 	int found = 0;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, *id, DRM_MODE_OBJECT_FB);
-	/* TODO check that we realy get a framebuffer back. */
+	/* TODO check that we really get a framebuffer back. */
 	if (!obj) {
 		DRM_ERROR("mode invalid framebuffer id\n");
 		ret = -EINVAL;
@@ -1780,6 +1804,9 @@ int drm_mode_getfb(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	int ret = 0;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, r->fb_id, DRM_MODE_OBJECT_FB);
 	if (!obj) {
@@ -1812,6 +1839,9 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	unsigned flags;
 	int num_clips;
 	int ret = 0;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, r->fb_id, DRM_MODE_OBJECT_FB);
@@ -1996,6 +2026,9 @@ int drm_mode_attachmode_ioctl(struct drm_device *dev,
 	struct drm_mode_modeinfo *umode = &mode_cmd->mode;
 	int ret = 0;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	mutex_lock(&dev->mode_config.mutex);
 
 	obj = drm_mode_object_find(dev, mode_cmd->connector_id, DRM_MODE_OBJECT_CONNECTOR);
@@ -2041,6 +2074,9 @@ int drm_mode_detachmode_ioctl(struct drm_device *dev,
 	struct drm_display_mode mode;
 	struct drm_mode_modeinfo *umode = &mode_cmd->mode;
 	int ret = 0;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	mutex_lock(&dev->mode_config.mutex);
 
@@ -2211,6 +2247,9 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	uint64_t __user *values_ptr;
 	uint32_t __user *blob_length_ptr;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, out_resp->prop_id, DRM_MODE_OBJECT_PROPERTY);
 	if (!obj) {
@@ -2333,6 +2372,9 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 	int ret = 0;
 	void *blob_ptr;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, out_resp->blob_id, DRM_MODE_OBJECT_BLOB);
 	if (!obj) {
@@ -2392,6 +2434,9 @@ int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
 	struct drm_connector *connector;
 	int ret = -EINVAL;
 	int i;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	mutex_lock(&dev->mode_config.mutex);
 
@@ -2509,6 +2554,9 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 	int size;
 	int ret = 0;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, crtc_lut->crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
@@ -2559,6 +2607,9 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 	void *r_base, *g_base, *b_base;
 	int size;
 	int ret = 0;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, crtc_lut->crtc_id, DRM_MODE_OBJECT_CRTC);
@@ -2673,4 +2724,57 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 out:
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
+}
+
+void drm_mode_config_reset(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		if (crtc->funcs->reset)
+			crtc->funcs->reset(crtc);
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
+		if (encoder->funcs->reset)
+			encoder->funcs->reset(encoder);
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+		if (connector->funcs->reset)
+			connector->funcs->reset(connector);
+}
+EXPORT_SYMBOL(drm_mode_config_reset);
+
+int drm_mode_create_dumb_ioctl(struct drm_device *dev,
+			       void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_create_dumb *args = data;
+
+	if (!dev->driver->dumb_create)
+		return -ENOSYS;
+	return dev->driver->dumb_create(file_priv, dev, args);
+}
+
+int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
+			     void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_map_dumb *args = data;
+
+	/* call driver ioctl to get mmap offset */
+	if (!dev->driver->dumb_map_offset)
+		return -ENOSYS;
+
+	return dev->driver->dumb_map_offset(file_priv, dev, args->handle, &args->offset);
+}
+
+int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
+				void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_destroy_dumb *args = data;
+
+	if (!dev->driver->dumb_destroy)
+		return -ENOSYS;
+
+	return dev->driver->dumb_destroy(file_priv, dev, args->handle);
 }

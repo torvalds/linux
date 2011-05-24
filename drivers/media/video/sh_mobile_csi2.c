@@ -56,7 +56,7 @@ static int sh_csi2_try_fmt(struct v4l2_subdev *sd,
 		switch (mf->code) {
 		case V4L2_MBUS_FMT_UYVY8_2X8:		/* YUV422 */
 		case V4L2_MBUS_FMT_YUYV8_1_5X8:		/* YUV420 */
-		case V4L2_MBUS_FMT_GREY8_1X8:		/* RAW8 */
+		case V4L2_MBUS_FMT_Y8_1X8:		/* RAW8 */
 		case V4L2_MBUS_FMT_SBGGR8_1X8:
 		case V4L2_MBUS_FMT_SGRBG8_1X8:
 			break;
@@ -67,7 +67,7 @@ static int sh_csi2_try_fmt(struct v4l2_subdev *sd,
 		break;
 	case SH_CSI2I:
 		switch (mf->code) {
-		case V4L2_MBUS_FMT_GREY8_1X8:		/* RAW8 */
+		case V4L2_MBUS_FMT_Y8_1X8:		/* RAW8 */
 		case V4L2_MBUS_FMT_SBGGR8_1X8:
 		case V4L2_MBUS_FMT_SGRBG8_1X8:
 		case V4L2_MBUS_FMT_SBGGR10_1X10:	/* RAW10 */
@@ -111,7 +111,7 @@ static int sh_csi2_s_fmt(struct v4l2_subdev *sd,
 	case V4L2_MBUS_FMT_RGB565_2X8_BE:
 		tmp |= 0x22;	/* RGB565 */
 		break;
-	case V4L2_MBUS_FMT_GREY8_1X8:
+	case V4L2_MBUS_FMT_Y8_1X8:
 	case V4L2_MBUS_FMT_SBGGR8_1X8:
 	case V4L2_MBUS_FMT_SGRBG8_1X8:
 		tmp |= 0x2a;	/* RAW8 */

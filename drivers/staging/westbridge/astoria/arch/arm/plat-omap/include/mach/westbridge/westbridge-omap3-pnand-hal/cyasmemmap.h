@@ -51,7 +51,7 @@
  * 							GPMC_ADDR
  *							[A8:A1]->upD[7:0]
  * INT#	-GPMC_nWP_GPIO_62
- * DACK	-N/C				 not conected
+ * DACK	-N/C				 not connected
  * WAKEUP-GPIO_167
  * RESET-GPIO_126
  * R/B	-GPMC_WAIT2_GPIO_64
@@ -108,7 +108,7 @@
 	 *					will be monitored
 	 * PF_EN_ENGINE - 1- ENABLES ENGINE, but it needs to be started after
 	 *					that C ctrl reg bit 0
-	 * PF_FIFO_THRESHOLD - FIFO threshhold in number of BUS(8 or 16) words
+	 * PF_FIFO_THRESHOLD - FIFO threshold in number of BUS(8 or 16) words
 	 * PF_WEIGHTED_PRIO  - NUM of cycles granted to PFE if RND_ROBIN
 	 *					prioritization is enabled
 	 * PF_ROUND_ROBIN  - if enabled, gives priority to other CS, but

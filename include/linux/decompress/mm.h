@@ -16,7 +16,7 @@
 
 /*
  * Some architectures want to ensure there is no local data in their
- * pre-boot environment, so that data can arbitarily relocated (via
+ * pre-boot environment, so that data can arbitrarily relocated (via
  * GOT references).  This is achieved by defining STATIC_RW_DATA to
  * be null.
  */

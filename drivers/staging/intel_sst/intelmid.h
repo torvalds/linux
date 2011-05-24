@@ -90,12 +90,12 @@ struct mad_jack_msg_wq {
  * @card_index: sound card index
  * @card_id: sound card id detected
  * @sstdrv_ops: ptr to sst driver ops
- * @pdev: ptr to platfrom device
+ * @pdev: ptr to platform device
  * @irq: interrupt number detected
  * @pmic_status: Device status of sound card
  * @int_base: ptr to MMIO interrupt region
- * @output_sel: device slected as o/p
- * @input_sel: device slected as i/p
+ * @output_sel: device selected as o/p
+ * @input_sel: device selected as i/p
  * @master_mute: master mute status
  * @jack: jack status
  * @playback_cnt: active pb streams

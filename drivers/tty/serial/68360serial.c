@@ -1240,7 +1240,7 @@ static int get_lsr_info(struct async_struct * info, unsigned int *value)
 }
 #endif
 
-static int rs_360_tiocmget(struct tty_struct *tty, struct file *file)
+static int rs_360_tiocmget(struct tty_struct *tty)
 {
 	ser_info_t *info = (ser_info_t *)tty->driver_data;
 	unsigned int result = 0;
@@ -1271,7 +1271,7 @@ static int rs_360_tiocmget(struct tty_struct *tty, struct file *file)
 	return result;
 }
 
-static int rs_360_tiocmset(struct tty_struct *tty, struct file *file,
+static int rs_360_tiocmset(struct tty_struct *tty,
 			   unsigned int set, unsigned int clear)
 {
 #ifdef modem_control
@@ -1405,7 +1405,7 @@ static int rs_360_get_icount(struct tty_struct *tty,
 	return 0;
 }
 
-static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
+static int rs_360_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	int error;
@@ -2428,6 +2428,7 @@ static const struct tty_operations rs_360_ops = {
 	/* .read_proc = rs_360_read_proc, */
 	.tiocmget = rs_360_tiocmget,
 	.tiocmset = rs_360_tiocmset,
+	.get_icount = rs_360_get_icount,
 };
 
 static int __init rs_360_init(void)

@@ -76,6 +76,7 @@
 #include <linux/seq_file.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/compat.h>
 
 static struct raw_hashinfo raw_v4_hashinfo = {
 	.lock = __RW_LOCK_UNLOCKED(raw_v4_hashinfo.lock),
@@ -401,7 +402,7 @@ error:
 	return err;
 }
 
-static int raw_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
+static int raw_probe_proto_opt(struct flowi4 *fl4, struct msghdr *msg)
 {
 	struct iovec *iov;
 	u8 __user *type = NULL;
@@ -417,7 +418,7 @@ static int raw_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 		if (!iov)
 			continue;
 
-		switch (fl->proto) {
+		switch (fl4->flowi4_proto) {
 		case IPPROTO_ICMP:
 			/* check if one-byte field is readable or not. */
 			if (iov->iov_base && iov->iov_len < 1)
@@ -432,8 +433,8 @@ static int raw_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 				code = iov->iov_base;
 
 			if (type && code) {
-				if (get_user(fl->fl_icmp_type, type) ||
-				    get_user(fl->fl_icmp_code, code))
+				if (get_user(fl4->fl4_icmp_type, type) ||
+				    get_user(fl4->fl4_icmp_code, code))
 					return -EFAULT;
 				probed = 1;
 			}
@@ -547,25 +548,31 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	}
 
 	{
-		struct flowi fl = { .oif = ipc.oif,
-				    .mark = sk->sk_mark,
-				    .fl4_dst = daddr,
-				    .fl4_src = saddr,
-				    .fl4_tos = tos,
-				    .proto = inet->hdrincl ? IPPROTO_RAW :
-							     sk->sk_protocol,
-				  };
+		struct flowi4 fl4 = {
+			.flowi4_oif = ipc.oif,
+			.flowi4_mark = sk->sk_mark,
+			.daddr = daddr,
+			.saddr = saddr,
+			.flowi4_tos = tos,
+			.flowi4_proto = (inet->hdrincl ?
+					 IPPROTO_RAW :
+					 sk->sk_protocol),
+			.flowi4_flags = FLOWI_FLAG_CAN_SLEEP,
+		};
 		if (!inet->hdrincl) {
-			err = raw_probe_proto_opt(&fl, msg);
+			err = raw_probe_proto_opt(&fl4, msg);
 			if (err)
 				goto done;
 		}
 
-		security_sk_classify_flow(sk, &fl);
-		err = ip_route_output_flow(sock_net(sk), &rt, &fl, sk, 1);
+		security_sk_classify_flow(sk, flowi4_to_flowi(&fl4));
+		rt = ip_route_output_flow(sock_net(sk), &fl4, sk);
+		if (IS_ERR(rt)) {
+			err = PTR_ERR(rt);
+			rt = NULL;
+			goto done;
+		}
 	}
-	if (err)
-		goto done;
 
 	err = -EACCES;
 	if (rt->rt_flags & RTCF_BROADCAST && !sock_flag(sk, SOCK_BROADCAST))
@@ -615,7 +622,7 @@ do_confirm:
 static void raw_close(struct sock *sk, long timeout)
 {
 	/*
-	 * Raw sockets may have direct kernel refereneces. Kill them.
+	 * Raw sockets may have direct kernel references. Kill them.
 	 */
 	ip_ra_control(sk, 0, NULL);
 
@@ -838,6 +845,23 @@ static int raw_ioctl(struct sock *sk, int cmd, unsigned long arg)
 	}
 }
 
+#ifdef CONFIG_COMPAT
+static int compat_raw_ioctl(struct sock *sk, unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case SIOCOUTQ:
+	case SIOCINQ:
+		return -ENOIOCTLCMD;
+	default:
+#ifdef CONFIG_IP_MROUTE
+		return ipmr_compat_ioctl(sk, cmd, compat_ptr(arg));
+#else
+		return -ENOIOCTLCMD;
+#endif
+	}
+}
+#endif
+
 struct proto raw_prot = {
 	.name		   = "RAW",
 	.owner		   = THIS_MODULE,
@@ -860,6 +884,7 @@ struct proto raw_prot = {
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_raw_setsockopt,
 	.compat_getsockopt = compat_raw_getsockopt,
+	.compat_ioctl	   = compat_raw_ioctl,
 #endif
 };
 

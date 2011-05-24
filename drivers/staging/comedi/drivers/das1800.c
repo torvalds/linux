@@ -1087,7 +1087,7 @@ static void das1800_flush_dma_channel(struct comedi_device *dev,
 	return;
 }
 
-/* flushes remaining data from board when external trigger has stopped aquisition
+/* flushes remaining data from board when external trigger has stopped acquisition
  * and we are using dma transfers */
 static void das1800_flush_dma(struct comedi_device *dev,
 			      struct comedi_subdevice *s)

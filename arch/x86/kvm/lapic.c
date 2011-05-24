@@ -417,10 +417,6 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	case APIC_DM_INIT:
 		if (level) {
 			result = 1;
-			if (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE)
-				printk(KERN_DEBUG
-				       "INIT on a runnable vcpu %d\n",
-				       vcpu->vcpu_id);
 			vcpu->arch.mp_state = KVM_MP_STATE_INIT_RECEIVED;
 			kvm_make_request(KVM_REQ_EVENT, vcpu);
 			kvm_vcpu_kick(vcpu);
@@ -875,8 +871,8 @@ void kvm_free_lapic(struct kvm_vcpu *vcpu)
 
 	hrtimer_cancel(&vcpu->arch.apic->lapic_timer.timer);
 
-	if (vcpu->arch.apic->regs_page)
-		__free_page(vcpu->arch.apic->regs_page);
+	if (vcpu->arch.apic->regs)
+		free_page((unsigned long)vcpu->arch.apic->regs);
 
 	kfree(vcpu->arch.apic);
 }
@@ -1065,13 +1061,12 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.apic = apic;
 
-	apic->regs_page = alloc_page(GFP_KERNEL|__GFP_ZERO);
-	if (apic->regs_page == NULL) {
+	apic->regs = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!apic->regs) {
 		printk(KERN_ERR "malloc apic regs error for vcpu %x\n",
 		       vcpu->vcpu_id);
 		goto nomem_free_apic;
 	}
-	apic->regs = page_address(apic->regs_page);
 	apic->vcpu = vcpu;
 
 	hrtimer_init(&apic->lapic_timer.timer, CLOCK_MONOTONIC,

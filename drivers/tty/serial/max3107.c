@@ -833,7 +833,7 @@ static int max3107_startup(struct uart_port *port)
 	struct max3107_port *s = container_of(port, struct max3107_port, port);
 
 	/* Initialize work queue */
-	s->workqueue = create_freezeable_workqueue("max3107");
+	s->workqueue = create_freezable_workqueue("max3107");
 	if (!s->workqueue) {
 		dev_err(&s->spi->dev, "Workqueue creation failed\n");
 		return -EBUSY;

@@ -18,6 +18,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/kthread.h>
 
 #include "usbip_common.h"
 #include "vhci.h"
@@ -193,7 +194,7 @@ void rh_port_disconnect(int rhport)
  *
  * So, the maximum number of ports is 31 ( port 0 to port 30) ?
  *
- * The return value is the actual transfered length in byte. If nothing has
+ * The return value is the actual transferred length in byte. If nothing has
  * been changed, return 0. In the case that the number of ports is less than or
  * equal to 6 (VHCI_NPORTS==7), return 1.
  *
@@ -255,8 +256,8 @@ static inline void hub_descriptor(struct usb_hub_descriptor *desc)
 	desc->wHubCharacteristics = (__force __u16)
 		(__constant_cpu_to_le16(0x0001));
 	desc->bNbrPorts = VHCI_NPORTS;
-	desc->bitmap[0] = 0xff;
-	desc->bitmap[1] = 0xff;
+	desc->u.hs.DeviceRemovable[0] = 0xff;
+	desc->u.hs.DeviceRemovable[1] = 0xff;
 }
 
 static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
@@ -874,7 +875,10 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 		kernel_sock_shutdown(ud->tcp_socket, SHUT_RDWR);
 	}
 
-	usbip_stop_threads(&vdev->ud);
+	/* kill threads related to this sdev, if v.c. exists */
+	kthread_stop(vdev->ud.tcp_rx);
+	kthread_stop(vdev->ud.tcp_tx);
+
 	usbip_uinfo("stop threads\n");
 
 	/* active connection is closed */
@@ -945,8 +949,8 @@ static void vhci_device_init(struct vhci_device *vdev)
 {
 	memset(vdev, 0, sizeof(*vdev));
 
-	usbip_task_init(&vdev->ud.tcp_rx, "vhci_rx", vhci_rx_loop);
-	usbip_task_init(&vdev->ud.tcp_tx, "vhci_tx", vhci_tx_loop);
+	vdev->ud.tcp_rx = kthread_create(vhci_rx_loop, &vdev->ud, "vhci_rx");
+	vdev->ud.tcp_tx = kthread_create(vhci_tx_loop, &vdev->ud, "vhci_tx");
 
 	vdev->ud.side   = USBIP_VHCI;
 	vdev->ud.status = VDEV_ST_NULL;

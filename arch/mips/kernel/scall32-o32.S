@@ -586,6 +586,10 @@ einval:	li	v0, -ENOSYS
 	sys	sys_fanotify_init	2
 	sys	sys_fanotify_mark	6
 	sys	sys_prlimit64		4
+	sys	sys_name_to_handle_at	5
+	sys	sys_open_by_handle_at	3	/* 4340 */
+	sys	sys_clock_adjtime	2
+	sys	sys_syncfs		1
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

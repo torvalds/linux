@@ -4489,6 +4489,9 @@ static int niu_alloc_channels(struct niu *np)
 {
 	struct niu_parent *parent = np->parent;
 	int first_rx_channel, first_tx_channel;
+	int num_rx_rings, num_tx_rings;
+	struct rx_ring_info *rx_rings;
+	struct tx_ring_info *tx_rings;
 	int i, port, err;
 
 	port = np->port;
@@ -4498,17 +4501,20 @@ static int niu_alloc_channels(struct niu *np)
 		first_tx_channel += parent->txchan_per_port[i];
 	}
 
-	np->num_rx_rings = parent->rxchan_per_port[port];
-	np->num_tx_rings = parent->txchan_per_port[port];
+	num_rx_rings = parent->rxchan_per_port[port];
+	num_tx_rings = parent->txchan_per_port[port];
 
-	netif_set_real_num_rx_queues(np->dev, np->num_rx_rings);
-	netif_set_real_num_tx_queues(np->dev, np->num_tx_rings);
-
-	np->rx_rings = kcalloc(np->num_rx_rings, sizeof(struct rx_ring_info),
-			       GFP_KERNEL);
+	rx_rings = kcalloc(num_rx_rings, sizeof(struct rx_ring_info),
+			   GFP_KERNEL);
 	err = -ENOMEM;
-	if (!np->rx_rings)
+	if (!rx_rings)
 		goto out_err;
+
+	np->num_rx_rings = num_rx_rings;
+	smp_wmb();
+	np->rx_rings = rx_rings;
+
+	netif_set_real_num_rx_queues(np->dev, num_rx_rings);
 
 	for (i = 0; i < np->num_rx_rings; i++) {
 		struct rx_ring_info *rp = &np->rx_rings[i];
@@ -4538,11 +4544,17 @@ static int niu_alloc_channels(struct niu *np)
 			return err;
 	}
 
-	np->tx_rings = kcalloc(np->num_tx_rings, sizeof(struct tx_ring_info),
-			       GFP_KERNEL);
+	tx_rings = kcalloc(num_tx_rings, sizeof(struct tx_ring_info),
+			   GFP_KERNEL);
 	err = -ENOMEM;
-	if (!np->tx_rings)
+	if (!tx_rings)
 		goto out_err;
+
+	np->num_tx_rings = num_tx_rings;
+	smp_wmb();
+	np->tx_rings = tx_rings;
+
+	netif_set_real_num_tx_queues(np->dev, num_tx_rings);
 
 	for (i = 0; i < np->num_tx_rings; i++) {
 		struct tx_ring_info *rp = &np->tx_rings[i];
@@ -6246,11 +6258,17 @@ static void niu_sync_mac_stats(struct niu *np)
 static void niu_get_rx_stats(struct niu *np)
 {
 	unsigned long pkts, dropped, errors, bytes;
+	struct rx_ring_info *rx_rings;
 	int i;
 
 	pkts = dropped = errors = bytes = 0;
+
+	rx_rings = ACCESS_ONCE(np->rx_rings);
+	if (!rx_rings)
+		goto no_rings;
+
 	for (i = 0; i < np->num_rx_rings; i++) {
-		struct rx_ring_info *rp = &np->rx_rings[i];
+		struct rx_ring_info *rp = &rx_rings[i];
 
 		niu_sync_rx_discard_stats(np, rp, 0);
 
@@ -6259,6 +6277,8 @@ static void niu_get_rx_stats(struct niu *np)
 		dropped += rp->rx_dropped;
 		errors += rp->rx_errors;
 	}
+
+no_rings:
 	np->dev->stats.rx_packets = pkts;
 	np->dev->stats.rx_bytes = bytes;
 	np->dev->stats.rx_dropped = dropped;
@@ -6268,16 +6288,24 @@ static void niu_get_rx_stats(struct niu *np)
 static void niu_get_tx_stats(struct niu *np)
 {
 	unsigned long pkts, errors, bytes;
+	struct tx_ring_info *tx_rings;
 	int i;
 
 	pkts = errors = bytes = 0;
+
+	tx_rings = ACCESS_ONCE(np->tx_rings);
+	if (!tx_rings)
+		goto no_rings;
+
 	for (i = 0; i < np->num_tx_rings; i++) {
-		struct tx_ring_info *rp = &np->tx_rings[i];
+		struct tx_ring_info *rp = &tx_rings[i];
 
 		pkts += rp->tx_packets;
 		bytes += rp->tx_bytes;
 		errors += rp->tx_errors;
 	}
+
+no_rings:
 	np->dev->stats.tx_packets = pkts;
 	np->dev->stats.tx_bytes = bytes;
 	np->dev->stats.tx_errors = errors;
@@ -6287,9 +6315,10 @@ static struct net_device_stats *niu_get_stats(struct net_device *dev)
 {
 	struct niu *np = netdev_priv(dev);
 
-	niu_get_rx_stats(np);
-	niu_get_tx_stats(np);
-
+	if (netif_running(dev)) {
+		niu_get_rx_stats(np);
+		niu_get_tx_stats(np);
+	}
 	return &dev->stats;
 }
 
@@ -9472,7 +9501,7 @@ static struct niu_parent * __devinit niu_new_parent(struct niu *np,
 	struct niu_parent *p;
 	int i;
 
-	plat_dev = platform_device_register_simple("niu", niu_parent_index,
+	plat_dev = platform_device_register_simple("niu-board", niu_parent_index,
 						   NULL, 0);
 	if (IS_ERR(plat_dev))
 		return NULL;
@@ -10033,8 +10062,7 @@ static const struct niu_ops niu_phys_ops = {
 	.unmap_single	= niu_phys_unmap_single,
 };
 
-static int __devinit niu_of_probe(struct platform_device *op,
-				  const struct of_device_id *match)
+static int __devinit niu_of_probe(struct platform_device *op)
 {
 	union niu_parent_id parent_id;
 	struct net_device *dev;
@@ -10194,7 +10222,7 @@ static const struct of_device_id niu_match[] = {
 };
 MODULE_DEVICE_TABLE(of, niu_match);
 
-static struct of_platform_driver niu_of_driver = {
+static struct platform_driver niu_of_driver = {
 	.driver = {
 		.name = "niu",
 		.owner = THIS_MODULE,
@@ -10215,14 +10243,14 @@ static int __init niu_init(void)
 	niu_debug = netif_msg_init(debug, NIU_MSG_DEFAULT);
 
 #ifdef CONFIG_SPARC64
-	err = of_register_platform_driver(&niu_of_driver);
+	err = platform_driver_register(&niu_of_driver);
 #endif
 
 	if (!err) {
 		err = pci_register_driver(&niu_pci_driver);
 #ifdef CONFIG_SPARC64
 		if (err)
-			of_unregister_platform_driver(&niu_of_driver);
+			platform_driver_unregister(&niu_of_driver);
 #endif
 	}
 
@@ -10233,7 +10261,7 @@ static void __exit niu_exit(void)
 {
 	pci_unregister_driver(&niu_pci_driver);
 #ifdef CONFIG_SPARC64
-	of_unregister_platform_driver(&niu_of_driver);
+	platform_driver_unregister(&niu_of_driver);
 #endif
 }
 

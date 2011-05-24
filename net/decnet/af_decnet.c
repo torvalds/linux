@@ -908,7 +908,7 @@ static int __dn_connect(struct sock *sk, struct sockaddr_dn *addr, int addrlen, 
 	struct socket *sock = sk->sk_socket;
 	struct dn_scp *scp = DN_SK(sk);
 	int err = -EISCONN;
-	struct flowi fl;
+	struct flowidn fld;
 
 	if (sock->state == SS_CONNECTED)
 		goto out;
@@ -947,13 +947,13 @@ static int __dn_connect(struct sock *sk, struct sockaddr_dn *addr, int addrlen, 
 	memcpy(&scp->peer, addr, sizeof(struct sockaddr_dn));
 
 	err = -EHOSTUNREACH;
-	memset(&fl, 0, sizeof(fl));
-	fl.oif = sk->sk_bound_dev_if;
-	fl.fld_dst = dn_saddr2dn(&scp->peer);
-	fl.fld_src = dn_saddr2dn(&scp->addr);
-	dn_sk_ports_copy(&fl, scp);
-	fl.proto = DNPROTO_NSP;
-	if (dn_route_output_sock(&sk->sk_dst_cache, &fl, sk, flags) < 0)
+	memset(&fld, 0, sizeof(fld));
+	fld.flowidn_oif = sk->sk_bound_dev_if;
+	fld.daddr = dn_saddr2dn(&scp->peer);
+	fld.saddr = dn_saddr2dn(&scp->addr);
+	dn_sk_ports_copy(&fld, scp);
+	fld.flowidn_proto = DNPROTO_NSP;
+	if (dn_route_output_sock(&sk->sk_dst_cache, &fld, sk, flags) < 0)
 		goto out;
 	sk->sk_route_caps = sk->sk_dst_cache->dev->features;
 	sock->state = SS_CONNECTING;

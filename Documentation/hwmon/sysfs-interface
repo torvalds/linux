@@ -187,6 +187,17 @@ fan[1-*]_div	Fan divisor.
 		Note that this is actually an internal clock divisor, which
 		affects the measurable speed range, not the read value.
 
+fan[1-*]_pulses	Number of tachometer pulses per fan revolution.
+		Integer value, typically between 1 and 4.
+		RW
+		This value is a characteristic of the fan connected to the
+		device's input, so it has to be set in accordance with the fan
+		model.
+		Should only be created if the chip has a register to configure
+		the number of pulses. In the absence of such a register (and
+		thus attribute) the value assumed by all devices is 2 pulses
+		per fan revolution.
+
 fan[1-*]_target
 		Desired fan speed
 		Unit: revolution/min (RPM)
@@ -568,7 +579,7 @@ channel should not be trusted.
 fan[1-*]_fault
 temp[1-*]_fault
 		Input fault condition
-		0: no fault occured
+		0: no fault occurred
 		1: fault condition
 		RO
 

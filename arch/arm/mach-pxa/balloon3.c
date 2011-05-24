@@ -27,6 +27,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/types.h>
 #include <linux/i2c/pcf857x.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/physmap.h>
 #include <linux/regulator/max1586.h>
@@ -50,8 +51,6 @@
 #include <mach/pxa27x-udc.h>
 #include <mach/irda.h>
 #include <mach/ohci.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -264,7 +263,7 @@ static void __init balloon3_lcd_init(void)
 	}
 
 	balloon3_lcd_screen.pxafb_backlight_power = balloon3_backlight_power;
-	set_pxa_fb_info(&balloon3_lcd_screen);
+	pxa_set_fb_info(NULL, &balloon3_lcd_screen);
 	return;
 
 err2:
@@ -528,13 +527,13 @@ static void __init balloon3_init_irq(void)
 	pxa27x_init_irq();
 	/* setup extra Balloon3 irqs */
 	for (irq = BALLOON3_IRQ(0); irq <= BALLOON3_IRQ(7); irq++) {
-		set_irq_chip(irq, &balloon3_irq_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &balloon3_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
-	set_irq_chained_handler(BALLOON3_AUX_NIRQ, balloon3_irq_handler);
-	set_irq_type(BALLOON3_AUX_NIRQ, IRQ_TYPE_EDGE_FALLING);
+	irq_set_chained_handler(BALLOON3_AUX_NIRQ, balloon3_irq_handler);
+	irq_set_irq_type(BALLOON3_AUX_NIRQ, IRQ_TYPE_EDGE_FALLING);
 
 	pr_debug("%s: chained handler installed - irq %d automatically "
 		"enabled\n", __func__, BALLOON3_AUX_NIRQ);
@@ -829,5 +828,5 @@ MACHINE_START(BALLOON3, "Balloon3")
 	.init_irq	= balloon3_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= balloon3_init,
-	.boot_params	= PHYS_OFFSET + 0x100,
+	.boot_params	= PLAT_PHYS_OFFSET + 0x100,
 MACHINE_END

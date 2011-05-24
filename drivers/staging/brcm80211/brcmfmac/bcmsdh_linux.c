@@ -24,15 +24,14 @@
 #include <linux/pci.h>
 #include <linux/completion.h>
 
-#include <osl.h>
 #include <pcicfg.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
+#include <bcmutils.h>
 
 #if defined(OOB_INTR_ONLY)
 #include <linux/irq.h>
 extern void dhdsdio_isr(void *args);
-#include <bcmutils.h>
 #include <dngl_stats.h>
 #include <dhd.h>
 #endif				/* defined(OOB_INTR_ONLY) */
@@ -56,7 +55,6 @@ struct bcmsdh_hc {
 #else
 	struct pci_dev *dev;	/* pci device handle */
 #endif				/* BCMPLATFORM_BUS */
-	struct osl_info *osh;
 	void *regs;		/* SDIO Host Controller address */
 	bcmsdh_info_t *sdh;	/* SDIO Host Controller handle */
 	void *ch;
@@ -114,7 +112,7 @@ bool bcmsdh_chipmatch(u16 vendor, u16 device)
 #ifdef BCMSDIOH_SPI
 	/* This is the PciSpiHost. */
 	if (device == SPIH_FPGA_ID && vendor == VENDOR_BROADCOM) {
-		printf("Found PCI SPI Host Controller\n");
+		WL_NONE("Found PCI SPI Host Controller\n");
 		return true;
 	}
 #endif				/* BCMSDIOH_SPI */
@@ -142,7 +140,6 @@ static
 #endif				/* BCMLXSDMMC */
 int bcmsdh_probe(struct device *dev)
 {
-	struct osl_info *osh = NULL;
 	bcmsdh_hc_t *sdhc = NULL;
 	unsigned long regs = 0;
 	bcmsdh_info_t *sdh = NULL;
@@ -177,28 +174,21 @@ int bcmsdh_probe(struct device *dev)
 	}
 #endif				/* defined(OOB_INTR_ONLY) */
 	/* allocate SDIO Host Controller state info */
-	osh = osl_attach(dev, PCI_BUS);
-	if (!osh) {
-		SDLX_MSG(("%s: osl_attach failed\n", __func__));
-		goto err;
-	}
 	sdhc = kzalloc(sizeof(bcmsdh_hc_t), GFP_ATOMIC);
 	if (!sdhc) {
 		SDLX_MSG(("%s: out of memory\n", __func__));
 		goto err;
 	}
-	sdhc->osh = osh;
-
 	sdhc->dev = (void *)dev;
 
 #ifdef BCMLXSDMMC
-	sdh = bcmsdh_attach(osh, (void *)0, (void **)&regs, irq);
+	sdh = bcmsdh_attach((void *)0, (void **)&regs, irq);
 	if (!sdh) {
 		SDLX_MSG(("%s: bcmsdh_attach failed\n", __func__));
 		goto err;
 	}
 #else
-	sdh = bcmsdh_attach(osh, (void *)r->start, (void **)&regs, irq);
+	sdh = bcmsdh_attach((void *)r->start, (void **)&regs, irq);
 	if (!sdh) {
 		SDLX_MSG(("%s: bcmsdh_attach failed\n", __func__));
 		goto err;
@@ -220,7 +210,7 @@ int bcmsdh_probe(struct device *dev)
 
 	/* try to attach to the target device */
 	sdhc->ch = drvinfo.attach((vendevid >> 16), (vendevid & 0xFFFF),
-				0, 0, 0, 0, (void *)regs, NULL, sdh);
+				  0, 0, 0, 0, (void *)regs, sdh);
 	if (!sdhc->ch) {
 		SDLX_MSG(("%s: device attach failed\n", __func__));
 		goto err;
@@ -232,11 +222,10 @@ int bcmsdh_probe(struct device *dev)
 err:
 	if (sdhc) {
 		if (sdhc->sdh)
-			bcmsdh_detach(sdhc->osh, sdhc->sdh);
+			bcmsdh_detach(sdhc->sdh);
 		kfree(sdhc);
 	}
-	if (osh)
-		osl_detach(osh);
+
 	return -ENODEV;
 }
 
@@ -246,11 +235,10 @@ static
 int bcmsdh_remove(struct device *dev)
 {
 	bcmsdh_hc_t *sdhc, *prev;
-	struct osl_info *osh;
 
 	sdhc = sdhcinfo;
 	drvinfo.detach(sdhc->ch);
-	bcmsdh_detach(sdhc->osh, sdhc->sdh);
+	bcmsdh_detach(sdhc->sdh);
 	/* find the SDIO Host Controller state for this pdev
 		 and take it out from the list */
 	for (sdhc = sdhcinfo, prev = NULL; sdhc; sdhc = sdhc->next) {
@@ -269,9 +257,7 @@ int bcmsdh_remove(struct device *dev)
 	}
 
 	/* release SDIO Host Controller info */
-	osh = sdhc->osh;
 	kfree(sdhc);
-	osl_detach(osh);
 
 #if !defined(BCMLXSDMMC)
 	dev_set_drvdata(dev, NULL);
@@ -328,8 +314,6 @@ static irqreturn_t wlan_oob_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	WAKE_LOCK_TIMEOUT(dhdp, WAKE_LOCK_TMOUT, 25);
-
 	dhdsdio_isr((void *)dhdp->bus);
 
 	return IRQ_HANDLED;
@@ -357,7 +341,7 @@ int bcmsdh_register_oob_intr(void *dhdp)
 		if (error)
 			return -ENODEV;
 
-		set_irq_wake(sdhcinfo->oob_irq, 1);
+		irq_set_irq_wake(sdhcinfo->oob_irq, 1);
 		sdhcinfo->oob_irq_registered = true;
 	}
 
@@ -368,7 +352,7 @@ void bcmsdh_unregister_oob_intr(void)
 {
 	SDLX_MSG(("%s: Enter\n", __func__));
 
-	set_irq_wake(sdhcinfo->oob_irq, 0);
+	irq_set_irq_wake(sdhcinfo->oob_irq, 0);
 	disable_irq(sdhcinfo->oob_irq);	/* just in case.. */
 	free_irq(sdhcinfo->oob_irq, NULL);
 	sdhcinfo->oob_irq_registered = false;

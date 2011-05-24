@@ -14,23 +14,20 @@
  *  option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/io.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/pcm_params.h>
 
 #include <asm/dma.h>
 #include <mach/hardware.h>
 #include <mach/dma.h>
 
 #include "dma.h"
+
+#define ST_RUNNING		(1<<0)
+#define ST_OPENED		(1<<1)
 
 static const struct snd_pcm_hardware dma_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
@@ -313,7 +310,7 @@ dma_pointer(struct snd_pcm_substream *substream)
 	/* we seem to be getting the odd error from the pcm library due
 	 * to out-of-bounds pointers. this is maybe due to the dma engine
 	 * not having loaded the new values for the channel before being
-	 * callled... (todo - fix )
+	 * called... (todo - fix )
 	 */
 
 	if (res >= snd_pcm_lib_buffer_bytes(substream)) {

@@ -42,10 +42,10 @@
  * the diagnostic window.
  */
 PREPACK struct register_dump_s {
-    A_UINT32 target_id;               /* Target ID */
-    A_UINT32 assline;                 /* Line number (if assertion failure) */
-    A_UINT32 pc;                      /* Program Counter at time of exception */
-    A_UINT32 badvaddr;                /* Virtual address causing exception */
+    u32 target_id;               /* Target ID */
+    u32 assline;                 /* Line number (if assertion failure) */
+    u32 pc;                      /* Program Counter at time of exception */
+    u32 badvaddr;                /* Virtual address causing exception */
     CPU_exception_frame_t exc_frame;  /* CPU-specific exception info */
 
     /* Could copy top of stack here, too.... */

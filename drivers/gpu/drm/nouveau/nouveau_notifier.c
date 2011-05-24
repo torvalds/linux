@@ -39,12 +39,11 @@ nouveau_notifier_init_channel(struct nouveau_channel *chan)
 	int ret;
 
 	if (nouveau_vram_notify)
-		flags = TTM_PL_FLAG_VRAM;
+		flags = NOUVEAU_GEM_DOMAIN_VRAM;
 	else
-		flags = TTM_PL_FLAG_TT;
+		flags = NOUVEAU_GEM_DOMAIN_GART;
 
-	ret = nouveau_gem_new(dev, NULL, PAGE_SIZE, 0, flags,
-			      0, 0x0000, false, true, &ntfy);
+	ret = nouveau_gem_new(dev, NULL, PAGE_SIZE, 0, flags, 0, 0, &ntfy);
 	if (ret)
 		return ret;
 
@@ -96,27 +95,35 @@ nouveau_notifier_gpuobj_dtor(struct drm_device *dev,
 
 int
 nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
-		       int size, uint32_t *b_offset)
+		       int size, uint32_t start, uint32_t end,
+		       uint32_t *b_offset)
 {
 	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *nobj = NULL;
 	struct drm_mm_node *mem;
 	uint32_t offset;
 	int target, ret;
 
-	mem = drm_mm_search_free(&chan->notifier_heap, size, 0, 0);
+	mem = drm_mm_search_free_in_range(&chan->notifier_heap, size, 0,
+					  start, end, 0);
 	if (mem)
-		mem = drm_mm_get_block(mem, size, 0);
+		mem = drm_mm_get_block_range(mem, size, 0, start, end);
 	if (!mem) {
 		NV_ERROR(dev, "Channel %d notifier block full\n", chan->id);
 		return -ENOMEM;
 	}
 
-	if (chan->notifier_bo->bo.mem.mem_type == TTM_PL_VRAM)
-		target = NV_MEM_TARGET_VRAM;
-	else
-		target = NV_MEM_TARGET_GART;
-	offset  = chan->notifier_bo->bo.mem.start << PAGE_SHIFT;
+	if (dev_priv->card_type < NV_50) {
+		if (chan->notifier_bo->bo.mem.mem_type == TTM_PL_VRAM)
+			target = NV_MEM_TARGET_VRAM;
+		else
+			target = NV_MEM_TARGET_GART;
+		offset  = chan->notifier_bo->bo.mem.start << PAGE_SHIFT;
+	} else {
+		target = NV_MEM_TARGET_VM;
+		offset = chan->notifier_bo->vma.offset;
+	}
 	offset += mem->start;
 
 	ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, offset,
@@ -177,7 +184,8 @@ nouveau_ioctl_notifier_alloc(struct drm_device *dev, void *data,
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 
-	ret = nouveau_notifier_alloc(chan, na->handle, na->size, &na->offset);
+	ret = nouveau_notifier_alloc(chan, na->handle, na->size, 0, 0x1000,
+				     &na->offset);
 	nouveau_channel_put(&chan);
 	return ret;
 }

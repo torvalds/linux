@@ -8,6 +8,8 @@
 */
 #ifndef _IPT_ECN_H
 #define _IPT_ECN_H
+
+#include <linux/types.h>
 #include <linux/netfilter/xt_dscp.h>
 
 #define IPT_ECN_IP_MASK	(~XT_DSCP_MASK)
@@ -20,12 +22,12 @@
 
 /* match info */
 struct ipt_ecn_info {
-	u_int8_t operation;
-	u_int8_t invert;
-	u_int8_t ip_ect;
+	__u8 operation;
+	__u8 invert;
+	__u8 ip_ect;
 	union {
 		struct {
-			u_int8_t ect;
+			__u8 ect;
 		} tcp;
 	} proto;
 };

@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/amba/bus.h>
+#include <linux/amba/pl022.h>
 
 #include <plat/ste_dma40.h>
 
@@ -67,12 +68,72 @@ struct stedma40_chan_cfg dma40_memcpy_conf_log = {
 
 /*
  * Mapping between destination event lines and physical device address.
- * The event line is tied to a device and therefor the address is constant.
+ * The event line is tied to a device and therefore the address is constant.
+ * When the address comes from a primecell it will be configured in runtime
+ * and we set the address to -1 as a placeholder.
  */
-static const dma_addr_t dma40_tx_map[DB8500_DMA_NR_DEV];
+static const dma_addr_t dma40_tx_map[DB8500_DMA_NR_DEV] = {
+	/* MUSB - these will be runtime-reconfigured */
+	[DB8500_DMA_DEV39_USB_OTG_OEP_8] = -1,
+	[DB8500_DMA_DEV16_USB_OTG_OEP_7_15] = -1,
+	[DB8500_DMA_DEV17_USB_OTG_OEP_6_14] = -1,
+	[DB8500_DMA_DEV18_USB_OTG_OEP_5_13] = -1,
+	[DB8500_DMA_DEV19_USB_OTG_OEP_4_12] = -1,
+	[DB8500_DMA_DEV36_USB_OTG_OEP_3_11] = -1,
+	[DB8500_DMA_DEV37_USB_OTG_OEP_2_10] = -1,
+	[DB8500_DMA_DEV38_USB_OTG_OEP_1_9] = -1,
+	/* PrimeCells - run-time configured */
+	[DB8500_DMA_DEV0_SPI0_TX] = -1,
+	[DB8500_DMA_DEV1_SD_MMC0_TX] = -1,
+	[DB8500_DMA_DEV2_SD_MMC1_TX] = -1,
+	[DB8500_DMA_DEV3_SD_MMC2_TX] = -1,
+	[DB8500_DMA_DEV8_SSP0_TX] = -1,
+	[DB8500_DMA_DEV9_SSP1_TX] = -1,
+	[DB8500_DMA_DEV11_UART2_TX] = -1,
+	[DB8500_DMA_DEV12_UART1_TX] = -1,
+	[DB8500_DMA_DEV13_UART0_TX] = -1,
+	[DB8500_DMA_DEV28_SD_MM2_TX] = -1,
+	[DB8500_DMA_DEV29_SD_MM0_TX] = -1,
+	[DB8500_DMA_DEV32_SD_MM1_TX] = -1,
+	[DB8500_DMA_DEV33_SPI2_TX] = -1,
+	[DB8500_DMA_DEV35_SPI1_TX] = -1,
+	[DB8500_DMA_DEV40_SPI3_TX] = -1,
+	[DB8500_DMA_DEV41_SD_MM3_TX] = -1,
+	[DB8500_DMA_DEV42_SD_MM4_TX] = -1,
+	[DB8500_DMA_DEV43_SD_MM5_TX] = -1,
+};
 
 /* Mapping between source event lines and physical device address */
-static const dma_addr_t dma40_rx_map[DB8500_DMA_NR_DEV];
+static const dma_addr_t dma40_rx_map[DB8500_DMA_NR_DEV] = {
+	/* MUSB - these will be runtime-reconfigured */
+	[DB8500_DMA_DEV39_USB_OTG_IEP_8] = -1,
+	[DB8500_DMA_DEV16_USB_OTG_IEP_7_15] = -1,
+	[DB8500_DMA_DEV17_USB_OTG_IEP_6_14] = -1,
+	[DB8500_DMA_DEV18_USB_OTG_IEP_5_13] = -1,
+	[DB8500_DMA_DEV19_USB_OTG_IEP_4_12] = -1,
+	[DB8500_DMA_DEV36_USB_OTG_IEP_3_11] = -1,
+	[DB8500_DMA_DEV37_USB_OTG_IEP_2_10] = -1,
+	[DB8500_DMA_DEV38_USB_OTG_IEP_1_9] = -1,
+	/* PrimeCells */
+	[DB8500_DMA_DEV0_SPI0_RX] = -1,
+	[DB8500_DMA_DEV1_SD_MMC0_RX] = -1,
+	[DB8500_DMA_DEV2_SD_MMC1_RX] = -1,
+	[DB8500_DMA_DEV3_SD_MMC2_RX] = -1,
+	[DB8500_DMA_DEV8_SSP0_RX] = -1,
+	[DB8500_DMA_DEV9_SSP1_RX] = -1,
+	[DB8500_DMA_DEV11_UART2_RX] = -1,
+	[DB8500_DMA_DEV12_UART1_RX] = -1,
+	[DB8500_DMA_DEV13_UART0_RX] = -1,
+	[DB8500_DMA_DEV28_SD_MM2_RX] = -1,
+	[DB8500_DMA_DEV29_SD_MM0_RX] = -1,
+	[DB8500_DMA_DEV32_SD_MM1_RX] = -1,
+	[DB8500_DMA_DEV33_SPI2_RX] = -1,
+	[DB8500_DMA_DEV35_SPI1_RX] = -1,
+	[DB8500_DMA_DEV40_SPI3_RX] = -1,
+	[DB8500_DMA_DEV41_SD_MM3_RX] = -1,
+	[DB8500_DMA_DEV42_SD_MM4_RX] = -1,
+	[DB8500_DMA_DEV43_SD_MM5_RX] = -1,
+};
 
 /* Reserved event lines for memcpy only */
 static int dma40_memcpy_event[] = {

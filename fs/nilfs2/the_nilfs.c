@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
+#include <linux/random.h>
 #include <linux/crc32.h>
 #include "nilfs.h"
 #include "segment.h"
@@ -75,7 +76,10 @@ struct the_nilfs *alloc_nilfs(struct block_device *bdev)
 	nilfs->ns_bdev = bdev;
 	atomic_set(&nilfs->ns_ndirtyblks, 0);
 	init_rwsem(&nilfs->ns_sem);
+	INIT_LIST_HEAD(&nilfs->ns_dirty_files);
 	INIT_LIST_HEAD(&nilfs->ns_gc_inodes);
+	spin_lock_init(&nilfs->ns_inode_lock);
+	spin_lock_init(&nilfs->ns_next_gen_lock);
 	spin_lock_init(&nilfs->ns_last_segment_lock);
 	nilfs->ns_cptree = RB_ROOT;
 	spin_lock_init(&nilfs->ns_cptree_lock);
@@ -197,16 +201,16 @@ static int nilfs_store_log_cursor(struct the_nilfs *nilfs,
 /**
  * load_nilfs - load and recover the nilfs
  * @nilfs: the_nilfs structure to be released
- * @sbi: nilfs_sb_info used to recover past segment
+ * @sb: super block isntance used to recover past segment
  *
  * load_nilfs() searches and load the latest super root,
  * attaches the last segment, and does recovery if needed.
  * The caller must call this exclusively for simultaneous mounts.
  */
-int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
+int load_nilfs(struct the_nilfs *nilfs, struct super_block *sb)
 {
 	struct nilfs_recovery_info ri;
-	unsigned int s_flags = sbi->s_super->s_flags;
+	unsigned int s_flags = sb->s_flags;
 	int really_read_only = bdev_read_only(nilfs->ns_bdev);
 	int valid_fs = nilfs_valid_fs(nilfs);
 	int err;
@@ -271,7 +275,7 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 			goto scan_error;
 	}
 
-	err = nilfs_load_super_root(nilfs, sbi->s_super, ri.ri_super_root);
+	err = nilfs_load_super_root(nilfs, sb, ri.ri_super_root);
 	if (unlikely(err)) {
 		printk(KERN_ERR "NILFS: error loading super root.\n");
 		goto failed;
@@ -283,7 +287,7 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 	if (s_flags & MS_RDONLY) {
 		__u64 features;
 
-		if (nilfs_test_opt(sbi, NORECOVERY)) {
+		if (nilfs_test_opt(nilfs, NORECOVERY)) {
 			printk(KERN_INFO "NILFS: norecovery option specified. "
 			       "skipping roll-forward recovery\n");
 			goto skip_recovery;
@@ -304,21 +308,21 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 			err = -EROFS;
 			goto failed_unload;
 		}
-		sbi->s_super->s_flags &= ~MS_RDONLY;
-	} else if (nilfs_test_opt(sbi, NORECOVERY)) {
+		sb->s_flags &= ~MS_RDONLY;
+	} else if (nilfs_test_opt(nilfs, NORECOVERY)) {
 		printk(KERN_ERR "NILFS: recovery cancelled because norecovery "
 		       "option was specified for a read/write mount\n");
 		err = -EINVAL;
 		goto failed_unload;
 	}
 
-	err = nilfs_salvage_orphan_logs(nilfs, sbi, &ri);
+	err = nilfs_salvage_orphan_logs(nilfs, sb, &ri);
 	if (err)
 		goto failed_unload;
 
 	down_write(&nilfs->ns_sem);
 	nilfs->ns_mount_state |= NILFS_VALID_FS; /* set "clean" flag */
-	err = nilfs_cleanup_super(sbi);
+	err = nilfs_cleanup_super(sb);
 	up_write(&nilfs->ns_sem);
 
 	if (err) {
@@ -330,7 +334,7 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 
  skip_recovery:
 	nilfs_clear_recovery_info(&ri);
-	sbi->s_super->s_flags = s_flags;
+	sb->s_flags = s_flags;
 	return 0;
 
  scan_error:
@@ -344,7 +348,7 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 
  failed:
 	nilfs_clear_recovery_info(&ri);
-	sbi->s_super->s_flags = s_flags;
+	sb->s_flags = s_flags;
 	return err;
 }
 
@@ -475,10 +479,13 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
 			return -EIO;
 		}
 		printk(KERN_WARNING
-		       "NILFS warning: unable to read primary superblock\n");
-	} else if (!sbp[1])
+		       "NILFS warning: unable to read primary superblock "
+		       "(blocksize = %d)\n", blocksize);
+	} else if (!sbp[1]) {
 		printk(KERN_WARNING
-		       "NILFS warning: unable to read secondary superblock\n");
+		       "NILFS warning: unable to read secondary superblock "
+		       "(blocksize = %d)\n", blocksize);
+	}
 
 	/*
 	 * Compare two super blocks and set 1 in swp if the secondary
@@ -505,7 +512,7 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
 
 	if (!valid[!swp])
 		printk(KERN_WARNING "NILFS warning: broken superblock. "
-		       "using spare superblock.\n");
+		       "using spare superblock (blocksize = %d).\n", blocksize);
 	if (swp)
 		nilfs_swap_super_block(nilfs);
 
@@ -519,7 +526,6 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
 /**
  * init_nilfs - initialize a NILFS instance.
  * @nilfs: the_nilfs structure
- * @sbi: nilfs_sb_info
  * @sb: super block
  * @data: mount options
  *
@@ -530,9 +536,8 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
  * Return Value: On success, 0 is returned. On error, a negative error
  * code is returned.
  */
-int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
+int init_nilfs(struct the_nilfs *nilfs, struct super_block *sb, char *data)
 {
-	struct super_block *sb = sbi->s_super;
 	struct nilfs_super_block *sbp;
 	int blocksize;
 	int err;
@@ -587,6 +592,9 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 	}
 	nilfs->ns_blocksize_bits = sb->s_blocksize_bits;
 	nilfs->ns_blocksize = blocksize;
+
+	get_random_bytes(&nilfs->ns_next_generation,
+			 sizeof(nilfs->ns_next_generation));
 
 	err = nilfs_store_disk_layout(nilfs, sbp);
 	if (err)

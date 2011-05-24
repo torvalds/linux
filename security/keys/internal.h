@@ -214,6 +214,14 @@ extern long keyctl_assume_authority(key_serial_t);
 extern long keyctl_get_security(key_serial_t keyid, char __user *buffer,
 				size_t buflen);
 extern long keyctl_session_to_parent(void);
+extern long keyctl_reject_key(key_serial_t, unsigned, unsigned, key_serial_t);
+extern long keyctl_instantiate_key_iov(key_serial_t,
+				       const struct iovec __user *,
+				       unsigned, key_serial_t);
+
+extern long keyctl_instantiate_key_common(key_serial_t,
+					  const struct iovec __user *,
+					  unsigned, size_t, key_serial_t);
 
 /*
  * Debugging key validation

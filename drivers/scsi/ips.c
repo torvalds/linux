@@ -137,7 +137,7 @@
 /*          - Fix path/name for scsi_hosts.h include for 2.6 kernels         */
 /*          - Fix sort order of 7k                                           */
 /*          - Remove 3 unused "inline" functions                             */
-/* 7.12.xx  - Use STATIC functions whereever possible                        */
+/* 7.12.xx  - Use STATIC functions wherever possible                        */
 /*          - Clean up deprecated MODULE_PARM calls                          */
 /* 7.12.05  - Remove Version Matching per IBM request                        */
 /*****************************************************************************/
@@ -1665,7 +1665,7 @@ ips_flash_copperhead(ips_ha_t * ha, ips_passthru_t * pt, ips_scb_t * scb)
 	int datasize;
 
 	/* Trombone is the only copperhead that can do packet flash, but only
-	 * for firmware. No one said it had to make sence. */
+	 * for firmware. No one said it had to make sense. */
 	if (IPS_IS_TROMBONE(ha) && pt->CoppCP.cmd.flashfw.type == IPS_FW_IMAGE) {
 		if (ips_usrcmd(ha, pt, scb))
 			return IPS_SUCCESS;

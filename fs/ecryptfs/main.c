@@ -122,7 +122,6 @@ int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
 		ecryptfs_inode_to_private(ecryptfs_dentry->d_inode);
 	int rc = 0;
 
-	mutex_lock(&inode_info->lower_file_mutex);
 	if (!inode_info->lower_file) {
 		struct dentry *lower_dentry;
 		struct vfsmount *lower_mnt =
@@ -138,7 +137,6 @@ int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
 			inode_info->lower_file = NULL;
 		}
 	}
-	mutex_unlock(&inode_info->lower_file_mutex);
 	return rc;
 }
 
@@ -241,14 +239,14 @@ static int ecryptfs_init_global_auth_toks(
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat)
 {
 	struct ecryptfs_global_auth_tok *global_auth_tok;
+	struct ecryptfs_auth_tok *auth_tok;
 	int rc = 0;
 
 	list_for_each_entry(global_auth_tok,
 			    &mount_crypt_stat->global_auth_tok_list,
 			    mount_crypt_stat_list) {
 		rc = ecryptfs_keyring_auth_tok_for_sig(
-			&global_auth_tok->global_auth_tok_key,
-			&global_auth_tok->global_auth_tok,
+			&global_auth_tok->global_auth_tok_key, &auth_tok,
 			global_auth_tok->sig);
 		if (rc) {
 			printk(KERN_ERR "Could not find valid key in user "
@@ -256,8 +254,10 @@ static int ecryptfs_init_global_auth_toks(
 			       "option: [%s]\n", global_auth_tok->sig);
 			global_auth_tok->flags |= ECRYPTFS_AUTH_TOK_INVALID;
 			goto out;
-		} else
+		} else {
 			global_auth_tok->flags &= ~ECRYPTFS_AUTH_TOK_INVALID;
+			up_write(&(global_auth_tok->global_auth_tok_key)->sem);
+		}
 	}
 out:
 	return rc;
@@ -276,7 +276,7 @@ static void ecryptfs_init_mount_crypt_stat(
 /**
  * ecryptfs_parse_options
  * @sb: The ecryptfs super block
- * @options: The options pased to the kernel
+ * @options: The options passed to the kernel
  *
  * Parse mount options:
  * debug=N 	   - ecryptfs_verbosity level for debug output
@@ -840,7 +840,7 @@ static int __init ecryptfs_init(void)
 	}
 	rc = ecryptfs_init_messaging();
 	if (rc) {
-		printk(KERN_ERR "Failure occured while attempting to "
+		printk(KERN_ERR "Failure occurred while attempting to "
 				"initialize the communications channel to "
 				"ecryptfsd\n");
 		goto out_destroy_kthread;

@@ -60,7 +60,7 @@ static struct tsc2007_platform_data tsc2007_info = {
 	.x_plate_ohms		= 180,
 };
 
-#define TSC2007_IRQGPIO		(2 * 32 + 2)
+#define TSC2007_IRQGPIO		IMX_GPIO_NR(3, 2)
 static struct i2c_board_info eukrea_cpuimx35_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("pcf8563", 0x51),
@@ -111,15 +111,25 @@ static const struct mxc_nand_platform_data
 	.flash_bbt	= 1,
 };
 
+static int eukrea_cpuimx35_otg_init(struct platform_device *pdev)
+{
+	return mx35_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_DIFF_UNI);
+}
+
 static const struct mxc_usbh_platform_data otg_pdata __initconst = {
+	.init	= eukrea_cpuimx35_otg_init,
 	.portsc	= MXC_EHCI_MODE_UTMI,
-	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
+static int eukrea_cpuimx35_usbh1_init(struct platform_device *pdev)
+{
+	return mx35_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_SINGLE_UNI |
+			MXC_EHCI_INTERNAL_PHY | MXC_EHCI_IPPUE_DOWN);
+}
+
 static const struct mxc_usbh_platform_data usbh1_pdata __initconst = {
+	.init	= eukrea_cpuimx35_usbh1_init,
 	.portsc	= MXC_EHCI_MODE_SERIAL,
-	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
-		  MXC_EHCI_IPPUE_DOWN,
 };
 
 static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
@@ -146,7 +156,7 @@ __setup("otg_mode=", eukrea_cpuimx35_otg_mode);
 /*
  * Board specific initialization.
  */
-static void __init mxc_board_init(void)
+static void __init eukrea_cpuimx35_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(eukrea_cpuimx35_pads,
 			ARRAY_SIZE(eukrea_cpuimx35_pads));
@@ -184,9 +194,10 @@ struct sys_timer eukrea_cpuimx35_timer = {
 
 MACHINE_START(EUKREA_CPUIMX35, "Eukrea CPUIMX35")
 	/* Maintainer: Eukrea Electromatique */
-	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
-	.map_io         = mx35_map_io,
-	.init_irq       = mx35_init_irq,
-	.init_machine   = mxc_board_init,
-	.timer          = &eukrea_cpuimx35_timer,
+	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.map_io = mx35_map_io,
+	.init_early = imx35_init_early,
+	.init_irq = mx35_init_irq,
+	.timer = &eukrea_cpuimx35_timer,
+	.init_machine = eukrea_cpuimx35_init,
 MACHINE_END

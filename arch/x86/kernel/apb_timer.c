@@ -284,7 +284,7 @@ static int __init apbt_clockevent_register(void)
 	memcpy(&adev->evt, &apbt_clockevent, sizeof(struct clock_event_device));
 
 	if (mrst_timer_options == MRST_TIMER_LAPIC_APBT) {
-		apbt_clockevent.rating = APBT_CLOCKEVENT_RATING - 100;
+		adev->evt.rating = APBT_CLOCKEVENT_RATING - 100;
 		global_clock_event = &adev->evt;
 		printk(KERN_DEBUG "%s clockevent registered as global\n",
 		       global_clock_event->name);
@@ -316,7 +316,7 @@ static void apbt_setup_irq(struct apbt_dev *adev)
 	irq_modify_status(adev->irq, 0, IRQ_MOVE_PCNTXT);
 	irq_set_affinity(adev->irq, cpumask_of(adev->cpu));
 	/* APB timer irqs are set up as mp_irqs, timer is edge type */
-	__set_irq_handler(adev->irq, handle_edge_irq, 0, "edge");
+	__irq_set_handler(adev->irq, handle_edge_irq, 0, "edge");
 
 	if (system_state == SYSTEM_BOOTING) {
 		if (request_irq(adev->irq, apbt_interrupt_handler,
@@ -508,64 +508,12 @@ static int apbt_next_event(unsigned long delta,
 	return 0;
 }
 
-/*
- * APB timer clock is not in sync with pclk on Langwell, which translates to
- * unreliable read value caused by sampling error. the error does not add up
- * overtime and only happens when sampling a 0 as a 1 by mistake. so the time
- * would go backwards. the following code is trying to prevent time traveling
- * backwards. little bit paranoid.
- */
 static cycle_t apbt_read_clocksource(struct clocksource *cs)
 {
-	unsigned long t0, t1, t2;
-	static unsigned long last_read;
+	unsigned long current_count;
 
-bad_count:
-	t1 = apbt_readl(phy_cs_timer_id,
-			APBTMR_N_CURRENT_VALUE);
-	t2 = apbt_readl(phy_cs_timer_id,
-			APBTMR_N_CURRENT_VALUE);
-	if (unlikely(t1 < t2)) {
-		pr_debug("APBT: read current count error %lx:%lx:%lx\n",
-			 t1, t2, t2 - t1);
-		goto bad_count;
-	}
-	/*
-	 * check against cached last read, makes sure time does not go back.
-	 * it could be a normal rollover but we will do tripple check anyway
-	 */
-	if (unlikely(t2 > last_read)) {
-		/* check if we have a normal rollover */
-		unsigned long raw_intr_status =
-			apbt_readl_reg(APBTMRS_RAW_INT_STATUS);
-		/*
-		 * cs timer interrupt is masked but raw intr bit is set if
-		 * rollover occurs. then we read EOI reg to clear it.
-		 */
-		if (raw_intr_status & (1 << phy_cs_timer_id)) {
-			apbt_readl(phy_cs_timer_id, APBTMR_N_EOI);
-			goto out;
-		}
-		pr_debug("APB CS going back %lx:%lx:%lx ",
-			 t2, last_read, t2 - last_read);
-bad_count_x3:
-		pr_debug("triple check enforced\n");
-		t0 = apbt_readl(phy_cs_timer_id,
-				APBTMR_N_CURRENT_VALUE);
-		udelay(1);
-		t1 = apbt_readl(phy_cs_timer_id,
-				APBTMR_N_CURRENT_VALUE);
-		udelay(1);
-		t2 = apbt_readl(phy_cs_timer_id,
-				APBTMR_N_CURRENT_VALUE);
-		if ((t2 > t1) || (t1 > t0)) {
-			printk(KERN_ERR "Error: APB CS tripple check failed\n");
-			goto bad_count_x3;
-		}
-	}
-out:
-	last_read = t2;
-	return (cycle_t)~t2;
+	current_count = apbt_readl(phy_cs_timer_id, APBTMR_N_CURRENT_VALUE);
+	return (cycle_t)~current_count;
 }
 
 static int apbt_clocksource_register(void)

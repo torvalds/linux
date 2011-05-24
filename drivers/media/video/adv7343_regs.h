@@ -102,10 +102,6 @@ struct adv7343_std_info {
 
 /* Bit masks for DAC output levels */
 #define DAC_OUTPUT_LEVEL_MASK		(0xFF)
-#define POSITIVE_GAIN_MAX		(0x40)
-#define POSITIVE_GAIN_MIN		(0x00)
-#define NEGATIVE_GAIN_MAX		(0xFF)
-#define NEGATIVE_GAIN_MIN		(0xC0)
 
 /* Bit masks for soft reset register */
 #define SOFT_RESET			(0x02)
@@ -178,8 +174,8 @@ struct adv7343_std_info {
 #define ADV7343_HUE_MAX		(255)
 #define ADV7343_HUE_MIN		(0)
 #define ADV7343_HUE_DEF		(127)
-#define ADV7343_GAIN_MAX	(255)
-#define ADV7343_GAIN_MIN	(0)
+#define ADV7343_GAIN_MAX	(64)
+#define ADV7343_GAIN_MIN	(-64)
 #define ADV7343_GAIN_DEF	(0)
 
 #endif

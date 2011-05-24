@@ -505,7 +505,9 @@ restart:
 			}
 
 			rcu_read_unlock();
+			local_bh_disable();
 			inet_twsk_deschedule(tw, twdr);
+			local_bh_enable();
 			inet_twsk_put(tw);
 			goto restart_rcu;
 		}

@@ -133,6 +133,7 @@ Code  Seq#(hex)	Include File		Comments
 'H'	C0-DF	net/bluetooth/hidp/hidp.h	conflict!
 'H'	C0-DF	net/bluetooth/cmtp/cmtp.h	conflict!
 'H'	C0-DF	net/bluetooth/bnep/bnep.h	conflict!
+'H'	F1	linux/hid-roccat.h	<mailto:erazor_de@users.sourceforge.net>
 'I'	all	linux/isdn.h		conflict!
 'I'	00-0F	drivers/isdn/divert/isdn_divert.h	conflict!
 'I'	40-4F	linux/mISDNif.h		conflict!
@@ -272,6 +273,7 @@ Code  Seq#(hex)	Include File		Comments
 'z'	40-7F				CAN bus card	conflict!
 					<mailto:oe@port.de>
 'z'	10-4F	drivers/s390/crypto/zcrypt_api.h	conflict!
+'|'	00-7F	linux/media.h
 0x80	00-1F	linux/fb.h
 0x89	00-06	arch/x86/include/asm/sockios.h
 0x89	0B-DF	linux/sockios.h

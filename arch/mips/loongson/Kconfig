@@ -1,6 +1,7 @@
+if MACH_LOONGSON
+
 choice
 	prompt "Machine Type"
-	depends on MACH_LOONGSON
 
 config LEMOTE_FULOONG2E
 	bool "Lemote Fuloong(2e) mini-PC"
@@ -87,3 +88,5 @@ config LOONGSON_UART_BASE
 config LOONGSON_MC146818
 	bool
 	default n
+
+endif # MACH_LOONGSON

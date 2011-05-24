@@ -187,7 +187,7 @@ lubbock_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 			 * We need to hack around the const qualifier as
 			 * well to keep this ugly workaround localized and
 			 * not force it to the rest of the code. Barf bags
-			 * avaliable in the seat pocket in front of you!
+			 * available in the seat pocket in front of you!
 			 */
 			((socket_state_t *)state)->Vcc = 50;
 			((socket_state_t *)state)->Vpp = 50;
@@ -226,6 +226,7 @@ int pcmcia_lubbock_init(struct sa1111_dev *sadev)
 		lubbock_set_misc_wr((1 << 15) | (1 << 14), 0);
 
 		pxa2xx_drv_pcmcia_ops(&lubbock_pcmcia_ops);
+		pxa2xx_configure_sockets(&sadev->dev);
 		ret = sa1111_pcmcia_add(sadev, &lubbock_pcmcia_ops,
 				pxa2xx_drv_pcmcia_add_one);
 	}

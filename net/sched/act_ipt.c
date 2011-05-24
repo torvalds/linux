@@ -138,7 +138,7 @@ static int tcf_ipt_init(struct nlattr *nla, struct nlattr *est,
 		pc = tcf_hash_create(index, est, a, sizeof(*ipt), bind,
 				     &ipt_idx_gen, &ipt_hash_info);
 		if (IS_ERR(pc))
-		    return PTR_ERR(pc);
+			return PTR_ERR(pc);
 		ret = ACT_P_CREATED;
 	} else {
 		if (!ovr) {
@@ -162,7 +162,8 @@ static int tcf_ipt_init(struct nlattr *nla, struct nlattr *est,
 	if (unlikely(!t))
 		goto err2;
 
-	if ((err = ipt_init_target(t, tname, hook)) < 0)
+	err = ipt_init_target(t, tname, hook);
+	if (err < 0)
 		goto err3;
 
 	spin_lock_bh(&ipt->tcf_lock);
@@ -212,8 +213,9 @@ static int tcf_ipt(struct sk_buff *skb, struct tc_action *a,
 	bstats_update(&ipt->tcf_bstats, skb);
 
 	/* yes, we have to worry about both in and out dev
-	 worry later - danger - this API seems to have changed
-	 from earlier kernels */
+	 * worry later - danger - this API seems to have changed
+	 * from earlier kernels
+	 */
 	par.in       = skb->dev;
 	par.out      = NULL;
 	par.hooknum  = ipt->tcfi_hook;
@@ -253,9 +255,9 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind, int 
 	struct tc_cnt c;
 
 	/* for simple targets kernel size == user size
-	** user name = target name
-	** for foolproof you need to not assume this
-	*/
+	 * user name = target name
+	 * for foolproof you need to not assume this
+	 */
 
 	t = kmemdup(ipt->tcfi_t, ipt->tcfi_t->u.user.target_size, GFP_ATOMIC);
 	if (unlikely(!t))

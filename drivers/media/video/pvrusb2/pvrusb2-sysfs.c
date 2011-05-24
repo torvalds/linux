@@ -324,36 +324,45 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	}
 	sfp->item_last = cip;
 
+	sysfs_attr_init(&cip->attr_name.attr);
 	cip->attr_name.attr.name = "name";
 	cip->attr_name.attr.mode = S_IRUGO;
 	cip->attr_name.show = show_name;
 
+	sysfs_attr_init(&cip->attr_type.attr);
 	cip->attr_type.attr.name = "type";
 	cip->attr_type.attr.mode = S_IRUGO;
 	cip->attr_type.show = show_type;
 
+	sysfs_attr_init(&cip->attr_min.attr);
 	cip->attr_min.attr.name = "min_val";
 	cip->attr_min.attr.mode = S_IRUGO;
 	cip->attr_min.show = show_min;
 
+	sysfs_attr_init(&cip->attr_max.attr);
 	cip->attr_max.attr.name = "max_val";
 	cip->attr_max.attr.mode = S_IRUGO;
 	cip->attr_max.show = show_max;
 
+	sysfs_attr_init(&cip->attr_def.attr);
 	cip->attr_def.attr.name = "def_val";
 	cip->attr_def.attr.mode = S_IRUGO;
 	cip->attr_def.show = show_def;
 
+	sysfs_attr_init(&cip->attr_val.attr);
 	cip->attr_val.attr.name = "cur_val";
 	cip->attr_val.attr.mode = S_IRUGO;
 
+	sysfs_attr_init(&cip->attr_custom.attr);
 	cip->attr_custom.attr.name = "custom_val";
 	cip->attr_custom.attr.mode = S_IRUGO;
 
+	sysfs_attr_init(&cip->attr_enum.attr);
 	cip->attr_enum.attr.name = "enum_val";
 	cip->attr_enum.attr.mode = S_IRUGO;
 	cip->attr_enum.show = show_enum;
 
+	sysfs_attr_init(&cip->attr_bits.attr);
 	cip->attr_bits.attr.name = "bit_val";
 	cip->attr_bits.attr.mode = S_IRUGO;
 	cip->attr_bits.show = show_bits;

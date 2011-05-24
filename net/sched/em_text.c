@@ -19,8 +19,7 @@
 #include <linux/tc_ematch/tc_em_text.h>
 #include <net/pkt_cls.h>
 
-struct text_match
-{
+struct text_match {
 	u16			from_offset;
 	u16			to_offset;
 	u8			from_layer;

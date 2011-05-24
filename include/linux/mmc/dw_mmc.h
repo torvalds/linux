@@ -98,7 +98,7 @@ struct mmc_data;
  * EVENT_DATA_COMPLETE is set in @pending_events, all data-related
  * interrupts must be disabled and @data_status updated with a
  * snapshot of SR. Similarly, before EVENT_CMD_COMPLETE is set, the
- * CMDRDY interupt must be disabled and @cmd_status updated with a
+ * CMDRDY interrupt must be disabled and @cmd_status updated with a
  * snapshot of SR, and before EVENT_XFER_COMPLETE can be set, the
  * bytes_xfered field of @data must be written. This is ensured by
  * using barriers.
@@ -140,6 +140,7 @@ struct dw_mci {
 	u32			bus_hz;
 	u32			current_speed;
 	u32			num_slots;
+	u32			fifoth_val;
 	struct platform_device	*pdev;
 	struct dw_mci_board	*pdata;
 	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];
@@ -151,6 +152,8 @@ struct dw_mci {
 
 	/* Workaround flags */
 	u32			quirks;
+
+	struct regulator	*vmmc;	/* Power regulator */
 };
 
 /* DMA ops for Internal/External DMAC interface */
@@ -165,14 +168,14 @@ struct dw_mci_dma_ops {
 };
 
 /* IP Quirks/flags. */
-/* No special quirks or flags to cater for */
-#define DW_MCI_QUIRK_NONE		0
 /* DTO fix for command transmission with IDMAC configured */
-#define DW_MCI_QUIRK_IDMAC_DTO		1
+#define DW_MCI_QUIRK_IDMAC_DTO			BIT(0)
 /* delay needed between retries on some 2.11a implementations */
-#define DW_MCI_QUIRK_RETRY_DELAY	2
-/* High Speed Capable - Supports HS cards (upto 50MHz) */
-#define DW_MCI_QUIRK_HIGHSPEED		4
+#define DW_MCI_QUIRK_RETRY_DELAY		BIT(1)
+/* High Speed Capable - Supports HS cards (up to 50MHz) */
+#define DW_MCI_QUIRK_HIGHSPEED			BIT(2)
+/* Unreliable card detection */
+#define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(3)
 
 
 struct dma_pdata;
@@ -191,6 +194,8 @@ struct dw_mci_board {
 
 	u32 quirks; /* Workaround / Quirk flags */
 	unsigned int bus_hz; /* Bus speed */
+
+	unsigned int caps;	/* Capabilities */
 
 	/* delay in mS before detecting cards after interrupt */
 	u32 detect_delay_ms;

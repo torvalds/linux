@@ -515,7 +515,7 @@ static int __devinit snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 		return -ENODEV;
 
 	/* idx indicates which kind of PCM device. ADB, SPDIF, I2S and A3D share the 
-	 * same dma engine. WT uses it own separate dma engine whcih cant capture. */
+	 * same dma engine. WT uses it own separate dma engine which can't capture. */
 	if (idx == VORTEX_PCM_ADB)
 		nr_capt = nr;
 	else

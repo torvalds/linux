@@ -167,7 +167,7 @@ static void atc_desc_put(struct at_dma_chan *atchan, struct at_desc *desc)
 /**
  * atc_assign_cookie - compute and assign new cookie
  * @atchan: channel we work on
- * @desc: descriptor to asign cookie for
+ * @desc: descriptor to assign cookie for
  *
  * Called with atchan->lock held and bh disabled
  */

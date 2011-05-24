@@ -7,6 +7,7 @@
 #include "qla_def.h"
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <scsi/scsi_tcq.h>
 
 #define MASK(n)			((1ULL<<(n))-1)
 #define MN_WIN(addr) (((addr & 0x1fc0000) >> 1) | \
@@ -2547,7 +2548,7 @@ qla2xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 			dsd_seg = (uint32_t *)&cmd_pkt->fcp_data_dseg_address;
 			*dsd_seg++ = cpu_to_le32(LSD(dsd_ptr->dsd_list_dma));
 			*dsd_seg++ = cpu_to_le32(MSD(dsd_ptr->dsd_list_dma));
-			*dsd_seg++ = dsd_list_len;
+			cmd_pkt->fcp_data_dseg_len = dsd_list_len;
 		} else {
 			*cur_dsd++ = cpu_to_le32(LSD(dsd_ptr->dsd_list_dma));
 			*cur_dsd++ = cpu_to_le32(MSD(dsd_ptr->dsd_list_dma));
@@ -2597,7 +2598,7 @@ qla82xx_calc_dsd_lists(uint16_t dsds)
  * qla82xx_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occured, else zero.
+ * Returns non-zero if a failure occurred, else zero.
  */
 int
 qla82xx_start_scsi(srb_t *sp)
@@ -2620,6 +2621,7 @@ qla82xx_start_scsi(srb_t *sp)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = NULL;
 	struct rsp_que *rsp = NULL;
+	char		tag[2];
 
 	/* Setup device pointers. */
 	ret = 0;
@@ -2770,6 +2772,22 @@ sufficient_dsds:
 		int_to_scsilun(sp->cmd->device->lun, &cmd_pkt->lun);
 		host_to_fcp_swap((uint8_t *)&cmd_pkt->lun, sizeof(cmd_pkt->lun));
 
+		/*
+		 * Update tagged queuing modifier -- default is TSK_SIMPLE (0).
+		 */
+		if (scsi_populate_tag_msg(cmd, tag)) {
+			switch (tag[0]) {
+			case HEAD_OF_QUEUE_TAG:
+				ctx->fcp_cmnd->task_attribute =
+				    TSK_HEAD_OF_QUEUE;
+				break;
+			case ORDERED_QUEUE_TAG:
+				ctx->fcp_cmnd->task_attribute =
+				    TSK_ORDERED;
+				break;
+			}
+		}
+
 		/* build FCP_CMND IU */
 		memset(ctx->fcp_cmnd, 0, sizeof(struct fcp_cmnd));
 		int_to_scsilun(sp->cmd->device->lun, &ctx->fcp_cmnd->lun);
@@ -2834,6 +2852,20 @@ sufficient_dsds:
 		int_to_scsilun(sp->cmd->device->lun, &cmd_pkt->lun);
 		host_to_fcp_swap((uint8_t *)&cmd_pkt->lun,
 			sizeof(cmd_pkt->lun));
+
+		/*
+		 * Update tagged queuing modifier -- default is TSK_SIMPLE (0).
+		 */
+		if (scsi_populate_tag_msg(cmd, tag)) {
+			switch (tag[0]) {
+			case HEAD_OF_QUEUE_TAG:
+				cmd_pkt->task = TSK_HEAD_OF_QUEUE;
+				break;
+			case ORDERED_QUEUE_TAG:
+				cmd_pkt->task = TSK_ORDERED;
+				break;
+			}
+		}
 
 		/* Load SCSI command packet. */
 		memcpy(cmd_pkt->fcp_cdb, cmd->cmnd, cmd->cmd_len);
@@ -3457,46 +3489,28 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 	}
 }
 
-static void
+int
 qla82xx_check_fw_alive(scsi_qla_host_t *vha)
 {
-	uint32_t fw_heartbeat_counter, halt_status;
-	struct qla_hw_data *ha = vha->hw;
+	uint32_t fw_heartbeat_counter;
+	int status = 0;
 
-	fw_heartbeat_counter = qla82xx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
+	fw_heartbeat_counter = qla82xx_rd_32(vha->hw,
+		QLA82XX_PEG_ALIVE_COUNTER);
 	/* all 0xff, assume AER/EEH in progress, ignore */
 	if (fw_heartbeat_counter == 0xffffffff)
-		return;
+		return status;
 	if (vha->fw_heartbeat_counter == fw_heartbeat_counter) {
 		vha->seconds_since_last_heartbeat++;
 		/* FW not alive after 2 seconds */
 		if (vha->seconds_since_last_heartbeat == 2) {
 			vha->seconds_since_last_heartbeat = 0;
-			halt_status = qla82xx_rd_32(ha,
-				QLA82XX_PEG_HALT_STATUS1);
-			if (halt_status & HALT_STATUS_UNRECOVERABLE) {
-				set_bit(ISP_UNRECOVERABLE, &vha->dpc_flags);
-			} else {
-				qla_printk(KERN_INFO, ha,
-					"scsi(%ld): %s - detect abort needed\n",
-					vha->host_no, __func__);
-				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-			}
-			qla2xxx_wake_dpc(vha);
-			ha->flags.fw_hung = 1;
-			if (ha->flags.mbox_busy) {
-				ha->flags.mbox_int = 1;
-				DEBUG2(qla_printk(KERN_ERR, ha,
-					"Due to fw hung, doing premature "
-					"completion of mbx command\n"));
-				if (test_bit(MBX_INTR_WAIT,
-					&ha->mbx_cmd_flags))
-					complete(&ha->mbx_intr_comp);
-			}
+			status = 1;
 		}
 	} else
 		vha->seconds_since_last_heartbeat = 0;
 	vha->fw_heartbeat_counter = fw_heartbeat_counter;
+	return status;
 }
 
 /*
@@ -3557,6 +3571,8 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 			break;
 		case QLA82XX_DEV_NEED_RESET:
 			qla82xx_need_reset_handler(vha);
+			dev_init_timeout = jiffies +
+				(ha->nx_dev_init_timeout * HZ);
 			break;
 		case QLA82XX_DEV_NEED_QUIESCENT:
 			qla82xx_need_qsnt_handler(vha);
@@ -3596,30 +3612,18 @@ exit:
 
 void qla82xx_watchdog(scsi_qla_host_t *vha)
 {
-	uint32_t dev_state;
+	uint32_t dev_state, halt_status;
 	struct qla_hw_data *ha = vha->hw;
 
-	dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-
 	/* don't poll if reset is going on */
-	if (!(test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
-		test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-		test_bit(ISP_ABORT_RETRY, &vha->dpc_flags))) {
-		if (dev_state == QLA82XX_DEV_NEED_RESET) {
+	if (!ha->flags.isp82xx_reset_hdlr_active) {
+		dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+		if (dev_state == QLA82XX_DEV_NEED_RESET &&
+		    !test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags)) {
 			qla_printk(KERN_WARNING, ha,
-				"%s(): Adapter reset needed!\n", __func__);
+			    "%s(): Adapter reset needed!\n", __func__);
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
-			ha->flags.fw_hung = 1;
-			if (ha->flags.mbox_busy) {
-				ha->flags.mbox_int = 1;
-				DEBUG2(qla_printk(KERN_ERR, ha,
-					"Need reset, doing premature "
-					"completion of mbx command\n"));
-				if (test_bit(MBX_INTR_WAIT,
-					&ha->mbx_cmd_flags))
-					complete(&ha->mbx_intr_comp);
-			}
 		} else if (dev_state == QLA82XX_DEV_NEED_QUIESCENT &&
 			!test_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags)) {
 			DEBUG(qla_printk(KERN_INFO, ha,
@@ -3629,6 +3633,31 @@ void qla82xx_watchdog(scsi_qla_host_t *vha)
 			qla2xxx_wake_dpc(vha);
 		} else {
 			qla82xx_check_fw_alive(vha);
+			if (qla82xx_check_fw_alive(vha)) {
+				halt_status = qla82xx_rd_32(ha,
+				    QLA82XX_PEG_HALT_STATUS1);
+				if (halt_status & HALT_STATUS_UNRECOVERABLE) {
+					set_bit(ISP_UNRECOVERABLE,
+					    &vha->dpc_flags);
+				} else {
+					qla_printk(KERN_INFO, ha,
+					    "scsi(%ld): %s - detect abort needed\n",
+					    vha->host_no, __func__);
+					set_bit(ISP_ABORT_NEEDED,
+					    &vha->dpc_flags);
+				}
+				qla2xxx_wake_dpc(vha);
+				ha->flags.isp82xx_fw_hung = 1;
+				if (ha->flags.mbox_busy) {
+					ha->flags.mbox_int = 1;
+					DEBUG2(qla_printk(KERN_ERR, ha,
+					    "Due to fw hung, doing premature "
+					    "completion of mbx command\n"));
+					if (test_bit(MBX_INTR_WAIT,
+					    &ha->mbx_cmd_flags))
+						complete(&ha->mbx_intr_comp);
+				}
+			}
 		}
 	}
 }
@@ -3663,6 +3692,7 @@ qla82xx_abort_isp(scsi_qla_host_t *vha)
 			"Exiting.\n", __func__, vha->host_no);
 		return QLA_SUCCESS;
 	}
+	ha->flags.isp82xx_reset_hdlr_active = 1;
 
 	qla82xx_idc_lock(ha);
 	dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
@@ -3683,7 +3713,8 @@ qla82xx_abort_isp(scsi_qla_host_t *vha)
 	qla82xx_idc_unlock(ha);
 
 	if (rval == QLA_SUCCESS) {
-		ha->flags.fw_hung = 0;
+		ha->flags.isp82xx_fw_hung = 0;
+		ha->flags.isp82xx_reset_hdlr_active = 0;
 		qla82xx_restart_isp(vha);
 	}
 
@@ -3790,4 +3821,72 @@ int qla2x00_wait_for_fcoe_ctx_reset(scsi_qla_host_t *vha)
 	    "%s status=%d\n", __func__, status));
 
 	return status;
+}
+
+void
+qla82xx_chip_reset_cleanup(scsi_qla_host_t *vha)
+{
+	int i;
+	unsigned long flags;
+	struct qla_hw_data *ha = vha->hw;
+
+	/* Check if 82XX firmware is alive or not
+	 * We may have arrived here from NEED_RESET
+	 * detection only
+	 */
+	if (!ha->flags.isp82xx_fw_hung) {
+		for (i = 0; i < 2; i++) {
+			msleep(1000);
+			if (qla82xx_check_fw_alive(vha)) {
+				ha->flags.isp82xx_fw_hung = 1;
+				if (ha->flags.mbox_busy) {
+					ha->flags.mbox_int = 1;
+					complete(&ha->mbx_intr_comp);
+				}
+				break;
+			}
+		}
+	}
+
+	/* Abort all commands gracefully if fw NOT hung */
+	if (!ha->flags.isp82xx_fw_hung) {
+		int cnt, que;
+		srb_t *sp;
+		struct req_que *req;
+
+		spin_lock_irqsave(&ha->hardware_lock, flags);
+		for (que = 0; que < ha->max_req_queues; que++) {
+			req = ha->req_q_map[que];
+			if (!req)
+				continue;
+			for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
+				sp = req->outstanding_cmds[cnt];
+				if (sp) {
+					if (!sp->ctx ||
+					    (sp->flags & SRB_FCP_CMND_DMA_VALID)) {
+						spin_unlock_irqrestore(
+						    &ha->hardware_lock, flags);
+						if (ha->isp_ops->abort_command(sp)) {
+							qla_printk(KERN_INFO, ha,
+							    "scsi(%ld): mbx abort command failed in %s\n",
+							    vha->host_no, __func__);
+						} else {
+							qla_printk(KERN_INFO, ha,
+							    "scsi(%ld): mbx abort command success in %s\n",
+							    vha->host_no, __func__);
+						}
+						spin_lock_irqsave(&ha->hardware_lock, flags);
+					}
+				}
+			}
+		}
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+		/* Wait for pending cmds (physical and virtual) to complete */
+		if (!qla2x00_eh_wait_for_pending_commands(vha, 0, 0,
+		    WAIT_HOST) == QLA_SUCCESS) {
+			DEBUG2(qla_printk(KERN_INFO, ha,
+			    "Done wait for pending commands\n"));
+		}
+	}
 }

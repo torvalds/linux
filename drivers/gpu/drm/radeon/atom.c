@@ -32,6 +32,7 @@
 #include "atom.h"
 #include "atom-names.h"
 #include "atom-bits.h"
+#include "radeon.h"
 
 #define ATOM_COND_ABOVE		0
 #define ATOM_COND_ABOVEOREQUAL	1
@@ -101,7 +102,9 @@ static void debug_print_spaces(int n)
 static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 				 uint32_t index, uint32_t data)
 {
+	struct radeon_device *rdev = ctx->card->dev->dev_private;
 	uint32_t temp = 0xCDCDCDCD;
+
 	while (1)
 		switch (CU8(base)) {
 		case ATOM_IIO_NOP:
@@ -112,7 +115,8 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 			base += 3;
 			break;
 		case ATOM_IIO_WRITE:
-			(void)ctx->card->ioreg_read(ctx->card, CU16(base + 1));
+			if (rdev->family == CHIP_RV515)
+				(void)ctx->card->ioreg_read(ctx->card, CU16(base + 1));
 			ctx->card->ioreg_write(ctx->card, CU16(base + 1), temp);
 			base += 3;
 			break;

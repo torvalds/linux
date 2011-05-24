@@ -37,10 +37,9 @@
 	rcu_dereference_protected(X, lockdep_is_held(&br->multicast_lock))
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-static inline int ipv6_is_local_multicast(const struct in6_addr *addr)
+static inline int ipv6_is_transient_multicast(const struct in6_addr *addr)
 {
-	if (ipv6_addr_is_multicast(addr) &&
-	    IPV6_ADDR_MC_SCOPE(addr) <= IPV6_ADDR_SCOPE_LINKLOCAL)
+	if (ipv6_addr_is_multicast(addr) && IPV6_ADDR_MC_FLAG_TRANSIENT(addr))
 		return 1;
 	return 0;
 }
@@ -232,8 +231,7 @@ static void br_multicast_group_expired(unsigned long data)
 	if (!netif_running(br->dev) || timer_pending(&mp->timer))
 		goto out;
 
-	if (!hlist_unhashed(&mp->mglist))
-		hlist_del_init(&mp->mglist);
+	mp->mglist = false;
 
 	if (mp->ports)
 		goto out;
@@ -276,7 +274,7 @@ static void br_multicast_del_pg(struct net_bridge *br,
 		del_timer(&p->query_timer);
 		call_rcu_bh(&p->rcu, br_multicast_free_pg);
 
-		if (!mp->ports && hlist_unhashed(&mp->mglist) &&
+		if (!mp->ports && !mp->mglist &&
 		    netif_running(br->dev))
 			mod_timer(&mp->timer, jiffies);
 
@@ -436,7 +434,6 @@ static struct sk_buff *br_ip6_multicast_alloc_query(struct net_bridge *br,
 	eth = eth_hdr(skb);
 
 	memcpy(eth->h_source, br->dev->dev_addr, 6);
-	ipv6_eth_mc_map(group, eth->h_dest);
 	eth->h_proto = htons(ETH_P_IPV6);
 	skb_put(skb, sizeof(*eth));
 
@@ -448,8 +445,10 @@ static struct sk_buff *br_ip6_multicast_alloc_query(struct net_bridge *br,
 	ip6h->payload_len = htons(8 + sizeof(*mldq));
 	ip6h->nexthdr = IPPROTO_HOPOPTS;
 	ip6h->hop_limit = 1;
-	ipv6_addr_set(&ip6h->saddr, 0, 0, 0, 0);
 	ipv6_addr_set(&ip6h->daddr, htonl(0xff020000), 0, 0, htonl(1));
+	ipv6_dev_get_saddr(dev_net(br->dev), br->dev, &ip6h->daddr, 0,
+			   &ip6h->saddr);
+	ipv6_eth_mc_map(&ip6h->daddr, eth->h_dest);
 
 	hopopt = (u8 *)(ip6h + 1);
 	hopopt[0] = IPPROTO_ICMPV6;		/* next hdr */
@@ -528,7 +527,7 @@ static void br_multicast_group_query_expired(unsigned long data)
 	struct net_bridge *br = mp->br;
 
 	spin_lock(&br->multicast_lock);
-	if (!netif_running(br->dev) || hlist_unhashed(&mp->mglist) ||
+	if (!netif_running(br->dev) || !mp->mglist ||
 	    mp->queries_sent >= br->multicast_last_member_count)
 		goto out;
 
@@ -719,7 +718,7 @@ static int br_multicast_add_group(struct net_bridge *br,
 		goto err;
 
 	if (!port) {
-		hlist_add_head(&mp->mglist, &br->mglist);
+		mp->mglist = true;
 		mod_timer(&mp->timer, now + br->multicast_membership_interval);
 		goto out;
 	}
@@ -781,11 +780,11 @@ static int br_ip6_multicast_add_group(struct net_bridge *br,
 {
 	struct br_ip br_group;
 
-	if (ipv6_is_local_multicast(group))
+	if (!ipv6_is_transient_multicast(group))
 		return 0;
 
 	ipv6_addr_copy(&br_group.u.ip6, group);
-	br_group.proto = htons(ETH_P_IP);
+	br_group.proto = htons(ETH_P_IPV6);
 
 	return br_multicast_add_group(br, port, &br_group);
 }
@@ -1014,18 +1013,19 @@ static int br_ip6_multicast_mld2_report(struct net_bridge *br,
 
 		nsrcs = skb_header_pointer(skb,
 					   len + offsetof(struct mld2_grec,
-							  grec_mca),
+							  grec_nsrcs),
 					   sizeof(_nsrcs), &_nsrcs);
 		if (!nsrcs)
 			return -EINVAL;
 
 		if (!pskb_may_pull(skb,
 				   len + sizeof(*grec) +
-				   sizeof(struct in6_addr) * (*nsrcs)))
+				   sizeof(struct in6_addr) * ntohs(*nsrcs)))
 			return -EINVAL;
 
 		grec = (struct mld2_grec *)(skb->data + len);
-		len += sizeof(*grec) + sizeof(struct in6_addr) * (*nsrcs);
+		len += sizeof(*grec) +
+		       sizeof(struct in6_addr) * ntohs(*nsrcs);
 
 		/* We treat these as MLDv1 reports for now. */
 		switch (grec->grec_type) {
@@ -1165,7 +1165,7 @@ static int br_ip4_multicast_query(struct net_bridge *br,
 
 	max_delay *= br->multicast_last_member_count;
 
-	if (!hlist_unhashed(&mp->mglist) &&
+	if (mp->mglist &&
 	    (timer_pending(&mp->timer) ?
 	     time_after(mp->timer.expires, now + max_delay) :
 	     try_to_del_timer_sync(&mp->timer) >= 0))
@@ -1177,7 +1177,7 @@ static int br_ip4_multicast_query(struct net_bridge *br,
 		if (timer_pending(&p->timer) ?
 		    time_after(p->timer.expires, now + max_delay) :
 		    try_to_del_timer_sync(&p->timer) >= 0)
-			mod_timer(&mp->timer, now + max_delay);
+			mod_timer(&p->timer, now + max_delay);
 	}
 
 out:
@@ -1236,7 +1236,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 		goto out;
 
 	max_delay *= br->multicast_last_member_count;
-	if (!hlist_unhashed(&mp->mglist) &&
+	if (mp->mglist &&
 	    (timer_pending(&mp->timer) ?
 	     time_after(mp->timer.expires, now + max_delay) :
 	     try_to_del_timer_sync(&mp->timer) >= 0))
@@ -1248,7 +1248,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 		if (timer_pending(&p->timer) ?
 		    time_after(p->timer.expires, now + max_delay) :
 		    try_to_del_timer_sync(&p->timer) >= 0)
-			mod_timer(&mp->timer, now + max_delay);
+			mod_timer(&p->timer, now + max_delay);
 	}
 
 out:
@@ -1283,7 +1283,7 @@ static void br_multicast_leave_group(struct net_bridge *br,
 		     br->multicast_last_member_interval;
 
 	if (!port) {
-		if (!hlist_unhashed(&mp->mglist) &&
+		if (mp->mglist &&
 		    (timer_pending(&mp->timer) ?
 		     time_after(mp->timer.expires, time) :
 		     try_to_del_timer_sync(&mp->timer) >= 0)) {
@@ -1341,7 +1341,7 @@ static void br_ip6_multicast_leave_group(struct net_bridge *br,
 {
 	struct br_ip br_group;
 
-	if (ipv6_is_local_multicast(group))
+	if (!ipv6_is_transient_multicast(group))
 		return;
 
 	ipv6_addr_copy(&br_group.u.ip6, group);
@@ -1475,7 +1475,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 	    ip6h->payload_len == 0)
 		return 0;
 
-	len = ntohs(ip6h->payload_len);
+	len = ntohs(ip6h->payload_len) + sizeof(*ip6h);
 	if (skb->len < len)
 		return -EINVAL;
 

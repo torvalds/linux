@@ -61,6 +61,7 @@
 #include "mixer.h"
 #include "helper.h"
 #include "mixer_quirks.h"
+#include "power.h"
 
 #define MAX_ID_ELEMS	256
 
@@ -95,7 +96,7 @@ enum {
 };
 
 
-/*E-mu 0202(0404) eXtension Unit(XU) control*/
+/*E-mu 0202/0404/0204 eXtension Unit(XU) control*/
 enum {
 	USB_XU_CLOCK_RATE 		= 0xe301,
 	USB_XU_CLOCK_SOURCE		= 0xe302,
@@ -295,16 +296,22 @@ static int get_ctl_value_v1(struct usb_mixer_elem_info *cval, int request, int v
 	unsigned char buf[2];
 	int val_len = cval->val_type >= USB_MIXER_S16 ? 2 : 1;
 	int timeout = 10;
+	int err;
 
+	err = snd_usb_autoresume(cval->mixer->chip);
+	if (err < 0)
+		return -EIO;
 	while (timeout-- > 0) {
 		if (snd_usb_ctl_msg(chip->dev, usb_rcvctrlpipe(chip->dev, 0), request,
 				    USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
 				    validx, snd_usb_ctrl_intf(chip) | (cval->id << 8),
 				    buf, val_len, 100) >= val_len) {
 			*value_ret = convert_signed_value(cval, snd_usb_combine_bytes(buf, val_len));
+			snd_usb_autosuspend(cval->mixer->chip);
 			return 0;
 		}
 	}
+	snd_usb_autosuspend(cval->mixer->chip);
 	snd_printdd(KERN_ERR "cannot get ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d\n",
 		    request, validx, snd_usb_ctrl_intf(chip) | (cval->id << 8), cval->val_type);
 	return -EINVAL;
@@ -328,12 +335,18 @@ static int get_ctl_value_v2(struct usb_mixer_elem_info *cval, int request, int v
 
 	memset(buf, 0, sizeof(buf));
 
+	ret = snd_usb_autoresume(chip) ? -EIO : 0;
+	if (ret)
+		goto error;
+
 	ret = snd_usb_ctl_msg(chip->dev, usb_rcvctrlpipe(chip->dev, 0), bRequest,
 			      USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
 			      validx, snd_usb_ctrl_intf(chip) | (cval->id << 8),
 			      buf, size, 1000);
+	snd_usb_autosuspend(chip);
 
 	if (ret < 0) {
+error:
 		snd_printk(KERN_ERR "cannot get ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d\n",
 			   request, validx, snd_usb_ctrl_intf(chip) | (cval->id << 8), cval->val_type);
 		return ret;
@@ -413,7 +426,7 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 {
 	struct snd_usb_audio *chip = cval->mixer->chip;
 	unsigned char buf[2];
-	int val_len, timeout = 10;
+	int val_len, err, timeout = 10;
 
 	if (cval->mixer->protocol == UAC_VERSION_1) {
 		val_len = cval->val_type >= USB_MIXER_S16 ? 2 : 1;
@@ -433,13 +446,19 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 	value_set = convert_bytes_value(cval, value_set);
 	buf[0] = value_set & 0xff;
 	buf[1] = (value_set >> 8) & 0xff;
+	err = snd_usb_autoresume(chip);
+	if (err < 0)
+		return -EIO;
 	while (timeout-- > 0)
 		if (snd_usb_ctl_msg(chip->dev,
 				    usb_sndctrlpipe(chip->dev, 0), request,
 				    USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
 				    validx, snd_usb_ctrl_intf(chip) | (cval->id << 8),
-				    buf, val_len, 100) >= 0)
+				    buf, val_len, 100) >= 0) {
+			snd_usb_autosuspend(chip);
 			return 0;
+		}
+	snd_usb_autosuspend(chip);
 	snd_printdd(KERN_ERR "cannot set ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d, data = %#x/%#x\n",
 		    request, validx, snd_usb_ctrl_intf(chip) | (cval->id << 8), cval->val_type, buf[0], buf[1]);
 	return -EINVAL;
@@ -987,6 +1006,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 	struct snd_kcontrol *kctl;
 	struct usb_mixer_elem_info *cval;
 	const struct usbmix_name_map *map;
+	unsigned int range;
 
 	control++; /* change from zero-based to 1-based value */
 
@@ -1121,6 +1141,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 		}
 		break;
 
+	case USB_ID(0x046d, 0x0808):
 	case USB_ID(0x046d, 0x0809):
 	case USB_ID(0x046d, 0x0991):
 	/* Most audio usb devices lie about volume resolution.
@@ -1136,6 +1157,21 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 
 	}
 
+	range = (cval->max - cval->min) / cval->res;
+	/* Are there devices with volume range more than 255? I use a bit more
+	 * to be sure. 384 is a resolution magic number found on Logitech
+	 * devices. It will definitively catch all buggy Logitech devices.
+	 */
+	if (range > 384) {
+		snd_printk(KERN_WARNING "usb_audio: Warning! Unlikely big "
+			   "volume range (=%u), cval->res is probably wrong.",
+			   range);
+		snd_printk(KERN_WARNING "usb_audio: [%d] FU [%s] ch = %d, "
+			   "val = %d/%d/%d", cval->id,
+			   kctl->id.name, cval->channels,
+			   cval->min, cval->max, cval->res);
+	}
+
 	snd_printdd(KERN_INFO "[%d] FU [%s] ch = %d, val = %d/%d/%d\n",
 		    cval->id, kctl->id.name, cval->channels, cval->min, cval->max, cval->res);
 	add_control_to_empty(state, kctl);
@@ -1146,7 +1182,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 /*
  * parse a feature unit
  *
- * most of controlls are defined here.
+ * most of controls are defined here.
  */
 static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void *_ftr)
 {
@@ -1566,7 +1602,7 @@ static int build_audio_procunit(struct mixer_build *state, int unitid, void *raw
 			cval->initialized = 1;
 		} else {
 			if (type == USB_XU_CLOCK_RATE) {
-				/* E-Mu USB 0404/0202/TrackerPre
+				/* E-Mu USB 0404/0202/TrackerPre/0204
 				 * samplerate control quirk
 				 */
 				cval->min = 0;
@@ -2058,8 +2094,9 @@ static void snd_usb_mixer_interrupt(struct urb *urb)
 {
 	struct usb_mixer_interface *mixer = urb->context;
 	int len = urb->actual_length;
+	int ustatus = urb->status;
 
-	if (urb->status != 0)
+	if (ustatus != 0)
 		goto requeue;
 
 	if (mixer->protocol == UAC_VERSION_1) {
@@ -2100,10 +2137,30 @@ static void snd_usb_mixer_interrupt(struct urb *urb)
 	}
 
 requeue:
-	if (urb->status != -ENOENT && urb->status != -ECONNRESET) {
+	if (ustatus != -ENOENT && ustatus != -ECONNRESET && ustatus != -ESHUTDOWN) {
 		urb->dev = mixer->chip->dev;
 		usb_submit_urb(urb, GFP_ATOMIC);
 	}
+}
+
+/* stop any bus activity of a mixer */
+void snd_usb_mixer_inactivate(struct usb_mixer_interface *mixer)
+{
+	usb_kill_urb(mixer->urb);
+	usb_kill_urb(mixer->rc_urb);
+}
+
+int snd_usb_mixer_activate(struct usb_mixer_interface *mixer)
+{
+	int err;
+
+	if (mixer->urb) {
+		err = usb_submit_urb(mixer->urb, GFP_NOIO);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 
 /* create the handler for the optional status interrupt endpoint */

@@ -84,7 +84,9 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = tx_info->control.sta;
+	struct ieee80211_vif *vif = tx_info->control.vif;
 	struct ath9k_htc_sta *ista;
+	struct ath9k_htc_vif *avp;
 	struct ath9k_htc_tx_ctl tx_ctl;
 	enum htc_endpoint_id epid;
 	u16 qnum;
@@ -95,18 +97,31 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 	hdr = (struct ieee80211_hdr *) skb->data;
 	fc = hdr->frame_control;
 
-	if (tx_info->control.vif &&
-			(struct ath9k_htc_vif *) tx_info->control.vif->drv_priv)
-		vif_idx = ((struct ath9k_htc_vif *)
-				tx_info->control.vif->drv_priv)->index;
-	else
-		vif_idx = priv->nvifs;
+	/*
+	 * Find out on which interface this packet has to be
+	 * sent out.
+	 */
+	if (vif) {
+		avp = (struct ath9k_htc_vif *) vif->drv_priv;
+		vif_idx = avp->index;
+	} else {
+		if (!priv->ah->is_monitoring) {
+			ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+				"VIF is null, but no monitor interface !\n");
+			return -EINVAL;
+		}
 
+		vif_idx = priv->mon_vif_idx;
+	}
+
+	/*
+	 * Find out which station this packet is destined for.
+	 */
 	if (sta) {
 		ista = (struct ath9k_htc_sta *) sta->drv_priv;
 		sta_idx = ista->index;
 	} else {
-		sta_idx = 0;
+		sta_idx = priv->vif_sta_pos[vif_idx];
 	}
 
 	memset(&tx_ctl, 0, sizeof(struct ath9k_htc_tx_ctl));
@@ -141,7 +156,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 
 		/* CTS-to-self */
 		if (!(flags & ATH9K_HTC_TX_RTSCTS) &&
-		    (priv->op_flags & OP_PROTECT_ENABLE))
+		    (vif && vif->bss_conf.use_cts_prot))
 			flags |= ATH9K_HTC_TX_CTSONLY;
 
 		tx_hdr.flags = cpu_to_be32(flags);
@@ -217,6 +232,7 @@ static bool ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,
 void ath9k_tx_tasklet(unsigned long data)
 {
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
+	struct ieee80211_vif *vif;
 	struct ieee80211_sta *sta;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *tx_info;
@@ -228,12 +244,16 @@ void ath9k_tx_tasklet(unsigned long data)
 		hdr = (struct ieee80211_hdr *) skb->data;
 		fc = hdr->frame_control;
 		tx_info = IEEE80211_SKB_CB(skb);
+		vif = tx_info->control.vif;
 
 		memset(&tx_info->status, 0, sizeof(tx_info->status));
 
+		if (!vif)
+			goto send_mac80211;
+
 		rcu_read_lock();
 
-		sta = ieee80211_find_sta(priv->vif, hdr->addr1);
+		sta = ieee80211_find_sta(vif, hdr->addr1);
 		if (!sta) {
 			rcu_read_unlock();
 			ieee80211_tx_status(priv->hw, skb);
@@ -263,6 +283,7 @@ void ath9k_tx_tasklet(unsigned long data)
 
 		rcu_read_unlock();
 
+	send_mac80211:
 		/* Send status to mac80211 */
 		ieee80211_tx_status(priv->hw, skb);
 	}
@@ -386,7 +407,7 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 	 */
 	if (((ah->opmode != NL80211_IFTYPE_AP) &&
 	     (priv->rxfilter & FIF_PROMISC_IN_BSS)) ||
-	    (ah->opmode == NL80211_IFTYPE_MONITOR))
+	    ah->is_monitoring)
 		rfilt |= ATH9K_RX_FILTER_PROM;
 
 	if (priv->rxfilter & FIF_CONTROL)
@@ -398,8 +419,13 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 	else
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
-	if (conf_is_ht(&priv->hw->conf))
+	if (conf_is_ht(&priv->hw->conf)) {
 		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
+		rfilt |= ATH9K_RX_FILTER_UNCOMP_BA_BAR;
+	}
+
+	if (priv->rxfilter & FIF_PSPOLL)
+		rfilt |= ATH9K_RX_FILTER_PSPOLL;
 
 	return rfilt;
 
@@ -412,19 +438,11 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 static void ath9k_htc_opmode_init(struct ath9k_htc_priv *priv)
 {
 	struct ath_hw *ah = priv->ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-
 	u32 rfilt, mfilt[2];
 
 	/* configure rx filter */
 	rfilt = ath9k_htc_calcrxfilter(priv);
 	ath9k_hw_setrxfilter(ah, rfilt);
-
-	/* configure bssid mask */
-	ath_hw_setbssidmask(common);
-
-	/* configure operational mode */
-	ath9k_hw_setopmode(ah);
 
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;
@@ -576,31 +594,29 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	ath9k_process_rate(hw, rx_status, rxbuf->rxstatus.rs_rate,
 			   rxbuf->rxstatus.rs_flags);
 
-	if (priv->op_flags & OP_ASSOCIATED) {
-		if (rxbuf->rxstatus.rs_rssi != ATH9K_RSSI_BAD &&
-		    !rxbuf->rxstatus.rs_moreaggr)
-			ATH_RSSI_LPF(priv->rx.last_rssi,
-				     rxbuf->rxstatus.rs_rssi);
+	if (rxbuf->rxstatus.rs_rssi != ATH9K_RSSI_BAD &&
+	    !rxbuf->rxstatus.rs_moreaggr)
+		ATH_RSSI_LPF(priv->rx.last_rssi,
+			     rxbuf->rxstatus.rs_rssi);
 
-		last_rssi = priv->rx.last_rssi;
+	last_rssi = priv->rx.last_rssi;
 
-		if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
-			rxbuf->rxstatus.rs_rssi = ATH_EP_RND(last_rssi,
-							     ATH_RSSI_EP_MULTIPLIER);
+	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
+		rxbuf->rxstatus.rs_rssi = ATH_EP_RND(last_rssi,
+						     ATH_RSSI_EP_MULTIPLIER);
 
-		if (rxbuf->rxstatus.rs_rssi < 0)
-			rxbuf->rxstatus.rs_rssi = 0;
+	if (rxbuf->rxstatus.rs_rssi < 0)
+		rxbuf->rxstatus.rs_rssi = 0;
 
-		if (ieee80211_is_beacon(fc))
-			priv->ah->stats.avgbrssi = rxbuf->rxstatus.rs_rssi;
-	}
+	if (ieee80211_is_beacon(fc))
+		priv->ah->stats.avgbrssi = rxbuf->rxstatus.rs_rssi;
 
 	rx_status->mactime = be64_to_cpu(rxbuf->rxstatus.rs_tstamp);
 	rx_status->band = hw->conf.channel->band;
 	rx_status->freq = hw->conf.channel->center_freq;
 	rx_status->signal =  rxbuf->rxstatus.rs_rssi + ATH_DEFAULT_NOISE_FLOOR;
 	rx_status->antenna = rxbuf->rxstatus.rs_antenna;
-	rx_status->flag |= RX_FLAG_TSFT;
+	rx_status->flag |= RX_FLAG_MACTIME_MPDU;
 
 	return true;
 

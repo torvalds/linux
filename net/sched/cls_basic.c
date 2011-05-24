@@ -21,14 +21,12 @@
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
 
-struct basic_head
-{
+struct basic_head {
 	u32			hgenerator;
 	struct list_head	flist;
 };
 
-struct basic_filter
-{
+struct basic_filter {
 	u32			handle;
 	struct tcf_exts		exts;
 	struct tcf_ematch_tree	ematches;
@@ -92,8 +90,7 @@ static int basic_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static inline void basic_delete_filter(struct tcf_proto *tp,
-				       struct basic_filter *f)
+static void basic_delete_filter(struct tcf_proto *tp, struct basic_filter *f)
 {
 	tcf_unbind_filter(tp, &f->res);
 	tcf_exts_destroy(tp, &f->exts);
@@ -135,9 +132,9 @@ static const struct nla_policy basic_policy[TCA_BASIC_MAX + 1] = {
 	[TCA_BASIC_EMATCHES]	= { .type = NLA_NESTED },
 };
 
-static inline int basic_set_parms(struct tcf_proto *tp, struct basic_filter *f,
-				  unsigned long base, struct nlattr **tb,
-				  struct nlattr *est)
+static int basic_set_parms(struct tcf_proto *tp, struct basic_filter *f,
+			   unsigned long base, struct nlattr **tb,
+			   struct nlattr *est)
 {
 	int err = -EINVAL;
 	struct tcf_exts e;
@@ -203,7 +200,7 @@ static int basic_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 		} while (--i > 0 && basic_get(tp, head->hgenerator));
 
 		if (i <= 0) {
-			printk(KERN_ERR "Insufficient number of handles\n");
+			pr_err("Insufficient number of handles\n");
 			goto errout;
 		}
 

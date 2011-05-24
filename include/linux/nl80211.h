@@ -414,7 +414,7 @@
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
 enum nl80211_commands {
-/* don't change the order or add anything inbetween, this is ABI! */
+/* don't change the order or add anything between, this is ABI! */
 	NL80211_CMD_UNSPEC,
 
 	NL80211_CMD_GET_WIPHY,		/* can dump */
@@ -860,7 +860,7 @@ enum nl80211_commands {
  *	This can be used to mask out antennas which are not attached or should
  *	not be used for receiving. If an antenna is not selected in this bitmap
  *	the hardware should not be configured to receive on this antenna.
- *	For a more detailed descripton see @NL80211_ATTR_WIPHY_ANTENNA_TX.
+ *	For a more detailed description see @NL80211_ATTR_WIPHY_ANTENNA_TX.
  *
  * @NL80211_ATTR_WIPHY_ANTENNA_AVAIL_TX: Bitmap of antennas which are available
  *	for configuration as TX antennas via the above parameters.
@@ -891,7 +891,7 @@ enum nl80211_commands {
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
 enum nl80211_attrs {
-/* don't change the order or add anything inbetween, this is ABI! */
+/* don't change the order or add anything between, this is ABI! */
 	NL80211_ATTR_UNSPEC,
 
 	NL80211_ATTR_WIPHY,
@@ -1243,6 +1243,8 @@ enum nl80211_rate_info {
  * @NL80211_STA_INFO_LLID: the station's mesh LLID
  * @NL80211_STA_INFO_PLID: the station's mesh PLID
  * @NL80211_STA_INFO_PLINK_STATE: peer link state for the station
+ * @NL80211_STA_INFO_RX_BITRATE: last unicast data frame rx rate, nested
+ *	attribute, like NL80211_STA_INFO_TX_BITRATE.
  * @__NL80211_STA_INFO_AFTER_LAST: internal
  * @NL80211_STA_INFO_MAX: highest possible station info attribute
  */
@@ -1261,6 +1263,7 @@ enum nl80211_sta_info {
 	NL80211_STA_INFO_TX_RETRIES,
 	NL80211_STA_INFO_TX_FAILED,
 	NL80211_STA_INFO_SIGNAL_AVG,
+	NL80211_STA_INFO_RX_BITRATE,
 
 	/* keep last */
 	__NL80211_STA_INFO_AFTER_LAST,
@@ -1416,7 +1419,7 @@ enum nl80211_bitrate_attr {
  * 	802.11 country information element with regulatory information it
  * 	thinks we should consider. cfg80211 only processes the country
  *	code from the IE, and relies on the regulatory domain information
- *	structure pased by userspace (CRDA) from our wireless-regdb.
+ *	structure passed by userspace (CRDA) from our wireless-regdb.
  *	If a channel is enabled but the country code indicates it should
  *	be disabled we disable the channel and re-enable it upon disassociation.
  */
@@ -1595,7 +1598,7 @@ enum nl80211_mntr_flags {
  * @NL80211_MESHCONF_RETRY_TIMEOUT: specifies the initial retry timeout in
  * millisecond units, used by the Peer Link Open message
  *
- * @NL80211_MESHCONF_CONFIRM_TIMEOUT: specifies the inital confirm timeout, in
+ * @NL80211_MESHCONF_CONFIRM_TIMEOUT: specifies the initial confirm timeout, in
  * millisecond units, used by the peer link management to close a peer link
  *
  * @NL80211_MESHCONF_HOLDING_TIMEOUT: specifies the holding timeout, in

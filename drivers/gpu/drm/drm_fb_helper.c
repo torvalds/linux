@@ -627,6 +627,11 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		value = (red << info->var.red.offset) |
 			(green << info->var.green.offset) |
 			(blue << info->var.blue.offset);
+		if (info->var.transp.length > 0) {
+			u32 mask = (1 << info->var.transp.length) - 1;
+			mask <<= info->var.transp.offset;
+			value |= mask;
+		}
 		palette[regno] = value;
 		return 0;
 	}
@@ -672,7 +677,7 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 	struct drm_crtc_helper_funcs *crtc_funcs;
 	u16 *red, *green, *blue, *transp;
 	struct drm_crtc *crtc;
-	int i, rc = 0;
+	int i, j, rc = 0;
 	int start;
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
@@ -685,7 +690,7 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 		transp = cmap->transp;
 		start = cmap->start;
 
-		for (i = 0; i < cmap->len; i++) {
+		for (j = 0; j < cmap->len; j++) {
 			u16 hred, hgreen, hblue, htransp = 0xffff;
 
 			hred = *red++;

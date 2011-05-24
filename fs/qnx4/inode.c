@@ -335,7 +335,6 @@ static sector_t qnx4_bmap(struct address_space *mapping, sector_t block)
 static const struct address_space_operations qnx4_aops = {
 	.readpage	= qnx4_readpage,
 	.writepage	= qnx4_writepage,
-	.sync_page	= block_sync_page,
 	.write_begin	= qnx4_write_begin,
 	.write_end	= generic_write_end,
 	.bmap		= qnx4_bmap

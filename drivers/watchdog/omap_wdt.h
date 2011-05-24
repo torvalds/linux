@@ -44,7 +44,7 @@
  * months before firing.  These limits work without scaling,
  * with the 60 second default assumed by most tools and docs.
  */
-#define TIMER_MARGIN_MAX    	(24 * 60 * 60)	/* 1 day */
+#define TIMER_MARGIN_MAX	(24 * 60 * 60)	/* 1 day */
 #define TIMER_MARGIN_DEFAULT	60	/* 60 secs */
 #define TIMER_MARGIN_MIN	1
 

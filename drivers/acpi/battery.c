@@ -33,6 +33,7 @@
 #include <linux/async.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
 #include <linux/proc_fs.h>
@@ -102,6 +103,7 @@ struct acpi_battery {
 	struct mutex lock;
 	struct power_supply bat;
 	struct acpi_device *device;
+	struct notifier_block pm_nb;
 	unsigned long update_time;
 	int rate_now;
 	int capacity_now;
@@ -940,6 +942,21 @@ static void acpi_battery_notify(struct acpi_device *device, u32 event)
 		power_supply_changed(&battery->bat);
 }
 
+static int battery_notify(struct notifier_block *nb,
+			       unsigned long mode, void *_unused)
+{
+	struct acpi_battery *battery = container_of(nb, struct acpi_battery,
+						    pm_nb);
+	switch (mode) {
+	case PM_POST_SUSPEND:
+		sysfs_remove_battery(battery);
+		sysfs_add_battery(battery);
+		break;
+	}
+
+	return 0;
+}
+
 static int acpi_battery_add(struct acpi_device *device)
 {
 	int result = 0;
@@ -972,6 +989,10 @@ static int acpi_battery_add(struct acpi_device *device)
 #endif
 		kfree(battery);
 	}
+
+	battery->pm_nb.notifier_call = battery_notify;
+	register_pm_notifier(&battery->pm_nb);
+
 	return result;
 }
 
@@ -982,6 +1003,7 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 	battery = acpi_driver_data(device);
+	unregister_pm_notifier(&battery->pm_nb);
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_battery_remove_fs(device);
 #endif

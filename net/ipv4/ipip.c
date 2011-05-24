@@ -460,19 +460,14 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto tx_error_icmp;
 	}
 
-	{
-		struct flowi fl = {
-			.oif = tunnel->parms.link,
-			.fl4_dst = dst,
-			.fl4_src= tiph->saddr,
-			.fl4_tos = RT_TOS(tos),
-			.proto = IPPROTO_IPIP
-		};
-
-		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
-			dev->stats.tx_carrier_errors++;
-			goto tx_error_icmp;
-		}
+	rt = ip_route_output_ports(dev_net(dev), NULL,
+				   dst, tiph->saddr,
+				   0, 0,
+				   IPPROTO_IPIP, RT_TOS(tos),
+				   tunnel->parms.link);
+	if (IS_ERR(rt)) {
+		dev->stats.tx_carrier_errors++;
+		goto tx_error_icmp;
 	}
 	tdev = rt->dst.dev;
 
@@ -583,16 +578,14 @@ static void ipip_tunnel_bind_dev(struct net_device *dev)
 	iph = &tunnel->parms.iph;
 
 	if (iph->daddr) {
-		struct flowi fl = {
-			.oif = tunnel->parms.link,
-			.fl4_dst = iph->daddr,
-			.fl4_src = iph->saddr,
-			.fl4_tos = RT_TOS(iph->tos),
-			.proto = IPPROTO_IPIP
-		};
-		struct rtable *rt;
+		struct rtable *rt = ip_route_output_ports(dev_net(dev), NULL,
+							  iph->daddr, iph->saddr,
+							  0, 0,
+							  IPPROTO_IPIP,
+							  RT_TOS(iph->tos),
+							  tunnel->parms.link);
 
-		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
+		if (!IS_ERR(rt)) {
 			tdev = rt->dst.dev;
 			ip_rt_put(rt);
 		}
@@ -913,4 +906,4 @@ static void __exit ipip_fini(void)
 module_init(ipip_init);
 module_exit(ipip_fini);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("tunl0");
+MODULE_ALIAS_NETDEV("tunl0");

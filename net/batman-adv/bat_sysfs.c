@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2010-2011 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -441,16 +441,16 @@ static ssize_t show_mesh_iface(struct kobject *kobj, struct attribute *attr,
 			       char *buff)
 {
 	struct net_device *net_dev = kobj_to_netdev(kobj);
-	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
 	ssize_t length;
 
-	if (!batman_if)
+	if (!hard_iface)
 		return 0;
 
-	length = sprintf(buff, "%s\n", batman_if->if_status == IF_NOT_IN_USE ?
-			 "none" : batman_if->soft_iface->name);
+	length = sprintf(buff, "%s\n", hard_iface->if_status == IF_NOT_IN_USE ?
+			 "none" : hard_iface->soft_iface->name);
 
-	kref_put(&batman_if->refcount, hardif_free_ref);
+	hardif_free_ref(hard_iface);
 
 	return length;
 }
@@ -459,11 +459,11 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 				char *buff, size_t count)
 {
 	struct net_device *net_dev = kobj_to_netdev(kobj);
-	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
 	int status_tmp = -1;
-	int ret;
+	int ret = count;
 
-	if (!batman_if)
+	if (!hard_iface)
 		return count;
 
 	if (buff[count - 1] == '\n')
@@ -472,7 +472,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	if (strlen(buff) >= IFNAMSIZ) {
 		pr_err("Invalid parameter for 'mesh_iface' setting received: "
 		       "interface name too long '%s'\n", buff);
-		kref_put(&batman_if->refcount, hardif_free_ref);
+		hardif_free_ref(hard_iface);
 		return -EINVAL;
 	}
 
@@ -481,30 +481,31 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	else
 		status_tmp = IF_I_WANT_YOU;
 
-	if ((batman_if->if_status == status_tmp) || ((batman_if->soft_iface) &&
-	    (strncmp(batman_if->soft_iface->name, buff, IFNAMSIZ) == 0))) {
-		kref_put(&batman_if->refcount, hardif_free_ref);
-		return count;
-	}
+	if (hard_iface->if_status == status_tmp)
+		goto out;
+
+	if ((hard_iface->soft_iface) &&
+	    (strncmp(hard_iface->soft_iface->name, buff, IFNAMSIZ) == 0))
+		goto out;
 
 	if (status_tmp == IF_NOT_IN_USE) {
 		rtnl_lock();
-		hardif_disable_interface(batman_if);
+		hardif_disable_interface(hard_iface);
 		rtnl_unlock();
-		kref_put(&batman_if->refcount, hardif_free_ref);
-		return count;
+		goto out;
 	}
 
 	/* if the interface already is in use */
-	if (batman_if->if_status != IF_NOT_IN_USE) {
+	if (hard_iface->if_status != IF_NOT_IN_USE) {
 		rtnl_lock();
-		hardif_disable_interface(batman_if);
+		hardif_disable_interface(hard_iface);
 		rtnl_unlock();
 	}
 
-	ret = hardif_enable_interface(batman_if, buff);
-	kref_put(&batman_if->refcount, hardif_free_ref);
+	ret = hardif_enable_interface(hard_iface, buff);
 
+out:
+	hardif_free_ref(hard_iface);
 	return ret;
 }
 
@@ -512,13 +513,13 @@ static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
 				 char *buff)
 {
 	struct net_device *net_dev = kobj_to_netdev(kobj);
-	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);
 	ssize_t length;
 
-	if (!batman_if)
+	if (!hard_iface)
 		return 0;
 
-	switch (batman_if->if_status) {
+	switch (hard_iface->if_status) {
 	case IF_TO_BE_REMOVED:
 		length = sprintf(buff, "disabling\n");
 		break;
@@ -537,7 +538,7 @@ static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
 		break;
 	}
 
-	kref_put(&batman_if->refcount, hardif_free_ref);
+	hardif_free_ref(hard_iface);
 
 	return length;
 }

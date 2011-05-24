@@ -344,7 +344,7 @@ __u16 sctp_tsnmap_num_gabs(struct sctp_tsnmap *map,
 
 	/* Refresh the gap ack information. */
 	if (sctp_tsnmap_has_gap(map)) {
-		__u16 start, end;
+		__u16 start = 0, end = 0;
 		sctp_tsnmap_iter_init(map, &iter);
 		while (sctp_tsnmap_next_gap_ack(map, &iter,
 						&start,

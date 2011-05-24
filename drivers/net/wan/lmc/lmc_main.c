@@ -24,7 +24,7 @@
   *
   * Linux driver notes:
   * Linux uses the device struct lmc_private to pass private information
-  * arround.
+  * around.
   *
   * The initialization portion of this driver (the lmc_reset() and the
   * lmc_dec_reset() functions, as well as the led controls and the

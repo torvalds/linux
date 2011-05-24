@@ -1398,7 +1398,7 @@ static void amd8111e_set_multicast_list(struct net_device *dev)
 		mc_filter[1] = mc_filter[0] = 0;
 		lp->options &= ~OPTION_MULTICAST_ENABLE;
 		amd8111e_writeq(*(u64*)mc_filter,lp->mmio + LADRF);
-		/* disable promiscous mode */
+		/* disable promiscuous mode */
 		writel(PROM, lp->mmio + CMD2);
 		return;
 	}

@@ -240,10 +240,15 @@ static int sas_ex_phy_discover_helper(struct domain_device *dev, u8 *disc_req,
 				       disc_resp, DISCOVER_RESP_SIZE);
 		if (res)
 			return res;
-		/* This is detecting a failure to transmit inital
+		/* This is detecting a failure to transmit initial
 		 * dev to host FIS as described in section G.5 of
 		 * sas-2 r 04b */
 		dr = &((struct smp_resp *)disc_resp)->disc;
+		if (memcmp(dev->sas_addr, dr->attached_sas_addr,
+			  SAS_ADDR_SIZE) == 0) {
+			sas_printk("Found loopback topology, just ignore it!\n");
+			return 0;
+		}
 		if (!(dr->attached_dev_type == 0 &&
 		      dr->attached_sata_dev))
 			break;

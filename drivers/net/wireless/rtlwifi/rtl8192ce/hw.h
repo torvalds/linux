@@ -30,6 +30,8 @@
 #ifndef __RTL92CE_HW_H__
 #define __RTL92CE_HW_H__
 
+#define H2C_RA_MASK	6
+
 void rtl92ce_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val);
 void rtl92ce_read_eeprom_info(struct ieee80211_hw *hw);
 void rtl92ce_interrupt_recognized(struct ieee80211_hw *hw,
@@ -53,5 +55,14 @@ void rtl92ce_enable_hw_security_config(struct ieee80211_hw *hw);
 void rtl92ce_set_key(struct ieee80211_hw *hw, u32 key_index,
 		     u8 *p_macaddr, bool is_group, u8 enc_algo,
 		     bool is_wepkey, bool clear_all);
+bool _rtl92ce_phy_config_mac_with_headerfile(struct ieee80211_hw *hw);
+void rtl92c_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished);
+void rtl92c_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode);
+void rtl92c_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw, u8 mstatus);
+int rtl92c_download_fw(struct ieee80211_hw *hw);
+void rtl92c_firmware_selfreset(struct ieee80211_hw *hw);
+void rtl92c_fill_h2c_cmd(struct ieee80211_hw *hw,
+			 u8 element_id, u32 cmd_len, u8 *p_cmdbuffer);
+bool rtl92ce_phy_mac_config(struct ieee80211_hw *hw);
 
 #endif

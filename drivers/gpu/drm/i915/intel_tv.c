@@ -1006,6 +1006,7 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	const struct video_levels *video_levels;
 	const struct color_conversion *color_conversion;
 	bool burst_ena;
+	int pipe = intel_crtc->pipe;
 
 	if (!tv_mode)
 		return;	/* can't happen (mode_prepare prevents this) */
@@ -1149,14 +1150,11 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 			   ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
 			    (video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
 	{
-		int pipeconf_reg = (intel_crtc->pipe == 0) ?
-			PIPEACONF : PIPEBCONF;
-		int dspcntr_reg = (intel_crtc->plane == 0) ?
-			DSPACNTR : DSPBCNTR;
+		int pipeconf_reg = PIPECONF(pipe);
+		int dspcntr_reg = DSPCNTR(pipe);
 		int pipeconf = I915_READ(pipeconf_reg);
 		int dspcntr = I915_READ(dspcntr_reg);
-		int dspbase_reg = (intel_crtc->plane == 0) ?
-			DSPAADDR : DSPBADDR;
+		int dspbase_reg = DSPADDR(pipe);
 		int xpos = 0x0, ypos = 0x0;
 		unsigned int xsize, ysize;
 		/* Pipe must be off here */
@@ -1234,7 +1232,8 @@ static const struct drm_display_mode reported_modes[] = {
  * \return false if TV is disconnected.
  */
 static int
-intel_tv_detect_type (struct intel_tv *intel_tv)
+intel_tv_detect_type (struct intel_tv *intel_tv,
+		      struct drm_connector *connector)
 {
 	struct drm_encoder *encoder = &intel_tv->base.base;
 	struct drm_device *dev = encoder->dev;
@@ -1245,11 +1244,13 @@ intel_tv_detect_type (struct intel_tv *intel_tv)
 	int type;
 
 	/* Disable TV interrupts around load detect or we'll recurse */
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	i915_disable_pipestat(dev_priv, 0,
-			      PIPE_HOTPLUG_INTERRUPT_ENABLE |
-			      PIPE_HOTPLUG_TV_INTERRUPT_ENABLE);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	if (connector->polled & DRM_CONNECTOR_POLL_HPD) {
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		i915_disable_pipestat(dev_priv, 0,
+				      PIPE_HOTPLUG_INTERRUPT_ENABLE |
+				      PIPE_HOTPLUG_TV_INTERRUPT_ENABLE);
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	}
 
 	save_tv_dac = tv_dac = I915_READ(TV_DAC);
 	save_tv_ctl = tv_ctl = I915_READ(TV_CTL);
@@ -1302,11 +1303,13 @@ intel_tv_detect_type (struct intel_tv *intel_tv)
 	I915_WRITE(TV_CTL, save_tv_ctl);
 
 	/* Restore interrupt config */
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	i915_enable_pipestat(dev_priv, 0,
-			     PIPE_HOTPLUG_INTERRUPT_ENABLE |
-			     PIPE_HOTPLUG_TV_INTERRUPT_ENABLE);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	if (connector->polled & DRM_CONNECTOR_POLL_HPD) {
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		i915_enable_pipestat(dev_priv, 0,
+				     PIPE_HOTPLUG_INTERRUPT_ENABLE |
+				     PIPE_HOTPLUG_TV_INTERRUPT_ENABLE);
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	}
 
 	return type;
 }
@@ -1356,7 +1359,7 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 	drm_mode_set_crtcinfo(&mode, CRTC_INTERLACE_HALVE_V);
 
 	if (intel_tv->base.base.crtc && intel_tv->base.base.crtc->enabled) {
-		type = intel_tv_detect_type(intel_tv);
+		type = intel_tv_detect_type(intel_tv, connector);
 	} else if (force) {
 		struct drm_crtc *crtc;
 		int dpms_mode;
@@ -1364,7 +1367,7 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 		crtc = intel_get_load_detect_pipe(&intel_tv->base, connector,
 						  &mode, &dpms_mode);
 		if (crtc) {
-			type = intel_tv_detect_type(intel_tv);
+			type = intel_tv_detect_type(intel_tv, connector);
 			intel_release_load_detect_pipe(&intel_tv->base, connector,
 						       dpms_mode);
 		} else
@@ -1657,6 +1660,18 @@ intel_tv_init(struct drm_device *dev)
 
 	intel_encoder = &intel_tv->base;
 	connector = &intel_connector->base;
+
+	/* The documentation, for the older chipsets at least, recommend
+	 * using a polling method rather than hotplug detection for TVs.
+	 * This is because in order to perform the hotplug detection, the PLLs
+	 * for the TV must be kept alive increasing power drain and starving
+	 * bandwidth from other encoders. Notably for instance, it causes
+	 * pipe underruns on Crestline when this encoder is supposedly idle.
+	 *
+	 * More recent chipsets favour HDMI rather than integrated S-Video.
+	 */
+	connector->polled =
+		DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 
 	drm_connector_init(dev, connector, &intel_tv_connector_funcs,
 			   DRM_MODE_CONNECTOR_SVIDEO);

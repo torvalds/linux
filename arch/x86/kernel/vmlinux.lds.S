@@ -105,6 +105,7 @@ SECTIONS
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
+		ENTRY_TEXT
 		IRQENTRY_TEXT
 		*(.fixup)
 		*(.gnu.warning)
@@ -230,7 +231,7 @@ SECTIONS
 	 * output PHDR, so the next output section - .init.text - should
 	 * start another segment - init.
 	 */
-	PERCPU_VADDR(0, :percpu)
+	PERCPU_VADDR(INTERNODE_CACHE_BYTES, 0, :percpu)
 #endif
 
 	INIT_TEXT_SECTION(PAGE_SIZE)
@@ -239,6 +240,18 @@ SECTIONS
 #endif
 
 	INIT_DATA_SECTION(16)
+
+	/*
+	 * Code and data for a variety of lowlevel trampolines, to be
+	 * copied into base memory (< 1 MiB) during initialization.
+	 * Since it is copied early, the main copy can be discarded
+	 * afterwards.
+	 */
+	 .x86_trampoline : AT(ADDR(.x86_trampoline) - LOAD_OFFSET) {
+		x86_trampoline_start = .;
+		*(.x86_trampoline)
+		x86_trampoline_end = .;
+	}
 
 	.x86_cpu_dev.init : AT(ADDR(.x86_cpu_dev.init) - LOAD_OFFSET) {
 		__x86_cpu_dev_start = .;
@@ -291,6 +304,7 @@ SECTIONS
 		*(.iommu_table)
 		__iommu_table_end = .;
 	}
+
 	. = ALIGN(8);
 	/*
 	 * .exit.text is discard at runtime, not link time, to deal with
@@ -305,7 +319,7 @@ SECTIONS
 	}
 
 #if !defined(CONFIG_X86_64) || !defined(CONFIG_SMP)
-	PERCPU(THREAD_SIZE)
+	PERCPU(INTERNODE_CACHE_BYTES, PAGE_SIZE)
 #endif
 
 	. = ALIGN(PAGE_SIZE);

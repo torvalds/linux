@@ -33,10 +33,6 @@
 #include "wme.h"
 #include "rate.h"
 
-#define IEEE80211_TX_OK		0
-#define IEEE80211_TX_AGAIN	1
-#define IEEE80211_TX_PENDING	2
-
 /* misc utils */
 
 static __le16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
@@ -173,7 +169,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
 	return cpu_to_le16(dur);
 }
 
-static int inline is_ieee80211_device(struct ieee80211_local *local,
+static inline int is_ieee80211_device(struct ieee80211_local *local,
 				      struct net_device *dev)
 {
 	return local == wdev_priv(dev->ieee80211_ptr);
@@ -236,6 +232,7 @@ ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 	if (local->hw.conf.flags & IEEE80211_CONF_PS) {
 		ieee80211_stop_queues_by_reason(&local->hw,
 						IEEE80211_QUEUE_STOP_REASON_PS);
+		ifmgd->flags &= ~IEEE80211_STA_NULLFUNC_ACKED;
 		ieee80211_queue_work(&local->hw,
 				     &local->dynamic_ps_disable_work);
 	}
@@ -257,7 +254,8 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 	if (unlikely(info->flags & IEEE80211_TX_CTL_INJECTED))
 		return TX_CONTINUE;
 
-	if (unlikely(test_bit(SCAN_OFF_CHANNEL, &tx->local->scanning)) &&
+	if (unlikely(test_bit(SCAN_SW_SCANNING, &tx->local->scanning)) &&
+	    test_bit(SDATA_STATE_OFFCHANNEL, &tx->sdata->state) &&
 	    !ieee80211_is_probe_req(hdr->frame_control) &&
 	    !ieee80211_is_nullfunc(hdr->frame_control))
 		/*
@@ -1283,16 +1281,17 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	return TX_CONTINUE;
 }
 
-static int __ieee80211_tx(struct ieee80211_local *local,
-			  struct sk_buff **skbp,
-			  struct sta_info *sta,
-			  bool txpending)
+/*
+ * Returns false if the frame couldn't be transmitted but was queued instead.
+ */
+static bool __ieee80211_tx(struct ieee80211_local *local, struct sk_buff **skbp,
+			   struct sta_info *sta, bool txpending)
 {
 	struct sk_buff *skb = *skbp, *next;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_sub_if_data *sdata;
 	unsigned long flags;
-	int ret, len;
+	int len;
 	bool fragm = false;
 
 	while (skb) {
@@ -1300,13 +1299,37 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 		__le16 fc;
 
 		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
-		ret = IEEE80211_TX_OK;
 		if (local->queue_stop_reasons[q] ||
-		    (!txpending && !skb_queue_empty(&local->pending[q])))
-			ret = IEEE80211_TX_PENDING;
+		    (!txpending && !skb_queue_empty(&local->pending[q]))) {
+			/*
+			 * Since queue is stopped, queue up frames for later
+			 * transmission from the tx-pending tasklet when the
+			 * queue is woken again.
+			 */
+
+			do {
+				next = skb->next;
+				skb->next = NULL;
+				/*
+				 * NB: If txpending is true, next must already
+				 * be NULL since we must've gone through this
+				 * loop before already; therefore we can just
+				 * queue the frame to the head without worrying
+				 * about reordering of fragments.
+				 */
+				if (unlikely(txpending))
+					__skb_queue_head(&local->pending[q],
+							 skb);
+				else
+					__skb_queue_tail(&local->pending[q],
+							 skb);
+			} while ((skb = next));
+
+			spin_unlock_irqrestore(&local->queue_stop_reason_lock,
+					       flags);
+			return false;
+		}
 		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
-		if (ret != IEEE80211_TX_OK)
-			return ret;
 
 		info = IEEE80211_SKB_CB(skb);
 
@@ -1341,15 +1364,7 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 			info->control.sta = NULL;
 
 		fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
-		ret = drv_tx(local, skb);
-		if (WARN_ON(ret != NETDEV_TX_OK && skb->len != len)) {
-			dev_kfree_skb(skb);
-			ret = NETDEV_TX_OK;
-		}
-		if (ret != NETDEV_TX_OK) {
-			info->control.vif = &sdata->vif;
-			return IEEE80211_TX_AGAIN;
-		}
+		drv_tx(local, skb);
 
 		ieee80211_tpt_led_trig_tx(local, fc, len);
 		*skbp = skb = next;
@@ -1357,7 +1372,7 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 		fragm = true;
 	}
 
-	return IEEE80211_TX_OK;
+	return true;
 }
 
 /*
@@ -1394,7 +1409,8 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	/* handlers after fragment must be aware of tx info fragmentation! */
 	CALL_TXH(ieee80211_tx_h_stats);
 	CALL_TXH(ieee80211_tx_h_encrypt);
-	CALL_TXH(ieee80211_tx_h_calculate_duration);
+	if (!(tx->local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL))
+		CALL_TXH(ieee80211_tx_h_calculate_duration);
 #undef CALL_TXH
 
  txh_done:
@@ -1416,23 +1432,24 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	return 0;
 }
 
-static void ieee80211_tx(struct ieee80211_sub_if_data *sdata,
+/*
+ * Returns false if the frame couldn't be transmitted but was queued instead.
+ */
+static bool ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 			 struct sk_buff *skb, bool txpending)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tx_data tx;
 	ieee80211_tx_result res_prepare;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct sk_buff *next;
-	unsigned long flags;
-	int ret, retries;
 	u16 queue;
+	bool result = true;
 
 	queue = skb_get_queue_mapping(skb);
 
 	if (unlikely(skb->len < 10)) {
 		dev_kfree_skb(skb);
-		return;
+		return true;
 	}
 
 	rcu_read_lock();
@@ -1442,85 +1459,19 @@ static void ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 
 	if (unlikely(res_prepare == TX_DROP)) {
 		dev_kfree_skb(skb);
-		rcu_read_unlock();
-		return;
+		goto out;
 	} else if (unlikely(res_prepare == TX_QUEUED)) {
-		rcu_read_unlock();
-		return;
+		goto out;
 	}
 
 	tx.channel = local->hw.conf.channel;
 	info->band = tx.channel->band;
 
-	if (invoke_tx_handlers(&tx))
-		goto out;
-
-	retries = 0;
- retry:
-	ret = __ieee80211_tx(local, &tx.skb, tx.sta, txpending);
-	switch (ret) {
-	case IEEE80211_TX_OK:
-		break;
-	case IEEE80211_TX_AGAIN:
-		/*
-		 * Since there are no fragmented frames on A-MPDU
-		 * queues, there's no reason for a driver to reject
-		 * a frame there, warn and drop it.
-		 */
-		if (WARN_ON(info->flags & IEEE80211_TX_CTL_AMPDU))
-			goto drop;
-		/* fall through */
-	case IEEE80211_TX_PENDING:
-		skb = tx.skb;
-
-		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
-
-		if (local->queue_stop_reasons[queue] ||
-		    !skb_queue_empty(&local->pending[queue])) {
-			/*
-			 * if queue is stopped, queue up frames for later
-			 * transmission from the tasklet
-			 */
-			do {
-				next = skb->next;
-				skb->next = NULL;
-				if (unlikely(txpending))
-					__skb_queue_head(&local->pending[queue],
-							 skb);
-				else
-					__skb_queue_tail(&local->pending[queue],
-							 skb);
-			} while ((skb = next));
-
-			spin_unlock_irqrestore(&local->queue_stop_reason_lock,
-					       flags);
-		} else {
-			/*
-			 * otherwise retry, but this is a race condition or
-			 * a driver bug (which we warn about if it persists)
-			 */
-			spin_unlock_irqrestore(&local->queue_stop_reason_lock,
-					       flags);
-
-			retries++;
-			if (WARN(retries > 10, "tx refused but queue active\n"))
-				goto drop;
-			goto retry;
-		}
-	}
+	if (!invoke_tx_handlers(&tx))
+		result = __ieee80211_tx(local, &tx.skb, tx.sta, txpending);
  out:
 	rcu_read_unlock();
-	return;
-
- drop:
-	rcu_read_unlock();
-
-	skb = tx.skb;
-	while (skb) {
-		next = skb->next;
-		dev_kfree_skb(skb);
-		skb = next;
-	}
+	return result;
 }
 
 /* device xmit handlers */
@@ -1547,7 +1498,7 @@ static int ieee80211_skb_resize(struct ieee80211_local *local,
 		skb_orphan(skb);
 	}
 
-	if (skb_header_cloned(skb))
+	if (skb_cloned(skb))
 		I802_DEBUG_INC(local->tx_expand_skb_head_cloned);
 	else if (head_need || tail_need)
 		I802_DEBUG_INC(local->tx_expand_skb_head);
@@ -1750,7 +1701,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	__le16 fc;
 	struct ieee80211_hdr hdr;
 	struct ieee80211s_hdr mesh_hdr __maybe_unused;
-	struct mesh_path *mppath = NULL;
+	struct mesh_path __maybe_unused *mppath = NULL;
 	const u8 *encaps_data;
 	int encaps_len, skip_header_bytes;
 	int nh_pos, h_pos;
@@ -1815,19 +1766,19 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			mppath = mpp_path_lookup(skb->data, sdata);
 
 		/*
-		 * Do not use address extension, if it is a packet from
-		 * the same interface and the destination is not being
-		 * proxied by any other mest point.
+		 * Use address extension if it is a packet from
+		 * another interface or if we know the destination
+		 * is being proxied by a portal (i.e. portal address
+		 * differs from proxied address)
 		 */
 		if (compare_ether_addr(sdata->vif.addr,
 				       skb->data + ETH_ALEN) == 0 &&
-		    (!mppath || !compare_ether_addr(mppath->mpp, skb->data))) {
+		    !(mppath && compare_ether_addr(mppath->mpp, skb->data))) {
 			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
 					skb->data, skb->data + ETH_ALEN);
 			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr,
 					sdata, NULL, NULL);
 		} else {
-			/* packet from other interface */
 			int is_mesh_mcast = 1;
 			const u8 *mesh_da;
 
@@ -2067,6 +2018,11 @@ void ieee80211_clear_tx_pending(struct ieee80211_local *local)
 		skb_queue_purge(&local->pending[i]);
 }
 
+/*
+ * Returns false if the frame couldn't be transmitted but was queued instead,
+ * which in this case means re-queued -- take as an indication to stop sending
+ * more pending frames.
+ */
 static bool ieee80211_tx_pending_skb(struct ieee80211_local *local,
 				     struct sk_buff *skb)
 {
@@ -2074,20 +2030,17 @@ static bool ieee80211_tx_pending_skb(struct ieee80211_local *local,
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 	struct ieee80211_hdr *hdr;
-	int ret;
-	bool result = true;
+	bool result;
 
 	sdata = vif_to_sdata(info->control.vif);
 
 	if (info->flags & IEEE80211_TX_INTFL_NEED_TXPROCESSING) {
-		ieee80211_tx(sdata, skb, true);
+		result = ieee80211_tx(sdata, skb, true);
 	} else {
 		hdr = (struct ieee80211_hdr *)skb->data;
 		sta = sta_info_get(sdata, hdr->addr1);
 
-		ret = __ieee80211_tx(local, &skb, sta, true);
-		if (ret != IEEE80211_TX_OK)
-			result = false;
+		result = __ieee80211_tx(local, &skb, sta, true);
 	}
 
 	return result;
@@ -2129,8 +2082,6 @@ void ieee80211_tx_pending(unsigned long data)
 						flags);
 
 			txok = ieee80211_tx_pending_skb(local, skb);
-			if (!txok)
-				__skb_queue_head(&local->pending[i], skb);
 			spin_lock_irqsave(&local->queue_stop_reason_lock,
 					  flags);
 			if (!txok)
@@ -2177,6 +2128,8 @@ static void ieee80211_beacon_add_tim(struct ieee80211_if_ap *bss,
 
 	if (bss->dtim_count == 0 && !skb_queue_empty(&bss->ps_bc_buf))
 		aid0 = 1;
+
+	bss->dtim_bc_mc = aid0 == 1;
 
 	if (have_bits) {
 		/* Find largest even number N1 so that bits numbered 1 through
@@ -2241,7 +2194,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		ap = &sdata->u.ap;
 		beacon = rcu_dereference(ap->beacon);
-		if (ap && beacon) {
+		if (beacon) {
 			/*
 			 * headroom, head length,
 			 * tail length and maximum TIM length
@@ -2301,6 +2254,11 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		struct ieee80211_mgmt *mgmt;
 		u8 *pos;
+
+#ifdef CONFIG_MAC80211_MESH
+		if (!sdata->u.mesh.mesh_id_len)
+			goto out;
+#endif
 
 		/* headroom, head length, tail length and maximum TIM length */
 		skb = dev_alloc_skb(local->tx_headroom + 400 +
@@ -2543,7 +2501,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	if (sdata->vif.type != NL80211_IFTYPE_AP || !beacon || !beacon->head)
 		goto out;
 
-	if (bss->dtim_count != 0)
+	if (bss->dtim_count != 0 || !bss->dtim_bc_mc)
 		goto out; /* send buffered bc/mc only after DTIM beacon */
 
 	while (1) {

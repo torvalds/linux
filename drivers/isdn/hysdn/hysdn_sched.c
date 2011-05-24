@@ -143,7 +143,7 @@ hysdn_sched_tx(hysdn_card *card, unsigned char *buf,
 /* send one config line to the card and return 0 if successful, otherwise a */
 /* negative error code.                                                      */
 /* The function works with timeouts perhaps not giving the greatest speed    */
-/* sending the line, but this should be meaningless beacuse only some lines  */
+/* sending the line, but this should be meaningless because only some lines  */
 /* are to be sent and this happens very seldom.                              */
 /*****************************************************************************/
 int

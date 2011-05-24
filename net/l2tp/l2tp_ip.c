@@ -320,11 +320,12 @@ static int l2tp_ip_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 	if (ipv4_is_multicast(lsa->l2tp_addr.s_addr))
 		goto out;
 
-	rc = ip_route_connect(&rt, lsa->l2tp_addr.s_addr, saddr,
+	rt = ip_route_connect(lsa->l2tp_addr.s_addr, saddr,
 			      RT_CONN_FLAGS(sk), oif,
 			      IPPROTO_L2TP,
-			      0, 0, sk, 1);
-	if (rc) {
+			      0, 0, sk, true);
+	if (IS_ERR(rt)) {
+		rc = PTR_ERR(rt);
 		if (rc == -ENETUNREACH)
 			IP_INC_STATS_BH(&init_net, IPSTATS_MIB_OUTNOROUTES);
 		goto out;
@@ -474,24 +475,17 @@ static int l2tp_ip_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 		if (opt && opt->srr)
 			daddr = opt->faddr;
 
-		{
-			struct flowi fl = { .oif = sk->sk_bound_dev_if,
-					    .fl4_dst = daddr,
-					    .fl4_src = inet->inet_saddr,
-					    .fl4_tos = RT_CONN_FLAGS(sk),
-					    .proto = sk->sk_protocol,
-					    .flags = inet_sk_flowi_flags(sk),
-					    .fl_ip_sport = inet->inet_sport,
-					    .fl_ip_dport = inet->inet_dport };
-
-			/* If this fails, retransmit mechanism of transport layer will
-			 * keep trying until route appears or the connection times
-			 * itself out.
-			 */
-			security_sk_classify_flow(sk, &fl);
-			if (ip_route_output_flow(sock_net(sk), &rt, &fl, sk, 0))
-				goto no_route;
-		}
+		/* If this fails, retransmit mechanism of transport layer will
+		 * keep trying until route appears or the connection times
+		 * itself out.
+		 */
+		rt = ip_route_output_ports(sock_net(sk), sk,
+					   daddr, inet->inet_saddr,
+					   inet->inet_dport, inet->inet_sport,
+					   sk->sk_protocol, RT_CONN_FLAGS(sk),
+					   sk->sk_bound_dev_if);
+		if (IS_ERR(rt))
+			goto no_route;
 		sk_setup_caps(sk, &rt->dst);
 	}
 	skb_dst_set(skb, dst_clone(&rt->dst));

@@ -371,7 +371,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	new_radeon_fb = to_radeon_framebuffer(fb);
 	/* schedule unpin of the old buffer */
 	obj = old_radeon_fb->obj;
-	rbo = obj->driver_private;
+	rbo = gem_to_radeon_bo(obj);
 	work->old_rbo = rbo;
 	INIT_WORK(&work->work, radeon_unpin_work_func);
 
@@ -391,7 +391,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 
 	/* pin the new buffer */
 	obj = new_radeon_fb->obj;
-	rbo = obj->driver_private;
+	rbo = gem_to_radeon_bo(obj);
 
 	DRM_DEBUG_DRIVER("flip-ioctl() cur_fbo = %p, cur_bbo = %p\n",
 			 work->old_rbo, rbo);
@@ -780,6 +780,125 @@ static int radeon_ddc_dump(struct drm_connector *connector)
 	return ret;
 }
 
+/* avivo */
+static void avivo_get_fb_div(struct radeon_pll *pll,
+			     u32 target_clock,
+			     u32 post_div,
+			     u32 ref_div,
+			     u32 *fb_div,
+			     u32 *frac_fb_div)
+{
+	u32 tmp = post_div * ref_div;
+
+	tmp *= target_clock;
+	*fb_div = tmp / pll->reference_freq;
+	*frac_fb_div = tmp % pll->reference_freq;
+
+        if (*fb_div > pll->max_feedback_div)
+		*fb_div = pll->max_feedback_div;
+        else if (*fb_div < pll->min_feedback_div)
+                *fb_div = pll->min_feedback_div;
+}
+
+static u32 avivo_get_post_div(struct radeon_pll *pll,
+			      u32 target_clock)
+{
+	u32 vco, post_div, tmp;
+
+	if (pll->flags & RADEON_PLL_USE_POST_DIV)
+		return pll->post_div;
+
+	if (pll->flags & RADEON_PLL_PREFER_MINM_OVER_MAXP) {
+		if (pll->flags & RADEON_PLL_IS_LCD)
+			vco = pll->lcd_pll_out_min;
+		else
+			vco = pll->pll_out_min;
+	} else {
+		if (pll->flags & RADEON_PLL_IS_LCD)
+			vco = pll->lcd_pll_out_max;
+		else
+			vco = pll->pll_out_max;
+	}
+
+	post_div = vco / target_clock;
+	tmp = vco % target_clock;
+
+	if (pll->flags & RADEON_PLL_PREFER_MINM_OVER_MAXP) {
+		if (tmp)
+			post_div++;
+	} else {
+		if (!tmp)
+			post_div--;
+	}
+
+	if (post_div > pll->max_post_div)
+		post_div = pll->max_post_div;
+	else if (post_div < pll->min_post_div)
+		post_div = pll->min_post_div;
+
+	return post_div;
+}
+
+#define MAX_TOLERANCE 10
+
+void radeon_compute_pll_avivo(struct radeon_pll *pll,
+			      u32 freq,
+			      u32 *dot_clock_p,
+			      u32 *fb_div_p,
+			      u32 *frac_fb_div_p,
+			      u32 *ref_div_p,
+			      u32 *post_div_p)
+{
+	u32 target_clock = freq / 10;
+	u32 post_div = avivo_get_post_div(pll, target_clock);
+	u32 ref_div = pll->min_ref_div;
+	u32 fb_div = 0, frac_fb_div = 0, tmp;
+
+	if (pll->flags & RADEON_PLL_USE_REF_DIV)
+		ref_div = pll->reference_div;
+
+	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV) {
+		avivo_get_fb_div(pll, target_clock, post_div, ref_div, &fb_div, &frac_fb_div);
+		frac_fb_div = (100 * frac_fb_div) / pll->reference_freq;
+		if (frac_fb_div >= 5) {
+			frac_fb_div -= 5;
+			frac_fb_div = frac_fb_div / 10;
+			frac_fb_div++;
+		}
+		if (frac_fb_div >= 10) {
+			fb_div++;
+			frac_fb_div = 0;
+		}
+	} else {
+		while (ref_div <= pll->max_ref_div) {
+			avivo_get_fb_div(pll, target_clock, post_div, ref_div,
+					 &fb_div, &frac_fb_div);
+			if (frac_fb_div >= (pll->reference_freq / 2))
+				fb_div++;
+			frac_fb_div = 0;
+			tmp = (pll->reference_freq * fb_div) / (post_div * ref_div);
+			tmp = (tmp * 10000) / target_clock;
+
+			if (tmp > (10000 + MAX_TOLERANCE))
+				ref_div++;
+			else if (tmp >= (10000 - MAX_TOLERANCE))
+				break;
+			else
+				ref_div++;
+		}
+	}
+
+	*dot_clock_p = ((pll->reference_freq * fb_div * 10) + (pll->reference_freq * frac_fb_div)) /
+		(ref_div * post_div * 10);
+	*fb_div_p = fb_div;
+	*frac_fb_div_p = frac_fb_div;
+	*ref_div_p = ref_div;
+	*post_div_p = post_div;
+	DRM_DEBUG_KMS("%d, pll dividers - fb: %d.%d ref: %d, post %d\n",
+		      *dot_clock_p, fb_div, frac_fb_div, ref_div, post_div);
+}
+
+/* pre-avivo */
 static inline uint32_t radeon_div(uint64_t n, uint32_t d)
 {
 	uint64_t mod;
@@ -790,13 +909,13 @@ static inline uint32_t radeon_div(uint64_t n, uint32_t d)
 	return n;
 }
 
-void radeon_compute_pll(struct radeon_pll *pll,
-			uint64_t freq,
-			uint32_t *dot_clock_p,
-			uint32_t *fb_div_p,
-			uint32_t *frac_fb_div_p,
-			uint32_t *ref_div_p,
-			uint32_t *post_div_p)
+void radeon_compute_pll_legacy(struct radeon_pll *pll,
+			       uint64_t freq,
+			       uint32_t *dot_clock_p,
+			       uint32_t *fb_div_p,
+			       uint32_t *frac_fb_div_p,
+			       uint32_t *ref_div_p,
+			       uint32_t *post_div_p)
 {
 	uint32_t min_ref_div = pll->min_ref_div;
 	uint32_t max_ref_div = pll->max_ref_div;
@@ -825,6 +944,9 @@ void radeon_compute_pll(struct radeon_pll *pll,
 		pll_out_min = pll->pll_out_min;
 		pll_out_max = pll->pll_out_max;
 	}
+
+	if (pll_out_min > 64800)
+		pll_out_min = 64800;
 
 	if (pll->flags & RADEON_PLL_USE_REF_DIV)
 		min_ref_div = max_ref_div = pll->reference_div;
@@ -965,6 +1087,10 @@ void radeon_compute_pll(struct radeon_pll *pll,
 	*frac_fb_div_p = best_frac_feedback_div;
 	*ref_div_p = best_ref_div;
 	*post_div_p = best_post_div;
+	DRM_DEBUG_KMS("%d %d, pll dividers - fb: %d.%d ref: %d, post %d\n",
+		      freq, best_freq / 1000, best_feedback_div, best_frac_feedback_div,
+		      best_ref_div, best_post_div);
+
 }
 
 static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
@@ -1366,7 +1492,7 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  *
  * \return Flags, or'ed together as follows:
  *
- * DRM_SCANOUTPOS_VALID = Query successfull.
+ * DRM_SCANOUTPOS_VALID = Query successful.
  * DRM_SCANOUTPOS_INVBL = Inside vblank.
  * DRM_SCANOUTPOS_ACCURATE = Returned position is accurate. A lack of
  * this flag means that returned position may be offset by a constant but

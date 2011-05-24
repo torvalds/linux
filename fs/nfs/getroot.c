@@ -75,18 +75,25 @@ static int nfs_superblock_set_dummy_root(struct super_block *sb, struct inode *i
 /*
  * get an NFS2/NFS3 root dentry from the root filehandle
  */
-struct dentry *nfs_get_root(struct super_block *sb, struct nfs_fh *mntfh)
+struct dentry *nfs_get_root(struct super_block *sb, struct nfs_fh *mntfh,
+			    const char *devname)
 {
 	struct nfs_server *server = NFS_SB(sb);
 	struct nfs_fsinfo fsinfo;
 	struct dentry *ret;
 	struct inode *inode;
+	void *name = kstrdup(devname, GFP_KERNEL);
 	int error;
+
+	if (!name)
+		return ERR_PTR(-ENOMEM);
 
 	/* get the actual root for this mount */
 	fsinfo.fattr = nfs_alloc_fattr();
-	if (fsinfo.fattr == NULL)
+	if (fsinfo.fattr == NULL) {
+		kfree(name);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	error = server->nfs_client->rpc_ops->getroot(server, mntfh, &fsinfo);
 	if (error < 0) {
@@ -119,7 +126,15 @@ struct dentry *nfs_get_root(struct super_block *sb, struct nfs_fh *mntfh)
 	}
 
 	security_d_instantiate(ret, inode);
+	spin_lock(&ret->d_lock);
+	if (IS_ROOT(ret) && !(ret->d_flags & DCACHE_NFSFS_RENAMED)) {
+		ret->d_fsdata = name;
+		name = NULL;
+	}
+	spin_unlock(&ret->d_lock);
 out:
+	if (name)
+		kfree(name);
 	nfs_free_fattr(fsinfo.fattr);
 	return ret;
 }
@@ -169,27 +184,35 @@ out:
 /*
  * get an NFS4 root dentry from the root filehandle
  */
-struct dentry *nfs4_get_root(struct super_block *sb, struct nfs_fh *mntfh)
+struct dentry *nfs4_get_root(struct super_block *sb, struct nfs_fh *mntfh,
+			     const char *devname)
 {
 	struct nfs_server *server = NFS_SB(sb);
 	struct nfs_fattr *fattr = NULL;
 	struct dentry *ret;
 	struct inode *inode;
+	void *name = kstrdup(devname, GFP_KERNEL);
 	int error;
 
 	dprintk("--> nfs4_get_root()\n");
+
+	if (!name)
+		return ERR_PTR(-ENOMEM);
 
 	/* get the info about the server and filesystem */
 	error = nfs4_server_capabilities(server, mntfh);
 	if (error < 0) {
 		dprintk("nfs_get_root: getcaps error = %d\n",
 			-error);
+		kfree(name);
 		return ERR_PTR(error);
 	}
 
 	fattr = nfs_alloc_fattr();
-	if (fattr == NULL)
-		return ERR_PTR(-ENOMEM);;
+	if (fattr == NULL) {
+		kfree(name);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	/* get the actual root for this mount */
 	error = server->nfs_client->rpc_ops->getattr(server, mntfh, fattr);
@@ -198,6 +221,10 @@ struct dentry *nfs4_get_root(struct super_block *sb, struct nfs_fh *mntfh)
 		ret = ERR_PTR(error);
 		goto out;
 	}
+
+	if (fattr->valid & NFS_ATTR_FATTR_FSID &&
+	    !nfs_fsid_equal(&server->fsid, &fattr->fsid))
+		memcpy(&server->fsid, &fattr->fsid, sizeof(server->fsid));
 
 	inode = nfs_fhget(sb, mntfh, fattr);
 	if (IS_ERR(inode)) {
@@ -223,8 +250,15 @@ struct dentry *nfs4_get_root(struct super_block *sb, struct nfs_fh *mntfh)
 	}
 
 	security_d_instantiate(ret, inode);
-
+	spin_lock(&ret->d_lock);
+	if (IS_ROOT(ret) && !(ret->d_flags & DCACHE_NFSFS_RENAMED)) {
+		ret->d_fsdata = name;
+		name = NULL;
+	}
+	spin_unlock(&ret->d_lock);
 out:
+	if (name)
+		kfree(name);
 	nfs_free_fattr(fattr);
 	dprintk("<-- nfs4_get_root()\n");
 	return ret;

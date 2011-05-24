@@ -118,7 +118,6 @@ extern const char *mpc8xxx_spi_strmode(unsigned int flags);
 extern int mpc8xxx_spi_probe(struct device *dev, struct resource *mem,
 		unsigned int irq);
 extern int mpc8xxx_spi_remove(struct device *dev);
-extern int of_mpc8xxx_spi_probe(struct platform_device *ofdev,
-				const struct of_device_id *ofid);
+extern int of_mpc8xxx_spi_probe(struct platform_device *ofdev);
 
 #endif /* __SPI_FSL_LIB_H__ */

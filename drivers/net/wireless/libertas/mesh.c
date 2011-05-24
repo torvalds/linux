@@ -918,7 +918,6 @@ static ssize_t mesh_id_get(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct mrvl_mesh_defaults defs;
-	int maxlen;
 	int ret;
 
 	ret = mesh_get_default_parameters(dev, &defs);
@@ -931,13 +930,11 @@ static ssize_t mesh_id_get(struct device *dev, struct device_attribute *attr,
 		defs.meshie.val.mesh_id_len = IEEE80211_MAX_SSID_LEN;
 	}
 
-	/* SSID not null terminated: reserve room for \0 + \n */
-	maxlen = defs.meshie.val.mesh_id_len + 2;
-	maxlen = (PAGE_SIZE > maxlen) ? maxlen : PAGE_SIZE;
+	memcpy(buf, defs.meshie.val.mesh_id, defs.meshie.val.mesh_id_len);
+	buf[defs.meshie.val.mesh_id_len] = '\n';
+	buf[defs.meshie.val.mesh_id_len + 1] = '\0';
 
-	defs.meshie.val.mesh_id[defs.meshie.val.mesh_id_len] = '\0';
-
-	return snprintf(buf, maxlen, "%s\n", defs.meshie.val.mesh_id);
+	return defs.meshie.val.mesh_id_len + 1;
 }
 
 /**

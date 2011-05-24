@@ -399,7 +399,7 @@ reset_hfcsx(struct IsdnCardState *cs)
 	/* D- and monitor/CI channel are not enabled */
 	/* STIO1 is used as output for data, B1+B2 from ST->IOM+HFC */
 	/* STIO2 is used as data input, B1+B2 from IOM->ST */
-	/* ST B-channel send disabled -> continous 1s */
+	/* ST B-channel send disabled -> continuous 1s */
 	/* The IOM slots are always enabled */
 	cs->hw.hfcsx.conn = 0x36;	/* set data flow directions */
 	Write_hfc(cs, HFCSX_CONNECT, cs->hw.hfcsx.conn);

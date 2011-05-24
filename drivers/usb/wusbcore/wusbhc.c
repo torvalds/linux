@@ -320,7 +320,7 @@ u8 wusb_cluster_id_get(void)
 	u8 id;
 	spin_lock(&wusb_cluster_ids_lock);
 	id = find_first_zero_bit(wusb_cluster_id_table, CLUSTER_IDS);
-	if (id > CLUSTER_IDS) {
+	if (id >= CLUSTER_IDS) {
 		id = 0;
 		goto out;
 	}

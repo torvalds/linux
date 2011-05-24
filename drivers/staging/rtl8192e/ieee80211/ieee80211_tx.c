@@ -32,7 +32,6 @@
 ******************************************************************************/
 
 #include <linux/compiler.h>
-//#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
@@ -232,14 +231,8 @@ int ieee80211_encrypt_fragment(
 
 
 void ieee80211_txb_free(struct ieee80211_txb *txb) {
-	//int i;
 	if (unlikely(!txb))
 		return;
-#if 0
-	for (i = 0; i < txb->nr_frags; i++)
-		if (txb->fragments[i])
-			dev_kfree_skb_any(txb->fragments[i]);
-#endif
 	kfree(txb);
 }
 
@@ -337,7 +330,7 @@ void ieee80211_tx_query_agg_cap(struct ieee80211_device* ieee, struct sk_buff* s
 
 
 #if 1
-	if(!ieee->GetNmodeSupportBySecCfg(ieee->dev))
+	if (!ieee->GetNmodeSupportBySecCfg(ieee))
 	{
 		return;
 	}
@@ -678,22 +671,11 @@ int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 				const struct iphdr *ip = (struct iphdr *)((u8 *)skb->data+14);
 				if (IPPROTO_UDP == ip->protocol) {//FIXME windows is 11 but here UDP in linux kernel is 17.
 					struct udphdr *udp = (struct udphdr *)((u8 *)ip + (ip->ihl << 2));
-					//if(((ntohs(udp->source) == 68) && (ntohs(udp->dest) == 67)) ||
-					///   ((ntohs(udp->source) == 67) && (ntohs(udp->dest) == 68))) {
 					if(((((u8 *)udp)[1] == 68) && (((u8 *)udp)[3] == 67)) ||
 							((((u8 *)udp)[1] == 67) && (((u8 *)udp)[3] == 68))) {
 						// 68 : UDP BOOTP client
 						// 67 : UDP BOOTP server
 						printk("DHCP pkt src port:%d, dest port:%d!!\n", ((u8 *)udp)[1],((u8 *)udp)[3]);
-						// Use low rate to send DHCP packet.
-						//if(pMgntInfo->IOTAction & HT_IOT_ACT_WA_IOT_Broadcom)
-						//{
-						//      tcb_desc->DataRate = MgntQuery_TxRateExcludeCCKRates(ieee);//0xc;//ofdm 6m
-						//      tcb_desc->bTxDisableRateFallBack = false;
-						//}
-						//else
-						//pTcb->DataRate = Adapter->MgntInfo.LowestBasicRate;
-						//RTPRINT(FDM, WA_IOT, ("DHCP TranslateHeader(), pTcb->DataRate = 0x%x\n", pTcb->DataRate));
 
 						bdhcp = true;
 #ifdef _RTL8192_EXT_PATCH_
@@ -707,15 +689,6 @@ int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 					printk("=================>DHCP Protocol start tx ARP pkt!!\n");
 					bdhcp = true;
 					ieee->LPSDelayCnt = ieee->current_network.tim.tim_count;
-
-					//if(pMgntInfo->IOTAction & HT_IOT_ACT_WA_IOT_Broadcom)
-					//{
-					//      tcb_desc->DataRate = MgntQuery_TxRateExcludeCCKRates(Adapter->MgntInfo.mBrates);//0xc;//ofdm 6m
-					//      tcb_desc->bTxDisableRateFallBack = FALSE;
-					//}
-					//else
-					//      tcb_desc->DataRate = Adapter->MgntInfo.LowestBasicRate;
-					//RTPRINT(FDM, WA_IOT, ("ARP TranslateHeader(), pTcb->DataRate = 0x%x\n", pTcb->DataRate));
 
 				}
 			}
@@ -736,7 +709,6 @@ int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 
                         fc = IEEE80211_FTYPE_DATA;
 
-		//if(ieee->current_network.QoS_Enable)
 		if(qos_actived)
 			fc |= IEEE80211_STYPE_QOS_DATA;
 		else
@@ -771,7 +743,6 @@ int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 			qos_ctl = 0;
 		}
 
-		//if (ieee->current_network.QoS_Enable)
 		if(qos_actived)
 		{
 			hdr_len = IEEE80211_3ADDR_LEN + 2;
@@ -817,7 +788,6 @@ int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 		txb->encrypted = encrypt;
 		txb->payload_size = bytes;
 
-		//if (ieee->current_network.QoS_Enable)
 		if(qos_actived)
 		{
 			txb->queue_index = UP2AC(skb->priority);
@@ -864,7 +834,7 @@ int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 				/* The last fragment takes the remaining length */
 				bytes = bytes_last_frag;
 			}
-			//if(ieee->current_network.QoS_Enable)
+
 			if(qos_actived)
 			{
 				// add 1 only indicate to corresponding seq number control 2006/7/12
@@ -930,7 +900,6 @@ int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 //WB add to fill data tcb_desc here. only first fragment is considered, need to change, and you may remove to other place.
 	if (txb)
 	{
-#if 1
 		cb_desc *tcb_desc = (cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->bTxEnableFwCalcDur = 1;
 		if (is_multicast_ether_addr(header.addr1))
@@ -941,20 +910,11 @@ int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 		if ( tcb_desc->bMulticast ||  tcb_desc->bBroadcast)
 			tcb_desc->data_rate = ieee->basic_rate;
 		else
-			//tcb_desc->data_rate = CURRENT_RATE(ieee->current_network.mode, ieee->rate, ieee->HTCurrentOperaRate);
 			tcb_desc->data_rate = CURRENT_RATE(ieee->mode, ieee->rate, ieee->HTCurrentOperaRate);
 
 		if(bdhcp == true){
-			// Use low rate to send DHCP packet.
-			//if(ieee->pHTInfo->IOTAction & HT_IOT_ACT_WA_IOT_Broadcom) {
-			//	tcb_desc->data_rate = MGN_1M;//MgntQuery_TxRateExcludeCCKRates(ieee);//0xc;//ofdm 6m
-			//	tcb_desc->bTxDisableRateFallBack = false;
-			//}
-			//else
-			{
 				tcb_desc->data_rate = MGN_1M;
 				tcb_desc->bTxDisableRateFallBack = 1;
-			}
 
 			tcb_desc->RATRIndex = 7;
 			tcb_desc->bTxUseDriverAssingedRate = 1;
@@ -968,9 +928,6 @@ int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 		ieee80211_query_BandwidthMode(ieee, tcb_desc);
 		ieee80211_query_protectionmode(ieee, tcb_desc, txb->fragments[0]);
 		ieee80211_query_seqnum(ieee, txb->fragments[0], header.addr1);
-//		IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, txb->fragments[0]->data, txb->fragments[0]->len);
-		//IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, tcb_desc, sizeof(cb_desc));
-#endif
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 	dev_kfree_skb_any(skb);
@@ -978,7 +935,7 @@ int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE){
 			ieee80211_softmac_xmit(txb, ieee);
 		}else{
-			if ((*ieee->hard_start_xmit)(txb, dev) == 0) {
+			if ((*ieee->hard_start_xmit)(txb, ieee) == 0) {
 				stats->tx_packets++;
 				stats->tx_bytes += txb->payload_size;
 				return 0;
@@ -997,4 +954,3 @@ int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 
 }
 
-//EXPORT_SYMBOL(ieee80211_txb_free);

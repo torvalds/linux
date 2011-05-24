@@ -32,10 +32,6 @@
 # error "No support for kernel preemption currently"
 #endif
 
-#if INT_INTCTRL_K < 32 || INT_INTCTRL_K >= 48
-# error INT_INTCTRL_K coded to set high interrupt mask
-#endif
-
 #define PTREGS_PTR(reg, ptreg) addli reg, sp, C_ABI_SAVE_AREA_SIZE + (ptreg)
 
 #define PTREGS_OFFSET_SYSCALL PTREGS_OFFSET_REG(TREG_SYSCALL_NR)
@@ -1199,46 +1195,6 @@ STD_ENTRY(interrupt_return)
 	STD_ENDPROC(interrupt_return)
 
 	/*
-	 * This interrupt variant clears the INT_INTCTRL_K interrupt mask bit
-	 * before returning, so we can properly get more downcalls.
-	 */
-	.pushsection .text.handle_interrupt_downcall,"ax"
-handle_interrupt_downcall:
-	finish_interrupt_save handle_interrupt_downcall
-	check_single_stepping normal, .Ldispatch_downcall
-.Ldispatch_downcall:
-
-	/* Clear INTCTRL_K from the set of interrupts we ever enable. */
-	GET_INTERRUPTS_ENABLED_MASK_PTR(r30)
-	{
-	 addi   r30, r30, 4
-	 movei  r31, INT_MASK(INT_INTCTRL_K)
-	}
-	{
-	 lw     r20, r30
-	 nor    r21, r31, zero
-	}
-	and     r20, r20, r21
-	sw      r30, r20
-
-	{
-	 jalr   r0
-	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
-	}
-	FEEDBACK_REENTER(handle_interrupt_downcall)
-
-	/* Allow INTCTRL_K to be enabled next time we enable interrupts. */
-	lw      r20, r30
-	or      r20, r20, r31
-	sw      r30, r20
-
-	{
-	 movei  r30, 0   /* not an NMI */
-	 j      interrupt_return
-	}
-	STD_ENDPROC(handle_interrupt_downcall)
-
-	/*
 	 * Some interrupts don't check for single stepping
 	 */
 	.pushsection .text.handle_interrupt_no_single_step,"ax"
@@ -1600,7 +1556,10 @@ STD_ENTRY(_sys_clone)
 	.align 64
 	/* Align much later jump on the start of a cache line. */
 #if !ATOMIC_LOCKS_FOUND_VIA_TABLE()
-	nop; nop
+	nop
+#if PAGE_SIZE >= 0x10000
+	nop
+#endif
 #endif
 ENTRY(sys_cmpxchg)
 
@@ -1628,8 +1587,12 @@ ENTRY(sys_cmpxchg)
 	 * about aliasing among multiple mappings of the same physical page,
 	 * and we ignore the low 3 bits so we have one lock that covers
 	 * both a cmpxchg64() and a cmpxchg() on either its low or high word.
-	 * NOTE: this code must match __atomic_hashed_lock() in lib/atomic.c.
+	 * NOTE: this must match __atomic_hashed_lock() in lib/atomic_32.c.
 	 */
+
+#if (PAGE_OFFSET & 0xffff) != 0
+# error Code here assumes PAGE_OFFSET can be loaded with just hi16()
+#endif
 
 #if ATOMIC_LOCKS_FOUND_VIA_TABLE()
 	{
@@ -1723,11 +1686,14 @@ ENTRY(sys_cmpxchg)
 	 lw	r26, r0
 	}
 	{
-	 /* atomic_locks is page aligned so this suffices to get its addr. */
-	 auli	r21, zero, hi16(atomic_locks)
+	 auli	r21, zero, ha16(atomic_locks)
 
 	 bbns   r23, .Lcmpxchg_badaddr
 	}
+#if PAGE_SIZE < 0x10000
+	/* atomic_locks is page-aligned so for big pages we don't need this. */
+	addli   r21, r21, lo16(atomic_locks)
+#endif
 	{
 	 /*
 	  * Insert the hash bits into the page-aligned pointer.
@@ -1762,7 +1728,7 @@ ENTRY(sys_cmpxchg)
 
 	/*
 	 * Perform the actual cmpxchg or atomic_update.
-	 * Note that __futex_mark_unlocked() in uClibc relies on
+	 * Note that the system <arch/atomic.h> header relies on
 	 * atomic_update() to always perform an "mf", so don't make
 	 * it optional or conditional without modifying that code.
 	 */
@@ -2014,17 +1980,17 @@ int_unalign:
 #endif
 	int_hand     INT_INTCTRL_0, INTCTRL_0, bad_intr
 	int_hand     INT_MESSAGE_RCV_DWNCL, MESSAGE_RCV_DWNCL, \
-		     hv_message_intr, handle_interrupt_downcall
+		     hv_message_intr
 	int_hand     INT_DEV_INTR_DWNCL, DEV_INTR_DWNCL, \
-		     tile_dev_intr, handle_interrupt_downcall
+		     tile_dev_intr
 	int_hand     INT_I_ASID, I_ASID, bad_intr
 	int_hand     INT_D_ASID, D_ASID, bad_intr
 	int_hand     INT_DMATLB_MISS_DWNCL, DMATLB_MISS_DWNCL, \
-		     do_page_fault, handle_interrupt_downcall
+		     do_page_fault
 	int_hand     INT_SNITLB_MISS_DWNCL, SNITLB_MISS_DWNCL, \
-		     do_page_fault, handle_interrupt_downcall
+		     do_page_fault
 	int_hand     INT_DMATLB_ACCESS_DWNCL, DMATLB_ACCESS_DWNCL, \
-		     do_page_fault, handle_interrupt_downcall
+		     do_page_fault
 	int_hand     INT_SN_CPL, SN_CPL, bad_intr
 	int_hand     INT_DOUBLE_FAULT, DOUBLE_FAULT, do_trap
 #if CHIP_HAS_AUX_PERF_COUNTERS()

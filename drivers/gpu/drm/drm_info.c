@@ -47,30 +47,19 @@ int drm_name_info(struct seq_file *m, void *data)
 	struct drm_minor *minor = node->minor;
 	struct drm_device *dev = minor->dev;
 	struct drm_master *master = minor->master;
-
+	const char *bus_name;
 	if (!master)
 		return 0;
 
-	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE)) {
-		if (master->unique) {
-			seq_printf(m, "%s %s %s\n",
-					dev->driver->platform_device->name,
-					dev_name(dev->dev), master->unique);
-		} else {
-			seq_printf(m, "%s\n",
-				dev->driver->platform_device->name);
-		}
+	bus_name = dev->driver->bus->get_name(dev);
+	if (master->unique) {
+		seq_printf(m, "%s %s %s\n",
+			   bus_name,
+			   dev_name(dev->dev), master->unique);
 	} else {
-		if (master->unique) {
-			seq_printf(m, "%s %s %s\n",
-				dev->driver->pci_driver.name,
-				dev_name(dev->dev), master->unique);
-		} else {
-			seq_printf(m, "%s %s\n", dev->driver->pci_driver.name,
-				dev_name(dev->dev));
-		}
+		seq_printf(m, "%s %s\n",
+			   bus_name, dev_name(dev->dev));
 	}
-
 	return 0;
 }
 
@@ -283,17 +272,18 @@ int drm_vma_info(struct seq_file *m, void *data)
 #endif
 
 	mutex_lock(&dev->struct_mutex);
-	seq_printf(m, "vma use count: %d, high_memory = %p, 0x%08llx\n",
+	seq_printf(m, "vma use count: %d, high_memory = %pK, 0x%pK\n",
 		   atomic_read(&dev->vma_count),
-		   high_memory, (u64)virt_to_phys(high_memory));
+		   high_memory, (void *)virt_to_phys(high_memory));
 
 	list_for_each_entry(pt, &dev->vmalist, head) {
 		vma = pt->vma;
 		if (!vma)
 			continue;
 		seq_printf(m,
-			   "\n%5d 0x%08lx-0x%08lx %c%c%c%c%c%c 0x%08lx000",
-			   pt->pid, vma->vm_start, vma->vm_end,
+			   "\n%5d 0x%pK-0x%pK %c%c%c%c%c%c 0x%08lx000",
+			   pt->pid,
+			   (void *)vma->vm_start, (void *)vma->vm_end,
 			   vma->vm_flags & VM_READ ? 'r' : '-',
 			   vma->vm_flags & VM_WRITE ? 'w' : '-',
 			   vma->vm_flags & VM_EXEC ? 'x' : '-',

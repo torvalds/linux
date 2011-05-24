@@ -89,7 +89,7 @@ static int __init twl4030_pwrbutton_probe(struct platform_device *pdev)
 	return 0;
 
 free_irq:
-	free_irq(irq, NULL);
+	free_irq(irq, pwr);
 free_input_dev:
 	input_free_device(pwr);
 	return err;

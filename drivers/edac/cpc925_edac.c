@@ -817,7 +817,7 @@ static void cpc925_del_edac_devices(void)
 	}
 }
 
-/* Convert current back-ground scrub rate into byte/sec bandwith */
+/* Convert current back-ground scrub rate into byte/sec bandwidth */
 static int cpc925_get_sdram_scrub_rate(struct mem_ctl_info *mci)
 {
 	struct cpc925_mc_pdata *pdata = mci->pvt_info;

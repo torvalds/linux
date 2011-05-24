@@ -27,8 +27,8 @@
 #include <linux/sched.h>
 #include <linux/jump_label.h>
 
-extern struct tracepoint __start___tracepoints[];
-extern struct tracepoint __stop___tracepoints[];
+extern struct tracepoint * const __start___tracepoints_ptrs[];
+extern struct tracepoint * const __stop___tracepoints_ptrs[];
 
 /* Set to 1 to enable tracepoint debug output */
 static const int tracepoint_debug;
@@ -298,10 +298,10 @@ static void disable_tracepoint(struct tracepoint *elem)
  *
  * Updates the probe callback corresponding to a range of tracepoints.
  */
-void
-tracepoint_update_probe_range(struct tracepoint *begin, struct tracepoint *end)
+void tracepoint_update_probe_range(struct tracepoint * const *begin,
+				   struct tracepoint * const *end)
 {
-	struct tracepoint *iter;
+	struct tracepoint * const *iter;
 	struct tracepoint_entry *mark_entry;
 
 	if (!begin)
@@ -309,12 +309,12 @@ tracepoint_update_probe_range(struct tracepoint *begin, struct tracepoint *end)
 
 	mutex_lock(&tracepoints_mutex);
 	for (iter = begin; iter < end; iter++) {
-		mark_entry = get_tracepoint(iter->name);
+		mark_entry = get_tracepoint((*iter)->name);
 		if (mark_entry) {
-			set_tracepoint(&mark_entry, iter,
+			set_tracepoint(&mark_entry, *iter,
 					!!mark_entry->refcount);
 		} else {
-			disable_tracepoint(iter);
+			disable_tracepoint(*iter);
 		}
 	}
 	mutex_unlock(&tracepoints_mutex);
@@ -326,8 +326,8 @@ tracepoint_update_probe_range(struct tracepoint *begin, struct tracepoint *end)
 static void tracepoint_update_probes(void)
 {
 	/* Core kernel tracepoints */
-	tracepoint_update_probe_range(__start___tracepoints,
-		__stop___tracepoints);
+	tracepoint_update_probe_range(__start___tracepoints_ptrs,
+		__stop___tracepoints_ptrs);
 	/* tracepoints in modules. */
 	module_update_tracepoints();
 }
@@ -514,8 +514,8 @@ EXPORT_SYMBOL_GPL(tracepoint_probe_update_all);
  * Will return the first tracepoint in the range if the input tracepoint is
  * NULL.
  */
-int tracepoint_get_iter_range(struct tracepoint **tracepoint,
-	struct tracepoint *begin, struct tracepoint *end)
+int tracepoint_get_iter_range(struct tracepoint * const **tracepoint,
+	struct tracepoint * const *begin, struct tracepoint * const *end)
 {
 	if (!*tracepoint && begin != end) {
 		*tracepoint = begin;
@@ -534,7 +534,8 @@ static void tracepoint_get_iter(struct tracepoint_iter *iter)
 	/* Core kernel tracepoints */
 	if (!iter->module) {
 		found = tracepoint_get_iter_range(&iter->tracepoint,
-				__start___tracepoints, __stop___tracepoints);
+				__start___tracepoints_ptrs,
+				__stop___tracepoints_ptrs);
 		if (found)
 			goto end;
 	}
@@ -585,8 +586,8 @@ int tracepoint_module_notify(struct notifier_block *self,
 	switch (val) {
 	case MODULE_STATE_COMING:
 	case MODULE_STATE_GOING:
-		tracepoint_update_probe_range(mod->tracepoints,
-			mod->tracepoints + mod->num_tracepoints);
+		tracepoint_update_probe_range(mod->tracepoints_ptrs,
+			mod->tracepoints_ptrs + mod->num_tracepoints);
 		break;
 	}
 	return 0;

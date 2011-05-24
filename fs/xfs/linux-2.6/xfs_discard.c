@@ -152,6 +152,8 @@ xfs_ioc_trim(
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -XFS_ERROR(EPERM);
+	if (!blk_queue_discard(q))
+		return -XFS_ERROR(EOPNOTSUPP);
 	if (copy_from_user(&range, urange, sizeof(range)))
 		return -XFS_ERROR(EFAULT);
 

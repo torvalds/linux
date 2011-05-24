@@ -32,11 +32,11 @@
  * Used with AR6000_XIOCTL_AP_GET_STA_LIST
  */
 typedef struct {
-    A_UINT8     mac[ATH_MAC_LEN];
-    A_UINT8     aid;
-    A_UINT8     keymgmt;
-    A_UINT8     ucipher;
-    A_UINT8     auth;
+    u8 mac[ATH_MAC_LEN];
+    u8 aid;
+    u8 keymgmt;
+    u8 ucipher;
+    u8 auth;
 } station_t;
 typedef struct {
     station_t sta[AP_MAX_NUM_STA];

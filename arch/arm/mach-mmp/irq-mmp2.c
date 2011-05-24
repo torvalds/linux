@@ -110,9 +110,9 @@ static void init_mux_irq(struct irq_chip *chip, int start, int num)
 		if (chip->irq_ack)
 			chip->irq_ack(d);
 
-		set_irq_chip(irq, chip);
+		irq_set_chip(irq, chip);
 		set_irq_flags(irq, IRQF_VALID);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_handler(irq, handle_level_irq);
 	}
 }
 
@@ -122,7 +122,7 @@ void __init mmp2_init_icu(void)
 
 	for (irq = 0; irq < IRQ_MMP2_MUX_BASE; irq++) {
 		icu_mask_irq(irq_get_irq_data(irq));
-		set_irq_chip(irq, &icu_irq_chip);
+		irq_set_chip(irq, &icu_irq_chip);
 		set_irq_flags(irq, IRQF_VALID);
 
 		switch (irq) {
@@ -133,7 +133,7 @@ void __init mmp2_init_icu(void)
 		case IRQ_MMP2_SSP_MUX:
 			break;
 		default:
-			set_irq_handler(irq, handle_level_irq);
+			irq_set_handler(irq, handle_level_irq);
 			break;
 		}
 	}
@@ -149,9 +149,9 @@ void __init mmp2_init_icu(void)
 	init_mux_irq(&misc_irq_chip, IRQ_MMP2_MISC_BASE, 15);
 	init_mux_irq(&ssp_irq_chip, IRQ_MMP2_SSP_BASE, 2);
 
-	set_irq_chained_handler(IRQ_MMP2_PMIC_MUX, pmic_irq_demux);
-	set_irq_chained_handler(IRQ_MMP2_RTC_MUX, rtc_irq_demux);
-	set_irq_chained_handler(IRQ_MMP2_TWSI_MUX, twsi_irq_demux);
-	set_irq_chained_handler(IRQ_MMP2_MISC_MUX, misc_irq_demux);
-	set_irq_chained_handler(IRQ_MMP2_SSP_MUX, ssp_irq_demux);
+	irq_set_chained_handler(IRQ_MMP2_PMIC_MUX, pmic_irq_demux);
+	irq_set_chained_handler(IRQ_MMP2_RTC_MUX, rtc_irq_demux);
+	irq_set_chained_handler(IRQ_MMP2_TWSI_MUX, twsi_irq_demux);
+	irq_set_chained_handler(IRQ_MMP2_MISC_MUX, misc_irq_demux);
+	irq_set_chained_handler(IRQ_MMP2_SSP_MUX, ssp_irq_demux);
 }

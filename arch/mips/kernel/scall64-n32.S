@@ -425,4 +425,8 @@ EXPORT(sysn32_call_table)
 	PTR	sys_fanotify_init		/* 6300 */
 	PTR	sys_fanotify_mark
 	PTR	sys_prlimit64
+	PTR	sys_name_to_handle_at
+	PTR	sys_open_by_handle_at
+	PTR	compat_sys_clock_adjtime	/* 6305 */
+	PTR	sys_syncfs
 	.size	sysn32_call_table,.-sysn32_call_table

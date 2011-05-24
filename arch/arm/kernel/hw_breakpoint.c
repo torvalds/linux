@@ -137,11 +137,10 @@ static u8 get_debug_arch(void)
 	u32 didr;
 
 	/* Do we implement the extended CPUID interface? */
-	if (((read_cpuid_id() >> 16) & 0xf) != 0xf) {
-		pr_warning("CPUID feature registers not supported. "
-				"Assuming v6 debug is present.\n");
+	if (WARN_ONCE((((read_cpuid_id() >> 16) & 0xf) != 0xf),
+	    "CPUID feature registers not supported. "
+	    "Assuming v6 debug is present.\n"))
 		return ARM_DEBUG_ARCH_V6;
-	}
 
 	ARM_DBG_READ(c0, 0, didr);
 	return (didr >> 16) & 0xf;
@@ -150,6 +149,12 @@ static u8 get_debug_arch(void)
 u8 arch_get_debug_arch(void)
 {
 	return debug_arch;
+}
+
+static int debug_arch_supported(void)
+{
+	u8 arch = get_debug_arch();
+	return arch >= ARM_DEBUG_ARCH_V6 && arch <= ARM_DEBUG_ARCH_V7_ECP14;
 }
 
 /* Determine number of BRP register available. */
@@ -233,8 +238,8 @@ static int enable_monitor_mode(void)
 	ARM_DBG_READ(c1, 0, dscr);
 
 	/* Ensure that halting mode is disabled. */
-	if (WARN_ONCE(dscr & ARM_DSCR_HDBGEN, "halting debug mode enabled."
-				"Unable to access hardware resources.")) {
+	if (WARN_ONCE(dscr & ARM_DSCR_HDBGEN,
+			"halting debug mode enabled. Unable to access hardware resources.\n")) {
 		ret = -EPERM;
 		goto out;
 	}
@@ -268,6 +273,9 @@ out:
 
 int hw_breakpoint_slots(int type)
 {
+	if (!debug_arch_supported())
+		return 0;
+
 	/*
 	 * We can be called early, so don't rely on
 	 * our static variables being initialised.
@@ -369,7 +377,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 		}
 	}
 
-	if (WARN_ONCE(i == max_slots, "Can't find any breakpoint slot")) {
+	if (WARN_ONCE(i == max_slots, "Can't find any breakpoint slot\n")) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -415,7 +423,7 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 		}
 	}
 
-	if (WARN_ONCE(i == max_slots, "Can't find any breakpoint slot"))
+	if (WARN_ONCE(i == max_slots, "Can't find any breakpoint slot\n"))
 		return;
 
 	/* Reset the control register. */
@@ -627,7 +635,7 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	if (WARN_ONCE(!bp->overflow_handler &&
 		(arch_check_bp_in_kernelspace(bp) || !core_has_mismatch_brps()
 		 || !bp->hw.bp_target),
-			"overflow handler required but none found")) {
+			"overflow handler required but none found\n")) {
 		ret = -EINVAL;
 	}
 out:
@@ -828,24 +836,44 @@ static int hw_breakpoint_pending(unsigned long addr, unsigned int fsr,
 /*
  * One-time initialisation.
  */
-static void reset_ctrl_regs(void *unused)
+static void reset_ctrl_regs(void *info)
 {
-	int i;
+	int i, cpu = smp_processor_id();
+	u32 dbg_power;
+	cpumask_t *cpumask = info;
 
 	/*
 	 * v7 debug contains save and restore registers so that debug state
-	 * can be maintained across low-power modes without leaving
-	 * the debug logic powered up. It is IMPLEMENTATION DEFINED whether
-	 * we can write to the debug registers out of reset, so we must
-	 * unlock the OS Lock Access Register to avoid taking undefined
-	 * instruction exceptions later on.
+	 * can be maintained across low-power modes without leaving the debug
+	 * logic powered up. It is IMPLEMENTATION DEFINED whether we can access
+	 * the debug registers out of reset, so we must unlock the OS Lock
+	 * Access Register to avoid taking undefined instruction exceptions
+	 * later on.
 	 */
 	if (debug_arch >= ARM_DEBUG_ARCH_V7_ECP14) {
+		/*
+		 * Ensure sticky power-down is clear (i.e. debug logic is
+		 * powered up).
+		 */
+		asm volatile("mrc p14, 0, %0, c1, c5, 4" : "=r" (dbg_power));
+		if ((dbg_power & 0x1) == 0) {
+			pr_warning("CPU %d debug is powered down!\n", cpu);
+			cpumask_or(cpumask, cpumask, cpumask_of(cpu));
+			return;
+		}
+
 		/*
 		 * Unconditionally clear the lock by writing a value
 		 * other than 0xC5ACCE55 to the access register.
 		 */
 		asm volatile("mcr p14, 0, %0, c1, c0, 4" : : "r" (0));
+		isb();
+
+		/*
+		 * Clear any configured vector-catch events before
+		 * enabling monitor mode.
+		 */
+		asm volatile("mcr p14, 0, %0, c0, c7, 0" : : "r" (0));
 		isb();
 	}
 
@@ -879,10 +907,11 @@ static struct notifier_block __cpuinitdata dbg_reset_nb = {
 static int __init arch_hw_breakpoint_init(void)
 {
 	u32 dscr;
+	cpumask_t cpumask = { CPU_BITS_NONE };
 
 	debug_arch = get_debug_arch();
 
-	if (debug_arch > ARM_DEBUG_ARCH_V7_ECP14) {
+	if (!debug_arch_supported()) {
 		pr_info("debug architecture 0x%x unsupported.\n", debug_arch);
 		return 0;
 	}
@@ -899,18 +928,24 @@ static int __init arch_hw_breakpoint_init(void)
 		pr_info("%d breakpoint(s) reserved for watchpoint "
 				"single-step.\n", core_num_reserved_brps);
 
+	/*
+	 * Reset the breakpoint resources. We assume that a halting
+	 * debugger will leave the world in a nice state for us.
+	 */
+	on_each_cpu(reset_ctrl_regs, &cpumask, 1);
+	if (!cpumask_empty(&cpumask)) {
+		core_num_brps = 0;
+		core_num_reserved_brps = 0;
+		core_num_wrps = 0;
+		return 0;
+	}
+
 	ARM_DBG_READ(c1, 0, dscr);
 	if (dscr & ARM_DSCR_HDBGEN) {
-		pr_warning("halting debug mode enabled. Assuming maximum "
-				"watchpoint size of 4 bytes.");
+		max_watchpoint_len = 4;
+		pr_warning("halting debug mode enabled. Assuming maximum watchpoint size of %u bytes.\n",
+			   max_watchpoint_len);
 	} else {
-		/*
-		 * Reset the breakpoint resources. We assume that a halting
-		 * debugger will leave the world in a nice state for us.
-		 */
-		smp_call_function(reset_ctrl_regs, NULL, 1);
-		reset_ctrl_regs(NULL);
-
 		/* Work out the maximum supported watchpoint length. */
 		max_watchpoint_len = get_max_wp_len();
 		pr_info("maximum watchpoint size is %u bytes.\n",

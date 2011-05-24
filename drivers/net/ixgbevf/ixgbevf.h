@@ -207,7 +207,6 @@ struct ixgbevf_adapter {
 	u64 hw_tso_ctxt;
 	u64 hw_tso6_ctxt;
 	u32 tx_timeout_count;
-	bool detect_tx_hung;
 
 	/* RX */
 	struct ixgbevf_ring *rx_ring;	/* One per active queue */

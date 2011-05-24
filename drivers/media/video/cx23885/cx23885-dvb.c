@@ -58,6 +58,8 @@
 #include "atbm8830.h"
 #include "ds3000.h"
 #include "cx23885-f300.h"
+#include "altera-ci.h"
+#include "stv0367.h"
 
 static unsigned int debug;
 
@@ -106,6 +108,22 @@ static void dvb_buf_release(struct videobuf_queue *q,
 			    struct videobuf_buffer *vb)
 {
 	cx23885_free_buffer(q, (struct cx23885_buffer *)vb);
+}
+
+static void cx23885_dvb_gate_ctrl(struct cx23885_tsport  *port, int open)
+{
+	struct videobuf_dvb_frontends *f;
+	struct videobuf_dvb_frontend *fe;
+
+	f = &port->frontends;
+
+	if (f->gate <= 1) /* undefined or fe0 */
+		fe = videobuf_dvb_get_frontend(f, 1);
+	else
+		fe = videobuf_dvb_get_frontend(f, f->gate);
+
+	if (fe && fe->dvb.frontend && fe->dvb.frontend->ops.i2c_gate_ctrl)
+		fe->dvb.frontend->ops.i2c_gate_ctrl(fe->dvb.frontend, open);
 }
 
 static struct videobuf_queue_ops dvb_qops = {
@@ -570,12 +588,84 @@ static struct max2165_config mygic_x8558pro_max2165_cfg2 = {
 	.i2c_address = 0x60,
 	.osc_clk = 20
 };
+static struct stv0367_config netup_stv0367_config[] = {
+	{
+		.demod_address = 0x1c,
+		.xtal = 27000000,
+		.if_khz = 4500,
+		.if_iq_mode = 0,
+		.ts_mode = 1,
+		.clk_pol = 0,
+	}, {
+		.demod_address = 0x1d,
+		.xtal = 27000000,
+		.if_khz = 4500,
+		.if_iq_mode = 0,
+		.ts_mode = 1,
+		.clk_pol = 0,
+	},
+};
+
+static struct xc5000_config netup_xc5000_config[] = {
+	{
+		.i2c_address = 0x61,
+		.if_khz = 4500,
+	}, {
+		.i2c_address = 0x64,
+		.if_khz = 4500,
+	},
+};
+
+int netup_altera_fpga_rw(void *device, int flag, int data, int read)
+{
+	struct cx23885_dev *dev = (struct cx23885_dev *)device;
+	unsigned long timeout = jiffies + msecs_to_jiffies(1);
+	uint32_t mem = 0;
+
+	mem = cx_read(MC417_RWD);
+	if (read)
+		cx_set(MC417_OEN, ALT_DATA);
+	else {
+		cx_clear(MC417_OEN, ALT_DATA);/* D0-D7 out */
+		mem &= ~ALT_DATA;
+		mem |= (data & ALT_DATA);
+	}
+
+	if (flag)
+		mem |= ALT_AD_RG;
+	else
+		mem &= ~ALT_AD_RG;
+
+	mem &= ~ALT_CS;
+	if (read)
+		mem = (mem & ~ALT_RD) | ALT_WR;
+	else
+		mem = (mem & ~ALT_WR) | ALT_RD;
+
+	cx_write(MC417_RWD, mem);  /* start RW cycle */
+
+	for (;;) {
+		mem = cx_read(MC417_RWD);
+		if ((mem & ALT_RDY) == 0)
+			break;
+		if (time_after(jiffies, timeout))
+			break;
+		udelay(1);
+	}
+
+	cx_set(MC417_RWD, ALT_RD | ALT_WR | ALT_CS);
+	if (read)
+		return mem & ALT_DATA;
+
+	return 0;
+};
 
 static int dvb_register(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
 	struct cx23885_i2c *i2c_bus = NULL, *i2c_bus2 = NULL;
-	struct videobuf_dvb_frontend *fe0;
+	struct videobuf_dvb_frontend *fe0, *fe1 = NULL;
+	int mfe_shared = 0; /* bus not shared by default */
 	int ret;
 
 	/* Get the first frontend */
@@ -585,6 +675,12 @@ static int dvb_register(struct cx23885_tsport *port)
 
 	/* init struct videobuf_dvb */
 	fe0->dvb.name = dev->name;
+
+	/* multi-frontend gate control is undefined or defaults to fe0 */
+	port->frontends.gate = 0;
+
+	/* Sets the gate control callback to be used by i2c command calls */
+	port->gate_ctrl = cx23885_dvb_gate_ctrl;
 
 	/* init frontend */
 	switch (dev->board) {
@@ -966,20 +1062,64 @@ static int dvb_register(struct cx23885_tsport *port)
 			break;
 		}
 		break;
-
+	case CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF:
+		i2c_bus = &dev->i2c_bus[0];
+		mfe_shared = 1;/* MFE */
+		port->frontends.gate = 0;/* not clear for me yet */
+		/* ports B, C */
+		/* MFE frontend 1 DVB-T */
+		fe0->dvb.frontend = dvb_attach(stv0367ter_attach,
+					&netup_stv0367_config[port->nr - 1],
+					&i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			if (NULL == dvb_attach(xc5000_attach,
+					fe0->dvb.frontend,
+					&i2c_bus->i2c_adap,
+					&netup_xc5000_config[port->nr - 1]))
+				goto frontend_detach;
+			/* load xc5000 firmware */
+			fe0->dvb.frontend->ops.tuner_ops.init(fe0->dvb.frontend);
+		}
+		/* MFE frontend 2 */
+		fe1 = videobuf_dvb_get_frontend(&port->frontends, 2);
+		if (fe1 == NULL)
+			goto frontend_detach;
+		/* DVB-C init */
+		fe1->dvb.frontend = dvb_attach(stv0367cab_attach,
+					&netup_stv0367_config[port->nr - 1],
+					&i2c_bus->i2c_adap);
+		if (fe1->dvb.frontend != NULL) {
+			fe1->dvb.frontend->id = 1;
+			if (NULL == dvb_attach(xc5000_attach,
+					fe1->dvb.frontend,
+					&i2c_bus->i2c_adap,
+					&netup_xc5000_config[port->nr - 1]))
+				goto frontend_detach;
+		}
+		break;
 	default:
 		printk(KERN_INFO "%s: The frontend of your DVB/ATSC card "
 			" isn't supported yet\n",
 		       dev->name);
 		break;
 	}
-	if (NULL == fe0->dvb.frontend) {
+
+	if ((NULL == fe0->dvb.frontend) || (fe1 && NULL == fe1->dvb.frontend)) {
 		printk(KERN_ERR "%s: frontend initialization failed\n",
-			dev->name);
-		return -1;
+		       dev->name);
+		goto frontend_detach;
 	}
+
 	/* define general-purpose callback pointer */
 	fe0->dvb.frontend->callback = cx23885_tuner_callback;
+	if (fe1)
+		fe1->dvb.frontend->callback = cx23885_tuner_callback;
+#if 0
+	/* Ensure all frontends negotiate bus access */
+	fe0->dvb.frontend->ops.ts_bus_ctrl = cx23885_dvb_bus_ctrl;
+	if (fe1)
+		fe1->dvb.frontend->ops.ts_bus_ctrl = cx23885_dvb_bus_ctrl;
+#endif
 
 	/* Put the analog decoder in standby to keep it quiet */
 	call_all(dev, core, s_power, 0);
@@ -989,10 +1129,10 @@ static int dvb_register(struct cx23885_tsport *port)
 
 	/* register everything */
 	ret = videobuf_dvb_register_bus(&port->frontends, THIS_MODULE, port,
-					&dev->pci->dev, adapter_nr, 0,
+					&dev->pci->dev, adapter_nr, mfe_shared,
 					cx23885_dvb_fe_ioctl_override);
 	if (ret)
-		return ret;
+		goto frontend_detach;
 
 	/* init CI & MAC */
 	switch (dev->board) {
@@ -1006,6 +1146,17 @@ static int dvb_register(struct cx23885_tsport *port)
 			port->nr, port->frontends.adapter.proposed_mac);
 
 		netup_ci_init(port);
+		break;
+		}
+	case CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF: {
+		struct altera_ci_config netup_ci_cfg = {
+			.dev = dev,/* magic number to identify*/
+			.adapter = &port->frontends.adapter,/* for CI */
+			.demux = &fe0->dvb.demux,/* for hw pid filter */
+			.fpga_rw = netup_altera_fpga_rw,
+		};
+
+		altera_ci_init(&netup_ci_cfg, port->nr);
 		break;
 		}
 	case CX23885_BOARD_TEVII_S470: {
@@ -1024,6 +1175,11 @@ static int dvb_register(struct cx23885_tsport *port)
 	}
 
 	return ret;
+
+frontend_detach:
+	port->gate_ctrl = NULL;
+	videobuf_dvb_dealloc_frontends(&port->frontends);
+	return -EINVAL;
 }
 
 int cx23885_dvb_register(struct cx23885_tsport *port)
@@ -1100,7 +1256,12 @@ int cx23885_dvb_unregister(struct cx23885_tsport *port)
 	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:
 		netup_ci_exit(port);
 		break;
+	case CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF:
+		altera_ci_release(port->dev, port->nr);
+		break;
 	}
+
+	port->gate_ctrl = NULL;
 
 	return 0;
 }

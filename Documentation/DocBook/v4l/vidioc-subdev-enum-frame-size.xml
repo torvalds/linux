@@ -1,0 +1,154 @@
+<refentry id="vidioc-subdev-enum-frame-size">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_SUBDEV_ENUM_FRAME_SIZE</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_SUBDEV_ENUM_FRAME_SIZE</refname>
+    <refpurpose>Enumerate media bus frame sizes</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_subdev_frame_size_enum *
+	<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_SUBDEV_ENUM_FRAME_SIZE</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <note>
+      <title>Experimental</title>
+      <para>This is an <link linkend="experimental">experimental</link>
+      interface and may change in the future.</para>
+    </note>
+
+    <para>This ioctl allows applications to enumerate all frame sizes
+    supported by a sub-device on the given pad for the given media bus format.
+    Supported formats can be retrieved with the &VIDIOC-SUBDEV-ENUM-MBUS-CODE;
+    ioctl.</para>
+
+    <para>To enumerate frame sizes applications initialize the
+    <structfield>pad</structfield>, <structfield>code</structfield> and
+    <structfield>index</structfield> fields of the
+    &v4l2-subdev-mbus-code-enum; and call the
+    <constant>VIDIOC_SUBDEV_ENUM_FRAME_SIZE</constant> ioctl with a pointer to
+    the structure. Drivers fill the minimum and maximum frame sizes or return
+    an &EINVAL; if one of the input parameters is invalid.</para>
+
+    <para>Sub-devices that only support discrete frame sizes (such as most
+    sensors) will return one or more frame sizes with identical minimum and
+    maximum values.</para>
+
+    <para>Not all possible sizes in given [minimum, maximum] ranges need to be
+    supported. For instance, a scaler that uses a fixed-point scaling ratio
+    might not be able to produce every frame size between the minimum and
+    maximum values. Applications must use the &VIDIOC-SUBDEV-S-FMT; ioctl to
+    try the sub-device for an exact supported frame size.</para>
+
+    <para>Available frame sizes may depend on the current 'try' formats at other
+    pads of the sub-device, as well as on the current active links and the
+    current values of V4L2 controls. See &VIDIOC-SUBDEV-G-FMT; for more
+    information about try formats.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-subdev-frame-size-enum">
+      <title>struct <structname>v4l2_subdev_frame_size_enum</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>index</structfield></entry>
+	    <entry>Number of the format in the enumeration, set by the
+	    application.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>pad</structfield></entry>
+	    <entry>Pad number as reported by the media controller API.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>code</structfield></entry>
+	    <entry>The media bus format code, as defined in
+	    <xref linkend="v4l2-mbus-format" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>min_width</structfield></entry>
+	    <entry>Minimum frame width, in pixels.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>max_width</structfield></entry>
+	    <entry>Maximum frame width, in pixels.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>min_height</structfield></entry>
+	    <entry>Minimum frame height, in pixels.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>max_height</structfield></entry>
+	    <entry>Maximum frame height, in pixels.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[9]</entry>
+	    <entry>Reserved for future extensions. Applications and drivers must
+	    set the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The &v4l2-subdev-frame-size-enum; <structfield>pad</structfield>
+	  references a non-existing pad, the <structfield>code</structfield> is
+	  invalid for the given pad or the <structfield>index</structfield>
+	  field is out of bounds.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

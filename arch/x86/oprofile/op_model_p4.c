@@ -50,7 +50,7 @@ static inline void setup_num_counters(void)
 #endif
 }
 
-static int inline addr_increment(void)
+static inline int addr_increment(void)
 {
 #ifdef CONFIG_SMP
 	return smp_num_siblings == 2 ? 2 : 1;

@@ -208,7 +208,7 @@ static int kill_proc_ao(struct task_struct *t, unsigned long addr, int trapno,
 	 * Don't use force here, it's convenient if the signal
 	 * can be temporarily blocked.
 	 * This could cause a loop when the user sets SIGBUS
-	 * to SIG_IGN, but hopefully noone will do that?
+	 * to SIG_IGN, but hopefully no one will do that?
 	 */
 	ret = send_sig_info(SIGBUS, &si, t);  /* synchronous? */
 	if (ret < 0)
@@ -233,8 +233,8 @@ void shake_page(struct page *p, int access)
 	}
 
 	/*
-	 * Only all shrink_slab here (which would also
-	 * shrink other caches) if access is not potentially fatal.
+	 * Only call shrink_slab here (which would also shrink other caches) if
+	 * access is not potentially fatal.
 	 */
 	if (access) {
 		int nr;
@@ -386,8 +386,6 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
 	struct task_struct *tsk;
 	struct anon_vma *av;
 
-	if (!PageHuge(page) && unlikely(split_huge_page(page)))
-		return;
 	read_lock(&tasklist_lock);
 	av = page_lock_anon_vma(page);
 	if (av == NULL)	/* Not actually mapped anymore */
@@ -636,7 +634,7 @@ static int me_pagecache_dirty(struct page *p, unsigned long pfn)
 		 * when the page is reread or dropped.  If an
 		 * application assumes it will always get error on
 		 * fsync, but does other operations on the fd before
-		 * and the page is dropped inbetween then the error
+		 * and the page is dropped between then the error
 		 * will not be properly reported.
 		 *
 		 * This can already happen even without hwpoisoned
@@ -730,7 +728,7 @@ static int me_huge_page(struct page *p, unsigned long pfn)
  * The table matches them in order and calls the right handler.
  *
  * This is quite tricky because we can access page at any time
- * in its live cycle, so all accesses have to be extremly careful.
+ * in its live cycle, so all accesses have to be extremely careful.
  *
  * This is not complete. More states could be added.
  * For any missing state don't attempt recovery.
@@ -856,6 +854,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	int ret;
 	int kill = 1;
 	struct page *hpage = compound_head(p);
+	struct page *ppage;
 
 	if (PageReserved(p) || PageSlab(p))
 		return SWAP_SUCCESS;
@@ -897,6 +896,44 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	}
 
 	/*
+	 * ppage: poisoned page
+	 *   if p is regular page(4k page)
+	 *        ppage == real poisoned page;
+	 *   else p is hugetlb or THP, ppage == head page.
+	 */
+	ppage = hpage;
+
+	if (PageTransHuge(hpage)) {
+		/*
+		 * Verify that this isn't a hugetlbfs head page, the check for
+		 * PageAnon is just for avoid tripping a split_huge_page
+		 * internal debug check, as split_huge_page refuses to deal with
+		 * anything that isn't an anon page. PageAnon can't go away fro
+		 * under us because we hold a refcount on the hpage, without a
+		 * refcount on the hpage. split_huge_page can't be safely called
+		 * in the first place, having a refcount on the tail isn't
+		 * enough * to be safe.
+		 */
+		if (!PageHuge(hpage) && PageAnon(hpage)) {
+			if (unlikely(split_huge_page(hpage))) {
+				/*
+				 * FIXME: if splitting THP is failed, it is
+				 * better to stop the following operation rather
+				 * than causing panic by unmapping. System might
+				 * survive if the page is freed later.
+				 */
+				printk(KERN_INFO
+					"MCE %#lx: failed to split THP\n", pfn);
+
+				BUG_ON(!PageHWPoison(p));
+				return SWAP_FAIL;
+			}
+			/* THP is split, so ppage should be the real poisoned page. */
+			ppage = p;
+		}
+	}
+
+	/*
 	 * First collect all the processes that have the page
 	 * mapped in dirty form.  This has to be done before try_to_unmap,
 	 * because ttu takes the rmap data structures down.
@@ -905,12 +942,18 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	 * there's nothing that can be done.
 	 */
 	if (kill)
-		collect_procs(hpage, &tokill);
+		collect_procs(ppage, &tokill);
 
-	ret = try_to_unmap(hpage, ttu);
+	if (hpage != ppage)
+		lock_page(ppage);
+
+	ret = try_to_unmap(ppage, ttu);
 	if (ret != SWAP_SUCCESS)
 		printk(KERN_ERR "MCE %#lx: failed to unmap page (mapcount=%d)\n",
-				pfn, page_mapcount(hpage));
+				pfn, page_mapcount(ppage));
+
+	if (hpage != ppage)
+		unlock_page(ppage);
 
 	/*
 	 * Now that the dirty bit has been propagated to the
@@ -921,7 +964,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	 * use a more force-full uncatchable kill to prevent
 	 * any accesses to the poisoned memory.
 	 */
-	kill_procs_ao(&tokill, !!PageDirty(hpage), trapno,
+	kill_procs_ao(&tokill, !!PageDirty(ppage), trapno,
 		      ret != SWAP_SUCCESS, p, pfn);
 
 	return ret;
@@ -995,7 +1038,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 			 * Check "just unpoisoned", "filter hit", and
 			 * "race with other subpage."
 			 */
-			lock_page_nosync(hpage);
+			lock_page(hpage);
 			if (!PageHWPoison(hpage)
 			    || (hwpoison_filter(p) && TestClearPageHWPoison(p))
 			    || (p != hpage && TestSetPageHWPoison(hpage))) {
@@ -1022,19 +1065,22 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	 * The check (unnecessarily) ignores LRU pages being isolated and
 	 * walked by the page reclaim code, however that's not a big loss.
 	 */
-	if (!PageLRU(p) && !PageHuge(p))
-		shake_page(p, 0);
-	if (!PageLRU(p) && !PageHuge(p)) {
-		/*
-		 * shake_page could have turned it free.
-		 */
-		if (is_free_buddy_page(p)) {
-			action_result(pfn, "free buddy, 2nd try", DELAYED);
-			return 0;
+	if (!PageHuge(p) && !PageTransCompound(p)) {
+		if (!PageLRU(p))
+			shake_page(p, 0);
+		if (!PageLRU(p)) {
+			/*
+			 * shake_page could have turned it free.
+			 */
+			if (is_free_buddy_page(p)) {
+				action_result(pfn, "free buddy, 2nd try",
+						DELAYED);
+				return 0;
+			}
+			action_result(pfn, "non LRU", IGNORED);
+			put_page(p);
+			return -EBUSY;
 		}
-		action_result(pfn, "non LRU", IGNORED);
-		put_page(p);
-		return -EBUSY;
 	}
 
 	/*
@@ -1042,7 +1088,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	 * It's very difficult to mess with pages currently under IO
 	 * and in many cases impossible, so we just avoid it here.
 	 */
-	lock_page_nosync(hpage);
+	lock_page(hpage);
 
 	/*
 	 * unpoison always clear PG_hwpoison inside page lock
@@ -1064,7 +1110,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	 * For error on the tail page, we should set PG_hwpoison
 	 * on the head page to show that the hugepage is hwpoisoned
 	 */
-	if (PageTail(p) && TestSetPageHWPoison(hpage)) {
+	if (PageHuge(p) && PageTail(p) && TestSetPageHWPoison(hpage)) {
 		action_result(pfn, "hugepage already hardware poisoned",
 				IGNORED);
 		unlock_page(hpage);
@@ -1084,7 +1130,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 
 	/*
 	 * Now take care of user space mappings.
-	 * Abort on fail: __remove_from_page_cache() assumes unmapped page.
+	 * Abort on fail: __delete_from_page_cache() assumes unmapped page.
 	 */
 	if (hwpoison_user_mappings(p, pfn, trapno) != SWAP_SUCCESS) {
 		printk(KERN_ERR "MCE %#lx: cannot unmap page, give up\n", pfn);
@@ -1185,7 +1231,7 @@ int unpoison_memory(unsigned long pfn)
 		return 0;
 	}
 
-	lock_page_nosync(page);
+	lock_page(page);
 	/*
 	 * This test is racy because PG_hwpoison is set outside of page lock.
 	 * That's acceptable because that won't trigger kernel panic. Instead,
@@ -1295,7 +1341,10 @@ static int soft_offline_huge_page(struct page *page, int flags)
 	ret = migrate_huge_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0,
 				true);
 	if (ret) {
-		putback_lru_pages(&pagelist);
+		struct page *page1, *page2;
+		list_for_each_entry_safe(page1, page2, &pagelist, lru)
+			put_page(page1);
+
 		pr_debug("soft offline: %#lx: migration failed %d, type %lx\n",
 			 pfn, ret, page->flags);
 		if (ret > 0)
@@ -1419,6 +1468,7 @@ int soft_offline_page(struct page *page, int flags)
 		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
 								0, true);
 		if (ret) {
+			putback_lru_pages(&pagelist);
 			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
 				pfn, ret, page->flags);
 			if (ret > 0)
@@ -1437,35 +1487,3 @@ done:
 	/* keep elevated page count for bad page */
 	return ret;
 }
-
-/*
- * The caller must hold current->mm->mmap_sem in read mode.
- */
-int is_hwpoison_address(unsigned long addr)
-{
-	pgd_t *pgdp;
-	pud_t pud, *pudp;
-	pmd_t pmd, *pmdp;
-	pte_t pte, *ptep;
-	swp_entry_t entry;
-
-	pgdp = pgd_offset(current->mm, addr);
-	if (!pgd_present(*pgdp))
-		return 0;
-	pudp = pud_offset(pgdp, addr);
-	pud = *pudp;
-	if (!pud_present(pud) || pud_large(pud))
-		return 0;
-	pmdp = pmd_offset(pudp, addr);
-	pmd = *pmdp;
-	if (!pmd_present(pmd) || pmd_large(pmd))
-		return 0;
-	ptep = pte_offset_map(pmdp, addr);
-	pte = *ptep;
-	pte_unmap(ptep);
-	if (!is_swap_pte(pte))
-		return 0;
-	entry = pte_to_swp_entry(pte);
-	return is_hwpoison_entry(entry);
-}
-EXPORT_SYMBOL_GPL(is_hwpoison_address);

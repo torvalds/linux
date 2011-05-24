@@ -15,21 +15,20 @@
 
 static int bcm_char_open(struct inode *inode, struct file * filp)
 {
-	PMINI_ADAPTER 		Adapter = NULL;
-    PPER_TARANG_DATA 	pTarang = NULL;
+	PMINI_ADAPTER       Adapter = NULL;
+	PPER_TARANG_DATA    pTarang = NULL;
 
 	Adapter = GET_BCM_ADAPTER(gblpnetdev);
-    pTarang = (PPER_TARANG_DATA)kmalloc(sizeof(PER_TARANG_DATA), GFP_KERNEL);
-    if (!pTarang)
-        return -ENOMEM;
+	pTarang = kzalloc(sizeof(PER_TARANG_DATA), GFP_KERNEL);
+	if (!pTarang)
+		return -ENOMEM;
 
-	memset (pTarang, 0, sizeof(PER_TARANG_DATA));
-    pTarang->Adapter = Adapter;
-	pTarang->RxCntrlMsgBitMask = 0xFFFFFFFF & ~(1 << 0xB) ;
+	pTarang->Adapter = Adapter;
+	pTarang->RxCntrlMsgBitMask = 0xFFFFFFFF & ~(1 << 0xB);
 
 	down(&Adapter->RxAppControlQueuelock);
-    pTarang->next = Adapter->pTarangs;
-    Adapter->pTarangs = pTarang;
+	pTarang->next = Adapter->pTarangs;
+	Adapter->pTarangs = pTarang;
 	up(&Adapter->RxAppControlQueuelock);
 
 	/* Store the Adapter structure */
@@ -41,118 +40,117 @@ static int bcm_char_open(struct inode *inode, struct file * filp)
 	nonseekable_open(inode, filp);
 	return 0;
 }
+
 static int bcm_char_release(struct inode *inode, struct file *filp)
 {
-    PPER_TARANG_DATA pTarang, tmp, ptmp;
-	PMINI_ADAPTER Adapter=NULL;
-    struct sk_buff * pkt, * npkt;
+	PPER_TARANG_DATA pTarang, tmp, ptmp;
+	PMINI_ADAPTER Adapter = NULL;
+	struct sk_buff *pkt, *npkt;
 
-    pTarang = (PPER_TARANG_DATA)filp->private_data;
+	pTarang = (PPER_TARANG_DATA)filp->private_data;
 
-    if(pTarang == NULL)
-	{
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "ptarang is null\n");
-	return 0;
+	if (pTarang == NULL) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"ptarang is null\n");
+		return 0;
 	}
 
 	Adapter = pTarang->Adapter;
 
-    down( &Adapter->RxAppControlQueuelock);
+	down(&Adapter->RxAppControlQueuelock);
 
-    tmp = Adapter->pTarangs;
-    for ( ptmp = NULL; tmp; ptmp = tmp, tmp = tmp->next )
-	{
-        if ( tmp == pTarang )
+	tmp = Adapter->pTarangs;
+	for (ptmp = NULL; tmp; ptmp = tmp, tmp = tmp->next) {
+		if (tmp == pTarang)
 			break;
 	}
 
-    if ( tmp )
-	{
-        if ( !ptmp )
-            Adapter->pTarangs = tmp->next;
-        else
-            ptmp->next = tmp->next;
+	if (tmp) {
+		if (!ptmp)
+			Adapter->pTarangs = tmp->next;
+		else
+			ptmp->next = tmp->next;
+	} else {
+		up(&Adapter->RxAppControlQueuelock);
+		return 0;
 	}
 
-    else
-	{
-    	up( &Adapter->RxAppControlQueuelock);
-	return 0;
+	pkt = pTarang->RxAppControlHead;
+	while (pkt) {
+		npkt = pkt->next;
+		kfree_skb(pkt);
+		pkt = npkt;
 	}
 
-    pkt = pTarang->RxAppControlHead;
-    while ( pkt )
-	{
-        npkt = pkt->next;
-        kfree_skb(pkt);
-        pkt = npkt;
-	}
+	up(&Adapter->RxAppControlQueuelock);
 
-    up( &Adapter->RxAppControlQueuelock);
+	/*Stop Queuing the control response Packets*/
+	atomic_dec(&Adapter->ApplicationRunning);
 
-    /*Stop Queuing the control response Packets*/
-    atomic_dec(&Adapter->ApplicationRunning);
-
-    kfree(pTarang);
+	kfree(pTarang);
 
 	/* remove this filp from the asynchronously notified filp's */
-    filp->private_data = NULL;
-    return 0;
+	filp->private_data = NULL;
+	return 0;
 }
 
-static ssize_t bcm_char_read(struct file *filp, char __user *buf, size_t size, loff_t *f_pos)
+static ssize_t bcm_char_read(struct file *filp, char __user *buf, size_t size,
+			     loff_t *f_pos)
 {
 	PPER_TARANG_DATA pTarang = filp->private_data;
 	PMINI_ADAPTER	Adapter = pTarang->Adapter;
-	struct sk_buff* Packet = NULL;
+	struct sk_buff *Packet = NULL;
 	ssize_t         PktLen = 0;
-	int 		wait_ret_val=0;
+	int             wait_ret_val = 0;
+	unsigned long ret = 0;
 
 	wait_ret_val = wait_event_interruptible(Adapter->process_read_wait_queue,
-		(pTarang->RxAppControlHead || Adapter->device_removed));
-	if((wait_ret_val == -ERESTARTSYS))
-	{
-   		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Exiting as i've been asked to exit!!!\n");
+						(pTarang->RxAppControlHead ||
+						 Adapter->device_removed));
+	if ((wait_ret_val == -ERESTARTSYS)) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+				"Exiting as i've been asked to exit!!!\n");
 		return wait_ret_val;
 	}
 
-	if(Adapter->device_removed)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Device Removed... Killing the Apps...\n");
+	if (Adapter->device_removed) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+				"Device Removed... Killing the Apps...\n");
 		return -ENODEV;
 	}
 
-	if(FALSE == Adapter->fw_download_done)
+	if (FALSE == Adapter->fw_download_done)
 		return -EACCES;
 
-    down( &Adapter->RxAppControlQueuelock);
+	down(&Adapter->RxAppControlQueuelock);
 
-	if(pTarang->RxAppControlHead)
-	{
+	if (pTarang->RxAppControlHead) {
 		Packet = pTarang->RxAppControlHead;
-		DEQUEUEPACKET(pTarang->RxAppControlHead,pTarang->RxAppControlTail);
+		DEQUEUEPACKET(pTarang->RxAppControlHead,
+			      pTarang->RxAppControlTail);
 		pTarang->AppCtrlQueueLen--;
 	}
 
-    up(&Adapter->RxAppControlQueuelock);
+	up(&Adapter->RxAppControlQueuelock);
 
-	if(Packet)
-	{
+	if (Packet) {
 		PktLen = Packet->len;
-		if(copy_to_user(buf, Packet->data, min_t(size_t, PktLen, size)))
-		{
+		ret = copy_to_user(buf, Packet->data,
+				   min_t(size_t, PktLen, size));
+		if (ret) {
 			dev_kfree_skb(Packet);
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "\nReturning from copy to user failure \n");
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+					"Returning from copy to user failure\n");
 			return -EFAULT;
 		}
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 				"Read %zd Bytes From Adapter packet = %p by process %d!\n",
 				PktLen, Packet, current->pid);
 		dev_kfree_skb(Packet);
 	}
 
-    BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "<====\n");
-    return PktLen;
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "<\n");
+	return PktLen;
 }
 
 static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
@@ -2024,6 +2022,12 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				if(Status)
 				{
 					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"copy of Ioctl buffer is failed from user space");
+					Status = -EFAULT;
+					break;
+				}
+
+				if (IoBuffer.InputLength != sizeof(unsigned long)) {
+					Status = -EINVAL;
 					break;
 				}
 
@@ -2031,6 +2035,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				if(Status)
 				{
 					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"copy of control bit mask failed from user space");
+					Status = -EFAULT;
 					break;
 				}
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\n Got user defined cntrl msg bit mask :%lx", RxCntrlMsgBitMask);
@@ -2093,7 +2098,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 }
 
 
-static struct file_operations bcm_fops = {
+static const struct file_operations bcm_fops = {
 	.owner    = THIS_MODULE,
 	.open     = bcm_char_open,
 	.release  = bcm_char_release,
@@ -2107,32 +2112,32 @@ extern struct class *bcm_class;
 int register_control_device_interface(PMINI_ADAPTER Adapter)
 {
 
-	if(Adapter->major>0)
+	if (Adapter->major > 0)
 		return Adapter->major;
 
 	Adapter->major = register_chrdev(0, DEV_NAME, &bcm_fops);
-	if(Adapter->major < 0) {
+	if (Adapter->major < 0) {
 		pr_err(DRV_NAME ": could not created character device\n");
 		return Adapter->major;
 	}
 
-	Adapter->pstCreatedClassDevice = device_create (bcm_class, NULL,
-							MKDEV(Adapter->major, 0), Adapter,
-							DEV_NAME);
+	Adapter->pstCreatedClassDevice = device_create(bcm_class, NULL,
+						       MKDEV(Adapter->major, 0),
+						       Adapter, DEV_NAME);
 
-	if(IS_ERR(Adapter->pstCreatedClassDevice)) {
+	if (IS_ERR(Adapter->pstCreatedClassDevice)) {
 		pr_err(DRV_NAME ": class device create failed\n");
 		unregister_chrdev(Adapter->major, DEV_NAME);
 		return PTR_ERR(Adapter->pstCreatedClassDevice);
 	}
-			
+
 	return 0;
 }
 
 void unregister_control_device_interface(PMINI_ADAPTER Adapter)
 {
-	if(Adapter->major > 0) {
-		device_destroy (bcm_class, MKDEV(Adapter->major, 0));
+	if (Adapter->major > 0) {
+		device_destroy(bcm_class, MKDEV(Adapter->major, 0));
 		unregister_chrdev(Adapter->major, DEV_NAME);
 	}
 }

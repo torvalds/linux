@@ -861,6 +861,7 @@ static int sl811h_urb_enqueue(
 			DBG("dev %d ep%d maxpacket %d\n",
 				udev->devnum, epnum, ep->maxpacket);
 			retval = -EINVAL;
+			kfree(ep);
 			goto fail;
 		}
 
@@ -1110,9 +1111,9 @@ sl811h_hub_descriptor (
 
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 
-	/* two bitmaps:  ports removable, and legacy PortPwrCtrlMask */
-	desc->bitmap[0] = 0 << 1;
-	desc->bitmap[1] = ~0;
+	/* ports removable, and legacy PortPwrCtrlMask */
+	desc->u.hs.DeviceRemovable[0] = 0 << 1;
+	desc->u.hs.DeviceRemovable[1] = ~0;
 }
 
 static void

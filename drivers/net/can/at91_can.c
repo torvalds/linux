@@ -416,7 +416,7 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	stats->tx_bytes += cf->can_dlc;
 
-	/* _NOTE_: substract AT91_MB_TX_FIRST offset from mb! */
+	/* _NOTE_: subtract AT91_MB_TX_FIRST offset from mb! */
 	can_put_echo_skb(skb, dev, mb - AT91_MB_TX_FIRST);
 
 	/*
@@ -782,7 +782,7 @@ static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
 		reg_msr = at91_read(priv, AT91_MSR(mb));
 		if (likely(reg_msr & AT91_MSR_MRDY &&
 			   ~reg_msr & AT91_MSR_MABT)) {
-			/* _NOTE_: substract AT91_MB_TX_FIRST offset from mb! */
+			/* _NOTE_: subtract AT91_MB_TX_FIRST offset from mb! */
 			can_get_echo_skb(dev, mb - AT91_MB_TX_FIRST);
 			dev->stats.tx_packets++;
 		}
@@ -1109,7 +1109,7 @@ static ssize_t at91_sysfs_set_mb0_id(struct device *dev,
 	return ret;
 }
 
-static DEVICE_ATTR(mb0_id, S_IWUGO | S_IRUGO,
+static DEVICE_ATTR(mb0_id, S_IWUSR | S_IRUGO,
 	at91_sysfs_show_mb0_id, at91_sysfs_set_mb0_id);
 
 static struct attribute *at91_sysfs_attrs[] = {

@@ -9,6 +9,9 @@ peripherals with two wires. The outputs are phase-shifted by 90 degrees
 and by triggering on falling and rising edges, the turn direction can
 be determined.
 
+Some encoders have both outputs low in stable states, whereas others also have
+a stable state with both outputs high (half-period mode).
+
 The phase diagram of these two outputs look like this:
 
                   _____       _____       _____
@@ -26,6 +29,8 @@ The phase diagram of these two outputs look like this:
                 |<-------->|
 	          one step
 
+                |<-->|
+	          one step (half-period mode)
 
 For more information, please see
 	http://en.wikipedia.org/wiki/Rotary_encoder
@@ -33,6 +38,13 @@ For more information, please see
 
 1. Events / state machine
 -------------------------
+
+In half-period mode, state a) and c) above are used to determine the
+rotational direction based on the last stable state. Events are reported in
+states b) and d) given that the new stable state is different from the last
+(i.e. the rotation was not reversed half-way).
+
+Otherwise, the following apply:
 
 a) Rising edge on channel A, channel B in low state
 	This state is used to recognize a clockwise turn
@@ -46,7 +58,7 @@ c) Falling edge on channel A, channel B in high state
 
 d) Falling edge on channel B, channel A in low state
 	Parking position. If the encoder enters this state, a full transition
-	should have happend, unless it flipped back on half the way. The
+	should have happened, unless it flipped back on half the way. The
 	'armed' state tells us about that.
 
 2. Platform requirements
@@ -96,6 +108,7 @@ static struct rotary_encoder_platform_data my_rotary_encoder_info = {
 	.gpio_b		= GPIO_ROTARY_B,
 	.inverted_a	= 0,
 	.inverted_b	= 0,
+	.half_period	= false,
 };
 
 static struct platform_device rotary_encoder_device = {

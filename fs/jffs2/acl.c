@@ -402,7 +402,7 @@ static int jffs2_acl_setxattr(struct dentry *dentry, const char *name,
 
 	if (name[0] != '\0')
 		return -EINVAL;
-	if (!is_owner_or_cap(dentry->d_inode))
+	if (!inode_owner_or_capable(dentry->d_inode))
 		return -EPERM;
 
 	if (value) {

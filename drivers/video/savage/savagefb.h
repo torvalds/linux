@@ -153,7 +153,7 @@ struct savage_reg {
 	unsigned char CRTC[25];       /* Crtc Controller */
 	unsigned char Sequencer[5];   /* Video Sequencer */
 	unsigned char Graphics[9];    /* Video Graphics */
-	unsigned char Attribute[21];  /* Video Atribute */
+	unsigned char Attribute[21];  /* Video Attribute */
 
 	unsigned int mode, refresh;
 	unsigned char SR08, SR0E, SR0F;

@@ -234,6 +234,7 @@ struct snd_soc_codec;
 struct snd_soc_codec_driver;
 struct soc_enum;
 struct snd_soc_jack;
+struct snd_soc_jack_zone;
 struct snd_soc_jack_pin;
 struct snd_soc_cache_ops;
 #include <sound/soc-dapm.h>
@@ -258,6 +259,16 @@ enum snd_soc_compress_type {
 	SND_SOC_RBTREE_COMPRESSION
 };
 
+int snd_soc_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
+			     unsigned int freq, int dir);
+int snd_soc_codec_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
+			  unsigned int freq_in, unsigned int freq_out);
+
+int snd_soc_register_card(struct snd_soc_card *card);
+int snd_soc_unregister_card(struct snd_soc_card *card);
+int snd_soc_suspend(struct device *dev);
+int snd_soc_resume(struct device *dev);
+int snd_soc_poweroff(struct device *dev);
 int snd_soc_register_platform(struct device *dev,
 		struct snd_soc_platform_driver *platform_drv);
 void snd_soc_unregister_platform(struct device *dev);
@@ -265,7 +276,8 @@ int snd_soc_register_codec(struct device *dev,
 		const struct snd_soc_codec_driver *codec_drv,
 		struct snd_soc_dai_driver *dai_drv, int num_dai);
 void snd_soc_unregister_codec(struct device *dev);
-int snd_soc_codec_volatile_register(struct snd_soc_codec *codec, int reg);
+int snd_soc_codec_volatile_register(struct snd_soc_codec *codec,
+				    unsigned int reg);
 int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 			       int addr_bits, int data_bits,
 			       enum snd_soc_control_type control);
@@ -276,6 +288,10 @@ int snd_soc_cache_write(struct snd_soc_codec *codec,
 			unsigned int reg, unsigned int value);
 int snd_soc_cache_read(struct snd_soc_codec *codec,
 		       unsigned int reg, unsigned int *value);
+int snd_soc_default_volatile_register(struct snd_soc_codec *codec,
+				      unsigned int reg);
+int snd_soc_default_readable_register(struct snd_soc_codec *codec,
+				      unsigned int reg);
 
 /* Utility functions to get clock rates from various things */
 int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots);
@@ -297,6 +313,9 @@ void snd_soc_jack_notifier_register(struct snd_soc_jack *jack,
 				    struct notifier_block *nb);
 void snd_soc_jack_notifier_unregister(struct snd_soc_jack *jack,
 				      struct notifier_block *nb);
+int snd_soc_jack_add_zones(struct snd_soc_jack *jack, int count,
+			  struct snd_soc_jack_zone *zones);
+int snd_soc_jack_get_type(struct snd_soc_jack *jack, int micbias_voltage);
 #ifdef CONFIG_GPIOLIB
 int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios);
@@ -321,7 +340,8 @@ void snd_soc_free_ac97_codec(struct snd_soc_codec *codec);
  *Controls
  */
 struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
-	void *data, char *long_name);
+				  void *data, char *long_name,
+				  const char *prefix);
 int snd_soc_add_controls(struct snd_soc_codec *codec,
 	const struct snd_kcontrol_new *controls, int num_controls);
 int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
@@ -367,6 +387,22 @@ int snd_soc_put_volsw_2r_sx(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 
 /**
+ * struct snd_soc_reg_access - Describes whether a given register is
+ * readable, writable or volatile.
+ *
+ * @reg: the register number
+ * @read: whether this register is readable
+ * @write: whether this register is writable
+ * @vol: whether this register is volatile
+ */
+struct snd_soc_reg_access {
+	u16 reg;
+	u16 read;
+	u16 write;
+	u16 vol;
+};
+
+/**
  * struct snd_soc_jack_pin - Describes a pin to update based on jack detection
  *
  * @pin:    name of the pin to update
@@ -381,6 +417,24 @@ struct snd_soc_jack_pin {
 };
 
 /**
+ * struct snd_soc_jack_zone - Describes voltage zones of jack detection
+ *
+ * @min_mv: start voltage in mv
+ * @max_mv: end voltage in mv
+ * @jack_type: type of jack that is expected for this voltage
+ * @debounce_time: debounce_time for jack, codec driver should wait for this
+ *		duration before reading the adc for voltages
+ * @:list: list container
+ */
+struct snd_soc_jack_zone {
+	unsigned int min_mv;
+	unsigned int max_mv;
+	unsigned int jack_type;
+	unsigned int debounce_time;
+	struct list_head list;
+};
+
+/**
  * struct snd_soc_jack_gpio - Describes a gpio pin for jack detection
  *
  * @gpio:         gpio number
@@ -388,6 +442,10 @@ struct snd_soc_jack_pin {
  * @report:       value to report when jack detected
  * @invert:       report presence in low state
  * @debouce_time: debouce time in ms
+ * @wake:	  enable as wake source
+ * @jack_status_check: callback function which overrides the detection
+ *		       to provide more complex checks (eg, reading an
+ *		       ADC).
  */
 #ifdef CONFIG_GPIOLIB
 struct snd_soc_jack_gpio {
@@ -396,6 +454,8 @@ struct snd_soc_jack_gpio {
 	int report;
 	int invert;
 	int debounce_time;
+	bool wake;
+
 	struct snd_soc_jack *jack;
 	struct delayed_work work;
 
@@ -409,6 +469,7 @@ struct snd_soc_jack {
 	struct list_head pins;
 	int status;
 	struct blocking_notifier_head notifier;
+	struct list_head jack_zones;
 };
 
 /* SoC PCM stream information */
@@ -459,18 +520,22 @@ struct snd_soc_codec {
 	struct list_head card_list;
 	int num_dai;
 	enum snd_soc_compress_type compress_type;
+	size_t reg_size;	/* reg_cache_size * reg_word_size */
+	int (*volatile_register)(struct snd_soc_codec *, unsigned int);
+	int (*readable_register)(struct snd_soc_codec *, unsigned int);
 
 	/* runtime */
 	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
 	unsigned int active;
-	unsigned int cache_only:1;  /* Suppress writes to hardware */
-	unsigned int cache_sync:1; /* Cache needs to be synced to hardware */
+	unsigned int cache_bypass:1; /* Suppress access to the cache */
 	unsigned int suspended:1; /* Codec is in suspend PM state */
 	unsigned int probed:1; /* Codec has been probed */
 	unsigned int ac97_registered:1; /* Codec has been AC97 registered */
 	unsigned int ac97_created:1; /* Codec has been created by SoC */
 	unsigned int sysfs_registered:1; /* codec has been sysfs registered */
 	unsigned int cache_init:1; /* codec cache has been initialized */
+	u32 cache_only;  /* Suppress writes to hardware */
+	u32 cache_sync; /* Cache needs to be synced to hardware */
 
 	/* codec IO */
 	void *control_data; /* codec control (i2c/3wire) data */
@@ -503,22 +568,39 @@ struct snd_soc_codec_driver {
 			pm_message_t state);
 	int (*resume)(struct snd_soc_codec *);
 
+	/* Default DAPM setup, added after probe() is run */
+	const struct snd_soc_dapm_widget *dapm_widgets;
+	int num_dapm_widgets;
+	const struct snd_soc_dapm_route *dapm_routes;
+	int num_dapm_routes;
+
+	/* codec wide operations */
+	int (*set_sysclk)(struct snd_soc_codec *codec,
+			  int clk_id, unsigned int freq, int dir);
+	int (*set_pll)(struct snd_soc_codec *codec, int pll_id, int source,
+		unsigned int freq_in, unsigned int freq_out);
+
 	/* codec IO */
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
 	int (*display_register)(struct snd_soc_codec *, char *,
 				size_t, unsigned int);
-	int (*volatile_register)(unsigned int);
-	int (*readable_register)(unsigned int);
+	int (*volatile_register)(struct snd_soc_codec *, unsigned int);
+	int (*readable_register)(struct snd_soc_codec *, unsigned int);
 	short reg_cache_size;
 	short reg_cache_step;
 	short reg_word_size;
 	const void *reg_cache_default;
+	short reg_access_size;
+	const struct snd_soc_reg_access *reg_access_default;
 	enum snd_soc_compress_type compress_type;
 
 	/* codec bias level */
 	int (*set_bias_level)(struct snd_soc_codec *,
 			      enum snd_soc_bias_level level);
+
+	void (*seq_notifier)(struct snd_soc_dapm_context *,
+			     enum snd_soc_dapm_type, int);
 };
 
 /* SoC platform interface */
@@ -617,15 +699,16 @@ struct snd_soc_card {
 
 	bool instantiated;
 
-	int (*probe)(struct platform_device *pdev);
-	int (*remove)(struct platform_device *pdev);
+	int (*probe)(struct snd_soc_card *card);
+	int (*late_probe)(struct snd_soc_card *card);
+	int (*remove)(struct snd_soc_card *card);
 
 	/* the pre and post PM functions are used to do any PM work before and
 	 * after the codec and DAI's do any PM work. */
-	int (*suspend_pre)(struct platform_device *pdev, pm_message_t state);
-	int (*suspend_post)(struct platform_device *pdev, pm_message_t state);
-	int (*resume_pre)(struct platform_device *pdev);
-	int (*resume_post)(struct platform_device *pdev);
+	int (*suspend_pre)(struct snd_soc_card *card);
+	int (*suspend_post)(struct snd_soc_card *card);
+	int (*resume_pre)(struct snd_soc_card *card);
+	int (*resume_post)(struct snd_soc_card *card);
 
 	/* callbacks */
 	int (*set_bias_level)(struct snd_soc_card *,
@@ -654,6 +737,14 @@ struct snd_soc_card {
 	struct snd_soc_pcm_runtime *rtd_aux;
 	int num_aux_rtd;
 
+	/*
+	 * Card-specific routes and widgets.
+	 */
+	struct snd_soc_dapm_widget *dapm_widgets;
+	int num_dapm_widgets;
+	struct snd_soc_dapm_route *dapm_routes;
+	int num_dapm_routes;
+
 	struct work_struct deferred_resume_work;
 
 	/* lists of probed devices belonging to this card */
@@ -665,11 +756,16 @@ struct snd_soc_card {
 	struct list_head paths;
 	struct list_head dapm_list;
 
+	/* Generic DAPM context for the card */
+	struct snd_soc_dapm_context dapm;
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_card_root;
 	struct dentry *debugfs_pop_time;
 #endif
 	u32 pop_time;
+
+	void *drvdata;
 };
 
 /* SoC machine DAI configuration, glues a codec and cpu DAI together */
@@ -721,6 +817,17 @@ unsigned int snd_soc_write(struct snd_soc_codec *codec,
 
 /* device driver data */
 
+static inline void snd_soc_card_set_drvdata(struct snd_soc_card *card,
+		void *data)
+{
+	card->drvdata = data;
+}
+
+static inline void *snd_soc_card_get_drvdata(struct snd_soc_card *card)
+{
+	return card->drvdata;
+}
+
 static inline void snd_soc_codec_set_drvdata(struct snd_soc_codec *codec,
 		void *data)
 {
@@ -754,6 +861,22 @@ static inline void *snd_soc_pcm_get_drvdata(struct snd_soc_pcm_runtime *rtd)
 	return dev_get_drvdata(&rtd->dev);
 }
 
+static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
+{
+	INIT_LIST_HEAD(&card->dai_dev_list);
+	INIT_LIST_HEAD(&card->codec_dev_list);
+	INIT_LIST_HEAD(&card->platform_dev_list);
+	INIT_LIST_HEAD(&card->widgets);
+	INIT_LIST_HEAD(&card->paths);
+	INIT_LIST_HEAD(&card->dapm_list);
+}
+
 #include <sound/soc-dai.h>
+
+#ifdef CONFIG_DEBUG_FS
+extern struct dentry *snd_soc_debugfs_root;
+#endif
+
+extern const struct dev_pm_ops snd_soc_pm_ops;
 
 #endif

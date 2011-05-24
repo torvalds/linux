@@ -92,7 +92,7 @@ config B43_PHY_N
 	---help---
 	  Support for the N-PHY.
 
-	  This enables support for devices with N-PHY revision up to 2.
+	  This enables support for devices with N-PHY.
 
 	  Say N if you expect high stability and performance. Saying Y will not
 	  affect other devices support and may provide support for basic needs.

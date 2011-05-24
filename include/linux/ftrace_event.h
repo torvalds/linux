@@ -37,7 +37,6 @@ struct trace_entry {
 	unsigned char		flags;
 	unsigned char		preempt_count;
 	int			pid;
-	int			lock_depth;
 };
 
 #define FTRACE_MAX_EVENT						\
@@ -208,7 +207,6 @@ struct ftrace_event_call {
 
 #define PERF_MAX_TRACE_SIZE	2048
 
-#define MAX_FILTER_PRED		32
 #define MAX_FILTER_STR_VAL	256	/* Should handle KSYM_SYMBOL_LEN */
 
 extern void destroy_preds(struct ftrace_event_call *call);

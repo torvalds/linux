@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/async.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/bitops.h>
@@ -125,17 +126,17 @@ static inline struct snd_soc_dapm_widget *dapm_cnew_widget(
 
 /**
  * snd_soc_dapm_set_bias_level - set the bias level for the system
- * @card: audio device
+ * @dapm: DAPM context
  * @level: level to configure
  *
  * Configure the bias (power) levels for the SoC audio device.
  *
  * Returns 0 for success else error.
  */
-static int snd_soc_dapm_set_bias_level(struct snd_soc_card *card,
-				       struct snd_soc_dapm_context *dapm,
+static int snd_soc_dapm_set_bias_level(struct snd_soc_dapm_context *dapm,
 				       enum snd_soc_bias_level level)
 {
+	struct snd_soc_card *card = dapm->card;
 	int ret = 0;
 
 	switch (level) {
@@ -365,9 +366,20 @@ static int dapm_new_mixer(struct snd_soc_dapm_context *dapm,
 	struct snd_soc_dapm_widget *w)
 {
 	int i, ret = 0;
-	size_t name_len;
+	size_t name_len, prefix_len;
 	struct snd_soc_dapm_path *path;
-	struct snd_card *card = dapm->codec->card->snd_card;
+	struct snd_card *card = dapm->card->snd_card;
+	const char *prefix;
+
+	if (dapm->codec)
+		prefix = dapm->codec->name_prefix;
+	else
+		prefix = NULL;
+
+	if (prefix)
+		prefix_len = strlen(prefix) + 1;
+	else
+		prefix_len = 0;
 
 	/* add kcontrol */
 	for (i = 0; i < w->num_kcontrols; i++) {
@@ -396,8 +408,15 @@ static int dapm_new_mixer(struct snd_soc_dapm_context *dapm,
 
 			switch (w->id) {
 			default:
+				/* The control will get a prefix from
+				 * the control creation process but
+				 * we're also using the same prefix
+				 * for widgets so cut the prefix off
+				 * the front of the widget name.
+				 */
 				snprintf(path->long_name, name_len, "%s %s",
-					 w->name, w->kcontrols[i].name);
+					 w->name + prefix_len,
+					 w->kcontrols[i].name);
 				break;
 			case snd_soc_dapm_mixer_named_ctl:
 				snprintf(path->long_name, name_len, "%s",
@@ -408,7 +427,7 @@ static int dapm_new_mixer(struct snd_soc_dapm_context *dapm,
 			path->long_name[name_len - 1] = '\0';
 
 			path->kcontrol = snd_soc_cnew(&w->kcontrols[i], w,
-				path->long_name);
+						      path->long_name, prefix);
 			ret = snd_ctl_add(card, path->kcontrol);
 			if (ret < 0) {
 				dev_err(dapm->dev,
@@ -429,7 +448,9 @@ static int dapm_new_mux(struct snd_soc_dapm_context *dapm,
 {
 	struct snd_soc_dapm_path *path = NULL;
 	struct snd_kcontrol *kcontrol;
-	struct snd_card *card = dapm->codec->card->snd_card;
+	struct snd_card *card = dapm->card->snd_card;
+	const char *prefix;
+	size_t prefix_len;
 	int ret = 0;
 
 	if (!w->num_kcontrols) {
@@ -437,7 +458,22 @@ static int dapm_new_mux(struct snd_soc_dapm_context *dapm,
 		return -EINVAL;
 	}
 
-	kcontrol = snd_soc_cnew(&w->kcontrols[0], w, w->name);
+	if (dapm->codec)
+		prefix = dapm->codec->name_prefix;
+	else
+		prefix = NULL;
+
+	if (prefix)
+		prefix_len = strlen(prefix) + 1;
+	else
+		prefix_len = 0;
+
+	/* The control will get a prefix from the control creation
+	 * process but we're also using the same prefix for widgets so
+	 * cut the prefix off the front of the widget name.
+	 */
+	kcontrol = snd_soc_cnew(&w->kcontrols[0], w, w->name + prefix_len,
+				prefix);
 	ret = snd_ctl_add(card, kcontrol);
 
 	if (ret < 0)
@@ -479,7 +515,7 @@ static inline void dapm_clear_walk(struct snd_soc_dapm_context *dapm)
  */
 static int snd_soc_dapm_suspend_check(struct snd_soc_dapm_widget *widget)
 {
-	int level = snd_power_get_state(widget->dapm->codec->card->snd_card);
+	int level = snd_power_get_state(widget->dapm->card->snd_card);
 
 	switch (level) {
 	case SNDRV_CTL_POWER_D3hot:
@@ -712,7 +748,15 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 		    !path->connected(path->source, path->sink))
 			continue;
 
-		if (path->sink && path->sink->power_check &&
+		if (!path->sink)
+			continue;
+
+		if (path->sink->force) {
+			power = 1;
+			break;
+		}
+
+		if (path->sink->power_check &&
 		    path->sink->power_check(path->sink)) {
 			power = 1;
 			break;
@@ -726,10 +770,23 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 
 static int dapm_seq_compare(struct snd_soc_dapm_widget *a,
 			    struct snd_soc_dapm_widget *b,
-			    int sort[])
+			    bool power_up)
 {
+	int *sort;
+
+	if (power_up)
+		sort = dapm_up_seq;
+	else
+		sort = dapm_down_seq;
+
 	if (sort[a->id] != sort[b->id])
 		return sort[a->id] - sort[b->id];
+	if (a->subseq != b->subseq) {
+		if (power_up)
+			return a->subseq - b->subseq;
+		else
+			return b->subseq - a->subseq;
+	}
 	if (a->reg != b->reg)
 		return a->reg - b->reg;
 	if (a->dapm != b->dapm)
@@ -741,12 +798,12 @@ static int dapm_seq_compare(struct snd_soc_dapm_widget *a,
 /* Insert a widget in order into a DAPM power sequence. */
 static void dapm_seq_insert(struct snd_soc_dapm_widget *new_widget,
 			    struct list_head *list,
-			    int sort[])
+			    bool power_up)
 {
 	struct snd_soc_dapm_widget *w;
 
 	list_for_each_entry(w, list, power_list)
-		if (dapm_seq_compare(new_widget, w, sort) < 0) {
+		if (dapm_seq_compare(new_widget, w, power_up) < 0) {
 			list_add_tail(&new_widget->power_list, &w->power_list);
 			return;
 		}
@@ -857,26 +914,42 @@ static void dapm_seq_run_coalesced(struct snd_soc_dapm_context *dapm,
  * handled.
  */
 static void dapm_seq_run(struct snd_soc_dapm_context *dapm,
-			 struct list_head *list, int event, int sort[])
+			 struct list_head *list, int event, bool power_up)
 {
 	struct snd_soc_dapm_widget *w, *n;
 	LIST_HEAD(pending);
 	int cur_sort = -1;
+	int cur_subseq = -1;
 	int cur_reg = SND_SOC_NOPM;
 	struct snd_soc_dapm_context *cur_dapm = NULL;
-	int ret;
+	int ret, i;
+	int *sort;
+
+	if (power_up)
+		sort = dapm_up_seq;
+	else
+		sort = dapm_down_seq;
 
 	list_for_each_entry_safe(w, n, list, power_list) {
 		ret = 0;
 
 		/* Do we need to apply any queued changes? */
 		if (sort[w->id] != cur_sort || w->reg != cur_reg ||
-		    w->dapm != cur_dapm) {
+		    w->dapm != cur_dapm || w->subseq != cur_subseq) {
 			if (!list_empty(&pending))
 				dapm_seq_run_coalesced(cur_dapm, &pending);
 
+			if (cur_dapm && cur_dapm->seq_notifier) {
+				for (i = 0; i < ARRAY_SIZE(dapm_up_seq); i++)
+					if (sort[i] == cur_sort)
+						cur_dapm->seq_notifier(cur_dapm,
+								       i,
+								       cur_subseq);
+			}
+
 			INIT_LIST_HEAD(&pending);
 			cur_sort = -1;
+			cur_subseq = -1;
 			cur_reg = SND_SOC_NOPM;
 			cur_dapm = NULL;
 		}
@@ -921,6 +994,7 @@ static void dapm_seq_run(struct snd_soc_dapm_context *dapm,
 		default:
 			/* Queue it up for application */
 			cur_sort = sort[w->id];
+			cur_subseq = w->subseq;
 			cur_reg = w->reg;
 			cur_dapm = w->dapm;
 			list_move(&w->power_list, &pending);
@@ -933,7 +1007,14 @@ static void dapm_seq_run(struct snd_soc_dapm_context *dapm,
 	}
 
 	if (!list_empty(&pending))
-		dapm_seq_run_coalesced(dapm, &pending);
+		dapm_seq_run_coalesced(cur_dapm, &pending);
+
+	if (cur_dapm && cur_dapm->seq_notifier) {
+		for (i = 0; i < ARRAY_SIZE(dapm_up_seq); i++)
+			if (sort[i] == cur_sort)
+				cur_dapm->seq_notifier(cur_dapm,
+						       i, cur_subseq);
+	}
 }
 
 static void dapm_widget_update(struct snd_soc_dapm_context *dapm)
@@ -969,7 +1050,62 @@ static void dapm_widget_update(struct snd_soc_dapm_context *dapm)
 	}
 }
 
+/* Async callback run prior to DAPM sequences - brings to _PREPARE if
+ * they're changing state.
+ */
+static void dapm_pre_sequence_async(void *data, async_cookie_t cookie)
+{
+	struct snd_soc_dapm_context *d = data;
+	int ret;
 
+	if (d->dev_power && d->bias_level == SND_SOC_BIAS_OFF) {
+		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_STANDBY);
+		if (ret != 0)
+			dev_err(d->dev,
+				"Failed to turn on bias: %d\n", ret);
+	}
+
+	/* If we're changing to all on or all off then prepare */
+	if ((d->dev_power && d->bias_level == SND_SOC_BIAS_STANDBY) ||
+	    (!d->dev_power && d->bias_level == SND_SOC_BIAS_ON)) {
+		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_PREPARE);
+		if (ret != 0)
+			dev_err(d->dev,
+				"Failed to prepare bias: %d\n", ret);
+	}
+}
+
+/* Async callback run prior to DAPM sequences - brings to their final
+ * state.
+ */
+static void dapm_post_sequence_async(void *data, async_cookie_t cookie)
+{
+	struct snd_soc_dapm_context *d = data;
+	int ret;
+
+	/* If we just powered the last thing off drop to standby bias */
+	if (d->bias_level == SND_SOC_BIAS_PREPARE && !d->dev_power) {
+		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_STANDBY);
+		if (ret != 0)
+			dev_err(d->dev, "Failed to apply standby bias: %d\n",
+				ret);
+	}
+
+	/* If we're in standby and can support bias off then do that */
+	if (d->bias_level == SND_SOC_BIAS_STANDBY && d->idle_bias_off) {
+		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_OFF);
+		if (ret != 0)
+			dev_err(d->dev, "Failed to turn off bias: %d\n", ret);
+	}
+
+	/* If we just powered up then move to active bias */
+	if (d->bias_level == SND_SOC_BIAS_PREPARE && d->dev_power) {
+		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_ON);
+		if (ret != 0)
+			dev_err(d->dev, "Failed to apply active bias: %d\n",
+				ret);
+	}
+}
 
 /*
  * Scan each dapm widget for complete audio path.
@@ -982,12 +1118,12 @@ static void dapm_widget_update(struct snd_soc_dapm_context *dapm)
  */
 static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 {
-	struct snd_soc_card *card = dapm->codec->card;
+	struct snd_soc_card *card = dapm->card;
 	struct snd_soc_dapm_widget *w;
 	struct snd_soc_dapm_context *d;
 	LIST_HEAD(up_list);
 	LIST_HEAD(down_list);
-	int ret = 0;
+	LIST_HEAD(async_domain);
 	int power;
 
 	trace_snd_soc_dapm_start(card);
@@ -1002,10 +1138,10 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 	list_for_each_entry(w, &card->widgets, list) {
 		switch (w->id) {
 		case snd_soc_dapm_pre:
-			dapm_seq_insert(w, &down_list, dapm_down_seq);
+			dapm_seq_insert(w, &down_list, false);
 			break;
 		case snd_soc_dapm_post:
-			dapm_seq_insert(w, &up_list, dapm_up_seq);
+			dapm_seq_insert(w, &up_list, true);
 			break;
 
 		default:
@@ -1025,9 +1161,9 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 			trace_snd_soc_dapm_widget_power(w, power);
 
 			if (power)
-				dapm_seq_insert(w, &up_list, dapm_up_seq);
+				dapm_seq_insert(w, &up_list, true);
 			else
-				dapm_seq_insert(w, &down_list, dapm_down_seq);
+				dapm_seq_insert(w, &down_list, false);
 
 			w->power = power;
 			break;
@@ -1065,65 +1201,25 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 		}
 	}
 
-	list_for_each_entry(d, &dapm->card->dapm_list, list) {
-		if (d->dev_power && d->bias_level == SND_SOC_BIAS_OFF) {
-			ret = snd_soc_dapm_set_bias_level(card, d,
-							  SND_SOC_BIAS_STANDBY);
-			if (ret != 0)
-				dev_err(d->dev,
-					"Failed to turn on bias: %d\n", ret);
-		}
-
-		/* If we're changing to all on or all off then prepare */
-		if ((d->dev_power && d->bias_level == SND_SOC_BIAS_STANDBY) ||
-		    (!d->dev_power && d->bias_level == SND_SOC_BIAS_ON)) {
-			ret = snd_soc_dapm_set_bias_level(card, d,
-							  SND_SOC_BIAS_PREPARE);
-			if (ret != 0)
-				dev_err(d->dev,
-					"Failed to prepare bias: %d\n", ret);
-		}
-	}
+	/* Run all the bias changes in parallel */
+	list_for_each_entry(d, &dapm->card->dapm_list, list)
+		async_schedule_domain(dapm_pre_sequence_async, d,
+					&async_domain);
+	async_synchronize_full_domain(&async_domain);
 
 	/* Power down widgets first; try to avoid amplifying pops. */
-	dapm_seq_run(dapm, &down_list, event, dapm_down_seq);
+	dapm_seq_run(dapm, &down_list, event, false);
 
 	dapm_widget_update(dapm);
 
 	/* Now power up. */
-	dapm_seq_run(dapm, &up_list, event, dapm_up_seq);
+	dapm_seq_run(dapm, &up_list, event, true);
 
-	list_for_each_entry(d, &dapm->card->dapm_list, list) {
-		/* If we just powered the last thing off drop to standby bias */
-		if (d->bias_level == SND_SOC_BIAS_PREPARE && !d->dev_power) {
-			ret = snd_soc_dapm_set_bias_level(card, d,
-							  SND_SOC_BIAS_STANDBY);
-			if (ret != 0)
-				dev_err(d->dev,
-					"Failed to apply standby bias: %d\n",
-					ret);
-		}
-
-		/* If we're in standby and can support bias off then do that */
-		if (d->bias_level == SND_SOC_BIAS_STANDBY &&
-		    d->idle_bias_off) {
-			ret = snd_soc_dapm_set_bias_level(card, d,
-							  SND_SOC_BIAS_OFF);
-			if (ret != 0)
-				dev_err(d->dev,
-					"Failed to turn off bias: %d\n", ret);
-		}
-
-		/* If we just powered up then move to active bias */
-		if (d->bias_level == SND_SOC_BIAS_PREPARE && d->dev_power) {
-			ret = snd_soc_dapm_set_bias_level(card, d,
-							  SND_SOC_BIAS_ON);
-			if (ret != 0)
-				dev_err(d->dev,
-					"Failed to apply active bias: %d\n",
-					ret);
-		}
-	}
+	/* Run all the bias changes in parallel */
+	list_for_each_entry(d, &dapm->card->dapm_list, list)
+		async_schedule_domain(dapm_post_sequence_async, d,
+					&async_domain);
+	async_synchronize_full_domain(&async_domain);
 
 	pop_dbg(dapm->dev, card->pop_time,
 		"DAPM sequencing finished, waiting %dms\n", card->pop_time);
@@ -1181,7 +1277,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 
 		if (p->connect)
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
-					" in  %s %s\n",
+					" in  \"%s\" \"%s\"\n",
 					p->name ? p->name : "static",
 					p->source->name);
 	}
@@ -1191,7 +1287,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 
 		if (p->connect)
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
-					" out %s %s\n",
+					" out \"%s\" \"%s\"\n",
 					p->name ? p->name : "static",
 					p->sink->name);
 	}
@@ -1456,7 +1552,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	char prefixed_source[80];
 	int ret = 0;
 
-	if (dapm->codec->name_prefix) {
+	if (dapm->codec && dapm->codec->name_prefix) {
 		snprintf(prefixed_sink, sizeof(prefixed_sink), "%s %s",
 			 dapm->codec->name_prefix, route->sink);
 		sink = prefixed_sink;
@@ -1627,6 +1723,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_add_routes);
 int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 {
 	struct snd_soc_dapm_widget *w;
+	unsigned int val;
 
 	list_for_each_entry(w, &dapm->card->widgets, list)
 	{
@@ -1675,6 +1772,18 @@ int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 		case snd_soc_dapm_post:
 			break;
 		}
+
+		/* Read the initial power state from the device */
+		if (w->reg >= 0) {
+			val = snd_soc_read(w->codec, w->reg);
+			val &= 1 << w->shift;
+			if (w->invert)
+				val = !val;
+
+			if (val)
+				w->power = 1;
+		}
+
 		w->new = 1;
 	}
 
@@ -1742,7 +1851,7 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	int max = mc->max;
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
-	unsigned int val, val_mask;
+	unsigned int val;
 	int connect, change;
 	struct snd_soc_dapm_update update;
 
@@ -1750,13 +1859,13 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 
 	if (invert)
 		val = max - val;
-	val_mask = mask << shift;
+	mask = mask << shift;
 	val = val << shift;
 
 	mutex_lock(&widget->codec->mutex);
 	widget->value = val;
 
-	change = snd_soc_test_bits(widget->codec, reg, val_mask, val);
+	change = snd_soc_test_bits(widget->codec, reg, mask, val);
 	if (change) {
 		if (val)
 			/* new connection */
@@ -2093,14 +2202,14 @@ int snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 		return -ENOMEM;
 
 	name_len = strlen(widget->name) + 1;
-	if (dapm->codec->name_prefix)
+	if (dapm->codec && dapm->codec->name_prefix)
 		name_len += 1 + strlen(dapm->codec->name_prefix);
 	w->name = kmalloc(name_len, GFP_KERNEL);
 	if (w->name == NULL) {
 		kfree(w);
 		return -ENOMEM;
 	}
-	if (dapm->codec->name_prefix)
+	if (dapm->codec && dapm->codec->name_prefix)
 		snprintf(w->name, name_len, "%s %s",
 			dapm->codec->name_prefix, widget->name);
 	else
@@ -2205,7 +2314,6 @@ int snd_soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd,
 	mutex_unlock(&codec->mutex);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_dapm_stream_event);
 
 /**
  * snd_soc_dapm_enable_pin - enable pin.
@@ -2372,7 +2480,7 @@ static void soc_dapm_shutdown_codec(struct snd_soc_dapm_context *dapm)
 		if (w->dapm != dapm)
 			continue;
 		if (w->power) {
-			dapm_seq_insert(w, &down_list, dapm_down_seq);
+			dapm_seq_insert(w, &down_list, false);
 			w->power = 0;
 			powerdown = 1;
 		}
@@ -2382,9 +2490,9 @@ static void soc_dapm_shutdown_codec(struct snd_soc_dapm_context *dapm)
 	 * standby.
 	 */
 	if (powerdown) {
-		snd_soc_dapm_set_bias_level(NULL, dapm, SND_SOC_BIAS_PREPARE);
-		dapm_seq_run(dapm, &down_list, 0, dapm_down_seq);
-		snd_soc_dapm_set_bias_level(NULL, dapm, SND_SOC_BIAS_STANDBY);
+		snd_soc_dapm_set_bias_level(dapm, SND_SOC_BIAS_PREPARE);
+		dapm_seq_run(dapm, &down_list, 0, false);
+		snd_soc_dapm_set_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 	}
 }
 
@@ -2397,7 +2505,7 @@ void snd_soc_dapm_shutdown(struct snd_soc_card *card)
 
 	list_for_each_entry(codec, &card->codec_dev_list, list) {
 		soc_dapm_shutdown_codec(&codec->dapm);
-		snd_soc_dapm_set_bias_level(card, &codec->dapm, SND_SOC_BIAS_OFF);
+		snd_soc_dapm_set_bias_level(&codec->dapm, SND_SOC_BIAS_OFF);
 	}
 }
 

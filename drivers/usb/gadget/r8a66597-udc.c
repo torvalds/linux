@@ -258,7 +258,7 @@ static int pipe_buffer_setting(struct r8a66597 *r8a66597,
 		break;
 	case R8A66597_BULK:
 		/* isochronous pipes may be used as bulk pipes */
-		if (info->pipe > R8A66597_BASE_PIPENUM_BULK)
+		if (info->pipe >= R8A66597_BASE_PIPENUM_BULK)
 			bufnum = info->pipe - R8A66597_BASE_PIPENUM_BULK;
 		else
 			bufnum = info->pipe - R8A66597_BASE_PIPENUM_ISOC;
@@ -1083,7 +1083,9 @@ static void irq_device_state(struct r8a66597 *r8a66597)
 
 	if (dvsq == DS_DFLT) {
 		/* bus reset */
+		spin_unlock(&r8a66597->lock);
 		r8a66597->driver->disconnect(&r8a66597->gadget);
+		spin_lock(&r8a66597->lock);
 		r8a66597_update_usb_speed(r8a66597);
 	}
 	if (r8a66597->old_dvsq == DS_CNFG && dvsq != DS_CNFG)

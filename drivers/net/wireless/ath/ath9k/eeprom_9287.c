@@ -17,7 +17,7 @@
 #include "hw.h"
 #include "ar9002_phy.h"
 
-#define NUM_EEP_WORDS (sizeof(struct ar9287_eeprom) / sizeof(u16))
+#define SIZE_EEPROM_AR9287 (sizeof(struct ar9287_eeprom) / sizeof(u16))
 
 static int ath9k_hw_ar9287_get_eeprom_ver(struct ath_hw *ah)
 {
@@ -29,25 +29,15 @@ static int ath9k_hw_ar9287_get_eeprom_rev(struct ath_hw *ah)
 	return (ah->eeprom.map9287.baseEepHeader.version) & 0xFFF;
 }
 
-static bool ath9k_hw_ar9287_fill_eeprom(struct ath_hw *ah)
+static bool __ath9k_hw_ar9287_fill_eeprom(struct ath_hw *ah)
 {
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
 	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *eep_data;
-	int addr, eep_start_loc;
+	int addr, eep_start_loc = AR9287_EEP_START_LOC;
 	eep_data = (u16 *)eep;
 
-	if (common->bus_ops->ath_bus_type == ATH_USB)
-		eep_start_loc = AR9287_HTC_EEP_START_LOC;
-	else
-		eep_start_loc = AR9287_EEP_START_LOC;
-
-	if (!ath9k_hw_use_flash(ah)) {
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"Reading from EEPROM, not flash\n");
-	}
-
-	for (addr = 0; addr < NUM_EEP_WORDS; addr++) {
+	for (addr = 0; addr < SIZE_EEPROM_AR9287; addr++) {
 		if (!ath9k_hw_nvram_read(common, addr + eep_start_loc,
 					 eep_data)) {
 			ath_dbg(common, ATH_DBG_EEPROM,
@@ -58,6 +48,31 @@ static bool ath9k_hw_ar9287_fill_eeprom(struct ath_hw *ah)
 	}
 
 	return true;
+}
+
+static bool __ath9k_hw_usb_ar9287_fill_eeprom(struct ath_hw *ah)
+{
+	u16 *eep_data = (u16 *)&ah->eeprom.map9287;
+
+	ath9k_hw_usb_gen_fill_eeprom(ah, eep_data,
+				     AR9287_HTC_EEP_START_LOC,
+				     SIZE_EEPROM_AR9287);
+	return true;
+}
+
+static bool ath9k_hw_ar9287_fill_eeprom(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!ath9k_hw_use_flash(ah)) {
+		ath_dbg(common, ATH_DBG_EEPROM,
+			"Reading from EEPROM, not flash\n");
+	}
+
+	if (common->bus_ops->ath_bus_type == ATH_USB)
+		return __ath9k_hw_usb_ar9287_fill_eeprom(ah);
+	else
+		return __ath9k_hw_ar9287_fill_eeprom(ah);
 }
 
 static int ath9k_hw_ar9287_check_eeprom(struct ath_hw *ah)
@@ -86,7 +101,7 @@ static int ath9k_hw_ar9287_check_eeprom(struct ath_hw *ah)
 				need_swap = true;
 				eepdata = (u16 *)(&ah->eeprom);
 
-				for (addr = 0; addr < NUM_EEP_WORDS; addr++) {
+				for (addr = 0; addr < SIZE_EEPROM_AR9287; addr++) {
 					temp = swab16(*eepdata);
 					*eepdata = temp;
 					eepdata++;

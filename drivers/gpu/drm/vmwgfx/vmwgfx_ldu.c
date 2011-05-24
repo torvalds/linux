@@ -345,7 +345,7 @@ static enum drm_connector_status
 	return connector_status_disconnected;
 }
 
-static struct drm_display_mode vmw_ldu_connector_builtin[] = {
+static const struct drm_display_mode vmw_ldu_connector_builtin[] = {
 	/* 640x480@60Hz */
 	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 25175, 640, 656,
 		   752, 800, 0, 480, 489, 492, 525, 0,
@@ -429,7 +429,6 @@ static int vmw_ldu_connector_fill_modes(struct drm_connector *connector,
 	struct drm_device *dev = connector->dev;
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct drm_display_mode *mode = NULL;
-	struct drm_display_mode *bmode;
 	struct drm_display_mode prefmode = { DRM_MODE("preferred",
 		DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -459,6 +458,8 @@ static int vmw_ldu_connector_fill_modes(struct drm_connector *connector,
 	}
 
 	for (i = 0; vmw_ldu_connector_builtin[i].type != 0; i++) {
+		const struct drm_display_mode *bmode;
+
 		bmode = &vmw_ldu_connector_builtin[i];
 		if (bmode->hdisplay > max_width ||
 		    bmode->vdisplay > max_height)

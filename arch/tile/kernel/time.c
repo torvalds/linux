@@ -224,3 +224,13 @@ int setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;
 }
+
+/*
+ * Use the tile timer to convert nsecs to core clock cycles, relying
+ * on it having the same frequency as SPR_CYCLE.
+ */
+cycles_t ns2cycles(unsigned long nsecs)
+{
+	struct clock_event_device *dev = &__get_cpu_var(tile_timer);
+	return ((u64)nsecs * dev->mult) >> dev->shift;
+}

@@ -118,7 +118,8 @@ int omap2_prm_assert_hardreset(s16 prm_mod, u8 shift)
 /**
  * omap2_prm_deassert_hardreset - deassert a submodule hardreset line and wait
  * @prm_mod: PRM submodule base (e.g. CORE_MOD)
- * @shift: register bit shift corresponding to the reset line to deassert
+ * @rst_shift: register bit shift corresponding to the reset line to deassert
+ * @st_shift: register bit shift for the status of the deasserted submodule
  *
  * Some IPs like dsp or iva contain processors that require an HW
  * reset line to be asserted / deasserted in order to fully enable the
@@ -129,27 +130,28 @@ int omap2_prm_assert_hardreset(s16 prm_mod, u8 shift)
  * -EINVAL upon an argument error, -EEXIST if the submodule was already out
  * of reset, or -EBUSY if the submodule did not exit reset promptly.
  */
-int omap2_prm_deassert_hardreset(s16 prm_mod, u8 shift)
+int omap2_prm_deassert_hardreset(s16 prm_mod, u8 rst_shift, u8 st_shift)
 {
-	u32 mask;
+	u32 rst, st;
 	int c;
 
 	if (!(cpu_is_omap24xx() || cpu_is_omap34xx()))
 		return -EINVAL;
 
-	mask = 1 << shift;
+	rst = 1 << rst_shift;
+	st = 1 << st_shift;
 
 	/* Check the current status to avoid de-asserting the line twice */
-	if (omap2_prm_read_mod_bits_shift(prm_mod, OMAP2_RM_RSTCTRL, mask) == 0)
+	if (omap2_prm_read_mod_bits_shift(prm_mod, OMAP2_RM_RSTCTRL, rst) == 0)
 		return -EEXIST;
 
 	/* Clear the reset status by writing 1 to the status bit */
-	omap2_prm_rmw_mod_reg_bits(0xffffffff, mask, prm_mod, OMAP2_RM_RSTST);
+	omap2_prm_rmw_mod_reg_bits(0xffffffff, st, prm_mod, OMAP2_RM_RSTST);
 	/* de-assert the reset control line */
-	omap2_prm_rmw_mod_reg_bits(mask, 0, prm_mod, OMAP2_RM_RSTCTRL);
+	omap2_prm_rmw_mod_reg_bits(rst, 0, prm_mod, OMAP2_RM_RSTCTRL);
 	/* wait the status to be set */
 	omap_test_timeout(omap2_prm_read_mod_bits_shift(prm_mod, OMAP2_RM_RSTST,
-						  mask),
+						  st),
 			  MAX_MODULE_HARDRESET_WAIT, c);
 
 	return (c == MAX_MODULE_HARDRESET_WAIT) ? -EBUSY : 0;

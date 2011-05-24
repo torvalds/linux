@@ -15,67 +15,29 @@
 #define FSI_PORT_A	0
 #define FSI_PORT_B	1
 
-/* flags format
-
- * 0xABCDEEFF
- *
- * A:  channel size for TDM (input)
- * B:  channel size for TDM (ooutput)
- * C:  inversion
- * D:  mode
- * E:  input format
- * F:  output format
- */
-
 #include <linux/clk.h>
 #include <sound/soc.h>
 
-/* TDM channel */
-#define SH_FSI_SET_CH_I(x)	((x & 0xF) << 28)
-#define SH_FSI_SET_CH_O(x)	((x & 0xF) << 24)
+/*
+ * flags format
+ *
+ * 0x000000BA
+ *
+ * A:  inversion
+ * B:  format mode
+ */
 
-#define SH_FSI_CH_IMASK		0xF0000000
-#define SH_FSI_CH_OMASK		0x0F000000
-#define SH_FSI_GET_CH_I(x)	((x & SH_FSI_CH_IMASK) >> 28)
-#define SH_FSI_GET_CH_O(x)	((x & SH_FSI_CH_OMASK) >> 24)
+/* A: clock inversion */
+#define SH_FSI_INVERSION_MASK	0x0000000F
+#define SH_FSI_LRM_INV		(1 << 0)
+#define SH_FSI_BRM_INV		(1 << 1)
+#define SH_FSI_LRS_INV		(1 << 2)
+#define SH_FSI_BRS_INV		(1 << 3)
 
-/* clock inversion */
-#define SH_FSI_INVERSION_MASK	0x00F00000
-#define SH_FSI_LRM_INV		(1 << 20)
-#define SH_FSI_BRM_INV		(1 << 21)
-#define SH_FSI_LRS_INV		(1 << 22)
-#define SH_FSI_BRS_INV		(1 << 23)
-
-/* mode */
-#define SH_FSI_MODE_MASK	0x000F0000
-#define SH_FSI_IN_SLAVE_MODE	(1 << 16)  /* default master mode */
-#define SH_FSI_OUT_SLAVE_MODE	(1 << 17)  /* default master mode */
-
-/* DI format */
-#define SH_FSI_FMT_MASK		0x000000FF
-#define SH_FSI_IFMT(x)		(((SH_FSI_FMT_ ## x) & SH_FSI_FMT_MASK) << 8)
-#define SH_FSI_OFMT(x)		(((SH_FSI_FMT_ ## x) & SH_FSI_FMT_MASK) << 0)
-#define SH_FSI_GET_IFMT(x)	((x >> 8) & SH_FSI_FMT_MASK)
-#define SH_FSI_GET_OFMT(x)	((x >> 0) & SH_FSI_FMT_MASK)
-
-#define SH_FSI_FMT_MONO		0
-#define SH_FSI_FMT_MONO_DELAY	1
-#define SH_FSI_FMT_PCM		2
-#define SH_FSI_FMT_I2S		3
-#define SH_FSI_FMT_TDM		4
-#define SH_FSI_FMT_TDM_DELAY	5
-#define SH_FSI_FMT_SPDIF	6
-
-
-#define SH_FSI_IFMT_TDM_CH(x) \
-	(SH_FSI_IFMT(TDM)	| SH_FSI_SET_CH_I(x))
-#define SH_FSI_IFMT_TDM_DELAY_CH(x) \
-	(SH_FSI_IFMT(TDM_DELAY)	| SH_FSI_SET_CH_I(x))
-
-#define SH_FSI_OFMT_TDM_CH(x) \
-	(SH_FSI_OFMT(TDM)	| SH_FSI_SET_CH_O(x))
-#define SH_FSI_OFMT_TDM_DELAY_CH(x) \
-	(SH_FSI_OFMT(TDM_DELAY)	| SH_FSI_SET_CH_O(x))
+/* B: format mode */
+#define SH_FSI_FMT_MASK		0x000000F0
+#define SH_FSI_FMT_DAI		(0 << 4)
+#define SH_FSI_FMT_SPDIF	(1 << 4)
 
 
 /*

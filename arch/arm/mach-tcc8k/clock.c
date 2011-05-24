@@ -45,10 +45,11 @@
 #define ACLKGSB1	(CKC_BASE + ACLKGSB1_OFFS)
 #define ACLKGSB2	(CKC_BASE + ACLKGSB2_OFFS)
 #define ACLKGSB3	(CKC_BASE + ACLKGSB3_OFFS)
-#define ACLKUSBH	(CKC_BASE + ACLKUSBH_OFFS)
 #define ACLKTCT		(CKC_BASE + ACLKTCT_OFFS)
 #define ACLKTCX		(CKC_BASE + ACLKTCX_OFFS)
 #define ACLKTCZ		(CKC_BASE + ACLKTCZ_OFFS)
+
+#define ACLK_MAX_DIV	(0xfff + 1)
 
 /* Crystal frequencies */
 static unsigned long xi_rate, xti_rate;
@@ -106,9 +107,9 @@ static int root_clk_enable(enum root_clks src)
 	return 0;
 }
 
-static int root_clk_disable(enum root_clks root_src)
+static int root_clk_disable(enum root_clks src)
 {
-	switch (root_src) {
+	switch (src) {
 	case CLK_SRC_PLL0: return pll_enable(0, 0);
 	case CLK_SRC_PLL1: return pll_enable(1, 0);
 	case CLK_SRC_PLL2: return pll_enable(2, 0);
@@ -197,7 +198,7 @@ static unsigned long get_rate_pll_div(int pll)
 		addr = CKC_BASE + CLKDIVC1_OFFS;
 		reg = __raw_readl(addr);
 		if (reg & CLKDIVC1_P2E)
-			div = __raw_readl(addr) & 0x3f;
+			div = reg & 0x3f;
 		break;
 	}
 	return get_rate_pll(pll) / (div + 1);
@@ -258,14 +259,19 @@ static unsigned long aclk_best_div(struct clk *clk, unsigned long rate)
 {
 	unsigned long div, src, freq, r1, r2;
 
+	if (!rate)
+		return ACLK_MAX_DIV;
+
 	src = __raw_readl(clk->aclkreg) >> ACLK_SEL_SHIFT;
 	src &= CLK_SRC_MASK;
 	freq = root_clk_get_rate(src);
-	div = freq / rate + 1;
+	div = freq / rate;
+	if (!div)
+		return 1;
+	if (div >= ACLK_MAX_DIV)
+		return ACLK_MAX_DIV;
 	r1 = freq / div;
 	r2 = freq / (div + 1);
-	if (r2 >= rate)
-		return div + 1;
 	if ((rate - r2) < (r1 - rate))
 		return div + 1;
 
@@ -287,7 +293,8 @@ static int aclk_set_rate(struct clk *clk, unsigned long rate)
 	u32 reg;
 
 	reg = __raw_readl(clk->aclkreg) & ~ACLK_DIV_MASK;
-	reg |= aclk_best_div(clk, rate);
+	reg |= aclk_best_div(clk, rate) - 1;
+	__raw_writel(reg, clk->aclkreg);
 	return 0;
 }
 
@@ -296,15 +303,22 @@ static unsigned long get_rate_sys(struct clk *clk)
 	unsigned int src;
 
 	src = __raw_readl(CKC_BASE + CLKCTRL_OFFS) & CLK_SRC_MASK;
-		return root_clk_get_rate(src);
+	return root_clk_get_rate(src);
 }
 
 static unsigned long get_rate_bus(struct clk *clk)
 {
-	unsigned int div;
+	unsigned int reg, sdiv, bdiv, rate;
 
-	div = (__raw_readl(CKC_BASE + CLKCTRL_OFFS) >> 4) & 0xff;
-	return get_rate_sys(clk) / (div + 1);
+	reg = __raw_readl(CKC_BASE + CLKCTRL_OFFS);
+	rate = get_rate_sys(clk);
+	sdiv = (reg >> 20) & 3;
+	if (sdiv)
+		rate /= sdiv + 1;
+	bdiv = (reg >> 4) & 0xff;
+	if (bdiv)
+		rate /= bdiv + 1;
+	return rate;
 }
 
 static unsigned long get_rate_cpu(struct clk *clk)

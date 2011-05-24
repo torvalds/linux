@@ -1254,7 +1254,7 @@ static int setup_overlay(struct zoran_fh *fh, int on)
 {
 	struct zoran *zr = fh->zr;
 
-	/* If there is nothing to do, return immediatly */
+	/* If there is nothing to do, return immediately */
 	if ((on && fh->overlay_active != ZORAN_FREE) ||
 	    (!on && fh->overlay_active == ZORAN_FREE))
 		return 0;

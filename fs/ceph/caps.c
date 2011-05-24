@@ -765,7 +765,7 @@ int __ceph_caps_issued_mask(struct ceph_inode_info *ci, int mask, int touch)
 			if (touch) {
 				struct rb_node *q;
 
-				/* touch this + preceeding caps */
+				/* touch this + preceding caps */
 				__touch_cap(cap);
 				for (q = rb_first(&ci->i_caps); q != p;
 				     q = rb_next(q)) {

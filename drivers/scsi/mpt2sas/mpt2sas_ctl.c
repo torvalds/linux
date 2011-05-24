@@ -116,7 +116,7 @@ _ctl_sas_device_find_by_handle(struct MPT2SAS_ADAPTER *ioc, u16 handle)
  * @mpi_reply: reply message frame
  * Context: none.
  *
- * Function for displaying debug info helpfull when debugging issues
+ * Function for displaying debug info helpful when debugging issues
  * in this module.
  */
 static void

@@ -53,9 +53,8 @@ struct mpc8610_hpcd_data {
  *
  * Here we program the DMACR and PMUXCR registers.
  */
-static int mpc8610_hpcd_machine_probe(struct platform_device *sound_device)
+static int mpc8610_hpcd_machine_probe(struct snd_soc_card *card)
 {
-	struct snd_soc_card *card = platform_get_drvdata(sound_device);
 	struct mpc8610_hpcd_data *machine_data =
 		container_of(card, struct mpc8610_hpcd_data, card);
 	struct ccsr_guts_86xx __iomem *guts;
@@ -138,9 +137,8 @@ static int mpc8610_hpcd_startup(struct snd_pcm_substream *substream)
  * This function is called to remove the sound device for one SSI.  We
  * de-program the DMACR and PMUXCR register.
  */
-static int mpc8610_hpcd_machine_remove(struct platform_device *sound_device)
+static int mpc8610_hpcd_machine_remove(struct snd_soc_card *card)
 {
-	struct snd_soc_card *card = platform_get_drvdata(sound_device);
 	struct mpc8610_hpcd_data *machine_data =
 		container_of(card, struct mpc8610_hpcd_data, card);
 	struct ccsr_guts_86xx __iomem *guts;

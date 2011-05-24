@@ -298,7 +298,6 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
 
 extern void __lock_page(struct page *page);
 extern int __lock_page_killable(struct page *page);
-extern void __lock_page_nosync(struct page *page);
 extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
 				unsigned int flags);
 extern void unlock_page(struct page *page);
@@ -341,17 +340,6 @@ static inline int lock_page_killable(struct page *page)
 	return 0;
 }
 
-/*
- * lock_page_nosync should only be used if we can't pin the page's inode.
- * Doesn't play quite so well with block device plugging.
- */
-static inline void lock_page_nosync(struct page *page)
-{
-	might_sleep();
-	if (!trylock_page(page))
-		__lock_page_nosync(page);
-}
-	
 /*
  * lock_page_or_retry - Lock the page, unless this would block and the
  * caller indicated that it can handle a retry.
@@ -455,8 +443,9 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
 				pgoff_t index, gfp_t gfp_mask);
 int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 				pgoff_t index, gfp_t gfp_mask);
-extern void remove_from_page_cache(struct page *page);
-extern void __remove_from_page_cache(struct page *page);
+extern void delete_from_page_cache(struct page *page);
+extern void __delete_from_page_cache(struct page *page);
+int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask);
 
 /*
  * Like add_to_page_cache_locked, but used to add newly allocated pages:

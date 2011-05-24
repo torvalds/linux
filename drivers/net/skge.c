@@ -3856,9 +3856,6 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port*8, ETH_ALEN);
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
-	/* device is off until link detection */
-	netif_carrier_off(dev);
-
 	return dev;
 }
 

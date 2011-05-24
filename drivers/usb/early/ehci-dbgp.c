@@ -601,7 +601,7 @@ try_again:
 		dbgp_printk("dbgp_bulk_write failed: %d\n", ret);
 		goto err;
 	}
-	dbgp_printk("small write doned\n");
+	dbgp_printk("small write done\n");
 	dbgp_not_safe = 0;
 
 	return 0;
@@ -648,7 +648,7 @@ static int ehci_reset_port(int port)
 		if (!(portsc & PORT_CONNECT))
 			return -ENOTCONN;
 
-		/* bomb out completely if something weird happend */
+		/* bomb out completely if something weird happened */
 		if ((portsc & PORT_CSC))
 			return -EINVAL;
 

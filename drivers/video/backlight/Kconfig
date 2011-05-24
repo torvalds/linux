@@ -109,6 +109,14 @@ config LCD_S6E63M0
 	  If you have an S6E63M0 LCD Panel, say Y to enable its
 	  LCD control driver.
 
+config LCD_LD9040
+	tristate "LD9040 AMOLED LCD Driver"
+	depends on SPI && BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  If you have an LD9040 Panel, say Y to enable its
+	  control driver.
+
 endif # LCD_CLASS_DEVICE
 
 #
@@ -236,12 +244,12 @@ config BACKLIGHT_MAX8925
 	  If you have a LCD backlight connected to the WLED output of MAX8925
 	  WLED output, say Y here to enable this driver.
 
-config BACKLIGHT_MBP_NVIDIA
-       tristate "MacBook Pro Nvidia Backlight Driver"
-       depends on X86
+config BACKLIGHT_APPLE
+       tristate "Apple Backlight Driver"
+       depends on X86 && ACPI
        help
-         If you have an Apple Macbook Pro with Nvidia graphics hardware say Y
-	 to enable a driver for its backlight
+         If you have an Intel-based Apple say Y to enable a driver for its
+	 backlight.
 
 config BACKLIGHT_TOSA
 	tristate "Sharp SL-6000 Backlight Driver"

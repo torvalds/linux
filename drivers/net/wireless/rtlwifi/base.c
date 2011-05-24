@@ -144,7 +144,7 @@ static void _rtl_init_hw_ht_capab(struct ieee80211_hw *hw,
 		ht_cap->mcs.rx_mask[1] = 0xFF;
 		ht_cap->mcs.rx_mask[4] = 0x01;
 
-		ht_cap->mcs.rx_highest = MAX_BIT_RATE_40MHZ_MCS15;
+		ht_cap->mcs.rx_highest = cpu_to_le16(MAX_BIT_RATE_40MHZ_MCS15);
 	} else if (get_rf_type(rtlphy) == RF_1T1R) {
 
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, ("1T1R\n"));
@@ -153,7 +153,7 @@ static void _rtl_init_hw_ht_capab(struct ieee80211_hw *hw,
 		ht_cap->mcs.rx_mask[1] = 0x00;
 		ht_cap->mcs.rx_mask[4] = 0x01;
 
-		ht_cap->mcs.rx_highest = MAX_BIT_RATE_40MHZ_MCS7;
+		ht_cap->mcs.rx_highest = cpu_to_le16(MAX_BIT_RATE_40MHZ_MCS7);
 	}
 }
 
@@ -283,13 +283,7 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	rtlmac->hw = hw;
 
 	/* <2> rate control register */
-	if (rtl_rate_control_register()) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 ("rtl: Unable to register rtl_rc,"
-			  "use default RC !!\n"));
-	} else {
-		hw->rate_control_algorithm = "rtl_rc";
-	}
+	hw->rate_control_algorithm = "rtl_rc";
 
 	/*
 	 * <3> init CRDA must come after init
@@ -325,8 +319,6 @@ int rtl_init_core(struct ieee80211_hw *hw)
 
 void rtl_deinit_core(struct ieee80211_hw *hw)
 {
-	 /*RC*/
-	rtl_rate_control_unregister();
 }
 
 void rtl_init_rx_config(struct ieee80211_hw *hw)
@@ -399,21 +391,21 @@ static void _rtl_query_protection_mode(struct ieee80211_hw *hw,
 	u8 rate_flag = info->control.rates[0].flags;
 
 	/* Common Settings */
-	tcb_desc->b_rts_stbc = false;
-	tcb_desc->b_cts_enable = false;
+	tcb_desc->rts_stbc = false;
+	tcb_desc->cts_enable = false;
 	tcb_desc->rts_sc = 0;
-	tcb_desc->b_rts_bw = false;
-	tcb_desc->b_rts_use_shortpreamble = false;
-	tcb_desc->b_rts_use_shortgi = false;
+	tcb_desc->rts_bw = false;
+	tcb_desc->rts_use_shortpreamble = false;
+	tcb_desc->rts_use_shortgi = false;
 
 	if (rate_flag & IEEE80211_TX_RC_USE_CTS_PROTECT) {
 		/* Use CTS-to-SELF in protection mode. */
-		tcb_desc->b_rts_enable = true;
-		tcb_desc->b_cts_enable = true;
+		tcb_desc->rts_enable = true;
+		tcb_desc->cts_enable = true;
 		tcb_desc->rts_rate = rtlpriv->cfg->maps[RTL_RC_OFDM_RATE24M];
 	} else if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
 		/* Use RTS-CTS in protection mode. */
-		tcb_desc->b_rts_enable = true;
+		tcb_desc->rts_enable = true;
 		tcb_desc->rts_rate = rtlpriv->cfg->maps[RTL_RC_OFDM_RATE24M];
 	}
 
@@ -429,7 +421,7 @@ static void _rtl_txrate_selectmode(struct ieee80211_hw *hw,
 		if (mac->opmode == NL80211_IFTYPE_STATION)
 			tcb_desc->ratr_index = 0;
 		else if (mac->opmode == NL80211_IFTYPE_ADHOC) {
-			if (tcb_desc->b_multicast || tcb_desc->b_broadcast) {
+			if (tcb_desc->multicast || tcb_desc->broadcast) {
 				tcb_desc->hw_rate =
 				    rtlpriv->cfg->maps[RTL_RC_CCK_RATE2M];
 				tcb_desc->use_driver_rate = 1;
@@ -439,7 +431,7 @@ static void _rtl_txrate_selectmode(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (rtlpriv->dm.b_useramask) {
+	if (rtlpriv->dm.useramask) {
 		/* TODO we will differentiate adhoc and station futrue  */
 		tcb_desc->mac_id = 0;
 
@@ -461,19 +453,19 @@ static void _rtl_query_bandwidth_mode(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 
-	tcb_desc->b_packet_bw = false;
+	tcb_desc->packet_bw = false;
 
 	if (!mac->bw_40 || !mac->ht_enable)
 		return;
 
-	if (tcb_desc->b_multicast || tcb_desc->b_broadcast)
+	if (tcb_desc->multicast || tcb_desc->broadcast)
 		return;
 
 	/*use legency rate, shall use 20MHz */
 	if (tcb_desc->hw_rate <= rtlpriv->cfg->maps[RTL_RC_OFDM_RATE54M])
 		return;
 
-	tcb_desc->b_packet_bw = true;
+	tcb_desc->packet_bw = true;
 }
 
 static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw)
@@ -498,7 +490,7 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 	struct rtl_mac *rtlmac = rtl_mac(rtl_priv(hw));
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
 	struct ieee80211_rate *txrate;
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 
 	memset(tcb_desc, 0, sizeof(struct rtl_tcb_desc));
 
@@ -528,7 +520,7 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 			 *because hw will nerver use hw_rate
 			 *when tcb_desc->use_driver_rate = false
 			 *so we never set highest N rate here,
-			 *and N rate will all be controled by FW
+			 *and N rate will all be controlled by FW
 			 *when tcb_desc->use_driver_rate = false
 			 */
 			if (rtlmac->ht_enable) {
@@ -545,9 +537,9 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		}
 
 		if (is_multicast_ether_addr(ieee80211_get_DA(hdr)))
-			tcb_desc->b_multicast = 1;
+			tcb_desc->multicast = 1;
 		else if (is_broadcast_ether_addr(ieee80211_get_DA(hdr)))
-			tcb_desc->b_broadcast = 1;
+			tcb_desc->broadcast = 1;
 
 		_rtl_txrate_selectmode(hw, tcb_desc);
 		_rtl_query_bandwidth_mode(hw, tcb_desc);
@@ -570,7 +562,7 @@ bool rtl_tx_mgmt_proc(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 
 	if (ieee80211_is_auth(fc)) {
 		RT_TRACE(rtlpriv, COMP_SEND, DBG_DMESG, ("MAC80211_LINKING\n"));
@@ -587,7 +579,7 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 	u8 *act = (u8 *) (((u8 *) skb->data + MAC80211_3ADDR_LEN));
 	u8 category;
 
@@ -632,7 +624,7 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 	u16 ether_type;
 	u8 mac_hdr_len = ieee80211_get_hdrlen_from_skb(skb);
 	const struct iphdr *ip;
@@ -646,7 +638,6 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 	ip = (struct iphdr *)((u8 *) skb->data + mac_hdr_len +
 			      SNAP_SIZE + PROTOC_TYPE_SIZE);
 	ether_type = *(u16 *) ((u8 *) skb->data + mac_hdr_len + SNAP_SIZE);
-	ether_type = ntohs(ether_type);
 
 	if (ETH_P_IP == ether_type) {
 		if (IPPROTO_UDP == ip->protocol) {
@@ -690,7 +681,8 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 		}
 
 		return true;
-	} else if (0x86DD == ether_type) {
+	} else if (ETH_P_IPV6 == ether_type) {
+		/* IPv6 */
 		return true;
 	}
 
@@ -777,10 +769,10 @@ void rtl_watchdog_wq_callback(void *data)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 
-	bool b_busytraffic = false;
-	bool b_higher_busytraffic = false;
-	bool b_higher_busyrxtraffic = false;
-	bool b_higher_busytxtraffic = false;
+	bool busytraffic = false;
+	bool higher_busytraffic = false;
+	bool higher_busyrxtraffic = false;
+	bool higher_busytxtraffic = false;
 
 	u8 idx = 0;
 	u32 rx_cnt_inp4eriod = 0;
@@ -788,7 +780,7 @@ void rtl_watchdog_wq_callback(void *data)
 	u32 aver_rx_cnt_inperiod = 0;
 	u32 aver_tx_cnt_inperiod = 0;
 
-	bool benter_ps = false;
+	bool enter_ps = false;
 
 	if (is_hal_stop(rtlhal))
 		return;
@@ -832,29 +824,29 @@ void rtl_watchdog_wq_callback(void *data)
 
 		/* (2) check traffic busy */
 		if (aver_rx_cnt_inperiod > 100 || aver_tx_cnt_inperiod > 100)
-			b_busytraffic = true;
+			busytraffic = true;
 
 		/* Higher Tx/Rx data. */
 		if (aver_rx_cnt_inperiod > 4000 ||
 		    aver_tx_cnt_inperiod > 4000) {
-			b_higher_busytraffic = true;
+			higher_busytraffic = true;
 
 			/* Extremely high Rx data. */
 			if (aver_rx_cnt_inperiod > 5000)
-				b_higher_busyrxtraffic = true;
+				higher_busyrxtraffic = true;
 			else
-				b_higher_busytxtraffic = false;
+				higher_busytxtraffic = false;
 		}
 
 		if (((rtlpriv->link_info.num_rx_inperiod +
 		      rtlpriv->link_info.num_tx_inperiod) > 8) ||
 		    (rtlpriv->link_info.num_rx_inperiod > 2))
-			benter_ps = false;
+			enter_ps = false;
 		else
-			benter_ps = true;
+			enter_ps = true;
 
 		/* LeisurePS only work in infra mode. */
-		if (benter_ps)
+		if (enter_ps)
 			rtl_lps_enter(hw);
 		else
 			rtl_lps_leave(hw);
@@ -863,9 +855,9 @@ void rtl_watchdog_wq_callback(void *data)
 	rtlpriv->link_info.num_rx_inperiod = 0;
 	rtlpriv->link_info.num_tx_inperiod = 0;
 
-	rtlpriv->link_info.b_busytraffic = b_busytraffic;
-	rtlpriv->link_info.b_higher_busytraffic = b_higher_busytraffic;
-	rtlpriv->link_info.b_higher_busyrxtraffic = b_higher_busyrxtraffic;
+	rtlpriv->link_info.busytraffic = busytraffic;
+	rtlpriv->link_info.higher_busytraffic = higher_busytraffic;
+	rtlpriv->link_info.higher_busyrxtraffic = higher_busyrxtraffic;
 
 }
 
@@ -945,11 +937,16 @@ MODULE_DESCRIPTION("Realtek 802.11n PCI wireless core");
 
 static int __init rtl_core_module_init(void)
 {
+	if (rtl_rate_control_register())
+		printk(KERN_ERR "rtlwifi: Unable to register rtl_rc,"
+		       "use default RC !!\n");
 	return 0;
 }
 
 static void __exit rtl_core_module_exit(void)
 {
+	 /*RC*/
+	rtl_rate_control_unregister();
 }
 
 module_init(rtl_core_module_init);

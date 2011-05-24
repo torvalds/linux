@@ -100,6 +100,9 @@ void radeon_create_i2c_busses(struct radeonfb_info *rinfo)
 {
 	rinfo->i2c[0].rinfo	= rinfo;
 	rinfo->i2c[0].ddc_reg	= GPIO_MONID;
+#ifndef CONFIG_PPC
+	rinfo->i2c[0].adapter.class = I2C_CLASS_HWMON;
+#endif
 	radeon_setup_i2c_bus(&rinfo->i2c[0], "monid");
 
 	rinfo->i2c[1].rinfo	= rinfo;

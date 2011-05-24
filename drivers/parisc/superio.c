@@ -286,8 +286,9 @@ superio_init(struct pci_dev *pcidev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87560_LIO, superio_init);
 
-static void superio_mask_irq(unsigned int irq)
+static void superio_mask_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	u8 r8;
 
 	if ((irq < 1) || (irq == 2) || (irq > 7)) {
@@ -303,8 +304,9 @@ static void superio_mask_irq(unsigned int irq)
 	outb (r8,IC_PIC1+1);
 }
 
-static void superio_unmask_irq(unsigned int irq)
+static void superio_unmask_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	u8 r8;
 
 	if ((irq < 1) || (irq == 2) || (irq > 7)) {
@@ -320,9 +322,9 @@ static void superio_unmask_irq(unsigned int irq)
 }
 
 static struct irq_chip superio_interrupt_type = {
-	.name	=	SUPERIO,
-	.unmask	=	superio_unmask_irq,
-	.mask	=	superio_mask_irq,
+	.name		=	SUPERIO,
+	.irq_unmask	=	superio_unmask_irq,
+	.irq_mask	=	superio_mask_irq,
 };
 
 #ifdef DEBUG_SUPERIO_INIT
@@ -353,7 +355,8 @@ int superio_fixup_irq(struct pci_dev *pcidev)
 #endif
 
 	for (i = 0; i < 16; i++) {
-		set_irq_chip_and_handler(i, &superio_interrupt_type, handle_simple_irq);
+		irq_set_chip_and_handler(i, &superio_interrupt_type,
+					 handle_simple_irq);
 	}
 
 	/*

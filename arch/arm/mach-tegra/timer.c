@@ -18,6 +18,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
@@ -33,9 +34,14 @@
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>
+#include <mach/suspend.h>
 
 #include "board.h"
 #include "clock.h"
+
+#define RTC_SECONDS            0x08
+#define RTC_SHADOW_SECONDS     0x0c
+#define RTC_MILLISECONDS       0x10
 
 #define TIMERUS_CNTR_1US 0x10
 #define TIMERUS_USEC_CFG 0x14
@@ -49,9 +55,11 @@
 #define TIMER_PTV 0x0
 #define TIMER_PCR 0x4
 
-struct tegra_timer;
-
 static void __iomem *timer_reg_base = IO_ADDRESS(TEGRA_TMR1_BASE);
+static void __iomem *rtc_base = IO_ADDRESS(TEGRA_RTC_BASE);
+
+static struct timespec persistent_ts;
+static u64 persistent_ms, last_persistent_ms;
 
 #define timer_writel(value, reg) \
 	__raw_writel(value, (u32)timer_reg_base + (reg))
@@ -132,6 +140,42 @@ static void notrace tegra_update_sched_clock(void)
 	update_sched_clock(&cd, cyc, (u32)~0);
 }
 
+/*
+ * tegra_rtc_read - Reads the Tegra RTC registers
+ * Care must be taken that this funciton is not called while the
+ * tegra_rtc driver could be executing to avoid race conditions
+ * on the RTC shadow register
+ */
+u64 tegra_rtc_read_ms(void)
+{
+	u32 ms = readl(rtc_base + RTC_MILLISECONDS);
+	u32 s = readl(rtc_base + RTC_SHADOW_SECONDS);
+	return (u64)s * MSEC_PER_SEC + ms;
+}
+
+/*
+ * read_persistent_clock -  Return time from a persistent clock.
+ *
+ * Reads the time from a source which isn't disabled during PM, the
+ * 32k sync timer.  Convert the cycles elapsed since last read into
+ * nsecs and adds to a monotonically increasing timespec.
+ * Care must be taken that this funciton is not called while the
+ * tegra_rtc driver could be executing to avoid race conditions
+ * on the RTC shadow register
+ */
+void read_persistent_clock(struct timespec *ts)
+{
+	u64 delta;
+	struct timespec *tsp = &persistent_ts;
+
+	last_persistent_ms = persistent_ms;
+	persistent_ms = tegra_rtc_read_ms();
+	delta = persistent_ms - last_persistent_ms;
+
+	timespec_add_ns(tsp, delta * NSEC_PER_MSEC);
+	*ts = *tsp;
+}
+
 static irqreturn_t tegra_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = (struct clock_event_device *)dev_id;
@@ -150,8 +194,21 @@ static struct irqaction tegra_timer_irq = {
 
 static void __init tegra_init_timer(void)
 {
+	struct clk *clk;
 	unsigned long rate = clk_measure_input_freq();
 	int ret;
+
+	clk = clk_get_sys("timer", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_enable(clk);
+
+	/*
+	 * rtc registers are used by read_persistent_clock, keep the rtc clock
+	 * enabled
+	 */
+	clk = clk_get_sys("rtc-tegra", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_enable(clk);
 
 #ifdef CONFIG_HAVE_ARM_TWD
 	twd_base = IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x600);
@@ -196,10 +253,22 @@ static void __init tegra_init_timer(void)
 	tegra_clockevent.cpumask = cpu_all_mask;
 	tegra_clockevent.irq = tegra_timer_irq.irq;
 	clockevents_register_device(&tegra_clockevent);
-
-	return;
 }
 
 struct sys_timer tegra_timer = {
 	.init = tegra_init_timer,
 };
+
+#ifdef CONFIG_PM
+static u32 usec_config;
+
+void tegra_timer_suspend(void)
+{
+	usec_config = timer_readl(TIMERUS_USEC_CFG);
+}
+
+void tegra_timer_resume(void)
+{
+	timer_writel(usec_config, TIMERUS_USEC_CFG);
+}
+#endif

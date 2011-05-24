@@ -105,7 +105,7 @@ static inline int try_stop_cpus(const struct cpumask *cpumask,
  * @cpus: the cpus to run the @fn() on (NULL = any online cpu)
  *
  * Description: This causes a thread to be scheduled on every cpu,
- * each of which disables interrupts.  The result is that noone is
+ * each of which disables interrupts.  The result is that no one is
  * holding a spinlock or inside any other preempt-disabled region when
  * @fn() runs.
  *

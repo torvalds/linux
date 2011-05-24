@@ -55,7 +55,6 @@ static struct inode *ecryptfs_alloc_inode(struct super_block *sb)
 	if (unlikely(!inode_info))
 		goto out;
 	ecryptfs_init_crypt_stat(&inode_info->crypt_stat);
-	mutex_init(&inode_info->lower_file_mutex);
 	inode_info->lower_file = NULL;
 	inode = &inode_info->vfs_inode;
 out:
@@ -198,7 +197,7 @@ static int ecryptfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 const struct super_operations ecryptfs_sops = {
 	.alloc_inode = ecryptfs_alloc_inode,
 	.destroy_inode = ecryptfs_destroy_inode,
-	.drop_inode = generic_delete_inode,
+	.drop_inode = generic_drop_inode,
 	.statfs = ecryptfs_statfs,
 	.remount_fs = NULL,
 	.evict_inode = ecryptfs_evict_inode,

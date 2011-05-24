@@ -50,8 +50,6 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/sco.h>
 
-#define VERSION "0.6"
-
 static int disable_esco;
 
 static const struct proto_ops sco_sock_ops;
@@ -192,20 +190,21 @@ static int sco_connect(struct sock *sk)
 
 	hci_dev_lock_bh(hdev);
 
-	err = -ENOMEM;
-
 	if (lmp_esco_capable(hdev) && !disable_esco)
 		type = ESCO_LINK;
 	else
 		type = SCO_LINK;
 
 	hcon = hci_connect(hdev, type, dst, BT_SECURITY_LOW, HCI_AT_NO_BONDING);
-	if (!hcon)
+	if (IS_ERR(hcon)) {
+		err = PTR_ERR(hcon);
 		goto done;
+	}
 
 	conn = sco_conn_add(hcon, 0);
 	if (!conn) {
 		hci_conn_put(hcon);
+		err = -ENOMEM;
 		goto done;
 	}
 
@@ -703,6 +702,7 @@ static int sco_sock_getsockopt_old(struct socket *sock, int optname, char __user
 			break;
 		}
 
+		memset(&cinfo, 0, sizeof(cinfo));
 		cinfo.hci_handle = sco_pi(sk)->conn->hcon->handle;
 		memcpy(cinfo.dev_class, sco_pi(sk)->conn->hcon->dev_class, 3);
 
@@ -1023,7 +1023,7 @@ static struct hci_proto sco_hci_proto = {
 	.recv_scodata	= sco_recv_scodata
 };
 
-static int __init sco_init(void)
+int __init sco_init(void)
 {
 	int err;
 
@@ -1051,7 +1051,6 @@ static int __init sco_init(void)
 			BT_ERR("Failed to create SCO debug file");
 	}
 
-	BT_INFO("SCO (Voice Link) ver %s", VERSION);
 	BT_INFO("SCO socket layer initialized");
 
 	return 0;
@@ -1061,7 +1060,7 @@ error:
 	return err;
 }
 
-static void __exit sco_exit(void)
+void __exit sco_exit(void)
 {
 	debugfs_remove(sco_debugfs);
 
@@ -1074,14 +1073,5 @@ static void __exit sco_exit(void)
 	proto_unregister(&sco_proto);
 }
 
-module_init(sco_init);
-module_exit(sco_exit);
-
 module_param(disable_esco, bool, 0644);
 MODULE_PARM_DESC(disable_esco, "Disable eSCO connection creation");
-
-MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
-MODULE_DESCRIPTION("Bluetooth SCO ver " VERSION);
-MODULE_VERSION(VERSION);
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("bt-proto-2");

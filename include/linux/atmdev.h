@@ -443,6 +443,7 @@ void atm_dev_signal_change(struct atm_dev *dev, char signal);
 
 void vcc_insert_socket(struct sock *sk);
 
+void atm_dev_release_vccs(struct atm_dev *dev);
 
 /*
  * This is approximately the algorithm used by alloc_skb.

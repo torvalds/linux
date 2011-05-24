@@ -171,7 +171,7 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 	delay_idx = 0;
 	ms = delay[0];
 
-	for (i = 0; i < 500; i += ms) {
+	for (i = 0; i < FW_CMD_MAX_TIMEOUT; i += ms) {
 		if (sleep_ok) {
 			ms = delay[delay_idx];
 			if (delay_idx < ARRAY_SIZE(delay) - 1)

@@ -763,7 +763,7 @@ static int fb_wait_for_vsync(struct fb_info *info)
 
 	/*
 	 * Set flag to 0 and wait for isr to set to 1. It would seem there is a
-	 * race condition here where the ISR could have occured just before or
+	 * race condition here where the ISR could have occurred just before or
 	 * just after this set. But since we are just coarsely waiting for
 	 * a frame to complete then that's OK. i.e. if the frame completed
 	 * just before this code executed then we have to wait another full

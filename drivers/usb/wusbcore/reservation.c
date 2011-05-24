@@ -71,7 +71,7 @@ static void wusbhc_rsv_complete_cb(struct uwb_rsv *rsv)
 
 /**
  * wusbhc_rsv_establish - establish a reservation for the cluster
- * @wusbhc: the WUSB HC requesting a bandwith reservation
+ * @wusbhc: the WUSB HC requesting a bandwidth reservation
  */
 int wusbhc_rsv_establish(struct wusbhc *wusbhc)
 {

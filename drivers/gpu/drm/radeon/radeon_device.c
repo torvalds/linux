@@ -85,6 +85,7 @@ static const char radeon_family_name[][16] = {
 	"BARTS",
 	"TURKS",
 	"CAICOS",
+	"CAYMAN",
 	"LAST",
 };
 
@@ -184,7 +185,7 @@ int radeon_wb_init(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->wb.wb_obj == NULL) {
-		r = radeon_bo_create(rdev, NULL, RADEON_GPU_PAGE_SIZE, PAGE_SIZE, true,
+		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE, PAGE_SIZE, true,
 				RADEON_GEM_DOMAIN_GTT, &rdev->wb.wb_obj);
 		if (r) {
 			dev_warn(rdev->dev, "(%d) create WB bo failed\n", r);
@@ -261,7 +262,7 @@ int radeon_wb_init(struct radeon_device *rdev)
  * Note: GTT start, end, size should be initialized before calling this
  * function on AGP platform.
  *
- * Note: We don't explictly enforce VRAM start to be aligned on VRAM size,
+ * Note: We don't explicitly enforce VRAM start to be aligned on VRAM size,
  * this shouldn't be a problem as we are using the PCI aperture as a reference.
  * Otherwise this would be needed for rv280, all r3xx, and all r4xx, but
  * not IGP.
@@ -860,7 +861,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 		if (rfb == NULL || rfb->obj == NULL) {
 			continue;
 		}
-		robj = rfb->obj->driver_private;
+		robj = gem_to_radeon_bo(rfb->obj);
 		/* don't unpin kernel fb objects */
 		if (!radeon_fbdev_robj_is_fb(rdev, robj)) {
 			r = radeon_bo_reserve(robj, false);
@@ -936,8 +937,11 @@ int radeon_resume_kms(struct drm_device *dev)
 int radeon_gpu_reset(struct radeon_device *rdev)
 {
 	int r;
+	int resched;
 
 	radeon_save_bios_scratch_regs(rdev);
+	/* block TTM */
+	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
 	radeon_suspend(rdev);
 
 	r = radeon_asic_reset(rdev);
@@ -946,6 +950,7 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 		radeon_resume(rdev);
 		radeon_restore_bios_scratch_regs(rdev);
 		drm_helper_resume_force_mode(rdev->ddev);
+		ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 		return 0;
 	}
 	/* bad news, how to tell it to userspace ? */

@@ -5,13 +5,11 @@ Supported chips:
   * Winbond W83627EHF/EHG (ISA access ONLY)
     Prefix: 'w83627ehf'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet:
-        http://www.nuvoton.com.tw/NR/rdonlyres/A6A258F0-F0C9-4F97-81C0-C4D29E7E943E/0/W83627EHF.pdf
+    Datasheet: not available
   * Winbond W83627DHG
     Prefix: 'w83627dhg'
     Addresses scanned: ISA address retrieved from Super I/O registers
-    Datasheet:
-        http://www.nuvoton.com.tw/NR/rdonlyres/7885623D-A487-4CF9-A47F-30C5F73D6FE6/0/W83627DHG.pdf
+    Datasheet: not available
   * Winbond W83627DHG-P
     Prefix: 'w83627dhg'
     Addresses scanned: ISA address retrieved from Super I/O registers
@@ -22,6 +20,14 @@ Supported chips:
     Datasheet: not available
   * Winbond W83667HG-B
     Prefix: 'w83667hg'
+    Addresses scanned: ISA address retrieved from Super I/O registers
+    Datasheet: Available from Nuvoton upon request
+  * Nuvoton NCT6775F/W83667HG-I
+    Prefix: 'nct6775'
+    Addresses scanned: ISA address retrieved from Super I/O registers
+    Datasheet: Available from Nuvoton upon request
+  * Nuvoton NCT6776F
+    Prefix: 'nct6776'
     Addresses scanned: ISA address retrieved from Super I/O registers
     Datasheet: Available from Nuvoton upon request
 
@@ -36,19 +42,28 @@ Description
 -----------
 
 This driver implements support for the Winbond W83627EHF, W83627EHG,
-W83627DHG, W83627DHG-P, W83667HG and W83667HG-B super I/O chips.
-We will refer to them collectively as Winbond chips.
+W83627DHG, W83627DHG-P, W83667HG, W83667HG-B, W83667HG-I (NCT6775F),
+and NCT6776F super I/O chips. We will refer to them collectively as
+Winbond chips.
 
-The chips implement three temperature sensors, five fan rotation
-speed sensors, ten analog voltage sensors (only nine for the 627DHG), one
-VID (6 pins for the 627EHF/EHG, 8 pins for the 627DHG and 667HG), alarms
-with beep warnings (control unimplemented), and some automatic fan
-regulation strategies (plus manual fan control mode).
+The chips implement three temperature sensors (up to four for 667HG-B, and nine
+for NCT6775F and NCT6776F), five fan rotation speed sensors, ten analog voltage
+sensors (only nine for the 627DHG), one VID (6 pins for the 627EHF/EHG, 8 pins
+for the 627DHG and 667HG), alarms with beep warnings (control unimplemented),
+and some automatic fan regulation strategies (plus manual fan control mode).
+
+The temperature sensor sources on W82677HG-B, NCT6775F, and NCT6776F are
+configurable. temp4 and higher attributes are only reported if its temperature
+source differs from the temperature sources of the already reported temperature
+sensors. The configured source for each of the temperature sensors is provided
+in tempX_label.
 
 Temperatures are measured in degrees Celsius and measurement resolution is 1
-degC for temp1 and 0.5 degC for temp2 and temp3. An alarm is triggered when
-the temperature gets higher than high limit; it stays on until the temperature
-falls below the hysteresis value.
+degC for temp1 and and 0.5 degC for temp2 and temp3. For temp4 and higher,
+resolution is 1 degC for W83667HG-B and 0.0 degC for NCT6775F and NCT6776F.
+An alarm is triggered when the temperature gets higher than high limit;
+it stays on until the temperature falls below the hysteresis value.
+Alarms are only supported for temp1, temp2, and temp3.
 
 Fan rotation speeds are reported in RPM (rotations per minute). An alarm is
 triggered if the rotation speed has dropped below a programmable limit. Fan
@@ -80,7 +95,8 @@ prog  -> pwm4 (not on 667HG and 667HG-B; the programmable setting is not
 
 name - this is a standard hwmon device entry. For the W83627EHF and W83627EHG,
        it is set to "w83627ehf", for the W83627DHG it is set to "w83627dhg",
-       and for the W83667HG it is set to "w83667hg".
+       for the W83667HG and W83667HG-B it is set to "w83667hg", for NCT6775F it
+       is set to "nct6775", and for NCT6776F it is set to "nct6776".
 
 pwm[1-4] - this file stores PWM duty cycle or DC value (fan speed) in range:
 	   0 (stop) to 255 (full)
@@ -90,6 +106,18 @@ pwm[1-4]_enable - this file controls mode of fan/temperature control:
 	* 2 "Thermal Cruise" mode
 	* 3 "Fan Speed Cruise" mode
 	* 4 "Smart Fan III" mode
+	* 5 "Smart Fan IV" mode
+
+	SmartFan III mode is not supported on NCT6776F.
+
+	SmartFan IV mode is configurable only if it was configured at system
+	startup, and is only supported for W83677HG-B, NCT6775F, and NCT6776F.
+	SmartFan IV operational parameters can not be configured at this time,
+	and the various pwm attributes are not used in SmartFan IV mode.
+	The attributes can be written to, which is useful if you plan to
+	configure the system for a different pwm mode. However, the information
+	returned when reading pwm attributes is unrelated to SmartFan IV
+	operation.
 
 pwm[1-4]_mode - controls if output is PWM or DC level
         * 0 DC output (0 - 12v)

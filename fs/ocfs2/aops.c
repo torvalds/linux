@@ -29,7 +29,6 @@
 #include <linux/mpage.h>
 #include <linux/quotaops.h>
 
-#define MLOG_MASK_PREFIX ML_FILE_IO
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"
@@ -45,6 +44,7 @@
 #include "super.h"
 #include "symlink.h"
 #include "refcounttree.h"
+#include "ocfs2_trace.h"
 
 #include "buffer_head_io.h"
 
@@ -59,8 +59,9 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	void *kaddr;
 
-	mlog_entry("(0x%p, %llu, 0x%p, %d)\n", inode,
-		   (unsigned long long)iblock, bh_result, create);
+	trace_ocfs2_symlink_get_block(
+			(unsigned long long)OCFS2_I(inode)->ip_blkno,
+			(unsigned long long)iblock, bh_result, create);
 
 	BUG_ON(ocfs2_inode_is_fast_symlink(inode));
 
@@ -123,7 +124,6 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 bail:
 	brelse(bh);
 
-	mlog_exit(err);
 	return err;
 }
 
@@ -136,8 +136,8 @@ int ocfs2_get_block(struct inode *inode, sector_t iblock,
 	u64 p_blkno, count, past_eof;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	mlog_entry("(0x%p, %llu, 0x%p, %d)\n", inode,
-		   (unsigned long long)iblock, bh_result, create);
+	trace_ocfs2_get_block((unsigned long long)OCFS2_I(inode)->ip_blkno,
+			      (unsigned long long)iblock, bh_result, create);
 
 	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_SYSTEM_FILE)
 		mlog(ML_NOTICE, "get_block on system inode 0x%p (%lu)\n",
@@ -199,8 +199,9 @@ int ocfs2_get_block(struct inode *inode, sector_t iblock,
 	}
 
 	past_eof = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
-	mlog(0, "Inode %lu, past_eof = %llu\n", inode->i_ino,
-	     (unsigned long long)past_eof);
+
+	trace_ocfs2_get_block_end((unsigned long long)OCFS2_I(inode)->ip_blkno,
+				  (unsigned long long)past_eof);
 	if (create && (iblock >= past_eof))
 		set_buffer_new(bh_result);
 
@@ -208,7 +209,6 @@ bail:
 	if (err < 0)
 		err = -EIO;
 
-	mlog_exit(err);
 	return err;
 }
 
@@ -278,7 +278,8 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 	loff_t start = (loff_t)page->index << PAGE_CACHE_SHIFT;
 	int ret, unlock = 1;
 
-	mlog_entry("(0x%p, %lu)\n", file, (page ? page->index : 0));
+	trace_ocfs2_readpage((unsigned long long)oi->ip_blkno,
+			     (page ? page->index : 0));
 
 	ret = ocfs2_inode_lock_with_page(inode, NULL, 0, page);
 	if (ret != 0) {
@@ -323,7 +324,6 @@ out_inode_unlock:
 out:
 	if (unlock)
 		unlock_page(page);
-	mlog_exit(ret);
 	return ret;
 }
 
@@ -396,15 +396,11 @@ out_unlock:
  */
 static int ocfs2_writepage(struct page *page, struct writeback_control *wbc)
 {
-	int ret;
+	trace_ocfs2_writepage(
+		(unsigned long long)OCFS2_I(page->mapping->host)->ip_blkno,
+		page->index);
 
-	mlog_entry("(0x%p)\n", page);
-
-	ret = block_write_full_page(page, ocfs2_get_block, wbc);
-
-	mlog_exit(ret);
-
-	return ret;
+	return block_write_full_page(page, ocfs2_get_block, wbc);
 }
 
 /* Taken from ext3. We don't necessarily need the full blown
@@ -450,7 +446,8 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 	int err = 0;
 	struct inode *inode = mapping->host;
 
-	mlog_entry("(block = %llu)\n", (unsigned long long)block);
+	trace_ocfs2_bmap((unsigned long long)OCFS2_I(inode)->ip_blkno,
+			 (unsigned long long)block);
 
 	/* We don't need to lock journal system files, since they aren't
 	 * accessed concurrently from multiple nodes.
@@ -483,8 +480,6 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 
 bail:
 	status = err ? 0 : p_blkno;
-
-	mlog_exit((int)status);
 
 	return status;
 }
@@ -616,9 +611,6 @@ static ssize_t ocfs2_direct_IO(int rw,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_path.dentry->d_inode->i_mapping->host;
-	int ret;
-
-	mlog_entry_void();
 
 	/*
 	 * Fallback to buffered I/O if we see an inode without
@@ -631,13 +623,10 @@ static ssize_t ocfs2_direct_IO(int rw,
 	if (i_size_read(inode) <= offset)
 		return 0;
 
-	ret = __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev,
-				   iov, offset, nr_segs,
-				   ocfs2_direct_IO_get_blocks,
-				   ocfs2_dio_end_io, NULL, 0);
-
-	mlog_exit(ret);
-	return ret;
+	return __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev,
+				    iov, offset, nr_segs,
+				    ocfs2_direct_IO_get_blocks,
+				    ocfs2_dio_end_io, NULL, 0);
 }
 
 static void ocfs2_figure_cluster_boundaries(struct ocfs2_super *osb,
@@ -1025,6 +1014,12 @@ static int ocfs2_prepare_page_for_write(struct inode *inode, u64 *p_blkno,
 
 	ocfs2_figure_cluster_boundaries(OCFS2_SB(inode->i_sb), cpos,
 					&cluster_start, &cluster_end);
+
+	/* treat the write as new if the a hole/lseek spanned across
+	 * the page boundary.
+	 */
+	new = new | ((i_size_read(inode) <= page_offset(page)) &&
+			(page_offset(page) <= user_pos));
 
 	if (page == wc->w_target_page) {
 		map_from = user_pos & (PAGE_CACHE_SIZE - 1);
@@ -1534,9 +1529,9 @@ static int ocfs2_try_to_write_inline_data(struct address_space *mapping,
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	struct ocfs2_dinode *di = NULL;
 
-	mlog(0, "Inode %llu, write of %u bytes at off %llu. features: 0x%x\n",
-	     (unsigned long long)oi->ip_blkno, len, (unsigned long long)pos,
-	     oi->ip_dyn_features);
+	trace_ocfs2_try_to_write_inline_data((unsigned long long)oi->ip_blkno,
+					     len, (unsigned long long)pos,
+					     oi->ip_dyn_features);
 
 	/*
 	 * Handle inodes which already have inline data 1st.
@@ -1739,6 +1734,13 @@ try_again:
 
 	di = (struct ocfs2_dinode *)wc->w_di_bh->b_data;
 
+	trace_ocfs2_write_begin_nolock(
+			(unsigned long long)OCFS2_I(inode)->ip_blkno,
+			(long long)i_size_read(inode),
+			le32_to_cpu(di->i_clusters),
+			pos, len, flags, mmap_page,
+			clusters_to_alloc, extents_to_split);
+
 	/*
 	 * We set w_target_from, w_target_to here so that
 	 * ocfs2_write_end() knows which range in the target page to
@@ -1751,12 +1753,6 @@ try_again:
 		 * ocfs2_lock_allocators(). It greatly over-estimates
 		 * the work to be done.
 		 */
-		mlog(0, "extend inode %llu, i_size = %lld, di->i_clusters = %u,"
-		     " clusters_to_add = %u, extents_to_split = %u\n",
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
-		     (long long)i_size_read(inode), le32_to_cpu(di->i_clusters),
-		     clusters_to_alloc, extents_to_split);
-
 		ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode),
 					      wc->w_di_bh);
 		ret = ocfs2_lock_allocators(inode, &et,
@@ -1938,8 +1934,8 @@ static void ocfs2_write_end_inline(struct inode *inode, loff_t pos,
 	memcpy(di->id2.i_data.id_data + pos, kaddr + pos, *copied);
 	kunmap_atomic(kaddr, KM_USER0);
 
-	mlog(0, "Data written to inode at offset %llu. "
-	     "id_count = %u, copied = %u, i_dyn_features = 0x%x\n",
+	trace_ocfs2_write_end_inline(
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     (unsigned long long)pos, *copied,
 	     le16_to_cpu(di->id2.i_data.id_count),
 	     le16_to_cpu(di->i_dyn_features));
@@ -2043,7 +2039,6 @@ const struct address_space_operations ocfs2_aops = {
 	.write_begin		= ocfs2_write_begin,
 	.write_end		= ocfs2_write_end,
 	.bmap			= ocfs2_bmap,
-	.sync_page		= block_sync_page,
 	.direct_IO		= ocfs2_direct_IO,
 	.invalidatepage		= ocfs2_invalidatepage,
 	.releasepage		= ocfs2_releasepage,

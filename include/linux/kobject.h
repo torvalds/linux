@@ -85,11 +85,13 @@ static inline const char *kobject_name(const struct kobject *kobj)
 extern void kobject_init(struct kobject *kobj, struct kobj_type *ktype);
 extern int __must_check kobject_add(struct kobject *kobj,
 				    struct kobject *parent,
-				    const char *fmt, ...);
+				    const char *fmt, ...)
+	__attribute__((format(printf, 3, 4)));
 extern int __must_check kobject_init_and_add(struct kobject *kobj,
 					     struct kobj_type *ktype,
 					     struct kobject *parent,
-					     const char *fmt, ...);
+					     const char *fmt, ...)
+	__attribute__((format(printf, 4, 5)));
 
 extern void kobject_del(struct kobject *kobj);
 
@@ -224,8 +226,8 @@ static inline int kobject_uevent_env(struct kobject *kobj,
 				      char *envp[])
 { return 0; }
 
-static inline int add_uevent_var(struct kobj_uevent_env *env,
-				 const char *format, ...)
+static inline __attribute__((format(printf, 2, 3)))
+int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...)
 { return 0; }
 
 static inline int kobject_action_type(const char *buf, size_t count,

@@ -413,7 +413,7 @@ typedef struct os_dat_s {
  * AUX
  */
 typedef struct os_aux_s {
-        __be32          format_id;              /* hardware compability AUX is based on */
+        __be32          format_id;              /* hardware compatibility AUX is based on */
         char            application_sig[4];     /* driver used to write this media */
         __be32          hdwr;                   /* reserved */
         __be32          update_frame_cntr;      /* for configuration frame */

@@ -28,6 +28,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-ctrls.h>
 
 MODULE_DESCRIPTION("vpx3220a/vpx3216b/vpx3214c video decoder driver");
 MODULE_AUTHOR("Laurent Pinchart");
@@ -44,21 +45,23 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 struct vpx3220 {
 	struct v4l2_subdev sd;
+	struct v4l2_ctrl_handler hdl;
 	unsigned char reg[255];
 
 	v4l2_std_id norm;
 	int ident;
 	int input;
 	int enable;
-	int bright;
-	int contrast;
-	int hue;
-	int sat;
 };
 
 static inline struct vpx3220 *to_vpx3220(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct vpx3220, sd);
+}
+
+static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
+{
+	return &container_of(ctrl->handler, struct vpx3220, hdl)->sd;
 }
 
 static char *inputs[] = { "internal", "composite", "svideo" };
@@ -351,7 +354,7 @@ static int vpx3220_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 
 	/* Here we back up the input selection because it gets
 	   overwritten when we fill the registers with the
-	   choosen video norm */
+	   chosen video norm */
 	temp_input = vpx3220_fp_read(sd, 0xf2);
 
 	v4l2_dbg(1, debug, sd, "s_std %llx\n", (unsigned long long)std);
@@ -417,88 +420,26 @@ static int vpx3220_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int vpx3220_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
+static int vpx3220_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	switch (qc->id) {
-	case V4L2_CID_BRIGHTNESS:
-		v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
-		break;
-
-	case V4L2_CID_CONTRAST:
-		v4l2_ctrl_query_fill(qc, 0, 63, 1, 32);
-		break;
-
-	case V4L2_CID_SATURATION:
-		v4l2_ctrl_query_fill(qc, 0, 4095, 1, 2048);
-		break;
-
-	case V4L2_CID_HUE:
-		v4l2_ctrl_query_fill(qc, -512, 511, 1, 0);
-		break;
-
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int vpx3220_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct vpx3220 *decoder = to_vpx3220(sd);
+	struct v4l2_subdev *sd = to_sd(ctrl);
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		ctrl->value = decoder->bright;
-		break;
+		vpx3220_write(sd, 0xe6, ctrl->val);
+		return 0;
 	case V4L2_CID_CONTRAST:
-		ctrl->value = decoder->contrast;
-		break;
+		/* Bit 7 and 8 is for noise shaping */
+		vpx3220_write(sd, 0xe7, ctrl->val + 192);
+		return 0;
 	case V4L2_CID_SATURATION:
-		ctrl->value = decoder->sat;
-		break;
+		vpx3220_fp_write(sd, 0xa0, ctrl->val);
+		return 0;
 	case V4L2_CID_HUE:
-		ctrl->value = decoder->hue;
-		break;
-	default:
-		return -EINVAL;
+		vpx3220_fp_write(sd, 0x1c, ctrl->val);
+		return 0;
 	}
-	return 0;
-}
-
-static int vpx3220_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct vpx3220 *decoder = to_vpx3220(sd);
-
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		if (decoder->bright != ctrl->value) {
-			decoder->bright = ctrl->value;
-			vpx3220_write(sd, 0xe6, decoder->bright);
-		}
-		break;
-	case V4L2_CID_CONTRAST:
-		if (decoder->contrast != ctrl->value) {
-			/* Bit 7 and 8 is for noise shaping */
-			decoder->contrast = ctrl->value;
-			vpx3220_write(sd, 0xe7, decoder->contrast + 192);
-		}
-		break;
-	case V4L2_CID_SATURATION:
-		if (decoder->sat != ctrl->value) {
-			decoder->sat = ctrl->value;
-			vpx3220_fp_write(sd, 0xa0, decoder->sat);
-		}
-		break;
-	case V4L2_CID_HUE:
-		if (decoder->hue != ctrl->value) {
-			decoder->hue = ctrl->value;
-			vpx3220_fp_write(sd, 0x1c, decoder->hue);
-		}
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
+	return -EINVAL;
 }
 
 static int vpx3220_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
@@ -511,12 +452,20 @@ static int vpx3220_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ide
 
 /* ----------------------------------------------------------------------- */
 
+static const struct v4l2_ctrl_ops vpx3220_ctrl_ops = {
+	.s_ctrl = vpx3220_s_ctrl,
+};
+
 static const struct v4l2_subdev_core_ops vpx3220_core_ops = {
 	.g_chip_ident = vpx3220_g_chip_ident,
 	.init = vpx3220_init,
-	.g_ctrl = vpx3220_g_ctrl,
-	.s_ctrl = vpx3220_s_ctrl,
-	.queryctrl = vpx3220_queryctrl,
+	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
+	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
+	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
+	.g_ctrl = v4l2_subdev_g_ctrl,
+	.s_ctrl = v4l2_subdev_s_ctrl,
+	.queryctrl = v4l2_subdev_queryctrl,
+	.querymenu = v4l2_subdev_querymenu,
 	.s_std = vpx3220_s_std,
 };
 
@@ -558,10 +507,24 @@ static int vpx3220_probe(struct i2c_client *client,
 	decoder->norm = V4L2_STD_PAL;
 	decoder->input = 0;
 	decoder->enable = 1;
-	decoder->bright = 32768;
-	decoder->contrast = 32768;
-	decoder->hue = 32768;
-	decoder->sat = 32768;
+	v4l2_ctrl_handler_init(&decoder->hdl, 4);
+	v4l2_ctrl_new_std(&decoder->hdl, &vpx3220_ctrl_ops,
+		V4L2_CID_BRIGHTNESS, -128, 127, 1, 0);
+	v4l2_ctrl_new_std(&decoder->hdl, &vpx3220_ctrl_ops,
+		V4L2_CID_CONTRAST, 0, 63, 1, 32);
+	v4l2_ctrl_new_std(&decoder->hdl, &vpx3220_ctrl_ops,
+		V4L2_CID_SATURATION, 0, 4095, 1, 2048);
+	v4l2_ctrl_new_std(&decoder->hdl, &vpx3220_ctrl_ops,
+		V4L2_CID_HUE, -512, 511, 1, 0);
+	sd->ctrl_handler = &decoder->hdl;
+	if (decoder->hdl.error) {
+		int err = decoder->hdl.error;
+
+		v4l2_ctrl_handler_free(&decoder->hdl);
+		kfree(decoder);
+		return err;
+	}
+	v4l2_ctrl_handler_setup(&decoder->hdl);
 
 	ver = i2c_smbus_read_byte_data(client, 0x00);
 	pn = (i2c_smbus_read_byte_data(client, 0x02) << 8) +
@@ -599,9 +562,11 @@ static int vpx3220_probe(struct i2c_client *client,
 static int vpx3220_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct vpx3220 *decoder = to_vpx3220(sd);
 
 	v4l2_device_unregister_subdev(sd);
-	kfree(to_vpx3220(sd));
+	v4l2_ctrl_handler_free(&decoder->hdl);
+	kfree(decoder);
 	return 0;
 }
 

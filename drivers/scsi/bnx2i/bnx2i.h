@@ -360,7 +360,7 @@ struct bnx2i_hba {
 		#define ADAPTER_STATE_LINK_DOWN		2
 		#define ADAPTER_STATE_INIT_FAILED	31
 	unsigned int mtu_supported;
-		#define BNX2I_MAX_MTU_SUPPORTED		1500
+		#define BNX2I_MAX_MTU_SUPPORTED		9000
 
 	struct Scsi_Host *shost;
 
@@ -751,6 +751,8 @@ extern int bnx2i_send_iscsi_login(struct bnx2i_conn *conn,
 				  struct iscsi_task *mtask);
 extern int bnx2i_send_iscsi_tmf(struct bnx2i_conn *conn,
 				  struct iscsi_task *mtask);
+extern int bnx2i_send_iscsi_text(struct bnx2i_conn *conn,
+				 struct iscsi_task *mtask);
 extern int bnx2i_send_iscsi_scsicmd(struct bnx2i_conn *conn,
 				    struct bnx2i_cmd *cmnd);
 extern int bnx2i_send_iscsi_nopout(struct bnx2i_conn *conn,

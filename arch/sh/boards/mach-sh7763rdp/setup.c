@@ -75,6 +75,10 @@ static struct resource sh_eth_resources[] = {
 		.end    = 0xFEE00F7C - 1,
 		.flags  = IORESOURCE_MEM,
 	}, {
+		.start  = 0xFEE01800,   /* TSU */
+		.end    = 0xFEE01FFF,
+		.flags  = IORESOURCE_MEM,
+	}, {
 		.start  = 57,   /* irq number */
 		.flags  = IORESOURCE_IRQ,
 	},
@@ -83,6 +87,8 @@ static struct resource sh_eth_resources[] = {
 static struct sh_eth_plat_data sh7763_eth_pdata = {
 	.phy = 1,
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
+	.register_type = SH_ETH_REG_GIGABIT,
+	.phy_interface = PHY_INTERFACE_MODE_MII,
 };
 
 static struct platform_device sh7763rdp_eth_device = {

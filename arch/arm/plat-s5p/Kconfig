@@ -7,10 +7,10 @@
 
 config PLAT_S5P
 	bool
-	depends on (ARCH_S5P64X0 || ARCH_S5P6442 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5PV310)
+	depends on (ARCH_S5P64X0 || ARCH_S5P6442 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS4)
 	default y
-	select ARM_VIC if !ARCH_S5PV310
-	select ARM_GIC if ARCH_S5PV310
+	select ARM_VIC if !ARCH_EXYNOS4
+	select ARM_GIC if ARCH_EXYNOS4
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
 	select S3C_GPIO_TRACK
@@ -37,6 +37,19 @@ config S5P_GPIO_INT
 	help
 	  Common code for the GPIO interrupts (other than external interrupts.)
 
+config S5P_HRT
+	bool
+	help
+	  Use the High Resolution timer support
+
+comment "System MMU"
+
+config S5P_SYSTEM_MMU
+	bool "S5P SYSTEM MMU"
+	depends on ARCH_EXYNOS4
+	help
+	  Say Y here if you want to enable System MMU
+
 config S5P_DEV_FIMC0
 	bool
 	help
@@ -51,6 +64,11 @@ config S5P_DEV_FIMC2
 	bool
 	help
 	  Compile in platform device definitions for FIMC controller 2
+
+config S5P_DEV_FIMC3
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 3
 
 config S5P_DEV_ONENAND
 	bool
@@ -67,18 +85,7 @@ config S5P_DEV_CSIS1
 	help
 	  Compile in platform device definitions for MIPI-CSIS channel 1
 
-menuconfig S5P_SYSMMU
-	bool "SYSMMU support"
-	depends on ARCH_S5PV310
+config S5P_SETUP_MIPIPHY
+	bool
 	help
-	  This is a System MMU driver for Samsung ARM based Soc.
-
-if S5P_SYSMMU
-
-config S5P_SYSMMU_DEBUG
-	bool "Enables debug messages"
-	depends on S5P_SYSMMU
-	help
-	  This enables SYSMMU driver debug massages.
-
-endif
+	  Compile in common setup code for MIPI-CSIS and MIPI-DSIM devices

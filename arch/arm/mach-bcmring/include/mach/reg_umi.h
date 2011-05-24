@@ -88,7 +88,7 @@
 /* REG_UMI_FLASH0/1/2_TCR, REG_UMI_SRAM0/1_TCR bits */
 /* Enable wait pin during burst write or read */
 #define REG_UMI_TCR_WAITEN              0x80000000
-/* Enable mem ctrlr to work iwth ext mem of lower freq than AHB clk */
+/* Enable mem ctrlr to work with ext mem of lower freq than AHB clk */
 #define REG_UMI_TCR_LOWFREQ             0x40000000
 /* 1=synch write, 0=async write */
 #define REG_UMI_TCR_MEMTYPE_SYNCWRITE   0x20000000

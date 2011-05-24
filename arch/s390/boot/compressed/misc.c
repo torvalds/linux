@@ -19,6 +19,7 @@
 #undef memset
 #undef memcpy
 #undef memmove
+#define memmove memmove
 #define memzero(s, n) memset((s), 0, (n))
 
 /* Symbols defined by linker scripts */
@@ -52,6 +53,10 @@ static unsigned long free_mem_end_ptr;
 
 #ifdef CONFIG_KERNEL_LZO
 #include "../../../../lib/decompress_unlzo.c"
+#endif
+
+#ifdef CONFIG_KERNEL_XZ
+#include "../../../../lib/decompress_unxz.c"
 #endif
 
 extern _sclp_print_early(const char *);
@@ -133,11 +138,12 @@ unsigned long decompress_kernel(void)
 	unsigned long output_addr;
 	unsigned char *output;
 
-	check_ipl_parmblock((void *) 0, (unsigned long) output + SZ__bss_start);
+	output_addr = ((unsigned long) &_end + HEAP_SIZE + 4095UL) & -4096UL;
+	check_ipl_parmblock((void *) 0, output_addr + SZ__bss_start);
 	memset(&_bss, 0, &_ebss - &_bss);
 	free_mem_ptr = (unsigned long)&_end;
 	free_mem_end_ptr = free_mem_ptr + HEAP_SIZE;
-	output = (unsigned char *) ((free_mem_end_ptr + 4095UL) & -4096UL);
+	output = (unsigned char *) output_addr;
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/*

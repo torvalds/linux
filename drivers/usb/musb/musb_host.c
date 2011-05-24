@@ -609,7 +609,7 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, struct musb_hw_ep *ep)
 	/* Set RXMAXP with the FIFO size of the endpoint
 	 * to disable double buffer mode.
 	 */
-	if (musb->hwvers < MUSB_HWVERS_2000)
+	if (musb->double_buffer_not_ok)
 		musb_writew(ep->regs, MUSB_RXMAXP, ep->max_packet_sz_rx);
 	else
 		musb_writew(ep->regs, MUSB_RXMAXP,
@@ -784,14 +784,13 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 		/* protocol/endpoint/interval/NAKlimit */
 		if (epnum) {
 			musb_writeb(epio, MUSB_TXTYPE, qh->type_reg);
-			if (can_bulk_split(musb, qh->type))
+			if (musb->double_buffer_not_ok)
 				musb_writew(epio, MUSB_TXMAXP,
-					packet_sz
-					| ((hw_ep->max_packet_sz_tx /
-						packet_sz) - 1) << 11);
+						hw_ep->max_packet_sz_tx);
 			else
 				musb_writew(epio, MUSB_TXMAXP,
-					packet_sz);
+						qh->maxpacket |
+						((qh->hb_mult - 1) << 11));
 			musb_writeb(epio, MUSB_TXINTERVAL, qh->intv_reg);
 		} else {
 			musb_writeb(epio, MUSB_NAKLIMIT0, qh->intv_reg);
@@ -1336,7 +1335,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 	if (length > qh->maxpacket)
 		length = qh->maxpacket;
 	/* Unmap the buffer so that CPU can use it */
-	unmap_urb_for_dma(musb_to_hcd(musb), urb);
+	usb_hcd_unmap_urb_for_dma(musb_to_hcd(musb), urb);
 	musb_write_fifo(hw_ep, length, urb->transfer_buffer + offset);
 	qh->segsize = length;
 
@@ -1758,7 +1757,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 
 		if (!dma) {
 			/* Unmap the buffer so that CPU can use it */
-			unmap_urb_for_dma(musb_to_hcd(musb), urb);
+			usb_hcd_unmap_urb_for_dma(musb_to_hcd(musb), urb);
 			done = musb_host_packet_rx(musb, urb,
 					epnum, iso_err);
 			DBG(6, "read %spacket\n", done ? "last " : "");

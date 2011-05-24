@@ -289,7 +289,7 @@ static struct miscdevice nv_tco_miscdev = {
  * register a pci_driver, because someone else might one day
  * want to register another driver on the same PCI id.
  */
-static struct pci_device_id tco_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(tco_pci_tbl) = {
 	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SMBUS,
 	  PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SMBUS,
@@ -302,7 +302,7 @@ MODULE_DEVICE_TABLE(pci, tco_pci_tbl);
  *	Init & exit routines
  */
 
-static unsigned char __init nv_tco_getdevice(void)
+static unsigned char __devinit nv_tco_getdevice(void)
 {
 	struct pci_dev *dev = NULL;
 	u32 val;

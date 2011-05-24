@@ -207,8 +207,8 @@ void __init nuc900_init_irq(void)
 	__raw_writel(0xFFFFFFFE, REG_AIC_MDCR);
 
 	for (irqno = IRQ_WDT; irqno <= IRQ_ADC; irqno++) {
-		set_irq_chip(irqno, &nuc900_irq_chip);
-		set_irq_handler(irqno, handle_level_irq);
+		irq_set_chip_and_handler(irqno, &nuc900_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 }

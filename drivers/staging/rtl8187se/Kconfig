@@ -1,6 +1,7 @@
 config R8187SE
 	tristate "RealTek RTL8187SE Wireless LAN NIC driver"
 	depends on PCI && WLAN
+	depends on m
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select EEPROM_93CX6

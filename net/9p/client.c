@@ -178,7 +178,7 @@ free_and_return:
  * @tag: numeric id for transaction
  *
  * this is a simple array lookup, but will grow the
- * request_slots as necessary to accomodate transaction
+ * request_slots as necessary to accommodate transaction
  * ids which did not previously have a slot.
  *
  * this code relies on the client spinlock to manage locks, its
@@ -223,16 +223,29 @@ static struct p9_req_t *p9_tag_alloc(struct p9_client *c, u16 tag)
 
 	req = &c->reqs[row][col];
 	if (!req->tc) {
-		req->wq = kmalloc(sizeof(wait_queue_head_t), GFP_KERNEL);
+		req->wq = kmalloc(sizeof(wait_queue_head_t), GFP_NOFS);
 		if (!req->wq) {
 			printk(KERN_ERR "Couldn't grow tag array\n");
 			return ERR_PTR(-ENOMEM);
 		}
 		init_waitqueue_head(req->wq);
-		req->tc = kmalloc(sizeof(struct p9_fcall)+c->msize,
-								GFP_KERNEL);
-		req->rc = kmalloc(sizeof(struct p9_fcall)+c->msize,
-								GFP_KERNEL);
+		if ((c->trans_mod->pref & P9_TRANS_PREF_PAYLOAD_MASK) ==
+				P9_TRANS_PREF_PAYLOAD_SEP) {
+			int alloc_msize = min(c->msize, 4096);
+			req->tc = kmalloc(sizeof(struct p9_fcall)+alloc_msize,
+					  GFP_NOFS);
+			req->tc->capacity = alloc_msize;
+			req->rc = kmalloc(sizeof(struct p9_fcall)+alloc_msize,
+					  GFP_NOFS);
+			req->rc->capacity = alloc_msize;
+		} else {
+			req->tc = kmalloc(sizeof(struct p9_fcall)+c->msize,
+					  GFP_NOFS);
+			req->tc->capacity = c->msize;
+			req->rc = kmalloc(sizeof(struct p9_fcall)+c->msize,
+					  GFP_NOFS);
+			req->rc->capacity = c->msize;
+		}
 		if ((!req->tc) || (!req->rc)) {
 			printk(KERN_ERR "Couldn't grow tag array\n");
 			kfree(req->tc);
@@ -243,9 +256,7 @@ static struct p9_req_t *p9_tag_alloc(struct p9_client *c, u16 tag)
 			return ERR_PTR(-ENOMEM);
 		}
 		req->tc->sdata = (char *) req->tc + sizeof(struct p9_fcall);
-		req->tc->capacity = c->msize;
 		req->rc->sdata = (char *) req->rc + sizeof(struct p9_fcall);
-		req->rc->capacity = c->msize;
 	}
 
 	p9pdu_reset(req->tc);
@@ -443,6 +454,7 @@ static int p9_check_errors(struct p9_client *c, struct p9_req_t *req)
 {
 	int8_t type;
 	int err;
+	int ecode;
 
 	err = p9_parse_header(req->rc, NULL, &type, NULL, 0);
 	if (err) {
@@ -450,36 +462,53 @@ static int p9_check_errors(struct p9_client *c, struct p9_req_t *req)
 		return err;
 	}
 
-	if (type == P9_RERROR || type == P9_RLERROR) {
-		int ecode;
+	if (type != P9_RERROR && type != P9_RLERROR)
+		return 0;
 
-		if (!p9_is_proto_dotl(c)) {
-			char *ename;
+	if (!p9_is_proto_dotl(c)) {
+		char *ename;
 
-			err = p9pdu_readf(req->rc, c->proto_version, "s?d",
-								&ename, &ecode);
-			if (err)
-				goto out_err;
-
-			if (p9_is_proto_dotu(c))
-				err = -ecode;
-
-			if (!err || !IS_ERR_VALUE(err)) {
-				err = p9_errstr2errno(ename, strlen(ename));
-
-				P9_DPRINTK(P9_DEBUG_9P, "<<< RERROR (%d) %s\n", -ecode, ename);
-
-				kfree(ename);
+		if (req->tc->pbuf_size) {
+			/* Handle user buffers */
+			size_t len = req->rc->size - req->rc->offset;
+			if (req->tc->pubuf) {
+				/* User Buffer */
+				err = copy_from_user(
+					&req->rc->sdata[req->rc->offset],
+					req->tc->pubuf, len);
+				if (err) {
+					err = -EFAULT;
+					goto out_err;
+				}
+			} else {
+				/* Kernel Buffer */
+				memmove(&req->rc->sdata[req->rc->offset],
+						req->tc->pkbuf, len);
 			}
-		} else {
-			err = p9pdu_readf(req->rc, c->proto_version, "d", &ecode);
+		}
+		err = p9pdu_readf(req->rc, c->proto_version, "s?d",
+				&ename, &ecode);
+		if (err)
+			goto out_err;
+
+		if (p9_is_proto_dotu(c))
 			err = -ecode;
 
-			P9_DPRINTK(P9_DEBUG_9P, "<<< RLERROR (%d)\n", -ecode);
-		}
+		if (!err || !IS_ERR_VALUE(err)) {
+			err = p9_errstr2errno(ename, strlen(ename));
 
-	} else
-		err = 0;
+			P9_DPRINTK(P9_DEBUG_9P, "<<< RERROR (%d) %s\n", -ecode,
+					ename);
+
+			kfree(ename);
+		}
+	} else {
+		err = p9pdu_readf(req->rc, c->proto_version, "d", &ecode);
+		err = -ecode;
+
+		P9_DPRINTK(P9_DEBUG_9P, "<<< RLERROR (%d)\n", -ecode);
+	}
+
 
 	return err;
 
@@ -900,15 +929,15 @@ error:
 }
 EXPORT_SYMBOL(p9_client_attach);
 
-struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
-	int clone)
+struct p9_fid *p9_client_walk(struct p9_fid *oldfid, uint16_t nwname,
+		char **wnames, int clone)
 {
 	int err;
 	struct p9_client *clnt;
 	struct p9_fid *fid;
 	struct p9_qid *wqids;
 	struct p9_req_t *req;
-	int16_t nwqids, count;
+	uint16_t nwqids, count;
 
 	err = 0;
 	wqids = NULL;
@@ -926,7 +955,7 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
 		fid = oldfid;
 
 
-	P9_DPRINTK(P9_DEBUG_9P, ">>> TWALK fids %d,%d nwname %d wname[0] %s\n",
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TWALK fids %d,%d nwname %ud wname[0] %s\n",
 		oldfid->fid, fid->fid, nwname, wnames ? wnames[0] : NULL);
 
 	req = p9_client_rpc(clnt, P9_TWALK, "ddT", oldfid->fid, fid->fid,
@@ -1270,7 +1299,15 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 	if (count < rsize)
 		rsize = count;
 
-	req = p9_client_rpc(clnt, P9_TREAD, "dqd", fid->fid, offset, rsize);
+	/* Don't bother zerocopy form small IO (< 1024) */
+	if (((clnt->trans_mod->pref & P9_TRANS_PREF_PAYLOAD_MASK) ==
+			P9_TRANS_PREF_PAYLOAD_SEP) && (rsize > 1024)) {
+		req = p9_client_rpc(clnt, P9_TREAD, "dqE", fid->fid, offset,
+				rsize, data, udata);
+	} else {
+		req = p9_client_rpc(clnt, P9_TREAD, "dqd", fid->fid, offset,
+				rsize);
+	}
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto error;
@@ -1284,13 +1321,15 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RREAD count %d\n", count);
 
-	if (data) {
-		memmove(data, dataptr, count);
-	} else {
-		err = copy_to_user(udata, dataptr, count);
-		if (err) {
-			err = -EFAULT;
-			goto free_and_error;
+	if (!req->tc->pbuf_size) {
+		if (data) {
+			memmove(data, dataptr, count);
+		} else {
+			err = copy_to_user(udata, dataptr, count);
+			if (err) {
+				err = -EFAULT;
+				goto free_and_error;
+			}
 		}
 	}
 	p9_free_req(clnt, req);
@@ -1323,12 +1362,21 @@ p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 
 	if (count < rsize)
 		rsize = count;
-	if (data)
-		req = p9_client_rpc(clnt, P9_TWRITE, "dqD", fid->fid, offset,
-								rsize, data);
-	else
-		req = p9_client_rpc(clnt, P9_TWRITE, "dqU", fid->fid, offset,
-								rsize, udata);
+
+	/* Don't bother zerocopy form small IO (< 1024) */
+	if (((clnt->trans_mod->pref & P9_TRANS_PREF_PAYLOAD_MASK) ==
+				P9_TRANS_PREF_PAYLOAD_SEP) && (rsize > 1024)) {
+		req = p9_client_rpc(clnt, P9_TWRITE, "dqE", fid->fid, offset,
+				rsize, data, udata);
+	} else {
+
+		if (data)
+			req = p9_client_rpc(clnt, P9_TWRITE, "dqD", fid->fid,
+					offset, rsize, data);
+		else
+			req = p9_client_rpc(clnt, P9_TWRITE, "dqU", fid->fid,
+					offset, rsize, udata);
+	}
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto error;
@@ -1716,7 +1764,14 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 	if (count < rsize)
 		rsize = count;
 
-	req = p9_client_rpc(clnt, P9_TREADDIR, "dqd", fid->fid, offset, rsize);
+	if ((clnt->trans_mod->pref & P9_TRANS_PREF_PAYLOAD_MASK) ==
+			P9_TRANS_PREF_PAYLOAD_SEP) {
+		req = p9_client_rpc(clnt, P9_TREADDIR, "dqF", fid->fid,
+				offset, rsize, data);
+	} else {
+		req = p9_client_rpc(clnt, P9_TREADDIR, "dqd", fid->fid,
+				offset, rsize);
+	}
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto error;
@@ -1730,7 +1785,7 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RREADDIR count %d\n", count);
 
-	if (data)
+	if (!req->tc->pbuf_size && data)
 		memmove(data, dataptr, count);
 
 	p9_free_req(clnt, req);

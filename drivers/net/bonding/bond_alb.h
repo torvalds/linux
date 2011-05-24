@@ -74,9 +74,9 @@ struct tlb_client_info {
 				 * packets to a Client that the Hash function
 				 * gave this entry index.
 				 */
-	u32 tx_bytes;		/* Each Client acumulates the BytesTx that
+	u32 tx_bytes;		/* Each Client accumulates the BytesTx that
 				 * were tranmitted to it, and after each
-				 * CallBack the LoadHistory is devided
+				 * CallBack the LoadHistory is divided
 				 * by the balance interval
 				 */
 	u32 load_history;	/* This field contains the amount of Bytes

@@ -26,14 +26,6 @@
 #include <mach/debug-macro.S>
 #endif
 
-#if (PHYS_OFFSET & 0x001fffff)
-#error "PHYS_OFFSET must be at an even 2MiB boundary!"
-#endif
-
-#define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
-#define KERNEL_RAM_PADDR	(PHYS_OFFSET + TEXT_OFFSET)
-
-
 /*
  * swapper_pg_dir is the virtual address of the initial page table.
  * We place the page tables 16K below KERNEL_RAM_VADDR.  Therefore, we must
@@ -41,6 +33,7 @@
  * the least significant 16 bits to be 0x8000, but we could probably
  * relax this restriction to KERNEL_RAM_VADDR >= PAGE_OFFSET + 0x4000.
  */
+#define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
 #if (KERNEL_RAM_VADDR & 0xffff) != 0x8000
 #error KERNEL_RAM_VADDR must start at 0xXXXX8000
 #endif
@@ -48,8 +41,8 @@
 	.globl	swapper_pg_dir
 	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - 0x4000
 
-	.macro	pgtbl, rd
-	ldr	\rd, =(KERNEL_RAM_PADDR - 0x4000)
+	.macro	pgtbl, rd, phys
+	add	\rd, \phys, #TEXT_OFFSET - 0x4000
 	.endm
 
 #ifdef CONFIG_XIP_KERNEL
@@ -87,25 +80,33 @@ ENTRY(stext)
 	movs	r10, r5				@ invalid processor (r5=0)?
  THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_p			@ yes, error 'p'
-	bl	__lookup_machine_type		@ r5=machinfo
-	movs	r8, r5				@ invalid machine (r5=0)?
- THUMB( it	eq )		@ force fixup-able long branch encoding
-	beq	__error_a			@ yes, error 'a'
+
+#ifndef CONFIG_XIP_KERNEL
+	adr	r3, 2f
+	ldmia	r3, {r4, r8}
+	sub	r4, r3, r4			@ (PHYS_OFFSET - PAGE_OFFSET)
+	add	r8, r8, r4			@ PHYS_OFFSET
+#else
+	ldr	r8, =PLAT_PHYS_OFFSET
+#endif
 
 	/*
 	 * r1 = machine no, r2 = atags,
-	 * r8 = machinfo, r9 = cpuid, r10 = procinfo
+	 * r8 = phys_offset, r9 = cpuid, r10 = procinfo
 	 */
 	bl	__vet_atags
 #ifdef CONFIG_SMP_ON_UP
 	bl	__fixup_smp
+#endif
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT
+	bl	__fixup_pv_table
 #endif
 	bl	__create_page_tables
 
 	/*
 	 * The following calls CPU specific code in a position independent
 	 * manner.  See arch/arm/mm/proc-*.S for details.  r10 = base of
-	 * xxx_proc_info structure selected by __lookup_machine_type
+	 * xxx_proc_info structure selected by __lookup_processor_type
 	 * above.  On return, the CPU will be ready for the MMU to be
 	 * turned on, and r0 will hold the CPU control register value.
 	 */
@@ -118,22 +119,24 @@ ENTRY(stext)
 1:	b	__enable_mmu
 ENDPROC(stext)
 	.ltorg
+#ifndef CONFIG_XIP_KERNEL
+2:	.long	.
+	.long	PAGE_OFFSET
+#endif
 
 /*
  * Setup the initial page tables.  We only setup the barest
  * amount which are required to get the kernel running, which
  * generally means mapping in the kernel code.
  *
- * r8  = machinfo
- * r9  = cpuid
- * r10 = procinfo
+ * r8 = phys_offset, r9 = cpuid, r10 = procinfo
  *
  * Returns:
  *  r0, r3, r5-r7 corrupted
  *  r4 = physical page table address
  */
 __create_page_tables:
-	pgtbl	r4				@ page table address
+	pgtbl	r4, r8				@ page table address
 
 	/*
 	 * Clear the 16K level 1 swapper page table
@@ -189,10 +192,8 @@ __create_page_tables:
 	/*
 	 * Map some ram to cover our .data and .bss areas.
 	 */
-	orr	r3, r7, #(KERNEL_RAM_PADDR & 0xff000000)
-	.if	(KERNEL_RAM_PADDR & 0x00f00000)
-	orr	r3, r3, #(KERNEL_RAM_PADDR & 0x00f00000)
-	.endif
+	add	r3, r8, #TEXT_OFFSET
+	orr	r3, r3, r7
 	add	r0, r4,  #(KERNEL_RAM_VADDR & 0xff000000) >> 18
 	str	r3, [r0, #(KERNEL_RAM_VADDR & 0x00f00000) >> 18]!
 	ldr	r6, =(_end - 1)
@@ -205,14 +206,17 @@ __create_page_tables:
 #endif
 
 	/*
-	 * Then map first 1MB of ram in case it contains our boot params.
+	 * Then map boot params address in r2 or
+	 * the first 1MB of ram if boot params address is not specified.
 	 */
-	add	r0, r4, #PAGE_OFFSET >> 18
-	orr	r6, r7, #(PHYS_OFFSET & 0xff000000)
-	.if	(PHYS_OFFSET & 0x00f00000)
-	orr	r6, r6, #(PHYS_OFFSET & 0x00f00000)
-	.endif
-	str	r6, [r0]
+	mov	r0, r2, lsr #20
+	movs	r0, r0, lsl #20
+	moveq	r0, r8
+	sub	r3, r0, r8
+	add	r3, r3, #PAGE_OFFSET
+	add	r3, r4, r3, lsr #18
+	orr	r6, r7, r0
+	str	r6, [r3]
 
 #ifdef CONFIG_DEBUG_LL
 #ifndef CONFIG_DEBUG_ICEDCC
@@ -391,6 +395,7 @@ ENDPROC(__turn_mmu_on)
 
 
 #ifdef CONFIG_SMP_ON_UP
+	__INIT
 __fixup_smp:
 	and	r3, r9, #0x000f0000	@ architecture version
 	teq	r3, #0x000f0000		@ CPU ID supported?
@@ -415,18 +420,7 @@ __fixup_smp_on_up:
 	sub	r3, r0, r3
 	add	r4, r4, r3
 	add	r5, r5, r3
-2:	cmp	r4, r5
-	movhs	pc, lr
-	ldmia	r4!, {r0, r6}
- ARM(	str	r6, [r0, r3]	)
- THUMB(	add	r0, r0, r3	)
-#ifdef __ARMEB__
- THUMB(	mov	r6, r6, ror #16	)	@ Convert word order for big-endian.
-#endif
- THUMB(	strh	r6, [r0], #2	)	@ For Thumb-2, store as two halfwords
- THUMB(	mov	r6, r6, lsr #16	)	@ to be robust against misaligned r3.
- THUMB(	strh	r6, [r0]	)
-	b	2b
+	b	__do_fixup_smp_on_up
 ENDPROC(__fixup_smp)
 
 	.align
@@ -440,7 +434,156 @@ smp_on_up:
 	ALT_SMP(.long	1)
 	ALT_UP(.long	0)
 	.popsection
+#endif
 
+	.text
+__do_fixup_smp_on_up:
+	cmp	r4, r5
+	movhs	pc, lr
+	ldmia	r4!, {r0, r6}
+ ARM(	str	r6, [r0, r3]	)
+ THUMB(	add	r0, r0, r3	)
+#ifdef __ARMEB__
+ THUMB(	mov	r6, r6, ror #16	)	@ Convert word order for big-endian.
+#endif
+ THUMB(	strh	r6, [r0], #2	)	@ For Thumb-2, store as two halfwords
+ THUMB(	mov	r6, r6, lsr #16	)	@ to be robust against misaligned r3.
+ THUMB(	strh	r6, [r0]	)
+	b	__do_fixup_smp_on_up
+ENDPROC(__do_fixup_smp_on_up)
+
+ENTRY(fixup_smp)
+	stmfd	sp!, {r4 - r6, lr}
+	mov	r4, r0
+	add	r5, r0, r1
+	mov	r3, #0
+	bl	__do_fixup_smp_on_up
+	ldmfd	sp!, {r4 - r6, pc}
+ENDPROC(fixup_smp)
+
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT
+
+/* __fixup_pv_table - patch the stub instructions with the delta between
+ * PHYS_OFFSET and PAGE_OFFSET, which is assumed to be 16MiB aligned and
+ * can be expressed by an immediate shifter operand. The stub instruction
+ * has a form of '(add|sub) rd, rn, #imm'.
+ */
+	__HEAD
+__fixup_pv_table:
+	adr	r0, 1f
+	ldmia	r0, {r3-r5, r7}
+	sub	r3, r0, r3	@ PHYS_OFFSET - PAGE_OFFSET
+	add	r4, r4, r3	@ adjust table start address
+	add	r5, r5, r3	@ adjust table end address
+	add	r7, r7, r3	@ adjust __pv_phys_offset address
+	str	r8, [r7]	@ save computed PHYS_OFFSET to __pv_phys_offset
+#ifndef CONFIG_ARM_PATCH_PHYS_VIRT_16BIT
+	mov	r6, r3, lsr #24	@ constant for add/sub instructions
+	teq	r3, r6, lsl #24 @ must be 16MiB aligned
+#else
+	mov	r6, r3, lsr #16	@ constant for add/sub instructions
+	teq	r3, r6, lsl #16	@ must be 64kiB aligned
+#endif
+THUMB(	it	ne		@ cross section branch )
+	bne	__error
+	str	r6, [r7, #4]	@ save to __pv_offset
+	b	__fixup_a_pv_table
+ENDPROC(__fixup_pv_table)
+
+	.align
+1:	.long	.
+	.long	__pv_table_begin
+	.long	__pv_table_end
+2:	.long	__pv_phys_offset
+
+	.text
+__fixup_a_pv_table:
+#ifdef CONFIG_THUMB2_KERNEL
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT_16BIT
+	lsls	r0, r6, #24
+	lsr	r6, #8
+	beq	1f
+	clz	r7, r0
+	lsr	r0, #24
+	lsl	r0, r7
+	bic	r0, 0x0080
+	lsrs	r7, #1
+	orrcs   r0, #0x0080
+	orr	r0, r0, r7, lsl #12
+#endif
+1:	lsls	r6, #24
+	beq	4f
+	clz	r7, r6
+	lsr	r6, #24
+	lsl	r6, r7
+	bic	r6, #0x0080
+	lsrs	r7, #1
+	orrcs	r6, #0x0080
+	orr	r6, r6, r7, lsl #12
+	orr	r6, #0x4000
+	b	4f
+2:	@ at this point the C flag is always clear
+	add     r7, r3
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT_16BIT
+	ldrh	ip, [r7]
+	tst	ip, 0x0400	@ the i bit tells us LS or MS byte
+	beq	3f
+	cmp	r0, #0		@ set C flag, and ...
+	biceq	ip, 0x0400	@ immediate zero value has a special encoding
+	streqh	ip, [r7]	@ that requires the i bit cleared
+#endif
+3:	ldrh	ip, [r7, #2]
+	and	ip, 0x8f00
+	orrcc	ip, r6	@ mask in offset bits 31-24
+	orrcs	ip, r0	@ mask in offset bits 23-16
+	strh	ip, [r7, #2]
+4:	cmp	r4, r5
+	ldrcc	r7, [r4], #4	@ use branch for delay slot
+	bcc	2b
+	bx	lr
+#else
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT_16BIT
+	and	r0, r6, #255	@ offset bits 23-16
+	mov	r6, r6, lsr #8	@ offset bits 31-24
+#else
+	mov	r0, #0		@ just in case...
+#endif
+	b	3f
+2:	ldr	ip, [r7, r3]
+	bic	ip, ip, #0x000000ff
+	tst	ip, #0x400	@ rotate shift tells us LS or MS byte
+	orrne	ip, ip, r6	@ mask in offset bits 31-24
+	orreq	ip, ip, r0	@ mask in offset bits 23-16
+	str	ip, [r7, r3]
+3:	cmp	r4, r5
+	ldrcc	r7, [r4], #4	@ use branch for delay slot
+	bcc	2b
+	mov	pc, lr
+#endif
+ENDPROC(__fixup_a_pv_table)
+
+ENTRY(fixup_pv_table)
+	stmfd	sp!, {r4 - r7, lr}
+	ldr	r2, 2f			@ get address of __pv_phys_offset
+	mov	r3, #0			@ no offset
+	mov	r4, r0			@ r0 = table start
+	add	r5, r0, r1		@ r1 = table size
+	ldr	r6, [r2, #4]		@ get __pv_offset
+	bl	__fixup_a_pv_table
+	ldmfd	sp!, {r4 - r7, pc}
+ENDPROC(fixup_pv_table)
+
+	.align
+2:	.long	__pv_phys_offset
+
+	.data
+	.globl	__pv_phys_offset
+	.type	__pv_phys_offset, %object
+__pv_phys_offset:
+	.long	0
+	.size	__pv_phys_offset, . - __pv_phys_offset
+__pv_offset:
+	.long	0
 #endif
 
 #include "head-common.S"

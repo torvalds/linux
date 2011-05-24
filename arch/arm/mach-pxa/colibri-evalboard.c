@@ -20,14 +20,13 @@
 #include <mach/hardware.h>
 #include <asm/mach/arch.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <mach/pxa27x.h>
 #include <mach/colibri.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
 #include <mach/pxa27x-udc.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -50,7 +49,7 @@ static void __init colibri_mmc_init(void)
 			GPIO0_COLIBRI_PXA270_SD_DETECT;
 	if (machine_is_colibri300())	/* PXA300 Colibri */
 		colibri_mci_platform_data.gpio_card_detect =
-			GPIO39_COLIBRI_PXA300_SD_DETECT;
+			GPIO13_COLIBRI_PXA300_SD_DETECT;
 	else				/* PXA320 Colibri */
 		colibri_mci_platform_data.gpio_card_detect =
 			GPIO28_COLIBRI_PXA320_SD_DETECT;

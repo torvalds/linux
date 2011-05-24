@@ -146,7 +146,7 @@ static struct sn_sal_ops intr_ops = {
 };
 
 /* the console does output in two distinctly different ways:
- * synchronous (raw) and asynchronous (buffered).  initally, early_printk
+ * synchronous (raw) and asynchronous (buffered).  initially, early_printk
  * does synchronous output.  any data written goes directly to the SAL
  * to be output (incidentally, it is internally buffered by the SAL)
  * after interrupts and timers are initialized and available for use,
@@ -481,7 +481,7 @@ sn_receive_chars(struct sn_cons_port *port, unsigned long flags)
 	while (port->sc_ops->sal_input_pending()) {
 		ch = port->sc_ops->sal_getc();
 		if (ch < 0) {
-			printk(KERN_ERR "sn_console: An error occured while "
+			printk(KERN_ERR "sn_console: An error occurred while "
 			       "obtaining data from the console (0x%0x)\n", ch);
 			break;
 		}

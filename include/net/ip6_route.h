@@ -70,8 +70,8 @@ static inline struct inet_peer *rt6_get_peer(struct rt6_info *rt)
 extern void			ip6_route_input(struct sk_buff *skb);
 
 extern struct dst_entry *	ip6_route_output(struct net *net,
-						 struct sock *sk,
-						 struct flowi *fl);
+						 const struct sock *sk,
+						 struct flowi6 *fl6);
 
 extern int			ip6_route_init(void);
 extern void			ip6_route_cleanup(void);

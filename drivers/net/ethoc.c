@@ -542,7 +542,7 @@ static irqreturn_t ethoc_interrupt(int irq, void *dev_id)
 
 	/* Figure out what triggered the interrupt...
 	 * The tricky bit here is that the interrupt source bits get
-	 * set in INT_SOURCE for an event irregardless of whether that
+	 * set in INT_SOURCE for an event regardless of whether that
 	 * event is masked or not.  Thus, in order to figure out what
 	 * triggered the interrupt, we need to remove the sources
 	 * for all events that are currently masked.  This behaviour
@@ -1163,15 +1163,11 @@ static int ethoc_resume(struct platform_device *pdev)
 # define ethoc_resume  NULL
 #endif
 
-#ifdef CONFIG_OF
 static struct of_device_id ethoc_match[] = {
-	{
-		.compatible = "opencores,ethoc",
-	},
+	{ .compatible = "opencores,ethoc", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ethoc_match);
-#endif
 
 static struct platform_driver ethoc_driver = {
 	.probe   = ethoc_probe,
@@ -1181,9 +1177,7 @@ static struct platform_driver ethoc_driver = {
 	.driver  = {
 		.name = "ethoc",
 		.owner = THIS_MODULE,
-#ifdef CONFIG_OF
 		.of_match_table = ethoc_match,
-#endif
 	},
 };
 

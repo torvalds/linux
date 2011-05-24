@@ -123,6 +123,9 @@ static AD799X_SCAN_EL(5);
 static AD799X_SCAN_EL(6);
 static AD799X_SCAN_EL(7);
 
+static IIO_SCAN_EL_TIMESTAMP(8);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64)
+
 static ssize_t ad799x_show_type(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -181,7 +184,7 @@ static ssize_t ad799x_read_single_channel(struct device *dev,
 
 	mutex_lock(&dev_info->mlock);
 	mask = 1 << this_attr->address;
-	/* If ring buffer capture is occuring, query the buffer */
+	/* If ring buffer capture is occurring, query the buffer */
 	if (iio_ring_enabled(dev_info)) {
 		data = ret = ad799x_single_channel_from_ring(st, mask);
 		if (ret < 0)
@@ -471,6 +474,9 @@ static struct attribute *ad7991_5_9_3_4_scan_el_attrs[] = {
 	&iio_const_attr_in2_index.dev_attr.attr,
 	&iio_scan_el_in3.dev_attr.attr,
 	&iio_const_attr_in3_index.dev_attr.attr,
+	&iio_const_attr_timestamp_index.dev_attr.attr,
+	&iio_scan_el_timestamp.dev_attr.attr,
+	&iio_const_attr_timestamp_type.dev_attr.attr,
 	&iio_dev_attr_in_type.dev_attr.attr,
 	NULL,
 };
@@ -497,6 +503,9 @@ static struct attribute *ad7992_scan_el_attrs[] = {
 	&iio_const_attr_in0_index.dev_attr.attr,
 	&iio_scan_el_in1.dev_attr.attr,
 	&iio_const_attr_in1_index.dev_attr.attr,
+	&iio_const_attr_timestamp_index.dev_attr.attr,
+	&iio_scan_el_timestamp.dev_attr.attr,
+	&iio_const_attr_timestamp_type.dev_attr.attr,
 	&iio_dev_attr_in_type.dev_attr.attr,
 	NULL,
 };
@@ -541,6 +550,9 @@ static struct attribute *ad7997_8_scan_el_attrs[] = {
 	&iio_const_attr_in6_index.dev_attr.attr,
 	&iio_scan_el_in7.dev_attr.attr,
 	&iio_const_attr_in7_index.dev_attr.attr,
+	&iio_const_attr_timestamp_index.dev_attr.attr,
+	&iio_scan_el_timestamp.dev_attr.attr,
+	&iio_const_attr_timestamp_type.dev_attr.attr,
 	&iio_dev_attr_in_type.dev_attr.attr,
 	NULL,
 };

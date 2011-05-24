@@ -33,6 +33,8 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/pm_runtime.h>
+#include <linux/err.h>
 
 #include "musb_core.h"
 #include "omap2430.h"
@@ -40,7 +42,6 @@
 struct omap2430_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
-	struct clk		*clk;
 };
 #define glue_to_musb(g)		platform_get_drvdata(g->musb)
 
@@ -216,19 +217,11 @@ static inline void omap2430_low_level_exit(struct musb *musb)
 	l = musb_readl(musb->mregs, OTG_FORCESTDBY);
 	l |= ENABLEFORCE;	/* enable MSTANDBY */
 	musb_writel(musb->mregs, OTG_FORCESTDBY, l);
-
-	l = musb_readl(musb->mregs, OTG_SYSCONFIG);
-	l |= ENABLEWAKEUP;	/* enable wakeup */
-	musb_writel(musb->mregs, OTG_SYSCONFIG, l);
 }
 
 static inline void omap2430_low_level_init(struct musb *musb)
 {
 	u32 l;
-
-	l = musb_readl(musb->mregs, OTG_SYSCONFIG);
-	l &= ~ENABLEWAKEUP;	/* disable wakeup */
-	musb_writel(musb->mregs, OTG_SYSCONFIG, l);
 
 	l = musb_readl(musb->mregs, OTG_FORCESTDBY);
 	l &= ~ENABLEFORCE;	/* disable MSTANDBY */
@@ -251,30 +244,39 @@ static int musb_otg_notifications(struct notifier_block *nb,
 		if (is_otg_enabled(musb)) {
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
 			if (musb->gadget_driver) {
+				pm_runtime_get_sync(musb->controller);
 				otg_init(musb->xceiv);
-
-				if (data->interface_type ==
-						MUSB_INTERFACE_UTMI)
-					omap2430_musb_set_vbus(musb, 1);
-
+				omap2430_musb_set_vbus(musb, 1);
 			}
 #endif
 		} else {
+			pm_runtime_get_sync(musb->controller);
 			otg_init(musb->xceiv);
-			if (data->interface_type ==
-					MUSB_INTERFACE_UTMI)
-				omap2430_musb_set_vbus(musb, 1);
+			omap2430_musb_set_vbus(musb, 1);
 		}
 		break;
 
 	case USB_EVENT_VBUS:
 		DBG(4, "VBUS Connect\n");
 
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+		if (musb->gadget_driver)
+			pm_runtime_get_sync(musb->controller);
+#endif
 		otg_init(musb->xceiv);
 		break;
 
 	case USB_EVENT_NONE:
 		DBG(4, "VBUS Disconnect\n");
+
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+		if (is_otg_enabled(musb))
+			if (musb->gadget_driver)
+#endif
+			{
+				pm_runtime_mark_last_busy(musb->controller);
+				pm_runtime_put_autosuspend(musb->controller);
+			}
 
 		if (data->interface_type == MUSB_INTERFACE_UTMI) {
 			if (musb->xceiv->set_vbus)
@@ -307,22 +309,11 @@ static int omap2430_musb_init(struct musb *musb)
 		return -ENODEV;
 	}
 
-	omap2430_low_level_init(musb);
-
-	l = musb_readl(musb->mregs, OTG_SYSCONFIG);
-	l &= ~ENABLEWAKEUP;	/* disable wakeup */
-	l &= ~NOSTDBY;		/* remove possible nostdby */
-	l |= SMARTSTDBY;	/* enable smart standby */
-	l &= ~AUTOIDLE;		/* disable auto idle */
-	l &= ~NOIDLE;		/* remove possible noidle */
-	l |= SMARTIDLE;		/* enable smart idle */
-	/*
-	 * MUSB AUTOIDLE don't work in 3430.
-	 * Workaround by Richard Woodruff/TI
-	 */
-	if (!cpu_is_omap3430())
-		l |= AUTOIDLE;		/* enable auto idle */
-	musb_writel(musb->mregs, OTG_SYSCONFIG, l);
+	status = pm_runtime_get_sync(dev);
+	if (status < 0) {
+		dev_err(dev, "pm_runtime_get_sync FAILED");
+		goto err1;
+	}
 
 	l = musb_readl(musb->mregs, OTG_INTERFSEL);
 
@@ -350,18 +341,63 @@ static int omap2430_musb_init(struct musb *musb)
 	if (status)
 		DBG(1, "notification register failed\n");
 
-	/* check whether cable is already connected */
-	if (musb->xceiv->state ==OTG_STATE_B_IDLE)
-		musb_otg_notifications(&musb->nb, 1,
-					musb->xceiv->gadget);
-
 	setup_timer(&musb_idle_timer, musb_do_idle, (unsigned long) musb);
 
 	return 0;
+
+err1:
+	pm_runtime_disable(dev);
+	return status;
+}
+
+static void omap2430_musb_enable(struct musb *musb)
+{
+	u8		devctl;
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
+	struct device *dev = musb->controller;
+	struct musb_hdrc_platform_data *pdata = dev->platform_data;
+	struct omap_musb_board_data *data = pdata->board_data;
+
+	switch (musb->xceiv->last_event) {
+
+	case USB_EVENT_ID:
+		otg_init(musb->xceiv);
+		if (data->interface_type == MUSB_INTERFACE_UTMI) {
+			devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
+			/* start the session */
+			devctl |= MUSB_DEVCTL_SESSION;
+			musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
+			while (musb_readb(musb->mregs, MUSB_DEVCTL) &
+						MUSB_DEVCTL_BDEVICE) {
+				cpu_relax();
+
+				if (time_after(jiffies, timeout)) {
+					dev_err(musb->controller,
+					"configured as A device timeout");
+					break;
+				}
+			}
+		}
+		break;
+
+	case USB_EVENT_VBUS:
+		otg_init(musb->xceiv);
+		break;
+
+	default:
+		break;
+	}
+}
+
+static void omap2430_musb_disable(struct musb *musb)
+{
+	if (musb->xceiv->last_event)
+		otg_shutdown(musb->xceiv);
 }
 
 static int omap2430_musb_exit(struct musb *musb)
 {
+	del_timer_sync(&musb_idle_timer);
 
 	omap2430_low_level_exit(musb);
 	otg_put_transceiver(musb->xceiv);
@@ -377,6 +413,9 @@ static const struct musb_platform_ops omap2430_ops = {
 	.try_idle	= omap2430_musb_try_idle,
 
 	.set_vbus	= omap2430_musb_set_vbus,
+
+	.enable		= omap2430_musb_enable,
+	.disable	= omap2430_musb_disable,
 };
 
 static u64 omap2430_dmamask = DMA_BIT_MASK(32);
@@ -386,8 +425,6 @@ static int __init omap2430_probe(struct platform_device *pdev)
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
 	struct omap2430_glue		*glue;
-	struct clk			*clk;
-
 	int				ret = -ENOMEM;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
@@ -402,26 +439,12 @@ static int __init omap2430_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	clk = clk_get(&pdev->dev, "ick");
-	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "failed to get clock\n");
-		ret = PTR_ERR(clk);
-		goto err2;
-	}
-
-	ret = clk_enable(clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable clock\n");
-		goto err3;
-	}
-
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &omap2430_dmamask;
 	musb->dev.coherent_dma_mask	= omap2430_dmamask;
 
 	glue->dev			= &pdev->dev;
 	glue->musb			= musb;
-	glue->clk			= clk;
 
 	pdata->platform_ops		= &omap2430_ops;
 
@@ -431,28 +454,24 @@ static int __init omap2430_probe(struct platform_device *pdev)
 			pdev->num_resources);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err4;
+		goto err2;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err4;
+		goto err2;
 	}
 
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err4;
+		goto err2;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+
 	return 0;
-
-err4:
-	clk_disable(clk);
-
-err3:
-	clk_put(clk);
 
 err2:
 	platform_device_put(musb);
@@ -470,61 +489,40 @@ static int __exit omap2430_remove(struct platform_device *pdev)
 
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
-	clk_disable(glue->clk);
-	clk_put(glue->clk);
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 	kfree(glue);
 
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static void omap2430_save_context(struct musb *musb)
-{
-	musb->context.otg_sysconfig = musb_readl(musb->mregs, OTG_SYSCONFIG);
-	musb->context.otg_forcestandby = musb_readl(musb->mregs, OTG_FORCESTDBY);
-}
 
-static void omap2430_restore_context(struct musb *musb)
-{
-	musb_writel(musb->mregs, OTG_SYSCONFIG, musb->context.otg_sysconfig);
-	musb_writel(musb->mregs, OTG_FORCESTDBY, musb->context.otg_forcestandby);
-}
-
-static int omap2430_suspend(struct device *dev)
+static int omap2430_runtime_suspend(struct device *dev)
 {
 	struct omap2430_glue		*glue = dev_get_drvdata(dev);
 	struct musb			*musb = glue_to_musb(glue);
 
 	omap2430_low_level_exit(musb);
 	otg_set_suspend(musb->xceiv, 1);
-	omap2430_save_context(musb);
-	clk_disable(glue->clk);
 
 	return 0;
 }
 
-static int omap2430_resume(struct device *dev)
+static int omap2430_runtime_resume(struct device *dev)
 {
 	struct omap2430_glue		*glue = dev_get_drvdata(dev);
 	struct musb			*musb = glue_to_musb(glue);
-	int				ret;
-
-	ret = clk_enable(glue->clk);
-	if (ret) {
-		dev_err(dev, "faled to enable clock\n");
-		return ret;
-	}
 
 	omap2430_low_level_init(musb);
-	omap2430_restore_context(musb);
 	otg_set_suspend(musb->xceiv, 0);
 
 	return 0;
 }
 
 static struct dev_pm_ops omap2430_pm_ops = {
-	.suspend	= omap2430_suspend,
-	.resume		= omap2430_resume,
+	.runtime_suspend = omap2430_runtime_suspend,
+	.runtime_resume = omap2430_runtime_resume,
 };
 
 #define DEV_PM_OPS	(&omap2430_pm_ops)

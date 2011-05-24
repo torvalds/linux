@@ -38,7 +38,7 @@ struct arm_vmregion *
 arm_vmregion_alloc(struct arm_vmregion_head *head, size_t align,
 		   size_t size, gfp_t gfp)
 {
-	unsigned long addr = head->vm_start, end = head->vm_end - size;
+	unsigned long start = head->vm_start, addr = head->vm_end;
 	unsigned long flags;
 	struct arm_vmregion *c, *new;
 
@@ -54,21 +54,20 @@ arm_vmregion_alloc(struct arm_vmregion_head *head, size_t align,
 
 	spin_lock_irqsave(&head->vm_lock, flags);
 
-	list_for_each_entry(c, &head->vm_list, vm_list) {
-		if ((addr + size) < addr)
-			goto nospc;
-		if ((addr + size) <= c->vm_start)
+	addr = rounddown(addr - size, align);
+	list_for_each_entry_reverse(c, &head->vm_list, vm_list) {
+		if (addr >= c->vm_end)
 			goto found;
-		addr = ALIGN(c->vm_end, align);
-		if (addr > end)
+		addr = rounddown(c->vm_start - size, align);
+		if (addr < start)
 			goto nospc;
 	}
 
  found:
 	/*
-	 * Insert this entry _before_ the one we found.
+	 * Insert this entry after the one we found.
 	 */
-	list_add_tail(&new->vm_list, &c->vm_list);
+	list_add(&new->vm_list, &c->vm_list);
 	new->vm_start = addr;
 	new->vm_end = addr + size;
 	new->vm_active = 1;

@@ -1104,21 +1104,19 @@ static inline int mini_cm_accelerated(struct nes_cm_core *cm_core,
 static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpindex)
 {
 	struct rtable *rt;
-	struct flowi fl;
 	struct neighbour *neigh;
 	int rc = arpindex;
 	struct net_device *netdev;
 	struct nes_adapter *nesadapter = nesvnic->nesdev->nesadapter;
 
-	memset(&fl, 0, sizeof fl);
-	fl.nl_u.ip4_u.daddr = htonl(dst_ip);
-	if (ip_route_output_key(&init_net, &rt, &fl)) {
+	rt = ip_route_output(&init_net, htonl(dst_ip), 0, 0, 0);
+	if (IS_ERR(rt)) {
 		printk(KERN_ERR "%s: ip_route_output_key failed for 0x%08X\n",
 				__func__, dst_ip);
 		return rc;
 	}
 
-	if (nesvnic->netdev->master)
+	if (netif_is_bond_slave(nesvnic->netdev))
 		netdev = nesvnic->netdev->master;
 	else
 		netdev = nesvnic->netdev;
@@ -1399,7 +1397,7 @@ static void handle_fin_pkt(struct nes_cm_node *cm_node)
 		cleanup_retrans_entry(cm_node);
 		cm_node->state = NES_CM_STATE_CLOSING;
 		send_ack(cm_node, NULL);
-		/* Wait for ACK as this is simultanous close..
+		/* Wait for ACK as this is simultaneous close..
 		* After we receive ACK, do not send anything..
 		* Just rm the node.. Done.. */
 		break;

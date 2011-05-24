@@ -19,10 +19,6 @@ extern unsigned long min_low_pfn;
  */
 extern unsigned long max_pfn;
 
-#ifdef CONFIG_CRASH_DUMP
-extern unsigned long saved_max_pfn;
-#endif
-
 #ifndef CONFIG_NO_BOOTMEM
 /*
  * node_bootmem_map is a map pointer - the bits represent all physical 

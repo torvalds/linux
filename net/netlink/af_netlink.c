@@ -1362,16 +1362,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	NETLINK_CB(skb).pid	= nlk->pid;
 	NETLINK_CB(skb).dst_group = dst_group;
-	NETLINK_CB(skb).loginuid = audit_get_loginuid(current);
-	NETLINK_CB(skb).sessionid = audit_get_sessionid(current);
-	security_task_getsecid(current, &(NETLINK_CB(skb).sid));
 	memcpy(NETLINK_CREDS(skb), &siocb->scm->creds, sizeof(struct ucred));
-
-	/* What can I do? Netlink is asynchronous, so that
-	   we will have to save current capabilities to
-	   check them, when this message will be delivered
-	   to corresponding kernel module.   --ANK (980802)
-	 */
 
 	err = -EFAULT;
 	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
@@ -1407,7 +1398,7 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 	int noblock = flags&MSG_DONTWAIT;
 	size_t copied;
 	struct sk_buff *skb, *data_skb;
-	int err;
+	int err, ret;
 
 	if (flags&MSG_OOB)
 		return -EOPNOTSUPP;
@@ -1470,8 +1461,13 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 
 	skb_free_datagram(sk, skb);
 
-	if (nlk->cb && atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf / 2)
-		netlink_dump(sk);
+	if (nlk->cb && atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf / 2) {
+		ret = netlink_dump(sk);
+		if (ret) {
+			sk->sk_err = ret;
+			sk->sk_error_report(sk);
+		}
+	}
 
 	scm_recv(sock, msg, siocb->scm, flags);
 out:
@@ -1736,6 +1732,7 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	struct netlink_callback *cb;
 	struct sock *sk;
 	struct netlink_sock *nlk;
+	int ret;
 
 	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
 	if (cb == NULL)
@@ -1764,8 +1761,12 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	nlk->cb = cb;
 	mutex_unlock(nlk->cb_mutex);
 
-	netlink_dump(sk);
+	ret = netlink_dump(sk);
+
 	sock_put(sk);
+
+	if (ret)
+		return ret;
 
 	/* We successfully started a dump, by returning -EINTR we
 	 * signal not to send ACK even if it was requested.

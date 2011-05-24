@@ -132,7 +132,7 @@ int umc_match_pci_id(struct umc_driver *umc_drv, struct umc_dev *umc);
  *
  * FIXME: This is as dirty as it gets, but we need some way to check
  * the correct type of umc_dev->parent (so that for example, we can
- * cast to pci_dev). Casting to pci_dev is necesary because at some
+ * cast to pci_dev). Casting to pci_dev is necessary because at some
  * point we need to request resources from the device. Mapping is
  * easily over come (ioremap and stuff are bus agnostic), but hooking
  * up to some error handlers (such as pci error handlers) might need

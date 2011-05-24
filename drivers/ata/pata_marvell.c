@@ -38,7 +38,7 @@ static int marvell_pata_active(struct pci_dev *pdev)
 
 	/* We don't yet know how to do this for other devices */
 	if (pdev->device != 0x6145)
-		return 1;	
+		return 1;
 
 	barp = pci_iomap(pdev, 5, 0x10);
 	if (barp == NULL)

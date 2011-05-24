@@ -373,6 +373,15 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 
 			gpe_register_info = &gpe_block->register_info[i];
 
+			/*
+			 * Optimization: If there are no GPEs enabled within this
+			 * register, we can safely ignore the entire register.
+			 */
+			if (!(gpe_register_info->enable_for_run |
+			      gpe_register_info->enable_for_wake)) {
+				continue;
+			}
+
 			/* Read the Status Register */
 
 			status =
@@ -457,6 +466,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 	acpi_status status;
 	struct acpi_gpe_event_info *local_gpe_event_info;
 	struct acpi_evaluate_info *info;
+	struct acpi_gpe_notify_object *notify_object;
 
 	ACPI_FUNCTION_TRACE(ev_asynch_execute_gpe_method);
 
@@ -508,10 +518,18 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 		 * from this thread -- because handlers may in turn run other
 		 * control methods.
 		 */
-		status =
-		    acpi_ev_queue_notify_request(local_gpe_event_info->dispatch.
-						 device_node,
-						 ACPI_NOTIFY_DEVICE_WAKE);
+		status = acpi_ev_queue_notify_request(
+				local_gpe_event_info->dispatch.device.node,
+				ACPI_NOTIFY_DEVICE_WAKE);
+
+		notify_object = local_gpe_event_info->dispatch.device.next;
+		while (ACPI_SUCCESS(status) && notify_object) {
+			status = acpi_ev_queue_notify_request(
+					notify_object->node,
+					ACPI_NOTIFY_DEVICE_WAKE);
+			notify_object = notify_object->next;
+		}
+
 		break;
 
 	case ACPI_GPE_DISPATCH_METHOD:

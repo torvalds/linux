@@ -1593,8 +1593,8 @@ hub_descriptor (struct usb_hub_descriptor *desc)
 	desc->bDescLength = 9;
 	desc->wHubCharacteristics = cpu_to_le16(0x0001);
 	desc->bNbrPorts = 1;
-	desc->bitmap [0] = 0xff;
-	desc->bitmap [1] = 0xff;
+	desc->u.hs.DeviceRemovable[0] = 0xff;
+	desc->u.hs.DeviceRemovable[1] = 0xff;
 }
 
 static int dummy_hub_control (

@@ -163,10 +163,10 @@
 #define MX28_INT_USB0			93
 #define MX28_INT_USB1_WAKEUP		94
 #define MX28_INT_USB0_WAKEUP		95
-#define MX28_INT_SSP0			96
-#define MX28_INT_SSP1			97
-#define MX28_INT_SSP2			98
-#define MX28_INT_SSP3			99
+#define MX28_INT_SSP0_ERROR		96
+#define MX28_INT_SSP1_ERROR		97
+#define MX28_INT_SSP2_ERROR		98
+#define MX28_INT_SSP3_ERROR		99
 #define MX28_INT_ENET_SWI		100
 #define MX28_INT_ENET_MAC0		101
 #define MX28_INT_ENET_MAC1		102
@@ -184,5 +184,42 @@
 #define MX28_INT_GPIO2			125
 #define MX28_INT_GPIO1			126
 #define MX28_INT_GPIO0			127
+
+/*
+ * APBH DMA
+ */
+#define MX28_DMA_SSP0			0
+#define MX28_DMA_SSP1			1
+#define MX28_DMA_SSP2			2
+#define MX28_DMA_SSP3			3
+#define MX28_DMA_GPMI0			4
+#define MX28_DMA_GPMI1			5
+#define MX28_DMA_GPMI2			6
+#define MX28_DMA_GPMI3			7
+#define MX28_DMA_GPMI4			8
+#define MX28_DMA_GPMI5			9
+#define MX28_DMA_GPMI6			10
+#define MX28_DMA_GPMI7			11
+#define MX28_DMA_HSADC			12
+#define MX28_DMA_LCDIF			13
+
+/*
+ * APBX DMA
+ */
+#define MX28_DMA_AUART4_RX		0
+#define MX28_DMA_AUART4_TX		1
+#define MX28_DMA_SPDIF_TX		2
+#define MX28_DMA_SAIF0			4
+#define MX28_DMA_SAIF1			5
+#define MX28_DMA_I2C0			6
+#define MX28_DMA_I2C1			7
+#define MX28_DMA_AUART0_RX		8
+#define MX28_DMA_AUART0_TX		9
+#define MX28_DMA_AUART1_RX		10
+#define MX28_DMA_AUART1_TX		11
+#define MX28_DMA_AUART2_RX		12
+#define MX28_DMA_AUART2_TX		13
+#define MX28_DMA_AUART3_RX		14
+#define MX28_DMA_AUART3_TX		15
 
 #endif /* __MACH_MX28_H__ */

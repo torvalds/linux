@@ -51,7 +51,8 @@ Supported chips:
   * JEDEC JC 42.4 compliant temperature sensor chips
     Prefix: 'jc42'
     Addresses scanned: I2C 0x18 - 0x1f
-    Datasheet: -
+    Datasheet:
+	http://www.jedec.org/sites/default/files/docs/4_01_04R19.pdf
 
 Author:
 	Guenter Roeck <guenter.roeck@ericsson.com>
@@ -60,7 +61,11 @@ Author:
 Description
 -----------
 
-This driver implements support for JEDEC JC 42.4 compliant temperature sensors.
+This driver implements support for JEDEC JC 42.4 compliant temperature sensors,
+which are used on many DDR3 memory modules for mobile devices and servers. Some
+systems use the sensor to prevent memory overheating by automatically throttling
+the memory controller.
+
 The driver auto-detects the chips listed above, but can be manually instantiated
 to support other JC 42.4 compliant chips.
 
@@ -81,15 +86,19 @@ limits. The chip supports only a single register to configure the hysteresis,
 which applies to all limits. This register can be written by writing into
 temp1_crit_hyst. Other hysteresis attributes are read-only.
 
+If the BIOS has configured the sensor for automatic temperature management, it
+is likely that it has locked the registers, i.e., that the temperature limits
+cannot be changed.
+
 Sysfs entries
 -------------
 
 temp1_input		Temperature (RO)
-temp1_min		Minimum temperature (RW)
-temp1_max		Maximum temperature (RW)
-temp1_crit		Critical high temperature (RW)
+temp1_min		Minimum temperature (RO or RW)
+temp1_max		Maximum temperature (RO or RW)
+temp1_crit		Critical high temperature (RO or RW)
 
-temp1_crit_hyst		Critical hysteresis temperature (RW)
+temp1_crit_hyst		Critical hysteresis temperature (RO or RW)
 temp1_max_hyst		Maximum hysteresis temperature (RO)
 
 temp1_min_alarm		Temperature low alarm

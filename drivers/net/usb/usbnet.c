@@ -387,8 +387,12 @@ static int rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 static inline void rx_process (struct usbnet *dev, struct sk_buff *skb)
 {
 	if (dev->driver_info->rx_fixup &&
-	    !dev->driver_info->rx_fixup (dev, skb))
-		goto error;
+	    !dev->driver_info->rx_fixup (dev, skb)) {
+		/* With RX_ASSEMBLE, rx_fixup() must update counters */
+		if (!(dev->driver_info->flags & FLAG_RX_ASSEMBLE))
+			dev->net->stats.rx_errors++;
+		goto done;
+	}
 	// else network stack removes extra byte if we forced a short packet
 
 	if (skb->len) {
@@ -401,8 +405,8 @@ static inline void rx_process (struct usbnet *dev, struct sk_buff *skb)
 	}
 
 	netif_dbg(dev, rx_err, dev->net, "drop\n");
-error:
 	dev->net->stats.rx_errors++;
+done:
 	skb_queue_tail(&dev->done, skb);
 }
 
@@ -931,8 +935,10 @@ fail_halt:
 		if (urb != NULL) {
 			clear_bit (EVENT_RX_MEMORY, &dev->flags);
 			status = usb_autopm_get_interface(dev->intf);
-			if (status < 0)
+			if (status < 0) {
+				usb_free_urb(urb);
 				goto fail_lowmem;
+			}
 			if (rx_submit (dev, urb, GFP_KERNEL) == -ENOLINK)
 				resched = 0;
 			usb_autopm_put_interface(dev->intf);
@@ -1374,7 +1380,8 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 		// else "eth%d" when there's reasonable doubt.  userspace
 		// can rename the link if it knows better.
 		if ((dev->driver_info->flags & FLAG_ETHER) != 0 &&
-		    (net->dev_addr [0] & 0x02) == 0)
+		    ((dev->driver_info->flags & FLAG_POINTTOPOINT) == 0 ||
+		     (net->dev_addr [0] & 0x02) == 0))
 			strcpy (net->name, "eth%d");
 		/* WLAN devices should always be named "wlan%d" */
 		if ((dev->driver_info->flags & FLAG_WLAN) != 0)

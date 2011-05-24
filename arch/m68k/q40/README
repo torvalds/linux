@@ -89,7 +89,7 @@ The main interrupt register IIRQ_REG will indicate whether an IRQ was internal
 or from some ISA devices, EIRQ_REG can distinguish up to 8 ISA IRQs.
 
 The Q40 custom chip is programmable to provide 2 periodic timers:
-	- 50 or 200 Hz - level 2, !!THIS CANT BE DISABLED!!
+	- 50 or 200 Hz - level 2, !!THIS CAN'T BE DISABLED!!
 	- 10 or 20 KHz - level 4, used for dma-sound
 
 Linux uses the 200 Hz interrupt for timer and beep by default.

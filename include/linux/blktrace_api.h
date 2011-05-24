@@ -245,7 +245,6 @@ static inline int blk_cmd_buf_len(struct request *rq)
 
 extern void blk_dump_cmd(char *buf, struct request *rq);
 extern void blk_fill_rwbs(char *rwbs, u32 rw, int bytes);
-extern void blk_fill_rwbs_rq(char *rwbs, struct request *rq);
 
 #endif /* CONFIG_EVENT_TRACING && CONFIG_BLOCK */
 

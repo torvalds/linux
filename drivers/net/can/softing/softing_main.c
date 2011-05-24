@@ -218,7 +218,7 @@ static int softing_handle_1(struct softing *card)
 	ptr = buf;
 	cmd = *ptr++;
 	if (cmd == 0xff)
-		/* not quite usefull, probably the card has got out */
+		/* not quite useful, probably the card has got out */
 		return 0;
 	netdev = card->net[0];
 	if (cmd & CMD_BUS2)
@@ -633,6 +633,7 @@ static const struct net_device_ops softing_netdev_ops = {
 };
 
 static const struct can_bittiming_const softing_btr_const = {
+	.name = "softing",
 	.tseg1_min = 1,
 	.tseg1_max = 16,
 	.tseg2_min = 1,

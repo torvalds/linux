@@ -87,7 +87,7 @@ void hpi_dsp_code_rewind(struct dsp_code *ps_dsp_code);
 */
 short hpi_dsp_code_read_word(struct dsp_code *ps_dsp_code,
 				      /**< DSP code descriptor */
-	u32 *pword /**< where to store the read word */
+	u32 *pword /**< Where to store the read word */
 	);
 
 /** Get a block of dsp code into an internal buffer, and provide a pointer to

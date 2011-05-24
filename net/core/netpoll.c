@@ -193,6 +193,17 @@ void netpoll_poll_dev(struct net_device *dev)
 
 	poll_napi(dev);
 
+	if (dev->priv_flags & IFF_SLAVE) {
+		if (dev->npinfo) {
+			struct net_device *bond_dev = dev->master;
+			struct sk_buff *skb;
+			while ((skb = skb_dequeue(&dev->npinfo->arp_tx))) {
+				skb->dev = bond_dev;
+				skb_queue_tail(&bond_dev->npinfo->arp_tx, skb);
+			}
+		}
+	}
+
 	service_arp_queue(dev->npinfo);
 
 	zap_completion_queue();
@@ -313,9 +324,7 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 		     tries > 0; --tries) {
 			if (__netif_tx_trylock(txq)) {
 				if (!netif_tx_queue_stopped(txq)) {
-					dev->priv_flags |= IFF_IN_NETPOLL;
 					status = ops->ndo_start_xmit(skb, dev);
-					dev->priv_flags &= ~IFF_IN_NETPOLL;
 					if (status == NETDEV_TX_OK)
 						txq_trans_update(txq);
 				}

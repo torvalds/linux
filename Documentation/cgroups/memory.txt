@@ -485,8 +485,9 @@ The feature can be disabled by
 
 # echo 0 > memory.use_hierarchy
 
-NOTE1: Enabling/disabling will fail if the cgroup already has other
-       cgroups created below it.
+NOTE1: Enabling/disabling will fail if either the cgroup already has other
+       cgroups created below it, or if the parent cgroup has use_hierarchy
+       enabled.
 
 NOTE2: When panic_on_oom is set to "2", the whole system will panic in
        case of an OOM event in any cgroup.

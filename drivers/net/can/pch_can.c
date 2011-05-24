@@ -185,7 +185,7 @@ struct pch_can_priv {
 
 static struct can_bittiming_const pch_can_bittiming_const = {
 	.name = KBUILD_MODNAME,
-	.tseg1_min = 1,
+	.tseg1_min = 2,
 	.tseg1_max = 16,
 	.tseg2_min = 1,
 	.tseg2_max = 8,
@@ -959,13 +959,13 @@ static void __devexit pch_can_remove(struct pci_dev *pdev)
 	struct pch_can_priv *priv = netdev_priv(ndev);
 
 	unregister_candev(priv->ndev);
-	pci_iounmap(pdev, priv->regs);
 	if (priv->use_msi)
 		pci_disable_msi(priv->dev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	pch_can_reset(priv);
+	pci_iounmap(pdev, priv->regs);
 	free_candev(priv->ndev);
 }
 
@@ -1238,6 +1238,7 @@ static int __devinit pch_can_probe(struct pci_dev *pdev,
 		priv->use_msi = 0;
 	} else {
 		netdev_err(ndev, "PCH CAN opened with MSI\n");
+		pci_set_master(pdev);
 		priv->use_msi = 1;
 	}
 

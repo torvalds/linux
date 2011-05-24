@@ -197,7 +197,7 @@ static void sc520cdp_setup_par(void)
 	}
 
 	/*
-	** Find the PARxx registers that are reponsible for activating
+	** Find the PARxx registers that are responsible for activating
 	** ROMCS0, ROMCS1 and BOOTCS. Reprogram each of these with a
 	** new value from the table.
 	*/

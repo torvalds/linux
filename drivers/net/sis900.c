@@ -495,7 +495,7 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
 	sis_priv->mii_info.reg_num_mask = 0x1f;
 
 	/* Get Mac address according to the chip revision */
-	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &(sis_priv->chipset_rev));
+	sis_priv->chipset_rev = pci_dev->revision;
 	if(netif_msg_probe(sis_priv))
 		printk(KERN_DEBUG "%s: detected revision %2.2x, "
 				"trying to get MAC address...\n",
@@ -532,7 +532,7 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
 	/* save our host bridge revision */
 	dev = pci_get_device(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_630, NULL);
 	if (dev) {
-		pci_read_config_byte(dev, PCI_CLASS_REVISION, &sis_priv->host_bridge_rev);
+		sis_priv->host_bridge_rev = dev->revision;
 		pci_dev_put(dev);
 	}
 
@@ -1180,7 +1180,7 @@ sis900_init_rx_ring(struct net_device *net_dev)
  *
  *	630E equalizer workaround rule(Cyrus Huang 08/15)
  *	PHY register 14h(Test)
- *	Bit 14: 0 -- Automatically dectect (default)
+ *	Bit 14: 0 -- Automatically detect (default)
  *		1 -- Manually set Equalizer filter
  *	Bit 13: 0 -- (Default)
  *		1 -- Speed up convergence of equalizer setting
@@ -1192,7 +1192,7 @@ sis900_init_rx_ring(struct net_device *net_dev)
  *	Then set equalizer value, and set Bit 14 to 1, Bit 9 to 0
  *	Link Off:Set Bit 13 to 1, Bit 14 to 0
  *	Calculate Equalizer value:
- *	When Link is ON and Bit 14 is 0, SIS900PHY will auto-dectect proper equalizer value.
+ *	When Link is ON and Bit 14 is 0, SIS900PHY will auto-detect proper equalizer value.
  *	When the equalizer is stable, this value is not a fixed value. It will be within
  *	a small range(eg. 7~9). Then we get a minimum and a maximum value(eg. min=7, max=9)
  *	0 <= max <= 4  --> set equalizer to max
@@ -1723,7 +1723,7 @@ static int sis900_rx(struct net_device *net_dev)
 		rx_size = data_size - CRC_SIZE;
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-		/* ``TOOLONG'' flag means jumbo packet recived. */
+		/* ``TOOLONG'' flag means jumbo packet received. */
 		if ((rx_status & TOOLONG) && data_size <= MAX_FRAME_SIZE)
 			rx_status &= (~ ((unsigned int)TOOLONG));
 #endif
@@ -1777,6 +1777,7 @@ static int sis900_rx(struct net_device *net_dev)
 					      "cur_rx:%4.4d, dirty_rx:%4.4d\n",
 					      net_dev->name, sis_priv->cur_rx,
 					      sis_priv->dirty_rx);
+				dev_kfree_skb(skb);
 				break;
 			}
 

@@ -28,26 +28,9 @@ int snd_soc_params_to_frame_size(struct snd_pcm_hw_params *params)
 {
 	int sample_size;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
-	case SNDRV_PCM_FORMAT_S16_BE:
-		sample_size = 16;
-		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
-	case SNDRV_PCM_FORMAT_S20_3BE:
-		sample_size = 20;
-		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S24_BE:
-		sample_size = 24;
-		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
-	case SNDRV_PCM_FORMAT_S32_BE:
-		sample_size = 32;
-		break;
-	default:
-		return -ENOTSUPP;
-	}
+	sample_size = snd_pcm_format_width(params_format(params));
+	if (sample_size < 0)
+		return sample_size;
 
 	return snd_soc_calc_frame_size(sample_size, params_channels(params),
 				       1);

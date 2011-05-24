@@ -30,13 +30,14 @@ static int hists__add_entry(struct hists *self,
 	return -ENOMEM;
 }
 
-static int diff__process_sample_event(event_t *event,
-				      struct sample_data *sample,
+static int diff__process_sample_event(union perf_event *event,
+				      struct perf_sample *sample,
+				      struct perf_evsel *evsel __used,
 				      struct perf_session *session)
 {
 	struct addr_location al;
 
-	if (event__preprocess_sample(event, session, &al, sample, NULL) < 0) {
+	if (perf_event__preprocess_sample(event, session, &al, sample, NULL) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -56,11 +57,11 @@ static int diff__process_sample_event(event_t *event,
 
 static struct perf_event_ops event_ops = {
 	.sample	= diff__process_sample_event,
-	.mmap	= event__process_mmap,
-	.comm	= event__process_comm,
-	.exit	= event__process_task,
-	.fork	= event__process_task,
-	.lost	= event__process_lost,
+	.mmap	= perf_event__process_mmap,
+	.comm	= perf_event__process_comm,
+	.exit	= perf_event__process_task,
+	.fork	= perf_event__process_task,
+	.lost	= perf_event__process_lost,
 	.ordered_samples = true,
 	.ordering_requires_timestamps = true,
 };

@@ -248,7 +248,7 @@ static struct snd_soc_jack_pin ams_delta_hook_switch_pins[] = {
  */
 
 /* To actually apply any modem controlled configuration changes to the codec,
- * we must connect codec DAI pins to the modem for a moment.  Be carefull not
+ * we must connect codec DAI pins to the modem for a moment.  Be careful not
  * to interfere with our digital mute function that shares the same hardware. */
 static struct timer_list cx81801_timer;
 static bool cx81801_cmd_pending;
@@ -402,9 +402,9 @@ static struct tty_ldisc_ops cx81801_ops = {
 
 
 /*
- * Even if not very usefull, the sound card can still work without any of the
+ * Even if not very useful, the sound card can still work without any of the
  * above functonality activated.  You can still control its audio input/output
- * constellation and speakerphone gain from userspace by issueing AT commands
+ * constellation and speakerphone gain from userspace by issuing AT commands
  * over the modem port.
  */
 
@@ -507,8 +507,6 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	/* Set up digital mute if not provided by the codec */
 	if (!codec_dai->driver->ops) {
 		codec_dai->driver->ops = &ams_delta_dai_ops;
-	} else if (!codec_dai->driver->ops->digital_mute) {
-		codec_dai->driver->ops->digital_mute = ams_delta_digital_mute;
 	} else {
 		ams_delta_ops.startup = ams_delta_startup;
 		ams_delta_ops.shutdown = ams_delta_shutdown;

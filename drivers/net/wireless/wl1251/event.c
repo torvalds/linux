@@ -90,6 +90,24 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 		}
 	}
 
+	if (wl->vif && wl->rssi_thold) {
+		if (vector & ROAMING_TRIGGER_LOW_RSSI_EVENT_ID) {
+			wl1251_debug(DEBUG_EVENT,
+				     "ROAMING_TRIGGER_LOW_RSSI_EVENT");
+			ieee80211_cqm_rssi_notify(wl->vif,
+				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
+				GFP_KERNEL);
+		}
+
+		if (vector & ROAMING_TRIGGER_REGAINED_RSSI_EVENT_ID) {
+			wl1251_debug(DEBUG_EVENT,
+				     "ROAMING_TRIGGER_REGAINED_RSSI_EVENT");
+			ieee80211_cqm_rssi_notify(wl->vif,
+				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
+				GFP_KERNEL);
+		}
+	}
+
 	return 0;
 }
 

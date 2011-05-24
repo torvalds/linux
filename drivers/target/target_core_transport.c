@@ -34,7 +34,6 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/kthread.h>
 #include <linux/in.h>
 #include <linux/cdrom.h>
@@ -228,8 +227,6 @@ static void transport_remove_cmd_from_queue(struct se_cmd *cmd,
 static int transport_set_sense_codes(struct se_cmd *cmd, u8 asc, u8 ascq);
 static void transport_stop_all_task_timers(struct se_cmd *cmd);
 
-int transport_emulate_control_cdb(struct se_task *task);
-
 int init_se_global(void)
 {
 	struct se_global *global;
@@ -379,6 +376,40 @@ void release_se_global(void)
 	se_global = NULL;
 }
 
+/* SCSI statistics table index */
+static struct scsi_index_table scsi_index_table;
+
+/*
+ * Initialize the index table for allocating unique row indexes to various mib
+ * tables.
+ */
+void init_scsi_index_table(void)
+{
+	memset(&scsi_index_table, 0, sizeof(struct scsi_index_table));
+	spin_lock_init(&scsi_index_table.lock);
+}
+
+/*
+ * Allocate a new row index for the entry type specified
+ */
+u32 scsi_get_new_index(scsi_index_t type)
+{
+	u32 new_index;
+
+	if ((type < 0) || (type >= SCSI_INDEX_TYPE_MAX)) {
+		printk(KERN_ERR "Invalid index type %d\n", type);
+		return -EINVAL;
+	}
+
+	spin_lock(&scsi_index_table.lock);
+	new_index = ++scsi_index_table.scsi_mib_index[type];
+	if (new_index == 0)
+		new_index = ++scsi_index_table.scsi_mib_index[type];
+	spin_unlock(&scsi_index_table.lock);
+
+	return new_index;
+}
+
 void transport_init_queue_obj(struct se_queue_obj *qobj)
 {
 	atomic_set(&qobj->queue_cnt, 0);
@@ -437,7 +468,6 @@ struct se_session *transport_init_session(void)
 	}
 	INIT_LIST_HEAD(&se_sess->sess_list);
 	INIT_LIST_HEAD(&se_sess->sess_acl_list);
-	atomic_set(&se_sess->mib_ref_count, 0);
 
 	return se_sess;
 }
@@ -546,12 +576,6 @@ void transport_deregister_session(struct se_session *se_sess)
 		transport_free_session(se_sess);
 		return;
 	}
-	/*
-	 * Wait for possible reference in drivers/target/target_core_mib.c:
-	 * scsi_att_intr_port_seq_show()
-	 */
-	while (atomic_read(&se_sess->mib_ref_count) != 0)
-		cpu_relax();
 
 	spin_lock_bh(&se_tpg->session_lock);
 	list_del(&se_sess->sess_list);
@@ -574,7 +598,6 @@ void transport_deregister_session(struct se_session *se_sess)
 				spin_unlock_bh(&se_tpg->acl_node_lock);
 
 				core_tpg_wait_for_nacl_pr_ref(se_nacl);
-				core_tpg_wait_for_mib_ref(se_nacl);
 				core_free_device_list_for_node(se_nacl, se_tpg);
 				TPG_TFO(se_tpg)->tpg_release_fabric_acl(se_tpg,
 						se_nacl);
@@ -696,7 +719,7 @@ static int transport_cmd_check_stop(
 			cmd->se_lun = NULL;
 			/*
 			 * Some fabric modules like tcm_loop can release
-			 * their internally allocated I/O refrence now and
+			 * their internally allocated I/O reference now and
 			 * struct se_cmd now.
 			 */
 			if (CMD_TFO(cmd)->check_stop_free != NULL) {
@@ -1181,7 +1204,7 @@ transport_get_task_from_execute_queue(struct se_device *dev)
  *
  *
  */
-static void transport_remove_task_from_execute_queue(
+void transport_remove_task_from_execute_queue(
 	struct se_task *task,
 	struct se_device *dev)
 {
@@ -1597,7 +1620,7 @@ struct se_device *transport_add_device_to_core_hba(
 	const char *inquiry_prod,
 	const char *inquiry_rev)
 {
-	int ret = 0, force_pt;
+	int force_pt;
 	struct se_device  *dev;
 
 	dev = kzalloc(sizeof(struct se_device), GFP_KERNEL);
@@ -1714,9 +1737,8 @@ struct se_device *transport_add_device_to_core_hba(
 	}
 	scsi_dump_inquiry(dev);
 
+	return dev;
 out:
-	if (!ret)
-		return dev;
 	kthread_stop(dev->process_thread);
 
 	spin_lock(&hba->device_lock);
@@ -2007,7 +2029,7 @@ int transport_generic_handle_data(
 	 * If the received CDB has aleady been ABORTED by the generic
 	 * target engine, we now call transport_check_aborted_status()
 	 * to queue any delated TASK_ABORTED status for the received CDB to the
-	 * fabric module as we are expecting no futher incoming DATA OUT
+	 * fabric module as we are expecting no further incoming DATA OUT
 	 * sequences at this point.
 	 */
 	if (transport_check_aborted_status(cmd, 1) != 0)
@@ -2479,7 +2501,7 @@ static inline int transport_execute_task_attr(struct se_cmd *cmd)
 	if (SE_DEV(cmd)->dev_task_attr_type != SAM_TASK_ATTR_EMULATED)
 		return 1;
 	/*
-	 * Check for the existance of HEAD_OF_QUEUE, and if true return 1
+	 * Check for the existence of HEAD_OF_QUEUE, and if true return 1
 	 * to allow the passed struct se_cmd list of tasks to the front of the list.
 	 */
 	 if (cmd->sam_task_attr == TASK_ATTR_HOQ) {
@@ -2525,7 +2547,7 @@ static inline int transport_execute_task_attr(struct se_cmd *cmd)
 	if (atomic_read(&SE_DEV(cmd)->dev_ordered_sync) != 0) {
 		/*
 		 * Otherwise, add cmd w/ tasks to delayed cmd queue that
-		 * will be drained upon competion of HEAD_OF_QUEUE task.
+		 * will be drained upon completion of HEAD_OF_QUEUE task.
 		 */
 		spin_lock(&SE_DEV(cmd)->delayed_cmd_lock);
 		cmd->se_cmd_flags |= SCF_DELAYED_CMD_FROM_SAM_ATTR;
@@ -2567,7 +2589,7 @@ static int transport_execute_tasks(struct se_cmd *cmd)
 	}
 	/*
 	 * Call transport_cmd_check_stop() to see if a fabric exception
-	 * has occured that prevents execution.
+	 * has occurred that prevents execution.
 	 */
 	if (!(transport_cmd_check_stop(cmd, 0, TRANSPORT_PROCESSING))) {
 		/*
@@ -3087,7 +3109,7 @@ static int transport_generic_cmd_sequencer(
 	if (ret != 0) {
 		cmd->transport_wait_for_tasks = &transport_nop_wait_for_tasks;
 		/*
-		 * Set SCSI additional sense code (ASC) to 'LUN Not Accessable';
+		 * Set SCSI additional sense code (ASC) to 'LUN Not Accessible';
 		 * The ALUA additional sense code qualifier (ASCQ) is determined
 		 * by the ALUA primary or secondary access state..
 		 */
@@ -3845,7 +3867,7 @@ static void transport_generic_complete_ok(struct se_cmd *cmd)
 		}
 	}
 	/*
-	 * Check for a callback, used by amoungst other things
+	 * Check for a callback, used by amongst other things
 	 * XDWRITE_READ_10 emulation.
 	 */
 	if (cmd->transport_complete_callback)
@@ -4334,11 +4356,9 @@ transport_generic_get_mem(struct se_cmd *cmd, u32 length, u32 dma_size)
 			printk(KERN_ERR "Unable to allocate struct se_mem\n");
 			goto out;
 		}
-		INIT_LIST_HEAD(&se_mem->se_list);
-		se_mem->se_len = (length > dma_size) ? dma_size : length;
 
 /* #warning FIXME Allocate contigous pages for struct se_mem elements */
-		se_mem->se_page = (struct page *) alloc_pages(GFP_KERNEL, 0);
+		se_mem->se_page = alloc_pages(GFP_KERNEL, 0);
 		if (!(se_mem->se_page)) {
 			printk(KERN_ERR "alloc_pages() failed\n");
 			goto out;
@@ -4349,6 +4369,8 @@ transport_generic_get_mem(struct se_cmd *cmd, u32 length, u32 dma_size)
 			printk(KERN_ERR "kmap_atomic() failed\n");
 			goto out;
 		}
+		INIT_LIST_HEAD(&se_mem->se_list);
+		se_mem->se_len = (length > dma_size) ? dma_size : length;
 		memset(buf, 0, se_mem->se_len);
 		kunmap_atomic(buf, KM_IRQ0);
 
@@ -4367,10 +4389,13 @@ transport_generic_get_mem(struct se_cmd *cmd, u32 length, u32 dma_size)
 
 	return 0;
 out:
+	if (se_mem)
+		__free_pages(se_mem->se_page, 0);
+	kmem_cache_free(se_mem_cache, se_mem);
 	return -1;
 }
 
-extern u32 transport_calc_sg_num(
+u32 transport_calc_sg_num(
 	struct se_task *task,
 	struct se_mem *in_se_mem,
 	u32 task_offset)
@@ -4827,6 +4852,8 @@ static int transport_do_se_mem_map(
 
 		return ret;
 	}
+
+	BUG_ON(list_empty(se_mem_list));
 	/*
 	 * This is the normal path for all normal non BIDI and BIDI-COMMAND
 	 * WRITE payloads..  If we need to do BIDI READ passthrough for
@@ -5008,7 +5035,9 @@ transport_map_control_cmd_to_task(struct se_cmd *cmd)
 		struct se_mem *se_mem = NULL, *se_mem_lout = NULL;
 		u32 se_mem_cnt = 0, task_offset = 0;
 
-		BUG_ON(list_empty(cmd->t_task->t_mem_list));
+		if (!list_empty(T_TASK(cmd)->t_mem_list))
+			se_mem = list_entry(T_TASK(cmd)->t_mem_list->next,
+					struct se_mem, se_list);
 
 		ret = transport_do_se_mem_map(dev, task,
 				cmd->t_task->t_mem_list, NULL, se_mem,
@@ -5519,7 +5548,8 @@ static void transport_generic_wait_for_tasks(
 
 		atomic_set(&T_TASK(cmd)->transport_lun_stop, 0);
 	}
-	if (!atomic_read(&T_TASK(cmd)->t_transport_active))
+	if (!atomic_read(&T_TASK(cmd)->t_transport_active) ||
+	     atomic_read(&T_TASK(cmd)->t_transport_aborted))
 		goto remove;
 
 	atomic_set(&T_TASK(cmd)->t_transport_stop, 1);
@@ -5804,31 +5834,26 @@ int transport_generic_do_tmr(struct se_cmd *cmd)
 	int ret;
 
 	switch (tmr->function) {
-	case ABORT_TASK:
+	case TMR_ABORT_TASK:
 		ref_cmd = tmr->ref_cmd;
 		tmr->response = TMR_FUNCTION_REJECTED;
 		break;
-	case ABORT_TASK_SET:
-	case CLEAR_ACA:
-	case CLEAR_TASK_SET:
+	case TMR_ABORT_TASK_SET:
+	case TMR_CLEAR_ACA:
+	case TMR_CLEAR_TASK_SET:
 		tmr->response = TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED;
 		break;
-	case LUN_RESET:
+	case TMR_LUN_RESET:
 		ret = core_tmr_lun_reset(dev, tmr, NULL, NULL);
 		tmr->response = (!ret) ? TMR_FUNCTION_COMPLETE :
 					 TMR_FUNCTION_REJECTED;
 		break;
-#if 0
-	case TARGET_WARM_RESET:
-		transport_generic_host_reset(dev->se_hba);
+	case TMR_TARGET_WARM_RESET:
 		tmr->response = TMR_FUNCTION_REJECTED;
 		break;
-	case TARGET_COLD_RESET:
-		transport_generic_host_reset(dev->se_hba);
-		transport_generic_cold_reset(dev->se_hba);
+	case TMR_TARGET_COLD_RESET:
 		tmr->response = TMR_FUNCTION_REJECTED;
 		break;
-#endif
 	default:
 		printk(KERN_ERR "Uknown TMR function: 0x%02x.\n",
 				tmr->function);
@@ -5926,6 +5951,9 @@ static void transport_processing_shutdown(struct se_device *dev)
 
 			atomic_set(&task->task_active, 0);
 			atomic_set(&task->task_stop, 0);
+		} else {
+			if (atomic_read(&task->task_execute_queue) != 0)
+				transport_remove_task_from_execute_queue(task, dev);
 		}
 		__transport_stop_task_timer(task, &flags);
 

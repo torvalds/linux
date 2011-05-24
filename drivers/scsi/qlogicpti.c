@@ -1292,14 +1292,18 @@ static struct scsi_host_template qpti_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 };
 
-static int __devinit qpti_sbus_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit qpti_sbus_probe(struct platform_device *op)
 {
-	struct scsi_host_template *tpnt = match->data;
+	struct scsi_host_template *tpnt;
 	struct device_node *dp = op->dev.of_node;
 	struct Scsi_Host *host;
 	struct qlogicpti *qpti;
 	static int nqptis;
 	const char *fcode;
+
+	if (!op->dev.of_match)
+		return -EINVAL;
+	tpnt = op->dev.of_match->data;
 
 	/* Sometimes Antares cards come up not completely
 	 * setup, and we get a report of a zero IRQ.
@@ -1457,7 +1461,7 @@ static const struct of_device_id qpti_match[] = {
 };
 MODULE_DEVICE_TABLE(of, qpti_match);
 
-static struct of_platform_driver qpti_sbus_driver = {
+static struct platform_driver qpti_sbus_driver = {
 	.driver = {
 		.name = "qpti",
 		.owner = THIS_MODULE,
@@ -1469,12 +1473,12 @@ static struct of_platform_driver qpti_sbus_driver = {
 
 static int __init qpti_init(void)
 {
-	return of_register_platform_driver(&qpti_sbus_driver);
+	return platform_driver_register(&qpti_sbus_driver);
 }
 
 static void __exit qpti_exit(void)
 {
-	of_unregister_platform_driver(&qpti_sbus_driver);
+	platform_driver_unregister(&qpti_sbus_driver);
 }
 
 MODULE_DESCRIPTION("QlogicISP SBUS driver");

@@ -536,7 +536,7 @@ static void __init n8x0_mmc_init(void)
 	}
 
 	mmc_data[0] = &mmc1_data;
-	omap2_init_mmc(mmc_data, OMAP24XX_NR_MMC);
+	omap242x_init_mmc(mmc_data);
 }
 #else
 
@@ -628,11 +628,10 @@ static void __init n8x0_map_io(void)
 	omap242x_map_common_io();
 }
 
-static void __init n8x0_init_irq(void)
+static void __init n8x0_init_early(void)
 {
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
-	omap_init_irq();
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -703,27 +702,30 @@ static void __init n8x0_init_machine(void)
 
 MACHINE_START(NOKIA_N800, "Nokia N800")
 	.boot_params	= 0x80000100,
-	.map_io		= n8x0_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= n8x0_init_irq,
+	.map_io		= n8x0_map_io,
+	.init_early	= n8x0_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= n8x0_init_machine,
 	.timer		= &omap_timer,
 MACHINE_END
 
 MACHINE_START(NOKIA_N810, "Nokia N810")
 	.boot_params	= 0x80000100,
-	.map_io		= n8x0_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= n8x0_init_irq,
+	.map_io		= n8x0_map_io,
+	.init_early	= n8x0_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= n8x0_init_machine,
 	.timer		= &omap_timer,
 MACHINE_END
 
 MACHINE_START(NOKIA_N810_WIMAX, "Nokia N810 WiMAX")
 	.boot_params	= 0x80000100,
-	.map_io		= n8x0_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= n8x0_init_irq,
+	.map_io		= n8x0_map_io,
+	.init_early	= n8x0_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= n8x0_init_machine,
 	.timer		= &omap_timer,
 MACHINE_END

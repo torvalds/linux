@@ -10,24 +10,20 @@
 #ifndef RTL8225_H
 #define RTL8225_H
 
-#ifdef RTL8190P
-#define RTL819X_TOTAL_RF_PATH 4
-#else
 #define RTL819X_TOTAL_RF_PATH 2 /* for 8192E */
-#endif
 
-void PHY_SetRF8256Bandwidth(struct net_device *dev,
+void PHY_SetRF8256Bandwidth(struct r8192_priv *priv,
 				   HT_CHANNEL_WIDTH Bandwidth);
 
-RT_STATUS PHY_RF8256_Config(struct net_device *dev);
+RT_STATUS PHY_RF8256_Config(struct r8192_priv *priv);
 
-RT_STATUS phy_RF8256_Config_ParaFile(struct net_device *dev);
+RT_STATUS phy_RF8256_Config_ParaFile(struct r8192_priv *priv);
 
-void PHY_SetRF8256CCKTxPower(struct net_device *dev, u8 powerlevel);
-void PHY_SetRF8256OFDMTxPower(struct net_device *dev, u8 powerlevel);
+void PHY_SetRF8256CCKTxPower(struct r8192_priv *priv, u8 powerlevel);
+void PHY_SetRF8256OFDMTxPower(struct r8192_priv *priv, u8 powerlevel);
 
-bool MgntActSet_RF_State(struct net_device *dev,
-				RT_RF_POWER_STATE StateToSet,
-				RT_RF_CHANGE_SOURCE ChangeSource);
+bool MgntActSet_RF_State(struct r8192_priv *priv,
+			 RT_RF_POWER_STATE StateToSet,
+			 RT_RF_CHANGE_SOURCE ChangeSource);
 
 #endif /* RTL8225_H */

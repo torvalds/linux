@@ -385,8 +385,9 @@ static void nvt_cir_regs_init(struct nvt_dev *nvt)
 
 static void nvt_cir_wake_regs_init(struct nvt_dev *nvt)
 {
-	/* set number of bytes needed for wake key comparison (default 67) */
-	nvt_cir_wake_reg_write(nvt, CIR_WAKE_FIFO_LEN, CIR_WAKE_FIFO_CMP_DEEP);
+	/* set number of bytes needed for wake from s3 (default 65) */
+	nvt_cir_wake_reg_write(nvt, CIR_WAKE_FIFO_CMP_BYTES,
+			       CIR_WAKE_FIFO_CMP_DEEP);
 
 	/* set tolerance/variance allowed per byte during wake compare */
 	nvt_cir_wake_reg_write(nvt, CIR_WAKE_CMP_TOLERANCE,
@@ -460,7 +461,7 @@ static u32 nvt_rx_carrier_detect(struct nvt_dev *nvt)
 		return 0;
 	}
 
-	carrier = (count * 1000000) / duration;
+	carrier = MS_TO_NS(count) / duration;
 
 	if ((carrier > MAX_CARRIER) || (carrier < MIN_CARRIER))
 		nvt_dbg("WTF? Carrier frequency out of range!");
@@ -612,8 +613,8 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 		sample = nvt->buf[i];
 
 		rawir.pulse = ((sample & BUF_PULSE_BIT) != 0);
-		rawir.duration = (sample & BUF_LEN_MASK)
-					* SAMPLE_PERIOD * 1000;
+		rawir.duration = US_TO_NS((sample & BUF_LEN_MASK)
+					  * SAMPLE_PERIOD);
 
 		if ((sample & BUF_LEN_MASK) == BUF_LEN_MASK) {
 			if (nvt->rawir.pulse == rawir.pulse)

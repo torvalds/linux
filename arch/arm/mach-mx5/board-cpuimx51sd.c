@@ -42,6 +42,7 @@
 
 #include "devices-imx51.h"
 #include "devices.h"
+#include "cpu_op-mx51.h"
 
 #define USBH1_RST		IMX_GPIO_NR(2, 28)
 #define ETH_RST			IMX_GPIO_NR(2, 31)
@@ -109,7 +110,7 @@ static iomux_v3_cfg_t eukrea_cpuimx51sd_pads[] = {
 
 	/* Touchscreen */
 	/* IRQ */
-	_MX51_PAD_CSI1_D8__GPIO3_12 | MUX_PAD_CTRL(PAD_CTL_PUS_22K_UP |
+	_MX51_PAD_GPIO_NAND__GPIO_NAND | MUX_PAD_CTRL(PAD_CTL_PUS_22K_UP |
 			PAD_CTL_PKE | PAD_CTL_SRE_FAST |
 			PAD_CTL_DSE_HIGH | PAD_CTL_PUE | PAD_CTL_HYS),
 };
@@ -118,15 +119,9 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static int ts_get_pendown_state(void)
-{
-	return gpio_get_value(TSC2007_IRQGPIO) ? 0 : 1;
-}
-
 static struct tsc2007_platform_data tsc2007_info = {
 	.model			= 2007,
 	.x_plate_ohms		= 180,
-	.get_pendown_state	= ts_get_pendown_state,
 };
 
 static struct i2c_board_info eukrea_cpuimx51sd_i2c_devices[] = {
@@ -167,7 +162,10 @@ static int initialize_otg_port(struct platform_device *pdev)
 	v |= MX51_USB_PLL_DIV_19_2_MHZ;
 	__raw_writel(v, usbother_base + MXC_USB_PHY_CTR_FUNC2_OFFSET);
 	iounmap(usb_base);
-	return 0;
+
+	mdelay(10);
+
+	return mx51_initialize_usb_hw(0, MXC_EHCI_INTERNAL_PHY);
 }
 
 static int initialize_usbh1_port(struct platform_device *pdev)
@@ -186,13 +184,16 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 	__raw_writel(v | MX51_USB_CTRL_UH1_EXT_CLK_EN,
 			usbother_base + MX51_USB_CTRL_1_OFFSET);
 	iounmap(usb_base);
-	return 0;
+
+	mdelay(10);
+
+	return mx51_initialize_usb_hw(1, MXC_EHCI_POWER_PINS_ENABLED |
+			MXC_EHCI_ITC_NO_THRESHOLD);
 }
 
 static struct mxc_usbh_platform_data dr_utmi_config = {
 	.init		= initialize_otg_port,
 	.portsc	= MXC_EHCI_UTMI_16BIT,
-	.flags	= MXC_EHCI_INTERNAL_PHY,
 };
 
 static struct fsl_usb2_platform_data usb_pdata = {
@@ -203,7 +204,6 @@ static struct fsl_usb2_platform_data usb_pdata = {
 static struct mxc_usbh_platform_data usbh1_config = {
 	.init		= initialize_usbh1_port,
 	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= (MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_ITC_NO_THRESHOLD),
 };
 
 static int otg_mode_host;
@@ -242,7 +242,7 @@ static struct mcp251x_platform_data mcp251x_info = {
 static struct spi_board_info cpuimx51sd_spi_device[] = {
 	{
 		.modalias        = "mcp2515",
-		.max_speed_hz    = 6500000,
+		.max_speed_hz    = 10000000,
 		.bus_num         = 0,
 		.mode		= SPI_MODE_0,
 		.chip_select     = 0,
@@ -268,6 +268,10 @@ static void __init eukrea_cpuimx51sd_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(eukrea_cpuimx51sd_pads,
 					ARRAY_SIZE(eukrea_cpuimx51sd_pads));
+
+#if defined(CONFIG_CPU_FREQ_IMX)
+	get_cpu_op = mx51_get_cpu_op;
+#endif
 
 	imx51_add_imx_uart(0, &uart_pdata);
 	imx51_add_mxc_nand(&eukrea_cpuimx51sd_nand_board_info);
@@ -329,7 +333,8 @@ MACHINE_START(EUKREA_CPUIMX51SD, "Eukrea CPUIMX51SD")
 	/* Maintainer: Eric Bénard <eric@eukrea.com> */
 	.boot_params = MX51_PHYS_OFFSET + 0x100,
 	.map_io = mx51_map_io,
+	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
-	.init_machine = eukrea_cpuimx51sd_init,
 	.timer = &mxc_timer,
+	.init_machine = eukrea_cpuimx51sd_init,
 MACHINE_END

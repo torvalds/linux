@@ -36,7 +36,7 @@ void kbd_free(struct kbd_data *);
 void kbd_ascebc(struct kbd_data *, unsigned char *);
 
 void kbd_keycode(struct kbd_data *, unsigned int);
-int kbd_ioctl(struct kbd_data *, struct file *, unsigned int, unsigned long);
+int kbd_ioctl(struct kbd_data *, unsigned int, unsigned long);
 
 /*
  * Helper Functions.

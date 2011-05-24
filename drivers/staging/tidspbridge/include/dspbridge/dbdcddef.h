@@ -48,15 +48,15 @@ struct dcd_nodeprops {
 	struct dsp_ndbprops ndb_props;
 	u32 msg_segid;
 	u32 msg_notify_type;
-	char *pstr_create_phase_fxn;
-	char *pstr_delete_phase_fxn;
-	char *pstr_execute_phase_fxn;
-	char *pstr_i_alg_name;
+	char *str_create_phase_fxn;
+	char *str_delete_phase_fxn;
+	char *str_execute_phase_fxn;
+	char *str_i_alg_name;
 
 	/* Dynamic load properties */
-	u16 us_load_type;	/* Static, dynamic, overlay */
-	u32 ul_data_mem_seg_mask;	/* Data memory requirements */
-	u32 ul_code_mem_seg_mask;	/* Code memory requirements */
+	u16 load_type;	/* Static, dynamic, overlay */
+	u32 data_mem_seg_mask;		/* Data memory requirements */
+	u32 code_mem_seg_mask;		/* Code memory requirements */
 };
 
 /* DCD Generic Object Type */

@@ -41,10 +41,9 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 	unsigned int *cflagp, unsigned int *baudp);
 static void cp210x_set_termios(struct tty_struct *, struct usb_serial_port *,
 							struct ktermios*);
-static int cp210x_tiocmget(struct tty_struct *, struct file *);
-static int cp210x_tiocmset(struct tty_struct *, struct file *,
-		unsigned int, unsigned int);
-static int cp210x_tiocmset_port(struct usb_serial_port *port, struct file *,
+static int cp210x_tiocmget(struct tty_struct *);
+static int cp210x_tiocmset(struct tty_struct *, unsigned int, unsigned int);
+static int cp210x_tiocmset_port(struct usb_serial_port *port,
 		unsigned int, unsigned int);
 static void cp210x_break_ctl(struct tty_struct *, int);
 static int cp210x_startup(struct usb_serial *);
@@ -102,7 +101,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x81F2) }, /* C1007 HF band RFID controller */
 	{ USB_DEVICE(0x10C4, 0x8218) }, /* Lipowsky Industrie Elektronik GmbH, HARP-1 */
 	{ USB_DEVICE(0x10C4, 0x822B) }, /* Modem EDGE(GSM) Comander 2 */
-	{ USB_DEVICE(0x10C4, 0x826B) }, /* Cygnal Integrated Products, Inc., Fasttrax GPS demostration module */
+	{ USB_DEVICE(0x10C4, 0x826B) }, /* Cygnal Integrated Products, Inc., Fasttrax GPS demonstration module */
 	{ USB_DEVICE(0x10C4, 0x8293) }, /* Telegesys ETRX2USB */
 	{ USB_DEVICE(0x10C4, 0x82F9) }, /* Procyon AVS */
 	{ USB_DEVICE(0x10C4, 0x8341) }, /* Siemens MC35PU GPRS Modem */
@@ -698,14 +697,14 @@ static void cp210x_set_termios(struct tty_struct *tty,
 
 }
 
-static int cp210x_tiocmset (struct tty_struct *tty, struct file *file,
+static int cp210x_tiocmset (struct tty_struct *tty,
 		unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	return cp210x_tiocmset_port(port, file, set, clear);
+	return cp210x_tiocmset_port(port, set, clear);
 }
 
-static int cp210x_tiocmset_port(struct usb_serial_port *port, struct file *file,
+static int cp210x_tiocmset_port(struct usb_serial_port *port,
 		unsigned int set, unsigned int clear)
 {
 	unsigned int control = 0;
@@ -737,12 +736,12 @@ static int cp210x_tiocmset_port(struct usb_serial_port *port, struct file *file,
 static void cp210x_dtr_rts(struct usb_serial_port *p, int on)
 {
 	if (on)
-		cp210x_tiocmset_port(p, NULL,  TIOCM_DTR|TIOCM_RTS, 0);
+		cp210x_tiocmset_port(p, TIOCM_DTR|TIOCM_RTS, 0);
 	else
-		cp210x_tiocmset_port(p, NULL,  0, TIOCM_DTR|TIOCM_RTS);
+		cp210x_tiocmset_port(p, 0, TIOCM_DTR|TIOCM_RTS);
 }
 
-static int cp210x_tiocmget (struct tty_struct *tty, struct file *file)
+static int cp210x_tiocmget (struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	unsigned int control;

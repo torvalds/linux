@@ -59,11 +59,14 @@ obtained from this site also.
 3. SQUASHFS FILESYSTEM DESIGN
 -----------------------------
 
-A squashfs filesystem consists of a maximum of eight parts, packed together on a byte
-alignment:
+A squashfs filesystem consists of a maximum of nine parts, packed together on a
+byte alignment:
 
 	 ---------------
 	|  superblock 	|
+	|---------------|
+	|  compression  |
+	|    options    |
 	|---------------|
 	|  datablocks   |
 	|  & fragments  |
@@ -91,7 +94,14 @@ the source directory, and checked for duplicates.  Once all file data has been
 written the completed inode, directory, fragment, export and uid/gid lookup
 tables are written.
 
-3.1 Inodes
+3.1 Compression options
+-----------------------
+
+Compressors can optionally support compression specific options (e.g.
+dictionary size).  If non-default compression options have been used, then
+these are stored here.
+
+3.2 Inodes
 ----------
 
 Metadata (inodes and directories) are compressed in 8Kbyte blocks.  Each
@@ -114,7 +124,7 @@ directory inode are defined: inodes optimised for frequently occurring
 regular files and directories, and extended types where extra
 information has to be stored.
 
-3.2 Directories
+3.3 Directories
 ---------------
 
 Like inodes, directories are packed into compressed metadata blocks, stored
@@ -144,7 +154,7 @@ decompressed to do a lookup irrespective of the length of the directory.
 This scheme has the advantage that it doesn't require extra memory overhead
 and doesn't require much extra storage on disk.
 
-3.3 File data
+3.4 File data
 -------------
 
 Regular files consist of a sequence of contiguous compressed blocks, and/or a
@@ -163,7 +173,7 @@ Larger files use multiple slots, with 1.75 TiB files using all 8 slots.
 The index cache is designed to be memory efficient, and by default uses
 16 KiB.
 
-3.4 Fragment lookup table
+3.5 Fragment lookup table
 -------------------------
 
 Regular files can contain a fragment index which is mapped to a fragment
@@ -173,7 +183,7 @@ A second index table is used to locate these.  This second index table for
 speed of access (and because it is small) is read at mount time and cached
 in memory.
 
-3.5 Uid/gid lookup table
+3.6 Uid/gid lookup table
 ------------------------
 
 For space efficiency regular files store uid and gid indexes, which are
@@ -182,7 +192,7 @@ stored compressed into metadata blocks.  A second index table is used to
 locate these.  This second index table for speed of access (and because it
 is small) is read at mount time and cached in memory.
 
-3.6 Export table
+3.7 Export table
 ----------------
 
 To enable Squashfs filesystems to be exportable (via NFS etc.) filesystems
@@ -196,7 +206,7 @@ This table is stored compressed into metadata blocks.  A second index table is
 used to locate these.  This second index table for speed of access (and because
 it is small) is read at mount time and cached in memory.
 
-3.7 Xattr table
+3.8 Xattr table
 ---------------
 
 The xattr table contains extended attributes for each inode.  The xattrs
@@ -209,7 +219,7 @@ or if it is stored out of line (in which case the value field stores a
 reference to where the actual value is stored).  This allows large values
 to be stored out of line improving scanning and lookup performance and it
 also allows values to be de-duplicated, the value being stored once, and
-all other occurences holding an out of line reference to that value.
+all other occurrences holding an out of line reference to that value.
 
 The xattr lists are packed into compressed 8K metadata blocks.
 To reduce overhead in inodes, rather than storing the on-disk

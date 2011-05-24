@@ -127,7 +127,7 @@ do_int_load:
 	wr	%o5, 0x0, %asi
 	retl
 	 mov	0, %o0
-	.size	__do_int_load, .-__do_int_load
+	.size	do_int_load, .-do_int_load
 
 	.section	__ex_table,"a"
 	.word		4b, __retl_efault

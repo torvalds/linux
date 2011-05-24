@@ -1273,7 +1273,7 @@ MgntDisconnectIBSS(
 	/*
 		Stop Beacon.
 
-		Vista add a Adhoc profile, HW radio off untill OID_DOT11_RESET_REQUEST
+		Vista add a Adhoc profile, HW radio off until OID_DOT11_RESET_REQUEST
 		Driver would set MSR=NO_LINK, then HW Radio ON, MgntQueue Stuck.
 		Because Bcn DMA isn't complete, mgnt queue would stuck until Bcn packet send.
 

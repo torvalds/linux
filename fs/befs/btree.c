@@ -5,7 +5,7 @@
  *
  * Licensed under the GNU GPL. See the file COPYING for details.
  *
- * 2002-02-05: Sergey S. Kostyliov added binary search withing
+ * 2002-02-05: Sergey S. Kostyliov added binary search within
  * 		btree nodes.
  *
  * Many thanks to:

@@ -54,7 +54,7 @@ config WL12XX_SDIO
 
 config WL12XX_SDIO_TEST
 	tristate "TI wl12xx SDIO testing support"
-	depends on WL12XX && MMC
+	depends on WL12XX && MMC && WL12XX_SDIO
 	default n
 	---help---
 	  This module adds support for the SDIO bus testing with the

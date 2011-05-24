@@ -98,6 +98,10 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	 *  (b) always process RX events before TX status events if ordering
 	 *      can be unknown, for example with different interrupt status
 	 *	bits.
+	 *  (c) if PS mode transitions are manual (i.e. the flag
+	 *      %IEEE80211_HW_AP_LINK_PS is set), always process PS state
+	 *      changes before calling TX status events if ordering can be
+	 *	unknown.
 	 */
 	if (test_sta_flags(sta, WLAN_STA_PS_STA) &&
 	    skb_queue_len(&sta->tx_filtered) < STA_MAX_TX_BUFFER) {
@@ -314,8 +318,6 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (info->flags & IEEE80211_TX_STAT_ACK) {
 			local->ps_sdata->u.mgd.flags |=
 					IEEE80211_STA_NULLFUNC_ACKED;
-			ieee80211_queue_work(&local->hw,
-					&local->dynamic_ps_enable_work);
 		} else
 			mod_timer(&local->dynamic_ps_timer, jiffies +
 					msecs_to_jiffies(10));
@@ -323,6 +325,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX) {
 		struct ieee80211_work *wk;
+		u64 cookie = (unsigned long)skb;
 
 		rcu_read_lock();
 		list_for_each_entry_rcu(wk, &local->work_list, list) {
@@ -334,8 +337,16 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			break;
 		}
 		rcu_read_unlock();
+		if (local->hw_roc_skb_for_status == skb) {
+			cookie = local->hw_roc_cookie ^ 2;
+			local->hw_roc_skb_for_status = NULL;
+		}
+
+		if (cookie == local->hw_offchan_tx_cookie)
+			local->hw_offchan_tx_cookie = 0;
+
 		cfg80211_mgmt_tx_status(
-			skb->dev, (unsigned long) skb, skb->data, skb->len,
+			skb->dev, cookie, skb->data, skb->len,
 			!!(info->flags & IEEE80211_TX_STAT_ACK), GFP_ATOMIC);
 	}
 

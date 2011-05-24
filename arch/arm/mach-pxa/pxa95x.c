@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/sysdev.h>
@@ -27,7 +28,6 @@
 #include <mach/pm.h>
 #include <mach/dma.h>
 #include <mach/regs-intc.h>
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"

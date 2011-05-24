@@ -197,7 +197,7 @@ struct fscache_object *cachefiles_grab_object(struct fscache_object *_object)
 }
 
 /*
- * update the auxilliary data for an object object on disk
+ * update the auxiliary data for an object object on disk
  */
 static void cachefiles_update_object(struct fscache_object *_object)
 {

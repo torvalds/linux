@@ -208,7 +208,6 @@ u32 intel_panel_get_backlight(struct drm_device *dev)
 			val &= ~1;
 			pci_read_config_byte(dev->pdev, PCI_LBPC, &lbpc);
 			val *= lbpc;
-			val >>= 1;
 		}
 	}
 
@@ -235,11 +234,11 @@ void intel_panel_set_backlight(struct drm_device *dev, u32 level)
 
 	if (is_backlight_combination_mode(dev)){
 		u32 max = intel_panel_get_max_backlight(dev);
-		u8 lpbc;
+		u8 lbpc;
 
-		lpbc = level * 0xfe / max + 1;
-		level /= lpbc;
-		pci_write_config_byte(dev->pdev, PCI_LBPC, lpbc);
+		lbpc = level * 0xfe / max + 1;
+		level /= lbpc;
+		pci_write_config_byte(dev->pdev, PCI_LBPC, lbpc);
 	}
 
 	tmp = I915_READ(BLC_PWM_CTL);
@@ -280,4 +279,29 @@ void intel_panel_setup_backlight(struct drm_device *dev)
 
 	dev_priv->backlight_level = intel_panel_get_backlight(dev);
 	dev_priv->backlight_enabled = dev_priv->backlight_level != 0;
+}
+
+enum drm_connector_status
+intel_panel_detect(struct drm_device *dev)
+{
+#if 0
+	struct drm_i915_private *dev_priv = dev->dev_private;
+#endif
+
+	if (i915_panel_ignore_lid)
+		return i915_panel_ignore_lid > 0 ?
+			connector_status_connected :
+			connector_status_disconnected;
+
+	/* opregion lid state on HP 2540p is wrong at boot up,
+	 * appears to be either the BIOS or Linux ACPI fault */
+#if 0
+	/* Assume that the BIOS does not lie through the OpRegion... */
+	if (dev_priv->opregion.lid_state)
+		return ioread32(dev_priv->opregion.lid_state) & 0x1 ?
+			connector_status_connected :
+			connector_status_disconnected;
+#endif
+
+	return connector_status_unknown;
 }

@@ -739,7 +739,7 @@ void __init printk_all_partitions(void)
 
 		/*
 		 * Don't show empty devices or things that have been
-		 * surpressed
+		 * suppressed
 		 */
 		if (get_capacity(disk) == 0 ||
 		    (disk->flags & GENHD_FL_SUPPRESS_PARTITION_INFO))
@@ -1158,14 +1158,14 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 			   "%u %lu %lu %llu %u %u %u %u\n",
 			   MAJOR(part_devt(hd)), MINOR(part_devt(hd)),
 			   disk_name(gp, hd->partno, buf),
-			   part_stat_read(hd, ios[0]),
-			   part_stat_read(hd, merges[0]),
-			   (unsigned long long)part_stat_read(hd, sectors[0]),
-			   jiffies_to_msecs(part_stat_read(hd, ticks[0])),
-			   part_stat_read(hd, ios[1]),
-			   part_stat_read(hd, merges[1]),
-			   (unsigned long long)part_stat_read(hd, sectors[1]),
-			   jiffies_to_msecs(part_stat_read(hd, ticks[1])),
+			   part_stat_read(hd, ios[READ]),
+			   part_stat_read(hd, merges[READ]),
+			   (unsigned long long)part_stat_read(hd, sectors[READ]),
+			   jiffies_to_msecs(part_stat_read(hd, ticks[READ])),
+			   part_stat_read(hd, ios[WRITE]),
+			   part_stat_read(hd, merges[WRITE]),
+			   (unsigned long long)part_stat_read(hd, sectors[WRITE]),
+			   jiffies_to_msecs(part_stat_read(hd, ticks[WRITE])),
 			   part_in_flight(hd),
 			   jiffies_to_msecs(part_stat_read(hd, io_ticks)),
 			   jiffies_to_msecs(part_stat_read(hd, time_in_queue))
@@ -1355,7 +1355,7 @@ int invalidate_partition(struct gendisk *disk, int partno)
 	struct block_device *bdev = bdget_disk(disk, partno);
 	if (bdev) {
 		fsync_bdev(bdev);
-		res = __invalidate_device(bdev);
+		res = __invalidate_device(bdev, true);
 		bdput(bdev);
 	}
 	return res;
@@ -1494,7 +1494,7 @@ void disk_block_events(struct gendisk *disk)
 void disk_unblock_events(struct gendisk *disk)
 {
 	if (disk->ev)
-		__disk_unblock_events(disk, true);
+		__disk_unblock_events(disk, false);
 }
 
 /**

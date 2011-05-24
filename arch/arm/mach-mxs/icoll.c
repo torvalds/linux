@@ -34,7 +34,7 @@
 
 static void __iomem *icoll_base = MXS_IO_ADDRESS(MXS_ICOLL_BASE_ADDR);
 
-static void icoll_ack_irq(unsigned int irq)
+static void icoll_ack_irq(struct irq_data *d)
 {
 	/*
 	 * The Interrupt Collector is able to prioritize irqs.
@@ -45,22 +45,22 @@ static void icoll_ack_irq(unsigned int irq)
 			icoll_base + HW_ICOLL_LEVELACK);
 }
 
-static void icoll_mask_irq(unsigned int irq)
+static void icoll_mask_irq(struct irq_data *d)
 {
 	__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
-			icoll_base + HW_ICOLL_INTERRUPTn_CLR(irq));
+			icoll_base + HW_ICOLL_INTERRUPTn_CLR(d->irq));
 }
 
-static void icoll_unmask_irq(unsigned int irq)
+static void icoll_unmask_irq(struct irq_data *d)
 {
 	__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
-			icoll_base + HW_ICOLL_INTERRUPTn_SET(irq));
+			icoll_base + HW_ICOLL_INTERRUPTn_SET(d->irq));
 }
 
 static struct irq_chip mxs_icoll_chip = {
-	.ack = icoll_ack_irq,
-	.mask = icoll_mask_irq,
-	.unmask = icoll_unmask_irq,
+	.irq_ack = icoll_ack_irq,
+	.irq_mask = icoll_mask_irq,
+	.irq_unmask = icoll_unmask_irq,
 };
 
 void __init icoll_init_irq(void)
@@ -74,8 +74,7 @@ void __init icoll_init_irq(void)
 	mxs_reset_block(icoll_base + HW_ICOLL_CTRL);
 
 	for (i = 0; i < MXS_INTERNAL_IRQS; i++) {
-		set_irq_chip(i, &mxs_icoll_chip);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &mxs_icoll_chip, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 }

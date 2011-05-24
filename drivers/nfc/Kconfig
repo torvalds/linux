@@ -3,7 +3,7 @@
 #
 
 menuconfig NFC_DEVICES
-	bool "NFC devices"
+	bool "Near Field Communication (NFC) devices"
 	default n
 	---help---
 	  You'll have to say Y if your computer contains an NFC device that

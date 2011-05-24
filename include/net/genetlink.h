@@ -195,7 +195,8 @@ static inline int genlmsg_end(struct sk_buff *skb, void *hdr)
  */
 static inline void genlmsg_cancel(struct sk_buff *skb, void *hdr)
 {
-	nlmsg_cancel(skb, hdr - GENL_HDRLEN - NLMSG_HDRLEN);
+	if (hdr)
+		nlmsg_cancel(skb, hdr - GENL_HDRLEN - NLMSG_HDRLEN);
 }
 
 /**

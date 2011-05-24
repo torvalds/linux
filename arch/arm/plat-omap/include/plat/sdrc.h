@@ -124,8 +124,14 @@ struct omap_sdrc_params {
 	u32 mr;
 };
 
-void __init omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+void omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 			    struct omap_sdrc_params *sdrc_cs1);
+#else
+static inline void __init omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
+					  struct omap_sdrc_params *sdrc_cs1) {};
+#endif
+
 int omap2_sdrc_get_params(unsigned long r,
 			  struct omap_sdrc_params **sdrc_cs0,
 			  struct omap_sdrc_params **sdrc_cs1);

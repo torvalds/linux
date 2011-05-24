@@ -43,12 +43,12 @@
 struct vmbuspipe_hdr {
 	u32 flags;
 	u32 msgsize;
-} __attribute__((packed));
+} __packed;
 
 struct ic_version {
 	u16 major;
 	u16 minor;
-} __attribute__((packed));
+} __packed;
 
 struct icmsg_hdr {
 	struct ic_version icverframe;
@@ -59,26 +59,26 @@ struct icmsg_hdr {
 	u8 ictransaction_id;
 	u8 icflags;
 	u8 reserved[2];
-} __attribute__((packed));
+} __packed;
 
 struct icmsg_negotiate {
 	u16 icframe_vercnt;
 	u16 icmsg_vercnt;
 	u32 reserved;
 	struct ic_version icversion_data[1]; /* any size array */
-} __attribute__((packed));
+} __packed;
 
 struct shutdown_msg_data {
 	u32 reason_code;
 	u32 timeout_seconds;
 	u32 flags;
 	u8  display_message[2048];
-} __attribute__((packed));
+} __packed;
 
 struct heartbeat_msg_data {
 	u64 seq_num;
 	u32 reserved[8];
-} __attribute__((packed));
+} __packed;
 
 /* Time Sync IC defs */
 #define ICTIMESYNCFLAG_PROBE	0
@@ -96,12 +96,13 @@ struct ictimesync_data{
 	u64 childtime;
 	u64 roundtriptime;
 	u8 flags;
-} __attribute__((packed));
+} __packed;
 
 /* Index for each IC struct in array hv_cb_utils[] */
 #define HV_SHUTDOWN_MSG		0
 #define HV_TIMESYNC_MSG		1
 #define HV_HEARTBEAT_MSG	2
+#define HV_KVP_MSG		3
 
 struct hyperv_service_callback {
 	u8 msg_type;

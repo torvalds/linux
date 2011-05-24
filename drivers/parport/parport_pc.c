@@ -1488,7 +1488,7 @@ static void __devinit winbond_check(int io, int key)
 
 	outb(key, io);
 	outb(key, io);     /* Write Magic Sequence to EFER, extended
-			      funtion enable register */
+			      function enable register */
 	outb(0x20, io);    /* Write EFIR, extended function index register */
 	devid = inb(io + 1);  /* Read EFDR, extended function data register */
 	outb(0x21, io);
@@ -1527,7 +1527,7 @@ static void __devinit winbond_check2(int io, int key)
 	x_oldid = inb(io + 2);
 
 	outb(key, io);     /* Write Magic Byte to EFER, extended
-			      funtion enable register */
+			      function enable register */
 	outb(0x20, io + 2);  /* Write EFIR, extended function index register */
 	devid = inb(io + 2);  /* Read EFDR, extended function data register */
 	outb(0x21, io + 1);
@@ -1569,7 +1569,7 @@ static void __devinit smsc_check(int io, int key)
 
 	outb(key, io);
 	outb(key, io);     /* Write Magic Sequence to EFER, extended
-			      funtion enable register */
+			      function enable register */
 	outb(0x0d, io);    /* Write EFIR, extended function index register */
 	oldid = inb(io + 1);  /* Read EFDR, extended function data register */
 	outb(0x0e, io);

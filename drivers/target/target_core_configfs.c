@@ -3,8 +3,8 @@
  *
  * This file contains ConfigFS logic for the Generic Target Engine project.
  *
- * Copyright (c) 2008-2010 Rising Tide Systems
- * Copyright (c) 2008-2010 Linux-iSCSI.org
+ * Copyright (c) 2008-2011 Rising Tide Systems
+ * Copyright (c) 2008-2011 Linux-iSCSI.org
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -37,7 +37,6 @@
 #include <linux/parser.h>
 #include <linux/syscalls.h>
 #include <linux/configfs.h>
-#include <linux/proc_fs.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_device.h>
@@ -51,6 +50,7 @@
 #include "target_core_hba.h"
 #include "target_core_pr.h"
 #include "target_core_rd.h"
+#include "target_core_stat.h"
 
 static struct list_head g_tf_list;
 static struct mutex g_tf_lock;
@@ -1452,8 +1452,8 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 	size_t count)
 {
 	struct se_device *dev;
-	unsigned char *i_fabric, *t_fabric, *i_port = NULL, *t_port = NULL;
-	unsigned char *isid = NULL;
+	unsigned char *i_fabric = NULL, *i_port = NULL, *isid = NULL;
+	unsigned char *t_fabric = NULL, *t_port = NULL;
 	char *orig, *ptr, *arg_p, *opts;
 	substring_t args[MAX_OPT_ARGS];
 	unsigned long long tmp_ll;
@@ -1489,9 +1489,17 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 		switch (token) {
 		case Opt_initiator_fabric:
 			i_fabric = match_strdup(&args[0]);
+			if (!i_fabric) {
+				ret = -ENOMEM;
+				goto out;
+			}
 			break;
 		case Opt_initiator_node:
 			i_port = match_strdup(&args[0]);
+			if (!i_port) {
+				ret = -ENOMEM;
+				goto out;
+			}
 			if (strlen(i_port) > PR_APTPL_MAX_IPORT_LEN) {
 				printk(KERN_ERR "APTPL metadata initiator_node="
 					" exceeds PR_APTPL_MAX_IPORT_LEN: %d\n",
@@ -1502,6 +1510,10 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 			break;
 		case Opt_initiator_sid:
 			isid = match_strdup(&args[0]);
+			if (!isid) {
+				ret = -ENOMEM;
+				goto out;
+			}
 			if (strlen(isid) > PR_REG_ISID_LEN) {
 				printk(KERN_ERR "APTPL metadata initiator_isid"
 					"= exceeds PR_REG_ISID_LEN: %d\n",
@@ -1512,6 +1524,10 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 			break;
 		case Opt_sa_res_key:
 			arg_p = match_strdup(&args[0]);
+			if (!arg_p) {
+				ret = -ENOMEM;
+				goto out;
+			}
 			ret = strict_strtoull(arg_p, 0, &tmp_ll);
 			if (ret < 0) {
 				printk(KERN_ERR "strict_strtoull() failed for"
@@ -1548,9 +1564,17 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 		 */
 		case Opt_target_fabric:
 			t_fabric = match_strdup(&args[0]);
+			if (!t_fabric) {
+				ret = -ENOMEM;
+				goto out;
+			}
 			break;
 		case Opt_target_node:
 			t_port = match_strdup(&args[0]);
+			if (!t_port) {
+				ret = -ENOMEM;
+				goto out;
+			}
 			if (strlen(t_port) > PR_APTPL_MAX_TPORT_LEN) {
 				printk(KERN_ERR "APTPL metadata target_node="
 					" exceeds PR_APTPL_MAX_TPORT_LEN: %d\n",
@@ -1593,6 +1617,11 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 			i_port, isid, mapped_lun, t_port, tpgt, target_lun,
 			res_holder, all_tg_pt, type);
 out:
+	kfree(i_fabric);
+	kfree(i_port);
+	kfree(isid);
+	kfree(t_fabric);
+	kfree(t_port);
 	kfree(orig);
 	return (ret == 0) ? count : ret;
 }
@@ -1799,7 +1828,9 @@ static ssize_t target_core_store_dev_enable(
 		return -EINVAL;
 
 	dev = t->create_virtdevice(hba, se_dev, se_dev->se_dev_su_ptr);
-	if (!(dev) || IS_ERR(dev))
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+	else if (!dev)
 		return -EINVAL;
 
 	se_dev->se_dev_ptr = dev;
@@ -1971,13 +2002,35 @@ static void target_core_dev_release(struct config_item *item)
 {
 	struct se_subsystem_dev *se_dev = container_of(to_config_group(item),
 				struct se_subsystem_dev, se_dev_group);
-	struct config_group *dev_cg;
+	struct se_hba *hba = item_to_hba(&se_dev->se_dev_hba->hba_group.cg_item);
+	struct se_subsystem_api *t = hba->transport;
+	struct config_group *dev_cg = &se_dev->se_dev_group;
 
-	if (!(se_dev))
-		return;
-
-	dev_cg = &se_dev->se_dev_group;
 	kfree(dev_cg->default_groups);
+	/*
+	 * This pointer will set when the storage is enabled with:
+	 *`echo 1 > $CONFIGFS/core/$HBA/$DEV/dev_enable`
+	 */
+	if (se_dev->se_dev_ptr) {
+		printk(KERN_INFO "Target_Core_ConfigFS: Calling se_free_"
+			"virtual_device() for se_dev_ptr: %p\n",
+			se_dev->se_dev_ptr);
+
+		se_free_virtual_device(se_dev->se_dev_ptr, hba);
+	} else {
+		/*
+		 * Release struct se_subsystem_dev->se_dev_su_ptr..
+		 */
+		printk(KERN_INFO "Target_Core_ConfigFS: Calling t->free_"
+			"device() for se_dev_su_ptr: %p\n",
+			se_dev->se_dev_su_ptr);
+
+		t->free_device(se_dev->se_dev_su_ptr);
+	}
+
+	printk(KERN_INFO "Target_Core_ConfigFS: Deallocating se_subsystem"
+			"_dev_t: %p\n", se_dev);
+	kfree(se_dev);
 }
 
 static ssize_t target_core_dev_show(struct config_item *item,
@@ -2140,7 +2193,16 @@ static struct configfs_attribute *target_core_alua_lu_gp_attrs[] = {
 	NULL,
 };
 
+static void target_core_alua_lu_gp_release(struct config_item *item)
+{
+	struct t10_alua_lu_gp *lu_gp = container_of(to_config_group(item),
+			struct t10_alua_lu_gp, lu_gp_group);
+
+	core_alua_free_lu_gp(lu_gp);
+}
+
 static struct configfs_item_operations target_core_alua_lu_gp_ops = {
+	.release		= target_core_alua_lu_gp_release,
 	.show_attribute		= target_core_alua_lu_gp_attr_show,
 	.store_attribute	= target_core_alua_lu_gp_attr_store,
 };
@@ -2191,9 +2253,11 @@ static void target_core_alua_drop_lu_gp(
 	printk(KERN_INFO "Target_Core_ConfigFS: Releasing ALUA Logical Unit"
 		" Group: core/alua/lu_gps/%s, ID: %hu\n",
 		config_item_name(item), lu_gp->lu_gp_id);
-
+	/*
+	 * core_alua_free_lu_gp() is called from target_core_alua_lu_gp_ops->release()
+	 * -> target_core_alua_lu_gp_release()
+	 */
 	config_item_put(item);
-	core_alua_free_lu_gp(lu_gp);
 }
 
 static struct configfs_group_operations target_core_alua_lu_gps_group_ops = {
@@ -2549,7 +2613,16 @@ static struct configfs_attribute *target_core_alua_tg_pt_gp_attrs[] = {
 	NULL,
 };
 
+static void target_core_alua_tg_pt_gp_release(struct config_item *item)
+{
+	struct t10_alua_tg_pt_gp *tg_pt_gp = container_of(to_config_group(item),
+			struct t10_alua_tg_pt_gp, tg_pt_gp_group);
+
+	core_alua_free_tg_pt_gp(tg_pt_gp);
+}
+
 static struct configfs_item_operations target_core_alua_tg_pt_gp_ops = {
+	.release		= target_core_alua_tg_pt_gp_release,
 	.show_attribute		= target_core_alua_tg_pt_gp_attr_show,
 	.store_attribute	= target_core_alua_tg_pt_gp_attr_store,
 };
@@ -2602,9 +2675,11 @@ static void target_core_alua_drop_tg_pt_gp(
 	printk(KERN_INFO "Target_Core_ConfigFS: Releasing ALUA Target Port"
 		" Group: alua/tg_pt_gps/%s, ID: %hu\n",
 		config_item_name(item), tg_pt_gp->tg_pt_gp_id);
-
+	/*
+	 * core_alua_free_tg_pt_gp() is called from target_core_alua_tg_pt_gp_ops->release()
+	 * -> target_core_alua_tg_pt_gp_release().
+	 */
 	config_item_put(item);
-	core_alua_free_tg_pt_gp(tg_pt_gp);
 }
 
 static struct configfs_group_operations target_core_alua_tg_pt_gps_group_ops = {
@@ -2635,6 +2710,34 @@ static struct config_item_type target_core_alua_cit = {
 
 /* End functions for struct config_item_type target_core_alua_cit */
 
+/* Start functions for struct config_item_type target_core_stat_cit */
+
+static struct config_group *target_core_stat_mkdir(
+	struct config_group *group,
+	const char *name)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static void target_core_stat_rmdir(
+	struct config_group *group,
+	struct config_item *item)
+{
+	return;
+}
+
+static struct configfs_group_operations target_core_stat_group_ops = {
+	.make_group		= &target_core_stat_mkdir,
+	.drop_item		= &target_core_stat_rmdir,
+};
+
+static struct config_item_type target_core_stat_cit = {
+	.ct_group_ops		= &target_core_stat_group_ops,
+	.ct_owner		= THIS_MODULE,
+};
+
+/* End functions for struct config_item_type target_core_stat_cit */
+
 /* Start functions for struct config_item_type target_core_hba_cit */
 
 static struct config_group *target_core_make_subdev(
@@ -2647,10 +2750,12 @@ static struct config_group *target_core_make_subdev(
 	struct config_item *hba_ci = &group->cg_item;
 	struct se_hba *hba = item_to_hba(hba_ci);
 	struct config_group *dev_cg = NULL, *tg_pt_gp_cg = NULL;
+	struct config_group *dev_stat_grp = NULL;
+	int errno = -ENOMEM, ret;
 
-	if (mutex_lock_interruptible(&hba->hba_access_mutex))
-		return NULL;
-
+	ret = mutex_lock_interruptible(&hba->hba_access_mutex);
+	if (ret)
+		return ERR_PTR(ret);
 	/*
 	 * Locate the struct se_subsystem_api from parent's struct se_hba.
 	 */
@@ -2680,7 +2785,7 @@ static struct config_group *target_core_make_subdev(
 	se_dev->se_dev_hba = hba;
 	dev_cg = &se_dev->se_dev_group;
 
-	dev_cg->default_groups = kzalloc(sizeof(struct config_group) * 6,
+	dev_cg->default_groups = kzalloc(sizeof(struct config_group) * 7,
 			GFP_KERNEL);
 	if (!(dev_cg->default_groups))
 		goto out;
@@ -2712,13 +2817,17 @@ static struct config_group *target_core_make_subdev(
 			&target_core_dev_wwn_cit);
 	config_group_init_type_name(&se_dev->t10_alua.alua_tg_pt_gps_group,
 			"alua", &target_core_alua_tg_pt_gps_cit);
+	config_group_init_type_name(&se_dev->dev_stat_grps.stat_group,
+			"statistics", &target_core_stat_cit);
+
 	dev_cg->default_groups[0] = &se_dev->se_dev_attrib.da_group;
 	dev_cg->default_groups[1] = &se_dev->se_dev_pr_group;
 	dev_cg->default_groups[2] = &se_dev->t10_wwn.t10_wwn_group;
 	dev_cg->default_groups[3] = &se_dev->t10_alua.alua_tg_pt_gps_group;
-	dev_cg->default_groups[4] = NULL;
+	dev_cg->default_groups[4] = &se_dev->dev_stat_grps.stat_group;
+	dev_cg->default_groups[5] = NULL;
 	/*
-	 * Add core/$HBA/$DEV/alua/tg_pt_gps/default_tg_pt_gp
+	 * Add core/$HBA/$DEV/alua/default_tg_pt_gp
 	 */
 	tg_pt_gp = core_alua_allocate_tg_pt_gp(se_dev, "default_tg_pt_gp", 1);
 	if (!(tg_pt_gp))
@@ -2738,6 +2847,17 @@ static struct config_group *target_core_make_subdev(
 	tg_pt_gp_cg->default_groups[0] = &tg_pt_gp->tg_pt_gp_group;
 	tg_pt_gp_cg->default_groups[1] = NULL;
 	T10_ALUA(se_dev)->default_tg_pt_gp = tg_pt_gp;
+	/*
+	 * Add core/$HBA/$DEV/statistics/ default groups
+	 */
+	dev_stat_grp = &DEV_STAT_GRP(se_dev)->stat_group;
+	dev_stat_grp->default_groups = kzalloc(sizeof(struct config_group) * 4,
+				GFP_KERNEL);
+	if (!dev_stat_grp->default_groups) {
+		printk(KERN_ERR "Unable to allocate dev_stat_grp->default_groups\n");
+		goto out;
+	}
+	target_stat_setup_dev_default_groups(se_dev);
 
 	printk(KERN_INFO "Target_Core_ConfigFS: Allocated struct se_subsystem_dev:"
 		" %p se_dev_su_ptr: %p\n", se_dev, se_dev->se_dev_su_ptr);
@@ -2749,6 +2869,8 @@ out:
 		core_alua_free_tg_pt_gp(T10_ALUA(se_dev)->default_tg_pt_gp);
 		T10_ALUA(se_dev)->default_tg_pt_gp = NULL;
 	}
+	if (dev_stat_grp)
+		kfree(dev_stat_grp->default_groups);
 	if (tg_pt_gp_cg)
 		kfree(tg_pt_gp_cg->default_groups);
 	if (dev_cg)
@@ -2758,7 +2880,7 @@ out:
 	kfree(se_dev);
 unlock:
 	mutex_unlock(&hba->hba_access_mutex);
-	return NULL;
+	return ERR_PTR(errno);
 }
 
 static void target_core_drop_subdev(
@@ -2770,19 +2892,25 @@ static void target_core_drop_subdev(
 	struct se_hba *hba;
 	struct se_subsystem_api *t;
 	struct config_item *df_item;
-	struct config_group *dev_cg, *tg_pt_gp_cg;
-	int i, ret;
+	struct config_group *dev_cg, *tg_pt_gp_cg, *dev_stat_grp;
+	int i;
 
 	hba = item_to_hba(&se_dev->se_dev_hba->hba_group.cg_item);
 
-	if (mutex_lock_interruptible(&hba->hba_access_mutex))
-		goto out;
-
+	mutex_lock(&hba->hba_access_mutex);
 	t = hba->transport;
 
 	spin_lock(&se_global->g_device_lock);
 	list_del(&se_dev->g_se_dev_list);
 	spin_unlock(&se_global->g_device_lock);
+
+	dev_stat_grp = &DEV_STAT_GRP(se_dev)->stat_group;
+	for (i = 0; dev_stat_grp->default_groups[i]; i++) {
+		df_item = &dev_stat_grp->default_groups[i]->cg_item;
+		dev_stat_grp->default_groups[i] = NULL;
+		config_item_put(df_item);
+	}
+	kfree(dev_stat_grp->default_groups);
 
 	tg_pt_gp_cg = &T10_ALUA(se_dev)->alua_tg_pt_gps_group;
 	for (i = 0; tg_pt_gp_cg->default_groups[i]; i++) {
@@ -2791,7 +2919,10 @@ static void target_core_drop_subdev(
 		config_item_put(df_item);
 	}
 	kfree(tg_pt_gp_cg->default_groups);
-	core_alua_free_tg_pt_gp(T10_ALUA(se_dev)->default_tg_pt_gp);
+	/*
+	 * core_alua_free_tg_pt_gp() is called from ->default_tg_pt_gp
+	 * directly from target_core_alua_tg_pt_gp_release().
+	 */
 	T10_ALUA(se_dev)->default_tg_pt_gp = NULL;
 
 	dev_cg = &se_dev->se_dev_group;
@@ -2800,38 +2931,12 @@ static void target_core_drop_subdev(
 		dev_cg->default_groups[i] = NULL;
 		config_item_put(df_item);
 	}
-
-	config_item_put(item);
 	/*
-	 * This pointer will set when the storage is enabled with:
-	 * `echo 1 > $CONFIGFS/core/$HBA/$DEV/dev_enable`
+	 * The releasing of se_dev and associated se_dev->se_dev_ptr is done
+	 * from target_core_dev_item_ops->release() ->target_core_dev_release().
 	 */
-	if (se_dev->se_dev_ptr) {
-		printk(KERN_INFO "Target_Core_ConfigFS: Calling se_free_"
-			"virtual_device() for se_dev_ptr: %p\n",
-				se_dev->se_dev_ptr);
-
-		ret = se_free_virtual_device(se_dev->se_dev_ptr, hba);
-		if (ret < 0)
-			goto hba_out;
-	} else {
-		/*
-		 * Release struct se_subsystem_dev->se_dev_su_ptr..
-		 */
-		printk(KERN_INFO "Target_Core_ConfigFS: Calling t->free_"
-			"device() for se_dev_su_ptr: %p\n",
-			se_dev->se_dev_su_ptr);
-
-		t->free_device(se_dev->se_dev_su_ptr);
-	}
-
-	printk(KERN_INFO "Target_Core_ConfigFS: Deallocating se_subsystem"
-		"_dev_t: %p\n", se_dev);
-
-hba_out:
+	config_item_put(item);
 	mutex_unlock(&hba->hba_access_mutex);
-out:
-	kfree(se_dev);
 }
 
 static struct configfs_group_operations target_core_hba_group_ops = {
@@ -2914,6 +3019,13 @@ SE_HBA_ATTR(hba_mode, S_IRUGO | S_IWUSR);
 
 CONFIGFS_EATTR_OPS(target_core_hba, se_hba, hba_group);
 
+static void target_core_hba_release(struct config_item *item)
+{
+	struct se_hba *hba = container_of(to_config_group(item),
+				struct se_hba, hba_group);
+	core_delete_hba(hba);
+}
+
 static struct configfs_attribute *target_core_hba_attrs[] = {
 	&target_core_hba_hba_info.attr,
 	&target_core_hba_hba_mode.attr,
@@ -2921,6 +3033,7 @@ static struct configfs_attribute *target_core_hba_attrs[] = {
 };
 
 static struct configfs_item_operations target_core_hba_item_ops = {
+	.release		= target_core_hba_release,
 	.show_attribute		= target_core_hba_attr_show,
 	.store_attribute	= target_core_hba_attr_store,
 };
@@ -2997,10 +3110,11 @@ static void target_core_call_delhbafromtarget(
 	struct config_group *group,
 	struct config_item *item)
 {
-	struct se_hba *hba = item_to_hba(item);
-
+	/*
+	 * core_delete_hba() is called from target_core_hba_item_ops->release()
+	 * -> target_core_hba_release()
+	 */
 	config_item_put(item);
-	core_delete_hba(hba);
 }
 
 static struct configfs_group_operations target_core_group_ops = {
@@ -3017,12 +3131,11 @@ static struct config_item_type target_core_cit = {
 
 /* Stop functions for struct config_item_type target_core_hba_cit */
 
-static int target_core_init_configfs(void)
+static int __init target_core_init_configfs(void)
 {
 	struct config_group *target_cg, *hba_cg = NULL, *alua_cg = NULL;
 	struct config_group *lu_gp_cg = NULL;
 	struct configfs_subsystem *subsys;
-	struct proc_dir_entry *scsi_target_proc = NULL;
 	struct t10_alua_lu_gp *lu_gp;
 	int ret;
 
@@ -3128,21 +3241,10 @@ static int target_core_init_configfs(void)
 	if (core_dev_setup_virtual_lun0() < 0)
 		goto out;
 
-	scsi_target_proc = proc_mkdir("scsi_target", 0);
-	if (!(scsi_target_proc)) {
-		printk(KERN_ERR "proc_mkdir(scsi_target, 0) failed\n");
-		goto out;
-	}
-	ret = init_scsi_target_mib();
-	if (ret < 0)
-		goto out;
-
 	return 0;
 
 out:
 	configfs_unregister_subsystem(subsys);
-	if (scsi_target_proc)
-		remove_proc_entry("scsi_target", 0);
 	core_dev_release_virtual_lun0();
 	rd_module_exit();
 out_global:
@@ -3161,7 +3263,7 @@ out_global:
 	return -1;
 }
 
-static void target_core_exit_configfs(void)
+static void __exit target_core_exit_configfs(void)
 {
 	struct configfs_subsystem *subsys;
 	struct config_group *hba_cg, *alua_cg, *lu_gp_cg;
@@ -3178,8 +3280,7 @@ static void target_core_exit_configfs(void)
 		config_item_put(item);
 	}
 	kfree(lu_gp_cg->default_groups);
-	core_alua_free_lu_gp(se_global->default_lu_gp);
-	se_global->default_lu_gp = NULL;
+	lu_gp_cg->default_groups = NULL;
 
 	alua_cg = &se_global->alua_group;
 	for (i = 0; alua_cg->default_groups[i]; i++) {
@@ -3188,6 +3289,7 @@ static void target_core_exit_configfs(void)
 		config_item_put(item);
 	}
 	kfree(alua_cg->default_groups);
+	alua_cg->default_groups = NULL;
 
 	hba_cg = &se_global->target_core_hbagroup;
 	for (i = 0; hba_cg->default_groups[i]; i++) {
@@ -3196,20 +3298,20 @@ static void target_core_exit_configfs(void)
 		config_item_put(item);
 	}
 	kfree(hba_cg->default_groups);
-
-	for (i = 0; subsys->su_group.default_groups[i]; i++) {
-		item = &subsys->su_group.default_groups[i]->cg_item;
-		subsys->su_group.default_groups[i] = NULL;
-		config_item_put(item);
-	}
+	hba_cg->default_groups = NULL;
+	/*
+	 * We expect subsys->su_group.default_groups to be released
+	 * by configfs subsystem provider logic..
+	 */
+	configfs_unregister_subsystem(subsys);
 	kfree(subsys->su_group.default_groups);
 
-	configfs_unregister_subsystem(subsys);
+	core_alua_free_lu_gp(se_global->default_lu_gp);
+	se_global->default_lu_gp = NULL;
+
 	printk(KERN_INFO "TARGET_CORE[0]: Released ConfigFS Fabric"
 			" Infrastructure\n");
 
-	remove_scsi_target_mib();
-	remove_proc_entry("scsi_target", 0);
 	core_dev_release_virtual_lun0();
 	rd_module_exit();
 	release_se_global();

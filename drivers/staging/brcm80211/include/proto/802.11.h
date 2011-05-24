@@ -17,19 +17,15 @@
 #ifndef _802_11_H_
 #define _802_11_H_
 
-#include <proto/wpa.h>
-#include <packed_section_start.h>
+#include <linux/if_ether.h>
 
 #define DOT11_A3_HDR_LEN		24
 #define DOT11_A4_HDR_LEN		30
 #define DOT11_MAC_HDR_LEN		DOT11_A3_HDR_LEN
-#define DOT11_FCS_LEN			4
 #define DOT11_ICV_AES_LEN		8
 #define DOT11_QOS_LEN			2
 
 #define DOT11_IV_MAX_LEN		8
-
-#define DOT11_MAX_SSID_LEN		32
 
 #define DOT11_DEFAULT_RTS_LEN		2347
 
@@ -45,46 +41,12 @@
 
 #define DOT11_OUI_LEN			3
 
-BWL_PRE_PACKED_STRUCT struct dot11_header {
-	u16 fc;
-	u16 durid;
-	struct ether_addr a1;
-	struct ether_addr a2;
-	struct ether_addr a3;
-	u16 seq;
-	struct ether_addr a4;
-} BWL_POST_PACKED_STRUCT;
-
-BWL_PRE_PACKED_STRUCT struct dot11_rts_frame {
-	u16 fc;
-	u16 durid;
-	struct ether_addr ra;
-	struct ether_addr ta;
-} BWL_POST_PACKED_STRUCT;
-
 #define	DOT11_RTS_LEN		16
 #define	DOT11_CTS_LEN		10
 #define	DOT11_ACK_LEN		10
 
 #define DOT11_BA_BITMAP_LEN		128
 #define DOT11_BA_LEN		4
-
-BWL_PRE_PACKED_STRUCT struct dot11_management_header {
-	u16 fc;
-	u16 durid;
-	struct ether_addr da;
-	struct ether_addr sa;
-	struct ether_addr bssid;
-	u16 seq;
-} BWL_POST_PACKED_STRUCT;
-#define	DOT11_MGMT_HDR_LEN	24
-
-BWL_PRE_PACKED_STRUCT struct dot11_bcn_prb {
-	u32 timestamp[2];
-	u16 beacon_interval;
-	u16 capability;
-} BWL_POST_PACKED_STRUCT;
-#define	DOT11_BCN_PRB_LEN	12
 
 #define WME_OUI			"\x00\x50\xf2"
 #define WME_VER			1
@@ -102,14 +64,14 @@ typedef u8 ac_bitmap_t;
 #define AC_BITMAP_ALL		0xf
 #define AC_BITMAP_TST(ab, ac)	(((ab) & (1 << (ac))) != 0)
 
-BWL_PRE_PACKED_STRUCT struct edcf_acparam {
+struct edcf_acparam {
 	u8 ACI;
 	u8 ECW;
 	u16 TXOP;
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 typedef struct edcf_acparam edcf_acparam_t;
 
-BWL_PRE_PACKED_STRUCT struct wme_param_ie {
+struct wme_param_ie {
 	u8 oui[3];
 	u8 type;
 	u8 subtype;
@@ -117,7 +79,7 @@ BWL_PRE_PACKED_STRUCT struct wme_param_ie {
 	u8 qosinfo;
 	u8 rsvd;
 	edcf_acparam_t acparam[AC_COUNT];
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 typedef struct wme_param_ie wme_param_ie_t;
 #define WME_PARAM_IE_LEN            24
 
@@ -150,59 +112,13 @@ typedef struct wme_param_ie wme_param_ie_t;
 
 #define EDCF_AC_VO_TXOP_AP           0x002f
 
-#define DOT11_OPEN_SYSTEM	0
-#define DOT11_SHARED_KEY	1
-
-#define FC_TYPE_MASK		0xC
-#define FC_TYPE_SHIFT		2
-#define FC_SUBTYPE_MASK		0xF0
-#define FC_SUBTYPE_SHIFT	4
-#define FC_MOREFRAG		0x400
-
 #define SEQNUM_SHIFT		4
 #define SEQNUM_MAX		0x1000
 #define FRAGNUM_MASK		0xF
 
-#define FC_TYPE_MNG		0
-#define FC_TYPE_CTL		1
-#define FC_TYPE_DATA		2
-
-#define FC_SUBTYPE_PROBE_REQ		4
-#define FC_SUBTYPE_PROBE_RESP		5
-#define FC_SUBTYPE_BEACON		8
-#define FC_SUBTYPE_PS_POLL		10
-#define FC_SUBTYPE_RTS			11
-#define FC_SUBTYPE_CTS			12
-
-#define FC_SUBTYPE_ANY_QOS(s)		(((s) & 8) != 0)
-
-#define FC_KIND_MASK		(FC_TYPE_MASK | FC_SUBTYPE_MASK)
-
-#define FC_KIND(t, s)	(((t) << FC_TYPE_SHIFT) | ((s) << FC_SUBTYPE_SHIFT))
-
-#define FC_SUBTYPE(fc)	(((fc) & FC_SUBTYPE_MASK) >> FC_SUBTYPE_SHIFT)
-#define FC_TYPE(fc)	(((fc) & FC_TYPE_MASK) >> FC_TYPE_SHIFT)
-
-#define FC_PROBE_REQ	FC_KIND(FC_TYPE_MNG, FC_SUBTYPE_PROBE_REQ)
-#define FC_PROBE_RESP	FC_KIND(FC_TYPE_MNG, FC_SUBTYPE_PROBE_RESP)
-#define FC_BEACON	FC_KIND(FC_TYPE_MNG, FC_SUBTYPE_BEACON)
-#define FC_PS_POLL	FC_KIND(FC_TYPE_CTL, FC_SUBTYPE_PS_POLL)
-#define FC_RTS		FC_KIND(FC_TYPE_CTL, FC_SUBTYPE_RTS)
-#define FC_CTS		FC_KIND(FC_TYPE_CTL, FC_SUBTYPE_CTS)
-
-#define TLV_LEN_OFF		1
-#define TLV_HDR_LEN		2
-#define TLV_BODY_OFF		2
-
 #define DOT11_MNG_RSN_ID			48
 #define DOT11_MNG_WPA_ID			221
 #define DOT11_MNG_VS_ID				221
-
-#define DOT11_CAP_ESS				0x0001
-#define DOT11_CAP_IBSS				0x0002
-#define DOT11_CAP_PRIVACY			0x0010
-#define DOT11_CAP_SHORT				0x0020
-#define DOT11_CAP_SHORTSLOT			0x0400
 
 #define DOT11_BSSTYPE_INFRASTRUCTURE		0
 #define DOT11_BSSTYPE_ANY			2
@@ -253,43 +169,12 @@ typedef struct d11cnt {
 
 #define MCSSET_LEN	16
 
-BWL_PRE_PACKED_STRUCT struct ht_cap_ie {
-	u16 cap;
-	u8 params;
-	u8 supp_mcs[MCSSET_LEN];
-	u16 ext_htcap;
-	u32 txbf_cap;
-	u8 as_cap;
-} BWL_POST_PACKED_STRUCT;
-typedef struct ht_cap_ie ht_cap_ie_t;
-
 #define HT_CAP_IE_LEN		26
-
-#define HT_CAP_LDPC_CODING	0x0001
-#define HT_CAP_40MHZ		0x0002
-#define HT_CAP_MIMO_PS_MASK	0x000C
-#define HT_CAP_MIMO_PS_SHIFT	0x0002
-#define HT_CAP_MIMO_PS_OFF	0x0003
-#define HT_CAP_MIMO_PS_ON	0x0000
-#define HT_CAP_GF		0x0010
-#define HT_CAP_SHORT_GI_20	0x0020
-#define HT_CAP_SHORT_GI_40	0x0040
-#define HT_CAP_TX_STBC		0x0080
-#define HT_CAP_RX_STBC_MASK	0x0300
-#define HT_CAP_RX_STBC_SHIFT	8
-#define HT_CAP_MAX_AMSDU	0x0800
-#define HT_CAP_DSSS_CCK	0x1000
-#define HT_CAP_40MHZ_INTOLERANT 0x4000
 
 #define HT_CAP_RX_STBC_NO		0x0
 #define HT_CAP_RX_STBC_ONE_STREAM	0x1
 
-#define HT_PARAMS_RX_FACTOR_MASK	0x03
-
-#define AMPDU_MAX_MPDU_DENSITY	7
-#define AMPDU_RX_FACTOR_16K	1
-#define AMPDU_RX_FACTOR_32K	2
-#define AMPDU_RX_FACTOR_64K	3
+#define AMPDU_MAX_MPDU_DENSITY	IEEE80211_HT_MPDU_DENSITY_16
 
 #define AMPDU_DELIMITER_LEN	4
 
@@ -308,15 +193,8 @@ typedef struct ht_cap_ie ht_cap_ie_t;
 #define RSN_AKM_PSK		2
 
 #define DOT11_MAX_DEFAULT_KEYS	4
-#define DOT11_MAX_KEY_SIZE	32
 #define DOT11_WPA_KEY_RSC_LEN   8
 
-#define WEP1_KEY_SIZE		5
-#define WEP128_KEY_SIZE		13
-#define TKIP_KEY_SIZE		32
-#define AES_KEY_SIZE		16
-
 #define BRCM_OUI		"\x00\x10\x18"
-#include <packed_section_end.h>
 
 #endif				/* _802_11_H_ */

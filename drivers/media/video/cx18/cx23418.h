@@ -477,7 +477,7 @@
 /* The are no buffers ready. Try again soon! */
 #define CXERR_NODATA_AGAIN      0x00001E
 
-/* The stream is stopping. Function not alllowed now! */
+/* The stream is stopping. Function not allowed now! */
 #define CXERR_STOPPING_STATUS   0x00001F
 
 /* Trying to access hardware when the power is turned OFF */

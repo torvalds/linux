@@ -215,7 +215,7 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
 		/* WARNING: This only kicks off a single
 		 * checkpoint. If someone races you and adds more
 		 * metadata to the journal, you won't know, and will
-		 * wind up waiting *alot* longer than necessary. Right
+		 * wind up waiting *a lot* longer than necessary. Right
 		 * now we only use this in clear_inode so that's
 		 * OK. */
 		ocfs2_start_checkpoint(osb);
@@ -405,9 +405,9 @@ static inline int ocfs2_remove_extent_credits(struct super_block *sb)
 	       ocfs2_quota_trans_credits(sb);
 }
 
-/* data block for new dir/symlink, 2 for bitmap updates (bitmap fe +
- * bitmap block for the new bit) dx_root update for free list */
-#define OCFS2_DIR_LINK_ADDITIONAL_CREDITS (1 + 2 + 1)
+/* data block for new dir/symlink, allocation of directory block, dx_root
+ * update for free list */
+#define OCFS2_DIR_LINK_ADDITIONAL_CREDITS (1 + OCFS2_SUBALLOC_ALLOC + 1)
 
 static inline int ocfs2_add_dir_index_credits(struct super_block *sb)
 {

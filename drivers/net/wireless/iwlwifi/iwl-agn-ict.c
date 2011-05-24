@@ -69,7 +69,7 @@ int iwl_alloc_isr_ict(struct iwl_priv *priv)
 	if (!priv->_agn.ict_tbl_vir)
 		return -ENOMEM;
 
-	/* align table to PAGE_SIZE boundry */
+	/* align table to PAGE_SIZE boundary */
 	priv->_agn.aligned_ict_tbl_dma = ALIGN(priv->_agn.ict_tbl_dma, PAGE_SIZE);
 
 	IWL_DEBUG_ISR(priv, "ict dma addr %Lx dma aligned %Lx diff %d\n",

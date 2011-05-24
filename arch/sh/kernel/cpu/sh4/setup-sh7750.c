@@ -14,7 +14,7 @@
 #include <linux/io.h>
 #include <linux/sh_timer.h>
 #include <linux/serial_sci.h>
-#include <asm/machtypes.h>
+#include <generated/machtypes.h>
 
 static struct resource rtc_resources[] = {
 	[0] = {
@@ -255,12 +255,17 @@ static struct platform_device *sh7750_early_devices[] __initdata = {
 
 void __init plat_early_device_setup(void)
 {
+	struct platform_device *dev[1];
+
 	if (mach_is_rts7751r2d()) {
 		scif_platform_data.scscr |= SCSCR_CKE1;
-		early_platform_add_devices(&scif_device, 1);
+		dev[0] = &scif_device;
+		early_platform_add_devices(dev, 1);
 	} else {
-		early_platform_add_devices(&sci_device, 1);
-		early_platform_add_devices(&scif_device, 1);
+		dev[0] = &sci_device;
+		early_platform_add_devices(dev, 1);
+		dev[0] = &scif_device;
+		early_platform_add_devices(dev, 1);
 	}
 
 	early_platform_add_devices(sh7750_early_devices,

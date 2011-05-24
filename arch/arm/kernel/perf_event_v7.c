@@ -466,6 +466,7 @@ static inline unsigned long armv7_pmnc_read(void)
 static inline void armv7_pmnc_write(unsigned long val)
 {
 	val &= ARMV7_PMNC_MASK;
+	isb();
 	asm volatile("mcr p15, 0, %0, c9, c12, 0" : : "r"(val));
 }
 
@@ -502,6 +503,7 @@ static inline int armv7_pmnc_select_counter(unsigned int idx)
 
 	val = (idx - ARMV7_EVENT_CNT_TO_CNTx) & ARMV7_SELECT_MASK;
 	asm volatile("mcr p15, 0, %0, c9, c12, 5" : : "r" (val));
+	isb();
 
 	return idx;
 }
@@ -780,7 +782,7 @@ static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev)
 			continue;
 
 		hwc = &event->hw;
-		armpmu_event_update(event, hwc, idx);
+		armpmu_event_update(event, hwc, idx, 1);
 		data.period = event->hw.last_period;
 		if (!armpmu_event_set_period(event, hwc, idx))
 			continue;
@@ -847,6 +849,18 @@ static int armv7pmu_get_event_idx(struct cpu_hw_events *cpuc,
 	}
 }
 
+static void armv7pmu_reset(void *info)
+{
+	u32 idx, nb_cnt = armpmu->num_events;
+
+	/* The counter and interrupt enable registers are unknown at reset. */
+	for (idx = 1; idx < nb_cnt; ++idx)
+		armv7pmu_disable_event(NULL, idx);
+
+	/* Initialize & Reset PMNC: C and P bits */
+	armv7_pmnc_write(ARMV7_PMNC_P | ARMV7_PMNC_C);
+}
+
 static struct arm_pmu armv7pmu = {
 	.handle_irq		= armv7pmu_handle_irq,
 	.enable			= armv7pmu_enable_event,
@@ -856,16 +870,14 @@ static struct arm_pmu armv7pmu = {
 	.get_event_idx		= armv7pmu_get_event_idx,
 	.start			= armv7pmu_start,
 	.stop			= armv7pmu_stop,
+	.reset			= armv7pmu_reset,
 	.raw_event_mask		= 0xFF,
 	.max_period		= (1LLU << 32) - 1,
 };
 
-static u32 __init armv7_reset_read_pmnc(void)
+static u32 __init armv7_read_num_pmnc_events(void)
 {
 	u32 nb_cnt;
-
-	/* Initialize & Reset PMNC: C and P bits */
-	armv7_pmnc_write(ARMV7_PMNC_P | ARMV7_PMNC_C);
 
 	/* Read the nb of CNTx counters supported from PMNC */
 	nb_cnt = (armv7_pmnc_read() >> ARMV7_PMNC_N_SHIFT) & ARMV7_PMNC_N_MASK;
@@ -880,7 +892,7 @@ static const struct arm_pmu *__init armv7_a8_pmu_init(void)
 	armv7pmu.name		= "ARMv7 Cortex-A8";
 	armv7pmu.cache_map	= &armv7_a8_perf_cache_map;
 	armv7pmu.event_map	= &armv7_a8_perf_map;
-	armv7pmu.num_events	= armv7_reset_read_pmnc();
+	armv7pmu.num_events	= armv7_read_num_pmnc_events();
 	return &armv7pmu;
 }
 
@@ -890,7 +902,7 @@ static const struct arm_pmu *__init armv7_a9_pmu_init(void)
 	armv7pmu.name		= "ARMv7 Cortex-A9";
 	armv7pmu.cache_map	= &armv7_a9_perf_cache_map;
 	armv7pmu.event_map	= &armv7_a9_perf_map;
-	armv7pmu.num_events	= armv7_reset_read_pmnc();
+	armv7pmu.num_events	= armv7_read_num_pmnc_events();
 	return &armv7pmu;
 }
 #else

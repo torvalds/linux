@@ -1158,7 +1158,6 @@ static sector_t _isofs_bmap(struct address_space *mapping, sector_t block)
 
 static const struct address_space_operations isofs_aops = {
 	.readpage = isofs_readpage,
-	.sync_page = block_sync_page,
 	.bmap = _isofs_bmap
 };
 

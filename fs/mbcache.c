@@ -542,7 +542,7 @@ __mb_cache_entry_find(struct list_head *l, struct list_head *head,
  * mb_cache_entry_find_first()
  *
  * Find the first cache entry on a given device with a certain key in
- * an additional index. Additonal matches can be found with
+ * an additional index. Additional matches can be found with
  * mb_cache_entry_find_next(). Returns NULL if no match was found. The
  * returned cache entry is locked for shared access ("multiple readers").
  *

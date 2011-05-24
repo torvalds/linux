@@ -1276,6 +1276,14 @@ static int __kprobes can_optimize(unsigned long paddr)
 	if (!kallsyms_lookup_size_offset(paddr, &size, &offset))
 		return 0;
 
+	/*
+	 * Do not optimize in the entry code due to the unstable
+	 * stack handling.
+	 */
+	if ((paddr >= (unsigned long )__entry_text_start) &&
+	    (paddr <  (unsigned long )__entry_text_end))
+		return 0;
+
 	/* Check there is enough space for a relative jump. */
 	if (size - offset < RELATIVEJUMP_SIZE)
 		return 0;

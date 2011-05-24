@@ -313,7 +313,8 @@ int hdpvr_cancel_queue(struct hdpvr_device *dev);
 /* i2c adapter registration */
 int hdpvr_register_i2c_adapter(struct hdpvr_device *dev);
 
-int hdpvr_register_i2c_ir(struct hdpvr_device *dev);
+struct i2c_client *hdpvr_register_ir_rx_i2c(struct hdpvr_device *dev);
+struct i2c_client *hdpvr_register_ir_tx_i2c(struct hdpvr_device *dev);
 
 /*========================================================================*/
 /* buffer management */

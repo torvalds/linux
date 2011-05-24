@@ -282,6 +282,34 @@ int ath5k_hw_phy_disable(struct ath5k_hw *ah)
 	return 0;
 }
 
+/*
+ * Wait for synth to settle
+ */
+static void ath5k_hw_wait_for_synth(struct ath5k_hw *ah,
+			struct ieee80211_channel *channel)
+{
+	/*
+	 * On 5211+ read activation -> rx delay
+	 * and use it (100ns steps).
+	 */
+	if (ah->ah_version != AR5K_AR5210) {
+		u32 delay;
+		delay = ath5k_hw_reg_read(ah, AR5K_PHY_RX_DELAY) &
+			AR5K_PHY_RX_DELAY_M;
+		delay = (channel->hw_value & CHANNEL_CCK) ?
+			((delay << 2) / 22) : (delay / 10);
+		if (ah->ah_bwmode == AR5K_BWMODE_10MHZ)
+			delay = delay << 1;
+		if (ah->ah_bwmode == AR5K_BWMODE_5MHZ)
+			delay = delay << 2;
+		/* XXX: /2 on turbo ? Let's be safe
+		 * for now */
+		udelay(100 + delay);
+	} else {
+		mdelay(1);
+	}
+}
+
 
 /**********************\
 * RF Gain optimization *
@@ -307,11 +335,11 @@ int ath5k_hw_phy_disable(struct ath5k_hw *ah)
  * http://madwifi-project.org/ticket/1659
  * with various measurements and diagrams
  *
- * TODO: Deal with power drops due to probes by setting an apropriate
+ * TODO: Deal with power drops due to probes by setting an appropriate
  * tx power on the probe packets ! Make this part of the calibration process.
  */
 
-/* Initialize ah_gain durring attach */
+/* Initialize ah_gain during attach */
 int ath5k_hw_rfgain_opt_init(struct ath5k_hw *ah)
 {
 	/* Initialize the gain optimization values */
@@ -1021,7 +1049,7 @@ static int ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 \**************************/
 
 /*
- * Convertion needed for RF5110
+ * Conversion needed for RF5110
  */
 static u32 ath5k_hw_rf5110_chan2athchan(struct ieee80211_channel *channel)
 {
@@ -1060,7 +1088,7 @@ static int ath5k_hw_rf5110_channel(struct ath5k_hw *ah,
 }
 
 /*
- * Convertion needed for 5111
+ * Conversion needed for 5111
  */
 static int ath5k_hw_rf5111_chan2athchan(unsigned int ieee,
 		struct ath5k_athchan_2ghz *athchan)
@@ -1253,6 +1281,7 @@ static int ath5k_hw_channel(struct ath5k_hw *ah,
 	case AR5K_RF5111:
 		ret = ath5k_hw_rf5111_channel(ah, channel);
 		break;
+	case AR5K_RF2317:
 	case AR5K_RF2425:
 		ret = ath5k_hw_rf2425_channel(ah, channel);
 		break;
@@ -2172,7 +2201,7 @@ ath5k_create_power_curve(s16 pmin, s16 pmax,
 /*
  * Get the surrounding per-channel power calibration piers
  * for a given frequency so that we can interpolate between
- * them and come up with an apropriate dataset for our current
+ * them and come up with an appropriate dataset for our current
  * channel.
  */
 static void
@@ -2589,7 +2618,7 @@ ath5k_write_pcdac_table(struct ath5k_hw *ah)
 /*
  * Set the gain boundaries and create final Power to PDADC table
  *
- * We can have up to 4 pd curves, we need to do a simmilar process
+ * We can have up to 4 pd curves, we need to do a similar process
  * as we do for RF5112. This time we don't have an edge_flag but we
  * set the gain boundaries on a separate register.
  */
@@ -2797,13 +2826,13 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 	u32 target = channel->center_freq;
 	int pdg, i;
 
-	/* Get surounding freq piers for this channel */
+	/* Get surrounding freq piers for this channel */
 	ath5k_get_chan_pcal_surrounding_piers(ah, channel,
 						&pcinfo_L,
 						&pcinfo_R);
 
 	/* Loop over pd gain curves on
-	 * surounding freq piers by index */
+	 * surrounding freq piers by index */
 	for (pdg = 0; pdg < ee->ee_pd_gains[ee_mode]; pdg++) {
 
 		/* Fill curves in reverse order
@@ -2894,7 +2923,7 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 		}
 
 		/* Interpolate between curves
-		 * of surounding freq piers to
+		 * of surrounding freq piers to
 		 * get the final curve for this
 		 * pd gain. Re-use tmpL for interpolation
 		 * output */
@@ -2918,7 +2947,7 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 
 	/* Fill min and max power levels for this
 	 * channel by interpolating the values on
-	 * surounding channels to complete the dataset */
+	 * surrounding channels to complete the dataset */
 	ah->ah_txpower.txp_min_pwr = ath5k_get_interpolated_value(target,
 					(s16) pcinfo_L->freq,
 					(s16) pcinfo_R->freq,
@@ -3150,7 +3179,7 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 
 	/* FIXME: TPC scale reduction */
 
-	/* Get surounding channels for per-rate power table
+	/* Get surrounding channels for per-rate power table
 	 * calibration */
 	ath5k_get_rate_pcal_data(ah, channel, &rate_info);
 
@@ -3237,6 +3266,13 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		/* Failed */
 		if (i >= 100)
 			return -EIO;
+
+		/* Set channel and wait for synth */
+		ret = ath5k_hw_channel(ah, channel);
+		if (ret)
+			return ret;
+
+		ath5k_hw_wait_for_synth(ah, channel);
 	}
 
 	/*
@@ -3251,13 +3287,53 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	if (ret)
 		return ret;
 
+	/* Write OFDM timings on 5212*/
+	if (ah->ah_version == AR5K_AR5212 &&
+		channel->hw_value & CHANNEL_OFDM) {
+
+		ret = ath5k_hw_write_ofdm_timings(ah, channel);
+		if (ret)
+			return ret;
+
+		/* Spur info is available only from EEPROM versions
+		 * greater than 5.3, but the EEPROM routines will use
+		 * static values for older versions */
+		if (ah->ah_mac_srev >= AR5K_SREV_AR5424)
+			ath5k_hw_set_spur_mitigation_filter(ah,
+							    channel);
+	}
+
+	/* If we used fast channel switching
+	 * we are done, release RF bus and
+	 * fire up NF calibration.
+	 *
+	 * Note: Only NF calibration due to
+	 * channel change, not AGC calibration
+	 * since AGC is still running !
+	 */
+	if (fast) {
+		/*
+		 * Release RF Bus grant
+		 */
+		AR5K_REG_DISABLE_BITS(ah, AR5K_PHY_RFBUS_REQ,
+				    AR5K_PHY_RFBUS_REQ_REQUEST);
+
+		/*
+		 * Start NF calibration
+		 */
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,
+					AR5K_PHY_AGCCTL_NF);
+
+		return ret;
+	}
+
 	/*
 	 * For 5210 we do all initialization using
 	 * initvals, so we don't have to modify
 	 * any settings (5210 also only supports
 	 * a/aturbo modes)
 	 */
-	if ((ah->ah_version != AR5K_AR5210) && !fast) {
+	if (ah->ah_version != AR5K_AR5210) {
 
 		/*
 		 * Write initial RF gain settings
@@ -3275,22 +3351,6 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		ret = ath5k_hw_rfregs_init(ah, channel, mode);
 		if (ret)
 			return ret;
-
-		/* Write OFDM timings on 5212*/
-		if (ah->ah_version == AR5K_AR5212 &&
-			channel->hw_value & CHANNEL_OFDM) {
-
-			ret = ath5k_hw_write_ofdm_timings(ah, channel);
-			if (ret)
-				return ret;
-
-			/* Spur info is available only from EEPROM versions
-			 * greater than 5.3, but the EEPROM routines will use
-			 * static values for older versions */
-			if (ah->ah_mac_srev >= AR5K_SREV_AR5424)
-				ath5k_hw_set_spur_mitigation_filter(ah,
-								    channel);
-		}
 
 		/*Enable/disable 802.11b mode on 5111
 		(enable 2111 frequency converter + CCK)*/
@@ -3322,47 +3382,20 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	 */
 	ath5k_hw_reg_write(ah, AR5K_PHY_ACT_ENABLE, AR5K_PHY_ACT);
 
-	/*
-	 * On 5211+ read activation -> rx delay
-	 * and use it.
-	 */
-	if (ah->ah_version != AR5K_AR5210) {
-		u32 delay;
-		delay = ath5k_hw_reg_read(ah, AR5K_PHY_RX_DELAY) &
-			AR5K_PHY_RX_DELAY_M;
-		delay = (channel->hw_value & CHANNEL_CCK) ?
-			((delay << 2) / 22) : (delay / 10);
-		if (ah->ah_bwmode == AR5K_BWMODE_10MHZ)
-			delay = delay << 1;
-		if (ah->ah_bwmode == AR5K_BWMODE_5MHZ)
-			delay = delay << 2;
-		/* XXX: /2 on turbo ? Let's be safe
-		 * for now */
-		udelay(100 + delay);
-	} else {
-		mdelay(1);
-	}
+	ath5k_hw_wait_for_synth(ah, channel);
 
-	if (fast)
-		/*
-		 * Release RF Bus grant
-		 */
-		AR5K_REG_DISABLE_BITS(ah, AR5K_PHY_RFBUS_REQ,
-				    AR5K_PHY_RFBUS_REQ_REQUEST);
-	else {
-		/*
-		 * Perform ADC test to see if baseband is ready
-		 * Set tx hold and check adc test register
-		 */
-		phy_tst1 = ath5k_hw_reg_read(ah, AR5K_PHY_TST1);
-		ath5k_hw_reg_write(ah, AR5K_PHY_TST1_TXHOLD, AR5K_PHY_TST1);
-		for (i = 0; i <= 20; i++) {
-			if (!(ath5k_hw_reg_read(ah, AR5K_PHY_ADC_TEST) & 0x10))
-				break;
-			udelay(200);
-		}
-		ath5k_hw_reg_write(ah, phy_tst1, AR5K_PHY_TST1);
+	/*
+	 * Perform ADC test to see if baseband is ready
+	 * Set tx hold and check adc test register
+	 */
+	phy_tst1 = ath5k_hw_reg_read(ah, AR5K_PHY_TST1);
+	ath5k_hw_reg_write(ah, AR5K_PHY_TST1_TXHOLD, AR5K_PHY_TST1);
+	for (i = 0; i <= 20; i++) {
+		if (!(ath5k_hw_reg_read(ah, AR5K_PHY_ADC_TEST) & 0x10))
+			break;
+		udelay(200);
 	}
+	ath5k_hw_reg_write(ah, phy_tst1, AR5K_PHY_TST1);
 
 	/*
 	 * Start automatic gain control calibration

@@ -19,7 +19,6 @@
 
 #include <linux/wireless.h>
 
-#include <proto/ethernet.h>
 #include <wlioctl.h>
 
 #define WL_SCAN_PARAMS_SSID_MAX	10
@@ -92,7 +91,7 @@ typedef struct wl_iw {
 	u32 gwsec;
 	bool privacy_invoked;
 
-	struct ether_addr spy_addr[IW_MAX_SPY];
+	u8 spy_addr[IW_MAX_SPY][ETH_ALEN];
 	struct iw_quality spy_qual[IW_MAX_SPY];
 	void *wlinfo;
 	dhd_pub_t *pub;
@@ -140,10 +139,4 @@ extern int dhd_dev_get_pno_status(struct net_device *dev);
 #define PNO_TLV_TYPE_TIME		'T'
 #define  PNO_EVENT_UP			"PNO_EVENT"
 
-typedef struct cmd_tlv {
-	char prefix;
-	char version;
-	char subver;
-	char reserved;
-} cmd_tlv_t;
 #endif				/* _wl_iw_h_ */

@@ -55,11 +55,47 @@ static int ext4_release_file(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static void ext4_aiodio_wait(struct inode *inode)
+{
+	wait_queue_head_t *wq = ext4_ioend_wq(inode);
+
+	wait_event(*wq, (atomic_read(&EXT4_I(inode)->i_aiodio_unwritten) == 0));
+}
+
+/*
+ * This tests whether the IO in question is block-aligned or not.
+ * Ext4 utilizes unwritten extents when hole-filling during direct IO, and they
+ * are converted to written only after the IO is complete.  Until they are
+ * mapped, these blocks appear as holes, so dio_zero_block() will assume that
+ * it needs to zero out portions of the start and/or end block.  If 2 AIO
+ * threads are at work on the same unwritten block, they must be synchronized
+ * or one thread will zero the other's data, causing corruption.
+ */
+static int
+ext4_unaligned_aio(struct inode *inode, const struct iovec *iov,
+		   unsigned long nr_segs, loff_t pos)
+{
+	struct super_block *sb = inode->i_sb;
+	int blockmask = sb->s_blocksize - 1;
+	size_t count = iov_length(iov, nr_segs);
+	loff_t final_size = pos + count;
+
+	if (pos >= inode->i_size)
+		return 0;
+
+	if ((pos & blockmask) || (final_size & blockmask))
+		return 1;
+
+	return 0;
+}
+
 static ssize_t
 ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 		unsigned long nr_segs, loff_t pos)
 {
 	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
+	int unaligned_aio = 0;
+	int ret;
 
 	/*
 	 * If we have encountered a bitmap-format file, the size limit
@@ -78,9 +114,31 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 			nr_segs = iov_shorten((struct iovec *)iov, nr_segs,
 					      sbi->s_bitmap_maxbytes - pos);
 		}
+	} else if (unlikely((iocb->ki_filp->f_flags & O_DIRECT) &&
+		   !is_sync_kiocb(iocb))) {
+		unaligned_aio = ext4_unaligned_aio(inode, iov, nr_segs, pos);
 	}
 
-	return generic_file_aio_write(iocb, iov, nr_segs, pos);
+	/* Unaligned direct AIO must be serialized; see comment above */
+	if (unaligned_aio) {
+		static unsigned long unaligned_warn_time;
+
+		/* Warn about this once per day */
+		if (printk_timed_ratelimit(&unaligned_warn_time, 60*60*24*HZ))
+			ext4_msg(inode->i_sb, KERN_WARNING,
+				 "Unaligned AIO/DIO on inode %ld by %s; "
+				 "performance will be poor.",
+				 inode->i_ino, current->comm);
+		mutex_lock(ext4_aio_mutex(inode));
+		ext4_aiodio_wait(inode);
+	}
+
+	ret = generic_file_aio_write(iocb, iov, nr_segs, pos);
+
+	if (unaligned_aio)
+		mutex_unlock(ext4_aio_mutex(inode));
+
+	return ret;
 }
 
 static const struct vm_operations_struct ext4_file_vm_ops = {

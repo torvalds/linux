@@ -207,7 +207,7 @@ static int unix_mkname(struct sockaddr_un *sunaddr, int len, unsigned *hashp)
 		/*
 		 * This may look like an off by one error but it is a bit more
 		 * subtle. 108 is the longest valid AF_UNIX path for a binding.
-		 * sun_path[108] doesnt as such exist.  However in kernel space
+		 * sun_path[108] doesn't as such exist.  However in kernel space
 		 * we are guaranteed that it is a valid memory location in our
 		 * kernel address buffer.
 		 */
@@ -850,7 +850,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		 * Get the parent directory, calculate the hash for last
 		 * component.
 		 */
-		err = path_lookup(sunaddr->sun_path, LOOKUP_PARENT, &nd);
+		err = kern_path_parent(sunaddr->sun_path, &nd);
 		if (err)
 			goto out_mknod_parent;
 
@@ -1124,7 +1124,7 @@ restart:
 
 	/* Latch our state.
 
-	   It is tricky place. We need to grab write lock and cannot
+	   It is tricky place. We need to grab our state lock and cannot
 	   drop lock on peer. It is dangerous because deadlock is
 	   possible. Connect to self case and simultaneous
 	   attempt to connect are eliminated by checking socket
@@ -1171,7 +1171,7 @@ restart:
 	newsk->sk_type		= sk->sk_type;
 	init_peercred(newsk);
 	newu = unix_sk(newsk);
-	newsk->sk_wq		= &newu->peer_wq;
+	RCU_INIT_POINTER(newsk->sk_wq, &newu->peer_wq);
 	otheru = unix_sk(other);
 
 	/* copy address information from listening to new sock*/
@@ -1475,6 +1475,12 @@ restart:
 			goto out_free;
 	}
 
+	if (sk_filter(other, skb) < 0) {
+		/* Toss the packet but do not return any error to the sender */
+		err = len;
+		goto out_free;
+	}
+
 	unix_state_lock(other);
 	err = -EPERM;
 	if (!unix_may_send(sk, other))
@@ -1561,7 +1567,6 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	struct sock_iocb *siocb = kiocb_to_siocb(kiocb);
 	struct sock *sk = sock->sk;
 	struct sock *other = NULL;
-	struct sockaddr_un *sunaddr = msg->msg_name;
 	int err, size;
 	struct sk_buff *skb;
 	int sent = 0;
@@ -1584,7 +1589,6 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		err = sk->sk_state == TCP_ESTABLISHED ? -EISCONN : -EOPNOTSUPP;
 		goto out_err;
 	} else {
-		sunaddr = NULL;
 		err = -ENOTCONN;
 		other = unix_peer(sk);
 		if (!other)
@@ -1724,7 +1728,11 @@ static int unix_dgram_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	msg->msg_namelen = 0;
 
-	mutex_lock(&u->readlock);
+	err = mutex_lock_interruptible(&u->readlock);
+	if (err) {
+		err = sock_intr_errno(sock_rcvtimeo(sk, noblock));
+		goto out;
+	}
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb) {
@@ -1864,7 +1872,11 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 		memset(&tmp_scm, 0, sizeof(tmp_scm));
 	}
 
-	mutex_lock(&u->readlock);
+	err = mutex_lock_interruptible(&u->readlock);
+	if (err) {
+		err = sock_intr_errno(timeo);
+		goto out;
+	}
 
 	do {
 		int chunk;
@@ -1895,11 +1907,12 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 			timeo = unix_stream_data_wait(sk, timeo);
 
-			if (signal_pending(current)) {
+			if (signal_pending(current)
+			    ||  mutex_lock_interruptible(&u->readlock)) {
 				err = sock_intr_errno(timeo);
 				goto out;
 			}
-			mutex_lock(&u->readlock);
+
 			continue;
  unlock:
 			unix_state_unlock(sk);
@@ -1978,36 +1991,38 @@ static int unix_shutdown(struct socket *sock, int mode)
 
 	mode = (mode+1)&(RCV_SHUTDOWN|SEND_SHUTDOWN);
 
-	if (mode) {
-		unix_state_lock(sk);
-		sk->sk_shutdown |= mode;
-		other = unix_peer(sk);
-		if (other)
-			sock_hold(other);
-		unix_state_unlock(sk);
-		sk->sk_state_change(sk);
+	if (!mode)
+		return 0;
 
-		if (other &&
-			(sk->sk_type == SOCK_STREAM || sk->sk_type == SOCK_SEQPACKET)) {
+	unix_state_lock(sk);
+	sk->sk_shutdown |= mode;
+	other = unix_peer(sk);
+	if (other)
+		sock_hold(other);
+	unix_state_unlock(sk);
+	sk->sk_state_change(sk);
 
-			int peer_mode = 0;
+	if (other &&
+		(sk->sk_type == SOCK_STREAM || sk->sk_type == SOCK_SEQPACKET)) {
 
-			if (mode&RCV_SHUTDOWN)
-				peer_mode |= SEND_SHUTDOWN;
-			if (mode&SEND_SHUTDOWN)
-				peer_mode |= RCV_SHUTDOWN;
-			unix_state_lock(other);
-			other->sk_shutdown |= peer_mode;
-			unix_state_unlock(other);
-			other->sk_state_change(other);
-			if (peer_mode == SHUTDOWN_MASK)
-				sk_wake_async(other, SOCK_WAKE_WAITD, POLL_HUP);
-			else if (peer_mode & RCV_SHUTDOWN)
-				sk_wake_async(other, SOCK_WAKE_WAITD, POLL_IN);
-		}
-		if (other)
-			sock_put(other);
+		int peer_mode = 0;
+
+		if (mode&RCV_SHUTDOWN)
+			peer_mode |= SEND_SHUTDOWN;
+		if (mode&SEND_SHUTDOWN)
+			peer_mode |= RCV_SHUTDOWN;
+		unix_state_lock(other);
+		other->sk_shutdown |= peer_mode;
+		unix_state_unlock(other);
+		other->sk_state_change(other);
+		if (peer_mode == SHUTDOWN_MASK)
+			sk_wake_async(other, SOCK_WAKE_WAITD, POLL_HUP);
+		else if (peer_mode & RCV_SHUTDOWN)
+			sk_wake_async(other, SOCK_WAKE_WAITD, POLL_IN);
 	}
+	if (other)
+		sock_put(other);
+
 	return 0;
 }
 

@@ -383,12 +383,11 @@ save_static_function(sys_sysmips);
 static int __used noinline
 _sys_sysmips(nabi_no_regargs struct pt_regs regs)
 {
-	long cmd, arg1, arg2, arg3;
+	long cmd, arg1, arg2;
 
 	cmd = regs.regs[4];
 	arg1 = regs.regs[5];
 	arg2 = regs.regs[6];
-	arg3 = regs.regs[7];
 
 	switch (cmd) {
 	case MIPS_ATOMIC_SET:
@@ -405,7 +404,7 @@ _sys_sysmips(nabi_no_regargs struct pt_regs regs)
 		if (arg1 & 2)
 			set_thread_flag(TIF_LOGADE);
 		else
-			clear_thread_flag(TIF_FIXADE);
+			clear_thread_flag(TIF_LOGADE);
 
 		return 0;
 

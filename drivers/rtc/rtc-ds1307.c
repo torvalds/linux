@@ -495,50 +495,27 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	return 0;
 }
 
-static int ds1307_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
+static int ds1307_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct i2c_client	*client = to_i2c_client(dev);
 	struct ds1307		*ds1307 = i2c_get_clientdata(client);
 	int			ret;
 
-	switch (cmd) {
-	case RTC_AIE_OFF:
-		if (!test_bit(HAS_ALARM, &ds1307->flags))
-			return -ENOTTY;
+	if (!test_bit(HAS_ALARM, &ds1307->flags))
+		return -ENOTTY;
 
-		ret = i2c_smbus_read_byte_data(client, DS1337_REG_CONTROL);
-		if (ret < 0)
-			return ret;
+	ret = i2c_smbus_read_byte_data(client, DS1337_REG_CONTROL);
+	if (ret < 0)
+		return ret;
 
+	if (enabled)
+		ret |= DS1337_BIT_A1IE;
+	else
 		ret &= ~DS1337_BIT_A1IE;
 
-		ret = i2c_smbus_write_byte_data(client,
-						DS1337_REG_CONTROL, ret);
-		if (ret < 0)
-			return ret;
-
-		break;
-
-	case RTC_AIE_ON:
-		if (!test_bit(HAS_ALARM, &ds1307->flags))
-			return -ENOTTY;
-
-		ret = i2c_smbus_read_byte_data(client, DS1337_REG_CONTROL);
-		if (ret < 0)
-			return ret;
-
-		ret |= DS1337_BIT_A1IE;
-
-		ret = i2c_smbus_write_byte_data(client,
-						DS1337_REG_CONTROL, ret);
-		if (ret < 0)
-			return ret;
-
-		break;
-
-	default:
-		return -ENOIOCTLCMD;
-	}
+	ret = i2c_smbus_write_byte_data(client, DS1337_REG_CONTROL, ret);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -548,7 +525,7 @@ static const struct rtc_class_ops ds13xx_rtc_ops = {
 	.set_time	= ds1307_set_time,
 	.read_alarm	= ds1337_read_alarm,
 	.set_alarm	= ds1337_set_alarm,
-	.ioctl		= ds1307_ioctl,
+	.alarm_irq_enable = ds1307_alarm_irq_enable,
 };
 
 /*----------------------------------------------------------------------*/

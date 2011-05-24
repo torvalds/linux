@@ -58,7 +58,7 @@ struct flexcop_pci {
 
 	int active_dma1_addr; /* 0 = addr0 of dma1; 1 = addr1 of dma1 */
 	u32 last_dma1_cur_pos;
-	/* position of the pointer last time the timer/packet irq occured */
+	/* position of the pointer last time the timer/packet irq occurred */
 	int count;
 	int count_prev;
 	int stream_problem;

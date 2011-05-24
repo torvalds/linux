@@ -117,10 +117,10 @@ static inline void update_t_max_wait(transaction_t *transaction)
 static int start_this_handle(journal_t *journal, handle_t *handle,
 			     int gfp_mask)
 {
-	transaction_t *transaction;
-	int needed;
-	int nblocks = handle->h_buffer_credits;
-	transaction_t *new_transaction = NULL;
+	transaction_t	*transaction, *new_transaction = NULL;
+	tid_t		tid;
+	int		needed, need_to_start;
+	int		nblocks = handle->h_buffer_credits;
 
 	if (nblocks > journal->j_max_transaction_buffers) {
 		printk(KERN_ERR "JBD: %s wants too many credits (%d > %d)\n",
@@ -222,8 +222,11 @@ repeat:
 		atomic_sub(nblocks, &transaction->t_outstanding_credits);
 		prepare_to_wait(&journal->j_wait_transaction_locked, &wait,
 				TASK_UNINTERRUPTIBLE);
-		__jbd2_log_start_commit(journal, transaction->t_tid);
+		tid = transaction->t_tid;
+		need_to_start = !tid_geq(journal->j_commit_request, tid);
 		read_unlock(&journal->j_state_lock);
+		if (need_to_start)
+			jbd2_log_start_commit(journal, tid);
 		schedule();
 		finish_wait(&journal->j_wait_transaction_locked, &wait);
 		goto repeat;
@@ -442,7 +445,8 @@ int jbd2__journal_restart(handle_t *handle, int nblocks, int gfp_mask)
 {
 	transaction_t *transaction = handle->h_transaction;
 	journal_t *journal = transaction->t_journal;
-	int ret;
+	tid_t		tid;
+	int		need_to_start, ret;
 
 	/* If we've had an abort of any type, don't even think about
 	 * actually doing the restart! */
@@ -465,8 +469,11 @@ int jbd2__journal_restart(handle_t *handle, int nblocks, int gfp_mask)
 	spin_unlock(&transaction->t_handle_lock);
 
 	jbd_debug(2, "restarting handle %p\n", handle);
-	__jbd2_log_start_commit(journal, transaction->t_tid);
+	tid = transaction->t_tid;
+	need_to_start = !tid_geq(journal->j_commit_request, tid);
 	read_unlock(&journal->j_state_lock);
+	if (need_to_start)
+		jbd2_log_start_commit(journal, tid);
 
 	lock_map_release(&handle->h_lockdep_map);
 	handle->h_buffer_credits = nblocks;
@@ -1396,7 +1403,7 @@ int jbd2_journal_stop(handle_t *handle)
 
 	/*
 	 * Once we drop t_updates, if it goes to zero the transaction
-	 * could start commiting on us and eventually disappear.  So
+	 * could start committing on us and eventually disappear.  So
 	 * once we do this, we must not dereference transaction
 	 * pointer again.
 	 */

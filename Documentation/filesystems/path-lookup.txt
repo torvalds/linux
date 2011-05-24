@@ -42,7 +42,7 @@ Path walking overview
 A name string specifies a start (root directory, cwd, fd-relative) and a
 sequence of elements (directory entry names), which together refer to a path in
 the namespace. A path is represented as a (dentry, vfsmount) tuple. The name
-elements are sub-strings, seperated by '/'.
+elements are sub-strings, separated by '/'.
 
 Name lookups will want to find a particular path that a name string refers to
 (usually the final element, or parent of final element). This is done by taking
@@ -354,7 +354,7 @@ vfstest 24185492        4945    708725(2.9%) 1076136(4.4%)     0        2651
 
 What this shows is that failed rcu-walk lookups, ie. ones that are restarted
 entirely with ref-walk, are quite rare. Even the "vfstest" case which
-specifically has concurrent renames/mkdir/rmdir/ creat/unlink/etc to excercise
+specifically has concurrent renames/mkdir/rmdir/ creat/unlink/etc to exercise
 such races is not showing a huge amount of restarts.
 
 Dropping from rcu-walk to ref-walk mean that we have encountered a dentry where

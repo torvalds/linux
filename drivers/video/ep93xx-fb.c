@@ -456,7 +456,7 @@ static int __init ep93xxfb_alloc_videomem(struct fb_info *info)
 	 * There is a bug in the ep93xx framebuffer which causes problems
 	 * if bit 27 of the physical address is set.
 	 * See: http://marc.info/?l=linux-arm-kernel&m=110061245502000&w=2
-	 * There does not seem to be any offical errata for this, but I
+	 * There does not seem to be any official errata for this, but I
 	 * have confirmed the problem exists on my hardware (ep9315) at
 	 * least.
 	 */

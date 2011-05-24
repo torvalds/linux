@@ -310,7 +310,7 @@ struct cper_sec_proc_ia {
 	__u8	cpuid[48];
 };
 
-/* IA32/X64 Processor Error Infomation Structure */
+/* IA32/X64 Processor Error Information Structure */
 struct cper_ia_err_info {
 	uuid_le	err_type;
 	__u64	validation_bits;
@@ -388,5 +388,7 @@ struct cper_sec_pcie {
 #pragma pack()
 
 u64 cper_next_record_id(void);
+void cper_print_bits(const char *prefix, unsigned int bits,
+		     const char *strs[], unsigned int strs_size);
 
 #endif

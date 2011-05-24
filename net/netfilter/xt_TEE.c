@@ -62,18 +62,19 @@ tee_tg_route4(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 	const struct iphdr *iph = ip_hdr(skb);
 	struct net *net = pick_net(skb);
 	struct rtable *rt;
-	struct flowi fl;
+	struct flowi4 fl4;
 
-	memset(&fl, 0, sizeof(fl));
+	memset(&fl4, 0, sizeof(fl4));
 	if (info->priv) {
 		if (info->priv->oif == -1)
 			return false;
-		fl.oif = info->priv->oif;
+		fl4.flowi4_oif = info->priv->oif;
 	}
-	fl.fl4_dst = info->gw.ip;
-	fl.fl4_tos = RT_TOS(iph->tos);
-	fl.fl4_scope = RT_SCOPE_UNIVERSE;
-	if (ip_route_output_key(net, &rt, &fl) != 0)
+	fl4.daddr = info->gw.ip;
+	fl4.flowi4_tos = RT_TOS(iph->tos);
+	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
+	rt = ip_route_output_key(net, &fl4);
+	if (IS_ERR(rt))
 		return false;
 
 	skb_dst_drop(skb);
@@ -142,18 +143,18 @@ tee_tg_route6(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct net *net = pick_net(skb);
 	struct dst_entry *dst;
-	struct flowi fl;
+	struct flowi6 fl6;
 
-	memset(&fl, 0, sizeof(fl));
+	memset(&fl6, 0, sizeof(fl6));
 	if (info->priv) {
 		if (info->priv->oif == -1)
 			return false;
-		fl.oif = info->priv->oif;
+		fl6.flowi6_oif = info->priv->oif;
 	}
-	fl.fl6_dst = info->gw.in6;
-	fl.fl6_flowlabel = ((iph->flow_lbl[0] & 0xF) << 16) |
+	fl6.daddr = info->gw.in6;
+	fl6.flowlabel = ((iph->flow_lbl[0] & 0xF) << 16) |
 			   (iph->flow_lbl[1] << 8) | iph->flow_lbl[2];
-	dst = ip6_route_output(net, NULL, &fl);
+	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst == NULL)
 		return false;
 

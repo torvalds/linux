@@ -28,11 +28,9 @@
 	dev_warn (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
 
 #ifdef VERBOSE_DEBUG
-#	define vdbg dbg
 #	define ehci_vdbg ehci_dbg
 #else
-#	define vdbg(fmt,args...) do { } while (0)
-#	define ehci_vdbg(ehci, fmt, args...) do { } while (0)
+	static inline void ehci_vdbg(struct ehci_hcd *ehci, ...) {}
 #endif
 
 #ifdef	DEBUG

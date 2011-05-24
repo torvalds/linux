@@ -601,7 +601,7 @@ static int max3100_startup(struct uart_port *port)
 	s->rts = 0;
 
 	sprintf(b, "max3100-%d", s->minor);
-	s->workqueue = create_freezeable_workqueue(b);
+	s->workqueue = create_freezable_workqueue(b);
 	if (!s->workqueue) {
 		dev_warn(&s->spi->dev, "cannot create workqueue\n");
 		return -EBUSY;

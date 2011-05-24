@@ -15,6 +15,9 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/io.h>
+#include <linux/mmc/host.h>
+#include <linux/mmc/sh_mmcif.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
 #include <cpu/sh7757.h>
 #include <asm/sh_eth.h>
 #include <asm/heartbeat.h>
@@ -44,6 +47,17 @@ static struct platform_device heartbeat_device = {
 };
 
 /* Fast Ethernet */
+#define GBECONT		0xffc10100
+#define GBECONT_RMII1	BIT(17)
+#define GBECONT_RMII0	BIT(16)
+static void sh7757_eth_set_mdio_gate(unsigned long addr)
+{
+	if ((addr & 0x00000fff) < 0x0800)
+		writel(readl(GBECONT) | GBECONT_RMII0, GBECONT);
+	else
+		writel(readl(GBECONT) | GBECONT_RMII1, GBECONT);
+}
+
 static struct resource sh_eth0_resources[] = {
 	{
 		.start  = 0xfef00000,
@@ -59,6 +73,8 @@ static struct resource sh_eth0_resources[] = {
 static struct sh_eth_plat_data sh7757_eth0_pdata = {
 	.phy = 1,
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
+	.register_type = SH_ETH_REG_FAST_SH4,
+	.set_mdio_gate = sh7757_eth_set_mdio_gate,
 };
 
 static struct platform_device sh7757_eth0_device = {
@@ -86,6 +102,8 @@ static struct resource sh_eth1_resources[] = {
 static struct sh_eth_plat_data sh7757_eth1_pdata = {
 	.phy = 1,
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
+	.register_type = SH_ETH_REG_FAST_SH4,
+	.set_mdio_gate = sh7757_eth_set_mdio_gate,
 };
 
 static struct platform_device sh7757_eth1_device = {
@@ -98,10 +116,173 @@ static struct platform_device sh7757_eth1_device = {
 	},
 };
 
+static void sh7757_eth_giga_set_mdio_gate(unsigned long addr)
+{
+	if ((addr & 0x00000fff) < 0x0800) {
+		gpio_set_value(GPIO_PTT4, 1);
+		writel(readl(GBECONT) & ~GBECONT_RMII0, GBECONT);
+	} else {
+		gpio_set_value(GPIO_PTT4, 0);
+		writel(readl(GBECONT) & ~GBECONT_RMII1, GBECONT);
+	}
+}
+
+static struct resource sh_eth_giga0_resources[] = {
+	{
+		.start  = 0xfee00000,
+		.end    = 0xfee007ff,
+		.flags  = IORESOURCE_MEM,
+	}, {
+		/* TSU */
+		.start  = 0xfee01800,
+		.end    = 0xfee01fff,
+		.flags  = IORESOURCE_MEM,
+	}, {
+		.start  = 315,
+		.end    = 315,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct sh_eth_plat_data sh7757_eth_giga0_pdata = {
+	.phy = 18,
+	.edmac_endian = EDMAC_LITTLE_ENDIAN,
+	.register_type = SH_ETH_REG_GIGABIT,
+	.set_mdio_gate = sh7757_eth_giga_set_mdio_gate,
+	.phy_interface = PHY_INTERFACE_MODE_RGMII_ID,
+};
+
+static struct platform_device sh7757_eth_giga0_device = {
+	.name		= "sh-eth",
+	.resource	= sh_eth_giga0_resources,
+	.id		= 2,
+	.num_resources	= ARRAY_SIZE(sh_eth_giga0_resources),
+	.dev		= {
+		.platform_data = &sh7757_eth_giga0_pdata,
+	},
+};
+
+static struct resource sh_eth_giga1_resources[] = {
+	{
+		.start  = 0xfee00800,
+		.end    = 0xfee00fff,
+		.flags  = IORESOURCE_MEM,
+	}, {
+		.start  = 316,
+		.end    = 316,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct sh_eth_plat_data sh7757_eth_giga1_pdata = {
+	.phy = 19,
+	.edmac_endian = EDMAC_LITTLE_ENDIAN,
+	.register_type = SH_ETH_REG_GIGABIT,
+	.set_mdio_gate = sh7757_eth_giga_set_mdio_gate,
+	.phy_interface = PHY_INTERFACE_MODE_RGMII_ID,
+};
+
+static struct platform_device sh7757_eth_giga1_device = {
+	.name		= "sh-eth",
+	.resource	= sh_eth_giga1_resources,
+	.id		= 3,
+	.num_resources	= ARRAY_SIZE(sh_eth_giga1_resources),
+	.dev		= {
+		.platform_data = &sh7757_eth_giga1_pdata,
+	},
+};
+
+/* SH_MMCIF */
+static struct resource sh_mmcif_resources[] = {
+	[0] = {
+		.start	= 0xffcb0000,
+		.end	= 0xffcb00ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 211,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= 212,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct sh_mmcif_dma sh7757lcr_mmcif_dma = {
+	.chan_priv_tx	= SHDMA_SLAVE_MMCIF_TX,
+	.chan_priv_rx	= SHDMA_SLAVE_MMCIF_RX,
+};
+
+static struct sh_mmcif_plat_data sh_mmcif_plat = {
+	.dma		= &sh7757lcr_mmcif_dma,
+	.sup_pclk	= 0x0f,
+	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
+	.ocr		= MMC_VDD_32_33 | MMC_VDD_33_34,
+};
+
+static struct platform_device sh_mmcif_device = {
+	.name		= "sh_mmcif",
+	.id		= 0,
+	.dev		= {
+		.platform_data		= &sh_mmcif_plat,
+	},
+	.num_resources	= ARRAY_SIZE(sh_mmcif_resources),
+	.resource	= sh_mmcif_resources,
+};
+
+/* SDHI0 */
+static struct sh_mobile_sdhi_info sdhi_info = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI_RX,
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
+};
+
+static struct resource sdhi_resources[] = {
+	[0] = {
+		.start  = 0xffe50000,
+		.end    = 0xffe501ff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 20,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi_device = {
+	.name           = "sh_mobile_sdhi",
+	.num_resources  = ARRAY_SIZE(sdhi_resources),
+	.resource       = sdhi_resources,
+	.id             = 0,
+	.dev	= {
+		.platform_data	= &sdhi_info,
+	},
+};
+
 static struct platform_device *sh7757lcr_devices[] __initdata = {
 	&heartbeat_device,
 	&sh7757_eth0_device,
 	&sh7757_eth1_device,
+	&sh7757_eth_giga0_device,
+	&sh7757_eth_giga1_device,
+	&sh_mmcif_device,
+	&sdhi_device,
+};
+
+static struct flash_platform_data spi_flash_data = {
+	.name = "m25p80",
+	.type = "m25px64",
+};
+
+static struct spi_board_info spi_board_info[] = {
+	{
+		.modalias = "m25p80",
+		.max_speed_hz = 25000000,
+		.bus_num = 0,
+		.chip_select = 1,
+		.platform_data = &spi_flash_data,
+	},
 };
 
 static int __init sh7757lcr_devices_setup(void)
@@ -331,6 +512,10 @@ static int __init sh7757lcr_devices_setup(void)
 	gpio_direction_output(GPIO_PTT6, 0);
 	gpio_request(GPIO_PTT5, NULL);		/* eMMC_PRST# */
 	gpio_direction_output(GPIO_PTT5, 1);
+
+	/* register SPI device information */
+	spi_register_board_info(spi_board_info,
+				ARRAY_SIZE(spi_board_info));
 
 	/* General platform */
 	return platform_add_devices(sh7757lcr_devices,

@@ -1,6 +1,6 @@
 Run-time Power Management Framework for I/O Devices
 
-(C) 2009 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+(C) 2009-2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
 (C) 2010 Alan Stern <stern@rowland.harvard.edu>
 
 1. Introduction
@@ -44,11 +44,12 @@ struct dev_pm_ops {
 };
 
 The ->runtime_suspend(), ->runtime_resume() and ->runtime_idle() callbacks are
-executed by the PM core for either the bus type, or device type (if the bus
-type's callback is not defined), or device class (if the bus type's and device
-type's callbacks are not defined) of given device.  The bus type, device type
-and device class callbacks are referred to as subsystem-level callbacks in what
-follows.
+executed by the PM core for either the device type, or the class (if the device
+type's struct dev_pm_ops object does not exist), or the bus type (if the
+device type's and class' struct dev_pm_ops objects do not exist) of the given
+device (this allows device types to override callbacks provided by bus types or
+classes if necessary).  The bus type, device type and class callbacks are
+referred to as subsystem-level callbacks in what follows.
 
 By default, the callbacks are always invoked in process context with interrupts
 enabled.  However, subsystems can use the pm_runtime_irq_safe() helper function

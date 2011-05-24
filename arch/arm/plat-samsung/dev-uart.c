@@ -15,6 +15,8 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 
+#include <plat/devs.h>
+
 /* uart devices */
 
 static struct platform_device s3c24xx_uart_device0 = {

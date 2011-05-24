@@ -307,13 +307,6 @@ void usbip_dump_header(struct usbip_header *pdu);
 
 struct usbip_device;
 
-struct usbip_task {
-	struct task_struct *thread;
-	struct completion thread_done;
-	char *name;
-	void (*loop_ops)(struct usbip_task *);
-};
-
 enum usbip_side {
 	USBIP_VHCI,
 	USBIP_STUB,
@@ -346,8 +339,8 @@ struct usbip_device {
 
 	struct socket *tcp_socket;
 
-	struct usbip_task tcp_rx;
-	struct usbip_task tcp_tx;
+	struct task_struct *tcp_rx;
+	struct task_struct *tcp_tx;
 
 	/* event handler */
 #define USBIP_EH_SHUTDOWN	(1 << 0)
@@ -367,7 +360,7 @@ struct usbip_device {
 #define	VDEV_EVENT_ERROR_MALLOC	(USBIP_EH_SHUTDOWN | USBIP_EH_UNUSABLE)
 
 	unsigned long event;
-	struct usbip_task eh;
+	struct task_struct *eh;
 	wait_queue_head_t eh_waitq;
 
 	struct eh_ops {
@@ -378,13 +371,6 @@ struct usbip_device {
 };
 
 
-void usbip_task_init(struct usbip_task *ut, char *,
-				void (*loop_ops)(struct usbip_task *));
-
-int usbip_start_threads(struct usbip_device *ud);
-void usbip_stop_threads(struct usbip_device *ud);
-int usbip_thread(void *param);
-
 void usbip_pack_pdu(struct usbip_header *pdu, struct urb *urb, int cmd,
 								int pack);
 
@@ -393,6 +379,8 @@ void usbip_header_correct_endian(struct usbip_header *pdu, int send);
 int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb);
 /* some members of urb must be substituted before. */
 int usbip_recv_iso(struct usbip_device *ud, struct urb *urb);
+/* some members of urb must be substituted before. */
+int usbip_pad_iso(struct usbip_device *ud, struct urb *urb);
 void *usbip_alloc_iso_desc_pdu(struct urb *urb, ssize_t *bufflen);
 
 

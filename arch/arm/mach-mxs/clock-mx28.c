@@ -355,12 +355,12 @@ static int name##_set_rate(struct clk *clk, unsigned long rate)		\
 	} else {							\
 		reg &= ~BM_CLKCTRL_##dr##_DIV;				\
 		reg |= div << BP_CLKCTRL_##dr##_DIV;			\
-		if (reg | (1 << clk->enable_shift)) {			\
+		if (reg & (1 << clk->enable_shift)) {			\
 			pr_err("%s: clock is gated\n", __func__);	\
 			return -EINVAL;					\
 		}							\
 	}								\
-	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_CPU);		\
+	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_##dr);		\
 									\
 	for (i = 10000; i; i--)						\
 		if (!(__raw_readl(CLKCTRL_BASE_ADDR +			\
@@ -483,7 +483,7 @@ static int name##_set_parent(struct clk *clk, struct clk *parent)	\
 {									\
 	if (parent != clk->parent) {					\
 		__raw_writel(BM_CLKCTRL_CLKSEQ_BYPASS_##bit,		\
-			 HW_CLKCTRL_CLKSEQ_TOG);			\
+			 CLKCTRL_BASE_ADDR + HW_CLKCTRL_CLKSEQ_TOG);	\
 		clk->parent = parent;					\
 	}								\
 									\
@@ -609,18 +609,32 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("duart", NULL, uart_clk)
 	_REGISTER_CLOCK("imx28-fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK("imx28-fec.1", NULL, fec_clk)
-	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
+	_REGISTER_CLOCK("mxs-auart.0", NULL, uart_clk)
+	_REGISTER_CLOCK("mxs-auart.1", NULL, uart_clk)
+	_REGISTER_CLOCK("mxs-auart.2", NULL, uart_clk)
+	_REGISTER_CLOCK("mxs-auart.3", NULL, uart_clk)
+	_REGISTER_CLOCK("mxs-auart.4", NULL, uart_clk)
 	_REGISTER_CLOCK("rtc", NULL, rtc_clk)
 	_REGISTER_CLOCK("pll2", NULL, pll2_clk)
-	_REGISTER_CLOCK(NULL, "hclk", hbus_clk)
-	_REGISTER_CLOCK(NULL, "xclk", xbus_clk)
-	_REGISTER_CLOCK(NULL, "can0", can0_clk)
-	_REGISTER_CLOCK(NULL, "can1", can1_clk)
+	_REGISTER_CLOCK("mxs-dma-apbh", NULL, hbus_clk)
+	_REGISTER_CLOCK("mxs-dma-apbx", NULL, xbus_clk)
+	_REGISTER_CLOCK("mxs-mmc.0", NULL, ssp0_clk)
+	_REGISTER_CLOCK("mxs-mmc.1", NULL, ssp1_clk)
+	_REGISTER_CLOCK("flexcan.0", NULL, can0_clk)
+	_REGISTER_CLOCK("flexcan.1", NULL, can1_clk)
 	_REGISTER_CLOCK(NULL, "usb0", usb0_clk)
 	_REGISTER_CLOCK(NULL, "usb1", usb1_clk)
-	_REGISTER_CLOCK(NULL, "pwm", pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.0", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.1", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.2", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.3", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.4", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.5", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.6", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.7", NULL, pwm_clk)
 	_REGISTER_CLOCK(NULL, "lradc", lradc_clk)
 	_REGISTER_CLOCK(NULL, "spdif", spdif_clk)
+	_REGISTER_CLOCK("imx28-fb", NULL, lcdif_clk)
 };
 
 static int clk_misc_init(void)
@@ -725,6 +739,15 @@ static int clk_misc_init(void)
 	reg |= BM_CLKCTRL_ENET_CLK_OUT_EN;
 	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET);
 
+	/*
+	 * 480 MHz seems too high to be ssp clock source directly,
+	 * so set frac0 to get a 288 MHz ref_io0.
+	 */
+	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_FRAC0);
+	reg &= ~BM_CLKCTRL_FRAC0_IO0FRAC;
+	reg |= 30 << BP_CLKCTRL_FRAC0_IO0FRAC;
+	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_FRAC0);
+
 	return 0;
 }
 
@@ -732,11 +755,20 @@ int __init mx28_clocks_init(void)
 {
 	clk_misc_init();
 
+	/*
+	 * source ssp clock from ref_io0 than ref_xtal,
+	 * as ref_xtal only provides 24 MHz as maximum.
+	 */
+	clk_set_parent(&ssp0_clk, &ref_io0_clk);
+	clk_set_parent(&ssp1_clk, &ref_io0_clk);
+
 	clk_enable(&cpu_clk);
 	clk_enable(&hbus_clk);
 	clk_enable(&xbus_clk);
 	clk_enable(&emi_clk);
 	clk_enable(&uart_clk);
+
+	clk_set_parent(&lcdif_clk, &ref_pix_clk);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
