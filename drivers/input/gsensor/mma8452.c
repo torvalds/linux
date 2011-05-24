@@ -358,6 +358,7 @@ static int mma8452_get_data(struct i2c_client *client)
     struct mma8452_data* mma8452 = i2c_get_clientdata(client);
 	char buffer[6];
 	int ret;
+	int x,y,z;
     struct mma8452_axis axis;
     struct mma8452_platform_data *pdata = pdata = client->dev.platform_data;
 
@@ -371,11 +372,22 @@ static int mma8452_get_data(struct i2c_client *client)
     } while (0);
 
 	mmaprintkd("0x%02x 0x%02x 0x%02x \n",buffer[0],buffer[1],buffer[2]);
+	
+	x = mma8452_convert_to_int(buffer[0]);
+	y = mma8452_convert_to_int(buffer[1]);
+	z = mma8452_convert_to_int(buffer[2]);
 
-	axis.x = mma8452_convert_to_int(buffer[0]);
-	axis.y = mma8452_convert_to_int(buffer[1]);
-	axis.z = mma8452_convert_to_int(buffer[2]);
-
+	if (pdata->swap_xyz) {
+		axis.x = (pdata->orientation[0])*x + (pdata->orientation[1])*y + (pdata->orientation[2])*z;
+		axis.y = (pdata->orientation[3])*x + (pdata->orientation[4])*y + (pdata->orientation[5])*z;	
+		axis.z = (pdata->orientation[6])*x + (pdata->orientation[7])*y + (pdata->orientation[8])*z;
+	}
+	else {
+		axis.x = x;
+		axis.y = y;	
+		axis.z = z;
+	}
+	
 	if(pdata->swap_xy)
 	{
 		axis.y = -axis.y;

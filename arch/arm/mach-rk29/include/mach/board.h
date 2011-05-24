@@ -184,6 +184,8 @@ struct synaptics_platform_data {
 struct mma8452_platform_data {
     u16     model;
 	u16     swap_xy;
+	u16		swap_xyz;
+	signed char orientation[9];
     int     (*get_pendown_state)(void);
     int     (*init_platform_hw)(void);
     int     (*mma8452_platform_sleep)(void);

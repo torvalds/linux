@@ -477,6 +477,10 @@ static int mma8452_init_platform_hw(void)
 static struct mma8452_platform_data mma8452_info = {
   .model= 8452,
   .swap_xy = 0,
+  .swap_xyz = 1,
+  .orientation = {0,1,0,
+  				  0,0,-1,
+  				  1,0,0},
   .init_platform_hw= mma8452_init_platform_hw,
 
 };
