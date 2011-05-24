@@ -727,9 +727,7 @@ unsigned int irq_create_mapping(struct irq_host *host,
 	}
 	pr_debug("irq: -> using host @%p\n", host);
 
-	/* Check if mapping already exist, if it does, call
-	 * host->ops->map() to update the flags
-	 */
+	/* Check if mapping already exists */
 	virq = irq_find_mapping(host, hwirq);
 	if (virq != NO_IRQ) {
 		pr_debug("irq: -> existing mapping on virq %d\n", virq);
