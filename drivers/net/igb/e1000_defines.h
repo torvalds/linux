@@ -437,6 +437,7 @@
 #define E1000_RAH_POOL_1 0x00040000
 
 /* Error Codes */
+#define E1000_SUCCESS      0
 #define E1000_ERR_NVM      1
 #define E1000_ERR_PHY      2
 #define E1000_ERR_CONFIG   3
@@ -587,8 +588,8 @@
 #define E1000_NVM_POLL_READ     0    /* Flag for polling for read complete */
 
 /* NVM Word Offsets */
-#define NVM_ID_LED_SETTINGS        0x0004
-/* For SERDES output amplitude adjustment. */
+#define NVM_COMPAT                 0x0003
+#define NVM_ID_LED_SETTINGS        0x0004 /* SERDES output amplitude */
 #define NVM_INIT_CONTROL2_REG      0x000F
 #define NVM_INIT_CONTROL3_PORT_B   0x0014
 #define NVM_INIT_CONTROL3_PORT_A   0x0024

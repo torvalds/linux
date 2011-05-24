@@ -243,6 +243,8 @@ struct e1000_adv_tx_context_desc {
 #define E1000_DTXCTL_MDP_EN     0x0020
 #define E1000_DTXCTL_SPOOF_INT  0x0040
 
+#define E1000_EEPROM_PCS_AUTONEG_DISABLE_BIT	(1 << 14)
+
 #define ALL_QUEUES   0xFFFF
 
 /* RX packet buffer size defines */

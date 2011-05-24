@@ -1156,10 +1156,13 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 {
 	u32 ctrl_ext, ctrl_reg, reg;
 	bool pcs_autoneg;
+	s32 ret_val = E1000_SUCCESS;
+	u16 data;
 
 	if ((hw->phy.media_type != e1000_media_type_internal_serdes) &&
 	    !igb_sgmii_active_82575(hw))
-		return 0;
+		return ret_val;
+
 
 	/*
 	 * On the 82575, SerDes loopback mode persists until it is
@@ -1203,6 +1206,18 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 		/* disable PCS autoneg and support parallel detect only */
 		pcs_autoneg = false;
 	default:
+		if (hw->mac.type == e1000_82575 ||
+		    hw->mac.type == e1000_82576) {
+			ret_val = hw->nvm.ops.read(hw, NVM_COMPAT, 1, &data);
+			if (ret_val) {
+				printk(KERN_DEBUG "NVM Read Error\n\n");
+				return ret_val;
+			}
+
+			if (data & E1000_EEPROM_PCS_AUTONEG_DISABLE_BIT)
+				pcs_autoneg = false;
+		}
+
 		/*
 		 * non-SGMII modes only supports a speed of 1000/Full for the
 		 * link so it is best to just force the MAC and let the pcs
@@ -1250,7 +1265,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 	if (!igb_sgmii_active_82575(hw))
 		igb_force_mac_fc(hw);
 
-	return 0;
+	return ret_val;
 }
 
 /**
