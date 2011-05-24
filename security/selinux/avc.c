@@ -526,7 +526,7 @@ int avc_audit(u32 ssid, u32 tsid,
 	 * during retry. However this is logically just as if the operation
 	 * happened a little later.
 	 */
-	if ((a->type == LSM_AUDIT_DATA_FS) &&
+	if ((a->type == LSM_AUDIT_DATA_INODE) &&
 	    (flags & IPERM_FLAG_RCU))
 		return -ECHILD;
 
