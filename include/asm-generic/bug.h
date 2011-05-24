@@ -162,6 +162,8 @@ extern void warn_slowpath_null(const char *file, const int line);
 	unlikely(__ret_warn_once);				\
 })
 
+#ifdef CONFIG_PRINTK
+
 #define WARN_ON_RATELIMIT(condition, state)			\
 		WARN_ON((condition) && __ratelimit(state))
 
@@ -180,6 +182,25 @@ extern void warn_slowpath_null(const char *file, const int line);
 				      DEFAULT_RATELIMIT_BURST);	\
 	__WARN_RATELIMIT(condition, &_rs, format);		\
 })
+
+#else
+
+#define WARN_ON_RATELIMIT(condition, state)			\
+	WARN_ON(condition)
+
+#define __WARN_RATELIMIT(condition, state, format...)		\
+({								\
+	int rtn = WARN(condition, format);			\
+	rtn;							\
+})
+
+#define WARN_RATELIMIT(condition, format...)			\
+({								\
+	int rtn = WARN(condition, format);			\
+	rtn;							\
+})
+
+#endif
 
 /*
  * WARN_ON_SMP() is for cases that the warning is either
