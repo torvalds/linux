@@ -114,10 +114,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 				"Dcache:\t\t%ukB\tline length:\t%dB\n",
 				cpuinfo.dcache_size >> 10,
 				cpuinfo.dcache_line_length);
+		seq_printf(m, "Dcache-Policy:\t");
 		if (cpuinfo.dcache_wb)
-			count += seq_printf(m, "\t\twrite-back\n");
+			count += seq_printf(m, "write-back\n");
 		else
-			count += seq_printf(m, "\t\twrite-through\n");
+			count += seq_printf(m, "write-through\n");
 	} else
 		count += seq_printf(m, "Dcache:\t\tno\n");
 
