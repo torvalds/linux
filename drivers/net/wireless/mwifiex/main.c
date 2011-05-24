@@ -35,8 +35,6 @@ static struct mwifiex_bss_attr mwifiex_bss_sta[] = {
 
 static int drv_mode = DRV_MODE_STA;
 
-static char fw_name[32] = DEFAULT_FW_NAME;
-
 /* Supported drv_mode table */
 static struct mwifiex_drv_mode mwifiex_drv_mode_tbl[] = {
 	{
@@ -384,20 +382,8 @@ static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter)
 
 	memset(&fw, 0, sizeof(struct mwifiex_fw_image));
 
-	switch (adapter->revision_id) {
-	case SD8787_W0:
-	case SD8787_W1:
-		strcpy(fw_name, SD8787_W1_FW_NAME);
-		break;
-	case SD8787_A0:
-	case SD8787_A1:
-		strcpy(fw_name, SD8787_AX_FW_NAME);
-		break;
-	default:
-		break;
-	}
-
-	err = request_firmware(&adapter->firmware, fw_name, adapter->dev);
+	err = request_firmware(&adapter->firmware, adapter->fw_name,
+			       adapter->dev);
 	if (err < 0) {
 		dev_err(adapter->dev, "request_firmware() returned"
 				" error code %#x\n", err);

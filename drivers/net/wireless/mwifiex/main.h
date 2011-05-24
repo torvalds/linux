@@ -48,15 +48,6 @@ enum {
 
 #define DRV_MODE_STA       0x1
 
-#define SD8787_W0   0x30
-#define SD8787_W1   0x31
-#define SD8787_A0   0x40
-#define SD8787_A1   0x41
-
-#define DEFAULT_FW_NAME "mrvl/sd8787_uapsta.bin"
-#define SD8787_W1_FW_NAME "mrvl/sd8787_uapsta_w1.bin"
-#define SD8787_AX_FW_NAME "mrvl/sd8787_uapsta.bin"
-
 struct mwifiex_drv_mode {
 	u16 drv_mode;
 	u16 intf_num;
@@ -576,10 +567,10 @@ struct mwifiex_adapter {
 	u8 priv_num;
 	struct mwifiex_drv_mode *drv_mode;
 	const struct firmware *firmware;
+	char fw_name[32];
 	struct device *dev;
 	bool surprise_removed;
 	u32 fw_release_number;
-	u32 revision_id;
 	u16 init_wait_q_woken;
 	wait_queue_head_t init_wait_q;
 	void *card;
