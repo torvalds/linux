@@ -694,7 +694,7 @@ static int pcmciamtd_probe(struct pcmcia_device *link)
 	return pcmciamtd_config(link);
 }
 
-static struct pcmcia_device_id pcmciamtd_ids[] = {
+static const struct pcmcia_device_id pcmciamtd_ids[] = {
 	PCMCIA_DEVICE_FUNC_ID(1),
 	PCMCIA_DEVICE_PROD_ID123("IO DATA", "PCS-2M", "2MB SRAM", 0x547e66dc, 0x1fed36cd, 0x36eadd21),
 	PCMCIA_DEVICE_PROD_ID12("IBM", "2MB SRAM", 0xb569a6e5, 0x36eadd21),
