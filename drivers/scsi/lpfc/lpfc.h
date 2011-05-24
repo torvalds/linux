@@ -487,6 +487,42 @@ struct unsol_rcv_ct_ctx {
 				     (1 << LPFC_USER_LINK_SPEED_AUTO))
 #define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8, 10, 16"
 
+enum nemb_type {
+	nemb_mse = 1,
+	nemb_hbd
+};
+
+enum mbox_type {
+	mbox_rd = 1,
+	mbox_wr
+};
+
+enum dma_type {
+	dma_mbox = 1,
+	dma_ebuf
+};
+
+enum sta_type {
+	sta_pre_addr = 1,
+	sta_pos_addr
+};
+
+struct lpfc_mbox_ext_buf_ctx {
+	uint32_t state;
+#define LPFC_BSG_MBOX_IDLE		0
+#define LPFC_BSG_MBOX_HOST              1
+#define LPFC_BSG_MBOX_PORT		2
+#define LPFC_BSG_MBOX_DONE		3
+#define LPFC_BSG_MBOX_ABTS		4
+	enum nemb_type nembType;
+	enum mbox_type mboxType;
+	uint32_t numBuf;
+	uint32_t mbxTag;
+	uint32_t seqNum;
+	struct lpfc_dmabuf *mbx_dmabuf;
+	struct list_head ext_dmabuf_list;
+};
+
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
 	int (*lpfc_new_scsi_buf)
@@ -590,6 +626,7 @@ struct lpfc_hba {
 
 	MAILBOX_t *mbox;
 	uint32_t *mbox_ext;
+	struct lpfc_mbox_ext_buf_ctx mbox_ext_buf_ctx;
 	uint32_t ha_copy;
 	struct _PCB *pcb;
 	struct _IOCB *IOCBs;
@@ -708,7 +745,6 @@ struct lpfc_hba {
 	uint32_t          *hbq_get;     /* Host mem address of HBQ get ptrs */
 
 	int brd_no;			/* FC board number */
-
 	char SerialNumber[32];		/* adapter Serial Number */
 	char OptionROMVersion[32];	/* adapter BIOS / Fcode version */
 	char ModelDesc[256];		/* Model Description */

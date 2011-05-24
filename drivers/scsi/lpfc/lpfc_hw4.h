@@ -867,6 +867,8 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_FCOE_DELETE_FCF		0x0A
 #define LPFC_MBOX_OPCODE_FCOE_POST_HDR_TEMPLATE		0x0B
 #define LPFC_MBOX_OPCODE_FCOE_REDISCOVER_FCF		0x10
+#define LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_STATE		0x22
+#define LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_LOOPBACK	0x23
 
 /* Mailbox command structures */
 struct eq_context {
@@ -1306,6 +1308,83 @@ struct lpfc_id_range {
 #define lpfc_mbx_rsrc_id_word4_1_SHIFT	16
 #define lpfc_mbx_rsrc_id_word4_1_MASK	0x0000FFFF
 #define lpfc_mbx_rsrc_id_word4_1_WORD	word5
+};
+
+struct lpfc_mbx_set_link_diag_state {
+	struct mbox_header header;
+	union {
+		struct {
+			uint32_t word0;
+#define lpfc_mbx_set_diag_state_diag_SHIFT	0
+#define lpfc_mbx_set_diag_state_diag_MASK	0x00000001
+#define lpfc_mbx_set_diag_state_diag_WORD	word0
+#define lpfc_mbx_set_diag_state_link_num_SHIFT	16
+#define lpfc_mbx_set_diag_state_link_num_MASK	0x0000003F
+#define lpfc_mbx_set_diag_state_link_num_WORD	word0
+#define lpfc_mbx_set_diag_state_link_type_SHIFT 22
+#define lpfc_mbx_set_diag_state_link_type_MASK	0x00000003
+#define lpfc_mbx_set_diag_state_link_type_WORD	word0
+		} req;
+		struct {
+			uint32_t word0;
+		} rsp;
+	} u;
+};
+
+struct lpfc_mbx_set_link_diag_loopback {
+	struct mbox_header header;
+	union {
+		struct {
+			uint32_t word0;
+#define lpfc_mbx_set_diag_lpbk_type_SHIFT	0
+#define lpfc_mbx_set_diag_lpbk_type_MASK	0x00000001
+#define lpfc_mbx_set_diag_lpbk_type_WORD	word0
+#define LPFC_DIAG_LOOPBACK_TYPE_DISABLE		0x0
+#define LPFC_DIAG_LOOPBACK_TYPE_INTERNAL	0x1
+#define LPFC_DIAG_LOOPBACK_TYPE_EXTERNAL	0x2
+#define lpfc_mbx_set_diag_lpbk_link_num_SHIFT	16
+#define lpfc_mbx_set_diag_lpbk_link_num_MASK	0x0000003F
+#define lpfc_mbx_set_diag_lpbk_link_num_WORD	word0
+#define lpfc_mbx_set_diag_lpbk_link_type_SHIFT	22
+#define lpfc_mbx_set_diag_lpbk_link_type_MASK	0x00000003
+#define lpfc_mbx_set_diag_lpbk_link_type_WORD	word0
+		} req;
+		struct {
+			uint32_t word0;
+		} rsp;
+	} u;
+};
+
+struct lpfc_mbx_run_link_diag_test {
+	struct mbox_header header;
+	union {
+		struct {
+			uint32_t word0;
+#define lpfc_mbx_run_diag_test_link_num_SHIFT	16
+#define lpfc_mbx_run_diag_test_link_num_MASK	0x0000003F
+#define lpfc_mbx_run_diag_test_link_num_WORD	word0
+#define lpfc_mbx_run_diag_test_link_type_SHIFT	22
+#define lpfc_mbx_run_diag_test_link_type_MASK	0x00000003
+#define lpfc_mbx_run_diag_test_link_type_WORD	word0
+			uint32_t word1;
+#define lpfc_mbx_run_diag_test_test_id_SHIFT	0
+#define lpfc_mbx_run_diag_test_test_id_MASK	0x0000FFFF
+#define lpfc_mbx_run_diag_test_test_id_WORD	word1
+#define lpfc_mbx_run_diag_test_loops_SHIFT	16
+#define lpfc_mbx_run_diag_test_loops_MASK	0x0000FFFF
+#define lpfc_mbx_run_diag_test_loops_WORD	word1
+			uint32_t word2;
+#define lpfc_mbx_run_diag_test_test_ver_SHIFT	0
+#define lpfc_mbx_run_diag_test_test_ver_MASK	0x0000FFFF
+#define lpfc_mbx_run_diag_test_test_ver_WORD	word2
+#define lpfc_mbx_run_diag_test_err_act_SHIFT	16
+#define lpfc_mbx_run_diag_test_err_act_MASK	0x000000FF
+#define lpfc_mbx_run_diag_test_err_act_WORD	word2
+		} req;
+		struct {
+			uint32_t word0;
+		} rsp;
+	} u;
 };
 
 /*
@@ -2553,6 +2632,9 @@ struct lpfc_mqe {
 		struct lpfc_mbx_supp_pages supp_pages;
 		struct lpfc_mbx_pc_sli4_params sli4_params;
 		struct lpfc_mbx_get_sli4_parameters get_sli4_parameters;
+		struct lpfc_mbx_set_link_diag_state link_diag_state;
+		struct lpfc_mbx_set_link_diag_loopback link_diag_loopback;
+		struct lpfc_mbx_run_link_diag_test link_diag_test;
 		struct lpfc_mbx_get_func_cfg get_func_cfg;
 		struct lpfc_mbx_get_prof_cfg get_prof_cfg;
 		struct lpfc_mbx_nop nop;
