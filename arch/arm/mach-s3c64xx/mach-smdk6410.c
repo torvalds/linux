@@ -209,17 +209,9 @@ static struct platform_device smdk6410_smsc911x = {
 };
 
 #ifdef CONFIG_REGULATOR
-static struct regulator_consumer_supply smdk6410_b_pwr_5v_consumers[] = {
-	{
-		/* WM8580 */
-		.supply = "PVDD",
-		.dev_name = "0-001b",
-	},
-	{
-		/* WM8580 */
-		.supply = "AVDD",
-		.dev_name = "0-001b",
-	},
+static struct regulator_consumer_supply smdk6410_b_pwr_5v_consumers[] __initdata = {
+	REGULATOR_SUPPLY("PVDD", "0-001b"),
+	REGULATOR_SUPPLY("AVDD", "0-001b"),
 };
 
 static struct regulator_init_data smdk6410_b_pwr_5v_data = {
@@ -344,9 +336,7 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 #ifdef CONFIG_REGULATOR
 /* ARM core */
 static struct regulator_consumer_supply smdk6410_vddarm_consumers[] = {
-	{
-		.supply = "vddarm",
-	}
+	REGULATOR_SUPPLY("vddarm", NULL),
 };
 
 /* VDDARM, BUCK1 on J5 */
@@ -484,11 +474,7 @@ static struct regulator_init_data wm8350_dcdc3_data = {
 
 /* USB, EXT, PCM, ADC/DAC, USB, MMC */
 static struct regulator_consumer_supply wm8350_dcdc4_consumers[] = {
-	{
-		/* WM8580 */
-		.supply = "DVDD",
-		.dev_name = "0-001b",
-	},
+	REGULATOR_SUPPLY("DVDD", "0-001b"),
 };
 
 static struct regulator_init_data wm8350_dcdc4_data = {
@@ -599,7 +585,7 @@ static struct regulator_init_data wm1192_dcdc3 = {
 };
 
 static struct regulator_consumer_supply wm1192_ldo1_consumers[] = {
-	{ .supply = "DVDD", .dev_name = "0-001b", },   /* WM8580 */
+	REGULATOR_SUPPLY("DVDD", "0-001b"),   /* WM8580 */
 };
 
 static struct regulator_init_data wm1192_ldo1 = {
