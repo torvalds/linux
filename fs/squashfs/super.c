@@ -261,6 +261,7 @@ allocate_id_index_table:
 		msblk->inode_lookup_table = NULL;
 		goto failed_mount;
 	}
+	next_table = msblk->inode_lookup_table[0];
 
 	sb->s_export_op = &squashfs_export_ops;
 
@@ -278,7 +279,7 @@ handle_fragments:
 
 	/* Allocate and read fragment index table */
 	msblk->fragment_index = squashfs_read_fragment_index_table(sb,
-		le64_to_cpu(sblk->fragment_table_start), fragments);
+		le64_to_cpu(sblk->fragment_table_start), next_table, fragments);
 	if (IS_ERR(msblk->fragment_index)) {
 		ERROR("unable to read fragment index table\n");
 		err = PTR_ERR(msblk->fragment_index);

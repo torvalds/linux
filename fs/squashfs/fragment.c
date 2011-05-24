@@ -71,9 +71,29 @@ int squashfs_frag_lookup(struct super_block *sb, unsigned int fragment,
  * Read the uncompressed fragment lookup table indexes off disk into memory
  */
 __le64 *squashfs_read_fragment_index_table(struct super_block *sb,
-	u64 fragment_table_start, unsigned int fragments)
+	u64 fragment_table_start, u64 next_table, unsigned int fragments)
 {
 	unsigned int length = SQUASHFS_FRAGMENT_INDEX_BYTES(fragments);
+	__le64 *table;
 
-	return squashfs_read_table(sb, fragment_table_start, length);
+	/*
+	 * Sanity check, length bytes should not extend into the next table -
+	 * this check also traps instances where fragment_table_start is
+	 * incorrectly larger than the next table start
+	 */
+	if (fragment_table_start + length > next_table)
+		return ERR_PTR(-EINVAL);
+
+	table = squashfs_read_table(sb, fragment_table_start, length);
+
+	/*
+	 * table[0] points to the first fragment table metadata block, this
+	 * should be less than fragment_table_start
+	 */
+	if (!IS_ERR(table) && table[0] >= fragment_table_start) {
+		kfree(table);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return table;
 }
