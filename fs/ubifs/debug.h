@@ -31,6 +31,8 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
+#include <linux/random.h>
+
 /**
  * ubifs_debug_info - per-FS debugging information.
  * @old_zroot: old index root - used by 'dbg_check_old_index()'
@@ -50,13 +52,15 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
  * @new_ihead_offs: used by debugging to check @c->ihead_offs
  *
  * @saved_lst: saved lprops statistics (used by 'dbg_save_space_info()')
- * @saved_free: saved free space (used by 'dbg_save_space_info()')
+ * @saved_bi: saved budgeting information
+ * @saved_free: saved amount of free space
+ * @saved_idx_gc_cnt: saved value of @c->idx_gc_cnt
  *
- * dfs_dir_name: name of debugfs directory containing this file-system's files
- * dfs_dir: direntry object of the file-system debugfs directory
- * dfs_dump_lprops: "dump lprops" debugfs knob
- * dfs_dump_budg: "dump budgeting information" debugfs knob
- * dfs_dump_tnc: "dump TNC" debugfs knob
+ * @dfs_dir_name: name of debugfs directory containing this file-system's files
+ * @dfs_dir: direntry object of the file-system debugfs directory
+ * @dfs_dump_lprops: "dump lprops" debugfs knob
+ * @dfs_dump_budg: "dump budgeting information" debugfs knob
+ * @dfs_dump_tnc: "dump TNC" debugfs knob
  */
 struct ubifs_debug_info {
 	struct ubifs_zbranch old_zroot;
@@ -76,7 +80,9 @@ struct ubifs_debug_info {
 	int new_ihead_offs;
 
 	struct ubifs_lp_stats saved_lst;
+	struct ubifs_budg_info saved_bi;
 	long long saved_free;
+	int saved_idx_gc_cnt;
 
 	char dfs_dir_name[100];
 	struct dentry *dfs_dir;
@@ -101,23 +107,7 @@ struct ubifs_debug_info {
 	}                                                                      \
 } while (0)
 
-#define dbg_dump_stack() do {                                                  \
-	if (!dbg_failure_mode)                                                 \
-		dump_stack();                                                  \
-} while (0)
-
-/* Generic debugging messages */
-#define dbg_msg(fmt, ...) do {                                                 \
-	spin_lock(&dbg_lock);                                                  \
-	printk(KERN_DEBUG "UBIFS DBG (pid %d): %s: " fmt "\n", current->pid,   \
-	       __func__, ##__VA_ARGS__);                                       \
-	spin_unlock(&dbg_lock);                                                \
-} while (0)
-
-#define dbg_do_msg(typ, fmt, ...) do {                                         \
-	if (ubifs_msg_flags & typ)                                             \
-		dbg_msg(fmt, ##__VA_ARGS__);                                   \
-} while (0)
+#define dbg_dump_stack() dump_stack()
 
 #define dbg_err(fmt, ...) do {                                                 \
 	spin_lock(&dbg_lock);                                                  \
@@ -137,77 +127,40 @@ const char *dbg_key_str1(const struct ubifs_info *c,
 #define DBGKEY(key) dbg_key_str0(c, (key))
 #define DBGKEY1(key) dbg_key_str1(c, (key))
 
+#define ubifs_dbg_msg(type, fmt, ...) do {                        \
+	spin_lock(&dbg_lock);                                     \
+	pr_debug("UBIFS DBG " type ": " fmt "\n", ##__VA_ARGS__); \
+	spin_unlock(&dbg_lock);                                   \
+} while (0)
+
+/* Just a debugging messages not related to any specific UBIFS subsystem */
+#define dbg_msg(fmt, ...)   ubifs_dbg_msg("msg", fmt, ##__VA_ARGS__)
 /* General messages */
-#define dbg_gen(fmt, ...)   dbg_do_msg(UBIFS_MSG_GEN, fmt, ##__VA_ARGS__)
-
+#define dbg_gen(fmt, ...)   ubifs_dbg_msg("gen", fmt, ##__VA_ARGS__)
 /* Additional journal messages */
-#define dbg_jnl(fmt, ...)   dbg_do_msg(UBIFS_MSG_JNL, fmt, ##__VA_ARGS__)
-
+#define dbg_jnl(fmt, ...)   ubifs_dbg_msg("jnl", fmt, ##__VA_ARGS__)
 /* Additional TNC messages */
-#define dbg_tnc(fmt, ...)   dbg_do_msg(UBIFS_MSG_TNC, fmt, ##__VA_ARGS__)
-
+#define dbg_tnc(fmt, ...)   ubifs_dbg_msg("tnc", fmt, ##__VA_ARGS__)
 /* Additional lprops messages */
-#define dbg_lp(fmt, ...)    dbg_do_msg(UBIFS_MSG_LP, fmt, ##__VA_ARGS__)
-
+#define dbg_lp(fmt, ...)    ubifs_dbg_msg("lp", fmt, ##__VA_ARGS__)
 /* Additional LEB find messages */
-#define dbg_find(fmt, ...)  dbg_do_msg(UBIFS_MSG_FIND, fmt, ##__VA_ARGS__)
-
+#define dbg_find(fmt, ...)  ubifs_dbg_msg("find", fmt, ##__VA_ARGS__)
 /* Additional mount messages */
-#define dbg_mnt(fmt, ...)   dbg_do_msg(UBIFS_MSG_MNT, fmt, ##__VA_ARGS__)
-
+#define dbg_mnt(fmt, ...)   ubifs_dbg_msg("mnt", fmt, ##__VA_ARGS__)
 /* Additional I/O messages */
-#define dbg_io(fmt, ...)    dbg_do_msg(UBIFS_MSG_IO, fmt, ##__VA_ARGS__)
-
+#define dbg_io(fmt, ...)    ubifs_dbg_msg("io", fmt, ##__VA_ARGS__)
 /* Additional commit messages */
-#define dbg_cmt(fmt, ...)   dbg_do_msg(UBIFS_MSG_CMT, fmt, ##__VA_ARGS__)
-
+#define dbg_cmt(fmt, ...)   ubifs_dbg_msg("cmt", fmt, ##__VA_ARGS__)
 /* Additional budgeting messages */
-#define dbg_budg(fmt, ...)  dbg_do_msg(UBIFS_MSG_BUDG, fmt, ##__VA_ARGS__)
-
+#define dbg_budg(fmt, ...)  ubifs_dbg_msg("budg", fmt, ##__VA_ARGS__)
 /* Additional log messages */
-#define dbg_log(fmt, ...)   dbg_do_msg(UBIFS_MSG_LOG, fmt, ##__VA_ARGS__)
-
+#define dbg_log(fmt, ...)   ubifs_dbg_msg("log", fmt, ##__VA_ARGS__)
 /* Additional gc messages */
-#define dbg_gc(fmt, ...)    dbg_do_msg(UBIFS_MSG_GC, fmt, ##__VA_ARGS__)
-
+#define dbg_gc(fmt, ...)    ubifs_dbg_msg("gc", fmt, ##__VA_ARGS__)
 /* Additional scan messages */
-#define dbg_scan(fmt, ...)  dbg_do_msg(UBIFS_MSG_SCAN, fmt, ##__VA_ARGS__)
-
+#define dbg_scan(fmt, ...)  ubifs_dbg_msg("scan", fmt, ##__VA_ARGS__)
 /* Additional recovery messages */
-#define dbg_rcvry(fmt, ...) dbg_do_msg(UBIFS_MSG_RCVRY, fmt, ##__VA_ARGS__)
-
-/*
- * Debugging message type flags.
- *
- * UBIFS_MSG_GEN: general messages
- * UBIFS_MSG_JNL: journal messages
- * UBIFS_MSG_MNT: mount messages
- * UBIFS_MSG_CMT: commit messages
- * UBIFS_MSG_FIND: LEB find messages
- * UBIFS_MSG_BUDG: budgeting messages
- * UBIFS_MSG_GC: garbage collection messages
- * UBIFS_MSG_TNC: TNC messages
- * UBIFS_MSG_LP: lprops messages
- * UBIFS_MSG_IO: I/O messages
- * UBIFS_MSG_LOG: log messages
- * UBIFS_MSG_SCAN: scan messages
- * UBIFS_MSG_RCVRY: recovery messages
- */
-enum {
-	UBIFS_MSG_GEN   = 0x1,
-	UBIFS_MSG_JNL   = 0x2,
-	UBIFS_MSG_MNT   = 0x4,
-	UBIFS_MSG_CMT   = 0x8,
-	UBIFS_MSG_FIND  = 0x10,
-	UBIFS_MSG_BUDG  = 0x20,
-	UBIFS_MSG_GC    = 0x40,
-	UBIFS_MSG_TNC   = 0x80,
-	UBIFS_MSG_LP    = 0x100,
-	UBIFS_MSG_IO    = 0x200,
-	UBIFS_MSG_LOG   = 0x400,
-	UBIFS_MSG_SCAN  = 0x800,
-	UBIFS_MSG_RCVRY = 0x1000,
-};
+#define dbg_rcvry(fmt, ...) ubifs_dbg_msg("rcvry", fmt, ##__VA_ARGS__)
 
 /*
  * Debugging check flags.
@@ -233,11 +186,9 @@ enum {
 /*
  * Special testing flags.
  *
- * UBIFS_TST_FORCE_IN_THE_GAPS: force the use of in-the-gaps method
  * UBIFS_TST_RCVRY: failure mode for recovery testing
  */
 enum {
-	UBIFS_TST_FORCE_IN_THE_GAPS = 0x2,
 	UBIFS_TST_RCVRY             = 0x4,
 };
 
@@ -262,7 +213,7 @@ void dbg_dump_lpt_node(const struct ubifs_info *c, void *node, int lnum,
 		       int offs);
 void dbg_dump_budget_req(const struct ubifs_budget_req *req);
 void dbg_dump_lstats(const struct ubifs_lp_stats *lst);
-void dbg_dump_budg(struct ubifs_info *c);
+void dbg_dump_budg(struct ubifs_info *c, const struct ubifs_budg_info *bi);
 void dbg_dump_lprop(const struct ubifs_info *c, const struct ubifs_lprops *lp);
 void dbg_dump_lprops(struct ubifs_info *c);
 void dbg_dump_lpt_info(struct ubifs_info *c);
@@ -304,18 +255,16 @@ int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head);
 int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head);
 
 /* Force the use of in-the-gaps method for testing */
-
-#define dbg_force_in_the_gaps_enabled \
-	(ubifs_tst_flags & UBIFS_TST_FORCE_IN_THE_GAPS)
-
+static inline int dbg_force_in_the_gaps_enabled(void)
+{
+	return ubifs_chk_flags & UBIFS_CHK_GEN;
+}
 int dbg_force_in_the_gaps(void);
 
 /* Failure mode for recovery testing */
-
 #define dbg_failure_mode (ubifs_tst_flags & UBIFS_TST_RCVRY)
 
 #ifndef UBIFS_DBG_PRESERVE_UBI
-
 #define ubi_leb_read   dbg_leb_read
 #define ubi_leb_write  dbg_leb_write
 #define ubi_leb_change dbg_leb_change
@@ -323,7 +272,6 @@ int dbg_force_in_the_gaps(void);
 #define ubi_leb_unmap  dbg_leb_unmap
 #define ubi_is_mapped  dbg_is_mapped
 #define ubi_leb_map    dbg_leb_map
-
 #endif
 
 int dbg_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
@@ -370,33 +318,33 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c);
 		       __func__, __LINE__, current->pid);                      \
 } while (0)
 
-#define dbg_err(fmt, ...)   do {                                               \
-	if (0)                                                                 \
-		ubifs_err(fmt, ##__VA_ARGS__);                                 \
+#define dbg_err(fmt, ...)   do {                   \
+	if (0)                                     \
+		ubifs_err(fmt, ##__VA_ARGS__);     \
 } while (0)
 
-#define dbg_msg(fmt, ...) do {                                                 \
-	if (0)                                                                 \
-		printk(KERN_DEBUG "UBIFS DBG (pid %d): %s: " fmt "\n",         \
-		       current->pid, __func__, ##__VA_ARGS__);                 \
+#define ubifs_dbg_msg(fmt, ...) do {               \
+	if (0)                                     \
+		pr_debug(fmt "\n", ##__VA_ARGS__); \
 } while (0)
 
 #define dbg_dump_stack()
 #define ubifs_assert_cmt_locked(c)
 
-#define dbg_gen(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_jnl(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_tnc(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_lp(fmt, ...)    dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_find(fmt, ...)  dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_mnt(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_io(fmt, ...)    dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_cmt(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_budg(fmt, ...)  dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_log(fmt, ...)   dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_gc(fmt, ...)    dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_scan(fmt, ...)  dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_rcvry(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_msg(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_gen(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_jnl(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_tnc(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_lp(fmt, ...)    ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_find(fmt, ...)  ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_mnt(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_io(fmt, ...)    ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_cmt(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_budg(fmt, ...)  ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_log(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_gc(fmt, ...)    ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_scan(fmt, ...)  ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_rcvry(fmt, ...) ubifs_dbg_msg(fmt, ##__VA_ARGS__)
 
 #define DBGKEY(key)  ((char *)(key))
 #define DBGKEY1(key) ((char *)(key))
@@ -420,7 +368,9 @@ static inline void
 dbg_dump_budget_req(const struct ubifs_budget_req *req)           { return; }
 static inline void
 dbg_dump_lstats(const struct ubifs_lp_stats *lst)                 { return; }
-static inline void dbg_dump_budg(struct ubifs_info *c)            { return; }
+static inline void
+dbg_dump_budg(struct ubifs_info *c,
+	      const struct ubifs_budg_info *bi)                   { return; }
 static inline void dbg_dump_lprop(const struct ubifs_info *c,
 				  const struct ubifs_lprops *lp)  { return; }
 static inline void dbg_dump_lprops(struct ubifs_info *c)          { return; }
@@ -482,8 +432,8 @@ dbg_check_nondata_nodes_order(struct ubifs_info *c,
 			      struct list_head *head)             { return 0; }
 
 static inline int dbg_force_in_the_gaps(void)                     { return 0; }
-#define dbg_force_in_the_gaps_enabled 0
-#define dbg_failure_mode              0
+#define dbg_force_in_the_gaps_enabled() 0
+#define dbg_failure_mode                0
 
 static inline int dbg_debugfs_init(void)                          { return 0; }
 static inline void dbg_debugfs_exit(void)                         { return; }

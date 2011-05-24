@@ -252,8 +252,8 @@ int ubifs_find_dirty_leb(struct ubifs_info *c, struct ubifs_lprops *ret_lp,
 		 * But if the index takes fewer LEBs than it is reserved for it,
 		 * this function must avoid picking those reserved LEBs.
 		 */
-		if (c->min_idx_lebs >= c->lst.idx_lebs) {
-			rsvd_idx_lebs = c->min_idx_lebs -  c->lst.idx_lebs;
+		if (c->bi.min_idx_lebs >= c->lst.idx_lebs) {
+			rsvd_idx_lebs = c->bi.min_idx_lebs -  c->lst.idx_lebs;
 			exclude_index = 1;
 		}
 		spin_unlock(&c->space_lock);
@@ -276,7 +276,7 @@ int ubifs_find_dirty_leb(struct ubifs_info *c, struct ubifs_lprops *ret_lp,
 			pick_free = 0;
 	} else {
 		spin_lock(&c->space_lock);
-		exclude_index = (c->min_idx_lebs >= c->lst.idx_lebs);
+		exclude_index = (c->bi.min_idx_lebs >= c->lst.idx_lebs);
 		spin_unlock(&c->space_lock);
 	}
 
@@ -501,8 +501,8 @@ int ubifs_find_free_space(struct ubifs_info *c, int min_space, int *offs,
 
 	/* Check if there are enough empty LEBs for commit */
 	spin_lock(&c->space_lock);
-	if (c->min_idx_lebs > c->lst.idx_lebs)
-		rsvd_idx_lebs = c->min_idx_lebs -  c->lst.idx_lebs;
+	if (c->bi.min_idx_lebs > c->lst.idx_lebs)
+		rsvd_idx_lebs = c->bi.min_idx_lebs -  c->lst.idx_lebs;
 	else
 		rsvd_idx_lebs = 0;
 	lebs = c->lst.empty_lebs + c->freeable_cnt + c->idx_gc_cnt -
