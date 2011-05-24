@@ -192,50 +192,31 @@ struct irq_host *iic_get_irq_host(int node)
 }
 EXPORT_SYMBOL_GPL(iic_get_irq_host);
 
-static irqreturn_t iic_ipi_action(int irq, void *dev_id)
-{
-	int ipi = (int)(long)dev_id;
-
-	switch(ipi) {
-	case PPC_MSG_CALL_FUNCTION:
-		generic_smp_call_function_interrupt();
-		break;
-	case PPC_MSG_RESCHEDULE:
-		scheduler_ipi();
-		break;
-	case PPC_MSG_CALL_FUNC_SINGLE:
-		generic_smp_call_function_single_interrupt();
-		break;
-	case PPC_MSG_DEBUGGER_BREAK:
-		debug_ipi_action(0, NULL);
-		break;
-	}
-	return IRQ_HANDLED;
-}
-static void iic_request_ipi(int ipi, const char *name)
+static void iic_request_ipi(int ipi)
 {
 	int virq;
 
 	virq = irq_create_mapping(iic_host, iic_ipi_to_irq(ipi));
 	if (virq == NO_IRQ) {
 		printk(KERN_ERR
-		       "iic: failed to map IPI %s\n", name);
+		       "iic: failed to map IPI %s\n", smp_ipi_name[ipi]);
 		return;
 	}
-	if (request_irq(virq, iic_ipi_action, IRQF_DISABLED, name,
-			(void *)(long)ipi))
-		printk(KERN_ERR
-		       "iic: failed to request IPI %s\n", name);
+
+	/*
+	 * If smp_request_message_ipi encounters an error it will notify
+	 * the error.  If a message is not needed it will return non-zero.
+	 */
+	if (smp_request_message_ipi(virq, ipi))
+		irq_dispose_mapping(virq);
 }
 
 void iic_request_IPIs(void)
 {
-	iic_request_ipi(PPC_MSG_CALL_FUNCTION, "IPI-call");
-	iic_request_ipi(PPC_MSG_RESCHEDULE, "IPI-resched");
-	iic_request_ipi(PPC_MSG_CALL_FUNC_SINGLE, "IPI-call-single");
-#ifdef CONFIG_DEBUGGER
-	iic_request_ipi(PPC_MSG_DEBUGGER_BREAK, "IPI-debug");
-#endif /* CONFIG_DEBUGGER */
+	iic_request_ipi(PPC_MSG_CALL_FUNCTION);
+	iic_request_ipi(PPC_MSG_RESCHEDULE);
+	iic_request_ipi(PPC_MSG_CALL_FUNC_SINGLE);
+	iic_request_ipi(PPC_MSG_DEBUGGER_BREAK);
 }
 
 #endif /* CONFIG_SMP */
