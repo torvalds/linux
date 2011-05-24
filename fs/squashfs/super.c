@@ -214,6 +214,24 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
+	/* Handle xattrs */
+	sb->s_xattr = squashfs_xattr_handlers;
+	xattr_id_table_start = le64_to_cpu(sblk->xattr_id_table_start);
+	if (xattr_id_table_start == SQUASHFS_INVALID_BLK)
+		goto allocate_id_index_table;
+
+	/* Allocate and read xattr id lookup table */
+	msblk->xattr_id_table = squashfs_read_xattr_id_table(sb,
+		xattr_id_table_start, &msblk->xattr_table, &msblk->xattr_ids);
+	if (IS_ERR(msblk->xattr_id_table)) {
+		ERROR("unable to read xattr id index table\n");
+		err = PTR_ERR(msblk->xattr_id_table);
+		msblk->xattr_id_table = NULL;
+		if (err != -ENOTSUPP)
+			goto failed_mount;
+	}
+
+allocate_id_index_table:
 	/* Allocate and read id index table */
 	msblk->id_table = squashfs_read_id_index_table(sb,
 		le64_to_cpu(sblk->id_table_start), le16_to_cpu(sblk->no_ids));
@@ -224,9 +242,27 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
+	/* Handle inode lookup table */
+	lookup_table_start = le64_to_cpu(sblk->lookup_table_start);
+	if (lookup_table_start == SQUASHFS_INVALID_BLK)
+		goto handle_fragments;
+
+	/* Allocate and read inode lookup table */
+	msblk->inode_lookup_table = squashfs_read_inode_lookup_table(sb,
+		lookup_table_start, msblk->inodes);
+	if (IS_ERR(msblk->inode_lookup_table)) {
+		ERROR("unable to read inode lookup table\n");
+		err = PTR_ERR(msblk->inode_lookup_table);
+		msblk->inode_lookup_table = NULL;
+		goto failed_mount;
+	}
+
+	sb->s_export_op = &squashfs_export_ops;
+
+handle_fragments:
 	fragments = le32_to_cpu(sblk->fragments);
 	if (fragments == 0)
-		goto allocate_lookup_table;
+		goto allocate_root;
 
 	msblk->fragment_cache = squashfs_cache_init("fragment",
 		SQUASHFS_CACHED_FRAGMENTS, msblk->block_size);
@@ -245,39 +281,6 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
-allocate_lookup_table:
-	lookup_table_start = le64_to_cpu(sblk->lookup_table_start);
-	if (lookup_table_start == SQUASHFS_INVALID_BLK)
-		goto allocate_xattr_table;
-
-	/* Allocate and read inode lookup table */
-	msblk->inode_lookup_table = squashfs_read_inode_lookup_table(sb,
-		lookup_table_start, msblk->inodes);
-	if (IS_ERR(msblk->inode_lookup_table)) {
-		ERROR("unable to read inode lookup table\n");
-		err = PTR_ERR(msblk->inode_lookup_table);
-		msblk->inode_lookup_table = NULL;
-		goto failed_mount;
-	}
-
-	sb->s_export_op = &squashfs_export_ops;
-
-allocate_xattr_table:
-	sb->s_xattr = squashfs_xattr_handlers;
-	xattr_id_table_start = le64_to_cpu(sblk->xattr_id_table_start);
-	if (xattr_id_table_start == SQUASHFS_INVALID_BLK)
-		goto allocate_root;
-
-	/* Allocate and read xattr id lookup table */
-	msblk->xattr_id_table = squashfs_read_xattr_id_table(sb,
-		xattr_id_table_start, &msblk->xattr_table, &msblk->xattr_ids);
-	if (IS_ERR(msblk->xattr_id_table)) {
-		ERROR("unable to read xattr id index table\n");
-		err = PTR_ERR(msblk->xattr_id_table);
-		msblk->xattr_id_table = NULL;
-		if (err != -ENOTSUPP)
-			goto failed_mount;
-	}
 allocate_root:
 	root = new_inode(sb);
 	if (!root) {
