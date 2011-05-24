@@ -625,10 +625,8 @@ struct ecryptfs_open_req {
 	struct list_head kthread_ctl_list;
 };
 
-#define ECRYPTFS_INTERPOSE_FLAG_D_ADD                 0x00000001
-int ecryptfs_interpose(struct dentry *hidden_dentry,
-		       struct dentry *this_dentry, struct super_block *sb,
-		       u32 flags);
+struct inode *ecryptfs_get_inode(struct inode *lower_inode,
+				 struct super_block *sb);
 void ecryptfs_i_size_init(const char *page_virt, struct inode *inode);
 int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 					struct dentry *lower_dentry,
@@ -679,9 +677,6 @@ int
 ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			  unsigned char *src, struct dentry *ecryptfs_dentry);
 int ecryptfs_truncate(struct dentry *dentry, loff_t new_length);
-int ecryptfs_inode_test(struct inode *inode, void *candidate_lower_inode);
-int ecryptfs_inode_set(struct inode *inode, void *lower_inode);
-void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode);
 ssize_t
 ecryptfs_getxattr_lower(struct dentry *lower_dentry, const char *name,
 			void *value, size_t size);
