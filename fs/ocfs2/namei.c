@@ -810,9 +810,6 @@ static int ocfs2_unlink(struct inode *dir,
 			   (unsigned long long)OCFS2_I(dir)->ip_blkno,
 			   (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
-	if (S_ISDIR(inode->i_mode))
-		dentry_unhash(dentry);
-
 	dquot_initialize(dir);
 
 	BUG_ON(dentry->d_parent->d_inode != dir);
@@ -1065,9 +1062,6 @@ static int ocfs2_rename(struct inode *old_dir,
 	struct ocfs2_dir_lookup_result old_entry_lookup = { NULL, };
 	struct ocfs2_dir_lookup_result orphan_insert = { NULL, };
 	struct ocfs2_dir_lookup_result target_insert = { NULL, };
-
-	if (new_inode && S_ISDIR(new_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	/* At some point it might be nice to break this function up a
 	 * bit. */
