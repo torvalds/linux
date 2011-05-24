@@ -579,7 +579,11 @@ enum ib_qp_type {
 	IB_QPT_UC,
 	IB_QPT_UD,
 	IB_QPT_RAW_IPV6,
-	IB_QPT_RAW_ETHERTYPE
+	IB_QPT_RAW_ETHERTYPE,
+	/* Save 8 for RAW_PACKET */
+	IB_QPT_XRC_INI = 9,
+	IB_QPT_XRC_TGT,
+	IB_QPT_MAX
 };
 
 enum ib_qp_create_flags {
@@ -593,6 +597,7 @@ struct ib_qp_init_attr {
 	struct ib_cq	       *send_cq;
 	struct ib_cq	       *recv_cq;
 	struct ib_srq	       *srq;
+	struct ib_xrcd	       *xrcd;     /* XRC TGT QPs only */
 	struct ib_qp_cap	cap;
 	enum ib_sig_type	sq_sig_type;
 	enum ib_qp_type		qp_type;
@@ -784,6 +789,7 @@ struct ib_send_wr {
 			u32				rkey;
 		} fast_reg;
 	} wr;
+	u32			xrc_remote_srq_num;	/* XRC TGT QPs only */
 };
 
 struct ib_recv_wr {
@@ -919,6 +925,7 @@ struct ib_qp {
 	struct ib_cq	       *send_cq;
 	struct ib_cq	       *recv_cq;
 	struct ib_srq	       *srq;
+	struct ib_xrcd	       *xrcd; /* XRC TGT QPs only */
 	struct ib_uobject      *uobject;
 	void                  (*event_handler)(struct ib_event *, void *);
 	void		       *qp_context;
