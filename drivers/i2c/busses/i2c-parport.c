@@ -2,13 +2,13 @@
  * i2c-parport.c I2C bus over parallel port                                 *
  * ------------------------------------------------------------------------ *
    Copyright (C) 2003-2011 Jean Delvare <khali@linux-fr.org>
-   
+
    Based on older i2c-philips-par.c driver
    Copyright (C) 1995-2000 Simon G. Vogl
    With some changes from:
    Frodo Looijaard <frodol@dds.nl>
    Kyösti Mälkki <kmalkki@cc.hut.fi>
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
@@ -78,13 +78,13 @@ static unsigned char port_read_control(struct parport *p)
 	return parport_read_control(p);
 }
 
-static void (*port_write[])(struct parport *, unsigned char) = {
+static void (* const port_write[])(struct parport *, unsigned char) = {
 	port_write_data,
 	NULL,
 	port_write_control,
 };
 
-static unsigned char (*port_read[])(struct parport *) = {
+static unsigned char (* const port_read[])(struct parport *) = {
 	port_read_data,
 	port_read_status,
 	port_read_control,
@@ -147,7 +147,7 @@ static const struct i2c_algo_bit_data parport_algo_data = {
 	.getscl		= parport_getscl,
 	.udelay		= 10, /* ~50 kbps */
 	.timeout	= HZ,
-}; 
+};
 
 /* ----- I2c and parallel port call-back functions and structures --------- */
 
@@ -164,10 +164,10 @@ void i2c_parport_irq(void *data)
 			"SMBus alert received but no ARA client!\n");
 }
 
-static void i2c_parport_attach (struct parport *port)
+static void i2c_parport_attach(struct parport *port)
 {
 	struct i2c_par *adapter;
-	
+
 	adapter = kzalloc(sizeof(struct i2c_par), GFP_KERNEL);
 	if (adapter == NULL) {
 		printk(KERN_ERR "i2c-parport: Failed to kzalloc\n");
@@ -180,7 +180,7 @@ static void i2c_parport_attach (struct parport *port)
 		NULL, NULL, i2c_parport_irq, PARPORT_FLAG_EXCL, adapter);
 	if (!adapter->pdev) {
 		printk(KERN_ERR "i2c-parport: Unable to register with parport\n");
-		goto ERROR0;
+		goto err_free;
 	}
 
 	/* Fill the rest of the structure */
@@ -200,7 +200,7 @@ static void i2c_parport_attach (struct parport *port)
 
 	if (parport_claim_or_block(adapter->pdev) < 0) {
 		printk(KERN_ERR "i2c-parport: Could not claim parallel port\n");
-		goto ERROR1;
+		goto err_unregister;
 	}
 
 	/* Reset hardware to a sane state (SCL and SDA high) */
@@ -215,7 +215,7 @@ static void i2c_parport_attach (struct parport *port)
 
 	if (i2c_bit_add_bus(&adapter->adapter) < 0) {
 		printk(KERN_ERR "i2c-parport: Unable to register with I2C\n");
-		goto ERROR1;
+		goto err_unregister;
 	}
 
 	/* Setup SMBus alert if supported */
@@ -234,16 +234,16 @@ static void i2c_parport_attach (struct parport *port)
 	mutex_lock(&adapter_list_lock);
 	list_add_tail(&adapter->node, &adapter_list);
 	mutex_unlock(&adapter_list_lock);
-        return;
+	return;
 
-ERROR1:
+ err_unregister:
 	parport_release(adapter->pdev);
 	parport_unregister_device(adapter->pdev);
-ERROR0:
+ err_free:
 	kfree(adapter);
 }
 
-static void i2c_parport_detach (struct parport *port)
+static void i2c_parport_detach(struct parport *port)
 {
 	struct i2c_par *adapter, *_n;
 
@@ -260,7 +260,7 @@ static void i2c_parport_detach (struct parport *port)
 			/* Un-init if needed (power off...) */
 			if (adapter_parm[type].init.val)
 				line_set(port, 0, &adapter_parm[type].init);
-				
+
 			parport_release(adapter->pdev);
 			parport_unregister_device(adapter->pdev);
 			list_del(&adapter->node);

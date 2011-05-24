@@ -79,6 +79,7 @@ config I2C_AMD8111
 config I2C_I801
 	tristate "Intel 82801 (ICH/PCH)"
 	depends on PCI
+	select CHECK_SIGNATURE if X86 && DMI
 	help
 	  If you say yes to this option, support will be included for the Intel
 	  801 family of mainboard I2C interfaces.  Specifically, the following
@@ -101,6 +102,7 @@ config I2C_I801
 	    6 Series (PCH)
 	    Patsburg (PCH)
 	    DH89xxCC (PCH)
+	    Panther Point (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
