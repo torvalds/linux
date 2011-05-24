@@ -1201,24 +1201,19 @@ int ecryptfs_cipher_code_to_string(char *str, u8 cipher_code)
 	return rc;
 }
 
-int ecryptfs_read_and_validate_header_region(char *data,
-					     struct inode *ecryptfs_inode)
+int ecryptfs_read_and_validate_header_region(struct inode *inode)
 {
-	struct ecryptfs_crypt_stat *crypt_stat =
-		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
+	u8 file_size[ECRYPTFS_SIZE_AND_MARKER_BYTES];
+	u8 *marker = file_size + ECRYPTFS_FILE_SIZE_BYTES;
 	int rc;
 
-	if (crypt_stat->extent_size == 0)
-		crypt_stat->extent_size = ECRYPTFS_DEFAULT_EXTENT_SIZE;
-	rc = ecryptfs_read_lower(data, 0, crypt_stat->extent_size,
-				 ecryptfs_inode);
-	if (rc < 0) {
-		printk(KERN_ERR "%s: Error reading header region; rc = [%d]\n",
-		       __func__, rc);
-		goto out;
-	}
-	rc = ecryptfs_validate_marker(data + ECRYPTFS_FILE_SIZE_BYTES);
-out:
+	rc = ecryptfs_read_lower(file_size, 0, ECRYPTFS_SIZE_AND_MARKER_BYTES,
+				 inode);
+	if (rc < ECRYPTFS_SIZE_AND_MARKER_BYTES)
+		return rc >= 0 ? -EINVAL : rc;
+	rc = ecryptfs_validate_marker(marker);
+	if (!rc)
+		ecryptfs_i_size_init(file_size, inode);
 	return rc;
 }
 
@@ -1562,19 +1557,21 @@ out:
 	return rc;
 }
 
-int ecryptfs_read_and_validate_xattr_region(char *page_virt,
+int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
 					    struct inode *inode)
 {
+	u8 file_size[ECRYPTFS_SIZE_AND_MARKER_BYTES];
+	u8 *marker = file_size + ECRYPTFS_FILE_SIZE_BYTES;
 	int rc;
 
-	rc = ecryptfs_read_xattr_region(page_virt, inode);
-	if (rc)
-		goto out;
-	rc = ecryptfs_validate_marker(page_virt + ECRYPTFS_FILE_SIZE_BYTES);
-	if (rc)
-		printk(KERN_WARNING "Valid data found in [%s] xattr, but "
-			"the marker is invalid\n", ECRYPTFS_XATTR_NAME);
-out:
+	rc = ecryptfs_getxattr_lower(ecryptfs_dentry_to_lower(dentry),
+				     ECRYPTFS_XATTR_NAME, file_size,
+				     ECRYPTFS_SIZE_AND_MARKER_BYTES);
+	if (rc < ECRYPTFS_SIZE_AND_MARKER_BYTES)
+		return rc >= 0 ? -EINVAL : rc;
+	rc = ecryptfs_validate_marker(marker);
+	if (!rc)
+		ecryptfs_i_size_init(file_size, inode);
 	return rc;
 }
 

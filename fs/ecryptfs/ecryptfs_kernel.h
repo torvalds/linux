@@ -200,6 +200,8 @@ ecryptfs_get_key_payload_data(struct key *key)
 #define MAGIC_ECRYPTFS_MARKER 0x3c81b7f5
 #define MAGIC_ECRYPTFS_MARKER_SIZE_BYTES 8	/* 4*2 */
 #define ECRYPTFS_FILE_SIZE_BYTES (sizeof(u64))
+#define ECRYPTFS_SIZE_AND_MARKER_BYTES (ECRYPTFS_FILE_SIZE_BYTES \
+					+ MAGIC_ECRYPTFS_MARKER_SIZE_BYTES)
 #define ECRYPTFS_DEFAULT_CIPHER "aes"
 #define ECRYPTFS_DEFAULT_KEY_BYTES 16
 #define ECRYPTFS_DEFAULT_HASH "md5"
@@ -659,9 +661,8 @@ int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry);
 void ecryptfs_write_crypt_stat_flags(char *page_virt,
 				     struct ecryptfs_crypt_stat *crypt_stat,
 				     size_t *written);
-int ecryptfs_read_and_validate_header_region(char *data,
-					     struct inode *ecryptfs_inode);
-int ecryptfs_read_and_validate_xattr_region(char *page_virt,
+int ecryptfs_read_and_validate_header_region(struct inode *inode);
+int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
 					    struct inode *inode);
 u8 ecryptfs_code_for_cipher_string(char *cipher_name, size_t key_bytes);
 int ecryptfs_cipher_code_to_string(char *str, u8 cipher_code);
