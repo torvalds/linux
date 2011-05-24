@@ -3434,7 +3434,9 @@ static void cx_auto_parse_output(struct hda_codec *codec)
 			break;
 		}
 	}
-	if (spec->auto_mute && cfg->line_out_pins[0] &&
+	if (spec->auto_mute &&
+	    cfg->line_out_pins[0] &&
+	    cfg->line_out_type != AUTO_PIN_SPEAKER_OUT &&
 	    cfg->line_out_pins[0] != cfg->hp_pins[0] &&
 	    cfg->line_out_pins[0] != cfg->speaker_pins[0]) {
 		for (i = 0; i < cfg->line_outs; i++) {
@@ -3482,25 +3484,32 @@ static void cx_auto_update_speakers(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int on;
+	int on = 1;
 
-	if (!spec->auto_mute)
-		on = 0;
-	else
-		on = spec->hp_present | spec->line_present;
+	/* turn on HP EAPD when HP jacks are present */
+	if (spec->auto_mute)
+		on = spec->hp_present;
 	cx_auto_turn_eapd(codec, cfg->hp_outs, cfg->hp_pins, on);
-	do_automute(codec, cfg->speaker_outs, cfg->speaker_pins, !on);
+	/* mute speakers in auto-mode if HP or LO jacks are plugged */
+	if (spec->auto_mute)
+		on = !(spec->hp_present ||
+		       (spec->detect_line && spec->line_present));
+	do_automute(codec, cfg->speaker_outs, cfg->speaker_pins, on);
 
 	/* toggle line-out mutes if needed, too */
 	/* if LO is a copy of either HP or Speaker, don't need to handle it */
 	if (cfg->line_out_pins[0] == cfg->hp_pins[0] ||
 	    cfg->line_out_pins[0] == cfg->speaker_pins[0])
 		return;
-	if (!spec->automute_lines || !spec->auto_mute)
-		on = 0;
-	else
-		on = spec->hp_present;
-	do_automute(codec, cfg->line_outs, cfg->line_out_pins, !on);
+	if (spec->auto_mute) {
+		/* mute LO in auto-mode when HP jack is present */
+		if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT ||
+		    spec->automute_lines)
+			on = !spec->hp_present;
+		else
+			on = 1;
+	}
+	do_automute(codec, cfg->line_outs, cfg->line_out_pins, on);
 }
 
 static void cx_auto_hp_automute(struct hda_codec *codec)
