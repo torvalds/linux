@@ -76,11 +76,6 @@ struct iwl_cmd;
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2011 Intel Corporation"
 #define DRV_AUTHOR     "<ilw@linux.intel.com>"
 
-#define IWL_PCI_DEVICE(dev, subdev, cfg) \
-	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \
-	.subvendor = PCI_ANY_ID, .subdevice = (subdev), \
-	.driver_data = (kernel_ulong_t)&(cfg)
-
 #define TIME_UNIT		1024
 
 #define IWL_CMD(x) case x: return #x
@@ -495,16 +490,8 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 			   u32 addon, u32 beacon_interval);
 
 #ifdef CONFIG_PM
-int iwl_pci_suspend(struct device *device);
-int iwl_pci_resume(struct device *device);
-extern const struct dev_pm_ops iwl_pm_ops;
-
-#define IWL_PM_OPS	(&iwl_pm_ops)
-
-#else /* !CONFIG_PM */
-
-#define IWL_PM_OPS	NULL
-
+int iwl_suspend(struct iwl_priv *priv);
+int iwl_resume(struct iwl_priv *priv);
 #endif /* !CONFIG_PM */
 
 /*****************************************************

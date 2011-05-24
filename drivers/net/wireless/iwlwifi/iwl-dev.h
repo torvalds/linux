@@ -48,6 +48,8 @@
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
 
+#define DRV_NAME        "iwlagn"
+
 struct iwl_tx_queue;
 
 /* CT-KILL constants */

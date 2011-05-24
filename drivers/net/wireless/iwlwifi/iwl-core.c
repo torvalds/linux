@@ -1948,11 +1948,8 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 
 #ifdef CONFIG_PM
 
-int iwl_pci_suspend(struct device *device)
+int iwl_suspend(struct iwl_priv *priv)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_priv *priv = pci_get_drvdata(pdev);
-
 	/*
 	 * This function is called when system goes into suspend state
 	 * mac80211 will call iwl_mac_stop() from the mac80211 suspend function
@@ -1965,17 +1962,9 @@ int iwl_pci_suspend(struct device *device)
 	return 0;
 }
 
-int iwl_pci_resume(struct device *device)
+int iwl_resume(struct iwl_priv *priv)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_priv *priv = pci_get_drvdata(pdev);
 	bool hw_rfkill = false;
-
-	/*
-	 * We disable the RETRY_TIMEOUT register (0x41) to keep
-	 * PCI Tx retries from interfering with C3 CPU state.
-	 */
-	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
 
 	iwl_enable_interrupts(priv);
 
@@ -1992,14 +1981,5 @@ int iwl_pci_resume(struct device *device)
 
 	return 0;
 }
-
-const struct dev_pm_ops iwl_pm_ops = {
-	.suspend = iwl_pci_suspend,
-	.resume = iwl_pci_resume,
-	.freeze = iwl_pci_suspend,
-	.thaw = iwl_pci_resume,
-	.poweroff = iwl_pci_suspend,
-	.restore = iwl_pci_resume,
-};
 
 #endif /* CONFIG_PM */
