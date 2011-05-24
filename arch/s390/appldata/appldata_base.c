@@ -130,9 +130,7 @@ static void appldata_work_fn(struct work_struct *work)
 {
 	struct list_head *lh;
 	struct appldata_ops *ops;
-	int i;
 
-	i = 0;
 	get_online_cpus();
 	mutex_lock(&appldata_ops_mutex);
 	list_for_each(lh, &appldata_ops_list) {

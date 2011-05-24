@@ -308,7 +308,7 @@ static inline void SetPageUptodate(struct page *page)
 {
 #ifdef CONFIG_S390
 	if (!test_and_set_bit(PG_uptodate, &page->flags))
-		page_clear_dirty(page, 0);
+		page_set_storage_key(page_to_pfn(page), PAGE_DEFAULT_KEY, 0);
 #else
 	/*
 	 * Memory barrier must be issued before setting the PG_uptodate bit,

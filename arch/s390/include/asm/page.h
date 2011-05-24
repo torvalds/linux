@@ -90,6 +90,7 @@ static inline void copy_page(void *to, void *from)
  */
 
 typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct { unsigned long pgste; } pgste_t;
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pmd; } pmd_t;
 typedef struct { unsigned long pud; } pud_t;
@@ -97,18 +98,21 @@ typedef struct { unsigned long pgd; } pgd_t;
 typedef pte_t *pgtable_t;
 
 #define pgprot_val(x)	((x).pgprot)
+#define pgste_val(x)	((x).pgste)
 #define pte_val(x)	((x).pte)
 #define pmd_val(x)	((x).pmd)
 #define pud_val(x)	((x).pud)
 #define pgd_val(x)      ((x).pgd)
 
+#define __pgste(x)	((pgste_t) { (x) } )
 #define __pte(x)        ((pte_t) { (x) } )
 #define __pmd(x)        ((pmd_t) { (x) } )
+#define __pud(x)	((pud_t) { (x) } )
 #define __pgd(x)        ((pgd_t) { (x) } )
 #define __pgprot(x)     ((pgprot_t) { (x) } )
 
-static inline void
-page_set_storage_key(unsigned long addr, unsigned int skey, int mapped)
+static inline void page_set_storage_key(unsigned long addr,
+					unsigned char skey, int mapped)
 {
 	if (!mapped)
 		asm volatile(".insn rrf,0xb22b0000,%0,%1,8,0"
@@ -117,13 +121,57 @@ page_set_storage_key(unsigned long addr, unsigned int skey, int mapped)
 		asm volatile("sske %0,%1" : : "d" (skey), "a" (addr));
 }
 
-static inline unsigned int
-page_get_storage_key(unsigned long addr)
+static inline unsigned char page_get_storage_key(unsigned long addr)
 {
-	unsigned int skey;
+	unsigned char skey;
 
-	asm volatile("iske %0,%1" : "=d" (skey) : "a" (addr), "0" (0));
+	asm volatile("iske %0,%1" : "=d" (skey) : "a" (addr));
 	return skey;
+}
+
+static inline int page_reset_referenced(unsigned long addr)
+{
+	unsigned int ipm;
+
+	asm volatile(
+		"	rrbe	0,%1\n"
+		"	ipm	%0\n"
+		: "=d" (ipm) : "a" (addr) : "cc");
+	return !!(ipm & 0x20000000);
+}
+
+/* Bits int the storage key */
+#define _PAGE_CHANGED		0x02	/* HW changed bit		*/
+#define _PAGE_REFERENCED	0x04	/* HW referenced bit		*/
+#define _PAGE_FP_BIT		0x08	/* HW fetch protection bit	*/
+#define _PAGE_ACC_BITS		0xf0	/* HW access control bits	*/
+
+/*
+ * Test and clear dirty bit in storage key.
+ * We can't clear the changed bit atomically. This is a potential
+ * race against modification of the referenced bit. This function
+ * should therefore only be called if it is not mapped in any
+ * address space.
+ */
+#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
+static inline int page_test_and_clear_dirty(unsigned long pfn, int mapped)
+{
+	unsigned char skey;
+
+	skey = page_get_storage_key(pfn << PAGE_SHIFT);
+	if (!(skey & _PAGE_CHANGED))
+		return 0;
+	page_set_storage_key(pfn << PAGE_SHIFT, skey & ~_PAGE_CHANGED, mapped);
+	return 1;
+}
+
+/*
+ * Test and clear referenced bit in storage key.
+ */
+#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
+static inline int page_test_and_clear_young(unsigned long pfn)
+{
+	return page_reset_referenced(pfn << PAGE_SHIFT);
 }
 
 struct page;
