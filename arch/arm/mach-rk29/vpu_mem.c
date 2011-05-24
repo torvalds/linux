@@ -813,8 +813,12 @@ void vpu_mem_cache_opt(struct file *file, long index, unsigned int cmd)
 		return;
 
 	down_read(&vdm_rwsem);
-    {
+    do {
         vdm_link *link = find_used_link(session, index);
+        if (NULL == link) {
+            pr_err("vpu_mem_cache_opt on non-exsist index %ld\n", index);
+            break;
+        }
         start = vpu_mem.vbase + index * VPU_MEM_MIN_ALLOC;
         end   = start + link->pfn * VPU_MEM_MIN_ALLOC;;
         switch (cmd) {
@@ -833,7 +837,7 @@ void vpu_mem_cache_opt(struct file *file, long index, unsigned int cmd)
         default :
             break;
         }
-    }
+    } while (0);
     up_read(&vdm_rwsem);
 }
 
@@ -1023,6 +1027,8 @@ static long vpu_mem_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		{
 			if (copy_from_user(&index, (void __user *)arg, sizeof(index)))
 				return -EFAULT;
+            if (index < 0)
+                return -EINVAL;
 			vpu_mem_cache_opt(file, index, cmd);
 			break;
 		}
