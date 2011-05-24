@@ -1007,13 +1007,22 @@ void irq_free_virt(unsigned int virq, unsigned int count)
 	WARN_ON (virq < NUM_ISA_INTERRUPTS);
 	WARN_ON (count == 0 || (virq + count) > irq_virq_count);
 
+	if (virq < NUM_ISA_INTERRUPTS) {
+		if (virq + count < NUM_ISA_INTERRUPTS)
+			return;
+		count  =- NUM_ISA_INTERRUPTS - virq;
+		virq = NUM_ISA_INTERRUPTS;
+	}
+
+	if (count > irq_virq_count || virq > irq_virq_count - count) {
+		if (virq > irq_virq_count)
+			return;
+		count = irq_virq_count - virq;
+	}
+
 	raw_spin_lock_irqsave(&irq_big_lock, flags);
 	for (i = virq; i < (virq + count); i++) {
 		struct irq_host *host;
-
-		if (i < NUM_ISA_INTERRUPTS ||
-		    (virq + count) > irq_virq_count)
-			continue;
 
 		host = irq_map[i].host;
 		irq_map[i].hwirq = host->inval_irq;
