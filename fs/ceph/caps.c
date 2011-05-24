@@ -2635,6 +2635,7 @@ static void handle_cap_export(struct inode *inode, struct ceph_mds_caps *ex,
 			      struct ceph_mds_session *session,
 			      int *open_target_sessions)
 {
+	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int mds = session->s_mds;
 	unsigned mseq = le32_to_cpu(ex->migrate_seq);
@@ -2671,6 +2672,19 @@ static void handle_cap_export(struct inode *inode, struct ceph_mds_caps *ex,
 			 * export targets, so that we get the matching IMPORT
 			 */
 			*open_target_sessions = 1;
+
+			/*
+			 * we can't flush dirty caps that we've seen the
+			 * EXPORT but no IMPORT for
+			 */
+			spin_lock(&mdsc->cap_dirty_lock);
+			if (!list_empty(&ci->i_dirty_item)) {
+				dout(" moving %p to cap_dirty_migrating\n",
+				     inode);
+				list_move(&ci->i_dirty_item,
+					  &mdsc->cap_dirty_migrating);
+			}
+			spin_unlock(&mdsc->cap_dirty_lock);
 		}
 		__ceph_remove_cap(cap);
 	}
@@ -2708,6 +2722,13 @@ static void handle_cap_import(struct ceph_mds_client *mdsc,
 		ci->i_cap_exporting_issued = 0;
 		ci->i_cap_exporting_mseq = 0;
 		ci->i_cap_exporting_mds = -1;
+
+		spin_lock(&mdsc->cap_dirty_lock);
+		if (!list_empty(&ci->i_dirty_item)) {
+			dout(" moving %p back to cap_dirty\n", inode);
+			list_move(&ci->i_dirty_item, &mdsc->cap_dirty);
+		}
+		spin_unlock(&mdsc->cap_dirty_lock);
 	} else {
 		dout("handle_cap_import inode %p ci %p mds%d mseq %d\n",
 		     inode, ci, mds, mseq);
@@ -2911,38 +2932,16 @@ void ceph_check_delayed_caps(struct ceph_mds_client *mdsc)
  */
 void ceph_flush_dirty_caps(struct ceph_mds_client *mdsc)
 {
-	struct ceph_inode_info *ci, *nci = NULL;
-	struct inode *inode, *ninode = NULL;
-	struct list_head *p, *n;
+	struct ceph_inode_info *ci;
+	struct inode *inode;
 
 	dout("flush_dirty_caps\n");
 	spin_lock(&mdsc->cap_dirty_lock);
-	list_for_each_safe(p, n, &mdsc->cap_dirty) {
-		if (nci) {
-			ci = nci;
-			inode = ninode;
-			ci->i_ceph_flags &= ~CEPH_I_NOFLUSH;
-			dout("flush_dirty_caps inode %p (was next inode)\n",
-			     inode);
-		} else {
-			ci = list_entry(p, struct ceph_inode_info,
-					i_dirty_item);
-			inode = igrab(&ci->vfs_inode);
-			BUG_ON(!inode);
-			dout("flush_dirty_caps inode %p\n", inode);
-		}
-		if (n != &mdsc->cap_dirty) {
-			nci = list_entry(n, struct ceph_inode_info,
-					 i_dirty_item);
-			ninode = igrab(&nci->vfs_inode);
-			BUG_ON(!ninode);
-			nci->i_ceph_flags |= CEPH_I_NOFLUSH;
-			dout("flush_dirty_caps next inode %p, noflush\n",
-			     ninode);
-		} else {
-			nci = NULL;
-			ninode = NULL;
-		}
+	while (!list_empty(&mdsc->cap_dirty)) {
+		ci = list_first_entry(&mdsc->cap_dirty, struct ceph_inode_info,
+				      i_dirty_item);
+		inode = igrab(&ci->vfs_inode);
+		dout("flush_dirty_caps %p\n", inode);
 		spin_unlock(&mdsc->cap_dirty_lock);
 		if (inode) {
 			ceph_check_caps(ci, CHECK_CAPS_NODELAY|CHECK_CAPS_FLUSH,
@@ -2952,6 +2951,7 @@ void ceph_flush_dirty_caps(struct ceph_mds_client *mdsc)
 		spin_lock(&mdsc->cap_dirty_lock);
 	}
 	spin_unlock(&mdsc->cap_dirty_lock);
+	dout("flush_dirty_caps done\n");
 }
 
 /*
