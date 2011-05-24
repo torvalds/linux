@@ -212,7 +212,6 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 	lpfc_vpd_data = kmalloc(DMP_VPD_SIZE, GFP_KERNEL);
 	if (!lpfc_vpd_data)
 		goto out_free_mbox;
-
 	do {
 		lpfc_dump_mem(phba, pmb, offset, DMP_REGION_VPD);
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
@@ -603,7 +602,6 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 			/* Clear all pending interrupts */
 			writel(0xffffffff, phba->HAregaddr);
 			readl(phba->HAregaddr); /* flush */
-
 			phba->link_state = LPFC_HBA_ERROR;
 			if (rc != MBX_BUSY)
 				mempool_free(pmb, phba->mbox_mem_pool);
@@ -2690,6 +2688,7 @@ lpfc_scsi_free(struct lpfc_hba *phba)
 		kfree(io);
 		phba->total_iocbq_bufs--;
 	}
+
 	spin_unlock_irq(&phba->hbalock);
 	return 0;
 }
@@ -3646,6 +3645,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
 			"2718 Clear Virtual Link Received for VPI 0x%x"
 			" tag 0x%x\n", acqe_fip->index, acqe_fip->event_tag);
+
 		vport = lpfc_find_vport_by_vpid(phba,
 				acqe_fip->index - phba->vpi_base);
 		ndlp = lpfc_sli4_perform_vport_cvl(vport);
@@ -4319,7 +4319,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	spin_lock_init(&phba->sli4_hba.abts_sgl_list_lock);
 
 	/*
-	 * Initialize dirver internal slow-path work queues
+	 * Initialize driver internal slow-path work queues
 	 */
 
 	/* Driver internel slow-path CQ Event pool */
@@ -4334,6 +4334,12 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_els_xri_aborted_work_queue);
 	/* Receive queue CQ Event work queue list */
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_unsol_work_queue);
+
+	/* Initialize extent block lists. */
+	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_rpi_blk_list);
+	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_xri_blk_list);
+	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_vfi_blk_list);
+	INIT_LIST_HEAD(&phba->lpfc_vpi_blk_list);
 
 	/* Initialize the driver internal SLI layer lists. */
 	lpfc_sli_setup(phba);
@@ -4409,9 +4415,19 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	}
 	/*
 	 * Get sli4 parameters that override parameters from Port capabilities.
-	 * If this call fails it is not a critical error so continue loading.
+	 * If this call fails, it isn't critical unless the SLI4 parameters come
+	 * back in conflict.
 	 */
-	lpfc_get_sli4_parameters(phba, mboxq);
+	rc = lpfc_get_sli4_parameters(phba, mboxq);
+	if (rc) {
+		if (phba->sli4_hba.extents_in_use &&
+		    phba->sli4_hba.rpi_hdrs_in_use) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2999 Unsupported SLI4 Parameters "
+				"Extents and RPI headers enabled.\n");
+			goto out_free_bsmbx;
+		}
+	}
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	/* Create all the SLI4 queues */
 	rc = lpfc_sli4_queue_create(phba);
@@ -4436,7 +4452,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 				"1430 Failed to initialize sgl list.\n");
 		goto out_free_sgl_list;
 	}
-
 	rc = lpfc_sli4_init_rpi_hdrs(phba);
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -4554,6 +4569,9 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 	/* Free the completion queue EQ event pool */
 	lpfc_sli4_cq_event_release_all(phba);
 	lpfc_sli4_cq_event_pool_destroy(phba);
+
+	/* Release resource identifiers. */
+	lpfc_sli4_dealloc_resource_identifiers(phba);
 
 	/* Free the bsmbx region. */
 	lpfc_destroy_bootstrap_mbox(phba);
@@ -4755,6 +4773,7 @@ lpfc_init_iocb_list(struct lpfc_hba *phba, int iocb_count)
 				"Unloading driver.\n", __func__);
 			goto out_free_iocbq;
 		}
+		iocbq_entry->sli4_lxritag = NO_XRI;
 		iocbq_entry->sli4_xritag = NO_XRI;
 
 		spin_lock_irq(&phba->hbalock);
@@ -4852,7 +4871,7 @@ lpfc_init_sgl_list(struct lpfc_hba *phba)
 
 	els_xri_cnt = lpfc_sli4_get_els_iocb_cnt(phba);
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-				"2400 lpfc_init_sgl_list els %d.\n",
+				"2400 ELS XRI count %d.\n",
 				els_xri_cnt);
 	/* Initialize and populate the sglq list per host/VF. */
 	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_sgl_list);
@@ -4885,7 +4904,6 @@ lpfc_init_sgl_list(struct lpfc_hba *phba)
 	phba->sli4_hba.scsi_xri_max =
 			phba->sli4_hba.max_cfg_param.max_xri - els_xri_cnt;
 	phba->sli4_hba.scsi_xri_cnt = 0;
-
 	phba->sli4_hba.lpfc_scsi_psb_array =
 			kzalloc((sizeof(struct lpfc_scsi_buf *) *
 			phba->sli4_hba.scsi_xri_max), GFP_KERNEL);
@@ -4908,13 +4926,6 @@ lpfc_init_sgl_list(struct lpfc_hba *phba)
 			goto out_free_mem;
 		}
 
-		sglq_entry->sli4_xritag = lpfc_sli4_next_xritag(phba);
-		if (sglq_entry->sli4_xritag == NO_XRI) {
-			kfree(sglq_entry);
-			printk(KERN_ERR "%s: failed to allocate XRI.\n"
-				"Unloading driver.\n", __func__);
-			goto out_free_mem;
-		}
 		sglq_entry->buff_type = GEN_BUFF_TYPE;
 		sglq_entry->virt = lpfc_mbuf_alloc(phba, 0, &sglq_entry->phys);
 		if (sglq_entry->virt == NULL) {
@@ -4963,24 +4974,20 @@ int
 lpfc_sli4_init_rpi_hdrs(struct lpfc_hba *phba)
 {
 	int rc = 0;
-	int longs;
-	uint16_t rpi_count;
 	struct lpfc_rpi_hdr *rpi_hdr;
 
 	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_rpi_hdr_list);
-
 	/*
-	 * Provision an rpi bitmask range for discovery. The total count
-	 * is the difference between max and base + 1.
+	 * If the SLI4 port supports extents, posting the rpi header isn't
+	 * required.  Set the expected maximum count and let the actual value
+	 * get set when extents are fully allocated.
 	 */
-	rpi_count = phba->sli4_hba.max_cfg_param.rpi_base +
-		    phba->sli4_hba.max_cfg_param.max_rpi - 1;
-
-	longs = ((rpi_count) + BITS_PER_LONG - 1) / BITS_PER_LONG;
-	phba->sli4_hba.rpi_bmask = kzalloc(longs * sizeof(unsigned long),
-					   GFP_KERNEL);
-	if (!phba->sli4_hba.rpi_bmask)
-		return -ENOMEM;
+	if (!phba->sli4_hba.rpi_hdrs_in_use) {
+		phba->sli4_hba.next_rpi = phba->sli4_hba.max_cfg_param.max_rpi;
+		return rc;
+	}
+	if (phba->sli4_hba.extents_in_use)
+		return -EIO;
 
 	rpi_hdr = lpfc_sli4_create_rpi_hdr(phba);
 	if (!rpi_hdr) {
@@ -5014,11 +5021,28 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	struct lpfc_rpi_hdr *rpi_hdr;
 	uint32_t rpi_count;
 
+	/*
+	 * If the SLI4 port supports extents, posting the rpi header isn't
+	 * required.  Set the expected maximum count and let the actual value
+	 * get set when extents are fully allocated.
+	 */
+	if (!phba->sli4_hba.rpi_hdrs_in_use)
+		return NULL;
+	if (phba->sli4_hba.extents_in_use)
+		return NULL;
+
+	/* The limit on the logical index is just the max_rpi count. */
 	rpi_limit = phba->sli4_hba.max_cfg_param.rpi_base +
-		    phba->sli4_hba.max_cfg_param.max_rpi - 1;
+	phba->sli4_hba.max_cfg_param.max_rpi - 1;
 
 	spin_lock_irq(&phba->hbalock);
-	curr_rpi_range = phba->sli4_hba.next_rpi;
+	/*
+	 * Establish the starting RPI in this header block.  The starting
+	 * rpi is normalized to a zero base because the physical rpi is
+	 * port based.
+	 */
+	curr_rpi_range = phba->sli4_hba.next_rpi -
+		phba->sli4_hba.max_cfg_param.rpi_base;
 	spin_unlock_irq(&phba->hbalock);
 
 	/*
@@ -5031,6 +5055,8 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	else
 		rpi_count = LPFC_RPI_HDR_COUNT;
 
+	if (!rpi_count)
+		return NULL;
 	/*
 	 * First allocate the protocol header region for the port.  The
 	 * port expects a 4KB DMA-mapped memory region that is 4K aligned.
@@ -5063,12 +5089,14 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	rpi_hdr->len = LPFC_HDR_TEMPLATE_SIZE;
 	rpi_hdr->page_count = 1;
 	spin_lock_irq(&phba->hbalock);
-	rpi_hdr->start_rpi = phba->sli4_hba.next_rpi;
+
+	/* The rpi_hdr stores the logical index only. */
+	rpi_hdr->start_rpi = curr_rpi_range;
 	list_add_tail(&rpi_hdr->list, &phba->sli4_hba.lpfc_rpi_hdr_list);
 
 	/*
-	 * The next_rpi stores the next module-64 rpi value to post
-	 * in any subsequent rpi memory region postings.
+	 * The next_rpi stores the next logical module-64 rpi value used
+	 * to post physical rpis in subsequent rpi postings.
 	 */
 	phba->sli4_hba.next_rpi += rpi_count;
 	spin_unlock_irq(&phba->hbalock);
@@ -5087,14 +5115,17 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to remove all memory resources allocated
- * to support rpis. This routine presumes the caller has released all
- * rpis consumed by fabric or port logins and is prepared to have
- * the header pages removed.
+ * to support rpis for SLI4 ports not supporting extents. This routine
+ * presumes the caller has released all rpis consumed by fabric or port
+ * logins and is prepared to have the header pages removed.
  **/
 void
 lpfc_sli4_remove_rpi_hdrs(struct lpfc_hba *phba)
 {
 	struct lpfc_rpi_hdr *rpi_hdr, *next_rpi_hdr;
+
+	if (!phba->sli4_hba.rpi_hdrs_in_use)
+		goto exit;
 
 	list_for_each_entry_safe(rpi_hdr, next_rpi_hdr,
 				 &phba->sli4_hba.lpfc_rpi_hdr_list, list) {
@@ -5104,7 +5135,9 @@ lpfc_sli4_remove_rpi_hdrs(struct lpfc_hba *phba)
 		kfree(rpi_hdr->dmabuf);
 		kfree(rpi_hdr);
 	}
-	phba->sli4_hba.next_rpi = phba->sli4_hba.max_cfg_param.rpi_base;
+ exit:
+	/* There are no rpis available to the port now. */
+	phba->sli4_hba.next_rpi = 0;
 }
 
 /**
@@ -5873,6 +5906,8 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		rc = -EIO;
 	} else {
 		rd_config = &pmb->u.mqe.un.rd_config;
+		phba->sli4_hba.extents_in_use =
+			bf_get(lpfc_mbx_rd_conf_extnts_inuse, rd_config);
 		phba->sli4_hba.max_cfg_param.max_xri =
 			bf_get(lpfc_mbx_rd_conf_xri_count, rd_config);
 		phba->sli4_hba.max_cfg_param.xri_base =
@@ -5891,8 +5926,6 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 			bf_get(lpfc_mbx_rd_conf_vfi_base, rd_config);
 		phba->sli4_hba.max_cfg_param.max_fcfi =
 			bf_get(lpfc_mbx_rd_conf_fcfi_count, rd_config);
-		phba->sli4_hba.max_cfg_param.fcfi_base =
-			bf_get(lpfc_mbx_rd_conf_fcfi_base, rd_config);
 		phba->sli4_hba.max_cfg_param.max_eq =
 			bf_get(lpfc_mbx_rd_conf_eq_count, rd_config);
 		phba->sli4_hba.max_cfg_param.max_rq =
@@ -5910,11 +5943,13 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				(phba->sli4_hba.max_cfg_param.max_vpi - 1) : 0;
 		phba->max_vports = phba->max_vpi;
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-				"2003 cfg params XRI(B:%d M:%d), "
+				"2003 cfg params Extents? %d "
+				"XRI(B:%d M:%d), "
 				"VPI(B:%d M:%d) "
 				"VFI(B:%d M:%d) "
 				"RPI(B:%d M:%d) "
-				"FCFI(B:%d M:%d)\n",
+				"FCFI(Count:%d)\n",
+				phba->sli4_hba.extents_in_use,
 				phba->sli4_hba.max_cfg_param.xri_base,
 				phba->sli4_hba.max_cfg_param.max_xri,
 				phba->sli4_hba.max_cfg_param.vpi_base,
@@ -5923,7 +5958,6 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				phba->sli4_hba.max_cfg_param.max_vfi,
 				phba->sli4_hba.max_cfg_param.rpi_base,
 				phba->sli4_hba.max_cfg_param.max_rpi,
-				phba->sli4_hba.max_cfg_param.fcfi_base,
 				phba->sli4_hba.max_cfg_param.max_fcfi);
 	}
 
@@ -8104,6 +8138,13 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	int length;
 	struct lpfc_sli4_parameters *mbx_sli4_parameters;
 
+	/*
+	 * By default, the driver assumes the SLI4 port requires RPI
+	 * header postings.  The SLI4_PARAM response will correct this
+	 * assumption.
+	 */
+	phba->sli4_hba.rpi_hdrs_in_use = 1;
+
 	/* Read the port's SLI4 Config Parameters */
 	length = (sizeof(struct lpfc_mbx_get_sli4_parameters) -
 		  sizeof(struct lpfc_sli4_cfg_mhdr));
@@ -8140,6 +8181,8 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					    mbx_sli4_parameters);
 	sli4_params->sgl_pp_align = bf_get(cfg_sgl_pp_align,
 					   mbx_sli4_parameters);
+	phba->sli4_hba.extents_in_use = bf_get(cfg_ext, mbx_sli4_parameters);
+	phba->sli4_hba.rpi_hdrs_in_use = bf_get(cfg_hdrr, mbx_sli4_parameters);
 
 	/* Make sure that sge_supp_len can be handled by the driver */
 	if (sli4_params->sge_supp_len > LPFC_MAX_SGE_SIZE)

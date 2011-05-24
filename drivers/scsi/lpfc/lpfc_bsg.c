@@ -332,6 +332,8 @@ lpfc_bsg_send_mgmt_cmd(struct fc_bsg_job *job)
 	cmd->ulpLe = 1;
 	cmd->ulpClass = CLASS3;
 	cmd->ulpContext = ndlp->nlp_rpi;
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		cmd->ulpContext = phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
 	cmd->ulpOwner = OWN_CHIP;
 	cmdiocbq->vport = phba->pport;
 	cmdiocbq->context3 = bmp;
@@ -1336,6 +1338,10 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct fc_bsg_job *job, uint32_t tag,
 		}
 
 		icmd->un.ulpWord[3] = ndlp->nlp_rpi;
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			icmd->ulpContext =
+				phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
+
 		/* The exchange is done, mark the entry as invalid */
 		phba->ct_ctx[tag].flags &= ~UNSOL_VALID;
 	} else

@@ -64,6 +64,8 @@
 #define SLI3_IOCB_CMD_SIZE	128
 #define SLI3_IOCB_RSP_SIZE	64
 
+#define LPFC_UNREG_ALL_RPIS_VPORT	0xffff
+#define LPFC_UNREG_ALL_DFLT_RPIS	0xffffffff
 
 /* vendor ID used in SCSI netlink calls */
 #define LPFC_NL_VENDOR_ID (SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX)

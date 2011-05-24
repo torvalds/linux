@@ -229,9 +229,26 @@ struct ulp_bde64 {
 
 struct lpfc_sli4_flags {
 	uint32_t word0;
-#define lpfc_fip_flag_SHIFT 0
-#define lpfc_fip_flag_MASK 0x00000001
-#define lpfc_fip_flag_WORD word0
+#define lpfc_idx_rsrc_rdy_SHIFT		0
+#define lpfc_idx_rsrc_rdy_MASK		0x00000001
+#define lpfc_idx_rsrc_rdy_WORD		word0
+#define LPFC_IDX_RSRC_RDY		1
+#define lpfc_xri_rsrc_rdy_SHIFT		1
+#define lpfc_xri_rsrc_rdy_MASK		0x00000001
+#define lpfc_xri_rsrc_rdy_WORD		word0
+#define LPFC_XRI_RSRC_RDY		1
+#define lpfc_rpi_rsrc_rdy_SHIFT		2
+#define lpfc_rpi_rsrc_rdy_MASK		0x00000001
+#define lpfc_rpi_rsrc_rdy_WORD		word0
+#define LPFC_RPI_RSRC_RDY		1
+#define lpfc_vpi_rsrc_rdy_SHIFT		3
+#define lpfc_vpi_rsrc_rdy_MASK		0x00000001
+#define lpfc_vpi_rsrc_rdy_WORD		word0
+#define LPFC_VPI_RSRC_RDY		1
+#define lpfc_vfi_rsrc_rdy_SHIFT		4
+#define lpfc_vfi_rsrc_rdy_MASK		0x00000001
+#define lpfc_vfi_rsrc_rdy_WORD		word0
+#define LPFC_VFI_RSRC_RDY		1
 };
 
 struct sli4_bls_rsp {
@@ -791,11 +808,21 @@ union lpfc_sli4_cfg_shdr {
 	} response;
 };
 
-/* Mailbox structures */
+/* Mailbox Header structures.
+ * struct mbox_header is defined for first generation SLI4_CFG mailbox
+ * calls deployed for BE-based ports.
+ *
+ * struct sli4_mbox_header is defined for second generation SLI4
+ * ports that don't deploy the SLI4_CFG mechanism.
+ */
 struct mbox_header {
 	struct lpfc_sli4_cfg_mhdr cfg_mhdr;
 	union  lpfc_sli4_cfg_shdr cfg_shdr;
 };
+
+#define LPFC_EXTENT_LOCAL		0
+#define LPFC_TIMEOUT_DEFAULT		0
+#define LPFC_EXTENT_VERSION_DEFAULT	0
 
 /* Subsystem Definitions */
 #define LPFC_MBOX_SUBSYSTEM_COMMON	0x1
@@ -819,6 +846,10 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_QUERY_FW_CFG		0x3A
 #define LPFC_MBOX_OPCODE_FUNCTION_RESET		0x3D
 #define LPFC_MBOX_OPCODE_MQ_CREATE_EXT		0x5A
+#define LPFC_MBOX_OPCODE_GET_RSRC_EXTENT_INFO	0x9A
+#define LPFC_MBOX_OPCODE_GET_ALLOC_RSRC_EXTENT	0x9B
+#define LPFC_MBOX_OPCODE_ALLOC_RSRC_EXTENT	0x9C
+#define LPFC_MBOX_OPCODE_DEALLOC_RSRC_EXTENT	0x9D
 #define LPFC_MBOX_OPCODE_GET_FUNCTION_CONFIG    0xA0
 #define LPFC_MBOX_OPCODE_GET_PROFILE_CONFIG	0xA4
 #define LPFC_MBOX_OPCODE_WRITE_OBJECT		0xAC
@@ -1237,6 +1268,110 @@ struct lpfc_mbx_mq_destroy {
 		} response;
 	} u;
 };
+
+/* Start Gen 2 SLI4 Mailbox definitions: */
+
+/* Define allocate-ready Gen 2 SLI4 FCoE Resource Extent Types. */
+#define LPFC_RSC_TYPE_FCOE_VFI	0x20
+#define LPFC_RSC_TYPE_FCOE_VPI	0x21
+#define LPFC_RSC_TYPE_FCOE_RPI	0x22
+#define LPFC_RSC_TYPE_FCOE_XRI	0x23
+
+struct lpfc_mbx_get_rsrc_extent_info {
+	struct mbox_header header;
+	union {
+		struct {
+			uint32_t word4;
+#define lpfc_mbx_get_rsrc_extent_info_type_SHIFT	0
+#define lpfc_mbx_get_rsrc_extent_info_type_MASK		0x0000FFFF
+#define lpfc_mbx_get_rsrc_extent_info_type_WORD		word4
+		} req;
+		struct {
+			uint32_t word4;
+#define lpfc_mbx_get_rsrc_extent_info_cnt_SHIFT		0
+#define lpfc_mbx_get_rsrc_extent_info_cnt_MASK		0x0000FFFF
+#define lpfc_mbx_get_rsrc_extent_info_cnt_WORD		word4
+#define lpfc_mbx_get_rsrc_extent_info_size_SHIFT	16
+#define lpfc_mbx_get_rsrc_extent_info_size_MASK		0x0000FFFF
+#define lpfc_mbx_get_rsrc_extent_info_size_WORD		word4
+		} rsp;
+	} u;
+};
+
+struct lpfc_id_range {
+	uint32_t word5;
+#define lpfc_mbx_rsrc_id_word4_0_SHIFT	0
+#define lpfc_mbx_rsrc_id_word4_0_MASK	0x0000FFFF
+#define lpfc_mbx_rsrc_id_word4_0_WORD	word5
+#define lpfc_mbx_rsrc_id_word4_1_SHIFT	16
+#define lpfc_mbx_rsrc_id_word4_1_MASK	0x0000FFFF
+#define lpfc_mbx_rsrc_id_word4_1_WORD	word5
+};
+
+/*
+ * struct lpfc_mbx_alloc_rsrc_extents:
+ * A mbox is generically 256 bytes long. An SLI4_CONFIG mailbox requires
+ * 6 words of header + 4 words of shared subcommand header +
+ * 1 words of Extent-Opcode-specific header = 11 words or 44 bytes total.
+ *
+ * An embedded version of SLI4_CONFIG therefore has 256 - 44 = 212 bytes
+ * for extents payload.
+ *
+ * 212/2 (bytes per extent) = 106 extents.
+ * 106/2 (extents per word) = 53 words.
+ * lpfc_id_range id is statically size to 53.
+ *
+ * This mailbox definition is used for ALLOC or GET_ALLOCATED
+ * extent ranges.  For ALLOC, the type and cnt are required.
+ * For GET_ALLOCATED, only the type is required.
+ */
+struct lpfc_mbx_alloc_rsrc_extents {
+	struct mbox_header header;
+	union {
+		struct {
+			uint32_t word4;
+#define lpfc_mbx_alloc_rsrc_extents_type_SHIFT	0
+#define lpfc_mbx_alloc_rsrc_extents_type_MASK	0x0000FFFF
+#define lpfc_mbx_alloc_rsrc_extents_type_WORD	word4
+#define lpfc_mbx_alloc_rsrc_extents_cnt_SHIFT	16
+#define lpfc_mbx_alloc_rsrc_extents_cnt_MASK	0x0000FFFF
+#define lpfc_mbx_alloc_rsrc_extents_cnt_WORD	word4
+		} req;
+		struct {
+			uint32_t word4;
+#define lpfc_mbx_rsrc_cnt_SHIFT	0
+#define lpfc_mbx_rsrc_cnt_MASK	0x0000FFFF
+#define lpfc_mbx_rsrc_cnt_WORD	word4
+			struct lpfc_id_range id[53];
+		} rsp;
+	} u;
+};
+
+/*
+ * This is the non-embedded version of ALLOC or GET RSRC_EXTENTS. Word4 in this
+ * structure shares the same SHIFT/MASK/WORD defines provided in the
+ * mbx_alloc_rsrc_extents and mbx_get_alloc_rsrc_extents, word4, provided in
+ * the structures defined above.  This non-embedded structure provides for the
+ * maximum number of extents supported by the port.
+ */
+struct lpfc_mbx_nembed_rsrc_extent {
+	union  lpfc_sli4_cfg_shdr cfg_shdr;
+	uint32_t word4;
+	struct lpfc_id_range id;
+};
+
+struct lpfc_mbx_dealloc_rsrc_extents {
+	struct mbox_header header;
+	struct {
+		uint32_t word4;
+#define lpfc_mbx_dealloc_rsrc_extents_type_SHIFT	0
+#define lpfc_mbx_dealloc_rsrc_extents_type_MASK		0x0000FFFF
+#define lpfc_mbx_dealloc_rsrc_extents_type_WORD		word4
+	} req;
+
+};
+
+/* Start SLI4 FCoE specific mbox structures. */
 
 struct lpfc_mbx_post_hdr_tmpl {
 	struct mbox_header header;
@@ -1801,61 +1936,31 @@ struct lpfc_mbx_read_rev {
 
 struct lpfc_mbx_read_config {
 	uint32_t word1;
-#define lpfc_mbx_rd_conf_max_bbc_SHIFT		0
-#define lpfc_mbx_rd_conf_max_bbc_MASK		0x000000FF
-#define lpfc_mbx_rd_conf_max_bbc_WORD		word1
-#define lpfc_mbx_rd_conf_init_bbc_SHIFT		8
-#define lpfc_mbx_rd_conf_init_bbc_MASK		0x000000FF
-#define lpfc_mbx_rd_conf_init_bbc_WORD		word1
+#define lpfc_mbx_rd_conf_extnts_inuse_SHIFT	31
+#define lpfc_mbx_rd_conf_extnts_inuse_MASK	0x00000001
+#define lpfc_mbx_rd_conf_extnts_inuse_WORD	word1
 	uint32_t word2;
-#define lpfc_mbx_rd_conf_nport_did_SHIFT	0
-#define lpfc_mbx_rd_conf_nport_did_MASK		0x00FFFFFF
-#define lpfc_mbx_rd_conf_nport_did_WORD		word2
 #define lpfc_mbx_rd_conf_topology_SHIFT		24
 #define lpfc_mbx_rd_conf_topology_MASK		0x000000FF
 #define lpfc_mbx_rd_conf_topology_WORD		word2
-	uint32_t word3;
-#define lpfc_mbx_rd_conf_ao_SHIFT		0
-#define lpfc_mbx_rd_conf_ao_MASK		0x00000001
-#define lpfc_mbx_rd_conf_ao_WORD		word3
-#define lpfc_mbx_rd_conf_bb_scn_SHIFT		8
-#define lpfc_mbx_rd_conf_bb_scn_MASK		0x0000000F
-#define lpfc_mbx_rd_conf_bb_scn_WORD		word3
-#define lpfc_mbx_rd_conf_cbb_scn_SHIFT		12
-#define lpfc_mbx_rd_conf_cbb_scn_MASK		0x0000000F
-#define lpfc_mbx_rd_conf_cbb_scn_WORD		word3
-#define lpfc_mbx_rd_conf_mc_SHIFT		29
-#define lpfc_mbx_rd_conf_mc_MASK		0x00000001
-#define lpfc_mbx_rd_conf_mc_WORD		word3
+	uint32_t rsvd_3;
 	uint32_t word4;
 #define lpfc_mbx_rd_conf_e_d_tov_SHIFT		0
 #define lpfc_mbx_rd_conf_e_d_tov_MASK		0x0000FFFF
 #define lpfc_mbx_rd_conf_e_d_tov_WORD		word4
-	uint32_t word5;
-#define lpfc_mbx_rd_conf_lp_tov_SHIFT		0
-#define lpfc_mbx_rd_conf_lp_tov_MASK		0x0000FFFF
-#define lpfc_mbx_rd_conf_lp_tov_WORD		word5
+	uint32_t rsvd_5;
 	uint32_t word6;
 #define lpfc_mbx_rd_conf_r_a_tov_SHIFT		0
 #define lpfc_mbx_rd_conf_r_a_tov_MASK		0x0000FFFF
 #define lpfc_mbx_rd_conf_r_a_tov_WORD		word6
-	uint32_t word7;
-#define lpfc_mbx_rd_conf_r_t_tov_SHIFT		0
-#define lpfc_mbx_rd_conf_r_t_tov_MASK		0x000000FF
-#define lpfc_mbx_rd_conf_r_t_tov_WORD		word7
-	uint32_t word8;
-#define lpfc_mbx_rd_conf_al_tov_SHIFT		0
-#define lpfc_mbx_rd_conf_al_tov_MASK		0x0000000F
-#define lpfc_mbx_rd_conf_al_tov_WORD		word8
+	uint32_t rsvd_7;
+	uint32_t rsvd_8;
 	uint32_t word9;
 #define lpfc_mbx_rd_conf_lmt_SHIFT		0
 #define lpfc_mbx_rd_conf_lmt_MASK		0x0000FFFF
 #define lpfc_mbx_rd_conf_lmt_WORD		word9
-	uint32_t word10;
-#define lpfc_mbx_rd_conf_max_alpa_SHIFT		0
-#define lpfc_mbx_rd_conf_max_alpa_MASK		0x000000FF
-#define lpfc_mbx_rd_conf_max_alpa_WORD		word10
-	uint32_t word11_rsvd;
+	uint32_t rsvd_10;
+	uint32_t rsvd_11;
 	uint32_t word12;
 #define lpfc_mbx_rd_conf_xri_base_SHIFT		0
 #define lpfc_mbx_rd_conf_xri_base_MASK		0x0000FFFF
@@ -1885,9 +1990,6 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_vfi_count_MASK         0x0000FFFF
 #define lpfc_mbx_rd_conf_vfi_count_WORD         word15
 	uint32_t word16;
-#define lpfc_mbx_rd_conf_fcfi_base_SHIFT	0
-#define lpfc_mbx_rd_conf_fcfi_base_MASK		0x0000FFFF
-#define lpfc_mbx_rd_conf_fcfi_base_WORD		word16
 #define lpfc_mbx_rd_conf_fcfi_count_SHIFT	16
 #define lpfc_mbx_rd_conf_fcfi_count_MASK	0x0000FFFF
 #define lpfc_mbx_rd_conf_fcfi_count_WORD	word16
@@ -2197,6 +2299,12 @@ struct lpfc_sli4_parameters {
 #define cfg_fcoe_SHIFT				0
 #define cfg_fcoe_MASK				0x00000001
 #define cfg_fcoe_WORD				word12
+#define cfg_ext_SHIFT				1
+#define cfg_ext_MASK				0x00000001
+#define cfg_ext_WORD				word12
+#define cfg_hdrr_SHIFT				2
+#define cfg_hdrr_MASK				0x00000001
+#define cfg_hdrr_WORD				word12
 #define cfg_phwq_SHIFT				15
 #define cfg_phwq_MASK				0x00000001
 #define cfg_phwq_WORD				word12
@@ -2431,6 +2539,9 @@ struct lpfc_mqe {
 		struct lpfc_mbx_cq_destroy cq_destroy;
 		struct lpfc_mbx_wq_destroy wq_destroy;
 		struct lpfc_mbx_rq_destroy rq_destroy;
+		struct lpfc_mbx_get_rsrc_extent_info rsrc_extent_info;
+		struct lpfc_mbx_alloc_rsrc_extents alloc_rsrc_extents;
+		struct lpfc_mbx_dealloc_rsrc_extents dealloc_rsrc_extents;
 		struct lpfc_mbx_post_sgl_pages post_sgl_pages;
 		struct lpfc_mbx_nembed_cmd nembed_cmd;
 		struct lpfc_mbx_read_rev read_rev;
@@ -2651,7 +2762,7 @@ struct lpfc_bmbx_create {
 #define SGL_ALIGN_SZ 64
 #define SGL_PAGE_SIZE 4096
 /* align SGL addr on a size boundary - adjust address up */
-#define NO_XRI  ((uint16_t)-1)
+#define NO_XRI  0xffff
 
 struct wqe_common {
 	uint32_t word6;

@@ -881,7 +881,7 @@ lpfc_linkdown(struct lpfc_hba *phba)
 	/* Clean up any firmware default rpi's */
 	mb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mb) {
-		lpfc_unreg_did(phba, 0xffff, 0xffffffff, mb);
+		lpfc_unreg_did(phba, 0xffff, LPFC_UNREG_ALL_DFLT_RPIS, mb);
 		mb->vport = vport;
 		mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		if (lpfc_sli_issue_mbox(phba, mb, MBX_NOWAIT)
@@ -3421,7 +3421,8 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		return;
 	}
 
-	ndlp->nlp_rpi = mb->un.varWords[0];
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		ndlp->nlp_rpi = mb->un.varWords[0];
 	ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
@@ -3495,7 +3496,8 @@ out:
 		return;
 	}
 
-	ndlp->nlp_rpi = mb->un.varWords[0];
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		ndlp->nlp_rpi = mb->un.varWords[0];
 	ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
@@ -3581,7 +3583,6 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		rport_ids.roles |= FC_RPORT_ROLE_FCP_TARGET;
 	if (ndlp->nlp_type & NLP_FCP_INITIATOR)
 		rport_ids.roles |= FC_RPORT_ROLE_FCP_INITIATOR;
-
 
 	if (rport_ids.roles !=  FC_RPORT_ROLE_UNKNOWN)
 		fc_remote_port_rolechg(rport, rport_ids.roles);
@@ -4097,11 +4098,16 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct lpfc_hba *phba = vport->phba;
 	LPFC_MBOXQ_t    *mbox;
 	int rc;
+	uint16_t rpi;
 
 	if (ndlp->nlp_flag & NLP_RPI_REGISTERED) {
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (mbox) {
-			lpfc_unreg_login(phba, vport->vpi, ndlp->nlp_rpi, mbox);
+			/* SLI4 ports require the physical rpi value. */
+			rpi = ndlp->nlp_rpi;
+			if (phba->sli_rev == LPFC_SLI_REV4)
+				rpi = phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
+			lpfc_unreg_login(phba, vport->vpi, rpi, mbox);
 			mbox->vport = vport;
 			mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
@@ -4170,7 +4176,8 @@ lpfc_unreg_all_rpis(struct lpfc_vport *vport)
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mbox) {
-		lpfc_unreg_login(phba, vport->vpi, 0xffff, mbox);
+		lpfc_unreg_login(phba, vport->vpi, LPFC_UNREG_ALL_RPIS_VPORT,
+				 mbox);
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		mbox->context1 = NULL;
@@ -4194,7 +4201,8 @@ lpfc_unreg_default_rpis(struct lpfc_vport *vport)
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mbox) {
-		lpfc_unreg_did(phba, vport->vpi, 0xffffffff, mbox);
+		lpfc_unreg_did(phba, vport->vpi, LPFC_UNREG_ALL_DFLT_RPIS,
+			       mbox);
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		mbox->context1 = NULL;
@@ -4644,10 +4652,7 @@ lpfc_disc_start(struct lpfc_vport *vport)
 	if (num_sent)
 		return;
 
-	/*
-	 * For SLI3, cmpl_reg_vpi will set port_state to READY, and
-	 * continue discovery.
-	 */
+	/* Register the VPI for SLI3, NON-NPIV only. */
 	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
 	    !(vport->fc_flag & FC_PT2PT) &&
 	    !(vport->fc_flag & FC_RSCN_MODE) &&
@@ -4934,7 +4939,7 @@ restart_disc:
 		if (phba->sli_rev < LPFC_SLI_REV4) {
 			if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)
 				lpfc_issue_reg_vpi(phba, vport);
-			else  {	/* NPIV Not enabled */
+			else  {
 				lpfc_issue_clear_la(phba, vport);
 				vport->port_state = LPFC_VPORT_READY;
 			}
@@ -5060,7 +5065,8 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	pmb->context1 = NULL;
 	pmb->context2 = NULL;
 
-	ndlp->nlp_rpi = mb->un.varWords[0];
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		ndlp->nlp_rpi = mb->un.varWords[0];
 	ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);

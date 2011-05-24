@@ -55,6 +55,8 @@ void lpfc_request_features(struct lpfc_hba *, struct lpfcMboxq *);
 void lpfc_supported_pages(struct lpfcMboxq *);
 void lpfc_pc_sli4_params(struct lpfcMboxq *);
 int lpfc_pc_sli4_params_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
+int lpfc_sli4_mbox_rsrc_extent(struct lpfc_hba *, struct lpfcMboxq *,
+			   uint16_t, uint16_t, bool);
 int lpfc_get_sli4_parameters(struct lpfc_hba *, LPFC_MBOXQ_t *);
 struct lpfc_vport *lpfc_find_vport_by_did(struct lpfc_hba *, uint32_t);
 void lpfc_cleanup_rcv_buffers(struct lpfc_vport *);
@@ -365,6 +367,10 @@ extern void lpfc_debugfs_disc_trc(struct lpfc_vport *, int, char *, uint32_t,
 extern void lpfc_debugfs_slow_ring_trc(struct lpfc_hba *, char *, uint32_t,
 	uint32_t, uint32_t);
 extern struct lpfc_hbq_init *lpfc_hbq_defs[];
+
+/* SLI4 if_type 2 externs. */
+int lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *);
+int lpfc_sli4_dealloc_resource_identifiers(struct lpfc_hba *);
 
 /* externs BlockGuard */
 extern char *_dump_buf_data;

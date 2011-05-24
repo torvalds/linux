@@ -780,6 +780,9 @@ struct lpfc_hba {
 	uint16_t vpi_base;
 	uint16_t vfi_base;
 	unsigned long *vpi_bmask;	/* vpi allocation table */
+	uint16_t *vpi_ids;
+	uint16_t vpi_count;
+	struct list_head lpfc_vpi_blk_list;
 
 	/* Data structure used by fabric iocb scheduler */
 	struct list_head fabric_iocb_list;
