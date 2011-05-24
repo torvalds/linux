@@ -2069,6 +2069,10 @@
 /*
  * R96 (0x60) - Analogue HP (1)
  */
+#define WM1811_HPOUT1_ATTN                      0x0100  /* HPOUT1_ATTN */
+#define WM1811_HPOUT1_ATTN_MASK                 0x0100  /* HPOUT1_ATTN */
+#define WM1811_HPOUT1_ATTN_SHIFT                     8  /* HPOUT1_ATTN */
+#define WM1811_HPOUT1_ATTN_WIDTH                     1  /* HPOUT1_ATTN */
 #define WM8994_HPOUT1L_RMV_SHORT                0x0080  /* HPOUT1L_RMV_SHORT */
 #define WM8994_HPOUT1L_RMV_SHORT_MASK           0x0080  /* HPOUT1L_RMV_SHORT */
 #define WM8994_HPOUT1L_RMV_SHORT_SHIFT               7  /* HPOUT1L_RMV_SHORT */
