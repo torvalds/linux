@@ -2563,23 +2563,26 @@ int vfs_rmdir(struct inode *dir, struct dentry *dentry)
 		return -EPERM;
 
 	mutex_lock(&dentry->d_inode->i_mutex);
-	if (d_mountpoint(dentry))
-		error = -EBUSY;
-	else {
-		error = security_inode_rmdir(dir, dentry);
-		if (!error) {
-			error = dir->i_op->rmdir(dir, dentry);
-			if (!error) {
-				dentry->d_inode->i_flags |= S_DEAD;
-				dont_mount(dentry);
-			}
-		}
-	}
-	mutex_unlock(&dentry->d_inode->i_mutex);
-	if (!error) {
-		d_delete(dentry);
-	}
 
+	error = -EBUSY;
+	if (d_mountpoint(dentry))
+		goto out;
+
+	error = security_inode_rmdir(dir, dentry);
+	if (error)
+		goto out;
+
+	error = dir->i_op->rmdir(dir, dentry);
+	if (error)
+		goto out;
+
+	dentry->d_inode->i_flags |= S_DEAD;
+	dont_mount(dentry);
+
+out:
+	mutex_unlock(&dentry->d_inode->i_mutex);
+	if (!error)
+		d_delete(dentry);
 	return error;
 }
 
