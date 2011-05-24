@@ -419,6 +419,21 @@ static struct isl6423_config anysee_isl6423_config = {
  * IOA[7] TS 1=enabled
  * IOE[5] STV0903 1=enabled
  *
+ * E7 PTC VID=1c73 PID=861f HW=21 FW=0.1 AMTCI=?? "anysee-E7PTC(LP)"
+ * PCB: 508PTC (rev0.5)
+ * parts: ZL10353, TDA10023, DNOD44CDH086A(TDA18212)
+ * OEA=80 OEB=00 OEC=03 OED=f7 OEE=ff
+ * IOA=4d IOB=00 IOC=cc IOD=48 IOE=e4
+ * IOA[7] TS 1=enabled
+ * IOE[4] TDA18212 1=enabled
+ * DVB-C:
+ * IOD[6] ZL10353 0=disabled
+ * IOD[5] TDA10023 1=enabled
+ * IOE[0] IF 1=enabled
+ * DVB-T:
+ * IOD[5] TDA10023 0=disabled
+ * IOD[6] ZL10353 1=enabled
+ * IOE[0] IF 0=enabled
  */
 
 static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
@@ -593,7 +608,9 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 
 		break;
 	case ANYSEE_HW_508TC: /* 18 */
+	case ANYSEE_HW_508PTC: /* 21 */
 		/* E7 TC */
+		/* E7 PTC */
 
 		/* enable transport stream on IOA[7] */
 		ret = anysee_wr_reg_mask(adap->dev, REG_IOA, (1 << 7), 0x80);
@@ -762,7 +779,9 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 
 		break;
 	case ANYSEE_HW_508TC: /* 18 */
+	case ANYSEE_HW_508PTC: /* 21 */
 		/* E7 TC */
+		/* E7 PTC */
 
 		/* enable tuner on IOE[4] */
 		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 4), 0x10);
