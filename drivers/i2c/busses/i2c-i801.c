@@ -638,7 +638,7 @@ static const struct pci_device_id i801_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, i801_ids);
 
-#if defined CONFIG_INPUT_APANEL || defined CONFIG_INPUT_APANEL_MODULE
+#if defined CONFIG_X86 && defined CONFIG_DMI
 static unsigned char apanel_addr;
 
 /* Scan the system ROM for the signature "FJKEYINF" */
@@ -668,11 +668,7 @@ static void __init input_apanel_init(void)
 	}
 	iounmap(bios);
 }
-#else
-static void __init input_apanel_init(void) {}
-#endif
 
-#if defined CONFIG_SENSORS_FSCHMD || defined CONFIG_SENSORS_FSCHMD_MODULE
 struct dmi_onboard_device_info {
 	const char *name;
 	u8 type;
@@ -738,7 +734,6 @@ static void __devinit dmi_check_onboard_devices(const struct dmi_header *dm,
 		dmi_check_onboard_device(type, name, adap);
 	}
 }
-#endif
 
 /* Register optional slaves */
 static void __devinit i801_probe_optional_slaves(struct i801_priv *priv)
@@ -747,7 +742,6 @@ static void __devinit i801_probe_optional_slaves(struct i801_priv *priv)
 	if (priv->features & FEATURE_IDF)
 		return;
 
-#if defined CONFIG_INPUT_APANEL || defined CONFIG_INPUT_APANEL_MODULE
 	if (apanel_addr) {
 		struct i2c_board_info info;
 
@@ -756,12 +750,14 @@ static void __devinit i801_probe_optional_slaves(struct i801_priv *priv)
 		strlcpy(info.type, "fujitsu_apanel", I2C_NAME_SIZE);
 		i2c_new_device(&priv->adapter, &info);
 	}
-#endif
-#if defined CONFIG_SENSORS_FSCHMD || defined CONFIG_SENSORS_FSCHMD_MODULE
+
 	if (dmi_name_in_vendors("FUJITSU"))
 		dmi_walk(dmi_check_onboard_devices, &priv->adapter);
-#endif
 }
+#else
+static void __init input_apanel_init(void) {}
+static void __devinit i801_probe_optional_slaves(struct i801_priv *priv) {}
+#endif	/* CONFIG_X86 && CONFIG_DMI */
 
 static int __devinit i801_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
