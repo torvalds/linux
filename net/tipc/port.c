@@ -360,6 +360,7 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 	int hdr_sz;
 	u32 imp = msg_importance(msg);
 	u32 data_sz = msg_data_sz(msg);
+	u32 src_node;
 
 	if (data_sz > MAX_REJECT_SIZE)
 		data_sz = MAX_REJECT_SIZE;
@@ -416,7 +417,11 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 
 	/* send returned message & dispose of rejected message */
 
-	tipc_net_route_msg(rbuf);
+	src_node = msg_prevnode(msg);
+	if (src_node == tipc_own_addr)
+		tipc_port_recv_msg(rbuf);
+	else
+		tipc_link_send(rbuf, src_node, msg_link_selector(rmsg));
 exit:
 	buf_discard(buf);
 	return data_sz;
