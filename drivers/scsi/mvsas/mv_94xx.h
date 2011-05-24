@@ -30,6 +30,14 @@
 
 #define MAX_LINK_RATE		SAS_LINK_RATE_6_0_GBPS
 
+enum VANIR_REVISION_ID {
+	VANIR_A0_REV		= 0xA0,
+	VANIR_B0_REV		= 0x01,
+	VANIR_C0_REV		= 0x02,
+	VANIR_C1_REV		= 0x03,
+	VANIR_C2_REV		= 0xC2,
+};
+
 enum hw_registers {
 	MVS_GBL_CTL		= 0x04,  /* global control */
 	MVS_GBL_INT_STAT	= 0x00,  /* global irq status */
@@ -126,6 +134,10 @@ enum sas_sata_vsp_regs {
 	VSR_PHY_MODE11		= 0x0B * 4, /* Phy Mode */
 	VSR_PHY_VS0		= 0x0C * 4, /* Vednor Specific 0 */
 	VSR_PHY_VS1		= 0x0D * 4, /* Vednor Specific 1 */
+
+	VSR_PHY_FFE_CONTROL	= 0x10C,
+	VSR_PHY_DFE_UPDATE_CRTL	= 0x110,
+	VSR_REF_CLOCK_CRTL	= 0x1A0,
 };
 
 enum chip_register_bits {
@@ -169,6 +181,41 @@ enum pci_interrupt_cause {
 	IRQ_PCIE_ERR                   = (1 << 31),
 };
 
+union reg_phy_cfg {
+	u32 v;
+	struct {
+		u32 phy_reset:1;
+		u32 sas_support:1;
+		u32 sata_support:1;
+		u32 sata_host_mode:1;
+		/*
+		 * bit 2: 6Gbps support
+		 * bit 1: 3Gbps support
+		 * bit 0: 1.5Gbps support
+		 */
+		u32 speed_support:3;
+		u32 snw_3_support:1;
+		u32 tx_lnk_parity:1;
+		/*
+		 * bit 5: G1 (1.5Gbps) Without SSC
+		 * bit 4: G1 (1.5Gbps) with SSC
+		 * bit 3: G2 (3.0Gbps) Without SSC
+		 * bit 2: G2 (3.0Gbps) with SSC
+		 * bit 1: G3 (6.0Gbps) without SSC
+		 * bit 0: G3 (6.0Gbps) with SSC
+		 */
+		u32 tx_spt_phs_lnk_rate:6;
+		/* 8h: 1.5Gbps 9h: 3Gbps Ah: 6Gbps */
+		u32 tx_lgcl_lnk_rate:4;
+		u32 tx_ssc_type:1;
+		u32 sata_spin_up_spt:1;
+		u32 sata_spin_up_en:1;
+		u32 bypass_oob:1;
+		u32 disable_phy:1;
+		u32 rsvd:8;
+	} u;
+};
+
 #define MAX_SG_ENTRY		255
 
 struct mvs_prd_imt {
@@ -184,6 +231,17 @@ struct mvs_prd {
 	/* 22-bit length */
 	struct mvs_prd_imt	im_len;
 } __attribute__ ((packed));
+
+/*
+ * these registers are accessed through port vendor
+ * specific address/data registers
+ */
+enum sas_sata_phy_regs {
+	GENERATION_1_SETTING		= 0x118,
+	GENERATION_1_2_SETTING		= 0x11C,
+	GENERATION_2_3_SETTING		= 0x120,
+	GENERATION_3_4_SETTING		= 0x124,
+};
 
 #define SPI_CTRL_REG_94XX           	0xc800
 #define SPI_ADDR_REG_94XX            	0xc804

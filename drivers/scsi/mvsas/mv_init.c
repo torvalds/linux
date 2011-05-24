@@ -569,6 +569,9 @@ static int __devinit mvs_pci_init(struct pci_dev *pdev,
 			goto err_out_regions;
 		}
 
+		memset(&mvi->hba_info_param, 0xFF,
+			sizeof(struct hba_info_page));
+
 		mvs_init_sas_add(mvi);
 
 		mvi->instance = nhost;

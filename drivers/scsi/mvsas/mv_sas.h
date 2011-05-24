@@ -250,6 +250,73 @@ struct mvs_device {
 	u16 reserved;
 };
 
+/* Generate  PHY tunning parameters */
+struct phy_tuning {
+	/* 1 bit,  transmitter emphasis enable	*/
+	u8	trans_emp_en:1;
+	/* 4 bits, transmitter emphasis amplitude */
+	u8	trans_emp_amp:4;
+	/* 3 bits, reserved space */
+	u8	Reserved_2bit_1:3;
+	/* 5 bits, transmitter amplitude */
+	u8	trans_amp:5;
+	/* 2 bits, transmitter amplitude adjust */
+	u8	trans_amp_adj:2;
+	/* 1 bit, reserved space */
+	u8	resv_2bit_2:1;
+	/* 2 bytes, reserved space */
+	u8	reserved[2];
+};
+
+struct ffe_control {
+	/* 4 bits,  FFE Capacitor Select  (value range 0~F)  */
+	u8 ffe_cap_sel:4;
+	/* 3 bits,  FFE Resistor Select (value range 0~7) */
+	u8 ffe_rss_sel:3;
+	/* 1 bit reserve*/
+	u8 reserved:1;
+};
+
+/*
+ * HBA_Info_Page is saved in Flash/NVRAM, total 256 bytes.
+ * The data area is valid only Signature="MRVL".
+ * If any member fills with 0xFF, the member is invalid.
+ */
+struct hba_info_page {
+	/* Dword 0 */
+	/* 4 bytes, structure signature,should be "MRVL" at first initial */
+	u8 signature[4];
+
+	/* Dword 1-13 */
+	u32 reserved1[13];
+
+	/* Dword 14-29 */
+	/* 64 bytes, SAS address for each port */
+	u64 sas_addr[8];
+
+	/* Dword 30-31 */
+	/* 8 bytes for vanir 8 port PHY FFE seeting
+	 * BIT 0~3 : FFE Capacitor select(value range 0~F)
+	 * BIT 4~6 : FFE Resistor select(value range 0~7)
+	 * BIT 7: reserve.
+	 */
+
+	struct ffe_control  ffe_ctl[8];
+	/* Dword 32 -43 */
+	u32 reserved2[12];
+
+	/* Dword 44-45 */
+	/* 8 bytes,  0:  1.5G, 1: 3.0G, should be 0x01 at first initial */
+	u8 phy_rate[8];
+
+	/* Dword 46-53 */
+	/* 32 bytes, PHY tuning parameters for each PHY*/
+	struct phy_tuning   phy_tuning[8];
+
+	/* Dword 54-63 */
+	u32 reserved3[10];
+};	/* total 256 bytes */
+
 struct mvs_slot_info {
 	struct list_head entry;
 	union {
@@ -338,6 +405,7 @@ struct mvs_info {
 	u32 flashsectSize;
 
 	void *addon;
+	struct hba_info_page hba_info_param;
 	struct mvs_device	devices[MVS_MAX_DEVICES];
 #ifndef DISABLE_HOTPLUG_DMA_FIX
 	void *bulk_buffer;

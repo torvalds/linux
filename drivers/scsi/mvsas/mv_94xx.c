@@ -48,6 +48,216 @@ static void mvs_94xx_detect_porttype(struct mvs_info *mvi, int i)
 	}
 }
 
+void set_phy_tuning(struct mvs_info *mvi, int phy_id,
+			struct phy_tuning phy_tuning)
+{
+	u32 tmp, setting_0 = 0, setting_1 = 0;
+	u8 i;
+
+	/* Remap information for B0 chip:
+	*
+	* R0Ch -> R118h[15:0] (Adapted DFE F3 - F5 coefficient)
+	* R0Dh -> R118h[31:16] (Generation 1 Setting 0)
+	* R0Eh -> R11Ch[15:0]  (Generation 1 Setting 1)
+	* R0Fh -> R11Ch[31:16] (Generation 2 Setting 0)
+	* R10h -> R120h[15:0]  (Generation 2 Setting 1)
+	* R11h -> R120h[31:16] (Generation 3 Setting 0)
+	* R12h -> R124h[15:0]  (Generation 3 Setting 1)
+	* R13h -> R124h[31:16] (Generation 4 Setting 0 (Reserved))
+	*/
+
+	/* A0 has a different set of registers */
+	if (mvi->pdev->revision == VANIR_A0_REV)
+		return;
+
+	for (i = 0; i < 3; i++) {
+		/* loop 3 times, set Gen 1, Gen 2, Gen 3 */
+		switch (i) {
+		case 0:
+			setting_0 = GENERATION_1_SETTING;
+			setting_1 = GENERATION_1_2_SETTING;
+			break;
+		case 1:
+			setting_0 = GENERATION_1_2_SETTING;
+			setting_1 = GENERATION_2_3_SETTING;
+			break;
+		case 2:
+			setting_0 = GENERATION_2_3_SETTING;
+			setting_1 = GENERATION_3_4_SETTING;
+			break;
+		}
+
+		/* Set:
+		*
+		* Transmitter Emphasis Enable
+		* Transmitter Emphasis Amplitude
+		* Transmitter Amplitude
+		*/
+		mvs_write_port_vsr_addr(mvi, phy_id, setting_0);
+		tmp = mvs_read_port_vsr_data(mvi, phy_id);
+		tmp &= ~(0xFBE << 16);
+		tmp |= (((phy_tuning.trans_emp_en << 11) |
+			(phy_tuning.trans_emp_amp << 7) |
+			(phy_tuning.trans_amp << 1)) << 16);
+		mvs_write_port_vsr_data(mvi, phy_id, tmp);
+
+		/* Set Transmitter Amplitude Adjust */
+		mvs_write_port_vsr_addr(mvi, phy_id, setting_1);
+		tmp = mvs_read_port_vsr_data(mvi, phy_id);
+		tmp &= ~(0xC000);
+		tmp |= (phy_tuning.trans_amp_adj << 14);
+		mvs_write_port_vsr_data(mvi, phy_id, tmp);
+	}
+}
+
+void set_phy_ffe_tuning(struct mvs_info *mvi, int phy_id,
+				struct ffe_control ffe)
+{
+	u32 tmp;
+
+	/* Don't run this if A0/B0 */
+	if ((mvi->pdev->revision == VANIR_A0_REV)
+		|| (mvi->pdev->revision == VANIR_B0_REV))
+		return;
+
+	/* FFE Resistor and Capacitor */
+	/* R10Ch DFE Resolution Control/Squelch and FFE Setting
+	 *
+	 * FFE_FORCE            [7]
+	 * FFE_RES_SEL          [6:4]
+	 * FFE_CAP_SEL          [3:0]
+	 */
+	mvs_write_port_vsr_addr(mvi, phy_id, VSR_PHY_FFE_CONTROL);
+	tmp = mvs_read_port_vsr_data(mvi, phy_id);
+	tmp &= ~0xFF;
+
+	/* Read from HBA_Info_Page */
+	tmp |= ((0x1 << 7) |
+		(ffe.ffe_rss_sel << 4) |
+		(ffe.ffe_cap_sel << 0));
+
+	mvs_write_port_vsr_data(mvi, phy_id, tmp);
+
+	/* R064h PHY Mode Register 1
+	 *
+	 * DFE_DIS		18
+	 */
+	mvs_write_port_vsr_addr(mvi, phy_id, VSR_REF_CLOCK_CRTL);
+	tmp = mvs_read_port_vsr_data(mvi, phy_id);
+	tmp &= ~0x40001;
+	/* Hard coding */
+	/* No defines in HBA_Info_Page */
+	tmp |= (0 << 18);
+	mvs_write_port_vsr_data(mvi, phy_id, tmp);
+
+	/* R110h DFE F0-F1 Coefficient Control/DFE Update Control
+	 *
+	 * DFE_UPDATE_EN        [11:6]
+	 * DFE_FX_FORCE         [5:0]
+	 */
+	mvs_write_port_vsr_addr(mvi, phy_id, VSR_PHY_DFE_UPDATE_CRTL);
+	tmp = mvs_read_port_vsr_data(mvi, phy_id);
+	tmp &= ~0xFFF;
+	/* Hard coding */
+	/* No defines in HBA_Info_Page */
+	tmp |= ((0x3F << 6) | (0x0 << 0));
+	mvs_write_port_vsr_data(mvi, phy_id, tmp);
+
+	/* R1A0h Interface and Digital Reference Clock Control/Reserved_50h
+	 *
+	 * FFE_TRAIN_EN         3
+	 */
+	mvs_write_port_vsr_addr(mvi, phy_id, VSR_REF_CLOCK_CRTL);
+	tmp = mvs_read_port_vsr_data(mvi, phy_id);
+	tmp &= ~0x8;
+	/* Hard coding */
+	/* No defines in HBA_Info_Page */
+	tmp |= (0 << 3);
+	mvs_write_port_vsr_data(mvi, phy_id, tmp);
+}
+
+/*Notice: this function must be called when phy is disabled*/
+void set_phy_rate(struct mvs_info *mvi, int phy_id, u8 rate)
+{
+	union reg_phy_cfg phy_cfg, phy_cfg_tmp;
+	mvs_write_port_vsr_addr(mvi, phy_id, VSR_PHY_MODE2);
+	phy_cfg_tmp.v = mvs_read_port_vsr_data(mvi, phy_id);
+	phy_cfg.v = 0;
+	phy_cfg.u.disable_phy = phy_cfg_tmp.u.disable_phy;
+	phy_cfg.u.sas_support = 1;
+	phy_cfg.u.sata_support = 1;
+	phy_cfg.u.sata_host_mode = 1;
+
+	switch (rate) {
+	case 0x0:
+		/* support 1.5 Gbps */
+		phy_cfg.u.speed_support = 1;
+		phy_cfg.u.snw_3_support = 0;
+		phy_cfg.u.tx_lnk_parity = 1;
+		phy_cfg.u.tx_spt_phs_lnk_rate = 0x30;
+		break;
+	case 0x1:
+
+		/* support 1.5, 3.0 Gbps */
+		phy_cfg.u.speed_support = 3;
+		phy_cfg.u.tx_spt_phs_lnk_rate = 0x3c;
+		phy_cfg.u.tx_lgcl_lnk_rate = 0x08;
+		break;
+	case 0x2:
+	default:
+		/* support 1.5, 3.0, 6.0 Gbps */
+		phy_cfg.u.speed_support = 7;
+		phy_cfg.u.snw_3_support = 1;
+		phy_cfg.u.tx_lnk_parity = 1;
+		phy_cfg.u.tx_spt_phs_lnk_rate = 0x3f;
+		phy_cfg.u.tx_lgcl_lnk_rate = 0x09;
+		break;
+	}
+	mvs_write_port_vsr_data(mvi, phy_id, phy_cfg.v);
+}
+
+static void __devinit
+mvs_94xx_config_reg_from_hba(struct mvs_info *mvi, int phy_id)
+{
+	u32 temp;
+	temp = (u32)(*(u32 *)&mvi->hba_info_param.phy_tuning[phy_id]);
+	if (temp == 0xFFFFFFFFL) {
+		mvi->hba_info_param.phy_tuning[phy_id].trans_emp_amp = 0x6;
+		mvi->hba_info_param.phy_tuning[phy_id].trans_amp = 0x1A;
+		mvi->hba_info_param.phy_tuning[phy_id].trans_amp_adj = 0x3;
+	}
+
+	temp = (u8)(*(u8 *)&mvi->hba_info_param.ffe_ctl[phy_id]);
+	if (temp == 0xFFL) {
+		switch (mvi->pdev->revision) {
+		case VANIR_A0_REV:
+		case VANIR_B0_REV:
+			mvi->hba_info_param.ffe_ctl[phy_id].ffe_rss_sel = 0x7;
+			mvi->hba_info_param.ffe_ctl[phy_id].ffe_cap_sel = 0x7;
+			break;
+		case VANIR_C0_REV:
+		case VANIR_C1_REV:
+		case VANIR_C2_REV:
+		default:
+			mvi->hba_info_param.ffe_ctl[phy_id].ffe_rss_sel = 0x7;
+			mvi->hba_info_param.ffe_ctl[phy_id].ffe_cap_sel = 0xC;
+			break;
+		}
+	}
+
+	temp = (u8)(*(u8 *)&mvi->hba_info_param.phy_rate[phy_id]);
+	if (temp == 0xFFL)
+		/*set default phy_rate = 6Gbps*/
+		mvi->hba_info_param.phy_rate[phy_id] = 0x2;
+
+	set_phy_tuning(mvi, phy_id,
+		mvi->hba_info_param.phy_tuning[phy_id]);
+	set_phy_ffe_tuning(mvi, phy_id,
+		mvi->hba_info_param.ffe_ctl[phy_id]);
+	set_phy_rate(mvi, phy_id,
+		mvi->hba_info_param.phy_rate[phy_id]);
+}
+
 static void __devinit mvs_94xx_enable_xmt(struct mvs_info *mvi, int phy_id)
 {
 	void __iomem *regs = mvi->regs;
@@ -90,12 +300,25 @@ static void mvs_94xx_phy_disable(struct mvs_info *mvi, u32 phy_id)
 
 static void mvs_94xx_phy_enable(struct mvs_info *mvi, u32 phy_id)
 {
-	mvs_write_port_vsr_addr(mvi, phy_id, 0x1B4);
-	mvs_write_port_vsr_data(mvi, phy_id, 0x8300ffc1);
-	mvs_write_port_vsr_addr(mvi, phy_id, 0x104);
-	mvs_write_port_vsr_data(mvi, phy_id, 0x00018080);
+	u32 tmp;
+	u8 revision = 0;
+
+	revision = mvi->pdev->revision;
+	if (revision == VANIR_A0_REV) {
+		mvs_write_port_vsr_addr(mvi, phy_id, CMD_HOST_RD_DATA);
+		mvs_write_port_vsr_data(mvi, phy_id, 0x8300ffc1);
+	}
+	if (revision == VANIR_B0_REV) {
+		mvs_write_port_vsr_addr(mvi, phy_id, CMD_APP_MEM_CTL);
+		mvs_write_port_vsr_data(mvi, phy_id, 0x08001006);
+		mvs_write_port_vsr_addr(mvi, phy_id, CMD_HOST_RD_DATA);
+		mvs_write_port_vsr_data(mvi, phy_id, 0x0000705f);
+	}
+
 	mvs_write_port_vsr_addr(mvi, phy_id, VSR_PHY_MODE2);
-	mvs_write_port_vsr_data(mvi, phy_id, 0x00207fff);
+	tmp = mvs_read_port_vsr_data(mvi, phy_id);
+	tmp |= bit(0);
+	mvs_write_port_vsr_data(mvi, phy_id, tmp & 0xfd7fffff);
 }
 
 static int __devinit mvs_94xx_init(struct mvs_info *mvi)
@@ -103,7 +326,9 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 	void __iomem *regs = mvi->regs;
 	int i;
 	u32 tmp, cctl;
+	u8 revision;
 
+	revision = mvi->pdev->revision;
 	mvs_show_pcie_usage(mvi);
 	if (mvi->flags & MVF_FLAG_SOC) {
 		tmp = mr32(MVS_PHY_CTL);
@@ -133,6 +358,28 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 		msleep(100);
 	}
 
+	/* disable Multiplexing, enable phy implemented */
+	mw32(MVS_PORTS_IMP, 0xFF);
+
+	if (revision == VANIR_A0_REV) {
+		mw32(MVS_PA_VSR_ADDR, CMD_CMWK_OOB_DET);
+		mw32(MVS_PA_VSR_PORT, 0x00018080);
+	}
+	mw32(MVS_PA_VSR_ADDR, VSR_PHY_MODE2);
+	if (revision == VANIR_A0_REV || revision == VANIR_B0_REV)
+		/* set 6G/3G/1.5G, multiplexing, without SSC */
+		mw32(MVS_PA_VSR_PORT, 0x0084d4fe);
+	else
+		/* set 6G/3G/1.5G, multiplexing, with and without SSC */
+		mw32(MVS_PA_VSR_PORT, 0x0084fffe);
+
+	if (revision == VANIR_B0_REV) {
+		mw32(MVS_PA_VSR_ADDR, CMD_APP_MEM_CTL);
+		mw32(MVS_PA_VSR_PORT, 0x08001006);
+		mw32(MVS_PA_VSR_ADDR, CMD_HOST_RD_DATA);
+		mw32(MVS_PA_VSR_PORT, 0x0000705f);
+	}
+
 	/* reset control */
 	mw32(MVS_PCS, 0);		/* MVS_PCS */
 	mw32(MVS_STP_REG_SET_0, 0);
@@ -140,15 +387,6 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 
 	/* init phys */
 	mvs_phy_hacks(mvi);
-
-	/* disable Multiplexing, enable phy implemented */
-	mw32(MVS_PORTS_IMP, 0xFF);
-
-
-	mw32(MVS_PA_VSR_ADDR, 0x00000104);
-	mw32(MVS_PA_VSR_PORT, 0x00018080);
-	mw32(MVS_PA_VSR_ADDR, VSR_PHY_MODE8);
-	mw32(MVS_PA_VSR_PORT, 0x0084ffff);
 
 	/* set LED blink when IO*/
 	mw32(MVS_PA_VSR_ADDR, 0x00000030);
@@ -178,6 +416,7 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 						(mvi->phy[i].dev_sas_addr));
 
 		mvs_94xx_enable_xmt(mvi, i);
+		mvs_94xx_config_reg_from_hba(mvi, i);
 		mvs_94xx_phy_enable(mvi, i);
 
 		mvs_94xx_phy_reset(mvi, i, 1);
