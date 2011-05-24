@@ -374,7 +374,7 @@ static struct omap_musb_board_data musb_board_data = {
 	.power                  = 500,
 	.set_phy_power		= am35x_musb_phy_power,
 	.clear_irq		= am35x_musb_clear_irq,
-	.set_mode		= am35x_musb_set_mode,
+	.set_mode		= am35x_set_mode,
 	.reset			= am35x_musb_reset,
 };
 

@@ -129,11 +129,6 @@ void __init usb_musb_init(struct omap_musb_board_data *musb_board_data)
 	else
 		board_data = &musb_default_board_data;
 
-	if (cpu_is_omap3517() || cpu_is_omap3505()) {
-	} else if (cpu_is_omap44xx()) {
-		usb_musb_mux_init(board_data);
-	}
-
 	/*
 	 * REVISIT: This line can be removed once all the platforms using
 	 * musb_core.c have been converted to use use clkdev.
@@ -176,10 +171,15 @@ void __init usb_musb_init(struct omap_musb_board_data *musb_board_data)
 	dev->dma_mask = &musb_dmamask;
 	dev->coherent_dma_mask = musb_dmamask;
 	put_device(dev);
+
+	if (cpu_is_omap44xx())
+		omap4430_phy_init(dev);
 }
 
 #else
 void __init usb_musb_init(struct omap_musb_board_data *board_data)
 {
+	if (cpu_is_omap44xx())
+		omap4430_phy_init(NULL);
 }
 #endif /* CONFIG_USB_MUSB_SOC */
