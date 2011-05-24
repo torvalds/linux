@@ -544,6 +544,13 @@ static int davinci_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+		edma_start(prtd->asp_channel);
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+		    prtd->ram_channel >= 0) {
+			/* copy 1st iram buffer */
+			edma_start(prtd->ram_channel);
+		}
+		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		edma_resume(prtd->asp_channel);
@@ -582,11 +589,6 @@ static int davinci_pcm_prepare(struct snd_pcm_substream *substream)
 		print_buf_info(prtd->asp_link[0], "asp_link[0]");
 		print_buf_info(prtd->asp_link[1], "asp_link[1]");
 
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			/* copy 1st iram buffer */
-			edma_start(prtd->ram_channel);
-		}
-		edma_start(prtd->asp_channel);
 		return 0;
 	}
 	prtd->period = 0;
@@ -596,7 +598,6 @@ static int davinci_pcm_prepare(struct snd_pcm_substream *substream)
 	edma_read_slot(prtd->asp_link[0], &prtd->asp_params);
 	edma_write_slot(prtd->asp_channel, &prtd->asp_params);
 	davinci_pcm_enqueue_dma(substream);
-	edma_start(prtd->asp_channel);
 
 	return 0;
 }
