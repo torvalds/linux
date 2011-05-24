@@ -67,14 +67,16 @@ nfs4_deviceid_hash(const struct nfs4_deviceid *id)
 }
 
 static struct nfs4_deviceid_node *
-_lookup_deviceid(const struct nfs_client *clp, const struct nfs4_deviceid *id,
+_lookup_deviceid(const struct pnfs_layoutdriver_type *ld,
+		 const struct nfs_client *clp, const struct nfs4_deviceid *id,
 		 long hash)
 {
 	struct nfs4_deviceid_node *d;
 	struct hlist_node *n;
 
 	hlist_for_each_entry_rcu(d, n, &nfs4_deviceid_cache[hash], node)
-		if (d->nfs_client == clp && !memcmp(&d->deviceid, id, sizeof(*id))) {
+		if (d->ld == ld && d->nfs_client == clp &&
+		    !memcmp(&d->deviceid, id, sizeof(*id))) {
 			if (atomic_read(&d->ref))
 				return d;
 			else
@@ -90,13 +92,14 @@ _lookup_deviceid(const struct nfs_client *clp, const struct nfs4_deviceid *id,
  * @id deviceid to look up
  */
 struct nfs4_deviceid_node *
-_find_get_deviceid(const struct nfs_client *clp, const struct nfs4_deviceid *id,
+_find_get_deviceid(const struct pnfs_layoutdriver_type *ld,
+		   const struct nfs_client *clp, const struct nfs4_deviceid *id,
 		   long hash)
 {
 	struct nfs4_deviceid_node *d;
 
 	rcu_read_lock();
-	d = _lookup_deviceid(clp, id, hash);
+	d = _lookup_deviceid(ld, clp, id, hash);
 	if (d && !atomic_inc_not_zero(&d->ref))
 		d = NULL;
 	rcu_read_unlock();
@@ -104,9 +107,10 @@ _find_get_deviceid(const struct nfs_client *clp, const struct nfs4_deviceid *id,
 }
 
 struct nfs4_deviceid_node *
-nfs4_find_get_deviceid(const struct nfs_client *clp, const struct nfs4_deviceid *id)
+nfs4_find_get_deviceid(const struct pnfs_layoutdriver_type *ld,
+		       const struct nfs_client *clp, const struct nfs4_deviceid *id)
 {
-	return _find_get_deviceid(clp, id, nfs4_deviceid_hash(id));
+	return _find_get_deviceid(ld, clp, id, nfs4_deviceid_hash(id));
 }
 EXPORT_SYMBOL_GPL(nfs4_find_get_deviceid);
 
@@ -119,13 +123,14 @@ EXPORT_SYMBOL_GPL(nfs4_find_get_deviceid);
  * @ret the unhashed node, if found and dereferenced to zero, NULL otherwise.
  */
 struct nfs4_deviceid_node *
-nfs4_unhash_put_deviceid(const struct nfs_client *clp, const struct nfs4_deviceid *id)
+nfs4_unhash_put_deviceid(const struct pnfs_layoutdriver_type *ld,
+			 const struct nfs_client *clp, const struct nfs4_deviceid *id)
 {
 	struct nfs4_deviceid_node *d;
 
 	spin_lock(&nfs4_deviceid_lock);
 	rcu_read_lock();
-	d = _lookup_deviceid(clp, id, nfs4_deviceid_hash(id));
+	d = _lookup_deviceid(ld, clp, id, nfs4_deviceid_hash(id));
 	rcu_read_unlock();
 	if (!d) {
 		spin_unlock(&nfs4_deviceid_lock);
@@ -150,11 +155,12 @@ EXPORT_SYMBOL_GPL(nfs4_unhash_put_deviceid);
  * @id deviceid to delete
  */
 void
-nfs4_delete_deviceid(const struct nfs_client *clp, const struct nfs4_deviceid *id)
+nfs4_delete_deviceid(const struct pnfs_layoutdriver_type *ld,
+		     const struct nfs_client *clp, const struct nfs4_deviceid *id)
 {
 	struct nfs4_deviceid_node *d;
 
-	d = nfs4_unhash_put_deviceid(clp, id);
+	d = nfs4_unhash_put_deviceid(ld, clp, id);
 	if (!d)
 		return;
 	d->ld->free_deviceid_node(d);
@@ -194,7 +200,7 @@ nfs4_insert_deviceid_node(struct nfs4_deviceid_node *new)
 
 	spin_lock(&nfs4_deviceid_lock);
 	hash = nfs4_deviceid_hash(&new->deviceid);
-	d = _find_get_deviceid(new->nfs_client, &new->deviceid, hash);
+	d = _find_get_deviceid(new->ld, new->nfs_client, &new->deviceid, hash);
 	if (d) {
 		spin_unlock(&nfs4_deviceid_lock);
 		return d;
