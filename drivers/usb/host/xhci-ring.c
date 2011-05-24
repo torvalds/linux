@@ -692,6 +692,8 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 
 	if (list_empty(&ep->cancelled_td_list)) {
 		xhci_stop_watchdog_timer_in_irq(xhci, ep);
+		ep->stopped_td = NULL;
+		ep->stopped_trb = NULL;
 		ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 		return;
 	}
