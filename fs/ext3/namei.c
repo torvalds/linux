@@ -2074,8 +2074,6 @@ static int ext3_rmdir (struct inode * dir, struct dentry *dentry)
 	struct ext3_dir_entry_2 * de;
 	handle_t *handle;
 
-	dentry_unhash(dentry);
-
 	/* Initialize quotas before so that eventual writes go in
 	 * separate transaction */
 	dquot_initialize(dir);
@@ -2297,9 +2295,6 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 	struct buffer_head * old_bh, * new_bh, * dir_bh;
 	struct ext3_dir_entry_2 * old_de, * new_de;
 	int retval, flush_file = 0;
-
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	dquot_initialize(old_dir);
 	dquot_initialize(new_dir);
