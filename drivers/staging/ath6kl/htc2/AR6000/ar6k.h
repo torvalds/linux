@@ -42,7 +42,6 @@
 
 //#define MBOXHW_UNIT_TEST 1
 
-#include "athstartpack.h"
 PREPACK struct ar6k_irq_proc_registers {
     u8 host_int_status;
     u8 cpu_int_status;
@@ -68,8 +67,6 @@ PREPACK struct ar6k_irq_enable_registers {
 PREPACK struct ar6k_gmbox_ctrl_registers {
     u8 int_status_enable;
 } POSTPACK;
-
-#include "athendpack.h"
 
 #define AR6K_IRQ_ENABLE_REGS_SIZE sizeof(struct ar6k_irq_enable_registers)
 

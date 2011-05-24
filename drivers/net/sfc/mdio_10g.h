@@ -92,7 +92,7 @@ extern void efx_mdio_an_reconfigure(struct efx_nic *efx);
 /* Get pause parameters from AN if available (otherwise return
  * requested pause parameters)
  */
-enum efx_fc_type efx_mdio_get_pause(struct efx_nic *efx);
+u8 efx_mdio_get_pause(struct efx_nic *efx);
 
 /* Wait for specified MMDs to exit reset within a timeout */
 extern int efx_mdio_wait_reset_mmds(struct efx_nic *efx,

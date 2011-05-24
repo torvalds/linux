@@ -756,6 +756,7 @@ struct e1000_host_mng_command_info {
 /* Function pointers and static data for the MAC. */
 struct e1000_mac_operations {
 	s32  (*id_led_init)(struct e1000_hw *);
+	s32  (*blink_led)(struct e1000_hw *);
 	bool (*check_mng_mode)(struct e1000_hw *);
 	s32  (*check_for_link)(struct e1000_hw *);
 	s32  (*cleanup_led)(struct e1000_hw *);

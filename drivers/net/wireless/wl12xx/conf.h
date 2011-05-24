@@ -396,12 +396,43 @@ enum {
 	CONF_SG_TEMP_PARAM_3,
 	CONF_SG_TEMP_PARAM_4,
 	CONF_SG_TEMP_PARAM_5,
-	CONF_SG_PARAMS_MAX,
+
+	/*
+	 * AP beacon miss
+	 *
+	 * Range: 0 - 255
+	 */
+	CONF_SG_AP_BEACON_MISS_TX,
+
+	/*
+	 * AP RX window length
+	 *
+	 * Range: 0 - 50
+	 */
+	CONF_SG_RX_WINDOW_LENGTH,
+
+	/*
+	 * AP connection protection time
+	 *
+	 * Range: 0 - 5000
+	 */
+	CONF_SG_AP_CONNECTION_PROTECTION_TIME,
+
+	CONF_SG_TEMP_PARAM_6,
+	CONF_SG_TEMP_PARAM_7,
+	CONF_SG_TEMP_PARAM_8,
+	CONF_SG_TEMP_PARAM_9,
+	CONF_SG_TEMP_PARAM_10,
+
+	CONF_SG_STA_PARAMS_MAX = CONF_SG_TEMP_PARAM_5 + 1,
+	CONF_SG_AP_PARAMS_MAX = CONF_SG_TEMP_PARAM_10 + 1,
+
 	CONF_SG_PARAMS_ALL = 0xff
 };
 
 struct conf_sg_settings {
-	u32 params[CONF_SG_PARAMS_MAX];
+	u32 sta_params[CONF_SG_STA_PARAMS_MAX];
+	u32 ap_params[CONF_SG_AP_PARAMS_MAX];
 	u8 state;
 };
 
@@ -509,12 +540,25 @@ struct conf_rx_settings {
 	CONF_HW_BIT_RATE_36MBPS | CONF_HW_BIT_RATE_48MBPS |      \
 	CONF_HW_BIT_RATE_54MBPS)
 
+#define CONF_TX_OFDM_RATES (CONF_HW_BIT_RATE_6MBPS |             \
+	CONF_HW_BIT_RATE_12MBPS | CONF_HW_BIT_RATE_24MBPS |      \
+	CONF_HW_BIT_RATE_36MBPS | CONF_HW_BIT_RATE_48MBPS |      \
+	CONF_HW_BIT_RATE_54MBPS)
+
+
 /*
  * Default rates for management traffic when operating in AP mode. This
  * should be configured according to the basic rate set of the AP
  */
 #define CONF_TX_AP_DEFAULT_MGMT_RATES  (CONF_HW_BIT_RATE_1MBPS | \
 	CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS)
+
+/*
+ * Default rates for working as IBSS. use 11b rates
+ */
+#define CONF_TX_IBSS_DEFAULT_RATES  (CONF_HW_BIT_RATE_1MBPS |       \
+		CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS | \
+		CONF_HW_BIT_RATE_11MBPS);
 
 struct conf_tx_rate_class {
 
@@ -665,22 +709,6 @@ struct conf_tx_settings {
 	 */
 	u8 ac_conf_count;
 	struct conf_tx_ac_category ac_conf[CONF_TX_MAX_AC_COUNT];
-
-	/*
-	 * Configuration for rate classes in AP-mode. These rate classes
-	 * are for the AC TX queues
-	 */
-	struct conf_tx_rate_class ap_rc_conf[CONF_TX_MAX_AC_COUNT];
-
-	/*
-	 * Management TX rate class for AP-mode.
-	 */
-	struct conf_tx_rate_class ap_mgmt_conf;
-
-	/*
-	 * Broadcast TX rate class for AP-mode.
-	 */
-	struct conf_tx_rate_class ap_bcst_conf;
 
 	/*
 	 * AP-mode - allow this number of TX retries to a station before an
@@ -1004,7 +1032,9 @@ enum {
 	CONF_REF_CLK_19_2_E,
 	CONF_REF_CLK_26_E,
 	CONF_REF_CLK_38_4_E,
-	CONF_REF_CLK_52_E
+	CONF_REF_CLK_52_E,
+	CONF_REF_CLK_38_4_M_XTAL,
+	CONF_REF_CLK_26_M_XTAL,
 };
 
 enum single_dual_band_enum {
@@ -1017,15 +1047,6 @@ enum single_dual_band_enum {
 #define CONF_NUMBER_OF_RATE_GROUPS  6
 #define CONF_NUMBER_OF_CHANNELS_2_4 14
 #define CONF_NUMBER_OF_CHANNELS_5   35
-
-struct conf_radio_parms {
-	/*
-	 * FEM parameter set to use
-	 *
-	 * Range: 0 or 1
-	 */
-	u8 fem;
-};
 
 struct conf_itrim_settings {
 	/* enable dco itrim */
@@ -1126,6 +1147,26 @@ struct conf_scan_settings {
 
 };
 
+struct conf_sched_scan_settings {
+	/* minimum time to wait on the channel for active scans (in TUs) */
+	u16 min_dwell_time_active;
+
+	/* maximum time to wait on the channel for active scans (in TUs) */
+	u16 max_dwell_time_active;
+
+	/* time to wait on the channel for passive scans (in TUs) */
+	u32 dwell_time_passive;
+
+	/* number of probe requests to send on each channel in active scans */
+	u8 num_probe_reqs;
+
+	/* RSSI threshold to be used for filtering */
+	s8 rssi_threshold;
+
+	/* SNR threshold to be used for filtering */
+	s8 snr_threshold;
+};
+
 /* these are number of channels on the band divided by two, rounded up */
 #define CONF_TX_PWR_COMPENSATION_LEN_2 7
 #define CONF_TX_PWR_COMPENSATION_LEN_5 18
@@ -1191,6 +1232,19 @@ struct conf_memory_settings {
 	u8 tx_min;
 };
 
+struct conf_fm_coex {
+	u8 enable;
+	u8 swallow_period;
+	u8 n_divider_fref_set_1;
+	u8 n_divider_fref_set_2;
+	u16 m_divider_fref_set_1;
+	u16 m_divider_fref_set_2;
+	u32 coex_pll_stabilization_time;
+	u16 ldo_stabilization_time;
+	u8 fm_disturbed_band_margin;
+	u8 swallow_clk_diff;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -1200,9 +1254,13 @@ struct conf_drv_settings {
 	struct conf_pm_config_settings pm_config;
 	struct conf_roam_trigger_settings roam_trigger;
 	struct conf_scan_settings scan;
+	struct conf_sched_scan_settings sched_scan;
 	struct conf_rf_settings rf;
 	struct conf_ht_setting ht;
-	struct conf_memory_settings mem;
+	struct conf_memory_settings mem_wl127x;
+	struct conf_memory_settings mem_wl128x;
+	struct conf_fm_coex fm_coex;
+	u8 hci_io_ds;
 };
 
 #endif

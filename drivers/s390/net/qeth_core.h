@@ -407,12 +407,6 @@ struct qeth_qdio_q {
 	int next_buf_to_init;
 } __attribute__ ((aligned(256)));
 
-/* possible types of qeth large_send support */
-enum qeth_large_send_types {
-	QETH_LARGE_SEND_NO,
-	QETH_LARGE_SEND_TSO,
-};
-
 struct qeth_qdio_out_buffer {
 	struct qdio_buffer *buffer;
 	atomic_t state;
@@ -637,6 +631,8 @@ struct qeth_card_info {
 	__u32 csum_mask;
 	__u32 tx_csum_mask;
 	enum qeth_ipa_promisc_modes promisc_mode;
+	__u32 diagass_support;
+	__u32 hwtrap;
 };
 
 struct qeth_card_options {
@@ -645,13 +641,11 @@ struct qeth_card_options {
 	struct qeth_ipa_info adp; /*Adapter parameters*/
 	struct qeth_routing_info route6;
 	struct qeth_ipa_info ipa6;
-	enum qeth_checksum_types checksum_type;
 	int broadcast_mode;
 	int macaddr_mode;
 	int fake_broadcast;
 	int add_hhlen;
 	int layer2;
-	enum qeth_large_send_types large_send;
 	int performance_stats;
 	int rx_sg_cb;
 	enum qeth_ipa_isolation_modes isolation;
@@ -760,6 +754,14 @@ struct qeth_card_list_struct {
 	rwlock_t rwlock;
 };
 
+struct qeth_trap_id {
+	__u16 lparnr;
+	char vmname[8];
+	__u8 chpid;
+	__u8 ssid;
+	__u16 devno;
+} __packed;
+
 /*some helper functions*/
 #define QETH_CARD_IFNAME(card) (((card)->dev)? (card)->dev->name : "")
 
@@ -792,6 +794,12 @@ static inline void qeth_put_buffer_pool_entry(struct qeth_card *card,
 		struct qeth_buffer_pool_entry *entry)
 {
 	list_add_tail(&entry->list, &card->qdio.in_buf_pool.entry_list);
+}
+
+static inline int qeth_is_diagass_supported(struct qeth_card *card,
+		enum qeth_diags_cmds cmd)
+{
+	return card->info.diagass_support & (__u32)cmd;
 }
 
 extern struct ccwgroup_driver qeth_l2_ccwgroup_driver;
@@ -879,6 +887,8 @@ void qeth_dbf_longtext(debug_info_t *id, int level, char *text, ...);
 int qeth_core_ethtool_get_settings(struct net_device *, struct ethtool_cmd *);
 int qeth_set_access_ctrl_online(struct qeth_card *card);
 int qeth_hdr_chk_and_bounce(struct sk_buff *, int);
+int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
+int qeth_query_ipassists(struct qeth_card *, enum qeth_prot_versions prot);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

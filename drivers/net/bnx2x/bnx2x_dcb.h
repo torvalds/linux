@@ -1,6 +1,6 @@
 /* bnx2x_dcb.h: Broadcom Everest network driver.
  *
- * Copyright 2009-2010 Broadcom Corporation
+ * Copyright 2009-2011 Broadcom Corporation
  *
  * Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -61,9 +61,6 @@ struct bnx2x_dcbx_port_params {
 #define BNX2X_DCBX_OVERWRITE_SETTINGS_ENABLE		1
 #define BNX2X_DCBX_OVERWRITE_SETTINGS_INVALID	(BNX2X_DCBX_CONFIG_INV_VALUE)
 
-/*******************************************************************************
- * LLDP protocol configuration parameters.
- ******************************************************************************/
 struct bnx2x_config_lldp_params {
 	u32 overwrite_settings;
 	u32 msg_tx_hold;
@@ -83,9 +80,6 @@ struct bnx2x_admin_priority_app_table {
 		u32 app_id;
 };
 
-/*******************************************************************************
- * DCBX protocol configuration parameters.
- ******************************************************************************/
 struct bnx2x_config_dcbx_params {
 	u32 overwrite_settings;
 	u32 admin_dcbx_version;
@@ -183,9 +177,13 @@ void bnx2x_dcbx_set_state(struct bnx2x *bp, bool dcb_on, u32 dcbx_enabled);
 
 enum {
 	BNX2X_DCBX_STATE_NEG_RECEIVED = 0x1,
-	BNX2X_DCBX_STATE_TX_PAUSED = 0x2,
-	BNX2X_DCBX_STATE_TX_RELEASED = 0x4
+#ifdef BCM_CNIC
+	BNX2X_DCBX_STATE_ISCSI_STOPPED,
+#endif
+	BNX2X_DCBX_STATE_TX_PAUSED,
+	BNX2X_DCBX_STATE_TX_RELEASED
 };
+
 void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state);
 
 /* DCB netlink */

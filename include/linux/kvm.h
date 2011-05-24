@@ -541,6 +541,9 @@ struct kvm_ppc_pvinfo {
 #define KVM_CAP_PPC_GET_PVINFO 57
 #define KVM_CAP_PPC_IRQ_LEVEL 58
 #define KVM_CAP_ASYNC_PF 59
+#define KVM_CAP_TSC_CONTROL 60
+#define KVM_CAP_GET_TSC_KHZ 61
+#define KVM_CAP_PPC_BOOKE_SREGS 62
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -677,6 +680,9 @@ struct kvm_clock_data {
 #define KVM_SET_PIT2              _IOW(KVMIO,  0xa0, struct kvm_pit_state2)
 /* Available with KVM_CAP_PPC_GET_PVINFO */
 #define KVM_PPC_GET_PVINFO	  _IOW(KVMIO,  0xa1, struct kvm_ppc_pvinfo)
+/* Available with KVM_CAP_TSC_CONTROL */
+#define KVM_SET_TSC_KHZ           _IO(KVMIO,  0xa2)
+#define KVM_GET_TSC_KHZ           _IO(KVMIO,  0xa3)
 
 /*
  * ioctls for vcpu fds

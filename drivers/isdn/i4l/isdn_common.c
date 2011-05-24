@@ -399,13 +399,8 @@ isdn_all_eaz(int di, int ch)
 #include <linux/isdn/capicmd.h>
 
 static int
-isdn_capi_rec_hl_msg(capi_msg *cm) {
-	
-	int di;
-	int ch;
-	
-	di = (cm->adr.Controller & 0x7f) -1;
-	ch = isdn_dc2minor(di, (cm->adr.Controller>>8)& 0x7f);
+isdn_capi_rec_hl_msg(capi_msg *cm)
+{
 	switch(cm->Command) {
 		case CAPI_FACILITY:
 			/* in the moment only handled in tty */
@@ -1278,7 +1273,6 @@ isdn_ioctl(struct file *file, uint cmd, ulong arg)
 	uint minor = iminor(file->f_path.dentry->d_inode);
 	isdn_ctrl c;
 	int drvidx;
-	int chidx;
 	int ret;
 	int i;
 	char __user *p;
@@ -1340,7 +1334,6 @@ isdn_ioctl(struct file *file, uint cmd, ulong arg)
 		drvidx = isdn_minor2drv(minor);
 		if (drvidx < 0)
 			return -ENODEV;
-		chidx = isdn_minor2chan(minor);
 		if (!(dev->drv[drvidx]->flags & DRV_FLAG_RUNNING))
 			return -ENODEV;
 		return 0;

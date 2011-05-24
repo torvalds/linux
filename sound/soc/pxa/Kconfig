@@ -155,6 +155,15 @@ config SND_SOC_RAUMFELD
 	help
 	  Say Y if you want to add support for SoC audio on Raumfeld devices
 
+config SND_PXA2XX_SOC_HX4700
+	tristate "SoC Audio support for HP iPAQ hx4700"
+	depends on SND_PXA2XX_SOC && MACH_H4700
+	select SND_PXA2XX_SOC_I2S
+	select SND_SOC_AK4641
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  HP iPAQ hx4700.
+
 config SND_PXA2XX_SOC_MAGICIAN
 	tristate "SoC Audio support for HTC Magician"
 	depends on SND_PXA2XX_SOC && MACH_MAGICIAN

@@ -54,6 +54,8 @@ struct netns_ipv4 {
 	int sysctl_rt_cache_rebuild_count;
 	int current_rt_cache_rebuild_count;
 
+	unsigned int sysctl_ping_group_range[2];
+
 	atomic_t rt_genid;
 	atomic_t dev_addr_genid;
 

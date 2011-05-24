@@ -1070,7 +1070,7 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 	hdlc_device *hdlc = dev_to_hdlc(frad);
 	pvc_device *pvc;
 	struct net_device *dev;
-	int result, used;
+	int used;
 
 	if ((pvc = add_pvc(frad, dlci)) == NULL) {
 		printk(KERN_WARNING "%s: Memory squeeze on fr_add_pvc()\n",
@@ -1105,13 +1105,6 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 	dev->mtu = HDLC_MAX_MTU;
 	dev->tx_queue_len = 0;
 	dev->ml_priv = pvc;
-
-	result = dev_alloc_name(dev, dev->name);
-	if (result < 0) {
-		free_netdev(dev);
-		delete_unused_pvcs(hdlc);
-		return result;
-	}
 
 	if (register_netdevice(dev) != 0) {
 		free_netdev(dev);

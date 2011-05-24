@@ -328,8 +328,6 @@ sysrq.txt
 	- info on the magic SysRq key.
 telephony/
 	- directory with info on telephony (e.g. voice over IP) support.
-uml/
-	- directory with information about User Mode Linux.
 unicode.txt
 	- info on the Unicode character/font mapping used in Linux.
 unshare.txt

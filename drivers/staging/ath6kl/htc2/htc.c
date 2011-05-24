@@ -70,7 +70,7 @@ static void HTCCleanup(struct htc_target *target)
     
     for (i = 0;i < NUM_CONTROL_BUFFERS;i++) {
         if (target->HTCControlBuffers[i].Buffer) {
-            A_FREE(target->HTCControlBuffers[i].Buffer);
+            kfree(target->HTCControlBuffers[i].Buffer);
         }
     }
     
@@ -86,7 +86,7 @@ static void HTCCleanup(struct htc_target *target)
         A_MUTEX_DELETE(&target->HTCTxLock);
     }
         /* free our instance */
-    A_FREE(target);
+    kfree(target);
 }
 
 /* registered target arrival callback from the HIF layer */
@@ -448,9 +448,7 @@ static void ResetEndpointStates(struct htc_target *target)
         pEndpoint->ServiceID = 0;
         pEndpoint->MaxMsgLength = 0;
         pEndpoint->MaxTxQueueDepth = 0;
-#ifdef HTC_EP_STAT_PROFILING
         A_MEMZERO(&pEndpoint->EndPointStats,sizeof(pEndpoint->EndPointStats));
-#endif
         INIT_HTC_PACKET_QUEUE(&pEndpoint->RxBuffers);
         INIT_HTC_PACKET_QUEUE(&pEndpoint->TxQueue);
         INIT_HTC_PACKET_QUEUE(&pEndpoint->RecvIndicationQueue);
@@ -527,7 +525,6 @@ bool HTCGetEndpointStatistics(HTC_HANDLE               HTCHandle,
                                 struct htc_endpoint_stats       *pStats)
 {
 
-#ifdef HTC_EP_STAT_PROFILING
     struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     bool     clearStats = false;
     bool     sample = false;
@@ -568,9 +565,6 @@ bool HTCGetEndpointStatistics(HTC_HANDLE               HTCHandle,
     UNLOCK_HTC_TX(target);
 
     return true;
-#else
-    return false;
-#endif
 }
 
 struct ar6k_device  *HTCGetAR6KDevice(void *HTCHandle)

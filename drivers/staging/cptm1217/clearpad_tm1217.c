@@ -462,8 +462,8 @@ static int cp_tm1217_probe(struct i2c_client *client,
 		if (input_dev == NULL) {
 			dev_err(ts->dev,
 				"cp_tm1217:Input Device Struct alloc failed\n");
-			kfree(ts);
-			return -ENOMEM;
+			retval = -ENOMEM;
+			goto fail;
 		}
 		input_info = &ts->cp_input_info[i];
 		snprintf(input_info->name, sizeof(input_info->name),
@@ -486,6 +486,7 @@ static int cp_tm1217_probe(struct i2c_client *client,
 			dev_err(ts->dev,
 				"Input dev registration failed for %s\n",
 					input_dev->name);
+			input_free_device(input_dev);
 			goto fail;
 		}
 		input_info->input = input_dev;

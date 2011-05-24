@@ -18,6 +18,8 @@
  *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -27,16 +29,7 @@
 #include <linux/dmi.h>
 #include <linux/pci.h>
 
-#include "logging.h"
-#include "hv_api.h"
-#include "vmbus.h"
-#include "vmbus_packet_format.h"
-#include "vmbus_channel_interface.h"
-#include "version_info.h"
-#include "channel.h"
-#include "vmbus_private.h"
-#include "vmbus_api.h"
-#include "utils.h"
+#include "hyperv.h"
 #include "hv_kvp.h"
 
 static u8 *shut_txf_buf;
@@ -59,9 +52,6 @@ static void shutdown_onchannelcallback(void *context)
 			 PAGE_SIZE, &recvlen, &requestid);
 
 	if (recvlen > 0) {
-		DPRINT_DBG(VMBUS, "shutdown packet: len=%d, requestid=%lld",
-			   recvlen, requestid);
-
 		icmsghdrp = (struct icmsg_hdr *)&shut_txf_buf[
 			sizeof(struct vmbuspipe_hdr)];
 
@@ -79,17 +69,17 @@ static void shutdown_onchannelcallback(void *context)
 				icmsghdrp->status = HV_S_OK;
 				execute_shutdown = true;
 
-				DPRINT_INFO(VMBUS, "Shutdown request received -"
-					    " graceful shutdown initiated");
+				pr_info("Shutdown request received -"
+					    " graceful shutdown initiated\n");
 				break;
 			default:
 				icmsghdrp->status = HV_E_FAIL;
 				execute_shutdown = false;
 
-				DPRINT_INFO(VMBUS, "Shutdown request received -"
-					    " Invalid request");
+				pr_info("Shutdown request received -"
+					    " Invalid request\n");
 				break;
-			};
+			}
 		}
 
 		icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION
@@ -159,9 +149,6 @@ static void timesync_onchannelcallback(void *context)
 			 PAGE_SIZE, &recvlen, &requestid);
 
 	if (recvlen > 0) {
-		DPRINT_DBG(VMBUS, "timesync packet: recvlen=%d, requestid=%lld",
-			recvlen, requestid);
-
 		icmsghdrp = (struct icmsg_hdr *)&time_txf_buf[
 				sizeof(struct vmbuspipe_hdr)];
 
@@ -200,9 +187,6 @@ static void heartbeat_onchannelcallback(void *context)
 			 PAGE_SIZE, &recvlen, &requestid);
 
 	if (recvlen > 0) {
-		DPRINT_DBG(VMBUS, "heartbeat packet: len=%d, requestid=%lld",
-			   recvlen, requestid);
-
 		icmsghdrp = (struct icmsg_hdr *)&hbeat_txf_buf[
 				sizeof(struct vmbuspipe_hdr)];
 
@@ -213,9 +197,6 @@ static void heartbeat_onchannelcallback(void *context)
 				(struct heartbeat_msg_data *)&hbeat_txf_buf[
 					sizeof(struct vmbuspipe_hdr) +
 					sizeof(struct icmsg_hdr)];
-
-			DPRINT_DBG(VMBUS, "heartbeat seq = %lld",
-				   heartbeat_msg->seq_num);
 
 			heartbeat_msg->seq_num += 1;
 		}
@@ -254,7 +235,7 @@ MODULE_DEVICE_TABLE(dmi, hv_utils_dmi_table);
 
 static int __init init_hyperv_utils(void)
 {
-	printk(KERN_INFO "Registering HyperV Utility Driver\n");
+	pr_info("Registering HyperV Utility Driver\n");
 
 	if (hv_kvp_init())
 		return -ENODEV;
@@ -268,52 +249,48 @@ static int __init init_hyperv_utils(void)
 	hbeat_txf_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 
 	if (!shut_txf_buf || !time_txf_buf || !hbeat_txf_buf) {
-		printk(KERN_INFO
-		       "Unable to allocate memory for receive buffer\n");
+		pr_info("Unable to allocate memory for receive buffer\n");
 		kfree(shut_txf_buf);
 		kfree(time_txf_buf);
 		kfree(hbeat_txf_buf);
 		return -ENOMEM;
 	}
 
-	hv_cb_utils[HV_SHUTDOWN_MSG].channel->onchannel_callback =
-		&shutdown_onchannelcallback;
 	hv_cb_utils[HV_SHUTDOWN_MSG].callback = &shutdown_onchannelcallback;
 
-	hv_cb_utils[HV_TIMESYNC_MSG].channel->onchannel_callback =
-		&timesync_onchannelcallback;
 	hv_cb_utils[HV_TIMESYNC_MSG].callback = &timesync_onchannelcallback;
 
-	hv_cb_utils[HV_HEARTBEAT_MSG].channel->onchannel_callback =
-		&heartbeat_onchannelcallback;
 	hv_cb_utils[HV_HEARTBEAT_MSG].callback = &heartbeat_onchannelcallback;
 
-	hv_cb_utils[HV_KVP_MSG].channel->onchannel_callback =
-		&hv_kvp_onchannelcallback;
-
-
+	hv_cb_utils[HV_KVP_MSG].callback = &hv_kvp_onchannelcallback;
 
 	return 0;
 }
 
 static void exit_hyperv_utils(void)
 {
-	printk(KERN_INFO "De-Registered HyperV Utility Driver\n");
+	pr_info("De-Registered HyperV Utility Driver\n");
 
-	hv_cb_utils[HV_SHUTDOWN_MSG].channel->onchannel_callback =
-		&chn_cb_negotiate;
-	hv_cb_utils[HV_SHUTDOWN_MSG].callback = &chn_cb_negotiate;
+	if (hv_cb_utils[HV_SHUTDOWN_MSG].channel != NULL)
+		hv_cb_utils[HV_SHUTDOWN_MSG].channel->onchannel_callback =
+			&chn_cb_negotiate;
+	hv_cb_utils[HV_SHUTDOWN_MSG].callback = NULL;
 
-	hv_cb_utils[HV_TIMESYNC_MSG].channel->onchannel_callback =
-		&chn_cb_negotiate;
-	hv_cb_utils[HV_TIMESYNC_MSG].callback = &chn_cb_negotiate;
+	if (hv_cb_utils[HV_TIMESYNC_MSG].channel != NULL)
+		hv_cb_utils[HV_TIMESYNC_MSG].channel->onchannel_callback =
+			&chn_cb_negotiate;
+	hv_cb_utils[HV_TIMESYNC_MSG].callback = NULL;
 
-	hv_cb_utils[HV_HEARTBEAT_MSG].channel->onchannel_callback =
-		&chn_cb_negotiate;
-	hv_cb_utils[HV_HEARTBEAT_MSG].callback = &chn_cb_negotiate;
+	if (hv_cb_utils[HV_HEARTBEAT_MSG].channel != NULL)
+		hv_cb_utils[HV_HEARTBEAT_MSG].channel->onchannel_callback =
+			&chn_cb_negotiate;
+	hv_cb_utils[HV_HEARTBEAT_MSG].callback = NULL;
 
-	hv_cb_utils[HV_KVP_MSG].channel->onchannel_callback =
-		&chn_cb_negotiate;
+	if (hv_cb_utils[HV_KVP_MSG].channel != NULL)
+		hv_cb_utils[HV_KVP_MSG].channel->onchannel_callback =
+			&chn_cb_negotiate;
+	hv_cb_utils[HV_KVP_MSG].callback = NULL;
+
 	hv_kvp_deinit();
 
 	kfree(shut_txf_buf);

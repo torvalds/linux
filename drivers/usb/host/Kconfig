@@ -106,13 +106,13 @@ config USB_EHCI_BIG_ENDIAN_MMIO
 	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX || \
 				    ARCH_IXP4XX || XPS_USB_HCD_XILINX || \
 				    PPC_MPC512x || CPU_CAVIUM_OCTEON || \
-				    PMC_MSP)
+				    PMC_MSP || SPARC_LEON)
 	default y
 
 config USB_EHCI_BIG_ENDIAN_DESC
 	bool
 	depends on USB_EHCI_HCD && (440EPX || ARCH_IXP4XX || XPS_USB_HCD_XILINX || \
-				    PPC_MPC512x || PMC_MSP)
+				    PPC_MPC512x || PMC_MSP || SPARC_LEON)
 	default y
 
 config XPS_USB_HCD_XILINX
@@ -188,6 +188,12 @@ config USB_EHCI_SH
 	  Enables support for the on-chip EHCI controller on the SuperH.
 	  If you use the PCI EHCI controller, this option is not necessary.
 
+config USB_EHCI_S5P
+       boolean "S5P EHCI support"
+       depends on USB_EHCI_HCD && PLAT_S5P
+       help
+	 Enable support for the S5P SOC's on-chip EHCI controller.
+
 config USB_W90X900_EHCI
 	bool "W90X900(W90P910) EHCI support"
 	depends on USB_EHCI_HCD && ARCH_W90X900
@@ -201,6 +207,15 @@ config USB_CNS3XXX_EHCI
 	  Enable support for the CNS3XXX SOC's on-chip EHCI controller.
 	  It is needed for high-speed (480Mbit/sec) USB 2.0 device
 	  support.
+
+config USB_EHCI_ATH79
+	bool "EHCI support for AR7XXX/AR9XXX SoCs"
+	depends on USB_EHCI_HCD && (SOC_AR71XX || SOC_AR724X || SOC_AR913X)
+	select USB_EHCI_ROOT_HUB_TT
+	default y
+	---help---
+	  Enables support for the built-in EHCI controller present
+	  on the Atheros AR7XXX/AR9XXX SoCs.
 
 config USB_OXU210HP_HCD
 	tristate "OXU210HP HCD support"
@@ -286,6 +301,14 @@ config USB_OHCI_HCD_OMAP3
 	---help---
 	  Enables support for the on-chip OHCI controller on
 	  OMAP3 and later chips.
+
+config USB_OHCI_ATH79
+	bool "USB OHCI support for the Atheros AR71XX/AR7240 SoCs"
+	depends on USB_OHCI_HCD && (SOC_AR71XX || SOC_AR724X)
+	default y
+	help
+	  Enables support for the built-in OHCI controller present on the
+	  Atheros AR71XX/AR7240 SoCs.
 
 config USB_OHCI_HCD_PPC_SOC
 	bool "OHCI support for on-chip PPC USB controller"
@@ -373,7 +396,7 @@ config USB_OHCI_LITTLE_ENDIAN
 
 config USB_UHCI_HCD
 	tristate "UHCI HCD (most Intel and VIA) support"
-	depends on USB && PCI
+	depends on USB && (PCI || SPARC_LEON)
 	---help---
 	  The Universal Host Controller Interface is a standard by Intel for
 	  accessing the USB hardware in the PC (which is also called the USB
@@ -382,10 +405,26 @@ config USB_UHCI_HCD
 	  with Intel PCI chipsets (like intel 430TX, 440FX, 440LX, 440BX,
 	  i810, i820) conform to this standard. Also all VIA PCI chipsets
 	  (like VIA VP2, VP3, MVP3, Apollo Pro, Apollo Pro II or Apollo Pro
-	  133). If unsure, say Y.
+	  133) and LEON/GRLIB SoCs with the GRUSBHC controller.
+	  If unsure, say Y.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called uhci-hcd.
+
+config USB_UHCI_SUPPORT_NON_PCI_HC
+	bool
+	depends on USB_UHCI_HCD
+	default y if SPARC_LEON
+
+config USB_UHCI_BIG_ENDIAN_MMIO
+	bool
+	depends on USB_UHCI_SUPPORT_NON_PCI_HC && SPARC_LEON
+	default y
+
+config USB_UHCI_BIG_ENDIAN_DESC
+	bool
+	depends on USB_UHCI_SUPPORT_NON_PCI_HC && SPARC_LEON
+	default y
 
 config USB_FHCI_HCD
 	tristate "Freescale QE USB Host Controller support"
@@ -443,6 +482,16 @@ config USB_SL811_HCD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sl811-hcd.
+
+config USB_SL811_HCD_ISO
+	bool "partial ISO support"
+	depends on USB_SL811_HCD
+	help
+	  The driver doesn't support iso_frame_desc (yet), but for some simple
+	  devices that just queue one ISO frame per URB, then ISO transfers
+	  "should" work using the normal urb status fields.
+
+	  If unsure, say N.
 
 config USB_SL811_CS
 	tristate "CF/PCMCIA support for SL811HS HCD"

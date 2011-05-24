@@ -64,28 +64,28 @@ static struct platform_device rd88f5181l_fxo_nor_boot_flash = {
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
-static struct orion5x_mpp_mode rd88f5181l_fxo_mpp_modes[] __initdata = {
-	{  0, MPP_GPIO },		/* LED1 CardBus LED (front panel) */
-	{  1, MPP_GPIO },		/* PCI_intA */
-	{  2, MPP_GPIO },		/* Hard Reset / Factory Init*/
-	{  3, MPP_GPIO },		/* FXS or DAA select */
-	{  4, MPP_GPIO },		/* LED6 - phone LED (front panel) */
-	{  5, MPP_GPIO },		/* LED5 - phone LED (front panel) */
-	{  6, MPP_PCI_CLK },		/* CPU PCI refclk */
-	{  7, MPP_PCI_CLK },		/* PCI/PCIe refclk */
-	{  8, MPP_GPIO },		/* CardBus reset */
-	{  9, MPP_GPIO },		/* GE_RXERR */
-	{ 10, MPP_GPIO },		/* LED2 MiniPCI LED (front panel) */
-	{ 11, MPP_GPIO },		/* Lifeline control */
-	{ 12, MPP_GIGE },		/* GE_TXD[4] */
-	{ 13, MPP_GIGE },		/* GE_TXD[5] */
-	{ 14, MPP_GIGE },		/* GE_TXD[6] */
-	{ 15, MPP_GIGE },		/* GE_TXD[7] */
-	{ 16, MPP_GIGE },		/* GE_RXD[4] */
-	{ 17, MPP_GIGE },		/* GE_RXD[5] */
-	{ 18, MPP_GIGE },		/* GE_RXD[6] */
-	{ 19, MPP_GIGE },		/* GE_RXD[7] */
-	{ -1 },
+static unsigned int rd88f5181l_fxo_mpp_modes[] __initdata = {
+	MPP0_GPIO,		/* LED1 CardBus LED (front panel) */
+	MPP1_GPIO,		/* PCI_intA */
+	MPP2_GPIO,		/* Hard Reset / Factory Init*/
+	MPP3_GPIO,		/* FXS or DAA select */
+	MPP4_GPIO,		/* LED6 - phone LED (front panel) */
+	MPP5_GPIO,		/* LED5 - phone LED (front panel) */
+	MPP6_PCI_CLK,		/* CPU PCI refclk */
+	MPP7_PCI_CLK,		/* PCI/PCIe refclk */
+	MPP8_GPIO,		/* CardBus reset */
+	MPP9_GPIO,		/* GE_RXERR */
+	MPP10_GPIO,		/* LED2 MiniPCI LED (front panel) */
+	MPP11_GPIO,		/* Lifeline control */
+	MPP12_GIGE,		/* GE_TXD[4] */
+	MPP13_GIGE,		/* GE_TXD[5] */
+	MPP14_GIGE,		/* GE_TXD[6] */
+	MPP15_GIGE,		/* GE_TXD[7] */
+	MPP16_GIGE,		/* GE_RXD[4] */
+	MPP17_GIGE,		/* GE_RXD[5] */
+	MPP18_GIGE,		/* GE_RXD[6] */
+	MPP19_GIGE,		/* GE_RXD[7] */
+	0,
 };
 
 static struct mv643xx_eth_platform_data rd88f5181l_fxo_eth_data = {

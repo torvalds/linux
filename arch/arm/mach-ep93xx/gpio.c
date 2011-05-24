@@ -356,29 +356,6 @@ static int ep93xx_gpio_set_debounce(struct gpio_chip *chip,
 	return 0;
 }
 
-static void ep93xx_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
-{
-	struct ep93xx_gpio_chip *ep93xx_chip = to_ep93xx_gpio_chip(chip);
-	u8 data_reg, data_dir_reg;
-	int gpio, i;
-
-	data_reg = __raw_readb(ep93xx_chip->data_reg);
-	data_dir_reg = __raw_readb(ep93xx_chip->data_dir_reg);
-
-	gpio = ep93xx_chip->chip.base;
-	for (i = 0; i < chip->ngpio; i++, gpio++) {
-		int is_out = data_dir_reg & (1 << i);
-		int irq = gpio_to_irq(gpio);
-
-		seq_printf(s, " %s%d gpio-%-3d (%-12s) %s %s %s\n",
-				chip->label, i, gpio,
-				gpiochip_is_requested(chip, i) ? : "",
-				is_out ? "out" : "in ",
-				(data_reg & (1<<  i)) ? "hi" : "lo",
-				(!is_out && irq>= 0) ? "(interrupt)" : "");
-	}
-}
-
 #define EP93XX_GPIO_BANK(name, dr, ddr, base_gpio)			\
 	{								\
 		.chip = {						\
@@ -387,7 +364,6 @@ static void ep93xx_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			.direction_output = ep93xx_gpio_direction_output, \
 			.get		  = ep93xx_gpio_get,		\
 			.set		  = ep93xx_gpio_set,		\
-			.dbg_show	  = ep93xx_gpio_dbg_show,	\
 			.base		  = base_gpio,			\
 			.ngpio		  = 8,				\
 		},							\

@@ -1,51 +1,15 @@
-To Do List for Broadcom Mac80211 driver
-
-Features to be added
-=====================
-- 40 MHz channels
-- Power Save
-- AP
-- IBSS
-- HW-based encryption
-- LED support
-- RFKILL
-- Debugfs and debugability
-
-Code cleanup
-============
-- Use proper kernel coding standards
-- Remove overlap with system header files. (ie much of include/proto/*.h should
-  be removed)
-- Purge unused variables/data structs/functions BUT keep code related to
-  features that are being added (ie AP mode, 40 Mhz channels, IBSS etc).
-- Replace proprietary utility functions with public kernel versions.
+To Do List for Broadcom Mac80211 driver before getting in mainline
 
 Bugs
 ====
-- Various occasional asserts/hangs
-- Scanning during data transfer sometimes causes major slowdowns.  Sometimes
-  revcovers when scan is done, other times not.
-- Mac80211 API not completely implemented (ie ops_bss_info_changed,
-  ops_get_stats, etc)
+- Oops on AMPDU traffic, to be solved by new ucode (currently under test)
 
-Other
-=====
-- wlc_mac80211.[ch], wl_mac80211.[ch] and linux_osl.c all need to be refactored
-    and combined.
-- Merge files that are partially duplicated between the softmac and fullmac
-  drivers
+brcmfmac and brcmsmac
+=====================
+- ASSERTS not allowed in mainline, replace by warning + error handling
+- Replace printk and WL_ERROR() with proper routines
+
+brcmfmac
+=====================
 - Replace driver's proprietary ssb interface with generic kernel ssb module
-  (only used when compiling for SDIO).
-- PCI and SDIO support are currently #ifdef'ed exclusive of each other, which
-  leads to a separate wl.ko for each.  This should be changed to runtime
-  handling of different interfaces so that a single binary driver can be built.
-- Add support for new chips (obviously an ongoing item).
-
-Contact
-=====
-Brett Rudley <brudley@broadcom.com>
-Henry Ptasinski <henryp@broadcom.com>
-Dowan Kim <dowan@broadcom.com>
-Roland Vossen <rvossen@broadcom.com>
-Arend van Spriel <arend@broadcom.com>
-
+- Build and test on 64 bit linux kernel

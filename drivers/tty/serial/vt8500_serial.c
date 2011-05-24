@@ -1,6 +1,4 @@
 /*
- * drivers/serial/vt8500_serial.c
- *
  * Copyright (C) 2010 Alexey Charkov <alchark@gmail.com>
  *
  * Based on msm_serial.c, which is:

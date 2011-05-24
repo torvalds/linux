@@ -58,6 +58,7 @@ struct wm8962_priv {
 	int bclk;  /* Desired BCLK */
 	int lrclk;
 
+	struct completion fll_lock;
 	int fll_src;
 	int fll_fref;
 	int fll_fout;
@@ -2038,6 +2039,13 @@ static int wm8962_put_spk_sw(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static const char *cap_hpf_mode_text[] = {
+	"Hi-fi", "Application"
+};
+
+static const struct soc_enum cap_hpf_mode =
+	SOC_ENUM_SINGLE(WM8962_ADC_DAC_CONTROL_2, 10, 2, cap_hpf_mode_text);
+
 static const struct snd_kcontrol_new wm8962_snd_controls[] = {
 SOC_DOUBLE("Input Mixer Switch", WM8962_INPUT_MIXER_CONTROL_1, 3, 2, 1, 1),
 
@@ -2063,6 +2071,9 @@ SOC_DOUBLE_R("Capture Switch", WM8962_LEFT_INPUT_VOLUME,
 	     WM8962_RIGHT_INPUT_VOLUME, 7, 1, 1),
 SOC_DOUBLE_R("Capture ZC Switch", WM8962_LEFT_INPUT_VOLUME,
 	     WM8962_RIGHT_INPUT_VOLUME, 6, 1, 1),
+SOC_SINGLE("Capture HPF Switch", WM8962_ADC_DAC_CONTROL_1, 0, 1, 1),
+SOC_ENUM("Capture HPF Mode", cap_hpf_mode),
+SOC_SINGLE("Capture HPF Cutoff", WM8962_ADC_DAC_CONTROL_2, 7, 7, 0),
 
 SOC_DOUBLE_R_TLV("Sidetone Volume", WM8962_DAC_DSP_MIXING_1,
 		 WM8962_DAC_DSP_MIXING_2, 4, 12, 0, st_tlv),
@@ -2467,6 +2478,7 @@ SND_SOC_DAPM_INPUT("IN3R"),
 SND_SOC_DAPM_INPUT("IN4L"),
 SND_SOC_DAPM_INPUT("IN4R"),
 SND_SOC_DAPM_INPUT("Beep"),
+SND_SOC_DAPM_INPUT("DMICDAT"),
 
 SND_SOC_DAPM_MICBIAS("MICBIAS", WM8962_PWR_MGMT_1, 1, 0),
 
@@ -2485,6 +2497,8 @@ SND_SOC_DAPM_MIXER("MIXINL", WM8962_PWR_MGMT_1, 5, 0,
 		   mixinl, ARRAY_SIZE(mixinl)),
 SND_SOC_DAPM_MIXER("MIXINR", WM8962_PWR_MGMT_1, 4, 0,
 		   mixinr, ARRAY_SIZE(mixinr)),
+
+SND_SOC_DAPM_AIF_IN("DMIC", NULL, 0, WM8962_PWR_MGMT_1, 10, 0),
 
 SND_SOC_DAPM_ADC("ADCL", "Capture", WM8962_PWR_MGMT_1, 3, 0),
 SND_SOC_DAPM_ADC("ADCR", "Capture", WM8962_PWR_MGMT_1, 2, 0),
@@ -2563,13 +2577,17 @@ static const struct snd_soc_dapm_route wm8962_intercon[] = {
 
 	{ "MICBIAS", NULL, "SYSCLK" },
 
+	{ "DMIC", NULL, "DMICDAT" },
+
 	{ "ADCL", NULL, "SYSCLK" },
 	{ "ADCL", NULL, "TOCLK" },
 	{ "ADCL", NULL, "MIXINL" },
+	{ "ADCL", NULL, "DMIC" },
 
 	{ "ADCR", NULL, "SYSCLK" },
 	{ "ADCR", NULL, "TOCLK" },
 	{ "ADCR", NULL, "MIXINR" },
+	{ "ADCR", NULL, "DMIC" },
 
 	{ "STL", "Left", "ADCL" },
 	{ "STL", "Right", "ADCR" },
@@ -2990,7 +3008,6 @@ static int wm8962_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 	case WM8962_SYSCLK_FLL:
 		wm8962->sysclk = WM8962_SYSCLK_FLL;
 		src = 1 << WM8962_SYSCLK_SRC_SHIFT;
-		WARN_ON(freq != wm8962->fll_fout);
 		break;
 	default:
 		return -EINVAL;
@@ -3172,12 +3189,12 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	return 0;
 }
 
-static int wm8962_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
+static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
-	struct snd_soc_codec *codec = dai->codec;
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	struct _fll_div fll_div;
+	unsigned long timeout;
 	int ret;
 	int fll1 = snd_soc_read(codec, WM8962_FLL_CONTROL_1) & WM8962_FLL_ENA;
 
@@ -3244,6 +3261,11 @@ static int wm8962_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 
 	dev_dbg(codec->dev, "FLL configured for %dHz->%dHz\n", Fref, Fout);
 
+	/* This should be a massive overestimate */
+	timeout = msecs_to_jiffies(1);
+
+	wait_for_completion_timeout(&wm8962->fll_lock, timeout);
+
 	wm8962->fll_fref = Fref;
 	wm8962->fll_fout = Fout;
 	wm8962->fll_src = source;
@@ -3274,7 +3296,6 @@ static struct snd_soc_dai_ops wm8962_dai_ops = {
 	.hw_params = wm8962_hw_params,
 	.set_sysclk = wm8962_set_dai_sysclk,
 	.set_fmt = wm8962_set_dai_fmt,
-	.set_pll = wm8962_set_fll,
 	.digital_mute = wm8962_mute,
 };
 
@@ -3339,6 +3360,11 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 
 	active = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2);
 	active &= ~mask;
+
+	if (active & WM8962_FLL_LOCK_EINT) {
+		dev_dbg(codec->dev, "FLL locked\n");
+		complete(&wm8962->fll_lock);
+	}
 
 	if (active & WM8962_FIFOS_ERR_EINT)
 		dev_err(codec->dev, "FIFO error\n");
@@ -3709,9 +3735,11 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 					      dev);
 	u16 *reg_cache = codec->reg_cache;
 	int i, trigger, irq_pol;
+	bool dmicclk, dmicdat;
 
 	wm8962->codec = codec;
 	INIT_DELAYED_WORK(&wm8962->mic_work, wm8962_mic_work);
+	init_completion(&wm8962->fll_lock);
 
 	codec->cache_sync = 1;
 	codec->dapm.idle_bias_off = 1;
@@ -3845,6 +3873,29 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 
 	wm8962_add_widgets(codec);
 
+	/* Save boards having to disable DMIC when not in use */
+	dmicclk = false;
+	dmicdat = false;
+	for (i = 0; i < WM8962_MAX_GPIO; i++) {
+		switch (snd_soc_read(codec, WM8962_GPIO_BASE + i)
+			& WM8962_GP2_FN_MASK) {
+		case WM8962_GPIO_FN_DMICCLK:
+			dmicclk = true;
+			break;
+		case WM8962_GPIO_FN_DMICDAT:
+			dmicdat = true;
+			break;
+		default:
+			break;
+		}
+	}
+	if (!dmicclk || !dmicdat) {
+		dev_dbg(codec->dev, "DMIC not in use, disabling\n");
+		snd_soc_dapm_nc_pin(&codec->dapm, "DMICDAT");
+	}
+	if (dmicclk != dmicdat)
+		dev_warn(codec->dev, "DMIC GPIOs partially configured\n");
+
 	wm8962_init_beep(codec);
 	wm8962_init_gpio(codec);
 
@@ -3868,9 +3919,10 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 				i2c->irq, ret);
 			/* Non-fatal */
 		} else {
-			/* Enable error reporting IRQs by default */
+			/* Enable some IRQs by default */
 			snd_soc_update_bits(codec,
 					    WM8962_INTERRUPT_STATUS_2_MASK,
+					    WM8962_FLL_LOCK_EINT |
 					    WM8962_TEMP_SHUT_EINT |
 					    WM8962_FIFOS_ERR_EINT, 0);
 		}
@@ -3918,6 +3970,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8962 = {
 	.reg_cache_default = wm8962_reg,
 	.volatile_register = wm8962_volatile_register,
 	.readable_register = wm8962_readable_register,
+	.set_pll = wm8962_set_fll,
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)

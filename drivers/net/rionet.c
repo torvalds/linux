@@ -162,8 +162,8 @@ static int rionet_queue_tx_msg(struct sk_buff *skb, struct net_device *ndev,
 	rnet->tx_slot &= (RIONET_TX_RING_SIZE - 1);
 
 	if (netif_msg_tx_queued(rnet))
-		printk(KERN_INFO "%s: queued skb %8.8x len %8.8x\n", DRV_NAME,
-		       (u32) skb, skb->len);
+		printk(KERN_INFO "%s: queued skb len %8.8x\n", DRV_NAME,
+		       skb->len);
 
 	return 0;
 }

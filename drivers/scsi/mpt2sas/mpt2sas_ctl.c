@@ -1041,7 +1041,10 @@ _ctl_getiocinfo(void __user *arg)
 	    __func__));
 
 	memset(&karg, 0 , sizeof(karg));
-	karg.adapter_type = MPT2_IOCTL_INTERFACE_SAS2;
+	if (ioc->is_warpdrive)
+		karg.adapter_type = MPT2_IOCTL_INTERFACE_SAS2_SSS6200;
+	else
+		karg.adapter_type = MPT2_IOCTL_INTERFACE_SAS2;
 	if (ioc->pfacts)
 		karg.port_number = ioc->pfacts[0].PortNumber;
 	pci_read_config_byte(ioc->pdev, PCI_CLASS_REVISION, &revision);

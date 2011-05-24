@@ -62,3 +62,16 @@ Description:
 		sensing mode. This value should be the output from a reading
 		and if expressed in SI units, should include _input. If this
 		value is not in SI units, then it should include _raw.
+
+What:		/sys/bus/iio/devices/device[n]/illuminance0_target
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This property gets/sets the last known external
+		lux measurement used in/for calibration.
+
+What:		/sys/bus/iio/devices/device[n]/illuminance0_integration_time
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This property gets/sets the sensors ADC analog integration time.

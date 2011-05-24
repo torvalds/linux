@@ -467,6 +467,7 @@ static struct kvm *kvm_create_vm(void)
 		if (!kvm->buses[i])
 			goto out_err;
 	}
+	spin_lock_init(&kvm->mmu_lock);
 
 	r = kvm_init_mmu_notifier(kvm);
 	if (r)
@@ -474,7 +475,6 @@ static struct kvm *kvm_create_vm(void)
 
 	kvm->mm = current->mm;
 	atomic_inc(&kvm->mm->mm_count);
-	spin_lock_init(&kvm->mmu_lock);
 	kvm_eventfd_init(kvm);
 	mutex_init(&kvm->lock);
 	mutex_init(&kvm->irq_lock);
@@ -648,7 +648,10 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		goto out;
 	if (mem->guest_phys_addr & (PAGE_SIZE - 1))
 		goto out;
-	if (user_alloc && (mem->userspace_addr & (PAGE_SIZE - 1)))
+	/* We can read the guest memory with __xxx_user() later on. */
+	if (user_alloc &&
+	    ((mem->userspace_addr & (PAGE_SIZE - 1)) ||
+	     !access_ok(VERIFY_WRITE, mem->userspace_addr, mem->memory_size)))
 		goto out;
 	if (mem->slot >= KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS)
 		goto out;
@@ -996,23 +999,6 @@ out:
 	return size;
 }
 
-int memslot_id(struct kvm *kvm, gfn_t gfn)
-{
-	int i;
-	struct kvm_memslots *slots = kvm_memslots(kvm);
-	struct kvm_memory_slot *memslot = NULL;
-
-	for (i = 0; i < slots->nmemslots; ++i) {
-		memslot = &slots->memslots[i];
-
-		if (gfn >= memslot->base_gfn
-		    && gfn < memslot->base_gfn + memslot->npages)
-			break;
-	}
-
-	return memslot - slots->memslots;
-}
-
 static unsigned long gfn_to_hva_many(struct kvm_memory_slot *slot, gfn_t gfn,
 				     gfn_t *nr_pages)
 {
@@ -1300,7 +1286,7 @@ int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
 	addr = gfn_to_hva(kvm, gfn);
 	if (kvm_is_error_hva(addr))
 		return -EFAULT;
-	r = copy_from_user(data, (void __user *)addr + offset, len);
+	r = __copy_from_user(data, (void __user *)addr + offset, len);
 	if (r)
 		return -EFAULT;
 	return 0;

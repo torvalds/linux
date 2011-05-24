@@ -427,7 +427,7 @@ static void mmap_read_all(void)
 {
 	int i;
 
-	for (i = 0; i < evsel_list->cpus->nr; i++) {
+	for (i = 0; i < evsel_list->nr_mmaps; i++) {
 		if (evsel_list->mmap[i].base)
 			mmap_read(&evsel_list->mmap[i]);
 	}

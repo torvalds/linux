@@ -1006,13 +1006,12 @@ static void ar_context_run(struct ar_context *ctx)
 
 static struct descriptor *find_branch_descriptor(struct descriptor *d, int z)
 {
-	int b, key;
+	__le16 branch;
 
-	b   = (le16_to_cpu(d->control) & DESCRIPTOR_BRANCH_ALWAYS) >> 2;
-	key = (le16_to_cpu(d->control) & DESCRIPTOR_KEY_IMMEDIATE) >> 8;
+	branch = d->control & cpu_to_le16(DESCRIPTOR_BRANCH_ALWAYS);
 
 	/* figure out which descriptor the branch address goes in */
-	if (z == 2 && (b == 3 || key == 2))
+	if (z == 2 && branch == cpu_to_le16(DESCRIPTOR_BRANCH_ALWAYS))
 		return d;
 	else
 		return d + z - 1;
@@ -1193,9 +1192,6 @@ static void context_append(struct context *ctx,
 	wmb(); /* finish init of new descriptors before branch_address update */
 	ctx->prev->branch_address = cpu_to_le32(d_bus | z);
 	ctx->prev = find_branch_descriptor(d, z);
-
-	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
-	flush_writes(ctx->ohci);
 }
 
 static void context_stop(struct context *ctx)
@@ -1218,6 +1214,7 @@ static void context_stop(struct context *ctx)
 }
 
 struct driver_data {
+	u8 inline_data[8];
 	struct fw_packet *packet;
 };
 
@@ -1301,20 +1298,28 @@ static int at_context_queue_packet(struct context *ctx,
 		return -1;
 	}
 
+	BUILD_BUG_ON(sizeof(struct driver_data) > sizeof(struct descriptor));
 	driver_data = (struct driver_data *) &d[3];
 	driver_data->packet = packet;
 	packet->driver_data = driver_data;
 
 	if (packet->payload_length > 0) {
-		payload_bus =
-			dma_map_single(ohci->card.device, packet->payload,
-				       packet->payload_length, DMA_TO_DEVICE);
-		if (dma_mapping_error(ohci->card.device, payload_bus)) {
-			packet->ack = RCODE_SEND_ERROR;
-			return -1;
+		if (packet->payload_length > sizeof(driver_data->inline_data)) {
+			payload_bus = dma_map_single(ohci->card.device,
+						     packet->payload,
+						     packet->payload_length,
+						     DMA_TO_DEVICE);
+			if (dma_mapping_error(ohci->card.device, payload_bus)) {
+				packet->ack = RCODE_SEND_ERROR;
+				return -1;
+			}
+			packet->payload_bus	= payload_bus;
+			packet->payload_mapped	= true;
+		} else {
+			memcpy(driver_data->inline_data, packet->payload,
+			       packet->payload_length);
+			payload_bus = d_bus + 3 * sizeof(*d);
 		}
-		packet->payload_bus	= payload_bus;
-		packet->payload_mapped	= true;
 
 		d[2].req_count    = cpu_to_le16(packet->payload_length);
 		d[2].data_address = cpu_to_le32(payload_bus);
@@ -1340,8 +1345,12 @@ static int at_context_queue_packet(struct context *ctx,
 
 	context_append(ctx, d, z, 4 - z);
 
-	if (!ctx->running)
+	if (ctx->running) {
+		reg_write(ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
+		flush_writes(ohci);
+	} else {
 		context_run(ctx, 0);
+	}
 
 	return 0;
 }
@@ -2066,8 +2075,6 @@ static int ohci_enable(struct fw_card *card,
 
 	reg_write(ohci, OHCI1394_SelfIDBuffer, ohci->self_id_bus);
 	reg_write(ohci, OHCI1394_LinkControlSet,
-		  OHCI1394_LinkControl_rcvSelfID |
-		  OHCI1394_LinkControl_rcvPhyPkt |
 		  OHCI1394_LinkControl_cycleTimerEnable |
 		  OHCI1394_LinkControl_cycleMaster);
 
@@ -2093,9 +2100,6 @@ static int ohci_enable(struct fw_card *card,
 	ohci->pri_req_max = reg_read(ohci, OHCI1394_FairnessControl) & 0x3f;
 	reg_write(ohci, OHCI1394_FairnessControl, 0);
 	card->priority_budget_implemented = ohci->pri_req_max != 0;
-
-	ar_context_run(&ohci->ar_request_ctx);
-	ar_context_run(&ohci->ar_response_ctx);
 
 	reg_write(ohci, OHCI1394_PhyUpperBound, 0x00010000);
 	reg_write(ohci, OHCI1394_IntEventClear, ~0);
@@ -2186,7 +2190,13 @@ static int ohci_enable(struct fw_card *card,
 	reg_write(ohci, OHCI1394_HCControlSet,
 		  OHCI1394_HCControl_linkEnable |
 		  OHCI1394_HCControl_BIBimageValid);
-	flush_writes(ohci);
+
+	reg_write(ohci, OHCI1394_LinkControlSet,
+		  OHCI1394_LinkControl_rcvSelfID |
+		  OHCI1394_LinkControl_rcvPhyPkt);
+
+	ar_context_run(&ohci->ar_request_ctx);
+	ar_context_run(&ohci->ar_response_ctx); /* also flushes writes */
 
 	/* We are ready to go, reset bus to finish initialization. */
 	fw_schedule_bus_reset(&ohci->card, false, true);
@@ -3112,6 +3122,15 @@ static int ohci_queue_iso(struct fw_iso_context *base,
 	return ret;
 }
 
+static void ohci_flush_queue_iso(struct fw_iso_context *base)
+{
+	struct context *ctx =
+			&container_of(base, struct iso_context, base)->context;
+
+	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
+	flush_writes(ctx->ohci);
+}
+
 static const struct fw_card_driver ohci_driver = {
 	.enable			= ohci_enable,
 	.read_phy_reg		= ohci_read_phy_reg,
@@ -3128,6 +3147,7 @@ static const struct fw_card_driver ohci_driver = {
 	.free_iso_context	= ohci_free_iso_context,
 	.set_iso_channels	= ohci_set_iso_channels,
 	.queue_iso		= ohci_queue_iso,
+	.flush_queue_iso	= ohci_flush_queue_iso,
 	.start_iso		= ohci_start_iso,
 	.stop_iso		= ohci_stop_iso,
 };

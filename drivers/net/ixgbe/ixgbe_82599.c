@@ -38,6 +38,7 @@
 #define IXGBE_82599_RAR_ENTRIES   128
 #define IXGBE_82599_MC_TBL_SIZE   128
 #define IXGBE_82599_VFT_TBL_SIZE  128
+#define IXGBE_82599_RX_PB_SIZE	  512
 
 static void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
 static void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
@@ -61,6 +62,7 @@ static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
                                          bool autoneg,
                                          bool autoneg_wait_to_complete);
 static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw);
+static bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw);
 
 static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 {
@@ -86,7 +88,8 @@ static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 		if ((mac->ops.get_media_type(hw) ==
 		     ixgbe_media_type_backplane) &&
 		    (hw->phy.smart_speed == ixgbe_smart_speed_auto ||
-		     hw->phy.smart_speed == ixgbe_smart_speed_on))
+		     hw->phy.smart_speed == ixgbe_smart_speed_on) &&
+		     !ixgbe_verify_lesm_fw_enabled_82599(hw))
 			mac->ops.setup_link = &ixgbe_setup_mac_link_smartspeed;
 		else
 			mac->ops.setup_link = &ixgbe_setup_mac_link_82599;
@@ -107,7 +110,6 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 
 		ret_val = ixgbe_get_sfp_init_sequence_offsets(hw, &list_offset,
 		                                              &data_offset);
-
 		if (ret_val != 0)
 			goto setup_sfp_out;
 
@@ -127,9 +129,13 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 		}
 
 		/* Release the semaphore */
-		ixgbe_release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
-		/* Delay obtaining semaphore again to allow FW access */
-		msleep(hw->eeprom.semaphore_delay);
+		hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
+		/*
+		 * Delay obtaining semaphore again to allow FW access,
+		 * semaphore_delay is in ms usleep_range needs us.
+		 */
+		usleep_range(hw->eeprom.semaphore_delay * 1000,
+			     hw->eeprom.semaphore_delay * 2000);
 
 		/* Now restart DSP by setting Restart_AN and clearing LMS */
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, ((IXGBE_READ_REG(hw,
@@ -138,7 +144,7 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 
 		/* Wait for AN to leave state 0 */
 		for (i = 0; i < 10; i++) {
-			msleep(4);
+			usleep_range(4000, 8000);
 			reg_anlp1 = IXGBE_READ_REG(hw, IXGBE_ANLP1);
 			if (reg_anlp1 & IXGBE_ANLP1_AN_STATE_MASK)
 				break;
@@ -353,6 +359,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_82599_SFP:
 	case IXGBE_DEV_ID_82599_SFP_FCOE:
 	case IXGBE_DEV_ID_82599_SFP_EM:
+	case IXGBE_DEV_ID_82599_SFP_SF2:
 		media_type = ixgbe_media_type_fiber;
 		break;
 	case IXGBE_DEV_ID_82599_CX4:
@@ -360,6 +367,9 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 		break;
 	case IXGBE_DEV_ID_82599_T3_LOM:
 		media_type = ixgbe_media_type_copper;
+		break;
+	case IXGBE_DEV_ID_82599_LS:
+		media_type = ixgbe_media_type_fiber_lco;
 		break;
 	default:
 		media_type = ixgbe_media_type_unknown;
@@ -486,7 +496,7 @@ static void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
  *
  *  Set the link speed in the AUTOC register and restarts link.
  **/
-s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
+static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
                                           ixgbe_link_speed speed,
                                           bool autoneg,
                                           bool autoneg_wait_to_complete)
@@ -1176,7 +1186,7 @@ s32 ixgbe_init_fdir_signature_82599(struct ixgbe_hw *hw, u32 pballoc)
 		if (IXGBE_READ_REG(hw, IXGBE_FDIRCTRL) &
 		                   IXGBE_FDIRCTRL_INIT_DONE)
 			break;
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 	if (i >= IXGBE_FDIR_INIT_DONE_POLL)
 		hw_dbg(hw, "Flow Director Signature poll time exceeded!\n");
@@ -1271,7 +1281,7 @@ s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc)
 		if (IXGBE_READ_REG(hw, IXGBE_FDIRCTRL) &
 		                   IXGBE_FDIRCTRL_INIT_DONE)
 			break;
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 	if (i >= IXGBE_FDIR_INIT_DONE_POLL)
 		hw_dbg(hw, "Flow Director Perfect poll time exceeded!\n");
@@ -1740,30 +1750,29 @@ static s32 ixgbe_write_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 val)
  *  ixgbe_start_hw_82599 - Prepare hardware for Tx/Rx
  *  @hw: pointer to hardware structure
  *
- *  Starts the hardware using the generic start_hw function.
- *  Then performs device-specific:
- *  Clears the rate limiter registers.
+ *  Starts the hardware using the generic start_hw function
+ *  and the generation start_hw function.
+ *  Then performs revision-specific operations, if any.
  **/
 static s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
 {
-	u32 q_num;
-	s32 ret_val;
+	s32 ret_val = 0;
 
 	ret_val = ixgbe_start_hw_generic(hw);
+	if (ret_val != 0)
+		goto out;
 
-	/* Clear the rate limiters */
-	for (q_num = 0; q_num < hw->mac.max_tx_queues; q_num++) {
-		IXGBE_WRITE_REG(hw, IXGBE_RTTDQSEL, q_num);
-		IXGBE_WRITE_REG(hw, IXGBE_RTTBCNRC, 0);
-	}
-	IXGBE_WRITE_FLUSH(hw);
+	ret_val = ixgbe_start_hw_gen2(hw);
+	if (ret_val != 0)
+		goto out;
 
 	/* We need to run link autotry after the driver loads */
 	hw->mac.autotry_restart = true;
+	hw->mac.rx_pb_size = IXGBE_82599_RX_PB_SIZE;
 
 	if (ret_val == 0)
 		ret_val = ixgbe_verify_fw_version_82599(hw);
-
+out:
 	return ret_val;
 }
 
@@ -1775,7 +1784,7 @@ static s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
  *  If PHY already detected, maintains current PHY type in hw struct,
  *  otherwise executes the PHY detection routine.
  **/
-s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw)
+static s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw)
 {
 	s32 status = IXGBE_ERR_PHY_ADDR_INVALID;
 
@@ -1968,21 +1977,6 @@ static s32 ixgbe_enable_rx_dma_82599(struct ixgbe_hw *hw, u32 regval)
 }
 
 /**
- *  ixgbe_get_device_caps_82599 - Get additional device capabilities
- *  @hw: pointer to hardware structure
- *  @device_caps: the EEPROM word with the extra device capabilities
- *
- *  This function will read the EEPROM location for the device capabilities,
- *  and return the word through device_caps.
- **/
-static s32 ixgbe_get_device_caps_82599(struct ixgbe_hw *hw, u16 *device_caps)
-{
-	hw->eeprom.ops.read(hw, IXGBE_DEVICE_CAPS, device_caps);
-
-	return 0;
-}
-
-/**
  *  ixgbe_verify_fw_version_82599 - verify fw version for 82599
  *  @hw: pointer to hardware structure
  *
@@ -2030,6 +2024,110 @@ fw_version_out:
 	return status;
 }
 
+/**
+ *  ixgbe_verify_lesm_fw_enabled_82599 - Checks LESM FW module state.
+ *  @hw: pointer to hardware structure
+ *
+ *  Returns true if the LESM FW module is present and enabled. Otherwise
+ *  returns false. Smart Speed must be disabled if LESM FW module is enabled.
+ **/
+static bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw)
+{
+	bool lesm_enabled = false;
+	u16 fw_offset, fw_lesm_param_offset, fw_lesm_state;
+	s32 status;
+
+	/* get the offset to the Firmware Module block */
+	status = hw->eeprom.ops.read(hw, IXGBE_FW_PTR, &fw_offset);
+
+	if ((status != 0) ||
+	    (fw_offset == 0) || (fw_offset == 0xFFFF))
+		goto out;
+
+	/* get the offset to the LESM Parameters block */
+	status = hw->eeprom.ops.read(hw, (fw_offset +
+				     IXGBE_FW_LESM_PARAMETERS_PTR),
+				     &fw_lesm_param_offset);
+
+	if ((status != 0) ||
+	    (fw_lesm_param_offset == 0) || (fw_lesm_param_offset == 0xFFFF))
+		goto out;
+
+	/* get the lesm state word */
+	status = hw->eeprom.ops.read(hw, (fw_lesm_param_offset +
+				     IXGBE_FW_LESM_STATE_1),
+				     &fw_lesm_state);
+
+	if ((status == 0) &&
+	    (fw_lesm_state & IXGBE_FW_LESM_STATE_ENABLED))
+		lesm_enabled = true;
+
+out:
+	return lesm_enabled;
+}
+
+/**
+ *  ixgbe_read_eeprom_buffer_82599 - Read EEPROM word(s) using
+ *  fastest available method
+ *
+ *  @hw: pointer to hardware structure
+ *  @offset: offset of  word in EEPROM to read
+ *  @words: number of words
+ *  @data: word(s) read from the EEPROM
+ *
+ *  Retrieves 16 bit word(s) read from EEPROM
+ **/
+static s32 ixgbe_read_eeprom_buffer_82599(struct ixgbe_hw *hw, u16 offset,
+					  u16 words, u16 *data)
+{
+	struct ixgbe_eeprom_info *eeprom = &hw->eeprom;
+	s32 ret_val = IXGBE_ERR_CONFIG;
+
+	/*
+	 * If EEPROM is detected and can be addressed using 14 bits,
+	 * use EERD otherwise use bit bang
+	 */
+	if ((eeprom->type == ixgbe_eeprom_spi) &&
+	    (offset + (words - 1) <= IXGBE_EERD_MAX_ADDR))
+		ret_val = ixgbe_read_eerd_buffer_generic(hw, offset, words,
+							 data);
+	else
+		ret_val = ixgbe_read_eeprom_buffer_bit_bang_generic(hw, offset,
+								    words,
+								    data);
+
+	return ret_val;
+}
+
+/**
+ *  ixgbe_read_eeprom_82599 - Read EEPROM word using
+ *  fastest available method
+ *
+ *  @hw: pointer to hardware structure
+ *  @offset: offset of  word in the EEPROM to read
+ *  @data: word read from the EEPROM
+ *
+ *  Reads a 16 bit word from the EEPROM
+ **/
+static s32 ixgbe_read_eeprom_82599(struct ixgbe_hw *hw,
+				   u16 offset, u16 *data)
+{
+	struct ixgbe_eeprom_info *eeprom = &hw->eeprom;
+	s32 ret_val = IXGBE_ERR_CONFIG;
+
+	/*
+	 * If EEPROM is detected and can be addressed using 14 bits,
+	 * use EERD otherwise use bit bang
+	 */
+	if ((eeprom->type == ixgbe_eeprom_spi) &&
+	    (offset <= IXGBE_EERD_MAX_ADDR))
+		ret_val = ixgbe_read_eerd_generic(hw, offset, data);
+	else
+		ret_val = ixgbe_read_eeprom_bit_bang_generic(hw, offset, data);
+
+	return ret_val;
+}
+
 static struct ixgbe_mac_operations mac_ops_82599 = {
 	.init_hw                = &ixgbe_init_hw_generic,
 	.reset_hw               = &ixgbe_reset_hw_82599,
@@ -2040,7 +2138,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.enable_rx_dma          = &ixgbe_enable_rx_dma_82599,
 	.get_mac_addr           = &ixgbe_get_mac_addr_generic,
 	.get_san_mac_addr       = &ixgbe_get_san_mac_addr_generic,
-	.get_device_caps        = &ixgbe_get_device_caps_82599,
+	.get_device_caps        = &ixgbe_get_device_caps_generic,
 	.get_wwn_prefix         = &ixgbe_get_wwn_prefix_generic,
 	.stop_adapter           = &ixgbe_stop_adapter_generic,
 	.get_bus_info           = &ixgbe_get_bus_info_generic,
@@ -2076,8 +2174,10 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 
 static struct ixgbe_eeprom_operations eeprom_ops_82599 = {
 	.init_params		= &ixgbe_init_eeprom_params_generic,
-	.read			= &ixgbe_read_eerd_generic,
+	.read			= &ixgbe_read_eeprom_82599,
+	.read_buffer		= &ixgbe_read_eeprom_buffer_82599,
 	.write			= &ixgbe_write_eeprom_generic,
+	.write_buffer		= &ixgbe_write_eeprom_buffer_bit_bang_generic,
 	.calc_checksum		= &ixgbe_calc_eeprom_checksum_generic,
 	.validate_checksum	= &ixgbe_validate_eeprom_checksum_generic,
 	.update_checksum	= &ixgbe_update_eeprom_checksum_generic,

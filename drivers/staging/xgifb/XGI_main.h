@@ -9,7 +9,7 @@
 #include "vb_struct.h"
 #include "vb_def.h"
 
-#define XGIFAIL(x) do { printk(x "\n"); return -EINVAL; } while(0)
+#define XGIFAIL(x) do { printk(x "\n"); return -EINVAL; } while (0)
 
 #define VER_MAJOR                 0
 #define VER_MINOR                 8
@@ -44,11 +44,15 @@
 #define XGIINITSTATIC static
 
 static DEFINE_PCI_DEVICE_TABLE(xgifb_pci_table) = {
-	{ PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_20, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_27, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_40, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
-	{ PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_42, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 3},
-	{ 0 }
+	{PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_20, PCI_ANY_ID, PCI_ANY_ID,
+	 0, 0, 0},
+	{PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_27, PCI_ANY_ID, PCI_ANY_ID,
+	 0, 0, 1},
+	{PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_40, PCI_ANY_ID, PCI_ANY_ID,
+	 0, 0, 2},
+	{PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_42, PCI_ANY_ID, PCI_ANY_ID,
+	 0, 0, 3},
+	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
@@ -148,10 +152,10 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define XGI_DATA_BUS_64        0x00
 #define XGI_DATA_BUS_128       0x01
 #define XGI_DUAL_CHANNEL_MASK  0x0C
-#define XGI_SINGLE_CHANNEL_1_RANK  	0x0
-#define XGI_SINGLE_CHANNEL_2_RANK  	0x1
-#define XGI_ASYM_DDR		  	0x02
-#define XGI_DUAL_CHANNEL_1_RANK    	0x3
+#define XGI_SINGLE_CHANNEL_1_RANK 0x0
+#define XGI_SINGLE_CHANNEL_2_RANK 0x1
+#define XGI_ASYM_DDR		  0x02
+#define XGI_DUAL_CHANNEL_1_RANK	  0x3
 
 #define XGI550_DRAM_SIZE_MASK     0x3F  /* 550/650/740 SR14 */
 #define XGI550_DRAM_SIZE_4MB      0x00
@@ -190,11 +194,11 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define XGI_VB_CRT2               0x10
 #define XGI_CRT1                  0x20
 #define XGI_VB_HIVISION           0x40
-#define XGI_VB_YPBPR                0x80
-#define XGI_VB_TV                 (XGI_VB_COMPOSITE | XGI_VB_SVIDEO | \
-                                   XGI_VB_SCART | XGI_VB_HIVISION|XGI_VB_YPBPR)
+#define XGI_VB_YPBPR              0x80
+#define XGI_VB_TV		  (XGI_VB_COMPOSITE | XGI_VB_SVIDEO | \
+				   XGI_VB_SCART | XGI_VB_HIVISION|XGI_VB_YPBPR)
 
-#define XGI_EXTERNAL_CHIP_MASK    	   0x0E  /* CR37 */
+#define XGI_EXTERNAL_CHIP_MASK		   0x0E  /* CR37 */
 #define XGI_EXTERNAL_CHIP_XGI301           0x01  /* in CR37 << 1 ! */
 #define XGI_EXTERNAL_CHIP_LVDS             0x02  /* in CR37 << 1 ! */
 #define XGI_EXTERNAL_CHIP_TRUMPION         0x03  /* in CR37 << 1 ! */
@@ -216,46 +220,10 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define SR_BUFFER_SIZE            5
 #define CR_BUFFER_SIZE            5
 
-/* Useful macros */
-#define inXGIREG(base)          inb(base)
-#define outXGIREG(base,val)     outb(val,base)
-#define orXGIREG(base,val)      do { \
-                                  unsigned char __Temp = inb(base); \
-                                  outXGIREG(base, __Temp | (val)); \
-                                } while (0)
-#define andXGIREG(base,val)     do { \
-                                  unsigned char __Temp = inb(base); \
-                                  outXGIREG(base, __Temp & (val)); \
-                                } while (0)
-#define inXGIIDXREG(base,idx,var)   do { \
-                                      outb(idx,base); var=inb((base)+1); \
-                                    } while (0)
-#define outXGIIDXREG(base,idx,val)  do { \
-                                      outb(idx,base); outb((val),(base)+1); \
-                                    } while (0)
-#define orXGIIDXREG(base,idx,val)   do { \
-                                      unsigned char __Temp; \
-                                      outb(idx,base);   \
-                                      __Temp = inb((base)+1)|(val); \
-                                      outXGIIDXREG(base,idx,__Temp); \
-                                    } while (0)
-#define andXGIIDXREG(base,idx,and)  do { \
-                                      unsigned char __Temp; \
-                                      outb(idx,base);   \
-                                      __Temp = inb((base)+1)&(and); \
-                                      outXGIIDXREG(base,idx,__Temp); \
-                                    } while (0)
-#define setXGIIDXREG(base,idx,and,or)   do { \
-                                          unsigned char __Temp; \
-                                          outb(idx,base);   \
-                                          __Temp = (inb((base)+1)&(and))|(or); \
-                                          outXGIIDXREG(base,idx,__Temp); \
-                                        } while (0)
-
 /* ------------------- Global Variables ----------------------------- */
 
 /* Fbcon variables */
-static struct fb_info* fb_info;
+static struct fb_info *fb_info;
 
 
 static int    video_type = FB_TYPE_PACKED_PIXELS;
@@ -304,7 +272,7 @@ static int XGIfb_off = 0;
 static int XGIfb_crt1off = 0;
 static int XGIfb_forcecrt1 = -1;
 static int XGIfb_userom = 0;
-//static int XGIfb_useoem = -1;
+/*static int XGIfb_useoem = -1; */
 
 /* global flags */
 static int XGIfb_registered;
@@ -316,8 +284,10 @@ static int XGIfb_ypan = -1;
 
 static int XGIfb_CRT2_write_enable = 0;
 
-static int XGIfb_crt2type = -1; /* TW: CRT2 type (for overriding autodetection) */
-static int XGIfb_tvplug = -1; /* PR: Tv plug type (for overriding autodetection) */
+/* TW: CRT2 type (for overriding autodetection) */
+static int XGIfb_crt2type = -1;
+/* PR: Tv plug type (for overriding autodetection) */
+static int XGIfb_tvplug = -1;
 
 static unsigned char XGIfb_detectedpdc = 0;
 
@@ -354,82 +324,155 @@ static struct _XGIbios_mode {
 	u8  chipset;
 } XGIbios_mode[] = {
 #define MODE_INDEX_NONE           0  /* TW: index for mode=none */
-	{"none",         0xFF, 0x0000, 0x0000,    0,    0,  0, 0,   0,  0, MD_XGI300|MD_XGI315},  /* TW: for mode "none" */
-	{"320x240x16",   0x56, 0x0000, 0x0000,  320,  240, 16, 1,  40, 15,           MD_XGI315},
-	{"320x480x8",    0x5A, 0x0000, 0x0000,  320,  480,  8, 1,  40, 30,           MD_XGI315},  /* TW: FSTN */
-	{"320x480x16",   0x5B, 0x0000, 0x0000,  320,  480, 16, 1,  40, 30,           MD_XGI315},  /* TW: FSTN */
-	{"640x480x8",    0x2E, 0x0101, 0x0101,  640,  480,  8, 1,  80, 30, MD_XGI300|MD_XGI315},
-	{"640x480x16",   0x44, 0x0111, 0x0111,  640,  480, 16, 1,  80, 30, MD_XGI300|MD_XGI315},
-	{"640x480x24",   0x62, 0x013a, 0x0112,  640,  480, 32, 1,  80, 30, MD_XGI300|MD_XGI315},  /* TW: That's for people who mix up color- and fb depth */
-	{"640x480x32",   0x62, 0x013a, 0x0112,  640,  480, 32, 1,  80, 30, MD_XGI300|MD_XGI315},
-	{"720x480x8",    0x31, 0x0000, 0x0000,  720,  480,  8, 1,  90, 30, MD_XGI300|MD_XGI315},
-	{"720x480x16",   0x33, 0x0000, 0x0000,  720,  480, 16, 1,  90, 30, MD_XGI300|MD_XGI315},
-	{"720x480x24",   0x35, 0x0000, 0x0000,  720,  480, 32, 1,  90, 30, MD_XGI300|MD_XGI315},
-	{"720x480x32",   0x35, 0x0000, 0x0000,  720,  480, 32, 1,  90, 30, MD_XGI300|MD_XGI315},
-	{"720x576x8",    0x32, 0x0000, 0x0000,  720,  576,  8, 1,  90, 36, MD_XGI300|MD_XGI315},
-	{"720x576x16",   0x34, 0x0000, 0x0000,  720,  576, 16, 1,  90, 36, MD_XGI300|MD_XGI315},
-	{"720x576x24",   0x36, 0x0000, 0x0000,  720,  576, 32, 1,  90, 36, MD_XGI300|MD_XGI315},
-	{"720x576x32",   0x36, 0x0000, 0x0000,  720,  576, 32, 1,  90, 36, MD_XGI300|MD_XGI315},
-	{"800x480x8",    0x70, 0x0000, 0x0000,  800,  480,  8, 1, 100, 30, MD_XGI300|MD_XGI315},
-	{"800x480x16",   0x7a, 0x0000, 0x0000,  800,  480, 16, 1, 100, 30, MD_XGI300|MD_XGI315},
-	{"800x480x24",   0x76, 0x0000, 0x0000,  800,  480, 32, 1, 100, 30, MD_XGI300|MD_XGI315},
-	{"800x480x32",   0x76, 0x0000, 0x0000,  800,  480, 32, 1, 100, 30, MD_XGI300|MD_XGI315},
+	{"none",         0xFF, 0x0000, 0x0000,    0,    0,  0, 0,   0,  0,
+	 MD_XGI300|MD_XGI315},  /* TW: for mode "none" */
+	{"320x240x16",   0x56, 0x0000, 0x0000,  320,  240, 16, 1,  40, 15,
+	 MD_XGI315},
+	{"320x480x8",    0x5A, 0x0000, 0x0000,  320,  480,  8, 1,  40, 30,
+	 MD_XGI315},  /* TW: FSTN */
+	{"320x480x16",   0x5B, 0x0000, 0x0000,  320,  480, 16, 1,  40, 30,
+	 MD_XGI315},  /* TW: FSTN */
+	{"640x480x8",    0x2E, 0x0101, 0x0101,  640,  480,  8, 1,  80, 30,
+	 MD_XGI300|MD_XGI315},
+	{"640x480x16",   0x44, 0x0111, 0x0111,  640,  480, 16, 1,  80, 30,
+	 MD_XGI300|MD_XGI315},
+	{"640x480x24",   0x62, 0x013a, 0x0112,  640,  480, 32, 1,  80, 30,
+	 MD_XGI300|MD_XGI315},  /* TW: That's for people who mix up color-
+					and fb depth */
+	{"640x480x32",   0x62, 0x013a, 0x0112,  640,  480, 32, 1,  80, 30,
+	 MD_XGI300|MD_XGI315},
+	{"720x480x8",    0x31, 0x0000, 0x0000,  720,  480,  8, 1,  90, 30,
+	 MD_XGI300|MD_XGI315},
+	{"720x480x16",   0x33, 0x0000, 0x0000,  720,  480, 16, 1,  90, 30,
+	 MD_XGI300|MD_XGI315},
+	{"720x480x24",   0x35, 0x0000, 0x0000,  720,  480, 32, 1,  90, 30,
+	 MD_XGI300|MD_XGI315},
+	{"720x480x32",   0x35, 0x0000, 0x0000,  720,  480, 32, 1,  90, 30,
+	 MD_XGI300|MD_XGI315},
+	{"720x576x8",    0x32, 0x0000, 0x0000,  720,  576,  8, 1,  90, 36,
+	 MD_XGI300|MD_XGI315},
+	{"720x576x16",   0x34, 0x0000, 0x0000,  720,  576, 16, 1,  90, 36,
+	 MD_XGI300|MD_XGI315},
+	{"720x576x24",   0x36, 0x0000, 0x0000,  720,  576, 32, 1,  90, 36,
+	 MD_XGI300|MD_XGI315},
+	{"720x576x32",   0x36, 0x0000, 0x0000,  720,  576, 32, 1,  90, 36,
+	 MD_XGI300|MD_XGI315},
+	{"800x480x8",    0x70, 0x0000, 0x0000,  800,  480,  8, 1, 100, 30,
+	 MD_XGI300|MD_XGI315},
+	{"800x480x16",   0x7a, 0x0000, 0x0000,  800,  480, 16, 1, 100, 30,
+	 MD_XGI300|MD_XGI315},
+	{"800x480x24",   0x76, 0x0000, 0x0000,  800,  480, 32, 1, 100, 30,
+	 MD_XGI300|MD_XGI315},
+	{"800x480x32",   0x76, 0x0000, 0x0000,  800,  480, 32, 1, 100, 30,
+	 MD_XGI300|MD_XGI315},
 #define DEFAULT_MODE              21 /* TW: index for 800x600x8 */
 #define DEFAULT_LCDMODE           21 /* TW: index for 800x600x8 */
 #define DEFAULT_TVMODE            21 /* TW: index for 800x600x8 */
-	{"800x600x8",    0x30, 0x0103, 0x0103,  800,  600,  8, 1, 100, 37, MD_XGI300|MD_XGI315},
-	{"800x600x16",   0x47, 0x0114, 0x0114,  800,  600, 16, 1, 100, 37, MD_XGI300|MD_XGI315},
-	{"800x600x24",   0x63, 0x013b, 0x0115,  800,  600, 32, 1, 100, 37, MD_XGI300|MD_XGI315},
-	{"800x600x32",   0x63, 0x013b, 0x0115,  800,  600, 32, 1, 100, 37, MD_XGI300|MD_XGI315},
-	{"1024x576x8",   0x71, 0x0000, 0x0000, 1024,  576,  8, 1, 128, 36, MD_XGI300|MD_XGI315},
-	{"1024x576x16",  0x74, 0x0000, 0x0000, 1024,  576, 16, 1, 128, 36, MD_XGI300|MD_XGI315},
-	{"1024x576x24",  0x77, 0x0000, 0x0000, 1024,  576, 32, 1, 128, 36, MD_XGI300|MD_XGI315},
-	{"1024x576x32",  0x77, 0x0000, 0x0000, 1024,  576, 32, 1, 128, 36, MD_XGI300|MD_XGI315},
-	{"1024x600x8",   0x20, 0x0000, 0x0000, 1024,  600,  8, 1, 128, 37, MD_XGI300          },  /* TW: 300 series only */
-	{"1024x600x16",  0x21, 0x0000, 0x0000, 1024,  600, 16, 1, 128, 37, MD_XGI300          },
-	{"1024x600x24",  0x22, 0x0000, 0x0000, 1024,  600, 32, 1, 128, 37, MD_XGI300          },
-	{"1024x600x32",  0x22, 0x0000, 0x0000, 1024,  600, 32, 1, 128, 37, MD_XGI300          },
-	{"1024x768x8",   0x38, 0x0105, 0x0105, 1024,  768,  8, 1, 128, 48, MD_XGI300|MD_XGI315},
-	{"1024x768x16",  0x4A, 0x0117, 0x0117, 1024,  768, 16, 1, 128, 48, MD_XGI300|MD_XGI315},
-	{"1024x768x24",  0x64, 0x013c, 0x0118, 1024,  768, 32, 1, 128, 48, MD_XGI300|MD_XGI315},
-	{"1024x768x32",  0x64, 0x013c, 0x0118, 1024,  768, 32, 1, 128, 48, MD_XGI300|MD_XGI315},
-	{"1152x768x8",   0x23, 0x0000, 0x0000, 1152,  768,  8, 1, 144, 48, MD_XGI300          },  /* TW: 300 series only */
-	{"1152x768x16",  0x24, 0x0000, 0x0000, 1152,  768, 16, 1, 144, 48, MD_XGI300          },
-	{"1152x768x24",  0x25, 0x0000, 0x0000, 1152,  768, 32, 1, 144, 48, MD_XGI300          },
-	{"1152x768x32",  0x25, 0x0000, 0x0000, 1152,  768, 32, 1, 144, 48, MD_XGI300          },
-	{"1280x720x8",   0x79, 0x0000, 0x0000, 1280,  720,  8, 1, 160, 45, MD_XGI300|MD_XGI315},
-	{"1280x720x16",  0x75, 0x0000, 0x0000, 1280,  720, 16, 1, 160, 45, MD_XGI300|MD_XGI315},
-	{"1280x720x24",  0x78, 0x0000, 0x0000, 1280,  720, 32, 1, 160, 45, MD_XGI300|MD_XGI315},
-	{"1280x720x32",  0x78, 0x0000, 0x0000, 1280,  720, 32, 1, 160, 45, MD_XGI300|MD_XGI315},
-	{"1280x768x8",   0x23, 0x0000, 0x0000, 1280,  768,  8, 1, 160, 48,           MD_XGI315},  /* TW: 310/325 series only */
-	{"1280x768x16",  0x24, 0x0000, 0x0000, 1280,  768, 16, 1, 160, 48,           MD_XGI315},
-	{"1280x768x24",  0x25, 0x0000, 0x0000, 1280,  768, 32, 1, 160, 48,           MD_XGI315},
-	{"1280x768x32",  0x25, 0x0000, 0x0000, 1280,  768, 32, 1, 160, 48,           MD_XGI315},
+	{"800x600x8",    0x30, 0x0103, 0x0103,  800,  600,  8, 1, 100, 37,
+	 MD_XGI300|MD_XGI315},
+	{"800x600x16",   0x47, 0x0114, 0x0114,  800,  600, 16, 1, 100, 37,
+	 MD_XGI300|MD_XGI315},
+	{"800x600x24",   0x63, 0x013b, 0x0115,  800,  600, 32, 1, 100, 37,
+	 MD_XGI300|MD_XGI315},
+	{"800x600x32",   0x63, 0x013b, 0x0115,  800,  600, 32, 1, 100, 37,
+	 MD_XGI300|MD_XGI315},
+	{"1024x576x8",   0x71, 0x0000, 0x0000, 1024,  576,  8, 1, 128, 36,
+	 MD_XGI300|MD_XGI315},
+	{"1024x576x16",  0x74, 0x0000, 0x0000, 1024,  576, 16, 1, 128, 36,
+	 MD_XGI300|MD_XGI315},
+	{"1024x576x24",  0x77, 0x0000, 0x0000, 1024,  576, 32, 1, 128, 36,
+	 MD_XGI300|MD_XGI315},
+	{"1024x576x32",  0x77, 0x0000, 0x0000, 1024,  576, 32, 1, 128, 36,
+	 MD_XGI300|MD_XGI315},
+	{"1024x600x8",   0x20, 0x0000, 0x0000, 1024,  600,  8, 1, 128, 37,
+	 MD_XGI300          },  /* TW: 300 series only */
+	{"1024x600x16",  0x21, 0x0000, 0x0000, 1024,  600, 16, 1, 128, 37,
+	 MD_XGI300          },
+	{"1024x600x24",  0x22, 0x0000, 0x0000, 1024,  600, 32, 1, 128, 37,
+	 MD_XGI300          },
+	{"1024x600x32",  0x22, 0x0000, 0x0000, 1024,  600, 32, 1, 128, 37,
+	 MD_XGI300          },
+	{"1024x768x8",   0x38, 0x0105, 0x0105, 1024,  768,  8, 1, 128, 48,
+	 MD_XGI300|MD_XGI315},
+	{"1024x768x16",  0x4A, 0x0117, 0x0117, 1024,  768, 16, 1, 128, 48,
+	 MD_XGI300|MD_XGI315},
+	{"1024x768x24",  0x64, 0x013c, 0x0118, 1024,  768, 32, 1, 128, 48,
+	 MD_XGI300|MD_XGI315},
+	{"1024x768x32",  0x64, 0x013c, 0x0118, 1024,  768, 32, 1, 128, 48,
+	 MD_XGI300|MD_XGI315},
+	{"1152x768x8",   0x23, 0x0000, 0x0000, 1152,  768,  8, 1, 144, 48,
+	 MD_XGI300          },  /* TW: 300 series only */
+	{"1152x768x16",  0x24, 0x0000, 0x0000, 1152,  768, 16, 1, 144, 48,
+	 MD_XGI300          },
+	{"1152x768x24",  0x25, 0x0000, 0x0000, 1152,  768, 32, 1, 144, 48,
+	 MD_XGI300          },
+	{"1152x768x32",  0x25, 0x0000, 0x0000, 1152,  768, 32, 1, 144, 48,
+	 MD_XGI300          },
+	{"1280x720x8",   0x79, 0x0000, 0x0000, 1280,  720,  8, 1, 160, 45,
+	 MD_XGI300|MD_XGI315},
+	{"1280x720x16",  0x75, 0x0000, 0x0000, 1280,  720, 16, 1, 160, 45,
+	 MD_XGI300|MD_XGI315},
+	{"1280x720x24",  0x78, 0x0000, 0x0000, 1280,  720, 32, 1, 160, 45,
+	 MD_XGI300|MD_XGI315},
+	{"1280x720x32",  0x78, 0x0000, 0x0000, 1280,  720, 32, 1, 160, 45,
+	 MD_XGI300|MD_XGI315},
+	{"1280x768x8",   0x23, 0x0000, 0x0000, 1280,  768,  8, 1, 160, 48,
+	 MD_XGI315},  /* TW: 310/325 series only */
+	{"1280x768x16",  0x24, 0x0000, 0x0000, 1280,  768, 16, 1, 160, 48,
+	 MD_XGI315},
+	{"1280x768x24",  0x25, 0x0000, 0x0000, 1280,  768, 32, 1, 160, 48,
+	 MD_XGI315},
+	{"1280x768x32",  0x25, 0x0000, 0x0000, 1280,  768, 32, 1, 160, 48,
+	 MD_XGI315},
 #define MODEINDEX_1280x960 48
-	{"1280x960x8",   0x7C, 0x0000, 0x0000, 1280,  960,  8, 1, 160, 60, MD_XGI300|MD_XGI315},  /* TW: Modenumbers being patched */
-	{"1280x960x16",  0x7D, 0x0000, 0x0000, 1280,  960, 16, 1, 160, 60, MD_XGI300|MD_XGI315},
-	{"1280x960x24",  0x7E, 0x0000, 0x0000, 1280,  960, 32, 1, 160, 60, MD_XGI300|MD_XGI315},
-	{"1280x960x32",  0x7E, 0x0000, 0x0000, 1280,  960, 32, 1, 160, 60, MD_XGI300|MD_XGI315},
-	{"1280x1024x8",  0x3A, 0x0107, 0x0107, 1280, 1024,  8, 1, 160, 64, MD_XGI300|MD_XGI315},
-	{"1280x1024x16", 0x4D, 0x011a, 0x011a, 1280, 1024, 16, 1, 160, 64, MD_XGI300|MD_XGI315},
-	{"1280x1024x24", 0x65, 0x013d, 0x011b, 1280, 1024, 32, 1, 160, 64, MD_XGI300|MD_XGI315},
-	{"1280x1024x32", 0x65, 0x013d, 0x011b, 1280, 1024, 32, 1, 160, 64, MD_XGI300|MD_XGI315},
-	{"1400x1050x8",  0x26, 0x0000, 0x0000, 1400, 1050,  8, 1, 175, 65,           MD_XGI315},  /* TW: 310/325 series only */
-	{"1400x1050x16", 0x27, 0x0000, 0x0000, 1400, 1050, 16, 1, 175, 65,           MD_XGI315},
-	{"1400x1050x24", 0x28, 0x0000, 0x0000, 1400, 1050, 32, 1, 175, 65,           MD_XGI315},
-	{"1400x1050x32", 0x28, 0x0000, 0x0000, 1400, 1050, 32, 1, 175, 65,           MD_XGI315},
-	{"1600x1200x8",  0x3C, 0x0130, 0x011c, 1600, 1200,  8, 1, 200, 75, MD_XGI300|MD_XGI315},
-	{"1600x1200x16", 0x3D, 0x0131, 0x011e, 1600, 1200, 16, 1, 200, 75, MD_XGI300|MD_XGI315},
-	{"1600x1200x24", 0x66, 0x013e, 0x011f, 1600, 1200, 32, 1, 200, 75, MD_XGI300|MD_XGI315},
-	{"1600x1200x32", 0x66, 0x013e, 0x011f, 1600, 1200, 32, 1, 200, 75, MD_XGI300|MD_XGI315},
-	{"1920x1440x8",  0x68, 0x013f, 0x0000, 1920, 1440,  8, 1, 240, 75, MD_XGI300|MD_XGI315},
-	{"1920x1440x16", 0x69, 0x0140, 0x0000, 1920, 1440, 16, 1, 240, 75, MD_XGI300|MD_XGI315},
-	{"1920x1440x24", 0x6B, 0x0141, 0x0000, 1920, 1440, 32, 1, 240, 75, MD_XGI300|MD_XGI315},
-	{"1920x1440x32", 0x6B, 0x0141, 0x0000, 1920, 1440, 32, 1, 240, 75, MD_XGI300|MD_XGI315},
-	{"2048x1536x8",  0x6c, 0x0000, 0x0000, 2048, 1536,  8, 1, 256, 96,           MD_XGI315},  /* TW: 310/325 series only */
-	{"2048x1536x16", 0x6d, 0x0000, 0x0000, 2048, 1536, 16, 1, 256, 96,           MD_XGI315},
-	{"2048x1536x24", 0x6e, 0x0000, 0x0000, 2048, 1536, 32, 1, 256, 96,           MD_XGI315},
-	{"2048x1536x32", 0x6e, 0x0000, 0x0000, 2048, 1536, 32, 1, 256, 96,           MD_XGI315},
+	{"1280x960x8",   0x7C, 0x0000, 0x0000, 1280,  960,  8, 1, 160, 60,
+	 MD_XGI300|MD_XGI315},  /* TW: Modenumbers being patched */
+	{"1280x960x16",  0x7D, 0x0000, 0x0000, 1280,  960, 16, 1, 160, 60,
+	 MD_XGI300|MD_XGI315},
+	{"1280x960x24",  0x7E, 0x0000, 0x0000, 1280,  960, 32, 1, 160, 60,
+	 MD_XGI300|MD_XGI315},
+	{"1280x960x32",  0x7E, 0x0000, 0x0000, 1280,  960, 32, 1, 160, 60,
+	 MD_XGI300|MD_XGI315},
+	{"1280x1024x8",  0x3A, 0x0107, 0x0107, 1280, 1024,  8, 1, 160, 64,
+	 MD_XGI300|MD_XGI315},
+	{"1280x1024x16", 0x4D, 0x011a, 0x011a, 1280, 1024, 16, 1, 160, 64,
+	 MD_XGI300|MD_XGI315},
+	{"1280x1024x24", 0x65, 0x013d, 0x011b, 1280, 1024, 32, 1, 160, 64,
+	 MD_XGI300|MD_XGI315},
+	{"1280x1024x32", 0x65, 0x013d, 0x011b, 1280, 1024, 32, 1, 160, 64,
+	 MD_XGI300|MD_XGI315},
+	{"1400x1050x8",  0x26, 0x0000, 0x0000, 1400, 1050,  8, 1, 175, 65,
+	 MD_XGI315},  /* TW: 310/325 series only */
+	{"1400x1050x16", 0x27, 0x0000, 0x0000, 1400, 1050, 16, 1, 175, 65,
+	 MD_XGI315},
+	{"1400x1050x24", 0x28, 0x0000, 0x0000, 1400, 1050, 32, 1, 175, 65,
+	 MD_XGI315},
+	{"1400x1050x32", 0x28, 0x0000, 0x0000, 1400, 1050, 32, 1, 175, 65,
+	 MD_XGI315},
+	{"1600x1200x8",  0x3C, 0x0130, 0x011c, 1600, 1200,  8, 1, 200, 75,
+	 MD_XGI300|MD_XGI315},
+	{"1600x1200x16", 0x3D, 0x0131, 0x011e, 1600, 1200, 16, 1, 200, 75,
+	 MD_XGI300|MD_XGI315},
+	{"1600x1200x24", 0x66, 0x013e, 0x011f, 1600, 1200, 32, 1, 200, 75,
+	 MD_XGI300|MD_XGI315},
+	{"1600x1200x32", 0x66, 0x013e, 0x011f, 1600, 1200, 32, 1, 200, 75,
+	 MD_XGI300|MD_XGI315},
+	{"1920x1440x8",  0x68, 0x013f, 0x0000, 1920, 1440,  8, 1, 240, 75,
+	 MD_XGI300|MD_XGI315},
+	{"1920x1440x16", 0x69, 0x0140, 0x0000, 1920, 1440, 16, 1, 240, 75,
+	 MD_XGI300|MD_XGI315},
+	{"1920x1440x24", 0x6B, 0x0141, 0x0000, 1920, 1440, 32, 1, 240, 75,
+	 MD_XGI300|MD_XGI315},
+	{"1920x1440x32", 0x6B, 0x0141, 0x0000, 1920, 1440, 32, 1, 240, 75,
+	 MD_XGI300|MD_XGI315},
+	{"2048x1536x8",  0x6c, 0x0000, 0x0000, 2048, 1536,  8, 1, 256, 96,
+	 MD_XGI315},  /* TW: 310/325 series only */
+	{"2048x1536x16", 0x6d, 0x0000, 0x0000, 2048, 1536, 16, 1, 256, 96,
+	 MD_XGI315},
+	{"2048x1536x24", 0x6e, 0x0000, 0x0000, 2048, 1536, 32, 1, 256, 96,
+	 MD_XGI315},
+	{"2048x1536x32", 0x6e, 0x0000, 0x0000, 2048, 1536, 32, 1, 256, 96,
+	 MD_XGI315},
 	{"\0", 0x00, 0, 0, 0, 0, 0, 0, 0}
 };
 
@@ -437,44 +480,45 @@ static struct _XGIbios_mode {
 #ifdef MODULE
 static int xgifb_mode_idx = 1;
 #else
-static int xgifb_mode_idx = -1;               /* Use a default mode if we are inside the kernel */
+static int xgifb_mode_idx = -1; /* Use a default mode if we are
+					inside the kernel */
 #endif
 static u8  XGIfb_mode_no  = 0;
 static u8  XGIfb_rate_idx = 0;
 
 /* TW: CR36 evaluation */
-static const unsigned short XGI300paneltype[] =
-    { LCD_UNKNOWN,   LCD_800x600,  LCD_1024x768,  LCD_1280x1024,
-      LCD_1280x960,  LCD_640x480,  LCD_1024x600,  LCD_1152x768,
-       LCD_1024x768, LCD_1024x768,  LCD_1024x768,
-      LCD_1024x768,  LCD_1024x768, LCD_1024x768,  LCD_1024x768 };
+static const unsigned short XGI300paneltype[] = {
+	 LCD_UNKNOWN,  LCD_800x600, LCD_1024x768, LCD_1280x1024,
+	LCD_1280x960,  LCD_640x480, LCD_1024x600, LCD_1152x768,
+	LCD_1024x768, LCD_1024x768, LCD_1024x768,
+	LCD_1024x768, LCD_1024x768, LCD_1024x768, LCD_1024x768};
 
-static const unsigned short XGI310paneltype[] =
-    { LCD_UNKNOWN,   LCD_800x600,  LCD_1024x768,  LCD_1280x1024,
-      LCD_640x480,   LCD_1024x600, LCD_1152x864,  LCD_1280x960,
-      LCD_1152x768,  LCD_1400x1050,LCD_1280x768,  LCD_1600x1200,
-      LCD_1024x768, LCD_1024x768,  LCD_1024x768 };
+static const unsigned short XGI310paneltype[] = {
+	 LCD_UNKNOWN,   LCD_800x600, LCD_1024x768, LCD_1280x1024,
+	 LCD_640x480,  LCD_1024x600, LCD_1152x864, LCD_1280x960,
+	LCD_1152x768, LCD_1400x1050, LCD_1280x768, LCD_1600x1200,
+	LCD_1024x768,  LCD_1024x768, LCD_1024x768};
 
 static const struct _XGI_crt2type {
 	char name[10];
 	int type_no;
 	int tvplug_no;
 } XGI_crt2type[] = {
-	{"NONE", 	0, 		-1},
-	{"LCD",  	DISPTYPE_LCD, 	-1},
-	{"TV",   	DISPTYPE_TV, 	-1},
-	{"VGA",  	DISPTYPE_CRT2, 	-1},
-	{"SVIDEO", 	DISPTYPE_TV, 	TVPLUG_SVIDEO},
-	{"COMPOSITE", 	DISPTYPE_TV, 	TVPLUG_COMPOSITE},
-	{"SCART", 	DISPTYPE_TV, 	TVPLUG_SCART},
-	{"none", 	0, 		-1},
-	{"lcd",  	DISPTYPE_LCD, 	-1},
-	{"tv",   	DISPTYPE_TV, 	-1},
-	{"vga",  	DISPTYPE_CRT2, 	-1},
-	{"svideo", 	DISPTYPE_TV, 	TVPLUG_SVIDEO},
-	{"composite", 	DISPTYPE_TV, 	TVPLUG_COMPOSITE},
-	{"scart", 	DISPTYPE_TV, 	TVPLUG_SCART},
-	{"\0",  	-1, 		-1}
+	{"NONE",	0,		-1},
+	{"LCD",		DISPTYPE_LCD,	-1},
+	{"TV",		DISPTYPE_TV,	-1},
+	{"VGA",		DISPTYPE_CRT2,	-1},
+	{"SVIDEO",	DISPTYPE_TV,	TVPLUG_SVIDEO},
+	{"COMPOSITE",	DISPTYPE_TV,	TVPLUG_COMPOSITE},
+	{"SCART",	DISPTYPE_TV,	TVPLUG_SCART},
+	{"none",	0,		-1},
+	{"lcd",		DISPTYPE_LCD,	-1},
+	{"tv",		DISPTYPE_TV,	-1},
+	{"vga",		DISPTYPE_CRT2,	-1},
+	{"svideo",	DISPTYPE_TV,	TVPLUG_SVIDEO},
+	{"composite",	DISPTYPE_TV,	TVPLUG_COMPOSITE},
+	{"scart",	DISPTYPE_TV,	TVPLUG_SCART},
+	{"\0",		-1,		-1}
 };
 
 /* TV standard */
@@ -482,11 +526,11 @@ static const struct _XGI_tvtype {
 	char name[6];
 	int type_no;
 } XGI_tvtype[] = {
-	{"PAL",  	1},
-	{"NTSC", 	2},
-	{"pal", 	1},
-	{"ntsc",  	2},
-	{"\0",   	-1}
+	{"PAL",		1},
+	{"NTSC",	2},
+	{"pal",		1},
+	{"ntsc",	2},
+	{"\0",		-1}
 };
 
 static const struct _XGI_vrate {
@@ -495,13 +539,19 @@ static const struct _XGI_vrate {
 	u16 yres;
 	u16 refresh;
 } XGIfb_vrate[] = {
-	{1,  640,  480, 60}, {2,  640,  480,  72}, {3, 640,   480,  75}, {4,  640, 480,  85},
-	{5,  640,  480,100}, {6,  640,  480, 120}, {7, 640,   480, 160}, {8,  640, 480, 200},
+	{1,  640,  480, 60}, {2,  640,  480,  72},
+	{3, 640,   480,  75}, {4,  640, 480,  85},
+
+	{5,  640,  480, 100}, {6,  640,  480, 120},
+	{7, 640,   480, 160}, {8,  640, 480, 200},
+
 	{1,  720,  480, 60},
 	{1,  720,  576, 58},
 	{1,  800,  480, 60}, {2,  800,  480,  75}, {3, 800,   480,  85},
-        {1,  800,  600,  60}, {2, 800,   600,  72}, {3,  800, 600,  75},
-	{4,  800,  600, 85}, {5,  800,  600, 100}, {6, 800,   600, 120}, {7,  800, 600, 160},
+	{1,  800,  600,  60}, {2, 800,   600,  72}, {3,  800, 600,  75},
+	{4,  800,  600, 85}, {5,  800,  600, 100},
+	{6, 800,   600, 120}, {7,  800, 600, 160},
+
 	{1, 1024,  768,  60}, {2, 1024,  768,  70}, {3, 1024, 768,  75},
 	{4, 1024,  768, 85}, {5, 1024,  768, 100}, {6, 1024,  768, 120},
 	{1, 1024,  576, 60}, {2, 1024,  576,  75}, {3, 1024,  576,  85},
@@ -509,279 +559,187 @@ static const struct _XGI_vrate {
 	{1, 1152,  768, 60},
 	{1, 1280,  720, 60}, {2, 1280,  720,  75}, {3, 1280,  720,  85},
 	{1, 1280,  768, 60},
-        {1, 1280, 1024,  60}, {2, 1280, 1024,  75}, {3, 1280, 1024,  85},
+	{1, 1280, 1024,  60}, {2, 1280, 1024,  75}, {3, 1280, 1024,  85},
 	{1, 1280,  960, 70},
 	{1, 1400, 1050, 60},
-	{1, 1600, 1200, 60}, {2, 1600, 1200,  65}, {3, 1600, 1200,  70}, {4, 1600, 1200,  75},
-	{5, 1600, 1200, 85}, {6, 1600, 1200, 100}, {7, 1600, 1200, 120},
-	{1, 1920, 1440, 60}, {2, 1920, 1440,  65}, {3, 1920, 1440,  70}, {4, 1920, 1440,  75},
+	{1, 1600, 1200, 60}, {2, 1600, 1200,  65},
+	{3, 1600, 1200,  70}, {4, 1600, 1200,  75},
+
+	{5, 1600, 1200, 85}, {6, 1600, 1200, 100},
+	{7, 1600, 1200, 120},
+
+	{1, 1920, 1440, 60}, {2, 1920, 1440,  65},
+	{3, 1920, 1440,  70}, {4, 1920, 1440,  75},
+
 	{5, 1920, 1440, 85}, {6, 1920, 1440, 100},
-	{1, 2048, 1536, 60}, {2, 2048, 1536,  65}, {3, 2048, 1536,  70}, {4, 2048, 1536,  75},
+	{1, 2048, 1536, 60}, {2, 2048, 1536,  65},
+	{3, 2048, 1536,  70}, {4, 2048, 1536,  75},
+
 	{5, 2048, 1536, 85},
 	{0, 0, 0, 0}
 };
 
 static const struct _chswtable {
-    int subsysVendor;
-    int subsysCard;
-    char *vendorName;
-    char *cardName;
+	int subsysVendor;
+	int subsysCard;
+	char *vendorName;
+	char *cardName;
 } mychswtable[] = {
-        { 0x1631, 0x1002, "Mitachi", "0x1002" },
+	{ 0x1631, 0x1002, "Mitachi", "0x1002" },
 	{ 0,      0,      ""       , ""       }
 };
 
-// Eden Chen
+/* Eden Chen */
 static const struct _XGI_TV_filter {
 	u8 filter[9][4];
 } XGI_TV_filter[] = {
-	{ {{0x00,0x00,0x00,0x40},  /* NTSCFilter_0 */
-	   {0x00,0xE0,0x10,0x60},
-	   {0x00,0xEE,0x10,0x44},
-	   {0x00,0xF4,0x10,0x38},
-	   {0xF8,0xF4,0x18,0x38},
-	   {0xFC,0xFB,0x14,0x2A},
-	   {0x00,0x00,0x10,0x20},
-	   {0x00,0x04,0x10,0x18},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* NTSCFilter_1 */
-	   {0x00,0xE0,0x10,0x60},
-	   {0x00,0xEE,0x10,0x44},
-	   {0x00,0xF4,0x10,0x38},
-	   {0xF8,0xF4,0x18,0x38},
-	   {0xFC,0xFB,0x14,0x2A},
-	   {0x00,0x00,0x10,0x20},
-	   {0x00,0x04,0x10,0x18},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* NTSCFilter_2 */
-	   {0xF5,0xEE,0x1B,0x44},
-	   {0xF8,0xF4,0x18,0x38},
-	   {0xEB,0x04,0x25,0x18},
-	   {0xF1,0x05,0x1F,0x16},
-	   {0xF6,0x06,0x1A,0x14},
-	   {0xFA,0x06,0x16,0x14},
-	   {0x00,0x04,0x10,0x18},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* NTSCFilter_3 */
-	   {0xF1,0x04,0x1F,0x18},
-	   {0xEE,0x0D,0x22,0x06},
-	   {0xF7,0x06,0x19,0x14},
-	   {0xF4,0x0B,0x1C,0x0A},
-	   {0xFA,0x07,0x16,0x12},
-	   {0xF9,0x0A,0x17,0x0C},
-	   {0x00,0x07,0x10,0x12},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* NTSCFilter_4 */
-	   {0x00,0xE0,0x10,0x60},
-	   {0x00,0xEE,0x10,0x44},
-	   {0x00,0xF4,0x10,0x38},
-	   {0xF8,0xF4,0x18,0x38},
-	   {0xFC,0xFB,0x14,0x2A},
-	   {0x00,0x00,0x10,0x20},
-	   {0x00,0x04,0x10,0x18},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* NTSCFilter_5 */
-	   {0xF5,0xEE,0x1B,0x44},
-	   {0xF8,0xF4,0x18,0x38},
-	   {0xEB,0x04,0x25,0x18},
-	   {0xF1,0x05,0x1F,0x16},
-	   {0xF6,0x06,0x1A,0x14},
-	   {0xFA,0x06,0x16,0x14},
-	   {0x00,0x04,0x10,0x18},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* NTSCFilter_6 */
-	   {0xEB,0x04,0x25,0x18},
-	   {0xE7,0x0E,0x29,0x04},
-	   {0xEE,0x0C,0x22,0x08},
-	   {0xF6,0x0B,0x1A,0x0A},
-	   {0xF9,0x0A,0x17,0x0C},
-	   {0xFC,0x0A,0x14,0x0C},
-	   {0x00,0x08,0x10,0x10},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* NTSCFilter_7 */
-	   {0xEC,0x02,0x24,0x1C},
-	   {0xF2,0x04,0x1E,0x18},
-	   {0xEB,0x15,0x25,0xF6},
-	   {0xF4,0x10,0x1C,0x00},
-	   {0xF8,0x0F,0x18,0x02},
-	   {0x00,0x04,0x10,0x18},
-	   {0x01,0x06,0x0F,0x14},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* PALFilter_0 */
-	   {0x00,0xE0,0x10,0x60},
-	   {0x00,0xEE,0x10,0x44},
-	   {0x00,0xF4,0x10,0x38},
-	   {0xF8,0xF4,0x18,0x38},
-	   {0xFC,0xFB,0x14,0x2A},
-	   {0x00,0x00,0x10,0x20},
-	   {0x00,0x04,0x10,0x18},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* PALFilter_1 */
-	   {0x00,0xE0,0x10,0x60},
-	   {0x00,0xEE,0x10,0x44},
-	   {0x00,0xF4,0x10,0x38},
-	   {0xF8,0xF4,0x18,0x38},
-	   {0xFC,0xFB,0x14,0x2A},
-	   {0x00,0x00,0x10,0x20},
-	   {0x00,0x04,0x10,0x18},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* PALFilter_2 */
-	   {0xF5,0xEE,0x1B,0x44},
-	   {0xF8,0xF4,0x18,0x38},
-	   {0xF1,0xF7,0x01,0x32},
-	   {0xF5,0xFB,0x1B,0x2A},
-	   {0xF9,0xFF,0x17,0x22},
-	   {0xFB,0x01,0x15,0x1E},
-	   {0x00,0x04,0x10,0x18},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* PALFilter_3 */
-	   {0xF5,0xFB,0x1B,0x2A},
-	   {0xEE,0xFE,0x22,0x24},
-	   {0xF3,0x00,0x1D,0x20},
-	   {0xF9,0x03,0x17,0x1A},
-	   {0xFB,0x02,0x14,0x1E},
-	   {0xFB,0x04,0x15,0x18},
-	   {0x00,0x06,0x10,0x14},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* PALFilter_4 */
-	   {0x00,0xE0,0x10,0x60},
-	   {0x00,0xEE,0x10,0x44},
-	   {0x00,0xF4,0x10,0x38},
-	   {0xF8,0xF4,0x18,0x38},
-	   {0xFC,0xFB,0x14,0x2A},
-	   {0x00,0x00,0x10,0x20},
-	   {0x00,0x04,0x10,0x18},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* PALFilter_5 */
-	   {0xF5,0xEE,0x1B,0x44},
-	   {0xF8,0xF4,0x18,0x38},
-	   {0xF1,0xF7,0x1F,0x32},
-	   {0xF5,0xFB,0x1B,0x2A},
-	   {0xF9,0xFF,0x17,0x22},
-	   {0xFB,0x01,0x15,0x1E},
-	   {0x00,0x04,0x10,0x18},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* PALFilter_6 */
-	   {0xF5,0xEE,0x1B,0x2A},
-	   {0xEE,0xFE,0x22,0x24},
-	   {0xF3,0x00,0x1D,0x20},
-	   {0xF9,0x03,0x17,0x1A},
-	   {0xFB,0x02,0x14,0x1E},
-	   {0xFB,0x04,0x15,0x18},
-	   {0x00,0x06,0x10,0x14},
-	   {0xFF,0xFF,0xFF,0xFF} }},
-	{ {{0x00,0x00,0x00,0x40},  /* PALFilter_7 */
-	   {0xF5,0xEE,0x1B,0x44},
-	   {0xF8,0xF4,0x18,0x38},
-	   {0xFC,0xFB,0x14,0x2A},
-	   {0xEB,0x05,0x25,0x16},
-	   {0xF1,0x05,0x1F,0x16},
-	   {0xFA,0x07,0x16,0x12},
-	   {0x00,0x07,0x10,0x12},
-	   {0xFF,0xFF,0xFF,0xFF} }}
+	{ { {0x00, 0x00, 0x00, 0x40},  /* NTSCFilter_0 */
+	    {0x00, 0xE0, 0x10, 0x60},
+	    {0x00, 0xEE, 0x10, 0x44},
+	    {0x00, 0xF4, 0x10, 0x38},
+	    {0xF8, 0xF4, 0x18, 0x38},
+	    {0xFC, 0xFB, 0x14, 0x2A},
+	    {0x00, 0x00, 0x10, 0x20},
+	    {0x00, 0x04, 0x10, 0x18},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* NTSCFilter_1 */
+	    {0x00, 0xE0, 0x10, 0x60},
+	    {0x00, 0xEE, 0x10, 0x44},
+	    {0x00, 0xF4, 0x10, 0x38},
+	    {0xF8, 0xF4, 0x18, 0x38},
+	    {0xFC, 0xFB, 0x14, 0x2A},
+	    {0x00, 0x00, 0x10, 0x20},
+	    {0x00, 0x04, 0x10, 0x18},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* NTSCFilter_2 */
+	    {0xF5, 0xEE, 0x1B, 0x44},
+	    {0xF8, 0xF4, 0x18, 0x38},
+	    {0xEB, 0x04, 0x25, 0x18},
+	    {0xF1, 0x05, 0x1F, 0x16},
+	    {0xF6, 0x06, 0x1A, 0x14},
+	    {0xFA, 0x06, 0x16, 0x14},
+	    {0x00, 0x04, 0x10, 0x18},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* NTSCFilter_3 */
+	    {0xF1, 0x04, 0x1F, 0x18},
+	    {0xEE, 0x0D, 0x22, 0x06},
+	    {0xF7, 0x06, 0x19, 0x14},
+	    {0xF4, 0x0B, 0x1C, 0x0A},
+	    {0xFA, 0x07, 0x16, 0x12},
+	    {0xF9, 0x0A, 0x17, 0x0C},
+	    {0x00, 0x07, 0x10, 0x12},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* NTSCFilter_4 */
+	    {0x00, 0xE0, 0x10, 0x60},
+	    {0x00, 0xEE, 0x10, 0x44},
+	    {0x00, 0xF4, 0x10, 0x38},
+	    {0xF8, 0xF4, 0x18, 0x38},
+	    {0xFC, 0xFB, 0x14, 0x2A},
+	    {0x00, 0x00, 0x10, 0x20},
+	    {0x00, 0x04, 0x10, 0x18},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* NTSCFilter_5 */
+	    {0xF5, 0xEE, 0x1B, 0x44},
+	    {0xF8, 0xF4, 0x18, 0x38},
+	    {0xEB, 0x04, 0x25, 0x18},
+	    {0xF1, 0x05, 0x1F, 0x16},
+	    {0xF6, 0x06, 0x1A, 0x14},
+	    {0xFA, 0x06, 0x16, 0x14},
+	    {0x00, 0x04, 0x10, 0x18},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* NTSCFilter_6 */
+	    {0xEB, 0x04, 0x25, 0x18},
+	    {0xE7, 0x0E, 0x29, 0x04},
+	    {0xEE, 0x0C, 0x22, 0x08},
+	    {0xF6, 0x0B, 0x1A, 0x0A},
+	    {0xF9, 0x0A, 0x17, 0x0C},
+	    {0xFC, 0x0A, 0x14, 0x0C},
+	    {0x00, 0x08, 0x10, 0x10},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* NTSCFilter_7 */
+	    {0xEC, 0x02, 0x24, 0x1C},
+	    {0xF2, 0x04, 0x1E, 0x18},
+	    {0xEB, 0x15, 0x25, 0xF6},
+	    {0xF4, 0x10, 0x1C, 0x00},
+	    {0xF8, 0x0F, 0x18, 0x02},
+	    {0x00, 0x04, 0x10, 0x18},
+	    {0x01, 0x06, 0x0F, 0x14},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* PALFilter_0 */
+	    {0x00, 0xE0, 0x10, 0x60},
+	    {0x00, 0xEE, 0x10, 0x44},
+	    {0x00, 0xF4, 0x10, 0x38},
+	    {0xF8, 0xF4, 0x18, 0x38},
+	    {0xFC, 0xFB, 0x14, 0x2A},
+	    {0x00, 0x00, 0x10, 0x20},
+	    {0x00, 0x04, 0x10, 0x18},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* PALFilter_1 */
+	    {0x00, 0xE0, 0x10, 0x60},
+	    {0x00, 0xEE, 0x10, 0x44},
+	    {0x00, 0xF4, 0x10, 0x38},
+	    {0xF8, 0xF4, 0x18, 0x38},
+	    {0xFC, 0xFB, 0x14, 0x2A},
+	    {0x00, 0x00, 0x10, 0x20},
+	    {0x00, 0x04, 0x10, 0x18},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* PALFilter_2 */
+	    {0xF5, 0xEE, 0x1B, 0x44},
+	    {0xF8, 0xF4, 0x18, 0x38},
+	    {0xF1, 0xF7, 0x01, 0x32},
+	    {0xF5, 0xFB, 0x1B, 0x2A},
+	    {0xF9, 0xFF, 0x17, 0x22},
+	    {0xFB, 0x01, 0x15, 0x1E},
+	    {0x00, 0x04, 0x10, 0x18},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* PALFilter_3 */
+	    {0xF5, 0xFB, 0x1B, 0x2A},
+	    {0xEE, 0xFE, 0x22, 0x24},
+	    {0xF3, 0x00, 0x1D, 0x20},
+	    {0xF9, 0x03, 0x17, 0x1A},
+	    {0xFB, 0x02, 0x14, 0x1E},
+	    {0xFB, 0x04, 0x15, 0x18},
+	    {0x00, 0x06, 0x10, 0x14},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* PALFilter_4 */
+	    {0x00, 0xE0, 0x10, 0x60},
+	    {0x00, 0xEE, 0x10, 0x44},
+	    {0x00, 0xF4, 0x10, 0x38},
+	    {0xF8, 0xF4, 0x18, 0x38},
+	    {0xFC, 0xFB, 0x14, 0x2A},
+	    {0x00, 0x00, 0x10, 0x20},
+	    {0x00, 0x04, 0x10, 0x18},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* PALFilter_5 */
+	    {0xF5, 0xEE, 0x1B, 0x44},
+	    {0xF8, 0xF4, 0x18, 0x38},
+	    {0xF1, 0xF7, 0x1F, 0x32},
+	    {0xF5, 0xFB, 0x1B, 0x2A},
+	    {0xF9, 0xFF, 0x17, 0x22},
+	    {0xFB, 0x01, 0x15, 0x1E},
+	    {0x00, 0x04, 0x10, 0x18},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* PALFilter_6 */
+	    {0xF5, 0xEE, 0x1B, 0x2A},
+	    {0xEE, 0xFE, 0x22, 0x24},
+	    {0xF3, 0x00, 0x1D, 0x20},
+	    {0xF9, 0x03, 0x17, 0x1A},
+	    {0xFB, 0x02, 0x14, 0x1E},
+	    {0xFB, 0x04, 0x15, 0x18},
+	    {0x00, 0x06, 0x10, 0x14},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } },
+	{ { {0x00, 0x00, 0x00, 0x40},  /* PALFilter_7 */
+	    {0xF5, 0xEE, 0x1B, 0x44},
+	    {0xF8, 0xF4, 0x18, 0x38},
+	    {0xFC, 0xFB, 0x14, 0x2A},
+	    {0xEB, 0x05, 0x25, 0x16},
+	    {0xF1, 0x05, 0x1F, 0x16},
+	    {0xFA, 0x07, 0x16, 0x12},
+	    {0x00, 0x07, 0x10, 0x12},
+	    {0xFF, 0xFF, 0xFF, 0xFF} } }
 };
 
 static int           filter = -1;
 static unsigned char filter_tb;
 
-
-/* ---------------------- Routine prototypes ------------------------- */
-
-/* Interface used by the world */
-#ifndef MODULE
-XGIINITSTATIC int __init XGIfb_setup(char *options);
-#endif
-
-/* Interface to the low level console driver */
-
-
-
-/* fbdev routines */
-XGIINITSTATIC int __init xgifb_init(void);
-static int      XGIfb_set_par(struct fb_info *info);
-static int      XGIfb_blank(int blank,
-                            struct fb_info *info);
-/*static int 	XGIfb_mmap(struct fb_info *info, struct file *file,
-		           struct vm_area_struct *vma);
-*/
-
-/*
-extern int	XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr,
-			      struct xgi_hw_device_info *HwDeviceExtension,
-			      unsigned char modeno, unsigned char rateindex);
-extern int      XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, struct xgi_hw_device_info *HwDeviceExtension,
-			 unsigned char modeno, unsigned char rateindex,
-			 unsigned int *left_margin, unsigned int *right_margin,
-			 unsigned int *upper_margin, unsigned int *lower_margin,
-			 unsigned int *hsync_len, unsigned int *vsync_len,
-			 unsigned int *sync, unsigned int *vmode);
-*/
-extern unsigned char XGI_SearchModeID(unsigned short ModeNo,
-				unsigned short *ModeIdIndex,
-				struct vb_device_info *);
-static int      XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
-			      struct fb_info *info);
-
-/* Internal general routines */
-static void     XGIfb_search_mode(const char *name);
-static int      XGIfb_validate_mode(int modeindex);
-static u8       XGIfb_search_refresh_rate(unsigned int rate);
-static int      XGIfb_setcolreg(unsigned regno, unsigned red, unsigned green,
-			unsigned blue, unsigned transp,
-			struct fb_info *fb_info);
-static int      XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
-		      	struct fb_info *info);
-static void     XGIfb_pre_setmode(void);
-static void     XGIfb_post_setmode(void);
-
-/* Internal hardware access routines */
-void            XGIfb_set_reg4(u16 port, unsigned long data);
-u32             XGIfb_get_reg3(u16 port);
-
-/* Chipset-dependent internal routines */
-
-
-static int      XGIfb_get_dram_size(void);
-static void     XGIfb_detect_VB(void);
-static void     XGIfb_get_VB_type(void);
-static int      XGIfb_has_VB(void);
-
-
-/* Internal routines to access PCI configuration space */
-unsigned char XGIfb_query_VGA_config_space(struct xgi_hw_device_info *pXGIhw_ext,
-					   unsigned long offset,
-					   unsigned long set,
-					   unsigned long *value);
-//BOOLEAN         XGIfb_query_north_bridge_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
-//	         	unsigned long offset, unsigned long set, unsigned long *value);
-
-
-/* Routines from init.c/init301.c */
-extern void     InitTo330Pointer(unsigned char, struct vb_device_info *pVBInfo);
-extern unsigned char  XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension);
-extern unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
-				   unsigned short ModeNo);
-//extern void     XGI_SetEnableDstn(VB_DEVICE_INFO *XGI_Pr);
-extern void     XGI_LongWait(struct vb_device_info *XGI_Pr);
-extern unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
-					 unsigned short ModeNo,
-					 unsigned short ModeIdIndex,
-					 struct vb_device_info *pVBInfo);
-/* TW: Chrontel TV functions */
-extern unsigned short XGI_GetCH700x(struct vb_device_info *XGI_Pr,
-				    unsigned short tempbx);
-extern void XGI_SetCH700x(struct vb_device_info *XGI_Pr, unsigned short tempbx);
-extern unsigned short XGI_GetCH701x(struct vb_device_info *XGI_Pr,
-				    unsigned short tempbx);
-extern void XGI_SetCH701x(struct vb_device_info *XGI_Pr, unsigned short tempbx);
-extern void XGI_SetCH70xxANDOR(struct vb_device_info *XGI_Pr,
-			       unsigned short tempax,
-			       unsigned short tempbh);
-extern void XGI_DDC2Delay(struct vb_device_info *XGI_Pr, unsigned short delaytime);
-
-/* TW: Sensing routines */
-void            XGI_Sense30x(void);
-int             XGIDoSense(int tempbl, int tempbh, int tempcl, int tempch);
-
-extern struct XGI21_LVDSCapStruct XGI21_LCDCapList[13];
 #endif

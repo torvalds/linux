@@ -137,17 +137,11 @@ struct chip_information {
 	struct lvds_chip_information lvds_chip_info2;
 };
 
-struct crt_setting_information {
-	int iga_path;
-};
-
 struct tmds_setting_information {
 	int iga_path;
 	int h_active;
 	int v_active;
 	int max_pixel_clock;
-	int max_hres;
-	int max_vres;
 };
 
 struct lvds_setting_information {

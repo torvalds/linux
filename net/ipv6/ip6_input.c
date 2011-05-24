@@ -57,7 +57,7 @@ inline int ip6_rcv_finish( struct sk_buff *skb)
 
 int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
-	struct ipv6hdr *hdr;
+	const struct ipv6hdr *hdr;
 	u32 		pkt_len;
 	struct inet6_dev *idev;
 	struct net *net = dev_net(skb->dev);
@@ -186,7 +186,7 @@ resubmit:
 		int ret;
 
 		if (ipprot->flags & INET6_PROTO_FINAL) {
-			struct ipv6hdr *hdr;
+			const struct ipv6hdr *hdr;
 
 			/* Free reference early: we don't need it any more,
 			   and it may hold ip_conntrack module loaded
@@ -242,7 +242,7 @@ int ip6_input(struct sk_buff *skb)
 
 int ip6_mc_input(struct sk_buff *skb)
 {
-	struct ipv6hdr *hdr;
+	const struct ipv6hdr *hdr;
 	int deliver;
 
 	IP6_UPD_PO_STATS_BH(dev_net(skb_dst(skb)->dev),

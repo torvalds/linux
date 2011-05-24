@@ -1,0 +1,17 @@
+TODO:
+	- Create in-kernel Client API. Examples of in-kernel clients are watchdog and AMTHI.
+	- ME Watchdog Driver to expose standard Linux watchdog interface
+	- Rewrite AMTHI to use in-kernel client interface
+	- Cleanup init and probe functions
+	- Review BUG/BUG_ON usage
+	- Cleanup and reorganize header files
+	- Rewrite client data structure
+	- Make state machine more readable
+	- Add mei.txt with driver explanation and it's driver
+	- Fix Kconfig
+	- Cleanup and split the timer function
+Upon Unstaging:
+	- move mei.h to include/linux/mei.h
+	- Documentation/ioctl/ioctl-number.txt
+	- drop mei_version.h
+	- Updated MAINTAINERS

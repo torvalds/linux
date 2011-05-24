@@ -14,8 +14,6 @@
 #include <linux/cpumask.h>
 #include <linux/thread_info.h>
 
-#include <mach/smp.h>
-
 #ifndef CONFIG_SMP
 # error "<asm/smp.h> included in non-SMP build"
 #endif
@@ -47,9 +45,9 @@ extern void smp_init_cpus(void);
 
 
 /*
- * Raise an IPI cross call on CPUs in callmap.
+ * Provide a function to raise an IPI cross call on CPUs in callmap.
  */
-extern void smp_cross_call(const struct cpumask *mask, int ipi);
+extern void set_smp_cross_call(void (*)(const struct cpumask *, unsigned int));
 
 /*
  * Boot a secondary CPU, and assign it the specified idle task.

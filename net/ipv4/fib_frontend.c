@@ -44,6 +44,7 @@
 #include <net/arp.h>
 #include <net/ip_fib.h>
 #include <net/rtnetlink.h>
+#include <net/xfrm.h>
 
 #ifndef CONFIG_IP_MULTIPLE_TABLES
 
@@ -188,9 +189,9 @@ EXPORT_SYMBOL(inet_dev_addr_type);
  * - check, that packet arrived from expected physical interface.
  * called with rcu_read_lock()
  */
-int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
-			struct net_device *dev, __be32 *spec_dst,
-			u32 *itag, u32 mark)
+int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst, u8 tos,
+			int oif, struct net_device *dev, __be32 *spec_dst,
+			u32 *itag)
 {
 	struct in_device *in_dev;
 	struct flowi4 fl4;
@@ -202,7 +203,6 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 
 	fl4.flowi4_oif = 0;
 	fl4.flowi4_iif = oif;
-	fl4.flowi4_mark = mark;
 	fl4.daddr = src;
 	fl4.saddr = dst;
 	fl4.flowi4_tos = tos;
@@ -212,10 +212,12 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev) {
 		no_addr = in_dev->ifa_list == NULL;
-		rpf = IN_DEV_RPFILTER(in_dev);
+
+		/* Ignore rp_filter for packets protected by IPsec. */
+		rpf = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(in_dev);
+
 		accept_local = IN_DEV_ACCEPT_LOCAL(in_dev);
-		if (mark && !IN_DEV_SRC_VMARK(in_dev))
-			fl4.flowi4_mark = 0;
+		fl4.flowi4_mark = IN_DEV_SRC_VMARK(in_dev) ? skb->mark : 0;
 	}
 
 	if (in_dev == NULL)

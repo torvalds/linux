@@ -21,6 +21,18 @@
 #include <linux/ath9k_platform.h>
 #include "ath9k.h"
 
+static const struct platform_device_id ath9k_platform_id_table[] = {
+	{
+		.name = "ath9k",
+		.driver_data = AR5416_AR9100_DEVID,
+	},
+	{
+		.name = "ar934x_wmac",
+		.driver_data = AR9300_DEVID_AR9340,
+	},
+	{},
+};
+
 /* return bus cachesize in 4B word units */
 static void ath_ahb_read_cachesize(struct ath_common *common, int *csz)
 {
@@ -57,6 +69,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	struct ath_softc *sc;
 	struct ieee80211_hw *hw;
 	struct resource *res;
+	const struct platform_device_id *id = platform_get_device_id(pdev);
 	int irq;
 	int ret = 0;
 	struct ath_hw *ah;
@@ -116,7 +129,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 		goto err_free_hw;
 	}
 
-	ret = ath9k_init_device(AR5416_AR9100_DEVID, sc, 0x0, &ath_ahb_bus_ops);
+	ret = ath9k_init_device(id->driver_data, sc, 0x0, &ath_ahb_bus_ops);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to initialize device\n");
 		goto err_irq;
@@ -165,7 +178,10 @@ static struct platform_driver ath_ahb_driver = {
 		.name	= "ath9k",
 		.owner	= THIS_MODULE,
 	},
+	.id_table    = ath9k_platform_id_table,
 };
+
+MODULE_DEVICE_TABLE(platform, ath9k_platform_id_table);
 
 int ath_ahb_init(void)
 {

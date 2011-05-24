@@ -68,17 +68,6 @@ struct ath5k_buf;
 
 struct ath5k_dbg_info {
 	unsigned int		level;		/* debug level */
-	/* debugfs entries */
-	struct dentry		*debugfs_phydir;
-	struct dentry		*debugfs_debug;
-	struct dentry		*debugfs_registers;
-	struct dentry		*debugfs_beacon;
-	struct dentry		*debugfs_reset;
-	struct dentry		*debugfs_antenna;
-	struct dentry		*debugfs_misc;
-	struct dentry		*debugfs_frameerrors;
-	struct dentry		*debugfs_ani;
-	struct dentry		*debugfs_queue;
 };
 
 /**
@@ -141,9 +130,6 @@ void
 ath5k_debug_init_device(struct ath5k_softc *sc);
 
 void
-ath5k_debug_finish_device(struct ath5k_softc *sc);
-
-void
 ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah);
 
 void
@@ -165,9 +151,6 @@ ATH5K_DBG_UNLIMIT(struct ath5k_softc *sc, unsigned int m, const char *fmt, ...)
 
 static inline void
 ath5k_debug_init_device(struct ath5k_softc *sc) {}
-
-static inline void
-ath5k_debug_finish_device(struct ath5k_softc *sc) {}
 
 static inline void
 ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah) {}

@@ -48,7 +48,6 @@ struct nf_nat_multi_range_compat {
 	struct nf_nat_range range[1];
 };
 
-#ifdef __KERNEL__
 #include <linux/list.h>
 #include <linux/netfilter/nf_conntrack_pptp.h>
 #include <net/netfilter/nf_conntrack_extend.h>
@@ -93,7 +92,4 @@ static inline struct nf_conn_nat *nfct_nat(const struct nf_conn *ct)
 #endif
 }
 
-#else  /* !__KERNEL__: iptables wants this to compile. */
-#define nf_nat_multi_range nf_nat_multi_range_compat
-#endif /*__KERNEL__*/
 #endif

@@ -41,72 +41,11 @@ struct s5p_gpioint_bank {
 
 LIST_HEAD(banks);
 
-static int s5p_gpioint_get_offset(struct irq_data *data)
+static int s5p_gpioint_set_type(struct irq_data *d, unsigned int type)
 {
-	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
-	return data->irq - chip->irq_base;
-}
-
-static void s5p_gpioint_ack(struct irq_data *data)
-{
-	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
-	int group, offset, pend_offset;
-	unsigned int value;
-
-	group = chip->group;
-	offset = s5p_gpioint_get_offset(data);
-	pend_offset = REG_OFFSET(group);
-
-	value = __raw_readl(GPIO_BASE(chip) + PEND_OFFSET + pend_offset);
-	value |= BIT(offset);
-	__raw_writel(value, GPIO_BASE(chip) + PEND_OFFSET + pend_offset);
-}
-
-static void s5p_gpioint_mask(struct irq_data *data)
-{
-	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
-	int group, offset, mask_offset;
-	unsigned int value;
-
-	group = chip->group;
-	offset = s5p_gpioint_get_offset(data);
-	mask_offset = REG_OFFSET(group);
-
-	value = __raw_readl(GPIO_BASE(chip) + MASK_OFFSET + mask_offset);
-	value |= BIT(offset);
-	__raw_writel(value, GPIO_BASE(chip) + MASK_OFFSET + mask_offset);
-}
-
-static void s5p_gpioint_unmask(struct irq_data *data)
-{
-	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
-	int group, offset, mask_offset;
-	unsigned int value;
-
-	group = chip->group;
-	offset = s5p_gpioint_get_offset(data);
-	mask_offset = REG_OFFSET(group);
-
-	value = __raw_readl(GPIO_BASE(chip) + MASK_OFFSET + mask_offset);
-	value &= ~BIT(offset);
-	__raw_writel(value, GPIO_BASE(chip) + MASK_OFFSET + mask_offset);
-}
-
-static void s5p_gpioint_mask_ack(struct irq_data *data)
-{
-	s5p_gpioint_mask(data);
-	s5p_gpioint_ack(data);
-}
-
-static int s5p_gpioint_set_type(struct irq_data *data, unsigned int type)
-{
-	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
-	int group, offset, con_offset;
-	unsigned int value;
-
-	group = chip->group;
-	offset = s5p_gpioint_get_offset(data);
-	con_offset = REG_OFFSET(group);
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct irq_chip_type *ct = gc->chip_types;
+	unsigned int shift = (d->irq - gc->irq_base) << 2;
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
@@ -130,22 +69,11 @@ static int s5p_gpioint_set_type(struct irq_data *data, unsigned int type)
 		return -EINVAL;
 	}
 
-	value = __raw_readl(GPIO_BASE(chip) + CON_OFFSET + con_offset);
-	value &= ~(0x7 << (offset * 0x4));
-	value |= (type << (offset * 0x4));
-	__raw_writel(value, GPIO_BASE(chip) + CON_OFFSET + con_offset);
-
+	gc->type_cache &= ~(0x7 << shift);
+	gc->type_cache |= type << shift;
+	writel(gc->type_cache, gc->reg_base + ct->regs.type);
 	return 0;
 }
-
-static struct irq_chip s5p_gpioint = {
-	.name		= "s5p_gpioint",
-	.irq_ack	= s5p_gpioint_ack,
-	.irq_mask	= s5p_gpioint_mask,
-	.irq_mask_ack	= s5p_gpioint_mask_ack,
-	.irq_unmask	= s5p_gpioint_unmask,
-	.irq_set_type	= s5p_gpioint_set_type,
-};
 
 static void s5p_gpioint_handler(unsigned int irq, struct irq_desc *desc)
 {
@@ -179,9 +107,10 @@ static void s5p_gpioint_handler(unsigned int irq, struct irq_desc *desc)
 static __init int s5p_gpioint_add(struct s3c_gpio_chip *chip)
 {
 	static int used_gpioint_groups = 0;
-	int irq, group = chip->group;
-	int i;
+	int group = chip->group;
 	struct s5p_gpioint_bank *bank = NULL;
+	struct irq_chip_generic *gc;
+	struct irq_chip_type *ct;
 
 	if (used_gpioint_groups >= S5P_GPIOINT_GROUP_COUNT)
 		return -ENOMEM;
@@ -211,19 +140,28 @@ static __init int s5p_gpioint_add(struct s3c_gpio_chip *chip)
 	 * chained GPIO irq has been successfully registered, allocate new gpio
 	 * int group and assign irq nubmers
 	 */
-
 	chip->irq_base = S5P_GPIOINT_BASE +
 			 used_gpioint_groups * S5P_GPIOINT_GROUP_SIZE;
 	used_gpioint_groups++;
 
 	bank->chips[group - bank->start] = chip;
-	for (i = 0; i < chip->chip.ngpio; i++) {
-		irq = chip->irq_base + i;
-		irq_set_chip(irq, &s5p_gpioint);
-		irq_set_handler_data(irq, chip);
-		irq_set_handler(irq, handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID);
-	}
+
+	gc = irq_alloc_generic_chip("s5p_gpioint", 1, chip->irq_base,
+				    (void __iomem *)GPIO_BASE(chip),
+				    handle_level_irq);
+	if (!gc)
+		return -ENOMEM;
+	ct = gc->chip_types;
+	ct->chip.irq_ack = irq_gc_ack;
+	ct->chip.irq_mask = irq_gc_mask_set_bit;
+	ct->chip.irq_unmask = irq_gc_mask_clr_bit;
+	ct->chip.irq_set_type = s5p_gpioint_set_type,
+	ct->regs.ack = PEND_OFFSET + REG_OFFSET(chip->group);
+	ct->regs.mask = MASK_OFFSET + REG_OFFSET(chip->group);
+	ct->regs.type = CON_OFFSET + REG_OFFSET(chip->group);
+	irq_setup_generic_chip(gc, IRQ_MSK(chip->chip.ngpio),
+			       IRQ_GC_INIT_MASK_CACHE,
+			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 	return 0;
 }
 

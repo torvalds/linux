@@ -32,6 +32,17 @@ Table : Subdirectories in /proc/sys/net
 1. /proc/sys/net/core - Network core options
 -------------------------------------------------------
 
+bpf_jit_enable
+--------------
+
+This enables Berkeley Packet Filter Just in Time compiler.
+Currently supported on x86_64 architecture, bpf_jit provides a framework
+to speed packet filtering, the one used by tcpdump/libpcap for example.
+Values :
+	0 - disable the JIT (default value)
+	1 - enable the JIT
+	2 - enable the JIT and ask the compiler to emit traces on kernel log.
+
 rmem_default
 ------------
 

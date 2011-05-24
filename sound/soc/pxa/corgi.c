@@ -310,7 +310,7 @@ static struct snd_soc_dai_link corgi_dai = {
 	.cpu_dai_name = "pxa2xx-i2s",
 	.codec_dai_name = "wm8731-hifi",
 	.platform_name = "pxa-pcm-audio",
-	.codec_name = "wm8731-codec.0-001b",
+	.codec_name = "wm8731.0-001b",
 	.init = corgi_wm8731_init,
 	.ops = &corgi_ops,
 };

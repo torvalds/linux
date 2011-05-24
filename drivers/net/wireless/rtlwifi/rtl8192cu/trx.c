@@ -372,7 +372,7 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	__le16 fc;
 	struct ieee80211_hdr *hdr;
 
-	memset(rx_status, 0, sizeof(rx_status));
+	memset(rx_status, 0, sizeof(*rx_status));
 	rxdesc	= skb->data;
 	skb_len	= skb->len;
 	drvinfo_len = (GET_RX_DESC_DRVINFO_SIZE(rxdesc) * RTL_RX_DRV_INFO_UNIT);
@@ -434,7 +434,7 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 		 "0x%02X\n", fc, (u32)hdr->addr1[0], (u32)hdr->addr1[1],
 		 (u32)hdr->addr1[2], (u32)hdr->addr1[3], (u32)hdr->addr1[4],
 		 (u32)hdr->addr1[5]));
-	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
+	memcpy(IEEE80211_SKB_RXCB(skb), rx_status, sizeof(*rx_status));
 	ieee80211_rx_irqsafe(hw, skb);
 }
 
@@ -498,14 +498,14 @@ static void _rtl_tx_desc_checksum(u8 *txdesc)
 void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 			  struct ieee80211_hdr *hdr, u8 *pdesc_tx,
 			  struct ieee80211_tx_info *info, struct sk_buff *skb,
-			  unsigned int queue_index)
+			  u8 queue_index,
+			  struct rtl_tcb_desc *tcb_desc)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	bool defaultadapter = true;
-	struct ieee80211_sta *sta;
-	struct rtl_tcb_desc tcb_desc;
+	struct ieee80211_sta *sta = info->control.sta = info->control.sta;
 	u8 *qc = ieee80211_get_qos_ctl(hdr);
 	u8 tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 	u16 seq_number;
@@ -517,15 +517,15 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	u8 *txdesc;
 
 	seq_number = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
-	rtl_get_tcb_desc(hw, info, skb, &tcb_desc);
+	rtl_get_tcb_desc(hw, info, sta, skb, tcb_desc);
 	txdesc = (u8 *)skb_push(skb, RTL_TX_HEADER_SIZE);
 	memset(txdesc, 0, RTL_TX_HEADER_SIZE);
 	SET_TX_DESC_PKT_SIZE(txdesc, pktlen);
 	SET_TX_DESC_LINIP(txdesc, 0);
 	SET_TX_DESC_PKT_OFFSET(txdesc, RTL_DUMMY_OFFSET);
 	SET_TX_DESC_OFFSET(txdesc, RTL_TX_HEADER_SIZE);
-	SET_TX_DESC_TX_RATE(txdesc, tcb_desc.hw_rate);
-	if (tcb_desc.use_shortgi || tcb_desc.use_shortpreamble)
+	SET_TX_DESC_TX_RATE(txdesc, tcb_desc->hw_rate);
+	if (tcb_desc->use_shortgi || tcb_desc->use_shortpreamble)
 		SET_TX_DESC_DATA_SHORTGI(txdesc, 1);
 	if (mac->tids[tid].agg.agg_state == RTL_AGG_ON &&
 		    info->flags & IEEE80211_TX_CTL_AMPDU) {
@@ -535,21 +535,21 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 		SET_TX_DESC_AGG_BREAK(txdesc, 1);
 	}
 	SET_TX_DESC_SEQ(txdesc, seq_number);
-	SET_TX_DESC_RTS_ENABLE(txdesc, ((tcb_desc.rts_enable &&
-			       !tcb_desc.cts_enable) ? 1 : 0));
-	SET_TX_DESC_HW_RTS_ENABLE(txdesc, ((tcb_desc.rts_enable ||
-				  tcb_desc.cts_enable) ? 1 : 0));
-	SET_TX_DESC_CTS2SELF(txdesc, ((tcb_desc.cts_enable) ? 1 : 0));
-	SET_TX_DESC_RTS_STBC(txdesc, ((tcb_desc.rts_stbc) ? 1 : 0));
-	SET_TX_DESC_RTS_RATE(txdesc, tcb_desc.rts_rate);
+	SET_TX_DESC_RTS_ENABLE(txdesc, ((tcb_desc->rts_enable &&
+			       !tcb_desc->cts_enable) ? 1 : 0));
+	SET_TX_DESC_HW_RTS_ENABLE(txdesc, ((tcb_desc->rts_enable ||
+				  tcb_desc->cts_enable) ? 1 : 0));
+	SET_TX_DESC_CTS2SELF(txdesc, ((tcb_desc->cts_enable) ? 1 : 0));
+	SET_TX_DESC_RTS_STBC(txdesc, ((tcb_desc->rts_stbc) ? 1 : 0));
+	SET_TX_DESC_RTS_RATE(txdesc, tcb_desc->rts_rate);
 	SET_TX_DESC_RTS_BW(txdesc, 0);
-	SET_TX_DESC_RTS_SC(txdesc, tcb_desc.rts_sc);
+	SET_TX_DESC_RTS_SC(txdesc, tcb_desc->rts_sc);
 	SET_TX_DESC_RTS_SHORT(txdesc,
-			      ((tcb_desc.rts_rate <= DESC92C_RATE54M) ?
-			       (tcb_desc.rts_use_shortpreamble ? 1 : 0)
-			       : (tcb_desc.rts_use_shortgi ? 1 : 0)));
+			      ((tcb_desc->rts_rate <= DESC92C_RATE54M) ?
+			       (tcb_desc->rts_use_shortpreamble ? 1 : 0)
+			       : (tcb_desc->rts_use_shortgi ? 1 : 0)));
 	if (mac->bw_40) {
-		if (tcb_desc.packet_bw) {
+		if (tcb_desc->packet_bw) {
 			SET_TX_DESC_DATA_BW(txdesc, 1);
 			SET_TX_DESC_DATA_SC(txdesc, 3);
 		} else {
@@ -590,7 +590,7 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	SET_TX_DESC_DATA_RATE_FB_LIMIT(txdesc, 0x1F);
 	SET_TX_DESC_RTS_RATE_FB_LIMIT(txdesc, 0xF);
 	SET_TX_DESC_DISABLE_FB(txdesc, 0);
-	SET_TX_DESC_USE_RATE(txdesc, tcb_desc.use_driver_rate ? 1 : 0);
+	SET_TX_DESC_USE_RATE(txdesc, tcb_desc->use_driver_rate ? 1 : 0);
 	if (ieee80211_is_data_qos(fc)) {
 		if (mac->rdg_en) {
 			RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
@@ -600,11 +600,11 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 		}
 	}
 	if (rtlpriv->dm.useramask) {
-		SET_TX_DESC_RATE_ID(txdesc, tcb_desc.ratr_index);
-		SET_TX_DESC_MACID(txdesc, tcb_desc.mac_id);
+		SET_TX_DESC_RATE_ID(txdesc, tcb_desc->ratr_index);
+		SET_TX_DESC_MACID(txdesc, tcb_desc->mac_id);
 	} else {
-		SET_TX_DESC_RATE_ID(txdesc, 0xC + tcb_desc.ratr_index);
-		SET_TX_DESC_MACID(txdesc, tcb_desc.ratr_index);
+		SET_TX_DESC_RATE_ID(txdesc, 0xC + tcb_desc->ratr_index);
+		SET_TX_DESC_MACID(txdesc, tcb_desc->ratr_index);
 	}
 	if ((!ieee80211_is_data_qos(fc)) && ppsc->leisure_ps &&
 	      ppsc->fwctrl_lps) {

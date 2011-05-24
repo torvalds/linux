@@ -652,7 +652,7 @@ static const struct ar9300_eeprom ar9300_x113 = {
 		.regDmn = { LE16(0), LE16(0x1f) },
 		.txrxMask =  0x77, /* 4 bits tx and 4 bits rx */
 		.opCapFlags = {
-			.opFlags = AR5416_OPFLAGS_11G | AR5416_OPFLAGS_11A,
+			.opFlags = AR5416_OPFLAGS_11A,
 			.eepMisc = 0,
 		},
 		.rfSilent = 0,
@@ -922,7 +922,7 @@ static const struct ar9300_eeprom ar9300_x113 = {
 		.db_stage2 = {3, 3, 3}, /* 3 chain */
 		.db_stage3 = {3, 3, 3}, /* doesn't exist for 2G */
 		.db_stage4 = {3, 3, 3},	 /* don't exist for 2G */
-		.xpaBiasLvl = 0,
+		.xpaBiasLvl = 0xf,
 		.txFrameToDataStart = 0x0e,
 		.txFrameToPaOn = 0x0e,
 		.txClip = 3, /* 4 bits tx_clip, 4 bits dac_scale_cck */
@@ -3217,7 +3217,6 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 				    u8 *word, int length, int mdata_size)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	u8 *dptr;
 	const struct ar9300_eeprom *eep = NULL;
 
 	switch (code) {
@@ -3235,7 +3234,6 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 		break;
 	case _CompressBlock:
 		if (reference == 0) {
-			dptr = mptr;
 		} else {
 			eep = ar9003_eeprom_struct_find_by_id(reference);
 			if (eep == NULL) {
@@ -3329,26 +3327,26 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 	else
 		cptr = AR9300_BASE_ADDR;
 	ath_dbg(common, ATH_DBG_EEPROM,
-		"Trying EEPROM accesss at Address 0x%04x\n", cptr);
+		"Trying EEPROM access at Address 0x%04x\n", cptr);
 	if (ar9300_check_eeprom_header(ah, read, cptr))
 		goto found;
 
 	cptr = AR9300_BASE_ADDR_512;
 	ath_dbg(common, ATH_DBG_EEPROM,
-		"Trying EEPROM accesss at Address 0x%04x\n", cptr);
+		"Trying EEPROM access at Address 0x%04x\n", cptr);
 	if (ar9300_check_eeprom_header(ah, read, cptr))
 		goto found;
 
 	read = ar9300_read_otp;
 	cptr = AR9300_BASE_ADDR;
 	ath_dbg(common, ATH_DBG_EEPROM,
-		"Trying OTP accesss at Address 0x%04x\n", cptr);
+		"Trying OTP access at Address 0x%04x\n", cptr);
 	if (ar9300_check_eeprom_header(ah, read, cptr))
 		goto found;
 
 	cptr = AR9300_BASE_ADDR_512;
 	ath_dbg(common, ATH_DBG_EEPROM,
-		"Trying OTP accesss at Address 0x%04x\n", cptr);
+		"Trying OTP access at Address 0x%04x\n", cptr);
 	if (ar9300_check_eeprom_header(ah, read, cptr))
 		goto found;
 
@@ -3444,13 +3442,15 @@ static void ar9003_hw_xpa_bias_level_apply(struct ath_hw *ah, bool is2ghz)
 {
 	int bias = ar9003_hw_xpa_bias_level_get(ah, is2ghz);
 
-	if (AR_SREV_9485(ah))
+	if (AR_SREV_9485(ah) || AR_SREV_9340(ah))
 		REG_RMW_FIELD(ah, AR_CH0_TOP2, AR_CH0_TOP2_XPABIASLVL, bias);
 	else {
 		REG_RMW_FIELD(ah, AR_CH0_TOP, AR_CH0_TOP_XPABIASLVL, bias);
-		REG_RMW_FIELD(ah, AR_CH0_THERM, AR_CH0_THERM_XPABIASLVL_MSB,
-			      bias >> 2);
-		REG_RMW_FIELD(ah, AR_CH0_THERM, AR_CH0_THERM_XPASHORT2GND, 1);
+		REG_RMW_FIELD(ah, AR_CH0_THERM,
+				AR_CH0_THERM_XPABIASLVL_MSB,
+				bias >> 2);
+		REG_RMW_FIELD(ah, AR_CH0_THERM,
+				AR_CH0_THERM_XPASHORT2GND, 1);
 	}
 }
 
@@ -3497,34 +3497,77 @@ static u16 ar9003_hw_ant_ctrl_chain_get(struct ath_hw *ah,
 
 static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 {
+	int chain;
+	u32 regval;
+	u32 ant_div_ctl1;
+	static const u32 switch_chain_reg[AR9300_MAX_CHAINS] = {
+			AR_PHY_SWITCH_CHAIN_0,
+			AR_PHY_SWITCH_CHAIN_1,
+			AR_PHY_SWITCH_CHAIN_2,
+	};
+
 	u32 value = ar9003_hw_ant_ctrl_common_get(ah, is2ghz);
+
 	REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM, AR_SWITCH_TABLE_COM_ALL, value);
 
 	value = ar9003_hw_ant_ctrl_common_2_get(ah, is2ghz);
 	REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2, AR_SWITCH_TABLE_COM2_ALL, value);
 
-	value = ar9003_hw_ant_ctrl_chain_get(ah, 0, is2ghz);
-	REG_RMW_FIELD(ah, AR_PHY_SWITCH_CHAIN_0, AR_SWITCH_TABLE_ALL, value);
-
-	if (!AR_SREV_9485(ah)) {
-		value = ar9003_hw_ant_ctrl_chain_get(ah, 1, is2ghz);
-		REG_RMW_FIELD(ah, AR_PHY_SWITCH_CHAIN_1, AR_SWITCH_TABLE_ALL,
-			      value);
-
-		value = ar9003_hw_ant_ctrl_chain_get(ah, 2, is2ghz);
-		REG_RMW_FIELD(ah, AR_PHY_SWITCH_CHAIN_2, AR_SWITCH_TABLE_ALL,
-			      value);
+	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
+		if ((ah->rxchainmask & BIT(chain)) ||
+		    (ah->txchainmask & BIT(chain))) {
+			value = ar9003_hw_ant_ctrl_chain_get(ah, chain,
+							     is2ghz);
+			REG_RMW_FIELD(ah, switch_chain_reg[chain],
+				      AR_SWITCH_TABLE_ALL, value);
+		}
 	}
 
 	if (AR_SREV_9485(ah)) {
 		value = ath9k_hw_ar9300_get_eeprom(ah, EEP_ANT_DIV_CTL1);
-		REG_RMW_FIELD(ah, AR_PHY_MC_GAIN_CTRL, AR_ANT_DIV_CTRL_ALL,
-			      value);
-		REG_RMW_FIELD(ah, AR_PHY_MC_GAIN_CTRL, AR_ANT_DIV_ENABLE,
-			      value >> 6);
-		REG_RMW_FIELD(ah, AR_PHY_CCK_DETECT, AR_FAST_DIV_ENABLE,
-			      value >> 7);
+		/*
+		 * main_lnaconf, alt_lnaconf, main_tb, alt_tb
+		 * are the fields present
+		 */
+		regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
+		regval &= (~AR_ANT_DIV_CTRL_ALL);
+		regval |= (value & 0x3f) << AR_ANT_DIV_CTRL_ALL_S;
+		/* enable_lnadiv */
+		regval &= (~AR_PHY_9485_ANT_DIV_LNADIV);
+		regval |= ((value >> 6) & 0x1) <<
+				AR_PHY_9485_ANT_DIV_LNADIV_S;
+		REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
+
+		/*enable fast_div */
+		regval = REG_READ(ah, AR_PHY_CCK_DETECT);
+		regval &= (~AR_FAST_DIV_ENABLE);
+		regval |= ((value >> 7) & 0x1) <<
+				AR_FAST_DIV_ENABLE_S;
+		REG_WRITE(ah, AR_PHY_CCK_DETECT, regval);
+		ant_div_ctl1 =
+			ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
+		/* check whether antenna diversity is enabled */
+		if ((ant_div_ctl1 >> 0x6) == 0x3) {
+			regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
+			/*
+			 * clear bits 25-30 main_lnaconf, alt_lnaconf,
+			 * main_tb, alt_tb
+			 */
+			regval &= (~(AR_PHY_9485_ANT_DIV_MAIN_LNACONF |
+					AR_PHY_9485_ANT_DIV_ALT_LNACONF |
+					AR_PHY_9485_ANT_DIV_ALT_GAINTB |
+					AR_PHY_9485_ANT_DIV_MAIN_GAINTB));
+			/* by default use LNA1 for the main antenna */
+			regval |= (AR_PHY_9485_ANT_DIV_LNA1 <<
+					AR_PHY_9485_ANT_DIV_MAIN_LNACONF_S);
+			regval |= (AR_PHY_9485_ANT_DIV_LNA2 <<
+					AR_PHY_9485_ANT_DIV_ALT_LNACONF_S);
+			REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
+		}
+
+
 	}
+
 }
 
 static void ar9003_hw_drive_strength_apply(struct ath_hw *ah)
@@ -3634,13 +3677,16 @@ static void ar9003_hw_atten_apply(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	/* Test value. if 0 then attenuation is unused. Don't load anything. */
 	for (i = 0; i < 3; i++) {
-		value = ar9003_hw_atten_chain_get(ah, i, chan);
-		REG_RMW_FIELD(ah, ext_atten_reg[i],
-			      AR_PHY_EXT_ATTEN_CTL_XATTEN1_DB, value);
+		if (ah->txchainmask & BIT(i)) {
+			value = ar9003_hw_atten_chain_get(ah, i, chan);
+			REG_RMW_FIELD(ah, ext_atten_reg[i],
+				      AR_PHY_EXT_ATTEN_CTL_XATTEN1_DB, value);
 
-		value = ar9003_hw_atten_chain_get_margin(ah, i, chan);
-		REG_RMW_FIELD(ah, ext_atten_reg[i],
-			      AR_PHY_EXT_ATTEN_CTL_XATTEN1_MARGIN, value);
+			value = ar9003_hw_atten_chain_get_margin(ah, i, chan);
+			REG_RMW_FIELD(ah, ext_atten_reg[i],
+				      AR_PHY_EXT_ATTEN_CTL_XATTEN1_MARGIN,
+				      value);
+		}
 	}
 }
 
@@ -3749,8 +3795,9 @@ static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 	ar9003_hw_ant_ctrl_apply(ah, IS_CHAN_2GHZ(chan));
 	ar9003_hw_drive_strength_apply(ah);
 	ar9003_hw_atten_apply(ah, chan);
-	ar9003_hw_internal_regulator_apply(ah);
-	if (AR_SREV_9485(ah))
+	if (!AR_SREV_9340(ah))
+		ar9003_hw_internal_regulator_apply(ah);
+	if (AR_SREV_9485(ah) || AR_SREV_9340(ah))
 		ar9003_hw_apply_tuning_caps(ah);
 }
 
@@ -3992,6 +4039,16 @@ static int ar9003_hw_tx_power_regwrite(struct ath_hw *ah, u8 * pPwrArray)
 		  POW_SM(pPwrArray[ALL_TARGET_LEGACY_11L], 16) |
 		  POW_SM(pPwrArray[ALL_TARGET_LEGACY_5S], 8) |
 		  POW_SM(pPwrArray[ALL_TARGET_LEGACY_1L_5L], 0)
+	    );
+
+        /* Write the power for duplicated frames - HT40 */
+
+        /* dup40_cck (LSB), dup40_ofdm, ext20_cck, ext20_ofdm (MSB) */
+	REG_WRITE(ah, 0xa3e0,
+		  POW_SM(pPwrArray[ALL_TARGET_LEGACY_6_24], 24) |
+		  POW_SM(pPwrArray[ALL_TARGET_LEGACY_1L_5L], 16) |
+		  POW_SM(pPwrArray[ALL_TARGET_LEGACY_6_24],  8) |
+		  POW_SM(pPwrArray[ALL_TARGET_LEGACY_1L_5L],  0)
 	    );
 
 	/* Write the HT20 power per rate set */

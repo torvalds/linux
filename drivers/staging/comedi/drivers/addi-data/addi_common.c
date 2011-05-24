@@ -77,7 +77,7 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 /* Update-0.7.57->0.7.68MODULE_LICENSE("GPL"); */
 
 #define devpriv ((struct addi_private *)dev->private)
-#define this_board ((struct addi_board *)dev->board_ptr)
+#define this_board ((const struct addi_board *)dev->board_ptr)
 
 #if defined(CONFIG_APCI_1710) || defined(CONFIG_APCI_3200) || defined(CONFIG_APCI_3300)
 /* BYTE b_SaveFPUReg [94]; */
@@ -2666,19 +2666,32 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->i_IobaseAmcc = (int) iobase_a;	/* AMCC base address... */
 		devpriv->i_IobaseAddon = (int) iobase_addon;	/* ADD ON base address.... */
 		devpriv->i_IobaseReserved = (int) iobase_reserved;
-		devpriv->ps_BoardInfo = this_board;
 	} else {
 		dev->board_name = this_board->pc_DriverName;
 		dev->iobase = (unsigned long)io_addr[2];
 		devpriv->amcc = card;
 		devpriv->iobase = (int) io_addr[2];
-		devpriv->ps_BoardInfo = this_board;
 		devpriv->i_IobaseReserved = (int) io_addr[3];
 		printk("\nioremap begin");
 		devpriv->dw_AiBase = ioremap(io_addr[3],
 					     this_board->i_IorangeBase3);
 		printk("\nioremap end");
 	}
+
+	/* Initialize parameters that can be overridden in EEPROM */
+	devpriv->s_EeParameters.i_NbrAiChannel = this_board->i_NbrAiChannel;
+	devpriv->s_EeParameters.i_NbrAoChannel = this_board->i_NbrAoChannel;
+	devpriv->s_EeParameters.i_AiMaxdata = this_board->i_AiMaxdata;
+	devpriv->s_EeParameters.i_AoMaxdata = this_board->i_AoMaxdata;
+	devpriv->s_EeParameters.i_NbrDiChannel = this_board->i_NbrDiChannel;
+	devpriv->s_EeParameters.i_NbrDoChannel = this_board->i_NbrDoChannel;
+	devpriv->s_EeParameters.i_DoMaxdata = this_board->i_DoMaxdata;
+	devpriv->s_EeParameters.i_Dma = this_board->i_Dma;
+	devpriv->s_EeParameters.i_Timer = this_board->i_Timer;
+	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
+		this_board->ui_MinAcquisitiontimeNs;
+	devpriv->s_EeParameters.ui_MinDelaytimeNs =
+		this_board->ui_MinDelaytimeNs;
 
 	/* ## */
 
@@ -2728,7 +2741,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->us_UseDma = ADDI_ENABLE;
 	}
 
-	if (this_board->i_Dma) {
+	if (devpriv->s_EeParameters.i_Dma) {
 		printk("\nDMA used");
 		if (devpriv->us_UseDma == ADDI_ENABLE) {
 			/*  alloc DMA buffers */
@@ -2787,21 +2800,22 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		/*  Allocate and Initialise AI Subdevice Structures */
 		s = dev->subdevices + 0;
-		if ((this_board->i_NbrAiChannel)
+		if ((devpriv->s_EeParameters.i_NbrAiChannel)
 			|| (this_board->i_NbrAiChannelDiff)) {
 			dev->read_subdev = s;
 			s->type = COMEDI_SUBD_AI;
 			s->subdev_flags =
 				SDF_READABLE | SDF_COMMON | SDF_GROUND
 				| SDF_DIFF;
-			if (this_board->i_NbrAiChannel) {
-				s->n_chan = this_board->i_NbrAiChannel;
+			if (devpriv->s_EeParameters.i_NbrAiChannel) {
+				s->n_chan =
+					devpriv->s_EeParameters.i_NbrAiChannel;
 				devpriv->b_SingelDiff = 0;
 			} else {
 				s->n_chan = this_board->i_NbrAiChannelDiff;
 				devpriv->b_SingelDiff = 1;
 			}
-			s->maxdata = this_board->i_AiMaxdata;
+			s->maxdata = devpriv->s_EeParameters.i_AiMaxdata;
 			s->len_chanlist = this_board->i_AiChannelList;
 			s->range_table = this_board->pr_AiRangelist;
 
@@ -2825,12 +2839,13 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		/*  Allocate and Initialise AO Subdevice Structures */
 		s = dev->subdevices + 1;
-		if (this_board->i_NbrAoChannel) {
+		if (devpriv->s_EeParameters.i_NbrAoChannel) {
 			s->type = COMEDI_SUBD_AO;
 			s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-			s->n_chan = this_board->i_NbrAoChannel;
-			s->maxdata = this_board->i_AoMaxdata;
-			s->len_chanlist = this_board->i_NbrAoChannel;
+			s->n_chan = devpriv->s_EeParameters.i_NbrAoChannel;
+			s->maxdata = devpriv->s_EeParameters.i_AoMaxdata;
+			s->len_chanlist =
+				devpriv->s_EeParameters.i_NbrAoChannel;
 			s->range_table = this_board->pr_AoRangelist;
 			s->insn_config =
 				this_board->i_hwdrv_InsnConfigAnalogOutput;
@@ -2841,12 +2856,13 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 		/*  Allocate and Initialise DI Subdevice Structures */
 		s = dev->subdevices + 2;
-		if (this_board->i_NbrDiChannel) {
+		if (devpriv->s_EeParameters.i_NbrDiChannel) {
 			s->type = COMEDI_SUBD_DI;
 			s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
-			s->n_chan = this_board->i_NbrDiChannel;
+			s->n_chan = devpriv->s_EeParameters.i_NbrDiChannel;
 			s->maxdata = 1;
-			s->len_chanlist = this_board->i_NbrDiChannel;
+			s->len_chanlist =
+				devpriv->s_EeParameters.i_NbrDiChannel;
 			s->range_table = &range_digital;
 			s->io_bits = 0;	/* all bits input */
 			s->insn_config =
@@ -2860,13 +2876,14 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 		/*  Allocate and Initialise DO Subdevice Structures */
 		s = dev->subdevices + 3;
-		if (this_board->i_NbrDoChannel) {
+		if (devpriv->s_EeParameters.i_NbrDoChannel) {
 			s->type = COMEDI_SUBD_DO;
 			s->subdev_flags =
 				SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-			s->n_chan = this_board->i_NbrDoChannel;
-			s->maxdata = this_board->i_DoMaxdata;
-			s->len_chanlist = this_board->i_NbrDoChannel;
+			s->n_chan = devpriv->s_EeParameters.i_NbrDoChannel;
+			s->maxdata = devpriv->s_EeParameters.i_DoMaxdata;
+			s->len_chanlist =
+				devpriv->s_EeParameters.i_NbrDoChannel;
 			s->range_table = &range_digital;
 			s->io_bits = 0xf;	/* all bits output */
 
@@ -2883,7 +2900,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		/*  Allocate and Initialise Timer Subdevice Structures */
 		s = dev->subdevices + 4;
-		if (this_board->i_Timer) {
+		if (devpriv->s_EeParameters.i_Timer) {
 			s->type = COMEDI_SUBD_TIMER;
 			s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 			s->n_chan = 1;
@@ -2968,8 +2985,8 @@ static int i_ADDI_Detach(struct comedi_device *dev)
 			free_irq(dev->irq, dev);
 		}
 
-		if ((devpriv->ps_BoardInfo->pc_EepromChip == NULL)
-			|| (strcmp(devpriv->ps_BoardInfo->pc_EepromChip,
+		if ((this_board->pc_EepromChip == NULL)
+			|| (strcmp(this_board->pc_EepromChip,
 					ADDIDATA_9054) != 0)) {
 			if (devpriv->allocated) {
 				i_pci_card_free(devpriv->amcc);

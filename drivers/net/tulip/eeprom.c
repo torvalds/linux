@@ -222,8 +222,8 @@ subsequent_board:
 	        /* there is no phy information, don't even try to build mtable */
 	        if (count == 0) {
 			if (tulip_debug > 0)
-				pr_warning("%s: no phy info, aborting mtable build\n",
-					   dev->name);
+				pr_warn("%s: no phy info, aborting mtable build\n",
+					dev->name);
 		        return;
 		}
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -50,6 +50,7 @@ enum iwl_led_mode {
 	IWL_LED_BLINK,
 };
 
+void iwlagn_led_enable(struct iwl_priv *priv);
 void iwl_leds_init(struct iwl_priv *priv);
 void iwl_leds_exit(struct iwl_priv *priv);
 

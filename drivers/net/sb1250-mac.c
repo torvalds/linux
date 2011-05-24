@@ -43,6 +43,7 @@
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/prefetch.h>
 
 #include <asm/cache.h>
 #include <asm/io.h>

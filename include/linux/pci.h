@@ -214,10 +214,15 @@ enum pci_bus_speed {
 	PCI_SPEED_UNKNOWN		= 0xff,
 };
 
+struct pci_cap_saved_data {
+	char cap_nr;
+	unsigned int size;
+	u32 data[0];
+};
+
 struct pci_cap_saved_state {
 	struct hlist_node next;
-	char cap_nr;
-	u32 data[0];
+	struct pci_cap_saved_data cap;
 };
 
 struct pcie_link_state;
@@ -366,7 +371,7 @@ static inline struct pci_cap_saved_state *pci_find_saved_cap(
 	struct hlist_node *pos;
 
 	hlist_for_each_entry(tmp, pos, &pci_dev->saved_cap_space, next) {
-		if (tmp->cap_nr == cap)
+		if (tmp->cap.cap_nr == cap)
 			return tmp;
 	}
 	return NULL;
@@ -807,6 +812,10 @@ size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom, size_t size);
 /* Power management related routines */
 int pci_save_state(struct pci_dev *dev);
 void pci_restore_state(struct pci_dev *dev);
+struct pci_saved_state *pci_store_saved_state(struct pci_dev *dev);
+int pci_load_saved_state(struct pci_dev *dev, struct pci_saved_state *state);
+int pci_load_and_free_saved_state(struct pci_dev *dev,
+				  struct pci_saved_state **state);
 int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state);
 int pci_set_power_state(struct pci_dev *dev, pci_power_t state);
 pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state);
@@ -827,6 +836,23 @@ static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state,
 {
 	return __pci_enable_wake(dev, state, false, enable);
 }
+
+#define PCI_EXP_IDO_REQUEST	(1<<0)
+#define PCI_EXP_IDO_COMPLETION	(1<<1)
+void pci_enable_ido(struct pci_dev *dev, unsigned long type);
+void pci_disable_ido(struct pci_dev *dev, unsigned long type);
+
+enum pci_obff_signal_type {
+	PCI_EXP_OBFF_SIGNAL_L0,
+	PCI_EXP_OBFF_SIGNAL_ALWAYS,
+};
+int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type);
+void pci_disable_obff(struct pci_dev *dev);
+
+bool pci_ltr_supported(struct pci_dev *dev);
+int pci_enable_ltr(struct pci_dev *dev);
+void pci_disable_ltr(struct pci_dev *dev);
+int pci_set_ltr(struct pci_dev *dev, int snoop_lat_ns, int nosnoop_lat_ns);
 
 /* For use by arch with custom probe code */
 void set_pcie_port_type(struct pci_dev *pdev);
@@ -1205,6 +1231,23 @@ static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state,
 				  int enable)
 {
 	return 0;
+}
+
+static inline void pci_enable_ido(struct pci_dev *dev, unsigned long type)
+{
+}
+
+static inline void pci_disable_ido(struct pci_dev *dev, unsigned long type)
+{
+}
+
+static inline int pci_enable_obff(struct pci_dev *dev, unsigned long type)
+{
+	return 0;
+}
+
+static inline void pci_disable_obff(struct pci_dev *dev)
+{
 }
 
 static inline int pci_request_regions(struct pci_dev *dev, const char *res_name)

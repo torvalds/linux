@@ -491,7 +491,7 @@ void setup_summit(void)
 }
 #endif
 
-struct apic apic_summit = {
+static struct apic apic_summit = {
 
 	.name				= "summit",
 	.probe				= probe_summit,
@@ -551,5 +551,6 @@ struct apic apic_summit = {
 	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
 
 	.x86_32_early_logical_apicid	= summit_early_logical_apicid,
-	.x86_32_numa_cpu_node		= default_x86_32_numa_cpu_node,
 };
+
+apic_driver(apic_summit);

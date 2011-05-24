@@ -7,12 +7,10 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -38,8 +36,9 @@ int ad7606_reset(struct ad7606_state *st)
 	return -ENODEV;
 }
 
-static int ad7606_scan_direct(struct ad7606_state *st, unsigned ch)
+static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned ch)
 {
+	struct ad7606_state *st = iio_priv(indio_dev);
 	int ret;
 
 	st->done = false;
@@ -78,67 +77,44 @@ error_ret:
 	return ret;
 }
 
-static ssize_t ad7606_scan(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
+static int ad7606_read_raw(struct iio_dev *indio_dev,
+			   struct iio_chan_spec const *chan,
+			   int *val,
+			   int *val2,
+			   long m)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7606_state *st = dev_info->dev_data;
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
+	struct ad7606_state *st = iio_priv(indio_dev);
+	unsigned int scale_uv;
 
-	mutex_lock(&dev_info->mlock);
-	if (iio_ring_enabled(dev_info))
-		ret = ad7606_scan_from_ring(st, this_attr->address);
-	else
-		ret = ad7606_scan_direct(st, this_attr->address);
-	mutex_unlock(&dev_info->mlock);
+	switch (m) {
+	case 0:
+		mutex_lock(&indio_dev->mlock);
+		if (iio_ring_enabled(indio_dev))
+			ret = ad7606_scan_from_ring(indio_dev, chan->address);
+		else
+			ret = ad7606_scan_direct(indio_dev, chan->address);
+		mutex_unlock(&indio_dev->mlock);
 
-	if (ret < 0)
-		return ret;
-
-	return sprintf(buf, "%d\n", (short) ret);
+		if (ret < 0)
+			return ret;
+		*val = (short) ret;
+		return IIO_VAL_INT;
+	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+		scale_uv = (st->range * 1000 * 2)
+			>> st->chip_info->channels[0].scan_type.realbits;
+		*val =  scale_uv / 1000;
+		*val2 = (scale_uv % 1000) * 1000;
+		return IIO_VAL_INT_PLUS_MICRO;
+	}
+	return -EINVAL;
 }
-
-static IIO_DEV_ATTR_IN_RAW(0, ad7606_scan, 0);
-static IIO_DEV_ATTR_IN_RAW(1, ad7606_scan, 1);
-static IIO_DEV_ATTR_IN_RAW(2, ad7606_scan, 2);
-static IIO_DEV_ATTR_IN_RAW(3, ad7606_scan, 3);
-static IIO_DEV_ATTR_IN_RAW(4, ad7606_scan, 4);
-static IIO_DEV_ATTR_IN_RAW(5, ad7606_scan, 5);
-static IIO_DEV_ATTR_IN_RAW(6, ad7606_scan, 6);
-static IIO_DEV_ATTR_IN_RAW(7, ad7606_scan, 7);
-
-static ssize_t ad7606_show_scale(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
-{
-	/* Driver currently only support internal vref */
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7606_state *st = iio_dev_get_devdata(dev_info);
-	unsigned int scale_uv = (st->range * 1000 * 2) >> st->chip_info->bits;
-
-	return sprintf(buf, "%d.%03d\n", scale_uv / 1000, scale_uv % 1000);
-}
-static IIO_DEVICE_ATTR(in_scale, S_IRUGO, ad7606_show_scale, NULL, 0);
-
-static ssize_t ad7606_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7606_state *st = iio_dev_get_devdata(dev_info);
-
-	return sprintf(buf, "%s\n", st->chip_info->name);
-}
-
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad7606_show_name, NULL, 0);
 
 static ssize_t ad7606_show_range(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7606_state *st = iio_dev_get_devdata(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad7606_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%u\n", st->range);
 }
@@ -146,8 +122,8 @@ static ssize_t ad7606_show_range(struct device *dev,
 static ssize_t ad7606_store_range(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7606_state *st = iio_dev_get_devdata(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad7606_state *st = iio_priv(indio_dev);
 	unsigned long lval;
 
 	if (strict_strtoul(buf, 10, &lval))
@@ -156,10 +132,10 @@ static ssize_t ad7606_store_range(struct device *dev,
 		dev_err(dev, "range is not supported\n");
 		return -EINVAL;
 	}
-	mutex_lock(&dev_info->mlock);
+	mutex_lock(&indio_dev->mlock);
 	gpio_set_value(st->pdata->gpio_range, lval == 10000);
 	st->range = lval;
-	mutex_unlock(&dev_info->mlock);
+	mutex_unlock(&indio_dev->mlock);
 
 	return count;
 }
@@ -171,8 +147,8 @@ static IIO_CONST_ATTR(range_available, "5000 10000");
 static ssize_t ad7606_show_oversampling_ratio(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7606_state *st = iio_dev_get_devdata(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad7606_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%u\n", st->oversampling);
 }
@@ -192,8 +168,8 @@ static int ad7606_oversampling_get_index(unsigned val)
 static ssize_t ad7606_store_oversampling_ratio(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7606_state *st = iio_dev_get_devdata(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad7606_state *st = iio_priv(indio_dev);
 	unsigned long lval;
 	int ret;
 
@@ -206,12 +182,12 @@ static ssize_t ad7606_store_oversampling_ratio(struct device *dev,
 		return ret;
 	}
 
-	mutex_lock(&dev_info->mlock);
+	mutex_lock(&indio_dev->mlock);
 	gpio_set_value(st->pdata->gpio_os0, (ret >> 0) & 1);
 	gpio_set_value(st->pdata->gpio_os1, (ret >> 1) & 1);
 	gpio_set_value(st->pdata->gpio_os1, (ret >> 2) & 1);
 	st->oversampling = lval;
-	mutex_unlock(&dev_info->mlock);
+	mutex_unlock(&indio_dev->mlock);
 
 	return count;
 }
@@ -222,16 +198,6 @@ static IIO_DEVICE_ATTR(oversampling_ratio, S_IRUGO | S_IWUSR,
 static IIO_CONST_ATTR(oversampling_ratio_available, "0 2 4 8 16 32 64");
 
 static struct attribute *ad7606_attributes[] = {
-	&iio_dev_attr_in0_raw.dev_attr.attr,
-	&iio_dev_attr_in1_raw.dev_attr.attr,
-	&iio_dev_attr_in2_raw.dev_attr.attr,
-	&iio_dev_attr_in3_raw.dev_attr.attr,
-	&iio_dev_attr_in4_raw.dev_attr.attr,
-	&iio_dev_attr_in5_raw.dev_attr.attr,
-	&iio_dev_attr_in6_raw.dev_attr.attr,
-	&iio_dev_attr_in7_raw.dev_attr.attr,
-	&iio_dev_attr_in_scale.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	&iio_dev_attr_range.dev_attr.attr,
 	&iio_const_attr_range_available.dev_attr.attr,
 	&iio_dev_attr_oversampling_ratio.dev_attr.attr,
@@ -243,20 +209,12 @@ static mode_t ad7606_attr_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7606_state *st = iio_dev_get_devdata(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad7606_state *st = iio_priv(indio_dev);
 
 	mode_t mode = attr->mode;
 
-	if (st->chip_info->num_channels <= 6 &&
-		(attr == &iio_dev_attr_in7_raw.dev_attr.attr ||
-		attr == &iio_dev_attr_in6_raw.dev_attr.attr))
-		mode = 0;
-	else if (st->chip_info->num_channels <= 4 &&
-		(attr == &iio_dev_attr_in5_raw.dev_attr.attr ||
-		attr == &iio_dev_attr_in4_raw.dev_attr.attr))
-		mode = 0;
-	else if (!st->have_os &&
+	if (!st->have_os &&
 		(attr == &iio_dev_attr_oversampling_ratio.dev_attr.attr ||
 		attr ==
 		&iio_const_attr_oversampling_ratio_available.dev_attr.attr))
@@ -274,29 +232,92 @@ static const struct attribute_group ad7606_attribute_group = {
 	.is_visible = ad7606_attr_is_visible,
 };
 
+static struct iio_chan_spec ad7606_8_channels[] = {
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 0, 0, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 1, 1, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 2, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 2, 2, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 3, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 3, 3, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 4, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 4, 4, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 5, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 5, 5, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 6, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 6, 6, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 7, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 7, 7, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN_SOFT_TIMESTAMP(8),
+};
+
+static struct iio_chan_spec ad7606_6_channels[] = {
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 0, 0, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 1, 1, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 2, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 2, 2, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 3, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 3, 3, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 4, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 4, 4, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 5, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 5, 5, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN_SOFT_TIMESTAMP(6),
+};
+
+static struct iio_chan_spec ad7606_4_channels[] = {
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 0, 0, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 1, 1, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 2, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 2, 2, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 3, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 3, 3, IIO_ST('s', 16, 16, 0), 0),
+	IIO_CHAN_SOFT_TIMESTAMP(4),
+};
+
 static const struct ad7606_chip_info ad7606_chip_info_tbl[] = {
 	/*
 	 * More devices added in future
 	 */
 	[ID_AD7606_8] = {
 		.name = "ad7606",
-		.bits = 16,
-		.sign = IIO_SCAN_EL_TYPE_SIGNED,
 		.int_vref_mv = 2500,
+		.channels = ad7606_8_channels,
 		.num_channels = 8,
 	},
 	[ID_AD7606_6] = {
 		.name = "ad7606-6",
-		.bits = 16,
-		.sign = IIO_SCAN_EL_TYPE_SIGNED,
 		.int_vref_mv = 2500,
+		.channels = ad7606_6_channels,
 		.num_channels = 6,
 	},
 	[ID_AD7606_4] = {
 		.name = "ad7606-4",
-		.bits = 16,
-		.sign = IIO_SCAN_EL_TYPE_SIGNED,
 		.int_vref_mv = 2500,
+		.channels = ad7606_4_channels,
 		.num_channels = 4,
 	},
 };
@@ -343,8 +364,8 @@ static int ad7606_request_gpios(struct ad7606_state *st)
 		st->have_reset = true;
 
 	ret = gpio_request_one(st->pdata->gpio_range, GPIOF_DIR_OUT |
-			       ((st->range == 10000) ? GPIOF_INIT_HIGH :
-			       	GPIOF_INIT_LOW), "AD7606_RANGE");
+				((st->range == 10000) ? GPIOF_INIT_HIGH :
+				GPIOF_INIT_LOW), "AD7606_RANGE");
 	if (!ret)
 		st->have_range = true;
 
@@ -391,9 +412,10 @@ static void ad7606_free_gpios(struct ad7606_state *st)
  */
 static irqreturn_t ad7606_interrupt(int irq, void *dev_id)
 {
-	struct ad7606_state *st = dev_id;
+	struct iio_dev *indio_dev = dev_id;
+	struct ad7606_state *st = iio_priv(indio_dev);
 
-	if (iio_ring_enabled(st->indio_dev)) {
+	if (iio_ring_enabled(indio_dev)) {
 		if (!work_pending(&st->poll_work))
 			schedule_work(&st->poll_work);
 	} else {
@@ -404,20 +426,28 @@ static irqreturn_t ad7606_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 };
 
-struct ad7606_state *ad7606_probe(struct device *dev, int irq,
+static const struct iio_info ad7606_info = {
+	.driver_module = THIS_MODULE,
+	.read_raw = &ad7606_read_raw,
+	.attrs = &ad7606_attribute_group,
+};
+
+struct iio_dev *ad7606_probe(struct device *dev, int irq,
 			      void __iomem *base_address,
 			      unsigned id,
 			      const struct ad7606_bus_ops *bops)
 {
 	struct ad7606_platform_data *pdata = dev->platform_data;
 	struct ad7606_state *st;
-	int ret;
+	int ret, regdone = 0;
+	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
-	if (st == NULL) {
+	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
+
+	st = iio_priv(indio_dev);
 
 	st->dev = dev;
 	st->id = id;
@@ -445,61 +475,53 @@ struct ad7606_state *ad7606_probe(struct device *dev, int irq,
 	st->pdata = pdata;
 	st->chip_info = &ad7606_chip_info_tbl[id];
 
-	atomic_set(&st->protect_ring, 0);
-
-	st->indio_dev = iio_allocate_device();
-	if (st->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_disable_reg;
-	}
-
-	st->indio_dev->dev.parent = dev;
-	st->indio_dev->attrs = &ad7606_attribute_group;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->dev.parent = dev;
+	indio_dev->info = &ad7606_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->name = st->chip_info->name;
+	indio_dev->channels = st->chip_info->channels;
+	indio_dev->num_channels = st->chip_info->num_channels;
 
 	init_waitqueue_head(&st->wq_data_avail);
 
 	ret = ad7606_request_gpios(st);
 	if (ret)
-		goto error_free_device;
+		goto error_disable_reg;
 
 	ret = ad7606_reset(st);
 	if (ret)
 		dev_warn(st->dev, "failed to RESET: no RESET GPIO specified\n");
 
 	ret = request_irq(st->irq, ad7606_interrupt,
-		IRQF_TRIGGER_FALLING, st->chip_info->name, st);
+		IRQF_TRIGGER_FALLING, st->chip_info->name, indio_dev);
 	if (ret)
 		goto error_free_gpios;
 
-	ret = ad7606_register_ring_funcs_and_init(st->indio_dev);
+	ret = ad7606_register_ring_funcs_and_init(indio_dev);
 	if (ret)
 		goto error_free_irq;
 
-	ret = iio_device_register(st->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_irq;
+	regdone = 1;
 
-	ret = iio_ring_buffer_register(st->indio_dev->ring, 0);
+	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
+					  indio_dev->channels,
+					  indio_dev->num_channels);
 	if (ret)
 		goto error_cleanup_ring;
 
-	return st;
+	return indio_dev;
 
 error_cleanup_ring:
-	ad7606_ring_cleanup(st->indio_dev);
-	iio_device_unregister(st->indio_dev);
+	ad7606_ring_cleanup(indio_dev);
 
 error_free_irq:
-	free_irq(st->irq, st);
+	free_irq(st->irq, indio_dev);
 
 error_free_gpios:
 	ad7606_free_gpios(st);
-
-error_free_device:
-	iio_free_device(st->indio_dev);
 
 error_disable_reg:
 	if (!IS_ERR(st->reg))
@@ -507,31 +529,37 @@ error_disable_reg:
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-	kfree(st);
+	if (regdone)
+		iio_device_unregister(indio_dev);
+	else
+		iio_free_device(indio_dev);
 error_ret:
 	return ERR_PTR(ret);
 }
 
-int ad7606_remove(struct ad7606_state *st)
+int ad7606_remove(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = st->indio_dev;
+	struct ad7606_state *st = iio_priv(indio_dev);
+
 	iio_ring_buffer_unregister(indio_dev->ring);
 	ad7606_ring_cleanup(indio_dev);
-	iio_device_unregister(indio_dev);
-	free_irq(st->irq, st);
+
+	free_irq(st->irq, indio_dev);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
 
 	ad7606_free_gpios(st);
+	iio_device_unregister(indio_dev);
 
-	kfree(st);
 	return 0;
 }
 
-void ad7606_suspend(struct ad7606_state *st)
+void ad7606_suspend(struct iio_dev *indio_dev)
 {
+	struct ad7606_state *st = iio_priv(indio_dev);
+
 	if (st->have_stby) {
 		if (st->have_range)
 			gpio_set_value(st->pdata->gpio_range, 1);
@@ -539,8 +567,10 @@ void ad7606_suspend(struct ad7606_state *st)
 	}
 }
 
-void ad7606_resume(struct ad7606_state *st)
+void ad7606_resume(struct iio_dev *indio_dev)
 {
+	struct ad7606_state *st = iio_priv(indio_dev);
+
 	if (st->have_stby) {
 		if (st->have_range)
 			gpio_set_value(st->pdata->gpio_range,

@@ -92,8 +92,10 @@
 #define IXGBE_RXPBSIZE_64KB     0x00010000 /* 64KB Packet Buffer */
 #define IXGBE_RXPBSIZE_80KB     0x00014000 /* 80KB Packet Buffer */
 #define IXGBE_RXPBSIZE_128KB    0x00020000 /* 128KB Packet Buffer */
+#define IXGBE_TXPBSIZE_MAX	0x00028000 /* 160KB Packet Buffer*/
 
 #define IXGBE_TXPBTHRESH_DCB    0xA        /* THRESH value for DCB mode */
+#define IXGBE_TXPKT_SIZE_MAX    0xA        /* Max Tx Packet size  */
 
 /* SECTXMINIFG DCB */
 #define IXGBE_SECTX_DCB		0x00001F00 /* DCB TX Buffer IFG */

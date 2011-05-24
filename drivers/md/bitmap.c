@@ -493,11 +493,11 @@ void bitmap_update_sb(struct bitmap *bitmap)
 	spin_unlock_irqrestore(&bitmap->lock, flags);
 	sb = kmap_atomic(bitmap->sb_page, KM_USER0);
 	sb->events = cpu_to_le64(bitmap->mddev->events);
-	if (bitmap->mddev->events < bitmap->events_cleared) {
+	if (bitmap->mddev->events < bitmap->events_cleared)
 		/* rocking back to read-only */
 		bitmap->events_cleared = bitmap->mddev->events;
-		sb->events_cleared = cpu_to_le64(bitmap->events_cleared);
-	}
+	sb->events_cleared = cpu_to_le64(bitmap->events_cleared);
+	sb->state = cpu_to_le32(bitmap->flags);
 	/* Just in case these have been changed via sysfs: */
 	sb->daemon_sleep = cpu_to_le32(bitmap->mddev->bitmap_info.daemon_sleep/HZ);
 	sb->write_behind = cpu_to_le32(bitmap->mddev->bitmap_info.max_write_behind);
@@ -618,7 +618,7 @@ success:
 	if (le32_to_cpu(sb->version) == BITMAP_MAJOR_HOSTENDIAN)
 		bitmap->flags |= BITMAP_HOSTENDIAN;
 	bitmap->events_cleared = le64_to_cpu(sb->events_cleared);
-	if (sb->state & cpu_to_le32(BITMAP_STALE))
+	if (bitmap->flags & BITMAP_STALE)
 		bitmap->events_cleared = bitmap->mddev->events;
 	err = 0;
 out:
@@ -652,9 +652,11 @@ static int bitmap_mask_state(struct bitmap *bitmap, enum bitmap_state bits,
 	switch (op) {
 	case MASK_SET:
 		sb->state |= cpu_to_le32(bits);
+		bitmap->flags |= bits;
 		break;
 	case MASK_UNSET:
 		sb->state &= cpu_to_le32(~bits);
+		bitmap->flags &= ~bits;
 		break;
 	default:
 		BUG();

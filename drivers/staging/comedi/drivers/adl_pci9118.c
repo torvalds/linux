@@ -1417,7 +1417,7 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 		comedi_error(dev,
 			     "pci9118_ai_docmd_sampl() mode number bug!\n");
 		return -EIO;
-	};
+	}
 
 	devpriv->int_ai_func = interrupt_pci9118_ai_onesample;
 						/* transfer function */
@@ -1496,7 +1496,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 	default:
 		comedi_error(dev, "pci9118_ai_docmd_dma() mode number bug!\n");
 		return -EIO;
-	};
+	}
 
 	if (devpriv->ai12_startstop) {
 		pci9118_exttrg_add(dev, EXTTRG_AI);

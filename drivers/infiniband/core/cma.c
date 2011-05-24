@@ -148,6 +148,7 @@ struct rdma_id_private {
 	u32			qp_num;
 	u8			srq;
 	u8			tos;
+	u8			reuseaddr;
 };
 
 struct cma_multicast {
@@ -710,6 +711,21 @@ static inline int cma_loopback_addr(struct sockaddr *addr)
 static inline int cma_any_addr(struct sockaddr *addr)
 {
 	return cma_zero_addr(addr) || cma_loopback_addr(addr);
+}
+
+static int cma_addr_cmp(struct sockaddr *src, struct sockaddr *dst)
+{
+	if (src->sa_family != dst->sa_family)
+		return -1;
+
+	switch (src->sa_family) {
+	case AF_INET:
+		return ((struct sockaddr_in *) src)->sin_addr.s_addr !=
+		       ((struct sockaddr_in *) dst)->sin_addr.s_addr;
+	default:
+		return ipv6_addr_cmp(&((struct sockaddr_in6 *) src)->sin6_addr,
+				     &((struct sockaddr_in6 *) dst)->sin6_addr);
+	}
 }
 
 static inline __be16 cma_port(struct sockaddr *addr)
@@ -1564,50 +1580,6 @@ static void cma_listen_on_all(struct rdma_id_private *id_priv)
 	mutex_unlock(&lock);
 }
 
-int rdma_listen(struct rdma_cm_id *id, int backlog)
-{
-	struct rdma_id_private *id_priv;
-	int ret;
-
-	id_priv = container_of(id, struct rdma_id_private, id);
-	if (id_priv->state == CMA_IDLE) {
-		((struct sockaddr *) &id->route.addr.src_addr)->sa_family = AF_INET;
-		ret = rdma_bind_addr(id, (struct sockaddr *) &id->route.addr.src_addr);
-		if (ret)
-			return ret;
-	}
-
-	if (!cma_comp_exch(id_priv, CMA_ADDR_BOUND, CMA_LISTEN))
-		return -EINVAL;
-
-	id_priv->backlog = backlog;
-	if (id->device) {
-		switch (rdma_node_get_transport(id->device->node_type)) {
-		case RDMA_TRANSPORT_IB:
-			ret = cma_ib_listen(id_priv);
-			if (ret)
-				goto err;
-			break;
-		case RDMA_TRANSPORT_IWARP:
-			ret = cma_iw_listen(id_priv, backlog);
-			if (ret)
-				goto err;
-			break;
-		default:
-			ret = -ENOSYS;
-			goto err;
-		}
-	} else
-		cma_listen_on_all(id_priv);
-
-	return 0;
-err:
-	id_priv->backlog = 0;
-	cma_comp_exch(id_priv, CMA_LISTEN, CMA_ADDR_BOUND);
-	return ret;
-}
-EXPORT_SYMBOL(rdma_listen);
-
 void rdma_set_service_type(struct rdma_cm_id *id, int tos)
 {
 	struct rdma_id_private *id_priv;
@@ -2090,6 +2062,25 @@ err:
 }
 EXPORT_SYMBOL(rdma_resolve_addr);
 
+int rdma_set_reuseaddr(struct rdma_cm_id *id, int reuse)
+{
+	struct rdma_id_private *id_priv;
+	unsigned long flags;
+	int ret;
+
+	id_priv = container_of(id, struct rdma_id_private, id);
+	spin_lock_irqsave(&id_priv->lock, flags);
+	if (id_priv->state == CMA_IDLE) {
+		id_priv->reuseaddr = reuse;
+		ret = 0;
+	} else {
+		ret = -EINVAL;
+	}
+	spin_unlock_irqrestore(&id_priv->lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(rdma_set_reuseaddr);
+
 static void cma_bind_port(struct rdma_bind_list *bind_list,
 			  struct rdma_id_private *id_priv)
 {
@@ -2165,41 +2156,71 @@ retry:
 	return -EADDRNOTAVAIL;
 }
 
-static int cma_use_port(struct idr *ps, struct rdma_id_private *id_priv)
+/*
+ * Check that the requested port is available.  This is called when trying to
+ * bind to a specific port, or when trying to listen on a bound port.  In
+ * the latter case, the provided id_priv may already be on the bind_list, but
+ * we still need to check that it's okay to start listening.
+ */
+static int cma_check_port(struct rdma_bind_list *bind_list,
+			  struct rdma_id_private *id_priv, uint8_t reuseaddr)
 {
 	struct rdma_id_private *cur_id;
-	struct sockaddr_in *sin, *cur_sin;
-	struct rdma_bind_list *bind_list;
+	struct sockaddr *addr, *cur_addr;
 	struct hlist_node *node;
-	unsigned short snum;
 
-	sin = (struct sockaddr_in *) &id_priv->id.route.addr.src_addr;
-	snum = ntohs(sin->sin_port);
+	addr = (struct sockaddr *) &id_priv->id.route.addr.src_addr;
+	if (cma_any_addr(addr) && !reuseaddr)
+		return -EADDRNOTAVAIL;
+
+	hlist_for_each_entry(cur_id, node, &bind_list->owners, node) {
+		if (id_priv == cur_id)
+			continue;
+
+		if ((cur_id->state == CMA_LISTEN) ||
+		    !reuseaddr || !cur_id->reuseaddr) {
+			cur_addr = (struct sockaddr *) &cur_id->id.route.addr.src_addr;
+			if (cma_any_addr(cur_addr))
+				return -EADDRNOTAVAIL;
+
+			if (!cma_addr_cmp(addr, cur_addr))
+				return -EADDRINUSE;
+		}
+	}
+	return 0;
+}
+
+static int cma_use_port(struct idr *ps, struct rdma_id_private *id_priv)
+{
+	struct rdma_bind_list *bind_list;
+	unsigned short snum;
+	int ret;
+
+	snum = ntohs(cma_port((struct sockaddr *) &id_priv->id.route.addr.src_addr));
 	if (snum < PROT_SOCK && !capable(CAP_NET_BIND_SERVICE))
 		return -EACCES;
 
 	bind_list = idr_find(ps, snum);
-	if (!bind_list)
-		return cma_alloc_port(ps, id_priv, snum);
-
-	/*
-	 * We don't support binding to any address if anyone is bound to
-	 * a specific address on the same port.
-	 */
-	if (cma_any_addr((struct sockaddr *) &id_priv->id.route.addr.src_addr))
-		return -EADDRNOTAVAIL;
-
-	hlist_for_each_entry(cur_id, node, &bind_list->owners, node) {
-		if (cma_any_addr((struct sockaddr *) &cur_id->id.route.addr.src_addr))
-			return -EADDRNOTAVAIL;
-
-		cur_sin = (struct sockaddr_in *) &cur_id->id.route.addr.src_addr;
-		if (sin->sin_addr.s_addr == cur_sin->sin_addr.s_addr)
-			return -EADDRINUSE;
+	if (!bind_list) {
+		ret = cma_alloc_port(ps, id_priv, snum);
+	} else {
+		ret = cma_check_port(bind_list, id_priv, id_priv->reuseaddr);
+		if (!ret)
+			cma_bind_port(bind_list, id_priv);
 	}
+	return ret;
+}
 
-	cma_bind_port(bind_list, id_priv);
-	return 0;
+static int cma_bind_listen(struct rdma_id_private *id_priv)
+{
+	struct rdma_bind_list *bind_list = id_priv->bind_list;
+	int ret = 0;
+
+	mutex_lock(&lock);
+	if (bind_list->owners.first->next)
+		ret = cma_check_port(bind_list, id_priv, 0);
+	mutex_unlock(&lock);
+	return ret;
 }
 
 static int cma_get_port(struct rdma_id_private *id_priv)
@@ -2252,6 +2273,56 @@ static int cma_check_linklocal(struct rdma_dev_addr *dev_addr,
 #endif
 	return 0;
 }
+
+int rdma_listen(struct rdma_cm_id *id, int backlog)
+{
+	struct rdma_id_private *id_priv;
+	int ret;
+
+	id_priv = container_of(id, struct rdma_id_private, id);
+	if (id_priv->state == CMA_IDLE) {
+		((struct sockaddr *) &id->route.addr.src_addr)->sa_family = AF_INET;
+		ret = rdma_bind_addr(id, (struct sockaddr *) &id->route.addr.src_addr);
+		if (ret)
+			return ret;
+	}
+
+	if (!cma_comp_exch(id_priv, CMA_ADDR_BOUND, CMA_LISTEN))
+		return -EINVAL;
+
+	if (id_priv->reuseaddr) {
+		ret = cma_bind_listen(id_priv);
+		if (ret)
+			goto err;
+	}
+
+	id_priv->backlog = backlog;
+	if (id->device) {
+		switch (rdma_node_get_transport(id->device->node_type)) {
+		case RDMA_TRANSPORT_IB:
+			ret = cma_ib_listen(id_priv);
+			if (ret)
+				goto err;
+			break;
+		case RDMA_TRANSPORT_IWARP:
+			ret = cma_iw_listen(id_priv, backlog);
+			if (ret)
+				goto err;
+			break;
+		default:
+			ret = -ENOSYS;
+			goto err;
+		}
+	} else
+		cma_listen_on_all(id_priv);
+
+	return 0;
+err:
+	id_priv->backlog = 0;
+	cma_comp_exch(id_priv, CMA_LISTEN, CMA_ADDR_BOUND);
+	return ret;
+}
+EXPORT_SYMBOL(rdma_listen);
 
 int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 {

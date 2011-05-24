@@ -540,6 +540,7 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 		/* Access Music VirusTI Desktop */
 		return snd_usb_accessmusic_boot_quirk(dev);
 
+	case USB_ID(0x17cc, 0x1000): /* Komplete Audio 6 */
 	case USB_ID(0x17cc, 0x1010): /* Traktor Audio 6 */
 	case USB_ID(0x17cc, 0x1020): /* Traktor Audio 10 */
 		return snd_usb_nativeinstruments_boot_quirk(dev);

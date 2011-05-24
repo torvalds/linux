@@ -764,6 +764,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	if (ints == ~(u32)0) {
 		disable (ohci);
 		ohci_dbg (ohci, "device removed!\n");
+		usb_hc_died(hcd);
 		return IRQ_HANDLED;
 	}
 
@@ -771,7 +772,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	ints &= ohci_readl(ohci, &regs->intrenable);
 
 	/* interrupt for some other device? */
-	if (ints == 0)
+	if (ints == 0 || unlikely(hcd->state == HC_STATE_HALT))
 		return IRQ_NOTMINE;
 
 	if (ints & OHCI_INTR_UE) {
@@ -788,6 +789,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 		} else {
 			disable (ohci);
 			ohci_err (ohci, "OHCI Unrecoverable Error, disabled\n");
+			usb_hc_died(hcd);
 		}
 
 		ohci_dump (ohci, 1);
@@ -1103,6 +1105,11 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_USB_CNS3XXX_OHCI
 #include "ohci-cns3xxx.c"
 #define PLATFORM_DRIVER		ohci_hcd_cns3xxx_driver
+#endif
+
+#ifdef CONFIG_USB_OHCI_ATH79
+#include "ohci-ath79.c"
+#define PLATFORM_DRIVER		ohci_hcd_ath79_driver
 #endif
 
 #if	!defined(PCI_DRIVER) &&		\

@@ -670,6 +670,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			 * Driver needs to re-reg VPI in order for f/w
 			 * to update the MAC address.
 			 */
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 			lpfc_register_new_vport(phba, vport, ndlp);
 			return 0;
 	}
@@ -869,8 +870,8 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if ((phba->hba_flag & HBA_FIP_SUPPORT) &&
 		    (phba->fcf.fcf_flag & FCF_DISCOVERY) &&
-		    (irsp->ulpStatus != IOSTAT_LOCAL_REJECT) &&
-		    (irsp->un.ulpWord[4] != IOERR_SLI_ABORTED)) {
+		    !((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
+		     (irsp->un.ulpWord[4] == IOERR_SLI_ABORTED))) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP | LOG_ELS,
 					"2611 FLOGI failed on FCF (x%x), "
 					"status:x%x/x%x, tmo:x%x, perform "
@@ -1085,14 +1086,15 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (sp->cmn.fcphHigh < FC_PH3)
 		sp->cmn.fcphHigh = FC_PH3;
 
-	if  ((phba->sli_rev == LPFC_SLI_REV4) &&
-	     (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
-	      LPFC_SLI_INTF_IF_TYPE_0)) {
-		elsiocb->iocb.ulpCt_h = ((SLI4_CT_FCFI >> 1) & 1);
-		elsiocb->iocb.ulpCt_l = (SLI4_CT_FCFI & 1);
-		/* FLOGI needs to be 3 for WQE FCFI */
-		/* Set the fcfi to the fcfi we registered with */
-		elsiocb->iocb.ulpContext = phba->fcf.fcfi;
+	if  (phba->sli_rev == LPFC_SLI_REV4) {
+		if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+		    LPFC_SLI_INTF_IF_TYPE_0) {
+			elsiocb->iocb.ulpCt_h = ((SLI4_CT_FCFI >> 1) & 1);
+			elsiocb->iocb.ulpCt_l = (SLI4_CT_FCFI & 1);
+			/* FLOGI needs to be 3 for WQE FCFI */
+			/* Set the fcfi to the fcfi we registered with */
+			elsiocb->iocb.ulpContext = phba->fcf.fcfi;
+		}
 	} else if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
 		sp->cmn.request_multiple_Nport = 1;
 		/* For FLOGI, Let FLOGI rsp set the NPortID for VPI 0 */
@@ -4107,13 +4109,13 @@ lpfc_els_clear_rrq(struct lpfc_vport *vport,
 	pcmd += sizeof(uint32_t);
 	rrq = (struct RRQ *)pcmd;
 	rrq->rrq_exchg = be32_to_cpu(rrq->rrq_exchg);
-	rxid = be16_to_cpu(bf_get(rrq_rxid, rrq));
+	rxid = bf_get(rrq_rxid, rrq);
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			"2883 Clear RRQ for SID:x%x OXID:x%x RXID:x%x"
 			" x%x x%x\n",
 			be32_to_cpu(bf_get(rrq_did, rrq)),
-			be16_to_cpu(bf_get(rrq_oxid, rrq)),
+			bf_get(rrq_oxid, rrq),
 			rxid,
 			iocb->iotag, iocb->iocb.ulpContext);
 
@@ -4121,7 +4123,7 @@ lpfc_els_clear_rrq(struct lpfc_vport *vport,
 		"Clear RRQ:  did:x%x flg:x%x exchg:x%.08x",
 		ndlp->nlp_DID, ndlp->nlp_flag, rrq->rrq_exchg);
 	if (vport->fc_myDID == be32_to_cpu(bf_get(rrq_did, rrq)))
-		xri = be16_to_cpu(bf_get(rrq_oxid, rrq));
+		xri = bf_get(rrq_oxid, rrq);
 	else
 		xri = rxid;
 	prrq = lpfc_get_active_rrq(vport, xri, ndlp->nlp_DID);
@@ -7290,8 +7292,9 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_vport *vport = cmdiocb->vport;
 	IOCB_t *irsp;
 	struct lpfc_nodelist *ndlp;
-	ndlp = (struct lpfc_nodelist *)cmdiocb->context1;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
+	ndlp = (struct lpfc_nodelist *)cmdiocb->context1;
 	irsp = &rspiocb->iocb;
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"LOGO npiv cmpl:  status:x%x/x%x did:x%x",
@@ -7302,6 +7305,19 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* Trigger the release of the ndlp after logo */
 	lpfc_nlp_put(ndlp);
+
+	/* NPIV LOGO completes to NPort <nlp_DID> */
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "2928 NPIV LOGO completes to NPort x%x "
+			 "Data: x%x x%x x%x x%x\n",
+			 ndlp->nlp_DID, irsp->ulpStatus, irsp->un.ulpWord[4],
+			 irsp->ulpTimeout, vport->num_disc_nodes);
+
+	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+		spin_lock_irq(shost->host_lock);
+		vport->fc_flag &= ~FC_FABRIC;
+		spin_unlock_irq(shost->host_lock);
+	}
 }
 
 /**

@@ -185,7 +185,7 @@ static int max_interrupt_work = 10;
 static int nopnp;
 #endif
 
-static int __devinit el3_common_init(struct net_device *dev);
+static int el3_common_init(struct net_device *dev);
 static void el3_common_remove(struct net_device *dev);
 static ushort id_read_eeprom(int index);
 static ushort read_eeprom(int ioaddr, int index);
@@ -395,7 +395,7 @@ static struct isa_driver el3_isa_driver = {
 static int isa_registered;
 
 #ifdef CONFIG_PNP
-static struct pnp_device_id el3_pnp_ids[] = {
+static const struct pnp_device_id el3_pnp_ids[] __devinitconst = {
 	{ .id = "TCM5090" }, /* 3Com Etherlink III (TP) */
 	{ .id = "TCM5091" }, /* 3Com Etherlink III */
 	{ .id = "TCM5094" }, /* 3Com Etherlink III (combo) */
@@ -478,7 +478,7 @@ static int pnp_registered;
 #endif /* CONFIG_PNP */
 
 #ifdef CONFIG_EISA
-static struct eisa_device_id el3_eisa_ids[] = {
+static const struct eisa_device_id el3_eisa_ids[] __devinitconst = {
 		{ "TCM5090" },
 		{ "TCM5091" },
 		{ "TCM5092" },
@@ -508,7 +508,7 @@ static int eisa_registered;
 #ifdef CONFIG_MCA
 static int el3_mca_probe(struct device *dev);
 
-static short el3_mca_adapter_ids[] __initdata = {
+static const short el3_mca_adapter_ids[] __devinitconst = {
 		0x627c,
 		0x627d,
 		0x62db,
@@ -517,7 +517,7 @@ static short el3_mca_adapter_ids[] __initdata = {
 		0x0000
 };
 
-static char *el3_mca_adapter_names[] __initdata = {
+static const char *const el3_mca_adapter_names[] __devinitconst = {
 		"3Com 3c529 EtherLink III (10base2)",
 		"3Com 3c529 EtherLink III (10baseT)",
 		"3Com 3c529 EtherLink III (test mode)",
@@ -601,7 +601,7 @@ static void el3_common_remove (struct net_device *dev)
 }
 
 #ifdef CONFIG_MCA
-static int __init el3_mca_probe(struct device *device)
+static int __devinit el3_mca_probe(struct device *device)
 {
 	/* Based on Erik Nygren's (nygren@mit.edu) 3c529 patch,
 	 * heavily modified by Chris Beauregard
@@ -671,7 +671,7 @@ static int __init el3_mca_probe(struct device *device)
 #endif /* CONFIG_MCA */
 
 #ifdef CONFIG_EISA
-static int __init el3_eisa_probe (struct device *device)
+static int __devinit el3_eisa_probe (struct device *device)
 {
 	short i;
 	int ioaddr, irq, if_port;
@@ -1207,7 +1207,7 @@ el3_netdev_get_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 			ecmd->duplex = DUPLEX_FULL;
 	}
 
-	ecmd->speed = SPEED_10;
+	ethtool_cmd_speed_set(ecmd, SPEED_10);
 	EL3WINDOW(1);
 	return 0;
 }

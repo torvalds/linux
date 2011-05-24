@@ -786,48 +786,6 @@ int vnic_dev_init(struct vnic_dev *vdev, int arg)
 	return r;
 }
 
-int vnic_dev_init_done(struct vnic_dev *vdev, int *done, int *err)
-{
-	u64 a0 = 0, a1 = 0;
-	int wait = 1000;
-	int ret;
-
-	*done = 0;
-
-	ret = vnic_dev_cmd(vdev, CMD_INIT_STATUS, &a0, &a1, wait);
-	if (ret)
-		return ret;
-
-	*done = (a0 == 0);
-
-	*err = (a0 == 0) ? (int)a1:0;
-
-	return 0;
-}
-
-int vnic_dev_init_prov(struct vnic_dev *vdev, u8 *buf, u32 len)
-{
-	u64 a0, a1 = len;
-	int wait = 1000;
-	dma_addr_t prov_pa;
-	void *prov_buf;
-	int ret;
-
-	prov_buf = pci_alloc_consistent(vdev->pdev, len, &prov_pa);
-	if (!prov_buf)
-		return -ENOMEM;
-
-	memcpy(prov_buf, buf, len);
-
-	a0 = prov_pa;
-
-	ret = vnic_dev_cmd(vdev, CMD_INIT_PROV_INFO, &a0, &a1, wait);
-
-	pci_free_consistent(vdev->pdev, len, prov_buf, prov_pa);
-
-	return ret;
-}
-
 int vnic_dev_deinit(struct vnic_dev *vdev)
 {
 	u64 a0 = 0, a1 = 0;
@@ -927,4 +885,59 @@ err_out:
 	return NULL;
 }
 
+int vnic_dev_init_prov2(struct vnic_dev *vdev, u8 *buf, u32 len)
+{
+	u64 a0, a1 = len;
+	int wait = 1000;
+	dma_addr_t prov_pa;
+	void *prov_buf;
+	int ret;
 
+	prov_buf = pci_alloc_consistent(vdev->pdev, len, &prov_pa);
+	if (!prov_buf)
+		return -ENOMEM;
+
+	memcpy(prov_buf, buf, len);
+
+	a0 = prov_pa;
+
+	ret = vnic_dev_cmd(vdev, CMD_INIT_PROV_INFO2, &a0, &a1, wait);
+
+	pci_free_consistent(vdev->pdev, len, prov_buf, prov_pa);
+
+	return ret;
+}
+
+int vnic_dev_enable2(struct vnic_dev *vdev, int active)
+{
+	u64 a0, a1 = 0;
+	int wait = 1000;
+
+	a0 = (active ? CMD_ENABLE2_ACTIVE : 0);
+
+	return vnic_dev_cmd(vdev, CMD_ENABLE2, &a0, &a1, wait);
+}
+
+static int vnic_dev_cmd_status(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+	int *status)
+{
+	u64 a0 = cmd, a1 = 0;
+	int wait = 1000;
+	int ret;
+
+	ret = vnic_dev_cmd(vdev, CMD_STATUS, &a0, &a1, wait);
+	if (!ret)
+		*status = (int)a0;
+
+	return ret;
+}
+
+int vnic_dev_enable2_done(struct vnic_dev *vdev, int *status)
+{
+	return vnic_dev_cmd_status(vdev, CMD_ENABLE2, status);
+}
+
+int vnic_dev_deinit_done(struct vnic_dev *vdev, int *status)
+{
+	return vnic_dev_cmd_status(vdev, CMD_DEINIT, status);
+}

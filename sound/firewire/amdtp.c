@@ -396,6 +396,7 @@ static void out_packet_callback(struct fw_iso_context *context, u32 cycle,
 
 	for (i = 0; i < packets; ++i)
 		queue_out_packet(s, ++cycle);
+	fw_iso_context_queue_flush(s->context);
 }
 
 static int queue_initial_skip_packets(struct amdtp_out_stream *s)

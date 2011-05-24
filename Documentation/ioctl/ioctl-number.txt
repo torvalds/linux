@@ -166,7 +166,6 @@ Code  Seq#(hex)	Include File		Comments
 'T'	all	arch/x86/include/asm/ioctls.h	conflict!
 'T'	C0-DF	linux/if_tun.h		conflict!
 'U'	all	sound/asound.h		conflict!
-'U'	00-0F	drivers/media/video/uvc/uvcvideo.h	conflict!
 'U'	00-CF	linux/uinput.h		conflict!
 'U'	00-EF	linux/usbdevice_fs.h
 'U'	C0-CF	drivers/bluetooth/hci_uart.h
@@ -259,6 +258,7 @@ Code  Seq#(hex)	Include File		Comments
 't'	80-8F	linux/isdn_ppp.h
 't'	90	linux/toshiba.h
 'u'	00-1F	linux/smb_fs.h		gone
+'u'	20-3F	linux/uvcvideo.h	USB video class host driver
 'v'	00-1F	linux/ext2_fs.h		conflict!
 'v'	00-1F	linux/fs.h		conflict!
 'v'	00-0F	linux/sonypi.h		conflict!

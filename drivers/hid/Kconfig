@@ -55,12 +55,6 @@ source "drivers/hid/usbhid/Kconfig"
 menu "Special HID drivers"
 	depends on HID
 
-config HID_3M_PCT
-	tristate "3M PCT touchscreen"
-	depends on USB_HID
-	---help---
-	Support for 3M PCT touch screens.
-
 config HID_A4TECH
 	tristate "A4 tech mice" if EXPERT
 	depends on USB_HID
@@ -99,12 +93,6 @@ config HID_BELKIN
 	default !EXPERT
 	---help---
 	Support for Belkin Flip KVM and Wireless keyboard.
-
-config HID_CANDO
-	tristate "Cando dual touch panel"
-	depends on USB_HID
-	---help---
-	Support for Cando dual touch panel.
 
 config HID_CHERRY
 	tristate "Cherry Cymotion keyboard" if EXPERT
@@ -300,12 +288,6 @@ config HID_MICROSOFT
 	---help---
 	Support for Microsoft devices that are not fully compliant with HID standard.
 
-config HID_MOSART
-	tristate "MosArt dual-touch panels"
-	depends on USB_HID
-	---help---
-	Support for MosArt dual-touch panels.
-
 config HID_MONTEREY
 	tristate "Monterey Genius KB29E keyboard" if EXPERT
 	depends on USB_HID
@@ -320,13 +302,25 @@ config HID_MULTITOUCH
 	  Generic support for HID multitouch panels.
 
 	  Say Y here if you have one of the following devices:
+	  - 3M PCT touch screens
+	  - ActionStar dual touch panels
+	  - Cando dual touch panels
+	  - CVTouch panels
 	  - Cypress TrueTouch panels
+	  - Elo TouchSystems IntelliTouch Plus panels
+	  - GeneralTouch 'Sensing Win7-TwoFinger' panels
+	  - GoodTouch panels
 	  - Hanvon dual touch panels
+	  - Ilitek dual touch panels
 	  - IrTouch Infrared USB panels
+	  - Lumio CrystalTouch panels
+	  - MosArt dual-touch panels
+	  - PenMount dual touch panels
 	  - Pixcir dual touch panels
-	  - 'Sensing Win7-TwoFinger' panel by GeneralTouch
-          - eGalax dual-touch panels, including the
-	    Joojoo and Wetab tablets
+	  - eGalax dual-touch panels, including the Joojoo and Wetab tablets
+	  - Stantum multitouch panels
+	  - Touch International Panels
+	  - Unitec Panels
 
 	  If unsure, say N.
 
@@ -499,12 +493,6 @@ config HID_SONY
 	depends on USB_HID
 	---help---
 	Support for Sony PS3 controller.
-
-config HID_STANTUM
-	tristate "Stantum multitouch panel"
-	depends on USB_HID
-	---help---
-	Support for Stantum multitouch panel.
 
 config HID_SUNPLUS
 	tristate "Sunplus wireless desktop"

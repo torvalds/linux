@@ -80,14 +80,6 @@ enum qeth_tr_broadcast_modes {
 	QETH_TR_BROADCAST_LOCAL    = 1,
 };
 
-/* these values match CHECKSUM_* in include/linux/skbuff.h */
-enum qeth_checksum_types {
-	SW_CHECKSUMMING = 0, /* TODO: set to bit flag used in IPA Command */
-	HW_CHECKSUMMING = 1,
-	NO_CHECKSUMMING = 2,
-};
-#define QETH_CHECKSUM_DEFAULT SW_CHECKSUMMING
-
 /*
  * Routing stuff
  */
@@ -456,6 +448,12 @@ enum qeth_diags_trace_cmds {
 	QETH_DIAGS_CMD_TRACE_QUERY	= 0x0010,
 };
 
+enum qeth_diags_trap_action {
+	QETH_DIAGS_TRAP_ARM	= 0x01,
+	QETH_DIAGS_TRAP_DISARM	= 0x02,
+	QETH_DIAGS_TRAP_CAPTURE = 0x04,
+};
+
 struct qeth_ipacmd_diagass {
 	__u32  host_tod2;
 	__u32:32;
@@ -465,7 +463,8 @@ struct qeth_ipacmd_diagass {
 	__u8   type;
 	__u8   action;
 	__u16  options;
-	__u32:32;
+	__u32  ext;
+	__u8   cdata[64];
 } __attribute__ ((packed));
 
 /* Header for each IPA command */

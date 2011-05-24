@@ -274,7 +274,8 @@ struct cifsSesInfo {
 	int capabilities;
 	char serverName[SERVER_NAME_LEN_WITH_NULL * 2];	/* BB make bigger for
 				TCP names - will ipv6 and sctp addresses fit? */
-	char *user_name;
+	char *user_name;	/* must not be null except during init of sess
+				   and after mount option parsing we fill it */
 	char *domainName;
 	char *password;
 	struct session_key auth_key;
@@ -780,10 +781,12 @@ GLOBAL_EXTERN spinlock_t		cifs_tcp_ses_lock;
  */
 GLOBAL_EXTERN spinlock_t	cifs_file_list_lock;
 
+#ifdef CONFIG_CIFS_DNOTIFY_EXPERIMENTAL /* unused temporarily */
 /* Outstanding dir notify requests */
 GLOBAL_EXTERN struct list_head GlobalDnotifyReqList;
 /* DirNotify response queue */
 GLOBAL_EXTERN struct list_head GlobalDnotifyRsp_Q;
+#endif /* was needed for dnotify, and will be needed for inotify when VFS fix */
 
 /*
  * Global transaction id (XID) information
@@ -829,6 +832,11 @@ GLOBAL_EXTERN unsigned int cifs_max_pending; /* MAX requests at once to server*/
 
 /* reconnect after this many failed echo attempts */
 GLOBAL_EXTERN unsigned short echo_retries;
+
+GLOBAL_EXTERN struct rb_root uidtree;
+GLOBAL_EXTERN struct rb_root gidtree;
+GLOBAL_EXTERN spinlock_t siduidlock;
+GLOBAL_EXTERN spinlock_t sidgidlock;
 
 void cifs_oplock_break(struct work_struct *work);
 void cifs_oplock_break_get(struct cifsFileInfo *cfile);

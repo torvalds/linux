@@ -533,15 +533,10 @@ static inline int audit_arch(void)
  * Notification of system call entry/exit
  * - triggered by current->work.syscall_trace
  */
-asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
+asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 {
 	/* do the secure computing check first */
-	if (!entryexit)
-		secure_computing(regs->regs[2]);
-
-	if (unlikely(current->audit_context) && entryexit)
-		audit_syscall_exit(AUDITSC_RESULT(regs->regs[7]),
-		                   -regs->regs[2]);
+	secure_computing(regs->regs[2]);
 
 	if (!(current->ptrace & PT_PTRACED))
 		goto out;
@@ -565,8 +560,40 @@ asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
 	}
 
 out:
-	if (unlikely(current->audit_context) && !entryexit)
+	if (unlikely(current->audit_context))
 		audit_syscall_entry(audit_arch(), regs->regs[2],
 				    regs->regs[4], regs->regs[5],
 				    regs->regs[6], regs->regs[7]);
+}
+
+/*
+ * Notification of system call entry/exit
+ * - triggered by current->work.syscall_trace
+ */
+asmlinkage void syscall_trace_leave(struct pt_regs *regs)
+{
+	if (unlikely(current->audit_context))
+		audit_syscall_exit(AUDITSC_RESULT(regs->regs[7]),
+		                   -regs->regs[2]);
+
+	if (!(current->ptrace & PT_PTRACED))
+		return;
+
+	if (!test_thread_flag(TIF_SYSCALL_TRACE))
+		return;
+
+	/* The 0x80 provides a way for the tracing parent to distinguish
+	   between a syscall stop and SIGTRAP delivery */
+	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) ?
+	                         0x80 : 0));
+
+	/*
+	 * this isn't the same as continuing with a signal, but it will do
+	 * for normal use.  strace only continues with a signal if the
+	 * stopping signal is not SIGTRAP.  -brl
+	 */
+	if (current->exit_code) {
+		send_sig(current->exit_code, current, 1);
+		current->exit_code = 0;
+	}
 }

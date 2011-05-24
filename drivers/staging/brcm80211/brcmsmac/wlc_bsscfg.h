@@ -122,9 +122,6 @@ struct wlc_bsscfg {
 #define HWBCN_ENAB(cfg)		(((cfg)->flags & WLC_BSSCFG_HW_BCN) != 0)
 #define HWPRB_ENAB(cfg)		(((cfg)->flags & WLC_BSSCFG_HW_PRB) != 0)
 
-extern void wlc_bsscfg_ID_assign(struct wlc_info *wlc,
-				 struct wlc_bsscfg *bsscfg);
-
 /* Extend N_ENAB to per-BSS */
 #define BSS_N_ENAB(wlc, cfg) \
 	(N_ENAB((wlc)->pub) && !((cfg)->flags & WLC_BSSCFG_11N_DISABLE))

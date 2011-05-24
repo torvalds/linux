@@ -54,7 +54,7 @@ static int nilfs_dat_prepare_entry(struct inode *dat,
 static void nilfs_dat_commit_entry(struct inode *dat,
 				   struct nilfs_palloc_req *req)
 {
-	nilfs_mdt_mark_buffer_dirty(req->pr_entry_bh);
+	mark_buffer_dirty(req->pr_entry_bh);
 	nilfs_mdt_mark_dirty(dat);
 	brelse(req->pr_entry_bh);
 }
@@ -361,7 +361,7 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
 	entry->de_blocknr = cpu_to_le64(blocknr);
 	kunmap_atomic(kaddr, KM_USER0);
 
-	nilfs_mdt_mark_buffer_dirty(entry_bh);
+	mark_buffer_dirty(entry_bh);
 	nilfs_mdt_mark_dirty(dat);
 
 	brelse(entry_bh);

@@ -1566,12 +1566,6 @@ netlink_kernel_release(struct sock *sk)
 }
 EXPORT_SYMBOL(netlink_kernel_release);
 
-
-static void listeners_free_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct listeners, rcu));
-}
-
 int __netlink_change_ngroups(struct sock *sk, unsigned int groups)
 {
 	struct listeners *new, *old;
@@ -1588,7 +1582,7 @@ int __netlink_change_ngroups(struct sock *sk, unsigned int groups)
 		memcpy(new->masks, old->masks, NLGRPSZ(tbl->groups));
 		rcu_assign_pointer(tbl->listeners, new);
 
-		call_rcu(&old->rcu, listeners_free_rcu);
+		kfree_rcu(old, rcu);
 	}
 	tbl->groups = groups;
 

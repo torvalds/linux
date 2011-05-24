@@ -2128,7 +2128,7 @@ static void transport_failure_reset_queue_depth(struct se_device *dev)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&SE_HBA(dev)->hba_queue_lock, flags);;
+	spin_lock_irqsave(&SE_HBA(dev)->hba_queue_lock, flags);
 	atomic_inc(&dev->depth_left);
 	atomic_inc(&SE_HBA(dev)->left_queue_depth);
 	spin_unlock_irqrestore(&SE_HBA(dev)->hba_queue_lock, flags);

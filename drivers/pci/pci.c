@@ -830,7 +830,7 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 		dev_err(&dev->dev, "buffer not found in %s\n", __func__);
 		return -ENOMEM;
 	}
-	cap = (u16 *)&save_state->data[0];
+	cap = (u16 *)&save_state->cap.data[0];
 
 	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &flags);
 
@@ -863,7 +863,7 @@ static void pci_restore_pcie_state(struct pci_dev *dev)
 	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
 	if (!save_state || pos <= 0)
 		return;
-	cap = (u16 *)&save_state->data[0];
+	cap = (u16 *)&save_state->cap.data[0];
 
 	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &flags);
 
@@ -899,7 +899,8 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 		return -ENOMEM;
 	}
 
-	pci_read_config_word(dev, pos + PCI_X_CMD, (u16 *)save_state->data);
+	pci_read_config_word(dev, pos + PCI_X_CMD,
+			     (u16 *)save_state->cap.data);
 
 	return 0;
 }
@@ -914,7 +915,7 @@ static void pci_restore_pcix_state(struct pci_dev *dev)
 	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 	if (!save_state || pos <= 0)
 		return;
-	cap = (u16 *)&save_state->data[0];
+	cap = (u16 *)&save_state->cap.data[0];
 
 	pci_write_config_word(dev, pos + PCI_X_CMD, cap[i++]);
 }
@@ -974,6 +975,104 @@ void pci_restore_state(struct pci_dev *dev)
 
 	dev->state_saved = false;
 }
+
+struct pci_saved_state {
+	u32 config_space[16];
+	struct pci_cap_saved_data cap[0];
+};
+
+/**
+ * pci_store_saved_state - Allocate and return an opaque struct containing
+ *			   the device saved state.
+ * @dev: PCI device that we're dealing with
+ *
+ * Rerturn NULL if no state or error.
+ */
+struct pci_saved_state *pci_store_saved_state(struct pci_dev *dev)
+{
+	struct pci_saved_state *state;
+	struct pci_cap_saved_state *tmp;
+	struct pci_cap_saved_data *cap;
+	struct hlist_node *pos;
+	size_t size;
+
+	if (!dev->state_saved)
+		return NULL;
+
+	size = sizeof(*state) + sizeof(struct pci_cap_saved_data);
+
+	hlist_for_each_entry(tmp, pos, &dev->saved_cap_space, next)
+		size += sizeof(struct pci_cap_saved_data) + tmp->cap.size;
+
+	state = kzalloc(size, GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	memcpy(state->config_space, dev->saved_config_space,
+	       sizeof(state->config_space));
+
+	cap = state->cap;
+	hlist_for_each_entry(tmp, pos, &dev->saved_cap_space, next) {
+		size_t len = sizeof(struct pci_cap_saved_data) + tmp->cap.size;
+		memcpy(cap, &tmp->cap, len);
+		cap = (struct pci_cap_saved_data *)((u8 *)cap + len);
+	}
+	/* Empty cap_save terminates list */
+
+	return state;
+}
+EXPORT_SYMBOL_GPL(pci_store_saved_state);
+
+/**
+ * pci_load_saved_state - Reload the provided save state into struct pci_dev.
+ * @dev: PCI device that we're dealing with
+ * @state: Saved state returned from pci_store_saved_state()
+ */
+int pci_load_saved_state(struct pci_dev *dev, struct pci_saved_state *state)
+{
+	struct pci_cap_saved_data *cap;
+
+	dev->state_saved = false;
+
+	if (!state)
+		return 0;
+
+	memcpy(dev->saved_config_space, state->config_space,
+	       sizeof(state->config_space));
+
+	cap = state->cap;
+	while (cap->size) {
+		struct pci_cap_saved_state *tmp;
+
+		tmp = pci_find_saved_cap(dev, cap->cap_nr);
+		if (!tmp || tmp->cap.size != cap->size)
+			return -EINVAL;
+
+		memcpy(tmp->cap.data, cap->data, tmp->cap.size);
+		cap = (struct pci_cap_saved_data *)((u8 *)cap +
+		       sizeof(struct pci_cap_saved_data) + cap->size);
+	}
+
+	dev->state_saved = true;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_load_saved_state);
+
+/**
+ * pci_load_and_free_saved_state - Reload the save state pointed to by state,
+ *				   and free the memory allocated for it.
+ * @dev: PCI device that we're dealing with
+ * @state: Pointer to saved state returned from pci_store_saved_state()
+ */
+int pci_load_and_free_saved_state(struct pci_dev *dev,
+				  struct pci_saved_state **state)
+{
+	int ret = pci_load_saved_state(dev, *state);
+	kfree(*state);
+	*state = NULL;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pci_load_and_free_saved_state);
 
 static int do_pci_enable_device(struct pci_dev *dev, int bars)
 {
@@ -1771,7 +1870,8 @@ static int pci_add_cap_save_buffer(
 	if (!save_state)
 		return -ENOMEM;
 
-	save_state->cap_nr = cap;
+	save_state->cap.cap_nr = cap;
+	save_state->cap.size = size;
 	pci_add_saved_cap(dev, save_state);
 
 	return 0;
@@ -1833,6 +1933,300 @@ void pci_enable_ari(struct pci_dev *dev)
 
 	bridge->ari_enabled = 1;
 }
+
+/**
+ * pci_enable_ido - enable ID-based ordering on a device
+ * @dev: the PCI device
+ * @type: which types of IDO to enable
+ *
+ * Enable ID-based ordering on @dev.  @type can contain the bits
+ * %PCI_EXP_IDO_REQUEST and/or %PCI_EXP_IDO_COMPLETION to indicate
+ * which types of transactions are allowed to be re-ordered.
+ */
+void pci_enable_ido(struct pci_dev *dev, unsigned long type)
+{
+	int pos;
+	u16 ctrl;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return;
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &ctrl);
+	if (type & PCI_EXP_IDO_REQUEST)
+		ctrl |= PCI_EXP_IDO_REQ_EN;
+	if (type & PCI_EXP_IDO_COMPLETION)
+		ctrl |= PCI_EXP_IDO_CMP_EN;
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, ctrl);
+}
+EXPORT_SYMBOL(pci_enable_ido);
+
+/**
+ * pci_disable_ido - disable ID-based ordering on a device
+ * @dev: the PCI device
+ * @type: which types of IDO to disable
+ */
+void pci_disable_ido(struct pci_dev *dev, unsigned long type)
+{
+	int pos;
+	u16 ctrl;
+
+	if (!pci_is_pcie(dev))
+		return;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return;
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &ctrl);
+	if (type & PCI_EXP_IDO_REQUEST)
+		ctrl &= ~PCI_EXP_IDO_REQ_EN;
+	if (type & PCI_EXP_IDO_COMPLETION)
+		ctrl &= ~PCI_EXP_IDO_CMP_EN;
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, ctrl);
+}
+EXPORT_SYMBOL(pci_disable_ido);
+
+/**
+ * pci_enable_obff - enable optimized buffer flush/fill
+ * @dev: PCI device
+ * @type: type of signaling to use
+ *
+ * Try to enable @type OBFF signaling on @dev.  It will try using WAKE#
+ * signaling if possible, falling back to message signaling only if
+ * WAKE# isn't supported.  @type should indicate whether the PCIe link
+ * be brought out of L0s or L1 to send the message.  It should be either
+ * %PCI_EXP_OBFF_SIGNAL_ALWAYS or %PCI_OBFF_SIGNAL_L0.
+ *
+ * If your device can benefit from receiving all messages, even at the
+ * power cost of bringing the link back up from a low power state, use
+ * %PCI_EXP_OBFF_SIGNAL_ALWAYS.  Otherwise, use %PCI_OBFF_SIGNAL_L0 (the
+ * preferred type).
+ *
+ * RETURNS:
+ * Zero on success, appropriate error number on failure.
+ */
+int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type type)
+{
+	int pos;
+	u32 cap;
+	u16 ctrl;
+	int ret;
+
+	if (!pci_is_pcie(dev))
+		return -ENOTSUPP;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return -ENOTSUPP;
+
+	pci_read_config_dword(dev, pos + PCI_EXP_DEVCAP2, &cap);
+	if (!(cap & PCI_EXP_OBFF_MASK))
+		return -ENOTSUPP; /* no OBFF support at all */
+
+	/* Make sure the topology supports OBFF as well */
+	if (dev->bus) {
+		ret = pci_enable_obff(dev->bus->self, type);
+		if (ret)
+			return ret;
+	}
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &ctrl);
+	if (cap & PCI_EXP_OBFF_WAKE)
+		ctrl |= PCI_EXP_OBFF_WAKE_EN;
+	else {
+		switch (type) {
+		case PCI_EXP_OBFF_SIGNAL_L0:
+			if (!(ctrl & PCI_EXP_OBFF_WAKE_EN))
+				ctrl |= PCI_EXP_OBFF_MSGA_EN;
+			break;
+		case PCI_EXP_OBFF_SIGNAL_ALWAYS:
+			ctrl &= ~PCI_EXP_OBFF_WAKE_EN;
+			ctrl |= PCI_EXP_OBFF_MSGB_EN;
+			break;
+		default:
+			WARN(1, "bad OBFF signal type\n");
+			return -ENOTSUPP;
+		}
+	}
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, ctrl);
+
+	return 0;
+}
+EXPORT_SYMBOL(pci_enable_obff);
+
+/**
+ * pci_disable_obff - disable optimized buffer flush/fill
+ * @dev: PCI device
+ *
+ * Disable OBFF on @dev.
+ */
+void pci_disable_obff(struct pci_dev *dev)
+{
+	int pos;
+	u16 ctrl;
+
+	if (!pci_is_pcie(dev))
+		return;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return;
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &ctrl);
+	ctrl &= ~PCI_EXP_OBFF_WAKE_EN;
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, ctrl);
+}
+EXPORT_SYMBOL(pci_disable_obff);
+
+/**
+ * pci_ltr_supported - check whether a device supports LTR
+ * @dev: PCI device
+ *
+ * RETURNS:
+ * True if @dev supports latency tolerance reporting, false otherwise.
+ */
+bool pci_ltr_supported(struct pci_dev *dev)
+{
+	int pos;
+	u32 cap;
+
+	if (!pci_is_pcie(dev))
+		return false;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return false;
+
+	pci_read_config_dword(dev, pos + PCI_EXP_DEVCAP2, &cap);
+
+	return cap & PCI_EXP_DEVCAP2_LTR;
+}
+EXPORT_SYMBOL(pci_ltr_supported);
+
+/**
+ * pci_enable_ltr - enable latency tolerance reporting
+ * @dev: PCI device
+ *
+ * Enable LTR on @dev if possible, which means enabling it first on
+ * upstream ports.
+ *
+ * RETURNS:
+ * Zero on success, errno on failure.
+ */
+int pci_enable_ltr(struct pci_dev *dev)
+{
+	int pos;
+	u16 ctrl;
+	int ret;
+
+	if (!pci_ltr_supported(dev))
+		return -ENOTSUPP;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return -ENOTSUPP;
+
+	/* Only primary function can enable/disable LTR */
+	if (PCI_FUNC(dev->devfn) != 0)
+		return -EINVAL;
+
+	/* Enable upstream ports first */
+	if (dev->bus) {
+		ret = pci_enable_ltr(dev->bus->self);
+		if (ret)
+			return ret;
+	}
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &ctrl);
+	ctrl |= PCI_EXP_LTR_EN;
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, ctrl);
+
+	return 0;
+}
+EXPORT_SYMBOL(pci_enable_ltr);
+
+/**
+ * pci_disable_ltr - disable latency tolerance reporting
+ * @dev: PCI device
+ */
+void pci_disable_ltr(struct pci_dev *dev)
+{
+	int pos;
+	u16 ctrl;
+
+	if (!pci_ltr_supported(dev))
+		return;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return;
+
+	/* Only primary function can enable/disable LTR */
+	if (PCI_FUNC(dev->devfn) != 0)
+		return;
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &ctrl);
+	ctrl &= ~PCI_EXP_LTR_EN;
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, ctrl);
+}
+EXPORT_SYMBOL(pci_disable_ltr);
+
+static int __pci_ltr_scale(int *val)
+{
+	int scale = 0;
+
+	while (*val > 1023) {
+		*val = (*val + 31) / 32;
+		scale++;
+	}
+	return scale;
+}
+
+/**
+ * pci_set_ltr - set LTR latency values
+ * @dev: PCI device
+ * @snoop_lat_ns: snoop latency in nanoseconds
+ * @nosnoop_lat_ns: nosnoop latency in nanoseconds
+ *
+ * Figure out the scale and set the LTR values accordingly.
+ */
+int pci_set_ltr(struct pci_dev *dev, int snoop_lat_ns, int nosnoop_lat_ns)
+{
+	int pos, ret, snoop_scale, nosnoop_scale;
+	u16 val;
+
+	if (!pci_ltr_supported(dev))
+		return -ENOTSUPP;
+
+	snoop_scale = __pci_ltr_scale(&snoop_lat_ns);
+	nosnoop_scale = __pci_ltr_scale(&nosnoop_lat_ns);
+
+	if (snoop_lat_ns > PCI_LTR_VALUE_MASK ||
+	    nosnoop_lat_ns > PCI_LTR_VALUE_MASK)
+		return -EINVAL;
+
+	if ((snoop_scale > (PCI_LTR_SCALE_MASK >> PCI_LTR_SCALE_SHIFT)) ||
+	    (nosnoop_scale > (PCI_LTR_SCALE_MASK >> PCI_LTR_SCALE_SHIFT)))
+		return -EINVAL;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_LTR);
+	if (!pos)
+		return -ENOTSUPP;
+
+	val = (snoop_scale << PCI_LTR_SCALE_SHIFT) | snoop_lat_ns;
+	ret = pci_write_config_word(dev, pos + PCI_LTR_MAX_SNOOP_LAT, val);
+	if (ret != 4)
+		return -EIO;
+
+	val = (nosnoop_scale << PCI_LTR_SCALE_SHIFT) | nosnoop_lat_ns;
+	ret = pci_write_config_word(dev, pos + PCI_LTR_MAX_NOSNOOP_LAT, val);
+	if (ret != 4)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL(pci_set_ltr);
 
 static int pci_acs_enable;
 
@@ -2479,6 +2873,21 @@ clear:
 	return 0;
 }
 
+/**
+ * pci_pm_reset - Put device into PCI_D3 and back into PCI_D0.
+ * @dev: Device to reset.
+ * @probe: If set, only check if the device can be reset this way.
+ *
+ * If @dev supports native PCI PM and its PCI_PM_CTRL_NO_SOFT_RESET flag is
+ * unset, it will be reinitialized internally when going from PCI_D3hot to
+ * PCI_D0.  If that's the case and the device is not in a low-power state
+ * already, force it into PCI_D3hot and back to PCI_D0, causing it to be reset.
+ *
+ * NOTE: This causes the caller to sleep for twice the device power transition
+ * cooldown period, which for the D0->D3hot and D3hot->D0 transitions is 10 ms
+ * by devault (i.e. unless the @dev's d3_delay field has a different value).
+ * Moreover, only devices in D0 can be reset by this function.
+ */
 static int pci_pm_reset(struct pci_dev *dev, int probe)
 {
 	u16 csr;

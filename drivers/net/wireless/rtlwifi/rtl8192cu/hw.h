@@ -98,13 +98,14 @@ void rtl92cu_update_interrupt_mask(struct ieee80211_hw *hw,
 				   u32 add_msr, u32 rm_msr);
 void rtl92cu_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val);
 void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val);
-void rtl92cu_update_hal_rate_table(struct ieee80211_hw *hw);
+void rtl92cu_update_hal_rate_table(struct ieee80211_hw *hw,
+				   struct ieee80211_sta *sta,
+				   u8 rssi_level);
 void rtl92cu_update_hal_rate_mask(struct ieee80211_hw *hw, u8 rssi_level);
 
 void rtl92cu_update_channel_access_setting(struct ieee80211_hw *hw);
 bool rtl92cu_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 * valid);
 void rtl92cu_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid);
-u8 _rtl92c_get_chnl_group(u8 chnl);
 int rtl92c_download_fw(struct ieee80211_hw *hw);
 void rtl92c_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode);
 void rtl92c_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool dl_finished);

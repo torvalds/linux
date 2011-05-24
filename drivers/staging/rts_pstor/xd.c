@@ -380,7 +380,7 @@ static void xd_clear_dma_buffer(struct rtsx_chip *chip)
 
 		RTSX_DEBUGP("xD ECC error, dummy write!\n");
 
-		buf = (u8 *)rtsx_alloc_dma_buf(chip, 512, GFP_KERNEL);
+		buf = kmalloc(512, GFP_KERNEL);
 		if (!buf)
 			return;
 
@@ -427,7 +427,7 @@ static void xd_clear_dma_buffer(struct rtsx_chip *chip)
 			rtsx_write_register(chip, CARD_STOP, SD_STOP | SD_CLR_ERR, SD_STOP | SD_CLR_ERR);
 		}
 
-		rtsx_free_dma_buf(chip, buf);
+		kfree(buf);
 
 		if (chip->asic_code) {
 			rtsx_write_register(chip, CARD_PULL_CTL2, 0xFF, 0x55);

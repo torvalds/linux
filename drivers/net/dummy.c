@@ -168,10 +168,6 @@ static int __init dummy_init_one(void)
 	if (!dev_dummy)
 		return -ENOMEM;
 
-	err = dev_alloc_name(dev_dummy, dev_dummy->name);
-	if (err < 0)
-		goto err;
-
 	dev_dummy->rtnl_link_ops = &dummy_link_ops;
 	err = register_netdevice(dev_dummy);
 	if (err < 0)

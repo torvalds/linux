@@ -217,7 +217,10 @@ static u32 get_bb_reg(struct _adapter *pAdapter, u16 offset, u32 bitmask)
 	return new_value;
 }
 
-static u8 set_bb_reg(struct _adapter *pAdapter, u16 offset, u32 bitmask, u32 value)
+static u8 set_bb_reg(struct _adapter *pAdapter,
+		     u16 offset,
+		     u32 bitmask,
+		     u32 value)
 {
 	u32 org_value, bit_shift, new_value;
 
@@ -274,8 +277,7 @@ void r8712_SetChannel(struct _adapter *pAdapter)
 	pparm = (struct SetChannel_parm *)_malloc(sizeof(struct
 					 SetChannel_parm));
 	if (pparm == NULL) {
-		if (pcmd != NULL)
-			kfree((u8 *)pcmd);
+		kfree(pcmd);
 		return;
 	}
 	pparm->curr_ch = pAdapter->mppriv.curr_ch;

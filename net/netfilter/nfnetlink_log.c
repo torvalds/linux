@@ -381,7 +381,6 @@ __build_packet_message(struct nfulnl_instance *inst,
 	struct nfulnl_msg_packet_hdr pmsg;
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
-	__be32 tmp_uint;
 	sk_buff_data_t old_tail = inst->skb->tail;
 
 	nlh = NLMSG_PUT(inst->skb, 0, 0,
@@ -428,7 +427,6 @@ __build_packet_message(struct nfulnl_instance *inst,
 	}
 
 	if (outdev) {
-		tmp_uint = htonl(outdev->ifindex);
 #ifndef CONFIG_BRIDGE_NETFILTER
 		NLA_PUT_BE32(inst->skb, NFULA_IFINDEX_OUTDEV,
 			     htonl(outdev->ifindex));

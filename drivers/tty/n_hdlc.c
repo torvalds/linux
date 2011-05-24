@@ -188,8 +188,8 @@ static unsigned int n_hdlc_tty_poll(struct tty_struct *tty, struct file *filp,
 				    poll_table *wait);
 static int n_hdlc_tty_open(struct tty_struct *tty);
 static void n_hdlc_tty_close(struct tty_struct *tty);
-static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *cp,
-			       char *fp, int count);
+static unsigned int n_hdlc_tty_receive(struct tty_struct *tty,
+		const __u8 *cp, char *fp, int count);
 static void n_hdlc_tty_wakeup(struct tty_struct *tty);
 
 #define bset(p,b)	((p)[(b) >> 5] |= (1 << ((b) & 0x1f)))
@@ -509,8 +509,8 @@ static void n_hdlc_tty_wakeup(struct tty_struct *tty)
  * Called by tty low level driver when receive data is available. Data is
  * interpreted as one HDLC frame.
  */
-static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
-			       char *flags, int count)
+static unsigned int n_hdlc_tty_receive(struct tty_struct *tty,
+		const __u8 *data, char *flags, int count)
 {
 	register struct n_hdlc *n_hdlc = tty2n_hdlc (tty);
 	register struct n_hdlc_buf *buf;
@@ -521,20 +521,20 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 		
 	/* This can happen if stuff comes in on the backup tty */
 	if (!n_hdlc || tty != n_hdlc->tty)
-		return;
+		return -ENODEV;
 		
 	/* verify line is using HDLC discipline */
 	if (n_hdlc->magic != HDLC_MAGIC) {
 		printk("%s(%d) line not using HDLC discipline\n",
 			__FILE__,__LINE__);
-		return;
+		return -EINVAL;
 	}
 	
 	if ( count>maxframe ) {
 		if (debuglevel >= DEBUG_LEVEL_INFO)	
 			printk("%s(%d) rx count>maxframesize, data discarded\n",
 			       __FILE__,__LINE__);
-		return;
+		return -EINVAL;
 	}
 
 	/* get a free HDLC buffer */	
@@ -550,7 +550,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 		if (debuglevel >= DEBUG_LEVEL_INFO)	
 			printk("%s(%d) no more rx buffers, data discarded\n",
 			       __FILE__,__LINE__);
-		return;
+		return -EINVAL;
 	}
 		
 	/* copy received data to HDLC buffer */
@@ -564,6 +564,8 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 	wake_up_interruptible (&tty->read_wait);
 	if (n_hdlc->tty->fasync != NULL)
 		kill_fasync (&n_hdlc->tty->fasync, SIGIO, POLL_IN);
+
+	return count;
 
 }	/* end of n_hdlc_tty_receive() */
 

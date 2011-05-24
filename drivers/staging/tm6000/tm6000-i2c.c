@@ -237,35 +237,36 @@ err:
 	return rc;
 }
 
-static int tm6000_i2c_eeprom(struct tm6000_core *dev,
-			     unsigned char *eedata, int len)
+static int tm6000_i2c_eeprom(struct tm6000_core *dev)
 {
 	int i, rc;
-	unsigned char *p = eedata;
+	unsigned char *p = dev->eedata;
 	unsigned char bytes[17];
 
 	dev->i2c_client.addr = 0xa0 >> 1;
+	dev->eedata_size = 0;
 
 	bytes[16] = '\0';
-	for (i = 0; i < len; ) {
-	*p = i;
-	rc = tm6000_i2c_recv_regs(dev, 0xa0, i, p, 1);
+	for (i = 0; i < sizeof(dev->eedata); ) {
+		*p = i;
+		rc = tm6000_i2c_recv_regs(dev, 0xa0, i, p, 1);
 		if (rc < 1) {
-			if (p == eedata)
+			if (p == dev->eedata)
 				goto noeeprom;
 			else {
 				printk(KERN_WARNING
 				"%s: i2c eeprom read error (err=%d)\n",
 				dev->name, rc);
 			}
-			return -1;
+			return -EINVAL;
 		}
+		dev->eedata_size++;
 		p++;
 		if (0 == (i % 16))
 			printk(KERN_INFO "%s: i2c eeprom %02x:", dev->name, i);
-		printk(" %02x", eedata[i]);
-		if ((eedata[i] >= ' ') && (eedata[i] <= 'z'))
-			bytes[i%16] = eedata[i];
+		printk(" %02x", dev->eedata[i]);
+		if ((dev->eedata[i] >= ' ') && (dev->eedata[i] <= 'z'))
+			bytes[i%16] = dev->eedata[i];
 		else
 			bytes[i%16] = '.';
 
@@ -280,15 +281,15 @@ static int tm6000_i2c_eeprom(struct tm6000_core *dev,
 		bytes[i%16] = '\0';
 		for (i %= 16; i < 16; i++)
 			printk("   ");
+		printk("  %s\n", bytes);
 	}
-	printk("  %s\n", bytes);
 
 	return 0;
 
 noeeprom:
 	printk(KERN_INFO "%s: Huh, no eeprom present (err=%d)?\n",
-		       dev->name, rc);
-	return rc;
+	       dev->name, rc);
+	return -EINVAL;
 }
 
 /* ----------------------------------------------------------- */
@@ -314,7 +315,6 @@ static const struct i2c_algorithm tm6000_algo = {
  */
 int tm6000_i2c_register(struct tm6000_core *dev)
 {
-	unsigned char eedata[256];
 	int rc;
 
 	dev->i2c_adap.owner = THIS_MODULE;
@@ -329,8 +329,7 @@ int tm6000_i2c_register(struct tm6000_core *dev)
 
 	dev->i2c_client.adapter = &dev->i2c_adap;
 	strlcpy(dev->i2c_client.name, "tm6000 internal", I2C_NAME_SIZE);
-
-	tm6000_i2c_eeprom(dev, eedata, sizeof(eedata));
+	tm6000_i2c_eeprom(dev);
 
 	return 0;
 }

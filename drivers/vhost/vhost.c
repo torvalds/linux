@@ -4,7 +4,7 @@
  * Author: Michael S. Tsirkin <mst@redhat.com>
  *
  * Inspiration, some code, and most witty comments come from
- * Documentation/lguest/lguest.c, by Rusty Russell
+ * Documentation/virtual/lguest/lguest.c, by Rusty Russell
  *
  * This work is licensed under the terms of the GNU GPL, version 2.
  *

@@ -78,6 +78,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 #include <net/tcp.h>
 
 #include <asm/system.h>
@@ -2244,13 +2245,12 @@ static int verify_xena_quiescence(struct s2io_nic *sp)
 static void fix_mac_address(struct s2io_nic *sp)
 {
 	struct XENA_dev_config __iomem *bar0 = sp->bar0;
-	u64 val64;
 	int i = 0;
 
 	while (fix_mac[i] != END_SIGN) {
 		writeq(fix_mac[i++], &bar0->gpio_control);
 		udelay(10);
-		val64 = readq(&bar0->gpio_control);
+		(void) readq(&bar0->gpio_control);
 	}
 }
 
@@ -2727,7 +2727,6 @@ static void free_rxd_blk(struct s2io_nic *sp, int ring_no, int blk)
 	int j;
 	struct sk_buff *skb;
 	struct RxD_t *rxdp;
-	struct buffAdd *ba;
 	struct RxD1 *rxdp1;
 	struct RxD3 *rxdp3;
 	struct mac_info *mac_control = &sp->mac_control;
@@ -2751,7 +2750,6 @@ static void free_rxd_blk(struct s2io_nic *sp, int ring_no, int blk)
 			memset(rxdp, 0, sizeof(struct RxD1));
 		} else if (sp->rxd_mode == RXD_MODE_3B) {
 			rxdp3 = (struct RxD3 *)rxdp;
-			ba = &mac_control->rings[ring_no].ba[blk][j];
 			pci_unmap_single(sp->pdev,
 					 (dma_addr_t)rxdp3->Buffer0_ptr,
 					 BUF0_LEN,
@@ -5383,7 +5381,7 @@ static int s2io_ethtool_sset(struct net_device *dev,
 {
 	struct s2io_nic *sp = netdev_priv(dev);
 	if ((info->autoneg == AUTONEG_ENABLE) ||
-	    (info->speed != SPEED_10000) ||
+	    (ethtool_cmd_speed(info) != SPEED_10000) ||
 	    (info->duplex != DUPLEX_FULL))
 		return -EINVAL;
 	else {
@@ -5417,10 +5415,10 @@ static int s2io_ethtool_gset(struct net_device *dev, struct ethtool_cmd *info)
 	info->transceiver = XCVR_EXTERNAL;
 
 	if (netif_carrier_ok(sp->dev)) {
-		info->speed = 10000;
+		ethtool_cmd_speed_set(info, SPEED_10000);
 		info->duplex = DUPLEX_FULL;
 	} else {
-		info->speed = -1;
+		ethtool_cmd_speed_set(info, -1);
 		info->duplex = -1;
 	}
 
@@ -5484,83 +5482,79 @@ static void s2io_ethtool_gregs(struct net_device *dev,
 	}
 }
 
-/**
- *  s2io_phy_id  - timer function that alternates adapter LED.
- *  @data : address of the private member of the device structure, which
- *  is a pointer to the s2io_nic structure, provided as an u32.
- * Description: This is actually the timer function that alternates the
- * adapter LED bit of the adapter control bit to set/reset every time on
- * invocation. The timer is set for 1/2 a second, hence tha NIC blinks
- *  once every second.
+/*
+ *  s2io_set_led - control NIC led
  */
-static void s2io_phy_id(unsigned long data)
+static void s2io_set_led(struct s2io_nic *sp, bool on)
 {
-	struct s2io_nic *sp = (struct s2io_nic *)data;
 	struct XENA_dev_config __iomem *bar0 = sp->bar0;
-	u64 val64 = 0;
-	u16 subid;
+	u16 subid = sp->pdev->subsystem_device;
+	u64 val64;
 
-	subid = sp->pdev->subsystem_device;
 	if ((sp->device_type == XFRAME_II_DEVICE) ||
 	    ((subid & 0xFF) >= 0x07)) {
 		val64 = readq(&bar0->gpio_control);
-		val64 ^= GPIO_CTRL_GPIO_0;
+		if (on)
+			val64 |= GPIO_CTRL_GPIO_0;
+		else
+			val64 &= ~GPIO_CTRL_GPIO_0;
+
 		writeq(val64, &bar0->gpio_control);
 	} else {
 		val64 = readq(&bar0->adapter_control);
-		val64 ^= ADAPTER_LED_ON;
+		if (on)
+			val64 |= ADAPTER_LED_ON;
+		else
+			val64 &= ~ADAPTER_LED_ON;
+
 		writeq(val64, &bar0->adapter_control);
 	}
 
-	mod_timer(&sp->id_timer, jiffies + HZ / 2);
 }
 
 /**
- * s2io_ethtool_idnic - To physically identify the nic on the system.
- * @sp : private member of the device structure, which is a pointer to the
- * s2io_nic structure.
- * @id : pointer to the structure with identification parameters given by
- * ethtool.
+ * s2io_ethtool_set_led - To physically identify the nic on the system.
+ * @dev : network device
+ * @state: led setting
+ *
  * Description: Used to physically identify the NIC on the system.
  * The Link LED will blink for a time specified by the user for
  * identification.
  * NOTE: The Link has to be Up to be able to blink the LED. Hence
  * identification is possible only if it's link is up.
- * Return value:
- * int , returns 0 on success
  */
 
-static int s2io_ethtool_idnic(struct net_device *dev, u32 data)
+static int s2io_ethtool_set_led(struct net_device *dev,
+				enum ethtool_phys_id_state state)
 {
-	u64 val64 = 0, last_gpio_ctrl_val;
 	struct s2io_nic *sp = netdev_priv(dev);
 	struct XENA_dev_config __iomem *bar0 = sp->bar0;
-	u16 subid;
+	u16 subid = sp->pdev->subsystem_device;
 
-	subid = sp->pdev->subsystem_device;
-	last_gpio_ctrl_val = readq(&bar0->gpio_control);
 	if ((sp->device_type == XFRAME_I_DEVICE) && ((subid & 0xFF) < 0x07)) {
-		val64 = readq(&bar0->adapter_control);
+		u64 val64 = readq(&bar0->adapter_control);
 		if (!(val64 & ADAPTER_CNTL_EN)) {
 			pr_err("Adapter Link down, cannot blink LED\n");
-			return -EFAULT;
+			return -EAGAIN;
 		}
 	}
-	if (sp->id_timer.function == NULL) {
-		init_timer(&sp->id_timer);
-		sp->id_timer.function = s2io_phy_id;
-		sp->id_timer.data = (unsigned long)sp;
-	}
-	mod_timer(&sp->id_timer, jiffies);
-	if (data)
-		msleep_interruptible(data * HZ);
-	else
-		msleep_interruptible(MAX_FLICKER_TIME);
-	del_timer_sync(&sp->id_timer);
 
-	if (CARDS_WITH_FAULTY_LINK_INDICATORS(sp->device_type, subid)) {
-		writeq(last_gpio_ctrl_val, &bar0->gpio_control);
-		last_gpio_ctrl_val = readq(&bar0->gpio_control);
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		sp->adapt_ctrl_org = readq(&bar0->gpio_control);
+		return 1;	/* cycle on/off once per second */
+
+	case ETHTOOL_ID_ON:
+		s2io_set_led(sp, true);
+		break;
+
+	case ETHTOOL_ID_OFF:
+		s2io_set_led(sp, false);
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		if (CARDS_WITH_FAULTY_LINK_INDICATORS(sp->device_type, subid))
+			writeq(sp->adapt_ctrl_org, &bar0->gpio_control);
 	}
 
 	return 0;
@@ -6625,25 +6619,6 @@ static int s2io_ethtool_get_regs_len(struct net_device *dev)
 }
 
 
-static u32 s2io_ethtool_get_rx_csum(struct net_device *dev)
-{
-	struct s2io_nic *sp = netdev_priv(dev);
-
-	return sp->rx_csum;
-}
-
-static int s2io_ethtool_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct s2io_nic *sp = netdev_priv(dev);
-
-	if (data)
-		sp->rx_csum = 1;
-	else
-		sp->rx_csum = 0;
-
-	return 0;
-}
-
 static int s2io_get_eeprom_len(struct net_device *dev)
 {
 	return XENA_EEPROM_SPACE;
@@ -6695,61 +6670,27 @@ static void s2io_ethtool_get_strings(struct net_device *dev,
 	}
 }
 
-static int s2io_ethtool_op_set_tx_csum(struct net_device *dev, u32 data)
-{
-	if (data)
-		dev->features |= NETIF_F_IP_CSUM;
-	else
-		dev->features &= ~NETIF_F_IP_CSUM;
-
-	return 0;
-}
-
-static u32 s2io_ethtool_op_get_tso(struct net_device *dev)
-{
-	return (dev->features & NETIF_F_TSO) != 0;
-}
-
-static int s2io_ethtool_op_set_tso(struct net_device *dev, u32 data)
-{
-	if (data)
-		dev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
-	else
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
-
-	return 0;
-}
-
-static int s2io_ethtool_set_flags(struct net_device *dev, u32 data)
+static int s2io_set_features(struct net_device *dev, u32 features)
 {
 	struct s2io_nic *sp = netdev_priv(dev);
-	int rc = 0;
-	int changed = 0;
-
-	if (ethtool_invalid_flags(dev, data, ETH_FLAG_LRO))
-		return -EINVAL;
-
-	if (data & ETH_FLAG_LRO) {
-		if (!(dev->features & NETIF_F_LRO)) {
-			dev->features |= NETIF_F_LRO;
-			changed = 1;
-		}
-	} else if (dev->features & NETIF_F_LRO) {
-		dev->features &= ~NETIF_F_LRO;
-		changed = 1;
-	}
+	u32 changed = (features ^ dev->features) & NETIF_F_LRO;
 
 	if (changed && netif_running(dev)) {
+		int rc;
+
 		s2io_stop_all_tx_queue(sp);
 		s2io_card_down(sp);
+		dev->features = features;
 		rc = s2io_card_up(sp);
 		if (rc)
 			s2io_reset(sp);
 		else
 			s2io_start_all_tx_queue(sp);
+
+		return rc ? rc : 1;
 	}
 
-	return rc;
+	return 0;
 }
 
 static const struct ethtool_ops netdev_ethtool_ops = {
@@ -6765,18 +6706,9 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_ringparam = s2io_ethtool_gringparam,
 	.get_pauseparam = s2io_ethtool_getpause_data,
 	.set_pauseparam = s2io_ethtool_setpause_data,
-	.get_rx_csum = s2io_ethtool_get_rx_csum,
-	.set_rx_csum = s2io_ethtool_set_rx_csum,
-	.set_tx_csum = s2io_ethtool_op_set_tx_csum,
-	.set_flags = s2io_ethtool_set_flags,
-	.get_flags = ethtool_op_get_flags,
-	.set_sg = ethtool_op_set_sg,
-	.get_tso = s2io_ethtool_op_get_tso,
-	.set_tso = s2io_ethtool_op_set_tso,
-	.set_ufo = ethtool_op_set_ufo,
 	.self_test = s2io_ethtool_test,
 	.get_strings = s2io_ethtool_get_strings,
-	.phys_id = s2io_ethtool_idnic,
+	.set_phys_id = s2io_ethtool_set_led,
 	.get_ethtool_stats = s2io_get_ethtool_stats,
 	.get_sset_count = s2io_get_sset_count,
 };
@@ -7231,7 +7163,7 @@ static void do_s2io_card_down(struct s2io_nic *sp, int do_io)
 		/* As per the HW requirement we need to replenish the
 		 * receive buffer to avoid the ring bump. Since there is
 		 * no intention of processing the Rx frame at this pointwe are
-		 * just settting the ownership bit of rxd in Each Rx
+		 * just setting the ownership bit of rxd in Each Rx
 		 * ring to HW and set the appropriate buffer size
 		 * based on the ring mode
 		 */
@@ -7545,7 +7477,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 	if ((rxdp->Control_1 & TCP_OR_UDP_FRAME) &&
 	    ((!ring_data->lro) ||
 	     (ring_data->lro && (!(rxdp->Control_1 & RXD_FRAME_IP_FRAG)))) &&
-	    (sp->rx_csum)) {
+	    (dev->features & NETIF_F_RXCSUM)) {
 		l3_csum = RXD_GET_L3_CKSUM(rxdp->Control_1);
 		l4_csum = RXD_GET_L4_CKSUM(rxdp->Control_1);
 		if ((l3_csum == L3_CKSUM_OK) && (l4_csum == L4_CKSUM_OK)) {
@@ -7806,6 +7738,7 @@ static const struct net_device_ops s2io_netdev_ops = {
 	.ndo_do_ioctl	   	= s2io_ioctl,
 	.ndo_set_mac_address    = s2io_set_mac_addr,
 	.ndo_change_mtu	   	= s2io_change_mtu,
+	.ndo_set_features	= s2io_set_features,
 	.ndo_vlan_rx_register   = s2io_vlan_rx_register,
 	.ndo_vlan_rx_kill_vid   = s2io_vlan_rx_kill_vid,
 	.ndo_tx_timeout	   	= s2io_tx_watchdog,
@@ -8047,17 +7980,18 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	/*  Driver entry points */
 	dev->netdev_ops = &s2io_netdev_ops;
 	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
-	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	dev->features |= NETIF_F_LRO;
-	dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
+	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
+		NETIF_F_TSO | NETIF_F_TSO6 |
+		NETIF_F_RXCSUM | NETIF_F_LRO;
+	dev->features |= dev->hw_features |
+		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+	if (sp->device_type & XFRAME_II_DEVICE) {
+		dev->hw_features |= NETIF_F_UFO;
+		if (ufo)
+			dev->features |= NETIF_F_UFO;
+	}
 	if (sp->high_dma_flag == true)
 		dev->features |= NETIF_F_HIGHDMA;
-	dev->features |= NETIF_F_TSO;
-	dev->features |= NETIF_F_TSO6;
-	if ((sp->device_type & XFRAME_II_DEVICE) && (ufo))  {
-		dev->features |= NETIF_F_UFO;
-		dev->features |= NETIF_F_HW_CSUM;
-	}
 	dev->watchdog_timeo = WATCH_DOG_TIMEOUT;
 	INIT_WORK(&sp->rst_timer_task, s2io_restart_nic);
 	INIT_WORK(&sp->set_link_task, s2io_set_link);

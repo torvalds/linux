@@ -249,7 +249,7 @@ static unsigned long iSeries_process_mainstore_vpd(struct MemoryBlock *mb_array,
 	unsigned long i;
 	unsigned long mem_blocks = 0;
 
-	if (cpu_has_feature(CPU_FTR_SLB))
+	if (mmu_has_feature(MMU_FTR_SLB))
 		mem_blocks = iSeries_process_Regatta_mainstore_vpd(mb_array,
 				max_entries);
 	else
@@ -634,7 +634,7 @@ static int __init iseries_probe(void)
 
 	hpte_init_iSeries();
 	/* iSeries does not support 16M pages */
-	cur_cpu_spec->cpu_features &= ~CPU_FTR_16M_PAGE;
+	cur_cpu_spec->mmu_features &= ~MMU_FTR_16M_PAGE;
 
 	return 1;
 }
@@ -684,6 +684,11 @@ void * __init iSeries_early_setup(void)
 
 	powerpc_firmware_features |= FW_FEATURE_ISERIES;
 	powerpc_firmware_features |= FW_FEATURE_LPAR;
+
+#ifdef CONFIG_SMP
+	/* On iSeries we know we can never have more than 64 cpus */
+	nr_cpu_ids = max(nr_cpu_ids, 64);
+#endif
 
 	iSeries_fixup_klimit();
 

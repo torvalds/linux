@@ -168,6 +168,7 @@ otg_shutdown(struct otg_transceiver *otg)
 #ifdef CONFIG_USB_OTG_UTILS
 extern struct otg_transceiver *otg_get_transceiver(void);
 extern void otg_put_transceiver(struct otg_transceiver *);
+extern const char *otg_state_string(enum usb_otg_state state);
 #else
 static inline struct otg_transceiver *otg_get_transceiver(void)
 {
@@ -176,6 +177,11 @@ static inline struct otg_transceiver *otg_get_transceiver(void)
 
 static inline void otg_put_transceiver(struct otg_transceiver *x)
 {
+}
+
+static inline const char *otg_state_string(enum usb_otg_state state)
+{
+	return NULL;
 }
 #endif
 

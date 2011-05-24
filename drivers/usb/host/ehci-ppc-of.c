@@ -179,7 +179,7 @@ static int __devinit ehci_hcd_ppc_of_probe(struct platform_device *op)
 
 	ehci->caps = hcd->regs;
 	ehci->regs = hcd->regs +
-			HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);

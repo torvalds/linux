@@ -313,12 +313,17 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 		goto err;
 	}
 
+	if (test_bit(ATH_STAT_2G_DISABLED, sc->status)) {
+		__clear_bit(AR5K_MODE_11B, ah->ah_capabilities.cap_mode);
+		__clear_bit(AR5K_MODE_11G, ah->ah_capabilities.cap_mode);
+	}
+
 	/* Crypto settings */
 	common->keymax = (sc->ah->ah_version == AR5K_AR5210 ?
 			  AR5K_KEYTABLE_SIZE_5210 : AR5K_KEYTABLE_SIZE_5211);
 
 	if (srev >= AR5K_SREV_AR5212_V4 &&
-	    (ee->ee_version >= AR5K_EEPROM_VERSION_5_0 &&
+	    (ee->ee_version < AR5K_EEPROM_VERSION_5_0 ||
 	    !AR5K_EEPROM_AES_DIS(ee->ee_misc5)))
 		common->crypt_caps |= ATH_CRYPT_CAP_CIPHER_AESCCM;
 

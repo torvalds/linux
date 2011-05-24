@@ -41,6 +41,7 @@
 #include <net/ipv6.h>
 #include <net/tcp.h>
 #include <linux/dma-mapping.h>
+#include <linux/prefetch.h>
 
 #include "t4vf_common.h"
 #include "t4vf_defs.h"
@@ -1555,8 +1556,8 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	pi = netdev_priv(skb->dev);
 	rxq->stats.pkts++;
 
-	if (csum_ok && (pi->rx_offload & RX_CSO) && !pkt->err_vec &&
-	    (be32_to_cpu(pkt->l2info) & (RXF_UDP|RXF_TCP))) {
+	if (csum_ok && (rspq->netdev->features & NETIF_F_RXCSUM) &&
+	    !pkt->err_vec && (be32_to_cpu(pkt->l2info) & (RXF_UDP|RXF_TCP))) {
 		if (!pkt->ip_frag)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else {

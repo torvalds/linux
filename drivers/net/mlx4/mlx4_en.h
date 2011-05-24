@@ -451,7 +451,6 @@ struct mlx4_en_priv {
 	int registered;
 	int allocated;
 	int stride;
-	int rx_csum;
 	u64 mac;
 	int mac_index;
 	unsigned max_mtu;

@@ -74,6 +74,15 @@ Description:
 		hot-remove the PCI device and any of its children.
 		Depends on CONFIG_HOTPLUG.
 
+What:		/sys/bus/pci/devices/.../pci_bus/.../rescan
+Date:		May 2011
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		Writing a non-zero value to this attribute will
+		force a rescan of the bus and all child buses,
+		and re-discover devices removed earlier from this
+		part of the device tree.  Depends on CONFIG_HOTPLUG.
+
 What:		/sys/bus/pci/devices/.../rescan
 Date:		January 2009
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>

@@ -232,6 +232,20 @@ config XPS
 	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
 	default y
 
+config HAVE_BPF_JIT
+	bool
+
+config BPF_JIT
+	bool "enable BPF Just In Time compiler"
+	depends on HAVE_BPF_JIT
+	depends on MODULES
+	---help---
+	  Berkeley Packet Filter filtering capabilities are normally handled
+	  by an interpreter. This option allows kernel to generate a native
+	  code when filter is loaded in memory. This should speedup
+	  packet sniffing (libpcap/tcpdump). Note : Admin should enable
+	  this feature changing /proc/sys/net/core/bpf_jit_enable
+
 menu "Network testing"
 
 config NET_PKTGEN

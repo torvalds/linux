@@ -266,7 +266,7 @@ u8 xioctl_filter[] = {
 (0xFF),                                         /* AR6000_XIOCTL_DELE_AGGR                         130  */
 (0xFF),                                         /* AR6000_XIOCTL_FETCH_TARGET_REGS                 131  */
 (0xFF),                                         /* AR6000_XIOCTL_HCI_CMD                           132  */
-(0xFF),                                         /* AR6000_XIOCTL_ACL_DATA                          133  */
+(0xFF),                                         /* AR6000_XIOCTL_ACL_DATA(used to be used for PAL) 133  */
 (0xFF),                                         /* AR6000_XIOCTL_WLAN_CONN_PRECEDENCE              134  */
 (AP_NETWORK),                                   /* AR6000_XIOCTL_AP_SET_11BG_RATESET               135  */
 (0xFF),

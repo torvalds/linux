@@ -109,7 +109,7 @@ static int kgdb_call_nmi_hook(struct pt_regs *regs)
 #ifdef CONFIG_SMP
 void kgdb_roundup_cpus(unsigned long flags)
 {
-	smp_send_debugger_break(MSG_ALL_BUT_SELF);
+	smp_send_debugger_break();
 }
 #endif
 
@@ -142,7 +142,7 @@ static int kgdb_singlestep(struct pt_regs *regs)
 		return 0;
 
 	/*
-	 * On Book E and perhaps other processsors, singlestep is handled on
+	 * On Book E and perhaps other processors, singlestep is handled on
 	 * the critical exception stack.  This causes current_thread_info()
 	 * to fail, since it it locates the thread_info by masking off
 	 * the low bits of the current stack pointer.  We work around

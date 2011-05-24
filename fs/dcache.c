@@ -35,6 +35,7 @@
 #include <linux/hardirq.h>
 #include <linux/bit_spinlock.h>
 #include <linux/rculist_bl.h>
+#include <linux/prefetch.h>
 #include "internal.h"
 
 /*

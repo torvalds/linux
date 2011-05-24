@@ -67,7 +67,23 @@ static int physmap_flash_remove(struct platform_device *dev)
 		if (info->mtd[i] != NULL)
 			map_destroy(info->mtd[i]);
 	}
+
+	if (physmap_data->exit)
+		physmap_data->exit(dev);
+
 	return 0;
+}
+
+static void physmap_set_vpp(struct map_info *map, int state)
+{
+	struct platform_device *pdev;
+	struct physmap_flash_data *physmap_data;
+
+	pdev = (struct platform_device *)map->map_priv_1;
+	physmap_data = pdev->dev.platform_data;
+
+	if (physmap_data->set_vpp)
+		physmap_data->set_vpp(pdev, state);
 }
 
 static const char *rom_probe_types[] = {
@@ -77,7 +93,8 @@ static const char *rom_probe_types[] = {
 					"map_rom",
 					NULL };
 #ifdef CONFIG_MTD_PARTITIONS
-static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", NULL };
+static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", "afs",
+					  NULL };
 #endif
 
 static int physmap_flash_probe(struct platform_device *dev)
@@ -100,6 +117,12 @@ static int physmap_flash_probe(struct platform_device *dev)
 		goto err_out;
 	}
 
+	if (physmap_data->init) {
+		err = physmap_data->init(dev);
+		if (err)
+			goto err_out;
+	}
+
 	platform_set_drvdata(dev, info);
 
 	for (i = 0; i < dev->num_resources; i++) {
@@ -120,8 +143,9 @@ static int physmap_flash_probe(struct platform_device *dev)
 		info->map[i].phys = dev->resource[i].start;
 		info->map[i].size = resource_size(&dev->resource[i]);
 		info->map[i].bankwidth = physmap_data->width;
-		info->map[i].set_vpp = physmap_data->set_vpp;
+		info->map[i].set_vpp = physmap_set_vpp;
 		info->map[i].pfow_base = physmap_data->pfow_base;
+		info->map[i].map_priv_1 = (unsigned long)dev;
 
 		info->map[i].virt = devm_ioremap(&dev->dev, info->map[i].phys,
 						 info->map[i].size);

@@ -4532,7 +4532,7 @@ lpfc_set_vport_symbolic_name(struct fc_vport *fc_vport)
  *
  * This function is called by the lpfc_get_cfgparam() routine to set the
  * module lpfc_log_verbose into the @phba cfg_log_verbose for use with
- * log messsage according to the module's lpfc_log_verbose parameter setting
+ * log message according to the module's lpfc_log_verbose parameter setting
  * before hba port or vport created.
  **/
 static void

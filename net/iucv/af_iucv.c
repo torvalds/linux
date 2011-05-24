@@ -190,7 +190,6 @@ static int afiucv_pm_freeze(struct device *dev)
  */
 static int afiucv_pm_restore_thaw(struct device *dev)
 {
-	struct iucv_sock *iucv;
 	struct sock *sk;
 	struct hlist_node *node;
 
@@ -199,7 +198,6 @@ static int afiucv_pm_restore_thaw(struct device *dev)
 #endif
 	read_lock(&iucv_sk_list.lock);
 	sk_for_each(sk, node, &iucv_sk_list.head) {
-		iucv = iucv_sk(sk);
 		switch (sk->sk_state) {
 		case IUCV_CONNECTED:
 			sk->sk_err = EPIPE;
@@ -381,7 +379,6 @@ static void iucv_sock_close(struct sock *sk)
 {
 	unsigned char user_data[16];
 	struct iucv_sock *iucv = iucv_sk(sk);
-	int err;
 	unsigned long timeo;
 
 	iucv_sock_clear_timer(sk);
@@ -394,8 +391,6 @@ static void iucv_sock_close(struct sock *sk)
 
 	case IUCV_CONNECTED:
 	case IUCV_DISCONN:
-		err = 0;
-
 		sk->sk_state = IUCV_CLOSING;
 		sk->sk_state_change(sk);
 
@@ -404,7 +399,7 @@ static void iucv_sock_close(struct sock *sk)
 				timeo = sk->sk_lingertime;
 			else
 				timeo = IUCV_DISCONN_TIMEOUT;
-			err = iucv_sock_wait(sk,
+			iucv_sock_wait(sk,
 					iucv_sock_in_state(sk, IUCV_CLOSED, 0),
 					timeo);
 		}
@@ -417,7 +412,7 @@ static void iucv_sock_close(struct sock *sk)
 			low_nmcpy(user_data, iucv->src_name);
 			high_nmcpy(user_data, iucv->dst_name);
 			ASCEBC(user_data, sizeof(user_data));
-			err = iucv_path_sever(iucv->path, user_data);
+			iucv_path_sever(iucv->path, user_data);
 			iucv_path_free(iucv->path);
 			iucv->path = NULL;
 		}

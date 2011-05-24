@@ -53,6 +53,9 @@ do {								\
 	cFYI(1, "CIFS VFS: leaving %s (xid = %d) rc = %d",	\
 	     __func__, curr_xid, (int)rc);			\
 } while (0)
+extern int init_cifs_idmap(void);
+extern void exit_cifs_idmap(void);
+extern void cifs_destroy_idmaptrees(void);
 extern char *build_path_from_dentry(struct dentry *);
 extern char *cifs_build_path_to_root(struct cifs_sb_info *cifs_sb,
 					struct cifsTconInfo *tcon);
@@ -90,7 +93,6 @@ extern void cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
 extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *, bool);
 extern struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *, bool);
 extern unsigned int smbCalcSize(struct smb_hdr *ptr);
-extern unsigned int smbCalcSize_LE(struct smb_hdr *ptr);
 extern int decode_negTokenInit(unsigned char *security_blob, int length,
 			struct TCP_Server_Info *server);
 extern int cifs_convert_address(struct sockaddr *dst, const char *src, int len);
@@ -143,8 +145,10 @@ extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 extern int mode_to_cifs_acl(struct inode *inode, const char *path, __u64);
 extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
 					const char *, u32 *);
+extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
+				const char *);
 
-extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
+extern int cifs_mount(struct super_block *, struct cifs_sb_info *,
 			const char *);
 extern int cifs_umount(struct super_block *, struct cifs_sb_info *);
 extern void cifs_dfs_release_automount_timer(void);
@@ -304,12 +308,13 @@ extern int CIFSSMBUnixQuerySymLink(const int xid,
 			struct cifsTconInfo *tcon,
 			const unsigned char *searchName, char **syminfo,
 			const struct nls_table *nls_codepage);
+#ifdef CONFIG_CIFS_SYMLINK_EXPERIMENTAL
 extern int CIFSSMBQueryReparseLinkInfo(const int xid,
 			struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
 			char *symlinkinfo, const int buflen, __u16 fid,
 			const struct nls_table *nls_codepage);
-
+#endif /* temporarily unused until cifs_symlink fixed */
 extern int CIFSSMBOpen(const int xid, struct cifsTconInfo *tcon,
 			const char *fileName, const int disposition,
 			const int access_flags, const int omode,
@@ -348,8 +353,6 @@ extern int CIFSGetSrvInodeNumber(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName, __u64 *inode_number,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
-extern int cifsConvertToUCS(__le16 *target, const char *source, int maxlen,
-			const struct nls_table *cp, int mapChars);
 
 extern int CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 			const __u16 netfid, const __u64 len,
@@ -383,9 +386,15 @@ extern void cifs_crypto_shash_release(struct TCP_Server_Info *);
 extern int calc_seckey(struct cifsSesInfo *);
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-extern void calc_lanman_hash(const char *password, const char *cryptkey,
+extern int calc_lanman_hash(const char *password, const char *cryptkey,
 				bool encrypt, char *lnm_session_key);
 #endif /* CIFS_WEAK_PW_HASH */
+#ifdef CONFIG_CIFS_DNOTIFY_EXPERIMENTAL /* unused temporarily */
+extern int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon,
+			const int notify_subdirs, const __u16 netfid,
+			__u32 filter, struct file *file, int multishot,
+			const struct nls_table *nls_codepage);
+#endif /* was needed for dnotify, and will be needed for inotify when VFS fix */
 extern int CIFSSMBCopy(int xid,
 			struct cifsTconInfo *source_tcon,
 			const char *fromName,
@@ -393,10 +402,6 @@ extern int CIFSSMBCopy(int xid,
 			const char *toName, const int flags,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
-extern int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon,
-			const int notify_subdirs, const __u16 netfid,
-			__u32 filter, struct file *file, int multishot,
-			const struct nls_table *nls_codepage);
 extern ssize_t CIFSSMBQAllEAs(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
 			const unsigned char *ea_name, char *EAData,
@@ -427,9 +432,6 @@ extern int CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 		struct cifs_sb_info *cifs_sb, int xid);
 extern int mdfour(unsigned char *, unsigned char *, int);
 extern int E_md4hash(const unsigned char *passwd, unsigned char *p16);
-extern void SMBencrypt(unsigned char *passwd, const unsigned char *c8,
-			unsigned char *p24);
-extern void E_P16(unsigned char *p14, unsigned char *p16);
-extern void E_P24(unsigned char *p21, const unsigned char *c8,
+extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 			unsigned char *p24);
 #endif			/* _CIFSPROTO_H */

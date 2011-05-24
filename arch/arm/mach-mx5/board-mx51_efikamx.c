@@ -22,7 +22,6 @@
 #include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/fsl_devices.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
 #include <linux/mfd/mc13892.h>
@@ -32,8 +31,6 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx51.h>
-#include <mach/i2c.h>
-#include <mach/mxc_ehci.h>
 
 #include <asm/irq.h>
 #include <asm/setup.h>
@@ -252,7 +249,7 @@ static void __init mx51_efikamx_init(void)
 	}
 
 	platform_device_register(&mx51_efikamx_leds_device);
-	imx51_add_gpio_keys(&mx51_efikamx_powerkey_data);
+	imx_add_gpio_keys(&mx51_efikamx_powerkey_data);
 
 	if (system_rev == 0x11) {
 		gpio_request(EFIKAMX_RESET1_1, "reset");

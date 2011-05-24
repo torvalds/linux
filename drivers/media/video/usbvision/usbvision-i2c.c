@@ -222,7 +222,7 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 	i2c_set_adapdata(&usbvision->i2c_adap, &usbvision->v4l2_dev);
 
 	if (usbvision_write_reg(usbvision, USBVISION_SER_MODE, USBVISION_IIC_LRNACK) < 0) {
-		printk(KERN_ERR "usbvision_register: can't write reg\n");
+		printk(KERN_ERR "usbvision_i2c_register: can't write reg\n");
 		return -EBUSY;
 	}
 

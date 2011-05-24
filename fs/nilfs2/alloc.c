@@ -489,8 +489,8 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 void nilfs_palloc_commit_alloc_entry(struct inode *inode,
 				     struct nilfs_palloc_req *req)
 {
-	nilfs_mdt_mark_buffer_dirty(req->pr_bitmap_bh);
-	nilfs_mdt_mark_buffer_dirty(req->pr_desc_bh);
+	mark_buffer_dirty(req->pr_bitmap_bh);
+	mark_buffer_dirty(req->pr_desc_bh);
 	nilfs_mdt_mark_dirty(inode);
 
 	brelse(req->pr_bitmap_bh);
@@ -527,8 +527,8 @@ void nilfs_palloc_commit_free_entry(struct inode *inode,
 	kunmap(req->pr_bitmap_bh->b_page);
 	kunmap(req->pr_desc_bh->b_page);
 
-	nilfs_mdt_mark_buffer_dirty(req->pr_desc_bh);
-	nilfs_mdt_mark_buffer_dirty(req->pr_bitmap_bh);
+	mark_buffer_dirty(req->pr_desc_bh);
+	mark_buffer_dirty(req->pr_bitmap_bh);
 	nilfs_mdt_mark_dirty(inode);
 
 	brelse(req->pr_bitmap_bh);
@@ -683,8 +683,8 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 		kunmap(bitmap_bh->b_page);
 		kunmap(desc_bh->b_page);
 
-		nilfs_mdt_mark_buffer_dirty(desc_bh);
-		nilfs_mdt_mark_buffer_dirty(bitmap_bh);
+		mark_buffer_dirty(desc_bh);
+		mark_buffer_dirty(bitmap_bh);
 		nilfs_mdt_mark_dirty(inode);
 
 		brelse(bitmap_bh);

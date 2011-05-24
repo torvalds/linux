@@ -805,19 +805,6 @@ _ENTRY(copy_and_flush)
 	blr
 
 #ifdef CONFIG_SMP
-#ifdef CONFIG_GEMINI
-	.globl	__secondary_start_gemini
-__secondary_start_gemini:
-        mfspr   r4,SPRN_HID0
-        ori     r4,r4,HID0_ICFI
-        li      r3,0
-        ori     r3,r3,HID0_ICE
-        andc    r4,r4,r3
-        mtspr   SPRN_HID0,r4
-        sync
-        b       __secondary_start
-#endif /* CONFIG_GEMINI */
-
 	.globl __secondary_start_mpc86xx
 __secondary_start_mpc86xx:
 	mfspr	r3, SPRN_PIR
@@ -890,15 +877,6 @@ __secondary_start:
 	mtspr	SPRN_SRR1,r4
 	SYNC
 	RFI
-
-_GLOBAL(start_secondary_resume)
-	/* Reset stack */
-	rlwinm	r1,r1,0,0,(31-THREAD_SHIFT)	/* current_thread_info() */
-	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD
-	li	r3,0
-	std	r3,0(r1)		/* Zero the stack frame pointer	*/
-	bl	start_secondary
-	b	.
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_KVM_BOOK3S_HANDLER

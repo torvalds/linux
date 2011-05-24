@@ -208,7 +208,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	/* we know this is the memory we want, no need to ioremap again */
 	omap_ehci->caps = hcd->regs;
 	omap_ehci->regs = hcd->regs
-			+ HC_LENGTH(readl(&omap_ehci->caps->hc_capbase));
+		+ HC_LENGTH(ehci, readl(&omap_ehci->caps->hc_capbase));
 
 	dbg_hcs_params(omap_ehci, "reset");
 	dbg_hcc_params(omap_ehci, "reset");

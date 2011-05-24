@@ -56,6 +56,13 @@ struct read_event {
 	u64 id;
 };
 
+
+#define PERF_SAMPLE_MASK				\
+	(PERF_SAMPLE_IP | PERF_SAMPLE_TID |		\
+	 PERF_SAMPLE_TIME | PERF_SAMPLE_ADDR |		\
+	PERF_SAMPLE_ID | PERF_SAMPLE_STREAM_ID |	\
+	 PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD)
+
 struct sample_event {
 	struct perf_event_header        header;
 	u64 array[];
@@ -74,6 +81,8 @@ struct perf_sample {
 	void *raw_data;
 	struct ip_callchain *callchain;
 };
+
+int perf_sample_size(u64 sample_type);
 
 #define BUILD_ID_SIZE 20
 
@@ -178,6 +187,7 @@ int perf_event__preprocess_sample(const union perf_event *self,
 const char *perf_event__name(unsigned int id);
 
 int perf_event__parse_sample(const union perf_event *event, u64 type,
-			     bool sample_id_all, struct perf_sample *sample);
+			     int sample_size, bool sample_id_all,
+			     struct perf_sample *sample);
 
 #endif /* __PERF_RECORD_H */

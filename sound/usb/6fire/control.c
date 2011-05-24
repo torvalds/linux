@@ -65,6 +65,15 @@ init_data[] = {
 	{ 0 } /* TERMINATING ENTRY */
 };
 
+static const int rates_altsetting[] = { 1, 1, 2, 2, 3, 3 };
+/* values to write to soundcard register for all samplerates */
+static const u16 rates_6fire_vl[] = {0x00, 0x01, 0x00, 0x01, 0x00, 0x01};
+static const u16 rates_6fire_vh[] = {0x11, 0x11, 0x10, 0x10, 0x00, 0x00};
+
+enum {
+	DIGITAL_THRU_ONLY_SAMPLERATE = 3
+};
+
 static void usb6fire_control_master_vol_update(struct control_runtime *rt)
 {
 	struct comm_runtime *comm_rt = rt->chip->comm;
@@ -93,6 +102,67 @@ static void usb6fire_control_opt_coax_update(struct control_runtime *rt)
 		comm_rt->write8(comm_rt, 0x22, 0x00, rt->opt_coax_switch);
 		comm_rt->write8(comm_rt, 0x21, 0x00, rt->opt_coax_switch);
 	}
+}
+
+static int usb6fire_control_set_rate(struct control_runtime *rt, int rate)
+{
+	int ret;
+	struct usb_device *device = rt->chip->dev;
+	struct comm_runtime *comm_rt = rt->chip->comm;
+
+	if (rate < 0 || rate >= CONTROL_N_RATES)
+		return -EINVAL;
+
+	ret = usb_set_interface(device, 1, rates_altsetting[rate]);
+	if (ret < 0)
+		return ret;
+
+	/* set soundcard clock */
+	ret = comm_rt->write16(comm_rt, 0x02, 0x01, rates_6fire_vl[rate],
+			rates_6fire_vh[rate]);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int usb6fire_control_set_channels(
+	struct control_runtime *rt, int n_analog_out,
+	int n_analog_in, bool spdif_out, bool spdif_in)
+{
+	int ret;
+	struct comm_runtime *comm_rt = rt->chip->comm;
+
+	/* enable analog inputs and outputs
+	 * (one bit per stereo-channel) */
+	ret = comm_rt->write16(comm_rt, 0x02, 0x02,
+			(1 << (n_analog_out / 2)) - 1,
+			(1 << (n_analog_in / 2)) - 1);
+	if (ret < 0)
+		return ret;
+
+	/* disable digital inputs and outputs */
+	/* TODO: use spdif_x to enable/disable digital channels */
+	ret = comm_rt->write16(comm_rt, 0x02, 0x03, 0x00, 0x00);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int usb6fire_control_streaming_update(struct control_runtime *rt)
+{
+	struct comm_runtime *comm_rt = rt->chip->comm;
+
+	if (comm_rt) {
+		if (!rt->usb_streaming && rt->digital_thru_switch)
+			usb6fire_control_set_rate(rt,
+				DIGITAL_THRU_ONLY_SAMPLERATE);
+		return comm_rt->write16(comm_rt, 0x02, 0x00, 0x00,
+			(rt->usb_streaming ? 0x01 : 0x00) |
+			(rt->digital_thru_switch ? 0x08 : 0x00));
+	}
+	return -EINVAL;
 }
 
 static int usb6fire_control_master_vol_info(struct snd_kcontrol *kcontrol,
@@ -195,6 +265,28 @@ static int usb6fire_control_opt_coax_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int usb6fire_control_digital_thru_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct control_runtime *rt = snd_kcontrol_chip(kcontrol);
+	int changed = 0;
+
+	if (rt->digital_thru_switch != ucontrol->value.integer.value[0]) {
+		rt->digital_thru_switch = ucontrol->value.integer.value[0];
+		usb6fire_control_streaming_update(rt);
+		changed = 1;
+	}
+	return changed;
+}
+
+static int usb6fire_control_digital_thru_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct control_runtime *rt = snd_kcontrol_chip(kcontrol);
+	ucontrol->value.integer.value[0] = rt->digital_thru_switch;
+	return 0;
+}
+
 static struct __devinitdata snd_kcontrol_new elements[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -223,6 +315,15 @@ static struct __devinitdata snd_kcontrol_new elements[] = {
 		.get = usb6fire_control_opt_coax_get,
 		.put = usb6fire_control_opt_coax_put
 	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Digital Thru Playback Route",
+		.index = 0,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.info = snd_ctl_boolean_mono_info,
+		.get = usb6fire_control_digital_thru_get,
+		.put = usb6fire_control_digital_thru_put
+	},
 	{}
 };
 
@@ -238,6 +339,9 @@ int __devinit usb6fire_control_init(struct sfire_chip *chip)
 		return -ENOMEM;
 
 	rt->chip = chip;
+	rt->update_streaming = usb6fire_control_streaming_update;
+	rt->set_rate = usb6fire_control_set_rate;
+	rt->set_channels = usb6fire_control_set_channels;
 
 	i = 0;
 	while (init_data[i].type) {
@@ -249,6 +353,7 @@ int __devinit usb6fire_control_init(struct sfire_chip *chip)
 	usb6fire_control_opt_coax_update(rt);
 	usb6fire_control_line_phono_update(rt);
 	usb6fire_control_master_vol_update(rt);
+	usb6fire_control_streaming_update(rt);
 
 	i = 0;
 	while (elements[i].name) {

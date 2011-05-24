@@ -1515,18 +1515,9 @@ static int __init init_mac80211_hwsim(void)
 	if (hwsim_mon == NULL)
 		goto failed;
 
-	rtnl_lock();
-
-	err = dev_alloc_name(hwsim_mon, hwsim_mon->name);
+	err = register_netdev(hwsim_mon);
 	if (err < 0)
 		goto failed_mon;
-
-
-	err = register_netdevice(hwsim_mon);
-	if (err < 0)
-		goto failed_mon;
-
-	rtnl_unlock();
 
 	return 0;
 

@@ -204,7 +204,7 @@ static struct i2c_board_info __initdata mop500_i2c2_devices[] = {
 	},
 };
 
-#define U8500_I2C_CONTROLLER(id, _slsu, _tft, _rft, clk, _sm) \
+#define U8500_I2C_CONTROLLER(id, _slsu, _tft, _rft, clk, t_out, _sm)	\
 static struct nmk_i2c_controller u8500_i2c##id##_data = { \
 	/*				\
 	 * slave data setup time, which is	\
@@ -219,19 +219,21 @@ static struct nmk_i2c_controller u8500_i2c##id##_data = { \
 	.rft		= _rft,		\
 	/* std. mode operation */	\
 	.clk_freq	= clk,		\
+	/* Slave response timeout(ms) */\
+	.timeout	= t_out,	\
 	.sm		= _sm,		\
 }
 
 /*
  * The board uses 4 i2c controllers, initialize all of
  * them with slave data setup time of 250 ns,
- * Tx & Rx FIFO threshold values as 1 and standard
+ * Tx & Rx FIFO threshold values as 8 and standard
  * mode of operation
  */
-U8500_I2C_CONTROLLER(0, 0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
-U8500_I2C_CONTROLLER(1, 0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
-U8500_I2C_CONTROLLER(2,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
-U8500_I2C_CONTROLLER(3,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
+U8500_I2C_CONTROLLER(0, 0xe, 1, 8, 100000, 200, I2C_FREQ_MODE_FAST);
+U8500_I2C_CONTROLLER(1, 0xe, 1, 8, 100000, 200, I2C_FREQ_MODE_FAST);
+U8500_I2C_CONTROLLER(2,	0xe, 1, 8, 100000, 200, I2C_FREQ_MODE_FAST);
+U8500_I2C_CONTROLLER(3,	0xe, 1, 8, 100000, 200, I2C_FREQ_MODE_FAST);
 
 static void __init mop500_i2c_init(void)
 {

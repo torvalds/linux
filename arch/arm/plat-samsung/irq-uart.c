@@ -27,60 +27,6 @@
 /* Note, we make use of the fact that the parent IRQs, IRQ_UART[0..3]
  * are consecutive when looking up the interrupt in the demux routines.
  */
-
-static inline void __iomem *s3c_irq_uart_base(struct irq_data *data)
-{
-	struct s3c_uart_irq *uirq = irq_data_get_irq_chip_data(data);
-	return uirq->regs;
-}
-
-static inline unsigned int s3c_irq_uart_bit(unsigned int irq)
-{
-	return irq & 3;
-}
-
-static void s3c_irq_uart_mask(struct irq_data *data)
-{
-	void __iomem *regs = s3c_irq_uart_base(data);
-	unsigned int bit = s3c_irq_uart_bit(data->irq);
-	u32 reg;
-
-	reg = __raw_readl(regs + S3C64XX_UINTM);
-	reg |= (1 << bit);
-	__raw_writel(reg, regs + S3C64XX_UINTM);
-}
-
-static void s3c_irq_uart_maskack(struct irq_data *data)
-{
-	void __iomem *regs = s3c_irq_uart_base(data);
-	unsigned int bit = s3c_irq_uart_bit(data->irq);
-	u32 reg;
-
-	reg = __raw_readl(regs + S3C64XX_UINTM);
-	reg |= (1 << bit);
-	__raw_writel(reg, regs + S3C64XX_UINTM);
-	__raw_writel(1 << bit, regs + S3C64XX_UINTP);
-}
-
-static void s3c_irq_uart_unmask(struct irq_data *data)
-{
-	void __iomem *regs = s3c_irq_uart_base(data);
-	unsigned int bit = s3c_irq_uart_bit(data->irq);
-	u32 reg;
-
-	reg = __raw_readl(regs + S3C64XX_UINTM);
-	reg &= ~(1 << bit);
-	__raw_writel(reg, regs + S3C64XX_UINTM);
-}
-
-static void s3c_irq_uart_ack(struct irq_data *data)
-{
-	void __iomem *regs = s3c_irq_uart_base(data);
-	unsigned int bit = s3c_irq_uart_bit(data->irq);
-
-	__raw_writel(1 << bit, regs + S3C64XX_UINTP);
-}
-
 static void s3c_irq_demux_uart(unsigned int irq, struct irq_desc *desc)
 {
 	struct s3c_uart_irq *uirq = desc->irq_data.handler_data;
@@ -97,30 +43,25 @@ static void s3c_irq_demux_uart(unsigned int irq, struct irq_desc *desc)
 		generic_handle_irq(base + 3);
 }
 
-static struct irq_chip s3c_irq_uart = {
-	.name		= "s3c-uart",
-	.irq_mask	= s3c_irq_uart_mask,
-	.irq_unmask	= s3c_irq_uart_unmask,
-	.irq_mask_ack	= s3c_irq_uart_maskack,
-	.irq_ack	= s3c_irq_uart_ack,
-};
-
 static void __init s3c_init_uart_irq(struct s3c_uart_irq *uirq)
 {
 	void __iomem *reg_base = uirq->regs;
-	unsigned int irq;
-	int offs;
+	struct irq_chip_generic *gc;
+	struct irq_chip_type *ct;
 
 	/* mask all interrupts at the start. */
 	__raw_writel(0xf, reg_base + S3C64XX_UINTM);
 
-	for (offs = 0; offs < 3; offs++) {
-		irq = uirq->base_irq + offs;
-
-		irq_set_chip_and_handler(irq, &s3c_irq_uart, handle_level_irq);
-		irq_set_chip_data(irq, uirq);
-		set_irq_flags(irq, IRQF_VALID);
-	}
+	gc = irq_alloc_generic_chip("s3c-uart", 1, uirq->base_irq, reg_base,
+				    handle_level_irq);
+	ct = gc->chip_types;
+	ct->chip.irq_ack = irq_gc_ack;
+	ct->chip.irq_mask = irq_gc_mask_set_bit;
+	ct->chip.irq_unmask = irq_gc_mask_clr_bit;
+	ct->regs.ack = S3C64XX_UINTP;
+	ct->regs.mask = S3C64XX_UINTM;
+	irq_setup_generic_chip(gc, IRQ_MSK(4), IRQ_GC_INIT_MASK_CACHE,
+			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 
 	irq_set_handler_data(uirq->parent_irq, uirq);
 	irq_set_chained_handler(uirq->parent_irq, s3c_irq_demux_uart);

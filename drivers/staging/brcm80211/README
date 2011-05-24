@@ -1,90 +1,64 @@
-Broadcom Mac80211 driver
+Broadcom brcmsmac (mac80211-based softmac PCIe) and brcmfmac (SDIO) drivers.
 
-This is a driver in progress.  It has features still to be implemented well as
-bugs in current code.
+Completely open source host drivers, no binary object files.
 
+Support for the following chips:
+===============================
 
-What's here and not here
-=======================
-- Completely open source host driver, no binary object files
-- Features Broadcom's OneDriver architecture (single source base for
-  supported chips and architectures)
-- On-chip firmware loaded using standard request_firmware()
-- Support for BCM43224, BCM43225, BCM4313 (PCIe NIC)
-- Framework for supporting new chips, including mac80211-aware embedded chips
-- Does not support older PCI/PCIe chips with SSB backplane
-- Driver includes BMAC interface for transparent dongle support
-- Uses minstrel_ht rate algorithm
-- HW based encryption not enabled yet
+    brcmsmac (PCIe)
+    Name        Device ID
+    BCM4313     0x4727
+    BCM43224    0x4353
+    BCM43225    0x4357
 
+    brcmfmac (SDIO)
+    Name
+    BCM4329
 
-What's done
-==========
-- Integration with mac80211 stack
-- A-MPDU single & dual stream rates
-- BCM43224:	Dualband, Dual stream, 20MHz channels
-	Throughput (in chamber): ~85-90 Mbits/sec (in both 2.4 & 5 GHz bands)
-- BCM43225:	2.4 GHz, Dual Stream, 20MHz channels
-	Throughput (in chamber): ~85-90 Mbits/sec
-- BCM4313:		2.4 GHz, Single Stream
-	Throughput (in chamber): ~40 Mbits/sec
+Both brcmsmac and brcmfmac drivers require firmware files that need to be
+separately downloaded.
+
+Firmware
+======================
+Firmware is available from the Linux firmware repository at:
+
+    git://git.kernel.org/pub/scm/linux/kernel/git/dwmw2/linux-firmware.git
+    http://git.kernel.org/?p=linux/kernel/git/dwmw2/linux-firmware.git
+    https://git.kernel.org/?p=linux/kernel/git/dwmw2/linux-firmware.git
 
 
-Things To Be Done
-=================
-See the TODO file
+===============================================================
+Broadcom brcmsmac driver
+===============================================================
+- Support for both 32 and 64 bit Linux kernels
 
 
 Firmware installation
 ======================
-Firmware is available from the Linux firmware repository at:
-
-	git://git.kernel.org/pub/scm/linux/kernel/git/dwmw2/linux-firmware.git
-	http://git.kernel.org/?p=linux/kernel/git/dwmw2/linux-firmware.git
-	https://git.kernel.org/?p=linux/kernel/git/dwmw2/linux-firmware.git
-
-For all chips, copy brcm/bcm43xx-0.fw and brcm/bcm43xx_hdr-0.fw to
-/lib/firmware/brcm (or wherever firmware is normally installed on your system).
-
-Currently supported chips
-==============
-PCI
-Name		Device ID
-BCM4313		0x4727
-BCM43224	0x4353
-BCM43225	0x4357
+Copy brcm/bcm43xx-0.fw and brcm/bcm43xx_hdr-0.fw to
+/lib/firmware/brcm (or wherever firmware is normally installed
+on your system).
 
 
-Bugs/Problems
-==============
-- Driver can get confused while scanning during high throughput, can cause
-  burping, hanging, and possible crashing.
-- Occasional hangs & burps with BCM43224 on 2.4 GHz with dual stream rates.
-- Occasional crashes with BCM43224 on multicore machines.
+===============================================================
+Broadcom brcmfmac driver
+===============================================================
+- Support for 32 bit Linux kernel, 64 bit untested
 
 
-Note on Regulatory Implementation
-================================
-This generation of chips contain additional regulatory support independent of
-the driver. The devices use a single worldwide regulatory domain, with channels
-12-14 (2.4 GHz band) and channels 52-64 and 100-140 (5 GHz band) restricted to
-passive operation. Transmission on those channels is suppressed until
-appropriate other traffic is observed on those channels.
-
-Within the driver, we use the fictitious country code "X2" to represent this
-worldwide regulatory domain. There is currently no interface to configure a
-different domain.
-
-The driver reads the SROM country code from the chip and hands it up to
-mac80211 as the regulatory hint, however this information is otherwise unused
-with the driver.
+Firmware installation
+======================
+Copy brcm/bcm4329-fullmac-4.bin and brcm/bcm4329-fullmac-4.txt
+to /lib/firmware/brcm (or wherever firmware is normally installed on your
+system).
 
 
 Contact Info:
 =============
 Brett Rudley		brudley@broadcom.com
 Henry Ptasinski		henryp@broadcom.com
-Dowan Kim			dowan@broadcom.com
+Dowan Kim		dowan@broadcom.com
 Roland Vossen		rvossen@broadcom.com
 Arend van Spriel	arend@broadcom.com
 
+For more info, refer to: http://linuxwireless.org/en/users/Drivers/brcm80211

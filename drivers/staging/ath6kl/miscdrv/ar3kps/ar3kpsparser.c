@@ -362,7 +362,7 @@ int AthParseFilesUnified(u8 *srcbuffer,u32 srclen, int FileFormat)
              {
                  AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("error\n"));
                  if(Buffer != NULL) {
-                     A_FREE(Buffer);
+                     kfree(Buffer);
                  }
                  return A_ERROR;
              }
@@ -401,7 +401,7 @@ int AthParseFilesUnified(u8 *srcbuffer,u32 srclen, int FileFormat)
                     if(uGetInputDataFormat(pCharLine, &stPS_DataFormat)) {
                         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("uGetInputDataFormat fail\n"));
                      if(Buffer != NULL) {
-                             A_FREE(Buffer);
+                             kfree(Buffer);
                      }
                         return A_ERROR;
                     }    
@@ -422,7 +422,7 @@ int AthParseFilesUnified(u8 *srcbuffer,u32 srclen, int FileFormat)
                     if(uGetInputDataFormat(pCharLine, &stPS_DataFormat)) {
                         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("uGetInputDataFormat fail \n"));
                      if(Buffer != NULL) {
-                             A_FREE(Buffer);
+                             kfree(Buffer);
                      }
                         return A_ERROR;
                     }
@@ -433,7 +433,7 @@ int AthParseFilesUnified(u8 *srcbuffer,u32 srclen, int FileFormat)
                     if (ByteCount > LINE_SIZE_MAX/2)
                     {
                      if(Buffer != NULL) {
-                             A_FREE(Buffer);
+                             kfree(Buffer);
                      }
                        return A_ERROR;
                     }
@@ -449,7 +449,7 @@ int AthParseFilesUnified(u8 *srcbuffer,u32 srclen, int FileFormat)
                         if(uGetInputDataFormat(pCharLine,&stPS_DataFormat)) {
                             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("uGetInputDataFormat Fail\n"));
                             if(Buffer != NULL) {
-                                 A_FREE(Buffer);
+                                 kfree(Buffer);
                          }
                             return A_ERROR;
                         }
@@ -510,7 +510,7 @@ int AthParseFilesUnified(u8 *srcbuffer,u32 srclen, int FileFormat)
                     {
                        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("\n Buffer over flow PS File too big!!!"));
                        if(Buffer != NULL) {
-                           A_FREE(Buffer);
+                           kfree(Buffer);
                        }
                        return A_ERROR;
                        //Sleep (3000);
@@ -524,7 +524,7 @@ int AthParseFilesUnified(u8 *srcbuffer,u32 srclen, int FileFormat)
              default:
              {
                    if(Buffer != NULL) {
-                       A_FREE(Buffer);
+                       kfree(Buffer);
                    }
                    return A_ERROR;
              }
@@ -541,13 +541,13 @@ int AthParseFilesUnified(u8 *srcbuffer,u32 srclen, int FileFormat)
    {
 
       if(Buffer != NULL) {
-           A_FREE(Buffer);
+           kfree(Buffer);
       }
       return A_ERROR;
    }
 
    if(Buffer != NULL) {
-        A_FREE(Buffer);
+        kfree(Buffer);
    }
    return 0;
 
@@ -609,7 +609,7 @@ int AthDoParsePatch(u8 *patchbuffer, u32 patchlen)
         /* Handle case when the number of patch buffer is more than the 20K */
         if(MAX_NUM_PATCH_ENTRY == Patch_Count) {
             for(i = 0; i < Patch_Count; i++) {
-                A_FREE(RamPatch[i].Data);
+                kfree(RamPatch[i].Data);
             }
             return A_ERROR;
         }
@@ -812,13 +812,13 @@ int AthCreateCommandList(struct ps_cmd_packet **HciPacketList, u32 *numPackets)
     for(count = 0; count < Patch_Count; count++) {
 
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Freeing Patch Buffer %d \r\n",count));
-        A_FREE(RamPatch[Patch_Count].Data);
+        kfree(RamPatch[Patch_Count].Data);
     }
 
     for(count = 0; count < Tag_Count; count++) {
 
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Freeing PS Buffer %d \r\n",count));
-        A_FREE(PsTagEntry[count].TagData);
+        kfree(PsTagEntry[count].TagData);
     }
 
 /* 
@@ -962,8 +962,8 @@ int AthFreeCommandList(struct ps_cmd_packet **HciPacketList, u32 numPackets)
         return A_ERROR;
     }
     for(i = 0; i < numPackets;i++) {
-        A_FREE((*HciPacketList)[i].Hcipacket);
+        kfree((*HciPacketList)[i].Hcipacket);
     }  
-    A_FREE(*HciPacketList);
+    kfree(*HciPacketList);
     return 0;
 }

@@ -398,6 +398,8 @@ struct uv_blade_info {
 	unsigned short	nr_online_cpus;
 	unsigned short	pnode;
 	short		memory_nid;
+	spinlock_t	nmi_lock;
+	unsigned long	nmi_count;
 };
 extern struct uv_blade_info *uv_blade_info;
 extern short *uv_node_to_blade;

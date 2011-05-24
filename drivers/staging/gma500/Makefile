@@ -5,6 +5,7 @@ ccflags-y += -Iinclude/drm
 
 psb_gfx-y += psb_bl.o \
 	  psb_drv.o \
+	  psb_gem.o \
 	  psb_fb.o \
 	  psb_2d.o \
 	  psb_gtt.o \
@@ -15,17 +16,11 @@ psb_gfx-y += psb_bl.o \
 	  psb_intel_lvds.o \
 	  psb_intel_modes.o \
 	  psb_intel_sdvo.o \
-	  psb_reset.o \
-	  psb_sgx.o \
-	  psb_pvr_glue.o \
-	  psb_buffer.o \
-	  psb_fence.o \
+	  psb_lid.o \
 	  psb_mmu.o \
-	  psb_ttm_glue.o \
-	  psb_ttm_fence.o \
-	  psb_ttm_fence_user.o \
-	  psb_ttm_placement_user.o \
 	  psb_powermgmt.o \
-	  psb_irq.o
+	  psb_irq.o \
+	  mrst_crtc.o \
+	  mrst_lvds.o
 
 obj-$(CONFIG_DRM_PSB) += psb_gfx.o

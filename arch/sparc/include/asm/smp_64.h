@@ -49,6 +49,10 @@ extern void cpu_play_dead(void);
 
 extern void smp_fetch_global_regs(void);
 
+struct seq_file;
+void smp_bogo(struct seq_file *);
+void smp_info(struct seq_file *);
+
 #ifdef CONFIG_HOTPLUG_CPU
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);

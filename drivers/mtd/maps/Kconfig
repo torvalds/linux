@@ -260,6 +260,13 @@ config MTD_BCM963XX
 	  Support for parsing CFE image tag and creating MTD partitions on
 	  Broadcom BCM63xx boards.
 
+config MTD_LANTIQ
+	tristate "Lantiq SoC NOR support"
+	depends on LANTIQ
+	select MTD_PARTITIONS
+	help
+	  Support for NOR flash attached to the Lantiq SoC's External Bus Unit.
+
 config MTD_DILNETPC
 	tristate "CFI Flash device mapped on DIL/Net PC"
 	depends on X86 && MTD_PARTITIONS && MTD_CFI_INTELEXT && BROKEN

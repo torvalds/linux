@@ -781,6 +781,7 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 {
 	struct modal_eep_4k_header *pModal;
 	struct ar5416_eeprom_4k *eep = &ah->eeprom.map4k;
+	struct base_eep_header_4k *pBase = &eep->baseEepHeader;
 	u8 txRxAttenLocal;
 	u8 ob[5], db1[5], db2[5];
 	u8 ant_div_control1, ant_div_control2;
@@ -1002,6 +1003,31 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 			REG_RMW_FIELD(ah, AR_PHY_SETTLING,
 				      AR_PHY_SETTLING_SWITCH,
 				      pModal->swSettleHt40);
+	}
+	if (AR_SREV_9271(ah) || AR_SREV_9285(ah)) {
+		u8 bb_desired_scale = (pModal->bb_scale_smrt_antenna &
+				EEP_4K_BB_DESIRED_SCALE_MASK);
+		if ((pBase->txGainType == 0) && (bb_desired_scale != 0)) {
+			u32 pwrctrl, mask, clr;
+
+			mask = BIT(0)|BIT(5)|BIT(10)|BIT(15)|BIT(20)|BIT(25);
+			pwrctrl = mask * bb_desired_scale;
+			clr = mask * 0x1f;
+			REG_RMW(ah, AR_PHY_TX_PWRCTRL8, pwrctrl, clr);
+			REG_RMW(ah, AR_PHY_TX_PWRCTRL10, pwrctrl, clr);
+			REG_RMW(ah, AR_PHY_CH0_TX_PWRCTRL12, pwrctrl, clr);
+
+			mask = BIT(0)|BIT(5)|BIT(15);
+			pwrctrl = mask * bb_desired_scale;
+			clr = mask * 0x1f;
+			REG_RMW(ah, AR_PHY_TX_PWRCTRL9, pwrctrl, clr);
+
+			mask = BIT(0)|BIT(5);
+			pwrctrl = mask * bb_desired_scale;
+			clr = mask * 0x1f;
+			REG_RMW(ah, AR_PHY_CH0_TX_PWRCTRL11, pwrctrl, clr);
+			REG_RMW(ah, AR_PHY_CH0_TX_PWRCTRL13, pwrctrl, clr);
+		}
 	}
 }
 

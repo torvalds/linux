@@ -26,28 +26,6 @@
 #ifndef _A_CONFIG_H_
 #define _A_CONFIG_H_
 
-#ifdef UNDER_NWIFI
-#include "../os/windows/include/config.h"
-#endif
-
-#ifdef ATHR_CE_LEGACY
-#include "../os/windows/include/config.h"
-#endif
-
-#if defined(__linux__) && !defined(LINUX_EMULATION)
 #include "../os/linux/include/config_linux.h"
-#endif
-
-#ifdef REXOS
-#include "../os/rexos/include/common/config_rexos.h"
-#endif
-
-#ifdef WIN_NWF
-#include "../os/windows/include/win/config_win.h"
-#endif
-
-#ifdef THREADX
-#include "../os/threadx/include/common/config_threadx.h"
-#endif
 
 #endif

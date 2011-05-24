@@ -7,15 +7,10 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/i2c.h>
-#include <linux/rtc.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -63,12 +58,9 @@
  */
 
 struct ad7150_chip_info {
-	const char *name;
 	struct i2c_client *client;
 	struct iio_dev *indio_dev;
-	struct work_struct thresh_work;
 	bool inter;
-	s64 last_timestamp;
 	u16 ch1_threshold;     /* Ch1 Threshold (in fixed threshold mode) */
 	u8  ch1_sensitivity;   /* Ch1 Sensitivity (in adaptive threshold mode) */
 	u8  ch1_timeout;       /* Ch1 Timeout (in adaptive threshold mode) */
@@ -88,7 +80,8 @@ struct ad7150_conversion_mode {
 	u8 reg_cfg;
 };
 
-struct ad7150_conversion_mode ad7150_conv_mode_table[AD7150_MAX_CONV_MODE] = {
+static struct ad7150_conversion_mode
+ad7150_conv_mode_table[AD7150_MAX_CONV_MODE] = {
 	{ "idle", 0 },
 	{ "continuous-conversion", 1 },
 	{ "single-conversion", 2 },
@@ -590,17 +583,6 @@ static IIO_DEV_ATTR_CH2_SETUP(S_IRUGO | S_IWUSR,
 		ad7150_show_ch2_setup,
 		ad7150_store_ch2_setup);
 
-static ssize_t ad7150_show_name(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7150_chip_info *chip = dev_info->dev_data;
-	return sprintf(buf, "%s\n", chip->name);
-}
-
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad7150_show_name, NULL, 0);
-
 static ssize_t ad7150_show_powerdown_timer(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
@@ -649,7 +631,6 @@ static struct attribute *ad7150_attributes[] = {
 	&iio_dev_attr_powerdown_timer.dev_attr.attr,
 	&iio_dev_attr_ch1_value.dev_attr.attr,
 	&iio_dev_attr_ch2_value.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -661,96 +642,57 @@ static const struct attribute_group ad7150_attribute_group = {
  * threshold events
  */
 
-#define IIO_EVENT_CODE_CH1_HIGH    IIO_BUFFER_EVENT_CODE(0)
-#define IIO_EVENT_CODE_CH1_LOW     IIO_BUFFER_EVENT_CODE(1)
-#define IIO_EVENT_CODE_CH2_HIGH    IIO_BUFFER_EVENT_CODE(2)
-#define IIO_EVENT_CODE_CH2_LOW     IIO_BUFFER_EVENT_CODE(3)
-
-#define IIO_EVENT_ATTR_CH1_HIGH_SH(_evlist, _show, _store, _mask)	\
-	IIO_EVENT_ATTR_SH(ch1_high, _evlist, _show, _store, _mask)
-
-#define IIO_EVENT_ATTR_CH2_HIGH_SH(_evlist, _show, _store, _mask)	\
-	IIO_EVENT_ATTR_SH(ch2_high, _evlist, _show, _store, _mask)
-
-#define IIO_EVENT_ATTR_CH1_LOW_SH(_evlist, _show, _store, _mask)	\
-	IIO_EVENT_ATTR_SH(ch1_low, _evlist, _show, _store, _mask)
-
-#define IIO_EVENT_ATTR_CH2_LOW_SH(_evlist, _show, _store, _mask)	\
-	IIO_EVENT_ATTR_SH(ch2_low, _evlist, _show, _store, _mask)
-
-static void ad7150_interrupt_handler_bh(struct work_struct *work_s)
+static irqreturn_t ad7150_event_handler(int irq, void *private)
 {
-	struct ad7150_chip_info *chip =
-		container_of(work_s, struct ad7150_chip_info, thresh_work);
+	struct iio_dev *indio_dev = private;
+	struct ad7150_chip_info *chip = iio_dev_get_devdata(indio_dev);
 	u8 int_status;
-
-	enable_irq(chip->client->irq);
+	s64 timestamp = iio_get_time_ns();
 
 	ad7150_i2c_read(chip, AD7150_STATUS, &int_status, 1);
 
 	if ((int_status & AD7150_STATUS_OUT1) && !(chip->old_state & AD7150_STATUS_OUT1))
-		iio_push_event(chip->indio_dev, 0,
-				IIO_EVENT_CODE_CH1_HIGH,
-				chip->last_timestamp);
+		iio_push_event(indio_dev, 0,
+			       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_IN,
+						    0,
+						    IIO_EV_TYPE_THRESH,
+						    IIO_EV_DIR_RISING),
+				timestamp);
 	else if ((!(int_status & AD7150_STATUS_OUT1)) && (chip->old_state & AD7150_STATUS_OUT1))
-		iio_push_event(chip->indio_dev, 0,
-				IIO_EVENT_CODE_CH1_LOW,
-				chip->last_timestamp);
+		iio_push_event(indio_dev, 0,
+			       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_IN,
+						    0,
+						    IIO_EV_TYPE_THRESH,
+						    IIO_EV_DIR_FALLING),
+			       timestamp);
 
 	if ((int_status & AD7150_STATUS_OUT2) && !(chip->old_state & AD7150_STATUS_OUT2))
-		iio_push_event(chip->indio_dev, 0,
-				IIO_EVENT_CODE_CH2_HIGH,
-				chip->last_timestamp);
+		iio_push_event(indio_dev, 0,
+			       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_IN,
+						    1,
+						    IIO_EV_TYPE_THRESH,
+						    IIO_EV_DIR_RISING),
+			       timestamp);
 	else if ((!(int_status & AD7150_STATUS_OUT2)) && (chip->old_state & AD7150_STATUS_OUT2))
-		iio_push_event(chip->indio_dev, 0,
-				IIO_EVENT_CODE_CH2_LOW,
-				chip->last_timestamp);
+		iio_push_event(indio_dev, 0,
+			       IIO_UNMOD_EVENT_CODE(IIO_EV_CLASS_IN,
+						    1,
+						    IIO_EV_TYPE_THRESH,
+						    IIO_EV_DIR_FALLING),
+			       timestamp);
+	return IRQ_HANDLED;
 }
 
-static int ad7150_interrupt_handler_th(struct iio_dev *dev_info,
-		int index,
-		s64 timestamp,
-		int no_test)
-{
-	struct ad7150_chip_info *chip = dev_info->dev_data;
-
-	chip->last_timestamp = timestamp;
-	schedule_work(&chip->thresh_work);
-
-	return 0;
-}
-
-IIO_EVENT_SH(threshold, &ad7150_interrupt_handler_th);
-
-static ssize_t ad7150_query_out_mode(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	/*
-	 * AD7150 provides two logic output channels, which can be used as interrupt
-	 * but the pins are not configurable
-	 */
-	return sprintf(buf, "1\n");
-}
-
-static ssize_t ad7150_set_out_mode(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
-{
-	return len;
-}
-
-IIO_EVENT_ATTR_CH1_HIGH_SH(iio_event_threshold, ad7150_query_out_mode, ad7150_set_out_mode, 0);
-IIO_EVENT_ATTR_CH2_HIGH_SH(iio_event_threshold, ad7150_query_out_mode, ad7150_set_out_mode, 0);
-IIO_EVENT_ATTR_CH1_LOW_SH(iio_event_threshold, ad7150_query_out_mode, ad7150_set_out_mode, 0);
-IIO_EVENT_ATTR_CH2_LOW_SH(iio_event_threshold, ad7150_query_out_mode, ad7150_set_out_mode, 0);
+static IIO_CONST_ATTR(ch1_high_en, "1");
+static IIO_CONST_ATTR(ch2_high_en, "1");
+static IIO_CONST_ATTR(ch1_low_en, "1");
+static IIO_CONST_ATTR(ch2_low_en, "1");
 
 static struct attribute *ad7150_event_attributes[] = {
-	&iio_event_attr_ch1_high.dev_attr.attr,
-	&iio_event_attr_ch2_high.dev_attr.attr,
-	&iio_event_attr_ch1_low.dev_attr.attr,
-	&iio_event_attr_ch2_low.dev_attr.attr,
+	&iio_const_attr_ch1_high_en.dev_attr.attr,
+	&iio_const_attr_ch2_high_en.dev_attr.attr,
+	&iio_const_attr_ch1_low_en.dev_attr.attr,
+	&iio_const_attr_ch2_low_en.dev_attr.attr,
 	NULL,
 };
 
@@ -758,6 +700,12 @@ static struct attribute_group ad7150_event_attribute_group = {
 	.attrs = ad7150_event_attributes,
 };
 
+static const struct iio_info ad7150_info = {
+	.attrs = &ad7150_attribute_group,
+	.num_interrupt_lines = 1,
+	.event_attrs = &ad7150_event_attribute_group,
+	.driver_module = THIS_MODULE,
+};
 /*
  * device probe and remove
  */
@@ -776,21 +724,20 @@ static int __devinit ad7150_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, chip);
 
 	chip->client = client;
-	chip->name = id->name;
 
-	chip->indio_dev = iio_allocate_device();
+	chip->indio_dev = iio_allocate_device(0);
 	if (chip->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_chip;
 	}
 
-	/* Echipabilish that the iio_dev is a child of the i2c device */
+	/* Establish that the iio_dev is a child of the i2c device */
+	chip->indio_dev->name = id->name;
 	chip->indio_dev->dev.parent = &client->dev;
-	chip->indio_dev->attrs = &ad7150_attribute_group;
-	chip->indio_dev->event_attrs = &ad7150_event_attribute_group;
+
+	chip->indio_dev->info = &ad7150_info;
 	chip->indio_dev->dev_data = (void *)(chip);
-	chip->indio_dev->driver_module = THIS_MODULE;
-	chip->indio_dev->num_interrupt_lines = 1;
+
 	chip->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(chip->indio_dev);
@@ -798,19 +745,16 @@ static int __devinit ad7150_probe(struct i2c_client *client,
 		goto error_free_dev;
 	regdone = 1;
 
-	if (client->irq && gpio_is_valid(irq_to_gpio(client->irq)) > 0) {
-		ret = iio_register_interrupt_line(client->irq,
-				chip->indio_dev,
-				0,
-				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				"ad7150");
+	if (client->irq) {
+		ret = request_threaded_irq(client->irq,
+					   NULL,
+					   &ad7150_event_handler,
+					   IRQF_TRIGGER_RISING |
+					   IRQF_TRIGGER_FALLING,
+					   "ad7150",
+					   chip->indio_dev);
 		if (ret)
 			goto error_free_dev;
-
-		iio_add_event_to_list(iio_event_attr_ch2_low.listel,
-				&chip->indio_dev->interrupts[0]->ev_list);
-
-		INIT_WORK(&chip->thresh_work, ad7150_interrupt_handler_bh);
 	}
 
 	dev_err(&client->dev, "%s capacitive sensor registered, irq: %d\n", id->name, client->irq);
@@ -833,8 +777,8 @@ static int __devexit ad7150_remove(struct i2c_client *client)
 	struct ad7150_chip_info *chip = i2c_get_clientdata(client);
 	struct iio_dev *indio_dev = chip->indio_dev;
 
-	if (client->irq && gpio_is_valid(irq_to_gpio(client->irq)) > 0)
-		iio_unregister_interrupt_line(indio_dev, 0);
+	if (client->irq)
+		free_irq(client->irq, indio_dev);
 	iio_device_unregister(indio_dev);
 	kfree(chip);
 

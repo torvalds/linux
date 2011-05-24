@@ -94,7 +94,9 @@ struct r1bio_s {
 	int			read_disk;
 
 	struct list_head	retry_list;
-	struct bitmap_update	*bitmap_update;
+	/* Next two are only valid when R1BIO_BehindIO is set */
+	struct page		**behind_pages;
+	int			behind_page_count;
 	/*
 	 * if the IO is in WRITE direction, then multiple bios are used.
 	 * We choose the number when they are allocated.

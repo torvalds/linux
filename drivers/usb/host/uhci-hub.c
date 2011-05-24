@@ -44,7 +44,7 @@ static int any_ports_active(struct uhci_hcd *uhci)
 	int port;
 
 	for (port = 0; port < uhci->rh_numports; ++port) {
-		if ((inw(uhci->io_addr + USBPORTSC1 + port * 2) &
+		if ((uhci_readw(uhci, USBPORTSC1 + port * 2) &
 				(USBPORTSC_CCS | RWC_BITS)) ||
 				test_bit(port, &uhci->port_c_suspend))
 			return 1;
@@ -68,7 +68,7 @@ static inline int get_hub_status_data(struct uhci_hcd *uhci, char *buf)
 
 	*buf = 0;
 	for (port = 0; port < uhci->rh_numports; ++port) {
-		if ((inw(uhci->io_addr + USBPORTSC1 + port * 2) & mask) ||
+		if ((uhci_readw(uhci, USBPORTSC1 + port * 2) & mask) ||
 				test_bit(port, &uhci->port_c_suspend))
 			*buf |= (1 << (port + 1));
 	}
@@ -78,17 +78,17 @@ static inline int get_hub_status_data(struct uhci_hcd *uhci, char *buf)
 #define OK(x)			len = (x); break
 
 #define CLR_RH_PORTSTAT(x) \
-	status = inw(port_addr); \
+	status = uhci_readw(uhci, port_addr);	\
 	status &= ~(RWC_BITS|WZ_BITS); \
 	status &= ~(x); \
 	status |= RWC_BITS & (x); \
-	outw(status, port_addr)
+	uhci_writew(uhci, status, port_addr)
 
 #define SET_RH_PORTSTAT(x) \
-	status = inw(port_addr); \
+	status = uhci_readw(uhci, port_addr);	\
 	status |= (x); \
 	status &= ~(RWC_BITS|WZ_BITS); \
-	outw(status, port_addr)
+	uhci_writew(uhci, status, port_addr)
 
 /* UHCI controllers don't automatically stop resume signalling after 20 msec,
  * so we have to poll and check timeouts in order to take care of it.
@@ -99,7 +99,7 @@ static void uhci_finish_suspend(struct uhci_hcd *uhci, int port,
 	int status;
 	int i;
 
-	if (inw(port_addr) & SUSPEND_BITS) {
+	if (uhci_readw(uhci, port_addr) & SUSPEND_BITS) {
 		CLR_RH_PORTSTAT(SUSPEND_BITS);
 		if (test_bit(port, &uhci->resuming_ports))
 			set_bit(port, &uhci->port_c_suspend);
@@ -110,7 +110,7 @@ static void uhci_finish_suspend(struct uhci_hcd *uhci, int port,
 		 * Experiments show that some controllers take longer, so
 		 * we'll poll for completion. */
 		for (i = 0; i < 10; ++i) {
-			if (!(inw(port_addr) & SUSPEND_BITS))
+			if (!(uhci_readw(uhci, port_addr) & SUSPEND_BITS))
 				break;
 			udelay(1);
 		}
@@ -121,12 +121,12 @@ static void uhci_finish_suspend(struct uhci_hcd *uhci, int port,
 /* Wait for the UHCI controller in HP's iLO2 server management chip.
  * It can take up to 250 us to finish a reset and set the CSC bit.
  */
-static void wait_for_HP(unsigned long port_addr)
+static void wait_for_HP(struct uhci_hcd *uhci, unsigned long port_addr)
 {
 	int i;
 
 	for (i = 10; i < 250; i += 10) {
-		if (inw(port_addr) & USBPORTSC_CSC)
+		if (uhci_readw(uhci, port_addr) & USBPORTSC_CSC)
 			return;
 		udelay(10);
 	}
@@ -140,8 +140,8 @@ static void uhci_check_ports(struct uhci_hcd *uhci)
 	int status;
 
 	for (port = 0; port < uhci->rh_numports; ++port) {
-		port_addr = uhci->io_addr + USBPORTSC1 + 2 * port;
-		status = inw(port_addr);
+		port_addr = USBPORTSC1 + 2 * port;
+		status = uhci_readw(uhci, port_addr);
 		if (unlikely(status & USBPORTSC_PR)) {
 			if (time_after_eq(jiffies, uhci->ports_timeout)) {
 				CLR_RH_PORTSTAT(USBPORTSC_PR);
@@ -149,9 +149,8 @@ static void uhci_check_ports(struct uhci_hcd *uhci)
 
 				/* HP's server management chip requires
 				 * a longer delay. */
-				if (to_pci_dev(uhci_dev(uhci))->vendor ==
-						PCI_VENDOR_ID_HP)
-					wait_for_HP(port_addr);
+				if (uhci->wait_for_hp)
+					wait_for_HP(uhci, port_addr);
 
 				/* If the port was enabled before, turning
 				 * reset on caused a port enable change.
@@ -242,7 +241,7 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	int status, lstatus, retval = 0, len = 0;
 	unsigned int port = wIndex - 1;
-	unsigned long port_addr = uhci->io_addr + USBPORTSC1 + 2 * port;
+	unsigned long port_addr = USBPORTSC1 + 2 * port;
 	u16 wPortChange, wPortStatus;
 	unsigned long flags;
 
@@ -260,14 +259,13 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			goto err;
 
 		uhci_check_ports(uhci);
-		status = inw(port_addr);
+		status = uhci_readw(uhci, port_addr);
 
 		/* Intel controllers report the OverCurrent bit active on.
 		 * VIA controllers report it active off, so we'll adjust the
 		 * bit value.  (It's not standardized in the UHCI spec.)
 		 */
-		if (to_pci_dev(hcd->self.controller)->vendor ==
-				PCI_VENDOR_ID_VIA)
+		if (uhci->oc_low)
 			status ^= USBPORTSC_OC;
 
 		/* UHCI doesn't support C_RESET (always false) */
@@ -358,7 +356,7 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			CLR_RH_PORTSTAT(USBPORTSC_PEC);
 			OK(0);
 		case USB_PORT_FEAT_SUSPEND:
-			if (!(inw(port_addr) & USBPORTSC_SUSP)) {
+			if (!(uhci_readw(uhci, port_addr) & USBPORTSC_SUSP)) {
 
 				/* Make certain the port isn't suspended */
 				uhci_finish_suspend(uhci, port, port_addr);
@@ -370,7 +368,8 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				 * if the port is disabled.  When this happens
 				 * just skip the Resume signalling.
 				 */
-				if (!(inw(port_addr) & USBPORTSC_RD))
+				if (!(uhci_readw(uhci, port_addr) &
+						USBPORTSC_RD))
 					uhci_finish_suspend(uhci, port,
 							port_addr);
 				else

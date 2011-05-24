@@ -161,6 +161,17 @@ config IR_NUVOTON
 	   To compile this driver as a module, choose M here: the
 	   module will be called nuvoton-cir.
 
+config IR_REDRAT3
+	tristate "RedRat3 IR Transceiver"
+	depends on USB_ARCH_HAS_HCD
+	depends on RC_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a RedRat3 Infrared Transceiver.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called redrat3.
+
 config IR_STREAMZAP
 	tristate "Streamzap PC Remote IR Receiver"
 	depends on USB_ARCH_HAS_HCD

@@ -44,6 +44,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#include <linux/syscore_ops.h>
 
 #include <mach/pxa25x.h>
 #include <mach/audio.h>
@@ -130,20 +131,19 @@ static u8 viper_hw_version(void)
 	return v1;
 }
 
-/* CPU sysdev */
-static int viper_cpu_suspend(struct sys_device *sysdev, pm_message_t state)
+/* CPU system core operations. */
+static int viper_cpu_suspend(void)
 {
 	viper_icr_set_bit(VIPER_ICR_R_DIS);
 	return 0;
 }
 
-static int viper_cpu_resume(struct sys_device *sysdev)
+static void viper_cpu_resume(void)
 {
 	viper_icr_clear_bit(VIPER_ICR_R_DIS);
-	return 0;
 }
 
-static struct sysdev_driver viper_cpu_sysdev_driver = {
+static struct syscore_ops viper_cpu_syscore_ops = {
 	.suspend	= viper_cpu_suspend,
 	.resume		= viper_cpu_resume,
 };
@@ -945,7 +945,7 @@ static void __init viper_init(void)
 	viper_init_vcore_gpios();
 	viper_init_cpufreq();
 
-	sysdev_driver_register(&cpu_sysdev_class, &viper_cpu_sysdev_driver);
+	register_syscore_ops(&viper_cpu_syscore_ops);
 
 	if (version) {
 		pr_info("viper: hardware v%di%d detected. "

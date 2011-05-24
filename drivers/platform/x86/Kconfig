@@ -111,7 +111,7 @@ config DELL_WMI_AIO
 	  All-In-One machines.
 
 	  To compile this driver as a module, choose M here: the module will
-	  be called dell-wmi.
+	  be called dell-wmi-aio.
 
 
 config FUJITSU_LAPTOP
