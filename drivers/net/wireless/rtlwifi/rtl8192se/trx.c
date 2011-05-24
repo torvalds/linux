@@ -873,6 +873,7 @@ void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 		SET_TX_DESC_TX_BUFFER_SIZE(pdesc, (u16)(skb->len));
 		SET_TX_DESC_TX_BUFFER_ADDRESS(pdesc, cpu_to_le32(mapping));
 
+		wmb();
 		SET_TX_DESC_OWN(pdesc, 1);
 	} else { /* H2C Command Desc format (Host TXCMD) */
 		/* 92SE must set as 1 for firmware download HW DMA error */
@@ -891,6 +892,7 @@ void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 		SET_TX_DESC_TX_BUFFER_SIZE(pdesc, (u16)(skb->len));
 		SET_TX_DESC_TX_BUFFER_ADDRESS(pdesc, cpu_to_le32(mapping));
 
+		wmb();
 		SET_TX_DESC_OWN(pdesc, 1);
 
 	}
@@ -901,6 +903,7 @@ void rtl92se_set_desc(u8 *pdesc, bool istx, u8 desc_name, u8 *val)
 	if (istx == true) {
 		switch (desc_name) {
 		case HW_DESC_OWN:
+			wmb();
 			SET_TX_DESC_OWN(pdesc, 1);
 			break;
 		case HW_DESC_TX_NEXTDESC_ADDR:
@@ -914,6 +917,7 @@ void rtl92se_set_desc(u8 *pdesc, bool istx, u8 desc_name, u8 *val)
 	} else {
 		switch (desc_name) {
 		case HW_DESC_RXOWN:
+			wmb();
 			SET_RX_STATUS_DESC_OWN(pdesc, 1);
 			break;
 		case HW_DESC_RXBUFF_ADDR:
