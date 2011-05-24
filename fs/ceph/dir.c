@@ -827,9 +827,6 @@ static int ceph_unlink(struct inode *dir, struct dentry *dentry)
 	int err = -EROFS;
 	int op;
 
-	if ((dentry->d_inode->i_mode & S_IFMT) == S_IFDIR)
-		dentry_unhash(dentry);
-
 	if (ceph_snap(dir) == CEPH_SNAPDIR) {
 		/* rmdir .snap/foo is RMSNAP */
 		dout("rmsnap dir %p '%.*s' dn %p\n", dir, dentry->d_name.len,
@@ -868,9 +865,6 @@ static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
 	int err;
-
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	if (ceph_snap(old_dir) != ceph_snap(new_dir))
 		return -EXDEV;
