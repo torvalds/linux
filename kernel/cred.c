@@ -49,10 +49,10 @@ struct cred init_cred = {
 	.magic			= CRED_MAGIC,
 #endif
 	.securebits		= SECUREBITS_DEFAULT,
-	.cap_inheritable	= CAP_INIT_INH_SET,
+	.cap_inheritable	= CAP_EMPTY_SET,
 	.cap_permitted		= CAP_FULL_SET,
-	.cap_effective		= CAP_INIT_EFF_SET,
-	.cap_bset		= CAP_INIT_BSET,
+	.cap_effective		= CAP_FULL_SET,
+	.cap_bset		= CAP_FULL_SET,
 	.user			= INIT_USER,
 	.user_ns		= &init_user_ns,
 	.group_info		= &init_groups,

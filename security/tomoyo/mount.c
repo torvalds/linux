@@ -143,6 +143,7 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
 			goto out;
 		}
 		requested_dev_name = tomoyo_realpath_from_path(&path);
+		path_put(&path);
 		if (!requested_dev_name) {
 			error = -ENOENT;
 			goto out;
