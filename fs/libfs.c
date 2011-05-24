@@ -311,8 +311,6 @@ int simple_rmdir(struct inode *dir, struct dentry *dentry)
 	if (!simple_empty(dentry))
 		return -ENOTEMPTY;
 
-	dentry_unhash(dentry);
-
 	drop_nlink(dentry->d_inode);
 	simple_unlink(dir, dentry);
 	drop_nlink(dir);
@@ -324,9 +322,6 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 {
 	struct inode *inode = old_dentry->d_inode;
 	int they_are_dirs = S_ISDIR(old_dentry->d_inode->i_mode);
-
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	if (!simple_empty(new_dentry))
 		return -ENOTEMPTY;
