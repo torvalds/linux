@@ -1129,10 +1129,11 @@ print_circular_bug_header(struct lock_list *entry, unsigned int depth,
 	if (debug_locks_silent)
 		return 0;
 
-	printk("\n=======================================================\n");
-	printk(  "[ INFO: possible circular locking dependency detected ]\n");
+	printk("\n");
+	printk("======================================================\n");
+	printk("[ INFO: possible circular locking dependency detected ]\n");
 	print_kernel_version();
-	printk(  "-------------------------------------------------------\n");
+	printk("-------------------------------------------------------\n");
 	printk("%s/%d is trying to acquire lock:\n",
 		curr->comm, task_pid_nr(curr));
 	print_lock(check_src);
@@ -1463,11 +1464,12 @@ print_bad_irq_dependency(struct task_struct *curr,
 	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
 		return 0;
 
-	printk("\n======================================================\n");
-	printk(  "[ INFO: %s-safe -> %s-unsafe lock order detected ]\n",
+	printk("\n");
+	printk("======================================================\n");
+	printk("[ INFO: %s-safe -> %s-unsafe lock order detected ]\n",
 		irqclass, irqclass);
 	print_kernel_version();
-	printk(  "------------------------------------------------------\n");
+	printk("------------------------------------------------------\n");
 	printk("%s/%d [HC%u[%lu]:SC%u[%lu]:HE%u:SE%u] is trying to acquire:\n",
 		curr->comm, task_pid_nr(curr),
 		curr->hardirq_context, hardirq_count() >> HARDIRQ_SHIFT,
@@ -1692,10 +1694,11 @@ print_deadlock_bug(struct task_struct *curr, struct held_lock *prev,
 	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
 		return 0;
 
-	printk("\n=============================================\n");
-	printk(  "[ INFO: possible recursive locking detected ]\n");
+	printk("\n");
+	printk("=============================================\n");
+	printk("[ INFO: possible recursive locking detected ]\n");
 	print_kernel_version();
-	printk(  "---------------------------------------------\n");
+	printk("---------------------------------------------\n");
 	printk("%s/%d is trying to acquire lock:\n",
 		curr->comm, task_pid_nr(curr));
 	print_lock(next);
@@ -2177,10 +2180,11 @@ print_usage_bug(struct task_struct *curr, struct held_lock *this,
 	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
 		return 0;
 
-	printk("\n=================================\n");
-	printk(  "[ INFO: inconsistent lock state ]\n");
+	printk("\n");
+	printk("=================================\n");
+	printk("[ INFO: inconsistent lock state ]\n");
 	print_kernel_version();
-	printk(  "---------------------------------\n");
+	printk("---------------------------------\n");
 
 	printk("inconsistent {%s} -> {%s} usage.\n",
 		usage_str[prev_bit], usage_str[new_bit]);
@@ -2241,10 +2245,11 @@ print_irq_inversion_bug(struct task_struct *curr,
 	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
 		return 0;
 
-	printk("\n=========================================================\n");
-	printk(  "[ INFO: possible irq lock inversion dependency detected ]\n");
+	printk("\n");
+	printk("=========================================================\n");
+	printk("[ INFO: possible irq lock inversion dependency detected ]\n");
 	print_kernel_version();
-	printk(  "---------------------------------------------------------\n");
+	printk("---------------------------------------------------------\n");
 	printk("%s/%d just changed the state of lock:\n",
 		curr->comm, task_pid_nr(curr));
 	print_lock(this);
@@ -3065,9 +3070,10 @@ print_unlock_inbalance_bug(struct task_struct *curr, struct lockdep_map *lock,
 	if (debug_locks_silent)
 		return 0;
 
-	printk("\n=====================================\n");
-	printk(  "[ BUG: bad unlock balance detected! ]\n");
-	printk(  "-------------------------------------\n");
+	printk("\n");
+	printk("=====================================\n");
+	printk("[ BUG: bad unlock balance detected! ]\n");
+	printk("-------------------------------------\n");
 	printk("%s/%d is trying to release lock (",
 		curr->comm, task_pid_nr(curr));
 	print_lockdep_cache(lock);
@@ -3478,9 +3484,10 @@ print_lock_contention_bug(struct task_struct *curr, struct lockdep_map *lock,
 	if (debug_locks_silent)
 		return 0;
 
-	printk("\n=================================\n");
-	printk(  "[ BUG: bad contention detected! ]\n");
-	printk(  "---------------------------------\n");
+	printk("\n");
+	printk("=================================\n");
+	printk("[ BUG: bad contention detected! ]\n");
+	printk("---------------------------------\n");
 	printk("%s/%d is trying to contend lock (",
 		curr->comm, task_pid_nr(curr));
 	print_lockdep_cache(lock);
@@ -3839,9 +3846,10 @@ print_freed_lock_bug(struct task_struct *curr, const void *mem_from,
 	if (debug_locks_silent)
 		return;
 
-	printk("\n=========================\n");
-	printk(  "[ BUG: held lock freed! ]\n");
-	printk(  "-------------------------\n");
+	printk("\n");
+	printk("=========================\n");
+	printk("[ BUG: held lock freed! ]\n");
+	printk("-------------------------\n");
 	printk("%s/%d is freeing memory %p-%p, with a lock still held there!\n",
 		curr->comm, task_pid_nr(curr), mem_from, mem_to-1);
 	print_lock(hlock);
@@ -3895,9 +3903,10 @@ static void print_held_locks_bug(struct task_struct *curr)
 	if (debug_locks_silent)
 		return;
 
-	printk("\n=====================================\n");
-	printk(  "[ BUG: lock held at task exit time! ]\n");
-	printk(  "-------------------------------------\n");
+	printk("\n");
+	printk("=====================================\n");
+	printk("[ BUG: lock held at task exit time! ]\n");
+	printk("-------------------------------------\n");
 	printk("%s/%d is exiting with locks still held!\n",
 		curr->comm, task_pid_nr(curr));
 	lockdep_print_held_locks(curr);
@@ -3991,16 +4000,17 @@ void lockdep_sys_exit(void)
 	if (unlikely(curr->lockdep_depth)) {
 		if (!debug_locks_off())
 			return;
-		printk("\n================================================\n");
-		printk(  "[ BUG: lock held when returning to user space! ]\n");
-		printk(  "------------------------------------------------\n");
+		printk("\n");
+		printk("================================================\n");
+		printk("[ BUG: lock held when returning to user space! ]\n");
+		printk("------------------------------------------------\n");
 		printk("%s/%d is leaving the kernel with locks still held!\n",
 				curr->comm, curr->pid);
 		lockdep_print_held_locks(curr);
 	}
 }
 
-void lockdep_rcu_dereference(const char *file, const int line)
+void lockdep_rcu_suspicious(const char *file, const int line, const char *s)
 {
 	struct task_struct *curr = current;
 
@@ -4009,15 +4019,15 @@ void lockdep_rcu_dereference(const char *file, const int line)
 		return;
 #endif /* #ifdef CONFIG_PROVE_RCU_REPEATEDLY */
 	/* Note: the following can be executed concurrently, so be careful. */
-	printk("\n===================================================\n");
-	printk(  "[ INFO: suspicious rcu_dereference_check() usage. ]\n");
-	printk(  "---------------------------------------------------\n");
-	printk("%s:%d invoked rcu_dereference_check() without protection!\n",
-			file, line);
+	printk("\n");
+	printk("===============================\n");
+	printk("[ INFO: suspicious RCU usage. ]\n");
+	printk("-------------------------------\n");
+	printk("%s:%d %s!\n", file, line, s);
 	printk("\nother info that might help us debug this:\n\n");
 	printk("\nrcu_scheduler_active = %d, debug_locks = %d\n", rcu_scheduler_active, debug_locks);
 	lockdep_print_held_locks(curr);
 	printk("\nstack backtrace:\n");
 	dump_stack();
 }
-EXPORT_SYMBOL_GPL(lockdep_rcu_dereference);
+EXPORT_SYMBOL_GPL(lockdep_rcu_suspicious);
