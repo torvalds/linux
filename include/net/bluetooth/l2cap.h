@@ -303,6 +303,7 @@ struct l2cap_chan {
 	__u8		role_switch;
 	__u8		force_reliable;
 	__u8		flushable;
+	__u8		force_active;
 
 	__u8		ident;
 

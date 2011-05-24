@@ -390,6 +390,7 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 	struct sock *sk = sock->sk;
 	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	struct bt_security sec;
+	struct bt_power pwr;
 	int len, err = 0;
 
 	BT_DBG("sk %p", sk);
@@ -434,6 +435,21 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 
 	case BT_FLUSHABLE:
 		if (put_user(chan->flushable, (u32 __user *) optval))
+			err = -EFAULT;
+
+		break;
+
+	case BT_POWER:
+		if (sk->sk_type != SOCK_SEQPACKET && sk->sk_type != SOCK_STREAM
+				&& sk->sk_type != SOCK_RAW) {
+			err = -EINVAL;
+			break;
+		}
+
+		pwr.force_active = chan->force_active;
+
+		len = min_t(unsigned int, len, sizeof(pwr));
+		if (copy_to_user(optval, (char *) &pwr, len))
 			err = -EFAULT;
 
 		break;
@@ -538,6 +554,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 	struct sock *sk = sock->sk;
 	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	struct bt_security sec;
+	struct bt_power pwr;
 	int len, err = 0;
 	u32 opt;
 
@@ -612,6 +629,23 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 		}
 
 		chan->flushable = opt;
+		break;
+
+	case BT_POWER:
+		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED &&
+					chan->chan_type != L2CAP_CHAN_RAW) {
+			err = -EINVAL;
+			break;
+		}
+
+		pwr.force_active = BT_POWER_FORCE_ACTIVE_ON;
+
+		len = min_t(unsigned int, sizeof(pwr), optlen);
+		if (copy_from_user((char *) &pwr, optval, len)) {
+			err = -EFAULT;
+			break;
+		}
+		chan->force_active = pwr.force_active;
 		break;
 
 	default:
@@ -771,6 +805,7 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->role_switch = pchan->role_switch;
 		chan->force_reliable = pchan->force_reliable;
 		chan->flushable = pchan->flushable;
+		chan->force_active = pchan->force_active;
 	} else {
 
 		switch (sk->sk_type) {
@@ -801,6 +836,7 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->role_switch = 0;
 		chan->force_reliable = 0;
 		chan->flushable = BT_FLUSHABLE_OFF;
+		chan->force_active = BT_POWER_FORCE_ACTIVE_ON;
 	}
 
 	/* Default config options */
