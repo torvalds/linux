@@ -2900,24 +2900,6 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 		}
 	}
 
-	if (changed & BSS_CHANGED_IBSS) {
-		wl1271_debug(DEBUG_ADHOC, "ibss_joined: %d",
-			     bss_conf->ibss_joined);
-
-		if (bss_conf->ibss_joined) {
-			u32 rates = bss_conf->basic_rates;
-			wl->basic_rate_set = wl1271_tx_enabled_rates_get(wl,
-									 rates);
-			wl->basic_rate = wl1271_tx_min_rate_get(wl);
-
-			/* by default, use 11b rates */
-			wl->rate_set = CONF_TX_IBSS_DEFAULT_RATES;
-			ret = wl1271_acx_sta_rate_policies(wl);
-			if (ret < 0)
-				goto out;
-		}
-	}
-
 	ret = wl1271_bss_erp_info_changed(wl, bss_conf, changed);
 	if (ret < 0)
 		goto out;
@@ -3140,6 +3122,24 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 				wl1271_unjoin(wl);
 				wl1271_dummy_join(wl);
 			}
+		}
+	}
+
+	if (changed & BSS_CHANGED_IBSS) {
+		wl1271_debug(DEBUG_ADHOC, "ibss_joined: %d",
+			     bss_conf->ibss_joined);
+
+		if (bss_conf->ibss_joined) {
+			u32 rates = bss_conf->basic_rates;
+			wl->basic_rate_set = wl1271_tx_enabled_rates_get(wl,
+									 rates);
+			wl->basic_rate = wl1271_tx_min_rate_get(wl);
+
+			/* by default, use 11b rates */
+			wl->rate_set = CONF_TX_IBSS_DEFAULT_RATES;
+			ret = wl1271_acx_sta_rate_policies(wl);
+			if (ret < 0)
+				goto out;
 		}
 	}
 
