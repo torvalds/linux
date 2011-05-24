@@ -227,8 +227,6 @@ static int exofs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct inode *inode = dentry->d_inode;
 	int err = -ENOTEMPTY;
 
-	dentry_unhash(dentry);
-
 	if (exofs_empty_dir(inode)) {
 		err = exofs_unlink(dir, dentry);
 		if (!err) {
@@ -250,9 +248,6 @@ static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct page *old_page;
 	struct exofs_dir_entry *old_de;
 	int err = -ENOENT;
-
-	if (new_inode && S_ISDIR(new_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	old_de = exofs_find_entry(old_dir, old_dentry, &old_page);
 	if (!old_de)
