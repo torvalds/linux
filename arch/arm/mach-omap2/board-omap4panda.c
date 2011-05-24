@@ -34,13 +34,13 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 #include <plat/board.h>
 #include <plat/common.h>
 #include <plat/usb.h>
 #include <plat/mmc.h>
-#include <plat/panel-generic-dpi.h>
+#include <video/omap-panel-generic-dpi.h>
 #include "timer-gp.h"
 
 #include "hsmmc.h"

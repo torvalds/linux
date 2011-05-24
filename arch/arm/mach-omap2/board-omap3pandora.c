@@ -46,7 +46,7 @@
 #include <mach/hardware.h>
 #include <plat/mcspi.h>
 #include <plat/usb.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/nand.h>
 
 #include "mux.h"

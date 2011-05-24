@@ -23,25 +23,34 @@
 #define MAX_DSS_MANAGERS	3
 #define MAX_DSS_OVERLAYS	3
 #define MAX_DSS_LCD_MANAGERS	2
+#define MAX_NUM_DSI		2
 
 /* DSS has feature id */
 enum dss_feat_id {
-	FEAT_GLOBAL_ALPHA	= 1 << 0,
-	FEAT_GLOBAL_ALPHA_VID1	= 1 << 1,
-	FEAT_PRE_MULT_ALPHA	= 1 << 2,
-	FEAT_LCDENABLEPOL	= 1 << 3,
-	FEAT_LCDENABLESIGNAL	= 1 << 4,
-	FEAT_PCKFREEENABLE	= 1 << 5,
-	FEAT_FUNCGATED		= 1 << 6,
-	FEAT_MGR_LCD2		= 1 << 7,
-	FEAT_LINEBUFFERSPLIT	= 1 << 8,
-	FEAT_ROWREPEATENABLE	= 1 << 9,
-	FEAT_RESIZECONF		= 1 << 10,
+	FEAT_GLOBAL_ALPHA		= 1 << 0,
+	FEAT_GLOBAL_ALPHA_VID1		= 1 << 1,
+	FEAT_PRE_MULT_ALPHA		= 1 << 2,
+	FEAT_LCDENABLEPOL		= 1 << 3,
+	FEAT_LCDENABLESIGNAL		= 1 << 4,
+	FEAT_PCKFREEENABLE		= 1 << 5,
+	FEAT_FUNCGATED			= 1 << 6,
+	FEAT_MGR_LCD2			= 1 << 7,
+	FEAT_LINEBUFFERSPLIT		= 1 << 8,
+	FEAT_ROWREPEATENABLE		= 1 << 9,
+	FEAT_RESIZECONF			= 1 << 10,
 	/* Independent core clk divider */
-	FEAT_CORE_CLK_DIV	= 1 << 11,
-	FEAT_LCD_CLK_SRC	= 1 << 12,
+	FEAT_CORE_CLK_DIV		= 1 << 11,
+	FEAT_LCD_CLK_SRC		= 1 << 12,
 	/* DSI-PLL power command 0x3 is not working */
-	FEAT_DSI_PLL_PWR_BUG	= 1 << 13,
+	FEAT_DSI_PLL_PWR_BUG		= 1 << 13,
+	FEAT_DSI_PLL_FREQSEL		= 1 << 14,
+	FEAT_DSI_DCS_CMD_CONFIG_VC	= 1 << 15,
+	FEAT_DSI_VC_OCP_WIDTH		= 1 << 16,
+	FEAT_DSI_REVERSE_TXCLKESC	= 1 << 17,
+	FEAT_DSI_GNQ			= 1 << 18,
+	FEAT_HDMI_CTS_SWMODE		= 1 << 19,
+	FEAT_HANDLE_UV_SEPARATE         = 1 << 20,
+	FEAT_ATTR2                      = 1 << 21,
 };
 
 /* DSS register field id */
@@ -79,7 +88,7 @@ enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel
 enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane);
 bool dss_feat_color_mode_supported(enum omap_plane plane,
 		enum omap_color_mode color_mode);
-const char *dss_feat_get_clk_source_name(enum dss_clk_source id);
+const char *dss_feat_get_clk_source_name(enum omap_dss_clk_source id);
 
 bool dss_has_feature(enum dss_feat_id id);
 void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end);
