@@ -210,7 +210,6 @@ static inline void print_ipv4_addr(struct audit_buffer *ab, __be32 addr,
 static void dump_common_audit_data(struct audit_buffer *ab,
 				   struct common_audit_data *a)
 {
-	struct inode *inode = NULL;
 	struct task_struct *tsk = current;
 
 	if (a->tsk)
@@ -229,33 +228,47 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	case LSM_AUDIT_DATA_CAP:
 		audit_log_format(ab, " capability=%d ", a->u.cap);
 		break;
-	case LSM_AUDIT_DATA_FS:
-		if (a->u.fs.path.dentry) {
-			struct dentry *dentry = a->u.fs.path.dentry;
-			if (a->u.fs.path.mnt) {
-				audit_log_d_path(ab, "path=", &a->u.fs.path);
-			} else {
-				audit_log_format(ab, " name=");
-				audit_log_untrustedstring(ab,
-						 dentry->d_name.name);
-			}
-			inode = dentry->d_inode;
-		} else if (a->u.fs.inode) {
-			struct dentry *dentry;
-			inode = a->u.fs.inode;
-			dentry = d_find_alias(inode);
-			if (dentry) {
-				audit_log_format(ab, " name=");
-				audit_log_untrustedstring(ab,
-						 dentry->d_name.name);
-				dput(dentry);
-			}
-		}
+	case LSM_AUDIT_DATA_PATH: {
+		struct inode *inode;
+
+		audit_log_d_path(ab, "path=", &a->u.path);
+
+		inode = a->u.path.dentry->d_inode;
 		if (inode)
 			audit_log_format(ab, " dev=%s ino=%lu",
 					inode->i_sb->s_id,
 					inode->i_ino);
 		break;
+	}
+	case LSM_AUDIT_DATA_DENTRY: {
+		struct inode *inode;
+
+		audit_log_format(ab, " name=");
+		audit_log_untrustedstring(ab, a->u.dentry->d_name.name);
+
+		inode = a->u.dentry->d_inode;
+		if (inode)
+			audit_log_format(ab, " dev=%s ino=%lu",
+					inode->i_sb->s_id,
+					inode->i_ino);
+		break;
+	}
+	case LSM_AUDIT_DATA_INODE: {
+		struct dentry *dentry;
+		struct inode *inode;
+
+		inode = a->u.inode;
+		dentry = d_find_alias(inode);
+		if (dentry) {
+			audit_log_format(ab, " name=");
+			audit_log_untrustedstring(ab,
+					 dentry->d_name.name);
+			dput(dentry);
+		}
+		audit_log_format(ab, " dev=%s ino=%lu", inode->i_sb->s_id,
+				 inode->i_ino);
+		break;
+	}
 	case LSM_AUDIT_DATA_TASK:
 		tsk = a->u.tsk;
 		if (tsk && tsk->pid) {
