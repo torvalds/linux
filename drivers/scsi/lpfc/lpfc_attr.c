@@ -755,6 +755,61 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 }
 
 /**
+ * lpfc_sli4_fw_dump_request - Request firmware to perform a firmware dump
+ * @phba: lpfc_hba pointer.
+ *
+ * Description:
+ * Request SLI4 interface type-2 device to perform a dump of firmware dump
+ * object into it's /dbg directory of the flash file system.
+ *
+ * Returns:
+ * zero for success
+ **/
+static ssize_t
+lpfc_sli4_fw_dump_request(struct lpfc_hba *phba)
+{
+	struct completion online_compl;
+	uint32_t reg_val;
+	int status = 0;
+	int rc;
+
+	if (!phba->cfg_enable_hba_reset)
+		return -EIO;
+
+	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
+
+	if (status != 0)
+		return status;
+
+	/* wait for the device to be quiesced before firmware reset */
+	msleep(100);
+
+	reg_val = readl(phba->sli4_hba.conf_regs_memmap_p +
+			LPFC_CTL_PDEV_CTL_OFFSET);
+	reg_val |= LPFC_FW_DUMP_REQUEST;
+	writel(reg_val, phba->sli4_hba.conf_regs_memmap_p +
+	       LPFC_CTL_PDEV_CTL_OFFSET);
+	/* flush */
+	readl(phba->sli4_hba.conf_regs_memmap_p + LPFC_CTL_PDEV_CTL_OFFSET);
+
+	/* delay driver action following IF_TYPE_2 reset */
+	msleep(100);
+
+	init_completion(&online_compl);
+	rc = lpfc_workq_post_event(phba, &status, &online_compl,
+				   LPFC_EVT_ONLINE);
+	if (rc == 0)
+		return -ENOMEM;
+
+	wait_for_completion(&online_compl);
+
+	if (status != 0)
+		return -EIO;
+
+	return 0;
+}
+
+/**
  * lpfc_nport_evt_cnt_show - Return the number of nport events
  * @dev: class device that is converted into a Scsi_host.
  * @attr: device attribute, not used.
@@ -848,6 +903,13 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 			return -EINVAL;
 		else
 			status = lpfc_do_offline(phba, LPFC_EVT_KILL);
+	else if (strncmp(buf, "dump", sizeof("dump") - 1) == 0)
+		if ((phba->sli_rev < LPFC_SLI_REV4) ||
+		    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+		     LPFC_SLI_INTF_IF_TYPE_2))
+			return -EPERM;
+		else
+			status = lpfc_sli4_fw_dump_request(phba);
 	else
 		return -EINVAL;
 
@@ -3961,7 +4023,7 @@ static struct bin_attribute sysfs_mbox_attr = {
 		.name = "mbox",
 		.mode = S_IRUSR | S_IWUSR,
 	},
-	.size = MAILBOX_CMD_SIZE,
+	.size = MAILBOX_SYSFS_MAX,
 	.read = sysfs_mbox_read,
 	.write = sysfs_mbox_write,
 };

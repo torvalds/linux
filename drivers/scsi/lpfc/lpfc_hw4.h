@@ -170,6 +170,25 @@ struct lpfc_sli_intf {
 #define LPFC_PCI_FUNC3		3
 #define LPFC_PCI_FUNC4		4
 
+/* SLI4 interface type-2 control register offsets */
+#define LPFC_CTL_PORT_SEM_OFFSET	0x400
+#define LPFC_CTL_PORT_STA_OFFSET	0x404
+#define LPFC_CTL_PORT_CTL_OFFSET	0x408
+#define LPFC_CTL_PORT_ER1_OFFSET	0x40C
+#define LPFC_CTL_PORT_ER2_OFFSET	0x410
+#define LPFC_CTL_PDEV_CTL_OFFSET	0x414
+
+/* Some SLI4 interface type-2 PDEV_CTL register bits */
+#define LPFC_CTL_PDEV_CTL_DRST		0x00000001
+#define LPFC_CTL_PDEV_CTL_FRST		0x00000002
+#define LPFC_CTL_PDEV_CTL_DD		0x00000004
+#define LPFC_CTL_PDEV_CTL_LC		0x00000008
+#define LPFC_CTL_PDEV_CTL_FRL_ALL	0x00
+#define LPFC_CTL_PDEV_CTL_FRL_FC_FCOE	0x10
+#define LPFC_CTL_PDEV_CTL_FRL_NIC	0x20
+
+#define LPFC_FW_DUMP_REQUEST    (LPFC_CTL_PDEV_CTL_DD | LPFC_CTL_PDEV_CTL_FRST)
+
 /* Active interrupt test count */
 #define LPFC_ACT_INTR_CNT	4
 
