@@ -244,6 +244,14 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	 */
 	size += NVM_WORD_SIZE_BASE_SHIFT;
 
+	/*
+	 * Check for invalid size
+	 */
+	if ((hw->mac.type == e1000_82576) && (size > 15)) {
+		printk("igb: The NVM size is not valid, "
+			"defaulting to 32K.\n");
+		size = 15;
+	}
 	nvm->word_size = 1 << size;
 	if (nvm->word_size == (1 << 15))
 		nvm->page_size = 128;
@@ -1877,7 +1885,7 @@ static s32 igb_validate_nvm_checksum_82580(struct e1000_hw *hw)
 	}
 
 	if (nvm_data & NVM_COMPATIBILITY_BIT_MASK) {
-		/* if chekcsums compatibility bit is set validate checksums
+		/* if checksums compatibility bit is set validate checksums
 		 * for all 4 ports. */
 		eeprom_regions_count = 4;
 	}
@@ -1988,6 +1996,7 @@ static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw)
 out:
 	return ret_val;
 }
+
 /**
  *  igb_set_eee_i350 - Enable/disable EEE support
  *  @hw: pointer to the HW structure

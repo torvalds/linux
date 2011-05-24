@@ -178,16 +178,18 @@ static int btrfs_xattr_acl_set(struct dentry *dentry, const char *name,
 
 	if (value) {
 		acl = posix_acl_from_xattr(value, size);
-		if (acl == NULL) {
-			value = NULL;
-			size = 0;
-		} else if (IS_ERR(acl)) {
+		if (IS_ERR(acl))
 			return PTR_ERR(acl);
+
+		if (acl) {
+			ret = posix_acl_valid(acl);
+			if (ret)
+				goto out;
 		}
 	}
 
 	ret = btrfs_set_acl(NULL, dentry->d_inode, acl, type);
-
+out:
 	posix_acl_release(acl);
 
 	return ret;

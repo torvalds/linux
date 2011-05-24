@@ -883,7 +883,7 @@ static void carl9170_op_configure_filter(struct ieee80211_hw *hw,
 	 * then checking the error flags, later.
 	 */
 
-	if (changed_flags & FIF_ALLMULTI && *new_flags & FIF_ALLMULTI)
+	if (*new_flags & FIF_ALLMULTI)
 		multicast = ~0ULL;
 
 	if (multicast != ar->cur_mc_hash)
@@ -1193,6 +1193,8 @@ static int carl9170_op_sta_add(struct ieee80211_hw *hw,
 	struct carl9170_sta_info *sta_info = (void *) sta->drv_priv;
 	unsigned int i;
 
+	atomic_set(&sta_info->pending_frames, 0);
+
 	if (sta->ht_cap.ht_supported) {
 		if (sta->ht_cap.ampdu_density > 6) {
 			/*
@@ -1467,99 +1469,17 @@ static void carl9170_op_sta_notify(struct ieee80211_hw *hw,
 				   enum sta_notify_cmd cmd,
 				   struct ieee80211_sta *sta)
 {
-	struct ar9170 *ar = hw->priv;
 	struct carl9170_sta_info *sta_info = (void *) sta->drv_priv;
-	struct sk_buff *skb, *tmp;
-	struct sk_buff_head free;
-	int i;
 
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
-		/*
-		 * Since the peer is no longer listening, we have to return
-		 * as many SKBs as possible back to the mac80211 stack.
-		 * It will deal with the retry procedure, once the peer
-		 * has become available again.
-		 *
-		 * NB: Ideally, the driver should return the all frames in
-		 * the correct, ascending order. However, I think that this
-		 * functionality should be implemented in the stack and not
-		 * here...
-		 */
-
-		__skb_queue_head_init(&free);
-
-		if (sta->ht_cap.ht_supported) {
-			rcu_read_lock();
-			for (i = 0; i < CARL9170_NUM_TID; i++) {
-				struct carl9170_sta_tid *tid_info;
-
-				tid_info = rcu_dereference(sta_info->agg[i]);
-
-				if (!tid_info)
-					continue;
-
-				spin_lock_bh(&ar->tx_ampdu_list_lock);
-				if (tid_info->state >
-				    CARL9170_TID_STATE_SUSPEND)
-					tid_info->state =
-						CARL9170_TID_STATE_SUSPEND;
-				spin_unlock_bh(&ar->tx_ampdu_list_lock);
-
-				spin_lock_bh(&tid_info->lock);
-				while ((skb = __skb_dequeue(&tid_info->queue)))
-					__skb_queue_tail(&free, skb);
-				spin_unlock_bh(&tid_info->lock);
-			}
-			rcu_read_unlock();
-		}
-
-		for (i = 0; i < ar->hw->queues; i++) {
-			spin_lock_bh(&ar->tx_pending[i].lock);
-			skb_queue_walk_safe(&ar->tx_pending[i], skb, tmp) {
-				struct _carl9170_tx_superframe *super;
-				struct ieee80211_hdr *hdr;
-				struct ieee80211_tx_info *info;
-
-				super = (void *) skb->data;
-				hdr = (void *) super->frame_data;
-
-				if (compare_ether_addr(hdr->addr1, sta->addr))
-					continue;
-
-				__skb_unlink(skb, &ar->tx_pending[i]);
-
-				info = IEEE80211_SKB_CB(skb);
-				if (info->flags & IEEE80211_TX_CTL_AMPDU)
-					atomic_dec(&ar->tx_ampdu_upload);
-
-				carl9170_tx_status(ar, skb, false);
-			}
-			spin_unlock_bh(&ar->tx_pending[i].lock);
-		}
-
-		while ((skb = __skb_dequeue(&free)))
-			carl9170_tx_status(ar, skb, false);
-
+		sta_info->sleeping = true;
+		if (atomic_read(&sta_info->pending_frames))
+			ieee80211_sta_block_awake(hw, sta, true);
 		break;
 
 	case STA_NOTIFY_AWAKE:
-		if (!sta->ht_cap.ht_supported)
-			return;
-
-		rcu_read_lock();
-		for (i = 0; i < CARL9170_NUM_TID; i++) {
-			struct carl9170_sta_tid *tid_info;
-
-			tid_info = rcu_dereference(sta_info->agg[i]);
-
-			if (!tid_info)
-				continue;
-
-			if ((tid_info->state == CARL9170_TID_STATE_SUSPEND))
-				tid_info->state = CARL9170_TID_STATE_IDLE;
-		}
-		rcu_read_unlock();
+		sta_info->sleeping = false;
 		break;
 	}
 }

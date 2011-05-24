@@ -8,39 +8,6 @@
 
 #include "hpfs_fn.h"
 
-static const char *text_postfix[]={
-".ASM", ".BAS", ".BAT", ".C", ".CC", ".CFG", ".CMD", ".CON", ".CPP", ".DEF",
-".DOC", ".DPR", ".ERX", ".H", ".HPP", ".HTM", ".HTML", ".JAVA", ".LOG", ".PAS",
-".RC", ".TEX", ".TXT", ".Y", ""};
-
-static const char *text_prefix[]={
-"AUTOEXEC.", "CHANGES", "COPYING", "CONFIG.", "CREDITS", "FAQ", "FILE_ID.DIZ",
-"MAKEFILE", "READ.ME", "README", "TERMCAP", ""};
-
-void hpfs_decide_conv(struct inode *inode, const unsigned char *name, unsigned len)
-{
-	struct hpfs_inode_info *hpfs_inode = hpfs_i(inode);
-	int i;
-	if (hpfs_inode->i_conv != CONV_AUTO) return;
-	for (i = 0; *text_postfix[i]; i++) {
-		int l = strlen(text_postfix[i]);
-		if (l <= len)
-			if (!hpfs_compare_names(inode->i_sb, text_postfix[i], l, name + len - l, l, 0))
-				goto text;
-	}
-	for (i = 0; *text_prefix[i]; i++) {
-		int l = strlen(text_prefix[i]);
-		if (l <= len)
-			if (!hpfs_compare_names(inode->i_sb, text_prefix[i], l, name, l, 0))
-				goto text;
-	}
-	hpfs_inode->i_conv = CONV_BINARY;
-	return;
-	text:
-	hpfs_inode->i_conv = CONV_TEXT;
-	return;
-}
-
 static inline int not_allowed_char(unsigned char c)
 {
 	return c<' ' || c=='"' || c=='*' || c=='/' || c==':' || c=='<' ||

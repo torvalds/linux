@@ -397,9 +397,9 @@
 #define GETU32(var)  (*((__u32 *)var))	/* BB check for endian issues */
 
 struct smb_hdr {
-	__u32 smb_buf_length;	/* big endian on wire *//* BB length is only two
-		or three bytes - with one or two byte type preceding it that are
-		zero - we could mask the type byte off just in case BB */
+	__be32 smb_buf_length;	/* BB length is only two (rarely three) bytes,
+		with one or two byte "type" preceding it that will be
+		zero - we could mask the type byte off */
 	__u8 Protocol[4];
 	__u8 Command;
 	union {
@@ -428,43 +428,28 @@ struct smb_hdr {
 	__u8 WordCount;
 } __attribute__((packed));
 
-/* given a pointer to an smb_hdr retrieve a char pointer to the byte count */
-#define BCC(smb_var) ((unsigned char *)(smb_var) + sizeof(struct smb_hdr) + \
-			 (2 * (smb_var)->WordCount))
+/* given a pointer to an smb_hdr, retrieve a void pointer to the ByteCount */
+static inline void *
+BCC(struct smb_hdr *smb)
+{
+	return (void *)smb + sizeof(*smb) + 2 * smb->WordCount;
+}
 
 /* given a pointer to an smb_hdr retrieve the pointer to the byte area */
 #define pByteArea(smb_var) (BCC(smb_var) + 2)
 
-/* get the converted ByteCount for a SMB packet and return it */
-static inline __u16
-get_bcc(struct smb_hdr *hdr)
-{
-	__u16 *bc_ptr = (__u16 *)BCC(hdr);
-
-	return get_unaligned(bc_ptr);
-}
-
 /* get the unconverted ByteCount for a SMB packet and return it */
 static inline __u16
-get_bcc_le(struct smb_hdr *hdr)
+get_bcc(struct smb_hdr *hdr)
 {
 	__le16 *bc_ptr = (__le16 *)BCC(hdr);
 
 	return get_unaligned_le16(bc_ptr);
 }
 
-/* set the ByteCount for a SMB packet in host-byte order */
-static inline void
-put_bcc(__u16 count, struct smb_hdr *hdr)
-{
-	__u16 *bc_ptr = (__u16 *)BCC(hdr);
-
-	put_unaligned(count, bc_ptr);
-}
-
 /* set the ByteCount for a SMB packet in little-endian */
 static inline void
-put_bcc_le(__u16 count, struct smb_hdr *hdr)
+put_bcc(__u16 count, struct smb_hdr *hdr)
 {
 	__le16 *bc_ptr = (__le16 *)BCC(hdr);
 

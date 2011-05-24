@@ -228,7 +228,7 @@ static int mt9v022_set_bus_param(struct soc_camera_device *icd,
 
 	flags = soc_camera_apply_sensor_flags(icl, flags);
 
-	if (flags & SOCAM_PCLK_SAMPLE_RISING)
+	if (flags & SOCAM_PCLK_SAMPLE_FALLING)
 		pixclk |= 0x10;
 
 	if (!(flags & SOCAM_HSYNC_ACTIVE_HIGH))

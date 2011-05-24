@@ -22,6 +22,7 @@
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include <linux/regset.h>
+#include <linux/hw_breakpoint.h>
 
 
 /*
@@ -37,35 +38,33 @@ void __ptrace_link(struct task_struct *child, struct task_struct *new_parent)
 	child->parent = new_parent;
 }
 
-/*
- * Turn a tracing stop into a normal stop now, since with no tracer there
- * would be no way to wake it up with SIGCONT or SIGKILL.  If there was a
- * signal sent that would resume the child, but didn't because it was in
- * TASK_TRACED, resume it now.
- * Requires that irqs be disabled.
- */
-static void ptrace_untrace(struct task_struct *child)
-{
-	spin_lock(&child->sighand->siglock);
-	if (task_is_traced(child)) {
-		/*
-		 * If the group stop is completed or in progress,
-		 * this thread was already counted as stopped.
-		 */
-		if (child->signal->flags & SIGNAL_STOP_STOPPED ||
-		    child->signal->group_stop_count)
-			__set_task_state(child, TASK_STOPPED);
-		else
-			signal_wake_up(child, 1);
-	}
-	spin_unlock(&child->sighand->siglock);
-}
-
-/*
- * unptrace a task: move it back to its original parent and
- * remove it from the ptrace list.
+/**
+ * __ptrace_unlink - unlink ptracee and restore its execution state
+ * @child: ptracee to be unlinked
  *
- * Must be called with the tasklist lock write-held.
+ * Remove @child from the ptrace list, move it back to the original parent,
+ * and restore the execution state so that it conforms to the group stop
+ * state.
+ *
+ * Unlinking can happen via two paths - explicit PTRACE_DETACH or ptracer
+ * exiting.  For PTRACE_DETACH, unless the ptracee has been killed between
+ * ptrace_check_attach() and here, it's guaranteed to be in TASK_TRACED.
+ * If the ptracer is exiting, the ptracee can be in any state.
+ *
+ * After detach, the ptracee should be in a state which conforms to the
+ * group stop.  If the group is stopped or in the process of stopping, the
+ * ptracee should be put into TASK_STOPPED; otherwise, it should be woken
+ * up from TASK_TRACED.
+ *
+ * If the ptracee is in TASK_TRACED and needs to be moved to TASK_STOPPED,
+ * it goes through TRACED -> RUNNING -> STOPPED transition which is similar
+ * to but in the opposite direction of what happens while attaching to a
+ * stopped task.  However, in this direction, the intermediate RUNNING
+ * state is not hidden even from the current ptracer and if it immediately
+ * re-attaches and performs a WNOHANG wait(2), it may fail.
+ *
+ * CONTEXT:
+ * write_lock_irq(tasklist_lock)
  */
 void __ptrace_unlink(struct task_struct *child)
 {
@@ -75,8 +74,27 @@ void __ptrace_unlink(struct task_struct *child)
 	child->parent = child->real_parent;
 	list_del_init(&child->ptrace_entry);
 
-	if (task_is_traced(child))
-		ptrace_untrace(child);
+	spin_lock(&child->sighand->siglock);
+
+	/*
+	 * Reinstate GROUP_STOP_PENDING if group stop is in effect and
+	 * @child isn't dead.
+	 */
+	if (!(child->flags & PF_EXITING) &&
+	    (child->signal->flags & SIGNAL_STOP_STOPPED ||
+	     child->signal->group_stop_count))
+		child->group_stop |= GROUP_STOP_PENDING;
+
+	/*
+	 * If transition to TASK_STOPPED is pending or in TASK_TRACED, kick
+	 * @child in the butt.  Note that @resume should be used iff @child
+	 * is in TASK_TRACED; otherwise, we might unduly disrupt
+	 * TASK_KILLABLE sleeps.
+	 */
+	if (child->group_stop & GROUP_STOP_PENDING || task_is_traced(child))
+		signal_wake_up(child, task_is_traced(child));
+
+	spin_unlock(&child->sighand->siglock);
 }
 
 /*
@@ -95,16 +113,14 @@ int ptrace_check_attach(struct task_struct *child, int kill)
 	 */
 	read_lock(&tasklist_lock);
 	if ((child->ptrace & PT_PTRACED) && child->parent == current) {
-		ret = 0;
 		/*
 		 * child->sighand can't be NULL, release_task()
 		 * does ptrace_unlink() before __exit_signal().
 		 */
 		spin_lock_irq(&child->sighand->siglock);
-		if (task_is_stopped(child))
-			child->state = TASK_TRACED;
-		else if (!task_is_traced(child) && !kill)
-			ret = -ESRCH;
+		WARN_ON_ONCE(task_is_stopped(child));
+		if (task_is_traced(child) || kill)
+			ret = 0;
 		spin_unlock_irq(&child->sighand->siglock);
 	}
 	read_unlock(&tasklist_lock);
@@ -168,6 +184,7 @@ bool ptrace_may_access(struct task_struct *task, unsigned int mode)
 
 static int ptrace_attach(struct task_struct *task)
 {
+	bool wait_trap = false;
 	int retval;
 
 	audit_ptrace(task);
@@ -207,12 +224,42 @@ static int ptrace_attach(struct task_struct *task)
 	__ptrace_link(task, current);
 	send_sig_info(SIGSTOP, SEND_SIG_FORCED, task);
 
+	spin_lock(&task->sighand->siglock);
+
+	/*
+	 * If the task is already STOPPED, set GROUP_STOP_PENDING and
+	 * TRAPPING, and kick it so that it transits to TRACED.  TRAPPING
+	 * will be cleared if the child completes the transition or any
+	 * event which clears the group stop states happens.  We'll wait
+	 * for the transition to complete before returning from this
+	 * function.
+	 *
+	 * This hides STOPPED -> RUNNING -> TRACED transition from the
+	 * attaching thread but a different thread in the same group can
+	 * still observe the transient RUNNING state.  IOW, if another
+	 * thread's WNOHANG wait(2) on the stopped tracee races against
+	 * ATTACH, the wait(2) may fail due to the transient RUNNING.
+	 *
+	 * The following task_is_stopped() test is safe as both transitions
+	 * in and out of STOPPED are protected by siglock.
+	 */
+	if (task_is_stopped(task)) {
+		task->group_stop |= GROUP_STOP_PENDING | GROUP_STOP_TRAPPING;
+		signal_wake_up(task, 1);
+		wait_trap = true;
+	}
+
+	spin_unlock(&task->sighand->siglock);
+
 	retval = 0;
 unlock_tasklist:
 	write_unlock_irq(&tasklist_lock);
 unlock_creds:
 	mutex_unlock(&task->signal->cred_guard_mutex);
 out:
+	if (wait_trap)
+		wait_event(current->signal->wait_chldexit,
+			   !(task->group_stop & GROUP_STOP_TRAPPING));
 	return retval;
 }
 
@@ -315,8 +362,6 @@ static int ptrace_detach(struct task_struct *child, unsigned int data)
 	if (child->ptrace) {
 		child->exit_code = data;
 		dead = __ptrace_detach(current, child);
-		if (!child->exit_state)
-			wake_up_state(child, TASK_TRACED | TASK_STOPPED);
 	}
 	write_unlock_irq(&tasklist_lock);
 
@@ -879,3 +924,19 @@ asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
 	return ret;
 }
 #endif	/* CONFIG_COMPAT */
+
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+int ptrace_get_breakpoints(struct task_struct *tsk)
+{
+	if (atomic_inc_not_zero(&tsk->ptrace_bp_refcnt))
+		return 0;
+
+	return -1;
+}
+
+void ptrace_put_breakpoints(struct task_struct *tsk)
+{
+	if (atomic_dec_and_test(&tsk->ptrace_bp_refcnt))
+		flush_ptrace_hw_breakpoint(tsk);
+}
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */

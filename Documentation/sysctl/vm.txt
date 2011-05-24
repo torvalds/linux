@@ -481,10 +481,10 @@ the DMA zone.
 Type(A) is called as "Node" order. Type (B) is "Zone" order.
 
 "Node order" orders the zonelists by node, then by zone within each node.
-Specify "[Nn]ode" for zone order
+Specify "[Nn]ode" for node order
 
 "Zone Order" orders the zonelists by zone type, then by node within each
-zone.  Specify "[Zz]one"for zode order.
+zone.  Specify "[Zz]one" for zone order.
 
 Specify "[Dd]efault" to request automatic configuration.  Autoconfiguration
 will select "node" order in following case.

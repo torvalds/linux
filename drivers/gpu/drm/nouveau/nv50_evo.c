@@ -186,6 +186,7 @@ nv50_evo_channel_init(struct nouveau_channel *evo)
 	nv_mask(dev, 0x610028, 0x00000000, 0x00010001 << id);
 
 	evo->dma.max = (4096/4) - 2;
+	evo->dma.max &= ~7;
 	evo->dma.put = 0;
 	evo->dma.cur = evo->dma.put;
 	evo->dma.free = evo->dma.max - evo->dma.cur;

@@ -557,27 +557,27 @@ static struct kobj_attribute ts78xx_fpga_attr =
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
-static struct orion5x_mpp_mode ts78xx_mpp_modes[] __initdata = {
-	{  0, MPP_UNUSED },
-	{  1, MPP_GPIO },		/* JTAG Clock */
-	{  2, MPP_GPIO },		/* JTAG Data In */
-	{  3, MPP_GPIO },		/* Lat ECP2 256 FPGA - PB2B */
-	{  4, MPP_GPIO },		/* JTAG Data Out */
-	{  5, MPP_GPIO },		/* JTAG TMS */
-	{  6, MPP_GPIO },		/* Lat ECP2 256 FPGA - PB31A_CLK4+ */
-	{  7, MPP_GPIO },		/* Lat ECP2 256 FPGA - PB22B */
-	{  8, MPP_UNUSED },
-	{  9, MPP_UNUSED },
-	{ 10, MPP_UNUSED },
-	{ 11, MPP_UNUSED },
-	{ 12, MPP_UNUSED },
-	{ 13, MPP_UNUSED },
-	{ 14, MPP_UNUSED },
-	{ 15, MPP_UNUSED },
-	{ 16, MPP_UART },
-	{ 17, MPP_UART },
-	{ 18, MPP_UART },
-	{ 19, MPP_UART },
+static unsigned int ts78xx_mpp_modes[] __initdata = {
+	MPP0_UNUSED,
+	MPP1_GPIO,		/* JTAG Clock */
+	MPP2_GPIO,		/* JTAG Data In */
+	MPP3_GPIO,		/* Lat ECP2 256 FPGA - PB2B */
+	MPP4_GPIO,		/* JTAG Data Out */
+	MPP5_GPIO,		/* JTAG TMS */
+	MPP6_GPIO,		/* Lat ECP2 256 FPGA - PB31A_CLK4+ */
+	MPP7_GPIO,		/* Lat ECP2 256 FPGA - PB22B */
+	MPP8_UNUSED,
+	MPP9_UNUSED,
+	MPP10_UNUSED,
+	MPP11_UNUSED,
+	MPP12_UNUSED,
+	MPP13_UNUSED,
+	MPP14_UNUSED,
+	MPP15_UNUSED,
+	MPP16_UART,
+	MPP17_UART,
+	MPP18_UART,
+	MPP19_UART,
 	/*
 	 * MPP[20] PCI Clock Out 1
 	 * MPP[21] PCI Clock Out 0
@@ -586,7 +586,7 @@ static struct orion5x_mpp_mode ts78xx_mpp_modes[] __initdata = {
 	 * MPP[24] Unused
 	 * MPP[25] Unused
 	 */
-	{ -1 },
+	0,
 };
 
 static void __init ts78xx_init(void)

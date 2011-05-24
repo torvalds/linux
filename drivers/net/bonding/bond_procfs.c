@@ -4,8 +4,6 @@
 #include "bonding.h"
 
 
-extern const char *bond_mode_name(int mode);
-
 static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(RCU)
 	__acquires(&bond->lock)

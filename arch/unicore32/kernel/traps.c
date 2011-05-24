@@ -192,7 +192,6 @@ static int __die(const char *str, int err, struct thread_info *thread,
 
 	printk(KERN_EMERG "Internal error: %s: %x [#%d]\n",
 	       str, err, ++die_counter);
-	sysfs_printk_last_file();
 
 	/* trap and error numbers are mostly meaningless on UniCore */
 	ret = notify_die(DIE_OOPS, str, regs, err, tsk->thread.trap_no, \

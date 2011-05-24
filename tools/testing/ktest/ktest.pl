@@ -36,6 +36,7 @@ $default{"REBOOT_ON_SUCCESS"}	= 1;
 $default{"POWEROFF_ON_SUCCESS"}	= 0;
 $default{"BUILD_OPTIONS"}	= "";
 $default{"BISECT_SLEEP_TIME"}	= 60;   # sleep time between bisects
+$default{"PATCHCHECK_SLEEP_TIME"} = 60; # sleep time between patch checks
 $default{"CLEAR_LOG"}		= 0;
 $default{"BISECT_MANUAL"}	= 0;
 $default{"BISECT_SKIP"}		= 1;
@@ -96,6 +97,7 @@ my $monitor_pid;
 my $monitor_cnt = 0;
 my $sleep_time;
 my $bisect_sleep_time;
+my $patchcheck_sleep_time;
 my $store_failures;
 my $timeout;
 my $booted_timeout;
@@ -112,6 +114,7 @@ my $successes = 0;
 
 my %entered_configs;
 my %config_help;
+my %variable;
 
 $config_help{"MACHINE"} = << "EOF"
  The machine hostname that you will test.
@@ -260,6 +263,39 @@ sub get_ktest_configs {
     }
 }
 
+sub process_variables {
+    my ($value) = @_;
+    my $retval = "";
+
+    # We want to check for '\', and it is just easier
+    # to check the previous characet of '$' and not need
+    # to worry if '$' is the first character. By adding
+    # a space to $value, we can just check [^\\]\$ and
+    # it will still work.
+    $value = " $value";
+
+    while ($value =~ /(.*?[^\\])\$\{(.*?)\}(.*)/) {
+	my $begin = $1;
+	my $var = $2;
+	my $end = $3;
+	# append beginning of value to retval
+	$retval = "$retval$begin";
+	if (defined($variable{$var})) {
+	    $retval = "$retval$variable{$var}";
+	} else {
+	    # put back the origin piece.
+	    $retval = "$retval\$\{$var\}";
+	}
+	$value = $end;
+    }
+    $retval = "$retval$value";
+
+    # remove the space added in the beginning
+    $retval =~ s/ //;
+
+    return "$retval"
+}
+
 sub set_value {
     my ($lvalue, $rvalue) = @_;
 
@@ -269,7 +305,19 @@ sub set_value {
     if ($rvalue =~ /^\s*$/) {
 	delete $opt{$lvalue};
     } else {
+	$rvalue = process_variables($rvalue);
 	$opt{$lvalue} = $rvalue;
+    }
+}
+
+sub set_variable {
+    my ($lvalue, $rvalue) = @_;
+
+    if ($rvalue =~ /^\s*$/) {
+	delete $variable{$lvalue};
+    } else {
+	$rvalue = process_variables($rvalue);
+	$variable{$lvalue} = $rvalue;
     }
 }
 
@@ -385,6 +433,22 @@ sub read_config {
 		    $repeats{$val} = $repeat;
 		}
 	    }
+	} elsif (/^\s*([A-Z_\[\]\d]+)\s*:=\s*(.*?)\s*$/) {
+	    next if ($skip);
+
+	    my $lvalue = $1;
+	    my $rvalue = $2;
+
+	    # process config variables.
+	    # Config variables are only active while reading the
+	    # config and can be defined anywhere. They also ignore
+	    # TEST_START and DEFAULTS, but are skipped if they are in
+	    # on of these sections that have SKIP defined.
+	    # The save variable can be
+	    # defined multiple times and the new one simply overrides
+	    # the prevous one.
+	    set_variable($lvalue, $rvalue);
+
 	} else {
 	    die "$name: $.: Garbage found in config\n$_";
 	}
@@ -838,6 +902,7 @@ sub monitor {
 
 	if ($stop_test_after > 0 && !$booted && !$bug) {
 	    if (time - $monitor_start > $stop_test_after) {
+		doprint "STOP_TEST_AFTER ($stop_test_after seconds) timed out\n";
 		$done = 1;
 	    }
 	}
@@ -907,7 +972,7 @@ sub install {
     return if (!defined($post_install));
 
     my $cp_post_install = $post_install;
-    $cp_post_install = s/\$KERNEL_VERSION/$version/g;
+    $cp_post_install =~ s/\$KERNEL_VERSION/$version/g;
     run_command "$cp_post_install" or
 	dodie "Failed to run post install";
 }
@@ -1247,13 +1312,13 @@ sub run_bisect_test {
 
     if ($failed) {
 	$result = 0;
-
-	# reboot the box to a good kernel
-	if ($type ne "build") {
-	    bisect_reboot;
-	}
     } else {
 	$result = 1;
+    }
+
+    # reboot the box to a kernel we can ssh to
+    if ($type ne "build") {
+	bisect_reboot;
     }
     $in_bisect = 0;
 
@@ -1763,6 +1828,14 @@ sub config_bisect {
     success $i;
 }
 
+sub patchcheck_reboot {
+    doprint "Reboot and sleep $patchcheck_sleep_time seconds\n";
+    reboot;
+    start_monitor;
+    wait_for_monitor $patchcheck_sleep_time;
+    end_monitor;
+}
+
 sub patchcheck {
     my ($i) = @_;
 
@@ -1854,6 +1927,8 @@ sub patchcheck {
 	end_monitor;
 	return 0 if ($failed);
 
+	patchcheck_reboot;
+
     }
     $in_patchcheck = 0;
     success $i;
@@ -1944,7 +2019,7 @@ for (my $i = 0, my $repeat = 1; $i <= $opt{"NUM_TESTS"}; $i += $repeat) {
     }
 }
 
-sub set_test_option {
+sub __set_test_option {
     my ($name, $i) = @_;
 
     my $option = "$name\[$i\]";
@@ -1968,6 +2043,72 @@ sub set_test_option {
     }
 
     return undef;
+}
+
+sub eval_option {
+    my ($option, $i) = @_;
+
+    # Add space to evaluate the character before $
+    $option = " $option";
+    my $retval = "";
+
+    while ($option =~ /(.*?[^\\])\$\{(.*?)\}(.*)/) {
+	my $start = $1;
+	my $var = $2;
+	my $end = $3;
+
+	# Append beginning of line
+	$retval = "$retval$start";
+
+	# If the iteration option OPT[$i] exists, then use that.
+	# otherwise see if the default OPT (without [$i]) exists.
+
+	my $o = "$var\[$i\]";
+
+	if (defined($opt{$o})) {
+	    $o = $opt{$o};
+	    $retval = "$retval$o";
+	} elsif (defined($opt{$var})) {
+	    $o = $opt{$var};
+	    $retval = "$retval$o";
+	} else {
+	    $retval = "$retval\$\{$var\}";
+	}
+
+	$option = $end;
+    }
+
+    $retval = "$retval$option";
+
+    $retval =~ s/^ //;
+
+    return $retval;
+}
+
+sub set_test_option {
+    my ($name, $i) = @_;
+
+    my $option = __set_test_option($name, $i);
+    return $option if (!defined($option));
+
+    my $prev = "";
+
+    # Since an option can evaluate to another option,
+    # keep iterating until we do not evaluate any more
+    # options.
+    my $r = 0;
+    while ($prev ne $option) {
+	# Check for recursive evaluations.
+	# 100 deep should be more than enough.
+	if ($r++ > 100) {
+	    die "Over 100 evaluations accurred with $name\n" .
+		"Check for recursive variables\n";
+	}
+	$prev = $option;
+	$option = eval_option($option, $i);
+    }
+
+    return $option;
 }
 
 # First we need to do is the builds
@@ -2003,6 +2144,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $poweroff_after_halt = set_test_option("POWEROFF_AFTER_HALT", $i);
     $sleep_time = set_test_option("SLEEP_TIME", $i);
     $bisect_sleep_time = set_test_option("BISECT_SLEEP_TIME", $i);
+    $patchcheck_sleep_time = set_test_option("PATCHCHECK_SLEEP_TIME", $i);
     $bisect_manual = set_test_option("BISECT_MANUAL", $i);
     $bisect_skip = set_test_option("BISECT_SKIP", $i);
     $store_failures = set_test_option("STORE_FAILURES", $i);

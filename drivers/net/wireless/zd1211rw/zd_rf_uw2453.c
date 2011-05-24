@@ -314,42 +314,44 @@ static int uw2453_init_hw(struct zd_rf *rf)
 	struct zd_chip *chip = zd_rf_to_chip(rf);
 
 	static const struct zd_ioreq16 ioreqs[] = {
-		{ CR10,  0x89 }, { CR15,  0x20 },
-		{ CR17,  0x28 }, /* 6112 no change */
-		{ CR23,  0x38 }, { CR24,  0x20 }, { CR26,  0x93 },
-		{ CR27,  0x15 }, { CR28,  0x3e }, { CR29,  0x00 },
-		{ CR33,  0x28 }, { CR34,  0x30 },
-		{ CR35,  0x43 }, /* 6112 3e->43 */
-		{ CR41,  0x24 }, { CR44,  0x32 },
-		{ CR46,  0x92 }, /* 6112 96->92 */
-		{ CR47,  0x1e },
-		{ CR48,  0x04 }, /* 5602 Roger */
-		{ CR49,  0xfa }, { CR79,  0x58 }, { CR80,  0x30 },
-		{ CR81,  0x30 }, { CR87,  0x0a }, { CR89,  0x04 },
-		{ CR91,  0x00 }, { CR92,  0x0a }, { CR98,  0x8d },
-		{ CR99,  0x28 }, { CR100, 0x02 },
-		{ CR101, 0x09 }, /* 6112 13->1f 6220 1f->13 6407 13->9 */
-		{ CR102, 0x27 },
-		{ CR106, 0x1c }, /* 5d07 5112 1f->1c 6220 1c->1f 6221 1f->1c */
-		{ CR107, 0x1c }, /* 6220 1c->1a 5221 1a->1c */
-		{ CR109, 0x13 },
-		{ CR110, 0x1f }, /* 6112 13->1f 6221 1f->13 6407 13->0x09 */
-		{ CR111, 0x13 }, { CR112, 0x1f }, { CR113, 0x27 },
-		{ CR114, 0x23 }, /* 6221 27->23 */
-		{ CR115, 0x24 }, /* 6112 24->1c 6220 1c->24 */
-		{ CR116, 0x24 }, /* 6220 1c->24 */
-		{ CR117, 0xfa }, /* 6112 fa->f8 6220 f8->f4 6220 f4->fa */
-		{ CR118, 0xf0 }, /* 5d07 6112 f0->f2 6220 f2->f0 */
-		{ CR119, 0x1a }, /* 6112 1a->10 6220 10->14 6220 14->1a */
-		{ CR120, 0x4f },
-		{ CR121, 0x1f }, /* 6220 4f->1f */
-		{ CR122, 0xf0 }, { CR123, 0x57 }, { CR125, 0xad },
-		{ CR126, 0x6c }, { CR127, 0x03 },
-		{ CR128, 0x14 }, /* 6302 12->11 */
-		{ CR129, 0x12 }, /* 6301 10->0f */
-		{ CR130, 0x10 }, { CR137, 0x50 }, { CR138, 0xa8 },
-		{ CR144, 0xac }, { CR146, 0x20 }, { CR252, 0xff },
-		{ CR253, 0xff },
+		{ ZD_CR10,  0x89 }, { ZD_CR15,  0x20 },
+		{ ZD_CR17,  0x28 }, /* 6112 no change */
+		{ ZD_CR23,  0x38 }, { ZD_CR24,  0x20 }, { ZD_CR26,  0x93 },
+		{ ZD_CR27,  0x15 }, { ZD_CR28,  0x3e }, { ZD_CR29,  0x00 },
+		{ ZD_CR33,  0x28 }, { ZD_CR34,  0x30 },
+		{ ZD_CR35,  0x43 }, /* 6112 3e->43 */
+		{ ZD_CR41,  0x24 }, { ZD_CR44,  0x32 },
+		{ ZD_CR46,  0x92 }, /* 6112 96->92 */
+		{ ZD_CR47,  0x1e },
+		{ ZD_CR48,  0x04 }, /* 5602 Roger */
+		{ ZD_CR49,  0xfa }, { ZD_CR79,  0x58 }, { ZD_CR80,  0x30 },
+		{ ZD_CR81,  0x30 }, { ZD_CR87,  0x0a }, { ZD_CR89,  0x04 },
+		{ ZD_CR91,  0x00 }, { ZD_CR92,  0x0a }, { ZD_CR98,  0x8d },
+		{ ZD_CR99,  0x28 }, { ZD_CR100, 0x02 },
+		{ ZD_CR101, 0x09 }, /* 6112 13->1f 6220 1f->13 6407 13->9 */
+		{ ZD_CR102, 0x27 },
+		{ ZD_CR106, 0x1c }, /* 5d07 5112 1f->1c 6220 1c->1f
+				     * 6221 1f->1c
+				     */
+		{ ZD_CR107, 0x1c }, /* 6220 1c->1a 5221 1a->1c */
+		{ ZD_CR109, 0x13 },
+		{ ZD_CR110, 0x1f }, /* 6112 13->1f 6221 1f->13 6407 13->0x09 */
+		{ ZD_CR111, 0x13 }, { ZD_CR112, 0x1f }, { ZD_CR113, 0x27 },
+		{ ZD_CR114, 0x23 }, /* 6221 27->23 */
+		{ ZD_CR115, 0x24 }, /* 6112 24->1c 6220 1c->24 */
+		{ ZD_CR116, 0x24 }, /* 6220 1c->24 */
+		{ ZD_CR117, 0xfa }, /* 6112 fa->f8 6220 f8->f4 6220 f4->fa */
+		{ ZD_CR118, 0xf0 }, /* 5d07 6112 f0->f2 6220 f2->f0 */
+		{ ZD_CR119, 0x1a }, /* 6112 1a->10 6220 10->14 6220 14->1a */
+		{ ZD_CR120, 0x4f },
+		{ ZD_CR121, 0x1f }, /* 6220 4f->1f */
+		{ ZD_CR122, 0xf0 }, { ZD_CR123, 0x57 }, { ZD_CR125, 0xad },
+		{ ZD_CR126, 0x6c }, { ZD_CR127, 0x03 },
+		{ ZD_CR128, 0x14 }, /* 6302 12->11 */
+		{ ZD_CR129, 0x12 }, /* 6301 10->0f */
+		{ ZD_CR130, 0x10 }, { ZD_CR137, 0x50 }, { ZD_CR138, 0xa8 },
+		{ ZD_CR144, 0xac }, { ZD_CR146, 0x20 }, { ZD_CR252, 0xff },
+		{ ZD_CR253, 0xff },
 	};
 
 	static const u32 rv[] = {
@@ -433,7 +435,7 @@ static int uw2453_init_hw(struct zd_rf *rf)
 	 * the one that produced a lock. */
 	UW2453_PRIV(rf)->config = found_config + 1;
 
-	return zd_iowrite16_locked(chip, 0x06, CR203);
+	return zd_iowrite16_locked(chip, 0x06, ZD_CR203);
 }
 
 static int uw2453_set_channel(struct zd_rf *rf, u8 channel)
@@ -445,8 +447,8 @@ static int uw2453_set_channel(struct zd_rf *rf, u8 channel)
 	struct zd_chip *chip = zd_rf_to_chip(rf);
 
 	static const struct zd_ioreq16 ioreqs[] = {
-		{ CR80,  0x30 }, { CR81,  0x30 }, { CR79,  0x58 },
-		{ CR12,  0xf0 }, { CR77,  0x1b }, { CR78,  0x58 },
+		{ ZD_CR80,  0x30 }, { ZD_CR81,  0x30 }, { ZD_CR79,  0x58 },
+		{ ZD_CR12,  0xf0 }, { ZD_CR77,  0x1b }, { ZD_CR78,  0x58 },
 	};
 
 	r = uw2453_synth_set_channel(chip, channel, autocal);
@@ -474,7 +476,7 @@ static int uw2453_set_channel(struct zd_rf *rf, u8 channel)
 	if (r)
 		return r;
 
-	return zd_iowrite16_locked(chip, 0x06, CR203);
+	return zd_iowrite16_locked(chip, 0x06, ZD_CR203);
 }
 
 static int uw2453_switch_radio_on(struct zd_rf *rf)
@@ -482,7 +484,7 @@ static int uw2453_switch_radio_on(struct zd_rf *rf)
 	int r;
 	struct zd_chip *chip = zd_rf_to_chip(rf);
 	struct zd_ioreq16 ioreqs[] = {
-		{ CR11,  0x00 }, { CR251, 0x3f },
+		{ ZD_CR11,  0x00 }, { ZD_CR251, 0x3f },
 	};
 
 	/* enter RXTX mode */
@@ -501,7 +503,7 @@ static int uw2453_switch_radio_off(struct zd_rf *rf)
 	int r;
 	struct zd_chip *chip = zd_rf_to_chip(rf);
 	static const struct zd_ioreq16 ioreqs[] = {
-		{ CR11,  0x04 }, { CR251, 0x2f },
+		{ ZD_CR11,  0x04 }, { ZD_CR251, 0x2f },
 	};
 
 	/* enter IDLE mode */

@@ -197,7 +197,7 @@ static int ps3_virq_setup(enum ps3_cpu_binding cpu, unsigned long outlet,
 	result = irq_set_chip_data(*virq, pd);
 
 	if (result) {
-		pr_debug("%s:%d: set_irq_chip_data failed\n",
+		pr_debug("%s:%d: irq_set_chip_data failed\n",
 			__func__, __LINE__);
 		goto fail_set;
 	}
@@ -659,11 +659,6 @@ static void __maybe_unused _dump_mask(struct ps3_private *pd,
 static void dump_bmp(struct ps3_private* pd) {};
 #endif /* defined(DEBUG) */
 
-static void ps3_host_unmap(struct irq_host *h, unsigned int virq)
-{
-	irq_set_chip_data(virq, NULL);
-}
-
 static int ps3_host_map(struct irq_host *h, unsigned int virq,
 	irq_hw_number_t hwirq)
 {
@@ -683,7 +678,6 @@ static int ps3_host_match(struct irq_host *h, struct device_node *np)
 
 static struct irq_host_ops ps3_host_ops = {
 	.map = ps3_host_map,
-	.unmap = ps3_host_unmap,
 	.match = ps3_host_match,
 };
 

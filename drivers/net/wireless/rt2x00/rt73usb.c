@@ -595,7 +595,7 @@ static void rt73usb_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 	switch (ant->rx) {
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 2);
-		temp = !test_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags)
+		temp = !test_bit(CAPABILITY_FRAME_TYPE, &rt2x00dev->cap_flags)
 		       && (rt2x00dev->curr_band != IEEE80211_BAND_5GHZ);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, temp);
 		break;
@@ -636,7 +636,7 @@ static void rt73usb_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE, 0);
 	rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
-			  !test_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags));
+			  !test_bit(CAPABILITY_FRAME_TYPE, &rt2x00dev->cap_flags));
 
 	/*
 	 * Configure the RX antenna.
@@ -709,10 +709,10 @@ static void rt73usb_config_ant(struct rt2x00_dev *rt2x00dev,
 
 	if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ) {
 		sel = antenna_sel_a;
-		lna = test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags);
+		lna = test_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags);
 	} else {
 		sel = antenna_sel_bg;
-		lna = test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags);
+		lna = test_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(antenna_sel_a); i++)
@@ -740,7 +740,7 @@ static void rt73usb_config_lna_gain(struct rt2x00_dev *rt2x00dev,
 	short lna_gain = 0;
 
 	if (libconf->conf->channel->band == IEEE80211_BAND_2GHZ) {
-		if (test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags))
+		if (test_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags))
 			lna_gain += 14;
 
 		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_BG, &eeprom);
@@ -930,7 +930,7 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev,
 		low_bound = 0x28;
 		up_bound = 0x48;
 
-		if (test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags)) {
+		if (test_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags)) {
 			low_bound += 0x10;
 			up_bound += 0x10;
 		}
@@ -946,7 +946,7 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev,
 			up_bound = 0x1c;
 		}
 
-		if (test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags)) {
+		if (test_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags)) {
 			low_bound += 0x14;
 			up_bound += 0x10;
 		}
@@ -1661,7 +1661,7 @@ static int rt73usb_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxd_w1)
 	}
 
 	if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ) {
-		if (test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags)) {
+		if (test_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags)) {
 			if (lna == 3 || lna == 2)
 				offset += 10;
 		} else {
@@ -1899,13 +1899,13 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * Read the Frame type.
 	 */
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_FRAME_TYPE))
-		__set_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_FRAME_TYPE, &rt2x00dev->cap_flags);
 
 	/*
 	 * Detect if this device has an hardware controlled radio.
 	 */
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
-		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_HW_BUTTON, &rt2x00dev->cap_flags);
 
 	/*
 	 * Read frequency offset.
@@ -1919,8 +1919,8 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &eeprom);
 
 	if (rt2x00_get_field16(eeprom, EEPROM_NIC_EXTERNAL_LNA)) {
-		__set_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags);
-		__set_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags);
+		__set_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags);
 	}
 
 	/*
@@ -2200,16 +2200,16 @@ static int rt73usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 * This device has multiple filters for control frames,
 	 * but has no a separate filter for PS Poll frames.
 	 */
-	__set_bit(DRIVER_SUPPORT_CONTROL_FILTERS, &rt2x00dev->flags);
+	__set_bit(CAPABILITY_CONTROL_FILTERS, &rt2x00dev->cap_flags);
 
 	/*
 	 * This device requires firmware.
 	 */
-	__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
+	__set_bit(REQUIRE_FIRMWARE, &rt2x00dev->cap_flags);
 	if (!modparam_nohwcrypt)
-		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
-	__set_bit(DRIVER_SUPPORT_LINK_TUNING, &rt2x00dev->flags);
-	__set_bit(DRIVER_SUPPORT_WATCHDOG, &rt2x00dev->flags);
+		__set_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags);
+	__set_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags);
 
 	/*
 	 * Set the rssi offset.
@@ -2311,6 +2311,9 @@ static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.get_tsf		= rt73usb_get_tsf,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
 	.flush			= rt2x00mac_flush,
+	.set_antenna		= rt2x00mac_set_antenna,
+	.get_antenna		= rt2x00mac_get_antenna,
+	.get_ringparam		= rt2x00mac_get_ringparam,
 };
 
 static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
@@ -2389,114 +2392,113 @@ static const struct rt2x00_ops rt73usb_ops = {
  */
 static struct usb_device_id rt73usb_device_table[] = {
 	/* AboCom */
-	{ USB_DEVICE(0x07b8, 0xb21b), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x07b8, 0xb21c), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x07b8, 0xb21d), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x07b8, 0xb21e), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x07b8, 0xb21f), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x07b8, 0xb21b) },
+	{ USB_DEVICE(0x07b8, 0xb21c) },
+	{ USB_DEVICE(0x07b8, 0xb21d) },
+	{ USB_DEVICE(0x07b8, 0xb21e) },
+	{ USB_DEVICE(0x07b8, 0xb21f) },
 	/* AL */
-	{ USB_DEVICE(0x14b2, 0x3c10), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x14b2, 0x3c10) },
 	/* Amigo */
-	{ USB_DEVICE(0x148f, 0x9021), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0eb0, 0x9021), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x148f, 0x9021) },
+	{ USB_DEVICE(0x0eb0, 0x9021) },
 	/* AMIT  */
-	{ USB_DEVICE(0x18c5, 0x0002), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x18c5, 0x0002) },
 	/* Askey */
-	{ USB_DEVICE(0x1690, 0x0722), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x1690, 0x0722) },
 	/* ASUS */
-	{ USB_DEVICE(0x0b05, 0x1723), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0b05, 0x1724), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x0b05, 0x1723) },
+	{ USB_DEVICE(0x0b05, 0x1724) },
 	/* Belkin */
-	{ USB_DEVICE(0x050d, 0x7050), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x050d, 0x705a), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x050d, 0x905b), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x050d, 0x905c), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x050d, 0x705a) },
+	{ USB_DEVICE(0x050d, 0x905b) },
+	{ USB_DEVICE(0x050d, 0x905c) },
 	/* Billionton */
-	{ USB_DEVICE(0x1631, 0xc019), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x08dd, 0x0120), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x1631, 0xc019) },
+	{ USB_DEVICE(0x08dd, 0x0120) },
 	/* Buffalo */
-	{ USB_DEVICE(0x0411, 0x00d8), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0411, 0x00d9), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0411, 0x00f4), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0411, 0x0116), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0411, 0x0119), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0411, 0x0137), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x0411, 0x00d8) },
+	{ USB_DEVICE(0x0411, 0x00d9) },
+	{ USB_DEVICE(0x0411, 0x00f4) },
+	{ USB_DEVICE(0x0411, 0x0116) },
+	{ USB_DEVICE(0x0411, 0x0119) },
+	{ USB_DEVICE(0x0411, 0x0137) },
 	/* CEIVA */
-	{ USB_DEVICE(0x178d, 0x02be), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x178d, 0x02be) },
 	/* CNet */
-	{ USB_DEVICE(0x1371, 0x9022), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x1371, 0x9032), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x1371, 0x9022) },
+	{ USB_DEVICE(0x1371, 0x9032) },
 	/* Conceptronic */
-	{ USB_DEVICE(0x14b2, 0x3c22), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x14b2, 0x3c22) },
 	/* Corega */
-	{ USB_DEVICE(0x07aa, 0x002e), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x07aa, 0x002e) },
 	/* D-Link */
-	{ USB_DEVICE(0x07d1, 0x3c03), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x07d1, 0x3c04), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x07d1, 0x3c06), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x07d1, 0x3c07), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x07d1, 0x3c03) },
+	{ USB_DEVICE(0x07d1, 0x3c04) },
+	{ USB_DEVICE(0x07d1, 0x3c06) },
+	{ USB_DEVICE(0x07d1, 0x3c07) },
 	/* Edimax */
-	{ USB_DEVICE(0x7392, 0x7318), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x7392, 0x7618), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x7392, 0x7318) },
+	{ USB_DEVICE(0x7392, 0x7618) },
 	/* EnGenius */
-	{ USB_DEVICE(0x1740, 0x3701), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x1740, 0x3701) },
 	/* Gemtek */
-	{ USB_DEVICE(0x15a9, 0x0004), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x15a9, 0x0004) },
 	/* Gigabyte */
-	{ USB_DEVICE(0x1044, 0x8008), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x1044, 0x800a), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x1044, 0x8008) },
+	{ USB_DEVICE(0x1044, 0x800a) },
 	/* Huawei-3Com */
-	{ USB_DEVICE(0x1472, 0x0009), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x1472, 0x0009) },
 	/* Hercules */
-	{ USB_DEVICE(0x06f8, 0xe002), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x06f8, 0xe010), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x06f8, 0xe020), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x06f8, 0xe002) },
+	{ USB_DEVICE(0x06f8, 0xe010) },
+	{ USB_DEVICE(0x06f8, 0xe020) },
 	/* Linksys */
-	{ USB_DEVICE(0x13b1, 0x0020), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x13b1, 0x0023), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x13b1, 0x0028), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x13b1, 0x0020) },
+	{ USB_DEVICE(0x13b1, 0x0023) },
+	{ USB_DEVICE(0x13b1, 0x0028) },
 	/* MSI */
-	{ USB_DEVICE(0x0db0, 0x4600), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0db0, 0x6877), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0db0, 0x6874), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0db0, 0xa861), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0db0, 0xa874), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x0db0, 0x4600) },
+	{ USB_DEVICE(0x0db0, 0x6877) },
+	{ USB_DEVICE(0x0db0, 0x6874) },
+	{ USB_DEVICE(0x0db0, 0xa861) },
+	{ USB_DEVICE(0x0db0, 0xa874) },
 	/* Ovislink */
-	{ USB_DEVICE(0x1b75, 0x7318), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x1b75, 0x7318) },
 	/* Ralink */
-	{ USB_DEVICE(0x04bb, 0x093d), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x148f, 0x2573), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x148f, 0x2671), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0812, 0x3101), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x04bb, 0x093d) },
+	{ USB_DEVICE(0x148f, 0x2573) },
+	{ USB_DEVICE(0x148f, 0x2671) },
+	{ USB_DEVICE(0x0812, 0x3101) },
 	/* Qcom */
-	{ USB_DEVICE(0x18e8, 0x6196), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x18e8, 0x6229), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x18e8, 0x6238), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x18e8, 0x6196) },
+	{ USB_DEVICE(0x18e8, 0x6229) },
+	{ USB_DEVICE(0x18e8, 0x6238) },
 	/* Samsung */
-	{ USB_DEVICE(0x04e8, 0x4471), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x04e8, 0x4471) },
 	/* Senao */
-	{ USB_DEVICE(0x1740, 0x7100), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x1740, 0x7100) },
 	/* Sitecom */
-	{ USB_DEVICE(0x0df6, 0x0024), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0df6, 0x0027), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0df6, 0x002f), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0df6, 0x90ac), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x0df6, 0x9712), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x0df6, 0x0024) },
+	{ USB_DEVICE(0x0df6, 0x0027) },
+	{ USB_DEVICE(0x0df6, 0x002f) },
+	{ USB_DEVICE(0x0df6, 0x90ac) },
+	{ USB_DEVICE(0x0df6, 0x9712) },
 	/* Surecom */
-	{ USB_DEVICE(0x0769, 0x31f3), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x0769, 0x31f3) },
 	/* Tilgin */
-	{ USB_DEVICE(0x6933, 0x5001), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x6933, 0x5001) },
 	/* Philips */
-	{ USB_DEVICE(0x0471, 0x200a), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x0471, 0x200a) },
 	/* Planex */
-	{ USB_DEVICE(0x2019, 0xab01), USB_DEVICE_DATA(&rt73usb_ops) },
-	{ USB_DEVICE(0x2019, 0xab50), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x2019, 0xab01) },
+	{ USB_DEVICE(0x2019, 0xab50) },
 	/* WideTell */
-	{ USB_DEVICE(0x7167, 0x3840), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x7167, 0x3840) },
 	/* Zcom */
-	{ USB_DEVICE(0x0cde, 0x001c), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x0cde, 0x001c) },
 	/* ZyXEL */
-	{ USB_DEVICE(0x0586, 0x3415), USB_DEVICE_DATA(&rt73usb_ops) },
+	{ USB_DEVICE(0x0586, 0x3415) },
 	{ 0, }
 };
 
@@ -2508,10 +2510,16 @@ MODULE_DEVICE_TABLE(usb, rt73usb_device_table);
 MODULE_FIRMWARE(FIRMWARE_RT2571);
 MODULE_LICENSE("GPL");
 
+static int rt73usb_probe(struct usb_interface *usb_intf,
+			 const struct usb_device_id *id)
+{
+	return rt2x00usb_probe(usb_intf, &rt73usb_ops);
+}
+
 static struct usb_driver rt73usb_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rt73usb_device_table,
-	.probe		= rt2x00usb_probe,
+	.probe		= rt73usb_probe,
 	.disconnect	= rt2x00usb_disconnect,
 	.suspend	= rt2x00usb_suspend,
 	.resume		= rt2x00usb_resume,

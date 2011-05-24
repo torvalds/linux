@@ -76,13 +76,7 @@ struct psb_intel_mode_device {
 	/*
 	 * Abstracted memory manager operations
 	 */
-	void *(*bo_from_handle) (struct drm_device *dev,
-				 struct drm_file *file_priv,
-				 unsigned int handle);
-	 size_t(*bo_size) (struct drm_device *dev, void *bo);
 	 size_t(*bo_offset) (struct drm_device *dev, void *bo);
-	int (*bo_pin_for_scanout) (struct drm_device *dev, void *bo);
-	int (*bo_unpin_for_scanout) (struct drm_device *dev, void *bo);
 
 	/*
 	 * Cursor
@@ -156,11 +150,8 @@ struct psb_intel_crtc {
 	/* a mode_set for fbdev users on this crtc */
 	struct drm_mode_set mode_set;
 
-	/* current bo we scanout from */
-	void *scanout_bo;
-
-	/* current bo we cursor from */
-	void *cursor_bo;
+	/* GEM object that holds our cursor */
+	struct drm_gem_object *cursor_obj;
 
 	struct drm_display_mode saved_mode;
 	struct drm_display_mode saved_adjusted_mode;

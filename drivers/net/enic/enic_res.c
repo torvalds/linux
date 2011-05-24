@@ -98,9 +98,9 @@ int enic_get_vnic_config(struct enic *enic)
 		"vNIC MAC addr %pM wq/rq %d/%d mtu %d\n",
 		enic->mac_addr, c->wq_desc_count, c->rq_desc_count, c->mtu);
 	dev_info(enic_get_dev(enic), "vNIC csum tx/rx %d/%d "
-		"tso/lro %d/%d intr timer %d usec rss %d\n",
+		"tso %d intr timer %d usec rss %d\n",
 		ENIC_SETTING(enic, TXCSUM), ENIC_SETTING(enic, RXCSUM),
-		ENIC_SETTING(enic, TSO), ENIC_SETTING(enic, LRO),
+		ENIC_SETTING(enic, TSO),
 		c->intr_timer_usec, ENIC_SETTING(enic, RSS));
 
 	return 0;

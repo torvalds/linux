@@ -43,6 +43,10 @@ void wl1271_elp_work(struct work_struct *work)
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
 
+	/* our work might have been already cancelled */
+	if (unlikely(!test_bit(WL1271_FLAG_ELP_REQUESTED, &wl->flags)))
+		goto out;
+
 	if (test_bit(WL1271_FLAG_IN_ELP, &wl->flags) ||
 	    (!test_bit(WL1271_FLAG_PSM, &wl->flags) &&
 	     !test_bit(WL1271_FLAG_IDLE, &wl->flags)))
@@ -61,12 +65,16 @@ out:
 /* Routines to toggle sleep mode while in ELP */
 void wl1271_ps_elp_sleep(struct wl1271 *wl)
 {
-	if (test_bit(WL1271_FLAG_PSM, &wl->flags) ||
-	    test_bit(WL1271_FLAG_IDLE, &wl->flags)) {
-		cancel_delayed_work(&wl->elp_work);
-		ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
-					     msecs_to_jiffies(ELP_ENTRY_DELAY));
-	}
+	/* we shouldn't get consecutive sleep requests */
+	if (WARN_ON(test_and_set_bit(WL1271_FLAG_ELP_REQUESTED, &wl->flags)))
+		return;
+
+	if (!test_bit(WL1271_FLAG_PSM, &wl->flags) &&
+	    !test_bit(WL1271_FLAG_IDLE, &wl->flags))
+		return;
+
+	ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
+				     msecs_to_jiffies(ELP_ENTRY_DELAY));
 }
 
 int wl1271_ps_elp_wakeup(struct wl1271 *wl)
@@ -76,6 +84,16 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl)
 	int ret;
 	u32 start_time = jiffies;
 	bool pending = false;
+
+	/*
+	 * we might try to wake up even if we didn't go to sleep
+	 * before (e.g. on boot)
+	 */
+	if (!test_and_clear_bit(WL1271_FLAG_ELP_REQUESTED, &wl->flags))
+		return 0;
+
+	/* don't cancel_sync as it might contend for a mutex and deadlock */
+	cancel_delayed_work(&wl->elp_work);
 
 	if (!test_bit(WL1271_FLAG_IN_ELP, &wl->flags))
 		return 0;
@@ -149,9 +167,6 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 	case STATION_ACTIVE_MODE:
 	default:
 		wl1271_debug(DEBUG_PSM, "leaving psm");
-		ret = wl1271_ps_elp_wakeup(wl);
-		if (ret < 0)
-			return ret;
 
 		/* disable beacon early termination */
 		ret = wl1271_acx_bet_enable(wl, false);

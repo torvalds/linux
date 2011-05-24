@@ -61,7 +61,7 @@ irq_to_pic_bit(unsigned int irq)
 static void
 cpld_mask_irq(struct irq_data *d)
 {
-	unsigned int cpld_irq = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int cpld_irq = (unsigned int)irqd_to_hwirq(d);
 	void __iomem *pic_mask = irq_to_pic_mask(cpld_irq);
 
 	out_8(pic_mask,
@@ -71,7 +71,7 @@ cpld_mask_irq(struct irq_data *d)
 static void
 cpld_unmask_irq(struct irq_data *d)
 {
-	unsigned int cpld_irq = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int cpld_irq = (unsigned int)irqd_to_hwirq(d);
 	void __iomem *pic_mask = irq_to_pic_mask(cpld_irq);
 
 	out_8(pic_mask,
@@ -97,7 +97,7 @@ cpld_pic_get_irq(int offset, u8 ignore, u8 __iomem *statusp,
 	status |= (ignore | mask);
 
 	if (status == 0xff)
-		return NO_IRQ_IGNORE;
+		return NO_IRQ;
 
 	cpld_irq = ffz(status) + offset;
 
@@ -109,14 +109,14 @@ cpld_pic_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	irq = cpld_pic_get_irq(0, PCI_IGNORE, &cpld_regs->pci_status,
 		&cpld_regs->pci_mask);
-	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE) {
+	if (irq != NO_IRQ) {
 		generic_handle_irq(irq);
 		return;
 	}
 
 	irq = cpld_pic_get_irq(8, MISC_IGNORE, &cpld_regs->misc_status,
 		&cpld_regs->misc_mask);
-	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE) {
+	if (irq != NO_IRQ) {
 		generic_handle_irq(irq);
 		return;
 	}

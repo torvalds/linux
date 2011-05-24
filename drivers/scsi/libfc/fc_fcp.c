@@ -57,9 +57,6 @@ static struct kmem_cache *scsi_pkt_cachep;
 #define FC_SRB_READ		(1 << 1)
 #define FC_SRB_WRITE		(1 << 0)
 
-/* constant added to e_d_tov timeout to get rec_tov value */
-#define REC_TOV_CONST		1
-
 /*
  * The SCp.ptr should be tested and set under the scsi_pkt_queue lock
  */
@@ -248,7 +245,7 @@ static inline void fc_fcp_unlock_pkt(struct fc_fcp_pkt *fsp)
 /**
  * fc_fcp_timer_set() - Start a timer for a fcp_pkt
  * @fsp:   The FCP packet to start a timer for
- * @delay: The timeout period for the timer
+ * @delay: The timeout period in jiffies
  */
 static void fc_fcp_timer_set(struct fc_fcp_pkt *fsp, unsigned long delay)
 {
@@ -335,22 +332,23 @@ static void fc_fcp_ddp_done(struct fc_fcp_pkt *fsp)
 /**
  * fc_fcp_can_queue_ramp_up() - increases can_queue
  * @lport: lport to ramp up can_queue
- *
- * Locking notes: Called with Scsi_Host lock held
  */
 static void fc_fcp_can_queue_ramp_up(struct fc_lport *lport)
 {
 	struct fc_fcp_internal *si = fc_get_scsi_internal(lport);
+	unsigned long flags;
 	int can_queue;
+
+	spin_lock_irqsave(lport->host->host_lock, flags);
 
 	if (si->last_can_queue_ramp_up_time &&
 	    (time_before(jiffies, si->last_can_queue_ramp_up_time +
 			 FC_CAN_QUEUE_PERIOD)))
-		return;
+		goto unlock;
 
 	if (time_before(jiffies, si->last_can_queue_ramp_down_time +
 			FC_CAN_QUEUE_PERIOD))
-		return;
+		goto unlock;
 
 	si->last_can_queue_ramp_up_time = jiffies;
 
@@ -362,6 +360,9 @@ static void fc_fcp_can_queue_ramp_up(struct fc_lport *lport)
 	lport->host->can_queue = can_queue;
 	shost_printk(KERN_ERR, lport->host, "libfc: increased "
 		     "can_queue to %d.\n", can_queue);
+
+unlock:
+	spin_unlock_irqrestore(lport->host->host_lock, flags);
 }
 
 /**
@@ -373,18 +374,19 @@ static void fc_fcp_can_queue_ramp_up(struct fc_lport *lport)
  * commands complete or timeout, then try again with a reduced
  * can_queue. Eventually we will hit the point where we run
  * on all reserved structs.
- *
- * Locking notes: Called with Scsi_Host lock held
  */
 static void fc_fcp_can_queue_ramp_down(struct fc_lport *lport)
 {
 	struct fc_fcp_internal *si = fc_get_scsi_internal(lport);
+	unsigned long flags;
 	int can_queue;
+
+	spin_lock_irqsave(lport->host->host_lock, flags);
 
 	if (si->last_can_queue_ramp_down_time &&
 	    (time_before(jiffies, si->last_can_queue_ramp_down_time +
 			 FC_CAN_QUEUE_PERIOD)))
-		return;
+		goto unlock;
 
 	si->last_can_queue_ramp_down_time = jiffies;
 
@@ -395,6 +397,9 @@ static void fc_fcp_can_queue_ramp_down(struct fc_lport *lport)
 	lport->host->can_queue = can_queue;
 	shost_printk(KERN_ERR, lport->host, "libfc: Could not allocate frame.\n"
 		     "Reducing can_queue to %d.\n", can_queue);
+
+unlock:
+	spin_unlock_irqrestore(lport->host->host_lock, flags);
 }
 
 /*
@@ -409,16 +414,13 @@ static inline struct fc_frame *fc_fcp_frame_alloc(struct fc_lport *lport,
 						  size_t len)
 {
 	struct fc_frame *fp;
-	unsigned long flags;
 
 	fp = fc_frame_alloc(lport, len);
 	if (likely(fp))
 		return fp;
 
 	/* error case */
-	spin_lock_irqsave(lport->host->host_lock, flags);
 	fc_fcp_can_queue_ramp_down(lport);
-	spin_unlock_irqrestore(lport->host->host_lock, flags);
 	return NULL;
 }
 
@@ -1093,16 +1095,14 @@ static int fc_fcp_pkt_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp)
 /**
  * get_fsp_rec_tov() - Helper function to get REC_TOV
  * @fsp: the FCP packet
+ *
+ * Returns rec tov in jiffies as rpriv->e_d_tov + 1 second
  */
 static inline unsigned int get_fsp_rec_tov(struct fc_fcp_pkt *fsp)
 {
-	struct fc_rport *rport;
-	struct fc_rport_libfc_priv *rpriv;
+	struct fc_rport_libfc_priv *rpriv = fsp->rport->dd_data;
 
-	rport = fsp->rport;
-	rpriv = rport->dd_data;
-
-	return rpriv->e_d_tov + REC_TOV_CONST;
+	return msecs_to_jiffies(rpriv->e_d_tov) + HZ;
 }
 
 /**
@@ -1122,7 +1122,6 @@ static int fc_fcp_cmd_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 	struct fc_rport_libfc_priv *rpriv;
 	const size_t len = sizeof(fsp->cdb_cmd);
 	int rc = 0;
-	unsigned int rec_tov;
 
 	if (fc_fcp_lock_pkt(fsp))
 		return 0;
@@ -1153,12 +1152,9 @@ static int fc_fcp_cmd_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 	fsp->seq_ptr = seq;
 	fc_fcp_pkt_hold(fsp);	/* hold for fc_fcp_pkt_destroy */
 
-	rec_tov = get_fsp_rec_tov(fsp);
-
 	setup_timer(&fsp->timer, fc_fcp_timeout, (unsigned long)fsp);
-
 	if (rpriv->flags & FC_RP_FLAGS_REC_SUPPORTED)
-		fc_fcp_timer_set(fsp, rec_tov);
+		fc_fcp_timer_set(fsp, get_fsp_rec_tov(fsp));
 
 unlock:
 	fc_fcp_unlock_pkt(fsp);
@@ -1235,16 +1231,14 @@ static void fc_lun_reset_send(unsigned long data)
 {
 	struct fc_fcp_pkt *fsp = (struct fc_fcp_pkt *)data;
 	struct fc_lport *lport = fsp->lp;
-	unsigned int rec_tov;
 
 	if (lport->tt.fcp_cmd_send(lport, fsp, fc_tm_done)) {
 		if (fsp->recov_retry++ >= FC_MAX_RECOV_RETRY)
 			return;
 		if (fc_fcp_lock_pkt(fsp))
 			return;
-		rec_tov = get_fsp_rec_tov(fsp);
 		setup_timer(&fsp->timer, fc_lun_reset_send, (unsigned long)fsp);
-		fc_fcp_timer_set(fsp, rec_tov);
+		fc_fcp_timer_set(fsp, get_fsp_rec_tov(fsp));
 		fc_fcp_unlock_pkt(fsp);
 	}
 }
@@ -1536,12 +1530,11 @@ static void fc_fcp_rec_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 			}
 			fc_fcp_srr(fsp, r_ctl, offset);
 		} else if (e_stat & ESB_ST_SEQ_INIT) {
-			unsigned int rec_tov = get_fsp_rec_tov(fsp);
 			/*
 			 * The remote port has the initiative, so just
 			 * keep waiting for it to complete.
 			 */
-			fc_fcp_timer_set(fsp, rec_tov);
+			fc_fcp_timer_set(fsp,  get_fsp_rec_tov(fsp));
 		} else {
 
 			/*
@@ -1705,7 +1698,6 @@ static void fc_fcp_srr_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 {
 	struct fc_fcp_pkt *fsp = arg;
 	struct fc_frame_header *fh;
-	unsigned int rec_tov;
 
 	if (IS_ERR(fp)) {
 		fc_fcp_srr_error(fsp, fp);
@@ -1732,8 +1724,7 @@ static void fc_fcp_srr_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 	switch (fc_frame_payload_op(fp)) {
 	case ELS_LS_ACC:
 		fsp->recov_retry = 0;
-		rec_tov = get_fsp_rec_tov(fsp);
-		fc_fcp_timer_set(fsp, rec_tov);
+		fc_fcp_timer_set(fsp, get_fsp_rec_tov(fsp));
 		break;
 	case ELS_LS_RJT:
 	default:

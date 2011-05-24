@@ -179,7 +179,7 @@ EXPORT_SYMBOL(putname);
 static int acl_permission_check(struct inode *inode, int mask, unsigned int flags,
 		int (*check_acl)(struct inode *inode, int mask, unsigned int flags))
 {
-	umode_t			mode = inode->i_mode;
+	unsigned int mode = inode->i_mode;
 
 	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
 
@@ -697,6 +697,7 @@ static __always_inline void set_root_rcu(struct nameidata *nd)
 		do {
 			seq = read_seqcount_begin(&fs->seq);
 			nd->root = fs->root;
+			nd->seq = __read_seqcount_begin(&nd->root.dentry->d_seq);
 		} while (read_seqcount_retry(&fs->seq, seq));
 	}
 }
@@ -1377,12 +1378,12 @@ static inline int nested_symlink(struct path *path, struct nameidata *nd)
 {
 	int res;
 
-	BUG_ON(nd->depth >= MAX_NESTED_LINKS);
 	if (unlikely(current->link_count >= MAX_NESTED_LINKS)) {
 		path_put_conditional(path, nd);
 		path_put(&nd->path);
 		return -ELOOP;
 	}
+	BUG_ON(nd->depth >= MAX_NESTED_LINKS);
 
 	nd->depth++;
 	current->link_count++;

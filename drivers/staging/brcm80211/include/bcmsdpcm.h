@@ -186,7 +186,7 @@ typedef volatile struct {
  * Shared structure between dongle and the host.
  * The structure contains pointers to trap or assert information.
  */
-#define SDPCM_SHARED_VERSION       0x0001
+#define SDPCM_SHARED_VERSION       0x0002
 #define SDPCM_SHARED_VERSION_MASK  0x00FF
 #define SDPCM_SHARED_ASSERT_BUILT  0x0100
 #define SDPCM_SHARED_ASSERT        0x0200
@@ -200,6 +200,7 @@ typedef struct {
 	u32 assert_line;
 	u32 console_addr;	/* Address of hndrte_cons_t */
 	u32 msgtrace_addr;
+	u8 tag[32];
 } sdpcm_shared_t;
 
 extern sdpcm_shared_t sdpcm_shared;

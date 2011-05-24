@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include "pci-quirks.h"
 #include "xhci-ext-caps.h"
 
@@ -84,65 +85,92 @@ int usb_amd_find_chipset_info(void)
 {
 	u8 rev = 0;
 	unsigned long flags;
+	struct amd_chipset_info info;
+	int ret;
 
 	spin_lock_irqsave(&amd_lock, flags);
 
-	amd_chipset.probe_count++;
 	/* probe only once */
-	if (amd_chipset.probe_count > 1) {
+	if (amd_chipset.probe_count > 0) {
+		amd_chipset.probe_count++;
 		spin_unlock_irqrestore(&amd_lock, flags);
 		return amd_chipset.probe_result;
 	}
+	memset(&info, 0, sizeof(info));
+	spin_unlock_irqrestore(&amd_lock, flags);
 
-	amd_chipset.smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI, 0x4385, NULL);
-	if (amd_chipset.smbus_dev) {
-		rev = amd_chipset.smbus_dev->revision;
+	info.smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI, 0x4385, NULL);
+	if (info.smbus_dev) {
+		rev = info.smbus_dev->revision;
 		if (rev >= 0x40)
-			amd_chipset.sb_type = 1;
+			info.sb_type = 1;
 		else if (rev >= 0x30 && rev <= 0x3b)
-			amd_chipset.sb_type = 3;
+			info.sb_type = 3;
 	} else {
-		amd_chipset.smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
-							0x780b, NULL);
-		if (!amd_chipset.smbus_dev) {
-			spin_unlock_irqrestore(&amd_lock, flags);
-			return 0;
+		info.smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
+						0x780b, NULL);
+		if (!info.smbus_dev) {
+			ret = 0;
+			goto commit;
 		}
-		rev = amd_chipset.smbus_dev->revision;
+
+		rev = info.smbus_dev->revision;
 		if (rev >= 0x11 && rev <= 0x18)
-			amd_chipset.sb_type = 2;
+			info.sb_type = 2;
 	}
 
-	if (amd_chipset.sb_type == 0) {
-		if (amd_chipset.smbus_dev) {
-			pci_dev_put(amd_chipset.smbus_dev);
-			amd_chipset.smbus_dev = NULL;
+	if (info.sb_type == 0) {
+		if (info.smbus_dev) {
+			pci_dev_put(info.smbus_dev);
+			info.smbus_dev = NULL;
 		}
-		spin_unlock_irqrestore(&amd_lock, flags);
-		return 0;
+		ret = 0;
+		goto commit;
 	}
 
-	amd_chipset.nb_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x9601, NULL);
-	if (amd_chipset.nb_dev) {
-		amd_chipset.nb_type = 1;
+	info.nb_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x9601, NULL);
+	if (info.nb_dev) {
+		info.nb_type = 1;
 	} else {
-		amd_chipset.nb_dev = pci_get_device(PCI_VENDOR_ID_AMD,
-							0x1510, NULL);
-		if (amd_chipset.nb_dev) {
-			amd_chipset.nb_type = 2;
-		} else  {
-			amd_chipset.nb_dev = pci_get_device(PCI_VENDOR_ID_AMD,
-								0x9600, NULL);
-			if (amd_chipset.nb_dev)
-				amd_chipset.nb_type = 3;
+		info.nb_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x1510, NULL);
+		if (info.nb_dev) {
+			info.nb_type = 2;
+		} else {
+			info.nb_dev = pci_get_device(PCI_VENDOR_ID_AMD,
+						     0x9600, NULL);
+			if (info.nb_dev)
+				info.nb_type = 3;
 		}
 	}
 
-	amd_chipset.probe_result = 1;
+	ret = info.probe_result = 1;
 	printk(KERN_DEBUG "QUIRK: Enable AMD PLL fix\n");
 
-	spin_unlock_irqrestore(&amd_lock, flags);
-	return amd_chipset.probe_result;
+commit:
+
+	spin_lock_irqsave(&amd_lock, flags);
+	if (amd_chipset.probe_count > 0) {
+		/* race - someone else was faster - drop devices */
+
+		/* Mark that we where here */
+		amd_chipset.probe_count++;
+		ret = amd_chipset.probe_result;
+
+		spin_unlock_irqrestore(&amd_lock, flags);
+
+		if (info.nb_dev)
+			pci_dev_put(info.nb_dev);
+		if (info.smbus_dev)
+			pci_dev_put(info.smbus_dev);
+
+	} else {
+		/* no race - commit the result */
+		info.probe_count++;
+		amd_chipset = info;
+		spin_unlock_irqrestore(&amd_lock, flags);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_amd_find_chipset_info);
 
@@ -284,6 +312,7 @@ EXPORT_SYMBOL_GPL(usb_amd_quirk_pll_enable);
 
 void usb_amd_dev_put(void)
 {
+	struct pci_dev *nb, *smbus;
 	unsigned long flags;
 
 	spin_lock_irqsave(&amd_lock, flags);
@@ -294,20 +323,23 @@ void usb_amd_dev_put(void)
 		return;
 	}
 
-	if (amd_chipset.nb_dev) {
-		pci_dev_put(amd_chipset.nb_dev);
-		amd_chipset.nb_dev = NULL;
-	}
-	if (amd_chipset.smbus_dev) {
-		pci_dev_put(amd_chipset.smbus_dev);
-		amd_chipset.smbus_dev = NULL;
-	}
+	/* save them to pci_dev_put outside of spinlock */
+	nb    = amd_chipset.nb_dev;
+	smbus = amd_chipset.smbus_dev;
+
+	amd_chipset.nb_dev = NULL;
+	amd_chipset.smbus_dev = NULL;
 	amd_chipset.nb_type = 0;
 	amd_chipset.sb_type = 0;
 	amd_chipset.isoc_reqs = 0;
 	amd_chipset.probe_result = 0;
 
 	spin_unlock_irqrestore(&amd_lock, flags);
+
+	if (nb)
+		pci_dev_put(nb);
+	if (smbus)
+		pci_dev_put(smbus);
 }
 EXPORT_SYMBOL_GPL(usb_amd_dev_put);
 
@@ -472,14 +504,84 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	iounmap(base);
 }
 
+static void __devinit ehci_bios_handoff(struct pci_dev *pdev,
+					void __iomem *op_reg_base,
+					u32 cap, u8 offset)
+{
+	int try_handoff = 1, tried_handoff = 0;
+
+	/* The Pegatron Lucid (ExoPC) tablet sporadically waits for 90
+	 * seconds trying the handoff on its unused controller.  Skip
+	 * it. */
+	if (pdev->vendor == 0x8086 && pdev->device == 0x283a) {
+		const char *dmi_bn = dmi_get_system_info(DMI_BOARD_NAME);
+		const char *dmi_bv = dmi_get_system_info(DMI_BIOS_VERSION);
+		if (dmi_bn && !strcmp(dmi_bn, "EXOPG06411") &&
+		    dmi_bv && !strcmp(dmi_bv, "Lucid-CE-133"))
+			try_handoff = 0;
+	}
+
+	if (try_handoff && (cap & EHCI_USBLEGSUP_BIOS)) {
+		dev_dbg(&pdev->dev, "EHCI: BIOS handoff\n");
+
+#if 0
+/* aleksey_gorelov@phoenix.com reports that some systems need SMI forced on,
+ * but that seems dubious in general (the BIOS left it off intentionally)
+ * and is known to prevent some systems from booting.  so we won't do this
+ * unless maybe we can determine when we're on a system that needs SMI forced.
+ */
+		/* BIOS workaround (?): be sure the pre-Linux code
+		 * receives the SMI
+		 */
+		pci_read_config_dword(pdev, offset + EHCI_USBLEGCTLSTS, &val);
+		pci_write_config_dword(pdev, offset + EHCI_USBLEGCTLSTS,
+				       val | EHCI_USBLEGCTLSTS_SOOE);
+#endif
+
+		/* some systems get upset if this semaphore is
+		 * set for any other reason than forcing a BIOS
+		 * handoff..
+		 */
+		pci_write_config_byte(pdev, offset + 3, 1);
+	}
+
+	/* if boot firmware now owns EHCI, spin till it hands it over. */
+	if (try_handoff) {
+		int msec = 1000;
+		while ((cap & EHCI_USBLEGSUP_BIOS) && (msec > 0)) {
+			tried_handoff = 1;
+			msleep(10);
+			msec -= 10;
+			pci_read_config_dword(pdev, offset, &cap);
+		}
+	}
+
+	if (cap & EHCI_USBLEGSUP_BIOS) {
+		/* well, possibly buggy BIOS... try to shut it down,
+		 * and hope nothing goes too wrong
+		 */
+		if (try_handoff)
+			dev_warn(&pdev->dev, "EHCI: BIOS handoff failed"
+				 " (BIOS bug?) %08x\n", cap);
+		pci_write_config_byte(pdev, offset + 2, 0);
+	}
+
+	/* just in case, always disable EHCI SMIs */
+	pci_write_config_dword(pdev, offset + EHCI_USBLEGCTLSTS, 0);
+
+	/* If the BIOS ever owned the controller then we can't expect
+	 * any power sessions to remain intact.
+	 */
+	if (tried_handoff)
+		writel(0, op_reg_base + EHCI_CONFIGFLAG);
+}
+
 static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 {
-	int wait_time, delta;
 	void __iomem *base, *op_reg_base;
-	u32	hcc_params, val;
+	u32	hcc_params, cap, val;
 	u8	offset, cap_length;
-	int	count = 256/4;
-	int	tried_handoff = 0;
+	int	wait_time, delta, count = 256/4;
 
 	if (!mmio_resource_enabled(pdev, 0))
 		return;
@@ -498,77 +600,17 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 	hcc_params = readl(base + EHCI_HCC_PARAMS);
 	offset = (hcc_params >> 8) & 0xff;
 	while (offset && --count) {
-		u32		cap;
-		int		msec;
-
 		pci_read_config_dword(pdev, offset, &cap);
+
 		switch (cap & 0xff) {
-		case 1:			/* BIOS/SMM/... handoff support */
-			if ((cap & EHCI_USBLEGSUP_BIOS)) {
-				dev_dbg(&pdev->dev, "EHCI: BIOS handoff\n");
-
-#if 0
-/* aleksey_gorelov@phoenix.com reports that some systems need SMI forced on,
- * but that seems dubious in general (the BIOS left it off intentionally)
- * and is known to prevent some systems from booting.  so we won't do this
- * unless maybe we can determine when we're on a system that needs SMI forced.
- */
-				/* BIOS workaround (?): be sure the
-				 * pre-Linux code receives the SMI
-				 */
-				pci_read_config_dword(pdev,
-						offset + EHCI_USBLEGCTLSTS,
-						&val);
-				pci_write_config_dword(pdev,
-						offset + EHCI_USBLEGCTLSTS,
-						val | EHCI_USBLEGCTLSTS_SOOE);
-#endif
-
-				/* some systems get upset if this semaphore is
-				 * set for any other reason than forcing a BIOS
-				 * handoff..
-				 */
-				pci_write_config_byte(pdev, offset + 3, 1);
-			}
-
-			/* if boot firmware now owns EHCI, spin till
-			 * it hands it over.
-			 */
-			msec = 1000;
-			while ((cap & EHCI_USBLEGSUP_BIOS) && (msec > 0)) {
-				tried_handoff = 1;
-				msleep(10);
-				msec -= 10;
-				pci_read_config_dword(pdev, offset, &cap);
-			}
-
-			if (cap & EHCI_USBLEGSUP_BIOS) {
-				/* well, possibly buggy BIOS... try to shut
-				 * it down, and hope nothing goes too wrong
-				 */
-				dev_warn(&pdev->dev, "EHCI: BIOS handoff failed"
-						" (BIOS bug?) %08x\n", cap);
-				pci_write_config_byte(pdev, offset + 2, 0);
-			}
-
-			/* just in case, always disable EHCI SMIs */
-			pci_write_config_dword(pdev,
-					offset + EHCI_USBLEGCTLSTS,
-					0);
-
-			/* If the BIOS ever owned the controller then we
-			 * can't expect any power sessions to remain intact.
-			 */
-			if (tried_handoff)
-				writel(0, op_reg_base + EHCI_CONFIGFLAG);
+		case 1:
+			ehci_bios_handoff(pdev, op_reg_base, cap, offset);
 			break;
-		case 0:			/* illegal reserved capability */
-			cap = 0;
-			/* FALLTHROUGH */
+		case 0: /* Illegal reserved cap, set cap=0 so we exit */
+			cap = 0; /* then fallthrough... */
 		default:
 			dev_warn(&pdev->dev, "EHCI: unrecognized capability "
-					"%02x\n", cap & 0xff);
-			break;
+				 "%02x\n", cap & 0xff);
 		}
 		offset = (cap >> 8) & 0xff;
 	}

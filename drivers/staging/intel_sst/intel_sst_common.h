@@ -28,8 +28,8 @@
  *  Common private declarations for SST
  */
 
-#define SST_DRIVER_VERSION "1.2.09"
-#define SST_VERSION_NUM 0x1209
+#define SST_DRIVER_VERSION "1.2.17"
+#define SST_VERSION_NUM 0x1217
 
 /* driver names */
 #define SST_DRV_NAME "intel_sst_driver"
@@ -37,6 +37,7 @@
 #define SST_MFLD_PCI_ID 0x082F
 #define PCI_ID_LENGTH 4
 #define SST_SUSPEND_DELAY 2000
+#define FW_CONTEXT_MEM (64*1024)
 
 enum sst_states {
 	SST_FW_LOADED = 1,
@@ -94,7 +95,7 @@ enum sst_ram_type {
 /* SST shim registers to structure mapping  */
 union config_status_reg {
 	struct {
-		u32 rsvd0:1;
+		u32 mfld_strb:1;
 		u32 sst_reset:1;
 		u32 hw_rsvd:3;
 		u32 sst_clk:2;
@@ -417,6 +418,8 @@ struct intel_sst_drv {
 	unsigned int		audio_start;
 	dev_t			devt_d, devt_c;
 	unsigned int		max_streams;
+	unsigned int		*fw_cntx;
+	unsigned int		fw_cntx_size;
 };
 
 extern struct intel_sst_drv *sst_drv_ctx;

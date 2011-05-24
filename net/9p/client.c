@@ -614,7 +614,7 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...)
 
 	err = c->trans_mod->request(c, req);
 	if (err < 0) {
-		if (err != -ERESTARTSYS)
+		if (err != -ERESTARTSYS && err != -EFAULT)
 			c->status = Disconnected;
 		goto reterr;
 	}
@@ -929,15 +929,15 @@ error:
 }
 EXPORT_SYMBOL(p9_client_attach);
 
-struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
-	int clone)
+struct p9_fid *p9_client_walk(struct p9_fid *oldfid, uint16_t nwname,
+		char **wnames, int clone)
 {
 	int err;
 	struct p9_client *clnt;
 	struct p9_fid *fid;
 	struct p9_qid *wqids;
 	struct p9_req_t *req;
-	int16_t nwqids, count;
+	uint16_t nwqids, count;
 
 	err = 0;
 	wqids = NULL;
@@ -955,7 +955,7 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
 		fid = oldfid;
 
 
-	P9_DPRINTK(P9_DEBUG_9P, ">>> TWALK fids %d,%d nwname %d wname[0] %s\n",
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TWALK fids %d,%d nwname %ud wname[0] %s\n",
 		oldfid->fid, fid->fid, nwname, wnames ? wnames[0] : NULL);
 
 	req = p9_client_rpc(clnt, P9_TWALK, "ddT", oldfid->fid, fid->fid,
@@ -1220,27 +1220,6 @@ error:
 }
 EXPORT_SYMBOL(p9_client_fsync);
 
-int p9_client_sync_fs(struct p9_fid *fid)
-{
-	int err = 0;
-	struct p9_req_t *req;
-	struct p9_client *clnt;
-
-	P9_DPRINTK(P9_DEBUG_9P, ">>> TSYNC_FS fid %d\n", fid->fid);
-
-	clnt = fid->clnt;
-	req = p9_client_rpc(clnt, P9_TSYNCFS, "d", fid->fid);
-	if (IS_ERR(req)) {
-		err = PTR_ERR(req);
-		goto error;
-	}
-	P9_DPRINTK(P9_DEBUG_9P, "<<< RSYNCFS fid %d\n", fid->fid);
-	p9_free_req(clnt, req);
-error:
-	return err;
-}
-EXPORT_SYMBOL(p9_client_sync_fs);
-
 int p9_client_clunk(struct p9_fid *fid)
 {
 	int err;
@@ -1302,7 +1281,7 @@ int
 p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 								u32 count)
 {
-	int err, rsize, total;
+	int err, rsize;
 	struct p9_client *clnt;
 	struct p9_req_t *req;
 	char *dataptr;
@@ -1311,7 +1290,6 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 					(long long unsigned) offset, count);
 	err = 0;
 	clnt = fid->clnt;
-	total = 0;
 
 	rsize = fid->iounit;
 	if (!rsize || rsize > clnt->msize-P9_IOHDRSZ)
@@ -1367,7 +1345,7 @@ int
 p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 							u64 offset, u32 count)
 {
-	int err, rsize, total;
+	int err, rsize;
 	struct p9_client *clnt;
 	struct p9_req_t *req;
 
@@ -1375,7 +1353,6 @@ p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 				fid->fid, (long long unsigned) offset, count);
 	err = 0;
 	clnt = fid->clnt;
-	total = 0;
 
 	rsize = fid->iounit;
 	if (!rsize || rsize > clnt->msize-P9_IOHDRSZ)
@@ -1766,7 +1743,7 @@ EXPORT_SYMBOL_GPL(p9_client_xattrcreate);
 
 int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 {
-	int err, rsize, total;
+	int err, rsize;
 	struct p9_client *clnt;
 	struct p9_req_t *req;
 	char *dataptr;
@@ -1776,7 +1753,6 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 
 	err = 0;
 	clnt = fid->clnt;
-	total = 0;
 
 	rsize = fid->iounit;
 	if (!rsize || rsize > clnt->msize-P9_READDIRHDRSZ)

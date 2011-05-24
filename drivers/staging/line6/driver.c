@@ -1094,8 +1094,6 @@ static int line6_probe(struct usb_interface *interface,
 err_destruct:
 	line6_destruct(interface);
 err_put:
-	usb_put_intf(interface);
-	usb_put_dev(usbdev);
 	return ret;
 }
 

@@ -55,7 +55,7 @@ void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
 	WARN_ON(irqs_disabled());
 	spin_lock_irq(q->queue_lock);
 	__elv_add_request(q, rq, where);
-	__blk_run_queue(q, false);
+	__blk_run_queue(q);
 	/* the queue is stopped so it won't be plugged+unplugged */
 	if (rq->cmd_type == REQ_TYPE_PM_RESUME)
 		q->request_fn(q);

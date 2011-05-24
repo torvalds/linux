@@ -444,67 +444,6 @@ static inline void psb_mmu_invalidate_pte(struct psb_mmu_pt *pt,
 	pt->v[psb_mmu_pt_index(addr)] = pt->pd->invalid_pte;
 }
 
-#if 0
-static uint32_t psb_mmu_check_pte_locked(struct psb_mmu_pd *pd,
-					 uint32_t mmu_offset)
-{
-	uint32_t *v;
-	uint32_t pfn;
-
-	v = kmap_atomic(pd->p, KM_USER0);
-	if (!v) {
-		printk(KERN_INFO "Could not kmap pde page.\n");
-		return 0;
-	}
-	pfn = v[psb_mmu_pd_index(mmu_offset)];
-	/*      printk(KERN_INFO "pde is 0x%08x\n",pfn); */
-	kunmap_atomic(v, KM_USER0);
-	if (((pfn & 0x0F) != PSB_PTE_VALID)) {
-		printk(KERN_INFO "Strange pde at 0x%08x: 0x%08x.\n",
-		       mmu_offset, pfn);
-	}
-	v = ioremap(pfn & 0xFFFFF000, 4096);
-	if (!v) {
-		printk(KERN_INFO "Could not kmap pte page.\n");
-		return 0;
-	}
-	pfn = v[psb_mmu_pt_index(mmu_offset)];
-	/* printk(KERN_INFO "pte is 0x%08x\n",pfn); */
-	iounmap(v);
-	if (((pfn & 0x0F) != PSB_PTE_VALID)) {
-		printk(KERN_INFO "Strange pte at 0x%08x: 0x%08x.\n",
-		       mmu_offset, pfn);
-	}
-	return pfn >> PAGE_SHIFT;
-}
-
-static void psb_mmu_check_mirrored_gtt(struct psb_mmu_pd *pd,
-				       uint32_t mmu_offset,
-				       uint32_t gtt_pages)
-{
-	uint32_t start;
-	uint32_t next;
-
-	printk(KERN_INFO "Checking mirrored gtt 0x%08x %d\n",
-	       mmu_offset, gtt_pages);
-	down_read(&pd->driver->sem);
-	start = psb_mmu_check_pte_locked(pd, mmu_offset);
-	mmu_offset += PAGE_SIZE;
-	gtt_pages -= 1;
-	while (gtt_pages--) {
-		next = psb_mmu_check_pte_locked(pd, mmu_offset);
-		if (next != start + 1) {
-			printk(KERN_INFO
-			       "Ptes out of order: 0x%08x, 0x%08x.\n",
-			       start, next);
-		}
-		start = next;
-		mmu_offset += PAGE_SIZE;
-	}
-	up_read(&pd->driver->sem);
-}
-
-#endif
 
 void psb_mmu_mirror_gtt(struct psb_mmu_pd *pd,
 			uint32_t mmu_offset, uint32_t gtt_start,

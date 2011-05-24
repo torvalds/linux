@@ -683,22 +683,14 @@ int ttm_get_pages(struct list_head *pages, int flags,
 			gfp_flags |= GFP_HIGHUSER;
 
 		for (r = 0; r < count; ++r) {
-			if ((flags & TTM_PAGE_FLAG_DMA32) && dma_address) {
-				void *addr;
-				addr = dma_alloc_coherent(NULL, PAGE_SIZE,
-							  &dma_address[r],
-							  gfp_flags);
-				if (addr == NULL)
-					return -ENOMEM;
-				p = virt_to_page(addr);
-			} else
-				p = alloc_page(gfp_flags);
+			p = alloc_page(gfp_flags);
 			if (!p) {
 
 				printk(KERN_ERR TTM_PFX
 				       "Unable to allocate page.");
 				return -ENOMEM;
 			}
+
 			list_add(&p->lru, pages);
 		}
 		return 0;
@@ -746,24 +738,12 @@ void ttm_put_pages(struct list_head *pages, unsigned page_count, int flags,
 	unsigned long irq_flags;
 	struct ttm_page_pool *pool = ttm_get_pool(flags, cstate);
 	struct page *p, *tmp;
-	unsigned r;
 
 	if (pool == NULL) {
 		/* No pool for this memory type so free the pages */
 
-		r = page_count-1;
 		list_for_each_entry_safe(p, tmp, pages, lru) {
-			if ((flags & TTM_PAGE_FLAG_DMA32) && dma_address) {
-				void *addr = page_address(p);
-				WARN_ON(!addr || !dma_address[r]);
-				if (addr)
-					dma_free_coherent(NULL, PAGE_SIZE,
-							  addr,
-							  dma_address[r]);
-				dma_address[r] = 0;
-			} else
-				__free_page(p);
-			r--;
+			__free_page(p);
 		}
 		/* Make the pages list empty */
 		INIT_LIST_HEAD(pages);

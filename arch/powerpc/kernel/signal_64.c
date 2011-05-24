@@ -381,7 +381,7 @@ badframe:
 	       regs, uc, &uc->uc_mcontext);
 #endif
 	if (show_unhandled_signals && printk_ratelimit())
-		printk(regs->msr & MSR_SF ? fmt64 : fmt32,
+		printk(regs->msr & MSR_64BIT ? fmt64 : fmt32,
 			current->comm, current->pid, "rt_sigreturn",
 			(long)uc, regs->nip, regs->link);
 
@@ -469,7 +469,7 @@ badframe:
 	       regs, frame, newsp);
 #endif
 	if (show_unhandled_signals && printk_ratelimit())
-		printk(regs->msr & MSR_SF ? fmt64 : fmt32,
+		printk(regs->msr & MSR_64BIT ? fmt64 : fmt32,
 			current->comm, current->pid, "setup_rt_frame",
 			(long)frame, regs->nip, regs->link);
 

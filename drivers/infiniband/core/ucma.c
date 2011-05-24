@@ -883,6 +883,13 @@ static int ucma_set_option_id(struct ucma_context *ctx, int optname,
 		}
 		rdma_set_service_type(ctx->cm_id, *((u8 *) optval));
 		break;
+	case RDMA_OPTION_ID_REUSEADDR:
+		if (optlen != sizeof(int)) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = rdma_set_reuseaddr(ctx->cm_id, *((int *) optval) ? 1 : 0);
+		break;
 	default:
 		ret = -ENOSYS;
 	}

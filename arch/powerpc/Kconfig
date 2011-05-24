@@ -193,6 +193,12 @@ config SYS_SUPPORTS_APM_EMULATION
 	default y if PMAC_APM_EMU
 	bool
 
+config EPAPR_BOOT
+	bool
+	help
+	  Used to allow a board to specify it wants an ePAPR compliant wrapper.
+	default n
+
 config DEFAULT_UIMAGE
 	bool
 	help
@@ -209,7 +215,7 @@ config ARCH_HIBERNATION_POSSIBLE
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
 	depends on ADB_PMU || PPC_EFIKA || PPC_LITE5200 || PPC_83xx || \
-		   PPC_85xx || PPC_86xx || PPC_PSERIES || 44x || 40x
+		   (PPC_85xx && !SMP) || PPC_86xx || PPC_PSERIES || 44x || 40x
 
 config PPC_DCR_NATIVE
 	bool

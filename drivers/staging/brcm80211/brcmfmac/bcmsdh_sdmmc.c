@@ -26,14 +26,11 @@
 #include <linux/mmc/core.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
+#include <linux/suspend.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>
 
-#if defined(CONFIG_PM_SLEEP)
-#include <linux/suspend.h>
-extern volatile bool dhd_mmc_suspend;
-#endif
 #include "bcmsdh_sdmmc.h"
 
 extern int sdio_function_init(void);
@@ -67,6 +64,13 @@ DHD_PM_RESUME_WAIT_INIT(sdioh_request_buffer_wait);
 
 int sdioh_sdmmc_card_regread(sdioh_info_t *sd, int func, u32 regaddr,
 			     int regsize, u32 *data);
+
+void sdioh_sdio_set_host_pm_flags(int flag)
+{
+	if (sdio_set_host_pm_flags(gInstance->func[1], flag))
+		printk(KERN_ERR "%s: Failed to set pm_flags 0x%08x\n",\
+			 __func__, (unsigned int)flag);
+}
 
 static int sdioh_sdmmc_card_enablefuncs(sdioh_info_t *sd)
 {
@@ -416,7 +420,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	vi = bcm_iovar_lookup(sdioh_iovars, name);
 	if (vi == NULL) {
-		bcmerror = BCME_UNSUPPORTED;
+		bcmerror = -ENOTSUPP;
 		goto exit;
 	}
 
@@ -465,7 +469,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_GVAL(IOV_BLOCKSIZE):
 		if ((u32) int_val > si->num_funcs) {
-			bcmerror = BCME_BADARG;
+			bcmerror = -EINVAL;
 			break;
 		}
 		int_val = (s32) si->client_block_size[int_val];
@@ -479,7 +483,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 			uint maxsize;
 
 			if (func > si->num_funcs) {
-				bcmerror = BCME_BADARG;
+				bcmerror = -EINVAL;
 				break;
 			}
 
@@ -497,7 +501,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 				maxsize = 0;
 			}
 			if (blksize > maxsize) {
-				bcmerror = BCME_BADARG;
+				bcmerror = -EINVAL;
 				break;
 			}
 			if (!blksize)
@@ -600,7 +604,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 			    || sd_ptr->offset > SD_MaxCurCap) {
 				sd_err(("%s: bad offset 0x%x\n", __func__,
 					sd_ptr->offset));
-				bcmerror = BCME_BADARG;
+				bcmerror = -EINVAL;
 				break;
 			}
 
@@ -630,7 +634,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 			    || sd_ptr->offset > SD_MaxCurCap) {
 				sd_err(("%s: bad offset 0x%x\n", __func__,
 					sd_ptr->offset));
-				bcmerror = BCME_BADARG;
+				bcmerror = -EINVAL;
 				break;
 			}
 
@@ -649,7 +653,7 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 			if (sdioh_cfg_read
 			    (si, sd_ptr->func, sd_ptr->offset, &data)) {
-				bcmerror = BCME_SDIO_ERROR;
+				bcmerror = -EIO;
 				break;
 			}
 
@@ -665,14 +669,14 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 			if (sdioh_cfg_write
 			    (si, sd_ptr->func, sd_ptr->offset, &data)) {
-				bcmerror = BCME_SDIO_ERROR;
+				bcmerror = -EIO;
 				break;
 			}
 			break;
 		}
 
 	default:
-		bcmerror = BCME_UNSUPPORTED;
+		bcmerror = -ENOTSUPP;
 		break;
 	}
 exit:
@@ -1006,17 +1010,16 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 
 /*
  * This function takes a buffer or packet, and fixes everything up
- * so that in the
- * end, a DMA-able packet is created.
+ * so that in the end, a DMA-able packet is created.
  *
  * A buffer does not have an associated packet pointer,
  * and may or may not be aligned.
  * A packet may consist of a single packet, or a packet chain.
- * If it is a packet chain,
- * then all the packets in the chain must be properly aligned.
- * If the packet data is not
- * aligned, then there may only be one packet, and in this case,
- * it is copied to a new
+ * If it is a packet chain, then all the packets in the chain
+ * must be properly aligned.
+ *
+ * If the packet data is not aligned, then there may only be
+ * one packet, and in this case,  it is copied to a new
  * aligned packet.
  *
  */
@@ -1036,9 +1039,9 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 	if (pkt == NULL) {
 		sd_data(("%s: Creating new %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", buflen_u));
-		mypkt = pkt_buf_get_skb(buflen_u);
+		mypkt = bcm_pkt_buf_get_skb(buflen_u);
 		if (!mypkt) {
-			sd_err(("%s: pkt_buf_get_skb failed: len %d\n",
+			sd_err(("%s: bcm_pkt_buf_get_skb failed: len %d\n",
 				__func__, buflen_u));
 			return SDIOH_API_RC_FAIL;
 		}
@@ -1054,7 +1057,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		if (!write)
 			memcpy(buffer, mypkt->data, buflen_u);
 
-		pkt_buf_free_skb(mypkt);
+		bcm_pkt_buf_free_skb(mypkt);
 	} else if (((u32) (pkt->data) & DMA_ALIGN_MASK) != 0) {
 		/* Case 2: We have a packet, but it is unaligned. */
 
@@ -1063,9 +1066,9 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 
 		sd_data(("%s: Creating aligned %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", pkt->len));
-		mypkt = pkt_buf_get_skb(pkt->len);
+		mypkt = bcm_pkt_buf_get_skb(pkt->len);
 		if (!mypkt) {
-			sd_err(("%s: pkt_buf_get_skb failed: len %d\n",
+			sd_err(("%s: bcm_pkt_buf_get_skb failed: len %d\n",
 				__func__, pkt->len));
 			return SDIOH_API_RC_FAIL;
 		}
@@ -1081,7 +1084,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		if (!write)
 			memcpy(pkt->data, mypkt->data, mypkt->len);
 
-		pkt_buf_free_skb(mypkt);
+		bcm_pkt_buf_free_skb(mypkt);
 	} else {		/* case 3: We have a packet and
 				 it is aligned. */
 		sd_data(("%s: Aligned %s Packet, direct DMA\n",

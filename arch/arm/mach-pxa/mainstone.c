@@ -15,7 +15,7 @@
 
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/bitops.h>
@@ -185,31 +185,21 @@ static void __init mainstone_init_irq(void)
 
 #ifdef CONFIG_PM
 
-static int mainstone_irq_resume(struct sys_device *dev)
+static void mainstone_irq_resume(void)
 {
 	MST_INTMSKENA = mainstone_irq_enabled;
-	return 0;
 }
 
-static struct sysdev_class mainstone_irq_sysclass = {
-	.name = "cpld_irq",
+static struct syscore_ops mainstone_irq_syscore_ops = {
 	.resume = mainstone_irq_resume,
-};
-
-static struct sys_device mainstone_irq_device = {
-	.cls = &mainstone_irq_sysclass,
 };
 
 static int __init mainstone_irq_device_init(void)
 {
-	int ret = -ENODEV;
+	if (machine_is_mainstone())
+		register_syscore_ops(&mainstone_irq_syscore_ops);
 
-	if (machine_is_mainstone()) {
-		ret = sysdev_class_register(&mainstone_irq_sysclass);
-		if (ret == 0)
-			ret = sysdev_register(&mainstone_irq_device);
-	}
-	return ret;
+	return 0;
 }
 
 device_initcall(mainstone_irq_device_init);

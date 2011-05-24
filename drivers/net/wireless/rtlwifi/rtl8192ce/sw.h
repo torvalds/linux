@@ -33,19 +33,9 @@
 int rtl92c_init_sw_vars(struct ieee80211_hw *hw);
 void rtl92c_deinit_sw_vars(struct ieee80211_hw *hw);
 void rtl92c_init_var_map(struct ieee80211_hw *hw);
-bool _rtl92c_cmd_send_packet(struct ieee80211_hw *hw,
-			     struct sk_buff *skb);
-void rtl92ce_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
-					u8 *ppowerlevel);
-void rtl92ce_phy_rf6052_set_ofdm_txpower(struct ieee80211_hw *hw,
-					 u8 *ppowerlevel, u8 channel);
 bool _rtl92ce_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
-						  u8 configtype);
+					    u8 configtype);
 bool _rtl92ce_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
-						    u8 configtype);
-void _rtl92ce_phy_lc_calibrate(struct ieee80211_hw *hw, bool is2t);
-u32 rtl92ce_phy_query_rf_reg(struct ieee80211_hw *hw,
-			    enum radio_path rfpath, u32 regaddr, u32 bitmask);
-void rtl92ce_phy_set_bw_mode_callback(struct ieee80211_hw *hw);
+					      u8 configtype);
 
 #endif

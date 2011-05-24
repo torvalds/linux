@@ -19,7 +19,6 @@
  */
 #include <linux/device.h>
 #include <linux/file.h>
-#include <linux/mutex.h>
 #include <linux/posix-clock.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
@@ -34,19 +33,19 @@ static struct posix_clock *get_posix_clock(struct file *fp)
 {
 	struct posix_clock *clk = fp->private_data;
 
-	mutex_lock(&clk->mutex);
+	down_read(&clk->rwsem);
 
 	if (!clk->zombie)
 		return clk;
 
-	mutex_unlock(&clk->mutex);
+	up_read(&clk->rwsem);
 
 	return NULL;
 }
 
 static void put_posix_clock(struct posix_clock *clk)
 {
-	mutex_unlock(&clk->mutex);
+	up_read(&clk->rwsem);
 }
 
 static ssize_t posix_clock_read(struct file *fp, char __user *buf,
@@ -156,7 +155,7 @@ static int posix_clock_open(struct inode *inode, struct file *fp)
 	struct posix_clock *clk =
 		container_of(inode->i_cdev, struct posix_clock, cdev);
 
-	mutex_lock(&clk->mutex);
+	down_read(&clk->rwsem);
 
 	if (clk->zombie) {
 		err = -ENODEV;
@@ -172,7 +171,7 @@ static int posix_clock_open(struct inode *inode, struct file *fp)
 		fp->private_data = clk;
 	}
 out:
-	mutex_unlock(&clk->mutex);
+	up_read(&clk->rwsem);
 	return err;
 }
 
@@ -211,17 +210,12 @@ int posix_clock_register(struct posix_clock *clk, dev_t devid)
 	int err;
 
 	kref_init(&clk->kref);
-	mutex_init(&clk->mutex);
+	init_rwsem(&clk->rwsem);
 
 	cdev_init(&clk->cdev, &posix_clock_file_operations);
 	clk->cdev.owner = clk->ops.owner;
 	err = cdev_add(&clk->cdev, devid, 1);
-	if (err)
-		goto no_cdev;
 
-	return err;
-no_cdev:
-	mutex_destroy(&clk->mutex);
 	return err;
 }
 EXPORT_SYMBOL_GPL(posix_clock_register);
@@ -229,7 +223,7 @@ EXPORT_SYMBOL_GPL(posix_clock_register);
 static void delete_clock(struct kref *kref)
 {
 	struct posix_clock *clk = container_of(kref, struct posix_clock, kref);
-	mutex_destroy(&clk->mutex);
+
 	if (clk->release)
 		clk->release(clk);
 }
@@ -238,9 +232,9 @@ void posix_clock_unregister(struct posix_clock *clk)
 {
 	cdev_del(&clk->cdev);
 
-	mutex_lock(&clk->mutex);
+	down_write(&clk->rwsem);
 	clk->zombie = true;
-	mutex_unlock(&clk->mutex);
+	up_write(&clk->rwsem);
 
 	kref_put(&clk->kref, delete_clock);
 }

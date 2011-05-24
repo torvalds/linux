@@ -276,7 +276,7 @@ error:
 
 static int esp_input_done2(struct sk_buff *skb, int err)
 {
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	struct xfrm_state *x = xfrm_input_state(skb);
 	struct esp_data *esp = x->data;
 	struct crypto_aead *aead = esp->aead;
@@ -484,7 +484,7 @@ static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 static void esp4_err(struct sk_buff *skb, u32 info)
 {
 	struct net *net = dev_net(skb->dev);
-	struct iphdr *iph = (struct iphdr *)skb->data;
+	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	struct ip_esp_hdr *esph = (struct ip_esp_hdr *)(skb->data+(iph->ihl<<2));
 	struct xfrm_state *x;
 
@@ -492,7 +492,8 @@ static void esp4_err(struct sk_buff *skb, u32 info)
 	    icmp_hdr(skb)->code != ICMP_FRAG_NEEDED)
 		return;
 
-	x = xfrm_state_lookup(net, skb->mark, (xfrm_address_t *)&iph->daddr, esph->spi, IPPROTO_ESP, AF_INET);
+	x = xfrm_state_lookup(net, skb->mark, (const xfrm_address_t *)&iph->daddr,
+			      esph->spi, IPPROTO_ESP, AF_INET);
 	if (!x)
 		return;
 	NETDEBUG(KERN_DEBUG "pmtu discovery on SA ESP/%08x/%08x\n",

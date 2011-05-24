@@ -29,6 +29,7 @@
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/mutex.h>
@@ -45,6 +46,7 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/s3c244x.h>
+#include <plat/pm.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
@@ -166,6 +168,10 @@ static struct sys_device s3c2442_sysdev = {
 int __init s3c2442_init(void)
 {
 	printk("S3C2442: Initialising architecture\n");
+
+	register_syscore_ops(&s3c2410_pm_syscore_ops);
+	register_syscore_ops(&s3c244x_pm_syscore_ops);
+	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 
 	return sysdev_register(&s3c2442_sysdev);
 }

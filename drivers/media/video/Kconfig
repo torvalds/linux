@@ -128,10 +128,10 @@ config VIDEO_IR_I2C
 # Encoder / Decoder module configuration
 #
 
-menu "Encoders/decoders and other helper chips"
+menu "Encoders, decoders, sensors and other helper chips"
 	visible if !VIDEO_HELPER_CHIPS_AUTO
 
-comment "Audio decoders"
+comment "Audio decoders, processors and mixers"
 
 config VIDEO_TVAUDIO
 	tristate "Simple audio decoder chips"
@@ -209,15 +209,6 @@ config VIDEO_CS53L32A
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cs53l32a.
-
-config VIDEO_M52790
-	tristate "Mitsubishi M52790 A/V switch"
-	depends on VIDEO_V4L2 && I2C
-	---help---
-	 Support for the Mitsubishi M52790 A/V switch.
-
-	 To compile this driver as a module, choose M here: the
-	 module will be called m52790.
 
 config VIDEO_TLV320AIC23B
 	tristate "Texas Instruments TLV320AIC23B audio codec"
@@ -321,29 +312,6 @@ config VIDEO_KS0127
 	  To compile this driver as a module, choose M here: the
 	  module will be called ks0127.
 
-config VIDEO_OV7670
-	tristate "OmniVision OV7670 sensor support"
-	depends on I2C && VIDEO_V4L2
-	---help---
-	  This is a Video4Linux2 sensor-level driver for the OmniVision
-	  OV7670 VGA camera.  It currently only works with the M88ALP01
-	  controller.
-
-config VIDEO_MT9V011
-	tristate "Micron mt9v011 sensor support"
-	depends on I2C && VIDEO_V4L2
-	---help---
-	  This is a Video4Linux2 sensor-level driver for the Micron
-	  mt0v011 1.3 Mpixel camera.  It currently only works with the
-	  em28xx driver.
-
-config VIDEO_TCM825X
-	tristate "TCM825x camera sensor support"
-	depends on I2C && VIDEO_V4L2
-	---help---
-	  This is a driver for the Toshiba TCM825x VGA camera sensor.
-	  It is used for example in Nokia N800.
-
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
 	depends on VIDEO_V4L2 && I2C
@@ -361,15 +329,6 @@ config VIDEO_SAA711X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7115.
-
-config VIDEO_SAA717X
-	tristate "Philips SAA7171/3/4 audio/video decoders"
-	depends on VIDEO_V4L2 && I2C
-	---help---
-	  Support for the Philips SAA7171/3/4 audio/video decoders.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa717x.
 
 config VIDEO_SAA7191
 	tristate "Philips SAA7191 video decoder"
@@ -419,6 +378,15 @@ config VIDEO_VPX3220
 	  module will be called vpx3220.
 
 comment "Video and audio decoders"
+
+config VIDEO_SAA717X
+	tristate "Philips SAA7171/3/4 audio/video decoders"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Philips SAA7171/3/4 audio/video decoders.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa717x.
 
 source "drivers/media/video/cx25840/Kconfig"
 
@@ -474,15 +442,6 @@ config VIDEO_ADV7175
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7175.
 
-config VIDEO_THS7303
-	tristate "THS7303 Video Amplifier"
-	depends on I2C
-	help
-	  Support for TI THS7303 video amplifier
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ths7303.
-
 config VIDEO_ADV7343
 	tristate "ADV7343 video encoder"
 	depends on I2C
@@ -497,6 +456,38 @@ config VIDEO_AK881X
 	depends on I2C
 	help
 	  Video output driver for AKM AK8813 and AK8814 TV encoders
+
+comment "Camera sensor devices"
+
+config VIDEO_OV7670
+	tristate "OmniVision OV7670 sensor support"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV7670 VGA camera.  It currently only works with the M88ALP01
+	  controller.
+
+config VIDEO_MT9V011
+	tristate "Micron mt9v011 sensor support"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Micron
+	  mt0v011 1.3 Mpixel camera.  It currently only works with the
+	  em28xx driver.
+
+config VIDEO_MT9V032
+	tristate "Micron MT9V032 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Micron
+	  MT9V032 752x480 CMOS sensor.
+
+config VIDEO_TCM825X
+	tristate "TCM825x camera sensor support"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This is a driver for the Toshiba TCM825x VGA camera sensor.
+	  It is used for example in Nokia N800.
 
 comment "Video improvement chips"
 
@@ -522,6 +513,26 @@ config VIDEO_UPD64083
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called upd64083.
+
+comment "Miscelaneous helper chips"
+
+config VIDEO_THS7303
+	tristate "THS7303 Video Amplifier"
+	depends on I2C
+	help
+	  Support for TI THS7303 video amplifier
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ths7303.
+
+config VIDEO_M52790
+	tristate "Mitsubishi M52790 A/V switch"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	 Support for the Mitsubishi M52790 A/V switch.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called m52790.
 
 endmenu # encoder / decoder chips
 
@@ -682,7 +693,7 @@ config VIDEO_TIMBERDALE
 	select VIDEO_ADV7180
 	select VIDEOBUF_DMA_CONTIG
 	---help---
-	Add support for the Video In peripherial of the timberdale FPGA.
+	  Add support for the Video In peripherial of the timberdale FPGA.
 
 source "drivers/media/video/cx88/Kconfig"
 
@@ -875,7 +886,7 @@ config MX3_VIDEO
 config VIDEO_MX3
 	tristate "i.MX3x Camera Sensor Interface driver"
 	depends on VIDEO_DEV && MX3_IPU && SOC_CAMERA
-	select VIDEOBUF_DMA_CONTIG
+	select VIDEOBUF2_DMA_CONTIG
 	select MX3_VIDEO
 	---help---
 	  This is a v4l2 driver for the i.MX3x Camera Sensor Interface
@@ -916,7 +927,7 @@ config VIDEO_OMAP2
 	  This is a v4l2 driver for the TI OMAP2 camera capture interface
 
 config VIDEO_MX2_HOSTSUPPORT
-        bool
+	bool
 
 config VIDEO_MX2
 	tristate "i.MX27/i.MX25 Camera Sensor Interface driver"
@@ -927,6 +938,26 @@ config VIDEO_MX2
 	  This is a v4l2 driver for the i.MX27 and the i.MX25 Camera Sensor
 	  Interface
 
+config  VIDEO_SAMSUNG_S5P_FIMC
+	tristate "Samsung S5P and EXYNOS4 camera host interface driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && PLAT_S5P
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	---help---
+	  This is a v4l2 driver for Samsung S5P and EXYNOS4 camera
+	  host interface and video postprocessor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called s5p-fimc.
+
+config VIDEO_S5P_MIPI_CSIS
+	tristate "Samsung S5P and EXYNOS4 MIPI CSI receiver driver"
+	depends on VIDEO_V4L2 && PM_RUNTIME && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a v4l2 driver for Samsung S5P/EXYNOS4 MIPI-CSI receiver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called s5p-csis.
 
 #
 # USB Multimedia device configuration
@@ -983,7 +1014,7 @@ config USB_STKWEBCAM
 	  Supported devices are typically found in some Asus laptops,
 	  with USB id 174f:a311 and 05e1:0501. Other Syntek cameras
 	  may be supported by the stk11xx driver, from which this is
-	  derived, see <http://sourceforge.net/projects/syntekdriver/> 
+	  derived, see <http://sourceforge.net/projects/syntekdriver/>
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called stkwebcam.
@@ -1022,13 +1053,5 @@ config VIDEO_MEM2MEM_TESTDEV
 	  This is a virtual test device for the memory-to-memory driver
 	  framework.
 
-config  VIDEO_SAMSUNG_S5P_FIMC
-	tristate "Samsung S5P FIMC (video postprocessor) driver"
-	depends on VIDEO_DEV && VIDEO_V4L2 && PLAT_S5P
-	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_MEM2MEM_DEV
-	help
-	  This is a v4l2 driver for the S5P camera interface
-	  (video postprocessor)
 
 endif # V4L_MEM2MEM_DRIVERS

@@ -54,11 +54,8 @@ extern const mcs_info_t mcs_table[];
 	(_is40 ? mcs_table[_mcs].phy_rate_40 : mcs_table[_mcs].phy_rate_20))
 #define VALID_MCS(_mcs)	((_mcs < MCS_TABLE_SIZE))
 
-#define	WLC_RATE_FLAG	0x80	/* Rate flag: basic or ofdm */
-
-/* Macros to use the rate_info table */
-#define	RATE_MASK	0x7f	/* Rate value mask w/o basic rate flag */
-#define	RATE_MASK_FULL	0xff	/* Rate value mask with basic rate flag */
+/* Macro to use the rate_info table */
+#define	WLC_RATE_MASK_FULL 0xff	/* Rate value mask with basic rate flag */
 
 #define WLC_RATE_500K_TO_BPS(rate)	((rate) * 500000)	/* convert 500kbps to bps */
 
@@ -115,9 +112,11 @@ typedef u32 ratespec_t;
 /* Rate info table; takes a legacy rate or ratespec_t */
 #define	IS_MCS(r)     	(r & RSPEC_MIMORATE)
 #define	IS_OFDM(r)     	(!IS_MCS(r) && (rate_info[(r) & RSPEC_RATE_MASK] & WLC_RATE_FLAG))
-#define	IS_CCK(r)	(!IS_MCS(r) && (((r) & RATE_MASK) == WLC_RATE_1M || \
-			 ((r) & RATE_MASK) == WLC_RATE_2M || \
-			 ((r) & RATE_MASK) == WLC_RATE_5M5 || ((r) & RATE_MASK) == WLC_RATE_11M))
+#define	IS_CCK(r)	(!IS_MCS(r) && ( \
+			 ((r) & WLC_RATE_MASK) == WLC_RATE_1M || \
+			 ((r) & WLC_RATE_MASK) == WLC_RATE_2M || \
+			 ((r) & WLC_RATE_MASK) == WLC_RATE_5M5 || \
+			 ((r) & WLC_RATE_MASK) == WLC_RATE_11M))
 #define IS_SINGLE_STREAM(mcs)	(((mcs) <= HIGHEST_SINGLE_STREAM_MCS) || ((mcs) == 32))
 #define CCK_RSPEC(cck)		((cck) & RSPEC_RATE_MASK)
 #define OFDM_RSPEC(ofdm)	(((ofdm) & RSPEC_RATE_MASK) |\

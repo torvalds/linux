@@ -81,7 +81,9 @@ struct wm831x_touch_pdata {
 	int rpu;               /** Pen down sensitivity resistor divider */
 	int pressure;          /** Report pressure (boolean) */
 	unsigned int data_irq; /** Touch data ready IRQ */
+	int data_irqf;         /** IRQ flags for data ready IRQ */
 	unsigned int pd_irq;   /** Touch pendown detect IRQ */
+	int pd_irqf;           /** IRQ flags for pen down IRQ */
 };
 
 enum wm831x_watchdog_action {

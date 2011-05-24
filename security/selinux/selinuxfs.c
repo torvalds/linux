@@ -280,7 +280,7 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 
 	length = -ENOMEM;
 	if (count >= PAGE_SIZE)
-		goto out;;
+		goto out;
 
 	/* No partial writes. */
 	length = -EINVAL;
@@ -876,12 +876,12 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 
 	length = task_has_security(current, SECURITY__COMPUTE_USER);
 	if (length)
-		goto out;;
+		goto out;
 
 	length = -ENOMEM;
 	con = kzalloc(size + 1, GFP_KERNEL);
 	if (!con)
-		goto out;;
+		goto out;
 
 	length = -ENOMEM;
 	user = kzalloc(size + 1, GFP_KERNEL);
@@ -941,7 +941,7 @@ static ssize_t sel_write_member(struct file *file, char *buf, size_t size)
 	length = -ENOMEM;
 	scon = kzalloc(size + 1, GFP_KERNEL);
 	if (!scon)
-		goto out;;
+		goto out;
 
 	length = -ENOMEM;
 	tcon = kzalloc(size + 1, GFP_KERNEL);
@@ -1380,10 +1380,14 @@ static int sel_avc_stats_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_printf(seq, "lookups hits misses allocations reclaims "
 			   "frees\n");
-	else
-		seq_printf(seq, "%u %u %u %u %u %u\n", st->lookups,
-			   st->hits, st->misses, st->allocations,
+	else {
+		unsigned int lookups = st->lookups;
+		unsigned int misses = st->misses;
+		unsigned int hits = lookups - misses;
+		seq_printf(seq, "%u %u %u %u %u %u\n", lookups,
+			   hits, misses, st->allocations,
 			   st->reclaims, st->frees);
+	}
 	return 0;
 }
 

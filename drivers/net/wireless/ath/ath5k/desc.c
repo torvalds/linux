@@ -185,6 +185,12 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	struct ath5k_hw_4w_tx_ctl *tx_ctl;
 	unsigned int frame_len;
 
+	/*
+	 * Use local variables for these to reduce load/store access on
+	 * uncached memory
+	 */
+	u32 txctl0 = 0, txctl1 = 0, txctl2 = 0, txctl3 = 0;
+
 	tx_ctl = &desc->ud.ds_tx5212.tx_ctl;
 
 	/*
@@ -208,8 +214,9 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	if (tx_power > AR5K_TUNE_MAX_TXPOWER)
 		tx_power = AR5K_TUNE_MAX_TXPOWER;
 
-	/* Clear descriptor */
-	memset(&desc->ud.ds_tx5212, 0, sizeof(struct ath5k_hw_5212_tx_desc));
+	/* Clear descriptor status area */
+	memset(&desc->ud.ds_tx5212.tx_stat, 0,
+	       sizeof(desc->ud.ds_tx5212.tx_stat));
 
 	/* Setup control descriptor */
 
@@ -221,7 +228,7 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	if (frame_len & ~AR5K_4W_TX_DESC_CTL0_FRAME_LEN)
 		return -EINVAL;
 
-	tx_ctl->tx_control_0 = frame_len & AR5K_4W_TX_DESC_CTL0_FRAME_LEN;
+	txctl0 = frame_len & AR5K_4W_TX_DESC_CTL0_FRAME_LEN;
 
 	/* Verify and set buffer length */
 
@@ -232,21 +239,17 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	if (pkt_len & ~AR5K_4W_TX_DESC_CTL1_BUF_LEN)
 		return -EINVAL;
 
-	tx_ctl->tx_control_1 = pkt_len & AR5K_4W_TX_DESC_CTL1_BUF_LEN;
+	txctl1 = pkt_len & AR5K_4W_TX_DESC_CTL1_BUF_LEN;
 
-	tx_ctl->tx_control_0 |=
-		AR5K_REG_SM(tx_power, AR5K_4W_TX_DESC_CTL0_XMIT_POWER) |
-		AR5K_REG_SM(antenna_mode, AR5K_4W_TX_DESC_CTL0_ANT_MODE_XMIT);
-	tx_ctl->tx_control_1 |= AR5K_REG_SM(type,
-					AR5K_4W_TX_DESC_CTL1_FRAME_TYPE);
-	tx_ctl->tx_control_2 = AR5K_REG_SM(tx_tries0,
-					AR5K_4W_TX_DESC_CTL2_XMIT_TRIES0);
-	tx_ctl->tx_control_3 = tx_rate0 & AR5K_4W_TX_DESC_CTL3_XMIT_RATE0;
+	txctl0 |= AR5K_REG_SM(tx_power, AR5K_4W_TX_DESC_CTL0_XMIT_POWER) |
+		  AR5K_REG_SM(antenna_mode, AR5K_4W_TX_DESC_CTL0_ANT_MODE_XMIT);
+	txctl1 |= AR5K_REG_SM(type, AR5K_4W_TX_DESC_CTL1_FRAME_TYPE);
+	txctl2 = AR5K_REG_SM(tx_tries0, AR5K_4W_TX_DESC_CTL2_XMIT_TRIES0);
+	txctl3 = tx_rate0 & AR5K_4W_TX_DESC_CTL3_XMIT_RATE0;
 
 #define _TX_FLAGS(_c, _flag)					\
 	if (flags & AR5K_TXDESC_##_flag) {			\
-		tx_ctl->tx_control_##_c |=			\
-			AR5K_4W_TX_DESC_CTL##_c##_##_flag;	\
+		txctl##_c |= AR5K_4W_TX_DESC_CTL##_c##_##_flag;	\
 	}
 
 	_TX_FLAGS(0, CLRDMASK);
@@ -262,8 +265,8 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	 * WEP crap
 	 */
 	if (key_index != AR5K_TXKEYIX_INVALID) {
-		tx_ctl->tx_control_0 |= AR5K_4W_TX_DESC_CTL0_ENCRYPT_KEY_VALID;
-		tx_ctl->tx_control_1 |= AR5K_REG_SM(key_index,
+		txctl0 |= AR5K_4W_TX_DESC_CTL0_ENCRYPT_KEY_VALID;
+		txctl1 |= AR5K_REG_SM(key_index,
 				AR5K_4W_TX_DESC_CTL1_ENCRYPT_KEY_IDX);
 	}
 
@@ -274,11 +277,15 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 		if ((flags & AR5K_TXDESC_RTSENA) &&
 				(flags & AR5K_TXDESC_CTSENA))
 			return -EINVAL;
-		tx_ctl->tx_control_2 |= rtscts_duration &
-				AR5K_4W_TX_DESC_CTL2_RTS_DURATION;
-		tx_ctl->tx_control_3 |= AR5K_REG_SM(rtscts_rate,
+		txctl2 |= rtscts_duration & AR5K_4W_TX_DESC_CTL2_RTS_DURATION;
+		txctl3 |= AR5K_REG_SM(rtscts_rate,
 				AR5K_4W_TX_DESC_CTL3_RTS_CTS_RATE);
 	}
+
+	tx_ctl->tx_control_0 = txctl0;
+	tx_ctl->tx_control_1 = txctl1;
+	tx_ctl->tx_control_2 = txctl2;
+	tx_ctl->tx_control_3 = txctl3;
 
 	return 0;
 }
@@ -364,7 +371,7 @@ static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
 		AR5K_DESC_TX_STATUS0_SEND_TIMESTAMP);
 	ts->ts_shortretry = AR5K_REG_MS(tx_status->tx_status_0,
 		AR5K_DESC_TX_STATUS0_SHORT_RETRY_COUNT);
-	ts->ts_longretry = AR5K_REG_MS(tx_status->tx_status_0,
+	ts->ts_final_retry = AR5K_REG_MS(tx_status->tx_status_0,
 		AR5K_DESC_TX_STATUS0_LONG_RETRY_COUNT);
 	/*TODO: ts->ts_virtcol + test*/
 	ts->ts_seqnum = AR5K_REG_MS(tx_status->tx_status_1,
@@ -373,9 +380,6 @@ static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
 		AR5K_DESC_TX_STATUS1_ACK_SIG_STRENGTH);
 	ts->ts_antenna = 1;
 	ts->ts_status = 0;
-	ts->ts_rate[0] = AR5K_REG_MS(tx_ctl->tx_control_0,
-		AR5K_2W_TX_DESC_CTL0_XMIT_RATE);
-	ts->ts_retry[0] = ts->ts_longretry;
 	ts->ts_final_idx = 0;
 
 	if (!(tx_status->tx_status_0 & AR5K_DESC_TX_STATUS0_FRAME_XMIT_OK)) {
@@ -401,81 +405,48 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 {
 	struct ath5k_hw_4w_tx_ctl *tx_ctl;
 	struct ath5k_hw_tx_status *tx_status;
+	u32 txstat0, txstat1;
 
 	tx_ctl = &desc->ud.ds_tx5212.tx_ctl;
 	tx_status = &desc->ud.ds_tx5212.tx_stat;
 
+	txstat1 = ACCESS_ONCE(tx_status->tx_status_1);
+
 	/* No frame has been send or error */
-	if (unlikely(!(tx_status->tx_status_1 & AR5K_DESC_TX_STATUS1_DONE)))
+	if (unlikely(!(txstat1 & AR5K_DESC_TX_STATUS1_DONE)))
 		return -EINPROGRESS;
+
+	txstat0 = ACCESS_ONCE(tx_status->tx_status_0);
 
 	/*
 	 * Get descriptor status
 	 */
-	ts->ts_tstamp = AR5K_REG_MS(tx_status->tx_status_0,
+	ts->ts_tstamp = AR5K_REG_MS(txstat0,
 		AR5K_DESC_TX_STATUS0_SEND_TIMESTAMP);
-	ts->ts_shortretry = AR5K_REG_MS(tx_status->tx_status_0,
+	ts->ts_shortretry = AR5K_REG_MS(txstat0,
 		AR5K_DESC_TX_STATUS0_SHORT_RETRY_COUNT);
-	ts->ts_longretry = AR5K_REG_MS(tx_status->tx_status_0,
+	ts->ts_final_retry = AR5K_REG_MS(txstat0,
 		AR5K_DESC_TX_STATUS0_LONG_RETRY_COUNT);
-	ts->ts_seqnum = AR5K_REG_MS(tx_status->tx_status_1,
+	ts->ts_seqnum = AR5K_REG_MS(txstat1,
 		AR5K_DESC_TX_STATUS1_SEQ_NUM);
-	ts->ts_rssi = AR5K_REG_MS(tx_status->tx_status_1,
+	ts->ts_rssi = AR5K_REG_MS(txstat1,
 		AR5K_DESC_TX_STATUS1_ACK_SIG_STRENGTH);
-	ts->ts_antenna = (tx_status->tx_status_1 &
+	ts->ts_antenna = (txstat1 &
 		AR5K_DESC_TX_STATUS1_XMIT_ANTENNA_5212) ? 2 : 1;
 	ts->ts_status = 0;
 
-	ts->ts_final_idx = AR5K_REG_MS(tx_status->tx_status_1,
+	ts->ts_final_idx = AR5K_REG_MS(txstat1,
 			AR5K_DESC_TX_STATUS1_FINAL_TS_IX_5212);
 
-	/* The longretry counter has the number of un-acked retries
-	 * for the final rate. To get the total number of retries
-	 * we have to add the retry counters for the other rates
-	 * as well
-	 */
-	ts->ts_retry[ts->ts_final_idx] = ts->ts_longretry;
-	switch (ts->ts_final_idx) {
-	case 3:
-		ts->ts_rate[3] = AR5K_REG_MS(tx_ctl->tx_control_3,
-			AR5K_4W_TX_DESC_CTL3_XMIT_RATE3);
-
-		ts->ts_retry[2] = AR5K_REG_MS(tx_ctl->tx_control_2,
-			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES2);
-		ts->ts_longretry += ts->ts_retry[2];
-		/* fall through */
-	case 2:
-		ts->ts_rate[2] = AR5K_REG_MS(tx_ctl->tx_control_3,
-			AR5K_4W_TX_DESC_CTL3_XMIT_RATE2);
-
-		ts->ts_retry[1] = AR5K_REG_MS(tx_ctl->tx_control_2,
-			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES1);
-		ts->ts_longretry += ts->ts_retry[1];
-		/* fall through */
-	case 1:
-		ts->ts_rate[1] = AR5K_REG_MS(tx_ctl->tx_control_3,
-			AR5K_4W_TX_DESC_CTL3_XMIT_RATE1);
-
-		ts->ts_retry[0] = AR5K_REG_MS(tx_ctl->tx_control_2,
-			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES1);
-		ts->ts_longretry += ts->ts_retry[0];
-		/* fall through */
-	case 0:
-		ts->ts_rate[0] = tx_ctl->tx_control_3 &
-			AR5K_4W_TX_DESC_CTL3_XMIT_RATE0;
-		break;
-	}
-
 	/* TX error */
-	if (!(tx_status->tx_status_0 & AR5K_DESC_TX_STATUS0_FRAME_XMIT_OK)) {
-		if (tx_status->tx_status_0 &
-				AR5K_DESC_TX_STATUS0_EXCESSIVE_RETRIES)
+	if (!(txstat0 & AR5K_DESC_TX_STATUS0_FRAME_XMIT_OK)) {
+		if (txstat0 & AR5K_DESC_TX_STATUS0_EXCESSIVE_RETRIES)
 			ts->ts_status |= AR5K_TXERR_XRETRY;
 
-		if (tx_status->tx_status_0 & AR5K_DESC_TX_STATUS0_FIFO_UNDERRUN)
+		if (txstat0 & AR5K_DESC_TX_STATUS0_FIFO_UNDERRUN)
 			ts->ts_status |= AR5K_TXERR_FIFO;
 
-		if (tx_status->tx_status_0 & AR5K_DESC_TX_STATUS0_FILTERED)
+		if (txstat0 & AR5K_DESC_TX_STATUS0_FILTERED)
 			ts->ts_status |= AR5K_TXERR_FILT;
 	}
 
@@ -609,37 +580,37 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 					struct ath5k_rx_status *rs)
 {
 	struct ath5k_hw_rx_status *rx_status;
+	u32 rxstat0, rxstat1;
 
 	rx_status = &desc->ud.ds_rx.rx_stat;
+	rxstat1 = ACCESS_ONCE(rx_status->rx_status_1);
 
 	/* No frame received / not ready */
-	if (unlikely(!(rx_status->rx_status_1 &
-				AR5K_5212_RX_DESC_STATUS1_DONE)))
+	if (unlikely(!(rxstat1 & AR5K_5212_RX_DESC_STATUS1_DONE)))
 		return -EINPROGRESS;
 
 	memset(rs, 0, sizeof(struct ath5k_rx_status));
+	rxstat0 = ACCESS_ONCE(rx_status->rx_status_0);
 
 	/*
 	 * Frame receive status
 	 */
-	rs->rs_datalen = rx_status->rx_status_0 &
-		AR5K_5212_RX_DESC_STATUS0_DATA_LEN;
-	rs->rs_rssi = AR5K_REG_MS(rx_status->rx_status_0,
+	rs->rs_datalen = rxstat0 & AR5K_5212_RX_DESC_STATUS0_DATA_LEN;
+	rs->rs_rssi = AR5K_REG_MS(rxstat0,
 		AR5K_5212_RX_DESC_STATUS0_RECEIVE_SIGNAL);
-	rs->rs_rate = AR5K_REG_MS(rx_status->rx_status_0,
+	rs->rs_rate = AR5K_REG_MS(rxstat0,
 		AR5K_5212_RX_DESC_STATUS0_RECEIVE_RATE);
-	rs->rs_antenna = AR5K_REG_MS(rx_status->rx_status_0,
+	rs->rs_antenna = AR5K_REG_MS(rxstat0,
 		AR5K_5212_RX_DESC_STATUS0_RECEIVE_ANTENNA);
-	rs->rs_more = !!(rx_status->rx_status_0 &
-		AR5K_5212_RX_DESC_STATUS0_MORE);
-	rs->rs_tstamp = AR5K_REG_MS(rx_status->rx_status_1,
+	rs->rs_more = !!(rxstat0 & AR5K_5212_RX_DESC_STATUS0_MORE);
+	rs->rs_tstamp = AR5K_REG_MS(rxstat1,
 		AR5K_5212_RX_DESC_STATUS1_RECEIVE_TIMESTAMP);
 
 	/*
 	 * Key table status
 	 */
-	if (rx_status->rx_status_1 & AR5K_5212_RX_DESC_STATUS1_KEY_INDEX_VALID)
-		rs->rs_keyix = AR5K_REG_MS(rx_status->rx_status_1,
+	if (rxstat1 & AR5K_5212_RX_DESC_STATUS1_KEY_INDEX_VALID)
+		rs->rs_keyix = AR5K_REG_MS(rxstat1,
 					   AR5K_5212_RX_DESC_STATUS1_KEY_INDEX);
 	else
 		rs->rs_keyix = AR5K_RXKEYIX_INVALID;
@@ -647,27 +618,22 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 	/*
 	 * Receive/descriptor errors
 	 */
-	if (!(rx_status->rx_status_1 &
-	    AR5K_5212_RX_DESC_STATUS1_FRAME_RECEIVE_OK)) {
-		if (rx_status->rx_status_1 &
-				AR5K_5212_RX_DESC_STATUS1_CRC_ERROR)
+	if (!(rxstat1 & AR5K_5212_RX_DESC_STATUS1_FRAME_RECEIVE_OK)) {
+		if (rxstat1 & AR5K_5212_RX_DESC_STATUS1_CRC_ERROR)
 			rs->rs_status |= AR5K_RXERR_CRC;
 
-		if (rx_status->rx_status_1 &
-				AR5K_5212_RX_DESC_STATUS1_PHY_ERROR) {
+		if (rxstat1 & AR5K_5212_RX_DESC_STATUS1_PHY_ERROR) {
 			rs->rs_status |= AR5K_RXERR_PHY;
-			rs->rs_phyerr = AR5K_REG_MS(rx_status->rx_status_1,
+			rs->rs_phyerr = AR5K_REG_MS(rxstat1,
 				AR5K_5212_RX_DESC_STATUS1_PHY_ERROR_CODE);
 			if (!ah->ah_capabilities.cap_has_phyerr_counters)
 				ath5k_ani_phy_error_report(ah, rs->rs_phyerr);
 		}
 
-		if (rx_status->rx_status_1 &
-				AR5K_5212_RX_DESC_STATUS1_DECRYPT_CRC_ERROR)
+		if (rxstat1 & AR5K_5212_RX_DESC_STATUS1_DECRYPT_CRC_ERROR)
 			rs->rs_status |= AR5K_RXERR_DECRYPT;
 
-		if (rx_status->rx_status_1 &
-				AR5K_5212_RX_DESC_STATUS1_MIC_ERROR)
+		if (rxstat1 & AR5K_5212_RX_DESC_STATUS1_MIC_ERROR)
 			rs->rs_status |= AR5K_RXERR_MIC;
 	}
 	return 0;

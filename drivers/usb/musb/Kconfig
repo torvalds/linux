@@ -38,31 +38,31 @@ choice
 	depends on USB_MUSB_HDRC
 
 config USB_MUSB_DAVINCI
-	bool "DaVinci"
+	tristate "DaVinci"
 	depends on ARCH_DAVINCI_DMx
 
 config USB_MUSB_DA8XX
-	bool "DA8xx/OMAP-L1x"
+	tristate "DA8xx/OMAP-L1x"
 	depends on ARCH_DAVINCI_DA8XX
 
 config USB_MUSB_TUSB6010
-	bool "TUSB6010"
+	tristate "TUSB6010"
 	depends on ARCH_OMAP
 
 config USB_MUSB_OMAP2PLUS
-	bool "OMAP2430 and onwards"
+	tristate "OMAP2430 and onwards"
 	depends on ARCH_OMAP2PLUS
 
 config USB_MUSB_AM35X
-	bool "AM35x"
+	tristate "AM35x"
 	depends on ARCH_OMAP
 
 config USB_MUSB_BLACKFIN
-	bool "Blackfin"
+	tristate "Blackfin"
 	depends on (BF54x && !BF544) || (BF52x && ! BF522 && !BF523)
 
 config USB_MUSB_UX500
-	bool "U8500 and U5500"
+	tristate "U8500 and U5500"
 	depends on (ARCH_U8500 && AB8500_USB) || (ARCH_U5500)
 
 endchoice
@@ -153,6 +153,13 @@ config MUSB_PIO_ONLY
 	  you can still disable it at run time using the "use_dma=n" module
 	  parameter.
 
+config USB_UX500_DMA
+	bool
+	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
+	default USB_MUSB_UX500
+	help
+	  Enable DMA transfers on UX500 platforms.
+
 config USB_INVENTRA_DMA
 	bool
 	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
@@ -176,11 +183,3 @@ config USB_TUSB_OMAP_DMA
 	help
 	  Enable DMA transfers on TUSB 6010 when OMAP DMA is available.
 
-config	USB_MUSB_DEBUG
-	depends on USB_MUSB_HDRC
-	bool "Enable debugging messages"
-	default n
-	help
-	  This enables musb debugging. To set the logging level use the debug
-	  module parameter. Starting at level 3, per-transfer (urb, usb_request,
-	  packet, or dma transfer) tracing may kick in.

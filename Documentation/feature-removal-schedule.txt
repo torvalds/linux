@@ -35,17 +35,6 @@ Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
 
 ---------------------------
 
-What:	AR9170USB
-When:	2.6.40
-
-Why:	This driver is deprecated and the firmware is no longer
-	maintained. The replacement driver "carl9170" has been
-	around for a while, so the devices are still supported.
-
-Who:	Christian Lamparter <chunkeey@googlemail.com>
-
----------------------------
-
 What:	IRQF_SAMPLE_RANDOM
 Check:	IRQF_SAMPLE_RANDOM
 When:	July 2009
@@ -226,7 +215,7 @@ Who:	Zhang Rui <rui.zhang@intel.com>
 What:	CONFIG_ACPI_PROCFS_POWER
 When:	2.6.39
 Why:	sysfs I/F for ACPI power devices, including AC and Battery,
-        has been working in upstream kenrel since 2.6.24, Sep 2007.
+        has been working in upstream kernel since 2.6.24, Sep 2007.
 	In 2.6.37, we make the sysfs I/F always built in and this option
 	disabled by default.
 	Remove this option and the ACPI power procfs interface in 2.6.39.
@@ -387,26 +376,6 @@ Who:	Tejun Heo <tj@kernel.org>
 
 ----------------------------
 
-What:	Support for lcd_switch and display_get in asus-laptop driver
-When:	March 2010
-Why:	These two features use non-standard interfaces. There are the
-	only features that really need multiple path to guess what's
-	the right method name on a specific laptop.
-
-	Removing them will allow to remove a lot of code an significantly
-	clean the drivers.
-
-	This will affect the backlight code which won't be able to know
-	if the backlight is on or off. The platform display file will also be
-	write only (like the one in eeepc-laptop).
-
-	This should'nt affect a lot of user because they usually know
-	when their display is on or off.
-
-Who:	Corentin Chary <corentin.chary@gmail.com>
-
-----------------------------
-
 What:	sysfs-class-rfkill state file
 When:	Feb 2014
 Files:	net/rfkill/core.c
@@ -422,16 +391,6 @@ Files:	net/rfkill/core.c
 Why:	It is not possible to claim an rfkill driver since 2007. This is
 	Documented as obsolete since Feb 2010.
 Who: 	anybody or Florian Mickler <florian@mickler.org>
-
-----------------------------
-
-What:	capifs
-When:	February 2011
-Files:	drivers/isdn/capi/capifs.*
-Why:	udev fully replaces this special file system that only contains CAPI
-	NCCI TTY device nodes. User space (pppdcapiplugin) works without
-	noticing the difference.
-Who:	Jan Kiszka <jan.kiszka@web.de>
 
 ----------------------------
 
@@ -477,14 +436,6 @@ What:	IRQF_DISABLED
 When:	2.6.36
 Why:	The flag is a NOOP as we run interrupt handlers with interrupts disabled
 Who:	Thomas Gleixner <tglx@linutronix.de>
-
-----------------------------
-
-What:	The acpi_sleep=s4_nonvs command line option
-When:	2.6.37
-Files:	arch/x86/kernel/acpi/sleep.c
-Why:	superseded by acpi_sleep=nonvs
-Who:	Rafael J. Wysocki <rjw@sisk.pl>
 
 ----------------------------
 
@@ -598,5 +549,28 @@ When:	September 2011
 Why:	These legacy callbacks should no longer be used as i2c-core offers
 	a variety of preferable alternative ways to instantiate I2C devices.
 Who:	Jean Delvare <khali@linux-fr.org>
+
+----------------------------
+
+What:	Support for UVCIOC_CTRL_ADD in the uvcvideo driver
+When:	2.6.42
+Why:	The information passed to the driver by this ioctl is now queried
+	dynamically from the device.
+Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+----------------------------
+
+What:	Support for UVCIOC_CTRL_MAP_OLD in the uvcvideo driver
+When:	2.6.42
+Why:	Used only by applications compiled against older driver versions.
+	Superseded by UVCIOC_CTRL_MAP which supports V4L2 menu controls.
+Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+----------------------------
+
+What:	Support for UVCIOC_CTRL_GET and UVCIOC_CTRL_SET in the uvcvideo driver
+When:	2.6.42
+Why:	Superseded by the UVCIOC_CTRL_QUERY ioctl.
+Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
 ----------------------------

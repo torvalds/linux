@@ -93,6 +93,8 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 #endif
 
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
+		case R_SH_NONE:
+			break;
 		case R_SH_DIR32:
 			value = get_unaligned(location);
 			value += relocation;

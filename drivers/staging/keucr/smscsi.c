@@ -20,8 +20,6 @@ int SM_SCSI_Read_Capacity   (struct us_data *us, struct scsi_cmnd *srb);
 int SM_SCSI_Read            (struct us_data *us, struct scsi_cmnd *srb);
 int SM_SCSI_Write           (struct us_data *us, struct scsi_cmnd *srb);
 
-extern struct SSFDCTYPE     Ssfdc;
-extern struct ADDRESS       Media;
 extern PBYTE                SMHostAddr;
 extern DWORD                ErrXDCode;
 

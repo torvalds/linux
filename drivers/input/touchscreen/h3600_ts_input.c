@@ -399,31 +399,34 @@ static int h3600ts_connect(struct serio *serio, struct serio_driver *drv)
 			IRQF_SHARED | IRQF_DISABLED, "h3600_action", &ts->dev)) {
 		printk(KERN_ERR "h3600ts.c: Could not allocate Action Button IRQ!\n");
 		err = -EBUSY;
-		goto fail2;
+		goto fail1;
 	}
 
 	if (request_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, npower_button_handler,
 			IRQF_SHARED | IRQF_DISABLED, "h3600_suspend", &ts->dev)) {
 		printk(KERN_ERR "h3600ts.c: Could not allocate Power Button IRQ!\n");
 		err = -EBUSY;
-		goto fail3;
+		goto fail2;
 	}
 
 	serio_set_drvdata(serio, ts);
 
 	err = serio_open(serio, drv);
 	if (err)
-		return err;
+		goto fail3;
 
 	//h3600_flite_control(1, 25);     /* default brightness */
-	input_register_device(ts->dev);
+	err = input_register_device(ts->dev);
+	if (err)
+		goto fail4;
 
 	return 0;
 
-fail3:	free_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, ts->dev);
+fail4:	serio_close(serio);
+fail3:	serio_set_drvdata(serio, NULL);
+	free_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, ts->dev);
 fail2:	free_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, ts->dev);
-fail1:	serio_set_drvdata(serio, NULL);
-	input_free_device(input_dev);
+fail1:	input_free_device(input_dev);
 	kfree(ts);
 	return err;
 }

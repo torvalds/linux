@@ -758,8 +758,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 
 	entry = cp->tx_head;
 	eor = (entry == (CP_TX_RING_SIZE - 1)) ? RingEnd : 0;
-	if (dev->features & NETIF_F_TSO)
-		mss = skb_shinfo(skb)->gso_size;
+	mss = skb_shinfo(skb)->gso_size;
 
 	if (skb_shinfo(skb)->nr_frags == 0) {
 		struct cp_desc *txd = &cp->tx_ring[entry];
@@ -1416,32 +1415,23 @@ static void cp_set_msglevel(struct net_device *dev, u32 value)
 	cp->msg_enable = value;
 }
 
-static u32 cp_get_rx_csum(struct net_device *dev)
+static int cp_set_features(struct net_device *dev, u32 features)
 {
 	struct cp_private *cp = netdev_priv(dev);
-	return (cpr16(CpCmd) & RxChkSum) ? 1 : 0;
-}
+	unsigned long flags;
 
-static int cp_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct cp_private *cp = netdev_priv(dev);
-	u16 cmd = cp->cpcmd, newcmd;
+	if (!((dev->features ^ features) & NETIF_F_RXCSUM))
+		return 0;
 
-	newcmd = cmd;
+	spin_lock_irqsave(&cp->lock, flags);
 
-	if (data)
-		newcmd |= RxChkSum;
+	if (features & NETIF_F_RXCSUM)
+		cp->cpcmd |= RxChkSum;
 	else
-		newcmd &= ~RxChkSum;
+		cp->cpcmd &= ~RxChkSum;
 
-	if (newcmd != cmd) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&cp->lock, flags);
-		cp->cpcmd = newcmd;
-		cpw16_f(CpCmd, newcmd);
-		spin_unlock_irqrestore(&cp->lock, flags);
-	}
+	cpw16_f(CpCmd, cp->cpcmd);
+	spin_unlock_irqrestore(&cp->lock, flags);
 
 	return 0;
 }
@@ -1554,11 +1544,6 @@ static const struct ethtool_ops cp_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_msglevel		= cp_get_msglevel,
 	.set_msglevel		= cp_set_msglevel,
-	.get_rx_csum		= cp_get_rx_csum,
-	.set_rx_csum		= cp_set_rx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_csum, /* local! */
-	.set_sg			= ethtool_op_set_sg,
-	.set_tso		= ethtool_op_set_tso,
 	.get_regs		= cp_get_regs,
 	.get_wol		= cp_get_wol,
 	.set_wol		= cp_set_wol,
@@ -1831,6 +1816,7 @@ static const struct net_device_ops cp_netdev_ops = {
 	.ndo_do_ioctl		= cp_ioctl,
 	.ndo_start_xmit		= cp_start_xmit,
 	.ndo_tx_timeout		= cp_tx_timeout,
+	.ndo_set_features	= cp_set_features,
 #if CP_VLAN_TAG_USED
 	.ndo_vlan_rx_register	= cp_vlan_rx_register,
 #endif
@@ -1934,6 +1920,9 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	cp->cpcmd = (pci_using_dac ? PCIDAC : 0) |
 		    PCIMulRW | RxChkSum | CpRxOn | CpTxOn;
 
+	dev->features |= NETIF_F_RXCSUM;
+	dev->hw_features |= NETIF_F_RXCSUM;
+
 	regs = ioremap(pciaddr, CP_REGS_SIZE);
 	if (!regs) {
 		rc = -EIO;
@@ -1966,9 +1955,8 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pci_using_dac)
 		dev->features |= NETIF_F_HIGHDMA;
 
-#if 0 /* disabled by default until verified */
-	dev->features |= NETIF_F_TSO;
-#endif
+	/* disabled by default until verified */
+	dev->hw_features |= NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
 
 	dev->irq = pdev->irq;
 

@@ -21,10 +21,7 @@
 //===================================================================
 
 
-#ifdef WLAN_HEADERS
-
 #include "apb_athr_wlan_map.h"
-
 
 #ifndef BT_HEADERS
 
@@ -40,9 +37,4 @@
 #define MAC_BASE_ADDRESS WLAN_MAC_BASE_ADDRESS
 #define RDMA_BASE_ADDRESS WLAN_RDMA_BASE_ADDRESS
 
-
 #endif
-#endif
-
-
-

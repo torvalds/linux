@@ -42,5 +42,6 @@ extern void wl_free_timer(struct wl_info *wl, struct wl_timer *timer);
 extern void wl_add_timer(struct wl_info *wl, struct wl_timer *timer, uint ms,
 			 int periodic);
 extern bool wl_del_timer(struct wl_info *wl, struct wl_timer *timer);
+extern void wl_msleep(struct wl_info *wl, uint ms);
 
 #endif				/* _wl_export_h_ */

@@ -692,6 +692,9 @@ ENTRY(fault_vector_11)
 END(fault_vector_11)
 
 #endif
+	/* Fault vector is separately protected and *must* be on its own page */
+	.align		PAGE_SIZE
+ENTRY(end_fault_vector)
 
 	.import		handle_interruption,code
 	.import		do_cpu_irq_mask,code

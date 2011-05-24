@@ -1444,13 +1444,13 @@ mv643xx_eth_get_settings_phyless(struct mv643xx_eth_private *mp,
 	cmd->advertising = ADVERTISED_MII;
 	switch (port_status & PORT_SPEED_MASK) {
 	case PORT_SPEED_10:
-		cmd->speed = SPEED_10;
+		ethtool_cmd_speed_set(cmd, SPEED_10);
 		break;
 	case PORT_SPEED_100:
-		cmd->speed = SPEED_100;
+		ethtool_cmd_speed_set(cmd, SPEED_100);
 		break;
 	case PORT_SPEED_1000:
-		cmd->speed = SPEED_1000;
+		ethtool_cmd_speed_set(cmd, SPEED_1000);
 		break;
 	default:
 		cmd->speed = -1;
@@ -1575,18 +1575,12 @@ mv643xx_eth_set_ringparam(struct net_device *dev, struct ethtool_ringparam *er)
 	return 0;
 }
 
-static u32
-mv643xx_eth_get_rx_csum(struct net_device *dev)
-{
-	struct mv643xx_eth_private *mp = netdev_priv(dev);
-
-	return !!(rdlp(mp, PORT_CONFIG) & 0x02000000);
-}
 
 static int
-mv643xx_eth_set_rx_csum(struct net_device *dev, u32 rx_csum)
+mv643xx_eth_set_features(struct net_device *dev, u32 features)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
+	u32 rx_csum = features & NETIF_F_RXCSUM;
 
 	wrlp(mp, PORT_CONFIG, rx_csum ? 0x02000000 : 0x00000000);
 
@@ -1634,11 +1628,6 @@ static void mv643xx_eth_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
-static int mv643xx_eth_set_flags(struct net_device *dev, u32 data)
-{
-	return ethtool_op_set_flags(dev, data, ETH_FLAG_LRO);
-}
-
 static int mv643xx_eth_get_sset_count(struct net_device *dev, int sset)
 {
 	if (sset == ETH_SS_STATS)
@@ -1657,14 +1646,8 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.set_coalesce		= mv643xx_eth_set_coalesce,
 	.get_ringparam		= mv643xx_eth_get_ringparam,
 	.set_ringparam		= mv643xx_eth_set_ringparam,
-	.get_rx_csum		= mv643xx_eth_get_rx_csum,
-	.set_rx_csum		= mv643xx_eth_set_rx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_csum,
-	.set_sg			= ethtool_op_set_sg,
 	.get_strings		= mv643xx_eth_get_strings,
 	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
-	.get_flags		= ethtool_op_get_flags,
-	.set_flags		= mv643xx_eth_set_flags,
 	.get_sset_count		= mv643xx_eth_get_sset_count,
 };
 
@@ -2264,7 +2247,7 @@ static void port_start(struct mv643xx_eth_private *mp)
 	 * frames to RX queue #0, and include the pseudo-header when
 	 * calculating receive checksums.
 	 */
-	wrlp(mp, PORT_CONFIG, 0x02000000);
+	mv643xx_eth_set_features(mp->dev, mp->dev->features);
 
 	/*
 	 * Treat BPDUs as normal multicasts, and disable partition mode.
@@ -2848,6 +2831,7 @@ static const struct net_device_ops mv643xx_eth_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= mv643xx_eth_ioctl,
 	.ndo_change_mtu		= mv643xx_eth_change_mtu,
+	.ndo_set_features	= mv643xx_eth_set_features,
 	.ndo_tx_timeout		= mv643xx_eth_tx_timeout,
 	.ndo_get_stats		= mv643xx_eth_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2930,7 +2914,9 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->watchdog_timeo = 2 * HZ;
 	dev->base_addr = 0;
 
-	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM;
+	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
+		NETIF_F_RXCSUM | NETIF_F_LRO;
+	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);

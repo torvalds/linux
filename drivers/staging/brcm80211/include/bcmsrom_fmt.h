@@ -105,7 +105,7 @@
 
 /* SROM Rev 4: Reallocate the software part of the srom to accommodate
  * MIMO features. It assumes up to two PCIE functions and 440 bytes
- * of useable srom i.e. the useable storage in chips with OTP that
+ * of usable srom i.e. the usable storage in chips with OTP that
  * implements hardware redundancy.
  */
 

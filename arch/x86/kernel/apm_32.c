@@ -228,6 +228,7 @@
 #include <linux/kthread.h>
 #include <linux/jiffies.h>
 #include <linux/acpi.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -1237,7 +1238,7 @@ static int suspend(int vetoable)
 	dpm_suspend_noirq(PMSG_SUSPEND);
 
 	local_irq_disable();
-	sysdev_suspend(PMSG_SUSPEND);
+	syscore_suspend();
 
 	local_irq_enable();
 
@@ -1255,7 +1256,7 @@ static int suspend(int vetoable)
 		apm_error("suspend", err);
 	err = (err == APM_SUCCESS) ? 0 : -EIO;
 
-	sysdev_resume();
+	syscore_resume();
 	local_irq_enable();
 
 	dpm_resume_noirq(PMSG_RESUME);
@@ -1279,7 +1280,7 @@ static void standby(void)
 	dpm_suspend_noirq(PMSG_SUSPEND);
 
 	local_irq_disable();
-	sysdev_suspend(PMSG_SUSPEND);
+	syscore_suspend();
 	local_irq_enable();
 
 	err = set_system_power_state(APM_STATE_STANDBY);
@@ -1287,7 +1288,7 @@ static void standby(void)
 		apm_error("standby", err);
 
 	local_irq_disable();
-	sysdev_resume();
+	syscore_resume();
 	local_irq_enable();
 
 	dpm_resume_noirq(PMSG_RESUME);

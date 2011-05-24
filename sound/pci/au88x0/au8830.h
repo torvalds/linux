@@ -11,7 +11,7 @@
 
 #define CHIP_AU8830
 
-#define CARD_NAME "Aureal Vortex 2 3D Sound Processor"
+#define CARD_NAME "Aureal Vortex 2"
 #define CARD_NAME_SHORT "au8830"
 
 #define NR_ADB 0x20

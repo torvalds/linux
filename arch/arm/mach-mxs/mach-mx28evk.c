@@ -375,13 +375,13 @@ static void __init mx28evk_init(void)
 	mx28_add_mxsfb(&mx28evk_mxsfb_pdata);
 
 	/* power on mmc slot by writing 0 to the gpio */
-	ret = gpio_request_one(MX28EVK_MMC0_SLOT_POWER, GPIOF_DIR_OUT,
+	ret = gpio_request_one(MX28EVK_MMC0_SLOT_POWER, GPIOF_OUT_INIT_LOW,
 			       "mmc0-slot-power");
 	if (ret)
 		pr_warn("failed to request gpio mmc0-slot-power: %d\n", ret);
 	mx28_add_mxs_mmc(0, &mx28evk_mmc_pdata[0]);
 
-	ret = gpio_request_one(MX28EVK_MMC1_SLOT_POWER, GPIOF_DIR_OUT,
+	ret = gpio_request_one(MX28EVK_MMC1_SLOT_POWER, GPIOF_OUT_INIT_LOW,
 			       "mmc1-slot-power");
 	if (ret)
 		pr_warn("failed to request gpio mmc1-slot-power: %d\n", ret);

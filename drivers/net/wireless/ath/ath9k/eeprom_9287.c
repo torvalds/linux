@@ -319,10 +319,9 @@ static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
 	u16 numXpdGain, xpdMask;
 	u16 xpdGainValues[AR5416_NUM_PD_GAINS] = {0, 0, 0, 0};
 	u32 reg32, regOffset, regChainOffset, regval;
-	int16_t modalIdx, diff = 0;
+	int16_t diff = 0;
 	struct ar9287_eeprom *pEepData = &ah->eeprom.map9287;
 
-	modalIdx = IS_CHAN_2GHZ(chan) ? 1 : 0;
 	xpdMask = pEepData->modalHeader.xpdGain;
 
 	if ((pEepData->baseEepHeader.version & AR9287_EEP_VER_MINOR_MASK) >=
@@ -392,6 +391,8 @@ static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
 							   numXpdGain);
 			}
 
+			ENABLE_REGWRITE_BUFFER(ah);
+
 			if (i == 0) {
 				if (!ath9k_hw_ar9287_get_eeprom(ah,
 							EEP_OL_PWRCTRL)) {
@@ -442,6 +443,7 @@ static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
 					regOffset += 4;
 				}
 			}
+			REGWRITE_BUFFER_FLUSH(ah);
 		}
 	}
 
@@ -757,6 +759,8 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 			ratesArray[i] -= AR9287_PWR_TABLE_OFFSET_DB * 2;
 	}
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	/* OFDM power per rate */
 	REG_WRITE(ah, AR_PHY_POWER_TX_RATE1,
 		  ATH9K_POW_SM(ratesArray[rate18mb], 24)
@@ -840,6 +844,7 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 			  | ATH9K_POW_SM(ratesArray[rateDupOfdm], 8)
 			  | ATH9K_POW_SM(ratesArray[rateDupCck], 0));
 	}
+	REGWRITE_BUFFER_FLUSH(ah);
 }
 
 static void ath9k_hw_ar9287_set_addac(struct ath_hw *ah,
@@ -852,34 +857,11 @@ static void ath9k_hw_ar9287_set_board_values(struct ath_hw *ah,
 {
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
 	struct modal_eep_ar9287_header *pModal = &eep->modalHeader;
-	u16 antWrites[AR9287_ANT_16S];
 	u32 regChainOffset, regval;
 	u8 txRxAttenLocal;
-	int i, j, offset_num;
+	int i;
 
 	pModal = &eep->modalHeader;
-
-	antWrites[0] = (u16)((pModal->antCtrlCommon >> 28) & 0xF);
-	antWrites[1] = (u16)((pModal->antCtrlCommon >> 24) & 0xF);
-	antWrites[2] = (u16)((pModal->antCtrlCommon >> 20) & 0xF);
-	antWrites[3] = (u16)((pModal->antCtrlCommon >> 16) & 0xF);
-	antWrites[4] = (u16)((pModal->antCtrlCommon >> 12) & 0xF);
-	antWrites[5] = (u16)((pModal->antCtrlCommon >> 8) & 0xF);
-	antWrites[6] = (u16)((pModal->antCtrlCommon >> 4)  & 0xF);
-	antWrites[7] = (u16)(pModal->antCtrlCommon & 0xF);
-
-	offset_num = 8;
-
-	for (i = 0, j = offset_num; i < AR9287_MAX_CHAINS; i++) {
-		antWrites[j++] = (u16)((pModal->antCtrlChain[i] >> 28) & 0xf);
-		antWrites[j++] = (u16)((pModal->antCtrlChain[i] >> 10) & 0x3);
-		antWrites[j++] = (u16)((pModal->antCtrlChain[i] >> 8) & 0x3);
-		antWrites[j++] = 0;
-		antWrites[j++] = (u16)((pModal->antCtrlChain[i] >> 6) & 0x3);
-		antWrites[j++] = (u16)((pModal->antCtrlChain[i] >> 4) & 0x3);
-		antWrites[j++] = (u16)((pModal->antCtrlChain[i] >> 2) & 0x3);
-		antWrites[j++] = (u16)(pModal->antCtrlChain[i] & 0x3);
-	}
 
 	REG_WRITE(ah, AR_PHY_SWITCH_COM, pModal->antCtrlCommon);
 

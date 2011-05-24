@@ -1181,7 +1181,7 @@ static int ni_660x_set_second_gate(struct ni_gpct *counter,
 			break;
 		return -EINVAL;
 		break;
-	};
+	}
 	counter_dev->regs[second_gate_reg] |= Gi_Second_Gate_Mode_Bit;
 	counter_dev->regs[second_gate_reg] &= ~Gi_Second_Gate_Select_Mask;
 	counter_dev->regs[second_gate_reg] |=
@@ -1209,7 +1209,7 @@ static int ni_m_series_set_second_gate(struct ni_gpct *counter,
 		ni_m_series_second_gate_select =
 		    selected_second_gate & selected_second_gate_mask;
 		break;
-	};
+	}
 	counter_dev->regs[second_gate_reg] |= Gi_Second_Gate_Mode_Bit;
 	counter_dev->regs[second_gate_reg] &= ~Gi_Second_Gate_Select_Mask;
 	counter_dev->regs[second_gate_reg] |=
@@ -1674,7 +1674,7 @@ int ni_tio_rinsn(struct ni_gpct *counter, struct comedi_insn *insn,
 		    counter_dev->
 		    regs[NITIO_Gi_LoadB_Reg(counter->counter_index)];
 		break;
-	};
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ni_tio_rinsn);

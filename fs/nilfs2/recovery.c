@@ -387,9 +387,9 @@ static int nilfs_scan_dsync_log(struct the_nilfs *nilfs, sector_t start_blocknr,
 static void dispose_recovery_list(struct list_head *head)
 {
 	while (!list_empty(head)) {
-		struct nilfs_recovery_block *rb
-			= list_entry(head->next,
-				     struct nilfs_recovery_block, list);
+		struct nilfs_recovery_block *rb;
+
+		rb = list_first_entry(head, struct nilfs_recovery_block, list);
 		list_del(&rb->list);
 		kfree(rb);
 	}
@@ -416,9 +416,9 @@ static int nilfs_segment_list_add(struct list_head *head, __u64 segnum)
 void nilfs_dispose_segment_list(struct list_head *head)
 {
 	while (!list_empty(head)) {
-		struct nilfs_segment_entry *ent
-			= list_entry(head->next,
-				     struct nilfs_segment_entry, list);
+		struct nilfs_segment_entry *ent;
+
+		ent = list_first_entry(head, struct nilfs_segment_entry, list);
 		list_del(&ent->list);
 		kfree(ent);
 	}

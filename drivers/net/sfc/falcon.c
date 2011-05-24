@@ -1703,7 +1703,7 @@ static int falcon_set_wol(struct efx_nic *efx, u32 type)
  **************************************************************************
  */
 
-struct efx_nic_type falcon_a1_nic_type = {
+const struct efx_nic_type falcon_a1_nic_type = {
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,
@@ -1744,7 +1744,7 @@ struct efx_nic_type falcon_a1_nic_type = {
 	.reset_world_flags = ETH_RESET_IRQ,
 };
 
-struct efx_nic_type falcon_b0_nic_type = {
+const struct efx_nic_type falcon_b0_nic_type = {
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,

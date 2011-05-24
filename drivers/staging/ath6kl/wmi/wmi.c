@@ -25,7 +25,6 @@
 
 #include <a_config.h>
 #include <athdefs.h>
-#include <a_types.h>
 #include <a_osapi.h>
 #include "htc.h"
 #include "htc_api.h"
@@ -35,7 +34,6 @@
 #include <ieee80211.h>
 #include <ieee80211_node.h>
 #include "dset_api.h"
-#include "gpio_api.h"
 #include "wmi_host.h"
 #include "a_drv.h"
 #include "a_drv_api.h"
@@ -129,14 +127,6 @@ wmi_get_pmkid_list_event_rx(struct wmi_t *wmip, u8 *datap, u32 len);
 static int
 wmi_set_params_event_rx(struct wmi_t *wmip, u8 *datap, u32 len);
 
-static int
-wmi_acm_reject_event_rx(struct wmi_t *wmip, u8 *datap, u32 len);
-
-#ifdef CONFIG_HOST_GPIO_SUPPORT
-static int wmi_gpio_intr_rx(struct wmi_t *wmip, u8 *datap, int len);
-static int wmi_gpio_data_rx(struct wmi_t *wmip, u8 *datap, int len);
-static int wmi_gpio_ack_rx(struct wmi_t *wmip, u8 *datap, int len);
-#endif /* CONFIG_HOST_GPIO_SUPPORT */
 
 #ifdef CONFIG_HOST_TCMD_SUPPORT
 static int
@@ -187,13 +177,11 @@ static int wmi_dtimexpiry_event_rx(struct wmi_t *wmip, u8 *datap,
 
 static int wmi_peer_node_event_rx (struct wmi_t *wmip, u8 *datap,
                                         int len);
-#ifdef ATH_AR6K_11N_SUPPORT
 static int wmi_addba_req_event_rx(struct wmi_t *, u8 *, int);
 static int wmi_addba_resp_event_rx(struct wmi_t *, u8 *, int);
 static int wmi_delba_req_event_rx(struct wmi_t *, u8 *, int);
 static int wmi_btcoex_config_event_rx(struct wmi_t *wmip, u8 *datap, int len);
 static int wmi_btcoex_stats_event_rx(struct wmi_t *wmip, u8 *datap, int len);
-#endif
 static int wmi_hci_event_rx(struct wmi_t *, u8 *, int);
 
 #ifdef WAPI_ENABLE
@@ -273,8 +261,6 @@ const u8 up_to_ac[]= {
                 WMM_AC_VO,
             };
 
-#include "athstartpack.h"
-
 /* This stuff is used when we want a simple layer-3 visibility */
 typedef PREPACK struct _iphdr {
     u8 ip_ver_hdrlen;          /* version and hdr length */
@@ -291,8 +277,6 @@ typedef PREPACK struct _iphdr {
     u8 ip_src[4];              /* source and dest address */
     u8 ip_dst[4];
 } POSTPACK iphdr;
-
-#include "athendpack.h"
 
 static s16 rssi_event_value = 0;
 static s16 snr_event_value = 0;
@@ -381,7 +365,7 @@ wmi_shutdown(struct wmi_t *wmip)
             A_MUTEX_DELETE(&wmip->wmi_lock);
 #endif
         }
-        A_FREE(wmip);
+        kfree(wmip);
     }
 }
 
@@ -475,7 +459,6 @@ int wmi_meta_add(struct wmi_t *wmip, void *osbuf, u8 *pVersion,void *pTxMetaS)
         	*pVersion = WMI_META_VERSION_1;
 		return (0);
     		}
-#ifdef CONFIG_CHECKSUM_OFFLOAD
 	case WMI_META_VERSION_2:
 		{
      		WMI_TX_META_V2 *pV2 ;
@@ -487,7 +470,6 @@ int wmi_meta_add(struct wmi_t *wmip, void *osbuf, u8 *pVersion,void *pTxMetaS)
          	memcpy(pV2,(WMI_TX_META_V2 *)pTxMetaS,sizeof(WMI_TX_META_V2));
 		return (0);
     		}
-#endif
 	default:
 		return (0);
     }
@@ -525,7 +507,8 @@ wmi_data_hdr_add(struct wmi_t *wmip, void *osbuf, u8 msgType, bool bMoreData,
     }
 
     WMI_DATA_HDR_SET_META(dtHdr, metaVersion);
-    //dtHdr->rssi = 0;
+
+    dtHdr->info3 = 0;
 
     return (0);
 }
@@ -865,17 +848,6 @@ wmi_control_rx_xtnd(struct wmi_t *wmip, void *osbuf)
         status = wmi_dset_data_req_rx(wmip, datap, len);
         break;
 #endif /* CONFIG_HOST_DSET_SUPPORT */
-#ifdef CONFIG_HOST_GPIO_SUPPORT
-    case (WMIX_GPIO_INTR_EVENTID):
-        wmi_gpio_intr_rx(wmip, datap, len);
-        break;
-    case (WMIX_GPIO_DATA_EVENTID):
-        wmi_gpio_data_rx(wmip, datap, len);
-        break;
-    case (WMIX_GPIO_ACK_EVENTID):
-        wmi_gpio_ack_rx(wmip, datap, len);
-        break;
-#endif /* CONFIG_HOST_GPIO_SUPPORT */
     case (WMIX_HB_CHALLENGE_RESP_EVENTID):
         wmi_hbChallengeResp_rx(wmip, datap, len);
         break;
@@ -967,23 +939,19 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
     case (WMI_READY_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_READY_EVENTID\n", DBGARG));
         status = wmi_ready_event_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         A_WMI_DBGLOG_INIT_DONE(wmip->wmi_devt);
         break;
     case (WMI_CONNECT_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_CONNECT_EVENTID\n", DBGARG));
         status = wmi_connect_event_rx(wmip, datap, len);
-        A_WMI_SEND_GENERIC_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_DISCONNECT_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_DISCONNECT_EVENTID\n", DBGARG));
         status = wmi_disconnect_event_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_PEER_NODE_EVENTID):
         A_DPRINTF (DBG_WMI, (DBGFMT "WMI_PEER_NODE_EVENTID\n", DBGARG));
         status = wmi_peer_node_event_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_TKIP_MICERR_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_TKIP_MICERR_EVENTID\n", DBGARG));
@@ -1014,7 +982,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
             memcpy(bih->bssid, bih2.bssid, ATH_MAC_LEN);
 
             status = wmi_bssInfo_event_rx(wmip, datap, len);
-            A_WMI_SEND_GENERIC_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         }
         break;
     case (WMI_REGDOMAIN_EVENTID):
@@ -1024,13 +991,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
     case (WMI_PSTREAM_TIMEOUT_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_PSTREAM_TIMEOUT_EVENTID\n", DBGARG));
         status = wmi_pstream_timeout_event_rx(wmip, datap, len);
-            /* pstreams are fatpipe abstractions that get implicitly created.
-             * User apps only deal with thinstreams. creation of a thinstream
-             * by the user or data traffic flow in an AC triggers implicit
-             * pstream creation. Do we need to send this event to App..?
-             * no harm in sending it.
-             */
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_NEIGHBOR_REPORT_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_NEIGHBOR_REPORT_EVENTID\n", DBGARG));
@@ -1039,7 +999,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
     case (WMI_SCAN_COMPLETE_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_SCAN_COMPLETE_EVENTID\n", DBGARG));
         status = wmi_scanComplete_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_CMDERROR_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_CMDERROR_EVENTID\n", DBGARG));
@@ -1056,7 +1015,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
     case (WMI_ERROR_REPORT_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_ERROR_REPORT_EVENTID\n", DBGARG));
         status = wmi_reportErrorEvent_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_OPT_RX_FRAME_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_OPT_RX_FRAME_EVENTID\n", DBGARG));
@@ -1095,7 +1053,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
     case (WMI_TX_RETRY_ERR_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_TX_RETRY_ERR_EVENTID\n", DBGARG));
         status = wmi_txRetryErrEvent_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_SNR_THRESHOLD_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_SNR_THRESHOLD_EVENTID\n", DBGARG));
@@ -1104,7 +1061,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
     case (WMI_LQ_THRESHOLD_EVENTID):
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_LQ_THRESHOLD_EVENTID\n", DBGARG));
         status = wmi_lqThresholdEvent_rx(wmip, datap, len);
-        A_WMI_SEND_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
         break;
     case (WMI_APLIST_EVENTID):
         AR_DEBUG_PRINTF(ATH_DEBUG_WMI, ("Received APLIST Event\n"));
@@ -1133,11 +1089,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
         A_DPRINTF(DBG_WMI, (DBGFMT "WMI_SET_PARAMS_REPLY Event\n", DBGARG));
         status = wmi_set_params_event_rx(wmip, datap, len);
         break;
-    case (WMI_ACM_REJECT_EVENTID):
-        A_DPRINTF(DBG_WMI, (DBGFMT "WMI_SET_PARAMS_REPLY Event\n", DBGARG));
-        status = wmi_acm_reject_event_rx(wmip, datap, len);
-        break;		
-#ifdef ATH_AR6K_11N_SUPPORT
     case (WMI_ADDBA_REQ_EVENTID):
         status = wmi_addba_req_event_rx(wmip, datap, len);
         break;
@@ -1155,7 +1106,6 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
 	    A_DPRINTF(DBG_WMI, (DBGFMT "WMI_BTCOEX_STATS_EVENTID", DBGARG));
     	status = wmi_btcoex_stats_event_rx(wmip, datap, len);
 	    break;
-#endif
     case (WMI_TX_COMPLETE_EVENTID):
         {
             int index;
@@ -1208,7 +1158,7 @@ wmi_simple_cmd(struct wmi_t *wmip, WMI_COMMAND_ID cmdid)
 /* Send a "simple" extended wmi command -- one with no arguments.
    Enabling this command only if GPIO or profiling support is enabled.
    This is to suppress warnings on some platforms */
-#if defined(CONFIG_HOST_GPIO_SUPPORT) || defined(CONFIG_TARGET_PROFILE_SUPPORT)
+#if defined(CONFIG_TARGET_PROFILE_SUPPORT)
 static int
 wmi_simple_cmd_xtnd(struct wmi_t *wmip, WMIX_COMMAND_ID cmdid)
 {
@@ -2298,46 +2248,6 @@ wmi_dbglog_event_rx(struct wmi_t *wmip, u8 *datap, int len)
     return 0;
 }
 
-#ifdef CONFIG_HOST_GPIO_SUPPORT
-static int
-wmi_gpio_intr_rx(struct wmi_t *wmip, u8 *datap, int len)
-{
-    WMIX_GPIO_INTR_EVENT *gpio_intr = (WMIX_GPIO_INTR_EVENT *)datap;
-
-    A_DPRINTF(DBG_WMI,
-        (DBGFMT "Enter - intrmask=0x%x input=0x%x.\n", DBGARG,
-        gpio_intr->intr_mask, gpio_intr->input_values));
-
-    A_WMI_GPIO_INTR_RX(gpio_intr->intr_mask, gpio_intr->input_values);
-
-    return 0;
-}
-
-static int
-wmi_gpio_data_rx(struct wmi_t *wmip, u8 *datap, int len)
-{
-    WMIX_GPIO_DATA_EVENT *gpio_data = (WMIX_GPIO_DATA_EVENT *)datap;
-
-    A_DPRINTF(DBG_WMI,
-        (DBGFMT "Enter - reg=%d value=0x%x\n", DBGARG,
-        gpio_data->reg_id, gpio_data->value));
-
-    A_WMI_GPIO_DATA_RX(gpio_data->reg_id, gpio_data->value);
-
-    return 0;
-}
-
-static int
-wmi_gpio_ack_rx(struct wmi_t *wmip, u8 *datap, int len)
-{
-    A_DPRINTF(DBG_WMI, (DBGFMT "Enter\n", DBGARG));
-
-    A_WMI_GPIO_ACK_RX();
-
-    return 0;
-}
-#endif /* CONFIG_HOST_GPIO_SUPPORT */
-
 /*
  * Called to send a wmi command. Command specific data is already built
  * on osbuf and current osbuf->data points to it.
@@ -3075,6 +2985,7 @@ wmi_dataSync_send(struct wmi_t *wmip, void *osbuf, HTC_ENDPOINT_ID eid)
     dtHdr->info =
       (SYNC_MSGTYPE & WMI_DATA_HDR_MSG_TYPE_MASK) << WMI_DATA_HDR_MSG_TYPE_SHIFT;
 
+    dtHdr->info3 = 0;
     A_DPRINTF(DBG_WMI, (DBGFMT "Enter - eid %d\n", DBGARG, eid));
 
     return (A_WMI_CONTROL_TX(wmip->wmi_devt, osbuf, eid));
@@ -4282,132 +4193,6 @@ wmi_set_powersave_timers_cmd(struct wmi_t *wmip,
                          NO_SYNC_WMIFLAG));
 }
 
-#ifdef CONFIG_HOST_GPIO_SUPPORT
-/* Send a command to Target to change GPIO output pins. */
-int
-wmi_gpio_output_set(struct wmi_t *wmip,
-                    u32 set_mask,
-                    u32 clear_mask,
-                    u32 enable_mask,
-                    u32 disable_mask)
-{
-    void *osbuf;
-    WMIX_GPIO_OUTPUT_SET_CMD *output_set;
-    int size;
-
-    size = sizeof(*output_set);
-
-    A_DPRINTF(DBG_WMI,
-        (DBGFMT "Enter - set=0x%x clear=0x%x enb=0x%x dis=0x%x\n", DBGARG,
-        set_mask, clear_mask, enable_mask, disable_mask));
-
-    osbuf = A_NETBUF_ALLOC(size);
-    if (osbuf == NULL) {
-        return A_NO_MEMORY;
-    }
-    A_NETBUF_PUT(osbuf, size);
-    output_set = (WMIX_GPIO_OUTPUT_SET_CMD *)(A_NETBUF_DATA(osbuf));
-
-    output_set->set_mask                   = set_mask;
-    output_set->clear_mask                 = clear_mask;
-    output_set->enable_mask                = enable_mask;
-    output_set->disable_mask               = disable_mask;
-
-    return (wmi_cmd_send_xtnd(wmip, osbuf, WMIX_GPIO_OUTPUT_SET_CMDID,
-                             NO_SYNC_WMIFLAG));
-}
-
-/* Send a command to the Target requesting state of the GPIO input pins */
-int
-wmi_gpio_input_get(struct wmi_t *wmip)
-{
-    A_DPRINTF(DBG_WMI, (DBGFMT "Enter\n", DBGARG));
-
-    return wmi_simple_cmd_xtnd(wmip, WMIX_GPIO_INPUT_GET_CMDID);
-}
-
-/* Send a command to the Target that changes the value of a GPIO register. */
-int
-wmi_gpio_register_set(struct wmi_t *wmip,
-                      u32 gpioreg_id,
-                      u32 value)
-{
-    void *osbuf;
-    WMIX_GPIO_REGISTER_SET_CMD *register_set;
-    int size;
-
-    size = sizeof(*register_set);
-
-    A_DPRINTF(DBG_WMI,
-        (DBGFMT "Enter - reg=%d value=0x%x\n", DBGARG, gpioreg_id, value));
-
-    osbuf = A_NETBUF_ALLOC(size);
-    if (osbuf == NULL) {
-        return A_NO_MEMORY;
-    }
-    A_NETBUF_PUT(osbuf, size);
-    register_set = (WMIX_GPIO_REGISTER_SET_CMD *)(A_NETBUF_DATA(osbuf));
-
-    register_set->gpioreg_id               = gpioreg_id;
-    register_set->value                    = value;
-
-    return (wmi_cmd_send_xtnd(wmip, osbuf, WMIX_GPIO_REGISTER_SET_CMDID,
-                             NO_SYNC_WMIFLAG));
-}
-
-/* Send a command to the Target to fetch the value of a GPIO register. */
-int
-wmi_gpio_register_get(struct wmi_t *wmip,
-                      u32 gpioreg_id)
-{
-    void *osbuf;
-    WMIX_GPIO_REGISTER_GET_CMD *register_get;
-    int size;
-
-    size = sizeof(*register_get);
-
-    A_DPRINTF(DBG_WMI, (DBGFMT "Enter - reg=%d\n", DBGARG, gpioreg_id));
-
-    osbuf = A_NETBUF_ALLOC(size);
-    if (osbuf == NULL) {
-        return A_NO_MEMORY;
-    }
-    A_NETBUF_PUT(osbuf, size);
-    register_get = (WMIX_GPIO_REGISTER_GET_CMD *)(A_NETBUF_DATA(osbuf));
-
-    register_get->gpioreg_id               = gpioreg_id;
-
-    return (wmi_cmd_send_xtnd(wmip, osbuf, WMIX_GPIO_REGISTER_GET_CMDID,
-                             NO_SYNC_WMIFLAG));
-}
-
-/* Send a command to the Target acknowledging some GPIO interrupts. */
-int
-wmi_gpio_intr_ack(struct wmi_t *wmip,
-                  u32 ack_mask)
-{
-    void *osbuf;
-    WMIX_GPIO_INTR_ACK_CMD *intr_ack;
-    int size;
-
-    size = sizeof(*intr_ack);
-
-    A_DPRINTF(DBG_WMI, (DBGFMT "Enter ack_mask=0x%x\n", DBGARG, ack_mask));
-
-    osbuf = A_NETBUF_ALLOC(size);
-    if (osbuf == NULL) {
-        return A_NO_MEMORY;
-    }
-    A_NETBUF_PUT(osbuf, size);
-    intr_ack = (WMIX_GPIO_INTR_ACK_CMD *)(A_NETBUF_DATA(osbuf));
-
-    intr_ack->ack_mask               = ack_mask;
-
-    return (wmi_cmd_send_xtnd(wmip, osbuf, WMIX_GPIO_INTR_ACK_CMDID,
-                             NO_SYNC_WMIFLAG));
-}
-#endif /* CONFIG_HOST_GPIO_SUPPORT */
-
 int
 wmi_set_access_params_cmd(struct wmi_t *wmip, u8 ac,  u16 txop, u8 eCWmin,
                           u8 eCWmax, u8 aifsn)
@@ -4682,8 +4467,6 @@ wmi_tcmd_test_report_rx(struct wmi_t *wmip, u8 *datap, int len)
 {
 
    A_DPRINTF(DBG_WMI, (DBGFMT "Enter\n", DBGARG));
-
-   A_WMI_TCMD_RX_REPORT_EVENT(wmip->wmi_devt, datap, len);
 
    return 0;
 }
@@ -5500,19 +5283,6 @@ wmi_set_params_event_rx(struct wmi_t *wmip, u8 *datap, u32 len)
 }
 
 
-
-static int
-wmi_acm_reject_event_rx(struct wmi_t *wmip, u8 *datap, u32 len)
-{
-    WMI_ACM_REJECT_EVENT *ev;
-
-    ev = (WMI_ACM_REJECT_EVENT *)datap;
-    wmip->wmi_traffic_class = ev->trafficClass;
-    printk("ACM REJECT %d\n",wmip->wmi_traffic_class);
-    return 0;
-}
-
-
 #ifdef CONFIG_HOST_DSET_SUPPORT
 int
 wmi_dset_data_reply(struct wmi_t *wmip,
@@ -5877,7 +5647,7 @@ wmi_scan_indication (struct wmi_t *wmip)
 
     ar6000_scan_indication (wmip->wmi_devt, pAr6kScanIndEvent, size);
 
-    A_FREE(pAr6kScanIndEvent);
+    kfree(pAr6kScanIndEvent);
 }
 #endif
 
@@ -5995,7 +5765,6 @@ int wmi_add_current_bss (struct wmi_t *wmip, u8 *id, bss_t *bss)
     return 0;
 }
 
-#ifdef ATH_AR6K_11N_SUPPORT
 static int
 wmi_addba_req_event_rx(struct wmi_t *wmip, u8 *datap, int len)
 {
@@ -6048,7 +5817,6 @@ wmi_btcoex_stats_event_rx(struct wmi_t * wmip,u8 *datap,int len)
      return 0;
 
 }
-#endif
 
 static int
 wmi_hci_event_rx(struct wmi_t *wmip, u8 *datap, int len)
@@ -6372,7 +6140,6 @@ wmi_ap_set_rateset(struct wmi_t *wmip, u8 rateset)
     return (wmi_cmd_send(wmip, osbuf, WMI_AP_SET_11BG_RATESET_CMDID, NO_SYNC_WMIFLAG));
 }
 
-#ifdef ATH_AR6K_11N_SUPPORT
 int
 wmi_set_ht_cap_cmd(struct wmi_t *wmip, WMI_SET_HT_CAP_CMD *cmd)
 {
@@ -6418,7 +6185,6 @@ wmi_set_ht_op_cmd(struct wmi_t *wmip, u8 sta_chan_width)
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_HT_OP_CMDID,
                          NO_SYNC_WMIFLAG));
 }
-#endif
 
 int
 wmi_set_tx_select_rates_cmd(struct wmi_t *wmip, u32 *pMaskArray)
@@ -6460,7 +6226,6 @@ wmi_send_hci_cmd(struct wmi_t *wmip, u8 *buf, u16 sz)
     return (wmi_cmd_send(wmip, osbuf, WMI_HCI_CMD_CMDID, NO_SYNC_WMIFLAG));
 }
 
-#ifdef ATH_AR6K_11N_SUPPORT
 int
 wmi_allow_aggr_cmd(struct wmi_t *wmip, u16 tx_tidmask, u16 rx_tidmask)
 {
@@ -6520,7 +6285,6 @@ wmi_delete_aggr_cmd(struct wmi_t *wmip, u8 tid, bool uplink)
     /* Delete the local aggr state, on host */
     return (wmi_cmd_send(wmip, osbuf, WMI_DELBA_REQ_CMDID, NO_SYNC_WMIFLAG));
 }
-#endif
 
 int
 wmi_set_rx_frame_format_cmd(struct wmi_t *wmip, u8 rxMetaVersion,

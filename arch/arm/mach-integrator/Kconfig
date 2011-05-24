@@ -4,6 +4,7 @@ menu "Integrator Options"
 
 config ARCH_INTEGRATOR_AP
 	bool "Support Integrator/AP and Integrator/PP2 platforms"
+	select CLKSRC_MMIO
 	select MIGHT_HAVE_PCI
 	help
 	  Include support for the ARM(R) Integrator/AP and

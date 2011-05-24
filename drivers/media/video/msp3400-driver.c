@@ -96,7 +96,7 @@ MODULE_PARM_DESC(debug, "Enable debug messages [0-3]");
 MODULE_PARM_DESC(stereo_threshold, "Sets signal threshold to activate stereo");
 MODULE_PARM_DESC(standard, "Specify audio standard: 32 = NTSC, 64 = radio, Default: Autodetect");
 MODULE_PARM_DESC(amsound, "Hardwire AM sound at 6.5Hz (France), FM can autoscan");
-MODULE_PARM_DESC(dolby, "Activates Dolby processsing");
+MODULE_PARM_DESC(dolby, "Activates Dolby processing");
 
 /* ---------------------------------------------------------------------- */
 

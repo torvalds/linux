@@ -35,6 +35,7 @@
 #include <linux/ioctl.h>
 #include <linux/file.h>
 #include <linux/init.h>
+#include <linux/kthread.h>
 #include <net/sock.h>
 
 #include <linux/isdn/capilli.h>
@@ -235,9 +236,12 @@ static void cmtp_process_transmit(struct cmtp_session *session)
 
 		size = min_t(uint, ((tail < 258) ? (tail - 2) : (tail - 3)), skb->len);
 
-		if ((scb->id < 0) && ((scb->id = cmtp_alloc_block_id(session)) < 0)) {
-			skb_queue_head(&session->transmit, skb);
-			break;
+		if (scb->id < 0) {
+			scb->id = cmtp_alloc_block_id(session);
+			if (scb->id < 0) {
+				skb_queue_head(&session->transmit, skb);
+				break;
+			}
 		}
 
 		if (size < 256) {
@@ -284,12 +288,11 @@ static int cmtp_session(void *arg)
 
 	BT_DBG("session %p", session);
 
-	daemonize("kcmtpd_ctr_%d", session->num);
 	set_user_nice(current, -15);
 
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(sk_sleep(sk), &wait);
-	while (!atomic_read(&session->terminate)) {
+	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		if (sk->sk_state != BT_CONNECTED)
@@ -343,7 +346,8 @@ int cmtp_add_connection(struct cmtp_connadd_req *req, struct socket *sock)
 
 	bacpy(&session->bdaddr, &bt_sk(sock->sk)->dst);
 
-	session->mtu = min_t(uint, l2cap_pi(sock->sk)->omtu, l2cap_pi(sock->sk)->imtu);
+	session->mtu = min_t(uint, l2cap_pi(sock->sk)->chan->omtu,
+					l2cap_pi(sock->sk)->chan->imtu);
 
 	BT_DBG("mtu %d", session->mtu);
 
@@ -367,9 +371,12 @@ int cmtp_add_connection(struct cmtp_connadd_req *req, struct socket *sock)
 
 	__cmtp_link_session(session);
 
-	err = kernel_thread(cmtp_session, session, CLONE_KERNEL);
-	if (err < 0)
+	session->task = kthread_run(cmtp_session, session, "kcmtpd_ctr_%d",
+								session->num);
+	if (IS_ERR(session->task)) {
+		err = PTR_ERR(session->task);
 		goto unlink;
+	}
 
 	if (!(session->flags & (1 << CMTP_LOOPBACK))) {
 		err = cmtp_attach_device(session);
@@ -406,9 +413,8 @@ int cmtp_del_connection(struct cmtp_conndel_req *req)
 		/* Flush the transmit queue */
 		skb_queue_purge(&session->transmit);
 
-		/* Kill session thread */
-		atomic_inc(&session->terminate);
-		cmtp_schedule(session);
+		/* Stop session thread */
+		kthread_stop(session->task);
 	} else
 		err = -ENOENT;
 

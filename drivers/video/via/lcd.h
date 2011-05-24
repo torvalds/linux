@@ -79,7 +79,7 @@ void __devinit viafb_init_lvds_output_interface(struct lvds_chip_information
 void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 		  struct lvds_setting_information *plvds_setting_info,
 		  struct lvds_chip_information *plvds_chip_info);
-int __devinit viafb_lvds_trasmitter_identify(void);
+bool __devinit viafb_lvds_trasmitter_identify(void);
 void viafb_init_lvds_output_interface(struct lvds_chip_information
 				*plvds_chip_info,
 				struct lvds_setting_information

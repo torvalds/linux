@@ -139,8 +139,6 @@ do { \
  */
 
 enum p9_msg_t {
-	P9_TSYNCFS = 0,
-	P9_RSYNCFS,
 	P9_TLERROR = 6,
 	P9_RLERROR,
 	P9_TSTATFS = 8,

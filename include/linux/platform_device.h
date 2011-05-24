@@ -14,6 +14,8 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 
+struct mfd_cell;
+
 struct platform_device {
 	const char	* name;
 	int		id;
@@ -22,6 +24,9 @@ struct platform_device {
 	struct resource	* resource;
 
 	const struct platform_device_id	*id_entry;
+
+	/* MFD cell pointer */
+	struct mfd_cell *mfd_cell;
 
 	/* arch specific additions */
 	struct pdev_archdata	archdata;
@@ -145,9 +150,6 @@ extern struct platform_device *platform_create_bundle(struct platform_driver *dr
 					struct resource *res, unsigned int n_res,
 					const void *data, size_t size);
 
-extern const struct dev_pm_ops * platform_bus_get_pm_ops(void);
-extern void platform_bus_set_pm_ops(const struct dev_pm_ops *pm);
-
 /* early platform driver interface */
 struct early_platform_driver {
 	const char *class_str;
@@ -199,5 +201,65 @@ static inline char *early_platform_driver_setup_func(void)		\
 	return bufsiz ? buf : NULL;					\
 }
 #endif /* MODULE */
+
+#ifdef CONFIG_PM_SLEEP
+extern int platform_pm_prepare(struct device *dev);
+extern void platform_pm_complete(struct device *dev);
+#else
+#define platform_pm_prepare	NULL
+#define platform_pm_complete	NULL
+#endif
+
+#ifdef CONFIG_SUSPEND
+extern int platform_pm_suspend(struct device *dev);
+extern int platform_pm_suspend_noirq(struct device *dev);
+extern int platform_pm_resume(struct device *dev);
+extern int platform_pm_resume_noirq(struct device *dev);
+#else
+#define platform_pm_suspend		NULL
+#define platform_pm_resume		NULL
+#define platform_pm_suspend_noirq	NULL
+#define platform_pm_resume_noirq	NULL
+#endif
+
+#ifdef CONFIG_HIBERNATE_CALLBACKS
+extern int platform_pm_freeze(struct device *dev);
+extern int platform_pm_freeze_noirq(struct device *dev);
+extern int platform_pm_thaw(struct device *dev);
+extern int platform_pm_thaw_noirq(struct device *dev);
+extern int platform_pm_poweroff(struct device *dev);
+extern int platform_pm_poweroff_noirq(struct device *dev);
+extern int platform_pm_restore(struct device *dev);
+extern int platform_pm_restore_noirq(struct device *dev);
+#else
+#define platform_pm_freeze		NULL
+#define platform_pm_thaw		NULL
+#define platform_pm_poweroff		NULL
+#define platform_pm_restore		NULL
+#define platform_pm_freeze_noirq	NULL
+#define platform_pm_thaw_noirq		NULL
+#define platform_pm_poweroff_noirq	NULL
+#define platform_pm_restore_noirq	NULL
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+#define USE_PLATFORM_PM_SLEEP_OPS \
+	.prepare = platform_pm_prepare, \
+	.complete = platform_pm_complete, \
+	.suspend = platform_pm_suspend, \
+	.resume = platform_pm_resume, \
+	.freeze = platform_pm_freeze, \
+	.thaw = platform_pm_thaw, \
+	.poweroff = platform_pm_poweroff, \
+	.restore = platform_pm_restore, \
+	.suspend_noirq = platform_pm_suspend_noirq, \
+	.resume_noirq = platform_pm_resume_noirq, \
+	.freeze_noirq = platform_pm_freeze_noirq, \
+	.thaw_noirq = platform_pm_thaw_noirq, \
+	.poweroff_noirq = platform_pm_poweroff_noirq, \
+	.restore_noirq = platform_pm_restore_noirq,
+#else
+#define USE_PLATFORM_PM_SLEEP_OPS
+#endif
 
 #endif /* _PLATFORM_DEVICE_H_ */

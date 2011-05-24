@@ -1348,7 +1348,8 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 	default:
 		BUG();
 	}
-	xdst = dst_alloc(dst_ops, 0);
+	xdst = dst_alloc(dst_ops, NULL, 0, 0, 0);
+	memset(&xdst->u.rt6.rt6i_table, 0, sizeof(*xdst) - sizeof(struct dst_entry));
 	xfrm_policy_put_afinfo(afinfo);
 
 	if (likely(xdst))
@@ -1406,6 +1407,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 	struct net *net = xp_net(policy);
 	unsigned long now = jiffies;
 	struct net_device *dev;
+	struct xfrm_mode *inner_mode;
 	struct dst_entry *dst_prev = NULL;
 	struct dst_entry *dst0 = NULL;
 	int i = 0;
@@ -1436,6 +1438,17 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 			goto put_states;
 		}
 
+		if (xfrm[i]->sel.family == AF_UNSPEC) {
+			inner_mode = xfrm_ip2inner_mode(xfrm[i],
+							xfrm_af2proto(family));
+			if (!inner_mode) {
+				err = -EAFNOSUPPORT;
+				dst_release(dst);
+				goto put_states;
+			}
+		} else
+			inner_mode = xfrm[i]->inner_mode;
+
 		if (!dst_prev)
 			dst0 = dst1;
 		else {
@@ -1464,7 +1477,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 		dst1->lastuse = now;
 
 		dst1->input = dst_discard;
-		dst1->output = xfrm[i]->outer_mode->afinfo->output;
+		dst1->output = inner_mode->afinfo->output;
 
 		dst1->next = dst_prev;
 		dst_prev = dst1;

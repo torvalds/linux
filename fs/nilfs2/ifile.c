@@ -80,7 +80,7 @@ int nilfs_ifile_create_inode(struct inode *ifile, ino_t *out_ino,
 		return ret;
 	}
 	nilfs_palloc_commit_alloc_entry(ifile, &req);
-	nilfs_mdt_mark_buffer_dirty(req.pr_entry_bh);
+	mark_buffer_dirty(req.pr_entry_bh);
 	nilfs_mdt_mark_dirty(ifile);
 	*out_ino = (ino_t)req.pr_entry_nr;
 	*out_bh = req.pr_entry_bh;
@@ -128,7 +128,7 @@ int nilfs_ifile_delete_inode(struct inode *ifile, ino_t ino)
 	raw_inode->i_flags = 0;
 	kunmap_atomic(kaddr, KM_USER0);
 
-	nilfs_mdt_mark_buffer_dirty(req.pr_entry_bh);
+	mark_buffer_dirty(req.pr_entry_bh);
 	brelse(req.pr_entry_bh);
 
 	nilfs_palloc_commit_free_entry(ifile, &req);

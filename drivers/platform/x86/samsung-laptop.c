@@ -571,6 +571,16 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 		.callback = dmi_check_cb,
 	},
 	{
+		.ident = "R410 Plus",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR,
+					"SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "R410P"),
+			DMI_MATCH(DMI_BOARD_NAME, "R460"),
+		},
+		.callback = dmi_check_cb,
+	},
+	{
 		.ident = "R518",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR,
@@ -591,12 +601,12 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 		.callback = dmi_check_cb,
 	},
 	{
-		.ident = "N150/N210/N220",
+		.ident = "N150/N210/N220/N230",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR,
 					"SAMSUNG ELECTRONICS CO., LTD."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "N150/N210/N220"),
-			DMI_MATCH(DMI_BOARD_NAME, "N150/N210/N220"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "N150/N210/N220/N230"),
+			DMI_MATCH(DMI_BOARD_NAME, "N150/N210/N220/N230"),
 		},
 		.callback = dmi_check_cb,
 	},
@@ -771,6 +781,7 @@ static int __init samsung_init(void)
 
 	/* create a backlight device to talk to this one */
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = sabi_config->max_brightness;
 	backlight_device = backlight_device_register("samsung", &sdev->dev,
 						     NULL, &backlight_ops,

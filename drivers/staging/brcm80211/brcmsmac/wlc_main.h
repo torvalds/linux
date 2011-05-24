@@ -98,7 +98,6 @@ struct wlc_bss_list {
 	(cfg)->wsec_portopen : true)
 
 #define PS_ALLOWED(wlc)	wlc_ps_allowed(wlc)
-#define STAY_AWAKE(wlc) wlc_stay_awake(wlc)
 
 #define DATA_BLOCK_TX_SUPR	(1 << 4)
 
@@ -166,9 +165,6 @@ extern const u8 prio2fifo[];
 #define WLC_PLLREQ_RADIO_MON	0x2	/* hold pll for radio monitor register checking */
 #define WLC_PLLREQ_FLIP		0x4	/* hold/release pll for some short operation */
 
-/* Do we support this rate? */
-#define VALID_RATE_DBG(wlc, rspec) wlc_valid_rate(wlc, rspec, WLC_BAND_AUTO, true)
-
 /*
  * Macros to check if AP or STA is active.
  * AP Active means more than just configured: driver and BSS are "up";
@@ -196,7 +192,7 @@ extern const u8 prio2fifo[];
 	((wlc->hw->clk) ?   \
 	((R_REG(&wlc->hw->regs->maccontrol) & \
 	(MCTL_PSM_JMP_0 | MCTL_IHR_EN)) != MCTL_IHR_EN) : \
-	(si_deviceremoved(wlc->hw->sih)))
+	(ai_deviceremoved(wlc->hw->sih)))
 
 #define WLCWLUNIT(wlc)		((wlc)->pub->unit)
 
@@ -746,9 +742,7 @@ struct wlc_info {
 	u16 next_bsscfg_ID;
 
 	struct wlc_if *wlcif_list;	/* linked list of wlc_if structs */
-	struct wlc_txq_info *active_queue; /* txq for the currently active
-					    * transmit context
-					    */
+	struct wlc_txq_info *pkt_queue; /* txq for transmit packets */
 	u32 mpc_dur;		/* total time (ms) in mpc mode except for the
 				 * portion since radio is turned off last time
 				 */
@@ -757,6 +751,7 @@ struct wlc_info {
 				 */
 	bool pr80838_war;
 	uint hwrxoff;
+	struct wiphy *wiphy;
 };
 
 /* antsel module specific state */
@@ -794,7 +789,6 @@ struct antsel_info {
 #define WLC_IS_MATCH_SSID(wlc, ssid1, ssid2, len1, len2) \
 	((len1 == len2) && !memcmp(ssid1, ssid2, len1))
 
-extern void wlc_high_dpc(struct wlc_info *wlc, u32 macintstatus);
 extern void wlc_fatal_error(struct wlc_info *wlc);
 extern void wlc_bmac_rpc_watchdog(struct wlc_info *wlc);
 extern void wlc_recv(struct wlc_info *wlc, struct sk_buff *p);
@@ -811,21 +805,10 @@ extern void wlc_write_template_ram(struct wlc_info *wlc, int offset, int len,
 				   void *buf);
 extern void wlc_write_hw_bcntemplates(struct wlc_info *wlc, void *bcn, int len,
 				      bool both);
-#if defined(BCMDBG)
-extern void wlc_get_rcmta(struct wlc_info *wlc, int idx,
-			  u8 *addr);
-#endif
-extern void wlc_set_rcmta(struct wlc_info *wlc, int idx,
-			  const u8 *addr);
-extern void wlc_read_tsf(struct wlc_info *wlc, u32 *tsf_l_ptr,
-			 u32 *tsf_h_ptr);
 extern void wlc_set_cwmin(struct wlc_info *wlc, u16 newmin);
 extern void wlc_set_cwmax(struct wlc_info *wlc, u16 newmax);
-extern void wlc_fifoerrors(struct wlc_info *wlc);
 extern void wlc_pllreq(struct wlc_info *wlc, bool set, mbool req_bit);
 extern void wlc_reset_bmac_done(struct wlc_info *wlc);
-extern void wlc_hwtimer_gptimer_set(struct wlc_info *wlc, uint us);
-extern void wlc_hwtimer_gptimer_abort(struct wlc_info *wlc);
 
 #if defined(BCMDBG)
 extern void wlc_print_rxh(d11rxhdr_t *rxh);
@@ -860,7 +843,7 @@ extern void wlc_txflowcontrol_override(struct wlc_info *wlc,
 				       bool on, uint override);
 extern bool wlc_txflowcontrol_prio_isset(struct wlc_info *wlc,
 					 struct wlc_txq_info *qi, int prio);
-extern void wlc_send_q(struct wlc_info *wlc, struct wlc_txq_info *qi);
+extern void wlc_send_q(struct wlc_info *wlc);
 extern int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifo);
 
 extern u16 wlc_calc_lsig_len(struct wlc_info *wlc, ratespec_t ratespec,
@@ -883,21 +866,14 @@ extern void wlc_dump_ie(struct wlc_info *wlc, bcm_tlv_t *ie,
 			struct bcmstrbuf *b);
 #endif
 
-extern bool wlc_ps_check(struct wlc_info *wlc);
 extern void wlc_reprate_init(struct wlc_info *wlc);
 extern void wlc_bsscfg_reprate_init(struct wlc_bsscfg *bsscfg);
-extern void wlc_uint64_sub(u32 *a_high, u32 *a_low, u32 b_high,
-			   u32 b_low);
-extern u32 wlc_calc_tbtt_offset(u32 bi, u32 tsf_h, u32 tsf_l);
 
 /* Shared memory access */
 extern void wlc_write_shm(struct wlc_info *wlc, uint offset, u16 v);
 extern u16 wlc_read_shm(struct wlc_info *wlc, uint offset);
-extern void wlc_set_shm(struct wlc_info *wlc, uint offset, u16 v, int len);
 extern void wlc_copyto_shm(struct wlc_info *wlc, uint offset, const void *buf,
 			   int len);
-extern void wlc_copyfrom_shm(struct wlc_info *wlc, uint offset, void *buf,
-			     int len);
 
 extern void wlc_update_beacon(struct wlc_info *wlc);
 extern void wlc_bss_update_beacon(struct wlc_info *wlc,
@@ -935,14 +911,13 @@ extern void wlc_print_ies(struct wlc_info *wlc, u8 *ies, uint ies_len);
 #endif
 
 extern int wlc_set_nmode(struct wlc_info *wlc, s32 nmode);
-extern void wlc_ht_mimops_cap_update(struct wlc_info *wlc, u8 mimops_mode);
 extern void wlc_mimops_action_ht_send(struct wlc_info *wlc,
 				      struct wlc_bsscfg *bsscfg,
 				      u8 mimops_mode);
 
 extern void wlc_switch_shortslot(struct wlc_info *wlc, bool shortslot);
 extern void wlc_set_bssid(struct wlc_bsscfg *cfg);
-extern void wlc_edcf_setparams(struct wlc_bsscfg *cfg, bool suspend);
+extern void wlc_edcf_setparams(struct wlc_info *wlc, bool suspend);
 
 extern void wlc_set_ratetable(struct wlc_info *wlc);
 extern int wlc_set_mac(struct wlc_bsscfg *cfg);
@@ -951,20 +926,14 @@ extern void wlc_beacon_phytxctl_txant_upd(struct wlc_info *wlc,
 extern void wlc_mod_prb_rsp_rate_table(struct wlc_info *wlc, uint frame_len);
 extern ratespec_t wlc_lowest_basic_rspec(struct wlc_info *wlc,
 					 wlc_rateset_t *rs);
-extern u16 wlc_compute_bcntsfoff(struct wlc_info *wlc, ratespec_t rspec,
-				    bool short_preamble, bool phydelay);
 extern void wlc_radio_disable(struct wlc_info *wlc);
 extern void wlc_bcn_li_upd(struct wlc_info *wlc);
 
 extern int wlc_get_revision_info(struct wlc_info *wlc, void *buf, uint len);
-extern void wlc_out(struct wlc_info *wlc);
 extern void wlc_set_home_chanspec(struct wlc_info *wlc, chanspec_t chanspec);
 extern void wlc_watchdog_upd(struct wlc_info *wlc, bool tbtt);
 extern bool wlc_ps_allowed(struct wlc_info *wlc);
 extern bool wlc_stay_awake(struct wlc_info *wlc);
 extern void wlc_wme_initparams_sta(struct wlc_info *wlc, wme_param_ie_t *pe);
 
-extern void wlc_bss_list_free(struct wlc_info *wlc,
-			      struct wlc_bss_list *bss_list);
-extern void wlc_ht_mimops_cap_update(struct wlc_info *wlc, u8 mimops_mode);
 #endif				/* _wlc_h_ */

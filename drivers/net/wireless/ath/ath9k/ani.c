@@ -899,12 +899,6 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 	 * check here default level should not modify INI setting.
 	 */
 	if (use_new_ani(ah)) {
-		const struct ani_ofdm_level_entry *entry_ofdm;
-		const struct ani_cck_level_entry *entry_cck;
-
-		entry_ofdm = &ofdm_level_table[ATH9K_ANI_OFDM_DEF_LEVEL];
-		entry_cck = &cck_level_table[ATH9K_ANI_CCK_DEF_LEVEL];
-
 		ah->aniperiod = ATH9K_ANI_PERIOD_NEW;
 		ah->config.ani_poll_interval = ATH9K_ANI_POLLINTERVAL_NEW;
 	} else {

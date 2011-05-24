@@ -30,12 +30,13 @@
 #include <linux/ctype.h>
 #include <linux/random.h>
 
-/* Calculate and return the CIFS signature based on the mac key and SMB PDU */
-/* the 16 byte signature must be allocated by the caller  */
-/* Note we only use the 1st eight bytes */
-/* Note that the smb header signature field on input contains the
-	sequence number before this function is called */
-
+/*
+ * Calculate and return the CIFS signature based on the mac key and SMB PDU.
+ * The 16 byte signature must be allocated by the caller. Note we only use the
+ * 1st eight bytes and that the smb header signature field on input contains
+ * the sequence number before this function is called. Also, this function
+ * should be called with the server->srv_mutex held.
+ */
 static int cifs_calculate_signature(const struct smb_hdr *cifs_pdu,
 				struct TCP_Server_Info *server, char *signature)
 {
@@ -59,7 +60,7 @@ static int cifs_calculate_signature(const struct smb_hdr *cifs_pdu,
 		server->session_key.response, server->session_key.len);
 
 	crypto_shash_update(&server->secmech.sdescmd5->shash,
-		cifs_pdu->Protocol, cifs_pdu->smb_buf_length);
+		cifs_pdu->Protocol, be32_to_cpu(cifs_pdu->smb_buf_length));
 
 	rc = crypto_shash_final(&server->secmech.sdescmd5->shash, signature);
 
@@ -209,8 +210,10 @@ int cifs_verify_signature(struct smb_hdr *cifs_pdu,
 					cpu_to_le32(expected_sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 
+	mutex_lock(&server->srv_mutex);
 	rc = cifs_calculate_signature(cifs_pdu, server,
 		what_we_think_sig_should_be);
+	mutex_unlock(&server->srv_mutex);
 
 	if (rc)
 		return rc;
@@ -265,10 +268,11 @@ int setup_ntlm_response(struct cifsSesInfo *ses)
 }
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-void calc_lanman_hash(const char *password, const char *cryptkey, bool encrypt,
+int calc_lanman_hash(const char *password, const char *cryptkey, bool encrypt,
 			char *lnm_session_key)
 {
 	int i;
+	int rc;
 	char password_with_pad[CIFS_ENCPWD_SIZE];
 
 	memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
@@ -279,7 +283,7 @@ void calc_lanman_hash(const char *password, const char *cryptkey, bool encrypt,
 		memset(lnm_session_key, 0, CIFS_SESS_KEY_SIZE);
 		memcpy(lnm_session_key, password_with_pad,
 			CIFS_ENCPWD_SIZE);
-		return;
+		return 0;
 	}
 
 	/* calculate old style session key */
@@ -296,10 +300,9 @@ void calc_lanman_hash(const char *password, const char *cryptkey, bool encrypt,
 	for (i = 0; i < CIFS_ENCPWD_SIZE; i++)
 		password_with_pad[i] = toupper(password_with_pad[i]);
 
-	SMBencrypt(password_with_pad, cryptkey, lnm_session_key);
+	rc = SMBencrypt(password_with_pad, cryptkey, lnm_session_key);
 
-	/* clear password before we return/free memory */
-	memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
+	return rc;
 }
 #endif /* CIFS_WEAK_PW_HASH */
 
@@ -469,15 +472,15 @@ static int calc_ntlmv2_hash(struct cifsSesInfo *ses, char *ntlmv2_hash,
 		return rc;
 	}
 
-	/* convert ses->userName to unicode and uppercase */
-	len = strlen(ses->userName);
+	/* convert ses->user_name to unicode and uppercase */
+	len = strlen(ses->user_name);
 	user = kmalloc(2 + (len * 2), GFP_KERNEL);
 	if (user == NULL) {
 		cERROR(1, "calc_ntlmv2_hash: user mem alloc failure\n");
 		rc = -ENOMEM;
 		goto calc_exit_2;
 	}
-	len = cifs_strtoUCS((__le16 *)user, ses->userName, len, nls_cp);
+	len = cifs_strtoUCS((__le16 *)user, ses->user_name, len, nls_cp);
 	UniStrupr(user);
 
 	crypto_shash_update(&ses->server->secmech.sdeschmacmd5->shash,

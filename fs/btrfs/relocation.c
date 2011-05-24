@@ -709,7 +709,7 @@ again:
 	WARN_ON(cur->checked);
 	if (!list_empty(&cur->upper)) {
 		/*
-		 * the backref was added previously when processsing
+		 * the backref was added previously when processing
 		 * backref of type BTRFS_TREE_BLOCK_REF_KEY
 		 */
 		BUG_ON(!list_is_singular(&cur->upper));

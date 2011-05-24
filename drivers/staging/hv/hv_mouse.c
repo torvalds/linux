@@ -26,13 +26,7 @@
 #include <linux/dmi.h>
 #include <linux/delay.h>
 
-#include "hv_api.h"
-#include "logging.h"
-#include "version_info.h"
-#include "vmbus.h"
-#include "vmbus_api.h"
-#include "channel.h"
-#include "vmbus_packet_format.h"
+#include "hyperv.h"
 
 
 /*
@@ -44,13 +38,6 @@ struct hv_input_dev_info {
 	unsigned short version;
 	char name[128];
 };
-
-/* Represents the input vsc driver */
-/* FIXME - can be removed entirely */
-struct mousevsc_drv_obj {
-	struct hv_driver Base;
-};
-
 
 /* The maximum size of a synthetic input message. */
 #define SYNTHHID_MAX_INPUT_REPORT_SIZE 16
@@ -169,23 +156,23 @@ struct  mousevsc_prt_msg {
  * Represents an mousevsc device
  */
 struct mousevsc_dev {
-	struct hv_device	*Device;
+	struct hv_device	*device;
 	/* 0 indicates the device is being destroyed */
-	atomic_t		RefCount;
-	int			NumOutstandingRequests;
-	unsigned char		bInitializeComplete;
-	struct mousevsc_prt_msg	ProtocolReq;
-	struct mousevsc_prt_msg	ProtocolResp;
+	atomic_t		ref_count;
+	int			num_outstanding_req;
+	unsigned char		init_complete;
+	struct mousevsc_prt_msg	protocol_req;
+	struct mousevsc_prt_msg	protocol_resp;
 	/* Synchronize the request/response if needed */
-	wait_queue_head_t	ProtocolWaitEvent;
-	wait_queue_head_t	DeviceInfoWaitEvent;
+	wait_queue_head_t	protocol_wait_event;
+	wait_queue_head_t	dev_info_wait_event;
 	int			protocol_wait_condition;
 	int			device_wait_condition;
-	int			DeviceInfoStatus;
+	int			dev_info_status;
 
-	struct hid_descriptor	*HidDesc;
-	unsigned char		*ReportDesc;
-	u32			ReportDescSize;
+	struct hid_descriptor	*hid_desc;
+	unsigned char		*report_desc;
+	u32			report_desc_size;
 	struct hv_input_dev_info hid_dev_info;
 };
 
@@ -202,41 +189,41 @@ static void deviceinfo_callback(struct hv_device *dev, struct hv_input_dev_info 
 static void inputreport_callback(struct hv_device *dev, void *packet, u32 len);
 static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len);
 
-static struct mousevsc_dev *AllocInputDevice(struct hv_device *Device)
+static struct mousevsc_dev *alloc_input_device(struct hv_device *device)
 {
-	struct mousevsc_dev *inputDevice;
+	struct mousevsc_dev *input_dev;
 
-	inputDevice = kzalloc(sizeof(struct mousevsc_dev), GFP_KERNEL);
+	input_dev = kzalloc(sizeof(struct mousevsc_dev), GFP_KERNEL);
 
-	if (!inputDevice)
+	if (!input_dev)
 		return NULL;
 
 	/*
 	 * Set to 2 to allow both inbound and outbound traffics
-	 * (ie GetInputDevice() and MustGetInputDevice()) to proceed.
+	 * (ie get_input_device() and must_get_input_device()) to proceed.
 	 */
-	atomic_cmpxchg(&inputDevice->RefCount, 0, 2);
+	atomic_cmpxchg(&input_dev->ref_count, 0, 2);
 
-	inputDevice->Device = Device;
-	Device->ext = inputDevice;
+	input_dev->device = device;
+	device->ext = input_dev;
 
-	return inputDevice;
+	return input_dev;
 }
 
-static void FreeInputDevice(struct mousevsc_dev *Device)
+static void free_input_device(struct mousevsc_dev *device)
 {
-	WARN_ON(atomic_read(&Device->RefCount) == 0);
-	kfree(Device);
+	WARN_ON(atomic_read(&device->ref_count) == 0);
+	kfree(device);
 }
 
 /*
  * Get the inputdevice object if exists and its refcount > 1
  */
-static struct mousevsc_dev *GetInputDevice(struct hv_device *Device)
+static struct mousevsc_dev *get_input_device(struct hv_device *device)
 {
-	struct mousevsc_dev *inputDevice;
+	struct mousevsc_dev *input_dev;
 
-	inputDevice = (struct mousevsc_dev *)Device->ext;
+	input_dev = (struct mousevsc_dev *)device->ext;
 
 /*
  *	FIXME
@@ -244,134 +231,137 @@ static struct mousevsc_dev *GetInputDevice(struct hv_device *Device)
  *	what the intention is...
  *
  *	printk(KERN_ERR "-------------------------> REFCOUNT = %d",
- *	       inputDevice->RefCount);
+ *	       input_dev->ref_count);
  */
 
-	if (inputDevice && atomic_read(&inputDevice->RefCount) > 1)
-		atomic_inc(&inputDevice->RefCount);
+	if (input_dev && atomic_read(&input_dev->ref_count) > 1)
+		atomic_inc(&input_dev->ref_count);
 	else
-		inputDevice = NULL;
+		input_dev = NULL;
 
-	return inputDevice;
+	return input_dev;
 }
 
 /*
  * Get the inputdevice object iff exists and its refcount > 0
  */
-static struct mousevsc_dev *MustGetInputDevice(struct hv_device *Device)
+static struct mousevsc_dev *must_get_input_device(struct hv_device *device)
 {
-	struct mousevsc_dev *inputDevice;
+	struct mousevsc_dev *input_dev;
 
-	inputDevice = (struct mousevsc_dev *)Device->ext;
+	input_dev = (struct mousevsc_dev *)device->ext;
 
-	if (inputDevice && atomic_read(&inputDevice->RefCount))
-		atomic_inc(&inputDevice->RefCount);
+	if (input_dev && atomic_read(&input_dev->ref_count))
+		atomic_inc(&input_dev->ref_count);
 	else
-		inputDevice = NULL;
+		input_dev = NULL;
 
-	return inputDevice;
+	return input_dev;
 }
 
-static void PutInputDevice(struct hv_device *Device)
+static void put_input_device(struct hv_device *device)
 {
-	struct mousevsc_dev *inputDevice;
+	struct mousevsc_dev *input_dev;
 
-	inputDevice = (struct mousevsc_dev *)Device->ext;
+	input_dev = (struct mousevsc_dev *)device->ext;
 
-	atomic_dec(&inputDevice->RefCount);
+	atomic_dec(&input_dev->ref_count);
 }
 
 /*
- * Drop ref count to 1 to effectively disable GetInputDevice()
+ * Drop ref count to 1 to effectively disable get_input_device()
  */
-static struct mousevsc_dev *ReleaseInputDevice(struct hv_device *Device)
+static struct mousevsc_dev *release_input_device(struct hv_device *device)
 {
-	struct mousevsc_dev *inputDevice;
+	struct mousevsc_dev *input_dev;
 
-	inputDevice = (struct mousevsc_dev *)Device->ext;
+	input_dev = (struct mousevsc_dev *)device->ext;
 
 	/* Busy wait until the ref drop to 2, then set it to 1  */
-	while (atomic_cmpxchg(&inputDevice->RefCount, 2, 1) != 2)
+	while (atomic_cmpxchg(&input_dev->ref_count, 2, 1) != 2)
 		udelay(100);
 
-	return inputDevice;
+	return input_dev;
 }
 
 /*
- * Drop ref count to 0. No one can use InputDevice object.
+ * Drop ref count to 0. No one can use input_device object.
  */
-static struct mousevsc_dev *FinalReleaseInputDevice(struct hv_device *Device)
+static struct mousevsc_dev *final_release_input_device(struct hv_device *device)
 {
-	struct mousevsc_dev *inputDevice;
+	struct mousevsc_dev *input_dev;
 
-	inputDevice = (struct mousevsc_dev *)Device->ext;
+	input_dev = (struct mousevsc_dev *)device->ext;
 
 	/* Busy wait until the ref drop to 1, then set it to 0  */
-	while (atomic_cmpxchg(&inputDevice->RefCount, 1, 0) != 1)
+	while (atomic_cmpxchg(&input_dev->ref_count, 1, 0) != 1)
 		udelay(100);
 
-	Device->ext = NULL;
-	return inputDevice;
+	device->ext = NULL;
+	return input_dev;
 }
 
-static void MousevscOnSendCompletion(struct hv_device *Device, struct vmpacket_descriptor *Packet)
+static void mousevsc_on_send_completion(struct hv_device *device,
+					struct vmpacket_descriptor *packet)
 {
-	struct mousevsc_dev *inputDevice;
+	struct mousevsc_dev *input_dev;
 	void *request;
 
-	inputDevice = MustGetInputDevice(Device);
-	if (!inputDevice) {
+	input_dev = must_get_input_device(device);
+	if (!input_dev) {
 		pr_err("unable to get input device...device being destroyed?");
 		return;
 	}
 
-	request = (void *)(unsigned long)Packet->trans_id;
+	request = (void *)(unsigned long)packet->trans_id;
 
-	if (request == &inputDevice->ProtocolReq) {
+	if (request == &input_dev->protocol_req) {
 		/* FIXME */
 		/* Shouldn't we be doing something here? */
 	}
 
-	PutInputDevice(Device);
+	put_input_device(device);
 }
 
-static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct synthhid_device_info *DeviceInfo)
+static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
+				struct synthhid_device_info *device_info)
 {
 	int ret = 0;
 	struct hid_descriptor *desc;
 	struct mousevsc_prt_msg ack;
 
 	/* Assume success for now */
-	InputDevice->DeviceInfoStatus = 0;
+	input_device->dev_info_status = 0;
 
 	/* Save the device attr */
-	memcpy(&InputDevice->hid_dev_info, &DeviceInfo->hid_dev_info, sizeof(struct hv_input_dev_info));
+	memcpy(&input_device->hid_dev_info, &device_info->hid_dev_info,
+		sizeof(struct hv_input_dev_info));
 
 	/* Save the hid desc */
-	desc = &DeviceInfo->hid_descriptor;
+	desc = &device_info->hid_descriptor;
 	WARN_ON(desc->bLength > 0);
 
-	InputDevice->HidDesc = kzalloc(desc->bLength, GFP_KERNEL);
+	input_device->hid_desc = kzalloc(desc->bLength, GFP_KERNEL);
 
-	if (!InputDevice->HidDesc) {
+	if (!input_device->hid_desc) {
 		pr_err("unable to allocate hid descriptor - size %d", desc->bLength);
 		goto Cleanup;
 	}
 
-	memcpy(InputDevice->HidDesc, desc, desc->bLength);
+	memcpy(input_device->hid_desc, desc, desc->bLength);
 
 	/* Save the report desc */
-	InputDevice->ReportDescSize = desc->desc[0].wDescriptorLength;
-	InputDevice->ReportDesc = kzalloc(InputDevice->ReportDescSize,
+	input_device->report_desc_size = desc->desc[0].wDescriptorLength;
+	input_device->report_desc = kzalloc(input_device->report_desc_size,
 					  GFP_KERNEL);
 
-	if (!InputDevice->ReportDesc) {
+	if (!input_device->report_desc) {
 		pr_err("unable to allocate report descriptor - size %d",
-			   InputDevice->ReportDescSize);
+			   input_device->report_desc_size);
 		goto Cleanup;
 	}
 
-	memcpy(InputDevice->ReportDesc,
+	memcpy(input_device->report_desc,
 	       ((unsigned char *)desc) + desc->bLength,
 	       desc->desc[0].wDescriptorLength);
 
@@ -385,7 +375,7 @@ static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct
 	ack.ack.header.size = 1;
 	ack.ack.reserved = 0;
 
-	ret = vmbus_sendpacket(InputDevice->Device->channel,
+	ret = vmbus_sendpacket(input_device->device->channel,
 			&ack,
 			sizeof(struct pipe_prt_msg) - sizeof(unsigned char) +
 			sizeof(struct synthhid_device_info_ack),
@@ -398,138 +388,143 @@ static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct
 		goto Cleanup;
 	}
 
-	InputDevice->device_wait_condition = 1;
-	wake_up(&InputDevice->DeviceInfoWaitEvent);
+	input_device->device_wait_condition = 1;
+	wake_up(&input_device->dev_info_wait_event);
 
 	return;
 
 Cleanup:
-	kfree(InputDevice->HidDesc);
-	InputDevice->HidDesc = NULL;
+	kfree(input_device->hid_desc);
+	input_device->hid_desc = NULL;
 
-	kfree(InputDevice->ReportDesc);
-	InputDevice->ReportDesc = NULL;
+	kfree(input_device->report_desc);
+	input_device->report_desc = NULL;
 
-	InputDevice->DeviceInfoStatus = -1;
-	InputDevice->device_wait_condition = 1;
-	wake_up(&InputDevice->DeviceInfoWaitEvent);
+	input_device->dev_info_status = -1;
+	input_device->device_wait_condition = 1;
+	wake_up(&input_device->dev_info_wait_event);
 }
 
-static void MousevscOnReceiveInputReport(struct mousevsc_dev *InputDevice, struct synthhid_input_report *InputReport)
+static void mousevsc_on_receive_input_report(struct mousevsc_dev *input_device,
+				struct synthhid_input_report *input_report)
 {
-	struct mousevsc_drv_obj *inputDriver;
+	struct hv_driver *input_drv;
 
-	if (!InputDevice->bInitializeComplete) {
-		pr_info("Initialization incomplete...ignoring InputReport msg");
+	if (!input_device->init_complete) {
+		pr_info("Initialization incomplete...ignoring input_report msg");
 		return;
 	}
 
-	inputDriver = (struct mousevsc_drv_obj *)InputDevice->Device->drv;
+	input_drv = drv_to_hv_drv(input_device->device->device.driver);
 
-	inputreport_callback(InputDevice->Device,
-			     InputReport->buffer,
-			     InputReport->header.size);
+	inputreport_callback(input_device->device,
+			     input_report->buffer,
+			     input_report->header.size);
 }
 
-static void MousevscOnReceive(struct hv_device *Device, struct vmpacket_descriptor *Packet)
+static void mousevsc_on_receive(struct hv_device *device,
+				struct vmpacket_descriptor *packet)
 {
-	struct pipe_prt_msg *pipeMsg;
-	struct synthhid_msg *hidMsg;
-	struct mousevsc_dev *inputDevice;
+	struct pipe_prt_msg *pipe_msg;
+	struct synthhid_msg *hid_msg;
+	struct mousevsc_dev *input_dev;
 
-	inputDevice = MustGetInputDevice(Device);
-	if (!inputDevice) {
+	input_dev = must_get_input_device(device);
+	if (!input_dev) {
 		pr_err("unable to get input device...device being destroyed?");
 		return;
 	}
 
-	pipeMsg = (struct pipe_prt_msg *)((unsigned long)Packet + (Packet->offset8 << 3));
+	pipe_msg = (struct pipe_prt_msg *)((unsigned long)packet +
+						(packet->offset8 << 3));
 
-	if (pipeMsg->type != PipeMessageData) {
+	if (pipe_msg->type != PipeMessageData) {
 		pr_err("unknown pipe msg type - type %d len %d",
-			   pipeMsg->type, pipeMsg->size);
-		PutInputDevice(Device);
+			   pipe_msg->type, pipe_msg->size);
+		put_input_device(device);
 		return ;
 	}
 
-	hidMsg = (struct synthhid_msg *)&pipeMsg->data[0];
+	hid_msg = (struct synthhid_msg *)&pipe_msg->data[0];
 
-	switch (hidMsg->header.type) {
+	switch (hid_msg->header.type) {
 	case SynthHidProtocolResponse:
-		memcpy(&inputDevice->ProtocolResp, pipeMsg,
-		       pipeMsg->size + sizeof(struct pipe_prt_msg) -
+		memcpy(&input_dev->protocol_resp, pipe_msg,
+		       pipe_msg->size + sizeof(struct pipe_prt_msg) -
 		       sizeof(unsigned char));
-		inputDevice->protocol_wait_condition = 1;
-		wake_up(&inputDevice->ProtocolWaitEvent);
+		input_dev->protocol_wait_condition = 1;
+		wake_up(&input_dev->protocol_wait_event);
 		break;
 
 	case SynthHidInitialDeviceInfo:
-		WARN_ON(pipeMsg->size >= sizeof(struct hv_input_dev_info));
+		WARN_ON(pipe_msg->size >= sizeof(struct hv_input_dev_info));
 
 		/*
 		 * Parse out the device info into device attr,
 		 * hid desc and report desc
 		 */
-		MousevscOnReceiveDeviceInfo(inputDevice,
-					    (struct synthhid_device_info *)&pipeMsg->data[0]);
+		mousevsc_on_receive_device_info(input_dev,
+			(struct synthhid_device_info *)&pipe_msg->data[0]);
 		break;
 	case SynthHidInputReport:
-		MousevscOnReceiveInputReport(inputDevice,
-					     (struct synthhid_input_report *)&pipeMsg->data[0]);
+		mousevsc_on_receive_input_report(input_dev,
+			(struct synthhid_input_report *)&pipe_msg->data[0]);
 
 		break;
 	default:
 		pr_err("unsupported hid msg type - type %d len %d",
-		       hidMsg->header.type, hidMsg->header.size);
+		       hid_msg->header.type, hid_msg->header.size);
 		break;
 	}
 
-	PutInputDevice(Device);
+	put_input_device(device);
 }
 
-static void MousevscOnChannelCallback(void *Context)
+static void mousevsc_on_channel_callback(void *context)
 {
 	const int packetSize = 0x100;
 	int ret = 0;
-	struct hv_device *device = (struct hv_device *)Context;
-	struct mousevsc_dev *inputDevice;
+	struct hv_device *device = (struct hv_device *)context;
+	struct mousevsc_dev *input_dev;
 
-	u32 bytesRecvd;
-	u64 requestId;
-	unsigned char packet[packetSize];
+	u32 bytes_recvd;
+	u64 req_id;
+	unsigned char packet[0x100];
 	struct vmpacket_descriptor *desc;
 	unsigned char	*buffer = packet;
 	int	bufferlen = packetSize;
 
-	inputDevice = MustGetInputDevice(device);
+	input_dev = must_get_input_device(device);
 
-	if (!inputDevice) {
+	if (!input_dev) {
 		pr_err("unable to get input device...device being destroyed?");
 		return;
 	}
 
 	do {
-		ret = vmbus_recvpacket_raw(device->channel, buffer, bufferlen, &bytesRecvd, &requestId);
+		ret = vmbus_recvpacket_raw(device->channel, buffer,
+					bufferlen, &bytes_recvd, &req_id);
 
 		if (ret == 0) {
-			if (bytesRecvd > 0) {
+			if (bytes_recvd > 0) {
 				desc = (struct vmpacket_descriptor *)buffer;
 
 				switch (desc->type) {
 					case VM_PKT_COMP:
-						MousevscOnSendCompletion(device,
-									 desc);
+						mousevsc_on_send_completion(
+							device, desc);
 						break;
 
 					case VM_PKT_DATA_INBAND:
-						MousevscOnReceive(device, desc);
+						mousevsc_on_receive(
+							device, desc);
 						break;
 
 					default:
 						pr_err("unhandled packet type %d, tid %llx len %d\n",
 							   desc->type,
-							   requestId,
-							   bytesRecvd);
+							   req_id,
+							   bytes_recvd);
 						break;
 				}
 
@@ -555,8 +550,8 @@ static void MousevscOnChannelCallback(void *Context)
 			}
 		} else if (ret == -2) {
 			/* Handle large packet */
-			bufferlen = bytesRecvd;
-			buffer = kzalloc(bytesRecvd, GFP_KERNEL);
+			bufferlen = bytes_recvd;
+			buffer = kzalloc(bytes_recvd, GFP_KERNEL);
 
 			if (buffer == NULL) {
 				buffer = packet;
@@ -564,35 +559,35 @@ static void MousevscOnChannelCallback(void *Context)
 
 				/* Try again next time around */
 				pr_err("unable to allocate buffer of size %d!",
-				       bytesRecvd);
+				       bytes_recvd);
 				break;
 			}
 		}
 	} while (1);
 
-	PutInputDevice(device);
+	put_input_device(device);
 
 	return;
 }
 
-static int MousevscConnectToVsp(struct hv_device *Device)
+static int mousevsc_connect_to_vsp(struct hv_device *device)
 {
 	int ret = 0;
-	struct mousevsc_dev *inputDevice;
+	struct mousevsc_dev *input_dev;
 	struct mousevsc_prt_msg *request;
 	struct mousevsc_prt_msg *response;
 
-	inputDevice = GetInputDevice(Device);
+	input_dev = get_input_device(device);
 
-	if (!inputDevice) {
+	if (!input_dev) {
 		pr_err("unable to get input device...device being destroyed?");
 		return -1;
 	}
 
-	init_waitqueue_head(&inputDevice->ProtocolWaitEvent);
-	init_waitqueue_head(&inputDevice->DeviceInfoWaitEvent);
+	init_waitqueue_head(&input_dev->protocol_wait_event);
+	init_waitqueue_head(&input_dev->dev_info_wait_event);
 
-	request = &inputDevice->ProtocolReq;
+	request = &input_dev->protocol_req;
 
 	/*
 	 * Now, initiate the vsc/vsp initialization protocol on the open channel
@@ -608,7 +603,7 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 
 	pr_info("synthhid protocol request...");
 
-	ret = vmbus_sendpacket(Device->channel, request,
+	ret = vmbus_sendpacket(device->channel, request,
 					sizeof(struct pipe_prt_msg) -
 					sizeof(unsigned char) +
 					sizeof(struct synthhid_protocol_request),
@@ -620,14 +615,15 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	inputDevice->protocol_wait_condition = 0;
-	wait_event_timeout(inputDevice->ProtocolWaitEvent, inputDevice->protocol_wait_condition, msecs_to_jiffies(1000));
-	if (inputDevice->protocol_wait_condition == 0) {
+	input_dev->protocol_wait_condition = 0;
+	wait_event_timeout(input_dev->protocol_wait_event,
+		input_dev->protocol_wait_condition, msecs_to_jiffies(1000));
+	if (input_dev->protocol_wait_condition == 0) {
 		ret = -ETIMEDOUT;
 		goto Cleanup;
 	}
 
-	response = &inputDevice->ProtocolResp;
+	response = &input_dev->protocol_resp;
 
 	if (!response->response.approved) {
 		pr_err("synthhid protocol request failed (version %d)",
@@ -636,9 +632,10 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	inputDevice->device_wait_condition = 0;
-	wait_event_timeout(inputDevice->DeviceInfoWaitEvent, inputDevice->device_wait_condition, msecs_to_jiffies(1000));
-	if (inputDevice->device_wait_condition == 0) {
+	input_dev->device_wait_condition = 0;
+	wait_event_timeout(input_dev->dev_info_wait_event,
+		input_dev->device_wait_condition, msecs_to_jiffies(1000));
+	if (input_dev->device_wait_condition == 0) {
 		ret = -ETIMEDOUT;
 		goto Cleanup;
 	}
@@ -647,94 +644,95 @@ static int MousevscConnectToVsp(struct hv_device *Device)
 	 * We should have gotten the device attr, hid desc and report
 	 * desc at this point
 	 */
-	if (!inputDevice->DeviceInfoStatus)
+	if (!input_dev->dev_info_status)
 		pr_info("**** input channel up and running!! ****");
 	else
 		ret = -1;
 
 Cleanup:
-	PutInputDevice(Device);
+	put_input_device(device);
 
 	return ret;
 }
 
-static int MousevscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
+static int mousevsc_on_device_add(struct hv_device *device,
+					void *additional_info)
 {
 	int ret = 0;
-	struct mousevsc_dev *inputDevice;
-	struct mousevsc_drv_obj *inputDriver;
+	struct mousevsc_dev *input_dev;
+	struct hv_driver *input_drv;
 	struct hv_input_dev_info dev_info;
 
-	inputDevice = AllocInputDevice(Device);
+	input_dev = alloc_input_device(device);
 
-	if (!inputDevice) {
+	if (!input_dev) {
 		ret = -1;
 		goto Cleanup;
 	}
 
-	inputDevice->bInitializeComplete = false;
+	input_dev->init_complete = false;
 
 	/* Open the channel */
-	ret = vmbus_open(Device->channel,
+	ret = vmbus_open(device->channel,
 		INPUTVSC_SEND_RING_BUFFER_SIZE,
 		INPUTVSC_RECV_RING_BUFFER_SIZE,
 		NULL,
 		0,
-		MousevscOnChannelCallback,
-		Device
+		mousevsc_on_channel_callback,
+		device
 		);
 
 	if (ret != 0) {
 		pr_err("unable to open channel: %d", ret);
-		FreeInputDevice(inputDevice);
+		free_input_device(input_dev);
 		return -1;
 	}
 
 	pr_info("InputVsc channel open: %d", ret);
 
-	ret = MousevscConnectToVsp(Device);
+	ret = mousevsc_connect_to_vsp(device);
 
 	if (ret != 0) {
 		pr_err("unable to connect channel: %d", ret);
 
-		vmbus_close(Device->channel);
-		FreeInputDevice(inputDevice);
+		vmbus_close(device->channel);
+		free_input_device(input_dev);
 		return ret;
 	}
 
-	inputDriver = (struct mousevsc_drv_obj *)inputDevice->Device->drv;
+	input_drv = drv_to_hv_drv(input_dev->device->device.driver);
 
-	dev_info.vendor = inputDevice->hid_dev_info.vendor;
-	dev_info.product = inputDevice->hid_dev_info.product;
-	dev_info.version = inputDevice->hid_dev_info.version;
+	dev_info.vendor = input_dev->hid_dev_info.vendor;
+	dev_info.product = input_dev->hid_dev_info.product;
+	dev_info.version = input_dev->hid_dev_info.version;
 	strcpy(dev_info.name, "Microsoft Vmbus HID-compliant Mouse");
 
 	/* Send the device info back up */
-	deviceinfo_callback(Device, &dev_info);
+	deviceinfo_callback(device, &dev_info);
 
 	/* Send the report desc back up */
 	/* workaround SA-167 */
-	if (inputDevice->ReportDesc[14] == 0x25)
-		inputDevice->ReportDesc[14] = 0x29;
+	if (input_dev->report_desc[14] == 0x25)
+		input_dev->report_desc[14] = 0x29;
 
-	reportdesc_callback(Device, inputDevice->ReportDesc,
-			    inputDevice->ReportDescSize);
+	reportdesc_callback(device, input_dev->report_desc,
+			    input_dev->report_desc_size);
 
-	inputDevice->bInitializeComplete = true;
+	input_dev->init_complete = true;
 
 Cleanup:
 	return ret;
 }
 
-static int MousevscOnDeviceRemove(struct hv_device *Device)
+static int mousevsc_on_device_remove(struct hv_device *device)
 {
-	struct mousevsc_dev *inputDevice;
+	struct mousevsc_dev *input_dev;
 	int ret = 0;
 
 	pr_info("disabling input device (%p)...",
-		    Device->ext);
+		    device->ext);
 
-	inputDevice = ReleaseInputDevice(Device);
+	input_dev = release_input_device(device);
 
 
 	/*
@@ -743,29 +741,27 @@ static int MousevscOnDeviceRemove(struct hv_device *Device)
 	 *
 	 * so that outstanding requests can be completed.
 	 */
-	while (inputDevice->NumOutstandingRequests) {
-		pr_info("waiting for %d requests to complete...", inputDevice->NumOutstandingRequests);
+	while (input_dev->num_outstanding_req) {
+		pr_info("waiting for %d requests to complete...",
+			input_dev->num_outstanding_req);
 
 		udelay(100);
 	}
 
-	pr_info("removing input device (%p)...", Device->ext);
+	pr_info("removing input device (%p)...", device->ext);
 
-	inputDevice = FinalReleaseInputDevice(Device);
+	input_dev = final_release_input_device(device);
 
-	pr_info("input device (%p) safe to remove", inputDevice);
+	pr_info("input device (%p) safe to remove", input_dev);
 
 	/* Close the channel */
-	vmbus_close(Device->channel);
+	vmbus_close(device->channel);
 
-	FreeInputDevice(inputDevice);
+	free_input_device(input_dev);
 
 	return ret;
 }
 
-static void MousevscOnCleanup(struct hv_driver *drv)
-{
-}
 
 /*
  * Data types
@@ -777,8 +773,6 @@ struct input_device_context {
 	int			connected;
 };
 
-
-static struct  mousevsc_drv_obj g_mousevsc_drv;
 
 static void deviceinfo_callback(struct hv_device *dev, struct hv_input_dev_info *info)
 {
@@ -813,24 +807,19 @@ static void mousevsc_hid_close(struct hid_device *hid)
 {
 }
 
-static int mousevsc_probe(struct device *device)
+static int mousevsc_probe(struct hv_device *dev)
 {
 	int ret = 0;
 
-	struct hv_driver *drv =
-		drv_to_hv_drv(device->driver);
-	struct mousevsc_drv_obj *mousevsc_drv_obj = drv->priv;
-
-	struct hv_device *device_obj = device_to_hv_device(device);
 	struct input_device_context *input_dev_ctx;
 
 	input_dev_ctx = kmalloc(sizeof(struct input_device_context),
 				GFP_KERNEL);
 
-	dev_set_drvdata(device, input_dev_ctx);
+	dev_set_drvdata(&dev->device, input_dev_ctx);
 
 	/* Call to the vsc driver to add the device */
-	ret = mousevsc_drv_obj->Base.dev_add(device_obj, NULL);
+	ret = mousevsc_on_device_add(dev, NULL);
 
 	if (ret != 0) {
 		DPRINT_ERR(INPUTVSC_DRV, "unable to add input vsc device");
@@ -841,35 +830,27 @@ static int mousevsc_probe(struct device *device)
 	return 0;
 }
 
-static int mousevsc_remove(struct device *device)
+static int mousevsc_remove(struct hv_device *dev)
 {
 	int ret = 0;
 
-	struct hv_driver *drv =
-		drv_to_hv_drv(device->driver);
-	struct mousevsc_drv_obj *mousevsc_drv_obj = drv->priv;
-
-	struct hv_device *device_obj = device_to_hv_device(device);
 	struct input_device_context *input_dev_ctx;
 
 	input_dev_ctx = kmalloc(sizeof(struct input_device_context),
 				GFP_KERNEL);
 
-	dev_set_drvdata(device, input_dev_ctx);
+	dev_set_drvdata(&dev->device, input_dev_ctx);
 
 	if (input_dev_ctx->connected) {
 		hidinput_disconnect(input_dev_ctx->hid_device);
 		input_dev_ctx->connected = 0;
 	}
 
-	if (!mousevsc_drv_obj->Base.dev_rm)
-		return -1;
-
 	/*
 	 * Call to the vsc driver to let it know that the device
 	 * is being removed
 	 */
-	ret = mousevsc_drv_obj->Base.dev_rm(device_obj);
+	ret = mousevsc_on_device_remove(dev);
 
 	if (ret != 0) {
 		DPRINT_ERR(INPUTVSC_DRV,
@@ -934,81 +915,28 @@ static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 	kfree(hid_dev);
 }
 
-static int mousevsc_drv_exit_cb(struct device *dev, void *data)
-{
-	struct device **curr = (struct device **)data;
-	*curr = dev;
 
-	return 1;
-}
+static struct  hv_driver mousevsc_drv = {
+	.probe = mousevsc_probe,
+	.remove = mousevsc_remove,
+};
 
 static void mousevsc_drv_exit(void)
 {
-	struct mousevsc_drv_obj *mousevsc_drv_obj = &g_mousevsc_drv;
-	struct hv_driver *drv = &g_mousevsc_drv.Base;
-	int ret;
-
-	struct device *current_dev = NULL;
-
-	while (1) {
-		current_dev = NULL;
-
-		/* Get the device */
-		ret = driver_for_each_device(&drv->driver, NULL,
-					     (void *)&current_dev,
-					     mousevsc_drv_exit_cb);
-		if (ret)
-			printk(KERN_ERR "Can't find mouse device!\n");
-
-		if (current_dev == NULL)
-			break;
-
-		/* Initiate removal from the top-down */
-		device_unregister(current_dev);
-	}
-
-	if (mousevsc_drv_obj->Base.cleanup)
-		mousevsc_drv_obj->Base.cleanup(&mousevsc_drv_obj->Base);
-
-	vmbus_child_driver_unregister(&drv->driver);
-
-	return;
+	vmbus_child_driver_unregister(&mousevsc_drv.driver);
 }
-
-static int mouse_vsc_initialize(struct hv_driver *Driver)
-{
-	struct mousevsc_drv_obj *inputDriver =
-		(struct mousevsc_drv_obj *)Driver;
-	int ret = 0;
-
-	Driver->name = driver_name;
-	memcpy(&Driver->dev_type, &mouse_guid,
-	       sizeof(struct hv_guid));
-
-	/* Setup the dispatch table */
-	inputDriver->Base.dev_add = MousevscOnDeviceAdd;
-	inputDriver->Base.dev_rm = MousevscOnDeviceRemove;
-	inputDriver->Base.cleanup = MousevscOnCleanup;
-
-	return ret;
-}
-
 
 static int __init mousevsc_init(void)
 {
-	struct mousevsc_drv_obj *input_drv_obj = &g_mousevsc_drv;
-	struct hv_driver *drv = &g_mousevsc_drv.Base;
+	struct hv_driver *drv = &mousevsc_drv;
 
 	DPRINT_INFO(INPUTVSC_DRV, "Hyper-V Mouse driver initializing.");
 
-	/* Callback to client driver to complete the initialization */
-	mouse_vsc_initialize(&input_drv_obj->Base);
+	memcpy(&drv->dev_type, &mouse_guid,
+	       sizeof(struct hv_guid));
 
-	drv->driver.name = input_drv_obj->Base.name;
-	drv->priv = input_drv_obj;
-
-	drv->driver.probe = mousevsc_probe;
-	drv->driver.remove = mousevsc_remove;
+	drv->driver.name = driver_name;
+	drv->name = driver_name;
 
 	/* The driver belongs to vmbus */
 	vmbus_child_driver_register(&drv->driver);

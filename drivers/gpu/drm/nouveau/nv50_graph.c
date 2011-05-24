@@ -503,7 +503,7 @@ nv50_graph_tlb_flush(struct drm_device *dev)
 }
 
 void
-nv86_graph_tlb_flush(struct drm_device *dev)
+nv84_graph_tlb_flush(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;

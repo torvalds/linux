@@ -10,30 +10,39 @@ MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
 
 static int dibx000_write_word(struct dibx000_i2c_master *mst, u16 reg, u16 val)
 {
-	u8 b[4] = {
-		(reg >> 8) & 0xff, reg & 0xff,
-		(val >> 8) & 0xff, val & 0xff,
-	};
-	struct i2c_msg msg = {
-		.addr = mst->i2c_addr,.flags = 0,.buf = b,.len = 4
-	};
+	mst->i2c_write_buffer[0] = (reg >> 8) & 0xff;
+	mst->i2c_write_buffer[1] = reg & 0xff;
+	mst->i2c_write_buffer[2] = (val >> 8) & 0xff;
+	mst->i2c_write_buffer[3] = val & 0xff;
 
-	return i2c_transfer(mst->i2c_adap, &msg, 1) != 1 ? -EREMOTEIO : 0;
+	memset(mst->msg, 0, sizeof(struct i2c_msg));
+	mst->msg[0].addr = mst->i2c_addr;
+	mst->msg[0].flags = 0;
+	mst->msg[0].buf = mst->i2c_write_buffer;
+	mst->msg[0].len = 4;
+
+	return i2c_transfer(mst->i2c_adap, mst->msg, 1) != 1 ? -EREMOTEIO : 0;
 }
 
 static u16 dibx000_read_word(struct dibx000_i2c_master *mst, u16 reg)
 {
-	u8 wb[2] = { reg >> 8, reg & 0xff };
-	u8 rb[2];
-	struct i2c_msg msg[2] = {
-		{.addr = mst->i2c_addr, .flags = 0, .buf = wb, .len = 2},
-		{.addr = mst->i2c_addr, .flags = I2C_M_RD, .buf = rb, .len = 2},
-	};
+	mst->i2c_write_buffer[0] = reg >> 8;
+	mst->i2c_write_buffer[1] = reg & 0xff;
 
-	if (i2c_transfer(mst->i2c_adap, msg, 2) != 2)
+	memset(mst->msg, 0, 2 * sizeof(struct i2c_msg));
+	mst->msg[0].addr = mst->i2c_addr;
+	mst->msg[0].flags = 0;
+	mst->msg[0].buf = mst->i2c_write_buffer;
+	mst->msg[0].len = 2;
+	mst->msg[1].addr = mst->i2c_addr;
+	mst->msg[1].flags = I2C_M_RD;
+	mst->msg[1].buf = mst->i2c_read_buffer;
+	mst->msg[1].len = 2;
+
+	if (i2c_transfer(mst->i2c_adap, mst->msg, 2) != 2)
 		dprintk("i2c read error on %d", reg);
 
-	return (rb[0] << 8) | rb[1];
+	return (mst->i2c_read_buffer[0] << 8) | mst->i2c_read_buffer[1];
 }
 
 static int dibx000_is_i2c_done(struct dibx000_i2c_master *mst)
@@ -248,26 +257,32 @@ static int dibx000_i2c_gated_gpio67_xfer(struct i2c_adapter *i2c_adap,
 					struct i2c_msg msg[], int num)
 {
 	struct dibx000_i2c_master *mst = i2c_get_adapdata(i2c_adap);
-	struct i2c_msg m[2 + num];
-	u8 tx_open[4], tx_close[4];
 
-	memset(m, 0, sizeof(struct i2c_msg) * (2 + num));
+	if (num > 32) {
+		dprintk("%s: too much I2C message to be transmitted (%i).\
+				Maximum is 32", __func__, num);
+		return -ENOMEM;
+	}
+
+	memset(mst->msg, 0, sizeof(struct i2c_msg) * (2 + num));
 
 	dibx000_i2c_select_interface(mst, DIBX000_I2C_INTERFACE_GPIO_6_7);
 
-	dibx000_i2c_gate_ctrl(mst, tx_open, msg[0].addr, 1);
-	m[0].addr = mst->i2c_addr;
-	m[0].buf = tx_open;
-	m[0].len = 4;
+	/* open the gate */
+	dibx000_i2c_gate_ctrl(mst, &mst->i2c_write_buffer[0], msg[0].addr, 1);
+	mst->msg[0].addr = mst->i2c_addr;
+	mst->msg[0].buf = &mst->i2c_write_buffer[0];
+	mst->msg[0].len = 4;
 
-	memcpy(&m[1], msg, sizeof(struct i2c_msg) * num);
+	memcpy(&mst->msg[1], msg, sizeof(struct i2c_msg) * num);
 
-	dibx000_i2c_gate_ctrl(mst, tx_close, 0, 0);
-	m[num + 1].addr = mst->i2c_addr;
-	m[num + 1].buf = tx_close;
-	m[num + 1].len = 4;
+	/* close the gate */
+	dibx000_i2c_gate_ctrl(mst, &mst->i2c_write_buffer[4], 0, 0);
+	mst->msg[num + 1].addr = mst->i2c_addr;
+	mst->msg[num + 1].buf = &mst->i2c_write_buffer[4];
+	mst->msg[num + 1].len = 4;
 
-	return i2c_transfer(mst->i2c_adap, m, 2 + num) == 2 + num ? num : -EIO;
+	return i2c_transfer(mst->i2c_adap, mst->msg, 2 + num) == 2 + num ? num : -EIO;
 }
 
 static struct i2c_algorithm dibx000_i2c_gated_gpio67_algo = {
@@ -279,26 +294,32 @@ static int dibx000_i2c_gated_tuner_xfer(struct i2c_adapter *i2c_adap,
 					struct i2c_msg msg[], int num)
 {
 	struct dibx000_i2c_master *mst = i2c_get_adapdata(i2c_adap);
-	struct i2c_msg m[2 + num];
-	u8 tx_open[4], tx_close[4];
 
-	memset(m, 0, sizeof(struct i2c_msg) * (2 + num));
+	if (num > 32) {
+		dprintk("%s: too much I2C message to be transmitted (%i).\
+				Maximum is 32", __func__, num);
+		return -ENOMEM;
+	}
+
+	memset(mst->msg, 0, sizeof(struct i2c_msg) * (2 + num));
 
 	dibx000_i2c_select_interface(mst, DIBX000_I2C_INTERFACE_TUNER);
 
-	dibx000_i2c_gate_ctrl(mst, tx_open, msg[0].addr, 1);
-	m[0].addr = mst->i2c_addr;
-	m[0].buf = tx_open;
-	m[0].len = 4;
+	/* open the gate */
+	dibx000_i2c_gate_ctrl(mst, &mst->i2c_write_buffer[0], msg[0].addr, 1);
+	mst->msg[0].addr = mst->i2c_addr;
+	mst->msg[0].buf = &mst->i2c_write_buffer[0];
+	mst->msg[0].len = 4;
 
-	memcpy(&m[1], msg, sizeof(struct i2c_msg) * num);
+	memcpy(&mst->msg[1], msg, sizeof(struct i2c_msg) * num);
 
-	dibx000_i2c_gate_ctrl(mst, tx_close, 0, 0);
-	m[num + 1].addr = mst->i2c_addr;
-	m[num + 1].buf = tx_close;
-	m[num + 1].len = 4;
+	/* close the gate */
+	dibx000_i2c_gate_ctrl(mst, &mst->i2c_write_buffer[4], 0, 0);
+	mst->msg[num + 1].addr = mst->i2c_addr;
+	mst->msg[num + 1].buf = &mst->i2c_write_buffer[4];
+	mst->msg[num + 1].len = 4;
 
-	return i2c_transfer(mst->i2c_adap, m, 2 + num) == 2 + num ? num : -EIO;
+	return i2c_transfer(mst->i2c_adap, mst->msg, 2 + num) == 2 + num ? num : -EIO;
 }
 
 static struct i2c_algorithm dibx000_i2c_gated_tuner_algo = {

@@ -2,6 +2,7 @@
 #define _LINUX_LIST_BL_H
 
 #include <linux/list.h>
+#include <linux/bit_spinlock.h>
 
 /*
  * Special version of lists, where head of the list has a lock in the lowest
@@ -112,6 +113,16 @@ static inline void hlist_bl_del_init(struct hlist_bl_node *n)
 		__hlist_bl_del(n);
 		INIT_HLIST_BL_NODE(n);
 	}
+}
+
+static inline void hlist_bl_lock(struct hlist_bl_head *b)
+{
+	bit_spin_lock(0, (unsigned long *)b);
+}
+
+static inline void hlist_bl_unlock(struct hlist_bl_head *b)
+{
+	__bit_spin_unlock(0, (unsigned long *)b);
 }
 
 /**

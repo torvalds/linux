@@ -14,4 +14,4 @@ snd-tea575x-tuner-objs := tea575x-tuner.o
 obj-$(CONFIG_SND_PDAUDIOCF) += snd-ak4117.o
 obj-$(CONFIG_SND_ICE1712) += snd-ak4xxx-adda.o
 obj-$(CONFIG_SND_ICE1724) += snd-ak4114.o snd-ak4113.o snd-ak4xxx-adda.o snd-pt2258.o
-obj-$(CONFIG_SND_FM801_TEA575X) += snd-tea575x-tuner.o
+obj-$(CONFIG_SND_TEA575X) += snd-tea575x-tuner.o

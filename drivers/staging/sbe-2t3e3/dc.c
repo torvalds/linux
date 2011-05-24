@@ -341,10 +341,6 @@ u32 dc_init_descriptor_list(struct channel *sc)
 		sc->ether.tx_ring = kzalloc(SBE_2T3E3_TX_DESC_RING_SIZE *
 					    sizeof(t3e3_tx_desc_t), GFP_KERNEL);
 	if (sc->ether.tx_ring == NULL) {
-#ifdef T3E3_USE_CONTIGMALLOC
-		t3e3_contigmemory_size = SBE_2T3E3_RX_DESC_RING_SIZE *
-			sizeof(t3e3_rx_desc_t);
-#endif
 		kfree(sc->ether.rx_ring);
 		sc->ether.rx_ring = NULL;
 		dev_err(&sc->pdev->dev, "SBE 2T3E3: no buffer space for RX ring\n");
@@ -366,16 +362,8 @@ u32 dc_init_descriptor_list(struct channel *sc)
 					dev_kfree_skb_any(sc->ether.rx_data[j]);
 					sc->ether.rx_data[j] = NULL;
 				}
-#ifdef T3E3_USE_CONTIGMALLOC
-				t3e3_contigmemory_size = SBE_2T3E3_RX_DESC_RING_SIZE *
-					sizeof(t3e3_rx_desc_t);
-#endif
 				kfree(sc->ether.rx_ring);
 				sc->ether.rx_ring = NULL;
-#ifdef T3E3_USE_CONTIGMALLOC
-				t3e3_contigmemory_size = SBE_2T3E3_TX_DESC_RING_SIZE *
-					sizeof(t3e3_tx_desc_t);
-#endif
 				kfree(sc->ether.tx_ring);
 				sc->ether.tx_ring = NULL;
 				dev_err(&sc->pdev->dev, "SBE 2T3E3: token_alloc err:"
@@ -454,23 +442,10 @@ void dc_drop_descriptor_list(struct channel *sc)
 		}
 	}
 
-	if (sc->ether.rx_ring != NULL) {
-#ifdef T3E3_USE_CONTIGMALLOC
-		t3e3_contigmemory_size = SBE_2T3E3_RX_DESC_RING_SIZE *
-			sizeof(t3e3_rx_desc_t);
-#endif
-		kfree(sc->ether.rx_ring);
-		sc->ether.rx_ring = NULL;
-	}
-
-	if (sc->ether.tx_ring != NULL) {
-#ifdef T3E3_USE_CONTIGMALLOC
-		t3e3_contigmemory_size = SBE_2T3E3_TX_DESC_RING_SIZE *
-			sizeof(t3e3_tx_desc_t);
-#endif
-		kfree(sc->ether.tx_ring);
-		sc->ether.tx_ring = NULL;
-	}
+	kfree(sc->ether.rx_ring);
+	sc->ether.rx_ring = NULL;
+	kfree(sc->ether.tx_ring);
+	sc->ether.tx_ring = NULL;
 }
 
 

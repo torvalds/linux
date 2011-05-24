@@ -194,7 +194,7 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	r = radeon_bo_kmap(rdev->ib_pool.robj, &ptr);
 	radeon_bo_unreserve(rdev->ib_pool.robj);
 	if (r) {
-		DRM_ERROR("radeon: failed to map ib poll (%d).\n", r);
+		DRM_ERROR("radeon: failed to map ib pool (%d).\n", r);
 		return r;
 	}
 	for (i = 0; i < RADEON_IB_POOL_SIZE; i++) {
@@ -248,7 +248,7 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
 void radeon_ring_free_size(struct radeon_device *rdev)
 {
 	if (rdev->wb.enabled)
-		rdev->cp.rptr = rdev->wb.wb[RADEON_WB_CP_RPTR_OFFSET/4];
+		rdev->cp.rptr = le32_to_cpu(rdev->wb.wb[RADEON_WB_CP_RPTR_OFFSET/4]);
 	else {
 		if (rdev->family >= CHIP_R600)
 			rdev->cp.rptr = RREG32(R600_CP_RB_RPTR);

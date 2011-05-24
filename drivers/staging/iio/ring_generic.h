@@ -16,35 +16,12 @@
 struct iio_ring_buffer;
 
 /**
- * iio_push_ring_event() - ring buffer specific push to event chrdev
- * @ring_buf:		ring buffer that is the event source
- * @event_code:		event indentification code
- * @timestamp:		time of event
- **/
-int iio_push_ring_event(struct iio_ring_buffer *ring_buf,
-			int event_code,
-			s64 timestamp);
-/**
- * iio_push_or_escallate_ring_event() -	escalate or add as appropriate
- * @ring_buf:		ring buffer that is the event source
- * @event_code:		event indentification code
- * @timestamp:		time of event
- *
- * Typical usecase is to escalate a 50% ring full to 75% full if no one has yet
- * read the first event. Clearly the 50% full is no longer of interest in
- * typical use case.
- **/
-int iio_push_or_escallate_ring_event(struct iio_ring_buffer *ring_buf,
-				     int event_code,
-				     s64 timestamp);
-
-/**
  * struct iio_ring_access_funcs - access functions for ring buffers.
  * @mark_in_use:	reference counting, typically to prevent module removal
  * @unmark_in_use:	reduce reference count when no longer using ring buffer
  * @store_to:		actually store stuff to the ring buffer
  * @read_last:		get the last element stored
- * @rip_lots:		try to get a specified number of elements (must exist)
+ * @read_first_n:	try to get a specified number of elements (must exist)
  * @mark_param_change:	notify ring that some relevant parameter has changed
  *			Often this means the underlying storage may need to
  *			change.
@@ -71,10 +48,9 @@ struct iio_ring_access_funcs {
 
 	int (*store_to)(struct iio_ring_buffer *ring, u8 *data, s64 timestamp);
 	int (*read_last)(struct iio_ring_buffer *ring, u8 *data);
-	int (*rip_lots)(struct iio_ring_buffer *ring,
-			size_t count,
-			char __user *buf,
-			int *dead_offset);
+	int (*read_first_n)(struct iio_ring_buffer *ring,
+			    size_t n,
+			    char __user *buf);
 
 	int (*mark_param_change)(struct iio_ring_buffer *ring);
 	int (*request_update)(struct iio_ring_buffer *ring);
@@ -88,58 +64,52 @@ struct iio_ring_access_funcs {
 	int (*enable)(struct iio_ring_buffer *ring);
 };
 
+struct iio_ring_setup_ops {
+	int				(*preenable)(struct iio_dev *);
+	int				(*postenable)(struct iio_dev *);
+	int				(*predisable)(struct iio_dev *);
+	int				(*postdisable)(struct iio_dev *);
+};
+
 /**
  * struct iio_ring_buffer - general ring buffer structure
  * @dev:		ring buffer device struct
- * @access_dev:		system device struct for the chrdev
  * @indio_dev:		industrial I/O device structure
  * @owner:		module that owns the ring buffer (for ref counting)
- * @id:			unique id number
- * @access_id:		device id number
  * @length:		[DEVICE] number of datums in ring
  * @bytes_per_datum:	[DEVICE] size of individual datum including timestamp
  * @bpe:		[DEVICE] size of individual channel value
- * @loopcount:		[INTERN] number of times the ring has looped
  * @scan_el_attrs:	[DRIVER] control of scan elements if that scan mode
  *			control method is used
  * @scan_count:	[INTERN] the number of elements in the current scan mode
  * @scan_mask:		[INTERN] bitmask used in masking scan mode elements
  * @scan_timestamp:	[INTERN] does the scan mode include a timestamp
  * @access_handler:	[INTERN] chrdev access handling
- * @ev_int:		[INTERN] chrdev interface for the event chrdev
- * @shared_ev_pointer:	[INTERN] the shared event pointer to allow escalation of
- *			events
  * @access:		[DRIVER] ring access functions associated with the
  *			implementation.
  * @preenable:		[DRIVER] function to run prior to marking ring enabled
  * @postenable:		[DRIVER] function to run after marking ring enabled
  * @predisable:		[DRIVER] function to run prior to marking ring disabled
  * @postdisable:	[DRIVER] function to run after marking ring disabled
-  **/
+ **/
 struct iio_ring_buffer {
-	struct device dev;
-	struct device access_dev;
-	struct iio_dev *indio_dev;
-	struct module *owner;
-	int				id;
-	int				access_id;
-	int				length;
-	int				bytes_per_datum;
-	int				bpe;
-	int				loopcount;
-	struct attribute_group		*scan_el_attrs;
-	int				scan_count;
-	u32				scan_mask;
-	bool				scan_timestamp;
-	struct iio_handler		access_handler;
-	struct iio_event_interface	ev_int;
-	struct iio_shared_ev_pointer	shared_ev_pointer;
-	struct iio_ring_access_funcs	access;
-	int				(*preenable)(struct iio_dev *);
-	int				(*postenable)(struct iio_dev *);
-	int				(*predisable)(struct iio_dev *);
-	int				(*postdisable)(struct iio_dev *);
+	struct device				dev;
+	struct iio_dev				*indio_dev;
+	struct module				*owner;
+	int					length;
+	int					bytes_per_datum;
+	int					bpe;
+	struct attribute_group			*scan_el_attrs;
+	int					scan_count;
+	unsigned long				scan_mask;
+	bool					scan_timestamp;
+	struct iio_handler			access_handler;
+	const struct iio_ring_access_funcs	*access;
+	const struct iio_ring_setup_ops		*setup_ops;
+	struct list_head			scan_el_dev_attr_list;
 
+	wait_queue_head_t			pollq;
+	bool					stufftoread;
 };
 
 /**
@@ -161,153 +131,7 @@ static inline void __iio_update_ring_buffer(struct iio_ring_buffer *ring,
 {
 	ring->bytes_per_datum = bytes_per_datum;
 	ring->length = length;
-	ring->loopcount = 0;
 }
-
-/**
- * struct iio_scan_el - an individual element of a scan
- * @dev_attr:		control attribute (if directly controllable)
- * @number:		unique identifier of element (used for bit mask)
- * @label:		useful data for the scan el (often reg address)
- * @set_state:		for some devices datardy signals are generated
- *			for any enabled lines.  This allows unwanted lines
- *			to be disabled and hence not get in the way.
- **/
-struct iio_scan_el {
-	struct device_attribute		dev_attr;
-	unsigned int			number;
-	unsigned int			label;
-
-	int (*set_state)(struct iio_scan_el *scanel,
-			 struct iio_dev *dev_info,
-			 bool state);
-};
-
-#define to_iio_scan_el(_dev_attr)				\
-	container_of(_dev_attr, struct iio_scan_el, dev_attr);
-
-/**
- * iio_scan_el_store() - sysfs scan element selection interface
- * @dev: the target device
- * @attr: the device attribute that is being processed
- * @buf: input from userspace
- * @len: length of input
- *
- * A generic function used to enable various scan elements.  In some
- * devices explicit read commands for each channel mean this is merely
- * a software switch.  In others this must actively disable the channel.
- * Complexities occur when this interacts with data ready type triggers
- * which may not reset unless every channel that is enabled is explicitly
- * read.
- **/
-ssize_t iio_scan_el_store(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t len);
-/**
- * iio_scan_el_show() -	sysfs interface to query whether a scan element
- *			is enabled or not
- * @dev: the target device
- * @attr: the device attribute that is being processed
- * @buf: output buffer
- **/
-ssize_t iio_scan_el_show(struct device *dev, struct device_attribute *attr,
-			 char *buf);
-
-/**
- * iio_scan_el_ts_store() - sysfs interface to set whether a timestamp is included
- *			    in the scan.
- **/
-ssize_t iio_scan_el_ts_store(struct device *dev, struct device_attribute *attr,
-			     const char *buf, size_t len);
-/**
- * iio_scan_el_ts_show() - sysfs interface to query if a timestamp is included
- *			   in the scan.
- **/
-ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
-			    char *buf);
-/**
- * IIO_SCAN_EL_C - declare and initialize a scan element with a control func
- *
- * @_name:	identifying name. Resulting struct is iio_scan_el_##_name,
- *		sysfs element, _name##_en.
- * @_number:	unique id number for the scan element.
- *		length devices).
- * @_label:	indentification variable used by drivers.  Often a reg address.
- * @_controlfunc: function used to notify hardware of whether state changes
- **/
-#define __IIO_SCAN_EL_C(_name, _number, _label, _controlfunc)	\
-	struct iio_scan_el iio_scan_el_##_name = {			\
-		.dev_attr = __ATTR(_name##_en,				\
-				   S_IRUGO | S_IWUSR,			\
-				   iio_scan_el_show,			\
-				   iio_scan_el_store),			\
-		.number =  _number,					\
-		.label = _label,					\
-		.set_state = _controlfunc,				\
-	};								\
-	static IIO_CONST_ATTR(_name##_index, #_number)
-
-#define IIO_SCAN_EL_C(_name, _number, _label, _controlfunc)	\
-	__IIO_SCAN_EL_C(_name, _number, _label, _controlfunc)
-
-#define __IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf)	\
-	struct iio_scan_el iio_scan_el_##_name = {			\
-		.dev_attr = __ATTR(_string##_en,			\
-				   S_IRUGO | S_IWUSR,			\
-				   iio_scan_el_show,			\
-				   iio_scan_el_store),			\
-		.number =  _number,					\
-		.label = _label,					\
-		.set_state = _cf,					\
-	};								\
-	static struct iio_const_attr iio_const_attr_##_name##_index = {	\
-		.string = #_number,					\
-		.dev_attr = __ATTR(_string##_index,			\
-				   S_IRUGO, iio_read_const_attr, NULL)	\
-	}
-
-
-#define IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf) \
-	__IIO_SCAN_NAMED_EL_C(_name, _string, _number, _label, _cf)
-/**
- * IIO_SCAN_EL_TIMESTAMP - declare a special scan element for timestamps
- * @number: specify where in the scan order this is stored.
- *
- * Odd one out. Handled slightly differently from other scan elements.
- **/
-#define IIO_SCAN_EL_TIMESTAMP(number)				\
-	struct iio_scan_el iio_scan_el_timestamp = {		\
-		.dev_attr = __ATTR(timestamp_en,		\
-				   S_IRUGO | S_IWUSR,		\
-				   iio_scan_el_ts_show,		\
-				   iio_scan_el_ts_store),	\
-	};							\
-	static IIO_CONST_ATTR(timestamp_index, #number)
-
-/**
- * IIO_CONST_ATTR_SCAN_EL_TYPE - attr to specify the data format of a scan el
- * @name: the scan el name (may be more general and cover a set of scan elements
- * @_sign: either s or u for signed or unsigned
- * @_bits: number of actual bits occuplied by the value
- * @_storagebits: number of bits _bits is padded to when read out of buffer
- **/
-#define IIO_CONST_ATTR_SCAN_EL_TYPE(_name, _sign, _bits, _storagebits) \
-	IIO_CONST_ATTR(_name##_type, #_sign#_bits"/"#_storagebits);
-
-/**
- * IIO_CONST_ATTR_SCAN_EL_TYPE_WITH_SHIFT - attr to specify the data format of a scan el
- * @name: the scan el name (may be more general and cover a set of scan elements
- * @_sign: either s or u for signed or unsigned
- * @_bits: number of actual bits occuplied by the value
- * @_storagebits: number of bits _bits is padded to when read out of buffer
- * @_shiftbits: number of bits _shiftbits the result must be shifted
- **/
-#define IIO_CONST_ATTR_SCAN_EL_TYPE_WITH_SHIFT(_name, _sign, _bits, \
-					       _storagebits, _shiftbits) \
-	IIO_CONST_ATTR(_name##_type, #_sign#_bits"/"#_storagebits \
-		       ">>"#_shiftbits);
-
-#define IIO_SCAN_EL_TYPE_SIGNED         's'
-#define IIO_SCAN_EL_TYPE_UNSIGNED       'u'
 
 /*
  * These are mainly provided to allow for a change of implementation if a device
@@ -375,41 +199,6 @@ static inline int iio_scan_mask_set(struct iio_ring_buffer *ring, int bit)
 };
 
 /**
- * iio_scan_mask_clear() - clear a particular element from the scan mask
- * @ring: the ring buffer whose scan mask we are interested in
- * @bit: the bit to clear
- **/
-static inline int iio_scan_mask_clear(struct iio_ring_buffer *ring, int bit)
-{
-	if (bit > IIO_MAX_SCAN_LENGTH)
-		return -EINVAL;
-	ring->scan_mask &= ~(1 << bit);
-	ring->scan_count--;
-	return 0;
-};
-
-/**
- * iio_scan_mask_count_to_right() - how many scan elements occur before here
- * @ring: the ring buffer whose scan mask we interested in
- * @bit: which number scan element is this
- **/
-static inline int iio_scan_mask_count_to_right(struct iio_ring_buffer *ring,
-						int bit)
-{
-	int count = 0;
-	int mask = (1 << bit);
-	if (bit > IIO_MAX_SCAN_LENGTH)
-		return -EINVAL;
-	while (mask) {
-		mask >>= 1;
-		if (mask & ring->scan_mask)
-			count++;
-	}
-
-	return count;
-}
-
-/**
  * iio_put_ring_buffer() - notify done with buffer
  * @ring: the buffer we are done with.
  **/
@@ -418,17 +207,19 @@ static inline void iio_put_ring_buffer(struct iio_ring_buffer *ring)
 	put_device(&ring->dev);
 };
 
-#define to_iio_ring_buffer(d)			\
+#define to_iio_ring_buffer(d)				\
 	container_of(d, struct iio_ring_buffer, dev)
-#define access_dev_to_iio_ring_buffer(d)			\
-	container_of(d, struct iio_ring_buffer, access_dev)
 
 /**
- * iio_ring_buffer_register() - register the buffer with IIO core
+ * iio_ring_buffer_register_ex() - register the buffer with IIO core
  * @ring: the buffer to be registered
  * @id: the id of the buffer (typically 0)
  **/
-int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id);
+int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring, int id,
+				const struct iio_chan_spec *channels,
+				int num_channels);
+
+void iio_ring_access_release(struct device *dev);
 
 /**
  * iio_ring_buffer_unregister() - unregister the buffer from IIO core
@@ -476,11 +267,19 @@ ssize_t iio_show_ring_enable(struct device *dev,
 #define IIO_RING_ENABLE_ATTR DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, \
 					 iio_show_ring_enable,		\
 					 iio_store_ring_enable)
+
+int iio_sw_ring_preenable(struct iio_dev *indio_dev);
+
 #else /* CONFIG_IIO_RING_BUFFER */
-static inline int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id)
+
+static inline int iio_ring_buffer_register_ex(struct iio_ring_buffer *ring,
+					      int id,
+					      struct iio_chan_spec *channels,
+					      int num_channels)
 {
 	return 0;
-};
+}
+
 static inline void iio_ring_buffer_unregister(struct iio_ring_buffer *ring)
 {};
 

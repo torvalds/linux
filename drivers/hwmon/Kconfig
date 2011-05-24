@@ -110,8 +110,7 @@ config SENSORS_ADM1021
 	help
 	  If you say yes here you get support for Analog Devices ADM1021
 	  and ADM1023 sensor chips and clones: Maxim MAX1617 and MAX1617A,
-	  Genesys Logic GL523SM, National Semiconductor LM84, TI THMC10,
-	  and the XEON processor built-in sensor.
+	  Genesys Logic GL523SM, National Semiconductor LM84 and TI THMC10.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called adm1021.
@@ -409,13 +408,6 @@ config SENSORS_CORETEMP
 	  sensor inside your CPU. Most of the family 6 CPUs
 	  are supported. Check Documentation/hwmon/coretemp for details.
 
-config SENSORS_PKGTEMP
-	tristate "Intel processor package temperature sensor"
-	depends on X86 && EXPERIMENTAL
-	help
-	  If you say yes here you get support for the package level temperature
-	  sensor inside your CPU. Check documentation/driver for details.
-
 config SENSORS_IBMAEM
 	tristate "IBM Active Energy Manager temperature/power sensors and control"
 	select IPMI_SI
@@ -618,10 +610,10 @@ config SENSORS_LM90
 	depends on I2C
 	help
 	  If you say yes here you get support for National Semiconductor LM90,
-	  LM86, LM89 and LM99, Analog Devices ADM1032 and ADT7461, Maxim
-	  MAX6646, MAX6647, MAX6648, MAX6649, MAX6657, MAX6658, MAX6659,
-	  MAX6680, MAX6681, MAX6692, MAX6695, MAX6696, and Winbond/Nuvoton
-	  W83L771W/G/AWG/ASG sensor chips.
+	  LM86, LM89 and LM99, Analog Devices ADM1032, ADT7461, and ADT7461A,
+	  Maxim MAX6646, MAX6647, MAX6648, MAX6649, MAX6657, MAX6658, MAX6659,
+	  MAX6680, MAX6681, MAX6692, MAX6695, MAX6696, ON Semiconductor NCT1008,
+	  and Winbond/Nuvoton W83L771W/G/AWG/ASG sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm90.
@@ -709,6 +701,22 @@ config SENSORS_MAX1111
 	  This driver can also be built as a module.  If so, the module
 	  will be called max1111.
 
+config SENSORS_MAX16065
+	tristate "Maxim MAX16065 System Manager and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for hardware monitoring
+	  capabilities of the following Maxim System Manager chips.
+	    MAX16065
+	    MAX16066
+	    MAX16067
+	    MAX16068
+	    MAX16070
+	    MAX16071
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max16065.
+
 config SENSORS_MAX1619
 	tristate "Maxim MAX1619 sensor chip"
 	depends on I2C
@@ -727,6 +735,17 @@ config SENSORS_MAX6639
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called max6639.
+
+config SENSORS_MAX6642
+	tristate "Maxim MAX6642 sensor chip"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for MAX6642 sensor chip.
+	  MAX6642 is a SMBus-Compatible Remote/Local Temperature Sensor
+	  with Overtemperature Alarm from Maxim.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max6642.
 
 config SENSORS_MAX6650
 	tristate "Maxim MAX6650 sensor chip"
@@ -801,6 +820,16 @@ config SENSORS_PMBUS
 	  This driver can also be built as a module. If so, the module will
 	  be called pmbus.
 
+config SENSORS_ADM1275
+	tristate "Analog Devices ADM1275"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Analog
+	  Devices ADM1275 Hot-Swap Controller and Digital Power Monitor.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called adm1275.
+
 config SENSORS_MAX16064
 	tristate "Maxim MAX16064"
 	default n
@@ -830,6 +859,28 @@ config SENSORS_MAX8688
 
 	  This driver can also be built as a module. If so, the module will
 	  be called max8688.
+
+config SENSORS_UCD9000
+	tristate "TI UCD90120, UCD90124, UCD9090, UCD90910"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for TI
+	  UCD90120, UCD90124, UCD9090, UCD90910 Sequencer and System Health
+	  Controllers.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ucd9000.
+
+config SENSORS_UCD9200
+	tristate "TI UCD9220, UCD9222, UCD9224, UCD9240, UCD9244, UCD9246, UCD9248"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for TI
+	  UCD9220, UCD9222, UCD9224, UCD9240, UCD9244, UCD9246, and UCD9248
+	  Digital PWM System Controllers.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ucd9200.
 
 endif # PMBUS
 

@@ -49,6 +49,7 @@
 #include <linux/pm_qos_params.h>
 #include <linux/pm_runtime.h>
 #include <linux/aer.h>
+#include <linux/prefetch.h>
 
 #include "e1000.h"
 
@@ -57,6 +58,8 @@
 #define DRV_VERSION "1.3.10" DRV_EXTRAVERSION
 char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
+
+static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state);
 
 static const struct e1000_info *e1000_info_tbl[] = {
 	[board_82571]		= &e1000_82571_info,
@@ -459,13 +462,13 @@ static void e1000_receive_skb(struct e1000_adapter *adapter,
 			      struct net_device *netdev, struct sk_buff *skb,
 			      u8 status, __le16 vlan)
 {
+	u16 tag = le16_to_cpu(vlan);
 	skb->protocol = eth_type_trans(skb, netdev);
 
-	if (adapter->vlgrp && (status & E1000_RXD_STAT_VP))
-		vlan_gro_receive(&adapter->napi, adapter->vlgrp,
-				 le16_to_cpu(vlan), skb);
-	else
-		napi_gro_receive(&adapter->napi, skb);
+	if (status & E1000_RXD_STAT_VP)
+		__vlan_hwaccel_put_tag(skb, tag);
+
+	napi_gro_receive(&adapter->napi, skb);
 }
 
 /**
@@ -2433,6 +2436,8 @@ static void e1000_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 		vfta |= (1 << (vid & 0x1F));
 		hw->mac.ops.write_vfta(hw, index, vfta);
 	}
+
+	set_bit(vid, adapter->active_vlans);
 }
 
 static void e1000_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
@@ -2440,13 +2445,6 @@ static void e1000_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	u32 vfta, index;
-
-	if (!test_bit(__E1000_DOWN, &adapter->state))
-		e1000_irq_disable(adapter);
-	vlan_group_set_device(adapter->vlgrp, vid, NULL);
-
-	if (!test_bit(__E1000_DOWN, &adapter->state))
-		e1000_irq_enable(adapter);
 
 	if ((adapter->hw.mng_cookie.status &
 	     E1000_MNG_DHCP_COOKIE_STATUS_VLAN) &&
@@ -2463,6 +2461,79 @@ static void e1000_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 		vfta &= ~(1 << (vid & 0x1F));
 		hw->mac.ops.write_vfta(hw, index, vfta);
 	}
+
+	clear_bit(vid, adapter->active_vlans);
+}
+
+/**
+ * e1000e_vlan_filter_disable - helper to disable hw VLAN filtering
+ * @adapter: board private structure to initialize
+ **/
+static void e1000e_vlan_filter_disable(struct e1000_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct e1000_hw *hw = &adapter->hw;
+	u32 rctl;
+
+	if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER) {
+		/* disable VLAN receive filtering */
+		rctl = er32(RCTL);
+		rctl &= ~(E1000_RCTL_VFE | E1000_RCTL_CFIEN);
+		ew32(RCTL, rctl);
+
+		if (adapter->mng_vlan_id != (u16)E1000_MNG_VLAN_NONE) {
+			e1000_vlan_rx_kill_vid(netdev, adapter->mng_vlan_id);
+			adapter->mng_vlan_id = E1000_MNG_VLAN_NONE;
+		}
+	}
+}
+
+/**
+ * e1000e_vlan_filter_enable - helper to enable HW VLAN filtering
+ * @adapter: board private structure to initialize
+ **/
+static void e1000e_vlan_filter_enable(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 rctl;
+
+	if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER) {
+		/* enable VLAN receive filtering */
+		rctl = er32(RCTL);
+		rctl |= E1000_RCTL_VFE;
+		rctl &= ~E1000_RCTL_CFIEN;
+		ew32(RCTL, rctl);
+	}
+}
+
+/**
+ * e1000e_vlan_strip_enable - helper to disable HW VLAN stripping
+ * @adapter: board private structure to initialize
+ **/
+static void e1000e_vlan_strip_disable(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 ctrl;
+
+	/* disable VLAN tag insert/strip */
+	ctrl = er32(CTRL);
+	ctrl &= ~E1000_CTRL_VME;
+	ew32(CTRL, ctrl);
+}
+
+/**
+ * e1000e_vlan_strip_enable - helper to enable HW VLAN stripping
+ * @adapter: board private structure to initialize
+ **/
+static void e1000e_vlan_strip_enable(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 ctrl;
+
+	/* enable VLAN tag insert/strip */
+	ctrl = er32(CTRL);
+	ctrl |= E1000_CTRL_VME;
+	ew32(CTRL, ctrl);
 }
 
 static void e1000_update_mng_vlan(struct e1000_adapter *adapter)
@@ -2471,85 +2542,24 @@ static void e1000_update_mng_vlan(struct e1000_adapter *adapter)
 	u16 vid = adapter->hw.mng_cookie.vlan_id;
 	u16 old_vid = adapter->mng_vlan_id;
 
-	if (!adapter->vlgrp)
-		return;
-
-	if (!vlan_group_get_device(adapter->vlgrp, vid)) {
-		adapter->mng_vlan_id = E1000_MNG_VLAN_NONE;
-		if (adapter->hw.mng_cookie.status &
-			E1000_MNG_DHCP_COOKIE_STATUS_VLAN) {
-			e1000_vlan_rx_add_vid(netdev, vid);
-			adapter->mng_vlan_id = vid;
-		}
-
-		if ((old_vid != (u16)E1000_MNG_VLAN_NONE) &&
-				(vid != old_vid) &&
-		    !vlan_group_get_device(adapter->vlgrp, old_vid))
-			e1000_vlan_rx_kill_vid(netdev, old_vid);
-	} else {
+	if (adapter->hw.mng_cookie.status &
+	    E1000_MNG_DHCP_COOKIE_STATUS_VLAN) {
+		e1000_vlan_rx_add_vid(netdev, vid);
 		adapter->mng_vlan_id = vid;
 	}
-}
 
-
-static void e1000_vlan_rx_register(struct net_device *netdev,
-				   struct vlan_group *grp)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
-	u32 ctrl, rctl;
-
-	if (!test_bit(__E1000_DOWN, &adapter->state))
-		e1000_irq_disable(adapter);
-	adapter->vlgrp = grp;
-
-	if (grp) {
-		/* enable VLAN tag insert/strip */
-		ctrl = er32(CTRL);
-		ctrl |= E1000_CTRL_VME;
-		ew32(CTRL, ctrl);
-
-		if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER) {
-			/* enable VLAN receive filtering */
-			rctl = er32(RCTL);
-			rctl &= ~E1000_RCTL_CFIEN;
-			ew32(RCTL, rctl);
-			e1000_update_mng_vlan(adapter);
-		}
-	} else {
-		/* disable VLAN tag insert/strip */
-		ctrl = er32(CTRL);
-		ctrl &= ~E1000_CTRL_VME;
-		ew32(CTRL, ctrl);
-
-		if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER) {
-			if (adapter->mng_vlan_id !=
-			    (u16)E1000_MNG_VLAN_NONE) {
-				e1000_vlan_rx_kill_vid(netdev,
-						       adapter->mng_vlan_id);
-				adapter->mng_vlan_id = E1000_MNG_VLAN_NONE;
-			}
-		}
-	}
-
-	if (!test_bit(__E1000_DOWN, &adapter->state))
-		e1000_irq_enable(adapter);
+	if ((old_vid != (u16)E1000_MNG_VLAN_NONE) && (vid != old_vid))
+		e1000_vlan_rx_kill_vid(netdev, old_vid);
 }
 
 static void e1000_restore_vlan(struct e1000_adapter *adapter)
 {
 	u16 vid;
 
-	e1000_vlan_rx_register(adapter->netdev, adapter->vlgrp);
+	e1000_vlan_rx_add_vid(adapter->netdev, 0);
 
-	if (!adapter->vlgrp)
-		return;
-
-	for (vid = 0; vid < VLAN_N_VID; vid++) {
-		if (!vlan_group_get_device(adapter->vlgrp, vid))
-			continue;
+	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
 		e1000_vlan_rx_add_vid(adapter->netdev, vid);
-	}
 }
 
 static void e1000_init_manageability_pt(struct e1000_adapter *adapter)
@@ -2902,7 +2912,7 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 	rctl = er32(RCTL);
 	ew32(RCTL, rctl & ~E1000_RCTL_EN);
 	e1e_flush();
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	if (adapter->flags2 & FLAG2_DMA_BURST) {
 		/*
@@ -3039,6 +3049,8 @@ static void e1000_set_multi(struct net_device *netdev)
 	if (netdev->flags & IFF_PROMISC) {
 		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
 		rctl &= ~E1000_RCTL_VFE;
+		/* Do not hardware filter VLANs in promisc mode */
+		e1000e_vlan_filter_disable(adapter);
 	} else {
 		if (netdev->flags & IFF_ALLMULTI) {
 			rctl |= E1000_RCTL_MPE;
@@ -3046,8 +3058,7 @@ static void e1000_set_multi(struct net_device *netdev)
 		} else {
 			rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
 		}
-		if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER)
-			rctl |= E1000_RCTL_VFE;
+		e1000e_vlan_filter_enable(adapter);
 	}
 
 	ew32(RCTL, rctl);
@@ -3072,6 +3083,11 @@ static void e1000_set_multi(struct net_device *netdev)
 		 */
 		e1000_update_mc_addr_list(hw, NULL, 0);
 	}
+
+	if (netdev->features & NETIF_F_HW_VLAN_RX)
+		e1000e_vlan_strip_enable(adapter);
+	else
+		e1000e_vlan_strip_disable(adapter);
 }
 
 /**
@@ -3383,7 +3399,7 @@ void e1000e_down(struct e1000_adapter *adapter)
 	ew32(TCTL, tctl);
 	/* flush both disables and wait for them to finish */
 	e1e_flush();
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	napi_disable(&adapter->napi);
 	e1000_irq_disable(adapter);
@@ -3418,7 +3434,7 @@ void e1000e_reinit_locked(struct e1000_adapter *adapter)
 {
 	might_sleep();
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 	e1000e_down(adapter);
 	e1000e_up(adapter);
 	clear_bit(__E1000_RESETTING, &adapter->state);
@@ -3721,10 +3737,8 @@ static int e1000_close(struct net_device *netdev)
 	 * kill manageability vlan ID if supported, but not if a vlan with
 	 * the same ID is registered on the host OS (let 8021q kill it)
 	 */
-	if ((adapter->hw.mng_cookie.status &
-			  E1000_MNG_DHCP_COOKIE_STATUS_VLAN) &&
-	     !(adapter->vlgrp &&
-	       vlan_group_get_device(adapter->vlgrp, adapter->mng_vlan_id)))
+	if (adapter->hw.mng_cookie.status &
+	    E1000_MNG_DHCP_COOKIE_STATUS_VLAN)
 		e1000_vlan_rx_kill_vid(netdev, adapter->mng_vlan_id);
 
 	/*
@@ -4328,7 +4342,6 @@ static void e1000_watchdog_task(struct work_struct *work)
 link_up:
 	spin_lock(&adapter->stats64_lock);
 	e1000e_update_stats(adapter);
-	spin_unlock(&adapter->stats64_lock);
 
 	mac->tx_packet_delta = adapter->stats.tpt - adapter->tpt_old;
 	adapter->tpt_old = adapter->stats.tpt;
@@ -4339,6 +4352,7 @@ link_up:
 	adapter->gorc_old = adapter->stats.gorc;
 	adapter->gotc = adapter->stats.gotc - adapter->gotc_old;
 	adapter->gotc_old = adapter->stats.gotc;
+	spin_unlock(&adapter->stats64_lock);
 
 	e1000e_update_adaptive(&adapter->hw);
 
@@ -5028,7 +5042,7 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	}
 
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 	/* e1000e_down -> e1000e_reset dependent on max_frame_size & mtu */
 	adapter->max_frame_size = max_frame;
 	e_info("changing MTU from %d to %d\n", netdev->mtu, new_mtu);
@@ -5347,7 +5361,7 @@ static void e1000_complete_shutdown(struct pci_dev *pdev, bool sleep,
 #ifdef CONFIG_PCIEASPM
 static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 {
-	pci_disable_link_state(pdev, state);
+	pci_disable_link_state_locked(pdev, state);
 }
 #else
 static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
@@ -5373,7 +5387,7 @@ static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 	pci_write_config_word(pdev->bus->self, pos + PCI_EXP_LNKCTL, reg16);
 }
 #endif
-void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
+static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 {
 	dev_info(&pdev->dev, "Disabling ASPM %s %s\n",
 		 (state & PCIE_LINK_STATE_L0S) ? "L0s" : "",
@@ -5393,13 +5407,19 @@ static int __e1000_resume(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	u16 aspm_disable_flag = 0;
 	u32 err;
+
+	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L0S)
+		aspm_disable_flag = PCIE_LINK_STATE_L0S;
+	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L1)
+		aspm_disable_flag |= PCIE_LINK_STATE_L1;
+	if (aspm_disable_flag)
+		e1000e_disable_aspm(pdev, aspm_disable_flag);
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	pci_save_state(pdev);
-	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L1)
-		e1000e_disable_aspm(pdev, PCIE_LINK_STATE_L1);
 
 	e1000e_set_interrupt_capability(adapter);
 	if (netif_running(netdev)) {
@@ -5643,11 +5663,17 @@ static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	u16 aspm_disable_flag = 0;
 	int err;
 	pci_ers_result_t result;
 
+	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L0S)
+		aspm_disable_flag = PCIE_LINK_STATE_L0S;
 	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L1)
-		e1000e_disable_aspm(pdev, PCIE_LINK_STATE_L1);
+		aspm_disable_flag |= PCIE_LINK_STATE_L1;
+	if (aspm_disable_flag)
+		e1000e_disable_aspm(pdev, aspm_disable_flag);
+
 	err = pci_enable_device_mem(pdev);
 	if (err) {
 		dev_err(&pdev->dev,
@@ -5714,7 +5740,7 @@ static void e1000_print_device_info(struct e1000_adapter *adapter)
 	u8 pba_str[E1000_PBANUM_LENGTH];
 
 	/* print bus type/speed/width info */
-	e_info("(PCI Express:2.5GB/s:%s) %pM\n",
+	e_info("(PCI Express:2.5GT/s:%s) %pM\n",
 	       /* bus width */
 	       ((hw->bus.width == e1000_bus_width_pcie_x4) ? "Width x4" :
 	        "Width x1"),
@@ -5759,7 +5785,6 @@ static const struct net_device_ops e1000e_netdev_ops = {
 	.ndo_tx_timeout		= e1000_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
 
-	.ndo_vlan_rx_register	= e1000_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= e1000_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= e1000_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -5789,12 +5814,17 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	resource_size_t flash_start, flash_len;
 
 	static int cards_found;
+	u16 aspm_disable_flag = 0;
 	int i, err, pci_using_dac;
 	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = E1000_EEPROM_APME;
 
+	if (ei->flags2 & FLAG2_DISABLE_ASPM_L0S)
+		aspm_disable_flag = PCIE_LINK_STATE_L0S;
 	if (ei->flags2 & FLAG2_DISABLE_ASPM_L1)
-		e1000e_disable_aspm(pdev, PCIE_LINK_STATE_L1);
+		aspm_disable_flag |= PCIE_LINK_STATE_L1;
+	if (aspm_disable_flag)
+		e1000e_disable_aspm(pdev, aspm_disable_flag);
 
 	err = pci_enable_device_mem(pdev);
 	if (err)
@@ -5991,7 +6021,6 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	INIT_WORK(&adapter->downshift_task, e1000e_downshift_workaround);
 	INIT_WORK(&adapter->update_phy_task, e1000e_update_phy_task);
 	INIT_WORK(&adapter->print_hang_task, e1000_print_hw_hang);
-	INIT_WORK(&adapter->led_blink_task, e1000e_led_blink_task);
 
 	/* Initialize link parameters. User can change them with ethtool */
 	adapter->hw.mac.autoneg = 1;
@@ -6124,7 +6153,6 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	cancel_work_sync(&adapter->watchdog_task);
 	cancel_work_sync(&adapter->downshift_task);
 	cancel_work_sync(&adapter->update_phy_task);
-	cancel_work_sync(&adapter->led_blink_task);
 	cancel_work_sync(&adapter->print_hang_task);
 
 	if (!(netdev->flags & IFF_UP))

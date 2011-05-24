@@ -192,10 +192,8 @@ static void link_start(struct port_info *p)
 
 static void enable_hw_csum(struct adapter *adapter)
 {
-	if (adapter->flags & TSO_CAPABLE)
+	if (adapter->port[0].dev->hw_features & NETIF_F_TSO)
 		t1_tp_set_ip_checksum_offload(adapter->tp, 1);	/* for TSO only */
-	if (adapter->flags & UDP_CSUM_CAPABLE)
-		t1_tp_set_udp_checksum_offload(adapter->tp, 1);
 	t1_tp_set_tcp_checksum_offload(adapter->tp, 1);
 }
 
@@ -579,10 +577,10 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	cmd->advertising = p->link_config.advertising;
 
 	if (netif_carrier_ok(dev)) {
-		cmd->speed = p->link_config.speed;
+		ethtool_cmd_speed_set(cmd, p->link_config.speed);
 		cmd->duplex = p->link_config.duplex;
 	} else {
-		cmd->speed = -1;
+		ethtool_cmd_speed_set(cmd, -1);
 		cmd->duplex = -1;
 	}
 
@@ -640,11 +638,12 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return -EOPNOTSUPP;             /* can't change speed/duplex */
 
 	if (cmd->autoneg == AUTONEG_DISABLE) {
-		int cap = speed_duplex_to_caps(cmd->speed, cmd->duplex);
+		u32 speed = ethtool_cmd_speed(cmd);
+		int cap = speed_duplex_to_caps(speed, cmd->duplex);
 
-		if (!(lc->supported & cap) || cmd->speed == SPEED_1000)
+		if (!(lc->supported & cap) || (speed == SPEED_1000))
 			return -EINVAL;
-		lc->requested_speed = cmd->speed;
+		lc->requested_speed = speed;
 		lc->requested_duplex = cmd->duplex;
 		lc->advertising = 0;
 	} else {
@@ -703,33 +702,6 @@ static int set_pauseparam(struct net_device *dev,
 							 lc->fc);
 	}
 	return 0;
-}
-
-static u32 get_rx_csum(struct net_device *dev)
-{
-	struct adapter *adapter = dev->ml_priv;
-
-	return (adapter->flags & RX_CSUM_ENABLED) != 0;
-}
-
-static int set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct adapter *adapter = dev->ml_priv;
-
-	if (data)
-		adapter->flags |= RX_CSUM_ENABLED;
-	else
-		adapter->flags &= ~RX_CSUM_ENABLED;
-	return 0;
-}
-
-static int set_tso(struct net_device *dev, u32 value)
-{
-	struct adapter *adapter = dev->ml_priv;
-
-	if (!(adapter->flags & TSO_CAPABLE))
-		return value ? -EOPNOTSUPP : 0;
-	return ethtool_op_set_tso(dev, value);
 }
 
 static void get_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
@@ -831,17 +803,12 @@ static const struct ethtool_ops t1_ethtool_ops = {
 	.get_eeprom        = get_eeprom,
 	.get_pauseparam    = get_pauseparam,
 	.set_pauseparam    = set_pauseparam,
-	.get_rx_csum       = get_rx_csum,
-	.set_rx_csum       = set_rx_csum,
-	.set_tx_csum       = ethtool_op_set_tx_csum,
-	.set_sg            = ethtool_op_set_sg,
 	.get_link          = ethtool_op_get_link,
 	.get_strings       = get_strings,
 	.get_sset_count	   = get_sset_count,
 	.get_ethtool_stats = get_stats,
 	.get_regs_len      = get_regs_len,
 	.get_regs          = get_regs,
-	.set_tso           = set_tso,
 };
 
 static int t1_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
@@ -1105,28 +1072,28 @@ static int __devinit init_one(struct pci_dev *pdev,
 		netdev->mem_start = mmio_start;
 		netdev->mem_end = mmio_start + mmio_len - 1;
 		netdev->ml_priv = adapter;
-		netdev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
-		netdev->features |= NETIF_F_LLTX;
+		netdev->hw_features |= NETIF_F_SG | NETIF_F_IP_CSUM |
+			NETIF_F_RXCSUM;
+		netdev->features |= NETIF_F_SG | NETIF_F_IP_CSUM |
+			NETIF_F_RXCSUM | NETIF_F_LLTX;
 
-		adapter->flags |= RX_CSUM_ENABLED | TCP_CSUM_CAPABLE;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
 		if (vlan_tso_capable(adapter)) {
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-			adapter->flags |= VLAN_ACCEL_CAPABLE;
 			netdev->features |=
 				NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 #endif
 
 			/* T204: disable TSO */
 			if (!(is_T2(adapter)) || bi->port_number != 4) {
-				adapter->flags |= TSO_CAPABLE;
+				netdev->hw_features |= NETIF_F_TSO;
 				netdev->features |= NETIF_F_TSO;
 			}
 		}
 
 		netdev->netdev_ops = &cxgb_netdev_ops;
-		netdev->hard_header_len += (adapter->flags & TSO_CAPABLE) ?
+		netdev->hard_header_len += (netdev->hw_features & NETIF_F_TSO) ?
 			sizeof(struct cpl_tx_pkt_lso) : sizeof(struct cpl_tx_pkt);
 
 		netif_napi_add(netdev, &adapter->napi, t1_poll, 64);

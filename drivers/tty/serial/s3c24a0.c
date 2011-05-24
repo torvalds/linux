@@ -1,5 +1,4 @@
-/* linux/drivers/serial/s3c24a0.c
- *
+/*
  * Driver for Samsung S3C24A0 SoC onboard UARTs.
  *
  * Based on drivers/serial/s3c2410.c

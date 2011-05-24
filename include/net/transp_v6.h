@@ -7,8 +7,6 @@
  *	IPv6 transport protocols
  */
 
-#ifdef __KERNEL__
-
 extern struct proto rawv6_prot;
 extern struct proto udpv6_prot;
 extern struct proto udplitev6_prot;
@@ -55,7 +53,5 @@ extern int			datagram_send_ctl(struct net *net,
 extern const struct inet_connection_sock_af_ops ipv4_specific;
 
 extern void inet6_destroy_sock(struct sock *sk);
-
-#endif
 
 #endif

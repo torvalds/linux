@@ -187,7 +187,6 @@ struct xfs_busy_extent {
 	xfs_agnumber_t	agno;
 	xfs_agblock_t	bno;
 	xfs_extlen_t	length;
-	xlog_tid_t	tid;		/* transaction that created this */
 };
 
 /*

@@ -3,7 +3,7 @@
  *
  * Copyright (C) Nokia Corporation
  *
- * Author: Peter Ujfalusi <peter.ujfalusi@nokia.com>
+ * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -495,7 +495,7 @@ static void __exit tpa6130a2_exit(void)
 	i2c_del_driver(&tpa6130a2_i2c_driver);
 }
 
-MODULE_AUTHOR("Peter Ujfalusi");
+MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@ti.com>");
 MODULE_DESCRIPTION("TPA6130A2 Headphone amplifier driver");
 MODULE_LICENSE("GPL");
 

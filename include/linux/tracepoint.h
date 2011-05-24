@@ -29,7 +29,7 @@ struct tracepoint_func {
 
 struct tracepoint {
 	const char *name;		/* Tracepoint name */
-	int state;			/* State. */
+	struct jump_label_key key;
 	void (*regfunc)(void);
 	void (*unregfunc)(void);
 	struct tracepoint_func __rcu *funcs;
@@ -146,9 +146,7 @@ void tracepoint_update_probe_range(struct tracepoint * const *begin,
 	extern struct tracepoint __tracepoint_##name;			\
 	static inline void trace_##name(proto)				\
 	{								\
-		JUMP_LABEL(&__tracepoint_##name.state, do_trace);	\
-		return;							\
-do_trace:								\
+		if (static_branch(&__tracepoint_##name.key))		\
 			__DO_TRACE(&__tracepoint_##name,		\
 				TP_PROTO(data_proto),			\
 				TP_ARGS(data_args),			\
@@ -176,14 +174,14 @@ do_trace:								\
  * structures, so we create an array of pointers that will be used for iteration
  * on the tracepoints.
  */
-#define DEFINE_TRACE_FN(name, reg, unreg)				\
-	static const char __tpstrtab_##name[]				\
-	__attribute__((section("__tracepoints_strings"))) = #name;	\
-	struct tracepoint __tracepoint_##name				\
-	__attribute__((section("__tracepoints"))) =			\
-		{ __tpstrtab_##name, 0, reg, unreg, NULL };		\
-	static struct tracepoint * const __tracepoint_ptr_##name __used	\
-	__attribute__((section("__tracepoints_ptrs"))) =		\
+#define DEFINE_TRACE_FN(name, reg, unreg)				 \
+	static const char __tpstrtab_##name[]				 \
+	__attribute__((section("__tracepoints_strings"))) = #name;	 \
+	struct tracepoint __tracepoint_##name				 \
+	__attribute__((section("__tracepoints"))) =			 \
+		{ __tpstrtab_##name, JUMP_LABEL_INIT, reg, unreg, NULL };\
+	static struct tracepoint * const __tracepoint_ptr_##name __used	 \
+	__attribute__((section("__tracepoints_ptrs"))) =		 \
 		&__tracepoint_##name;
 
 #define DEFINE_TRACE(name)						\

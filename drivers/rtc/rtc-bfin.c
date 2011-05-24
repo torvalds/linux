@@ -250,6 +250,8 @@ static int bfin_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 		bfin_rtc_int_set_alarm(rtc);
 	else
 		bfin_rtc_int_clear(~(RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY));
+
+	return 0;
 }
 
 static int bfin_rtc_read_time(struct device *dev, struct rtc_time *tm)

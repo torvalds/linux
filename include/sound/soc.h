@@ -248,7 +248,7 @@ typedef int (*hw_write_t)(void *,const char* ,int);
 extern struct snd_ac97_bus_ops soc_ac97_ops;
 
 enum snd_soc_control_type {
-	SND_SOC_CUSTOM,
+	SND_SOC_CUSTOM = 1,
 	SND_SOC_I2C,
 	SND_SOC_SPI,
 };
@@ -278,6 +278,10 @@ int snd_soc_register_codec(struct device *dev,
 void snd_soc_unregister_codec(struct device *dev);
 int snd_soc_codec_volatile_register(struct snd_soc_codec *codec,
 				    unsigned int reg);
+int snd_soc_codec_readable_register(struct snd_soc_codec *codec,
+				    unsigned int reg);
+int snd_soc_codec_writable_register(struct snd_soc_codec *codec,
+				    unsigned int reg);
 int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 			       int addr_bits, int data_bits,
 			       enum snd_soc_control_type control);
@@ -291,6 +295,8 @@ int snd_soc_cache_read(struct snd_soc_codec *codec,
 int snd_soc_default_volatile_register(struct snd_soc_codec *codec,
 				      unsigned int reg);
 int snd_soc_default_readable_register(struct snd_soc_codec *codec,
+				      unsigned int reg);
+int snd_soc_default_writable_register(struct snd_soc_codec *codec,
 				      unsigned int reg);
 
 /* Utility functions to get clock rates from various things */
@@ -523,6 +529,7 @@ struct snd_soc_codec {
 	size_t reg_size;	/* reg_cache_size * reg_word_size */
 	int (*volatile_register)(struct snd_soc_codec *, unsigned int);
 	int (*readable_register)(struct snd_soc_codec *, unsigned int);
+	int (*writable_register)(struct snd_soc_codec *, unsigned int);
 
 	/* runtime */
 	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
@@ -539,10 +546,12 @@ struct snd_soc_codec {
 
 	/* codec IO */
 	void *control_data; /* codec control (i2c/3wire) data */
+	enum snd_soc_control_type control_type;
 	hw_write_t hw_write;
 	unsigned int (*hw_read)(struct snd_soc_codec *, unsigned int);
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
+	int (*bulk_write_raw)(struct snd_soc_codec *, unsigned int, const void *, size_t);
 	void *reg_cache;
 	const void *reg_def_copy;
 	const struct snd_soc_cache_ops *cache_ops;
@@ -568,7 +577,9 @@ struct snd_soc_codec_driver {
 			pm_message_t state);
 	int (*resume)(struct snd_soc_codec *);
 
-	/* Default DAPM setup, added after probe() is run */
+	/* Default control and setup, added after probe() is run */
+	const struct snd_kcontrol_new *controls;
+	int num_controls;
 	const struct snd_soc_dapm_widget *dapm_widgets;
 	int num_dapm_widgets;
 	const struct snd_soc_dapm_route *dapm_routes;
@@ -587,6 +598,7 @@ struct snd_soc_codec_driver {
 				size_t, unsigned int);
 	int (*volatile_register)(struct snd_soc_codec *, unsigned int);
 	int (*readable_register)(struct snd_soc_codec *, unsigned int);
+	int (*writable_register)(struct snd_soc_codec *, unsigned int);
 	short reg_cache_size;
 	short reg_cache_step;
 	short reg_word_size;
@@ -690,6 +702,8 @@ struct snd_soc_aux_dev {
 /* SoC card */
 struct snd_soc_card {
 	const char *name;
+	const char *long_name;
+	const char *driver_name;
 	struct device *dev;
 	struct snd_card *snd_card;
 	struct module *owner;
@@ -737,12 +751,15 @@ struct snd_soc_card {
 	struct snd_soc_pcm_runtime *rtd_aux;
 	int num_aux_rtd;
 
+	const struct snd_kcontrol_new *controls;
+	int num_controls;
+
 	/*
 	 * Card-specific routes and widgets.
 	 */
-	struct snd_soc_dapm_widget *dapm_widgets;
+	const struct snd_soc_dapm_widget *dapm_widgets;
 	int num_dapm_widgets;
-	struct snd_soc_dapm_route *dapm_routes;
+	const struct snd_soc_dapm_route *dapm_routes;
 	int num_dapm_routes;
 
 	struct work_struct deferred_resume_work;
@@ -805,7 +822,7 @@ struct soc_enum {
 	unsigned char shift_r;
 	unsigned int max;
 	unsigned int mask;
-	const char **texts;
+	const char * const *texts;
 	const unsigned int *values;
 	void *dapm;
 };
@@ -814,6 +831,8 @@ struct soc_enum {
 unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg);
 unsigned int snd_soc_write(struct snd_soc_codec *codec,
 			   unsigned int reg, unsigned int val);
+unsigned int snd_soc_bulk_write_raw(struct snd_soc_codec *codec,
+				    unsigned int reg, const void *data, size_t len);
 
 /* device driver data */
 
@@ -870,6 +889,9 @@ static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
 	INIT_LIST_HEAD(&card->paths);
 	INIT_LIST_HEAD(&card->dapm_list);
 }
+
+int snd_soc_util_init(void);
+void snd_soc_util_exit(void);
 
 #include <sound/soc-dai.h>
 

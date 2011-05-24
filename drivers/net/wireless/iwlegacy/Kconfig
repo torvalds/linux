@@ -1,6 +1,5 @@
 config IWLWIFI_LEGACY
-	tristate "Intel Wireless Wifi legacy devices"
-	depends on PCI && MAC80211
+	tristate
 	select FW_LOADER
 	select NEW_LEDS
 	select LEDS_CLASS
@@ -65,7 +64,8 @@ endmenu
 
 config IWL4965
 	tristate "Intel Wireless WiFi 4965AGN (iwl4965)"
-	depends on IWLWIFI_LEGACY
+	depends on PCI && MAC80211
+	select IWLWIFI_LEGACY
 	---help---
 	  This option enables support for
 
@@ -92,7 +92,8 @@ config IWL4965
 
 config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection (iwl3945)"
-	depends on IWLWIFI_LEGACY
+	depends on PCI && MAC80211
+	select IWLWIFI_LEGACY
 	---help---
 	  Select to build the driver supporting the:
 

@@ -193,7 +193,7 @@ static int probe_bigsmp(void)
 	return dmi_bigsmp;
 }
 
-struct apic apic_bigsmp = {
+static struct apic apic_bigsmp = {
 
 	.name				= "bigsmp",
 	.probe				= probe_bigsmp,
@@ -253,5 +253,14 @@ struct apic apic_bigsmp = {
 	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
 
 	.x86_32_early_logical_apicid	= bigsmp_early_logical_apicid,
-	.x86_32_numa_cpu_node		= default_x86_32_numa_cpu_node,
 };
+
+struct apic * __init generic_bigsmp_probe(void)
+{
+	if (probe_bigsmp())
+		return &apic_bigsmp;
+
+	return NULL;
+}
+
+apic_driver(apic_bigsmp);

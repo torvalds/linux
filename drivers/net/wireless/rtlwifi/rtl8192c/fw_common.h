@@ -27,8 +27,8 @@
  *
  *****************************************************************************/
 
-#ifndef __RTL92C__FW__H__
-#define __RTL92C__FW__H__
+#ifndef __RTL92C__FW__COMMON__H__
+#define __RTL92C__FW__COMMON__H__
 
 #define FW_8192C_SIZE				0x3000
 #define FW_8192C_START_ADDRESS			0x1000

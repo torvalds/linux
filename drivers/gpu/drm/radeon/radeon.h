@@ -177,7 +177,7 @@ void radeon_pm_suspend(struct radeon_device *rdev);
 void radeon_pm_resume(struct radeon_device *rdev);
 void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
-void radeon_atom_set_voltage(struct radeon_device *rdev, u16 level);
+void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 voltage_type);
 void rs690_pm_info(struct radeon_device *rdev);
 extern int rv6xx_get_temp(struct radeon_device *rdev);
 extern int rv770_get_temp(struct radeon_device *rdev);
@@ -767,7 +767,9 @@ struct radeon_voltage {
 	u8 vddci_id; /* index into vddci voltage table */
 	bool vddci_enabled;
 	/* r6xx+ sw */
-	u32 voltage;
+	u16 voltage;
+	/* evergreen+ vddci */
+	u16 vddci;
 };
 
 /* clock mode flags */
@@ -835,10 +837,12 @@ struct radeon_pm {
 	int                     default_power_state_index;
 	u32                     current_sclk;
 	u32                     current_mclk;
-	u32                     current_vddc;
+	u16                     current_vddc;
+	u16                     current_vddci;
 	u32                     default_sclk;
 	u32                     default_mclk;
-	u32                     default_vddc;
+	u16                     default_vddc;
+	u16                     default_vddci;
 	struct radeon_i2c_chan *i2c_bus;
 	/* selected pm method */
 	enum radeon_pm_method     pm_method;

@@ -71,7 +71,7 @@ static unsigned char xilinx_intc_map_senses[] = {
  */
 static void xilinx_intc_mask(struct irq_data *d)
 {
-	int irq = virq_to_hw(d->irq);
+	int irq = irqd_to_hwirq(d);
 	void * regs = irq_data_get_irq_chip_data(d);
 	pr_debug("mask: %d\n", irq);
 	out_be32(regs + XINTC_CIE, 1 << irq);
@@ -87,7 +87,7 @@ static int xilinx_intc_set_type(struct irq_data *d, unsigned int flow_type)
  */
 static void xilinx_intc_level_unmask(struct irq_data *d)
 {
-	int irq = virq_to_hw(d->irq);
+	int irq = irqd_to_hwirq(d);
 	void * regs = irq_data_get_irq_chip_data(d);
 	pr_debug("unmask: %d\n", irq);
 	out_be32(regs + XINTC_SIE, 1 << irq);
@@ -112,7 +112,7 @@ static struct irq_chip xilinx_intc_level_irqchip = {
  */
 static void xilinx_intc_edge_unmask(struct irq_data *d)
 {
-	int irq = virq_to_hw(d->irq);
+	int irq = irqd_to_hwirq(d);
 	void *regs = irq_data_get_irq_chip_data(d);
 	pr_debug("unmask: %d\n", irq);
 	out_be32(regs + XINTC_SIE, 1 << irq);
@@ -120,7 +120,7 @@ static void xilinx_intc_edge_unmask(struct irq_data *d)
 
 static void xilinx_intc_edge_ack(struct irq_data *d)
 {
-	int irq = virq_to_hw(d->irq);
+	int irq = irqd_to_hwirq(d);
 	void * regs = irq_data_get_irq_chip_data(d);
 	pr_debug("ack: %d\n", irq);
 	out_be32(regs + XINTC_IAR, 1 << irq);

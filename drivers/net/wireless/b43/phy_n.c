@@ -2281,6 +2281,7 @@ static int b43_nphy_poll_rssi(struct b43_wldev *dev, u8 type, s32 *buf,
 		save_regs_phy[5] = b43_phy_read(dev, B43_NPHY_AFECTL_OVER);
 		save_regs_phy[6] = b43_phy_read(dev, B43_NPHY_TXF_40CO_B1S0);
 		save_regs_phy[7] = b43_phy_read(dev, B43_NPHY_TXF_40CO_B32S1);
+		save_regs_phy[8] = 0;
 	} else {
 		save_regs_phy[0] = b43_phy_read(dev, B43_NPHY_AFECTL_C1);
 		save_regs_phy[1] = b43_phy_read(dev, B43_NPHY_AFECTL_C2);
@@ -2289,6 +2290,8 @@ static int b43_nphy_poll_rssi(struct b43_wldev *dev, u8 type, s32 *buf,
 		save_regs_phy[4] = b43_phy_read(dev, B43_NPHY_RFCTL_OVER);
 		save_regs_phy[5] = b43_phy_read(dev, B43_NPHY_RFCTL_RSSIO1);
 		save_regs_phy[6] = b43_phy_read(dev, B43_NPHY_RFCTL_RSSIO2);
+		save_regs_phy[7] = 0;
+		save_regs_phy[8] = 0;
 	}
 
 	b43_nphy_rssi_select(dev, 5, type);
@@ -3537,17 +3540,6 @@ static int b43_nphy_cal_rx_iq(struct b43_wldev *dev,
 		return b43_nphy_rev2_cal_rx_iq(dev, target, type, debug);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/MacPhyClkSet */
-static void b43_nphy_mac_phy_clock_set(struct b43_wldev *dev, bool on)
-{
-	u32 tmslow = ssb_read32(dev->dev, SSB_TMSLOW);
-	if (on)
-		tmslow |= B43_TMSLOW_MACPHYCLKEN;
-	else
-		tmslow &= ~B43_TMSLOW_MACPHYCLKEN;
-	ssb_write32(dev->dev, SSB_TMSLOW, tmslow);
-}
-
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCoreSetState */
 static void b43_nphy_set_rx_core_state(struct b43_wldev *dev, u8 mask)
 {
@@ -3688,7 +3680,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_NPHY_BBCFG, tmp & ~B43_NPHY_BBCFG_RSTCCA);
 	b43_nphy_bmac_clock_fgc(dev, 0);
 
-	b43_nphy_mac_phy_clock_set(dev, true);
+	b43_mac_phy_clock_set(dev, true);
 
 	b43_nphy_pa_override(dev, false);
 	b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RX2TX);
@@ -3845,8 +3837,8 @@ static int b43_nphy_set_channel(struct b43_wldev *dev,
 {
 	struct b43_phy *phy = &dev->phy;
 
-	const struct b43_nphy_channeltab_entry_rev2 *tabent_r2;
-	const struct b43_nphy_channeltab_entry_rev3 *tabent_r3;
+	const struct b43_nphy_channeltab_entry_rev2 *tabent_r2 = NULL;
+	const struct b43_nphy_channeltab_entry_rev3 *tabent_r3 = NULL;
 
 	u8 tmp;
 

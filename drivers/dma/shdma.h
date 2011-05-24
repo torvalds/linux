@@ -37,6 +37,7 @@ struct sh_dmae_chan {
 	int id;				/* Raw id of this channel */
 	u32 __iomem *base;
 	char dev_id[16];		/* unique name per DMAC of channel */
+	int pm_error;
 };
 
 struct sh_dmae_device {

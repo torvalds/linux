@@ -109,7 +109,7 @@ struct cx18_card_tuner {
 
 struct cx18_card_tuner_i2c {
 	unsigned short radio[2];/* radio tuner i2c address to probe */
-	unsigned short demod[2];/* demodulator i2c address to probe */
+	unsigned short demod[3];/* demodulator i2c address to probe */
 	unsigned short tv[4];	/* tv tuner i2c addresses to probe */
 };
 

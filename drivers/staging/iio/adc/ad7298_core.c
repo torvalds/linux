@@ -6,7 +6,6 @@
  * Licensed under the GPL-2.
  */
 
-#include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -23,6 +22,37 @@
 
 #include "ad7298.h"
 
+static struct iio_chan_spec ad7298_channels[] = {
+	IIO_CHAN(IIO_TEMP, 0, 1, 0, NULL, 0, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		 9, AD7298_CH_TEMP, IIO_ST('s', 32, 32, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 0, 0, IIO_ST('u', 12, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 1, 1, IIO_ST('u', 12, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 2, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 2, 2, IIO_ST('u', 12, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 3, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 3, 3, IIO_ST('u', 12, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 4, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 4, 4, IIO_ST('u', 12, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 5, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 5, 5, IIO_ST('u', 12, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 6, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 6, 6, IIO_ST('u', 12, 16, 0), 0),
+	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 7, 0,
+		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 7, 7, IIO_ST('u', 12, 16, 0), 0),
+	IIO_CHAN_SOFT_TIMESTAMP(8),
+};
+
 static int ad7298_scan_direct(struct ad7298_state *st, unsigned ch)
 {
 	int ret;
@@ -36,55 +66,28 @@ static int ad7298_scan_direct(struct ad7298_state *st, unsigned ch)
 	return be16_to_cpu(st->rx_buf[0]);
 }
 
-static ssize_t ad7298_scan(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
+static int ad7298_scan_temp(struct ad7298_state *st, int *val)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7298_state *st = dev_info->dev_data;
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	int ret;
-
-	mutex_lock(&dev_info->mlock);
-	if (iio_ring_enabled(dev_info))
-		ret = ad7298_scan_from_ring(st, this_attr->address);
-	else
-		ret = ad7298_scan_direct(st, this_attr->address);
-	mutex_unlock(&dev_info->mlock);
-
-	if (ret < 0)
-		return ret;
-
-	return sprintf(buf, "%d\n", ret & RES_MASK(AD7298_BITS));
-}
-
-static IIO_DEV_ATTR_IN_RAW(0, ad7298_scan, 0);
-static IIO_DEV_ATTR_IN_RAW(1, ad7298_scan, 1);
-static IIO_DEV_ATTR_IN_RAW(2, ad7298_scan, 2);
-static IIO_DEV_ATTR_IN_RAW(3, ad7298_scan, 3);
-static IIO_DEV_ATTR_IN_RAW(4, ad7298_scan, 4);
-static IIO_DEV_ATTR_IN_RAW(5, ad7298_scan, 5);
-static IIO_DEV_ATTR_IN_RAW(6, ad7298_scan, 6);
-static IIO_DEV_ATTR_IN_RAW(7, ad7298_scan, 7);
-
-static ssize_t ad7298_show_temp(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7298_state *st = iio_dev_get_devdata(dev_info);
-	int tmp;
+	int tmp, ret;
 
 	tmp = cpu_to_be16(AD7298_WRITE | AD7298_TSENSE |
 			  AD7298_TAVG | st->ext_ref);
 
-	mutex_lock(&dev_info->mlock);
-	spi_write(st->spi, (u8 *)&tmp, 2);
+	ret = spi_write(st->spi, (u8 *)&tmp, 2);
+	if (ret)
+		return ret;
+
 	tmp = 0;
-	spi_write(st->spi, (u8 *)&tmp, 2);
+
+	ret = spi_write(st->spi, (u8 *)&tmp, 2);
+	if (ret)
+		return ret;
+
 	usleep_range(101, 1000); /* sleep > 100us */
-	spi_read(st->spi, (u8 *)&tmp, 2);
-	mutex_unlock(&dev_info->mlock);
+
+	ret = spi_read(st->spi, (u8 *)&tmp, 2);
+	if (ret)
+		return ret;
 
 	tmp = be16_to_cpu(tmp) & RES_MASK(AD7298_BITS);
 
@@ -101,65 +104,74 @@ static ssize_t ad7298_show_temp(struct device *dev,
 		tmp *= 250; /* temperature in milli degrees Celsius */
 	}
 
-	return sprintf(buf, "%d\n", tmp);
+	*val = tmp;
+
+	return 0;
 }
 
-static IIO_DEVICE_ATTR(temp0_input, S_IRUGO, ad7298_show_temp, NULL, 0);
-
-static ssize_t ad7298_show_scale(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
+static int ad7298_read_raw(struct iio_dev *dev_info,
+			   struct iio_chan_spec const *chan,
+			   int *val,
+			   int *val2,
+			   long m)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7298_state *st = iio_dev_get_devdata(dev_info);
-	/* Corresponds to Vref / 2^(bits) */
-	unsigned int scale_uv = (st->int_vref_mv * 1000) >> AD7298_BITS;
+	int ret;
+	struct ad7298_state *st = iio_priv(dev_info);
+	unsigned int scale_uv;
 
-	return sprintf(buf, "%d.%03d\n", scale_uv / 1000, scale_uv % 1000);
+	switch (m) {
+	case 0:
+		mutex_lock(&dev_info->mlock);
+		if (iio_ring_enabled(dev_info)) {
+			if (chan->address == AD7298_CH_TEMP)
+				ret = -ENODEV;
+			else
+				ret = ad7298_scan_from_ring(dev_info,
+							    chan->address);
+		} else {
+			if (chan->address == AD7298_CH_TEMP)
+				ret = ad7298_scan_temp(st, val);
+			else
+				ret = ad7298_scan_direct(st, chan->address);
+		}
+		mutex_unlock(&dev_info->mlock);
+
+		if (ret < 0)
+			return ret;
+
+		if (chan->address != AD7298_CH_TEMP)
+			*val = ret & RES_MASK(AD7298_BITS);
+
+		return IIO_VAL_INT;
+	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+		scale_uv = (st->int_vref_mv * 1000) >> AD7298_BITS;
+		*val =  scale_uv / 1000;
+		*val2 = (scale_uv % 1000) * 1000;
+		return IIO_VAL_INT_PLUS_MICRO;
+	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+		*val =  1;
+		*val2 = 0;
+		return IIO_VAL_INT_PLUS_MICRO;
+	}
+	return -EINVAL;
 }
-static IIO_DEVICE_ATTR(in_scale, S_IRUGO, ad7298_show_scale, NULL, 0);
 
-static ssize_t ad7298_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad7298_state *st = iio_dev_get_devdata(dev_info);
-
-	return sprintf(buf, "%s\n", spi_get_device_id(st->spi)->name);
-}
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad7298_show_name, NULL, 0);
-
-static struct attribute *ad7298_attributes[] = {
-	&iio_dev_attr_in0_raw.dev_attr.attr,
-	&iio_dev_attr_in1_raw.dev_attr.attr,
-	&iio_dev_attr_in2_raw.dev_attr.attr,
-	&iio_dev_attr_in3_raw.dev_attr.attr,
-	&iio_dev_attr_in4_raw.dev_attr.attr,
-	&iio_dev_attr_in5_raw.dev_attr.attr,
-	&iio_dev_attr_in6_raw.dev_attr.attr,
-	&iio_dev_attr_in7_raw.dev_attr.attr,
-	&iio_dev_attr_in_scale.dev_attr.attr,
-	&iio_dev_attr_temp0_input.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group ad7298_attribute_group = {
-	.attrs = ad7298_attributes,
+static const struct iio_info ad7298_info = {
+	.read_raw = &ad7298_read_raw,
+	.driver_module = THIS_MODULE,
 };
 
 static int __devinit ad7298_probe(struct spi_device *spi)
 {
 	struct ad7298_platform_data *pdata = spi->dev.platform_data;
 	struct ad7298_state *st;
-	int ret;
+	int ret, regdone = 0;
+	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
-	if (st == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	if (indio_dev == NULL)
+		return -ENOMEM;
+
+	st = iio_priv(indio_dev);
 
 	st->reg = regulator_get(&spi->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
@@ -168,22 +180,16 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 			goto error_put_reg;
 	}
 
-	spi_set_drvdata(spi, st);
+	spi_set_drvdata(spi, indio_dev);
 
-	atomic_set(&st->protect_ring, 0);
 	st->spi = spi;
 
-	st->indio_dev = iio_allocate_device();
-	if (st->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_disable_reg;
-	}
-
-	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &ad7298_attribute_group;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->name = spi_get_device_id(spi)->name;
+	indio_dev->dev.parent = &spi->dev;
+	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->channels = ad7298_channels;
+	indio_dev->num_channels = ARRAY_SIZE(ad7298_channels);
+	indio_dev->info = &ad7298_info;
 
 	/* Setup default message */
 
@@ -208,39 +214,44 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 		st->int_vref_mv = AD7298_INTREF_mV;
 	}
 
-	ret = ad7298_register_ring_funcs_and_init(st->indio_dev);
+	ret = ad7298_register_ring_funcs_and_init(indio_dev);
 	if (ret)
-		goto error_free_device;
+		goto error_disable_reg;
 
-	ret = iio_device_register(st->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_free_device;
+		goto error_disable_reg;
+	regdone = 1;
 
-	ret = iio_ring_buffer_register(st->indio_dev->ring, 0);
+	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
+					  &ad7298_channels[1], /* skip temp0 */
+					  ARRAY_SIZE(ad7298_channels) - 1);
 	if (ret)
 		goto error_cleanup_ring;
+
 	return 0;
 
 error_cleanup_ring:
-	ad7298_ring_cleanup(st->indio_dev);
-	iio_device_unregister(st->indio_dev);
-error_free_device:
-	iio_free_device(st->indio_dev);
+	ad7298_ring_cleanup(indio_dev);
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-	kfree(st);
-error_ret:
+
+	if (regdone)
+		iio_device_unregister(indio_dev);
+	else
+		iio_free_device(indio_dev);
+
 	return ret;
 }
 
 static int __devexit ad7298_remove(struct spi_device *spi)
 {
-	struct ad7298_state *st = spi_get_drvdata(spi);
-	struct iio_dev *indio_dev = st->indio_dev;
+	struct iio_dev *indio_dev = spi_get_drvdata(spi);
+	struct ad7298_state *st = iio_priv(indio_dev);
 
 	iio_ring_buffer_unregister(indio_dev->ring);
 	ad7298_ring_cleanup(indio_dev);
@@ -249,7 +260,8 @@ static int __devexit ad7298_remove(struct spi_device *spi)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	kfree(st);
+	iio_device_unregister(indio_dev);
+
 	return 0;
 }
 

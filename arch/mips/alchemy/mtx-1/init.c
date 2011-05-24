@@ -62,5 +62,5 @@ void __init prom_init(void)
 
 void prom_putchar(unsigned char c)
 {
-	alchemy_uart_putchar(UART0_PHYS_ADDR, c);
+	alchemy_uart_putchar(AU1000_UART0_PHYS_ADDR, c);
 }

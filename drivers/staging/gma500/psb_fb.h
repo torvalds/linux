@@ -28,32 +28,22 @@
 
 #include "psb_drv.h"
 
-/*IMG Headers*/
-/*#include "servicesint.h"*/
-
 struct psb_framebuffer {
 	struct drm_framebuffer base;
 	struct address_space *addr_space;
-	struct ttm_buffer_object *bo;
-	struct fb_info * fbdev;
-	/* struct ttm_bo_kmap_obj kmap; */
-	void *pvrBO;	/* FIXME: sort this out */
-	void * hKernelMemInfo;
-	uint32_t size;
-	uint32_t offset;
+	struct fb_info *fbdev;
+	struct gtt_range *gtt;
 };
 
 struct psb_fbdev {
 	struct drm_fb_helper psb_fb_helper;
-	struct psb_framebuffer * pfb;
+	struct psb_framebuffer *pfb;
 };
 
 
 #define to_psb_fb(x) container_of(x, struct psb_framebuffer, base)
 
-
 extern int psb_intel_connector_clones(struct drm_device *dev, int type_mask);
-
 
 #endif
 

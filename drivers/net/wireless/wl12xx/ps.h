@@ -35,4 +35,6 @@ void wl1271_elp_work(struct work_struct *work);
 void wl1271_ps_link_start(struct wl1271 *wl, u8 hlid, bool clean_queues);
 void wl1271_ps_link_end(struct wl1271 *wl, u8 hlid);
 
+#define WL1271_PS_COMPLETE_TIMEOUT 500
+
 #endif /* __WL1271_PS_H__ */

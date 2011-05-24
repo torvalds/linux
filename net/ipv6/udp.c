@@ -311,7 +311,7 @@ static struct sock *__udp6_lib_lookup_skb(struct sk_buff *skb,
 					  struct udp_table *udptable)
 {
 	struct sock *sk;
-	struct ipv6hdr *iph = ipv6_hdr(skb);
+	const struct ipv6hdr *iph = ipv6_hdr(skb);
 
 	if (unlikely(sk = skb_steal_sock(skb)))
 		return sk;
@@ -463,9 +463,9 @@ void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		    struct udp_table *udptable)
 {
 	struct ipv6_pinfo *np;
-	struct ipv6hdr *hdr = (struct ipv6hdr*)skb->data;
-	struct in6_addr *saddr = &hdr->saddr;
-	struct in6_addr *daddr = &hdr->daddr;
+	const struct ipv6hdr *hdr = (const struct ipv6hdr *)skb->data;
+	const struct in6_addr *saddr = &hdr->saddr;
+	const struct in6_addr *daddr = &hdr->daddr;
 	struct udphdr *uh = (struct udphdr*)(skb->data+offset);
 	struct sock *sk;
 	int err;
@@ -553,8 +553,8 @@ drop_no_sk_drops_inc:
 }
 
 static struct sock *udp_v6_mcast_next(struct net *net, struct sock *sk,
-				      __be16 loc_port, struct in6_addr *loc_addr,
-				      __be16 rmt_port, struct in6_addr *rmt_addr,
+				      __be16 loc_port, const struct in6_addr *loc_addr,
+				      __be16 rmt_port, const struct in6_addr *rmt_addr,
 				      int dif)
 {
 	struct hlist_nulls_node *node;
@@ -633,7 +633,7 @@ drop:
  * so we don't need to lock the hashes.
  */
 static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
-		struct in6_addr *saddr, struct in6_addr *daddr,
+		const struct in6_addr *saddr, const struct in6_addr *daddr,
 		struct udp_table *udptable)
 {
 	struct sock *sk, *stack[256 / sizeof(struct sock *)];
@@ -716,7 +716,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	struct net *net = dev_net(skb->dev);
 	struct sock *sk;
 	struct udphdr *uh;
-	struct in6_addr *saddr, *daddr;
+	const struct in6_addr *saddr, *daddr;
 	u32 ulen = 0;
 
 	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
@@ -1278,7 +1278,7 @@ int compat_udpv6_getsockopt(struct sock *sk, int level, int optname,
 
 static int udp6_ufo_send_check(struct sk_buff *skb)
 {
-	struct ipv6hdr *ipv6h;
+	const struct ipv6hdr *ipv6h;
 	struct udphdr *uh;
 
 	if (!pskb_may_pull(skb, sizeof(*uh)))
@@ -1328,14 +1328,14 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb, u32 features)
 	/* Do software UFO. Complete and fill in the UDP checksum as HW cannot
 	 * do checksum of UDP packets sent as multiple IP fragments.
 	 */
-	offset = skb->csum_start - skb_headroom(skb);
+	offset = skb_checksum_start_offset(skb);
 	csum = skb_checksum(skb, offset, skb->len- offset, 0);
 	offset += skb->csum_offset;
 	*(__sum16 *)(skb->data + offset) = csum_fold(csum);
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Check if there is enough headroom to insert fragment header. */
-	if ((skb_headroom(skb) < frag_hdr_sz) &&
+	if ((skb_mac_header(skb) < skb->head + frag_hdr_sz) &&
 	    pskb_expand_head(skb, frag_hdr_sz, 0, GFP_ATOMIC))
 		goto out;
 
@@ -1382,7 +1382,7 @@ static void udp6_sock_seq_show(struct seq_file *seq, struct sock *sp, int bucket
 {
 	struct inet_sock *inet = inet_sk(sp);
 	struct ipv6_pinfo *np = inet6_sk(sp);
-	struct in6_addr *dest, *src;
+	const struct in6_addr *dest, *src;
 	__u16 destp, srcp;
 
 	dest  = &np->daddr;

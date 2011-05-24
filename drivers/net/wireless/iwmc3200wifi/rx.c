@@ -1576,7 +1576,8 @@ static void iwm_rx_process_amsdu(struct iwm_priv *iwm, struct sk_buff *skb)
 	IWM_HEXDUMP(iwm, DBG, RX, "A-MSDU: ", skb->data, skb->len);
 
 	__skb_queue_head_init(&list);
-	ieee80211_amsdu_to_8023s(skb, &list, ndev->dev_addr, wdev->iftype, 0);
+	ieee80211_amsdu_to_8023s(skb, &list, ndev->dev_addr, wdev->iftype, 0,
+									true);
 
 	while ((frame = __skb_dequeue(&list))) {
 		ndev->stats.rx_packets++;

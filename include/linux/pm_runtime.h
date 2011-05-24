@@ -245,4 +245,46 @@ static inline void pm_runtime_dont_use_autosuspend(struct device *dev)
 	__pm_runtime_use_autosuspend(dev, false);
 }
 
+struct pm_clk_notifier_block {
+	struct notifier_block nb;
+	struct dev_power_domain *pwr_domain;
+	char *con_ids[];
+};
+
+#ifdef CONFIG_PM_RUNTIME_CLK
+extern int pm_runtime_clk_init(struct device *dev);
+extern void pm_runtime_clk_destroy(struct device *dev);
+extern int pm_runtime_clk_add(struct device *dev, const char *con_id);
+extern void pm_runtime_clk_remove(struct device *dev, const char *con_id);
+extern int pm_runtime_clk_suspend(struct device *dev);
+extern int pm_runtime_clk_resume(struct device *dev);
+#else
+static inline int pm_runtime_clk_init(struct device *dev)
+{
+	return -EINVAL;
+}
+static inline void pm_runtime_clk_destroy(struct device *dev)
+{
+}
+static inline int pm_runtime_clk_add(struct device *dev, const char *con_id)
+{
+	return -EINVAL;
+}
+static inline void pm_runtime_clk_remove(struct device *dev, const char *con_id)
+{
+}
+#define pm_runtime_clock_suspend	NULL
+#define pm_runtime_clock_resume		NULL
+#endif
+
+#ifdef CONFIG_HAVE_CLK
+extern void pm_runtime_clk_add_notifier(struct bus_type *bus,
+					struct pm_clk_notifier_block *clknb);
+#else
+static inline void pm_runtime_clk_add_notifier(struct bus_type *bus,
+					struct pm_clk_notifier_block *clknb)
+{
+}
+#endif
+
 #endif

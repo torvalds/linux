@@ -47,39 +47,34 @@
 #include <asm/portmux.h>
 
 #include "../codecs/ad1980.h"
-#include "bf5xx-sport.h"
+
 #include "bf5xx-ac97-pcm.h"
 #include "bf5xx-ac97.h"
 
 static struct snd_soc_card bf5xx_board;
 
-static int bf5xx_board_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-
-	pr_debug("%s enter\n", __func__);
-	snd_soc_dai_set_drvdata(cpu_dai, sport_handle);
-	return 0;
-}
-
-static struct snd_soc_ops bf5xx_board_ops = {
-	.startup = bf5xx_board_startup,
-};
-
-static struct snd_soc_dai_link bf5xx_board_dai = {
-	.name = "AC97",
-	.stream_name = "AC97 HiFi",
-	.cpu_dai_name = "bfin-ac97",
-	.codec_dai_name = "ad1980-hifi",
-	.platform_name = "bfin-pcm-audio",
-	.codec_name = "ad1980-codec",
-	.ops = &bf5xx_board_ops,
+static struct snd_soc_dai_link bf5xx_board_dai[] = {
+	{
+		.name = "AC97",
+		.stream_name = "AC97 HiFi",
+		.cpu_dai_name = "bfin-ac97.0",
+		.codec_dai_name = "ad1980-hifi",
+		.platform_name = "bfin-ac97-pcm-audio",
+		.codec_name = "ad1980",
+	},
+	{
+		.name = "AC97",
+		.stream_name = "AC97 HiFi",
+		.cpu_dai_name = "bfin-ac97.1",
+		.codec_dai_name = "ad1980-hifi",
+		.platform_name = "bfin-ac97-pcm-audio",
+		.codec_name = "ad1980",
+	},
 };
 
 static struct snd_soc_card bf5xx_board = {
-	.name = "bf5xx-board",
-	.dai_link = &bf5xx_board_dai,
+	.name = "bfin-ad1980",
+	.dai_link = &bf5xx_board_dai[CONFIG_SND_BF5XX_SPORT_NUM],
 	.num_links = 1,
 };
 

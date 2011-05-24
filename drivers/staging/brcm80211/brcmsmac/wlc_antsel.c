@@ -22,7 +22,8 @@
 
 #include <bcmdefs.h>
 #include <bcmutils.h>
-#include <siutils.h>
+#include <bcmnvram.h>
+#include <aiutils.h>
 #include <bcmdevs.h>
 #include <sbhnddma.h>
 #include <wlioctl.h>
@@ -98,8 +99,8 @@ struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc)
 
 	asi = kzalloc(sizeof(struct antsel_info), GFP_ATOMIC);
 	if (!asi) {
-		WL_ERROR("wl%d: wlc_antsel_attach: out of mem\n",
-			 wlc->pub->unit);
+		wiphy_err(wlc->wiphy, "wl%d: wlc_antsel_attach: out of mem\n",
+			  wlc->pub->unit);
 		return NULL;
 	}
 
@@ -128,8 +129,8 @@ struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc)
 				asi->antsel_avail = false;
 			} else {
 				asi->antsel_avail = false;
-				WL_ERROR("wlc_antsel_attach: 2o3 board cfg invalid\n");
-				ASSERT(0);
+				wiphy_err(wlc->wiphy, "wlc_antsel_attach: 2o3 "
+					  "board cfg invalid\n");
 			}
 			break;
 		default:
@@ -200,7 +201,7 @@ wlc_antsel_init_cfg(struct antsel_info *asi, wlc_antselcfg_t *antsel,
 	}
 }
 
-void BCMFASTPATH
+void
 wlc_antsel_antcfg_get(struct antsel_info *asi, bool usedef, bool sel,
 		      u8 antselid, u8 fbantselid, u8 *antcfg,
 		      u8 *fbantcfg)
@@ -296,8 +297,6 @@ static int wlc_antsel_cfgupd(struct antsel_info *asi, wlc_antselcfg_t *antsel)
 	struct wlc_info *wlc = asi->wlc;
 	u8 ant_cfg;
 	u16 mimo_antsel;
-
-	ASSERT(asi->antsel_type != ANTSEL_NA);
 
 	/* 1) Update TX antconfig for all frames that are not unicast data
 	 *    (aka default TX)

@@ -12,7 +12,7 @@
 #	sh64 port by Paul Mundt
 #	Random bits by Matt Mackall <mpm@selenic.com>
 #	M68k port by Geert Uytterhoeven and Andreas Schwab
-#	AVR32 port by Haavard Skinnemoen <hskinnemoen@atmel.com>
+#	AVR32 port by Haavard Skinnemoen (Atmel)
 #	PARISC port by Kyle McMartin <kyle@parisc-linux.org>
 #	sparc port by Martin Habets <errandir_news@mph.eclipse.co.uk>
 #

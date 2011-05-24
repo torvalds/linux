@@ -6,9 +6,9 @@
 
 struct lbs_private;
 
-/**
-  * This file contains definition for USB interface.
-  */
+/*
+ * This file contains definition for USB interface.
+ */
 #define CMD_TYPE_REQUEST		0xF00DFACE
 #define CMD_TYPE_DATA			0xBEADC0DE
 #define CMD_TYPE_INDICATION		0xBEEFFACE
@@ -40,7 +40,7 @@ struct bootcmdresp
 	uint8_t	pad[2];
 };
 
-/** USB card description structure*/
+/* USB card description structure*/
 struct if_usb_card {
 	struct usb_device *udev;
 	uint32_t model;  /* MODEL_* */
@@ -77,7 +77,7 @@ struct if_usb_card {
 	__le16 boot2_version;
 };
 
-/** fwheader */
+/* fwheader */
 struct fwheader {
 	__le32 dnldcmd;
 	__le32 baseaddr;
@@ -86,14 +86,14 @@ struct fwheader {
 };
 
 #define FW_MAX_DATA_BLK_SIZE	600
-/** FWData */
+/* FWData */
 struct fwdata {
 	struct fwheader hdr;
 	__le32 seqnum;
 	uint8_t data[0];
 };
 
-/** fwsyncheader */
+/* fwsyncheader */
 struct fwsyncheader {
 	__le32 cmd;
 	__le32 seqnum;

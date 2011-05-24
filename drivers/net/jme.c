@@ -2230,17 +2230,9 @@ jme_change_mtu(struct net_device *netdev, int new_mtu)
 		jme_restart_rx_engine(jme);
 	}
 
-	if (new_mtu > 1900) {
-		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				NETIF_F_TSO | NETIF_F_TSO6);
-	} else {
-		if (test_bit(JME_FLAG_TXCSUM, &jme->flags))
-			netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-		if (test_bit(JME_FLAG_TSO, &jme->flags))
-			netdev->features |= NETIF_F_TSO | NETIF_F_TSO6;
-	}
-
 	netdev->mtu = new_mtu;
+	netdev_update_features(netdev);
+
 	jme_reset_link(jme);
 
 	return 0;
@@ -2563,7 +2555,8 @@ jme_set_settings(struct net_device *netdev,
 	struct jme_adapter *jme = netdev_priv(netdev);
 	int rc, fdc = 0;
 
-	if (ecmd->speed == SPEED_1000 && ecmd->autoneg != AUTONEG_ENABLE)
+	if (ethtool_cmd_speed(ecmd) == SPEED_1000
+	    && ecmd->autoneg != AUTONEG_ENABLE)
 		return -EINVAL;
 
 	/*
@@ -2640,60 +2633,25 @@ jme_set_msglevel(struct net_device *netdev, u32 value)
 }
 
 static u32
-jme_get_rx_csum(struct net_device *netdev)
+jme_fix_features(struct net_device *netdev, u32 features)
 {
-	struct jme_adapter *jme = netdev_priv(netdev);
-	return jme->reg_rxmcs & RXMCS_CHECKSUM;
+	if (netdev->mtu > 1900)
+		features &= ~(NETIF_F_ALL_TSO | NETIF_F_ALL_CSUM);
+	return features;
 }
 
 static int
-jme_set_rx_csum(struct net_device *netdev, u32 on)
+jme_set_features(struct net_device *netdev, u32 features)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 
 	spin_lock_bh(&jme->rxmcs_lock);
-	if (on)
+	if (features & NETIF_F_RXCSUM)
 		jme->reg_rxmcs |= RXMCS_CHECKSUM;
 	else
 		jme->reg_rxmcs &= ~RXMCS_CHECKSUM;
 	jwrite32(jme, JME_RXMCS, jme->reg_rxmcs);
 	spin_unlock_bh(&jme->rxmcs_lock);
-
-	return 0;
-}
-
-static int
-jme_set_tx_csum(struct net_device *netdev, u32 on)
-{
-	struct jme_adapter *jme = netdev_priv(netdev);
-
-	if (on) {
-		set_bit(JME_FLAG_TXCSUM, &jme->flags);
-		if (netdev->mtu <= 1900)
-			netdev->features |=
-				NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-	} else {
-		clear_bit(JME_FLAG_TXCSUM, &jme->flags);
-		netdev->features &=
-				~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-	}
-
-	return 0;
-}
-
-static int
-jme_set_tso(struct net_device *netdev, u32 on)
-{
-	struct jme_adapter *jme = netdev_priv(netdev);
-
-	if (on) {
-		set_bit(JME_FLAG_TSO, &jme->flags);
-		if (netdev->mtu <= 1900)
-			netdev->features |= NETIF_F_TSO | NETIF_F_TSO6;
-	} else {
-		clear_bit(JME_FLAG_TSO, &jme->flags);
-		netdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
-	}
 
 	return 0;
 }
@@ -2839,11 +2797,6 @@ static const struct ethtool_ops jme_ethtool_ops = {
 	.get_link		= jme_get_link,
 	.get_msglevel           = jme_get_msglevel,
 	.set_msglevel           = jme_set_msglevel,
-	.get_rx_csum		= jme_get_rx_csum,
-	.set_rx_csum		= jme_set_rx_csum,
-	.set_tx_csum		= jme_set_tx_csum,
-	.set_tso		= jme_set_tso,
-	.set_sg			= ethtool_op_set_sg,
 	.nway_reset             = jme_nway_reset,
 	.get_eeprom_len		= jme_get_eeprom_len,
 	.get_eeprom		= jme_get_eeprom,
@@ -2903,6 +2856,8 @@ static const struct net_device_ops jme_netdev_ops = {
 	.ndo_change_mtu		= jme_change_mtu,
 	.ndo_tx_timeout		= jme_tx_timeout,
 	.ndo_vlan_rx_register	= jme_vlan_rx_register,
+	.ndo_fix_features       = jme_fix_features,
+	.ndo_set_features       = jme_set_features,
 };
 
 static int __devinit
@@ -2957,6 +2912,12 @@ jme_init_one(struct pci_dev *pdev,
 	netdev->netdev_ops = &jme_netdev_ops;
 	netdev->ethtool_ops		= &jme_ethtool_ops;
 	netdev->watchdog_timeo		= TX_TIMEOUT;
+	netdev->hw_features		=	NETIF_F_IP_CSUM |
+						NETIF_F_IPV6_CSUM |
+						NETIF_F_SG |
+						NETIF_F_TSO |
+						NETIF_F_TSO6 |
+						NETIF_F_RXCSUM;
 	netdev->features		=	NETIF_F_IP_CSUM |
 						NETIF_F_IPV6_CSUM |
 						NETIF_F_SG |
@@ -3040,8 +3001,9 @@ jme_init_one(struct pci_dev *pdev,
 	jme->reg_txpfc = 0;
 	jme->reg_pmcs = PMCS_MFEN;
 	jme->reg_gpreg1 = GPREG1_DEFAULT;
-	set_bit(JME_FLAG_TXCSUM, &jme->flags);
-	set_bit(JME_FLAG_TSO, &jme->flags);
+
+	if (jme->reg_rxmcs & RXMCS_CHECKSUM)
+		netdev->features |= NETIF_F_RXCSUM;
 
 	/*
 	 * Get Max Read Req Size from PCI Config Space

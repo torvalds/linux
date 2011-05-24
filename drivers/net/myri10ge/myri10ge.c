@@ -65,6 +65,7 @@
 #include <linux/io.h>
 #include <linux/log2.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 #include <net/checksum.h>
 #include <net/ip.h>
 #include <net/tcp.h>
@@ -205,7 +206,6 @@ struct myri10ge_priv {
 	int tx_boundary;	/* boundary transmits cannot cross */
 	int num_slices;
 	int running;		/* running?             */
-	int csum_flag;		/* rx_csums?            */
 	int small_bytes;
 	int big_bytes;
 	int max_intr_slots;
@@ -1386,7 +1386,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum,
 	skb->protocol = eth_type_trans(skb, dev);
 	skb_record_rx_queue(skb, ss - &mgp->ss[0]);
 
-	if (mgp->csum_flag) {
+	if (dev->features & NETIF_F_RXCSUM) {
 		if ((skb->protocol == htons(ETH_P_IP)) ||
 		    (skb->protocol == htons(ETH_P_IPV6))) {
 			skb->csum = csum;
@@ -1645,7 +1645,7 @@ myri10ge_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 	int i;
 
 	cmd->autoneg = AUTONEG_DISABLE;
-	cmd->speed = SPEED_10000;
+	ethtool_cmd_speed_set(cmd, SPEED_10000);
 	cmd->duplex = DUPLEX_FULL;
 
 	/*
@@ -1755,43 +1755,6 @@ myri10ge_get_ringparam(struct net_device *netdev,
 	ring->rx_pending = ring->rx_max_pending;
 	ring->rx_jumbo_pending = ring->rx_jumbo_max_pending;
 	ring->tx_pending = ring->tx_max_pending;
-}
-
-static u32 myri10ge_get_rx_csum(struct net_device *netdev)
-{
-	struct myri10ge_priv *mgp = netdev_priv(netdev);
-
-	if (mgp->csum_flag)
-		return 1;
-	else
-		return 0;
-}
-
-static int myri10ge_set_rx_csum(struct net_device *netdev, u32 csum_enabled)
-{
-	struct myri10ge_priv *mgp = netdev_priv(netdev);
-	int err = 0;
-
-	if (csum_enabled)
-		mgp->csum_flag = MXGEFW_FLAGS_CKSUM;
-	else {
-		netdev->features &= ~NETIF_F_LRO;
-		mgp->csum_flag = 0;
-
-	}
-	return err;
-}
-
-static int myri10ge_set_tso(struct net_device *netdev, u32 tso_enabled)
-{
-	struct myri10ge_priv *mgp = netdev_priv(netdev);
-	u32 flags = mgp->features & (NETIF_F_TSO6 | NETIF_F_TSO);
-
-	if (tso_enabled)
-		netdev->features |= flags;
-	else
-		netdev->features &= ~flags;
-	return 0;
 }
 
 static const char myri10ge_gstrings_main_stats[][ETH_GSTRING_LEN] = {
@@ -1944,11 +1907,6 @@ static u32 myri10ge_get_msglevel(struct net_device *netdev)
 	return mgp->msg_enable;
 }
 
-static int myri10ge_set_flags(struct net_device *netdev, u32 value)
-{
-	return ethtool_op_set_flags(netdev, value, ETH_FLAG_LRO);
-}
-
 static const struct ethtool_ops myri10ge_ethtool_ops = {
 	.get_settings = myri10ge_get_settings,
 	.get_drvinfo = myri10ge_get_drvinfo,
@@ -1957,19 +1915,12 @@ static const struct ethtool_ops myri10ge_ethtool_ops = {
 	.get_pauseparam = myri10ge_get_pauseparam,
 	.set_pauseparam = myri10ge_set_pauseparam,
 	.get_ringparam = myri10ge_get_ringparam,
-	.get_rx_csum = myri10ge_get_rx_csum,
-	.set_rx_csum = myri10ge_set_rx_csum,
-	.set_tx_csum = ethtool_op_set_tx_hw_csum,
-	.set_sg = ethtool_op_set_sg,
-	.set_tso = myri10ge_set_tso,
 	.get_link = ethtool_op_get_link,
 	.get_strings = myri10ge_get_strings,
 	.get_sset_count = myri10ge_get_sset_count,
 	.get_ethtool_stats = myri10ge_get_ethtool_stats,
 	.set_msglevel = myri10ge_set_msglevel,
 	.get_msglevel = myri10ge_get_msglevel,
-	.get_flags = ethtool_op_get_flags,
-	.set_flags = myri10ge_set_flags
 };
 
 static int myri10ge_allocate_rings(struct myri10ge_slice_state *ss)
@@ -3136,6 +3087,14 @@ static int myri10ge_set_mac_address(struct net_device *dev, void *addr)
 	return 0;
 }
 
+static u32 myri10ge_fix_features(struct net_device *dev, u32 features)
+{
+	if (!(features & NETIF_F_RXCSUM))
+		features &= ~NETIF_F_LRO;
+
+	return features;
+}
+
 static int myri10ge_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct myri10ge_priv *mgp = netdev_priv(dev);
@@ -3834,6 +3793,7 @@ static const struct net_device_ops myri10ge_netdev_ops = {
 	.ndo_get_stats		= myri10ge_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= myri10ge_change_mtu,
+	.ndo_fix_features	= myri10ge_fix_features,
 	.ndo_set_multicast_list = myri10ge_set_multicast_list,
 	.ndo_set_mac_address	= myri10ge_set_mac_address,
 };
@@ -3860,7 +3820,6 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mgp = netdev_priv(netdev);
 	mgp->dev = netdev;
 	mgp->pdev = pdev;
-	mgp->csum_flag = MXGEFW_FLAGS_CKSUM;
 	mgp->pause = myri10ge_flow_control;
 	mgp->intr_coal_delay = myri10ge_intr_coal_delay;
 	mgp->msg_enable = netif_msg_init(myri10ge_debug, MYRI10GE_MSG_DEFAULT);
@@ -3976,11 +3935,11 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->netdev_ops = &myri10ge_netdev_ops;
 	netdev->mtu = myri10ge_initial_mtu;
 	netdev->base_addr = mgp->iomem_base;
-	netdev->features = mgp->features;
+	netdev->hw_features = mgp->features | NETIF_F_LRO | NETIF_F_RXCSUM;
+	netdev->features = netdev->hw_features;
 
 	if (dac_enabled)
 		netdev->features |= NETIF_F_HIGHDMA;
-	netdev->features |= NETIF_F_LRO;
 
 	netdev->vlan_features |= mgp->features;
 	if (mgp->fw_ver_tiny < 37)

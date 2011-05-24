@@ -34,7 +34,7 @@
       <varlistentry>
 	<term><parameter>request</parameter></term>
 	<listitem>
-	  <para>MEDIA_IOC_ENUM_LINKS</para>
+	  <para>MEDIA_IOC_SETUP_LINK</para>
 	</listitem>
       </varlistentry>
       <varlistentry>

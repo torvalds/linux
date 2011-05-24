@@ -682,6 +682,9 @@ struct drm_nouveau_private {
 	/* For PFIFO and PGRAPH. */
 	spinlock_t context_switch_lock;
 
+	/* VM/PRAMIN flush, legacy PRAMIN aperture */
+	spinlock_t vm_lock;
+
 	/* RAMIN configuration, RAMFC, RAMHT and RAMRO offsets */
 	struct nouveau_ramht  *ramht;
 	struct nouveau_gpuobj *ramfc;
@@ -1190,7 +1193,7 @@ extern int  nv50_graph_load_context(struct nouveau_channel *);
 extern int  nv50_graph_unload_context(struct drm_device *);
 extern int  nv50_grctx_init(struct nouveau_grctx *);
 extern void nv50_graph_tlb_flush(struct drm_device *dev);
-extern void nv86_graph_tlb_flush(struct drm_device *dev);
+extern void nv84_graph_tlb_flush(struct drm_device *dev);
 extern struct nouveau_enum nv50_data_error_names[];
 
 /* nvc0_graph.c */

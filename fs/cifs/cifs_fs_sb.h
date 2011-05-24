@@ -58,9 +58,7 @@ struct cifs_sb_info {
 	unsigned int mnt_cifs_flags;
 	int	prepathlen;
 	char   *prepath; /* relative path under the share to mount to */
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	char   *mountdata; /* mount options received at mount time */
-#endif
+	char   *mountdata; /* options received at mount time or via DFS refs */
 	struct backing_dev_info bdi;
 	struct delayed_work prune_tlinks;
 };

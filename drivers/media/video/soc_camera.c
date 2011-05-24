@@ -41,6 +41,11 @@
 #define DEFAULT_WIDTH	640
 #define DEFAULT_HEIGHT	480
 
+#define is_streaming(ici, icd)				\
+	(((ici)->ops->init_videobuf) ?			\
+	 (icd)->vb_vidq.streaming :			\
+	 vb2_is_streaming(&(icd)->vb2_vidq))
+
 static LIST_HEAD(hosts);
 static LIST_HEAD(devices);
 static DEFINE_MUTEX(list_lock);		/* Protects the list of hosts */
@@ -136,11 +141,50 @@ unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,
 }
 EXPORT_SYMBOL(soc_camera_apply_sensor_flags);
 
+#define pixfmtstr(x) (x) & 0xff, ((x) >> 8) & 0xff, ((x) >> 16) & 0xff, \
+	((x) >> 24) & 0xff
+
+static int soc_camera_try_fmt(struct soc_camera_device *icd,
+			      struct v4l2_format *f)
+{
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	int ret;
+
+	dev_dbg(&icd->dev, "TRY_FMT(%c%c%c%c, %ux%u)\n",
+		pixfmtstr(pix->pixelformat), pix->width, pix->height);
+
+	pix->bytesperline = 0;
+	pix->sizeimage = 0;
+
+	ret = ici->ops->try_fmt(icd, f);
+	if (ret < 0)
+		return ret;
+
+	if (!pix->sizeimage) {
+		if (!pix->bytesperline) {
+			const struct soc_camera_format_xlate *xlate;
+
+			xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
+			if (!xlate)
+				return -EINVAL;
+
+			ret = soc_mbus_bytes_per_line(pix->width,
+						      xlate->host_fmt);
+			if (ret > 0)
+				pix->bytesperline = ret;
+		}
+		if (pix->bytesperline)
+			pix->sizeimage = pix->bytesperline * pix->height;
+	}
+
+	return 0;
+}
+
 static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 				      struct v4l2_format *f)
 {
 	struct soc_camera_device *icd = file->private_data;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
 	WARN_ON(priv != file->private_data);
 
@@ -149,7 +193,7 @@ static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 
 	/* limit format to hardware capabilities */
-	return ici->ops->try_fmt(icd, f);
+	return soc_camera_try_fmt(icd, f);
 }
 
 static int soc_camera_enum_input(struct file *file, void *priv,
@@ -319,8 +363,6 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 	if (!icd->user_formats)
 		return -ENOMEM;
 
-	icd->num_user_formats = fmts;
-
 	dev_dbg(&icd->dev, "Found %d supported formats.\n", fmts);
 
 	/* Second pass - actually fill data formats */
@@ -328,9 +370,10 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 	for (i = 0; i < raw_fmts; i++)
 		if (!ici->ops->get_formats) {
 			v4l2_subdev_call(sd, video, enum_mbus_fmt, i, &code);
-			icd->user_formats[i].host_fmt =
+			icd->user_formats[fmts].host_fmt =
 				soc_mbus_get_fmtdesc(code);
-			icd->user_formats[i].code = code;
+			if (icd->user_formats[fmts].host_fmt)
+				icd->user_formats[fmts++].code = code;
 		} else {
 			ret = ici->ops->get_formats(icd, i,
 						    &icd->user_formats[fmts]);
@@ -339,12 +382,12 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 			fmts += ret;
 		}
 
+	icd->num_user_formats = fmts;
 	icd->current_fmt = &icd->user_formats[0];
 
 	return 0;
 
 egfmt:
-	icd->num_user_formats = 0;
 	vfree(icd->user_formats);
 	return ret;
 }
@@ -362,9 +405,6 @@ static void soc_camera_free_user_formats(struct soc_camera_device *icd)
 	icd->user_formats = NULL;
 }
 
-#define pixfmtstr(x) (x) & 0xff, ((x) >> 8) & 0xff, ((x) >> 16) & 0xff, \
-	((x) >> 24) & 0xff
-
 /* Called with .vb_lock held, or from the first open(2), see comment there */
 static int soc_camera_set_fmt(struct soc_camera_device *icd,
 			      struct v4l2_format *f)
@@ -377,7 +417,7 @@ static int soc_camera_set_fmt(struct soc_camera_device *icd,
 		pixfmtstr(pix->pixelformat), pix->width, pix->height);
 
 	/* We always call try_fmt() before set_fmt() or set_crop() */
-	ret = ici->ops->try_fmt(icd, f);
+	ret = soc_camera_try_fmt(icd, f);
 	if (ret < 0)
 		return ret;
 
@@ -626,7 +666,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 	if (icd->streamer && icd->streamer != file)
 		return -EBUSY;
 
-	if (icd->vb_vidq.bufs[0]) {
+	if (is_streaming(to_soc_camera_host(icd->dev.parent), icd)) {
 		dev_err(&icd->dev, "S_FMT denied: queue initialised\n");
 		return -EBUSY;
 	}
@@ -867,14 +907,17 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	if (ret < 0) {
 		dev_err(&icd->dev,
 			"S_CROP denied: getting current crop failed\n");
-	} else if (icd->vb_vidq.bufs[0] &&
-		   (a->c.width != current_crop.c.width ||
-		    a->c.height != current_crop.c.height)) {
+	} else if ((a->c.width == current_crop.c.width &&
+		    a->c.height == current_crop.c.height) ||
+		   !is_streaming(ici, icd)) {
+		/* same size or not streaming - use .set_crop() */
+		ret = ici->ops->set_crop(icd, a);
+	} else if (ici->ops->set_livecrop) {
+		ret = ici->ops->set_livecrop(icd, a);
+	} else {
 		dev_err(&icd->dev,
 			"S_CROP denied: queue initialised and sizes differ\n");
 		ret = -EBUSY;
-	} else {
-		ret = ici->ops->set_crop(icd, a);
 	}
 
 	return ret;
@@ -996,10 +1039,11 @@ static void soc_camera_free_i2c(struct soc_camera_device *icd)
 {
 	struct i2c_client *client =
 		to_i2c_client(to_soc_camera_control(icd));
+	struct i2c_adapter *adap = client->adapter;
 	dev_set_drvdata(&icd->dev, NULL);
 	v4l2_device_unregister_subdev(i2c_get_clientdata(client));
 	i2c_unregister_device(client);
-	i2c_put_adapter(client->adapter);
+	i2c_put_adapter(adap);
 }
 #else
 #define soc_camera_init_i2c(icd, icl)	(-ENODEV)
@@ -1071,6 +1115,9 @@ static int soc_camera_probe(struct device *dev)
 		}
 	}
 
+	sd = soc_camera_to_subdev(icd);
+	sd->grp_id = (long)icd;
+
 	/* At this point client .probe() should have run already */
 	ret = soc_camera_init_user_formats(icd);
 	if (ret < 0)
@@ -1092,7 +1139,6 @@ static int soc_camera_probe(struct device *dev)
 		goto evidstart;
 
 	/* Try to improve our guess of a reasonable window format */
-	sd = soc_camera_to_subdev(icd);
 	if (!v4l2_subdev_call(sd, video, g_mbus_fmt, &mf)) {
 		icd->user_width		= mf.width;
 		icd->user_height	= mf.height;

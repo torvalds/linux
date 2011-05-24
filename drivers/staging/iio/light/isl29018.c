@@ -402,16 +402,6 @@ static ssize_t show_proxim_ir(struct device *dev,
 	return get_sensor_data(dev, buf, COMMMAND1_OPMODE_PROX_ONCE);
 }
 
-/* Read name */
-static ssize_t show_name(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct isl29018_chip *chip = indio_dev->dev_data;
-
-	return sprintf(buf, "%s\n", chip->client->name);
-}
-
 static IIO_DEVICE_ATTR(range, S_IRUGO | S_IWUSR, show_range, store_range, 0);
 static IIO_CONST_ATTR(range_available, "1000 4000 16000 64000");
 static IIO_CONST_ATTR(adc_resolution_available, "4 8 12 16");
@@ -424,12 +414,10 @@ static IIO_DEVICE_ATTR(proximity_on_chip_ambient_infrared_supression,
 static IIO_DEVICE_ATTR(illuminance0_input, S_IRUGO, show_lux, NULL, 0);
 static IIO_DEVICE_ATTR(intensity_infrared_raw, S_IRUGO, show_ir, NULL, 0);
 static IIO_DEVICE_ATTR(proximity_raw, S_IRUGO, show_proxim_ir, NULL, 0);
-static IIO_DEVICE_ATTR(name, S_IRUGO, show_name, NULL, 0);
 
 #define ISL29018_DEV_ATTR(name) (&iio_dev_attr_##name.dev_attr.attr)
 #define ISL29018_CONST_ATTR(name) (&iio_const_attr_##name.dev_attr.attr)
 static struct attribute *isl29018_attributes[] = {
-	ISL29018_DEV_ATTR(name),
 	ISL29018_DEV_ATTR(range),
 	ISL29018_CONST_ATTR(range_available),
 	ISL29018_DEV_ATTR(adc_resolution),
@@ -467,6 +455,11 @@ static int isl29018_chip_init(struct i2c_client *client)
 	return 0;
 }
 
+static const struct iio_info isl29108_info = {
+	.attrs = &isl29108_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit isl29018_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -492,15 +485,15 @@ static int __devinit isl29018_probe(struct i2c_client *client,
 	if (err)
 		goto exit_free;
 
-	chip->indio_dev = iio_allocate_device();
+	chip->indio_dev = iio_allocate_device(0);
 	if (!chip->indio_dev) {
 		dev_err(&client->dev, "iio allocation fails\n");
 		goto exit_free;
 	}
-	chip->indio_dev->attrs = &isl29108_group;
+	chip->indio_dev->info = &isl29108_info;
+	chip->indio_dev->name = id->name;
 	chip->indio_dev->dev.parent = &client->dev;
 	chip->indio_dev->dev_data = (void *)(chip);
-	chip->indio_dev->driver_module = THIS_MODULE;
 	chip->indio_dev->modes = INDIO_DIRECT_MODE;
 	err = iio_device_register(chip->indio_dev);
 	if (err) {

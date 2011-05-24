@@ -101,17 +101,20 @@ static int fs_enet_fec_mii_reset(struct mii_bus *bus)
 	return 0;
 }
 
+static struct of_device_id fs_enet_mdio_fec_match[];
 static int __devinit fs_enet_mdio_probe(struct platform_device *ofdev)
 {
+	const struct of_device_id *match;
 	struct resource res;
 	struct mii_bus *new_bus;
 	struct fec_info *fec;
 	int (*get_bus_freq)(struct device_node *);
 	int ret = -ENOMEM, clock, speed;
 
-	if (!ofdev->dev.of_match)
+	match = of_match_device(fs_enet_mdio_fec_match, &ofdev->dev);
+	if (!match)
 		return -EINVAL;
-	get_bus_freq = ofdev->dev.of_match->data;
+	get_bus_freq = match->data;
 
 	new_bus = mdiobus_alloc();
 	if (!new_bus)

@@ -714,7 +714,7 @@ static void nilfs_btree_promote_key(struct nilfs_bmap *btree,
 				nilfs_btree_get_nonroot_node(path, level),
 				path[level].bp_index, key);
 			if (!buffer_dirty(path[level].bp_bh))
-				nilfs_btnode_mark_dirty(path[level].bp_bh);
+				mark_buffer_dirty(path[level].bp_bh);
 		} while ((path[level].bp_index == 0) &&
 			 (++level < nilfs_btree_height(btree) - 1));
 	}
@@ -739,7 +739,7 @@ static void nilfs_btree_do_insert(struct nilfs_bmap *btree,
 		nilfs_btree_node_insert(node, path[level].bp_index,
 					*keyp, *ptrp, ncblk);
 		if (!buffer_dirty(path[level].bp_bh))
-			nilfs_btnode_mark_dirty(path[level].bp_bh);
+			mark_buffer_dirty(path[level].bp_bh);
 
 		if (path[level].bp_index == 0)
 			nilfs_btree_promote_key(btree, path, level + 1,
@@ -777,9 +777,9 @@ static void nilfs_btree_carry_left(struct nilfs_bmap *btree,
 	nilfs_btree_node_move_left(left, node, n, ncblk, ncblk);
 
 	if (!buffer_dirty(path[level].bp_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_bh);
+		mark_buffer_dirty(path[level].bp_bh);
 	if (!buffer_dirty(path[level].bp_sib_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_sib_bh);
+		mark_buffer_dirty(path[level].bp_sib_bh);
 
 	nilfs_btree_promote_key(btree, path, level + 1,
 				nilfs_btree_node_get_key(node, 0));
@@ -823,9 +823,9 @@ static void nilfs_btree_carry_right(struct nilfs_bmap *btree,
 	nilfs_btree_node_move_right(node, right, n, ncblk, ncblk);
 
 	if (!buffer_dirty(path[level].bp_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_bh);
+		mark_buffer_dirty(path[level].bp_bh);
 	if (!buffer_dirty(path[level].bp_sib_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_sib_bh);
+		mark_buffer_dirty(path[level].bp_sib_bh);
 
 	path[level + 1].bp_index++;
 	nilfs_btree_promote_key(btree, path, level + 1,
@@ -870,9 +870,9 @@ static void nilfs_btree_split(struct nilfs_bmap *btree,
 	nilfs_btree_node_move_right(node, right, n, ncblk, ncblk);
 
 	if (!buffer_dirty(path[level].bp_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_bh);
+		mark_buffer_dirty(path[level].bp_bh);
 	if (!buffer_dirty(path[level].bp_sib_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_sib_bh);
+		mark_buffer_dirty(path[level].bp_sib_bh);
 
 	newkey = nilfs_btree_node_get_key(right, 0);
 	newptr = path[level].bp_newreq.bpr_ptr;
@@ -919,7 +919,7 @@ static void nilfs_btree_grow(struct nilfs_bmap *btree,
 	nilfs_btree_node_set_level(root, level + 1);
 
 	if (!buffer_dirty(path[level].bp_sib_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_sib_bh);
+		mark_buffer_dirty(path[level].bp_sib_bh);
 
 	path[level].bp_bh = path[level].bp_sib_bh;
 	path[level].bp_sib_bh = NULL;
@@ -1194,7 +1194,7 @@ static void nilfs_btree_do_delete(struct nilfs_bmap *btree,
 		nilfs_btree_node_delete(node, path[level].bp_index,
 					keyp, ptrp, ncblk);
 		if (!buffer_dirty(path[level].bp_bh))
-			nilfs_btnode_mark_dirty(path[level].bp_bh);
+			mark_buffer_dirty(path[level].bp_bh);
 		if (path[level].bp_index == 0)
 			nilfs_btree_promote_key(btree, path, level + 1,
 				nilfs_btree_node_get_key(node, 0));
@@ -1226,9 +1226,9 @@ static void nilfs_btree_borrow_left(struct nilfs_bmap *btree,
 	nilfs_btree_node_move_right(left, node, n, ncblk, ncblk);
 
 	if (!buffer_dirty(path[level].bp_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_bh);
+		mark_buffer_dirty(path[level].bp_bh);
 	if (!buffer_dirty(path[level].bp_sib_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_sib_bh);
+		mark_buffer_dirty(path[level].bp_sib_bh);
 
 	nilfs_btree_promote_key(btree, path, level + 1,
 				nilfs_btree_node_get_key(node, 0));
@@ -1258,9 +1258,9 @@ static void nilfs_btree_borrow_right(struct nilfs_bmap *btree,
 	nilfs_btree_node_move_left(node, right, n, ncblk, ncblk);
 
 	if (!buffer_dirty(path[level].bp_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_bh);
+		mark_buffer_dirty(path[level].bp_bh);
 	if (!buffer_dirty(path[level].bp_sib_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_sib_bh);
+		mark_buffer_dirty(path[level].bp_sib_bh);
 
 	path[level + 1].bp_index++;
 	nilfs_btree_promote_key(btree, path, level + 1,
@@ -1289,7 +1289,7 @@ static void nilfs_btree_concat_left(struct nilfs_bmap *btree,
 	nilfs_btree_node_move_left(left, node, n, ncblk, ncblk);
 
 	if (!buffer_dirty(path[level].bp_sib_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_sib_bh);
+		mark_buffer_dirty(path[level].bp_sib_bh);
 
 	nilfs_btnode_delete(path[level].bp_bh);
 	path[level].bp_bh = path[level].bp_sib_bh;
@@ -1315,7 +1315,7 @@ static void nilfs_btree_concat_right(struct nilfs_bmap *btree,
 	nilfs_btree_node_move_left(node, right, n, ncblk, ncblk);
 
 	if (!buffer_dirty(path[level].bp_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_bh);
+		mark_buffer_dirty(path[level].bp_bh);
 
 	nilfs_btnode_delete(path[level].bp_sib_bh);
 	path[level].bp_sib_bh = NULL;
@@ -1709,7 +1709,7 @@ nilfs_btree_commit_convert_and_insert(struct nilfs_bmap *btree,
 		nilfs_btree_node_init(node, 0, 1, n, ncblk, keys, ptrs);
 		nilfs_btree_node_insert(node, n, key, dreq->bpr_ptr, ncblk);
 		if (!buffer_dirty(bh))
-			nilfs_btnode_mark_dirty(bh);
+			mark_buffer_dirty(bh);
 		if (!nilfs_bmap_dirty(btree))
 			nilfs_bmap_set_dirty(btree);
 
@@ -1787,7 +1787,7 @@ static int nilfs_btree_propagate_p(struct nilfs_bmap *btree,
 {
 	while ((++level < nilfs_btree_height(btree) - 1) &&
 	       !buffer_dirty(path[level].bp_bh))
-		nilfs_btnode_mark_dirty(path[level].bp_bh);
+		mark_buffer_dirty(path[level].bp_bh);
 
 	return 0;
 }
@@ -2229,7 +2229,7 @@ static int nilfs_btree_mark(struct nilfs_bmap *btree, __u64 key, int level)
 	}
 
 	if (!buffer_dirty(bh))
-		nilfs_btnode_mark_dirty(bh);
+		mark_buffer_dirty(bh);
 	brelse(bh);
 	if (!nilfs_bmap_dirty(btree))
 		nilfs_bmap_set_dirty(btree);

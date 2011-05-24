@@ -696,6 +696,8 @@ information.</para>
     &sub-packed-yuv;
     &sub-grey;
     &sub-y10;
+    &sub-y12;
+    &sub-y10b;
     &sub-y16;
     &sub-yuyv;
     &sub-uyvy;
@@ -711,6 +713,7 @@ information.</para>
     &sub-nv12m;
     &sub-nv12mt;
     &sub-nv16;
+    &sub-m420;
   </section>
 
   <section>

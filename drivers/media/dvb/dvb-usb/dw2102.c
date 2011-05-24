@@ -121,11 +121,15 @@ static int dw210x_op_rw(struct usb_device *dev, u8 request, u16 value,
 			u16 index, u8 * data, u16 len, int flags)
 {
 	int ret;
-	u8 u8buf[len];
-
+	u8 *u8buf;
 	unsigned int pipe = (flags == DW210X_READ_MSG) ?
 				usb_rcvctrlpipe(dev, 0) : usb_sndctrlpipe(dev, 0);
 	u8 request_type = (flags == DW210X_READ_MSG) ? USB_DIR_IN : USB_DIR_OUT;
+
+	u8buf = kmalloc(len, GFP_KERNEL);
+	if (!u8buf)
+		return -ENOMEM;
+
 
 	if (flags == DW210X_WRITE_MSG)
 		memcpy(u8buf, data, len);
@@ -134,6 +138,8 @@ static int dw210x_op_rw(struct usb_device *dev, u8 request, u16 value,
 
 	if (flags == DW210X_READ_MSG)
 		memcpy(data, u8buf, len);
+
+	kfree(u8buf);
 	return ret;
 }
 
@@ -1377,7 +1383,7 @@ static struct rc_map_table rc_map_su3000_table[] = {
 	{ 0x0f, KEY_BLUE },	/* bottom yellow button */
 	{ 0x14, KEY_AUDIO },	/* Snapshot */
 	{ 0x38, KEY_TV },	/* TV/Radio */
-	{ 0x0c, KEY_ESC }	/* upper Red buttton */
+	{ 0x0c, KEY_ESC }	/* upper Red button */
 };
 
 static struct rc_map_dvb_usb_table_table keys_tables[] = {

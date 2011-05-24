@@ -110,7 +110,6 @@ void wakeup_source_add(struct wakeup_source *ws)
 	spin_lock_irq(&events_lock);
 	list_add_rcu(&ws->entry, &wakeup_sources);
 	spin_unlock_irq(&events_lock);
-	synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(wakeup_source_add);
 
@@ -258,7 +257,7 @@ void device_set_wakeup_capable(struct device *dev, bool capable)
 	if (!!dev->power.can_wakeup == !!capable)
 		return;
 
-	if (device_is_registered(dev)) {
+	if (device_is_registered(dev) && !list_empty(&dev->power.entry)) {
 		if (capable) {
 			if (wakeup_sysfs_add(dev))
 				return;

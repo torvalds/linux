@@ -550,6 +550,9 @@ void xhci_stop(struct usb_hcd *hcd)
 	del_timer_sync(&xhci->event_ring_timer);
 #endif
 
+	if (xhci->quirks & XHCI_AMD_PLL_FIX)
+		usb_amd_dev_put();
+
 	xhci_dbg(xhci, "// Disabling event ring interrupts\n");
 	temp = xhci_readl(xhci, &xhci->op_regs->status);
 	xhci_writel(xhci, temp & ~STS_EINT, &xhci->op_regs->status);
@@ -771,7 +774,9 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 
 	/* If restore operation fails, re-initialize the HC during resume */
 	if ((temp & STS_SRE) || hibernated) {
-		usb_root_hub_lost_power(hcd->self.root_hub);
+		/* Let the USB core know _both_ roothubs lost power. */
+		usb_root_hub_lost_power(xhci->main_hcd->self.root_hub);
+		usb_root_hub_lost_power(xhci->shared_hcd->self.root_hub);
 
 		xhci_dbg(xhci, "Stop HCD\n");
 		xhci_halt(xhci);
@@ -968,8 +973,8 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 
 	out_ctx = xhci->devs[slot_id]->out_ctx;
 	ep_ctx = xhci_get_ep_ctx(xhci, out_ctx, ep_index);
-	hw_max_packet_size = MAX_PACKET_DECODED(ep_ctx->ep_info2);
-	max_packet_size = urb->dev->ep0.desc.wMaxPacketSize;
+	hw_max_packet_size = MAX_PACKET_DECODED(le32_to_cpu(ep_ctx->ep_info2));
+	max_packet_size = le16_to_cpu(urb->dev->ep0.desc.wMaxPacketSize);
 	if (hw_max_packet_size != max_packet_size) {
 		xhci_dbg(xhci, "Max Packet Size for ep 0 changed.\n");
 		xhci_dbg(xhci, "Max packet size in usb_device = %d\n",
@@ -983,15 +988,15 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 				xhci->devs[slot_id]->out_ctx, ep_index);
 		in_ctx = xhci->devs[slot_id]->in_ctx;
 		ep_ctx = xhci_get_ep_ctx(xhci, in_ctx, ep_index);
-		ep_ctx->ep_info2 &= ~MAX_PACKET_MASK;
-		ep_ctx->ep_info2 |= MAX_PACKET(max_packet_size);
+		ep_ctx->ep_info2 &= cpu_to_le32(~MAX_PACKET_MASK);
+		ep_ctx->ep_info2 |= cpu_to_le32(MAX_PACKET(max_packet_size));
 
 		/* Set up the input context flags for the command */
 		/* FIXME: This won't work if a non-default control endpoint
 		 * changes max packet sizes.
 		 */
 		ctrl_ctx = xhci_get_input_control_ctx(xhci, in_ctx);
-		ctrl_ctx->add_flags = EP0_FLAG;
+		ctrl_ctx->add_flags = cpu_to_le32(EP0_FLAG);
 		ctrl_ctx->drop_flags = 0;
 
 		xhci_dbg(xhci, "Slot %d input context\n", slot_id);
@@ -1005,7 +1010,7 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 		/* Clean up the input context for later use by bandwidth
 		 * functions.
 		 */
-		ctrl_ctx->add_flags = SLOT_FLAG;
+		ctrl_ctx->add_flags = cpu_to_le32(SLOT_FLAG);
 	}
 	return ret;
 }
@@ -1326,27 +1331,30 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	/* If the HC already knows the endpoint is disabled,
 	 * or the HCD has noted it is disabled, ignore this request
 	 */
-	if ((ep_ctx->ep_info & EP_STATE_MASK) == EP_STATE_DISABLED ||
-			ctrl_ctx->drop_flags & xhci_get_endpoint_flag(&ep->desc)) {
+	if ((le32_to_cpu(ep_ctx->ep_info) & EP_STATE_MASK) ==
+	    EP_STATE_DISABLED ||
+	    le32_to_cpu(ctrl_ctx->drop_flags) &
+	    xhci_get_endpoint_flag(&ep->desc)) {
 		xhci_warn(xhci, "xHCI %s called with disabled ep %p\n",
 				__func__, ep);
 		return 0;
 	}
 
-	ctrl_ctx->drop_flags |= drop_flag;
-	new_drop_flags = ctrl_ctx->drop_flags;
+	ctrl_ctx->drop_flags |= cpu_to_le32(drop_flag);
+	new_drop_flags = le32_to_cpu(ctrl_ctx->drop_flags);
 
-	ctrl_ctx->add_flags &= ~drop_flag;
-	new_add_flags = ctrl_ctx->add_flags;
+	ctrl_ctx->add_flags &= cpu_to_le32(~drop_flag);
+	new_add_flags = le32_to_cpu(ctrl_ctx->add_flags);
 
-	last_ctx = xhci_last_valid_endpoint(ctrl_ctx->add_flags);
+	last_ctx = xhci_last_valid_endpoint(le32_to_cpu(ctrl_ctx->add_flags));
 	slot_ctx = xhci_get_slot_ctx(xhci, in_ctx);
 	/* Update the last valid endpoint context, if we deleted the last one */
-	if ((slot_ctx->dev_info & LAST_CTX_MASK) > LAST_CTX(last_ctx)) {
-		slot_ctx->dev_info &= ~LAST_CTX_MASK;
-		slot_ctx->dev_info |= LAST_CTX(last_ctx);
+	if ((le32_to_cpu(slot_ctx->dev_info) & LAST_CTX_MASK) >
+	    LAST_CTX(last_ctx)) {
+		slot_ctx->dev_info &= cpu_to_le32(~LAST_CTX_MASK);
+		slot_ctx->dev_info |= cpu_to_le32(LAST_CTX(last_ctx));
 	}
-	new_slot_info = slot_ctx->dev_info;
+	new_slot_info = le32_to_cpu(slot_ctx->dev_info);
 
 	xhci_endpoint_zero(xhci, xhci->devs[udev->slot_id], ep);
 
@@ -1414,7 +1422,8 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	/* If the HCD has already noted the endpoint is enabled,
 	 * ignore this request.
 	 */
-	if (ctrl_ctx->add_flags & xhci_get_endpoint_flag(&ep->desc)) {
+	if (le32_to_cpu(ctrl_ctx->add_flags) &
+	    xhci_get_endpoint_flag(&ep->desc)) {
 		xhci_warn(xhci, "xHCI %s called with enabled ep %p\n",
 				__func__, ep);
 		return 0;
@@ -1432,8 +1441,8 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		return -ENOMEM;
 	}
 
-	ctrl_ctx->add_flags |= added_ctxs;
-	new_add_flags = ctrl_ctx->add_flags;
+	ctrl_ctx->add_flags |= cpu_to_le32(added_ctxs);
+	new_add_flags = le32_to_cpu(ctrl_ctx->add_flags);
 
 	/* If xhci_endpoint_disable() was called for this endpoint, but the
 	 * xHC hasn't been notified yet through the check_bandwidth() call,
@@ -1441,15 +1450,16 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	 * descriptors.  We must drop and re-add this endpoint, so we leave the
 	 * drop flags alone.
 	 */
-	new_drop_flags = ctrl_ctx->drop_flags;
+	new_drop_flags = le32_to_cpu(ctrl_ctx->drop_flags);
 
 	slot_ctx = xhci_get_slot_ctx(xhci, in_ctx);
 	/* Update the last valid endpoint context, if we just added one past */
-	if ((slot_ctx->dev_info & LAST_CTX_MASK) < LAST_CTX(last_ctx)) {
-		slot_ctx->dev_info &= ~LAST_CTX_MASK;
-		slot_ctx->dev_info |= LAST_CTX(last_ctx);
+	if ((le32_to_cpu(slot_ctx->dev_info) & LAST_CTX_MASK) <
+	    LAST_CTX(last_ctx)) {
+		slot_ctx->dev_info &= cpu_to_le32(~LAST_CTX_MASK);
+		slot_ctx->dev_info |= cpu_to_le32(LAST_CTX(last_ctx));
 	}
-	new_slot_info = slot_ctx->dev_info;
+	new_slot_info = le32_to_cpu(slot_ctx->dev_info);
 
 	/* Store the usb_device pointer for later use */
 	ep->hcpriv = udev;
@@ -1479,9 +1489,9 @@ static void xhci_zero_in_ctx(struct xhci_hcd *xhci, struct xhci_virt_device *vir
 	ctrl_ctx->drop_flags = 0;
 	ctrl_ctx->add_flags = 0;
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->in_ctx);
-	slot_ctx->dev_info &= ~LAST_CTX_MASK;
+	slot_ctx->dev_info &= cpu_to_le32(~LAST_CTX_MASK);
 	/* Endpoint 0 is always valid */
-	slot_ctx->dev_info |= LAST_CTX(1);
+	slot_ctx->dev_info |= cpu_to_le32(LAST_CTX(1));
 	for (i = 1; i < 31; ++i) {
 		ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, i);
 		ep_ctx->ep_info = 0;
@@ -1492,7 +1502,7 @@ static void xhci_zero_in_ctx(struct xhci_hcd *xhci, struct xhci_virt_device *vir
 }
 
 static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
-		struct usb_device *udev, int *cmd_status)
+		struct usb_device *udev, u32 *cmd_status)
 {
 	int ret;
 
@@ -1530,7 +1540,7 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 }
 
 static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
-		struct usb_device *udev, int *cmd_status)
+		struct usb_device *udev, u32 *cmd_status)
 {
 	int ret;
 	struct xhci_virt_device *virt_dev = xhci->devs[udev->slot_id];
@@ -1548,6 +1558,11 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 		dev_warn(&udev->dev, "WARN: invalid context state for "
 				"evaluate context command.\n");
 		xhci_dbg_ctx(xhci, virt_dev->out_ctx, 1);
+		ret = -EINVAL;
+		break;
+	case COMP_MEL_ERR:
+		/* Max Exit Latency too large error */
+		dev_warn(&udev->dev, "WARN: Max Exit Latency too large\n");
 		ret = -EINVAL;
 		break;
 	case COMP_SUCCESS:
@@ -1576,7 +1591,7 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	unsigned long flags;
 	struct xhci_container_ctx *in_ctx;
 	struct completion *cmd_completion;
-	int *cmd_status;
+	u32 *cmd_status;
 	struct xhci_virt_device *virt_dev;
 
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -1590,8 +1605,8 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 		/* Enqueue pointer can be left pointing to the link TRB,
 		 * we must handle that
 		 */
-		if ((command->command_trb->link.control & TRB_TYPE_BITMASK)
-				== TRB_TYPE(TRB_LINK))
+		if ((le32_to_cpu(command->command_trb->link.control)
+		     & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK))
 			command->command_trb =
 				xhci->cmd_ring->enq_seg->next->trbs;
 
@@ -1667,14 +1682,13 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 
 	/* See section 4.6.6 - A0 = 1; A1 = D0 = D1 = 0 */
 	ctrl_ctx = xhci_get_input_control_ctx(xhci, virt_dev->in_ctx);
-	ctrl_ctx->add_flags |= SLOT_FLAG;
-	ctrl_ctx->add_flags &= ~EP0_FLAG;
-	ctrl_ctx->drop_flags &= ~SLOT_FLAG;
-	ctrl_ctx->drop_flags &= ~EP0_FLAG;
+	ctrl_ctx->add_flags |= cpu_to_le32(SLOT_FLAG);
+	ctrl_ctx->add_flags &= cpu_to_le32(~EP0_FLAG);
+	ctrl_ctx->drop_flags &= cpu_to_le32(~(SLOT_FLAG | EP0_FLAG));
 	xhci_dbg(xhci, "New Input Control Context:\n");
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->in_ctx);
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx,
-			LAST_CTX_TO_EP_NUM(slot_ctx->dev_info));
+		     LAST_CTX_TO_EP_NUM(le32_to_cpu(slot_ctx->dev_info)));
 
 	ret = xhci_configure_endpoint(xhci, udev, NULL,
 			false, false);
@@ -1685,10 +1699,19 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 
 	xhci_dbg(xhci, "Output context after successful config ep cmd:\n");
 	xhci_dbg_ctx(xhci, virt_dev->out_ctx,
-			LAST_CTX_TO_EP_NUM(slot_ctx->dev_info));
+		     LAST_CTX_TO_EP_NUM(le32_to_cpu(slot_ctx->dev_info)));
 
+	/* Free any rings that were dropped, but not changed. */
+	for (i = 1; i < 31; ++i) {
+		if ((ctrl_ctx->drop_flags & (1 << (i + 1))) &&
+				!(ctrl_ctx->add_flags & (1 << (i + 1))))
+			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
+	}
 	xhci_zero_in_ctx(xhci, virt_dev);
-	/* Install new rings and free or cache any old rings */
+	/*
+	 * Install any rings for completely new endpoints or changed endpoints,
+	 * and free or cache any old rings from changed endpoints.
+	 */
 	for (i = 1; i < 31; ++i) {
 		if (!virt_dev->eps[i].new_ring)
 			continue;
@@ -1735,10 +1758,10 @@ static void xhci_setup_input_ctx_for_config_ep(struct xhci_hcd *xhci,
 {
 	struct xhci_input_control_ctx *ctrl_ctx;
 	ctrl_ctx = xhci_get_input_control_ctx(xhci, in_ctx);
-	ctrl_ctx->add_flags = add_flags;
-	ctrl_ctx->drop_flags = drop_flags;
+	ctrl_ctx->add_flags = cpu_to_le32(add_flags);
+	ctrl_ctx->drop_flags = cpu_to_le32(drop_flags);
 	xhci_slot_copy(xhci, in_ctx, out_ctx);
-	ctrl_ctx->add_flags |= SLOT_FLAG;
+	ctrl_ctx->add_flags |= cpu_to_le32(SLOT_FLAG);
 
 	xhci_dbg(xhci, "Input Context:\n");
 	xhci_dbg_ctx(xhci, in_ctx, xhci_last_valid_endpoint(add_flags));
@@ -1767,7 +1790,7 @@ static void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
 				deq_state->new_deq_ptr);
 		return;
 	}
-	ep_ctx->deq = addr | deq_state->new_cycle_state;
+	ep_ctx->deq = cpu_to_le64(addr | deq_state->new_cycle_state);
 
 	added_ctxs = xhci_get_endpoint_flag_from_index(ep_index);
 	xhci_setup_input_ctx_for_config_ep(xhci, xhci->devs[slot_id]->in_ctx,
@@ -2322,8 +2345,8 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 	/* Enqueue pointer can be left pointing to the link TRB,
 	 * we must handle that
 	 */
-	if ((reset_device_cmd->command_trb->link.control & TRB_TYPE_BITMASK)
-			== TRB_TYPE(TRB_LINK))
+	if ((le32_to_cpu(reset_device_cmd->command_trb->link.control)
+	     & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK))
 		reset_device_cmd->command_trb =
 			xhci->cmd_ring->enq_seg->next->trbs;
 
@@ -2386,10 +2409,18 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 	/* Everything but endpoint 0 is disabled, so free or cache the rings. */
 	last_freed_endpoint = 1;
 	for (i = 1; i < 31; ++i) {
-		if (!virt_dev->eps[i].ring)
-			continue;
-		xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
-		last_freed_endpoint = i;
+		struct xhci_virt_ep *ep = &virt_dev->eps[i];
+
+		if (ep->ep_state & EP_HAS_STREAMS) {
+			xhci_free_stream_info(xhci, ep->stream_info);
+			ep->stream_info = NULL;
+			ep->ep_state &= ~EP_HAS_STREAMS;
+		}
+
+		if (ep->ring) {
+			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
+			last_freed_endpoint = i;
+		}
 	}
 	xhci_dbg(xhci, "Output context after successful reset device cmd:\n");
 	xhci_dbg_ctx(xhci, virt_dev->out_ctx, last_freed_endpoint);
@@ -2529,6 +2560,17 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 
 	virt_dev = xhci->devs[udev->slot_id];
 
+	if (WARN_ON(!virt_dev)) {
+		/*
+		 * In plug/unplug torture test with an NEC controller,
+		 * a zero-dereference was observed once due to virt_dev = 0.
+		 * Print useful debug rather than crash if it is observed again!
+		 */
+		xhci_warn(xhci, "Virt dev invalid for slot_id 0x%x!\n",
+			udev->slot_id);
+		return -EINVAL;
+	}
+
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->in_ctx);
 	/*
 	 * If this is the first Set Address since device plug-in or
@@ -2596,10 +2638,10 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	temp_64 = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
 	xhci_dbg(xhci, "Op regs DCBAA ptr = %#016llx\n", temp_64);
 	xhci_dbg(xhci, "Slot ID %d dcbaa entry @%p = %#016llx\n",
-			udev->slot_id,
-			&xhci->dcbaa->dev_context_ptrs[udev->slot_id],
-			(unsigned long long)
-				xhci->dcbaa->dev_context_ptrs[udev->slot_id]);
+		 udev->slot_id,
+		 &xhci->dcbaa->dev_context_ptrs[udev->slot_id],
+		 (unsigned long long)
+		 le64_to_cpu(xhci->dcbaa->dev_context_ptrs[udev->slot_id]));
 	xhci_dbg(xhci, "Output Context DMA address = %#08llx\n",
 			(unsigned long long)virt_dev->out_ctx->dma);
 	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);
@@ -2613,7 +2655,8 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->out_ctx);
 	/* Use kernel assigned address for devices; store xHC assigned
 	 * address locally. */
-	virt_dev->address = (slot_ctx->dev_state & DEV_ADDR_MASK) + 1;
+	virt_dev->address = (le32_to_cpu(slot_ctx->dev_state) & DEV_ADDR_MASK)
+		+ 1;
 	/* Zero the input context control for later use */
 	ctrl_ctx = xhci_get_input_control_ctx(xhci, virt_dev->in_ctx);
 	ctrl_ctx->add_flags = 0;
@@ -2657,24 +2700,29 @@ int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 	spin_lock_irqsave(&xhci->lock, flags);
 	xhci_slot_copy(xhci, config_cmd->in_ctx, vdev->out_ctx);
 	ctrl_ctx = xhci_get_input_control_ctx(xhci, config_cmd->in_ctx);
-	ctrl_ctx->add_flags |= SLOT_FLAG;
+	ctrl_ctx->add_flags |= cpu_to_le32(SLOT_FLAG);
 	slot_ctx = xhci_get_slot_ctx(xhci, config_cmd->in_ctx);
-	slot_ctx->dev_info |= DEV_HUB;
+	slot_ctx->dev_info |= cpu_to_le32(DEV_HUB);
 	if (tt->multi)
-		slot_ctx->dev_info |= DEV_MTT;
+		slot_ctx->dev_info |= cpu_to_le32(DEV_MTT);
 	if (xhci->hci_version > 0x95) {
 		xhci_dbg(xhci, "xHCI version %x needs hub "
 				"TT think time and number of ports\n",
 				(unsigned int) xhci->hci_version);
-		slot_ctx->dev_info2 |= XHCI_MAX_PORTS(hdev->maxchild);
+		slot_ctx->dev_info2 |= cpu_to_le32(XHCI_MAX_PORTS(hdev->maxchild));
 		/* Set TT think time - convert from ns to FS bit times.
 		 * 0 = 8 FS bit times, 1 = 16 FS bit times,
 		 * 2 = 24 FS bit times, 3 = 32 FS bit times.
+		 *
+		 * xHCI 1.0: this field shall be 0 if the device is not a
+		 * High-spped hub.
 		 */
 		think_time = tt->think_time;
 		if (think_time != 0)
 			think_time = (think_time / 666) - 1;
-		slot_ctx->tt_info |= TT_THINK_TIME(think_time);
+		if (xhci->hci_version < 0x100 || hdev->speed == USB_SPEED_HIGH)
+			slot_ctx->tt_info |=
+				cpu_to_le32(TT_THINK_TIME(think_time));
 	} else {
 		xhci_dbg(xhci, "xHCI version %x doesn't need hub "
 				"TT think time or number of ports\n",

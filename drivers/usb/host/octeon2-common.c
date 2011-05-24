@@ -3,18 +3,19 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2010 Cavium Networks
+ * Copyright (C) 2010, 2011 Cavium Networks
  */
 
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/delay.h>
-
-#include <asm/atomic.h>
 
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/cvmx-uctlx-defs.h>
 
-static atomic_t  octeon2_usb_clock_start_cnt = ATOMIC_INIT(0);
+static DEFINE_MUTEX(octeon2_usb_clocks_mutex);
+
+static int octeon2_usb_clock_start_cnt;
 
 void octeon2_usb_clocks_start(void)
 {
@@ -26,8 +27,12 @@ void octeon2_usb_clocks_start(void)
 	int i;
 	unsigned long io_clk_64_to_ns;
 
-	if (atomic_inc_return(&octeon2_usb_clock_start_cnt) != 1)
-		return;
+
+	mutex_lock(&octeon2_usb_clocks_mutex);
+
+	octeon2_usb_clock_start_cnt++;
+	if (octeon2_usb_clock_start_cnt != 1)
+		goto exit;
 
 	io_clk_64_to_ns = 64000000000ull / octeon_get_io_clock_rate();
 
@@ -43,6 +48,13 @@ void octeon2_usb_clocks_start(void)
 
 	/* Step 3: Configure the reference clock, PHY, and HCLK */
 	clk_rst_ctl.u64 = cvmx_read_csr(CVMX_UCTLX_CLK_RST_CTL(0));
+
+	/*
+	 * If the UCTL looks like it has already been started, skip
+	 * the initialization, otherwise bus errors are obtained.
+	 */
+	if (clk_rst_ctl.s.hrst)
+		goto end_clock;
 	/* 3a */
 	clk_rst_ctl.s.p_por = 1;
 	clk_rst_ctl.s.hrst = 0;
@@ -158,28 +170,31 @@ void octeon2_usb_clocks_start(void)
 	clk_rst_ctl.s.hrst = 1;
 	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
 
+end_clock:
 	/* Now we can set some other registers.  */
 
 	for (i = 0; i <= 1; i++) {
 		port_ctl_status.u64 =
 			cvmx_read_csr(CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(i, 0));
-		/* Set txvreftune to 15 to obtain complient 'eye' diagram. */
+		/* Set txvreftune to 15 to obtain compliant 'eye' diagram. */
 		port_ctl_status.s.txvreftune = 15;
+		port_ctl_status.s.txrisetune = 1;
+		port_ctl_status.s.txpreemphasistune = 1;
 		cvmx_write_csr(CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(i, 0),
 			       port_ctl_status.u64);
 	}
+
+	/* Set uSOF cycle period to 60,000 bits. */
+	cvmx_write_csr(CVMX_UCTLX_EHCI_FLA(0), 0x20ull);
+exit:
+	mutex_unlock(&octeon2_usb_clocks_mutex);
 }
 EXPORT_SYMBOL(octeon2_usb_clocks_start);
 
 void octeon2_usb_clocks_stop(void)
 {
-	union cvmx_uctlx_if_ena if_ena;
-
-	if (atomic_dec_return(&octeon2_usb_clock_start_cnt) != 0)
-		return;
-
-	if_ena.u64 = 0;
-	if_ena.s.en = 0;
-	cvmx_write_csr(CVMX_UCTLX_IF_ENA(0), if_ena.u64);
+	mutex_lock(&octeon2_usb_clocks_mutex);
+	octeon2_usb_clock_start_cnt--;
+	mutex_unlock(&octeon2_usb_clocks_mutex);
 }
 EXPORT_SYMBOL(octeon2_usb_clocks_stop);

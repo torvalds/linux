@@ -1,11 +1,7 @@
-config CAVIUM_OCTEON_SPECIFIC_OPTIONS
-	bool "Enable Octeon specific options"
-	depends on CPU_CAVIUM_OCTEON
-	default "y"
+if CPU_CAVIUM_OCTEON
 
 config CAVIUM_CN63XXP1
 	bool "Enable CN63XXP1 errata worarounds"
-	depends on CAVIUM_OCTEON_SPECIFIC_OPTIONS
 	default "n"
 	help
 	  The CN63XXP1 chip requires build time workarounds to
@@ -16,7 +12,6 @@ config CAVIUM_CN63XXP1
 
 config CAVIUM_OCTEON_2ND_KERNEL
 	bool "Build the kernel to be used as a 2nd kernel on the same chip"
-	depends on CAVIUM_OCTEON_SPECIFIC_OPTIONS
 	default "n"
 	help
 	  This option configures this kernel to be linked at a different
@@ -26,7 +21,6 @@ config CAVIUM_OCTEON_2ND_KERNEL
 
 config CAVIUM_OCTEON_HW_FIX_UNALIGNED
 	bool "Enable hardware fixups of unaligned loads and stores"
-	depends on CAVIUM_OCTEON_SPECIFIC_OPTIONS
 	default "y"
 	help
 	  Configure the Octeon hardware to automatically fix unaligned loads
@@ -38,7 +32,6 @@ config CAVIUM_OCTEON_HW_FIX_UNALIGNED
 
 config CAVIUM_OCTEON_CVMSEG_SIZE
 	int "Number of L1 cache lines reserved for CVMSEG memory"
-	depends on CAVIUM_OCTEON_SPECIFIC_OPTIONS
 	range 0 54
 	default 1
 	help
@@ -50,7 +43,6 @@ config CAVIUM_OCTEON_CVMSEG_SIZE
 
 config CAVIUM_OCTEON_LOCK_L2
 	bool "Lock often used kernel code in the L2"
-	depends on CAVIUM_OCTEON_SPECIFIC_OPTIONS
 	default "y"
 	help
 	  Enable locking parts of the kernel into the L2 cache.
@@ -93,7 +85,6 @@ config CAVIUM_OCTEON_LOCK_L2_MEMCPY
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
 	select SPARSEMEM_STATIC
-	depends on CPU_CAVIUM_OCTEON
 
 config CAVIUM_OCTEON_HELPER
 	def_bool y
@@ -107,6 +98,8 @@ config NEED_SG_DMA_LENGTH
 
 config SWIOTLB
 	def_bool y
-	depends on CPU_CAVIUM_OCTEON
 	select IOMMU_HELPER
 	select NEED_SG_DMA_LENGTH
+
+
+endif # CPU_CAVIUM_OCTEON

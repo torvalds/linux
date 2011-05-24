@@ -707,7 +707,8 @@ static void ir_close(struct input_dev *idev)
 {
 	struct rc_dev *rdev = input_get_drvdata(idev);
 
-	rdev->close(rdev);
+	 if (rdev)
+		rdev->close(rdev);
 }
 
 /* class for /sys/class/rc */
@@ -733,6 +734,7 @@ static struct {
 	{ RC_TYPE_SONY,		"sony"		},
 	{ RC_TYPE_RC5_SZ,	"rc-5-sz"	},
 	{ RC_TYPE_LIRC,		"lirc"		},
+	{ RC_TYPE_OTHER,	"other"		},
 };
 
 #define PROTO_NONE	"none"
@@ -747,6 +749,9 @@ static struct {
  * it is trigged by reading /sys/class/rc/rc?/protocols.
  * It returns the protocol names of supported protocols.
  * Enabled protocols are printed in brackets.
+ *
+ * dev->lock is taken to guard against races between device
+ * registration, store_protocols and show_protocols.
  */
 static ssize_t show_protocols(struct device *device,
 			      struct device_attribute *mattr, char *buf)
@@ -759,6 +764,8 @@ static ssize_t show_protocols(struct device *device,
 	/* Device is being removed */
 	if (!dev)
 		return -EINVAL;
+
+	mutex_lock(&dev->lock);
 
 	if (dev->driver_type == RC_DRIVER_SCANCODE) {
 		enabled = dev->rc_map.rc_type;
@@ -782,6 +789,9 @@ static ssize_t show_protocols(struct device *device,
 	if (tmp != buf)
 		tmp--;
 	*tmp = '\n';
+
+	mutex_unlock(&dev->lock);
+
 	return tmp + 1 - buf;
 }
 
@@ -800,6 +810,9 @@ static ssize_t show_protocols(struct device *device,
  * Writing "none" will disable all protocols.
  * Returns -EINVAL if an invalid protocol combination or unknown protocol name
  * is used, otherwise @len.
+ *
+ * dev->lock is taken to guard against races between device
+ * registration, store_protocols and show_protocols.
  */
 static ssize_t store_protocols(struct device *device,
 			       struct device_attribute *mattr,
@@ -813,10 +826,13 @@ static ssize_t store_protocols(struct device *device,
 	u64 mask;
 	int rc, i, count = 0;
 	unsigned long flags;
+	ssize_t ret;
 
 	/* Device is being removed */
 	if (!dev)
 		return -EINVAL;
+
+	mutex_lock(&dev->lock);
 
 	if (dev->driver_type == RC_DRIVER_SCANCODE)
 		type = dev->rc_map.rc_type;
@@ -824,7 +840,8 @@ static ssize_t store_protocols(struct device *device,
 		type = dev->raw->enabled_protocols;
 	else {
 		IR_dprintk(1, "Protocol switching not supported\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	while ((tmp = strsep((char **) &data, " \n")) != NULL) {
@@ -858,7 +875,8 @@ static ssize_t store_protocols(struct device *device,
 			}
 			if (i == ARRAY_SIZE(proto_names)) {
 				IR_dprintk(1, "Unknown protocol: '%s'\n", tmp);
-				return -EINVAL;
+				ret = -EINVAL;
+				goto out;
 			}
 			count++;
 		}
@@ -873,7 +891,8 @@ static ssize_t store_protocols(struct device *device,
 
 	if (!count) {
 		IR_dprintk(1, "Protocol not specified\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	if (dev->change_protocol) {
@@ -881,7 +900,8 @@ static ssize_t store_protocols(struct device *device,
 		if (rc < 0) {
 			IR_dprintk(1, "Error setting protocols to 0x%llx\n",
 				   (long long)type);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 	}
 
@@ -896,7 +916,11 @@ static ssize_t store_protocols(struct device *device,
 	IR_dprintk(1, "Current protocol(s): 0x%llx\n",
 		   (long long)type);
 
-	return len;
+	ret = len;
+
+out:
+	mutex_unlock(&dev->lock);
+	return ret;
 }
 
 static void rc_dev_release(struct device *device)
@@ -972,6 +996,7 @@ struct rc_dev *rc_allocate_device(void)
 
 	spin_lock_init(&dev->rc_map.lock);
 	spin_lock_init(&dev->keylock);
+	mutex_init(&dev->lock);
 	setup_timer(&dev->timer_keyup, ir_timer_keyup, (unsigned long)dev);
 
 	dev->dev.type = &rc_dev_type;
@@ -1017,12 +1042,21 @@ int rc_register_device(struct rc_dev *dev)
 	if (dev->close)
 		dev->input_dev->close = ir_close;
 
+	/*
+	 * Take the lock here, as the device sysfs node will appear
+	 * when device_add() is called, which may trigger an ir-keytable udev
+	 * rule, which will in turn call show_protocols and access either
+	 * dev->rc_map.rc_type or dev->raw->enabled_protocols before it has
+	 * been initialized.
+	 */
+	mutex_lock(&dev->lock);
+
 	dev->devno = (unsigned long)(atomic_inc_return(&devno) - 1);
 	dev_set_name(&dev->dev, "rc%ld", dev->devno);
 	dev_set_drvdata(&dev->dev, dev);
 	rc = device_add(&dev->dev);
 	if (rc)
-		return rc;
+		goto out_unlock;
 
 	rc = ir_setkeytable(dev, rc_map);
 	if (rc)
@@ -1044,6 +1078,13 @@ int rc_register_device(struct rc_dev *dev)
 	 */
 	dev->input_dev->rep[REP_DELAY] = 500;
 
+	/*
+	 * As a repeat event on protocols like RC-5 and NEC take as long as
+	 * 110/114ms, using 33ms as a repeat period is not the right thing
+	 * to do.
+	 */
+	dev->input_dev->rep[REP_PERIOD] = 125;
+
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	printk(KERN_INFO "%s: %s as %s\n",
 		dev_name(&dev->dev),
@@ -1056,6 +1097,7 @@ int rc_register_device(struct rc_dev *dev)
 		if (rc < 0)
 			goto out_input;
 	}
+	mutex_unlock(&dev->lock);
 
 	if (dev->change_protocol) {
 		rc = dev->change_protocol(dev, rc_map->rc_type);
@@ -1081,6 +1123,8 @@ out_table:
 	ir_free_table(&dev->rc_map);
 out_dev:
 	device_del(&dev->dev);
+out_unlock:
+	mutex_unlock(&dev->lock);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(rc_register_device);

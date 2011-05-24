@@ -160,6 +160,7 @@ struct twl4030_usb {
 
 	int			irq;
 	u8			linkstat;
+	bool			vbus_supplied;
 	u8			asleep;
 	bool			irq_enabled;
 };
@@ -250,6 +251,8 @@ static enum usb_xceiv_events twl4030_usb_linkstat(struct twl4030_usb *twl)
 	int	status;
 	int	linkstat = USB_EVENT_NONE;
 
+	twl->vbus_supplied = false;
+
 	/*
 	 * For ID/VBUS sensing, see manual section 15.4.8 ...
 	 * except when using only battery backup power, two
@@ -265,6 +268,9 @@ static enum usb_xceiv_events twl4030_usb_linkstat(struct twl4030_usb *twl)
 	if (status < 0)
 		dev_err(twl->dev, "USB link status err %d\n", status);
 	else if (status & (BIT(7) | BIT(2))) {
+		if (status & (BIT(7)))
+                        twl->vbus_supplied = true;
+
 		if (status & BIT(2))
 			linkstat = USB_EVENT_ID;
 		else
@@ -484,7 +490,7 @@ static ssize_t twl4030_usb_vbus_show(struct device *dev,
 
 	spin_lock_irqsave(&twl->lock, flags);
 	ret = sprintf(buf, "%s\n",
-			(twl->linkstat == USB_EVENT_VBUS) ? "on" : "off");
+			twl->vbus_supplied ? "on" : "off");
 	spin_unlock_irqrestore(&twl->lock, flags);
 
 	return ret;
@@ -608,6 +614,7 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 	twl->otg.set_peripheral	= twl4030_set_peripheral;
 	twl->otg.set_suspend	= twl4030_set_suspend;
 	twl->usb_mode		= pdata->usb_mode;
+	twl->vbus_supplied	= false;
 	twl->asleep = 1;
 
 	/* init spinlock for workqueue */

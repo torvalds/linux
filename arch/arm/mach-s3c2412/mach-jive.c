@@ -17,7 +17,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
@@ -486,7 +486,7 @@ static struct s3c2410_udc_mach_info jive_udc_cfg __initdata = {
 /* Jive power management device */
 
 #ifdef CONFIG_PM
-static int jive_pm_suspend(struct sys_device *sd, pm_message_t state)
+static int jive_pm_suspend(void)
 {
 	/* Write the magic value u-boot uses to check for resume into
 	 * the INFORM0 register, and ensure INFORM1 is set to the
@@ -498,10 +498,9 @@ static int jive_pm_suspend(struct sys_device *sd, pm_message_t state)
 	return 0;
 }
 
-static int jive_pm_resume(struct sys_device *sd)
+static void jive_pm_resume(void)
 {
 	__raw_writel(0x0, S3C2412_INFORM0);
-	return 0;
 }
 
 #else
@@ -509,14 +508,9 @@ static int jive_pm_resume(struct sys_device *sd)
 #define jive_pm_resume NULL
 #endif
 
-static struct sysdev_class jive_pm_sysclass = {
-	.name		= "jive-pm",
+static struct syscore_ops jive_pm_syscore_ops = {
 	.suspend	= jive_pm_suspend,
 	.resume		= jive_pm_resume,
-};
-
-static struct sys_device jive_pm_sysdev = {
-	.cls		= &jive_pm_sysclass,
 };
 
 static void __init jive_map_io(void)
@@ -536,10 +530,9 @@ static void jive_power_off(void)
 
 static void __init jive_machine_init(void)
 {
-	/* register system devices for managing low level suspend */
+	/* register system core operations for managing low level suspend */
 
-	sysdev_class_register(&jive_pm_sysclass);
-	sysdev_register(&jive_pm_sysdev);
+	register_syscore_ops(&jive_pm_syscore_ops);
 
 	/* write our sleep configurations for the IO. Pull down all unused
 	 * IO, ensure that we have turned off all peripherals we do not

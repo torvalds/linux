@@ -33,6 +33,7 @@
 #include <linux/vmalloc.h>
 #include <linux/swap.h>
 #include <linux/kmsg_dump.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/page.h>
 #include <asm/uaccess.h>
@@ -1530,8 +1531,7 @@ int kernel_kexec(void)
 		if (error)
 			goto Enable_cpus;
 		local_irq_disable();
-		/* Suspend system devices */
-		error = sysdev_suspend(PMSG_FREEZE);
+		error = syscore_suspend();
 		if (error)
 			goto Enable_irqs;
 	} else
@@ -1546,7 +1546,7 @@ int kernel_kexec(void)
 
 #ifdef CONFIG_KEXEC_JUMP
 	if (kexec_image->preserve_context) {
-		sysdev_resume();
+		syscore_resume();
  Enable_irqs:
 		local_irq_enable();
  Enable_cpus:

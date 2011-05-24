@@ -2162,7 +2162,7 @@ struct dibx000_agc_config dib7090_agc_config[2] = {
 		.agc1_pt3       = 98,
 		.agc1_slope1    = 0,
 		.agc1_slope2    = 167,
-		.agc1_pt1       = 98,
+		.agc2_pt1       = 98,
 		.agc2_pt2       = 255,
 		.agc2_slope1    = 104,
 		.agc2_slope2    = 0,
@@ -2439,11 +2439,10 @@ static int tfe7090pvr_frontend0_attach(struct dvb_usb_adapter *adap)
 
 	dib0700_set_i2c_speed(adap->dev, 340);
 	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x90, &tfe7090pvr_dib7000p_config[0]);
-
-	dib7090_slave_reset(adap->fe);
-
 	if (adap->fe == NULL)
 		return -ENODEV;
+
+	dib7090_slave_reset(adap->fe);
 
 	return 0;
 }
@@ -2802,6 +2801,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_NIM7090) },
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_TFE7090PVR) },
 	{ USB_DEVICE(USB_VID_TECHNISAT, USB_PID_TECHNISAT_AIRSTAR_TELESTICK_2) },
+/* 75 */{ USB_DEVICE(USB_VID_MEDION,    USB_PID_CREATIX_CTX1921) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -3411,7 +3411,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 3,
+		.num_device_descs = 4,
 		.devices = {
 			{   "DiBcom STK7770P reference design",
 				{ &dib0700_usb_id_table[59], NULL },
@@ -3425,6 +3425,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "TechniSat AirStar TeleStick 2",
 				{ &dib0700_usb_id_table[74], NULL },
+				{ NULL },
+			},
+			{   "Medion CTX1921 DVB-T USB",
+				{ &dib0700_usb_id_table[75], NULL },
 				{ NULL },
 			},
 		},

@@ -148,16 +148,6 @@ static int beatic_pic_host_map(struct irq_host *h, unsigned int virq,
 }
 
 /*
- * Update binding hardware IRQ number (hw) and Virtuql
- * IRQ number (virq). This is called only once for a given mapping.
- */
-static void beatic_pic_host_remap(struct irq_host *h, unsigned int virq,
-			       irq_hw_number_t hw)
-{
-	beat_construct_and_connect_irq_plug(virq, hw);
-}
-
-/*
  * Translate device-tree interrupt spec to irq_hw_number_t style (ulong),
  * to pass away to irq_create_mapping().
  *
@@ -184,7 +174,6 @@ static int beatic_pic_host_match(struct irq_host *h, struct device_node *np)
 
 static struct irq_host_ops beatic_pic_host_ops = {
 	.map = beatic_pic_host_map,
-	.remap = beatic_pic_host_remap,
 	.unmap = beatic_pic_host_unmap,
 	.xlate = beatic_pic_host_xlate,
 	.match = beatic_pic_host_match,
@@ -256,22 +245,6 @@ void __init beatic_init_IRQ(void)
 	BUG_ON(beatic_host == NULL);
 	irq_set_default_host(beatic_host);
 }
-
-#ifdef CONFIG_SMP
-
-/* Nullified to compile with SMP mode */
-void beatic_setup_cpu(int cpu)
-{
-}
-
-void beatic_cause_IPI(int cpu, int mesg)
-{
-}
-
-void beatic_request_IPIs(void)
-{
-}
-#endif /* CONFIG_SMP */
 
 void beatic_deinit_IRQ(void)
 {

@@ -121,19 +121,10 @@ int cfctrl_linkup_request(struct cflayer *cfctrl,
 			   struct cflayer *user_layer);
 int  cfctrl_linkdown_req(struct cflayer *cfctrl, u8 linkid,
 			 struct cflayer *client);
-void cfctrl_sleep_req(struct cflayer *cfctrl);
-void cfctrl_wake_req(struct cflayer *cfctrl);
-void cfctrl_getstartreason_req(struct cflayer *cfctrl);
+
 struct cflayer *cfctrl_create(void);
-void cfctrl_set_dnlayer(struct cflayer *this, struct cflayer *dn);
-void cfctrl_set_uplayer(struct cflayer *this, struct cflayer *up);
 struct cfctrl_rsp *cfctrl_get_respfuncs(struct cflayer *layer);
-bool cfctrl_req_eq(struct cfctrl_request_info *r1,
-		   struct cfctrl_request_info *r2);
-void cfctrl_insert_req(struct cfctrl *ctrl,
-			      struct cfctrl_request_info *req);
-struct cfctrl_request_info *cfctrl_remove_req(struct cfctrl *ctrl,
-					      struct cfctrl_request_info *req);
-void cfctrl_cancel_req(struct cflayer *layr, struct cflayer *adap_layer);
+int cfctrl_cancel_req(struct cflayer *layr, struct cflayer *adap_layer);
+void cfctrl_remove(struct cflayer *layr);
 
 #endif				/* CFCTRL_H_ */

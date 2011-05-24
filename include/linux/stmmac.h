@@ -26,6 +26,8 @@
 #ifndef __STMMAC_PLATFORM_DATA
 #define __STMMAC_PLATFORM_DATA
 
+#include <linux/platform_device.h>
+
 /* platform data for platform device structure's platform_data field */
 
 /* Private data for the STM on-board ethernet driver */

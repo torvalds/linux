@@ -1457,7 +1457,6 @@ int fsl_rio_setup(struct platform_device *dev)
 	port->ops = ops;
 	port->priv = priv;
 	port->phys_efptr = 0x100;
-	rio_register_mport(port);
 
 	priv->regs_win = ioremap(regs.start, regs.end - regs.start + 1);
 	rio_regs_win = priv->regs_win;
@@ -1503,6 +1502,9 @@ int fsl_rio_setup(struct platform_device *dev)
 					& RIO_PEF_CTLS) >> 4;
 	dev_info(&dev->dev, "RapidIO Common Transport System size: %d\n",
 			port->sys_size ? 65536 : 256);
+
+	if (rio_register_mport(port))
+		goto err;
 
 	if (port->host_deviceid >= 0)
 		out_be32(priv->regs_win + RIO_GCCSR, RIO_PORT_GEN_HOST |

@@ -121,19 +121,6 @@
 #define CHIP_92C			0x01
 #define CHIP_88C			0x00
 
-/* Add vendor information into chip version definition.
- * Add UMC B-Cut and RTL8723 chip info definition.
- *
- * BIT 7	Reserved
- * BIT 6	UMC BCut
- * BIT 5	Manufacturer(TSMC/UMC)
- * BIT 4	TEST/NORMAL
- * BIT 3	8723 Version
- * BIT 2	8723?
- * BIT 1	1T2R?
- * BIT 0	88C/92C
-*/
-
 enum version_8192c {
 	VERSION_A_CHIP_92C = 0x01,
 	VERSION_A_CHIP_88C = 0x00,
@@ -279,20 +266,6 @@ struct h2c_cmd_8192c {
 	u32 cmd_len;
 	u8 *p_cmdbuffer;
 };
-
-static inline u8 _rtl92c_get_chnl_group(u8 chnl)
-{
-	u8 group = 0;
-
-	if (chnl < 3)
-		group = 0;
-	else if (chnl < 9)
-		group = 1;
-	else
-		group = 2;
-
-	return group;
-}
 
 /* NOTE: reference to rtl8192c_rates struct */
 static inline int _rtl92c_rate_mapping(struct ieee80211_hw *hw, bool isHT,

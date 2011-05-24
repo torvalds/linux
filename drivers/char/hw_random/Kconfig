@@ -49,7 +49,7 @@ config HW_RANDOM_INTEL
 
 config HW_RANDOM_AMD
 	tristate "AMD HW Random Number Generator support"
-	depends on HW_RANDOM && X86 && PCI
+	depends on HW_RANDOM && (X86 || PPC_MAPLE) && PCI
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number

@@ -935,7 +935,6 @@ static void aun_data_available(struct sock *sk, int slen)
 	struct sk_buff *skb;
 	unsigned char *data;
 	struct aunhdr *ah;
-	struct iphdr *ip;
 	size_t len;
 
 	while ((skb = skb_recv_datagram(sk, 0, 1, &err)) == NULL) {
@@ -949,7 +948,6 @@ static void aun_data_available(struct sock *sk, int slen)
 	data = skb_transport_header(skb) + sizeof(struct udphdr);
 	ah = (struct aunhdr *)data;
 	len = skb->len - sizeof(struct udphdr);
-	ip = ip_hdr(skb);
 
 	switch (ah->code)
 	{
@@ -962,12 +960,6 @@ static void aun_data_available(struct sock *sk, int slen)
 	case 4:
 		aun_tx_ack(ah->handle, ECTYPE_TRANSMIT_NOT_LISTENING);
 		break;
-#if 0
-		/* This isn't quite right yet. */
-	case 5:
-		aun_send_response(ip->saddr, ah->handle, 6, ah->cb);
-		break;
-#endif
 	default:
 		printk(KERN_DEBUG "unknown AUN packet (type %d)\n", data[0]);
 	}

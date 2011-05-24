@@ -58,21 +58,21 @@ static struct irq_host *cpm_pic_host;
 
 static void cpm_mask_irq(struct irq_data *d)
 {
-	unsigned int cpm_vec = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int cpm_vec = (unsigned int)irqd_to_hwirq(d);
 
 	clrbits32(&cpic_reg->cpic_cimr, (1 << cpm_vec));
 }
 
 static void cpm_unmask_irq(struct irq_data *d)
 {
-	unsigned int cpm_vec = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int cpm_vec = (unsigned int)irqd_to_hwirq(d);
 
 	setbits32(&cpic_reg->cpic_cimr, (1 << cpm_vec));
 }
 
 static void cpm_end_irq(struct irq_data *d)
 {
-	unsigned int cpm_vec = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int cpm_vec = (unsigned int)irqd_to_hwirq(d);
 
 	out_be32(&cpic_reg->cpic_cisr, (1 << cpm_vec));
 }
@@ -157,7 +157,7 @@ unsigned int cpm_pic_init(void)
 		goto end;
 
 	/* Initialize the CPM interrupt controller. */
-	hwirq = (unsigned int)irq_map[sirq].hwirq;
+	hwirq = (unsigned int)virq_to_hw(sirq);
 	out_be32(&cpic_reg->cpic_cicr,
 	    (CICR_SCD_SCC4 | CICR_SCC_SCC3 | CICR_SCB_SCC2 | CICR_SCA_SCC1) |
 		((hwirq/2) << 13) | CICR_HP_MASK);
