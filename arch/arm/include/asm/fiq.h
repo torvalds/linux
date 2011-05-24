@@ -4,6 +4,13 @@
  * Support for FIQ on ARM architectures.
  * Written by Philip Blundell <philb@gnu.org>, 1998
  * Re-written by Russell King
+ *
+ * NOTE: The FIQ mode registers are not magically preserved across
+ * suspend/resume.
+ *
+ * Drivers which require these registers to be preserved across power
+ * management operations must implement appropriate suspend/resume handlers to
+ * save and restore them.
  */
 
 #ifndef __ASM_FIQ_H
