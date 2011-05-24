@@ -350,6 +350,7 @@ static int get_pkg_tjmax(unsigned int cpu, struct device *dev)
 
 static int create_name_attr(struct platform_data *pdata, struct device *dev)
 {
+	sysfs_attr_init(&pdata->name_attr.attr);
 	pdata->name_attr.attr.name = "name";
 	pdata->name_attr.attr.mode = S_IRUGO;
 	pdata->name_attr.show = show_name;
@@ -372,6 +373,7 @@ static int create_core_attrs(struct temp_data *tdata, struct device *dev,
 	for (i = 0; i < MAX_ATTRS; i++) {
 		snprintf(tdata->attr_name[i], CORETEMP_NAME_LENGTH, names[i],
 			attr_no);
+		sysfs_attr_init(&tdata->sd_attrs[i].dev_attr.attr);
 		tdata->sd_attrs[i].dev_attr.attr.name = tdata->attr_name[i];
 		tdata->sd_attrs[i].dev_attr.attr.mode = S_IRUGO;
 		tdata->sd_attrs[i].dev_attr.show = rd_ptr[i];
