@@ -152,6 +152,28 @@ struct ocfs2_info_freeinode {
 	__u32 ifi_pad;
 };
 
+#define OCFS2_INFO_MAX_HIST     (32)
+
+struct ocfs2_info_freefrag {
+	struct ocfs2_info_request iff_req;
+	struct ocfs2_info_freefrag_stats { /* (out) */
+		struct ocfs2_info_free_chunk_list {
+			__u32 fc_chunks[OCFS2_INFO_MAX_HIST];
+			__u32 fc_clusters[OCFS2_INFO_MAX_HIST];
+		} ffs_fc_hist;
+		__u32 ffs_clusters;
+		__u32 ffs_free_clusters;
+		__u32 ffs_free_chunks;
+		__u32 ffs_free_chunks_real;
+		__u32 ffs_min; /* Minimum free chunksize in clusters */
+		__u32 ffs_max;
+		__u32 ffs_avg;
+		__u32 ffs_pad;
+	} iff_ffs;
+	__u32 iff_chunksize; /* chunksize in clusters(in) */
+	__u32 iff_pad;
+};
+
 /* Codes for ocfs2_info_request */
 enum ocfs2_info_type {
 	OCFS2_INFO_CLUSTERSIZE = 1,
@@ -162,6 +184,7 @@ enum ocfs2_info_type {
 	OCFS2_INFO_FS_FEATURES,
 	OCFS2_INFO_JOURNAL_SIZE,
 	OCFS2_INFO_FREEINODE,
+	OCFS2_INFO_FREEFRAG,
 	OCFS2_INFO_NUM_TYPES
 };
 
