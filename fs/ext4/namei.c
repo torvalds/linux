@@ -2352,6 +2352,9 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct ext4_dir_entry_2 *old_de, *new_de;
 	int retval, force_da_alloc = 0;
 
+	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
+		dentry_unhash(new_dentry);
+
 	dquot_initialize(old_dir);
 	dquot_initialize(new_dir);
 

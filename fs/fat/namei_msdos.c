@@ -459,6 +459,9 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 	old_inode = old_dentry->d_inode;
 	new_inode = new_dentry->d_inode;
 
+	if (new_inode && S_ISDIR(new_inode->i_mode))
+		dentry_unhash(new_dentry);
+
 	err = fat_scan(old_dir, old_name, &old_sinfo);
 	if (err) {
 		err = -EIO;

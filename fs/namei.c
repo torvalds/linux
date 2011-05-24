@@ -2950,12 +2950,7 @@ SYSCALL_DEFINE2(link, const char __user *, oldname, const char __user *, newname
  *	   HOWEVER, it relies on the assumption that any object with ->lookup()
  *	   has no more than 1 dentry.  If "hybrid" objects will ever appear,
  *	   we'd better make sure that there's no link(2) for them.
- *	d) some filesystems don't support opened-but-unlinked directories,
- *	   either because of layout or because they are not ready to deal with
- *	   all cases correctly. The latter will be fixed (taking this sort of
- *	   stuff into VFS), but the former is not going away. Solution: the same
- *	   trick as in rmdir().
- *	e) conversion from fhandle to dentry may come in the wrong moment - when
+ *	d) conversion from fhandle to dentry may come in the wrong moment - when
  *	   we are removing the target. Solution: we will have to grab ->i_mutex
  *	   in the fhandle_to_dentry code. [FIXME - current nfsfh.c relies on
  *	   ->i_mutex on parents, which works but leads to some truly excessive
@@ -2986,11 +2981,8 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 		mutex_lock(&target->i_mutex);
 	if (d_mountpoint(old_dentry)||d_mountpoint(new_dentry))
 		error = -EBUSY;
-	else {
-		if (target)
-			dentry_unhash(new_dentry);
+	else
 		error = old_dir->i_op->rename(old_dir, old_dentry, new_dir, new_dentry);
-	}
 	if (target) {
 		if (!error) {
 			target->i_flags |= S_DEAD;

@@ -869,6 +869,9 @@ static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct ceph_mds_request *req;
 	int err;
 
+	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
+		dentry_unhash(new_dentry);
+
 	if (ceph_snap(old_dir) != ceph_snap(new_dir))
 		return -EXDEV;
 	if (ceph_snap(old_dir) != CEPH_NOSNAP ||

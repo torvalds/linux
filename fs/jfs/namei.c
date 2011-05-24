@@ -1097,6 +1097,9 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	jfs_info("jfs_rename: %s %s", old_dentry->d_name.name,
 		 new_dentry->d_name.name);
 
+	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
+		dentry_unhash(new_dentry);
+
 	dquot_initialize(old_dir);
 	dquot_initialize(new_dir);
 

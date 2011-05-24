@@ -1571,6 +1571,9 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 	FILE_UNIX_BASIC_INFO *info_buf_target;
 	int xid, rc, tmprc;
 
+	if (target_dentry->d_inode && S_ISDIR(target_dentry->d_inode->i_mode))
+		dentry_unhash(target_dentry);
+
 	cifs_sb = CIFS_SB(source_dir->i_sb);
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))

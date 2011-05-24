@@ -1066,6 +1066,9 @@ static int ocfs2_rename(struct inode *old_dir,
 	struct ocfs2_dir_lookup_result orphan_insert = { NULL, };
 	struct ocfs2_dir_lookup_result target_insert = { NULL, };
 
+	if (new_inode && S_ISDIR(new_inode->i_mode))
+		dentry_unhash(new_dentry);
+
 	/* At some point it might be nice to break this function up a
 	 * bit. */
 

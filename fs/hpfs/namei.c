@@ -561,6 +561,10 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct buffer_head *bh;
 	struct fnode *fnode;
 	int err;
+
+	if (new_inode && S_ISDIR(new_inode->i_mode))
+		dentry_unhash(new_dentry);
+
 	if ((err = hpfs_chk_name(new_name, &new_len))) return err;
 	err = 0;
 	hpfs_adjust_length(old_name, &old_len);

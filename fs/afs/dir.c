@@ -1148,6 +1148,9 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct key *key;
 	int ret;
 
+	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
+		dentry_unhash(new_dentry);
+
 	vnode = AFS_FS_I(old_dentry->d_inode);
 	orig_dvnode = AFS_FS_I(old_dir);
 	new_dvnode = AFS_FS_I(new_dir);

@@ -469,10 +469,12 @@ static int hfsplus_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	/* Unlink destination if it already exists */
 	if (new_dentry->d_inode) {
-		if (S_ISDIR(new_dentry->d_inode->i_mode))
+		if (S_ISDIR(new_dentry->d_inode->i_mode)) {
+			dentry_unhash(new_dentry);
 			res = hfsplus_rmdir(new_dir, new_dentry);
-		else
+		} else {
 			res = hfsplus_unlink(new_dir, new_dentry);
+		}
 		if (res)
 			return res;
 	}

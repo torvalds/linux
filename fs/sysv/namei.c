@@ -224,6 +224,9 @@ static int sysv_rename(struct inode * old_dir, struct dentry * old_dentry,
 	struct sysv_dir_entry * old_de;
 	int err = -ENOENT;
 
+	if (new_inode && S_ISDIR(new_inode->i_mode))
+		dentry_unhash(new_dentry);
+
 	old_de = sysv_find_entry(old_dentry, &old_page);
 	if (!old_de)
 		goto out;

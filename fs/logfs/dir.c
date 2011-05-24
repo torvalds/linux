@@ -624,6 +624,9 @@ static int logfs_rename_cross(struct inode *old_dir, struct dentry *old_dentry,
 	loff_t pos;
 	int err;
 
+	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
+		dentry_unhash(new_dentry);
+
 	/* 1. locate source dd */
 	err = logfs_get_dd(old_dir, old_dentry, &dd, &pos);
 	if (err)

@@ -419,6 +419,9 @@ affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct buffer_head *bh = NULL;
 	int retval;
 
+	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
+		dentry_unhash(new_dentry);
+
 	pr_debug("AFFS: rename(old=%u,\"%*s\" to new=%u,\"%*s\")\n",
 		 (u32)old_dir->i_ino, (int)old_dentry->d_name.len, old_dentry->d_name.name,
 		 (u32)new_dir->i_ino, (int)new_dentry->d_name.len, new_dentry->d_name.name);

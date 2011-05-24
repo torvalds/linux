@@ -1959,6 +1959,9 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		 new_dentry->d_parent->d_name.name, new_dentry->d_name.name,
 		 new_dentry->d_count);
 
+	if (new_inode && S_ISDIR(new_inode->i_mode))
+		dentry_unhash(new_dentry);
+
 	/*
 	 * For non-directories, check whether the target is busy and if so,
 	 * make a copy of the dentry and then do a silly-rename. If the

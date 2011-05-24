@@ -1141,6 +1141,9 @@ static int ncp_rename(struct inode *old_dir, struct dentry *old_dentry,
 		old_dentry->d_parent->d_name.name, old_dentry->d_name.name,
 		new_dentry->d_parent->d_name.name, new_dentry->d_name.name);
 
+	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
+		dentry_unhash(new_dentry);
+
 	ncp_age_dentry(server, old_dentry);
 	ncp_age_dentry(server, new_dentry);
 

@@ -6994,6 +6994,9 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	u64 root_objectid;
 	int ret;
 
+	if (new_inode && S_ISDIR(new_dentry->d_inode->i_mode))
+		dentry_unhash(new_dentry);
+
 	if (new_dir->i_ino == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)
 		return -EPERM;
 
