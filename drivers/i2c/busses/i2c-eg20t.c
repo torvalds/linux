@@ -182,10 +182,12 @@ static DEFINE_MUTEX(pch_mutex);
 /* Definition for ML7213 by OKI SEMICONDUCTOR */
 #define PCI_VENDOR_ID_ROHM		0x10DB
 #define PCI_DEVICE_ID_ML7213_I2C	0x802D
+#define PCI_DEVICE_ID_ML7223_I2C	0x8010
 
 static struct pci_device_id __devinitdata pch_pcidev_id[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH_I2C),   1, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_I2C), 2, },
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_I2C), 1, },
 	{0,}
 };
 
