@@ -610,7 +610,8 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		pitch = ch->info->fix.line_length;
 
 		/* test if we can enable meram */
-		if (ch->cfg.meram_cfg && priv->meram_dev) {
+		if (ch->cfg.meram_cfg && priv->meram_dev &&
+				priv->meram_dev->ops) {
 			struct sh_mobile_meram_cfg *cfg;
 			struct sh_mobile_meram_info *mdev;
 			unsigned long icb_addr_y, icb_addr_c;
