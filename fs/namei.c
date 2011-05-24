@@ -2545,10 +2545,9 @@ SYSCALL_DEFINE2(mkdir, const char __user *, pathname, int, mode)
  */
 void dentry_unhash(struct dentry *dentry)
 {
-	dget(dentry);
 	shrink_dcache_parent(dentry);
 	spin_lock(&dentry->d_lock);
-	if (dentry->d_count == 2)
+	if (dentry->d_count == 1)
 		__d_drop(dentry);
 	spin_unlock(&dentry->d_lock);
 }
@@ -2575,7 +2574,6 @@ int vfs_rmdir(struct inode *dir, struct dentry *dentry)
 				dentry->d_inode->i_flags |= S_DEAD;
 				dont_mount(dentry);
 			}
-			dput(dentry);
 		}
 	}
 	mutex_unlock(&dentry->d_inode->i_mutex);
@@ -3002,7 +3000,6 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 		mutex_unlock(&target->i_mutex);
 		if (d_unhashed(new_dentry))
 			d_rehash(new_dentry);
-		dput(new_dentry);
 	}
 	if (!error)
 		if (!(old_dir->i_sb->s_type->fs_flags & FS_RENAME_DOES_D_MOVE))
