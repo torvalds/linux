@@ -430,3 +430,5 @@ void lpfc_cleanup_wt_rrqs(struct lpfc_hba *);
 void lpfc_cleanup_vports_rrqs(struct lpfc_vport *, struct lpfc_nodelist *);
 struct lpfc_node_rrq *lpfc_get_active_rrq(struct lpfc_vport *, uint16_t,
 	uint32_t);
+/* functions to support SR-IOV */
+int lpfc_sli_probe_sriov_nr_virtfn(struct lpfc_hba *, int);

@@ -903,6 +903,8 @@ struct RRQ {			/* Structure is in Big Endian format */
 #define rrq_rxid_WORD		rrq_exchg
 };
 
+#define LPFC_MAX_VFN_PER_PFN	255 /* Maximum VFs allowed per ARI */
+#define LPFC_DEF_VFN_PER_PFN	0   /* Default VFs due to platform limitation*/
 
 struct RTV_RSP {		/* Structure is in Big Endian format */
 	uint32_t ratov;

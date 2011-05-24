@@ -365,6 +365,11 @@ struct lpfc_pc_sli4_params {
 	uint8_t rqv;
 };
 
+struct lpfc_iov {
+	uint32_t pf_number;
+	uint32_t vf_number;
+};
+
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hba {
 	void __iomem *conf_regs_memmap_p; /* Kernel memory mapped address for
@@ -467,6 +472,7 @@ struct lpfc_sli4_hba {
 	struct list_head sp_els_xri_aborted_work_queue;
 	struct list_head sp_unsol_work_queue;
 	struct lpfc_sli4_link link_state;
+	struct lpfc_iov iov;
 	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t abts_sgl_list_lock; /* list of aborted els IOs */
 };
