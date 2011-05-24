@@ -295,17 +295,20 @@ static inline void handle_one_irq(unsigned int irq)
 	unsigned long saved_sp_limit;
 	struct irq_desc *desc;
 
+	desc = irq_to_desc(irq);
+	if (!desc)
+		return;
+
 	/* Switch to the irq stack to handle this */
 	curtp = current_thread_info();
 	irqtp = hardirq_ctx[smp_processor_id()];
 
 	if (curtp == irqtp) {
 		/* We're already on the irq stack, just handle it */
-		generic_handle_irq(irq);
+		desc->handle_irq(irq, desc);
 		return;
 	}
 
-	desc = irq_to_desc(irq);
 	saved_sp_limit = current->thread.ksp_limit;
 
 	irqtp->task = curtp->task;
