@@ -245,6 +245,7 @@ allocate_id_index_table:
 		msblk->id_table = NULL;
 		goto failed_mount;
 	}
+	next_table = msblk->id_table[0];
 
 	/* Handle inode lookup table */
 	lookup_table_start = le64_to_cpu(sblk->lookup_table_start);
@@ -253,7 +254,7 @@ allocate_id_index_table:
 
 	/* Allocate and read inode lookup table */
 	msblk->inode_lookup_table = squashfs_read_inode_lookup_table(sb,
-		lookup_table_start, msblk->inodes);
+		lookup_table_start, next_table, msblk->inodes);
 	if (IS_ERR(msblk->inode_lookup_table)) {
 		ERROR("unable to read inode lookup table\n");
 		err = PTR_ERR(msblk->inode_lookup_table);
