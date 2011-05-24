@@ -621,6 +621,9 @@ static void mce_async_callback(struct urb *urb, struct pt_regs *regs)
 		mceusb_dev_printdata(ir, urb->transfer_buffer, 0, len, true);
 	}
 
+	/* the transfer buffer and urb were allocated in mce_request_packet */
+	kfree(urb->transfer_buffer);
+	usb_free_urb(urb);
 }
 
 /* request incoming or send outgoing usb packet - used to initialize remote */
