@@ -171,6 +171,7 @@ void lpfc_delayed_disc_tmo(unsigned long);
 void lpfc_delayed_disc_timeout_handler(struct lpfc_vport *);
 
 int lpfc_config_port_prep(struct lpfc_hba *);
+void lpfc_update_vport_wwn(struct lpfc_vport *vport);
 int lpfc_config_port_post(struct lpfc_hba *);
 int lpfc_hba_down_prep(struct lpfc_hba *);
 int lpfc_hba_down_post(struct lpfc_hba *);

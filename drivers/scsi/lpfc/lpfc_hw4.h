@@ -1229,7 +1229,7 @@ struct sli4_sge {	/* SLI-4 */
 
 	uint32_t word2;
 #define lpfc_sli4_sge_offset_SHIFT	0 /* Offset of buffer - Not used*/
-#define lpfc_sli4_sge_offset_MASK	0x00FFFFFF
+#define lpfc_sli4_sge_offset_MASK	0x1FFFFFFF
 #define lpfc_sli4_sge_offset_WORD	word2
 #define lpfc_sli4_sge_last_SHIFT	31 /* Last SEG in the SGL sets
 						this  flag !! */

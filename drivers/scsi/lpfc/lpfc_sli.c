@@ -65,6 +65,9 @@ static struct lpfc_iocbq *lpfc_sli4_els_wcqe_to_rspiocbq(struct lpfc_hba *,
 							 struct lpfc_iocbq *);
 static void lpfc_sli4_send_seq_to_ulp(struct lpfc_vport *,
 				      struct hbq_dmabuf *);
+static int lpfc_sli4_fp_handle_wcqe(struct lpfc_hba *, struct lpfc_queue *,
+				    struct lpfc_cqe *);
+
 static IOCB_t *
 lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
 {
@@ -3881,8 +3884,10 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 	list_del_init(&phba->sli4_hba.els_cq->list);
 	for (qindx = 0; qindx < phba->cfg_fcp_wq_count; qindx++)
 		list_del_init(&phba->sli4_hba.fcp_wq[qindx]->list);
-	for (qindx = 0; qindx < phba->cfg_fcp_eq_count; qindx++)
+	qindx = 0;
+	do
 		list_del_init(&phba->sli4_hba.fcp_cq[qindx]->list);
+	while (++qindx < phba->cfg_fcp_eq_count);
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Now physically reset the device */
@@ -4677,9 +4682,11 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 
 	lpfc_sli4_cq_release(phba->sli4_hba.mbx_cq, LPFC_QUEUE_REARM);
 	lpfc_sli4_cq_release(phba->sli4_hba.els_cq, LPFC_QUEUE_REARM);
-	for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_eq_count; fcp_eqidx++)
+	fcp_eqidx = 0;
+	do
 		lpfc_sli4_cq_release(phba->sli4_hba.fcp_cq[fcp_eqidx],
 				     LPFC_QUEUE_REARM);
+	while (++fcp_eqidx < phba->cfg_fcp_eq_count);
 	lpfc_sli4_eq_release(phba->sli4_hba.sp_eq, LPFC_QUEUE_REARM);
 	for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_eq_count; fcp_eqidx++)
 		lpfc_sli4_eq_release(phba->sli4_hba.fp_eq[fcp_eqidx],
@@ -4740,7 +4747,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	 * to read FCoE param config regions
 	 */
 	if (lpfc_sli4_read_fcoe_params(phba, mboxq))
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_INIT,
 			"2570 Failed to read FCoE parameters\n");
 
 	/* Issue READ_REV to collect vpd and FW information. */
@@ -4906,16 +4913,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		goto out_free_mbox;
 	}
 
-	if (phba->cfg_soft_wwnn)
-		u64_to_wwn(phba->cfg_soft_wwnn,
-			   vport->fc_sparam.nodeName.u.wwn);
-	if (phba->cfg_soft_wwpn)
-		u64_to_wwn(phba->cfg_soft_wwpn,
-			   vport->fc_sparam.portName.u.wwn);
-	memcpy(&vport->fc_nodename, &vport->fc_sparam.nodeName,
-	       sizeof(struct lpfc_name));
-	memcpy(&vport->fc_portname, &vport->fc_sparam.portName,
-	       sizeof(struct lpfc_name));
+	lpfc_update_vport_wwn(vport);
 
 	/* Update the fc_host data structures with new wwn. */
 	fc_host_node_name(shost) = wwn_to_u64(vport->fc_nodename.u.wwn);
@@ -5747,10 +5745,15 @@ lpfc_sli4_post_sync_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	lpfc_sli_pcimem_bcopy(&mbox_rgn->mcqe, &mboxq->mcqe,
 			      sizeof(struct lpfc_mcqe));
 	mcqe_status = bf_get(lpfc_mcqe_status, &mbox_rgn->mcqe);
-
-	/* Prefix the mailbox status with range x4000 to note SLI4 status. */
+	/*
+	 * When the CQE status indicates a failure and the mailbox status
+	 * indicates success then copy the CQE status into the mailbox status
+	 * (and prefix it with x4000).
+	 */
 	if (mcqe_status != MB_CQE_STATUS_SUCCESS) {
-		bf_set(lpfc_mqe_status, mb, LPFC_MBX_ERROR_RANGE | mcqe_status);
+		if (bf_get(lpfc_mqe_status, mb) == MBX_SUCCESS)
+			bf_set(lpfc_mqe_status, mb,
+			       (LPFC_MBX_ERROR_RANGE | mcqe_status));
 		rc = MBXERR_ERROR;
 	} else
 		lpfc_sli4_swap_str(phba, mboxq);
@@ -5819,7 +5822,7 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 		else
 			rc = -EIO;
 		if (rc != MBX_SUCCESS)
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+			lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_SLI,
 					"(%d):2541 Mailbox command x%x "
 					"(x%x) cannot issue Data: x%x x%x\n",
 					mboxq->vport ? mboxq->vport->vpi : 0,
@@ -6307,6 +6310,7 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 			sgl->addr_hi = bpl->addrHigh;
 			sgl->addr_lo = bpl->addrLow;
 
+			sgl->word2 = le32_to_cpu(sgl->word2);
 			if ((i+1) == numBdes)
 				bf_set(lpfc_sli4_sge_last, sgl, 1);
 			else
@@ -6343,6 +6347,7 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 				cpu_to_le32(icmd->un.genreq64.bdl.addrHigh);
 			sgl->addr_lo =
 				cpu_to_le32(icmd->un.genreq64.bdl.addrLow);
+			sgl->word2 = le32_to_cpu(sgl->word2);
 			bf_set(lpfc_sli4_sge_last, sgl, 1);
 			sgl->word2 = cpu_to_le32(sgl->word2);
 			sgl->sge_len =
@@ -9799,7 +9804,12 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 		break;
 	case LPFC_WCQ:
 		while ((cqe = lpfc_sli4_cq_get(cq))) {
-			workposted |= lpfc_sli4_sp_handle_cqe(phba, cq, cqe);
+			if (cq->subtype == LPFC_FCP)
+				workposted |= lpfc_sli4_fp_handle_wcqe(phba, cq,
+								       cqe);
+			else
+				workposted |= lpfc_sli4_sp_handle_cqe(phba, cq,
+								      cqe);
 			if (!(++ecount % LPFC_GET_QE_REL_INT))
 				lpfc_sli4_cq_release(cq, LPFC_QUEUE_NOARM);
 		}

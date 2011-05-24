@@ -861,6 +861,7 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 		 */
 		sgl->addr_hi = cpu_to_le32(putPaddrHigh(pdma_phys_fcp_cmd));
 		sgl->addr_lo = cpu_to_le32(putPaddrLow(pdma_phys_fcp_cmd));
+		sgl->word2 = le32_to_cpu(sgl->word2);
 		bf_set(lpfc_sli4_sge_last, sgl, 0);
 		sgl->word2 = cpu_to_le32(sgl->word2);
 		sgl->sge_len = cpu_to_le32(sizeof(struct fcp_cmnd));
@@ -869,6 +870,7 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 		/* Setup the physical region for the FCP RSP */
 		sgl->addr_hi = cpu_to_le32(putPaddrHigh(pdma_phys_fcp_rsp));
 		sgl->addr_lo = cpu_to_le32(putPaddrLow(pdma_phys_fcp_rsp));
+		sgl->word2 = le32_to_cpu(sgl->word2);
 		bf_set(lpfc_sli4_sge_last, sgl, 1);
 		sgl->word2 = cpu_to_le32(sgl->word2);
 		sgl->sge_len = cpu_to_le32(sizeof(struct fcp_rsp));
@@ -2081,6 +2083,7 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 			dma_len = sg_dma_len(sgel);
 			sgl->addr_lo = cpu_to_le32(putPaddrLow(physaddr));
 			sgl->addr_hi = cpu_to_le32(putPaddrHigh(physaddr));
+			sgl->word2 = le32_to_cpu(sgl->word2);
 			if ((num_bde + 1) == nseg)
 				bf_set(lpfc_sli4_sge_last, sgl, 1);
 			else

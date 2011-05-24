@@ -2690,16 +2690,7 @@ lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	memcpy((uint8_t *) &vport->fc_sparam, (uint8_t *) mp->virt,
 	       sizeof (struct serv_parm));
-	if (phba->cfg_soft_wwnn)
-		u64_to_wwn(phba->cfg_soft_wwnn,
-			   vport->fc_sparam.nodeName.u.wwn);
-	if (phba->cfg_soft_wwpn)
-		u64_to_wwn(phba->cfg_soft_wwpn,
-			   vport->fc_sparam.portName.u.wwn);
-	memcpy(&vport->fc_nodename, &vport->fc_sparam.nodeName,
-	       sizeof(vport->fc_nodename));
-	memcpy(&vport->fc_portname, &vport->fc_sparam.portName,
-	       sizeof(vport->fc_portname));
+	lpfc_update_vport_wwn(vport);
 	if (vport->port_type == LPFC_PHYSICAL_PORT) {
 		memcpy(&phba->wwnn, &vport->fc_nodename, sizeof(phba->wwnn));
 		memcpy(&phba->wwpn, &vport->fc_portname, sizeof(phba->wwnn));
@@ -5354,6 +5345,17 @@ lpfc_fcf_inuse(struct lpfc_hba *phba)
 	for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 		shost = lpfc_shost_from_vport(vports[i]);
 		spin_lock_irq(shost->host_lock);
+		/*
+		 * IF the CVL_RCVD bit is not set then we have sent the
+		 * flogi.
+		 * If dev_loss fires while we are waiting we do not want to
+		 * unreg the fcf.
+		 */
+		if (!(vports[i]->fc_flag & FC_VPORT_CVL_RCVD)) {
+			spin_unlock_irq(shost->host_lock);
+			ret =  1;
+			goto out;
+		}
 		list_for_each_entry(ndlp, &vports[i]->fc_nodes, nlp_listp) {
 			if (NLP_CHK_NODE_ACT(ndlp) && ndlp->rport &&
 			  (ndlp->rport->roles & FC_RPORT_ROLE_FCP_TARGET)) {

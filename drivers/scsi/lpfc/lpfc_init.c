@@ -309,6 +309,45 @@ lpfc_dump_wakeup_param_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 }
 
 /**
+ * lpfc_update_vport_wwn - Updates the fc_nodename, fc_portname,
+ *	cfg_soft_wwnn, cfg_soft_wwpn
+ * @vport: pointer to lpfc vport data structure.
+ *
+ *
+ * Return codes
+ *   None.
+ **/
+void
+lpfc_update_vport_wwn(struct lpfc_vport *vport)
+{
+	/* If the soft name exists then update it using the service params */
+	if (vport->phba->cfg_soft_wwnn)
+		u64_to_wwn(vport->phba->cfg_soft_wwnn,
+			   vport->fc_sparam.nodeName.u.wwn);
+	if (vport->phba->cfg_soft_wwpn)
+		u64_to_wwn(vport->phba->cfg_soft_wwpn,
+			   vport->fc_sparam.portName.u.wwn);
+
+	/*
+	 * If the name is empty or there exists a soft name
+	 * then copy the service params name, otherwise use the fc name
+	 */
+	if (vport->fc_nodename.u.wwn[0] == 0 || vport->phba->cfg_soft_wwnn)
+		memcpy(&vport->fc_nodename, &vport->fc_sparam.nodeName,
+			sizeof(struct lpfc_name));
+	else
+		memcpy(&vport->fc_sparam.nodeName, &vport->fc_nodename,
+			sizeof(struct lpfc_name));
+
+	if (vport->fc_portname.u.wwn[0] == 0 || vport->phba->cfg_soft_wwpn)
+		memcpy(&vport->fc_portname, &vport->fc_sparam.portName,
+			sizeof(struct lpfc_name));
+	else
+		memcpy(&vport->fc_sparam.portName, &vport->fc_portname,
+			sizeof(struct lpfc_name));
+}
+
+/**
  * lpfc_config_port_post - Perform lpfc initialization after config port
  * @phba: pointer to lpfc hba data structure.
  *
@@ -377,17 +416,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 	pmb->context1 = NULL;
-
-	if (phba->cfg_soft_wwnn)
-		u64_to_wwn(phba->cfg_soft_wwnn,
-			   vport->fc_sparam.nodeName.u.wwn);
-	if (phba->cfg_soft_wwpn)
-		u64_to_wwn(phba->cfg_soft_wwpn,
-			   vport->fc_sparam.portName.u.wwn);
-	memcpy(&vport->fc_nodename, &vport->fc_sparam.nodeName,
-	       sizeof (struct lpfc_name));
-	memcpy(&vport->fc_portname, &vport->fc_sparam.portName,
-	       sizeof (struct lpfc_name));
+	lpfc_update_vport_wwn(vport);
 
 	/* Update the fc_host data structures with new wwn. */
 	fc_host_node_name(shost) = wwn_to_u64(vport->fc_nodename.u.wwn);
@@ -3935,6 +3964,10 @@ lpfc_enable_pci_dev(struct lpfc_hba *phba)
 	pci_try_set_mwi(pdev);
 	pci_save_state(pdev);
 
+	/* PCIe EEH recovery on powerpc platforms needs fundamental reset */
+	if (pci_find_capability(pdev, PCI_CAP_ID_EXP))
+		pdev->needs_freset = 1;
+
 	return 0;
 
 out_disable_device:
@@ -4366,6 +4399,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2759 Failed allocate memory for FCF round "
 				"robin failover bmask\n");
+		rc = -ENOMEM;
 		goto out_remove_rpi_hdrs;
 	}
 
@@ -4375,6 +4409,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2572 Failed allocate memory for fast-path "
 				"per-EQ handle array\n");
+		rc = -ENOMEM;
 		goto out_free_fcf_rr_bmask;
 	}
 
@@ -4384,6 +4419,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2573 Failed allocate memory for msi-x "
 				"interrupt vector entries\n");
+		rc = -ENOMEM;
 		goto out_free_fcp_eq_hdl;
 	}
 
@@ -4998,9 +5034,7 @@ lpfc_sli4_remove_rpi_hdrs(struct lpfc_hba *phba)
 		kfree(rpi_hdr->dmabuf);
 		kfree(rpi_hdr);
 	}
-
 	phba->sli4_hba.next_rpi = phba->sli4_hba.max_cfg_param.rpi_base;
-	memset(phba->sli4_hba.rpi_bmask, 0, sizeof(*phba->sli4_hba.rpi_bmask));
 }
 
 /**
@@ -5487,7 +5521,8 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 			/* Final checks.  The port status should be clean. */
 			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
 				&reg_data.word0) ||
-				bf_get(lpfc_sliport_status_err, &reg_data)) {
+				(bf_get(lpfc_sliport_status_err, &reg_data) &&
+				 !bf_get(lpfc_sliport_status_rn, &reg_data))) {
 				phba->work_status[0] =
 					readl(phba->sli4_hba.u.if_type2.
 					      ERR1regaddr);
@@ -6229,8 +6264,10 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 	phba->sli4_hba.mbx_cq = NULL;
 
 	/* Release FCP response complete queue */
-	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count; fcp_qidx++)
+	fcp_qidx = 0;
+	do
 		lpfc_sli4_queue_free(phba->sli4_hba.fcp_cq[fcp_qidx]);
+	while (++fcp_qidx < phba->cfg_fcp_eq_count);
 	kfree(phba->sli4_hba.fcp_cq);
 	phba->sli4_hba.fcp_cq = NULL;
 
@@ -6353,16 +6390,24 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.sp_eq->queue_id);
 
 	/* Set up fast-path FCP Response Complete Queue */
-	for (fcp_cqidx = 0; fcp_cqidx < phba->cfg_fcp_eq_count; fcp_cqidx++) {
+	fcp_cqidx = 0;
+	do {
 		if (!phba->sli4_hba.fcp_cq[fcp_cqidx]) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0526 Fast-path FCP CQ (%d) not "
 					"allocated\n", fcp_cqidx);
 			goto out_destroy_fcp_cq;
 		}
-		rc = lpfc_cq_create(phba, phba->sli4_hba.fcp_cq[fcp_cqidx],
-				    phba->sli4_hba.fp_eq[fcp_cqidx],
-				    LPFC_WCQ, LPFC_FCP);
+		if (phba->cfg_fcp_eq_count)
+			rc = lpfc_cq_create(phba,
+					    phba->sli4_hba.fcp_cq[fcp_cqidx],
+					    phba->sli4_hba.fp_eq[fcp_cqidx],
+					    LPFC_WCQ, LPFC_FCP);
+		else
+			rc = lpfc_cq_create(phba,
+					    phba->sli4_hba.fcp_cq[fcp_cqidx],
+					    phba->sli4_hba.sp_eq,
+					    LPFC_WCQ, LPFC_FCP);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0527 Failed setup of fast-path FCP "
@@ -6371,12 +6416,15 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		}
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"2588 FCP CQ setup: cq[%d]-id=%d, "
-				"parent eq[%d]-id=%d\n",
+				"parent %seq[%d]-id=%d\n",
 				fcp_cqidx,
 				phba->sli4_hba.fcp_cq[fcp_cqidx]->queue_id,
+				(phba->cfg_fcp_eq_count) ? "" : "sp_",
 				fcp_cqidx,
-				phba->sli4_hba.fp_eq[fcp_cqidx]->queue_id);
-	}
+				(phba->cfg_fcp_eq_count) ?
+				   phba->sli4_hba.fp_eq[fcp_cqidx]->queue_id :
+				   phba->sli4_hba.sp_eq->queue_id);
+	} while (++fcp_cqidx < phba->cfg_fcp_eq_count);
 
 	/*
 	 * Set up all the Work Queues (WQs)
@@ -6445,7 +6493,9 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 				fcp_cq_index,
 				phba->sli4_hba.fcp_cq[fcp_cq_index]->queue_id);
 		/* Round robin FCP Work Queue's Completion Queue assignment */
-		fcp_cq_index = ((fcp_cq_index + 1) % phba->cfg_fcp_eq_count);
+		if (phba->cfg_fcp_eq_count)
+			fcp_cq_index = ((fcp_cq_index + 1) %
+					phba->cfg_fcp_eq_count);
 	}
 
 	/*
@@ -6827,6 +6877,8 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			if (rdy_chk < 1000)
 				break;
 		}
+		/* delay driver action following IF_TYPE_2 function reset */
+		msleep(100);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
 	default:
@@ -7419,11 +7471,15 @@ enable_msix_vectors:
 	/*
 	 * Assign MSI-X vectors to interrupt handlers
 	 */
-
-	/* The first vector must associated to slow-path handler for MQ */
-	rc = request_irq(phba->sli4_hba.msix_entries[0].vector,
-			 &lpfc_sli4_sp_intr_handler, IRQF_SHARED,
-			 LPFC_SP_DRIVER_HANDLER_NAME, phba);
+	if (vectors > 1)
+		rc = request_irq(phba->sli4_hba.msix_entries[0].vector,
+				 &lpfc_sli4_sp_intr_handler, IRQF_SHARED,
+				 LPFC_SP_DRIVER_HANDLER_NAME, phba);
+	else
+		/* All Interrupts need to be handled by one EQ */
+		rc = request_irq(phba->sli4_hba.msix_entries[0].vector,
+				 &lpfc_sli4_intr_handler, IRQF_SHARED,
+				 LPFC_DRIVER_NAME, phba);
 	if (rc) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 				"0485 MSI-X slow-path request_irq failed "
@@ -7878,6 +7934,11 @@ lpfc_pc_sli4_params_get(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	sli4_params->hdr_pp_align = bf_get(hdr_pp_align, &mqe->un.sli4_params);
 	sli4_params->sgl_pages_max = bf_get(sgl_pages, &mqe->un.sli4_params);
 	sli4_params->sgl_pp_align = bf_get(sgl_pp_align, &mqe->un.sli4_params);
+
+	/* Make sure that sge_supp_len can be handled by the driver */
+	if (sli4_params->sge_supp_len > LPFC_MAX_SGE_SIZE)
+		sli4_params->sge_supp_len = LPFC_MAX_SGE_SIZE;
+
 	return rc;
 }
 
@@ -7938,6 +7999,11 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					    mbx_sli4_parameters);
 	sli4_params->sgl_pp_align = bf_get(cfg_sgl_pp_align,
 					   mbx_sli4_parameters);
+
+	/* Make sure that sge_supp_len can be handled by the driver */
+	if (sli4_params->sge_supp_len > LPFC_MAX_SGE_SIZE)
+		sli4_params->sge_supp_len = LPFC_MAX_SGE_SIZE;
+
 	return 0;
 }
 
@@ -8591,6 +8657,8 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	int error;
 	uint32_t cfg_mode, intr_mode;
 	int mcnt;
+	int adjusted_fcp_eq_count;
+	int fcp_qidx;
 
 	/* Allocate memory for HBA structure */
 	phba = lpfc_hba_alloc(pdev);
@@ -8688,11 +8756,25 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 			error = -ENODEV;
 			goto out_free_sysfs_attr;
 		}
-		/* Default to single FCP EQ for non-MSI-X */
+		/* Default to single EQ for non-MSI-X */
 		if (phba->intr_type != MSIX)
-			phba->cfg_fcp_eq_count = 1;
-		else if (phba->sli4_hba.msix_vec_nr < phba->cfg_fcp_eq_count)
-			phba->cfg_fcp_eq_count = phba->sli4_hba.msix_vec_nr - 1;
+			adjusted_fcp_eq_count = 0;
+		else if (phba->sli4_hba.msix_vec_nr <
+					phba->cfg_fcp_eq_count + 1)
+			adjusted_fcp_eq_count = phba->sli4_hba.msix_vec_nr - 1;
+		else
+			adjusted_fcp_eq_count = phba->cfg_fcp_eq_count;
+		/* Free unused EQs */
+		for (fcp_qidx = adjusted_fcp_eq_count;
+		     fcp_qidx < phba->cfg_fcp_eq_count;
+		     fcp_qidx++) {
+			lpfc_sli4_queue_free(phba->sli4_hba.fp_eq[fcp_qidx]);
+			/* do not delete the first fcp_cq */
+			if (fcp_qidx)
+				lpfc_sli4_queue_free(
+					phba->sli4_hba.fcp_cq[fcp_qidx]);
+		}
+		phba->cfg_fcp_eq_count = adjusted_fcp_eq_count;
 		/* Set up SLI-4 HBA */
 		if (lpfc_sli4_hba_setup(phba)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
