@@ -1526,7 +1526,8 @@ static int s3c_fb_resume(struct device *dev)
 
 	clk_enable(sfb->bus_clk);
 
-	/* setup registers */
+	/* setup gpio and output polarity controls */
+	pd->setup_gpio();
 	writel(pd->vidcon1, sfb->regs + VIDCON1);
 
 	/* zero all windows before we do anything */
@@ -1584,7 +1585,8 @@ static int s3c_fb_runtime_resume(struct device *dev)
 
 	clk_enable(sfb->bus_clk);
 
-	/* setup registers */
+	/* setup gpio and output polarity controls */
+	pd->setup_gpio();
 	writel(pd->vidcon1, sfb->regs + VIDCON1);
 
 	/* zero all windows before we do anything */
