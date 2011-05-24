@@ -158,9 +158,9 @@ static inline int drbd_nla_check_mandatory(int maxtype, struct nlattr *nla)
 
 	nla_for_each_attr(nla, head, len, rem) {
 		if (nla->nla_type & DRBD_GENLA_F_MANDATORY) {
+			nla->nla_type &= ~DRBD_GENLA_F_MANDATORY;
 			if (nla_type(nla) > maxtype)
 				return -EOPNOTSUPP;
-			nla->nla_type &= ~DRBD_GENLA_F_MANDATORY;
 		}
 	}
 	return 0;
