@@ -1234,8 +1234,7 @@ ecryptfs_write_header_metadata(char *virt,
 	(*written) = 6;
 }
 
-struct kmem_cache *ecryptfs_header_cache_1;
-struct kmem_cache *ecryptfs_header_cache_2;
+struct kmem_cache *ecryptfs_header_cache;
 
 /**
  * ecryptfs_write_headers_virt
@@ -1601,7 +1600,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 	ecryptfs_copy_mount_wide_flags_to_inode_flags(crypt_stat,
 						      mount_crypt_stat);
 	/* Read the first page from the underlying file */
-	page_virt = kmem_cache_alloc(ecryptfs_header_cache_1, GFP_USER);
+	page_virt = kmem_cache_alloc(ecryptfs_header_cache, GFP_USER);
 	if (!page_virt) {
 		rc = -ENOMEM;
 		printk(KERN_ERR "%s: Unable to allocate page_virt\n",
@@ -1646,7 +1645,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 out:
 	if (page_virt) {
 		memset(page_virt, 0, PAGE_CACHE_SIZE);
-		kmem_cache_free(ecryptfs_header_cache_1, page_virt);
+		kmem_cache_free(ecryptfs_header_cache, page_virt);
 	}
 	return rc;
 }

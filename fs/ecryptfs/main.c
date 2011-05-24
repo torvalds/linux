@@ -635,13 +635,8 @@ static struct ecryptfs_cache_info {
 		.size = sizeof(struct ecryptfs_sb_info),
 	},
 	{
-		.cache = &ecryptfs_header_cache_1,
-		.name = "ecryptfs_headers_1",
-		.size = PAGE_CACHE_SIZE,
-	},
-	{
-		.cache = &ecryptfs_header_cache_2,
-		.name = "ecryptfs_headers_2",
+		.cache = &ecryptfs_header_cache,
+		.name = "ecryptfs_headers",
 		.size = PAGE_CACHE_SIZE,
 	},
 	{
