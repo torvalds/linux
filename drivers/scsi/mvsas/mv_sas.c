@@ -630,14 +630,11 @@ static int mvs_task_prep_ata(struct mvs_info *mvi,
 		(mvi_dev->taskfileset << TXQ_SRS_SHIFT);
 	mvi->tx[mvi->tx_prod] = cpu_to_le32(del_q);
 
-#ifndef DISABLE_HOTPLUG_DMA_FIX
 	if (task->data_dir == DMA_FROM_DEVICE)
 		flags = (MVS_CHIP_DISP->prd_count() << MCH_PRD_LEN_SHIFT);
 	else
 		flags = (tei->n_elem << MCH_PRD_LEN_SHIFT);
-#else
-	flags = (tei->n_elem << MCH_PRD_LEN_SHIFT);
-#endif
+
 	if (task->ata_task.use_ncq)
 		flags |= MCH_FPDMA;
 	if (dev->sata_dev.command_set == ATAPI_COMMAND_SET) {
@@ -729,11 +726,11 @@ static int mvs_task_prep_ata(struct mvs_info *mvi,
 
 	/* fill in PRD (scatter/gather) table, if any */
 	MVS_CHIP_DISP->make_prd(task->scatter, tei->n_elem, buf_prd);
-#ifndef DISABLE_HOTPLUG_DMA_FIX
+
 	if (task->data_dir == DMA_FROM_DEVICE)
-		MVS_CHIP_DISP->dma_fix(mvi->bulk_buffer_dma,
+		MVS_CHIP_DISP->dma_fix(mvi, sas_port->phy_mask,
 				TRASH_BUCKET_SIZE, tei->n_elem, buf_prd);
-#endif
+
 	return 0;
 }
 
@@ -1283,6 +1280,13 @@ static u32 mvs_is_sig_fis_received(u32 irq_status)
 	return irq_status & PHYEV_SIG_FIS;
 }
 
+static void mvs_sig_remove_timer(struct mvs_phy *phy)
+{
+	if (phy->timer.function)
+		del_timer(&phy->timer);
+	phy->timer.function = NULL;
+}
+
 void mvs_update_phyinfo(struct mvs_info *mvi, int i, int get_st)
 {
 	struct mvs_phy *phy = &mvi->phy[i];
@@ -1305,6 +1309,7 @@ void mvs_update_phyinfo(struct mvs_info *mvi, int i, int get_st)
 		if (phy->phy_type & PORT_TYPE_SATA) {
 			phy->identify.target_port_protocols = SAS_PROTOCOL_STP;
 			if (mvs_is_sig_fis_received(phy->irq_status)) {
+				mvs_sig_remove_timer(phy);
 				phy->phy_attached = 1;
 				phy->att_dev_sas_addr =
 					i + mvi->id * mvi->chip->n_phy;
@@ -1322,7 +1327,6 @@ void mvs_update_phyinfo(struct mvs_info *mvi, int i, int get_st)
 						tmp | PHYEV_SIG_FIS);
 				phy->phy_attached = 0;
 				phy->phy_type &= ~PORT_TYPE_SATA;
-				MVS_CHIP_DISP->phy_reset(mvi, i, 0);
 				goto out_done;
 			}
 		}	else if (phy->phy_type & PORT_TYPE_SAS
@@ -2193,13 +2197,6 @@ static void mvs_sig_time_out(unsigned long tphy)
 	}
 }
 
-static void mvs_sig_remove_timer(struct mvs_phy *phy)
-{
-	if (phy->timer.function)
-		del_timer(&phy->timer);
-	phy->timer.function = NULL;
-}
-
 void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events)
 {
 	u32 tmp;
@@ -2263,7 +2260,6 @@ void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events)
 	}
 	if (phy->irq_status & (PHYEV_SIG_FIS | PHYEV_ID_DONE)) {
 		phy->phy_status = mvs_is_phy_ready(mvi, phy_no);
-		mvs_sig_remove_timer(phy);
 		mv_dprintk("notify plug in on phy[%d]\n", phy_no);
 		if (phy->phy_status) {
 			mdelay(10);

@@ -744,11 +744,13 @@ int mvs_64xx_spi_waitdataready(struct mvs_info *mvi, u32 timeout)
 	return -1;
 }
 
-#ifndef DISABLE_HOTPLUG_DMA_FIX
-void mvs_64xx_fix_dma(dma_addr_t buf_dma, int buf_len, int from, void *prd)
+void mvs_64xx_fix_dma(struct mvs_info *mvi, u32 phy_mask,
+				int buf_len, int from, void *prd)
 {
 	int i;
 	struct mvs_prd *buf_prd = prd;
+	dma_addr_t buf_dma = mvi->bulk_buffer_dma;
+
 	buf_prd	+= from;
 	for (i = 0; i < MAX_SG_ENTRY - from; i++) {
 		buf_prd->addr = cpu_to_le64(buf_dma);
@@ -756,7 +758,6 @@ void mvs_64xx_fix_dma(dma_addr_t buf_dma, int buf_len, int from, void *prd)
 		++buf_prd;
 	}
 }
-#endif
 
 static void mvs_64xx_tune_interrupt(struct mvs_info *mvi, u32 time)
 {
@@ -830,9 +831,7 @@ const struct mvs_dispatch mvs_64xx_dispatch = {
 	mvs_64xx_spi_buildcmd,
 	mvs_64xx_spi_issuecmd,
 	mvs_64xx_spi_waitdataready,
-#ifndef DISABLE_HOTPLUG_DMA_FIX
 	mvs_64xx_fix_dma,
-#endif
 	mvs_64xx_tune_interrupt,
 	NULL,
 };

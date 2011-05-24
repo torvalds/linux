@@ -168,9 +168,8 @@ struct mvs_dispatch {
 						);
 	int (*spi_issuecmd)(struct mvs_info *mvi, u32 cmd);
 	int (*spi_waitdataready)(struct mvs_info *mvi, u32 timeout);
-#ifndef DISABLE_HOTPLUG_DMA_FIX
-	void (*dma_fix)(dma_addr_t buf_dma, int buf_len, int from, void *prd);
-#endif
+	void (*dma_fix)(struct mvs_info *mvi, u32 phy_mask,
+				int buf_len, int from, void *prd);
 	void (*tune_interrupt)(struct mvs_info *mvi, u32 time);
 	void (*non_spec_ncq_error)(struct mvs_info *mvi);
 
@@ -409,11 +408,11 @@ struct mvs_info {
 	void *addon;
 	struct hba_info_page hba_info_param;
 	struct mvs_device	devices[MVS_MAX_DEVICES];
-#ifndef DISABLE_HOTPLUG_DMA_FIX
 	void *bulk_buffer;
 	dma_addr_t bulk_buffer_dma;
+	void *bulk_buffer1;
+	dma_addr_t bulk_buffer_dma1;
 #define TRASH_BUCKET_SIZE    	0x20000
-#endif
 	void *dma_pool;
 	struct mvs_slot_info slot_info[0];
 };

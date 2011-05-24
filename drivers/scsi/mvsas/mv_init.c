@@ -153,11 +153,13 @@ static void mvs_free(struct mvs_info *mvi)
 		dma_free_coherent(mvi->dev,
 				  sizeof(*mvi->slot) * slot_nr,
 				  mvi->slot, mvi->slot_dma);
-#ifndef DISABLE_HOTPLUG_DMA_FIX
+
 	if (mvi->bulk_buffer)
 		dma_free_coherent(mvi->dev, TRASH_BUCKET_SIZE,
 				  mvi->bulk_buffer, mvi->bulk_buffer_dma);
-#endif
+	if (mvi->bulk_buffer1)
+		dma_free_coherent(mvi->dev, TRASH_BUCKET_SIZE,
+				  mvi->bulk_buffer1, mvi->bulk_buffer_dma1);
 
 	MVS_CHIP_DISP->chip_iounmap(mvi);
 	if (mvi->shost)
@@ -278,13 +280,18 @@ static int __devinit mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 		goto err_out;
 	memset(mvi->slot, 0, sizeof(*mvi->slot) * slot_nr);
 
-#ifndef DISABLE_HOTPLUG_DMA_FIX
 	mvi->bulk_buffer = dma_alloc_coherent(mvi->dev,
 				       TRASH_BUCKET_SIZE,
 				       &mvi->bulk_buffer_dma, GFP_KERNEL);
 	if (!mvi->bulk_buffer)
 		goto err_out;
-#endif
+
+	mvi->bulk_buffer1 = dma_alloc_coherent(mvi->dev,
+				       TRASH_BUCKET_SIZE,
+				       &mvi->bulk_buffer_dma1, GFP_KERNEL);
+	if (!mvi->bulk_buffer1)
+		goto err_out;
+
 	sprintf(pool_name, "%s%d", "mvs_dma_pool", mvi->id);
 	mvi->dma_pool = pci_pool_create(pool_name, mvi->pdev, MVS_SLOT_BUF_SZ, 16, 0);
 	if (!mvi->dma_pool) {

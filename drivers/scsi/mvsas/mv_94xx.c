@@ -871,19 +871,27 @@ int mvs_94xx_spi_waitdataready(struct mvs_info *mvi, u32 timeout)
 	return -1;
 }
 
-#ifndef DISABLE_HOTPLUG_DMA_FIX
-void mvs_94xx_fix_dma(dma_addr_t buf_dma, int buf_len, int from, void *prd)
+void mvs_94xx_fix_dma(struct mvs_info *mvi, u32 phy_mask,
+				int buf_len, int from, void *prd)
 {
 	int i;
 	struct mvs_prd *buf_prd = prd;
+	dma_addr_t buf_dma;
 	buf_prd += from;
+
+	if ((mvi->pdev->revision == VANIR_A0_REV) ||
+			(mvi->pdev->revision == VANIR_B0_REV))
+		buf_dma = (phy_mask <= 0x08) ?
+				mvi->bulk_buffer_dma : mvi->bulk_buffer_dma1;
+	else
+		return;
+
 	for (i = 0; i < MAX_SG_ENTRY - from; i++) {
 		buf_prd->addr = cpu_to_le64(buf_dma);
 		buf_prd->im_len.len = cpu_to_le32(buf_len);
 		++buf_prd;
 	}
 }
-#endif
 
 /*
  * FIXME JEJB: temporary nop clear_srs_irq to make 94xx still work
@@ -967,9 +975,7 @@ const struct mvs_dispatch mvs_94xx_dispatch = {
 	mvs_94xx_spi_buildcmd,
 	mvs_94xx_spi_issuecmd,
 	mvs_94xx_spi_waitdataready,
-#ifndef DISABLE_HOTPLUG_DMA_FIX
 	mvs_94xx_fix_dma,
-#endif
 	mvs_94xx_tune_interrupt,
 	mvs_94xx_non_spec_ncq_error,
 };
