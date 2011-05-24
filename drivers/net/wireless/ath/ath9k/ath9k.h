@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -397,6 +397,9 @@ struct ath_beacon {
 	struct ath_descdma bdma;
 	struct ath_txq *cabq;
 	struct list_head bbuf;
+
+	bool tx_processed;
+	bool tx_last;
 };
 
 void ath_beacon_tasklet(unsigned long data);

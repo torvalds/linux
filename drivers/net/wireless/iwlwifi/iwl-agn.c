@@ -134,12 +134,10 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	struct iwl_tx_beacon_cmd *tx_beacon_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_TX_BEACON,
-		.flags = CMD_SIZE_HUGE,
 	};
 	u32 frame_size;
 	u32 rate_flags;
 	u32 rate;
-	int err;
 
 	/*
 	 * We have to set up the TX command, the TX Beacon command, and the
@@ -156,16 +154,14 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	if (WARN_ON(!priv->beacon_skb))
 		return -EINVAL;
 
-	/* Allocate beacon memory */
-	tx_beacon_cmd = kzalloc(sizeof(*tx_beacon_cmd) + priv->beacon_skb->len,
-				GFP_KERNEL);
+	/* Allocate beacon command */
+	if (!priv->beacon_cmd)
+		priv->beacon_cmd = kzalloc(sizeof(*tx_beacon_cmd), GFP_KERNEL);
+	tx_beacon_cmd = priv->beacon_cmd;
 	if (!tx_beacon_cmd)
 		return -ENOMEM;
 
 	frame_size = priv->beacon_skb->len;
-
-	/* Set up TX beacon contents */
-	memcpy(tx_beacon_cmd->frame, priv->beacon_skb->data, frame_size);
 
 	/* Set up TX command fields */
 	tx_beacon_cmd->tx.len = cpu_to_le16((u16)frame_size);
@@ -175,7 +171,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 		TX_CMD_FLG_TSF_MSK | TX_CMD_FLG_STA_RATE_MSK;
 
 	/* Set up TX beacon command fields */
-	iwl_set_beacon_tim(priv, tx_beacon_cmd, (u8 *)tx_beacon_cmd->frame,
+	iwl_set_beacon_tim(priv, tx_beacon_cmd, priv->beacon_skb->data,
 			   frame_size);
 
 	/* Set up packet rate and flags */
@@ -189,164 +185,14 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 			rate_flags);
 
 	/* Submit command */
-	cmd.len = sizeof(*tx_beacon_cmd) + frame_size;
-	cmd.data = tx_beacon_cmd;
+	cmd.len[0] = sizeof(*tx_beacon_cmd);
+	cmd.data[0] = tx_beacon_cmd;
+	cmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
+	cmd.len[1] = frame_size;
+	cmd.data[1] = priv->beacon_skb->data;
+	cmd.dataflags[1] = IWL_HCMD_DFL_NOCOPY;
 
-	err = iwl_send_cmd_sync(priv, &cmd);
-
-	/* Free temporary storage */
-	kfree(tx_beacon_cmd);
-
-	return err;
-}
-
-static inline dma_addr_t iwl_tfd_tb_get_addr(struct iwl_tfd *tfd, u8 idx)
-{
-	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
-
-	dma_addr_t addr = get_unaligned_le32(&tb->lo);
-	if (sizeof(dma_addr_t) > sizeof(u32))
-		addr |=
-		((dma_addr_t)(le16_to_cpu(tb->hi_n_len) & 0xF) << 16) << 16;
-
-	return addr;
-}
-
-static inline u16 iwl_tfd_tb_get_len(struct iwl_tfd *tfd, u8 idx)
-{
-	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
-
-	return le16_to_cpu(tb->hi_n_len) >> 4;
-}
-
-static inline void iwl_tfd_set_tb(struct iwl_tfd *tfd, u8 idx,
-				  dma_addr_t addr, u16 len)
-{
-	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
-	u16 hi_n_len = len << 4;
-
-	put_unaligned_le32(addr, &tb->lo);
-	if (sizeof(dma_addr_t) > sizeof(u32))
-		hi_n_len |= ((addr >> 16) >> 16) & 0xF;
-
-	tb->hi_n_len = cpu_to_le16(hi_n_len);
-
-	tfd->num_tbs = idx + 1;
-}
-
-static inline u8 iwl_tfd_get_num_tbs(struct iwl_tfd *tfd)
-{
-	return tfd->num_tbs & 0x1f;
-}
-
-/**
- * iwl_hw_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
- * @priv - driver private data
- * @txq - tx queue
- *
- * Does NOT advance any TFD circular buffer read/write indexes
- * Does NOT free the TFD itself (which is within circular buffer)
- */
-void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
-{
-	struct iwl_tfd *tfd_tmp = (struct iwl_tfd *)txq->tfds;
-	struct iwl_tfd *tfd;
-	struct pci_dev *dev = priv->pci_dev;
-	int index = txq->q.read_ptr;
-	int i;
-	int num_tbs;
-
-	tfd = &tfd_tmp[index];
-
-	/* Sanity check on number of chunks */
-	num_tbs = iwl_tfd_get_num_tbs(tfd);
-
-	if (num_tbs >= IWL_NUM_OF_TBS) {
-		IWL_ERR(priv, "Too many chunks: %i\n", num_tbs);
-		/* @todo issue fatal error, it is quite serious situation */
-		return;
-	}
-
-	/* Unmap tx_cmd */
-	if (num_tbs)
-		pci_unmap_single(dev,
-				dma_unmap_addr(&txq->meta[index], mapping),
-				dma_unmap_len(&txq->meta[index], len),
-				PCI_DMA_BIDIRECTIONAL);
-
-	/* Unmap chunks, if any. */
-	for (i = 1; i < num_tbs; i++)
-		pci_unmap_single(dev, iwl_tfd_tb_get_addr(tfd, i),
-				iwl_tfd_tb_get_len(tfd, i), PCI_DMA_TODEVICE);
-
-	/* free SKB */
-	if (txq->txb) {
-		struct sk_buff *skb;
-
-		skb = txq->txb[txq->q.read_ptr].skb;
-
-		/* can be called from irqs-disabled context */
-		if (skb) {
-			dev_kfree_skb_any(skb);
-			txq->txb[txq->q.read_ptr].skb = NULL;
-		}
-	}
-}
-
-int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
-				 struct iwl_tx_queue *txq,
-				 dma_addr_t addr, u16 len,
-				 u8 reset, u8 pad)
-{
-	struct iwl_queue *q;
-	struct iwl_tfd *tfd, *tfd_tmp;
-	u32 num_tbs;
-
-	q = &txq->q;
-	tfd_tmp = (struct iwl_tfd *)txq->tfds;
-	tfd = &tfd_tmp[q->write_ptr];
-
-	if (reset)
-		memset(tfd, 0, sizeof(*tfd));
-
-	num_tbs = iwl_tfd_get_num_tbs(tfd);
-
-	/* Each TFD can point to a maximum 20 Tx buffers */
-	if (num_tbs >= IWL_NUM_OF_TBS) {
-		IWL_ERR(priv, "Error can not send more than %d chunks\n",
-			  IWL_NUM_OF_TBS);
-		return -EINVAL;
-	}
-
-	if (WARN_ON(addr & ~DMA_BIT_MASK(36)))
-		return -EINVAL;
-
-	if (unlikely(addr & ~IWL_TX_DMA_MASK))
-		IWL_ERR(priv, "Unaligned address = %llx\n",
-			  (unsigned long long)addr);
-
-	iwl_tfd_set_tb(tfd, num_tbs, addr, len);
-
-	return 0;
-}
-
-/*
- * Tell nic where to find circular buffer of Tx Frame Descriptors for
- * given Tx queue, and enable the DMA channel used for that queue.
- *
- * supports up to 16 Tx queues in DRAM, mapped to up to 8 Tx DMA
- * channels supported in hardware.
- */
-int iwl_hw_tx_queue_init(struct iwl_priv *priv,
-			 struct iwl_tx_queue *txq)
-{
-	int txq_id = txq->q.id;
-
-	/* Circular buffer (TFD queue in DRAM) physical base address */
-	iwl_write_direct32(priv, FH_MEM_CBBC_QUEUE(txq_id),
-			     txq->q.dma_addr >> 8);
-
-	return 0;
+	return iwl_send_cmd_sync(priv, &cmd);
 }
 
 static void iwl_bg_beacon_update(struct work_struct *work)
@@ -1776,10 +1622,7 @@ static const char *desc_lookup(u32 num)
 
 void iwl_dump_nic_error_log(struct iwl_priv *priv)
 {
-	u32 data2, line;
-	u32 desc, time, count, base, data1;
-	u32 blink1, blink2, ilink1, ilink2;
-	u32 pc, hcmd;
+	u32 base;
 	struct iwl_error_event_table table;
 
 	base = priv->device_pointers.error_event_table;
@@ -1802,37 +1645,40 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 
 	iwl_read_targ_mem_words(priv, base, &table, sizeof(table));
 
-	count = table.valid;
-
-	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
+	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
 		IWL_ERR(priv, "Start IWL Error Log Dump:\n");
 		IWL_ERR(priv, "Status: 0x%08lX, count: %d\n",
-			priv->status, count);
+			priv->status, table.valid);
 	}
 
-	desc = table.error_id;
-	priv->isr_stats.err_code = desc;
-	pc = table.pc;
-	blink1 = table.blink1;
-	blink2 = table.blink2;
-	ilink1 = table.ilink1;
-	ilink2 = table.ilink2;
-	data1 = table.data1;
-	data2 = table.data2;
-	line = table.line;
-	time = table.tsf_low;
-	hcmd = table.hcmd;
+	priv->isr_stats.err_code = table.error_id;
 
-	trace_iwlwifi_dev_ucode_error(priv, desc, time, data1, data2, line,
-				      blink1, blink2, ilink1, ilink2);
-
-	IWL_ERR(priv, "Desc                                  Time       "
-		"data1      data2      line\n");
-	IWL_ERR(priv, "%-28s (0x%04X) %010u 0x%08X 0x%08X %u\n",
-		desc_lookup(desc), desc, time, data1, data2, line);
-	IWL_ERR(priv, "pc      blink1  blink2  ilink1  ilink2  hcmd\n");
-	IWL_ERR(priv, "0x%05X 0x%05X 0x%05X 0x%05X 0x%05X 0x%05X\n",
-		pc, blink1, blink2, ilink1, ilink2, hcmd);
+	trace_iwlwifi_dev_ucode_error(priv, table.error_id, table.tsf_low,
+				      table.data1, table.data2, table.line,
+				      table.blink1, table.blink2, table.ilink1,
+				      table.ilink2, table.bcon_time, table.gp1,
+				      table.gp2, table.gp3, table.ucode_ver,
+				      table.hw_ver, table.brd_ver);
+	IWL_ERR(priv, "0x%08X | %-28s\n", table.error_id,
+		desc_lookup(table.error_id));
+	IWL_ERR(priv, "0x%08X | uPc\n", table.pc);
+	IWL_ERR(priv, "0x%08X | branchlink1\n", table.blink1);
+	IWL_ERR(priv, "0x%08X | branchlink2\n", table.blink2);
+	IWL_ERR(priv, "0x%08X | interruptlink1\n", table.ilink1);
+	IWL_ERR(priv, "0x%08X | interruptlink2\n", table.ilink2);
+	IWL_ERR(priv, "0x%08X | data1\n", table.data1);
+	IWL_ERR(priv, "0x%08X | data2\n", table.data2);
+	IWL_ERR(priv, "0x%08X | line\n", table.line);
+	IWL_ERR(priv, "0x%08X | beacon time\n", table.bcon_time);
+	IWL_ERR(priv, "0x%08X | tsf low\n", table.tsf_low);
+	IWL_ERR(priv, "0x%08X | tsf hi\n", table.tsf_hi);
+	IWL_ERR(priv, "0x%08X | time gp1\n", table.gp1);
+	IWL_ERR(priv, "0x%08X | time gp2\n", table.gp2);
+	IWL_ERR(priv, "0x%08X | time gp3\n", table.gp3);
+	IWL_ERR(priv, "0x%08X | uCode version\n", table.ucode_ver);
+	IWL_ERR(priv, "0x%08X | hw version\n", table.hw_ver);
+	IWL_ERR(priv, "0x%08X | board version\n", table.brd_ver);
+	IWL_ERR(priv, "0x%08X | hcmd\n", table.hcmd);
 }
 
 #define EVENT_START_OFFSET  (4 * sizeof(u32))
@@ -2114,8 +1960,8 @@ static int iwlagn_send_calib_cfg_rt(struct iwl_priv *priv, u32 cfg)
 	struct iwl_calib_cfg_cmd calib_cfg_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = CALIBRATION_CFG_CMD,
-		.len = sizeof(struct iwl_calib_cfg_cmd),
-		.data = &calib_cfg_cmd,
+		.len = { sizeof(struct iwl_calib_cfg_cmd), },
+		.data = { &calib_cfg_cmd, },
 	};
 
 	memset(&calib_cfg_cmd, 0, sizeof(calib_cfg_cmd));
@@ -3395,6 +3241,7 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 	iwlcore_free_geos(priv);
 	iwl_free_channel_map(priv);
 	kfree(priv->scan_cmd);
+	kfree(priv->beacon_cmd);
 }
 
 struct ieee80211_ops iwlagn_hw_ops = {
@@ -3812,6 +3659,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	 */
 	set_bit(STATUS_EXIT_PENDING, &priv->status);
 
+	iwl_testmode_cleanup(priv);
 	iwl_leds_exit(priv);
 
 	if (priv->mac80211_registered) {

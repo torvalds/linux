@@ -674,6 +674,7 @@ struct proc_dir_entry *proc_mkdir_mode(const char *name, mode_t mode,
 	}
 	return ent;
 }
+EXPORT_SYMBOL(proc_mkdir_mode);
 
 struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
 		struct proc_dir_entry *parent)

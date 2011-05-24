@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -46,15 +46,8 @@ extern struct ieee80211_ops ath9k_htc_ops;
 extern int htc_modparam_nohwcrypt;
 
 enum htc_phymode {
-	HTC_MODE_AUTO		= 0,
-	HTC_MODE_11A		= 1,
-	HTC_MODE_11B		= 2,
-	HTC_MODE_11G		= 3,
-	HTC_MODE_FH		= 4,
-	HTC_MODE_TURBO_A	= 5,
-	HTC_MODE_TURBO_G	= 6,
-	HTC_MODE_11NA		= 7,
-	HTC_MODE_11NG		= 8
+	HTC_MODE_11NA		= 0,
+	HTC_MODE_11NG		= 1
 };
 
 enum htc_opmode {
@@ -123,18 +116,13 @@ struct ath9k_htc_target_vif {
 	u8 pad;
 } __packed;
 
-#define ATH_HTC_STA_AUTH  0x0001
-#define ATH_HTC_STA_QOS   0x0002
-#define ATH_HTC_STA_ERP   0x0004
-#define ATH_HTC_STA_HT    0x0008
-
 struct ath9k_htc_target_sta {
 	u8 macaddr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	u8 sta_index;
 	u8 vif_index;
 	u8 is_vif_sta;
-	__be16 flags; /* ATH_HTC_STA_* */
+	__be16 flags;
 	__be16 htcap;
 	__be16 maxampdu;
 	u8 pad;
@@ -285,9 +273,9 @@ struct ath9k_htc_rx {
 };
 
 #define ATH9K_HTC_TX_CLEANUP_INTERVAL 50 /* ms */
-#define ATH9K_HTC_TX_TIMEOUT_INTERVAL 2500 /* ms */
+#define ATH9K_HTC_TX_TIMEOUT_INTERVAL 3000 /* ms */
 #define ATH9K_HTC_TX_RESERVE 10
-#define ATH9K_HTC_TX_TIMEOUT_COUNT 20
+#define ATH9K_HTC_TX_TIMEOUT_COUNT 40
 #define ATH9K_HTC_TX_THRESHOLD (MAX_TX_BUF_NUM - ATH9K_HTC_TX_RESERVE)
 
 #define ATH9K_HTC_OP_TX_QUEUES_STOP BIT(0)
@@ -450,6 +438,7 @@ struct ath9k_htc_priv {
 	u8 vif_sta_pos[ATH9K_HTC_MAX_VIF];
 	u8 num_ibss_vif;
 	u8 num_sta_vif;
+	u8 num_sta_assoc_vif;
 	u8 num_ap_vif;
 
 	u16 op_flags;

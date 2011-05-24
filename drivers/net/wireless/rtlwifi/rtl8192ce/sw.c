@@ -232,6 +232,7 @@ static struct rtl_hal_ops rtl8192ce_hal_ops = {
 	.config_bb_with_headerfile = _rtl92ce_phy_config_bb_with_headerfile,
 	.config_bb_with_pgheaderfile = _rtl92ce_phy_config_bb_with_pgheaderfile,
 	.phy_lc_calibrate = _rtl92ce_phy_lc_calibrate,
+	.phy_set_bw_mode_callback = rtl92ce_phy_set_bw_mode_callback,
 	.dm_dynamic_txpower = rtl92ce_dm_dynamic_txpower,
 };
 

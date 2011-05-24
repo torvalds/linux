@@ -2630,7 +2630,7 @@ wl_bss_roaming_done(struct wl_priv *wl, struct net_device *ndev,
 	wl_get_assoc_ies(wl);
 	memcpy(&wl->bssid, &e->addr, ETH_ALEN);
 	wl_update_bss_info(wl);
-	cfg80211_roamed(ndev,
+	cfg80211_roamed(ndev, NULL,
 			(u8 *)&wl->bssid,
 			conn_info->req_ie, conn_info->req_ie_len,
 			conn_info->resp_ie, conn_info->resp_ie_len, GFP_KERNEL);
@@ -2663,7 +2663,7 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 		WL_DBG("Report connect result - connection %s\n",
 		       completed ? "succeeded" : "failed");
 	} else {
-		cfg80211_roamed(ndev,
+		cfg80211_roamed(ndev, NULL,
 				(u8 *)&wl->bssid,
 				conn_info->req_ie, conn_info->req_ie_len,
 				conn_info->resp_ie, conn_info->resp_ie_len,

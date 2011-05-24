@@ -48,8 +48,6 @@
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
 
-#define U32_PAD(n)		((4-(n))&0x3)
-
 struct iwl_tx_queue;
 
 /* CT-KILL constants */
@@ -83,7 +81,7 @@ struct iwl_tx_queue;
 #define MAX_RTS_THRESHOLD         2347U
 #define MAX_MSDU_SIZE		  2304U
 #define MAX_MPDU_SIZE		  2346U
-#define DEFAULT_BEACON_INTERVAL   100U
+#define DEFAULT_BEACON_INTERVAL   200U
 #define	DEFAULT_SHORT_RETRY_LIMIT 7U
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
@@ -112,8 +110,6 @@ struct iwl_cmd_meta {
 			 struct iwl_device_cmd *cmd,
 			 struct iwl_rx_packet *pkt);
 
-	/* The CMD_SIZE_HUGE flag bit indicates that the command
-	 * structure is stored at the end of the shared queue memory. */
 	u32 flags;
 
 	DEFINE_DMA_UNMAP_ADDR(mapping);
@@ -123,7 +119,23 @@ struct iwl_cmd_meta {
 /*
  * Generic queue structure
  *
- * Contains common data for Rx and Tx queues
+ * Contains common data for Rx and Tx queues.
+ *
+ * Note the difference between n_bd and n_window: the hardware
+ * always assumes 256 descriptors, so n_bd is always 256 (unless
+ * there might be HW changes in the future). For the normal TX
+ * queues, n_window, which is the size of the software queue data
+ * is also 256; however, for the command queue, n_window is only
+ * 32 since we don't need so many commands pending. Since the HW
+ * still uses 256 BDs for DMA though, n_bd stays 256. As a result,
+ * the software buffers (in the variables @meta, @txb in struct
+ * iwl_tx_queue) only have 32 entries, while the HW buffers (@tfds
+ * in the same struct) have 256.
+ * This means that we end up with the following:
+ *  HW entries: | 0 | ... | N * 32 | ... | N * 32 + 31 | ... | 255 |
+ *  SW entries:           | 0      | ... | 31          |
+ * where N is a number between 0 and 7. This means that the SW
+ * data is a window overlayed over the HW queue.
  */
 struct iwl_queue {
 	int n_bd;              /* number of BDs in this queue */
@@ -165,7 +177,7 @@ struct iwl_tx_info {
 
 struct iwl_tx_queue {
 	struct iwl_queue q;
-	void *tfds;
+	struct iwl_tfd *tfds;
 	struct iwl_device_cmd **cmd;
 	struct iwl_cmd_meta *meta;
 	struct iwl_tx_info *txb;
@@ -247,7 +259,6 @@ enum {
 	CMD_SYNC = 0,
 	CMD_SIZE_NORMAL = 0,
 	CMD_NO_SKB = 0,
-	CMD_SIZE_HUGE = (1 << 0),
 	CMD_ASYNC = (1 << 1),
 	CMD_WANT_SKB = (1 << 2),
 	CMD_MAPPED = (1 << 3),
@@ -259,8 +270,8 @@ enum {
  * struct iwl_device_cmd
  *
  * For allocation of the command and tx queues, this establishes the overall
- * size of the largest command we send to uCode, except for a scan command
- * (which is relatively huge; space is allocated separately).
+ * size of the largest command we send to uCode, except for commands that
+ * aren't fully copied and use other TFD space.
  */
 struct iwl_device_cmd {
 	struct iwl_cmd_header hdr;	/* uCode API */
@@ -277,15 +288,21 @@ struct iwl_device_cmd {
 
 #define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_device_cmd))
 
+#define IWL_MAX_CMD_TFDS	2
+
+enum iwl_hcmd_dataflag {
+	IWL_HCMD_DFL_NOCOPY	= BIT(0),
+};
 
 struct iwl_host_cmd {
-	const void *data;
+	const void *data[IWL_MAX_CMD_TFDS];
 	unsigned long reply_page;
 	void (*callback)(struct iwl_priv *priv,
 			 struct iwl_device_cmd *cmd,
 			 struct iwl_rx_packet *pkt);
 	u32 flags;
-	u16 len;
+	u16 len[IWL_MAX_CMD_TFDS];
+	u8 dataflags[IWL_MAX_CMD_TFDS];
 	u8 id;
 };
 
@@ -688,17 +705,8 @@ static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 }
 
 
-static inline u8 get_cmd_index(struct iwl_queue *q, u32 index, int is_huge)
+static inline u8 get_cmd_index(struct iwl_queue *q, u32 index)
 {
-	/*
-	 * This is for init calibration result and scan command which
-	 * required buffer > TFD_MAX_PAYLOAD_SIZE,
-	 * the big buffer at end of command array
-	 */
-	if (is_huge)
-		return q->n_window;	/* must be power of 2 */
-
-	/* Otherwise, use normal size buffers */
 	return index & (q->n_window - 1);
 }
 
@@ -1171,6 +1179,14 @@ enum iwl_scan_type {
 	IWL_SCAN_OFFCH_TX,
 };
 
+#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+struct iwl_testmode_trace {
+	u8 *cpu_addr;
+	u8 *trace_addr;
+	dma_addr_t dma_addr;
+	bool trace_enabled;
+};
+#endif
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1452,6 +1468,7 @@ struct iwl_priv {
 	struct work_struct beacon_update;
 	struct iwl_rxon_context *beacon_ctx;
 	struct sk_buff *beacon_skb;
+	void *beacon_cmd;
 
 	struct work_struct tt_work;
 	struct work_struct ct_enter;
@@ -1501,6 +1518,11 @@ struct iwl_priv {
 	struct led_classdev led;
 	unsigned long blink_on, blink_off;
 	bool led_registered;
+#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+	struct iwl_testmode_trace testmode_trace;
+#endif
+	u32 dbg_fixed_rate;
+
 }; /*iwl_priv */
 
 static inline void iwl_txq_ctx_activate(struct iwl_priv *priv, int txq_id)

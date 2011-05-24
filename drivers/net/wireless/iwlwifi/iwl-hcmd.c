@@ -188,6 +188,7 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	cmd_idx = iwl_enqueue_hcmd(priv, cmd);
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
+		clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 		IWL_ERR(priv, "Error sending %s: enqueue_hcmd failed: %d\n",
 			  get_cmd_string(cmd->id), ret);
 		return ret;
@@ -264,8 +265,8 @@ int iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len, const void *data)
 {
 	struct iwl_host_cmd cmd = {
 		.id = id,
-		.len = len,
-		.data = data,
+		.len = { len, },
+		.data = { data, },
 	};
 
 	return iwl_send_cmd_sync(priv, &cmd);
@@ -279,8 +280,8 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv,
 {
 	struct iwl_host_cmd cmd = {
 		.id = id,
-		.len = len,
-		.data = data,
+		.len = { len, },
+		.data = { data, },
 	};
 
 	cmd.flags |= CMD_ASYNC;
