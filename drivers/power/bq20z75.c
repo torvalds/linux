@@ -702,6 +702,8 @@ skip_gpio:
 
 	INIT_DELAYED_WORK(&bq20z75_device->work, bq20z75_delayed_work);
 
+	bq20z75_device->enable_detection = true;
+
 	return 0;
 
 exit_psupply:
