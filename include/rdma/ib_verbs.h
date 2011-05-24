@@ -851,6 +851,7 @@ struct ib_ucontext {
 	struct list_head	qp_list;
 	struct list_head	srq_list;
 	struct list_head	ah_list;
+	struct list_head	xrcd_list;
 	int			closing;
 };
 
@@ -881,6 +882,7 @@ struct ib_pd {
 struct ib_xrcd {
 	struct ib_device       *device;
 	atomic_t		usecnt; /* count all exposed resources */
+	struct inode	       *inode;
 
 	struct mutex		tgt_qp_mutex;
 	struct list_head	tgt_qp_list;

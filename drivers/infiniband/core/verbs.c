@@ -1096,6 +1096,7 @@ struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device)
 	xrcd = device->alloc_xrcd(device, NULL, NULL);
 	if (!IS_ERR(xrcd)) {
 		xrcd->device = device;
+		xrcd->inode = NULL;
 		atomic_set(&xrcd->usecnt, 0);
 		mutex_init(&xrcd->tgt_qp_mutex);
 		INIT_LIST_HEAD(&xrcd->tgt_qp_list);
