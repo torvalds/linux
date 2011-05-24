@@ -97,6 +97,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		(cpuinfo.use_exc & PVR2_FPU_EXC_MASK) ? "fpu " : "",
 		(cpuinfo.use_exc & PVR2_USE_FSL_EXC) ? "fsl " : "");
 
+	count += seq_printf(m,
+			"Stream-insns:\t%sprivileged\n",
+			cpuinfo.mmu_privins ? "un" : "");
+
 	if (cpuinfo.use_icache)
 		count += seq_printf(m,
 				"Icache:\t\t%ukB\tline length:\t%dB\n",
