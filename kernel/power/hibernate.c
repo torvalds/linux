@@ -25,7 +25,6 @@
 #include <linux/gfp.h>
 #include <linux/syscore_ops.h>
 #include <scsi/scsi_scan.h>
-#include <asm/suspend.h>
 
 #include "power.h"
 
@@ -243,10 +242,6 @@ void swsusp_show_speed(struct timeval *start, struct timeval *stop,
 static int create_image(int platform_mode)
 {
 	int error;
-
-	error = arch_prepare_suspend();
-	if (error)
-		return error;
 
 	error = dpm_suspend_noirq(PMSG_FREEZE);
 	if (error) {
