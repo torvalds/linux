@@ -98,13 +98,26 @@ enum acer_wmi_event_ids {
 
 static const struct key_entry acer_wmi_keymap[] = {
 	{KE_KEY, 0x01, {KEY_WLAN} },     /* WiFi */
+	{KE_KEY, 0x03, {KEY_WLAN} },     /* WiFi */
 	{KE_KEY, 0x12, {KEY_BLUETOOTH} },	/* BT */
 	{KE_KEY, 0x21, {KEY_PROG1} },    /* Backup */
 	{KE_KEY, 0x22, {KEY_PROG2} },    /* Arcade */
 	{KE_KEY, 0x23, {KEY_PROG3} },    /* P_Key */
 	{KE_KEY, 0x24, {KEY_PROG4} },    /* Social networking_Key */
+	{KE_IGNORE, 0x41, {KEY_MUTE} },
+	{KE_IGNORE, 0x42, {KEY_PREVIOUSSONG} },
+	{KE_IGNORE, 0x43, {KEY_NEXTSONG} },
+	{KE_IGNORE, 0x44, {KEY_PLAYPAUSE} },
+	{KE_IGNORE, 0x45, {KEY_STOP} },
+	{KE_IGNORE, 0x48, {KEY_VOLUMEUP} },
+	{KE_IGNORE, 0x49, {KEY_VOLUMEDOWN} },
+	{KE_IGNORE, 0x61, {KEY_SWITCHVIDEOMODE} },
+	{KE_IGNORE, 0x62, {KEY_BRIGHTNESSUP} },
+	{KE_IGNORE, 0x63, {KEY_BRIGHTNESSDOWN} },
 	{KE_KEY, 0x64, {KEY_SWITCHVIDEOMODE} },	/* Display Switch */
+	{KE_IGNORE, 0x81, {KEY_SLEEP} },
 	{KE_KEY, 0x82, {KEY_TOUCHPAD_TOGGLE} },	/* Touch Pad On/Off */
+	{KE_IGNORE, 0x83, {KEY_TOUCHPAD_TOGGLE} },
 	{KE_END, 0}
 };
 
@@ -1345,7 +1358,7 @@ static void acer_wmi_notify(u32 value, void *context)
 	case WMID_HOTKEY_EVENT:
 		if (return_value.device_state) {
 			u16 device_state = return_value.device_state;
-			pr_debug("deivces states: 0x%x\n", device_state);
+			pr_debug("device state: 0x%x\n", device_state);
 			if (has_cap(ACER_CAP_WIRELESS))
 				rfkill_set_sw_state(wireless_rfkill,
 				!(device_state & ACER_WMID3_GDS_WIRELESS));
