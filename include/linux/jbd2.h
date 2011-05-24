@@ -658,7 +658,9 @@ struct transaction_s
 	 * waiting for it to finish.
 	 */
 	unsigned int t_synchronous_commit:1;
-	unsigned int t_flushed_data_blocks:1;
+
+	/* Disk flush needs to be sent to fs partition [no locking] */
+	int			t_need_data_flush;
 
 	/*
 	 * For use by the filesystem to store fs-specific data

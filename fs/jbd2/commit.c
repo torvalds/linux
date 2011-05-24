@@ -219,7 +219,6 @@ static int journal_submit_data_buffers(journal_t *journal,
 			ret = err;
 		spin_lock(&journal->j_list_lock);
 		J_ASSERT(jinode->i_transaction == commit_transaction);
-		commit_transaction->t_flushed_data_blocks = 1;
 		clear_bit(__JI_COMMIT_RUNNING, &jinode->i_flags);
 		smp_mb__after_clear_bit();
 		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
@@ -683,7 +682,7 @@ start_journal_io:
 	 * then we must flush the file system device before we issue
 	 * the commit record
 	 */
-	if (commit_transaction->t_flushed_data_blocks &&
+	if (commit_transaction->t_need_data_flush &&
 	    (journal->j_fs_dev != journal->j_dev) &&
 	    (journal->j_flags & JBD2_BARRIER))
 		blkdev_issue_flush(journal->j_fs_dev, GFP_KERNEL, NULL);

@@ -2147,6 +2147,13 @@ int jbd2_journal_file_inode(handle_t *handle, struct jbd2_inode *jinode)
 	    jinode->i_next_transaction == transaction)
 		goto done;
 
+	/*
+	 * We only ever set this variable to 1 so the test is safe. Since
+	 * t_need_data_flush is likely to be set, we do the test to save some
+	 * cacheline bouncing
+	 */
+	if (!transaction->t_need_data_flush)
+		transaction->t_need_data_flush = 1;
 	/* On some different transaction's list - should be
 	 * the committing one */
 	if (jinode->i_transaction) {
