@@ -425,7 +425,8 @@ static int request_ping_pong(struct snd_pcm_substream *substream,
 
 	edma_read_slot(link, &prtd->asp_params);
 	prtd->asp_params.opt &= ~(TCCMODE | EDMA_TCC(0x3f) | TCINTEN);
-	prtd->asp_params.opt |= TCCHEN | EDMA_TCC(prtd->ram_channel & 0x3f);
+	prtd->asp_params.opt |= TCCHEN |
+		EDMA_TCC(prtd->ram_channel & 0x3f);
 	edma_write_slot(link, &prtd->asp_params);
 
 	/* pong */
@@ -439,7 +440,7 @@ static int request_ping_pong(struct snd_pcm_substream *substream,
 	prtd->asp_params.opt &= ~(TCCMODE | EDMA_TCC(0x3f));
 	/* interrupt after every pong completion */
 	prtd->asp_params.opt |= TCINTEN | TCCHEN |
-		EDMA_TCC(EDMA_CHAN_SLOT(prtd->ram_channel));
+		EDMA_TCC(prtd->ram_channel & 0x3f);
 	edma_write_slot(link, &prtd->asp_params);
 
 	/* ram */
