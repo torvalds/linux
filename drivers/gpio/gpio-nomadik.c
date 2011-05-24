@@ -811,20 +811,43 @@ static void nmk_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		bool pull;
 		u32 bit = 1 << i;
 
-		if (!label)
-			continue;
-
 		is_out = readl(nmk_chip->addr + NMK_GPIO_DIR) & bit;
 		pull = !(readl(nmk_chip->addr + NMK_GPIO_PDIS) & bit);
 		mode = nmk_gpio_get_mode(gpio);
 		seq_printf(s, " gpio-%-3d (%-20.20s) %s %s %s %s",
-			gpio, label,
+			gpio, label ?: "(none)",
 			is_out ? "out" : "in ",
 			chip->get
 				? (chip->get(chip, i) ? "hi" : "lo")
 				: "?  ",
 			(mode < 0) ? "unknown" : modes[mode],
 			pull ? "pull" : "none");
+
+		if (label && !is_out) {
+			int		irq = gpio_to_irq(gpio);
+			struct irq_desc	*desc = irq_to_desc(irq);
+
+			/* This races with request_irq(), set_irq_type(),
+			 * and set_irq_wake() ... but those are "rare".
+			 */
+			if (irq >= 0 && desc->action) {
+				char *trigger;
+				u32 bitmask = nmk_gpio_get_bitmask(gpio);
+
+				if (nmk_chip->edge_rising & bitmask)
+					trigger = "edge-rising";
+				else if (nmk_chip->edge_falling & bitmask)
+					trigger = "edge-falling";
+				else
+					trigger = "edge-undefined";
+
+				seq_printf(s, " irq-%d %s%s",
+					irq, trigger,
+					irqd_is_wakeup_set(&desc->irq_data)
+						? " wakeup" : "");
+			}
+		}
+
 		seq_printf(s, "\n");
 	}
 }
