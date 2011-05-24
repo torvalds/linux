@@ -92,7 +92,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
 		mmc_data->capabilities |= p->tmio_caps;
 
-		if (p->dma_slave_tx >= 0 && p->dma_slave_rx >= 0) {
+		if (p->dma_slave_tx > 0 && p->dma_slave_rx > 0) {
 			priv->param_tx.slave_id = p->dma_slave_tx;
 			priv->param_rx.slave_id = p->dma_slave_rx;
 			priv->dma_priv.chan_priv_tx = &priv->param_tx;
