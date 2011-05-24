@@ -3485,7 +3485,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct iwl_priv *priv;
 	struct ieee80211_hw *hw;
 	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
-	unsigned long flags;
 	u16 pci_cmd, num_mac;
 	u32 hw_rev;
 
@@ -3646,10 +3645,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/********************
 	 * 7. Setup services
 	 ********************/
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl_disable_interrupts(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	pci_enable_msi(priv->pci_dev);
 
 	iwl_alloc_isr_ict(priv);
