@@ -311,26 +311,6 @@ static inline void msg_set_seqno(struct tipc_msg *m, u32 n)
 }
 
 /*
- * TIPC may utilize the "link ack #" and "link seq #" fields of a short
- * message header to hold the destination node for the message, since the
- * normal "dest node" field isn't present.  This cache is only referenced
- * when required, so populating the cache of a longer message header is
- * harmless (as long as the header has the two link sequence fields present).
- *
- * Note: Host byte order is OK here, since the info never goes off-card.
- */
-
-static inline u32 msg_destnode_cache(struct tipc_msg *m)
-{
-	return m->hdr[2];
-}
-
-static inline void msg_set_destnode_cache(struct tipc_msg *m, u32 dnode)
-{
-	m->hdr[2] = dnode;
-}
-
-/*
  * Words 3-10
  */
 
