@@ -142,6 +142,16 @@ struct ocfs2_info_journal_size {
 	__u64 ij_journal_size;
 };
 
+struct ocfs2_info_freeinode {
+	struct ocfs2_info_request ifi_req;
+	struct ocfs2_info_local_freeinode {
+		__u64 lfi_total;
+		__u64 lfi_free;
+	} ifi_stat[OCFS2_MAX_SLOTS];
+	__u32 ifi_slotnum; /* out */
+	__u32 ifi_pad;
+};
+
 /* Codes for ocfs2_info_request */
 enum ocfs2_info_type {
 	OCFS2_INFO_CLUSTERSIZE = 1,
@@ -151,6 +161,7 @@ enum ocfs2_info_type {
 	OCFS2_INFO_UUID,
 	OCFS2_INFO_FS_FEATURES,
 	OCFS2_INFO_JOURNAL_SIZE,
+	OCFS2_INFO_FREEINODE,
 	OCFS2_INFO_NUM_TYPES
 };
 
