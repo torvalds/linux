@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Copyright (C) Martin Schlemmer <azarah@nosferatu.za.org>
 # Copyright (C) 2006 Sam Ravnborg <sam@ravnborg.org>
 #
@@ -105,9 +105,9 @@ list_parse() {
 # for links, devices etc the format differs. See gen_init_cpio for details
 parse() {
 	local location="$1"
-	local name="${location/${srcdir}//}"
+	local name="/${location#${srcdir}}"
 	# change '//' into '/'
-	name="${name//\/\///}"
+	name=$(echo "$name" | sed -e 's://*:/:g')
 	local mode="$2"
 	local uid="$3"
 	local gid="$4"
@@ -117,8 +117,8 @@ parse() {
 	[ "$root_gid" = "squash" ] && gid=0 || [ "$gid" -eq "$root_gid" ] && gid=0
 	local str="${mode} ${uid} ${gid}"
 
-	[ "${ftype}" == "invalid" ] && return 0
-	[ "${location}" == "${srcdir}" ] && return 0
+	[ "${ftype}" = "invalid" ] && return 0
+	[ "${location}" = "${srcdir}" ] && return 0
 
 	case "${ftype}" in
 		"file")
@@ -192,7 +192,7 @@ input_file() {
 	if [ -f "$1" ]; then
 		${dep_list}header "$1"
 		is_cpio="$(echo "$1" | sed 's/^.*\.cpio\(\..*\)\?/cpio/')"
-		if [ $2 -eq 0 -a ${is_cpio} == "cpio" ]; then
+		if [ $2 -eq 0 -a ${is_cpio} = "cpio" ]; then
 			cpio_file=$1
 			echo "$1" | grep -q '^.*\.cpio\..*' && is_cpio_compressed="compressed"
 			[ ! -z ${dep_list} ] && echo "$1"
@@ -204,7 +204,7 @@ input_file() {
 		else
 		        echo "$1 \\"
 			cat "$1" | while read type dir file perm ; do
-				if [ "$type" == "file" ]; then
+				if [ "$type" = "file" ]; then
 					echo "$file \\";
 				fi
 			done
@@ -226,7 +226,7 @@ cpio_list=
 output="/dev/stdout"
 output_file=""
 is_cpio_compressed=
-compr="gzip -9 -f"
+compr="gzip -n -9 -f"
 
 arg="$1"
 case "$arg" in
@@ -240,7 +240,7 @@ case "$arg" in
 		output_file="$1"
 		cpio_list="$(mktemp ${TMPDIR:-/tmp}/cpiolist.XXXXXX)"
 		output=${cpio_list}
-		echo "$output_file" | grep -q "\.gz$" && compr="gzip -9 -f"
+		echo "$output_file" | grep -q "\.gz$" && compr="gzip -n -9 -f"
 		echo "$output_file" | grep -q "\.bz2$" && compr="bzip2 -9 -f"
 		echo "$output_file" | grep -q "\.lzma$" && compr="lzma -9 -f"
 		echo "$output_file" | grep -q "\.xz$" && \
@@ -287,8 +287,15 @@ done
 # we are careful to delete tmp files
 if [ ! -z ${output_file} ]; then
 	if [ -z ${cpio_file} ]; then
+		timestamp=
+		if test -n "$KBUILD_BUILD_TIMESTAMP"; then
+			timestamp="$(date -d"$KBUILD_BUILD_TIMESTAMP" +%s || :)"
+			if test -n "$timestamp"; then
+				timestamp="-t $timestamp"
+			fi
+		fi
 		cpio_tfile="$(mktemp ${TMPDIR:-/tmp}/cpiofile.XXXXXX)"
-		usr/gen_init_cpio ${cpio_list} > ${cpio_tfile}
+		usr/gen_init_cpio $timestamp ${cpio_list} > ${cpio_tfile}
 	else
 		cpio_tfile=${cpio_file}
 	fi
