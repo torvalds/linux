@@ -33,7 +33,6 @@ static void mvs_64xx_detect_porttype(struct mvs_info *mvi, int i)
 	u32 reg;
 	struct mvs_phy *phy = &mvi->phy[i];
 
-	/* TODO check & save device type */
 	reg = mr32(MVS_GBL_PORT_TYPE);
 	phy->phy_type &= ~(PORT_TYPE_SAS | PORT_TYPE_SATA);
 	if (reg & MODE_SAS_SATA & (1 << i))
@@ -63,7 +62,6 @@ static void __devinit mvs_64xx_phy_hacks(struct mvs_info *mvi)
 	mvs_phy_hacks(mvi);
 
 	if (!(mvi->flags & MVF_FLAG_SOC)) {
-		/* TEST - for phy decoding error, adjust voltage levels */
 		for (i = 0; i < MVS_SOC_PORTS; i++) {
 			mvs_write_port_vsr_addr(mvi, i, VSR_PHY_MODE8);
 			mvs_write_port_vsr_data(mvi, i, 0x2F0);
@@ -375,13 +373,7 @@ static int __devinit mvs_64xx_init(struct mvs_info *mvi)
 		mvs_update_phyinfo(mvi, i, 1);
 	}
 
-	/* FIXME: update wide port bitmaps */
-
 	/* little endian for open address and command table, etc. */
-	/*
-	 * it seems that ( from the spec ) turning on big-endian won't
-	 * do us any good on big-endian machines, need further confirmation
-	 */
 	cctl = mr32(MVS_CTL);
 	cctl |= CCTL_ENDIAN_CMD;
 	cctl |= CCTL_ENDIAN_DATA;
@@ -394,8 +386,8 @@ static int __devinit mvs_64xx_init(struct mvs_info *mvi)
 	tmp |= PCS_CMD_RST;
 	tmp &= ~PCS_SELF_CLEAR;
 	mw32(MVS_PCS, tmp);
-	/* interrupt coalescing may cause missing HW interrput in some case,
-	 * and the max count is 0x1ff, while our max slot is 0x200,
+	/*
+	 * the max count is 0x1ff, while our max slot is 0x200,
 	 * it will make count 0.
 	 */
 	tmp = 0;
@@ -632,7 +624,6 @@ static void mvs_64xx_phy_work_around(struct mvs_info *mvi, int i)
 {
 	u32 tmp;
 	struct mvs_phy *phy = &mvi->phy[i];
-	/* workaround for HW phy decoding error on 1.5g disk drive */
 	mvs_write_port_vsr_addr(mvi, i, VSR_PHY_MODE6);
 	tmp = mvs_read_port_vsr_data(mvi, i);
 	if (((phy->phy_status & PHY_NEG_SPP_PHYS_LINK_RATE_MASK) >>
@@ -765,8 +756,8 @@ static void mvs_64xx_tune_interrupt(struct mvs_info *mvi, u32 time)
 {
 	void __iomem *regs = mvi->regs;
 	u32 tmp = 0;
-	/* interrupt coalescing may cause missing HW interrput in some case,
-	 * and the max count is 0x1ff, while our max slot is 0x200,
+	/*
+	 * the max count is 0x1ff, while our max slot is 0x200,
 	 * it will make count 0.
 	 */
 	if (time == 0) {

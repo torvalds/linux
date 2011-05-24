@@ -121,18 +121,18 @@ enum pci_cfg_registers {
 
 /*  SAS/SATA Vendor Specific Port Registers */
 enum sas_sata_vsp_regs {
-	VSR_PHY_STAT		= 0x00 * 4, /* Phy Status */
-	VSR_PHY_MODE1		= 0x01 * 4, /* phy tx */
-	VSR_PHY_MODE2		= 0x02 * 4, /* tx scc */
-	VSR_PHY_MODE3		= 0x03 * 4, /* pll */
-	VSR_PHY_MODE4		= 0x04 * 4, /* VCO */
-	VSR_PHY_MODE5		= 0x05 * 4, /* Rx */
-	VSR_PHY_MODE6		= 0x06 * 4, /* CDR */
-	VSR_PHY_MODE7		= 0x07 * 4, /* Impedance */
-	VSR_PHY_MODE8		= 0x08 * 4, /* Voltage */
-	VSR_PHY_MODE9		= 0x09 * 4, /* Test */
-	VSR_PHY_MODE10		= 0x0A * 4, /* Power */
-	VSR_PHY_MODE11		= 0x0B * 4, /* Phy Mode */
+	VSR_PHY_STAT		= 0x00 * 4, /* Phy Interrupt Status */
+	VSR_PHY_MODE1		= 0x01 * 4, /* phy Interrupt Enable */
+	VSR_PHY_MODE2		= 0x02 * 4, /* Phy Configuration */
+	VSR_PHY_MODE3		= 0x03 * 4, /* Phy Status */
+	VSR_PHY_MODE4		= 0x04 * 4, /* Phy Counter 0 */
+	VSR_PHY_MODE5		= 0x05 * 4, /* Phy Counter 1 */
+	VSR_PHY_MODE6		= 0x06 * 4, /* Event Counter Control */
+	VSR_PHY_MODE7		= 0x07 * 4, /* Event Counter Select */
+	VSR_PHY_MODE8		= 0x08 * 4, /* Event Counter 0 */
+	VSR_PHY_MODE9		= 0x09 * 4, /* Event Counter 1 */
+	VSR_PHY_MODE10		= 0x0A * 4, /* Event Counter 2 */
+	VSR_PHY_MODE11		= 0x0B * 4, /* Event Counter 3 */
 	VSR_PHY_ACT_LED		= 0x0C * 4, /* Activity LED control */
 
 	VSR_PHY_FFE_CONTROL	= 0x10C,

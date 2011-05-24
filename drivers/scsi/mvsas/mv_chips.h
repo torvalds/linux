@@ -164,7 +164,6 @@ static inline void __devinit mvs_phy_hacks(struct mvs_info *mvi)
 {
 	u32 tmp;
 
-	/* workaround for SATA R-ERR, to ignore phy glitch */
 	tmp = mvs_cr32(mvi, CMD_PHY_TIMER);
 	tmp &= ~(1 << 9);
 	tmp |= (1 << 10);
@@ -179,7 +178,6 @@ static inline void __devinit mvs_phy_hacks(struct mvs_info *mvi)
 	tmp |= 0x3fff;
 	mvs_cw32(mvi, CMD_SAS_CTL0, tmp);
 
-	/* workaround for WDTIMEOUT , set to 550 ms */
 	mvs_cw32(mvi, CMD_WD_TIMER, 0x7a0000);
 
 	/* not to halt for different port op during wideport link change */

@@ -102,7 +102,6 @@ struct mvs_info *mvs_find_dev_mvi(struct domain_device *dev)
 
 }
 
-/* FIXME */
 int mvs_find_dev_phyno(struct domain_device *dev, int *phyno)
 {
 	unsigned long i = 0, j = 0, n = 0, num = 0;
@@ -177,7 +176,6 @@ void mvs_phys_reset(struct mvs_info *mvi, u32 phy_mask, int hard)
 	}
 }
 
-/* FIXME: locking? */
 int mvs_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 			void *funcdata)
 {
@@ -504,11 +502,8 @@ static int mvs_task_prep_ata(struct mvs_info *mvi,
 			flags |= MCH_ATAPI;
 	}
 
-	/* FIXME: fill in port multiplier number */
-
 	hdr->flags = cpu_to_le32(flags);
 
-	/* FIXME: the low order order 5 bits for the TAG if enable NCQ */
 	if (task->ata_task.use_ncq && mvs_get_ncq_tag(task, &hdr_tag))
 		task->ata_task.fis.sector_count |= (u8) (hdr_tag << 3);
 	else
@@ -552,9 +547,6 @@ static int mvs_task_prep_ata(struct mvs_info *mvi,
 	buf_tmp_dma += i;
 
 	/* region 4: status buffer (larger the PRD, smaller this buf) ****** */
-	/* FIXME: probably unused, for SATA.  kept here just in case
-	 * we get a STP/SATA error information record
-	 */
 	slot->response = buf_tmp;
 	hdr->status_buf = cpu_to_le64(buf_tmp_dma);
 	if (mvi->flags & MVF_FLAG_SOC)
@@ -1126,7 +1118,6 @@ static void *mvs_get_d2h_reg(struct mvs_info *mvi, int i, void *buf)
 	MVS_CHIP_DISP->write_port_cfg_addr(mvi, i, PHYR_SATA_SIG0);
 	s[0] = cpu_to_le32(MVS_CHIP_DISP->read_port_cfg_data(mvi, i));
 
-	/* Workaround: take some ATAPI devices for ATA */
 	if (((s[1] & 0x00FFFFFF) == 0x00EB1401) && (*(u8 *)&s[3] == 0x01))
 		s[1] = 0x00EB1401 | (*((u8 *)&s[1] + 3) & 0x10);
 
@@ -1433,7 +1424,6 @@ static void mvs_tmf_timedout(unsigned long data)
 	complete(&task->completion);
 }
 
-/* XXX */
 #define MVS_TASK_TIMEOUT 20
 static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 			void *parameter, u32 para_len, struct mvs_tmf_task *tmf)
@@ -1577,7 +1567,6 @@ int mvs_I_T_nexus_reset(struct domain_device *dev)
 	mv_printk("%s for device[%x]:rc= %d\n",
 		__func__, mvi_dev->device_id, rc);
 
-	/* housekeeper */
 	spin_lock_irqsave(&mvi->lock, flags);
 	mvs_release_task(mvi, dev);
 	spin_unlock_irqrestore(&mvi->lock, flags);
@@ -1681,7 +1670,6 @@ int mvs_abort_task(struct sas_task *task)
 
 	} else if (task->task_proto & SAS_PROTOCOL_SATA ||
 		task->task_proto & SAS_PROTOCOL_STP) {
-		/* to do free register_set */
 		if (SATA_DEV == dev->dev_type) {
 			struct mvs_slot_info *slot = task->lldd_task;
 			u32 slot_idx = (u32)(slot - mvi->slot_info);
@@ -1901,6 +1889,7 @@ int mvs_slot_complete(struct mvs_info *mvi, u32 rx_desc, u32 flags)
 		return -1;
 	}
 
+	/* when no device attaching, go ahead and complete by error handling*/
 	if (unlikely(!mvi_dev || flags)) {
 		if (!mvi_dev)
 			mv_dprintk("port has not device.\n");
@@ -2017,7 +2006,6 @@ void mvs_release_task(struct mvs_info *mvi,
 		      struct domain_device *dev)
 {
 	int i, phyno[WIDE_PORT_MAX_PHY], num;
-	/* housekeeper */
 	num = mvs_find_dev_phyno(dev, phyno);
 	for (i = 0; i < num; i++)
 		mvs_do_release_task(mvi, phyno[i], dev);

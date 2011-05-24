@@ -160,7 +160,7 @@ enum hw_register_bits {
 	TXQ_CMD_SSP		= 1,		/* SSP protocol */
 	TXQ_CMD_SMP		= 2,		/* SMP protocol */
 	TXQ_CMD_STP		= 3,		/* STP/SATA protocol */
-	TXQ_CMD_SSP_FREE_LIST	= 4,		/* add to SSP targ free list */
+	TXQ_CMD_SSP_FREE_LIST	= 4,		/* add to SSP target free list */
 	TXQ_CMD_SLOT_RESET	= 7,		/* reset command slot */
 	TXQ_MODE_I		= (1U << 28),	/* mode: 0=target,1=initiator */
 	TXQ_MODE_TARGET 	= 0,

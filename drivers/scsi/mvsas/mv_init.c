@@ -405,7 +405,6 @@ err_out:
 	return NULL;
 }
 
-/* move to PCI layer or libata core? */
 static int pci_go_64(struct pci_dev *pdev)
 {
 	int rc;

@@ -460,13 +460,7 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 		mvs_update_phyinfo(mvi, i, 1);
 	}
 
-	/* FIXME: update wide port bitmaps */
-
 	/* little endian for open address and command table, etc. */
-	/*
-	 * it seems that ( from the spec ) turning on big-endian won't
-	 * do us any good on big-endian machines, need further confirmation
-	 */
 	cctl = mr32(MVS_CTL);
 	cctl |= CCTL_ENDIAN_CMD;
 	cctl &= ~CCTL_ENDIAN_OPEN;
@@ -478,8 +472,8 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 	tmp |= PCS_CMD_RST;
 	tmp &= ~PCS_SELF_CLEAR;
 	mw32(MVS_PCS, tmp);
-	/* interrupt coalescing may cause missing HW interrput in some case,
-	 * and the max count is 0x1ff, while our max slot is 0x200,
+	/*
+	 * the max count is 0x1ff, while our max slot is 0x200,
 	 * it will make count 0.
 	 */
 	tmp = 0;
@@ -488,6 +482,7 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 	else
 		mw32(MVS_INT_COAL, MVS_CHIP_SLOT_SZ | COAL_EN);
 
+	/* default interrupt coalescing time is 128us */
 	tmp = 0x10000 | interrupt_coalescing;
 	mw32(MVS_INT_COAL_TMOUT, tmp);
 
@@ -745,7 +740,7 @@ static int mvs_94xx_oob_done(struct mvs_info *mvi, int i)
 {
 	u32 phy_st;
 	phy_st = mvs_read_phy_ctl(mvi, i);
-	if (phy_st & PHY_READY_MASK)	/* phy ready */
+	if (phy_st & PHY_READY_MASK)
 		return 1;
 	return 0;
 }
@@ -770,7 +765,6 @@ static void mvs_94xx_get_att_identify_frame(struct mvs_info *mvi, int port_id,
 	int i;
 	u32 id_frame[7];
 
-	/* mvs_hexdump(28, (u8 *)id_frame, 0); */
 	for (i = 0; i < 7; i++) {
 		mvs_write_port_cfg_addr(mvi, port_id,
 					CONFIG_ATT_ID_FRAME0 + i * 4);
@@ -778,7 +772,6 @@ static void mvs_94xx_get_att_identify_frame(struct mvs_info *mvi, int port_id,
 		mv_dprintk("94xx phy %d atta frame %d %x.\n",
 			port_id + mvi->id * mvi->chip->n_phy, i, id_frame[i]);
 	}
-	/* mvs_hexdump(28, (u8 *)id_frame, 0); */
 	memcpy(id, id_frame, 28);
 }
 
@@ -962,8 +955,8 @@ static void mvs_94xx_tune_interrupt(struct mvs_info *mvi, u32 time)
 {
 	void __iomem *regs = mvi->regs;
 	u32 tmp = 0;
-	/* interrupt coalescing may cause missing HW interrput in some case,
-	 * and the max count is 0x1ff, while our max slot is 0x200,
+	/*
+	 * the max count is 0x1ff, while our max slot is 0x200,
 	 * it will make count 0.
 	 */
 	if (time == 0) {
