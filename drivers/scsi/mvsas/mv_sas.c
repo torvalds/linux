@@ -253,6 +253,20 @@ int mvs_find_dev_phyno(struct domain_device *dev, int *phyno)
 	return num;
 }
 
+struct mvs_device *mvs_find_dev_by_reg_set(struct mvs_info *mvi,
+						u8 reg_set)
+{
+	u32 dev_no;
+	for (dev_no = 0; dev_no < MVS_MAX_DEVICES; dev_no++) {
+		if (mvi->devices[dev_no].taskfileset == MVS_ID_NOT_MAPPED)
+			continue;
+
+		if (mvi->devices[dev_no].taskfileset == reg_set)
+			return &mvi->devices[dev_no];
+	}
+	return NULL;
+}
+
 static inline void mvs_free_reg_set(struct mvs_info *mvi,
 				struct mvs_device *dev)
 {

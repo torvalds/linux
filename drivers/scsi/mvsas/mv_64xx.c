@@ -811,5 +811,6 @@ const struct mvs_dispatch mvs_64xx_dispatch = {
 #ifndef DISABLE_HOTPLUG_DMA_FIX
 	mvs_64xx_fix_dma,
 #endif
+	NULL,
 };
 

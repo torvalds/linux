@@ -223,6 +223,9 @@ static inline void mvs_int_full(struct mvs_info *mvi)
 			mvs_int_port(mvi, i, tmp);
 	}
 
+	if (stat & CINT_NON_SPEC_NCQ_ERROR)
+		MVS_CHIP_DISP->non_spec_ncq_error(mvi);
+
 	if (stat & CINT_SRS)
 		mvs_int_sata(mvi);
 

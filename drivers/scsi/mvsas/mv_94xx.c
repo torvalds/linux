@@ -249,7 +249,7 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 
 	/* enable completion queue interrupt */
 	tmp = (CINT_PORT_MASK | CINT_DONE | CINT_MEM | CINT_SRS | CINT_CI_STOP |
-		CINT_DMA_PCIE);
+		CINT_DMA_PCIE | CINT_NON_SPEC_NCQ_ERROR);
 	tmp |= CINT_PHY_MASK;
 	mw32(MVS_INT_MASK, tmp);
 
@@ -365,6 +365,35 @@ static void mvs_94xx_issue_stop(struct mvs_info *mvi, enum mvs_port_type type,
 	mw32(MVS_INT_STAT, CINT_CI_STOP);
 	tmp = mr32(MVS_PCS) | 0xFF00;
 	mw32(MVS_PCS, tmp);
+}
+
+static void mvs_94xx_non_spec_ncq_error(struct mvs_info *mvi)
+{
+	void __iomem *regs = mvi->regs;
+	u32 err_0, err_1;
+	u8 i;
+	struct mvs_device *device;
+
+	err_0 = mr32(MVS_NON_NCQ_ERR_0);
+	err_1 = mr32(MVS_NON_NCQ_ERR_1);
+
+	mv_dprintk("non specific ncq error err_0:%x,err_1:%x.\n",
+			err_0, err_1);
+	for (i = 0; i < 32; i++) {
+		if (err_0 & bit(i)) {
+			device = mvs_find_dev_by_reg_set(mvi, i);
+			if (device)
+				mvs_release_task(mvi, device->sas_device);
+		}
+		if (err_1 & bit(i)) {
+			device = mvs_find_dev_by_reg_set(mvi, i+32);
+			if (device)
+				mvs_release_task(mvi, device->sas_device);
+		}
+	}
+
+	mw32(MVS_NON_NCQ_ERR_0, err_0);
+	mw32(MVS_NON_NCQ_ERR_1, err_1);
 }
 
 static void mvs_94xx_free_reg_set(struct mvs_info *mvi, u8 *tfs)
@@ -679,5 +708,6 @@ const struct mvs_dispatch mvs_94xx_dispatch = {
 #ifndef DISABLE_HOTPLUG_DMA_FIX
 	mvs_94xx_fix_dma,
 #endif
+	mvs_94xx_non_spec_ncq_error,
 };
 

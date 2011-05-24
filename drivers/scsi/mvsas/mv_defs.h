@@ -144,6 +144,7 @@ enum hw_register_bits {
 	CINT_DMA_PCIE		= (1U << 27),	/* DMA to PCIE timeout */
 	CINT_MEM		= (1U << 26),	/* int mem parity err */
 	CINT_I2C_SLAVE		= (1U << 25),	/* slave I2C event */
+	CINT_NON_SPEC_NCQ_ERROR	= (1U << 25),	/* Non specific NCQ error */
 	CINT_SRS		= (1U << 3),	/* SRS event */
 	CINT_CI_STOP		= (1U << 1),	/* cmd issue stopped */
 	CINT_DONE		= (1U << 0),	/* cmd completion */

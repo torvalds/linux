@@ -170,6 +170,7 @@ struct mvs_dispatch {
 #ifndef DISABLE_HOTPLUG_DMA_FIX
 	void (*dma_fix)(dma_addr_t buf_dma, int buf_len, int from, void *prd);
 #endif
+	void (*non_spec_ncq_error)(struct mvs_info *mvi);
 
 };
 
@@ -416,5 +417,6 @@ void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events);
 void mvs_update_phyinfo(struct mvs_info *mvi, int i, int get_st);
 int mvs_int_rx(struct mvs_info *mvi, bool self_clear);
 void mvs_hexdump(u32 size, u8 *data, u32 baseaddr);
+struct mvs_device *mvs_find_dev_by_reg_set(struct mvs_info *mvi, u8 reg_set);
 #endif
 
