@@ -1461,8 +1461,6 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 
 	cFYI(1, "cifs_rmdir, inode = 0x%p", inode);
 
-	dentry_unhash(direntry);
-
 	xid = GetXid();
 
 	full_path = build_path_from_dentry(direntry);
@@ -1570,9 +1568,6 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 	FILE_UNIX_BASIC_INFO *info_buf_source = NULL;
 	FILE_UNIX_BASIC_INFO *info_buf_target;
 	int xid, rc, tmprc;
-
-	if (target_dentry->d_inode && S_ISDIR(target_dentry->d_inode->i_mode))
-		dentry_unhash(target_dentry);
 
 	cifs_sb = CIFS_SB(source_dir->i_sb);
 	tlink = cifs_sb_tlink(cifs_sb);
