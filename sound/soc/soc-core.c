@@ -1617,7 +1617,6 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num)
 	rtd->pmdown_time = pmdown_time;
 
 	/* probe the cpu_dai */
-
 	if (!cpu_dai->probed) {
 		if (!try_module_get(cpu_dai->dev->driver->owner))
 			return -ENODEV;
