@@ -78,6 +78,8 @@ extern int nmk_gpio_get_mode(int gpio);
 extern void nmk_gpio_wakeups_suspend(void);
 extern void nmk_gpio_wakeups_resume(void);
 
+extern void nmk_gpio_read_pull(int gpio_bank, u32 *pull_up);
+
 /*
  * Platform data to register a block: only the initial gpio/irq number.
  */

@@ -57,6 +57,7 @@ struct nmk_gpio_chip {
 	u32 fwimsc;
 	u32 slpm;
 	u32 enabled;
+	u32 pull_up;
 };
 
 static struct nmk_gpio_chip *
@@ -103,16 +104,22 @@ static void __nmk_gpio_set_pull(struct nmk_gpio_chip *nmk_chip,
 	u32 pdis;
 
 	pdis = readl(nmk_chip->addr + NMK_GPIO_PDIS);
-	if (pull == NMK_GPIO_PULL_NONE)
+	if (pull == NMK_GPIO_PULL_NONE) {
 		pdis |= bit;
-	else
+		nmk_chip->pull_up &= ~bit;
+	} else {
 		pdis &= ~bit;
+	}
+
 	writel(pdis, nmk_chip->addr + NMK_GPIO_PDIS);
 
-	if (pull == NMK_GPIO_PULL_UP)
+	if (pull == NMK_GPIO_PULL_UP) {
+		nmk_chip->pull_up |= bit;
 		writel(bit, nmk_chip->addr + NMK_GPIO_DATS);
-	else if (pull == NMK_GPIO_PULL_DOWN)
+	} else if (pull == NMK_GPIO_PULL_DOWN) {
+		nmk_chip->pull_up &= ~bit;
 		writel(bit, nmk_chip->addr + NMK_GPIO_DATC);
+	}
 }
 
 static void __nmk_gpio_make_input(struct nmk_gpio_chip *nmk_chip,
@@ -918,6 +925,25 @@ void nmk_gpio_wakeups_resume(void)
 
 		if (cpu_is_u8500v2())
 			writel(chip->slpm, chip->addr + NMK_GPIO_SLPC);
+	}
+}
+
+/*
+ * Read the pull up/pull down status.
+ * A bit set in 'pull_up' means that pull up
+ * is selected if pull is enabled in PDIS register.
+ * Note: only pull up/down set via this driver can
+ * be detected due to HW limitations.
+ */
+void nmk_gpio_read_pull(int gpio_bank, u32 *pull_up)
+{
+	if (gpio_bank < NUM_BANKS) {
+		struct nmk_gpio_chip *chip = nmk_gpio_chips[gpio_bank];
+
+		if (!chip)
+			return;
+
+		*pull_up = chip->pull_up;
 	}
 }
 
