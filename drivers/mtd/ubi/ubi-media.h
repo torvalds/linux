@@ -164,7 +164,7 @@ struct ubi_ec_hdr {
 	__be32  image_seq;
 	__u8    padding2[32];
 	__be32  hdr_crc;
-} __attribute__ ((packed));
+} __packed;
 
 /**
  * struct ubi_vid_hdr - on-flash UBI volume identifier header.
@@ -292,7 +292,7 @@ struct ubi_vid_hdr {
 	__be64  sqnum;
 	__u8    padding3[12];
 	__be32  hdr_crc;
-} __attribute__ ((packed));
+} __packed;
 
 /* Internal UBI volumes count */
 #define UBI_INT_VOL_COUNT 1
@@ -373,6 +373,6 @@ struct ubi_vtbl_record {
 	__u8    flags;
 	__u8    padding[23];
 	__be32  crc;
-} __attribute__ ((packed));
+} __packed;
 
 #endif /* !__UBI_MEDIA_H__ */
