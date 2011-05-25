@@ -2142,10 +2142,11 @@ again:
 /*
  * This searches the block group for just extents to fill the cluster with.
  */
-static int setup_cluster_no_bitmap(struct btrfs_block_group_cache *block_group,
-				   struct btrfs_free_cluster *cluster,
-				   struct list_head *bitmaps,
-				   u64 offset, u64 bytes, u64 min_bytes)
+static noinline int
+setup_cluster_no_bitmap(struct btrfs_block_group_cache *block_group,
+			struct btrfs_free_cluster *cluster,
+			struct list_head *bitmaps, u64 offset, u64 bytes,
+			u64 min_bytes)
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct btrfs_free_space *first = NULL;
@@ -2245,10 +2246,11 @@ static int setup_cluster_no_bitmap(struct btrfs_block_group_cache *block_group,
  * This specifically looks for bitmaps that may work in the cluster, we assume
  * that we have already failed to find extents that will work.
  */
-static int setup_cluster_bitmap(struct btrfs_block_group_cache *block_group,
-				struct btrfs_free_cluster *cluster,
-				struct list_head *bitmaps,
-				u64 offset, u64 bytes, u64 min_bytes)
+static noinline int
+setup_cluster_bitmap(struct btrfs_block_group_cache *block_group,
+		     struct btrfs_free_cluster *cluster,
+		     struct list_head *bitmaps, u64 offset, u64 bytes,
+		     u64 min_bytes)
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct btrfs_free_space *entry;
