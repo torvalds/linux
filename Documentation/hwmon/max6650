@@ -4,7 +4,7 @@ Kernel driver max6650
 Supported chips:
   * Maxim 6650 / 6651
     Prefix: 'max6650'
-    Addresses scanned: I2C 0x1b, 0x1f, 0x48, 0x4b
+    Addresses scanned: none
     Datasheet: http://pdfserv.maxim-ic.com/en/ds/MAX6650-MAX6651.pdf
 
 Authors:
@@ -35,6 +35,13 @@ pwm1		rw	relative speed (0-255), 255=max. speed.
 fan1_div	rw	sets the speed range the inputs can handle. Legal
 			values are 1, 2, 4, and 8. Use lower values for
 			faster fans.
+
+Usage notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate the
+devices explicitly. Please see Documentation/i2c/instantiating-devices for
+details.
 
 Module parameters
 -----------------
