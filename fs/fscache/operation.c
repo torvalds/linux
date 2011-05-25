@@ -33,8 +33,6 @@ void fscache_enqueue_operation(struct fscache_operation *op)
 	_enter("{OBJ%x OP%x,%u}",
 	       op->object->debug_id, op->debug_id, atomic_read(&op->usage));
 
-	fscache_set_op_state(op, "EnQ");
-
 	ASSERT(list_empty(&op->pend_link));
 	ASSERT(op->processor != NULL);
 	ASSERTCMP(op->object->state, >=, FSCACHE_OBJECT_AVAILABLE);
@@ -66,8 +64,6 @@ EXPORT_SYMBOL(fscache_enqueue_operation);
 static void fscache_run_op(struct fscache_object *object,
 			   struct fscache_operation *op)
 {
-	fscache_set_op_state(op, "Run");
-
 	object->n_in_progress++;
 	if (test_and_clear_bit(FSCACHE_OP_WAITING, &op->flags))
 		wake_up_bit(&op->flags, FSCACHE_OP_WAITING);
@@ -87,8 +83,6 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 	int ret;
 
 	_enter("{OBJ%x OP%x},", object->debug_id, op->debug_id);
-
-	fscache_set_op_state(op, "SubmitX");
 
 	spin_lock(&object->lock);
 	ASSERTCMP(object->n_ops, >=, object->n_in_progress);
@@ -193,8 +187,6 @@ int fscache_submit_op(struct fscache_object *object,
 	       object->debug_id, op->debug_id, atomic_read(&op->usage));
 
 	ASSERTCMP(atomic_read(&op->usage), >, 0);
-
-	fscache_set_op_state(op, "Submit");
 
 	spin_lock(&object->lock);
 	ASSERTCMP(object->n_ops, >=, object->n_in_progress);
@@ -334,8 +326,6 @@ void fscache_put_operation(struct fscache_operation *op)
 
 	if (!atomic_dec_and_test(&op->usage))
 		return;
-
-	fscache_set_op_state(op, "Put");
 
 	_debug("PUT OP");
 	if (test_and_set_bit(FSCACHE_OP_DEAD, &op->flags))
