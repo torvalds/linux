@@ -227,7 +227,7 @@ static irqreturn_t BBwakeup_isr(int irq, void *dev_id)
 //	disable_irq_wake(irq);
 	
 	if(wakelock_inited == true)
-		wake_lock_timeout(&mtk23d_wakelock, 2 * HZ);
+		wake_lock_timeout(&mtk23d_wakelock, 3 * HZ);
 
 	return IRQ_HANDLED;
 }
