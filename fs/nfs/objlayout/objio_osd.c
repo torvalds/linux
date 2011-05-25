@@ -128,6 +128,8 @@ struct objio_segment {
 	u64 group_depth;
 	unsigned group_count;
 
+	unsigned max_io_size;
+
 	unsigned comps_index;
 	unsigned num_comps;
 	/* variable length */
@@ -364,6 +366,11 @@ int objio_alloc_lseg(struct pnfs_layout_segment **outp,
 		objio_seg->group_depth = -1;
 		objio_seg->group_count = 1;
 	}
+
+	/* Cache this calculation it will hit for every page */
+	objio_seg->max_io_size = (BIO_MAX_PAGES_KMALLOC * PAGE_SIZE -
+				  objio_seg->stripe_unit) *
+				 objio_seg->group_width;
 
 	*outp = &objio_seg->lseg;
 	return 0;
@@ -988,6 +995,16 @@ ssize_t objio_write_pagelist(struct objlayout_io_state *ol_state, bool stable)
 	return _write_exec(ios);
 }
 
+static bool objio_pg_test(struct nfs_pageio_descriptor *pgio,
+			  struct nfs_page *prev, struct nfs_page *req)
+{
+	if (!pnfs_generic_pg_test(pgio, prev, req))
+		return false;
+
+	return pgio->pg_count + req->wb_bytes <=
+			OBJIO_LSEG(pgio->pg_lseg)->max_io_size;
+}
+
 static struct pnfs_layoutdriver_type objlayout_type = {
 	.id = LAYOUT_OSD2_OBJECTS,
 	.name = "LAYOUT_OSD2_OBJECTS",
@@ -1001,7 +1018,7 @@ static struct pnfs_layoutdriver_type objlayout_type = {
 
 	.read_pagelist           = objlayout_read_pagelist,
 	.write_pagelist          = objlayout_write_pagelist,
-	.pg_test                 = pnfs_generic_pg_test,
+	.pg_test                 = objio_pg_test,
 
 	.free_deviceid_node	 = objio_free_deviceid_node,
 
