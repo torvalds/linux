@@ -605,10 +605,6 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
 #define NODE_NOT_IN_PAGE_FLAGS
 #endif
 
-#ifndef PFN_SECTION_SHIFT
-#define PFN_SECTION_SHIFT 0
-#endif
-
 /*
  * Define the bit shifts to access each section.  For non-existent
  * sections we define the shift as 0; that plus a 0 mask ensures
