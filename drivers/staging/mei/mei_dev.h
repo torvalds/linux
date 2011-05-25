@@ -280,12 +280,10 @@ int mei_task_initialize_clients(void *data);
 int mei_initialize_clients(struct mei_device *dev);
 struct mei_cl *mei_alloc_file_private(struct mei_device *dev);
 int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl);
-void mei_initialize_list(struct mei_io_list *list,
-			  struct mei_device *dev);
+void mei_initialize_list(struct mei_io_list *list, struct mei_device *dev);
 void mei_flush_list(struct mei_io_list *list, struct mei_cl *cl);
 void mei_flush_queues(struct mei_device *dev, struct mei_cl *cl);
-void mei_remove_client_from_file_list(struct mei_device *dev,
-				       u8 host_client_id);
+void mei_remove_client_from_file_list(struct mei_device *dev, u8 host_client_id);
 void host_init_iamthif(struct mei_device *dev);
 void mei_init_file_private(struct mei_cl *priv, struct mei_device *dev);
 void allocate_me_clients_storage(struct mei_device *dev);
@@ -339,8 +337,7 @@ int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid);
  *
  * returns the byte read.
  */
-static inline u32 mei_reg_read(struct mei_device *dev,
-				unsigned long offset)
+static inline u32 mei_reg_read(struct mei_device *dev, unsigned long offset)
 {
 	return ioread32(dev->mem_addr + offset);
 }
