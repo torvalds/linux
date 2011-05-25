@@ -1635,7 +1635,6 @@ static int shrink_vma(struct mm_struct *mm,
 int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 {
 	struct vm_area_struct *vma;
-	struct rb_node *rb;
 	unsigned long end = start + len;
 	int ret;
 
@@ -1668,9 +1667,8 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 			}
 			if (end == vma->vm_end)
 				goto erase_whole_vma;
-			rb = rb_next(&vma->vm_rb);
-			vma = rb_entry(rb, struct vm_area_struct, vm_rb);
-		} while (rb);
+			vma = vma->vm_next;
+		} while (vma);
 		kleave(" = -EINVAL [split file]");
 		return -EINVAL;
 	} else {
