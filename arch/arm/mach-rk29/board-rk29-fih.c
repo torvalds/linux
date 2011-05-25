@@ -963,7 +963,7 @@ struct rk29_i2c_platform_data default_i2c1_data = {
 	.bus_num    = 1,
 	.flags      = 0,
 	.slave_addr = 0xff,
-	.scl_rate  = 200*1000,
+	.scl_rate  = 400*1000,
 	.mode 		= I2C_MODE_IRQ,
 	.io_init = rk29_i2c1_io_init,
 };
