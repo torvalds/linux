@@ -414,18 +414,6 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 }
 
 static struct sk_buff *
-sfq_peek(struct Qdisc *sch)
-{
-	struct sfq_sched_data *q = qdisc_priv(sch);
-
-	/* No active slots */
-	if (q->tail == NULL)
-		return NULL;
-
-	return q->slots[q->tail->next].skblist_next;
-}
-
-static struct sk_buff *
 sfq_dequeue(struct Qdisc *sch)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
@@ -706,7 +694,7 @@ static struct Qdisc_ops sfq_qdisc_ops __read_mostly = {
 	.priv_size	=	sizeof(struct sfq_sched_data),
 	.enqueue	=	sfq_enqueue,
 	.dequeue	=	sfq_dequeue,
-	.peek		=	sfq_peek,
+	.peek		=	qdisc_peek_dequeued,
 	.drop		=	sfq_drop,
 	.init		=	sfq_init,
 	.reset		=	sfq_reset,
