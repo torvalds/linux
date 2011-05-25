@@ -2121,7 +2121,7 @@ static void ept_save_pdptrs(struct kvm_vcpu *vcpu)
 		  (unsigned long *)&vcpu->arch.regs_dirty);
 }
 
-static void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
+static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
 
 static void ept_update_paging_mode_cr0(unsigned long *hw_cr0,
 					unsigned long cr0,
@@ -2219,10 +2219,22 @@ static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	vmcs_writel(GUEST_CR3, guest_cr3);
 }
 
-static void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
+static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
 	unsigned long hw_cr4 = cr4 | (to_vmx(vcpu)->rmode.vm86_active ?
 		    KVM_RMODE_VM_CR4_ALWAYS_ON : KVM_PMODE_VM_CR4_ALWAYS_ON);
+
+	if (cr4 & X86_CR4_VMXE) {
+		/*
+		 * To use VMXON (and later other VMX instructions), a guest
+		 * must first be able to turn on cr4.VMXE (see handle_vmon()).
+		 * So basically the check on whether to allow nested VMX
+		 * is here.
+		 */
+		if (!nested_vmx_allowed(vcpu))
+			return 1;
+	} else if (to_vmx(vcpu)->nested.vmxon)
+		return 1;
 
 	vcpu->arch.cr4 = cr4;
 	if (enable_ept) {
@@ -2236,6 +2248,7 @@ static void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 
 	vmcs_writel(CR4_READ_SHADOW, cr4);
 	vmcs_writel(GUEST_CR4, hw_cr4);
+	return 0;
 }
 
 static void vmx_get_segment(struct kvm_vcpu *vcpu,

@@ -615,10 +615,8 @@ int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 				   kvm_read_cr3(vcpu)))
 		return 1;
 
-	if (cr4 & X86_CR4_VMXE)
+	if (kvm_x86_ops->set_cr4(vcpu, cr4))
 		return 1;
-
-	kvm_x86_ops->set_cr4(vcpu, cr4);
 
 	if ((cr4 ^ old_cr4) & pdptr_bits)
 		kvm_mmu_reset_context(vcpu);
