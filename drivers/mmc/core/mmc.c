@@ -20,6 +20,7 @@
 #include "core.h"
 #include "bus.h"
 #include "mmc_ops.h"
+#include "sd_ops.h"
 
 static const unsigned int tran_exp[] = {
 	10000,		100000,		1000000,	10000000,
@@ -173,14 +174,17 @@ static int mmc_decode_csd(struct mmc_card *card)
 }
 
 /*
- * Read and decode extended CSD.
+ * Read extended CSD.
  */
-static int mmc_read_ext_csd(struct mmc_card *card)
+static int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 {
 	int err;
 	u8 *ext_csd;
 
 	BUG_ON(!card);
+	BUG_ON(!new_ext_csd);
+
+	*new_ext_csd = NULL;
 
 	if (card->csd.mmca_vsn < CSD_SPEC_VER_4)
 		return 0;
@@ -198,12 +202,15 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 
 	err = mmc_send_ext_csd(card, ext_csd);
 	if (err) {
+		kfree(ext_csd);
+		*new_ext_csd = NULL;
+
 		/* If the host or the card can't do the switch,
 		 * fail more gracefully. */
 		if ((err != -EINVAL)
 		 && (err != -ENOSYS)
 		 && (err != -EFAULT))
-			goto out;
+			return err;
 
 		/*
 		 * High capacity cards should have this "magic" size
@@ -221,9 +228,23 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 				mmc_hostname(card->host));
 			err = 0;
 		}
+	} else
+		*new_ext_csd = ext_csd;
 
-		goto out;
-	}
+	return err;
+}
+
+/*
+ * Decode extended CSD.
+ */
+static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
+{
+	int err = 0;
+
+	BUG_ON(!card);
+
+	if (!ext_csd)
+		return 0;
 
 	/* Version is coded in the CSD_STRUCTURE byte in the EXT_CSD register */
 	if (card->csd.structure == 3) {
@@ -288,6 +309,10 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 
 	if (card->ext_csd.rev >= 3) {
 		u8 sa_shift = ext_csd[EXT_CSD_S_A_TIMEOUT];
+		card->ext_csd.part_config = ext_csd[EXT_CSD_PART_CONFIG];
+
+		/* EXT_CSD value is in units of 10ms, but we store in ms */
+		card->ext_csd.part_time = 10 * ext_csd[EXT_CSD_PART_SWITCH_TIME];
 
 		/* Sleep / awake timeout in 100ns units */
 		if (sa_shift > 0 && sa_shift <= 0x17)
@@ -299,6 +324,14 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 			ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT];
 		card->ext_csd.hc_erase_size =
 			ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE] << 10;
+
+		card->ext_csd.rel_sectors = ext_csd[EXT_CSD_REL_WR_SEC_C];
+
+		/*
+		 * There are two boot regions of equal size, defined in
+		 * multiples of 128K.
+		 */
+		card->ext_csd.boot_size = ext_csd[EXT_CSD_BOOT_MULT] << 17;
 	}
 
 	if (card->ext_csd.rev >= 4) {
@@ -350,14 +383,78 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 			ext_csd[EXT_CSD_TRIM_MULT];
 	}
 
+	if (card->ext_csd.rev >= 5)
+		card->ext_csd.rel_param = ext_csd[EXT_CSD_WR_REL_PARAM];
+
 	if (ext_csd[EXT_CSD_ERASED_MEM_CONT])
 		card->erased_byte = 0xFF;
 	else
 		card->erased_byte = 0x0;
 
 out:
-	kfree(ext_csd);
+	return err;
+}
 
+static inline void mmc_free_ext_csd(u8 *ext_csd)
+{
+	kfree(ext_csd);
+}
+
+
+static int mmc_compare_ext_csds(struct mmc_card *card, u8 *ext_csd,
+			unsigned bus_width)
+{
+	u8 *bw_ext_csd;
+	int err;
+
+	err = mmc_get_ext_csd(card, &bw_ext_csd);
+	if (err)
+		return err;
+
+	if ((ext_csd == NULL || bw_ext_csd == NULL)) {
+		if (bus_width != MMC_BUS_WIDTH_1)
+			err = -EINVAL;
+		goto out;
+	}
+
+	if (bus_width == MMC_BUS_WIDTH_1)
+		goto out;
+
+	/* only compare read only fields */
+	err = (!(ext_csd[EXT_CSD_PARTITION_SUPPORT] ==
+			bw_ext_csd[EXT_CSD_PARTITION_SUPPORT]) &&
+		(ext_csd[EXT_CSD_ERASED_MEM_CONT] ==
+			bw_ext_csd[EXT_CSD_ERASED_MEM_CONT]) &&
+		(ext_csd[EXT_CSD_REV] ==
+			bw_ext_csd[EXT_CSD_REV]) &&
+		(ext_csd[EXT_CSD_STRUCTURE] ==
+			bw_ext_csd[EXT_CSD_STRUCTURE]) &&
+		(ext_csd[EXT_CSD_CARD_TYPE] ==
+			bw_ext_csd[EXT_CSD_CARD_TYPE]) &&
+		(ext_csd[EXT_CSD_S_A_TIMEOUT] ==
+			bw_ext_csd[EXT_CSD_S_A_TIMEOUT]) &&
+		(ext_csd[EXT_CSD_HC_WP_GRP_SIZE] ==
+			bw_ext_csd[EXT_CSD_HC_WP_GRP_SIZE]) &&
+		(ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT] ==
+			bw_ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT]) &&
+		(ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE] ==
+			bw_ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE]) &&
+		(ext_csd[EXT_CSD_SEC_TRIM_MULT] ==
+			bw_ext_csd[EXT_CSD_SEC_TRIM_MULT]) &&
+		(ext_csd[EXT_CSD_SEC_ERASE_MULT] ==
+			bw_ext_csd[EXT_CSD_SEC_ERASE_MULT]) &&
+		(ext_csd[EXT_CSD_SEC_FEATURE_SUPPORT] ==
+			bw_ext_csd[EXT_CSD_SEC_FEATURE_SUPPORT]) &&
+		(ext_csd[EXT_CSD_TRIM_MULT] ==
+			bw_ext_csd[EXT_CSD_TRIM_MULT]) &&
+		memcmp(&ext_csd[EXT_CSD_SEC_CNT],
+		       &bw_ext_csd[EXT_CSD_SEC_CNT],
+		       4) != 0);
+	if (err)
+		err = -EINVAL;
+
+out:
+	mmc_free_ext_csd(bw_ext_csd);
 	return err;
 }
 
@@ -422,6 +519,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	u32 cid[4];
 	unsigned int max_dtr;
 	u32 rocr;
+	u8 *ext_csd = NULL;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
@@ -520,7 +618,11 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		/*
 		 * Fetch and process extended CSD.
 		 */
-		err = mmc_read_ext_csd(card);
+
+		err = mmc_get_ext_csd(card, &ext_csd);
+		if (err)
+			goto free_card;
+		err = mmc_read_ext_csd(card, ext_csd);
 		if (err)
 			goto free_card;
 
@@ -542,7 +644,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 */
 	if (card->ext_csd.enhanced_area_en) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-				EXT_CSD_ERASE_GROUP_DEF, 1);
+				 EXT_CSD_ERASE_GROUP_DEF, 1, 0);
 
 		if (err && err != -EBADMSG)
 			goto free_card;
@@ -568,12 +670,24 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	}
 
 	/*
+	 * Ensure eMMC user default partition is enabled
+	 */
+	if (card->ext_csd.part_config & EXT_CSD_PART_CONFIG_ACC_MASK) {
+		card->ext_csd.part_config &= ~EXT_CSD_PART_CONFIG_ACC_MASK;
+		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_PART_CONFIG,
+				 card->ext_csd.part_config,
+				 card->ext_csd.part_time);
+		if (err && err != -EBADMSG)
+			goto free_card;
+	}
+
+	/*
 	 * Activate high speed (if supported)
 	 */
 	if ((card->ext_csd.hs_max_dtr != 0) &&
 		(host->caps & MMC_CAP_MMC_HIGHSPEED)) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-			EXT_CSD_HS_TIMING, 1);
+				 EXT_CSD_HS_TIMING, 1, 0);
 		if (err && err != -EBADMSG)
 			goto free_card;
 
@@ -606,10 +720,14 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 */
 	if (mmc_card_highspeed(card)) {
 		if ((card->ext_csd.card_type & EXT_CSD_CARD_TYPE_DDR_1_8V)
-			&& (host->caps & (MMC_CAP_1_8V_DDR)))
+			&& ((host->caps & (MMC_CAP_1_8V_DDR |
+			     MMC_CAP_UHS_DDR50))
+				== (MMC_CAP_1_8V_DDR | MMC_CAP_UHS_DDR50)))
 				ddr = MMC_1_8V_DDR_MODE;
 		else if ((card->ext_csd.card_type & EXT_CSD_CARD_TYPE_DDR_1_2V)
-			&& (host->caps & (MMC_CAP_1_2V_DDR)))
+			&& ((host->caps & (MMC_CAP_1_2V_DDR |
+			     MMC_CAP_UHS_DDR50))
+				== (MMC_CAP_1_2V_DDR | MMC_CAP_UHS_DDR50)))
 				ddr = MMC_1_2V_DDR_MODE;
 	}
 
@@ -640,18 +758,22 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 				ddr = 0; /* no DDR for 1-bit width */
 			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 					 EXT_CSD_BUS_WIDTH,
-					 ext_csd_bits[idx][0]);
+					 ext_csd_bits[idx][0],
+					 0);
 			if (!err) {
-				mmc_set_bus_width_ddr(card->host,
-						      bus_width, MMC_SDR_MODE);
+				mmc_set_bus_width(card->host, bus_width);
+
 				/*
 				 * If controller can't handle bus width test,
-				 * use the highest bus width to maintain
-				 * compatibility with previous MMC behavior.
+				 * compare ext_csd previously read in 1 bit mode
+				 * against ext_csd at new bus width
 				 */
 				if (!(host->caps & MMC_CAP_BUS_WIDTH_TEST))
-					break;
-				err = mmc_bus_test(card, bus_width);
+					err = mmc_compare_ext_csds(card,
+						ext_csd,
+						bus_width);
+				else
+					err = mmc_bus_test(card, bus_width);
 				if (!err)
 					break;
 			}
@@ -659,8 +781,9 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 
 		if (!err && ddr) {
 			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-					EXT_CSD_BUS_WIDTH,
-					ext_csd_bits[idx][1]);
+					 EXT_CSD_BUS_WIDTH,
+					 ext_csd_bits[idx][1],
+					 0);
 		}
 		if (err) {
 			printk(KERN_WARNING "%s: switch to bus width %d ddr %d "
@@ -668,20 +791,43 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 				1 << bus_width, ddr);
 			goto free_card;
 		} else if (ddr) {
+			/*
+			 * eMMC cards can support 3.3V to 1.2V i/o (vccq)
+			 * signaling.
+			 *
+			 * EXT_CSD_CARD_TYPE_DDR_1_8V means 3.3V or 1.8V vccq.
+			 *
+			 * 1.8V vccq at 3.3V core voltage (vcc) is not required
+			 * in the JEDEC spec for DDR.
+			 *
+			 * Do not force change in vccq since we are obviously
+			 * working and no change to vccq is needed.
+			 *
+			 * WARNING: eMMC rules are NOT the same as SD DDR
+			 */
+			if (ddr == EXT_CSD_CARD_TYPE_DDR_1_2V) {
+				err = mmc_set_signal_voltage(host,
+					MMC_SIGNAL_VOLTAGE_120, 0);
+				if (err)
+					goto err;
+			}
 			mmc_card_set_ddr_mode(card);
-			mmc_set_bus_width_ddr(card->host, bus_width, ddr);
+			mmc_set_timing(card->host, MMC_TIMING_UHS_DDR50);
+			mmc_set_bus_width(card->host, bus_width);
 		}
 	}
 
 	if (!oldcard)
 		host->card = card;
 
+	mmc_free_ext_csd(ext_csd);
 	return 0;
 
 free_card:
 	if (!oldcard)
 		mmc_remove_card(card);
 err:
+	mmc_free_ext_csd(ext_csd);
 
 	return err;
 }
