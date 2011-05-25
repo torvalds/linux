@@ -158,12 +158,150 @@ struct shared_msr_entry {
  * machines (necessary for live migration).
  * If there are changes in this struct, VMCS12_REVISION must be changed.
  */
+typedef u64 natural_width;
 struct __packed vmcs12 {
 	/* According to the Intel spec, a VMCS region must start with the
 	 * following two fields. Then follow implementation-specific data.
 	 */
 	u32 revision_id;
 	u32 abort;
+
+	u64 io_bitmap_a;
+	u64 io_bitmap_b;
+	u64 msr_bitmap;
+	u64 vm_exit_msr_store_addr;
+	u64 vm_exit_msr_load_addr;
+	u64 vm_entry_msr_load_addr;
+	u64 tsc_offset;
+	u64 virtual_apic_page_addr;
+	u64 apic_access_addr;
+	u64 ept_pointer;
+	u64 guest_physical_address;
+	u64 vmcs_link_pointer;
+	u64 guest_ia32_debugctl;
+	u64 guest_ia32_pat;
+	u64 guest_ia32_efer;
+	u64 guest_ia32_perf_global_ctrl;
+	u64 guest_pdptr0;
+	u64 guest_pdptr1;
+	u64 guest_pdptr2;
+	u64 guest_pdptr3;
+	u64 host_ia32_pat;
+	u64 host_ia32_efer;
+	u64 host_ia32_perf_global_ctrl;
+	u64 padding64[8]; /* room for future expansion */
+	/*
+	 * To allow migration of L1 (complete with its L2 guests) between
+	 * machines of different natural widths (32 or 64 bit), we cannot have
+	 * unsigned long fields with no explict size. We use u64 (aliased
+	 * natural_width) instead. Luckily, x86 is little-endian.
+	 */
+	natural_width cr0_guest_host_mask;
+	natural_width cr4_guest_host_mask;
+	natural_width cr0_read_shadow;
+	natural_width cr4_read_shadow;
+	natural_width cr3_target_value0;
+	natural_width cr3_target_value1;
+	natural_width cr3_target_value2;
+	natural_width cr3_target_value3;
+	natural_width exit_qualification;
+	natural_width guest_linear_address;
+	natural_width guest_cr0;
+	natural_width guest_cr3;
+	natural_width guest_cr4;
+	natural_width guest_es_base;
+	natural_width guest_cs_base;
+	natural_width guest_ss_base;
+	natural_width guest_ds_base;
+	natural_width guest_fs_base;
+	natural_width guest_gs_base;
+	natural_width guest_ldtr_base;
+	natural_width guest_tr_base;
+	natural_width guest_gdtr_base;
+	natural_width guest_idtr_base;
+	natural_width guest_dr7;
+	natural_width guest_rsp;
+	natural_width guest_rip;
+	natural_width guest_rflags;
+	natural_width guest_pending_dbg_exceptions;
+	natural_width guest_sysenter_esp;
+	natural_width guest_sysenter_eip;
+	natural_width host_cr0;
+	natural_width host_cr3;
+	natural_width host_cr4;
+	natural_width host_fs_base;
+	natural_width host_gs_base;
+	natural_width host_tr_base;
+	natural_width host_gdtr_base;
+	natural_width host_idtr_base;
+	natural_width host_ia32_sysenter_esp;
+	natural_width host_ia32_sysenter_eip;
+	natural_width host_rsp;
+	natural_width host_rip;
+	natural_width paddingl[8]; /* room for future expansion */
+	u32 pin_based_vm_exec_control;
+	u32 cpu_based_vm_exec_control;
+	u32 exception_bitmap;
+	u32 page_fault_error_code_mask;
+	u32 page_fault_error_code_match;
+	u32 cr3_target_count;
+	u32 vm_exit_controls;
+	u32 vm_exit_msr_store_count;
+	u32 vm_exit_msr_load_count;
+	u32 vm_entry_controls;
+	u32 vm_entry_msr_load_count;
+	u32 vm_entry_intr_info_field;
+	u32 vm_entry_exception_error_code;
+	u32 vm_entry_instruction_len;
+	u32 tpr_threshold;
+	u32 secondary_vm_exec_control;
+	u32 vm_instruction_error;
+	u32 vm_exit_reason;
+	u32 vm_exit_intr_info;
+	u32 vm_exit_intr_error_code;
+	u32 idt_vectoring_info_field;
+	u32 idt_vectoring_error_code;
+	u32 vm_exit_instruction_len;
+	u32 vmx_instruction_info;
+	u32 guest_es_limit;
+	u32 guest_cs_limit;
+	u32 guest_ss_limit;
+	u32 guest_ds_limit;
+	u32 guest_fs_limit;
+	u32 guest_gs_limit;
+	u32 guest_ldtr_limit;
+	u32 guest_tr_limit;
+	u32 guest_gdtr_limit;
+	u32 guest_idtr_limit;
+	u32 guest_es_ar_bytes;
+	u32 guest_cs_ar_bytes;
+	u32 guest_ss_ar_bytes;
+	u32 guest_ds_ar_bytes;
+	u32 guest_fs_ar_bytes;
+	u32 guest_gs_ar_bytes;
+	u32 guest_ldtr_ar_bytes;
+	u32 guest_tr_ar_bytes;
+	u32 guest_interruptibility_info;
+	u32 guest_activity_state;
+	u32 guest_sysenter_cs;
+	u32 host_ia32_sysenter_cs;
+	u32 padding32[8]; /* room for future expansion */
+	u16 virtual_processor_id;
+	u16 guest_es_selector;
+	u16 guest_cs_selector;
+	u16 guest_ss_selector;
+	u16 guest_ds_selector;
+	u16 guest_fs_selector;
+	u16 guest_gs_selector;
+	u16 guest_ldtr_selector;
+	u16 guest_tr_selector;
+	u16 host_es_selector;
+	u16 host_cs_selector;
+	u16 host_ss_selector;
+	u16 host_ds_selector;
+	u16 host_fs_selector;
+	u16 host_gs_selector;
+	u16 host_tr_selector;
 };
 
 /*
@@ -282,6 +420,149 @@ enum segment_cache_field {
 static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
 {
 	return container_of(vcpu, struct vcpu_vmx, vcpu);
+}
+
+#define VMCS12_OFFSET(x) offsetof(struct vmcs12, x)
+#define FIELD(number, name)	[number] = VMCS12_OFFSET(name)
+#define FIELD64(number, name)	[number] = VMCS12_OFFSET(name), \
+				[number##_HIGH] = VMCS12_OFFSET(name)+4
+
+static unsigned short vmcs_field_to_offset_table[] = {
+	FIELD(VIRTUAL_PROCESSOR_ID, virtual_processor_id),
+	FIELD(GUEST_ES_SELECTOR, guest_es_selector),
+	FIELD(GUEST_CS_SELECTOR, guest_cs_selector),
+	FIELD(GUEST_SS_SELECTOR, guest_ss_selector),
+	FIELD(GUEST_DS_SELECTOR, guest_ds_selector),
+	FIELD(GUEST_FS_SELECTOR, guest_fs_selector),
+	FIELD(GUEST_GS_SELECTOR, guest_gs_selector),
+	FIELD(GUEST_LDTR_SELECTOR, guest_ldtr_selector),
+	FIELD(GUEST_TR_SELECTOR, guest_tr_selector),
+	FIELD(HOST_ES_SELECTOR, host_es_selector),
+	FIELD(HOST_CS_SELECTOR, host_cs_selector),
+	FIELD(HOST_SS_SELECTOR, host_ss_selector),
+	FIELD(HOST_DS_SELECTOR, host_ds_selector),
+	FIELD(HOST_FS_SELECTOR, host_fs_selector),
+	FIELD(HOST_GS_SELECTOR, host_gs_selector),
+	FIELD(HOST_TR_SELECTOR, host_tr_selector),
+	FIELD64(IO_BITMAP_A, io_bitmap_a),
+	FIELD64(IO_BITMAP_B, io_bitmap_b),
+	FIELD64(MSR_BITMAP, msr_bitmap),
+	FIELD64(VM_EXIT_MSR_STORE_ADDR, vm_exit_msr_store_addr),
+	FIELD64(VM_EXIT_MSR_LOAD_ADDR, vm_exit_msr_load_addr),
+	FIELD64(VM_ENTRY_MSR_LOAD_ADDR, vm_entry_msr_load_addr),
+	FIELD64(TSC_OFFSET, tsc_offset),
+	FIELD64(VIRTUAL_APIC_PAGE_ADDR, virtual_apic_page_addr),
+	FIELD64(APIC_ACCESS_ADDR, apic_access_addr),
+	FIELD64(EPT_POINTER, ept_pointer),
+	FIELD64(GUEST_PHYSICAL_ADDRESS, guest_physical_address),
+	FIELD64(VMCS_LINK_POINTER, vmcs_link_pointer),
+	FIELD64(GUEST_IA32_DEBUGCTL, guest_ia32_debugctl),
+	FIELD64(GUEST_IA32_PAT, guest_ia32_pat),
+	FIELD64(GUEST_IA32_EFER, guest_ia32_efer),
+	FIELD64(GUEST_IA32_PERF_GLOBAL_CTRL, guest_ia32_perf_global_ctrl),
+	FIELD64(GUEST_PDPTR0, guest_pdptr0),
+	FIELD64(GUEST_PDPTR1, guest_pdptr1),
+	FIELD64(GUEST_PDPTR2, guest_pdptr2),
+	FIELD64(GUEST_PDPTR3, guest_pdptr3),
+	FIELD64(HOST_IA32_PAT, host_ia32_pat),
+	FIELD64(HOST_IA32_EFER, host_ia32_efer),
+	FIELD64(HOST_IA32_PERF_GLOBAL_CTRL, host_ia32_perf_global_ctrl),
+	FIELD(PIN_BASED_VM_EXEC_CONTROL, pin_based_vm_exec_control),
+	FIELD(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control),
+	FIELD(EXCEPTION_BITMAP, exception_bitmap),
+	FIELD(PAGE_FAULT_ERROR_CODE_MASK, page_fault_error_code_mask),
+	FIELD(PAGE_FAULT_ERROR_CODE_MATCH, page_fault_error_code_match),
+	FIELD(CR3_TARGET_COUNT, cr3_target_count),
+	FIELD(VM_EXIT_CONTROLS, vm_exit_controls),
+	FIELD(VM_EXIT_MSR_STORE_COUNT, vm_exit_msr_store_count),
+	FIELD(VM_EXIT_MSR_LOAD_COUNT, vm_exit_msr_load_count),
+	FIELD(VM_ENTRY_CONTROLS, vm_entry_controls),
+	FIELD(VM_ENTRY_MSR_LOAD_COUNT, vm_entry_msr_load_count),
+	FIELD(VM_ENTRY_INTR_INFO_FIELD, vm_entry_intr_info_field),
+	FIELD(VM_ENTRY_EXCEPTION_ERROR_CODE, vm_entry_exception_error_code),
+	FIELD(VM_ENTRY_INSTRUCTION_LEN, vm_entry_instruction_len),
+	FIELD(TPR_THRESHOLD, tpr_threshold),
+	FIELD(SECONDARY_VM_EXEC_CONTROL, secondary_vm_exec_control),
+	FIELD(VM_INSTRUCTION_ERROR, vm_instruction_error),
+	FIELD(VM_EXIT_REASON, vm_exit_reason),
+	FIELD(VM_EXIT_INTR_INFO, vm_exit_intr_info),
+	FIELD(VM_EXIT_INTR_ERROR_CODE, vm_exit_intr_error_code),
+	FIELD(IDT_VECTORING_INFO_FIELD, idt_vectoring_info_field),
+	FIELD(IDT_VECTORING_ERROR_CODE, idt_vectoring_error_code),
+	FIELD(VM_EXIT_INSTRUCTION_LEN, vm_exit_instruction_len),
+	FIELD(VMX_INSTRUCTION_INFO, vmx_instruction_info),
+	FIELD(GUEST_ES_LIMIT, guest_es_limit),
+	FIELD(GUEST_CS_LIMIT, guest_cs_limit),
+	FIELD(GUEST_SS_LIMIT, guest_ss_limit),
+	FIELD(GUEST_DS_LIMIT, guest_ds_limit),
+	FIELD(GUEST_FS_LIMIT, guest_fs_limit),
+	FIELD(GUEST_GS_LIMIT, guest_gs_limit),
+	FIELD(GUEST_LDTR_LIMIT, guest_ldtr_limit),
+	FIELD(GUEST_TR_LIMIT, guest_tr_limit),
+	FIELD(GUEST_GDTR_LIMIT, guest_gdtr_limit),
+	FIELD(GUEST_IDTR_LIMIT, guest_idtr_limit),
+	FIELD(GUEST_ES_AR_BYTES, guest_es_ar_bytes),
+	FIELD(GUEST_CS_AR_BYTES, guest_cs_ar_bytes),
+	FIELD(GUEST_SS_AR_BYTES, guest_ss_ar_bytes),
+	FIELD(GUEST_DS_AR_BYTES, guest_ds_ar_bytes),
+	FIELD(GUEST_FS_AR_BYTES, guest_fs_ar_bytes),
+	FIELD(GUEST_GS_AR_BYTES, guest_gs_ar_bytes),
+	FIELD(GUEST_LDTR_AR_BYTES, guest_ldtr_ar_bytes),
+	FIELD(GUEST_TR_AR_BYTES, guest_tr_ar_bytes),
+	FIELD(GUEST_INTERRUPTIBILITY_INFO, guest_interruptibility_info),
+	FIELD(GUEST_ACTIVITY_STATE, guest_activity_state),
+	FIELD(GUEST_SYSENTER_CS, guest_sysenter_cs),
+	FIELD(HOST_IA32_SYSENTER_CS, host_ia32_sysenter_cs),
+	FIELD(CR0_GUEST_HOST_MASK, cr0_guest_host_mask),
+	FIELD(CR4_GUEST_HOST_MASK, cr4_guest_host_mask),
+	FIELD(CR0_READ_SHADOW, cr0_read_shadow),
+	FIELD(CR4_READ_SHADOW, cr4_read_shadow),
+	FIELD(CR3_TARGET_VALUE0, cr3_target_value0),
+	FIELD(CR3_TARGET_VALUE1, cr3_target_value1),
+	FIELD(CR3_TARGET_VALUE2, cr3_target_value2),
+	FIELD(CR3_TARGET_VALUE3, cr3_target_value3),
+	FIELD(EXIT_QUALIFICATION, exit_qualification),
+	FIELD(GUEST_LINEAR_ADDRESS, guest_linear_address),
+	FIELD(GUEST_CR0, guest_cr0),
+	FIELD(GUEST_CR3, guest_cr3),
+	FIELD(GUEST_CR4, guest_cr4),
+	FIELD(GUEST_ES_BASE, guest_es_base),
+	FIELD(GUEST_CS_BASE, guest_cs_base),
+	FIELD(GUEST_SS_BASE, guest_ss_base),
+	FIELD(GUEST_DS_BASE, guest_ds_base),
+	FIELD(GUEST_FS_BASE, guest_fs_base),
+	FIELD(GUEST_GS_BASE, guest_gs_base),
+	FIELD(GUEST_LDTR_BASE, guest_ldtr_base),
+	FIELD(GUEST_TR_BASE, guest_tr_base),
+	FIELD(GUEST_GDTR_BASE, guest_gdtr_base),
+	FIELD(GUEST_IDTR_BASE, guest_idtr_base),
+	FIELD(GUEST_DR7, guest_dr7),
+	FIELD(GUEST_RSP, guest_rsp),
+	FIELD(GUEST_RIP, guest_rip),
+	FIELD(GUEST_RFLAGS, guest_rflags),
+	FIELD(GUEST_PENDING_DBG_EXCEPTIONS, guest_pending_dbg_exceptions),
+	FIELD(GUEST_SYSENTER_ESP, guest_sysenter_esp),
+	FIELD(GUEST_SYSENTER_EIP, guest_sysenter_eip),
+	FIELD(HOST_CR0, host_cr0),
+	FIELD(HOST_CR3, host_cr3),
+	FIELD(HOST_CR4, host_cr4),
+	FIELD(HOST_FS_BASE, host_fs_base),
+	FIELD(HOST_GS_BASE, host_gs_base),
+	FIELD(HOST_TR_BASE, host_tr_base),
+	FIELD(HOST_GDTR_BASE, host_gdtr_base),
+	FIELD(HOST_IDTR_BASE, host_idtr_base),
+	FIELD(HOST_IA32_SYSENTER_ESP, host_ia32_sysenter_esp),
+	FIELD(HOST_IA32_SYSENTER_EIP, host_ia32_sysenter_eip),
+	FIELD(HOST_RSP, host_rsp),
+	FIELD(HOST_RIP, host_rip),
+};
+static const int max_vmcs_field = ARRAY_SIZE(vmcs_field_to_offset_table);
+
+static inline short vmcs_field_to_offset(unsigned long field)
+{
+	if (field >= max_vmcs_field || vmcs_field_to_offset_table[field] == 0)
+		return -1;
+	return vmcs_field_to_offset_table[field];
 }
 
 static inline struct vmcs12 *get_vmcs12(struct kvm_vcpu *vcpu)
