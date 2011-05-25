@@ -740,12 +740,13 @@ static int cxd2820r_tuner_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct i2c_msg msg[], int num)
 {
 	struct cxd2820r_priv *priv = i2c_get_adapdata(i2c_adap);
-	u8 obuf[msg[0].len + 2];
+	int ret;
+	u8 *obuf = kmalloc(msg[0].len + 2, GFP_KERNEL);
 	struct i2c_msg msg2[2] = {
 		{
 			.addr = priv->cfg.i2c_address,
 			.flags = 0,
-			.len = sizeof(obuf),
+			.len = msg[0].len + 2,
 			.buf = obuf,
 		}, {
 			.addr = priv->cfg.i2c_address,
@@ -755,15 +756,24 @@ static int cxd2820r_tuner_i2c_xfer(struct i2c_adapter *i2c_adap,
 		}
 	};
 
+	if (!obuf)
+		return -ENOMEM;
+
 	obuf[0] = 0x09;
 	obuf[1] = (msg[0].addr << 1);
 	if (num == 2) { /* I2C read */
 		obuf[1] = (msg[0].addr << 1) | I2C_M_RD; /* I2C RD flag */
-		msg2[0].len = sizeof(obuf) - 1; /* maybe HW bug ? */
+		msg2[0].len = msg[0].len + 2 - 1; /* '-1' maybe HW bug ? */
 	}
 	memcpy(&obuf[2], msg[0].buf, msg[0].len);
 
-	return i2c_transfer(priv->i2c, msg2, num);
+	ret = i2c_transfer(priv->i2c, msg2, num);
+	if (ret < 0)
+		warn("tuner i2c failed ret:%d", ret);
+
+	kfree(obuf);
+
+	return ret;
 }
 
 static struct i2c_algorithm cxd2820r_tuner_i2c_algo = {
