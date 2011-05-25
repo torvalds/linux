@@ -2,8 +2,12 @@ Kernel driver max6650
 =====================
 
 Supported chips:
-  * Maxim 6650 / 6651
+  * Maxim MAX6650
     Prefix: 'max6650'
+    Addresses scanned: none
+    Datasheet: http://pdfserv.maxim-ic.com/en/ds/MAX6650-MAX6651.pdf
+  * Maxim MAX6651
+    Prefix: 'max6651'
     Addresses scanned: none
     Datasheet: http://pdfserv.maxim-ic.com/en/ds/MAX6650-MAX6651.pdf
 
@@ -15,10 +19,10 @@ Authors:
 Description
 -----------
 
-This driver implements support for the Maxim 6650/6651
+This driver implements support for the Maxim MAX6650 and MAX6651.
 
-The 2 devices are very similar, but the Maxim 6550 has a reduced feature
-set, e.g. only one fan-input, instead of 4 for the 6651.
+The 2 devices are very similar, but the MAX6550 has a reduced feature
+set, e.g. only one fan-input, instead of 4 for the MAX6651.
 
 The driver is not able to distinguish between the 2 devices.
 
