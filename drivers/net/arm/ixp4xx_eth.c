@@ -30,9 +30,12 @@
 #include <linux/etherdevice.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/net_tstamp.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/ptp_classify.h>
 #include <linux/slab.h>
+#include <mach/ixp46x_ts.h>
 #include <mach/npe.h>
 #include <mach/qmgr.h>
 
@@ -66,6 +69,10 @@
 #define TX_QUEUE(port_id)	(NPE_ID(port_id) + 23)
 #define RXFREE_QUEUE(port_id)	(NPE_ID(port_id) + 26)
 #define TXDONE_QUEUE		31
+
+#define PTP_SLAVE_MODE		1
+#define PTP_MASTER_MODE		2
+#define PORT2CHANNEL(p)		NPE_ID(p->id)
 
 /* TX Control Registers */
 #define TX_CNTRL0_TX_EN		0x01
@@ -171,6 +178,8 @@ struct port {
 	int id;			/* logical port ID */
 	int speed, duplex;
 	u8 firmware[4];
+	int hwts_tx_en;
+	int hwts_rx_en;
 };
 
 /* NPE message structure */
@@ -246,6 +255,172 @@ static int ports_open;
 static struct port *npe_port_tab[MAX_NPES];
 static struct dma_pool *dma_pool;
 
+static struct sock_filter ptp_filter[] = {
+	PTP_FILTER
+};
+
+static int ixp_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
+{
+	u8 *data = skb->data;
+	unsigned int offset;
+	u16 *hi, *id;
+	u32 lo;
+
+	if (sk_run_filter(skb, ptp_filter) != PTP_CLASS_V1_IPV4)
+		return 0;
+
+	offset = ETH_HLEN + IPV4_HLEN(data) + UDP_HLEN;
+
+	if (skb->len < offset + OFF_PTP_SEQUENCE_ID + sizeof(seqid))
+		return 0;
+
+	hi = (u16 *)(data + offset + OFF_PTP_SOURCE_UUID);
+	id = (u16 *)(data + offset + OFF_PTP_SEQUENCE_ID);
+
+	memcpy(&lo, &hi[1], sizeof(lo));
+
+	return (uid_hi == ntohs(*hi) &&
+		uid_lo == ntohl(lo) &&
+		seqid  == ntohs(*id));
+}
+
+static void ixp_rx_timestamp(struct port *port, struct sk_buff *skb)
+{
+	struct skb_shared_hwtstamps *shhwtstamps;
+	struct ixp46x_ts_regs *regs;
+	u64 ns;
+	u32 ch, hi, lo, val;
+	u16 uid, seq;
+
+	if (!port->hwts_rx_en)
+		return;
+
+	ch = PORT2CHANNEL(port);
+
+	regs = (struct ixp46x_ts_regs __iomem *) IXP4XX_TIMESYNC_BASE_VIRT;
+
+	val = __raw_readl(&regs->channel[ch].ch_event);
+
+	if (!(val & RX_SNAPSHOT_LOCKED))
+		return;
+
+	lo = __raw_readl(&regs->channel[ch].src_uuid_lo);
+	hi = __raw_readl(&regs->channel[ch].src_uuid_hi);
+
+	uid = hi & 0xffff;
+	seq = (hi >> 16) & 0xffff;
+
+	if (!ixp_ptp_match(skb, htons(uid), htonl(lo), htons(seq)))
+		goto out;
+
+	lo = __raw_readl(&regs->channel[ch].rx_snap_lo);
+	hi = __raw_readl(&regs->channel[ch].rx_snap_hi);
+	ns = ((u64) hi) << 32;
+	ns |= lo;
+	ns <<= TICKS_NS_SHIFT;
+
+	shhwtstamps = skb_hwtstamps(skb);
+	memset(shhwtstamps, 0, sizeof(*shhwtstamps));
+	shhwtstamps->hwtstamp = ns_to_ktime(ns);
+out:
+	__raw_writel(RX_SNAPSHOT_LOCKED, &regs->channel[ch].ch_event);
+}
+
+static void ixp_tx_timestamp(struct port *port, struct sk_buff *skb)
+{
+	struct skb_shared_hwtstamps shhwtstamps;
+	struct ixp46x_ts_regs *regs;
+	struct skb_shared_info *shtx;
+	u64 ns;
+	u32 ch, cnt, hi, lo, val;
+
+	shtx = skb_shinfo(skb);
+	if (unlikely(shtx->tx_flags & SKBTX_HW_TSTAMP && port->hwts_tx_en))
+		shtx->tx_flags |= SKBTX_IN_PROGRESS;
+	else
+		return;
+
+	ch = PORT2CHANNEL(port);
+
+	regs = (struct ixp46x_ts_regs __iomem *) IXP4XX_TIMESYNC_BASE_VIRT;
+
+	/*
+	 * This really stinks, but we have to poll for the Tx time stamp.
+	 * Usually, the time stamp is ready after 4 to 6 microseconds.
+	 */
+	for (cnt = 0; cnt < 100; cnt++) {
+		val = __raw_readl(&regs->channel[ch].ch_event);
+		if (val & TX_SNAPSHOT_LOCKED)
+			break;
+		udelay(1);
+	}
+	if (!(val & TX_SNAPSHOT_LOCKED)) {
+		shtx->tx_flags &= ~SKBTX_IN_PROGRESS;
+		return;
+	}
+
+	lo = __raw_readl(&regs->channel[ch].tx_snap_lo);
+	hi = __raw_readl(&regs->channel[ch].tx_snap_hi);
+	ns = ((u64) hi) << 32;
+	ns |= lo;
+	ns <<= TICKS_NS_SHIFT;
+
+	memset(&shhwtstamps, 0, sizeof(shhwtstamps));
+	shhwtstamps.hwtstamp = ns_to_ktime(ns);
+	skb_tstamp_tx(skb, &shhwtstamps);
+
+	__raw_writel(TX_SNAPSHOT_LOCKED, &regs->channel[ch].ch_event);
+}
+
+static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+{
+	struct hwtstamp_config cfg;
+	struct ixp46x_ts_regs *regs;
+	struct port *port = netdev_priv(netdev);
+	int ch;
+
+	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
+		return -EFAULT;
+
+	if (cfg.flags) /* reserved for future extensions */
+		return -EINVAL;
+
+	ch = PORT2CHANNEL(port);
+	regs = (struct ixp46x_ts_regs __iomem *) IXP4XX_TIMESYNC_BASE_VIRT;
+
+	switch (cfg.tx_type) {
+	case HWTSTAMP_TX_OFF:
+		port->hwts_tx_en = 0;
+		break;
+	case HWTSTAMP_TX_ON:
+		port->hwts_tx_en = 1;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	switch (cfg.rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		port->hwts_rx_en = 0;
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+		port->hwts_rx_en = PTP_SLAVE_MODE;
+		__raw_writel(0, &regs->channel[ch].ch_control);
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+		port->hwts_rx_en = PTP_MASTER_MODE;
+		__raw_writel(MASTER_MODE, &regs->channel[ch].ch_control);
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	/* Clear out any old time stamps. */
+	__raw_writel(TX_SNAPSHOT_LOCKED | RX_SNAPSHOT_LOCKED,
+		     &regs->channel[ch].ch_event);
+
+	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+}
 
 static int ixp4xx_mdio_cmd(struct mii_bus *bus, int phy_id, int location,
 			   int write, u16 cmd)
@@ -573,6 +748,7 @@ static int eth_poll(struct napi_struct *napi, int budget)
 
 		debug_pkt(dev, "eth_poll", skb->data, skb->len);
 
+		ixp_rx_timestamp(port, skb);
 		skb->protocol = eth_type_trans(skb, dev);
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += skb->len;
@@ -679,14 +855,12 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 	memcpy_swab32(mem, (u32 *)((int)skb->data & ~3), bytes / 4);
-	dev_kfree_skb(skb);
 #endif
 
 	phys = dma_map_single(&dev->dev, mem, bytes, DMA_TO_DEVICE);
 	if (dma_mapping_error(&dev->dev, phys)) {
-#ifdef __ARMEB__
 		dev_kfree_skb(skb);
-#else
+#ifndef __ARMEB__
 		kfree(mem);
 #endif
 		dev->stats.tx_dropped++;
@@ -727,6 +901,13 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 #if DEBUG_TX
 	printk(KERN_DEBUG "%s: eth_xmit end\n", dev->name);
+#endif
+
+	ixp_tx_timestamp(port, skb);
+	skb_tx_timestamp(skb);
+
+#ifndef __ARMEB__
+	dev_kfree_skb(skb);
 #endif
 	return NETDEV_TX_OK;
 }
@@ -782,6 +963,9 @@ static int eth_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 
 	if (!netif_running(dev))
 		return -EINVAL;
+
+	if (cpu_is_ixp46x() && cmd == SIOCSHWTSTAMP)
+		return hwtstamp_ioctl(dev, req, cmd);
 
 	return phy_mii_ioctl(port->phydev, req, cmd);
 }
@@ -1170,6 +1354,11 @@ static int __devinit eth_init_one(struct platform_device *pdev)
 	u32 regs_phys;
 	char phy_id[MII_BUS_ID_SIZE + 3];
 	int err;
+
+	if (ptp_filter_init(ptp_filter, ARRAY_SIZE(ptp_filter))) {
+		pr_err("ixp4xx_eth: bad ptp filter\n");
+		return -EINVAL;
+	}
 
 	if (!(dev = alloc_etherdev(sizeof(struct port))))
 		return -ENOMEM;
