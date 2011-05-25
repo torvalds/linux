@@ -119,6 +119,7 @@ static int ple_window = KVM_VMX_DEFAULT_PLE_WINDOW;
 module_param(ple_window, int, S_IRUGO);
 
 #define NR_AUTOLOAD_MSRS 1
+#define VMCS02_POOL_SIZE 1
 
 struct vmcs {
 	u32 revision_id;
@@ -179,6 +180,13 @@ struct __packed vmcs12 {
  */
 #define VMCS12_SIZE 0x1000
 
+/* Used to remember the last vmcs02 used for some recently used vmcs12s */
+struct vmcs02_list {
+	struct list_head list;
+	gpa_t vmptr;
+	struct loaded_vmcs vmcs02;
+};
+
 /*
  * The nested_vmx structure is part of vcpu_vmx, and holds information we need
  * for correct emulation of VMX (i.e., nested VMX) on this vcpu.
@@ -192,6 +200,10 @@ struct nested_vmx {
 	/* The host-usable pointer to the above */
 	struct page *current_vmcs12_page;
 	struct vmcs12 *current_vmcs12;
+
+	/* vmcs02_list cache of VMCSs recently used to run L2 guests */
+	struct list_head vmcs02_pool;
+	int vmcs02_num;
 };
 
 struct vcpu_vmx {
@@ -4244,6 +4256,89 @@ static int handle_invalid_op(struct kvm_vcpu *vcpu)
 }
 
 /*
+ * To run an L2 guest, we need a vmcs02 based on the L1-specified vmcs12.
+ * We could reuse a single VMCS for all the L2 guests, but we also want the
+ * option to allocate a separate vmcs02 for each separate loaded vmcs12 - this
+ * allows keeping them loaded on the processor, and in the future will allow
+ * optimizations where prepare_vmcs02 doesn't need to set all the fields on
+ * every entry if they never change.
+ * So we keep, in vmx->nested.vmcs02_pool, a cache of size VMCS02_POOL_SIZE
+ * (>=0) with a vmcs02 for each recently loaded vmcs12s, most recent first.
+ *
+ * The following functions allocate and free a vmcs02 in this pool.
+ */
+
+/* Get a VMCS from the pool to use as vmcs02 for the current vmcs12. */
+static struct loaded_vmcs *nested_get_current_vmcs02(struct vcpu_vmx *vmx)
+{
+	struct vmcs02_list *item;
+	list_for_each_entry(item, &vmx->nested.vmcs02_pool, list)
+		if (item->vmptr == vmx->nested.current_vmptr) {
+			list_move(&item->list, &vmx->nested.vmcs02_pool);
+			return &item->vmcs02;
+		}
+
+	if (vmx->nested.vmcs02_num >= max(VMCS02_POOL_SIZE, 1)) {
+		/* Recycle the least recently used VMCS. */
+		item = list_entry(vmx->nested.vmcs02_pool.prev,
+			struct vmcs02_list, list);
+		item->vmptr = vmx->nested.current_vmptr;
+		list_move(&item->list, &vmx->nested.vmcs02_pool);
+		return &item->vmcs02;
+	}
+
+	/* Create a new VMCS */
+	item = (struct vmcs02_list *)
+		kmalloc(sizeof(struct vmcs02_list), GFP_KERNEL);
+	if (!item)
+		return NULL;
+	item->vmcs02.vmcs = alloc_vmcs();
+	if (!item->vmcs02.vmcs) {
+		kfree(item);
+		return NULL;
+	}
+	loaded_vmcs_init(&item->vmcs02);
+	item->vmptr = vmx->nested.current_vmptr;
+	list_add(&(item->list), &(vmx->nested.vmcs02_pool));
+	vmx->nested.vmcs02_num++;
+	return &item->vmcs02;
+}
+
+/* Free and remove from pool a vmcs02 saved for a vmcs12 (if there is one) */
+static void nested_free_vmcs02(struct vcpu_vmx *vmx, gpa_t vmptr)
+{
+	struct vmcs02_list *item;
+	list_for_each_entry(item, &vmx->nested.vmcs02_pool, list)
+		if (item->vmptr == vmptr) {
+			free_loaded_vmcs(&item->vmcs02);
+			list_del(&item->list);
+			kfree(item);
+			vmx->nested.vmcs02_num--;
+			return;
+		}
+}
+
+/*
+ * Free all VMCSs saved for this vcpu, except the one pointed by
+ * vmx->loaded_vmcs. These include the VMCSs in vmcs02_pool (except the one
+ * currently used, if running L2), and vmcs01 when running L2.
+ */
+static void nested_free_all_saved_vmcss(struct vcpu_vmx *vmx)
+{
+	struct vmcs02_list *item, *n;
+	list_for_each_entry_safe(item, n, &vmx->nested.vmcs02_pool, list) {
+		if (vmx->loaded_vmcs != &item->vmcs02)
+			free_loaded_vmcs(&item->vmcs02);
+		list_del(&item->list);
+		kfree(item);
+	}
+	vmx->nested.vmcs02_num = 0;
+
+	if (vmx->loaded_vmcs != &vmx->vmcs01)
+		free_loaded_vmcs(&vmx->vmcs01);
+}
+
+/*
  * Emulate the VMXON instruction.
  * Currently, we just remember that VMX is active, and do not save or even
  * inspect the argument to VMXON (the so-called "VMXON pointer") because we
@@ -4278,6 +4373,9 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 		kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
+
+	INIT_LIST_HEAD(&(vmx->nested.vmcs02_pool));
+	vmx->nested.vmcs02_num = 0;
 
 	vmx->nested.vmxon = true;
 
@@ -4330,6 +4428,8 @@ static void free_nested(struct vcpu_vmx *vmx)
 		vmx->nested.current_vmptr = -1ull;
 		vmx->nested.current_vmcs12 = NULL;
 	}
+
+	nested_free_all_saved_vmcss(vmx);
 }
 
 /* Emulate the VMXOFF instruction */
