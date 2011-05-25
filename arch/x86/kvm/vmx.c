@@ -1766,12 +1766,24 @@ static void vmx_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz)
 static void vmx_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 {
 	vmcs_write64(TSC_OFFSET, offset);
+	if (is_guest_mode(vcpu))
+		/*
+		 * We're here if L1 chose not to trap the TSC MSR. Since
+		 * prepare_vmcs12() does not copy tsc_offset, we need to also
+		 * set the vmcs12 field here.
+		 */
+		get_vmcs12(vcpu)->tsc_offset = offset -
+			to_vmx(vcpu)->nested.vmcs01_tsc_offset;
 }
 
 static void vmx_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment)
 {
 	u64 offset = vmcs_read64(TSC_OFFSET);
 	vmcs_write64(TSC_OFFSET, offset + adjustment);
+	if (is_guest_mode(vcpu)) {
+		/* Even when running L2, the adjustment needs to apply to L1 */
+		to_vmx(vcpu)->nested.vmcs01_tsc_offset += adjustment;
+	}
 }
 
 static u64 vmx_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
