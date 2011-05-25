@@ -305,7 +305,6 @@ struct nv50_gpuobj_node {
 	u32 align;
 };
 
-
 int
 nv50_instmem_get(struct nouveau_gpuobj *gpuobj, u32 size, u32 align)
 {
@@ -345,7 +344,7 @@ nv50_instmem_get(struct nouveau_gpuobj *gpuobj, u32 size, u32 align)
 		}
 
 		nouveau_vm_map(&node->chan_vma, node->vram);
-		gpuobj->vinst = node->chan_vma.offset;
+		gpuobj->linst = node->chan_vma.offset;
 	}
 
 	gpuobj->size = size;

@@ -54,8 +54,8 @@ nvc0_copy_context_new(struct nouveau_channel *chan, int engine)
 	if (ret)
 		return ret;
 
-	nv_wo32(ramin, pcopy->ctx + 0, lower_32_bits(ctx->vinst));
-	nv_wo32(ramin, pcopy->ctx + 4, upper_32_bits(ctx->vinst));
+	nv_wo32(ramin, pcopy->ctx + 0, lower_32_bits(ctx->linst));
+	nv_wo32(ramin, pcopy->ctx + 4, upper_32_bits(ctx->linst));
 	dev_priv->engine.instmem.flush(dev);
 
 	chan->engctx[engine] = ctx;

@@ -176,9 +176,10 @@ struct nouveau_gpuobj {
 	uint32_t flags;
 
 	u32 size;
-	u32 pinst;
-	u32 cinst;
-	u64 vinst;
+	u32 pinst;	/* PRAMIN BAR offset */
+	u32 cinst;	/* Channel offset */
+	u64 vinst;	/* VRAM address */
+	u64 linst;	/* VM address */
 
 	uint32_t engine;
 	uint32_t class;

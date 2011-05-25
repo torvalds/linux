@@ -131,27 +131,27 @@ nvc0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 
 
 	nv_wo32(grch->mmio, i++ * 4, 0x00408004);
-	nv_wo32(grch->mmio, i++ * 4, grch->unk408004->vinst >> 8);
+	nv_wo32(grch->mmio, i++ * 4, grch->unk408004->linst >> 8);
 	nv_wo32(grch->mmio, i++ * 4, 0x00408008);
 	nv_wo32(grch->mmio, i++ * 4, 0x80000018);
 
 	nv_wo32(grch->mmio, i++ * 4, 0x0040800c);
-	nv_wo32(grch->mmio, i++ * 4, grch->unk40800c->vinst >> 8);
+	nv_wo32(grch->mmio, i++ * 4, grch->unk40800c->linst >> 8);
 	nv_wo32(grch->mmio, i++ * 4, 0x00408010);
 	nv_wo32(grch->mmio, i++ * 4, 0x80000000);
 
 	nv_wo32(grch->mmio, i++ * 4, 0x00418810);
-	nv_wo32(grch->mmio, i++ * 4, 0x80000000 | grch->unk418810->vinst >> 12);
+	nv_wo32(grch->mmio, i++ * 4, 0x80000000 | grch->unk418810->linst >> 12);
 	nv_wo32(grch->mmio, i++ * 4, 0x00419848);
-	nv_wo32(grch->mmio, i++ * 4, 0x10000000 | grch->unk418810->vinst >> 12);
+	nv_wo32(grch->mmio, i++ * 4, 0x10000000 | grch->unk418810->linst >> 12);
 
 	nv_wo32(grch->mmio, i++ * 4, 0x00419004);
-	nv_wo32(grch->mmio, i++ * 4, grch->unk40800c->vinst >> 8);
+	nv_wo32(grch->mmio, i++ * 4, grch->unk40800c->linst >> 8);
 	nv_wo32(grch->mmio, i++ * 4, 0x00419008);
 	nv_wo32(grch->mmio, i++ * 4, 0x00000000);
 
 	nv_wo32(grch->mmio, i++ * 4, 0x00418808);
-	nv_wo32(grch->mmio, i++ * 4, grch->unk408004->vinst >> 8);
+	nv_wo32(grch->mmio, i++ * 4, grch->unk408004->linst >> 8);
 	nv_wo32(grch->mmio, i++ * 4, 0x0041880c);
 	nv_wo32(grch->mmio, i++ * 4, 0x80000018);
 
@@ -197,8 +197,8 @@ nvc0_graph_context_new(struct nouveau_channel *chan, int engine)
 	if (ret)
 		goto error;
 
-	nv_wo32(chan->ramin, 0x0210, lower_32_bits(grctx->vinst) | 4);
-	nv_wo32(chan->ramin, 0x0214, upper_32_bits(grctx->vinst));
+	nv_wo32(chan->ramin, 0x0210, lower_32_bits(grctx->linst) | 4);
+	nv_wo32(chan->ramin, 0x0214, upper_32_bits(grctx->linst));
 	pinstmem->flush(dev);
 
 	if (!priv->grctx_vals) {
@@ -213,8 +213,8 @@ nvc0_graph_context_new(struct nouveau_channel *chan, int engine)
 	nv_wo32(grctx, 0xf4, 0);
 	nv_wo32(grctx, 0xf8, 0);
 	nv_wo32(grctx, 0x10, grch->mmio_nr);
-	nv_wo32(grctx, 0x14, lower_32_bits(grch->mmio->vinst));
-	nv_wo32(grctx, 0x18, upper_32_bits(grch->mmio->vinst));
+	nv_wo32(grctx, 0x14, lower_32_bits(grch->mmio->linst));
+	nv_wo32(grctx, 0x18, upper_32_bits(grch->mmio->linst));
 	nv_wo32(grctx, 0x1c, 1);
 	nv_wo32(grctx, 0x20, 0);
 	nv_wo32(grctx, 0x28, 0);
