@@ -2294,6 +2294,15 @@ config FB_MB862XX_LIME
 
 endchoice
 
+config FB_MB862XX_I2C
+	bool "Support I2C bus on MB862XX GDC"
+	depends on FB_MB862XX && I2C
+	default y
+	help
+	  Selecting this option adds Coral-P(A)/Lime GDC I2C bus adapter
+	  driver to support accessing I2C devices on controller's I2C bus.
+	  These are usually some video decoder chips.
+
 config FB_EP93XX
 	tristate "EP93XX frame buffer support"
 	depends on FB && ARCH_EP93XX
