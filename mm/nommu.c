@@ -804,17 +804,15 @@ static void delete_vma(struct mm_struct *mm, struct vm_area_struct *vma)
 struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 {
 	struct vm_area_struct *vma;
-	struct rb_node *n = mm->mm_rb.rb_node;
 
 	/* check the cache first */
 	vma = mm->mmap_cache;
 	if (vma && vma->vm_start <= addr && vma->vm_end > addr)
 		return vma;
 
-	/* trawl the tree (there may be multiple mappings in which addr
+	/* trawl the list (there may be multiple mappings in which addr
 	 * resides) */
-	for (n = rb_first(&mm->mm_rb); n; n = rb_next(n)) {
-		vma = rb_entry(n, struct vm_area_struct, vm_rb);
+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		if (vma->vm_start > addr)
 			return NULL;
 		if (vma->vm_end > addr) {
@@ -854,7 +852,6 @@ static struct vm_area_struct *find_vma_exact(struct mm_struct *mm,
 					     unsigned long len)
 {
 	struct vm_area_struct *vma;
-	struct rb_node *n = mm->mm_rb.rb_node;
 	unsigned long end = addr + len;
 
 	/* check the cache first */
@@ -862,10 +859,9 @@ static struct vm_area_struct *find_vma_exact(struct mm_struct *mm,
 	if (vma && vma->vm_start == addr && vma->vm_end == end)
 		return vma;
 
-	/* trawl the tree (there may be multiple mappings in which addr
+	/* trawl the list (there may be multiple mappings in which addr
 	 * resides) */
-	for (n = rb_first(&mm->mm_rb); n; n = rb_next(n)) {
-		vma = rb_entry(n, struct vm_area_struct, vm_rb);
+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		if (vma->vm_start < addr)
 			continue;
 		if (vma->vm_start > addr)
