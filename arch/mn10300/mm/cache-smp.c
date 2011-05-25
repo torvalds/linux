@@ -74,7 +74,7 @@ void smp_cache_interrupt(void)
 		break;
 	}
 
-	cpu_clear(smp_processor_id(), smp_cache_ipi_map);
+	cpumask_clear_cpu(smp_processor_id(), &smp_cache_ipi_map);
 }
 
 /**
@@ -94,12 +94,12 @@ void smp_cache_call(unsigned long opr_mask,
 	smp_cache_mask = opr_mask;
 	smp_cache_start = start;
 	smp_cache_end = end;
-	smp_cache_ipi_map = cpu_online_map;
-	cpu_clear(smp_processor_id(), smp_cache_ipi_map);
+	cpumask_copy(&smp_cache_ipi_map, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &smp_cache_ipi_map);
 
 	send_IPI_allbutself(FLUSH_CACHE_IPI);
 
-	while (!cpus_empty(smp_cache_ipi_map))
+	while (!cpumask_empty(&smp_cache_ipi_map))
 		/* nothing. lockup detection does not belong here */
 		mb();
 }
