@@ -373,6 +373,8 @@ int32_t dwc_otg_hcd_handle_port_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 
 			/* Check if we need to adjust the PHY clock speed for
 			 * low power and adjust it */
+			/*yk @rk 20110525*/
+			/*fix bug usb host 1.1 with low-speed*/
 			if (params->host_support_fs_ls_low_power)
 			{
 				gusbcfg_data_t usbcfg;
@@ -386,12 +388,14 @@ int32_t dwc_otg_hcd_handle_port_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 					 * Low power 
 					 */
 					hcfg_data_t hcfg;
+					#if 0
 					if (usbcfg.b.phylpwrclksel == 0) {
 						/* Set PHY low power clock select for FS/LS devices */
 						usbcfg.b.phylpwrclksel = 1;
 						dwc_write_reg32(&global_regs->gusbcfg, usbcfg.d32);
 						do_reset = 1;
 					}
+					#endif
 
 					hcfg.d32 = dwc_read_reg32(&host_if->host_global_regs->hcfg);
 
@@ -405,6 +409,7 @@ int32_t dwc_otg_hcd_handle_port_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 							hcfg.b.fslspclksel = DWC_HCFG_6_MHZ;
 							dwc_write_reg32(&host_if->host_global_regs->hcfg,
 									hcfg.d32);
+                            dwc_write_reg32(&host_if->host_global_regs->hfir, 0x1770);
 							do_reset = 1;
 						}
 					}
@@ -415,6 +420,7 @@ int32_t dwc_otg_hcd_handle_port_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 							hcfg.b.fslspclksel = DWC_HCFG_48_MHZ;
 							dwc_write_reg32(&host_if->host_global_regs->hcfg,
 									hcfg.d32);
+                            dwc_write_reg32(&host_if->host_global_regs->hfir, 0xea60);
 							do_reset = 1;
 						}
 					}

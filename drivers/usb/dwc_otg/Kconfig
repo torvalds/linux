@@ -57,7 +57,7 @@ config DWC_OTG_BOTH_HOST_SLAVE
 endchoice
 
 choice 
-	bool "    Controller default status"
+	bool "Controller default status"
 	depends on DWC_OTG_BOTH_HOST_SLAVE
 	default DWC_OTG_DEFAULT_ID
 
