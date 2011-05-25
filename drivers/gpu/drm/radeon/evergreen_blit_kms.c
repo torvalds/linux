@@ -199,6 +199,16 @@ static void
 set_scissors(struct radeon_device *rdev, int x1, int y1,
 	     int x2, int y2)
 {
+	/* workaround some hw bugs */
+	if (x2 == 0)
+		x1 = 1;
+	if (y2 == 0)
+		y1 = 1;
+	if (rdev->family == CHIP_CAYMAN) {
+		if ((x2 == 1) && (y2 == 1))
+			x2 = 2;
+	}
+
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONTEXT_REG, 2));
 	radeon_ring_write(rdev, (PA_SC_SCREEN_SCISSOR_TL - PACKET3_SET_CONTEXT_REG_START) >> 2);
 	radeon_ring_write(rdev, (x1 << 0) | (y1 << 16));
