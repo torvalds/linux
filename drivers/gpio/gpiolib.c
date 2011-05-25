@@ -1296,7 +1296,7 @@ EXPORT_SYMBOL_GPL(gpio_request_one);
  * @array:	array of the 'struct gpio'
  * @num:	how many GPIOs in the array
  */
-int gpio_request_array(struct gpio *array, size_t num)
+int gpio_request_array(const struct gpio *array, size_t num)
 {
 	int i, err;
 
@@ -1319,7 +1319,7 @@ EXPORT_SYMBOL_GPL(gpio_request_array);
  * @array:	array of the 'struct gpio'
  * @num:	how many GPIOs in the array
  */
-void gpio_free_array(struct gpio *array, size_t num)
+void gpio_free_array(const struct gpio *array, size_t num)
 {
 	while (num--)
 		gpio_free((array++)->gpio);
