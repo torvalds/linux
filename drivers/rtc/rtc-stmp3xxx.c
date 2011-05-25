@@ -24,8 +24,8 @@
 #include <linux/rtc.h>
 #include <linux/slab.h>
 
-#include <mach/platform.h>
-#include <mach/stmp3xxx.h>
+#include <mach/common.h>
+#include <mach/mxs.h>
 
 #define STMP3XXX_RTC_CTRL			0x0
 #define STMP3XXX_RTC_CTRL_ALARM_IRQ_EN		0x00000001
@@ -97,13 +97,13 @@ static irqreturn_t stmp3xxx_rtc_interrupt(int irq, void *dev_id)
 			 STMP3XXX_RTC_CTRL_ONEMSEC_IRQ);
 
 	if (status & STMP3XXX_RTC_CTRL_ALARM_IRQ) {
-		stmp3xxx_clearl(STMP3XXX_RTC_CTRL_ALARM_IRQ,
+		__mxs_clrl(STMP3XXX_RTC_CTRL_ALARM_IRQ,
 				rtc_data->io + STMP3XXX_RTC_CTRL);
 		events |= RTC_AF | RTC_IRQF;
 	}
 
 	if (status & STMP3XXX_RTC_CTRL_ONEMSEC_IRQ) {
-		stmp3xxx_clearl(STMP3XXX_RTC_CTRL_ONEMSEC_IRQ,
+		__mxs_clrl(STMP3XXX_RTC_CTRL_ONEMSEC_IRQ,
 				rtc_data->io + STMP3XXX_RTC_CTRL);
 		if (++rtc_data->irq_count % 1000 == 0) {
 			events |= RTC_UF | RTC_IRQF;
@@ -124,13 +124,13 @@ static int stmp3xxx_alarm_irq_enable(struct device *dev, unsigned int enabled)
 		     *ctl = rtc_data->io + STMP3XXX_RTC_CTRL;
 
 	if (enabled) {
-		stmp3xxx_setl(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
+		__mxs_setl(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 			      STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN, p);
-		stmp3xxx_setl(STMP3XXX_RTC_CTRL_ALARM_IRQ_EN, ctl);
+		__mxs_setl(STMP3XXX_RTC_CTRL_ALARM_IRQ_EN, ctl);
 	} else {
-		stmp3xxx_clearl(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
+		__mxs_clrl(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 			      STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN, p);
-		stmp3xxx_clearl(STMP3XXX_RTC_CTRL_ALARM_IRQ_EN, ctl);
+		__mxs_clrl(STMP3XXX_RTC_CTRL_ALARM_IRQ_EN, ctl);
 	}
 	return 0;
 }
@@ -170,7 +170,7 @@ static int stmp3xxx_rtc_remove(struct platform_device *pdev)
 	if (!rtc_data)
 		return 0;
 
-	stmp3xxx_clearl(STMP3XXX_RTC_CTRL_ONEMSEC_IRQ_EN |
+	__mxs_clrl(STMP3XXX_RTC_CTRL_ONEMSEC_IRQ_EN |
 			STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
 			rtc_data->io + STMP3XXX_RTC_CTRL);
 	free_irq(rtc_data->irq_alarm, &pdev->dev);
@@ -216,8 +216,8 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 		goto out_remap;
 	}
 
-	stmp3xxx_reset_block(rtc_data->io, true);
-	stmp3xxx_clearl(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
+	mxs_reset_block(rtc_data->io);
+	__mxs_clrl(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE,
 			rtc_data->io + STMP3XXX_RTC_PERSISTENT0);
@@ -251,7 +251,7 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 out_irq1:
 	free_irq(rtc_data->irq_alarm, &pdev->dev);
 out_irq_alarm:
-	stmp3xxx_clearl(STMP3XXX_RTC_CTRL_ONEMSEC_IRQ_EN |
+	__mxs_clrl(STMP3XXX_RTC_CTRL_ONEMSEC_IRQ_EN |
 			STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
 			rtc_data->io + STMP3XXX_RTC_CTRL);
 	rtc_device_unregister(rtc_data->rtc);
@@ -272,8 +272,8 @@ static int stmp3xxx_rtc_resume(struct platform_device *dev)
 {
 	struct stmp3xxx_rtc_data *rtc_data = platform_get_drvdata(dev);
 
-	stmp3xxx_reset_block(rtc_data->io, true);
-	stmp3xxx_clearl(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
+	mxs_reset_block(rtc_data->io);
+	__mxs_clrl(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE,
 			rtc_data->io + STMP3XXX_RTC_PERSISTENT0);
