@@ -4877,6 +4877,195 @@ static int handle_vmclear(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+enum vmcs_field_type {
+	VMCS_FIELD_TYPE_U16 = 0,
+	VMCS_FIELD_TYPE_U64 = 1,
+	VMCS_FIELD_TYPE_U32 = 2,
+	VMCS_FIELD_TYPE_NATURAL_WIDTH = 3
+};
+
+static inline int vmcs_field_type(unsigned long field)
+{
+	if (0x1 & field)	/* the *_HIGH fields are all 32 bit */
+		return VMCS_FIELD_TYPE_U32;
+	return (field >> 13) & 0x3 ;
+}
+
+static inline int vmcs_field_readonly(unsigned long field)
+{
+	return (((field >> 10) & 0x3) == 1);
+}
+
+/*
+ * Read a vmcs12 field. Since these can have varying lengths and we return
+ * one type, we chose the biggest type (u64) and zero-extend the return value
+ * to that size. Note that the caller, handle_vmread, might need to use only
+ * some of the bits we return here (e.g., on 32-bit guests, only 32 bits of
+ * 64-bit fields are to be returned).
+ */
+static inline bool vmcs12_read_any(struct kvm_vcpu *vcpu,
+					unsigned long field, u64 *ret)
+{
+	short offset = vmcs_field_to_offset(field);
+	char *p;
+
+	if (offset < 0)
+		return 0;
+
+	p = ((char *)(get_vmcs12(vcpu))) + offset;
+
+	switch (vmcs_field_type(field)) {
+	case VMCS_FIELD_TYPE_NATURAL_WIDTH:
+		*ret = *((natural_width *)p);
+		return 1;
+	case VMCS_FIELD_TYPE_U16:
+		*ret = *((u16 *)p);
+		return 1;
+	case VMCS_FIELD_TYPE_U32:
+		*ret = *((u32 *)p);
+		return 1;
+	case VMCS_FIELD_TYPE_U64:
+		*ret = *((u64 *)p);
+		return 1;
+	default:
+		return 0; /* can never happen. */
+	}
+}
+
+/*
+ * VMX instructions which assume a current vmcs12 (i.e., that VMPTRLD was
+ * used before) all generate the same failure when it is missing.
+ */
+static int nested_vmx_check_vmcs12(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	if (vmx->nested.current_vmptr == -1ull) {
+		nested_vmx_failInvalid(vcpu);
+		skip_emulated_instruction(vcpu);
+		return 0;
+	}
+	return 1;
+}
+
+static int handle_vmread(struct kvm_vcpu *vcpu)
+{
+	unsigned long field;
+	u64 field_value;
+	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
+	u32 vmx_instruction_info = vmcs_read32(VMX_INSTRUCTION_INFO);
+	gva_t gva = 0;
+
+	if (!nested_vmx_check_permission(vcpu) ||
+	    !nested_vmx_check_vmcs12(vcpu))
+		return 1;
+
+	/* Decode instruction info and find the field to read */
+	field = kvm_register_read(vcpu, (((vmx_instruction_info) >> 28) & 0xf));
+	/* Read the field, zero-extended to a u64 field_value */
+	if (!vmcs12_read_any(vcpu, field, &field_value)) {
+		nested_vmx_failValid(vcpu, VMXERR_UNSUPPORTED_VMCS_COMPONENT);
+		skip_emulated_instruction(vcpu);
+		return 1;
+	}
+	/*
+	 * Now copy part of this value to register or memory, as requested.
+	 * Note that the number of bits actually copied is 32 or 64 depending
+	 * on the guest's mode (32 or 64 bit), not on the given field's length.
+	 */
+	if (vmx_instruction_info & (1u << 10)) {
+		kvm_register_write(vcpu, (((vmx_instruction_info) >> 3) & 0xf),
+			field_value);
+	} else {
+		if (get_vmx_mem_address(vcpu, exit_qualification,
+				vmx_instruction_info, &gva))
+			return 1;
+		/* _system ok, as nested_vmx_check_permission verified cpl=0 */
+		kvm_write_guest_virt_system(&vcpu->arch.emulate_ctxt, gva,
+			     &field_value, (is_long_mode(vcpu) ? 8 : 4), NULL);
+	}
+
+	nested_vmx_succeed(vcpu);
+	skip_emulated_instruction(vcpu);
+	return 1;
+}
+
+
+static int handle_vmwrite(struct kvm_vcpu *vcpu)
+{
+	unsigned long field;
+	gva_t gva;
+	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
+	u32 vmx_instruction_info = vmcs_read32(VMX_INSTRUCTION_INFO);
+	char *p;
+	short offset;
+	/* The value to write might be 32 or 64 bits, depending on L1's long
+	 * mode, and eventually we need to write that into a field of several
+	 * possible lengths. The code below first zero-extends the value to 64
+	 * bit (field_value), and then copies only the approriate number of
+	 * bits into the vmcs12 field.
+	 */
+	u64 field_value = 0;
+	struct x86_exception e;
+
+	if (!nested_vmx_check_permission(vcpu) ||
+	    !nested_vmx_check_vmcs12(vcpu))
+		return 1;
+
+	if (vmx_instruction_info & (1u << 10))
+		field_value = kvm_register_read(vcpu,
+			(((vmx_instruction_info) >> 3) & 0xf));
+	else {
+		if (get_vmx_mem_address(vcpu, exit_qualification,
+				vmx_instruction_info, &gva))
+			return 1;
+		if (kvm_read_guest_virt(&vcpu->arch.emulate_ctxt, gva,
+			   &field_value, (is_long_mode(vcpu) ? 8 : 4), &e)) {
+			kvm_inject_page_fault(vcpu, &e);
+			return 1;
+		}
+	}
+
+
+	field = kvm_register_read(vcpu, (((vmx_instruction_info) >> 28) & 0xf));
+	if (vmcs_field_readonly(field)) {
+		nested_vmx_failValid(vcpu,
+			VMXERR_VMWRITE_READ_ONLY_VMCS_COMPONENT);
+		skip_emulated_instruction(vcpu);
+		return 1;
+	}
+
+	offset = vmcs_field_to_offset(field);
+	if (offset < 0) {
+		nested_vmx_failValid(vcpu, VMXERR_UNSUPPORTED_VMCS_COMPONENT);
+		skip_emulated_instruction(vcpu);
+		return 1;
+	}
+	p = ((char *) get_vmcs12(vcpu)) + offset;
+
+	switch (vmcs_field_type(field)) {
+	case VMCS_FIELD_TYPE_U16:
+		*(u16 *)p = field_value;
+		break;
+	case VMCS_FIELD_TYPE_U32:
+		*(u32 *)p = field_value;
+		break;
+	case VMCS_FIELD_TYPE_U64:
+		*(u64 *)p = field_value;
+		break;
+	case VMCS_FIELD_TYPE_NATURAL_WIDTH:
+		*(natural_width *)p = field_value;
+		break;
+	default:
+		nested_vmx_failValid(vcpu, VMXERR_UNSUPPORTED_VMCS_COMPONENT);
+		skip_emulated_instruction(vcpu);
+		return 1;
+	}
+
+	nested_vmx_succeed(vcpu);
+	skip_emulated_instruction(vcpu);
+	return 1;
+}
+
 /* Emulate the VMPTRLD instruction */
 static int handle_vmptrld(struct kvm_vcpu *vcpu)
 {
@@ -4988,9 +5177,9 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_VMLAUNCH]                = handle_vmx_insn,
 	[EXIT_REASON_VMPTRLD]                 = handle_vmptrld,
 	[EXIT_REASON_VMPTRST]                 = handle_vmptrst,
-	[EXIT_REASON_VMREAD]                  = handle_vmx_insn,
+	[EXIT_REASON_VMREAD]                  = handle_vmread,
 	[EXIT_REASON_VMRESUME]                = handle_vmx_insn,
-	[EXIT_REASON_VMWRITE]                 = handle_vmx_insn,
+	[EXIT_REASON_VMWRITE]                 = handle_vmwrite,
 	[EXIT_REASON_VMOFF]                   = handle_vmoff,
 	[EXIT_REASON_VMON]                    = handle_vmon,
 	[EXIT_REASON_TPR_BELOW_THRESHOLD]     = handle_tpr_below_threshold,
