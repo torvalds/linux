@@ -1790,6 +1790,7 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 
 	/* exit controls */
 	nested_vmx_exit_ctls_low = 0;
+	/* Note that guest use of VM_EXIT_ACK_INTR_ON_EXIT is not supported. */
 #ifdef CONFIG_X86_64
 	nested_vmx_exit_ctls_high = VM_EXIT_HOST_ADDR_SPACE_SIZE;
 #else
@@ -3744,9 +3745,25 @@ out:
 	return ret;
 }
 
+/*
+ * In nested virtualization, check if L1 asked to exit on external interrupts.
+ * For most existing hypervisors, this will always return true.
+ */
+static bool nested_exit_on_intr(struct kvm_vcpu *vcpu)
+{
+	return get_vmcs12(vcpu)->pin_based_vm_exec_control &
+		PIN_BASED_EXT_INTR_MASK;
+}
+
 static void enable_irq_window(struct kvm_vcpu *vcpu)
 {
 	u32 cpu_based_vm_exec_control;
+	if (is_guest_mode(vcpu) && nested_exit_on_intr(vcpu))
+		/* We can get here when nested_run_pending caused
+		 * vmx_interrupt_allowed() to return false. In this case, do
+		 * nothing - the interrupt will be injected later.
+		 */
+		return;
 
 	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
 	cpu_based_vm_exec_control |= CPU_BASED_VIRTUAL_INTR_PENDING;
@@ -3869,6 +3886,17 @@ static void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
 
 static int vmx_interrupt_allowed(struct kvm_vcpu *vcpu)
 {
+	if (is_guest_mode(vcpu) && nested_exit_on_intr(vcpu)) {
+		struct vmcs12 *vmcs12;
+		if (to_vmx(vcpu)->nested.nested_run_pending)
+			return 0;
+		nested_vmx_vmexit(vcpu);
+		vmcs12 = get_vmcs12(vcpu);
+		vmcs12->vm_exit_reason = EXIT_REASON_EXTERNAL_INTERRUPT;
+		vmcs12->vm_exit_intr_info = 0;
+		/* fall through to normal code, but now in L1, not L2 */
+	}
+
 	return (vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_IF) &&
 		!(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) &
 			(GUEST_INTR_STATE_STI | GUEST_INTR_STATE_MOV_SS));
@@ -5536,6 +5564,14 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	/* If guest state is invalid, start emulating */
 	if (vmx->emulation_required && emulate_invalid_guest_state)
 		return handle_invalid_guest_state(vcpu);
+
+	/*
+	 * the KVM_REQ_EVENT optimization bit is only on for one entry, and if
+	 * we did not inject a still-pending event to L1 now because of
+	 * nested_run_pending, we need to re-enable this bit.
+	 */
+	if (vmx->nested.nested_run_pending)
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
 
 	if (exit_reason == EXIT_REASON_VMLAUNCH ||
 	    exit_reason == EXIT_REASON_VMRESUME)
