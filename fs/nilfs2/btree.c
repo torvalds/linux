@@ -1346,6 +1346,11 @@ static void nilfs_btree_shrink(struct nilfs_bmap *btree,
 	path[level].bp_bh = NULL;
 }
 
+static void nilfs_btree_nop(struct nilfs_bmap *btree,
+			    struct nilfs_btree_path *path,
+			    int level, __u64 *keyp, __u64 *ptrp)
+{
+}
 
 static int nilfs_btree_prepare_delete(struct nilfs_bmap *btree,
 				      struct nilfs_btree_path *path,
@@ -1439,16 +1444,22 @@ static int nilfs_btree_prepare_delete(struct nilfs_bmap *btree,
 			    NILFS_BTREE_ROOT_NCHILDREN_MAX) {
 				path[level].bp_op = nilfs_btree_shrink;
 				stats->bs_nblocks += 2;
+				level++;
+				path[level].bp_op = nilfs_btree_nop;
+				goto shrink_root_child;
 			} else {
 				path[level].bp_op = nilfs_btree_do_delete;
 				stats->bs_nblocks++;
+				goto out;
 			}
-
-			goto out;
-
 		}
 	}
 
+	/* child of the root node is deleted */
+	path[level].bp_op = nilfs_btree_do_delete;
+	stats->bs_nblocks++;
+
+shrink_root_child:
 	node = nilfs_btree_get_root(btree);
 	path[level].bp_oldreq.bpr_ptr =
 		nilfs_btree_node_get_ptr(node, dindex,
@@ -1457,10 +1468,6 @@ static int nilfs_btree_prepare_delete(struct nilfs_bmap *btree,
 	ret = nilfs_bmap_prepare_end_ptr(btree, &path[level].bp_oldreq, dat);
 	if (ret < 0)
 		goto err_out_child_node;
-
-	/* child of the root node is deleted */
-	path[level].bp_op = nilfs_btree_do_delete;
-	stats->bs_nblocks++;
 
 	/* success */
  out:
