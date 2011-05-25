@@ -517,6 +517,8 @@ struct ext4_new_group_data {
 					 EXT4_GET_BLOCKS_CREATE_UNINIT_EXT)
 	/* Punch out blocks of an extent */
 #define EXT4_GET_BLOCKS_PUNCH_OUT_EXT		0x0020
+	/* Don't normalize allocation size (used for fallocate) */
+#define EXT4_GET_BLOCKS_NO_NORMALIZE		0x0040
 
 /*
  * Flags used by ext4_free_blocks

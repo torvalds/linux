@@ -3554,6 +3554,8 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	else
 		/* disable in-core preallocation for non-regular files */
 		ar.flags = 0;
+	if (flags & EXT4_GET_BLOCKS_NO_NORMALIZE)
+		ar.flags |= EXT4_MB_HINT_NOPREALLOC;
 	newblock = ext4_mb_new_blocks(handle, &ar, &err);
 	if (!newblock)
 		goto out2;
@@ -3807,7 +3809,8 @@ retry:
 			break;
 		}
 		ret = ext4_map_blocks(handle, inode, &map,
-				      EXT4_GET_BLOCKS_CREATE_UNINIT_EXT);
+				      EXT4_GET_BLOCKS_CREATE_UNINIT_EXT |
+				      EXT4_GET_BLOCKS_NO_NORMALIZE);
 		if (ret <= 0) {
 #ifdef EXT4FS_DEBUG
 			WARN_ON(ret <= 0);
