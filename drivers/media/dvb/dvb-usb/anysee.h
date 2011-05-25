@@ -61,7 +61,7 @@ struct anysee_state {
 	u8 seq;
 };
 
-#define ANYSEE_HW_02      2 /* E30 */
+#define ANYSEE_HW_507T    2 /* E30 */
 #define ANYSEE_HW_507CD   6 /* E30 Plus */
 #define ANYSEE_HW_507DC  10 /* E30 C Plus */
 #define ANYSEE_HW_507SI  11 /* E30 S2 Plus */
