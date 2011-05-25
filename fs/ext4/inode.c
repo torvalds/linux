@@ -639,8 +639,8 @@ static int ext4_alloc_blocks(handle_t *handle, struct inode *inode,
 	while (target > 0) {
 		count = target;
 		/* allocating blocks for indirect blocks and direct blocks */
-		current_block = ext4_new_meta_blocks(handle, inode,
-							goal, &count, err);
+		current_block = ext4_new_meta_blocks(handle, inode, goal,
+						     0, &count, err);
 		if (*err)
 			goto failed_out;
 
@@ -1930,7 +1930,7 @@ repeat:
 	 * We do still charge estimated metadata to the sb though;
 	 * we cannot afford to run out of free blocks.
 	 */
-	if (ext4_claim_free_blocks(sbi, md_needed + 1)) {
+	if (ext4_claim_free_blocks(sbi, md_needed + 1, 0)) {
 		dquot_release_reservation_block(inode, 1);
 		if (ext4_should_retry_alloc(inode->i_sb, &retries)) {
 			yield();

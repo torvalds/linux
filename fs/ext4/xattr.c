@@ -820,8 +820,8 @@ inserted:
 			if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 				goal = goal & EXT4_MAX_BLOCK_FILE_PHYS;
 
-			block = ext4_new_meta_blocks(handle, inode,
-						  goal, NULL, &error);
+			block = ext4_new_meta_blocks(handle, inode, goal, 0,
+						     NULL, &error);
 			if (error)
 				goto cleanup;
 
