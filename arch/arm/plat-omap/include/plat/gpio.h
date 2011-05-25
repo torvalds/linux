@@ -198,6 +198,7 @@ struct omap_gpio_reg_offs {
 	u16 irqctrl;
 	u16 edgectrl1;
 	u16 edgectrl2;
+	u16 pinctrl;
 
 	bool irqenable_inv;
 };
