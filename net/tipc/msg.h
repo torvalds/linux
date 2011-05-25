@@ -615,7 +615,7 @@ static inline u32 msg_link_selector(struct tipc_msg *m)
 
 static inline void msg_set_link_selector(struct tipc_msg *m, u32 n)
 {
-	msg_set_bits(m, 4, 0, 1, (n & 1));
+	msg_set_bits(m, 4, 0, 1, n);
 }
 
 /*
@@ -639,7 +639,7 @@ static inline u32 msg_probe(struct tipc_msg *m)
 
 static inline void msg_set_probe(struct tipc_msg *m, u32 val)
 {
-	msg_set_bits(m, 5, 0, 1, (val & 1));
+	msg_set_bits(m, 5, 0, 1, val);
 }
 
 static inline char msg_net_plane(struct tipc_msg *m)
