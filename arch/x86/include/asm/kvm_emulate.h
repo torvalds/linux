@@ -246,8 +246,6 @@ struct decode_cache {
 	unsigned int d;
 	int (*execute)(struct x86_emulate_ctxt *ctxt);
 	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
-	unsigned long regs[NR_VCPU_REGS];
-	unsigned long eip;
 	/* modrm */
 	u8 modrm;
 	u8 modrm_mod;
@@ -255,6 +253,9 @@ struct decode_cache {
 	u8 modrm_rm;
 	u8 modrm_seg;
 	bool rip_relative;
+	unsigned long eip;
+	/* Fields above regs are cleared together. */
+	unsigned long regs[NR_VCPU_REGS];
 	struct fetch_cache fetch;
 	struct read_cache io_read;
 	struct read_cache mem_read;

@@ -4506,6 +4506,20 @@ static void inject_emulated_exception(struct kvm_vcpu *vcpu)
 		kvm_queue_exception(vcpu, ctxt->exception.vector);
 }
 
+static void init_decode_cache(struct decode_cache *c,
+			      const unsigned long *regs)
+{
+	memset(c, 0, offsetof(struct decode_cache, regs));
+	memcpy(c->regs, regs, sizeof(c->regs));
+
+	c->fetch.start = 0;
+	c->fetch.end = 0;
+	c->io_read.pos = 0;
+	c->io_read.end = 0;
+	c->mem_read.pos = 0;
+	c->mem_read.end = 0;
+}
+
 static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 {
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
@@ -4531,8 +4545,7 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 							  X86EMUL_MODE_PROT16;
 	ctxt->guest_mode = is_guest_mode(vcpu);
 
-	memset(c, 0, sizeof(struct decode_cache));
-	memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
+	init_decode_cache(c, vcpu->arch.regs);
 	vcpu->arch.emulate_regs_need_sync_from_vcpu = false;
 }
 
