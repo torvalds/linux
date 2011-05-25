@@ -8,8 +8,21 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/clkdev.h>
+
+ /* Map io */
+extern void __init at91rm9200_map_io(void);
+extern void __init at91sam9260_map_io(void);
+extern void __init at91sam9261_map_io(void);
+extern void __init at91sam9263_map_io(void);
+extern void __init at91sam9rl_map_io(void);
+extern void __init at91sam9g45_map_io(void);
+extern void __init at91x40_map_io(void);
+extern void __init at91cap9_map_io(void);
+
  /* Processors */
-extern void __init at91rm9200_initialize(unsigned long main_clock, unsigned short banks);
+extern void __init at91rm9200_set_type(int type);
+extern void __init at91rm9200_initialize(unsigned long main_clock);
 extern void __init at91sam9260_initialize(unsigned long main_clock);
 extern void __init at91sam9261_initialize(unsigned long main_clock);
 extern void __init at91sam9263_initialize(unsigned long main_clock);
@@ -17,7 +30,6 @@ extern void __init at91sam9rl_initialize(unsigned long main_clock);
 extern void __init at91sam9g45_initialize(unsigned long main_clock);
 extern void __init at91x40_initialize(unsigned long main_clock);
 extern void __init at91cap9_initialize(unsigned long main_clock);
-extern void __init at572d940hf_initialize(unsigned long main_clock);
 
  /* Interrupts */
 extern void __init at91rm9200_init_interrupts(unsigned int priority[]);
@@ -28,7 +40,6 @@ extern void __init at91sam9rl_init_interrupts(unsigned int priority[]);
 extern void __init at91sam9g45_init_interrupts(unsigned int priority[]);
 extern void __init at91x40_init_interrupts(unsigned int priority[]);
 extern void __init at91cap9_init_interrupts(unsigned int priority[]);
-extern void __init at572d940hf_init_interrupts(unsigned int priority[]);
 extern void __init at91_aic_init(unsigned int priority[]);
 
  /* Timer */
@@ -39,8 +50,19 @@ extern struct sys_timer at91x40_timer;
 
  /* Clocks */
 extern int __init at91_clock_init(unsigned long main_clock);
+/*
+ * function to specify the clock of the default console. As we do not
+ * use the device/driver bus, the dev_name is not intialize. So we need
+ * to link the clock to a specific con_id only "usart"
+ */
+extern void __init at91rm9200_set_console_clock(int id);
+extern void __init at91sam9260_set_console_clock(int id);
+extern void __init at91sam9261_set_console_clock(int id);
+extern void __init at91sam9263_set_console_clock(int id);
+extern void __init at91sam9rl_set_console_clock(int id);
+extern void __init at91sam9g45_set_console_clock(int id);
+extern void __init at91cap9_set_console_clock(int id);
 struct device;
-extern void __init at91_clock_associate(const char *id, struct device *dev, const char *func);
 
  /* Power Management */
 extern void at91_irq_suspend(void);

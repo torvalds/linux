@@ -719,7 +719,7 @@ int page_referenced(struct page *page,
 			unlock_page(page);
 	}
 out:
-	if (page_test_and_clear_young(page))
+	if (page_test_and_clear_young(page_to_pfn(page)))
 		referenced++;
 
 	return referenced;
@@ -785,10 +785,8 @@ int page_mkclean(struct page *page)
 		struct address_space *mapping = page_mapping(page);
 		if (mapping) {
 			ret = page_mkclean_file(mapping, page);
-			if (page_test_dirty(page)) {
-				page_clear_dirty(page, 1);
+			if (page_test_and_clear_dirty(page_to_pfn(page), 1))
 				ret = 1;
-			}
 		}
 	}
 
@@ -981,10 +979,9 @@ void page_remove_rmap(struct page *page)
 	 * not if it's in swapcache - there might be another pte slot
 	 * containing the swap entry, but page not yet written to swap.
 	 */
-	if ((!PageAnon(page) || PageSwapCache(page)) && page_test_dirty(page)) {
-		page_clear_dirty(page, 1);
+	if ((!PageAnon(page) || PageSwapCache(page)) &&
+	    page_test_and_clear_dirty(page_to_pfn(page), 1))
 		set_page_dirty(page);
-	}
 	/*
 	 * Hugepages are not counted in NR_ANON_PAGES nor NR_FILE_MAPPED
 	 * and not charged by memcg for now.

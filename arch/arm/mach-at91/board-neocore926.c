@@ -51,7 +51,7 @@
 #include "generic.h"
 
 
-static void __init neocore926_map_io(void)
+static void __init neocore926_init_early(void)
 {
 	/* Initialize processor: 20 MHz crystal */
 	at91sam9263_initialize(20000000);
@@ -387,9 +387,9 @@ static void __init neocore926_board_init(void)
 
 MACHINE_START(NEOCORE926, "ADENEO NEOCORE 926")
 	/* Maintainer: ADENEO */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= neocore926_map_io,
+	.map_io		= at91sam9263_map_io,
+	.init_early	= neocore926_init_early,
 	.init_irq	= neocore926_init_irq,
 	.init_machine	= neocore926_board_init,
 MACHINE_END

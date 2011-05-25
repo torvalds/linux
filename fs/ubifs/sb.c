@@ -475,7 +475,8 @@ failed:
  * @c: UBIFS file-system description object
  *
  * This function returns a pointer to the superblock node or a negative error
- * code.
+ * code. Note, the user of this function is responsible of kfree()'ing the
+ * returned superblock buffer.
  */
 struct ubifs_sb_node *ubifs_read_sb_node(struct ubifs_info *c)
 {
@@ -616,6 +617,7 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	c->vfs_sb->s_time_gran = le32_to_cpu(sup->time_gran);
 	memcpy(&c->uuid, &sup->uuid, 16);
 	c->big_lpt = !!(sup_flags & UBIFS_FLG_BIGLPT);
+	c->space_fixup = !!(sup_flags & UBIFS_FLG_SPACE_FIXUP);
 
 	/* Automatically increase file system size to the maximum size */
 	c->old_leb_cnt = c->leb_cnt;
@@ -648,5 +650,154 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	err = validate_sb(c, sup);
 out:
 	kfree(sup);
+	return err;
+}
+
+/**
+ * fixup_leb - fixup/unmap an LEB containing free space.
+ * @c: UBIFS file-system description object
+ * @lnum: the LEB number to fix up
+ * @len: number of used bytes in LEB (starting at offset 0)
+ *
+ * This function reads the contents of the given LEB number @lnum, then fixes
+ * it up, so that empty min. I/O units in the end of LEB are actually erased on
+ * flash (rather than being just all-0xff real data). If the LEB is completely
+ * empty, it is simply unmapped.
+ */
+static int fixup_leb(struct ubifs_info *c, int lnum, int len)
+{
+	int err;
+
+	ubifs_assert(len >= 0);
+	ubifs_assert(len % c->min_io_size == 0);
+	ubifs_assert(len < c->leb_size);
+
+	if (len == 0) {
+		dbg_mnt("unmap empty LEB %d", lnum);
+		return ubi_leb_unmap(c->ubi, lnum);
+	}
+
+	dbg_mnt("fixup LEB %d, data len %d", lnum, len);
+	err = ubi_read(c->ubi, lnum, c->sbuf, 0, len);
+	if (err)
+		return err;
+
+	return ubi_leb_change(c->ubi, lnum, c->sbuf, len, UBI_UNKNOWN);
+}
+
+/**
+ * fixup_free_space - find & remap all LEBs containing free space.
+ * @c: UBIFS file-system description object
+ *
+ * This function walks through all LEBs in the filesystem and fiexes up those
+ * containing free/empty space.
+ */
+static int fixup_free_space(struct ubifs_info *c)
+{
+	int lnum, err = 0;
+	struct ubifs_lprops *lprops;
+
+	ubifs_get_lprops(c);
+
+	/* Fixup LEBs in the master area */
+	for (lnum = UBIFS_MST_LNUM; lnum < UBIFS_LOG_LNUM; lnum++) {
+		err = fixup_leb(c, lnum, c->mst_offs + c->mst_node_alsz);
+		if (err)
+			goto out;
+	}
+
+	/* Unmap unused log LEBs */
+	lnum = ubifs_next_log_lnum(c, c->lhead_lnum);
+	while (lnum != c->ltail_lnum) {
+		err = fixup_leb(c, lnum, 0);
+		if (err)
+			goto out;
+		lnum = ubifs_next_log_lnum(c, lnum);
+	}
+
+	/* Fixup the current log head */
+	err = fixup_leb(c, c->lhead_lnum, c->lhead_offs);
+	if (err)
+		goto out;
+
+	/* Fixup LEBs in the LPT area */
+	for (lnum = c->lpt_first; lnum <= c->lpt_last; lnum++) {
+		int free = c->ltab[lnum - c->lpt_first].free;
+
+		if (free > 0) {
+			err = fixup_leb(c, lnum, c->leb_size - free);
+			if (err)
+				goto out;
+		}
+	}
+
+	/* Unmap LEBs in the orphans area */
+	for (lnum = c->orph_first; lnum <= c->orph_last; lnum++) {
+		err = fixup_leb(c, lnum, 0);
+		if (err)
+			goto out;
+	}
+
+	/* Fixup LEBs in the main area */
+	for (lnum = c->main_first; lnum < c->leb_cnt; lnum++) {
+		lprops = ubifs_lpt_lookup(c, lnum);
+		if (IS_ERR(lprops)) {
+			err = PTR_ERR(lprops);
+			goto out;
+		}
+
+		if (lprops->free > 0) {
+			err = fixup_leb(c, lnum, c->leb_size - lprops->free);
+			if (err)
+				goto out;
+		}
+	}
+
+out:
+	ubifs_release_lprops(c);
+	return err;
+}
+
+/**
+ * ubifs_fixup_free_space - find & fix all LEBs with free space.
+ * @c: UBIFS file-system description object
+ *
+ * This function fixes up LEBs containing free space on first mount, if the
+ * appropriate flag was set when the FS was created. Each LEB with one or more
+ * empty min. I/O unit (i.e. free-space-count > 0) is re-written, to make sure
+ * the free space is actually erased. E.g., this is necessary for some NAND
+ * chips, since the free space may have been programmed like real "0xff" data
+ * (generating a non-0xff ECC), causing future writes to the not-really-erased
+ * NAND pages to behave badly. After the space is fixed up, the superblock flag
+ * is cleared, so that this is skipped for all future mounts.
+ */
+int ubifs_fixup_free_space(struct ubifs_info *c)
+{
+	int err;
+	struct ubifs_sb_node *sup;
+
+	ubifs_assert(c->space_fixup);
+	ubifs_assert(!c->ro_mount);
+
+	ubifs_msg("start fixing up free space");
+
+	err = fixup_free_space(c);
+	if (err)
+		return err;
+
+	sup = ubifs_read_sb_node(c);
+	if (IS_ERR(sup))
+		return PTR_ERR(sup);
+
+	/* Free-space fixup is no longer required */
+	c->space_fixup = 0;
+	sup->flags &= cpu_to_le32(~UBIFS_FLG_SPACE_FIXUP);
+
+	err = ubifs_write_sb_node(c, sup);
+	kfree(sup);
+	if (err)
+		return err;
+
+	ubifs_msg("free space fixup complete");
 	return err;
 }

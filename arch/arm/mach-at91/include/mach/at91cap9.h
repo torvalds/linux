@@ -20,8 +20,6 @@
 /*
  * Peripheral identifiers/interrupts.
  */
-#define AT91_ID_FIQ		0	/* Advanced Interrupt Controller (FIQ) */
-#define AT91_ID_SYS		1	/* System Peripherals */
 #define AT91CAP9_ID_PIOABCD	2	/* Parallel IO Controller A, B, C and D */
 #define AT91CAP9_ID_MPB0	3	/* MP Block Peripheral 0 */
 #define AT91CAP9_ID_MPB1	4	/* MP Block Peripheral 1 */
@@ -122,7 +120,5 @@
 #define AT91CAP9_LCDC_BASE	0x00500000	/* LCD Controller */
 #define AT91CAP9_UDPHS_FIFO	0x00600000	/* USB High Speed Device Port */
 #define AT91CAP9_UHP_BASE	0x00700000	/* USB Host controller */
-
-#define CONFIG_DRAM_BASE	AT91_CHIPSELECT_6
 
 #endif

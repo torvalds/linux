@@ -286,7 +286,7 @@ nv50_crtc_set_clock(struct drm_device *dev, int head, int pclk)
 		nv_wr32(dev, pll.reg + 8, reg2 | (P << 28) | (M2 << 16) | N2);
 	} else
 	if (dev_priv->chipset < NV_C0) {
-		ret = nv50_calc_pll2(dev, &pll, pclk, &N1, &N2, &M1, &P);
+		ret = nva3_calc_pll(dev, &pll, pclk, &N1, &N2, &M1, &P);
 		if (ret <= 0)
 			return 0;
 
@@ -298,7 +298,7 @@ nv50_crtc_set_clock(struct drm_device *dev, int head, int pclk)
 		nv_wr32(dev, pll.reg + 4, reg1 | (P << 16) | (M1 << 8) | N1);
 		nv_wr32(dev, pll.reg + 8, N2);
 	} else {
-		ret = nv50_calc_pll2(dev, &pll, pclk, &N1, &N2, &M1, &P);
+		ret = nva3_calc_pll(dev, &pll, pclk, &N1, &N2, &M1, &P);
 		if (ret <= 0)
 			return 0;
 
@@ -349,13 +349,13 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	struct drm_gem_object *gem;
 	int ret = 0, i;
 
-	if (width != 64 || height != 64)
-		return -EINVAL;
-
 	if (!buffer_handle) {
 		nv_crtc->cursor.hide(nv_crtc, true);
 		return 0;
 	}
+
+	if (width != 64 || height != 64)
+		return -EINVAL;
 
 	gem = drm_gem_object_lookup(dev, file_priv, buffer_handle);
 	if (!gem)
@@ -532,8 +532,7 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	if (atomic) {
 		drm_fb = passed_fb;
 		fb = nouveau_framebuffer(passed_fb);
-	}
-	else {
+	} else {
 		/* If not atomic, we can go ahead and pin, and unpin the
 		 * old fb we were passed.
 		 */

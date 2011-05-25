@@ -18,8 +18,6 @@
 /*
  * Peripheral identifiers/interrupts.
  */
-#define AT91_ID_FIQ		0	/* Advanced Interrupt Controller (FIQ) */
-#define AT91_ID_SYS		1	/* System Controller Interrupt */
 #define AT91SAM9G45_ID_PIOA	2	/* Parallel I/O Controller A */
 #define AT91SAM9G45_ID_PIOB	3	/* Parallel I/O Controller B */
 #define AT91SAM9G45_ID_PIOC	4	/* Parallel I/O Controller C */
@@ -130,8 +128,6 @@
 #define AT91SAM9G45_OHCI_BASE	0x00700000	/* USB Host controller (OHCI) */
 #define AT91SAM9G45_EHCI_BASE	0x00800000	/* USB Host controller (EHCI) */
 #define AT91SAM9G45_VDEC_BASE	0x00900000	/* Video Decoder Controller */
-
-#define CONFIG_DRAM_BASE	AT91_CHIPSELECT_6
 
 #define CONSISTENT_DMA_SIZE	SZ_4M
 

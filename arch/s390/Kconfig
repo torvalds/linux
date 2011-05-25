@@ -230,17 +230,6 @@ config SYSVIPC_COMPAT
 config AUDIT_ARCH
 	def_bool y
 
-config S390_EXEC_PROTECT
-	def_bool y
-	prompt "Data execute protection"
-	help
-	  This option allows to enable a buffer overflow protection for user
-	  space programs and it also selects the addressing mode option above.
-	  The kernel parameter noexec=on will enable this feature and also
-	  switch the addressing modes, default is disabled. Enabling this (via
-	  kernel parameter) on machines earlier than IBM System z9 this will
-	  reduce system performance.
-
 comment "Code generation options"
 
 choice

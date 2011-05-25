@@ -231,6 +231,28 @@ static struct clk *periph_clocks[] __initdata = {
 	// irq0 .. irq2
 };
 
+static struct clk_lookup periph_clocks_lookups[] = {
+	CLKDEV_CON_DEV_ID("spi_clk", "atmel_spi.0", &spi0_clk),
+	CLKDEV_CON_DEV_ID("spi_clk", "atmel_spi.1", &spi1_clk),
+	CLKDEV_CON_DEV_ID("t0_clk", "atmel_tcb.0", &tc0_clk),
+	CLKDEV_CON_DEV_ID("t1_clk", "atmel_tcb.0", &tc1_clk),
+	CLKDEV_CON_DEV_ID("t2_clk", "atmel_tcb.0", &tc2_clk),
+	CLKDEV_CON_DEV_ID("t3_clk", "atmel_tcb.1", &tc3_clk),
+	CLKDEV_CON_DEV_ID("t4_clk", "atmel_tcb.1", &tc4_clk),
+	CLKDEV_CON_DEV_ID("t5_clk", "atmel_tcb.1", &tc5_clk),
+	CLKDEV_CON_DEV_ID("pclk", "ssc.0", &ssc_clk),
+};
+
+static struct clk_lookup usart_clocks_lookups[] = {
+	CLKDEV_CON_DEV_ID("usart", "atmel_usart.0", &mck),
+	CLKDEV_CON_DEV_ID("usart", "atmel_usart.1", &usart0_clk),
+	CLKDEV_CON_DEV_ID("usart", "atmel_usart.2", &usart1_clk),
+	CLKDEV_CON_DEV_ID("usart", "atmel_usart.3", &usart2_clk),
+	CLKDEV_CON_DEV_ID("usart", "atmel_usart.4", &usart3_clk),
+	CLKDEV_CON_DEV_ID("usart", "atmel_usart.5", &usart4_clk),
+	CLKDEV_CON_DEV_ID("usart", "atmel_usart.6", &usart5_clk),
+};
+
 /*
  * The two programmable clocks.
  * You must configure pin multiplexing to bring these signals out.
@@ -255,8 +277,25 @@ static void __init at91sam9260_register_clocks(void)
 	for (i = 0; i < ARRAY_SIZE(periph_clocks); i++)
 		clk_register(periph_clocks[i]);
 
+	clkdev_add_table(periph_clocks_lookups,
+			 ARRAY_SIZE(periph_clocks_lookups));
+	clkdev_add_table(usart_clocks_lookups,
+			 ARRAY_SIZE(usart_clocks_lookups));
+
 	clk_register(&pck0);
 	clk_register(&pck1);
+}
+
+static struct clk_lookup console_clock_lookup;
+
+void __init at91sam9260_set_console_clock(int id)
+{
+	if (id >= ARRAY_SIZE(usart_clocks_lookups))
+		return;
+
+	console_clock_lookup.con_id = "usart";
+	console_clock_lookup.clk = usart_clocks_lookups[id].clk;
+	clkdev_add(&console_clock_lookup);
 }
 
 /* --------------------------------------------------------------------
@@ -289,7 +328,7 @@ static void at91sam9260_poweroff(void)
  *  AT91SAM9260 processor initialization
  * -------------------------------------------------------------------- */
 
-static void __init at91sam9xe_initialize(void)
+static void __init at91sam9xe_map_io(void)
 {
 	unsigned long cidr, sram_size;
 
@@ -310,18 +349,21 @@ static void __init at91sam9xe_initialize(void)
 	iotable_init(at91sam9xe_sram_desc, ARRAY_SIZE(at91sam9xe_sram_desc));
 }
 
-void __init at91sam9260_initialize(unsigned long main_clock)
+void __init at91sam9260_map_io(void)
 {
 	/* Map peripherals */
 	iotable_init(at91sam9260_io_desc, ARRAY_SIZE(at91sam9260_io_desc));
 
 	if (cpu_is_at91sam9xe())
-		at91sam9xe_initialize();
+		at91sam9xe_map_io();
 	else if (cpu_is_at91sam9g20())
 		iotable_init(at91sam9g20_sram_desc, ARRAY_SIZE(at91sam9g20_sram_desc));
 	else
 		iotable_init(at91sam9260_sram_desc, ARRAY_SIZE(at91sam9260_sram_desc));
+}
 
+void __init at91sam9260_initialize(unsigned long main_clock)
+{
 	at91_arch_reset = at91sam9_alt_reset;
 	pm_power_off = at91sam9260_poweroff;
 	at91_extern_irq = (1 << AT91SAM9260_ID_IRQ0) | (1 << AT91SAM9260_ID_IRQ1)

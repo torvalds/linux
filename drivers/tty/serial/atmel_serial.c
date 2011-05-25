@@ -1420,7 +1420,7 @@ static void __devinit atmel_init_port(struct atmel_uart_port *atmel_port,
 	port->flags		= UPF_BOOT_AUTOCONF;
 	port->ops		= &atmel_pops;
 	port->fifosize		= 1;
-	port->line		= pdev->id;
+	port->line		= data->num;
 	port->dev		= &pdev->dev;
 	port->mapbase	= pdev->resource[0].start;
 	port->irq	= pdev->resource[1].start;

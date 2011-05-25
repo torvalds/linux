@@ -206,8 +206,14 @@ SYSCALL_DEFINE4(request_key, const char __user *, _type,
 		goto error5;
 	}
 
+	/* wait for the key to finish being constructed */
+	ret = wait_for_key_construction(key, 1);
+	if (ret < 0)
+		goto error6;
+
 	ret = key->serial;
 
+error6:
  	key_put(key);
 error5:
 	key_type_put(ktype);

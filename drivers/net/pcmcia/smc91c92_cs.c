@@ -2014,7 +2014,7 @@ static int smc_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 	return rc;
 }
 
-static struct pcmcia_device_id smc91c92_ids[] = {
+static const struct pcmcia_device_id smc91c92_ids[] = {
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0109, 0x0501),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0140, 0x000a),
 	PCMCIA_PFC_DEVICE_PROD_ID123(0, "MEGAHERTZ", "CC/XJEM3288", "DATA/FAX/CELL ETHERNET MODEM", 0xf510db04, 0x04cd2988, 0x46a52d63),

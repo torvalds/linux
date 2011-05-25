@@ -181,10 +181,6 @@ void __init at91_add_device_usba(struct usba_platform_data *data)
 
 	/* Pullup pin is handled internally by USB device peripheral */
 
-	/* Clocks */
-	at91_clock_associate("utmi_clk", &at91_usba_udc_device.dev, "hclk");
-	at91_clock_associate("udphs_clk", &at91_usba_udc_device.dev, "pclk");
-
 	platform_device_register(&at91_usba_udc_device);
 }
 #else
@@ -355,7 +351,6 @@ void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data)
 		}
 
 		mmc0_data = *data;
-		at91_clock_associate("mci0_clk", &at91cap9_mmc0_device.dev, "mci_clk");
 		platform_device_register(&at91cap9_mmc0_device);
 	} else {			/* MCI1 */
 		/* CLK */
@@ -373,7 +368,6 @@ void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data)
 		}
 
 		mmc1_data = *data;
-		at91_clock_associate("mci1_clk", &at91cap9_mmc1_device.dev, "mci_clk");
 		platform_device_register(&at91cap9_mmc1_device);
 	}
 }
@@ -614,7 +608,6 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices)
 		at91_set_B_periph(AT91_PIN_PA1, 0);	/* SPI0_MOSI */
 		at91_set_B_periph(AT91_PIN_PA2, 0);	/* SPI0_SPCK */
 
-		at91_clock_associate("spi0_clk", &at91cap9_spi0_device.dev, "spi_clk");
 		platform_device_register(&at91cap9_spi0_device);
 	}
 	if (enable_spi1) {
@@ -622,7 +615,6 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices)
 		at91_set_A_periph(AT91_PIN_PB13, 0);	/* SPI1_MOSI */
 		at91_set_A_periph(AT91_PIN_PB14, 0);	/* SPI1_SPCK */
 
-		at91_clock_associate("spi1_clk", &at91cap9_spi1_device.dev, "spi_clk");
 		platform_device_register(&at91cap9_spi1_device);
 	}
 }
@@ -659,8 +651,6 @@ static struct platform_device at91cap9_tcb_device = {
 
 static void __init at91_add_device_tc(void)
 {
-	/* this chip has one clock and irq for all three TC channels */
-	at91_clock_associate("tcb_clk", &at91cap9_tcb_device.dev, "t0_clk");
 	platform_device_register(&at91cap9_tcb_device);
 }
 #else
@@ -1001,12 +991,10 @@ void __init at91_add_device_ssc(unsigned id, unsigned pins)
 	case AT91CAP9_ID_SSC0:
 		pdev = &at91cap9_ssc0_device;
 		configure_ssc0_pins(pins);
-		at91_clock_associate("ssc0_clk", &pdev->dev, "ssc");
 		break;
 	case AT91CAP9_ID_SSC1:
 		pdev = &at91cap9_ssc1_device;
 		configure_ssc1_pins(pins);
-		at91_clock_associate("ssc1_clk", &pdev->dev, "ssc");
 		break;
 	default:
 		return;
@@ -1199,32 +1187,30 @@ struct platform_device *atmel_default_console_device;	/* the serial console devi
 void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins)
 {
 	struct platform_device *pdev;
+	struct atmel_uart_data *pdata;
 
 	switch (id) {
 		case 0:		/* DBGU */
 			pdev = &at91cap9_dbgu_device;
 			configure_dbgu_pins();
-			at91_clock_associate("mck", &pdev->dev, "usart");
 			break;
 		case AT91CAP9_ID_US0:
 			pdev = &at91cap9_uart0_device;
 			configure_usart0_pins(pins);
-			at91_clock_associate("usart0_clk", &pdev->dev, "usart");
 			break;
 		case AT91CAP9_ID_US1:
 			pdev = &at91cap9_uart1_device;
 			configure_usart1_pins(pins);
-			at91_clock_associate("usart1_clk", &pdev->dev, "usart");
 			break;
 		case AT91CAP9_ID_US2:
 			pdev = &at91cap9_uart2_device;
 			configure_usart2_pins(pins);
-			at91_clock_associate("usart2_clk", &pdev->dev, "usart");
 			break;
 		default:
 			return;
 	}
-	pdev->id = portnr;		/* update to mapped ID */
+	pdata = pdev->dev.platform_data;
+	pdata->num = portnr;		/* update to mapped ID */
 
 	if (portnr < ATMEL_MAX_UART)
 		at91_uarts[portnr] = pdev;
@@ -1232,8 +1218,10 @@ void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins)
 
 void __init at91_set_serial_console(unsigned portnr)
 {
-	if (portnr < ATMEL_MAX_UART)
+	if (portnr < ATMEL_MAX_UART) {
 		atmel_default_console_device = at91_uarts[portnr];
+		at91cap9_set_console_clock(portnr);
+	}
 }
 
 void __init at91_add_device_serial(void)

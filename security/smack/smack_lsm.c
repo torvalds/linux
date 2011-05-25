@@ -383,7 +383,7 @@ static int smack_sb_statfs(struct dentry *dentry)
 	int rc;
 	struct smk_audit_info ad;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
 	rc = smk_curacc(sbp->smk_floor, MAY_READ, &ad);
@@ -407,7 +407,7 @@ static int smack_sb_mount(char *dev_name, struct path *path,
 	struct superblock_smack *sbp = path->mnt->mnt_sb->s_security;
 	struct smk_audit_info ad;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, *path);
 
 	return smk_curacc(sbp->smk_floor, MAY_WRITE, &ad);
@@ -425,10 +425,13 @@ static int smack_sb_umount(struct vfsmount *mnt, int flags)
 {
 	struct superblock_smack *sbp;
 	struct smk_audit_info ad;
+	struct path path;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
-	smk_ad_setfield_u_fs_path_dentry(&ad, mnt->mnt_root);
-	smk_ad_setfield_u_fs_path_mnt(&ad, mnt);
+	path.dentry = mnt->mnt_root;
+	path.mnt = mnt;
+
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
+	smk_ad_setfield_u_fs_path(&ad, path);
 
 	sbp = mnt->mnt_sb->s_security;
 	return smk_curacc(sbp->smk_floor, MAY_WRITE, &ad);
@@ -563,7 +566,7 @@ static int smack_inode_link(struct dentry *old_dentry, struct inode *dir,
 	struct smk_audit_info ad;
 	int rc;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, old_dentry);
 
 	isp = smk_of_inode(old_dentry->d_inode);
@@ -592,7 +595,7 @@ static int smack_inode_unlink(struct inode *dir, struct dentry *dentry)
 	struct smk_audit_info ad;
 	int rc;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
 	/*
@@ -623,7 +626,7 @@ static int smack_inode_rmdir(struct inode *dir, struct dentry *dentry)
 	struct smk_audit_info ad;
 	int rc;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
 	/*
@@ -663,7 +666,7 @@ static int smack_inode_rename(struct inode *old_inode,
 	char *isp;
 	struct smk_audit_info ad;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, old_dentry);
 
 	isp = smk_of_inode(old_dentry->d_inode);
@@ -700,7 +703,7 @@ static int smack_inode_permission(struct inode *inode, int mask, unsigned flags)
 	/* May be droppable after audit */
 	if (flags & IPERM_FLAG_RCU)
 		return -ECHILD;
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_INODE);
 	smk_ad_setfield_u_fs_inode(&ad, inode);
 	return smk_curacc(smk_of_inode(inode), mask, &ad);
 }
@@ -720,7 +723,7 @@ static int smack_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 	 */
 	if (iattr->ia_valid & ATTR_FORCE)
 		return 0;
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
 	return smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE, &ad);
@@ -736,10 +739,13 @@ static int smack_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 static int smack_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 {
 	struct smk_audit_info ad;
+	struct path path;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
-	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
-	smk_ad_setfield_u_fs_path_mnt(&ad, mnt);
+	path.dentry = dentry;
+	path.mnt = mnt;
+
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
+	smk_ad_setfield_u_fs_path(&ad, path);
 	return smk_curacc(smk_of_inode(dentry->d_inode), MAY_READ, &ad);
 }
 
@@ -784,7 +790,7 @@ static int smack_inode_setxattr(struct dentry *dentry, const char *name,
 	} else
 		rc = cap_inode_setxattr(dentry, name, value, size, flags);
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
 	if (rc == 0)
@@ -845,7 +851,7 @@ static int smack_inode_getxattr(struct dentry *dentry, const char *name)
 {
 	struct smk_audit_info ad;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
 	return smk_curacc(smk_of_inode(dentry->d_inode), MAY_READ, &ad);
@@ -877,7 +883,7 @@ static int smack_inode_removexattr(struct dentry *dentry, const char *name)
 	} else
 		rc = cap_inode_removexattr(dentry, name);
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 	if (rc == 0)
 		rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE, &ad);
@@ -1047,7 +1053,7 @@ static int smack_file_ioctl(struct file *file, unsigned int cmd,
 	int rc = 0;
 	struct smk_audit_info ad;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 
 	if (_IOC_DIR(cmd) & _IOC_WRITE)
@@ -1070,8 +1076,8 @@ static int smack_file_lock(struct file *file, unsigned int cmd)
 {
 	struct smk_audit_info ad;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
-	smk_ad_setfield_u_fs_path_dentry(&ad, file->f_path.dentry);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
+	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 	return smk_curacc(file->f_security, MAY_WRITE, &ad);
 }
 
@@ -1089,7 +1095,7 @@ static int smack_file_fcntl(struct file *file, unsigned int cmd,
 	struct smk_audit_info ad;
 	int rc;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 
 	switch (cmd) {

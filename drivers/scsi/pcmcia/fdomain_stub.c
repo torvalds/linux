@@ -178,7 +178,7 @@ static int fdomain_resume(struct pcmcia_device *link)
 	return 0;
 }
 
-static struct pcmcia_device_id fdomain_ids[] = {
+static const struct pcmcia_device_id fdomain_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("IBM Corp.", "SCSI PCMCIA Card", 0xe3736c88, 0x859cad20),
 	PCMCIA_DEVICE_PROD_ID1("SCSI PCMCIA Adapter Card", 0x8dacb57e),
 	PCMCIA_DEVICE_PROD_ID12(" SIMPLE TECHNOLOGY Corporation", "SCSI PCMCIA Credit Card Controller", 0x182bdafe, 0xc80d106f),

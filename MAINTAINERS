@@ -2245,10 +2245,10 @@ F:	drivers/gpu/drm/
 F:	include/drm/
 
 INTEL DRM DRIVERS (excluding Poulsbo, Moorestown and derivative chipsets)
-M:	Chris Wilson <chris@chris-wilson.co.uk>
+M:	Keith Packard <keithp@keithp.com>
 L:	intel-gfx@lists.freedesktop.org (subscribers-only)
 L:	dri-devel@lists.freedesktop.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ickle/drm-intel.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/keithp/linux-2.6.git
 S:	Supported
 F:	drivers/gpu/drm/i915
 F:	include/drm/i915*
@@ -5592,10 +5592,11 @@ M:	James Morris <jmorris@namei.org>
 M:	Eric Paris <eparis@parisplace.org>
 L:	selinux@tycho.nsa.gov (subscribers-only, general discussion)
 W:	http://selinuxproject.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/security-testing-2.6.git
+T:	git git://git.infradead.org/users/eparis/selinux.git
 S:	Supported
 F:	include/linux/selinux*
 F:	security/selinux/
+F:	scripts/selinux/
 
 APPARMOR SECURITY MODULE
 M:	John Johansen <john.johansen@canonical.com>

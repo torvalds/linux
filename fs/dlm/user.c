@@ -611,7 +611,6 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 
  out_sig:
 	sigprocmask(SIG_SETMASK, &tmpsig, NULL);
-	recalc_sigpending();
  out_free:
 	kfree(kbuf);
 	return error;

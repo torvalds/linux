@@ -200,7 +200,7 @@ static int elsa_resume(struct pcmcia_device *link)
 	return 0;
 }
 
-static struct pcmcia_device_id elsa_ids[] = {
+static const struct pcmcia_device_id elsa_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("ELSA AG (Aachen, Germany)", "MicroLink ISDN/MC ", 0x983de2c4, 0x333ba257),
 	PCMCIA_DEVICE_PROD_ID12("ELSA GmbH, Aachen", "MicroLink ISDN/MC ", 0x639e5718, 0x333ba257),
 	PCMCIA_DEVICE_NULL

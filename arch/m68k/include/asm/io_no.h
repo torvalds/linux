@@ -144,8 +144,10 @@ static inline void io_insl(unsigned int addr, void *buf, int len)
 #define IOMAP_NOCACHE_NONSER		2
 #define IOMAP_WRITETHROUGH		3
 
-extern void *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag);
-
+static inline void *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag)
+{
+	return (void *) physaddr;
+}
 static inline void *ioremap(unsigned long physaddr, unsigned long size)
 {
 	return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
@@ -163,7 +165,7 @@ static inline void *ioremap_fullcache(unsigned long physaddr, unsigned long size
 	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
 }
 
-extern void iounmap(void *addr);
+#define	iounmap(addr)	do { } while(0)
 
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem

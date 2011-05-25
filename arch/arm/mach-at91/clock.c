@@ -163,7 +163,7 @@ static struct clk udpck = {
 	.parent		= &pllb,
 	.mode		= pmc_sys_mode,
 };
-static struct clk utmi_clk = {
+struct clk utmi_clk = {
 	.name		= "utmi_clk",
 	.parent		= &main_clk,
 	.pmc_mask	= AT91_PMC_UPLLEN,	/* in CKGR_UCKR */
@@ -182,7 +182,7 @@ static struct clk uhpck = {
  * memory, interfaces to on-chip peripherals, the AIC, and sometimes more
  * (e.g baud rate generation).  It's sourced from one of the primary clocks.
  */
-static struct clk mck = {
+struct clk mck = {
 	.name		= "mck",
 	.pmc_mask	= AT91_PMC_MCKRDY,	/* in PMC_SR */
 };
@@ -214,43 +214,6 @@ static struct clk __init *at91_css_to_clk(unsigned long css)
 
 	return NULL;
 }
-
-/*
- * Associate a particular clock with a function (eg, "uart") and device.
- * The drivers can then request the same 'function' with several different
- * devices and not care about which clock name to use.
- */
-void __init at91_clock_associate(const char *id, struct device *dev, const char *func)
-{
-	struct clk *clk = clk_get(NULL, id);
-
-	if (!dev || !clk || !IS_ERR(clk_get(dev, func)))
-		return;
-
-	clk->function = func;
-	clk->dev = dev;
-}
-
-/* clocks cannot be de-registered no refcounting necessary */
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	struct clk *clk;
-
-	list_for_each_entry(clk, &clocks, node) {
-		if (strcmp(id, clk->name) == 0)
-			return clk;
-		if (clk->function && (dev == clk->dev) && strcmp(id, clk->function) == 0)
-			return clk;
-	}
-
-	return ERR_PTR(-ENOENT);
-}
-EXPORT_SYMBOL(clk_get);
-
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_put);
 
 static void __clk_enable(struct clk *clk)
 {
@@ -498,31 +461,37 @@ postcore_initcall(at91_clk_debugfs_init);
 /*------------------------------------------------------------------------*/
 
 /* Register a new clock */
+static void __init at91_clk_add(struct clk *clk)
+{
+	list_add_tail(&clk->node, &clocks);
+
+	clk->cl.con_id = clk->name;
+	clk->cl.clk = clk;
+	clkdev_add(&clk->cl);
+}
+
 int __init clk_register(struct clk *clk)
 {
 	if (clk_is_peripheral(clk)) {
 		if (!clk->parent)
 			clk->parent = &mck;
 		clk->mode = pmc_periph_mode;
-		list_add_tail(&clk->node, &clocks);
 	}
 	else if (clk_is_sys(clk)) {
 		clk->parent = &mck;
 		clk->mode = pmc_sys_mode;
-
-		list_add_tail(&clk->node, &clocks);
 	}
 #ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS
 	else if (clk_is_programmable(clk)) {
 		clk->mode = pmc_sys_mode;
 		init_programmable_clock(clk);
-		list_add_tail(&clk->node, &clocks);
 	}
 #endif
 
+	at91_clk_add(clk);
+
 	return 0;
 }
-
 
 /*------------------------------------------------------------------------*/
 
@@ -630,7 +599,7 @@ static void __init at91_pllb_usbfs_clock_init(unsigned long main_clock)
 		at91_sys_write(AT91_PMC_SCER, AT91RM9200_PMC_MCKUDP);
 	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() ||
 		   cpu_is_at91sam9263() || cpu_is_at91sam9g20() ||
-		   cpu_is_at91sam9g10() || cpu_is_at572d940hf()) {
+		   cpu_is_at91sam9g10()) {
 		uhpck.pmc_mask = AT91SAM926x_PMC_UHP;
 		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
 	} else if (cpu_is_at91cap9()) {
@@ -754,19 +723,19 @@ int __init at91_clock_init(unsigned long main_clock)
 
 	/* Register the PMC's standard clocks */
 	for (i = 0; i < ARRAY_SIZE(standard_pmc_clocks); i++)
-		list_add_tail(&standard_pmc_clocks[i]->node, &clocks);
+		at91_clk_add(standard_pmc_clocks[i]);
 
 	if (cpu_has_pllb())
-		list_add_tail(&pllb.node, &clocks);
+		at91_clk_add(&pllb);
 
 	if (cpu_has_uhp())
-		list_add_tail(&uhpck.node, &clocks);
+		at91_clk_add(&uhpck);
 
 	if (cpu_has_udpfs())
-		list_add_tail(&udpck.node, &clocks);
+		at91_clk_add(&udpck);
 
 	if (cpu_has_utmi())
-		list_add_tail(&utmi_clk.node, &clocks);
+		at91_clk_add(&utmi_clk);
 
 	/* MCK and CPU clock are "always on" */
 	clk_enable(&mck);

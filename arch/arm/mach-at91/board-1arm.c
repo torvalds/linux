@@ -35,14 +35,18 @@
 
 #include <mach/board.h>
 #include <mach/gpio.h>
+#include <mach/cpu.h>
 
 #include "generic.h"
 
 
-static void __init onearm_map_io(void)
+static void __init onearm_init_early(void)
 {
+	/* Set cpu type: PQFP */
+	at91rm9200_set_type(ARCH_REVISON_9200_PQFP);
+
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000, AT91RM9200_PQFP);
+	at91rm9200_initialize(18432000);
 
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -92,9 +96,9 @@ static void __init onearm_board_init(void)
 
 MACHINE_START(ONEARM, "Ajeco 1ARM single board computer")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= onearm_map_io,
+	.map_io		= at91rm9200_map_io,
+	.init_early	= onearm_init_early,
 	.init_irq	= onearm_init_irq,
 	.init_machine	= onearm_board_init,
 MACHINE_END

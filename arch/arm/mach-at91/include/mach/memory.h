@@ -23,6 +23,4 @@
 
 #include <mach/hardware.h>
 
-#define PLAT_PHYS_OFFSET	(AT91_SDRAM_BASE)
-
 #endif

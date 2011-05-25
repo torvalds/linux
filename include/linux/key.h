@@ -276,6 +276,19 @@ static inline key_serial_t key_serial(struct key *key)
 	return key ? key->serial : 0;
 }
 
+/**
+ * key_is_instantiated - Determine if a key has been positively instantiated
+ * @key: The key to check.
+ *
+ * Return true if the specified key has been positively instantiated, false
+ * otherwise.
+ */
+static inline bool key_is_instantiated(const struct key *key)
+{
+	return test_bit(KEY_FLAG_INSTANTIATED, &key->flags) &&
+		!test_bit(KEY_FLAG_NEGATIVE, &key->flags);
+}
+
 #define rcu_dereference_key(KEY)					\
 	(rcu_dereference_protected((KEY)->payload.rcudata,		\
 				   rwsem_is_locked(&((struct key *)(KEY))->sem)))

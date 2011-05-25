@@ -27,7 +27,7 @@
 /* Auxiliary data to use in generating the audit record. */
 struct common_audit_data {
 	char type;
-#define LSM_AUDIT_DATA_FS	1
+#define LSM_AUDIT_DATA_PATH	1
 #define LSM_AUDIT_DATA_NET	2
 #define LSM_AUDIT_DATA_CAP	3
 #define LSM_AUDIT_DATA_IPC	4
@@ -35,12 +35,13 @@ struct common_audit_data {
 #define LSM_AUDIT_DATA_KEY	6
 #define LSM_AUDIT_DATA_NONE	7
 #define LSM_AUDIT_DATA_KMOD	8
+#define LSM_AUDIT_DATA_INODE	9
+#define LSM_AUDIT_DATA_DENTRY	10
 	struct task_struct *tsk;
 	union 	{
-		struct {
-			struct path path;
-			struct inode *inode;
-		} fs;
+		struct path path;
+		struct dentry *dentry;
+		struct inode *inode;
 		struct {
 			int netif;
 			struct sock *sk;

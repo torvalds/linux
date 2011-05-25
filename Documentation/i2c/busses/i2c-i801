@@ -19,6 +19,7 @@ Supported adapters:
   * Intel 6 Series (PCH)
   * Intel Patsburg (PCH)
   * Intel DH89xxCC (PCH)
+  * Intel Panther Point (PCH)
    Datasheets: Publicly available at the Intel website
 
 On Intel Patsburg and later chipsets, both the normal host SMBus controller

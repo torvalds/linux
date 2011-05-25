@@ -941,8 +941,11 @@ int pci_cfg_space_size_ext(struct pci_dev *dev);
 int pci_cfg_space_size(struct pci_dev *dev);
 unsigned char pci_bus_max_busnr(struct pci_bus *bus);
 
+#define PCI_VGA_STATE_CHANGE_BRIDGE (1 << 0)
+#define PCI_VGA_STATE_CHANGE_DECODES (1 << 1)
+
 int pci_set_vga_state(struct pci_dev *pdev, bool decode,
-		      unsigned int command_bits, bool change_bridge);
+		      unsigned int command_bits, u32 flags);
 /* kmem_cache style wrapper around pci_alloc_consistent() */
 
 #include <linux/pci-dma.h>
@@ -1087,7 +1090,7 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 
 /* some architectures require additional setup to direct VGA traffic */
 typedef int (*arch_set_vga_state_t)(struct pci_dev *pdev, bool decode,
-		      unsigned int command_bits, bool change_bridge);
+		      unsigned int command_bits, u32 flags);
 extern void pci_register_set_vga_state(arch_set_vga_state_t func);
 
 #else /* CONFIG_PCI is not enabled */

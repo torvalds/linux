@@ -157,8 +157,8 @@ EXPORT_SYMBOL_GPL(user_destroy);
 void user_describe(const struct key *key, struct seq_file *m)
 {
 	seq_puts(m, key->description);
-
-	seq_printf(m, ": %u", key->datalen);
+	if (key_is_instantiated(key))
+		seq_printf(m, ": %u", key->datalen);
 }
 
 EXPORT_SYMBOL_GPL(user_describe);

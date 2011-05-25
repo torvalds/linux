@@ -32,7 +32,7 @@
 #include <pcmcia/cisreg.h>
 
 
-static /*const */ struct pcmcia_device_id b43_pcmcia_tbl[] = {
+static const struct pcmcia_device_id b43_pcmcia_tbl[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x2D0, 0x448),
 	PCMCIA_DEVICE_MANF_CARD(0x2D0, 0x476),
 	PCMCIA_DEVICE_NULL,

@@ -315,7 +315,7 @@ pcmcia_failed:
 	return ret ?: -ENODEV;
 }
 
-static /*const*/ struct pcmcia_device_id softingcs_ids[] = {
+static const struct pcmcia_device_id softingcs_ids[] = {
 	/* softing */
 	PCMCIA_DEVICE_MANF_CARD(0x0168, 0x0001),
 	PCMCIA_DEVICE_MANF_CARD(0x0168, 0x0002),

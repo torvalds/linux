@@ -331,6 +331,7 @@ void key_fsgid_changed(struct task_struct *tsk)
 key_ref_t search_my_process_keyrings(struct key_type *type,
 				     const void *description,
 				     key_match_func_t match,
+				     bool no_state_check,
 				     const struct cred *cred)
 {
 	key_ref_t key_ref, ret, err;
@@ -350,7 +351,7 @@ key_ref_t search_my_process_keyrings(struct key_type *type,
 	if (cred->thread_keyring) {
 		key_ref = keyring_search_aux(
 			make_key_ref(cred->thread_keyring, 1),
-			cred, type, description, match);
+			cred, type, description, match, no_state_check);
 		if (!IS_ERR(key_ref))
 			goto found;
 
@@ -371,7 +372,7 @@ key_ref_t search_my_process_keyrings(struct key_type *type,
 	if (cred->tgcred->process_keyring) {
 		key_ref = keyring_search_aux(
 			make_key_ref(cred->tgcred->process_keyring, 1),
-			cred, type, description, match);
+			cred, type, description, match, no_state_check);
 		if (!IS_ERR(key_ref))
 			goto found;
 
@@ -395,7 +396,7 @@ key_ref_t search_my_process_keyrings(struct key_type *type,
 			make_key_ref(rcu_dereference(
 					     cred->tgcred->session_keyring),
 				     1),
-			cred, type, description, match);
+			cred, type, description, match, no_state_check);
 		rcu_read_unlock();
 
 		if (!IS_ERR(key_ref))
@@ -417,7 +418,7 @@ key_ref_t search_my_process_keyrings(struct key_type *type,
 	else if (cred->user->session_keyring) {
 		key_ref = keyring_search_aux(
 			make_key_ref(cred->user->session_keyring, 1),
-			cred, type, description, match);
+			cred, type, description, match, no_state_check);
 		if (!IS_ERR(key_ref))
 			goto found;
 
@@ -459,7 +460,8 @@ key_ref_t search_process_keyrings(struct key_type *type,
 
 	might_sleep();
 
-	key_ref = search_my_process_keyrings(type, description, match, cred);
+	key_ref = search_my_process_keyrings(type, description, match,
+					     false, cred);
 	if (!IS_ERR(key_ref))
 		goto found;
 	err = key_ref;

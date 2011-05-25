@@ -155,7 +155,7 @@ SECTIONS
     INIT_RAM_FS
   }
 
-  PERCPU(XCHAL_ICACHE_LINESIZE, PAGE_SIZE)
+  PERCPU_SECTION(XCHAL_ICACHE_LINESIZE)
 
   /* We need this dummy segment here */
 
