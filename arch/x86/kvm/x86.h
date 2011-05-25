@@ -81,4 +81,8 @@ int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip);
 
 void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data);
 
+int kvm_read_guest_virt(struct x86_emulate_ctxt *ctxt,
+	gva_t addr, void *val, unsigned int bytes,
+	struct x86_exception *exception);
+
 #endif
