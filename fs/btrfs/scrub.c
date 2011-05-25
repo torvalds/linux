@@ -631,7 +631,8 @@ again:
 	if (sbio->count == 0) {
 		sbio->physical = physical;
 		sbio->logical = logical;
-	} else if (sbio->physical + sbio->count * PAGE_SIZE != physical) {
+	} else if (sbio->physical + sbio->count * PAGE_SIZE != physical ||
+		   sbio->logical + sbio->count * PAGE_SIZE != logical) {
 		scrub_submit(sdev);
 		goto again;
 	}
