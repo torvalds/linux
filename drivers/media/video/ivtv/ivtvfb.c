@@ -836,7 +836,8 @@ static int ivtvfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 	u32 osd_pan_index;
 	struct ivtv *itv = (struct ivtv *) info->par;
 
-	osd_pan_index = (var->xoffset + (var->yoffset * var->xres_virtual))*var->bits_per_pixel/8;
+	osd_pan_index = var->yoffset * info->fix.line_length
+		      + var->xoffset * info->var.bits_per_pixel / 8;
 	write_reg(osd_pan_index, 0x02A0C);
 
 	/* Pass this info back the yuv handler */
