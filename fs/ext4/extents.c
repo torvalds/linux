@@ -482,9 +482,43 @@ static void ext4_ext_show_leaf(struct inode *inode, struct ext4_ext_path *path)
 	}
 	ext_debug("\n");
 }
+
+static void ext4_ext_show_move(struct inode *inode, struct ext4_ext_path *path,
+			ext4_fsblk_t newblock, int level)
+{
+	int depth = ext_depth(inode);
+	struct ext4_extent *ex;
+
+	if (depth != level) {
+		struct ext4_extent_idx *idx;
+		idx = path[level].p_idx;
+		while (idx <= EXT_MAX_INDEX(path[level].p_hdr)) {
+			ext_debug("%d: move %d:%llu in new index %llu\n", level,
+					le32_to_cpu(idx->ei_block),
+					ext4_idx_pblock(idx),
+					newblock);
+			idx++;
+		}
+
+		return;
+	}
+
+	ex = path[depth].p_ext;
+	while (ex <= EXT_MAX_EXTENT(path[depth].p_hdr)) {
+		ext_debug("move %d:%llu:[%d]%d in new leaf %llu\n",
+				le32_to_cpu(ex->ee_block),
+				ext4_ext_pblock(ex),
+				ext4_ext_is_uninitialized(ex),
+				ext4_ext_get_actual_len(ex),
+				newblock);
+		ex++;
+	}
+}
+
 #else
 #define ext4_ext_show_path(inode, path)
 #define ext4_ext_show_leaf(inode, path)
+#define ext4_ext_show_move(inode, path, newblock, level)
 #endif
 
 void ext4_ext_drop_refs(struct ext4_ext_path *path)
@@ -808,7 +842,6 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	int depth = ext_depth(inode);
 	struct ext4_extent_header *neh;
 	struct ext4_extent_idx *fidx;
-	struct ext4_extent *ex;
 	int i = at, k, m, a;
 	ext4_fsblk_t newblock, oldblock;
 	__le32 border;
@@ -885,7 +918,6 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	neh->eh_max = cpu_to_le16(ext4_ext_space_block(inode, 0));
 	neh->eh_magic = EXT4_EXT_MAGIC;
 	neh->eh_depth = 0;
-	ex = EXT_FIRST_EXTENT(neh);
 
 	/* move remainder of path[depth] to the new leaf */
 	if (unlikely(path[depth].p_hdr->eh_entries !=
@@ -897,25 +929,12 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		goto cleanup;
 	}
 	/* start copy from next extent */
-	/* TODO: we could do it by single memmove */
-	m = 0;
-	path[depth].p_ext++;
-	while (path[depth].p_ext <=
-			EXT_MAX_EXTENT(path[depth].p_hdr)) {
-		ext_debug("move %d:%llu:[%d]%d in new leaf %llu\n",
-				le32_to_cpu(path[depth].p_ext->ee_block),
-				ext4_ext_pblock(path[depth].p_ext),
-				ext4_ext_is_uninitialized(path[depth].p_ext),
-				ext4_ext_get_actual_len(path[depth].p_ext),
-				newblock);
-		/*memmove(ex++, path[depth].p_ext++,
-				sizeof(struct ext4_extent));
-		neh->eh_entries++;*/
-		path[depth].p_ext++;
-		m++;
-	}
+	m = EXT_MAX_EXTENT(path[depth].p_hdr) - path[depth].p_ext++;
+	ext4_ext_show_move(inode, path, newblock, depth);
 	if (m) {
-		memmove(ex, path[depth].p_ext-m, sizeof(struct ext4_extent)*m);
+		struct ext4_extent *ex;
+		ex = EXT_FIRST_EXTENT(neh);
+		memmove(ex, path[depth].p_ext, sizeof(struct ext4_extent) * m);
 		le16_add_cpu(&neh->eh_entries, m);
 	}
 
@@ -977,12 +996,8 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 
 		ext_debug("int.index at %d (block %llu): %u -> %llu\n",
 				i, newblock, le32_to_cpu(border), oldblock);
-		/* copy indexes */
-		m = 0;
-		path[i].p_idx++;
 
-		ext_debug("cur 0x%p, last 0x%p\n", path[i].p_idx,
-				EXT_MAX_INDEX(path[i].p_hdr));
+		/* move remainder of path[i] to the new index block */
 		if (unlikely(EXT_MAX_INDEX(path[i].p_hdr) !=
 					EXT_LAST_INDEX(path[i].p_hdr))) {
 			EXT4_ERROR_INODE(inode,
@@ -991,20 +1006,13 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 			err = -EIO;
 			goto cleanup;
 		}
-		while (path[i].p_idx <= EXT_MAX_INDEX(path[i].p_hdr)) {
-			ext_debug("%d: move %d:%llu in new index %llu\n", i,
-					le32_to_cpu(path[i].p_idx->ei_block),
-					ext4_idx_pblock(path[i].p_idx),
-					newblock);
-			/*memmove(++fidx, path[i].p_idx++,
-					sizeof(struct ext4_extent_idx));
-			neh->eh_entries++;
-			BUG_ON(neh->eh_entries > neh->eh_max);*/
-			path[i].p_idx++;
-			m++;
-		}
+		/* start copy indexes */
+		m = EXT_MAX_INDEX(path[i].p_hdr) - path[i].p_idx++;
+		ext_debug("cur 0x%p, last 0x%p\n", path[i].p_idx,
+				EXT_MAX_INDEX(path[i].p_hdr));
+		ext4_ext_show_move(inode, path, newblock, i);
 		if (m) {
-			memmove(++fidx, path[i].p_idx - m,
+			memmove(++fidx, path[i].p_idx,
 				sizeof(struct ext4_extent_idx) * m);
 			le16_add_cpu(&neh->eh_entries, m);
 		}
