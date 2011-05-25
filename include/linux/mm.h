@@ -1053,17 +1053,19 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 /*
  * per-process(per-mm_struct) statistics.
  */
-#if defined(SPLIT_RSS_COUNTING)
-/*
- * The mm counters are not protected by its page_table_lock,
- * so must be incremented atomically.
- */
 static inline void set_mm_counter(struct mm_struct *mm, int member, long value)
 {
 	atomic_long_set(&mm->rss_stat.count[member], value);
 }
 
+#if defined(SPLIT_RSS_COUNTING)
 unsigned long get_mm_counter(struct mm_struct *mm, int member);
+#else
+static inline unsigned long get_mm_counter(struct mm_struct *mm, int member)
+{
+	return atomic_long_read(&mm->rss_stat.count[member]);
+}
+#endif
 
 static inline void add_mm_counter(struct mm_struct *mm, int member, long value)
 {
@@ -1079,38 +1081,6 @@ static inline void dec_mm_counter(struct mm_struct *mm, int member)
 {
 	atomic_long_dec(&mm->rss_stat.count[member]);
 }
-
-#else  /* !USE_SPLIT_PTLOCKS */
-/*
- * The mm counters are protected by its page_table_lock,
- * so can be incremented directly.
- */
-static inline void set_mm_counter(struct mm_struct *mm, int member, long value)
-{
-	mm->rss_stat.count[member] = value;
-}
-
-static inline unsigned long get_mm_counter(struct mm_struct *mm, int member)
-{
-	return mm->rss_stat.count[member];
-}
-
-static inline void add_mm_counter(struct mm_struct *mm, int member, long value)
-{
-	mm->rss_stat.count[member] += value;
-}
-
-static inline void inc_mm_counter(struct mm_struct *mm, int member)
-{
-	mm->rss_stat.count[member]++;
-}
-
-static inline void dec_mm_counter(struct mm_struct *mm, int member)
-{
-	mm->rss_stat.count[member]--;
-}
-
-#endif /* !USE_SPLIT_PTLOCKS */
 
 static inline unsigned long get_mm_rss(struct mm_struct *mm)
 {
