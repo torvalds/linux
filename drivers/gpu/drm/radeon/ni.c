@@ -1387,14 +1387,12 @@ static int cayman_startup(struct radeon_device *rdev)
 		return r;
 	cayman_gpu_init(rdev);
 
-#if 0
-	r = cayman_blit_init(rdev);
+	r = evergreen_blit_init(rdev);
 	if (r) {
-		cayman_blit_fini(rdev);
+		evergreen_blit_fini(rdev);
 		rdev->asic->copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
 	}
-#endif
 
 	/* allocate wb buffer */
 	r = radeon_wb_init(rdev);
@@ -1452,7 +1450,7 @@ int cayman_resume(struct radeon_device *rdev)
 
 int cayman_suspend(struct radeon_device *rdev)
 {
-	/* int r; */
+	int r;
 
 	/* FIXME: we should wait for ring to be empty */
 	cayman_cp_enable(rdev, false);
@@ -1461,14 +1459,13 @@ int cayman_suspend(struct radeon_device *rdev)
 	radeon_wb_disable(rdev);
 	cayman_pcie_gart_disable(rdev);
 
-#if 0
 	/* unpin shaders bo */
 	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
 	if (likely(r == 0)) {
 		radeon_bo_unpin(rdev->r600_blit.shader_obj);
 		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 	}
-#endif
+
 	return 0;
 }
 
@@ -1580,7 +1577,7 @@ int cayman_init(struct radeon_device *rdev)
 
 void cayman_fini(struct radeon_device *rdev)
 {
-	/* cayman_blit_fini(rdev); */
+	evergreen_blit_fini(rdev);
 	cayman_cp_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_wb_fini(rdev);
