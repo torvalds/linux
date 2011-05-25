@@ -2222,12 +2222,13 @@ static void bnx2x_pmf_update(struct bnx2x *bp)
 u32 bnx2x_fw_command(struct bnx2x *bp, u32 command, u32 param)
 {
 	int mb_idx = BP_FW_MB_IDX(bp);
-	u32 seq = ++bp->fw_seq;
+	u32 seq;
 	u32 rc = 0;
 	u32 cnt = 1;
 	u8 delay = CHIP_REV_IS_SLOW(bp) ? 100 : 10;
 
 	mutex_lock(&bp->fw_mb_mutex);
+	seq = ++bp->fw_seq;
 	SHMEM_WR(bp, func_mb[mb_idx].drv_mb_param, param);
 	SHMEM_WR(bp, func_mb[mb_idx].drv_mb_header, (command | seq));
 
