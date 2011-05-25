@@ -238,15 +238,25 @@ irqreturn_t smp_ipi_demux(void)
 }
 #endif /* CONFIG_PPC_SMP_MUXED_IPI */
 
+static inline void do_message_pass(int cpu, int msg)
+{
+	if (smp_ops->message_pass)
+		smp_ops->message_pass(cpu, msg);
+#ifdef CONFIG_PPC_SMP_MUXED_IPI
+	else
+		smp_muxed_ipi_message_pass(cpu, msg);
+#endif
+}
+
 void smp_send_reschedule(int cpu)
 {
 	if (likely(smp_ops))
-		smp_ops->message_pass(cpu, PPC_MSG_RESCHEDULE);
+		do_message_pass(cpu, PPC_MSG_RESCHEDULE);
 }
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	smp_ops->message_pass(cpu, PPC_MSG_CALL_FUNC_SINGLE);
+	do_message_pass(cpu, PPC_MSG_CALL_FUNC_SINGLE);
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
@@ -254,7 +264,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 	unsigned int cpu;
 
 	for_each_cpu(cpu, mask)
-		smp_ops->message_pass(cpu, PPC_MSG_CALL_FUNCTION);
+		do_message_pass(cpu, PPC_MSG_CALL_FUNCTION);
 }
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
@@ -268,7 +278,7 @@ void smp_send_debugger_break(void)
 
 	for_each_online_cpu(cpu)
 		if (cpu != me)
-			smp_ops->message_pass(cpu, PPC_MSG_DEBUGGER_BREAK);
+			do_message_pass(cpu, PPC_MSG_DEBUGGER_BREAK);
 }
 #endif
 

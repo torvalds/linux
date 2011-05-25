@@ -236,7 +236,7 @@ void __init mpc85xx_smp_init(void)
 	}
 
 	if (cpu_has_feature(CPU_FTR_DBELL)) {
-		smp_85xx_ops.message_pass = smp_muxed_ipi_message_pass;
+		/* .message_pass defaults to smp_muxed_ipi_message_pass */
 		smp_85xx_ops.cause_ipi = doorbell_cause_ipi;
 	}
 

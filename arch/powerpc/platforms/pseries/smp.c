@@ -207,7 +207,7 @@ static struct smp_ops_t pSeries_mpic_smp_ops = {
 };
 
 static struct smp_ops_t pSeries_xics_smp_ops = {
-	.message_pass	= smp_muxed_ipi_message_pass,
+	.message_pass	= NULL,	/* Use smp_muxed_ipi_message_pass */
 	.cause_ipi	= NULL,	/* Filled at runtime by xics_smp_probe() */
 	.probe		= xics_smp_probe,
 	.kick_cpu	= smp_pSeries_kick_cpu,
