@@ -1884,7 +1884,8 @@ debug:
 	deactivate_slab(s, c);
 	c->page = NULL;
 	c->node = NUMA_NO_NODE;
-	goto unlock_out;
+	local_irq_restore(flags);
+	return object;
 }
 
 /*
