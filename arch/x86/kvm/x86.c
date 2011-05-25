@@ -347,6 +347,7 @@ void kvm_inject_page_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault)
 	vcpu->arch.cr2 = fault->address;
 	kvm_queue_exception_e(vcpu, PF_VECTOR, fault->error_code);
 }
+EXPORT_SYMBOL_GPL(kvm_inject_page_fault);
 
 void kvm_propagate_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault)
 {
