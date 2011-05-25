@@ -221,6 +221,9 @@ ifeq ($(ARCH),sh64)
 endif
 
 # Additional ARCH settings for tile
+ifeq ($(ARCH),tilepro)
+       SRCARCH := tile
+endif
 ifeq ($(ARCH),tilegx)
        SRCARCH := tile
 endif
