@@ -865,6 +865,10 @@ static inline bool nested_cpu_has2(struct vmcs12 *vmcs12, u32 bit)
 		(vmcs12->secondary_vm_exec_control & bit);
 }
 
+static void nested_vmx_entry_failure(struct kvm_vcpu *vcpu,
+			struct vmcs12 *vmcs12,
+			u32 reason, unsigned long qualification);
+
 static int __find_msr_index(struct vcpu_vmx *vmx, u32 msr)
 {
 	int i;
@@ -6116,6 +6120,86 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	skip_emulated_instruction(vcpu);
 	vmcs12 = get_vmcs12(vcpu);
 
+	/*
+	 * The nested entry process starts with enforcing various prerequisites
+	 * on vmcs12 as required by the Intel SDM, and act appropriately when
+	 * they fail: As the SDM explains, some conditions should cause the
+	 * instruction to fail, while others will cause the instruction to seem
+	 * to succeed, but return an EXIT_REASON_INVALID_STATE.
+	 * To speed up the normal (success) code path, we should avoid checking
+	 * for misconfigurations which will anyway be caught by the processor
+	 * when using the merged vmcs02.
+	 */
+	if (vmcs12->launch_state == launch) {
+		nested_vmx_failValid(vcpu,
+			launch ? VMXERR_VMLAUNCH_NONCLEAR_VMCS
+			       : VMXERR_VMRESUME_NONLAUNCHED_VMCS);
+		return 1;
+	}
+
+	if ((vmcs12->cpu_based_vm_exec_control & CPU_BASED_USE_MSR_BITMAPS) &&
+			!IS_ALIGNED(vmcs12->msr_bitmap, PAGE_SIZE)) {
+		/*TODO: Also verify bits beyond physical address width are 0*/
+		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
+		return 1;
+	}
+
+	if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES) &&
+			!IS_ALIGNED(vmcs12->apic_access_addr, PAGE_SIZE)) {
+		/*TODO: Also verify bits beyond physical address width are 0*/
+		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
+		return 1;
+	}
+
+	if (vmcs12->vm_entry_msr_load_count > 0 ||
+	    vmcs12->vm_exit_msr_load_count > 0 ||
+	    vmcs12->vm_exit_msr_store_count > 0) {
+		if (printk_ratelimit())
+			printk(KERN_WARNING
+			  "%s: VMCS MSR_{LOAD,STORE} unsupported\n", __func__);
+		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
+		return 1;
+	}
+
+	if (!vmx_control_verify(vmcs12->cpu_based_vm_exec_control,
+	      nested_vmx_procbased_ctls_low, nested_vmx_procbased_ctls_high) ||
+	    !vmx_control_verify(vmcs12->secondary_vm_exec_control,
+	      nested_vmx_secondary_ctls_low, nested_vmx_secondary_ctls_high) ||
+	    !vmx_control_verify(vmcs12->pin_based_vm_exec_control,
+	      nested_vmx_pinbased_ctls_low, nested_vmx_pinbased_ctls_high) ||
+	    !vmx_control_verify(vmcs12->vm_exit_controls,
+	      nested_vmx_exit_ctls_low, nested_vmx_exit_ctls_high) ||
+	    !vmx_control_verify(vmcs12->vm_entry_controls,
+	      nested_vmx_entry_ctls_low, nested_vmx_entry_ctls_high))
+	{
+		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
+		return 1;
+	}
+
+	if (((vmcs12->host_cr0 & VMXON_CR0_ALWAYSON) != VMXON_CR0_ALWAYSON) ||
+	    ((vmcs12->host_cr4 & VMXON_CR4_ALWAYSON) != VMXON_CR4_ALWAYSON)) {
+		nested_vmx_failValid(vcpu,
+			VMXERR_ENTRY_INVALID_HOST_STATE_FIELD);
+		return 1;
+	}
+
+	if (((vmcs12->guest_cr0 & VMXON_CR0_ALWAYSON) != VMXON_CR0_ALWAYSON) ||
+	    ((vmcs12->guest_cr4 & VMXON_CR4_ALWAYSON) != VMXON_CR4_ALWAYSON)) {
+		nested_vmx_entry_failure(vcpu, vmcs12,
+			EXIT_REASON_INVALID_STATE, ENTRY_FAIL_DEFAULT);
+		return 1;
+	}
+	if (vmcs12->vmcs_link_pointer != -1ull) {
+		nested_vmx_entry_failure(vcpu, vmcs12,
+			EXIT_REASON_INVALID_STATE, ENTRY_FAIL_VMCS_LINK_PTR);
+		return 1;
+	}
+
+	/*
+	 * We're finally done with prerequisite checking, and can start with
+	 * the nested entry.
+	 */
+
 	vmcs02 = nested_get_current_vmcs02(vmx);
 	if (!vmcs02)
 		return -ENOMEM;
@@ -6404,6 +6488,23 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu)
 		nested_vmx_failValid(vcpu, vmcs_read32(VM_INSTRUCTION_ERROR));
 	} else
 		nested_vmx_succeed(vcpu);
+}
+
+/*
+ * L1's failure to enter L2 is a subset of a normal exit, as explained in
+ * 23.7 "VM-entry failures during or after loading guest state" (this also
+ * lists the acceptable exit-reason and exit-qualification parameters).
+ * It should only be called before L2 actually succeeded to run, and when
+ * vmcs01 is current (it doesn't leave_guest_mode() or switch vmcss).
+ */
+static void nested_vmx_entry_failure(struct kvm_vcpu *vcpu,
+			struct vmcs12 *vmcs12,
+			u32 reason, unsigned long qualification)
+{
+	load_vmcs12_host_state(vcpu, vmcs12);
+	vmcs12->vm_exit_reason = reason | VMX_EXIT_REASONS_FAILED_VMENTRY;
+	vmcs12->exit_qualification = qualification;
+	nested_vmx_succeed(vcpu);
 }
 
 static int vmx_check_intercept(struct kvm_vcpu *vcpu,

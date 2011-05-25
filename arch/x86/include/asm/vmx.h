@@ -431,6 +431,14 @@ struct vmx_msr_entry {
 } __aligned(16);
 
 /*
+ * Exit Qualifications for entry failure during or after loading guest state
+ */
+#define ENTRY_FAIL_DEFAULT		0
+#define ENTRY_FAIL_PDPTE		2
+#define ENTRY_FAIL_NMI			3
+#define ENTRY_FAIL_VMCS_LINK_PTR	4
+
+/*
  * VM-instruction error numbers
  */
 enum vm_instruction_error_number {
