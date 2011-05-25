@@ -73,7 +73,7 @@
 #endif
 
 int boot_cpuid = 0;
-int __initdata boot_cpu_count;
+int __initdata spinning_secondaries;
 u64 ppc64_pft_size;
 
 /* Pick defaults since we might want to patch instructions
@@ -253,11 +253,11 @@ void smp_release_cpus(void)
 	for (i = 0; i < 100000; i++) {
 		mb();
 		HMT_low();
-		if (boot_cpu_count == 0)
+		if (spinning_secondaries == 0)
 			break;
 		udelay(1);
 	}
-	DBG("boot_cpu_count = %d\n", boot_cpu_count);
+	DBG("spinning_secondaries = %d\n", spinning_secondaries);
 
 	DBG(" <- smp_release_cpus()\n");
 }
