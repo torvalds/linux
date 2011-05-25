@@ -59,7 +59,7 @@
  * bad kernel addresses).
  *
  * Note that if the value we would store is the same as what we
- * loaded, we bypass the load.  Other platforms with true atomics can
+ * loaded, we bypass the store.  Other platforms with true atomics can
  * make the guarantee that a non-atomic __clear_bit(), for example,
  * can safely race with an atomic test_and_set_bit(); this example is
  * from bit_spinlock.h in slub_lock() / slub_unlock().  We can't do

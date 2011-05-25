@@ -10,23 +10,30 @@
  *   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
  *   NON INFRINGEMENT.  See the GNU General Public License for
  *   more details.
+ *
+ * Access to VGA videoram.
  */
 
-/**
- * @file pagesize.h
- */
+#ifndef _ASM_TILE_VGA_H
+#define _ASM_TILE_VGA_H
 
-#ifndef _HV_PAGESIZE_H
-#define _HV_PAGESIZE_H
+#include <asm/io.h>
 
-/** The log2 of the size of small pages, in bytes. This value should
- * be verified at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_SMALL).
- */
-#define HV_LOG2_PAGE_SIZE_SMALL 16
+#define VT_BUF_HAVE_RW
 
-/** The log2 of the size of large pages, in bytes. This value should be
- * verified at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_LARGE).
- */
-#define HV_LOG2_PAGE_SIZE_LARGE 24
+static inline void scr_writew(u16 val, volatile u16 *addr)
+{
+	__raw_writew(val, (volatile u16 __iomem *) addr);
+}
 
-#endif /* _HV_PAGESIZE_H */
+static inline u16 scr_readw(volatile const u16 *addr)
+{
+	return __raw_readw((volatile const u16 __iomem *) addr);
+}
+
+#define vga_readb(a)	readb((u8 __iomem *)(a))
+#define vga_writeb(v,a)	writeb(v, (u8 __iomem *)(a))
+
+#define VGA_MAP_MEM(x,s)	((unsigned long) ioremap(x, s))
+
+#endif

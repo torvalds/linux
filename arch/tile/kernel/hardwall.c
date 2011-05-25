@@ -268,12 +268,10 @@ void __kprobes do_hardwall_trap(struct pt_regs* regs, int fault_num)
 	found_processes = 0;
 	list_for_each_entry(p, &rect->task_head, thread.hardwall_list) {
 		BUG_ON(p->thread.hardwall != rect);
-		if (p->sighand) {
+		if (!(p->flags & PF_EXITING)) {
 			found_processes = 1;
 			pr_notice("hardwall: killing %d\n", p->pid);
-			spin_lock(&p->sighand->siglock);
-			__group_send_sig_info(info.si_signo, &info, p);
-			spin_unlock(&p->sighand->siglock);
+			do_send_sig_info(info.si_signo, &info, p, false);
 		}
 	}
 	if (!found_processes)

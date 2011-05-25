@@ -100,8 +100,8 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		__get_cpu_var(current_asid) = asid;
 
 		/* Clear cpu from the old mm, and set it in the new one. */
-		cpumask_clear_cpu(cpu, &prev->cpu_vm_mask);
-		cpumask_set_cpu(cpu, &next->cpu_vm_mask);
+		cpumask_clear_cpu(cpu, mm_cpumask(prev));
+		cpumask_set_cpu(cpu, mm_cpumask(next));
 
 		/* Re-load page tables */
 		install_page_table(next->pgd, asid);

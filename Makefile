@@ -220,6 +220,14 @@ ifeq ($(ARCH),sh64)
        SRCARCH := sh
 endif
 
+# Additional ARCH settings for tile
+ifeq ($(ARCH),tilepro)
+       SRCARCH := tile
+endif
+ifeq ($(ARCH),tilegx)
+       SRCARCH := tile
+endif
+
 # Where to locate arch specific headers
 hdr-arch  := $(SRCARCH)
 
