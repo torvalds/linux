@@ -988,18 +988,6 @@ ssize_t objio_write_pagelist(struct objlayout_io_state *ol_state, bool stable)
 	return _write_exec(ios);
 }
 
-/*
- * objlayout_pg_test(). Called by nfs_can_coalesce_requests()
- *
- * return true iff coalesce page
- */
-bool
-objlayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
-		   struct nfs_page *req)
-{
-	return true;
-}
-
 static struct pnfs_layoutdriver_type objlayout_type = {
 	.id = LAYOUT_OSD2_OBJECTS,
 	.name = "LAYOUT_OSD2_OBJECTS",
@@ -1013,7 +1001,7 @@ static struct pnfs_layoutdriver_type objlayout_type = {
 
 	.read_pagelist           = objlayout_read_pagelist,
 	.write_pagelist          = objlayout_write_pagelist,
-	.pg_test                 = objlayout_pg_test,
+	.pg_test                 = pnfs_generic_pg_test,
 
 	.free_deviceid_node	 = objio_free_deviceid_node,
 

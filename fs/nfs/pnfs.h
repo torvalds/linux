@@ -295,8 +295,10 @@ static inline int pnfs_return_layout(struct inode *ino)
 static inline void pnfs_pageio_init(struct nfs_pageio_descriptor *pgio,
 				    struct inode *inode)
 {
-	if (NFS_SERVER(inode)->pnfs_curr_ld)
-		pgio->pg_test = pnfs_generic_pg_test;
+	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
+
+	if (ld)
+		pgio->pg_test = ld->pg_test;
 }
 
 #else  /* CONFIG_NFS_V4_1 */

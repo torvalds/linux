@@ -661,6 +661,9 @@ filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 	u64 p_stripe, r_stripe;
 	u32 stripe_unit;
 
+	if (!pnfs_generic_pg_test(pgio, prev, req))
+		return 0;
+
 	if (!pgio->pg_lseg)
 		return 1;
 	p_stripe = (u64)prev->wb_index << PAGE_CACHE_SHIFT;

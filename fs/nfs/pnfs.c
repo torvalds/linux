@@ -1067,12 +1067,17 @@ pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 						   pgio->pg_count,
 						   access_type,
 						   gfp_flags);
-	} else if (pgio->pg_lseg &&
-		   req_offset(req) > end_offset(pgio->pg_lseg->pls_range.offset,
-						pgio->pg_lseg->pls_range.length))
+		return true;
+	}
+
+	if (pgio->pg_lseg &&
+	    req_offset(req) > end_offset(pgio->pg_lseg->pls_range.offset,
+					 pgio->pg_lseg->pls_range.length))
 		return false;
-	return NFS_SERVER(pgio->pg_inode)->pnfs_curr_ld->pg_test(pgio, prev, req);
+
+	return true;
 }
+EXPORT_SYMBOL_GPL(pnfs_generic_pg_test);
 
 /*
  * Called by non rpc-based layout drivers
