@@ -55,13 +55,13 @@ struct cxd2820r_priv {
 	struct mutex fe_lock; /* FE lock */
 	int active_fe:2; /* FE lock, -1=NONE, 0=DVB-T/T2, 1=DVB-C */
 
-	int ber_running:1;
+	bool ber_running;
 
 	u8 bank[2];
 	u8 gpio[3];
 
 	fe_delivery_system_t delivery_system;
-	int last_tune_failed:1; /* for switch between T and T2 tune */
+	bool last_tune_failed; /* for switch between T and T2 tune */
 };
 
 /* cxd2820r_core.c */
