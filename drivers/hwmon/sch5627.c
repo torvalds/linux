@@ -52,6 +52,9 @@
 #define SCH5627_COMPANY_ID		0x5c
 #define SCH5627_PRIMARY_ID		0xa0
 
+#define SCH5627_CMD_READ		0x02
+#define SCH5627_CMD_WRITE		0x03
+
 #define SCH5627_REG_BUILD_CODE		0x39
 #define SCH5627_REG_BUILD_ID		0x3a
 #define SCH5627_REG_HWMON_ID		0x3c
@@ -140,7 +143,7 @@ static inline void superio_exit(int base)
 	release_region(base, 2);
 }
 
-static int sch5627_read_virtual_reg(struct sch5627_data *data, u16 reg)
+static int sch5627_send_cmd(struct sch5627_data *data, u8 cmd, u16 reg, u8 v)
 {
 	u8 val;
 	int i;
@@ -163,9 +166,13 @@ static int sch5627_read_virtual_reg(struct sch5627_data *data, u16 reg)
 	outb(0x80, data->addr + 3);
 
 	/* Write Request Packet Header */
-	outb(0x02, data->addr + 4); /* Access Type: VREG read */
+	outb(cmd, data->addr + 4); /* VREG Access Type read:0x02 write:0x03 */
 	outb(0x01, data->addr + 5); /* # of Entries: 1 Byte (8-bit) */
 	outb(0x04, data->addr + 2); /* Mailbox AP to first data entry loc. */
+
+	/* Write Value field */
+	if (cmd == SCH5627_CMD_WRITE)
+		outb(v, data->addr + 4);
 
 	/* Write Address field */
 	outb(reg & 0xff, data->addr + 6);
@@ -224,8 +231,16 @@ static int sch5627_read_virtual_reg(struct sch5627_data *data, u16 reg)
 	 * But if we do that things don't work, so let's not.
 	 */
 
-	/* Read Data from Mailbox */
-	return inb(data->addr + 4);
+	/* Read Value field */
+	if (cmd == SCH5627_CMD_READ)
+		return inb(data->addr + 4);
+
+	return 0;
+}
+
+static int sch5627_read_virtual_reg(struct sch5627_data *data, u16 reg)
+{
+	return sch5627_send_cmd(data, SCH5627_CMD_READ, reg, 0);
 }
 
 static int sch5627_read_virtual_reg16(struct sch5627_data *data, u16 reg)
