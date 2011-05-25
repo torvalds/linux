@@ -5797,6 +5797,8 @@ static void __vmx_complete_interrupts(struct vcpu_vmx *vmx,
 
 static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 {
+	if (is_guest_mode(&vmx->vcpu))
+		return;
 	__vmx_complete_interrupts(vmx, vmx->idt_vectoring_info,
 				  VM_EXIT_INSTRUCTION_LEN,
 				  IDT_VECTORING_ERROR_CODE);
@@ -5804,6 +5806,8 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 
 static void vmx_cancel_injection(struct kvm_vcpu *vcpu)
 {
+	if (is_guest_mode(vcpu))
+		return;
 	__vmx_complete_interrupts(to_vmx(vcpu),
 				  vmcs_read32(VM_ENTRY_INTR_INFO_FIELD),
 				  VM_ENTRY_INSTRUCTION_LEN,
@@ -5823,6 +5827,21 @@ static void vmx_cancel_injection(struct kvm_vcpu *vcpu)
 static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (is_guest_mode(vcpu) && !vmx->nested.nested_run_pending) {
+		struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+		if (vmcs12->idt_vectoring_info_field &
+				VECTORING_INFO_VALID_MASK) {
+			vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
+				vmcs12->idt_vectoring_info_field);
+			vmcs_write32(VM_ENTRY_INSTRUCTION_LEN,
+				vmcs12->vm_exit_instruction_len);
+			if (vmcs12->idt_vectoring_info_field &
+					VECTORING_INFO_DELIVER_CODE_MASK)
+				vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE,
+					vmcs12->idt_vectoring_error_code);
+		}
+	}
 
 	/* Record the guest's net vcpu time for enforced NMI injections. */
 	if (unlikely(!cpu_has_virtual_nmis() && vmx->soft_vnmi_blocked))
@@ -5955,6 +5974,17 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs_dirty = 0;
 
 	vmx->idt_vectoring_info = vmcs_read32(IDT_VECTORING_INFO_FIELD);
+
+	if (is_guest_mode(vcpu)) {
+		struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+		vmcs12->idt_vectoring_info_field = vmx->idt_vectoring_info;
+		if (vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK) {
+			vmcs12->idt_vectoring_error_code =
+				vmcs_read32(IDT_VECTORING_ERROR_CODE);
+			vmcs12->vm_exit_instruction_len =
+				vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
+		}
+	}
 
 	asm("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
 	vmx->loaded_vmcs->launched = 1;
