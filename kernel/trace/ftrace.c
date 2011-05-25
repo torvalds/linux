@@ -109,12 +109,18 @@ ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip);
 static void ftrace_global_list_func(unsigned long ip,
 				    unsigned long parent_ip)
 {
-	struct ftrace_ops *op = rcu_dereference_raw(ftrace_global_list); /*see above*/
+	struct ftrace_ops *op;
 
+	if (unlikely(trace_recursion_test(TRACE_GLOBAL_BIT)))
+		return;
+
+	trace_recursion_set(TRACE_GLOBAL_BIT);
+	op = rcu_dereference_raw(ftrace_global_list); /*see above*/
 	while (op != &ftrace_list_end) {
 		op->func(ip, parent_ip);
 		op = rcu_dereference_raw(op->next); /*see above*/
 	};
+	trace_recursion_clear(TRACE_GLOBAL_BIT);
 }
 
 static void ftrace_pid_func(unsigned long ip, unsigned long parent_ip)
@@ -3490,6 +3496,10 @@ ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip)
 {
 	struct ftrace_ops *op;
 
+	if (unlikely(trace_recursion_test(TRACE_INTERNAL_BIT)))
+		return;
+
+	trace_recursion_set(TRACE_INTERNAL_BIT);
 	/*
 	 * Some of the ops may be dynamically allocated,
 	 * they must be freed after a synchronize_sched().
@@ -3502,6 +3512,7 @@ ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip)
 		op = rcu_dereference_raw(op->next);
 	};
 	preempt_enable_notrace();
+	trace_recursion_clear(TRACE_INTERNAL_BIT);
 }
 
 static void clear_ftrace_swapper(void)
