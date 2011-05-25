@@ -91,6 +91,28 @@ static const char *get_key_type(int type)
 	}
 }
 
+static const char *get_dent_type(int type)
+{
+	switch (type) {
+	case UBIFS_ITYPE_REG:
+		return "file";
+	case UBIFS_ITYPE_DIR:
+		return "dir";
+	case UBIFS_ITYPE_LNK:
+		return "symlink";
+	case UBIFS_ITYPE_BLK:
+		return "blkdev";
+	case UBIFS_ITYPE_CHR:
+		return "char dev";
+	case UBIFS_ITYPE_FIFO:
+		return "fifo";
+	case UBIFS_ITYPE_SOCK:
+		return "socket";
+	default:
+		return "unknown/invalid type";
+	}
+}
+
 static void sprintf_key(const struct ubifs_info *c, const union ubifs_key *key,
 			char *buffer)
 {
@@ -234,9 +256,13 @@ static void dump_ch(const struct ubifs_ch *ch)
 	printk(KERN_DEBUG "\tlen            %u\n", le32_to_cpu(ch->len));
 }
 
-void dbg_dump_inode(const struct ubifs_info *c, const struct inode *inode)
+void dbg_dump_inode(struct ubifs_info *c, const struct inode *inode)
 {
 	const struct ubifs_inode *ui = ubifs_inode(inode);
+	struct qstr nm = { .name = NULL };
+	union ubifs_key key;
+	struct ubifs_dent_node *dent, *pdent = NULL;
+	int count = 2;
 
 	printk(KERN_DEBUG "Dump in-memory inode:");
 	printk(KERN_DEBUG "\tinode          %lu\n", inode->i_ino);
@@ -270,6 +296,32 @@ void dbg_dump_inode(const struct ubifs_info *c, const struct inode *inode)
 	printk(KERN_DEBUG "\tlast_page_read %lu\n", ui->last_page_read);
 	printk(KERN_DEBUG "\tread_in_a_row  %lu\n", ui->read_in_a_row);
 	printk(KERN_DEBUG "\tdata_len       %d\n", ui->data_len);
+
+	if (!S_ISDIR(inode->i_mode))
+		return;
+
+	printk(KERN_DEBUG "List of directory entries:\n");
+	ubifs_assert(!mutex_is_locked(&c->tnc_mutex));
+
+	lowest_dent_key(c, &key, inode->i_ino);
+	while (1) {
+		dent = ubifs_tnc_next_ent(c, &key, &nm);
+		if (IS_ERR(dent)) {
+			if (PTR_ERR(dent) != -ENOENT)
+				printk(KERN_DEBUG "error %ld\n", PTR_ERR(dent));
+			break;
+		}
+
+		printk(KERN_DEBUG "\t%d: %s (%s)\n",
+		       count++, dent->name, get_dent_type(dent->type));
+
+		nm.name = dent->name;
+		nm.len = le16_to_cpu(dent->nlen);
+		kfree(pdent);
+		pdent = dent;
+		key_read(c, &dent->key, &key);
+	}
+	kfree(pdent);
 }
 
 void dbg_dump_node(const struct ubifs_info *c, const void *node)
@@ -1167,12 +1219,14 @@ int dbg_check_dir_size(struct ubifs_info *c, const struct inode *dir)
 			  "but calculated size is %llu", dir->i_ino,
 			  (unsigned long long)i_size_read(dir),
 			  (unsigned long long)size);
+		dbg_dump_inode(c, dir);
 		dump_stack();
 		return -EINVAL;
 	}
 	if (dir->i_nlink != nlink) {
 		ubifs_err("directory inode %lu has nlink %u, but calculated "
 			  "nlink is %u", dir->i_ino, dir->i_nlink, nlink);
+		dbg_dump_inode(c, dir);
 		dump_stack();
 		return -EINVAL;
 	}

@@ -3337,9 +3337,10 @@ out_dump:
 	ubifs_err("inode %lu has size %lld, but there are data at offset %lld "
 		  "(data key %s)", (unsigned long)inode->i_ino, size,
 		  ((loff_t)block) << UBIFS_BLOCK_SHIFT, DBGKEY(key));
+	mutex_unlock(&c->tnc_mutex);
 	dbg_dump_inode(c, inode);
 	dbg_dump_stack();
-	err = -EINVAL;
+	return -EINVAL;
 
 out_unlock:
 	mutex_unlock(&c->tnc_mutex);

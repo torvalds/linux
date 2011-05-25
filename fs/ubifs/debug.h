@@ -214,7 +214,7 @@ const char *dbg_cstate(int cmt_state);
 const char *dbg_jhead(int jhead);
 const char *dbg_get_key_dump(const struct ubifs_info *c,
 			     const union ubifs_key *key);
-void dbg_dump_inode(const struct ubifs_info *c, const struct inode *inode);
+void dbg_dump_inode(struct ubifs_info *c, const struct inode *inode);
 void dbg_dump_node(const struct ubifs_info *c, const void *node);
 void dbg_dump_lpt_node(const struct ubifs_info *c, void *node, int lnum,
 		       int offs);
@@ -364,7 +364,7 @@ static inline const char *dbg_jhead(int jhead)                    { return ""; }
 static inline const char *
 dbg_get_key_dump(const struct ubifs_info *c,
 		 const union ubifs_key *key)                      { return ""; }
-static inline void dbg_dump_inode(const struct ubifs_info *c,
+static inline void dbg_dump_inode(struct ubifs_info *c,
 				  const struct inode *inode)      { return; }
 static inline void dbg_dump_node(const struct ubifs_info *c,
 				 const void *node)                { return; }
@@ -418,7 +418,7 @@ static inline int dbg_chk_lpt_sz(struct ubifs_info *c,
 				 int action, int len)             { return 0; }
 static inline int dbg_check_synced_i_size(struct inode *inode)    { return 0; }
 static inline int dbg_check_dir_size(struct ubifs_info *c,
-				     const struct inode *dir)     { return 0; }
+				const struct inode *dir)          { return 0; }
 static inline int dbg_check_tnc(struct ubifs_info *c, int extra)  { return 0; }
 static inline int dbg_check_idx_size(struct ubifs_info *c,
 				     long long idx_size)          { return 0; }
