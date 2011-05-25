@@ -355,10 +355,6 @@ struct nvsp_message {
 /* #define NVSC_MIN_PROTOCOL_VERSION		1 */
 /* #define NVSC_MAX_PROTOCOL_VERSION		1 */
 
-#define NETVSC_SEND_BUFFER_SIZE			(64*1024)	/* 64K */
-#define NETVSC_SEND_BUFFER_ID			0xface
-
-
 #define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024)	/* 1MB */
 
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe
@@ -382,12 +378,6 @@ struct netvsc_device {
 	 */
 	struct list_head recv_pkt_list;
 	spinlock_t recv_pkt_list_lock;
-
-	/* Send buffer allocated by us but manages by NetVSP */
-	void *send_buf;
-	u32 send_buf_size;
-	u32 send_buf_gpadl_handle;
-	u32 send_section_size;
 
 	/* Receive buffer allocated by us but manages by NetVSP */
 	void *recv_buf;
