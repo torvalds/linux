@@ -659,10 +659,10 @@ static struct lis3lv02d_platform_data lis3_pdata = {
 
 #define SPI_AK4104	\
 {			\
-	.modalias	= "ak4104",	\
-	.max_speed_hz	= 10000,	\
-	.bus_num	= 0,		\
-	.chip_select	= 0,		\
+	.modalias	= "ak4104-codec",	\
+	.max_speed_hz	= 10000,		\
+	.bus_num	= 0,			\
+	.chip_select	= 0,			\
 	.controller_data = (void *) GPIO_SPDIF_CS,	\
 }
 
