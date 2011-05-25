@@ -97,11 +97,13 @@ static const char * const SCH5627_IN_LABELS[SCH5627_NO_IN] = {
 struct sch5627_data {
 	unsigned short addr;
 	struct device *hwmon_dev;
+	u8 control;
 	u8 temp_max[SCH5627_NO_TEMPS];
 	u8 temp_crit[SCH5627_NO_TEMPS];
 	u16 fan_min[SCH5627_NO_FANS];
 
 	struct mutex update_lock;
+	unsigned long last_battery;	/* In jiffies */
 	char valid;			/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 	u16 temp[SCH5627_NO_TEMPS];
@@ -243,6 +245,12 @@ static int sch5627_read_virtual_reg(struct sch5627_data *data, u16 reg)
 	return sch5627_send_cmd(data, SCH5627_CMD_READ, reg, 0);
 }
 
+static int sch5627_write_virtual_reg(struct sch5627_data *data,
+				     u16 reg, u8 val)
+{
+	return sch5627_send_cmd(data, SCH5627_CMD_WRITE, reg, val);
+}
+
 static int sch5627_read_virtual_reg16(struct sch5627_data *data, u16 reg)
 {
 	int lsb, msb;
@@ -286,6 +294,13 @@ static struct sch5627_data *sch5627_update_device(struct device *dev)
 	int i, val;
 
 	mutex_lock(&data->update_lock);
+
+	/* Trigger a Vbat voltage measurement every 5 minutes */
+	if (time_after(jiffies, data->last_battery + 300 * HZ)) {
+		sch5627_write_virtual_reg(data, SCH5627_REG_CTRL,
+					  data->control | 0x10);
+		data->last_battery = jiffies;
+	}
 
 	/* Cache the values for 1 second */
 	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
@@ -711,11 +726,17 @@ static int __devinit sch5627_probe(struct platform_device *pdev)
 		err = val;
 		goto error;
 	}
-	if (!(val & 0x01)) {
+	data->control = val;
+	if (!(data->control & 0x01)) {
 		pr_err("hardware monitoring not enabled\n");
 		err = -ENODEV;
 		goto error;
 	}
+	/* Trigger a Vbat voltage measurement, so that we get a valid reading
+	   the first time we read Vbat */
+	sch5627_write_virtual_reg(data, SCH5627_REG_CTRL,
+				  data->control | 0x10);
+	data->last_battery = jiffies;
 
 	/*
 	 * Read limits, we do this only once as reading a register on
