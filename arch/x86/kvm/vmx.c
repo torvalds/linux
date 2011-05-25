@@ -346,6 +346,8 @@ struct nested_vmx {
 	struct list_head vmcs02_pool;
 	int vmcs02_num;
 	u64 vmcs01_tsc_offset;
+	/* L2 must run next, and mustn't decide to exit to L1. */
+	bool nested_run_pending;
 	/*
 	 * Guest pages referred to in vmcs02 with host-physical pointers, so
 	 * we must keep them pinned while L2 runs.
@@ -865,6 +867,19 @@ static inline bool nested_cpu_has2(struct vmcs12 *vmcs12, u32 bit)
 		(vmcs12->secondary_vm_exec_control & bit);
 }
 
+static inline bool nested_cpu_has_virtual_nmis(struct vmcs12 *vmcs12,
+	struct kvm_vcpu *vcpu)
+{
+	return vmcs12->pin_based_vm_exec_control & PIN_BASED_VIRTUAL_NMIS;
+}
+
+static inline bool is_exception(u32 intr_info)
+{
+	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
+		== (INTR_TYPE_HARD_EXCEPTION | INTR_INFO_VALID_MASK);
+}
+
+static void nested_vmx_vmexit(struct kvm_vcpu *vcpu);
 static void nested_vmx_entry_failure(struct kvm_vcpu *vcpu,
 			struct vmcs12 *vmcs12,
 			u32 reason, unsigned long qualification);
@@ -5277,6 +5292,229 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 static const int kvm_vmx_max_exit_handlers =
 	ARRAY_SIZE(kvm_vmx_exit_handlers);
 
+/*
+ * Return 1 if we should exit from L2 to L1 to handle an MSR access access,
+ * rather than handle it ourselves in L0. I.e., check whether L1 expressed
+ * disinterest in the current event (read or write a specific MSR) by using an
+ * MSR bitmap. This may be the case even when L0 doesn't use MSR bitmaps.
+ */
+static bool nested_vmx_exit_handled_msr(struct kvm_vcpu *vcpu,
+	struct vmcs12 *vmcs12, u32 exit_reason)
+{
+	u32 msr_index = vcpu->arch.regs[VCPU_REGS_RCX];
+	gpa_t bitmap;
+
+	if (!nested_cpu_has(get_vmcs12(vcpu), CPU_BASED_USE_MSR_BITMAPS))
+		return 1;
+
+	/*
+	 * The MSR_BITMAP page is divided into four 1024-byte bitmaps,
+	 * for the four combinations of read/write and low/high MSR numbers.
+	 * First we need to figure out which of the four to use:
+	 */
+	bitmap = vmcs12->msr_bitmap;
+	if (exit_reason == EXIT_REASON_MSR_WRITE)
+		bitmap += 2048;
+	if (msr_index >= 0xc0000000) {
+		msr_index -= 0xc0000000;
+		bitmap += 1024;
+	}
+
+	/* Then read the msr_index'th bit from this bitmap: */
+	if (msr_index < 1024*8) {
+		unsigned char b;
+		kvm_read_guest(vcpu->kvm, bitmap + msr_index/8, &b, 1);
+		return 1 & (b >> (msr_index & 7));
+	} else
+		return 1; /* let L1 handle the wrong parameter */
+}
+
+/*
+ * Return 1 if we should exit from L2 to L1 to handle a CR access exit,
+ * rather than handle it ourselves in L0. I.e., check if L1 wanted to
+ * intercept (via guest_host_mask etc.) the current event.
+ */
+static bool nested_vmx_exit_handled_cr(struct kvm_vcpu *vcpu,
+	struct vmcs12 *vmcs12)
+{
+	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
+	int cr = exit_qualification & 15;
+	int reg = (exit_qualification >> 8) & 15;
+	unsigned long val = kvm_register_read(vcpu, reg);
+
+	switch ((exit_qualification >> 4) & 3) {
+	case 0: /* mov to cr */
+		switch (cr) {
+		case 0:
+			if (vmcs12->cr0_guest_host_mask &
+			    (val ^ vmcs12->cr0_read_shadow))
+				return 1;
+			break;
+		case 3:
+			if ((vmcs12->cr3_target_count >= 1 &&
+					vmcs12->cr3_target_value0 == val) ||
+				(vmcs12->cr3_target_count >= 2 &&
+					vmcs12->cr3_target_value1 == val) ||
+				(vmcs12->cr3_target_count >= 3 &&
+					vmcs12->cr3_target_value2 == val) ||
+				(vmcs12->cr3_target_count >= 4 &&
+					vmcs12->cr3_target_value3 == val))
+				return 0;
+			if (nested_cpu_has(vmcs12, CPU_BASED_CR3_LOAD_EXITING))
+				return 1;
+			break;
+		case 4:
+			if (vmcs12->cr4_guest_host_mask &
+			    (vmcs12->cr4_read_shadow ^ val))
+				return 1;
+			break;
+		case 8:
+			if (nested_cpu_has(vmcs12, CPU_BASED_CR8_LOAD_EXITING))
+				return 1;
+			break;
+		}
+		break;
+	case 2: /* clts */
+		if ((vmcs12->cr0_guest_host_mask & X86_CR0_TS) &&
+		    (vmcs12->cr0_read_shadow & X86_CR0_TS))
+			return 1;
+		break;
+	case 1: /* mov from cr */
+		switch (cr) {
+		case 3:
+			if (vmcs12->cpu_based_vm_exec_control &
+			    CPU_BASED_CR3_STORE_EXITING)
+				return 1;
+			break;
+		case 8:
+			if (vmcs12->cpu_based_vm_exec_control &
+			    CPU_BASED_CR8_STORE_EXITING)
+				return 1;
+			break;
+		}
+		break;
+	case 3: /* lmsw */
+		/*
+		 * lmsw can change bits 1..3 of cr0, and only set bit 0 of
+		 * cr0. Other attempted changes are ignored, with no exit.
+		 */
+		if (vmcs12->cr0_guest_host_mask & 0xe &
+		    (val ^ vmcs12->cr0_read_shadow))
+			return 1;
+		if ((vmcs12->cr0_guest_host_mask & 0x1) &&
+		    !(vmcs12->cr0_read_shadow & 0x1) &&
+		    (val & 0x1))
+			return 1;
+		break;
+	}
+	return 0;
+}
+
+/*
+ * Return 1 if we should exit from L2 to L1 to handle an exit, or 0 if we
+ * should handle it ourselves in L0 (and then continue L2). Only call this
+ * when in is_guest_mode (L2).
+ */
+static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
+{
+	u32 exit_reason = vmcs_read32(VM_EXIT_REASON);
+	u32 intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+
+	if (vmx->nested.nested_run_pending)
+		return 0;
+
+	if (unlikely(vmx->fail)) {
+		printk(KERN_INFO "%s failed vm entry %x\n",
+		       __func__, vmcs_read32(VM_INSTRUCTION_ERROR));
+		return 1;
+	}
+
+	switch (exit_reason) {
+	case EXIT_REASON_EXCEPTION_NMI:
+		if (!is_exception(intr_info))
+			return 0;
+		else if (is_page_fault(intr_info))
+			return enable_ept;
+		return vmcs12->exception_bitmap &
+				(1u << (intr_info & INTR_INFO_VECTOR_MASK));
+	case EXIT_REASON_EXTERNAL_INTERRUPT:
+		return 0;
+	case EXIT_REASON_TRIPLE_FAULT:
+		return 1;
+	case EXIT_REASON_PENDING_INTERRUPT:
+	case EXIT_REASON_NMI_WINDOW:
+		/*
+		 * prepare_vmcs02() set the CPU_BASED_VIRTUAL_INTR_PENDING bit
+		 * (aka Interrupt Window Exiting) only when L1 turned it on,
+		 * so if we got a PENDING_INTERRUPT exit, this must be for L1.
+		 * Same for NMI Window Exiting.
+		 */
+		return 1;
+	case EXIT_REASON_TASK_SWITCH:
+		return 1;
+	case EXIT_REASON_CPUID:
+		return 1;
+	case EXIT_REASON_HLT:
+		return nested_cpu_has(vmcs12, CPU_BASED_HLT_EXITING);
+	case EXIT_REASON_INVD:
+		return 1;
+	case EXIT_REASON_INVLPG:
+		return nested_cpu_has(vmcs12, CPU_BASED_INVLPG_EXITING);
+	case EXIT_REASON_RDPMC:
+		return nested_cpu_has(vmcs12, CPU_BASED_RDPMC_EXITING);
+	case EXIT_REASON_RDTSC:
+		return nested_cpu_has(vmcs12, CPU_BASED_RDTSC_EXITING);
+	case EXIT_REASON_VMCALL: case EXIT_REASON_VMCLEAR:
+	case EXIT_REASON_VMLAUNCH: case EXIT_REASON_VMPTRLD:
+	case EXIT_REASON_VMPTRST: case EXIT_REASON_VMREAD:
+	case EXIT_REASON_VMRESUME: case EXIT_REASON_VMWRITE:
+	case EXIT_REASON_VMOFF: case EXIT_REASON_VMON:
+		/*
+		 * VMX instructions trap unconditionally. This allows L1 to
+		 * emulate them for its L2 guest, i.e., allows 3-level nesting!
+		 */
+		return 1;
+	case EXIT_REASON_CR_ACCESS:
+		return nested_vmx_exit_handled_cr(vcpu, vmcs12);
+	case EXIT_REASON_DR_ACCESS:
+		return nested_cpu_has(vmcs12, CPU_BASED_MOV_DR_EXITING);
+	case EXIT_REASON_IO_INSTRUCTION:
+		/* TODO: support IO bitmaps */
+		return 1;
+	case EXIT_REASON_MSR_READ:
+	case EXIT_REASON_MSR_WRITE:
+		return nested_vmx_exit_handled_msr(vcpu, vmcs12, exit_reason);
+	case EXIT_REASON_INVALID_STATE:
+		return 1;
+	case EXIT_REASON_MWAIT_INSTRUCTION:
+		return nested_cpu_has(vmcs12, CPU_BASED_MWAIT_EXITING);
+	case EXIT_REASON_MONITOR_INSTRUCTION:
+		return nested_cpu_has(vmcs12, CPU_BASED_MONITOR_EXITING);
+	case EXIT_REASON_PAUSE_INSTRUCTION:
+		return nested_cpu_has(vmcs12, CPU_BASED_PAUSE_EXITING) ||
+			nested_cpu_has2(vmcs12,
+				SECONDARY_EXEC_PAUSE_LOOP_EXITING);
+	case EXIT_REASON_MCE_DURING_VMENTRY:
+		return 0;
+	case EXIT_REASON_TPR_BELOW_THRESHOLD:
+		return 1;
+	case EXIT_REASON_APIC_ACCESS:
+		return nested_cpu_has2(vmcs12,
+			SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES);
+	case EXIT_REASON_EPT_VIOLATION:
+	case EXIT_REASON_EPT_MISCONFIG:
+		return 0;
+	case EXIT_REASON_WBINVD:
+		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_WBINVD_EXITING);
+	case EXIT_REASON_XSETBV:
+		return 1;
+	default:
+		return 1;
+	}
+}
+
 static void vmx_get_exit_info(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2)
 {
 	*info1 = vmcs_readl(EXIT_QUALIFICATION);
@@ -5298,6 +5536,17 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	/* If guest state is invalid, start emulating */
 	if (vmx->emulation_required && emulate_invalid_guest_state)
 		return handle_invalid_guest_state(vcpu);
+
+	if (exit_reason == EXIT_REASON_VMLAUNCH ||
+	    exit_reason == EXIT_REASON_VMRESUME)
+		vmx->nested.nested_run_pending = 1;
+	else
+		vmx->nested.nested_run_pending = 0;
+
+	if (is_guest_mode(vcpu) && nested_vmx_exit_handled(vcpu)) {
+		nested_vmx_vmexit(vcpu);
+		return 1;
+	}
 
 	if (exit_reason & VMX_EXIT_REASONS_FAILED_VMENTRY) {
 		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
@@ -5321,7 +5570,9 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		       "(0x%x) and exit reason is 0x%x\n",
 		       __func__, vectoring_info, exit_reason);
 
-	if (unlikely(!cpu_has_virtual_nmis() && vmx->soft_vnmi_blocked)) {
+	if (unlikely(!cpu_has_virtual_nmis() && vmx->soft_vnmi_blocked &&
+	    !(is_guest_mode(vcpu) && nested_cpu_has_virtual_nmis(
+	                                get_vmcs12(vcpu), vcpu)))) {
 		if (vmx_interrupt_allowed(vcpu)) {
 			vmx->soft_vnmi_blocked = 0;
 		} else if (vmx->vnmi_blocked_time > 1000000000LL &&
