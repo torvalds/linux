@@ -994,8 +994,8 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
 	spinlock_t *ptl;
 	int rss[NR_MM_COUNTERS];
 
-	init_rss_vec(rss);
 again:
+	init_rss_vec(rss);
 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
 	arch_enter_lazy_mmu_mode();
 	do {
