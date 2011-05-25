@@ -877,8 +877,8 @@ static int da8xx_pan_display(struct fb_var_screeninfo *var,
 
 			start	= fix->smem_start +
 				new_var.yoffset * fix->line_length +
-				new_var.xoffset * var->bits_per_pixel / 8;
-			end	= start + var->yres * fix->line_length - 1;
+				new_var.xoffset * fbi->var.bits_per_pixel / 8;
+			end	= start + fbi->var.yres * fix->line_length - 1;
 			par->dma_start	= start;
 			par->dma_end	= end;
 		}
