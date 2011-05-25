@@ -2943,6 +2943,10 @@ S: Kasarmikatu 11 A4
 S: 70110 Kuopio
 S: Finland
 
+N: Tobias Ringström
+E: tori@unhappy.mine.nu
+D: Davicom DM9102(A)/DM9132/DM9801 fast ethernet driver
+
 N: Luca Risolia
 E: luca.risolia@studio.unibo.it
 P: 1024D/FCE635A4 88E8 F32F 7244 68BA 3958  5D40 99DA 5D2A FCE6 35A4
