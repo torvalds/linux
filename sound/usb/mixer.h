@@ -24,7 +24,16 @@ struct usb_mixer_interface {
 	u8 xonar_u1_status;
 };
 
-#define MAX_CHANNELS	10	/* max logical channels */
+#define MAX_CHANNELS	16	/* max logical channels */
+
+enum {
+	USB_MIXER_BOOLEAN,
+	USB_MIXER_INV_BOOLEAN,
+	USB_MIXER_S8,
+	USB_MIXER_U8,
+	USB_MIXER_S16,
+	USB_MIXER_U16,
+};
 
 struct usb_mixer_elem_info {
 	struct usb_mixer_interface *mixer;
