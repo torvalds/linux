@@ -49,6 +49,7 @@ static struct lpj_info global_lpj_ref;
 
 static struct cpufreq_frequency_table *freq_table;
 static struct clk *mpu_clk;
+static char *mpu_clk_name;
 
 static int omap_verify_speed(struct cpufreq_policy *policy)
 {
@@ -153,13 +154,7 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 	int result = 0;
 	struct device *mpu_dev;
 
-	if (cpu_is_omap24xx())
-		mpu_clk = clk_get(NULL, "virt_prcm_set");
-	else if (cpu_is_omap34xx())
-		mpu_clk = clk_get(NULL, "dpll1_ck");
-	else if (cpu_is_omap44xx())
-		mpu_clk = clk_get(NULL, "dpll_mpu_ck");
-
+	mpu_clk = clk_get(NULL, mpu_clk_name);
 	if (IS_ERR(mpu_clk))
 		return PTR_ERR(mpu_clk);
 
@@ -233,6 +228,17 @@ static struct cpufreq_driver omap_driver = {
 
 static int __init omap_cpufreq_init(void)
 {
+	if (cpu_is_omap24xx())
+		mpu_clk_name = "virt_prcm_set";
+	else if (cpu_is_omap34xx())
+		mpu_clk_name = "dpll1_ck";
+	else if (cpu_is_omap44xx())
+		mpu_clk_name = "dpll_mpu_ck";
+
+	if (!mpu_clk_name) {
+		pr_err("%s: unsupported Silicon?\n", __func__);
+		return -EINVAL;
+	}
 	return cpufreq_register_driver(&omap_driver);
 }
 
