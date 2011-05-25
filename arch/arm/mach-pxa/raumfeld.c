@@ -573,10 +573,10 @@ static struct pxafb_mode_info sharp_lq043t3dx02_mode = {
 	.xres		= 480,
 	.yres		= 272,
 	.bpp		= 16,
-	.hsync_len	= 4,
+	.hsync_len	= 41,
 	.left_margin	= 2,
 	.right_margin	= 1,
-	.vsync_len	= 1,
+	.vsync_len	= 10,
 	.upper_margin	= 3,
 	.lower_margin	= 1,
 	.sync		= 0,
@@ -596,7 +596,19 @@ static void __init raumfeld_lcd_init(void)
 {
 	int ret;
 
-	pxa_set_fb_info(NULL, &raumfeld_sharp_lcd_info);
+	ret = gpio_request(GPIO_TFT_VA_EN, "display VA enable");
+	if (ret < 0)
+		pr_warning("Unable to request GPIO_TFT_VA_EN\n");
+	else
+		gpio_direction_output(GPIO_TFT_VA_EN, 1);
+
+	msleep(100);
+
+	ret = gpio_request(GPIO_DISPLAY_ENABLE, "display enable");
+	if (ret < 0)
+		pr_warning("Unable to request GPIO_DISPLAY_ENABLE\n");
+	else
+		gpio_direction_output(GPIO_DISPLAY_ENABLE, 1);
 
 	/* Hardware revision 2 has the backlight regulator controlled
 	 * by an LT3593, earlier and later devices use PWM for that. */
@@ -608,18 +620,7 @@ static void __init raumfeld_lcd_init(void)
 		platform_device_register(&raumfeld_pwm_backlight_device);
 	}
 
-	ret = gpio_request(GPIO_TFT_VA_EN, "display VA enable");
-	if (ret < 0)
-		pr_warning("Unable to request GPIO_TFT_VA_EN\n");
-	else
-		gpio_direction_output(GPIO_TFT_VA_EN, 1);
-
-	ret = gpio_request(GPIO_DISPLAY_ENABLE, "display enable");
-	if (ret < 0)
-		pr_warning("Unable to request GPIO_DISPLAY_ENABLE\n");
-	else
-		gpio_direction_output(GPIO_DISPLAY_ENABLE, 1);
-
+	pxa_set_fb_info(NULL, &raumfeld_sharp_lcd_info);
 	platform_device_register(&pxa3xx_device_gcu);
 }
 
