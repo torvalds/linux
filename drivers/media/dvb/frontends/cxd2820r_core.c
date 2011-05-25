@@ -314,6 +314,8 @@ static int cxd2820r_set_frontend(struct dvb_frontend *fe,
 			} else if (c->delivery_system == SYS_DVBT2) {
 				/* DVB-T => DVB-T2 */
 				ret = cxd2820r_sleep_t(fe);
+				if (ret)
+					break;
 				ret = cxd2820r_set_frontend_t2(fe, p);
 			}
 			break;
@@ -324,6 +326,8 @@ static int cxd2820r_set_frontend(struct dvb_frontend *fe,
 			} else if (c->delivery_system == SYS_DVBT) {
 				/* DVB-T2 => DVB-T */
 				ret = cxd2820r_sleep_t2(fe);
+				if (ret)
+					break;
 				ret = cxd2820r_set_frontend_t(fe, p);
 			}
 			break;
