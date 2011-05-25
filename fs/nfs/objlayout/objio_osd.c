@@ -991,14 +991,13 @@ ssize_t objio_write_pagelist(struct objlayout_io_state *ol_state, bool stable)
 /*
  * objlayout_pg_test(). Called by nfs_can_coalesce_requests()
  *
- * return 1 :  coalesce page
- * return 0 :  don't coalesce page
+ * return true iff coalesce page
  */
-int
+bool
 objlayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		   struct nfs_page *req)
 {
-	return 1;
+	return true;
 }
 
 static struct pnfs_layoutdriver_type objlayout_type = {

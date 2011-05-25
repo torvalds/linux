@@ -651,10 +651,10 @@ filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
 /*
  * filelayout_pg_test(). Called by nfs_can_coalesce_requests()
  *
- * return 1 :  coalesce page
- * return 0 :  don't coalesce page
+ * return true  : coalesce page
+ * return false : don't coalesce page
  */
-int
+bool
 filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		   struct nfs_page *req)
 {

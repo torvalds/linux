@@ -1043,7 +1043,7 @@ out_forget_reply:
 	goto out;
 }
 
-int
+bool
 pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		     struct nfs_page *req)
 {
@@ -1070,7 +1070,7 @@ pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 	} else if (pgio->pg_lseg &&
 		   req_offset(req) > end_offset(pgio->pg_lseg->pls_range.offset,
 						pgio->pg_lseg->pls_range.length))
-		return 0;
+		return false;
 	return NFS_SERVER(pgio->pg_inode)->pnfs_curr_ld->pg_test(pgio, prev, req);
 }
 

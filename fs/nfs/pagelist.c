@@ -244,29 +244,29 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
  *
  * Return 'true' if this is the case, else return 'false'.
  */
-static int nfs_can_coalesce_requests(struct nfs_page *prev,
-				     struct nfs_page *req,
-				     struct nfs_pageio_descriptor *pgio)
+static bool nfs_can_coalesce_requests(struct nfs_page *prev,
+				      struct nfs_page *req,
+				      struct nfs_pageio_descriptor *pgio)
 {
 	if (req->wb_context->cred != prev->wb_context->cred)
-		return 0;
+		return false;
 	if (req->wb_lock_context->lockowner != prev->wb_lock_context->lockowner)
-		return 0;
+		return false;
 	if (req->wb_context->state != prev->wb_context->state)
-		return 0;
+		return false;
 	if (req->wb_index != (prev->wb_index + 1))
-		return 0;
+		return false;
 	if (req->wb_pgbase != 0)
-		return 0;
+		return false;
 	if (prev->wb_pgbase + prev->wb_bytes != PAGE_CACHE_SIZE)
-		return 0;
+		return false;
 	/*
 	 * Non-whole file layouts need to check that req is inside of
 	 * pgio->pg_lseg.
 	 */
 	if (pgio->pg_test && !pgio->pg_test(pgio, prev, req))
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 /**
