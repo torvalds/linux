@@ -999,7 +999,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			With this option on every unmap_single operation will
 			result in a hardware IOTLB flush operation as opposed
 			to batching them for performance.
-
+		sp_off [Default Off]
+			By default, super page will be supported if Intel IOMMU
+			has the capability. With this option, super page will
+			not be supported.
 	intremap=	[X86-64, Intel-IOMMU]
 			Format: { on (default) | off | nosid }
 			on	enable Interrupt Remapping (default)
