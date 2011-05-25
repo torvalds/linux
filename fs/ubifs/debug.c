@@ -1177,7 +1177,7 @@ int dbg_check_synced_i_size(struct inode *inode)
  * Note, it is good idea to make sure the @dir->i_mutex is locked before
  * calling this function.
  */
-int dbg_check_dir_size(struct ubifs_info *c, const struct inode *dir)
+int dbg_check_dir(struct ubifs_info *c, const struct inode *dir)
 {
 	unsigned int nlink = 2;
 	union ubifs_key key;

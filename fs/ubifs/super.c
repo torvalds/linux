@@ -94,7 +94,7 @@ static int validate_inode(struct ubifs_info *c, const struct inode *inode)
 			   ubifs_compr_name(ui->compr_type));
 	}
 
-	err = dbg_check_dir_size(c, inode);
+	err = dbg_check_dir(c, inode);
 	return err;
 }
 
