@@ -73,7 +73,7 @@ int nouveau_ignorelid = 0;
 module_param_named(ignorelid, nouveau_ignorelid, int, 0400);
 
 MODULE_PARM_DESC(noaccel, "Disable all acceleration");
-int nouveau_noaccel = 0;
+int nouveau_noaccel = -1;
 module_param_named(noaccel, nouveau_noaccel, int, 0400);
 
 MODULE_PARM_DESC(nofbaccel, "Disable fbcon acceleration");

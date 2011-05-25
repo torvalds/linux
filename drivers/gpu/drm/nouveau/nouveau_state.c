@@ -565,7 +565,7 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_timer;
 
-	if (!nouveau_noaccel) {
+	if (!dev_priv->noaccel) {
 		switch (dev_priv->card_type) {
 		case NV_04:
 			nv04_graph_create(dev);
@@ -677,10 +677,10 @@ out_vblank:
 	drm_vblank_cleanup(dev);
 	engine->display.destroy(dev);
 out_fifo:
-	if (!nouveau_noaccel)
+	if (!dev_priv->noaccel)
 		engine->fifo.takedown(dev);
 out_engine:
-	if (!nouveau_noaccel) {
+	if (!dev_priv->noaccel) {
 		for (e = e - 1; e >= 0; e--) {
 			if (!dev_priv->eng[e])
 				continue;
@@ -725,7 +725,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 		nouveau_channel_put_unlocked(&dev_priv->channel);
 	}
 
-	if (!nouveau_noaccel) {
+	if (!dev_priv->noaccel) {
 		engine->fifo.takedown(dev);
 		for (e = NVOBJ_ENGINE_NR - 1; e >= 0; e--) {
 			if (dev_priv->eng[e]) {
@@ -935,6 +935,24 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 
 	NV_INFO(dev, "Detected an NV%2x generation card (0x%08x)\n",
 		dev_priv->card_type, reg0);
+
+	/* Determine whether we'll attempt acceleration or not, some
+	 * cards are disabled by default here due to them being known
+	 * non-functional, or never been tested due to lack of hw.
+	 */
+	dev_priv->noaccel = !!nouveau_noaccel;
+	if (nouveau_noaccel == -1) {
+		switch (dev_priv->chipset) {
+		case 0xc1: /* known broken */
+		case 0xc8: /* never tested */
+		case 0xce: /* never tested */
+			dev_priv->noaccel = true;
+			break;
+		default:
+			dev_priv->noaccel = false;
+			break;
+		}
+	}
 
 	ret = nouveau_remove_conflicting_drivers(dev);
 	if (ret)
