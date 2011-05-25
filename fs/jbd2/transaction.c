@@ -922,8 +922,8 @@ int jbd2_journal_get_create_access(handle_t *handle, struct buffer_head *bh)
 	 */
 	JBUFFER_TRACE(jh, "cancelling revoke");
 	jbd2_journal_cancel_revoke(handle, jh);
-	jbd2_journal_put_journal_head(jh);
 out:
+	jbd2_journal_put_journal_head(jh);
 	return err;
 }
 
