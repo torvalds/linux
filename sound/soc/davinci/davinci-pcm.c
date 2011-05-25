@@ -605,6 +605,18 @@ static int davinci_pcm_prepare(struct snd_pcm_substream *substream)
 		print_buf_info(prtd->asp_link[0], "asp_link[0]");
 		print_buf_info(prtd->asp_link[1], "asp_link[1]");
 
+		/*
+		 * There is a phase offset of 2 periods between the position
+		 * used by dma setup and the position reported in the pointer
+		 * function.
+		 *
+		 * The phase offset, when not using ping-pong buffers, is due to
+		 * the two consecutive calls to davinci_pcm_enqueue_dma() below.
+		 *
+		 * Whereas here, with ping-pong buffers, the phase is due to
+		 * there being an entire buffer transfer complete before the
+		 * first dma completion event triggers davinci_pcm_dma_irq().
+		 */
 		davinci_pcm_period_elapsed(substream);
 		davinci_pcm_period_elapsed(substream);
 
@@ -631,6 +643,13 @@ davinci_pcm_pointer(struct snd_pcm_substream *substream)
 	int asp_count;
 	unsigned int period_size = snd_pcm_lib_period_bytes(substream);
 
+	/*
+	 * There is a phase offset of 2 periods between the position used by dma
+	 * setup and the position reported in the pointer function. Either +2 in
+	 * the dma setup or -2 here in the pointer function (with wrapping,
+	 * both) accounts for this offset -- choose the latter since it makes
+	 * the first-time setup clearer.
+	 */
 	spin_lock(&prtd->lock);
 	asp_count = prtd->period - 2;
 	spin_unlock(&prtd->lock);
