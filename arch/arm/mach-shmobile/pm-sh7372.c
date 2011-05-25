@@ -25,7 +25,7 @@
 #define SBAR 0xe6180020
 #define APARMBAREA 0xe6f10020
 
-void sh7372_enter_core_standby(void)
+static void sh7372_enter_core_standby(void)
 {
 	void __iomem *smfram = (void __iomem *)SMFRAM;
 
