@@ -44,6 +44,7 @@ struct ocfs2_move_extents_context {
 	struct inode *inode;
 	struct file *file;
 	int auto_defrag;
+	int partial;
 	int credits;
 	u32 new_phys_cpos;
 	u32 clusters_moved;
@@ -221,9 +222,9 @@ out:
  * crash happens anywhere.
  */
 static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
-			       u32 cpos, u32 phys_cpos, u32 len, int ext_flags)
+			       u32 cpos, u32 phys_cpos, u32 *len, int ext_flags)
 {
-	int ret, credits = 0, extra_blocks = 0;
+	int ret, credits = 0, extra_blocks = 0, partial = context->partial;
 	handle_t *handle;
 	struct inode *inode = context->inode;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
@@ -232,7 +233,7 @@ static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 	u32 new_phys_cpos, new_len;
 	u64 phys_blkno = ocfs2_clusters_to_blocks(inode->i_sb, phys_cpos);
 
-	if ((ext_flags & OCFS2_EXT_REFCOUNTED) && len) {
+	if ((ext_flags & OCFS2_EXT_REFCOUNTED) && *len) {
 
 		BUG_ON(!(OCFS2_I(inode)->ip_dyn_features &
 			 OCFS2_HAS_REFCOUNT_FL));
@@ -249,7 +250,7 @@ static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 		ret = ocfs2_prepare_refcount_change_for_del(inode,
 							context->refcount_loc,
 							phys_blkno,
-							len,
+							*len,
 							&credits,
 							&extra_blocks);
 		if (ret) {
@@ -258,7 +259,7 @@ static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 		}
 	}
 
-	ret = ocfs2_lock_allocators_move_extents(inode, &context->et, len, 1,
+	ret = ocfs2_lock_allocators_move_extents(inode, &context->et, *len, 1,
 						 &context->meta_ac,
 						 &context->data_ac,
 						 extra_blocks, &credits);
@@ -291,7 +292,7 @@ static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 		goto out_unlock_mutex;
 	}
 
-	ret = __ocfs2_claim_clusters(handle, context->data_ac, 1, len,
+	ret = __ocfs2_claim_clusters(handle, context->data_ac, 1, *len,
 				     &new_phys_cpos, &new_len);
 	if (ret) {
 		mlog_errno(ret);
@@ -299,33 +300,36 @@ static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 	}
 
 	/*
-	 * we're not quite patient here to make multiple attempts for claiming
-	 * enough clusters, failure to claim clusters per-requested is not a
-	 * disaster though, it can only mean partial range of defragmentation
-	 * or extent movements gets gone, users anyway is able to have another
-	 * try as they wish anytime, since they're going to be returned a
-	 * '-ENOSPC' and completed length of this movement.
+	 * allowing partial extent moving is kind of 'pros and cons', it makes
+	 * whole defragmentation less likely to fail, on the contrary, the bad
+	 * thing is it may make the fs even more fragmented after moving, let
+	 * userspace make a good decision here.
 	 */
-	if (new_len != len) {
-		mlog(0, "len_claimed: %u, len: %u\n", new_len, len);
-		context->range->me_flags &= ~OCFS2_MOVE_EXT_FL_COMPLETE;
-		ret = -ENOSPC;
-		goto out_commit;
+	if (new_len != *len) {
+		mlog(0, "len_claimed: %u, len: %u\n", new_len, *len);
+		if (!partial) {
+			context->range->me_flags &= ~OCFS2_MOVE_EXT_FL_COMPLETE;
+			ret = -ENOSPC;
+			goto out_commit;
+		}
 	}
 
 	mlog(0, "cpos: %u, phys_cpos: %u, new_phys_cpos: %u\n", cpos,
 	     phys_cpos, new_phys_cpos);
 
-	ret = __ocfs2_move_extent(handle, context, cpos, len, phys_cpos,
+	ret = __ocfs2_move_extent(handle, context, cpos, new_len, phys_cpos,
 				  new_phys_cpos, ext_flags);
 	if (ret)
 		mlog_errno(ret);
+
+	if (partial && (new_len != *len))
+		*len = new_len;
 
 	/*
 	 * Here we should write the new page out first if we are
 	 * in write-back mode.
 	 */
-	ret = ocfs2_cow_sync_writeback(inode->i_sb, context->inode, cpos, len);
+	ret = ocfs2_cow_sync_writeback(inode->i_sb, context->inode, cpos, *len);
 	if (ret)
 		mlog_errno(ret);
 
@@ -926,7 +930,7 @@ static int __ocfs2_move_extents_range(struct buffer_head *di_bh,
 			     cpos, phys_cpos, alloc_size, len_defraged);
 
 			ret = ocfs2_defrag_extent(context, cpos, phys_cpos,
-						  alloc_size, flags);
+						  &alloc_size, flags);
 		} else {
 			ret = ocfs2_move_extent(context, cpos, phys_cpos,
 						&new_phys_cpos, alloc_size,
@@ -1101,6 +1105,8 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 			 * any thought?
 			 */
 			range.me_threshold = 1024 * 1024;
+		if (range.me_flags & OCFS2_MOVE_EXT_FL_PART_DEFRAG)
+			context->partial = 1;
 	} else {
 		/*
 		 * first best-effort attempt to validate and adjust the goal
