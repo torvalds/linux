@@ -39,7 +39,6 @@ void mei_initialize_list(struct mei_io_list *list, struct mei_device *dev)
 	/* initialize our queue list */
 	INIT_LIST_HEAD(&list->mei_cb.cb_list);
 	list->status = 0;
-	list->device_extension = dev;
 }
 
 /**
@@ -521,7 +520,6 @@ void mei_host_client_properties(struct mei_device *dev)
 	 * with associated host client
 	 */
 	bitmap_zero(dev->host_clients_map, MEI_CLIENTS_MAX);
-	dev->write_hang = -1;
 	dev->open_handle_count = 0;
 	bitmap_set(dev->host_clients_map, 0, 3);
 	dev->mei_state = MEI_ENABLED;

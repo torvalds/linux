@@ -179,7 +179,6 @@ int mei_write_message(struct mei_device *dev,
 	if ((dev->me_hw_state & ME_RDY_HRA) != ME_RDY_HRA)
 		return 0;
 
-	dev->write_hang = 0;
 	return 1;
 }
 

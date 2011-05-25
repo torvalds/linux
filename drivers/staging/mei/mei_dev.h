@@ -169,7 +169,6 @@ struct mei_cl {
 struct mei_io_list {
 	struct mei_cl_cb mei_cb;
 	int status;
-	struct mei_device *device_extension;
 };
 
 /* MEI private device struct */
@@ -265,7 +264,6 @@ struct mei_device {
 	bool iamthif_flow_control_pending;
 	bool iamthif_ioctl;
 	bool iamthif_canceled;
-	u8 write_hang;
 };
 
 
