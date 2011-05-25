@@ -74,6 +74,14 @@ module_param(vmm_exclusive, bool, S_IRUGO);
 static int __read_mostly yield_on_hlt = 1;
 module_param(yield_on_hlt, bool, S_IRUGO);
 
+/*
+ * If nested=1, nested virtualization is supported, i.e., guests may use
+ * VMX and be a hypervisor for its own guests. If nested=0, guests may not
+ * use VMX instructions.
+ */
+static int __read_mostly nested = 0;
+module_param(nested, bool, S_IRUGO);
+
 #define KVM_GUEST_CR0_MASK_UNRESTRICTED_GUEST				\
 	(X86_CR0_WP | X86_CR0_NE | X86_CR0_NW | X86_CR0_CD)
 #define KVM_GUEST_CR0_MASK						\
@@ -1290,6 +1298,23 @@ static void vmx_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment)
 static u64 vmx_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
 {
 	return target_tsc - native_read_tsc();
+}
+
+static bool guest_cpuid_has_vmx(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best = kvm_find_cpuid_entry(vcpu, 1, 0);
+	return best && (best->ecx & (1 << (X86_FEATURE_VMX & 31)));
+}
+
+/*
+ * nested_vmx_allowed() checks whether a guest should be allowed to use VMX
+ * instructions and MSRs (i.e., nested VMX). Nested VMX is disabled for
+ * all guests if the "nested" module option is off, and can also be disabled
+ * for a single guest by disabling its VMX cpuid bit.
+ */
+static inline bool nested_vmx_allowed(struct kvm_vcpu *vcpu)
+{
+	return nested && guest_cpuid_has_vmx(vcpu);
 }
 
 /*
