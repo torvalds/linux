@@ -2176,6 +2176,7 @@ static inline void mmdrop(struct mm_struct * mm)
 	if (unlikely(atomic_dec_and_test(&mm->mm_count)))
 		__mmdrop(mm);
 }
+extern int mm_init_cpumask(struct mm_struct *mm, struct mm_struct *oldmm);
 
 /* mmput gets rid of the mappings and all user-space */
 extern void mmput(struct mm_struct *);
