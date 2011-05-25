@@ -1162,6 +1162,15 @@ static inline void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
 #endif
 
 /*
+ * This struct is used to pass information from page reclaim to the shrinkers.
+ * We consolidate the values for easier extention later.
+ */
+struct shrink_control {
+	unsigned long nr_scanned;
+	gfp_t gfp_mask;
+};
+
+/*
  * A callback you can register to apply pressure to ageable caches.
  *
  * 'shrink' is passed a count 'nr_to_scan' and a 'gfpmask'.  It should
@@ -1630,8 +1639,8 @@ int in_gate_area_no_mm(unsigned long addr);
 
 int drop_caches_sysctl_handler(struct ctl_table *, int,
 					void __user *, size_t *, loff_t *);
-unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
-			unsigned long lru_pages);
+unsigned long shrink_slab(struct shrink_control *shrink,
+				unsigned long lru_pages);
 
 #ifndef CONFIG_MMU
 #define randomize_va_space 0
