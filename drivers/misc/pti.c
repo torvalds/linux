@@ -476,8 +476,10 @@ static int pti_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 		else
 			pti_tty_data->mc = pti_request_masterchannel(2);
 
-		if (pti_tty_data->mc == NULL)
+		if (pti_tty_data->mc == NULL) {
+			kfree(pti_tty_data);
 			return -ENXIO;
+		}
 		tty->driver_data = pti_tty_data;
 	}
 
