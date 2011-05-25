@@ -193,6 +193,7 @@ struct mei_device {
 	 * list of files
 	 */
 	struct list_head file_list;
+	long open_handle_count;
 	/*
 	 * memory of device
 	 */
@@ -203,8 +204,8 @@ struct mei_device {
 	 * lock for the device
 	 */
 	struct mutex device_lock; /* device lock */
-	int recvd_msg;
 	struct delayed_work wd_work;	/* watch dog deleye work */
+	bool recvd_msg;
 	/*
 	 * hw states of host and fw(ME)
 	 */
@@ -222,7 +223,8 @@ struct mei_device {
 	enum mei_states mei_state;
 	enum mei_init_clients_states init_clients_state;
 	u16 init_clients_timer;
-	int stop;
+	bool stop;
+	bool need_reset;
 
 	u32 extra_write_index;
 	u32 rd_msg_buf[128];	/* used for control messages */
@@ -232,41 +234,38 @@ struct mei_device {
 
 	struct hbm_version version;
 
-	int mei_host_buffer_is_empty;
-	struct mei_cl wd_cl;
 	struct mei_me_client *me_clients; /* Note: memory has to be allocated */
 	DECLARE_BITMAP(me_clients_map, MEI_CLIENTS_MAX);
 	DECLARE_BITMAP(host_clients_map, MEI_CLIENTS_MAX);
 	u8 num_mei_me_clients;
 	u8 me_client_presentation_num;
 	u8 me_client_index;
+	bool mei_host_buffer_is_empty;
 
-	int wd_pending;
-	int wd_stopped;
+	struct mei_cl wd_cl;
+	bool wd_pending;
+	bool wd_stopped;
+	bool wd_bypass;	/* if false, don't refresh watchdog ME client */
 	u16 wd_timeout;	/* seconds ((wd_data[1] << 8) + wd_data[0]) */
+	u16 wd_due_counter;
 	unsigned char wd_data[MEI_START_WD_DATA_SIZE];
 
 
-	u16 wd_due_counter;
-	bool wd_bypass;	/* if false, don't refresh watchdog ME client */
 
 	struct file *iamthif_file_object;
 	struct mei_cl iamthif_cl;
-	int iamthif_ioctl;
-	int iamthif_canceled;
+	struct mei_cl_cb *iamthif_current_cb;
 	int iamthif_mtu;
 	unsigned long iamthif_timer;
 	u32 iamthif_stall_timer;
 	unsigned char *iamthif_msg_buf; /* Note: memory has to be allocated */
 	u32 iamthif_msg_buf_size;
 	u32 iamthif_msg_buf_index;
-	int iamthif_flow_control_pending;
 	enum iamthif_states iamthif_state;
-	struct mei_cl_cb *iamthif_current_cb;
+	bool iamthif_flow_control_pending;
+	bool iamthif_ioctl;
+	bool iamthif_canceled;
 	u8 write_hang;
-	int need_reset;
-	long open_handle_count;
-
 };
 
 

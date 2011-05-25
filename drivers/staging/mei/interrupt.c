@@ -280,7 +280,7 @@ static int _mei_irq_thread_iamthif_read(struct mei_device *dev, s32 *slots)
 		} else {
 			dev_dbg(&dev->pdev->dev, "iamthif flow control success\n");
 			dev->iamthif_state = MEI_IAMTHIF_READING;
-			dev->iamthif_flow_control_pending = 0;
+			dev->iamthif_flow_control_pending = false;
 			dev->iamthif_msg_buf_index = 0;
 			dev->iamthif_msg_buf_size = 0;
 			dev->iamthif_stall_timer = IAMTHIF_STALL_TIMER;
@@ -593,7 +593,7 @@ static void mei_client_disconnect_request(struct mei_device *dev,
 			cl_pos->timer_count = 0;
 			if (cl_pos == &dev->wd_cl) {
 				dev->wd_due_counter = 0;
-				dev->wd_pending = 0;
+				dev->wd_pending = false;
 			} else if (cl_pos == &dev->iamthif_cl)
 				dev->iamthif_timer = 0;
 
@@ -661,7 +661,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 				dev->init_clients_timer = 0;
 				mei_host_enum_clients_message(dev);
 			} else {
-				dev->recvd_msg = 0;
+				dev->recvd_msg = false;
 				dev_dbg(&dev->pdev->dev, "IMEI reset due to received host start response bus message.\n");
 				mei_reset(dev, 1);
 				return;
@@ -690,7 +690,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 			return;
 		}
 
-		dev->recvd_msg = 1;
+		dev->recvd_msg = true;
 		dev_dbg(&dev->pdev->dev, "host start response message received.\n");
 		break;
 
@@ -1028,7 +1028,7 @@ static int _mei_irq_thread_cmpl_iamthif(struct mei_device *dev, s32 *slots,
 			cb_pos->information = dev->iamthif_msg_buf_index;
 			cl->status = 0;
 			dev->iamthif_state = MEI_IAMTHIF_FLOW_CONTROL;
-			dev->iamthif_flow_control_pending = 1;
+			dev->iamthif_flow_control_pending = true;
 			/* save iamthif cb sent to amthi client */
 			dev->iamthif_current_cb = cb_pos;
 			list_move_tail(&cb_pos->cb_list,
@@ -1232,7 +1232,7 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 	}
 
 	if (dev->stop && !dev->wd_pending) {
-		dev->wd_stopped = 1;
+		dev->wd_stopped = true;
 		wake_up_interruptible(&dev->wait_stop_wd);
 		return 0;
 	}
@@ -1256,7 +1256,7 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 				if (mei_flow_ctrl_reduce(dev, &dev->wd_cl))
 					return -ENODEV;
 
-			dev->wd_pending = 0;
+			dev->wd_pending = false;
 
 			if (dev->wd_timeout) {
 				*slots -= (sizeof(struct mei_msg_hdr) +
@@ -1427,7 +1427,7 @@ void mei_wd_timer(struct work_struct *work)
 		if (--dev->wd_due_counter == 0) {
 			if (dev->mei_host_buffer_is_empty &&
 			    mei_flow_ctrl_creds(dev, &dev->wd_cl) > 0) {
-				dev->mei_host_buffer_is_empty = 0;
+				dev->mei_host_buffer_is_empty = false;
 				dev_dbg(&dev->pdev->dev, "send watchdog.\n");
 
 				if (mei_wd_send(dev))
@@ -1442,7 +1442,7 @@ void mei_wd_timer(struct work_struct *work)
 					dev->wd_due_counter = 0;
 
 			} else
-				dev->wd_pending = 1;
+				dev->wd_pending = true;
 
 		}
 	}
@@ -1452,8 +1452,8 @@ void mei_wd_timer(struct work_struct *work)
 			mei_reset(dev, 1);
 			dev->iamthif_msg_buf_size = 0;
 			dev->iamthif_msg_buf_index = 0;
-			dev->iamthif_canceled = 0;
-			dev->iamthif_ioctl = 1;
+			dev->iamthif_canceled = false;
+			dev->iamthif_ioctl = true;
 			dev->iamthif_state = MEI_IAMTHIF_IDLE;
 			dev->iamthif_timer = 0;
 

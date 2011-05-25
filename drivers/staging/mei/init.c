@@ -106,8 +106,8 @@ static void mei_reset_iamthif_params(struct mei_device *dev)
 	dev->iamthif_current_cb = NULL;
 	dev->iamthif_msg_buf_size = 0;
 	dev->iamthif_msg_buf_index = 0;
-	dev->iamthif_canceled = 0;
-	dev->iamthif_ioctl = 0;
+	dev->iamthif_canceled = false;
+	dev->iamthif_ioctl = false;
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 	dev->iamthif_timer = 0;
 }
@@ -173,7 +173,7 @@ int mei_hw_init(struct mei_device *dev)
 	if ((dev->host_hw_state & H_IS) == H_IS)
 		mei_reg_write(dev, H_CSR, dev->host_hw_state);
 
-	dev->recvd_msg = 0;
+	dev->recvd_msg = false;
 	dev_dbg(&dev->pdev->dev, "reset in start the mei device.\n");
 
 	mei_reset(dev, 1);
@@ -223,7 +223,7 @@ int mei_hw_init(struct mei_device *dev)
 		goto out;
 	}
 
-	dev->recvd_msg = 0;
+	dev->recvd_msg = false;
 	dev_dbg(&dev->pdev->dev, "host_hw_state = 0x%08x, me_hw_state = 0x%08x.\n",
 	    dev->host_hw_state, dev->me_hw_state);
 	dev_dbg(&dev->pdev->dev, "ME turn on ME_RDY and host turn on H_RDY.\n");
@@ -267,7 +267,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	bool unexpected;
 
 	if (dev->mei_state == MEI_RECOVERING_FROM_RESET) {
-		dev->need_reset = 1;
+		dev->need_reset = true;
 		return;
 	}
 
@@ -291,7 +291,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	dev_dbg(&dev->pdev->dev, "currently saved host_hw_state = 0x%08x.\n",
 	    dev->host_hw_state);
 
-	dev->need_reset = 0;
+	dev->need_reset = false;
 
 	if (dev->mei_state != MEI_INITIALIZING) {
 		if (dev->mei_state != MEI_DISABLED &&
@@ -320,8 +320,8 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 
 	dev->num_mei_me_clients = 0;
 	dev->rd_msg_hdr = 0;
-	dev->stop = 0;
-	dev->wd_pending = 0;
+	dev->stop = false;
+	dev->wd_pending = false;
 
 	/* update the state of the registers after reset */
 	dev->host_hw_state = mei_hcsr_read(dev);
@@ -382,7 +382,7 @@ void mei_host_start_message(struct mei_device *dev)
 	host_start_req->cmd.cmd = HOST_START_REQ_CMD;
 	host_start_req->host_version.major_version = HBM_MAJOR_VERSION;
 	host_start_req->host_version.minor_version = HBM_MINOR_VERSION;
-	dev->recvd_msg = 0;
+	dev->recvd_msg = false;
 	if (!mei_write_message(dev, mei_hdr,
 				       (unsigned char *) (host_start_req),
 				       mei_hdr->length)) {
@@ -701,7 +701,7 @@ int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
 	cb->file_private = cl;
 	cb->major_file_operations = MEI_CLOSE;
 	if (dev->mei_host_buffer_is_empty) {
-		dev->mei_host_buffer_is_empty = 0;
+		dev->mei_host_buffer_is_empty = false;
 		if (mei_disconnect(dev, cl)) {
 			mdelay(10); /* Wait for hardware disconnection ready */
 			list_add_tail(&cb->cb_list,

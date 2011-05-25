@@ -141,7 +141,7 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 	dev->wd_timeout = 0;
 	dev->wd_due_counter = 0;
 	memcpy(dev->wd_data, mei_stop_wd_params, MEI_WD_PARAMS_SIZE);
-	dev->stop = 1;
+	dev->stop = true;
 
 	ret = mei_flow_ctrl_creds(dev, &dev->wd_cl);
 	if (ret < 0)
@@ -149,7 +149,7 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 
 	if (ret && dev->mei_host_buffer_is_empty) {
 		ret = 0;
-		dev->mei_host_buffer_is_empty = 0;
+		dev->mei_host_buffer_is_empty = false;
 
 		if (!mei_wd_send(dev)) {
 			ret = mei_flow_ctrl_reduce(dev, &dev->wd_cl);
@@ -159,11 +159,11 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 			dev_dbg(&dev->pdev->dev, "send stop WD failed\n");
 		}
 
-		dev->wd_pending = 0;
+		dev->wd_pending = false;
 	} else {
-		dev->wd_pending = 1;
+		dev->wd_pending = true;
 	}
-	dev->wd_stopped = 0;
+	dev->wd_stopped = false;
 	mutex_unlock(&dev->device_lock);
 
 	ret = wait_event_interruptible_timeout(dev->wait_stop_wd,

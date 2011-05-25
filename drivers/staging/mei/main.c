@@ -519,7 +519,7 @@ static int mei_release(struct inode *inode, struct file *file)
 
 			dev_dbg(&dev->pdev->dev, "amthi canceled iamthif state %d\n",
 			    dev->iamthif_state);
-			dev->iamthif_canceled = 1;
+			dev->iamthif_canceled = true;
 			if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE) {
 				dev_dbg(&dev->pdev->dev, "run next amthi iamthif cb\n");
 				mei_run_next_iamthif_cmd(dev);
@@ -893,7 +893,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 	if (rets && dev->mei_host_buffer_is_empty) {
 		rets = 0;
-		dev->mei_host_buffer_is_empty = 0;
+		dev->mei_host_buffer_is_empty = false;
 		if (length > ((((dev->host_hw_state & H_CBD) >> 24) *
 			sizeof(u32)) - sizeof(struct mei_msg_hdr))) {
 
