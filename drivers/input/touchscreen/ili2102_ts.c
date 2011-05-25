@@ -322,7 +322,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 		goto out;
 	}
 	
-	udelay(200);	//tp need delay
+	udelay(100);	//tp need delay
 	
 	msg[0].addr = ts->client->addr;
 	msg[0].flags = ts->client->flags | I2C_M_RD;
@@ -413,7 +413,7 @@ static irqreturn_t ili2102_ts_irq_handler(int irq, void *dev_id)
 	DBG("ili2102_ts_irq_handler=%d,%d\n",ts->client->irq,ts->use_irq);
 
 	disable_irq_nosync(ts->client->irq); //disable_irq(ts->client->irq);
-	schedule_delayed_work(&ts->work, 0);
+	queue_delayed_work(ts->ts_wq, &ts->work, 0);
 	return IRQ_HANDLED;
 }
 
@@ -771,9 +771,9 @@ static int ili2102_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	else
 	hrtimer_cancel(&ts->timer);
 
-	ret = cancel_delayed_work_sync(&ts->work);
-	if (ret && ts->use_irq) /* if work was pending disable-count is now 2 */
-	enable_irq(client->irq);
+	//ret = cancel_delayed_work_sync(&ts->work);
+	//if (ret && ts->use_irq) /* if work was pending disable-count is now 2 */
+	//enable_irq(client->irq);
 
 	//to do suspend
 	msg[0].addr =client->addr;
@@ -802,8 +802,8 @@ static int ili2102_ts_resume(struct i2c_client *client)
 		printk("enabling IRQ %d\n", client->irq);
 		enable_irq(client->irq);
 	}
-	//else
-	//hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
+	else
+	hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
 
 	DBG("%s\n",__FUNCTION__);
 
