@@ -69,6 +69,7 @@ struct anysee_state {
 #define ANYSEE_HW_508TC  18 /* E7 TC */
 #define ANYSEE_HW_508S2  19 /* E7 S2 */
 #define ANYSEE_HW_508PTC 21 /* E7 PTC Plus */
+#define ANYSEE_HW_508PS2 22 /* E7 PS2 Plus */
 
 #define REG_IOA       0x80 /* Port A (bit addressable) */
 #define REG_IOB       0x90 /* Port B (bit addressable) */

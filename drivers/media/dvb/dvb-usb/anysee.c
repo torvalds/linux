@@ -434,6 +434,14 @@ static struct isl6423_config anysee_isl6423_config = {
  * IOD[5] TDA10023 0=disabled
  * IOD[6] ZL10353 1=enabled
  * IOE[0] IF 0=enabled
+ *
+ * E7 S2 VID=1c73 PID=861f HW=22 FW=0.1 AMTCI=?? "anysee-E7PS2(LP)"
+ * PCB: 508PS2 (rev0.4)
+ * parts: DNBU10512IST(STV0903, STV6110), ISL6423
+ * OEA=80 OEB=00 OEC=03 OED=f7 OEE=ff
+ * IOA=4d IOB=00 IOC=c4 IOD=08 IOE=e4
+ * IOA[7] TS 1=enabled
+ * IOE[5] STV0903 1=enabled
  */
 
 static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
@@ -667,7 +675,9 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 
 		break;
 	case ANYSEE_HW_508S2: /* 19 */
+	case ANYSEE_HW_508PS2: /* 22 */
 		/* E7 S2 */
+		/* E7 PS2 */
 
 		/* enable transport stream on IOA[7] */
 		ret = anysee_wr_reg_mask(adap->dev, REG_IOA, (1 << 7), 0x80);
@@ -794,7 +804,9 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 
 		break;
 	case ANYSEE_HW_508S2: /* 19 */
+	case ANYSEE_HW_508PS2: /* 22 */
 		/* E7 S2 */
+		/* E7 PS2 */
 
 		/* attach tuner */
 		fe = dvb_attach(stv6110_attach, adap->fe,
