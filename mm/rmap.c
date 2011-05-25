@@ -25,7 +25,7 @@
  *   mm->mmap_sem
  *     page->flags PG_locked (lock_page)
  *       mapping->i_mmap_mutex
- *         anon_vma->lock
+ *         anon_vma->mutex
  *           mm->page_table_lock or pte_lock
  *             zone->lru_lock (in mark_page_accessed, isolate_lru_page)
  *             swap_lock (in swap_duplicate, swap_info_get)
@@ -40,7 +40,7 @@
  *
  * (code doesn't rely on that order so it could be switched around)
  * ->tasklist_lock
- *   anon_vma->lock      (memory_failure, collect_procs_anon)
+ *   anon_vma->mutex      (memory_failure, collect_procs_anon)
  *     pte map lock
  */
 
@@ -307,7 +307,7 @@ static void anon_vma_ctor(void *data)
 {
 	struct anon_vma *anon_vma = data;
 
-	spin_lock_init(&anon_vma->lock);
+	mutex_init(&anon_vma->mutex);
 	atomic_set(&anon_vma->refcount, 0);
 	INIT_LIST_HEAD(&anon_vma->head);
 }
@@ -1143,7 +1143,7 @@ out_mlock:
 	/*
 	 * We need mmap_sem locking, Otherwise VM_LOCKED check makes
 	 * unstable result and race. Plus, We can't wait here because
-	 * we now hold anon_vma->lock or mapping->i_mmap_mutex.
+	 * we now hold anon_vma->mutex or mapping->i_mmap_mutex.
 	 * if trylock failed, the page remain in evictable lru and later
 	 * vmscan could retry to move the page to unevictable lru if the
 	 * page is actually mlocked.
