@@ -103,6 +103,10 @@
 /* Bitfields in CTRLB */
 #define	ATC_SIF(i)		(0x3 & (i))	/* Src tx done via AHB-Lite Interface i */
 #define	ATC_DIF(i)		((0x3 & (i)) <<  4)	/* Dst tx done via AHB-Lite Interface i */
+				  /* Specify AHB interfaces */
+#define AT_DMA_MEM_IF		0 /* interface 0 as memory interface */
+#define AT_DMA_PER_IF		1 /* interface 1 as peripheral interface */
+
 #define	ATC_SRC_PIP		(0x1 <<  8)	/* Source Picture-in-Picture enabled */
 #define	ATC_DST_PIP		(0x1 << 12)	/* Destination Picture-in-Picture enabled */
 #define	ATC_SRC_DSCR_DIS	(0x1 << 16)	/* Src Descriptor fetch disable */
@@ -181,12 +185,23 @@ txd_to_at_desc(struct dma_async_tx_descriptor *txd)
 /*--  Channels  --------------------------------------------------------*/
 
 /**
+ * atc_status - information bits stored in channel status flag
+ *
+ * Manipulated with atomic operations.
+ */
+enum atc_status {
+	ATC_IS_ERROR = 0,
+	ATC_IS_PAUSED = 1,
+	ATC_IS_CYCLIC = 24,
+};
+
+/**
  * struct at_dma_chan - internal representation of an Atmel HDMAC channel
  * @chan_common: common dmaengine channel object members
  * @device: parent device
  * @ch_regs: memory mapped register base
  * @mask: channel index in a mask
- * @error_status: transmit error status information from irq handler
+ * @status: transmit status information from irq/prep* functions
  *                to tasklet (use atomic operations)
  * @tasklet: bottom half to finish transaction work
  * @lock: serializes enqueue/dequeue operations to descriptors lists
@@ -201,7 +216,7 @@ struct at_dma_chan {
 	struct at_dma		*device;
 	void __iomem		*ch_regs;
 	u8			mask;
-	unsigned long		error_status;
+	unsigned long		status;
 	struct tasklet_struct	tasklet;
 
 	spinlock_t		lock;
@@ -309,8 +324,8 @@ static void atc_setup_irq(struct at_dma_chan *atchan, int on)
 	struct at_dma	*atdma = to_at_dma(atchan->chan_common.device);
 	u32		ebci;
 
-	/* enable interrupts on buffer chain completion & error */
-	ebci =    AT_DMA_CBTC(atchan->chan_common.chan_id)
+	/* enable interrupts on buffer transfer completion & error */
+	ebci =    AT_DMA_BTC(atchan->chan_common.chan_id)
 		| AT_DMA_ERR(atchan->chan_common.chan_id);
 	if (on)
 		dma_writel(atdma, EBCIER, ebci);
@@ -347,7 +362,12 @@ static inline int atc_chan_is_enabled(struct at_dma_chan *atchan)
  */
 static void set_desc_eol(struct at_desc *desc)
 {
-	desc->lli.ctrlb |= ATC_SRC_DSCR_DIS | ATC_DST_DSCR_DIS;
+	u32 ctrlb = desc->lli.ctrlb;
+
+	ctrlb &= ~ATC_IEN;
+	ctrlb |= ATC_SRC_DSCR_DIS | ATC_DST_DSCR_DIS;
+
+	desc->lli.ctrlb = ctrlb;
 	desc->lli.dscr = 0;
 }
 
