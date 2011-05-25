@@ -145,12 +145,53 @@ struct shared_msr_entry {
 };
 
 /*
+ * struct vmcs12 describes the state that our guest hypervisor (L1) keeps for a
+ * single nested guest (L2), hence the name vmcs12. Any VMX implementation has
+ * a VMCS structure, and vmcs12 is our emulated VMX's VMCS. This structure is
+ * stored in guest memory specified by VMPTRLD, but is opaque to the guest,
+ * which must access it using VMREAD/VMWRITE/VMCLEAR instructions.
+ * More than one of these structures may exist, if L1 runs multiple L2 guests.
+ * nested_vmx_run() will use the data here to build a vmcs02: a VMCS for the
+ * underlying hardware which will be used to run L2.
+ * This structure is packed to ensure that its layout is identical across
+ * machines (necessary for live migration).
+ * If there are changes in this struct, VMCS12_REVISION must be changed.
+ */
+struct __packed vmcs12 {
+	/* According to the Intel spec, a VMCS region must start with the
+	 * following two fields. Then follow implementation-specific data.
+	 */
+	u32 revision_id;
+	u32 abort;
+};
+
+/*
+ * VMCS12_REVISION is an arbitrary id that should be changed if the content or
+ * layout of struct vmcs12 is changed. MSR_IA32_VMX_BASIC returns this id, and
+ * VMPTRLD verifies that the VMCS region that L1 is loading contains this id.
+ */
+#define VMCS12_REVISION 0x11e57ed0
+
+/*
+ * VMCS12_SIZE is the number of bytes L1 should allocate for the VMXON region
+ * and any VMCS region. Although only sizeof(struct vmcs12) are used by the
+ * current implementation, 4K are reserved to avoid future complications.
+ */
+#define VMCS12_SIZE 0x1000
+
+/*
  * The nested_vmx structure is part of vcpu_vmx, and holds information we need
  * for correct emulation of VMX (i.e., nested VMX) on this vcpu.
  */
 struct nested_vmx {
 	/* Has the level1 guest done vmxon? */
 	bool vmxon;
+
+	/* The guest-physical address of the current VMCS L1 keeps for L2 */
+	gpa_t current_vmptr;
+	/* The host-usable pointer to the above */
+	struct page *current_vmcs12_page;
+	struct vmcs12 *current_vmcs12;
 };
 
 struct vcpu_vmx {
@@ -229,6 +270,31 @@ enum segment_cache_field {
 static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
 {
 	return container_of(vcpu, struct vcpu_vmx, vcpu);
+}
+
+static inline struct vmcs12 *get_vmcs12(struct kvm_vcpu *vcpu)
+{
+	return to_vmx(vcpu)->nested.current_vmcs12;
+}
+
+static struct page *nested_get_page(struct kvm_vcpu *vcpu, gpa_t addr)
+{
+	struct page *page = gfn_to_page(vcpu->kvm, addr >> PAGE_SHIFT);
+	if (is_error_page(page)) {
+		kvm_release_page_clean(page);
+		return NULL;
+	}
+	return page;
+}
+
+static void nested_release_page(struct page *page)
+{
+	kvm_release_page_dirty(page);
+}
+
+static void nested_release_page_clean(struct page *page)
+{
+	kvm_release_page_clean(page);
 }
 
 static u64 construct_eptp(unsigned long root_hpa);
@@ -4039,6 +4105,12 @@ static void free_nested(struct vcpu_vmx *vmx)
 	if (!vmx->nested.vmxon)
 		return;
 	vmx->nested.vmxon = false;
+	if (vmx->nested.current_vmptr != -1ull) {
+		kunmap(vmx->nested.current_vmcs12_page);
+		nested_release_page(vmx->nested.current_vmcs12_page);
+		vmx->nested.current_vmptr = -1ull;
+		vmx->nested.current_vmcs12 = NULL;
+	}
 }
 
 /* Emulate the VMXOFF instruction */
@@ -4542,6 +4614,9 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 		if (!init_rmode_identity_map(kvm))
 			goto free_vmcs;
 	}
+
+	vmx->nested.current_vmptr = -1ull;
+	vmx->nested.current_vmcs12 = NULL;
 
 	return &vmx->vcpu;
 
