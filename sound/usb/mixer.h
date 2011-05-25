@@ -55,4 +55,7 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 void snd_usb_mixer_inactivate(struct usb_mixer_interface *mixer);
 int snd_usb_mixer_activate(struct usb_mixer_interface *mixer);
 
+int snd_usb_mixer_add_control(struct usb_mixer_interface *mixer,
+			      struct snd_kcontrol *kctl);
+
 #endif /* __USBMIXER_H */
