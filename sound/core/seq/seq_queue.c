@@ -467,13 +467,11 @@ int snd_seq_queue_timer_open(int queueid)
 int snd_seq_queue_timer_close(int queueid)
 {
 	struct snd_seq_queue *queue;
-	struct snd_seq_timer *tmr;
 	int result = 0;
 
 	queue = queueptr(queueid);
 	if (queue == NULL)
 		return -EINVAL;
-	tmr = queue->timer;
 	snd_seq_timer_close(queue);
 	queuefree(queue);
 	return result;
