@@ -4777,6 +4777,44 @@ static int get_vmx_mem_address(struct kvm_vcpu *vcpu,
 }
 
 /*
+ * The following 3 functions, nested_vmx_succeed()/failValid()/failInvalid(),
+ * set the success or error code of an emulated VMX instruction, as specified
+ * by Vol 2B, VMX Instruction Reference, "Conventions".
+ */
+static void nested_vmx_succeed(struct kvm_vcpu *vcpu)
+{
+	vmx_set_rflags(vcpu, vmx_get_rflags(vcpu)
+			& ~(X86_EFLAGS_CF | X86_EFLAGS_PF | X86_EFLAGS_AF |
+			    X86_EFLAGS_ZF | X86_EFLAGS_SF | X86_EFLAGS_OF));
+}
+
+static void nested_vmx_failInvalid(struct kvm_vcpu *vcpu)
+{
+	vmx_set_rflags(vcpu, (vmx_get_rflags(vcpu)
+			& ~(X86_EFLAGS_PF | X86_EFLAGS_AF | X86_EFLAGS_ZF |
+			    X86_EFLAGS_SF | X86_EFLAGS_OF))
+			| X86_EFLAGS_CF);
+}
+
+static void nested_vmx_failValid(struct kvm_vcpu *vcpu,
+					u32 vm_instruction_error)
+{
+	if (to_vmx(vcpu)->nested.current_vmptr == -1ull) {
+		/*
+		 * failValid writes the error number to the current VMCS, which
+		 * can't be done there isn't a current VMCS.
+		 */
+		nested_vmx_failInvalid(vcpu);
+		return;
+	}
+	vmx_set_rflags(vcpu, (vmx_get_rflags(vcpu)
+			& ~(X86_EFLAGS_CF | X86_EFLAGS_PF | X86_EFLAGS_AF |
+			    X86_EFLAGS_SF | X86_EFLAGS_OF))
+			| X86_EFLAGS_ZF);
+	get_vmcs12(vcpu)->vm_instruction_error = vm_instruction_error;
+}
+
+/*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
  * to be done to userspace and return 0.
