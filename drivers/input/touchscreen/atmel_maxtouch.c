@@ -180,7 +180,7 @@ u32 last_key=0;
 
 u8 T9_cfg[31] = {
 	0x83, 0x00, 0x00, 0x12, 0x0b, 0x00, 0x00, 0x1e,  
-	0x02, 0x06, 0x00, 0x03, 0x01, 0x0f, 0x02, 0x0a,  
+	0x02, 0x06, 0x00, 0x03, 0x01, 0x0f, 0x0A, 0x0a,  
 	0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x64,  
 };
@@ -935,7 +935,7 @@ void process_T9_message(u8 *message, struct mxt_data *mxt, int last_touch)
 		for (i = 0; i < 10; i++){
 			if (stored_size[i]){
 				active_touches++;
-				input_report_abs(mxt->input, 
+			input_report_abs(mxt->input, 
 						ABS_MT_TRACKING_ID,
 						i);
 				input_report_abs(mxt->input,
@@ -950,8 +950,9 @@ void process_T9_message(u8 *message, struct mxt_data *mxt, int last_touch)
 				input_mt_sync(mxt->input);
 			}
 		}
-		if (active_touches == 0)
-			input_mt_sync(mxt->input);
+		if (active_touches == 0) {				
+			input_mt_sync(mxt->input);		
+		}
 		input_sync(mxt->input);
 		
 	}else{	
@@ -1804,6 +1805,7 @@ static int __devinit mxt_probe(struct i2c_client *client,
 	int     index;
 	u8 buf[MXT_ACK_BUFFER_SIZE] = {0};
 	u8 buf_size = MXT_MAKE_HIGH_CHG_SIZE_MIN;
+        char t7_buf[2] = {64, 32};
 
 	mxt_debug(DEBUG_INFO, "mXT224: mxt_probe\n");
 
@@ -2052,6 +2054,8 @@ static int __devinit mxt_probe(struct i2c_client *client,
         #endif   
               for(ii=0; ii<sizeof(T9_cfg); ii++)
               	mxt_write_byte(mxt->client, MXT_BASE_ADDR(MXT_TOUCH_MULTITOUCHSCREEN_T9, mxt)+ii, T9_cfg[ii]);
+	
+	mxt_write_block(client, MXT_BASE_ADDR(MXT_GEN_POWERCONFIG_T7, mxt), 2, t7_buf);
 }  
          
 	if (mxt->irq) {
@@ -2171,7 +2175,7 @@ static int mxt_resume(struct i2c_client *client)
 {
 	struct mxt_data *mxt = i2c_get_clientdata(client);
 	char t5_buf[16];
-	char t7_buf[2] = {32, 16};
+	char t7_buf[2] = {64, 32};
 
 	printk("Enter:%s, %d\n", __FUNCTION__, __LINE__);
 
