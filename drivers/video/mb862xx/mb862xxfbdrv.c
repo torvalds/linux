@@ -278,7 +278,7 @@ static int mb862xxfb_pan(struct fb_var_screeninfo *var,
 	reg = pack(var->yoffset, var->xoffset);
 	outreg(disp, GC_L0WY_L0WX, reg);
 
-	reg = pack(var->yres_virtual, var->xres_virtual);
+	reg = pack(info->var.yres_virtual, info->var.xres_virtual);
 	outreg(disp, GC_L0WH_L0WW, reg);
 	return 0;
 }
