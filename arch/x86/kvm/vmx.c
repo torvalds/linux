@@ -4877,6 +4877,66 @@ static int handle_vmclear(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+/* Emulate the VMPTRLD instruction */
+static int handle_vmptrld(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	gva_t gva;
+	gpa_t vmptr;
+	struct x86_exception e;
+
+	if (!nested_vmx_check_permission(vcpu))
+		return 1;
+
+	if (get_vmx_mem_address(vcpu, vmcs_readl(EXIT_QUALIFICATION),
+			vmcs_read32(VMX_INSTRUCTION_INFO), &gva))
+		return 1;
+
+	if (kvm_read_guest_virt(&vcpu->arch.emulate_ctxt, gva, &vmptr,
+				sizeof(vmptr), &e)) {
+		kvm_inject_page_fault(vcpu, &e);
+		return 1;
+	}
+
+	if (!IS_ALIGNED(vmptr, PAGE_SIZE)) {
+		nested_vmx_failValid(vcpu, VMXERR_VMPTRLD_INVALID_ADDRESS);
+		skip_emulated_instruction(vcpu);
+		return 1;
+	}
+
+	if (vmx->nested.current_vmptr != vmptr) {
+		struct vmcs12 *new_vmcs12;
+		struct page *page;
+		page = nested_get_page(vcpu, vmptr);
+		if (page == NULL) {
+			nested_vmx_failInvalid(vcpu);
+			skip_emulated_instruction(vcpu);
+			return 1;
+		}
+		new_vmcs12 = kmap(page);
+		if (new_vmcs12->revision_id != VMCS12_REVISION) {
+			kunmap(page);
+			nested_release_page_clean(page);
+			nested_vmx_failValid(vcpu,
+				VMXERR_VMPTRLD_INCORRECT_VMCS_REVISION_ID);
+			skip_emulated_instruction(vcpu);
+			return 1;
+		}
+		if (vmx->nested.current_vmptr != -1ull) {
+			kunmap(vmx->nested.current_vmcs12_page);
+			nested_release_page(vmx->nested.current_vmcs12_page);
+		}
+
+		vmx->nested.current_vmptr = vmptr;
+		vmx->nested.current_vmcs12 = new_vmcs12;
+		vmx->nested.current_vmcs12_page = page;
+	}
+
+	nested_vmx_succeed(vcpu);
+	skip_emulated_instruction(vcpu);
+	return 1;
+}
+
 /*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
@@ -4900,7 +4960,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_VMCALL]                  = handle_vmcall,
 	[EXIT_REASON_VMCLEAR]	              = handle_vmclear,
 	[EXIT_REASON_VMLAUNCH]                = handle_vmx_insn,
-	[EXIT_REASON_VMPTRLD]                 = handle_vmx_insn,
+	[EXIT_REASON_VMPTRLD]                 = handle_vmptrld,
 	[EXIT_REASON_VMPTRST]                 = handle_vmx_insn,
 	[EXIT_REASON_VMREAD]                  = handle_vmx_insn,
 	[EXIT_REASON_VMRESUME]                = handle_vmx_insn,
