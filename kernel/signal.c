@@ -3023,8 +3023,10 @@ SYSCALL_DEFINE2(signal, int, sig, __sighandler_t, handler)
 
 SYSCALL_DEFINE0(pause)
 {
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
+	while (!signal_pending(current)) {
+		current->state = TASK_INTERRUPTIBLE;
+		schedule();
+	}
 	return -ERESTARTNOHAND;
 }
 
