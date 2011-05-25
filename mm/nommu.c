@@ -1376,15 +1376,15 @@ unsigned long do_mmap_pgoff(struct file *file,
 		if (capabilities & BDI_CAP_MAP_DIRECT) {
 			addr = file->f_op->get_unmapped_area(file, addr, len,
 							     pgoff, flags);
-			if (IS_ERR((void *) addr)) {
+			if (IS_ERR_VALUE(addr)) {
 				ret = addr;
-				if (ret != (unsigned long) -ENOSYS)
+				if (ret != -ENOSYS)
 					goto error_just_free;
 
 				/* the driver refused to tell us where to site
 				 * the mapping so we'll have to attempt to copy
 				 * it */
-				ret = (unsigned long) -ENODEV;
+				ret = -ENODEV;
 				if (!(capabilities & BDI_CAP_MAP_COPY))
 					goto error_just_free;
 
