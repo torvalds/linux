@@ -2061,6 +2061,16 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		if (!event_seg) {
 			if (!ep->skip ||
 			    !usb_endpoint_xfer_isoc(&td->urb->ep->desc)) {
+				/* Some host controllers give a spurious
+				 * successful event after a short transfer.
+				 * Ignore it.
+				 */
+				if ((xhci->quirks & XHCI_SPURIOUS_SUCCESS) && 
+						ep_ring->last_td_was_short) {
+					ep_ring->last_td_was_short = false;
+					ret = 0;
+					goto cleanup;
+				}
 				/* HC is busted, give up! */
 				xhci_err(xhci,
 					"ERROR Transfer event TRB DMA ptr not "
@@ -2071,6 +2081,10 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			ret = skip_isoc_td(xhci, td, event, ep, &status);
 			goto cleanup;
 		}
+		if (trb_comp_code == COMP_SHORT_TX)
+			ep_ring->last_td_was_short = true;
+		else
+			ep_ring->last_td_was_short = false;
 
 		if (ep->skip) {
 			xhci_dbg(xhci, "Found td. Clear skip flag.\n");
