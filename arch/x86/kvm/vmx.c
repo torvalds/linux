@@ -4164,6 +4164,58 @@ vmx_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
 	hypercall[2] = 0xc1;
 }
 
+/* called to set cr0 as approriate for a mov-to-cr0 exit. */
+static int handle_set_cr0(struct kvm_vcpu *vcpu, unsigned long val)
+{
+	if (to_vmx(vcpu)->nested.vmxon &&
+	    ((val & VMXON_CR0_ALWAYSON) != VMXON_CR0_ALWAYSON))
+		return 1;
+
+	if (is_guest_mode(vcpu)) {
+		/*
+		 * We get here when L2 changed cr0 in a way that did not change
+		 * any of L1's shadowed bits (see nested_vmx_exit_handled_cr),
+		 * but did change L0 shadowed bits. This can currently happen
+		 * with the TS bit: L0 may want to leave TS on (for lazy fpu
+		 * loading) while pretending to allow the guest to change it.
+		 */
+		if (kvm_set_cr0(vcpu, (val & vcpu->arch.cr0_guest_owned_bits) |
+			 (vcpu->arch.cr0 & ~vcpu->arch.cr0_guest_owned_bits)))
+			return 1;
+		vmcs_writel(CR0_READ_SHADOW, val);
+		return 0;
+	} else
+		return kvm_set_cr0(vcpu, val);
+}
+
+static int handle_set_cr4(struct kvm_vcpu *vcpu, unsigned long val)
+{
+	if (is_guest_mode(vcpu)) {
+		if (kvm_set_cr4(vcpu, (val & vcpu->arch.cr4_guest_owned_bits) |
+			 (vcpu->arch.cr4 & ~vcpu->arch.cr4_guest_owned_bits)))
+			return 1;
+		vmcs_writel(CR4_READ_SHADOW, val);
+		return 0;
+	} else
+		return kvm_set_cr4(vcpu, val);
+}
+
+/* called to set cr0 as approriate for clts instruction exit. */
+static void handle_clts(struct kvm_vcpu *vcpu)
+{
+	if (is_guest_mode(vcpu)) {
+		/*
+		 * We get here when L2 did CLTS, and L1 didn't shadow CR0.TS
+		 * but we did (!fpu_active). We need to keep GUEST_CR0.TS on,
+		 * just pretend it's off (also in arch.cr0 for fpu_activate).
+		 */
+		vmcs_writel(CR0_READ_SHADOW,
+			vmcs_readl(CR0_READ_SHADOW) & ~X86_CR0_TS);
+		vcpu->arch.cr0 &= ~X86_CR0_TS;
+	} else
+		vmx_set_cr0(vcpu, kvm_read_cr0_bits(vcpu, ~X86_CR0_TS));
+}
+
 static int handle_cr(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification, val;
@@ -4180,7 +4232,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 		trace_kvm_cr_write(cr, val);
 		switch (cr) {
 		case 0:
-			err = kvm_set_cr0(vcpu, val);
+			err = handle_set_cr0(vcpu, val);
 			kvm_complete_insn_gp(vcpu, err);
 			return 1;
 		case 3:
@@ -4188,7 +4240,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 			kvm_complete_insn_gp(vcpu, err);
 			return 1;
 		case 4:
-			err = kvm_set_cr4(vcpu, val);
+			err = handle_set_cr4(vcpu, val);
 			kvm_complete_insn_gp(vcpu, err);
 			return 1;
 		case 8: {
@@ -4206,7 +4258,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 		};
 		break;
 	case 2: /* clts */
-		vmx_set_cr0(vcpu, kvm_read_cr0_bits(vcpu, ~X86_CR0_TS));
+		handle_clts(vcpu);
 		trace_kvm_cr_write(0, kvm_read_cr0(vcpu));
 		skip_emulated_instruction(vcpu);
 		vmx_fpu_activate(vcpu);
