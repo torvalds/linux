@@ -234,7 +234,7 @@ extern int nfs_init_client(struct nfs_client *clp,
 
 /* dir.c */
 extern int nfs_access_cache_shrinker(struct shrinker *shrink,
-					int nr_to_scan, gfp_t gfp_mask);
+					struct shrink_control *sc);
 
 /* inode.c */
 extern struct workqueue_struct *nfsiod_workqueue;

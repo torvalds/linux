@@ -42,11 +42,10 @@ static void drop_slab(void)
 	int nr_objects;
 	struct shrink_control shrink = {
 		.gfp_mask = GFP_KERNEL,
-		.nr_scanned = 1000,
 	};
 
 	do {
-		nr_objects = shrink_slab(&shrink, 1000);
+		nr_objects = shrink_slab(&shrink, 1000, 1000);
 	} while (nr_objects > 10);
 }
 
