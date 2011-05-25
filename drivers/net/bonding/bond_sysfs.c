@@ -1533,8 +1533,8 @@ static DEVICE_ATTR(all_slaves_active, S_IRUGO | S_IWUSR,
  * Show and set the number of IGMP membership reports to send on link failure
  */
 static ssize_t bonding_show_resend_igmp(struct device *d,
-					 struct device_attribute *attr,
-					 char *buf)
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct bonding *bond = to_bond(d);
 
@@ -1542,8 +1542,8 @@ static ssize_t bonding_show_resend_igmp(struct device *d,
 }
 
 static ssize_t bonding_store_resend_igmp(struct device *d,
-					  struct device_attribute *attr,
-					  const char *buf, size_t count)
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
 {
 	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
@@ -1555,7 +1555,7 @@ static ssize_t bonding_store_resend_igmp(struct device *d,
 		goto out;
 	}
 
-	if (new_value < 0) {
+	if (new_value < 0 || new_value > 255) {
 		pr_err("%s: Invalid resend_igmp value %d not in range 0-255; rejected.\n",
 		       bond->dev->name, new_value);
 		ret = -EINVAL;
