@@ -256,7 +256,7 @@ static inline struct drbd_request *_ar_id_to_req(struct drbd_conf *mdev,
 	struct hlist_node *n;
 	struct drbd_request *req;
 
-	hlist_for_each_entry(req, n, slot, colision) {
+	hlist_for_each_entry(req, n, slot, collision) {
 		if ((unsigned long)req == (unsigned long)id) {
 			D_ASSERT(req->sector == sector);
 			return req;
@@ -291,7 +291,7 @@ static inline struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 		req->epoch       = 0;
 		req->sector      = bio_src->bi_sector;
 		req->size        = bio_src->bi_size;
-		INIT_HLIST_NODE(&req->colision);
+		INIT_HLIST_NODE(&req->collision);
 		INIT_LIST_HEAD(&req->tl_requests);
 		INIT_LIST_HEAD(&req->w.list);
 	}
@@ -323,6 +323,7 @@ extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 extern void complete_master_bio(struct drbd_conf *mdev,
 		struct bio_and_error *m);
 extern void request_timer_fn(unsigned long data);
+extern void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
 
 /* use this if you don't want to deal with calling complete_master_bio()
  * outside the spinlock, e.g. when walking some list on cleanup. */
