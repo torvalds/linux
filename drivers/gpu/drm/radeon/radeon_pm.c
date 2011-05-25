@@ -487,6 +487,7 @@ static int radeon_hwmon_init(struct radeon_device *rdev)
 	case THERMAL_TYPE_RV6XX:
 	case THERMAL_TYPE_RV770:
 	case THERMAL_TYPE_EVERGREEN:
+	case THERMAL_TYPE_NI:
 	case THERMAL_TYPE_SUMO:
 		rdev->pm.int_hwmon_dev = hwmon_device_register(rdev->dev);
 		if (IS_ERR(rdev->pm.int_hwmon_dev)) {
