@@ -2044,12 +2044,23 @@ ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
 }
 
 /*
+ * ext4_ext_in_cache()
+ * Checks to see if the given block is in the cache.
+ * If it is, the cached extent is stored in the given
+ * cache extent pointer.  If the cached extent is a hole,
+ * this routine should be used instead of
+ * ext4_ext_in_cache if the calling function needs to
+ * know the size of the hole.
+ *
+ * @inode: The files inode
+ * @block: The block to look for in the cache
+ * @ex:    Pointer where the cached extent will be stored
+ *         if it contains block
+ *
  * Return 0 if cache is invalid; 1 if the cache is valid
  */
-static int
-ext4_ext_in_cache(struct inode *inode, ext4_lblk_t block,
-			struct ext4_extent *ex)
-{
+static int ext4_ext_check_cache(struct inode *inode, ext4_lblk_t block,
+	struct ext4_ext_cache *ex){
 	struct ext4_ext_cache *cex;
 	struct ext4_sb_info *sbi;
 	int ret = 0;
@@ -2066,9 +2077,7 @@ ext4_ext_in_cache(struct inode *inode, ext4_lblk_t block,
 		goto errout;
 
 	if (in_range(block, cex->ec_block, cex->ec_len)) {
-		ex->ee_block = cpu_to_le32(cex->ec_block);
-		ext4_ext_store_pblock(ex, cex->ec_start);
-		ex->ee_len = cpu_to_le16(cex->ec_len);
+		memcpy(ex, cex, sizeof(struct ext4_ext_cache));
 		ext_debug("%u cached by %u:%u:%llu\n",
 				block,
 				cex->ec_block, cex->ec_len, cex->ec_start);
@@ -2082,6 +2091,37 @@ errout:
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 	return ret;
 }
+
+/*
+ * ext4_ext_in_cache()
+ * Checks to see if the given block is in the cache.
+ * If it is, the cached extent is stored in the given
+ * extent pointer.
+ *
+ * @inode: The files inode
+ * @block: The block to look for in the cache
+ * @ex:    Pointer where the cached extent will be stored
+ *         if it contains block
+ *
+ * Return 0 if cache is invalid; 1 if the cache is valid
+ */
+static int
+ext4_ext_in_cache(struct inode *inode, ext4_lblk_t block,
+			struct ext4_extent *ex)
+{
+	struct ext4_ext_cache cex;
+	int ret = 0;
+
+	if (ext4_ext_check_cache(inode, block, &cex)) {
+		ex->ee_block = cpu_to_le32(cex.ec_block);
+		ext4_ext_store_pblock(ex, cex.ec_start);
+		ex->ee_len = cpu_to_le16(cex.ec_len);
+		ret = 1;
+	}
+
+	return ret;
+}
+
 
 /*
  * ext4_ext_rm_idx:
@@ -3724,16 +3764,19 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	struct ext4_map_blocks map;
 	unsigned int credits, blkbits = inode->i_blkbits;
 
-	/* We only support the FALLOC_FL_KEEP_SIZE mode */
-	if (mode & ~FALLOC_FL_KEEP_SIZE)
-		return -EOPNOTSUPP;
-
 	/*
 	 * currently supporting (pre)allocate mode for extent-based
 	 * files _only_
 	 */
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 		return -EOPNOTSUPP;
+
+	/* Return error if mode is not supported */
+	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
+		return -EOPNOTSUPP;
+
+	if (mode & FALLOC_FL_PUNCH_HOLE)
+		return ext4_punch_hole(file, offset, len);
 
 	trace_ext4_fallocate_enter(inode, offset, len, mode);
 	map.m_lblk = offset >> blkbits;
@@ -4100,6 +4143,177 @@ static int ext4_xattr_fiemap(struct inode *inode,
 	return (error < 0 ? error : 0);
 }
 
+/*
+ * ext4_ext_punch_hole
+ *
+ * Punches a hole of "length" bytes in a file starting
+ * at byte "offset"
+ *
+ * @inode:  The inode of the file to punch a hole in
+ * @offset: The starting byte offset of the hole
+ * @length: The length of the hole
+ *
+ * Returns the number of blocks removed or negative on err
+ */
+int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct super_block *sb = inode->i_sb;
+	struct ext4_ext_cache cache_ex;
+	ext4_lblk_t first_block, last_block, num_blocks, iblock, max_blocks;
+	struct address_space *mapping = inode->i_mapping;
+	struct ext4_map_blocks map;
+	handle_t *handle;
+	loff_t first_block_offset, last_block_offset, block_len;
+	loff_t first_page, last_page, first_page_offset, last_page_offset;
+	int ret, credits, blocks_released, err = 0;
+
+	first_block = (offset + sb->s_blocksize - 1) >>
+		EXT4_BLOCK_SIZE_BITS(sb);
+	last_block = (offset + length) >> EXT4_BLOCK_SIZE_BITS(sb);
+
+	first_block_offset = first_block << EXT4_BLOCK_SIZE_BITS(sb);
+	last_block_offset = last_block << EXT4_BLOCK_SIZE_BITS(sb);
+
+	first_page = (offset + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	last_page = (offset + length) >> PAGE_CACHE_SHIFT;
+
+	first_page_offset = first_page << PAGE_CACHE_SHIFT;
+	last_page_offset = last_page << PAGE_CACHE_SHIFT;
+
+	/*
+	 * Write out all dirty pages to avoid race conditions
+	 * Then release them.
+	 */
+	if (mapping->nrpages && mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
+		err = filemap_write_and_wait_range(mapping,
+			first_page_offset == 0 ? 0 : first_page_offset-1,
+			last_page_offset);
+
+			if (err)
+				return err;
+	}
+
+	/* Now release the pages */
+	if (last_page_offset > first_page_offset) {
+		truncate_inode_pages_range(mapping, first_page_offset,
+					   last_page_offset-1);
+	}
+
+	/* finish any pending end_io work */
+	ext4_flush_completed_IO(inode);
+
+	credits = ext4_writepage_trans_blocks(inode);
+	handle = ext4_journal_start(inode, credits);
+	if (IS_ERR(handle))
+		return PTR_ERR(handle);
+
+	err = ext4_orphan_add(handle, inode);
+	if (err)
+		goto out;
+
+	/*
+	 * Now we need to zero out the un block aligned data.
+	 * If the file is smaller than a block, just
+	 * zero out the middle
+	 */
+	if (first_block > last_block)
+		ext4_block_zero_page_range(handle, mapping, offset, length);
+	else {
+		/* zero out the head of the hole before the first block */
+		block_len  = first_block_offset - offset;
+		if (block_len > 0)
+			ext4_block_zero_page_range(handle, mapping,
+						   offset, block_len);
+
+		/* zero out the tail of the hole after the last block */
+		block_len = offset + length - last_block_offset;
+		if (block_len > 0) {
+			ext4_block_zero_page_range(handle, mapping,
+					last_block_offset, block_len);
+		}
+	}
+
+	/* If there are no blocks to remove, return now */
+	if (first_block >= last_block)
+		goto out;
+
+	down_write(&EXT4_I(inode)->i_data_sem);
+	ext4_ext_invalidate_cache(inode);
+	ext4_discard_preallocations(inode);
+
+	/*
+	 * Loop over all the blocks and identify blocks
+	 * that need to be punched out
+	 */
+	iblock = first_block;
+	blocks_released = 0;
+	while (iblock < last_block) {
+		max_blocks = last_block - iblock;
+		num_blocks = 1;
+		memset(&map, 0, sizeof(map));
+		map.m_lblk = iblock;
+		map.m_len = max_blocks;
+		ret = ext4_ext_map_blocks(handle, inode, &map,
+			EXT4_GET_BLOCKS_PUNCH_OUT_EXT);
+
+		if (ret > 0) {
+			blocks_released += ret;
+			num_blocks = ret;
+		} else if (ret == 0) {
+			/*
+			 * If map blocks could not find the block,
+			 * then it is in a hole.  If the hole was
+			 * not already cached, then map blocks should
+			 * put it in the cache.  So we can get the hole
+			 * out of the cache
+			 */
+			memset(&cache_ex, 0, sizeof(cache_ex));
+			if ((ext4_ext_check_cache(inode, iblock, &cache_ex)) &&
+				!cache_ex.ec_start) {
+
+				/* The hole is cached */
+				num_blocks = cache_ex.ec_block +
+				cache_ex.ec_len - iblock;
+
+			} else {
+				/* The block could not be identified */
+				err = -EIO;
+				break;
+			}
+		} else {
+			/* Map blocks error */
+			err = ret;
+			break;
+		}
+
+		if (num_blocks == 0) {
+			/* This condition should never happen */
+			ext_debug("Block lookup failed");
+			err = -EIO;
+			break;
+		}
+
+		iblock += num_blocks;
+	}
+
+	if (blocks_released > 0) {
+		ext4_ext_invalidate_cache(inode);
+		ext4_discard_preallocations(inode);
+	}
+
+	if (IS_SYNC(inode))
+		ext4_handle_sync(handle);
+
+	up_write(&EXT4_I(inode)->i_data_sem);
+
+out:
+	ext4_orphan_del(handle, inode);
+	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
+	ext4_mark_inode_dirty(handle, inode);
+	ext4_journal_stop(handle);
+	return err;
+}
 int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len)
 {
