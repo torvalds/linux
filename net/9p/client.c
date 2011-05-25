@@ -92,9 +92,6 @@ static int get_protocol_version(const substring_t *name)
 	return version;
 }
 
-static struct p9_req_t *
-p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...);
-
 /**
  * parse_options - parse mount options into client structure
  * @opts: options string passed from mount
@@ -307,12 +304,13 @@ static int p9_tag_init(struct p9_client *c)
 	c->tagpool = p9_idpool_create();
 	if (IS_ERR(c->tagpool)) {
 		err = PTR_ERR(c->tagpool);
-		c->tagpool = NULL;
 		goto error;
 	}
-
-	p9_idpool_get(c->tagpool); /* reserve tag 0 */
-
+	err = p9_idpool_get(c->tagpool); /* reserve tag 0 */
+	if (err < 0) {
+		p9_idpool_destroy(c->tagpool);
+		goto error;
+	}
 	c->max_tag = 0;
 error:
 	return err;
@@ -518,12 +516,15 @@ out_err:
 	return err;
 }
 
+static struct p9_req_t *
+p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...);
+
 /**
  * p9_client_flush - flush (cancel) a request
  * @c: client state
  * @oldreq: request to cancel
  *
- * This sents a flush for a particular requests and links
+ * This sents a flush for a particular request and links
  * the flush request to the original request.  The current
  * code only supports a single flush request although the protocol
  * allows for multiple flush requests to be sent for a single request.
@@ -789,11 +790,13 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	spin_lock_init(&clnt->lock);
 	INIT_LIST_HEAD(&clnt->fidlist);
 
-	p9_tag_init(clnt);
+	err = p9_tag_init(clnt);
+	if (err < 0)
+		goto free_client;
 
 	err = parse_opts(options, clnt);
 	if (err < 0)
-		goto free_client;
+		goto destroy_tagpool;
 
 	if (!clnt->trans_mod)
 		clnt->trans_mod = v9fs_get_default_trans();
@@ -802,13 +805,12 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 		err = -EPROTONOSUPPORT;
 		P9_DPRINTK(P9_DEBUG_ERROR,
 				"No transport defined or default transport\n");
-		goto free_client;
+		goto destroy_tagpool;
 	}
 
 	clnt->fidpool = p9_idpool_create();
 	if (IS_ERR(clnt->fidpool)) {
 		err = PTR_ERR(clnt->fidpool);
-		clnt->fidpool = NULL;
 		goto put_trans;
 	}
 
@@ -834,6 +836,8 @@ destroy_fidpool:
 	p9_idpool_destroy(clnt->fidpool);
 put_trans:
 	v9fs_put_trans(clnt->trans_mod);
+destroy_tagpool:
+	p9_idpool_destroy(clnt->tagpool);
 free_client:
 	kfree(clnt);
 	return ERR_PTR(err);
@@ -1298,7 +1302,7 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 	if (count < rsize)
 		rsize = count;
 
-	/* Don't bother zerocopy form small IO (< 1024) */
+	/* Don't bother zerocopy for small IO (< 1024) */
 	if (((clnt->trans_mod->pref & P9_TRANS_PREF_PAYLOAD_MASK) ==
 			P9_TRANS_PREF_PAYLOAD_SEP) && (rsize > 1024)) {
 		req = p9_client_rpc(clnt, P9_TREAD, "dqE", fid->fid, offset,

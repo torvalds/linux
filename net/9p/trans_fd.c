@@ -916,8 +916,8 @@ p9_fd_create_tcp(struct p9_client *client, const char *addr, char *args)
 	sin_server.sin_family = AF_INET;
 	sin_server.sin_addr.s_addr = in_aton(addr);
 	sin_server.sin_port = htons(opts.port);
-	err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &csocket);
-
+	err = __sock_create(read_pnet(&current->nsproxy->net_ns), PF_INET,
+			    SOCK_STREAM, IPPROTO_TCP, &csocket, 1);
 	if (err) {
 		P9_EPRINTK(KERN_ERR, "p9_trans_tcp: problem creating socket\n");
 		return err;
@@ -954,7 +954,8 @@ p9_fd_create_unix(struct p9_client *client, const char *addr, char *args)
 
 	sun_server.sun_family = PF_UNIX;
 	strcpy(sun_server.sun_path, addr);
-	err = sock_create_kern(PF_UNIX, SOCK_STREAM, 0, &csocket);
+	err = __sock_create(read_pnet(&current->nsproxy->net_ns), PF_UNIX,
+			    SOCK_STREAM, 0, &csocket, 1);
 	if (err < 0) {
 		P9_EPRINTK(KERN_ERR, "p9_trans_unix: problem creating socket\n");
 		return err;
