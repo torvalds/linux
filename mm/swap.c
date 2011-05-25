@@ -476,6 +476,13 @@ static void drain_cpu_pagevecs(int cpu)
  */
 void deactivate_page(struct page *page)
 {
+	/*
+	 * In a workload with many unevictable page such as mprotect, unevictable
+	 * page deactivation for accelerating reclaim is pointless.
+	 */
+	if (PageUnevictable(page))
+		return;
+
 	if (likely(get_page_unless_zero(page))) {
 		struct pagevec *pvec = &get_cpu_var(lru_deactivate_pvecs);
 
