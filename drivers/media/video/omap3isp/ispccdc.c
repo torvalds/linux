@@ -1148,6 +1148,8 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 	omap3isp_configure_bridge(isp, ccdc->input, pdata, shift);
 
 	ccdc->syncif.datsz = depth_out;
+	ccdc->syncif.hdpol = pdata ? pdata->hs_pol : 0;
+	ccdc->syncif.vdpol = pdata ? pdata->vs_pol : 0;
 	ccdc_config_sync_if(ccdc, &ccdc->syncif);
 
 	/* CCDC_PAD_SINK */
@@ -2256,8 +2258,6 @@ int omap3isp_ccdc_init(struct isp_device *isp)
 	ccdc->syncif.fldout = 0;
 	ccdc->syncif.fldpol = 0;
 	ccdc->syncif.fldstat = 0;
-	ccdc->syncif.hdpol = 0;
-	ccdc->syncif.vdpol = 0;
 
 	ccdc->clamp.oblen = 0;
 	ccdc->clamp.dcsubval = 0;
