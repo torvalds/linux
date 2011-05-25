@@ -50,6 +50,7 @@ static struct lpj_info global_lpj_ref;
 static struct cpufreq_frequency_table *freq_table;
 static struct clk *mpu_clk;
 static char *mpu_clk_name;
+static struct device *mpu_dev;
 
 static int omap_verify_speed(struct cpufreq_policy *policy)
 {
@@ -152,7 +153,6 @@ static int omap_target(struct cpufreq_policy *policy,
 static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 {
 	int result = 0;
-	struct device *mpu_dev;
 
 	mpu_clk = clk_get(NULL, mpu_clk_name);
 	if (IS_ERR(mpu_clk))
@@ -162,12 +162,6 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 		return -EINVAL;
 
 	policy->cur = policy->min = policy->max = omap_getspeed(policy->cpu);
-	mpu_dev = omap2_get_mpuss_device();
-
-	if (!mpu_dev) {
-		pr_warning("%s: unable to get the mpu device\n", __func__);
-		return -EINVAL;
-	}
 	opp_init_cpufreq_table(mpu_dev, &freq_table);
 
 	if (freq_table) {
@@ -239,6 +233,13 @@ static int __init omap_cpufreq_init(void)
 		pr_err("%s: unsupported Silicon?\n", __func__);
 		return -EINVAL;
 	}
+
+	mpu_dev = omap2_get_mpuss_device();
+	if (!mpu_dev) {
+		pr_warning("%s: unable to get the mpu device\n", __func__);
+		return -EINVAL;
+	}
+
 	return cpufreq_register_driver(&omap_driver);
 }
 
