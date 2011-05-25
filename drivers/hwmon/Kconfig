@@ -1351,6 +1351,16 @@ if ACPI
 
 comment "ACPI drivers"
 
+config SENSORS_ACPI_POWER
+	tristate "ACPI 4.0 power meter"
+	help
+	  This driver exposes ACPI 4.0 power meters as hardware monitoring
+	  devices.  Say Y (or M) if you have a computer with ACPI 4.0 firmware
+	  and a power meter.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called acpi_power_meter.
+
 config SENSORS_ATK0110
 	tristate "ASUS ATK0110"
 	depends on X86 && EXPERIMENTAL

@@ -73,17 +73,6 @@ config ACPI_PROCFS_POWER
 
 	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
 
-config ACPI_POWER_METER
-	tristate "ACPI 4.0 power meter"
-	depends on HWMON
-	help
-	  This driver exposes ACPI 4.0 power meters as hardware monitoring
-	  devices.  Say Y (or M) if you have a computer with ACPI 4.0 firmware
-	  and a power meter.
-
-	  To compile this driver as a module, choose M here:
-	  the module will be called power-meter.
-
 config ACPI_EC_DEBUGFS
 	tristate "EC read/write access through /sys/kernel/debug/ec"
 	default n
