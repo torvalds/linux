@@ -171,10 +171,6 @@ extern void copy_user_page(void*, void*, unsigned long, struct page*);
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
-#ifdef CONFIG_MMU
-#define WANT_PAGE_VIRTUAL
-#endif
-
 #endif /* __ASSEMBLY__ */
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
