@@ -205,4 +205,38 @@ enum ocfs2_info_type {
 
 #define OCFS2_IOC_INFO		_IOR('o', 5, struct ocfs2_info)
 
+struct ocfs2_move_extents {
+/* All values are in bytes */
+	/* in */
+	__u64 me_start;		/* Virtual start in the file to move */
+	__u64 me_len;		/* Length of the extents to be moved */
+	__u64 me_goal;		/* Physical offset of the goal,
+				   it's in block unit */
+	__u64 me_threshold;	/* Maximum distance from goal or threshold
+				   for auto defragmentation */
+	__u64 me_flags;		/* Flags for the operation:
+				 * - auto defragmentation.
+				 * - refcount,xattr cases.
+				 */
+	/* out */
+	__u64 me_moved_len;	/* Moved/defraged length */
+	__u64 me_new_offset;	/* Resulting physical location */
+	__u32 me_reserved[2];	/* Reserved for futhure */
+};
+
+#define OCFS2_MOVE_EXT_FL_AUTO_DEFRAG	(0x00000001)	/* Kernel manages to
+							   claim new clusters
+							   as the goal place
+							   for extents moving */
+#define OCFS2_MOVE_EXT_FL_PART_DEFRAG	(0x00000002)	/* Allow partial extent
+							   moving, is to make
+							   movement less likely
+							   to fail, may make fs
+							   even more fragmented */
+#define OCFS2_MOVE_EXT_FL_COMPLETE	(0x00000004)	/* Move or defragmenation
+							   completely gets done.
+							 */
+
+#define OCFS2_IOC_MOVE_EXT	_IOW('o', 6, struct ocfs2_move_extents)
+
 #endif /* OCFS2_IOCTL_H */
