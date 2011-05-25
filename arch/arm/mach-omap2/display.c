@@ -43,9 +43,6 @@ static struct omap_device_pm_latency omap_dss_latency[] = {
 	},
 };
 
-/* oh_core is used for getting opt-clocks */
-static struct omap_hwmod	*oh_core;
-
 struct omap_dss_hwmod_data {
 	const char *oh_name;
 	const char *dev_name;
@@ -97,13 +94,6 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 	} else {
 		curr_dss_hwmod = omap4_dss_hwmod_data;
 		oh_count = ARRAY_SIZE(omap4_dss_hwmod_data);
-	}
-
-	/* opt_clks are always associated with dss hwmod */
-	oh_core = omap_hwmod_lookup("dss_core");
-	if (!oh_core) {
-		pr_err("Could not look up dss_core.\n");
-		return -ENODEV;
 	}
 
 	pdata.board_data = board_data;
