@@ -3187,7 +3187,7 @@ static enum sci_status isci_request_stp_request_construct(
  */
 static void
 scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
-				       struct smp_req *smp_req)
+				       ssize_t req_len)
 {
 	dma_addr_t dma_addr;
 	struct scic_sds_controller *scic;
@@ -3197,7 +3197,7 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
 	ssize_t word_cnt = sizeof(struct smp_req) / sizeof(u32);
 
 	/* byte swap the smp request. */
-	sci_swab32_cpy(&sci_req->smp.cmd, smp_req,
+	sci_swab32_cpy(&sci_req->smp.cmd, &sci_req->smp.cmd,
 		       word_cnt);
 
 	task_context = scic_sds_request_get_task_context(sci_req);
@@ -3238,7 +3238,7 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
 	task_context->address_modifier = 0;
 
 	/* 10h */
-	task_context->ssp_command_iu_length = smp_req->req_len;
+	task_context->ssp_command_iu_length = req_len;
 
 	/* 14h */
 	task_context->transfer_length_bytes = 0;
@@ -3299,22 +3299,18 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
 	task_context->response_iu_lower = 0;
 }
 
-static enum sci_status scic_io_request_construct_smp(struct scic_sds_request *sci_req)
+static enum sci_status
+scic_io_request_construct_smp(struct scic_sds_request *sci_req)
 {
-	struct smp_req *smp_req = kmalloc(sizeof(*smp_req), GFP_KERNEL);
-
-	if (!smp_req)
-		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
+	struct smp_req *smp_req = &sci_req->smp.cmd;
 
 	sci_req->protocol = SCIC_SMP_PROTOCOL;
-
-	/* Construct the SMP SCU Task Context */
-	memcpy(smp_req, &sci_req->smp.cmd, sizeof(*smp_req));
 
 	/*
 	 * Look at the SMP requests' header fields; for certain SAS 1.x SMP
 	 * functions under SAS 2.0, a zero request length really indicates
-	 * a non-zero default length. */
+	 * a non-zero default length.
+	 */
 	if (smp_req->req_len == 0) {
 		switch (smp_req->func) {
 		case SMP_DISCOVER:
@@ -3332,12 +3328,10 @@ static enum sci_status scic_io_request_construct_smp(struct scic_sds_request *sc
 		}
 	}
 
-	scu_smp_request_construct_task_context(sci_req, smp_req);
+	scu_smp_request_construct_task_context(sci_req, smp_req->req_len);
 
 	sci_base_state_machine_change_state(&sci_req->state_machine,
-		SCI_BASE_REQUEST_STATE_CONSTRUCTED);
-
-	kfree(smp_req);
+					    SCI_BASE_REQUEST_STATE_CONSTRUCTED);
 
 	return SCI_SUCCESS;
 }
