@@ -119,6 +119,10 @@ MODULE_PARM_DESC(msi, "Enable MSI (default: off)\n");
 int nouveau_msi;
 module_param_named(msi, nouveau_msi, int, 0400);
 
+MODULE_PARM_DESC(ctxfw, "Use external HUB/GPC ucode (fermi)\n");
+int nouveau_ctxfw;
+module_param_named(ctxfw, nouveau_ctxfw, int, 0400);
+
 int nouveau_fbpercrtc;
 #if 0
 module_param_named(fbpercrtc, nouveau_fbpercrtc, int, 0400);
