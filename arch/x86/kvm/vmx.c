@@ -4937,6 +4937,32 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+/* Emulate the VMPTRST instruction */
+static int handle_vmptrst(struct kvm_vcpu *vcpu)
+{
+	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
+	u32 vmx_instruction_info = vmcs_read32(VMX_INSTRUCTION_INFO);
+	gva_t vmcs_gva;
+	struct x86_exception e;
+
+	if (!nested_vmx_check_permission(vcpu))
+		return 1;
+
+	if (get_vmx_mem_address(vcpu, exit_qualification,
+			vmx_instruction_info, &vmcs_gva))
+		return 1;
+	/* ok to use *_system, as nested_vmx_check_permission verified cpl=0 */
+	if (kvm_write_guest_virt_system(&vcpu->arch.emulate_ctxt, vmcs_gva,
+				 (void *)&to_vmx(vcpu)->nested.current_vmptr,
+				 sizeof(u64), &e)) {
+		kvm_inject_page_fault(vcpu, &e);
+		return 1;
+	}
+	nested_vmx_succeed(vcpu);
+	skip_emulated_instruction(vcpu);
+	return 1;
+}
+
 /*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
@@ -4961,7 +4987,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_VMCLEAR]	              = handle_vmclear,
 	[EXIT_REASON_VMLAUNCH]                = handle_vmx_insn,
 	[EXIT_REASON_VMPTRLD]                 = handle_vmptrld,
-	[EXIT_REASON_VMPTRST]                 = handle_vmx_insn,
+	[EXIT_REASON_VMPTRST]                 = handle_vmptrst,
 	[EXIT_REASON_VMREAD]                  = handle_vmx_insn,
 	[EXIT_REASON_VMRESUME]                = handle_vmx_insn,
 	[EXIT_REASON_VMWRITE]                 = handle_vmx_insn,
