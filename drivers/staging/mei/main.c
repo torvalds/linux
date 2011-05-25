@@ -142,7 +142,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 		goto disable_device;
 	}
 	/* allocates and initializes the mei dev structure */
-	dev = init_mei_device(pdev);
+	dev = mei_device_init(pdev);
 	if (!dev) {
 		err = -ENOMEM;
 		goto release_regions;
@@ -407,7 +407,7 @@ static int mei_open(struct inode *inode, struct file *file)
 
 	mutex_lock(&dev->device_lock);
 	err = -ENOMEM;
-	cl = mei_alloc_file_private(dev);
+	cl = mei_cl_allocate(dev);
 	if (!cl)
 		goto out;
 
@@ -522,7 +522,7 @@ static int mei_release(struct inode *inode, struct file *file)
 			dev->iamthif_canceled = 1;
 			if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE) {
 				dev_dbg(&dev->pdev->dev, "run next amthi iamthif cb\n");
-				run_next_iamthif_cmd(dev);
+				mei_run_next_iamthif_cmd(dev);
 			}
 		}
 
@@ -1066,7 +1066,7 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 			dev->iamthif_file_object == file) {
 			mask |= (POLLIN | POLLRDNORM);
 			dev_dbg(&dev->pdev->dev, "run next amthi cb\n");
-			run_next_iamthif_cmd(dev);
+			mei_run_next_iamthif_cmd(dev);
 		}
 		goto out;
 	}

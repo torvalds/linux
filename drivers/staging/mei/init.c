@@ -119,7 +119,7 @@ static void mei_reset_iamthif_params(struct mei_device *dev)
  *
  * returns The mei_device_device pointer on success, NULL on failure.
  */
-struct mei_device *init_mei_device(struct pci_dev *pdev)
+struct mei_device *mei_device_init(struct pci_dev *pdev)
 {
 	int i;
 	struct mei_device *dev;
@@ -363,7 +363,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
  *
  * returns none.
  */
-void host_start_message(struct mei_device *dev)
+void mei_host_start_message(struct mei_device *dev)
 {
 	struct mei_msg_hdr *mei_hdr;
 	struct hbm_host_version_request *host_start_req;
@@ -402,7 +402,7 @@ void host_start_message(struct mei_device *dev)
  *
  * returns none.
  */
-void host_enum_clients_message(struct mei_device *dev)
+void mei_host_enum_clients_message(struct mei_device *dev)
 {
 	struct mei_msg_hdr *mei_hdr;
 	struct hbm_host_enum_request *host_enum_req;
@@ -437,7 +437,7 @@ void host_enum_clients_message(struct mei_device *dev)
  *
  * returns none.
  */
-void allocate_me_clients_storage(struct mei_device *dev)
+void mei_allocate_me_clients_storage(struct mei_device *dev)
 {
 	struct mei_me_client *clients;
 	int b;
@@ -475,7 +475,7 @@ void allocate_me_clients_storage(struct mei_device *dev)
  *
  * returns none.
  */
-void host_client_properties(struct mei_device *dev)
+void mei_host_client_properties(struct mei_device *dev)
 {
 	struct mei_msg_hdr *mei_header;
 	struct hbm_props_request *host_cli_req;
@@ -536,7 +536,7 @@ void host_client_properties(struct mei_device *dev)
  * @priv: private file structure to be initialized
  * @file: the file structure
  */
-void mei_init_file_private(struct mei_cl *priv, struct mei_device *dev)
+void mei_cl_init(struct mei_cl *priv, struct mei_device *dev)
 {
 	memset(priv, 0, sizeof(struct mei_cl));
 	init_waitqueue_head(&priv->wait);
@@ -601,12 +601,12 @@ u8 mei_find_me_client_update_filext(struct mei_device *dev, struct mei_cl *priv,
  * @dev: the device structure
  *
  */
-void host_init_iamthif(struct mei_device *dev)
+void mei_host_init_iamthif(struct mei_device *dev)
 {
 	u8 i;
 	unsigned char *msg_buf;
 
-	mei_init_file_private(&dev->iamthif_cl, dev);
+	mei_cl_init(&dev->iamthif_cl, dev);
 	dev->iamthif_cl.state = MEI_FILE_DISCONNECTED;
 
 	/* find ME amthi client */
@@ -656,17 +656,17 @@ void host_init_iamthif(struct mei_device *dev)
  *
  * returns  The allocated file or NULL on failure
  */
-struct mei_cl *mei_alloc_file_private(struct mei_device *dev)
+struct mei_cl *mei_cl_allocate(struct mei_device *dev)
 {
-	struct mei_cl *priv;
+	struct mei_cl *cl;
 
-	priv = kmalloc(sizeof(struct mei_cl), GFP_KERNEL);
-	if (!priv)
+	cl = kmalloc(sizeof(struct mei_cl), GFP_KERNEL);
+	if (!cl)
 		return NULL;
 
-	mei_init_file_private(priv, dev);
+	mei_cl_init(cl, dev);
 
-	return priv;
+	return cl;
 }
 
 

@@ -273,38 +273,48 @@ struct mei_device {
 /*
  * mei init function prototypes
  */
-struct mei_device *init_mei_device(struct pci_dev *pdev);
+struct mei_device *mei_device_init(struct pci_dev *pdev);
 void mei_reset(struct mei_device *dev, int interrupts);
 int mei_hw_init(struct mei_device *dev);
 int mei_task_initialize_clients(void *data);
 int mei_initialize_clients(struct mei_device *dev);
-struct mei_cl *mei_alloc_file_private(struct mei_device *dev);
 int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl);
 void mei_initialize_list(struct mei_io_list *list, struct mei_device *dev);
 void mei_flush_list(struct mei_io_list *list, struct mei_cl *cl);
 void mei_flush_queues(struct mei_device *dev, struct mei_cl *cl);
 void mei_remove_client_from_file_list(struct mei_device *dev, u8 host_client_id);
-void host_init_iamthif(struct mei_device *dev);
-void mei_init_file_private(struct mei_cl *priv, struct mei_device *dev);
-void allocate_me_clients_storage(struct mei_device *dev);
+void mei_host_init_iamthif(struct mei_device *dev);
+void mei_allocate_me_clients_storage(struct mei_device *dev);
 
-void host_start_message(struct mei_device *dev);
-void host_enum_clients_message(struct mei_device *dev);
-void host_client_properties(struct mei_device *dev);
 
 u8 mei_find_me_client_update_filext(struct mei_device *dev,
 				struct mei_cl *priv,
 				const uuid_le *cguid, u8 client_id);
 
 /*
- *  interrupt functions prototype
+ * MEI ME Client Functions
+ */
+
+struct mei_cl *mei_cl_allocate(struct mei_device *dev);
+void mei_cl_init(struct mei_cl *priv, struct mei_device *dev);
+
+
+/*
+ * MEI Host Client Functions
+ */
+void mei_host_start_message(struct mei_device *dev);
+void mei_host_enum_clients_message(struct mei_device *dev);
+void mei_host_client_properties(struct mei_device *dev);
+
+/*
+ *  MEI interrupt functions prototype
  */
 irqreturn_t mei_interrupt_quick_handler(int irq, void *dev_id);
-irqreturn_t  mei_interrupt_thread_handler(int irq, void *dev_id);
+irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id);
 void mei_wd_timer(struct work_struct *work);
 
 /*
- *  input output function prototype
+ *  MEI input output function prototype
  */
 int mei_ioctl_connect_client(struct file *file,
 			struct mei_connect_client_data *data);
@@ -319,7 +329,7 @@ int amthi_read(struct mei_device *dev, struct file *file,
 struct mei_cl_cb *find_amthi_read_list_entry(struct mei_device *dev,
 						struct file *file);
 
-void run_next_iamthif_cmd(struct mei_device *dev);
+void mei_run_next_iamthif_cmd(struct mei_device *dev);
 
 void mei_free_cb_private(struct mei_cl_cb *priv_cb);
 

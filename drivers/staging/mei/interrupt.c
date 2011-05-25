@@ -94,7 +94,7 @@ static void _mei_cmpl_iamthif(struct mei_device *dev, struct mei_cl_cb *cb_pos)
 		dev_dbg(&dev->pdev->dev, "dev->iamthif_timer = %ld\n",
 				dev->iamthif_timer);
 	} else {
-		run_next_iamthif_cmd(dev);
+		mei_run_next_iamthif_cmd(dev);
 	}
 
 	dev_dbg(&dev->pdev->dev, "completing amthi call back.\n");
@@ -396,7 +396,7 @@ static void mei_client_connect_response(struct mei_device *dev,
 		dev->wd_due_counter = (dev->wd_timeout) ? 1 : 0;
 
 		dev_dbg(&dev->pdev->dev, "successfully connected to WD client.\n");
-		host_init_iamthif(dev);
+		mei_host_init_iamthif(dev);
 		return;
 	}
 
@@ -659,7 +659,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 			if (dev->mei_state == MEI_INIT_CLIENTS &&
 			    dev->init_clients_state == MEI_START_MESSAGE) {
 				dev->init_clients_timer = 0;
-				host_enum_clients_message(dev);
+				mei_host_enum_clients_message(dev);
 			} else {
 				dev->recvd_msg = 0;
 				dev_dbg(&dev->pdev->dev, "IMEI reset due to received host start response bus message.\n");
@@ -734,7 +734,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 					MEI_CLIENT_PROPERTIES_MESSAGE) {
 				dev->me_client_index++;
 				dev->me_client_presentation_num++;
-				host_client_properties(dev);
+				mei_host_client_properties(dev);
 			} else {
 				dev_dbg(&dev->pdev->dev, "reset due to received host client properties response bus message");
 				mei_reset(dev, 1);
@@ -755,10 +755,10 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 				dev->init_clients_timer = 0;
 				dev->me_client_presentation_num = 0;
 				dev->me_client_index = 0;
-				allocate_me_clients_storage(dev);
+				mei_allocate_me_clients_storage(dev);
 				dev->init_clients_state =
 					MEI_CLIENT_PROPERTIES_MESSAGE;
-				host_client_properties(dev);
+				mei_host_client_properties(dev);
 		} else {
 			dev_dbg(&dev->pdev->dev, "reset due to received host enumeration clients response bus message.\n");
 			mei_reset(dev, 1);
@@ -1462,7 +1462,7 @@ void mei_wd_timer(struct work_struct *work)
 
 			dev->iamthif_file_object = NULL;
 			dev->iamthif_current_cb = NULL;
-			run_next_iamthif_cmd(dev);
+			mei_run_next_iamthif_cmd(dev);
 		}
 	}
 
@@ -1506,7 +1506,7 @@ void mei_wd_timer(struct work_struct *work)
 			dev->iamthif_file_object = NULL;
 			dev->iamthif_current_cb = NULL;
 			dev->iamthif_timer = 0;
-			run_next_iamthif_cmd(dev);
+			mei_run_next_iamthif_cmd(dev);
 
 		}
 	}
@@ -1564,7 +1564,7 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 			/* link is established
 			 * start sending messages.
 			 */
-			host_start_message(dev);
+			mei_host_start_message(dev);
 			mutex_unlock(&dev->device_lock);
 			return IRQ_HANDLED;
 		} else {

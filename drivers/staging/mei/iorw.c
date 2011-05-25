@@ -547,7 +547,7 @@ int amthi_write(struct mei_device *dev, struct mei_cl_cb *cb)
  *
  * returns 0 on success, <0 on failure.
  */
-void run_next_iamthif_cmd(struct mei_device *dev)
+void mei_run_next_iamthif_cmd(struct mei_device *dev)
 {
 	struct mei_cl *cl_tmp;
 	struct mei_cl_cb *cb_pos = NULL;
