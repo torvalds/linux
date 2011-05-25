@@ -144,7 +144,7 @@ static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv,
 	size_t cmd_size  = sizeof(struct iwl_wep_cmd);
 	struct iwl_host_cmd cmd = {
 		.id = ctx->wep_key_cmd,
-		.data = wep_cmd,
+		.data = { wep_cmd, },
 		.flags = CMD_SYNC,
 	};
 
@@ -172,7 +172,7 @@ static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv,
 
 	cmd_size += sizeof(struct iwl_wep_key) * WEP_KEYS_MAX;
 
-	cmd.len = cmd_size;
+	cmd.len[0] = cmd_size;
 
 	if (not_empty || send_if_empty)
 		return iwl_send_cmd(priv, &cmd);

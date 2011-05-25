@@ -69,7 +69,8 @@ struct mwifiex_drv_mode {
 #define MWIFIEX_TIMER_10S			10000
 #define MWIFIEX_TIMER_1S			1000
 
-#define MAX_TX_PENDING      60
+#define MAX_TX_PENDING      100
+#define LOW_TX_PENDING      80
 
 #define MWIFIEX_UPLD_SIZE               (2312)
 
@@ -202,6 +203,7 @@ struct mwifiex_tid_tbl {
 #define WMM_HIGHEST_PRIORITY		7
 #define HIGH_PRIO_TID				7
 #define LOW_PRIO_TID				0
+#define NO_PKT_PRIO_TID				(-1)
 
 struct mwifiex_wmm_desc {
 	struct mwifiex_tid_tbl tid_tbl_ptr[MAX_NUM_TID];
@@ -213,7 +215,10 @@ struct mwifiex_wmm_desc {
 	u32 drv_pkt_delay_max;
 	u8 queue_priority[IEEE80211_MAX_QUEUES];
 	u32 user_pri_pkt_tx_ctrl[WMM_HIGHEST_PRIORITY + 1];	/* UP: 0 to 7 */
-
+	/* Number of transmit packets queued */
+	atomic_t tx_pkts_queued;
+	/* Tracks highest priority with a packet queued */
+	atomic_t highest_queued_prio;
 };
 
 struct mwifiex_802_11_security {

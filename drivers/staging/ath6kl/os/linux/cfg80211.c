@@ -570,7 +570,7 @@ ar6k_cfg80211_connect_event(struct ar6_softc *ar, u16 channel,
                                 WLAN_STATUS_SUCCESS, GFP_KERNEL);
     } else {
         /* inform roam event to cfg80211 */
-        cfg80211_roamed(ar->arNetDev, bssid,
+	cfg80211_roamed(ar->arNetDev, ibss_channel, bssid,
                         assocReqIe, assocReqLen,
                         assocRespIe, assocRespLen,
                         GFP_KERNEL);

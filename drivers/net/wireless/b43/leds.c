@@ -138,7 +138,7 @@ static int b43_register_led(struct b43_wldev *dev, struct b43_led *led,
 	led->led_dev.default_trigger = default_trigger;
 	led->led_dev.brightness_set = b43_led_brightness_set;
 
-	err = led_classdev_register(dev->dev->dev, &led->led_dev);
+	err = led_classdev_register(dev->sdev->dev, &led->led_dev);
 	if (err) {
 		b43warn(dev->wl, "LEDs: Failed to register %s\n", name);
 		led->wl = NULL;
@@ -215,7 +215,7 @@ static void b43_led_get_sprominfo(struct b43_wldev *dev,
 				  enum b43_led_behaviour *behaviour,
 				  bool *activelow)
 {
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 	u8 sprom[4];
 
 	sprom[0] = bus->sprom.gpio0;
