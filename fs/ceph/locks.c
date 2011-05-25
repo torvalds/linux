@@ -33,10 +33,9 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct file *file,
 		length = fl->fl_end - fl->fl_start + 1;
 
 	dout("ceph_lock_message: rule: %d, op: %d, pid: %llu, start: %llu, "
-	     "length: %llu, wait: %d, type`: %d", (int)lock_type,
+	     "length: %llu, wait: %d, type: %d", (int)lock_type,
 	     (int)operation, (u64)fl->fl_pid, fl->fl_start,
 	     length, wait, fl->fl_type);
-
 
 	req->r_args.filelock_change.rule = lock_type;
 	req->r_args.filelock_change.type = cmd;
@@ -71,7 +70,7 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct file *file,
 	}
 	ceph_mdsc_put_request(req);
 	dout("ceph_lock_message: rule: %d, op: %d, pid: %llu, start: %llu, "
-	     "length: %llu, wait: %d, type`: %d, err code %d", (int)lock_type,
+	     "length: %llu, wait: %d, type: %d, err code %d", (int)lock_type,
 	     (int)operation, (u64)fl->fl_pid, fl->fl_start,
 	     length, wait, fl->fl_type, err);
 	return err;
@@ -110,16 +109,20 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 			dout("mds locked, locking locally");
 			err = posix_lock_file(file, fl, NULL);
 			if (err && (CEPH_MDS_OP_SETFILELOCK == op)) {
-				/* undo! This should only happen if the kernel detects
-				 * local deadlock. */
+				/* undo! This should only happen if
+				 * the kernel detects local
+				 * deadlock. */
 				ceph_lock_message(CEPH_LOCK_FCNTL, op, file,
 						  CEPH_LOCK_UNLOCK, 0, fl);
-				dout("got %d on posix_lock_file, undid lock", err);
+				dout("got %d on posix_lock_file, undid lock",
+				     err);
 			}
 		}
 
-	} else {
-		dout("mds returned error code %d", err);
+	} else if (err == -ERESTARTSYS) {
+		dout("undoing lock\n");
+		ceph_lock_message(CEPH_LOCK_FCNTL, op, file,
+				  CEPH_LOCK_UNLOCK, 0, fl);
 	}
 	return err;
 }
@@ -156,8 +159,11 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 					  file, CEPH_LOCK_UNLOCK, 0, fl);
 			dout("got %d on flock_lock_file_wait, undid lock", err);
 		}
-	} else {
-		dout("mds error code %d", err);
+	} else if (err == -ERESTARTSYS) {
+		dout("undoing lock\n");
+		ceph_lock_message(CEPH_LOCK_FLOCK,
+				  CEPH_MDS_OP_SETFILELOCK,
+				  file, CEPH_LOCK_UNLOCK, 0, fl);
 	}
 	return err;
 }
