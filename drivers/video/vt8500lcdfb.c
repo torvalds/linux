@@ -210,8 +210,8 @@ static int vt8500lcd_pan_display(struct fb_var_screeninfo *var,
 	struct vt8500lcd_info *fbi = to_vt8500lcd_info(info);
 
 	writel((1 << 31)
-		| (((var->xres_virtual - var->xres) * pixlen / 4) << 20)
-		| (off >> 2), fbi->regbase + 0x20);
+	     | (((info->var.xres_virtual - info->var.xres) * pixlen / 4) << 20)
+	     | (off >> 2), fbi->regbase + 0x20);
 	return 0;
 }
 
