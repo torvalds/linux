@@ -498,7 +498,7 @@ static void pti_tty_cleanup(struct tty_struct *tty)
 	if (pti_tty_data == NULL)
 		return;
 	pti_release_masterchannel(pti_tty_data->mc);
-	kfree(tty->driver_data);
+	kfree(pti_tty_data);
 	tty->driver_data = NULL;
 }
 
