@@ -176,6 +176,7 @@ static int stmp3xxx_rtc_remove(struct platform_device *pdev)
 	free_irq(rtc_data->irq_alarm, &pdev->dev);
 	free_irq(rtc_data->irq_1msec, &pdev->dev);
 	rtc_device_unregister(rtc_data->rtc);
+	platform_set_drvdata(pdev, NULL);
 	iounmap(rtc_data->io);
 	kfree(rtc_data);
 
@@ -216,11 +217,14 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 		goto out_remap;
 	}
 
+	platform_set_drvdata(pdev, rtc_data);
+
 	mxs_reset_block(rtc_data->io);
 	__mxs_clrl(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE,
 			rtc_data->io + STMP3XXX_RTC_PERSISTENT0);
+
 	rtc_data->rtc = rtc_device_register(pdev->name, &pdev->dev,
 				&stmp3xxx_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc_data->rtc)) {
@@ -244,8 +248,6 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 		goto out_irq1;
 	}
 
-	platform_set_drvdata(pdev, rtc_data);
-
 	return 0;
 
 out_irq1:
@@ -256,6 +258,7 @@ out_irq_alarm:
 			rtc_data->io + STMP3XXX_RTC_CTRL);
 	rtc_device_unregister(rtc_data->rtc);
 out_remap:
+	platform_set_drvdata(pdev, NULL);
 	iounmap(rtc_data->io);
 out_free:
 	kfree(rtc_data);
