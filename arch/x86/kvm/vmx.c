@@ -1396,6 +1396,218 @@ static inline bool nested_vmx_allowed(struct kvm_vcpu *vcpu)
 }
 
 /*
+ * nested_vmx_setup_ctls_msrs() sets up variables containing the values to be
+ * returned for the various VMX controls MSRs when nested VMX is enabled.
+ * The same values should also be used to verify that vmcs12 control fields are
+ * valid during nested entry from L1 to L2.
+ * Each of these control msrs has a low and high 32-bit half: A low bit is on
+ * if the corresponding bit in the (32-bit) control field *must* be on, and a
+ * bit in the high half is on if the corresponding bit in the control field
+ * may be on. See also vmx_control_verify().
+ * TODO: allow these variables to be modified (downgraded) by module options
+ * or other means.
+ */
+static u32 nested_vmx_procbased_ctls_low, nested_vmx_procbased_ctls_high;
+static u32 nested_vmx_secondary_ctls_low, nested_vmx_secondary_ctls_high;
+static u32 nested_vmx_pinbased_ctls_low, nested_vmx_pinbased_ctls_high;
+static u32 nested_vmx_exit_ctls_low, nested_vmx_exit_ctls_high;
+static u32 nested_vmx_entry_ctls_low, nested_vmx_entry_ctls_high;
+static __init void nested_vmx_setup_ctls_msrs(void)
+{
+	/*
+	 * Note that as a general rule, the high half of the MSRs (bits in
+	 * the control fields which may be 1) should be initialized by the
+	 * intersection of the underlying hardware's MSR (i.e., features which
+	 * can be supported) and the list of features we want to expose -
+	 * because they are known to be properly supported in our code.
+	 * Also, usually, the low half of the MSRs (bits which must be 1) can
+	 * be set to 0, meaning that L1 may turn off any of these bits. The
+	 * reason is that if one of these bits is necessary, it will appear
+	 * in vmcs01 and prepare_vmcs02, when it bitwise-or's the control
+	 * fields of vmcs01 and vmcs02, will turn these bits off - and
+	 * nested_vmx_exit_handled() will not pass related exits to L1.
+	 * These rules have exceptions below.
+	 */
+
+	/* pin-based controls */
+	/*
+	 * According to the Intel spec, if bit 55 of VMX_BASIC is off (as it is
+	 * in our case), bits 1, 2 and 4 (i.e., 0x16) must be 1 in this MSR.
+	 */
+	nested_vmx_pinbased_ctls_low = 0x16 ;
+	nested_vmx_pinbased_ctls_high = 0x16 |
+		PIN_BASED_EXT_INTR_MASK | PIN_BASED_NMI_EXITING |
+		PIN_BASED_VIRTUAL_NMIS;
+
+	/* exit controls */
+	nested_vmx_exit_ctls_low = 0;
+#ifdef CONFIG_X86_64
+	nested_vmx_exit_ctls_high = VM_EXIT_HOST_ADDR_SPACE_SIZE;
+#else
+	nested_vmx_exit_ctls_high = 0;
+#endif
+
+	/* entry controls */
+	rdmsr(MSR_IA32_VMX_ENTRY_CTLS,
+		nested_vmx_entry_ctls_low, nested_vmx_entry_ctls_high);
+	nested_vmx_entry_ctls_low = 0;
+	nested_vmx_entry_ctls_high &=
+		VM_ENTRY_LOAD_IA32_PAT | VM_ENTRY_IA32E_MODE;
+
+	/* cpu-based controls */
+	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS,
+		nested_vmx_procbased_ctls_low, nested_vmx_procbased_ctls_high);
+	nested_vmx_procbased_ctls_low = 0;
+	nested_vmx_procbased_ctls_high &=
+		CPU_BASED_VIRTUAL_INTR_PENDING | CPU_BASED_USE_TSC_OFFSETING |
+		CPU_BASED_HLT_EXITING | CPU_BASED_INVLPG_EXITING |
+		CPU_BASED_MWAIT_EXITING | CPU_BASED_CR3_LOAD_EXITING |
+		CPU_BASED_CR3_STORE_EXITING |
+#ifdef CONFIG_X86_64
+		CPU_BASED_CR8_LOAD_EXITING | CPU_BASED_CR8_STORE_EXITING |
+#endif
+		CPU_BASED_MOV_DR_EXITING | CPU_BASED_UNCOND_IO_EXITING |
+		CPU_BASED_USE_IO_BITMAPS | CPU_BASED_MONITOR_EXITING |
+		CPU_BASED_ACTIVATE_SECONDARY_CONTROLS;
+	/*
+	 * We can allow some features even when not supported by the
+	 * hardware. For example, L1 can specify an MSR bitmap - and we
+	 * can use it to avoid exits to L1 - even when L0 runs L2
+	 * without MSR bitmaps.
+	 */
+	nested_vmx_procbased_ctls_high |= CPU_BASED_USE_MSR_BITMAPS;
+
+	/* secondary cpu-based controls */
+	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2,
+		nested_vmx_secondary_ctls_low, nested_vmx_secondary_ctls_high);
+	nested_vmx_secondary_ctls_low = 0;
+	nested_vmx_secondary_ctls_high &=
+		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
+}
+
+static inline bool vmx_control_verify(u32 control, u32 low, u32 high)
+{
+	/*
+	 * Bits 0 in high must be 0, and bits 1 in low must be 1.
+	 */
+	return ((control & high) | low) == control;
+}
+
+static inline u64 vmx_control_msr(u32 low, u32 high)
+{
+	return low | ((u64)high << 32);
+}
+
+/*
+ * If we allow our guest to use VMX instructions (i.e., nested VMX), we should
+ * also let it use VMX-specific MSRs.
+ * vmx_get_vmx_msr() and vmx_set_vmx_msr() return 1 when we handled a
+ * VMX-specific MSR, or 0 when we haven't (and the caller should handle it
+ * like all other MSRs).
+ */
+static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
+{
+	if (!nested_vmx_allowed(vcpu) && msr_index >= MSR_IA32_VMX_BASIC &&
+		     msr_index <= MSR_IA32_VMX_TRUE_ENTRY_CTLS) {
+		/*
+		 * According to the spec, processors which do not support VMX
+		 * should throw a #GP(0) when VMX capability MSRs are read.
+		 */
+		kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
+		return 1;
+	}
+
+	switch (msr_index) {
+	case MSR_IA32_FEATURE_CONTROL:
+		*pdata = 0;
+		break;
+	case MSR_IA32_VMX_BASIC:
+		/*
+		 * This MSR reports some information about VMX support. We
+		 * should return information about the VMX we emulate for the
+		 * guest, and the VMCS structure we give it - not about the
+		 * VMX support of the underlying hardware.
+		 */
+		*pdata = VMCS12_REVISION |
+			   ((u64)VMCS12_SIZE << VMX_BASIC_VMCS_SIZE_SHIFT) |
+			   (VMX_BASIC_MEM_TYPE_WB << VMX_BASIC_MEM_TYPE_SHIFT);
+		break;
+	case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
+	case MSR_IA32_VMX_PINBASED_CTLS:
+		*pdata = vmx_control_msr(nested_vmx_pinbased_ctls_low,
+					nested_vmx_pinbased_ctls_high);
+		break;
+	case MSR_IA32_VMX_TRUE_PROCBASED_CTLS:
+	case MSR_IA32_VMX_PROCBASED_CTLS:
+		*pdata = vmx_control_msr(nested_vmx_procbased_ctls_low,
+					nested_vmx_procbased_ctls_high);
+		break;
+	case MSR_IA32_VMX_TRUE_EXIT_CTLS:
+	case MSR_IA32_VMX_EXIT_CTLS:
+		*pdata = vmx_control_msr(nested_vmx_exit_ctls_low,
+					nested_vmx_exit_ctls_high);
+		break;
+	case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
+	case MSR_IA32_VMX_ENTRY_CTLS:
+		*pdata = vmx_control_msr(nested_vmx_entry_ctls_low,
+					nested_vmx_entry_ctls_high);
+		break;
+	case MSR_IA32_VMX_MISC:
+		*pdata = 0;
+		break;
+	/*
+	 * These MSRs specify bits which the guest must keep fixed (on or off)
+	 * while L1 is in VMXON mode (in L1's root mode, or running an L2).
+	 * We picked the standard core2 setting.
+	 */
+#define VMXON_CR0_ALWAYSON	(X86_CR0_PE | X86_CR0_PG | X86_CR0_NE)
+#define VMXON_CR4_ALWAYSON	X86_CR4_VMXE
+	case MSR_IA32_VMX_CR0_FIXED0:
+		*pdata = VMXON_CR0_ALWAYSON;
+		break;
+	case MSR_IA32_VMX_CR0_FIXED1:
+		*pdata = -1ULL;
+		break;
+	case MSR_IA32_VMX_CR4_FIXED0:
+		*pdata = VMXON_CR4_ALWAYSON;
+		break;
+	case MSR_IA32_VMX_CR4_FIXED1:
+		*pdata = -1ULL;
+		break;
+	case MSR_IA32_VMX_VMCS_ENUM:
+		*pdata = 0x1f;
+		break;
+	case MSR_IA32_VMX_PROCBASED_CTLS2:
+		*pdata = vmx_control_msr(nested_vmx_secondary_ctls_low,
+					nested_vmx_secondary_ctls_high);
+		break;
+	case MSR_IA32_VMX_EPT_VPID_CAP:
+		/* Currently, no nested ept or nested vpid */
+		*pdata = 0;
+		break;
+	default:
+		return 0;
+	}
+
+	return 1;
+}
+
+static int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
+{
+	if (!nested_vmx_allowed(vcpu))
+		return 0;
+
+	if (msr_index == MSR_IA32_FEATURE_CONTROL)
+		/* TODO: the right thing. */
+		return 1;
+	/*
+	 * No need to treat VMX capability MSRs specially: If we don't handle
+	 * them, handle_wrmsr will #GP(0), which is correct (they are readonly)
+	 */
+	return 0;
+}
+
+/*
  * Reads an msr value (of 'msr_index') into 'pdata'.
  * Returns 0 on success, non-0 otherwise.
  * Assumes vcpu_load() was already called.
@@ -1443,6 +1655,8 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 		/* Otherwise falls through */
 	default:
 		vmx_load_host_state(to_vmx(vcpu));
+		if (vmx_get_vmx_msr(vcpu, msr_index, pdata))
+			return 0;
 		msr = find_msr_entry(to_vmx(vcpu), msr_index);
 		if (msr) {
 			vmx_load_host_state(to_vmx(vcpu));
@@ -1514,6 +1728,8 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 			return 1;
 		/* Otherwise falls through */
 	default:
+		if (vmx_set_vmx_msr(vcpu, msr_index, data))
+			break;
 		msr = find_msr_entry(vmx, msr_index);
 		if (msr) {
 			vmx_load_host_state(vmx);
@@ -1901,6 +2117,9 @@ static __init int hardware_setup(void)
 
 	if (!cpu_has_vmx_ple())
 		ple_gap = 0;
+
+	if (nested)
+		nested_vmx_setup_ctls_msrs();
 
 	return alloc_kvm_area();
 }
