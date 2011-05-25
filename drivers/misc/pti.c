@@ -444,9 +444,9 @@ static void pti_tty_driver_close(struct tty_struct *tty, struct file *filp)
 }
 
 /**
- * pti_tty_intstall()- Used to set up specific master-channels
- *		       to tty ports for organizational purposes when
- *		       tracing viewed from debuging tools.
+ * pti_tty_install()- Used to set up specific master-channels
+ *		      to tty ports for organizational purposes when
+ *		      tracing viewed from debuging tools.
  *
  * @driver: tty driver information.
  * @tty: tty struct containing pti information.
