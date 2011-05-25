@@ -58,6 +58,7 @@
 #ifdef __KERNEL__
 #include <linux/firmware.h>
 #include <linux/pci.h>
+#include <linux/efi.h>
 #include "isci.h"
 
 #define SCIC_SDS_PARM_NO_SPEED   0
@@ -202,7 +203,6 @@ struct isci_oem_hdr {
 #define ISCI_EFI_VENDOR_GUID	\
 	EFI_GUID(0x193dfefa, 0xa445, 0x4302, 0x99, 0xd8, 0xef, 0x3a, 0xad, \
 			0x1a, 0x04, 0xc6)
-#define ISCI_EFI_ATTRIBUTES	0
 #define ISCI_EFI_VAR_NAME	"RstScuO"
 
 /* Allowed PORT configuration modes APC Automatic PORT configuration mode is
