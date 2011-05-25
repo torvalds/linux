@@ -42,7 +42,7 @@
  * ZERO_PAGE is a special page that is used for zero-initialized
  * data and COW.
  */
-unsigned long empty_zero_page;
+void *empty_zero_page;
 
 extern unsigned long memory_start;
 extern unsigned long memory_end;
@@ -62,8 +62,8 @@ void __init paging_init(void)
 	unsigned long end_mem   = memory_end & PAGE_MASK;
 	unsigned long zones_size[MAX_NR_ZONES] = {0, };
 
-	empty_zero_page = (unsigned long)alloc_bootmem_pages(PAGE_SIZE);
-	memset((void *)empty_zero_page, 0, PAGE_SIZE);
+	empty_zero_page = alloc_bootmem_pages(PAGE_SIZE);
+	memset(empty_zero_page, 0, PAGE_SIZE);
 
 	/*
 	 * Set up SFC/DFC registers (user data space).
