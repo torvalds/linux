@@ -427,6 +427,298 @@ OnProcessExit(
 #endif
 }
 
+
+#if gcdkUSE_NON_PAGED_MEMORY_CACHE
+gceSTATUS
+gckOS_AllocateNonPagedMemoryFromSystem(
+    IN gckOS Os,
+    IN gctBOOL InUserSpace,
+    IN OUT gctSIZE_T * Bytes,
+    OUT gctPHYS_ADDR * Physical,
+    OUT gctPOINTER * Logical
+    )
+{
+    gctSIZE_T       bytes;
+    gctINT          numPages;
+    PLINUX_MDL      mdl;
+    PLINUX_MDL_MAP  mdlMap = 0;
+    gctSTRING       addr;
+
+#ifdef NO_DMA_COHERENT
+    struct page *   page;
+    long            size, order;
+    gctPOINTER      vaddr;
+#endif
+
+    /* Verify the arguments. */
+    gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
+    gcmkVERIFY_ARGUMENT((Bytes != NULL) && (*Bytes > 0));
+    gcmkVERIFY_ARGUMENT(Physical != NULL);
+    gcmkVERIFY_ARGUMENT(Logical != NULL);
+
+    gcmkTRACE_ZONE(gcvLEVEL_INFO,
+                gcvZONE_OS,
+                "in gckOS_AllocateNonPagedMemory");
+
+    /* Align number of bytes to page size. */
+    bytes = gcmALIGN(*Bytes, PAGE_SIZE);
+
+    /* Get total number of pages.. */
+    numPages = GetPageCount(bytes, 0);
+
+    /* Allocate mdl+vector structure */
+    mdl = _CreateMdl(current->tgid);
+
+    if (mdl == gcvNULL)
+    {
+        return gcvSTATUS_OUT_OF_MEMORY;
+    }
+
+    mdl->pagedMem = 0;
+    mdl->numPages = numPages;
+
+    MEMORY_LOCK(Os);
+
+#ifndef NO_DMA_COHERENT
+    addr = dma_alloc_coherent(NULL,
+                mdl->numPages * PAGE_SIZE,
+                &mdl->dmaHandle,
+                GFP_ATOMIC);
+#else
+    size    = mdl->numPages * PAGE_SIZE;
+    order   = get_order(size);
+    page    = alloc_pages(GFP_KERNEL , order);  // dkm modify 110330 将GFP_DMA去掉,避免分配不到DMA内存
+
+    if (page == gcvNULL)
+    {
+        MEMORY_UNLOCK(Os);
+
+        return gcvSTATUS_OUT_OF_MEMORY;
+    }
+
+    vaddr           = (gctPOINTER)page_address(page);
+// dkm: gcdENABLE_MEM_CACHE
+#if (1==gcdENABLE_MEM_CACHE)
+    addr            = ioremap_cached(virt_to_phys(vaddr), size);
+#else
+    addr            = ioremap_nocache(virt_to_phys(vaddr), size);
+#endif
+    mdl->dmaHandle  = virt_to_phys(vaddr);
+    mdl->kaddr      = vaddr;
+
+#if ENABLE_ARM_L2_CACHE
+    dma_cache_maint(vaddr, size, DMA_FROM_DEVICE);
+#endif
+
+    while (size > 0)
+    {
+        SetPageReserved(virt_to_page(vaddr));
+
+        vaddr   += PAGE_SIZE;
+        size    -= PAGE_SIZE;
+    }
+#endif
+
+    if (addr == gcvNULL)
+    {
+        gcmkTRACE_ZONE(gcvLEVEL_INFO,
+                gcvZONE_OS,
+                "galcore: Can't allocate memorry for size->0x%x",
+                (gctUINT32)bytes);
+
+        gcmkVERIFY_OK(_DestroyMdl(mdl));
+
+        MEMORY_UNLOCK(Os);
+
+        return gcvSTATUS_OUT_OF_MEMORY;
+    }
+
+    if ((Os->baseAddress & 0x80000000) != (mdl->dmaHandle & 0x80000000))
+    {
+        mdl->dmaHandle = (mdl->dmaHandle & ~0x80000000)
+                       | (Os->baseAddress & 0x80000000);
+    }
+
+    mdl->addr = addr;
+
+    /*
+     * We will not do any mapping from here.
+     * Mapping will happen from mmap method.
+     * mdl structure will be used.
+     */
+
+    /* Return allocated memory. */
+    *Bytes = bytes;
+    *Physical = (gctPHYS_ADDR) mdl;
+
+    if (InUserSpace)
+    {
+        mdlMap = _CreateMdlMap(mdl, current->tgid);
+
+        if (mdlMap == gcvNULL)
+        {
+            gcmkVERIFY_OK(_DestroyMdl(mdl));
+
+            MEMORY_UNLOCK(Os);
+
+            return gcvSTATUS_OUT_OF_MEMORY;
+        }
+
+        /* Only after mmap this will be valid. */
+
+        /* We need to map this to user space. */
+        down_write(&current->mm->mmap_sem);
+
+        mdlMap->vmaAddr = (gctSTRING)do_mmap_pgoff(gcvNULL,
+                0L,
+                mdl->numPages * PAGE_SIZE,
+                PROT_READ | PROT_WRITE,
+                MAP_SHARED,
+                0);
+
+        if (mdlMap->vmaAddr == gcvNULL)
+        {
+            gcmkTRACE_ZONE(gcvLEVEL_INFO,
+                gcvZONE_OS,
+                "galcore: do_mmap_pgoff error");
+
+            up_write(&current->mm->mmap_sem);
+
+            gcmkVERIFY_OK(_DestroyMdlMap(mdl, mdlMap));
+            gcmkVERIFY_OK(_DestroyMdl(mdl));
+
+            MEMORY_UNLOCK(Os);
+
+            return gcvSTATUS_OUT_OF_MEMORY;
+        }
+
+        mdlMap->vma = find_vma(current->mm, (unsigned long)mdlMap->vmaAddr);
+
+        if (mdlMap->vma == gcvNULL)
+        {
+            gcmkTRACE_ZONE(gcvLEVEL_INFO,
+                gcvZONE_OS,
+                "find_vma error");
+
+            up_write(&current->mm->mmap_sem);
+
+            gcmkVERIFY_OK(_DestroyMdlMap(mdl, mdlMap));
+            gcmkVERIFY_OK(_DestroyMdl(mdl));
+
+            MEMORY_UNLOCK(Os);
+
+            return gcvSTATUS_OUT_OF_RESOURCES;
+        }
+
+#ifndef NO_DMA_COHERENT
+        if (dma_mmap_coherent(NULL,
+                mdlMap->vma,
+                mdl->addr,
+                mdl->dmaHandle,
+                mdl->numPages * PAGE_SIZE) < 0)
+        {
+            up_write(&current->mm->mmap_sem);
+
+            gcmkTRACE_ZONE(gcvLEVEL_INFO,
+                gcvZONE_OS,
+                "dma_mmap_coherent error");
+
+            gcmkVERIFY_OK(_DestroyMdlMap(mdl, mdlMap));
+            gcmkVERIFY_OK(_DestroyMdl(mdl));
+
+            MEMORY_UNLOCK(Os);
+
+            return gcvSTATUS_OUT_OF_RESOURCES;
+        }
+#else
+
+// dkm: gcdENABLE_MEM_CACHE
+#if (2==gcdENABLE_MEM_CACHE)
+        //mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
+        mdlMap->vma->vm_page_prot = pgprot_noncached(mdlMap->vma->vm_page_prot);
+#elif (1==gcdENABLE_MEM_CACHE)
+        // NULL
+#else
+        mdlMap->vma->vm_page_prot = pgprot_noncached(mdlMap->vma->vm_page_prot);
+#endif
+        mdlMap->vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_RESERVED;
+        mdlMap->vma->vm_pgoff = 0;
+
+        if (remap_pfn_range(mdlMap->vma,
+                            mdlMap->vma->vm_start,
+                            mdl->dmaHandle >> PAGE_SHIFT,
+                            mdl->numPages * PAGE_SIZE,
+                            mdlMap->vma->vm_page_prot))
+        {
+            up_write(&current->mm->mmap_sem);
+
+            gcmkTRACE_ZONE(gcvLEVEL_INFO,
+                    gcvZONE_OS,
+                    "remap_pfn_range error");
+
+            gcmkVERIFY_OK(_DestroyMdlMap(mdl, mdlMap));
+            gcmkVERIFY_OK(_DestroyMdl(mdl));
+
+            MEMORY_UNLOCK(Os);
+
+            return gcvSTATUS_OUT_OF_RESOURCES;
+        }
+#endif /* NO_DMA_COHERENT */
+
+        up_write(&current->mm->mmap_sem);
+
+        *Logical = mdlMap->vmaAddr;
+    }
+    else
+    {
+        *Logical = (gctPOINTER)mdl->addr;
+    }
+
+    /*
+     * Add this to a global list.
+     * Will be used by get physical address
+     * and mapuser pointer functions.
+     */
+
+    if (!Os->mdlHead)
+    {
+        /* Initialize the queue. */
+        Os->mdlHead = Os->mdlTail = mdl;
+    }
+    else
+    {
+        /* Add to the tail. */
+        mdl->prev = Os->mdlTail;
+        Os->mdlTail->next = mdl;
+        Os->mdlTail = mdl;
+    }
+
+    MEMORY_UNLOCK(Os);
+
+    gcmkTRACE_ZONE(gcvLEVEL_INFO,
+                gcvZONE_OS,
+                "gckOS_AllocateNonPagedMemory: "
+                "Bytes->0x%x, Mdl->%p, Logical->0x%x dmaHandle->0x%x",
+                (gctUINT32)bytes,
+                mdl,
+                (gctUINT32)mdl->addr,
+                mdl->dmaHandle);
+
+    if (InUserSpace)
+    {
+        gcmkTRACE_ZONE(gcvLEVEL_INFO,
+                gcvZONE_OS,
+                "vmaAddr->0x%x pid->%d",
+                (gctUINT32)mdlMap->vmaAddr,
+                mdlMap->pid);
+    }
+
+    /* Success. */
+    return gcvSTATUS_OK;
+}
+
+#endif
+
 /*******************************************************************************
 **
 **  gckOS_Construct
@@ -535,6 +827,16 @@ gckOS_Construct(
     os->cacheSize = 0;
     os->cacheHead = gcvNULL;
     os->cacheTail = gcvNULL;
+    {
+        int i = 0;
+        gctPHYS_ADDR Physical;
+        gctPOINTER Logical;
+        gctSIZE_T pageSize = 8*PAGE_SIZE;
+        for(i=0; i<80; i++) {
+            gcmkONERROR(gckOS_AllocateNonPagedMemoryFromSystem(os, gcvFALSE, &pageSize, &Physical, &Logical));
+            gckOS_FreeNonPagedMemory(os, pageSize, Physical, Logical); 
+        }
+    }
 #endif
 
     /* Return pointer to the gckOS object. */
@@ -1282,7 +1584,7 @@ _AddNonPagedMemoryCache(
     }
 
     Os->cacheSize++;
-    //printk("+ Os->cacheSize = %d \n", Os->cacheSize);
+    //printk("+ Os->cacheSize = %d Order = %d\n", Os->cacheSize, (int)Order);
 
     return gcvTRUE;
 }
@@ -1362,7 +1664,7 @@ _GetNonPagedMemoryCache(
     kfree(cache);
 
     Os->cacheSize--;
-    //printk("- Os->cacheSize = %d \n", Os->cacheSize);
+    //printk("- Os->cacheSize = %d Order = %d\n", Os->cacheSize, (int)Order);
 
 #ifndef NO_DMA_COHERENT
     return addr;
@@ -1433,6 +1735,8 @@ _FreeAllNonPagedMemoryCache(
 
     MEMORY_UNLOCK(Os);
 }
+
+
 
 #endif /* gcdkUSE_NON_PAGED_MEMORY_CACHE */
 
@@ -1557,7 +1861,12 @@ gckOS_AllocateNonPagedMemory(
     }
 
     vaddr           = (gctPOINTER)page_address(page);
+// dkm: gcdENABLE_MEM_CACHE
+#if (1==gcdENABLE_MEM_CACHE)
+    addr            = ioremap_cached(virt_to_phys(vaddr), size);
+#else
     addr            = ioremap_nocache(virt_to_phys(vaddr), size);
+#endif
     mdl->dmaHandle  = virt_to_phys(vaddr);
     mdl->kaddr      = vaddr;
 
@@ -1687,7 +1996,15 @@ gckOS_AllocateNonPagedMemory(
         }
 #else
 
+// dkm: gcdENABLE_MEM_CACHE
+#if (2==gcdENABLE_MEM_CACHE)
+        //mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
         mdlMap->vma->vm_page_prot = pgprot_noncached(mdlMap->vma->vm_page_prot);
+#elif (1==gcdENABLE_MEM_CACHE)
+        // NULL
+#else
+        mdlMap->vma->vm_page_prot = pgprot_noncached(mdlMap->vma->vm_page_prot);
+#endif
         mdlMap->vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_RESERVED;
         mdlMap->vma->vm_pgoff = 0;
 
@@ -2274,7 +2591,8 @@ gceSTATUS gckOS_MapPhysical(
     {
         /* Map memory as cached memory. */
         request_mem_region(physical, Bytes, "MapRegion");
-#if gcdENABLE_MEM_CACHE
+// dkm: gcdENABLE_MEM_CACHE
+#if (1==gcdENABLE_MEM_CACHE)
         logical = (gctPOINTER) ioremap_cached(physical, Bytes);
 #else
         logical = (gctPOINTER) ioremap_nocache(physical, Bytes);
@@ -6514,19 +6832,19 @@ gckOS_SetGPUPower(
     if(lastclock!=Clock) 
     {
         if(Clock) {
-            printk("gpu: clk_enable... ");
+            //printk("gpu: clk_enable... ");
             clk_enable(clk_gpu);
             clk_enable(clk_aclk_gpu);
             clk_enable(clk_aclk_ddr_gpu);
             clk_enable(clk_hclk_gpu);
-            printk("done!\n");
+            //printk("done!\n");
         } else {
-            printk("gpu: clk_disable... ");
+            //printk("gpu: clk_disable... ");
             clk_disable(clk_hclk_gpu);
             clk_disable(clk_aclk_ddr_gpu);
             clk_disable(clk_aclk_gpu);
             clk_disable(clk_gpu);
-            printk("done!\n");
+            //printk("done!\n");
         }
     }
     lastclock = Clock;
@@ -6536,17 +6854,17 @@ gckOS_SetGPUPower(
     if(lastpower!=Power)
     {
         if(Power) {
-            printk("gpu: power on... ");
+            //printk("gpu: power on... ");
             if(lastclock)    clk_disable(clk_aclk_ddr_gpu);
             mdelay(1);
             pmu_set_power_domain(PD_GPU, true);
             mdelay(1);
             if(lastclock)    clk_enable(clk_aclk_ddr_gpu);
-            printk("done!\n");
+            //printk("done!\n");
         } else {
-            printk("gpu: power off... ");
+            //printk("gpu: power off... ");
             pmu_set_power_domain(PD_GPU, false);
-            printk("done!\n");
+            //printk("done!\n");
         }
     }
     lastpower = Power;
