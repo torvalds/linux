@@ -1585,12 +1585,35 @@ static void vmx_clear_hlt(struct kvm_vcpu *vcpu)
 		vmcs_write32(GUEST_ACTIVITY_STATE, GUEST_ACTIVITY_ACTIVE);
 }
 
+/*
+ * KVM wants to inject page-faults which it got to the guest. This function
+ * checks whether in a nested guest, we need to inject them to L1 or L2.
+ * This function assumes it is called with the exit reason in vmcs02 being
+ * a #PF exception (this is the only case in which KVM injects a #PF when L2
+ * is running).
+ */
+static int nested_pf_handled(struct kvm_vcpu *vcpu)
+{
+	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+
+	/* TODO: also check PFEC_MATCH/MASK, not just EB.PF. */
+	if (!(vmcs12->exception_bitmap & PF_VECTOR))
+		return 0;
+
+	nested_vmx_vmexit(vcpu);
+	return 1;
+}
+
 static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 				bool has_error_code, u32 error_code,
 				bool reinject)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 intr_info = nr | INTR_INFO_VALID_MASK;
+
+	if (nr == PF_VECTOR && is_guest_mode(vcpu) &&
+		nested_pf_handled(vcpu))
+		return;
 
 	if (has_error_code) {
 		vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE, error_code);
@@ -3819,6 +3842,9 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu)
 static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (is_guest_mode(vcpu))
+		return;
 
 	if (!cpu_has_virtual_nmis()) {
 		/*
