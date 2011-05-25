@@ -205,7 +205,7 @@ static struct resource sdhi0_resources[] = {
 	[0] = {
 		.name	= "SDHI0",
 		.start  = 0xe6d50000,
-		.end    = 0xe6d50nff,
+		.end    = 0xe6d500ff,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
