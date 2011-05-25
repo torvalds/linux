@@ -48,8 +48,8 @@ MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
  *
  * The HDA correspondence of pipes/ports are converter/pin nodes.
  */
-#define MAX_HDMI_CVTS	3
-#define MAX_HDMI_PINS	3
+#define MAX_HDMI_CVTS	4
+#define MAX_HDMI_PINS	4
 
 struct hdmi_spec {
 	int num_cvts;
@@ -1027,6 +1027,7 @@ static char *generic_hdmi_pcm_names[MAX_HDMI_CVTS] = {
 	"HDMI 0",
 	"HDMI 1",
 	"HDMI 2",
+	"HDMI 3",
 };
 
 /*
