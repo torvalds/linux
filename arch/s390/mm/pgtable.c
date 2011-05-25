@@ -36,7 +36,6 @@ struct rcu_table_freelist {
 	((PAGE_SIZE - sizeof(struct rcu_table_freelist)) \
 	  / sizeof(unsigned long))
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 static DEFINE_PER_CPU(struct rcu_table_freelist *, rcu_table_freelist);
 
 static void __page_table_free(struct mm_struct *mm, unsigned long *table);

@@ -28,7 +28,6 @@
 #include <asm/cache.h>
 #include <asm/sizes.h>
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 void __init generic_mem_init(void)

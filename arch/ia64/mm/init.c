@@ -36,8 +36,6 @@
 #include <asm/mca.h>
 #include <asm/paravirt.h>
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
 extern void ia64_tlb_init (void);
 
 unsigned long MAX_DMA_ADDRESS = PAGE_OFFSET + 0x100000000UL;
