@@ -329,7 +329,7 @@ config SENSORS_F71882FG
 	  If you say yes here you get support for hardware monitoring
 	  features of many Fintek Super-I/O (LPC) chips. The currently
 	  supported chips are:
-	    F71808E
+	    F71808E/A
 	    F71858FG
 	    F71862FG
 	    F71863FG
