@@ -748,7 +748,7 @@ static inline void retrigger_next_event(void *arg) { }
  */
 void clock_was_set(void)
 {
-#ifdef CONFIG_HIGHRES_TIMERS
+#ifdef CONFIG_HIGH_RES_TIMERS
 	/* Retrigger the CPU local events everywhere */
 	on_each_cpu(retrigger_next_event, NULL, 1);
 #endif
