@@ -276,6 +276,13 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 		goto error1;
 	}
 
+	/* Verify the QP requested is supported.  For example, Ethernet devices
+	 * will not have QP0 */
+	if (!port_priv->qp_info[qpn].qp) {
+		ret = ERR_PTR(-EPROTONOSUPPORT);
+		goto error1;
+	}
+
 	/* Allocate structures */
 	mad_agent_priv = kzalloc(sizeof *mad_agent_priv, GFP_KERNEL);
 	if (!mad_agent_priv) {

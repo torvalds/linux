@@ -332,7 +332,7 @@ int iwch_bind_mw(struct ib_qp *qp,
 			     struct ib_mw_bind *mw_bind);
 int iwch_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 int iwch_post_terminate(struct iwch_qp *qhp, struct respQ_msg_t *rsp_msg);
-int iwch_post_zb_read(struct iwch_qp *qhp);
+int iwch_post_zb_read(struct iwch_ep *ep);
 int iwch_register_device(struct iwch_dev *dev);
 void iwch_unregister_device(struct iwch_dev *dev);
 void stop_read_rep_timer(struct iwch_qp *qhp);

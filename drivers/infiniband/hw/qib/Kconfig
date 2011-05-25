@@ -1,6 +1,6 @@
 config INFINIBAND_QIB
 	tristate "QLogic PCIe HCA support"
-	depends on 64BIT && NET
+	depends on 64BIT
 	---help---
 	This is a low-level driver for QLogic PCIe QLE InfiniBand host
 	channel adapters.  This driver does not support the QLogic

@@ -34,6 +34,7 @@
 #ifndef IB_USER_CM_H
 #define IB_USER_CM_H
 
+#include <linux/types.h>
 #include <rdma/ib_user_sa.h>
 
 #define IB_USER_CM_ABI_VERSION 5
