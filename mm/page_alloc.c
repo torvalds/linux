@@ -2473,10 +2473,10 @@ void si_meminfo_node(struct sysinfo *val, int nid)
 #endif
 
 /*
- * Determine whether the zone's node should be displayed or not, depending on
- * whether SHOW_MEM_FILTER_NODES was passed to __show_free_areas().
+ * Determine whether the node should be displayed or not, depending on whether
+ * SHOW_MEM_FILTER_NODES was passed to show_free_areas().
  */
-static bool skip_free_areas_zone(unsigned int flags, const struct zone *zone)
+bool skip_free_areas_node(unsigned int flags, int nid)
 {
 	bool ret = false;
 
@@ -2484,8 +2484,7 @@ static bool skip_free_areas_zone(unsigned int flags, const struct zone *zone)
 		goto out;
 
 	get_mems_allowed();
-	ret = !node_isset(zone->zone_pgdat->node_id,
-				cpuset_current_mems_allowed);
+	ret = !node_isset(nid, cpuset_current_mems_allowed);
 	put_mems_allowed();
 out:
 	return ret;
@@ -2500,13 +2499,13 @@ out:
  * Suppresses nodes that are not allowed by current's cpuset if
  * SHOW_MEM_FILTER_NODES is passed.
  */
-void __show_free_areas(unsigned int filter)
+void show_free_areas(unsigned int filter)
 {
 	int cpu;
 	struct zone *zone;
 
 	for_each_populated_zone(zone) {
-		if (skip_free_areas_zone(filter, zone))
+		if (skip_free_areas_node(filter, zone_to_nid(zone)))
 			continue;
 		show_node(zone);
 		printk("%s per-cpu:\n", zone->name);
@@ -2549,7 +2548,7 @@ void __show_free_areas(unsigned int filter)
 	for_each_populated_zone(zone) {
 		int i;
 
-		if (skip_free_areas_zone(filter, zone))
+		if (skip_free_areas_node(filter, zone_to_nid(zone)))
 			continue;
 		show_node(zone);
 		printk("%s"
@@ -2618,7 +2617,7 @@ void __show_free_areas(unsigned int filter)
 	for_each_populated_zone(zone) {
  		unsigned long nr[MAX_ORDER], flags, order, total = 0;
 
-		if (skip_free_areas_zone(filter, zone))
+		if (skip_free_areas_node(filter, zone_to_nid(zone)))
 			continue;
 		show_node(zone);
 		printk("%s: ", zone->name);
@@ -2637,11 +2636,6 @@ void __show_free_areas(unsigned int filter)
 	printk("%ld total pagecache pages\n", global_page_state(NR_FILE_PAGES));
 
 	show_swap_cache_info();
-}
-
-void show_free_areas(void)
-{
-	__show_free_areas(0);
 }
 
 static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)

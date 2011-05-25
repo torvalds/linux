@@ -686,7 +686,7 @@ void show_mem(unsigned int filter)
 	int shared = 0, cached = 0;
 
 	printk(KERN_INFO "Mem-info:\n");
-	show_free_areas();
+	show_free_areas(filter);
 #ifndef CONFIG_DISCONTIGMEM
 	i = max_mapnr;
 	while (i-- > 0) {

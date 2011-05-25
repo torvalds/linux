@@ -1235,7 +1235,7 @@ error_free:
 enomem:
 	printk("Allocation of length %lu from process %d (%s) failed\n",
 	       len, current->pid, current->comm);
-	show_free_areas();
+	show_free_areas(0);
 	return -ENOMEM;
 }
 
@@ -1468,14 +1468,14 @@ error_getting_vma:
 	printk(KERN_WARNING "Allocation of vma for %lu byte allocation"
 	       " from process %d failed\n",
 	       len, current->pid);
-	show_free_areas();
+	show_free_areas(0);
 	return -ENOMEM;
 
 error_getting_region:
 	printk(KERN_WARNING "Allocation of vm region for %lu byte allocation"
 	       " from process %d failed\n",
 	       len, current->pid);
-	show_free_areas();
+	show_free_areas(0);
 	return -ENOMEM;
 }
 EXPORT_SYMBOL(do_mmap_pgoff);

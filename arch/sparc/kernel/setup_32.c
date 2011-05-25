@@ -82,7 +82,7 @@ static void prom_sync_me(void)
 			     "nop\n\t" : : "r" (&trapbase));
 
 	prom_printf("PROM SYNC COMMAND...\n");
-	show_free_areas();
+	show_free_areas(0);
 	if(current->pid != 0) {
 		local_irq_enable();
 		sys_sync();
