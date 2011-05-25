@@ -158,8 +158,7 @@ enum pnfs_try_status pnfs_try_to_write_data(struct nfs_write_data *,
 					     const struct rpc_call_ops *, int);
 enum pnfs_try_status pnfs_try_to_read_data(struct nfs_read_data *,
 					    const struct rpc_call_ops *);
-void pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *);
-void pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *);
+int pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev, struct nfs_page *req);
 int pnfs_layout_process(struct nfs4_layoutget *lgp);
 void pnfs_free_lseg_list(struct list_head *tmp_list);
 void pnfs_destroy_layout(struct nfs_inode *);
@@ -293,6 +292,13 @@ static inline int pnfs_return_layout(struct inode *ino)
 	return 0;
 }
 
+static inline void pnfs_pageio_init(struct nfs_pageio_descriptor *pgio,
+				    struct inode *inode)
+{
+	if (NFS_SERVER(inode)->pnfs_curr_ld)
+		pgio->pg_test = pnfs_generic_pg_test;
+}
+
 #else  /* CONFIG_NFS_V4_1 */
 
 static inline void pnfs_destroy_all_layouts(struct nfs_client *clp)
@@ -376,16 +382,9 @@ static inline void unset_pnfs_layoutdriver(struct nfs_server *s)
 {
 }
 
-static inline void
-pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *ino)
+static inline void pnfs_pageio_init(struct nfs_pageio_descriptor *pgio,
+				    struct inode *inode)
 {
-	pgio->pg_test = NULL;
-}
-
-static inline void
-pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *ino)
-{
-	pgio->pg_test = NULL;
 }
 
 static inline void

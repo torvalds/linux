@@ -229,6 +229,8 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_ioflags = io_flags;
 	desc->pg_error = 0;
 	desc->pg_lseg = NULL;
+	desc->pg_test = NULL;
+	pnfs_pageio_init(desc, inode);
 }
 
 /**

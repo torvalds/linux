@@ -1043,60 +1043,35 @@ out_forget_reply:
 	goto out;
 }
 
-static int pnfs_read_pg_test(struct nfs_pageio_descriptor *pgio,
-			     struct nfs_page *prev,
-			     struct nfs_page *req)
+int
+pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
+		     struct nfs_page *req)
 {
+	enum pnfs_iomode access_type;
+	gfp_t gfp_flags;
+
+	/* We assume that pg_ioflags == 0 iff we're reading a page */
+	if (pgio->pg_ioflags == 0) {
+		access_type = IOMODE_READ;
+		gfp_flags = GFP_KERNEL;
+	} else {
+		access_type = IOMODE_RW;
+		gfp_flags = GFP_NOFS;
+	}
+
 	if (pgio->pg_count == prev->wb_bytes) {
 		/* This is first coelesce call for a series of nfs_pages */
 		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 						   prev->wb_context,
 						   req_offset(req),
 						   pgio->pg_count,
-						   IOMODE_READ,
-						   GFP_KERNEL);
+						   access_type,
+						   gfp_flags);
 	} else if (pgio->pg_lseg &&
 		   req_offset(req) > end_offset(pgio->pg_lseg->pls_range.offset,
 						pgio->pg_lseg->pls_range.length))
 		return 0;
 	return NFS_SERVER(pgio->pg_inode)->pnfs_curr_ld->pg_test(pgio, prev, req);
-}
-
-void
-pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode)
-{
-	struct pnfs_layoutdriver_type *ld;
-
-	ld = NFS_SERVER(inode)->pnfs_curr_ld;
-	pgio->pg_test = (ld && ld->pg_test) ? pnfs_read_pg_test : NULL;
-}
-
-static int pnfs_write_pg_test(struct nfs_pageio_descriptor *pgio,
-			      struct nfs_page *prev,
-			      struct nfs_page *req)
-{
-	if (pgio->pg_count == prev->wb_bytes) {
-		/* This is first coelesce call for a series of nfs_pages */
-		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
-						   prev->wb_context,
-						   req_offset(req),
-						   pgio->pg_count,
-						   IOMODE_RW,
-						   GFP_NOFS);
-	} else if (pgio->pg_lseg &&
-		   req_offset(req) > end_offset(pgio->pg_lseg->pls_range.offset,
-						pgio->pg_lseg->pls_range.length))
-		return 0;
-	return NFS_SERVER(pgio->pg_inode)->pnfs_curr_ld->pg_test(pgio, prev, req);
-}
-
-void
-pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode)
-{
-	struct pnfs_layoutdriver_type *ld;
-
-	ld = NFS_SERVER(inode)->pnfs_curr_ld;
-	pgio->pg_test = (ld && ld->pg_test) ? pnfs_write_pg_test : NULL;
 }
 
 /*
