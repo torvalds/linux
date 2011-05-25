@@ -220,6 +220,9 @@ out:
 /*
  * Using one journal handle to guarantee the data consistency in case
  * crash happens anywhere.
+ *
+ *  XXX: defrag can end up with finishing partial extent as requested,
+ * due to not enough contiguous clusters can be found in allocator.
  */
 static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 			       u32 cpos, u32 phys_cpos, u32 *len, int ext_flags)
@@ -876,9 +879,11 @@ static int __ocfs2_move_extents_range(struct buffer_head *di_bh,
 	else
 		len_to_move = 0;
 
-	if (do_defrag)
+	if (do_defrag) {
 		defrag_thresh = range->me_threshold >> osb->s_clustersize_bits;
-	else
+		if (defrag_thresh <= 1)
+			goto done;
+	} else
 		new_phys_cpos = ocfs2_blocks_to_clusters(inode->i_sb,
 							 range->me_goal);
 
@@ -950,6 +955,7 @@ next:
 		len_to_move -= alloc_size;
 	}
 
+done:
 	range->me_flags |= OCFS2_MOVE_EXT_FL_COMPLETE;
 
 out:
@@ -1098,13 +1104,17 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 
 	if (range.me_flags & OCFS2_MOVE_EXT_FL_AUTO_DEFRAG) {
 		context->auto_defrag = 1;
+		/*
+		 * ok, the default theshold for the defragmentation
+		 * is 1M, since our maximum clustersize was 1M also.
+		 * any thought?
+		 */
 		if (!range.me_threshold)
-			/*
-			 * ok, the default theshold for the defragmentation
-			 * is 1M, since our maximum clustersize was 1M also.
-			 * any thought?
-			 */
 			range.me_threshold = 1024 * 1024;
+
+		if (range.me_threshold > i_size_read(inode))
+			range.me_threshold = i_size_read(inode);
+
 		if (range.me_flags & OCFS2_MOVE_EXT_FL_PART_DEFRAG)
 			context->partial = 1;
 	} else {
