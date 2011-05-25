@@ -227,12 +227,6 @@ static ssize_t bonding_store_slaves(struct device *d,
 	struct net_device *dev;
 	struct bonding *bond = to_bond(d);
 
-	/* Quick sanity check -- is the bond interface up? */
-	if (!(bond->dev->flags & IFF_UP)) {
-		pr_warning("%s: doing slave updates when interface is down.\n",
-			   bond->dev->name);
-	}
-
 	if (!rtnl_trylock())
 		return restart_syscall();
 
