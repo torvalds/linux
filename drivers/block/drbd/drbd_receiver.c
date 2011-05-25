@@ -957,7 +957,7 @@ static void drbd_flush(struct drbd_conf *mdev)
 		rv = blkdev_issue_flush(mdev->ldev->backing_bdev, GFP_KERNEL,
 					NULL);
 		if (rv) {
-			dev_err(DEV, "local disk flush failed with status %d\n", rv);
+			dev_info(DEV, "local disk flush failed with status %d\n", rv);
 			/* would rather check on EOPNOTSUPP, but that is not reliable.
 			 * don't try again for ANY return value != 0
 			 * if (rv == -EOPNOTSUPP) */
