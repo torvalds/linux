@@ -3917,6 +3917,10 @@ S: Flandernstrasse 101
 S: D-73732 Esslingen
 S: Germany
 
+N: Roman Zippel
+E: zippel@linux-m68k.org
+D: AFFS and HFS filesystems, m68k maintainer, new kernel configuration in 2.5
+
 N: Leonard N. Zubkoff
 W: http://www.dandelion.com/Linux/
 D: BusLogic SCSI driver
