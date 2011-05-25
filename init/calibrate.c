@@ -38,6 +38,9 @@ static unsigned long __cpuinit calibrate_delay_direct(void)
 	unsigned long timer_rate_min, timer_rate_max;
 	unsigned long good_timer_sum = 0;
 	unsigned long good_timer_count = 0;
+	unsigned long measured_times[MAX_DIRECT_CALIBRATION_RETRIES];
+	int max = -1; /* index of measured_times with max/min values or not set */
+	int min = -1;
 	int i;
 
 	if (read_current_timer(&pre_start) < 0 )
@@ -90,18 +93,78 @@ static unsigned long __cpuinit calibrate_delay_direct(void)
 		 * If the upper limit and lower limit of the timer_rate is
 		 * >= 12.5% apart, redo calibration.
 		 */
-		if (pre_start != 0 && pre_end != 0 &&
+		printk(KERN_DEBUG "calibrate_delay_direct() timer_rate_max=%lu "
+			    "timer_rate_min=%lu pre_start=%lu pre_end=%lu\n",
+			  timer_rate_max, timer_rate_min, pre_start, pre_end);
+		if (start >= post_end)
+			printk(KERN_NOTICE "calibrate_delay_direct() ignoring "
+					"timer_rate as we had a TSC wrap around"
+					" start=%lu >=post_end=%lu\n",
+				start, post_end);
+		if (start < post_end && pre_start != 0 && pre_end != 0 &&
 		    (timer_rate_max - timer_rate_min) < (timer_rate_max >> 3)) {
 			good_timer_count++;
 			good_timer_sum += timer_rate_max;
-		}
+			measured_times[i] = timer_rate_max;
+			if (max < 0 || timer_rate_max > measured_times[max])
+				max = i;
+			if (min < 0 || timer_rate_max < measured_times[min])
+				min = i;
+		} else
+			measured_times[i] = 0;
+
 	}
 
-	if (good_timer_count)
-		return (good_timer_sum/good_timer_count);
+	/*
+	 * Find the maximum & minimum - if they differ too much throw out the
+	 * one with the largest difference from the mean and try again...
+	 */
+	while (good_timer_count > 1) {
+		unsigned long estimate;
+		unsigned long maxdiff;
 
-	printk(KERN_WARNING "calibrate_delay_direct() failed to get a good "
-	       "estimate for loops_per_jiffy.\nProbably due to long platform interrupts. Consider using \"lpj=\" boot option.\n");
+		/* compute the estimate */
+		estimate = (good_timer_sum/good_timer_count);
+		maxdiff = estimate >> 3;
+
+		/* if range is within 12% let's take it */
+		if ((measured_times[max] - measured_times[min]) < maxdiff)
+			return estimate;
+
+		/* ok - drop the worse value and try again... */
+		good_timer_sum = 0;
+		good_timer_count = 0;
+		if ((measured_times[max] - estimate) <
+				(estimate - measured_times[min])) {
+			printk(KERN_NOTICE "calibrate_delay_direct() dropping "
+					"min bogoMips estimate %d = %lu\n",
+				min, measured_times[min]);
+			measured_times[min] = 0;
+			min = max;
+		} else {
+			printk(KERN_NOTICE "calibrate_delay_direct() dropping "
+					"max bogoMips estimate %d = %lu\n",
+				max, measured_times[max]);
+			measured_times[max] = 0;
+			max = min;
+		}
+
+		for (i = 0; i < MAX_DIRECT_CALIBRATION_RETRIES; i++) {
+			if (measured_times[i] == 0)
+				continue;
+			good_timer_count++;
+			good_timer_sum += measured_times[i];
+			if (measured_times[i] < measured_times[min])
+				min = i;
+			if (measured_times[i] > measured_times[max])
+				max = i;
+		}
+
+	}
+
+	printk(KERN_NOTICE "calibrate_delay_direct() failed to get a good "
+	       "estimate for loops_per_jiffy.\nProbably due to long platform "
+		"interrupts. Consider using \"lpj=\" boot option.\n");
 	return 0;
 }
 #else
