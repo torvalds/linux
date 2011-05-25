@@ -249,9 +249,7 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 
 	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
 					 ((1 << ZONES_SHIFT) - 1);
-#ifdef CONFIG_DEBUG_VM
-	BUG_ON((GFP_ZONE_BAD >> bit) & 1);
-#endif
+	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
 	return z;
 }
 
