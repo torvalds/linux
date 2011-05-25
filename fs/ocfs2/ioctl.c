@@ -26,6 +26,7 @@
 #include "dir.h"
 #include "buffer_head_io.h"
 #include "suballoc.h"
+#include "move_extents.h"
 
 #include <linux/ext2_fs.h>
 
@@ -951,6 +952,8 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 
 		return ocfs2_info_handle(inode, &info, 0);
+	case OCFS2_IOC_MOVE_EXT:
+		return ocfs2_ioctl_move_extents(filp, (void __user *)arg);
 	default:
 		return -ENOTTY;
 	}
@@ -993,6 +996,8 @@ long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			return -EFAULT;
 
 		return ocfs2_info_handle(inode, &info, 1);
+	case OCFS2_IOC_MOVE_EXT:
+		break;
 	default:
 		return -ENOIOCTLCMD;
 	}
