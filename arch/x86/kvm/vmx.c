@@ -3433,6 +3433,49 @@ static void vmx_set_constant_host_state(void)
 	}
 }
 
+static void set_cr4_guest_host_mask(struct vcpu_vmx *vmx)
+{
+	vmx->vcpu.arch.cr4_guest_owned_bits = KVM_CR4_GUEST_OWNED_BITS;
+	if (enable_ept)
+		vmx->vcpu.arch.cr4_guest_owned_bits |= X86_CR4_PGE;
+	vmcs_writel(CR4_GUEST_HOST_MASK, ~vmx->vcpu.arch.cr4_guest_owned_bits);
+}
+
+static u32 vmx_exec_control(struct vcpu_vmx *vmx)
+{
+	u32 exec_control = vmcs_config.cpu_based_exec_ctrl;
+	if (!vm_need_tpr_shadow(vmx->vcpu.kvm)) {
+		exec_control &= ~CPU_BASED_TPR_SHADOW;
+#ifdef CONFIG_X86_64
+		exec_control |= CPU_BASED_CR8_STORE_EXITING |
+				CPU_BASED_CR8_LOAD_EXITING;
+#endif
+	}
+	if (!enable_ept)
+		exec_control |= CPU_BASED_CR3_STORE_EXITING |
+				CPU_BASED_CR3_LOAD_EXITING  |
+				CPU_BASED_INVLPG_EXITING;
+	return exec_control;
+}
+
+static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
+{
+	u32 exec_control = vmcs_config.cpu_based_2nd_exec_ctrl;
+	if (!vm_need_virtualize_apic_accesses(vmx->vcpu.kvm))
+		exec_control &= ~SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
+	if (vmx->vpid == 0)
+		exec_control &= ~SECONDARY_EXEC_ENABLE_VPID;
+	if (!enable_ept) {
+		exec_control &= ~SECONDARY_EXEC_ENABLE_EPT;
+		enable_unrestricted_guest = 0;
+	}
+	if (!enable_unrestricted_guest)
+		exec_control &= ~SECONDARY_EXEC_UNRESTRICTED_GUEST;
+	if (!ple_gap)
+		exec_control &= ~SECONDARY_EXEC_PAUSE_LOOP_EXITING;
+	return exec_control;
+}
+
 /*
  * Sets up the vmcs for emulated real mode.
  */
@@ -3440,7 +3483,6 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 {
 	unsigned long a;
 	int i;
-	u32 exec_control;
 
 	/* I/O */
 	vmcs_write64(IO_BITMAP_A, __pa(vmx_io_bitmap_a));
@@ -3455,36 +3497,11 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_write32(PIN_BASED_VM_EXEC_CONTROL,
 		vmcs_config.pin_based_exec_ctrl);
 
-	exec_control = vmcs_config.cpu_based_exec_ctrl;
-	if (!vm_need_tpr_shadow(vmx->vcpu.kvm)) {
-		exec_control &= ~CPU_BASED_TPR_SHADOW;
-#ifdef CONFIG_X86_64
-		exec_control |= CPU_BASED_CR8_STORE_EXITING |
-				CPU_BASED_CR8_LOAD_EXITING;
-#endif
-	}
-	if (!enable_ept)
-		exec_control |= CPU_BASED_CR3_STORE_EXITING |
-				CPU_BASED_CR3_LOAD_EXITING  |
-				CPU_BASED_INVLPG_EXITING;
-	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, exec_control);
+	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, vmx_exec_control(vmx));
 
 	if (cpu_has_secondary_exec_ctrls()) {
-		exec_control = vmcs_config.cpu_based_2nd_exec_ctrl;
-		if (!vm_need_virtualize_apic_accesses(vmx->vcpu.kvm))
-			exec_control &=
-				~SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
-		if (vmx->vpid == 0)
-			exec_control &= ~SECONDARY_EXEC_ENABLE_VPID;
-		if (!enable_ept) {
-			exec_control &= ~SECONDARY_EXEC_ENABLE_EPT;
-			enable_unrestricted_guest = 0;
-		}
-		if (!enable_unrestricted_guest)
-			exec_control &= ~SECONDARY_EXEC_UNRESTRICTED_GUEST;
-		if (!ple_gap)
-			exec_control &= ~SECONDARY_EXEC_PAUSE_LOOP_EXITING;
-		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
+		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
+				vmx_secondary_exec_control(vmx));
 	}
 
 	if (ple_gap) {
@@ -3547,10 +3564,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_write32(VM_ENTRY_CONTROLS, vmcs_config.vmentry_ctrl);
 
 	vmcs_writel(CR0_GUEST_HOST_MASK, ~0UL);
-	vmx->vcpu.arch.cr4_guest_owned_bits = KVM_CR4_GUEST_OWNED_BITS;
-	if (enable_ept)
-		vmx->vcpu.arch.cr4_guest_owned_bits |= X86_CR4_PGE;
-	vmcs_writel(CR4_GUEST_HOST_MASK, ~vmx->vcpu.arch.cr4_guest_owned_bits);
+	set_cr4_guest_host_mask(vmx);
 
 	kvm_write_tsc(&vmx->vcpu, 0);
 
