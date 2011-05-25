@@ -556,9 +556,8 @@ cifs_do_mount(struct file_system_type *fs_type,
 
 	sb = sget(fs_type, NULL, set_anon_super, NULL);
 	if (IS_ERR(sb)) {
-		kfree(cifs_sb);
 		root = ERR_CAST(sb);
-		goto out;
+		goto out_cifs_sb;
 	}
 
 	/*
@@ -569,7 +568,7 @@ cifs_do_mount(struct file_system_type *fs_type,
 	cifs_sb->mountdata = kstrndup(data, PAGE_SIZE, GFP_KERNEL);
 	if (cifs_sb->mountdata == NULL) {
 		root = ERR_PTR(-ENOMEM);
-		goto err_out;
+		goto out_super;
 	}
 
 	sb->s_flags = flags;
@@ -581,21 +580,23 @@ cifs_do_mount(struct file_system_type *fs_type,
 			     flags & MS_SILENT ? 1 : 0);
 	if (rc) {
 		root = ERR_PTR(rc);
-		goto err_out;
+		goto out_super;
 	}
 
 	sb->s_flags |= MS_ACTIVE;
 
 	root = dget(sb->s_root);
-out:
-	cifs_cleanup_volume_info(&volume_info);
-	return root;
+	goto out;
 
-err_out:
+out_super:
 	kfree(cifs_sb->mountdata);
+	deactivate_locked_super(sb);
+
+out_cifs_sb:
 	unload_nls(cifs_sb->local_nls);
 	kfree(cifs_sb);
-	deactivate_locked_super(sb);
+
+out:
 	cifs_cleanup_volume_info(&volume_info);
 	return root;
 }
