@@ -165,9 +165,6 @@ void tlb_flush(struct mmu_gather *tlb)
 		__flush_tlb_pending(tlbbatch);
 
 	put_cpu_var(ppc64_tlb_batch);
-
-	/* Push out batch of freed page tables */
-	pte_free_finish(tlb);
 }
 
 /**
