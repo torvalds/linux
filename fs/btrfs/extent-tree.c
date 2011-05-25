@@ -3089,6 +3089,13 @@ alloc:
 			}
 			goto again;
 		}
+
+		/*
+		 * If we have less pinned bytes than we want to allocate then
+		 * don't bother committing the transaction, it won't help us.
+		 */
+		if (data_sinfo->bytes_pinned < bytes)
+			committed = 1;
 		spin_unlock(&data_sinfo->lock);
 
 		/* commit the current transaction and try again */
