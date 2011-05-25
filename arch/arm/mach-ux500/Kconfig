@@ -12,9 +12,12 @@ menu "Ux500 SoC"
 
 config UX500_SOC_DB5500
 	bool "DB5500"
+	select MFD_DB5500_PRCMU
 
 config UX500_SOC_DB8500
 	bool "DB8500"
+	select MFD_DB8500_PRCMU
+	select REGULATOR_DB8500_PRCMU
 
 endmenu
 

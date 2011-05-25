@@ -15,11 +15,20 @@
 
 #include <mach/hardware.h>
 
-#define _PRCMU_BASE		IO_ADDRESS(U8500_PRCMU_BASE)
-
 #define PRCM_ARM_PLLDIVPS	(_PRCMU_BASE + 0x118)
+#define PRCM_ARM_PLLDIVPS_ARM_BRM_RATE		0x3f
+#define PRCM_ARM_PLLDIVPS_MAX_MASK		0xf
+
+#define PRCM_PLLARM_LOCKP       (_PRCMU_BASE + 0x0a8)
+#define PRCM_PLLARM_LOCKP_PRCM_PLLARM_LOCKP3	0x2
+
 #define PRCM_ARM_CHGCLKREQ	(_PRCMU_BASE + 0x114)
+#define PRCM_ARM_CHGCLKREQ_PRCM_ARM_CHGCLKREQ	0x1
+
 #define PRCM_PLLARM_ENABLE	(_PRCMU_BASE + 0x98)
+#define PRCM_PLLARM_ENABLE_PRCM_PLLARM_ENABLE	0x1
+#define PRCM_PLLARM_ENABLE_PRCM_PLLARM_COUNTON	0x100
+
 #define PRCM_ARMCLKFIX_MGT	(_PRCMU_BASE + 0x0)
 #define PRCM_A9_RESETN_CLR	(_PRCMU_BASE + 0x1f4)
 #define PRCM_A9_RESETN_SET	(_PRCMU_BASE + 0x1f0)
@@ -28,7 +37,8 @@
 
 /* ARM WFI Standby signal register */
 #define PRCM_ARM_WFI_STANDBY    (_PRCMU_BASE + 0x130)
-#define PRCMU_IOCR              (_PRCMU_BASE + 0x310)
+#define PRCM_IOCR		(_PRCMU_BASE + 0x310)
+#define PRCM_IOCR_IOFORCE			0x1
 
 /* CPU mailbox registers */
 #define PRCM_MBOX_CPU_VAL	(_PRCMU_BASE + 0x0fc)
@@ -37,6 +47,8 @@
 
 /* Dual A9 core interrupt management unit registers */
 #define PRCM_A9_MASK_REQ	(_PRCMU_BASE + 0x328)
+#define PRCM_A9_MASK_REQ_PRCM_A9_MASK_REQ	0x1
+
 #define PRCM_A9_MASK_ACK	(_PRCMU_BASE + 0x32c)
 #define PRCM_ARMITMSK31TO0	(_PRCMU_BASE + 0x11c)
 #define PRCM_ARMITMSK63TO32	(_PRCMU_BASE + 0x120)
@@ -74,14 +86,17 @@
 /* PRCMU clock/PLL/reset registers */
 #define PRCM_PLLDSI_FREQ           (_PRCMU_BASE + 0x500)
 #define PRCM_PLLDSI_ENABLE         (_PRCMU_BASE + 0x504)
+#define PRCM_PLLDSI_LOCKP          (_PRCMU_BASE + 0x508)
 #define PRCM_LCDCLK_MGT            (_PRCMU_BASE + 0x044)
 #define PRCM_MCDECLK_MGT           (_PRCMU_BASE + 0x064)
 #define PRCM_HDMICLK_MGT           (_PRCMU_BASE + 0x058)
 #define PRCM_TVCLK_MGT             (_PRCMU_BASE + 0x07c)
 #define PRCM_DSI_PLLOUT_SEL        (_PRCMU_BASE + 0x530)
 #define PRCM_DSITVCLK_DIV          (_PRCMU_BASE + 0x52C)
+#define PRCM_PLLDSI_LOCKP          (_PRCMU_BASE + 0x508)
 #define PRCM_APE_RESETN_SET        (_PRCMU_BASE + 0x1E4)
 #define PRCM_APE_RESETN_CLR        (_PRCMU_BASE + 0x1E8)
+#define PRCM_CLKOCR		   (_PRCMU_BASE + 0x1CC)
 
 /* ePOD and memory power signal control registers */
 #define PRCM_EPOD_C_SET            (_PRCMU_BASE + 0x410)
@@ -92,5 +107,9 @@
 
 /* Miscellaneous unit registers */
 #define PRCM_DSI_SW_RESET          (_PRCMU_BASE + 0x324)
+#define PRCM_GPIOCR                (_PRCMU_BASE + 0x138)
+#define PRCM_GPIOCR_DBG_STM_MOD_CMD1            0x800
+#define PRCM_GPIOCR_DBG_UARTMOD_CMD0            0x1
 
-#endif /* __MACH_PRCMU_REGS_H */
+
+#endif /* __MACH_PRCMU__REGS_H */
