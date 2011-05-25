@@ -173,7 +173,7 @@ static int __devinit k10temp_probe(struct pci_dev *pdev,
 		err = PTR_ERR(hwmon_dev);
 		goto exit_remove;
 	}
-	dev_set_drvdata(&pdev->dev, hwmon_dev);
+	pci_set_drvdata(pdev, hwmon_dev);
 
 	if (unreliable && force)
 		dev_warn(&pdev->dev,
@@ -194,7 +194,7 @@ exit:
 
 static void __devexit k10temp_remove(struct pci_dev *pdev)
 {
-	hwmon_device_unregister(dev_get_drvdata(&pdev->dev));
+	hwmon_device_unregister(pci_get_drvdata(pdev));
 	device_remove_file(&pdev->dev, &dev_attr_name);
 	device_remove_file(&pdev->dev, &dev_attr_temp1_input);
 	device_remove_file(&pdev->dev, &dev_attr_temp1_max);
@@ -202,7 +202,7 @@ static void __devexit k10temp_remove(struct pci_dev *pdev)
 			   &sensor_dev_attr_temp1_crit.dev_attr);
 	device_remove_file(&pdev->dev,
 			   &sensor_dev_attr_temp1_crit_hyst.dev_attr);
-	dev_set_drvdata(&pdev->dev, NULL);
+	pci_set_drvdata(pdev, NULL);
 }
 
 static const struct pci_device_id k10temp_id_table[] = {
