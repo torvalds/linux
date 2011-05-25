@@ -1775,11 +1775,11 @@ struct em28xx_board em28xx_boards[] = {
 	[EM28174_BOARD_PCTV_290E] = {
 		.i2c_speed      = EM2874_I2C_SECONDARY_BUS_SELECT |
 			EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_100_KHZ,
-		.xclk          = EM28XX_XCLK_FREQUENCY_12MHZ,
 		.name          = "PCTV Systems nanoStick T2 290e",
 		.tuner_type    = TUNER_ABSENT,
 		.tuner_gpio    = pctv_290e,
 		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
 	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
