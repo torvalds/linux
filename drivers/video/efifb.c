@@ -242,9 +242,9 @@ static int set_system(const struct dmi_system_id *id)
 		return 0;
 	}
 
-	printk(KERN_INFO "efifb: dmi detected %s - framebuffer at %p "
+	printk(KERN_INFO "efifb: dmi detected %s - framebuffer at 0x%08x "
 			 "(%dx%d, stride %d)\n", id->ident,
-			 (void *)screen_info.lfb_base, screen_info.lfb_width,
+			 screen_info.lfb_base, screen_info.lfb_width,
 			 screen_info.lfb_height, screen_info.lfb_linelength);
 
 

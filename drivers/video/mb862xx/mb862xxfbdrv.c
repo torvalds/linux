@@ -27,7 +27,7 @@
 
 #define NR_PALETTE		256
 #define MB862XX_MEM_SIZE	0x1000000
-#define CORALP_MEM_SIZE		0x4000000
+#define CORALP_MEM_SIZE		0x2000000
 #define CARMINE_MEM_SIZE	0x8000000
 #define DRV_NAME		"mb862xxfb"
 
@@ -309,6 +309,97 @@ static int mb862xxfb_blank(int mode, struct fb_info *fbi)
 	return 0;
 }
 
+static int mb862xxfb_ioctl(struct fb_info *fbi, unsigned int cmd,
+			   unsigned long arg)
+{
+	struct mb862xxfb_par *par = fbi->par;
+	struct mb862xx_l1_cfg *l1_cfg = &par->l1_cfg;
+	void __user *argp = (void __user *)arg;
+	int *enable;
+	u32 l1em = 0;
+
+	switch (cmd) {
+	case MB862XX_L1_GET_CFG:
+		if (copy_to_user(argp, l1_cfg, sizeof(*l1_cfg)))
+			return -EFAULT;
+		break;
+	case MB862XX_L1_SET_CFG:
+		if (copy_from_user(l1_cfg, argp, sizeof(*l1_cfg)))
+			return -EFAULT;
+		if ((l1_cfg->sw >= l1_cfg->dw) && (l1_cfg->sh >= l1_cfg->dh)) {
+			/* downscaling */
+			outreg(cap, GC_CAP_CSC,
+				pack((l1_cfg->sh << 11) / l1_cfg->dh,
+				     (l1_cfg->sw << 11) / l1_cfg->dw));
+			l1em = inreg(disp, GC_L1EM);
+			l1em &= ~GC_L1EM_DM;
+		} else if ((l1_cfg->sw <= l1_cfg->dw) &&
+			   (l1_cfg->sh <= l1_cfg->dh)) {
+			/* upscaling */
+			outreg(cap, GC_CAP_CSC,
+				pack((l1_cfg->sh << 11) / l1_cfg->dh,
+				     (l1_cfg->sw << 11) / l1_cfg->dw));
+			outreg(cap, GC_CAP_CMSS,
+				pack(l1_cfg->sw >> 1, l1_cfg->sh));
+			outreg(cap, GC_CAP_CMDS,
+				pack(l1_cfg->dw >> 1, l1_cfg->dh));
+			l1em = inreg(disp, GC_L1EM);
+			l1em |= GC_L1EM_DM;
+		}
+
+		if (l1_cfg->mirror) {
+			outreg(cap, GC_CAP_CBM,
+				inreg(cap, GC_CAP_CBM) | GC_CBM_HRV);
+			l1em |= l1_cfg->dw * 2 - 8;
+		} else {
+			outreg(cap, GC_CAP_CBM,
+				inreg(cap, GC_CAP_CBM) & ~GC_CBM_HRV);
+			l1em &= 0xffff0000;
+		}
+		outreg(disp, GC_L1EM, l1em);
+		break;
+	case MB862XX_L1_ENABLE:
+		enable = (int *)arg;
+		if (*enable) {
+			outreg(disp, GC_L1DA, par->cap_buf);
+			outreg(cap, GC_CAP_IMG_START,
+				pack(l1_cfg->sy >> 1, l1_cfg->sx));
+			outreg(cap, GC_CAP_IMG_END,
+				pack(l1_cfg->sh, l1_cfg->sw));
+			outreg(disp, GC_L1M, GC_L1M_16 | GC_L1M_YC | GC_L1M_CS |
+					     (par->l1_stride << 16));
+			outreg(disp, GC_L1WY_L1WX,
+				pack(l1_cfg->dy, l1_cfg->dx));
+			outreg(disp, GC_L1WH_L1WW,
+				pack(l1_cfg->dh - 1, l1_cfg->dw));
+			outreg(disp, GC_DLS, 1);
+			outreg(cap, GC_CAP_VCM,
+				GC_VCM_VIE | GC_VCM_CM | GC_VCM_VS_PAL);
+			outreg(disp, GC_DCM1, inreg(disp, GC_DCM1) |
+					      GC_DCM1_DEN | GC_DCM1_L1E);
+		} else {
+			outreg(cap, GC_CAP_VCM,
+				inreg(cap, GC_CAP_VCM) & ~GC_VCM_VIE);
+			outreg(disp, GC_DCM1,
+				inreg(disp, GC_DCM1) & ~GC_DCM1_L1E);
+		}
+		break;
+	case MB862XX_L1_CAP_CTL:
+		enable = (int *)arg;
+		if (*enable) {
+			outreg(cap, GC_CAP_VCM,
+				inreg(cap, GC_CAP_VCM) | GC_VCM_VIE);
+		} else {
+			outreg(cap, GC_CAP_VCM,
+				inreg(cap, GC_CAP_VCM) & ~GC_VCM_VIE);
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 /* framebuffer ops */
 static struct fb_ops mb862xxfb_ops = {
 	.owner		= THIS_MODULE,
@@ -320,6 +411,7 @@ static struct fb_ops mb862xxfb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
+	.fb_ioctl	= mb862xxfb_ioctl,
 };
 
 /* initialize fb_info data */
@@ -328,6 +420,7 @@ static int mb862xxfb_init_fbinfo(struct fb_info *fbi)
 	struct mb862xxfb_par *par = fbi->par;
 	struct mb862xx_gc_mode *mode = par->gc_mode;
 	unsigned long reg;
+	int stride;
 
 	fbi->fbops = &mb862xxfb_ops;
 	fbi->pseudo_palette = par->pseudo_palette;
@@ -336,7 +429,6 @@ static int mb862xxfb_init_fbinfo(struct fb_info *fbi)
 
 	strcpy(fbi->fix.id, DRV_NAME);
 	fbi->fix.smem_start = (unsigned long)par->fb_base_phys;
-	fbi->fix.smem_len = par->mapped_vram;
 	fbi->fix.mmio_start = (unsigned long)par->mmio_base_phys;
 	fbi->fix.mmio_len = par->mmio_len;
 	fbi->fix.accel = FB_ACCEL_NONE;
@@ -420,6 +512,28 @@ static int mb862xxfb_init_fbinfo(struct fb_info *fbi)
 			 FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_TRUECOLOR;
 	fbi->fix.line_length = (fbi->var.xres_virtual *
 				fbi->var.bits_per_pixel) / 8;
+	fbi->fix.smem_len = fbi->fix.line_length * fbi->var.yres_virtual;
+
+	/*
+	 * reserve space for capture buffers and two cursors
+	 * at the end of vram: 720x576 * 2 * 2.2 + 64x64 * 16.
+	 */
+	par->cap_buf = par->mapped_vram - 0x1bd800 - 0x10000;
+	par->cap_len = 0x1bd800;
+	par->l1_cfg.sx = 0;
+	par->l1_cfg.sy = 0;
+	par->l1_cfg.sw = 720;
+	par->l1_cfg.sh = 576;
+	par->l1_cfg.dx = 0;
+	par->l1_cfg.dy = 0;
+	par->l1_cfg.dw = 720;
+	par->l1_cfg.dh = 576;
+	stride = par->l1_cfg.sw * (fbi->var.bits_per_pixel / 8);
+	par->l1_stride = stride / 64 + ((stride % 64) ? 1 : 0);
+	outreg(cap, GC_CAP_CBM, GC_CBM_OO | GC_CBM_CBST |
+				(par->l1_stride << 16));
+	outreg(cap, GC_CAP_CBOA, par->cap_buf);
+	outreg(cap, GC_CAP_CBLA, par->cap_buf + par->cap_len);
 	return 0;
 }
 
@@ -742,22 +856,38 @@ static int coralp_init(struct mb862xxfb_par *par)
 
 	par->refclk = GC_DISP_REFCLK_400;
 
+	if (par->mapped_vram >= 0x2000000) {
+		/* relocate gdc registers space */
+		writel(1, par->fb_base + MB862XX_MMIO_BASE + GC_RSW);
+		udelay(1); /* wait at least 20 bus cycles */
+	}
+
 	ver = inreg(host, GC_CID);
 	cn = (ver & GC_CID_CNAME_MSK) >> 8;
 	ver = ver & GC_CID_VERSION_MSK;
 	if (cn == 3) {
+		unsigned long reg;
+
 		dev_info(par->dev, "Fujitsu Coral-%s GDC Rev.%d found\n",\
 			 (ver == 6) ? "P" : (ver == 8) ? "PA" : "?",
 			 par->pdev->revision);
-		outreg(host, GC_CCF, GC_CCF_CGE_166 | GC_CCF_COT_133);
-		udelay(200);
-		outreg(host, GC_MMR, GC_MMR_CORALP_EVB_VAL);
-		udelay(10);
+		reg = inreg(disp, GC_DCM1);
+		if (reg & GC_DCM01_DEN && reg & GC_DCM01_L0E)
+			par->pre_init = 1;
+
+		if (!par->pre_init) {
+			outreg(host, GC_CCF, GC_CCF_CGE_166 | GC_CCF_COT_133);
+			udelay(200);
+			outreg(host, GC_MMR, GC_MMR_CORALP_EVB_VAL);
+			udelay(10);
+		}
 		/* Clear interrupt status */
 		outreg(host, GC_IST, 0);
 	} else {
 		return -ENODEV;
 	}
+
+	mb862xx_i2c_init(par);
 	return 0;
 }
 
@@ -899,7 +1029,13 @@ static int __devinit mb862xx_pci_probe(struct pci_dev *pdev,
 	case PCI_DEVICE_ID_FUJITSU_CORALPA:
 		par->fb_base_phys = pci_resource_start(par->pdev, 0);
 		par->mapped_vram = CORALP_MEM_SIZE;
-		par->mmio_base_phys = par->fb_base_phys + MB862XX_MMIO_BASE;
+		if (par->mapped_vram >= 0x2000000) {
+			par->mmio_base_phys = par->fb_base_phys +
+					      MB862XX_MMIO_HIGH_BASE;
+		} else {
+			par->mmio_base_phys = par->fb_base_phys +
+					      MB862XX_MMIO_BASE;
+		}
 		par->mmio_len = MB862XX_MMIO_SIZE;
 		par->type = BT_CORALP;
 		break;
@@ -1008,6 +1144,8 @@ static void __devexit mb862xx_pci_remove(struct pci_dev *pdev)
 	} else {
 		outreg(host, GC_IMASK, 0);
 	}
+
+	mb862xx_i2c_exit(par);
 
 	device_remove_file(&pdev->dev, &dev_attr_dispregs);
 

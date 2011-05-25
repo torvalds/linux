@@ -867,7 +867,7 @@ static int __devinit s3c24xxfb_probe(struct platform_device *pdev,
 		goto dealloc_fb;
 	}
 
-	size = (res->end - res->start) + 1;
+	size = resource_size(res);
 	info->mem = request_mem_region(res->start, size, pdev->name);
 	if (info->mem == NULL) {
 		dev_err(&pdev->dev, "failed to get memory region\n");
@@ -997,8 +997,7 @@ release_irq:
 release_regs:
 	iounmap(info->io);
 release_mem:
-	release_resource(info->mem);
-	kfree(info->mem);
+	release_mem_region(res->start, size);
 dealloc_fb:
 	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(fbinfo);
@@ -1044,8 +1043,7 @@ static int __devexit s3c2410fb_remove(struct platform_device *pdev)
 
 	iounmap(info->io);
 
-	release_resource(info->mem);
-	kfree(info->mem);
+	release_mem_region(info->mem->start, resource_size(info->mem));
 
 	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(fbinfo);

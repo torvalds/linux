@@ -47,7 +47,7 @@
 #include <plat/dma.h>
 #include <plat/vram.h>
 #include <plat/vrfb.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 #include "omap_voutlib.h"
 #include "omap_voutdef.h"

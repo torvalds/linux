@@ -39,8 +39,8 @@
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/usb.h>
-#include <plat/display.h>
-#include <plat/panel-generic-dpi.h>
+#include <video/omapdss.h>
+#include <video/omap-panel-generic-dpi.h>
 
 #include <plat/mcspi.h>
 #include <linux/input/matrix_keypad.h>

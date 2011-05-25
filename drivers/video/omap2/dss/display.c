@@ -27,7 +27,7 @@
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include "dss.h"
 
 static ssize_t display_enabled_show(struct device *dev,
@@ -44,9 +44,13 @@ static ssize_t display_enabled_store(struct device *dev,
 		const char *buf, size_t size)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	bool enabled, r;
+	int r, enabled;
 
-	enabled = simple_strtoul(buf, NULL, 10);
+	r = kstrtoint(buf, 0, &enabled);
+	if (r)
+		return r;
+
+	enabled = !!enabled;
 
 	if (enabled != (dssdev->state != OMAP_DSS_DISPLAY_DISABLED)) {
 		if (enabled) {
@@ -82,7 +86,9 @@ static ssize_t display_upd_mode_store(struct device *dev,
 	if (!dssdev->driver->set_update_mode)
 		return -EINVAL;
 
-	val = simple_strtoul(buf, NULL, 10);
+	r = kstrtoint(buf, 0, &val);
+	if (r)
+		return r;
 
 	switch (val) {
 	case OMAP_DSS_UPDATE_DISABLED:
@@ -114,13 +120,16 @@ static ssize_t display_tear_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	unsigned long te;
-	int r;
+	int te, r;
 
 	if (!dssdev->driver->enable_te || !dssdev->driver->get_te)
 		return -ENOENT;
 
-	te = simple_strtoul(buf, NULL, 0);
+	r = kstrtoint(buf, 0, &te);
+	if (r)
+		return r;
+
+	te = !!te;
 
 	r = dssdev->driver->enable_te(dssdev, te);
 	if (r)
@@ -196,13 +205,14 @@ static ssize_t display_rotate_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	unsigned long rot;
-	int r;
+	int rot, r;
 
 	if (!dssdev->driver->set_rotate || !dssdev->driver->get_rotate)
 		return -ENOENT;
 
-	rot = simple_strtoul(buf, NULL, 0);
+	r = kstrtoint(buf, 0, &rot);
+	if (r)
+		return r;
 
 	r = dssdev->driver->set_rotate(dssdev, rot);
 	if (r)
@@ -226,13 +236,16 @@ static ssize_t display_mirror_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	unsigned long mirror;
-	int r;
+	int mirror, r;
 
 	if (!dssdev->driver->set_mirror || !dssdev->driver->get_mirror)
 		return -ENOENT;
 
-	mirror = simple_strtoul(buf, NULL, 0);
+	r = kstrtoint(buf, 0, &mirror);
+	if (r)
+		return r;
+
+	mirror = !!mirror;
 
 	r = dssdev->driver->set_mirror(dssdev, mirror);
 	if (r)
@@ -259,14 +272,15 @@ static ssize_t display_wss_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	unsigned long wss;
+	u32 wss;
 	int r;
 
 	if (!dssdev->driver->get_wss || !dssdev->driver->set_wss)
 		return -ENOENT;
 
-	if (strict_strtoul(buf, 0, &wss))
-		return -EINVAL;
+	r = kstrtou32(buf, 0, &wss);
+	if (r)
+		return r;
 
 	if (wss > 0xfffff)
 		return -EINVAL;
