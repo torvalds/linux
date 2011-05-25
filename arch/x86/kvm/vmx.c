@@ -4943,6 +4943,21 @@ static int handle_vmclear(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch);
+
+/* Emulate the VMLAUNCH instruction */
+static int handle_vmlaunch(struct kvm_vcpu *vcpu)
+{
+	return nested_vmx_run(vcpu, true);
+}
+
+/* Emulate the VMRESUME instruction */
+static int handle_vmresume(struct kvm_vcpu *vcpu)
+{
+
+	return nested_vmx_run(vcpu, false);
+}
+
 enum vmcs_field_type {
 	VMCS_FIELD_TYPE_U16 = 0,
 	VMCS_FIELD_TYPE_U64 = 1,
@@ -5240,11 +5255,11 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_INVLPG]		      = handle_invlpg,
 	[EXIT_REASON_VMCALL]                  = handle_vmcall,
 	[EXIT_REASON_VMCLEAR]	              = handle_vmclear,
-	[EXIT_REASON_VMLAUNCH]                = handle_vmx_insn,
+	[EXIT_REASON_VMLAUNCH]                = handle_vmlaunch,
 	[EXIT_REASON_VMPTRLD]                 = handle_vmptrld,
 	[EXIT_REASON_VMPTRST]                 = handle_vmptrst,
 	[EXIT_REASON_VMREAD]                  = handle_vmread,
-	[EXIT_REASON_VMRESUME]                = handle_vmx_insn,
+	[EXIT_REASON_VMRESUME]                = handle_vmresume,
 	[EXIT_REASON_VMWRITE]                 = handle_vmwrite,
 	[EXIT_REASON_VMOFF]                   = handle_vmoff,
 	[EXIT_REASON_VMON]                    = handle_vmon,
@@ -6087,6 +6102,52 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 
 	kvm_register_write(vcpu, VCPU_REGS_RSP, vmcs12->guest_rsp);
 	kvm_register_write(vcpu, VCPU_REGS_RIP, vmcs12->guest_rip);
+}
+
+/*
+ * nested_vmx_run() handles a nested entry, i.e., a VMLAUNCH or VMRESUME on L1
+ * for running an L2 nested guest.
+ */
+static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
+{
+	struct vmcs12 *vmcs12;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	int cpu;
+	struct loaded_vmcs *vmcs02;
+
+	if (!nested_vmx_check_permission(vcpu) ||
+	    !nested_vmx_check_vmcs12(vcpu))
+		return 1;
+
+	skip_emulated_instruction(vcpu);
+	vmcs12 = get_vmcs12(vcpu);
+
+	vmcs02 = nested_get_current_vmcs02(vmx);
+	if (!vmcs02)
+		return -ENOMEM;
+
+	enter_guest_mode(vcpu);
+
+	vmx->nested.vmcs01_tsc_offset = vmcs_read64(TSC_OFFSET);
+
+	cpu = get_cpu();
+	vmx->loaded_vmcs = vmcs02;
+	vmx_vcpu_put(vcpu);
+	vmx_vcpu_load(vcpu, cpu);
+	vcpu->cpu = cpu;
+	put_cpu();
+
+	vmcs12->launch_state = 1;
+
+	prepare_vmcs02(vcpu, vmcs12);
+
+	/*
+	 * Note no nested_vmx_succeed or nested_vmx_fail here. At this point
+	 * we are no longer running L1, and VMLAUNCH/VMRESUME has not yet
+	 * returned as far as L1 is concerned. It will only return (and set
+	 * the success flag) when L2 exits (see nested_vmx_vmexit()).
+	 */
+	return 1;
 }
 
 static int vmx_check_intercept(struct kvm_vcpu *vcpu,
