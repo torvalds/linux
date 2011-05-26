@@ -174,12 +174,13 @@ int usbip_vhci_imported_device_dump(struct usbip_imported_device *idev)
 		sysfs_close_device(suinf);
 
 		/* show class device information */
-		struct class_device *cdev;
+		struct usbip_class_device *cdev;
 
-		dlist_for_each_data(idev->cdev_list, cdev, struct class_device) {
-			int ifnum = get_interface_number(cdev->devpath);
+		dlist_for_each_data(idev->cdev_list, cdev,
+				    struct usbip_class_device) {
+			int ifnum = get_interface_number(cdev->dev_path);
 			if (ifnum == i) {
-				info("           %s", cdev->clspath);
+				info("           %s", cdev->class_path);
 			}
 		}
 	}

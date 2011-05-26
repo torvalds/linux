@@ -11,9 +11,9 @@
 
 #define MAXNPORT 128
 
-struct class_device {
-	char clspath[SYSFS_PATH_MAX];
-	char devpath[SYSFS_PATH_MAX];
+struct usbip_class_device {
+	char class_path[SYSFS_PATH_MAX];
+	char dev_path[SYSFS_PATH_MAX];
 };
 
 struct usbip_imported_device {
@@ -25,16 +25,19 @@ struct usbip_imported_device {
 	uint8_t busnum;
 	uint8_t devnum;
 
-
-	struct dlist *cdev_list;	/* list of class device */
+	/* usbip_class_device list */
+	struct dlist *cdev_list;
 	struct usb_device udev;
 };
 
 struct usbip_vhci_driver {
 	char sysfs_mntpath[SYSFS_PATH_MAX];
-	struct sysfs_device *hc_device; /* /sys/devices/platform/vhci_hcd */
 
-	struct dlist *cdev_list;	/* list of class device */
+	/* /sys/devices/platform/vhci_hcd */
+	struct sysfs_device *hc_device;
+
+	/* usbip_class_device list */
+	struct dlist *cdev_list;
 
 	int nports;
 	struct usbip_imported_device idev[MAXNPORT];
