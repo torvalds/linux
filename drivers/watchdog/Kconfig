@@ -535,8 +535,7 @@ config I6300ESB_WDT
 
 config INTEL_SCU_WATCHDOG
 	bool "Intel SCU Watchdog for Mobile Platforms"
-	depends on WATCHDOG
-	depends on INTEL_SCU_IPC
+	depends on X86_MRST
 	---help---
 	  Hardware driver for the watchdog time built into the Intel SCU
 	  for Intel Mobile Platforms.
