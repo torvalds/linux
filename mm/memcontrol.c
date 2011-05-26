@@ -4953,8 +4953,7 @@ static void mem_cgroup_clear_mc(void)
 
 static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
 				struct cgroup *cgroup,
-				struct task_struct *p,
-				bool threadgroup)
+				struct task_struct *p)
 {
 	int ret = 0;
 	struct mem_cgroup *mem = mem_cgroup_from_cont(cgroup);
@@ -4993,8 +4992,7 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
 
 static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
 				struct cgroup *cgroup,
-				struct task_struct *p,
-				bool threadgroup)
+				struct task_struct *p)
 {
 	mem_cgroup_clear_mc();
 }
@@ -5112,8 +5110,7 @@ retry:
 static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 				struct cgroup *cont,
 				struct cgroup *old_cont,
-				struct task_struct *p,
-				bool threadgroup)
+				struct task_struct *p)
 {
 	struct mm_struct *mm;
 
@@ -5131,22 +5128,19 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 #else	/* !CONFIG_MMU */
 static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
 				struct cgroup *cgroup,
-				struct task_struct *p,
-				bool threadgroup)
+				struct task_struct *p)
 {
 	return 0;
 }
 static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
 				struct cgroup *cgroup,
-				struct task_struct *p,
-				bool threadgroup)
+				struct task_struct *p)
 {
 }
 static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 				struct cgroup *cont,
 				struct cgroup *old_cont,
-				struct task_struct *p,
-				bool threadgroup)
+				struct task_struct *p)
 {
 }
 #endif

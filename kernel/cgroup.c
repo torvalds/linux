@@ -1759,7 +1759,7 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 
 	for_each_subsys(root, ss) {
 		if (ss->can_attach) {
-			retval = ss->can_attach(ss, cgrp, tsk, false);
+			retval = ss->can_attach(ss, cgrp, tsk);
 			if (retval) {
 				/*
 				 * Remember on which subsystem the can_attach()
@@ -1767,6 +1767,13 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 				 * against the subsystems whose can_attach()
 				 * succeeded. (See below)
 				 */
+				failed_ss = ss;
+				goto out;
+			}
+		}
+		if (ss->can_attach_task) {
+			retval = ss->can_attach_task(cgrp, tsk);
+			if (retval) {
 				failed_ss = ss;
 				goto out;
 			}
@@ -1805,8 +1812,12 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 	write_unlock(&css_set_lock);
 
 	for_each_subsys(root, ss) {
+		if (ss->pre_attach)
+			ss->pre_attach(cgrp);
+		if (ss->attach_task)
+			ss->attach_task(cgrp, tsk);
 		if (ss->attach)
-			ss->attach(ss, cgrp, oldcgrp, tsk, false);
+			ss->attach(ss, cgrp, oldcgrp, tsk);
 	}
 	set_bit(CGRP_RELEASABLE, &oldcgrp->flags);
 	synchronize_rcu();
@@ -1829,7 +1840,7 @@ out:
 				 */
 				break;
 			if (ss->cancel_attach)
-				ss->cancel_attach(ss, cgrp, tsk, false);
+				ss->cancel_attach(ss, cgrp, tsk);
 		}
 	}
 	return retval;
