@@ -38,6 +38,28 @@ jiffies = jiffies_64 + 4;
 
 SECTIONS
 {
+	/*
+	 * unwind exit sections must be discarded before the rest of the
+	 * unwind sections get included.
+	 */
+	/DISCARD/ : {
+		*(.ARM.exidx.exit.text)
+		*(.ARM.extab.exit.text)
+		ARM_CPU_DISCARD(*(.ARM.exidx.cpuexit.text))
+		ARM_CPU_DISCARD(*(.ARM.extab.cpuexit.text))
+#ifndef CONFIG_HOTPLUG
+		*(.ARM.exidx.devexit.text)
+		*(.ARM.extab.devexit.text)
+#endif
+#ifndef CONFIG_MMU
+		*(.fixup)
+		*(__ex_table)
+#endif
+#ifndef CONFIG_SMP_ON_UP
+		*(.alt.smp.init)
+#endif
+	}
+
 #ifdef CONFIG_XIP_KERNEL
 	. = XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR);
 #else
@@ -88,25 +110,6 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;
 #endif
-
-	/*
-	 * unwind exit sections must be discarded before the rest of the
-	 * unwind sections get included.
-	 */
-	/DISCARD/ : {
-		*(.ARM.exidx.exit.text)
-		*(.ARM.extab.exit.text)
-		ARM_CPU_DISCARD(*(.ARM.exidx.cpuexit.text))
-		ARM_CPU_DISCARD(*(.ARM.extab.cpuexit.text))
-#ifndef CONFIG_HOTPLUG
-		*(.ARM.exidx.devexit.text)
-		*(.ARM.extab.devexit.text)
-#endif
-#ifndef CONFIG_MMU
-		*(.fixup)
-		*(__ex_table)
-#endif
-	}
 
 	.text : {			/* Real text segment		*/
 		_text = .;		/* Text and read-only data	*/
@@ -270,12 +273,6 @@ SECTIONS
 
 	/* Default discards */
 	DISCARDS
-
-#ifndef CONFIG_SMP_ON_UP
-	/DISCARD/ : {
-		*(.alt.smp.init)
-	}
-#endif
 }
 
 /*
