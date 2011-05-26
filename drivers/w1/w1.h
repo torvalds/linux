@@ -55,6 +55,7 @@ struct w1_reg_num
 #define W1_READ_ROM		0x33
 #define W1_READ_PSUPPLY		0xB4
 #define W1_MATCH_ROM		0x55
+#define W1_RESUME_CMD		0xA5
 
 #define W1_SLAVE_ACTIVE		0
 
@@ -213,6 +214,7 @@ void w1_write_block(struct w1_master *, const u8 *, int);
 void w1_touch_block(struct w1_master *, u8 *, int);
 u8 w1_read_block(struct w1_master *, u8 *, int);
 int w1_reset_select_slave(struct w1_slave *sl);
+int w1_reset_resume_command(struct w1_master *);
 void w1_next_pullup(struct w1_master *, int);
 
 static inline struct w1_slave* dev_to_w1_slave(struct device *dev)
