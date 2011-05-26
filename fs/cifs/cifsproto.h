@@ -348,15 +348,12 @@ extern int CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
 			const int netfid, unsigned int count,
 			const __u64 lseek, unsigned int *nbytes, char **buf,
 			int *return_buf_type);
-extern int CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
-			const int netfid, const unsigned int count,
-			const __u64 lseek, unsigned int *nbytes,
-			const char *buf, const char __user *ubuf,
+extern int CIFSSMBWrite(const int xid, struct cifs_io_parms *io_parms,
+			unsigned int *nbytes, const char *buf,
+			const char __user *ubuf, const int long_op);
+extern int CIFSSMBWrite2(const int xid, struct cifs_io_parms *io_parms,
+			unsigned int *nbytes, struct kvec *iov, const int nvec,
 			const int long_op);
-extern int CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
-			const int netfid, const unsigned int count,
-			const __u64 offset, unsigned int *nbytes,
-			struct kvec *iov, const int nvec, const int long_op);
 extern int CIFSGetSrvInodeNumber(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName, __u64 *inode_number,
 			const struct nls_table *nls_codepage,

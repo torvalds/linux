@@ -455,6 +455,14 @@ struct cifsFileInfo {
 	struct work_struct oplock_break; /* work for oplock breaks */
 };
 
+struct cifs_io_parms {
+	__u16 netfid;
+	__u32 pid;
+	__u64 offset;
+	unsigned int length;
+	struct cifsTconInfo *tcon;
+};
+
 /*
  * Take a reference on the file private data. Must be called with
  * cifs_file_list_lock held.

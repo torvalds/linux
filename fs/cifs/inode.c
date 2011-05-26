@@ -1873,6 +1873,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = NULL;
 	struct cifsTconInfo *pTcon = NULL;
+	struct cifs_io_parms io_parms;
 
 	/*
 	 * To avoid spurious oplock breaks from server, in the case of
@@ -1894,8 +1895,14 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 		cFYI(1, "SetFSize for attrs rc = %d", rc);
 		if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 			unsigned int bytes_written;
-			rc = CIFSSMBWrite(xid, pTcon, nfid, 0, attrs->ia_size,
-					  &bytes_written, NULL, NULL, 1);
+
+			io_parms.netfid = nfid;
+			io_parms.pid = npid;
+			io_parms.tcon = pTcon;
+			io_parms.offset = 0;
+			io_parms.length = attrs->ia_size;
+			rc = CIFSSMBWrite(xid, &io_parms, &bytes_written,
+					  NULL, NULL, 1);
 			cFYI(1, "Wrt seteof rc %d", rc);
 		}
 	} else
@@ -1930,10 +1937,15 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 			if (rc == 0) {
 				unsigned int bytes_written;
-				rc = CIFSSMBWrite(xid, pTcon, netfid, 0,
-						  attrs->ia_size,
-						  &bytes_written, NULL,
-						  NULL, 1);
+
+				io_parms.netfid = netfid;
+				io_parms.pid = current->tgid;
+				io_parms.tcon = pTcon;
+				io_parms.offset = 0;
+				io_parms.length = attrs->ia_size;
+				rc = CIFSSMBWrite(xid, &io_parms,
+						  &bytes_written,
+						  NULL, NULL,  1);
 				cFYI(1, "wrt seteof rc %d", rc);
 				CIFSSMBClose(xid, pTcon, netfid);
 			}

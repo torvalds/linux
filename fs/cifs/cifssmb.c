@@ -1487,9 +1487,8 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon, const int netfid,
 
 
 int
-CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
-	     const int netfid, const unsigned int count,
-	     const __u64 offset, unsigned int *nbytes, const char *buf,
+CIFSSMBWrite(const int xid, struct cifs_io_parms *io_parms,
+	     unsigned int *nbytes, const char *buf,
 	     const char __user *ubuf, const int long_op)
 {
 	int rc = -EACCES;
@@ -1498,6 +1497,11 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 	int bytes_returned, wct;
 	__u32 bytes_sent;
 	__u16 byte_count;
+	__u32 pid = io_parms->pid;
+	__u16 netfid = io_parms->netfid;
+	__u64 offset = io_parms->offset;
+	struct cifsTconInfo *tcon = io_parms->tcon;
+	unsigned int count = io_parms->length;
 
 	*nbytes = 0;
 
@@ -1519,6 +1523,10 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 		      (void **) &pSMBr);
 	if (rc)
 		return rc;
+
+	pSMB->hdr.Pid = cpu_to_le16((__u16)pid);
+	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(pid >> 16));
+
 	/* tcon and ses pointer are checked in smb_init */
 	if (tcon->ses->server == NULL)
 		return -ECONNABORTED;
@@ -1778,6 +1786,9 @@ cifs_async_writev(struct cifs_writedata *wdata)
 		goto async_writev_out;
 	}
 
+	smb->hdr.Pid = cpu_to_le16((__u16)wdata->cfile->pid);
+	smb->hdr.PidHigh = cpu_to_le16((__u16)(wdata->cfile->pid >> 16));
+
 	smb->AndXCommand = 0xFF;	/* none */
 	smb->Fid = wdata->cfile->netfid;
 	smb->OffsetLow = cpu_to_le32(wdata->offset & 0xFFFFFFFF);
@@ -1841,16 +1852,20 @@ async_writev_out:
 }
 
 int
-CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
-	     const int netfid, const unsigned int count,
-	     const __u64 offset, unsigned int *nbytes, struct kvec *iov,
-	     int n_vec, const int long_op)
+CIFSSMBWrite2(const int xid, struct cifs_io_parms *io_parms,
+	      unsigned int *nbytes, struct kvec *iov, int n_vec,
+	      const int long_op)
 {
 	int rc = -EACCES;
 	WRITE_REQ *pSMB = NULL;
 	int wct;
 	int smb_hdr_len;
 	int resp_buf_type = 0;
+	__u32 pid = io_parms->pid;
+	__u16 netfid = io_parms->netfid;
+	__u64 offset = io_parms->offset;
+	struct cifsTconInfo *tcon = io_parms->tcon;
+	unsigned int count = io_parms->length;
 
 	*nbytes = 0;
 
@@ -1868,6 +1883,10 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 	rc = small_smb_init(SMB_COM_WRITE_ANDX, wct, tcon, (void **) &pSMB);
 	if (rc)
 		return rc;
+
+	pSMB->hdr.Pid = cpu_to_le16((__u16)pid);
+	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(pid >> 16));
+
 	/* tcon and ses pointer are checked in smb_init */
 	if (tcon->ses->server == NULL)
 		return -ECONNABORTED;

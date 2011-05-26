@@ -357,6 +357,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
+	struct cifs_io_parms io_parms;
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
 	int oplock = 0;
@@ -439,16 +440,19 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 	 * timestamps in, but we can reuse it safely */
 
 	pdev = (struct win_dev *)buf;
+	io_parms.netfid = fileHandle;
+	io_parms.pid = current->tgid;
+	io_parms.tcon = pTcon;
+	io_parms.offset = 0;
+	io_parms.length = sizeof(struct win_dev);
 	if (S_ISCHR(mode)) {
 		memcpy(pdev->type, "IntxCHR", 8);
 		pdev->major =
 		      cpu_to_le64(MAJOR(device_number));
 		pdev->minor =
 		      cpu_to_le64(MINOR(device_number));
-		rc = CIFSSMBWrite(xid, pTcon,
-			fileHandle,
-			sizeof(struct win_dev),
-			0, &bytes_written, (char *)pdev,
+		rc = CIFSSMBWrite(xid, &io_parms,
+			&bytes_written, (char *)pdev,
 			NULL, 0);
 	} else if (S_ISBLK(mode)) {
 		memcpy(pdev->type, "IntxBLK", 8);
@@ -456,10 +460,8 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 		      cpu_to_le64(MAJOR(device_number));
 		pdev->minor =
 		      cpu_to_le64(MINOR(device_number));
-		rc = CIFSSMBWrite(xid, pTcon,
-			fileHandle,
-			sizeof(struct win_dev),
-			0, &bytes_written, (char *)pdev,
+		rc = CIFSSMBWrite(xid, &io_parms,
+			&bytes_written, (char *)pdev,
 			NULL, 0);
 	} /* else if (S_ISFIFO) */
 	CIFSSMBClose(xid, pTcon, fileHandle);

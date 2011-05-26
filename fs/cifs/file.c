@@ -857,7 +857,7 @@ cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
 		cifsi->server_eof = end_of_write;
 }
 
-static ssize_t cifs_write(struct cifsFileInfo *open_file,
+static ssize_t cifs_write(struct cifsFileInfo *open_file, __u32 pid,
 			  const char *write_data, size_t write_size,
 			  loff_t *poffset)
 {
@@ -869,6 +869,7 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 	int xid;
 	struct dentry *dentry = open_file->dentry;
 	struct cifsInodeInfo *cifsi = CIFS_I(dentry->d_inode);
+	struct cifs_io_parms io_parms;
 
 	cifs_sb = CIFS_SB(dentry->d_sb);
 
@@ -901,8 +902,13 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 			/* iov[0] is reserved for smb header */
 			iov[1].iov_base = (char *)write_data + total_written;
 			iov[1].iov_len = len;
-			rc = CIFSSMBWrite2(xid, pTcon, open_file->netfid, len,
-					   *poffset, &bytes_written, iov, 1, 0);
+			io_parms.netfid = open_file->netfid;
+			io_parms.pid = pid;
+			io_parms.tcon = pTcon;
+			io_parms.offset = *poffset;
+			io_parms.length = len;
+			rc = CIFSSMBWrite2(xid, &io_parms, &bytes_written, iov,
+					   1, 0);
 		}
 		if (rc || (bytes_written == 0)) {
 			if (total_written)
@@ -1071,8 +1077,8 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 
 	open_file = find_writable_file(CIFS_I(mapping->host), false);
 	if (open_file) {
-		bytes_written = cifs_write(open_file, write_data,
-					   to - from, &offset);
+		bytes_written = cifs_write(open_file, open_file->pid,
+					   write_data, to - from, &offset);
 		cifsFileInfo_put(open_file);
 		/* Does mm or vfs already set times? */
 		inode->i_atime = inode->i_mtime = current_fs_time(inode->i_sb);
@@ -1363,8 +1369,8 @@ static int cifs_write_end(struct file *file, struct address_space *mapping,
 		/* BB check if anything else missing out of ppw
 		   such as updating last write time */
 		page_data = kmap(page);
-		rc = cifs_write(file->private_data, page_data + offset,
-				copied, &pos);
+		rc = cifs_write(file->private_data, current->tgid,
+				page_data + offset, copied, &pos);
 		/* if (rc < 0) should we set writebehind rc? */
 		kunmap(page);
 
@@ -1515,6 +1521,7 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 	struct cifsFileInfo *open_file;
 	struct cifsTconInfo *pTcon;
 	struct cifs_sb_info *cifs_sb;
+	struct cifs_io_parms io_parms;
 	int xid, rc;
 
 	len = iov_length(iov, nr_segs);
@@ -1573,9 +1580,13 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 				if (rc != 0)
 					break;
 			}
-			rc = CIFSSMBWrite2(xid, pTcon, open_file->netfid,
-					   cur_len, *poffset, &written,
-					   to_send, npages, 0);
+			io_parms.netfid = open_file->netfid;
+			io_parms.pid = current->tgid;
+			io_parms.tcon = pTcon;
+			io_parms.offset = *poffset;
+			io_parms.length = cur_len;
+			rc = CIFSSMBWrite2(xid, &io_parms, &written, to_send,
+					   npages, 0);
 		} while (rc == -EAGAIN);
 
 		for (i = 0; i < npages; i++)

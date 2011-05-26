@@ -184,6 +184,7 @@ CIFSCreateMFSymLink(const int xid, struct cifsTconInfo *tcon,
 	__u16 netfid = 0;
 	u8 *buf;
 	unsigned int bytes_written = 0;
+	struct cifs_io_parms io_parms;
 
 	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -203,10 +204,13 @@ CIFSCreateMFSymLink(const int xid, struct cifsTconInfo *tcon,
 		return rc;
 	}
 
-	rc = CIFSSMBWrite(xid, tcon, netfid,
-			  CIFS_MF_SYMLINK_FILE_SIZE /* length */,
-			  0 /* offset */,
-			  &bytes_written, buf, NULL, 0);
+	io_parms.netfid = netfid;
+	io_parms.pid = current->tgid;
+	io_parms.tcon = tcon;
+	io_parms.offset = 0;
+	io_parms.length = CIFS_MF_SYMLINK_FILE_SIZE;
+
+	rc = CIFSSMBWrite(xid, &io_parms, &bytes_written, buf, NULL, 0);
 	CIFSSMBClose(xid, tcon, netfid);
 	kfree(buf);
 	if (rc != 0)
