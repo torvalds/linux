@@ -273,6 +273,8 @@ static int logfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 
+	dentry_unhash(dentry);
+
 	if (!logfs_empty_dir(inode))
 		return -ENOTEMPTY;
 
@@ -621,6 +623,9 @@ static int logfs_rename_cross(struct inode *old_dir, struct dentry *old_dentry,
 	struct logfs_transaction *ta;
 	loff_t pos;
 	int err;
+
+	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
+		dentry_unhash(new_dentry);
 
 	/* 1. locate source dd */
 	err = logfs_get_dd(old_dir, old_dentry, &dd, &pos);

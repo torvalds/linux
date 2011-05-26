@@ -105,7 +105,6 @@ static int xattr_rmdir(struct inode *dir, struct dentry *dentry)
 	mutex_unlock(&dentry->d_inode->i_mutex);
 	if (!error)
 		d_delete(dentry);
-	dput(dentry);
 
 	return error;
 }

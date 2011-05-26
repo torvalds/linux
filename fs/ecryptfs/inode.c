@@ -521,6 +521,8 @@ static int ecryptfs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct dentry *lower_dir_dentry;
 	int rc;
 
+	dentry_unhash(dentry);
+
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	dget(dentry);
 	lower_dir_dentry = lock_parent(lower_dentry);
@@ -570,6 +572,9 @@ ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct dentry *lower_old_dir_dentry;
 	struct dentry *lower_new_dir_dentry;
 	struct dentry *trap = NULL;
+
+	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
+		dentry_unhash(new_dentry);
 
 	lower_old_dentry = ecryptfs_dentry_to_lower(old_dentry);
 	lower_new_dentry = ecryptfs_dentry_to_lower(new_dentry);

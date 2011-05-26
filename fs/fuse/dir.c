@@ -667,6 +667,8 @@ static int fuse_rmdir(struct inode *dir, struct dentry *entry)
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
+	dentry_unhash(entry);
+
 	req->in.h.opcode = FUSE_RMDIR;
 	req->in.h.nodeid = get_node_id(dir);
 	req->in.numargs = 1;
@@ -691,6 +693,10 @@ static int fuse_rename(struct inode *olddir, struct dentry *oldent,
 	struct fuse_rename_in inarg;
 	struct fuse_conn *fc = get_fuse_conn(olddir);
 	struct fuse_req *req = fuse_get_req(fc);
+
+	if (newent->d_inode && S_ISDIR(newent->d_inode->i_mode))
+		dentry_unhash(newent);
+
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
