@@ -16,7 +16,6 @@
 
 #define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
 
-#ifdef CONFIG_GENERIC_FIND_NEXT_BIT
 #ifndef find_next_bit
 /*
  * Find the next set bit in a memory region.
@@ -107,9 +106,7 @@ found_middle:
 }
 EXPORT_SYMBOL(find_next_zero_bit);
 #endif
-#endif /* CONFIG_GENERIC_FIND_NEXT_BIT */
 
-#ifdef CONFIG_GENERIC_FIND_FIRST_BIT
 #ifndef find_first_bit
 /*
  * Find the first set bit in a memory region.
@@ -165,10 +162,8 @@ found:
 }
 EXPORT_SYMBOL(find_first_zero_bit);
 #endif
-#endif /* CONFIG_GENERIC_FIND_FIRST_BIT */
 
 #ifdef __BIG_ENDIAN
-#ifdef CONFIG_GENERIC_FIND_BIT_LE
 
 /* include/linux/byteorder does not support "unsigned long" type */
 static inline unsigned long ext2_swabp(const unsigned long * x)
@@ -287,5 +282,4 @@ found_middle_swap:
 EXPORT_SYMBOL(find_next_bit_le);
 #endif
 
-#endif /* CONFIG_GENERIC_FIND_BIT_LE */
 #endif /* __BIG_ENDIAN */
