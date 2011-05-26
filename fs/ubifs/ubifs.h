@@ -722,12 +722,14 @@ struct ubifs_bud {
  * struct ubifs_jhead - journal head.
  * @wbuf: head's write-buffer
  * @buds_list: list of bud LEBs belonging to this journal head
+ * @grouped: non-zero if UBIFS groups nodes when writing to this journal head
  *
  * Note, the @buds list is protected by the @c->buds_lock.
  */
 struct ubifs_jhead {
 	struct ubifs_wbuf wbuf;
 	struct list_head buds_list;
+	unsigned int grouped:1;
 };
 
 /**
