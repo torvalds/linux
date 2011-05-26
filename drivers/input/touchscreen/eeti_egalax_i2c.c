@@ -472,9 +472,31 @@ static void egalax_i2c_wq(struct work_struct *work)
 	while( !gpio_get_value(gpio) && egalax_i2c->work_state>0 )
 	{
 		egalax_i2c_measure(client, egalax_i2c->skip_packet);
-		schedule();
+		schedule_timeout_interruptible(HZ/100);
 	}
-	
+
+#ifndef _NON_INPUT_DEV
+	if (gpio_get_value(gpio) && egalax_i2c->work_state > 0 && !egalax_i2c->skip_packet) {
+		int i, reported = 0;
+		for(i = 0; i < MAX_SUPPORT_POINT; i++) {
+			if (PointBuf[i].Status > 0) {
+				TS_DEBUG("point %d still down\n", i);
+				input_report_abs(input_dev, ABS_MT_TRACKING_ID, i);
+				input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, 0);
+				input_report_abs(input_dev, ABS_MT_WIDTH_MAJOR, 0);
+				input_report_abs(input_dev, ABS_MT_POSITION_X, PointBuf[i].X);
+				input_report_abs(input_dev, ABS_MT_POSITION_Y, PointBuf[i].Y);
+
+				input_mt_sync(input_dev);
+				PointBuf[i].Status = 0;
+				reported = 1;
+			}
+		}
+		if (reported)
+			input_sync(input_dev);
+	}
+#endif
+
 	if( egalax_i2c->skip_packet > 0 )
 		egalax_i2c->skip_packet = 0;
 
@@ -571,7 +593,7 @@ static int egalax_i2c_resume(struct i2c_client *client)
 #define egalax_i2c_resume        NULL
 #endif
 
-static int __devinit egalax_i2c_probe(struct i2c_client *client)
+static int __devinit egalax_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int ret;
 	int gpio = client->irq;
@@ -619,7 +641,7 @@ if (pdata->init_platform_hw)
 	
 	p_egalax_i2c_dev->irq = gpio_to_irq(client->irq);
 	
-	ret = request_irq(p_egalax_i2c_dev->irq, egalax_i2c_interrupt, 0,
+	ret = request_irq(p_egalax_i2c_dev->irq, egalax_i2c_interrupt, IRQF_TRIGGER_LOW,
 		 client->name, p_egalax_i2c_dev);
 	if( ret ) 
 	{
@@ -818,7 +840,7 @@ static void __init egalax_i2c_ts_init_async(void *unused, async_cookie_t cookie)
 	if (result < 0)
 	{
 		TS_DEBUG(" egalax_i2c cdev can't get major number\n");
-		return 0;
+		return;
 	}
 
 	// allocate the character device
@@ -845,11 +867,11 @@ static void __init egalax_i2c_ts_init_async(void *unused, async_cookie_t cookie)
 	TS_DEBUG("register egalax_i2c cdev, major: %d \n",global_major);
 
 	printk(KERN_DEBUG "[egalax_i2c]: init done\n");
-	return i2c_add_driver(&egalax_i2c_driver);
+	i2c_add_driver(&egalax_i2c_driver);
+	return;
 
 fail:	
 	egalax_i2c_ts_exit();
-	return result;
 }
 
 static int __init egalax_i2c_ts_init(void)
