@@ -175,8 +175,8 @@ static __always_inline long time_syscall(long *t)
 
 notrace time_t __vdso_time(time_t *t)
 {
-	unsigned seq;
 	time_t result;
+
 	if (unlikely(!VVAR(vsyscall_gtod_data).sysctl_enabled))
 		return time_syscall(t);
 
