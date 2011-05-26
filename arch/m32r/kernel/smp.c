@@ -30,6 +30,7 @@
 #include <asm/io.h>
 #include <asm/mmu_context.h>
 #include <asm/m32r.h>
+#include <asm/tlbflush.h>
 
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 /* Data structures and variables                                             */
@@ -61,27 +62,17 @@ extern spinlock_t ipi_lock[];
 /* Function Prototypes                                                       */
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 
-void smp_send_reschedule(int);
 void smp_reschedule_interrupt(void);
-
-void smp_flush_cache_all(void);
 void smp_flush_cache_all_interrupt(void);
 
-void smp_flush_tlb_all(void);
 static void flush_tlb_all_ipi(void *);
-
-void smp_flush_tlb_mm(struct mm_struct *);
-void smp_flush_tlb_range(struct vm_area_struct *, unsigned long, \
-	unsigned long);
-void smp_flush_tlb_page(struct vm_area_struct *, unsigned long);
 static void flush_tlb_others(cpumask_t, struct mm_struct *,
 	struct vm_area_struct *, unsigned long);
+
 void smp_invalidate_interrupt(void);
 
-void smp_send_stop(void);
 static void stop_this_cpu(void *);
 
-void smp_send_timer(void);
 void smp_ipi_timer_interrupt(struct pt_regs *);
 void smp_local_timer_interrupt(void);
 
