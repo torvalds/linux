@@ -12,6 +12,7 @@
 #include <linux/fb.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 
 #include "mb862xxfb.h"
 #include "mb862xx_reg.h"
