@@ -34,7 +34,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
-#include <asm/s390_ext.h>
+#include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/compat.h>
 #include "../kernel/entry.h"

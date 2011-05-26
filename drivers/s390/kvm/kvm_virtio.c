@@ -25,7 +25,6 @@
 #include <asm/kvm_para.h>
 #include <asm/kvm_virtio.h>
 #include <asm/setup.h>
-#include <asm/s390_ext.h>
 #include <asm/irq.h>
 
 #define VIRTIO_SUBCODE_64 0x0D00

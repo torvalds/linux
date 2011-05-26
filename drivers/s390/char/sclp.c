@@ -19,7 +19,6 @@
 #include <linux/suspend.h>
 #include <linux/completion.h>
 #include <linux/platform_device.h>
-#include <asm/s390_ext.h>
 #include <asm/types.h>
 #include <asm/irq.h>
 

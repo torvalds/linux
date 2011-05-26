@@ -22,10 +22,10 @@
 #include <linux/cpu.h>
 #include <linux/kprobes.h>
 
-#include <asm/s390_ext.h>
 #include <asm/timer.h>
 #include <asm/irq_regs.h>
 #include <asm/cputime.h>
+#include <asm/irq.h>
 
 static DEFINE_PER_CPU(struct vtimer_queue, virt_cpu_timer);
 

@@ -41,7 +41,6 @@
 #include <linux/kprobes.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
-#include <asm/s390_ext.h>
 #include <asm/div64.h>
 #include <asm/vdso.h>
 #include <asm/irq.h>
