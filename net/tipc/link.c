@@ -1032,9 +1032,6 @@ int tipc_send_buf_fast(struct sk_buff *buf, u32 destnode)
 	u32 selector = msg_origport(buf_msg(buf)) & 1;
 	u32 dummy;
 
-	if (destnode == tipc_own_addr)
-		return tipc_port_recv_msg(buf);
-
 	read_lock_bh(&tipc_net_lock);
 	n_ptr = tipc_node_find(destnode);
 	if (likely(n_ptr)) {
