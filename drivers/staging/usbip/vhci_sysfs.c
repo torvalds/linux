@@ -135,7 +135,7 @@ static DEVICE_ATTR(detach, S_IWUSR, NULL, store_detach);
 static int valid_args(__u32 rhport, enum usb_device_speed speed)
 {
 	/* check rhport */
-	if ((rhport < 0) || (rhport >= VHCI_NPORTS)) {
+	if (rhport >= VHCI_NPORTS) {
 		pr_err("port %u\n", rhport);
 		return -EINVAL;
 	}
