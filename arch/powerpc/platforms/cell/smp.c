@@ -152,7 +152,7 @@ static int smp_cell_cpu_bootable(unsigned int nr)
 	return 1;
 }
 static struct smp_ops_t bpa_iic_smp_ops = {
-	.message_pass	= iic_cause_IPI,
+	.message_pass	= iic_message_pass,
 	.probe		= smp_iic_probe,
 	.kick_cpu	= smp_cell_kick_cpu,
 	.setup_cpu	= smp_cell_setup_cpu,
