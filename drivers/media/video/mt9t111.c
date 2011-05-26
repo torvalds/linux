@@ -21,7 +21,7 @@
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
 #include <mach/rk29_camera.h>
-#include "mt9p111.h"
+#include "mt9t111.h"
 
 static int debug;
 module_param(debug, int, S_IRUGO|S_IWUSR);
