@@ -149,6 +149,7 @@ static inline unsigned long __ffs64(u64 word)
 #ifdef __KERNEL__
 
 #ifdef CONFIG_GENERIC_FIND_LAST_BIT
+#ifndef find_last_bit
 /**
  * find_last_bit - find the last set bit in a memory region
  * @addr: The address to start the search at
@@ -158,6 +159,7 @@ static inline unsigned long __ffs64(u64 word)
  */
 extern unsigned long find_last_bit(const unsigned long *addr,
 				   unsigned long size);
+#endif
 #endif /* CONFIG_GENERIC_FIND_LAST_BIT */
 
 #endif /* __KERNEL__ */
