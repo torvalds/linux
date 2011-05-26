@@ -53,7 +53,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_INIT_WIDTH	640		/* Sensor pixel size for sensor_init_data array */
 #define SENSOR_INIT_HEIGHT  480
 #define SENSOR_INIT_WINSEQADR sensor_vga
-#define SENSOR_INIT_PIXFMT V4L2_PIX_FMT_UYVY
+#define SENSOR_INIT_PIXFMT V4L2_PIX_FMT_YVYU
 
 #define CONFIG_SENSOR_WhiteBalance	1
 #define CONFIG_SENSOR_Brightness	0
@@ -261,13 +261,13 @@ static struct reginfo sensor_qcif[] =
 
 static  struct reginfo sensor_ClrFmt_YUYV[]=
 {
-
+    {0x24,0xa2}, 
     {0x00, 0x00}
 };
 
 static  struct reginfo sensor_ClrFmt_UYVY[]=
 {
-
+    {0x24,0xa0}, 
     {0x00, 0x00}
 };
 
