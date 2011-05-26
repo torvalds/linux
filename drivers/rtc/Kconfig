@@ -884,6 +884,13 @@ config RTC_DRV_PXA
          This RTC driver uses PXA RTC registers available since pxa27x
          series (RDxR, RYxR) instead of legacy RCNR, RTAR.
 
+config RTC_DRV_VT8500
+	tristate "VIA/WonderMedia 85xx SoC RTC"
+	depends on ARCH_VT8500
+	help
+	  If you say Y here you will get access to the real time clock
+	  built into your VIA VT8500 SoC or its relatives.
+
 
 config RTC_DRV_SUN4V
 	bool "SUN4V Hypervisor RTC"
