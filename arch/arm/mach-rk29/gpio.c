@@ -183,7 +183,8 @@ static int GPIOSetPinDirection(struct gpio_chip *chip, unsigned int mask,eGPIOPi
 
 	local_irq_save(flags);
 	rk29_gpio_bitOp(gpioRegBase,GPIO_SWPORT_DDR,mask,direction);
-	rk29_gpio_bitOp(gpioRegBase,GPIO_DEBOUNCE,mask,1); 
+	/* Enable debounce may halt cpu on wfi, disable it by default */
+	//rk29_gpio_bitOp(gpioRegBase,GPIO_DEBOUNCE,mask,1);
 	local_irq_restore(flags);
 
 	return 0;
@@ -555,7 +556,7 @@ static void __init rk29_gpio_irq_setup(void)
 		for (j = 0; j < 32; j++) {
 			lockdep_set_class(&irq_desc[pin+j].lock, &gpio_lock_class);
 			set_irq_chip(pin+j, &rk29gpio_irqchip);
-			set_irq_handler(pin+j, handle_edge_irq);
+			set_irq_handler(pin+j, handle_level_irq);
 			set_irq_flags(pin+j, IRQF_VALID);
 		}
 
