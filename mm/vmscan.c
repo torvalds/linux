@@ -2226,6 +2226,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 {
 	struct zonelist *zonelist;
 	unsigned long nr_reclaimed;
+	int nid;
 	struct scan_control sc = {
 		.may_writepage = !laptop_mode,
 		.may_unmap = 1,
@@ -2242,7 +2243,14 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 		.gfp_mask = sc.gfp_mask,
 	};
 
-	zonelist = NODE_DATA(numa_node_id())->node_zonelists;
+	/*
+	 * Unlike direct reclaim via alloc_pages(), memcg's reclaim doesn't
+	 * take care of from where we get pages. So the node where we start the
+	 * scan does not need to be the current node.
+	 */
+	nid = mem_cgroup_select_victim_node(mem_cont);
+
+	zonelist = NODE_DATA(nid)->node_zonelists;
 
 	trace_mm_vmscan_memcg_reclaim_begin(0,
 					    sc.may_writepage,
