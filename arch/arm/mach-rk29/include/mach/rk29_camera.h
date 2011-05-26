@@ -127,7 +127,7 @@
 #define RK29_CAM_SUBDEV_ACTIVATE            0x00
 #define RK29_CAM_SUBDEV_DEACTIVATE          0x01
 #define RK29_CAM_SUBDEV_IOREQUEST			0x02
-
+#define RK29_CAM_SUBDEV_CB_REGISTER         0x03
 
 enum rk29camera_ioctrl_cmd
 {
@@ -180,6 +180,10 @@ struct rk29camera_platform_ioctl_cb {
     int (*sensor_powerdown_cb)(struct rk29camera_gpio_res *res, int on);
     int (*sensor_flash_cb)(struct rk29camera_gpio_res *res, int on);    
 };
+
+typedef struct rk29_camera_sensor_cb {
+    int (*sensor_cb)(void *arg); 
+}rk29_camera_sensor_cb_s;
 
 #endif /* __ASM_ARCH_CAMERA_H_ */
 
