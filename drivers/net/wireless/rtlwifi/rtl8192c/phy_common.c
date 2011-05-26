@@ -728,7 +728,7 @@ void rtl92c_phy_set_bw_mode(struct ieee80211_hw *hw,
 		return;
 	rtlphy->set_bwmode_inprogress = true;
 	if ((!is_hal_stop(rtlhal)) && !(RT_CANNOT_IO(hw))) {
-		rtlphy->set_bwmode_inprogress = false;
+		rtlpriv->cfg->ops->phy_set_bw_mode_callback(hw);
 	} else {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 ("FALSE driver sleep or unload\n"));

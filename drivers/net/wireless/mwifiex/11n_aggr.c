@@ -196,6 +196,8 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		if (skb_src)
 			pra_list->total_pkts_size -= skb_src->len;
 
+		atomic_dec(&priv->wmm.tx_pkts_queued);
+
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
 		mwifiex_11n_form_amsdu_pkt(skb_aggr, skb_src, &pad);
@@ -256,6 +258,8 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		skb_queue_tail(&pra_list->skb_head, skb_aggr);
 
 		pra_list->total_pkts_size += skb_aggr->len;
+
+		atomic_inc(&priv->wmm.tx_pkts_queued);
 
 		tx_info_aggr->flags |= MWIFIEX_BUF_FLAG_REQUEUED_PKT;
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,

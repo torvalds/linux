@@ -205,7 +205,6 @@ enum {
 #define QUEUE_TO_SEQ(q)	(((q) & 0x1f) << 8)
 #define SEQ_TO_INDEX(s)	((s) & 0xff)
 #define INDEX_TO_SEQ(i)	((i) & 0xff)
-#define SEQ_HUGE_FRAME	cpu_to_le16(0x4000)
 #define SEQ_RX_FRAME	cpu_to_le16(0x8000)
 
 /**
@@ -234,9 +233,7 @@ struct iwl_cmd_header {
 	 *
 	 *  0:7		tfd index - position within TX queue
 	 *  8:12	TX queue id
-	 *  13		reserved
-	 *  14		huge - driver sets this to indicate command is in the
-	 *  		'huge' storage at the end of the command buffers
+	 *  13:14	reserved
 	 *  15		unsolicited RX or uCode-originated notification
 	 */
 	__le16 sequence;

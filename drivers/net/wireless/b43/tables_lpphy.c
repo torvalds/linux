@@ -2304,7 +2304,7 @@ void lpphy_rev0_1_table_init(struct b43_wldev *dev)
 
 void lpphy_rev2plus_table_init(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 	int i;
 
 	B43_WARN_ON(dev->phy.rev < 2);
@@ -2416,7 +2416,7 @@ void lpphy_write_gain_table_bulk(struct b43_wldev *dev, int offset, int count,
 
 void lpphy_init_tx_gain_table(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 
 	switch (dev->phy.rev) {
 	case 0:
