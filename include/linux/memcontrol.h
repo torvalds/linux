@@ -144,7 +144,8 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
 }
 
 unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
-						gfp_t gfp_mask);
+						gfp_t gfp_mask,
+						unsigned long *total_scanned);
 u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -338,7 +339,8 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
 
 static inline
 unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
-					    gfp_t gfp_mask)
+					    gfp_t gfp_mask,
+					    unsigned long *total_scanned)
 {
 	return 0;
 }

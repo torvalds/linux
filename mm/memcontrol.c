@@ -1433,7 +1433,8 @@ mem_cgroup_select_victim(struct mem_cgroup *root_mem)
 static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 						struct zone *zone,
 						gfp_t gfp_mask,
-						unsigned long reclaim_options)
+						unsigned long reclaim_options,
+						unsigned long *total_scanned)
 {
 	struct mem_cgroup *victim;
 	int ret, total = 0;
@@ -1442,6 +1443,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 	bool shrink = reclaim_options & MEM_CGROUP_RECLAIM_SHRINK;
 	bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
 	unsigned long excess;
+	unsigned long nr_scanned;
 
 	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
 
@@ -1484,10 +1486,12 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 			continue;
 		}
 		/* we use swappiness of local cgroup */
-		if (check_soft)
+		if (check_soft) {
 			ret = mem_cgroup_shrink_node_zone(victim, gfp_mask,
-				noswap, get_swappiness(victim), zone);
-		else
+				noswap, get_swappiness(victim), zone,
+				&nr_scanned);
+			*total_scanned += nr_scanned;
+		} else
 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
 						noswap, get_swappiness(victim));
 		css_put(&victim->css);
@@ -1928,7 +1932,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *mem, gfp_t gfp_mask,
 		return CHARGE_WOULDBLOCK;
 
 	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
-					      gfp_mask, flags);
+					      gfp_mask, flags, NULL);
 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
 		return CHARGE_RETRY;
 	/*
@@ -3211,7 +3215,8 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 			break;
 
 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
-						MEM_CGROUP_RECLAIM_SHRINK);
+						MEM_CGROUP_RECLAIM_SHRINK,
+						NULL);
 		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
 		/* Usage is reduced ? */
   		if (curusage >= oldusage)
@@ -3271,7 +3276,8 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
 
 		mem_cgroup_hierarchical_reclaim(memcg, NULL, GFP_KERNEL,
 						MEM_CGROUP_RECLAIM_NOSWAP |
-						MEM_CGROUP_RECLAIM_SHRINK);
+						MEM_CGROUP_RECLAIM_SHRINK,
+						NULL);
 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
 		/* Usage is reduced ? */
 		if (curusage >= oldusage)
@@ -3285,7 +3291,8 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
 }
 
 unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
-					    gfp_t gfp_mask)
+					    gfp_t gfp_mask,
+					    unsigned long *total_scanned)
 {
 	unsigned long nr_reclaimed = 0;
 	struct mem_cgroup_per_zone *mz, *next_mz = NULL;
@@ -3293,6 +3300,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
 	int loop = 0;
 	struct mem_cgroup_tree_per_zone *mctz;
 	unsigned long long excess;
+	unsigned long nr_scanned;
 
 	if (order > 0)
 		return 0;
@@ -3311,10 +3319,13 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
 		if (!mz)
 			break;
 
+		nr_scanned = 0;
 		reclaimed = mem_cgroup_hierarchical_reclaim(mz->mem, zone,
 						gfp_mask,
-						MEM_CGROUP_RECLAIM_SOFT);
+						MEM_CGROUP_RECLAIM_SOFT,
+						&nr_scanned);
 		nr_reclaimed += reclaimed;
+		*total_scanned += nr_scanned;
 		spin_lock(&mctz->lock);
 
 		/*
