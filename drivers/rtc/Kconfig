@@ -385,6 +385,15 @@ comment "SPI RTC drivers"
 
 if SPI_MASTER
 
+config RTC_DRV_M41T93
+        tristate "ST M41T93"
+        help
+          If you say yes here you will get support for the
+          ST M41T93 SPI RTC chip.
+
+          This driver can also be built as a module. If so, the module
+          will be called rtc-m41t93.
+
 config RTC_DRV_M41T94
 	tristate "ST M41T94"
 	help
