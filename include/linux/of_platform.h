@@ -12,7 +12,6 @@
  */
 
 #ifdef CONFIG_OF_DEVICE
-#include <linux/module.h>
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/pm.h>
