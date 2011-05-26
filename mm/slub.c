@@ -1831,7 +1831,6 @@ load_freelist:
 	page->inuse = page->objects;
 	page->freelist = NULL;
 
-unlock_out:
 	slab_unlock(page);
 	c->tid = next_tid(c->tid);
 	local_irq_restore(flags);
