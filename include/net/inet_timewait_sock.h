@@ -18,7 +18,6 @@
 
 #include <linux/kmemcheck.h>
 #include <linux/list.h>
-#include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
