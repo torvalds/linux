@@ -136,15 +136,29 @@ static int max6642_detect(struct i2c_client *client,
 	if (man_id != 0x4D)
 		return -ENODEV;
 
+	/* sanity check */
+	if (i2c_smbus_read_byte_data(client, 0x04) != 0x4D
+	    || i2c_smbus_read_byte_data(client, 0x06) != 0x4D
+	    || i2c_smbus_read_byte_data(client, 0xff) != 0x4D)
+		return -ENODEV;
+
 	/*
 	 * We read the config and status register, the 4 lower bits in the
 	 * config register should be zero and bit 5, 3, 1 and 0 should be
 	 * zero in the status register.
 	 */
 	reg_config = i2c_smbus_read_byte_data(client, MAX6642_REG_R_CONFIG);
+	if ((reg_config & 0x0f) != 0x00)
+		return -ENODEV;
+
+	/* in between, another round of sanity checks */
+	if (i2c_smbus_read_byte_data(client, 0x04) != reg_config
+	    || i2c_smbus_read_byte_data(client, 0x06) != reg_config
+	    || i2c_smbus_read_byte_data(client, 0xff) != reg_config)
+		return -ENODEV;
+
 	reg_status = i2c_smbus_read_byte_data(client, MAX6642_REG_R_STATUS);
-	if (((reg_config & 0x0f) != 0x00) ||
-	    ((reg_status & 0x2b) != 0x00))
+	if ((reg_status & 0x2b) != 0x00)
 		return -ENODEV;
 
 	strlcpy(info->type, "max6642", I2C_NAME_SIZE);
