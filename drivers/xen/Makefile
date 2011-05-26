@@ -1,5 +1,6 @@
 obj-y	+= grant-table.o features.o events.o manage.o balloon.o
 obj-y	+= xenbus/
+obj-y	+= tmem.o
 
 nostackp := $(call cc-option, -fno-stack-protector)
 CFLAGS_features.o			:= $(nostackp)

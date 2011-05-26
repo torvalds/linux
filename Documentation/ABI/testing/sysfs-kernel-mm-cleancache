@@ -1,0 +1,11 @@
+What:		/sys/kernel/mm/cleancache/
+Date:		April 2011
+Contact:	Dan Magenheimer <dan.magenheimer@oracle.com>
+Description:
+		/sys/kernel/mm/cleancache/ contains a number of files which
+		record a count of various cleancache operations
+		(sum across all filesystems):
+			succ_gets
+			failed_gets
+			puts
+			flushes
