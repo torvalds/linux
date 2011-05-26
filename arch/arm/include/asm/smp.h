@@ -70,6 +70,7 @@ extern void platform_smp_prepare_cpus(unsigned int);
  */
 struct secondary_data {
 	unsigned long pgdir;
+	unsigned long swapper_pg_dir;
 	void *stack;
 };
 extern struct secondary_data secondary_data;
