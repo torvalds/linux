@@ -7,6 +7,7 @@
 #include "../config.h"
 #endif
 
+#include <errno.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <strings.h>
@@ -23,15 +24,14 @@
 
 #define _GNU_SOURCE
 #include <getopt.h>
+#include <glib.h>
 #include <signal.h>
 
-#include "usbip.h"
+#include "stub_driver.h"
+#include "usbip_common.h"
 #include "usbip_network.h"
 
-#include <glib.h>
-
 static const char version[] = PACKAGE_STRING;
-
 
 static int send_reply_devlist(int sockfd)
 {
