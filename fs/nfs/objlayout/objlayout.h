@@ -56,6 +56,14 @@ extern int objio_alloc_lseg(struct pnfs_layout_segment **outp,
 extern void objio_free_lseg(struct pnfs_layout_segment *lseg);
 
 /*
+ * callback API
+ */
+extern int objlayout_get_deviceinfo(struct pnfs_layout_hdr *pnfslay,
+	struct nfs4_deviceid *d_id, struct pnfs_osd_deviceaddr **deviceaddr,
+	gfp_t gfp_flags);
+extern void objlayout_put_deviceinfo(struct pnfs_osd_deviceaddr *deviceaddr);
+
+/*
  * exported generic objects function vectors
  */
 extern struct pnfs_layout_segment *objlayout_alloc_lseg(

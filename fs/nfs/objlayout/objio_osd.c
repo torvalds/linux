@@ -46,6 +46,68 @@
 
 #define _LLU(x) ((unsigned long long)x)
 
+struct objio_dev_ent {
+	struct nfs4_deviceid_node id_node;
+	struct osd_dev *od;
+};
+
+static void
+objio_free_deviceid_node(struct nfs4_deviceid_node *d)
+{
+	struct objio_dev_ent *de = container_of(d, struct objio_dev_ent, id_node);
+
+	dprintk("%s: free od=%p\n", __func__, de->od);
+	osduld_put_device(de->od);
+	kfree(de);
+}
+
+static struct objio_dev_ent *_dev_list_find(const struct nfs_server *nfss,
+	const struct nfs4_deviceid *d_id)
+{
+	struct nfs4_deviceid_node *d;
+	struct objio_dev_ent *de;
+
+	d = nfs4_find_get_deviceid(nfss->pnfs_curr_ld, nfss->nfs_client, d_id);
+	if (!d)
+		return NULL;
+
+	de = container_of(d, struct objio_dev_ent, id_node);
+	return de;
+}
+
+static struct objio_dev_ent *
+_dev_list_add(const struct nfs_server *nfss,
+	const struct nfs4_deviceid *d_id, struct osd_dev *od,
+	gfp_t gfp_flags)
+{
+	struct nfs4_deviceid_node *d;
+	struct objio_dev_ent *de = kzalloc(sizeof(*de), gfp_flags);
+	struct objio_dev_ent *n;
+
+	if (!de) {
+		dprintk("%s: -ENOMEM od=%p\n", __func__, od);
+		return NULL;
+	}
+
+	dprintk("%s: Adding od=%p\n", __func__, od);
+	nfs4_init_deviceid_node(&de->id_node,
+				nfss->pnfs_curr_ld,
+				nfss->nfs_client,
+				d_id);
+	de->od = od;
+
+	d = nfs4_insert_deviceid_node(&de->id_node);
+	n = container_of(d, struct objio_dev_ent, id_node);
+	if (n != de) {
+		dprintk("%s: Race with other n->od=%p\n", __func__, n->od);
+		objio_free_deviceid_node(&de->id_node);
+		de = n;
+	}
+
+	atomic_inc(&de->id_node.ref);
+	return de;
+}
+
 struct caps_buffers {
 	u8 caps_key[OSD_CRYPTO_KEYID_SIZE];
 	u8 creds[OSD_CAP_LEN];
@@ -72,6 +134,90 @@ static inline struct objio_segment *
 OBJIO_LSEG(struct pnfs_layout_segment *lseg)
 {
 	return container_of(lseg, struct objio_segment, lseg);
+}
+
+/* Send and wait for a get_device_info of devices in the layout,
+   then look them up with the osd_initiator library */
+static struct objio_dev_ent *_device_lookup(struct pnfs_layout_hdr *pnfslay,
+				struct objio_segment *objio_seg, unsigned comp,
+				gfp_t gfp_flags)
+{
+	struct pnfs_osd_deviceaddr *deviceaddr;
+	struct nfs4_deviceid *d_id;
+	struct objio_dev_ent *ode;
+	struct osd_dev *od;
+	struct osd_dev_info odi;
+	int err;
+
+	d_id = &objio_seg->comps[comp].oc_object_id.oid_device_id;
+
+	ode = _dev_list_find(NFS_SERVER(pnfslay->plh_inode), d_id);
+	if (ode)
+		return ode;
+
+	err = objlayout_get_deviceinfo(pnfslay, d_id, &deviceaddr, gfp_flags);
+	if (unlikely(err)) {
+		dprintk("%s: objlayout_get_deviceinfo dev(%llx:%llx) =>%d\n",
+			__func__, _DEVID_LO(d_id), _DEVID_HI(d_id), err);
+		return ERR_PTR(err);
+	}
+
+	odi.systemid_len = deviceaddr->oda_systemid.len;
+	if (odi.systemid_len > sizeof(odi.systemid)) {
+		err = -EINVAL;
+		goto out;
+	} else if (odi.systemid_len)
+		memcpy(odi.systemid, deviceaddr->oda_systemid.data,
+		       odi.systemid_len);
+	odi.osdname_len	 = deviceaddr->oda_osdname.len;
+	odi.osdname	 = (u8 *)deviceaddr->oda_osdname.data;
+
+	if (!odi.osdname_len && !odi.systemid_len) {
+		dprintk("%s: !odi.osdname_len && !odi.systemid_len\n",
+			__func__);
+		err = -ENODEV;
+		goto out;
+	}
+
+	od = osduld_info_lookup(&odi);
+	if (unlikely(IS_ERR(od))) {
+		err = PTR_ERR(od);
+		dprintk("%s: osduld_info_lookup => %d\n", __func__, err);
+		goto out;
+	}
+
+	ode = _dev_list_add(NFS_SERVER(pnfslay->plh_inode), d_id, od,
+			    gfp_flags);
+
+out:
+	dprintk("%s: return=%d\n", __func__, err);
+	objlayout_put_deviceinfo(deviceaddr);
+	return err ? ERR_PTR(err) : ode;
+}
+
+static int objio_devices_lookup(struct pnfs_layout_hdr *pnfslay,
+	struct objio_segment *objio_seg,
+	gfp_t gfp_flags)
+{
+	unsigned i;
+	int err;
+
+	/* lookup all devices */
+	for (i = 0; i < objio_seg->num_comps; i++) {
+		struct objio_dev_ent *ode;
+
+		ode = _device_lookup(pnfslay, objio_seg, i, gfp_flags);
+		if (unlikely(IS_ERR(ode))) {
+			err = PTR_ERR(ode);
+			goto out;
+		}
+		objio_seg->ods[i] = ode;
+	}
+	err = 0;
+
+out:
+	dprintk("%s: return=%d\n", __func__, err);
+	return err;
 }
 
 static int _verify_data_map(struct pnfs_osd_layout *layout)
@@ -171,6 +317,9 @@ int objio_alloc_lseg(struct pnfs_layout_segment **outp,
 
 	objio_seg->num_comps = layout.olo_num_comps;
 	objio_seg->comps_index = layout.olo_comps_index;
+	err = objio_devices_lookup(pnfslay, objio_seg, gfp_flags);
+	if (err)
+		goto err;
 
 	objio_seg->mirrors_p1 = layout.olo_map.odm_mirror_cnt + 1;
 	objio_seg->stripe_unit = layout.olo_map.odm_stripe_unit;
@@ -199,8 +348,14 @@ err:
 
 void objio_free_lseg(struct pnfs_layout_segment *lseg)
 {
+	int i;
 	struct objio_segment *objio_seg = OBJIO_LSEG(lseg);
 
+	for (i = 0; i < objio_seg->num_comps; i++) {
+		if (!objio_seg->ods[i])
+			break;
+		nfs4_put_deviceid_node(&objio_seg->ods[i]->id_node);
+	}
 	kfree(objio_seg);
 }
 
@@ -211,6 +366,8 @@ static struct pnfs_layoutdriver_type objlayout_type = {
 
 	.alloc_lseg              = objlayout_alloc_lseg,
 	.free_lseg               = objlayout_free_lseg,
+
+	.free_deviceid_node	 = objio_free_deviceid_node,
 };
 
 MODULE_DESCRIPTION("pNFS Layout Driver for OSD2 objects");
