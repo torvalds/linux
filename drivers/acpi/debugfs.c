@@ -12,13 +12,8 @@
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 ACPI_MODULE_NAME("debugfs");
 
-
-/* /sys/modules/acpi/parameters/aml_debug_output */
-
-module_param_named(aml_debug_output, acpi_gbl_enable_aml_debug_object,
-		   bool, 0644);
-MODULE_PARM_DESC(aml_debug_output,
-		 "To enable/disable the ACPI Debug Object output.");
+struct dentry *acpi_debugfs_dir;
+static struct dentry *cm_dentry;
 
 /* /sys/kernel/debug/acpi/custom_method */
 
@@ -80,23 +75,22 @@ static const struct file_operations cm_fops = {
 	.llseek = default_llseek,
 };
 
-int __init acpi_debugfs_init(void)
+static int __init acpi_custom_method_init(void)
 {
-	struct dentry *acpi_dir, *cm_dentry;
-
-	acpi_dir = debugfs_create_dir("acpi", NULL);
-	if (!acpi_dir)
-		goto err;
+	if (!acpi_debugfs_dir)
+		return -ENOENT;
 
 	cm_dentry = debugfs_create_file("custom_method", S_IWUSR,
-					acpi_dir, NULL, &cm_fops);
+					acpi_debugfs_dir, NULL, &cm_fops);
 	if (!cm_dentry)
-		goto err;
+		return -ENODEV;
 
 	return 0;
+}
 
-err:
-	if (acpi_dir)
-		debugfs_remove(acpi_dir);
-	return -EINVAL;
+void __init acpi_debugfs_init(void)
+{
+	acpi_debugfs_dir = debugfs_create_dir("acpi", NULL);
+
+	acpi_custom_method_init();
 }
