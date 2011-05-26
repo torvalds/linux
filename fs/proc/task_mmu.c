@@ -771,18 +771,12 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	if (!task)
 		goto out;
 
-	mm = mm_for_maps(task);
-	ret = PTR_ERR(mm);
-	if (!mm || IS_ERR(mm))
-		goto out_task;
-
 	ret = -EINVAL;
 	/* file position must be aligned */
 	if ((*ppos % PM_ENTRY_BYTES) || (count % PM_ENTRY_BYTES))
 		goto out_task;
 
 	ret = 0;
-
 	if (!count)
 		goto out_task;
 
@@ -790,7 +784,12 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	pm.buffer = kmalloc(pm.len, GFP_TEMPORARY);
 	ret = -ENOMEM;
 	if (!pm.buffer)
-		goto out_mm;
+		goto out_task;
+
+	mm = mm_for_maps(task);
+	ret = PTR_ERR(mm);
+	if (!mm || IS_ERR(mm))
+		goto out_free;
 
 	pagemap_walk.pmd_entry = pagemap_pte_range;
 	pagemap_walk.pte_hole = pagemap_pte_hole;
@@ -833,7 +832,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 		len = min(count, PM_ENTRY_BYTES * pm.pos);
 		if (copy_to_user(buf, pm.buffer, len)) {
 			ret = -EFAULT;
-			goto out_free;
+			goto out_mm;
 		}
 		copied += len;
 		buf += len;
@@ -843,10 +842,10 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	if (!ret || ret == PM_END_OF_BUFFER)
 		ret = copied;
 
-out_free:
-	kfree(pm.buffer);
 out_mm:
 	mmput(mm);
+out_free:
+	kfree(pm.buffer);
 out_task:
 	put_task_struct(task);
 out:
