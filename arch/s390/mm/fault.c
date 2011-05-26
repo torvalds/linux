@@ -485,7 +485,6 @@ int pfault_init(void)
 		"2:\n"
 		EX_TABLE(0b,1b)
 		: "=d" (rc) : "a" (&refbk), "m" (refbk) : "cc");
-        __ctl_set_bit(0, 9);
         return rc;
 }
 
@@ -500,7 +499,6 @@ void pfault_fini(void)
 
 	if (!MACHINE_IS_VM || pfault_disable)
 		return;
-	__ctl_clear_bit(0,9);
 	asm volatile(
 		"	diag	%0,0,0x258\n"
 		"0:\n"
@@ -615,6 +613,7 @@ static int __init pfault_irq_init(void)
 	rc = pfault_init() == 0 ? 0 : -EOPNOTSUPP;
 	if (rc)
 		goto out_pfault;
+	ctl_set_bit(0, 9);
 	hotcpu_notifier(pfault_cpu_notify, 0);
 	return 0;
 
