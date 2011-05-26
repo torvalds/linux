@@ -61,8 +61,7 @@
 #include <linux/delay.h>
 
 
-#define VERSION_STRING DRIVER_DESC " 2.1d (build date: " \
-					__DATE__ " " __TIME__ ")"
+#define VERSION_STRING DRIVER_DESC " 2.1d"
 
 /*    Macros definitions */
 

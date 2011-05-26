@@ -381,7 +381,7 @@ struct rioVersion *RIOVersid(void)
 {
     strlcpy(stVersion.version, "RIO driver for linux V1.0",
 	    sizeof(stVersion.version));
-    strlcpy(stVersion.buildDate, __DATE__,
+    strlcpy(stVersion.buildDate, "Aug 15 2010",
 	    sizeof(stVersion.buildDate));
 
     return &stVersion;

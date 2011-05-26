@@ -33,7 +33,7 @@
 /*
  * Alter this version for the I5400 module when modifications are made
  */
-#define I5400_REVISION    " Ver: 1.0.0 " __DATE__
+#define I5400_REVISION    " Ver: 1.0.0"
 
 #define EDAC_MOD_STR      "i5400_edac"
 

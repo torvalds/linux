@@ -12,7 +12,7 @@
 #ifndef _MV64X60_EDAC_H_
 #define _MV64X60_EDAC_H_
 
-#define MV64x60_REVISION " Ver: 2.0.0 " __DATE__
+#define MV64x60_REVISION " Ver: 2.0.0"
 #define EDAC_MOD_STR	"MV64x60_edac"
 
 #define mv64x60_printk(level, fmt, arg...) \

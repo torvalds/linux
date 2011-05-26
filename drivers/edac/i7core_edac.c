@@ -59,7 +59,7 @@ MODULE_PARM_DESC(use_pci_fixup, "Enable PCI fixup to seek for hidden devices");
 /*
  * Alter this version for the module when modifications are made
  */
-#define I7CORE_REVISION    " Ver: 1.0.0 " __DATE__
+#define I7CORE_REVISION    " Ver: 1.0.0"
 #define EDAC_MOD_STR      "i7core_edac"
 
 /*
