@@ -1078,9 +1078,9 @@ int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
 	return (active > inactive);
 }
 
-unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
-				       struct zone *zone,
-				       enum lru_list lru)
+unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
+						struct zone *zone,
+						enum lru_list lru)
 {
 	int nid = zone_to_nid(zone);
 	int zid = zone_idx(zone);
