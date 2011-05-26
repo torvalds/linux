@@ -548,7 +548,7 @@ int iser_connect(struct iser_conn   *ib_conn,
 	iser_conn_get(ib_conn); /* ref ib conn's cma id */
 	ib_conn->cma_id = rdma_create_id(iser_cma_handler,
 					     (void *)ib_conn,
-					     RDMA_PS_TCP);
+					     RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(ib_conn->cma_id)) {
 		err = PTR_ERR(ib_conn->cma_id);
 		iser_err("rdma_create_id failed: %d\n", err);
