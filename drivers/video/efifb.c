@@ -330,7 +330,7 @@ static int __init efifb_setup(char *options)
 	return 0;
 }
 
-static int __devinit efifb_probe(struct platform_device *dev)
+static int __init efifb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	int err;
@@ -500,7 +500,6 @@ err_release_mem:
 }
 
 static struct platform_driver efifb_driver = {
-	.probe	= efifb_probe,
 	.driver	= {
 		.name	= "efifb",
 	},
@@ -531,13 +530,21 @@ static int __init efifb_init(void)
 	if (!screen_info.lfb_linelength)
 		return -ENODEV;
 
-	ret = platform_driver_register(&efifb_driver);
+	ret = platform_device_register(&efifb_device);
+	if (ret)
+		return ret;
 
-	if (!ret) {
-		ret = platform_device_register(&efifb_device);
-		if (ret)
-			platform_driver_unregister(&efifb_driver);
+	/*
+	 * This is not just an optimization.  We will interfere
+	 * with a real driver if we get reprobed, so don't allow
+	 * it.
+	 */
+	ret = platform_driver_probe(&efifb_driver, efifb_probe);
+	if (ret) {
+		platform_device_unregister(&efifb_driver);
+		return ret;
 	}
+
 	return ret;
 }
 module_init(efifb_init);
