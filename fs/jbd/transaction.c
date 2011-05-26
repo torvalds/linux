@@ -844,8 +844,8 @@ int journal_get_create_access(handle_t *handle, struct buffer_head *bh)
 	 */
 	JBUFFER_TRACE(jh, "cancelling revoke");
 	journal_cancel_revoke(handle, jh);
-	journal_put_journal_head(jh);
 out:
+	journal_put_journal_head(jh);
 	return err;
 }
 
