@@ -280,7 +280,8 @@ static inline int do_exception(struct pt_regs *regs, int access,
 	struct mm_struct *mm;
 	struct vm_area_struct *vma;
 	unsigned long address;
-	int fault, write;
+	unsigned int flags;
+	int fault;
 
 	if (notify_page_fault(regs))
 		return 0;
@@ -299,6 +300,10 @@ static inline int do_exception(struct pt_regs *regs, int access,
 
 	address = trans_exc_code & __FAIL_ADDR_MASK;
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
+	flags = FAULT_FLAG_ALLOW_RETRY;
+	if (access == VM_WRITE || (trans_exc_code & store_indication) == 0x400)
+		flags |= FAULT_FLAG_WRITE;
+retry:
 	down_read(&mm->mmap_sem);
 
 	fault = VM_FAULT_BADMAP;
@@ -328,21 +333,31 @@ static inline int do_exception(struct pt_regs *regs, int access,
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	write = (access == VM_WRITE ||
-		 (trans_exc_code & store_indication) == 0x400) ?
-		FAULT_FLAG_WRITE : 0;
-	fault = handle_mm_fault(mm, vma, address, write);
+	fault = handle_mm_fault(mm, vma, address, flags);
 	if (unlikely(fault & VM_FAULT_ERROR))
 		goto out_up;
 
-	if (fault & VM_FAULT_MAJOR) {
-		tsk->maj_flt++;
-		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
-				     regs, address);
-	} else {
-		tsk->min_flt++;
-		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
-				     regs, address);
+	/*
+	 * Major/minor page fault accounting is only done on the
+	 * initial attempt. If we go through a retry, it is extremely
+	 * likely that the page will be found in page cache at that point.
+	 */
+	if (flags & FAULT_FLAG_ALLOW_RETRY) {
+		if (fault & VM_FAULT_MAJOR) {
+			tsk->maj_flt++;
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+				      regs, address);
+		} else {
+			tsk->min_flt++;
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+				      regs, address);
+		}
+		if (fault & VM_FAULT_RETRY) {
+			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
+			 * of starvation. */
+			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			goto retry;
+		}
 	}
 	/*
 	 * The instruction that caused the program check will
