@@ -248,12 +248,15 @@ static int hiddev_release(struct inode * inode, struct file * file)
 			usbhid_close(list->hiddev->hid);
 			usbhid_put_power(list->hiddev->hid);
 		} else {
+			mutex_unlock(&list->hiddev->existancelock);
 			kfree(list->hiddev);
+			kfree(list);
+			return 0;
 		}
 	}
 
-	kfree(list);
 	mutex_unlock(&list->hiddev->existancelock);
+	kfree(list);
 
 	return 0;
 }
