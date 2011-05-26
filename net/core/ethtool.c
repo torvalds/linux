@@ -233,6 +233,29 @@ static int ethtool_set_feature_compat(struct net_device *dev,
 	return 1;
 }
 
+static int ethtool_set_flags_compat(struct net_device *dev,
+	int (*legacy_set)(struct net_device *, u32),
+	struct ethtool_set_features_block *features, u32 mask)
+{
+	u32 value;
+
+	if (!legacy_set)
+		return 0;
+
+	if (!(features[0].valid & mask))
+		return 0;
+
+	value = dev->features & ~features[0].valid;
+	value |= features[0].requested;
+
+	features[0].valid &= ~mask;
+
+	if (legacy_set(dev, value & mask) < 0)
+		netdev_info(dev, "Legacy flags change failed\n");
+
+	return 1;
+}
+
 static int ethtool_set_features_compat(struct net_device *dev,
 	struct ethtool_set_features_block *features)
 {
@@ -249,7 +272,7 @@ static int ethtool_set_features_compat(struct net_device *dev,
 		features, NETIF_F_ALL_TSO);
 	compat |= ethtool_set_feature_compat(dev, dev->ethtool_ops->set_rx_csum,
 		features, NETIF_F_RXCSUM);
-	compat |= ethtool_set_feature_compat(dev, dev->ethtool_ops->set_flags,
+	compat |= ethtool_set_flags_compat(dev, dev->ethtool_ops->set_flags,
 		features, flags_dup_features);
 
 	return compat;
