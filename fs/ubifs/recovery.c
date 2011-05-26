@@ -604,7 +604,8 @@ static int drop_last_node(struct ubifs_scan_leb *sleb, int *offs, int grouped)
  * @lnum: LEB number
  * @offs: offset
  * @sbuf: LEB-sized buffer to use
- * @grouped: nodes may be grouped for recovery
+ * @jhead: journal head number this LEB belongs to (%-1 if the LEB does not
+ *         belong to any journal head)
  *
  * This function does a scan of a LEB, but caters for errors that might have
  * been caused by the unclean unmount from which we are attempting to recover.
@@ -612,13 +613,14 @@ static int drop_last_node(struct ubifs_scan_leb *sleb, int *offs, int grouped)
  * found, and a negative error code in case of failure.
  */
 struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
-					 int offs, void *sbuf, int grouped)
+					 int offs, void *sbuf, int jhead)
 {
 	int ret = 0, err, len = c->leb_size - offs, start = offs, min_io_unit;
+	int grouped = jhead == -1 ? 0 : c->jheads[jhead].grouped;
 	struct ubifs_scan_leb *sleb;
 	void *buf = sbuf + offs;
 
-	dbg_rcvry("%d:%d", lnum, offs);
+	dbg_rcvry("%d:%d, jhead %d, grouped %d", lnum, offs, jhead, grouped);
 
 	sleb = ubifs_start_scan(c, lnum, offs, sbuf);
 	if (IS_ERR(sleb))
@@ -881,7 +883,7 @@ struct ubifs_scan_leb *ubifs_recover_log_leb(struct ubifs_info *c, int lnum,
 		}
 		ubifs_scan_destroy(sleb);
 	}
-	return ubifs_recover_leb(c, lnum, offs, sbuf, 0);
+	return ubifs_recover_leb(c, lnum, offs, sbuf, -1);
 }
 
 /**
